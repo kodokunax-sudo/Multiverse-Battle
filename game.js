@@ -62,43 +62,46 @@ function getStarMult() { return 1 + rebirthCount * 0.3; }
 
 function createCard(r) {
     let templates = customCardTemplates[r] || [];
-    let useTemplate = false, template = null;
-    let alwaysUseTemplate = ["Легендарная","Секретная","Эволюционная","Босс"].includes(r);
-    
+    let template = null;
+
+    // Всегда используем шаблон, если он подходит по minRebirth
     if (templates.length > 0) {
         let validTemplates = templates.filter(t => (t.minRebirth || 0) <= rebirthCount);
         if (validTemplates.length > 0) {
-            if (alwaysUseTemplate) {
-                template = validTemplates[Math.floor(Math.random() * validTemplates.length)];
-                useTemplate = true;
-            } else if (Math.random() < (r === "Босс" ? 0.3 : 0.7)) {
-                template = validTemplates[Math.floor(Math.random() * validTemplates.length)];
-                useTemplate = true;
-            }
+            template = validTemplates[Math.floor(Math.random() * validTemplates.length)];
+        } else if (templates.length > 0) {
+            // Если ни один шаблон не подходит по minRebirth, берём первый попавшийся
+            template = templates[0];
         }
     }
+
+    // Если шаблон всё ещё не найден (такого почти не бывает), создаём с базовыми статами
+    if (!template) {
+        let s = cardStats[r] || { damage: 5, hp: 10, sellPrice: 10 };
+        return {
+            id: Date.now() + Math.random() * 10000,
+            name: r, rarity: r, damage: s.damage, hp: s.hp,
+            sellPrice: s.sellPrice, ability: null, universe: "?",
+            unsellable: false, minRebirth: 0,
+            statusAbility: null, extraStatus: null
+        };
+    }
+
     let s = cardStats[r] || { damage: 5, hp: 10, sellPrice: 10 };
-    let n, d, hp, sp, a, u, uns;
-    if (useTemplate) {
-        n = template.name;
-        d = template.damage ?? s.damage;
-        hp = template.hp ?? s.hp;
-        sp = template.sellPrice ?? s.sellPrice;
-        a = template.ability || null;
-        u = template.universe || "?";
-        uns = template.unsellable || false;
-        if (!discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); sfxCardObtain(); }
-    } else {
-        if (r === "Босс") {
-            n = "Босс-призрак"; d = s.damage; hp = s.hp; sp = s.sellPrice;
-            a = null; u = "Боссы"; uns = false;
-        } else {
-            let names = ["Герой","Воин","Странник","Маг","Рыцарь"];
-            n = names[Math.floor(Math.random() * names.length)];
-            d = s.damage; hp = s.hp; sp = s.sellPrice;
-            a = null; u = "Фэнтези"; uns = false;
-        }
+    let n = template.name;
+    let d = template.damage ?? s.damage;
+    let hp = template.hp ?? s.hp;
+    let sp = template.sellPrice ?? s.sellPrice;
+    let a = template.ability || null;
+    let u = template.universe || "?";
+    let uns = template.unsellable || false;
+
+    if (!discoveredCards.includes(n)) {
+        discoveredCards.push(n);
+        saveAll();
+        sfxCardObtain();
     }
+
     return {
         id: Date.now() + Math.random() * 10000,
         name: n, rarity: r, damage: d, hp: hp,
