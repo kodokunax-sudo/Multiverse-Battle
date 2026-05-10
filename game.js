@@ -78,7 +78,7 @@ function createCard(r) {
     let useTemplate = false, template = null;
 
     // Для высоких редкостей ВСЕГДА используем шаблон, если он подходит по minRebirth
-    let alwaysUseTemplate = ["Легендарная","Секретная","Эволюционная","Босс"].includes(r);
+    let alwaysUseTemplate = [""].includes(r);
     
     if (templates.length > 0) {
         let validTemplates = templates.filter(t => (t.minRebirth || 0) <= rebirthCount);
