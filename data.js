@@ -38,7 +38,7 @@ const customCardTemplates = {
         { name: "Брук", universe: "One Piece", damage: 7, hp: 12 }, { name: "Иноске", universe: "DS", damage: 9, hp: 15 }, { name: "Киллуа", universe: "HxH", damage: 10, hp: 13 }, { name: "Рейген", universe: "Mob 100", damage: 4, hp: 25 }, { name: "Марк (слабый)", universe: "Invincible", damage: 8, hp: 18 }, { name: "ММ (Марвин)", universe: "The Boys", damage: 7, hp: 20 }, { name: "Кимико (начало)", universe: "The Boys", damage: 9, hp: 14 }, { name: "Ева Уилкинс", universe: "Invincible", damage: 6, hp: 22 }
     ],
     "Сверх редкая": [
-        { name: "Луффи (2 гир)", universe: "One Piece", damage: 16, hp: 25 }, { name: "Зоро (до таймскипа) ", universe: "One Piece", damage: 18, hp: 22 }, { name: "Санджи (до таймскипа) ", universe: "One Piece", damage: 16, hp: 20 }, { name: "Гаара", universe: "Naruto", damage: 17, hp: 28 }, { name: "Эмир", universe: "AoT", damage: 25, hp: 10 }, { name: "Эрен (Кадет) ", universe: "AoT", damage: 27, hp: 10 }, { name: "Коби (Солдат) ", universe: "One Piece", damage: 15, hp: 30 }, { name: "Ренджи", universe: "Bleach", damage: 15, hp: 25 }, { name: "Киришима", universe: "MHA", damage: 13, hp: 35 }, { name: "Райан (Ребенок) ", universe: "The Boys", damage: 20, hp: 25 }, { name: "Рекс Слоан", universe: "Invincible", damage: 18, hp: 28 }, { name: "Дупли-Кейт", universe: "Invincible", damage: 15, hp: 20 }, { name: "Пучино", universe: "The Boys", damage: 17, hp: 26 }, { name: "Мреющий", universe: "The Boys", damage: 19, hp: 24 }
+        { name: "Луффи (2 гир)", universe: "One Piece", damage: 16, hp: 25 }, { name: "Зоро (до таймскипа) ", universe: "One Piece", damage: 18, hp: 22 }, { name: "Санджи (до таймскипа) ", universe: "One Piece", damage: 16, hp: 20 }, { name: "Гаара", universe: "Naruto", damage: 17, hp: 28 }, { name: "Эмир", universe: "AoT", damage: 25, hp: 10 }, { name: "Эрен (Кадет) ", universe: "AoT", damage: 27, hp: 10 }, { name: "Коби (Солдат) ", universe: "One Piece", damage: 15, hp: 30 }, { name: "Ренджи", universe: "Bleach", damage: 15, hp: 25 }, { name: "Киришима", universe: "MHA", damage: 13, hp: 35 }, { name: "Райан (Ребенок) ", universe: "The Boys", damage: 20, hp: 25 }, { name: "Рекс Слоан", universe: "Invincible", damage: 18, hp: 28 }, { name: "Дупли-Кейт", universe: "Invincible", damage: 15, hp: 20 }, { name: "Пучино", universe: "The Boys", damage: 17, hp: 26 }, { name: "Мреющий", universe: "The Boys", damage:9 , hp: 40 }
     ],
     "Эпик": [
         { name: "Луффи (Таймскип)", universe: "One Piece", damage: 28, hp: 45, ability: { type: "damageMultChance", chance: 0.35, mult: 1.3, desc: "35% урон x1.3" } },
@@ -50,7 +50,6 @@ const customCardTemplates = {
         { name: "Какаши", universe: "Naruto", damage: 26, hp: 42 },
         { name: "Галактический Коби", universe: "One Piece", damage: 32, hp: 45, ability: { type: "critChance", value: 0.05, desc: "+5% крит" } },
         { name: "Хоумлендер (ослаб.)", universe: "The Boys", damage: 38, hp: 45 },
-        { name: "Омни-Мэн (сдерж.)", universe: "Invincible", damage: 40, hp: 55, ability: { type: "damageAura", value: 0.05, desc: "+5% урона" } },
         { name: "Робот (Руди)", universe: "Invincible", damage: 30, hp: 48 },
         { name: "Чёрный Нуар", universe: "The Boys", damage: 35, hp: 52, ability: { type: "damageReduction", value: 0.07, desc: "-7% урона" } },
         { name: "Кимико", universe: "The Boys", damage: 32, hp: 48, ability: { type: "teamHealOnWave", value: 0.02, desc: "Хил 2% за волну" } },
@@ -58,23 +57,24 @@ const customCardTemplates = {
     ],
     "Мифическая": [
         { name: "Луффи (4 гир)", universe: "One Piece", damage: 45, hp: 75, ability: { type: "damageReduction", value: 0.15, desc: "-15% урона" } },
-        { name: "Наруто (Мудрец)", universe: "Naruto", damage: 52, hp: 85, statusAbility: { type: "bleed", value: 0.05, desc: "Кровотечение +5%" } },
+        { name: "Наруто (Мудрец)", universe: "Naruto", damage: 52, hp: 85, statusAbility: { type: "bleed", value: 0.10, desc: "Кровотечение +10%" } },
         { name: "Гоку (SSJ)", universe: "DB", damage: 60, hp: 70, ability: { type: "bossDamage", value: 0.10, desc: "+10% боссам" } },
-        { name: "Годжо", universe: "JJK", damage: 67, hp: 67, statusAbility: { type: "shock", chance: 0.1, desc: "Шок 10%" } },
+        { name: "Годжо", universe: "JJK", damage: 66, hp: 66, statusAbility: { type: "shock", chance: 0.1, desc: "Шок 10%" } },
         { name: "Сукуна (15)", universe: "JJK", damage: 70, hp: 70, statusAbility: { type: "bleed", value: 0.08, desc: "Кровотечение +8%" } },
         { name: "Эйс", universe: "One Piece", damage: 70, hp: 47, statusAbility: { type: "fire", damage: 5, duration: 5000, desc: "Огонь 5/сек" } },
         { name: "Дядя Гарп", universe: "One Piece", damage: 55, hp: 90, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" } },
-        { name: "Марк (Вилтрумит)", universe: "Invincible", damage: 65, hp: 80, ability: { type: "critChance", value: 0.30, desc: "+30% крит" } },
+        { name: "Марк (Вилтрумит)", universe: "Invincible", damage: 65, hp: 80, ability: { type: "critChance", value: 0.20, desc: "+20% крит" } },
         { name: "Ло (Пробуждение)", universe: "One Piece", damage: 68, hp: 72, statusAbility: { type: "shock", chance: 0.12, desc: "Шок 12%" } },
         { name: "Кинг (Пламя)", universe: "One Piece", damage: 72, hp: 68, statusAbility: { type: "fire", damage: 8, duration: 4000, desc: "Огонь 8/сек" } },
         { name: "Зверь (Бист)", universe: "The Boys", damage: 65, hp: 85, statusAbility: { type: "bleed", value: 0.07, desc: "Кровотечение +7%" } },
-        { name: "Королева Мэйв", universe: "The Boys", damage: 70, hp: 88, ability: { type: "damageReduction", value: 0.10, desc: "-10% урона" } },
-        { name: "Солдатик", universe: "The Boys", damage: 72, hp: 82, ability: { type: "bossDamage", value: 0.12, desc: "+12% боссам" } },
+        { name: "Королева Мэйв", universe: "The Boys", damage: 70, hp: 88, ability: { type: "damageReduction", value: 0.15, desc: "-15% меньше урона" } },
+        { name: "Солдатик(флешбек)", universe: "The Boys", damage: 72, hp: 82, ability: { type: "bossDamage", value: 0.12, desc: "+12% боссам" } },
         { name: "Штормфронт", universe: "The Boys", damage: 68, hp: 78, statusAbility: { type: "shock", chance: 0.15, desc: "Электричество 15%" } },
+        { name: "Омни-Мэн (сдерж.)", universe: "Invincible", damage: 70, hp: 70, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" } },
         { name: "Звёздочка", universe: "The Boys", damage: 65, hp: 80, statusAbility: { type: "blind", value: 2, desc: "Ослепление +2" } }
     ],
     "Легендарная": [
-        { name: "Кудзан", universe: "One Piece", damage: 85, hp: 120, statusAbility: { type: "freezeStacks", value: 3, desc: "Заморозка +3" } },
+        { name: "Кудзан", universe: "One Piece", damage: 85, hp: 120, statusAbility: { type: "freezeStacks", value: 2, desc: "Заморозка +2" } },
         { name: "Шанкс", universe: "One Piece", damage: 95, hp: 90, ability: { type: "critChance", value: 0.15, desc: "+15% крит" } },
         { name: "Хоумлендер", universe: "The Boys", damage: 115, hp: 125, ability: { type: "bossDamage", value: 0.18, desc: "+18% боссам" }, statusAbility: { type: "fire", damage: 10, duration: 3000, desc: "Лазеры 10/сек" } },
         { name: "Наруто (Барион)", universe: "Naruto", damage: 100, hp: 120, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" }, statusAbility: { type: "bleed", value: 0.1, desc: "Кровотечение +10%" } },
@@ -117,15 +117,16 @@ const customCardTemplates = {
     "Пасхалка": [
         { name: "Пельмешка", universe: "Кухня", damage: 35, hp: 60, unsellable: true, ability: { type: "luckAura", value: 0.50, desc: "+50% удачи" } },
         { name: "Попугай Соня", universe: "Зоопарк", damage: 3, hp: 5, unsellable: true, ability: { type: "deathBonus", value: 0.30, desc: "+30% звёзд" } },
-        { name: "Титан-новичок", universe: "AoT", damage: 20, hp: 50, unsellable: true, ability: { type: "fatigueResist", value: 0.50, desc: "-50% усталости" } }
+        { name: "Кофе", universe: "AoT", damage: 20, hp: 50, unsellable: true, ability: { type: "fatigueResist", value: 0.50, desc: "-50% усталости" } }
     ]
 };
 
 // ========== БОССЫ И ДИАЛОГИ ==========
 const bossTemplates = {
     100: { name: "Король Демонов", hpMult: 8, dmgMult: 5, dialogue: "Ты думаешь, что сможешь одолеть меня? Глупец.", enemyStatus: { type: "freezeStacks", value: 1 }, canSpare: true, spareReward: "Король Демонов" },
-    200: { name: "Маджин Буу", hpMult: 12, dmgMult: 7, dialogue: "Буу голоден! Ты станешь конфетой!", enemyStatus: { type: "bleed", value: 0.2 }, canSpare: true, spareReward: "Маджин Буу" },
+    200: { name: "Маджин Буу", hpMult: 12, dmgMult: 7, dialogue: "Буу , я голоден! Ты станешь моим обедом!", enemyStatus: { type: "bleed", value: 0.2 }, canSpare: true, spareReward: "Маджин Буу" },
     300: { name: "Дзирэн", hpMult: 15, dmgMult: 9, dialogue: "Сила — это абсолютная справедливость.", enemyStatus: { type: "shock", chance: 0.2 }, canSpare: true },
+    300: { name: "Трактарист", hpMult: 15, dmgMult: 9, dialogue: "У трактариста. АХХАХАХАХА", enemyStatus: { type: "shock", chance: 0.5 }, canSpare: true },
     500: { name: "Король Пиратов", hpMult: 25, dmgMult: 15, dialogue: "Мое сокровище? Ищите! Я всё оставил там!", canSpare: true, spareReward: "Король Пиратов", isSpecial: true },
     10000: { name: "Охотник за головами (Финальная форма)", hpMult: 100, dmgMult: 50, dialogue: "Хах, пока вас не было я тренировался целыми днями ради этого момента! Теперь за вашу голову готовы отдать 100.000 тенге!", canSpare: false, hasDialog: true }
 };
