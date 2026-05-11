@@ -1,6 +1,6 @@
 // ========== ЗВУКИ ==========
 const AudioCtx = window.AudioContext || window.webkitAudioContext; let audioCtx;
-function initAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
+function initAudio() { if (audioCtx) { if (audioCtx.state === 'suspended') audioCtx.resume(); return; } audioCtx = new AudioCtx(); }
 function playSound(freq, type, duration, vol = 0.15) { if (!audioCtx) return; const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.type = type; o.frequency.setValueAtTime(freq, audioCtx.currentTime); g.gain.setValueAtTime(vol, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + duration); }
 function sfxClick() { playSound(600, 'square', 0.08); }
 function sfxCrit() { playSound(900, 'sawtooth', 0.15); }
@@ -135,7 +135,7 @@ const finalBossResponses = [
     { text: "Может договоримся?", response: "Договоримся? После всего что было? НЕТ!", mood: "💢" }
 ];
 
-// ========== КОНСТАНТЫ И БАЗОВЫЕ СТАТЫ ==========
+// ========== КОНСТАНТЫ ==========
 const totalTemplatesCount = Object.values(customCardTemplates).flat().length;
 const rarities = ["Обычная","Редкая","Сверх редкая","Эпик","Мифическая","Легендарная","Секретная","Эволюционная","Босс","Пасхалка"];
 const rarityColors = { "Обычная":"common","Редкая":"rare","Сверх редкая":"superrare","Эпик":"epic","Мифическая":"mythic","Легендарная":"legendary","Секретная":"secret","Эволюционная":"evolutionary","Босс":"boss-rarity","Пасхалка":"easter" };
@@ -143,10 +143,21 @@ const cardStats = { "Обычная":{damage:3,hp:5,sellPrice:20},"Редкая"
 let cardWeights = { "Обычная":45,"Редкая":25,"Сверх редкая":12,"Эпик":8,"Мифическая":5,"Легендарная":3,"Секретная":1.5,"Эволюционная":0.0001,"Босс":0.5 };
 const enemyNames = ["Эльф-лучник","Голем","Орк-берсерк","Слизь-убийца","Гоблин-шаман","Скелет-воин","Тёмный маг","Вампир-князь","Драконий прихвостень","Лесной дух","Кровавый берсерк","Ледяной элементаль"];
 const enemyStatusPool = [null, null, null, { type: "freezeStacks", value: 1 }, { type: "bleed", value: 0.1 }, { type: "shock", chance: 0.1 }];
-
-// ========== МАГАЗИН: ТОВАРЫ ==========
 const shopItemsPool = { common: [{ name: "Обычная карта", type: "card", rarity: "Обычная", cost: 25 }, { name: "Зелье урона x1.3", type: "buff", buffId: "dmg13", duration: 7200000, cost: 150 }], rare: [{ name: "Редкая карта", type: "card", rarity: "Редкая", cost: 55 }, { name: "Зелье удачи", type: "buff", buffId: "luck13", duration: 7200000, cost: 150 }], epic: [{ name: "Эпик карта", type: "card", rarity: "Эпик", cost: 180 }, { name: "Зелье урона x2", type: "buff", buffId: "doubleDamage", duration: 14400000, cost: 800 }] };
 const specialPotions = [{ name: "🧪 Зелье урона x4", desc: "12 часов", buffId: "quadDamage", duration: 43200000, cost: 3000 }, { name: "🧪 Зелье звёзд x2", desc: "6 часов", buffId: "doubleStars", duration: 21600000, cost: 5000 }, { name: "🧪 Зелье HP x3", desc: "4 часа", buffId: "tripleHp", duration: 14400000, cost: 2000 }];
 const bulkSellOptions = [{ name: "Обычные", rarity: "Обычная" }, { name: "Редкие", rarity: "Редкая" }, { name: "Сверхредкие", rarity: "Сверх редкая" }, { name: "Эпики", rarity: "Эпик" }, { name: "Мифические", rarity: "Мифическая" }, { name: "Легендарные", rarity: "Легендарная" }];
 const autoRestOptions = [{ name: "90%", threshold: 90 }, { name: "80%", threshold: 80 }, { name: "70%", threshold: 70 }, { name: "60%", threshold: 60 }, { name: "50%", threshold: 50 }];
 const codeList = { "PELMESHKA": { type: "card", rarity: "Пасхалка", tpl: "Пельмешка", points: 1000 }, "Хочу Звезды": { type: "points", amount: 500 }, "Сила": { type: "buff", buffId: "dmg13", duration: 86400000 }, "789456123": { type: "moderUnlock" } };
+const worldMusicNotes = {
+    "Лес начала и конца": [262, 294, 330, 349, 392, 349, 330, 294],
+    "Огненная пустошь": [392, 440, 494, 523, 494, 440, 392, 349],
+    "Гранд Лайн": [523, 587, 659, 698, 784, 698, 659, 587],
+    "Замороженные земли": [349, 330, 294, 262, 294, 330, 349, 294],
+    "Тёмное измерение": [440, 494, 523, 587, 659, 587, 523, 494],
+    "Небесный дворец": [587, 659, 784, 880, 784, 659, 587, 523],
+    "Бездна отчаяния": [196, 220, 247, 262, 247, 220, 196, 165],
+    "Предел силы": [330, 392, 440, 523, 440, 392, 330, 262],
+    "Космическая пустота": [247, 262, 294, 330, 294, 262, 247, 220],
+    "Финальный рубеж": [523, 440, 392, 330, 392, 440, 523, 659],
+    "Возвращение Охотника": [440, 494, 523, 587, 659, 587, 523, 494]
+};
