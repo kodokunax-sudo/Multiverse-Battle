@@ -13,6 +13,32 @@ function selectSlot(slot) {
     currentSlot = slot;
     let saved = loadGameFromSlot(slot);
     let meta = loadSlotMeta(slot);
+    
+    // Если слот пустой, пробуем перенести старое сохранение
+    if (!saved && slot === 0) {
+        let oldData = localStorage.getItem("cgV20") || localStorage.getItem("cgV19") || localStorage.getItem("cgV18");
+        if (oldData) {
+            try {
+                let d = JSON.parse(oldData);
+                if (d.myCards && d.myCards.length > 0) {
+                    if (confirm("Найдено старое сохранение! Перенести в Слот 1?")) {
+                        loadGameData(d);
+                        slotData.nickname = meta.nickname || "Игрок";
+                        saveGameToSlot(slot);
+                        document.getElementById("slotSelectScreen").style.display = "none";
+                        document.getElementById("gameScreen").style.display = "block";
+                        document.getElementById("nicknameDisplay").innerText = slotData.nickname;
+                        localStorage.setItem("cgV20_lastSlot", slot);
+                        renderAll(); updateLevelDisplay(); updateFatigue(); updateRestBtn(); updateClaimTimer();
+                        setMode(mode);
+                        document.getElementById("afkWave").innerText = wave;
+                        return;
+                    }
+                }
+            } catch(e) {}
+        }
+    }
+    
     if (saved) {
         loadGameData(saved);
     } else {
