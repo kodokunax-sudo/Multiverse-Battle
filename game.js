@@ -163,14 +163,13 @@ function showSlotSelectScreen() {
 function showNicknamePrompt(slot) {
     let meta = loadSlotMeta(slot);
     let nickname = prompt("Введите ник для слота " + (slot + 1) + ":", meta.nickname);
-    if (nickname !== null && nickname.trim() !== "") {
+    if (nickname === null) return;
+    if (nickname.trim() === "" && !meta.exists) return;
+    if (nickname.trim() !== "") {
         meta.nickname = nickname.trim();
-        saveSlotMeta(slot, meta);
-        showSlotSelectScreen();
     }
-    if (nickname !== null && nickname.trim() === "" && meta.exists) {
-        selectSlot(slot);
-    }
+    saveSlotMeta(slot, meta);
+    selectSlot(slot);
 }
 function renderSlotsInGame() {
     let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
