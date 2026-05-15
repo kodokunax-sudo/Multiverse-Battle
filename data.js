@@ -32,13 +32,44 @@ function getWorldForWave(w) { for (let world of worlds) { if (w >= world.minWave
 // ========== ШАБЛОНЫ КАРТ ==========
 const customCardTemplates = {
     "Обычная": [
-        { name: "Луффи", universe: "One Piece", damage: 4, hp: 8 }, { name: "Усопп", universe: "One Piece", damage: 3, hp: 6 }, { name: "Нами", universe: "One Piece", damage: 2, hp: 8 }, { name: "Ездок", universe: "OPM", damage: 1, hp: 11 }, { name: "Деку (безпричудный) ", universe: "MHA", damage: 2, hp: 12 }, { name: "Консперон (обычный) ", universe: "Dandadan", damage: 4, hp: 5 }, { name: "Танджиро", universe: "DS", damage: 3, hp: 10 }, { name: "Уборщик Коби", universe: "One piece", damage: 1, hp: 1 }, { name: "Аста", universe: "Black Clover", damage: 3, hp: 8 }, { name: "Хьюи (слабый)", universe: "The Boys", damage: 2, hp: 10 }, { name: "Френчи", universe: "The Boys", damage: 4, hp: 6 }, { name: "Дональд", universe: "Invincible", damage: 3, hp: 9 }
+        { name: "Луффи", universe: "One Piece", damage: 4, hp: 8 },
+        { name: "Усопп", universe: "One Piece", damage: 3, hp: 6 },
+        { name: "Нами", universe: "One Piece", damage: 2, hp: 8 },
+        { name: "Ездок", universe: "OPM", damage: 1, hp: 11 },
+        { name: "Деку (безпричудный) ", universe: "MHA", damage: 2, hp: 12, ability: { type: "spareChanceBonus", value: 0.05, desc: "+5% к пощаде" } },
+        { name: "Консперон (обычный) ", universe: "Dandadan", damage: 4, hp: 5 },
+        { name: "Танджиро", universe: "DS", damage: 3, hp: 10 },
+        { name: "Уборщик Коби", universe: "One piece", damage: 1, hp: 1 },
+        { name: "Аста", universe: "Black Clover", damage: 3, hp: 8 },
+        { name: "Хьюи (слабый)", universe: "The Boys", damage: 2, hp: 10 },
+        { name: "Френчи", universe: "The Boys", damage: 4, hp: 6 },
+        { name: "Дональд", universe: "Invincible", damage: 3, hp: 9 }
     ],
     "Редкая": [
-        { name: "Брук", universe: "One Piece", damage: 7, hp: 12 }, { name: "Иноске", universe: "DS", damage: 9, hp: 15 }, { name: "Киллуа", universe: "HxH", damage: 10, hp: 13 }, { name: "Рейген", universe: "Mob 100", damage: 4, hp: 25 }, { name: "Марк (слабый)", universe: "Invincible", damage: 8, hp: 18 }, { name: "ММ (Марвин)", universe: "The Boys", damage: 7, hp: 20 }, { name: "Кимико (начало)", universe: "The Boys", damage: 9, hp: 14 }, { name: "Ева Уилкинс", universe: "Invincible", damage: 6, hp: 22 }
+        { name: "Брук", universe: "One Piece", damage: 7, hp: 12 },
+        { name: "Иноске", universe: "DS", damage: 9, hp: 15 },
+        { name: "Киллуа", universe: "HxH", damage: 10, hp: 13 },
+        { name: "Рейген", universe: "Mob 100", damage: 4, hp: 25 },
+        { name: "Марк (слабый)", universe: "Invincible", damage: 8, hp: 18 },
+        { name: "ММ (Марвин)", universe: "The Boys", damage: 7, hp: 20 },
+        { name: "Кимико (начало)", universe: "The Boys", damage: 9, hp: 14 },
+        { name: "Ева Уилкинс", universe: "Invincible", damage: 6, hp: 22 }
     ],
     "Сверх редкая": [
-        { name: "Луффи (2 гир)", universe: "One Piece", damage: 16, hp: 25 }, { name: "Зоро (до таймскипа) ", universe: "One Piece", damage: 18, hp: 22 }, { name: "Санджи (до таймскипа) ", universe: "One Piece", damage: 16, hp: 20 }, { name: "Гаара", universe: "Naruto", damage: 17, hp: 28 }, { name: "Эмир", universe: "AoT", damage: 25, hp: 10 }, { name: "Эрен (Кадет) ", universe: "AoT", damage: 27, hp: 10 }, { name: "Коби (Солдат) ", universe: "One Piece", damage: 15, hp: 30 }, { name: "Ренджи", universe: "Bleach", damage: 15, hp: 25 }, { name: "Киришима", universe: "MHA", damage: 13, hp: 35 }, { name: "Райан (Ребенок) ", universe: "The Boys", damage: 20, hp: 25 }, { name: "Рекс Слоан", universe: "Invincible", damage: 18, hp: 28 }, { name: "Дупли-Кейт", universe: "Invincible", damage: 15, hp: 20 }, { name: "Пучино", universe: "The Boys", damage: 17, hp: 26 }, { name: "Мреющий", universe: "The Boys", damage:9 , hp: 40 }
+        { name: "Луффи (2 гир)", universe: "One Piece", damage: 16, hp: 25 },
+        { name: "Зоро (до таймскипа) ", universe: "One Piece", damage: 18, hp: 22 },
+        { name: "Санджи (до таймскипа) ", universe: "One Piece", damage: 16, hp: 20 },
+        { name: "Гаара", universe: "Naruto", damage: 17, hp: 28 },
+        { name: "Эмир", universe: "AoT", damage: 25, hp: 10 },
+        { name: "Эрен (Кадет) ", universe: "AoT", damage: 27, hp: 10 },
+        { name: "Коби (Солдат) ", universe: "One Piece", damage: 15, hp: 30 },
+        { name: "Ренджи", universe: "Bleach", damage: 15, hp: 25 },
+        { name: "Киришима", universe: "MHA", damage: 13, hp: 35 },
+        { name: "Райан (Ребенок) ", universe: "The Boys", damage: 20, hp: 25 },
+        { name: "Рекс Слоан", universe: "Invincible", damage: 18, hp: 28 },
+        { name: "Дупли-Кейт", universe: "Invincible", damage: 15, hp: 20 },
+        { name: "Пучино", universe: "The Boys", damage: 17, hp: 26 },
+        { name: "Мреющий", universe: "The Boys", damage: 9, hp: 40 }
     ],
     "Эпик": [
         { name: "Луффи (Таймскип)", universe: "One Piece", damage: 28, hp: 45, ability: { type: "damageMultChance", chance: 0.35, mult: 1.3, desc: "35% урон x1.3" } },
@@ -53,7 +84,8 @@ const customCardTemplates = {
         { name: "Робот (Руди)", universe: "Invincible", damage: 30, hp: 48 },
         { name: "Чёрный Нуар", universe: "The Boys", damage: 35, hp: 52, ability: { type: "damageReduction", value: 0.07, desc: "-7% урона" } },
         { name: "Кимико", universe: "The Boys", damage: 32, hp: 48, ability: { type: "teamHealOnWave", value: 0.02, desc: "Хил 2% за волну" } },
-        { name: "Ракета", universe: "The Boys", damage: 38, hp: 40, ability: { type: "nonBossOneShot", chance: 0.03, desc: "3% ваншот (не босс)" } }
+        { name: "Ракета", universe: "The Boys", damage: 38, hp: 40, ability: { type: "nonBossOneShot", chance: 0.03, desc: "3% ваншот (не босс)" } },
+        { name: "Деку (5%)", universe: "MHA", damage: 34, hp: 44, ability: { type: "spareChanceBonus", value: 0.08, desc: "+8% к пощаде" }, statusAbility: { type: "clickDmgSelf", value: 0.02, desc: "-2% HP за клик" } }
     ],
     "Мифическая": [
         { name: "Луффи (4 гир)", universe: "One Piece", damage: 45, hp: 75, ability: { type: "damageReduction", value: 0.15, desc: "-15% урона" } },
@@ -69,9 +101,10 @@ const customCardTemplates = {
         { name: "Виктория Ньюман", universe: "The Boys", damage: 65, hp: 85, statusAbility: { type: "bleed", value: 0.20, desc: "Кровотечение +20%" } },
         { name: "Королева Мэйв", universe: "The Boys", damage: 70, hp: 88, ability: { type: "damageReduction", value: 0.15, desc: "-15% меньше урона" } },
         { name: "Солдатик (флешбек)", universe: "The Boys", damage: 72, hp: 82, ability: { type: "bossDamage", value: 0.12, desc: "+12% боссам" } },
-        { nae: "Штормфронт", universe: "The Boys", damage: 68, hp: 78, statusAbility: { type: "shock", chance: 0.15, desc: "Электричество 15%" } },
+        { name: "Штормфронт", universe: "The Boys", damage: 68, hp: 78, statusAbility: { type: "shock", chance: 0.15, desc: "Электричество 15%" } },
         { name: "Ален (перерождённый)", universe: "Invincible", damage: 70, hp: 70, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" } },
-        { name: "Звёздочка", universe: "The Boys", damage: 65, hp: 80, statusAbility: { type: "blind", value: 2, desc: "Ослепление +2" } }
+        { name: "Звёздочка", universe: "The Boys", damage: 65, hp: 80, statusAbility: { type: "blind", value: 2, desc: "Ослепление +2" } },
+        { name: "Деку: полное покрытие (20%)", universe: "MHA", damage: 58, hp: 68, ability: { type: "spareChanceBonus", value: 0.10, desc: "+10% к пощаде" }, statusAbility: { type: "dmgTakenIncrease", value: 0.10, desc: "+10% получ. урона" } }
     ],
     "Легендарная": [
         { name: "Кудзан", universe: "One Piece", damage: 85, hp: 120, statusAbility: { type: "freezeStacks", value: 2, desc: "Заморозка +2" } },
@@ -91,8 +124,8 @@ const customCardTemplates = {
         { name: "Сайтама", universe: "OPM", damage: 200, hp: 300, sellPrice: 1500, minRebirth: 3, ability: { type: "oneShot", chance: 0.05, desc: "5% ваншот" } },
         { name: "Борос", universe: "OPM", damage: 180, hp: 350, sellPrice: 1400, minRebirth: 2, ability: { type: "healOnWin", percent: 0.05, desc: "+5% HP" } },
         { name: "Бог Усопп", universe: "One Piece", damage: 250, hp: 400, sellPrice: 2000, minRebirth: 3, ability: { type: "resurrect", chance: 0.05, desc: "5% воскрес" } },
-        { name: "Зено", universe: "DB", damage: 300, hp: 500, sellPrice: 3000, minRebirth: 4, ability: { type: "fatigueResist", value: 0.30, desc: "-30% усталости" }, statusAbility: { type: "poison", damage: 5000, desc: "Яд 5000" } },
-        { name: "Анти-спираль", universe: "GL", damage: 280, hp: 450, sellPrice: 2500, minRebirth: 2, ability: { type: "damageReduction", value: 0.15, desc: "-15% урона" } },
+        { name: "Зено", universe: "DB", damage: 300, hp: 500, sellPrice: 3000, minRebirth: 4, ability: { type: "zenoCheckpoint", desc: "10% след. чекпоинт" }, statusAbility: { type: "fatigueResist", value: 0.30, desc: "-30% усталости" } },
+        { name: "Анти-спираль", universe: "GL", damage: 280, hp: 450, sellPrice: 2500, minRebirth: 2, ability: { type: "damageReduction", value: 0.30, desc: "-30% урона" } },
         { name: "Молодой Гарп", universe: "One Piece", damage: 260, hp: 380, sellPrice: 2500, minRebirth: 3, ability: { type: "damageAura", value: 0.25, desc: "+25% урона" } },
         { name: "Им (Правитель)", universe: "One Piece", damage: 290, hp: 450, sellPrice: 3000, minRebirth: 5, ability: { type: "bossDamage", value: 0.20, desc: "+20% боссам" } },
         { name: "Бэтмен (Который смеётся)", universe: "DC", damage: 250, hp: 380, sellPrice: 2200, minRebirth: 3, ability: { type: "critChance", value: 0.15, desc: "+15% крит" }, statusAbility: { type: "shock", chance: 0.20, desc: "Шок 20%" } },
@@ -126,7 +159,6 @@ const bossTemplates = {
     100: { name: "Король Демонов", hpMult: 8, dmgMult: 5, dialogue: "Ты думаешь, что сможешь одолеть меня? Глупец.", enemyStatus: { type: "freezeStacks", value: 1 }, canSpare: true, spareReward: "Король Демонов" },
     200: { name: "Маджин Буу", hpMult: 12, dmgMult: 7, dialogue: "Буу , я голоден! Ты станешь моим обедом!", enemyStatus: { type: "bleed", value: 0.2 }, canSpare: true, spareReward: "Маджин Буу" },
     300: { name: "Дзирэн", hpMult: 15, dmgMult: 9, dialogue: "Сила — это абсолютная справедливость.", enemyStatus: { type: "shock", chance: 0.2 }, canSpare: true },
-    300: { name: "Трактарист", hpMult: 15, dmgMult: 9, dialogue: "У трактариста. АХХАХАХАХА", enemyStatus: { type: "shock", chance: 0.5 }, canSpare: true },
     500: { name: "Король Пиратов", hpMult: 25, dmgMult: 15, dialogue: "Мое сокровище? Ищите! Я всё оставил там!", canSpare: true, spareReward: "Король Пиратов", isSpecial: true },
     10000: { name: "Охотник за головами (Финальная форма)", hpMult: 100, dmgMult: 50, dialogue: "Хах, пока вас не было я тренировался целыми днями ради этого момента! Теперь за вашу голову готовы отдать 100.000 тенге!", canSpare: false, hasDialog: true }
 };
@@ -141,7 +173,7 @@ const totalTemplatesCount = Object.values(customCardTemplates).flat().length;
 const rarities = ["Обычная","Редкая","Сверх редкая","Эпик","Мифическая","Легендарная","Секретная","Эволюционная","Босс","Пасхалка"];
 const rarityColors = { "Обычная":"common","Редкая":"rare","Сверх редкая":"superrare","Эпик":"epic","Мифическая":"mythic","Легендарная":"legendary","Секретная":"secret","Эволюционная":"evolutionary","Босс":"boss-rarity","Пасхалка":"easter" };
 const cardStats = { "Обычная":{damage:3,hp:5,sellPrice:20},"Редкая":{damage:6,hp:10,sellPrice:45},"Сверх редкая":{damage:12,hp:20,sellPrice:90},"Эпик":{damage:20,hp:35,sellPrice:150},"Мифическая":{damage:35,hp:60,sellPrice:260},"Легендарная":{damage:60,hp:100,sellPrice:450},"Секретная":{damage:100,hp:180,sellPrice:800},"Эволюционная":{damage:500,hp:1000,sellPrice:0},"Босс":{damage:80,hp:150,sellPrice:1000},"Пасхалка":{damage:10,hp:20,sellPrice:0} };
-let cardWeights = { "Обычная":45,"Редкая":25,"Сверх редкая":12,"Эпик":8,"Мифическая":5,"Легендарная":3,"Секретная":1.5,"Эволюционная":0.0001,"Босс":0.5 };
+let cardWeights = { "Обычная":45,"Редкая":25,"Сверх редкая":12,"Эпик":8,"Мифическая":5,"Легендарная":3,"Секретная":1.5,"Эволюционная":0.0001,"Босс":0.05 };
 const enemyNames = ["Эльф-лучник","Голем","Орк-берсерк","Слизь-убийца","Гоблин-шаман","Скелет-воин","Тёмный маг","Вампир-князь","Драконий прихвостень","Лесной дух","Кровавый берсерк","Ледяной элементаль"];
 const enemyStatusPool = [null, null, null, { type: "freezeStacks", value: 1 }, { type: "bleed", value: 0.1 }, { type: "shock", chance: 0.1 }];
 const shopItemsPool = { common: [{ name: "Обычная карта", type: "card", rarity: "Обычная", cost: 25 }, { name: "Зелье урона x1.3", type: "buff", buffId: "dmg13", duration: 7200000, cost: 150 }], rare: [{ name: "Редкая карта", type: "card", rarity: "Редкая", cost: 55 }, { name: "Зелье удачи", type: "buff", buffId: "luck13", duration: 7200000, cost: 150 }], epic: [{ name: "Эпик карта", type: "card", rarity: "Эпик", cost: 180 }, { name: "Зелье урона x2", type: "buff", buffId: "doubleDamage", duration: 14400000, cost: 800 }] };
