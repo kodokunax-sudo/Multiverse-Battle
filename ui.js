@@ -37,7 +37,9 @@ function renderGlobalStats() {
         '<div>⭐ Максимум звёзд: <b>' + maxPoints + '</b></div>' +
         '<div>🌊 Текущая волна: <b>' + wave + '</b></div>' +
         '<div>💀 Всего поражений: <b>' + defeatHistory.length + '</b></div>' +
-        '<div>🏆 Всего побед: <b>' + totalWins + '</b></div>';
+        '<div>🏆 Всего побед: <b>' + totalWins + '</b></div>' +
+        '<div>🔄 Ребиртхов: <b>' + rebirthCount + '</b></div>' +
+        (gameCompleted ? '<div>🏆 <b>ИГРА ПРОЙДЕНА!</b></div>' : '');
 }
 function renderModerControls() {
     let el = document.getElementById("moderControls");
@@ -48,5 +50,5 @@ function renderModerControls() {
         el.style.display = "none";
     }
 }
-function renderCheckpoints() { let c = document.getElementById("checkpointList"); let html = ''; let maxCp = Math.floor(wave / 50) * 50; for (let cp = 50; cp <= maxCp; cp += 50) { html += '<div class="checkpoint-item"><div>🚩 Волна ' + cp + '</div><button class="btn ' + (activeCheckpoint === cp ? 'auto-active' : '') + '" style="padding:6px 12px;" onclick="toggleCheckpoint(' + cp + ')">' + (activeCheckpoint === cp ? 'Выбрано ✅' : 'Выбрать ▶') + '</button></div>'; } c.innerHTML = html || "<div style='text-align:center;padding:15px;color:#888;font-weight:bold;'>Дойдите до 50 волны</div>"; }
+function renderCheckpoints() { let c = document.getElementById("checkpointList"); let html = ''; let maxCp = Math.max(highestCheckpoint, Math.floor(wave / 50) * 50); for (let cp = 50; cp <= maxCp; cp += 50) { let unlocked = cp <= highestCheckpoint; html += '<div class="checkpoint-item" style="opacity:' + (unlocked ? '1' : '0.5') + '"><div>🚩 Волна ' + cp + (unlocked ? '' : ' 🔒') + '</div><button class="btn ' + (activeCheckpoint === cp ? 'auto-active' : '') + '" style="padding:6px 12px;" onclick="toggleCheckpoint(' + cp + ')" ' + (unlocked ? '' : 'disabled') + '>' + (activeCheckpoint === cp ? 'Выбрано ✅' : 'Выбрать ▶') + '</button></div>'; } c.innerHTML = html || "<div style='text-align:center;padding:15px;color:#888;font-weight:bold;'>Дойдите до 50 волны</div>"; }
 function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); updatePlayerStats(); updateStatusDisplay(); }
