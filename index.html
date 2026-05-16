@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Аниме Кликер v29 — Обновление</title>
+    <title>Аниме Кликер v30</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap');
         :root { --bg: #1a1a2e; --card-bg: #1e1e2f; --btn-bg: #2c2c3a; --gold: #f5af19; --red: #e74c3c; --green: #2ecc71; --boss: #ff4500; }
@@ -111,7 +111,7 @@
         .slot-select:hover { border-color: #f5af19; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(245,175,25,0.3); }
         .slot-select.active { border-color: #2ecc71; box-shadow: 0 0 15px rgba(46,204,113,0.3); }
         .nickname-display { background: linear-gradient(135deg, #f5af19, #f12711); color: white; padding: 3px 10px; border-radius: 15px; font-weight: 800; font-size: 12px; display: inline-block; margin-left: 8px; }
-        .global-stats { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px; margin-top: 5px; }
+        .global-stats { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px; margin-top: 5px; display:flex; flex-direction:column; gap:6px; }
     </style>
 </head>
 <body>
@@ -243,9 +243,9 @@
     <div class="modal-content" id="modalContent" onclick="event.stopPropagation()"></div>
 </div>
 
-<script src="images.js"></script>
-<script src="data.js"></script>
-<script src="game.js"></script>
-<script src="ui.js"></script>
+<script src="images.js?v=30"></script>
+<script src="data.js?v=30"></script>
+<script src="game.js?v=30"></script>
+<script src="ui.js?v=30"></script>
 </body>
 </html>
