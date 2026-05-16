@@ -160,7 +160,7 @@ const bossTemplates = {
     200: { name: "Маджин Буу", hpMult: 12, dmgMult: 7, dialogue: "Буу , я голоден! Ты станешь моим обедом!", enemyStatus: { type: "bleed", value: 0.2 }, canSpare: true, spareReward: "Маджин Буу" },
     300: { name: "Дзирэн", hpMult: 15, dmgMult: 9, dialogue: "Сила — это абсолютная справедливость.", enemyStatus: { type: "shock", chance: 0.2 }, canSpare: true },
     500: { name: "Король Пиратов", hpMult: 25, dmgMult: 15, dialogue: "Мое сокровище? Ищите! Я всё оставил там!", canSpare: true, spareReward: "Король Пиратов", isSpecial: true },
-    10000: { name: "Охотник за головами (Финальная форма)", hpMult: 100, dmgMult: 50, dialogue: "Хах, пока вас не было я тренировался целыми днями ради этого момента! Теперь за вашу голову готовы отдать 100.000 тенге!", canSpare: false, hasDialog: true }
+    10000: { name: "Охотник за головами (Финальная форма)", hpMult: 100, dmgMult: 50, dialogue: "Хах, пока вас не было я тренировался целыми днями ради этого момента! Теперь за вашу голову готовы отдать 100.000 тенге!", canSpare: true, spareReward: "Охотник за головами", hasDialog: true }
 };
 const finalBossResponses = [
     { text: "100.000 тенге? Это сколько? 10 копеек?", response: "Незнаю... Просто много ноликов и вот я подумал, что это много....", mood: "😅" },
