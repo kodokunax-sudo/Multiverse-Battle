@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Аниме Кликер v28 — Слоты сохранений</title>
+    <title>Аниме Кликер v29 — Обновление</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap');
         :root { --bg: #1a1a2e; --card-bg: #1e1e2f; --btn-bg: #2c2c3a; --gold: #f5af19; --red: #e74c3c; --green: #2ecc71; --boss: #ff4500; }
@@ -111,6 +111,7 @@
         .slot-select:hover { border-color: #f5af19; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(245,175,25,0.3); }
         .slot-select.active { border-color: #2ecc71; box-shadow: 0 0 15px rgba(46,204,113,0.3); }
         .nickname-display { background: linear-gradient(135deg, #f5af19, #f12711); color: white; padding: 3px 10px; border-radius: 15px; font-weight: 800; font-size: 12px; display: inline-block; margin-left: 8px; }
+        .global-stats { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -166,7 +167,7 @@
                     <div id="enemyContainer" class="enemy-card"></div>
                     <div id="dialogBox" style="display:none;"></div>
                     <div class="click-area" id="clickArea">💥 НАЖМИ ДЛЯ АТАКИ! 💥</div>
-                    <button id="spareBtn" class="btn btn-boss" style="width:100%;padding:15px;margin:10px 0;display:none;" onclick="spareBoss()">🤝 ПОЩАДИТЬ БОССА (50% шанс)</button>
+                    <button id="spareBtn" class="btn btn-boss" style="width:100%;padding:15px;margin:10px 0;display:none;" onclick="spareBoss()">🤝 ПОЩАДИТЬ БОССА (30%)</button>
                     <div class="fight-stats"><div>💪 Урон: <span id="playerDamage">0</span></div><div>❤️ HP: <span id="playerHp">100</span>/<span id="playerMaxHp">100</span></div><div>⏳ Удар через: <span id="clicksToCounter">3</span></div><div>⭐ Награда: <span id="rewardPreview">1</span></div></div>
                     <div id="fightResult" style="margin-top:12px;font-weight:900;text-align:center;min-height:24px;font-size:16px;"></div>
                 </div>
@@ -223,10 +224,14 @@
                 <button class="sub-tab-btn" data-subtab="rebirthStats">📊 Статистика</button>
             </div>
             <div id="rebirthMainSubTab" class="sub-tab-content active">
-                <div class="card"><div class="card-title">🔄 Ребиртх (Престиж)</div><div id="rebirthInfo"></div><button id="doRebirthBtn" class="btn btn-primary" style="width:100%;margin-top:20px;padding:15px;font-size:16px;">🔄 Совершить Ребиртх!</button></div>
+                <div class="card"><div class="card-title">🔄 Ребиртх (Престиж)</div><div id="rebirthInfo"></div><button id="doRebirthBtn" class="btn btn-primary" style="width:100%;margin-top:20px;padding:15px;font-size:16px;">🔄 Совершить Ребиртх!</button>
+                <div id="moderControls" style="display:none;margin-top:15px;">
+                    <button id="goWaveBtn" class="btn btn-primary" style="width:100%;padding:12px;background:linear-gradient(135deg,#9b59b6,#e056fd);">🌀 Перейти на волну</button>
+                </div></div>
             </div>
             <div id="rebirthStatsSubTab" class="sub-tab-content">
                 <div class="card"><div class="card-title">📊 Статистика ребиртхов</div><div id="rebirthStatsList" style="display:flex;flex-direction:column;gap:10px;"></div></div>
+                <div class="card" style="margin-top:15px;"><div class="card-title">📈 Общая статистика</div><div id="globalStats" class="global-stats"></div></div>
             </div>
         </div>
         <div id="slotsTab" class="tab-content">
