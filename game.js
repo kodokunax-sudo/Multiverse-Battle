@@ -372,7 +372,8 @@ function victory() {
     saveAll();
 }
 
-function defeat() {
+
+        function defeat() {
     if (!resurrectedThisFight) {
         for (let idx of team) {
             let cd = myCards[idx];
@@ -400,6 +401,14 @@ function defeat() {
     if (defeatHistory.length > 10) defeatHistory.pop();
     sfxDefeat();
     
+    // ВАЖНО: Сохраняем чекпоинт перед смертью
+    // Если игрок прошёл дальше 50, 100, 150 и т.д. — сохраняем
+    let nearestCheckpoint = Math.floor(wave / 50) * 50;
+    if (nearestCheckpoint > highestCheckpoint) {
+        highestCheckpoint = nearestCheckpoint;
+    }
+    
+    // Восстанавливаемся на чекпоинте
     if (activeCheckpoint > 0 && activeCheckpoint <= highestCheckpoint) {
         wave = activeCheckpoint;
         playerHp = window.playerMaxHp || 100;
@@ -413,9 +422,33 @@ function defeat() {
         renderEnemy();
         renderDefeatHistory();
         updatePlayerStats();
+        renderCheckpoints();
         return;
     }
     
+    // Если нет активного чекпоинта — спрашиваем какой использовать
+    if (highestCheckpoint > 1) {
+        let useCp = confirm("💀 Вы погибли на волне " + wave + "!\n\nУ вас есть чекпоинт на волне " + highestCheckpoint + ".\n\nНачать с чекпоинта? (OK = Да, Отмена = с 1 волны)");
+        if (useCp) {
+            activeCheckpoint = highestCheckpoint;
+            wave = highestCheckpoint;
+            playerHp = window.playerMaxHp || 100;
+            clicksSinceLastCounter = 0;
+            fatigue = Math.max(0, fatigue - 20);
+            updateFatigue();
+            updateRestBtn();
+            resurrectedThisFight = false;
+            generateEnemy();
+            saveAll();
+            renderEnemy();
+            renderDefeatHistory();
+            updatePlayerStats();
+            renderCheckpoints();
+            return;
+        }
+    }
+    
+    // Сброс на 1 волну
     wave = 1;
     playerHp = window.playerMaxHp || 100;
     clicksSinceLastCounter = 0;
