@@ -47,39 +47,29 @@ function finishSlotLoad(slot) {
     document.getElementById("gameScreen").style.display = "block";
     document.getElementById("nicknameDisplay").innerText = slotData.nickname || loadSlotMeta(slot).nickname;
     localStorage.setItem("cgV20_lastSlot", slot);
+    
     team = team.filter(i => myCards[i]);
     if (team.length > 6) team = team.slice(0, 6);
     afkTeam = afkTeam.filter(i => myCards[i]);
     if (afkTeam.length > 6) afkTeam = afkTeam.slice(0, 6);
     
-    // ИСПРАВЛЕНИЕ: Полное обновление всех данных перед отрисовкой
-    updatePlayerStats();
+    refreshShop();
+    generateEnemy();
+    saveAll();
+    
+    // ПОЛНОЕ ОБНОВЛЕНИЕ ВСЕГО UI БЕЗ ЗАДЕРЖЕК
+    renderAll();
     updateLevelDisplay();
     updateFatigue();
     updateRestBtn();
     updateClaimTimer();
-    updateStatusDisplay();
-    updateEnemyStatusDisplay();
-    
-    refreshShop();
-    generateEnemy();
-    
-    // ИСПРАВЛЕНИЕ: Вызываем renderAll после подготовки данных
-    saveAll();
-    renderAll();
-    
-    // ИСПРАВЛЕНИЕ: Обновляем специфичные элементы
-    document.getElementById("afkWave").innerText = wave;
-    document.getElementById("waveNumber").innerText = wave;
     setMode(mode);
-    renderSlotsInGame();
     
-    // ИСПРАВЛЕНИЕ: Дополнительное принудительное обновление
-    renderPoints();
-    renderMyCards();
-    renderTeam();
-    renderAfkTeam();
-    renderEnemy();
+    document.getElementById("waveNumber").innerText = wave;
+    document.getElementById("afkWave").innerText = wave;
+    document.getElementById("playerHp").innerText = Math.floor(playerHp);
+    
+    if (afkActive) stopAfk();
 }
 
 function loadGameData(d) {
@@ -171,7 +161,7 @@ function victory() {
         }
         renderMyCards();
         
-        // ИСПРАВЛЕНИЕ: Обновляем чекпоинт только для волн кратных 50 при победе над боссом
+        // ИСПРАВЛЕНИЕ: Обновляем чекпоинт только при победе над боссом на волне кратной 50
         if (wave % 50 === 0) {
             highestCheckpoint = Math.max(highestCheckpoint, wave);
         }
@@ -242,7 +232,7 @@ function defeat() {
     if (defeatHistory.length > 10) defeatHistory.pop();
     sfxDefeat();
     
-    // ИСПРАВЛЕНИЕ: Сохраняем highestCheckpoint перед восстановлением
+    // ИСПРАВЛЕНИЕ: Сохраняем highestCheckpoint на случай если игрок прошёл дальше
     if (wave > highestCheckpoint) {
         highestCheckpoint = Math.max(1, Math.floor(wave / 50) * 50);
     }
@@ -255,18 +245,14 @@ function defeat() {
         updateFatigue();
         updateRestBtn();
         resurrectedThisFight = false;
-        
-        // ИСПРАВЛЕНИЕ: Генерируем врага и сохраняем
         generateEnemy();
         saveAll();
-        
         renderEnemy();
         renderDefeatHistory();
         updatePlayerStats();
         return;
     }
     
-    // Если нет доступного чекпоинта
     wave = 1;
     playerHp = window.playerMaxHp || 100;
     clicksSinceLastCounter = 0;
@@ -276,7 +262,6 @@ function defeat() {
     updateRestBtn();
     resurrectedThisFight = false;
     saveAll();
-    
     renderEnemy();
     renderDefeatHistory();
     updatePlayerStats();
@@ -347,23 +332,39 @@ function renderSlotsInGame() {
 function switchToSlot(slot) {
     if (slot === currentSlot) return;
     saveAll();
-    selectSlot(slot);
-    // ИСПРАВЛЕНИЕ: Принудительное обновление после загрузки слота
-    setTimeout(() => {
-        renderAll();
-        updatePlayerStats();
-        updateLevelDisplay();
-        renderPoints();
-        document.getElementById("waveNumber").innerText = wave;
-        document.getElementById("afkWave").innerText = wave;
-    }, 100);
+    // ЗАГРУЖАЕМ НАПРЯМУЮ БЕЗ ВЫЗОВА selectSlot
+    currentSlot = slot;
+    let saved = loadGameFromSlot(slot);
+    let meta = loadSlotMeta(slot);
+    if (saved) {
+        loadGameData(saved);
+    } else {
+        initNewGame();
+        slotData.nickname = meta.nickname;
+    }
+    slotData.nickname = slotData.nickname || meta.nickname;
+    saveGameToSlot(slot);
+    finishSlotLoad(slot);
+    renderSlotsInGame();
 }
 function setMode(m) { if (m === "moder" && !moderUnlocked) return; mode = m; saveAll(); updateClaimTimer(); document.querySelectorAll(".toggle span").forEach(s => s.classList.toggle("active", s.dataset.mode === m)); }
 
 document.addEventListener("DOMContentLoaded", function () {
     let lastSlot = parseInt(localStorage.getItem("cgV20_lastSlot") || "-1");
     if (lastSlot >= 0 && lastSlot < 3 && loadSlotMeta(lastSlot).exists) {
-        selectSlot(lastSlot);
+        // ЗАГРУЖАЕМ НАПРЯМУЮ
+        currentSlot = lastSlot;
+        let saved = loadGameFromSlot(lastSlot);
+        let meta = loadSlotMeta(lastSlot);
+        if (saved) {
+            loadGameData(saved);
+        } else {
+            initNewGame();
+            slotData.nickname = meta.nickname;
+        }
+        slotData.nickname = slotData.nickname || meta.nickname;
+        saveGameToSlot(lastSlot);
+        finishSlotLoad(lastSlot);
     } else {
         showSlotSelectScreen();
     }
@@ -384,19 +385,5 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".sub-tab-btn").forEach(function (btn) { btn.addEventListener("click", function () { var parent = this.parentElement; while (parent && !parent.classList.contains("tab-content")) { parent = parent.parentElement; } if (!parent) return; switchSubTab(this.dataset.subtab, parent.id); }); });
     document.querySelectorAll(".toggle span").forEach(function (s) { s.addEventListener("click", function () { setMode(this.dataset.mode); }); });
     if (!moderUnlocked) document.querySelector('.toggle span[data-mode="moder"]').style.display = "none";
-    
-    // ИСПРАВЛЕНИЕ: Оптимизированный интервал обновления
-    setInterval(function () { 
-        if (currentSlot >= 0) { 
-            updatePlayerStats(); 
-            updateClaimTimer(); 
-            checkFreeSpinReset(); 
-            if (Date.now() - (lastChallengeReset || 0) >= 86400000) genChallenges(); 
-            // Сохраняем только если были изменения
-            if (window._needSave) {
-                saveAll();
-                window._needSave = false;
-            }
-        } 
-    }, 1000);
+    setInterval(function () { if (currentSlot >= 0) { renderShop(); renderActiveBuffs(); updatePlayerStats(); renderFreeSpins(); checkFreeSpinReset(); updateClaimTimer(); if (Date.now() - (lastChallengeReset || 0) >= 86400000) genChallenges(); saveAll(); } }, 1000);
 });
