@@ -134,15 +134,15 @@ let shopMusic = null;
 let currentMusic = null;
 
 function initMusic() {
-    mainMusic = new Audio("main.mp3");
+    mainMusic = new Audio("music/main.mp3");
     mainMusic.loop = true;
     mainMusic.volume = 0.3;
     
-    battleMusic = new Audio("battle.mp3");
+    battleMusic = new Audio("music/battle.mp3");
     battleMusic.loop = true;
     battleMusic.volume = 0.3;
     
-    shopMusic = new Audio("shop.mp3");
+    shopMusic = new Audio("music/shop.mp3");
     shopMusic.loop = true;
     shopMusic.volume = 0.3;
 }
