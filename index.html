@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Аниме Кликер v32 — Арена Undertale</title>
+    <title>Аниме Кликер v33 — Арена Undertale</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap');
         :root { --bg: #1a1a2e; --card-bg: #1e1e2f; --btn-bg: #2c2c3a; --gold: #f5af19; --red: #e74c3c; --green: #2ecc71; --boss: #ff4500; }
@@ -112,10 +112,8 @@
         .slot-select.active { border-color: #2ecc71; box-shadow: 0 0 15px rgba(46,204,113,0.3); }
         .nickname-display { background: linear-gradient(135deg, #f5af19, #f12711); color: white; padding: 3px 10px; border-radius: 15px; font-weight: 800; font-size: 12px; display: inline-block; margin-left: 8px; }
         .global-stats { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px; margin-top: 5px; display:flex; flex-direction:column; gap:6px; }
-        .arena-btn { background: #444; color: white; border: 1px solid #666; padding: 8px 16px; border-radius: 20px; font-weight: 800; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 13px; transition: 0.2s; }
-        .arena-btn:hover { background: #555; transform: translateY(-2px); }
-        .arena-btn.exit { background: #c0392b; border-color: #e74c3c; }
-        .arena-btn.exit:hover { background: #e74c3c; }
+        .arena-btn { background: #444; color: white; border: 1px solid #666; padding: 10px 24px; border-radius: 30px; font-weight: 900; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 16px; transition: all 0.2s; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+        .arena-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
@@ -250,18 +248,14 @@
 <!-- Арена Undertale -->
 <div id="arenaOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:200;flex-direction:column;align-items:center;justify-content:center;">
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
-        <div style="color:white;font-size:20px;font-weight:900;" id="arenaBossName">БОСС</div>
+        <div style="color:white;font-size:22px;font-weight:900;" id="arenaBossName">БОСС</div>
     </div>
     <div style="color:white;font-size:14px;margin-bottom:5px;">❤️ <span id="arenaHP">30</span> | ⏱️ <span id="arenaTimer">∞</span></div>
     <canvas id="arenaCanvas" width="400" height="500" style="border:3px solid white;background:#0a0a1a;border-radius:12px;cursor:crosshair;"></canvas>
     <div style="display:flex;gap:10px;margin-top:8px;">
-        <button id="arenaPauseBtn" class="arena-btn" onclick="toggleArenaPause()">⏸ Пауза</button>
-        <button class="arena-btn exit" onclick="exitArena()">🚪 Выйти</button>
+        <button class="arena-btn" onclick="startArena(wave)" style="background:linear-gradient(135deg,#f5af19,#e65c00);border:none;font-size:18px;padding:12px 28px;">⚔️ Начать бой</button>
     </div>
     <div style="color:#aaa;margin-top:5px;font-size:12px;">🖱️ Двигай мышкой / пальцем чтобы уклоняться!</div>
-</div>
-<div id="arenaPauseOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:201;align-items:center;justify-content:center;">
-    <div style="color:white;font-size:48px;">⏸</div>
 </div>
 
 <script src="images.js"></script>
@@ -270,4 +264,4 @@
 <script src="battle.js"></script>
 <script src="ui.js"></script>
 </body>
-                    </html>
+</html>
