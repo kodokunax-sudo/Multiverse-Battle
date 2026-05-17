@@ -152,7 +152,7 @@ function startAttackPhase() {
         let attempts = 0;
         do {
             x = 55 + Math.random() * 290;
-            y = 100 + Math.random() * 330;
+            y = 600 + Math.random() * 330;
             tooClose = false;
             for (let p of usedPositions) {
                 let dx = x - p.x, dy = y - p.y;
