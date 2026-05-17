@@ -1,13 +1,17 @@
-// ========== АРЕНА UNDERTALE v2 ==========
+// ========== АРЕНА UNDERTALE v3 ==========
 let arenaActive = false;
 let arenaBoss = null;
-let arenaHP = 100;
-let arenaTimer = 30;
+let arenaHP = 30; // Базовое HP
+let arenaMaxHP = 30;
 let arenaInterval = null;
 let arenaAttackInterval = null;
 let arenaPhase = "dodge"; // dodge или attack
-let arenaAttackReady = false;
 let arenaBossMaxHP = 1000;
+let arenaAttackType = 0; // 0 = белые (обычные), 1 = синие (быстрые рандомные)
+let arenaClickTargets = []; // Круглые цели для фазы атаки
+let arenaClicksHit = 0;
+let arenaTotalTargets = 8;
+let arenaAttackTimeLeft = 2;
 
 // Сердечко
 let heart = { x: 200, y: 400, size: 15 };
@@ -43,11 +47,25 @@ function initArena() {
         heart.y = Math.max(heart.size, Math.min(500 - heart.size, heart.y));
     });
     
+    canvas.addEventListener("click", (e) => {
+        if (!arenaActive) return;
+        if (arenaPhase === "attack") {
+            let rect = canvas.getBoundingClientRect();
+            let mx = e.clientX - rect.left;
+            let my = e.clientY - rect.top;
+            checkClickTarget(mx, my);
+            return;
+        }
+    });
+    
     canvas.addEventListener("touchstart", (e) => {
         if (!arenaActive) return;
         e.preventDefault();
         if (arenaPhase === "attack") {
-            doArenaAttack();
+            let rect = canvas.getBoundingClientRect();
+            let mx = e.touches[0].clientX - rect.left;
+            let my = e.touches[0].clientY - rect.top;
+            checkClickTarget(mx, my);
             return;
         }
         let rect = canvas.getBoundingClientRect();
@@ -56,22 +74,43 @@ function initArena() {
         heart.x = Math.max(heart.size, Math.min(400 - heart.size, heart.x));
         heart.y = Math.max(heart.size, Math.min(500 - heart.size, heart.y));
     });
-    
-    canvas.addEventListener("click", () => {
-        if (!arenaActive) return;
-        if (arenaPhase === "attack") {
-            doArenaAttack();
+}
+
+function checkClickTarget(mx, my) {
+    for (let i = arenaClickTargets.length - 1; i >= 0; i--) {
+        let t = arenaClickTargets[i];
+        let dx = mx - t.x;
+        let dy = my - t.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < t.radius && !t.hit) {
+            t.hit = true;
+            arenaClicksHit++;
+            break;
+        }
+    }
+}
+
+function calculateArenaHP() {
+    // Базовое HP = 30
+    // Каждая карта в команде добавляет: floor(HP_карты / 50)
+    let bonus = 0;
+    team.forEach(idx => {
+        let cd = myCards[idx];
+        if (cd) {
+            bonus += Math.floor(cd.hp / 50);
         }
     });
+    arenaMaxHP = 30 + bonus;
+    arenaHP = arenaMaxHP;
 }
 
 function startArena(bossWave) {
     arenaActive = true;
-    arenaHP = 100;
-    arenaTimer = 30;
-    attacks = [];
+    calculateArenaHP();
+    arenaClickTargets = [];
+    arenaClicksHit = 0;
     arenaPhase = "dodge";
-    arenaAttackReady = false;
+    attacks = [];
     heart.x = 200;
     heart.y = 400;
     
@@ -79,102 +118,168 @@ function startArena(bossWave) {
     arenaBoss = bt ? bt.name : "БОСС";
     arenaBossMaxHP = bt ? Math.floor((50 + bossWave * 12) * bt.hpMult) : 1000;
     
+    // Определяем тип атак босса
+    if (bossWave === 50) {
+        arenaAttackType = 0; // Белые — обычные
+    } else if (bossWave === 100) {
+        arenaAttackType = 1; // Синие — быстрые
+    } else {
+        arenaAttackType = Math.random() < 0.5 ? 0 : 1;
+    }
+    
     document.getElementById("arenaOverlay").style.display = "flex";
     document.getElementById("arenaBossName").innerText = arenaBoss;
     document.getElementById("arenaHP").innerText = arenaHP;
-    document.getElementById("arenaTimer").innerText = arenaTimer;
+    document.getElementById("arenaTimer").innerText = "∞";
     
     if (!ctx) initArena();
     
-    // Таймер
-    arenaInterval = setInterval(() => {
-        arenaTimer--;
-        document.getElementById("arenaTimer").innerText = arenaTimer;
-        
-        // Каждые 10 секунд — фаза атаки
-        if (arenaTimer % 10 === 0 && arenaTimer > 0 && arenaPhase === "dodge") {
-            startAttackPhase();
-        }
-        
-        if (arenaTimer <= 0) {
-            winArena();
-        }
-    }, 1000);
-    
-    // Атаки
     startDodgePhase();
-    
     requestAnimationFrame(renderArena);
 }
 
 function startDodgePhase() {
     arenaPhase = "dodge";
-    arenaAttackReady = false;
     attacks = [];
     heart.x = 200;
     heart.y = 400;
     document.getElementById("arenaBossName").innerText = arenaBoss + " — УКЛОНЯЙСЯ!";
     
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
+    
+    let intervalTime = arenaAttackType === 0 ? 700 : 400; // Синие быстрее
+    
     arenaAttackInterval = setInterval(() => {
-        if (arenaPhase !== "dodge") return;
-        spawnRandomAttack();
-        if (Math.random() < 0.3) spawnRandomAttack();
-    }, 600);
+        if (arenaPhase !== "dodge" || !arenaActive) return;
+        spawnAttack();
+    }, intervalTime);
+    
+    // Через 10-15 секунд фаза атаки
+    let dodgeTime = 8000 + Math.random() * 7000;
+    setTimeout(() => {
+        if (arenaPhase === "dodge" && arenaActive) {
+            startAttackPhase();
+        }
+    }, dodgeTime);
 }
 
 function startAttackPhase() {
     arenaPhase = "attack";
-    arenaAttackReady = true;
     attacks = [];
-    heart.x = 200;
-    heart.y = 400;
-    document.getElementById("arenaBossName").innerText = arenaBoss + " — БЕЙ!";
+    arenaClickTargets = [];
+    arenaClicksHit = 0;
+    arenaTotalTargets = 8;
+    arenaAttackTimeLeft = 2;
     
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     arenaAttackInterval = null;
     
-    // Даём 3 секунды на удар
-    setTimeout(() => {
-        if (arenaPhase === "attack" && arenaActive) {
-            arenaPhase = "dodge";
-            startDodgePhase();
-        }
-    }, 3000);
-}
-
-function doArenaAttack() {
-    if (!arenaActive || arenaPhase !== "attack" || !arenaAttackReady) return;
-    arenaAttackReady = false;
+    document.getElementById("arenaBossName").innerText = arenaBoss + " — БЕЙ! (" + arenaAttackTimeLeft + "с)";
     
-    // Наносим урон боссу
-    let dmg = Math.floor((window.playerFinalDamage || 10) * (1 + Math.random() * 0.5));
-    arenaBossMaxHP -= dmg;
-    
-    showFloatingTextArena("💥 -" + dmg, "#ff0");
-    
-    if (arenaBossMaxHP <= 0) {
-        winArena();
-        return;
+    // Создаём 8 целей в случайных местах
+    for (let i = 0; i < arenaTotalTargets; i++) {
+        arenaClickTargets.push({
+            x: 40 + Math.random() * 320,
+            y: 60 + Math.random() * 400,
+            radius: 22,
+            hit: false
+        });
     }
     
-    // Возвращаемся к уклонению
-    arenaPhase = "dodge";
-    startDodgePhase();
+    // Таймер обратного отсчёта
+    let attackTimer = setInterval(() => {
+        arenaAttackTimeLeft--;
+        document.getElementById("arenaBossName").innerText = arenaBoss + " — БЕЙ! (" + arenaAttackTimeLeft + "с)";
+        if (arenaAttackTimeLeft <= 0) {
+            clearInterval(attackTimer);
+            applyArenaDamage();
+        }
+    }, 1000);
+    
+    setTimeout(() => {
+        if (arenaPhase === "attack" && arenaActive) {
+            applyArenaDamage();
+        }
+    }, 2000);
 }
 
-function showFloatingTextArena(text, color) {
-    let el = document.getElementById("arenaBossName");
-    if (!el) return;
-    let oldText = el.innerText;
-    el.innerText = text;
-    el.style.color = color;
+function applyArenaDamage() {
+    if (!arenaActive) return;
+    
+    // Расчёт урона по количеству нажатых целей
+    let dmgMult = 0;
+    if (arenaClicksHit >= 8) dmgMult = 2.0;
+    else if (arenaClicksHit >= 4) dmgMult = 1.0;
+    else if (arenaClicksHit >= 1) dmgMult = 0.5;
+    
+    let baseDmg = window.playerFinalDamage || 10;
+    let finalDmg = Math.floor(baseDmg * dmgMult);
+    
+    if (finalDmg > 0) {
+        arenaBossMaxHP -= finalDmg;
+        document.getElementById("arenaBossName").innerText = arenaBoss + " — 💥 -" + finalDmg + "!";
+    } else {
+        document.getElementById("arenaBossName").innerText = arenaBoss + " — 😞 Промах!";
+    }
+    
     setTimeout(() => {
-        if (el) {
-            el.innerText = oldText;
-            el.style.color = "white";
+        if (arenaBossMaxHP <= 0) {
+            winArena();
+            return;
         }
-    }, 800);
+        arenaPhase = "dodge";
+        startDodgePhase();
+    }, 1000);
+}
+
+function spawnAttack() {
+    if (arenaAttackType === 0) {
+        // Белые атаки — предсказуемые, одинаковые
+        let type = Math.floor(Math.random() * 2);
+        if (type === 0) {
+            // Ровный ряд квадратов слева направо
+            for (let i = 0; i < 5; i++) {
+                attacks.push({
+                    type: "square",
+                    x: -30 - i * 50,
+                    y: 80 + i * 85,
+                    size: 25,
+                    speed: 3
+                });
+            }
+        } else {
+            // Ровный ряд квадратов справа налево
+            for (let i = 0; i < 5; i++) {
+                attacks.push({
+                    type: "square",
+                    x: 430 + i * 50,
+                    y: 60 + i * 90,
+                    size: 25,
+                    speed: -3
+                });
+            }
+        }
+    } else {
+        // Синие атаки — быстрые, рандомные
+        for (let i = 0; i < 4; i++) {
+            attacks.push({
+                type: "square",
+                x: Math.random() * 400,
+                y: -30 - Math.random() * 100,
+                size: 20 + Math.random() * 15,
+                speed: 3 + Math.random() * 5
+            });
+        }
+        for (let i = 0; i < 4; i++) {
+            attacks.push({
+                type: "square",
+                x: Math.random() * 400,
+                y: 530 + Math.random() * 100,
+                size: 20 + Math.random() * 15,
+                speed: -(3 + Math.random() * 5)
+            });
+        }
+    }
 }
 
 function stopArena() {
@@ -184,12 +289,13 @@ function stopArena() {
     arenaInterval = null;
     arenaAttackInterval = null;
     attacks = [];
+    arenaClickTargets = [];
     document.getElementById("arenaOverlay").style.display = "none";
 }
 
 function winArena() {
     stopArena();
-    alert("🎉 Ты выжил! Босс повержен!");
+    alert("🎉 Ты победил босса!");
     if (currentEnemy) {
         currentEnemy.hp = 0;
     }
@@ -198,50 +304,8 @@ function winArena() {
 
 function loseArena() {
     stopArena();
-    // Сразу поражение — нельзя бить врага
     playerHp = 0;
     defeat();
-}
-
-function spawnRandomAttack() {
-    let type = Math.floor(Math.random() * 4);
-    switch(type) {
-        case 0: // Падающий круг
-            attacks.push({
-                type: "circle",
-                x: Math.random() * 370 + 15,
-                y: -20,
-                radius: 18,
-                speed: 2 + Math.random() * 2
-            });
-            break;
-        case 1: // Полоса слева/справа (летит до конца)
-            let fromLeft = Math.random() < 0.5;
-            attacks.push({
-                type: "bar",
-                x: fromLeft ? -60 : 400,
-                y: Math.random() * 440 + 30,
-                width: 60,
-                height: 14,
-                speed: fromLeft ? 3 + Math.random() * 2 : -(3 + Math.random() * 2)
-            });
-            break;
-        case 2: // Волна снизу
-            attacks.push({
-                type: "wave",
-                x: Math.random() * 350,
-                y: 510,
-                width: 60,
-                height: 18,
-                speed: -2 - Math.random() * 2
-            });
-            break;
-        case 3: // Двойной круг
-            let cx = Math.random() * 370 + 15;
-            attacks.push({ type: "circle", x: cx, y: -20, radius: 15, speed: 2.5 });
-            attacks.push({ type: "circle", x: cx + (Math.random() < 0.5 ? 40 : -40), y: -40, radius: 15, speed: 2.5 });
-            break;
-    }
 }
 
 function renderArena() {
@@ -250,56 +314,48 @@ function renderArena() {
     
     ctx.clearRect(0, 0, 400, 500);
     
-    // Фон арены
+    // Фон
     ctx.fillStyle = "#1a1a2e";
     ctx.fillRect(0, 0, 400, 500);
     ctx.strokeStyle = arenaPhase === "attack" ? "#ff0" : "#fff";
     ctx.lineWidth = 3;
     ctx.strokeRect(2, 2, 396, 496);
     
-    // Текст фазы
-    ctx.fillStyle = arenaPhase === "attack" ? "#ff0" : "#fff";
-    ctx.font = "bold 16px Nunito, sans-serif";
-    ctx.fillText(arenaPhase === "attack" ? "⚡ БЕЙ!" : "🛡️ Уклоняйся!", 150, 30);
+    // HP игрока
+    ctx.fillStyle = "#f00";
+    ctx.fillRect(10, 5, 380, 8);
+    ctx.fillStyle = "#0f0";
+    ctx.fillRect(10, 5, 380 * (arenaHP / arenaMaxHP), 8);
+    ctx.fillStyle = "#fff";
+    ctx.font = "10px Nunito, sans-serif";
+    ctx.fillText("❤️ " + arenaHP + "/" + arenaMaxHP, 10, 25);
     
     // HP босса
     ctx.fillStyle = "#f00";
-    ctx.fillRect(10, 40, 380, 10);
-    ctx.fillStyle = "#0f0";
-    let hpPercent = Math.max(0, arenaBossMaxHP / (currentEnemy ? currentEnemy.maxHp : 1000));
-    ctx.fillRect(10, 40, 380 * hpPercent, 10);
+    ctx.fillRect(10, 30, 380, 6);
+    ctx.fillStyle = "#ff0";
+    let hpP = Math.max(0, arenaBossMaxHP / (currentEnemy ? currentEnemy.maxHp : 1000));
+    ctx.fillRect(10, 30, 380 * hpP, 6);
     
-    // Атаки (только в фазе уклонения)
+    // Текст фазы
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 14px Nunito, sans-serif";
+    ctx.fillText(arenaPhase === "attack" ? "⚡ ЖМИ НА КРУГИ! (" + arenaClicksHit + "/8)" : "🛡️ Уклоняйся!", 130, 55);
+    
     if (arenaPhase === "dodge") {
+        // Атаки
         for (let i = attacks.length - 1; i >= 0; i--) {
             let a = attacks[i];
+            a.x += a.speed;
             
-            // Движение
-            if (a.type === "circle") {
-                a.y += a.speed;
-            } else if (a.type === "bar") {
-                a.x += a.speed;
-            } else if (a.type === "wave") {
-                a.y += a.speed;
-            }
-            
-            // Проверка столкновения
-            let hit = false;
-            if (a.type === "circle") {
-                let dx = heart.x - a.x, dy = heart.y - a.y;
-                hit = Math.sqrt(dx*dx + dy*dy) < (heart.size + a.radius);
-            } else {
-                hit = (heart.x + heart.size > a.x && heart.x - heart.size < a.x + a.width &&
-                       heart.y + heart.size > a.y && heart.y - heart.size < a.y + a.height);
-            }
+            // Столкновение
+            let hit = (heart.x + heart.size > a.x && heart.x - heart.size < a.x + a.size &&
+                       heart.y + heart.size > a.y && heart.y - heart.size < a.y + a.size);
             
             if (hit) {
-                arenaHP -= 15;
+                arenaHP -= 5;
                 document.getElementById("arenaHP").innerText = Math.max(0, arenaHP);
                 attacks.splice(i, 1);
-                // Эффект попадания
-                ctx.fillStyle = "rgba(255,0,0,0.3)";
-                ctx.fillRect(0, 0, 400, 500);
                 if (arenaHP <= 0) {
                     loseArena();
                     return;
@@ -307,27 +363,21 @@ function renderArena() {
                 continue;
             }
             
-            // Удаление если ушло далеко за экран (НЕ останавливаются!)
-            if (a.y > 600 || a.y < -100 || a.x < -200 || a.x > 600) {
+            // Удаление за экраном
+            if (a.x < -100 || a.x > 500) {
                 attacks.splice(i, 1);
                 continue;
             }
             
             // Отрисовка
-            ctx.fillStyle = a.type === "wave" ? "#00bfff" : "#fff";
-            ctx.shadowBlur = 5;
-            ctx.shadowColor = "#fff";
-            if (a.type === "circle") {
-                ctx.beginPath(); ctx.arc(a.x, a.y, a.radius, 0, Math.PI*2); ctx.fill();
-            } else {
-                ctx.fillRect(a.x, a.y, a.width, a.height);
-            }
+            ctx.fillStyle = arenaAttackType === 0 ? "#fff" : "#4488ff";
+            ctx.shadowBlur = 3;
+            ctx.shadowColor = arenaAttackType === 0 ? "#fff" : "#4488ff";
+            ctx.fillRect(a.x, a.y, a.size, a.size);
             ctx.shadowBlur = 0;
         }
-    }
-    
-    // Сердечко (только в фазе уклонения)
-    if (arenaPhase === "dodge") {
+        
+        // Сердечко
         let hx = heart.x, hy = heart.y, s = heart.size;
         ctx.fillStyle = "#ff0000";
         ctx.beginPath();
@@ -340,12 +390,22 @@ function renderArena() {
         ctx.strokeStyle = "#cc0000"; ctx.lineWidth = 2; ctx.stroke();
     }
     
-    // Кнопка атаки в фазе атаки
+    // Фаза атаки — рисуем цели
     if (arenaPhase === "attack") {
-        ctx.fillStyle = "#ff0";
-        ctx.font = "bold 20px Nunito, sans-serif";
-        ctx.fillText("НАЖМИ ЧТОБЫ УДАРИТЬ!", 60, 260);
-        ctx.fillText("🖱️", 180, 300);
+        arenaClickTargets.forEach(t => {
+            ctx.fillStyle = t.hit ? "rgba(0,255,0,0.4)" : "rgba(255,255,0,0.6)";
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, t.radius, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = t.hit ? "#0f0" : "#ff0";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            if (!t.hit) {
+                ctx.fillStyle = "#000";
+                ctx.font = "bold 12px Nunito, sans-serif";
+                ctx.fillText("ЖМИ", t.x - 15, t.y + 4);
+            }
+        });
     }
     
     requestAnimationFrame(renderArena);
