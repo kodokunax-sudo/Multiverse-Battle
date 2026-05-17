@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v4 FINAL ==========
+// ========== АРЕНА UNDERTALE v5 — АТАКИ СО ВСЕХ СТОРОН ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 30;
@@ -125,11 +125,11 @@ function startDodgePhase() {
     heart.x = 200; heart.y = 400;
     document.getElementById("arenaBossName").innerText = arenaBoss + " — УКЛОНЯЙСЯ!";
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
-    let intervalTime = arenaAttackType === 0 ? 700 : 400;
+    let intervalTime = arenaAttackType === 0 ? 700 : 350;
     arenaAttackInterval = setInterval(() => {
         if (arenaPhase === "dodge" && arenaActive) spawnAttack();
     }, intervalTime);
-    let dodgeTime = 8000 + Math.random() * 7000;
+    let dodgeTime = 10000 + Math.random() * 5000;
     setTimeout(() => {
         if (arenaPhase === "dodge" && arenaActive) startAttackPhase();
     }, dodgeTime);
@@ -145,14 +145,13 @@ function startAttackPhase() {
     if (arenaAttackInterval) { clearInterval(arenaAttackInterval); arenaAttackInterval = null; }
     document.getElementById("arenaBossName").innerText = arenaBoss + " — БЕЙ! (" + arenaAttackTimeLeft + "с)";
     
-    // Круги в зоне от 90 до 430 по Y (ниже чем раньше)
     let usedPositions = [];
     for (let i = 0; i < arenaTotalTargets; i++) {
         let x, y, tooClose;
         let attempts = 0;
         do {
             x = 55 + Math.random() * 290;
-            y = 400 + Math.random() * 330;
+            y = 100 + Math.random() * 330;
             tooClose = false;
             for (let p of usedPositions) {
                 let dx = x - p.x, dy = y - p.y;
@@ -204,31 +203,62 @@ function applyArenaDamage() {
 
 function spawnAttack() {
     if (arenaAttackType === 0) {
-        // Белые — предсказуемые ряды
-        let type = Math.floor(Math.random() * 3);
+        // БЕЛЫЕ — предсказуемые, но покрывают весь экран
+        let type = Math.floor(Math.random() * 4);
         if (type === 0) {
-            // Слева направо
-            for (let i = 0; i < 5; i++) {
-                attacks.push({ type: "square", x: -40 - i*60, y: 700 + i*90, size: 28, speed: 3 });
+            // Слева направо — верх
+            for (let i = 0; i < 6; i++) {
+                attacks.push({ type: "square", x: -50 - i*70, y: 70 + i*70, size: 28, speed: 3, speedX: null });
             }
         } else if (type === 1) {
-            // Справа налево
-            for (let i = 0; i < 5; i++) {
-                attacks.push({ type: "square", x: 440 + i*60, y: 500 + i*95, size: 28, speed: -3 });
+            // Справа налево — низ
+            for (let i = 0; i < 6; i++) {
+                attacks.push({ type: "square", x: 450 + i*70, y: 90 + i*65, size: 28, speed: -3, speedX: null });
+            }
+        } else if (type === 2) {
+            // Сверху вниз — левая сторона
+            for (let i = 0; i < 6; i++) {
+                attacks.push({ type: "square", x: 25 + i*70, y: -40, size: 28, speed: null, speedX: 0, speedY: 2.5 });
             }
         } else {
-            // Сверху вниз (по центру)
+            // Снизу вверх — правая сторона
             for (let i = 0; i < 6; i++) {
-                attacks.push({ type: "square", x: 40 + i*65, y: -400, size: 26, speed: 2.5 });
+                attacks.push({ type: "square", x: 40 + i*65, y: 540, size: 28, speed: null, speedX: 0, speedY: -2.5 });
             }
         }
     } else {
-        // Синие — быстрые рандомные
-        for (let i = 0; i < 5; i++) {
-            attacks.push({ type: "square", x: Math.random()*380, y: -40 - Math.random()*120, size: 20+Math.random()*18, speed: 3+Math.random()*5 });
-        }
-        for (let i = 0; i < 5; i++) {
-            attacks.push({ type: "square", x: Math.random()*380, y: 540 + Math.random()*120, size: 20+Math.random()*18, speed: -(3+Math.random()*5) });
+        // СИНИЕ — быстрые со ВСЕХ сторон (летят по диагонали)
+        let count = 8 + Math.floor(Math.random() * 6);
+        for (let i = 0; i < count; i++) {
+            let side = Math.floor(Math.random() * 4);
+            let x, y, spX, spY;
+            switch(side) {
+                case 0: // Сверху
+                    x = Math.random() * 380;
+                    y = -40 - Math.random() * 100;
+                    spX = (Math.random() - 0.5) * 3;
+                    spY = 3 + Math.random() * 5;
+                    break;
+                case 1: // Снизу
+                    x = Math.random() * 380;
+                    y = 540 + Math.random() * 100;
+                    spX = (Math.random() - 0.5) * 3;
+                    spY = -(3 + Math.random() * 5);
+                    break;
+                case 2: // Слева
+                    x = -40 - Math.random() * 100;
+                    y = Math.random() * 460;
+                    spX = 3 + Math.random() * 5;
+                    spY = (Math.random() - 0.5) * 3;
+                    break;
+                case 3: // Справа
+                    x = 440 + Math.random() * 100;
+                    y = Math.random() * 460;
+                    spX = -(3 + Math.random() * 5);
+                    spY = (Math.random() - 0.5) * 3;
+                    break;
+            }
+            attacks.push({ type: "square", x: x, y: y, size: 20 + Math.random() * 16, speed: null, speedX: spX, speedY: spY });
         }
     }
 }
@@ -265,7 +295,7 @@ function renderArena() {
     ctx.lineWidth = 3;
     ctx.strokeRect(2, 2, 396, 496);
     
-    // HP игрока (сверху)
+    // HP игрока
     ctx.fillStyle = "#f00"; ctx.fillRect(10, 8, 380, 10);
     ctx.fillStyle = "#0f0"; ctx.fillRect(10, 8, 380 * (arenaHP / arenaMaxHP), 10);
     ctx.fillStyle = "#fff"; ctx.font = "bold 11px Nunito, sans-serif";
@@ -285,9 +315,21 @@ function renderArena() {
     if (arenaPhase === "dodge") {
         for (let i = attacks.length - 1; i >= 0; i--) {
             let a = attacks[i];
-            a.x += a.speed;
+            
+            // Движение
+            if (a.speedX !== null && a.speedX !== undefined) {
+                a.x += a.speedX;
+                a.y += a.speedY;
+            } else if (a.speedY !== null && a.speedY !== undefined) {
+                a.y += a.speedY;
+            } else if (a.speed !== null && a.speed !== undefined) {
+                a.x += a.speed;
+            }
+            
+            // Столкновение
             let hit = (heart.x + heart.size > a.x && heart.x - heart.size < a.x + a.size &&
                        heart.y + heart.size > a.y && heart.y - heart.size < a.y + a.size);
+            
             if (hit) {
                 arenaHP -= 5;
                 document.getElementById("arenaHP").innerText = Math.max(0, arenaHP);
@@ -295,7 +337,14 @@ function renderArena() {
                 if (arenaHP <= 0) { loseArena(); return; }
                 continue;
             }
-            if (a.x < -120 || a.x > 520) { attacks.splice(i, 1); continue; }
+            
+            // Удаление за экраном
+            if (a.x < -200 || a.x > 600 || a.y < -200 || a.y > 700) {
+                attacks.splice(i, 1);
+                continue;
+            }
+            
+            // Отрисовка
             ctx.fillStyle = arenaAttackType === 0 ? "#ffffff" : "#4499ff";
             ctx.shadowBlur = 4; ctx.shadowColor = ctx.fillStyle;
             ctx.fillRect(a.x, a.y, a.size, a.size);
