@@ -63,17 +63,80 @@ window._needSave = false;
 
 // ========== МУЗЫКА (АУДИОФАЙЛЫ) ==========
 let mainMusic = null, battleMusic = null, shopMusic = null, currentMusic = null;
+let musicLoadFailed = { main: false, battle: false, shop: false };
+
 function initMusic() {
-    if (mainMusic) return;
-    mainMusic = new Audio("menu/main.mp3"); mainMusic.loop = true; mainMusic.volume = 0.4;
-    battleMusic = new Audio("menu/battle.mp3"); battleMusic.loop = true; battleMusic.volume = 0.4;
-    shopMusic = new Audio("menu/shop.mp3"); shopMusic.loop = true; shopMusic.volume = 0.4;
+    if (mainMusic || musicLoadFailed.main) return;
+    try {
+        mainMusic = new Audio("main.mp3");
+        mainMusic.loop = true;
+        mainMusic.volume = 0.4;
+        mainMusic.onerror = () => { console.log("main.mp3 не найден, музыка отключена"); musicLoadFailed.main = true; mainMusic = null; };
+    } catch(e) { musicLoadFailed.main = true; }
+    
+    try {
+        battleMusic = new Audio("battle.mp3");
+        battleMusic.loop = true;
+        battleMusic.volume = 0.4;
+        battleMusic.onerror = () => { console.log("battle.mp3 не найден"); musicLoadFailed.battle = true; battleMusic = null; };
+    } catch(e) { musicLoadFailed.battle = true; }
+    
+    try {
+        shopMusic = new Audio("shop.mp3");
+        shopMusic.loop = true;
+        shopMusic.volume = 0.4;
+        shopMusic.onerror = () => { console.log("shop.mp3 не найден"); musicLoadFailed.shop = true; shopMusic = null; };
+    } catch(e) { musicLoadFailed.shop = true; }
 }
-function stopAllMusic() { if (mainMusic) { mainMusic.pause(); mainMusic.currentTime = 0; } if (battleMusic) { battleMusic.pause(); battleMusic.currentTime = 0; } if (shopMusic) { shopMusic.pause(); shopMusic.currentTime = 0; } currentMusic = null; }
-function startMainMusic() { if (!musicEnabled) return; if (!mainMusic) initMusic(); if (currentMusic === mainMusic) return; stopAllMusic(); currentMusic = mainMusic; if (mainMusic) mainMusic.play().catch(e => {}); }
-function startBattleMusic() { if (!musicEnabled) return; if (!battleMusic) initMusic(); if (currentMusic === battleMusic) return; stopAllMusic(); currentMusic = battleMusic; if (battleMusic) battleMusic.play().catch(e => {}); }
-function startShopMusic() { if (!musicEnabled) return; if (!shopMusic) initMusic(); if (currentMusic === shopMusic) return; stopAllMusic(); currentMusic = shopMusic; if (shopMusic) shopMusic.play().catch(e => {}); }
-function toggleMusic() { musicEnabled = !musicEnabled; if (musicEnabled) { if (currentMusic) { currentMusic.play().catch(e => {}); } else { startMainMusic(); } } else { stopAllMusic(); } let btn = document.getElementById("musicToggleBtn"); if (btn) btn.innerText = musicEnabled ? "🔊" : "🔇"; }
+
+function stopAllMusic() {
+    try { if (mainMusic) { mainMusic.pause(); mainMusic.currentTime = 0; } } catch(e) {}
+    try { if (battleMusic) { battleMusic.pause(); battleMusic.currentTime = 0; } } catch(e) {}
+    try { if (shopMusic) { shopMusic.pause(); shopMusic.currentTime = 0; } } catch(e) {}
+    currentMusic = null;
+}
+
+function startMainMusic() {
+    if (!musicEnabled) return;
+    if (!mainMusic && !musicLoadFailed.main) initMusic();
+    if (!mainMusic || currentMusic === mainMusic) return;
+    stopAllMusic();
+    currentMusic = mainMusic;
+    try { mainMusic.play().catch(() => {}); } catch(e) {}
+}
+
+function startBattleMusic() {
+    if (!musicEnabled) return;
+    if (!battleMusic && !musicLoadFailed.battle) initMusic();
+    if (!battleMusic || currentMusic === battleMusic) return;
+    stopAllMusic();
+    currentMusic = battleMusic;
+    try { battleMusic.play().catch(() => {}); } catch(e) {}
+}
+
+function startShopMusic() {
+    if (!musicEnabled) return;
+    if (!shopMusic && !musicLoadFailed.shop) initMusic();
+    if (!shopMusic || currentMusic === shopMusic) return;
+    stopAllMusic();
+    currentMusic = shopMusic;
+    try { shopMusic.play().catch(() => {}); } catch(e) {}
+}
+
+function toggleMusic() {
+    musicEnabled = !musicEnabled;
+    if (musicEnabled) {
+        if (currentMusic) {
+            try { currentMusic.play().catch(() => {}); } catch(e) {}
+        } else {
+            startMainMusic();
+        }
+    } else {
+        stopAllMusic();
+    }
+    let btn = document.getElementById("musicToggleBtn");
+    if (btn) btn.innerText = musicEnabled ? "🔊" : "🔇";
+}
 
 // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 function getRebirthMult() { return 1 + rebirthCount * 0.3; }
@@ -112,7 +175,7 @@ function showModal(title, content) { let el = document.getElementById("modalCont
 function closeModal() { let el = document.getElementById("modalOverlay"); if (el) el.style.display = "none"; }
 function startFireEffectPassive(damage, durationMs) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } let elapsed = 0; fireInterval = setInterval(() => { if (!currentEnemy || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } return; } currentEnemy.hp -= damage; showFloatingText("🔥 -" + damage, "#ff6b6b"); renderEnemy(); elapsed += 2000; if (elapsed >= durationMs || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } if (currentEnemy && currentEnemy.hp <= 0) victory(); } }, 2000); }
 
-// ========== ГЕНЕРАЦИЯ ВРАГА (С АРЕНОЙ НА 50 ВОЛНЕ) ==========
+// ========== ГЕНЕРАЦИЯ ВРАГА ==========
 function generateEnemy() { 
     firstAttackThisFight = true; 
     let el = document.getElementById("spareBtn"); if (el) el.style.display = "none"; 
@@ -157,9 +220,9 @@ function generateEnemy() {
     updateStatusDisplay(); 
     updateEnemyStatusDisplay(); 
     
-    // АРЕНА UNDERTALE НА 50 ВОЛНЕ
+    // АРЕНА НА 50 ВОЛНЕ
     if (wave === 50 && !gameCompleted) {
-        setTimeout(() => { startArena(wave); }, 1000);
+        setTimeout(() => { if (typeof startArena === 'function') startArena(wave); }, 1000);
     }
 }
 
@@ -198,7 +261,42 @@ function checkEvolutionQuests() {
     renderEvoTab(); 
 }
 
-function handleClick() { initAudio(); if (playerHp <= 0) { resetGame(); return; } if (!currentEnemy || currentEnemy.hp <= 0) return; if (deathNoteTarget && wave === deathNoteTarget && !skipUsed) { currentEnemy.hp = 0; skipUsed = true; deathNoteTarget = null; victory(); return; } totalClicks++; let now = Date.now(); let clickInterval = lastClickTime ? (now - lastClickTime) / 1000 : 999; lastClickTime = now; let fatigueMultiplier = 1; if (clickInterval < 0.1) { fatigueMultiplier = 3; } else if (clickInterval < 0.5) { comboCount++; } else { comboCount = 0; comboMultiplier = 1; } if (comboCount >= 50) comboMultiplier = 5; else if (comboCount >= 25) comboMultiplier = 3; else if (comboCount >= 10) comboMultiplier = 2; if (comboCount === 10) showFloatingText("⚡ КОМБО x2!", "#ffaa00"); if (comboCount === 25) showFloatingText("⚡ КОМБО x3!", "#ff8800"); if (comboCount === 50) showFloatingText("⚡ КОМБО x5!", "#ff4400"); if (firstAttackThisFight) { firstAttackThisFight = false; for (let idx of team) { let cd = myCards[idx]; if (cd?.ability) { let canWipe = cd.ability.type === 'oneShot' || cd.ability.type === 'instantWin' || cd.ability.type === 'erase'; let nonBossWipe = cd.ability.type === 'nonBossOneShot' && !currentEnemy.isBoss; if ((canWipe || nonBossWipe) && Math.random() < (cd.ability.chance || 0) * (1 + abilityUpgradeLevel * 0.1)) { currentEnemy.hp = 0; sfxAbility(); victory(); return; } } } if (enemyStatuses.poisonDamage > 0) { currentEnemy.hp -= enemyStatuses.poisonDamage; if (currentEnemy.hp <= 0) { victory(); return; } } } let dmg = window.playerFinalDamage || 1; let m = getPassiveModifiers(); if (currentEnemy.isBoss) dmg = Math.floor(dmg * (1 + m.bossBonus)); let cc = upgrades.crit.level * upgrades.crit.increment; team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'critChance') cc += cd.ability.value * (1 + abilityUpgradeLevel * 0.1); if (cd?.ability?.type === 'damageMultChance' && Math.random() < cd.ability.chance) dmg = Math.floor(dmg * cd.ability.mult); }); dmg = Math.floor(dmg * comboMultiplier); if (Math.random() < cc) { dmg = Math.floor(dmg * 2); sfxCrit(); showFloatingText("💥 КРИТ! x2", "#feca57"); } else { sfxClick(); showFloatingText("-" + dmg, "#fff"); } dmg = Math.floor(dmg * enemyStatuses.bleedMult); checkEvolutionQuests(); if (enemyStatuses.fireTicks > 0 && enemyStatuses.fireDamage > 0) { startFireEffectPassive(enemyStatuses.fireDamage, enemyStatuses.fireTicks * 1000); enemyStatuses.fireTicks = 0; } currentEnemy.hp -= dmg; team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'clickDmgSelf' && currentEnemy.hp > 0) { playerHp -= Math.floor(window.playerMaxHp * cd.ability.value); } }); if (playerHp <= 0) { defeat(); return; } if (currentEnemy.hp <= 0) { victory(); return; } clicksSinceLastCounter++; let maxClicks = Math.max(1, 3 - enemyStatuses.freezeStacks + enemyStatuses.blindStacks); if (clicksSinceLastCounter >= maxClicks) { playerHp -= Math.floor(currentEnemy.damage * m.takenMult); clicksSinceLastCounter = 0; if (playerHp <= 0) { defeat(); return; } } if (Math.random() < enemyStatuses.shockChance && clicksSinceLastCounter === maxClicks - 1) { clicksSinceLastCounter = 0; } increaseFatigue(fatigueMultiplier); renderEnemy(); let el = document.getElementById("playerHp"); if (el) el.innerText = Math.floor(playerHp); el = document.getElementById("clicksToCounter"); if (el) el.innerText = maxClicks - clicksSinceLastCounter; updateStatusDisplay(); window._needSave = true; }
+function handleClick() { 
+    initAudio(); 
+    if (typeof arenaActive !== 'undefined' && arenaActive) return;
+    if (playerHp <= 0) { resetGame(); return; } 
+    if (!currentEnemy || currentEnemy.hp <= 0) return; 
+    if (deathNoteTarget && wave === deathNoteTarget && !skipUsed) { currentEnemy.hp = 0; skipUsed = true; deathNoteTarget = null; victory(); return; } 
+    totalClicks++; 
+    let now = Date.now(); let clickInterval = lastClickTime ? (now - lastClickTime) / 1000 : 999; lastClickTime = now; 
+    let fatigueMultiplier = 1; 
+    if (clickInterval < 0.1) { fatigueMultiplier = 3; } else if (clickInterval < 0.5) { comboCount++; } else { comboCount = 0; comboMultiplier = 1; } 
+    if (comboCount >= 50) comboMultiplier = 5; else if (comboCount >= 25) comboMultiplier = 3; else if (comboCount >= 10) comboMultiplier = 2; 
+    if (comboCount === 10) showFloatingText("⚡ КОМБО x2!", "#ffaa00"); 
+    if (comboCount === 25) showFloatingText("⚡ КОМБО x3!", "#ff8800"); 
+    if (comboCount === 50) showFloatingText("⚡ КОМБО x5!", "#ff4400"); 
+    if (firstAttackThisFight) { firstAttackThisFight = false; for (let idx of team) { let cd = myCards[idx]; if (cd?.ability) { let canWipe = cd.ability.type === 'oneShot' || cd.ability.type === 'instantWin' || cd.ability.type === 'erase'; let nonBossWipe = cd.ability.type === 'nonBossOneShot' && !currentEnemy.isBoss; if ((canWipe || nonBossWipe) && Math.random() < (cd.ability.chance || 0) * (1 + abilityUpgradeLevel * 0.1)) { currentEnemy.hp = 0; sfxAbility(); victory(); return; } } } if (enemyStatuses.poisonDamage > 0) { currentEnemy.hp -= enemyStatuses.poisonDamage; if (currentEnemy.hp <= 0) { victory(); return; } } } 
+    let dmg = window.playerFinalDamage || 1; let m = getPassiveModifiers(); if (currentEnemy.isBoss) dmg = Math.floor(dmg * (1 + m.bossBonus)); 
+    let cc = upgrades.crit.level * upgrades.crit.increment; team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'critChance') cc += cd.ability.value * (1 + abilityUpgradeLevel * 0.1); if (cd?.ability?.type === 'damageMultChance' && Math.random() < cd.ability.chance) dmg = Math.floor(dmg * cd.ability.mult); }); 
+    dmg = Math.floor(dmg * comboMultiplier); 
+    if (Math.random() < cc) { dmg = Math.floor(dmg * 2); sfxCrit(); showFloatingText("💥 КРИТ! x2", "#feca57"); } else { sfxClick(); showFloatingText("-" + dmg, "#fff"); } 
+    dmg = Math.floor(dmg * enemyStatuses.bleedMult); 
+    checkEvolutionQuests(); 
+    if (enemyStatuses.fireTicks > 0 && enemyStatuses.fireDamage > 0) { startFireEffectPassive(enemyStatuses.fireDamage, enemyStatuses.fireTicks * 1000); enemyStatuses.fireTicks = 0; } 
+    currentEnemy.hp -= dmg; 
+    team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'clickDmgSelf' && currentEnemy.hp > 0) { playerHp -= Math.floor(window.playerMaxHp * cd.ability.value); } }); 
+    if (playerHp <= 0) { defeat(); return; } 
+    if (currentEnemy.hp <= 0) { victory(); return; } 
+    clicksSinceLastCounter++; let maxClicks = Math.max(1, 3 - enemyStatuses.freezeStacks + enemyStatuses.blindStacks); 
+    if (clicksSinceLastCounter >= maxClicks) { playerHp -= Math.floor(currentEnemy.damage * m.takenMult); clicksSinceLastCounter = 0; if (playerHp <= 0) { defeat(); return; } } 
+    if (Math.random() < enemyStatuses.shockChance && clicksSinceLastCounter === maxClicks - 1) { clicksSinceLastCounter = 0; } 
+    increaseFatigue(fatigueMultiplier); 
+    renderEnemy(); 
+    let el = document.getElementById("playerHp"); if (el) el.innerText = Math.floor(playerHp); 
+    el = document.getElementById("clicksToCounter"); if (el) el.innerText = maxClicks - clicksSinceLastCounter; 
+    updateStatusDisplay(); 
+    window._needSave = true; 
+}
 
 function victory() {
     let isBoss = wave % 10 === 0; let rew = isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult());
@@ -284,6 +382,5 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".sub-tab-btn").forEach(function (btn) { btn.addEventListener("click", function () { var parent = this.parentElement; while (parent && !parent.classList.contains("tab-content")) { parent = parent.parentElement; } if (!parent) return; switchSubTab(this.dataset.subtab, parent.id); }); });
     document.querySelectorAll(".toggle span").forEach(function (s) { s.addEventListener("click", function () { setMode(this.dataset.mode); }); });
     let moderEl = document.querySelector('.toggle span[data-mode="moder"]'); if (moderEl && !moderUnlocked) moderEl.style.display = "none";
-    startMainMusic();
-    setInterval(function () { if (currentSlot >= 0) { renderShop(); renderActiveBuffs(); updatePlayerStats(); renderFreeSpins(); checkFreeSpinReset(); updateClaimTimer(); if (Date.now() - (lastChallengeReset || 0) >= 86400000) genChallenges(); saveAll(); } }, 1000);
+    setInterval(function () { if (currentSlot >= 0) { updatePlayerStats(); updateClaimTimer(); checkFreeSpinReset(); if (Date.now() - (lastChallengeReset || 0) >= 86400000) genChallenges(); if (window._needSave) { saveAll(); window._needSave = false; } } }, 1000);
 });
