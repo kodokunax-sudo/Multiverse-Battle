@@ -64,79 +64,17 @@ window._needSave = false;
 // ========== МУЗЫКА (АУДИОФАЙЛЫ) ==========
 let mainMusic = null, battleMusic = null, shopMusic = null, currentMusic = null;
 let musicLoadFailed = { main: false, battle: false, shop: false };
-
 function initMusic() {
     if (mainMusic || musicLoadFailed.main) return;
-    try {
-        mainMusic = new Audio("main.mp3");
-        mainMusic.loop = true;
-        mainMusic.volume = 0.4;
-        mainMusic.onerror = () => { console.log("main.mp3 не найден, музыка отключена"); musicLoadFailed.main = true; mainMusic = null; };
-    } catch(e) { musicLoadFailed.main = true; }
-    
-    try {
-        battleMusic = new Audio("battle.mp3");
-        battleMusic.loop = true;
-        battleMusic.volume = 0.4;
-        battleMusic.onerror = () => { console.log("battle.mp3 не найден"); musicLoadFailed.battle = true; battleMusic = null; };
-    } catch(e) { musicLoadFailed.battle = true; }
-    
-    try {
-        shopMusic = new Audio("shop.mp3");
-        shopMusic.loop = true;
-        shopMusic.volume = 0.4;
-        shopMusic.onerror = () => { console.log("shop.mp3 не найден"); musicLoadFailed.shop = true; shopMusic = null; };
-    } catch(e) { musicLoadFailed.shop = true; }
+    try { mainMusic = new Audio("main.mp3"); mainMusic.loop = true; mainMusic.volume = 0.4; mainMusic.onerror = () => { musicLoadFailed.main = true; mainMusic = null; }; } catch(e) { musicLoadFailed.main = true; }
+    try { battleMusic = new Audio("battle.mp3"); battleMusic.loop = true; battleMusic.volume = 0.4; battleMusic.onerror = () => { musicLoadFailed.battle = true; battleMusic = null; }; } catch(e) { musicLoadFailed.battle = true; }
+    try { shopMusic = new Audio("shop.mp3"); shopMusic.loop = true; shopMusic.volume = 0.4; shopMusic.onerror = () => { musicLoadFailed.shop = true; shopMusic = null; }; } catch(e) { musicLoadFailed.shop = true; }
 }
-
-function stopAllMusic() {
-    try { if (mainMusic) { mainMusic.pause(); mainMusic.currentTime = 0; } } catch(e) {}
-    try { if (battleMusic) { battleMusic.pause(); battleMusic.currentTime = 0; } } catch(e) {}
-    try { if (shopMusic) { shopMusic.pause(); shopMusic.currentTime = 0; } } catch(e) {}
-    currentMusic = null;
-}
-
-function startMainMusic() {
-    if (!musicEnabled) return;
-    if (!mainMusic && !musicLoadFailed.main) initMusic();
-    if (!mainMusic || currentMusic === mainMusic) return;
-    stopAllMusic();
-    currentMusic = mainMusic;
-    try { mainMusic.play().catch(() => {}); } catch(e) {}
-}
-
-function startBattleMusic() {
-    if (!musicEnabled) return;
-    if (!battleMusic && !musicLoadFailed.battle) initMusic();
-    if (!battleMusic || currentMusic === battleMusic) return;
-    stopAllMusic();
-    currentMusic = battleMusic;
-    try { battleMusic.play().catch(() => {}); } catch(e) {}
-}
-
-function startShopMusic() {
-    if (!musicEnabled) return;
-    if (!shopMusic && !musicLoadFailed.shop) initMusic();
-    if (!shopMusic || currentMusic === shopMusic) return;
-    stopAllMusic();
-    currentMusic = shopMusic;
-    try { shopMusic.play().catch(() => {}); } catch(e) {}
-}
-
-function toggleMusic() {
-    musicEnabled = !musicEnabled;
-    if (musicEnabled) {
-        if (currentMusic) {
-            try { currentMusic.play().catch(() => {}); } catch(e) {}
-        } else {
-            startMainMusic();
-        }
-    } else {
-        stopAllMusic();
-    }
-    let btn = document.getElementById("musicToggleBtn");
-    if (btn) btn.innerText = musicEnabled ? "🔊" : "🔇";
-}
+function stopAllMusic() { try { if (mainMusic) { mainMusic.pause(); mainMusic.currentTime = 0; } } catch(e) {} try { if (battleMusic) { battleMusic.pause(); battleMusic.currentTime = 0; } } catch(e) {} try { if (shopMusic) { shopMusic.pause(); shopMusic.currentTime = 0; } } catch(e) {} currentMusic = null; }
+function startMainMusic() { if (!musicEnabled) return; if (!mainMusic && !musicLoadFailed.main) initMusic(); if (!mainMusic || currentMusic === mainMusic) return; stopAllMusic(); currentMusic = mainMusic; try { mainMusic.play().catch(() => {}); } catch(e) {} }
+function startBattleMusic() { if (!musicEnabled) return; if (!battleMusic && !musicLoadFailed.battle) initMusic(); if (!battleMusic || currentMusic === battleMusic) return; stopAllMusic(); currentMusic = battleMusic; try { battleMusic.play().catch(() => {}); } catch(e) {} }
+function startShopMusic() { if (!musicEnabled) return; if (!shopMusic && !musicLoadFailed.shop) initMusic(); if (!shopMusic || currentMusic === shopMusic) return; stopAllMusic(); currentMusic = shopMusic; try { shopMusic.play().catch(() => {}); } catch(e) {} }
+function toggleMusic() { musicEnabled = !musicEnabled; if (musicEnabled) { if (currentMusic) { try { currentMusic.play().catch(() => {}); } catch(e) {} } else { startMainMusic(); } } else { stopAllMusic(); } let btn = document.getElementById("musicToggleBtn"); if (btn) btn.innerText = musicEnabled ? "🔊" : "🔇"; }
 
 // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 function getRebirthMult() { return 1 + rebirthCount * 0.3; }
@@ -175,7 +113,7 @@ function showModal(title, content) { let el = document.getElementById("modalCont
 function closeModal() { let el = document.getElementById("modalOverlay"); if (el) el.style.display = "none"; }
 function startFireEffectPassive(damage, durationMs) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } let elapsed = 0; fireInterval = setInterval(() => { if (!currentEnemy || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } return; } currentEnemy.hp -= damage; showFloatingText("🔥 -" + damage, "#ff6b6b"); renderEnemy(); elapsed += 2000; if (elapsed >= durationMs || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } if (currentEnemy && currentEnemy.hp <= 0) victory(); } }, 2000); }
 
-// ========== ГЕНЕРАЦИЯ ВРАГА ==========
+// ========== ГЕНЕРАЦИЯ ВРАГА (С КНОПКОЙ АРЕНЫ) ==========
 function generateEnemy() { 
     firstAttackThisFight = true; 
     let el = document.getElementById("spareBtn"); if (el) el.style.display = "none"; 
@@ -215,15 +153,21 @@ function generateEnemy() {
     } 
     applyStatusEffects(); 
     currentEnemy = { name, hp, maxHp:hp, damage:dmg, isBoss:isBoss||isUnique }; 
+    
+    // Кнопка "Сразиться с боссом"
+    let btn = document.getElementById("startArenaBtn");
+    if (btn) {
+        if (currentEnemy && currentEnemy.isBoss && wave >= 50 && !gameCompleted) {
+            btn.style.display = "block";
+        } else {
+            btn.style.display = "none";
+        }
+    }
+    
     startBattleMusic(); 
     renderEnemy(); 
     updateStatusDisplay(); 
     updateEnemyStatusDisplay(); 
-    
-    // АРЕНА НА 50 ВОЛНЕ
-    if (wave === 50 && !gameCompleted) {
-        setTimeout(() => { if (typeof startArena === 'function') startArena(wave); }, 1000);
-    }
 }
 
 function showBossDialogue(msg) { let d = document.getElementById("bossDialogue"); if (d) { d.innerText = '«' + msg + '»'; d.style.display = "block"; } }
