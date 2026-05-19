@@ -108,16 +108,17 @@ function showModal(title, content) { let el = document.getElementById("modalCont
 function closeModal() { let el = document.getElementById("modalOverlay"); if (el) el.style.display = "none"; }
 function startFireEffectPassive(damage, durationMs) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } let elapsed = 0; fireInterval = setInterval(() => { if (!currentEnemy || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } return; } currentEnemy.hp -= damage; showFloatingText("🔥 -" + damage, "#ff6b6b"); renderEnemy(); elapsed += 2000; if (elapsed >= durationMs || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } if (currentEnemy && currentEnemy.hp <= 0) victory(); } }, 2000); }
 
-// ========== ГЕНЕРАЦИЯ ВРАГА (АРЕНА ТОЛЬКО ДЛЯ УНИКАЛЬНЫХ БОССОВ) ==========
+// ========== ГЕНЕРАЦИЯ ВРАГА (АРЕНА ДЛЯ УНИКАЛЬНЫХ БОССОВ) ==========
 function generateEnemy() { 
     firstAttackThisFight = true; 
     let el = document.getElementById("spareBtn"); if (el) el.style.display = "none"; 
     el = document.getElementById("dialogBox"); if (el) el.style.display = "none"; 
     currentDialog = null; 
     let world = getCurrentWorld(); 
-    let isBoss = wave % 10 === 0, isUnique = bossTemplates[wave]; 
+    let isBoss = wave % 10 === 0;
+    let isUniqueBoss = bossTemplates[wave] !== undefined; 
     let hp, dmg, name, dialogue = "", enemyStat = null; 
-    if (isUnique) { 
+    if (isUniqueBoss) { 
         let bt = bossTemplates[wave]; 
         hp = Math.floor((50 + wave * 12) * bt.hpMult); 
         dmg = Math.floor((15 + wave * 6) * bt.dmgMult); 
@@ -147,13 +148,12 @@ function generateEnemy() {
         if (enemyStat.type === "shock") enemyStatuses.shockChance = enemyStat.chance; 
     } 
     applyStatusEffects(); 
-    currentEnemy = { name, hp, maxHp:hp, damage:dmg, isBoss:isBoss||isUnique }; 
+    currentEnemy = { name, hp, maxHp:hp, damage:dmg, isBoss:isBoss||isUniqueBoss }; 
     
-    // Кнопка "Сразиться с боссом" ТОЛЬКО для уникальных боссов (есть в bossTemplates)
-    let isUniqueBoss = bossTemplates[wave] !== undefined;
+    // Кнопка "Сразиться с боссом" ТОЛЬКО для уникальных боссов
     let btn = document.getElementById("startArenaBtn");
     if (btn) {
-        if (currentEnemy && currentEnemy.isBoss && isUniqueBoss && wave >= 50 && !gameCompleted) {
+        if (isUniqueBoss && wave >= 50 && !gameCompleted) {
             btn.style.display = "block";
         } else {
             btn.style.display = "none";
@@ -203,9 +203,9 @@ function checkEvolutionQuests() {
 
 function handleClick() { 
     initAudio(); 
-    // БЛОКИРУЕМ обычные удары если идёт арена
+    // БЛОКИРУЕМ если арена активна
     if (typeof arenaActive !== 'undefined' && arenaActive) return;
-    // БЛОКИРУЕМ обычные удары если босс ждёт арены (кнопка видна)
+    // БЛОКИРУЕМ если кнопка арены видна (ждёт боя)
     let arenaBtn = document.getElementById("startArenaBtn");
     if (arenaBtn && arenaBtn.style.display === "block") return;
     
