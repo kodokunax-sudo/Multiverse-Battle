@@ -108,7 +108,7 @@ function showModal(title, content) { let el = document.getElementById("modalCont
 function closeModal() { let el = document.getElementById("modalOverlay"); if (el) el.style.display = "none"; }
 function startFireEffectPassive(damage, durationMs) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } let elapsed = 0; fireInterval = setInterval(() => { if (!currentEnemy || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } return; } currentEnemy.hp -= damage; showFloatingText("🔥 -" + damage, "#ff6b6b"); renderEnemy(); elapsed += 2000; if (elapsed >= durationMs || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } if (currentEnemy && currentEnemy.hp <= 0) victory(); } }, 2000); }
 
-// ========== ГЕНЕРАЦИЯ ВРАГА (АРЕНА ДЛЯ БОССОВ) ==========
+// ========== ГЕНЕРАЦИЯ ВРАГА ==========
 function generateEnemy() { 
     firstAttackThisFight = true; 
     let el = document.getElementById("spareBtn"); if (el) el.style.display = "none"; 
@@ -150,16 +150,11 @@ function generateEnemy() {
     applyStatusEffects(); 
     currentEnemy = { name, hp, maxHp:hp, damage:dmg, isBoss:isBoss||isUniqueBoss }; 
     
-    // ВСЕ БОССЫ начиная с 50 волны требуют арену
+    // Кнопка арены
     let arenaWaves = [50, 100, 200, 300, 500, 10000];
     let showArenaBtn = (isBoss || isUniqueBoss) && wave >= 50 && arenaWaves.includes(wave) && !gameCompleted;
-    
-    console.log("Волна:", wave, "Босс:", isBoss, "Уникальный:", isUniqueBoss, "Арена:", showArenaBtn);
-    
     let btn = document.getElementById("startArenaBtn");
-    if (btn) {
-        btn.style.display = showArenaBtn ? "block" : "none";
-    }
+    if (btn) btn.style.display = showArenaBtn ? "block" : "none";
     
     startBattleMusic(); 
     renderEnemy(); 
@@ -245,7 +240,14 @@ function handleClick() {
 function victory() {
     let isBoss = wave % 10 === 0; let rew = isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult());
     points += rew; if (points > maxPoints) maxPoints = points; totalWins++; addExp(isBoss ? 25 : 5);
-    if (isBoss && wave % 50 === 0) { highestCheckpoint = Math.max(highestCheckpoint, wave); saveAll(); }
+    
+    // ВСЕГДА сохраняем чекпоинт при победе над боссом на волне кратной 50
+    if (isBoss && wave % 50 === 0) { 
+        highestCheckpoint = Math.max(highestCheckpoint, wave); 
+        saveAll();
+        renderCheckpoints();
+    }
+    
     if (wave >= 10000 && isBoss) { gameCompleted = true; saveAll(); alert("🏆 ПОЗДРАВЛЯЕМ! Вы победили финального босса на 10000 волне!\n\nИгра пройдена! Но вы можете продолжать играть бесконечно.\n\nВсе ваши чекпоинты сохранены."); }
     if (isBoss) { let rarity = getBossRewardRarity(wave); if (rarity !== "Босс") { let c = createCard(rarity); if (c) myCards.push(c); } renderMyCards(); let hasZeno = team.some(idx => myCards[idx]?.ability?.type === 'zenoCheckpoint'); if (hasZeno && Math.random() < 0.10) { let nextCp = Math.floor(wave / 50) * 50 + 50; if (nextCp > highestCheckpoint) { highestCheckpoint = nextCp; saveAll(); } showFloatingText("🌀 ЗЕНО: чекпоинт " + nextCp + "!", "#9b59b6"); } sfxVictory(); } else { sfxVictory(); }
     if (team.some(idx => myCards[idx]?.ability?.type === 'teamHealOnWave')) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.02); }
@@ -261,10 +263,52 @@ function defeat() {
     let bonus = 0; team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'deathBonus') bonus += cd.ability.value; });
     if (bonus > 0) points += Math.floor(points * bonus); if (points > maxPoints) maxPoints = points;
     defeatHistory.unshift({ wave, hp: Math.floor(playerHp) }); if (defeatHistory.length > 10) defeatHistory.pop(); sfxDefeat();
-    let nearestCheckpoint = Math.floor(wave / 50) * 50; if (nearestCheckpoint > highestCheckpoint) { highestCheckpoint = nearestCheckpoint; }
-    if (activeCheckpoint > 0 && activeCheckpoint <= highestCheckpoint) { wave = activeCheckpoint; playerHp = window.playerMaxHp || 100; clicksSinceLastCounter = 0; fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); resurrectedThisFight = false; generateEnemy(); saveAll(); renderEnemy(); renderDefeatHistory(); updatePlayerStats(); renderCheckpoints(); return; }
-    if (highestCheckpoint > 1) { let useCp = confirm("💀 Вы погибли на волне " + wave + "!\n\nУ вас есть чекпоинт на волне " + highestCheckpoint + ".\n\nНачать с чекпоинта? (OK = Да, Отмена = с 1 волны)"); if (useCp) { activeCheckpoint = highestCheckpoint; wave = highestCheckpoint; playerHp = window.playerMaxHp || 100; clicksSinceLastCounter = 0; fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); resurrectedThisFight = false; generateEnemy(); saveAll(); renderEnemy(); renderDefeatHistory(); updatePlayerStats(); renderCheckpoints(); return; } }
-    wave = 1; playerHp = window.playerMaxHp || 100; clicksSinceLastCounter = 0; generateEnemy(); fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); resurrectedThisFight = false; saveAll(); renderEnemy(); renderDefeatHistory(); updatePlayerStats();
+    
+    // Сохраняем чекпоинт при смерти (ближайший кратный 50)
+    let nearestCheckpoint = Math.floor(wave / 50) * 50;
+    if (nearestCheckpoint > highestCheckpoint) { 
+        highestCheckpoint = nearestCheckpoint; 
+        saveAll();
+    }
+    
+    // Если есть активный чекпоинт - возрождаемся там
+    if (activeCheckpoint > 0 && activeCheckpoint <= highestCheckpoint) { 
+        wave = activeCheckpoint; 
+        playerHp = window.playerMaxHp || 100; 
+        clicksSinceLastCounter = 0; 
+        fatigue = Math.max(0, fatigue - 20); 
+        updateFatigue(); updateRestBtn(); 
+        resurrectedThisFight = false; 
+        generateEnemy(); 
+        saveAll(); 
+        renderEnemy(); renderDefeatHistory(); 
+        updatePlayerStats(); renderCheckpoints(); 
+        return; 
+    }
+    
+    // Предлагаем чекпоинт
+    if (highestCheckpoint > 1) { 
+        let useCp = confirm("💀 Вы погибли на волне " + wave + "!\n\nУ вас есть чекпоинт на волне " + highestCheckpoint + ".\n\nНачать с чекпоинта? (OK = Да, Отмена = с 1 волны)"); 
+        if (useCp) { 
+            activeCheckpoint = highestCheckpoint; 
+            wave = highestCheckpoint; 
+            playerHp = window.playerMaxHp || 100; 
+            clicksSinceLastCounter = 0; 
+            fatigue = Math.max(0, fatigue - 20); 
+            updateFatigue(); updateRestBtn(); 
+            resurrectedThisFight = false; 
+            generateEnemy(); 
+            saveAll(); 
+            renderEnemy(); renderDefeatHistory(); 
+            updatePlayerStats(); renderCheckpoints(); 
+            return; 
+        } 
+    }
+    
+    // Сброс на 1 волну
+    wave = 1; playerHp = window.playerMaxHp || 100; clicksSinceLastCounter = 0; generateEnemy(); 
+    fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); 
+    resurrectedThisFight = false; saveAll(); renderEnemy(); renderDefeatHistory(); updatePlayerStats();
 }
 
 function resetGame() { wave = 1; playerHp = window.playerMaxHp || 100; clicksSinceLastCounter = 0; generateEnemy(); fatigue = 0; updateFatigue(); updateRestBtn(); saveAll(); renderEnemy(); }
@@ -272,7 +316,43 @@ function checkAutoSell() { if (rebirthCount < 1) return; let anyActive = false; 
 function startAfk() { if (afkActive || !afkTeam.length) return; afkActive = true; afkCurrentWave = wave; let el = document.getElementById("afkStatus"); if (el) { el.innerText = "Активен"; el.className = "afk-active"; } el = document.getElementById("toggleAfkBtn"); if (el) el.innerText = "⏹ Остановить"; runAfkTick(); }
 function stopAfk() { afkActive = false; if (afkTimer) clearTimeout(afkTimer); let el = document.getElementById("afkStatus"); if (el) { el.innerText = "Неактивен"; el.className = "afk-inactive"; } el = document.getElementById("toggleAfkBtn"); if (el) el.innerText = "▶ Запустить"; }
 function runAfkTick() { if (!afkActive) return; let dmg = (5 + upgrades.damage.level * upgrades.damage.increment + (window.afkTeamDamage || 0)) * 0.8; let ehp = 50 + afkCurrentWave * 12; let edmg = 15 + afkCurrentWave * 6; if (afkCurrentWave % 10 === 0) { ehp *= 4; edmg *= 3; } ehp -= dmg; if (ehp <= 0) { let rew = afkCurrentWave % 10 === 0 ? Math.floor(afkCurrentWave / 2 * getStarMult()) : Math.floor(afkCurrentWave / 3 * getStarMult()); points += rew; if (points > maxPoints) maxPoints = points; totalWins++; addExp(afkCurrentWave % 10 === 0 ? 25 : 5); if (afkCurrentWave % 10 === 0) { let rarity = getBossRewardRarity(afkCurrentWave); if (rarity !== "Босс") { let c = createCard(rarity); if (c) myCards.push(c); } renderMyCards(); } afkCurrentWave++; afkWavesCompleted++; let el = document.getElementById("afkWave"); if (el) el.innerText = afkCurrentWave; el = document.getElementById("afkWavesCompleted"); if (el) el.innerText = afkWavesCompleted; playerHp = Math.min(window.playerMaxHp, playerHp + Math.floor((50 + upgrades.hp.level * upgrades.hp.increment + (window.afkTeamHpBonus || 0)) * 0.8 * 0.2)); increaseFatigue(); renderPoints(); updatePlayerStats(); checkAchievements(); checkAutoSell(); } else { if (Math.random() < 0.33) { playerHp -= Math.floor(edmg * 0.9); if (playerHp <= 0) { afkCurrentWave = 1; playerHp = (50 + upgrades.hp.level * upgrades.hp.increment + (window.afkTeamHpBonus || 0)) * 0.8; fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); let el = document.getElementById("afkWave"); if (el) el.innerText = afkCurrentWave; } } } let el = document.getElementById("playerHp"); if (el) el.innerText = Math.floor(playerHp); if (afkActive) afkTimer = setTimeout(runAfkTick, 2000); saveAll(); }
-function toggleCheckpoint(cp) { if (activeCheckpoint === cp) { activeCheckpoint = 0; } else { activeCheckpoint = cp; } saveAll(); renderCheckpoints(); }
+
+// ========== ЧЕКПОИНТЫ — МГНОВЕННОЕ ПЕРЕМЕЩЕНИЕ ==========
+function toggleCheckpoint(cp) { 
+    if (activeCheckpoint === cp) { 
+        activeCheckpoint = 0; 
+        saveAll(); 
+        renderCheckpoints(); 
+        return;
+    }
+    
+    // Спрашиваем: перейти сейчас или использовать при смерти?
+    let action = confirm("🚩 Чекпоинт " + cp + " волна\n\nНажмите OK чтобы перейти СЕЙЧАС\nНажмите Отмена чтобы использовать при смерти");
+    
+    if (action) {
+        // МГНОВЕННОЕ ПЕРЕМЕЩЕНИЕ
+        activeCheckpoint = cp;
+        wave = cp;
+        playerHp = window.playerMaxHp || 100;
+        clicksSinceLastCounter = 0;
+        fatigue = Math.max(0, fatigue - 30);
+        updateFatigue();
+        updateRestBtn();
+        resurrectedThisFight = false;
+        generateEnemy();
+        saveAll();
+        renderAll();
+        updatePlayerStats();
+        renderCheckpoints();
+        showFloatingText("🚩 Телепорт на волну " + cp + "!", "#ffdd00");
+    } else {
+        // Только сохраняем для использования при смерти
+        activeCheckpoint = cp;
+        saveAll();
+        renderCheckpoints();
+    }
+}
+
 function genShopItem() { let r = Math.random(); if (r < 0.3) { return { ...specialPotions[Math.floor(Math.random() * specialPotions.length)], type: "buff", id: Date.now() + "_" + Math.random() }; } let poolKeys = Object.keys(shopItemsPool); let key = poolKeys[Math.floor(Math.random() * poolKeys.length)]; let items = shopItemsPool[key]; return { ...items[Math.floor(Math.random() * items.length)], id: Date.now() + "_" + Math.random() }; }
 function refreshShop() { for (let i = 0; i < 3; i++) shopItems[i] = genShopItem(); shopRefreshTime = Date.now(); saveAll(); renderShop(); }
 function refreshShopNow() { if (points < 1000) return; points -= 1000; refreshShop(); renderPoints(); }
