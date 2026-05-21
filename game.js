@@ -64,7 +64,7 @@ window._needSave = false;
 // ========== МУЗЫКА ==========
 let mainMusic = null, battleMusic = null, shopMusic = null, currentMusic = null;
 let musicLoadFailed = { main: false, battle: false, shop: false };
-function initMusic() { if (mainMusic || musicLoadFailed.main) return; try { mainMusic = new Audio("music/main.mp3"); mainMusic.loop = true; mainMusic.volume = 0.4; mainMusic.onerror = () => { musicLoadFailed.main = true; mainMusic = null; }; } catch(e) { musicLoadFailed.main = true; } try { battleMusic = new Audio("music/battle.mp3"); battleMusic.loop = true; battleMusic.volume = 0.4; battleMusic.onerror = () => { musicLoadFailed.battle = true; battleMusic = null; }; } catch(e) { musicLoadFailed.battle = true; } try { shopMusic = new Audio("music/shop.mp3"); shopMusic.loop = true; shopMusic.volume = 0.4; shopMusic.onerror = () => { musicLoadFailed.shop = true; shopMusic = null; }; } catch(e) { musicLoadFailed.shop = true; } }
+function initMusic() { if (mainMusic || musicLoadFailed.main) return; try { mainMusic = new Audio("main.mp3"); mainMusic.loop = true; mainMusic.volume = 0.4; mainMusic.onerror = () => { musicLoadFailed.main = true; mainMusic = null; }; } catch(e) { musicLoadFailed.main = true; } try { battleMusic = new Audio("battle.mp3"); battleMusic.loop = true; battleMusic.volume = 0.4; battleMusic.onerror = () => { musicLoadFailed.battle = true; battleMusic = null; }; } catch(e) { musicLoadFailed.battle = true; } try { shopMusic = new Audio("shop.mp3"); shopMusic.loop = true; shopMusic.volume = 0.4; shopMusic.onerror = () => { musicLoadFailed.shop = true; shopMusic = null; }; } catch(e) { musicLoadFailed.shop = true; } }
 function stopAllMusic() { try { if (mainMusic) { mainMusic.pause(); mainMusic.currentTime = 0; } } catch(e) {} try { if (battleMusic) { battleMusic.pause(); battleMusic.currentTime = 0; } } catch(e) {} try { if (shopMusic) { shopMusic.pause(); shopMusic.currentTime = 0; } } catch(e) {} currentMusic = null; }
 function startMainMusic() { if (!musicEnabled) return; if (!mainMusic && !musicLoadFailed.main) initMusic(); if (!mainMusic || currentMusic === mainMusic) return; stopAllMusic(); currentMusic = mainMusic; try { mainMusic.play().catch(() => {}); } catch(e) {} }
 function startBattleMusic() { if (!musicEnabled) return; if (!battleMusic && !musicLoadFailed.battle) initMusic(); if (!battleMusic || currentMusic === battleMusic) return; stopAllMusic(); currentMusic = battleMusic; try { battleMusic.play().catch(() => {}); } catch(e) {} }
@@ -108,7 +108,7 @@ function showModal(title, content) { let el = document.getElementById("modalCont
 function closeModal() { let el = document.getElementById("modalOverlay"); if (el) el.style.display = "none"; }
 function startFireEffectPassive(damage, durationMs) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } let elapsed = 0; fireInterval = setInterval(() => { if (!currentEnemy || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } return; } currentEnemy.hp -= damage; showFloatingText("🔥 -" + damage, "#ff6b6b"); renderEnemy(); elapsed += 2000; if (elapsed >= durationMs || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } if (currentEnemy && currentEnemy.hp <= 0) victory(); } }, 2000); }
 
-// ========== ГЕНЕРАЦИЯ ВРАГА (АРЕНА ДЛЯ УНИКАЛЬНЫХ БОССОВ) ==========
+// ========== ГЕНЕРАЦИЯ ВРАГА (АРЕНА ДЛЯ БОССОВ) ==========
 function generateEnemy() { 
     firstAttackThisFight = true; 
     let el = document.getElementById("spareBtn"); if (el) el.style.display = "none"; 
@@ -116,7 +116,7 @@ function generateEnemy() {
     currentDialog = null; 
     let world = getCurrentWorld(); 
     let isBoss = wave % 10 === 0;
-    let isUniqueBoss = bossTemplates[wave] !== undefined; 
+    let isUniqueBoss = (typeof bossTemplates !== 'undefined' && bossTemplates[wave] !== undefined); 
     let hp, dmg, name, dialogue = "", enemyStat = null; 
     if (isUniqueBoss) { 
         let bt = bossTemplates[wave]; 
@@ -150,14 +150,15 @@ function generateEnemy() {
     applyStatusEffects(); 
     currentEnemy = { name, hp, maxHp:hp, damage:dmg, isBoss:isBoss||isUniqueBoss }; 
     
-    // Кнопка "Сразиться с боссом" ТОЛЬКО для уникальных боссов
+    // ВСЕ БОССЫ начиная с 50 волны требуют арену
+    let arenaWaves = [50, 100, 200, 300, 500, 10000];
+    let showArenaBtn = (isBoss || isUniqueBoss) && wave >= 50 && arenaWaves.includes(wave) && !gameCompleted;
+    
+    console.log("Волна:", wave, "Босс:", isBoss, "Уникальный:", isUniqueBoss, "Арена:", showArenaBtn);
+    
     let btn = document.getElementById("startArenaBtn");
     if (btn) {
-        if (isUniqueBoss && wave >= 50 && !gameCompleted) {
-            btn.style.display = "block";
-        } else {
-            btn.style.display = "none";
-        }
+        btn.style.display = showArenaBtn ? "block" : "none";
     }
     
     startBattleMusic(); 
@@ -203,9 +204,7 @@ function checkEvolutionQuests() {
 
 function handleClick() { 
     initAudio(); 
-    // БЛОКИРУЕМ если арена активна
     if (typeof arenaActive !== 'undefined' && arenaActive) return;
-    // БЛОКИРУЕМ если кнопка арены видна (ждёт боя)
     let arenaBtn = document.getElementById("startArenaBtn");
     if (arenaBtn && arenaBtn.style.display === "block") return;
     
