@@ -163,8 +163,8 @@ function getAttackTypes(bossWave) {
     if (bossWave === 150) return [1, 4];
     if (bossWave === 200) return [0, 5];
     if (bossWave === 300) return [6, 2];
-    if (bossWave === 500) return [3, 4, 6];
-    if (bossWave === 10000) return [0,1,2,3,4,5,6];
+    if (bossWave === 500) return [7, 2];
+    if (bossWave === 10000) return [0,1,2,3,4,5,6,7];
     return [0, 1];
 }
 
@@ -296,78 +296,64 @@ function spawnAttack() {
             else for (let i = 0; i < 5; i++) attacks.push({ type: "square", x: 40+i*85, y: 540, size: 28, speed: null, speedX: 0, speedY: -0.9*s, color: "#fff" });
             break;
             
-        case 1: // Синие — хаос
-            for (let i = 0; i < 4; i++) {
+        case 1: // Синие — хаос со всех сторон
+            for (let i = 0; i < 5; i++) {
                 let side = Math.floor(Math.random()*4);
                 let x, y, spX, spY;
-                if (side===0) { x=Math.random()*380; y=-40; spX=(Math.random()-0.5)*1.5; spY=(0.8+Math.random()*1.4)*s; }
-                else if (side===1) { x=Math.random()*380; y=540; spX=(Math.random()-0.5)*1.5; spY=-(0.8+Math.random()*1.4)*s; }
-                else if (side===2) { x=-40; y=Math.random()*460; spX=(0.8+Math.random()*1.4)*s; spY=(Math.random()-0.5)*1.5; }
-                else { x=440; y=Math.random()*460; spX=-(0.8+Math.random()*1.4)*s; spY=(Math.random()-0.5)*1.5; }
+                if (side===0) { x=Math.random()*380; y=-40; spX=(Math.random()-0.5)*1.5; spY=(1+Math.random()*1.5)*s; }
+                else if (side===1) { x=Math.random()*380; y=540; spX=(Math.random()-0.5)*1.5; spY=-(1+Math.random()*1.5)*s; }
+                else if (side===2) { x=-40; y=Math.random()*460; spX=(1+Math.random()*1.5)*s; spY=(Math.random()-0.5)*1.5; }
+                else { x=440; y=Math.random()*460; spX=-(1+Math.random()*1.5)*s; spY=(Math.random()-0.5)*1.5; }
                 attacks.push({ type: "square", x, y, size: 18+Math.random()*14, speed: null, speedX: spX, speedY: spY, color: "#4499ff" });
             }
             break;
             
-        case 2: // Жёлтые мечи — летают свободно (не застревают)
-            for (let i = 0; i < 3; i++) {
-                let angle = Math.random()*Math.PI*2;
+        case 2: // Жёлтые мечи — урон если СТОИШЬ (надо ДВИГАТЬСЯ)
+            for (let i = 0; i < 4; i++) {
+                let side = Math.floor(Math.random()*4);
+                let x, y, vx, vy;
+                if (side===0) { x=Math.random()*380; y=-40; vx=(Math.random()-0.5)*1.5*s; vy=(1+Math.random()*2)*s; }
+                else if (side===1) { x=Math.random()*380; y=540; vx=(Math.random()-0.5)*1.5*s; vy=-(1+Math.random()*2)*s; }
+                else if (side===2) { x=-40; y=Math.random()*460; vx=(1+Math.random()*2)*s; vy=(Math.random()-0.5)*1.5*s; }
+                else { x=440; y=Math.random()*460; vx=-(1+Math.random()*2)*s; vy=(Math.random()-0.5)*1.5*s; }
                 attacks.push({ 
-                    type: "sword", 
-                    x: 80 + Math.random()*240, 
-                    y: 80 + Math.random()*340, 
-                    angle: angle, 
-                    rotSpeed: (0.05+Math.random()*0.1)*s, 
-                    size: 35, 
-                    color: "#ffdd00", 
-                    damageOnStanding: true,
-                    vx: (Math.random()-0.5)*2*s, 
-                    vy: (Math.random()-0.5)*2*s 
+                    type: "sword", x, y, angle: Math.atan2(vy, vx), rotSpeed: 0.1*s, 
+                    size: 30, color: "#ffdd00", vx, vy, damageOnStanding: true 
                 });
             }
             break;
             
-        case 3: // Красные — летают по карте
+        case 3: // Красные — урон если ДВИГАЕШЬСЯ (надо СТОЯТЬ)
             for (let i = 0; i < 5; i++) {
+                let side = Math.floor(Math.random()*4);
+                let x, y, vx, vy;
+                if (side===0) { x=Math.random()*380; y=-40; vx=(Math.random()-0.5)*1*s; vy=(0.8+Math.random()*1.5)*s; }
+                else if (side===1) { x=Math.random()*380; y=540; vx=(Math.random()-0.5)*1*s; vy=-(0.8+Math.random()*1.5)*s; }
+                else if (side===2) { x=-40; y=Math.random()*460; vx=(0.8+Math.random()*1.5)*s; vy=(Math.random()-0.5)*1*s; }
+                else { x=440; y=Math.random()*460; vx=-(0.8+Math.random()*1.5)*s; vy=(Math.random()-0.5)*1*s; }
                 attacks.push({ 
-                    type: "square", 
-                    x: 20 + Math.random()*360, 
-                    y: 20 + Math.random()*460, 
-                    size: 28, 
-                    speedX: (Math.random()-0.5)*2*s, 
-                    speedY: (Math.random()-0.5)*2*s, 
-                    color: "#ff3333", 
-                    damageOnMoving: true 
+                    type: "square", x, y, size: 26, speed: null, speedX: vx, speedY: vy, 
+                    color: "#ff3333", damageOnMoving: true 
                 });
             }
             break;
             
-        case 4: // Розовые — падают сверху
+        case 4: // Розовые — откидывают
             for (let i = 0; i < 4; i++) {
                 attacks.push({ 
-                    type: "square", 
-                    x: 20 + Math.random()*360, 
-                    y: -30 - Math.random()*50, 
-                    size: 26, 
-                    speed: null, 
-                    speedX: 0, 
-                    speedY: (1+Math.random()*2)*s, 
-                    color: "#ff69b4", 
-                    knockback: 70 
+                    type: "square", x: 20+Math.random()*360, y: -30, size: 26, 
+                    speed: null, speedX: 0, speedY: (1+Math.random()*2)*s, 
+                    color: "#ff69b4", knockback: 70 
                 });
             }
             break;
             
-        case 5: // Зелёные — падают сверху (хил)
+        case 5: // Зелёные — хилят (появляются когда HP < 50%)
             if (arenaHP < arenaMaxHP * 0.5) {
                 for (let i = 0; i < 4; i++) {
                     attacks.push({ 
-                        type: "circle", 
-                        x: 30 + Math.random()*340, 
-                        y: -30, 
-                        radius: 16, 
-                        speed: (1+Math.random())*s, 
-                        color: "#44ff44", 
-                        heal: 5 
+                        type: "circle", x: 30+Math.random()*340, y: -30, radius: 16, 
+                        speed: (1+Math.random())*s, color: "#44ff44", heal: 5 
                     });
                 }
             } else {
@@ -377,17 +363,35 @@ function spawnAttack() {
             }
             break;
             
-        case 6: // Радужные — редкий ваншот
-            if (Math.random() < 0.4) {
+        case 6: // Радужные — ваншот (ЯРКИЕ И ЗАМЕТНЫЕ)
+            for (let i = 0; i < 2; i++) {
                 attacks.push({ 
-                    type: "rainbow", 
-                    x: 60 + Math.random()*280, 
-                    y: -50, 
-                    size: 40, 
-                    speed: (0.3+Math.random()*0.3)*s, 
-                    color: "rainbow", 
-                    oneshot: true 
+                    type: "rainbow", x: 60+Math.random()*280, y: -50, size: 45, 
+                    speed: (0.4+Math.random()*0.4)*s, color: "rainbow", oneshot: true 
                 });
+            }
+            break;
+            
+        case 7: // ЖЁЛТЫЕ + КРАСНЫЕ одновременно
+            // Жёлтые (урон если стоишь)
+            for (let i = 0; i < 2; i++) {
+                let side = Math.floor(Math.random()*4);
+                let x, y, vx, vy;
+                if (side===0) { x=Math.random()*380; y=-40; vx=(Math.random()-0.5)*1.5*s; vy=(1+Math.random()*2)*s; }
+                else if (side===1) { x=Math.random()*380; y=540; vx=(Math.random()-0.5)*1.5*s; vy=-(1+Math.random()*2)*s; }
+                else if (side===2) { x=-40; y=Math.random()*460; vx=(1+Math.random()*2)*s; vy=(Math.random()-0.5)*1.5*s; }
+                else { x=440; y=Math.random()*460; vx=-(1+Math.random()*2)*s; vy=(Math.random()-0.5)*1.5*s; }
+                attacks.push({ type: "sword", x, y, angle: Math.atan2(vy, vx), rotSpeed: 0.1*s, size: 30, color: "#ffdd00", vx, vy, damageOnStanding: true });
+            }
+            // Красные (урон если двигаешься)
+            for (let i = 0; i < 3; i++) {
+                let side = Math.floor(Math.random()*4);
+                let x, y, vx, vy;
+                if (side===0) { x=Math.random()*380; y=-40; vx=(Math.random()-0.5)*1*s; vy=(0.8+Math.random()*1.5)*s; }
+                else if (side===1) { x=Math.random()*380; y=540; vx=(Math.random()-0.5)*1*s; vy=-(0.8+Math.random()*1.5)*s; }
+                else if (side===2) { x=-40; y=Math.random()*460; vx=(0.8+Math.random()*1.5)*s; vy=(Math.random()-0.5)*1*s; }
+                else { x=440; y=Math.random()*460; vx=-(0.8+Math.random()*1.5)*s; vy=(Math.random()-0.5)*1*s; }
+                attacks.push({ type: "square", x, y, size: 26, speed: null, speedX: vx, speedY: vy, color: "#ff3333", damageOnMoving: true });
             }
             break;
     }
