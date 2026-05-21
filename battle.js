@@ -467,42 +467,74 @@ function renderArena() {
         for (let i = attacks.length - 1; i >= 0; i--) {
             let a = attacks[i];
             
-            if (a.vx !== undefined) { a.x += a.vx; a.y += a.vy; }
-            else if (a.speedX !== null && a.speedX !== undefined) { a.x += a.speedX; a.y += a.speedY; }
-            else if (a.speedY !== null && a.speedY !== undefined) { a.y += a.speedY; }
-            else if (a.speed !== null && a.speed !== undefined) {
+            // ДВИЖЕНИЕ — безопасная проверка всех возможных типов
+            if (a.vx !== undefined && a.vx !== null) { 
+                a.x += a.vx; 
+                a.y += (a.vy !== undefined && a.vy !== null) ? a.vy : 0; 
+            }
+            else if (a.speedX !== undefined && a.speedX !== null) { 
+                a.x += a.speedX; 
+                a.y += (a.speedY !== undefined && a.speedY !== null) ? a.speedY : 0; 
+            }
+            else if (a.speedY !== undefined && a.speedY !== null) { 
+                a.y += a.speedY; 
+            }
+            else if (a.speed !== undefined && a.speed !== null) {
                 if (a.type === "circle" || a.type === "rainbow") a.y += a.speed;
                 else a.x += a.speed;
             }
+            
             if (a.rotSpeed) a.angle = (a.angle || 0) + a.rotSpeed;
             
-            if ((a.vx !== undefined || (a.speedX !== null && a.speedX !== undefined)) && a.type !== "rainbow") {
-                if (a.x < 5 || a.x > 395 - (a.size || 30)) {
-                    if (a.vx !== undefined) a.vx *= -1;
-                    else a.speedX *= -1;
+            // ОТРАЖЕНИЕ ОТ СТЕН (только для атак у которых есть vx/vy)
+            let hasVelocity = (a.vx !== undefined && a.vx !== null) || (a.speedX !== undefined && a.speedX !== null);
+            if (hasVelocity) {
+                // Определяем размер для отражения
+                let hitSize = a.size || a.radius || 28;
+                
+                // Отражение от левой/правой стены
+                if (a.x < 5) {
+                    if (a.vx !== undefined && a.vx !== null) a.vx = Math.abs(a.vx);
+                    if (a.speedX !== undefined && a.speedX !== null) a.speedX = Math.abs(a.speedX);
+                    a.x = 5;
                 }
-                if (a.y < 5 || a.y > 495 - (a.size || 30)) {
-                    if (a.vx !== undefined) a.vy *= -1;
-                    else a.speedY *= -1;
+                if (a.x > 395 - hitSize) {
+                    if (a.vx !== undefined && a.vx !== null) a.vx = -Math.abs(a.vx);
+                    if (a.speedX !== undefined && a.speedX !== null) a.speedX = -Math.abs(a.speedX);
+                    a.x = 395 - hitSize;
                 }
-                a.x += (200 - a.x) * 0.001;
-                a.y += (250 - a.y) * 0.001;
+                
+                // Отражение от верхней/нижней стены
+                if (a.y < 5) {
+                    if (a.vy !== undefined && a.vy !== null) a.vy = Math.abs(a.vy);
+                    if (a.speedY !== undefined && a.speedY !== null) a.speedY = Math.abs(a.speedY);
+                    a.y = 5;
+                }
+                if (a.y > 495 - hitSize) {
+                    if (a.vy !== undefined && a.vy !== null) a.vy = -Math.abs(a.vy);
+                    if (a.speedY !== undefined && a.speedY !== null) a.speedY = -Math.abs(a.speedY);
+                    a.y = 495 - hitSize;
+                }
             }
             
+            // СТОЛКНОВЕНИЕ С СЕРДЕЧКОМ
             let hit = false;
             if (a.type === "sword" || a.type === "circle" || a.type === "rainbow") {
                 let dx = heart.x - a.x, dy = heart.y - a.y;
-                hit = Math.sqrt(dx*dx + dy*dy) < (heart.size + (a.radius || a.size));
+                hit = Math.sqrt(dx*dx + dy*dy) < (heart.size + (a.radius || a.size || 28));
             } else {
-                hit = (heart.x + heart.size > a.x && heart.x - heart.size < a.x + a.size &&
-                       heart.y + heart.size > a.y && heart.y - heart.size < a.y + a.size);
+                let halfSize = (a.size || 28) / 2;
+                let cx = a.x + halfSize;
+                let cy = a.y + halfSize;
+                hit = (heart.x + heart.size > a.x && heart.x - heart.size < a.x + (a.size || 28) &&
+                       heart.y + heart.size > a.y && heart.y - heart.size < a.y + (a.size || 28));
             }
             
             if (hit) {
                 if (a.damageOnStanding && !heartWasMoving) { applyHit(5); attacks.splice(i, 1); continue; }
-                if (a.damageOnStanding && heartWasMoving) { }
+                if (a.damageOnStanding && heartWasMoving) { /* нет урона */ }
                 else if (a.damageOnMoving && heartWasMoving) { applyHit(5); attacks.splice(i, 1); continue; }
-                else if (a.damageOnMoving && !heartWasMoving) { }
+                else if (a.damageOnMoving && !heartWasMoving) { /* нет урона */ }
                 else if (a.knockback) {
                     let dx = heart.x - a.x, dy = heart.y - a.y;
                     let dist = Math.sqrt(dx*dx+dy*dy) || 1;
@@ -522,8 +554,10 @@ function renderArena() {
                 }
             }
             
+            // УДАЛЕНИЕ ЗА ЭКРАНОМ
             if (a.x < -200 || a.x > 600 || a.y < -200 || a.y > 700) { attacks.splice(i, 1); continue; }
             
+            // ОТРИСОВКА
             let col = a.color || "#fff";
             if (col === "rainbow") col = "hsl(" + (arenaBgTime*300 + a.x) % 360 + ",100%,60%)";
             ctx.fillStyle = col;
@@ -542,6 +576,7 @@ function renderArena() {
             ctx.shadowBlur = 0;
         }
         
+        // Шлейф сердечка
         for (let i = arenaTrail.length - 1; i >= 0; i--) {
             let t = arenaTrail[i]; t.life--;
             if (t.life <= 0) { arenaTrail.splice(i, 1); continue; }
@@ -549,6 +584,7 @@ function renderArena() {
             ctx.beginPath(); ctx.arc(t.x, t.y, t.size*(t.life/8), 0, Math.PI*2); ctx.fill();
         }
         
+        // Сердечко
         let hx = heart.x, hy = heart.y, s = heart.size + Math.sin(Date.now()/150)*1.5;
         ctx.fillStyle = "rgba(255,0,0,0.3)";
         ctx.shadowBlur = 20; ctx.shadowColor = "#ff0000";
@@ -578,6 +614,7 @@ function renderArena() {
         });
     }
     
+    // Частицы
     for (let i = arenaParticles.length - 1; i >= 0; i--) {
         let p = arenaParticles[i];
         p.x += p.vx; p.y += p.vy; p.life--;
@@ -590,7 +627,6 @@ function renderArena() {
     ctx.restore();
     requestAnimationFrame(renderArena);
 }
-
 function applyHit(dmg) {
     arenaHP -= dmg;
     arenaHitFlash = 8;
