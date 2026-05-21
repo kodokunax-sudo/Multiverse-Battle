@@ -33,7 +33,7 @@ let arenaAttackInterval = null;
 let animFrameId = null;
 let heartWasMoving = false;
 let heartStandingTime = 0;
-let arenaSpeedMult = 1.0;
+let arenaSpeedMult = 0.5;
 let invulnTimer = 0;
 
 // Уникальные имена боссов для конкретных волн
