@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v14 — ULTRA UPDATE ==========
+// ========== АРЕНА UNDERTALE v15 — БОССЫ, БЛАСТЕРЫ И ПУЛЬСАРЫ ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 30;
@@ -9,31 +9,41 @@ let arenaClickTargets = [];
 let arenaClicksHit = 0;
 let arenaTotalTargets = 8;
 let arenaAttackTimeLeft = 2;
-let heart = { x: 200, y: 400, size: 14, hitbox: 4 }; // Уменьшен хитбокс для честности
+let heart = { x: 200, y: 400, size: 14, hitbox: 4 };
 let attacks = [];
+let arenaBlasters = []; // Массив для бластеров
+let arenaAllowedTypes = []; // Доступные типы атак текущего босса
 let canvas = null;
 let ctx = null;
 let arenaParticles = [];
-let floatingTexts = []; // Всплывающий урон/текст
+let floatingTexts = [];
 let arenaShake = 0;
 let arenaHitFlash = 0;
 let arenaComboText = "";
 let arenaComboTimer = 0;
 let arenaTrail = [];
 let keys = { w: false, a: false, s: false, d: false, up: false, left: false, down: false, right: false };
-let heartSpeed = 3.5; // Чуть быстрее для динамики
+let heartSpeed = 3.5;
 let joystickActive = false;
 let joystickX = 0;
 let joystickY = 0;
 let joystickId = null;
 let arenaPhase = "dodge";
-let arenaInterval = null;
 let arenaAttackInterval = null;
 let animFrameId = null;
 let heartWasMoving = false;
 let heartStandingTime = 0;
 let arenaSpeedMult = 1.0;
-let invulnTimer = 0; // Кадры неуязвимости
+let invulnTimer = 0;
+
+// Уникальные имена боссов для конкретных волн
+const specialBossNames = {
+    50: "Король Демонов", 100: "Маджин Буу", 200: "Дзирэн", 400: "Теневой Жнец",
+    600: "Кибер-Титан", 800: "Астральный Дракон", 1000: "Король Пиратов",
+    1200: "Меха-Лорд", 1400: "Хаос Инкарнат", 1600: "Владыка Пламени",
+    1800: "Ледяной Колосс", 2000: "Омни-Мэн", 2200: "Звёздный Разрушитель",
+    2400: "Квантовый Призрак", 2600: "Абсолютное Божество"
+};
 
 function initArena() {
     canvas = document.getElementById("arenaCanvas");
@@ -134,7 +144,6 @@ function moveHeart() {
         heart.y += my * heartSpeed;
         clampHeart();
         
-        // Красивый шлейф
         if (Math.random() > 0.3) {
             arenaTrail.push({ x: heart.x, y: heart.y, life: 10, size: heart.size * 0.8 });
         }
@@ -153,7 +162,6 @@ function checkClickTarget(mx, my) {
         if (Math.sqrt((mx-t.x)**2 + (my-t.y)**2) < t.radius + 10 && !t.hit) {
             t.hit = true; arenaClicksHit++;
             arenaShake = 3;
-            // Сочный взрыв при клике
             for (let j = 0; j < 12; j++) {
                 arenaParticles.push({ 
                     x: t.x, y: t.y, 
@@ -175,14 +183,28 @@ function calculateArenaHP() {
     arenaHP = arenaMaxHP;
 }
 
+// Таблица боссов из ТЗ
 function getAttackTypes(bossWave) {
-    if (bossWave <= 50) return [0, 1];
-    if (bossWave <= 100) return [2, 3];
-    if (bossWave <= 150) return [1, 4];
-    if (bossWave <= 200) return [0, 5, 6]; // Радужные раньше
-    if (bossWave <= 300) return [7, 2, 6];
-    if (bossWave <= 500) return [3, 4, 6, 7];
-    return [0,1,2,3,4,5,6,7];
+    if (bossWave === 50) return [0, 1];
+    if (bossWave === 100) return [2, 3];
+    if (bossWave === 200) return [0, 1, 5];
+    if (bossWave === 400) return [2, 3, 8];
+    if (bossWave === 600) return [1, 4, 9];
+    if (bossWave === 800) return [0, 2, 6, 10];
+    if (bossWave === 1000) return [3, 7, 8, 9];
+    if (bossWave === 1200) return [1, 5, 9, 10];
+    if (bossWave === 1400) return [2, 4, 6, 8];
+    if (bossWave === 1600) return [0, 3, 7, 10];
+    if (bossWave === 1800) return [1, 2, 5, 9, 10];
+    if (bossWave === 2000) return [4, 6, 8, 9, 10]; // Омни-Мэн
+    if (bossWave === 2200) return [0, 1, 3, 7, 8];
+    if (bossWave === 2400) return [2, 5, 6, 9, 10];
+    if (bossWave >= 2600) return [0, 1, 2, 3, 4, 5, 7, 8, 9, 10]; // Без ваншотов (6)
+    
+    // Обычные волны
+    if (bossWave < 100) return [0, 1];
+    if (bossWave < 400) return [0, 1, 2, 3];
+    return [0, 1, 2, 3, 4, 5, 8];
 }
 
 function startArena(bossWave) {
@@ -197,6 +219,7 @@ function startArena(bossWave) {
     arenaClicksHit = 0;
     arenaPhase = "dodge";
     attacks = [];
+    arenaBlasters = [];
     arenaParticles = [];
     floatingTexts = [];
     arenaTrail = [];
@@ -209,14 +232,14 @@ function startArena(bossWave) {
     heartWasMoving = false;
     heartStandingTime = 0;
     
-    arenaSpeedMult = 1.0 + (bossWave - 50) / 100 * 0.4;
+    // Масштабирование сложности
+    arenaSpeedMult = Math.min(3.5, 1.0 + (bossWave - 50) / 150);
     
+    // Определение босса
+    arenaAllowedTypes = getAttackTypes(bossWave);
+    arenaBoss = specialBossNames[bossWave] || (typeof bossTemplates !== 'undefined' && bossTemplates[bossWave] ? bossTemplates[bossWave].name : "БОСС ВРАТ");
     let bt = typeof bossTemplates !== 'undefined' ? bossTemplates[bossWave] : null;
-    arenaBoss = bt ? bt.name : "БОСС";
-    arenaBossMaxHP = bt ? Math.floor((50 + bossWave * 12) * bt.hpMult) : 1000;
-    
-    let types = getAttackTypes(bossWave);
-    arenaAttackType = types[Math.floor(Math.random() * types.length)];
+    arenaBossMaxHP = bt ? Math.floor((50 + bossWave * 12) * bt.hpMult) : 1000 + bossWave * 10;
     
     document.getElementById("arenaOverlay").style.display = "flex";
     document.getElementById("arenaBossName").innerText = arenaBoss;
@@ -233,31 +256,44 @@ function startArena(bossWave) {
 function startDodgePhase() {
     arenaPhase = "dodge";
     attacks = [];
+    arenaBlasters = [];
     heart.x = 200; heart.y = 400;
-    let typeNames = ["⬜ ОБЫЧНЫЕ", "🔷 ХАОС", "⚡ ЖЁЛТЫЕ (СТОЙ!)", "🛑 КРАСНЫЕ (БЕГИ!)", "💗 РОЗОВЫЕ", "💚 ЗЕЛЁНЫЕ", "🌈 РАДУЖНЫЕ (СМЕРТЬ)", "⚡🛑 ЖЁЛТО-КРАСНЫЕ"];
+    
+    arenaAttackType = arenaAllowedTypes[Math.floor(Math.random() * arenaAllowedTypes.length)];
+    
+    let typeNames = {
+        0: "⬜ ОБЫЧНЫЕ", 1: "🔷 ХАОС", 2: "⚡ ЖЁЛТЫЕ (СТОЙ!)", 3: "🛑 КРАСНЫЕ (БЕГИ!)",
+        4: "💗 РОЗОВЫЕ", 5: "💚 ЗЕЛЁНЫЕ", 6: "🌈 РАДУЖНЫЕ (СМЕРТЬ)", 7: "⚡🛑 ЖЁЛТО-КРАСНЫЕ",
+        8: "🟥⬜ ЗОНАЛЬНЫЕ", 9: "🌀 ПУЛЬСАРЫ", 10: "🔫 БЛАСТЕРНЫЙ ШТОРМ"
+    };
+    
     document.getElementById("arenaBossName").innerText = arenaBoss + " — " + (typeNames[arenaAttackType] || "Атака");
     
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     
     let baseInterval = 1500;
     if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 800;
-    if (arenaAttackType === 6) baseInterval = 3000; // Радужные спавнятся реже
+    if (arenaAttackType === 6) baseInterval = 3000;
     if (arenaAttackType === 7) baseInterval = 600;
-    
+    if (arenaAttackType === 8) baseInterval = 900;
+    if (arenaAttackType === 9) baseInterval = 2500; // Пульсары спавнятся реже
+    if (arenaAttackType === 10) baseInterval = 1200; 
+
     arenaAttackInterval = setInterval(() => {
         if (arenaPhase === "dodge" && arenaActive) spawnAttack();
     }, Math.max(300, baseInterval / arenaSpeedMult));
     
-    let dodgeTime = 8000 + Math.random() * 4000;
+    let dodgeTime = Math.max(5000, 8000 + Math.random() * 4000 - (typeof wave !== 'undefined' ? wave/100 : 0));
     setTimeout(() => { if (arenaPhase === "dodge" && arenaActive) startAttackPhase(); }, dodgeTime);
 }
 
 function startAttackPhase() {
     arenaPhase = "attack";
     attacks = [];
+    arenaBlasters = [];
     arenaClickTargets = [];
     arenaClicksHit = 0;
-    arenaTotalTargets = 8 + Math.floor(arenaSpeedMult * 2); // Больше кругов на высоких уровнях
+    arenaTotalTargets = 8 + Math.floor(arenaSpeedMult * 2); 
     arenaAttackTimeLeft = 2;
     if (arenaAttackInterval) { clearInterval(arenaAttackInterval); arenaAttackInterval = null; }
     
@@ -312,18 +348,40 @@ function applyArenaDamage() {
     
     setTimeout(() => {
         if (arenaBossMaxHP <= 0) { winArena(); return; }
-        let types = getAttackTypes(typeof wave !== 'undefined' ? wave : 50);
-        arenaAttackType = types[Math.floor(Math.random() * types.length)];
         startDodgePhase();
     }, 1500);
 }
 
+function spawnBlaster(w) {
+    let bossW = typeof wave !== 'undefined' ? wave : w;
+    let isRainbow = Math.random() < 0.05 && bossW >= 800; 
+    let colors = ["#fff", "#ffdd00", "#ff3333"];
+    let bColor = isRainbow ? "rainbow" : colors[Math.floor(Math.random() * colors.length)];
+    
+    let side = Math.floor(Math.random() * 4);
+    let x, y;
+    if (side === 0) { x = Math.random()*400; y = -30; }
+    else if (side === 1) { x = Math.random()*400; y = 530; }
+    else if (side === 2) { x = -30; y = Math.random()*500; }
+    else { x = 430; y = Math.random()*500; }
+    
+    arenaBlasters.push({
+        x: x, y: y,
+        angle: Math.atan2(heart.y - y, heart.x - x),
+        color: bColor,
+        state: "aiming",
+        timer: 120, // 2s
+        width: isRainbow ? 8 : 22,
+        hasHit: false
+    });
+}
+
 function spawnAttack() {
     let s = arenaSpeedMult;
-    let time = Date.now();
+    let bw = typeof wave !== 'undefined' ? wave : 50;
     
     switch(arenaAttackType) {
-        case 0: // Белые — ровные ряды
+        case 0:
             let t0 = Math.floor(Math.random() * 4);
             if (t0 === 0) for (let i = 0; i < 5; i++) attacks.push({ type: "square", x: -50-i*70, y: 60+i*80, size: 24, speedX: 1.5*s, speedY: 0, color: "#fff", angle: i });
             else if (t0 === 1) for (let i = 0; i < 5; i++) attacks.push({ type: "square", x: 450+i*70, y: 70+i*80, size: 24, speedX: -1.5*s, speedY: 0, color: "#fff", angle: i });
@@ -331,21 +389,18 @@ function spawnAttack() {
             else for (let i = 0; i < 5; i++) attacks.push({ type: "square", x: 40+i*80, y: 550+i*50, size: 24, speedX: 0, speedY: -1.5*s, color: "#fff", angle: i });
             break;
             
-        case 1: // Синие — наводятся
+        case 1:
             for (let i = 0; i < 4; i++) {
                 let side = Math.floor(Math.random()*4);
                 let x, y;
-                if (side===0) { x=Math.random()*400; y=-40; }
-                else if (side===1) { x=Math.random()*400; y=540; }
-                else if (side===2) { x=-40; y=Math.random()*500; }
-                else { x=440; y=Math.random()*500; }
-                
+                if (side===0) { x=Math.random()*400; y=-40; } else if (side===1) { x=Math.random()*400; y=540; }
+                else if (side===2) { x=-40; y=Math.random()*500; } else { x=440; y=Math.random()*500; }
                 let angle = Math.atan2(heart.y - y, heart.x - x);
                 attacks.push({ type: "square", x, y, size: 20, speedX: Math.cos(angle)*1.5*s, speedY: Math.sin(angle)*1.5*s, color: "#4499ff", angle: 0, rotSpeed: 0.1 });
             }
             break;
             
-        case 2: // Жёлтые мечи — СТОЙ
+        case 2:
             for (let i = 0; i < 3; i++) {
                 let x = Math.random() * 400, y = -40;
                 let angle = Math.atan2(heart.y - y, heart.x - x);
@@ -353,7 +408,7 @@ function spawnAttack() {
             }
             break;
             
-        case 3: // Красные — БЕГИ
+        case 3:
             for (let i = 0; i < 4; i++) {
                 let side = Math.floor(Math.random()*4);
                 let x, y, vx, vy;
@@ -365,13 +420,13 @@ function spawnAttack() {
             }
             break;
             
-        case 4: // Розовые — откидывают
+        case 4:
             for (let i = 0; i < 3; i++) {
                 attacks.push({ type: "square", x: Math.random()*400, y: -40, size: 30, speedX: 0, speedY: (1.5+Math.random())*s, color: "#ff69b4", knockback: 90, angle: 0, rotSpeed: 0.05 });
             }
             break;
             
-        case 5: // Зелёные — хилят
+        case 5:
             if (arenaHP < arenaMaxHP) {
                 attacks.push({ type: "circle", x: Math.random()*400, y: -30, radius: 15, speedX: (Math.random()-0.5)*s, speedY: 2*s, color: "#44ff44", heal: 3 });
             } else {
@@ -379,16 +434,76 @@ function spawnAttack() {
             }
             break;
             
-        case 6: // Радужные — ВАНШОТ. Исправлено на radius!
+        case 6:
             let rx = 50 + Math.random() * 300;
             attacks.push({ type: "rainbow", x: rx, y: -60, radius: 28, speedX: (Math.random()-0.5)*0.5, speedY: (0.8 + Math.random()*0.5)*s, color: "rainbow", oneshot: true });
             break;
             
-        case 7: // ЖЁЛТЫЕ + КРАСНЫЕ
-            let x = Math.random() * 400, y = -40;
-            let angle = Math.atan2(heart.y - y, heart.x - x);
-            attacks.push({ type: "sword", x, y, angle: angle, rotSpeed: 0, size: 40, width: 12, color: "#ffaa00", speedX: Math.cos(angle)*2*s, speedY: Math.sin(angle)*2*s, damageOnStanding: true });
+        case 7:
+            let sx = Math.random() * 400, sy = -40;
+            let a = Math.atan2(heart.y - sy, heart.x - sx);
+            attacks.push({ type: "sword", x: sx, y: sy, angle: a, rotSpeed: 0, size: 40, width: 12, color: "#ffaa00", speedX: Math.cos(a)*2*s, speedY: Math.sin(a)*2*s, damageOnStanding: true });
             attacks.push({ type: "danger", x: Math.random()*400, y: 540, size: 28, speedX: (Math.random()-0.5)*s, speedY: -2*s, color: "#ff3333", damageOnMoving: true, angle: 0 });
+            break;
+
+        case 8: // Зональный «Красные + Белые»
+            let layout = Math.floor(Math.random() * 4);
+            if (bw < 350 && layout === 3) layout = 0; // Полный хаос только с 350
+            
+            if (layout === 0) { // Сэндвич
+                for(let i=0; i<3; i++) {
+                    attacks.push({ type: "danger", x: -50, y: 10 + Math.random()*120, size: 24, speedX: 2.5*s, speedY: 0, color: "#ff3333", damageOnMoving: true });
+                    attacks.push({ type: "danger", x: 450, y: 360 + Math.random()*120, size: 24, speedX: -2.5*s, speedY: 0, color: "#ff3333", damageOnMoving: true });
+                    attacks.push({ type: "square", x: Math.random() > 0.5 ? -50 : 450, y: 160 + Math.random()*160, size: 24, speedX: (Math.random() > 0.5 ? 2 : -2)*s, speedY: 0, color: "#fff", angle: 0 });
+                }
+            } else if (layout === 1) { // Коридор
+                for(let i=0; i<3; i++) {
+                    attacks.push({ type: "danger", x: 10 + Math.random()*100, y: -50, size: 24, speedX: 0, speedY: 2.5*s, color: "#ff3333", damageOnMoving: true });
+                    attacks.push({ type: "danger", x: 280 + Math.random()*100, y: 550, size: 24, speedX: 0, speedY: -2.5*s, color: "#ff3333", damageOnMoving: true });
+                    attacks.push({ type: "square", x: 130 + Math.random()*140, y: Math.random() > 0.5 ? -50 : 550, size: 24, speedX: 0, speedY: (Math.random() > 0.5 ? 2 : -2)*s, color: "#fff", angle: 0 });
+                }
+            } else if (layout === 2) { // Остров
+                let ix = 100 + Math.random()*200, iy = 150 + Math.random()*200;
+                for(let i=0; i<5; i++) {
+                    let isWhite = (i === 0);
+                    let px = Math.random() * 400, py = Math.random() > 0.5 ? -50 : 550;
+                    let pAng = Math.atan2((isWhite ? iy : heart.y) - py, (isWhite ? ix : heart.x) - px);
+                    if (isWhite) attacks.push({ type: "square", x: px, y: py, size: 24, speedX: Math.cos(pAng)*2*s, speedY: Math.sin(pAng)*2*s, color: "#fff" });
+                    else attacks.push({ type: "danger", x: px, y: py, size: 28, speedX: Math.cos(pAng)*2.5*s, speedY: Math.sin(pAng)*2.5*s, color: "#ff3333", damageOnMoving: true, angle: Math.random() });
+                }
+            } else { // Хаос
+                for(let i=0; i<4; i++) {
+                    let isWhite = Math.random() > 0.5;
+                    let px = Math.random() * 400, py = Math.random() > 0.5 ? -50 : 550;
+                    let pAng = Math.atan2(heart.y - py, heart.x - px);
+                    if (isWhite) attacks.push({ type: "square", x: px, y: py, size: 24, speedX: Math.cos(pAng)*2*s, speedY: Math.sin(pAng)*2*s, color: "#fff" });
+                    else attacks.push({ type: "danger", x: px, y: py, size: 28, speedX: Math.cos(pAng)*2.5*s, speedY: Math.sin(pAng)*2.5*s, color: "#ff3333", damageOnMoving: true, angle: Math.random() });
+                }
+            }
+            break;
+
+        case 9: // Пульсирующий круг
+            let numPulsars = bw >= 500 ? (Math.random()>0.5? 2:3) : (Math.random()>0.5? 1:2);
+            for(let i=0; i<numPulsars; i++) {
+                attacks.push({
+                    type: "pulsar",
+                    x: 60 + Math.random() * 280, y: 60 + Math.random() * 380,
+                    speedX: bw >= 500 ? (Math.random()-0.5)*0.5*s : 0,
+                    speedY: bw >= 500 ? (Math.random()-0.5)*0.5*s : 0,
+                    phase: Math.random() * Math.PI,
+                    maxRadius: bw >= 500 ? 50 : 60,
+                    lastHitTime: 0, color: "#ffdd00"
+                });
+            }
+            // Спавним белые атаки фоном, чтобы игрок не стоял
+            for(let i=0; i<3; i++) attacks.push({ type: "square", x: Math.random()*400, y: -40, size: 20, speedX: 0, speedY: 2*s, color: "#fff" });
+            break;
+
+        case 10: // Активный спавн Бластеров
+            spawnBlaster(bw);
+            for(let i=0; i<3; i++) {
+                attacks.push({ type: "square", x: Math.random()*400, y: -40, size: 20, speedX: (Math.random()-0.5)*2*s, speedY: 1.8*s, color: "#fff" });
+            }
             break;
     }
 }
@@ -398,20 +513,17 @@ function stopArena() {
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     if (animFrameId) cancelAnimationFrame(animFrameId);
     arenaAttackInterval = null; animFrameId = null;
-    attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = [];
+    attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = []; arenaBlasters = [];
     document.getElementById("arenaOverlay").style.display = "none";
 }
 
 function winArena() {
     stopArena();
-    if (typeof currentEnemy !== 'undefined' && currentEnemy) {
-        currentEnemy.hp = Math.floor(currentEnemy.maxHp * 0.25);
-    }
+    if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = Math.floor(currentEnemy.maxHp * 0.25);
     if (typeof victory === 'function') victory();
 }
 
 function loseArena() {
-    // Предсмертная анимация
     arenaShake = 20;
     for (let i = 0; i < 30; i++) {
         arenaParticles.push({ x: heart.x, y: heart.y, vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15, life: 40, color: "#f00", size: 3+Math.random()*5 });
@@ -424,11 +536,11 @@ function loseArena() {
 }
 
 function applyHit(dmg, textMsg = null) {
-    if (invulnTimer > 0) return; // Неуязвимость
+    if (invulnTimer > 0) return;
     
     arenaHP -= dmg;
     arenaHitFlash = 10;
-    invulnTimer = 40; // ~40 кадров неуязвимости
+    invulnTimer = 40; 
     arenaShake = 8;
     
     spawnFloatingText(heart.x, heart.y - 20, textMsg || "-" + dmg, "#ff4444");
@@ -442,9 +554,20 @@ function applyHit(dmg, textMsg = null) {
 
 function renderArena() {
     if (!arenaActive || !ctx) return;
-    
     let now = Date.now();
-    if (arenaPhase === "dodge") moveHeart();
+    
+    if (arenaPhase === "dodge") {
+        moveHeart();
+        // Механика Анти-Кемпер (Тип 10 глобально)
+        if (arenaAllowedTypes.includes(10) && !heartWasMoving) {
+            let bw = typeof wave !== 'undefined' ? wave : 50;
+            let camperThreshold = bw >= 700 ? 120 : (bw >= 350 ? 150 : 180);
+            if (heartStandingTime > camperThreshold) {
+                spawnBlaster(bw);
+                heartStandingTime = 0;
+            }
+        }
+    }
     
     let sx = arenaShake ? (Math.random()-0.5)*arenaShake : 0;
     let sy = arenaShake ? (Math.random()-0.5)*arenaShake : 0;
@@ -457,10 +580,8 @@ function renderArena() {
     ctx.translate(sx, sy);
     ctx.clearRect(-10, -10, 420, 520);
     
-    // Эпичный фон
     ctx.fillStyle = "#050510"; ctx.fillRect(0, 0, 400, 500);
     
-    // Скроллящаяся сетка
     let scrollY = (now / 20) % 40;
     ctx.strokeStyle = "rgba(255, 255, 255, 0.05)"; ctx.lineWidth = 1;
     ctx.beginPath();
@@ -468,10 +589,8 @@ function renderArena() {
     for (let gy = -40; gy <= 500; gy += 40) { ctx.moveTo(0, gy + scrollY); ctx.lineTo(400, gy + scrollY); }
     ctx.stroke();
     
-    // Рамка арены
-    let borderColor = arenaPhase === "attack" ? "#ffdd00" : (["#fff","#4499ff","#ffdd00","#ff3333","#ff69b4","#44ff44","rainbow","#ff8800"][arenaAttackType] || "#fff");
-    if (borderColor === "rainbow") borderColor = `hsl(${(now/5)%360}, 100%, 50%)`;
-    
+    let borderColor = arenaPhase === "attack" ? "#ffdd00" : (["#fff","#4499ff","#ffdd00","#ff3333","#ff69b4","#44ff44","rainbow","#ffaa00","#ff3333","#ffdd00","#fff"][arenaAttackType] || "#fff");
+    if (borderColor === "rainbow" || arenaAttackType === 6) borderColor = `hsl(${(now/5)%360}, 100%, 50%)`;
     if (arenaHitFlash > 0) borderColor = "#ff0000";
     
     ctx.strokeStyle = borderColor; ctx.lineWidth = 4 + Math.sin(now/100)*1.5;
@@ -479,7 +598,6 @@ function renderArena() {
     ctx.strokeRect(2, 2, 396, 496);
     ctx.shadowBlur = 0;
     
-    // UI ХП и Босса
     ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(8, 6, 384, 24);
     ctx.fillStyle = "#400"; ctx.fillRect(14, 14, 372, 6);
     ctx.fillStyle = arenaHitFlash > 0 ? "#fff" : "#0f0"; 
@@ -494,66 +612,75 @@ function renderArena() {
     ctx.fillStyle = "#aaa"; ctx.font = "bold 9px sans-serif";
     ctx.fillText(`👾 ${arenaBoss}`, 16, 48);
     
-    // Текст комбо
     if (arenaComboTimer > 0 && arenaComboText) {
         ctx.fillStyle = `rgba(255, 255, 0, ${Math.min(1, arenaComboTimer/20)})`;
-        ctx.font = "bold 26px sans-serif"; 
-        ctx.textAlign = "center";
-        ctx.fillText(arenaComboText, 200, 250);
-        ctx.textAlign = "left";
+        ctx.font = "bold 26px sans-serif"; ctx.textAlign = "center";
+        ctx.fillText(arenaComboText, 200, 250); ctx.textAlign = "left";
     }
     
     if (arenaPhase === "dodge") {
-        // Отрисовка и логика атак
         for (let i = attacks.length - 1; i >= 0; i--) {
             let a = attacks[i];
             
-            a.x += a.speedX || 0;
-            a.y += a.speedY || 0;
+            // Обработка Пульсаров (Тип 9)
+            if (a.type === "pulsar") {
+                a.x += a.speedX || 0; a.y += a.speedY || 0;
+                a.phase += 0.05 * arenaSpeedMult;
+                a.radius = 5 + Math.abs(Math.sin(a.phase)) * (a.maxRadius - 5);
+                
+                ctx.save();
+                ctx.globalAlpha = 0.3 + Math.abs(Math.sin(a.phase))*0.5;
+                ctx.fillStyle = a.color;
+                ctx.shadowBlur = 15; ctx.shadowColor = a.color;
+                ctx.beginPath(); ctx.arc(a.x, a.y, a.radius, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+                ctx.restore();
+                
+                if (a.radius > 15 && invulnTimer <= 0) {
+                    let dx = heart.x - a.x, dy = heart.y - a.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < (a.radius + heart.hitbox)) {
+                        if (now - (a.lastHitTime || 0) > 300) {
+                            applyHit(5, "ПУЛЬСАР!");
+                            a.lastHitTime = now;
+                        }
+                    }
+                }
+                continue;
+            }
+            
+            a.x += a.speedX || 0; a.y += a.speedY || 0;
             if (a.rotSpeed) a.angle = (a.angle || 0) + a.rotSpeed;
             
-            // Отскок от стен
             let size = a.size || a.radius || 20;
             if (a.x < 5 || a.x > 395 - size) a.speedX *= -1;
             if (a.y < 5 || a.y > 495 - size) a.speedY *= -1;
-            
             a.x = Math.max(5, Math.min(395 - size, a.x));
             a.y = Math.max(5, Math.min(495 - size, a.y));
 
-            // Столкновение (Честный хитбокс)
             let hit = false;
-            let cx = a.x + (a.size ? a.size/2 : 0);
-            let cy = a.y + (a.size ? a.size/2 : 0);
+            let cx = a.x + (a.size ? a.size/2 : 0), cy = a.y + (a.size ? a.size/2 : 0);
             
             if (a.type === "circle" || a.type === "rainbow") {
                 let dx = heart.x - a.x, dy = heart.y - a.y;
                 hit = Math.sqrt(dx*dx + dy*dy) < (heart.hitbox + a.radius - 2);
             } else if (a.type === "sword") {
                 let dx = heart.x - a.x, dy = heart.y - a.y;
-                hit = Math.sqrt(dx*dx + dy*dy) < (heart.hitbox + a.size/2); // Упрощенный хитбокс меча
+                hit = Math.sqrt(dx*dx + dy*dy) < (heart.hitbox + a.size/2); 
             } else {
-                hit = Math.abs(heart.x - cx) < (a.size/2 + heart.hitbox) && 
-                      Math.abs(heart.y - cy) < (a.size/2 + heart.hitbox);
+                hit = Math.abs(heart.x - cx) < (a.size/2 + heart.hitbox) && Math.abs(heart.y - cy) < (a.size/2 + heart.hitbox);
             }
             
             if (hit && invulnTimer <= 0) {
                 if (a.damageOnStanding && !heartWasMoving) { applyHit(6, "ДВИГАЙСЯ!"); attacks.splice(i, 1); continue; }
                 if (a.damageOnMoving && heartWasMoving) { applyHit(6, "СТОЙ!"); attacks.splice(i, 1); continue; }
-                
                 if (a.knockback) {
-                    let dx = heart.x - a.x, dy = heart.y - a.y;
-                    let dist = Math.sqrt(dx*dx+dy*dy) || 1;
-                    heart.x += (dx/dist)*a.knockback;
-                    heart.y += (dy/dist)*a.knockback;
-                    clampHeart();
-                    spawnFloatingText(heart.x, heart.y, "BOOP!", "#ff69b4");
-                    attacks.splice(i, 1); continue;
+                    let dx = heart.x - a.x, dy = heart.y - a.y; let dist = Math.sqrt(dx*dx+dy*dy) || 1;
+                    heart.x += (dx/dist)*a.knockback; heart.y += (dy/dist)*a.knockback; clampHeart();
+                    spawnFloatingText(heart.x, heart.y, "BOOP!", "#ff69b4"); attacks.splice(i, 1); continue;
                 }
                 if (a.heal) {
-                    let healAmt = a.heal;
-                    arenaHP = Math.min(arenaMaxHP, arenaHP + healAmt);
-                    spawnFloatingText(heart.x, heart.y, "+" + healAmt, "#44ff44");
-                    attacks.splice(i, 1); continue;
+                    arenaHP = Math.min(arenaMaxHP, arenaHP + a.heal);
+                    spawnFloatingText(heart.x, heart.y, "+" + a.heal, "#44ff44"); attacks.splice(i, 1); continue;
                 }
                 if (a.oneshot) { applyHit(999, "ФАТАЛЬНО!"); continue; }
                 
@@ -562,50 +689,91 @@ function renderArena() {
                 }
             }
             
-            // Удаление старых
             if (a.y > 600 || a.y < -100 || a.x < -100 || a.x > 500) { attacks.splice(i, 1); continue; }
             
-            // Отрисовка атаки
             ctx.save();
             let col = a.color;
             if (a.type === "rainbow") col = `hsl(${(now/2 + a.x)%360}, 100%, 60%)`;
             
-            ctx.fillStyle = col;
-            ctx.shadowColor = col;
-            ctx.shadowBlur = a.type === "rainbow" ? 25 : 10;
+            ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = a.type === "rainbow" ? 25 : 10;
             
             if (a.type === "square" || a.type === "danger") {
-                ctx.translate(a.x + a.size/2, a.y + a.size/2);
-                ctx.rotate(a.angle || 0);
+                ctx.translate(a.x + a.size/2, a.y + a.size/2); ctx.rotate(a.angle || 0);
                 if (a.type === "danger") {
-                    ctx.beginPath();
-                    ctx.moveTo(0, -a.size/2); ctx.lineTo(a.size/2, 0);
-                    ctx.lineTo(0, a.size/2); ctx.lineTo(-a.size/2, 0);
-                    ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(0, -a.size/2); ctx.lineTo(a.size/2, 0); ctx.lineTo(0, a.size/2); ctx.lineTo(-a.size/2, 0); ctx.fill();
                 } else {
-                    ctx.fillRect(-a.size/2, -a.size/2, a.size, a.size);
-                    ctx.clearRect(-a.size/4, -a.size/4, a.size/2, a.size/2); // Пустой центр
+                    ctx.fillRect(-a.size/2, -a.size/2, a.size, a.size); ctx.clearRect(-a.size/4, -a.size/4, a.size/2, a.size/2); 
                 }
             } else if (a.type === "sword") {
-                ctx.translate(a.x, a.y);
-                ctx.rotate(a.angle);
-                ctx.beginPath();
-                ctx.moveTo(a.size, 0);
-                ctx.lineTo(0, a.width/2);
-                ctx.lineTo(-a.size, 0);
-                ctx.lineTo(0, -a.width/2);
-                ctx.fill();
+                ctx.translate(a.x, a.y); ctx.rotate(a.angle);
+                ctx.beginPath(); ctx.moveTo(a.size, 0); ctx.lineTo(0, a.width/2); ctx.lineTo(-a.size, 0); ctx.lineTo(0, -a.width/2); ctx.fill();
             } else if (a.type === "circle" || a.type === "rainbow") {
                 ctx.beginPath(); ctx.arc(a.x, a.y, a.radius, 0, Math.PI*2); ctx.fill();
-                if (a.type === "rainbow") {
-                    ctx.fillStyle = "#fff";
-                    ctx.beginPath(); ctx.arc(a.x, a.y, a.radius*0.5, 0, Math.PI*2); ctx.fill();
-                }
+                if (a.type === "rainbow") { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(a.x, a.y, a.radius*0.5, 0, Math.PI*2); ctx.fill(); }
             }
             ctx.restore();
         }
+
+        // Отрисовка и логика Бластеров
+        for (let i = arenaBlasters.length - 1; i >= 0; i--) {
+            let b = arenaBlasters[i];
+            let actualColor = b.color === "rainbow" ? `hsl(${(now/2)%360}, 100%, 60%)` : b.color;
+            
+            if (b.state === "aiming") {
+                if (b.timer > 30) b.angle = Math.atan2(heart.y - b.y, heart.x - b.x); // Наводка до последних 0.5 сек
+                
+                ctx.save();
+                ctx.globalAlpha = 0.3 + Math.abs(Math.sin(b.timer * 0.2)) * 0.3;
+                ctx.strokeStyle = actualColor; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+                ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + Math.cos(b.angle)*800, b.y + Math.sin(b.angle)*800); ctx.stroke();
+                
+                ctx.globalAlpha = 1; ctx.translate(b.x, b.y); ctx.rotate(b.angle);
+                ctx.fillStyle = "#222"; ctx.fillRect(-15, -15, 30, 30);
+                ctx.fillStyle = actualColor; ctx.fillRect(5, -5, 10, 10);
+                ctx.restore();
+                
+                b.timer--;
+                if (b.timer <= 0) { b.state = "firing"; b.timer = 15; arenaShake = 12; }
+            } 
+            else if (b.state === "firing") {
+                ctx.save();
+                ctx.strokeStyle = actualColor; ctx.lineWidth = b.width + Math.random()*6;
+                ctx.shadowBlur = 25; ctx.shadowColor = actualColor;
+                ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + Math.cos(b.angle)*800, b.y + Math.sin(b.angle)*800); ctx.stroke();
+                
+                ctx.translate(b.x, b.y); ctx.rotate(b.angle);
+                ctx.fillStyle = "#fff"; ctx.fillRect(-20, -20, 40, 40); 
+                ctx.restore();
+                
+                if (!b.hasHit && invulnTimer <= 0) {
+                    let dx = heart.x - b.x, dy = heart.y - b.y;
+                    let dist = Math.abs(dx * Math.sin(b.angle) - dy * Math.cos(b.angle));
+                    if (dist < b.width / 2 + heart.hitbox) {
+                        let dmg = 0; let msg = "";
+                        if (b.color === "rainbow") { applyHit(999, "ФАТАЛЬНО!"); }
+                        else if (b.color === "#fff") { dmg = 12; msg = "ЛУЧ!"; }
+                        else if (b.color === "#ffdd00") { if (!heartWasMoving) { dmg = 24; msg = "СТОЙ!"; } else { dmg = 6; msg = "ЛУЧ!"; } }
+                        else if (b.color === "#ff3333") { if (heartWasMoving) { dmg = 24; msg = "ДВИГАЙСЯ!"; } else { dmg = 6; msg = "ЛУЧ!"; } }
+                        
+                        if (dmg > 0) applyHit(dmg, msg);
+                        b.hasHit = true;
+                    }
+                }
+                
+                b.timer--;
+                if (b.timer <= 0) { b.state = "fading"; b.timer = 20; }
+            }
+            else if (b.state === "fading") {
+                ctx.save();
+                ctx.globalAlpha = b.timer / 20; ctx.strokeStyle = actualColor; ctx.lineWidth = b.width;
+                ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + Math.cos(b.angle)*800, b.y + Math.sin(b.angle)*800); ctx.stroke();
+                ctx.restore();
+                
+                b.timer--;
+                if (b.timer <= 0) arenaBlasters.splice(i, 1);
+            }
+        }
         
-        // Шлейф от сердечка
         for (let i = arenaTrail.length - 1; i >= 0; i--) {
             let t = arenaTrail[i]; t.life--;
             if (t.life <= 0) { arenaTrail.splice(i, 1); continue; }
@@ -613,15 +781,10 @@ function renderArena() {
             ctx.beginPath(); ctx.arc(t.x, t.y, t.size*(t.life/10), 0, Math.PI*2); ctx.fill();
         }
         
-        // Отрисовка Сердечка (Души)
         if (invulnTimer === 0 || Math.floor(now / 100) % 2 === 0) {
             let hx = heart.x, hy = heart.y, s = heart.size;
+            ctx.shadowBlur = 15; ctx.shadowColor = "#ff0000"; ctx.fillStyle = "#ff0000";
             
-            // Свечение
-            ctx.shadowBlur = 15; ctx.shadowColor = "#ff0000";
-            ctx.fillStyle = "#ff0000";
-            
-            // Рисуем форму сердца
             ctx.beginPath();
             ctx.moveTo(hx, hy + s*0.3);
             ctx.bezierCurveTo(hx, hy - s*0.3, hx - s, hy - s*0.3, hx - s, hy + s*0.3);
@@ -630,32 +793,23 @@ function renderArena() {
             ctx.bezierCurveTo(hx + s, hy - s*0.3, hx, hy - s*0.3, hx, hy + s*0.3);
             ctx.fill();
             
-            // Центр (Реальный хитбокс) - маленькая белая точка для точности
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = "rgba(255,255,255,0.8)";
+            ctx.shadowBlur = 0; ctx.fillStyle = "rgba(255,255,255,0.8)";
             ctx.beginPath(); ctx.arc(hx, hy + s*0.3, heart.hitbox, 0, Math.PI*2); ctx.fill();
         }
     }
     
     if (arenaPhase === "attack") {
         arenaClickTargets.forEach(t => {
-            t.pulse += 0.1;
-            t.spawnAnim = Math.min(1, (t.spawnAnim || 0) + 0.1);
-            
+            t.pulse += 0.1; t.spawnAnim = Math.min(1, (t.spawnAnim || 0) + 0.1);
             let r = t.radius * t.spawnAnim + Math.sin(t.pulse)*2;
             
             ctx.fillStyle = t.hit ? "rgba(0, 255, 0, 0.4)" : "rgba(255, 200, 0, 0.4)";
-            ctx.shadowBlur = t.hit ? 20 : 10; 
-            ctx.shadowColor = t.hit ? "#0f0" : "#ffaa00";
+            ctx.shadowBlur = t.hit ? 20 : 10; ctx.shadowColor = t.hit ? "#0f0" : "#ffaa00";
             
             ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, Math.PI*2); ctx.fill();
-            
-            ctx.strokeStyle = t.hit ? "#0f0" : "#fff"; 
-            ctx.lineWidth = 3; 
-            ctx.stroke();
+            ctx.strokeStyle = t.hit ? "#0f0" : "#fff"; ctx.lineWidth = 3; ctx.stroke();
             
             if (!t.hit) {
-                // Внутреннее кольцо, сужающееся ко времени
                 let innerR = r * (arenaAttackTimeLeft / 2);
                 ctx.strokeStyle = "#ff0000"; ctx.lineWidth = 1;
                 ctx.beginPath(); ctx.arc(t.x, t.y, innerR, 0, Math.PI*2); ctx.stroke();
@@ -663,35 +817,26 @@ function renderArena() {
         });
     }
     
-    // Частицы взрывов
     ctx.shadowBlur = 0;
     for (let i = arenaParticles.length - 1; i >= 0; i--) {
         let p = arenaParticles[i];
-        p.x += p.vx; p.y += p.vy; 
-        p.vx *= 0.95; p.vy *= 0.95; // Трение
-        p.life--;
+        p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95; p.life--;
         if (p.life <= 0) { arenaParticles.splice(i, 1); continue; }
         ctx.fillStyle = p.color; ctx.globalAlpha = p.life/30;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
     }
     ctx.globalAlpha = 1;
 
-    // Всплывающий текст (урон/хил)
-    ctx.textAlign = "center";
-    ctx.font = "bold 16px sans-serif";
+    ctx.textAlign = "center"; ctx.font = "bold 16px sans-serif";
     for (let i = floatingTexts.length - 1; i >= 0; i--) {
         let ft = floatingTexts[i];
-        ft.y += ft.vy;
-        ft.life--;
+        ft.y += ft.vy; ft.life--;
         if (ft.life <= 0) { floatingTexts.splice(i, 1); continue; }
-        ctx.fillStyle = ft.color;
-        ctx.globalAlpha = ft.life / 40;
+        ctx.fillStyle = ft.color; ctx.globalAlpha = ft.life / 40;
         ctx.fillText(ft.text, ft.x, ft.y);
     }
-    ctx.globalAlpha = 1;
-    ctx.textAlign = "left";
+    ctx.globalAlpha = 1; ctx.textAlign = "left";
     
     ctx.restore();
     animFrameId = requestAnimationFrame(renderArena);
 }
- 
