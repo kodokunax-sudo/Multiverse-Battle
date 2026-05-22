@@ -11,8 +11,8 @@ let arenaTotalTargets = 8;
 let arenaAttackTimeLeft = 2;
 let heart = { x: 200, y: 400, size: 14, hitbox: 4 };
 let attacks = [];
-let arenaBlasters = []; // Массив для бластеров
-let arenaAllowedTypes = []; // Доступные типы атак текущего босса
+let arenaBlasters = [];
+let arenaAllowedTypes = [];
 let canvas = null;
 let ctx = null;
 let arenaParticles = [];
@@ -35,15 +35,6 @@ let heartWasMoving = false;
 let heartStandingTime = 0;
 let arenaSpeedMult = 0.5;
 let invulnTimer = 0;
-
-// Уникальные имена боссов для конкретных волн
-const specialBossNames = {
-    50: "Король Демонов", 100: "Маджин Буу", 200: "Дзирэн", 400: "Теневой Жнец",
-    600: "Кибер-Титан", 800: "Астральный Дракон", 1000: "Король Пиратов",
-    1200: "Меха-Лорд", 1400: "Хаос Инкарнат", 1600: "Владыка Пламени",
-    1800: "Ледяной Колосс", 2000: "Омни-Мэн", 2200: "Звёздный Разрушитель",
-    2400: "Квантовый Призрак", 2600: "Абсолютное Божество"
-};
 
 function initArena() {
     canvas = document.getElementById("arenaCanvas");
@@ -183,28 +174,18 @@ function calculateArenaHP() {
     arenaHP = arenaMaxHP;
 }
 
-// Таблица боссов из ТЗ
 function getAttackTypes(bossWave) {
-    if (bossWave === 50) return [0, 1];
-    if (bossWave === 100) return [2, 3];
-    if (bossWave === 200) return [0, 1, 5];
-    if (bossWave === 400) return [2, 3, 8];
-    if (bossWave === 600) return [1, 4, 9];
-    if (bossWave === 800) return [0, 2, 6, 10];
-    if (bossWave === 1000) return [3, 7, 8, 9];
-    if (bossWave === 1200) return [1, 5, 9, 10];
-    if (bossWave === 1400) return [2, 4, 6, 8];
-    if (bossWave === 1600) return [0, 3, 7, 10];
-    if (bossWave === 1800) return [1, 2, 5, 9, 10];
-    if (bossWave === 2000) return [4, 6, 8, 9, 10]; // Омни-Мэн
-    if (bossWave === 2200) return [0, 1, 3, 7, 8];
-    if (bossWave === 2400) return [2, 5, 6, 9, 10];
-    if (bossWave >= 2600) return [0, 1, 2, 3, 4, 5, 7, 8, 9, 10]; // Без ваншотов (6)
+    // Сначала проверяем bossTemplates из data.js
+    if (typeof bossTemplates !== 'undefined' && bossTemplates[bossWave] && bossTemplates[bossWave].arenaTypes) {
+        return bossTemplates[bossWave].arenaTypes;
+    }
     
-    // Обычные волны
+    // Запасные варианты для обычных волн
     if (bossWave < 100) return [0, 1];
     if (bossWave < 400) return [0, 1, 2, 3];
-    return [0, 1, 2, 3, 4, 5, 8];
+    if (bossWave < 1000) return [0, 1, 2, 3, 4, 5];
+    if (bossWave < 2000) return [0, 1, 2, 3, 4, 5, 7, 8];
+    return [0, 1, 2, 3, 4, 5, 7, 8, 9, 10];
 }
 
 function startArena(bossWave) {
@@ -232,13 +213,13 @@ function startArena(bossWave) {
     heartWasMoving = false;
     heartStandingTime = 0;
     
-    // Масштабирование сложности
     arenaSpeedMult = Math.min(3.5, 1.0 + (bossWave - 50) / 150);
     
-    // Определение босса
     arenaAllowedTypes = getAttackTypes(bossWave);
-    arenaBoss = specialBossNames[bossWave] || (typeof bossTemplates !== 'undefined' && bossTemplates[bossWave] ? bossTemplates[bossWave].name : "БОСС ВРАТ");
+    
+    // Имя босса из bossTemplates или запасное
     let bt = typeof bossTemplates !== 'undefined' ? bossTemplates[bossWave] : null;
+    arenaBoss = bt ? bt.name : "БОСС ВРАТ";
     arenaBossMaxHP = bt ? Math.floor((50 + bossWave * 12) * bt.hpMult) : 1000 + bossWave * 10;
     
     document.getElementById("arenaOverlay").style.display = "flex";
@@ -276,8 +257,8 @@ function startDodgePhase() {
     if (arenaAttackType === 6) baseInterval = 3000;
     if (arenaAttackType === 7) baseInterval = 600;
     if (arenaAttackType === 8) baseInterval = 900;
-    if (arenaAttackType === 9) baseInterval = 2500; // Пульсары спавнятся реже
-    if (arenaAttackType === 10) baseInterval = 1200; 
+    if (arenaAttackType === 9) baseInterval = 2500;
+    if (arenaAttackType === 10) baseInterval = 1200;
 
     arenaAttackInterval = setInterval(() => {
         if (arenaPhase === "dodge" && arenaActive) spawnAttack();
@@ -370,7 +351,7 @@ function spawnBlaster(w) {
         angle: Math.atan2(heart.y - y, heart.x - x),
         color: bColor,
         state: "aiming",
-        timer: 120, // 2s
+        timer: 120,
         width: isRainbow ? 8 : 22,
         hasHit: false
     });
@@ -446,23 +427,23 @@ function spawnAttack() {
             attacks.push({ type: "danger", x: Math.random()*400, y: 540, size: 28, speedX: (Math.random()-0.5)*s, speedY: -2*s, color: "#ff3333", damageOnMoving: true, angle: 0 });
             break;
 
-        case 8: // Зональный «Красные + Белые»
+        case 8:
             let layout = Math.floor(Math.random() * 4);
-            if (bw < 350 && layout === 3) layout = 0; // Полный хаос только с 350
+            if (bw < 350 && layout === 3) layout = 0;
             
-            if (layout === 0) { // Сэндвич
+            if (layout === 0) {
                 for(let i=0; i<3; i++) {
                     attacks.push({ type: "danger", x: -50, y: 10 + Math.random()*120, size: 24, speedX: 2.5*s, speedY: 0, color: "#ff3333", damageOnMoving: true });
                     attacks.push({ type: "danger", x: 450, y: 360 + Math.random()*120, size: 24, speedX: -2.5*s, speedY: 0, color: "#ff3333", damageOnMoving: true });
                     attacks.push({ type: "square", x: Math.random() > 0.5 ? -50 : 450, y: 160 + Math.random()*160, size: 24, speedX: (Math.random() > 0.5 ? 2 : -2)*s, speedY: 0, color: "#fff", angle: 0 });
                 }
-            } else if (layout === 1) { // Коридор
+            } else if (layout === 1) {
                 for(let i=0; i<3; i++) {
                     attacks.push({ type: "danger", x: 10 + Math.random()*100, y: -50, size: 24, speedX: 0, speedY: 2.5*s, color: "#ff3333", damageOnMoving: true });
                     attacks.push({ type: "danger", x: 280 + Math.random()*100, y: 550, size: 24, speedX: 0, speedY: -2.5*s, color: "#ff3333", damageOnMoving: true });
                     attacks.push({ type: "square", x: 130 + Math.random()*140, y: Math.random() > 0.5 ? -50 : 550, size: 24, speedX: 0, speedY: (Math.random() > 0.5 ? 2 : -2)*s, color: "#fff", angle: 0 });
                 }
-            } else if (layout === 2) { // Остров
+            } else if (layout === 2) {
                 let ix = 100 + Math.random()*200, iy = 150 + Math.random()*200;
                 for(let i=0; i<5; i++) {
                     let isWhite = (i === 0);
@@ -471,7 +452,7 @@ function spawnAttack() {
                     if (isWhite) attacks.push({ type: "square", x: px, y: py, size: 24, speedX: Math.cos(pAng)*2*s, speedY: Math.sin(pAng)*2*s, color: "#fff" });
                     else attacks.push({ type: "danger", x: px, y: py, size: 28, speedX: Math.cos(pAng)*2.5*s, speedY: Math.sin(pAng)*2.5*s, color: "#ff3333", damageOnMoving: true, angle: Math.random() });
                 }
-            } else { // Хаос
+            } else {
                 for(let i=0; i<4; i++) {
                     let isWhite = Math.random() > 0.5;
                     let px = Math.random() * 400, py = Math.random() > 0.5 ? -50 : 550;
@@ -482,7 +463,7 @@ function spawnAttack() {
             }
             break;
 
-        case 9: // Пульсирующий круг
+        case 9:
             let numPulsars = bw >= 500 ? (Math.random()>0.5? 2:3) : (Math.random()>0.5? 1:2);
             for(let i=0; i<numPulsars; i++) {
                 attacks.push({
@@ -495,11 +476,10 @@ function spawnAttack() {
                     lastHitTime: 0, color: "#ffdd00"
                 });
             }
-            // Спавним белые атаки фоном, чтобы игрок не стоял
             for(let i=0; i<3; i++) attacks.push({ type: "square", x: Math.random()*400, y: -40, size: 20, speedX: 0, speedY: 2*s, color: "#fff" });
             break;
 
-        case 10: // Активный спавн Бластеров
+        case 10:
             spawnBlaster(bw);
             for(let i=0; i<3; i++) {
                 attacks.push({ type: "square", x: Math.random()*400, y: -40, size: 20, speedX: (Math.random()-0.5)*2*s, speedY: 1.8*s, color: "#fff" });
@@ -558,7 +538,6 @@ function renderArena() {
     
     if (arenaPhase === "dodge") {
         moveHeart();
-        // Механика Анти-Кемпер (Тип 10 глобально)
         if (arenaAllowedTypes.includes(10) && !heartWasMoving) {
             let bw = typeof wave !== 'undefined' ? wave : 50;
             let camperThreshold = bw >= 700 ? 120 : (bw >= 350 ? 150 : 180);
@@ -622,7 +601,6 @@ function renderArena() {
         for (let i = attacks.length - 1; i >= 0; i--) {
             let a = attacks[i];
             
-            // Обработка Пульсаров (Тип 9)
             if (a.type === "pulsar") {
                 a.x += a.speedX || 0; a.y += a.speedY || 0;
                 a.phase += 0.05 * arenaSpeedMult;
@@ -714,13 +692,13 @@ function renderArena() {
             ctx.restore();
         }
 
-        // Отрисовка и логика Бластеров
+        // Бластеры
         for (let i = arenaBlasters.length - 1; i >= 0; i--) {
             let b = arenaBlasters[i];
             let actualColor = b.color === "rainbow" ? `hsl(${(now/2)%360}, 100%, 60%)` : b.color;
             
             if (b.state === "aiming") {
-                if (b.timer > 30) b.angle = Math.atan2(heart.y - b.y, heart.x - b.x); // Наводка до последних 0.5 сек
+                if (b.timer > 30) b.angle = Math.atan2(heart.y - b.y, heart.x - b.x);
                 
                 ctx.save();
                 ctx.globalAlpha = 0.3 + Math.abs(Math.sin(b.timer * 0.2)) * 0.3;
@@ -774,6 +752,7 @@ function renderArena() {
             }
         }
         
+        // Шлейф
         for (let i = arenaTrail.length - 1; i >= 0; i--) {
             let t = arenaTrail[i]; t.life--;
             if (t.life <= 0) { arenaTrail.splice(i, 1); continue; }
@@ -781,6 +760,7 @@ function renderArena() {
             ctx.beginPath(); ctx.arc(t.x, t.y, t.size*(t.life/10), 0, Math.PI*2); ctx.fill();
         }
         
+        // Сердечко
         if (invulnTimer === 0 || Math.floor(now / 100) % 2 === 0) {
             let hx = heart.x, hy = heart.y, s = heart.size;
             ctx.shadowBlur = 15; ctx.shadowColor = "#ff0000"; ctx.fillStyle = "#ff0000";
@@ -817,6 +797,7 @@ function renderArena() {
         });
     }
     
+    // Частицы
     ctx.shadowBlur = 0;
     for (let i = arenaParticles.length - 1; i >= 0; i--) {
         let p = arenaParticles[i];
@@ -827,6 +808,7 @@ function renderArena() {
     }
     ctx.globalAlpha = 1;
 
+    // Всплывающий текст
     ctx.textAlign = "center"; ctx.font = "bold 16px sans-serif";
     for (let i = floatingTexts.length - 1; i >= 0; i--) {
         let ft = floatingTexts[i];
