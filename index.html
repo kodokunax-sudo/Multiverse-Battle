@@ -250,7 +250,10 @@
     <div style="color:white;font-size:22px;font-weight:900;margin-bottom:8px;" id="arenaBossName">БОСС</div>
     <div style="color:white;font-size:14px;margin-bottom:5px;">❤️ <span id="arenaHP">30</span> | ⏱️ <span id="arenaTimer">∞</span></div>
     <canvas id="arenaCanvas" width="400" height="500" style="border:3px solid white;background:#0a0a1a;border-radius:12px;cursor:crosshair;"></canvas>
-    <div style="color:#aaa;margin-top:8px;font-size:12px;">⌨️ WASD / 🕹️ Джойстик — уклоняться | 🖱️ Клик — бить</div>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+        <button id="skipBossBtn" class="btn btn-skip" style="padding:8px 18px;font-size:14px;display:none;" onclick="skipDefeatedBoss()">⏭️ Пропустить</button>
+    </div>
+    <div style="color:#aaa;margin-top:5px;font-size:12px;">⌨️ WASD — уклоняться | 🖱️ Клик — бить</div>
 </div>
 
 <script src="images.js"></script>
