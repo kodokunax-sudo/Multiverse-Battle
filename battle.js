@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v18 — ВЗРЫВНАЯ ДИНАМИКА ==========
+// ========== АРЕНА UNDERTALE v19 — ЧИТАЕМАЯ ДИНАМИКА И БАЛАНС ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 30;
@@ -23,7 +23,7 @@ let arenaComboText = "";
 let arenaComboTimer = 0;
 let arenaTrail = [];
 let keys = { w: false, a: false, s: false, d: false, up: false, left: false, down: false, right: false };
-let heartSpeed = 3.8; // Чуть ускорил сердечко для лучшего уклонения
+let heartSpeed = 3.8; 
 let joystickActive = false;
 let joystickX = 0;
 let joystickY = 0;
@@ -34,6 +34,7 @@ let animFrameId = null;
 let heartWasMoving = false;
 let heartStandingTime = 0;
 let arenaSpeedMult = 0.5;
+let arenaCurrentWave = 0; // Трекер текущей волны для баланса атак
 let invulnTimer = 0;
 let isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
 
@@ -182,6 +183,7 @@ function startArena(bossWave) {
     if (spareBtn) spareBtn.style.display = "none";
     
     arenaActive = true;
+    arenaCurrentWave = bossWave; // Сохраняем волну
     calculateArenaHP();
     arenaClickTargets = [];
     arenaClicksHit = 0;
@@ -200,7 +202,8 @@ function startArena(bossWave) {
     heartWasMoving = false;
     heartStandingTime = 0;
     
-    arenaSpeedMult = Math.min(4.0, 1.2 + (bossWave - 50) / 100);
+    // СБАЛАНСИРОВАННАЯ СКОРОСТЬ: на ранних волнах игра дает освоиться (0.5 - 0.7), к высоким разгоняется
+    arenaSpeedMult = Math.max(0.5, Math.min(4.0, 0.4 + (bossWave / 160)));
     arenaAllowedTypes = getAttackTypes(bossWave);
     
     let bt = typeof bossTemplates !== 'undefined' ? bossTemplates[bossWave] : null;
@@ -237,22 +240,21 @@ function startDodgePhase() {
     
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     
-    // Сделал атаки динамичнее (интервалы меньше)
-    let baseInterval = 1100;
-    if (arenaAttackType === 0) baseInterval = 1500; 
-    if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 800;
+    let baseInterval = 1200;
+    if (arenaAttackType === 0) baseInterval = 1400; 
+    if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 900;
     if (arenaAttackType === 6) baseInterval = 2000;
-    if (arenaAttackType === 7) baseInterval = 1000;
-    if (arenaAttackType === 8) baseInterval = 1200;
-    if (arenaAttackType === 9) baseInterval = 1800; // Для бомб
-    if (arenaAttackType === 10) baseInterval = 1000;
+    if (arenaAttackType === 7) baseInterval = 1100;
+    if (arenaAttackType === 8) baseInterval = 1300;
+    if (arenaAttackType === 9) baseInterval = 1700; 
+    if (arenaAttackType === 10) baseInterval = 1100;
 
     arenaAttackInterval = setInterval(() => {
         if (arenaPhase === "dodge" && arenaActive) spawnAttack();
-    }, Math.max(350, baseInterval / arenaSpeedMult));
+    }, Math.max(400, baseInterval / arenaSpeedMult));
     
-    // ФАЗА УВОРОТА УВЕЛИЧЕНА В 2+ РАЗА (от 10 до 20 секунд)
-    let dodgeTime = Math.max(10000, 14000 + Math.random() * 6000);
+    // Динамичная фаза уворота (10-20 секунд)
+    let dodgeTime = Math.max(10000, 13000 + Math.random() * 6000);
     setTimeout(() => { if (arenaPhase === "dodge" && arenaActive) startAttackPhase(); }, dodgeTime);
 }
 
@@ -262,7 +264,7 @@ function startAttackPhase() {
     arenaBlasters = [];
     arenaClickTargets = [];
     arenaClicksHit = 0;
-    arenaTotalTargets = 6 + Math.floor(arenaSpeedMult * 1.5);
+    arenaTotalTargets = 5 + Math.floor(arenaSpeedMult * 1.5);
     arenaAttackTimeLeft = 2;
     if (arenaAttackInterval) { clearInterval(arenaAttackInterval); arenaAttackInterval = null; }
     
@@ -315,7 +317,7 @@ function applyArenaDamage() {
 }
 
 function spawnBlaster(w) {
-    let bossW = typeof wave !== 'undefined' ? wave : w;
+    let bossW = arenaCurrentWave;
     let isRainbow = Math.random() < 0.05 && bossW >= 800; 
     let colors = ["#fff", "#ffdd00", "#ff3333"];
     let bColor = isRainbow ? "rainbow" : colors[Math.floor(Math.random() * colors.length)];
@@ -340,52 +342,73 @@ function spawnBlaster(w) {
 
 function spawnAttack() {
     let s = arenaSpeedMult;
-    let bw = typeof wave !== 'undefined' ? wave : 50;
-    if (!isMobile) arenaShake += 3; 
+    let bw = arenaCurrentWave;
+    let isEarly = bw < 100; // Проверка на начальный бой
+    
+    if (!isMobile) arenaShake += 2; 
     
     switch(arenaAttackType) {
         case 0:
-            let isVertical = Math.random() > 0.5;
-            if (isVertical) {
-                let gapY = 50 + Math.random() * 300; 
-                let startX = Math.random() > 0.5 ? -30 : 430;
-                let dirX = startX < 0 ? 3.5*s : -3.5*s;
-                for (let i = 20; i < 480; i += 35) {
-                    if (Math.abs(i - gapY) < 55) continue; 
-                    attacks.push({ type: "square", x: startX, y: i, size: 22, spd: dirX, spdY: 0, color: "#fff" });
+            if (isEarly) {
+                // ОСМЫСЛЕННЫЙ НАЧАЛЬНЫЙ ПАТТЕРН: Четкие, редкие препятствия вместо каши
+                if (Math.random() > 0.5) {
+                    // Два параллельных куба сверху вниз с гигантским проходом по центру
+                    attacks.push({ type: "square", x: 60, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff" });
+                    attacks.push({ type: "square", x: 310, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff" });
+                } else {
+                    // Два встречных куба по бокам — один слева, один справа. Игрок просто стоит в центре
+                    attacks.push({ type: "square", x: -30, y: 180, size: 26, spd: 3.5*s, spdY: 0, color: "#fff" });
+                    attacks.push({ type: "square", x: 430, y: 320, size: 26, spd: -3.5*s, spdY: 0, color: "#fff" });
                 }
             } else {
-                let gapX = 50 + Math.random() * 250;
-                let startY = Math.random() > 0.5 ? -30 : 530;
-                let dirY = startY < 0 ? 3.5*s : -3.5*s;
-                for (let i = 20; i < 380; i += 35) {
-                    if (Math.abs(i - gapX) < 55) continue; 
-                    attacks.push({ type: "square", x: i, y: startY, size: 22, spd: 0, spdY: dirY, color: "#fff" });
+                // Сложный режим (стена с дырой) для прокачанных волн
+                let isVertical = Math.random() > 0.5;
+                if (isVertical) {
+                    let gapY = 50 + Math.random() * 300; 
+                    let startX = Math.random() > 0.5 ? -30 : 430;
+                    let dirX = startX < 0 ? 3.5*s : -3.5*s;
+                    for (let i = 20; i < 480; i += 35) {
+                        if (Math.abs(i - gapY) < 55) continue; 
+                        attacks.push({ type: "square", x: startX, y: i, size: 22, spd: dirX, spdY: 0, color: "#fff" });
+                    }
+                } else {
+                    let gapX = 50 + Math.random() * 250;
+                    let startY = Math.random() > 0.5 ? -30 : 530;
+                    let dirY = startY < 0 ? 3.5*s : -3.5*s;
+                    for (let i = 20; i < 380; i += 35) {
+                        if (Math.abs(i - gapX) < 55) continue; 
+                        attacks.push({ type: "square", x: i, y: startY, size: 22, spd: 0, spdY: dirY, color: "#fff" });
+                    }
                 }
             }
             break;
             
         case 1:
-            for (let i = 0; i < 3; i++) {
+            // Вместо 3-х хаотичных снарядов на старте выпускаем всего 1, чтобы читалось легко
+            let projectCount = isEarly ? 1 : 3;
+            for (let i = 0; i < projectCount; i++) {
                 let side = Math.floor(Math.random()*4);
                 let x, y;
                 if (side===0) { x=Math.random()*400; y=-30; } else if (side===1) { x=Math.random()*400; y=530; }
                 else if (side===2) { x=-30; y=Math.random()*500; } else { x=430; y=Math.random()*500; }
                 let angle = Math.atan2(heart.y - y, heart.x - x);
-                angle += (Math.random() - 0.5) * 0.2; 
-                attacks.push({ type: "square", x, y, size: 20, spd: Math.cos(angle)*4.5*s, spdY: Math.sin(angle)*4.5*s, color: "#4499ff" });
+                if (!isEarly) angle += (Math.random() - 0.5) * 0.2; 
+                attacks.push({ type: "square", x, y, size: 20, spd: Math.cos(angle)*4.2*s, spdY: Math.sin(angle)*4.2*s, color: "#4499ff" });
             }
             break;
             
         case 2:
-            let x = Math.random() * 400, y = -40;
-            let angle = Math.atan2(heart.y - y, heart.x - x);
-            attacks.push({ type: "sword", x, y, angle: angle, size: 45, width: 15, color: "#ffaa00", spd: Math.cos(angle)*5*s, spdY: Math.sin(angle)*5*s, damageOnStanding: true });
-            attacks.push({ type: "sword", x: 400 - x, y: 540, angle: angle + Math.PI, size: 45, width: 15, color: "#ffaa00", spd: -Math.cos(angle)*5*s, spdY: -Math.sin(angle)*5*s, damageOnStanding: true });
+            let xPos = Math.random() * 400, yPos = -40;
+            let angle = Math.atan2(heart.y - yPos, heart.x - xPos);
+            attacks.push({ type: "sword", x: xPos, y: yPos, angle: angle, size: 45, width: 15, color: "#ffaa00", spd: Math.cos(angle)*5*s, spdY: Math.sin(angle)*5*s, damageOnStanding: true });
+            if (!isEarly) {
+                attacks.push({ type: "sword", x: 400 - xPos, y: 540, angle: angle + Math.PI, size: 45, width: 15, color: "#ffaa00", spd: -Math.cos(angle)*5*s, spdY: -Math.sin(angle)*5*s, damageOnStanding: true });
+            }
             break;
             
         case 3:
-            for (let i = 0; i < 2; i++) {
+            let redCount = isEarly ? 1 : 2;
+            for (let i = 0; i < redCount; i++) {
                 let vx = (Math.random() > 0.5 ? 1 : -1) * (3+Math.random()*1)*s;
                 let vy = (Math.random() > 0.5 ? 1 : -1) * (3+Math.random()*1)*s;
                 attacks.push({ type: "danger", x: 200, y: 250, size: 25, spd: vx, spdY: vy, color: "#ff3333", damageOnMoving: true });
@@ -393,8 +416,9 @@ function spawnAttack() {
             break;
             
         case 4:
-            for (let i = 0; i < 3; i++) {
-                attacks.push({ type: "square", x: heart.x + (Math.random()-0.5)*150, y: -40 - Math.random()*50, size: 25, spd: 0, spdY: (3.5+Math.random()*1.5)*s, color: "#ff69b4", knockback: 120 }); 
+            let pinkCount = isEarly ? 1 : 3;
+            for (let i = 0; i < pinkCount; i++) {
+                attacks.push({ type: "square", x: heart.x + (Math.random()-0.5)*120, y: -40 - Math.random()*50, size: 25, spd: 0, spdY: (3.5+Math.random()*1.5)*s, color: "#ff69b4", knockback: 120 }); 
             }
             break;
             
@@ -414,24 +438,26 @@ function spawnAttack() {
             let sx = Math.random() * 400, sy = -40;
             let sa = Math.atan2(heart.y - sy, heart.x - sx);
             attacks.push({ type: "sword", x: sx, y: sy, angle: sa, size: 40, width: 12, color: "#ffaa00", spd: Math.cos(sa)*4.5*s, spdY: Math.sin(sa)*4.5*s, damageOnStanding: true });
-            attacks.push({ type: "danger", x: heart.x + (Math.random()-0.5)*100, y: 540, size: 25, spd: (Math.random()-0.5)*1.5*s, spdY: -4*s, color: "#ff3333", damageOnMoving: true });
+            if (!isEarly) {
+                attacks.push({ type: "danger", x: heart.x + (Math.random()-0.5)*100, y: 540, size: 25, spd: (Math.random()-0.5)*1.5*s, spdY: -4*s, color: "#ff3333", damageOnMoving: true });
+            }
             break;
 
         case 8: 
             attacks.push({ type: "danger", x: -40, y: heart.y, size: 40, spd: 5*s, spdY: 0, color: "#ff3333", damageOnMoving: true });
-            attacks.push({ type: "square", x: 440, y: heart.y + (Math.random()>0.5?60:-60), size: 30, spd: -5*s, spdY: 0, color: "#fff" });
+            if (!isEarly) attacks.push({ type: "square", x: 440, y: heart.y + (Math.random()>0.5?60:-60), size: 30, spd: -5*s, spdY: 0, color: "#fff" });
             break;
 
         case 9:
-            // ПАТТЕРН БОМБЫ: появляются, мигают 1 секунду, потом мощный взрыв
-            let numBombs = bw >= 500 ? 3 : 2;
+            // БОМБЫ: Четкий контролируемый спавн
+            let numBombs = isEarly ? 1 : (bw >= 500 ? 3 : 2);
             for(let i=0; i<numBombs; i++) {
                 attacks.push({
                     type: "bomb",
-                    x: heart.x + (Math.random()-0.5)*180, 
-                    y: heart.y + (Math.random()-0.5)*180,
-                    timer: 60, // 60 кадров = 1 секунда до взрыва
-                    maxRadius: 80 + Math.random() * 40, 
+                    x: heart.x + (Math.random()-0.5)*140, 
+                    y: heart.y + (Math.random()-0.5)*140,
+                    timer: 60, 
+                    maxRadius: isEarly ? 75 : (80 + Math.random() * 40), 
                     hit: false
                 });
             }
@@ -479,7 +505,6 @@ function applyHit(dmg, textMsg = null) {
     if (!isMobile) spawnFloatingText(heart.x, heart.y - 20, textMsg || "-" + dmg, "#ff4444");
     document.getElementById("arenaHP").innerText = Math.max(0, arenaHP);
     
-    // БОЛЬШЕ ЧАСТИЦ ПРИ УРОНЕ
     for (let j = 0; j < (isMobile ? 10 : 25); j++) {
         arenaParticles.push({ x: heart.x, y: heart.y, vx: (Math.random()-0.5)*25, vy: (Math.random()-0.5)*25, life: 35, color: "#f00", size: 4+Math.random()*5 });
     }
@@ -493,7 +518,7 @@ function renderArena() {
     if (arenaPhase === "dodge") {
         moveHeart();
         if (arenaAllowedTypes.includes(10) && !heartWasMoving) {
-            let bw = typeof wave !== 'undefined' ? wave : 50;
+            let bw = arenaCurrentWave;
             let camperThreshold = bw >= 700 ? 70 : (bw >= 350 ? 90 : 110); 
             if (heartStandingTime > camperThreshold) {
                 spawnBlaster(bw);
@@ -563,12 +588,10 @@ function renderArena() {
         for (let i = attacks.length - 1; i >= 0; i--) {
             let a = attacks[i];
             
-            // НОВАЯ ЛОГИКА БОМБ
             if (a.type === "bomb") {
                 a.timer--;
                 
                 if (a.timer > 0) {
-                    // Фаза тикания: мигает красным/белым и показывает зону поражения
                     ctx.save();
                     if (!isMobile) { ctx.shadowBlur = 15; ctx.shadowColor = "#ff3333"; }
                     ctx.fillStyle = (Math.floor(a.timer / 8) % 2 === 0) ? "#fff" : "#ff3333";
@@ -576,13 +599,11 @@ function renderArena() {
                     ctx.arc(a.x, a.y, 10 + Math.abs(Math.sin(a.timer * 0.3)) * 5, 0, Math.PI*2); 
                     ctx.fill();
                     
-                    // Индикатор радиуса взрыва
                     ctx.strokeStyle = "rgba(255, 51, 51, 0.4)"; ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(a.x, a.y, a.maxRadius, 0, Math.PI*2); ctx.stroke();
                     ctx.restore();
                 } 
                 else if (a.timer > -15) {
-                    // Фаза мощного взрыва (длится 15 кадров)
                     let progress = Math.abs(a.timer) / 15; 
                     let currentRadius = a.maxRadius * progress;
                     
@@ -592,7 +613,6 @@ function renderArena() {
                     ctx.beginPath(); ctx.arc(a.x, a.y, currentRadius, 0, Math.PI*2); ctx.fill();
                     ctx.restore();
                     
-                    // В первый кадр взрыва трясём экран и кидаем кучу партиклов
                     if (a.timer === -1) {
                         if (!isMobile) arenaShake += 15;
                         for(let p=0; p < (isMobile ? 15 : 35); p++) {
@@ -604,17 +624,15 @@ function renderArena() {
                         }
                     }
                     
-                    // Проверка урона
                     if (!a.hit && invulnTimer <= 0) {
                         let dx = heart.x - a.x, dy = heart.y - a.y;
                         if (Math.sqrt(dx*dx + dy*dy) < (currentRadius + heart.hitbox)) {
-                            applyHit(30, "ВЗРЫВ!"); // Огромный урон
+                            applyHit(30, "ВЗРЫВ!"); 
                             a.hit = true;
                         }
                     }
                 } 
                 else {
-                    // Бомба отработала, удаляем
                     attacks.splice(i, 1);
                 }
                 continue;
