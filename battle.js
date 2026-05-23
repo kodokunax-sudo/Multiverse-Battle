@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v20 — МЕДЛЕННЫЕ АТАКИ, БОСС 500 ОСОБЫЙ ==========
+// ========== АРЕНА UNDERTALE v21 — НОРМАЛЬНАЯ СКОРОСТЬ, МЕНЬШЕ АТАК ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 30;
@@ -33,7 +33,7 @@ let arenaAttackInterval = null;
 let animFrameId = null;
 let heartWasMoving = false;
 let heartStandingTime = 0;
-let arenaSpeedMult = 0.5;
+let arenaSpeedMult = 1.0;
 let arenaCurrentWave = 0;
 let invulnTimer = 0;
 let isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
@@ -202,12 +202,14 @@ function startArena(bossWave) {
     heartWasMoving = false;
     heartStandingTime = 0;
     
-    // Скорость: босс 500 всегда быстрый (3.5), остальные медленнее
-    if (bossWave === 500) {
-        arenaSpeedMult = 3.5; // Босс 500 — особый, всегда быстрый
-    } else {
-        arenaSpeedMult = Math.max(0.5, Math.min(4.0, 0.4 + (bossWave / 160)));
-    }
+    // НОВАЯ ФОРМУЛА: базовая скорость 1.0, +0.1 за каждые 50 волн начиная с 50
+    // 50 волна: 1.0 + 0 = 1.0
+    // 100 волна: 1.0 + 0.1 = 1.1
+    // 500 волна: 1.0 + 0.9 = 1.9
+    // 5000 волна: 1.0 + 9.9 = 10.9
+    // 10000 волна: 1.0 + 19.9 = ~20.9 (но ограничим до 15)
+    arenaSpeedMult = Math.min(15.0, 1.0 + Math.floor((bossWave - 50) / 50) * 0.1);
+    if (bossWave < 50) arenaSpeedMult = 1.0;
     
     arenaAllowedTypes = getAttackTypes(bossWave);
     
@@ -245,21 +247,20 @@ function startDodgePhase() {
     
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     
-    // В 4 раза медленнее для всех кроме босса 500
-    let speedDivider = (arenaCurrentWave === 500) ? 1 : 4;
-    
-    let baseInterval = 1200 * speedDivider;
-    if (arenaAttackType === 0) baseInterval = 1400 * speedDivider;
-    if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 900 * speedDivider;
-    if (arenaAttackType === 6) baseInterval = 2000 * speedDivider;
-    if (arenaAttackType === 7) baseInterval = 1100 * speedDivider;
-    if (arenaAttackType === 8) baseInterval = 1300 * speedDivider;
-    if (arenaAttackType === 9) baseInterval = 1700 * speedDivider;
-    if (arenaAttackType === 10) baseInterval = 1100 * speedDivider;
+    // Базовый интервал спавна: чем выше скорость, тем чаще атаки
+    // Но в 2 раза меньше чем раньше (больше интервал = реже атаки)
+    let baseInterval = 2400; // было 1200, умножили на 2
+    if (arenaAttackType === 0) baseInterval = 2800;
+    if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 1800;
+    if (arenaAttackType === 6) baseInterval = 4000;
+    if (arenaAttackType === 7) baseInterval = 2200;
+    if (arenaAttackType === 8) baseInterval = 2600;
+    if (arenaAttackType === 9) baseInterval = 3400;
+    if (arenaAttackType === 10) baseInterval = 2200;
 
     arenaAttackInterval = setInterval(() => {
         if (arenaPhase === "dodge" && arenaActive) spawnAttack();
-    }, Math.max(400 * speedDivider, baseInterval / arenaSpeedMult));
+    }, Math.max(800, baseInterval / arenaSpeedMult));
     
     let dodgeTime = Math.max(10000, 13000 + Math.random() * 6000);
     setTimeout(() => { if (arenaPhase === "dodge" && arenaActive) startAttackPhase(); }, dodgeTime);
@@ -271,7 +272,8 @@ function startAttackPhase() {
     arenaBlasters = [];
     arenaClickTargets = [];
     arenaClicksHit = 0;
-    arenaTotalTargets = 5 + Math.floor(arenaSpeedMult * 1.5);
+    // В 2 раза меньше целей
+    arenaTotalTargets = 3 + Math.floor(arenaSpeedMult * 0.75);
     arenaAttackTimeLeft = 2;
     if (arenaAttackInterval) { clearInterval(arenaAttackInterval); arenaAttackInterval = null; }
     
@@ -370,7 +372,8 @@ function spawnAttack() {
                     let gapY = 50 + Math.random() * 300;
                     let startX = Math.random() > 0.5 ? -30 : 430;
                     let dirX = startX < 0 ? 3.5*s : -3.5*s;
-                    for (let i = 20; i < 480; i += 35) {
+                    // В 2 раза меньше квадратов в стене
+                    for (let i = 20; i < 480; i += 70) {
                         if (Math.abs(i - gapY) < 55) continue;
                         attacks.push({ type: "square", x: startX, y: i, size: 22, spd: dirX, spdY: 0, color: "#fff" });
                     }
@@ -378,7 +381,7 @@ function spawnAttack() {
                     let gapX = 50 + Math.random() * 250;
                     let startY = Math.random() > 0.5 ? -30 : 530;
                     let dirY = startY < 0 ? 3.5*s : -3.5*s;
-                    for (let i = 20; i < 380; i += 35) {
+                    for (let i = 20; i < 380; i += 70) {
                         if (Math.abs(i - gapX) < 55) continue;
                         attacks.push({ type: "square", x: i, y: startY, size: 22, spd: 0, spdY: dirY, color: "#fff" });
                     }
@@ -387,7 +390,7 @@ function spawnAttack() {
             break;
             
         case 1:
-            let projectCount = isEarly ? 1 : 3;
+            let projectCount = isEarly ? 1 : 2;
             for (let i = 0; i < projectCount; i++) {
                 let side = Math.floor(Math.random()*4);
                 let x, y;
@@ -418,7 +421,7 @@ function spawnAttack() {
             break;
             
         case 4:
-            let pinkCount = isEarly ? 1 : 3;
+            let pinkCount = isEarly ? 1 : 2;
             for (let i = 0; i < pinkCount; i++) {
                 attacks.push({ type: "square", x: heart.x + (Math.random()-0.5)*120, y: -40 - Math.random()*50, size: 25, spd: 0, spdY: (3.5+Math.random()*1.5)*s, color: "#ff69b4", knockback: 120 });
             }
@@ -451,7 +454,7 @@ function spawnAttack() {
             break;
 
         case 9:
-            let numBombs = isEarly ? 1 : (bw >= 500 ? 3 : 2);
+            let numBombs = isEarly ? 1 : (bw >= 500 ? 2 : 1);
             for(let i=0; i<numBombs; i++) {
                 attacks.push({
                     type: "bomb",
