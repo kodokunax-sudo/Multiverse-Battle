@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v19 — ЧИТАЕМАЯ ДИНАМИКА И БАЛАНС ==========
+// ========== АРЕНА UNDERTALE v20 — МЕДЛЕННЫЕ АТАКИ, БОСС 500 ОСОБЫЙ ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 30;
@@ -23,7 +23,7 @@ let arenaComboText = "";
 let arenaComboTimer = 0;
 let arenaTrail = [];
 let keys = { w: false, a: false, s: false, d: false, up: false, left: false, down: false, right: false };
-let heartSpeed = 3.8; 
+let heartSpeed = 3.8;
 let joystickActive = false;
 let joystickX = 0;
 let joystickY = 0;
@@ -33,8 +33,8 @@ let arenaAttackInterval = null;
 let animFrameId = null;
 let heartWasMoving = false;
 let heartStandingTime = 0;
-let arenaSpeedMult = 0.2;
-let arenaCurrentWave = 0; // Трекер текущей волны для баланса атак
+let arenaSpeedMult = 0.5;
+let arenaCurrentWave = 0;
 let invulnTimer = 0;
 let isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
 
@@ -183,7 +183,7 @@ function startArena(bossWave) {
     if (spareBtn) spareBtn.style.display = "none";
     
     arenaActive = true;
-    arenaCurrentWave = bossWave; // Сохраняем волну
+    arenaCurrentWave = bossWave;
     calculateArenaHP();
     arenaClickTargets = [];
     arenaClicksHit = 0;
@@ -202,8 +202,13 @@ function startArena(bossWave) {
     heartWasMoving = false;
     heartStandingTime = 0;
     
-    // СБАЛАНСИРОВАННАЯ СКОРОСТЬ: на ранних волнах игра дает освоиться (0.5 - 0.7), к высоким разгоняется
-    arenaSpeedMult = Math.max(0.5, Math.min(4.0, 0.4 + (bossWave / 160)));
+    // Скорость: босс 500 всегда быстрый (3.5), остальные медленнее
+    if (bossWave === 500) {
+        arenaSpeedMult = 3.5; // Босс 500 — особый, всегда быстрый
+    } else {
+        arenaSpeedMult = Math.max(0.5, Math.min(4.0, 0.4 + (bossWave / 160)));
+    }
+    
     arenaAllowedTypes = getAttackTypes(bossWave);
     
     let bt = typeof bossTemplates !== 'undefined' ? bossTemplates[bossWave] : null;
@@ -240,20 +245,22 @@ function startDodgePhase() {
     
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     
-    let baseInterval = 1200;
-    if (arenaAttackType === 0) baseInterval = 1400; 
-    if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 900;
-    if (arenaAttackType === 6) baseInterval = 2000;
-    if (arenaAttackType === 7) baseInterval = 1100;
-    if (arenaAttackType === 8) baseInterval = 1300;
-    if (arenaAttackType === 9) baseInterval = 1700; 
-    if (arenaAttackType === 10) baseInterval = 1100;
+    // В 4 раза медленнее для всех кроме босса 500
+    let speedDivider = (arenaCurrentWave === 500) ? 1 : 4;
+    
+    let baseInterval = 1200 * speedDivider;
+    if (arenaAttackType === 0) baseInterval = 1400 * speedDivider;
+    if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 900 * speedDivider;
+    if (arenaAttackType === 6) baseInterval = 2000 * speedDivider;
+    if (arenaAttackType === 7) baseInterval = 1100 * speedDivider;
+    if (arenaAttackType === 8) baseInterval = 1300 * speedDivider;
+    if (arenaAttackType === 9) baseInterval = 1700 * speedDivider;
+    if (arenaAttackType === 10) baseInterval = 1100 * speedDivider;
 
     arenaAttackInterval = setInterval(() => {
         if (arenaPhase === "dodge" && arenaActive) spawnAttack();
-    }, Math.max(400, baseInterval / arenaSpeedMult));
+    }, Math.max(400 * speedDivider, baseInterval / arenaSpeedMult));
     
-    // Динамичная фаза уворота (10-20 секунд)
     let dodgeTime = Math.max(10000, 13000 + Math.random() * 6000);
     setTimeout(() => { if (arenaPhase === "dodge" && arenaActive) startAttackPhase(); }, dodgeTime);
 }
@@ -334,7 +341,7 @@ function spawnBlaster(w) {
         angle: Math.atan2(heart.y - y, heart.x - x),
         color: bColor,
         state: "aiming",
-        timer: 70, 
+        timer: 70,
         width: isRainbow ? 15 : 30,
         hasHit: false
     });
@@ -343,32 +350,28 @@ function spawnBlaster(w) {
 function spawnAttack() {
     let s = arenaSpeedMult;
     let bw = arenaCurrentWave;
-    let isEarly = bw < 100; // Проверка на начальный бой
+    let isEarly = bw < 100;
     
-    if (!isMobile) arenaShake += 2; 
+    if (!isMobile) arenaShake += 2;
     
     switch(arenaAttackType) {
         case 0:
             if (isEarly) {
-                // ОСМЫСЛЕННЫЙ НАЧАЛЬНЫЙ ПАТТЕРН: Четкие, редкие препятствия вместо каши
                 if (Math.random() > 0.5) {
-                    // Два параллельных куба сверху вниз с гигантским проходом по центру
                     attacks.push({ type: "square", x: 60, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff" });
                     attacks.push({ type: "square", x: 310, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff" });
                 } else {
-                    // Два встречных куба по бокам — один слева, один справа. Игрок просто стоит в центре
                     attacks.push({ type: "square", x: -30, y: 180, size: 26, spd: 3.5*s, spdY: 0, color: "#fff" });
                     attacks.push({ type: "square", x: 430, y: 320, size: 26, spd: -3.5*s, spdY: 0, color: "#fff" });
                 }
             } else {
-                // Сложный режим (стена с дырой) для прокачанных волн
                 let isVertical = Math.random() > 0.5;
                 if (isVertical) {
-                    let gapY = 50 + Math.random() * 300; 
+                    let gapY = 50 + Math.random() * 300;
                     let startX = Math.random() > 0.5 ? -30 : 430;
                     let dirX = startX < 0 ? 3.5*s : -3.5*s;
                     for (let i = 20; i < 480; i += 35) {
-                        if (Math.abs(i - gapY) < 55) continue; 
+                        if (Math.abs(i - gapY) < 55) continue;
                         attacks.push({ type: "square", x: startX, y: i, size: 22, spd: dirX, spdY: 0, color: "#fff" });
                     }
                 } else {
@@ -376,7 +379,7 @@ function spawnAttack() {
                     let startY = Math.random() > 0.5 ? -30 : 530;
                     let dirY = startY < 0 ? 3.5*s : -3.5*s;
                     for (let i = 20; i < 380; i += 35) {
-                        if (Math.abs(i - gapX) < 55) continue; 
+                        if (Math.abs(i - gapX) < 55) continue;
                         attacks.push({ type: "square", x: i, y: startY, size: 22, spd: 0, spdY: dirY, color: "#fff" });
                     }
                 }
@@ -384,7 +387,6 @@ function spawnAttack() {
             break;
             
         case 1:
-            // Вместо 3-х хаотичных снарядов на старте выпускаем всего 1, чтобы читалось легко
             let projectCount = isEarly ? 1 : 3;
             for (let i = 0; i < projectCount; i++) {
                 let side = Math.floor(Math.random()*4);
@@ -392,7 +394,7 @@ function spawnAttack() {
                 if (side===0) { x=Math.random()*400; y=-30; } else if (side===1) { x=Math.random()*400; y=530; }
                 else if (side===2) { x=-30; y=Math.random()*500; } else { x=430; y=Math.random()*500; }
                 let angle = Math.atan2(heart.y - y, heart.x - x);
-                if (!isEarly) angle += (Math.random() - 0.5) * 0.2; 
+                if (!isEarly) angle += (Math.random() - 0.5) * 0.2;
                 attacks.push({ type: "square", x, y, size: 20, spd: Math.cos(angle)*4.2*s, spdY: Math.sin(angle)*4.2*s, color: "#4499ff" });
             }
             break;
@@ -418,7 +420,7 @@ function spawnAttack() {
         case 4:
             let pinkCount = isEarly ? 1 : 3;
             for (let i = 0; i < pinkCount; i++) {
-                attacks.push({ type: "square", x: heart.x + (Math.random()-0.5)*120, y: -40 - Math.random()*50, size: 25, spd: 0, spdY: (3.5+Math.random()*1.5)*s, color: "#ff69b4", knockback: 120 }); 
+                attacks.push({ type: "square", x: heart.x + (Math.random()-0.5)*120, y: -40 - Math.random()*50, size: 25, spd: 0, spdY: (3.5+Math.random()*1.5)*s, color: "#ff69b4", knockback: 120 });
             }
             break;
             
@@ -443,21 +445,20 @@ function spawnAttack() {
             }
             break;
 
-        case 8: 
+        case 8:
             attacks.push({ type: "danger", x: -40, y: heart.y, size: 40, spd: 5*s, spdY: 0, color: "#ff3333", damageOnMoving: true });
             if (!isEarly) attacks.push({ type: "square", x: 440, y: heart.y + (Math.random()>0.5?60:-60), size: 30, spd: -5*s, spdY: 0, color: "#fff" });
             break;
 
         case 9:
-            // БОМБЫ: Четкий контролируемый спавн
             let numBombs = isEarly ? 1 : (bw >= 500 ? 3 : 2);
             for(let i=0; i<numBombs; i++) {
                 attacks.push({
                     type: "bomb",
-                    x: heart.x + (Math.random()-0.5)*140, 
+                    x: heart.x + (Math.random()-0.5)*140,
                     y: heart.y + (Math.random()-0.5)*140,
-                    timer: 60, 
-                    maxRadius: isEarly ? 75 : (80 + Math.random() * 40), 
+                    timer: 60,
+                    maxRadius: isEarly ? 75 : (80 + Math.random() * 40),
                     hit: false
                 });
             }
@@ -499,7 +500,7 @@ function applyHit(dmg, textMsg = null) {
     
     arenaHP -= dmg;
     arenaHitFlash = 12;
-    invulnTimer = 40; 
+    invulnTimer = 40;
     arenaShake = 20;
     
     if (!isMobile) spawnFloatingText(heart.x, heart.y - 20, textMsg || "-" + dmg, "#ff4444");
@@ -519,7 +520,7 @@ function renderArena() {
         moveHeart();
         if (arenaAllowedTypes.includes(10) && !heartWasMoving) {
             let bw = arenaCurrentWave;
-            let camperThreshold = bw >= 700 ? 70 : (bw >= 350 ? 90 : 110); 
+            let camperThreshold = bw >= 700 ? 70 : (bw >= 350 ? 90 : 110);
             if (heartStandingTime > camperThreshold) {
                 spawnBlaster(bw);
                 heartStandingTime = 0;
@@ -550,11 +551,11 @@ function renderArena() {
     }
     ctx.strokeStyle = borderColor; ctx.lineWidth = 3;
     ctx.strokeRect(2, 2, 396, 496);
-    ctx.shadowBlur = 0; 
+    ctx.shadowBlur = 0;
     
     ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(8, 6, 384, 22);
     ctx.fillStyle = "#400"; ctx.fillRect(14, 12, 372, 5);
-    ctx.fillStyle = arenaHitFlash > 0 ? "#fff" : "#0f0"; 
+    ctx.fillStyle = arenaHitFlash > 0 ? "#fff" : "#0f0";
     ctx.fillRect(14, 12, 372 * Math.max(0, arenaHP/arenaMaxHP), 5);
     ctx.fillStyle = "#fff"; ctx.font = "bold 10px sans-serif";
     ctx.fillText(`❤️ ${Math.max(0, arenaHP)} / ${arenaMaxHP}`, 16, 24);
@@ -595,16 +596,16 @@ function renderArena() {
                     ctx.save();
                     if (!isMobile) { ctx.shadowBlur = 15; ctx.shadowColor = "#ff3333"; }
                     ctx.fillStyle = (Math.floor(a.timer / 8) % 2 === 0) ? "#fff" : "#ff3333";
-                    ctx.beginPath(); 
-                    ctx.arc(a.x, a.y, 10 + Math.abs(Math.sin(a.timer * 0.3)) * 5, 0, Math.PI*2); 
+                    ctx.beginPath();
+                    ctx.arc(a.x, a.y, 10 + Math.abs(Math.sin(a.timer * 0.3)) * 5, 0, Math.PI*2);
                     ctx.fill();
                     
                     ctx.strokeStyle = "rgba(255, 51, 51, 0.4)"; ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(a.x, a.y, a.maxRadius, 0, Math.PI*2); ctx.stroke();
                     ctx.restore();
-                } 
+                }
                 else if (a.timer > -15) {
-                    let progress = Math.abs(a.timer) / 15; 
+                    let progress = Math.abs(a.timer) / 15;
                     let currentRadius = a.maxRadius * progress;
                     
                     ctx.save();
@@ -616,10 +617,10 @@ function renderArena() {
                     if (a.timer === -1) {
                         if (!isMobile) arenaShake += 15;
                         for(let p=0; p < (isMobile ? 15 : 35); p++) {
-                             arenaParticles.push({ 
-                                 x: a.x, y: a.y, 
-                                 vx: (Math.random()-0.5)*30, vy: (Math.random()-0.5)*30, 
-                                 life: 30 + Math.random()*20, color: "#ffaa00", size: 4+Math.random()*6 
+                             arenaParticles.push({
+                                 x: a.x, y: a.y,
+                                 vx: (Math.random()-0.5)*30, vy: (Math.random()-0.5)*30,
+                                 life: 30 + Math.random()*20, color: "#ffaa00", size: 4+Math.random()*6
                              });
                         }
                     }
@@ -627,11 +628,11 @@ function renderArena() {
                     if (!a.hit && invulnTimer <= 0) {
                         let dx = heart.x - a.x, dy = heart.y - a.y;
                         if (Math.sqrt(dx*dx + dy*dy) < (currentRadius + heart.hitbox)) {
-                            applyHit(30, "ВЗРЫВ!"); 
+                            applyHit(30, "ВЗРЫВ!");
                             a.hit = true;
                         }
                     }
-                } 
+                }
                 else {
                     attacks.splice(i, 1);
                 }
@@ -654,7 +655,7 @@ function renderArena() {
                 hit = Math.sqrt(dx*dx + dy*dy) < (heart.hitbox + a.radius - 2);
             } else if (a.type === "sword") {
                 let dx = heart.x - a.x, dy = heart.y - a.y;
-                hit = Math.sqrt(dx*dx + dy*dy) < (heart.hitbox + a.size/2); 
+                hit = Math.sqrt(dx*dx + dy*dy) < (heart.hitbox + a.size/2);
             } else {
                 hit = Math.abs(heart.x - cx) < (sz/2 + heart.hitbox) && Math.abs(heart.y - cy) < (sz/2 + heart.hitbox);
             }
@@ -677,7 +678,7 @@ function renderArena() {
                 if (a.oneshot) { applyHit(999, "ФАТАЛЬНО!"); continue; }
                 
                 if (!a.damageOnStanding && !a.damageOnMoving && !a.heal && !a.knockback && !a.oneshot) {
-                    applyHit(12); attacks.splice(i, 1); continue; 
+                    applyHit(12); attacks.splice(i, 1); continue;
                 }
             }
             
@@ -733,7 +734,7 @@ function renderArena() {
                 
                 b.timer--;
                 if (b.timer <= 0) { b.state = "firing"; b.timer = 15; arenaShake = 25; }
-            } 
+            }
             else if (b.state === "firing") {
                 ctx.save();
                 ctx.strokeStyle = actualColor; ctx.lineWidth = b.width + Math.random()*8;
@@ -789,7 +790,7 @@ function renderArena() {
     for (let i = arenaParticles.length - 1; i >= 0; i--) {
         let p = arenaParticles[i];
         ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.life / 35; 
+        ctx.globalAlpha = p.life / 35;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
         p.x += p.vx; p.y += p.vy;
         p.life--;
