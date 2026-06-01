@@ -199,7 +199,7 @@ function startDodgePhase() {
     document.getElementById("arenaBossName").innerText = arenaBoss + " — " + (typeNames[arenaAttackType] || "Атака");
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     let baseInterval = 2400;
-    if (arenaAttackType === 0) baseInterval = 4400;
+    if (arenaAttackType === 0) baseInterval = 3400;
     if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 2200;
     if (arenaAttackType === 6) baseInterval = 4000;
     if (arenaAttackType === 7) baseInterval = 2400;
@@ -282,7 +282,7 @@ function spawnAttack() {
                     let dirX = startX < 0 ? 3.5*s : -3.5*s;
                     for (let i = 10; i < 490; i += 22) {
                         if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                        attacks.push({ type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
+                        attacks.push({ type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 1 });
                     }
                 } else {
                     let gapCenter = 60 + Math.random() * 280;
