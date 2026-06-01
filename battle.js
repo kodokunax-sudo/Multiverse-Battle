@@ -270,8 +270,8 @@ function spawnAttack() {
                     attacks.push({ type: "square", x: 60, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff", damage: dmg, bouncesLeft: 2 });
                     attacks.push({ type: "square", x: 310, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff", damage: dmg, bouncesLeft: 2 });
                 } else {
-                    attacks.push({ type: "square", x: -30, y: 180, size: 26, spd: 3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
-                    attacks.push({ type: "square", x: 430, y: 320, size: 26, spd: -3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
+                    attacks.push({ type: "square", x: -30, y: 180, size: 26, spd: 3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 1 });
+                    attacks.push({ type: "square", x: 430, y: 320, size: 26, spd: -3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 1 });
                 }
             } else {
                 let isVertical = Math.random() > 0.5;
@@ -291,7 +291,7 @@ function spawnAttack() {
                     let dirY = startY < 0 ? 3.5*s : -3.5*s;
                     for (let i = 10; i < 390; i += 22) {
                         if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                        attacks.push({ type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 2 });
+                        attacks.push({ type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 1 });
                     }
                 }
             }
