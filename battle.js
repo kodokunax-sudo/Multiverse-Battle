@@ -199,7 +199,7 @@ function startDodgePhase() {
     document.getElementById("arenaBossName").innerText = arenaBoss + " — " + (typeNames[arenaAttackType] || "Атака");
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     let baseInterval = 2400;
-    if (arenaAttackType === 0) baseInterval = 3200;
+    if (arenaAttackType === 0) baseInterval = 2300;
     if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 2200;
     if (arenaAttackType === 6) baseInterval = 4000;
     if (arenaAttackType === 7) baseInterval = 2400;
