@@ -261,34 +261,48 @@ function spawnBlaster(w) {
 }
 
 function spawnAttack() {
-    let s = arenaSpeedMult, bw = arenaCurrentWave, isEarly = bw < 100, dmg = arenaBaseDmg;
-    switch(arenaAttackType) {
-        case 0: 
-            if (isEarly) {
-                if (Math.random() > 0.5) {
-                    attacks.push({ type: "square", x: 60, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff", damage: dmg, bouncesLeft: 2 });
-                    attacks.push({ type: "square", x: 310, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff", damage: dmg, bouncesLeft: 2 });
-                } else {
-                    attacks.push({ type: "square", x: -30, y: 180, size: 26, spd: 3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
-                    attacks.push({ type: "square", x: 430, y: 320, size: 26, spd: -3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
-                }
-            } else {
-                let isVertical = Math.random() > 0.5;
-                if (isVertical) {
-                    let gapY = 50 + Math.random() * 300; let startX = Math.random() > 0.5 ? -30 : 430; let dirX = startX < 0 ? 3.5*s : -3.5*s;
-                    for (let i = 20; i < 480; i += 70) {
-                        if (Math.abs(i - gapY) < 55) continue;
-                        attacks.push({ type: "square", x: startX, y: i, size: 22, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
-                    }
-                } else {
-                    let gapX = 50 + Math.random() * 250; let startY = Math.random() > 0.5 ? -30 : 530; let dirY = startY < 0 ? 3.5*s : -3.5*s;
-                    for (let i = 20; i < 380; i += 70) {
-                        if (Math.abs(i - gapX) < 55) continue;
-                        attacks.push({ type: "square", x: i, y: startY, size: 22, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 2 });
-                    }
-                }
+ case 0: 
+    if (isEarly) {
+        // Ранние волны — простая стена из 3 квадратов с дырой
+        if (Math.random() > 0.5) {
+            attacks.push({ type: "square", x: 60, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff", damage: dmg, bouncesLeft: 2 });
+            attacks.push({ type: "square", x: 310, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff", damage: dmg, bouncesLeft: 2 });
+        } else {
+            attacks.push({ type: "square", x: -30, y: 180, size: 26, spd: 3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
+            attacks.push({ type: "square", x: 430, y: 320, size: 26, spd: -3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
+        }
+    } else {
+        // ★★★ ПЛОТНАЯ СТЕНА С ОДНОЙ БОЛЬШОЙ ДЫРОЙ ★★★
+        let isVertical = Math.random() > 0.5;
+        if (isVertical) {
+            // Вертикальная стена (летит слева или справа)
+            let gapCenter = 80 + Math.random() * 340; // Центр дыры
+            let gapSize = 70 + Math.random() * 40;     // Размер дыры (70-110px)
+            let startX = Math.random() > 0.5 ? -30 : 430;
+            let dirX = startX < 0 ? 3.5*s : -3.5*s;
+            
+            // МНОГО квадратиков с малым шагом — плотная стена
+            for (let i = 10; i < 490; i += 22) {
+                // Пропускаем только одну большую дыру
+                if (Math.abs(i - gapCenter) < gapSize / 2) continue;
+                attacks.push({ type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
             }
-            break;
+        } else {
+            // Горизонтальная стена (летит сверху или снизу)
+            let gapCenter = 60 + Math.random() * 280; // Центр дыры
+            let gapSize = 70 + Math.random() * 40;     // Размер дыры (70-110px)
+            let startY = Math.random() > 0.5 ? -30 : 530;
+            let dirY = startY < 0 ? 3.5*s : -3.5*s;
+            
+            // МНОГО квадратиков с малым шагом — плотная стена
+            for (let i = 10; i < 390; i += 22) {
+                // Пропускаем только одну большую дыру
+                if (Math.abs(i - gapCenter) < gapSize / 2) continue;
+                attacks.push({ type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 2 });
+            }
+        }
+    }
+    break;
             
         case 1: 
             for (let i = 0; i < (isEarly ? 1 : 2); i++) {
