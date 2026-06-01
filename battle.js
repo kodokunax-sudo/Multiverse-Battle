@@ -261,48 +261,41 @@ function spawnBlaster(w) {
 }
 
 function spawnAttack() {
- case 0: 
-    if (isEarly) {
-        // Ранние волны — простая стена из 3 квадратов с дырой
-        if (Math.random() > 0.5) {
-            attacks.push({ type: "square", x: 60, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff", damage: dmg, bouncesLeft: 2 });
-            attacks.push({ type: "square", x: 310, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff", damage: dmg, bouncesLeft: 2 });
-        } else {
-            attacks.push({ type: "square", x: -30, y: 180, size: 26, spd: 3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
-            attacks.push({ type: "square", x: 430, y: 320, size: 26, spd: -3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
-        }
-    } else {
-        // ★★★ ПЛОТНАЯ СТЕНА С ОДНОЙ БОЛЬШОЙ ДЫРОЙ ★★★
-        let isVertical = Math.random() > 0.5;
-        if (isVertical) {
-            // Вертикальная стена (летит слева или справа)
-            let gapCenter = 80 + Math.random() * 340; // Центр дыры
-            let gapSize = 70 + Math.random() * 40;     // Размер дыры (70-110px)
-            let startX = Math.random() > 0.5 ? -30 : 430;
-            let dirX = startX < 0 ? 3.5*s : -3.5*s;
-            
-            // МНОГО квадратиков с малым шагом — плотная стена
-            for (let i = 10; i < 490; i += 22) {
-                // Пропускаем только одну большую дыру
-                if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                attacks.push({ type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
+    let s = arenaSpeedMult, bw = arenaCurrentWave, isEarly = bw < 100, dmg = arenaBaseDmg;
+    
+    switch(arenaAttackType) {
+        case 0: 
+            if (isEarly) {
+                if (Math.random() > 0.5) {
+                    attacks.push({ type: "square", x: 60, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff", damage: dmg, bouncesLeft: 2 });
+                    attacks.push({ type: "square", x: 310, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff", damage: dmg, bouncesLeft: 2 });
+                } else {
+                    attacks.push({ type: "square", x: -30, y: 180, size: 26, spd: 3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
+                    attacks.push({ type: "square", x: 430, y: 320, size: 26, spd: -3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
+                }
+            } else {
+                let isVertical = Math.random() > 0.5;
+                if (isVertical) {
+                    let gapCenter = 80 + Math.random() * 340;
+                    let gapSize = 70 + Math.random() * 40;
+                    let startX = Math.random() > 0.5 ? -30 : 430;
+                    let dirX = startX < 0 ? 3.5*s : -3.5*s;
+                    for (let i = 10; i < 490; i += 22) {
+                        if (Math.abs(i - gapCenter) < gapSize / 2) continue;
+                        attacks.push({ type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
+                    }
+                } else {
+                    let gapCenter = 60 + Math.random() * 280;
+                    let gapSize = 70 + Math.random() * 40;
+                    let startY = Math.random() > 0.5 ? -30 : 530;
+                    let dirY = startY < 0 ? 3.5*s : -3.5*s;
+                    for (let i = 10; i < 390; i += 22) {
+                        if (Math.abs(i - gapCenter) < gapSize / 2) continue;
+                        attacks.push({ type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 2 });
+                    }
+                }
             }
-        } else {
-            // Горизонтальная стена (летит сверху или снизу)
-            let gapCenter = 60 + Math.random() * 280; // Центр дыры
-            let gapSize = 70 + Math.random() * 40;     // Размер дыры (70-110px)
-            let startY = Math.random() > 0.5 ? -30 : 530;
-            let dirY = startY < 0 ? 3.5*s : -3.5*s;
-            
-            // МНОГО квадратиков с малым шагом — плотная стена
-            for (let i = 10; i < 390; i += 22) {
-                // Пропускаем только одну большую дыру
-                if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                attacks.push({ type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 2 });
-            }
-        }
-    }
-    break;
+            break;
             
         case 1: 
             for (let i = 0; i < (isEarly ? 1 : 2); i++) {
@@ -315,19 +308,15 @@ function spawnAttack() {
             break;
             
         case 2: 
-            let xPos = Math.random() * 400, yPos = -40, angle = Math.atan2(heart.y - yPos, heart.x - xPos);
+            { let xPos = Math.random() * 400, yPos = -40, angle = Math.atan2(heart.y - yPos, heart.x - xPos);
             attacks.push({ type: "sword", x: xPos, y: yPos, angle: angle, size: 45, width: 15, color: "#ffaa00", spd: Math.cos(angle)*2.4*s, spdY: Math.sin(angle)*2.4*s, damageOnStanding: true, damage: Math.floor(dmg * 1.2), bouncesLeft: 0 });
-            if (!isEarly) {
-                attacks.push({ type: "sword", x: 400 - xPos, y: 540, angle: angle + Math.PI, size: 45, width: 15, color: "#ffaa00", spd: -Math.cos(angle)*2.4*s, spdY: -Math.sin(angle)*2.4*s, damageOnStanding: true, damage: Math.floor(dmg * 1.2), bouncesLeft: 0 });
-            }
+            if (!isEarly) { attacks.push({ type: "sword", x: 400 - xPos, y: 540, angle: angle + Math.PI, size: 45, width: 15, color: "#ffaa00", spd: -Math.cos(angle)*2.4*s, spdY: -Math.sin(angle)*2.4*s, damageOnStanding: true, damage: Math.floor(dmg * 1.2), bouncesLeft: 0 }); } }
             break;
             
         case 3: 
-            {
-                let vx = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
-                let vy = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
-                attacks.push({ type: "danger", x: 200, y: 180, size: 70, spd: vx, spdY: vy, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.6), bouncesLeft: 0 });
-            }
+            { let vx = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
+            let vy = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
+            attacks.push({ type: "danger", x: 200, y: 180, size: 70, spd: vx, spdY: vy, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.6), bouncesLeft: 0 }); }
             break;
             
         case 4: 
@@ -350,18 +339,14 @@ function spawnAttack() {
             break;
             
         case 7: 
-            let sx = Math.random() * 400, sy = -40, sa = Math.atan2(heart.y - sy, heart.x - sx);
+            { let sx = Math.random() * 400, sy = -40, sa = Math.atan2(heart.y - sy, heart.x - sx);
             attacks.push({ type: "sword", x: sx, y: sy, angle: sa, size: 40, width: 12, color: "#ffaa00", spd: Math.cos(sa)*2.2*s, spdY: Math.sin(sa)*2.2*s, damageOnStanding: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 });
-            if (!isEarly) {
-                attacks.push({ type: "danger", x: heart.x + (Math.random()-0.5)*100, y: 540, size: 25, spd: (Math.random()-0.5)*1.2*s, spdY: -2.2*s, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 });
-            }
+            if (!isEarly) { attacks.push({ type: "danger", x: heart.x + (Math.random()-0.5)*100, y: 540, size: 25, spd: (Math.random()-0.5)*1.2*s, spdY: -2.2*s, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 }); } }
             break;
 
         case 8: 
             attacks.push({ type: "danger", x: -40, y: heart.y, size: 40, spd: 2.5*s, spdY: 0, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.5), bouncesLeft: 0 });
-            if (!isEarly) {
-                attacks.push({ type: "square", x: 440, y: heart.y + (Math.random()>0.5?60:-60), size: 30, spd: -2.5*s, spdY: 0, color: "#fff", damage: Math.floor(dmg * 1.5), bouncesLeft: 2 });
-            }
+            if (!isEarly) { attacks.push({ type: "square", x: 440, y: heart.y + (Math.random()>0.5?60:-60), size: 30, spd: -2.5*s, spdY: 0, color: "#fff", damage: Math.floor(dmg * 1.5), bouncesLeft: 2 }); }
             break;
 
         case 9: 
@@ -376,7 +361,6 @@ function spawnAttack() {
             break;
     }
 }
-
 function stopArena() { arenaActive = false; if (arenaAttackInterval) clearInterval(arenaAttackInterval); if (animFrameId) cancelAnimationFrame(animFrameId); arenaAttackInterval = null; animFrameId = null; attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = []; arenaBlasters = []; arenaShockwaves = []; document.getElementById("arenaOverlay").style.display = "none"; }
 function winArena() { if (typeof defeatedBosses !== 'undefined' && !defeatedBosses.includes(arenaCurrentWave)) { defeatedBosses.push(arenaCurrentWave); } stopArena(); if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = Math.floor(currentEnemy.maxHp * 0.25); if (typeof victory === 'function') victory(); }
 function loseArena() { arenaShake = isMobile ? 15 : 30; setTimeout(() => { stopArena(); if (typeof playerHp !== 'undefined') playerHp = 0; if (typeof defeat === 'function') defeat(); }, 1000); }
