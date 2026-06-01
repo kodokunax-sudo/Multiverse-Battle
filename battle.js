@@ -288,7 +288,7 @@ function spawnAttack() {
                     let gapCenter = 60 + Math.random() * 280;
                     let gapSize = 70 + Math.random() * 40;
                     let startY = Math.random() > 0.5 ? -30 : 530;
-                    let dirY = startY < 0 ? 3.5*s : -3.5*s;
+                    let dirY = startY < 0 ? 2.4*s : -2.4*s;
                     for (let i = 10; i < 390; i += 22) {
                         if (Math.abs(i - gapCenter) < gapSize / 2) continue;
                         attacks.push({ type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 1 });
