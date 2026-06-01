@@ -162,7 +162,6 @@ const customCardTemplates = {
 
 // ========== БОССЫ И ДИАЛОГИ ==========
 const bossTemplates = {
-const bossTemplates = {
     // ===== НАЧАЛО: 50–500 (плавный старт) =====
     50:  { name: "Король Демонов", hpMult: 6, dmgMult: 1.2, dialogue: "Ты думаешь, что сможешь одолеть меня? Глупец.", enemyStatus: { type: "freezeStacks", value: 1 }, canSpare: true, spareReward: "Король Демонов", arenaTypes: [0] },
     100: { name: "Маджин Буу", hpMult: 8, dmgMult: 1.6, dialogue: "Буу, я голоден! Ты станешь моим обедом!", enemyStatus: { type: "bleed", value: 0.2 }, canSpare: true, spareReward: "Маджин Буу", arenaTypes: [0] },
