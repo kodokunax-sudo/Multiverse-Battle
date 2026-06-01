@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v2.8 (FIXED & MOBILE OPTIMIZED) ==========
+// ========== АРЕНА UNDERTALE v2.9 — С ИСПРАВЛЕННОЙ КНОПКОЙ ПРОПУСКА ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 30;
@@ -164,10 +164,28 @@ function getAttackTypes(bossWave) {
     return [0, 1, 2, 3, 4, 5, 7, 8, 9, 10];
 }
 
+// ★★★ ФУНКЦИЯ ПРОПУСКА ПОБЕЖДЁННОГО БОССА ★★★
+function skipDefeatedBoss() { 
+    console.log("⏭️ skipDefeatedBoss вызвана");
+    stopArena(); 
+    if (typeof currentEnemy !== 'undefined' && currentEnemy) {
+        currentEnemy.hp = 0;
+    }
+    if (typeof victory === 'function') {
+        victory();
+    } else {
+        console.log("❌ Функция victory не найдена!");
+    }
+}
+
 function startArena(bossWave) {
     let btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = "none";
     let spareBtn = document.getElementById("spareBtn"); if (spareBtn) spareBtn.style.display = "none";
+    
+    // ★ ПРОВЕРКА ПОБЕЖДЁННЫХ БОССОВ ★
     arenaBossDefeatedBefore = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossWave));
+    console.log("🔍 Волна " + bossWave + " | defeatedBosses: " + JSON.stringify(defeatedBosses || []) + " | Побеждён: " + arenaBossDefeatedBefore);
+    
     arenaActive = true; arenaCurrentWave = bossWave;
     calculateArenaHP();
     arenaClickTargets = []; arenaClicksHit = 0; arenaPhase = "dodge"; attacks = []; arenaBlasters = []; arenaParticles = []; floatingTexts = []; arenaTrail = []; arenaShockwaves = [];
@@ -185,7 +203,16 @@ function startArena(bossWave) {
     document.getElementById("arenaBossName").innerText = arenaBoss;
     document.getElementById("arenaHP").innerText = arenaHP;
     document.getElementById("arenaTimer").innerText = "∞";
-    let skipBtn = document.getElementById("skipBossBtn"); if (skipBtn) skipBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
+    
+    // ★ КНОПКА ПРОПУСКА ★
+    let skipBtn = document.getElementById("skipBossBtn"); 
+    if (skipBtn) {
+        skipBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
+        console.log("📌 SkipBtn: " + (arenaBossDefeatedBefore ? "ПОКАЗАНА" : "скрыта"));
+    } else {
+        console.log("❌ Элемент skipBossBtn не найден в DOM!");
+    }
+    
     if (!ctx) initArena();
     if (animFrameId) cancelAnimationFrame(animFrameId);
     startDodgePhase();
@@ -199,7 +226,7 @@ function startDodgePhase() {
     document.getElementById("arenaBossName").innerText = arenaBoss + " — " + (typeNames[arenaAttackType] || "Атака");
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     let baseInterval = 2400;
-    if (arenaAttackType === 0) baseInterval = 3400;
+    if (arenaAttackType === 0) baseInterval = 3200;
     if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 2200;
     if (arenaAttackType === 6) baseInterval = 4000;
     if (arenaAttackType === 7) baseInterval = 2400;
@@ -262,7 +289,6 @@ function spawnBlaster(w) {
 
 function spawnAttack() {
     let s = arenaSpeedMult, bw = arenaCurrentWave, isEarly = bw < 100, dmg = arenaBaseDmg;
-    
     switch(arenaAttackType) {
         case 0: 
             if (isEarly) {
@@ -270,28 +296,22 @@ function spawnAttack() {
                     attacks.push({ type: "square", x: 60, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff", damage: dmg, bouncesLeft: 2 });
                     attacks.push({ type: "square", x: 310, y: -30, size: 26, spd: 0, spdY: 3.2*s, color: "#fff", damage: dmg, bouncesLeft: 2 });
                 } else {
-                    attacks.push({ type: "square", x: -30, y: 180, size: 26, spd: 3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 1 });
-                    attacks.push({ type: "square", x: 430, y: 320, size: 26, spd: -3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 1 });
+                    attacks.push({ type: "square", x: -30, y: 180, size: 26, spd: 3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
+                    attacks.push({ type: "square", x: 430, y: 320, size: 26, spd: -3.5*s, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
                 }
             } else {
                 let isVertical = Math.random() > 0.5;
                 if (isVertical) {
-                    let gapCenter = 80 + Math.random() * 340;
-                    let gapSize = 70 + Math.random() * 40;
-                    let startX = Math.random() > 0.5 ? -30 : 430;
-                    let dirX = startX < 0 ? 3.5*s : -3.5*s;
-                    for (let i = 10; i < 490; i += 22) {
-                        if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                        attacks.push({ type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 1 });
+                    let gapY = 50 + Math.random() * 300; let startX = Math.random() > 0.5 ? -30 : 430; let dirX = startX < 0 ? 3.5*s : -3.5*s;
+                    for (let i = 20; i < 480; i += 70) {
+                        if (Math.abs(i - gapY) < 55) continue;
+                        attacks.push({ type: "square", x: startX, y: i, size: 22, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 2 });
                     }
                 } else {
-                    let gapCenter = 60 + Math.random() * 280;
-                    let gapSize = 70 + Math.random() * 40;
-                    let startY = Math.random() > 0.5 ? -30 : 530;
-                    let dirY = startY < 0 ? 2.4*s : -2.4*s;
-                    for (let i = 10; i < 390; i += 22) {
-                        if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                        attacks.push({ type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 1 });
+                    let gapX = 50 + Math.random() * 250; let startY = Math.random() > 0.5 ? -30 : 530; let dirY = startY < 0 ? 3.5*s : -3.5*s;
+                    for (let i = 20; i < 380; i += 70) {
+                        if (Math.abs(i - gapX) < 55) continue;
+                        attacks.push({ type: "square", x: i, y: startY, size: 22, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 2 });
                     }
                 }
             }
@@ -308,15 +328,19 @@ function spawnAttack() {
             break;
             
         case 2: 
-            { let xPos = Math.random() * 400, yPos = -40, angle = Math.atan2(heart.y - yPos, heart.x - xPos);
+            let xPos = Math.random() * 400, yPos = -40, angle = Math.atan2(heart.y - yPos, heart.x - xPos);
             attacks.push({ type: "sword", x: xPos, y: yPos, angle: angle, size: 45, width: 15, color: "#ffaa00", spd: Math.cos(angle)*2.4*s, spdY: Math.sin(angle)*2.4*s, damageOnStanding: true, damage: Math.floor(dmg * 1.2), bouncesLeft: 0 });
-            if (!isEarly) { attacks.push({ type: "sword", x: 400 - xPos, y: 540, angle: angle + Math.PI, size: 45, width: 15, color: "#ffaa00", spd: -Math.cos(angle)*2.4*s, spdY: -Math.sin(angle)*2.4*s, damageOnStanding: true, damage: Math.floor(dmg * 1.2), bouncesLeft: 0 }); } }
+            if (!isEarly) {
+                attacks.push({ type: "sword", x: 400 - xPos, y: 540, angle: angle + Math.PI, size: 45, width: 15, color: "#ffaa00", spd: -Math.cos(angle)*2.4*s, spdY: -Math.sin(angle)*2.4*s, damageOnStanding: true, damage: Math.floor(dmg * 1.2), bouncesLeft: 0 });
+            }
             break;
             
         case 3: 
-            { let vx = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
-            let vy = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
-            attacks.push({ type: "danger", x: 200, y: 180, size: 70, spd: vx, spdY: vy, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.6), bouncesLeft: 1 }); }
+            {
+                let vx = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
+                let vy = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
+                attacks.push({ type: "danger", x: 200, y: 180, size: 70, spd: vx, spdY: vy, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.6), bouncesLeft: 0 });
+            }
             break;
             
         case 4: 
@@ -339,14 +363,18 @@ function spawnAttack() {
             break;
             
         case 7: 
-            { let sx = Math.random() * 400, sy = -40, sa = Math.atan2(heart.y - sy, heart.x - sx);
+            let sx = Math.random() * 400, sy = -40, sa = Math.atan2(heart.y - sy, heart.x - sx);
             attacks.push({ type: "sword", x: sx, y: sy, angle: sa, size: 40, width: 12, color: "#ffaa00", spd: Math.cos(sa)*2.2*s, spdY: Math.sin(sa)*2.2*s, damageOnStanding: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 });
-            if (!isEarly) { attacks.push({ type: "danger", x: heart.x + (Math.random()-0.5)*100, y: 540, size: 25, spd: (Math.random()-0.5)*1.2*s, spdY: -2.2*s, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 }); } }
+            if (!isEarly) {
+                attacks.push({ type: "danger", x: heart.x + (Math.random()-0.5)*100, y: 540, size: 25, spd: (Math.random()-0.5)*1.2*s, spdY: -2.2*s, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 });
+            }
             break;
 
         case 8: 
             attacks.push({ type: "danger", x: -40, y: heart.y, size: 40, spd: 2.5*s, spdY: 0, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.5), bouncesLeft: 0 });
-            if (!isEarly) { attacks.push({ type: "square", x: 440, y: heart.y + (Math.random()>0.5?60:-60), size: 30, spd: -2.5*s, spdY: 0, color: "#fff", damage: Math.floor(dmg * 1.5), bouncesLeft: 2 }); }
+            if (!isEarly) {
+                attacks.push({ type: "square", x: 440, y: heart.y + (Math.random()>0.5?60:-60), size: 30, spd: -2.5*s, spdY: 0, color: "#fff", damage: Math.floor(dmg * 1.5), bouncesLeft: 2 });
+            }
             break;
 
         case 9: 
@@ -361,9 +389,45 @@ function spawnAttack() {
             break;
     }
 }
-function stopArena() { arenaActive = false; if (arenaAttackInterval) clearInterval(arenaAttackInterval); if (animFrameId) cancelAnimationFrame(animFrameId); arenaAttackInterval = null; animFrameId = null; attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = []; arenaBlasters = []; arenaShockwaves = []; document.getElementById("arenaOverlay").style.display = "none"; }
-function winArena() { if (typeof defeatedBosses !== 'undefined' && !defeatedBosses.includes(arenaCurrentWave)) { defeatedBosses.push(arenaCurrentWave); } stopArena(); if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = Math.floor(currentEnemy.maxHp * 0.25); if (typeof victory === 'function') victory(); }
-function loseArena() { arenaShake = isMobile ? 15 : 30; setTimeout(() => { stopArena(); if (typeof playerHp !== 'undefined') playerHp = 0; if (typeof defeat === 'function') defeat(); }, 1000); }
+
+function stopArena() { 
+    arenaActive = false; 
+    if (arenaAttackInterval) clearInterval(arenaAttackInterval); 
+    if (animFrameId) cancelAnimationFrame(animFrameId); 
+    arenaAttackInterval = null; animFrameId = null; 
+    attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = []; arenaBlasters = []; arenaShockwaves = []; 
+    document.getElementById("arenaOverlay").style.display = "none"; 
+    // Скрываем кнопку пропуска при закрытии арены
+    let skipBtn = document.getElementById("skipBossBtn"); 
+    if (skipBtn) skipBtn.style.display = "none"; 
+}
+
+// ★★★ ПОБЕДА — ДОБАВЛЯЕТ БОССА В СПИСОК ★★★
+function winArena() { 
+    // Добавляем босса в список побеждённых
+    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
+        if (!defeatedBosses.includes(arenaCurrentWave)) {
+            defeatedBosses.push(arenaCurrentWave);
+            console.log("✅ Босс " + arenaCurrentWave + " добавлен в defeatedBosses: " + JSON.stringify(defeatedBosses));
+        }
+    } else {
+        console.log("❌ defeatedBosses не определён или не массив!");
+    }
+    stopArena(); 
+    if (typeof currentEnemy !== 'undefined' && currentEnemy) {
+        currentEnemy.hp = Math.floor(currentEnemy.maxHp * 0.25); 
+    }
+    if (typeof victory === 'function') victory(); 
+}
+
+function loseArena() { 
+    arenaShake = isMobile ? 15 : 30; 
+    setTimeout(() => { 
+        stopArena(); 
+        if (typeof playerHp !== 'undefined') playerHp = 0; 
+        if (typeof defeat === 'function') defeat(); 
+    }, 1000); 
+}
 
 function applyHit(dmg, textMsg = null) { 
     if (invulnTimer > 0) return; 
