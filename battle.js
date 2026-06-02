@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v3.0 (FULL INTEGRATED WITH AUDIO & FX) ==========
+// ========== АРЕНА UNDERTALE v3.0 (FULL INTEGRATED & BUGFIXED) ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 30;
@@ -46,22 +46,22 @@ let arenaBaseDmg = 5;
 let ghostHP = 30;
 let ghostBossHP = 1000;
 
-// ========== ЗВУКОВОЙ ДВИЖОК (Web Audio API) ==========
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-let audioCtx = null;
+// ========== ЗВУКОВОЙ ДВИЖОК (Web Audio API - FIX CONFLICTS) ==========
+var arenaAudioCtx = null;
 
 function initAudio() {
-    if (!audioCtx) audioCtx = new AudioContext();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    let AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+    if (!arenaAudioCtx && AudioCtxClass) arenaAudioCtx = new AudioCtxClass();
+    if (arenaAudioCtx && arenaAudioCtx.state === 'suspended') arenaAudioCtx.resume();
 }
 
 function playSound(type) {
-    if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
+    if (!arenaAudioCtx) return;
+    const osc = arenaAudioCtx.createOscillator();
+    const gainNode = arenaAudioCtx.createGain();
     osc.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    const now = audioCtx.currentTime;
+    gainNode.connect(arenaAudioCtx.destination);
+    const now = arenaAudioCtx.currentTime;
     
     if (type === 'hit') {
         osc.type = 'square';
@@ -586,7 +586,7 @@ function renderArena() {
                     let pulseR = a.maxRadius + Math.sin(now * 0.01) * 4;
                     ctx.strokeStyle = isFlashing ? "rgba(255, 100, 100, 0.6)" : "rgba(255, 51, 51, 0.3)"; 
                     ctx.lineWidth = 2; ctx.setLineDash([4, 4]); 
-                    ctx.beginPath(); ctx.arc(a.x, a.y, pulseR, 0, Math.PI*2); ctx.stroke(); 
+                    ctx.beginPath(); ctx.arc(a.x, a.y, pulseR, 0, Math.PI*2); stroke(); 
                     ctx.restore(); 
                 } else if (a.timer > -18) { 
                     let progress = Math.abs(a.timer) / 18;
@@ -656,7 +656,6 @@ function renderArena() {
                 hit = Math.abs(heart.x - cx) < (sz/2 + heart.hitbox) && Math.abs(heart.y - cy) < (sz/2 + heart.hitbox);
             }
             
-            // Восстановленный и дополненный блок получения урона / хила
             if (hit && invulnTimer <= 0) { 
                 let bhd = a.damage || arenaBaseDmg || 5; 
                 if (a.color === "#ffaa00" || a.damageOnStanding) { 
@@ -688,7 +687,6 @@ function renderArena() {
                 continue;
             }
             
-            // Отрисовка стандартных снарядов
             ctx.fillStyle = a.color === "rainbow" ? `hsl(${(now/4)%360}, 100%, 50%)` : a.color;
             if (a.type === "circle") {
                 ctx.beginPath(); ctx.arc(a.x, a.y, a.radius, 0, Math.PI*2); ctx.fill();
@@ -699,7 +697,6 @@ function renderArena() {
                 ctx.fillRect(a.x, a.y, a.size, a.size);
             }
             
-            // Чистка за экраном
             if (a.x < -60 || a.x > 460 || a.y < -60 || a.y > 560) { attacks.splice(i, 1); }
         }
     }
