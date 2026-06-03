@@ -429,7 +429,7 @@ function startDodgePhase() {
     heart.y = 400;
     arenaAttackType = arenaAllowedTypes[Math.floor(Math.random() * arenaAllowedTypes.length)];
     let typeNames = {
-        0: "⬜ СТЕНЫ ЗЛА",
+        0: "⬜ СТЕНЫ",
         1: "🔷 ХАОС",
         2: "⚡ ЖЁЛТЫЕ",
         3: "🛑 КРАСНЫЕ",
@@ -745,7 +745,7 @@ function spawnAttack() {
                     spdY: Math.sin(angle) * 2.1 * s,
                     color: "#4499ff",
                     damage: dmg,
-                    bouncesLeft: 1
+                    bouncesLeft: 0
                 });
             }
             break;
