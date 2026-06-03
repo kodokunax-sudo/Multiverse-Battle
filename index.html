@@ -113,6 +113,15 @@
         .slot-select.active { border-color: #2ecc71; box-shadow: 0 0 15px rgba(46,204,113,0.3); }
         .nickname-display { background: linear-gradient(135deg, #f5af19, #f12711); color: white; padding: 3px 10px; border-radius: 15px; font-weight: 800; font-size: 12px; display: inline-block; margin-left: 8px; }
         .global-stats { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px; margin-top: 5px; display:flex; flex-direction:column; gap:6px; }
+        .gacha-item { transition: all 0.3s ease; }
+        .gacha-item:hover { transform: translateX(6px); }
+        .legendary-gacha { box-shadow: 0 0 15px rgba(255,215,0,0.2); }
+        .legendary-gacha:hover { box-shadow: 0 0 25px rgba(255,215,0,0.5); }
+        .secret-gacha { box-shadow: 0 0 15px rgba(255,0,255,0.2); }
+        .secret-gacha:hover { box-shadow: 0 0 25px rgba(255,0,255,0.5); }
+        .gacha-btn { padding: 8px 16px; font-size: 14px; min-width: 90px; }
+        .legendary-btn { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #1a1a2e; text-shadow: none; }
+        .secret-btn { background: linear-gradient(135deg, #ff00ff, #8b008b); color: white; }
     </style>
 </head>
 <body>
@@ -185,6 +194,7 @@
         <div id="shopTab" class="tab-content">
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" data-subtab="shopItems">🛍️ Товары</button>
+                <button class="sub-tab-btn" data-subtab="gacha">🎰 Гача</button>
                 <button class="sub-tab-btn" data-subtab="bulkSell">💰 Скупка</button>
                 <button class="sub-tab-btn" data-subtab="autoRest">💤 Автосон</button>
                 <button class="sub-tab-btn" data-subtab="upgrades">📈 Прокачка</button>
@@ -198,6 +208,17 @@
                 <div class="card"><div class="card-title">🗿 Артефакты</div><div id="artifactItems" class="shop-grid"></div></div>
                 <div class="card"><div class="card-title">🎲 Крутки</div><div class="shop-item"><div>Прокрутка</div><div><span class="shop-price">150⭐</span><button class="btn btn-primary" style="padding:6px 12px;" id="buySpinBtn">Купить</button></div></div></div>
                 <div class="card"><div class="card-title">✨ Баффы</div><div id="activeBuffs" class="buff-active"></div></div>
+            </div>
+            <div id="gachaSubTab" class="sub-tab-content">
+                <div class="points">⭐ <span id="pointsAmountGacha">0</span></div>
+                <div class="card">
+                    <div class="card-title">🎰 Крутки карт</div>
+                    <div id="gachaItems" class="shop-grid"></div>
+                    <div style="font-size:11px;color:#aaa;margin-top:10px;text-align:center;font-weight:600;">
+                        💡 Побеждайте <b>новых боссов</b> (каждые 50 волн) для получения легендарных и секретных круток!<br>
+                        <span style="color:#ffd700;">Лимиты сбрасываются раз в 24 часа.</span>
+                    </div>
+                </div>
             </div>
             <div id="bulkSellSubTab" class="sub-tab-content">
                 <div class="points">⭐ <span id="pointsAmountBulk">0</span></div>
