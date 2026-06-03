@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v3.0 (SOUNDS & BOMB EFFECTS) ==========
+// ========== АРЕНА UNDERTALE v4.0 (ЭПИЧЕСКИЕ ЗВУКИ И АТМОСФЕРА) ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 30;
@@ -42,22 +42,32 @@ let isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
 let arenaBossDefeatedBefore = false;
 let arenaBossDmgMult = 1.0;
 let arenaBaseDmg = 5;
+let arenaAmbientSoundInterval = null;
+let arenaMusicStarted = false;
 
 let ghostHP = 30;
 let ghostBossHP = 1000;
 
-// ========== ЗВУКОВЫЕ ЭФФЕКТЫ АРЕНЫ ==========
+// ========== ЗВУКОВАЯ СИСТЕМА АРЕНЫ (УЛУЧШЕННАЯ) ==========
 let arenaAudioCtx = null;
+let masterGain = null;
 
 function initArenaAudio() {
     if (arenaAudioCtx) {
         if (arenaAudioCtx.state === 'suspended') arenaAudioCtx.resume();
         return;
     }
-    arenaAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    try {
+        arenaAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = arenaAudioCtx.createGain();
+        masterGain.gain.setValueAtTime(0.8, arenaAudioCtx.currentTime);
+        masterGain.connect(arenaAudioCtx.destination);
+    } catch(e) {
+        console.log("Аудио не поддерживается, похуй");
+    }
 }
 
-function playArenaSound(frequency, type, duration, volume = 0.12, rampDown = true) {
+function playArenaSound(frequency, type, duration, volume = 0.12, detune = 0, rampDown = true) {
     if (!arenaAudioCtx) {
         try { initArenaAudio(); } catch(e) { return; }
     }
@@ -67,6 +77,7 @@ function playArenaSound(frequency, type, duration, volume = 0.12, rampDown = tru
         const gainNode = arenaAudioCtx.createGain();
         oscillator.type = type;
         oscillator.frequency.setValueAtTime(frequency, arenaAudioCtx.currentTime);
+        if (detune) oscillator.detune.setValueAtTime(detune, arenaAudioCtx.currentTime);
         gainNode.gain.setValueAtTime(volume, arenaAudioCtx.currentTime);
         if (rampDown) {
             gainNode.gain.exponentialRampToValueAtTime(0.001, arenaAudioCtx.currentTime + duration);
@@ -75,102 +86,247 @@ function playArenaSound(frequency, type, duration, volume = 0.12, rampDown = tru
             gainNode.gain.exponentialRampToValueAtTime(0.001, arenaAudioCtx.currentTime + duration * 0.3);
         }
         oscillator.connect(gainNode);
-        gainNode.connect(arenaAudioCtx.destination);
+        gainNode.connect(masterGain || arenaAudioCtx.destination);
         oscillator.start(arenaAudioCtx.currentTime);
         oscillator.stop(arenaAudioCtx.currentTime + duration);
-    } catch(e) {
-        // Игнорируем ошибки аудио
+    } catch(e) {}
+}
+
+// Фоновый эмбиент арены (тихий гул)
+function startArenaAmbient() {
+    if (arenaAmbientSoundInterval) return;
+    arenaAmbientSoundInterval = setInterval(() => {
+        if (!arenaActive) {
+            clearInterval(arenaAmbientSoundInterval);
+            arenaAmbientSoundInterval = null;
+            return;
+        }
+        playArenaSound(30 + Math.random() * 15, 'sine', 2.0, 0.03, 0, false);
+    }, 3000);
+}
+
+function stopArenaAmbient() {
+    if (arenaAmbientSoundInterval) {
+        clearInterval(arenaAmbientSoundInterval);
+        arenaAmbientSoundInterval = null;
     }
 }
 
-// Звук появления атаки (короткий, но выразительный)
+// ====== ЗВУКИ ДЛЯ КАЖДОГО ТИПА АТАК ======
+
+// Тип 0: Белые стены — звук как будто стена двигается (низкий гул)
+function sfxWhiteWalls() {
+    playArenaSound(80, 'sawtooth', 0.5, 0.08);
+    setTimeout(() => playArenaSound(60, 'sawtooth', 0.4, 0.06), 150);
+    setTimeout(() => playArenaSound(100, 'triangle', 0.3, 0.05), 300);
+}
+
+// Тип 1: Синий хаос — быстрые пики, как лазеры
+function sfxBlueChaos() {
+    playArenaSound(600, 'square', 0.15, 0.04);
+    setTimeout(() => playArenaSound(800, 'square', 0.12, 0.03), 50);
+    setTimeout(() => playArenaSound(400, 'square', 0.1, 0.04), 100);
+    setTimeout(() => playArenaSound(900, 'square', 0.08, 0.03), 150);
+}
+
+// Тип 2: Жёлтые мечи — звон металла
+function sfxYellowSwords() {
+    playArenaSound(200, 'sawtooth', 0.3, 0.08);
+    setTimeout(() => playArenaSound(300, 'sawtooth', 0.25, 0.06), 60);
+    setTimeout(() => playArenaSound(500, 'triangle', 0.2, 0.05), 120);
+    setTimeout(() => playArenaSound(250, 'square', 0.15, 0.04), 180);
+}
+
+// Тип 3: Красные треугольники — зловещий звук
+function sfxRedTriangles() {
+    playArenaSound(50, 'sawtooth', 0.6, 0.1);
+    setTimeout(() => playArenaSound(40, 'sawtooth', 0.5, 0.08), 200);
+    setTimeout(() => playArenaSound(70, 'triangle', 0.4, 0.06), 400);
+}
+
+// Тип 4: Розовые — пружинистый звук (boing)
+function sfxPinkKnockback() {
+    playArenaSound(500, 'sine', 0.2, 0.06);
+    setTimeout(() => playArenaSound(300, 'sine', 0.25, 0.08), 60);
+    setTimeout(() => playArenaSound(700, 'sine', 0.15, 0.04), 120);
+}
+
+// Тип 5: Зелёные (лечение) — приятные колокольчики
+function sfxGreenHealSpawn() {
+    playArenaSound(800, 'sine', 0.3, 0.06);
+    setTimeout(() => playArenaSound(1000, 'sine', 0.25, 0.05), 100);
+    setTimeout(() => playArenaSound(1200, 'sine', 0.2, 0.04), 200);
+}
+
+// Тип 6: Радужные (смертельные) — жуткий вой
+function sfxRainbowDeathSpawn() {
+    playArenaSound(30, 'sawtooth', 1.5, 0.15);
+    setTimeout(() => playArenaSound(20, 'sawtooth', 1.2, 0.12), 200);
+    setTimeout(() => playArenaSound(50, 'sawtooth', 1.0, 0.1), 400);
+    setTimeout(() => playArenaSound(15, 'sawtooth', 0.8, 0.08), 600);
+}
+
+// Тип 7: Микс — комбинированный звук
+function sfxMixAttack() {
+    playArenaSound(150, 'square', 0.2, 0.06);
+    setTimeout(() => playArenaSound(60, 'sawtooth', 0.3, 0.08), 100);
+    setTimeout(() => playArenaSound(300, 'triangle', 0.15, 0.04), 200);
+}
+
+// Тип 8: Зоны — звук раздвигающихся стен
+function sfxZoneAttack() {
+    playArenaSound(100, 'sawtooth', 0.5, 0.08);
+    setTimeout(() => playArenaSound(130, 'sawtooth', 0.4, 0.06), 150);
+    setTimeout(() => playArenaSound(90, 'triangle', 0.3, 0.05), 300);
+}
+
+// Тип 9: Бомбы — тиканье перед взрывом
+function sfxBombTick() {
+    playArenaSound(1000, 'square', 0.08, 0.05);
+    setTimeout(() => playArenaSound(800, 'square', 0.06, 0.03), 100);
+}
+
+// Тип 10: Бластеры — звук зарядки
+function sfxBlasterCharge() {
+    playArenaSound(60, 'sawtooth', 0.8, 0.1);
+    setTimeout(() => playArenaSound(90, 'sawtooth', 0.6, 0.08), 100);
+    setTimeout(() => playArenaSound(120, 'sawtooth', 0.5, 0.06), 200);
+    setTimeout(() => playArenaSound(150, 'sawtooth', 0.4, 0.05), 300);
+}
+
+// ====== ОБЩИЕ ЗВУКИ ======
+
+// Появление атаки
 function sfxArenaAttackSpawn() {
-    playArenaSound(220, 'sawtooth', 0.25, 0.08);
-    setTimeout(() => playArenaSound(330, 'sawtooth', 0.2, 0.06), 80);
+    // Выбираем случайный забавный звук
+    let sounds = [
+        () => { playArenaSound(220, 'sawtooth', 0.25, 0.06); setTimeout(() => playArenaSound(330, 'sawtooth', 0.2, 0.05), 80); },
+        () => { playArenaSound(180, 'square', 0.3, 0.07); setTimeout(() => playArenaSound(280, 'square', 0.2, 0.05), 100); },
+        () => { playArenaSound(150, 'triangle', 0.35, 0.08); setTimeout(() => playArenaSound(250, 'triangle', 0.25, 0.06), 120); },
+        () => { playArenaSound(200, 'sine', 0.2, 0.04); setTimeout(() => playArenaSound(400, 'sine', 0.15, 0.03), 60); }
+    ];
+    sounds[Math.floor(Math.random() * sounds.length)]();
 }
 
-// Звук промаха (мимо)
+// Промах (смешной звук)
 function sfxArenaMiss() {
-    playArenaSound(100, 'sine', 0.5, 0.1);
-    setTimeout(() => playArenaSound(80, 'sine', 0.4, 0.08), 150);
+    playArenaSound(100, 'sine', 0.6, 0.1);
+    setTimeout(() => playArenaSound(80, 'sine', 0.5, 0.08), 150);
+    setTimeout(() => playArenaSound(60, 'triangle', 0.4, 0.06), 300);
+    // Добавляем смешной "ва-ва" звук
+    setTimeout(() => { playArenaSound(150, 'square', 0.3, 0.04); playArenaSound(120, 'square', 0.3, 0.04); }, 200);
 }
 
-// Звук получения урона (мощный, долгий)
+// Попадание по игроку (разные звуки боли)
 function sfxArenaHit() {
-    playArenaSound(60, 'sawtooth', 0.8, 0.25);
-    setTimeout(() => playArenaSound(45, 'sawtooth', 0.9, 0.2), 100);
-    setTimeout(() => playArenaSound(30, 'sawtooth', 0.7, 0.15), 300);
+    let hitSounds = [
+        () => { playArenaSound(60, 'sawtooth', 0.8, 0.25); setTimeout(() => playArenaSound(45, 'sawtooth', 0.9, 0.2), 100); },
+        () => { playArenaSound(80, 'square', 0.7, 0.2); setTimeout(() => playArenaSound(50, 'square', 0.8, 0.15), 80); },
+        () => { playArenaSound(40, 'triangle', 0.9, 0.3); setTimeout(() => playArenaSound(30, 'triangle', 0.8, 0.2), 150); }
+    ];
+    hitSounds[Math.floor(Math.random() * hitSounds.length)]();
 }
 
-// Звук лечения (приятный, восходящий)
+// Лечение
 function sfxArenaHeal() {
-    playArenaSound(400, 'sine', 0.4, 0.1);
-    setTimeout(() => playArenaSound(600, 'sine', 0.4, 0.1), 100);
-    setTimeout(() => playArenaSound(800, 'sine', 0.3, 0.1), 200);
-}
-
-// Звук взрыва бомбы (длинный, мощный, басовитый)
-function sfxArenaBombExplosion() {
-    playArenaSound(30, 'sawtooth', 1.2, 0.35);
-    setTimeout(() => playArenaSound(25, 'sawtooth', 1.0, 0.3), 80);
-    setTimeout(() => playArenaSound(20, 'sawtooth', 0.9, 0.25), 200);
-    setTimeout(() => playArenaSound(40, 'triangle', 0.8, 0.2), 150);
-    setTimeout(() => playArenaSound(60, 'triangle', 0.7, 0.15), 300);
-    // Шумовой эффект (шипение)
-    setTimeout(() => playArenaSound(200, 'sawtooth', 0.6, 0.1), 100);
-    setTimeout(() => playArenaSound(150, 'sawtooth', 0.5, 0.08), 250);
-}
-
-// Звук выстрела бластера (резкий, мощный)
-function sfxArenaBlasterFire() {
-    playArenaSound(80, 'square', 0.6, 0.2);
-    setTimeout(() => playArenaSound(120, 'square', 0.5, 0.15), 50);
-    setTimeout(() => playArenaSound(200, 'square', 0.4, 0.1), 100);
-}
-
-// Звук попадания в цель (фаза атаки)
-function sfxArenaTargetHit() {
-    playArenaSound(500, 'square', 0.15, 0.06);
-    setTimeout(() => playArenaSound(700, 'square', 0.1, 0.05), 40);
-}
-
-// Звук идеальной атаки
-function sfxArenaPerfect() {
-    playArenaSound(300, 'sine', 0.3, 0.1);
-    setTimeout(() => playArenaSound(450, 'sine', 0.3, 0.1), 80);
-    setTimeout(() => playArenaSound(600, 'sine', 0.3, 0.1), 160);
-    setTimeout(() => playArenaSound(800, 'sine', 0.3, 0.15), 240);
-}
-
-// Звук провальной атаки
-function sfxArenaFailAttack() {
-    playArenaSound(100, 'triangle', 0.8, 0.15);
-    setTimeout(() => playArenaSound(70, 'triangle', 0.7, 0.2), 150);
-}
-
-// Звук смерти на арене
-function sfxArenaDeath() {
-    playArenaSound(40, 'sawtooth', 1.5, 0.3);
-    setTimeout(() => playArenaSound(30, 'sawtooth', 1.2, 0.25), 200);
-    setTimeout(() => playArenaSound(20, 'sawtooth', 1.0, 0.2), 500);
-    setTimeout(() => playArenaSound(15, 'sawtooth', 0.8, 0.15), 800);
-}
-
-// Звук победы на арене
-function sfxArenaVictory() {
     playArenaSound(400, 'sine', 0.5, 0.1);
-    setTimeout(() => playArenaSound(500, 'sine', 0.5, 0.1), 100);
-    setTimeout(() => playArenaSound(600, 'sine', 0.5, 0.1), 200);
-    setTimeout(() => playArenaSound(800, 'sine', 0.6, 0.15), 300);
-    setTimeout(() => playArenaSound(1000, 'sine', 0.4, 0.1), 400);
+    setTimeout(() => playArenaSound(600, 'sine', 0.5, 0.1), 100);
+    setTimeout(() => playArenaSound(800, 'sine', 0.4, 0.1), 200);
+    setTimeout(() => playArenaSound(1000, 'sine', 0.3, 0.08), 300);
 }
 
-// Звук появления радужной атаки (зловещий)
-function sfxArenaRainbow() {
-    playArenaSound(50, 'sawtooth', 1.0, 0.15);
-    setTimeout(() => playArenaSound(80, 'sawtooth', 0.8, 0.12), 200);
-    setTimeout(() => playArenaSound(60, 'sawtooth', 0.9, 0.1), 400);
+// Взрыв бомбы (МОЩНЫЙ)
+function sfxArenaBombExplosion() {
+    playArenaSound(25, 'sawtooth', 1.5, 0.4);
+    setTimeout(() => playArenaSound(20, 'sawtooth', 1.3, 0.35), 100);
+    setTimeout(() => playArenaSound(15, 'sawtooth', 1.1, 0.3), 250);
+    setTimeout(() => playArenaSound(35, 'triangle', 1.0, 0.25), 200);
+    setTimeout(() => playArenaSound(50, 'triangle', 0.9, 0.2), 400);
+    // Шум взрыва
+    for (let i = 0; i < 5; i++) {
+        setTimeout(() => playArenaSound(100 + Math.random() * 200, 'sawtooth', 0.3, 0.06), i * 50);
+    }
 }
+
+// Выстрел бластера
+function sfxArenaBlasterFire() {
+    playArenaSound(80, 'square', 0.8, 0.25);
+    setTimeout(() => playArenaSound(120, 'square', 0.7, 0.2), 60);
+    setTimeout(() => playArenaSound(200, 'square', 0.6, 0.15), 120);
+    setTimeout(() => playArenaSound(300, 'square', 0.5, 0.1), 180);
+    // Эхо
+    setTimeout(() => playArenaSound(150, 'sawtooth', 0.3, 0.08), 250);
+}
+
+// Попадание в цель (фаза атаки)
+function sfxArenaTargetHit() {
+    let sounds = [
+        () => { playArenaSound(500, 'square', 0.15, 0.06); setTimeout(() => playArenaSound(700, 'square', 0.1, 0.05), 40); },
+        () => { playArenaSound(600, 'sine', 0.12, 0.05); setTimeout(() => playArenaSound(800, 'sine', 0.08, 0.04), 30); },
+        () => { playArenaSound(450, 'triangle', 0.18, 0.07); setTimeout(() => playArenaSound(650, 'triangle', 0.12, 0.05), 50); }
+    ];
+    sounds[Math.floor(Math.random() * sounds.length)]();
+}
+
+// Идеальная атака (фанфары)
+function sfxArenaPerfect() {
+    playArenaSound(300, 'sine', 0.4, 0.1);
+    setTimeout(() => playArenaSound(450, 'sine', 0.4, 0.1), 80);
+    setTimeout(() => playArenaSound(600, 'sine', 0.4, 0.1), 160);
+    setTimeout(() => playArenaSound(800, 'sine', 0.4, 0.15), 240);
+    setTimeout(() => playArenaSound(1000, 'sine', 0.3, 0.1), 320);
+    // Смешной бонус
+    setTimeout(() => playArenaSound(1200, 'square', 0.15, 0.05), 400);
+}
+
+// Провальная атака (грустный тромбон)
+function sfxArenaFailAttack() {
+    playArenaSound(100, 'triangle', 0.8, 0.2);
+    setTimeout(() => playArenaSound(80, 'triangle', 0.7, 0.2), 200);
+    setTimeout(() => playArenaSound(60, 'triangle', 0.6, 0.2), 400);
+    setTimeout(() => playArenaSound(40, 'triangle', 0.5, 0.15), 600);
+}
+
+// Смерть на арене (эпичная)
+function sfxArenaDeath() {
+    playArenaSound(40, 'sawtooth', 2.0, 0.35);
+    setTimeout(() => playArenaSound(30, 'sawtooth', 1.8, 0.3), 200);
+    setTimeout(() => playArenaSound(20, 'sawtooth', 1.5, 0.25), 500);
+    setTimeout(() => playArenaSound(15, 'sawtooth', 1.2, 0.2), 800);
+    setTimeout(() => playArenaSound(10, 'sawtooth', 1.0, 0.15), 1200);
+}
+
+// Победа на арене (торжественная)
+function sfxArenaVictory() {
+    playArenaSound(400, 'sine', 0.6, 0.12);
+    setTimeout(() => playArenaSound(500, 'sine', 0.6, 0.12), 100);
+    setTimeout(() => playArenaSound(600, 'sine', 0.6, 0.12), 200);
+    setTimeout(() => playArenaSound(800, 'sine', 0.7, 0.15), 300);
+    setTimeout(() => playArenaSound(1000, 'sine', 0.5, 0.12), 400);
+    setTimeout(() => playArenaSound(1200, 'sine', 0.4, 0.1), 500);
+}
+
+// Появление радужной атаки (жуткий)
+function sfxArenaRainbow() {
+    playArenaSound(50, 'sawtooth', 1.5, 0.15);
+    setTimeout(() => playArenaSound(80, 'sawtooth', 1.2, 0.12), 200);
+    setTimeout(() => playArenaSound(60, 'sawtooth', 1.0, 0.1), 400);
+    setTimeout(() => playArenaSound(40, 'sawtooth', 0.8, 0.08), 600);
+}
+
+// Звук когда атака пролетает мимо (свист)
+function sfxWhoosh() {
+    playArenaSound(200, 'sine', 0.3, 0.05, -200);
+    setTimeout(() => playArenaSound(150, 'sine', 0.2, 0.04, -300), 50);
+}
+
+// Звук отскока от стены
+function sfxBounce() {
+    playArenaSound(300, 'square', 0.1, 0.03);
+    setTimeout(() => playArenaSound(200, 'square', 0.08, 0.02), 40);
+}
+
+// ====== ОСНОВНЫЕ ФУНКЦИИ ======
 
 function initArena() {
     canvas = document.getElementById("arenaCanvas");
@@ -417,6 +573,10 @@ function startArena(bossWave) {
     if (skipBtn) skipBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
     if (!ctx) initArena();
     if (animFrameId) cancelAnimationFrame(animFrameId);
+    
+    // Запускаем фоновый эмбиент
+    startArenaAmbient();
+    
     startDodgePhase();
     animFrameId = requestAnimationFrame(renderArena);
 }
@@ -452,17 +612,31 @@ function startDodgePhase() {
     if (arenaAttackType === 9) baseInterval = 3400;
     if (arenaAttackType === 10) baseInterval = 2400;
     
-    // Звук при смене типа атаки
-    if (arenaAttackType === 6) {
-        sfxArenaRainbow();
-    } else {
-        sfxArenaAttackSpawn();
+    // Звук при смене типа атаки (специфичный для каждого типа)
+    switch(arenaAttackType) {
+        case 0: sfxWhiteWalls(); break;
+        case 1: sfxBlueChaos(); break;
+        case 2: sfxYellowSwords(); break;
+        case 3: sfxRedTriangles(); break;
+        case 4: sfxPinkKnockback(); break;
+        case 5: sfxGreenHealSpawn(); break;
+        case 6: sfxRainbowDeathSpawn(); break;
+        case 7: sfxMixAttack(); break;
+        case 8: sfxZoneAttack(); break;
+        case 9: sfxBombTick(); break;
+        case 10: sfxBlasterCharge(); break;
+        default: sfxArenaAttackSpawn();
     }
     
     arenaAttackInterval = setInterval(() => {
         if (arenaPhase === "dodge" && arenaActive) {
             spawnAttack();
-            sfxArenaAttackSpawn();
+            // Звук при появлении каждой атаки
+            switch(arenaAttackType) {
+                case 9: sfxBombTick(); break;
+                case 10: sfxBlasterCharge(); break;
+                default: sfxWhoosh();
+            }
         }
     }, Math.max(800, baseInterval / arenaSpeedMult));
     
@@ -485,6 +659,11 @@ function startAttackPhase() {
         arenaAttackInterval = null;
     }
     document.getElementById("arenaBossName").innerText = arenaBoss + " — ⚡ БЕЙ! (" + arenaAttackTimeLeft + "с)";
+    
+    // Звук начала фазы атаки
+    playArenaSound(200, 'square', 0.3, 0.08);
+    setTimeout(() => playArenaSound(300, 'square', 0.2, 0.06), 100);
+    
     let usedPositions = [];
     for (let i = 0; i < arenaTotalTargets; i++) {
         let x;
@@ -515,6 +694,8 @@ function startAttackPhase() {
     let attackTimer = setInterval(() => {
         arenaAttackTimeLeft--;
         document.getElementById("arenaBossName").innerText = arenaBoss + " — ⚡ БЕЙ! (" + arenaAttackTimeLeft + "с)";
+        // Тиканье таймера
+        playArenaSound(1000, 'square', 0.05, 0.02);
         if (arenaAttackTimeLeft <= 0) {
             clearInterval(attackTimer);
             applyArenaDamage();
@@ -613,7 +794,7 @@ function spawnBlaster(w) {
         width: isRainbow ? 15 : 30,
         hasHit: false
     });
-    sfxArenaBlasterFire();
+    sfxBlasterCharge();
 }
 
 function spawnAttack() {
@@ -966,6 +1147,7 @@ function spawnAttack() {
 
 function stopArena() {
     arenaActive = false;
+    stopArenaAmbient();
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     if (animFrameId) cancelAnimationFrame(animFrameId);
     arenaAttackInterval = null;
@@ -1211,18 +1393,15 @@ function renderArena() {
             if (a.type === "bomb") {
                 a.timer--;
                 if (a.timer > 0) {
-                    // Мигание бомбы
                     ctx.save();
                     let isFlashing = Math.floor(a.timer / 6) % 2 === 0;
                     let bombX = a.x;
                     let bombY = a.y;
                     let bombRadius = 11 + Math.abs(Math.sin(a.timer * 0.45)) * 4;
                     
-                    // Внешнее свечение
                     ctx.shadowColor = "#ff3333";
                     ctx.shadowBlur = isFlashing ? 20 : 8;
                     
-                    // Основной круг бомбы
                     let gradient = ctx.createRadialGradient(bombX, bombY, bombRadius * 0.2, bombX, bombY, bombRadius);
                     gradient.addColorStop(0, '#ffffff');
                     gradient.addColorStop(0.3, '#ff6600');
@@ -1233,7 +1412,6 @@ function renderArena() {
                     ctx.arc(bombX, bombY, bombRadius, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Шипы на бомбе
                     ctx.strokeStyle = "#000000";
                     ctx.lineWidth = 1.5;
                     for (let s = 0; s < 8; s++) {
@@ -1248,7 +1426,6 @@ function renderArena() {
                         ctx.stroke();
                     }
                     
-                    // Фитиль сверху
                     ctx.strokeStyle = "#8B4513";
                     ctx.lineWidth = 2;
                     ctx.beginPath();
@@ -1256,7 +1433,6 @@ function renderArena() {
                     ctx.quadraticCurveTo(bombX + 5, bombY - bombRadius - 12, bombX + 3, bombY - bombRadius - 16);
                     ctx.stroke();
                     
-                    // Огонёк на фитиле
                     ctx.fillStyle = isFlashing ? "#ffff00" : "#ff8800";
                     ctx.shadowColor = isFlashing ? "#ffff00" : "#ff6600";
                     ctx.shadowBlur = isFlashing ? 10 : 5;
@@ -1264,7 +1440,6 @@ function renderArena() {
                     ctx.arc(bombX + 3, bombY - bombRadius - 16, isFlashing ? 4 : 3, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Искры от фитиля
                     ctx.fillStyle = "#ffff00";
                     ctx.shadowBlur = 0;
                     for (let sp = 0; sp < 3; sp++) {
@@ -1277,7 +1452,6 @@ function renderArena() {
                     
                     ctx.shadowBlur = 0;
                     
-                    // Область взрыва (пунктир)
                     ctx.strokeStyle = "rgba(255, 51, 51, 0.3)";
                     ctx.lineWidth = 2;
                     ctx.setLineDash([4, 4]);
@@ -1286,7 +1460,6 @@ function renderArena() {
                     ctx.stroke();
                     ctx.setLineDash([]);
                     
-                    // Пульсирующее кольцо
                     let pulseRadius = a.maxRadius * (1 + Math.sin(a.timer * 0.3) * 0.15);
                     ctx.strokeStyle = "rgba(255, 100, 100, 0.2)";
                     ctx.lineWidth = 1;
@@ -1296,7 +1469,6 @@ function renderArena() {
                     
                     ctx.restore();
                 } else if (a.timer > -30) {
-                    // ВЗРЫВ БОМБЫ
                     let progress = Math.abs(a.timer) / 30;
                     let cr = a.maxRadius * progress;
                     
@@ -1314,7 +1486,6 @@ function renderArena() {
                     ctx.save();
                     ctx.globalCompositeOperation = 'lighter';
                     
-                    // Основной взрыв
                     let grad = ctx.createRadialGradient(a.x, a.y, cr * 0.1, a.x, a.y, cr);
                     grad.addColorStop(0, '#ffffff');
                     grad.addColorStop(0.15, '#ffff00');
@@ -1326,7 +1497,6 @@ function renderArena() {
                     ctx.arc(a.x, a.y, cr, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Второе кольцо взрыва
                     if (progress > 0.3) {
                         let ringGrad = ctx.createRadialGradient(a.x, a.y, cr * 0.7, a.x, a.y, cr * 0.9);
                         ringGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
@@ -1338,7 +1508,6 @@ function renderArena() {
                         ctx.fill();
                     }
                     
-                    // Лучи взрыва
                     ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
                     ctx.lineWidth = 3 * (1 - progress);
                     for (let r = 0; r < 12; r++) {
@@ -1352,7 +1521,6 @@ function renderArena() {
                         ctx.stroke();
                     }
                     
-                    // Частицы взрыва
                     ctx.fillStyle = "#ffffff";
                     for (let ep = 0; ep < (isMobile ? 15 : 40); ep++) {
                         let eAngle = Math.random() * Math.PI * 2;
@@ -1370,7 +1538,6 @@ function renderArena() {
                     
                     ctx.restore();
                     
-                    // Проверка попадания
                     if (!a.hit && invulnTimer <= 0) {
                         let dx = heart.x - a.x;
                         let dy = heart.y - a.y;
@@ -1395,6 +1562,7 @@ function renderArena() {
                 if (a.x < 4 && a.spd < 0) {
                     a.spd = -a.spd;
                     if (a.bouncesLeft !== Infinity) a.bouncesLeft--;
+                    sfxBounce();
                     arenaShockwaves.push({
                         x: 4,
                         y: a.y + sz / 2,
@@ -1407,6 +1575,7 @@ function renderArena() {
                 } else if (a.x + sz > 396 && a.spd > 0) {
                     a.spd = -a.spd;
                     if (a.bouncesLeft !== Infinity) a.bouncesLeft--;
+                    sfxBounce();
                     arenaShockwaves.push({
                         x: 396,
                         y: a.y + sz / 2,
@@ -1420,6 +1589,7 @@ function renderArena() {
                 if (a.y < 4 && a.spdY < 0) {
                     a.spdY = -a.spdY;
                     if (a.bouncesLeft !== Infinity) a.bouncesLeft--;
+                    sfxBounce();
                     arenaShockwaves.push({
                         x: a.x + sz / 2,
                         y: 4,
@@ -1432,6 +1602,7 @@ function renderArena() {
                 } else if (a.y + sz > 496 && a.spdY > 0) {
                     a.spdY = -a.spdY;
                     if (a.bouncesLeft !== Infinity) a.bouncesLeft--;
+                    sfxBounce();
                     arenaShockwaves.push({
                         x: a.x + sz / 2,
                         y: 496,
@@ -1488,6 +1659,7 @@ function renderArena() {
                     heart.x += (dx / dist) * a.knockback;
                     heart.y += (dy / dist) * a.knockback;
                     clampHeart();
+                    sfxPinkKnockback();
                     spawnFloatingText(heart.x, heart.y - 20, "ОТБРОС!", "#ff69b4");
                     attacks.splice(i, 1);
                     continue;
@@ -1725,7 +1897,7 @@ function renderArena() {
             ctx.restore();
         }
     } else if (arenaPhase === "attack") {
-        // ФАЗА АТАКИ - КРУГИ ДЛЯ КЛИКОВ
+        // ФАЗА АТАКИ
         for (let i = 0; i < arenaClickTargets.length; i++) {
             let t = arenaClickTargets[i];
             if (t.hit) continue;
@@ -1796,7 +1968,7 @@ function renderArena() {
     }
     ctx.restore();
 
-    // ПЛАВАЮЩИЙ ТЕКСТ (только на десктопе)
+    // ПЛАВАЮЩИЙ ТЕКСТ
     if (!isMobile) {
         ctx.save();
         for (let i = floatingTexts.length - 1; i >= 0; i--) {
