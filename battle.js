@@ -804,98 +804,98 @@ function spawnAttack() {
     let dmg = arenaBaseDmg;
     
     switch (arenaAttackType) {
-        case 0:
-            if (isEarly) {
-                if (Math.random() > 0.5) {
-                    attacks.push({
-                        type: "square",
-                        x: 60,
-                        y: -30,
-                        size: 26,
-                        spd: 0,
-                        spdY: 3.2 * s,
-                        color: "#fff",
-                        damage: dmg,
-                        bouncesLeft: 2
-                    });
-                    attacks.push({
-                        type: "square",
-                        x: 310,
-                        y: -30,
-                        size: 26,
-                        spd: 0,
-                        spdY: 3.2 * s,
-                        color: "#fff",
-                        damage: dmg,
-                        bouncesLeft: 2
-                    });
-                } else {
-                    attacks.push({
-                        type: "square",
-                        x: -30,
-                        y: 180,
-                        size: 26,
-                        spd: 3.5 * s,
-                        spdY: 0,
-                        color: "#fff",
-                        damage: dmg,
-                        bouncesLeft: 1
-                    });
-                    attacks.push({
-                        type: "square",
-                        x: 430,
-                        y: 320,
-                        size: 26,
-                        spd: -3.5 * s,
-                        spdY: 0,
-                        color: "#fff",
-                        damage: dmg,
-                        bouncesLeft: 1
-                    });
-                }
-            } else {
-                let isVertical = Math.random() > 0.5;
-                if (isVertical) {
-                    let gapCenter = 80 + Math.random() * 340;
-                    let gapSize = 70 + Math.random() * 40;
-                    let startX = Math.random() > 0.5 ? -30 : 430;
-                    let dirX = startX < 0 ? 3.5 * s : -3.5 * s;
-                    for (let i = 10; i < 490; i += 22) {
-                        if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                        attacks.push({
-                            type: "square",
-                            x: startX,
-                            y: i,
-                            size: 24,
-                            spd: dirX,
-                            spdY: 0,
-                            color: "#fff",
-                            damage: dmg,
-                            bouncesLeft: 1
-                        });
-                    }
-                } else {
-                    let gapCenter = 60 + Math.random() * 280;
-                    let gapSize = 70 + Math.random() * 40;
-                    let startY = Math.random() > 0.5 ? -30 : 530;
-                    let dirY = startY < 0 ? 2.4 * s : -2.4 * s;
-                    for (let i = 10; i < 390; i += 22) {
-                        if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                        attacks.push({
-                            type: "square",
-                            x: i,
-                            y: startY,
-                            size: 24,
-                            spd: 0,
-                            spdY: dirY,
-                            color: "#fff",
-                            damage: dmg,
-                            bouncesLeft: 1
-                        });
-                    }
-                }
+  case 0:
+    if (isEarly) {
+        if (Math.random() > 0.5) {
+            attacks.push({
+                type: "square",
+                x: 60,
+                y: -30,
+                size: 26,
+                spd: 0,
+                spdY: 3.2 * s,
+                color: "#fff",
+                damage: dmg,
+                bouncesLeft: 0  // БЫЛО 2, СТАВИМ 0 — НЕ ОТСКАКИВАЕТ
+            });
+            attacks.push({
+                type: "square",
+                x: 310,
+                y: -30,
+                size: 26,
+                spd: 0,
+                spdY: 3.2 * s,
+                color: "#fff",
+                damage: dmg,
+                bouncesLeft: 0  // БЫЛО 2, СТАВИМ 0
+            });
+        } else {
+            attacks.push({
+                type: "square",
+                x: -30,
+                y: 180,
+                size: 26,
+                spd: 3.5 * s,
+                spdY: 0,
+                color: "#fff",
+                damage: dmg,
+                bouncesLeft: 0  // БЫЛО 1, СТАВИМ 0
+            });
+            attacks.push({
+                type: "square",
+                x: 430,
+                y: 320,
+                size: 26,
+                spd: -3.5 * s,
+                spdY: 0,
+                color: "#fff",
+                damage: dmg,
+                bouncesLeft: 0  // БЫЛО 1, СТАВИМ 0
+            });
+        }
+    } else {
+        let isVertical = Math.random() > 0.5;
+        if (isVertical) {
+            let gapCenter = 80 + Math.random() * 340;
+            let gapSize = 70 + Math.random() * 40;
+            let startX = Math.random() > 0.5 ? -30 : 430;
+            let dirX = startX < 0 ? 3.5 * s : -3.5 * s;
+            for (let i = 10; i < 490; i += 22) {
+                if (Math.abs(i - gapCenter) < gapSize / 2) continue;
+                attacks.push({
+                    type: "square",
+                    x: startX,
+                    y: i,
+                    size: 24,
+                    spd: dirX,
+                    spdY: 0,
+                    color: "#fff",
+                    damage: dmg,
+                    bouncesLeft: 0  // БЫЛО 1, СТАВИМ 0 — ПРОЛЕТАЕТ НАСКВОЗЬ
+                });
             }
-            break;
+        } else {
+            let gapCenter = 60 + Math.random() * 280;
+            let gapSize = 70 + Math.random() * 40;
+            let startY = Math.random() > 0.5 ? -30 : 530;
+            let dirY = startY < 0 ? 2.4 * s : -2.4 * s;
+            for (let i = 10; i < 390; i += 22) {
+                if (Math.abs(i - gapCenter) < gapSize / 2) continue;
+                attacks.push({
+                    type: "square",
+                    x: i,
+                    y: startY,
+                    size: 24,
+                    spd: 0,
+                    spdY: dirY,
+                    color: "#fff",
+                    damage: dmg,
+                    bouncesLeft: 0  // БЫЛО 1, СТАВИМ 0
+                });
+            }
+        }
+    }
+    break;
             
         case 1:
             for (let i = 0; i < (isEarly ? 1 : 2); i++) {
@@ -926,7 +926,7 @@ function spawnAttack() {
                     spdY: Math.sin(angle) * 2.1 * s,
                     color: "#4499ff",
                     damage: dmg,
-                    bouncesLeft: 0
+                    bouncesLeft: 1
                 });
             }
             break;
@@ -1011,12 +1011,12 @@ function spawnAttack() {
                     type: "circle",
                     x: Math.random() * 400,
                     y: -30,
-                    radius: 15,
+                    radius: 30,
                     spd: (Math.random() - 0.5) * 1.5 * s,
                     spdY: 2.5 * s,
                     color: "#44ff44",
-                    heal: 3,
-                    bouncesLeft: 0
+                    heal: 4,
+                    bouncesLeft: 2
                 });
             } else {
                 attacks.push({
