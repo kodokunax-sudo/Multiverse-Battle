@@ -51,4 +51,69 @@ function renderModerControls() {
     }
 }
 function renderCheckpoints() { let c = document.getElementById("checkpointList"); let html = ''; let maxCp = Math.max(highestCheckpoint, Math.floor(wave / 50) * 50); for (let cp = 50; cp <= maxCp; cp += 50) { let unlocked = cp <= highestCheckpoint; html += '<div class="checkpoint-item" style="opacity:' + (unlocked ? '1' : '0.5') + '"><div>🚩 Волна ' + cp + (unlocked ? '' : ' 🔒') + '</div><button class="btn ' + (activeCheckpoint === cp ? 'auto-active' : '') + '" style="padding:6px 12px;" onclick="toggleCheckpoint(' + cp + ')" ' + (unlocked ? '' : 'disabled') + '>' + (activeCheckpoint === cp ? 'Выбрано ✅' : 'Выбрать ▶') + '</button></div>'; } c.innerHTML = html || "<div style='text-align:center;padding:15px;color:#888;font-weight:bold;'>Дойдите до 50 волны</div>"; }
-function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); updatePlayerStats(); updateStatusDisplay(); }
+
+// ========== РЕНДЕР ГАЧА-КРУТОК ==========
+function renderGachaTab() {
+    let container = document.getElementById("gachaItems");
+    if (!container) return;
+    
+    if (typeof checkGachaReset === 'function') checkGachaReset();
+    
+    let html = '';
+    
+    let types = [
+        { id: "common", name: "Обычная", icon: "⚪", color: "#6c757d", minRarity: "Обычная", maxRarity: "Мифическая", maxChance: 1 },
+        { id: "rare", name: "Редкая", icon: "🔵", color: "#17a2b8", minRarity: "Обычная", maxRarity: "Мифическая", maxChance: 3 },
+        { id: "superRare", name: "Сверхредкая", icon: "🟢", color: "#28a745", minRarity: "Редкая", maxRarity: "Легендарная", maxChance: 2 },
+        { id: "epic", name: "Эпическая", icon: "🟣", color: "#9b59b6", minRarity: "Сверх редкая", maxRarity: "Секретная", maxChance: 0.2 },
+        { id: "mythic", name: "Мифическая", icon: "🔴", color: "#e74c3c", minRarity: "Эпик", maxRarity: "Секретная", maxChance: 0.8 }
+    ];
+    
+    types.forEach(t => {
+        let bought = (typeof gachaDailyLimits !== 'undefined' && gachaDailyLimits[t.id]) || 0;
+        let max = (typeof gachaDailyMax !== 'undefined' && gachaDailyMax[t.id]) || 0;
+        let canBuy = (typeof mode !== 'undefined' && mode === "moder") || (bought < max && (typeof points !== 'undefined' && points >= (typeof gachaPrices !== 'undefined' ? gachaPrices[t.id] : 0)));
+        let displayPrice = (typeof mode !== 'undefined' && mode === "moder") ? "∞ БЕСПЛАТНО" : ((typeof gachaPrices !== 'undefined' ? gachaPrices[t.id] : 0) + "⭐");
+        
+        html += '<div class="shop-item gacha-item" style="border-left: 3px solid ' + t.color + ';">';
+        html += '<div><strong>' + t.icon + ' ' + t.name + ' крутка</strong>';
+        html += '<br><small>' + displayPrice + ' | ' + bought + '/' + max + ' сегодня</small>';
+        html += '<br><small style="color:#aaa;">Мин: ' + t.minRarity + ' | Макс: ' + t.maxRarity + ' (' + t.maxChance + '%)</small></div>';
+        html += '<button class="btn btn-primary gacha-btn" onclick="performGacha(\'' + t.id + '\')" ' + (!canBuy ? 'disabled' : '') + '>Крутить</button>';
+        html += '</div>';
+    });
+    
+    // Легендарная крутка
+    if ((typeof legendaryGachaTokens !== 'undefined' && legendaryGachaTokens > 0) || (typeof mode !== 'undefined' && mode === "moder")) {
+        let canBuy = (typeof mode !== 'undefined' && mode === "moder") || ((typeof legendaryGachaTokens !== 'undefined' && legendaryGachaTokens > 0) && (typeof points !== 'undefined' && points >= (typeof gachaPrices !== 'undefined' ? gachaPrices.legendary : 0)));
+        let displayPrice = (typeof mode !== 'undefined' && mode === "moder") ? "∞ БЕСПЛАТНО" : ((typeof gachaPrices !== 'undefined' ? gachaPrices.legendary : 0) + "⭐");
+        let tokenDisplay = (typeof mode !== 'undefined' && mode === "moder") ? "∞" : (typeof legendaryGachaTokens !== 'undefined' ? legendaryGachaTokens : 0);
+        html += '<div class="shop-item gacha-item legendary-gacha" style="border-left: 3px solid #ffd700; background: rgba(255,215,0,0.1);">';
+        html += '<div><strong>🟡 Легендарная крутка</strong>';
+        html += '<br><small>' + displayPrice + ' | Разрешений: ' + tokenDisplay + '</small>';
+        html += '<br><small style="color:#aaa;">Мин: Мифическая | Макс: Секретная (2%)</small></div>';
+        html += '<button class="btn btn-primary gacha-btn legendary-btn" onclick="performGacha(\'legendary\')" ' + (!canBuy ? 'disabled' : '') + '>Крутить</button>';
+        html += '</div>';
+    }
+    
+    // Секретная крутка
+    if ((typeof secretGachaTokens !== 'undefined' && secretGachaTokens > 0) || (typeof mode !== 'undefined' && mode === "moder")) {
+        let canBuy = (typeof mode !== 'undefined' && mode === "moder") || ((typeof secretGachaTokens !== 'undefined' && secretGachaTokens > 0) && (typeof points !== 'undefined' && points >= (typeof gachaPrices !== 'undefined' ? gachaPrices.secret : 0)));
+        let displayPrice = (typeof mode !== 'undefined' && mode === "moder") ? "∞ БЕСПЛАТНО" : ((typeof gachaPrices !== 'undefined' ? gachaPrices.secret : 0) + "⭐");
+        let tokenDisplay = (typeof mode !== 'undefined' && mode === "moder") ? "∞" : (typeof secretGachaTokens !== 'undefined' ? secretGachaTokens : 0);
+        html += '<div class="shop-item gacha-item secret-gacha" style="border-left: 3px solid #ff00ff; background: rgba(255,0,255,0.1);">';
+        html += '<div><strong>🟣 Секретная крутка</strong>';
+        html += '<br><small>' + displayPrice + ' | Разрешений: ' + tokenDisplay + '</small>';
+        html += '<br><small style="color:#aaa;">Легендарная (80%) | Секретная (20%)</small></div>';
+        html += '<button class="btn btn-primary gacha-btn secret-btn" onclick="performGacha(\'secret\')" ' + (!canBuy ? 'disabled' : '') + '>Крутить</button>';
+        html += '</div>';
+    }
+    
+    if (!html) {
+        html = '<div style="text-align:center;color:#888;padding:20px;font-weight:bold;">🔒 Победите нового босса (каждые 50 волн) чтобы открыть легендарные и секретные крутки!</div>';
+    }
+    
+    container.innerHTML = html;
+}
+
+function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); if (typeof renderGachaTab === 'function') renderGachaTab(); updatePlayerStats(); updateStatusDisplay(); }
