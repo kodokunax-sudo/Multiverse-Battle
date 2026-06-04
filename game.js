@@ -270,40 +270,38 @@ function showModal(title, content) { let el = document.getElementById("modalCont
 function closeModal() { let el = document.getElementById("modalOverlay"); if (el) el.style.display = "none"; }
 function startFireEffectPassive(damage, durationMs) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } let elapsed = 0; fireInterval = setInterval(() => { if (!currentEnemy || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } return; } currentEnemy.hp -= damage; showFloatingText("🔥 -" + damage, "#ff6b6b"); renderEnemy(); elapsed += 2000; if (elapsed >= durationMs || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } if (currentEnemy && currentEnemy.hp <= 0) victory(); } }, 2000); }
 
-// ========== НОВАЯ СИСТЕМА КРУТОК (ГАЧА) ==========
-const gachaPrices = {
-    common: 200,
-    rare: 400,
-    superRare: 800,
-    epic: 1600,
-    mythic: 3200,
-    legendary: 8000,
-    secret: 15000
-};
-
-function resetGachaLimits() {
-    gachaDailyLimits = {
-        common: 0,
-        rare: 0,
-        superRare: 0,
-        epic: 0,
-        mythic: 0,
-        legendary: 0,
-        secret: 0
-    };
-    legendaryGachaTokens = 0;
-    secretGachaTokens = 0;
-    lastGachaReset = Date.now();
-    saveAll();
-}
-
-function checkGachaReset() {
-    let now = Date.now();
-    if (!lastGachaReset) { lastGachaReset = now; return; }
-    let diff = (now - lastGachaReset) / 3600000;
-    if (diff >= 24) {
-        resetGachaLimits();
+/function showGachaOverlay() {
+    let overlay = document.getElementById("gachaOverlay");
+    if (!overlay || !gachaAnimationData) return;
+    
+    // Заполняем ленту
+    let strip = document.getElementById("gachaStrip");
+    if (strip) {
+        strip.innerHTML = gachaAnimationData.cards.map(card => {
+            let rarityColor = typeof getRarityColor === 'function' ? getRarityColor(card.rarity) : "#fff";
+            let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(card.rarity);
+            let cardImg = showImage && typeof getCardImage === 'function' ? getCardImage(card.name) : null;
+            let imgHTML = cardImg ? '<img src="' + cardImg + '" style="width:60px;height:60px;border-radius:8px;object-fit:cover;margin-bottom:4px;">' : '<div style="width:60px;height:60px;border-radius:8px;background:#2c2c3a;margin-bottom:4px;display:flex;align-items:center;justify-content:center;font-size:20px;">🎴</div>';
+            
+            return '<div style="min-width:150px;text-align:center;background:rgba(30,30,47,0.95);border-radius:16px;padding:15px 10px;border:2px solid ' + rarityColor + ';box-shadow: 0 0 15px ' + rarityColor + ';">' +
+                imgHTML +
+                '<div style="font-weight:900;font-size:12px;color:' + rarityColor + ';">' + (typeof escapeHtml === 'function' ? escapeHtml(card.name) : card.name) + '</div>' +
+                '<div style="font-size:10px;margin-top:4px;">' + card.rarity + '</div>' +
+                '<div style="font-size:10px;">💪' + card.damage + ' ❤️' + card.hp + '</div>' +
+                '</div>';
+        }).join('');
+        
+        strip.style.display = "flex";
+        strip.style.transition = "none";
+        strip.style.transform = "translateX(0px)";
     }
+    
+    document.getElementById("gachaResultCard").style.display = "none";
+    document.getElementById("gachaSkipBtn").style.display = "block";
+    
+    overlay.style.display = "flex";
+    gachaStripX = 0;
+    gachaSpeed = 25;
 }
 
 function grantBossGachaReward(bossWave) {
