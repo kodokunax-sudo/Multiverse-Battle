@@ -333,12 +333,9 @@ function grantBossGachaReward(bossWave) {
 }
 
 function forceStopGachaAnimation() {
-    if (window._gachaAnimFrame) {
-        cancelAnimationFrame(window._gachaAnimFrame);
-        window._gachaAnimFrame = null;
+    if (typeof window._hideGachaOverlay === 'function') {
+        window._hideGachaOverlay();
     }
-    let overlay = document.getElementById("gachaOverlay");
-    if (overlay) overlay.style.display = "none";
     gachaAnimationActive = false;
     gachaAnimationData = null;
 }
@@ -347,7 +344,6 @@ function performGacha(type) {
     initAudio();
     checkGachaReset();
     
-    // Если анимация зависла - сбрасываем принудительно
     if (gachaAnimationActive) {
         forceStopGachaAnimation();
     }
@@ -395,7 +391,6 @@ function performGacha(type) {
     if (typeof renderGachaTab === 'function') renderGachaTab();
     renderPoints();
     
-    // Запускаем анимацию
     startGachaAnimation(card, type);
 }
 
@@ -471,7 +466,6 @@ function getRarityEmoji(rarity) {
 }
 
 function startGachaAnimation(card, type) {
-    // Создаём фейковые карты
     let fakeCards = [];
     let rarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"];
     
@@ -500,7 +494,6 @@ function startGachaAnimation(card, type) {
     
     gachaAnimationActive = true;
     
-    // Используем функцию из ui.js
     if (typeof window._startGachaOverlay === 'function') {
         window._startGachaOverlay(gachaAnimationData);
     }
@@ -728,15 +721,6 @@ function renameSlot(slot) { let meta = loadSlotMeta(slot); let nickname = prompt
 function renderSlotsInGame() { let html = '<div style="display:flex;flex-direction:column;gap:10px;">'; for (let i = 0; i < 3; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select ' + (i === currentSlot ? 'active' : '') + '"><div style="font-size:18px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + (i === currentSlot ? ' ← Текущий' : '') + '</div><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn" style="padding:4px 12px;font-size:11px;" onclick="event.stopPropagation();switchToSlot(' + i + ')">Загрузить</button><button class="btn" style="padding:4px 12px;font-size:11px;background:#9b59b6;" onclick="event.stopPropagation();renameSlot(' + i + ')">✏️ Имя</button></div></div>'; } html += '</div>'; let el = document.getElementById("slotsListInGame"); if (el) el.innerHTML = html; }
 function switchToSlot(slot) { if (slot === currentSlot) return; saveAll(); currentSlot = slot; let saved = loadGameFromSlot(slot); let meta = loadSlotMeta(slot); if (saved) { loadGameData(saved); } else { initNewGame(); slotData.nickname = meta.nickname; } slotData.nickname = slotData.nickname || meta.nickname; saveGameToSlot(slot); let el = document.getElementById("slotSelectScreen"); if (el) el.style.display = "none"; el = document.getElementById("gameScreen"); if (el) el.style.display = "block"; finishSlotLoad(slot); renderSlotsInGame(); }
 function setMode(m) { if (m === "moder" && !moderUnlocked) return; mode = m; saveAll(); updateClaimTimer(); renderModerControls(); renderPoints(); document.querySelectorAll(".toggle span").forEach(s => s.classList.toggle("active", s.dataset.mode === m)); }
-
-// ЭКСПОРТ В ГЛОБАЛЬНУЮ ОБЛАСТЬ
-window.performGacha = performGacha;
-window.rollGachaRarity = rollGachaRarity;
-window.getRarityColor = getRarityColor;
-window.getRarityEmoji = getRarityEmoji;
-window.startGachaAnimation = startGachaAnimation;
-window.grantBossGachaReward = grantBossGachaReward;
-window.checkGachaReset = checkGachaReset;
 
 document.addEventListener("DOMContentLoaded", function () {
     let lastSlot = parseInt(localStorage.getItem("cgV20_lastSlot") || "-1");
