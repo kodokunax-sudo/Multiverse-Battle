@@ -288,15 +288,7 @@ const gachaPrices = {
 };
 
 function resetGachaLimits() {
-    gachaDailyLimits = {
-        common: 0,
-        rare: 0,
-        superRare: 0,
-        epic: 0,
-        mythic: 0,
-        legendary: 0,
-        secret: 0
-    };
+    gachaDailyLimits = { common: 0, rare: 0, superRare: 0, epic: 0, mythic: 0, legendary: 0, secret: 0 };
     legendaryGachaTokens = 0;
     secretGachaTokens = 0;
     lastGachaReset = Date.now();
@@ -306,36 +298,21 @@ function resetGachaLimits() {
 function checkGachaReset() {
     let now = Date.now();
     if (!lastGachaReset) { lastGachaReset = now; return; }
-    let diff = (now - lastGachaReset) / 3600000;
-    if (diff >= 24) {
-        resetGachaLimits();
-    }
+    if ((now - lastGachaReset) / 3600000 >= 24) resetGachaLimits();
 }
 
 function grantBossGachaReward(bossWave) {
     checkGachaReset();
-    
     if (legendaryGachaTokens >= 10 && secretGachaTokens >= 2) return;
-    
     let legendaryToAdd = Math.min(2, 10 - legendaryGachaTokens);
-    if (legendaryToAdd > 0) {
-        legendaryGachaTokens += legendaryToAdd;
-        showFloatingText("🎰 +" + legendaryToAdd + " ЛЕГЕНДАРНЫХ КРУТОК!", "#ffd700");
-    }
-    
-    if (secretGachaTokens < 2 && Math.random() < 0.10) {
-        secretGachaTokens++;
-        showFloatingText("🎰 СЕКРЕТНАЯ КРУТКА!", "#ff00ff");
-    }
-    
+    if (legendaryToAdd > 0) { legendaryGachaTokens += legendaryToAdd; showFloatingText("🎰 +" + legendaryToAdd + " ЛЕГЕНДАРНЫХ КРУТОК!", "#ffd700"); }
+    if (secretGachaTokens < 2 && Math.random() < 0.10) { secretGachaTokens++; showFloatingText("🎰 СЕКРЕТНАЯ КРУТКА!", "#ff00ff"); }
     saveAll();
     if (typeof renderGachaTab === 'function') renderGachaTab();
 }
 
 function forceStopGachaAnimation() {
-    if (typeof window._hideGachaOverlay === 'function') {
-        window._hideGachaOverlay();
-    }
+    if (typeof window._hideGachaOverlay === 'function') window._hideGachaOverlay();
     gachaAnimationActive = false;
     gachaAnimationData = null;
 }
@@ -343,33 +320,17 @@ function forceStopGachaAnimation() {
 function performGacha(type) {
     initAudio();
     checkGachaReset();
-    
-    if (gachaAnimationActive) {
-        forceStopGachaAnimation();
-    }
+    if (gachaAnimationActive) forceStopGachaAnimation();
     
     if (mode !== "moder") {
-        if (type === "legendary" && legendaryGachaTokens <= 0) {
-            alert("Нет разрешений на легендарную крутку! Победите нового босса.");
-            return;
-        }
-        if (type === "secret" && secretGachaTokens <= 0) {
-            alert("Нет разрешений на секретную крутку! Победите нового босса.");
-            return;
-        }
-        if ((gachaDailyLimits[type] || 0) >= (gachaDailyMax[type] || 0)) {
-            alert("Дневной лимит круток этого типа исчерпан!");
-            return;
-        }
-        if (points < (gachaPrices[type] || 0)) {
-            alert("Не хватает звёзд!");
-            return;
-        }
+        if (type === "legendary" && legendaryGachaTokens <= 0) { alert("Нет разрешений на легендарную крутку! Победите нового босса."); return; }
+        if (type === "secret" && secretGachaTokens <= 0) { alert("Нет разрешений на секретную крутку! Победите нового босса."); return; }
+        if ((gachaDailyLimits[type] || 0) >= (gachaDailyMax[type] || 0)) { alert("Дневной лимит круток этого типа исчерпан!"); return; }
+        if (points < (gachaPrices[type] || 0)) { alert("Не хватает звёзд!"); return; }
     }
     
     let rarity = rollGachaRarity(type);
     let card = createCard(rarity);
-    
     if (!card) return;
     
     if (mode !== "moder") {
@@ -382,9 +343,7 @@ function performGacha(type) {
     myCards.push(card);
     totalCardsObtained++;
     if (points > maxPoints) maxPoints = points;
-    if (!discoveredCards.includes(card.name)) {
-        discoveredCards.push(card.name);
-    }
+    if (!discoveredCards.includes(card.name)) discoveredCards.push(card.name);
     
     saveAll();
     renderAll();
@@ -396,106 +355,49 @@ function performGacha(type) {
 
 function rollGachaRarity(type) {
     let roll = Math.random() * 100;
-    
     switch(type) {
-        case "common":
-            if (roll < 1) return "Мифическая";
-            if (roll < 3) return "Эпик";
-            if (roll < 11) return "Сверх редкая";
-            if (roll < 31) return "Редкая";
-            return "Обычная";
-        case "rare":
-            if (roll < 3) return "Мифическая";
-            if (roll < 10) return "Эпик";
-            if (roll < 30) return "Сверх редкая";
-            if (roll < 90) return "Редкая";
-            return "Обычная";
-        case "superRare":
-            if (roll < 2) return "Легендарная";
-            if (roll < 7) return "Мифическая";
-            if (roll < 25) return "Эпик";
-            if (roll < 80) return "Сверх редкая";
-            return "Редкая";
-        case "epic":
-            if (roll < 0.2) return "Секретная";
-            if (roll < 8) return "Легендарная";
-            if (roll < 30) return "Мифическая";
-            if (roll < 80) return "Эпик";
-            return "Сверх редкая";
-        case "mythic":
-            if (roll < 0.8) return "Секретная";
-            if (roll < 30) return "Легендарная";
-            if (roll < 80) return "Мифическая";
-            return "Эпик";
-        case "legendary":
-            if (roll < 2) return "Секретная";
-            if (roll < 80) return "Легендарная";
-            return "Мифическая";
-        case "secret":
-            if (roll < 20) return "Секретная";
-            return "Легендарная";
-        default:
-            return "Обычная";
+        case "common": if (roll < 1) return "Мифическая"; if (roll < 3) return "Эпик"; if (roll < 11) return "Сверх редкая"; if (roll < 31) return "Редкая"; return "Обычная";
+        case "rare": if (roll < 3) return "Мифическая"; if (roll < 10) return "Эпик"; if (roll < 30) return "Сверх редкая"; if (roll < 90) return "Редкая"; return "Обычная";
+        case "superRare": if (roll < 2) return "Легендарная"; if (roll < 7) return "Мифическая"; if (roll < 25) return "Эпик"; if (roll < 80) return "Сверх редкая"; return "Редкая";
+        case "epic": if (roll < 0.2) return "Секретная"; if (roll < 8) return "Легендарная"; if (roll < 30) return "Мифическая"; if (roll < 80) return "Эпик"; return "Сверх редкая";
+        case "mythic": if (roll < 0.8) return "Секретная"; if (roll < 30) return "Легендарная"; if (roll < 80) return "Мифическая"; return "Эпик";
+        case "legendary": if (roll < 2) return "Секретная"; if (roll < 80) return "Легендарная"; return "Мифическая";
+        case "secret": if (roll < 20) return "Секретная"; return "Легендарная";
+        default: return "Обычная";
     }
 }
 
 function getRarityColor(rarity) {
-    let colors = {
-        "Обычная": "#ffffff",
-        "Редкая": "#17a2b8",
-        "Сверх редкая": "#28a745",
-        "Эпик": "#9b59b6",
-        "Мифическая": "#e74c3c",
-        "Легендарная": "#ffd700",
-        "Секретная": "#ff6b6b"
-    };
+    let colors = { "Обычная": "#ffffff", "Редкая": "#17a2b8", "Сверх редкая": "#28a745", "Эпик": "#9b59b6", "Мифическая": "#e74c3c", "Легендарная": "#ffd700", "Секретная": "#ff6b6b" };
     return colors[rarity] || "#ffffff";
 }
 
 function getRarityEmoji(rarity) {
-    let emojis = {
-        "Обычная": "⚪",
-        "Редкая": "🔵",
-        "Сверх редкая": "🟢",
-        "Эпик": "🟣",
-        "Мифическая": "🔴",
-        "Легендарная": "🟡",
-        "Секретная": "💎"
-    };
+    let emojis = { "Обычная": "⚪", "Редкая": "🔵", "Сверх редкая": "🟢", "Эпик": "🟣", "Мифическая": "🔴", "Легендарная": "🟡", "Секретная": "💎" };
     return emojis[rarity] || "❓";
 }
 
 function startGachaAnimation(card, type) {
     let fakeCards = [];
     let rarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"];
-    
     for (let i = 0; i < 15; i++) {
-        let randomRarity = rarities[Math.floor(Math.random() * rarities.length)];
-        let fakeCard = createCard(randomRarity);
-        if (fakeCard) {
-            fakeCard.isFake = true;
-            fakeCards.push(fakeCard);
-        }
+        let fc = createCard(rarities[Math.floor(Math.random() * rarities.length)]);
+        if (fc) { fc.isFake = true; fakeCards.push(fc); }
     }
+    let ti = 10 + Math.floor(Math.random() * 3);
+    if (ti >= fakeCards.length) ti = fakeCards.length - 1;
+    card.isFake = false; fakeCards[ti] = card;
     
-    let targetIndex = 10 + Math.floor(Math.random() * 3);
-    if (targetIndex >= fakeCards.length) targetIndex = fakeCards.length - 1;
-    card.isFake = false;
-    fakeCards[targetIndex] = card;
-    
-    gachaAnimationData = {
-        cards: fakeCards,
-        resultCard: card,
-        resultIndex: targetIndex,
-        type: type,
-        startTime: performance.now(),
-        duration: 3000
-    };
-    
+    gachaAnimationData = { cards: fakeCards, resultCard: card, resultIndex: ti, type: type, startTime: performance.now(), duration: 3000 };
     gachaAnimationActive = true;
     
     if (typeof window._startGachaOverlay === 'function') {
         window._startGachaOverlay(gachaAnimationData);
+    } else {
+        sfxCardObtain();
+        showFloatingText("🎴 " + card.name + " (" + card.rarity + ")!", getRarityColor(card.rarity));
+        gachaAnimationActive = false;
+        gachaAnimationData = null;
     }
 }
 
@@ -513,24 +415,17 @@ function generateEnemy() {
         let bt = bossTemplates[wave]; 
         hp = Math.floor((50 + wave * 12) * bt.hpMult); 
         dmg = Math.floor((15 + wave * 6) * bt.dmgMult); 
-        name = bt.name; 
-        dialogue = bt.dialogue || ""; 
+        name = bt.name; dialogue = bt.dialogue || ""; 
         if (bt.enemyStatus) enemyStat = bt.enemyStatus; 
-        showBossDialogue(dialogue); 
-        sfxBossAppear(); 
+        showBossDialogue(dialogue); sfxBossAppear(); 
         if (wave === 10000) currentDialog = finalBossResponses; 
     } else if (isBoss) { 
-        hp = Math.floor((50 + wave * 12) * 4); 
-        dmg = Math.floor((15 + wave * 6) * 3); 
-        name = "👑 БОСС"; 
-        hideBossDialogue(); 
+        hp = Math.floor((50 + wave * 12) * 4); dmg = Math.floor((15 + wave * 6) * 3); name = "👑 БОСС"; hideBossDialogue(); 
     } else { 
-        hp = 50 + wave * 12; 
-        dmg = 15 + wave * 6; 
+        hp = 50 + wave * 12; dmg = 15 + wave * 6; 
         name = enemyNames[Math.floor(Math.random() * enemyNames.length)]; 
         let randomStat = enemyStatusPool[Math.floor(Math.random() * enemyStatusPool.length)]; 
-        if (randomStat) enemyStat = randomStat; 
-        hideBossDialogue(); 
+        if (randomStat) enemyStat = randomStat; hideBossDialogue(); 
     } 
     enemyStatuses = { fireTicks:0, fireDamage:0, poisonDamage:0, bleedMult:1.0, freezeStacks:0, shockChance:0, blindStacks:0 }; 
     if (enemyStat) { 
@@ -540,16 +435,10 @@ function generateEnemy() {
     } 
     applyStatusEffects(); 
     currentEnemy = { name, hp, maxHp:hp, damage:dmg, isBoss:isBoss||isUniqueBoss }; 
-    
     let arenaWaves = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000, 3200, 3400, 3600, 3800, 4000, 4200, 4400, 4600, 4800, 5000, 10000];
     let showArenaBtn = (isBoss || isUniqueBoss) && wave >= 50 && arenaWaves.includes(wave);
-    let btn = document.getElementById("startArenaBtn");
-    if (btn) btn.style.display = showArenaBtn ? "block" : "none";
-    
-    startBattleMusic(); 
-    renderEnemy(); 
-    updateStatusDisplay(); 
-    updateEnemyStatusDisplay(); 
+    let btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = showArenaBtn ? "block" : "none";
+    startBattleMusic(); renderEnemy(); updateStatusDisplay(); updateEnemyStatusDisplay(); 
 }
 
 function showBossDialogue(msg) { let d = document.getElementById("bossDialogue"); if (d) { d.innerText = '«' + msg + '»'; d.style.display = "block"; } }
@@ -562,7 +451,7 @@ function spareBoss() {
     if (Math.random() < spareChance) {
         let bt = bossTemplates[wave];
         if (bt && bt.spareReward) { let template = customCardTemplates["Босс"].find(t => t.name === bt.spareReward); if (template) { let rewardCard = createCardFromTemplate(template, "Босс"); myCards.push(rewardCard); sfxCardObtain(); alert("🎉 Босс присоединился! Получена карта: " + bt.spareReward + " (шанс был " + Math.floor(spareChance*100) + "%)"); saveAll(); } }
-        if (bt && bt.isSpecial && wave === 500) { checkEvolutionQuests(); }
+        if (bt && bt.isSpecial && wave === 500) checkEvolutionQuests();
         currentEnemy.hp = 0; victory();
     } else {
         let extraDmg = Math.floor(currentEnemy.damage * 3); playerHp -= extraDmg;
@@ -590,9 +479,7 @@ function checkEvolutionQuests() {
 function handleClick() { 
     initAudio(); 
     if (typeof arenaActive !== 'undefined' && arenaActive) return;
-    let arenaBtn = document.getElementById("startArenaBtn");
-    if (arenaBtn && arenaBtn.style.display === "block") return;
-    
+    let arenaBtn = document.getElementById("startArenaBtn"); if (arenaBtn && arenaBtn.style.display === "block") return;
     if (playerHp <= 0) { resetGame(); return; } 
     if (!currentEnemy || currentEnemy.hp <= 0) return; 
     if (deathNoteTarget && wave === deathNoteTarget && !skipUsed) { currentEnemy.hp = 0; skipUsed = true; deathNoteTarget = null; victory(); return; } 
@@ -623,8 +510,7 @@ function handleClick() {
     renderEnemy(); 
     let el = document.getElementById("playerHp"); if (el) el.innerText = Math.floor(playerHp); 
     el = document.getElementById("clicksToCounter"); if (el) el.innerText = maxClicks - clicksSinceLastCounter; 
-    updateStatusDisplay(); 
-    window._needSave = true; 
+    updateStatusDisplay(); window._needSave = true; 
 }
 
 function victory() {
@@ -633,21 +519,16 @@ function victory() {
     points += rew; if (points > maxPoints) maxPoints = points; totalWins++; addExp(isBoss ? 25 : 5);
     if (isBoss && wave % 50 === 0) { 
         highestCheckpoint = Math.max(highestCheckpoint, wave); 
-        
         if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(wave)) {
-            defeatedBosses.push(wave);
-            grantBossGachaReward(wave);
+            defeatedBosses.push(wave); grantBossGachaReward(wave);
         }
-        
-        saveAll(); 
-        renderCheckpoints(); 
+        saveAll(); renderCheckpoints(); 
     }
     if (wave === 10000 && isBoss) { gameCompleted = true; saveAll(); alert("🏆 ПОЗДРАВЛЯЕМ! Вы победили финального босса на 10000 волне!\n\nИгра пройдена! Но вы можете продолжать играть бесконечно.\n\nВсе ваши чекпоинты сохранены."); }
     if (isBoss) { let rarity = getBossRewardRarity(wave); if (rarity !== "Босс") { let c = createCard(rarity); if (c) myCards.push(c); } renderMyCards(); let hasZeno = team.some(idx => myCards[idx]?.ability?.type === 'zenoCheckpoint'); if (hasZeno && Math.random() < 0.10) { let nextCp = Math.floor(wave / 50) * 50 + 50; if (nextCp > highestCheckpoint) { highestCheckpoint = nextCp; saveAll(); } showFloatingText("🌀 ЗЕНО: чекпоинт " + nextCp + "!", "#9b59b6"); } sfxVictory(); } else { sfxVictory(); }
     if (team.some(idx => myCards[idx]?.ability?.type === 'teamHealOnWave')) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.02); }
     if (team.some(idx => myCards[idx]?.ability?.type === 'sevenSpecial')) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.05); }
-    enemyStatuses.poisonDamage = 0; 
-    wave++; 
+    enemyStatuses.poisonDamage = 0; wave++; 
     if (dekusNerfWaves > 0) dekusNerfWaves--;
     increaseFatigue(); playerHp = Math.min(window.playerMaxHp, playerHp + Math.floor(window.playerMaxHp * 0.2)); clicksSinceLastCounter = 0;
     team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'healOnWin') playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * cd.ability.percent); });
@@ -676,14 +557,8 @@ function runAfkTick() { if (!afkActive) return; let dmg = (5 + upgrades.damage.l
 function toggleCheckpoint(cp) { 
     if (activeCheckpoint === cp) { activeCheckpoint = 0; saveAll(); renderCheckpoints(); return; }
     let action = confirm("🚩 Чекпоинт " + cp + " волна\n\nOK — перейти СЕЙЧАС\nОтмена — использовать при смерти");
-    if (action) {
-        activeCheckpoint = cp; wave = cp; playerHp = window.playerMaxHp || 100; clicksSinceLastCounter = 0;
-        fatigue = Math.max(0, fatigue - 30); updateFatigue(); updateRestBtn(); resurrectedThisFight = false;
-        generateEnemy(); saveAll(); renderAll(); updatePlayerStats(); renderCheckpoints();
-        showFloatingText("🚩 Телепорт на волну " + cp + "!", "#ffdd00");
-    } else {
-        activeCheckpoint = cp; saveAll(); renderCheckpoints();
-    }
+    if (action) { activeCheckpoint = cp; wave = cp; playerHp = window.playerMaxHp || 100; clicksSinceLastCounter = 0; fatigue = Math.max(0, fatigue - 30); updateFatigue(); updateRestBtn(); resurrectedThisFight = false; generateEnemy(); saveAll(); renderAll(); updatePlayerStats(); renderCheckpoints(); showFloatingText("🚩 Телепорт на волну " + cp + "!", "#ffdd00"); } 
+    else { activeCheckpoint = cp; saveAll(); renderCheckpoints(); }
 }
 
 function genShopItem() { let r = Math.random(); if (r < 0.3) { return { ...specialPotions[Math.floor(Math.random() * specialPotions.length)], type: "buff", id: Date.now() + "_" + Math.random() }; } let poolKeys = Object.keys(shopItemsPool); let key = poolKeys[Math.floor(Math.random() * poolKeys.length)]; let items = shopItemsPool[key]; return { ...items[Math.floor(Math.random() * items.length)], id: Date.now() + "_" + Math.random() }; }
