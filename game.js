@@ -1,4 +1,4 @@
- // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
+// ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
 let currentSlot = -1;
 let slotData = {};
 
@@ -333,10 +333,14 @@ function grantBossGachaReward(bossWave) {
 }
 
 function performGacha(type) {
+    console.log("КЛИК! Тип:", type);
     initAudio();
     checkGachaReset();
     
-    if (gachaAnimationActive) return;
+    if (gachaAnimationActive) {
+        console.log("Анимация уже активна");
+        return;
+    }
     
     if (mode !== "moder") {
         if (type === "legendary" && legendaryGachaTokens <= 0) {
@@ -360,7 +364,10 @@ function performGacha(type) {
     let rarity = rollGachaRarity(type);
     let card = createCard(rarity);
     
-    if (!card) return;
+    if (!card) {
+        console.log("Не удалось создать карту");
+        return;
+    }
     
     if (mode !== "moder") {
         points -= gachaPrices[type];
@@ -463,6 +470,7 @@ function getRarityEmoji(rarity) {
 }
 
 function startGachaAnimation(card, type) {
+    console.log("Запуск анимации для:", card.name, "showGachaOverlay существует?", typeof showGachaOverlay);
     let fakeCards = [];
     let rarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"];
     
@@ -490,9 +498,14 @@ function startGachaAnimation(card, type) {
     
     gachaAnimationActive = true;
     
-    if (typeof showGachaOverlay === 'function') {
+    if (typeof window.showGachaOverlay === 'function') {
+        console.log("Вызываю window.showGachaOverlay");
+        window.showGachaOverlay();
+    } else if (typeof showGachaOverlay === 'function') {
+        console.log("Вызываю showGachaOverlay");
         showGachaOverlay();
     } else {
+        console.log("showGachaOverlay не найдена! Использую фолбэк.");
         sfxCardObtain();
         gachaAnimationActive = false;
         gachaAnimationData = null;
@@ -721,6 +734,15 @@ function renameSlot(slot) { let meta = loadSlotMeta(slot); let nickname = prompt
 function renderSlotsInGame() { let html = '<div style="display:flex;flex-direction:column;gap:10px;">'; for (let i = 0; i < 3; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select ' + (i === currentSlot ? 'active' : '') + '"><div style="font-size:18px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + (i === currentSlot ? ' ← Текущий' : '') + '</div><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn" style="padding:4px 12px;font-size:11px;" onclick="event.stopPropagation();switchToSlot(' + i + ')">Загрузить</button><button class="btn" style="padding:4px 12px;font-size:11px;background:#9b59b6;" onclick="event.stopPropagation();renameSlot(' + i + ')">✏️ Имя</button></div></div>'; } html += '</div>'; let el = document.getElementById("slotsListInGame"); if (el) el.innerHTML = html; }
 function switchToSlot(slot) { if (slot === currentSlot) return; saveAll(); currentSlot = slot; let saved = loadGameFromSlot(slot); let meta = loadSlotMeta(slot); if (saved) { loadGameData(saved); } else { initNewGame(); slotData.nickname = meta.nickname; } slotData.nickname = slotData.nickname || meta.nickname; saveGameToSlot(slot); let el = document.getElementById("slotSelectScreen"); if (el) el.style.display = "none"; el = document.getElementById("gameScreen"); if (el) el.style.display = "block"; finishSlotLoad(slot); renderSlotsInGame(); }
 function setMode(m) { if (m === "moder" && !moderUnlocked) return; mode = m; saveAll(); updateClaimTimer(); renderModerControls(); renderPoints(); document.querySelectorAll(".toggle span").forEach(s => s.classList.toggle("active", s.dataset.mode === m)); }
+
+// ЭКСПОРТ В ГЛОБАЛЬНУЮ ОБЛАСТЬ
+window.performGacha = performGacha;
+window.rollGachaRarity = rollGachaRarity;
+window.getRarityColor = getRarityColor;
+window.getRarityEmoji = getRarityEmoji;
+window.startGachaAnimation = startGachaAnimation;
+window.grantBossGachaReward = grantBossGachaReward;
+window.checkGachaReset = checkGachaReset;
 
 document.addEventListener("DOMContentLoaded", function () {
     let lastSlot = parseInt(localStorage.getItem("cgV20_lastSlot") || "-1");
