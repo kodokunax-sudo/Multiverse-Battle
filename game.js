@@ -332,17 +332,24 @@ function grantBossGachaReward(bossWave) {
     if (typeof renderGachaTab === 'function') renderGachaTab();
 }
 
+function forceStopGachaAnimation() {
+    if (window._gachaAnimFrame) {
+        cancelAnimationFrame(window._gachaAnimFrame);
+        window._gachaAnimFrame = null;
+    }
+    let overlay = document.getElementById("gachaOverlay");
+    if (overlay) overlay.style.display = "none";
+    gachaAnimationActive = false;
+    gachaAnimationData = null;
+}
+
 function performGacha(type) {
-    console.log("КЛИК! Тип:", type);
     initAudio();
     checkGachaReset();
     
+    // Если анимация зависла - сбрасываем принудительно
     if (gachaAnimationActive) {
-        console.log("Анимация уже активна, сбрасываю принудительно");
-        gachaAnimationActive = false;
-        gachaAnimationData = null;
-        if (typeof hideGachaOverlay === 'function') hideGachaOverlay();
-        if (typeof window.hideGachaOverlay === 'function') window.hideGachaOverlay();
+        forceStopGachaAnimation();
     }
     
     if (mode !== "moder") {
@@ -367,10 +374,7 @@ function performGacha(type) {
     let rarity = rollGachaRarity(type);
     let card = createCard(rarity);
     
-    if (!card) {
-        console.log("Не удалось создать карту");
-        return;
-    }
+    if (!card) return;
     
     if (mode !== "moder") {
         points -= gachaPrices[type];
@@ -391,14 +395,7 @@ function performGacha(type) {
     if (typeof renderGachaTab === 'function') renderGachaTab();
     renderPoints();
     
-    // Пропускаем анимацию если функции нет
-    if (typeof window.showGachaOverlay !== 'function' && typeof showGachaOverlay !== 'function') {
-        console.log("Анимация недоступна, выдаю карту мгновенно");
-        sfxCardObtain();
-        showFloatingText("🎴 " + card.name + " (" + card.rarity + ")!", getRarityColor(rarity));
-        return;
-    }
-    
+    // Запускаем анимацию
     startGachaAnimation(card, type);
 }
 
@@ -412,43 +409,36 @@ function rollGachaRarity(type) {
             if (roll < 11) return "Сверх редкая";
             if (roll < 31) return "Редкая";
             return "Обычная";
-            
         case "rare":
             if (roll < 3) return "Мифическая";
             if (roll < 10) return "Эпик";
             if (roll < 30) return "Сверх редкая";
             if (roll < 90) return "Редкая";
             return "Обычная";
-            
         case "superRare":
             if (roll < 2) return "Легендарная";
             if (roll < 7) return "Мифическая";
             if (roll < 25) return "Эпик";
             if (roll < 80) return "Сверх редкая";
             return "Редкая";
-            
         case "epic":
             if (roll < 0.2) return "Секретная";
             if (roll < 8) return "Легендарная";
             if (roll < 30) return "Мифическая";
             if (roll < 80) return "Эпик";
             return "Сверх редкая";
-            
         case "mythic":
             if (roll < 0.8) return "Секретная";
             if (roll < 30) return "Легендарная";
             if (roll < 80) return "Мифическая";
             return "Эпик";
-            
         case "legendary":
             if (roll < 2) return "Секретная";
             if (roll < 80) return "Легендарная";
             return "Мифическая";
-            
         case "secret":
             if (roll < 20) return "Секретная";
             return "Легендарная";
-            
         default:
             return "Обычная";
     }
@@ -481,9 +471,7 @@ function getRarityEmoji(rarity) {
 }
 
 function startGachaAnimation(card, type) {
-    console.log("Запуск анимации для:", card.name);
-    
-    // Создаём фейковые карты для ленты
+    // Создаём фейковые карты
     let fakeCards = [];
     let rarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"];
     
@@ -496,7 +484,6 @@ function startGachaAnimation(card, type) {
         }
     }
     
-    // Вставляем реальную карту в случайное место ближе к концу
     let targetIndex = 10 + Math.floor(Math.random() * 3);
     if (targetIndex >= fakeCards.length) targetIndex = fakeCards.length - 1;
     card.isFake = false;
@@ -513,19 +500,9 @@ function startGachaAnimation(card, type) {
     
     gachaAnimationActive = true;
     
-    // Пробуем вызвать через window
-    if (typeof window.showGachaOverlay === 'function') {
-        console.log("Вызываю window.showGachaOverlay");
-        window.showGachaOverlay();
-    } else if (typeof showGachaOverlay === 'function') {
-        console.log("Вызываю showGachaOverlay");
-        showGachaOverlay();
-    } else {
-        console.log("showGachaOverlay не найдена!");
-        sfxCardObtain();
-        showFloatingText("🎴 " + card.name + " (" + card.rarity + ")!", getRarityColor(rarity));
-        gachaAnimationActive = false;
-        gachaAnimationData = null;
+    // Используем функцию из ui.js
+    if (typeof window._startGachaOverlay === 'function') {
+        window._startGachaOverlay(gachaAnimationData);
     }
 }
 
