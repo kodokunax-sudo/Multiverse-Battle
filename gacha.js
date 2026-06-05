@@ -25,7 +25,7 @@ window._startGachaOverlay = function(animData) {
                 imgHTML +
                 '<div style="font-weight:900;font-size:12px;color:' + rarityColor + ';">' + (typeof escapeHtml === 'function' ? escapeHtml(card.name) : card.name) + '</div>' +
                 '<div style="font-size:10px;margin-top:4px;">' + card.rarity + '</div>' +
-                '<div style="font-size:10px;">💪' + card.damage + ' ❤️' + card.hp + '</div>' +
+                '<div style="font-size:10px;">💪' + (card.damage || "???") + ' ❤️' + (card.hp || "???") + '</div>' +
                 '</div>';
         }).join('');
         
@@ -58,25 +58,27 @@ window._hideGachaOverlay = function() {
         window._gachaAnimFrame = null;
     }
     // Сбрасываем глобальные флаги
-    if (typeof gachaAnimationActive !== 'undefined') gachaAnimationActive = false;
-    if (typeof gachaAnimationData !== 'undefined') gachaAnimationData = null;
+    window.gachaAnimationActive = false;
+    window.gachaAnimationData = null;
 };
 
 // Пропустить анимацию и сразу показать результат
 window._skipGachaAnimation = function() {
-    if (typeof gachaAnimationActive === 'undefined' || !gachaAnimationActive) return;
-    if (typeof gachaAnimationData === 'undefined' || !gachaAnimationData) return;
+    if (!window.gachaAnimationActive || !window.gachaAnimationData) return;
     
-    let card = gachaAnimationData.resultCard;
+    let card = window.gachaAnimationData.resultCard;
     let overlay = document.getElementById("gachaOverlay");
     
     if (overlay) {
         document.getElementById("gachaSkipBtn").style.display = "none";
-        document.getElementById("gachaStrip").style.display = "none";
+        let strip = document.getElementById("gachaStrip");
+        if (strip) strip.style.display = "none";
         
         let resultDiv = document.getElementById("gachaResultCard");
-        resultDiv.style.display = "flex";
-        resultDiv.innerHTML = getCardResultHTML(card);
+        if (resultDiv) {
+            resultDiv.style.display = "flex";
+            resultDiv.innerHTML = getCardResultHTML(card);
+        }
         
         if (typeof sfxCardObtain === 'function') sfxCardObtain();
     }
@@ -88,17 +90,13 @@ window._skipGachaAnimation = function() {
 
 // Основной цикл анимации
 window._renderGachaAnimation = function(timestamp) {
-    if (typeof gachaAnimationActive === 'undefined' || !gachaAnimationActive) {
-        window._hideGachaOverlay();
-        return;
-    }
-    if (typeof gachaAnimationData === 'undefined' || !gachaAnimationData) {
+    if (!window.gachaAnimationActive || !window.gachaAnimationData) {
         window._hideGachaOverlay();
         return;
     }
     
-    let elapsed = timestamp - gachaAnimationData.startTime;
-    let totalDuration = gachaAnimationData.duration;
+    let elapsed = timestamp - window.gachaAnimationData.startTime;
+    let totalDuration = window.gachaAnimationData.duration;
     
     let strip = document.getElementById("gachaStrip");
     if (!strip) {
@@ -122,7 +120,7 @@ window._renderGachaAnimation = function(timestamp) {
         strip.style.transition = "none";
     } else {
         // Остановка на результате
-        let targetX = -(gachaAnimationData.resultIndex * 160 + 80);
+        let targetX = -(window.gachaAnimationData.resultIndex * 160 + 80);
         strip.style.transition = "transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)";
         strip.style.transform = "translateX(" + targetX + "px)";
         
@@ -135,7 +133,7 @@ window._renderGachaAnimation = function(timestamp) {
             
             if (resultDiv) {
                 resultDiv.style.display = "flex";
-                resultDiv.innerHTML = getCardResultHTML(gachaAnimationData.resultCard);
+                resultDiv.innerHTML = getCardResultHTML(window.gachaAnimationData.resultCard);
                 if (typeof sfxCardObtain === 'function') sfxCardObtain();
             }
             
@@ -172,7 +170,7 @@ function getCardResultHTML(card) {
         imgHTML +
         '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + (typeof escapeHtml === 'function' ? escapeHtml(card.name) : card.name) + '</div>' +
         '<div class="rarity-tag ' + (typeof rarityColors !== 'undefined' ? rarityColors[card.rarity] : '') + '" style="font-size:16px;padding:8px 20px;">' + card.rarity + '</div>' +
-        '<div style="margin-top:12px;font-size:16px;">💪 ' + card.damage + ' ❤️ ' + card.hp + '</div>' +
+        '<div style="margin-top:12px;font-size:16px;">💪 ' + (card.damage || "???") + ' ❤️ ' + (card.hp || "???") + '</div>' +
         (card.ability ? '<div style="margin-top:8px;color:#f5af19;font-weight:bold;">✨ ' + card.ability.desc + '</div>' : '') +
         '</div>';
 }
