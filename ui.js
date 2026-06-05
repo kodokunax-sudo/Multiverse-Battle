@@ -115,17 +115,20 @@ function renderGachaTab() {
 }
 
 // ========== АНИМАЦИЯ ГАЧА-КРУТКИ (CS:GO STYLE) ==========
-let gachaAnimFrame = null;
-let gachaStripX = 0;
-let gachaSpeed = 0;
+window._gachaAnimFrame = null;
+window._gachaStripX = 0;
+window._gachaSpeed = 0;
 
-function showGachaOverlay() {
-    let overlay = document.getElementById("gachaOverlay");
-    if (!overlay || !gachaAnimationData) return;
+window._startGachaOverlay = function(animData) {
+    if (!animData || !animData.cards) return;
     
+    let overlay = document.getElementById("gachaOverlay");
+    if (!overlay) return;
+    
+    // Заполняем ленту карт
     let strip = document.getElementById("gachaStrip");
     if (strip) {
-        strip.innerHTML = gachaAnimationData.cards.map(card => {
+        strip.innerHTML = animData.cards.map(card => {
             let rarityColor = typeof getRarityColor === 'function' ? getRarityColor(card.rarity) : "#fff";
             let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(card.rarity);
             let cardImg = showImage && typeof getCardImage === 'function' ? getCardImage(card.name) : null;
@@ -146,32 +149,33 @@ function showGachaOverlay() {
     
     document.getElementById("gachaResultCard").style.display = "none";
     document.getElementById("gachaSkipBtn").style.display = "block";
+    document.getElementById("gachaSkipBtn").onclick = window._skipGachaAnimation;
     
     overlay.style.display = "flex";
-    gachaStripX = 0;
-    gachaSpeed = 25;
+    window._gachaStripX = 0;
+    window._gachaSpeed = 25;
     
-    if (gachaAnimFrame) {
-        cancelAnimationFrame(gachaAnimFrame);
+    if (window._gachaAnimFrame) {
+        cancelAnimationFrame(window._gachaAnimFrame);
     }
-    gachaAnimFrame = requestAnimationFrame(renderGachaAnimation);
-}
+    
+    window._gachaAnimFrame = requestAnimationFrame(window._renderGachaAnimation);
+};
 
-function hideGachaOverlay() {
+window._hideGachaOverlay = function() {
     let overlay = document.getElementById("gachaOverlay");
-    if (overlay) {
-        overlay.style.display = "none";
+    if (overlay) overlay.style.display = "none";
+    if (window._gachaAnimFrame) {
+        cancelAnimationFrame(window._gachaAnimFrame);
+        window._gachaAnimFrame = null;
     }
-    if (gachaAnimFrame) {
-        cancelAnimationFrame(gachaAnimFrame);
-        gachaAnimFrame = null;
-    }
-    gachaAnimationActive = false;
-    gachaAnimationData = null;
-}
+    if (typeof gachaAnimationActive !== 'undefined') gachaAnimationActive = false;
+    if (typeof gachaAnimationData !== 'undefined') gachaAnimationData = null;
+};
 
-function skipGachaAnimation() {
-    if (!gachaAnimationActive || !gachaAnimationData) return;
+window._skipGachaAnimation = function() {
+    if (typeof gachaAnimationActive === 'undefined' || !gachaAnimationActive) return;
+    if (typeof gachaAnimationData === 'undefined' || !gachaAnimationData) return;
     
     let card = gachaAnimationData.resultCard;
     let overlay = document.getElementById("gachaOverlay");
@@ -188,13 +192,17 @@ function skipGachaAnimation() {
     }
     
     setTimeout(() => {
-        hideGachaOverlay();
+        window._hideGachaOverlay();
     }, 2000);
-}
+};
 
-function renderGachaAnimation(timestamp) {
-    if (!gachaAnimationActive || !gachaAnimationData) {
-        hideGachaOverlay();
+window._renderGachaAnimation = function(timestamp) {
+    if (typeof gachaAnimationActive === 'undefined' || !gachaAnimationActive) {
+        window._hideGachaOverlay();
+        return;
+    }
+    if (typeof gachaAnimationData === 'undefined' || !gachaAnimationData) {
+        window._hideGachaOverlay();
         return;
     }
     
@@ -203,21 +211,21 @@ function renderGachaAnimation(timestamp) {
     
     let strip = document.getElementById("gachaStrip");
     if (!strip) {
-        hideGachaOverlay();
+        window._hideGachaOverlay();
         return;
     }
     
     let progress = Math.min(1, elapsed / totalDuration);
     
     if (progress < 0.8) {
-        gachaStripX -= gachaSpeed;
-        gachaSpeed += 0.3;
-        strip.style.transform = "translateX(" + gachaStripX + "px)";
+        window._gachaStripX -= window._gachaSpeed;
+        window._gachaSpeed += 0.3;
+        strip.style.transform = "translateX(" + window._gachaStripX + "px)";
         strip.style.transition = "none";
     } else if (progress < 0.95) {
-        gachaSpeed *= 0.9;
-        gachaStripX -= gachaSpeed;
-        strip.style.transform = "translateX(" + gachaStripX + "px)";
+        window._gachaSpeed *= 0.9;
+        window._gachaStripX -= window._gachaSpeed;
+        strip.style.transform = "translateX(" + window._gachaStripX + "px)";
         strip.style.transition = "none";
     } else {
         let targetX = -(gachaAnimationData.resultIndex * 160 + 80);
@@ -234,28 +242,27 @@ function renderGachaAnimation(timestamp) {
             if (resultDiv) {
                 resultDiv.style.display = "flex";
                 resultDiv.innerHTML = getCardResultHTML(gachaAnimationData.resultCard);
-                
                 if (typeof sfxCardObtain === 'function') sfxCardObtain();
             }
             
             setTimeout(() => {
-                hideGachaOverlay();
+                window._hideGachaOverlay();
             }, 2500);
         }, 600);
         
-        if (gachaAnimFrame) cancelAnimationFrame(gachaAnimFrame);
-        gachaAnimFrame = null;
+        if (window._gachaAnimFrame) cancelAnimationFrame(window._gachaAnimFrame);
+        window._gachaAnimFrame = null;
         return;
     }
     
-    if (gachaStripX < -2000) {
-        gachaStripX = 400;
-        strip.style.transform = "translateX(" + gachaStripX + "px)";
+    if (window._gachaStripX < -2000) {
+        window._gachaStripX = 400;
+        strip.style.transform = "translateX(" + window._gachaStripX + "px)";
         strip.style.transition = "none";
     }
     
-    gachaAnimFrame = requestAnimationFrame(renderGachaAnimation);
-}
+    window._gachaAnimFrame = requestAnimationFrame(window._renderGachaAnimation);
+};
 
 function getCardResultHTML(card) {
     let rarityColor = typeof getRarityColor === 'function' ? getRarityColor(card.rarity) : "#fff";
@@ -265,7 +272,7 @@ function getCardResultHTML(card) {
     let imgHTML = cardImg ? '<img src="' + cardImg + '" style="width:100px;height:100px;border-radius:12px;object-fit:cover;margin-bottom:10px;">' : '';
     
     return '<div style="text-align:center;animation: fadeSlideIn 0.5s ease-out;">' +
-        '<div style="font-size:48px;margin-bottom:10px;animation: floatUp 0.6s ease-out;">' + rarityEmoji + '</div>' +
+        '<div style="font-size:48px;margin-bottom:10px;">' + rarityEmoji + '</div>' +
         imgHTML +
         '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + (typeof escapeHtml === 'function' ? escapeHtml(card.name) : card.name) + '</div>' +
         '<div class="rarity-tag ' + (typeof rarityColors !== 'undefined' ? rarityColors[card.rarity] : '') + '" style="font-size:16px;padding:8px 20px;">' + card.rarity + '</div>' +
