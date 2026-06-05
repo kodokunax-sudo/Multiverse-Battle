@@ -63,7 +63,7 @@ const customCardTemplates = {
     ],
     "Сверх редкая": [
         { name: "Луффи (2 гир)", universe: "One Piece", damage: 16, hp: 25, desc: "Ускоренный кровоток. Быстрее и сильнее." },
-        { name: "Зоро (до таймскипа) ", universe: "One Piece", damage: 18, hp: 22, desc: "Три меча, три стиля. Заблудится в трёх соснах." },
+        { name: "Зоро (до таймскипа) ", universe: "One Piece", damage: 18, hp: 22, desc: "Зоро, чтоб не заблудиться,\nК нитке вздумал прицепиться.\nНить порвалась — он улетел\nИ в кастрюлю к Санджи прилетел." },
         { name: "Санджи (до таймскипа) ", universe: "One Piece", damage: 16, hp: 20, desc: "Чёрная нога. Шеф-повар." },
         { name: "Гаара", universe: "Naruto", damage: 17, hp: 28, desc: "Джинчурики с песчаной бронёй." },
         { name: "Эмир", universe: "AoT", damage: 25, hp: 10, desc: "Солдат разведкорпуса." },
