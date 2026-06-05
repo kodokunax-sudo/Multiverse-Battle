@@ -21,22 +21,8 @@ function bookInfoCard(rarity, name) { let t = Object.entries(customCardTemplates
 window.bookGet = function(r, n) { if (!moderUnlocked || mode !== 'moder') return; let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === n && t.rarity === r); if (t) { let s = cardStats[r]; let c = { id: Date.now() + Math.random() * 10000, name: t.name, rarity: r, damage: t.damage ?? s.damage, hp: t.hp ?? s.hp, sellPrice: t.sellPrice ?? s.sellPrice, ability: t.ability || null, universe: t.universe || "?", unsellable: t.unsellable || false, minRebirth: t.minRebirth || 0, statusAbility: t.statusAbility || null, extraStatus: t.extraStatus || null }; if (!discoveredCards.includes(t.name)) { discoveredCards.push(t.name); } myCards.push(c); saveAll(); renderMyCards(); sfxCardObtain(); alert("🎴 Получена карта: " + t.name + " (" + r + ")"); } };
 function renderEvoTab() { let c = document.getElementById("evoContent"); if (rebirthCount < 5) { c.innerHTML = "<div style='text-align:center;color:#888;'>Сделайте 5 ребиртхов.</div>"; return; } let html = ""; html += '<div class="evo-quest ' + (evoProgress.luffyKingUnlocked ? 'done' : '') + '"><b>👑 Луффи : Король пиратов</b><br>Пощадите Короля Пиратов на 500 волне.<br><b>Статус:</b> ' + (evoProgress.luffyKingUnlocked ? '✅' : '❌') + '</div>'; html += '<div class="evo-quest ' + (evoProgress.sgUnlocked ? 'done' : '') + '"><b>👊 Сайтама/Гароу</b><br>20000 волн.<br>' + evoProgress.wavesSaitamaGarou + '/20000<br><b>Статус:</b> ' + (evoProgress.sgUnlocked ? '✅' : 'В процессе') + '</div>'; html += '<div class="evo-quest ' + (evoProgress.gkUnlocked ? 'done' : '') + '"><b>❄️ Гарп/Кудзан</b><br>100000 урона.<br>' + Math.floor(evoProgress.damageGarpKuzan) + '/100000</div>'; html += '<div class="evo-quest ' + (evoProgress.sevenUnlocked ? 'done' : '') + '"><b>🦸 Семёрка</b><br>20 ур. Семёрка + V.<br><b>Статус:</b> ' + (evoProgress.sevenUnlocked ? '✅' : '❌') + '</div>'; html += '<div class="evo-quest ' + (evoProgress.williamUnlocked ? 'done' : '') + '"><b>💀 Уильям Фрэнсис</b><br>500 волна, только обычные карты.<br><b>Статус:</b> ' + (evoProgress.williamUnlocked ? '✅' : '❌') + '</div>'; c.innerHTML = html; }
 function renderRebirthInfo() { let req = getRebirthRequirement(); let world = getWorldForWave(highestCheckpoint); document.getElementById("rebirthInfo").innerHTML = '<div style="background:rgba(0,0,0,0.3);padding:15px;border-radius:15px;"><div>Текущий ребиртх: <b>' + rebirthCount + '</b></div><div>Множитель: <b>x' + getRebirthMult().toFixed(1) + '</b></div><div>Текущий мир: <b style="color:' + world.color + ';">' + world.name + '</b></div><div>Требуется волн: <b>' + req + '</b> (пройдено ' + highestCheckpoint + ')</div></div>'; document.getElementById("doRebirthBtn").disabled = highestCheckpoint < req; }
-function renderRebirthStats() {
-    let c = document.getElementById("rebirthStatsList");
-    if (!rebirthStats.length) { c.innerHTML = "<div style='color:#888;'>Нет данных</div>"; return; }
-    c.innerHTML = rebirthStats.map(s => '<div class="shop-item"><div><b>Ребиртх ' + s.rebirth + '</b></div><div>🌊 Волна: ' + s.highestWave + '<br>🌍 Мир: ' + (s.world || 'Лес начала') + '<br>📊 Ур: ' + s.playerLevel + '<br>👆 Кликов: ' + (s.totalClicks || 0) + '<br>⭐ Макс. звёзд: ' + (s.maxPoints || 0) + '<br>🃏 Карт: ' + s.totalCards + '</div></div>').join('');
-}
-function renderGlobalStats() {
-    let el = document.getElementById("globalStats"); if (!el) return;
-    el.innerHTML = '<div>👆 Всего кликов: <b>' + totalClicks + '</b></div>' +
-        '<div>🃏 Всего карт получено: <b>' + totalCardsObtained + '</b></div>' +
-        '<div>⭐ Максимум звёзд: <b>' + maxPoints + '</b></div>' +
-        '<div>🌊 Текущая волна: <b>' + wave + '</b></div>' +
-        '<div>💀 Всего поражений: <b>' + defeatHistory.length + '</b></div>' +
-        '<div>🏆 Всего побед: <b>' + totalWins + '</b></div>' +
-        '<div>🔄 Ребиртхов: <b>' + rebirthCount + '</b></div>' +
-        (gameCompleted ? '<div>🏆 <b>ИГРА ПРОЙДЕНА!</b></div>' : '');
-}
+function renderRebirthStats() { let c = document.getElementById("rebirthStatsList"); if (!rebirthStats.length) { c.innerHTML = "<div style='color:#888;'>Нет данных</div>"; return; } c.innerHTML = rebirthStats.map(s => '<div class="shop-item"><div><b>Ребиртх ' + s.rebirth + '</b></div><div>🌊 Волна: ' + s.highestWave + '<br>🌍 Мир: ' + (s.world || 'Лес начала') + '<br>📊 Ур: ' + s.playerLevel + '<br>👆 Кликов: ' + (s.totalClicks || 0) + '<br>⭐ Макс. звёзд: ' + (s.maxPoints || 0) + '<br>🃏 Карт: ' + s.totalCards + '</div></div>').join(''); }
+function renderGlobalStats() { let el = document.getElementById("globalStats"); if (!el) return; el.innerHTML = '<div>👆 Всего кликов: <b>' + totalClicks + '</b></div>' + '<div>🃏 Всего карт получено: <b>' + totalCardsObtained + '</b></div>' + '<div>⭐ Максимум звёзд: <b>' + maxPoints + '</b></div>' + '<div>🌊 Текущая волна: <b>' + wave + '</b></div>' + '<div>💀 Всего поражений: <b>' + defeatHistory.length + '</b></div>' + '<div>🏆 Всего побед: <b>' + totalWins + '</b></div>' + '<div>🔄 Ребиртхов: <b>' + rebirthCount + '</b></div>' + (gameCompleted ? '<div>🏆 <b>ИГРА ПРОЙДЕНА!</b></div>' : ''); }
 function renderModerControls() { let el = document.getElementById("moderControls"); if (!el) return; if (moderUnlocked && mode === "moder") { el.style.display = "block"; } else { el.style.display = "none"; } }
 function renderCheckpoints() { let c = document.getElementById("checkpointList"); let html = ''; let maxCp = Math.max(highestCheckpoint, Math.floor(wave / 50) * 50); for (let cp = 50; cp <= maxCp; cp += 50) { let unlocked = cp <= highestCheckpoint; html += '<div class="checkpoint-item" style="opacity:' + (unlocked ? '1' : '0.5') + '"><div>🚩 Волна ' + cp + (unlocked ? '' : ' 🔒') + '</div><button class="btn ' + (activeCheckpoint === cp ? 'auto-active' : '') + '" style="padding:6px 12px;" onclick="toggleCheckpoint(' + cp + ')" ' + (unlocked ? '' : 'disabled') + '>' + (activeCheckpoint === cp ? 'Выбрано ✅' : 'Выбрать ▶') + '</button></div>'; } c.innerHTML = html || "<div style='text-align:center;padding:15px;color:#888;font-weight:bold;'>Дойдите до 50 волны</div>"; }
 
@@ -126,14 +112,13 @@ window._hideGachaOverlay = function() {
     let overlay = document.getElementById("gachaOverlay");
     if (overlay) overlay.style.display = "none";
     if (window._gachaAnimFrame) { cancelAnimationFrame(window._gachaAnimFrame); window._gachaAnimFrame = null; }
-    if (typeof gachaAnimationActive !== 'undefined') gachaAnimationActive = false;
-    if (typeof gachaAnimationData !== 'undefined') gachaAnimationData = null;
+    window.gachaAnimationActive = false;
+    window.gachaAnimationData = null;
 };
 
 window._skipGachaAnimation = function() {
-    if (typeof gachaAnimationActive === 'undefined' || !gachaAnimationActive) return;
-    if (typeof gachaAnimationData === 'undefined' || !gachaAnimationData) return;
-    let card = gachaAnimationData.resultCard;
+    if (!window.gachaAnimationActive || !window.gachaAnimationData) return;
+    let card = window.gachaAnimationData.resultCard;
     document.getElementById("gachaSkipBtn").style.display = "none";
     document.getElementById("gachaStrip").style.display = "none";
     let resultDiv = document.getElementById("gachaResultCard");
@@ -144,10 +129,9 @@ window._skipGachaAnimation = function() {
 };
 
 window._renderGachaAnimation = function(timestamp) {
-    if (typeof gachaAnimationActive === 'undefined' || !gachaAnimationActive) { window._hideGachaOverlay(); return; }
-    if (typeof gachaAnimationData === 'undefined' || !gachaAnimationData) { window._hideGachaOverlay(); return; }
-    let elapsed = timestamp - gachaAnimationData.startTime;
-    let totalDuration = gachaAnimationData.duration;
+    if (!window.gachaAnimationActive || !window.gachaAnimationData) { window._hideGachaOverlay(); return; }
+    let elapsed = timestamp - window.gachaAnimationData.startTime;
+    let totalDuration = window.gachaAnimationData.duration;
     let strip = document.getElementById("gachaStrip");
     if (!strip) { window._hideGachaOverlay(); return; }
     let progress = Math.min(1, elapsed / totalDuration);
@@ -162,16 +146,18 @@ window._renderGachaAnimation = function(timestamp) {
         strip.style.transform = "translateX(" + window._gachaStripX + "px)";
         strip.style.transition = "none";
     } else {
-        let targetX = -(gachaAnimationData.resultIndex * 160 + 80);
+        let targetX = -(window.gachaAnimationData.resultIndex * 160 + 80);
         strip.style.transition = "transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)";
         strip.style.transform = "translateX(" + targetX + "px)";
         setTimeout(() => {
             document.getElementById("gachaSkipBtn").style.display = "none";
-            strip.style.display = "none";
+            if (strip) strip.style.display = "none";
             let resultDiv = document.getElementById("gachaResultCard");
-            resultDiv.style.display = "flex";
-            let card = gachaAnimationData.resultCard;
-            resultDiv.innerHTML = '<div style="text-align:center;font-size:48px;">🎴</div><div style="font-size:24px;font-weight:900;">' + card.name + '</div><div>' + card.rarity + '</div>';
+            if (resultDiv) {
+                resultDiv.style.display = "flex";
+                let card = window.gachaAnimationData.resultCard;
+                resultDiv.innerHTML = '<div style="text-align:center;font-size:48px;">🎴</div><div style="font-size:24px;font-weight:900;">' + card.name + '</div><div>' + card.rarity + '</div>';
+            }
             if (typeof sfxCardObtain === 'function') sfxCardObtain();
             setTimeout(() => window._hideGachaOverlay(), 2500);
         }, 600);
@@ -179,7 +165,6 @@ window._renderGachaAnimation = function(timestamp) {
         window._gachaAnimFrame = null;
         return;
     }
-    if (window._gachaStripX < -2000) { window._gachaStripX = 400; strip.style.transform = "translateX(400px)"; strip.style.transition = "none"; }
     window._gachaAnimFrame = requestAnimationFrame(window._renderGachaAnimation);
 };
 
