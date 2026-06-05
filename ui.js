@@ -83,7 +83,6 @@ function renderGachaTab() {
         html += '</div>';
     });
     
-    // Легендарная крутка
     if ((typeof legendaryGachaTokens !== 'undefined' && legendaryGachaTokens > 0) || (typeof mode !== 'undefined' && mode === "moder")) {
         let canBuy = (typeof mode !== 'undefined' && mode === "moder") || ((typeof legendaryGachaTokens !== 'undefined' && legendaryGachaTokens > 0) && (typeof points !== 'undefined' && points >= (typeof gachaPrices !== 'undefined' ? gachaPrices.legendary : 0)));
         let displayPrice = (typeof mode !== 'undefined' && mode === "moder") ? "∞ БЕСПЛАТНО" : ((typeof gachaPrices !== 'undefined' ? gachaPrices.legendary : 0) + "⭐");
@@ -96,7 +95,6 @@ function renderGachaTab() {
         html += '</div>';
     }
     
-    // Секретная крутка
     if ((typeof secretGachaTokens !== 'undefined' && secretGachaTokens > 0) || (typeof mode !== 'undefined' && mode === "moder")) {
         let canBuy = (typeof mode !== 'undefined' && mode === "moder") || ((typeof secretGachaTokens !== 'undefined' && secretGachaTokens > 0) && (typeof points !== 'undefined' && points >= (typeof gachaPrices !== 'undefined' ? gachaPrices.secret : 0)));
         let displayPrice = (typeof mode !== 'undefined' && mode === "moder") ? "∞ БЕСПЛАТНО" : ((typeof gachaPrices !== 'undefined' ? gachaPrices.secret : 0) + "⭐");
@@ -114,6 +112,168 @@ function renderGachaTab() {
     }
     
     container.innerHTML = html;
+}
+
+// ========== АНИМАЦИЯ ГАЧА-КРУТКИ (CS:GO STYLE) ==========
+function showGachaOverlay() {
+    let overlay = document.getElementById("gachaOverlay");
+    if (!overlay || !gachaAnimationData) return;
+    
+    let strip = document.getElementById("gachaStrip");
+    if (strip) {
+        strip.innerHTML = gachaAnimationData.cards.map(card => {
+            let rarityColor = typeof getRarityColor === 'function' ? getRarityColor(card.rarity) : "#fff";
+            let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(card.rarity);
+            let cardImg = showImage && typeof getCardImage === 'function' ? getCardImage(card.name) : null;
+            let imgHTML = cardImg ? '<img src="' + cardImg + '" style="width:60px;height:60px;border-radius:8px;object-fit:cover;margin-bottom:4px;">' : '<div style="width:60px;height:60px;border-radius:8px;background:#2c2c3a;margin-bottom:4px;display:flex;align-items:center;justify-content:center;font-size:20px;">🎴</div>';
+            
+            return '<div style="min-width:150px;text-align:center;background:rgba(30,30,47,0.95);border-radius:16px;padding:15px 10px;border:2px solid ' + rarityColor + ';box-shadow: 0 0 15px ' + rarityColor + ';">' +
+                imgHTML +
+                '<div style="font-weight:900;font-size:12px;color:' + rarityColor + ';">' + (typeof escapeHtml === 'function' ? escapeHtml(card.name) : card.name) + '</div>' +
+                '<div style="font-size:10px;margin-top:4px;">' + card.rarity + '</div>' +
+                '<div style="font-size:10px;">💪' + card.damage + ' ❤️' + card.hp + '</div>' +
+                '</div>';
+        }).join('');
+        
+        strip.style.display = "flex";
+        strip.style.transition = "none";
+        strip.style.transform = "translateX(0px)";
+    }
+    
+    document.getElementById("gachaResultCard").style.display = "none";
+    document.getElementById("gachaSkipBtn").style.display = "block";
+    
+    overlay.style.display = "flex";
+    
+    if (typeof gachaStripX === 'undefined') window.gachaStripX = 0;
+    if (typeof gachaSpeed === 'undefined') window.gachaSpeed = 0;
+    gachaStripX = 0;
+    gachaSpeed = 25;
+    
+    if (typeof gachaAnimFrame !== 'undefined' && gachaAnimFrame) {
+        cancelAnimationFrame(gachaAnimFrame);
+    }
+    gachaAnimFrame = requestAnimationFrame(renderGachaAnimation);
+}
+
+function hideGachaOverlay() {
+    let overlay = document.getElementById("gachaOverlay");
+    if (overlay) {
+        overlay.style.display = "none";
+    }
+    if (typeof gachaAnimFrame !== 'undefined' && gachaAnimFrame) {
+        cancelAnimationFrame(gachaAnimFrame);
+        gachaAnimFrame = null;
+    }
+    gachaAnimationActive = false;
+    gachaAnimationData = null;
+}
+
+function skipGachaAnimation() {
+    if (!gachaAnimationActive || !gachaAnimationData) return;
+    
+    let card = gachaAnimationData.resultCard;
+    let overlay = document.getElementById("gachaOverlay");
+    
+    if (overlay) {
+        document.getElementById("gachaSkipBtn").style.display = "none";
+        document.getElementById("gachaStrip").style.display = "none";
+        
+        let resultDiv = document.getElementById("gachaResultCard");
+        resultDiv.style.display = "flex";
+        resultDiv.innerHTML = getCardResultHTML(card);
+        
+        if (typeof sfxCardObtain === 'function') sfxCardObtain();
+    }
+    
+    setTimeout(() => {
+        hideGachaOverlay();
+    }, 2000);
+}
+
+function renderGachaAnimation(timestamp) {
+    if (!gachaAnimationActive || !gachaAnimationData) {
+        hideGachaOverlay();
+        return;
+    }
+    
+    if (typeof gachaStripX === 'undefined') gachaStripX = 0;
+    if (typeof gachaSpeed === 'undefined') gachaSpeed = 25;
+    
+    let elapsed = timestamp - gachaAnimationData.startTime;
+    let totalDuration = gachaAnimationData.duration;
+    
+    let strip = document.getElementById("gachaStrip");
+    if (!strip) {
+        hideGachaOverlay();
+        return;
+    }
+    
+    let progress = Math.min(1, elapsed / totalDuration);
+    
+    if (progress < 0.8) {
+        gachaStripX -= gachaSpeed;
+        gachaSpeed += 0.3;
+        strip.style.transform = "translateX(" + gachaStripX + "px)";
+        strip.style.transition = "none";
+    } else if (progress < 0.95) {
+        gachaSpeed *= 0.9;
+        gachaStripX -= gachaSpeed;
+        strip.style.transform = "translateX(" + gachaStripX + "px)";
+        strip.style.transition = "none";
+    } else {
+        let targetX = -(gachaAnimationData.resultIndex * 160 + 80);
+        strip.style.transition = "transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)";
+        strip.style.transform = "translateX(" + targetX + "px)";
+        
+        setTimeout(() => {
+            let resultDiv = document.getElementById("gachaResultCard");
+            let skipBtn = document.getElementById("gachaSkipBtn");
+            
+            if (skipBtn) skipBtn.style.display = "none";
+            if (strip) strip.style.display = "none";
+            
+            if (resultDiv) {
+                resultDiv.style.display = "flex";
+                resultDiv.innerHTML = getCardResultHTML(gachaAnimationData.resultCard);
+                
+                if (typeof sfxCardObtain === 'function') sfxCardObtain();
+            }
+            
+            setTimeout(() => {
+                hideGachaOverlay();
+            }, 2500);
+        }, 600);
+        
+        if (gachaAnimFrame) cancelAnimationFrame(gachaAnimFrame);
+        gachaAnimFrame = null;
+        return;
+    }
+    
+    if (gachaStripX < -2000) {
+        gachaStripX = 400;
+        strip.style.transform = "translateX(" + gachaStripX + "px)";
+        strip.style.transition = "none";
+    }
+    
+    gachaAnimFrame = requestAnimationFrame(renderGachaAnimation);
+}
+
+function getCardResultHTML(card) {
+    let rarityColor = typeof getRarityColor === 'function' ? getRarityColor(card.rarity) : "#fff";
+    let rarityEmoji = typeof getRarityEmoji === 'function' ? getRarityEmoji(card.rarity) : "";
+    let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(card.rarity);
+    let cardImg = showImage && typeof getCardImage === 'function' ? getCardImage(card.name) : null;
+    let imgHTML = cardImg ? '<img src="' + cardImg + '" style="width:100px;height:100px;border-radius:12px;object-fit:cover;margin-bottom:10px;">' : '';
+    
+    return '<div style="text-align:center;animation: fadeSlideIn 0.5s ease-out;">' +
+        '<div style="font-size:48px;margin-bottom:10px;animation: floatUp 0.6s ease-out;">' + rarityEmoji + '</div>' +
+        imgHTML +
+        '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + (typeof escapeHtml === 'function' ? escapeHtml(card.name) : card.name) + '</div>' +
+        '<div class="rarity-tag ' + (typeof rarityColors !== 'undefined' ? rarityColors[card.rarity] : '') + '" style="font-size:16px;padding:8px 20px;">' + card.rarity + '</div>' +
+        '<div style="margin-top:12px;font-size:16px;">💪 ' + card.damage + ' ❤️ ' + card.hp + '</div>' +
+        (card.ability ? '<div style="margin-top:8px;color:#f5af19;font-weight:bold;">✨ ' + card.ability.desc + '</div>' : '') +
+        '</div>';
 }
 
 function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); if (typeof renderGachaTab === 'function') renderGachaTab(); updatePlayerStats(); updateStatusDisplay(); }
