@@ -42,14 +42,14 @@ const customCardTemplates = {
         { name: "Усопп", universe: "One Piece", damage: 3, hp: 6, desc: "Трусливый снайпер. Без способностей." },
         { name: "Нами", universe: "One Piece", damage: 2, hp: 8, desc: "Навигатор. Без способностей." },
         { name: "Ездок", universe: "OPM", damage: 1, hp: 11, desc: "Герой класса С. Много HP." },
-        { name: "Деку (безпричудный) ", universe: "MHA", damage: 2, hp: 12, ability: { type: "spareChanceBonus", value: 0.05, desc: "+5% к пощаде" }, desc: "Без причуды, но с верой в героев. +5% к шансу пощады." },
-        { name: "Консперон (обычный) ", universe: "Dandadan", damage: 4, hp: 5, desc: "Оккультист-неудачник." },
+        { name: "Деку (безпричудный) ", universe: "MHA", damage: 2, hp: 12, ability: { type: "spareChanceBonus", value: 0.05, desc: "+5% к пощаде" }, desc: "Без причуды, но мечтающий стать героем. Разве не глупо? +5% к шансу пощады." },
+        { name: "Консперон (обычный) ", universe: "Dandadan", damage: 4, hp: 5, desc: "ИНОПЛОНЕТЯНЫ СУЩЕСТВУЮТ!!!!!" },
         { name: "Танджиро", universe: "DS", damage: 3, hp: 10, desc: "Охотник на демонов." },
-        { name: "Уборщик Коби", universe: "One piece", damage: 1, hp: 1, desc: "Самый слабый юнга. С него всё начиналось." },
+        { name: "Уборщик Коби", universe: "One piece", damage: 1, hp: 1, desc: "Самый слабый персонаж. С него всё начиналось." },
         { name: "Аста", universe: "Black Clover", damage: 3, hp: 8, desc: "Маг без магии с анти-мечом." },
-        { name: "Хьюи (слабый)", universe: "The Boys", damage: 2, hp: 10, desc: "Парень, чью девушку сбил поезд." },
+        { name: "Хьюи (слабый)", universe: "The Boys", damage: 2, hp: 10, desc: "Парень, чью девушку сбил А Train." },
         { name: "Френчи", universe: "The Boys", damage: 4, hp: 6, desc: "Оружейник и спецназовец." },
-        { name: "Дональд", universe: "Invincible", damage: 3, hp: 9, desc: "Парень Ребекки. Без суперсил." }
+        { name: "Дональд", universe: "Invincible", damage: 3, hp: 9, desc: "К счастью это не Дональд Трамп...." }
     ],
     "Редкая": [
         { name: "Брук", universe: "One Piece", damage: 7, hp: 12, desc: "Скелет-музыкант. Йохохо!" },
@@ -90,7 +90,7 @@ const customCardTemplates = {
         { name: "Робот (Руди)", universe: "Invincible", damage: 30, hp: 48, desc: "Киборг-подросток." },
         { name: "Чёрный Нуар", universe: "The Boys", damage: 35, hp: 52, ability: { type: "damageReduction", value: 0.07, desc: "-7% урона" }, desc: "Молчаливый ниндзя Семёрки. Уменьшает получаемый урон на 7%." },
         { name: "Кимико", universe: "The Boys", damage: 32, hp: 48, ability: { type: "teamHealOnWave", value: 0.02, desc: "Хил 2% за волну" }, desc: "Девушка с супер-регенерацией. Лечит команду на 2% за волну." },
-        { name: "Ракета", universe: "The Boys", damage: 38, hp: 40, ability: { type: "nonBossOneShot", chance: 0.03, desc: "3% ваншот (не босс)" }, desc: "Микро-герой. 3% шанс мгновенно убить врага (кроме боссов)." },
+        { name: "Ракета", universe: "The Boys", damage: 38, hp: 40, ability: { type: "nonBossOneShot", chance: 0.03, desc: "3% ваншот (не босс)" }, desc: "К вам летит РАКЕТААААААА!!!! 3% шанс мгновенно убить врага (кроме боссов)." },
         { name: "Деку (5%)", universe: "MHA", damage: 34, hp: 44, ability: { type: "spareChanceBonus", value: 0.08, desc: "+8% к пощаде" }, statusAbility: { type: "clickDmgSelf", value: 0.02, desc: "-2% HP за клик" }, desc: "5% силы One For All. +8% к пощаде, но каждый клик отнимает 2% HP команды." }
     ],
     "Мифическая": [
