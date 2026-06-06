@@ -27,8 +27,21 @@ function finishSlotLoad(slot) {
     localStorage.setItem("cgV20_lastSlot", slot);
     team = team.filter(i => myCards[i]); if (team.length > 6) team = team.slice(0, 6);
     afkTeam = afkTeam.filter(i => myCards[i]); if (afkTeam.length > 6) afkTeam = afkTeam.slice(0, 6);
-    refreshShop(); generateEnemy(); saveAll();
-    renderAll(); updateLevelDisplay(); updateFatigue(); updateRestBtn(); updateClaimTimer(); setMode(mode);
+    // Не обновляем магазин при загрузке, используем сохранённые товары
+    if (!shopRefreshTime || (Date.now() - shopRefreshTime) > 3600000) {
+        refreshShop();
+    } else {
+        renderShop();
+    }
+    generateEnemy(); saveAll();
+    // Рендерим только нужное, без сброса таймеров
+    renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop();
+    renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements();
+    renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats();
+    renderEvoTab(); renderGlobalStats(); renderModerControls();
+    if (typeof renderGachaTab === 'function') renderGachaTab();
+    updateLevelDisplay(); updateFatigue(); updateRestBtn(); updateClaimTimer(); setMode(mode);
+    updatePlayerStats(); updateStatusDisplay();
     el = document.getElementById("waveNumber"); if (el) el.innerText = wave;
     el = document.getElementById("afkWave"); if (el) el.innerText = wave;
     el = document.getElementById("playerHp"); if (el) el.innerText = Math.floor(playerHp);
@@ -675,7 +688,22 @@ function setMode(m) { if (m === "moder" && !moderUnlocked) return; mode = m; sav
 
 document.addEventListener("DOMContentLoaded", function () {
     let lastSlot = parseInt(localStorage.getItem("cgV20_lastSlot") || "-1");
-    if (lastSlot >= 0 && lastSlot < 3 && loadSlotMeta(lastSlot).exists) { currentSlot = lastSlot; let saved = loadGameFromSlot(lastSlot); let meta = loadSlotMeta(lastSlot); if (saved) { loadGameData(saved); } else { initNewGame(); slotData.nickname = meta.nickname; } slotData.nickname = slotData.nickname || meta.nickname; saveGameToSlot(lastSlot); finishSlotLoad(lastSlot); } else { showSlotSelectScreen(); }
+    if (lastSlot >= 0 && lastSlot < 3 && loadSlotMeta(lastSlot).exists) { 
+        currentSlot = lastSlot; 
+        let saved = loadGameFromSlot(lastSlot); 
+        let meta = loadSlotMeta(lastSlot); 
+        if (saved) { loadGameData(saved); } 
+        else { initNewGame(); slotData.nickname = meta.nickname; } 
+        slotData.nickname = slotData.nickname || meta.nickname; 
+        saveGameToSlot(lastSlot); 
+        finishSlotLoad(lastSlot); 
+        // Сразу проверяем таймеры после загрузки
+        checkFreeSpinReset();
+        checkGachaReset();
+        updateClaimTimer();
+    } else { 
+        showSlotSelectScreen(); 
+    }
     let clickArea = document.getElementById("clickArea"); if (clickArea) clickArea.addEventListener("click", function() { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); handleClick(); });
     let clearTeamBtn = document.getElementById("clearTeamBtn"); if (clearTeamBtn) clearTeamBtn.addEventListener("click", function () { team = []; saveAll(); renderAll(); updatePlayerStats(); });
     let clearAfkTeamBtn = document.getElementById("clearAfkTeamBtn"); if (clearAfkTeamBtn) clearAfkTeamBtn.addEventListener("click", function () { afkTeam = []; saveAll(); renderAll(); });
