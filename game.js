@@ -390,13 +390,27 @@ function getCardResultHTML(card) {
 }
 
 function startGachaAnimation(card, type) {
+    // Получаем список редкостей, доступных для этого типа крутки
+    let availableRarities = [];
+    switch(type) {
+        case "common": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break;
+        case "rare": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break;
+        case "superRare": availableRarities = ["Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная"]; break;
+        case "epic": availableRarities = ["Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"]; break;
+        case "mythic": availableRarities = ["Эпик", "Мифическая", "Легендарная", "Секретная"]; break;
+        case "legendary": availableRarities = ["Мифическая", "Легендарная", "Секретная"]; break;
+        case "secret": availableRarities = ["Легендарная", "Секретная"]; break;
+        default: availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик"];
+    }
+    
+    // Создаём фейковые карты ТОЛЬКО из доступных редкостей
     let fakeCards = [];
-    let rarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"];
     for (let i = 0; i < 8; i++) {
-        let fc = createCard(rarities[Math.floor(Math.random() * rarities.length)]);
+        let randomRarity = availableRarities[Math.floor(Math.random() * availableRarities.length)];
+        let fc = createCard(randomRarity);
         if (fc) fakeCards.push(fc);
     }
-    fakeCards.push(card);
+    fakeCards.push(card); // Последняя — реальная карта
     
     gachaAnimationActive = true;
     
@@ -407,12 +421,13 @@ function startGachaAnimation(card, type) {
     modalOverlay.style.display = "flex";
     
     let index = 0;
-    let totalFlashes = fakeCards.length * 3;
+    let totalFlashes = 24; // 8 карт * 3 = 24 мелькания
     let flashCount = 0;
-    let speed = 80;
+    let speed = 80; // Начальная скорость 80мс (~2 секунды всего)
     
     function flashNextCard() {
         if (flashCount >= totalFlashes) {
+            // Показываем финальную карту
             modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + 
                 '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>';
             if (typeof sfxCardObtain === 'function') sfxCardObtain();
@@ -429,14 +444,16 @@ function startGachaAnimation(card, type) {
             '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + currentCard.name + '</div>' +
             '<div class="rarity-tag ' + rarityColors[currentCard.rarity] + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' +
             '<div style="margin-top:12px;font-size:16px;">💪 ' + currentCard.damage + ' ❤️ ' + currentCard.hp + '</div>' +
-            '</div>';
+            '</div>' +
+            '<button class="btn" style="width:100%;padding:8px;margin-top:10px;background:#e74c3c;border:none;color:white;font-weight:bold;" onclick="closeModal();gachaAnimationActive=false;">⏭️ ПРОПУСТИТЬ</button>';
         
         index++;
         flashCount++;
         
-        if (flashCount > totalFlashes * 0.7) speed += 60;
-        else if (flashCount > totalFlashes * 0.5) speed += 30;
-        else if (flashCount > totalFlashes * 0.3) speed += 15;
+        // Замедляемся к концу чтобы уложиться в ~2 секунды
+        if (flashCount > totalFlashes * 0.7) speed += 40;
+        else if (flashCount > totalFlashes * 0.5) speed += 20;
+        else if (flashCount > totalFlashes * 0.3) speed += 10;
         
         setTimeout(flashNextCard, speed);
     }
