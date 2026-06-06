@@ -312,8 +312,7 @@ function grantBossGachaReward(bossWave) {
 }
 
 function forceStopGachaAnimation() {
-    let overlay = document.getElementById("gachaOverlay");
-    if (overlay) overlay.style.display = "none";
+    closeModal();
     gachaAnimationActive = false;
     gachaAnimationData = null;
 }
@@ -401,18 +400,11 @@ function startGachaAnimation(card, type) {
     
     gachaAnimationActive = true;
     
-    let overlay = document.getElementById("gachaOverlay");
-    if (!overlay) { gachaAnimationActive = false; return; }
+    let modalContent = document.getElementById("modalContent");
+    let modalOverlay = document.getElementById("modalOverlay");
+    if (!modalContent || !modalOverlay) { gachaAnimationActive = false; return; }
     
-    let resultDiv = document.getElementById("gachaResultCard");
-    let skipBtn = document.getElementById("gachaSkipBtn");
-    let strip = document.getElementById("gachaStrip");
-    
-    if (strip) strip.style.display = "none";
-    if (skipBtn) skipBtn.style.display = "none";
-    
-    resultDiv.style.display = "flex";
-    overlay.style.display = "flex";
+    modalOverlay.style.display = "flex";
     
     let index = 0;
     let totalFlashes = fakeCards.length * 3;
@@ -421,21 +413,9 @@ function startGachaAnimation(card, type) {
     
     function flashNextCard() {
         if (flashCount >= totalFlashes) {
-            resultDiv.innerHTML = getCardResultHTML(card);
+            modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + 
+                '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>';
             if (typeof sfxCardObtain === 'function') sfxCardObtain();
-            
-            setTimeout(() => {
-                let closeBtn = document.createElement('button');
-                closeBtn.className = 'btn btn-primary';
-                closeBtn.style.cssText = 'margin-top:15px;padding:12px 30px;font-size:16px;';
-                closeBtn.textContent = 'ЗАБРАТЬ';
-                closeBtn.onclick = function() {
-                    overlay.style.display = "none";
-                    gachaAnimationActive = false;
-                };
-                resultDiv.appendChild(closeBtn);
-            }, 500);
-            
             gachaAnimationActive = false;
             return;
         }
@@ -443,7 +423,8 @@ function startGachaAnimation(card, type) {
         let currentCard = fakeCards[index % fakeCards.length];
         let rarityColor = getRarityColor(currentCard.rarity);
         
-        resultDiv.innerHTML = '<div style="text-align:center;transition: all 0.1s;">' +
+        modalContent.innerHTML = '<h2>🎰 Крутка...</h2>' +
+            '<div style="text-align:center;padding:10px;">' +
             '<div style="font-size:48px;margin-bottom:10px;">🎴</div>' +
             '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + currentCard.name + '</div>' +
             '<div class="rarity-tag ' + rarityColors[currentCard.rarity] + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' +
@@ -453,9 +434,9 @@ function startGachaAnimation(card, type) {
         index++;
         flashCount++;
         
-        if (flashCount > totalFlashes * 0.7) { speed += 60; }
-        else if (flashCount > totalFlashes * 0.5) { speed += 30; }
-        else if (flashCount > totalFlashes * 0.3) { speed += 15; }
+        if (flashCount > totalFlashes * 0.7) speed += 60;
+        else if (flashCount > totalFlashes * 0.5) speed += 30;
+        else if (flashCount > totalFlashes * 0.3) speed += 15;
         
         setTimeout(flashNextCard, speed);
     }
