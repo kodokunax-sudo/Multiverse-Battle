@@ -45,7 +45,11 @@ function finishSlotLoad(slot) {
     el = document.getElementById("clicksToCounter"); if (el) el.innerText = Math.max(1, 3 - enemyStatuses.freezeStacks + enemyStatuses.blindStacks);
     el = document.getElementById("rewardPreview"); if (el && currentEnemy) { el.innerText = currentEnemy.isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); }
     startMainMusic();
-    if (afkActive) stopAfk();
+    // Если АФК был активен при выходе — перезапускаем его
+    if (afkActive && afkTeam.length > 0) {
+        afkActive = false;
+        startAfk();
+    }
 }
 
 function loadGameData(d) { 
@@ -102,7 +106,7 @@ function loadGameData(d) {
     lastGachaReset = d.lastGachaReset || null;
     gachaAnimationActive = false;
     gachaAnimationData = null;
-    afkActive = false;
+    afkActive = d.afkActive || false;
     afkCurrentWave = d.afkCurrentWave || 1;
     lastSaveTime = d.lastSaveTime || Date.now();
     slotData.nickname = d.nickname || loadSlotMeta(currentSlot).nickname; 
