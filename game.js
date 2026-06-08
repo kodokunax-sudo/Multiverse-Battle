@@ -417,6 +417,10 @@ function checkGachaReset() {
 }
 
 function grantBossGachaReward(bossWave) {
+    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
+        if (defeatedBosses.includes(bossWave)) return;
+        defeatedBosses.push(bossWave);
+    }
     checkGachaReset();
     if (legendaryGachaTokens >= 10 && secretGachaTokens >= 2) return;
     let legendaryToAdd = Math.min(2, 10 - legendaryGachaTokens);
@@ -651,7 +655,6 @@ function handleClick() {
     if (comboCount === 10) showFloatingText("⚡ КОМБО x2!", "#ffaa00"); 
     if (comboCount === 25) showFloatingText("⚡ КОМБО x3!", "#ff8800"); 
     if (comboCount === 50) showFloatingText("⚡ КОМБО x5!", "#ff4400");
-    // Деку: клик отнимает % от ТЕКУЩЕГО HP после удара
     let dmg = window.playerFinalDamage || 1; let m = getPassiveModifiers(); if (currentEnemy.isBoss) dmg = Math.floor(dmg * (1 + m.bossBonus)); 
     let cc = upgrades.crit.level * upgrades.crit.increment; team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'critChance') cc += cd.ability.value * (1 + abilityUpgradeLevel * 0.1); if (cd?.ability?.type === 'damageMultChance' && Math.random() < cd.ability.chance) dmg = Math.floor(dmg * cd.ability.mult); }); 
     dmg = Math.floor(dmg * comboMultiplier); 
@@ -661,7 +664,6 @@ function handleClick() {
     if (enemyStatuses.fireTicks > 0 && enemyStatuses.fireDamage > 0) { startFireEffectPassive(enemyStatuses.fireDamage, enemyStatuses.fireTicks * 1000); enemyStatuses.fireTicks = 0; } 
     currentEnemy.hp -= dmg; 
     updateChallengeProgress("bigDamage", dmg);
-    // Деку: после удара отнимаем % от текущего HP
     team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'clickDmgSelf') { playerHp -= Math.floor(playerHp * cd.ability.value); } });
     if (playerHp <= 0) { defeat(); return; } 
     if (currentEnemy.hp <= 0) { victory(); return; } 
@@ -684,16 +686,13 @@ function victory() {
     if (isBoss) updateChallengeProgress("bossKills", 1);
     if (isBoss && wave % 50 === 0) { 
         highestCheckpoint = Math.max(highestCheckpoint, wave); 
-        if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(wave)) {
-            defeatedBosses.push(wave); grantBossGachaReward(wave);
-        }
+        grantBossGachaReward(wave);
         saveAll(); renderCheckpoints(); 
     }
     if (wave === 10000 && isBoss) { gameCompleted = true; saveAll(); alert("🏆 ПОЗДРАВЛЯЕМ! Вы победили финального босса на 10000 волне!\n\nИгра пройдена! Но вы можете продолжать играть бесконечно.\n\nВсе ваши чекпоинты сохранены."); }
     if (isBoss) { let rarity = getBossRewardRarity(wave); if (rarity !== "Босс") { let c = createCard(rarity); if (c) myCards.push(c); } renderMyCards(); let hasZeno = team.some(idx => myCards[idx]?.ability?.type === 'zenoCheckpoint'); if (hasZeno && Math.random() < 0.10) { let nextCp = Math.floor(wave / 50) * 50 + 50; if (nextCp > highestCheckpoint) { highestCheckpoint = nextCp; saveAll(); } showFloatingText("🌀 ЗЕНО: чекпоинт " + nextCp + "!", "#9b59b6"); } sfxVictory(); } else { sfxVictory(); }
     if (team.some(idx => myCards[idx]?.ability?.type === 'teamHealOnWave')) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.02); }
     if (team.some(idx => myCards[idx]?.ability?.type === 'sevenSpecial')) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.05); }
-    // Без автохила после победы
     enemyStatuses.poisonDamage = 0; wave++; 
     if (dekusNerfWaves > 0) dekusNerfWaves--;
     increaseFatigue(); clicksSinceLastCounter = 0;
