@@ -3,948 +3,428 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title> Multiverse Staple (RETRO ARCADE) </title>
+    <title>Multiverse Staple (RETRO)</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #1a0a2e;
-            --card-bg: #2a1040;
-            --btn-bg: #3a2060;
-            --gold: #ffd700;
-            --red: #ff4444;
-            --green: #44ff44;
-            --boss: #ff6600;
-            --neon-pink: #ff69b4;
-            --neon-cyan: #00ffff;
-            --text: #e0e0e0;
-            --shadow: #000000;
+            --bg: #0d1b2a;
+            --card-bg: #1b2838;
+            --btn-bg: #2a3a4a;
+            --gold: #e0a800;
+            --red: #c0392b;
+            --green: #27ae60;
+            --boss: #d35400;
+            --neon-pink: #c2185b;
+            --neon-cyan: #00838f;
+            --text: #c0c0c0;
+            --shadow: rgba(0,0,0,0.5);
         }
-        
-        * { 
-            box-sizing: border-box; 
-            margin: 0; 
-            padding: 0; 
-            user-select: none; 
-            -webkit-tap-highlight-color: transparent; 
-        }
-        
-        body { 
-            font-family: 'Press Start 2P', 'Courier New', monospace;
-            background-color: #0a0a0a;
-            background-image: 
-                repeating-linear-gradient(45deg, #111 0px, #111 2px, #0a0a0a 2px, #0a0a0a 4px);
-            color: var(--text); 
-            padding: 20px; 
-            min-height: 100vh; 
-            display: flex; 
-            justify-content: center; 
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            background: #0a1220;
+            color: var(--text);
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
             align-items: center;
-            font-size: 10px;
-            line-height: 1.6;
+            font-size: 13px;
+            line-height: 1.4;
         }
-        
-        ::-webkit-scrollbar { width: 8px; } 
-        ::-webkit-scrollbar-track { background: #000; border: 2px solid #333; } 
-        ::-webkit-scrollbar-thumb { background: var(--gold); border: 2px solid #000; }
-        
-        .app { 
-            max-width: 620px; 
-            width: 100%; 
-            background: #1a0a2e;
-            border: 6px double var(--gold);
-            padding: 20px; 
-            box-shadow: 10px 10px 0 #000, 0 0 30px rgba(255, 215, 0, 0.3);
-            position: relative; 
-            overflow: hidden;
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 0; }
+        .app {
+            max-width: 620px;
+            width: 100%;
+            background: var(--bg);
+            border: 3px solid #415a77;
+            padding: 16px;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.6);
         }
-        
-        .tabs { 
-            display: flex; 
-            gap: 4px; 
-            margin-bottom: 15px; 
-            flex-wrap: wrap; 
-            background: #000;
-            padding: 4px; 
-            border: 4px solid #333;
+        .tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            background: #111;
+            padding: 3px;
+            border: 2px solid #415a77;
         }
-        
-        .tab-btn { 
-            flex: 1; 
-            padding: 10px 4px; 
-            background: #222; 
-            border: 3px solid #555;
-            color: #aaa; 
+        .tab-btn {
+            flex: 1;
+            padding: 8px 4px;
+            background: #1a1a1a;
+            border: 2px solid #444;
+            color: #999;
             font-family: 'Press Start 2P', monospace;
-            font-weight: normal; 
-            cursor: pointer; 
-            transition: none; 
-            text-align: center; 
-            font-size: 7px;
-            text-transform: uppercase;
-        }
-        
-        .tab-btn.active { 
-            background: var(--gold); 
-            color: #000; 
-            border-color: #fff;
-            box-shadow: 4px 4px 0 #000;
-            transform: translate(-2px, -2px);
-        }
-        
-        .sub-tabs { 
-            display: flex; 
-            gap: 3px; 
-            margin-bottom: 12px; 
-            flex-wrap: wrap; 
-        }
-        
-        .sub-tab-btn { 
-            flex: 1; 
-            padding: 8px 6px; 
-            background: #111; 
-            border: 2px solid #555;
-            color: #aaa; 
-            font-family: 'Press Start 2P', monospace;
-            font-weight: normal; 
-            cursor: pointer; 
-            transition: none; 
-            text-align: center; 
             font-size: 6px;
+            cursor: pointer;
+            text-align: center;
             text-transform: uppercase;
         }
-        
-        .sub-tab-btn.active { 
-            background: var(--neon-cyan); 
-            color: #000; 
+        .tab-btn.active {
+            background: var(--gold);
+            color: #0a1220;
             border-color: #fff;
-            box-shadow: 3px 3px 0 #000;
-            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+            transform: translate(-1px,-1px);
         }
-        
+        .sub-tabs { display: flex; gap: 2px; margin-bottom: 10px; flex-wrap: wrap; }
+        .sub-tab-btn {
+            flex: 1;
+            padding: 6px 4px;
+            background: #111;
+            border: 1px solid #555;
+            color: #aaa;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 5px;
+            cursor: pointer;
+            text-align: center;
+            text-transform: uppercase;
+        }
+        .sub-tab-btn.active {
+            background: var(--neon-cyan);
+            color: #000;
+            border-color: #fff;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+            transform: translate(-1px,-1px);
+        }
         .tab-content, .sub-tab-content { display: none; }
         .tab-content.active, .sub-tab-content.active { display: block; }
-        
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        @keyframes pixelFloat {
-            0% { transform: translateY(0); opacity: 1; }
-            100% { transform: translateY(-40px); opacity: 0; }
-        }
-        
-        @keyframes rainbow {
-            0% { color: #ff0000; }
-            25% { color: #ffff00; }
-            50% { color: #00ff00; }
-            75% { color: #00ffff; }
-            100% { color: #ff00ff; }
-        }
-        
-        @keyframes goldenPulse {
-            0%, 100% { box-shadow: 0 0 10px rgba(255,215,0,0.5); }
-            50% { box-shadow: 0 0 20px rgba(255,215,0,0.9); }
-        }
-        
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 100% 50%; }
-        }
-        
         @keyframes pixelPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            0%,100% { box-shadow: 0 0 5px rgba(224,168,0,0.4); }
+            50% { box-shadow: 0 0 12px rgba(224,168,0,0.8); }
         }
-        
-        .mode-switch { 
-            background: #000; 
-            border: 4px solid #555;
-            padding: 10px 15px; 
-            margin-bottom: 20px; 
-            display: flex; 
-            justify-content: space-between; 
+        @keyframes pixelFloat {
+            0% { opacity:1; transform:translateY(0); }
+            100% { opacity:0; transform:translateY(-35px); }
+        }
+        .mode-switch {
+            background: #111;
+            border: 2px solid #555;
+            padding: 8px 12px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
             align-items: center;
         }
-        
-        .mode-label { 
-            font-size: 10px; 
-            font-weight: normal; 
-            text-transform: uppercase; 
-            letter-spacing: 2px; 
+        .mode-label {
+            font-size: 8px;
+            font-family: 'Press Start 2P', monospace;
+            text-transform: uppercase;
             color: var(--gold);
-            text-shadow: 2px 2px 0 #000;
+            text-shadow: 1px 1px 0 #000;
         }
-        
-        .toggle { 
-            background: #000; 
-            border: 3px solid #555;
-            padding: 3px; 
-            display: inline-flex; 
+        .toggle {
+            background: #000;
+            border: 2px solid #555;
+            padding: 2px;
+            display: inline-flex;
             cursor: pointer;
         }
-        
-        .toggle span { 
-            padding: 6px 12px; 
-            font-size: 8px; 
-            font-weight: normal; 
-            transition: none;
+        .toggle span {
+            padding: 4px 10px;
+            font-size: 7px;
+            font-family: 'Press Start 2P', monospace;
             color: #666;
         }
-        
-        .toggle span.active { 
-            background: var(--gold); 
+        .toggle span.active {
+            background: var(--gold);
             color: #000;
-            box-shadow: 2px 2px 0 #000;
+            box-shadow: 1px 1px 0 rgba(0,0,0,0.5);
         }
-        
-        .card { 
-            background: var(--card-bg); 
-            border: 4px double var(--neon-pink);
-            padding: 15px; 
-            margin-bottom: 15px;
-            box-shadow: 6px 6px 0 #000;
+        .card {
+            background: var(--card-bg);
+            border: 2px solid #415a77;
+            padding: 14px;
+            margin-bottom: 12px;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.4);
         }
-        
-        .card-title { 
-            font-size: 11px; 
-            font-weight: normal; 
-            margin-bottom: 12px; 
-            border-left: 6px solid var(--gold);
-            padding-left: 10px; 
-            text-transform: uppercase; 
-            letter-spacing: 1px;
-            text-shadow: 2px 2px 0 #000;
-        }
-        
-        .flex-between { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-        }
-        
-        .btn { 
-            background: #333; 
+        .card-title {
+            font-size: 10px;
             font-family: 'Press Start 2P', monospace;
-            border: 3px solid #777;
-            padding: 10px 16px; 
-            font-weight: normal; 
-            cursor: pointer; 
-            transition: none; 
-            color: white; 
-            font-size: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--gold);
+            padding-left: 8px;
             text-transform: uppercase;
-            box-shadow: 4px 4px 0 #000;
+            color: #e0e0e0;
         }
-        
-        .btn:hover {
-            background: #555;
-            border-color: #fff;
-        }
-        
-        .btn:active { 
-            transform: translate(4px, 4px);
-            box-shadow: 0px 0px 0 #000;
-        }
-        
-        .btn-primary { 
-            background: var(--gold); 
-            border-color: #fff;
-            color: #000; 
-            box-shadow: 4px 4px 0 #000;
-            text-shadow: none;
-        }
-        
-        .btn-boss { 
-            background: var(--boss); 
-            border-color: #fff;
-            box-shadow: 4px 4px 0 #000, 0 0 15px rgba(255, 102, 0, 0.5);
-            animation: pixelPulse 0.5s infinite;
-            font-size: 10px;
-        }
-        
-        .btn-arena-start { 
-            background: var(--red); 
-            border-color: #fff;
-            box-shadow: 4px 4px 0 #000, 0 0 15px rgba(255, 68, 68, 0.5);
-            animation: pixelPulse 0.5s infinite;
-            font-size: 10px;
-        }
-        
-        .btn:disabled { 
-            opacity: 0.4; 
-            pointer-events: none; 
-            filter: grayscale(1);
-        }
-        
-        .cards-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
-            gap: 8px; 
-            margin-top: 10px; 
-        }
-        
-        @media (max-width: 480px) { 
-            .cards-grid { grid-template-columns: repeat(3, 1fr); } 
-        }
-        
-        .card-item { 
-            background: #1a0a2e; 
-            border: 3px solid #555;
-            padding: 8px 6px; 
-            text-align: center; 
-            cursor: pointer; 
-            transition: none;
-            box-shadow: 3px 3px 0 #000;
-            display: flex; 
-            flex-direction: column; 
-            align-items: center;
-            font-size: 7px;
-        }
-        
-        .card-item:hover { 
-            transform: translate(-2px, -2px);
-            box-shadow: 5px 5px 0 #000;
-            border-color: #fff;
-        }
-        
-        .card-item:active { 
-            transform: translate(3px, 3px);
-            box-shadow: 0px 0px 0 #000;
-        }
-        
-        .card-item.team-selected { 
-            border-color: var(--gold); 
-            background: #2a1a00;
-            box-shadow: 3px 3px 0 var(--gold), 0 0 10px rgba(255,215,0,0.3);
-        }
-        
-        .card-item.afk-selected { 
-            border-color: var(--green); 
-            background: #002a00;
-            box-shadow: 3px 3px 0 var(--green), 0 0 10px rgba(68,255,68,0.3);
-        }
-        
-        .card-name { 
-            font-weight: normal; 
-            font-size: 7px; 
-            word-break: break-word; 
-            line-height: 1.2; 
-            margin-bottom: 3px;
-            max-width: 100%;
-        }
-        
-        .rarity-tag { 
-            font-size: 6px; 
-            padding: 3px 6px; 
-            display: inline-block; 
-            margin: 3px 0; 
-            font-weight: normal; 
-            letter-spacing: 1px;
-            border: 2px solid #000;
-            box-shadow: 2px 2px 0 #000;
-            text-align: center; 
-            max-width: 100%; 
-            white-space: nowrap;
-        }
-        
-        .common { background: #666; color: white; }
-        .rare { background: #0077cc; color: white; }
-        .superrare { background: #00aa44; color: white; }
-        .epic { background: #8833cc; color: white; }
-        .mythic { background: #cc3333; color: white; }
-        .legendary { 
-            background: var(--gold); 
-            color: #000; 
-            animation: goldenPulse 1s infinite;
-            border-color: #fff;
-        }
-        .secret { 
-            background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #ff00ff, #ff0000);
-            background-size: 200% 100%;
-            animation: gradientBG 1s linear infinite;
-            color: #000;
-            border-color: #fff;
-        }
-        .evolutionary { 
-            background: linear-gradient(135deg, #8833cc, #cc33cc, #ff33cc);
-            background-size: 200% 200%;
-            animation: gradientBG 1s linear infinite;
-            color: white;
-            text-shadow: 2px 2px 0 #000;
-            border-color: #ff33cc;
-        }
-        .easter { 
-            background: linear-gradient(135deg, #ff99aa, #ffccff);
-            color: #000;
-        }
-        .boss-rarity { 
-            background: var(--boss);
-            color: #000; 
-            animation: goldenPulse 0.5s infinite;
-            font-size: 7px;
-            text-shadow: none;
-            border-color: #fff;
-        }
-        
-        .card-stats { 
-            font-size: 7px; 
-            display: flex; 
-            justify-content: center; 
-            gap: 4px; 
-            margin: 3px 0; 
-            font-weight: normal; 
-            background: #000;
-            padding: 2px 4px;
-        }
-        
-        .remove-icon { 
-            font-size: 8px; 
-            background: var(--red); 
-            padding: 3px 6px; 
-            margin: 2px; 
-            display: inline-block; 
-            cursor: pointer; 
-            transition: none;
-            border: 2px solid #000;
-            box-shadow: 2px 2px 0 #000;
-            font-weight: normal;
-            color: white;
-        }
-        
-        .remove-icon:hover { 
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0 #000;
-        }
-        
-        .remove-icon:active { 
-            transform: translate(2px, 2px);
-            box-shadow: 0px 0px 0 #000;
-        }
-        
-        .enemy-card { 
-            background: linear-gradient(135deg, #1a0a0a, #2a0000); 
-            border: 4px double var(--red);
-            padding: 20px; 
-            text-align: center; 
-            margin-bottom: 20px;
-            box-shadow: 6px 6px 0 #000;
-        }
-        
-        .click-area { 
-            background: linear-gradient(180deg, var(--gold), #cc8800); 
-            color: #000; 
-            padding: 20px 15px; 
-            text-align: center; 
-            font-size: 16px; 
-            font-weight: normal; 
-            margin: 20px 0; 
-            cursor: pointer; 
-            transition: none;
-            border: 4px solid #fff;
-            box-shadow: 8px 8px 0 #000;
-            text-shadow: none;
-            animation: pixelPulse 1s infinite;
-            touch-action: manipulation;
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .btn {
+            background: var(--btn-bg);
             font-family: 'Press Start 2P', monospace;
+            border: 2px solid #5a7a9a;
+            padding: 8px 14px;
+            font-size: 7px;
+            cursor: pointer;
+            color: #e0e0e0;
+            text-transform: uppercase;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.5);
         }
-        
-        .click-area:active { 
-            transform: translate(8px, 8px);
-            box-shadow: 0px 0px 0 #000;
-            animation: none;
-            background: linear-gradient(180deg, #fff, var(--gold));
+        .btn:hover { background: #3a5068; border-color: #fff; }
+        .btn:active { transform: translate(3px,3px); box-shadow: 0 0 0 transparent; }
+        .btn-primary { background: var(--gold); border-color: #fff; color: #0a1220; box-shadow: 3px 3px 0 rgba(0,0,0,0.5); }
+        .btn-boss { background: var(--boss); border-color: #fff; animation: pixelPulse 1s infinite; font-size: 9px; }
+        .btn-arena-start { background: var(--red); border-color: #fff; animation: pixelPulse 1s infinite; font-size: 9px; }
+        .btn:disabled { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; margin-top: 8px; }
+        @media (max-width: 480px) { .cards-grid { grid-template-columns: repeat(3, 1fr); } }
+        .card-item {
+            background: #111;
+            border: 2px solid #415a77;
+            padding: 8px 6px;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 10px;
         }
-        
-        .click-area.crit { 
-            background: linear-gradient(180deg, #fff, #ff0000);
+        .card-item:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 rgba(0,0,0,0.4); border-color: #fff; }
+        .card-item:active { transform: translate(2px,2px); box-shadow: 0 0 0 transparent; }
+        .card-item.team-selected { border-color: var(--gold); background: #2a1f00; }
+        .card-item.afk-selected { border-color: var(--green); background: #002a1a; }
+        .card-name { font-weight: 700; font-size: 11px; word-break: break-word; line-height: 1.2; margin-bottom: 2px; max-width: 100%; }
+        .rarity-tag {
+            font-size: 9px; padding: 2px 6px; display: inline-block; margin: 2px 0; font-weight: 700;
+            border: 1px solid rgba(0,0,0,0.5); box-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+            text-align: center; max-width: 100%; white-space: nowrap;
+        }
+        .common { background: #5a6a7a; color: white; }
+        .rare { background: #1a6a8a; color: white; }
+        .superrare { background: #1a7a3a; color: white; }
+        .epic { background: #6a3a8a; color: white; }
+        .mythic { background: #a03030; color: white; }
+        .legendary { background: var(--gold); color: #0a1220; border-color: #fff; }
+        .secret { background: #8a1a6a; color: #fff; border-color: #ff69b4; }
+        .evolutionary { background: #4a1a6a; color: #e0c0ff; border-color: #c060ff; }
+        .easter { background: #ffb6c1; color: #333; }
+        .boss-rarity { background: var(--boss); color: #fff; border-color: #ff6600; }
+        .card-stats { font-size: 9px; display: flex; justify-content: center; gap: 4px; margin: 2px 0; font-weight: 600; background: rgba(0,0,0,0.3); padding: 2px 4px; }
+        .remove-icon {
+            font-size: 9px; background: var(--red); padding: 2px 6px; margin: 1px; display: inline-block;
+            cursor: pointer; border: 1px solid rgba(0,0,0,0.5); box-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+            font-weight: 700; color: white;
+        }
+        .remove-icon:hover { transform: translate(-1px,-1px); }
+        .remove-icon:active { transform: translate(1px,1px); box-shadow: none; }
+        .enemy-card {
+            background: linear-gradient(180deg, #2a1010, #1a0000);
+            border: 2px solid var(--red);
+            padding: 16px;
+            text-align: center;
+            margin-bottom: 16px;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.4);
+        }
+        .click-area {
+            background: linear-gradient(180deg, var(--gold), #b08000);
+            color: #0a1220;
+            padding: 16px 12px;
+            text-align: center;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 14px;
+            margin: 16px 0;
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.5);
+            animation: pixelPulse 1.5s infinite;
+            touch-action: manipulation;
+        }
+        .click-area:active { transform: translate(5px,5px); box-shadow: 0 0 0 transparent; animation: none; background: linear-gradient(180deg, #fff, var(--gold)); }
+        .floating-text {
+            position: absolute;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 14px;
             color: #fff;
             text-shadow: 2px 2px 0 #000;
-        }
-        
-        .floating-text { 
-            position: absolute; 
-            font-weight: normal; 
-            font-size: 18px; 
-            color: #fff; 
-            text-shadow: 3px 3px 0 #000;
-            pointer-events: none; 
-            animation: pixelFloat 0.6s steps(8) forwards; 
+            pointer-events: none;
+            animation: pixelFloat 0.6s ease-out forwards;
             z-index: 10;
-            font-family: 'Press Start 2P', monospace;
         }
-        
-        .fight-stats { 
-            display: flex; 
-            justify-content: space-between; 
-            margin-top: 15px; 
-            background: #000;
-            padding: 10px; 
-            border: 3px solid #555;
-            flex-wrap: wrap; 
-            gap: 6px; 
-            font-weight: normal; 
-            font-size: 8px;
-        }
-        
-        .fight-stats div { 
-            display: flex; 
-            align-items: center; 
-            gap: 3px; 
-        }
-        
-        .shop-grid, .upgrade-grid, .challenge-grid { 
-            display: flex; 
-            flex-direction: column; 
-            gap: 8px; 
-        }
-        
-        .shop-item, .upgrade-item, .challenge-item { 
-            background: #000; 
-            border: 3px solid #555;
-            padding: 12px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            transition: none;
-        }
-        
-        .shop-item:hover, .upgrade-item:hover, .challenge-item:hover { 
+        .fight-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
             background: #111;
-            border-color: #fff;
-            transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0 #000;
-        }
-        
-        .shop-price, .upgrade-price { 
-            color: var(--gold); 
-            font-weight: normal; 
-            margin-right: 10px; 
-            text-shadow: 2px 2px 0 #000;
-            font-size: 8px;
-        }
-        
-        .points { 
-            font-size: 18px; 
-            font-weight: normal; 
-            color: var(--gold); 
-            text-align: center; 
-            margin-bottom: 20px; 
-            text-shadow: 3px 3px 0 #000; 
-            background: #000;
-            padding: 10px; 
-            border: 4px double var(--gold);
-        }
-        
-        .buff-active { 
-            background: #000; 
-            border: 3px solid #555;
-            padding: 10px; 
-            margin-top: 10px; 
-            font-size: 8px; 
-            font-weight: normal;
-        }
-        
-        .timer-text { 
-            font-size: 9px; 
-            text-align: center; 
-            margin-top: 8px; 
-            color: #aaa; 
-            font-weight: normal;
-        }
-        
-        .free-spins { 
-            background: #000; 
-            border: 4px double var(--neon-cyan);
-            padding: 12px; 
-            margin-bottom: 20px; 
-            text-align: center;
-            box-shadow: 6px 6px 0 #000;
-        }
-        
-        .fatigue-bar { 
-            background: #000; 
-            border: 3px solid #555;
-            padding: 12px; 
-            margin-top: 15px; 
-            text-align: center; 
-            font-weight: normal; 
+            padding: 8px;
+            border: 1px solid #415a77;
+            flex-wrap: wrap;
+            gap: 4px;
             font-size: 9px;
+            font-weight: 600;
         }
-        
-        .fatigue-progress { 
-            background: linear-gradient(180deg, var(--red), #880000); 
-            height: 10px; 
-            transition: none;
-            margin-top: 8px;
-            border: 2px solid #000;
+        .fight-stats div { display: flex; align-items: center; gap: 2px; }
+        .shop-grid, .upgrade-grid, .challenge-grid { display: flex; flex-direction: column; gap: 6px; }
+        .shop-item, .upgrade-item, .challenge-item {
+            background: #111;
+            border: 1px solid #415a77;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
         }
-        
-        .level-progress { 
-            background: #000; 
-            border: 4px double var(--gold);
-            padding: 12px; 
-            margin-bottom: 20px; 
-            text-align: center; 
-            font-weight: normal;
-            box-shadow: 6px 6px 0 #000;
-        }
-        
-        .level-bar { 
-            background: linear-gradient(180deg, var(--gold), #cc8800); 
-            height: 10px; 
-            transition: none;
-            margin-top: 8px;
-            border: 2px solid #000;
-        }
-        
-        .locked { 
-            opacity: 0.3; 
-            filter: grayscale(1);
-            pointer-events: none; 
-        }
-        
-        .book-grid { 
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 6px; 
-        }
-        
-        .book-item { 
-            background: #000; 
-            border: 2px solid #555;
-            padding: 8px 4px; 
-            width: calc(33.333% - 4px); 
-            text-align: center; 
-            cursor: pointer; 
-            font-size: 7px; 
-            transition: none;
-        }
-        
-        .book-item:hover { 
-            transform: translate(-1px, -1px);
-            border-color: #fff;
-            box-shadow: 2px 2px 0 #000;
-        }
-        
-        .book-item:active { 
-            transform: translate(2px, 2px);
-            box-shadow: 0px 0px 0 #000;
-        }
-        
-        .book-item .name { 
-            font-weight: normal; 
-            font-size: 7px; 
-            margin-bottom: 3px; 
-        }
-        
-        .unknown-card { 
-            opacity: 0.2; 
-            filter: grayscale(1) contrast(0.5); 
-        }
-        
-        .afk-active { 
-            color: var(--green); 
-            font-weight: normal; 
-            text-shadow: 0 0 10px rgba(68, 255, 68, 0.4); 
-        }
-        
-        .afk-inactive { 
-            color: var(--red); 
-            font-weight: normal; 
-        }
-        
-        .code-input { 
-            width: 100%; 
-            padding: 12px; 
-            background: #000; 
-            border: 3px solid #555;
-            color: white; 
+        .shop-item:hover, .upgrade-item:hover, .challenge-item:hover { background: #1a2838; border-color: #fff; }
+        .shop-price, .upgrade-price { color: var(--gold); font-weight: 700; margin-right: 8px; }
+        .points {
+            font-size: 20px;
             font-family: 'Press Start 2P', monospace;
-            font-size: 10px; 
-            font-weight: normal; 
-            margin-bottom: 10px; 
-            transition: none; 
-            text-align: center;
-        }
-        
-        .code-input:focus { 
-            border-color: var(--gold); 
-            outline: none;
-            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
-        }
-        
-        .boss-dialogue { 
-            background: #000; 
-            border-left: 6px solid var(--red);
-            border-right: 6px solid var(--red);
-            padding: 10px; 
-            margin-bottom: 15px; 
-            text-align: center; 
-            font-style: normal; 
-            color: var(--gold); 
-            font-weight: normal; 
-            font-size: 8px;
-        }
-        
-        .checkpoint-item { 
-            background: #000; 
-            border: 3px solid #555;
-            padding: 10px 12px; 
-            margin-bottom: 6px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            font-weight: normal;
-            font-size: 8px;
-        }
-        
-        .auto-active { 
-            border-color: var(--green) !important;
-            box-shadow: 0 0 10px rgba(68, 255, 68, 0.2); 
-        }
-        
-        .rebirth-badge { 
-            background: #8833cc; 
-            color: white; 
-            padding: 2px 6px; 
-            font-size: 7px; 
-            font-weight: normal; 
-            margin-left: 4px;
-            border: 2px solid #000;
-            box-shadow: 2px 2px 0 #000;
-        }
-        
-        .modal-overlay { 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            background: rgba(0,0,0,0.9); 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            z-index: 100; 
-        }
-        
-        .modal-content { 
-            background: #1a0a2e; 
-            border: 6px double var(--gold);
-            padding: 25px; 
-            max-width: 400px; 
-            width: 90%; 
-            text-align: center;
-            box-shadow: 10px 10px 0 #000;
-        }
-        
-        .modal-content h2 { 
-            margin-bottom: 15px; 
             color: var(--gold);
-            font-size: 14px;
-            text-shadow: 3px 3px 0 #000;
-        }
-        
-        .modal-content p { 
-            font-size: 10px; 
-            line-height: 1.6; 
-            font-weight: normal; 
-            margin-bottom: 20px; 
-        }
-        
-        .status-effect { 
-            display: inline-block; 
-            padding: 3px 6px; 
-            font-size: 7px; 
-            font-weight: normal; 
-            margin: 2px; 
-            background: #000; 
-            color: var(--gold); 
+            text-align: center;
+            margin-bottom: 16px;
+            text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+            background: #111;
+            padding: 8px;
             border: 2px solid var(--gold);
         }
-        
-        .use-artifact-btn { 
-            background: var(--red); 
-            color: white; 
-            border: 3px solid #fff;
-            padding: 5px 10px; 
-            font-weight: normal; 
-            cursor: pointer; 
-            margin-top: 5px;
-            box-shadow: 3px 3px 0 #000;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 7px;
-        }
-        
-        .use-artifact-btn:active {
-            transform: translate(3px, 3px);
-            box-shadow: 0px 0px 0 #000;
-        }
-        
-        .evo-quest { 
-            background: #000; 
-            padding: 10px; 
-            margin-bottom: 8px; 
-            border-left: 4px solid #8833cc;
-            font-size: 8px;
-        }
-        
-        .evo-quest.done { 
-            border-color: var(--green); 
-            opacity: 0.7; 
-        }
-        
-        .team-select-item { 
-            background: #000; 
-            border: 2px solid #555;
-            padding: 8px; 
-            margin: 4px 0; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            cursor: pointer; 
-            transition: none;
-            font-size: 8px;
-        }
-        
-        .team-select-item:hover { 
+        .buff-active { background: #111; border: 1px solid #415a77; padding: 8px; margin-top: 8px; font-size: 9px; }
+        .timer-text { font-size: 10px; text-align: center; margin-top: 6px; color: #aaa; }
+        .free-spins { background: #111; border: 2px solid var(--neon-cyan); padding: 10px; margin-bottom: 16px; text-align: center; font-family: 'Press Start 2P', monospace; font-size: 9px; }
+        .fatigue-bar { background: #111; border: 1px solid #415a77; padding: 10px; margin-top: 12px; text-align: center; font-size: 9px; }
+        .fatigue-progress { background: var(--red); height: 8px; margin-top: 6px; }
+        .level-progress { background: #111; border: 2px solid var(--gold); padding: 10px; margin-bottom: 16px; text-align: center; font-family: 'Press Start 2P', monospace; font-size: 9px; }
+        .level-bar { background: var(--gold); height: 8px; margin-top: 6px; }
+        .locked { opacity: 0.3; filter: grayscale(1); pointer-events: none; }
+        .book-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+        .book-item {
             background: #111;
-            border-color: var(--gold);
+            border: 1px solid #415a77;
+            padding: 6px 4px;
+            width: calc(33.333% - 3px);
+            text-align: center;
+            cursor: pointer;
+            font-size: 9px;
         }
-        
-        .team-select-item.disabled { 
-            opacity: 0.3; 
-            cursor: not-allowed; 
-            pointer-events: none; 
-        }
-        
-        .world-indicator { 
-            background: #000; 
-            border: 4px double var(--neon-cyan);
-            padding: 10px 15px; 
-            margin-bottom: 15px; 
-            text-align: center; 
-            font-weight: normal; 
+        .book-item:hover { transform: translate(-1px,-1px); border-color: #fff; }
+        .book-item .name { font-weight: 700; font-size: 10px; margin-bottom: 2px; }
+        .unknown-card { opacity: 0.2; filter: grayscale(1); }
+        .afk-active { color: var(--green); font-weight: 700; }
+        .afk-inactive { color: var(--red); font-weight: 700; }
+        .code-input {
+            width: 100%;
+            padding: 10px;
+            background: #111;
+            border: 2px solid #415a77;
+            color: #fff;
+            font-family: 'Press Start 2P', monospace;
             font-size: 10px;
-            letter-spacing: 2px;
-            box-shadow: 6px 6px 0 #000;
-        }
-        
-        .dialog-box { 
-            background: #000; 
-            border-left: 4px solid var(--gold);
-            padding: 12px; 
-            margin: 8px 0; 
-            font-weight: normal;
-            font-size: 8px;
-        }
-        
-        .dialog-option { 
-            background: #111; 
-            border: 2px solid #555;
-            padding: 10px; 
-            margin: 4px 0; 
-            cursor: pointer; 
-            transition: none; 
-            font-weight: normal;
-            font-size: 8px;
-        }
-        
-        .dialog-option:hover { 
-            background: #000;
-            border-color: var(--gold);
-        }
-        
-        .card-image { 
-            width: 60px; 
-            height: 60px; 
-            margin-bottom: 3px; 
-            object-fit: cover;
-            border: 2px solid #000;
-        }
-        
-        .card-placeholder { 
-            width: 60px; 
-            height: 60px; 
-            margin-bottom: 3px; 
-            background: #000; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-size: 20px; 
-            color: #aaa;
-            border: 2px solid #555;
-        }
-        
-        .slot-select { 
-            background: #000; 
-            border: 3px solid #555;
-            padding: 15px; 
-            margin-bottom: 12px; 
-            cursor: pointer; 
-            transition: none; 
+            margin-bottom: 8px;
             text-align: center;
         }
-        
-        .slot-select:hover { 
-            border-color: var(--gold);
-            transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0 #000;
+        .code-input:focus { border-color: var(--gold); outline: none; }
+        .boss-dialogue {
+            background: #1a1a1a;
+            border-left: 4px solid var(--red);
+            border-right: 4px solid var(--red);
+            padding: 8px;
+            margin-bottom: 12px;
+            text-align: center;
+            color: var(--gold);
+            font-weight: 600;
+            font-size: 10px;
         }
-        
-        .slot-select.active { 
-            border-color: var(--green);
-            box-shadow: 0 0 10px rgba(68, 255, 68, 0.3); 
+        .checkpoint-item {
+            background: #111;
+            border: 1px solid #415a77;
+            padding: 8px 10px;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
         }
-        
-        .nickname-display { 
-            background: var(--gold); 
-            color: #000; 
-            padding: 2px 8px; 
-            font-weight: normal; 
-            font-size: 8px; 
-            display: inline-block; 
-            margin-left: 6px;
-            border: 2px solid #000;
+        .auto-active { border-color: var(--green) !important; }
+        .rebirth-badge { background: #6a3a8a; color: #fff; padding: 1px 5px; font-size: 8px; margin-left: 3px; }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 100;
         }
-        
-        .global-stats { 
-            background: #000; 
-            border: 3px solid #555;
-            padding: 8px; 
-            margin-top: 4px; 
-            display:flex; 
-            flex-direction:column; 
-            gap:5px;
+        .modal-content {
+            background: var(--bg);
+            border: 3px solid var(--gold);
+            padding: 20px;
+            max-width: 380px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.5);
+        }
+        .modal-content h2 { margin-bottom: 12px; color: var(--gold); font-family: 'Press Start 2P', monospace; font-size: 12px; }
+        .modal-content p { font-size: 11px; line-height: 1.5; margin-bottom: 16px; }
+        .status-effect {
+            display: inline-block;
+            padding: 2px 5px;
+            font-size: 8px;
+            font-weight: 600;
+            margin: 1px;
+            background: #111;
+            color: var(--gold);
+            border: 1px solid var(--gold);
+        }
+        .use-artifact-btn {
+            background: var(--red);
+            color: #fff;
+            border: 2px solid #fff;
+            padding: 4px 8px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 4px;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+            font-family: 'Press Start 2P', monospace;
             font-size: 7px;
         }
-        
-        .gacha-item { transition: none; }
-        .gacha-item:hover { 
-            transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0 #000;
+        .use-artifact-btn:active { transform: translate(2px,2px); box-shadow: none; }
+        .evo-quest { background: #111; padding: 8px; margin-bottom: 6px; border-left: 3px solid #6a3a8a; font-size: 10px; }
+        .evo-quest.done { border-color: var(--green); opacity: 0.7; }
+        .team-select-item {
+            background: #111;
+            border: 1px solid #415a77;
+            padding: 6px;
+            margin: 3px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            font-size: 10px;
         }
-        .legendary-gacha { box-shadow: 0 0 10px rgba(255,215,0,0.2); }
-        .legendary-gacha:hover { box-shadow: 0 0 15px rgba(255,215,0,0.5); }
-        .secret-gacha { box-shadow: 0 0 10px rgba(255,0,255,0.2); }
-        .secret-gacha:hover { box-shadow: 0 0 15px rgba(255,0,255,0.5); }
-        .gacha-btn { 
-            padding: 6px 12px; 
-            font-size: 8px; 
-            min-width: 80px;
+        .team-select-item:hover { background: #1a2838; border-color: var(--gold); }
+        .team-select-item.disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+        .world-indicator {
+            background: #111;
+            border: 2px solid var(--neon-cyan);
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            text-align: center;
             font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.4);
         }
-        .legendary-btn { 
-            background: var(--gold); 
-            color: #000; 
-            text-shadow: none;
-            border-color: #fff;
+        .dialog-box { background: #1a1a1a; border-left: 3px solid var(--gold); padding: 10px; margin: 6px 0; font-size: 10px; }
+        .dialog-option { background: #111; border: 1px solid #415a77; padding: 8px; margin: 3px 0; cursor: pointer; font-size: 10px; }
+        .dialog-option:hover { background: #1a2838; border-color: var(--gold); }
+        .card-image { width: 60px; height: 60px; margin-bottom: 2px; object-fit: cover; border: 1px solid #000; }
+        .card-placeholder { width: 60px; height: 60px; margin-bottom: 2px; background: #1a1a1a; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #aaa; border: 1px solid #415a77; }
+        .slot-select {
+            background: #111;
+            border: 2px solid #415a77;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            text-align: center;
         }
-        .secret-btn { 
-            background: #ff00ff; 
-            color: white;
-            border-color: #fff;
-        }
+        .slot-select:hover { border-color: var(--gold); transform: translate(-1px,-1px); }
+        .slot-select.active { border-color: var(--green); }
+        .nickname-display { background: var(--gold); color: #0a1220; padding: 2px 6px; font-size: 8px; display: inline-block; margin-left: 4px; font-family: 'Press Start 2P', monospace; }
+        .global-stats { background: #111; border: 1px solid #415a77; padding: 6px; margin-top: 3px; display: flex; flex-direction: column; gap: 4px; font-size: 9px; }
+        .gacha-item { transition: none; }
+        .gacha-item:hover { transform: translate(-1px,-1px); }
+        .legendary-gacha { border-color: var(--gold) !important; }
+        .secret-gacha { border-color: var(--neon-pink) !important; }
+        .gacha-btn { padding: 6px 10px; font-size: 8px; min-width: 75px; font-family: 'Press Start 2P', monospace; }
+        .legendary-btn { background: var(--gold); color: #0a1220; border-color: #fff; }
+        .secret-btn { background: var(--neon-pink); color: #fff; border-color: #fff; }
     </style>
 </head>
 <body>
@@ -956,7 +436,7 @@
     </div>
     <div id="gameScreen" style="display:none;">
         <div class="mode-switch"><span class="mode-label">🎮 РЕЖИМ</span><div class="toggle" id="modeToggle"><span class="active" data-mode="normal">ОБЫЧНЫЙ</span><span data-mode="moder">МОДЕР</span></div></div>
-        <div class="world-indicator" id="worldIndicator">🌍 МИР: ЛЕС НАЧАЛА И КОНЦА <button id="musicToggleBtn" class="btn" style="padding:2px 8px;font-size:10px;margin-left:8px;" onclick="toggleMusic()">🔇</button> <span class="nickname-display" id="nicknameDisplay"></span></div>
+        <div class="world-indicator" id="worldIndicator">🌍 МИР: ЛЕС НАЧАЛА И КОНЦА <button id="musicToggleBtn" class="btn" style="padding:2px 8px;font-size:8px;margin-left:6px;" onclick="toggleMusic()">🔇</button> <span class="nickname-display" id="nicknameDisplay"></span></div>
         <div class="tabs">
             <button class="tab-btn active" data-tab="collection">🏠 КОЛЛЕКЦИЯ</button>
             <button class="tab-btn" data-tab="battle">⚔️ БИТВА</button>
@@ -971,18 +451,18 @@
                 <button class="sub-tab-btn" data-subtab="evolution">🧬 ЭВОЛЮЦИЯ</button>
             </div>
             <div id="myCardsSubTab" class="sub-tab-content active">
-                <div class="card"><div class="card-title">📚 МОИ КАРТЫ</div><div id="collectionGrid" class="cards-grid"></div><div class="flex-between" style="margin-top:10px;font-weight:normal;"><span>ВСЕГО: <span id="totalCards">0</span></span></div></div>
-                <div class="card"><div class="card-title">⚔️ ОТРЯД (6)<button id="clearTeamBtn" class="btn" style="background:var(--red);border-color:#fff;float:right;padding:4px 10px;font-size:7px;">ОЧИСТИТЬ</button></div><div id="teamList"></div><div id="teamStats" class="buff-active">💪 УРОН: <span id="totalDamage">0</span> | ❤️ HP: <span id="totalHpBonus">0</span></div></div>
-                <div class="card"><div class="card-title">💤 АФК (6)<button id="clearAfkTeamBtn" class="btn" style="background:var(--red);border-color:#fff;float:right;padding:4px 10px;font-size:7px;">ОЧИСТИТЬ</button></div><div id="afkTeamList"></div><div id="afkTeamStats" class="buff-active">💪 УРОН: <span id="afkTotalDamage">0</span> | ❤️ HP: <span id="afkTotalHpBonus">0</span></div></div>
-                <div class="card"><div class="card-title">🏆 ДОСТИЖЕНИЯ</div><div id="achievementsList" style="display:flex;flex-wrap:wrap;gap:5px;"></div></div>
-                <button id="claimCardBtn" class="btn btn-primary" style="width:100%;margin-top:10px;font-size:9px;padding:12px;">🎴 ПОЛУЧИТЬ КАРТУ (2Ч)</button>
+                <div class="card"><div class="card-title">📚 МОИ КАРТЫ</div><div id="collectionGrid" class="cards-grid"></div><div class="flex-between" style="margin-top:8px;"><span>ВСЕГО: <span id="totalCards">0</span></span></div></div>
+                <div class="card"><div class="card-title">⚔️ ОТРЯД (6)<button id="clearTeamBtn" class="btn" style="background:var(--red);border-color:#fff;float:right;padding:3px 8px;font-size:7px;">X</button></div><div id="teamList"></div><div id="teamStats" class="buff-active">💪 УРОН: <span id="totalDamage">0</span> | ❤️ HP: <span id="totalHpBonus">0</span></div></div>
+                <div class="card"><div class="card-title">💤 АФК (6)<button id="clearAfkTeamBtn" class="btn" style="background:var(--red);border-color:#fff;float:right;padding:3px 8px;font-size:7px;">X</button></div><div id="afkTeamList"></div><div id="afkTeamStats" class="buff-active">💪 УРОН: <span id="afkTotalDamage">0</span> | ❤️ HP: <span id="afkTotalHpBonus">0</span></div></div>
+                <div class="card"><div class="card-title">🏆 ДОСТИЖЕНИЯ</div><div id="achievementsList" style="display:flex;flex-wrap:wrap;gap:4px;"></div></div>
+                <button id="claimCardBtn" class="btn btn-primary" style="width:100%;margin-top:8px;font-size:9px;padding:10px;">🎴 ПОЛУЧИТЬ КАРТУ (2Ч)</button>
                 <div id="claimTimer" class="timer-text"></div>
             </div>
             <div id="bookSubTab" class="sub-tab-content">
                 <div class="card"><div class="card-title">📖 БЕСТИАРИЙ (<span id="discoveredCount">0</span>/<span id="totalTemplatesCount">0</span>)</div><div id="bookList" class="book-grid"></div></div>
             </div>
             <div id="evolutionSubTab" class="sub-tab-content">
-                <div class="card"><div class="card-title" style="border-color:#8833cc;color:#cc33cc;">🧬 ЭВОЛЮЦИЯ</div><div id="evoContent"></div></div>
+                <div class="card"><div class="card-title" style="border-color:#6a3a8a;color:#c060ff;">🧬 ЭВОЛЮЦИЯ</div><div id="evoContent"></div></div>
             </div>
         </div>
         <div id="battleTab" class="tab-content">
@@ -993,22 +473,22 @@
             </div>
             <div id="fightSubTab" class="sub-tab-content active">
                 <div class="card"><div class="card-title">👾 ВОЛНА <span id="waveNumber">1</span></div>
-                    <button id="startArenaBtn" class="btn btn-arena-start" style="width:100%;padding:12px;font-size:9px;margin-bottom:10px;display:none;" onclick="startArena(wave)">⚔️ СРАЗИТЬСЯ С БОССОМ!</button>
-                    <div class="fatigue-bar"><div>😫 УСТАЛОСТЬ: <span id="fatiguePercent">0</span>%</div><div class="fatigue-progress" id="fatigueBar" style="width:0%"></div><button id="restBtn" class="btn" style="margin-top:10px;padding:8px 12px;width:100%;font-size:7px;">💤 ОТДЫХ (<span id="restCost">30</span>⭐)</button></div>
-                    <div id="statusEffects" style="min-height:20px;margin-bottom:10px;margin-top:5px;"></div>
-                    <div id="enemyStatusEffects" style="min-height:20px;margin-bottom:5px;"></div>
+                    <button id="startArenaBtn" class="btn btn-arena-start" style="width:100%;padding:10px;font-size:9px;margin-bottom:8px;display:none;" onclick="startArena(wave)">⚔️ СРАЗИТЬСЯ С БОССОМ!</button>
+                    <div class="fatigue-bar"><div>😫 УСТАЛОСТЬ: <span id="fatiguePercent">0</span>%</div><div class="fatigue-progress" id="fatigueBar" style="width:0%"></div><button id="restBtn" class="btn" style="margin-top:8px;padding:7px 10px;width:100%;font-size:7px;">💤 ОТДЫХ (<span id="restCost">30</span>⭐)</button></div>
+                    <div id="statusEffects" style="min-height:18px;margin-bottom:8px;margin-top:4px;"></div>
+                    <div id="enemyStatusEffects" style="min-height:18px;margin-bottom:4px;"></div>
                     <div id="bossDialogue" class="boss-dialogue" style="display:none;"></div>
                     <div id="enemyContainer" class="enemy-card"></div>
                     <div id="dialogBox" style="display:none;"></div>
                     <div class="click-area" id="clickArea">💥 НАЖМИ ДЛЯ АТАКИ! 💥</div>
-                    <button id="spareBtn" class="btn btn-boss" style="width:100%;padding:12px;margin:10px 0;display:none;font-size:9px;" onclick="spareBoss()">🤝 ПОЩАДИТЬ БОССА (30%)</button>
+                    <button id="spareBtn" class="btn btn-boss" style="width:100%;padding:10px;margin:8px 0;display:none;font-size:9px;" onclick="spareBoss()">🤝 ПОЩАДИТЬ БОССА (30%)</button>
                     <div class="fight-stats"><div>💪 УРОН: <span id="playerDamage">0</span></div><div>❤️ HP: <span id="playerHp">100</span>/<span id="playerMaxHp">100</span></div><div>⏳ УДАР: <span id="clicksToCounter">3</span></div><div>⭐ НАГРАДА: <span id="rewardPreview">1</span></div></div>
-                    <div id="fightResult" style="margin-top:12px;font-weight:normal;text-align:center;min-height:24px;font-size:10px;"></div>
+                    <div id="fightResult" style="margin-top:10px;text-align:center;min-height:20px;font-size:10px;"></div>
                 </div>
-                <div class="card"><div class="card-title">💀 ПОРАЖЕНИЯ</div><div id="fightHistory" style="max-height:120px;overflow-y:auto;font-size:9px;font-weight:normal;padding-right:5px;"></div></div>
+                <div class="card"><div class="card-title">💀 ПОРАЖЕНИЯ</div><div id="fightHistory" style="max-height:100px;overflow-y:auto;font-size:9px;padding-right:4px;"></div></div>
             </div>
             <div id="afkSubTab" class="sub-tab-content">
-                <div class="card"><div class="card-title">💤 АФК ФАРМ</div><div style="background:#000;padding:20px;text-align:center;font-weight:normal;font-size:10px;"><div>СТАТУС: <span id="afkStatus" class="afk-inactive">НЕАКТИВЕН</span></div><div style="margin:10px 0;">ВОЛНА: <span id="afkWave" style="color:var(--gold);">1</span> | ПРОШЛО: <span id="afkWavesCompleted" style="color:var(--gold);">0</span></div><button id="toggleAfkBtn" class="btn btn-primary" style="margin-top:10px;width:100%;padding:10px;font-size:9px;">▶ ЗАПУСТИТЬ</button></div></div>
+                <div class="card"><div class="card-title">💤 АФК ФАРМ</div><div style="background:#111;padding:16px;text-align:center;font-size:10px;"><div>СТАТУС: <span id="afkStatus" class="afk-inactive">НЕАКТИВЕН</span></div><div style="margin:8px 0;">ВОЛНА: <span id="afkWave" style="color:var(--gold);">1</span> | ПРОШЛО: <span id="afkWavesCompleted" style="color:var(--gold);">0</span></div><button id="toggleAfkBtn" class="btn btn-primary" style="margin-top:8px;width:100%;padding:8px;font-size:9px;">▶ ЗАПУСТИТЬ</button></div></div>
             </div>
             <div id="checkpointSubTab" class="sub-tab-content">
                 <div class="card"><div class="card-title">🚩 ЧЕКПОИНТЫ</div><div id="checkpointList"></div></div>
@@ -1026,8 +506,8 @@
             </div>
             <div id="shopItemsSubTab" class="sub-tab-content active">
                 <div class="points">⭐ <span id="pointsAmount2">0</span></div>
-                <div class="free-spins"><div style="font-weight:normal;font-size:12px;">🎰 <span id="freeSpinsCount">0</span> ПРОКРУТОК</div><button id="useFreeSpinBtn" class="btn btn-primary" style="margin-top:10px;width:100%;padding:8px;font-size:8px;">🎲 КРУТИТЬ</button></div>
-                <div class="card"><div class="card-title">🛍️ ТОВАРЫ <button class="btn" style="padding:4px 8px;font-size:7px;float:right;" onclick="refreshShopNow()">🔄 1000⭐</button></div><div id="shopItems" class="shop-grid"></div></div>
+                <div class="free-spins"><div>🎰 <span id="freeSpinsCount">0</span> ПРОКРУТОК</div><button id="useFreeSpinBtn" class="btn btn-primary" style="margin-top:8px;width:100%;padding:7px;font-size:8px;">🎲 КРУТИТЬ</button></div>
+                <div class="card"><div class="card-title">🛍️ ТОВАРЫ <button class="btn" style="padding:3px 7px;font-size:7px;float:right;" onclick="refreshShopNow()">🔄 1000⭐</button></div><div id="shopItems" class="shop-grid"></div></div>
                 <div class="card"><div class="card-title">🗿 АРТЕФАКТЫ</div><div id="artifactItems" class="shop-grid"></div></div>
                 <div class="card"><div class="card-title">✨ БАФФЫ</div><div id="activeBuffs" class="buff-active"></div></div>
             </div>
@@ -1036,7 +516,7 @@
                 <div class="card">
                     <div class="card-title">🎰 КРУТКИ КАРТ</div>
                     <div id="gachaItems" class="shop-grid"></div>
-                    <div style="font-size:7px;color:#aaa;margin-top:10px;text-align:center;font-weight:normal;">
+                    <div style="font-size:8px;color:#aaa;margin-top:8px;text-align:center;">
                         💡 ПОБЕЖДАЙТЕ <b>НОВЫХ БОССОВ</b> (КАЖДЫЕ 50 ВОЛН) ДЛЯ ПОЛУЧЕНИЯ ЛЕГЕНДАРНЫХ И СЕКРЕТНЫХ КРУТОК!<br>
                         <span style="color:#ffd700;">ЛИМИТЫ СБРАСЫВАЮТСЯ РАЗ В 24 ЧАСА.</span>
                     </div>
@@ -1060,7 +540,7 @@
                 <div class="card"><div class="card-title">🔥 КВЕСТЫ</div><div id="challengeList" class="challenge-grid"></div></div>
             </div>
             <div id="codesSubTab" class="sub-tab-content">
-                <div class="card"><div class="card-title">🎁 КОД</div><input type="text" id="codeInput" class="code-input" placeholder="ВВЕДИ КОД..."><button id="submitCodeBtn" class="btn btn-primary" style="width:100%;padding:10px;font-size:9px;">АКТИВИРОВАТЬ</button><div id="codeResult" style="margin-top:15px;text-align:center;font-weight:normal;font-size:12px;"></div></div>
+                <div class="card"><div class="card-title">🎁 КОД</div><input type="text" id="codeInput" class="code-input" placeholder="ВВЕДИ КОД..."><button id="submitCodeBtn" class="btn btn-primary" style="width:100%;padding:8px;font-size:9px;">АКТИВИРОВАТЬ</button><div id="codeResult" style="margin-top:12px;text-align:center;font-size:11px;"></div></div>
             </div>
         </div>
         <div id="rebirthTab" class="tab-content">
@@ -1069,14 +549,14 @@
                 <button class="sub-tab-btn" data-subtab="rebirthStats">📊 СТАТИСТИКА</button>
             </div>
             <div id="rebirthMainSubTab" class="sub-tab-content active">
-                <div class="card"><div class="card-title">🔄 РЕБИРТХ (ПРЕСТИЖ)</div><div id="rebirthInfo"></div><button id="doRebirthBtn" class="btn btn-primary" style="width:100%;margin-top:20px;padding:12px;font-size:10px;">🔄 СОВЕРШИТЬ РЕБИРТХ!</button>
-                <div id="moderControls" style="display:none;margin-top:15px;">
-                    <button id="goWaveBtn" class="btn btn-primary" style="width:100%;padding:10px;font-size:9px;background:#8833cc;">🌀 ПЕРЕЙТИ НА ВОЛНУ</button>
+                <div class="card"><div class="card-title">🔄 РЕБИРТХ (ПРЕСТИЖ)</div><div id="rebirthInfo"></div><button id="doRebirthBtn" class="btn btn-primary" style="width:100%;margin-top:16px;padding:10px;font-size:10px;">🔄 СОВЕРШИТЬ РЕБИРТХ!</button>
+                <div id="moderControls" style="display:none;margin-top:12px;">
+                    <button id="goWaveBtn" class="btn btn-primary" style="width:100%;padding:8px;font-size:9px;background:#6a3a8a;">🌀 ПЕРЕЙТИ НА ВОЛНУ</button>
                 </div></div>
             </div>
             <div id="rebirthStatsSubTab" class="sub-tab-content">
-                <div class="card"><div class="card-title">📊 СТАТИСТИКА РЕБИРТХОВ</div><div id="rebirthStatsList" style="display:flex;flex-direction:column;gap:10px;"></div></div>
-                <div class="card" style="margin-top:15px;"><div class="card-title">📈 ОБЩАЯ СТАТИСТИКА</div><div id="globalStats" class="global-stats"></div></div>
+                <div class="card"><div class="card-title">📊 СТАТИСТИКА РЕБИРТХОВ</div><div id="rebirthStatsList" style="display:flex;flex-direction:column;gap:8px;"></div></div>
+                <div class="card" style="margin-top:12px;"><div class="card-title">📈 ОБЩАЯ СТАТИСТИКА</div><div id="globalStats" class="global-stats"></div></div>
             </div>
         </div>
         <div id="slotsTab" class="tab-content">
@@ -1088,15 +568,14 @@
     <div class="modal-content" id="modalContent" onclick="event.stopPropagation()"></div>
 </div>
 
-<!-- Арена Undertale -->
 <div id="arenaOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:200;flex-direction:column;align-items:center;justify-content:center;">
-    <div style="color:white;font-size:16px;font-weight:normal;margin-bottom:8px;font-family:'Press Start 2P',monospace;" id="arenaBossName">БОСС</div>
-    <div style="color:white;font-size:10px;margin-bottom:5px;font-family:'Press Start 2P',monospace;">❤️ <span id="arenaHP">30</span> | ⏱️ <span id="arenaTimer">∞</span></div>
-    <canvas id="arenaCanvas" width="400" height="500" style="border:4px double white;background:#0a0a1a;cursor:crosshair;"></canvas>
-    <div style="display:flex;gap:10px;margin-top:8px;">
-        <button id="skipBossBtn" class="btn btn-skip" style="padding:6px 14px;font-size:8px;display:none;font-family:'Press Start 2P',monospace;" onclick="skipDefeatedBoss()">⏭️ ПРОПУСТИТЬ</button>
+    <div style="color:white;font-size:14px;margin-bottom:6px;font-family:'Press Start 2P',monospace;" id="arenaBossName">БОСС</div>
+    <div style="color:white;font-size:9px;margin-bottom:4px;font-family:'Press Start 2P',monospace;">❤️ <span id="arenaHP">30</span> | ⏱️ <span id="arenaTimer">∞</span></div>
+    <canvas id="arenaCanvas" width="400" height="500" style="border:2px solid white;background:#0a0a1a;cursor:crosshair;"></canvas>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+        <button id="skipBossBtn" class="btn" style="padding:5px 12px;font-size:7px;display:none;font-family:'Press Start 2P',monospace;" onclick="skipDefeatedBoss()">⏭️ ПРОПУСТИТЬ</button>
     </div>
-    <div style="color:#aaa;margin-top:5px;font-size:8px;font-family:'Press Start 2P',monospace;">⌨️ WASD — УКЛОНЯТЬСЯ | 🖱️ КЛИК — БИТЬ</div>
+    <div style="color:#aaa;margin-top:4px;font-size:7px;font-family:'Press Start 2P',monospace;">⌨️ WASD — УКЛОНЯТЬСЯ | 🖱️ КЛИК — БИТЬ</div>
 </div>
 
 <script src="images.js"></script>
