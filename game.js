@@ -630,4 +630,8 @@ function spareBoss() {
         currentEnemy.hp = 0; victory();
     } else {
         let extraDmg = Math.floor(currentEnemy.damage * 3); playerHp -= extraDmg;
-       
+        alert("💢 Босс отказался! Он наносит тройной урон: " + extraDmg + "!");
+        let el = document.getElementById("spareBtn"); if (el) el.style.display = "none";
+        if (playerHp <= 0) defeat(); else { renderEnemy(); updatePlayerStats(); }
+    }
+}
