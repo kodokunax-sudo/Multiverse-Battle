@@ -46,8 +46,10 @@ function finishSlotLoad(slot) {
     el = document.getElementById("rewardPreview"); if (el && currentEnemy) { el.innerText = currentEnemy.isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); }
     startMainMusic();
     if (afkActive && afkTeam.length > 0) {
-        afkActive = false;
+        // НЕ сбрасываем afkActive — оно уже true из сохранения, просто перезапускаем таймер
         startAfk();
+    } else if (afkActive && afkTeam.length === 0) {
+        afkActive = false; // Сбрасываем только если нет АФК-команды
     }
 }
 
@@ -81,6 +83,7 @@ function loadGameData(d) {
     usedCodes = d.usedCodes || []; 
     moderUnlocked = d.moderUnlocked || false; 
     afkWavesCompleted = d.afkWavesCompleted || 0; 
+    afkWinsCompleted = d.afkWinsCompleted || 0;
     highestCheckpoint = d.highestCheckpoint || 1; 
     rebirthCount = d.rebirthCount || 0; 
     rebirthStats = d.rebirthStats || []; 
@@ -149,6 +152,7 @@ function initNewGame() {
     usedCodes = []; 
     moderUnlocked = false; 
     afkWavesCompleted = 0; 
+    afkWinsCompleted = 0;
     highestCheckpoint = 1; 
     rebirthCount = 0; 
     rebirthStats = []; 
@@ -213,6 +217,7 @@ function saveAll() {
     slotData.usedCodes = usedCodes; 
     slotData.moderUnlocked = moderUnlocked; 
     slotData.afkWavesCompleted = afkWavesCompleted; 
+    slotData.afkWinsCompleted = afkWinsCompleted || 0;
     slotData.highestCheckpoint = highestCheckpoint; 
     slotData.rebirthCount = rebirthCount; 
     slotData.rebirthStats = rebirthStats; 
@@ -244,7 +249,7 @@ function saveAll() {
 }
 
 // ========== ИГРОВЫЕ ПЕРЕМЕННЫЕ ==========
-let myCards=[],team=[],afkTeam=[],points=100,wave=1,playerHp=100,currentEnemy=null,clicksSinceLastCounter=0,activeBuffs={},defeatHistory=[],mode="normal",shopItems=[null,null,null],shopRefreshTime=null,lastCardClaimTime=null,freeSpins=5,lastFreeSpinReset=null,fatigue=0,achievements={win10:false,win50:false,win100:false,win500:false,win1000:false,legendaryTeam:false,secretTeam:false,level20:false,level50:false,rebirth3:false,rebirth5:false,allCommon:false,allRare:false,points10k:false,points50k:false,points100k:false,totalClicks1k:false,totalClicks10k:false,bossNoDamage:false,sellCard100:false},totalWins=0,playerLevel=1,playerExp=0,resurrectedThisFight=false,firstAttackThisFight=true,hasSukunaFingers=false,deathNoteTarget=null,afkActive=false,afkTimer=null,afkWavesCompleted=0,afkCurrentWave=1,usedCodes=[],moderUnlocked=false,discoveredCards=[],highestCheckpoint=1;
+let myCards=[],team=[],afkTeam=[],points=100,wave=1,playerHp=100,currentEnemy=null,clicksSinceLastCounter=0,activeBuffs={},defeatHistory=[],mode="normal",shopItems=[null,null,null],shopRefreshTime=null,lastCardClaimTime=null,freeSpins=5,lastFreeSpinReset=null,fatigue=0,achievements={win10:false,win50:false,win100:false,win500:false,win1000:false,legendaryTeam:false,secretTeam:false,level20:false,level50:false,rebirth3:false,rebirth5:false,allCommon:false,allRare:false,points10k:false,points50k:false,points100k:false,totalClicks1k:false,totalClicks10k:false,bossNoDamage:false,sellCard100:false},totalWins=0,playerLevel=1,playerExp=0,resurrectedThisFight=false,firstAttackThisFight=true,hasSukunaFingers=false,deathNoteTarget=null,afkActive=false,afkTimer=null,afkWavesCompleted=0,afkWinsCompleted=0,afkCurrentWave=1,usedCodes=[],moderUnlocked=false,discoveredCards=[],highestCheckpoint=1;
 let rebirthCount=0, rebirthStats=[], activeCheckpoint=0, autoSellSettings={"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}, purchasedAutoSell={"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}, autoRest={active:false,threshold:90,purchased:false}, abilityUpgradeLevel=0;
 let evoProgress = { wavesSaitamaGarou:0, damageGarpKuzan:0, luffyKingUnlocked:false, sgUnlocked:false, gkUnlocked:false, sevenUnlocked:false, williamUnlocked:false };
 let upgrades={damage:{level:0,baseCost:25,increment:2,name:"💪 Сила удара",reqLevel:1},hp:{level:0,baseCost:25,increment:5,name:"❤️ Живучесть",reqLevel:1},luck:{level:0,baseCost:30,increment:0.1,name:"🍀 Удача",reqLevel:3},crit:{level:0,baseCost:40,increment:0.03,name:"⚡ Крит. шанс",reqLevel:5},fatigueResist:{level:0,baseCost:50,increment:0.5,name:"💪 Сопр. усталости",reqLevel:10},abilityPower:{level:0,baseCost:200,increment:0.1,name:"✨ Усиление спос.",reqLevel:30}};
@@ -377,10 +382,10 @@ function processOfflineProgress() {
     if (earnedPoints > 0) {
         points += earnedPoints;
         if (points > maxPoints) maxPoints = points;
-        totalWins += wavesCompleted;
+        // НЕ меняем wave и totalWins — офлайн-прогресс не влияет на обычную волну и не качает карты
         afkWavesCompleted += wavesCompleted;
+        afkWinsCompleted = (afkWinsCompleted || 0) + wavesCompleted;
         afkCurrentWave = simWave;
-        wave = Math.max(wave, simWave);
         let mins = Math.floor(elapsed / 60);
         showFloatingText("💤 АФК: +" + earnedPoints + "⭐ за " + mins + "мин!", "#2ecc71");
         updateChallengeProgress("earnPoints", earnedPoints);
@@ -625,10 +630,4 @@ function spareBoss() {
         currentEnemy.hp = 0; victory();
     } else {
         let extraDmg = Math.floor(currentEnemy.damage * 3); playerHp -= extraDmg;
-        alert("💢 Босс отказался! Он наносит тройной урон: " + extraDmg + "!");
-        let el = document.getElementById("spareBtn"); if (el) el.style.display = "none";
-        if (playerHp <= 0) defeat(); else { renderEnemy(); updatePlayerStats(); }
-    }
-}
-
-function createCardFromTemplate(tm, r) { let s = cardStats[r]; let d = tm.damage ?? s.damage, hp = tm.hp ?? s.hp, sp = tm.sellPrice ?? s.sellPrice; let n = tm.name, a = tm.ability || null, u = tm.universe || "?", uns = tm.unsellable || false; if (!discoveredCards
+       
