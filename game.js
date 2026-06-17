@@ -45,11 +45,11 @@ function finishSlotLoad(slot) {
     el = document.getElementById("clicksToCounter"); if (el) el.innerText = Math.max(1, 3 - enemyStatuses.freezeStacks + enemyStatuses.blindStacks);
     el = document.getElementById("rewardPreview"); if (el && currentEnemy) { el.innerText = currentEnemy.isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); }
     startMainMusic();
+    // === ФИКС: НЕ сбрасываем afkActive, просто перезапускаем если был активен ===
     if (afkActive && afkTeam.length > 0) {
-        // НЕ сбрасываем afkActive — оно уже true из сохранения, просто перезапускаем таймер
         startAfk();
     } else if (afkActive && afkTeam.length === 0) {
-        afkActive = false; // Сбрасываем только если нет АФК-команды
+        afkActive = false;
     }
 }
 
@@ -382,7 +382,7 @@ function processOfflineProgress() {
     if (earnedPoints > 0) {
         points += earnedPoints;
         if (points > maxPoints) maxPoints = points;
-        // НЕ меняем wave и totalWins — офлайн-прогресс не влияет на обычную волну и не качает карты
+        // === ФИКС: НЕ меняем wave и totalWins — офлайн-прогресс не влияет на обычную волну и не качает карты ===
         afkWavesCompleted += wavesCompleted;
         afkWinsCompleted = (afkWinsCompleted || 0) + wavesCompleted;
         afkCurrentWave = simWave;
