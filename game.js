@@ -45,7 +45,9 @@ function finishSlotLoad(slot) {
     el = document.getElementById("clicksToCounter"); if (el) el.innerText = Math.max(1, 3 - enemyStatuses.freezeStacks + enemyStatuses.blindStacks);
     el = document.getElementById("rewardPreview"); if (el && currentEnemy) { el.innerText = currentEnemy.isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); }
     startMainMusic();
+    // ФИКС: сбрасываем afkActive в false, чтобы startAfk() мог нормально запуститься
     if (afkActive && afkTeam.length > 0) {
+        afkActive = false;
         startAfk();
     } else if (afkActive && afkTeam.length === 0) {
         afkActive = false;
@@ -426,10 +428,10 @@ function grantBossGachaReward(bossWave) {
         defeatedBosses.push(bossWave);
     }
     checkGachaReset();
-    if (legendaryGachaTokens >= 10 && secretGachaTokens >= 2) return;
+    // ФИКС: убрал блокировку — теперь всегда даём награду
     let legendaryToAdd = Math.min(2, 10 - legendaryGachaTokens);
     if (legendaryToAdd > 0) { legendaryGachaTokens += legendaryToAdd; showFloatingText("🎰 +" + legendaryToAdd + " ЛЕГЕНДАРНЫХ КРУТОК!", "#ffd700"); }
-    if (secretGachaTokens < 2 && Math.random() < 0.10) { secretGachaTokens++; showFloatingText("🎰 СЕКРЕТНАЯ КРУТКА!", "#ff00ff"); }
+    if (secretGachaTokens < 2 && Math.random() < 0.15) { secretGachaTokens++; showFloatingText("🎰 СЕКРЕТНАЯ КРУТКА!", "#ff00ff"); }
     saveAll();
     if (typeof renderGachaTab === 'function') renderGachaTab();
 }
