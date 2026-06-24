@@ -91,7 +91,7 @@ const customCardTemplates = {
         { name: "Чёрный Нуар", universe: "The Boys", damage: 35, hp: 52, ability: { type: "damageReduction", value: 0.07, desc: "-7% урона" }, desc: "Молчаливый ниндзя Семёрки. Уменьшает получаемый урон на 7%." },
         { name: "Кимико", universe: "The Boys", damage: 32, hp: 48, ability: { type: "teamHealOnWave", value: 0.02, desc: "Хил 2% за волну" }, desc: "Девушка с супер-регенерацией. Лечит команду на 2% за волну." },
         { name: "Ракета", universe: "The Boys", damage: 38, hp: 40, ability: { type: "nonBossOneShot", chance: 0.03, desc: "3% ваншот (не босс)" }, desc: "К вам летит РАКЕТААААААА!!!! 3% шанс мгновенно убить врага (кроме боссов)." },
-        { name: "Деку (5%)", universe: "MHA", damage: 34, hp: 44, ability: { type: "spareChanceBonus", value: 0.08, desc: "+8% к пощаде" }, statusAbility: { type: "clickDmgSelf", value: 0.02, desc: "-2% HP за клик" }, desc: "5% силы One For All. +8% к пощаде, но каждый клик отнимает 2% HP команды." }
+        { name: "Деку (5%)", universe: "MHA", damage: 34, hp: 44, ability: { type: "spareChanceBonus", value: 0.08, desc: "+8% к пощаде" }, statusAbility: { type: "clickDmgSelf", value: 0.02, desc: "-2% HP за клик" }, desc: "Слабый сосуд,мощная сила. Настолко, что  каждый клик отнимает 2% HP команды. +8% к пощаде, кстати" }
     ],
     "Мифическая": [
         { name: "Луффи (4 гир)", universe: "One Piece", damage: 45, hp: 75, ability: { type: "damageReduction", value: 0.15, desc: "-15% урона" }, desc: "Boundman. Уменьшает получаемый урон на 15%." },
