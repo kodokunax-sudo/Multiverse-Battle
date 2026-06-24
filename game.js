@@ -675,7 +675,12 @@ function handleClick() {
     if (enemyStatuses.fireTicks > 0 && enemyStatuses.fireDamage > 0) { startFireEffectPassive(enemyStatuses.fireDamage, enemyStatuses.fireTicks * 1000); enemyStatuses.fireTicks = 0; } 
     currentEnemy.hp -= dmg; 
     updateChallengeProgress("bigDamage", dmg);
-    team.forEach(idx => { let cd = myCards[idx]; if (cd?.statusAbility?.type === 'clickDmgSelf') { playerHp -= Math.floor(playerHp * cd.statusAbility.value); } });
+    // ФИКС Деку: проверяем и ability, и statusAbility для всех версий
+    team.forEach(idx => { 
+        let cd = myCards[idx]; 
+        if (cd?.ability?.type === 'clickDmgSelf') { playerHp -= Math.floor(playerHp * cd.ability.value); } 
+        if (cd?.statusAbility?.type === 'clickDmgSelf') { playerHp -= Math.floor(playerHp * cd.statusAbility.value); } 
+    });
     if (playerHp <= 0) { defeat(); return; } 
     if (currentEnemy.hp <= 0) { victory(); return; } 
     clicksSinceLastCounter++; let maxClicks = Math.max(1, 3 - enemyStatuses.freezeStacks + enemyStatuses.blindStacks); 
