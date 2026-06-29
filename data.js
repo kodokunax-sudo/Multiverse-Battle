@@ -160,7 +160,7 @@ const customCardTemplates = {
     ]
 };
 
-// ========== БОССЫ И ДИАЛОГИ ==========
+// ========== БОССЫ И ДИАЛОГИ (HP уменьшен в 1.5 раза, урон оригинальный) ==========
 const bossTemplates = {
     50:  { name: "Король Демонов", hpMult: 4, dmgMult: 1.2, dialogue: "Ты думаешь, что сможешь одолеть меня? Глупец.", enemyStatus: { type: "freezeStacks", value: 1 }, canSpare: true, spareReward: "Король Демонов", arenaTypes: [0] },
     100: { name: "Маджин Буу", hpMult: 5.3, dmgMult: 1.6, dialogue: "Буу, я голоден! Ты станешь моим обедом!", enemyStatus: { type: "bleed", value: 0.2 }, canSpare: true, spareReward: "Маджин Буу", arenaTypes: [0] },
