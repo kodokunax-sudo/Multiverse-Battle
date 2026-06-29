@@ -657,25 +657,24 @@ function checkEvolutionQuests() {
         } 
     }
     
-    // 2. Сайтама/Гароу — ваншотнуть 20 раз
-    if (tNames.includes("Сайтама") && tNames.includes("Бог Гароу") && !evoProgress.sgUnlocked) { 
-        // oneShotCount увеличивается в handleClick при срабатывании oneShot
-        if (evoProgress.oneShotCount >= 20) { 
+    // 2. Сайтама/Гароу — ваншотнуть 2000 раз способностью Сайтамы (с Космическим Гароу в команде)
+    if (tNames.includes("Сайтама") && tNames.includes("Космический Гароу") && !evoProgress.sgUnlocked) { 
+        if (evoProgress.oneShotCount >= 2000) { 
             evoProgress.sgUnlocked = true; 
             let template = customCardTemplates["Эволюционная"].find(t => t.name === "Сайтама/Гароу"); 
             if (template) { let c = createCardFromTemplate(template, "Эволюционная"); c.unsellable = true; myCards.push(c); 
-                alert("🧬 Эволюция: Сайтама/Гароу!\n\n20 ваншотов c Сайтамой и Гароу в команде!"); sfxRebirth(); saveAll(); } 
+                alert("🧬 Эволюция: Сайтама/Гароу!\n\n2000 ваншотов c Сайтамой и Космическим Гароу в команде!"); sfxRebirth(); saveAll(); } 
         } 
     } 
     
-    // 3. Гарп/Кудзан — накопить 1 млн урона
+    // 3. Гарп/Кудзан — накопить 1 млрд урона
     if (tNames.includes("Молодой Гарп") && tNames.includes("Кудзан") && !evoProgress.gkUnlocked) { 
         evoProgress.damageGarpKuzan += (window.playerFinalDamage || 0); 
-        if (evoProgress.damageGarpKuzan >= 1000000) { 
+        if (evoProgress.damageGarpKuzan >= 1000000000) { 
             evoProgress.gkUnlocked = true; 
             let template = customCardTemplates["Эволюционная"].find(t => t.name === "Гарп/Кудзан"); 
             if (template) { let c = createCardFromTemplate(template, "Эволюционная"); c.unsellable = true; myCards.push(c); 
-                alert("🧬 Эволюция: Гарп/Кудзан!\n\n1 000 000 урона с Гарпом и Кудзаном!"); sfxRebirth(); saveAll(); } 
+                alert("🧬 Эволюция: Гарп/Кудзан!\n\n1 000 000 000 урона с Гарпом и Кудзаном!"); sfxRebirth(); saveAll(); } 
         } 
     } 
     
@@ -730,7 +729,7 @@ function handleClick() {
     // Проверка oneShot
     if (oneShotChance > 0 && Math.random() < oneShotChance) {
         dmg = currentEnemy.hp; // Убиваем врага мгновенно
-        if (team.some(idx => myCards[idx]?.name === "Сайтама") && team.some(idx => myCards[idx]?.name === "Бог Гароу")) {
+        if (team.some(idx => myCards[idx]?.name === "Сайтама") && team.some(idx => myCards[idx]?.name === "Космический Гароу")) {
             evoProgress.oneShotCount++;
         }
         sfxCrit();
