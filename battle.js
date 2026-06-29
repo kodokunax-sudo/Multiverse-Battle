@@ -618,7 +618,7 @@ function spawnAttack() {
                     let dirX = startX < 0 ? 3.5 * s : -3.5 * s;
                     for (let i = 10; i < 490; i += 22) {
                         if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                        attacks.push({ type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 1 });
+                        attacks.push({ type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 0 });
                     }
                 } else {
                     let gapCenter = 60 + Math.random() * 280;
@@ -627,7 +627,7 @@ function spawnAttack() {
                     let dirY = startY < 0 ? 2.4 * s : -2.4 * s;
                     for (let i = 10; i < 390; i += 22) {
                         if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                        attacks.push({ type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 1 });
+                        attacks.push({ type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 0 });
                     }
                 }
             }
