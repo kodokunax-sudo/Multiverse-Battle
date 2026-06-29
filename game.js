@@ -579,7 +579,7 @@ function startGachaAnimation(card, type) {
     flashNextCard();
 }
 
-// ========== ГЕНЕРАЦИЯ ВРАГА ==========
+// ========== ГЕНЕРАЦИЯ ВРАГА (ФИКС УРОНА) ==========
 function generateEnemy() { 
     firstAttackThisFight = true;
     bossSupportUsedThisFight = false;
@@ -594,13 +594,13 @@ function generateEnemy() {
     if (isUniqueBoss) { 
         let bt = bossTemplates[wave]; 
         hp = Math.floor((50 + wave * 12) * bt.hpMult); 
-        dmg = Math.floor((15 + wave * 6) * bt.dmgMult); 
+        dmg = Math.floor((15 + wave * 6) * bt.dmgMult / 3); // ФИКС: урон уникальных боссов разделён на 3
         name = bt.name; dialogue = bt.dialogue || ""; 
         if (bt.enemyStatus) enemyStat = bt.enemyStatus; 
         showBossDialogue(dialogue); sfxBossAppear(); 
         if (wave === 10000) currentDialog = finalBossResponses; 
     } else if (isBoss) { 
-        hp = Math.floor((50 + wave * 12) * 4); dmg = Math.floor((15 + wave * 6) * 3); name = "👑 БОСС"; hideBossDialogue(); 
+        hp = Math.floor((50 + wave * 12) * 4); dmg = Math.floor((15 + wave * 6) * 2); name = "👑 БОСС"; hideBossDialogue(); // ФИКС: урон обычных боссов *2 вместо *3
     } else { 
         hp = 50 + wave * 12; dmg = 15 + wave * 6; 
         name = enemyNames[Math.floor(Math.random() * enemyNames.length)]; 
@@ -820,8 +820,10 @@ function defeat() {
     defeatHistory.unshift({ wave, hp: Math.floor(playerHp) }); if (defeatHistory.length > 10) defeatHistory.pop(); sfxDefeat();
     let nearestCheckpoint = Math.floor(wave / 50) * 50; if (nearestCheckpoint > highestCheckpoint) { highestCheckpoint = nearestCheckpoint; saveAll(); }
     playerHp = window.playerMaxHp || 100;
+    // ФИКС: сброс побед при смерти — Космический Гароу теряет накопленную силу
+    totalWins = 0;
     if (activeCheckpoint > 0 && activeCheckpoint <= highestCheckpoint) { wave = activeCheckpoint; clicksSinceLastCounter = 0; fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); resurrectedThisFight = false; generateEnemy(); saveAll(); renderEnemy(); renderDefeatHistory(); updatePlayerStats(); renderCheckpoints(); return; }
-    if (highestCheckpoint > 1) { let useCp = confirm("💀 Вы погибли на волне " + wave + "!\n\nУ вас есть чекпоинт на волне " + highestCheckpoint + ".\n\nНачать с чекпоинта? (OK = Да, Отмена = с 1 волны)"); if (useCp) { activeCheckpoint = highestCheckpoint; wave = highestCheckpoint; clicksSinceLastCounter = 0; fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); resurrectedThisFight = false; generateEnemy(); saveAll(); renderEnemy(); renderDefeatHistory(); updatePlayerStats(); renderCheckpoints(); return; } }
+    if (highestCheckpoint > 1) { let useCp = confirm("💀 Вы погибли на волне " + wave + "!\n\nУ вас есть чекпоинт на волне " + highestCheckpoint + ".\n\nНачать с чекпоинта? (OK = Да, Отмена = с 1 волны)"); if (useCp) { activeCheckpoint = highestCheckpoint; totalWins = 0; wave = highestCheckpoint; clicksSinceLastCounter = 0; fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); resurrectedThisFight = false; generateEnemy(); saveAll(); renderEnemy(); renderDefeatHistory(); updatePlayerStats(); renderCheckpoints(); return; } }
     wave = 1; clicksSinceLastCounter = 0; generateEnemy(); fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); resurrectedThisFight = false; saveAll(); renderEnemy(); renderDefeatHistory(); updatePlayerStats();
 }
 
