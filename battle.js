@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v5.1 (PROGRESSION SCALING + FULL SOUNDS) ==========
+// ========== АРЕНА UNDERTALE v5.2 (FIXED DAMAGE SCALING + FULL SOUNDS) ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 30;
@@ -377,9 +377,8 @@ function startArena(bossWave) {
     } else {
         arenaBossDmgMult = 1.0 + (bossWave - 50) / 100 * 0.5;
     }
-    // Базовый урон арены теперь зависит от прокачки урона игрока
-    let playerDmg = (typeof window !== 'undefined' && window.playerFinalDamage) ? window.playerFinalDamage : 20;
-    arenaBaseDmg = Math.max(2, Math.floor(playerDmg * 0.4 * arenaBossDmgMult));
+    // ФИКС: урон атак арены зависит только от волны и множителя босса, НЕ от прокачки игрока
+    arenaBaseDmg = Math.max(2, Math.floor((5 + bossWave * 1.5) * arenaBossDmgMult / 3));
     document.getElementById("arenaOverlay").style.display = "flex";
     document.getElementById("arenaBossName").innerText = arenaBoss;
     document.getElementById("arenaHP").innerText = arenaHP;
