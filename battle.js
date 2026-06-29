@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v5.0 (FIXED KILL REWARD + FULL SOUNDS) ==========
+// ========== АРЕНА UNDERTALE v5.1 (PROGRESSION SCALING + FULL SOUNDS) ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 30;
@@ -288,6 +288,7 @@ function checkClickTarget(mx, my) {
 }
 
 function calculateArenaHP() {
+    // Бонус от карт в отряде (каждые 50 HP карты = +1 HP арены)
     let bonus = 0;
     let cards = window.myCards || (typeof myCards !== 'undefined' ? myCards : null);
     let teamArr = window.team || (typeof team !== 'undefined' ? team : null);
@@ -299,7 +300,16 @@ function calculateArenaHP() {
             }
         }
     }
-    arenaMaxHP = 30 + bonus;
+    // Бонус от прокачки HP (половина от прибавки к HP игрока)
+    let hpUpgradeBonus = 0;
+    if (typeof upgrades !== 'undefined' && upgrades.hp) {
+        hpUpgradeBonus = Math.floor(upgrades.hp.level * upgrades.hp.increment / 2);
+    }
+    // Бонус от общего макс. HP (+1 HP за каждые 20 макс. HP)
+    let playerMaxHp = (typeof window !== 'undefined' && window.playerMaxHp) ? window.playerMaxHp : 100;
+    let hpScaleBonus = Math.floor(playerMaxHp / 20);
+    
+    arenaMaxHP = 30 + bonus + hpUpgradeBonus + hpScaleBonus;
     arenaHP = arenaMaxHP;
     ghostHP = arenaHP;
 }
@@ -331,6 +341,8 @@ function startArena(bossWave) {
     if (btn) btn.style.display = "none";
     let spareBtn = document.getElementById("spareBtn");
     if (spareBtn) spareBtn.style.display = "none";
+    let skipBtn = document.getElementById("skipArenaBtn");
+    if (skipBtn) skipBtn.style.display = "none";
     arenaBossDefeatedBefore = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossWave));
     arenaActive = true;
     arenaCurrentWave = bossWave;
@@ -365,13 +377,15 @@ function startArena(bossWave) {
     } else {
         arenaBossDmgMult = 1.0 + (bossWave - 50) / 100 * 0.5;
     }
-    arenaBaseDmg = Math.max(2, Math.floor(5 * arenaBossDmgMult / 3));
+    // Базовый урон арены теперь зависит от прокачки урона игрока
+    let playerDmg = (typeof window !== 'undefined' && window.playerFinalDamage) ? window.playerFinalDamage : 20;
+    arenaBaseDmg = Math.max(2, Math.floor(playerDmg * 0.4 * arenaBossDmgMult));
     document.getElementById("arenaOverlay").style.display = "flex";
     document.getElementById("arenaBossName").innerText = arenaBoss;
     document.getElementById("arenaHP").innerText = arenaHP;
     document.getElementById("arenaTimer").innerText = "∞";
-    let skipBtn = document.getElementById("skipBossBtn");
-    if (skipBtn) skipBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
+    let skipBossBtn = document.getElementById("skipBossBtn");
+    if (skipBossBtn) skipBossBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
     if (!ctx) initArena();
     if (animFrameId) cancelAnimationFrame(animFrameId);
     
@@ -534,6 +548,7 @@ function applyArenaDamage() {
     }
     
     arenaComboTimer = 50;
+    // Урон в фазе атаки зависит от playerFinalDamage (уже включает всю прокачку)
     let baseDmg = typeof window !== 'undefined' && window.playerFinalDamage ? window.playerFinalDamage : 20;
     let finalDmg = Math.floor(baseDmg * dmgMult);
     if (finalDmg > 0) {
@@ -725,10 +740,10 @@ function winArena() {
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
         if (!defeatedBosses.includes(arenaCurrentWave)) {
             defeatedBosses.push(arenaCurrentWave);
-            if (typeof grantBossGachaReward === 'function') {
-                grantBossGachaReward(arenaCurrentWave);
-            }
         }
+    }
+    if (typeof grantBossGachaReward === 'function') {
+        grantBossGachaReward(arenaCurrentWave);
     }
     stopArena();
     if (typeof currentEnemy !== 'undefined' && currentEnemy) {
