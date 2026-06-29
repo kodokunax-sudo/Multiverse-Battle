@@ -429,13 +429,23 @@ function checkGachaReset() {
 
 function grantBossGachaReward(bossWave) {
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
-        if (defeatedBosses.includes(bossWave)) return;
-        defeatedBosses.push(bossWave);
+        // Не проверяем, был ли босс уже побеждён — всегда даём награду за уникального босса
+        if (!defeatedBosses.includes(bossWave)) {
+            defeatedBosses.push(bossWave);
+        }
     }
     checkGachaReset();
+    // Всегда даём легендарные крутки за босса (не больше 2, но не проверяем лимит строго)
     let legendaryToAdd = Math.min(2, 10 - legendaryGachaTokens);
-    if (legendaryToAdd > 0) { legendaryGachaTokens += legendaryToAdd; showFloatingText("🎰 +" + legendaryToAdd + " ЛЕГЕНДАРНЫХ КРУТОК!", "#ffd700"); }
-    if (secretGachaTokens < 2 && Math.random() < 0.15) { secretGachaTokens++; showFloatingText("🎰 СЕКРЕТНАЯ КРУТКА!", "#ff00ff"); }
+    if (legendaryToAdd > 0) { 
+        legendaryGachaTokens += legendaryToAdd; 
+        showFloatingText("🎰 +" + legendaryToAdd + " ЛЕГЕНДАРНЫХ КРУТОК!", "#ffd700"); 
+    }
+    // Шанс на секретную крутку
+    if (secretGachaTokens < 2 && Math.random() < 0.15) { 
+        secretGachaTokens++; 
+        showFloatingText("🎰 СЕКРЕТНАЯ КРУТКА!", "#ff00ff"); 
+    }
     saveAll();
     if (typeof renderGachaTab === 'function') renderGachaTab();
 }
@@ -611,6 +621,12 @@ function generateEnemy() {
     let arenaWaves = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000, 3200, 3400, 3600, 3800, 4000, 4200, 4400, 4600, 4800, 5000, 10000];
     let showArenaBtn = (isBoss || isUniqueBoss) && wave >= 50 && arenaWaves.includes(wave);
     let btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = showArenaBtn ? "block" : "none";
+    // Кнопка пропуска арены для уже побеждённых боссов
+    let skipBtn = document.getElementById("skipArenaBtn");
+    if (skipBtn) {
+        let alreadyDefeated = isUniqueBoss && typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(wave);
+        skipBtn.style.display = (showArenaBtn && alreadyDefeated) ? "block" : "none";
+    }
     startBattleMusic(); renderEnemy(); updateStatusDisplay(); updateEnemyStatusDisplay(); 
 }
 
@@ -633,6 +649,21 @@ function spareBoss() {
         let el = document.getElementById("spareBtn"); if (el) el.style.display = "none";
         if (playerHp <= 0) defeat(); else { renderEnemy(); updatePlayerStats(); }
     }
+}
+
+// Пропуск арены для уже побеждённого босса
+function skipArenaFight() {
+    if (!currentEnemy || !currentEnemy.isBoss) return;
+    let isUniqueBoss = (typeof bossTemplates !== 'undefined' && bossTemplates[wave] !== undefined);
+    if (!isUniqueBoss) return;
+    let alreadyDefeated = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(wave);
+    if (!alreadyDefeated) return;
+    // Делаем босса обычным мобом (убираем арену)
+    currentEnemy.isBoss = false;
+    document.getElementById("startArenaBtn").style.display = "none";
+    let skipBtn = document.getElementById("skipArenaBtn");
+    if (skipBtn) skipBtn.style.display = "none";
+    showFloatingText("⏭️ Босс пропущен!", "#ffaa00");
 }
 
 function createCardFromTemplate(tm, r) { let s = cardStats[r]; let d = tm.damage ?? s.damage, hp = tm.hp ?? s.hp, sp = tm.sellPrice ?? s.sellPrice; let n = tm.name, a = tm.ability || null, u = tm.universe || "?", uns = tm.unsellable || false; if (!discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } totalCardsObtained++; if (points > maxPoints) maxPoints = points; return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, ability: a, universe: u, unsellable: uns, minRebirth: tm.minRebirth || 0, statusAbility: tm.statusAbility || null, extraStatus: tm.extraStatus || null }; }
@@ -776,6 +807,7 @@ function victory() {
     updateChallengeProgress("earnPoints", rew);
     updateChallengeProgress("wins", 1);
     if (isBoss) updateChallengeProgress("bossKills", 1);
+    // Выдаём награду за ЛЮБОГО уникального босса каждые 50 волн
     if (isBoss && wave % 50 === 0) { 
         highestCheckpoint = Math.max(highestCheckpoint, wave); 
         grantBossGachaReward(wave);
