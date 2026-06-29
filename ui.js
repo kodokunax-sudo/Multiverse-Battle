@@ -48,11 +48,17 @@ function renderEvoTab() {
     html += '<small>Луффи: ' + (hasAllLuffys ? '✅' : '❌') + ' | 5 карт: ' + (onlyFive ? '✅' : '❌ (' + team.length + ')') + ' | Все Луффи: ' + (allAreLuffys ? '✅' : '❌') + '</small><br>';
     html += '<b>Статус:</b> ' + (luffyDone ? '✅' : '❌') + '</div>';
     
-    html += '<div class="evo-quest ' + (evoProgress.sgUnlocked ? 'done' : '') + '"><b>👊 Сайтама/Гароу</b><br>Ваншотните врагов 20 раз (Сайтама + Бог Гароу в команде).<br>';
-    html += evoProgress.oneShotCount + '/20 ваншотов<br><b>Статус:</b> ' + (evoProgress.sgUnlocked ? '✅' : 'В процессе') + '</div>';
+    let hasSaitama = tNames.includes("Сайтама");
+    let hasGarou = tNames.includes("Космический Гароу");
+    html += '<div class="evo-quest ' + (evoProgress.sgUnlocked ? 'done' : '') + '"><b>👊 Сайтама/Гароу</b><br>Ваншотните врагов 2000 раз способностью Сайтамы (Космический Гароу в команде).<br>';
+    html += '<small>Сайтама: ' + (hasSaitama ? '✅' : '❌') + ' | Космический Гароу: ' + (hasGarou ? '✅' : '❌') + '</small><br>';
+    html += evoProgress.oneShotCount + '/2000 ваншотов<br><b>Статус:</b> ' + (evoProgress.sgUnlocked ? '✅' : 'В процессе') + '</div>';
     
-    html += '<div class="evo-quest ' + (evoProgress.gkUnlocked ? 'done' : '') + '"><b>❄️ Гарп/Кудзан</b><br>Накопите 1 000 000 урона (Молодой Гарп + Кудзан в команде).<br>';
-    html += Math.floor(evoProgress.damageGarpKuzan).toLocaleString() + '/1 000 000<br><b>Статус:</b> ' + (evoProgress.gkUnlocked ? '✅' : 'В процессе') + '</div>';
+    let hasGarp = tNames.includes("Молодой Гарп");
+    let hasKuzan = tNames.includes("Кудзан");
+    html += '<div class="evo-quest ' + (evoProgress.gkUnlocked ? 'done' : '') + '"><b>❄️ Гарп/Кудзан</b><br>Накопите 1 000 000 000 урона (Молодой Гарп + Кудзан в команде).<br>';
+    html += '<small>Гарп: ' + (hasGarp ? '✅' : '❌') + ' | Кудзан: ' + (hasKuzan ? '✅' : '❌') + '</small><br>';
+    html += Math.floor(evoProgress.damageGarpKuzan).toLocaleString() + '/1 000 000 000<br><b>Статус:</b> ' + (evoProgress.gkUnlocked ? '✅' : 'В процессе') + '</div>';
     
     let sevenMembersNew = ["Хоумлендер", "Звёздочка", "Мреющий", "Чёрный Нуар", "Пучино", "Королева Мэйв"];
     let hasAllSeven = sevenMembersNew.every(n => tNames.includes(n));
