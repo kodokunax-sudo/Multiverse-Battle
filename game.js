@@ -647,6 +647,7 @@ function spareBoss() {
     }
 }
 
+// ФИКС: при пропуске арены сбрасываем урон босса до уровня обычного
 function skipArenaFight() {
     if (!currentEnemy || !currentEnemy.isBoss) return;
     let isUniqueBoss = (typeof bossTemplates !== 'undefined' && bossTemplates[wave] !== undefined);
@@ -654,6 +655,7 @@ function skipArenaFight() {
     let alreadyDefeated = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(wave);
     if (!alreadyDefeated) return;
     currentEnemy.isBoss = false;
+    currentEnemy.damage = Math.floor((15 + wave * 6) * 2); // ФИКС: урон как у обычного босса, а не уникального
     document.getElementById("startArenaBtn").style.display = "none";
     let skipBtn = document.getElementById("skipArenaBtn");
     if (skipBtn) skipBtn.style.display = "none";
@@ -820,8 +822,7 @@ function defeat() {
     defeatHistory.unshift({ wave, hp: Math.floor(playerHp) }); if (defeatHistory.length > 10) defeatHistory.pop(); sfxDefeat();
     let nearestCheckpoint = Math.floor(wave / 50) * 50; if (nearestCheckpoint > highestCheckpoint) { highestCheckpoint = nearestCheckpoint; saveAll(); }
     playerHp = window.playerMaxHp || 100;
-    // ФИКС: сброс побед при смерти — Космический Гароу теряет накопленную силу
-    totalWins = 0;
+    totalWins = 0; // ФИКС: сброс побед при смерти — Космический Гароу теряет накопленную силу
     if (activeCheckpoint > 0 && activeCheckpoint <= highestCheckpoint) { wave = activeCheckpoint; clicksSinceLastCounter = 0; fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); resurrectedThisFight = false; generateEnemy(); saveAll(); renderEnemy(); renderDefeatHistory(); updatePlayerStats(); renderCheckpoints(); return; }
     if (highestCheckpoint > 1) { let useCp = confirm("💀 Вы погибли на волне " + wave + "!\n\nУ вас есть чекпоинт на волне " + highestCheckpoint + ".\n\nНачать с чекпоинта? (OK = Да, Отмена = с 1 волны)"); if (useCp) { activeCheckpoint = highestCheckpoint; totalWins = 0; wave = highestCheckpoint; clicksSinceLastCounter = 0; fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); resurrectedThisFight = false; generateEnemy(); saveAll(); renderEnemy(); renderDefeatHistory(); updatePlayerStats(); renderCheckpoints(); return; } }
     wave = 1; clicksSinceLastCounter = 0; generateEnemy(); fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); resurrectedThisFight = false; saveAll(); renderEnemy(); renderDefeatHistory(); updatePlayerStats();
