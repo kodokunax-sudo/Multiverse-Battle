@@ -600,7 +600,7 @@ function generateEnemy() {
         showBossDialogue(dialogue); sfxBossAppear(); 
         if (wave === 10000) currentDialog = finalBossResponses; 
     } else if (isBoss) { 
-        hp = Math.floor((50 + wave * 12) * 2); dmg = Math.floor((15 + wave * 6) * 1); name = "👑 БОСС"; hideBossDialogue(); // ФИКС: обычные боссы HP×2, урон×1
+        hp = Math.floor((50 + wave * 12) * 2); dmg = Math.floor((15 + wave * 6) * 1); name = "👑 БОСС"; hideBossDialogue(); // Обычные боссы HP×2, урон×1
     } else { 
         hp = 50 + wave * 12; dmg = 15 + wave * 6; 
         name = enemyNames[Math.floor(Math.random() * enemyNames.length)]; 
@@ -647,6 +647,7 @@ function spareBoss() {
     }
 }
 
+// ФИКС: при пропуске арены сбрасываем урон босса и добавляем в defeatedBosses
 function skipArenaFight() {
     if (!currentEnemy || !currentEnemy.isBoss) return;
     let isUniqueBoss = (typeof bossTemplates !== 'undefined' && bossTemplates[wave] !== undefined);
@@ -654,7 +655,13 @@ function skipArenaFight() {
     let alreadyDefeated = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(wave);
     if (!alreadyDefeated) return;
     currentEnemy.isBoss = false;
-    currentEnemy.damage = Math.floor((15 + wave * 6) * 1); // ФИКС: урон как у обычного босса (×1)
+    currentEnemy.damage = Math.floor((15 + wave * 6) * 1);
+    // Добавляем босса в список побеждённых при пропуске
+    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
+        if (!defeatedBosses.includes(wave)) {
+            defeatedBosses.push(wave);
+        }
+    }
     document.getElementById("startArenaBtn").style.display = "none";
     let skipBtn = document.getElementById("skipArenaBtn");
     if (skipBtn) skipBtn.style.display = "none";
@@ -761,7 +768,6 @@ function handleClick() {
         dmg = Math.floor(dmg * enemyStatuses.bleedMult); 
     }
     
-    checkEvolutionQuests(); 
     if (enemyStatuses.fireTicks > 0 && enemyStatuses.fireDamage > 0) { startFireEffectPassive(enemyStatuses.fireDamage, enemyStatuses.fireTicks * 1000); enemyStatuses.fireTicks = 0; } 
     currentEnemy.hp -= dmg; 
     updateChallengeProgress("bigDamage", dmg);
@@ -797,11 +803,14 @@ function victory() {
     updateChallengeProgress("earnPoints", rew);
     updateChallengeProgress("wins", 1);
     if (isBoss) updateChallengeProgress("bossKills", 1);
+    // Выдаём награду за уникальных боссов
     if (isBoss && wave % 50 === 0) { 
         highestCheckpoint = Math.max(highestCheckpoint, wave); 
         grantBossGachaReward(wave);
         saveAll(); renderCheckpoints(); 
     }
+    // ФИКС: проверяем эволюции здесь, когда враг точно мёртв
+    if (isBoss) checkEvolutionQuests();
     if (wave === 10000 && isBoss) { gameCompleted = true; saveAll(); alert("🏆 ПОЗДРАВЛЯЕМ! Вы победили финального босса на 10000 волне!\n\nИгра пройдена! Но вы можете продолжать играть бесконечно.\n\nВсе ваши чекпоинты сохранены."); }
     if (isBoss) { let rarity = getBossRewardRarity(wave); if (rarity !== "Босс") { let c = createCard(rarity); if (c) myCards.push(c); } renderMyCards(); let hasZeno = team.some(idx => myCards[idx]?.ability?.type === 'zenoCheckpoint'); if (hasZeno && Math.random() < 0.10) { let nextCp = Math.floor(wave / 50) * 50 + 50; if (nextCp > highestCheckpoint) { highestCheckpoint = nextCp; saveAll(); } showFloatingText("🌀 ЗЕНО: чекпоинт " + nextCp + "!", "#9b59b6"); } sfxVictory(); } else { sfxVictory(); }
     if (team.some(idx => myCards[idx]?.ability?.type === 'teamHealOnWave')) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.02); }
