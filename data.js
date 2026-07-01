@@ -181,38 +181,69 @@ const bossTemplates = {
     850: { name: "Левиафан (Пробуждённый)", hpMult: 24, dmgMult: 2.7, dialogue: "Океан поглотит всё.", enemyStatus: { type: "bleed", value: 0.3 }, canSpare: true, arenaTypes: [2,3,5,7] },
     900: { name: "Властелин Молний", hpMult: 18.7, dmgMult: 3.9, dialogue: "Быстрее молнии? Не в этой жизни.", enemyStatus: { type: "shock", chance: 0.6 }, canSpare: true, arenaTypes: [1,3,9,10] },
     950: { name: "Жнец Душ", hpMult: 22.7, dmgMult: 3.5, dialogue: "Твоя жизнь... она закончится здесь.", enemyStatus: { type: "poison", damage: 8 }, canSpare: true, arenaTypes: [1,5,6,7] },
-    1000: { name: "Император Хаоса", hpMult: 26.7, dmgMult: 3.7, dialogue: "Хаос — это не беспорядок. Это свобода!", enemyStatus: { type: "bleed", value: 0.35 }, canSpare: true, arenaTypes: [0,2,4,6,8] },
-    1100: { name: "Архидемон Баал", hpMult: 29.3, dmgMult: 4.0, dialogue: "Я сожгу твою душу дотла.", enemyStatus: { type: "fire", damage: 15, duration: 3000 }, canSpare: true, arenaTypes: [3,5,7,9,10] },
-    1200: { name: "Хранитель Бездны", hpMult: 32, dmgMult: 3.6, dialogue: "Бездна смотрит в тебя... и улыбается.", enemyStatus: { type: "freezeStacks", value: 4 }, canSpare: true, arenaTypes: [0,1,2,3,8] },
-    1300: { name: "Небесный Страж", hpMult: 28, dmgMult: 4.5, dialogue: "Небеса не простят твоих грехов.", enemyStatus: { type: "blind", value: 4 }, canSpare: true, arenaTypes: [4,6,7,10] },
-    1400: { name: "Князь Тьмы", hpMult: 34.7, dmgMult: 4.3, dialogue: "Тьма — это не отсутствие света. Это сила.", enemyStatus: { type: "poison", damage: 10 }, canSpare: true, arenaTypes: [2,3,6,8,9] },
-    1500: { name: "Эрен (Титан-основатель)", hpMult: 37.3, dmgMult: 4.8, dialogue: "Я уничтожу всех... ради свободы.", enemyStatus: { type: "bleed", value: 0.4 }, canSpare: true, arenaTypes: [0,1,4,5,8] },
-    1600: { name: "Гатс (Берсерк)", hpMult: 40, dmgMult: 5.3, dialogue: "Я буду бороться... до последнего вздоха.", enemyStatus: { type: "bleed", value: 0.5 }, canSpare: true, spareReward: "Гатс (Берсерк)", arenaTypes: [1,3,5,7,9] },
-    1700: { name: "Драконий Император", hpMult: 38.7, dmgMult: 5.1, dialogue: "Моя чешуя крепче любой брони.", enemyStatus: { type: "fire", damage: 20, duration: 2000 }, canSpare: true, arenaTypes: [0,2,5,9,10] },
-    1800: { name: "Великий Маг", hpMult: 30.7, dmgMult: 6.0, dialogue: "Магия — это искусство разрушения.", enemyStatus: { type: "shock", chance: 0.7 }, canSpare: true, arenaTypes: [1,4,6,7,10] },
-    1900: { name: "Луффи (Гир 5)", hpMult: 42.7, dmgMult: 5.6, dialogue: "Я стану Королём Пиратов!", enemyStatus: { type: "blind", value: 3 }, canSpare: true, arenaTypes: [0,3,5,8,9] },
-    2000: { name: "Омни-Мэн (Пробуждённый)", hpMult: 46.7, dmgMult: 6.1, dialogue: "Подумай, сын! Ты сражаешься на неправильной стороне!", enemyStatus: { type: "bleed", value: 0.5 }, canSpare: true, spareReward: "Омни-Мэн", arenaTypes: [4,6,8,9,10] },
-    2100: { name: "Сайтама (Серьёзный)", hpMult: 80, dmgMult: 9.3, dialogue: "Ну... я просто честно тренировался.", enemyStatus: { type: "shock", chance: 0.5 }, canSpare: true, spareReward: "Сайтама", arenaTypes: [0,2,4,6,8,10] },
-    2200: { name: "Король Проклятий (Полный)", hpMult: 50.7, dmgMult: 6.7, dialogue: "Ты даже не достоин быть моей закуской.", enemyStatus: { type: "poison", damage: 12 }, canSpare: true, arenaTypes: [1,3,5,7,9,10] },
-    2300: { name: "Бог Гароу", hpMult: 54.7, dmgMult: 7.2, dialogue: "Я — абсолютное зло. И я уничтожу всё.", enemyStatus: { type: "fire", damage: 25, duration: 1500 }, canSpare: true, arenaTypes: [2,4,6,8,9,10] },
-    2400: { name: "Зено (Рассерженный)", hpMult: 63.3, dmgMult: 8.0, dialogue: "Ты... ты меня разозлил.", enemyStatus: { type: "oneshot", chance: 0.05 }, canSpare: false, arenaTypes: [0,3,6,7,8,9] },
-    2500: { name: "Анти-Спираль (Финальная форма)", hpMult: 73.3, dmgMult: 8.7, dialogue: "Отчаяние... это всё что у тебя осталось.", enemyStatus: { type: "freezeStacks", value: 6 }, canSpare: true, arenaTypes: [0,1,2,4,6,8,9] },
-    2600: { name: "Деку (1.000.000%)", hpMult: 66.7, dmgMult: 9.0, dialogue: "Я передам эстафету... ВСЕМ!", enemyStatus: { type: "shock", chance: 0.8 }, canSpare: true, arenaTypes: [1,3,5,7,9] },
-    2700: { name: "Имир (Прародитель)", hpMult: 83.3, dmgMult: 8.3, dialogue: "Я прожила 2000 лет... и всё ради этого.", enemyStatus: { type: "bleed", value: 0.6 }, canSpare: true, arenaTypes: [0,2,4,6,8] },
-    2800: { name: "Властелин Времени", hpMult: 60, dmgMult: 10.0, dialogue: "Время... оно течёт только в одном направлении.", enemyStatus: { type: "blind", value: 5 }, canSpare: true, arenaTypes: [3,5,7,9,10] },
-    2900: { name: "Архитектор Реальности", hpMult: 72, dmgMult: 9.7, dialogue: "Я создал этот мир... и я могу его уничтожить.", enemyStatus: { type: "poison", damage: 15 }, canSpare: true, arenaTypes: [0,1,4,6,8,10] },
-    3000: { name: "Хоумлендер (Безудержный)", hpMult: 80, dmgMult: 10.7, dialogue: "Я — единственный бог в этом мире.", enemyStatus: { type: "fire", damage: 30, duration: 1000 }, canSpare: true, arenaTypes: [2,5,8,9,10] },
-    3200: { name: "Всеотец Один", hpMult: 93.3, dmgMult: 10.0, dialogue: "Мудрость... вот что побеждает силу.", enemyStatus: { type: "shock", chance: 0.9 }, canSpare: true, arenaTypes: [0,3,5,7,9] },
-    3400: { name: "Феникс Возрождённый", hpMult: 106.7, dmgMult: 9.3, dialogue: "Из пепла я восстану снова и снова!", enemyStatus: { type: "fire", damage: 35, duration: 800 }, canSpare: true, arenaTypes: [1,4,6,8,10] },
-    3600: { name: "Тёмный Рыцарь", hpMult: 116.7, dmgMult: 11.3, dialogue: "Я — возмездие. Я — ночь.", enemyStatus: { type: "bleed", value: 0.7 }, canSpare: true, arenaTypes: [0,2,5,7,9,10] },
-    3800: { name: "Разрушитель Миров", hpMult: 126.7, dmgMult: 12.3, dialogue: "Я уничтожил сотни миров. Твой будет последним.", enemyStatus: { type: "oneshot", chance: 0.03 }, canSpare: true, arenaTypes: [1,3,6,8,9,10] },
-    4000: { name: "Бог-Император", hpMult: 140, dmgMult: 13.3, dialogue: "Склонись... или умри стоя.", enemyStatus: { type: "freezeStacks", value: 8 }, canSpare: true, arenaTypes: [0,1,2,3,4,5,6,7,8,9,10] },
-    4200: { name: "Абсолютное Ничто", hpMult: 160, dmgMult: 12.0, dialogue: "...............", enemyStatus: { type: "blind", value: 6 }, canSpare: false, arenaTypes: [6,7,8,9,10] },
-    4400: { name: "Хранитель Врат", hpMult: 153.3, dmgMult: 14.7, dialogue: "За мной — бесконечность. Ты не пройдёшь.", enemyStatus: { type: "shock", chance: 1.0 }, canSpare: true, arenaTypes: [0,2,4,6,8,10] },
-    4600: { name: "Судья Душ", hpMult: 173.3, dmgMult: 16.0, dialogue: "Твоя душа взвешена... и признана недостойной.", enemyStatus: { type: "poison", damage: 20 }, canSpare: true, arenaTypes: [1,3,5,7,9,10] },
-    4800: { name: "Король-Звезда", hpMult: 186.7, dmgMult: 17.3, dialogue: "Я зажгу сверхновую... прямо здесь.", enemyStatus: { type: "fire", damage: 40, duration: 500 }, canSpare: true, arenaTypes: [0,1,4,6,8,9,10] },
-    5000: { name: "Предвестник Конца", hpMult: 206.7, dmgMult: 20.0, dialogue: "Конец... это только начало.", enemyStatus: { type: "oneshot", chance: 0.1 }, canSpare: false, arenaTypes: [0,1,2,3,4,5,6,7,8,9,10] },
-    10000: { name: "Охотник за головами (Финальная форма)", hpMult: 36.7, dmgMult: 3.3, dialogue: "Хах, пока вас не было я тренировался целыми днями ради этого момента! Теперь за вашу голову готовы отдать 100.000 тенге!", canSpare: true, spareReward: "Охотник за головами", hasDialog: true, arenaTypes: [0,1,2,3,4,5,6,7,8,9,10] }
+   1000: { name: "Император Хаоса", hpMult: 26.7, dmgMult: 2.8, dialogue: "Хаос — это не беспорядок. Это свобода!", enemyStatus: { type: "bleed", value: 0.35 }, canSpare: true, arenaTypes: [0,2,4,6,8] },
+    // Было 6.0, стало 3.0
+    1100: { name: "Архидемон Баал", hpMult: 29.3, dmgMult: 3.0, dialogue: "Я сожгу твою душу дотла.", enemyStatus: { type: "fire", damage: 15, duration: 3000 }, canSpare: true, arenaTypes: [3,5,7,9,10] },
+    // Было 5.4, стало 2.7
+    1200: { name: "Хранитель Бездны", hpMult: 32, dmgMult: 2.7, dialogue: "Бездна смотрит в тебя... и улыбается.", enemyStatus: { type: "freezeStacks", value: 4 }, canSpare: true, arenaTypes: [0,1,2,3,8] },
+    // Было 6.8, стало 3.4
+    1300: { name: "Небесный Страж", hpMult: 28, dmgMult: 3.4, dialogue: "Небеса не простят твоих грехов.", enemyStatus: { type: "blind", value: 4 }, canSpare: true, arenaTypes: [4,6,7,10] },
+    // Было 6.4, стало 3.2
+    1400: { name: "Князь Тьмы", hpMult: 34.7, dmgMult: 3.2, dialogue: "Тьма — это не отсутствие света. Это сила.", enemyStatus: { type: "poison", damage: 10 }, canSpare: true, arenaTypes: [2,3,6,8,9] },
+    // Было 7.2, стало 3.6
+    1500: { name: "Эрен (Титан-основатель)", hpMult: 37.3, dmgMult: 3.6, dialogue: "Я уничтожу всех... ради свободы.", enemyStatus: { type: "bleed", value: 0.4 }, canSpare: true, arenaTypes: [0,1,4,5,8] },
+    // Было 8.0, стало 4.0
+    1600: { name: "Гатс (Берсерк)", hpMult: 40, dmgMult: 4.0, dialogue: "Я буду бороться... до последнего вздоха.", enemyStatus: { type: "bleed", value: 0.5 }, canSpare: true, spareReward: "Гатс (Берсерк)", arenaTypes: [1,3,5,7,9] },
+    // Было 7.6, стало 3.8
+    1700: { name: "Драконий Император", hpMult: 38.7, dmgMult: 3.8, dialogue: "Моя чешуя крепче любой брони.", enemyStatus: { type: "fire", damage: 20, duration: 2000 }, canSpare: true, arenaTypes: [0,2,5,9,10] },
+    // Было 9.0, стало 4.5
+    1800: { name: "Великий Маг", hpMult: 30.7, dmgMult: 4.5, dialogue: "Магия — это искусство разрушения.", enemyStatus: { type: "shock", chance: 0.7 }, canSpare: true, arenaTypes: [1,4,6,7,10] },
+    // Было 8.4, стало 4.2
+    1900: { name: "Луффи (Гир 5)", hpMult: 42.7, dmgMult: 4.2, dialogue: "Я стану Королём Пиратов!", enemyStatus: { type: "blind", value: 3 }, canSpare: true, arenaTypes: [0,3,5,8,9] },
+    // Было 9.2, стало 4.6
+    2000: { name: "Омни-Мэн (Пробуждённый)", hpMult: 46.7, dmgMult: 4.6, dialogue: "Подумай, сын! Ты сражаешься на неправильной стороне!", enemyStatus: { type: "bleed", value: 0.5 }, canSpare: true, spareReward: "Омни-Мэн", arenaTypes: [4,6,8,9,10] },
+    // Было 14.0, стало 7.0
+    2100: { name: "Сайтама (Серьёзный)", hpMult: 80, dmgMult: 7.0, dialogue: "Ну... я просто честно тренировался.", enemyStatus: { type: "shock", chance: 0.5 }, canSpare: true, spareReward: "Сайтама", arenaTypes: [0,2,4,6,8,10] },
+    // Было 10.0, стало 5.0
+    2200: { name: "Король Проклятий (Полный)", hpMult: 50.7, dmgMult: 5.0, dialogue: "Ты даже не достоин быть моей закуской.", enemyStatus: { type: "poison", damage: 12 }, canSpare: true, arenaTypes: [1,3,5,7,9,10] },
+    // Было 10.8, стало 5.4
+    2300: { name: "Бог Гароу", hpMult: 54.7, dmgMult: 5.4, dialogue: "Я — абсолютное зло. И я уничтожу всё.", enemyStatus: { type: "fire", damage: 25, duration: 1500 }, canSpare: true, arenaTypes: [2,4,6,8,9,10] },
+    // Было 12.0, стало 6.0
+    2400: { name: "Зено (Рассерженный)", hpMult: 63.3, dmgMult: 6.0, dialogue: "Ты... ты меня разозлил.", enemyStatus: { type: "oneshot", chance: 0.05 }, canSpare: false, arenaTypes: [0,3,6,7,8,9] },
+    // Было 13.0, стало 6.5
+    2500: { name: "Анти-Спираль (Финальная форма)", hpMult: 73.3, dmgMult: 6.5, dialogue: "Отчаяние... это всё что у тебя осталось.", enemyStatus: { type: "freezeStacks", value: 6 }, canSpare: true, arenaTypes: [0,1,2,4,6,8,9] },
+    // Было 13.5, стало 6.8
+    2600: { name: "Деку (1.000.000%)", hpMult: 66.7, dmgMult: 6.8, dialogue: "Я передам эстафету... ВСЕМ!", enemyStatus: { type: "shock", chance: 0.8 }, canSpare: true, arenaTypes: [1,3,5,7,9] },
+    // Было 12.5, стало 6.3
+    2700: { name: "Имир (Прародитель)", hpMult: 83.3, dmgMult: 6.3, dialogue: "Я прожила 2000 лет... и всё ради этого.", enemyStatus: { type: "bleed", value: 0.6 }, canSpare: true, arenaTypes: [0,2,4,6,8] },
+    // Было 15.0, стало 7.5
+    2800: { name: "Властелин Времени", hpMult: 60, dmgMult: 7.5, dialogue: "Время... оно течёт только в одном направлении.", enemyStatus: { type: "blind", value: 5 }, canSpare: true, arenaTypes: [3,5,7,9,10] },
+    // Было 14.5, стало 7.3
+    2900: { name: "Архитектор Реальности", hpMult: 72, dmgMult: 7.3, dialogue: "Я создал этот мир... и я могу его уничтожить.", enemyStatus: { type: "poison", damage: 15 }, canSpare: true, arenaTypes: [0,1,4,6,8,10] },
+    // Было 16.0, стало 8.0
+    3000: { name: "Хоумлендер (Безудержный)", hpMult: 80, dmgMult: 8.0, dialogue: "Я — единственный бог в этом мире.", enemyStatus: { type: "fire", damage: 30, duration: 1000 }, canSpare: true, arenaTypes: [2,5,8,9,10] },
+    // Было 15.0, стало 7.5
+    3200: { name: "Всеотец Один", hpMult: 93.3, dmgMult: 7.5, dialogue: "Мудрость... вот что побеждает силу.", enemyStatus: { type: "shock", chance: 0.9 }, canSpare: true, arenaTypes: [0,3,5,7,9] },
+    // Было 14.0, стало 7.0
+    3400: { name: "Феникс Возрождённый", hpMult: 106.7, dmgMult: 7.0, dialogue: "Из пепла я восстану снова и снова!", enemyStatus: { type: "fire", damage: 35, duration: 800 }, canSpare: true, arenaTypes: [1,4,6,8,10] },
+    // Было 17.0, стало 8.5
+    3600: { name: "Тёмный Рыцарь", hpMult: 116.7, dmgMult: 8.5, dialogue: "Я — возмездие. Я — ночь.", enemyStatus: { type: "bleed", value: 0.7 }, canSpare: true, arenaTypes: [0,2,5,7,9,10] },
+    // Было 18.5, стало 9.3
+    3800: { name: "Разрушитель Миров", hpMult: 126.7, dmgMult: 9.3, dialogue: "Я уничтожил сотни миров. Твой будет последним.", enemyStatus: { type: "oneshot", chance: 0.03 }, canSpare: true, arenaTypes: [1,3,6,8,9,10] },
+    // Было 20.0, стало 10.0
+    4000: { name: "Бог-Император", hpMult: 140, dmgMult: 10.0, dialogue: "Склонись... или умри стоя.", enemyStatus: { type: "freezeStacks", value: 8 }, canSpare: true, arenaTypes: [0,1,2,3,4,5,6,7,8,9,10] },
+    // Было 18.0, стало 9.0
+    4200: { name: "Абсолютное Ничто", hpMult: 160, dmgMult: 9.0, dialogue: "...............", enemyStatus: { type: "blind", value: 6 }, canSpare: false, arenaTypes: [6,7,8,9,10] },
+    // Было 22.0, стало 11.0
+    4400: { name: "Хранитель Врат", hpMult: 153.3, dmgMult: 11.0, dialogue: "За мной — бесконечность. Ты не пройдёшь.", enemyStatus: { type: "shock", chance: 1.0 }, canSpare: true, arenaTypes: [0,2,4,6,8,10] },
+    // Было 24.0, стало 12.0
+    4600: { name: "Судья Душ", hpMult: 173.3, dmgMult: 12.0, dialogue: "Твоя душа взвешена... и признана недостойной.", enemyStatus: { type: "poison", damage: 20 }, canSpare: true, arenaTypes: [1,3,5,7,9,10] },
+    // Было 26.0, стало 13.0
+    4800: { name: "Король-Звезда", hpMult: 186.7, dmgMult: 13.0, dialogue: "Я зажгу сверхновую... прямо здесь.", enemyStatus: { type: "fire", damage: 40, duration: 500 }, canSpare: true, arenaTypes: [0,1,4,6,8,9,10] },
+    // Было 30.0, стало 15.0
+    5000: { name: "Предвестник Конца", hpMult: 206.7, dmgMult: 15.0, dialogue: "Конец... это только начало.", enemyStatus: { type: "oneshot", chance: 0.1 }, canSpare: false, arenaTypes: [0,1,2,3,4,5,6,7,8,9,10] },
+    // Было 5.0, стало 2.5
+    10000: { name: "Охотник за головами (Финальная форма)", hpMult: 36.7, dmgMult: 2.5, dialogue: "Хах, пока вас не было я тренировался целыми днями ради этого момента! Теперь за вашу голову готовы отдать 100.000 тенге!", canSpare: true, spareReward: "Охотник за головами", hasDialog: true, arenaTypes: [0,1,2,3,4,5,6,7,8,9,10] }
 };
 const finalBossResponses = [
     { text: "100.000 тенге? Это сколько? 10 копеек?", response: "Незнаю... Просто много ноликов и вот я подумал, что это много....", mood: "😅" },
