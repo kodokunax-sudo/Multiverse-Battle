@@ -165,7 +165,7 @@ const bossTemplates = {
     50:  { name: "Король Демонов", hpMult: 4, dmgMult: 0.8, dialogue: "Ты думаешь, что сможешь одолеть меня? Глупец.", enemyStatus: { type: "freezeStacks", value: 1 }, canSpare: true, spareReward: "Король Демонов", arenaTypes: [0] },
     100: { name: "Маджин Буу", hpMult: 5.3, dmgMult: 0.1, dialogue: "Буу, я голоден! Ты станешь моим обедом!", enemyStatus: { type: "bleed", value: 0.2 }, canSpare: true, spareReward: "Маджин Буу", arenaTypes: [0] },
     150: { name: "Дзирэн", hpMult: 6, dmgMult: 1.3, dialogue: "Сила — это абсолютная справедливость.", enemyStatus: { type: "shock", chance: 0.2 }, canSpare: true, arenaTypes: [0,1] },
-    200: { name: "Живой камень", hpMult: 16, dmgMult: 1.4, dialogue: "Может я и наношу мало урона, но сначала попробуй меня пробить!", enemyStatus: { type: "shock", chance: 0.4 }, canSpare: true, arenaTypes: [0,1] },
+    200: { name: "Живой камень", hpMult: 32, dmgMult: 0.5, dialogue: "Может я и наношу мало урона, но сначала попробуй меня пробить!", enemyStatus: { type: "shock", chance: 0.4 }, canSpare: true, arenaTypes: [0,1] },
     250: { name: "Великий самурай", hpMult: 6.7, dmgMult: 2.1, dialogue: "У меня нет цели. Только путь.", enemyStatus: { type: "bleed", value: 0.2 }, canSpare: true, arenaTypes: [1,2] },
     300: { name: "Бог Грома", hpMult: 8.7, dmgMult: 1.7, dialogue: "Ты всего лишь искра в моей буре!", enemyStatus: { type: "shock", chance: 0.5 }, canSpare: true, arenaTypes: [1,2] },
     350: { name: "Ледяной Титан", hpMult: 12, dmgMult: 1.5, dialogue: "Я заморожу само время!", enemyStatus: { type: "freezeStacks", value: 3 }, canSpare: true, arenaTypes: [0,1,8] },
