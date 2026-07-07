@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v7.1 (FIXED FIST RENDERING) ==========
+// ========== АРЕНА UNDERTALE v7.2 (SUPER ABILITIES INTEGRATION) ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 70;
@@ -197,6 +197,10 @@ function clampHeart() {
 }
 
 function moveHeart() {
+    // ====== ОГЛУШЕНИЕ УСОППА ======
+    if (typeof _superState !== 'undefined' && _superState.usoppStunTimer > 0) return;
+    // ================================
+    
     let mx = 0;
     let my = 0;
     if (keys.w || keys.up) my -= 1;
@@ -351,7 +355,6 @@ function startArena(bossWave) {
     arenaVignette = 0;
     arenaGlobalSpeedMod = 1.0;
     
-    // ====== ПОЛУЧАЕМ СКОРОСТЬ ОТ ГЛАВНОЙ КАРТЫ ======
     heartSpeed = 1.2;
     if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0 && mainCardIndex >= 0 && mainCardIndex < team.length) {
         let mainCardIdx = team[mainCardIndex];
@@ -364,7 +367,6 @@ function startArena(bossWave) {
     }
     let speedDisplay = document.getElementById("arenaSpeedDisplay");
     if (speedDisplay) speedDisplay.innerText = heartSpeed.toFixed(1);
-    // ============================================
     
     arenaClickTargets = [];
     arenaClicksHit = 0;
@@ -668,7 +670,11 @@ function stopArena() {
         _superState.dekusParticles = false;
         _superState.borosHeal = null;
         _superState.borosParticles = false;
+        _superState.nikaActive = false;
+        _superState.positionHistory = [];
+        _superState.garouMarker = null;
         _superState.usoppInvuln = false;
+        _superState.usoppStunTimer = 0;
         _superState.antispiralFrozen = false;
         _superState.antispiralSpeedBoost = false;
         _superState.imAuraActive = false;
@@ -712,7 +718,13 @@ function loseArena() {
 }
 
 function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
+    // Неуязвимость Усоппа
     if (typeof _superState !== 'undefined' && _superState.usoppInvuln) return;
+    
+    // Защита Луффи (40% снижение урона)
+    if (typeof _superState !== 'undefined' && _superState.nikaActive) {
+        dmg = Math.floor(dmg * 0.6);
+    }
     
     if (invulnTimer > 0) return;
     
@@ -1030,55 +1042,6 @@ function renderArena() {
             ctx.restore();
         }
         
-        // ====== ОТРИСОВКА КУЛАКОВ САЙТАМЫ ======
-        if (typeof _superState !== 'undefined' && _superState.fists && _superState.fists.length > 0) {
-            for (let i = _superState.fists.length - 1; i >= 0; i--) {
-                let f = _superState.fists[i];
-                if (f.life <= 0) continue;
-                
-                let alpha = f.life > 10 ? 1 : f.life / 10;
-                ctx.save();
-                ctx.globalAlpha = alpha;
-                ctx.translate(f.x, f.y);
-                
-                let s = f.size;
-                
-                // Свечение
-                ctx.shadowColor = "#ff0000";
-                ctx.shadowBlur = 30;
-                
-                // Корпус кулака
-                ctx.fillStyle = "#ff2222";
-                ctx.fillRect(-s, -s * 1.2, s * 2, s * 2.4);
-                
-                // Пальцы (вертикальные полосы)
-                ctx.fillStyle = "#ff5555";
-                ctx.fillRect(-s * 0.7, -s * 1.2, s * 0.4, s * 2.4);
-                ctx.fillRect(s * 0.3, -s * 1.2, s * 0.4, s * 2.4);
-                
-                // Тёмная полоса снизу
-                ctx.fillStyle = "#aa0000";
-                ctx.fillRect(-s, s * 0.8, s * 2, s * 0.4);
-                
-                // Белая обводка
-                ctx.strokeStyle = "#ffffff";
-                ctx.lineWidth = 3;
-                ctx.shadowBlur = 0;
-                ctx.strokeRect(-s, -s * 1.2, s * 2, s * 2.4);
-                
-                // Текст "УДАР" внутри
-                ctx.fillStyle = "#ffffff";
-                ctx.font = "bold 16px monospace";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.shadowColor = "#000";
-                ctx.shadowBlur = 4;
-                ctx.fillText("УДАР", 0, 0);
-                
-                ctx.restore();
-            }
-        }
-        
         for (let i = arenaBlasters.length-1; i >= 0; i--) {
             let b = arenaBlasters[i], ac = b.color === "rainbow" ? `hsl(${(now/2)%360},100%,60%)` : b.color;
             if (!frozen) {
@@ -1148,7 +1111,15 @@ function renderArena() {
     }
     
     ctx.save(); ctx.globalCompositeOperation='lighter';
-    for (let i = arenaParticles.length-1; i >= 0; i--) { let p = arenaParticles[i]; p.x+=p.vx; p.y+=p.vy; p.vx*=0.95; p.vy*=0.95; p.life--; let ratio = p.life/p.maxLife; ctx.fillStyle=p.color; ctx.globalAlpha=Math.max(0,ratio); ctx.beginPath(); ctx.arc(p.x,p.y,p.size*ratio,0,Math.PI*2); ctx.fill(); if (p.life<=0) arenaParticles.splice(i,1); }
+    for (let i = arenaParticles.length-1; i >= 0; i--) { 
+        let p = arenaParticles[i]; 
+        p.x+=p.vx; p.y+=p.vy; p.vx*=0.95; p.vy*=0.95; p.life--; 
+        let ratio = p.life/p.maxLife;
+        if (!p.isLightning) {
+            ctx.fillStyle=p.color; ctx.globalAlpha=Math.max(0,ratio); ctx.beginPath(); ctx.arc(p.x,p.y,p.size*ratio,0,Math.PI*2); ctx.fill(); 
+        }
+        if (p.life<=0) arenaParticles.splice(i,1); 
+    }
     ctx.restore();
     
     ctx.save(); for (let i = arenaShockwaves.length-1; i >= 0; i--) { let sw = arenaShockwaves[i]; sw.r+=sw.v; sw.life--; let ratio = sw.life/sw.maxLife; ctx.strokeStyle=sw.color; ctx.lineWidth=2.5*ratio; ctx.globalAlpha=ratio; ctx.beginPath(); ctx.arc(sw.x,sw.y,sw.r,0,Math.PI*2); ctx.stroke(); if (sw.life<=0) arenaShockwaves.splice(i,1); } ctx.restore();
