@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v6.2 (ULTIMATE EDITION) ==========
+// ========== АРЕНА UNDERTALE v6.3 (ULTIMATE EDITION + MAIN CARD SPEED) ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 70;
@@ -25,7 +25,8 @@ let arenaComboText = "";
 let arenaComboTimer = 0;
 let arenaTrail = [];
 let keys = { w: false, a: false, s: false, d: false, up: false, left: false, down: false, right: false };
-let heartSpeed = 3.8;
+// Базовая скорость сердца — будет переопределена из главной карты при старте арены
+let heartSpeed = 1.2;
 let joystickActive = false;
 let joystickX = 0;
 let joystickY = 0;
@@ -349,6 +350,22 @@ function startArena(bossWave) {
     screenFlash = 0;
     arenaVignette = 0;
     
+    // ====== ПОЛУЧАЕМ СКОРОСТЬ ОТ ГЛАВНОЙ КАРТЫ ======
+    heartSpeed = 1.2; // базовая скорость
+    if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0 && mainCardIndex >= 0 && mainCardIndex < team.length) {
+        let mainCardIdx = team[mainCardIndex];
+        if (typeof myCards !== 'undefined' && mainCardIdx >= 0 && mainCardIdx < myCards.length) {
+            let mainCard = myCards[mainCardIdx];
+            if (mainCard && typeof mainCard.speed === 'number') {
+                heartSpeed = mainCard.speed;
+            }
+        }
+    }
+    // Обновляем отображение скорости
+    let speedDisplay = document.getElementById("arenaSpeedDisplay");
+    if (speedDisplay) speedDisplay.innerText = heartSpeed.toFixed(1);
+    // ============================================
+    
     arenaClickTargets = [];
     arenaClicksHit = 0;
     arenaPhase = "dodge";
@@ -414,7 +431,7 @@ function startDodgePhase() {
         0: "⬜ СТЕНЫ", 1: "🔷 ХАОС", 2: "⚡ ЖЁЛТЫЕ", 3: "🛑 КРАСНЫЕ", 4: "💗 РОЗОВЫЕ",
         5: "💚 ЗЕЛЁНЫЕ", 6: "🌈 РАДУЖНЫЕ", 7: "⚡🛑 МИКС", 8: "🟥⬜ ЗОНЫ", 9: "💣 БОМБЫ", 10: "🔫 БЛАСТЕРЫ"
     };
-    document.getElementById("arenaBossName").innerText = arenaBoss + " — " + (typeNames[arenaAttackType] || "Атака");
+    document.getElementById("arenaBossName").innerText = arenaBoss + " — " + (typeNames[arenaAttackType] || "Атака") + " | ⚡" + heartSpeed.toFixed(1);
     
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     let baseInterval = 2400;
@@ -558,31 +575,18 @@ function spawnAttack() {
             }
             break;
         case 1:
-    for (let i = 0; i < (isEarly ? 2 : 4); i++) {
-        let side = Math.floor(Math.random() * 4);
-        let x, y;
-        if (side === 0) { x = Math.random() * 400; y = -30; }
-        else if (side === 1) { x = Math.random() * 400; y = 530; }
-        else if (side === 2) { x = -30; y = Math.random() * 500; }
-        else { x = 430; y = Math.random() * 500; }
-        let angle = Math.atan2(heart.y - y, heart.x - x);
-        // БЫЛО: spd: Math.cos(angle) * 2.1, spdY: Math.sin(angle) * 2.1
-        // СТАЛО: скорость 1.0 (была 2.1, теперь в 2 раза медленнее)
-        // БЫЛО: damage: dmg
-        // СТАЛО: damage: Math.floor(dmg / 2) (урон в 2 раза меньше)
-        attacks.push({ 
-            type: "square", 
-            x: x, 
-            y: y, 
-            size: 20, 
-            spd: Math.cos(angle) * 1.0, 
-            spdY: Math.sin(angle) * 1.0, 
-            color: "#4499ff", 
-            damage: Math.floor(dmg / 2), 
-            bouncesLeft: 3 
-        });
-    }
-    break;
+            // ХАОС АТАКА: медленнее и меньше урона
+            for (let i = 0; i < (isEarly ? 2 : 4); i++) {
+                let side = Math.floor(Math.random() * 4);
+                let x, y;
+                if (side === 0) { x = Math.random() * 400; y = -30; }
+                else if (side === 1) { x = Math.random() * 400; y = 530; }
+                else if (side === 2) { x = -30; y = Math.random() * 500; }
+                else { x = 430; y = Math.random() * 500; }
+                let angle = Math.atan2(heart.y - y, heart.x - x);
+                attacks.push({ type: "square", x: x, y: y, size: 20, spd: Math.cos(angle) * 1.0, spdY: Math.sin(angle) * 1.0, color: "#4499ff", damage: Math.floor(dmg / 2), bouncesLeft: 3 });
+            }
+            break;
         case 2: 
             for (let i = 0; i < (isEarly ? 1 : 2); i++) {
                 let side = Math.floor(Math.random() * 4);
