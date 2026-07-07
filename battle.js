@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v6.4 (ULTIMATE EDITION + SUPER ABILITIES) ==========
+// ========== АРЕНА UNDERTALE v7.0 (ULTIMATE EDITION + ALL SUPER ABILITIES) ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 70;
@@ -50,6 +50,8 @@ let screenFlash = 0;
 let screenFlashColor = "#ffffff";
 let heartRotation = 0;
 let arenaVignette = 0;
+// Глобальный модификатор скорости атак (для Анти-спираля и т.п.)
+let arenaGlobalSpeedMod = 1.0;
 
 // ========== ЗВУКОВАЯ СИСТЕМА АРЕНЫ ==========
 let arenaAudioCtx = null;
@@ -348,6 +350,7 @@ function startArena(bossWave) {
     arenaKarma = 0;
     screenFlash = 0;
     arenaVignette = 0;
+    arenaGlobalSpeedMod = 1.0;
     
     // ====== ПОЛУЧАЕМ СКОРОСТЬ ОТ ГЛАВНОЙ КАРТЫ ======
     heartSpeed = 1.2;
@@ -510,11 +513,10 @@ function applyArenaDamage() {
     let baseDmg = typeof window !== 'undefined' && window.playerFinalDamage ? window.playerFinalDamage : 20;
     let finalDmg = Math.floor(baseDmg * dmgMult);
     
-    // ====== МНОЖИТЕЛЬ УРОНА ДЕКУ (СУПЕР-СПОСОБНОСТЬ) ======
-    if (window._superDekuDamageMult && window._superDekuDamageMult > 1) {
-        finalDmg = Math.floor(finalDmg * window._superDekuDamageMult);
+    // Множитель урона от Деку
+    if (typeof _superState !== 'undefined' && _superState.dekusDmgMult && _superState.dekusDmgMult > 1) {
+        finalDmg = Math.floor(finalDmg * _superState.dekusDmgMult);
     }
-    // ====================================================
     
     if (finalDmg > 0) {
         arenaBossMaxHP -= finalDmg;
@@ -584,7 +586,6 @@ function spawnAttack() {
             }
             break;
         case 1:
-            // ХАОС АТАКА: медленнее и меньше урона
             for (let i = 0; i < (isEarly ? 2 : 4); i++) {
                 let side = Math.floor(Math.random() * 4);
                 let x, y;
@@ -661,17 +662,22 @@ function spawnAttack() {
 }
 
 function stopArena() {
-    // Деактивируем супер-способности при выходе с арены
-    if (typeof activeSuper !== 'undefined' && activeSuper && typeof superAbilities !== 'undefined' && superAbilities[activeSuper]) {
-        if (superAbilities[activeSuper].onDeactivate) superAbilities[activeSuper].onDeactivate();
-        activeSuper = null;
+    // Сброс супер-способностей
+    if (typeof _activeSuperName !== 'undefined' && _activeSuperName && typeof superAbilities !== 'undefined' && superAbilities[_activeSuperName]) {
+        if (superAbilities[_activeSuperName].onDeactivate) superAbilities[_activeSuperName].onDeactivate();
     }
-    window._superDekuActive = false;
-    window._superDekuDamageMult = 1;
-    window._superDekuParticles = false;
-    window._superFists = [];
-    window._superBorosHeal = null;
-    window._superBorosParticles = false;
+    if (typeof _superState !== 'undefined') {
+        _superState.fists = [];
+        _superState.dekusActive = false;
+        _superState.dekusDmgMult = 1;
+        _superState.dekusParticles = false;
+        _superState.borosHeal = null;
+        _superState.borosParticles = false;
+        _superState.usoppInvuln = false;
+        _superState.antispiralFrozen = false;
+        _superState.antispiralSpeedBoost = false;
+        _superState.imAuraActive = false;
+    }
     
     arenaActive = false;
     stopArenaAmbient();
@@ -711,6 +717,9 @@ function loseArena() {
 }
 
 function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
+    // Неуязвимость от Усоппа
+    if (typeof _superState !== 'undefined' && _superState.usoppInvuln) return;
+    
     if (invulnTimer > 0) return;
     
     if (arenaAttackType !== 10) {
@@ -915,10 +924,20 @@ function renderArena() {
     ctx.restore();
 
     if (arenaPhase === "dodge") {
+        // Движение атак (с учётом заморозки)
+        let frozen = (typeof _superState !== 'undefined' && _superState.antispiralFrozen);
+        let speedMod = arenaGlobalSpeedMod * (typeof _superState !== 'undefined' && _superState.antispiralSpeedBoost ? 1.5 : 1.0);
+        
         for (let i = attacks.length - 1; i >= 0; i--) {
             let a = attacks[i];
+            
+            if (!frozen) {
+                if (a.spd) a.x += a.spd * speedMod;
+                if (a.spdY) a.y += a.spdY * speedMod;
+            }
+            
             if (a.type === "bomb") {
-                a.timer--;
+                if (!frozen) a.timer--;
                 if (a.timer > 0) {
                     ctx.save(); let isFlashing = Math.floor(a.timer / 6) % 2 === 0; let bombX = a.x; let bombY = a.y;
                     let bombRadius = 11 + Math.abs(Math.sin(a.timer * 0.45)) * 4; ctx.shadowColor = "#ff3333"; ctx.shadowBlur = isFlashing ? 25 : 10;
@@ -946,14 +965,15 @@ function renderArena() {
                 } else { attacks.splice(i, 1); }
                 continue;
             }
-            if (a.spd) a.x += a.spd; if (a.spdY) a.y += a.spdY;
-            if (a.type !== "wall" && a.bouncesLeft !== undefined && a.bouncesLeft > 0) {
+            
+            if (a.type !== "wall" && a.bouncesLeft !== undefined && a.bouncesLeft > 0 && !frozen) {
                 let sz = a.size || (a.radius ? a.radius*2 : 20);
                 if (a.x < 4 && a.spd < 0) { a.spd = -a.spd; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); }
                 else if (a.x + sz > 396 && a.spd > 0) { a.spd = -a.spd; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); }
                 if (a.y < 4 && a.spdY < 0) { a.spdY = -a.spdY; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); }
                 else if (a.y + sz > 496 && a.spdY > 0) { a.spdY = -a.spdY; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); }
             }
+            
             let hit = false;
             if (a.type === "circle" || a.type === "rainbow") { let dx = heart.x-a.x, dy = heart.y-a.y; hit = Math.sqrt(dx*dx+dy*dy) < (heart.hitbox + a.radius - 2); }
             else if (a.type === "sword") { let dx = heart.x-a.x, dy = heart.y-a.y; hit = Math.sqrt(dx*dx+dy*dy) < (heart.hitbox + a.size/2); }
@@ -977,6 +997,27 @@ function renderArena() {
                 applyHit(bhd); attacks.splice(i,1); continue;
             }
             if (a.y > 560 || a.y < -150 || a.x < -160 || a.x > 560) { attacks.splice(i, 1); continue; }
+            
+            // Визуал заморозки
+            if (frozen) {
+                ctx.save();
+                ctx.globalAlpha = 0.4;
+                ctx.fillStyle = "#aaddff";
+                ctx.strokeStyle = "#88bbff";
+                ctx.lineWidth = 2;
+                let sz = a.size || a.radius || 20;
+                if (a.type === "circle" || a.type === "rainbow") {
+                    ctx.beginPath(); ctx.arc(a.x, a.y, a.radius + 3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                } else if (a.type === "sword") {
+                    ctx.fillRect(a.x - a.size/2 - 2, a.y - a.width/2 - 2, a.size + 4, a.width + 4);
+                    ctx.strokeRect(a.x - a.size/2 - 2, a.y - a.width/2 - 2, a.size + 4, a.width + 4);
+                } else {
+                    ctx.fillRect(a.x - 2, a.y - 2, sz + 4, sz + 4);
+                    ctx.strokeRect(a.x - 2, a.y - 2, sz + 4, sz + 4);
+                }
+                ctx.restore();
+            }
+            
             ctx.save(); let col = a.color; if (a.type === "rainbow") col = `hsl(${(now/2+a.x)%360},100%,60%)`; ctx.fillStyle = col;
             if (a.type === "square" || a.type === "danger") {
                 let sz = a.size||20; ctx.translate(a.x+sz/2, a.y+sz/2);
@@ -998,16 +1039,23 @@ function renderArena() {
             else if (a.type === "rainbow") { ctx.beginPath(); ctx.arc(a.x,a.y,a.radius,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,0.2)"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(a.x,a.y,a.radius*0.7,0,Math.PI*2); ctx.stroke(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(a.x,a.y,a.radius*0.4,0,Math.PI*2); ctx.fill(); }
             ctx.restore();
         }
+        
+        // Бластеры (с учётом заморозки)
         for (let i = arenaBlasters.length-1; i >= 0; i--) {
             let b = arenaBlasters[i], ac = b.color === "rainbow" ? `hsl(${(now/2)%360},100%,60%)` : b.color;
-            if (b.state === "aiming") { if (b.timer > 30) b.angle = Math.atan2(heart.y-b.y, heart.x-b.x); ctx.save(); ctx.globalAlpha = 0.2+Math.abs(Math.sin(b.timer*0.25))*0.2; ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.setLineDash([6,4]); ctx.lineDashOffset = -now / 40; ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(b.x+Math.cos(b.angle)*800, b.y+Math.sin(b.angle)*800); ctx.stroke(); ctx.setLineDash([]); ctx.restore(); b.timer--; if (b.timer <= 0) { b.state = "firing"; b.timer = 15; arenaShake = 18; sfxArenaBlasterFire(); } }
-            else if (b.state === "firing") { 
+            if (!frozen) {
+                if (b.state === "aiming") { b.timer--; if (b.timer <= 0) { b.state = "firing"; b.timer = 15; arenaShake = 18; sfxArenaBlasterFire(); } }
+                else if (b.state === "firing") { b.timer--; if (b.timer <= 0) { b.state="fading"; b.timer=20; } }
+                else if (b.state === "fading") { b.timer--; if (b.timer <= 0) arenaBlasters.splice(i,1); }
+            }
+            if (b.state === "aiming") { if (b.timer > 30) b.angle = Math.atan2(heart.y-b.y, heart.x-b.x); ctx.save(); ctx.globalAlpha = 0.2+Math.abs(Math.sin(b.timer*0.25))*0.2; ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.setLineDash([6,4]); ctx.lineDashOffset = -now / 40; ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(b.x+Math.cos(b.angle)*800, b.y+Math.sin(b.angle)*800); ctx.stroke(); ctx.setLineDash([]); ctx.restore(); }
+            else if (b.state === "firing" || b.state === "fading") { 
                 ctx.save(); ctx.globalCompositeOperation='lighter'; 
                 ctx.shadowColor = ac; ctx.shadowBlur = 15;
                 ctx.strokeStyle=ac; ctx.lineWidth=b.width+16+Math.random()*10; ctx.globalAlpha=0.3; ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(b.x+Math.cos(b.angle)*800, b.y+Math.sin(b.angle)*800); ctx.stroke(); 
                 ctx.lineWidth=b.width; ctx.globalAlpha=0.9; ctx.stroke(); 
                 ctx.strokeStyle="#fff"; ctx.lineWidth=b.width*0.4; ctx.globalAlpha=1.0; ctx.stroke(); ctx.restore(); 
-                if (!b.hasHit && invulnTimer <= 0) { 
+                if (!b.hasHit && invulnTimer <= 0 && !frozen) { 
                     let dx = heart.x-b.x, dy = heart.y-b.y, dist = Math.abs(dx*Math.sin(b.angle)-dy*Math.cos(b.angle)); 
                     if (dist < b.width/2+heart.hitbox) { 
                         let bdmg=0, msg=""; 
@@ -1019,10 +1067,9 @@ function renderArena() {
                         b.hasHit=true; 
                     } 
                 } 
-                b.timer--; if (b.timer <= 0) { b.state="fading"; b.timer=20; } 
             }
-            else if (b.state === "fading") { ctx.save(); ctx.globalAlpha=b.timer/20; ctx.strokeStyle=ac; ctx.lineWidth=b.width; ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(b.x+Math.cos(b.angle)*800, b.y+Math.sin(b.angle)*800); ctx.stroke(); ctx.restore(); b.timer--; if (b.timer <= 0) arenaBlasters.splice(i,1); }
         }
+        
         if (invulnTimer <= 0 || Math.floor(now/80)%2===0) { 
             ctx.save(); ctx.translate(heart.x, heart.y-2); 
             let heartPulse = 1.0+Math.abs(Math.sin(now/140))*0.1; 
@@ -1032,8 +1079,10 @@ function renderArena() {
             heartGrad.addColorStop(0, '#ff4444');
             heartGrad.addColorStop(1, '#990000');
             ctx.fillStyle = heartGrad;
-            ctx.shadowColor = window._superDekuParticles ? "#44ff44" : "#ff0000";
-            ctx.shadowBlur = window._superDekuParticles ? 20 : 12;
+            // Свечение зависит от активных способностей
+            ctx.shadowColor = (typeof _superState !== 'undefined' && _superState.dekusParticles) ? "#44ff44" : 
+                             (typeof _superState !== 'undefined' && _superState.usoppInvuln) ? "#ffff00" : "#ff0000";
+            ctx.shadowBlur = (typeof _superState !== 'undefined' && _superState.dekusParticles) ? 25 : 12;
             ctx.beginPath(); ctx.arc(-3.5,-2,4.5,Math.PI,0); ctx.arc(3.5,-2,4.5,Math.PI,0); ctx.lineTo(0,6); ctx.closePath(); ctx.fill(); 
             ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.shadowBlur = 0; ctx.beginPath(); ctx.arc(-2,-2,1.5,0,Math.PI*2); ctx.fill(); 
             if (invulnTimer>0) { 
