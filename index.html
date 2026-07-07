@@ -127,6 +127,7 @@
         @keyframes borderGlow { 0%, 100% { border-color: rgba(245, 175, 25, 0.5); } 50% { border-color: rgba(245, 175, 25, 1); } }
         @keyframes bossPulse { 0%, 100% { box-shadow: 0 0 15px rgba(255, 69, 0, 0.5); } 50% { box-shadow: 0 0 35px rgba(255, 69, 0, 0.9); } }
         @keyframes cardShine { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+        @keyframes superPulse { 0%, 100% { box-shadow: 0 0 10px rgba(245, 175, 25, 0.5); } 50% { box-shadow: 0 0 25px rgba(245, 175, 25, 1), 0 0 50px rgba(245, 175, 25, 0.5); } }
         .mode-switch {
             background: rgba(15, 15, 31, 0.6);
             border-radius: 30px;
@@ -190,6 +191,21 @@
         .btn-boss { background: linear-gradient(135deg, #ff4500, #ff0000); border: none; box-shadow: 0 4px 15px rgba(255, 69, 0, 0.5); animation: bossPulse 1.5s infinite; font-size: 18px; }
         .btn-arena-start { background: linear-gradient(135deg, #e74c3c, #c0392b); border: none; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.5); font-size: 18px; animation: bossPulse 1.5s infinite; }
         .btn-skip-arena { background: #6c757d; color: white; border: none; box-shadow: 0 4px 10px rgba(108, 117, 125, 0.3); font-size: 16px; }
+        .btn-super {
+            background: linear-gradient(135deg, #f5af19, #f12711);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(245, 175, 25, 0.5);
+            animation: superPulse 2s infinite;
+            font-size: 16px;
+            font-weight: 900;
+        }
+        .btn-super:disabled {
+            background: #555;
+            animation: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
         .btn:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 6px 20px rgba(245, 175, 25, 0.4); }
         .btn:active { transform: scale(0.95); box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         .btn:disabled { opacity: 0.5; pointer-events: none; filter: grayscale(1); }
@@ -478,16 +494,19 @@
     <div style="color:white;font-size:22px;font-weight:900;margin-bottom:8px;" id="arenaBossName">БОСС</div>
     <div style="color:white;font-size:14px;margin-bottom:5px;">❤️ <span id="arenaHP">30</span> | ⏱️ <span id="arenaTimer">∞</span></div>
     <canvas id="arenaCanvas" width="400" height="500" style="border:3px solid white;background:#0a0a1a;border-radius:12px;cursor:crosshair;"></canvas>
-    <div style="display:flex;gap:10px;margin-top:8px;">
+    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;justify-content:center;">
         <button id="skipBossBtn" class="btn btn-skip" style="padding:8px 18px;font-size:14px;display:none;" onclick="skipDefeatedBoss()">⏭️ Пропустить</button>
+        <button id="superBtn" class="btn btn-super" style="padding:8px 18px;font-size:14px;display:none;" onclick="toggleSuper()">⚡ СУПЕР</button>
     </div>
     <div style="color:#aaa;margin-top:5px;font-size:12px;">⌨️ WASD — уклоняться | 🖱️ Клик — бить</div>
+    <div style="color:#aaa;margin-top:5px;font-size:12px;">❤️ Скорость: <span id="arenaSpeedDisplay">1.2</span></div>
 </div>
 
 <script src="images.js"></script>
 <script src="data.js"></script>
 <script src="game.js"></script>
 <script src="battle.js"></script>
+<script src="supers.js"></script>
 <script src="ui.js"></script>
 </body>
 </html>
