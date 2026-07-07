@@ -558,17 +558,31 @@ function spawnAttack() {
             }
             break;
         case 1:
-            for (let i = 0; i < (isEarly ? 2 : 4); i++) {
-                let side = Math.floor(Math.random() * 4);
-                let x, y;
-                if (side === 0) { x = Math.random() * 400; y = -30; }
-                else if (side === 1) { x = Math.random() * 400; y = 530; }
-                else if (side === 2) { x = -30; y = Math.random() * 500; }
-                else { x = 430; y = Math.random() * 500; }
-                let angle = Math.atan2(heart.y - y, heart.x - x);
-                attacks.push({ type: "square", x: x, y: y, size: 20, spd: Math.cos(angle) * 2.1, spdY: Math.sin(angle) * 2.1, color: "#4499ff", damage: dmg, bouncesLeft: 3 });
-            }
-            break;
+    for (let i = 0; i < (isEarly ? 2 : 4); i++) {
+        let side = Math.floor(Math.random() * 4);
+        let x, y;
+        if (side === 0) { x = Math.random() * 400; y = -30; }
+        else if (side === 1) { x = Math.random() * 400; y = 530; }
+        else if (side === 2) { x = -30; y = Math.random() * 500; }
+        else { x = 430; y = Math.random() * 500; }
+        let angle = Math.atan2(heart.y - y, heart.x - x);
+        // БЫЛО: spd: Math.cos(angle) * 2.1, spdY: Math.sin(angle) * 2.1
+        // СТАЛО: скорость 1.0 (была 2.1, теперь в 2 раза медленнее)
+        // БЫЛО: damage: dmg
+        // СТАЛО: damage: Math.floor(dmg / 2) (урон в 2 раза меньше)
+        attacks.push({ 
+            type: "square", 
+            x: x, 
+            y: y, 
+            size: 20, 
+            spd: Math.cos(angle) * 1.0, 
+            spdY: Math.sin(angle) * 1.0, 
+            color: "#4499ff", 
+            damage: Math.floor(dmg / 2), 
+            bouncesLeft: 3 
+        });
+    }
+    break;
         case 2: 
             for (let i = 0; i < (isEarly ? 1 : 2); i++) {
                 let side = Math.floor(Math.random() * 4);
