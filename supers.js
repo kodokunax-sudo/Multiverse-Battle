@@ -1,4 +1,4 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v2.2 ==========
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v2.3 ==========
 // Активны: Деку (100%), Сайтама, Борос
 // Остальные — шаблоны-заглушки
 
@@ -64,14 +64,14 @@ const superAbilities = {
         onActivate() {
             _superState.fists.push({
                 x: heart.x,
-                y: heart.y,
-                vx: 6,
-                vy: 0,
-                size: 30,
-                life: 60,
-                color: "#ff4444",
+                y: heart.y - 20,
+                vx: 0,
+                vy: -7,
+                size: 45,
+                life: 80,
+                color: "#ff2222",
                 bossOneShotChance: 0.01,
-                pathWidth: 60,
+                pathWidth: 90,
                 owner: "Сайтама"
             });
             if (typeof sfxWhoosh === 'function') sfxWhoosh();
@@ -87,12 +87,12 @@ const superAbilities = {
         onActivate() {
             _superState.borosHeal = {
                 active: true,
-                healPerSec: arenaMaxHP * 0.06, // 30% за 5 сек
+                healPerSec: arenaMaxHP * 0.06,
                 elapsed: 0,
                 totalDuration: 5
             };
             _superState.borosParticles = true;
-            heartSpeed *= 0.7; // замедление на 30%
+            heartSpeed *= 0.7;
         },
         onDeactivate() {
             if (_superState.borosHeal) {
@@ -297,12 +297,10 @@ function tickSupers() {
     if (dt <= 0) dt = 0.016;
     _superLastTick = now;
 
-    // Тик toggleable способностей
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onTick) {
         superAbilities[_activeSuperName].onTick(dt);
     }
 
-    // Тик Бороса (не toggleable)
     if (_superState.borosHeal && _superState.borosHeal.active && superAbilities["Борос"] && superAbilities["Борос"].onTick) {
         superAbilities["Борос"].onTick(dt);
     }
@@ -311,7 +309,7 @@ function tickSupers() {
     updateSuperButton();
 }
 
-// ========== ВИЗУАЛЫ ==========
+// ========== ВИЗУАЛЫ (частицы + логика кулаков) ==========
 function updateSuperVisuals(dt) {
     if (!ctx) return;
 
@@ -343,68 +341,27 @@ function updateSuperVisuals(dt) {
         }
     }
 
-    // Кулаки (Сайтама) — пиксельный стиль
+    // Логика кулаков (движение и уничтожение)
     for (let i = _superState.fists.length - 1; i >= 0; i--) {
         let f = _superState.fists[i];
         f.x += f.vx;
         f.y += f.vy;
         f.life--;
-        if (f.life <= 0 || f.x > 420 || f.x < -20 || f.y > 520 || f.y < -20) {
-            _superState.fists.splice(i, 1);
-            continue;
-        }
-
-        ctx.save();
-        ctx.translate(f.x, f.y);
-        
-        let s = f.size * 0.5;
-        
-        // Тень
-        ctx.fillStyle = "rgba(0,0,0,0.3)";
-        ctx.fillRect(-s + 3, -s * 0.8 + 3, s * 2, s * 1.6);
-        
-        // Основной корпус кулака
-        ctx.fillStyle = "#cc0000";
-        ctx.fillRect(-s, -s * 0.8, s * 2, s * 1.6);
-        
-        // Светлые полосы (пальцы)
-        ctx.fillStyle = "#ff4444";
-        ctx.fillRect(-s * 0.6, -s * 0.8, s * 0.35, s * 1.6);
-        ctx.fillRect(s * 0.25, -s * 0.8, s * 0.35, s * 1.6);
-        
-        // Тёмная полоса снизу
-        ctx.fillStyle = "#880000";
-        ctx.fillRect(-s, s * 0.4, s * 2, s * 0.4);
-        
-        // Белая обводка
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(-s, -s * 0.8, s * 2, s * 1.6);
-        
-        // Свечение
-        ctx.shadowColor = "#ff0000";
-        ctx.shadowBlur = 20;
-        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(-s, -s * 0.8, s * 2, s * 1.6);
-        ctx.shadowBlur = 0;
-        
-        ctx.restore();
 
         // Уничтожение атак в полосе
-        let pathWidth = f.pathWidth || 60;
+        let pathWidth = f.pathWidth || 90;
         for (let j = attacks.length - 1; j >= 0; j--) {
             let a = attacks[j];
             let ax = a.x + (a.size || a.radius || 20) / 2;
             let ay = a.y + (a.size || a.radius || 20) / 2;
             if (Math.abs(ax - f.x) < pathWidth / 2 && Math.abs(ay - f.y) < f.size + 20) {
-                for (let p = 0; p < 8; p++) {
+                for (let p = 0; p < 12; p++) {
                     arenaParticles.push({
                         x: ax, y: ay,
-                        vx: (Math.random() - 0.5) * 6,
-                        vy: (Math.random() - 0.5) * 6,
-                        life: 15, maxLife: 15,
-                        color: "#ffaa00", size: 2 + Math.random() * 3
+                        vx: (Math.random() - 0.5) * 10,
+                        vy: (Math.random() - 0.5) * 10,
+                        life: 20, maxLife: 20,
+                        color: "#ffaa00", size: 2 + Math.random() * 4
                     });
                 }
                 attacks.splice(j, 1);
@@ -412,13 +369,18 @@ function updateSuperVisuals(dt) {
             }
         }
 
-        // Ваншот босса (1% шанс)
+        // Ваншот босса
         if (f.owner === "Сайтама" && arenaBossMaxHP > 0 && Math.random() < (f.bossOneShotChance || 0.01)) {
             arenaBossMaxHP = 0;
             if (typeof sfxArenaVictory === 'function') sfxArenaVictory();
             if (typeof winArena === 'function') winArena();
             _superState.fists.splice(i, 1);
             break;
+        }
+
+        // Удаление если вышел за экран
+        if (f.life <= 0 || f.y < -100 || f.y > 600 || f.x < -50 || f.x > 450) {
+            _superState.fists.splice(i, 1);
         }
     }
 }
