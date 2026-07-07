@@ -1,4 +1,4 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v3.0 ==========
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v3.1 ==========
 // Реализованы: Деку (100%), Сайтама, Борос, Луффи, Гароу, Усопп
 // Остальные — шаблоны
 
@@ -106,6 +106,43 @@ function drawCircleMarker(x, y, color, alpha) {
     ctx.arc(x, y, 5, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
+    ctx.restore();
+}
+
+function drawGarouTrail() {
+    if (!ctx || !_superState.positionHistory || _superState.positionHistory.length < 2) return;
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.strokeStyle = "#ff8800";
+    ctx.lineWidth = 2;
+    ctx.shadowColor = "#ff8800";
+    ctx.shadowBlur = 10;
+    ctx.setLineDash([4, 8]);
+    ctx.beginPath();
+    ctx.moveTo(_superState.positionHistory[0].x, _superState.positionHistory[0].y);
+    for (let i = 1; i < _superState.positionHistory.length; i++) {
+        ctx.lineTo(_superState.positionHistory[i].x, _superState.positionHistory[i].y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+    
+    // Точки на каждом пятом элементе истории (частота записи ~60 в секунду, каждые 5 = ~12 в секунду)
+    ctx.save();
+    ctx.fillStyle = "#ff8800";
+    ctx.shadowColor = "#ff8800";
+    ctx.shadowBlur = 8;
+    for (let i = 0; i < _superState.positionHistory.length; i += 5) {
+        let p = _superState.positionHistory[i];
+        let age = (performance.now() - p.time) / 2000; // 0 = сейчас, 1 = 2 сек назад
+        let alpha = 1 - age;
+        if (alpha > 0) {
+            ctx.globalAlpha = alpha * 0.6;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
     ctx.restore();
 }
 
@@ -369,6 +406,28 @@ function updateSuperButton() {
     }
 }
 
+// ========== СБРОС ПРИ СМЕРТИ ==========
+function resetAllSupers() {
+    if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) {
+        superAbilities[_activeSuperName].onDeactivate();
+    }
+    _activeSuperName = null;
+    _superState.dekusActive = false;
+    _superState.dekusDmgMult = 1;
+    _superState.dekusParticles = false;
+    _superState.borosHeal = null;
+    _superState.borosParticles = false;
+    _superState.nikaActive = false;
+    _superState.positionHistory = [];
+    _superState.garouMarker = null;
+    _superState.usoppInvuln = false;
+    _superState.usoppStunTimer = 0;
+    _superState.fists = [];
+    _superState.antispiralFrozen = false;
+    _superState.antispiralSpeedBoost = false;
+    _superState.imAuraActive = false;
+}
+
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 function initSuperState() {
     _activeSuperName = null;
@@ -399,7 +458,7 @@ function initSuperState() {
     updateSuperButton();
 }
 
-// ========== ТИК КАЖДЫЙ КАДР ==========
+// ========== ТИК КАЖДЫЙ КАДР (логика + частицы) ==========
 function tickSupers() {
     if (!arenaActive || !ctx) return;
     let now = performance.now();
@@ -416,7 +475,6 @@ function tickSupers() {
     }
 
     updateSuperLogic(dt);
-    renderSuperVisuals();
     updateSuperButton();
 }
 
@@ -526,6 +584,9 @@ function updateSuperLogic(dt) {
 function renderSuperVisuals() {
     if (!ctx) return;
 
+    // След Гароу
+    drawGarouTrail();
+
     // Молнии
     for (let i = arenaParticles.length - 1; i >= 0; i--) {
         let p = arenaParticles[i];
@@ -592,3 +653,5 @@ function renderSuperVisuals() {
 window.toggleSuper = toggleSuper;
 window.initSuperState = initSuperState;
 window.tickSupers = tickSupers;
+window.renderSuperVisuals = renderSuperVisuals;
+window.resetAllSupers = resetAllSupers;
