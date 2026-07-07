@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v7.2 (SUPER ABILITIES INTEGRATION) ==========
+// ========== АРЕНА UNDERTALE v7.3 (FIXED SUPER RESET + GAROU TRAIL) ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 70;
@@ -197,9 +197,8 @@ function clampHeart() {
 }
 
 function moveHeart() {
-    // ====== ОГЛУШЕНИЕ УСОППА ======
+    // Оглушение Усоппа
     if (typeof _superState !== 'undefined' && _superState.usoppStunTimer > 0) return;
-    // ================================
     
     let mx = 0;
     let my = 0;
@@ -660,25 +659,8 @@ function spawnAttack() {
 }
 
 function stopArena() {
-    if (typeof _activeSuperName !== 'undefined' && _activeSuperName && typeof superAbilities !== 'undefined' && superAbilities[_activeSuperName]) {
-        if (superAbilities[_activeSuperName].onDeactivate) superAbilities[_activeSuperName].onDeactivate();
-    }
-    if (typeof _superState !== 'undefined') {
-        _superState.fists = [];
-        _superState.dekusActive = false;
-        _superState.dekusDmgMult = 1;
-        _superState.dekusParticles = false;
-        _superState.borosHeal = null;
-        _superState.borosParticles = false;
-        _superState.nikaActive = false;
-        _superState.positionHistory = [];
-        _superState.garouMarker = null;
-        _superState.usoppInvuln = false;
-        _superState.usoppStunTimer = 0;
-        _superState.antispiralFrozen = false;
-        _superState.antispiralSpeedBoost = false;
-        _superState.imAuraActive = false;
-    }
+    // Сброс супер-способностей
+    if (typeof resetAllSupers === 'function') resetAllSupers();
     
     arenaActive = false;
     stopArenaAmbient();
@@ -702,6 +684,9 @@ function winArena() {
 }
 
 function loseArena() {
+    // Сброс супер-способностей перед смертью
+    if (typeof resetAllSupers === 'function') resetAllSupers();
+    
     sfxArenaDeath();
     arenaShake = 25;
     screenFlash = 25;
@@ -1041,6 +1026,10 @@ function renderArena() {
             else if (a.type === "rainbow") { ctx.beginPath(); ctx.arc(a.x,a.y,a.radius,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,0.2)"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(a.x,a.y,a.radius*0.7,0,Math.PI*2); ctx.stroke(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(a.x,a.y,a.radius*0.4,0,Math.PI*2); ctx.fill(); }
             ctx.restore();
         }
+        
+        // ====== ОТРИСОВКА СУПЕР-СПОСОБНОСТЕЙ ======
+        if (typeof renderSuperVisuals === 'function') renderSuperVisuals();
+        // ==========================================
         
         for (let i = arenaBlasters.length-1; i >= 0; i--) {
             let b = arenaBlasters[i], ac = b.color === "rainbow" ? `hsl(${(now/2)%360},100%,60%)` : b.color;
