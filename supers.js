@@ -1,4 +1,4 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v2.3 ==========
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v2.4 ==========
 // Активны: Деку (100%), Сайтама, Борос
 // Остальные — шаблоны-заглушки
 
@@ -62,6 +62,9 @@ const superAbilities = {
         toggleable: false,
         duration: 0,
         onActivate() {
+            // Определяем ваншот ОДИН раз при запуске
+            let willOneshot = Math.random() < 0.01;
+            
             _superState.fists.push({
                 x: heart.x,
                 y: heart.y - 20,
@@ -70,7 +73,8 @@ const superAbilities = {
                 size: 45,
                 life: 80,
                 color: "#ff2222",
-                bossOneShotChance: 0.01,
+                willOneshot: willOneshot,
+                oneshotChecked: false,
                 pathWidth: 90,
                 owner: "Сайтама"
             });
@@ -313,16 +317,37 @@ function tickSupers() {
 function updateSuperVisuals(dt) {
     if (!ctx) return;
 
-    // Зелёные искры Деку
+    // МОЛНИИ Деку (зелёные зигзаги)
     if (_superState.dekusParticles && arenaActive) {
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 4; i++) {
+            let angle = Math.random() * Math.PI * 2;
+            let dist = 20 + Math.random() * 25;
+            let startX = heart.x + Math.cos(angle) * 10;
+            let startY = heart.y + Math.sin(angle) * 10;
+            let endX = heart.x + Math.cos(angle) * dist;
+            let endY = heart.y + Math.sin(angle) * dist;
+            
+            // Молния как ломаная линия
+            let segments = 3;
+            let points = [{x: startX, y: startY}];
+            for (let s = 1; s < segments; s++) {
+                let t = s / segments;
+                let midX = startX + (endX - startX) * t + (Math.random() - 0.5) * 20;
+                let midY = startY + (endY - startY) * t + (Math.random() - 0.5) * 20;
+                points.push({x: midX, y: midY});
+            }
+            points.push({x: endX, y: endY});
+            
+            // Добавляем как частицу с данными для отрисовки молнии
             arenaParticles.push({
-                x: heart.x + (Math.random() - 0.5) * 30,
-                y: heart.y + (Math.random() - 0.5) * 30,
-                vx: (Math.random() - 0.5) * 2,
-                vy: (Math.random() - 0.5) * 2,
-                life: 20, maxLife: 20,
-                color: "#44ff44", size: 2 + Math.random() * 3
+                x: startX, y: startY,
+                endX: endX, endY: endY,
+                points: points,
+                vx: 0, vy: 0,
+                life: 15, maxLife: 15,
+                color: "#44ff44",
+                size: 2,
+                isLightning: true
             });
         }
     }
@@ -369,8 +394,9 @@ function updateSuperVisuals(dt) {
             }
         }
 
-        // Ваншот босса
-        if (f.owner === "Сайтама" && arenaBossMaxHP > 0 && Math.random() < (f.bossOneShotChance || 0.01)) {
+        // Ваншот босса (проверяется ОДИН раз)
+        if (f.owner === "Сайтама" && f.willOneshot && !f.oneshotChecked && arenaBossMaxHP > 0) {
+            f.oneshotChecked = true;
             arenaBossMaxHP = 0;
             if (typeof sfxArenaVictory === 'function') sfxArenaVictory();
             if (typeof winArena === 'function') winArena();
