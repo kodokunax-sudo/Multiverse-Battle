@@ -1,34 +1,38 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v2.0 ==========
-// Глобальные переменные для визуалов и состояний
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v2.2 ==========
+// Активны: Деку (100%), Сайтама, Борос
+// Остальные — шаблоны-заглушки
+
 let _superState = {
-    fists: [],                  // кулаки (Сайтама, Гарп)
+    fists: [],
     dekusActive: false,
     dekusOriginalSpeed: 1.2,
     dekusDmgMult: 1,
     dekusParticles: false,
-    borosHeal: null,           // { active, healPerSec, timer, elapsed }
+    borosHeal: null,
     borosParticles: false,
     usoppInvuln: false,
     usoppStunTimer: 0,
-    antispiralFrozen: false,   // заморожены ли атаки (визуал + остановка)
-    antispiralSpeedBoost: false, // после разморозки атаки быстрее навсегда
+    antispiralFrozen: false,
+    antispiralSpeedBoost: false,
     imAuraActive: false,
     imAuraRadius: 80,
     imSpeedPenalty: false,
     markBuffActive: false,
     markDebuffActive: false,
-    // ... можно добавить другие состояния при необходимости
 };
 
-let _superCooldowns = {};      // для каждой карты: { ready: bool, remaining: ms }
-let _activeSuperName = null;   // имя активной переключаемой способности (для Деку, Луффи, Усоппа, Има)
+let _superCooldowns = {};
+let _activeSuperName = null;
 let _superLastTick = 0;
 
 // ========== ОПИСАНИЯ СПОСОБНОСТЕЙ ==========
 const superAbilities = {
+    // ====== ГОТОВЫЕ ======
     "Деку (100%)": {
         name: "ПОЛНОЕ 100% ПОКРЫТИЕ",
-        cooldown: 15000, toggleable: true, duration: Infinity,
+        cooldown: 15000,
+        toggleable: true,
+        duration: Infinity,
         onActivate() {
             _superState.dekusActive = true;
             _superState.dekusOriginalSpeed = heartSpeed;
@@ -44,72 +48,142 @@ const superAbilities = {
         },
         onTick(dt) {
             if (_superState.dekusActive && arenaActive) {
-                // теряем 2% от макс. HP в секунду
                 let drain = arenaMaxHP * 0.02 * dt;
                 arenaHP = Math.max(0, arenaHP - drain);
                 document.getElementById("arenaHP").innerText = Math.max(0, Math.ceil(arenaHP));
-                if (arenaHP <= 0) loseArena();
+                if (arenaHP <= 0 && typeof loseArena === 'function') loseArena();
             }
         }
     },
+
     "Сайтама": {
         name: "ОБЫЧНЫЙ УДАР",
-        cooldown: 20000, toggleable: false, duration: 0,
+        cooldown: 20000,
+        toggleable: false,
+        duration: 0,
         onActivate() {
-            // кулак летит вправо
             _superState.fists.push({
-                x: heart.x, y: heart.y,
-                vx: 6, vy: 0,
+                x: heart.x,
+                y: heart.y,
+                vx: 6,
+                vy: 0,
                 size: 30,
                 life: 60,
                 color: "#ff4444",
                 bossOneShotChance: 0.01,
-                destroyAllInPath: false, // только в своей полосе
                 pathWidth: 60,
                 owner: "Сайтама"
             });
-            sfxWhoosh();
+            if (typeof sfxWhoosh === 'function') sfxWhoosh();
         },
-        onTick(dt) {} // не используется
+        onTick() {}
     },
+
     "Борос": {
         name: "РЕГЕНЕРАЦИЯ",
-        cooldown: 20000, toggleable: false, duration: 5000,
+        cooldown: 20000,
+        toggleable: false,
+        duration: 5000,
         onActivate() {
             _superState.borosHeal = {
                 active: true,
-                healPerSec: arenaMaxHP * 0.06, // 30% за 5 сек = 6% в сек
+                healPerSec: arenaMaxHP * 0.06, // 30% за 5 сек
                 elapsed: 0,
                 totalDuration: 5
             };
             _superState.borosParticles = true;
-            // дебафф: скорость снижена на 30%
-            heartSpeed *= 0.7;
+            heartSpeed *= 0.7; // замедление на 30%
         },
         onDeactivate() {
-            heartSpeed /= 0.7; // восстанавливаем
-            _superState.borosHeal = null;
-            _superState.borosParticles = false;
+            if (_superState.borosHeal) {
+                heartSpeed /= 0.7;
+                _superState.borosHeal = null;
+                _superState.borosParticles = false;
+            }
         },
         onTick(dt) {
-            if (_superState.borosHeal && _superState.borosHeal.active) {
+            if (_superState.borosHeal && _superState.borosHeal.active && arenaActive) {
                 let h = _superState.borosHeal.healPerSec * dt;
                 arenaHP = Math.min(arenaMaxHP, arenaHP + h);
                 document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
                 _superState.borosHeal.elapsed += dt;
                 if (_superState.borosHeal.elapsed >= _superState.borosHeal.totalDuration) {
                     this.onDeactivate();
-                    // запускаем перезарядку
                     startCooldown("Борос", this.cooldown);
                 }
             }
         }
     },
-    // Остальные персонажи добавляются аналогично с корректным dt и визуалами
-    // ... (в полной версии будут все 14, сейчас добавляю остальных для структуры)
+
+    // ====== ШАБЛОНЫ ======
+    "Луффи: Ника, Бог Солнца": {
+        name: "ОСВОБОЖДЕНИЕ (шаблон)",
+        cooldown: 25000, toggleable: true, duration: Infinity,
+        onActivate() {}, onDeactivate() {}, onTick() {}
+    },
+    "Космический Гароу": {
+        name: "ПОТОК ВСЕЛЕННОЙ (шаблон)",
+        cooldown: 30000, toggleable: false, duration: 0,
+        onActivate() {}, onTick() {}
+    },
+    "Бог Усопп": {
+        name: "ЛОЖЬ СТАНОВИТСЯ ПРАВДОЙ (шаблон)",
+        cooldown: 35000, toggleable: true, duration: 3000,
+        onActivate() {}, onDeactivate() {}, onTick() {}
+    },
+    "Зено": {
+        name: "СТИРАНИЕ (шаблон)",
+        cooldown: 60000, toggleable: false, duration: 0,
+        onActivate() {}, onTick() {}
+    },
+    "Анти-спираль": {
+        name: "АБСОЛЮТНОЕ ОТЧАЯНИЕ (шаблон)",
+        cooldown: 25000, toggleable: false, duration: 0,
+        onActivate() {}, onTick() {}
+    },
+    "Молодой Гарп": {
+        name: "ГАЛАКТИЧЕСКИЙ КУЛАК (шаблон)",
+        cooldown: 30000, toggleable: false, duration: 0,
+        onActivate() {}, onTick() {}
+    },
+    "Им (Правитель)": {
+        name: "ТЕНЕВОЕ ПРАВЛЕНИЕ (шаблон)",
+        cooldown: 30000, toggleable: true, duration: 6000,
+        onActivate() {}, onDeactivate() {}, onTick() {}
+    },
+    "Космический Дэнди": {
+        name: "КОСМИЧЕСКАЯ УДАЧА (шаблон)",
+        cooldown: 20000, toggleable: false, duration: 0,
+        onActivate() {}, onTick() {}
+    },
+    "Кайдо": {
+        name: "ДЫХАНИЕ РАЗРУШЕНИЯ (шаблон)",
+        cooldown: 25000, toggleable: false, duration: 0,
+        onActivate() {}, onTick() {}
+    },
+    "Император Марк": {
+        name: "НЕПОБЕДИМАЯ ВОЛЯ (шаблон)",
+        cooldown: 30000, toggleable: false, duration: 6000,
+        onActivate() {}, onDeactivate() {}, onTick() {}
+    },
+    "Всемогущий (прайм)": {
+        name: "СИМВОЛ МИРА (шаблон)",
+        cooldown: 40000, toggleable: false, duration: 0,
+        onActivate() {}, onTick() {}
+    }
 };
 
-// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+// ========== УПРАВЛЕНИЕ ==========
+function getMainCard() {
+    if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0) {
+        let idx = team[mainCardIndex];
+        if (typeof myCards !== 'undefined' && idx >= 0 && idx < myCards.length) {
+            return myCards[idx];
+        }
+    }
+    return null;
+}
+
 function toggleSuper() {
     if (!arenaActive) return;
     let mainCard = getMainCard();
@@ -120,12 +194,10 @@ function toggleSuper() {
 
     if (ab.toggleable) {
         if (_activeSuperName === mainCard.name) {
-            // деактивировать
             if (ab.onDeactivate) ab.onDeactivate();
             _activeSuperName = null;
             startCooldown(mainCard.name, ab.cooldown);
         } else {
-            // сначала деактивируем предыдущую переключаемую
             if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) {
                 superAbilities[_activeSuperName].onDeactivate();
             }
@@ -135,14 +207,12 @@ function toggleSuper() {
     } else {
         ab.onActivate();
         if (ab.duration > 0) {
-            // способность с фиксированной длительностью
             startCooldown(mainCard.name, ab.cooldown);
             setTimeout(() => {
                 if (ab.onDeactivate) ab.onDeactivate();
-                _activeSuperName = null;
+                if (_activeSuperName === mainCard.name) _activeSuperName = null;
             }, ab.duration);
         } else {
-            // мгновенная
             startCooldown(mainCard.name, ab.cooldown);
         }
     }
@@ -150,6 +220,8 @@ function toggleSuper() {
 }
 
 function startCooldown(cardName, ms) {
+    let cd = _superCooldowns[cardName];
+    if (cd && cd.interval) clearInterval(cd.interval);
     _superCooldowns[cardName] = { ready: false, remaining: ms, start: Date.now() };
     let interval = setInterval(() => {
         let elapsed = Date.now() - _superCooldowns[cardName].start;
@@ -159,9 +231,10 @@ function startCooldown(cardName, ms) {
             _superCooldowns[cardName].ready = true;
             updateSuperButton();
         } else {
-            updateSuperCooldownText(cardName);
+            updateSuperButton();
         }
     }, 100);
+    _superCooldowns[cardName].interval = interval;
 }
 
 function updateSuperButton() {
@@ -191,22 +264,7 @@ function updateSuperButton() {
     }
 }
 
-function updateSuperCooldownText(cardName) {
-    // обновление текста кнопки при перезарядке
-    updateSuperButton();
-}
-
-function getMainCard() {
-    if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0) {
-        let idx = team[mainCardIndex];
-        if (typeof myCards !== 'undefined' && idx >= 0 && idx < myCards.length) {
-            return myCards[idx];
-        }
-    }
-    return null;
-}
-
-// ========== ИНИЦИАЛИЗАЦИЯ ПРИ СТАРТЕ АРЕНЫ ==========
+// ========== ИНИЦИАЛИЗАЦИЯ ==========
 function initSuperState() {
     _activeSuperName = null;
     _superState = {
@@ -231,27 +289,31 @@ function initSuperState() {
     updateSuperButton();
 }
 
-// ========== ВЫЗОВ КАЖДЫЙ КАДР ИЗ renderArena ==========
+// ========== ТИК КАЖДЫЙ КАДР ==========
 function tickSupers() {
     if (!arenaActive) return;
     let now = performance.now();
-    let dt = (now - _superLastTick) / 1000; // в секундах
+    let dt = (now - _superLastTick) / 1000;
     if (dt <= 0) dt = 0.016;
     _superLastTick = now;
 
-    // Обновление активных способностей
+    // Тик toggleable способностей
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onTick) {
         superAbilities[_activeSuperName].onTick(dt);
     }
-    // Обновление кулаков и визуалов
+
+    // Тик Бороса (не toggleable)
+    if (_superState.borosHeal && _superState.borosHeal.active && superAbilities["Борос"] && superAbilities["Борос"].onTick) {
+        superAbilities["Борос"].onTick(dt);
+    }
+
     updateSuperVisuals(dt);
-    // Обновление кнопки (на случай завершения перезарядки)
     updateSuperButton();
 }
 
-// ========== ВИЗУАЛЫ И ЛОГИКА КУЛАКОВ ==========
+// ========== ВИЗУАЛЫ ==========
 function updateSuperVisuals(dt) {
-    if (!ctx) return; // глобальный контекст из battle.js
+    if (!ctx) return;
 
     // Зелёные искры Деку
     if (_superState.dekusParticles && arenaActive) {
@@ -281,7 +343,7 @@ function updateSuperVisuals(dt) {
         }
     }
 
-    // Обновление и отрисовка кулаков
+    // Кулаки (Сайтама) — пиксельный стиль
     for (let i = _superState.fists.length - 1; i >= 0; i--) {
         let f = _superState.fists[i];
         f.x += f.vx;
@@ -292,30 +354,50 @@ function updateSuperVisuals(dt) {
             continue;
         }
 
-        // Отрисовка кулака
         ctx.save();
-        ctx.fillStyle = f.color;
+        ctx.translate(f.x, f.y);
+        
+        let s = f.size * 0.5;
+        
+        // Тень
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.fillRect(-s + 3, -s * 0.8 + 3, s * 2, s * 1.6);
+        
+        // Основной корпус кулака
+        ctx.fillStyle = "#cc0000";
+        ctx.fillRect(-s, -s * 0.8, s * 2, s * 1.6);
+        
+        // Светлые полосы (пальцы)
+        ctx.fillStyle = "#ff4444";
+        ctx.fillRect(-s * 0.6, -s * 0.8, s * 0.35, s * 1.6);
+        ctx.fillRect(s * 0.25, -s * 0.8, s * 0.35, s * 1.6);
+        
+        // Тёмная полоса снизу
+        ctx.fillStyle = "#880000";
+        ctx.fillRect(-s, s * 0.4, s * 2, s * 0.4);
+        
+        // Белая обводка
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-s, -s * 0.8, s * 2, s * 1.6);
+        
+        // Свечение
         ctx.shadowColor = "#ff0000";
         ctx.shadowBlur = 20;
-        ctx.beginPath();
-        ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#fff";
-        ctx.font = "bold 18px sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("👊", f.x, f.y);
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-s, -s * 0.8, s * 2, s * 1.6);
+        ctx.shadowBlur = 0;
+        
         ctx.restore();
 
-        // Проверка столкновений с атаками
+        // Уничтожение атак в полосе
         let pathWidth = f.pathWidth || 60;
         for (let j = attacks.length - 1; j >= 0; j--) {
             let a = attacks[j];
             let ax = a.x + (a.size || a.radius || 20) / 2;
             let ay = a.y + (a.size || a.radius || 20) / 2;
-            // попадание в полосу кулака
-            if (Math.abs(ax - f.x) < pathWidth/2 && Math.abs(ay - f.y) < f.size + 20) {
-                // уничтожаем атаку
+            if (Math.abs(ax - f.x) < pathWidth / 2 && Math.abs(ay - f.y) < f.size + 20) {
                 for (let p = 0; p < 8; p++) {
                     arenaParticles.push({
                         x: ax, y: ay,
@@ -326,77 +408,22 @@ function updateSuperVisuals(dt) {
                     });
                 }
                 attacks.splice(j, 1);
-                sfxBounce();
+                if (typeof sfxBounce === 'function') sfxBounce();
             }
         }
 
-        // Проверка ваншота босса (только Сайтама)
-        if (f.owner === "Сайтама" && arenaBossMaxHP > 0 && Math.random() < f.bossOneShotChance) {
+        // Ваншот босса (1% шанс)
+        if (f.owner === "Сайтама" && arenaBossMaxHP > 0 && Math.random() < (f.bossOneShotChance || 0.01)) {
             arenaBossMaxHP = 0;
-            sfxArenaVictory();
-            winArena();
+            if (typeof sfxArenaVictory === 'function') sfxArenaVictory();
+            if (typeof winArena === 'function') winArena();
             _superState.fists.splice(i, 1);
             break;
-        }
-        // Урон боссу от Гарпа (10% от макс. HP)
-        if (f.owner === "Гарп" && arenaBossMaxHP > 0) {
-            let dmg = Math.floor(arenaBossMaxHP * 0.1);
-            arenaBossMaxHP -= dmg;
-            // отдача: сердце отбрасывает
-            heart.vx += (Math.random() - 0.5) * 160;
-            heart.vy += (Math.random() - 0.5) * 120;
-            spawnFloatingText(heart.x, heart.y - 20, "ОТДАЧА!", "#ffaa00");
-            _superState.fists.splice(i, 1);
-            break;
-        }
-    }
-
-    // Визуал ауры Има (если активна)
-    if (_superState.imAuraActive && arenaActive) {
-        ctx.save();
-        ctx.strokeStyle = "rgba(128, 0, 128, 0.8)";
-        ctx.lineWidth = 4;
-        ctx.shadowColor = "#800080";
-        ctx.shadowBlur = 15;
-        ctx.beginPath();
-        ctx.arc(heart.x, heart.y, _superState.imAuraRadius, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-        // уничтожение атак в ауре
-        for (let j = attacks.length - 1; j >= 0; j--) {
-            let a = attacks[j];
-            let ax = a.x + (a.size || a.radius || 20)/2;
-            let ay = a.y + (a.size || a.radius || 20)/2;
-            if (Math.hypot(ax - heart.x, ay - heart.y) < _superState.imAuraRadius) {
-                attacks.splice(j, 1);
-                // вспышка
-                arenaParticles.push({
-                    x: ax, y: ay,
-                    vx: 0, vy: 0,
-                    life: 10, maxLife: 10,
-                    color: "#ff00ff", size: 5
-                });
-            }
-        }
-    }
-
-    // Заморозка атак Анти-спираля (визуальная остановка + после разморозки ускорение)
-    if (_superState.antispiralFrozen) {
-        // атаки не двигаются, это реализовано в moveHeart? Нужно пропустить движение атак в renderArena.
-        // Мы можем в renderArena проверять флаг _superState.antispiralFrozen и не прибавлять spd.
-        // Пока оставим визуальный эффект: лёд на атаках
-        for (let a of attacks) {
-            ctx.save();
-            ctx.globalAlpha = 0.5;
-            ctx.fillStyle = "#aaddff";
-            let sz = a.size || a.radius || 20;
-            ctx.fillRect(a.x - 2, a.y - 2, sz + 4, sz + 4);
-            ctx.restore();
         }
     }
 }
 
-// Экспортируем функции в глобальную область
+// ========== ЭКСПОРТ ==========
 window.toggleSuper = toggleSuper;
 window.initSuperState = initSuperState;
 window.tickSupers = tickSupers;
