@@ -1,4 +1,5 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v2.4 ==========
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v2.5 ==========
+// Вся отрисовка внутри этого файла
 // Активны: Деку (100%), Сайтама, Борос
 // Остальные — шаблоны-заглушки
 
@@ -24,6 +25,74 @@ let _superState = {
 let _superCooldowns = {};
 let _activeSuperName = null;
 let _superLastTick = 0;
+
+// ========== ФУНКЦИИ ОТРИСОВКИ ==========
+function drawLightningBolt(x1, y1, x2, y2, color, alpha) {
+    if (!ctx) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2 * alpha;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10 * alpha;
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    // Зигзаги
+    let segments = 4;
+    for (let i = 1; i < segments; i++) {
+        let t = i / segments;
+        let mx = x1 + (x2 - x1) * t + (Math.random() - 0.5) * 25;
+        let my = y1 + (y2 - y1) * t + (Math.random() - 0.5) * 25;
+        ctx.lineTo(mx, my);
+    }
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawFist(f) {
+    if (!ctx) return;
+    let alpha = f.life > 10 ? 1 : f.life / 10;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(f.x, f.y);
+    
+    let s = f.size;
+    
+    // Свечение
+    ctx.shadowColor = "#ff0000";
+    ctx.shadowBlur = 30;
+    
+    // Корпус кулака
+    ctx.fillStyle = "#ff2222";
+    ctx.fillRect(-s, -s * 1.2, s * 2, s * 2.4);
+    
+    // Пальцы (вертикальные полосы)
+    ctx.fillStyle = "#ff5555";
+    ctx.fillRect(-s * 0.7, -s * 1.2, s * 0.4, s * 2.4);
+    ctx.fillRect(s * 0.3, -s * 1.2, s * 0.4, s * 2.4);
+    
+    // Тёмная полоса снизу
+    ctx.fillStyle = "#aa0000";
+    ctx.fillRect(-s, s * 0.8, s * 2, s * 0.4);
+    
+    // Белая обводка
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 3;
+    ctx.shadowBlur = 0;
+    ctx.strokeRect(-s, -s * 1.2, s * 2, s * 2.4);
+    
+    // Текст "УДАР" внутри
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 16px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "#000";
+    ctx.shadowBlur = 4;
+    ctx.fillText("УДАР", 0, 0);
+    
+    ctx.restore();
+}
 
 // ========== ОПИСАНИЯ СПОСОБНОСТЕЙ ==========
 const superAbilities = {
@@ -62,9 +131,7 @@ const superAbilities = {
         toggleable: false,
         duration: 0,
         onActivate() {
-            // Определяем ваншот ОДИН раз при запуске
             let willOneshot = Math.random() < 0.01;
-            
             _superState.fists.push({
                 x: heart.x,
                 y: heart.y - 20,
@@ -293,31 +360,33 @@ function initSuperState() {
     updateSuperButton();
 }
 
-// ========== ТИК КАЖДЫЙ КАДР ==========
+// ========== ТИК КАЖДЫЙ КАДР (логика + генерация частиц) ==========
 function tickSupers() {
-    if (!arenaActive) return;
+    if (!arenaActive || !ctx) return;
     let now = performance.now();
     let dt = (now - _superLastTick) / 1000;
     if (dt <= 0) dt = 0.016;
     _superLastTick = now;
 
+    // Тик активных способностей
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onTick) {
         superAbilities[_activeSuperName].onTick(dt);
     }
-
     if (_superState.borosHeal && _superState.borosHeal.active && superAbilities["Борос"] && superAbilities["Борос"].onTick) {
         superAbilities["Борос"].onTick(dt);
     }
 
-    updateSuperVisuals(dt);
+    // Генерация частиц и логика кулаков
+    updateSuperLogic(dt);
+    
+    // Отрисовка всего (кулаки, молнии)
+    renderSuperVisuals();
+    
     updateSuperButton();
 }
 
-// ========== ВИЗУАЛЫ (частицы + логика кулаков) ==========
-function updateSuperVisuals(dt) {
-    if (!ctx) return;
-
-    // МОЛНИИ Деку (зелёные зигзаги)
+function updateSuperLogic(dt) {
+    // Молнии Деку (добавляем как частицы-молнии)
     if (_superState.dekusParticles && arenaActive) {
         for (let i = 0; i < 4; i++) {
             let angle = Math.random() * Math.PI * 2;
@@ -327,26 +396,12 @@ function updateSuperVisuals(dt) {
             let endX = heart.x + Math.cos(angle) * dist;
             let endY = heart.y + Math.sin(angle) * dist;
             
-            // Молния как ломаная линия
-            let segments = 3;
-            let points = [{x: startX, y: startY}];
-            for (let s = 1; s < segments; s++) {
-                let t = s / segments;
-                let midX = startX + (endX - startX) * t + (Math.random() - 0.5) * 20;
-                let midY = startY + (endY - startY) * t + (Math.random() - 0.5) * 20;
-                points.push({x: midX, y: midY});
-            }
-            points.push({x: endX, y: endY});
-            
-            // Добавляем как частицу с данными для отрисовки молнии
             arenaParticles.push({
                 x: startX, y: startY,
                 endX: endX, endY: endY,
-                points: points,
                 vx: 0, vy: 0,
                 life: 15, maxLife: 15,
                 color: "#44ff44",
-                size: 2,
                 isLightning: true
             });
         }
@@ -366,14 +421,14 @@ function updateSuperVisuals(dt) {
         }
     }
 
-    // Логика кулаков (движение и уничтожение)
+    // Логика кулаков
     for (let i = _superState.fists.length - 1; i >= 0; i--) {
         let f = _superState.fists[i];
         f.x += f.vx;
         f.y += f.vy;
         f.life--;
 
-        // Уничтожение атак в полосе
+        // Уничтожение атак
         let pathWidth = f.pathWidth || 90;
         for (let j = attacks.length - 1; j >= 0; j--) {
             let a = attacks[j];
@@ -394,7 +449,7 @@ function updateSuperVisuals(dt) {
             }
         }
 
-        // Ваншот босса (проверяется ОДИН раз)
+        // Ваншот босса
         if (f.owner === "Сайтама" && f.willOneshot && !f.oneshotChecked && arenaBossMaxHP > 0) {
             f.oneshotChecked = true;
             arenaBossMaxHP = 0;
@@ -404,9 +459,28 @@ function updateSuperVisuals(dt) {
             break;
         }
 
-        // Удаление если вышел за экран
         if (f.life <= 0 || f.y < -100 || f.y > 600 || f.x < -50 || f.x > 450) {
             _superState.fists.splice(i, 1);
+        }
+    }
+}
+
+function renderSuperVisuals() {
+    if (!ctx) return;
+
+    // Отрисовка молний
+    for (let i = arenaParticles.length - 1; i >= 0; i--) {
+        let p = arenaParticles[i];
+        if (p.isLightning && p.life > 0) {
+            let alpha = p.life / p.maxLife;
+            drawLightningBolt(p.x, p.y, p.endX, p.endY, p.color, alpha);
+        }
+    }
+
+    // Отрисовка кулаков
+    if (_superState.fists && _superState.fists.length > 0) {
+        for (let f of _superState.fists) {
+            if (f.life > 0) drawFist(f);
         }
     }
 }
