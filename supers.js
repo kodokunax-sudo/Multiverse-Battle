@@ -1,4 +1,4 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v3.1 ==========
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v3.2 ==========
 // Реализованы: Деку (100%), Сайтама, Борос, Луффи, Гароу, Усопп
 // Остальные — шаблоны
 
@@ -41,17 +41,17 @@ function drawLightningBolt(x1, y1, x2, y2, color, alpha) {
     if (!ctx) return;
     ctx.save();
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2 * alpha;
+    ctx.lineWidth = 1.5 * alpha;
     ctx.shadowColor = color;
-    ctx.shadowBlur = 10 * alpha;
+    ctx.shadowBlur = 8 * alpha;
     ctx.globalAlpha = alpha;
     ctx.beginPath();
     ctx.moveTo(x1, y1);
-    let segments = 4;
+    let segments = 3;
     for (let i = 1; i < segments; i++) {
         let t = i / segments;
-        let mx = x1 + (x2 - x1) * t + (Math.random() - 0.5) * 25;
-        let my = y1 + (y2 - y1) * t + (Math.random() - 0.5) * 25;
+        let mx = x1 + (x2 - x1) * t + (Math.random() - 0.5) * 18;
+        let my = y1 + (y2 - y1) * t + (Math.random() - 0.5) * 18;
         ctx.lineTo(mx, my);
     }
     ctx.lineTo(x2, y2);
@@ -110,7 +110,10 @@ function drawCircleMarker(x, y, color, alpha) {
 }
 
 function drawGarouTrail() {
+    let mainCard = getMainCard();
+    if (!mainCard || mainCard.name !== "Космический Гароу") return;
     if (!ctx || !_superState.positionHistory || _superState.positionHistory.length < 2) return;
+    
     ctx.save();
     ctx.globalAlpha = 0.3;
     ctx.strokeStyle = "#ff8800";
@@ -127,14 +130,14 @@ function drawGarouTrail() {
     ctx.setLineDash([]);
     ctx.restore();
     
-    // Точки на каждом пятом элементе истории (частота записи ~60 в секунду, каждые 5 = ~12 в секунду)
+    // Точки на каждом пятом элементе истории
     ctx.save();
     ctx.fillStyle = "#ff8800";
     ctx.shadowColor = "#ff8800";
     ctx.shadowBlur = 8;
     for (let i = 0; i < _superState.positionHistory.length; i += 5) {
         let p = _superState.positionHistory[i];
-        let age = (performance.now() - p.time) / 2000; // 0 = сейчас, 1 = 2 сек назад
+        let age = (performance.now() - p.time) / 2000;
         let alpha = 1 - age;
         if (alpha > 0) {
             ctx.globalAlpha = alpha * 0.6;
@@ -264,7 +267,6 @@ const superAbilities = {
         onActivate() {
             let now = performance.now();
             let target = null;
-            // Ищем позицию 2 секунды назад
             for (let i = _superState.positionHistory.length - 1; i >= 0; i--) {
                 let p = _superState.positionHistory[i];
                 if (now - p.time >= 2000) {
@@ -272,18 +274,14 @@ const superAbilities = {
                     break;
                 }
             }
-            // Если не нашли (мало истории), берём самую старую
             if (!target && _superState.positionHistory.length > 0) {
                 target = _superState.positionHistory[0];
             }
             if (target) {
-                // Маркер на СТАРОМ месте (куда телепортируемся)
                 _superState.garouMarker = { x: target.x, y: target.y, alpha: 1.0, time: now };
-                // Телепорт
                 heart.x = target.x;
                 heart.y = target.y;
             }
-            // Очищаем историю после использования
             _superState.positionHistory = [];
         },
         onTick(dt) {}
@@ -299,7 +297,7 @@ const superAbilities = {
         },
         onDeactivate() {
             _superState.usoppInvuln = false;
-            _superState.usoppStunTimer = 2; // оглушение 2 сек
+            _superState.usoppStunTimer = 2;
         },
         onTick(dt) {}
     },
@@ -466,7 +464,6 @@ function tickSupers() {
     if (dt <= 0) dt = 0.016;
     _superLastTick = now;
 
-    // Тик активных способностей
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onTick) {
         superAbilities[_activeSuperName].onTick(dt);
     }
@@ -479,11 +476,11 @@ function tickSupers() {
 }
 
 function updateSuperLogic(dt) {
-    // Запись истории позиций (для Гароу)
-    if (arenaPhase === "dodge") {
+    // Запись истории позиций ТОЛЬКО для Гароу
+    let mainCard = getMainCard();
+    if (arenaPhase === "dodge" && mainCard && mainCard.name === "Космический Гароу") {
         let now = performance.now();
         _superState.positionHistory.push({ time: now, x: heart.x, y: heart.y });
-        // Удаляем старые (старше 5 секунд)
         while (_superState.positionHistory.length > 0 && now - _superState.positionHistory[0].time > 5000) {
             _superState.positionHistory.shift();
         }
@@ -505,20 +502,20 @@ function updateSuperLogic(dt) {
         }
     }
 
-    // Молнии Деку
+    // Молнии Деку (уменьшены в 2 раза)
     if (_superState.dekusParticles && arenaActive) {
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 2; i++) {
             let angle = Math.random() * Math.PI * 2;
-            let dist = 20 + Math.random() * 25;
-            let startX = heart.x + Math.cos(angle) * 10;
-            let startY = heart.y + Math.sin(angle) * 10;
+            let dist = 15 + Math.random() * 20;
+            let startX = heart.x + Math.cos(angle) * 8;
+            let startY = heart.y + Math.sin(angle) * 8;
             let endX = heart.x + Math.cos(angle) * dist;
             let endY = heart.y + Math.sin(angle) * dist;
             arenaParticles.push({
                 x: startX, y: startY,
                 endX: endX, endY: endY,
                 vx: 0, vy: 0,
-                life: 15, maxLife: 15,
+                life: 12, maxLife: 12,
                 color: "#44ff44",
                 isLightning: true
             });
@@ -584,7 +581,7 @@ function updateSuperLogic(dt) {
 function renderSuperVisuals() {
     if (!ctx) return;
 
-    // След Гароу
+    // След Гароу (только для Гароу)
     drawGarouTrail();
 
     // Молнии
@@ -608,7 +605,7 @@ function renderSuperVisuals() {
         drawCircleMarker(_superState.garouMarker.x, _superState.garouMarker.y, "#ff8800", _superState.garouMarker.alpha);
     }
 
-    // Оглушение Усоппа (жёлтое свечение)
+    // Оглушение Усоппа
     if (_superState.usoppStunTimer > 0 && arenaActive) {
         ctx.save();
         ctx.globalAlpha = 0.3;
@@ -621,7 +618,7 @@ function renderSuperVisuals() {
         ctx.restore();
     }
 
-    // Визуал Луффи (белое свечение)
+    // Визуал Луффи
     if (_superState.nikaActive && arenaActive) {
         ctx.save();
         ctx.globalAlpha = 0.2 + Math.sin(performance.now() / 300) * 0.1;
@@ -634,7 +631,7 @@ function renderSuperVisuals() {
         ctx.restore();
     }
 
-    // Визуал неуязвимости Усоппа (звёздочки)
+    // Звёздочки неуязвимости Усоппа
     if (_superState.usoppInvuln && arenaActive) {
         for (let i = 0; i < 2; i++) {
             arenaParticles.push({
