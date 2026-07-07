@@ -1,18 +1,27 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v2.5 ==========
-// Вся отрисовка внутри этого файла
-// Активны: Деку (100%), Сайтама, Борос
-// Остальные — шаблоны-заглушки
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v3.0 ==========
+// Реализованы: Деку (100%), Сайтама, Борос, Луффи, Гароу, Усопп
+// Остальные — шаблоны
 
 let _superState = {
     fists: [],
+    // Деку
     dekusActive: false,
     dekusOriginalSpeed: 1.2,
     dekusDmgMult: 1,
     dekusParticles: false,
+    // Борос
     borosHeal: null,
     borosParticles: false,
+    // Луффи
+    nikaActive: false,
+    nikaHitboxOriginal: 4,
+    // Гароу
+    positionHistory: [],
+    garouMarker: null,
+    // Усопп
     usoppInvuln: false,
     usoppStunTimer: 0,
+    // Остальные (заглушки)
     antispiralFrozen: false,
     antispiralSpeedBoost: false,
     imAuraActive: false,
@@ -20,13 +29,14 @@ let _superState = {
     imSpeedPenalty: false,
     markBuffActive: false,
     markDebuffActive: false,
+    allmightBleed: false,
 };
 
 let _superCooldowns = {};
 let _activeSuperName = null;
 let _superLastTick = 0;
 
-// ========== ФУНКЦИИ ОТРИСОВКИ ==========
+// ---------- ФУНКЦИИ ОТРИСОВКИ ----------
 function drawLightningBolt(x1, y1, x2, y2, color, alpha) {
     if (!ctx) return;
     ctx.save();
@@ -37,7 +47,6 @@ function drawLightningBolt(x1, y1, x2, y2, color, alpha) {
     ctx.globalAlpha = alpha;
     ctx.beginPath();
     ctx.moveTo(x1, y1);
-    // Зигзаги
     let segments = 4;
     for (let i = 1; i < segments; i++) {
         let t = i / segments;
@@ -56,33 +65,20 @@ function drawFist(f) {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(f.x, f.y);
-    
     let s = f.size;
-    
-    // Свечение
     ctx.shadowColor = "#ff0000";
     ctx.shadowBlur = 30;
-    
-    // Корпус кулака
     ctx.fillStyle = "#ff2222";
     ctx.fillRect(-s, -s * 1.2, s * 2, s * 2.4);
-    
-    // Пальцы (вертикальные полосы)
     ctx.fillStyle = "#ff5555";
     ctx.fillRect(-s * 0.7, -s * 1.2, s * 0.4, s * 2.4);
     ctx.fillRect(s * 0.3, -s * 1.2, s * 0.4, s * 2.4);
-    
-    // Тёмная полоса снизу
     ctx.fillStyle = "#aa0000";
     ctx.fillRect(-s, s * 0.8, s * 2, s * 0.4);
-    
-    // Белая обводка
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 3;
     ctx.shadowBlur = 0;
     ctx.strokeRect(-s, -s * 1.2, s * 2, s * 2.4);
-    
-    // Текст "УДАР" внутри
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 16px monospace";
     ctx.textAlign = "center";
@@ -90,11 +86,30 @@ function drawFist(f) {
     ctx.shadowColor = "#000";
     ctx.shadowBlur = 4;
     ctx.fillText("УДАР", 0, 0);
-    
     ctx.restore();
 }
 
-// ========== ОПИСАНИЯ СПОСОБНОСТЕЙ ==========
+function drawCircleMarker(x, y, color, alpha) {
+    if (!ctx) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 15;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.arc(x, y, 20, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+}
+
+// ---------- ОПИСАНИЯ СПОСОБНОСТЕЙ ----------
 const superAbilities = {
     // ====== ГОТОВЫЕ ======
     "Деку (100%)": {
@@ -186,62 +201,81 @@ const superAbilities = {
         }
     },
 
-    // ====== ШАБЛОНЫ ======
+    // ====== НОВЫЕ ======
     "Луффи: Ника, Бог Солнца": {
-        name: "ОСВОБОЖДЕНИЕ (шаблон)",
-        cooldown: 25000, toggleable: true, duration: Infinity,
-        onActivate() {}, onDeactivate() {}, onTick() {}
+        name: "ОСВОБОЖДЕНИЕ",
+        cooldown: 25000,
+        toggleable: true,
+        duration: Infinity,
+        onActivate() {
+            _superState.nikaActive = true;
+            _superState.nikaHitboxOriginal = heart.hitbox;
+            heart.hitbox *= 2;
+        },
+        onDeactivate() {
+            _superState.nikaActive = false;
+            heart.hitbox = _superState.nikaHitboxOriginal;
+        },
+        onTick(dt) {}
     },
+
     "Космический Гароу": {
-        name: "ПОТОК ВСЕЛЕННОЙ (шаблон)",
-        cooldown: 30000, toggleable: false, duration: 0,
-        onActivate() {}, onTick() {}
+        name: "ПОТОК ВСЕЛЕННОЙ",
+        cooldown: 30000,
+        toggleable: false,
+        duration: 0,
+        onActivate() {
+            let now = performance.now();
+            let target = null;
+            // Ищем позицию 2 секунды назад
+            for (let i = _superState.positionHistory.length - 1; i >= 0; i--) {
+                let p = _superState.positionHistory[i];
+                if (now - p.time >= 2000) {
+                    target = p;
+                    break;
+                }
+            }
+            // Если не нашли (мало истории), берём самую старую
+            if (!target && _superState.positionHistory.length > 0) {
+                target = _superState.positionHistory[0];
+            }
+            if (target) {
+                // Маркер на СТАРОМ месте (куда телепортируемся)
+                _superState.garouMarker = { x: target.x, y: target.y, alpha: 1.0, time: now };
+                // Телепорт
+                heart.x = target.x;
+                heart.y = target.y;
+            }
+            // Очищаем историю после использования
+            _superState.positionHistory = [];
+        },
+        onTick(dt) {}
     },
+
     "Бог Усопп": {
-        name: "ЛОЖЬ СТАНОВИТСЯ ПРАВДОЙ (шаблон)",
-        cooldown: 35000, toggleable: true, duration: 3000,
-        onActivate() {}, onDeactivate() {}, onTick() {}
+        name: "ЛОЖЬ СТАНОВИТСЯ ПРАВДОЙ",
+        cooldown: 35000,
+        toggleable: false,
+        duration: 3000,
+        onActivate() {
+            _superState.usoppInvuln = true;
+        },
+        onDeactivate() {
+            _superState.usoppInvuln = false;
+            _superState.usoppStunTimer = 2; // оглушение 2 сек
+        },
+        onTick(dt) {}
     },
-    "Зено": {
-        name: "СТИРАНИЕ (шаблон)",
-        cooldown: 60000, toggleable: false, duration: 0,
-        onActivate() {}, onTick() {}
-    },
-    "Анти-спираль": {
-        name: "АБСОЛЮТНОЕ ОТЧАЯНИЕ (шаблон)",
-        cooldown: 25000, toggleable: false, duration: 0,
-        onActivate() {}, onTick() {}
-    },
-    "Молодой Гарп": {
-        name: "ГАЛАКТИЧЕСКИЙ КУЛАК (шаблон)",
-        cooldown: 30000, toggleable: false, duration: 0,
-        onActivate() {}, onTick() {}
-    },
-    "Им (Правитель)": {
-        name: "ТЕНЕВОЕ ПРАВЛЕНИЕ (шаблон)",
-        cooldown: 30000, toggleable: true, duration: 6000,
-        onActivate() {}, onDeactivate() {}, onTick() {}
-    },
-    "Космический Дэнди": {
-        name: "КОСМИЧЕСКАЯ УДАЧА (шаблон)",
-        cooldown: 20000, toggleable: false, duration: 0,
-        onActivate() {}, onTick() {}
-    },
-    "Кайдо": {
-        name: "ДЫХАНИЕ РАЗРУШЕНИЯ (шаблон)",
-        cooldown: 25000, toggleable: false, duration: 0,
-        onActivate() {}, onTick() {}
-    },
-    "Император Марк": {
-        name: "НЕПОБЕДИМАЯ ВОЛЯ (шаблон)",
-        cooldown: 30000, toggleable: false, duration: 6000,
-        onActivate() {}, onDeactivate() {}, onTick() {}
-    },
-    "Всемогущий (прайм)": {
-        name: "СИМВОЛ МИРА (шаблон)",
-        cooldown: 40000, toggleable: false, duration: 0,
-        onActivate() {}, onTick() {}
-    }
+
+    // ====== ШАБЛОНЫ ======
+    "Зено": { name: "СТИРАНИЕ (шаблон)", cooldown: 60000, toggleable: false, duration: 0, onActivate() {}, onTick() {} },
+    "Анти-спираль": { name: "АБСОЛЮТНОЕ ОТЧАЯНИЕ (шаблон)", cooldown: 25000, toggleable: false, duration: 0, onActivate() {}, onTick() {} },
+    "Молодой Гарп": { name: "ГАЛАКТИЧЕСКИЙ КУЛАК (шаблон)", cooldown: 30000, toggleable: false, duration: 0, onActivate() {}, onTick() {} },
+    "Им (Правитель)": { name: "ТЕНЕВОЕ ПРАВЛЕНИЕ (шаблон)", cooldown: 30000, toggleable: true, duration: 6000, onActivate() {}, onDeactivate() {}, onTick() {} },
+    "Космический Дэнди": { name: "КОСМИЧЕСКАЯ УДАЧА (шаблон)", cooldown: 20000, toggleable: false, duration: 0, onActivate() {}, onTick() {} },
+    "Кайдо": { name: "ДЫХАНИЕ РАЗРУШЕНИЯ (шаблон)", cooldown: 25000, toggleable: false, duration: 0, onActivate() {}, onTick() {} },
+    "Император Марк": { name: "НЕПОБЕДИМАЯ ВОЛЯ (шаблон)", cooldown: 30000, toggleable: false, duration: 6000, onActivate() {}, onDeactivate() {}, onTick() {} },
+    "Всемогущий (прайм)": { name: "СИМВОЛ МИРА (шаблон)", cooldown: 40000, toggleable: false, duration: 0, onActivate() {}, onTick() {} }
 };
 
 // ========== УПРАВЛЕНИЕ ==========
@@ -346,6 +380,10 @@ function initSuperState() {
         dekusParticles: false,
         borosHeal: null,
         borosParticles: false,
+        nikaActive: false,
+        nikaHitboxOriginal: 4,
+        positionHistory: [],
+        garouMarker: null,
         usoppInvuln: false,
         usoppStunTimer: 0,
         antispiralFrozen: false,
@@ -355,12 +393,13 @@ function initSuperState() {
         imSpeedPenalty: false,
         markBuffActive: false,
         markDebuffActive: false,
+        allmightBleed: false,
     };
     _superLastTick = performance.now();
     updateSuperButton();
 }
 
-// ========== ТИК КАЖДЫЙ КАДР (логика + генерация частиц) ==========
+// ========== ТИК КАЖДЫЙ КАДР ==========
 function tickSupers() {
     if (!arenaActive || !ctx) return;
     let now = performance.now();
@@ -376,17 +415,39 @@ function tickSupers() {
         superAbilities["Борос"].onTick(dt);
     }
 
-    // Генерация частиц и логика кулаков
     updateSuperLogic(dt);
-    
-    // Отрисовка всего (кулаки, молнии)
     renderSuperVisuals();
-    
     updateSuperButton();
 }
 
 function updateSuperLogic(dt) {
-    // Молнии Деку (добавляем как частицы-молнии)
+    // Запись истории позиций (для Гароу)
+    if (arenaPhase === "dodge") {
+        let now = performance.now();
+        _superState.positionHistory.push({ time: now, x: heart.x, y: heart.y });
+        // Удаляем старые (старше 5 секунд)
+        while (_superState.positionHistory.length > 0 && now - _superState.positionHistory[0].time > 5000) {
+            _superState.positionHistory.shift();
+        }
+    }
+
+    // Таймер оглушения Усоппа
+    if (_superState.usoppStunTimer > 0) {
+        _superState.usoppStunTimer -= dt;
+        if (_superState.usoppStunTimer < 0) _superState.usoppStunTimer = 0;
+    }
+
+    // Затухание маркера Гароу
+    if (_superState.garouMarker) {
+        let elapsed = (performance.now() - _superState.garouMarker.time) / 1000;
+        if (elapsed > 1.5) {
+            _superState.garouMarker = null;
+        } else {
+            _superState.garouMarker.alpha = 1 - elapsed / 1.5;
+        }
+    }
+
+    // Молнии Деку
     if (_superState.dekusParticles && arenaActive) {
         for (let i = 0; i < 4; i++) {
             let angle = Math.random() * Math.PI * 2;
@@ -395,7 +456,6 @@ function updateSuperLogic(dt) {
             let startY = heart.y + Math.sin(angle) * 10;
             let endX = heart.x + Math.cos(angle) * dist;
             let endY = heart.y + Math.sin(angle) * dist;
-            
             arenaParticles.push({
                 x: startX, y: startY,
                 endX: endX, endY: endY,
@@ -428,7 +488,6 @@ function updateSuperLogic(dt) {
         f.y += f.vy;
         f.life--;
 
-        // Уничтожение атак
         let pathWidth = f.pathWidth || 90;
         for (let j = attacks.length - 1; j >= 0; j--) {
             let a = attacks[j];
@@ -449,7 +508,6 @@ function updateSuperLogic(dt) {
             }
         }
 
-        // Ваншот босса
         if (f.owner === "Сайтама" && f.willOneshot && !f.oneshotChecked && arenaBossMaxHP > 0) {
             f.oneshotChecked = true;
             arenaBossMaxHP = 0;
@@ -468,7 +526,7 @@ function updateSuperLogic(dt) {
 function renderSuperVisuals() {
     if (!ctx) return;
 
-    // Отрисовка молний
+    // Молнии
     for (let i = arenaParticles.length - 1; i >= 0; i--) {
         let p = arenaParticles[i];
         if (p.isLightning && p.life > 0) {
@@ -477,10 +535,55 @@ function renderSuperVisuals() {
         }
     }
 
-    // Отрисовка кулаков
+    // Кулаки
     if (_superState.fists && _superState.fists.length > 0) {
         for (let f of _superState.fists) {
             if (f.life > 0) drawFist(f);
+        }
+    }
+
+    // Маркер Гароу
+    if (_superState.garouMarker && _superState.garouMarker.alpha > 0) {
+        drawCircleMarker(_superState.garouMarker.x, _superState.garouMarker.y, "#ff8800", _superState.garouMarker.alpha);
+    }
+
+    // Оглушение Усоппа (жёлтое свечение)
+    if (_superState.usoppStunTimer > 0 && arenaActive) {
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = "#ffff00";
+        ctx.shadowColor = "#ffff00";
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(heart.x, heart.y, heart.size * 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Визуал Луффи (белое свечение)
+    if (_superState.nikaActive && arenaActive) {
+        ctx.save();
+        ctx.globalAlpha = 0.2 + Math.sin(performance.now() / 300) * 0.1;
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowColor = "#ffffff";
+        ctx.shadowBlur = 25;
+        ctx.beginPath();
+        ctx.arc(heart.x, heart.y, heart.size * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Визуал неуязвимости Усоппа (звёздочки)
+    if (_superState.usoppInvuln && arenaActive) {
+        for (let i = 0; i < 2; i++) {
+            arenaParticles.push({
+                x: heart.x + (Math.random() - 0.5) * 30,
+                y: heart.y + (Math.random() - 0.5) * 30,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: -1 - Math.random(),
+                life: 20, maxLife: 20,
+                color: "#ffff88", size: 2 + Math.random() * 3
+            });
         }
     }
 }
