@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v6.3 (ULTIMATE EDITION + MAIN CARD SPEED) ==========
+// ========== АРЕНА UNDERTALE v6.4 (ULTIMATE EDITION + SUPER ABILITIES) ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 70;
@@ -25,7 +25,6 @@ let arenaComboText = "";
 let arenaComboTimer = 0;
 let arenaTrail = [];
 let keys = { w: false, a: false, s: false, d: false, up: false, left: false, down: false, right: false };
-// Базовая скорость сердца — будет переопределена из главной карты при старте арены
 let heartSpeed = 1.2;
 let joystickActive = false;
 let joystickX = 0;
@@ -351,7 +350,7 @@ function startArena(bossWave) {
     arenaVignette = 0;
     
     // ====== ПОЛУЧАЕМ СКОРОСТЬ ОТ ГЛАВНОЙ КАРТЫ ======
-    heartSpeed = 1.2; // базовая скорость
+    heartSpeed = 1.2;
     if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0 && mainCardIndex >= 0 && mainCardIndex < team.length) {
         let mainCardIdx = team[mainCardIndex];
         if (typeof myCards !== 'undefined' && mainCardIdx >= 0 && mainCardIdx < myCards.length) {
@@ -361,7 +360,6 @@ function startArena(bossWave) {
             }
         }
     }
-    // Обновляем отображение скорости
     let speedDisplay = document.getElementById("arenaSpeedDisplay");
     if (speedDisplay) speedDisplay.innerText = heartSpeed.toFixed(1);
     // ============================================
@@ -410,6 +408,10 @@ function startArena(bossWave) {
     
     let skipBossBtn = document.getElementById("skipBossBtn");
     if (skipBossBtn) skipBossBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
+    
+    // ====== ИНИЦИАЛИЗАЦИЯ СУПЕР-СПОСОБНОСТЕЙ ======
+    if (typeof initSuperState === 'function') initSuperState();
+    // =============================================
     
     if (!ctx) initArena();
     if (animFrameId) cancelAnimationFrame(animFrameId);
@@ -507,6 +509,13 @@ function applyArenaDamage() {
     arenaComboTimer = 55;
     let baseDmg = typeof window !== 'undefined' && window.playerFinalDamage ? window.playerFinalDamage : 20;
     let finalDmg = Math.floor(baseDmg * dmgMult);
+    
+    // ====== МНОЖИТЕЛЬ УРОНА ДЕКУ (СУПЕР-СПОСОБНОСТЬ) ======
+    if (window._superDekuDamageMult && window._superDekuDamageMult > 1) {
+        finalDmg = Math.floor(finalDmg * window._superDekuDamageMult);
+    }
+    // ====================================================
+    
     if (finalDmg > 0) {
         arenaBossMaxHP -= finalDmg;
         arenaShake = 20;
@@ -652,6 +661,18 @@ function spawnAttack() {
 }
 
 function stopArena() {
+    // Деактивируем супер-способности при выходе с арены
+    if (typeof activeSuper !== 'undefined' && activeSuper && typeof superAbilities !== 'undefined' && superAbilities[activeSuper]) {
+        if (superAbilities[activeSuper].onDeactivate) superAbilities[activeSuper].onDeactivate();
+        activeSuper = null;
+    }
+    window._superDekuActive = false;
+    window._superDekuDamageMult = 1;
+    window._superDekuParticles = false;
+    window._superFists = [];
+    window._superBorosHeal = null;
+    window._superBorosParticles = false;
+    
     arenaActive = false;
     stopArenaAmbient();
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
@@ -660,6 +681,7 @@ function stopArena() {
     attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = []; arenaBlasters = []; arenaShockwaves = [];
     document.getElementById("arenaOverlay").style.display = "none";
     let skipBtn = document.getElementById("skipBossBtn"); if (skipBtn) skipBtn.style.display = "none";
+    let superBtn = document.getElementById("superBtn"); if (superBtn) superBtn.style.display = "none";
 }
 
 function winArena() {
@@ -725,6 +747,11 @@ function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
 
 function renderArena() {
     if (!arenaActive || !ctx) return;
+    
+    // ====== ТИК СУПЕР-СПОСОБНОСТЕЙ ======
+    if (typeof tickSupers === 'function') tickSupers();
+    // ======================================
+    
     let now = Date.now();
     if (arenaPhase === "dodge") {
         moveHeart();
@@ -1005,7 +1032,8 @@ function renderArena() {
             heartGrad.addColorStop(0, '#ff4444');
             heartGrad.addColorStop(1, '#990000');
             ctx.fillStyle = heartGrad;
-            ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 12;
+            ctx.shadowColor = window._superDekuParticles ? "#44ff44" : "#ff0000";
+            ctx.shadowBlur = window._superDekuParticles ? 20 : 12;
             ctx.beginPath(); ctx.arc(-3.5,-2,4.5,Math.PI,0); ctx.arc(3.5,-2,4.5,Math.PI,0); ctx.lineTo(0,6); ctx.closePath(); ctx.fill(); 
             ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.shadowBlur = 0; ctx.beginPath(); ctx.arc(-2,-2,1.5,0,Math.PI*2); ctx.fill(); 
             if (invulnTimer>0) { 
