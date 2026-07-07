@@ -35,132 +35,132 @@ const worlds = [
 function getCurrentWorld() { for (let w of worlds) { if (wave >= w.minWave && wave <= w.maxWave) return w; } return worlds[worlds.length - 1]; }
 function getWorldForWave(w) { for (let world of worlds) { if (w >= world.minWave && w <= world.maxWave) return world; } return worlds[0]; }
 
-// ========== ШАБЛОНЫ КАРТ ==========
+// ========== ШАБЛОНЫ КАРТ (С ИНДИВИДУАЛЬНОЙ СКОРОСТЬЮ) ==========
 const customCardTemplates = {
     "Обычная": [
-        { name: "Луффи", universe: "One Piece", damage: 4, hp: 8, desc: "Базовый Луффи. Никаких способностей, просто бьёт." },
-        { name: "Усопп", universe: "One Piece", damage: 3, hp: 6, desc: "Трусливый снайпер. Без способностей." },
-        { name: "Нами", universe: "One Piece", damage: 2, hp: 8, desc: "Навигатор. Без способностей." },
-        { name: "Ездок", universe: "OPM", damage: 1, hp: 11, desc: "Герой класса С. Много HP." },
-        { name: "Деку (безпричудный) ", universe: "MHA", damage: 2, hp: 12, ability: { type: "spareChanceBonus", value: 0.05, desc: "+5% к пощаде" }, desc: "Без причуды, но мечтающий стать героем. Разве не глупо? +5% к шансу пощады." },
-        { name: "Консперон (обычный) ", universe: "Dandadan", damage: 4, hp: 5, desc: "ИНОПЛОНЕТЯНЫ СУЩЕСТВУЮТ!!!!!" },
-        { name: "Танджиро", universe: "DS", damage: 3, hp: 10, desc: "Охотник на демонов." },
-        { name: "Уборщик Коби", universe: "One piece", damage: 1, hp: 1, desc: "Самый слабый персонаж. С него всё начиналось." },
-        { name: "Аста", universe: "Black Clover", damage: 3, hp: 8, desc: "Маг без магии с анти-мечом." },
-        { name: "Хьюи (слабый)", universe: "The Boys", damage: 2, hp: 10, desc: "Парень, чью девушку сбил А Train." },
-        { name: "Френчи", universe: "The Boys", damage: 4, hp: 6, desc: "Оружейник и спецназовец." },
-        { name: "Дональд", universe: "Invincible", damage: 3, hp: 9, desc: "К счастью это не Дональд Трамп...." }
+        { name: "Луффи", universe: "One Piece", damage: 4, hp: 8, speed: 0.6, desc: "Базовый Луффи. Никаких способностей, просто бьёт." },
+        { name: "Усопп", universe: "One Piece", damage: 3, hp: 6, speed: 0.4, desc: "Трусливый снайпер. Без способностей." },
+        { name: "Нами", universe: "One Piece", damage: 2, hp: 8, speed: 0.5, desc: "Навигатор. Без способностей." },
+        { name: "Ездок", universe: "OPM", damage: 1, hp: 11, speed: 0.3, desc: "Герой класса С. Много HP." },
+        { name: "Деку (безпричудный)", universe: "MHA", damage: 2, hp: 12, speed: 0.5, ability: { type: "spareChanceBonus", value: 0.05, desc: "+5% к пощаде" }, desc: "Без причуды, но мечтающий стать героем. Разве не глупо? +5% к шансу пощады." },
+        { name: "Консперон (обычный)", universe: "Dandadan", damage: 4, hp: 5, speed: 0.7, desc: "ИНОПЛОНЕТЯНЫ СУЩЕСТВУЮТ!!!!!" },
+        { name: "Танджиро", universe: "DS", damage: 3, hp: 10, speed: 0.5, desc: "Охотник на демонов." },
+        { name: "Уборщик Коби", universe: "One piece", damage: 1, hp: 1, speed: 0.1, desc: "Самый слабый персонаж. С него всё начиналось." },
+        { name: "Аста", universe: "Black Clover", damage: 3, hp: 8, speed: 0.6, desc: "Маг без магии с анти-мечом." },
+        { name: "Хьюи (слабый)", universe: "The Boys", damage: 2, hp: 10, speed: 0.4, desc: "Парень, чью девушку сбил А Train." },
+        { name: "Френчи", universe: "The Boys", damage: 4, hp: 6, speed: 0.5, desc: "Оружейник и спецназовец." },
+        { name: "Дональд", universe: "Invincible", damage: 3, hp: 9, speed: 0.4, desc: "К счастью это не Дональд Трамп...." }
     ],
     "Редкая": [
-        { name: "Брук", universe: "One Piece", damage: 7, hp: 12, desc: "Скелет-музыкант. Йохохо!" },
-        { name: "Иноске", universe: "DS", damage: 9, hp: 15, desc: "Человек-кабан с двумя мечами." },
-        { name: "Киллуа", universe: "HxH", damage: 10, hp: 13, desc: "Молниеносный ассасин семьи Золдик." },
-        { name: "Рейген", universe: "Mob 100", damage: 4, hp: 25, desc: "Великий экстрасенс XXI века (нет)." },
-        { name: "Марк (слабый)", universe: "Invincible", damage: 8, hp: 18, desc: "Сын Омни-Мэна. Только получил силы." },
-        { name: "ММ (Марвин)", universe: "The Boys", damage: 7, hp: 20, desc: "Лидер команды Пацаны. Тактик." },
-        { name: "Кимико (начало)", universe: "The Boys", damage: 9, hp: 14, desc: "Немая убийца с супер-регенерацией." },
-        { name: "Ева Уилкинс", universe: "Invincible", damage: 6, hp: 22, desc: "Девушка-герой с левитацией." }
+        { name: "Брук", universe: "One Piece", damage: 7, hp: 12, speed: 0.9, desc: "Скелет-музыкант. Йохохо!" },
+        { name: "Иноске", universe: "DS", damage: 9, hp: 15, speed: 1.0, desc: "Человек-кабан с двумя мечами." },
+        { name: "Киллуа", universe: "HxH", damage: 10, hp: 13, speed: 1.3, desc: "Молниеносный ассасин семьи Золдик." },
+        { name: "Рейген", universe: "Mob 100", damage: 4, hp: 25, speed: 0.5, desc: "Великий экстрасенс XXI века (нет)." },
+        { name: "Марк (слабый)", universe: "Invincible", damage: 8, hp: 18, speed: 0.8, desc: "Сын Омни-Мэна. Только получил силы." },
+        { name: "ММ (Марвин)", universe: "The Boys", damage: 7, hp: 20, speed: 0.6, desc: "Лидер команды Пацаны. Тактик." },
+        { name: "Кимико (начало)", universe: "The Boys", damage: 9, hp: 14, speed: 0.9, desc: "Немая убийца с супер-регенерацией." },
+        { name: "Ева Уилкинс", universe: "Invincible", damage: 6, hp: 22, speed: 0.7, desc: "Девушка-герой с левитацией." }
     ],
     "Сверх редкая": [
-        { name: "Луффи (2 гир)", universe: "One Piece", damage: 16, hp: 25, desc: "Ускоренный кровоток. Быстрее и сильнее." },
-        { name: "Зоро (до таймскипа) ", universe: "One Piece", damage: 18, hp: 22, desc: "Зоро, чтоб не заблудиться,\nК нитке вздумал прицепиться.\nНить порвалась — он улетел\nИ в кастрюлю к Санджи прилетел." },
-        { name: "Санджи (до таймскипа) ", universe: "One Piece", damage: 16, hp: 20, desc: "Чёрная нога. Шеф-повар." },
-        { name: "Гаара", universe: "Naruto", damage: 17, hp: 28, desc: "Джинчурики с песчаной бронёй." },
-        { name: "Эмир", universe: "AoT", damage: 25, hp: 10, desc: "Солдат разведкорпуса." },
-        { name: "Эрен (Кадет) ", universe: "AoT", damage: 27, hp: 10, desc: "Кадет с жаждой мести титанам." },
-        { name: "Коби (Солдат) ", universe: "One Piece", damage: 15, hp: 30, desc: "Доказывает, что слабый может стать сильным." },
-        { name: "Ренджи", universe: "Bleach", damage: 15, hp: 25, desc: "Шинигами с мечом-хлыстом." },
-        { name: "Киришима", universe: "MHA", damage: 13, hp: 35, desc: "Красный бунтарь. Твердеет кожей." },
-        { name: "Райан (Ребенок) ", universe: "The Boys", damage: 20, hp: 25, desc: "Сын Хоумлендера. Ещё учится." },
-        { name: "Рекс Слоан", universe: "Invincible", damage: 18, hp: 28, desc: "Взрывной герой-подросток." },
-        { name: "Дупли-Кейт", universe: "Invincible", damage: 15, hp: 20, desc: "Множится на клонов." },
-        { name: "Пучино", universe: "The Boys", damage: 17, hp: 26, desc: "Подводный герой. Любит рыбу." },
-        { name: "Мреющий", universe: "The Boys", damage: 9, hp: 40, desc: "Невидимый шпион Семёрки." }
+        { name: "Луффи (2 гир)", universe: "One Piece", damage: 16, hp: 25, speed: 1.5, desc: "Ускоренный кровоток. Быстрее и сильнее." },
+        { name: "Зоро (до таймскипа)", universe: "One Piece", damage: 18, hp: 22, speed: 1.1, desc: "Зоро, чтоб не заблудиться,\nК нитке вздумал прицепиться.\nНить порвалась — он улетел\nИ в кастрюлю к Санджи прилетел." },
+        { name: "Санджи (до таймскипа)", universe: "One Piece", damage: 16, hp: 20, speed: 1.3, desc: "Чёрная нога. Шеф-повар." },
+        { name: "Гаара", universe: "Naruto", damage: 17, hp: 28, speed: 0.9, desc: "Джинчурики с песчаной бронёй." },
+        { name: "Эмир", universe: "AoT", damage: 25, hp: 10, speed: 1.4, desc: "Солдат разведкорпуса." },
+        { name: "Эрен (Кадет)", universe: "AoT", damage: 27, hp: 10, speed: 1.2, desc: "Кадет с жаждой мести титанам." },
+        { name: "Коби (Солдат)", universe: "One Piece", damage: 15, hp: 30, speed: 0.8, desc: "Доказывает, что слабый может стать сильным." },
+        { name: "Ренджи", universe: "Bleach", damage: 15, hp: 25, speed: 1.0, desc: "Шинигами с мечом-хлыстом." },
+        { name: "Киришима", universe: "MHA", damage: 13, hp: 35, speed: 0.7, desc: "Красный бунтарь. Твердеет кожей." },
+        { name: "Райан (Ребенок)", universe: "The Boys", damage: 20, hp: 25, speed: 1.1, desc: "Сын Хоумлендера. Ещё учится." },
+        { name: "Рекс Слоан", universe: "Invincible", damage: 18, hp: 28, speed: 1.0, desc: "Взрывной герой-подросток." },
+        { name: "Дупли-Кейт", universe: "Invincible", damage: 15, hp: 20, speed: 1.2, desc: "Множится на клонов." },
+        { name: "Пучино", universe: "The Boys", damage: 17, hp: 26, speed: 0.8, desc: "Подводный герой. Любит рыбу." },
+        { name: "Мреющий", universe: "The Boys", damage: 9, hp: 40, speed: 0.6, desc: "Невидимый шпион Семёрки." }
     ],
     "Эпик": [
-        { name: "Луффи (Таймскип)", universe: "One Piece", damage: 28, hp: 45, ability: { type: "damageMultChance", chance: 0.35, mult: 1.3, desc: "35% урон x1.3" }, desc: "После двух лет тренировок. Шанс 35% нанести в 1.3 раза больше урона." },
-        { name: "Ло", universe: "One Piece", damage: 25, hp: 40, ability: { type: "damageAura", value: 0.05, desc: "+5% урона" }, desc: "Хирург смерти. Увеличивает урон всей команды на 5%." },
-        { name: "Итачи", universe: "Naruto", damage: 30, hp: 38, desc: "Гений клана Учиха. Без активных способностей." },
-        { name: "Эрен", universe: "AoT", damage: 35, hp: 50, ability: { type: "teamHealOnWave", value: 0.02, desc: "Хил 2% за волну" }, desc: "После каждой победы лечит команду на 2%." },
-        { name: "Гатс", universe: "Berserk", damage: 40, hp: 55, ability: { type: "damageAura", value: 0.05, desc: "+5% урона" }, desc: "Чёрный мечник. +5% урона команде." },
-        { name: "Кид", universe: "One Piece", damage: 28, hp: 35, ability: { type: "critChance", value: 0.05, desc: "+5% крит" }, desc: "Магнитный пират. +5% к шансу крита." },
-        { name: "Какаши", universe: "Naruto", damage: 26, hp: 42, desc: "Копирующий ниндзя. Без активных способностей." },
-        { name: "Коби (Honestly impact)", universe: "One Piece", damage: 32, hp: 45, ability: { type: "critChance", value: 0.05, desc: "+5% крит" }, desc: "Честный удар. +5% к шансу крита." },
-        { name: "Луччи (Сп-9)", universe: "One Piece", damage: 38, hp: 45, desc: "Агент Леопард. Без активных способностей." },
-        { name: "Робот (Руди)", universe: "Invincible", damage: 30, hp: 48, desc: "Киборг-подросток." },
-        { name: "Чёрный Нуар", universe: "The Boys", damage: 35, hp: 52, ability: { type: "damageReduction", value: 0.07, desc: "-7% урона" }, desc: "Молчаливый ниндзя Семёрки. Уменьшает получаемый урон на 7%." },
-        { name: "Кимико", universe: "The Boys", damage: 32, hp: 48, ability: { type: "teamHealOnWave", value: 0.02, desc: "Хил 2% за волну" }, desc: "Девушка с супер-регенерацией. Лечит команду на 2% за волну." },
-        { name: "Ракета", universe: "The Boys", damage: 38, hp: 40, ability: { type: "nonBossOneShot", chance: 0.03, desc: "3% ваншот (не босс)" }, desc: "К вам летит РАКЕТААААААА!!!! 3% шанс мгновенно убить врага (кроме боссов)." },
-        { name: "Деку (5%)", universe: "MHA", damage: 29, hp: 70, ability: { type: "spareChanceBonus", value: 0.08, desc: "+8% к пощаде" }, statusAbility: { type: "clickDmgSelf", value: 0.02, desc: "-2% HP за клик" }, desc: "Слабый сосуд, мощная сила. Настолко, что каждый клик отнимает 2% HP команды. +8% к пощаде, кстати" }
+        { name: "Луффи (Таймскип)", universe: "One Piece", damage: 28, hp: 45, speed: 1.6, ability: { type: "damageMultChance", chance: 0.35, mult: 1.3, desc: "35% урон x1.3" }, desc: "После двух лет тренировок. Шанс 35% нанести в 1.3 раза больше урона." },
+        { name: "Ло", universe: "One Piece", damage: 25, hp: 40, speed: 1.2, ability: { type: "damageAura", value: 0.05, desc: "+5% урона" }, desc: "Хирург смерти. Увеличивает урон всей команды на 5%." },
+        { name: "Итачи", universe: "Naruto", damage: 30, hp: 38, speed: 1.5, desc: "Гений клана Учиха. Без активных способностей." },
+        { name: "Эрен", universe: "AoT", damage: 35, hp: 50, speed: 1.3, ability: { type: "teamHealOnWave", value: 0.02, desc: "Хил 2% за волну" }, desc: "После каждой победы лечит команду на 2%." },
+        { name: "Гатс", universe: "Berserk", damage: 40, hp: 55, speed: 1.0, ability: { type: "damageAura", value: 0.05, desc: "+5% урона" }, desc: "Чёрный мечник. +5% урона команде." },
+        { name: "Кид", universe: "One Piece", damage: 28, hp: 35, speed: 1.1, ability: { type: "critChance", value: 0.05, desc: "+5% крит" }, desc: "Магнитный пират. +5% к шансу крита." },
+        { name: "Какаши", universe: "Naruto", damage: 26, hp: 42, speed: 1.4, desc: "Копирующий ниндзя. Без активных способностей." },
+        { name: "Коби (Honestly impact)", universe: "One Piece", damage: 32, hp: 45, speed: 1.2, ability: { type: "critChance", value: 0.05, desc: "+5% крит" }, desc: "Честный удар. +5% к шансу крита." },
+        { name: "Луччи (Сп-9)", universe: "One Piece", damage: 38, hp: 45, speed: 1.5, desc: "Агент Леопард. Без активных способностей." },
+        { name: "Робот (Руди)", universe: "Invincible", damage: 30, hp: 48, speed: 0.9, desc: "Киборг-подросток." },
+        { name: "Чёрный Нуар", universe: "The Boys", damage: 35, hp: 52, speed: 1.6, ability: { type: "damageReduction", value: 0.07, desc: "-7% урона" }, desc: "Молчаливый ниндзя Семёрки. Уменьшает получаемый урон на 7%." },
+        { name: "Кимико", universe: "The Boys", damage: 32, hp: 48, speed: 1.4, ability: { type: "teamHealOnWave", value: 0.02, desc: "Хил 2% за волну" }, desc: "Девушка с супер-регенерацией. Лечит команду на 2% за волну." },
+        { name: "Ракета", universe: "The Boys", damage: 38, hp: 40, speed: 1.8, ability: { type: "nonBossOneShot", chance: 0.03, desc: "3% ваншот (не босс)" }, desc: "К вам летит РАКЕТААААААА!!!! 3% шанс мгновенно убить врага (кроме боссов)." },
+        { name: "Деку (5%)", universe: "MHA", damage: 29, hp: 70, speed: 0.6, ability: { type: "spareChanceBonus", value: 0.08, desc: "+8% к пощаде" }, statusAbility: { type: "clickDmgSelf", value: 0.02, desc: "-2% HP за клик" }, desc: "Слабый сосуд, мощная сила. Настолко, что каждый клик отнимает 2% HP команды. +8% к пощаде, кстати" }
     ],
     "Мифическая": [
-        { name: "Луффи (4 гир)", universe: "One Piece", damage: 45, hp: 75, ability: { type: "damageReduction", value: 0.15, desc: "-15% урона" }, desc: "Boundman. Уменьшает получаемый урон на 15%." },
-        { name: "Наруто (Мудрец)", universe: "Naruto", damage: 52, hp: 85, statusAbility: { type: "bleed", value: 0.10, desc: "Кровотечение +10%" }, desc: "Режим Мудреца. Увеличивает урон по врагу на 10% (кровотечение)." },
-        { name: "Гоку (SSJ)", universe: "DB", damage: 60, hp: 70, ability: { type: "bossDamage", value: 0.10, desc: "+10% боссам" }, desc: "Супер Сайян. +10% урона боссам." },
-        { name: "Годжо (флешбек)", universe: "JJK", damage: 66, hp: 66, statusAbility: { type: "shock", chance: 0.1, desc: "Шок 10%" }, desc: "Молодой сильнейший маг. 10% шанс шокнуть врага и сбросить его атаку." },
-        { name: "Сукуна (15 пальцев)", universe: "JJK", damage: 70, hp: 70, statusAbility: { type: "bleed", value: 0.08, desc: "Кровотечение +8%" }, desc: "Король Проклятий. +8% урона через кровотечение." },
-        { name: "Эйс", universe: "One Piece", damage: 70, hp: 47, statusAbility: { type: "fire", damage: 5, duration: 5000, desc: "Огонь 5/сек" }, desc: "Огненный кулак. Поджигает врага — 5 урона каждые 2 секунды." },
-        { name: "Дедушка Гарп", universe: "One Piece", damage: 55, hp: 90, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" }, desc: "Герой морпехов. +10% урона всей команде." },
-        { name: "Неуязвимый (Коалиция планет)", universe: "Invincible", damage: 65, hp: 80, ability: { type: "critChance", value: 0.20, desc: "+20% крит" }, desc: "Марк Грейсон в прайме. +20% к шансу крита." },
-        { name: "Бог Скайпии Энель", universe: "One Piece", damage: 68, hp: 72, statusAbility: { type: "shock", chance: 0.12, desc: "Шок 12%" }, desc: "Бог молний. 12% шанс шокнуть врага." },
-        { name: "Альбер (Кинг)", universe: "One Piece", damage: 72, hp: 68, statusAbility: { type: "fire", damage: 8, duration: 4000, desc: "Огонь 8/сек" }, desc: "Правая рука Кайдо. Поджигает врага — 8 урона каждые 2 секунды." },
-        { name: "Виктория Ньюман", universe: "The Boys", damage: 65, hp: 85, statusAbility: { type: "bleed", value: 0.20, desc: "Кровотечение +20%" }, desc: "Глава секретного отдела. +20% урона через кровотечение (взрыв головы)." },
-        { name: "Королева Мэйв", universe: "The Boys", damage: 70, hp: 88, ability: { type: "damageReduction", value: 0.15, desc: "-15% меньше урона" }, desc: "Самая сильная женщина. Уменьшает получаемый урон на 15%." },
-        { name: "Солдатик (флешбек)", universe: "The Boys", damage: 72, hp: 82, ability: { type: "bossDamage", value: 0.12, desc: "+12% боссам" }, desc: "Первый супергерой. +12% урона боссам." },
-        { name: "Штормфронт", universe: "The Boys", damage: 68, hp: 78, statusAbility: { type: "shock", chance: 0.15, desc: "Электричество 15%" }, desc: "Нацистка с молниями. 15% шанс шокнуть врага." },
-        { name: "Ален (перерождённый)", universe: "Invincible", damage: 70, hp: 70, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" }, desc: "Инопланетянин-герой. +10% урона команде." },
-        { name: "Звёздочка", universe: "The Boys", damage: 65, hp: 80, statusAbility: { type: "blind", value: 2, desc: "Ослепление +2" }, desc: "Световая героиня. Ослепляет врага — +2 клика до ответной атаки." },
-        { name: "Деку: полное покрытие (20%)", universe: "MHA", damage: 58, hp: 68, ability: { type: "spareChanceBonus", value: 0.10, desc: "+10% к пощаде" }, statusAbility: { type: "dmgTakenIncrease", value: 0.10, desc: "+10% получ. урона" }, desc: "20% One For All. +10% к пощаде, но получаемый урон увеличен на 10%." }
+        { name: "Луффи (4 гир)", universe: "One Piece", damage: 45, hp: 75, speed: 1.8, ability: { type: "damageReduction", value: 0.15, desc: "-15% урона" }, desc: "Boundman. Уменьшает получаемый урон на 15%." },
+        { name: "Наруто (Мудрец)", universe: "Naruto", damage: 52, hp: 85, speed: 2.0, statusAbility: { type: "bleed", value: 0.10, desc: "Кровотечение +10%" }, desc: "Режим Мудреца. Увеличивает урон по врагу на 10% (кровотечение)." },
+        { name: "Гоку (SSJ)", universe: "DB", damage: 60, hp: 70, speed: 2.2, ability: { type: "bossDamage", value: 0.10, desc: "+10% боссам" }, desc: "Супер Сайян. +10% урона боссам." },
+        { name: "Годжо (флешбек)", universe: "JJK", damage: 66, hp: 66, speed: 2.5, statusAbility: { type: "shock", chance: 0.1, desc: "Шок 10%" }, desc: "Молодой сильнейший маг. 10% шанс шокнуть врага и сбросить его атаку." },
+        { name: "Сукуна (15 пальцев)", universe: "JJK", damage: 70, hp: 70, speed: 1.9, statusAbility: { type: "bleed", value: 0.08, desc: "Кровотечение +8%" }, desc: "Король Проклятий. +8% урона через кровотечение." },
+        { name: "Эйс", universe: "One Piece", damage: 70, hp: 47, speed: 2.1, statusAbility: { type: "fire", damage: 5, duration: 5000, desc: "Огонь 5/сек" }, desc: "Огненный кулак. Поджигает врага — 5 урона каждые 2 секунды." },
+        { name: "Дедушка Гарп", universe: "One Piece", damage: 55, hp: 90, speed: 1.2, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" }, desc: "Герой морпехов. +10% урона всей команде." },
+        { name: "Неуязвимый (Коалиция планет)", universe: "Invincible", damage: 65, hp: 80, speed: 2.0, ability: { type: "critChance", value: 0.20, desc: "+20% крит" }, desc: "Марк Грейсон в прайме. +20% к шансу крита." },
+        { name: "Бог Скайпии Энель", universe: "One Piece", damage: 68, hp: 72, speed: 2.8, statusAbility: { type: "shock", chance: 0.12, desc: "Шок 12%" }, desc: "Бог молний. 12% шанс шокнуть врага." },
+        { name: "Альбер (Кинг)", universe: "One Piece", damage: 72, hp: 68, speed: 2.3, statusAbility: { type: "fire", damage: 8, duration: 4000, desc: "Огонь 8/сек" }, desc: "Правая рука Кайдо. Поджигает врага — 8 урона каждые 2 секунды." },
+        { name: "Виктория Ньюман", universe: "The Boys", damage: 65, hp: 85, speed: 1.6, statusAbility: { type: "bleed", value: 0.20, desc: "Кровотечение +20%" }, desc: "Глава секретного отдела. +20% урона через кровотечение (взрыв головы)." },
+        { name: "Королева Мэйв", universe: "The Boys", damage: 70, hp: 88, speed: 1.8, ability: { type: "damageReduction", value: 0.15, desc: "-15% меньше урона" }, desc: "Самая сильная женщина. Уменьшает получаемый урон на 15%." },
+        { name: "Солдатик (флешбек)", universe: "The Boys", damage: 72, hp: 82, speed: 1.7, ability: { type: "bossDamage", value: 0.12, desc: "+12% боссам" }, desc: "Первый супергерой. +12% урона боссам." },
+        { name: "Штормфронт", universe: "The Boys", damage: 68, hp: 78, speed: 2.4, statusAbility: { type: "shock", chance: 0.15, desc: "Электричество 15%" }, desc: "Нацистка с молниями. 15% шанс шокнуть врага." },
+        { name: "Ален (перерождённый)", universe: "Invincible", damage: 70, hp: 70, speed: 2.2, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" }, desc: "Инопланетянин-герой. +10% урона команде." },
+        { name: "Звёздочка", universe: "The Boys", damage: 65, hp: 80, speed: 1.9, statusAbility: { type: "blind", value: 2, desc: "Ослепление +2" }, desc: "Световая героиня. Ослепляет врага — +2 клика до ответной атаки." },
+        { name: "Деку: полное покрытие (20%)", universe: "MHA", damage: 58, hp: 68, speed: 1.3, ability: { type: "spareChanceBonus", value: 0.10, desc: "+10% к пощаде" }, statusAbility: { type: "dmgTakenIncrease", value: 0.10, desc: "+10% получ. урона" }, desc: "20% One For All. +10% к пощаде, но получаемый урон увеличен на 10%." }
     ],
     "Легендарная": [
-        { name: "Кудзан", universe: "One Piece", damage: 85, hp: 120, statusAbility: { type: "freezeStacks", value: 2, desc: "Заморозка +2" }, desc: "Бывший адмирал Аокидзи. Замораживает врага — +2 клика до ответной атаки." },
-        { name: "Йонко Шанкс", universe: "One Piece", damage: 95, hp: 90, ability: { type: "critChance", value: 0.15, desc: "+15% крит" }, desc: "Рыжеволосый император. +15% к шансу крита." },
-        { name: "Хоумлендер", universe: "The Boys", damage: 115, hp: 125, ability: { type: "bossDamage", value: 0.18, desc: "+18% боссам" }, statusAbility: { type: "fire", damage: 10, duration: 3000, desc: "Лазеры 10/сек" }, desc: "Лидер Семёрки. +18% урона боссам и поджигает врага лазерами — 10 урона/2 сек." },
-        { name: "Наруто (Барион)", universe: "Naruto", damage: 100, hp: 120, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" }, statusAbility: { type: "bleed", value: 0.1, desc: "Кровотечение +10%" }, desc: "Режим Бариона. +10% урона команде и +10% урона через кровотечение." },
-        { name: "Гоку (UI)", universe: "DB", damage: 110, hp: 110, ability: { type: "damageAura", value: 0.13, desc: "+13% урона" }, desc: "Ультра Инстинкт. +13% урона всей команде." },
-        { name: "Вегета (UE)", universe: "DB", damage: 115, hp: 105, ability: { type: "damageAura", value: 0.20, desc: "+20% урона, +10% враг", damageTakenMod: 0.10 }, desc: "Ультра Эго. +20% урона команде, но враг бьёт на 10% сильнее." },
-        { name: "Мадара", universe: "Naruto", damage: 120, hp: 100, ability: { type: "damageReduction", value: 0.05, desc: "-5% урона" }, statusAbility: { type: "freezeStacks", value: 1, desc: "Заморозка +1" }, desc: "Призрак Учиха. -5% получаемого урона и заморозка +1." },
-        { name: "Гарп (Galaxy impact)", universe: "One Piece", damage: 105, hp: 140, ability: { type: "damageAura", value: 0.20, desc: "+20% урона" }, desc: "Кулак галактики. +20% урона всей команде." },
-        { name: "Омни-Мэн", universe: "Invincible", damage: 120, hp: 130, ability: { type: "damageAura", value: 0.12, desc: "+12% урона" }, statusAbility: { type: "bleed", value: 0.15, desc: "Кровотечение +15%" }, desc: "Нолан Грейсон. +12% урона команде и +15% урона через кровотечение." },
-        { name: "Ло (Пробужденный)", universe: "One Piece", damage: 105, hp: 145, ability: { type: "healOnWin", percent: 0.03, desc: "+3% HP" }, statusAbility: { type: "shock", chance: 0.10, desc: "Электричество 10%" }, desc: "Пробуждённый фрукт. Лечит 3% HP при победе и 10% шанс шока." }
+        { name: "Кудзан", universe: "One Piece", damage: 85, hp: 120, speed: 1.8, statusAbility: { type: "freezeStacks", value: 2, desc: "Заморозка +2" }, desc: "Бывший адмирал Аокидзи. Замораживает врага — +2 клика до ответной атаки." },
+        { name: "Йонко Шанкс", universe: "One Piece", damage: 95, hp: 90, speed: 3.0, ability: { type: "critChance", value: 0.15, desc: "+15% крит" }, desc: "Рыжеволосый император. +15% к шансу крита." },
+        { name: "Хоумлендер", universe: "The Boys", damage: 115, hp: 125, speed: 2.5, ability: { type: "bossDamage", value: 0.18, desc: "+18% боссам" }, statusAbility: { type: "fire", damage: 10, duration: 3000, desc: "Лазеры 10/сек" }, desc: "Лидер Семёрки. +18% урона боссам и поджигает врага лазерами — 10 урона/2 сек." },
+        { name: "Наруто (Барион)", universe: "Naruto", damage: 100, hp: 120, speed: 2.8, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" }, statusAbility: { type: "bleed", value: 0.1, desc: "Кровотечение +10%" }, desc: "Режим Бариона. +10% урона команде и +10% урона через кровотечение." },
+        { name: "Гоку (UI)", universe: "DB", damage: 110, hp: 110, speed: 3.5, ability: { type: "damageAura", value: 0.13, desc: "+13% урона" }, desc: "Ультра Инстинкт. +13% урона всей команде." },
+        { name: "Вегета (UE)", universe: "DB", damage: 115, hp: 105, speed: 3.2, ability: { type: "damageAura", value: 0.20, desc: "+20% урона, +10% враг", damageTakenMod: 0.10 }, desc: "Ультра Эго. +20% урона команде, но враг бьёт на 10% сильнее." },
+        { name: "Мадара", universe: "Naruto", damage: 120, hp: 100, speed: 2.2, ability: { type: "damageReduction", value: 0.05, desc: "-5% урона" }, statusAbility: { type: "freezeStacks", value: 1, desc: "Заморозка +1" }, desc: "Призрак Учиха. -5% получаемого урона и заморозка +1." },
+        { name: "Гарп (Galaxy impact)", universe: "One Piece", damage: 105, hp: 140, speed: 2.0, ability: { type: "damageAura", value: 0.20, desc: "+20% урона" }, desc: "Кулак галактики. +20% урона всей команде." },
+        { name: "Омни-Мэн", universe: "Invincible", damage: 120, hp: 130, speed: 2.6, ability: { type: "damageAura", value: 0.12, desc: "+12% урона" }, statusAbility: { type: "bleed", value: 0.15, desc: "Кровотечение +15%" }, desc: "Нолан Грейсон. +12% урона команде и +15% урона через кровотечение." },
+        { name: "Ло (Пробужденный)", universe: "One Piece", damage: 105, hp: 145, speed: 2.4, ability: { type: "healOnWin", percent: 0.03, desc: "+3% HP" }, statusAbility: { type: "shock", chance: 0.10, desc: "Электричество 10%" }, desc: "Пробуждённый фрукт. Лечит 3% HP при победе и 10% шанс шока." }
     ],
     "Секретная": [
-        { name: "Луффи: Ника, Бог Солнца", universe: "One Piece", damage: 150, hp: 200, sellPrice: 1500, minRebirth: 2, ability: { type: "bossDamage", value: 0.30, desc: "+30% боссам", damageReduction: 0.10 }, desc: "Пробуждение дьявольского фрукта. +30% урона боссам и -10% получаемого урона." },
-        { name: "Космический Гароу", universe: "OPM", damage: 250, hp: 400, sellPrice: 2800, minRebirth: 4, ability: { type: "scaleWithWins", value: 0.01, desc: "+1% силы/волна" }, desc: "Космический монстр. Увеличивает свою силу на 1% за каждую побеждённую волну." },
-        { name: "Сайтама", universe: "OPM", damage: 200, hp: 300, sellPrice: 1500, minRebirth: 3, ability: { type: "oneShot", chance: 0.05, desc: "5% ваншот" }, desc: "Лысый плащ. 5% шанс убить врага с одного удара." },
-        { name: "Борос", universe: "OPM", damage: 180, hp: 350, sellPrice: 1400, minRebirth: 2, ability: { type: "healOnWin", percent: 0.05, desc: "+5% HP" }, desc: "Владыка вселенной. Лечит 5% HP при победе." },
-        { name: "Бог Усопп", universe: "One Piece", damage: 250, hp: 400, sellPrice: 2000, minRebirth: 3, ability: { type: "resurrect", chance: 0.05, desc: "5% воскрес" }, desc: "Великий воин морей. 5% шанс воскреснуть при смерти." },
-        { name: "Зено", universe: "DB", damage: 300, hp: 500, sellPrice: 3000, minRebirth: 4, ability: { type: "zenoCheckpoint", desc: "10% след. чекпоинт" }, statusAbility: { type: "fatigueResist", value: 0.30, desc: "-30% усталости" }, desc: "Царь всего. 10% шанс открыть следующий чекпоинт и -30% усталости." },
-        { name: "Анти-спираль", universe: "GL", damage: 280, hp: 450, sellPrice: 2500, minRebirth: 2, ability: { type: "damageReduction", value: 0.30, desc: "-30% урона" }, desc: "Враг всего живого. Уменьшает получаемый урон на 30%." },
-        { name: "Молодой Гарп", universe: "One Piece", damage: 260, hp: 380, sellPrice: 2500, minRebirth: 3, ability: { type: "damageAura", value: 0.25, desc: "+25% урона" }, desc: "Гарп в расцвете сил. +25% урона всей команде." },
-        { name: "Им (Правитель)", universe: "One Piece", damage: 290, hp: 450, sellPrice: 3000, minRebirth: 5, ability: { type: "bossDamage", value: 0.20, desc: "+20% боссам" }, desc: "Тайный правитель мира. +20% урона боссам." },
-        { name: "Космический Дэнди", universe: "Space Dandy", damage: 200, hp: 650, sellPrice: 2200, minRebirth: 3, ability: { type: "critChance", value: 0.15, desc: "+15% крит" }, statusAbility: { type: "shock", chance: 0.20, desc: "Шок 20%" }, desc: "Постоянный клиент космического фансервис-кафе «Груди» " },
-        { name: "Кайдо", universe: "One Piece", damage: 300, hp: 500, sellPrice: 3000, minRebirth: 4, ability: { type: "bossDouble", desc: "x2 урон (босс)" }, desc: "Сильнейший в мире. При битве с боссом наносит удвоенный урон." },
-        { name: "Император Марк", universe: "Invincible", damage: 310, hp: 500, sellPrice: 3000, minRebirth: 5, ability: { type: "bossSupport", desc: "+15% урона (босс)" }, statusAbility: { type: "bleed", value: 0.12, desc: "Кровотечение +12%" }, desc: "Марк спустя 500 лет. +15% урона команде при битве с боссом, +12% урона через кровотечение." },
-        { name: "Деку (100%)", universe: "MHA", damage: 280, hp: 450, sellPrice: 2800, minRebirth: 4, ability: { type: "bossDoubleSelf", desc: "x2 урон (босс), -30% на 10 волн" }, desc: "Полная сила One For All. Удваивает урон при битве с боссом, но ослабляет на 30% на следующие 10 волн." },
-        { name: "Всемогущий (прайм)", universe: "MHA", damage: 300, hp: 480, sellPrice: 3000, minRebirth: 4, ability: { type: "damageAura", value: 0.15, desc: "+15% урона" }, statusAbility: { type: "bossDamageAura", value: 0.10, desc: "+25% (босс)" }, desc: "Символ мира в прайме. +15% урона команде и +25% при битве с боссом." }
+        { name: "Луффи: Ника, Бог Солнца", universe: "One Piece", damage: 150, hp: 200, speed: 3.8, sellPrice: 1500, minRebirth: 2, ability: { type: "bossDamage", value: 0.30, desc: "+30% боссам", damageReduction: 0.10 }, desc: "Пробуждение дьявольского фрукта. +30% урона боссам и -10% получаемого урона." },
+        { name: "Космический Гароу", universe: "OPM", damage: 250, hp: 400, speed: 3.5, sellPrice: 2800, minRebirth: 4, ability: { type: "scaleWithWins", value: 0.01, desc: "+1% силы/волна" }, desc: "Космический монстр. Увеличивает свою силу на 1% за каждую побеждённую волну." },
+        { name: "Сайтама", universe: "OPM", damage: 200, hp: 300, speed: 4.0, sellPrice: 1500, minRebirth: 3, ability: { type: "oneShot", chance: 0.05, desc: "5% ваншот" }, desc: "Лысый плащ. 5% шанс убить врага с одного удара." },
+        { name: "Борос", universe: "OPM", damage: 180, hp: 350, speed: 3.2, sellPrice: 1400, minRebirth: 2, ability: { type: "healOnWin", percent: 0.05, desc: "+5% HP" }, desc: "Владыка вселенной. Лечит 5% HP при победе." },
+        { name: "Бог Усопп", universe: "One Piece", damage: 250, hp: 400, speed: 2.5, sellPrice: 2000, minRebirth: 3, ability: { type: "resurrect", chance: 0.05, desc: "5% воскрес" }, desc: "Великий воин морей. 5% шанс воскреснуть при смерти." },
+        { name: "Зено", universe: "DB", damage: 300, hp: 500, speed: 3.0, sellPrice: 3000, minRebirth: 4, ability: { type: "zenoCheckpoint", desc: "10% след. чекпоинт" }, statusAbility: { type: "fatigueResist", value: 0.30, desc: "-30% усталости" }, desc: "Царь всего. 10% шанс открыть следующий чекпоинт и -30% усталости." },
+        { name: "Анти-спираль", universe: "GL", damage: 280, hp: 450, speed: 2.8, sellPrice: 2500, minRebirth: 2, ability: { type: "damageReduction", value: 0.30, desc: "-30% урона" }, desc: "Враг всего живого. Уменьшает получаемый урон на 30%." },
+        { name: "Молодой Гарп", universe: "One Piece", damage: 260, hp: 380, speed: 3.3, sellPrice: 2500, minRebirth: 3, ability: { type: "damageAura", value: 0.25, desc: "+25% урона" }, desc: "Гарп в расцвете сил. +25% урона всей команде." },
+        { name: "Им (Правитель)", universe: "One Piece", damage: 290, hp: 450, speed: 2.2, sellPrice: 3000, minRebirth: 5, ability: { type: "bossDamage", value: 0.20, desc: "+20% боссам" }, desc: "Тайный правитель мира. +20% урона боссам." },
+        { name: "Космический Дэнди", universe: "Space Dandy", damage: 200, hp: 650, speed: 2.7, sellPrice: 2200, minRebirth: 3, ability: { type: "critChance", value: 0.15, desc: "+15% крит" }, statusAbility: { type: "shock", chance: 0.20, desc: "Шок 20%" }, desc: "Постоянный клиент космического фансервис-кафе «Груди»" },
+        { name: "Кайдо", universe: "One Piece", damage: 300, hp: 500, speed: 2.4, sellPrice: 3000, minRebirth: 4, ability: { type: "bossDouble", desc: "x2 урон (босс)" }, desc: "Сильнейший в мире. При битве с боссом наносит удвоенный урон." },
+        { name: "Император Марк", universe: "Invincible", damage: 310, hp: 500, speed: 3.1, sellPrice: 3000, minRebirth: 5, ability: { type: "bossSupport", desc: "+15% урона (босс)" }, statusAbility: { type: "bleed", value: 0.12, desc: "Кровотечение +12%" }, desc: "Марк спустя 500 лет. +15% урона команде при битве с боссом, +12% урона через кровотечение." },
+        { name: "Деку (100%)", universe: "MHA", damage: 280, hp: 450, speed: 3.6, sellPrice: 2800, minRebirth: 4, ability: { type: "bossDoubleSelf", desc: "x2 урон (босс), -30% на 10 волн" }, desc: "Полная сила One For All. Удваивает урон при битве с боссом, но ослабляет на 30% на следующие 10 волн." },
+        { name: "Всемогущий (прайм)", universe: "MHA", damage: 300, hp: 480, speed: 3.4, sellPrice: 3000, minRebirth: 4, ability: { type: "damageAura", value: 0.15, desc: "+15% урона" }, statusAbility: { type: "bossDamageAura", value: 0.10, desc: "+25% (босс)" }, desc: "Символ мира в прайме. +15% урона команде и +25% при битве с боссом." }
     ],
     "Эволюционная": [
-        { name: "Луффи : Король пиратов", universe: "One Piece", damage: 1200, hp: 2000, minRebirth: 5, ability: { type: "bossDamage", value: 0.50, desc: "+50% боссам", bossReduction: 0.40 }, unsellable: true, desc: "Король пиратов. +50% урона боссам и -40% получаемого урона при битве с боссом. Чтобы получить: соберите 5 разных Луффи в команду (ровно 5 карт) и победите босса 500 волны." },
-        { name: "Сайтама/Гароу", universe: "Эволюция", damage: 1500, hp: 2500, minRebirth: 5, ability: { type: "oneShot", chance: 0.15, desc: "15% ваншот" }, statusAbility: { type: "scaleWithWins", value: 0.03, desc: "+3% силы/волна" }, unsellable: true, desc: "Слияние сильнейших. 15% шанс ваншота и +3% силы за каждую волну. Чтобы получить: ваншотните 2000 врагов способностью Сайтамы (Сайтама + Космический Гароу в команде)." },
-        { name: "Гарп/Кудзан", universe: "Эволюция", damage: 1400, hp: 2200, minRebirth: 5, ability: { type: "damageAura", value: 0.40, desc: "+40% урона" }, statusAbility: { type: "absoluteFreeze", value: 0.5, desc: "-50% урона" }, unsellable: true, desc: "Учитель и ученик. +40% урона команде и -50% получаемого урона. Чтобы получить: накопите 1 000 000 000 урона (Молодой Гарп + Кудзан в команде)." },
-        { name: "Семёрка", universe: "The Boys", damage: 1600, hp: 2600, minRebirth: 5, ability: { type: "sevenSpecial", desc: "V x3, хил 5%/волна", healOnWave: 0.05, damageReduction: 0.10 }, statusAbility: { type: "blind", value: 2, desc: "Ослепление +2" }, extraStatus: [{ type: "fire", damage: 10, duration: 3000 }, { type: "shock", chance: 0.15 }], unsellable: true, desc: "Вся Семёрка вместе. Препарат V утраивает баффы, хил 5% за волну, ослепление, лазеры и электричество. Чтобы получить: Хоумлендер, Звёздочка, Мреющий, Чёрный Нуар, Пучино, Королева Мэйв с V и 20 ур." },
-        { name: "Уильям Фрэнсис", universe: "Invincible", damage: 800, hp: 1200, minRebirth: 5, ability: { type: "copyEnemyChance", chance: 0.15, desc: "15% копирует врага" }, unsellable: true, desc: "Копирует характеристики врага с шансом 15%. Чтобы получить: победите босса 2000 волны только с обычными картами (6 шт)." }
+        { name: "Луффи : Король пиратов", universe: "One Piece", damage: 1200, hp: 2000, speed: 4.5, minRebirth: 5, ability: { type: "bossDamage", value: 0.50, desc: "+50% боссам", bossReduction: 0.40 }, unsellable: true, desc: "Король пиратов. +50% урона боссам и -40% получаемого урона при битве с боссом. Чтобы получить: соберите 5 разных Луффи в команду (ровно 5 карт) и победите босса 500 волны." },
+        { name: "Сайтама/Гароу", universe: "Эволюция", damage: 1500, hp: 2500, speed: 5.0, minRebirth: 5, ability: { type: "oneShot", chance: 0.15, desc: "15% ваншот" }, statusAbility: { type: "scaleWithWins", value: 0.03, desc: "+3% силы/волна" }, unsellable: true, desc: "Слияние сильнейших. 15% шанс ваншота и +3% силы за каждую волну. Чтобы получить: ваншотните 2000 врагов способностью Сайтамы (Сайтама + Космический Гароу в команде)." },
+        { name: "Гарп/Кудзан", universe: "Эволюция", damage: 1400, hp: 2200, speed: 3.5, minRebirth: 5, ability: { type: "damageAura", value: 0.40, desc: "+40% урона" }, statusAbility: { type: "absoluteFreeze", value: 0.5, desc: "-50% урона" }, unsellable: true, desc: "Учитель и ученик. +40% урона команде и -50% получаемого урона. Чтобы получить: накопите 1 000 000 000 урона (Молодой Гарп + Кудзан в команде)." },
+        { name: "Семёрка", universe: "The Boys", damage: 1600, hp: 2600, speed: 4.0, minRebirth: 5, ability: { type: "sevenSpecial", desc: "V x3, хил 5%/волна", healOnWave: 0.05, damageReduction: 0.10 }, statusAbility: { type: "blind", value: 2, desc: "Ослепление +2" }, extraStatus: [{ type: "fire", damage: 10, duration: 3000 }, { type: "shock", chance: 0.15 }], unsellable: true, desc: "Вся Семёрка вместе. Препарат V утраивает баффы, хил 5% за волну, ослепление, лазеры и электричество. Чтобы получить: Хоумлендер, Звёздочка, Мреющий, Чёрный Нуар, Пучино, Королева Мэйв с V и 20 ур." },
+        { name: "Уильям Фрэнсис", universe: "Invincible", damage: 800, hp: 1200, speed: 3.0, minRebirth: 5, ability: { type: "copyEnemyChance", chance: 0.15, desc: "15% копирует врага" }, unsellable: true, desc: "Копирует характеристики врага с шансом 15%. Чтобы получить: победите босса 2000 волны только с обычными картами (6 шт)." }
     ],
     "Босс": [
-        { name: "Охотник за головами", universe: "Боссы", damage: 150, hp: 300, sellPrice: 1000, minRebirth: 0, ability: { type: "bossDamage", value: 0.10, desc: "+10% боссам" }, desc: "Получен после пощады босса 10000 волны. +10% урона боссам." },
-        { name: "Король Демонов", universe: "Боссы", damage: 200, hp: 400, sellPrice: 2000, minRebirth: 1, ability: { type: "damageAura", value: 0.05, desc: "+5% урона" }, desc: "Получен после пощады босса 100 волны. +5% урона команде." },
-        { name: "Маджин Буу", universe: "Боссы", damage: 250, hp: 500, sellPrice: 3000, minRebirth: 2, statusAbility: { type: "bleed", value: 0.10, desc: "Кровотечение +10%" }, desc: "Получен после пощады босса 200 волны. +10% урона через кровотечение." },
-        { name: "Король Пиратов", universe: "Боссы", damage: 400, hp: 800, sellPrice: 5000, minRebirth: 3, ability: { type: "bossDamage", value: 0.20, desc: "+20% боссам" }, desc: "Получен после пощады босса 500 волны. +20% урона боссам." }
+        { name: "Охотник за головами", universe: "Боссы", damage: 150, hp: 300, speed: 2.0, sellPrice: 1000, minRebirth: 0, ability: { type: "bossDamage", value: 0.10, desc: "+10% боссам" }, desc: "Получен после пощады босса 10000 волны. +10% урона боссам." },
+        { name: "Король Демонов", universe: "Боссы", damage: 200, hp: 400, speed: 1.5, sellPrice: 2000, minRebirth: 1, ability: { type: "damageAura", value: 0.05, desc: "+5% урона" }, desc: "Получен после пощады босса 100 волны. +5% урона команде." },
+        { name: "Маджин Буу", universe: "Боссы", damage: 250, hp: 500, speed: 1.8, sellPrice: 3000, minRebirth: 2, statusAbility: { type: "bleed", value: 0.10, desc: "Кровотечение +10%" }, desc: "Получен после пощады босса 200 волны. +10% урона через кровотечение." },
+        { name: "Король Пиратов", universe: "Боссы", damage: 400, hp: 800, speed: 2.2, sellPrice: 5000, minRebirth: 3, ability: { type: "bossDamage", value: 0.20, desc: "+20% боссам" }, desc: "Получен после пощады босса 500 волны. +20% урона боссам." }
     ],
     "Пасхалка": [
-        { name: "Пельмешка", universe: "Кухня", damage: 35, hp: 60, unsellable: true, ability: { type: "luckAura", value: 0.50, desc: "+50% удачи" }, desc: "Вкусный пельмень. +50% к удаче." },
-        { name: "Попугай Соня", universe: "Зоопарк", damage: 3, hp: 5, unsellable: true, ability: { type: "deathBonus", value: 0.30, desc: "+30% звёзд" }, desc: "После смерти даёт +30% к накопленным звёздам." },
-        { name: "Кофе", universe: "AoT", damage: 20, hp: 50, unsellable: true, ability: { type: "fatigueResist", value: 0.50, desc: "-50% усталости" }, desc: "Бодрящий напиток. Снижает набор усталости на 50%." }
+        { name: "Пельмешка", universe: "Кухня", damage: 35, hp: 60, speed: 1.0, unsellable: true, ability: { type: "luckAura", value: 0.50, desc: "+50% удачи" }, desc: "Вкусный пельмень. +50% к удаче." },
+        { name: "Попугай Соня", universe: "Зоопарк", damage: 3, hp: 5, speed: 0.8, unsellable: true, ability: { type: "deathBonus", value: 0.30, desc: "+30% звёзд" }, desc: "После смерти даёт +30% к накопленным звёздам." },
+        { name: "Кофе", universe: "AoT", damage: 20, hp: 50, speed: 1.5, unsellable: true, ability: { type: "fatigueResist", value: 0.50, desc: "-50% усталости" }, desc: "Бодрящий напиток. Снижает набор усталости на 50%." }
     ]
 };
 
-// ========== БОССЫ И ДИАЛОГИ (HP уменьшен в 1.5 раза, урон оригинальный) ==========
+// ========== БОССЫ И ДИАЛОГИ ==========
 const bossTemplates = {
     50:  { name: "Король Демонов", hpMult: 4, dmgMult: 0.8, dialogue: "Ты думаешь, что сможешь одолеть меня? Глупец.", enemyStatus: { type: "freezeStacks", value: 1 }, canSpare: true, spareReward: "Король Демонов", arenaTypes: [0] },
     100: { name: "Маджин Буу", hpMult: 5.3, dmgMult: 0.1, dialogue: "Буу, я голоден! Ты станешь моим обедом!", enemyStatus: { type: "bleed", value: 0.2 }, canSpare: true, spareReward: "Маджин Буу", arenaTypes: [0] },
@@ -182,67 +182,36 @@ const bossTemplates = {
     900: { name: "Властелин Молний", hpMult: 18.7, dmgMult: 3.9, dialogue: "Быстрее молнии? Не в этой жизни.", enemyStatus: { type: "shock", chance: 0.6 }, canSpare: true, arenaTypes: [1,3,9,10] },
     950: { name: "Жнец Душ", hpMult: 22.7, dmgMult: 3.5, dialogue: "Твоя жизнь... она закончится здесь.", enemyStatus: { type: "poison", damage: 8 }, canSpare: true, arenaTypes: [1,5,6,7] },
    1000: { name: "Император Хаоса", hpMult: 26.7, dmgMult: 2.8, dialogue: "Хаос — это не беспорядок. Это свобода!", enemyStatus: { type: "bleed", value: 0.35 }, canSpare: true, arenaTypes: [0,2,4,6,8] },
-    // Было 6.0, стало 3.0
     1100: { name: "Архидемон Баал", hpMult: 29.3, dmgMult: 3.0, dialogue: "Я сожгу твою душу дотла.", enemyStatus: { type: "fire", damage: 15, duration: 3000 }, canSpare: true, arenaTypes: [3,5,7,9,10] },
-    // Было 5.4, стало 2.7
     1200: { name: "Хранитель Бездны", hpMult: 32, dmgMult: 2.7, dialogue: "Бездна смотрит в тебя... и улыбается.", enemyStatus: { type: "freezeStacks", value: 4 }, canSpare: true, arenaTypes: [0,1,2,3,8] },
-    // Было 6.8, стало 3.4
     1300: { name: "Небесный Страж", hpMult: 28, dmgMult: 3.4, dialogue: "Небеса не простят твоих грехов.", enemyStatus: { type: "blind", value: 4 }, canSpare: true, arenaTypes: [4,6,7,10] },
-    // Было 6.4, стало 3.2
     1400: { name: "Князь Тьмы", hpMult: 34.7, dmgMult: 3.2, dialogue: "Тьма — это не отсутствие света. Это сила.", enemyStatus: { type: "poison", damage: 10 }, canSpare: true, arenaTypes: [2,3,6,8,9] },
-    // Было 7.2, стало 3.6
     1500: { name: "Эрен (Титан-основатель)", hpMult: 37.3, dmgMult: 3.6, dialogue: "Я уничтожу всех... ради свободы.", enemyStatus: { type: "bleed", value: 0.4 }, canSpare: true, arenaTypes: [0,1,4,5,8] },
-    // Было 8.0, стало 4.0
     1600: { name: "Гатс (Берсерк)", hpMult: 40, dmgMult: 4.0, dialogue: "Я буду бороться... до последнего вздоха.", enemyStatus: { type: "bleed", value: 0.5 }, canSpare: true, spareReward: "Гатс (Берсерк)", arenaTypes: [1,3,5,7,9] },
-    // Было 7.6, стало 3.8
     1700: { name: "Драконий Император", hpMult: 38.7, dmgMult: 3.8, dialogue: "Моя чешуя крепче любой брони.", enemyStatus: { type: "fire", damage: 20, duration: 2000 }, canSpare: true, arenaTypes: [0,2,5,9,10] },
-    // Было 9.0, стало 4.5
     1800: { name: "Великий Маг", hpMult: 30.7, dmgMult: 4.5, dialogue: "Магия — это искусство разрушения.", enemyStatus: { type: "shock", chance: 0.7 }, canSpare: true, arenaTypes: [1,4,6,7,10] },
-    // Было 8.4, стало 4.2
     1900: { name: "Луффи (Гир 5)", hpMult: 42.7, dmgMult: 4.2, dialogue: "Я стану Королём Пиратов!", enemyStatus: { type: "blind", value: 3 }, canSpare: true, arenaTypes: [0,3,5,8,9] },
-    // Было 9.2, стало 4.6
     2000: { name: "Омни-Мэн (Пробуждённый)", hpMult: 46.7, dmgMult: 4.6, dialogue: "Подумай, сын! Ты сражаешься на неправильной стороне!", enemyStatus: { type: "bleed", value: 0.5 }, canSpare: true, spareReward: "Омни-Мэн", arenaTypes: [4,6,8,9,10] },
-    // Было 14.0, стало 7.0
     2100: { name: "Сайтама (Серьёзный)", hpMult: 80, dmgMult: 7.0, dialogue: "Ну... я просто честно тренировался.", enemyStatus: { type: "shock", chance: 0.5 }, canSpare: true, spareReward: "Сайтама", arenaTypes: [0,2,4,6,8,10] },
-    // Было 10.0, стало 5.0
     2200: { name: "Король Проклятий (Полный)", hpMult: 50.7, dmgMult: 5.0, dialogue: "Ты даже не достоин быть моей закуской.", enemyStatus: { type: "poison", damage: 12 }, canSpare: true, arenaTypes: [1,3,5,7,9,10] },
-    // Было 10.8, стало 5.4
     2300: { name: "Бог Гароу", hpMult: 54.7, dmgMult: 5.4, dialogue: "Я — абсолютное зло. И я уничтожу всё.", enemyStatus: { type: "fire", damage: 25, duration: 1500 }, canSpare: true, arenaTypes: [2,4,6,8,9,10] },
-    // Было 12.0, стало 6.0
     2400: { name: "Зено (Рассерженный)", hpMult: 63.3, dmgMult: 6.0, dialogue: "Ты... ты меня разозлил.", enemyStatus: { type: "oneshot", chance: 0.05 }, canSpare: false, arenaTypes: [0,3,6,7,8,9] },
-    // Было 13.0, стало 6.5
     2500: { name: "Анти-Спираль (Финальная форма)", hpMult: 73.3, dmgMult: 6.5, dialogue: "Отчаяние... это всё что у тебя осталось.", enemyStatus: { type: "freezeStacks", value: 6 }, canSpare: true, arenaTypes: [0,1,2,4,6,8,9] },
-    // Было 13.5, стало 6.8
     2600: { name: "Деку (1.000.000%)", hpMult: 66.7, dmgMult: 6.8, dialogue: "Я передам эстафету... ВСЕМ!", enemyStatus: { type: "shock", chance: 0.8 }, canSpare: true, arenaTypes: [1,3,5,7,9] },
-    // Было 12.5, стало 6.3
     2700: { name: "Имир (Прародитель)", hpMult: 83.3, dmgMult: 6.3, dialogue: "Я прожила 2000 лет... и всё ради этого.", enemyStatus: { type: "bleed", value: 0.6 }, canSpare: true, arenaTypes: [0,2,4,6,8] },
-    // Было 15.0, стало 7.5
     2800: { name: "Властелин Времени", hpMult: 60, dmgMult: 7.5, dialogue: "Время... оно течёт только в одном направлении.", enemyStatus: { type: "blind", value: 5 }, canSpare: true, arenaTypes: [3,5,7,9,10] },
-    // Было 14.5, стало 7.3
     2900: { name: "Архитектор Реальности", hpMult: 72, dmgMult: 7.3, dialogue: "Я создал этот мир... и я могу его уничтожить.", enemyStatus: { type: "poison", damage: 15 }, canSpare: true, arenaTypes: [0,1,4,6,8,10] },
-    // Было 16.0, стало 8.0
     3000: { name: "Хоумлендер (Безудержный)", hpMult: 80, dmgMult: 8.0, dialogue: "Я — единственный бог в этом мире.", enemyStatus: { type: "fire", damage: 30, duration: 1000 }, canSpare: true, arenaTypes: [2,5,8,9,10] },
-    // Было 15.0, стало 7.5
     3200: { name: "Всеотец Один", hpMult: 93.3, dmgMult: 7.5, dialogue: "Мудрость... вот что побеждает силу.", enemyStatus: { type: "shock", chance: 0.9 }, canSpare: true, arenaTypes: [0,3,5,7,9] },
-    // Было 14.0, стало 7.0
     3400: { name: "Феникс Возрождённый", hpMult: 106.7, dmgMult: 7.0, dialogue: "Из пепла я восстану снова и снова!", enemyStatus: { type: "fire", damage: 35, duration: 800 }, canSpare: true, arenaTypes: [1,4,6,8,10] },
-    // Было 17.0, стало 8.5
     3600: { name: "Тёмный Рыцарь", hpMult: 116.7, dmgMult: 8.5, dialogue: "Я — возмездие. Я — ночь.", enemyStatus: { type: "bleed", value: 0.7 }, canSpare: true, arenaTypes: [0,2,5,7,9,10] },
-    // Было 18.5, стало 9.3
     3800: { name: "Разрушитель Миров", hpMult: 126.7, dmgMult: 9.3, dialogue: "Я уничтожил сотни миров. Твой будет последним.", enemyStatus: { type: "oneshot", chance: 0.03 }, canSpare: true, arenaTypes: [1,3,6,8,9,10] },
-    // Было 20.0, стало 10.0
     4000: { name: "Бог-Император", hpMult: 140, dmgMult: 10.0, dialogue: "Склонись... или умри стоя.", enemyStatus: { type: "freezeStacks", value: 8 }, canSpare: true, arenaTypes: [0,1,2,3,4,5,6,7,8,9,10] },
-    // Было 18.0, стало 9.0
     4200: { name: "Абсолютное Ничто", hpMult: 160, dmgMult: 9.0, dialogue: "...............", enemyStatus: { type: "blind", value: 6 }, canSpare: false, arenaTypes: [6,7,8,9,10] },
-    // Было 22.0, стало 11.0
     4400: { name: "Хранитель Врат", hpMult: 153.3, dmgMult: 11.0, dialogue: "За мной — бесконечность. Ты не пройдёшь.", enemyStatus: { type: "shock", chance: 1.0 }, canSpare: true, arenaTypes: [0,2,4,6,8,10] },
-    // Было 24.0, стало 12.0
     4600: { name: "Судья Душ", hpMult: 173.3, dmgMult: 12.0, dialogue: "Твоя душа взвешена... и признана недостойной.", enemyStatus: { type: "poison", damage: 20 }, canSpare: true, arenaTypes: [1,3,5,7,9,10] },
-    // Было 26.0, стало 13.0
     4800: { name: "Король-Звезда", hpMult: 186.7, dmgMult: 13.0, dialogue: "Я зажгу сверхновую... прямо здесь.", enemyStatus: { type: "fire", damage: 40, duration: 500 }, canSpare: true, arenaTypes: [0,1,4,6,8,9,10] },
-    // Было 30.0, стало 15.0
     5000: { name: "Предвестник Конца", hpMult: 206.7, dmgMult: 15.0, dialogue: "Конец... это только начало.", enemyStatus: { type: "oneshot", chance: 0.1 }, canSpare: false, arenaTypes: [0,1,2,3,4,5,6,7,8,9,10] },
-    // Было 5.0, стало 2.5
     10000: { name: "Охотник за головами (Финальная форма)", hpMult: 36.7, dmgMult: 2.5, dialogue: "Хах, пока вас не было я тренировался целыми днями ради этого момента! Теперь за вашу голову готовы отдать 100.000 тенге!", canSpare: true, spareReward: "Охотник за головами", hasDialog: true, arenaTypes: [0,1,2,3,4,5,6,7,8,9,10] }
 };
 const finalBossResponses = [
@@ -255,7 +224,18 @@ const finalBossResponses = [
 const totalTemplatesCount = Object.values(customCardTemplates).flat().length;
 const rarities = ["Обычная","Редкая","Сверх редкая","Эпик","Мифическая","Легендарная","Секретная","Эволюционная","Босс","Пасхалка"];
 const rarityColors = { "Обычная":"common","Редкая":"rare","Сверх редкая":"superrare","Эпик":"epic","Мифическая":"mythic","Легендарная":"legendary","Секретная":"secret","Эволюционная":"evolutionary","Босс":"boss-rarity","Пасхалка":"easter" };
-const cardStats = { "Обычная":{damage:3,hp:5,sellPrice:20},"Редкая":{damage:6,hp:10,sellPrice:45},"Сверх редкая":{damage:12,hp:20,sellPrice:90},"Эпик":{damage:20,hp:35,sellPrice:150},"Мифическая":{damage:35,hp:60,sellPrice:260},"Легендарная":{damage:60,hp:100,sellPrice:450},"Секретная":{damage:100,hp:180,sellPrice:800},"Эволюционная":{damage:500,hp:1000,sellPrice:0},"Босс":{damage:80,hp:150,sellPrice:1000},"Пасхалка":{damage:10,hp:20,sellPrice:0} };
+const cardStats = { 
+    "Обычная":      { damage: 3,  hp: 5,  sellPrice: 20,  speed: 0.4 },
+    "Редкая":       { damage: 6,  hp: 10, sellPrice: 45,  speed: 0.6 },
+    "Сверх редкая": { damage: 12, hp: 20, sellPrice: 90,  speed: 0.8 },
+    "Эпик":         { damage: 20, hp: 35, sellPrice: 150, speed: 1.0 },
+    "Мифическая":   { damage: 35, hp: 60, sellPrice: 260, speed: 1.2 },
+    "Легендарная":  { damage: 60, hp: 100, sellPrice: 450, speed: 1.5 },
+    "Секретная":    { damage: 100, hp: 180, sellPrice: 800, speed: 2.0 },
+    "Эволюционная": { damage: 500, hp: 1000, sellPrice: 0,  speed: 1.8 },
+    "Босс":         { damage: 80,  hp: 150, sellPrice: 1000, speed: 1.1 },
+    "Пасхалка":     { damage: 10,  hp: 20,  sellPrice: 0,   speed: 1.0 }
+};
 let cardWeights = { "Обычная":45,"Редкая":25,"Сверх редкая":12,"Эпик":8,"Мифическая":5,"Легендарная":3,"Секретная":1.5,"Эволюционная":0.0001,"Босс":0 };
 const enemyNames = ["Эльф-лучник","Голем","Орк-берсерк","Слизь-убийца","Гоблин-шаман","Скелет-воин","Тёмный маг","Вампир-князь","Драконий прихвостень","Лесной дух","Кровавый берсерк","Ледяной элементаль"];
 const enemyStatusPool = [null, null, null, { type: "freezeStacks", value: 1 }, { type: "bleed", value: 0.1 }, { type: "shock", chance: 0.1 }];
