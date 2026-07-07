@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v7.0 (ULTIMATE EDITION + ALL SUPER ABILITIES) ==========
+// ========== АРЕНА UNDERTALE v7.1 (FIXED FIST RENDERING) ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 70;
@@ -50,7 +50,6 @@ let screenFlash = 0;
 let screenFlashColor = "#ffffff";
 let heartRotation = 0;
 let arenaVignette = 0;
-// Глобальный модификатор скорости атак (для Анти-спираля и т.п.)
 let arenaGlobalSpeedMod = 1.0;
 
 // ========== ЗВУКОВАЯ СИСТЕМА АРЕНЫ ==========
@@ -412,9 +411,7 @@ function startArena(bossWave) {
     let skipBossBtn = document.getElementById("skipBossBtn");
     if (skipBossBtn) skipBossBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
     
-    // ====== ИНИЦИАЛИЗАЦИЯ СУПЕР-СПОСОБНОСТЕЙ ======
     if (typeof initSuperState === 'function') initSuperState();
-    // =============================================
     
     if (!ctx) initArena();
     if (animFrameId) cancelAnimationFrame(animFrameId);
@@ -513,7 +510,6 @@ function applyArenaDamage() {
     let baseDmg = typeof window !== 'undefined' && window.playerFinalDamage ? window.playerFinalDamage : 20;
     let finalDmg = Math.floor(baseDmg * dmgMult);
     
-    // Множитель урона от Деку
     if (typeof _superState !== 'undefined' && _superState.dekusDmgMult && _superState.dekusDmgMult > 1) {
         finalDmg = Math.floor(finalDmg * _superState.dekusDmgMult);
     }
@@ -662,7 +658,6 @@ function spawnAttack() {
 }
 
 function stopArena() {
-    // Сброс супер-способностей
     if (typeof _activeSuperName !== 'undefined' && _activeSuperName && typeof superAbilities !== 'undefined' && superAbilities[_activeSuperName]) {
         if (superAbilities[_activeSuperName].onDeactivate) superAbilities[_activeSuperName].onDeactivate();
     }
@@ -717,7 +712,6 @@ function loseArena() {
 }
 
 function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
-    // Неуязвимость от Усоппа
     if (typeof _superState !== 'undefined' && _superState.usoppInvuln) return;
     
     if (invulnTimer > 0) return;
@@ -757,9 +751,7 @@ function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
 function renderArena() {
     if (!arenaActive || !ctx) return;
     
-    // ====== ТИК СУПЕР-СПОСОБНОСТЕЙ ======
     if (typeof tickSupers === 'function') tickSupers();
-    // ======================================
     
     let now = Date.now();
     if (arenaPhase === "dodge") {
@@ -924,7 +916,6 @@ function renderArena() {
     ctx.restore();
 
     if (arenaPhase === "dodge") {
-        // Движение атак (с учётом заморозки)
         let frozen = (typeof _superState !== 'undefined' && _superState.antispiralFrozen);
         let speedMod = arenaGlobalSpeedMod * (typeof _superState !== 'undefined' && _superState.antispiralSpeedBoost ? 1.5 : 1.0);
         
@@ -998,7 +989,6 @@ function renderArena() {
             }
             if (a.y > 560 || a.y < -150 || a.x < -160 || a.x > 560) { attacks.splice(i, 1); continue; }
             
-            // Визуал заморозки
             if (frozen) {
                 ctx.save();
                 ctx.globalAlpha = 0.4;
@@ -1040,7 +1030,55 @@ function renderArena() {
             ctx.restore();
         }
         
-        // Бластеры (с учётом заморозки)
+        // ====== ОТРИСОВКА КУЛАКОВ САЙТАМЫ ======
+        if (typeof _superState !== 'undefined' && _superState.fists && _superState.fists.length > 0) {
+            for (let i = _superState.fists.length - 1; i >= 0; i--) {
+                let f = _superState.fists[i];
+                if (f.life <= 0) continue;
+                
+                let alpha = f.life > 10 ? 1 : f.life / 10;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.translate(f.x, f.y);
+                
+                let s = f.size;
+                
+                // Свечение
+                ctx.shadowColor = "#ff0000";
+                ctx.shadowBlur = 30;
+                
+                // Корпус кулака
+                ctx.fillStyle = "#ff2222";
+                ctx.fillRect(-s, -s * 1.2, s * 2, s * 2.4);
+                
+                // Пальцы (вертикальные полосы)
+                ctx.fillStyle = "#ff5555";
+                ctx.fillRect(-s * 0.7, -s * 1.2, s * 0.4, s * 2.4);
+                ctx.fillRect(s * 0.3, -s * 1.2, s * 0.4, s * 2.4);
+                
+                // Тёмная полоса снизу
+                ctx.fillStyle = "#aa0000";
+                ctx.fillRect(-s, s * 0.8, s * 2, s * 0.4);
+                
+                // Белая обводка
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 0;
+                ctx.strokeRect(-s, -s * 1.2, s * 2, s * 2.4);
+                
+                // Текст "УДАР" внутри
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 16px monospace";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.shadowColor = "#000";
+                ctx.shadowBlur = 4;
+                ctx.fillText("УДАР", 0, 0);
+                
+                ctx.restore();
+            }
+        }
+        
         for (let i = arenaBlasters.length-1; i >= 0; i--) {
             let b = arenaBlasters[i], ac = b.color === "rainbow" ? `hsl(${(now/2)%360},100%,60%)` : b.color;
             if (!frozen) {
@@ -1079,7 +1117,6 @@ function renderArena() {
             heartGrad.addColorStop(0, '#ff4444');
             heartGrad.addColorStop(1, '#990000');
             ctx.fillStyle = heartGrad;
-            // Свечение зависит от активных способностей
             ctx.shadowColor = (typeof _superState !== 'undefined' && _superState.dekusParticles) ? "#44ff44" : 
                              (typeof _superState !== 'undefined' && _superState.usoppInvuln) ? "#ffff00" : "#ff0000";
             ctx.shadowBlur = (typeof _superState !== 'undefined' && _superState.dekusParticles) ? 25 : 12;
