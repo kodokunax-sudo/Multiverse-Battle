@@ -580,7 +580,7 @@ function startGachaAnimation(card, type) {
     flashNextCard();
 }
 
-// ========== ГЕНЕРАЦИЯ ВРАГА (ФИКС УРОНА) ==========
+// ========== ГЕНЕРАЦИЯ ВРАГА ==========
 function generateEnemy() { 
     firstAttackThisFight = true;
     bossSupportUsedThisFight = false;
@@ -619,10 +619,6 @@ function generateEnemy() {
     currentEnemy = { name, hp, maxHp:hp, damage:dmg, isBoss:isBoss||isUniqueBoss }; 
     let arenaWaves = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000, 3200, 3400, 3600, 3800, 4000, 4200, 4400, 4600, 4800, 5000, 10000];
     let showArenaBtn = (isBoss || isUniqueBoss) && wave >= 50 && arenaWaves.includes(wave);
-    // ФИКС: скрываем кнопку арены если враг ещё жив (hp > 0)
-    if (currentEnemy && currentEnemy.hp > 0) {
-        showArenaBtn = false;
-    }
     let btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = showArenaBtn ? "block" : "none";
     let skipBtn = document.getElementById("skipArenaBtn");
     if (skipBtn) {
@@ -676,7 +672,7 @@ function skipArenaFight() {
 
 function createCardFromTemplate(tm, r) { let s = cardStats[r]; let d = tm.damage ?? s.damage, hp = tm.hp ?? s.hp, sp = tm.sellPrice ?? s.sellPrice; let n = tm.name, a = tm.ability || null, u = tm.universe || "?", uns = tm.unsellable || false; if (!discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } totalCardsObtained++; if (points > maxPoints) maxPoints = points; return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, ability: a, universe: u, unsellable: uns, minRebirth: tm.minRebirth || 0, statusAbility: tm.statusAbility || null, extraStatus: tm.extraStatus || null }; }
 
-// ========== ЭВОЛЮЦИИ (ПЕРЕРАБОТАННЫЕ) ==========
+// ========== ЭВОЛЮЦИИ ==========
 function checkEvolutionQuests() { 
     if (rebirthCount < 5) return; 
     let tNames = team.map(idx => myCards[idx]?.name).filter(Boolean); 
@@ -738,7 +734,6 @@ function checkEvolutionQuests() {
 
 function handleClick() { 
     initAudio(); 
-    // ФИКС: проверяем арену и кнопку арены перед кликом
     if (typeof arenaActive !== 'undefined' && arenaActive) return;
     let arenaBtn = document.getElementById("startArenaBtn"); 
     if (arenaBtn && arenaBtn.style.display !== "none" && arenaBtn.style.display !== "") return;
