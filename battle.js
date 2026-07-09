@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v8.0 (FULL SUPER INTEGRATION) ==========
+// ========== АРЕНА UNDERTALE v8.1 (HITBOX FIX + COOLDOWN RESET) ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 70;
@@ -197,7 +197,6 @@ function clampHeart() {
 }
 
 function moveHeart() {
-    // Оглушение Усоппа
     if (typeof _superState !== 'undefined' && _superState.usoppStunTimer > 0) return;
     
     let mx = 0;
@@ -216,7 +215,6 @@ function moveHeart() {
         }
     }
     
-    // Инвертированное управление (Кайдо, Дэнди)
     if (typeof _superState !== 'undefined' && _superState.invertControls) {
         mx = -mx;
         my = -my;
@@ -361,7 +359,6 @@ function startArena(bossWave) {
     arenaVignette = 0;
     arenaGlobalSpeedMod = 1.0;
     
-    // Сброс флагов на новую арену
     if (typeof _superState !== 'undefined') {
         _superState.markResurrectUsed = false;
         _superState.allmightPermaSlow = false;
@@ -492,7 +489,6 @@ function startDodgePhase() {
         }
     }, Math.max(800, baseInterval / arenaSpeedMult));
     
-    // Пассивка Анти-спираля: +30% к длительности фазы уклонения
     let dodgeTime = Math.max(10000, 13000 + Math.random() * 6000);
     if (typeof getMainCard === 'function') {
         let mainCard = getMainCard();
@@ -506,7 +502,6 @@ function startDodgePhase() {
 function startAttackPhase() {
     arenaPhase = "attack";
     attacks = []; arenaBlasters = []; wallGapIndicator = null; arenaClickTargets = []; arenaClicksHit = 0;
-    // Двойные цели от Дэнди
     arenaTotalTargets = 4 + Math.floor(arenaSpeedMult * 0.8);
     if (typeof _superState !== 'undefined' && _superState.dandyDoubleTargets) {
         arenaTotalTargets *= 2;
@@ -555,7 +550,6 @@ function applyArenaDamage() {
     let baseDmg = typeof window !== 'undefined' && window.playerFinalDamage ? window.playerFinalDamage : 20;
     let finalDmg = Math.floor(baseDmg * dmgMult);
     
-    // Множители урона
     if (typeof _superState !== 'undefined') {
         if (_superState.dekusDmgMult && _superState.dekusDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.dekusDmgMult);
         if (_superState.nikaDmgMult && _superState.nikaDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.nikaDmgMult);
@@ -632,7 +626,6 @@ function spawnAttack() {
             }
             break;
         case 1:
-            // ХАОС: быстрее, но меньше
             let chaosCount = isEarly ? 1 : 2;
             for (let i = 0; i < chaosCount; i++) {
                 let side = Math.floor(Math.random() * 4);
@@ -728,6 +721,8 @@ function winArena() {
         if (!defeatedBosses.includes(arenaCurrentWave)) defeatedBosses.push(arenaCurrentWave);
     }
     if (typeof grantBossGachaReward === 'function') grantBossGachaReward(arenaCurrentWave);
+    // Сброс кулдаунов при победе
+    if (typeof resetAllCooldowns === 'function') resetAllCooldowns();
     stopArena();
     if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = Math.floor(currentEnemy.maxHp * 0.25);
     if (typeof victory === 'function') victory();
@@ -746,6 +741,8 @@ function loseArena() {
         }
     }
     
+    // Сброс кулдаунов при смерти
+    if (typeof resetAllCooldowns === 'function') resetAllCooldowns();
     if (typeof resetAllSupers === 'function') resetAllSupers();
     
     sfxArenaDeath();
@@ -764,31 +761,19 @@ function loseArena() {
 }
 
 function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
-    // Неуязвимость Усоппа
     if (typeof _superState !== 'undefined' && _superState.usoppInvuln) return;
-    
-    // Неуязвимость Гароу
     if (typeof _superState !== 'undefined' && _superState.garouInvulnTimer > 0) return;
-    
-    // Неуязвимость Дэнди
     if (typeof _superState !== 'undefined' && _superState.dandyInvuln) return;
     
-    // Защита Луффи
     if (typeof _superState !== 'undefined' && _superState.nikaActive) {
         dmg = Math.floor(dmg * 0.6);
     }
-    
-    // Защита Кайдо
     if (typeof _superState !== 'undefined' && _superState.kaidoDmgReduction) {
         dmg = Math.floor(dmg * 0.5);
     }
-    
-    // Щит Дэнди
     if (typeof _superState !== 'undefined' && _superState.dandyShield && _superState.dandyShield.timer > 0) {
         dmg = Math.floor(dmg * _superState.dandyShield.mult);
     }
-    
-    // Уязвимость Дэнди
     if (typeof _superState !== 'undefined' && _superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) {
         dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
     }
@@ -1162,10 +1147,8 @@ function renderArena() {
                 shieldGrad.addColorStop(1, 'rgba(0,191,255,0.6)');
                 ctx.strokeStyle = shieldGrad; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,2,heart.size*1.3,0,Math.PI*2); ctx.stroke(); 
             } 
-            ctx.restore(); 
-            ctx.save(); 
-            ctx.fillStyle="#fff"; ctx.shadowColor = "#fff"; ctx.shadowBlur = 6; 
-            ctx.beginPath(); ctx.arc(heart.x,heart.y,heart.hitbox,0,Math.PI*2); ctx.fill(); ctx.restore(); 
+            ctx.restore();
+            // ХИТБОКС БОЛЬШЕ НЕ РИСУЕТСЯ (было здесь)
         }
     } else if (arenaPhase === "attack") {
         for (let i = 0; i < arenaClickTargets.length; i++) { 
