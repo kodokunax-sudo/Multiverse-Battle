@@ -1,17 +1,17 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v5.0 FINAL ==========
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v5.1 FINAL ==========
 let _superState = {
     fists: [],
     dekusActive: false, dekusOriginalSpeed: 1.2, dekusDmgMult: 1, dekusParticles: false,
     borosHeal: null, borosParticles: false,
     usoppInvuln: false, usoppStunTimer: 0,
-    nikaActive: false, nikaHitboxOriginal: 4, nikaDmgMult: 1, nikaSpeedBonus: 1,
+    nikaActive: false, nikaHitboxOriginal: 4, nikaSizeOriginal: 14, nikaDmgMult: 1, nikaSpeedBonus: 1,
     positionHistory: [], garouMarker: null, garouInvulnTimer: 0,
     garouStunTimer: 0, garouExplosionPending: false,
     imAuraActive: false, imSpeedPenalty: false,
     dandyLightnings: false, dandyInvuln: false, dandyDmgBuff: null, dandyShield: null, dandyVulnerable: null, dandyDoubleTargets: false,
     kaidoDrinking: false, kaidoBuffActive: false, kaidoDmgReduction: false, invertControls: false,
     markResurrectUsed: false,
-    allmightPermaSlow: false, allmightDmgMult: 1, allmightBuffTimer: 0,
+    allmightPermaSlow: false, allmightDmgMult: 1, allmightBuffTimer: 0, allmightOrigSize: 14, allmightOrigHitbox: 4,
     antispiralFrozen: false, antispiralSpeedBoost: false,
 };
 
@@ -136,8 +136,8 @@ const superAbilities = {
     },
     "Луффи: Ника, Бог Солнца": {
         name: "ОСВОБОЖДЕНИЕ", cooldown: 25000, toggleable: true, duration: Infinity,
-        onActivate() { _superState.nikaActive = true; _superState.nikaHitboxOriginal = heart.hitbox; heart.hitbox *= 2; _superState.nikaDmgMult = 1.5; _superState.nikaSpeedBonus = 1.3; heartSpeed *= 1.3; },
-        onDeactivate() { _superState.nikaActive = false; heart.hitbox = _superState.nikaHitboxOriginal; _superState.nikaDmgMult = 1; heartSpeed /= 1.3; },
+        onActivate() { _superState.nikaActive = true; _superState.nikaHitboxOriginal = heart.hitbox; _superState.nikaSizeOriginal = heart.size; heart.hitbox *= 2; heart.size *= 2; _superState.nikaDmgMult = 1.5; _superState.nikaSpeedBonus = 1.3; heartSpeed *= 1.3; },
+        onDeactivate() { _superState.nikaActive = false; heart.hitbox = _superState.nikaHitboxOriginal; heart.size = _superState.nikaSizeOriginal; _superState.nikaDmgMult = 1; heartSpeed /= 1.3; },
         onTick(dt) {}
     },
     "Космический Гароу": {
@@ -175,7 +175,7 @@ const superAbilities = {
     "Император Марк": { name: "ПАССИВНАЯ", cooldown: 0, toggleable: false, duration: 0, onActivate() {}, onTick() {} },
     "Всемогущий (прайм)": {
         name: "СИМВОЛ МИРА", cooldown: 40000, toggleable: false, duration: 0,
-        onActivate() { let origHitbox = heart.hitbox; heart.hitbox *= 2; _superState.allmightDmgMult = 3; _superState.allmightBuffTimer = 3; spawnFloatingText(heart.x, heart.y-20, "СИМВОЛ МИРА!", "#ffdd00"); setTimeout(() => { heart.hitbox = origHitbox; _superState.allmightDmgMult = 1; arenaHP = Math.max(1, arenaHP - Math.floor(arenaMaxHP * 0.5)); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); _superState.allmightPermaSlow = true; heartSpeed *= 0.33; spawnFloatingText(heart.x, heart.y-20, "ИСТОЩЕНИЕ!", "#ff0000"); if (arenaHP <= 0 && typeof loseArena === 'function') loseArena(); }, 3000); },
+        onActivate() { _superState.allmightOrigHitbox = heart.hitbox; _superState.allmightOrigSize = heart.size; heart.hitbox *= 2; heart.size *= 2; _superState.allmightDmgMult = 3; _superState.allmightBuffTimer = 3; spawnFloatingText(heart.x, heart.y-20, "СИМВОЛ МИРА!", "#ffdd00"); setTimeout(() => { heart.hitbox = _superState.allmightOrigHitbox; heart.size = _superState.allmightOrigSize; _superState.allmightDmgMult = 1; arenaHP = Math.max(1, arenaHP - Math.floor(arenaMaxHP * 0.5)); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); _superState.allmightPermaSlow = true; heartSpeed *= 0.33; spawnFloatingText(heart.x, heart.y-20, "ИСТОЩЕНИЕ!", "#ff0000"); if (arenaHP <= 0 && typeof loseArena === 'function') loseArena(); }, 3000); },
         onTick() {}
     }
 };
@@ -209,6 +209,14 @@ function startCooldown(cardName, ms) {
     _superCooldowns[cardName].interval = interval;
 }
 
+function resetAllCooldowns() {
+    for (let key in _superCooldowns) {
+        if (_superCooldowns[key].interval) clearInterval(_superCooldowns[key].interval);
+    }
+    _superCooldowns = {};
+    updateSuperButton();
+}
+
 function updateSuperButton() {
     let btn = document.getElementById("superBtn"); if (!btn) return;
     let mainCard = getMainCard();
@@ -225,6 +233,7 @@ function updateSuperButton() {
 function resetAllSupers() {
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) superAbilities[_activeSuperName].onDeactivate();
     _activeSuperName = null;
+    if (_superState.nikaActive) { heart.hitbox = _superState.nikaHitboxOriginal; heart.size = _superState.nikaSizeOriginal; }
     _superState.dekusActive = false; _superState.dekusDmgMult = 1; _superState.dekusParticles = false;
     _superState.borosHeal = null; _superState.borosParticles = false;
     _superState.usoppInvuln = false; _superState.usoppStunTimer = 0;
@@ -237,12 +246,14 @@ function resetAllSupers() {
     _superState.antispiralFrozen = false; _superState.antispiralSpeedBoost = false;
     _superState.dandyLightnings = false; _superState.dandyInvuln = false; _superState.dandyDmgBuff = null; _superState.dandyShield = null; _superState.dandyVulnerable = null; _superState.dandyDoubleTargets = false;
     _superState.fists = [];
+    resetAllCooldowns();
 }
 
 function initSuperState() {
     _activeSuperName = null;
-    _superState = { fists: [], dekusActive: false, dekusOriginalSpeed: 1.2, dekusDmgMult: 1, dekusParticles: false, borosHeal: null, borosParticles: false, usoppInvuln: false, usoppStunTimer: 0, nikaActive: false, nikaHitboxOriginal: 4, nikaDmgMult: 1, nikaSpeedBonus: 1, positionHistory: [], garouMarker: null, garouInvulnTimer: 0, garouStunTimer: 0, garouExplosionPending: false, imAuraActive: false, imSpeedPenalty: false, dandyLightnings: false, dandyInvuln: false, dandyDmgBuff: null, dandyShield: null, dandyVulnerable: null, dandyDoubleTargets: false, kaidoDrinking: false, kaidoBuffActive: false, kaidoDmgReduction: false, invertControls: false, markResurrectUsed: false, allmightPermaSlow: false, allmightDmgMult: 1, allmightBuffTimer: 0, antispiralFrozen: false, antispiralSpeedBoost: false };
+    _superState = { fists: [], dekusActive: false, dekusOriginalSpeed: 1.2, dekusDmgMult: 1, dekusParticles: false, borosHeal: null, borosParticles: false, usoppInvuln: false, usoppStunTimer: 0, nikaActive: false, nikaHitboxOriginal: 4, nikaSizeOriginal: 14, nikaDmgMult: 1, nikaSpeedBonus: 1, positionHistory: [], garouMarker: null, garouInvulnTimer: 0, garouStunTimer: 0, garouExplosionPending: false, imAuraActive: false, imSpeedPenalty: false, dandyLightnings: false, dandyInvuln: false, dandyDmgBuff: null, dandyShield: null, dandyVulnerable: null, dandyDoubleTargets: false, kaidoDrinking: false, kaidoBuffActive: false, kaidoDmgReduction: false, invertControls: false, markResurrectUsed: false, allmightPermaSlow: false, allmightDmgMult: 1, allmightBuffTimer: 0, allmightOrigSize: 14, allmightOrigHitbox: 4, antispiralFrozen: false, antispiralSpeedBoost: false };
     _superLastTick = performance.now();
+    resetAllCooldowns();
     updateSuperButton();
 }
 
@@ -292,3 +303,4 @@ window.initSuperState = initSuperState;
 window.tickSupers = tickSupers;
 window.renderSuperVisuals = renderSuperVisuals;
 window.resetAllSupers = resetAllSupers;
+window.resetAllCooldowns = resetAllCooldowns;
