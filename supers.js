@@ -48,7 +48,7 @@ let _superState = {
     allmightPermaSlow: false,
     allmightDmgMult: 1,
     allmightBuffTimer: 0,
-    // Анти-спираль (пассивка, нет активного скилла)
+    // Анти-спираль (пассивка)
     antispiralFrozen: false,
     antispiralSpeedBoost: false,
 };
@@ -340,8 +340,6 @@ const superAbilities = {
     },
 
     "Анти-спираль": {
-        // ПАССИВКА: +30% к длительности фазы уклонения (реализовано в battle.js)
-        // Нет активного скилла — кнопка SUPER не показывается
         name: "ПАССИВНАЯ",
         cooldown: 0, toggleable: false, duration: 0,
         onActivate() {},
@@ -418,8 +416,6 @@ const superAbilities = {
     },
 
     "Император Марк": {
-        // ПАССИВКА: анти-ваншот (реализовано в battle.js)
-        // Нет активного скилла — кнопка SUPER не показывается
         name: "ПАССИВНАЯ",
         cooldown: 0, toggleable: false, duration: 0,
         onActivate() {},
@@ -464,7 +460,6 @@ function toggleSuper() {
     let mainCard = getMainCard();
     if (!mainCard || !superAbilities[mainCard.name]) return;
     let ab = superAbilities[mainCard.name];
-    // Не показываем кнопку для пассивок
     if (ab.cooldown === 0 && !ab.toggleable) return;
     let cd = _superCooldowns[mainCard.name] || { ready: true };
     if (!cd.ready) return;
@@ -509,7 +504,6 @@ function updateSuperButton() {
     let mainCard = getMainCard();
     if (!mainCard || !superAbilities[mainCard.name]) { btn.style.display = "none"; return; }
     let ab = superAbilities[mainCard.name];
-    // Скрываем кнопку для пассивок (cooldown === 0 и не toggleable)
     if (ab.cooldown === 0 && !ab.toggleable) { btn.style.display = "none"; return; }
     btn.style.display = "block";
     let cd = _superCooldowns[mainCard.name];
@@ -624,4 +618,10 @@ function updateSuperLogic(dt) {
         for (let i = 0; i < 2; i++) {
             let angle = Math.random() * Math.PI * 2;
             let dist = 15 + Math.random() * 20;
-            arenaParticles.push({ x: heart.x + Math.cos(angle)*
+            arenaParticles.push({ x: heart.x + Math.cos(angle)*8, y: heart.y + Math.sin(angle)*8, endX: heart.x + Math.cos(angle)*dist, endY: heart.y + Math.sin(angle)*dist, vx: 0, vy: 0, life: 12, maxLife: 12, color: "#44ff44", isLightning: true });
+        }
+    }
+
+    // Аура Бороса
+    if (_superState.borosParticles && arenaActive) {
+        for
