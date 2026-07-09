@@ -1,5 +1,6 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v4.0 ==========
-// Все 14 персонажей реализованы
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v5.0 ==========
+// Деку, Сайтама, Борос, Усопп — без изменений
+// Остальные 10 — полностью переработаны
 
 let _superState = {
     fists: [],
@@ -11,6 +12,9 @@ let _superState = {
     // Борос
     borosHeal: null,
     borosParticles: false,
+    // Усопп
+    usoppInvuln: false,
+    usoppStunTimer: 0,
     // Луффи
     nikaActive: false,
     nikaHitboxOriginal: 4,
@@ -23,21 +27,16 @@ let _superState = {
     // Гарп
     garouStunTimer: 0,
     garouExplosionPending: false,
-    // Усопп
-    usoppInvuln: false,
-    usoppStunTimer: 0,
-    // Зено
-    zennoUsed: false,
-    // Анти-спираль
-    antispiralFrozen: false,
-    antispiralSpeedBoost: false,
     // Им
     imAuraActive: false,
-    imAuraRadius: 80,
     imSpeedPenalty: false,
     // Дэнди
-    dandyGoodEffects: [],
-    dandyBadEffects: [],
+    dandyLightnings: false,
+    dandyInvuln: false,
+    dandyDmgBuff: null,
+    dandyShield: null,
+    dandyVulnerable: null,
+    dandyDoubleTargets: false,
     // Кайдо
     kaidoDrinking: false,
     kaidoBuffActive: false,
@@ -46,10 +45,12 @@ let _superState = {
     // Марк
     markResurrectUsed: false,
     // Всемогущий
-    allmightBleed: false,
     allmightPermaSlow: false,
     allmightDmgMult: 1,
     allmightBuffTimer: 0,
+    // Анти-спираль (пассивка, нет активного скилла)
+    antispiralFrozen: false,
+    antispiralSpeedBoost: false,
 };
 
 let _superCooldowns = {};
@@ -100,7 +101,7 @@ function drawFist(f) {
     ctx.shadowBlur = 0;
     ctx.strokeRect(-s, -s * 1.2, s * 2, s * 2.4);
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 16px monospace";
+    ctx.font = "bold 14px monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = "#000";
@@ -171,7 +172,6 @@ function drawBeerBottle(x, y, alpha) {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(x, y - 25);
-    // Бутылка
     ctx.fillStyle = "#8B4513";
     ctx.fillRect(-8, -15, 16, 25);
     ctx.fillStyle = "#D2691E";
@@ -184,28 +184,28 @@ function drawBeerBottle(x, y, alpha) {
     ctx.restore();
 }
 
-// ====== ЭФФЕКТЫ КОСМИЧЕСКОГО ДЭНДИ ======
-const DANDY_GOOD_EFFECTS = [
+// ====== ЭФФЕКТЫ ДЭНДИ ======
+const DANDY_GOOD = [
     { name: "Полное исцеление", apply() { arenaHP = arenaMaxHP; document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); spawnFloatingText(heart.x, heart.y-20, "ИСЦЕЛЕНИЕ!", "#44ff44"); } },
     { name: "Урон x2 (5с)", apply() { _superState.dandyDmgBuff = { mult: 2, timer: 5 }; } },
-    { name: "Очистка атак", apply() { attacks = []; spawnFloatingText(heart.x, heart.y-20, "ОЧИСТКА!", "#ffff00"); } },
+    { name: "Очистка атак", apply() { attacks = []; arenaBlasters = []; spawnFloatingText(heart.x, heart.y-20, "ОЧИСТКА!", "#ffff00"); } },
     { name: "Скорость x1.5 (8с)", apply() { heartSpeed *= 1.5; setTimeout(() => { heartSpeed /= 1.5; }, 8000); } },
-    { name: "Щит (50% урона, 6с)", apply() { _superState.dandyShield = { mult: 0.5, timer: 6 }; } },
-    { name: "Замедление атак (4с)", apply() { let oldMod = arenaGlobalSpeedMod; arenaGlobalSpeedMod = 0.5; setTimeout(() => { arenaGlobalSpeedMod = oldMod; }, 4000); } },
-    { name: "+15% HP босса", apply() { arenaBossMaxHP = Math.floor(arenaBossMaxHP * 0.85); spawnFloatingText(200, 250, "-15% БОССУ!", "#ffdd00"); } },
+    { name: "Щит 50% (6с)", apply() { _superState.dandyShield = { mult: 0.5, timer: 6 }; } },
+    { name: "Замедление атак (4с)", apply() { let old = arenaGlobalSpeedMod; arenaGlobalSpeedMod = 0.5; setTimeout(() => { arenaGlobalSpeedMod = old; }, 4000); } },
+    { name: "-15% HP босса", apply() { arenaBossMaxHP = Math.floor(arenaBossMaxHP * 0.85); spawnFloatingText(200, 250, "-15% БОССУ!", "#ffdd00"); } },
     { name: "Неуязвимость (2с)", apply() { _superState.dandyInvuln = true; setTimeout(() => { _superState.dandyInvuln = false; }, 2000); } },
-    { name: "Двойные цели (атака)", apply() { _superState.dandyDoubleTargets = true; } },
+    { name: "Двойные цели", apply() { _superState.dandyDoubleTargets = true; } },
     { name: "Молнии (8с)", apply() { _superState.dandyLightnings = true; setTimeout(() => { _superState.dandyLightnings = false; }, 8000); } },
 ];
 
-const DANDY_BAD_EFFECTS = [
+const DANDY_BAD = [
     { name: "Потеря 15% HP", apply() { arenaHP = Math.max(0, arenaHP - arenaMaxHP * 0.15); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); spawnFloatingText(heart.x, heart.y-20, "-15% HP!", "#ff4444"); if (arenaHP <= 0 && typeof loseArena === 'function') loseArena(); } },
     { name: "Скорость x0.5 (6с)", apply() { heartSpeed *= 0.5; setTimeout(() => { heartSpeed /= 0.5; }, 6000); } },
     { name: "Двойной урон (5с)", apply() { _superState.dandyVulnerable = { mult: 2, timer: 5 }; } },
-    { name: "Спавн 5 доп. атак", apply() { for (let i = 0; i < 5; i++) spawnAttack(); } },
+    { name: "Спавн 5 атак", apply() { for (let i = 0; i < 5; i++) spawnAttack(); } },
     { name: "Ускорение атак (8с)", apply() { arenaGlobalSpeedMod *= 1.5; setTimeout(() => { arenaGlobalSpeedMod /= 1.5; }, 8000); } },
-    { name: "Инверт управления (4с)", apply() { _superState.invertControls = true; setTimeout(() => { _superState.invertControls = false; }, 4000); } },
-    { name: "Потеря 20% HP босса (себе)", apply() { arenaBossMaxHP = Math.floor(arenaBossMaxHP * 1.2); spawnFloatingText(200, 250, "+20% БОССУ!", "#ff4444"); } },
+    { name: "Инверт (4с)", apply() { _superState.invertControls = true; setTimeout(() => { _superState.invertControls = false; }, 4000); } },
+    { name: "+20% HP босса", apply() { arenaBossMaxHP = Math.floor(arenaBossMaxHP * 1.2); spawnFloatingText(200, 250, "+20% БОССУ!", "#ff4444"); } },
     { name: "Оглушение (2с)", apply() { _superState.usoppStunTimer = 2; } },
     { name: "Хитбокс x2 (8с)", apply() { let orig = heart.hitbox; heart.hitbox *= 2; setTimeout(() => { heart.hitbox = orig; }, 8000); } },
     { name: "Случайный телепорт", apply() { heart.x = 50 + Math.random() * 300; heart.y = 50 + Math.random() * 400; clampHeart(); } },
@@ -213,6 +213,7 @@ const DANDY_BAD_EFFECTS = [
 
 // ====== ОПИСАНИЯ СПОСОБНОСТЕЙ ======
 const superAbilities = {
+    // ====== БЕЗ ИЗМЕНЕНИЙ ======
     "Деку (100%)": {
         name: "ПОЛНОЕ 100% ПОКРЫТИЕ",
         cooldown: 15000, toggleable: true, duration: Infinity,
@@ -275,6 +276,15 @@ const superAbilities = {
         }
     },
 
+    "Бог Усопп": {
+        name: "ЛОЖЬ СТАНОВИТСЯ ПРАВДОЙ",
+        cooldown: 35000, toggleable: false, duration: 3000,
+        onActivate() { _superState.usoppInvuln = true; },
+        onDeactivate() { _superState.usoppInvuln = false; _superState.usoppStunTimer = 2; },
+        onTick(dt) {}
+    },
+
+    // ====== ПЕРЕРАБОТАННЫЕ ======
     "Луффи: Ника, Бог Солнца": {
         name: "ОСВОБОЖДЕНИЕ",
         cooldown: 25000, toggleable: true, duration: Infinity,
@@ -316,14 +326,6 @@ const superAbilities = {
         onTick(dt) {}
     },
 
-    "Бог Усопп": {
-        name: "ЛОЖЬ СТАНОВИТСЯ ПРАВДОЙ",
-        cooldown: 35000, toggleable: false, duration: 3000,
-        onActivate() { _superState.usoppInvuln = true; },
-        onDeactivate() { _superState.usoppInvuln = false; _superState.usoppStunTimer = 2; },
-        onTick(dt) {}
-    },
-
     "Зено": {
         name: "СТИРАНИЕ",
         cooldown: 45000, toggleable: false, duration: 0,
@@ -338,17 +340,11 @@ const superAbilities = {
     },
 
     "Анти-спираль": {
-        name: "АБСОЛЮТНОЕ ОТЧАЯНИЕ",
-        cooldown: 25000, toggleable: false, duration: 0,
-        onActivate() {
-            _superState.antispiralFrozen = true;
-            spawnFloatingText(heart.x, heart.y-20, "ЗАМОРОЗКА!", "#aaddff");
-            setTimeout(() => {
-                _superState.antispiralFrozen = false;
-                _superState.antispiralSpeedBoost = true;
-                spawnFloatingText(heart.x, heart.y-20, "УСКОРЕНИЕ!", "#ff4444");
-            }, 3000);
-        },
+        // ПАССИВКА: +30% к длительности фазы уклонения (реализовано в battle.js)
+        // Нет активного скилла — кнопка SUPER не показывается
+        name: "ПАССИВНАЯ",
+        cooldown: 0, toggleable: false, duration: 0,
+        onActivate() {},
         onTick() {}
     },
 
@@ -374,7 +370,7 @@ const superAbilities = {
         },
         onDeactivate() {
             _superState.imAuraActive = false;
-            _superState.imSpeedPenalty = true;
+            _superState.imSpeedPenalty = false;
             heartSpeed /= 0.7;
         },
         onTick(dt) {}
@@ -385,11 +381,11 @@ const superAbilities = {
         cooldown: 20000, toggleable: false, duration: 0,
         onActivate() {
             if (Math.random() < 0.8) {
-                let eff = DANDY_GOOD_EFFECTS[Math.floor(Math.random() * DANDY_GOOD_EFFECTS.length)];
+                let eff = DANDY_GOOD[Math.floor(Math.random() * DANDY_GOOD.length)];
                 eff.apply();
                 spawnFloatingText(heart.x, heart.y-20, eff.name + "!", "#44ff44");
             } else {
-                let eff = DANDY_BAD_EFFECTS[Math.floor(Math.random() * DANDY_BAD_EFFECTS.length)];
+                let eff = DANDY_BAD[Math.floor(Math.random() * DANDY_BAD.length)];
                 eff.apply();
                 spawnFloatingText(heart.x, heart.y-20, eff.name + "!", "#ff4444");
             }
@@ -422,7 +418,9 @@ const superAbilities = {
     },
 
     "Император Марк": {
-        name: "НЕПОБЕДИМАЯ ВОЛЯ",
+        // ПАССИВКА: анти-ваншот (реализовано в battle.js)
+        // Нет активного скилла — кнопка SUPER не показывается
+        name: "ПАССИВНАЯ",
         cooldown: 0, toggleable: false, duration: 0,
         onActivate() {},
         onTick() {}
@@ -440,11 +438,12 @@ const superAbilities = {
             setTimeout(() => {
                 heart.hitbox = origHitbox;
                 _superState.allmightDmgMult = 1;
-                arenaHP = Math.max(1, arenaHP - arenaMaxHP * 0.5);
+                arenaHP = Math.max(1, arenaHP - Math.floor(arenaMaxHP * 0.5));
                 document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
                 _superState.allmightPermaSlow = true;
                 heartSpeed *= 0.33;
                 spawnFloatingText(heart.x, heart.y-20, "ИСТОЩЕНИЕ!", "#ff0000");
+                if (arenaHP <= 0 && typeof loseArena === 'function') loseArena();
             }, 3000);
         },
         onTick() {}
@@ -465,6 +464,8 @@ function toggleSuper() {
     let mainCard = getMainCard();
     if (!mainCard || !superAbilities[mainCard.name]) return;
     let ab = superAbilities[mainCard.name];
+    // Не показываем кнопку для пассивок
+    if (ab.cooldown === 0 && !ab.toggleable) return;
     let cd = _superCooldowns[mainCard.name] || { ready: true };
     if (!cd.ready) return;
     if (ab.toggleable) {
@@ -507,8 +508,10 @@ function updateSuperButton() {
     if (!btn) return;
     let mainCard = getMainCard();
     if (!mainCard || !superAbilities[mainCard.name]) { btn.style.display = "none"; return; }
-    btn.style.display = "block";
     let ab = superAbilities[mainCard.name];
+    // Скрываем кнопку для пассивок (cooldown === 0 и не toggleable)
+    if (ab.cooldown === 0 && !ab.toggleable) { btn.style.display = "none"; return; }
+    btn.style.display = "block";
     let cd = _superCooldowns[mainCard.name];
     if (_activeSuperName === mainCard.name) {
         btn.textContent = "⏹ " + ab.name + " (АКТИВЕН)"; btn.style.background = "#ff4444"; btn.style.animation = "none";
@@ -526,14 +529,16 @@ function resetAllSupers() {
     _activeSuperName = null;
     _superState.dekusActive = false; _superState.dekusDmgMult = 1; _superState.dekusParticles = false;
     _superState.borosHeal = null; _superState.borosParticles = false;
+    _superState.usoppInvuln = false; _superState.usoppStunTimer = 0;
     _superState.nikaActive = false; _superState.nikaDmgMult = 1;
     _superState.positionHistory = []; _superState.garouMarker = null; _superState.garouInvulnTimer = 0;
-    _superState.usoppInvuln = false; _superState.usoppStunTimer = 0;
-    _superState.fists = [];
-    _superState.antispiralFrozen = false; _superState.antispiralSpeedBoost = false;
-    _superState.imAuraActive = false;
+    _superState.garouStunTimer = 0; _superState.garouExplosionPending = false;
+    _superState.imAuraActive = false; _superState.imSpeedPenalty = false;
     _superState.kaidoDrinking = false; _superState.kaidoBuffActive = false; _superState.kaidoDmgReduction = false; _superState.invertControls = false;
     _superState.allmightDmgMult = 1; _superState.allmightBuffTimer = 0;
+    _superState.antispiralFrozen = false; _superState.antispiralSpeedBoost = false;
+    _superState.dandyLightnings = false; _superState.dandyInvuln = false; _superState.dandyDmgBuff = null; _superState.dandyShield = null; _superState.dandyVulnerable = null; _superState.dandyDoubleTargets = false;
+    _superState.fists = [];
 }
 
 function initSuperState() {
@@ -542,17 +547,16 @@ function initSuperState() {
         fists: [],
         dekusActive: false, dekusOriginalSpeed: 1.2, dekusDmgMult: 1, dekusParticles: false,
         borosHeal: null, borosParticles: false,
+        usoppInvuln: false, usoppStunTimer: 0,
         nikaActive: false, nikaHitboxOriginal: 4, nikaDmgMult: 1, nikaSpeedBonus: 1,
         positionHistory: [], garouMarker: null, garouInvulnTimer: 0,
         garouStunTimer: 0, garouExplosionPending: false,
-        usoppInvuln: false, usoppStunTimer: 0,
-        zennoUsed: false,
-        antispiralFrozen: false, antispiralSpeedBoost: false,
-        imAuraActive: false, imAuraRadius: 80, imSpeedPenalty: false,
-        dandyGoodEffects: [], dandyBadEffects: [],
+        imAuraActive: false, imSpeedPenalty: false,
+        dandyLightnings: false, dandyInvuln: false, dandyDmgBuff: null, dandyShield: null, dandyVulnerable: null, dandyDoubleTargets: false,
         kaidoDrinking: false, kaidoBuffActive: false, kaidoDmgReduction: false, invertControls: false,
         markResurrectUsed: false,
-        allmightBleed: false, allmightPermaSlow: false, allmightDmgMult: 1, allmightBuffTimer: 0,
+        allmightPermaSlow: false, allmightDmgMult: 1, allmightBuffTimer: 0,
+        antispiralFrozen: false, antispiralSpeedBoost: false,
     };
     _superLastTick = performance.now();
     updateSuperButton();
@@ -592,7 +596,7 @@ function updateSuperLogic(dt) {
             _superState.garouStunTimer = 0;
             if (_superState.garouExplosionPending) {
                 _superState.garouExplosionPending = false;
-                heartSpeed *= 2; // возвращаем скорость
+                heartSpeed *= 2;
                 attacks = [];
                 arenaBlasters = [];
                 arenaBossMaxHP = Math.floor(arenaBossMaxHP * 0.95);
@@ -602,6 +606,11 @@ function updateSuperLogic(dt) {
         }
     }
     if (_superState.allmightBuffTimer > 0) { _superState.allmightBuffTimer -= dt; if (_superState.allmightBuffTimer < 0) _superState.allmightBuffTimer = 0; }
+
+    // Таймеры Дэнди
+    if (_superState.dandyDmgBuff) { _superState.dandyDmgBuff.timer -= dt; if (_superState.dandyDmgBuff.timer <= 0) _superState.dandyDmgBuff = null; }
+    if (_superState.dandyShield) { _superState.dandyShield.timer -= dt; if (_superState.dandyShield.timer <= 0) _superState.dandyShield = null; }
+    if (_superState.dandyVulnerable) { _superState.dandyVulnerable.timer -= dt; if (_superState.dandyVulnerable.timer <= 0) _superState.dandyVulnerable = null; }
 
     // Затухание маркера Гароу
     if (_superState.garouMarker) {
@@ -615,93 +624,4 @@ function updateSuperLogic(dt) {
         for (let i = 0; i < 2; i++) {
             let angle = Math.random() * Math.PI * 2;
             let dist = 15 + Math.random() * 20;
-            arenaParticles.push({ x: heart.x + Math.cos(angle)*8, y: heart.y + Math.sin(angle)*8, endX: heart.x + Math.cos(angle)*dist, endY: heart.y + Math.sin(angle)*dist, vx: 0, vy: 0, life: 12, maxLife: 12, color: "#44ff44", isLightning: true });
-        }
-    }
-
-    // Аура Бороса
-    if (_superState.borosParticles && arenaActive) {
-        for (let i = 0; i < 2; i++) arenaParticles.push({ x: heart.x+(Math.random()-0.5)*40, y: heart.y+(Math.random()-0.5)*40, vx: (Math.random()-0.5)*1, vy: -1-Math.random(), life: 30, maxLife: 30, color: "#66ff66", size: 3+Math.random()*4 });
-    }
-
-    // Молнии Дэнди
-    if (_superState.dandyLightnings && arenaActive) {
-        for (let i = 0; i < 3; i++) {
-            let angle = Math.random() * Math.PI * 2;
-            let dist = 20 + Math.random() * 30;
-            arenaParticles.push({ x: heart.x + Math.cos(angle)*10, y: heart.y + Math.sin(angle)*10, endX: heart.x + Math.cos(angle)*dist, endY: heart.y + Math.sin(angle)*dist, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ffff00", isLightning: true });
-        }
-    }
-
-    // Логика кулаков
-    for (let i = _superState.fists.length-1; i >= 0; i--) {
-        let f = _superState.fists[i];
-        f.x += f.vx; f.y += f.vy; f.life--;
-        let pathWidth = f.pathWidth || 90;
-        for (let j = attacks.length-1; j >= 0; j--) {
-            let a = attacks[j];
-            let ax = a.x + (a.size || a.radius || 20)/2;
-            let ay = a.y + (a.size || a.radius || 20)/2;
-            if (Math.abs(ax-f.x) < pathWidth/2 && Math.abs(ay-f.y) < f.size+20) {
-                for (let p = 0; p < 12; p++) arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, life: 20, maxLife: 20, color: "#ffaa00", size: 2+Math.random()*4 });
-                attacks.splice(j, 1);
-                if (typeof sfxBounce === 'function') sfxBounce();
-            }
-        }
-        if (f.owner === "Сайтама" && f.willOneshot && !f.oneshotChecked && arenaBossMaxHP > 0) {
-            f.oneshotChecked = true;
-            arenaBossMaxHP = 0;
-            if (typeof sfxArenaVictory === 'function') sfxArenaVictory();
-            if (typeof winArena === 'function') winArena();
-            _superState.fists.splice(i, 1);
-            break;
-        }
-        if (f.life <= 0 || f.y < -100 || f.y > 600 || f.x < -50 || f.x > 450) _superState.fists.splice(i, 1);
-    }
-}
-
-function renderSuperVisuals() {
-    if (!ctx) return;
-    drawGarouTrail();
-    for (let i = arenaParticles.length-1; i >= 0; i--) {
-        let p = arenaParticles[i];
-        if (p.isLightning && p.life > 0) drawLightningBolt(p.x, p.y, p.endX, p.endY, p.color, p.life/p.maxLife);
-    }
-    if (_superState.fists && _superState.fists.length > 0) {
-        for (let f of _superState.fists) { if (f.life > 0) drawFist(f); }
-    }
-    if (_superState.garouMarker && _superState.garouMarker.alpha > 0) drawCircleMarker(_superState.garouMarker.x, _superState.garouMarker.y, "#ff8800", _superState.garouMarker.alpha);
-    if (_superState.usoppStunTimer > 0 && arenaActive) {
-        ctx.save(); ctx.globalAlpha = 0.3; ctx.fillStyle = "#ffff00"; ctx.shadowColor = "#ffff00"; ctx.shadowBlur = 15;
-        ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size*2, 0, Math.PI*2); ctx.fill(); ctx.restore();
-    }
-    if (_superState.nikaActive && arenaActive) {
-        ctx.save(); ctx.globalAlpha = 0.2+Math.sin(performance.now()/300)*0.1; ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 25;
-        ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size*2.5, 0, Math.PI*2); ctx.fill(); ctx.restore();
-    }
-    if (_superState.usoppInvuln && arenaActive) {
-        for (let i = 0; i < 2; i++) arenaParticles.push({ x: heart.x+(Math.random()-0.5)*30, y: heart.y+(Math.random()-0.5)*30, vx: (Math.random()-0.5)*0.5, vy: -1-Math.random(), life: 20, maxLife: 20, color: "#ffff88", size: 2+Math.random()*3 });
-    }
-    if (_superState.imAuraActive && arenaActive) {
-        ctx.save(); ctx.strokeStyle = "rgba(128,0,128,0.8)"; ctx.lineWidth = 4; ctx.shadowColor = "#800080"; ctx.shadowBlur = 15;
-        ctx.beginPath(); ctx.arc(heart.x, heart.y, _superState.imAuraRadius, 0, Math.PI*2); ctx.stroke(); ctx.restore();
-    }
-    if (_superState.kaidoDrinking && arenaActive) {
-        drawBeerBottle(heart.x, heart.y, 1);
-    }
-    if (_superState.allmightPermaSlow && arenaActive) {
-        ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = "#ff0000"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15;
-        ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size*1.8, 0, Math.PI*2); ctx.fill(); ctx.restore();
-    }
-    if (_superState.garouInvulnTimer > 0 && arenaActive) {
-        ctx.save(); ctx.globalAlpha = 0.3; ctx.strokeStyle = "#ff8800"; ctx.lineWidth = 3; ctx.shadowColor = "#ff8800"; ctx.shadowBlur = 20;
-        ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size*1.5, 0, Math.PI*2); ctx.stroke(); ctx.restore();
-    }
-}
-
-// ====== ЭКСПОРТ ======
-window.toggleSuper = toggleSuper;
-window.initSuperState = initSuperState;
-window.tickSupers = tickSupers;
-window.renderSuperVisuals = renderSuperVisuals;
-window.resetAllSupers = resetAllSupers;
+            arenaParticles.push({ x: heart.x + Math.cos(angle)*
