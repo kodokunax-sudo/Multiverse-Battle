@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v8.1 (HITBOX FIX + COOLDOWN RESET) ==========
+// ========== АРЕНА UNDERTALE v9.0 MEGA ULTRA ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 70;
@@ -198,6 +198,7 @@ function clampHeart() {
 
 function moveHeart() {
     if (typeof _superState !== 'undefined' && _superState.usoppStunTimer > 0) return;
+    if (typeof _superState !== 'undefined' && _superState.garouTimeStop) return;
     
     let mx = 0;
     let my = 0;
@@ -381,6 +382,9 @@ function startArena(bossWave) {
         _superState.allmightDmgMult = 1;
         _superState.allmightBuffTimer = 0;
         _superState.garouInvulnTimer = 0;
+        _superState.garouTimeStop = false;
+        _superState.screenShakeAmount = 0;
+        _superState.screenFlashWhite = 0;
     }
     
     heartSpeed = 1.2;
@@ -721,7 +725,6 @@ function winArena() {
         if (!defeatedBosses.includes(arenaCurrentWave)) defeatedBosses.push(arenaCurrentWave);
     }
     if (typeof grantBossGachaReward === 'function') grantBossGachaReward(arenaCurrentWave);
-    // Сброс кулдаунов при победе
     if (typeof resetAllCooldowns === 'function') resetAllCooldowns();
     stopArena();
     if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = Math.floor(currentEnemy.maxHp * 0.25);
@@ -729,19 +732,18 @@ function winArena() {
 }
 
 function loseArena() {
-    // Воскрешение Марка
     if (typeof _superState !== 'undefined' && _superState.markResurrectUsed === false) {
         let mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
         if (mainCard && mainCard.name === "Император Марк") {
             _superState.markResurrectUsed = true;
             arenaHP = Math.ceil(arenaMaxHP * 0.05);
             document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
-            spawnFloatingText(heart.x, heart.y - 20, "ВОСКРЕС!", "#00ff00");
+            _superState.screenFlashWhite = 30;
+            spawnFloatingText(heart.x, heart.y - 20, "ВОСКРЕС!", "#ffd700");
             return;
         }
     }
     
-    // Сброс кулдаунов при смерти
     if (typeof resetAllCooldowns === 'function') resetAllCooldowns();
     if (typeof resetAllSupers === 'function') resetAllSupers();
     
@@ -765,24 +767,13 @@ function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
     if (typeof _superState !== 'undefined' && _superState.garouInvulnTimer > 0) return;
     if (typeof _superState !== 'undefined' && _superState.dandyInvuln) return;
     
-    if (typeof _superState !== 'undefined' && _superState.nikaActive) {
-        dmg = Math.floor(dmg * 0.6);
-    }
-    if (typeof _superState !== 'undefined' && _superState.kaidoDmgReduction) {
-        dmg = Math.floor(dmg * 0.5);
-    }
-    if (typeof _superState !== 'undefined' && _superState.dandyShield && _superState.dandyShield.timer > 0) {
-        dmg = Math.floor(dmg * _superState.dandyShield.mult);
-    }
-    if (typeof _superState !== 'undefined' && _superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) {
-        dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
-    }
+    if (typeof _superState !== 'undefined' && _superState.nikaActive) dmg = Math.floor(dmg * 0.6);
+    if (typeof _superState !== 'undefined' && _superState.kaidoDmgReduction) dmg = Math.floor(dmg * 0.5);
+    if (typeof _superState !== 'undefined' && _superState.dandyShield && _superState.dandyShield.timer > 0) dmg = Math.floor(dmg * _superState.dandyShield.mult);
+    if (typeof _superState !== 'undefined' && _superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
     
     if (invulnTimer > 0) return;
-    
-    if (arenaAttackType !== 10) {
-        invulnTimer = 45;
-    }
+    if (arenaAttackType !== 10) invulnTimer = 45;
 
     if (isTrueOneshot || dmg >= arenaMaxHP) {
         arenaHP = 0;
@@ -841,8 +832,15 @@ function renderArena() {
     if (ghostBossHP > arenaBossMaxHP) { ghostBossHP -= (ghostBossHP - arenaBossMaxHP) * 0.08; if (ghostBossHP - arenaBossMaxHP < 1) ghostBossHP = arenaBossMaxHP; }
     if (ghostBossHP < arenaBossMaxHP) ghostBossHP = arenaBossMaxHP;
     
-    let sx = arenaShake ? (Math.random() - 0.5) * arenaShake : 0;
-    let sy = arenaShake ? (Math.random() - 0.5) * arenaShake : 0;
+    // Тряска экрана от супер-способностей
+    let superShakeX = 0, superShakeY = 0;
+    if (typeof _superState !== 'undefined' && _superState.screenShakeAmount > 0) {
+        superShakeX = (Math.random() - 0.5) * _superState.screenShakeAmount;
+        superShakeY = (Math.random() - 0.5) * _superState.screenShakeAmount;
+    }
+    
+    let sx = (arenaShake ? (Math.random() - 0.5) * arenaShake : 0) + superShakeX;
+    let sy = (arenaShake ? (Math.random() - 0.5) * arenaShake : 0) + superShakeY;
     if (arenaShake > 0) { arenaShake *= 0.88; if (arenaShake < 0.1) arenaShake = 0; }
     if (arenaHitFlash > 0) arenaHitFlash -= 3;
     if (invulnTimer > 0) invulnTimer--;
@@ -853,6 +851,15 @@ function renderArena() {
     
     ctx.save(); ctx.translate(sx, sy);
     ctx.clearRect(-15, -15, 430, 530); ctx.fillStyle = "#03030b"; ctx.fillRect(0, 0, 400, 500);
+    
+    // Белая вспышка от супер-способностей
+    if (typeof _superState !== 'undefined' && _superState.screenFlashWhite > 0) {
+        ctx.save();
+        ctx.fillStyle = "#ffffff";
+        ctx.globalAlpha = Math.min(1, _superState.screenFlashWhite / 20);
+        ctx.fillRect(0, 0, 400, 500);
+        ctx.restore();
+    }
     
     if (screenFlash > 0) {
         ctx.save();
@@ -983,16 +990,19 @@ function renderArena() {
         let frozen = (typeof _superState !== 'undefined' && _superState.antispiralFrozen);
         let speedMod = arenaGlobalSpeedMod * (typeof _superState !== 'undefined' && _superState.antispiralSpeedBoost ? 1.5 : 1.0);
         
+        // Остановка атак при заморозке Гароу
+        let timeStopped = (typeof _superState !== 'undefined' && _superState.garouTimeStop);
+        
         for (let i = attacks.length - 1; i >= 0; i--) {
             let a = attacks[i];
             
-            if (!frozen) {
+            if (!frozen && !timeStopped) {
                 if (a.spd) a.x += a.spd * speedMod;
                 if (a.spdY) a.y += a.spdY * speedMod;
             }
             
             if (a.type === "bomb") {
-                if (!frozen) a.timer--;
+                if (!frozen && !timeStopped) a.timer--;
                 if (a.timer > 0) {
                     ctx.save(); let isFlashing = Math.floor(a.timer / 6) % 2 === 0; let bombX = a.x; let bombY = a.y;
                     let bombRadius = 11 + Math.abs(Math.sin(a.timer * 0.45)) * 4; ctx.shadowColor = "#ff3333"; ctx.shadowBlur = isFlashing ? 25 : 10;
@@ -1021,7 +1031,7 @@ function renderArena() {
                 continue;
             }
             
-            if (a.type !== "wall" && a.bouncesLeft !== undefined && a.bouncesLeft > 0 && !frozen) {
+            if (a.type !== "wall" && a.bouncesLeft !== undefined && a.bouncesLeft > 0 && !frozen && !timeStopped) {
                 let sz = a.size || (a.radius ? a.radius*2 : 20);
                 if (a.x < 4 && a.spd < 0) { a.spd = -a.spd; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); }
                 else if (a.x + sz > 396 && a.spd > 0) { a.spd = -a.spd; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); }
@@ -1053,11 +1063,11 @@ function renderArena() {
             }
             if (a.y > 560 || a.y < -150 || a.x < -160 || a.x > 560) { attacks.splice(i, 1); continue; }
             
-            if (frozen) {
+            if (frozen || timeStopped) {
                 ctx.save();
                 ctx.globalAlpha = 0.4;
-                ctx.fillStyle = "#aaddff";
-                ctx.strokeStyle = "#88bbff";
+                ctx.fillStyle = timeStopped ? "#ff8800" : "#aaddff";
+                ctx.strokeStyle = timeStopped ? "#ff8800" : "#88bbff";
                 ctx.lineWidth = 2;
                 let sz = a.size || a.radius || 20;
                 if (a.type === "circle" || a.type === "rainbow") {
@@ -1100,7 +1110,7 @@ function renderArena() {
         
         for (let i = arenaBlasters.length-1; i >= 0; i--) {
             let b = arenaBlasters[i], ac = b.color === "rainbow" ? `hsl(${(now/2)%360},100%,60%)` : b.color;
-            if (!frozen) {
+            if (!frozen && !timeStopped) {
                 if (b.state === "aiming") { b.timer--; if (b.timer <= 0) { b.state = "firing"; b.timer = 15; arenaShake = 18; sfxArenaBlasterFire(); } }
                 else if (b.state === "firing") { b.timer--; if (b.timer <= 0) { b.state="fading"; b.timer=20; } }
                 else if (b.state === "fading") { b.timer--; if (b.timer <= 0) arenaBlasters.splice(i,1); }
@@ -1112,7 +1122,7 @@ function renderArena() {
                 ctx.strokeStyle=ac; ctx.lineWidth=b.width+16+Math.random()*10; ctx.globalAlpha=0.3; ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(b.x+Math.cos(b.angle)*800, b.y+Math.sin(b.angle)*800); ctx.stroke(); 
                 ctx.lineWidth=b.width; ctx.globalAlpha=0.9; ctx.stroke(); 
                 ctx.strokeStyle="#fff"; ctx.lineWidth=b.width*0.4; ctx.globalAlpha=1.0; ctx.stroke(); ctx.restore(); 
-                if (!b.hasHit && invulnTimer <= 0 && !frozen) { 
+                if (!b.hasHit && invulnTimer <= 0 && !frozen && !timeStopped) { 
                     let dx = heart.x-b.x, dy = heart.y-b.y, dist = Math.abs(dx*Math.sin(b.angle)-dy*Math.cos(b.angle)); 
                     if (dist < b.width/2+heart.hitbox) { 
                         let bdmg=0, msg=""; 
@@ -1137,8 +1147,9 @@ function renderArena() {
             heartGrad.addColorStop(1, '#990000');
             ctx.fillStyle = heartGrad;
             ctx.shadowColor = (typeof _superState !== 'undefined' && _superState.dekusParticles) ? "#44ff44" : 
+                             (typeof _superState !== 'undefined' && _superState.allmightBuffTimer > 0) ? "#ffd700" :
                              (typeof _superState !== 'undefined' && _superState.usoppInvuln) ? "#ffff00" : "#ff0000";
-            ctx.shadowBlur = (typeof _superState !== 'undefined' && _superState.dekusParticles) ? 25 : 12;
+            ctx.shadowBlur = (typeof _superState !== 'undefined' && (_superState.dekusParticles || _superState.allmightBuffTimer > 0)) ? 30 : 12;
             ctx.beginPath(); ctx.arc(-3.5,-2,4.5,Math.PI,0); ctx.arc(3.5,-2,4.5,Math.PI,0); ctx.lineTo(0,6); ctx.closePath(); ctx.fill(); 
             ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.shadowBlur = 0; ctx.beginPath(); ctx.arc(-2,-2,1.5,0,Math.PI*2); ctx.fill(); 
             if (invulnTimer>0) { 
@@ -1148,7 +1159,6 @@ function renderArena() {
                 ctx.strokeStyle = shieldGrad; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,2,heart.size*1.3,0,Math.PI*2); ctx.stroke(); 
             } 
             ctx.restore();
-            // ХИТБОКС БОЛЬШЕ НЕ РИСУЕТСЯ (было здесь)
         }
     } else if (arenaPhase === "attack") {
         for (let i = 0; i < arenaClickTargets.length; i++) { 
