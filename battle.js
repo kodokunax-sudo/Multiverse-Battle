@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v7.3 (FIXED SUPER RESET + GAROU TRAIL) ==========
+// ========== АРЕНА UNDERTALE v8.0 (FULL SUPER INTEGRATION) ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 70;
@@ -215,6 +215,13 @@ function moveHeart() {
             my /= len;
         }
     }
+    
+    // Инвертированное управление (Кайдо, Дэнди)
+    if (typeof _superState !== 'undefined' && _superState.invertControls) {
+        mx = -mx;
+        my = -my;
+    }
+    
     let isMoving = Math.abs(mx) > 0.05 || Math.abs(my) > 0.05;
     heartWasMoving = isMoving;
     if (isMoving) {
@@ -354,6 +361,31 @@ function startArena(bossWave) {
     arenaVignette = 0;
     arenaGlobalSpeedMod = 1.0;
     
+    // Сброс флагов на новую арену
+    if (typeof _superState !== 'undefined') {
+        _superState.markResurrectUsed = false;
+        _superState.allmightPermaSlow = false;
+        _superState.allmightDmgMult = 1;
+        _superState.allmightBuffTimer = 0;
+        _superState.antispiralSpeedBoost = false;
+        _superState.antispiralFrozen = false;
+        _superState.imAuraActive = false;
+        _superState.kaidoDrinking = false;
+        _superState.kaidoBuffActive = false;
+        _superState.kaidoDmgReduction = false;
+        _superState.invertControls = false;
+        _superState.dandyInvuln = false;
+        _superState.dandyLightnings = false;
+        _superState.dandyDoubleTargets = false;
+        _superState.dandyDmgBuff = null;
+        _superState.dandyShield = null;
+        _superState.dandyVulnerable = null;
+        _superState.allmightPermaSlow = false;
+        _superState.allmightDmgMult = 1;
+        _superState.allmightBuffTimer = 0;
+        _superState.garouInvulnTimer = 0;
+    }
+    
     heartSpeed = 1.2;
     if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0 && mainCardIndex >= 0 && mainCardIndex < team.length) {
         let mainCardIdx = team[mainCardIndex];
@@ -460,14 +492,26 @@ function startDodgePhase() {
         }
     }, Math.max(800, baseInterval / arenaSpeedMult));
     
+    // Пассивка Анти-спираля: +30% к длительности фазы уклонения
     let dodgeTime = Math.max(10000, 13000 + Math.random() * 6000);
+    if (typeof getMainCard === 'function') {
+        let mainCard = getMainCard();
+        if (mainCard && mainCard.name === "Анти-спираль") {
+            dodgeTime = Math.floor(dodgeTime * 1.3);
+        }
+    }
     setTimeout(() => { if (arenaPhase === "dodge" && arenaActive) startAttackPhase(); }, dodgeTime);
 }
 
 function startAttackPhase() {
     arenaPhase = "attack";
     attacks = []; arenaBlasters = []; wallGapIndicator = null; arenaClickTargets = []; arenaClicksHit = 0;
+    // Двойные цели от Дэнди
     arenaTotalTargets = 4 + Math.floor(arenaSpeedMult * 0.8);
+    if (typeof _superState !== 'undefined' && _superState.dandyDoubleTargets) {
+        arenaTotalTargets *= 2;
+        _superState.dandyDoubleTargets = false;
+    }
     arenaAttackTimeLeft = 2;
     if (arenaAttackInterval) { clearInterval(arenaAttackInterval); arenaAttackInterval = null; }
     
@@ -511,8 +555,13 @@ function applyArenaDamage() {
     let baseDmg = typeof window !== 'undefined' && window.playerFinalDamage ? window.playerFinalDamage : 20;
     let finalDmg = Math.floor(baseDmg * dmgMult);
     
-    if (typeof _superState !== 'undefined' && _superState.dekusDmgMult && _superState.dekusDmgMult > 1) {
-        finalDmg = Math.floor(finalDmg * _superState.dekusDmgMult);
+    // Множители урона
+    if (typeof _superState !== 'undefined') {
+        if (_superState.dekusDmgMult && _superState.dekusDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.dekusDmgMult);
+        if (_superState.nikaDmgMult && _superState.nikaDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.nikaDmgMult);
+        if (_superState.kaidoBuffActive) finalDmg = Math.floor(finalDmg * 2);
+        if (_superState.allmightDmgMult && _superState.allmightDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.allmightDmgMult);
+        if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) finalDmg = Math.floor(finalDmg * _superState.dandyDmgBuff.mult);
     }
     
     if (finalDmg > 0) {
@@ -583,29 +632,19 @@ function spawnAttack() {
             }
             break;
         case 1:
-    // ХАОС АТАКА: быстрее, но меньше
-    let chaosCount = isEarly ? 1 : 2; // было 2 и 4
-    for (let i = 0; i < chaosCount; i++) {
-        let side = Math.floor(Math.random() * 4);
-        let x, y;
-        if (side === 0) { x = Math.random() * 400; y = -30; }
-        else if (side === 1) { x = Math.random() * 400; y = 530; }
-        else if (side === 2) { x = -30; y = Math.random() * 500; }
-        else { x = 430; y = Math.random() * 500; }
-        let angle = Math.atan2(heart.y - y, heart.x - x);
-        attacks.push({ 
-            type: "square", 
-            x: x, 
-            y: y, 
-            size: 20, 
-            spd: Math.cos(angle) * 2.0,   // было 1.0
-            spdY: Math.sin(angle) * 2.0,  // было 1.0
-            color: "#4499ff", 
-            damage: Math.floor(dmg / 2), 
-            bouncesLeft: 3 
-        });
-    }
-    break;
+            // ХАОС: быстрее, но меньше
+            let chaosCount = isEarly ? 1 : 2;
+            for (let i = 0; i < chaosCount; i++) {
+                let side = Math.floor(Math.random() * 4);
+                let x, y;
+                if (side === 0) { x = Math.random() * 400; y = -30; }
+                else if (side === 1) { x = Math.random() * 400; y = 530; }
+                else if (side === 2) { x = -30; y = Math.random() * 500; }
+                else { x = 430; y = Math.random() * 500; }
+                let angle = Math.atan2(heart.y - y, heart.x - x);
+                attacks.push({ type: "square", x: x, y: y, size: 20, spd: Math.cos(angle) * 2.0, spdY: Math.sin(angle) * 2.0, color: "#4499ff", damage: Math.floor(dmg / 2), bouncesLeft: 3 });
+            }
+            break;
         case 2: 
             for (let i = 0; i < (isEarly ? 1 : 2); i++) {
                 let side = Math.floor(Math.random() * 4);
@@ -671,7 +710,6 @@ function spawnAttack() {
 }
 
 function stopArena() {
-    // Сброс супер-способностей
     if (typeof resetAllSupers === 'function') resetAllSupers();
     
     arenaActive = false;
@@ -696,7 +734,18 @@ function winArena() {
 }
 
 function loseArena() {
-    // Сброс супер-способностей перед смертью
+    // Воскрешение Марка
+    if (typeof _superState !== 'undefined' && _superState.markResurrectUsed === false) {
+        let mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
+        if (mainCard && mainCard.name === "Император Марк") {
+            _superState.markResurrectUsed = true;
+            arenaHP = Math.ceil(arenaMaxHP * 0.05);
+            document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
+            spawnFloatingText(heart.x, heart.y - 20, "ВОСКРЕС!", "#00ff00");
+            return;
+        }
+    }
+    
     if (typeof resetAllSupers === 'function') resetAllSupers();
     
     sfxArenaDeath();
@@ -718,9 +767,30 @@ function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
     // Неуязвимость Усоппа
     if (typeof _superState !== 'undefined' && _superState.usoppInvuln) return;
     
-    // Защита Луффи (40% снижение урона)
+    // Неуязвимость Гароу
+    if (typeof _superState !== 'undefined' && _superState.garouInvulnTimer > 0) return;
+    
+    // Неуязвимость Дэнди
+    if (typeof _superState !== 'undefined' && _superState.dandyInvuln) return;
+    
+    // Защита Луффи
     if (typeof _superState !== 'undefined' && _superState.nikaActive) {
         dmg = Math.floor(dmg * 0.6);
+    }
+    
+    // Защита Кайдо
+    if (typeof _superState !== 'undefined' && _superState.kaidoDmgReduction) {
+        dmg = Math.floor(dmg * 0.5);
+    }
+    
+    // Щит Дэнди
+    if (typeof _superState !== 'undefined' && _superState.dandyShield && _superState.dandyShield.timer > 0) {
+        dmg = Math.floor(dmg * _superState.dandyShield.mult);
+    }
+    
+    // Уязвимость Дэнди
+    if (typeof _superState !== 'undefined' && _superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) {
+        dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
     }
     
     if (invulnTimer > 0) return;
