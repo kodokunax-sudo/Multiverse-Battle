@@ -1,4 +1,6 @@
-// ========== АРЕНА UNDERTALE v9.2 FINAL ==========
+// ========== АРЕНА UNDERTALE v9.3 FINAL ==========
+// Исправлено: анти-ваншот только для Марка, пассивка Анти-спираля, аура Има
+
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 70;
@@ -497,6 +499,7 @@ function startDodgePhase() {
     }, Math.max(800, baseInterval / arenaSpeedMult));
     
     let dodgeTime = Math.max(10000, 13000 + Math.random() * 6000);
+    // Пассивка Анти-спираля: +30% к длительности фазы уклонения
     if (typeof getMainCard === 'function') {
         let mainCard = getMainCard();
         if (mainCard && mainCard.name === "Анти-спираль") {
@@ -736,14 +739,17 @@ function winArena() {
 }
 
 function loseArena() {
-    // Воскрешение Марка (2 заряда)
+    // Анти-ваншот ТОЛЬКО для Императора Марка
     if (typeof _superState !== 'undefined' && _superState.markResurrectCharges > 0) {
-        _superState.markResurrectCharges--;
-        arenaHP = Math.ceil(arenaMaxHP * 0.25);
-        document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
-        _superState.screenFlashWhite = 30;
-        spawnFloatingText(heart.x, heart.y - 20, "ВОСКРЕС! (" + _superState.markResurrectCharges + ")", "#ffd700");
-        return;
+        let mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
+        if (mainCard && mainCard.name === "Император Марк") {
+            _superState.markResurrectCharges--;
+            arenaHP = Math.ceil(arenaMaxHP * 0.25);
+            document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
+            _superState.screenFlashWhite = 30;
+            spawnFloatingText(heart.x, heart.y - 20, "ВОСКРЕС! (" + _superState.markResurrectCharges + ")", "#ffd700");
+            return;
+        }
     }
     
     if (typeof resetAllCooldowns === 'function') resetAllCooldowns();
@@ -998,6 +1004,23 @@ function renderArena() {
             if (!frozen && !timeStopped) {
                 if (a.spd) a.x += a.spd * speedMod;
                 if (a.spdY) a.y += a.spdY * speedMod;
+            }
+            
+            // Аура Има: уничтожение атак с шансом 50%
+            if (typeof _superState !== 'undefined' && _superState.imAuraActive && invulnTimer <= 0) {
+                let ax = a.x + (a.size || a.radius || 20) / 2;
+                let ay = a.y + (a.size || a.radius || 20) / 2;
+                let dist = Math.hypot(ax - heart.x, ay - heart.y);
+                if (dist < 85 && Math.random() < 0.5) {
+                    attacks.splice(i, 1);
+                    arenaParticles.push({
+                        x: ax, y: ay,
+                        vx: 0, vy: 0,
+                        life: 15, maxLife: 15,
+                        color: "#ff00ff", size: 5
+                    });
+                    continue;
+                }
             }
             
             if (a.type === "bomb") {
