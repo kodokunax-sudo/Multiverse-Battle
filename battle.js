@@ -1,4 +1,4 @@
-// ========== АРЕНА UNDERTALE v9.0 MEGA ULTRA ==========
+// ========== АРЕНА UNDERTALE v9.2 FINAL ==========
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 70;
@@ -361,7 +361,7 @@ function startArena(bossWave) {
     arenaGlobalSpeedMod = 1.0;
     
     if (typeof _superState !== 'undefined') {
-        _superState.markResurrectUsed = false;
+        _superState.markResurrectCharges = 2;
         _superState.allmightPermaSlow = false;
         _superState.allmightDmgMult = 1;
         _superState.allmightBuffTimer = 0;
@@ -371,6 +371,8 @@ function startArena(bossWave) {
         _superState.kaidoDrinking = false;
         _superState.kaidoBuffActive = false;
         _superState.kaidoDmgReduction = false;
+        _superState.kaidoDmgBonus = 1;
+        _superState.kaidoSpeedBonus = 1;
         _superState.invertControls = false;
         _superState.dandyInvuln = false;
         _superState.dandyLightnings = false;
@@ -378,9 +380,10 @@ function startArena(bossWave) {
         _superState.dandyDmgBuff = null;
         _superState.dandyShield = null;
         _superState.dandyVulnerable = null;
-        _superState.allmightPermaSlow = false;
-        _superState.allmightDmgMult = 1;
-        _superState.allmightBuffTimer = 0;
+        _superState.garpHakiActive = false;
+        _superState.garpHakiTimer = 0;
+        _superState.garpChargeTimer = 0;
+        _superState.garpImpactActive = false;
         _superState.garouInvulnTimer = 0;
         _superState.garouTimeStop = false;
         _superState.screenShakeAmount = 0;
@@ -557,7 +560,8 @@ function applyArenaDamage() {
     if (typeof _superState !== 'undefined') {
         if (_superState.dekusDmgMult && _superState.dekusDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.dekusDmgMult);
         if (_superState.nikaDmgMult && _superState.nikaDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.nikaDmgMult);
-        if (_superState.kaidoBuffActive) finalDmg = Math.floor(finalDmg * 2);
+        if (_superState.kaidoBuffActive && _superState.kaidoDmgBonus > 1) finalDmg = Math.floor(finalDmg * _superState.kaidoDmgBonus);
+        if (_superState.garpHakiActive) finalDmg = Math.floor(finalDmg * 1.3);
         if (_superState.allmightDmgMult && _superState.allmightDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.allmightDmgMult);
         if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) finalDmg = Math.floor(finalDmg * _superState.dandyDmgBuff.mult);
     }
@@ -732,16 +736,14 @@ function winArena() {
 }
 
 function loseArena() {
-    if (typeof _superState !== 'undefined' && _superState.markResurrectUsed === false) {
-        let mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
-        if (mainCard && mainCard.name === "Император Марк") {
-            _superState.markResurrectUsed = true;
-            arenaHP = Math.ceil(arenaMaxHP * 0.05);
-            document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
-            _superState.screenFlashWhite = 30;
-            spawnFloatingText(heart.x, heart.y - 20, "ВОСКРЕС!", "#ffd700");
-            return;
-        }
+    // Воскрешение Марка (2 заряда)
+    if (typeof _superState !== 'undefined' && _superState.markResurrectCharges > 0) {
+        _superState.markResurrectCharges--;
+        arenaHP = Math.ceil(arenaMaxHP * 0.25);
+        document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
+        _superState.screenFlashWhite = 30;
+        spawnFloatingText(heart.x, heart.y - 20, "ВОСКРЕС! (" + _superState.markResurrectCharges + ")", "#ffd700");
+        return;
     }
     
     if (typeof resetAllCooldowns === 'function') resetAllCooldowns();
@@ -768,7 +770,8 @@ function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
     if (typeof _superState !== 'undefined' && _superState.dandyInvuln) return;
     
     if (typeof _superState !== 'undefined' && _superState.nikaActive) dmg = Math.floor(dmg * 0.6);
-    if (typeof _superState !== 'undefined' && _superState.kaidoDmgReduction) dmg = Math.floor(dmg * 0.5);
+    if (typeof _superState !== 'undefined' && _superState.kaidoDmgReduction) dmg = Math.floor(dmg * 0.7);
+    if (typeof _superState !== 'undefined' && _superState.garpHakiActive) dmg = Math.floor(dmg * 0.4);
     if (typeof _superState !== 'undefined' && _superState.dandyShield && _superState.dandyShield.timer > 0) dmg = Math.floor(dmg * _superState.dandyShield.mult);
     if (typeof _superState !== 'undefined' && _superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
     
@@ -832,7 +835,6 @@ function renderArena() {
     if (ghostBossHP > arenaBossMaxHP) { ghostBossHP -= (ghostBossHP - arenaBossMaxHP) * 0.08; if (ghostBossHP - arenaBossMaxHP < 1) ghostBossHP = arenaBossMaxHP; }
     if (ghostBossHP < arenaBossMaxHP) ghostBossHP = arenaBossMaxHP;
     
-    // Тряска экрана от супер-способностей
     let superShakeX = 0, superShakeY = 0;
     if (typeof _superState !== 'undefined' && _superState.screenShakeAmount > 0) {
         superShakeX = (Math.random() - 0.5) * _superState.screenShakeAmount;
@@ -852,7 +854,6 @@ function renderArena() {
     ctx.save(); ctx.translate(sx, sy);
     ctx.clearRect(-15, -15, 430, 530); ctx.fillStyle = "#03030b"; ctx.fillRect(0, 0, 400, 500);
     
-    // Белая вспышка от супер-способностей
     if (typeof _superState !== 'undefined' && _superState.screenFlashWhite > 0) {
         ctx.save();
         ctx.fillStyle = "#ffffff";
@@ -989,8 +990,6 @@ function renderArena() {
     if (arenaPhase === "dodge") {
         let frozen = (typeof _superState !== 'undefined' && _superState.antispiralFrozen);
         let speedMod = arenaGlobalSpeedMod * (typeof _superState !== 'undefined' && _superState.antispiralSpeedBoost ? 1.5 : 1.0);
-        
-        // Остановка атак при заморозке Гароу
         let timeStopped = (typeof _superState !== 'undefined' && _superState.garouTimeStop);
         
         for (let i = attacks.length - 1; i >= 0; i--) {
@@ -1104,9 +1103,7 @@ function renderArena() {
             ctx.restore();
         }
         
-        // ====== ОТРИСОВКА СУПЕР-СПОСОБНОСТЕЙ ======
         if (typeof renderSuperVisuals === 'function') renderSuperVisuals();
-        // ==========================================
         
         for (let i = arenaBlasters.length-1; i >= 0; i--) {
             let b = arenaBlasters[i], ac = b.color === "rainbow" ? `hsl(${(now/2)%360},100%,60%)` : b.color;
