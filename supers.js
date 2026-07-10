@@ -1,5 +1,5 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v7.0 FINAL MERGED ==========
-// Объединённая версия: визуалы, Гарп, кольца, Дэнди, все 14 персонажей
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v7.1 FINAL ==========
+// Правки: Кайдо, Гарп, Марк, Им, Анти-спираль
 
 let _superState = {
     fists: [],
@@ -16,14 +16,15 @@ let _superState = {
     positionHistory: [], garouMarker: null, garouInvulnTimer: 0, garouTimeStop: false,
     // Гарп
     garpChargeTimer: 0, garpImpactActive: false, garpImpactRadius: 0, garpImpactX: 0, garpImpactY: 0,
+    garpHakiActive: false, garpHakiTimer: 0,
     // Им
     imAuraActive: false, imSpeedPenalty: false,
     // Дэнди
     dandyLightnings: false, dandyInvuln: false, dandyDmgBuff: null, dandyShield: null, dandyVulnerable: null, dandyDoubleTargets: false, dandyRoulette: null,
     // Кайдо
-    kaidoDrinking: false, kaidoBuffActive: false, kaidoDmgReduction: false, invertControls: false, kaidoScream: false,
+    kaidoDrinking: false, kaidoBuffActive: false, kaidoDmgReduction: false, kaidoDmgBonus: 1, kaidoSpeedBonus: 1, invertControls: false, kaidoScream: false,
     // Марк
-    markResurrectUsed: false,
+    markResurrectCharges: 2,
     // Всемогущий
     allmightPermaSlow: false, allmightDmgMult: 1, allmightBuffTimer: 0, allmightOrigSize: 14, allmightOrigHitbox: 4, allmightShockwave: 0,
     // Анти-спираль
@@ -182,6 +183,40 @@ function drawGarouTrail() {
     ctx.restore();
 }
 
+function drawBeerBottle(x, y, alpha) {
+    if (!ctx) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x, y - 30);
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.fillRect(-6, -12, 14, 22);
+    ctx.fillStyle = "#8B4513";
+    ctx.fillRect(-8, -15, 16, 28);
+    ctx.fillStyle = "#D2691E";
+    ctx.fillRect(-6, -20, 12, 8);
+    ctx.fillStyle = "#FFD700";
+    ctx.fillRect(-5, -24, 10, 6);
+    ctx.fillStyle = "#FFD700";
+    ctx.fillRect(-6, -5, 12, 10);
+    ctx.fillStyle = "#000";
+    ctx.font = "bold 6px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("BEER", 0, 2);
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-8, -15, 16, 28);
+    for (let i = 0; i < 3; i++) {
+        let bx = -4 + Math.random() * 10;
+        let by = -10 - Math.random() * 10;
+        ctx.fillStyle = "#fff";
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        ctx.arc(bx, by, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
 function drawGoldenHeart(hx, hy, size) {
     if (!ctx) return;
     ctx.save();
@@ -210,7 +245,7 @@ function drawGoldenHeart(hx, hy, size) {
     ctx.restore();
 }
 
-// ====== ЭФФЕКТЫ ДЭНДИ (ПОЛНЫЕ) ======
+// ====== ЭФФЕКТЫ ДЭНДИ ======
 const DANDY_GOOD = [
     { name: "ПОЛНОЕ ИСЦЕЛЕНИЕ", apply() { arenaHP = arenaMaxHP; document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); spawnFloatingText(heart.x, heart.y-20, "ИСЦЕЛЕНИЕ!", "#44ff44"); } },
     { name: "УРОН x2 (5с)", apply() { _superState.dandyDmgBuff = { mult: 2, timer: 5 }; } },
@@ -368,12 +403,24 @@ const superAbilities = {
     "Кайдо": {
         name: "ДЫХАНИЕ РАЗРУШЕНИЯ", cooldown: 25000, toggleable: false, duration: 0,
         onActivate() {
-            _superState.kaidoDrinking = true; heartSpeed *= 0.5; spawnFloatingText(heart.x, heart.y - 30, "ГЛОТОК...", "#D2691E");
+            _superState.kaidoDrinking = true; heartSpeed *= 0.5;
+            spawnFloatingText(heart.x, heart.y - 30, "ГЛОТОК...", "#D2691E");
             setTimeout(() => {
-                _superState.kaidoDrinking = false; heartSpeed /= 0.5; _superState.kaidoBuffActive = true; _superState.kaidoDmgReduction = true; _superState.invertControls = true; _superState.kaidoScream = true;
-                _superState.screenShakeAmount = 25; spawnFloatingText(heart.x, heart.y - 40, "ЯРОСТЬ!!!", "#ff4444");
+                _superState.kaidoDrinking = false; heartSpeed /= 0.5;
+                _superState.kaidoBuffActive = true; _superState.kaidoDmgReduction = true; _superState.kaidoSpeedBonus = 1.5; heartSpeed *= 1.5;
+                _superState.kaidoDmgBonus = 1.8; _superState.invertControls = true; _superState.kaidoScream = true;
+                _superState.screenShakeAmount = 25;
+                arenaHP = Math.min(arenaMaxHP, arenaHP + arenaMaxHP * 0.1);
+                document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
+                spawnFloatingText(heart.x, heart.y - 40, "ЯРОСТЬ!!!", "#ff4444");
                 setTimeout(() => { _superState.kaidoScream = false; }, 500);
-                setTimeout(() => { _superState.kaidoBuffActive = false; _superState.kaidoDmgReduction = false; _superState.invertControls = false; }, 7000);
+                setTimeout(() => {
+                    _superState.kaidoBuffActive = false; _superState.kaidoDmgReduction = false;
+                    heartSpeed /= 1.5; _superState.kaidoSpeedBonus = 1; _superState.kaidoDmgBonus = 1; _superState.invertControls = false;
+                    heartSpeed *= 0.5;
+                    spawnFloatingText(heart.x, heart.y - 30, "ПОХМЕЛЬЕ...", "#8B4513");
+                    setTimeout(() => { heartSpeed /= 0.5; }, 3000);
+                }, 10000);
             }, 2000);
         },
         onTick() {}
@@ -450,9 +497,9 @@ function resetAllSupers() {
     _superState.borosHeal = null; _superState.borosParticles = false;
     _superState.usoppInvuln = false; _superState.usoppStunTimer = 0; _superState.nikaActive = false; _superState.nikaDmgMult = 1;
     _superState.positionHistory = []; _superState.garouMarker = null; _superState.garouInvulnTimer = 0; _superState.garouTimeStop = false;
-    _superState.garpChargeTimer = 0; _superState.garpImpactActive = false;
+    _superState.garpChargeTimer = 0; _superState.garpImpactActive = false; _superState.garpHakiActive = false; _superState.garpHakiTimer = 0;
     _superState.imAuraActive = false; _superState.imSpeedPenalty = false;
-    _superState.kaidoDrinking = false; _superState.kaidoBuffActive = false; _superState.kaidoDmgReduction = false; _superState.invertControls = false; _superState.kaidoScream = false;
+    _superState.kaidoDrinking = false; _superState.kaidoBuffActive = false; _superState.kaidoDmgReduction = false; _superState.kaidoDmgBonus = 1; _superState.kaidoSpeedBonus = 1; _superState.invertControls = false; _superState.kaidoScream = false;
     _superState.allmightDmgMult = 1; _superState.allmightBuffTimer = 0; _superState.allmightShockwave = 0;
     _superState.antispiralFrozen = false; _superState.antispiralSpeedBoost = false;
     _superState.dandyLightnings = false; _superState.dandyInvuln = false; _superState.dandyDmgBuff = null; _superState.dandyShield = null; _superState.dandyVulnerable = null; _superState.dandyDoubleTargets = false; _superState.dandyRoulette = null;
@@ -461,7 +508,7 @@ function resetAllSupers() {
     resetAllCooldowns();
 }
 
-function initSuperState() { _activeSuperName = null; resetAllSupers(); _superLastTick = performance.now(); updateSuperButton(); }
+function initSuperState() { _activeSuperName = null; resetAllSupers(); _superState.markResurrectCharges = 2; _superLastTick = performance.now(); updateSuperButton(); }
 
 function tickSupers() {
     if (!arenaActive || !ctx) return;
@@ -476,9 +523,52 @@ function updateSuperLogic(dt) {
     if (_superState.screenShakeAmount > 0) _superState.screenShakeAmount -= dt * 5;
     if (_superState.screenFlashWhite > 0) _superState.screenFlashWhite -= dt * 25;
     for (let i = _superState.rings.length - 1; i >= 0; i--) { let r = _superState.rings[i]; r.radius += r.speed * dt; r.life -= dt; if (r.life <= 0) _superState.rings.splice(i, 1); }
-    if (_superState.garpChargeTimer > 0) { _superState.garpChargeTimer -= dt; if (_superState.garpChargeTimer <= 0) { _superState.garpChargeTimer = 0; heartSpeed /= 0.3; _superState.garpImpactActive = true; _superState.garpImpactRadius = 0; _superState.garpImpactX = heart.x; _superState.garpImpactY = heart.y; arenaBossMaxHP = Math.floor(arenaBossMaxHP * 0.90); _superState.screenShakeAmount = 40; _superState.screenFlashWhite = 10; spawnFloatingText(heart.x, heart.y - 40, "ГАЛАКТИЧЕСКИЙ УДАР!!!", "#8844ff"); if (typeof sfxArenaVictory === 'function') sfxArenaVictory(); } }
-    if (_superState.garpImpactActive) { _superState.garpImpactRadius += dt * 600; if (_superState.garpImpactRadius > 200) { _superState.garpImpactActive = false; } for (let j = attacks.length - 1; j >= 0; j--) { let a = attacks[j]; let ax = a.x + (a.size || a.radius || 20) / 2; let ay = a.y + (a.size || a.radius || 20) / 2; let dist = Math.hypot(ax - _superState.garpImpactX, ay - _superState.garpImpactY); if (dist < _superState.garpImpactRadius) { attacks.splice(j, 1); arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, life: 20, maxLife: 20, color: "#8844ff", size: 4 }); } } }
-    if (arenaPhase === "dodge" && mainCard && mainCard.name === "Космический Гароу") { let now = performance.now(); _superState.positionHistory.push({ time: now, x: heart.x, y: heart.y }); while (_superState.positionHistory.length > 0 && now - _superState.positionHistory[0].time > 5000) _superState.positionHistory.shift(); }
+    
+    // Гарп: зарядка
+    if (_superState.garpChargeTimer > 0) {
+        _superState.garpChargeTimer -= dt;
+        if (_superState.garpChargeTimer <= 0) {
+            _superState.garpChargeTimer = 0; heartSpeed /= 0.3;
+            _superState.garpImpactActive = true; _superState.garpImpactRadius = 0; _superState.garpImpactX = heart.x; _superState.garpImpactY = heart.y;
+            arenaBossMaxHP = Math.floor(arenaBossMaxHP * 0.90);
+            _superState.screenShakeAmount = 40; _superState.screenFlashWhite = 10;
+            spawnFloatingText(heart.x, heart.y - 40, "ГАЛАКТИЧЕСКИЙ УДАР!!!", "#8844ff");
+            if (typeof sfxArenaVictory === 'function') sfxArenaVictory();
+            // Хаки после удара
+            _superState.garpHakiActive = true; _superState.garpHakiTimer = 6.0;
+            heartSpeed *= 1.25; // +25% скорость
+            spawnFloatingText(heart.x, heart.y - 30, "ХАКИ!", "#ff4444");
+        }
+    }
+    
+    // Гарп: расширение сферы
+    if (_superState.garpImpactActive) {
+        _superState.garpImpactRadius += dt * 600;
+        if (_superState.garpImpactRadius > 200) { _superState.garpImpactActive = false; }
+        for (let j = attacks.length - 1; j >= 0; j--) {
+            let a = attacks[j]; let ax = a.x + (a.size || a.radius || 20) / 2; let ay = a.y + (a.size || a.radius || 20) / 2;
+            if (Math.hypot(ax - _superState.garpImpactX, ay - _superState.garpImpactY) < _superState.garpImpactRadius) {
+                attacks.splice(j, 1);
+                arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, life: 20, maxLife: 20, color: "#8844ff", size: 4 });
+            }
+        }
+    }
+    
+    // Гарп: таймер Хаки
+    if (_superState.garpHakiActive) {
+        _superState.garpHakiTimer -= dt;
+        if (_superState.garpHakiTimer <= 0) {
+            _superState.garpHakiActive = false; heartSpeed /= 1.25;
+        }
+    }
+    
+    // История позиций для Гароу
+    if (arenaPhase === "dodge" && mainCard && mainCard.name === "Космический Гароу") {
+        let now = performance.now(); _superState.positionHistory.push({ time: now, x: heart.x, y: heart.y });
+        while (_superState.positionHistory.length > 0 && now - _superState.positionHistory[0].time > 5000) _superState.positionHistory.shift();
+    }
+    
+    // Таймеры
     if (_superState.usoppStunTimer > 0) { _superState.usoppStunTimer -= dt; if (_superState.usoppStunTimer < 0) _superState.usoppStunTimer = 0; }
     if (_superState.garouInvulnTimer > 0) { _superState.garouInvulnTimer -= dt; if (_superState.garouInvulnTimer < 0) _superState.garouInvulnTimer = 0; }
     if (_superState.allmightBuffTimer > 0) { _superState.allmightBuffTimer -= dt; if (_superState.allmightBuffTimer < 0) _superState.allmightBuffTimer = 0; }
@@ -487,19 +577,71 @@ function updateSuperLogic(dt) {
     if (_superState.dandyShield) { _superState.dandyShield.timer -= dt; if (_superState.dandyShield.timer <= 0) _superState.dandyShield = null; }
     if (_superState.dandyVulnerable) { _superState.dandyVulnerable.timer -= dt; if (_superState.dandyVulnerable.timer <= 0) _superState.dandyVulnerable = null; }
     if (_superState.garouMarker) { let elapsed = (performance.now() - _superState.garouMarker.time) / 1000; if (elapsed > 1.5) _superState.garouMarker = null; else _superState.garouMarker.alpha = 1 - elapsed / 1.5; }
+    
+    // Частицы
     if (_superState.dekusParticles && arenaActive) { for (let i = 0; i < 6; i++) { let angle = Math.random() * Math.PI * 2; let dist = 30 + Math.random() * 50; arenaParticles.push({ x: heart.x + Math.cos(angle) * 10, y: heart.y + Math.sin(angle) * 10, endX: heart.x + Math.cos(angle) * dist, endY: heart.y + Math.sin(angle) * dist, vx: 0, vy: 0, life: 18, maxLife: 18, color: "#44ff44", isLightning: true }); } }
     if (_superState.borosParticles && arenaActive) { for (let i = 0; i < 3; i++) arenaParticles.push({ x: heart.x + (Math.random() - 0.5) * 50, y: heart.y + (Math.random() - 0.5) * 50, vx: (Math.random() - 0.5) * 2, vy: -2 - Math.random() * 3, life: 35, maxLife: 35, color: "#66ff66", size: 3 + Math.random() * 5 }); }
     if (_superState.dandyLightnings && arenaActive) { for (let i = 0; i < 4; i++) { let angle = Math.random() * Math.PI * 2; let dist = 25 + Math.random() * 40; arenaParticles.push({ x: heart.x + Math.cos(angle) * 10, y: heart.y + Math.sin(angle) * 10, endX: heart.x + Math.cos(angle) * dist, endY: heart.y + Math.sin(angle) * dist, vx: 0, vy: 0, life: 20, maxLife: 20, color: "#ffff00", isLightning: true }); } }
     if (_superState.allmightBuffTimer > 0 && arenaActive) { _superState.allmightShockwave += dt; if (_superState.allmightShockwave >= 1.0) { _superState.allmightShockwave -= 1.0; arenaShockwaves.push({ x: heart.x, y: heart.y, r: 10, v: 15, life: 25, maxLife: 25, color: "rgba(255, 215, 0, 0.8)" }); for (let a of attacks) { let dx = (a.x + (a.size || 20) / 2) - heart.x; let dy = (a.y + (a.size || 20) / 2) - heart.y; let dist = Math.sqrt(dx * dx + dy * dy) || 1; a.spd = (a.spd || 0) + (dx / dist) * 3; a.spdY = (a.spdY || 0) + (dy / dist) * 3; } } }
-    for (let i = _superState.fists.length - 1; i >= 0; i--) { let f = _superState.fists[i]; f.x += f.vx; f.y += f.vy; f.life--; if (f.life % 3 === 0 && f.life > 0) arenaParticles.push({ x: f.x + (Math.random() - 0.5) * f.size, y: f.y + (Math.random() - 0.5) * f.size, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ff4444", size: 5 + Math.random() * 5 }); let pathWidth = f.pathWidth || 120; for (let j = attacks.length - 1; j >= 0; j--) { let a = attacks[j]; let ax = a.x + (a.size || a.radius || 20) / 2; let ay = a.y + (a.size || a.radius || 20) / 2; if (Math.abs(ax - f.x) < pathWidth / 2 && Math.abs(ay - f.y) < f.size + 20) { _superState.screenShakeAmount = Math.max(_superState.screenShakeAmount, 10); addShockwaveRing(ax, ay, "#ffaa00", 200, 0.3, 2); for (let p = 0; p < 20; p++) arenaParticles.push({ x: ax, y: ay, vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15, life: 25, maxLife: 25, color: "#ffaa00", size: 2 + Math.random() * 6 }); attacks.splice(j, 1); if (typeof sfxBounce === 'function') sfxBounce(); } } if (f.willOneshot && !f.oneshotChecked && arenaBossMaxHP > 0) { f.oneshotChecked = true; arenaBossMaxHP = 0; _superState.screenFlashWhite = 20; _superState.screenShakeAmount = 50; for (let p = 0; p < 100; p++) arenaParticles.push({ x: f.x, y: f.y, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 30, life: 40, maxLife: 40, color: "#ffffff", size: 3 + Math.random() * 8 }); if (typeof sfxArenaVictory === 'function') sfxArenaVictory(); if (typeof winArena === 'function') winArena(); _superState.fists.splice(i, 1); break; } if (f.life <= 0 || f.y < -150 || f.y > 650 || f.x < -50 || f.x > 450) _superState.fists.splice(i, 1); }
+    
+    // Кулаки
+    for (let i = _superState.fists.length - 1; i >= 0; i--) {
+        let f = _superState.fists[i]; f.x += f.vx; f.y += f.vy; f.life--;
+        if (f.life % 3 === 0 && f.life > 0) arenaParticles.push({ x: f.x + (Math.random() - 0.5) * f.size, y: f.y + (Math.random() - 0.5) * f.size, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ff4444", size: 5 + Math.random() * 5 });
+        let pathWidth = f.pathWidth || 120;
+        for (let j = attacks.length - 1; j >= 0; j--) {
+            let a = attacks[j]; let ax = a.x + (a.size || a.radius || 20) / 2; let ay = a.y + (a.size || a.radius || 20) / 2;
+            if (Math.abs(ax - f.x) < pathWidth / 2 && Math.abs(ay - f.y) < f.size + 20) {
+                _superState.screenShakeAmount = Math.max(_superState.screenShakeAmount, 10);
+                addShockwaveRing(ax, ay, "#ffaa00", 200, 0.3, 2);
+                for (let p = 0; p < 20; p++) arenaParticles.push({ x: ax, y: ay, vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15, life: 25, maxLife: 25, color: "#ffaa00", size: 2 + Math.random() * 6 });
+                attacks.splice(j, 1); if (typeof sfxBounce === 'function') sfxBounce();
+            }
+        }
+        if (f.willOneshot && !f.oneshotChecked && arenaBossMaxHP > 0) {
+            f.oneshotChecked = true; arenaBossMaxHP = 0; _superState.screenFlashWhite = 20; _superState.screenShakeAmount = 50;
+            for (let p = 0; p < 100; p++) arenaParticles.push({ x: f.x, y: f.y, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 30, life: 40, maxLife: 40, color: "#ffffff", size: 3 + Math.random() * 8 });
+            if (typeof sfxArenaVictory === 'function') sfxArenaVictory(); if (typeof winArena === 'function') winArena();
+            _superState.fists.splice(i, 1); break;
+        }
+        if (f.life <= 0 || f.y < -150 || f.y > 650 || f.x < -50 || f.x > 450) _superState.fists.splice(i, 1);
+    }
 }
 
 function renderSuperVisuals() {
     if (!ctx) return;
     for (let r of _superState.rings) { ctx.save(); ctx.globalAlpha = Math.max(0, r.life / r.maxLife); ctx.strokeStyle = r.color; ctx.lineWidth = r.width; ctx.shadowColor = r.color; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
     if (_superState.screenFlashWhite > 0) { ctx.save(); ctx.fillStyle = "#ffffff"; ctx.globalAlpha = Math.min(1, _superState.screenFlashWhite / 10); ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
-    if (_superState.garpChargeTimer > 0 && arenaActive) { if (Math.random() < 0.6) drawHakiLightning(heart.x, heart.y, 90, 1.0, 1.5); if (Math.random() < 0.4) drawHakiLightning(heart.x, heart.y, 120, 0.8, 1); ctx.save(); let chargePower = 1.2 - _superState.garpChargeTimer; ctx.translate(heart.x, heart.y); ctx.rotate(performance.now() / 200); ctx.beginPath(); ctx.arc(0, 0, 40 + chargePower * 30, 0, Math.PI * 2); ctx.fillStyle = "rgba(136, 68, 255, 0.15)"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "rgba(255, 0, 0, 0.5)"; ctx.setLineDash([10, 15]); ctx.stroke(); ctx.restore(); }
-    if (_superState.garpImpactActive && arenaActive) { let cx = _superState.garpImpactX; let cy = _superState.garpImpactY; let r = _superState.garpImpactRadius; let progress = r / 200; let alpha = 1 - Math.pow(progress, 3); ctx.save(); ctx.globalAlpha = alpha; let grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r); grad.addColorStop(0, "#ffffff"); grad.addColorStop(0.1, "#ff44ff"); grad.addColorStop(0.4, "#220088"); grad.addColorStop(0.8, "#050022"); grad.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); for(let i = 0; i < 30; i++) { let sAngle = Math.random() * Math.PI * 2; let sDist = Math.random() * r * 0.9; let sx = cx + Math.cos(sAngle + progress * 2) * sDist; let sy = cy + Math.sin(sAngle + progress * 2) * sDist; ctx.fillStyle = (Math.random() > 0.5) ? "#ffffff" : "#ffccff"; ctx.beginPath(); ctx.arc(sx, sy, 1 + Math.random() * 2, 0, Math.PI * 2); ctx.fill(); } ctx.strokeStyle = "#ff44ff"; ctx.lineWidth = 15 * (1 - progress); ctx.shadowColor = "#ff44ff"; ctx.shadowBlur = 30; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke(); if (Math.random() < 0.8) { drawHakiLightning(cx + Math.cos(Math.random()*Math.PI*2)*r, cy + Math.sin(Math.random()*Math.PI*2)*r, 80, alpha, 2); drawHakiLightning(cx + Math.cos(Math.random()*Math.PI*2)*r, cy + Math.sin(Math.random()*Math.PI*2)*r, 100, alpha, 2); } ctx.restore(); }
+    
+    // Визуалы зарядки Хаки Гарпа
+    if (_superState.garpChargeTimer > 0 && arenaActive) {
+        if (Math.random() < 0.6) drawHakiLightning(heart.x, heart.y, 90, 1.0, 1.5);
+        if (Math.random() < 0.4) drawHakiLightning(heart.x, heart.y, 120, 0.8, 1);
+        ctx.save(); let chargePower = 1.2 - _superState.garpChargeTimer; ctx.translate(heart.x, heart.y); ctx.rotate(performance.now() / 200);
+        ctx.beginPath(); ctx.arc(0, 0, 40 + chargePower * 30, 0, Math.PI * 2); ctx.fillStyle = "rgba(136, 68, 255, 0.15)"; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = "rgba(255, 0, 0, 0.5)"; ctx.setLineDash([10, 15]); ctx.stroke(); ctx.restore();
+    }
+    
+    // Визуалы Галактического удара
+    if (_superState.garpImpactActive && arenaActive) {
+        let cx = _superState.garpImpactX; let cy = _superState.garpImpactY; let r = _superState.garpImpactRadius; let progress = r / 200; let alpha = 1 - Math.pow(progress, 3);
+        ctx.save(); ctx.globalAlpha = alpha;
+        let grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        grad.addColorStop(0, "#ffffff"); grad.addColorStop(0.1, "#ff44ff"); grad.addColorStop(0.4, "#220088"); grad.addColorStop(0.8, "#050022"); grad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+        for(let i = 0; i < 30; i++) { let sAngle = Math.random() * Math.PI * 2; let sDist = Math.random() * r * 0.9; let sx = cx + Math.cos(sAngle + progress * 2) * sDist; let sy = cy + Math.sin(sAngle + progress * 2) * sDist; ctx.fillStyle = (Math.random() > 0.5) ? "#ffffff" : "#ffccff"; ctx.beginPath(); ctx.arc(sx, sy, 1 + Math.random() * 2, 0, Math.PI * 2); ctx.fill(); }
+        ctx.strokeStyle = "#ff44ff"; ctx.lineWidth = 15 * (1 - progress); ctx.shadowColor = "#ff44ff"; ctx.shadowBlur = 30; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+        if (Math.random() < 0.8) { drawHakiLightning(cx + Math.cos(Math.random()*Math.PI*2)*r, cy + Math.sin(Math.random()*Math.PI*2)*r, 80, alpha, 2); drawHakiLightning(cx + Math.cos(Math.random()*Math.PI*2)*r, cy + Math.sin(Math.random()*Math.PI*2)*r, 100, alpha, 2); }
+        ctx.restore();
+    }
+    
+    // Визуалы активного Хаки (красная аура)
+    if (_superState.garpHakiActive && arenaActive) {
+        ctx.save(); ctx.globalAlpha = 0.2; ctx.strokeStyle = "#ff0000"; ctx.lineWidth = 4; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 20;
+        ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2.5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+        if (Math.random() < 0.5) drawHakiLightning(heart.x, heart.y, 80, 1.0, 1.2);
+    }
+    
     drawGarouTrail();
     for (let i = arenaParticles.length - 1; i >= 0; i--) { let p = arenaParticles[i]; if (p.isLightning && p.life > 0) drawLightningBolt(p.x, p.y, p.endX, p.endY, p.color, p.life / p.maxLife, 3); }
     if (_superState.fists && _superState.fists.length > 0) { for (let f of _superState.fists) { if (f.life > 0) drawFist(f); } }
@@ -511,6 +653,7 @@ function renderSuperVisuals() {
     if (_superState.allmightPermaSlow && arenaActive) { ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = "#ff0000"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 20; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
     if (_superState.garouInvulnTimer > 0 && arenaActive) { ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 4; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 25; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
     if (_superState.allmightBuffTimer > 0 && arenaActive) drawGoldenHeart(heart.x, heart.y, heart.size);
+    if (_superState.kaidoDrinking && arenaActive) drawBeerBottle(heart.x, heart.y, 1);
 }
 
 // ====== ЭКСПОРТ ======
