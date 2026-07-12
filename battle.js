@@ -1,5 +1,5 @@
-// ========== АРЕНА UNDERTALE v9.3 FINAL ==========
-// Исправлено: анти-ваншот только для Марка, пассивка Анти-спираля, аура Има
+// ========== АРЕНА UNDERTALE v9.4 ==========
+// Добавлено: сжатие атак Анти-спираля при спавне
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -367,8 +367,8 @@ function startArena(bossWave) {
         _superState.allmightPermaSlow = false;
         _superState.allmightDmgMult = 1;
         _superState.allmightBuffTimer = 0;
-        _superState.antispiralSpeedBoost = false;
-        _superState.antispiralFrozen = false;
+        _superState.antispiralActive = false;
+        _superState.antispiralShrinkAttacks = false;
         _superState.imAuraActive = false;
         _superState.kaidoDrinking = false;
         _superState.kaidoBuffActive = false;
@@ -499,13 +499,6 @@ function startDodgePhase() {
     }, Math.max(800, baseInterval / arenaSpeedMult));
     
     let dodgeTime = Math.max(10000, 13000 + Math.random() * 6000);
-    // Пассивка Анти-спираля: +30% к длительности фазы уклонения
-    if (typeof getMainCard === 'function') {
-        let mainCard = getMainCard();
-        if (mainCard && mainCard.name === "Анти-спираль") {
-            dodgeTime = Math.floor(dodgeTime * 1.3);
-        }
-    }
     setTimeout(() => { if (arenaPhase === "dodge" && arenaActive) startAttackPhase(); }, dodgeTime);
 }
 
@@ -604,11 +597,22 @@ function spawnBlaster(w) {
     sfxBlasterCharge();
 }
 
+// Вспомогательная функция для сжатия атаки
+function shrinkAttack(a) {
+    if (a.size) a.size *= 0.7;
+    if (a.radius) a.radius *= 0.7;
+    if (a.spd) a.spd *= 0.7;
+    if (a.spdY) a.spdY *= 0.7;
+    if (a.width) a.width *= 0.7;
+}
+
 function spawnAttack() {
     let s = arenaSpeedMult;
     let bw = arenaCurrentWave;
     let isEarly = bw < 100;
     let dmg = arenaBaseDmg;
+    let shouldShrink = (typeof _superState !== 'undefined' && _superState.antispiralShrinkAttacks);
+    
     switch (arenaAttackType) {
         case 0:
             let isVertical = Math.random() > 0.5;
@@ -621,7 +625,9 @@ function spawnAttack() {
                 wallGapIndicator = { x: startX < 0 ? 0 : 370, y: gapCenter, w: 30, h: gapSize, life: 35, vertical: true };
                 for (let i = 10; i < 490; i += 22) {
                     if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                    attacks.push({ type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 0 });
+                    let atk = { type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 0 };
+                    if (shouldShrink) shrinkAttack(atk);
+                    attacks.push(atk);
                 }
             } else {
                 let offsetDirection = Math.random() > 0.5 ? 1 : -1;
@@ -632,7 +638,9 @@ function spawnAttack() {
                 wallGapIndicator = { x: gapCenter, y: startY < 0 ? 0 : 470, w: gapSize, h: 30, life: 35, vertical: false };
                 for (let i = 10; i < 390; i += 22) {
                     if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                    attacks.push({ type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 0 });
+                    let atk = { type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 0 };
+                    if (shouldShrink) shrinkAttack(atk);
+                    attacks.push(atk);
                 }
             }
             break;
@@ -646,7 +654,9 @@ function spawnAttack() {
                 else if (side === 2) { x = -30; y = Math.random() * 500; }
                 else { x = 430; y = Math.random() * 500; }
                 let angle = Math.atan2(heart.y - y, heart.x - x);
-                attacks.push({ type: "square", x: x, y: y, size: 20, spd: Math.cos(angle) * 2.0, spdY: Math.sin(angle) * 2.0, color: "#4499ff", damage: Math.floor(dmg / 2), bouncesLeft: 3 });
+                let atk = { type: "square", x: x, y: y, size: 20, spd: Math.cos(angle) * 2.0, spdY: Math.sin(angle) * 2.0, color: "#4499ff", damage: Math.floor(dmg / 2), bouncesLeft: 3 };
+                if (shouldShrink) shrinkAttack(atk);
+                attacks.push(atk);
             }
             break;
         case 2: 
@@ -658,31 +668,43 @@ function spawnAttack() {
                 else if (side === 2) { xPos = -40; yPos = Math.random() * 500; }
                 else { xPos = 440; yPos = Math.random() * 500; }
                 let angle = Math.atan2(heart.y - yPos, heart.x - xPos);
-                attacks.push({ type: "sword", x: xPos, y: yPos, angle: angle, size: 45, width: 15, color: "#ffaa00", spd: Math.cos(angle) * 2.4, spdY: Math.sin(angle) * 2.4, damageOnStanding: true, damage: Math.floor(dmg * 1.2), bouncesLeft: 0 });
+                let atk = { type: "sword", x: xPos, y: yPos, angle: angle, size: 45, width: 15, color: "#ffaa00", spd: Math.cos(angle) * 2.4, spdY: Math.sin(angle) * 2.4, damageOnStanding: true, damage: Math.floor(dmg * 1.2), bouncesLeft: 0 };
+                if (shouldShrink) shrinkAttack(atk);
+                attacks.push(atk);
             }
             break;
         case 3:
             for (let i = 0; i < (isEarly ? 1 : 2); i++) {
                 let vx = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
                 let vy = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
-                attacks.push({ type: "danger", x: 200, y: 180, size: 70, spd: vx, spdY: vy, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.6), bouncesLeft: 1 });
+                let atk = { type: "danger", x: 200, y: 180, size: 70, spd: vx, spdY: vy, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.6), bouncesLeft: 1 };
+                if (shouldShrink) shrinkAttack(atk);
+                attacks.push(atk);
             }
             break;
         case 4:
             for (let i = 0; i < (isEarly ? 2 : 3); i++) {
                 let rx = (Math.random() - 0.5) * 2;
-                attacks.push({ type: "square", x: heart.x + (Math.random() - 0.5) * 120, y: -40, size: 25, spd: rx, spdY: 1.8 + Math.random() * 1.0, color: "#ff69b4", knockback: 80, bouncesLeft: Infinity });
+                let atk = { type: "square", x: heart.x + (Math.random() - 0.5) * 120, y: -40, size: 25, spd: rx, spdY: 1.8 + Math.random() * 1.0, color: "#ff69b4", knockback: 80, bouncesLeft: Infinity };
+                if (shouldShrink) shrinkAttack(atk);
+                attacks.push(atk);
             }
             break;
         case 5:
             if (arenaHP < arenaMaxHP) {
-                attacks.push({ type: "circle", x: Math.random() * 400, y: -30, radius: 18, spd: (Math.random() - 0.5) * 1.5, spdY: 2.5, color: "#44ff44", healPercent: 0.15, bouncesLeft: 2 });
+                let atk = { type: "circle", x: Math.random() * 400, y: -30, radius: 18, spd: (Math.random() - 0.5) * 1.5, spdY: 2.5, color: "#44ff44", healPercent: 0.15, bouncesLeft: 2 };
+                if (shouldShrink) shrinkAttack(atk);
+                attacks.push(atk);
             } else {
-                attacks.push({ type: "square", x: Math.random() * 360 + 20, y: -30, size: 22, spd: 0, spdY: 3.0, color: "#fff", damage: dmg, bouncesLeft: 2 });
+                let atk = { type: "square", x: Math.random() * 360 + 20, y: -30, size: 22, spd: 0, spdY: 3.0, color: "#fff", damage: dmg, bouncesLeft: 2 };
+                if (shouldShrink) shrinkAttack(atk);
+                attacks.push(atk);
             }
             break;
         case 6:
-            attacks.push({ type: "rainbow", x: 50 + Math.random() * 300, y: -60, radius: 30, spd: (Math.random() - 0.5) * 0.8, spdY: 1.2 + Math.random() * 0.5, color: "rainbow", oneshot: true, bouncesLeft: 0 });
+            let atk6 = { type: "rainbow", x: 50 + Math.random() * 300, y: -60, radius: 30, spd: (Math.random() - 0.5) * 0.8, spdY: 1.2 + Math.random() * 0.5, color: "rainbow", oneshot: true, bouncesLeft: 0 };
+            if (shouldShrink) shrinkAttack(atk6);
+            attacks.push(atk6);
             break;
         case 7:
             for (let i = 0; i < (isEarly ? 1 : 2); i++) {
@@ -693,18 +715,29 @@ function spawnAttack() {
                 else if (side === 2) { sx = -40; sy = Math.random() * 500; }
                 else { sx = 440; sy = Math.random() * 500; }
                 let sa = Math.atan2(heart.y - sy, heart.x - sx);
-                attacks.push({ type: "sword", x: sx, y: sy, angle: sa, size: 40, width: 12, color: "#ffaa00", spd: Math.cos(sa) * 2.2, spdY: Math.sin(sa) * 2.2, damageOnStanding: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 });
-                attacks.push({ type: "danger", x: heart.x + (Math.random() - 0.5) * 100, y: 540, size: 25, spd: (Math.random() - 0.5) * 1.2, spdY: -2.2, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 });
+                let atk1 = { type: "sword", x: sx, y: sy, angle: sa, size: 40, width: 12, color: "#ffaa00", spd: Math.cos(sa) * 2.2, spdY: Math.sin(sa) * 2.2, damageOnStanding: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 };
+                let atk2 = { type: "danger", x: heart.x + (Math.random() - 0.5) * 100, y: 540, size: 25, spd: (Math.random() - 0.5) * 1.2, spdY: -2.2, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 };
+                if (shouldShrink) { shrinkAttack(atk1); shrinkAttack(atk2); }
+                attacks.push(atk1);
+                attacks.push(atk2);
             }
             break;
         case 8:
-            attacks.push({ type: "danger", x: -40, y: heart.y, size: 40, spd: 2.5 * s, spdY: 0, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.5), bouncesLeft: 0 });
-            if (!isEarly) attacks.push({ type: "square", x: 440, y: heart.y + (Math.random() > 0.5 ? 60 : -60), size: 30, spd: -2.5 * s, spdY: 0, color: "#fff", damage: Math.floor(dmg * 1.5), bouncesLeft: 2 });
+            let atk81 = { type: "danger", x: -40, y: heart.y, size: 40, spd: 2.5 * s, spdY: 0, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.5), bouncesLeft: 0 };
+            if (shouldShrink) shrinkAttack(atk81);
+            attacks.push(atk81);
+            if (!isEarly) {
+                let atk82 = { type: "square", x: 440, y: heart.y + (Math.random() > 0.5 ? 60 : -60), size: 30, spd: -2.5 * s, spdY: 0, color: "#fff", damage: Math.floor(dmg * 1.5), bouncesLeft: 2 };
+                if (shouldShrink) shrinkAttack(atk82);
+                attacks.push(atk82);
+            }
             break;
         case 9:
             for (let i = 0; i < (isEarly ? 1 : (bw >= 500 ? 2 : 1)); i++) {
                 let bx = 50 + Math.random() * 300; let by = 50 + Math.random() * 400;
-                attacks.push({ type: "bomb", x: bx, y: by, timer: 60, maxRadius: isEarly ? 75 : (80 + Math.random() * 40), hit: false, damage: Math.floor(dmg * 2), bouncesLeft: 0, particlesSpawned: false, shakeTime: 0 });
+                let atk = { type: "bomb", x: bx, y: by, timer: 60, maxRadius: isEarly ? 75 : (80 + Math.random() * 40), hit: false, damage: Math.floor(dmg * 2), bouncesLeft: 0, particlesSpawned: false, shakeTime: 0 };
+                if (shouldShrink) { if (atk.maxRadius) atk.maxRadius *= 0.7; }
+                attacks.push(atk);
             }
             break;
         case 10:
@@ -739,7 +772,6 @@ function winArena() {
 }
 
 function loseArena() {
-    // Анти-ваншот ТОЛЬКО для Императора Марка
     if (typeof _superState !== 'undefined' && _superState.markResurrectCharges > 0) {
         let mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
         if (mainCard && mainCard.name === "Император Марк") {
@@ -1013,12 +1045,7 @@ function renderArena() {
                 let dist = Math.hypot(ax - heart.x, ay - heart.y);
                 if (dist < 85 && Math.random() < 0.5) {
                     attacks.splice(i, 1);
-                    arenaParticles.push({
-                        x: ax, y: ay,
-                        vx: 0, vy: 0,
-                        life: 15, maxLife: 15,
-                        color: "#ff00ff", size: 5
-                    });
+                    arenaParticles.push({ x: ax, y: ay, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ff00ff", size: 5 });
                     continue;
                 }
             }
