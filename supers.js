@@ -1,5 +1,5 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v7.1 FINAL ==========
-// Правки: Кайдо, Гарп, Марк, Им, Анти-спираль
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v7.2 ==========
+// Анти-спираль: активная способность "Сжатие пространства"
 
 let _superState = {
     fists: [],
@@ -19,6 +19,8 @@ let _superState = {
     garpHakiActive: false, garpHakiTimer: 0,
     // Им
     imAuraActive: false, imSpeedPenalty: false,
+    // Анти-спираль (активная способность)
+    antispiralActive: false, antispiralOrigHitbox: 4, antispiralOrigSize: 14, antispiralOrigSpeed: 1.2, antispiralShrinkAttacks: false,
     // Дэнди
     dandyLightnings: false, dandyInvuln: false, dandyDmgBuff: null, dandyShield: null, dandyVulnerable: null, dandyDoubleTargets: false, dandyRoulette: null,
     // Кайдо
@@ -27,8 +29,6 @@ let _superState = {
     markResurrectCharges: 2,
     // Всемогущий
     allmightPermaSlow: false, allmightDmgMult: 1, allmightBuffTimer: 0, allmightOrigSize: 14, allmightOrigHitbox: 4, allmightShockwave: 0,
-    // Анти-спираль
-    antispiralFrozen: false, antispiralSpeedBoost: false,
     // Общие
     screenShakeAmount: 0, screenFlashWhite: 0,
 };
@@ -373,7 +373,41 @@ const superAbilities = {
         onTick() {}
     },
 
-    "Анти-спираль": { name: "ПАССИВНАЯ", cooldown: 0, toggleable: false, duration: 0, onActivate() {}, onTick() {} },
+    "Анти-спираль": {
+        name: "СЖАТИЕ ПРОСТРАНСТВА",
+        cooldown: 25000,
+        toggleable: true,
+        duration: Infinity,
+        onActivate() {
+            _superState.antispiralActive = true;
+            _superState.antispiralOrigHitbox = heart.hitbox;
+            _superState.antispiralOrigSize = heart.size;
+            _superState.antispiralOrigSpeed = heartSpeed;
+            
+            heart.hitbox *= 0.7;
+            heart.size *= 0.7;
+            heartSpeed *= 0.7;
+            
+            for (let a of attacks) {
+                if (a.size) a.size *= 0.7;
+                if (a.radius) a.radius *= 0.7;
+                if (a.spd) a.spd *= 0.7;
+                if (a.spdY) a.spdY *= 0.7;
+            }
+            _superState.antispiralShrinkAttacks = true;
+            
+            spawnFloatingText(heart.x, heart.y - 30, "ПРОСТРАНСТВО СЖАТО!", "#aaddff");
+        },
+        onDeactivate() {
+            _superState.antispiralActive = false;
+            _superState.antispiralShrinkAttacks = false;
+            
+            heart.hitbox = _superState.antispiralOrigHitbox;
+            heart.size = _superState.antispiralOrigSize;
+            heartSpeed = _superState.antispiralOrigSpeed;
+        },
+        onTick(dt) {}
+    },
 
     "Молодой Гарп": {
         name: "ГАЛАКТИЧЕСКИЙ УДАР", cooldown: 30000, toggleable: false, duration: 0,
@@ -493,15 +527,16 @@ function resetAllSupers() {
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) superAbilities[_activeSuperName].onDeactivate();
     _activeSuperName = null;
     if (_superState.nikaActive) { heart.hitbox = _superState.nikaHitboxOriginal; heart.size = _superState.nikaSizeOriginal; }
+    if (_superState.antispiralActive) { heart.hitbox = _superState.antispiralOrigHitbox; heart.size = _superState.antispiralOrigSize; heartSpeed = _superState.antispiralOrigSpeed; }
     _superState.dekusActive = false; _superState.dekusDmgMult = 1; _superState.dekusParticles = false;
     _superState.borosHeal = null; _superState.borosParticles = false;
     _superState.usoppInvuln = false; _superState.usoppStunTimer = 0; _superState.nikaActive = false; _superState.nikaDmgMult = 1;
     _superState.positionHistory = []; _superState.garouMarker = null; _superState.garouInvulnTimer = 0; _superState.garouTimeStop = false;
     _superState.garpChargeTimer = 0; _superState.garpImpactActive = false; _superState.garpHakiActive = false; _superState.garpHakiTimer = 0;
+    _superState.antispiralActive = false; _superState.antispiralShrinkAttacks = false;
     _superState.imAuraActive = false; _superState.imSpeedPenalty = false;
     _superState.kaidoDrinking = false; _superState.kaidoBuffActive = false; _superState.kaidoDmgReduction = false; _superState.kaidoDmgBonus = 1; _superState.kaidoSpeedBonus = 1; _superState.invertControls = false; _superState.kaidoScream = false;
     _superState.allmightDmgMult = 1; _superState.allmightBuffTimer = 0; _superState.allmightShockwave = 0;
-    _superState.antispiralFrozen = false; _superState.antispiralSpeedBoost = false;
     _superState.dandyLightnings = false; _superState.dandyInvuln = false; _superState.dandyDmgBuff = null; _superState.dandyShield = null; _superState.dandyVulnerable = null; _superState.dandyDoubleTargets = false; _superState.dandyRoulette = null;
     _superState.fists = []; _superState.rings = [];
     _superState.screenShakeAmount = 0; _superState.screenFlashWhite = 0;
@@ -534,9 +569,8 @@ function updateSuperLogic(dt) {
             _superState.screenShakeAmount = 40; _superState.screenFlashWhite = 10;
             spawnFloatingText(heart.x, heart.y - 40, "ГАЛАКТИЧЕСКИЙ УДАР!!!", "#8844ff");
             if (typeof sfxArenaVictory === 'function') sfxArenaVictory();
-            // Хаки после удара
             _superState.garpHakiActive = true; _superState.garpHakiTimer = 6.0;
-            heartSpeed *= 1.25; // +25% скорость
+            heartSpeed *= 1.25;
             spawnFloatingText(heart.x, heart.y - 30, "ХАКИ!", "#ff4444");
         }
     }
@@ -557,9 +591,7 @@ function updateSuperLogic(dt) {
     // Гарп: таймер Хаки
     if (_superState.garpHakiActive) {
         _superState.garpHakiTimer -= dt;
-        if (_superState.garpHakiTimer <= 0) {
-            _superState.garpHakiActive = false; heartSpeed /= 1.25;
-        }
+        if (_superState.garpHakiTimer <= 0) { _superState.garpHakiActive = false; heartSpeed /= 1.25; }
     }
     
     // История позиций для Гароу
@@ -635,11 +667,30 @@ function renderSuperVisuals() {
         ctx.restore();
     }
     
-    // Визуалы активного Хаки (красная аура)
+    // Визуалы активного Хаки
     if (_superState.garpHakiActive && arenaActive) {
         ctx.save(); ctx.globalAlpha = 0.2; ctx.strokeStyle = "#ff0000"; ctx.lineWidth = 4; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 20;
         ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2.5, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
         if (Math.random() < 0.5) drawHakiLightning(heart.x, heart.y, 80, 1.0, 1.2);
+    }
+    
+    // Визуал сжатия Анти-спираля
+    if (_superState.antispiralActive && arenaActive) {
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = "#aaddff";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = "#aaddff";
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(heart.x, heart.y, heart.size * 3, 0, Math.PI * 2);
+        ctx.stroke();
+        // Второе кольцо
+        ctx.globalAlpha = 0.15;
+        ctx.beginPath();
+        ctx.arc(heart.x, heart.y, heart.size * 4, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
     }
     
     drawGarouTrail();
