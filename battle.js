@@ -1,5 +1,5 @@
-// ========== АРЕНА UNDERTALE v9.4 ==========
-// Добавлено: сжатие атак Анти-спираля при спавне
+// ========== АРЕНА UNDERTALE v9.5 ==========
+// Добавлено: отображение активных баффов и воскрешений Марка
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -597,7 +597,6 @@ function spawnBlaster(w) {
     sfxBlasterCharge();
 }
 
-// Вспомогательная функция для сжатия атаки
 function shrinkAttack(a) {
     if (a.size) a.size *= 0.7;
     if (a.radius) a.radius *= 0.7;
@@ -844,6 +843,104 @@ function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
     if (Math.ceil(arenaHP) <= 0) loseArena();
 }
 
+// ====== ОТРИСОВКА АКТИВНЫХ БАФФОВ ======
+function drawActiveBuffs() {
+    if (!ctx || typeof _superState === 'undefined') return;
+    let lines = [];
+    let now = performance.now() / 1000;
+
+    // Деку
+    if (_superState.dekusActive) lines.push("⚡Деку: 100%");
+    // Борос
+    if (_superState.borosHeal && _superState.borosHeal.active) {
+        let remain = (_superState.borosHeal.totalDuration - _superState.borosHeal.elapsed).toFixed(1);
+        lines.push("💚Борос: реген " + remain + "с");
+    }
+    // Усопп
+    if (_superState.usoppInvuln) lines.push("⭐Усопп: неуязвим");
+    if (_superState.usoppStunTimer > 0) lines.push("💫Усопп: оглушение " + _superState.usoppStunTimer.toFixed(1) + "с");
+    // Луффи
+    if (_superState.nikaActive) lines.push("☀️Луффи: Ника");
+    // Гароу
+    if (_superState.garouInvulnTimer > 0) lines.push("🟠Гароу: неуязвимость " + _superState.garouInvulnTimer.toFixed(1) + "с");
+    // Гарп
+    if (_superState.garpChargeTimer > 0) lines.push("🔴Гарп: зарядка Хаки " + _superState.garpChargeTimer.toFixed(1) + "с");
+    if (_superState.garpHakiActive) lines.push("🔴Гарп: Хаки " + _superState.garpHakiTimer.toFixed(1) + "с");
+    // Им
+    if (_superState.imAuraActive) lines.push("🟣Им: аура");
+    // Анти-спираль
+    if (_superState.antispiralActive) lines.push("🔵Анти-спираль: сжатие");
+    // Дэнди
+    if (_superState.dandyInvuln) lines.push("🌟Дэнди: неуязвимость");
+    if (_superState.dandyShield && _superState.dandyShield.timer > 0) lines.push("🛡️Дэнди: щит " + _superState.dandyShield.timer.toFixed(1) + "с");
+    if (_superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) lines.push("☠️Дэнди: уязвимость " + _superState.dandyVulnerable.timer.toFixed(1) + "с");
+    if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) lines.push("⚔️Дэнди: урон x2 " + _superState.dandyDmgBuff.timer.toFixed(1) + "с");
+    if (_superState.dandyLightnings) lines.push("⚡Дэнди: молнии");
+    // Кайдо
+    if (_superState.kaidoDrinking) lines.push("🍺Кайдо: глоток");
+    if (_superState.kaidoBuffActive) {
+        let remain = 0; // можно сохранить таймер, но пока так
+        lines.push("🔥Кайдо: ярость");
+    }
+    // Всемогущий
+    if (_superState.allmightBuffTimer > 0) lines.push("💛Всемогущий: бафф " + _superState.allmightBuffTimer.toFixed(1) + "с");
+    if (_superState.allmightPermaSlow) lines.push("💔Всемогущий: истощён");
+    // Инверт управления
+    if (_superState.invertControls) lines.push("🔄Инверт упр.");
+
+    if (lines.length === 0) return;
+
+    // Рисуем фон для баффов
+    let textX = 14;
+    let textY = 52;
+    let lineHeight = 12;
+    let padding = 4;
+    let maxWidth = 0;
+    
+    // Измеряем ширину текста
+    ctx.font = "bold 9px monospace";
+    for (let line of lines) {
+        let w = ctx.measureText(line).width;
+        if (w > maxWidth) maxWidth = w;
+    }
+    
+    // Фон
+    ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+    ctx.fillRect(textX - padding, textY - padding - 2, maxWidth + padding * 2, lines.length * lineHeight + padding * 2);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(textX - padding, textY - padding - 2, maxWidth + padding * 2, lines.length * lineHeight + padding * 2);
+    
+    // Текст
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 9px monospace";
+    ctx.textBaseline = "middle";
+    for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], textX, textY + i * lineHeight);
+    }
+}
+
+// ====== ОТРИСОВКА ВОСКРЕШЕНИЙ МАРКА ======
+function drawMarkResurrections() {
+    if (!ctx || typeof _superState === 'undefined') return;
+    let mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
+    if (!mainCard || mainCard.name !== "Император Марк") return;
+    if (_superState.markResurrectCharges <= 0) return;
+    
+    let text = "💀Марк: воскрешения " + _superState.markResurrectCharges;
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+    ctx.font = "bold 9px monospace";
+    let w = ctx.measureText(text).width + 8;
+    ctx.fillRect(14, 48, w, 14);
+    ctx.strokeStyle = "rgba(255, 215, 0, 0.5)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(14, 48, w, 14);
+    ctx.fillStyle = "#ffd700";
+    ctx.fillText(text, 18, 58);
+    ctx.restore();
+}
+
 function renderArena() {
     if (!arenaActive || !ctx) return;
     
@@ -977,6 +1074,9 @@ function renderArena() {
     ctx.fillText(`❤️ HP: ${Math.max(0, Math.ceil(arenaHP))} / ${arenaMaxHP}`, 16, 24);
     ctx.shadowBlur = 0;
     
+    // Отрисовка воскрешений Марка
+    drawMarkResurrections();
+    
     ctx.fillStyle = "rgba(10,10,20,0.9)"; ctx.fillRect(8, 32, 384, 14);
     let maxHp = (typeof currentEnemy !== 'undefined' && currentEnemy) ? currentEnemy.maxHp : 1000;
     ctx.fillStyle = "#202020"; ctx.fillRect(14, 37, 372, 4);
@@ -987,6 +1087,9 @@ function renderArena() {
     ctx.fillRect(14, 37, 372 * Math.max(0, arenaBossMaxHP / maxHp), 4);
     ctx.globalAlpha = 1;
     ctx.fillStyle = "#ccc"; ctx.font = "bold 9px monospace"; ctx.fillText(`👾 ${arenaBoss}`, 16, 43);
+    
+    // Отрисовка активных баффов
+    drawActiveBuffs();
     
     if (arenaComboTimer > 0 && arenaComboText) {
         ctx.save();
@@ -1038,7 +1141,6 @@ function renderArena() {
                 if (a.spdY) a.y += a.spdY * speedMod;
             }
             
-            // Аура Има: уничтожение атак с шансом 50%
             if (typeof _superState !== 'undefined' && _superState.imAuraActive && invulnTimer <= 0) {
                 let ax = a.x + (a.size || a.radius || 20) / 2;
                 let ay = a.y + (a.size || a.radius || 20) / 2;
