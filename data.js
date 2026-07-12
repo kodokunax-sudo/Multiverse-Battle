@@ -125,20 +125,94 @@ const customCardTemplates = {
         { name: "Ло (Пробужденный)", universe: "One Piece", damage: 105, hp: 145, speed: 2.4, ability: { type: "healOnWin", percent: 0.03, desc: "+3% HP" }, statusAbility: { type: "shock", chance: 0.10, desc: "Электричество 10%" }, desc: "Пробуждённый фрукт. Лечит 3% HP при победе и 10% шанс шока." }
     ],
     "Секретная": [
-        { name: "Луффи: Ника, Бог Солнца", universe: "One Piece", damage: 150, hp: 200, speed: 3.8, sellPrice: 1500, minRebirth: 2, ability: { type: "bossDamage", value: 0.30, desc: "+30% боссам", damageReduction: 0.10 }, desc: "Пробуждение дьявольского фрукта. +30% урона боссам и -10% получаемого урона." },
-        { name: "Космический Гароу", universe: "OPM", damage: 250, hp: 400, speed: 3.5, sellPrice: 2800, minRebirth: 4, ability: { type: "scaleWithWins", value: 0.01, desc: "+1% силы/волна" }, desc: "Космический монстр. Увеличивает свою силу на 1% за каждую побеждённую волну." },
-        { name: "Сайтама", universe: "OPM", damage: 200, hp: 300, speed: 4.0, sellPrice: 1500, minRebirth: 3, ability: { type: "oneShot", chance: 0.05, desc: "5% ваншот" }, desc: "Лысый плащ. 5% шанс убить врага с одного удара." },
-        { name: "Борос", universe: "OPM", damage: 180, hp: 350, speed: 3.2, sellPrice: 1400, minRebirth: 2, ability: { type: "healOnWin", percent: 0.05, desc: "+5% HP" }, desc: "Владыка вселенной. Лечит 5% HP при победе." },
-        { name: "Бог Усопп", universe: "One Piece", damage: 250, hp: 400, speed: 2.5, sellPrice: 2000, minRebirth: 3, ability: { type: "resurrect", chance: 0.05, desc: "5% воскрес" }, desc: "Великий воин морей. 5% шанс воскреснуть при смерти." },
-        { name: "Зено", universe: "DB", damage: 300, hp: 500, speed: 3.0, sellPrice: 3000, minRebirth: 4, ability: { type: "zenoCheckpoint", desc: "10% след. чекпоинт" }, statusAbility: { type: "fatigueResist", value: 0.30, desc: "-30% усталости" }, desc: "Царь всего. 10% шанс открыть следующий чекпоинт и -30% усталости." },
-        { name: "Анти-спираль", universe: "GL", damage: 280, hp: 450, speed: 2.8, sellPrice: 2500, minRebirth: 2, ability: { type: "damageReduction", value: 0.30, desc: "-30% урона" }, desc: "Враг всего живого. Уменьшает получаемый урон на 30%." },
-        { name: "Молодой Гарп", universe: "One Piece", damage: 260, hp: 380, speed: 3.3, sellPrice: 2500, minRebirth: 3, ability: { type: "damageAura", value: 0.25, desc: "+25% урона" }, desc: "Гарп в расцвете сил. +25% урона всей команде." },
-        { name: "Им (Правитель)", universe: "One Piece", damage: 290, hp: 450, speed: 2.2, sellPrice: 3000, minRebirth: 5, ability: { type: "bossDamage", value: 0.20, desc: "+20% боссам" }, desc: "Тайный правитель мира. +20% урона боссам." },
-        { name: "Космический Дэнди", universe: "Space Dandy", damage: 200, hp: 650, speed: 2.7, sellPrice: 2200, minRebirth: 3, ability: { type: "critChance", value: 0.15, desc: "+15% крит" }, statusAbility: { type: "shock", chance: 0.20, desc: "Шок 20%" }, desc: "Постоянный клиент космического фансервис-кафе «Груди»" },
-        { name: "Кайдо", universe: "One Piece", damage: 300, hp: 500, speed: 2.4, sellPrice: 3000, minRebirth: 4, ability: { type: "bossDouble", desc: "x2 урон (босс)" }, desc: "Сильнейший в мире. При битве с боссом наносит удвоенный урон." },
-        { name: "Император Марк", universe: "Invincible", damage: 310, hp: 500, speed: 3.1, sellPrice: 3000, minRebirth: 5, ability: { type: "bossSupport", desc: "+15% урона (босс)" }, statusAbility: { type: "bleed", value: 0.12, desc: "Кровотечение +12%" }, desc: "Марк спустя 500 лет. +15% урона команде при битве с боссом, +12% урона через кровотечение." },
-        { name: "Деку (100%)", universe: "MHA", damage: 280, hp: 450, speed: 3.6, sellPrice: 2800, minRebirth: 4, ability: { type: "bossDoubleSelf", desc: "x2 урон (босс), -30% на 10 волн" }, desc: "Полная сила One For All. Удваивает урон при битве с боссом, но ослабляет на 30% на следующие 10 волн." },
-        { name: "Всемогущий (прайм)", universe: "MHA", damage: 300, hp: 480, speed: 3.4, sellPrice: 3000, minRebirth: 4, ability: { type: "damageAura", value: 0.15, desc: "+15% урона" }, statusAbility: { type: "bossDamageAura", value: 0.10, desc: "+25% (босс)" }, desc: "Символ мира в прайме. +15% урона команде и +25% при битве с боссом." }
+        { 
+            name: "Луффи: Ника, Бог Солнца", universe: "One Piece", damage: 150, hp: 200, speed: 3.8, sellPrice: 1500, minRebirth: 2, 
+            ability: { type: "bossDamage", value: 0.30, desc: "+30% боссам", damageReduction: 0.10 }, 
+            desc: "Пробуждение дьявольского фрукта. +30% урона боссам и -10% получаемого урона.",
+            superAbility: { name: "SUPER: ОСВОБОЖДЕНИЕ", desc: "Сердце становится огромным и быстрым. Получаешь больше урона, но бьёшь больнее. «Я и так уже смеюсь!»", passive: false }
+        },
+        { 
+            name: "Космический Гароу", universe: "OPM", damage: 250, hp: 400, speed: 3.5, sellPrice: 2800, minRebirth: 4, 
+            ability: { type: "scaleWithWins", value: 0.01, desc: "+1% силы/волна" }, 
+            desc: "Космический монстр. Увеличивает свою силу на 1% за каждую побеждённую волну.",
+            superAbility: { name: "SUPER: ПОТОК ВСЕЛЕННОЙ", desc: "Отматывает время на 2 секунды назад. Телепорт с неуязвимостью. Круто же, да? ", passive: false }
+        },
+        { 
+            name: "Сайтама", universe: "OPM", damage: 200, hp: 300, speed: 4.0, sellPrice: 1500, minRebirth: 3, 
+            ability: { type: "oneShot", chance: 0.05, desc: "5% ваншот" }, 
+            desc: "Лысый плащ. 5% шанс убить врага с одного удара.",
+            superAbility: { name: "SUPER: ОБЫЧНЫЙ УДАР", desc: "Огромный красный кулак летит вверх, сметая все атаки. Шанс 1% ваншотнуть босса с SUPER атаки. ", passive: false }
+        },
+        { 
+            name: "Борос", universe: "OPM", damage: 180, hp: 350, speed: 3.2, sellPrice: 1400, minRebirth: 2, 
+            ability: { type: "healOnWin", percent: 0.05, desc: "+5% HP" }, 
+            desc: "Владыка вселенной. Лечит 5% HP при победе.",
+            superAbility: { name: "SUPER: РЕГЕНЕРАЦИЯ", desc: "Медленно восстанавливает HP, но замедляет персонажа. А вот жалкие людишки так не могут! Хе-хе-хе😈", passive: false }
+        },
+        { 
+            name: "Бог Усопп", universe: "One Piece", damage: 250, hp: 400, speed: 2.5, sellPrice: 2000, minRebirth: 3, 
+            ability: { type: "resurrect", chance: 0.05, desc: "5% воскрес" }, 
+            desc: "Великий воин морей. 5% шанс воскреснуть при смерти.",
+            superAbility: { name: "SUPER: ЛОЖЬ СТАНОВИТСЯ ПРАВДОЙ", desc: "Полная неуязвимость на 3 секунды, но потом 2 секунды оглушения. А вы ему верите? , passive: false }
+        },
+        { 
+            name: "Зено", universe: "DB", damage: 300, hp: 500, speed: 3.0, sellPrice: 3000, minRebirth: 4, 
+            ability: { type: "zenoCheckpoint", desc: "10% след. чекпоинт" }, 
+            statusAbility: { type: "fatigueResist", value: 0.30, desc: "-30% усталости" }, 
+            desc: "Царь всего. 10% шанс открыть следующий чекпоинт и -30% усталости.",
+            superAbility: { name: "SUPER: СТИРАНИЕ", desc: "Уничтожает ВСЕ атаки на экране и наносит 10% урона боссу. Сккчно -_-", passive: false }
+        },
+        { 
+            name: "Анти-спираль", universe: "GL", damage: 280, hp: 450, speed: 2.8, sellPrice: 2500, minRebirth: 2, 
+            ability: { type: "damageReduction", value: 0.30, desc: "-30% урона" }, 
+            desc: "Враг всего живого. Уменьшает получаемый урон на 30%.",
+            superAbility: { name: "SUPER: СЖАТИЕ ПРОСТРАНСТВА", desc: "Увеличивает арену на 30%! Ну вроде :/", passive: false }
+        },
+        { 
+            name: "Молодой Гарп", universe: "One Piece", damage: 260, hp: 380, speed: 3.3, sellPrice: 2500, minRebirth: 3, 
+            ability: { type: "damageAura", value: 0.25, desc: "+25% урона" }, 
+            desc: "Гарп в расцвете сил. +25% урона всей команде.",
+            superAbility: { name: "SUPER: ГАЛАКТИЧЕСКИЙ УДАР", desc: "Заряжает Хаки 1.2 секунды, затем БА-БАХ! АоЕ взрыв, очистка атак и 5% урона боссу. После удара — бафф Хаки на 6 секунд. Правда, после этого у босса всего лишь шишка. А атака была такой зрелочной.... ", passive: false }
+        },
+        { 
+            name: "Им (Правитель)", universe: "One Piece", damage: 290, hp: 450, speed: 2.2, sellPrice: 3000, minRebirth: 5, 
+            ability: { type: "bossDamage", value: 0.20, desc: "+20% боссам" }, 
+            desc: "Тайный правитель мира. +20% урона боссам.",
+            superAbility: { name: "SUPER: ТЕНЕВОЕ ПРАВЛЕНИЕ", desc: "Тёмная аура вокруг сердца. Атаки, касающиеся ауры, имеют 50% шанс быть уничтоженными. Но сердце замедлено на 30%. Это для тех, кто не умеет уварачиватся. Для тебя,хех! ", passive: false }
+        },
+        { 
+            name: "Космический Дэнди", universe: "Space Dandy", damage: 200, hp: 650, speed: 2.7, sellPrice: 2200, minRebirth: 3, 
+            ability: { type: "critChance", value: 0.15, desc: "+15% крит" }, 
+            statusAbility: { type: "shock", chance: 0.20, desc: "Шок 20%" }, 
+            desc: "Постоянный клиент космического фансервис-кафе «Груди»",
+            superAbility: { name: "SUPER: КОСМИЧЕСКАЯ УДАЧА", desc: "Рулетка! 80% шанс получить крутой бафф (лечение, урон x2, очистка, скорость, щит и т.д.) и 20% шанс получить смешной дебафф. «Повезёт? Не повезёт? Дэнди знает!»", passive: false }
+        },
+        { 
+            name: "Кайдо", universe: "One Piece", damage: 300, hp: 500, speed: 2.4, sellPrice: 3000, minRebirth: 4, 
+            ability: { type: "bossDouble", desc: "x2 урон (босс)" }, 
+            desc: "Сильнейший в мире. При битве с боссом наносит удвоенный урон.",
+            superAbility: { name: "SUPER: ДЫХАНИЕ РАЗРУШЕНИЯ", desc: "Пьёт пиво 2 секунды, затем впадает в ЯРОСТЬ на 10 секунд: хил 10%, поглощение 30% урона, +80% урона, скорость x1.5. Но управление ИНВЕРТИРУЕТСЯ! После — похмелье (замедление). Как можно во время боя пить? ", passive: false }
+        },
+        { 
+            name: "Император Марк", universe: "Invincible", damage: 310, hp: 500, speed: 3.1, sellPrice: 3000, minRebirth: 5, 
+            ability: { type: "bossSupport", desc: "+15% урона (босс)" }, 
+            statusAbility: { type: "bleed", value: 0.12, desc: "Кровотечение +12%" }, 
+            desc: "Марк спустя 500 лет. +15% урона команде при битве с боссом, +12% урона через кровотечение.",
+            superAbility: { name: "ПАССИВКА: НЕПОБЕДИМАЯ ВОЛЯ", desc: "Два анти-ваншота за арену! При смерти воскресает с 25% HP. Ну проще говоря - сюжетная броня! ", passive: true }
+        },
+        { 
+            name: "Деку (100%)", universe: "MHA", damage: 280, hp: 450, speed: 3.6, sellPrice: 2800, minRebirth: 4, 
+            ability: { type: "bossDoubleSelf", desc: "x2 урон (босс), -30% на 10 волн" }, 
+            desc: "Полная сила One For All. Удваивает урон при битве с боссом, но ослабляет на 30% на следующие 10 волн.",
+            superAbility: { name: "SUPER: ПОЛНОЕ 100% ПОКРЫТИЕ", desc: "Скорость x3, урон x2! Но каждую секунду теряешь 2% HP. Зелёные молнии повсюду! А без Эри ты бы включил 100%? ", passive: false }
+        },
+        { 
+            name: "Всемогущий (прайм)", universe: "MHA", damage: 300, hp: 480, speed: 3.4, sellPrice: 3000, minRebirth: 4, 
+            ability: { type: "damageAura", value: 0.15, desc: "+15% урона" }, 
+            statusAbility: { type: "bossDamageAura", value: 0.10, desc: "+25% (босс)" }, 
+            desc: "Символ мира в прайме. +15% урона команде и +25% при битве с боссом.",
+            superAbility: { name: "SUPER: СИМВОЛ МИРА", desc: "Хитбокс x2, урон x3 на 15 секунд! Но потом теряешь 50% HP и НАВСЕГДА замедляешься в 3 раза. ПЛЮЮЮС УЛЬТРААААА", passive: false }
+        }
     ],
     "Эволюционная": [
         { name: "Луффи : Король пиратов", universe: "One Piece", damage: 1200, hp: 2000, speed: 4.5, minRebirth: 5, ability: { type: "bossDamage", value: 0.50, desc: "+50% боссам", bossReduction: 0.40 }, unsellable: true, desc: "Король пиратов. +50% урона боссам и -40% получаемого урона при битве с боссом. Чтобы получить: соберите 5 разных Луффи в команду (ровно 5 карт) и победите босса 500 волны." },
