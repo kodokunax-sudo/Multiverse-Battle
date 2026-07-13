@@ -1,8 +1,9 @@
 // ========== ОТРИСОВКА КАРТОЧЕК ==========
 function renderMyCards() { let c = document.getElementById("collectionGrid"); document.getElementById("totalCards").innerText = myCards.length; if (!myCards.length) { c.innerHTML = "<div style='width:100%;text-align:center;padding:20px;color:#888;'>Нет карт</div>"; return; } c.innerHTML = myCards.map((cd, idx) => { let isSeven = cd.name === "Семёрка"; let cvMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.2 : 1); let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); let skFinger = hasSukunaFingers && cd === myCards[team[0]]; let dmgMult = 1; if (cd.ability?.type === 'scaleWithWins') dmgMult *= (1 + totalWins * cd.ability.value); if (cd.statusAbility?.type === 'scaleWithWins') dmgMult *= (1 + totalWins * cd.statusAbility.value); let dmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1)); let hp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1)); let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(cd.rarity); let cardImg = showImage ? getCardImage(cd.name) : null; let imgHTML = cardImg ? '<img src="' + cardImg + '" class="card-image">' : ''; 
+    // Только название SUPER-скилла, без описания
     let superHTML = '';
     if (cd.superAbility) {
-        superHTML = '<div style="font-size:9px;color:#ffd700;font-weight:bold;margin-top:3px;text-align:center;line-height:1.2;">' + cd.superAbility.name + '</div><div style="font-size:8px;color:#ffaa00;text-align:center;line-height:1.1;max-width:110px;">' + cd.superAbility.desc + '</div>';
+        superHTML = '<div style="font-size:9px;color:#ffd700;font-weight:bold;margin-top:3px;text-align:center;line-height:1.2;background:rgba(0,0,0,0.3);border-radius:8px;padding:2px 4px;">' + cd.superAbility.name + '</div>';
     }
     return '<div class="card-item ' + (team.includes(idx) ? 'team-selected' : '') + ' ' + (afkTeam.includes(idx) ? 'afk-selected' : '') + '" onclick="toggleTeam(' + idx + ')">' + imgHTML + '<div class="card-name">' + escapeHtml(cd.name) + '</div>' + '<div class="rarity-tag ' + rarityColors[cd.rarity] + '">' + cd.rarity + '</div>' + '<div class="card-stats">💪' + dmg + ' ❤️' + hp + ' ⚡' + (cd.speed || 0.5).toFixed(1) + '</div>' + superHTML + (cd.ability ? '<div style="font-size:10px;color:#f5af19;font-weight:bold;margin-top:2px;">✨ ' + cd.ability.desc + '</div>' : '') + (cd.statusAbility ? '<div style="font-size:9px;color:#f5af19;margin-top:2px;">' + cd.statusAbility.desc + '</div>' : '') + '<div style="display:flex;gap:4px;justify-content:center;margin-top:6px;flex-wrap:wrap;">' + '<div class="remove-icon" onclick="event.stopPropagation();toggleTeam(' + idx + ')" style="background:#f5af19;color:#000;">⚔️</div>' + '<div class="remove-icon" onclick="event.stopPropagation();toggleAfk(' + idx + ')" style="background:#2ecc71;color:#000;">💤</div>' + (!cd.unsellable ? '<div class="remove-icon" onclick="event.stopPropagation();sellCard(' + idx + ')">💰</div>' : '') + '</div></div>'; }).join(''); }
 
@@ -32,9 +33,10 @@ function renderTeam() {
             cDmg = currentEnemy.damage; cHp = currentEnemy.hp; 
         } 
         d += cDmg; h += cHp; 
+        // В отряде только название SUPER-скилла
         let superInfo = '';
         if (cd.superAbility) {
-            superInfo = '<div style="font-size:10px;color:#ffd700;margin-top:2px;"><b>' + cd.superAbility.name + '</b></div><div style="font-size:9px;color:#ffaa00;">' + cd.superAbility.desc + '</div>';
+            superInfo = '<div style="font-size:10px;color:#ffd700;margin-top:2px;font-weight:bold;">' + cd.superAbility.name + '</div>';
         }
         html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border:2px solid ' + (isMain ? '#f5af19' : 'rgba(255,255,255,0.08)') + ';border-radius:12px;margin-bottom:6px;' + (isMain ? 'box-shadow: 0 0 12px rgba(245,175,25,0.4);' : '') + '">' +
             '<div style="flex:1;">' +
