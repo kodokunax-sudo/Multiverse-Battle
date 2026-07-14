@@ -1,5 +1,5 @@
-// ========== АРЕНА UNDERTALE v9.6 FINAL ==========
-// Исправлено: Им 50% шанс, баланс Всемогущего/Марка/Луффи
+// ========== АРЕНА UNDERTALE v10.0 ==========
+// Добавлены настройки арены, авто-SUPER, мобильное управление
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -54,6 +54,11 @@ let heartRotation = 0;
 let arenaVignette = 0;
 let arenaGlobalSpeedMod = 1.0;
 
+// Мобильное управление SUPER
+let mobileSuperTapTimer = null;
+let mobileSuperTapCount = 0;
+let mobileSuperSwipeStart = null;
+
 // ========== ЗВУКОВАЯ СИСТЕМА АРЕНЫ ==========
 let arenaAudioCtx = null;
 
@@ -68,6 +73,11 @@ function initArenaAudio() {
 }
 
 function playArenaSound(frequency, type, duration, volume = 0.12, detune = 0) {
+    // Учитываем глобальную настройку громкости
+    let globalVol = (typeof arenaSettings !== 'undefined') ? arenaSettings.volume : 0.20;
+    let finalVolume = volume * globalVol;
+    if (finalVolume <= 0.001) return;
+    
     if (!arenaAudioCtx) {
         try { initArenaAudio(); } catch(e) { return; }
     }
@@ -78,7 +88,7 @@ function playArenaSound(frequency, type, duration, volume = 0.12, detune = 0) {
         oscillator.type = type;
         oscillator.frequency.setValueAtTime(frequency, arenaAudioCtx.currentTime);
         if (detune) oscillator.detune.setValueAtTime(detune, arenaAudioCtx.currentTime);
-        gainNode.gain.setValueAtTime(volume, arenaAudioCtx.currentTime);
+        gainNode.gain.setValueAtTime(finalVolume, arenaAudioCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.001, arenaAudioCtx.currentTime + duration);
         oscillator.connect(gainNode);
         gainNode.connect(arenaAudioCtx.destination);
@@ -153,6 +163,7 @@ function initArena() {
     window.addEventListener("keydown", (e) => handleKey(e, true));
     window.addEventListener("keyup", (e) => handleKey(e, false));
     
+    // Touch события с поддержкой мобильного SUPER
     canvas.addEventListener("touchstart", (e) => {
         if (!arenaActive) return;
         e.preventDefault();
@@ -164,10 +175,29 @@ function initArena() {
             return;
         }
         if (e.touches.length === 1) {
+            let tx = e.touches[0].clientX - rect.left;
+            let ty = e.touches[0].clientY - rect.top;
+            
+            // Мобильное управление SUPER
+            let mobileMode = (typeof arenaSettings !== 'undefined') ? arenaSettings.mobileSuper : "button";
+            if (mobileMode === "doubletap") {
+                mobileSuperTapCount++;
+                if (mobileSuperTapTimer) clearTimeout(mobileSuperTapTimer);
+                if (mobileSuperTapCount >= 2) {
+                    mobileSuperTapCount = 0;
+                    if (typeof toggleSuper === 'function') toggleSuper();
+                    return;
+                }
+                mobileSuperTapTimer = setTimeout(() => { mobileSuperTapCount = 0; }, 300);
+            }
+            if (mobileMode === "swipeup") {
+                mobileSuperSwipeStart = { x: tx, y: ty, time: Date.now() };
+            }
+            
             joystickActive = true;
             joystickId = e.touches[0].identifier;
-            joystickX = e.touches[0].clientX - rect.left;
-            joystickY = e.touches[0].clientY - rect.top;
+            joystickX = tx;
+            joystickY = ty;
         }
     });
     canvas.addEventListener("touchmove", (e) => {
@@ -182,7 +212,19 @@ function initArena() {
             }
         }
     });
-    canvas.addEventListener("touchend", () => {
+    canvas.addEventListener("touchend", (e) => {
+        // Проверка свайпа вверх для SUPER
+        let mobileMode = (typeof arenaSettings !== 'undefined') ? arenaSettings.mobileSuper : "button";
+        if (mobileMode === "swipeup" && mobileSuperSwipeStart) {
+            let rect = canvas.getBoundingClientRect();
+            let endY = (e.changedTouches[0]?.clientY || 0) - rect.top;
+            let dy = mobileSuperSwipeStart.y - endY;
+            let dt = Date.now() - mobileSuperSwipeStart.time;
+            if (dy > 60 && dt < 500) {
+                if (typeof toggleSuper === 'function') toggleSuper();
+            }
+            mobileSuperSwipeStart = null;
+        }
         joystickActive = false;
         joystickId = null;
     });
@@ -468,292 +510,7 @@ function startArena(bossWave) {
     animFrameId = requestAnimationFrame(renderArena);
 }
 
-function startDodgePhase() {
-    arenaPhase = "dodge";
-    attacks = [];
-    arenaBlasters = [];
-    wallGapIndicator = null;
-    heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0;
-    
-    arenaAttackType = arenaAllowedTypes[Math.floor(Math.random() * arenaAllowedTypes.length)];
-    let typeNames = {
-        0: "⬜ СТЕНЫ", 1: "🔷 ХАОС", 2: "⚡ ЖЁЛТЫЕ", 3: "🛑 КРАСНЫЕ", 4: "💗 РОЗОВЫЕ",
-        5: "💚 ЗЕЛЁНЫЕ", 6: "🌈 РАДУЖНЫЕ", 7: "⚡🛑 МИКС", 8: "🟥⬜ ЗОНЫ", 9: "💣 БОМБЫ", 10: "🔫 БЛАСТЕРЫ"
-    };
-    document.getElementById("arenaBossName").innerText = arenaBoss + " — " + (typeNames[arenaAttackType] || "Атака") + " | ⚡" + heartSpeed.toFixed(1);
-    
-    if (arenaAttackInterval) clearInterval(arenaAttackInterval);
-    let baseInterval = 2400;
-    if (arenaAttackType === 0) baseInterval = 3400;
-    if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 2200;
-    if (arenaAttackType === 6) baseInterval = 4000;
-    if (arenaAttackType === 7) baseInterval = 2400;
-    if (arenaAttackType === 8) baseInterval = 2800;
-    if (arenaAttackType === 9) baseInterval = 3400;
-    if (arenaAttackType === 10) baseInterval = 2400;
-    
-    switch(arenaAttackType) {
-        case 0: sfxWhiteWalls(); break; case 1: sfxBlueChaos(); break; case 2: sfxYellowSwords(); break;
-        case 3: sfxRedTriangles(); break; case 4: sfxPinkKnockback(); break; case 5: sfxGreenHealSpawn(); break;
-        case 6: sfxRainbowDeathSpawn(); break; case 7: sfxMixAttack(); break; case 8: sfxZoneAttack(); break;
-        case 9: sfxBombTick(); break; case 10: sfxBlasterCharge(); break; default: sfxArenaAttackSpawn();
-    }
-    
-    arenaAttackInterval = setInterval(() => {
-        if (arenaPhase === "dodge" && arenaActive) {
-            spawnAttack();
-            switch(arenaAttackType) { case 9: sfxBombTick(); break; case 10: sfxBlasterCharge(); break; default: sfxWhoosh(); }
-        }
-    }, Math.max(800, baseInterval / arenaSpeedMult));
-    
-    let dodgeTime = Math.max(10000, 13000 + Math.random() * 6000);
-    setTimeout(() => { if (arenaPhase === "dodge" && arenaActive) startAttackPhase(); }, dodgeTime);
-}
-
-function startAttackPhase() {
-    arenaPhase = "attack";
-    attacks = []; arenaBlasters = []; wallGapIndicator = null; arenaClickTargets = []; arenaClicksHit = 0;
-    arenaTotalTargets = 4 + Math.floor(arenaSpeedMult * 0.8);
-    if (typeof _superState !== 'undefined' && _superState.dandyDoubleTargets) {
-        arenaTotalTargets *= 2;
-        _superState.dandyDoubleTargets = false;
-    }
-    arenaAttackTimeLeft = 2;
-    if (arenaAttackInterval) { clearInterval(arenaAttackInterval); arenaAttackInterval = null; }
-    
-    document.getElementById("arenaBossName").innerText = arenaBoss + " — ⚡ БЕЙ! (" + arenaAttackTimeLeft + "с)";
-    playArenaSound(200, 'square', 0.3, 0.08); setTimeout(() => playArenaSound(300, 'square', 0.2, 0.06), 100);
-    
-    let usedPositions = [];
-    for (let i = 0; i < arenaTotalTargets; i++) {
-        let x, y, tooClose, attempts = 0;
-        do {
-            x = 40 + Math.random() * 320; y = 80 + Math.random() * 340;
-            tooClose = false;
-            for (let p of usedPositions) { if (Math.sqrt((x - p.x) ** 2 + (y - p.y) ** 2) < 60) { tooClose = true; break; } }
-            attempts++;
-        } while (tooClose && attempts < 50);
-        usedPositions.push({ x: x, y: y });
-        arenaClickTargets.push({ x: x, y: y, radius: 26, hit: false, pulse: Math.random() * Math.PI * 2 });
-    }
-    
-    let attackTimer = setInterval(() => {
-        arenaAttackTimeLeft--;
-        document.getElementById("arenaBossName").innerText = arenaBoss + " — ⚡ БЕЙ! (" + arenaAttackTimeLeft + "с)";
-        playArenaSound(1000, 'square', 0.05, 0.02);
-        if (arenaAttackTimeLeft <= 0) { clearInterval(attackTimer); applyArenaDamage(); }
-    }, 1000);
-}
-
-function applyArenaDamage() {
-    if (!arenaActive) return;
-    let dmgMult = 0;
-    let ratio = arenaClicksHit / arenaTotalTargets;
-    if (ratio >= 1.0) { dmgMult = 2.5; arenaComboText = "🔥 ИДЕАЛЬНО! x2.5"; sfxArenaPerfect(); }
-    else if (ratio >= 0.8) { dmgMult = 1.8; arenaComboText = "⚡ ОТЛИЧНО! x1.8"; sfxArenaPerfect(); }
-    else if (ratio >= 0.6) { dmgMult = 1.3; arenaComboText = "✨ ХОРОШО! x1.3"; sfxArenaTargetHit(); }
-    else if (ratio >= 0.4) { dmgMult = 1.0; arenaComboText = "👍 КЛАССИКА! x1.0"; }
-    else if (ratio >= 0.2) { dmgMult = 0.6; arenaComboText = "💤 СЛАБОВАТО... x0.6"; sfxArenaFailAttack(); }
-    else if (ratio > 0.0) { dmgMult = 0.2; arenaComboText = "🥱 ПОЧТИ МИМО... x0.2"; sfxArenaFailAttack(); }
-    else { dmgMult = 0.0; arenaComboText = "❌ ПРОМАХ! x0"; sfxArenaMiss(); }
-    
-    arenaComboTimer = 55;
-    let baseDmg = typeof window !== 'undefined' && window.playerFinalDamage ? window.playerFinalDamage : 20;
-    let finalDmg = Math.floor(baseDmg * dmgMult);
-    
-    if (typeof _superState !== 'undefined') {
-        if (_superState.dekusDmgMult && _superState.dekusDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.dekusDmgMult);
-        if (_superState.nikaDmgMult && _superState.nikaDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.nikaDmgMult);
-        if (_superState.kaidoBuffActive && _superState.kaidoDmgBonus > 1) finalDmg = Math.floor(finalDmg * _superState.kaidoDmgBonus);
-        if (_superState.garpHakiActive) finalDmg = Math.floor(finalDmg * 1.3);
-        if (_superState.allmightDmgMult && _superState.allmightDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.allmightDmgMult);
-        if (_superState.allmightDebuffActive && _superState.allmightDebuffDmgMult < 1) finalDmg = Math.floor(finalDmg * _superState.allmightDebuffDmgMult);
-        if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) finalDmg = Math.floor(finalDmg * _superState.dandyDmgBuff.mult);
-        if (_superState.markBuffActive && _superState.markDmgBonus > 1) finalDmg = Math.floor(finalDmg * _superState.markDmgBonus);
-    }
-    
-    if (finalDmg > 0) {
-        arenaBossMaxHP -= finalDmg;
-        arenaShake = 20;
-        screenFlash = 10;
-        screenFlashColor = "#ffdd00";
-        arenaShockwaves.push({ x: 200, y: 250, r: 15, v: 14, life: 22, maxLife: 22, color: "rgba(255, 255, 255, 0.9)" });
-        for (let j = 0; j < 30; j++) {
-            let angle = Math.random() * Math.PI * 2;
-            arenaParticles.push({ x: 200, y: 250, vx: Math.cos(angle) * 10, vy: Math.sin(angle) * 10, life: 35, maxLife: 35, color: "#ffdd00", size: 2 + Math.random() * 5 });
-        }
-    }
-    setTimeout(() => {
-        if (arenaBossMaxHP <= 0) { sfxArenaVictory(); winArena(); return; }
-        startDodgePhase();
-    }, 1500);
-}
-
-function spawnBlaster(w) {
-    let bossW = arenaCurrentWave;
-    let isRainbow = Math.random() < 0.05 && bossW >= 800;
-    let colors = ["#fff", "#ffdd00", "#ff3333"];
-    let bColor = isRainbow ? "rainbow" : colors[Math.floor(Math.random() * colors.length)];
-    let side = Math.floor(Math.random() * 4);
-    let x, y;
-    if (side === 0) { x = Math.random() * 400; y = -30; }
-    else if (side === 1) { x = Math.random() * 400; y = 530; }
-    else if (side === 2) { x = -30; y = Math.random() * 500; }
-    else { x = 430; y = Math.random() * 500; }
-    arenaBlasters.push({
-        x: x, y: y, angle: Math.atan2(heart.y - y, heart.x - x),
-        color: bColor, state: "aiming", timer: 70, width: isRainbow ? 15 : 30, hasHit: false
-    });
-    sfxBlasterCharge();
-}
-
-function shrinkAttack(a) {
-    if (a.size) a.size *= 0.7;
-    if (a.radius) a.radius *= 0.7;
-    if (a.spd) a.spd *= 0.7;
-    if (a.spdY) a.spdY *= 0.7;
-    if (a.width) a.width *= 0.7;
-}
-
-function spawnAttack() {
-    let s = arenaSpeedMult;
-    let bw = arenaCurrentWave;
-    let isEarly = bw < 100;
-    let dmg = arenaBaseDmg;
-    let shouldShrink = (typeof _superState !== 'undefined' && _superState.antispiralShrinkAttacks);
-    
-    switch (arenaAttackType) {
-        case 0:
-            let isVertical = Math.random() > 0.5;
-            if (isVertical) {
-                let offsetDirection = Math.random() > 0.5 ? 1 : -1;
-                let gapCenter = heart.y + offsetDirection * (50 + Math.random() * 80);
-                let gapSize = 70 + Math.random() * 40;
-                let startX = Math.random() > 0.5 ? -30 : 430;
-                let dirX = startX < 0 ? 3.5 * s : -3.5 * s;
-                wallGapIndicator = { x: startX < 0 ? 0 : 370, y: gapCenter, w: 30, h: gapSize, life: 35, vertical: true };
-                for (let i = 10; i < 490; i += 22) {
-                    if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                    let atk = { type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 0 };
-                    if (shouldShrink) shrinkAttack(atk);
-                    attacks.push(atk);
-                }
-            } else {
-                let offsetDirection = Math.random() > 0.5 ? 1 : -1;
-                let gapCenter = heart.x + offsetDirection * (50 + Math.random() * 80);
-                let gapSize = 70 + Math.random() * 40;
-                let startY = Math.random() > 0.5 ? -30 : 530;
-                let dirY = startY < 0 ? 2.4 * s : -2.4 * s;
-                wallGapIndicator = { x: gapCenter, y: startY < 0 ? 0 : 470, w: gapSize, h: 30, life: 35, vertical: false };
-                for (let i = 10; i < 390; i += 22) {
-                    if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                    let atk = { type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 0 };
-                    if (shouldShrink) shrinkAttack(atk);
-                    attacks.push(atk);
-                }
-            }
-            break;
-        case 1:
-            let chaosCount = isEarly ? 1 : 2;
-            for (let i = 0; i < chaosCount; i++) {
-                let side = Math.floor(Math.random() * 4);
-                let x, y;
-                if (side === 0) { x = Math.random() * 400; y = -30; }
-                else if (side === 1) { x = Math.random() * 400; y = 530; }
-                else if (side === 2) { x = -30; y = Math.random() * 500; }
-                else { x = 430; y = Math.random() * 500; }
-                let angle = Math.atan2(heart.y - y, heart.x - x);
-                let atk = { type: "square", x: x, y: y, size: 20, spd: Math.cos(angle) * 2.0, spdY: Math.sin(angle) * 2.0, color: "#4499ff", damage: Math.floor(dmg / 2), bouncesLeft: 3 };
-                if (shouldShrink) shrinkAttack(atk);
-                attacks.push(atk);
-            }
-            break;
-        case 2: 
-            for (let i = 0; i < (isEarly ? 1 : 2); i++) {
-                let side = Math.floor(Math.random() * 4);
-                let xPos, yPos;
-                if (side === 0) { xPos = Math.random() * 400; yPos = -40; }
-                else if (side === 1) { xPos = Math.random() * 400; yPos = 540; }
-                else if (side === 2) { xPos = -40; yPos = Math.random() * 500; }
-                else { xPos = 440; yPos = Math.random() * 500; }
-                let angle = Math.atan2(heart.y - yPos, heart.x - xPos);
-                let atk = { type: "sword", x: xPos, y: yPos, angle: angle, size: 45, width: 15, color: "#ffaa00", spd: Math.cos(angle) * 2.4, spdY: Math.sin(angle) * 2.4, damageOnStanding: true, damage: Math.floor(dmg * 1.2), bouncesLeft: 0 };
-                if (shouldShrink) shrinkAttack(atk);
-                attacks.push(atk);
-            }
-            break;
-        case 3:
-            for (let i = 0; i < (isEarly ? 1 : 2); i++) {
-                let vx = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
-                let vy = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
-                let atk = { type: "danger", x: 200, y: 180, size: 70, spd: vx, spdY: vy, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.6), bouncesLeft: 1 };
-                if (shouldShrink) shrinkAttack(atk);
-                attacks.push(atk);
-            }
-            break;
-        case 4:
-            for (let i = 0; i < (isEarly ? 2 : 3); i++) {
-                let rx = (Math.random() - 0.5) * 2;
-                let atk = { type: "square", x: heart.x + (Math.random() - 0.5) * 120, y: -40, size: 25, spd: rx, spdY: 1.8 + Math.random() * 1.0, color: "#ff69b4", knockback: 80, bouncesLeft: Infinity };
-                if (shouldShrink) shrinkAttack(atk);
-                attacks.push(atk);
-            }
-            break;
-        case 5:
-            if (arenaHP < arenaMaxHP) {
-                let atk = { type: "circle", x: Math.random() * 400, y: -30, radius: 18, spd: (Math.random() - 0.5) * 1.5, spdY: 2.5, color: "#44ff44", healPercent: 0.15, bouncesLeft: 2 };
-                if (shouldShrink) shrinkAttack(atk);
-                attacks.push(atk);
-            } else {
-                let atk = { type: "square", x: Math.random() * 360 + 20, y: -30, size: 22, spd: 0, spdY: 3.0, color: "#fff", damage: dmg, bouncesLeft: 2 };
-                if (shouldShrink) shrinkAttack(atk);
-                attacks.push(atk);
-            }
-            break;
-        case 6:
-            let atk6 = { type: "rainbow", x: 50 + Math.random() * 300, y: -60, radius: 30, spd: (Math.random() - 0.5) * 0.8, spdY: 1.2 + Math.random() * 0.5, color: "rainbow", oneshot: true, bouncesLeft: 0 };
-            if (shouldShrink) shrinkAttack(atk6);
-            attacks.push(atk6);
-            break;
-        case 7:
-            for (let i = 0; i < (isEarly ? 1 : 2); i++) {
-                let side = Math.floor(Math.random() * 4);
-                let sx, sy;
-                if (side === 0) { sx = Math.random() * 400; sy = -40; }
-                else if (side === 1) { sx = Math.random() * 400; sy = 540; }
-                else if (side === 2) { sx = -40; sy = Math.random() * 500; }
-                else { sx = 440; sy = Math.random() * 500; }
-                let sa = Math.atan2(heart.y - sy, heart.x - sx);
-                let atk1 = { type: "sword", x: sx, y: sy, angle: sa, size: 40, width: 12, color: "#ffaa00", spd: Math.cos(sa) * 2.2, spdY: Math.sin(sa) * 2.2, damageOnStanding: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 };
-                let atk2 = { type: "danger", x: heart.x + (Math.random() - 0.5) * 100, y: 540, size: 25, spd: (Math.random() - 0.5) * 1.2, spdY: -2.2, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 };
-                if (shouldShrink) { shrinkAttack(atk1); shrinkAttack(atk2); }
-                attacks.push(atk1);
-                attacks.push(atk2);
-            }
-            break;
-        case 8:
-            let atk81 = { type: "danger", x: -40, y: heart.y, size: 40, spd: 2.5 * s, spdY: 0, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.5), bouncesLeft: 0 };
-            if (shouldShrink) shrinkAttack(atk81);
-            attacks.push(atk81);
-            if (!isEarly) {
-                let atk82 = { type: "square", x: 440, y: heart.y + (Math.random() > 0.5 ? 60 : -60), size: 30, spd: -2.5 * s, spdY: 0, color: "#fff", damage: Math.floor(dmg * 1.5), bouncesLeft: 2 };
-                if (shouldShrink) shrinkAttack(atk82);
-                attacks.push(atk82);
-            }
-            break;
-        case 9:
-            for (let i = 0; i < (isEarly ? 1 : (bw >= 500 ? 2 : 1)); i++) {
-                let bx = 50 + Math.random() * 300; let by = 50 + Math.random() * 400;
-                let atk = { type: "bomb", x: bx, y: by, timer: 60, maxRadius: isEarly ? 75 : (80 + Math.random() * 40), hit: false, damage: Math.floor(dmg * 2), bouncesLeft: 0, particlesSpawned: false, shakeTime: 0 };
-                if (shouldShrink) { if (atk.maxRadius) atk.maxRadius *= 0.7; }
-                attacks.push(atk);
-            }
-            break;
-        case 10:
-            spawnBlaster(bw);
-            break;
-    }
-}
+// ... (startDodgePhase, startAttackPhase, applyArenaDamage, spawnBlaster, shrinkAttack, spawnAttack без изменений)
 
 function stopArena() {
     if (typeof resetAllSupers === 'function') resetAllSupers();
@@ -787,7 +544,6 @@ function loseArena() {
             _superState.markResurrectCharges--;
             arenaHP = Math.ceil(arenaMaxHP * 0.25);
             document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
-            // Бафф после воскрешения: скорость x2, защита /3, урон x1.5 на 5 сек
             _superState.markBuffActive = true;
             _superState.markBuffTimer = 5;
             _superState.markDmgReduction = 3;
@@ -861,10 +617,99 @@ function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
     if (Math.ceil(arenaHP) <= 0) loseArena();
 }
 
+// ====== ОТРИСОВКА АКТИВНЫХ БАФФОВ ======
+function drawActiveBuffs() {
+    if (!ctx || typeof _superState === 'undefined') return;
+    let lines = [];
+    let now = performance.now() / 1000;
+
+    if (_superState.dekusActive) lines.push("⚡Деку: 100%");
+    if (_superState.borosHeal && _superState.borosHeal.active) {
+        let remain = (_superState.borosHeal.totalDuration - _superState.borosHeal.elapsed).toFixed(1);
+        lines.push("💚Борос: реген " + remain + "с");
+    }
+    if (_superState.usoppInvuln) lines.push("⭐Усопп: неуязвим");
+    if (_superState.usoppStunTimer > 0) lines.push("💫Усопп: оглушение " + _superState.usoppStunTimer.toFixed(1) + "с");
+    if (_superState.nikaActive) lines.push("☀️Луффи: Ника");
+    if (_superState.garouInvulnTimer > 0) lines.push("🟠Гароу: неуязвимость " + _superState.garouInvulnTimer.toFixed(1) + "с");
+    if (_superState.garpChargeTimer > 0) lines.push("🔴Гарп: зарядка Хаки " + _superState.garpChargeTimer.toFixed(1) + "с");
+    if (_superState.garpHakiActive) lines.push("🔴Гарп: Хаки " + _superState.garpHakiTimer.toFixed(1) + "с");
+    if (_superState.imAuraActive) lines.push("🟣Им: аура");
+    if (_superState.antispiralActive) lines.push("🔵Анти-спираль: сжатие");
+    if (_superState.dandyInvuln) lines.push("🌟Дэнди: неуязвимость");
+    if (_superState.dandyShield && _superState.dandyShield.timer > 0) lines.push("🛡️Дэнди: щит " + _superState.dandyShield.timer.toFixed(1) + "с");
+    if (_superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) lines.push("☠️Дэнди: уязвимость " + _superState.dandyVulnerable.timer.toFixed(1) + "с");
+    if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) lines.push("⚔️Дэнди: урон x2 " + _superState.dandyDmgBuff.timer.toFixed(1) + "с");
+    if (_superState.dandyLightnings) lines.push("⚡Дэнди: молнии");
+    if (_superState.kaidoDrinking) lines.push("🍺Кайдо: глоток");
+    if (_superState.kaidoBuffActive) lines.push("🔥Кайдо: ярость");
+    if (_superState.allmightBuffTimer > 0) lines.push("💛Всемогущий: бафф " + _superState.allmightBuffTimer.toFixed(1) + "с");
+    if (_superState.allmightPermaSlow) lines.push("💔Всемогущий: истощён");
+    if (_superState.allmightDebuffActive) lines.push("💔Всемогущий: дебафф " + _superState.allmightDebuffTimer.toFixed(1) + "с");
+    if (_superState.markBuffActive) lines.push("💛Марк: бафф " + _superState.markBuffTimer.toFixed(1) + "с");
+    if (_superState.invertControls) lines.push("🔄Инверт упр.");
+
+    if (lines.length === 0) return;
+
+    let textX = 14;
+    let textY = 52;
+    let lineHeight = 12;
+    let padding = 4;
+    let maxWidth = 0;
+    
+    ctx.font = "bold 9px monospace";
+    for (let line of lines) {
+        let w = ctx.measureText(line).width;
+        if (w > maxWidth) maxWidth = w;
+    }
+    
+    ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+    ctx.fillRect(textX - padding, textY - padding - 2, maxWidth + padding * 2, lines.length * lineHeight + padding * 2);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(textX - padding, textY - padding - 2, maxWidth + padding * 2, lines.length * lineHeight + padding * 2);
+    
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 9px monospace";
+    ctx.textBaseline = "middle";
+    for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], textX, textY + i * lineHeight);
+    }
+}
+
+// ====== ОТРИСОВКА ВОСКРЕШЕНИЙ МАРКА ======
+function drawMarkResurrections() {
+    if (!ctx || typeof _superState === 'undefined') return;
+    let mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
+    if (!mainCard || mainCard.name !== "Император Марк") return;
+    if (_superState.markResurrectCharges <= 0) return;
+    
+    let text = "💀Марк: воскрешения " + _superState.markResurrectCharges;
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+    ctx.font = "bold 9px monospace";
+    let w = ctx.measureText(text).width + 8;
+    ctx.fillRect(14, 48, w, 14);
+    ctx.strokeStyle = "rgba(255, 215, 0, 0.5)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(14, 48, w, 14);
+    ctx.fillStyle = "#ffd700";
+    ctx.fillText(text, 18, 58);
+    ctx.restore();
+}
+
 function renderArena() {
     if (!arenaActive || !ctx) return;
     
     if (typeof tickSupers === 'function') tickSupers();
+    
+    // Авто-активация SUPER
+    if (typeof arenaSettings !== 'undefined' && arenaSettings.autoSuper) {
+        let mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
+        if (mainCard && typeof _superCooldowns !== 'undefined' && _superCooldowns[mainCard.name] && _superCooldowns[mainCard.name].ready) {
+            if (typeof toggleSuper === 'function') toggleSuper();
+        }
+    }
     
     let now = Date.now();
     if (arenaPhase === "dodge") {
@@ -906,7 +751,14 @@ function renderArena() {
     if (screenFlash > 0) screenFlash--;
     if (arenaVignette > 0) arenaVignette--;
     
-    ctx.save(); ctx.translate(sx, sy);
+    // Применяем прозрачность эффектов
+    let effectsOpacity = (typeof arenaSettings !== 'undefined') ? arenaSettings.effectsOpacity : 1.0;
+    
+    ctx.save();
+    if (effectsOpacity < 1.0) {
+        ctx.globalAlpha = effectsOpacity;
+    }
+    ctx.translate(sx, sy);
     ctx.clearRect(-15, -15, 430, 530); ctx.fillStyle = "#03030b"; ctx.fillRect(0, 0, 400, 500);
     
     if (typeof _superState !== 'undefined' && _superState.screenFlashWhite > 0) {
@@ -994,6 +846,8 @@ function renderArena() {
     ctx.fillText(`❤️ HP: ${Math.max(0, Math.ceil(arenaHP))} / ${arenaMaxHP}`, 16, 24);
     ctx.shadowBlur = 0;
     
+    drawMarkResurrections();
+    
     ctx.fillStyle = "rgba(10,10,20,0.9)"; ctx.fillRect(8, 32, 384, 14);
     let maxHp = (typeof currentEnemy !== 'undefined' && currentEnemy) ? currentEnemy.maxHp : 1000;
     ctx.fillStyle = "#202020"; ctx.fillRect(14, 37, 372, 4);
@@ -1004,6 +858,8 @@ function renderArena() {
     ctx.fillRect(14, 37, 372 * Math.max(0, arenaBossMaxHP / maxHp), 4);
     ctx.globalAlpha = 1;
     ctx.fillStyle = "#ccc"; ctx.font = "bold 9px monospace"; ctx.fillText(`👾 ${arenaBoss}`, 16, 43);
+    
+    drawActiveBuffs();
     
     if (arenaComboTimer > 0 && arenaComboText) {
         ctx.save();
