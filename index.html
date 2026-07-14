@@ -345,6 +345,10 @@
         .gacha-btn { padding: 8px 16px; font-size: 14px; min-width: 90px; }
         .legendary-btn { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #1a1a2e; text-shadow: none; }
         .secret-btn { background: linear-gradient(135deg, #ff00ff, #8b008b); color: white; }
+        input[type="range"] { -webkit-appearance: none; height: 8px; background: #2c2c3a; border-radius: 4px; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #f5af19; border-radius: 50%; cursor: pointer; }
+        select { background: #1a1a2e; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 6px 10px; font-family: 'Nunito', sans-serif; font-size: 13px; cursor: pointer; }
+        input[type="checkbox"] { width: 18px; height: 18px; accent-color: #f5af19; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -361,7 +365,7 @@
             <button class="tab-btn active" data-tab="collection">🏠 Коллекция</button>
             <button class="tab-btn" data-tab="battle">⚔️ Битва</button>
             <button class="tab-btn" data-tab="shop">🛒 Лавка</button>
-            <button class="tab-btn" data-tab="rebirth">🔄 Ребиртх</button>
+            <button class="tab-btn" data-tab="other">📋 Прочее</button>
             <button class="tab-btn" data-tab="slots">💾 Слоты</button>
         </div>
         <div id="collectionTab" class="tab-content active">
@@ -464,10 +468,11 @@
                 <div class="card"><div class="card-title">🎁 Код</div><input type="text" id="codeInput" class="code-input" placeholder="Введите код..."><button id="submitCodeBtn" class="btn btn-primary" style="width:100%;padding:12px;font-size:16px;">Активировать</button><div id="codeResult" style="margin-top:15px;text-align:center;font-weight:900;font-size:20px;"></div></div>
             </div>
         </div>
-        <div id="rebirthTab" class="tab-content">
+        <div id="otherTab" class="tab-content">
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" data-subtab="rebirthMain">🔄 Перерождение</button>
                 <button class="sub-tab-btn" data-subtab="rebirthStats">📊 Статистика</button>
+                <button class="sub-tab-btn" data-subtab="settings">⚙️ Настройки</button>
             </div>
             <div id="rebirthMainSubTab" class="sub-tab-content active">
                 <div class="card"><div class="card-title">🔄 Ребиртх (Престиж)</div><div id="rebirthInfo"></div><button id="doRebirthBtn" class="btn btn-primary" style="width:100%;margin-top:20px;padding:15px;font-size:16px;">🔄 Совершить Ребиртх!</button>
@@ -478,6 +483,39 @@
             <div id="rebirthStatsSubTab" class="sub-tab-content">
                 <div class="card"><div class="card-title">📊 Статистика ребиртхов</div><div id="rebirthStatsList" style="display:flex;flex-direction:column;gap:10px;"></div></div>
                 <div class="card" style="margin-top:15px;"><div class="card-title">📈 Общая статистика</div><div id="globalStats" class="global-stats"></div></div>
+            </div>
+            <div id="settingsSubTab" class="sub-tab-content">
+                <div class="card">
+                    <div class="card-title">⚙️ Настройки арены</div>
+                    <div class="shop-item">
+                        <div><strong>🔊 Громкость арены</strong></div>
+                        <div><input type="range" id="arenaVolumeSlider" min="0" max="100" value="20" style="width:120px;" oninput="changeArenaVolume(this.value)"> <span id="arenaVolumeValue">20%</span></div>
+                    </div>
+                    <div class="shop-item">
+                        <div><strong>✨ Прозрачность эффектов</strong></div>
+                        <div><input type="range" id="arenaEffectsSlider" min="20" max="100" value="100" style="width:120px;" oninput="changeArenaEffects(this.value)"> <span id="arenaEffectsValue">100%</span></div>
+                    </div>
+                    <div class="shop-item">
+                        <div><strong>⚡ Авто-SUPER</strong></div>
+                        <div>
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <input type="checkbox" id="autoSuperCheckbox" onchange="toggleAutoSuper(this.checked)">
+                                <span>Автоматически активировать SUPER</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="shop-item">
+                        <div><strong>📱 Управление SUPER (моб.)</strong></div>
+                        <div>
+                            <select id="mobileSuperSelect" onchange="changeMobileSuper(this.value)">
+                                <option value="button">Кнопка SUPER</option>
+                                <option value="doubletap">Двойное нажатие</option>
+                                <option value="swipeup">Свайп вверх</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn" style="width:100%;margin-top:10px;" onclick="resetArenaSettings()">🔄 Сбросить настройки</button>
+                </div>
             </div>
         </div>
         <div id="slotsTab" class="tab-content">
