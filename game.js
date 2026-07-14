@@ -28,9 +28,13 @@ function selectSlot(slot) {
 }
 
 function finishSlotLoad(slot) {
+    // Скрываем экран выбора слотов и показываем игру
+    let slotScreen = document.getElementById("slotSelectScreen");
+    let gameScreen = document.getElementById("gameScreen");
+    if (slotScreen) slotScreen.style.display = "none";
+    if (gameScreen) gameScreen.style.display = "block";
+    
     let el;
-    el = document.getElementById("slotSelectScreen"); if (el) el.style.display = "none";
-    el = document.getElementById("gameScreen"); if (el) el.style.display = "block";
     el = document.getElementById("nicknameDisplay"); if (el) el.innerText = slotData.nickname || loadSlotMeta(slot).nickname;
     localStorage.setItem("cgV20_lastSlot", slot);
     team = team.filter(i => myCards[i]); if (team.length > 6) team = team.slice(0, 6);
@@ -1057,11 +1061,23 @@ function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEne
 function renderPoints() { let displayPoints = (mode === "moder" && moderUnlocked) ? "∞" : points;
     ['pointsAmount', 'pointsAmount2', 'pointsAmount3', 'pointsAmountBulk', 'pointsAmountRest', 'pointsAmountGacha'].forEach(id => { let e = document.getElementById(id); if (e) e.innerText = displayPoints; }); }
 function escapeHtml(s) { return s ? s.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])) : ''; }
-function showSlotSelectScreen() { let el = document.getElementById("slotSelectScreen"); if (el) el.style.display = "block"; el = document.getElementById("gameScreen"); if (el) el.style.display = "none"; let html = ''; for (let i = 0; i < 3; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select" onclick="showNicknamePrompt(' + i + ')"><div style="font-size:20px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + '</div></div>'; } el = document.getElementById("slotList"); if (el) el.innerHTML = html; }
+function showSlotSelectScreen() { 
+    let slotScreen = document.getElementById("slotSelectScreen");
+    let gameScreen = document.getElementById("gameScreen");
+    if (slotScreen) slotScreen.style.display = "block";
+    if (gameScreen) gameScreen.style.display = "none";
+    let html = ''; 
+    for (let i = 0; i < 3; i++) { 
+        let meta = loadSlotMeta(i); 
+        html += '<div class="slot-select" onclick="showNicknamePrompt(' + i + ')"><div style="font-size:20px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + '</div></div>'; 
+    } 
+    let el = document.getElementById("slotList"); 
+    if (el) el.innerHTML = html; 
+}
 function showNicknamePrompt(slot) { let meta = loadSlotMeta(slot); let nickname = prompt("Введите ник для слота " + (slot + 1) + ":", meta.nickname); if (nickname === null) return; if (nickname.trim() === "" && !meta.exists) return; if (nickname.trim() !== "") { meta.nickname = nickname.trim(); } saveSlotMeta(slot, meta); selectSlot(slot); }
 function renameSlot(slot) { let meta = loadSlotMeta(slot); let nickname = prompt("Новое имя для слота " + (slot + 1) + ":", meta.nickname); if (nickname === null) return; if (nickname.trim() === "") return; meta.nickname = nickname.trim(); saveSlotMeta(slot, meta); if (slot === currentSlot) { slotData.nickname = nickname.trim(); let el = document.getElementById("nicknameDisplay"); if (el) el.innerText = nickname.trim(); } renderSlotsInGame(); }
 function renderSlotsInGame() { let html = '<div style="display:flex;flex-direction:column;gap:10px;">'; for (let i = 0; i < 3; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select ' + (i === currentSlot ? 'active' : '') + '"><div style="font-size:18px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + (i === currentSlot ? ' ← Текущий' : '') + '</div><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn" style="padding:4px 12px;font-size:11px;" onclick="event.stopPropagation();switchToSlot(' + i + ')">Загрузить</button><button class="btn" style="padding:4px 12px;font-size:11px;background:#9b59b6;" onclick="event.stopPropagation();renameSlot(' + i + ')">✏️ Имя</button></div></div>'; } html += '</div>'; let el = document.getElementById("slotsListInGame"); if (el) el.innerHTML = html; }
-function switchToSlot(slot) { if (slot === currentSlot) return; saveAll(); currentSlot = slot; let saved = loadGameFromSlot(slot); let meta = loadSlotMeta(slot); if (saved) { loadGameData(saved); } else { initNewGame(); slotData.nickname = meta.nickname; } slotData.nickname = slotData.nickname || meta.nickname; saveGameToSlot(slot); let el = document.getElementById("slotSelectScreen"); if (el) el.style.display = "none"; el = document.getElementById("gameScreen"); if (el) el.style.display = "block"; finishSlotLoad(slot); renderSlotsInGame(); }
+function switchToSlot(slot) { if (slot === currentSlot) return; saveAll(); currentSlot = slot; let saved = loadGameFromSlot(slot); let meta = loadSlotMeta(slot); if (saved) { loadGameData(saved); } else { initNewGame(); slotData.nickname = meta.nickname; } slotData.nickname = slotData.nickname || meta.nickname; saveGameToSlot(slot); finishSlotLoad(slot); renderSlotsInGame(); }
 function setMode(m) { if (m === "moder" && !moderUnlocked) return; mode = m; saveAll(); updateClaimTimer(); renderModerControls(); renderPoints(); document.querySelectorAll(".toggle span").forEach(s => s.classList.toggle("active", s.dataset.mode === m)); }
 
 document.addEventListener("DOMContentLoaded", function () {
