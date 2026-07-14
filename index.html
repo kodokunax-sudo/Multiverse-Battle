@@ -16,22 +16,109 @@
             --boss: #ff4500;
             --text: #eee;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Nunito', -apple-system, sans-serif; background: #0a0a14; color: var(--text); padding: 20px; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            font-family: 'Nunito', -apple-system, sans-serif;
+            background: #0a0a14;
+            color: var(--text);
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 10px; }
         ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 10px; }
-        .app { max-width: 620px; width: 100%; background: rgba(20, 20, 35, 0.85); border-radius: 24px; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); padding: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.06); position: relative; overflow: hidden; }
-        .tabs { display: flex; gap: 6px; margin-bottom: 15px; flex-wrap: wrap; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 40px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.3); position: relative; z-index: 1; }
-        .tab-btn { flex: 1; padding: 12px 6px; background: transparent; border: none; border-radius: 30px; color: #aaa; font-family: 'Nunito', sans-serif; font-weight: 800; cursor: pointer; transition: all 0.3s; text-align: center; font-size: 13px; touch-action: manipulation; }
-        .tab-btn.active { background: linear-gradient(135deg, #f5af19, #f12711); color: white; box-shadow: 0 4px 15px rgba(245, 175, 25, 0.4); transform: translateY(-2px); }
+        .app {
+            max-width: 620px;
+            width: 100%;
+            background: rgba(20, 20, 35, 0.85);
+            border-radius: 24px;
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            padding: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.06);
+            position: relative;
+            overflow: hidden;
+        }
+        .tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            background: rgba(0,0,0,0.3);
+            padding: 6px;
+            border-radius: 40px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px 6px;
+            background: transparent;
+            border: none;
+            border-radius: 30px;
+            color: #aaa;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            font-size: 13px;
+            touch-action: manipulation;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #f5af19, #f12711);
+            color: white;
+            box-shadow: 0 4px 15px rgba(245, 175, 25, 0.4);
+            transform: translateY(-2px);
+        }
         .sub-tabs { display: flex; gap: 4px; margin-bottom: 15px; flex-wrap: wrap; position: relative; z-index: 1; }
-        .sub-tab-btn { flex: 1; padding: 8px 10px; background: rgba(15, 15, 31, 0.8); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; color: #aaa; font-family: 'Nunito', sans-serif; font-weight: bold; cursor: pointer; transition: 0.2s; text-align: center; font-size: 11px; touch-action: manipulation; }
-        .sub-tab-btn.active { background: #f5af19; color: #1a1a2e; box-shadow: 0 0 10px rgba(245, 175, 25, 0.5); border-color: transparent; }
-        .tab-content, .sub-tab-content { display: none; animation: fadeSlideIn 0.4s ease-out forwards; position: relative; z-index: 1; }
+        .sub-tab-btn {
+            flex: 1;
+            padding: 8px 10px;
+            background: rgba(15, 15, 31, 0.8);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px;
+            color: #aaa;
+            font-family: 'Nunito', sans-serif;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            text-align: center;
+            font-size: 11px;
+            touch-action: manipulation;
+        }
+        .sub-tab-btn.active {
+            background: #f5af19;
+            color: #1a1a2e;
+            box-shadow: 0 0 10px rgba(245, 175, 25, 0.5);
+            border-color: transparent;
+        }
+        .tab-content, .sub-tab-content {
+            display: none;
+            animation: fadeSlideIn 0.4s ease-out forwards;
+            position: relative;
+            z-index: 1;
+        }
         .tab-content.active, .sub-tab-content.active { display: block; }
-        @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes floatUp { 0% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -60px); } }
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -60px); }
+        }
         @keyframes rainbow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         @keyframes goldenGlow { 0%,100% { box-shadow: 0 0 10px rgba(255,215,0,0.5); } 50% { box-shadow: 0 0 20px rgba(255,170,0,0.8); } }
         @keyframes pulseOrb { 0% { box-shadow: 0 0 15px rgba(245, 175, 25, 0.4); } 50% { box-shadow: 0 0 30px rgba(245, 175, 25, 0.8); } 100% { box-shadow: 0 0 15px rgba(245, 175, 25, 0.4); } }
@@ -41,35 +128,119 @@
         @keyframes bossPulse { 0%, 100% { box-shadow: 0 0 15px rgba(255, 69, 0, 0.5); } 50% { box-shadow: 0 0 35px rgba(255, 69, 0, 0.9); } }
         @keyframes cardShine { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
         @keyframes superPulse { 0%, 100% { box-shadow: 0 0 10px rgba(245, 175, 25, 0.5); } 50% { box-shadow: 0 0 25px rgba(245, 175, 25, 1), 0 0 50px rgba(245, 175, 25, 0.5); } }
-        .mode-switch { background: rgba(15, 15, 31, 0.6); border-radius: 30px; padding: 8px 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); position: relative; z-index: 1; }
-        .mode-label { font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); }
+        .mode-switch {
+            background: rgba(15, 15, 31, 0.6);
+            border-radius: 30px;
+            padding: 8px 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+            z-index: 1;
+        }
+        .mode-label {
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--gold);
+        }
         .toggle { background: #1a1a2e; border-radius: 30px; padding: 4px; display: inline-flex; cursor: pointer; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
         .toggle span { padding: 6px 16px; border-radius: 30px; font-size: 12px; font-weight: 800; transition: 0.3s; }
         .toggle span.active { background: linear-gradient(90deg, #f5af19, #f12711); color: white; box-shadow: 0 2px 8px rgba(245, 175, 25, 0.4); }
-        .card { background: rgba(30, 30, 47, 0.85); border-radius: 20px; padding: 18px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 10px 20px rgba(0,0,0,0.2); transition: all 0.3s ease; position: relative; overflow: hidden; z-index: 1; }
+        .card {
+            background: rgba(30, 30, 47, 0.85);
+            border-radius: 20px;
+            padding: 18px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
         .card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.1); }
-        .card-title { font-size: 18px; font-weight: 900; margin-bottom: 12px; border-left: 4px solid #f5af19; padding-left: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #fff; }
+        .card-title {
+            font-size: 18px;
+            font-weight: 900;
+            margin-bottom: 12px;
+            border-left: 4px solid #f5af19;
+            padding-left: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #fff;
+        }
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
-        .btn { background: #2c2c3a; font-family: 'Nunito', sans-serif; border: 1px solid rgba(255,255,255,0.1); padding: 10px 16px; border-radius: 40px; font-weight: 800; cursor: pointer; transition: all 0.2s; color: white; touch-action: manipulation; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .btn {
+            background: #2c2c3a;
+            font-family: 'Nunito', sans-serif;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 10px 16px;
+            border-radius: 40px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+            touch-action: manipulation;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
         .btn-primary { background: linear-gradient(135deg, #f5af19, #f12711); border: none; box-shadow: 0 4px 15px rgba(245, 175, 25, 0.3); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
         .btn-boss { background: linear-gradient(135deg, #ff4500, #ff0000); border: none; box-shadow: 0 4px 15px rgba(255, 69, 0, 0.5); animation: bossPulse 1.5s infinite; font-size: 18px; }
         .btn-arena-start { background: linear-gradient(135deg, #e74c3c, #c0392b); border: none; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.5); font-size: 18px; animation: bossPulse 1.5s infinite; }
         .btn-skip-arena { background: #6c757d; color: white; border: none; box-shadow: 0 4px 10px rgba(108, 117, 125, 0.3); font-size: 16px; }
-        .btn-super { background: linear-gradient(135deg, #f5af19, #f12711); color: white; border: none; box-shadow: 0 4px 15px rgba(245, 175, 25, 0.5); animation: superPulse 2s infinite; font-size: 16px; font-weight: 900; }
-        .btn-super:disabled { background: #555; animation: none; box-shadow: none; cursor: not-allowed; }
+        .btn-super {
+            background: linear-gradient(135deg, #f5af19, #f12711);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(245, 175, 25, 0.5);
+            animation: superPulse 2s infinite;
+            font-size: 16px;
+            font-weight: 900;
+        }
+        .btn-super:disabled {
+            background: #555;
+            animation: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
         .btn:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 6px 20px rgba(245, 175, 25, 0.4); }
         .btn:active { transform: scale(0.95); box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         .btn:disabled { opacity: 0.5; pointer-events: none; filter: grayscale(1); }
         .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; }
         @media (max-width: 480px) { .cards-grid { grid-template-columns: repeat(3, 1fr); } }
-        .card-item { background: linear-gradient(180deg, #1e1e2f 0%, #151522 100%); border-radius: 16px; padding: 10px 8px; text-align: center; border: 2px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.2s; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.3); display: flex; flex-direction: column; align-items: center; overflow: hidden; }
+        .card-item {
+            background: linear-gradient(180deg, #1e1e2f 0%, #151522 100%);
+            border-radius: 16px;
+            padding: 10px 8px;
+            text-align: center;
+            border: 2px solid rgba(255,255,255,0.05);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+        }
         .card-item:hover { transform: translateY(-4px); box-shadow: 0 8px 15px rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.2); }
         .card-item:active { transform: scale(0.95); }
         .card-item.team-selected { border-color: #f5af19; background: linear-gradient(180deg, #2a2a3a 0%, #1a1a2e 100%); box-shadow: 0 0 15px rgba(245, 175, 25, 0.3); animation: borderGlow 2s infinite; }
         .card-item.afk-selected { border-color: #2ecc71; background: linear-gradient(180deg, #1a3a2a 0%, #0f1f15 100%); box-shadow: 0 0 15px rgba(46, 204, 113, 0.3); }
         .card-name { font-weight: 800; font-size: 12px; word-break: break-word; line-height: 1.2; margin-bottom: 4px; max-width: 100%; }
-        .rarity-tag { font-size: 9px; padding: 3px 8px; border-radius: 20px; display: inline-block; margin: 4px 0; font-weight: 900; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); text-align: center; max-width: 100%; white-space: nowrap; }
-        .common { background: #6c757d; color: white; } .rare { background: #17a2b8; color: white; } .superrare { background: #28a745; color: white; } .epic { background: #9b59b6; color: white; } .mythic { background: #e74c3c; color: white; }
+        .rarity-tag {
+            font-size: 9px; padding: 3px 8px; border-radius: 20px; display: inline-block; margin: 4px 0;
+            font-weight: 900; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            text-align: center; max-width: 100%; white-space: nowrap;
+        }
+        .common { background: #6c757d; color: white; }
+        .rare { background: #17a2b8; color: white; }
+        .superrare { background: #28a745; color: white; }
+        .epic { background: #9b59b6; color: white; }
+        .mythic { background: #e74c3c; color: white; }
         .legendary { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #1a1a2e; animation: goldenGlow 2s ease-in-out infinite; }
         .secret { background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #ff6b6b); background-size: 200% 100%; animation: rainbow 2s linear infinite; color: #1a1a2e; }
         .evolutionary { background: linear-gradient(135deg, #8e44ad, #9b59b6, #e056fd, #8e44ad); background-size: 200% 200%; animation: evoPulse 2s infinite, rainbow 4s linear infinite; color: white; text-shadow: 0 0 5px rgba(255,255,255,0.8); border: 1px solid #e056fd; }
@@ -77,12 +248,43 @@
         .boss-rarity { background: linear-gradient(135deg, #ff4500, #ff0000, #ff6347); background-size: 200% 200%; color: #1a1a2e; animation: bossPulse 1s infinite; font-size: 10px; }
         .card-stats { font-size: 10px; display: flex; justify-content: center; gap: 6px; margin: 4px 0; font-weight: 600; background: rgba(0,0,0,0.2); border-radius: 10px; padding: 2px 6px; }
         .remove-icon { font-size: 10px; background: #e74c3c; border-radius: 20px; padding: 4px 8px; margin: 2px; display: inline-block; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); font-weight: 800; }
-        .remove-icon:hover { transform: scale(1.1); filter: brightness(1.2); } .remove-icon:active { transform: scale(0.9); }
+        .remove-icon:hover { transform: scale(1.1); filter: brightness(1.2); }
+        .remove-icon:active { transform: scale(0.9); }
         .enemy-card { background: linear-gradient(135deg, #2c2c3a, #1f1f2e); border-radius: 24px; padding: 20px; text-align: center; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
-        .click-area { background: linear-gradient(135deg, #f5af19, #e65c00); color: white; padding: 25px 20px; border-radius: 20px; text-align: center; font-size: 26px; font-weight: 900; margin: 20px 0; cursor: pointer; transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 8px 0 #b84000, 0 15px 20px rgba(245, 175, 25, 0.4); position: relative; overflow: hidden; text-shadow: 0 2px 4px rgba(0,0,0,0.3); animation: pulseOrb 2s infinite; touch-action: manipulation; }
+        .click-area {
+            background: linear-gradient(135deg, #f5af19, #e65c00);
+            color: white;
+            padding: 25px 20px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 26px;
+            font-weight: 900;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 0 #b84000, 0 15px 20px rgba(245, 175, 25, 0.4);
+            position: relative;
+            overflow: hidden;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            animation: pulseOrb 2s infinite;
+            touch-action: manipulation;
+        }
         .click-area:active { transform: translateY(8px); box-shadow: 0 0px 0 #b84000, 0 5px 10px rgba(245, 175, 25, 0.4); filter: brightness(1.1); animation: none; }
         .click-area.crit { animation: critFlash 0.4s ease-out; background: linear-gradient(135deg, #fff, #f5af19); color: #1a1a2e; }
-        .floating-text { position: absolute; font-weight: 900; font-size: 24px; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.8); pointer-events: none; animation: floatUp 0.8s ease-out forwards; z-index: 10; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap; }
+        .floating-text {
+            position: absolute;
+            font-weight: 900;
+            font-size: 24px;
+            color: #fff;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+            pointer-events: none;
+            animation: floatUp 0.8s ease-out forwards;
+            z-index: 10;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+        }
         .fight-stats { display: flex; justify-content: space-between; margin-top: 15px; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 16px; flex-wrap: wrap; gap: 8px; border: 1px solid rgba(255,255,255,0.05); font-weight: 800; font-size: 13px; }
         .fight-stats div { display: flex; align-items: center; gap: 4px; }
         .shop-grid, .upgrade-grid, .challenge-grid { display: flex; flex-direction: column; gap: 10px; }
@@ -100,7 +302,8 @@
         .locked { opacity: 0.5; filter: grayscale(0.8); pointer-events: none; }
         .book-grid { display: flex; flex-wrap: wrap; gap: 8px; }
         .book-item { background: rgba(15, 15, 31, 0.6); border-radius: 16px; padding: 10px 6px; width: calc(33.333% - 6px); text-align: center; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; font-size: 11px; transition: 0.2s; }
-        .book-item:hover { transform: translateY(-3px); background: rgba(25, 25, 45, 0.8); } .book-item:active { transform: scale(0.96); }
+        .book-item:hover { transform: translateY(-3px); background: rgba(25, 25, 45, 0.8); }
+        .book-item:active { transform: scale(0.96); }
         .book-item .name { font-weight: 900; font-size: 12px; margin-bottom: 4px; }
         .unknown-card { opacity: 0.3; filter: grayscale(1) contrast(0.5); }
         .afk-active { color: #2ecc71; font-weight: 900; text-shadow: 0 0 10px rgba(46, 204, 113, 0.4); }
@@ -113,12 +316,15 @@
         .rebirth-badge { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 900; margin-left: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 100; }
         .modal-content { background: linear-gradient(180deg, #1e1e2f, #151522); border-radius: 24px; padding: 25px; max-width: 400px; width: 90%; text-align: center; border: 2px solid #f5af19; box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 30px rgba(245, 175, 25, 0.2); }
-        .modal-content h2 { margin-bottom: 15px; color: #f5af19; } .modal-content p { font-size: 15px; line-height: 1.5; font-weight: 600; margin-bottom: 20px; }
+        .modal-content h2 { margin-bottom: 15px; color: #f5af19; }
+        .modal-content p { font-size: 15px; line-height: 1.5; font-weight: 600; margin-bottom: 20px; }
         .status-effect { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 800; margin: 2px; background: rgba(0,0,0,0.5); color: #f5af19; border: 1px solid rgba(245, 175, 25, 0.3); }
         .use-artifact-btn { background: linear-gradient(135deg, #ff6b6b, #ee5253); color: white; border: none; padding: 6px 12px; border-radius: 15px; font-weight: bold; cursor: pointer; margin-top: 6px; box-shadow: 0 2px 5px rgba(238, 82, 83, 0.4); touch-action: manipulation; }
-        .evo-quest { background: rgba(0,0,0,0.4); padding: 12px; border-radius: 12px; margin-bottom: 10px; border-left: 3px solid #9b59b6; } .evo-quest.done { border-color: #2ecc71; opacity: 0.7; }
+        .evo-quest { background: rgba(0,0,0,0.4); padding: 12px; border-radius: 12px; margin-bottom: 10px; border-left: 3px solid #9b59b6; }
+        .evo-quest.done { border-color: #2ecc71; opacity: 0.7; }
         .team-select-item { background: rgba(15, 15, 31, 0.8); border-radius: 12px; padding: 10px; margin: 5px 0; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; }
-        .team-select-item:hover { background: rgba(245, 175, 25, 0.2); border-color: #f5af19; } .team-select-item.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+        .team-select-item:hover { background: rgba(245, 175, 25, 0.2); border-color: #f5af19; }
+        .team-select-item.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
         .world-indicator { background: linear-gradient(135deg, rgba(0,0,0,0.6), rgba(30,30,47,0.9)); border-radius: 20px; padding: 12px 18px; margin-bottom: 15px; text-align: center; font-weight: 900; font-size: 16px; border: 1px solid rgba(255,255,255,0.1); letter-spacing: 1px; position: relative; z-index: 1; }
         .dialog-box { background: rgba(0,0,0,0.7); border-radius: 16px; padding: 15px; margin: 10px 0; border-left: 4px solid #f5af19; font-weight: 600; }
         .dialog-option { background: rgba(44,44,58,0.8); border-radius: 12px; padding: 12px; margin: 5px 0; cursor: pointer; border: 1px solid rgba(255,255,255,0.15); transition: all 0.2s; font-weight: 700; }
@@ -130,9 +336,12 @@
         .slot-select.active { border-color: #2ecc71; box-shadow: 0 0 15px rgba(46,204,113,0.3); }
         .nickname-display { background: linear-gradient(135deg, #f5af19, #f12711); color: white; padding: 3px 10px; border-radius: 15px; font-weight: 800; font-size: 12px; display: inline-block; margin-left: 8px; }
         .global-stats { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px; margin-top: 5px; display:flex; flex-direction:column; gap:6px; }
-        .gacha-item { transition: all 0.3s ease; } .gacha-item:hover { transform: translateX(6px); }
-        .legendary-gacha { box-shadow: 0 0 15px rgba(255,215,0,0.2); } .legendary-gacha:hover { box-shadow: 0 0 25px rgba(255,215,0,0.5); }
-        .secret-gacha { box-shadow: 0 0 15px rgba(255,0,255,0.2); } .secret-gacha:hover { box-shadow: 0 0 25px rgba(255,0,255,0.5); }
+        .gacha-item { transition: all 0.3s ease; }
+        .gacha-item:hover { transform: translateX(6px); }
+        .legendary-gacha { box-shadow: 0 0 15px rgba(255,215,0,0.2); }
+        .legendary-gacha:hover { box-shadow: 0 0 25px rgba(255,215,0,0.5); }
+        .secret-gacha { box-shadow: 0 0 15px rgba(255,0,255,0.2); }
+        .secret-gacha:hover { box-shadow: 0 0 25px rgba(255,0,255,0.5); }
         .gacha-btn { padding: 8px 16px; font-size: 14px; min-width: 90px; }
         .legendary-btn { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #1a1a2e; text-shadow: none; }
         .secret-btn { background: linear-gradient(135deg, #ff00ff, #8b008b); color: white; }
@@ -145,7 +354,197 @@
 <body>
 <div class="app" id="appContainer">
     <div id="slotSelectScreen" style="display:block;">
-        <div class="card"><div class="card-title">🎮 Выберите слот сохранения</div><div id="slotList"></div></div>
+        <div class="card"><div class="card-title">🎮 Выберите слот сохранения</div>
+            <div id="slotList"></div>
+        </div>
     </div>
-    <div id="gameScreen" style="display:none;">
-        <div class="mode-switch"><span class
+    <div id="gameScreen">
+        <div class="mode-switch"><span class="mode-label">🎮 Режим</span><div class="toggle" id="modeToggle"><span class="active" data-mode="normal">Обычный</span><span data-mode="moder">Модер</span></div></div>
+        <div class="world-indicator" id="worldIndicator">🌍 Мир: Лес начала и конца <button id="musicToggleBtn" class="btn" style="padding:2px 8px;font-size:12px;margin-left:8px;" onclick="toggleMusic()">🔇</button> <span class="nickname-display" id="nicknameDisplay"></span></div>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="collection">🏠 Коллекция</button>
+            <button class="tab-btn" data-tab="battle">⚔️ Битва</button>
+            <button class="tab-btn" data-tab="shop">🛒 Лавка</button>
+            <button class="tab-btn" data-tab="other">📋 Прочее</button>
+            <button class="tab-btn" data-tab="slots">💾 Слоты</button>
+        </div>
+        <div id="collectionTab" class="tab-content active">
+            <div class="sub-tabs">
+                <button class="sub-tab-btn active" data-subtab="myCards">📚 Карты</button>
+                <button class="sub-tab-btn" data-subtab="book">📖 Книга</button>
+                <button class="sub-tab-btn" data-subtab="evolution">🧬 Эволюция</button>
+            </div>
+            <div id="myCardsSubTab" class="sub-tab-content active">
+                <div class="card"><div class="card-title">📚 Карты</div><div id="collectionGrid" class="cards-grid"></div><div class="flex-between" style="margin-top:10px;font-weight:800;"><span>Всего: <span id="totalCards">0</span></span></div></div>
+                <div class="card"><div class="card-title">⚔️ Отряд (6)<button id="clearTeamBtn" class="btn" style="background:#e74c3c;border-color:#c0392b;float:right;padding:4px 10px;">Очистить</button></div><div id="teamList"></div><div id="teamStats" class="buff-active">💪 Урон: <span id="totalDamage">0</span> | ❤️ HP: <span id="totalHpBonus">0</span></div></div>
+                <div class="card"><div class="card-title">💤 АФК (6)<button id="clearAfkTeamBtn" class="btn" style="background:#e74c3c;border-color:#c0392b;float:right;padding:4px 10px;">Очистить</button></div><div id="afkTeamList"></div><div id="afkTeamStats" class="buff-active">💪 Урон: <span id="afkTotalDamage">0</span> | ❤️ HP: <span id="afkTotalHpBonus">0</span></div></div>
+                <div class="card"><div class="card-title">🏆 Достижения</div><div id="achievementsList" style="display:flex;flex-wrap:wrap;gap:5px;"></div></div>
+                <button id="claimCardBtn" class="btn btn-primary" style="width:100%;margin-top:10px;font-size:16px;padding:15px;">🎴 Получить карту (2ч)</button>
+                <div id="claimTimer" class="timer-text"></div>
+            </div>
+            <div id="bookSubTab" class="sub-tab-content">
+                <div class="card"><div class="card-title">📖 Бестиарий (<span id="discoveredCount">0</span>/<span id="totalTemplatesCount">0</span>)</div><div id="bookList" class="book-grid"></div></div>
+            </div>
+            <div id="evolutionSubTab" class="sub-tab-content">
+                <div class="card"><div class="card-title" style="border-color:#9b59b6;color:#e056fd;">🧬 Эволюция</div><div id="evoContent"></div></div>
+            </div>
+        </div>
+        <div id="battleTab" class="tab-content">
+            <div class="sub-tabs">
+                <button class="sub-tab-btn active" data-subtab="fight">⚔️ Бой</button>
+                <button class="sub-tab-btn" data-subtab="afk">💤 АФК</button>
+                <button class="sub-tab-btn" data-subtab="checkpoint">🚩 Чекпоинты</button>
+            </div>
+            <div id="fightSubTab" class="sub-tab-content active">
+                <div class="card"><div class="card-title">👾 Волна <span id="waveNumber">1</span></div>
+                    <button id="startArenaBtn" class="btn btn-arena-start" style="width:100%;padding:15px;font-size:18px;margin-bottom:10px;display:none;" onclick="startArena(wave)">⚔️ СРАЗИТЬСЯ С БОССОМ!</button>
+                    <button id="skipArenaBtn" class="btn btn-skip-arena" style="width:100%;padding:12px;font-size:16px;margin-bottom:10px;display:none;" onclick="skipArenaFight()">⏭️ ПРОПУСТИТЬ АРЕНУ (уже побеждён)</button>
+                    <div class="fatigue-bar"><div>😫 Усталость: <span id="fatiguePercent">0</span>%</div><div class="fatigue-progress" id="fatigueBar" style="width:0%"></div><button id="restBtn" class="btn" style="margin-top:10px;padding:8px 15px;width:100%;">💤 Отдых (<span id="restCost">30</span>⭐)</button></div>
+                    <div id="statusEffects" style="min-height:20px;margin-bottom:10px;margin-top:5px;"></div>
+                    <div id="enemyStatusEffects" style="min-height:20px;margin-bottom:5px;"></div>
+                    <div id="bossDialogue" class="boss-dialogue" style="display:none;"></div>
+                    <div id="enemyContainer" class="enemy-card"></div>
+                    <div id="dialogBox" style="display:none;"></div>
+                    <div class="click-area" id="clickArea">💥 НАЖМИ ДЛЯ АТАКИ! 💥</div>
+                    <button id="spareBtn" class="btn btn-boss" style="width:100%;padding:15px;margin:10px 0;display:none;" onclick="spareBoss()">🤝 ПОЩАДИТЬ БОССА (30%)</button>
+                    <div class="fight-stats"><div>💪 Урон: <span id="playerDamage">0</span></div><div>❤️ HP: <span id="playerHp">100</span>/<span id="playerMaxHp">100</span></div><div>⏳ Удар через: <span id="clicksToCounter">3</span></div><div>⭐ Награда: <span id="rewardPreview">1</span></div></div>
+                    <div id="fightResult" style="margin-top:12px;font-weight:900;text-align:center;min-height:24px;font-size:16px;"></div>
+                </div>
+                <div class="card"><div class="card-title">💀 Поражения</div><div id="fightHistory" style="max-height:120px;overflow-y:auto;font-size:12px;font-weight:600;padding-right:5px;"></div></div>
+            </div>
+            <div id="afkSubTab" class="sub-tab-content">
+                <div class="card"><div class="card-title">💤 АФК Фарм</div><div style="background:rgba(0,0,0,0.3);border-radius:16px;padding:20px;text-align:center;font-weight:800;font-size:15px;"><div>Статус: <span id="afkStatus" class="afk-inactive">Неактивен</span></div><div style="margin:10px 0;">Волна: <span id="afkWave" style="color:var(--gold);">1</span> | Прошло: <span id="afkWavesCompleted" style="color:var(--gold);">0</span></div><button id="toggleAfkBtn" class="btn btn-primary" style="margin-top:10px;width:100%;padding:12px;font-size:16px;">▶ Запустить</button></div></div>
+            </div>
+            <div id="checkpointSubTab" class="sub-tab-content">
+                <div class="card"><div class="card-title">🚩 Чекпоинты</div><div id="checkpointList"></div></div>
+            </div>
+        </div>
+        <div id="shopTab" class="tab-content">
+            <div class="sub-tabs">
+                <button class="sub-tab-btn active" data-subtab="shopItems">🛍️ Товары</button>
+                <button class="sub-tab-btn" data-subtab="gacha">🎰 Гача</button>
+                <button class="sub-tab-btn" data-subtab="bulkSell">💰 Скупка</button>
+                <button class="sub-tab-btn" data-subtab="autoRest">💤 Автосон</button>
+                <button class="sub-tab-btn" data-subtab="upgrades">📈 Прокачка</button>
+                <button class="sub-tab-btn" data-subtab="challenges">🔥 Квесты</button>
+                <button class="sub-tab-btn" data-subtab="codes">🎁 Коды</button>
+            </div>
+            <div id="shopItemsSubTab" class="sub-tab-content active">
+                <div class="points">⭐ <span id="pointsAmount2">0</span></div>
+                <div class="free-spins"><div style="font-weight:900;font-size:16px;">🎰 <span id="freeSpinsCount">0</span> прокруток</div><button id="useFreeSpinBtn" class="btn btn-primary" style="margin-top:10px;width:100%;padding:10px;">🎲 Крутить</button></div>
+                <div class="card"><div class="card-title">🛍️ Товары <button class="btn" style="padding:4px 10px;font-size:11px;float:right;border-radius:20px;" onclick="refreshShopNow()">🔄 1000⭐</button></div><div id="shopItems" class="shop-grid"></div></div>
+                <div class="card"><div class="card-title">🗿 Артефакты</div><div id="artifactItems" class="shop-grid"></div></div>
+                <div class="card"><div class="card-title">✨ Баффы</div><div id="activeBuffs" class="buff-active"></div></div>
+            </div>
+            <div id="gachaSubTab" class="sub-tab-content">
+                <div class="points">⭐ <span id="pointsAmountGacha">0</span></div>
+                <div class="card">
+                    <div class="card-title">🎰 Крутки карт</div>
+                    <div id="gachaItems" class="shop-grid"></div>
+                    <div style="font-size:11px;color:#aaa;margin-top:10px;text-align:center;font-weight:600;">
+                        💡 Побеждайте <b>новых боссов</b> (каждые 50 волн) для получения легендарных и секретных круток!<br>
+                        <span style="color:#ffd700;">Лимиты сбрасываются раз в 24 часа.</span>
+                    </div>
+                </div>
+            </div>
+            <div id="bulkSellSubTab" class="sub-tab-content">
+                <div class="points">⭐ <span id="pointsAmountBulk">0</span></div>
+                <div class="card"><div class="card-title">💰 Авто-продажа</div><div id="bulkSellItems" class="shop-grid"></div></div>
+            </div>
+            <div id="autoRestSubTab" class="sub-tab-content">
+                <div class="points">⭐ <span id="pointsAmountRest">0</span></div>
+                <div class="card"><div class="card-title">💤 Авто-отдых</div><div id="autoRestItems" class="shop-grid"></div></div>
+            </div>
+            <div id="upgradesSubTab" class="sub-tab-content">
+                <div class="points">⭐ <span id="pointsAmount">0</span></div>
+                <div class="level-progress"><div>📊 УРОВЕНЬ <span id="playerLevel">1</span></div><div>Опыт: <span id="playerExp">0</span> / <span id="expToNext">150</span></div><div class="level-bar" id="expBar" style="width:0%"></div></div>
+                <div class="card"><div class="card-title">📈 Улучшения</div><div id="upgradeItems" class="upgrade-grid"></div></div>
+            </div>
+            <div id="challengesSubTab" class="sub-tab-content">
+                <div class="points">⭐ <span id="pointsAmount3">0</span></div>
+                <div class="card"><div class="card-title">🔥 Квесты</div><div id="challengeList" class="challenge-grid"></div></div>
+            </div>
+            <div id="codesSubTab" class="sub-tab-content">
+                <div class="card"><div class="card-title">🎁 Код</div><input type="text" id="codeInput" class="code-input" placeholder="Введите код..."><button id="submitCodeBtn" class="btn btn-primary" style="width:100%;padding:12px;font-size:16px;">Активировать</button><div id="codeResult" style="margin-top:15px;text-align:center;font-weight:900;font-size:20px;"></div></div>
+            </div>
+        </div>
+        <div id="otherTab" class="tab-content">
+            <div class="sub-tabs">
+                <button class="sub-tab-btn active" data-subtab="rebirthMain">🔄 Перерождение</button>
+                <button class="sub-tab-btn" data-subtab="rebirthStats">📊 Статистика</button>
+                <button class="sub-tab-btn" data-subtab="settings">⚙️ Настройки</button>
+            </div>
+            <div id="rebirthMainSubTab" class="sub-tab-content active">
+                <div class="card"><div class="card-title">🔄 Ребиртх (Престиж)</div><div id="rebirthInfo"></div><button id="doRebirthBtn" class="btn btn-primary" style="width:100%;margin-top:20px;padding:15px;font-size:16px;">🔄 Совершить Ребиртх!</button>
+                <div id="moderControls" style="display:none;margin-top:15px;">
+                    <button id="goWaveBtn" class="btn btn-primary" style="width:100%;padding:12px;background:linear-gradient(135deg,#9b59b6,#e056fd);">🌀 Перейти на волну</button>
+                </div></div>
+            </div>
+            <div id="rebirthStatsSubTab" class="sub-tab-content">
+                <div class="card"><div class="card-title">📊 Статистика ребиртхов</div><div id="rebirthStatsList" style="display:flex;flex-direction:column;gap:10px;"></div></div>
+                <div class="card" style="margin-top:15px;"><div class="card-title">📈 Общая статистика</div><div id="globalStats" class="global-stats"></div></div>
+            </div>
+            <div id="settingsSubTab" class="sub-tab-content">
+                <div class="card">
+                    <div class="card-title">⚙️ Настройки арены</div>
+                    <div class="shop-item">
+                        <div><strong>🔊 Громкость арены</strong></div>
+                        <div><input type="range" id="arenaVolumeSlider" min="0" max="100" value="20" style="width:120px;" oninput="changeArenaVolume(this.value)"> <span id="arenaVolumeValue">20%</span></div>
+                    </div>
+                    <div class="shop-item">
+                        <div><strong>✨ Прозрачность эффектов</strong></div>
+                        <div><input type="range" id="arenaEffectsSlider" min="20" max="100" value="100" style="width:120px;" oninput="changeArenaEffects(this.value)"> <span id="arenaEffectsValue">100%</span></div>
+                    </div>
+                    <div class="shop-item">
+                        <div><strong>⚡ Авто-SUPER</strong></div>
+                        <div>
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <input type="checkbox" id="autoSuperCheckbox" onchange="toggleAutoSuper(this.checked)">
+                                <span>Автоматически активировать SUPER</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="shop-item">
+                        <div><strong>📱 Управление SUPER (моб.)</strong></div>
+                        <div>
+                            <select id="mobileSuperSelect" onchange="changeMobileSuper(this.value)">
+                                <option value="button">Кнопка SUPER</option>
+                                <option value="doubletap">Двойное нажатие</option>
+                                <option value="swipeup">Свайп вверх</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn" style="width:100%;margin-top:10px;" onclick="resetArenaSettings()">🔄 Сбросить настройки</button>
+                </div>
+            </div>
+        </div>
+        <div id="slotsTab" class="tab-content">
+            <div class="card"><div class="card-title">💾 Слоты сохранений</div><div id="slotsListInGame"></div></div>
+        </div>
+    </div>
+</div>
+<div id="modalOverlay" class="modal-overlay" style="display:none;" onclick="closeModal()">
+    <div class="modal-content" id="modalContent" onclick="event.stopPropagation()"></div>
+</div>
+
+<!-- Арена Undertale -->
+<div id="arenaOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:200;flex-direction:column;align-items:center;justify-content:center;">
+    <div style="color:white;font-size:22px;font-weight:900;margin-bottom:8px;" id="arenaBossName">БОСС</div>
+    <div style="color:white;font-size:14px;margin-bottom:5px;">❤️ <span id="arenaHP">30</span> | ⏱️ <span id="arenaTimer">∞</span></div>
+    <canvas id="arenaCanvas" width="400" height="500" style="border:3px solid white;background:#0a0a1a;border-radius:12px;cursor:crosshair;"></canvas>
+    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;justify-content:center;">
+        <button id="skipBossBtn" class="btn btn-skip" style="padding:8px 18px;font-size:14px;display:none;" onclick="skipDefeatedBoss()">⏭️ Пропустить</button>
+        <button id="superBtn" class="btn btn-super" style="padding:8px 18px;font-size:14px;display:none;" onclick="toggleSuper()">⚡ СУПЕР</button>
+    </div>
+    <div style="color:#aaa;margin-top:5px;font-size:12px;">⌨️ WASD — уклоняться | 🖱️ Клик — бить</div>
+    <div style="color:#aaa;margin-top:5px;font-size:12px;">❤️ Скорость: <span id="arenaSpeedDisplay">1.2</span></div>
+</div>
+
+<script src="images.js"></script>
+<script src="data.js"></script>
+<script src="game.js"></script>
+<script src="battle.js"></script>
+<script src="supers.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
