@@ -366,7 +366,6 @@
             <button class="tab-btn" data-tab="battle">⚔️ Битва</button>
             <button class="tab-btn" data-tab="shop">🛒 Лавка</button>
             <button class="tab-btn" data-tab="other">📋 Прочее</button>
-            <button class="tab-btn" data-tab="slots">💾 Слоты</button>
         </div>
         <div id="collectionTab" class="tab-content active">
             <div class="sub-tabs">
@@ -472,6 +471,7 @@
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" data-subtab="rebirthMain">🔄 Перерождение</button>
                 <button class="sub-tab-btn" data-subtab="rebirthStats">📊 Статистика</button>
+                <button class="sub-tab-btn" data-subtab="slots">💾 Слоты</button>
                 <button class="sub-tab-btn" data-subtab="settings">⚙️ Настройки</button>
             </div>
             <div id="rebirthMainSubTab" class="sub-tab-content active">
@@ -483,6 +483,9 @@
             <div id="rebirthStatsSubTab" class="sub-tab-content">
                 <div class="card"><div class="card-title">📊 Статистика ребиртхов</div><div id="rebirthStatsList" style="display:flex;flex-direction:column;gap:10px;"></div></div>
                 <div class="card" style="margin-top:15px;"><div class="card-title">📈 Общая статистика</div><div id="globalStats" class="global-stats"></div></div>
+            </div>
+            <div id="slotsSubTab" class="sub-tab-content">
+                <div class="card"><div class="card-title">💾 Слоты сохранений</div><div id="slotsListInGame"></div></div>
             </div>
             <div id="settingsSubTab" class="sub-tab-content">
                 <div class="card">
@@ -518,9 +521,6 @@
                 </div>
             </div>
         </div>
-        <div id="slotsTab" class="tab-content">
-            <div class="card"><div class="card-title">💾 Слоты сохранений</div><div id="slotsListInGame"></div></div>
-        </div>
     </div>
 </div>
 <div id="modalOverlay" class="modal-overlay" style="display:none;" onclick="closeModal()">
@@ -547,4 +547,4 @@
 <script src="supers.js"></script>
 <script src="ui.js"></script>
 </body>
-</html>
+    </html>
