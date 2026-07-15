@@ -1,5 +1,5 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v7.4 FINAL ==========
-// Исправлено: Им 50% шанс, баланс Луффи/Всемогущего/Марка
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v7.5 FINAL ==========
+// Исправлено: Им 50% шанс, аура уменьшена, Всемогущий перма-дебафф + кд 60с, Анти-спираль хитбокс/сердечко
 
 let _superState = {
     fists: [],
@@ -378,15 +378,38 @@ const superAbilities = {
     "Анти-спираль": {
         name: "СЖАТИЕ ПРОСТРАНСТВА", cooldown: 25000, toggleable: true, duration: Infinity,
         onActivate() {
-            _superState.antispiralActive = true; _superState.antispiralOrigHitbox = heart.hitbox; _superState.antispiralOrigSize = heart.size; _superState.antispiralOrigSpeed = heartSpeed;
-            heart.hitbox *= 0.7; heart.size *= 0.7; heartSpeed *= 0.7;
-            for (let a of attacks) { if (a.size) a.size *= 0.7; if (a.radius) a.radius *= 0.7; if (a.spd) a.spd *= 0.7; if (a.spdY) a.spdY *= 0.7; }
+            _superState.antispiralActive = true;
+            _superState.antispiralOrigHitbox = heart.hitbox;
+            _superState.antispiralOrigSize = heart.size;
+            _superState.antispiralOrigSpeed = heartSpeed;
+            // Уменьшаем сердечко и хитбокс
+            heart.hitbox = heart.hitbox * 0.7;
+            heart.size = heart.size * 0.7;
+            heartSpeed = heartSpeed * 0.7;
+            // Уменьшаем все существующие атаки
+            for (let a of attacks) {
+                if (a.size) a.size *= 0.7;
+                if (a.radius) a.radius *= 0.7;
+                if (a.spd) a.spd *= 0.7;
+                if (a.spdY) a.spdY *= 0.7;
+            }
             _superState.antispiralShrinkAttacks = true;
             spawnFloatingText(heart.x, heart.y - 30, "ПРОСТРАНСТВО СЖАТО!", "#aaddff");
         },
         onDeactivate() {
-            _superState.antispiralActive = false; _superState.antispiralShrinkAttacks = false;
-            heart.hitbox = _superState.antispiralOrigHitbox; heart.size = _superState.antispiralOrigSize; heartSpeed = _superState.antispiralOrigSpeed;
+            _superState.antispiralActive = false;
+            _superState.antispiralShrinkAttacks = false;
+            // Возвращаем сердечко и хитбокс обратно
+            heart.hitbox = _superState.antispiralOrigHitbox;
+            heart.size = _superState.antispiralOrigSize;
+            heartSpeed = _superState.antispiralOrigSpeed;
+            // Возвращаем размер оставшихся атак обратно
+            for (let a of attacks) {
+                if (a.size) a.size /= 0.7;
+                if (a.radius) a.radius /= 0.7;
+                if (a.spd) a.spd /= 0.7;
+                if (a.spdY) a.spdY /= 0.7;
+            }
         },
         onTick(dt) {}
     },
@@ -445,7 +468,7 @@ const superAbilities = {
     "Император Марк": { name: "ПАССИВНАЯ", cooldown: 0, toggleable: false, duration: 0, onActivate() {}, onTick() {} },
 
     "Всемогущий (прайм)": {
-        name: "СИМВОЛ МИРА", cooldown: 40000, toggleable: false, duration: 0,
+        name: "СИМВОЛ МИРА", cooldown: 60000, toggleable: false, duration: 0,
         onActivate() {
             _superState.allmightOrigHitbox = heart.hitbox; _superState.allmightOrigSize = heart.size;
             heart.hitbox *= 2; heart.size *= 2; _superState.allmightDmgMult = 3; _superState.allmightBuffTimer = 15; _superState.allmightShockwave = 0;
@@ -455,9 +478,12 @@ const superAbilities = {
                 heart.hitbox = _superState.allmightOrigHitbox; heart.size = _superState.allmightOrigSize; _superState.allmightDmgMult = 1;
                 arenaHP = Math.max(1, arenaHP - Math.floor(arenaMaxHP * 0.3));
                 document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
-                heartSpeed *= 0.5;
-                _superState.allmightDebuffActive = true; _superState.allmightDebuffTimer = 15; _superState.allmightDebuffDmgMult = 0.5;
-                spawnFloatingText(heart.x, heart.y - 40, "ИСТОЩЕНИЕ!", "#ff0000");
+                // Перманентное замедление в 3 раза и урон в 2 раза меньше
+                _superState.allmightPermaSlow = true;
+                heartSpeed = heartSpeed / 3;
+                _superState.allmightDebuffActive = true;
+                _superState.allmightDebuffDmgMult = 0.5;
+                spawnFloatingText(heart.x, heart.y - 40, "ИСТОЩЕНИЕ НАВСЕГДА!", "#ff0000");
                 if (arenaHP <= 0 && typeof loseArena === 'function') loseArena();
             }, 15000);
         },
@@ -584,9 +610,7 @@ function updateSuperLogic(dt) {
         _superState.allmightDebuffTimer -= dt;
         if (_superState.allmightDebuffTimer <= 0) {
             _superState.allmightDebuffActive = false;
-            _superState.allmightDebuffDmgMult = 1;
-            heartSpeed /= 0.5;
-            spawnFloatingText(heart.x, heart.y - 30, "Восстановлен!", "#ffff00");
+            // Не сбрасываем allmightPermaSlow и allmightDebuffDmgMult - они перманентные
         }
     }
     
@@ -697,7 +721,7 @@ function renderSuperVisuals() {
     if (_superState.usoppStunTimer > 0 && arenaActive) { ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 3; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 15; for (let i = 0; i < 6; i++) { let angle = (i / 6) * Math.PI * 2 + performance.now() / 1000; ctx.beginPath(); ctx.arc(heart.x + Math.cos(angle) * heart.size * 2, heart.y + Math.sin(angle) * heart.size * 2, 5, 0, Math.PI * 2); ctx.stroke(); } ctx.restore(); }
     if (_superState.nikaActive && arenaActive) { for (let i = 0; i < 5; i++) { let angle = (i / 5) * Math.PI * 2 + performance.now() / 2000; let color = `hsl(${(performance.now() / 10 + i * 60) % 360}, 100%, 60%)`; ctx.save(); ctx.globalAlpha = 0.3; ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.shadowColor = color; ctx.shadowBlur = 20; ctx.beginPath(); ctx.arc(heart.x + Math.cos(angle) * heart.size * 2.5, heart.y + Math.sin(angle) * heart.size * 2.5, 8, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); } }
     if (_superState.usoppInvuln && arenaActive) { for (let i = 0; i < 3; i++) { let angle = performance.now() / 500 + i * Math.PI * 2 / 3; let sx = heart.x + Math.cos(angle) * heart.size * 2.5; let sy = heart.y + Math.sin(angle) * heart.size * 2.5; ctx.save(); ctx.fillStyle = "#ffd700"; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 15; ctx.font = "20px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("⭐", sx, sy); ctx.restore(); } }
-    if (_superState.imAuraActive && arenaActive) { ctx.save(); let gradient = ctx.createRadialGradient(heart.x, heart.y, 60, heart.x, heart.y, 85); gradient.addColorStop(0, 'rgba(128, 0, 128, 0.1)'); gradient.addColorStop(1, 'rgba(128, 0, 128, 0.6)'); ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(heart.x, heart.y, 85, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "rgba(200, 0, 200, 0.9)"; ctx.lineWidth = 4; ctx.shadowColor = "#800080"; ctx.shadowBlur = 25; ctx.stroke(); ctx.restore(); }
+    if (_superState.imAuraActive && arenaActive) { ctx.save(); let gradient = ctx.createRadialGradient(heart.x, heart.y, 40, heart.x, heart.y, 55); gradient.addColorStop(0, 'rgba(128, 0, 128, 0.1)'); gradient.addColorStop(1, 'rgba(128, 0, 128, 0.6)'); ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(heart.x, heart.y, 55, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "rgba(200, 0, 200, 0.9)"; ctx.lineWidth = 4; ctx.shadowColor = "#800080"; ctx.shadowBlur = 25; ctx.stroke(); ctx.restore(); }
     if (_superState.allmightPermaSlow && arenaActive) { ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = "#ff0000"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 20; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
     if (_superState.allmightDebuffActive && arenaActive) { ctx.save(); ctx.globalAlpha = 0.25; ctx.fillStyle = "#ff4444"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
     if (_superState.garouInvulnTimer > 0 && arenaActive) { ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 4; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 25; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
