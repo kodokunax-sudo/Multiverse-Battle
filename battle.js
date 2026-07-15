@@ -1,5 +1,6 @@
-// ========== АРЕНА UNDERTALE v10.0 FINAL ==========
+// ========== АРЕНА UNDERTALE v10.1 FINAL ==========
 // Полный файл со всеми функциями
+// Исправлено: Им 50% шанс + аура 55px, Всемогущий перма-дебафф, Анти-спираль хитбокс/сердечко
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -605,6 +606,7 @@ function applyArenaDamage() {
         if (_superState.garpHakiActive) finalDmg = Math.floor(finalDmg * 1.3);
         if (_superState.allmightDmgMult && _superState.allmightDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.allmightDmgMult);
         if (_superState.allmightDebuffActive && _superState.allmightDebuffDmgMult < 1) finalDmg = Math.floor(finalDmg * _superState.allmightDebuffDmgMult);
+        if (_superState.allmightPermaSlow && _superState.allmightDebuffDmgMult < 1) finalDmg = Math.floor(finalDmg * _superState.allmightDebuffDmgMult);
         if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) finalDmg = Math.floor(finalDmg * _superState.dandyDmgBuff.mult);
         if (_superState.markBuffActive && _superState.markDmgBonus > 1) finalDmg = Math.floor(finalDmg * _superState.markDmgBonus);
     }
@@ -922,7 +924,7 @@ function drawActiveBuffs() {
     if (_superState.kaidoDrinking) lines.push("🍺Кайдо: глоток");
     if (_superState.kaidoBuffActive) lines.push("🔥Кайдо: ярость");
     if (_superState.allmightBuffTimer > 0) lines.push("💛Всемогущий: бафф " + _superState.allmightBuffTimer.toFixed(1) + "с");
-    if (_superState.allmightPermaSlow) lines.push("💔Всемогущий: истощён");
+    if (_superState.allmightPermaSlow) lines.push("💔Всемогущий: истощён НАВСЕГДА");
     if (_superState.allmightDebuffActive) lines.push("💔Всемогущий: дебафф " + _superState.allmightDebuffTimer.toFixed(1) + "с");
     if (_superState.markBuffActive) lines.push("💛Марк: бафф " + _superState.markBuffTimer.toFixed(1) + "с");
     if (_superState.invertControls) lines.push("🔄Инверт упр.");
@@ -1184,14 +1186,17 @@ function renderArena() {
                 if (a.spdY) a.y += a.spdY * speedMod;
             }
             
+            // ИСПРАВЛЕНО: Им аура - радиус 55, шанс 50%
             if (typeof _superState !== 'undefined' && _superState.imAuraActive && invulnTimer <= 0) {
                 let ax = a.x + (a.size || a.radius || 20) / 2;
                 let ay = a.y + (a.size || a.radius || 20) / 2;
                 let dist = Math.hypot(ax - heart.x, ay - heart.y);
-                if (dist < 85 && Math.random() < 0.5) {
-                    attacks.splice(i, 1);
-                    arenaParticles.push({ x: ax, y: ay, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ff00ff", size: 5 });
-                    continue;
+                if (dist < 55) {
+                    if (Math.random() < 0.5) {
+                        attacks.splice(i, 1);
+                        arenaParticles.push({ x: ax, y: ay, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ff00ff", size: 5 });
+                        continue;
+                    }
                 }
             }
             
@@ -1384,4 +1389,4 @@ function renderArena() {
     
     ctx.restore();
     animFrameId = requestAnimationFrame(renderArena);
-}
+    }
