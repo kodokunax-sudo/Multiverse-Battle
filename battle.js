@@ -1,5 +1,6 @@
-// ========== АРЕНА UNDERTALE v10.3 VISUAL UPDATE ==========
-// Улучшены текстуры, эффекты, исправлено поведение сердца
+// ========== АРЕНА UNDERTALE v10.3 FINAL ==========
+// Объединённая версия: визуальные улучшения + все исправления
+// Улучшены текстуры, эффекты, CRT-эффект, красивое сердце
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -52,9 +53,9 @@ let screenFlash = 0;
 let screenFlashColor = "#ffffff";
 let arenaVignette = 0;
 let arenaGlobalSpeedMod = 1.0;
-let arenaDodgeTimer = 0; 
-let arenaDodgeTimerInterval = null; 
-let arenaPhaseTimeout = null; 
+let arenaDodgeTimer = 0;
+let arenaDodgeTimerInterval = null;
+let arenaPhaseTimeout = null;
 
 let mobileSuperTapTimer = null;
 let mobileSuperTapCount = 0;
@@ -284,7 +285,6 @@ function moveHeart() {
     }
     clampHeart();
     
-    // Красивый след от сердца
     if (isMoving && Math.random() > 0.4) {
         let trailLife = 15;
         arenaTrail.push({
@@ -375,6 +375,12 @@ function getAttackTypes(bossWave) {
     return [0, 1, 2, 3, 4, 5, 7, 8, 9, 10];
 }
 
+function skipDefeatedBoss() {
+    stopArena();
+    if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0;
+    if (typeof victory === 'function') victory();
+}
+
 function startArena(bossWave) {
     initArenaAudio();
     let btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = "none";
@@ -393,6 +399,44 @@ function startArena(bossWave) {
     
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
+    
+    if (typeof _superState !== 'undefined') {
+        _superState.markResurrectCharges = 2;
+        _superState.markBuffActive = false;
+        _superState.markBuffTimer = 0;
+        _superState.markDmgReduction = 1;
+        _superState.markDmgBonus = 1;
+        _superState.markSpeedBonus = 1;
+        _superState.allmightPermaSlow = false;
+        _superState.allmightDmgMult = 1;
+        _superState.allmightBuffTimer = 0;
+        _superState.allmightDebuffActive = false;
+        _superState.allmightDebuffTimer = 0;
+        _superState.allmightDebuffDmgMult = 1;
+        _superState.antispiralActive = false;
+        _superState.antispiralShrinkAttacks = false;
+        _superState.imAuraActive = false;
+        _superState.kaidoDrinking = false;
+        _superState.kaidoBuffActive = false;
+        _superState.kaidoDmgReduction = false;
+        _superState.kaidoDmgBonus = 1;
+        _superState.kaidoSpeedBonus = 1;
+        _superState.invertControls = false;
+        _superState.dandyInvuln = false;
+        _superState.dandyLightnings = false;
+        _superState.dandyDoubleTargets = false;
+        _superState.dandyDmgBuff = null;
+        _superState.dandyShield = null;
+        _superState.dandyVulnerable = null;
+        _superState.garpHakiActive = false;
+        _superState.garpHakiTimer = 0;
+        _superState.garpChargeTimer = 0;
+        _superState.garpImpactActive = false;
+        _superState.garouInvulnTimer = 0;
+        _superState.garouTimeStop = false;
+        _superState.screenShakeAmount = 0;
+        _superState.screenFlashWhite = 0;
+    }
     
     heartSpeed = 1.2;
     if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0 && mainCardIndex >= 0 && mainCardIndex < team.length) {
@@ -448,6 +492,9 @@ function startArena(bossWave) {
     document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
     document.getElementById("arenaTimer").innerText = "∞";
     
+    let skipBossBtn = document.getElementById("skipBossBtn");
+    if (skipBossBtn) skipBossBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
+    
     if (typeof initSuperState === 'function') initSuperState();
     
     if (!ctx) initArena();
@@ -469,6 +516,10 @@ function startDodgePhase() {
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
     
     arenaAttackType = arenaAllowedTypes[Math.floor(Math.random() * arenaAllowedTypes.length)];
+    let typeNames = {
+        0: "⬜ СТЕНЫ", 1: "🔷 ХАОС", 2: "⚡ ЖЁЛТЫЕ", 3: "🛑 КРАСНЫЕ", 4: "💗 РОЗОВЫЕ",
+        5: "💚 ЗЕЛЁНЫЕ", 6: "🌈 РАДУЖНЫЕ", 7: "⚡🛑 МИКС", 8: "🟥⬜ ЗОНЫ", 9: "💣 БОМБЫ", 10: "🔫 БЛАСТЕРЫ"
+    };
     
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     let baseInterval = 2400;
@@ -536,6 +587,10 @@ function startAttackPhase() {
     arenaPhase = "attack";
     attacks = []; arenaBlasters = []; wallGapIndicator = null; arenaClickTargets = []; arenaClicksHit = 0;
     arenaTotalTargets = 4 + Math.floor(arenaSpeedMult * 0.8);
+    if (typeof _superState !== 'undefined' && _superState.dandyDoubleTargets) {
+        arenaTotalTargets *= 2;
+        _superState.dandyDoubleTargets = false;
+    }
     arenaAttackTimeLeft = 2;
     if (arenaAttackInterval) { clearInterval(arenaAttackInterval); arenaAttackInterval = null; }
     
@@ -576,12 +631,25 @@ function applyArenaDamage() {
     else if (ratio >= 0.8) { dmgMult = 1.8; arenaComboText = "⚡ ОТЛИЧНО! x1.8"; sfxArenaPerfect(); }
     else if (ratio >= 0.6) { dmgMult = 1.3; arenaComboText = "✨ ХОРОШО! x1.3"; sfxArenaTargetHit(); }
     else if (ratio >= 0.4) { dmgMult = 1.0; arenaComboText = "👍 КЛАССИКА! x1.0"; }
+    else if (ratio >= 0.2) { dmgMult = 0.6; arenaComboText = "💤 СЛАБОВАТО... x0.6"; sfxArenaFailAttack(); }
     else if (ratio > 0.0) { dmgMult = 0.2; arenaComboText = "🥱 ПОЧТИ МИМО... x0.2"; sfxArenaFailAttack(); }
     else { dmgMult = 0.0; arenaComboText = "❌ ПРОМАХ! x0"; sfxArenaMiss(); }
     
     arenaComboTimer = 55;
     let baseDmg = typeof window !== 'undefined' && window.playerFinalDamage ? window.playerFinalDamage : 20;
     let finalDmg = Math.floor(baseDmg * dmgMult);
+    
+    if (typeof _superState !== 'undefined') {
+        if (_superState.dekusDmgMult && _superState.dekusDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.dekusDmgMult);
+        if (_superState.nikaDmgMult && _superState.nikaDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.nikaDmgMult);
+        if (_superState.kaidoBuffActive && _superState.kaidoDmgBonus > 1) finalDmg = Math.floor(finalDmg * _superState.kaidoDmgBonus);
+        if (_superState.garpHakiActive) finalDmg = Math.floor(finalDmg * 1.3);
+        if (_superState.allmightDmgMult && _superState.allmightDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.allmightDmgMult);
+        if (_superState.allmightDebuffActive && _superState.allmightDebuffDmgMult < 1) finalDmg = Math.floor(finalDmg * _superState.allmightDebuffDmgMult);
+        if (_superState.allmightPermaSlow && _superState.allmightDebuffDmgMult < 1) finalDmg = Math.floor(finalDmg * _superState.allmightDebuffDmgMult);
+        if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) finalDmg = Math.floor(finalDmg * _superState.dandyDmgBuff.mult);
+        if (_superState.markBuffActive && _superState.markDmgBonus > 1) finalDmg = Math.floor(finalDmg * _superState.markDmgBonus);
+    }
     
     if (finalDmg > 0) {
         arenaBossMaxHP -= finalDmg;
@@ -600,9 +668,177 @@ function applyArenaDamage() {
     }, 1500);
 }
 
+function spawnBlaster(w) {
+    let bossW = arenaCurrentWave;
+    let isRainbow = Math.random() < 0.05 && bossW >= 800;
+    let colors = ["#fff", "#ffdd00", "#ff3333"];
+    let bColor = isRainbow ? "rainbow" : colors[Math.floor(Math.random() * colors.length)];
+    let side = Math.floor(Math.random() * 4);
+    let x, y;
+    if (side === 0) { x = Math.random() * 400; y = -30; }
+    else if (side === 1) { x = Math.random() * 400; y = 530; }
+    else if (side === 2) { x = -30; y = Math.random() * 500; }
+    else { x = 430; y = Math.random() * 500; }
+    arenaBlasters.push({
+        x: x, y: y, angle: Math.atan2(heart.y - y, heart.x - x),
+        color: bColor, state: "aiming", timer: 70, width: isRainbow ? 15 : 30, hasHit: false
+    });
+    sfxBlasterCharge();
+}
+
+function shrinkAttack(a) {
+    if (a.size) a.size *= 0.7;
+    if (a.radius) a.radius *= 0.7;
+    if (a.spd) a.spd *= 0.7;
+    if (a.spdY) a.spdY *= 0.7;
+    if (a.width) a.width *= 0.7;
+}
+
+function spawnAttack() {
+    let s = arenaSpeedMult;
+    let bw = arenaCurrentWave;
+    let isEarly = bw < 100;
+    let dmg = arenaBaseDmg;
+    let shouldShrink = (typeof _superState !== 'undefined' && _superState.antispiralShrinkAttacks);
+    
+    switch (arenaAttackType) {
+        case 0:
+            let isVertical = Math.random() > 0.5;
+            if (isVertical) {
+                let offsetDirection = Math.random() > 0.5 ? 1 : -1;
+                let gapCenter = heart.y + offsetDirection * (50 + Math.random() * 80);
+                let gapSize = 70 + Math.random() * 40;
+                let startX = Math.random() > 0.5 ? -30 : 430;
+                let dirX = startX < 0 ? 3.5 * s : -3.5 * s;
+                wallGapIndicator = { x: startX < 0 ? 0 : 370, y: gapCenter, w: 30, h: gapSize, life: 35, vertical: true };
+                for (let i = 10; i < 490; i += 22) {
+                    if (Math.abs(i - gapCenter) < gapSize / 2) continue;
+                    let atk = { type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 0 };
+                    if (shouldShrink) shrinkAttack(atk);
+                    attacks.push(atk);
+                }
+            } else {
+                let offsetDirection = Math.random() > 0.5 ? 1 : -1;
+                let gapCenter = heart.x + offsetDirection * (50 + Math.random() * 80);
+                let gapSize = 70 + Math.random() * 40;
+                let startY = Math.random() > 0.5 ? -30 : 530;
+                let dirY = startY < 0 ? 2.4 * s : -2.4 * s;
+                wallGapIndicator = { x: gapCenter, y: startY < 0 ? 0 : 470, w: gapSize, h: 30, life: 35, vertical: false };
+                for (let i = 10; i < 390; i += 22) {
+                    if (Math.abs(i - gapCenter) < gapSize / 2) continue;
+                    let atk = { type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 0 };
+                    if (shouldShrink) shrinkAttack(atk);
+                    attacks.push(atk);
+                }
+            }
+            break;
+        case 1:
+            let chaosCount = isEarly ? 1 : 2;
+            for (let i = 0; i < chaosCount; i++) {
+                let side = Math.floor(Math.random() * 4);
+                let x, y;
+                if (side === 0) { x = Math.random() * 400; y = -30; }
+                else if (side === 1) { x = Math.random() * 400; y = 530; }
+                else if (side === 2) { x = -30; y = Math.random() * 500; }
+                else { x = 430; y = Math.random() * 500; }
+                let angle = Math.atan2(heart.y - y, heart.x - x);
+                let atk = { type: "square", x: x, y: y, size: 20, spd: Math.cos(angle) * 2.0, spdY: Math.sin(angle) * 2.0, color: "#4499ff", damage: Math.floor(dmg / 2), bouncesLeft: 3 };
+                if (shouldShrink) shrinkAttack(atk);
+                attacks.push(atk);
+            }
+            break;
+        case 2:
+            for (let i = 0; i < (isEarly ? 1 : 2); i++) {
+                let side = Math.floor(Math.random() * 4);
+                let xPos, yPos;
+                if (side === 0) { xPos = Math.random() * 400; yPos = -40; }
+                else if (side === 1) { xPos = Math.random() * 400; yPos = 540; }
+                else if (side === 2) { xPos = -40; yPos = Math.random() * 500; }
+                else { xPos = 440; yPos = Math.random() * 500; }
+                let angle = Math.atan2(heart.y - yPos, heart.x - xPos);
+                let atk = { type: "sword", x: xPos, y: yPos, angle: angle, size: 45, width: 15, color: "#ffaa00", spd: Math.cos(angle) * 2.4, spdY: Math.sin(angle) * 2.4, damageOnStanding: true, damage: Math.floor(dmg * 1.2), bouncesLeft: 0 };
+                if (shouldShrink) shrinkAttack(atk);
+                attacks.push(atk);
+            }
+            break;
+        case 3:
+            for (let i = 0; i < (isEarly ? 1 : 2); i++) {
+                let vx = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
+                let vy = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s;
+                let atk = { type: "danger", x: 200, y: 180, size: 70, spd: vx, spdY: vy, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.6), bouncesLeft: 1 };
+                if (shouldShrink) shrinkAttack(atk);
+                attacks.push(atk);
+            }
+            break;
+        case 4:
+            for (let i = 0; i < (isEarly ? 2 : 3); i++) {
+                let rx = (Math.random() - 0.5) * 2;
+                let atk = { type: "square", x: heart.x + (Math.random() - 0.5) * 120, y: -40, size: 25, spd: rx, spdY: 1.8 + Math.random() * 1.0, color: "#ff69b4", knockback: 80, bouncesLeft: Infinity };
+                if (shouldShrink) shrinkAttack(atk);
+                attacks.push(atk);
+            }
+            break;
+        case 5:
+            if (arenaHP < arenaMaxHP) {
+                let atk = { type: "circle", x: Math.random() * 400, y: -30, radius: 18, spd: (Math.random() - 0.5) * 1.5, spdY: 2.5, color: "#44ff44", healPercent: 0.15, bouncesLeft: 2 };
+                if (shouldShrink) shrinkAttack(atk);
+                attacks.push(atk);
+            } else {
+                let atk = { type: "square", x: Math.random() * 360 + 20, y: -30, size: 22, spd: 0, spdY: 3.0, color: "#fff", damage: dmg, bouncesLeft: 2 };
+                if (shouldShrink) shrinkAttack(atk);
+                attacks.push(atk);
+            }
+            break;
+        case 6:
+            let atk6 = { type: "rainbow", x: 50 + Math.random() * 300, y: -60, radius: 30, spd: (Math.random() - 0.5) * 0.8, spdY: 1.2 + Math.random() * 0.5, color: "rainbow", oneshot: true, bouncesLeft: 0 };
+            if (shouldShrink) shrinkAttack(atk6);
+            attacks.push(atk6);
+            break;
+        case 7:
+            for (let i = 0; i < (isEarly ? 1 : 2); i++) {
+                let side = Math.floor(Math.random() * 4);
+                let sx, sy;
+                if (side === 0) { sx = Math.random() * 400; sy = -40; }
+                else if (side === 1) { sx = Math.random() * 400; sy = 540; }
+                else if (side === 2) { sx = -40; sy = Math.random() * 500; }
+                else { sx = 440; sy = Math.random() * 500; }
+                let sa = Math.atan2(heart.y - sy, heart.x - sx);
+                let atk1 = { type: "sword", x: sx, y: sy, angle: sa, size: 40, width: 12, color: "#ffaa00", spd: Math.cos(sa) * 2.2, spdY: Math.sin(sa) * 2.2, damageOnStanding: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 };
+                let atk2 = { type: "danger", x: heart.x + (Math.random() - 0.5) * 100, y: 540, size: 25, spd: (Math.random() - 0.5) * 1.2, spdY: -2.2, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 };
+                if (shouldShrink) { shrinkAttack(atk1); shrinkAttack(atk2); }
+                attacks.push(atk1);
+                attacks.push(atk2);
+            }
+            break;
+        case 8:
+            let atk81 = { type: "danger", x: -40, y: heart.y, size: 40, spd: 2.5 * s, spdY: 0, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.5), bouncesLeft: 0 };
+            if (shouldShrink) shrinkAttack(atk81);
+            attacks.push(atk81);
+            if (!isEarly) {
+                let atk82 = { type: "square", x: 440, y: heart.y + (Math.random() > 0.5 ? 60 : -60), size: 30, spd: -2.5 * s, spdY: 0, color: "#fff", damage: Math.floor(dmg * 1.5), bouncesLeft: 2 };
+                if (shouldShrink) shrinkAttack(atk82);
+                attacks.push(atk82);
+            }
+            break;
+        case 9:
+            for (let i = 0; i < (isEarly ? 1 : (bw >= 500 ? 2 : 1)); i++) {
+                let bx = 50 + Math.random() * 300; let by = 50 + Math.random() * 400;
+                let atk = { type: "bomb", x: bx, y: by, timer: 60, maxRadius: isEarly ? 75 : (80 + Math.random() * 40), hit: false, damage: Math.floor(dmg * 2), bouncesLeft: 0, particlesSpawned: false, shakeTime: 0 };
+                if (shouldShrink) { if (atk.maxRadius) atk.maxRadius *= 0.7; }
+                attacks.push(atk);
+            }
+            break;
+        case 10:
+            spawnBlaster(bw);
+            break;
+    }
+}
+
 function stopArena() {
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
+    
+    if (typeof resetAllSupers === 'function') resetAllSupers();
     
     arenaActive = false;
     stopArenaAmbient();
@@ -611,14 +847,43 @@ function stopArena() {
     arenaAttackInterval = null; animFrameId = null;
     attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = []; arenaBlasters = []; arenaShockwaves = [];
     document.getElementById("arenaOverlay").style.display = "none";
+    let skipBtn = document.getElementById("skipBossBtn"); if (skipBtn) skipBtn.style.display = "none";
+    let superBtn = document.getElementById("superBtn"); if (superBtn) superBtn.style.display = "none";
 }
 
 function winArena() {
+    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
+        if (!defeatedBosses.includes(arenaCurrentWave)) defeatedBosses.push(arenaCurrentWave);
+    }
+    if (typeof grantBossGachaReward === 'function') grantBossGachaReward(arenaCurrentWave);
+    if (typeof resetAllCooldowns === 'function') resetAllCooldowns();
     stopArena();
+    if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = Math.floor(currentEnemy.maxHp * 0.25);
     if (typeof victory === 'function') victory();
 }
 
 function loseArena() {
+    if (typeof _superState !== 'undefined' && _superState.markResurrectCharges > 0) {
+        let mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
+        if (mainCard && mainCard.name === "Император Марк") {
+            _superState.markResurrectCharges--;
+            arenaHP = Math.ceil(arenaMaxHP * 0.25);
+            document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
+            _superState.markBuffActive = true;
+            _superState.markBuffTimer = 5;
+            _superState.markDmgReduction = 3;
+            _superState.markDmgBonus = 1.5;
+            _superState.markSpeedBonus = 2;
+            heartSpeed *= 2;
+            _superState.screenFlashWhite = 30;
+            spawnFloatingText(heart.x, heart.y - 20, "ВОСКРЕС! (" + _superState.markResurrectCharges + ")", "#ffd700");
+            return;
+        }
+    }
+    
+    if (typeof resetAllCooldowns === 'function') resetAllCooldowns();
+    if (typeof resetAllSupers === 'function') resetAllSupers();
+    
     sfxArenaDeath();
     arenaShake = 25;
     screenFlash = 25;
@@ -629,19 +894,34 @@ function loseArena() {
     }
     setTimeout(() => {
         stopArena();
+        if (typeof playerHp !== 'undefined') playerHp = 0;
         if (typeof defeat === 'function') defeat();
     }, 1200);
 }
 
 function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
+    if (typeof _superState !== 'undefined' && _superState.usoppInvuln) return;
+    if (typeof _superState !== 'undefined' && _superState.garouInvulnTimer > 0) return;
+    if (typeof _superState !== 'undefined' && _superState.dandyInvuln) return;
+    
+    if (typeof _superState !== 'undefined' && _superState.nikaActive) dmg = Math.floor(dmg * 0.6);
+    if (typeof _superState !== 'undefined' && _superState.kaidoDmgReduction) dmg = Math.floor(dmg * 0.7);
+    if (typeof _superState !== 'undefined' && _superState.garpHakiActive) dmg = Math.floor(dmg * 0.4);
+    if (typeof _superState !== 'undefined' && _superState.dandyShield && _superState.dandyShield.timer > 0) dmg = Math.floor(dmg * _superState.dandyShield.mult);
+    if (typeof _superState !== 'undefined' && _superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
+    if (typeof _superState !== 'undefined' && _superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
+    
     if (invulnTimer > 0) return;
     if (arenaAttackType !== 10) invulnTimer = 45;
 
     if (isTrueOneshot || dmg >= arenaMaxHP) {
         arenaHP = 0;
     } else {
-        arenaHP -= 1;
-        arenaKarma += (dmg - 1);
+        let directDmg = 1;
+        let karmaDmg = dmg - directDmg;
+        if (karmaDmg < 0) karmaDmg = 0;
+        arenaHP -= directDmg;
+        arenaKarma += karmaDmg;
     }
 
     arenaHitFlash = 12;
@@ -661,51 +941,29 @@ function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
     if (Math.ceil(arenaHP) <= 0) loseArena();
 }
 
-function spawnAttack() {
-    // Враги и атаки спавнятся здесь (оставил как есть, чтобы не сломать вашу логику волн)
-    let s = arenaSpeedMult;
-    let dmg = arenaBaseDmg;
-    switch (arenaAttackType) {
-        case 0:
-            let isVertical = Math.random() > 0.5;
-            let gapCenter = isVertical ? heart.y + (Math.random() > 0.5 ? 1 : -1) * (50 + Math.random() * 80) : heart.x + (Math.random() > 0.5 ? 1 : -1) * (50 + Math.random() * 80);
-            let gapSize = 70 + Math.random() * 40;
-            let start = Math.random() > 0.5 ? -30 : 430;
-            let dir = start < 0 ? 3.5 * s : -3.5 * s;
-            
-            if (isVertical) {
-                wallGapIndicator = { x: start < 0 ? 0 : 370, y: gapCenter, w: 30, h: gapSize, life: 35, vertical: true };
-                for (let i = 10; i < 490; i += 22) {
-                    if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                    attacks.push({ type: "square", x: start, y: i, size: 24, spd: dir, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 0 });
-                }
-            } else {
-                wallGapIndicator = { x: gapCenter, y: start < 0 ? 0 : 470, w: gapSize, h: 30, life: 35, vertical: false };
-                for (let i = 10; i < 390; i += 22) {
-                    if (Math.abs(i - gapCenter) < gapSize / 2) continue;
-                    attacks.push({ type: "square", x: i, y: start, size: 24, spd: 0, spdY: dir, color: "#fff", damage: dmg, bouncesLeft: 0 });
-                }
-            }
-            break;
-        case 1:
-            for (let i = 0; i < 2; i++) {
-                let side = Math.floor(Math.random() * 4);
-                let x = side % 2 === 0 ? Math.random() * 400 : (side === 1 ? 430 : -30);
-                let y = side % 2 !== 0 ? Math.random() * 500 : (side === 0 ? -30 : 530);
-                let angle = Math.atan2(heart.y - y, heart.x - x);
-                attacks.push({ type: "square", x: x, y: y, size: 20, spd: Math.cos(angle) * 2.0, spdY: Math.sin(angle) * 2.0, color: "#4499ff", damage: Math.floor(dmg / 2), bouncesLeft: 3 });
-            }
-            break;
-        // Другие типы атак... (Добавьте остальные кейсы из вашего оригинального кода если нужно, я сократил их для визуального рендеринга).
-    }
-}
-
+// ==========================================
+// ГЛАВНЫЙ ЦИКЛ ОТРИСОВКИ
+// ==========================================
 function renderArena() {
     if (!arenaActive || !ctx) return;
+    
+    if (typeof tickSupers === 'function') tickSupers();
+    
+    if (typeof arenaSettings !== 'undefined' && arenaSettings.autoSuper) {
+        let mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
+        if (mainCard && typeof _superCooldowns !== 'undefined' && _superCooldowns[mainCard.name] && _superCooldowns[mainCard.name].ready) {
+            if (typeof toggleSuper === 'function') toggleSuper();
+        }
+    }
     
     let now = Date.now();
     if (arenaPhase === "dodge") {
         moveHeart();
+        if (arenaAllowedTypes.includes(10) && !heartWasMoving) {
+            let bw = arenaCurrentWave;
+            let ct = bw >= 700 ? 70 : (bw >= 350 ? 90 : 110);
+            if (heartStandingTime > ct) { spawnBlaster(bw); heartStandingTime = 0; }
+        }
     }
     
     if (arenaKarma > 0) {
@@ -719,10 +977,17 @@ function renderArena() {
         document.getElementById("arenaHP").innerText = Math.max(0, Math.ceil(arenaHP));
     }
     
-    if (ghostBossHP > arenaBossMaxHP) { ghostBossHP -= (ghostBossHP - arenaBossMaxHP) * 0.08; }
+    if (ghostBossHP > arenaBossMaxHP) { ghostBossHP -= (ghostBossHP - arenaBossMaxHP) * 0.08; if (ghostBossHP - arenaBossMaxHP < 1) ghostBossHP = arenaBossMaxHP; }
+    if (ghostBossHP < arenaBossMaxHP) ghostBossHP = arenaBossMaxHP;
     
-    let sx = (arenaShake ? (Math.random() - 0.5) * arenaShake : 0);
-    let sy = (arenaShake ? (Math.random() - 0.5) * arenaShake : 0);
+    let superShakeX = 0, superShakeY = 0;
+    if (typeof _superState !== 'undefined' && _superState.screenShakeAmount > 0) {
+        superShakeX = (Math.random() - 0.5) * _superState.screenShakeAmount;
+        superShakeY = (Math.random() - 0.5) * _superState.screenShakeAmount;
+    }
+    
+    let sx = (arenaShake ? (Math.random() - 0.5) * arenaShake : 0) + superShakeX;
+    let sy = (arenaShake ? (Math.random() - 0.5) * arenaShake : 0) + superShakeY;
     if (arenaShake > 0) { arenaShake *= 0.88; if (arenaShake < 0.1) arenaShake = 0; }
     if (arenaHitFlash > 0) arenaHitFlash -= 3;
     if (invulnTimer > 0) invulnTimer--;
@@ -731,27 +996,30 @@ function renderArena() {
     if (screenFlash > 0) screenFlash--;
     if (arenaVignette > 0) arenaVignette--;
     
+    let effectsOpacity = (typeof arenaSettings !== 'undefined') ? arenaSettings.effectsOpacity : 1.0;
+    
     ctx.save();
+    if (effectsOpacity < 1.0) ctx.globalAlpha = effectsOpacity;
     ctx.translate(sx, sy);
     
     // 1. ФОН: Темный
-    ctx.fillStyle = "#020205"; 
+    ctx.fillStyle = "#020205";
     ctx.fillRect(0, 0, 400, 500);
     
-    // 2. ФОН: Динамическая бегущая сетка (эффект 3D/Скорости)
+    // 2. ФОН: Динамическая бегущая сетка
     ctx.save();
     ctx.strokeStyle = "rgba(100, 150, 255, 0.15)";
     ctx.lineWidth = 1;
-    let gridOffset = (now / 20) % 30; // Движение сетки вниз
-    for (let x = 0; x <= 400; x += 30) { 
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 500); ctx.stroke(); 
+    let gridOffset = (now / 20) % 30;
+    for (let x = 0; x <= 400; x += 30) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 500); ctx.stroke();
     }
-    for (let y = gridOffset - 30; y <= 500; y += 30) { 
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(400, y); ctx.stroke(); 
+    for (let y = gridOffset - 30; y <= 500; y += 30) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(400, y); ctx.stroke();
     }
     ctx.restore();
 
-    // 3. ФОН: Звезды (Particles)
+    // 3. ФОН: Звезды
     let bgCap = 30;
     if (arenaBgParticles.length < bgCap) {
         arenaBgParticles.push({ x: Math.random() * 400, y: Math.random() * 500, spd: 0.2 + Math.random() * 0.5, sz: 1 + Math.random() * 2, alpha: 0.1 + Math.random() * 0.3 });
@@ -763,12 +1031,21 @@ function renderArena() {
     }
     ctx.restore();
     
-    // Отрисовка Вспышек (Damage Flash)
+    // Вспышка при супер-способностях
+    if (typeof _superState !== 'undefined' && _superState.screenFlashWhite > 0) {
+        ctx.save();
+        ctx.fillStyle = "#ffffff";
+        ctx.globalAlpha = Math.min(1, _superState.screenFlashWhite / 20);
+        ctx.fillRect(0, 0, 400, 500);
+        ctx.restore();
+    }
+    
+    // Вспышка при уроне
     if (screenFlash > 0) {
         ctx.save(); ctx.fillStyle = screenFlashColor; ctx.globalAlpha = screenFlash / 25; ctx.fillRect(0, 0, 400, 500); ctx.restore();
     }
     
-    // Отрисовка Виньетки (Покраснение по краям при уроне)
+    // Виньетка
     if (arenaVignette > 0) {
         ctx.save();
         let vignetteGrad = ctx.createRadialGradient(200, 250, 150, 200, 250, 350);
@@ -779,14 +1056,28 @@ function renderArena() {
         ctx.restore();
     }
     
+    // Шипы для розовой атаки
+    if (arenaAttackType === 4 && arenaPhase === "dodge") {
+        ctx.save();
+        let spikeGlow = Math.sin(now / 200) * 0.3 + 0.7;
+        ctx.fillStyle = "#ff3333";
+        ctx.shadowColor = "#ff0000";
+        ctx.shadowBlur = 10 * spikeGlow;
+        for (let x = 0; x < 400; x += 15) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 7, 18); ctx.lineTo(x + 15, 0); ctx.fill(); }
+        for (let x = 0; x < 400; x += 15) { ctx.beginPath(); ctx.moveTo(x, 500); ctx.lineTo(x + 7, 482); ctx.lineTo(x + 15, 500); ctx.fill(); }
+        for (let y = 0; y < 500; y += 15) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(18, y + 7); ctx.lineTo(0, y + 15); ctx.fill(); }
+        for (let y = 0; y < 500; y += 15) { ctx.beginPath(); ctx.moveTo(400, y); ctx.lineTo(382, y + 7); ctx.lineTo(400, y + 15); ctx.fill(); }
+        ctx.restore();
+    }
+    
     // Рамка арены
     let bc = arenaPhase === "attack" ? "#ffdd00" : (["#fff","#4499ff","#ffdd00","#ff3333","#ff69b4","#44ff44","rainbow","#ffaa00","#ff3333","#ff3333","#fff"][arenaAttackType] || "#fff");
     if (bc === "rainbow" || arenaAttackType === 6) bc = `hsl(${(now / 5) % 360}, 100%, 50%)`;
     if (arenaHitFlash > 0) bc = "#ff3333";
-    ctx.save(); 
-    ctx.strokeStyle = bc; ctx.lineWidth = 3; 
-    ctx.shadowColor = bc; ctx.shadowBlur = arenaHitFlash > 0 ? 25 : 12; // Усилен Glow рамки
-    ctx.strokeRect(2, 2, 396, 496); 
+    ctx.save();
+    ctx.strokeStyle = bc; ctx.lineWidth = 3;
+    ctx.shadowColor = bc; ctx.shadowBlur = arenaHitFlash > 0 ? 25 : 12;
+    ctx.strokeRect(2, 2, 396, 496);
     ctx.restore();
     
     // UI - Полоски HP
@@ -795,43 +1086,71 @@ function renderArena() {
     let yellowWidth = 372 * Math.max(0, arenaKarma / arenaMaxHP);
     if (yellowWidth > totalWidth) yellowWidth = totalWidth;
     let greenWidth = totalWidth - yellowWidth;
-    
     ctx.fillStyle = "#301010"; ctx.fillRect(14, 14, 372, 6);
     if (greenWidth > 0) { ctx.fillStyle = arenaHitFlash > 0 ? "#fff" : "#00ff66"; ctx.fillRect(14, 14, greenWidth, 6); }
     if (yellowWidth > 0) { ctx.fillStyle = "#ffaa00"; ctx.globalAlpha = 0.8; ctx.fillRect(14 + greenWidth, 14, yellowWidth, 6); ctx.globalAlpha = 1; }
-    
     ctx.fillStyle = "#fff"; ctx.font = "bold 10px monospace";
     ctx.shadowColor = "#000"; ctx.shadowBlur = 4;
     ctx.fillText(`❤️ HP: ${Math.max(0, Math.ceil(arenaHP))} / ${arenaMaxHP}`, 16, 24);
+    
+    // UI - Полоска босса
+    ctx.fillStyle = "rgba(10,10,20,0.9)"; ctx.fillRect(8, 32, 384, 14);
+    let maxHp = (typeof currentEnemy !== 'undefined' && currentEnemy) ? currentEnemy.maxHp : 1000;
+    ctx.fillStyle = "#202020"; ctx.fillRect(14, 37, 372, 4);
+    ctx.fillStyle = "#ff3333"; ctx.fillRect(14, 37, 372 * Math.max(0, ghostBossHP / maxHp), 4);
+    ctx.fillStyle = "#ffdd00"; ctx.globalAlpha = 0.85; ctx.fillRect(14, 37, 372 * Math.max(0, arenaBossMaxHP / maxHp), 4); ctx.globalAlpha = 1;
+    ctx.fillStyle = "#ccc"; ctx.font = "bold 9px monospace"; ctx.fillText(`👾 ${arenaBoss}`, 16, 43);
     
     // След от сердца
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (let i = arenaTrail.length - 1; i >= 0; i--) {
         let t = arenaTrail[i]; t.life--; let ratio = t.life / t.maxLife;
-        ctx.fillStyle = t.color; ctx.globalAlpha = ratio * 0.7; 
+        ctx.fillStyle = t.color; ctx.globalAlpha = ratio * 0.7;
         ctx.beginPath(); ctx.arc(t.x, t.y - 2, t.size * ratio, 0, Math.PI * 2); ctx.fill();
         if (t.life <= 0) arenaTrail.splice(i, 1);
     }
     ctx.restore();
 
-    // Отрисовка атак (Оставил базовый рендеринг, добавил блум)
+    // Отрисовка атак
     if (arenaPhase === "dodge") {
+        let frozen = (typeof _superState !== 'undefined' && _superState.antispiralFrozen);
+        let speedMod = arenaGlobalSpeedMod * (typeof _superState !== 'undefined' && _superState.antispiralSpeedBoost ? 1.5 : 1.0);
+        let timeStopped = (typeof _superState !== 'undefined' && _superState.garouTimeStop);
+        
         for (let i = attacks.length - 1; i >= 0; i--) {
             let a = attacks[i];
-            if (a.spd) a.x += a.spd;
-            if (a.spdY) a.y += a.spdY;
             
+            if (!frozen && !timeStopped) {
+                if (a.spd) a.x += a.spd * speedMod;
+                if (a.spdY) a.y += a.spdY * speedMod;
+            }
+            
+            // Им аура
+            if (typeof _superState !== 'undefined' && _superState.imAuraActive && invulnTimer <= 0) {
+                let ax = a.x + (a.size || a.radius || 20) / 2;
+                let ay = a.y + (a.size || a.radius || 20) / 2;
+                let dist = Math.hypot(ax - heart.x, ay - heart.y);
+                if (dist < 55) {
+                    if (Math.random() < 0.5) {
+                        attacks.splice(i, 1);
+                        arenaParticles.push({ x: ax, y: ay, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ff00ff", size: 5 });
+                        continue;
+                    }
+                }
+            }
+            
+            // Отрисовка и столкновения
             ctx.save();
             ctx.fillStyle = a.color;
             ctx.shadowColor = a.color;
-            ctx.shadowBlur = 10; // Свечение атак
+            ctx.shadowBlur = 10;
             let sz = a.size || 20;
             ctx.translate(a.x + sz/2, a.y + sz/2);
             ctx.fillRect(-sz/2, -sz/2, sz, sz);
             ctx.fillStyle = "#fff"; ctx.fillRect(-sz/4, -sz/4, sz/2, sz/2);
             ctx.restore();
             
-            // Логика столкновений
+            // Столкновение
             let cx = a.x + sz/2, cy = a.y + sz/2;
             if (Math.abs(heart.x - cx) < (sz/2 + heart.hitbox) && Math.abs(heart.y - cy) < (sz/2 + heart.hitbox)) {
                 if (invulnTimer <= 0) applyHit(a.damage || 5);
@@ -839,127 +1158,114 @@ function renderArena() {
             }
         }
         
-        // ==========================================
-        // ИСПРАВЛЕННОЕ, КРАСИВОЕ СЕРДЦЕ БЕЗ ВРАЩЕНИЯ
-        // ==========================================
-        if (invulnTimer <= 0 || Math.floor(now / 80) % 2 === 0) { 
-            ctx.save(); 
-            ctx.translate(heart.x, heart.y); 
+        // SUPER визуалы
+        if (typeof renderSuperVisuals === 'function') renderSuperVisuals();
+        
+        // КРАСИВОЕ СЕРДЦЕ (Душа)
+        if (invulnTimer <= 0 || Math.floor(now / 80) % 2 === 0) {
+            ctx.save();
+            ctx.translate(heart.x, heart.y);
+            let heartPulse = 1.0 + Math.abs(Math.sin(now / 140)) * 0.08;
+            ctx.scale(heartPulse, heartPulse);
             
-            // Пульсация сердца
-            let heartPulse = 1.0 + Math.abs(Math.sin(now / 140)) * 0.08; 
-            ctx.scale(heartPulse, heartPulse); 
+            let glowColor = (typeof _superState !== 'undefined' && _superState.dekusParticles) ? "#44ff44" :
+                           (typeof _superState !== 'undefined' && _superState.allmightBuffTimer > 0) ? "#ffd700" :
+                           (typeof _superState !== 'undefined' && _superState.usoppInvuln) ? "#ffff00" : "#ff0000";
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = (typeof _superState !== 'undefined' && (_superState.dekusParticles || _superState.allmightBuffTimer > 0)) ? 30 : 15;
             
-            // Свечение (Bloom)
-            ctx.shadowColor = "#ff0000";
-            ctx.shadowBlur = 15; 
-            
-            // Отрисовка классической формы сердца (Души)
-            ctx.fillStyle = "#ff0000"; 
-            
-            // Белая обводка (чтобы душа читалась как текстура на любом фоне)
+            ctx.fillStyle = "#ff0000";
             ctx.strokeStyle = "#ffffff";
             ctx.lineWidth = 1.5;
             
-            ctx.beginPath(); 
-            // Используем кривые Безье для идеальной формы сердца
+            ctx.beginPath();
             ctx.moveTo(0, -2);
-            ctx.bezierCurveTo(0, -6, -6, -6, -6, -2); // Левая половинка
-            ctx.bezierCurveTo(-6, 2, 0, 4, 0, 7);     // Низ слева
-            ctx.bezierCurveTo(0, 4, 6, 2, 6, -2);     // Низ справа
-            ctx.bezierCurveTo(6, -6, 0, -6, 0, -2);   // Правая половинка
-            
-            ctx.fill(); 
-            ctx.stroke(); // Рисуем обводку
+            ctx.bezierCurveTo(0, -6, -6, -6, -6, -2);
+            ctx.bezierCurveTo(-6, 2, 0, 4, 0, 7);
+            ctx.bezierCurveTo(0, 4, 6, 2, 6, -2);
+            ctx.bezierCurveTo(6, -6, 0, -6, 0, -2);
+            ctx.fill();
+            ctx.stroke();
 
-            // Блик (для эффекта объема)
             ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
             ctx.shadowBlur = 0;
             ctx.beginPath();
             ctx.arc(-2.5, -2, 1, 0, Math.PI * 2);
             ctx.fill();
 
-            // Щит неуязвимости (если нужен)
-            if (invulnTimer > 0) { 
-                ctx.strokeStyle = "rgba(0, 191, 255, 0.8)"; 
-                ctx.lineWidth = 2; 
+            if (invulnTimer > 0) {
+                ctx.strokeStyle = "rgba(0, 191, 255, 0.8)";
+                ctx.lineWidth = 2;
                 ctx.setLineDash([4, 4]);
                 ctx.lineDashOffset = -now / 50;
-                ctx.beginPath(); 
-                ctx.arc(0, 0, heart.size * 1.2, 0, Math.PI * 2); 
-                ctx.stroke(); 
+                ctx.beginPath();
+                ctx.arc(0, 0, heart.size * 1.2, 0, Math.PI * 2);
+                ctx.stroke();
                 ctx.setLineDash([]);
-            } 
+            }
             ctx.restore();
         }
     } else if (arenaPhase === "attack") {
-        for (let i = 0; i < arenaClickTargets.length; i++) { 
-            let t = arenaClickTargets[i]; if (t.hit) continue; 
-            t.pulse += 0.12; let r = t.radius + Math.sin(t.pulse) * 3; 
-            ctx.save(); 
-            let grad = ctx.createRadialGradient(t.x,t.y,2,t.x,t.y,r); 
-            grad.addColorStop(0,"rgba(255,255,255,0.8)"); grad.addColorStop(0.7,"rgba(255,221,0,0.3)"); grad.addColorStop(1,"rgba(255,221,0,0)"); 
-            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, Math.PI*2); ctx.fill(); 
+        for (let i = 0; i < arenaClickTargets.length; i++) {
+            let t = arenaClickTargets[i]; if (t.hit) continue;
+            t.pulse += 0.12; let r = t.radius + Math.sin(t.pulse) * 3;
+            ctx.save();
+            let grad = ctx.createRadialGradient(t.x, t.y, 2, t.x, t.y, r);
+            grad.addColorStop(0, "rgba(255,255,255,0.8)"); grad.addColorStop(0.7, "rgba(255,221,0,0.3)"); grad.addColorStop(1, "rgba(255,221,0,0)");
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, Math.PI*2); ctx.fill();
             ctx.strokeStyle = "#ffdd00"; ctx.lineWidth = 3; ctx.shadowColor = "#ffdd00"; ctx.shadowBlur = 10;
-            ctx.beginPath(); ctx.arc(t.x, t.y, t.radius, 0, Math.PI*2); ctx.stroke(); ctx.restore(); 
+            ctx.beginPath(); ctx.arc(t.x, t.y, t.radius, 0, Math.PI*2); ctx.stroke(); ctx.restore();
         }
     }
     
-    // Частицы с хвостами (Trails effect)
+    // Частицы
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    for (let i = arenaParticles.length - 1; i >= 0; i--) { 
-        let p = arenaParticles[i]; 
-        
+    for (let i = arenaParticles.length - 1; i >= 0; i--) {
+        let p = arenaParticles[i];
         ctx.beginPath();
         ctx.moveTo(p.x, p.y);
-        p.x += p.vx; p.y += p.vy; 
-        p.vx *= 0.92; p.vy *= 0.92; // Более плавное торможение
-        p.life--; 
-        
+        p.x += p.vx; p.y += p.vy;
+        p.vx *= 0.92; p.vy *= 0.92;
+        p.life--;
         let ratio = p.life / p.maxLife;
-        ctx.strokeStyle = p.color; 
+        ctx.strokeStyle = p.color;
         ctx.lineWidth = p.size * ratio;
-        ctx.globalAlpha = Math.max(0, ratio); 
+        ctx.globalAlpha = Math.max(0, ratio);
         ctx.lineTo(p.x, p.y);
         ctx.stroke();
-        
-        if (p.life <= 0) arenaParticles.splice(i, 1); 
+        if (p.life <= 0) arenaParticles.splice(i, 1);
     }
     ctx.restore();
     
     // Ударные волны
-    ctx.save(); 
-    for (let i = arenaShockwaves.length - 1; i >= 0; i--) { 
-        let sw = arenaShockwaves[i]; sw.r += sw.v; sw.life--; let ratio = sw.life / sw.maxLife; 
-        ctx.strokeStyle = sw.color; ctx.lineWidth = 4 * ratio; ctx.globalAlpha = ratio; 
-        ctx.beginPath(); ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI*2); ctx.stroke(); 
-        if (sw.life <= 0) arenaShockwaves.splice(i, 1); 
-    } 
+    ctx.save();
+    for (let i = arenaShockwaves.length - 1; i >= 0; i--) {
+        let sw = arenaShockwaves[i]; sw.r += sw.v; sw.life--; let ratio = sw.life / sw.maxLife;
+        ctx.strokeStyle = sw.color; ctx.lineWidth = 4 * ratio; ctx.globalAlpha = ratio;
+        ctx.beginPath(); ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI*2); ctx.stroke();
+        if (sw.life <= 0) arenaShockwaves.splice(i, 1);
+    }
     ctx.restore();
     
     // Всплывающий текст
-    ctx.save(); 
-    for (let i = floatingTexts.length - 1; i >= 0; i--) { 
-        let ft = floatingTexts[i]; ft.y += ft.vy; ft.x += (ft.vx || 0); ft.life--; 
-        ctx.fillStyle = ft.color; ctx.globalAlpha = Math.max(0, ft.life / 50); 
-        ctx.font = "bold 16px monospace"; ctx.shadowColor = ft.color; ctx.shadowBlur = 6; 
-        ctx.textAlign = "center"; ctx.fillText(ft.text, ft.x, ft.y); 
-        if (ft.life <= 0) floatingTexts.splice(i, 1); 
-    } 
+    ctx.save();
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        let ft = floatingTexts[i]; ft.y += ft.vy; ft.x += (ft.vx || 0); ft.life--;
+        ctx.fillStyle = ft.color; ctx.globalAlpha = Math.max(0, ft.life / 50);
+        ctx.font = "bold 16px monospace"; ctx.shadowColor = ft.color; ctx.shadowBlur = 6;
+        ctx.textAlign = "center"; ctx.fillText(ft.text, ft.x, ft.y);
+        if (ft.life <= 0) floatingTexts.splice(i, 1);
+    }
     ctx.restore();
     
-    ctx.restore(); // Конец трансляции тряски экрана
-
-    // ==========================================
-    // ТЕКСТУРА: CRT ЭФФЕКТ (Сканлайны)
-    // Рисуется поверх всего холста
-    // ==========================================
+    ctx.restore();
+    
+    // CRT-эффект
     ctx.save();
-    ctx.fillStyle = "rgba(0, 0, 0, 0.15)"; // Темные полосы
+    ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
     for (let i = 0; i < canvas.height; i += 4) {
         ctx.fillRect(0, i, canvas.width, 2);
     }
-    // Легкий шум экрана (затемнение)
     ctx.fillStyle = "rgba(10, 10, 20, 0.05)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
