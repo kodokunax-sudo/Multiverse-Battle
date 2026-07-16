@@ -105,7 +105,6 @@ function renderShop() { let c = document.getElementById("shopItems"); c.innerHTM
     }
     c.innerHTML += timerHtml;
     let artHtml = ''; if (rebirthCount >= 4) { 
-        // Пальцы Сукуны - теперь с выбором героя
         artHtml += '<div class="shop-item"><div><b>🗿 Пальцы Сукуны</b><br><small>Усиливает одного героя на 1 час: +50% урона, +40% HP.</small></div><div><span class="shop-price">15000⭐</span><button class="btn" style="padding:6px 12px;" onclick="' + (hasSukunaFingers ? 'showSukunaModal()' : 'buySukuna()') + '">' + (hasSukunaFingers ? 'Выбрать героя' : 'Купить') + '</button></div></div>'; 
         artHtml += '<div class="shop-item"><div><b>💉 Препарат V</b><br><small>Баффает героя: +20% урона, +30% HP.</small></div><div><span class="shop-price">5000⭐</span><button class="btn" style="padding:6px 12px;" onclick="showCompoundVModal()">Купить</button></div></div>'; 
         artHtml += '<div class="shop-item"><div><b>📓 Тетрадь смерти</b></div><div><input id="dnInput" type="number" min="1" style="width:60px;background:rgba(0,0,0,0.5);color:white;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:4px;text-align:center;" value="' + (deathNoteTarget || '') + '" placeholder="Волна"><span class="shop-price">500к⭐</span><button class="btn" style="padding:4px 10px;" onclick="buyDeathNote()">Купить</button></div></div>'; 
@@ -120,9 +119,25 @@ function renderActiveBuffs() {
     let n = Date.now(), l = []; 
     for (let [id, exp] of Object.entries(activeBuffs)) { 
         if (exp > n) { 
-            let r = exp - n, h = Math.floor(r / 3600000), m = Math.floor((r % 3600000) / 60000); 
-            let name = id === "dmg13" ? "Урон x1.3" : id === "doubleDamage" ? "Урон x2" : id === "quadDamage" ? "Урон x4" : id === "doubleStars" ? "Звёзды x2" : id === "tripleHp" ? "HP x3" : id; 
-            l.push('<span style="color:var(--gold);">' + name + '</span> (' + h + 'ч ' + m + 'м)'); 
+            let r = exp - n, h = Math.floor(r / 3600000), m = Math.floor((r % 3600000) / 60000);
+            let s = Math.floor((r % 60000) / 1000);
+            let name = id;
+            if (id === "dmg13") name = "Урон x1.3";
+            else if (id === "dmg15") name = "Урон +50%";
+            else if (id === "doubleDamage") name = "Урон x2";
+            else if (id === "quadDamage") name = "Урон x4";
+            else if (id === "doubleStars") name = "Звёзды x2";
+            else if (id === "tripleStars") name = "Звёзды x3";
+            else if (id === "doubleHp") name = "HP x2";
+            else if (id === "tripleHp") name = "HP x3";
+            else if (id === "arenaSpeedX3") name = "Скорость арены x3";
+            else if (id === "arenaSpeedX5") name = "Скорость арены x5";
+            else if (id === "arenaSpeedX2") name = "Скорость арены x2";
+            else if (id === "fatigueImmune") name = "Иммунитет к усталости";
+            else if (id === "doubleExp") name = "Двойной опыт";
+            else if (id === "arenaInvuln") name = "Неуязвимость (арена)";
+            let timeStr = h > 0 ? h + 'ч ' + m + 'м' : (m > 0 ? m + 'м ' + s + 'с' : s + 'с');
+            l.push('<span style="color:var(--gold);">' + name + '</span> (' + timeStr + ')'); 
         } else delete activeBuffs[id]; 
     } 
     // Пальцы Сукуны с таймером
@@ -274,95 +289,4 @@ function renderGachaTab() {
     container.innerHTML = html;
 }
 
-// ========== АНИМАЦИЯ ГАЧА-КРУТКИ ==========
-window._gachaAnimFrame = null;
-window._gachaStripX = 0;
-window._gachaSpeed = 0;
-
-window._startGachaOverlay = function(animData) {
-    if (!animData || !animData.cards) return;
-    let overlay = document.getElementById("gachaOverlay");
-    if (!overlay) return;
-    let strip = document.getElementById("gachaStrip");
-    if (strip) {
-        strip.innerHTML = animData.cards.map(card => {
-            let rarityColor = typeof getRarityColor === 'function' ? getRarityColor(card.rarity) : "#fff";
-            let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(card.rarity);
-            let cardImg = showImage && typeof getCardImage === 'function' ? getCardImage(card.name) : null;
-            let imgHTML = cardImg ? '<img src="' + cardImg + '" style="width:60px;height:60px;border-radius:8px;object-fit:cover;margin-bottom:4px;">' : '<div style="width:60px;height:60px;border-radius:8px;background:#2c2c3a;margin-bottom:4px;display:flex;align-items:center;justify-content:center;font-size:20px;">🎴</div>';
-            return '<div style="min-width:150px;text-align:center;background:rgba(30,30,47,0.95);border-radius:16px;padding:15px 10px;border:2px solid ' + rarityColor + ';box-shadow: 0 0 15px ' + rarityColor + ';">' +
-                imgHTML + '<div style="font-weight:900;font-size:12px;color:' + rarityColor + ';">' + (typeof escapeHtml === 'function' ? escapeHtml(card.name) : card.name) + '</div>' +
-                '<div style="font-size:10px;margin-top:4px;">' + card.rarity + '</div><div style="font-size:10px;">💪' + card.damage + ' ❤️' + card.hp + '</div></div>';
-        }).join('');
-        strip.style.display = "flex"; strip.style.transition = "none"; strip.style.transform = "translateX(0px)";
-    }
-    document.getElementById("gachaResultCard").style.display = "none";
-    document.getElementById("gachaSkipBtn").style.display = "block";
-    document.getElementById("gachaSkipBtn").onclick = window._skipGachaAnimation;
-    overlay.style.display = "flex";
-    window._gachaStripX = 0; window._gachaSpeed = 25;
-    if (window._gachaAnimFrame) cancelAnimationFrame(window._gachaAnimFrame);
-    window._gachaAnimFrame = requestAnimationFrame(window._renderGachaAnimation);
-};
-
-window._hideGachaOverlay = function() {
-    let overlay = document.getElementById("gachaOverlay");
-    if (overlay) overlay.style.display = "none";
-    if (window._gachaAnimFrame) { cancelAnimationFrame(window._gachaAnimFrame); window._gachaAnimFrame = null; }
-    window.gachaAnimationActive = false;
-    window.gachaAnimationData = null;
-};
-
-window._skipGachaAnimation = function() {
-    if (!window.gachaAnimationActive || !window.gachaAnimationData) return;
-    let card = window.gachaAnimationData.resultCard;
-    document.getElementById("gachaSkipBtn").style.display = "none";
-    document.getElementById("gachaStrip").style.display = "none";
-    let resultDiv = document.getElementById("gachaResultCard");
-    resultDiv.style.display = "flex";
-    resultDiv.innerHTML = '<div style="text-align:center;font-size:48px;">🎴</div><div style="font-size:24px;font-weight:900;">' + card.name + '</div><div>' + card.rarity + '</div>';
-    if (typeof sfxCardObtain === 'function') sfxCardObtain();
-    setTimeout(() => window._hideGachaOverlay(), 2000);
-};
-
-window._renderGachaAnimation = function(timestamp) {
-    if (!window.gachaAnimationActive || !window.gachaAnimationData) { window._hideGachaOverlay(); return; }
-    let elapsed = timestamp - window.gachaAnimationData.startTime;
-    let totalDuration = window.gachaAnimationData.duration;
-    let strip = document.getElementById("gachaStrip");
-    if (!strip) { window._hideGachaOverlay(); return; }
-    let progress = Math.min(1, elapsed / totalDuration);
-    if (progress < 0.8) {
-        window._gachaStripX -= window._gachaSpeed;
-        window._gachaSpeed += 0.3;
-        strip.style.transform = "translateX(" + window._gachaStripX + "px)";
-        strip.style.transition = "none";
-    } else if (progress < 0.95) {
-        window._gachaSpeed *= 0.9;
-        window._gachaStripX -= window._gachaSpeed;
-        strip.style.transform = "translateX(" + window._gachaStripX + "px)";
-        strip.style.transition = "none";
-    } else {
-        let targetX = -(window.gachaAnimationData.resultIndex * 160 + 80);
-        strip.style.transition = "transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)";
-        strip.style.transform = "translateX(" + targetX + "px)";
-        setTimeout(() => {
-            document.getElementById("gachaSkipBtn").style.display = "none";
-            if (strip) strip.style.display = "none";
-            let resultDiv = document.getElementById("gachaResultCard");
-            if (resultDiv) {
-                resultDiv.style.display = "flex";
-                let card = window.gachaAnimationData.resultCard;
-                resultDiv.innerHTML = '<div style="text-align:center;font-size:48px;">🎴</div><div style="font-size:24px;font-weight:900;">' + card.name + '</div><div>' + card.rarity + '</div>';
-            }
-            if (typeof sfxCardObtain === 'function') sfxCardObtain();
-            setTimeout(() => window._hideGachaOverlay(), 2500);
-        }, 600);
-        if (window._gachaAnimFrame) cancelAnimationFrame(window._gachaAnimFrame);
-        window._gachaAnimFrame = null;
-        return;
-    }
-    window._gachaAnimFrame = requestAnimationFrame(window._renderGachaAnimation);
-};
-
-function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); if (typeof renderGachaTab === 'function') renderGachaTab(); updatePlayerStats(); updateStatusDisplay(); } 
+function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); renderSettings(); renderSlotsInGame(); renderDailyRewards(); renderPass(); if (typeof renderGachaTab === 'function') renderGachaTab(); updatePlayerStats(); updateStatusDisplay(); }
