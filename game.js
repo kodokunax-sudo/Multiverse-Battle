@@ -48,7 +48,7 @@ function finishSlotLoad(slot) {
     renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop();
     renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements();
     renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats();
-    renderEvoTab(); renderGlobalStats(); renderModerControls(); renderSettings();
+    renderEvoTab(); renderGlobalStats(); renderModerControls(); renderSettings(); renderSlotsInGame();
     if (typeof renderGachaTab === 'function') renderGachaTab();
     updateLevelDisplay(); updateFatigue(); updateRestBtn(); updateClaimTimer(); setMode(mode);
     updatePlayerStats(); updateStatusDisplay();
@@ -1119,8 +1119,7 @@ function switchTab(tabName) {
     if (tabName === "battle") { startBattleMusic(); } 
     else if (tabName === "shop") { startShopMusic(); let now = Date.now(); if (!shopRefreshTime || (now - shopRefreshTime) > 3600000) { refreshShop(); } else { renderShop(); } if (typeof renderGachaTab === 'function') renderGachaTab(); } 
     else { startMainMusic(); } 
-    if (tabName === "other") { renderRebirthInfo(); renderRebirthStats(); renderSettings(); } 
-    if (tabName === "slots") { renderSlotsInGame(); } 
+    if (tabName === "other") { renderRebirthInfo(); renderRebirthStats(); renderSettings(); renderSlotsInGame(); } 
 }
 function switchSubTab(subtabName, parentTabId) { 
     let parent = document.getElementById(parentTabId); 
@@ -1142,9 +1141,10 @@ function switchSubTab(subtabName, parentTabId) {
     if (subtabName === "checkpoint") renderCheckpoints(); 
     if (subtabName === "rebirthMain") renderRebirthInfo(); 
     if (subtabName === "rebirthStats") renderRebirthStats(); 
+    if (subtabName === "slots") renderSlotsInGame(); 
     if (subtabName === "settings") renderSettings(); 
 }
-function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); renderSettings(); if (typeof renderGachaTab === 'function') renderGachaTab(); updatePlayerStats(); updateStatusDisplay(); }
+function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); renderSettings(); renderSlotsInGame(); if (typeof renderGachaTab === 'function') renderGachaTab(); updatePlayerStats(); updateStatusDisplay(); }
 function renderPoints() { let displayPoints = (mode === "moder" && moderUnlocked) ? "∞" : points;
     ['pointsAmount', 'pointsAmount2', 'pointsAmount3', 'pointsAmountBulk', 'pointsAmountRest', 'pointsAmountGacha'].forEach(id => { let e = document.getElementById(id); if (e) e.innerText = displayPoints; }); }
 function escapeHtml(s) { return s ? s.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])) : ''; }
