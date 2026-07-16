@@ -1,13 +1,12 @@
-// ========== МУЛЬТИВЕРС ПАСС v1.1 ==========
-// Пасс привязан к слоту, опыт увеличен в 5 раз
+// ========== МУЛЬТИВЕРС ПАСС v1.2 ==========
+// Фикс: легендарные/секретные крутки сразу крутят, прогресс не сбрасывается
 
 let passData = {
-    currentTier: 1,       // текущий этап (1-60)
-    passExp: 0,           // текущий опыт
-    claimedTiers: []      // список уже полученных этапов
+    currentTier: 1,
+    passExp: 0,
+    claimedTiers: []
 };
 
-// Награды для каждого этапа (60 этапов)
 const passRewards = [
     // 1 этап
     {
@@ -269,14 +268,21 @@ const passRewards = [
             showFloatingText("🌟 Звёзды x3 на 20 мин!", "#f5af19");
         }
     },
-    // 23 этап
+    // 23 этап — ЛЕГЕНДАРНАЯ КРУТКА (сразу крутит)
     {
-        name: "1 легендарная карта",
+        name: "1 легендарная крутка",
         icon: "🟡",
         apply() {
             let card = createCard("Легендарная");
-            if (card) { myCards.push(card); saveAll(); renderMyCards(); }
-            showFloatingText("🟡 Легендарная карта!", "#ffd700");
+            if (card) {
+                myCards.push(card);
+                saveAll();
+                renderMyCards();
+                sfxCardObtain();
+                // Запускаем гача-анимацию
+                startPassGachaAnimation(card, "legendary");
+            }
+            showFloatingText("🟡 Легендарная крутка!", "#ffd700");
         }
     },
     // 24 этап
@@ -352,20 +358,24 @@ const passRewards = [
             showFloatingText("⭐ +1500 звёзд!", "#f5af19");
         }
     },
-    // 30 этап
+    // 30 этап — 2 ЛЕГЕНДАРНЫЕ КРУТКИ (сразу крутят)
     {
-        name: "2 легендарные + токен",
+        name: "2 легендарные крутки + токен",
         icon: "🟡🟡",
         apply() {
             for (let i = 0; i < 2; i++) {
                 let card = createCard("Легендарная");
-                if (card) myCards.push(card);
+                if (card) {
+                    myCards.push(card);
+                    sfxCardObtain();
+                    setTimeout(() => startPassGachaAnimation(card, "legendary"), i * 1500);
+                }
             }
             legendaryGachaTokens = (legendaryGachaTokens || 0) + 1;
             saveAll();
             renderMyCards();
             if (typeof renderGachaTab === 'function') renderGachaTab();
-            showFloatingText("🟡 +2 легендарки + токен!", "#ffd700");
+            showFloatingText("🟡 +2 легендарные крутки + токен!", "#ffd700");
         }
     },
     // 31 этап
@@ -403,14 +413,20 @@ const passRewards = [
             showFloatingText("⭐ +2000 звёзд!", "#f5af19");
         }
     },
-    // 34 этап
+    // 34 этап — СЕКРЕТНАЯ КРУТКА (единственная, кроме финала)
     {
-        name: "1 секретная карта",
+        name: "1 секретная крутка",
         icon: "💎",
         apply() {
             let card = createCard("Секретная");
-            if (card) { myCards.push(card); saveAll(); renderMyCards(); }
-            showFloatingText("💎 Секретная карта!", "#ff00ff");
+            if (card) {
+                myCards.push(card);
+                saveAll();
+                renderMyCards();
+                sfxCardObtain();
+                startPassGachaAnimation(card, "secret");
+            }
+            showFloatingText("💎 Секретная крутка!", "#ff00ff");
         }
     },
     // 35 этап
@@ -463,17 +479,21 @@ const passRewards = [
             showFloatingText("📊 Двойной опыт на 30 мин!", "#f5af19");
         }
     },
-    // 39 этап
+    // 39 этап — ЛЕГЕНДАРНАЯ КРУТКА + V
     {
-        name: "Легендарка + Препарат V",
+        name: "Легендарная крутка + V",
         icon: "🟡💉",
         apply() {
             let card = createCard("Легендарная");
-            if (card) myCards.push(card);
+            if (card) {
+                myCards.push(card);
+                sfxCardObtain();
+                startPassGachaAnimation(card, "legendary");
+            }
             showCompoundVModalFree();
             saveAll();
             renderMyCards();
-            showFloatingText("🟡 Легендарка + V бесплатно!", "#ffd700");
+            showFloatingText("🟡 Легендарная крутка + V!", "#ffd700");
         }
     },
     // 40 этап
@@ -574,7 +594,7 @@ const passRewards = [
     },
     // 48 этап
     {
-        name: "2 секретные карты",
+        name: "2 секретные карты (готовые)",
         icon: "💎💎",
         apply() {
             for (let i = 0; i < 2; i++) {
@@ -586,21 +606,25 @@ const passRewards = [
             showFloatingText("💎 +2 секретные карты!", "#ff00ff");
         }
     },
-    // 49 этап
+    // 49 этап — 3 ЛЕГЕНДАРНЫЕ КРУТКИ
     {
-        name: "3 легендарки + 2000⭐",
+        name: "3 легендарные крутки + 2000⭐",
         icon: "🟡🟡🟡",
         apply() {
             for (let i = 0; i < 3; i++) {
                 let card = createCard("Легендарная");
-                if (card) myCards.push(card);
+                if (card) {
+                    myCards.push(card);
+                    sfxCardObtain();
+                    setTimeout(() => startPassGachaAnimation(card, "legendary"), i * 1500);
+                }
             }
             points += Math.floor(2000 * getStarMult());
             if (points > maxPoints) maxPoints = points;
             saveAll();
             renderMyCards();
             renderPoints();
-            showFloatingText("🟡 +3 легендарки + 2000⭐!", "#ffd700");
+            showFloatingText("🟡 +3 легендарные крутки + 2000⭐!", "#ffd700");
         }
     },
     // 50 этап
@@ -687,9 +711,9 @@ const passRewards = [
             showFloatingText("🛡️ Усталость 0 на 1 час!", "#2ecc71");
         }
     },
-    // 57 этап
+    // 57 этап — 3 секретные карты (готовые)
     {
-        name: "3 секретные карты",
+        name: "3 секретные карты (готовые)",
         icon: "💎💎💎",
         apply() {
             for (let i = 0; i < 3; i++) {
@@ -725,43 +749,41 @@ const passRewards = [
             showFloatingText("💎🎰 +5 секретных + 10 легендарных токенов!", "#ff00ff");
         }
     },
-    // 60 этап — ФИНАЛ
+    // 60 этап — ФИНАЛ: 3 БЕСПЛАТНЫЕ СЕКРЕТНЫЕ КРУТКИ
     {
         name: "3 БЕСПЛАТНЫЕ СЕКРЕТНЫЕ КРУТКИ!",
         icon: "🎉",
         apply() {
             for (let i = 0; i < 3; i++) {
                 let card = createCard("Секретная");
-                if (card) { myCards.push(card); sfxCardObtain(); }
+                if (card) {
+                    myCards.push(card);
+                    sfxCardObtain();
+                    setTimeout(() => startPassGachaAnimation(card, "secret"), i * 2000);
+                }
             }
             saveAll();
             renderMyCards();
             showFloatingText("🎉 3 СЕКРЕТНЫЕ КРУТКИ!", "#ff00ff");
-            alert("🎉 ПОЗДРАВЛЯЕМ! 🎉\n\nВы завершили Мультиверс Пасс!\nПолучено 3 бесплатные секретные крутки!\n\nСпасибо за игру!");
+            setTimeout(() => {
+                alert("🎉 ПОЗДРАВЛЯЕМ! 🎉\n\nВы завершили Мультиверс Пасс!\nПолучено 3 бесплатные секретные крутки!\n\nСпасибо за игру!");
+            }, 6500);
         }
     }
 ];
 
 // ========== ФУНКЦИИ ==========
 
-// Получить опыт для перехода на следующий этап (увеличено в 5 раз)
 function getPassExpNeeded(tier) {
-    // Формула: (10 + (tier-1)^1.5 * 3) * 5
     return Math.floor((10 + Math.pow(tier - 1, 1.5) * 3) * 5);
 }
 
-// Добавить опыт пасса
 function addPassExp(amount) {
     if (!passData) return;
-    
-    // Двойной опыт если есть бафф
     if (activeBuffs["doubleExp"] && activeBuffs["doubleExp"] > Date.now()) {
         amount *= 2;
     }
-    
     passData.passExp += amount;
-    
-    // Проверяем повышение этапа
     while (passData.currentTier < 60) {
         let needed = getPassExpNeeded(passData.currentTier);
         if (passData.passExp >= needed) {
@@ -772,51 +794,85 @@ function addPassExp(amount) {
             break;
         }
     }
-    
     saveAll();
     renderPass();
 }
 
-// Забрать награду за этап
+// Анимация крутки для пасса (без проверки звёзд)
+function startPassGachaAnimation(card, type) {
+    let availableRarities = [];
+    switch(type) {
+        case "legendary": availableRarities = ["Мифическая", "Легендарная", "Секретная"]; break;
+        case "secret": availableRarities = ["Легендарная", "Секретная"]; break;
+        default: availableRarities = ["Эпик", "Мифическая", "Легендарная"];
+    }
+    let fakeCards = [];
+    for (let i = 0; i < 8; i++) {
+        let randomRarity = availableRarities[Math.floor(Math.random() * availableRarities.length)];
+        let fc = createCard(randomRarity);
+        if (fc) fakeCards.push(fc);
+    }
+    fakeCards.push(card);
+    
+    let modalContent = document.getElementById("modalContent");
+    let modalOverlay = document.getElementById("modalOverlay");
+    if (!modalContent || !modalOverlay) return;
+    modalOverlay.style.display = "flex";
+    
+    let index = 0;
+    let totalFlashes = 20;
+    let flashCount = 0;
+    let speed = 80;
+    
+    function flashNextCard() {
+        if (flashCount >= totalFlashes) {
+            modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>';
+            return;
+        }
+        let currentCard = fakeCards[index % fakeCards.length];
+        let rarityColor = typeof getRarityColor === 'function' ? getRarityColor(currentCard.rarity) : "#fff";
+        modalContent.innerHTML = '<h2>🎰 Крутка Пасса...</h2>' +
+            '<div style="text-align:center;padding:10px;">' +
+            '<div style="font-size:48px;margin-bottom:10px;">🎴</div>' +
+            '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + (typeof escapeHtml === 'function' ? escapeHtml(currentCard.name) : currentCard.name) + '</div>' +
+            '<div class="rarity-tag ' + (typeof rarityColors !== 'undefined' ? rarityColors[currentCard.rarity] : '') + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' +
+            '<div style="margin-top:12px;font-size:16px;">💪 ' + currentCard.damage + ' ❤️ ' + currentCard.hp + '</div>' +
+            '</div>' +
+            '<button class="btn" style="width:100%;padding:8px;margin-top:10px;background:#e74c3c;border:none;color:white;font-weight:bold;" onclick="closeModal()">⏭️ ПРОПУСТИТЬ</button>';
+        index++;
+        flashCount++;
+        if (flashCount > totalFlashes * 0.7) speed += 40;
+        else if (flashCount > totalFlashes * 0.5) speed += 20;
+        else if (flashCount > totalFlashes * 0.3) speed += 10;
+        setTimeout(flashNextCard, speed);
+    }
+    flashNextCard();
+}
+
 function claimPassReward(tier) {
     if (tier < 1 || tier > 60) return;
-    
-    // Проверяем, открыт ли этап
     if (tier > passData.currentTier && (mode !== "moder" || !moderUnlocked)) {
         alert("🔒 Этот этап ещё не открыт! Нужно набрать больше опыта.");
         return;
     }
-    
-    // Проверяем, не получена ли уже награда
     if (passData.claimedTiers.includes(tier)) {
         alert("✅ Вы уже получили награду за этот этап!");
         return;
     }
-    
     let reward = passRewards[tier - 1];
-    
-    // Применяем награду
     reward.apply();
-    
-    // Отмечаем как полученную
     passData.claimedTiers.push(tier);
-    
     saveAll();
     renderPass();
-    
     if (tier === 60) {
         setTimeout(() => {
-            alert("🎉 ПОЗДРАВЛЯЕМ! 🎉\n\nВы полностью завершили Мультиверс Пасс!\nВсе 60 этапов пройдены!\n\nВы настоящий герой мультивселенной!");
-        }, 500);
+            alert("🎉 ПОЗДРАВЛЯЕМ! 🎉\n\nВы завершили Мультиверс Пасс!\nВсе 60 этапов пройдены!\n\nВы настоящий герой мультивселенной!");
+        }, 7000);
     }
 }
 
-// Сбросить пасс (при ребиртхе — НЕ сбрасываем!)
-function resetPass() {
-    // Пасс не сбрасывается при ребиртхе
-}
+function resetPass() {}
 
-// Бесплатный Препарат V (без траты звёзд)
 function showCompoundVModalFree() {
     let html = '<h2>💉 Бесплатный Препарат V</h2><div style="max-height:300px;overflow-y:auto;">';
     if (!team.length) {
@@ -846,16 +902,12 @@ function applyCompoundVFree(name) {
     showFloatingText("💉 Препарат V: " + name + " (бесплатно)!", "#9b59b6");
 }
 
-// Отрисовать пасс
 function renderPass() {
     let container = document.getElementById("passContent");
     if (!container) return;
-    
     let html = '';
-    
-    // Прогресс
     let nextExp = getPassExpNeeded(passData.currentTier);
-    let progressPercent = passData.currentTier >= 60 ? 100 : Math.floor((passData.passExp / nextExp) * 100);
+    let progressPercent = passData.currentTier >= 60 ? 100 : Math.min(100, Math.floor((passData.passExp / nextExp) * 100));
     
     html += '<div style="text-align:center;margin-bottom:15px;">';
     html += '<div style="font-size:24px;font-weight:900;color:#ffd700;">🎫 МУЛЬТИВЕРС ПАСС</div>';
@@ -869,8 +921,8 @@ function renderPass() {
     html += '<div style="font-size:12px;color:#aaa;">💡 Опыт начисляется за клики, победы и убийства боссов</div>';
     html += '</div>';
     
-    // Список этапов
-    html += '<div style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;padding-right:5px;">';
+    // Список этапов — без onclick на контейнере, только на кнопках
+    html += '<div style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;padding-right:5px;" id="passTiersList">';
     for (let i = 0; i < passRewards.length; i++) {
         let tier = i + 1;
         let reward = passRewards[i];
@@ -882,7 +934,7 @@ function renderPass() {
         let borderColor = claimed ? '#2ecc71' : (unlocked ? (isCurrent ? '#f5af19' : 'rgba(255,255,255,0.15)') : 'rgba(255,255,255,0.05)');
         let opacity = unlocked ? '1' : '0.4';
         
-        html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:' + bgColor + ';border:2px solid ' + borderColor + ';border-radius:14px;opacity:' + opacity + ';transition:all 0.2s;">';
+        html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:' + bgColor + ';border:2px solid ' + borderColor + ';border-radius:14px;opacity:' + opacity + ';transition:all 0.2s;min-height:50px;">';
         html += '<div style="font-size:20px;min-width:30px;text-align:center;">' + reward.icon + '</div>';
         html += '<div style="flex:1;">';
         html += '<div style="font-weight:800;font-size:12px;">Этап ' + tier + ': ' + reward.name + '</div>';
@@ -890,7 +942,7 @@ function renderPass() {
         if (claimed) {
             html += '<div style="font-size:16px;color:#2ecc71;">✅</div>';
         } else if (unlocked) {
-            html += '<button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="claimPassReward(' + tier + ')">Забрать</button>';
+            html += '<button class="btn btn-primary" style="padding:4px 12px;font-size:11px;cursor:pointer;pointer-events:auto;" onclick="event.stopPropagation();claimPassReward(' + tier + ')">Забрать</button>';
         } else {
             html += '<div style="font-size:16px;color:#aaa;">🔒</div>';
         }
