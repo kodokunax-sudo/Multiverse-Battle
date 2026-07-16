@@ -1,6 +1,6 @@
-// ========== АРЕНА UNDERTALE v10.1 FINAL ==========
+// ========== АРЕНА UNDERTALE v10.2 FINAL ==========
 // Полный файл со всеми функциями
-// Исправлено: Им 50% шанс + аура 55px, Всемогущий перма-дебафф, Анти-спираль хитбокс/сердечко
+// Исправлено: таймер атаки босса, баг с мгновенной фазой атаки
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -54,6 +54,9 @@ let screenFlashColor = "#ffffff";
 let heartRotation = 0;
 let arenaVignette = 0;
 let arenaGlobalSpeedMod = 1.0;
+let arenaDodgeTimer = 0; // Таймер до конца фазы уклонения
+let arenaDodgeTimerInterval = null; // Интервал обновления таймера
+let arenaPhaseTimeout = null; // setTimeout для смены фазы
 
 let mobileSuperTapTimer = null;
 let mobileSuperTapCount = 0;
@@ -399,6 +402,11 @@ function startArena(bossWave) {
     screenFlash = 0;
     arenaVignette = 0;
     arenaGlobalSpeedMod = 1.0;
+    arenaDodgeTimer = 0;
+    
+    // Очищаем предыдущие таймеры
+    if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
+    if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
     
     if (typeof _superState !== 'undefined') {
         _superState.markResurrectCharges = 2;
@@ -513,12 +521,15 @@ function startDodgePhase() {
     wallGapIndicator = null;
     heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0;
     
+    // Очищаем старый таймер если был
+    if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
+    if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
+    
     arenaAttackType = arenaAllowedTypes[Math.floor(Math.random() * arenaAllowedTypes.length)];
     let typeNames = {
         0: "⬜ СТЕНЫ", 1: "🔷 ХАОС", 2: "⚡ ЖЁЛТЫЕ", 3: "🛑 КРАСНЫЕ", 4: "💗 РОЗОВЫЕ",
         5: "💚 ЗЕЛЁНЫЕ", 6: "🌈 РАДУЖНЫЕ", 7: "⚡🛑 МИКС", 8: "🟥⬜ ЗОНЫ", 9: "💣 БОМБЫ", 10: "🔫 БЛАСТЕРЫ"
     };
-    document.getElementById("arenaBossName").innerText = arenaBoss + " — " + (typeNames[arenaAttackType] || "Атака") + " | ⚡" + heartSpeed.toFixed(1);
     
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     let baseInterval = 2400;
@@ -544,11 +555,49 @@ function startDodgePhase() {
         }
     }, Math.max(800, baseInterval / arenaSpeedMult));
     
-    let dodgeTime = Math.max(10000, 13000 + Math.random() * 6000);
-    setTimeout(() => { if (arenaPhase === "dodge" && arenaActive) startAttackPhase(); }, dodgeTime);
+    // Длительность фазы уклонения от 10 до 16 секунд
+    let dodgeTime = Math.floor(10000 + Math.random() * 6000);
+    arenaDodgeTimer = Math.floor(dodgeTime / 1000);
+    
+    // Обновляем таймер каждую секунду
+    arenaDodgeTimerInterval = setInterval(() => {
+        if (arenaPhase === "dodge" && arenaActive) {
+            arenaDodgeTimer--;
+            if (arenaDodgeTimer <= 0) arenaDodgeTimer = 0;
+            updateDodgeTimerDisplay();
+        }
+    }, 1000);
+    
+    updateDodgeTimerDisplay();
+    
+    // Таймер смены фазы
+    arenaPhaseTimeout = setTimeout(() => { 
+        if (arenaPhase === "dodge" && arenaActive) {
+            if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
+            startAttackPhase(); 
+        }
+    }, dodgeTime);
+}
+
+function updateDodgeTimerDisplay() {
+    let typeNames = {
+        0: "⬜ СТЕНЫ", 1: "🔷 ХАОС", 2: "⚡ ЖЁЛТЫЕ", 3: "🛑 КРАСНЫЕ", 4: "💗 РОЗОВЫЕ",
+        5: "💚 ЗЕЛЁНЫЕ", 6: "🌈 РАДУЖНЫЕ", 7: "⚡🛑 МИКС", 8: "🟥⬜ ЗОНЫ", 9: "💣 БОМБЫ", 10: "🔫 БЛАСТЕРЫ"
+    };
+    let timerEl = document.getElementById("arenaTimer");
+    if (timerEl && arenaPhase === "dodge") {
+        timerEl.innerText = arenaDodgeTimer + "с";
+    }
+    let bossNameEl = document.getElementById("arenaBossName");
+    if (bossNameEl && arenaPhase === "dodge") {
+        bossNameEl.innerText = arenaBoss + " — " + (typeNames[arenaAttackType] || "Атака") + " | ⚡" + heartSpeed.toFixed(1) + " | ⏱️" + arenaDodgeTimer + "с";
+    }
 }
 
 function startAttackPhase() {
+    // Очищаем таймер уклонения
+    if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
+    
     arenaPhase = "attack";
     attacks = []; arenaBlasters = []; wallGapIndicator = null; arenaClickTargets = []; arenaClicksHit = 0;
     arenaTotalTargets = 4 + Math.floor(arenaSpeedMult * 0.8);
@@ -560,6 +609,9 @@ function startAttackPhase() {
     if (arenaAttackInterval) { clearInterval(arenaAttackInterval); arenaAttackInterval = null; }
     
     document.getElementById("arenaBossName").innerText = arenaBoss + " — ⚡ БЕЙ! (" + arenaAttackTimeLeft + "с)";
+    let timerEl = document.getElementById("arenaTimer");
+    if (timerEl) timerEl.innerText = arenaAttackTimeLeft + "с";
+    
     playArenaSound(200, 'square', 0.3, 0.08); setTimeout(() => playArenaSound(300, 'square', 0.2, 0.06), 100);
     
     let usedPositions = [];
@@ -578,6 +630,8 @@ function startAttackPhase() {
     let attackTimer = setInterval(() => {
         arenaAttackTimeLeft--;
         document.getElementById("arenaBossName").innerText = arenaBoss + " — ⚡ БЕЙ! (" + arenaAttackTimeLeft + "с)";
+        let timerEl = document.getElementById("arenaTimer");
+        if (timerEl) timerEl.innerText = arenaAttackTimeLeft + "с";
         playArenaSound(1000, 'square', 0.05, 0.02);
         if (arenaAttackTimeLeft <= 0) { clearInterval(attackTimer); applyArenaDamage(); }
     }, 1000);
@@ -795,6 +849,10 @@ function spawnAttack() {
 }
 
 function stopArena() {
+    // Очищаем все таймеры
+    if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
+    if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
+    
     if (typeof resetAllSupers === 'function') resetAllSupers();
     
     arenaActive = false;
@@ -1186,7 +1244,7 @@ function renderArena() {
                 if (a.spdY) a.y += a.spdY * speedMod;
             }
             
-            // ИСПРАВЛЕНО: Им аура - радиус 55, шанс 50%
+            // Им аура - радиус 55, шанс 50%
             if (typeof _superState !== 'undefined' && _superState.imAuraActive && invulnTimer <= 0) {
                 let ax = a.x + (a.size || a.radius || 20) / 2;
                 let ay = a.y + (a.size || a.radius || 20) / 2;
@@ -1389,4 +1447,4 @@ function renderArena() {
     
     ctx.restore();
     animFrameId = requestAnimationFrame(renderArena);
-    }
+                                                                                                                                                                          }
