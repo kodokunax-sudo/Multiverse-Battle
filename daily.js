@@ -1,4 +1,4 @@
-// ========== ЕЖЕДНЕВНЫЕ НАГРАДЫ v1.0 ==========
+// ========== ЕЖЕДНЕВНЫЕ НАГРАДЫ v1.1 ==========
 
 let dailyRewards = {
     currentDay: 1,        // текущий день (1-10)
@@ -191,6 +191,9 @@ function resetDailyRewards() {
 
 // Проверить, можно ли забрать награду
 function canClaimDaily() {
+    // Модер может всегда
+    if (mode === "moder" && moderUnlocked) return true;
+    
     let today = getTodayDate();
     
     // Если уже забрал сегодня
@@ -200,15 +203,13 @@ function canClaimDaily() {
     
     // Если это первый заход или новый день
     if (dailyRewards.lastClaimDate !== today) {
-        // Если прошлый раз был не вчера и не сегодня, сбрасываем прогресс?
-        // Нет, не сбрасываем — игрок продолжает с того же дня
         dailyRewards.claimedToday = false;
     }
     
     return true;
 }
 
-// Забрать награду
+// Забрать награду (обычный режим — текущий день)
 function claimDailyReward() {
     if (!canClaimDaily()) {
         alert("⏳ Вы уже получили награду сегодня! Приходите завтра.");
@@ -228,23 +229,44 @@ function claimDailyReward() {
     // Применяем награду
     reward.apply();
     
-    // Обновляем состояние
-    dailyRewards.lastClaimDate = today;
-    dailyRewards.claimedToday = true;
-    dailyRewards.currentDay++;
-    
-    // Если прошли все 10 дней, начинаем заново
-    if (dailyRewards.currentDay > 10) {
-        dailyRewards.currentDay = 1;
+    // Обновляем состояние (только в обычном режиме)
+    if (mode !== "moder" || !moderUnlocked) {
+        dailyRewards.lastClaimDate = today;
+        dailyRewards.claimedToday = true;
+        dailyRewards.currentDay++;
+        
+        // Если прошли все 10 дней, начинаем заново
+        if (dailyRewards.currentDay > 10) {
+            dailyRewards.currentDay = 1;
+        }
     }
     
     saveAll();
     renderDailyRewards();
     
     // Показываем уведомление
-    setTimeout(() => {
-        alert("🎁 Получено: " + reward.icon + " " + reward.name + "!\n\n" + reward.desc + "\n\nЗавтра: День " + dailyRewards.currentDay + " — " + dailyRewardList[dailyRewards.currentDay - 1].icon + " " + dailyRewardList[dailyRewards.currentDay - 1].name);
-    }, 300);
+    if (mode !== "moder" || !moderUnlocked) {
+        setTimeout(() => {
+            alert("🎁 Получено: " + reward.icon + " " + reward.name + "!\n\n" + reward.desc + "\n\nЗавтра: День " + dailyRewards.currentDay + " — " + dailyRewardList[dailyRewards.currentDay - 1].icon + " " + dailyRewardList[dailyRewards.currentDay - 1].name);
+        }, 300);
+    }
+}
+
+// Модер: забрать награду за конкретный день
+function claimDailyDay(dayNum) {
+    if (mode !== "moder" || !moderUnlocked) return;
+    if (dayNum < 1 || dayNum > 10) return;
+    
+    let rewardIndex = dayNum - 1;
+    let reward = dailyRewardList[rewardIndex];
+    
+    // Применяем награду
+    reward.apply();
+    
+    saveAll();
+    renderDailyRewards();
+    
+    alert("🎁 [МОДЕР] Получено: " + reward.icon + " " + reward.name + " (День " + dayNum + ")!");
 }
 
 // Отрисовать ежедневные награды
@@ -253,7 +275,7 @@ function renderDailyRewards() {
     if (!container) return;
     
     let today = getTodayDate();
-    let claimed = dailyRewards.claimedToday && dailyRewards.lastClaimDate === today;
+    let claimed = (mode === "moder" && moderUnlocked) ? false : (dailyRewards.claimedToday && dailyRewards.lastClaimDate === today);
     let currentDay = dailyRewards.currentDay;
     
     let html = '';
@@ -263,19 +285,34 @@ function renderDailyRewards() {
     html += '📅 День ' + currentDay + ' из 10';
     if (claimed) {
         html += ' <span style="color:#2ecc71;">✅ Получено</span>';
+    } else if (mode === "moder" && moderUnlocked) {
+        html += ' <span style="color:#9b59b6;">👑 Модер-режим</span>';
     } else {
         html += ' <span style="color:#f5af19;">🎁 Можно забрать!</span>';
     }
     html += '</div>';
     
-    // Кнопка получения
-    html += '<button class="btn btn-primary" style="width:100%;padding:15px;font-size:16px;margin-bottom:15px;" onclick="claimDailyReward()" ' + (claimed ? 'disabled' : '') + '>';
-    if (claimed) {
+    // Кнопка получения (обычная)
+    html += '<button class="btn btn-primary" style="width:100%;padding:15px;font-size:16px;margin-bottom:15px;" onclick="claimDailyReward()" ' + (claimed && mode !== "moder" ? 'disabled' : '') + '>';
+    if (claimed && mode !== "moder") {
         html += '✅ Награда получена! Приходите завтра';
+    } else if (mode === "moder" && moderUnlocked) {
+        html += '🎁 ЗАБРАТЬ НАГРАДУ ДНЯ ' + currentDay + ' (МОДЕР)';
     } else {
         html += '🎁 ЗАБРАТЬ НАГРАДУ ДНЯ ' + currentDay;
     }
     html += '</button>';
+    
+    // Модер-кнопки для каждого дня
+    if (mode === "moder" && moderUnlocked) {
+        html += '<div style="margin-bottom:15px;padding:10px;background:rgba(155,89,182,0.15);border:2px solid #9b59b6;border-radius:14px;">';
+        html += '<div style="font-weight:800;font-size:13px;color:#e056fd;margin-bottom:8px;text-align:center;">👑 МОДЕР: выбрать любой день</div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;">';
+        for (let d = 1; d <= 10; d++) {
+            html += '<button class="btn" style="padding:6px 12px;font-size:11px;background:#9b59b6;border:none;color:white;border-radius:20px;" onclick="claimDailyDay(' + d + ')">День ' + d + '</button>';
+        }
+        html += '</div></div>';
+    }
     
     // Список всех наград
     html += '<div style="display:flex;flex-direction:column;gap:8px;">';
@@ -302,4 +339,4 @@ function renderDailyRewards() {
     html += '</div>';
     
     container.innerHTML = html;
-        }
+}
