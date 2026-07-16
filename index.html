@@ -422,6 +422,7 @@
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" data-subtab="shopItems">🛍️ Товары</button>
                 <button class="sub-tab-btn" data-subtab="gacha">🎰 Гача</button>
+                <button class="sub-tab-btn" data-subtab="daily">🎁 Ежедневно</button>
                 <button class="sub-tab-btn" data-subtab="bulkSell">💰 Скупка</button>
                 <button class="sub-tab-btn" data-subtab="autoRest">💤 Автосон</button>
                 <button class="sub-tab-btn" data-subtab="upgrades">📈 Прокачка</button>
@@ -445,6 +446,9 @@
                         <span style="color:#ffd700;">Лимиты сбрасываются раз в 24 часа.</span>
                     </div>
                 </div>
+            </div>
+            <div id="dailySubTab" class="sub-tab-content">
+                <div class="card"><div class="card-title">🎁 Ежедневные награды</div><div id="dailyRewardsList"></div></div>
             </div>
             <div id="bulkSellSubTab" class="sub-tab-content">
                 <div class="points">⭐ <span id="pointsAmountBulk">0</span></div>
@@ -542,9 +546,10 @@
 
 <script src="images.js"></script>
 <script src="data.js"></script>
+<script src="daily.js"></script>
 <script src="game.js"></script>
 <script src="battle.js"></script>
 <script src="supers.js"></script>
 <script src="ui.js"></script>
 </body>
-    </html>
+</html>
