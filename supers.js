@@ -1,6 +1,5 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v12.1 FINAL ==========
-// Деку: сначала 100%, потом два скилла (Earth Shatter + Dash Smash)
-// Всемогущий: Ураган, Дэнди: рулетка 3.0, Гарп: Хаки x1.5
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v13.0 FINAL ==========
+// Деку: две кнопки (Разлом 6 взрывов + Рывок), Всемогущий: Ураган x0.2 площади
 
 let _superState = {
     fists: [],
@@ -40,7 +39,8 @@ let _superState = {
     realityCracks: [],
     comicTexts: [],
     earthCracks: [],
-    dekuDash: null
+    dekuDash: null,
+    dekuExplosions: []
 };
 
 let _superCooldowns = {};
@@ -313,7 +313,6 @@ const superAbilities = {
         onActivate() {
             _superState.dekusActive = true; _superState.dekusOriginalSpeed = heartSpeed; _superState.dekusDmgMult = 2; _superState.dekusParticles = true;
             heartSpeed *= 3; _superState.screenShakeAmount = 15;
-            // Активируем два дополнительных скилла
             _superState.dekuEarthShatterReady = true;
             _superState.dekuDashSmashReady = true;
             _superState.dekuEarthShatterCooldown = 0;
@@ -323,12 +322,13 @@ const superAbilities = {
         },
         onDeactivate() {
             heartSpeed = _superState.dekusOriginalSpeed; _superState.dekusActive = false; _superState.dekusDmgMult = 1; _superState.dekusParticles = false;
-            // Убираем дополнительные скиллы
             _superState.dekuEarthShatterReady = false;
             _superState.dekuDashSmashReady = false;
             _superState.dekuEarthShatterCooldown = 0;
             _superState.dekuDashSmashCooldown = 0;
             _superState.dekuDash = null;
+            _superState.earthCracks = [];
+            _superState.dekuExplosions = [];
         },
         onTick(dt) { if (_superState.dekusActive && arenaActive) { let drain = arenaMaxHP * 0.02 * dt; arenaHP = Math.max(0, arenaHP - drain); document.getElementById("arenaHP").innerText = Math.max(0, Math.ceil(arenaHP)); if (arenaHP <= 0 && typeof loseArena === 'function') loseArena(); } }
     },
@@ -525,7 +525,7 @@ const superAbilities = {
     }
 };
 
-// ====== СКИЛЛЫ ДЕКУ (только после активации 100%) ======
+// ====== СКИЛЛЫ ДЕКУ ======
 function activateDekuEarthShatter() {
     if (!_superState.dekusActive) return;
     if (!_superState.dekuEarthShatterReady) return;
@@ -534,39 +534,40 @@ function activateDekuEarthShatter() {
     _superState.dekuEarthShatterReady = false;
     _superState.dekuEarthShatterCooldown = 20;
     
-    let dmg = Math.floor(arenaBossMaxHP * 0.10);
-    arenaBossMaxHP -= dmg;
-    
-    let totalAttacks = attacks.length;
-    let toRemove = Math.floor(totalAttacks * 0.5);
-    for (let i = 0; i < toRemove; i++) {
-        if (attacks.length > 0) {
-            let idx = Math.floor(Math.random() * attacks.length);
-            attacks.splice(idx, 1);
+    // 6 случайных взрывов на карте
+    for (let i = 0; i < 6; i++) {
+        let ex = 50 + Math.random() * 300;
+        let ey = 50 + Math.random() * 350;
+        
+        let dmg = Math.floor(arenaBossMaxHP * 0.0166);
+        arenaBossMaxHP -= dmg;
+        
+        addShockwaveRing(ex, ey, "#44ff44", 250, 0.5, 4);
+        
+        // Сохраняем взрыв для анимации
+        _superState.dekuExplosions.push({ x: ex, y: ey, life: 0.5, maxLife: 0.5 });
+        
+        for (let j = attacks.length - 1; j >= 0; j--) {
+            let a = attacks[j];
+            let ax = a.x + (a.size || a.radius || 20) / 2;
+            let ay = a.y + (a.size || a.radius || 20) / 2;
+            if (Math.hypot(ax - ex, ay - ey) < 70) {
+                attacks.splice(j, 1);
+                arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 20, maxLife: 20, color: "#44ff44", size: 3 });
+            }
         }
+        
+        for (let p = 0; p < 20; p++) {
+            let ang = Math.random() * Math.PI * 2;
+            let sp = 3 + Math.random() * 6;
+            arenaParticles.push({ x: ex, y: ey, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, life: 25, maxLife: 25, color: "#44ff44", size: 3 + Math.random() * 4 });
+        }
+        
+        _superState.earthCracks.push({ x: ex, y: ey, length: 20 + Math.random() * 40, angle: Math.random() * Math.PI * 2, life: 1.0 });
     }
     
-    _superState.earthCracks = [];
-    for (let i = 0; i < 12; i++) {
-        _superState.earthCracks.push({
-            x: Math.random() * 400,
-            y: 350 + Math.random() * 150,
-            length: 30 + Math.random() * 80,
-            angle: (Math.random() - 0.5) * 1.5,
-            life: 1.5
-        });
-    }
-    
-    _superState.screenShakeAmount = 30;
-    _superState.screenFlashWhite = 10;
-    addShockwaveRing(heart.x, heart.y, "#44ff44", 600, 0.8, 6);
-    spawnFloatingText(heart.x, heart.y - 30, "ЗЕМЛЕТРЯСЕНИЕ! -10%", "#44ff44");
-    
-    for (let i = 0; i < 40; i++) {
-        let ang = Math.random() * Math.PI * 2;
-        let sp = 3 + Math.random() * 8;
-        arenaParticles.push({ x: heart.x, y: heart.y + 50, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp - 3, life: 30, maxLife: 30, color: "#44ff44", size: 3 + Math.random() * 5 });
-    }
+    _superState.screenShakeAmount = 20;
+    spawnFloatingText(heart.x, heart.y - 30, "ВЗРЫВЫ! -10%", "#44ff44");
 }
 
 function activateDekuDashSmash() {
@@ -583,26 +584,10 @@ function activateDekuDashSmash() {
     if (keys.a || keys.left) dx = -1;
     if (keys.d || keys.right) dx = 1;
     
-    if (dx === 0 && dy === 0) {
-        let ang = Math.random() * Math.PI * 2;
-        dx = Math.cos(ang);
-        dy = Math.sin(ang);
-    }
+    if (dx === 0 && dy === 0) { let ang = Math.random() * Math.PI * 2; dx = Math.cos(ang); dy = Math.sin(ang); }
+    let len = Math.sqrt(dx*dx + dy*dy) || 1; dx /= len; dy /= len;
     
-    let len = Math.sqrt(dx*dx + dy*dy) || 1;
-    dx /= len;
-    dy /= len;
-    
-    _superState.dekuDash = {
-        startX: heart.x,
-        startY: heart.y,
-        dirX: dx,
-        dirY: dy,
-        distance: 200,
-        traveled: 0,
-        trail: [],
-        life: 0.4
-    };
+    _superState.dekuDash = { startX: heart.x, startY: heart.y, dirX: dx, dirY: dy, distance: 200, traveled: 0, trail: [], life: 0.4 };
     
     let dmg = Math.floor(arenaBossMaxHP * 0.08);
     arenaBossMaxHP -= dmg;
@@ -614,10 +599,8 @@ function activateDekuDashSmash() {
         let ay = a.y + (a.size || a.radius || 20) / 2;
         let t = ((ax - heart.x) * dx + (ay - heart.y) * dy) / (dx*dx + dy*dy);
         if (t > 0 && t < 200) {
-            let projX = heart.x + dx * t;
-            let projY = heart.y + dy * t;
-            let dist = Math.sqrt((ax - projX)**2 + (ay - projY)**2);
-            if (dist < dashWidth) {
+            let projX = heart.x + dx * t; let projY = heart.y + dy * t;
+            if (Math.sqrt((ax - projX)**2 + (ay - projY)**2) < dashWidth) {
                 attacks.splice(i, 1);
                 arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 20, maxLife: 20, color: "#44ff44", size: 3 });
             }
@@ -640,17 +623,22 @@ function activateAllmightHurricane() {
     _superState.allmightHurricaneAngle = 0;
     _allmightHurricaneCooldown = 5.0;
     
+    let hurricaneRadius = 50;
     for (let a of attacks) {
-        let dx = a.x - heart.x;
-        let dy = a.y - heart.y;
-        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
-        a.spd = (a.spd || 0) + (dx / dist) * 4;
-        a.spdY = (a.spdY || 0) + (dy / dist) * 4;
+        let ax = a.x + (a.size || a.radius || 20) / 2;
+        let ay = a.y + (a.size || a.radius || 20) / 2;
+        let dist = Math.hypot(ax - heart.x, ay - heart.y);
+        if (dist < hurricaneRadius) {
+            let dx = ax - heart.x; let dy = ay - heart.y;
+            let d = Math.sqrt(dx*dx + dy*dy) || 1;
+            a.spd = (a.spd || 0) + (dx / d) * 5;
+            a.spdY = (a.spdY || 0) + (dy / d) * 5;
+        }
     }
     
-    addShockwaveRing(heart.x, heart.y, "#00ffff", 300, 0.5, 6);
-    _superState.screenShakeAmount = 12;
-    spawnFloatingText(heart.x, heart.y - 30, "КАЛИФОРНИЯ УРАГАН!", "#00ffff");
+    addShockwaveRing(heart.x, heart.y, "#00ffff", 200, 0.4, 4);
+    _superState.screenShakeAmount = 8;
+    spawnFloatingText(heart.x, heart.y - 30, "УРАГАН!", "#00ffff");
 }
 
 // ====== УПРАВЛЕНИЕ ======
@@ -661,64 +649,35 @@ function toggleSuper() {
     let mainCard = getMainCard();
     if (!mainCard) return;
     
-    // Всемогущий: ураган
-    if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
-        activateAllmightHurricane();
-        return;
-    }
+    if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) { activateAllmightHurricane(); return; }
     
-    // Деку: Earth Shatter (основной скилл при активном 100%)
-    if (mainCard.name === "Деку (100%)" && _superState.dekusActive) {
-        if (_superState.dekuEarthShatterReady) {
+    if (mainCard.name === "Деку (100%)") {
+        if (!_superState.dekusActive) {
+            let ab = superAbilities["Деку (100%)"];
+            ab.onActivate();
+            _activeSuperName = "Деку (100%)";
+            updateSuperButton();
+            return;
+        } else {
             activateDekuEarthShatter();
             return;
         }
     }
     
-    // Деку: 100% (если не активно — активируем, если активно — деактивируем)
-    if (mainCard.name === "Деку (100%)" && !_superState.dekusActive) {
-        let ab = superAbilities["Деку (100%)"];
-        ab.onActivate();
-        _activeSuperName = "Деку (100%)";
-        updateSuperButton();
-        return;
-    }
-    
-    // Стандартная логика для других
     if (!superAbilities[mainCard.name]) return;
     let ab = superAbilities[mainCard.name];
     if (ab.cooldown === 0 && !ab.toggleable) return;
     let cd = _superCooldowns[mainCard.name] || { ready: true };
     if (!cd.ready) return;
     if (ab.toggleable) {
-        if (_activeSuperName === mainCard.name) {
-            if (ab.onDeactivate) ab.onDeactivate();
-            _activeSuperName = null;
-            startCooldown(mainCard.name, ab.cooldown);
-        } else {
-            if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) superAbilities[_activeSuperName].onDeactivate();
-            ab.onActivate();
-            _activeSuperName = mainCard.name;
-        }
+        if (_activeSuperName === mainCard.name) { if (ab.onDeactivate) ab.onDeactivate(); _activeSuperName = null; startCooldown(mainCard.name, ab.cooldown); }
+        else { if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) superAbilities[_activeSuperName].onDeactivate(); ab.onActivate(); _activeSuperName = mainCard.name; }
     } else {
         ab.onActivate();
-        if (ab.duration > 0) {
-            startCooldown(mainCard.name, ab.cooldown);
-            setTimeout(() => { if (ab.onDeactivate) ab.onDeactivate(); if (_activeSuperName === mainCard.name) _activeSuperName = null; }, ab.duration);
-        } else {
-            startCooldown(mainCard.name, ab.cooldown);
-        }
+        if (ab.duration > 0) { startCooldown(mainCard.name, ab.cooldown); setTimeout(() => { if (ab.onDeactivate) ab.onDeactivate(); if (_activeSuperName === mainCard.name) _activeSuperName = null; }, ab.duration); }
+        else { startCooldown(mainCard.name, ab.cooldown); }
     }
     updateSuperButton();
-}
-
-function switchDekuSkill() {
-    if (!_superState.dekusActive) return;
-    if (getMainCard()?.name !== "Деку (100%)") return;
-    // Переключаем на Dash Smash если доступен
-    if (_superState.dekuDashSmashReady) {
-        activateDekuDashSmash();
-    }
 }
 
 function startCooldown(cardName, ms) {
@@ -731,51 +690,42 @@ function startCooldown(cardName, ms) {
 function resetAllCooldowns() { for (let key in _superCooldowns) { if (_superCooldowns[key].interval) clearInterval(_superCooldowns[key].interval); } _superCooldowns = {}; _allmightHurricaneReady = false; _allmightHurricaneCooldown = 0; _superState.dekuEarthShatterReady = false; _superState.dekuDashSmashReady = false; _superState.dekuEarthShatterCooldown = 0; _superState.dekuDashSmashCooldown = 0; updateSuperButton(); }
 
 function updateSuperButton() {
-    let btn = document.getElementById("superBtn"); if (!btn) return;
-    let mainCard = getMainCard();
-    if (!mainCard) { btn.style.display = "none"; return; }
+    let btn = document.getElementById("superBtn");
+    let btn2 = document.getElementById("superBtn2");
+    if (!btn) return;
     
-    // Деку: 100% или Earth Shatter
+    let mainCard = getMainCard();
+    if (!mainCard) { btn.style.display = "none"; if (btn2) btn2.style.display = "none"; return; }
+    
+    // Деку: две кнопки при активном 100%
     if (mainCard.name === "Деку (100%)") {
         if (!_superState.dekusActive) {
             btn.style.display = "block";
+            if (btn2) btn2.style.display = "none";
             let cd = _superCooldowns["Деку (100%)"];
-            if (cd && !cd.ready) {
-                let sec = Math.ceil(cd.remaining / 1000);
-                btn.textContent = "⏳ 100% (" + sec + "с)";
-                btn.style.background = "#555";
-                btn.style.animation = "none";
-            } else {
-                btn.textContent = "💚 АКТИВИРОВАТЬ 100%";
-                btn.style.background = "linear-gradient(135deg, #44ff44, #00aa00)";
-                btn.style.animation = "superPulse 2s infinite";
-            }
+            if (cd && !cd.ready) { let sec = Math.ceil(cd.remaining / 1000); btn.textContent = "⏳ 100% (" + sec + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; }
+            else { btn.textContent = "💚 100%"; btn.style.background = "linear-gradient(135deg, #44ff44, #00aa00)"; btn.style.animation = "superPulse 2s infinite"; }
         } else {
-            // Режим 100% активен — показываем Earth Shatter
-            if (_superState.dekuEarthShatterCooldown > 0) {
-                btn.textContent = "⏳ РАЗЛОМ (" + Math.ceil(_superState.dekuEarthShatterCooldown) + "с)";
-                btn.style.background = "#555";
-                btn.style.animation = "none";
-            } else {
-                btn.textContent = "💥 РАЗЛОМ ЗЕМЛИ (10%)";
-                btn.style.background = "linear-gradient(135deg, #44ff44, #00aa00)";
-                btn.style.animation = "superPulse 2s infinite";
+            btn.style.display = "block";
+            if (btn2) btn2.style.display = "block";
+            
+            if (_superState.dekuEarthShatterCooldown > 0) { btn.textContent = "⏳ РАЗЛОМ (" + Math.ceil(_superState.dekuEarthShatterCooldown) + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; }
+            else { btn.textContent = "💥 РАЗЛОМ"; btn.style.background = "linear-gradient(135deg, #ff8800, #ff4400)"; btn.style.animation = "superPulse 2s infinite"; }
+            
+            if (btn2) {
+                if (_superState.dekuDashSmashCooldown > 0) { btn2.textContent = "⏳ РЫВОК (" + Math.ceil(_superState.dekuDashSmashCooldown) + "с)"; btn2.style.background = "#555"; btn2.style.animation = "none"; }
+                else { btn2.textContent = "💨 РЫВОК"; btn2.style.background = "linear-gradient(135deg, #44ff44, #00ffff)"; btn2.style.animation = "superPulse 2s infinite"; }
             }
         }
         return;
     }
     
-    // Всемогущий: ураган
+    if (btn2) btn2.style.display = "none";
+    
     if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
-        if (_allmightHurricaneCooldown > 0) {
-            btn.textContent = "🌪️ УРАГАН (" + Math.ceil(_allmightHurricaneCooldown) + "с)";
-            btn.style.background = "#555";
-            btn.style.animation = "none";
-        } else {
-            btn.textContent = "🌪️ КАЛИФОРНИЯ УРАГАН";
-            btn.style.background = "linear-gradient(135deg, #00ffff, #0088ff)";
-            btn.style.animation = "superPulse 2s infinite";
-        }
+        btn.style.display = "block";
+        if (_allmightHurricaneCooldown > 0) { btn.textContent = "🌪️ УРАГАН (" + Math.ceil(_allmightHurricaneCooldown) + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; }
+        else { btn.textContent = "🌪️ УРАГАН"; btn.style.background = "linear-gradient(135deg, #00ffff, #0088ff)"; btn.style.animation = "superPulse 2s infinite"; }
         return;
     }
     
@@ -810,13 +760,10 @@ function resetAllSupers() {
     _superState.markBuffActive = false; _superState.markBuffTimer = 0; _superState.markDmgReduction = 1; _superState.markDmgBonus = 1; _superState.markSpeedBonus = 1;
     _superState.dandyLightnings = false; _superState.dandyInvuln = false; _superState.dandyDmgBuff = null; _superState.dandyShield = null; _superState.dandyVulnerable = null; _superState.dandyDoubleTargets = false; _superState.dandyRoulette = null;
     _superState.fists = []; _superState.rings = [];
-    _superState.realityCracks = [];
-    _superState.earthCracks = [];
-    _superState.dekuDash = null;
-    _superState.comicTexts = [];
+    _superState.realityCracks = []; _superState.earthCracks = []; _superState.dekuExplosions = [];
+    _superState.dekuDash = null; _superState.comicTexts = [];
     _superState.screenShakeAmount = 0; _superState.screenFlashWhite = 0;
-    _allmightHurricaneReady = false;
-    _allmightHurricaneCooldown = 0;
+    _allmightHurricaneReady = false; _allmightHurricaneCooldown = 0;
     resetAllCooldowns();
 }
 
@@ -828,39 +775,19 @@ function tickSupers() {
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onTick) superAbilities[_activeSuperName].onTick(dt);
     if (_superState.borosHeal && _superState.borosHeal.active && superAbilities["Борос"] && superAbilities["Борос"].onTick) superAbilities["Борос"].onTick(dt);
     
-    // Кулдауны Деку
     if (_superState.dekusActive && _superState.dekuEarthShatterCooldown > 0) { _superState.dekuEarthShatterCooldown -= dt; if (_superState.dekuEarthShatterCooldown <= 0) { _superState.dekuEarthShatterCooldown = 0; _superState.dekuEarthShatterReady = true; updateSuperButton(); } else updateSuperButton(); }
     if (_superState.dekusActive && _superState.dekuDashSmashCooldown > 0) { _superState.dekuDashSmashCooldown -= dt; if (_superState.dekuDashSmashCooldown <= 0) { _superState.dekuDashSmashCooldown = 0; _superState.dekuDashSmashReady = true; updateSuperButton(); } else updateSuperButton(); }
     
-    // Рывок Деку
     if (_superState.dekuDash) {
         _superState.dekuDash.life -= dt;
-        if (_superState.dekuDash.life <= 0) {
-            _superState.dekuDash = null;
-        } else {
-            let speed = _superState.dekuDash.distance / 0.4;
-            let moveX = _superState.dekuDash.dirX * speed * dt;
-            let moveY = _superState.dekuDash.dirY * speed * dt;
-            heart.x += moveX;
-            heart.y += moveY;
-            _superState.dekuDash.trail.push({ x: heart.x, y: heart.y, life: 0.3 });
-            clampHeart();
-            let dashWidth = 60;
-            for (let i = attacks.length - 1; i >= 0; i--) {
-                let a = attacks[i];
-                let ax = a.x + (a.size || a.radius || 20) / 2;
-                let ay = a.y + (a.size || a.radius || 20) / 2;
-                let dist = Math.sqrt((ax - heart.x)**2 + (ay - heart.y)**2);
-                if (dist < dashWidth) {
-                    attacks.splice(i, 1);
-                    arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 20, maxLife: 20, color: "#44ff44", size: 3 });
-                }
-            }
-        }
+        if (_superState.dekuDash.life <= 0) { _superState.dekuDash = null; }
+        else { let speed = _superState.dekuDash.distance / 0.4; let moveX = _superState.dekuDash.dirX * speed * dt; let moveY = _superState.dekuDash.dirY * speed * dt; heart.x += moveX; heart.y += moveY; _superState.dekuDash.trail.push({ x: heart.x, y: heart.y, life: 0.3 }); clampHeart(); let dashWidth = 60; for (let i = attacks.length - 1; i >= 0; i--) { let a = attacks[i]; let ax = a.x + (a.size || a.radius || 20) / 2; let ay = a.y + (a.size || a.radius || 20) / 2; let dist = Math.sqrt((ax - heart.x)**2 + (ay - heart.y)**2); if (dist < dashWidth) { attacks.splice(i, 1); arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 20, maxLife: 20, color: "#44ff44", size: 3 }); } } }
     }
     
-    if (_allmightHurricaneReady && _allmightHurricaneCooldown > 0) { _allmightHurricaneCooldown -= dt; if (_allmightHurricaneCooldown < 0) _allmightHurricaneCooldown = 0; updateSuperButton(); }
+    // Взрывы Деку
+    for (let i = _superState.dekuExplosions.length - 1; i >= 0; i--) { _superState.dekuExplosions[i].life -= dt; if (_superState.dekuExplosions[i].life <= 0) _superState.dekuExplosions.splice(i, 1); }
     
+    if (_allmightHurricaneReady && _allmightHurricaneCooldown > 0) { _allmightHurricaneCooldown -= dt; if (_allmightHurricaneCooldown < 0) _allmightHurricaneCooldown = 0; updateSuperButton(); }
     updateSuperLogic(dt); updateSuperButton();
 }
 
@@ -869,58 +796,27 @@ function updateSuperLogic(dt) {
     if (_superState.screenShakeAmount > 0) _superState.screenShakeAmount -= dt * 5;
     if (_superState.screenFlashWhite > 0) _superState.screenFlashWhite -= dt * 25;
     for (let i = _superState.rings.length - 1; i >= 0; i--) { let r = _superState.rings[i]; r.radius += r.speed * dt; r.life -= dt; if (r.life <= 0) _superState.rings.splice(i, 1); }
-    
     for (let i = _superState.realityCracks.length - 1; i >= 0; i--) { _superState.realityCracks[i].life -= dt; if (_superState.realityCracks[i].life <= 0) _superState.realityCracks.splice(i, 1); }
     for (let i = _superState.earthCracks.length - 1; i >= 0; i--) { _superState.earthCracks[i].life -= dt; if (_superState.earthCracks[i].life <= 0) _superState.earthCracks.splice(i, 1); }
-    
-    if (_superState.dekuDash && _superState.dekuDash.trail) {
-        for (let i = _superState.dekuDash.trail.length - 1; i >= 0; i--) {
-            _superState.dekuDash.trail[i].life -= dt;
-            if (_superState.dekuDash.trail[i].life <= 0) _superState.dekuDash.trail.splice(i, 1);
-        }
-    }
-    
+    if (_superState.dekuDash && _superState.dekuDash.trail) { for (let i = _superState.dekuDash.trail.length - 1; i >= 0; i--) { _superState.dekuDash.trail[i].life -= dt; if (_superState.dekuDash.trail[i].life <= 0) _superState.dekuDash.trail.splice(i, 1); } }
     for (let i = _superState.comicTexts.length - 1; i >= 0; i--) { _superState.comicTexts[i].alpha -= dt * 0.8; _superState.comicTexts[i].y -= dt * 10; if (_superState.comicTexts[i].alpha <= 0) _superState.comicTexts.splice(i, 1); }
     
     if (_superState.allmightHurricane) {
-        _superState.allmightHurricaneTimer -= dt;
-        _superState.allmightHurricaneAngle += dt * 15;
+        _superState.allmightHurricaneTimer -= dt; _superState.allmightHurricaneAngle += dt * 15;
         if (_superState.allmightHurricaneTimer <= 0) { _superState.allmightHurricane = false; }
-        if (Math.floor(_superState.allmightHurricaneTimer * 10) % 3 === 0) {
-            for (let a of attacks) { let dx = a.x - heart.x; let dy = a.y - heart.y; let dist = Math.sqrt(dx*dx + dy*dy) || 1; a.spd = (a.spd || 0) + (dx / dist) * 2; a.spdY = (a.spdY || 0) + (dy / dist) * 2; }
-            for (let i = 0; i < 5; i++) { let angle = Math.random() * Math.PI * 2; let spd = 3 + Math.random() * 5; arenaParticles.push({ x: heart.x, y: heart.y, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, life: 20, maxLife: 20, color: "#00ffff", size: 2 + Math.random() * 3 }); }
-        }
+        if (Math.floor(_superState.allmightHurricaneTimer * 10) % 3 === 0) { for (let i = 0; i < 3; i++) { let angle = Math.random() * Math.PI * 2; let spd = 3 + Math.random() * 3; arenaParticles.push({ x: heart.x, y: heart.y, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, life: 20, maxLife: 20, color: "#00ffff", size: 1 + Math.random() * 2 }); } }
     }
 
     if (_superState.garpChargeTimer > 0) {
         _superState.garpChargeTimer -= dt;
-        if (_superState.garpChargeTimer <= 0) {
-            _superState.garpChargeTimer = 0; heartSpeed /= 0.3;
-            _superState.garpImpactActive = true; _superState.garpImpactRadius = 0; _superState.garpImpactX = heart.x; _superState.garpImpactY = heart.y;
-            arenaBossMaxHP = Math.floor(arenaBossMaxHP * 0.90);
-            _superState.screenShakeAmount = 45; _superState.screenFlashWhite = 15;
-            spawnFloatingText(heart.x, heart.y - 40, "ГАЛАКТИЧЕСКИЙ УДАР!!!", "#8844ff");
-            if (typeof sfxArenaVictory === 'function') sfxArenaVictory();
-            _superState.garpHakiActive = true; _superState.garpHakiTimer = 9.0;
-            heartSpeed *= 1.25;
-            spawnFloatingText(heart.x, heart.y - 30, "ХАКИ!", "#ff4444");
-        }
+        if (_superState.garpChargeTimer <= 0) { _superState.garpChargeTimer = 0; heartSpeed /= 0.3; _superState.garpImpactActive = true; _superState.garpImpactRadius = 0; _superState.garpImpactX = heart.x; _superState.garpImpactY = heart.y; arenaBossMaxHP = Math.floor(arenaBossMaxHP * 0.90); _superState.screenShakeAmount = 45; _superState.screenFlashWhite = 15; spawnFloatingText(heart.x, heart.y - 40, "ГАЛАКТИЧЕСКИЙ УДАР!!!", "#8844ff"); if (typeof sfxArenaVictory === 'function') sfxArenaVictory(); _superState.garpHakiActive = true; _superState.garpHakiTimer = 9.0; heartSpeed *= 1.25; spawnFloatingText(heart.x, heart.y - 30, "ХАКИ!", "#ff4444"); }
     }
-    
-    if (_superState.garpImpactActive) {
-        _superState.garpImpactRadius += dt * 700;
-        if (_superState.garpImpactRadius > 250) { _superState.garpImpactActive = false; }
-        for (let j = attacks.length - 1; j >= 0; j--) { let a = attacks[j]; let ax = a.x + (a.size || a.radius || 20) / 2; let ay = a.y + (a.size || a.radius || 20) / 2; if (Math.hypot(ax - _superState.garpImpactX, ay - _superState.garpImpactY) < _superState.garpImpactRadius) { attacks.splice(j, 1); arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*12, vy: (Math.random()-0.5)*12, life: 25, maxLife: 25, color: "#8844ff", size: 4 }); } }
-    }
-    
+    if (_superState.garpImpactActive) { _superState.garpImpactRadius += dt * 700; if (_superState.garpImpactRadius > 250) { _superState.garpImpactActive = false; } for (let j = attacks.length - 1; j >= 0; j--) { let a = attacks[j]; let ax = a.x + (a.size || a.radius || 20) / 2; let ay = a.y + (a.size || a.radius || 20) / 2; if (Math.hypot(ax - _superState.garpImpactX, ay - _superState.garpImpactY) < _superState.garpImpactRadius) { attacks.splice(j, 1); arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*12, vy: (Math.random()-0.5)*12, life: 25, maxLife: 25, color: "#8844ff", size: 4 }); } } }
     if (_superState.garpHakiActive) { _superState.garpHakiTimer -= dt; if (_superState.garpHakiTimer <= 0) { _superState.garpHakiActive = false; heartSpeed /= 1.25; } }
     if (_superState.allmightDebuffActive) { _superState.allmightDebuffTimer -= dt; if (_superState.allmightDebuffTimer <= 0) { _superState.allmightDebuffActive = false; } }
     if (_superState.markBuffActive) { _superState.markBuffTimer -= dt; if (_superState.markBuffTimer <= 0) { _superState.markBuffActive = false; heartSpeed /= _superState.markSpeedBonus; _superState.markDmgReduction = 1; _superState.markDmgBonus = 1; _superState.markSpeedBonus = 1; } }
     
-    if (arenaPhase === "dodge" && mainCard && mainCard.name === "Космический Гароу") {
-        let now = performance.now(); _superState.positionHistory.push({ time: now, x: heart.x, y: heart.y });
-        while (_superState.positionHistory.length > 0 && now - _superState.positionHistory[0].time > 5000) _superState.positionHistory.shift();
-    }
+    if (arenaPhase === "dodge" && mainCard && mainCard.name === "Космический Гароу") { let now = performance.now(); _superState.positionHistory.push({ time: now, x: heart.x, y: heart.y }); while (_superState.positionHistory.length > 0 && now - _superState.positionHistory[0].time > 5000) _superState.positionHistory.shift(); }
     
     if (_superState.usoppStunTimer > 0) { _superState.usoppStunTimer -= dt; if (_superState.usoppStunTimer < 0) _superState.usoppStunTimer = 0; }
     if (_superState.garouInvulnTimer > 0) { _superState.garouInvulnTimer -= dt; if (_superState.garouInvulnTimer < 0) _superState.garouInvulnTimer = 0; }
@@ -949,66 +845,33 @@ function updateSuperLogic(dt) {
 function renderSuperVisuals() {
     if (!ctx) return;
     
-    if (_superState.realityCracks.length > 0) {
+    if (_superState.realityCracks.length > 0) { ctx.save(); ctx.strokeStyle = "rgba(0, 255, 255, 0.9)"; ctx.lineWidth = 3; ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 10; _superState.realityCracks.forEach(cr => { ctx.globalAlpha = cr.life; ctx.beginPath(); ctx.moveTo(cr.x1, cr.y1); let cx = cr.x1, cy = cr.y1; for(let i=1; i<=4; i++) { let t = i / 4; cx = cr.x1 + (cr.x2 - cr.x1) * t + (Math.random()-0.5)*40; cy = cr.y1 + (cr.y2 - cr.y1) * t + (Math.random()-0.5)*40; ctx.lineTo(cx, cy); } ctx.stroke(); }); ctx.restore(); }
+    
+    // Взрывы Деку
+    if (_superState.dekuExplosions.length > 0) {
         ctx.save();
-        ctx.strokeStyle = "rgba(0, 255, 255, 0.9)"; ctx.lineWidth = 3; ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 10;
-        _superState.realityCracks.forEach(cr => {
-            ctx.globalAlpha = cr.life;
-            ctx.beginPath(); ctx.moveTo(cr.x1, cr.y1);
-            let cx = cr.x1, cy = cr.y1;
-            for(let i=1; i<=4; i++) { let t = i / 4; cx = cr.x1 + (cr.x2 - cr.x1) * t + (Math.random()-0.5)*40; cy = cr.y1 + (cr.y2 - cr.y1) * t + (Math.random()-0.5)*40; ctx.lineTo(cx, cy); }
-            ctx.stroke();
-        });
-        ctx.restore();
-    }
-
-    if (_superState.earthCracks.length > 0) {
-        ctx.save();
-        ctx.strokeStyle = "rgba(68, 255, 68, 0.9)"; ctx.lineWidth = 2.5; ctx.shadowColor = "#44ff44"; ctx.shadowBlur = 8;
-        _superState.earthCracks.forEach(cr => {
-            ctx.globalAlpha = cr.life;
+        _superState.dekuExplosions.forEach(exp => {
+            let alpha = exp.life / exp.maxLife;
+            let radius = 40 * (1 - alpha);
+            let grad = ctx.createRadialGradient(exp.x, exp.y, 0, exp.x, exp.y, radius);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+            grad.addColorStop(0.3, 'rgba(68, 255, 68, 0.6)');
+            grad.addColorStop(0.7, 'rgba(0, 200, 0, 0.2)');
+            grad.addColorStop(1, 'rgba(0, 100, 0, 0)');
+            ctx.fillStyle = grad;
+            ctx.globalAlpha = alpha;
             ctx.beginPath();
-            let startX = cr.x; let startY = cr.y;
-            ctx.moveTo(startX, startY);
-            let endX = startX + Math.cos(cr.angle) * cr.length;
-            let endY = startY + Math.sin(cr.angle) * cr.length;
-            ctx.lineTo(endX, endY);
-            for (let b = 0; b < 2; b++) {
-                let bx = startX + (endX - startX) * (0.3 + Math.random() * 0.5);
-                let by = startY + (endY - startY) * (0.3 + Math.random() * 0.5);
-                let bAngle = cr.angle + (Math.random() - 0.5) * 1.2;
-                let bLen = cr.length * (0.2 + Math.random() * 0.3);
-                ctx.moveTo(bx, by);
-                ctx.lineTo(bx + Math.cos(bAngle) * bLen, by + Math.sin(bAngle) * bLen);
-            }
-            ctx.stroke();
-        });
-        ctx.restore();
-    }
-
-    if (_superState.dekuDash && _superState.dekuDash.trail && _superState.dekuDash.trail.length > 0) {
-        ctx.save();
-        ctx.globalAlpha = 0.6;
-        for (let t of _superState.dekuDash.trail) {
-            ctx.fillStyle = "#44ff44";
-            ctx.shadowColor = "#44ff44";
-            ctx.shadowBlur = 15;
-            ctx.beginPath();
-            ctx.arc(t.x, t.y, heart.size * 0.8 * (t.life / 0.3), 0, Math.PI * 2);
+            ctx.arc(exp.x, exp.y, radius, 0, Math.PI * 2);
             ctx.fill();
-        }
+        });
         ctx.restore();
     }
 
-    if (_superState.imAuraActive && arenaActive) {
-        ctx.save(); ctx.globalAlpha = 0.35;
-        ctx.fillStyle = "#ff0000"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15;
-        ctx.beginPath(); ctx.ellipse(130, 100, 30, 8, -0.2, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#ffd700"; ctx.beginPath(); ctx.arc(130, 100, 4, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#ff0000"; ctx.beginPath(); ctx.ellipse(270, 100, 30, 8, 0.2, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#ffd700"; ctx.beginPath(); ctx.arc(270, 100, 4, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
-    }
+    if (_superState.earthCracks.length > 0) { ctx.save(); ctx.strokeStyle = "rgba(68, 255, 68, 0.9)"; ctx.lineWidth = 2.5; ctx.shadowColor = "#44ff44"; ctx.shadowBlur = 8; _superState.earthCracks.forEach(cr => { ctx.globalAlpha = cr.life; ctx.beginPath(); let startX = cr.x; let startY = cr.y; ctx.moveTo(startX, startY); let endX = startX + Math.cos(cr.angle) * cr.length; let endY = startY + Math.sin(cr.angle) * cr.length; ctx.lineTo(endX, endY); for (let b = 0; b < 2; b++) { let bx = startX + (endX - startX) * (0.3 + Math.random() * 0.5); let by = startY + (endY - startY) * (0.3 + Math.random() * 0.5); let bAngle = cr.angle + (Math.random() - 0.5) * 1.2; let bLen = cr.length * (0.2 + Math.random() * 0.3); ctx.moveTo(bx, by); ctx.lineTo(bx + Math.cos(bAngle) * bLen, by + Math.sin(bAngle) * bLen); } ctx.stroke(); }); ctx.restore(); }
+
+    if (_superState.dekuDash && _superState.dekuDash.trail && _superState.dekuDash.trail.length > 0) { ctx.save(); ctx.globalAlpha = 0.6; for (let t of _superState.dekuDash.trail) { ctx.fillStyle = "#44ff44"; ctx.shadowColor = "#44ff44"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(t.x, t.y, heart.size * 0.8 * (t.life / 0.3), 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
+
+    if (_superState.imAuraActive && arenaActive) { ctx.save(); ctx.globalAlpha = 0.35; ctx.fillStyle = "#ff0000"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.ellipse(130, 100, 30, 8, -0.2, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#ffd700"; ctx.beginPath(); ctx.arc(130, 100, 4, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#ff0000"; ctx.beginPath(); ctx.ellipse(270, 100, 30, 8, 0.2, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#ffd700"; ctx.beginPath(); ctx.arc(270, 100, 4, 0, Math.PI*2); ctx.fill(); ctx.restore(); }
 
     for (let r of _superState.rings) { ctx.save(); ctx.globalAlpha = Math.max(0, r.life / r.maxLife); ctx.strokeStyle = r.color; ctx.lineWidth = r.width; ctx.shadowColor = r.color; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
     if (_superState.screenFlashWhite > 0) { ctx.save(); ctx.fillStyle = "#ffffff"; ctx.globalAlpha = Math.min(1, _superState.screenFlashWhite / 10); ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
@@ -1041,7 +904,54 @@ function renderSuperVisuals() {
     if (_superState.allmightDebuffActive && arenaActive) { ctx.save(); ctx.globalAlpha = 0.25; ctx.fillStyle = "#ff4444"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
     if (_superState.garouInvulnTimer > 0 && arenaActive) { ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 4; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 25; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
     
-    if (_superState.allmightHurricane && arenaActive) { ctx.save(); ctx.globalAlpha = 0.3; ctx.strokeStyle = "#00ffff"; ctx.lineWidth = 3; ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 20; let hurricaneRings = 3; for (let r = 0; r < hurricaneRings; r++) { let ringRadius = 40 + r * 25; let ringRotation = _superState.allmightHurricaneAngle * (1 + r * 0.3); ctx.beginPath(); for (let i = 0; i < 360; i += 15) { let angle = (i + ringRotation) * Math.PI / 180; let x = heart.x + Math.cos(angle) * ringRadius; let y = heart.y + Math.sin(angle) * ringRadius * 0.6; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.closePath(); ctx.stroke(); } for (let i = 0; i < 8; i++) { let angle = _superState.allmightHurricaneAngle + Math.random() * Math.PI * 2; let dist = 20 + Math.random() * 80; let px = heart.x + Math.cos(angle) * dist; let py = heart.y + Math.sin(angle) * dist * 0.6; ctx.fillStyle = "#00ffff"; ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(px, py, 2, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
+    // Всемогущий: ураган (уменьшенная площадь + красивая анимация)
+    if (_superState.allmightHurricane && arenaActive) {
+        ctx.save();
+        let vortexGrad = ctx.createRadialGradient(heart.x, heart.y, 5, heart.x, heart.y, 45);
+        vortexGrad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+        vortexGrad.addColorStop(0.3, 'rgba(0, 255, 255, 0.6)');
+        vortexGrad.addColorStop(0.7, 'rgba(0, 150, 255, 0.2)');
+        vortexGrad.addColorStop(1, 'rgba(0, 100, 200, 0)');
+        ctx.fillStyle = vortexGrad;
+        ctx.beginPath(); ctx.arc(heart.x, heart.y, 45, 0, Math.PI * 2); ctx.fill();
+        
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = "#00ffff"; ctx.lineWidth = 2;
+        ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 12;
+        for (let r = 0; r < 3; r++) {
+            let ringRadius = 12 + r * 12;
+            let ringRotation = _superState.allmightHurricaneAngle * (1 + r * 0.4);
+            let segments = 24;
+            ctx.beginPath();
+            for (let i = 0; i <= segments; i++) {
+                let angle = (i / segments) * Math.PI * 2 + ringRotation;
+                let waveOffset = Math.sin(i * 2 + _superState.allmightHurricaneAngle * 3) * 5;
+                let x = heart.x + Math.cos(angle) * (ringRadius + waveOffset);
+                let y = heart.y + Math.sin(angle) * (ringRadius + waveOffset) * 0.7;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.closePath(); ctx.stroke();
+        }
+        
+        for (let i = 0; i < 12; i++) {
+            let angle = _superState.allmightHurricaneAngle * 2 + (i / 12) * Math.PI * 2;
+            let dist = 15 + (i % 3) * 18;
+            let px = heart.x + Math.cos(angle) * dist;
+            let py = heart.y + Math.sin(angle) * dist * 0.6;
+            ctx.fillStyle = i % 2 === 0 ? "#ffffff" : "#00ffff";
+            ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 6;
+            ctx.beginPath(); ctx.arc(px, py, 1.5, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "rgba(0, 255, 255, 0.4)"; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - Math.cos(angle) * 8, py - Math.sin(angle) * 8); ctx.stroke();
+        }
+        
+        ctx.globalAlpha = 0.3;
+        for (let i = 0; i < 3; i++) {
+            let angle = Math.random() * Math.PI * 2;
+            drawLightningBolt(heart.x, heart.y, heart.x + Math.cos(angle) * 50, heart.y + Math.sin(angle) * 50, "#00ffff", 0.7, 2);
+        }
+        ctx.restore();
+    }
     
     if (_superState.allmightBuffTimer > 0 && arenaActive) drawGoldenHeart(heart.x, heart.y, heart.size);
     if (_superState.kaidoDrinking && arenaActive) drawBeerBottle(heart.x, heart.y, 1);
@@ -1051,10 +961,9 @@ function renderSuperVisuals() {
 
 // ====== ЭКСПОРТ ФУНКЦИЙ ======
 window.toggleSuper = toggleSuper;
-window.switchDekuSkill = switchDekuSkill;
-window.activateAllmightHurricane = activateAllmightHurricane;
-window.activateDekuEarthShatter = activateDekuEarthShatter;
 window.activateDekuDashSmash = activateDekuDashSmash;
+window.activateDekuEarthShatter = activateDekuEarthShatter;
+window.activateAllmightHurricane = activateAllmightHurricane;
 window.initSuperState = initSuperState;
 window.tickSupers = tickSupers;
 window.renderSuperVisuals = renderSuperVisuals;
