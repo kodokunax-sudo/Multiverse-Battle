@@ -1,6 +1,6 @@
-// ========== АРЕНА UNDERTALE v10.2 FINAL ==========
+// ========== АРЕНА UNDERTALE v10.3 FINAL ==========
 // Полный файл со всеми функциями
-// Исправлено: таймер атаки босса, баг с мгновенной фазой атаки
+// Добавлена поддержка superBtn2, таймер атаки босса, исправлен баг с фазой атаки
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -54,9 +54,9 @@ let screenFlashColor = "#ffffff";
 let heartRotation = 0;
 let arenaVignette = 0;
 let arenaGlobalSpeedMod = 1.0;
-let arenaDodgeTimer = 0; // Таймер до конца фазы уклонения
-let arenaDodgeTimerInterval = null; // Интервал обновления таймера
-let arenaPhaseTimeout = null; // setTimeout для смены фазы
+let arenaDodgeTimer = 0;
+let arenaDodgeTimerInterval = null;
+let arenaPhaseTimeout = null;
 
 let mobileSuperTapTimer = null;
 let mobileSuperTapCount = 0;
@@ -393,6 +393,7 @@ function startArena(bossWave) {
     let btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = "none";
     let spareBtn = document.getElementById("spareBtn"); if (spareBtn) spareBtn.style.display = "none";
     let skipBtn = document.getElementById("skipArenaBtn"); if (skipBtn) skipBtn.style.display = "none";
+    let superBtn2 = document.getElementById("superBtn2"); if (superBtn2) superBtn2.style.display = "none";
     
     arenaBossDefeatedBefore = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossWave));
     arenaActive = true;
@@ -404,7 +405,6 @@ function startArena(bossWave) {
     arenaGlobalSpeedMod = 1.0;
     arenaDodgeTimer = 0;
     
-    // Очищаем предыдущие таймеры
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
     
@@ -521,7 +521,6 @@ function startDodgePhase() {
     wallGapIndicator = null;
     heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0;
     
-    // Очищаем старый таймер если был
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
     
@@ -555,11 +554,9 @@ function startDodgePhase() {
         }
     }, Math.max(800, baseInterval / arenaSpeedMult));
     
-    // Длительность фазы уклонения от 10 до 16 секунд
     let dodgeTime = Math.floor(10000 + Math.random() * 6000);
     arenaDodgeTimer = Math.floor(dodgeTime / 1000);
     
-    // Обновляем таймер каждую секунду
     arenaDodgeTimerInterval = setInterval(() => {
         if (arenaPhase === "dodge" && arenaActive) {
             arenaDodgeTimer--;
@@ -570,7 +567,6 @@ function startDodgePhase() {
     
     updateDodgeTimerDisplay();
     
-    // Таймер смены фазы
     arenaPhaseTimeout = setTimeout(() => { 
         if (arenaPhase === "dodge" && arenaActive) {
             if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
@@ -595,7 +591,6 @@ function updateDodgeTimerDisplay() {
 }
 
 function startAttackPhase() {
-    // Очищаем таймер уклонения
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
     
     arenaPhase = "attack";
@@ -849,7 +844,6 @@ function spawnAttack() {
 }
 
 function stopArena() {
-    // Очищаем все таймеры
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
     
@@ -864,6 +858,7 @@ function stopArena() {
     document.getElementById("arenaOverlay").style.display = "none";
     let skipBtn = document.getElementById("skipBossBtn"); if (skipBtn) skipBtn.style.display = "none";
     let superBtn = document.getElementById("superBtn"); if (superBtn) superBtn.style.display = "none";
+    let superBtn2 = document.getElementById("superBtn2"); if (superBtn2) superBtn2.style.display = "none";
 }
 
 function winArena() {
@@ -951,7 +946,7 @@ function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
     
     let pCount = 35;
     for (let j = 0; j < pCount; j++) {
-        arenaParticles.push({ x: heart.x, y: heart.y, vx: (Math.random() - 0.5) * 16, vy: (Math.random() - 0.5) * 16, life: 28, maxLife: 28, color: "#ff2222", size: 2 + Math.random() * 4 });
+        arenaParticles.push({ x: heart.x, heart.y, vx: (Math.random() - 0.5) * 16, vy: (Math.random() - 0.5) * 16, life: 28, maxLife: 28, color: "#ff2222", size: 2 + Math.random() * 4 });
     }
     
     if (Math.ceil(arenaHP) <= 0) loseArena();
@@ -1244,7 +1239,6 @@ function renderArena() {
                 if (a.spdY) a.y += a.spdY * speedMod;
             }
             
-            // Им аура - радиус 55, шанс 50%
             if (typeof _superState !== 'undefined' && _superState.imAuraActive && invulnTimer <= 0) {
                 let ax = a.x + (a.size || a.radius || 20) / 2;
                 let ay = a.y + (a.size || a.radius || 20) / 2;
@@ -1306,15 +1300,7 @@ function renderArena() {
                 if (a.color === "#ffaa00" || a.type === "sword") { if (!heartWasMoving) applyHit(Math.max(1,Math.floor(bhd/4)), "ЗАЩИТА!"); else applyHit(bhd, "ДВИЖЕНИЕ!"); attacks.splice(i,1); continue; }
                 if (a.color === "#ff3333" || a.type === "danger") { if (heartWasMoving) applyHit(Math.max(1,Math.floor(bhd/4)), "ЗАЩИТА!"); else applyHit(bhd, "ЗАМЕР!"); attacks.splice(i,1); continue; }
                 if (a.color === "#ff69b4" || a.knockback) { let dx = heart.x-a.x, dy = heart.y-a.y, dist = Math.sqrt(dx*dx+dy*dy)||1; heart.vx += (dx/dist)*a.knockback*0.5; heart.vy += (dy/dist)*a.knockback*0.5; sfxPinkKnockback(); attacks.splice(i,1); continue; }
-                if (a.heal) { 
-                    let healAmount = Math.floor(arenaMaxHP * (a.healPercent || 0.15));
-                    arenaHP = Math.min(arenaMaxHP, arenaHP + healAmount);
-                    arenaKarma = Math.max(0, arenaKarma - Math.floor(arenaMaxHP * 0.1));
-                    sfxArenaHeal(); 
-                    spawnFloatingText(heart.x, heart.y - 20, "+" + healAmount, "#44ff44");
-                    document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); 
-                    attacks.splice(i,1); continue; 
-                }
+                if (a.heal) { let healAmount = Math.floor(arenaMaxHP * (a.healPercent || 0.15)); arenaHP = Math.min(arenaMaxHP, arenaHP + healAmount); arenaKarma = Math.max(0, arenaKarma - Math.floor(arenaMaxHP * 0.1)); sfxArenaHeal(); spawnFloatingText(heart.x, heart.y - 20, "+" + healAmount, "#44ff44"); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); attacks.splice(i,1); continue; }
                 if (a.oneshot) { sfxArenaDeath(); applyHit(arenaMaxHP, "ФАТАЛЬНО!", true); continue; }
                 applyHit(bhd); attacks.splice(i,1); continue;
             }
@@ -1344,19 +1330,10 @@ function renderArena() {
                 let sz = a.size||20; ctx.translate(a.x+sz/2, a.y+sz/2);
                 if (a.color === "#ff3333") { ctx.beginPath(); ctx.moveTo(0,-sz/2); ctx.lineTo(sz/2,sz/2); ctx.lineTo(-sz/2,sz/2); ctx.closePath(); ctx.fill(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.moveTo(0,-sz/5); ctx.lineTo(sz/5,sz/3); ctx.lineTo(-sz/5,sz/3); ctx.closePath(); ctx.fill(); }
                 else if (a.color === "#ff69b4") { ctx.fillRect(-sz/2,-sz/2,sz,sz); ctx.strokeStyle="#fff"; ctx.lineWidth=2; ctx.strokeRect(-sz/4,-sz/4,sz/2,sz/2); }
-                else if (a.color === "#4499ff") { 
-                    ctx.fillRect(-sz/2,-sz/2,sz,sz); 
-                    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.strokeRect(-sz/2+2,-sz/2+2,sz-4,sz-4);
-                    ctx.fillStyle = "#fff"; ctx.fillRect(-sz/4,-sz/4,sz/2,sz/2);
-                }
+                else if (a.color === "#4499ff") { ctx.fillRect(-sz/2,-sz/2,sz,sz); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.strokeRect(-sz/2+2,-sz/2+2,sz-4,sz-4); ctx.fillStyle = "#fff"; ctx.fillRect(-sz/4,-sz/4,sz/2,sz/2); }
                 else { ctx.fillRect(-sz/2,-sz/2,sz,sz); ctx.strokeStyle="rgba(0,0,0,0.25)"; ctx.lineWidth=1.5; ctx.strokeRect(-sz/2+2,-sz/2+2,sz-4,sz-4); ctx.fillStyle="#fff"; ctx.fillRect(-sz/4,-sz/4,sz/2,sz/2); }
             } else if (a.type === "sword") { ctx.translate(a.x,a.y); ctx.rotate(a.angle||0); ctx.globalAlpha=0.4; ctx.beginPath(); ctx.moveTo(a.size+3,0); ctx.lineTo(0,a.width/2+2); ctx.lineTo(-a.size-3,0); ctx.lineTo(0,-a.width/2-2); ctx.fill(); ctx.globalAlpha=1.0; ctx.fillStyle="#fff"; ctx.beginPath(); ctx.moveTo(a.size,0); ctx.lineTo(0,a.width/4); ctx.lineTo(-a.size,0); ctx.lineTo(0,-a.width/4); ctx.fill(); }
-            else if (a.type === "circle") { 
-                ctx.shadowColor = "#44ff44"; ctx.shadowBlur = 12;
-                ctx.beginPath(); ctx.arc(a.x,a.y,a.radius,0,Math.PI*2); ctx.fill(); 
-                ctx.strokeStyle="rgba(0,0,0,0.2)"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(a.x,a.y,a.radius*0.7,0,Math.PI*2); ctx.stroke(); 
-                ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(a.x,a.y,a.radius*0.4,0,Math.PI*2); ctx.fill(); 
-            }
+            else if (a.type === "circle") { ctx.shadowColor = "#44ff44"; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(a.x,a.y,a.radius,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,0.2)"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(a.x,a.y,a.radius*0.7,0,Math.PI*2); ctx.stroke(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(a.x,a.y,a.radius*0.4,0,Math.PI*2); ctx.fill(); }
             else if (a.type === "rainbow") { ctx.beginPath(); ctx.arc(a.x,a.y,a.radius,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,0.2)"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(a.x,a.y,a.radius*0.7,0,Math.PI*2); ctx.stroke(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(a.x,a.y,a.radius*0.4,0,Math.PI*2); ctx.fill(); }
             ctx.restore();
         }
@@ -1447,4 +1424,4 @@ function renderArena() {
     
     ctx.restore();
     animFrameId = requestAnimationFrame(renderArena);
-                                                                                                                                                                          }
+}
