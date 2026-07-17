@@ -1,5 +1,5 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v13.2 FINAL ==========
-// Деку: три кнопки (100%, Разлом, Рывок), Всемогущий: Ураган (х3 дальность), Дэнди: рулетка 3.0
+// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v14.0 FINAL ==========
+// Дэнди: 50 эффектов (20 хороших, 10 нейтральных, 20 плохих)
 
 let _superState = {
     fists: [],
@@ -85,32 +85,24 @@ function drawLightningBolt(x1, y1, x2, y2, color, alpha, width = 2, innerColor =
     if (!ctx) return;
     ctx.save();
     ctx.globalAlpha = alpha;
-    
-    // Внешняя оболочка (например, черная)
     ctx.strokeStyle = color;
     ctx.lineWidth = width * alpha;
     ctx.shadowColor = innerColor ? innerColor : color;
     ctx.shadowBlur = innerColor ? 15 * alpha : 12 * alpha;
     ctx.beginPath();
     ctx.moveTo(x1, y1);
-    
     let segments = 5;
     let pts = [];
     for (let i = 1; i < segments; i++) {
         let t = i / segments;
-        pts.push({
-            x: x1 + (x2 - x1) * t + (Math.random() - 0.5) * 15,
-            y: y1 + (y2 - y1) * t + (Math.random() - 0.5) * 15
-        });
+        pts.push({ x: x1 + (x2 - x1) * t + (Math.random() - 0.5) * 15, y: y1 + (y2 - y1) * t + (Math.random() - 0.5) * 15 });
     }
     for (let p of pts) ctx.lineTo(p.x, p.y);
     ctx.lineTo(x2, y2);
     ctx.stroke();
-    
-    // Внутренняя сердцевина (например, зеленая)
     if (innerColor) {
         ctx.strokeStyle = innerColor;
-        ctx.lineWidth = (width * 0.4) * alpha; // Тоньше
+        ctx.lineWidth = (width * 0.4) * alpha;
         ctx.shadowBlur = 0;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -145,7 +137,7 @@ function drawFist(f) {
     ctx.shadowBlur = f.owner === "Гарп" ? 40 : 50;
     if (f.owner === "Гарп") {
         for (let i = 0; i < 15; i++) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.8})`;
+            ctx.fillStyle = "rgba(255, 255, 255, " + (Math.random() * 0.8) + ")";
             ctx.beginPath();
             ctx.arc((Math.random() - 0.5) * s * 2, (Math.random() - 0.5) * s * 2.4, 1 + Math.random() * 2, 0, Math.PI * 2);
             ctx.fill();
@@ -171,7 +163,7 @@ function drawFist(f) {
     ctx.shadowBlur = 0;
     ctx.strokeRect(-s, -s * 1.2, s * 2, s * 2.4);
     ctx.fillStyle = "#ffffff";
-    ctx.font = `bold ${s * 0.5}px monospace`;
+    ctx.font = "bold " + (s * 0.5) + "px monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = "#000";
@@ -214,9 +206,9 @@ function drawGarouTrail() {
         if (alpha <= 0) continue;
         ctx.globalAlpha = alpha * 0.5;
         let gradient = ctx.createLinearGradient(p1.x, p1.y, p2.x, p2.y);
-        gradient.addColorStop(0, `rgba(186, 85, 211, ${alpha})`);
-        gradient.addColorStop(0.5, `rgba(75, 0, 130, ${alpha * 0.7})`);
-        gradient.addColorStop(1, `rgba(0, 0, 0, 0)`);
+        gradient.addColorStop(0, "rgba(186, 85, 211, " + alpha + ")");
+        gradient.addColorStop(0.5, "rgba(75, 0, 130, " + (alpha * 0.7) + ")");
+        gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
         ctx.strokeStyle = gradient;
         ctx.lineWidth = 8 * alpha;
         ctx.shadowColor = "#ba55d3";
@@ -240,17 +232,13 @@ function drawBeerBottle(x, y, alpha, isDrinking = false) {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(x, y - 30);
-    
-    // Анимация питья Кайдо
     if (isDrinking) {
-        let tilt = Math.abs(Math.sin(performance.now() / 150)) * (Math.PI / 2.5); // До 72 градусов наклон
+        let tilt = Math.abs(Math.sin(performance.now() / 150)) * (Math.PI / 2.5);
         ctx.rotate(tilt);
-        // Капли пива
         if (Math.random() < 0.25) {
             arenaParticles.push({x: x + 15, y: y - 30, vx: Math.random(), vy: 2 + Math.random()*2, life: 15, maxLife: 15, color: "#D2691E", size: 2});
         }
     }
-
     ctx.fillStyle = "rgba(0,0,0,0.3)";
     ctx.fillRect(-6, -12, 14, 22);
     ctx.fillStyle = "#8B4513";
@@ -280,35 +268,28 @@ function drawBeerBottle(x, y, alpha, isDrinking = false) {
     ctx.restore();
 }
 
-// Превращение Всемогущего (Синий, Желтый, Красно-белый)
 function drawAllMightHeart(hx, hy, size) {
     if (!ctx) return;
     ctx.save();
     ctx.translate(hx, hy - 2);
     let pulse = 1.0 + Math.abs(Math.sin(performance.now() / 140)) * 0.15;
-    
-    // Аура
     let glowGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, size * 4.5);
-    glowGrad.addColorStop(0, 'rgba(0, 100, 255, 0.8)');   // Синий
-    glowGrad.addColorStop(0.4, 'rgba(255, 215, 0, 0.6)'); // Желтый
-    glowGrad.addColorStop(0.7, 'rgba(255, 0, 0, 0.5)');   // Красный
-    glowGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');   // Белый
+    glowGrad.addColorStop(0, 'rgba(0, 100, 255, 0.8)');
+    glowGrad.addColorStop(0.4, 'rgba(255, 215, 0, 0.6)');
+    glowGrad.addColorStop(0.7, 'rgba(255, 0, 0, 0.5)');
+    glowGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = glowGrad;
     ctx.beginPath();
     ctx.arc(0, 2, size * 4.5, 0, Math.PI * 2);
     ctx.fill();
-    
-    // Само сердце пропорционально размеру
     ctx.scale(pulse, pulse);
     let heartGrad = ctx.createLinearGradient(0, -size, 0, size);
-    heartGrad.addColorStop(0, '#0055ff'); // Синий
-    heartGrad.addColorStop(0.5, '#ffd700'); // Желтый
-    heartGrad.addColorStop(1, '#ff0000'); // Красный
-    
+    heartGrad.addColorStop(0, '#0055ff');
+    heartGrad.addColorStop(0.5, '#ffd700');
+    heartGrad.addColorStop(1, '#ff0000');
     ctx.fillStyle = heartGrad;
     ctx.shadowColor = "#ffffff";
     ctx.shadowBlur = 20;
-    
     let hs = size * 0.8;
     ctx.beginPath();
     ctx.arc(-hs/2, -hs/3, hs/2, Math.PI, 0);
@@ -316,43 +297,11 @@ function drawAllMightHeart(hx, hy, size) {
     ctx.lineTo(0, hs);
     ctx.closePath();
     ctx.fill();
-    
-    // Красно-белая обводка
     ctx.strokeStyle = Math.sin(performance.now()/50) > 0 ? "#ffffff" : "#ffaaaa";
     ctx.lineWidth = 2;
     ctx.stroke();
-    
     ctx.restore();
 }
-
-// ====== ЭФФЕКТЫ ДЭНДИ ======
-const DANDY_GOOD = [
-    { name: "ПОЛНОЕ ИСЦЕЛЕНИЕ", apply() { arenaHP = arenaMaxHP; document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); for (let i = 0; i < 20; i++) { let ang = Math.random() * Math.PI*2; let sp = 3 + Math.random()*5; arenaParticles.push({ x: heart.x, y: heart.y, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, life: 30, maxLife: 30, color: "#44ff44", size: 4 }); } spawnFloatingText(heart.x, heart.y-20, "ИСЦЕЛЕНИЕ!", "#44ff44"); } },
-    { name: "УРОН x2 (8с)", apply() { _superState.dandyDmgBuff = { mult: 2, timer: 8 }; arenaParticles.push({ x: heart.x, y: heart.y, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ff0000", size: 25, isFlash: true }); spawnFloatingText(heart.x, heart.y-20, "УРОН x2!", "#ff4444"); } },
-    { name: "ОЧИСТКА АТАК", apply() { attacks = []; arenaBlasters = []; addShockwaveRing(heart.x, heart.y, "#ffff00", 500, 1.0, 6); spawnFloatingText(heart.x, heart.y-20, "ОЧИСТКА!", "#ffff00"); } },
-    { name: "СКОРОСТЬ x1.5 (8с)", apply() { heartSpeed *= 1.5; setTimeout(() => { heartSpeed /= 1.5; }, 8000); arenaParticles.push({ x: heart.x, y: heart.y, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#00ffff", size: 20, isFlash: true }); spawnFloatingText(heart.x, heart.y-20, "СКОРОСТЬ!", "#00ffff"); } },
-    { name: "ЩИТ 50% (8с)", apply() { _superState.dandyShield = { mult: 0.5, timer: 8 }; spawnFloatingText(heart.x, heart.y-20, "ЩИТ!", "#00ff00"); } },
-    { name: "ЗАМЕДЛЕНИЕ АТАК (6с)", apply() { let old = arenaGlobalSpeedMod; arenaGlobalSpeedMod = 0.4; setTimeout(() => { arenaGlobalSpeedMod = old; }, 6000); spawnFloatingText(heart.x, heart.y-20, "СЛОУ-МО!", "#aaaaff"); } },
-    { name: "-20% HP БОССА", apply() { let dmg = Math.floor(arenaBossMaxHP * 0.2); arenaBossMaxHP -= dmg; if (ctx) { drawLightningBolt(200, 0, 200, 250, "#ffd700", 1.0, 4); arenaShake = 15; } spawnFloatingText(200, 250, "-" + dmg + " БОССУ!", "#ffdd00"); } },
-    { name: "НЕУЯЗВИМОСТЬ (3с)", apply() { _superState.dandyInvuln = true; setTimeout(() => { _superState.dandyInvuln = false; }, 3000); spawnFloatingText(heart.x, heart.y-20, "НЕУЯЗВИМ!", "#ffff00"); } },
-    { name: "ДВОЙНЫЕ ЦЕЛИ", apply() { _superState.dandyDoubleTargets = true; spawnFloatingText(heart.x, heart.y-20, "DOUBLE!", "#ff00ff"); } },
-    { name: "МОЛНИИ (10с)", apply() { _superState.dandyLightnings = true; setTimeout(() => { _superState.dandyLightnings = false; }, 10000); spawnFloatingText(heart.x, heart.y-20, "МОЛНИИ!", "#ffff00"); } },
-    { name: "СУНДУК С ЛУТОМ", apply() { for (let i = 0; i < 5; i++) { attacks.push({ type: "circle", x: Math.random() * 400, y: -30, radius: 15, spd: (Math.random() - 0.5) * 1.0, spdY: 1.5, color: "#44ff44", healPercent: 0.08, bouncesLeft: 1 }); } spawnFloatingText(heart.x, heart.y-20, "ЛУТ!", "#ffd700"); } }
-];
-
-const DANDY_BAD = [
-    { name: "ПОТЕРЯ 20% HP", apply() { let dmg = Math.floor(arenaMaxHP * 0.2); arenaHP = Math.max(0, arenaHP - dmg); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); screenFlash = 10; screenFlashColor = "#ff0000"; spawnFloatingText(heart.x, heart.y-20, "-20% HP!", "#ff4444"); if (arenaHP <= 0 && typeof loseArena === 'function') loseArena(); } },
-    { name: "СКОРОСТЬ x0.5 (8с)", apply() { heartSpeed *= 0.5; setTimeout(() => { heartSpeed /= 0.5; }, 8000); spawnFloatingText(heart.x, heart.y-20, "СЛОУ...", "#888888"); } },
-    { name: "ДВОЙНОЙ УРОН (5с)", apply() { _superState.dandyVulnerable = { mult: 2, timer: 5 }; spawnFloatingText(heart.x, heart.y-20, "УЯЗВИМ!", "#ff8888"); } },
-    { name: "СПАВН 6 АТАК", apply() { for (let i = 0; i < 6; i++) spawnAttack(); spawnFloatingText(heart.x, heart.y-20, "АТАКА!", "#ff0000"); } },
-    { name: "УСКОРЕНИЕ АТАК (8с)", apply() { arenaGlobalSpeedMod *= 1.6; setTimeout(() => { arenaGlobalSpeedMod /= 1.6; }, 8000); spawnFloatingText(heart.x, heart.y-20, "БЫСТРО!", "#ffaa00"); } },
-    { name: "ИНВЕРТ (5с)", apply() { _superState.invertControls = true; setTimeout(() => { _superState.invertControls = false; }, 5000); spawnFloatingText(heart.x, heart.y-20, "ИНВЕРТ!", "#ff00ff"); } },
-    { name: "+25% HP БОССА", apply() { let heal = Math.floor(arenaBossMaxHP * 0.25); arenaBossMaxHP += heal; if (ctx) { drawLightningBolt(200, 0, 200, 250, "#ff0000", 1.0, 4); arenaShake = 10; } spawnFloatingText(200, 250, "+" + heal + " БОССУ!", "#ff4444"); } },
-    { name: "ОГЛУШЕНИЕ (2с)", apply() { _superState.usoppStunTimer = 2; spawnFloatingText(heart.x, heart.y-20, "СТАН!", "#ff8800"); } },
-    { name: "ХИТБОКС x2 (8с)", apply() { let orig = heart.hitbox; let origSize = heart.size; heart.hitbox *= 2; heart.size *= 2; setTimeout(() => { heart.hitbox = orig; heart.size = origSize; }, 8000); spawnFloatingText(heart.x, heart.y-20, "БОЛЬШЕ!", "#ff4444"); } },
-    { name: "СЛУЧАЙНЫЙ ТЕЛЕПОРТ", apply() { heart.x = 50 + Math.random() * 300; heart.y = 50 + Math.random() * 400; clampHeart(); addShockwaveRing(heart.x, heart.y, "#ff00ff", 200, 0.4, 4); spawnFloatingText(heart.x, heart.y-20, "ТЕЛЕПОРТ!", "#ff00ff"); } },
-    { name: "ЗЕМЛЕТРЯСЕНИЕ", apply() { arenaShake = 35; for (let i = 0; i < 4; i++) { attacks.push({ type: "square", x: Math.random() * 400, y: -30, size: 30, spd: 0, spdY: 3.5, color: "#888888", damage: Math.floor(arenaBaseDmg * 1.5), bouncesLeft: 0 }); } spawnFloatingText(heart.x, heart.y-20, "ТРЯСКА!", "#888888"); } }
-];
 
 // ====== ОПИСАНИЯ СПОСОБНОСТЕЙ ======
 const superAbilities = {
@@ -499,8 +448,26 @@ const superAbilities = {
             for (let i = 0; i < 10; i++) { arenaParticles.push({ x: heart.x + (Math.random()-0.5)*40, y: heart.y - 40, vx: (Math.random()-0.5)*1, vy: -1 - Math.random(), life: 20, maxLife: 20, color: "#ffd700", size: 2, isQuestionMark: true }); }
             setTimeout(() => {
                 _superState.dandyRoulette.result = { name: "???" };
-                if (Math.random() < 0.8) { let eff = DANDY_GOOD[Math.floor(Math.random() * DANDY_GOOD.length)]; eff.apply(); _superState.dandyRoulette.result = { name: eff.name, good: true }; for (let i = 0; i < 30; i++) { let ang = Math.random() * Math.PI*2; let sp = 2 + Math.random()*4; arenaParticles.push({ x: heart.x, y: heart.y - 30, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, life: 40, maxLife: 40, color: `hsl(${Math.random()*360}, 100%, 50%)`, size: 3 }); } spawnFloatingText(heart.x, heart.y - 40, eff.name + "!", "#44ff44"); }
-                else { let eff = DANDY_BAD[Math.floor(Math.random() * DANDY_BAD.length)]; eff.apply(); _superState.dandyRoulette.result = { name: eff.name, good: false }; screenFlash = 5; screenFlashColor = "#ff0000"; _superState.screenShakeAmount = 8; spawnFloatingText(heart.x, heart.y - 40, eff.name + "!", "#ff4444"); if (ctx) { for (let i = 0; i < 5; i++) { ctx.save(); ctx.fillStyle = `rgba(255, 0, 0, ${Math.random() * 0.5})`; ctx.fillRect(Math.random() * 400, Math.random() * 500, Math.random() * 80, Math.random() * 20); ctx.restore(); } } }
+                let roll = Math.random();
+                if (roll < 0.40) {
+                    let eff = DANDY_GOOD[Math.floor(Math.random() * DANDY_GOOD.length)];
+                    eff.apply();
+                    _superState.dandyRoulette.result = { name: eff.name, good: true };
+                    for (let i = 0; i < 30; i++) { let ang = Math.random() * Math.PI*2; let sp = 2 + Math.random()*4; arenaParticles.push({ x: heart.x, y: heart.y - 30, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, life: 40, maxLife: 40, color: "hsl(" + (Math.random()*360) + ", 100%, 50%)", size: 3 }); }
+                    spawnFloatingText(heart.x, heart.y - 40, eff.name + "!", "#44ff44");
+                } else if (roll < 0.60) {
+                    let eff = DANDY_NEUTRAL[Math.floor(Math.random() * DANDY_NEUTRAL.length)];
+                    eff.apply();
+                    _superState.dandyRoulette.result = { name: eff.name, good: null };
+                    spawnFloatingText(heart.x, heart.y - 40, eff.name + "!", "#ffd700");
+                } else {
+                    let eff = DANDY_BAD[Math.floor(Math.random() * DANDY_BAD.length)];
+                    eff.apply();
+                    _superState.dandyRoulette.result = { name: eff.name, good: false };
+                    screenFlash = 5; screenFlashColor = "#ff0000"; _superState.screenShakeAmount = 8;
+                    spawnFloatingText(heart.x, heart.y - 40, eff.name + "!", "#ff4444");
+                    if (ctx) { for (let i = 0; i < 5; i++) { ctx.save(); ctx.fillStyle = "rgba(255, 0, 0, " + (Math.random() * 0.5) + ")"; ctx.fillRect(Math.random() * 400, Math.random() * 500, Math.random() * 80, Math.random() * 20); ctx.restore(); } }
+                }
                 setTimeout(() => { _superState.dandyRoulette = null; }, 1000);
             }, 1500);
         },
@@ -578,20 +545,15 @@ function activateDekuEarthShatter() {
     if (!_superState.dekusActive) return;
     if (!_superState.dekuEarthShatterReady) return;
     if (!arenaActive) return;
-    
     _superState.dekuEarthShatterReady = false;
     _superState.dekuEarthShatterCooldown = 20;
-    
     for (let i = 0; i < 6; i++) {
         let ex = 50 + Math.random() * 300;
         let ey = 50 + Math.random() * 350;
-        
         let dmg = Math.floor(arenaBossMaxHP * 0.0166);
         arenaBossMaxHP -= dmg;
-        
         addShockwaveRing(ex, ey, "#44ff44", 250, 0.5, 4);
         _superState.dekuExplosions.push({ x: ex, y: ey, life: 0.5, maxLife: 0.5 });
-        
         for (let j = attacks.length - 1; j >= 0; j--) {
             let a = attacks[j];
             let ax = a.x + (a.size || a.radius || 20) / 2;
@@ -601,16 +563,13 @@ function activateDekuEarthShatter() {
                 arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 20, maxLife: 20, color: "#44ff44", size: 3 });
             }
         }
-        
         for (let p = 0; p < 20; p++) {
             let ang = Math.random() * Math.PI * 2;
             let sp = 3 + Math.random() * 6;
             arenaParticles.push({ x: ex, y: ey, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, life: 25, maxLife: 25, color: "#44ff44", size: 3 + Math.random() * 4 });
         }
-        
         _superState.earthCracks.push({ x: ex, y: ey, length: 20 + Math.random() * 40, angle: Math.random() * Math.PI * 2, life: 1.0 });
     }
-    
     _superState.screenShakeAmount = 20;
     spawnFloatingText(heart.x, heart.y - 30, "ВЗРЫВЫ! -10%", "#44ff44");
 }
@@ -619,24 +578,18 @@ function activateDekuDashSmash() {
     if (!_superState.dekusActive) return;
     if (!_superState.dekuDashSmashReady) return;
     if (!arenaActive) return;
-    
     _superState.dekuDashSmashReady = false;
     _superState.dekuDashSmashCooldown = 20;
-    
     let dx = 0, dy = 0;
     if (keys.w || keys.up) dy = -1;
     if (keys.s || keys.down) dy = 1;
     if (keys.a || keys.left) dx = -1;
     if (keys.d || keys.right) dx = 1;
-    
     if (dx === 0 && dy === 0) { let ang = Math.random() * Math.PI * 2; dx = Math.cos(ang); dy = Math.sin(ang); }
     let len = Math.sqrt(dx*dx + dy*dy) || 1; dx /= len; dy /= len;
-    
     _superState.dekuDash = { startX: heart.x, startY: heart.y, dirX: dx, dirY: dy, distance: 200, traveled: 0, trail: [], life: 0.4 };
-    
     let dmg = Math.floor(arenaBossMaxHP * 0.08);
     arenaBossMaxHP -= dmg;
-    
     let dashWidth = 60;
     for (let i = attacks.length - 1; i >= 0; i--) {
         let a = attacks[i];
@@ -651,7 +604,6 @@ function activateDekuDashSmash() {
             }
         }
     }
-    
     _superState.screenShakeAmount = 15;
     addShockwaveRing(heart.x, heart.y, "#44ff44", 400, 0.5, 5);
     spawnFloatingText(heart.x, heart.y - 30, "РЫВОК! -8%", "#44ff44");
@@ -671,13 +623,11 @@ function activateAllmightHurricane() {
     if (!_allmightHurricaneReady) return;
     if (_allmightHurricaneCooldown > 0) return;
     if (!arenaActive) return;
-    
     _superState.allmightHurricane = true;
     _superState.allmightHurricaneTimer = 2.0;
     _superState.allmightHurricaneAngle = 0;
     _allmightHurricaneCooldown = 5.0;
-    
-    let hurricaneRadius = 150; // Дальность увеличена в 3 раза
+    let hurricaneRadius = 150;
     for (let a of attacks) {
         let ax = a.x + (a.size || a.radius || 20) / 2;
         let ay = a.y + (a.size || a.radius || 20) / 2;
@@ -685,12 +635,10 @@ function activateAllmightHurricane() {
         if (dist < hurricaneRadius) {
             let dx = ax - heart.x; let dy = ay - heart.y;
             let d = Math.sqrt(dx*dx + dy*dy) || 1;
-            // Закручивание: тангенциальная сила (отбрасываем и крутим)
             a.spd = (a.spd || 0) + (dx / d) * 8 + (dy / d) * 4;
             a.spdY = (a.spdY || 0) + (dy / d) * 8 - (dx / d) * 4;
         }
     }
-    
     addShockwaveRing(heart.x, heart.y, "#00ffff", 400, 0.5, 6);
     _superState.screenShakeAmount = 15;
     spawnFloatingText(heart.x, heart.y - 40, "УРАГАН!", "#00ffff");
@@ -703,9 +651,7 @@ function toggleSuper() {
     if (!arenaActive) return;
     let mainCard = getMainCard();
     if (!mainCard) return;
-    
     if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) { activateAllmightHurricane(); return; }
-    
     if (mainCard.name === "Деку (100%)") {
         if (!_superState.dekusActive) {
             let ab = superAbilities["Деку (100%)"];
@@ -718,7 +664,6 @@ function toggleSuper() {
             return;
         }
     }
-    
     if (!superAbilities[mainCard.name]) return;
     let ab = superAbilities[mainCard.name];
     if (ab.cooldown === 0 && !ab.toggleable) return;
@@ -749,11 +694,8 @@ function updateSuperButton() {
     let btn2 = document.getElementById("superBtn2");
     let btnDeact = document.getElementById("superBtnDeactivate");
     if (!btn) return;
-    
     let mainCard = getMainCard();
     if (!mainCard) { btn.style.display = "none"; if (btn2) btn2.style.display = "none"; if (btnDeact) btnDeact.style.display = "none"; return; }
-    
-    // Деку: три кнопки при активном 100%
     if (mainCard.name === "Деку (100%)") {
         if (!_superState.dekusActive) {
             btn.style.display = "block";
@@ -766,12 +708,8 @@ function updateSuperButton() {
             btn.style.display = "block";
             if (btn2) btn2.style.display = "block";
             if (btnDeact) btnDeact.style.display = "block";
-            
-            // Кнопка 1 (btn): Разлом
             if (_superState.dekuEarthShatterCooldown > 0) { btn.textContent = "⏳ РАЗЛОМ (" + Math.ceil(_superState.dekuEarthShatterCooldown) + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; }
             else { btn.textContent = "💥 РАЗЛОМ"; btn.style.background = "linear-gradient(135deg, #ff8800, #ff4400)"; btn.style.animation = "superPulse 2s infinite"; }
-            
-            // Кнопка 2 (btn2): Рывок
             if (btn2) {
                 if (_superState.dekuDashSmashCooldown > 0) { btn2.textContent = "⏳ РЫВОК (" + Math.ceil(_superState.dekuDashSmashCooldown) + "с)"; btn2.style.background = "#555"; btn2.style.animation = "none"; }
                 else { btn2.textContent = "💨 РЫВОК"; btn2.style.background = "linear-gradient(135deg, #44ff44, #00ffff)"; btn2.style.animation = "superPulse 2s infinite"; }
@@ -779,17 +717,14 @@ function updateSuperButton() {
         }
         return;
     }
-    
     if (btn2) btn2.style.display = "none";
     if (btnDeact) btnDeact.style.display = "none";
-    
     if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
         btn.style.display = "block";
         if (_allmightHurricaneCooldown > 0) { btn.textContent = "🌪️ УРАГАН (" + Math.ceil(_allmightHurricaneCooldown) + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; }
         else { btn.textContent = "🌪️ УРАГАН"; btn.style.background = "linear-gradient(135deg, #00ffff, #0088ff)"; btn.style.animation = "superPulse 2s infinite"; }
         return;
     }
-    
     if (!superAbilities[mainCard.name]) { btn.style.display = "none"; return; }
     let ab = superAbilities[mainCard.name];
     if (ab.cooldown === 0 && !ab.toggleable) { btn.style.display = "none"; return; }
@@ -836,18 +771,14 @@ function tickSupers() {
     let now = performance.now(); let dt = (now - _superLastTick) / 1000; if (dt <= 0) dt = 0.016; _superLastTick = now;
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onTick) superAbilities[_activeSuperName].onTick(dt);
     if (_superState.borosHeal && _superState.borosHeal.active && superAbilities["Борос"] && superAbilities["Борос"].onTick) superAbilities["Борос"].onTick(dt);
-    
     if (_superState.dekusActive && _superState.dekuEarthShatterCooldown > 0) { _superState.dekuEarthShatterCooldown -= dt; if (_superState.dekuEarthShatterCooldown <= 0) { _superState.dekuEarthShatterCooldown = 0; _superState.dekuEarthShatterReady = true; updateSuperButton(); } else updateSuperButton(); }
     if (_superState.dekusActive && _superState.dekuDashSmashCooldown > 0) { _superState.dekuDashSmashCooldown -= dt; if (_superState.dekuDashSmashCooldown <= 0) { _superState.dekuDashSmashCooldown = 0; _superState.dekuDashSmashReady = true; updateSuperButton(); } else updateSuperButton(); }
-    
     if (_superState.dekuDash) {
         _superState.dekuDash.life -= dt;
         if (_superState.dekuDash.life <= 0) { _superState.dekuDash = null; }
         else { let speed = _superState.dekuDash.distance / 0.4; let moveX = _superState.dekuDash.dirX * speed * dt; let moveY = _superState.dekuDash.dirY * speed * dt; heart.x += moveX; heart.y += moveY; _superState.dekuDash.trail.push({ x: heart.x, y: heart.y, life: 0.3 }); clampHeart(); let dashWidth = 60; for (let i = attacks.length - 1; i >= 0; i--) { let a = attacks[i]; let ax = a.x + (a.size || a.radius || 20) / 2; let ay = a.y + (a.size || a.radius || 20) / 2; let dist = Math.sqrt((ax - heart.x)**2 + (ay - heart.y)**2); if (dist < dashWidth) { attacks.splice(i, 1); arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 20, maxLife: 20, color: "#44ff44", size: 3 }); } } }
     }
-    
     for (let i = _superState.dekuExplosions.length - 1; i >= 0; i--) { _superState.dekuExplosions[i].life -= dt; if (_superState.dekuExplosions[i].life <= 0) _superState.dekuExplosions.splice(i, 1); }
-    
     if (_allmightHurricaneReady && _allmightHurricaneCooldown > 0) { _allmightHurricaneCooldown -= dt; if (_allmightHurricaneCooldown < 0) _allmightHurricaneCooldown = 0; updateSuperButton(); }
     updateSuperLogic(dt); updateSuperButton();
 }
@@ -861,13 +792,7 @@ function updateSuperLogic(dt) {
     for (let i = _superState.earthCracks.length - 1; i >= 0; i--) { _superState.earthCracks[i].life -= dt; if (_superState.earthCracks[i].life <= 0) _superState.earthCracks.splice(i, 1); }
     if (_superState.dekuDash && _superState.dekuDash.trail) { for (let i = _superState.dekuDash.trail.length - 1; i >= 0; i--) { _superState.dekuDash.trail[i].life -= dt; if (_superState.dekuDash.trail[i].life <= 0) _superState.dekuDash.trail.splice(i, 1); } }
     for (let i = _superState.comicTexts.length - 1; i >= 0; i--) { _superState.comicTexts[i].alpha -= dt * 0.8; _superState.comicTexts[i].y -= dt * 10; if (_superState.comicTexts[i].alpha <= 0) _superState.comicTexts.splice(i, 1); }
-    
-    if (_superState.allmightHurricane) {
-        _superState.allmightHurricaneTimer -= dt; 
-        _superState.allmightHurricaneAngle += dt * 25; // Ускорено вращение
-        if (_superState.allmightHurricaneTimer <= 0) { _superState.allmightHurricane = false; }
-    }
-
+    if (_superState.allmightHurricane) { _superState.allmightHurricaneTimer -= dt; _superState.allmightHurricaneAngle += dt * 25; if (_superState.allmightHurricaneTimer <= 0) { _superState.allmightHurricane = false; } }
     if (_superState.garpChargeTimer > 0) {
         _superState.garpChargeTimer -= dt;
         if (_superState.garpChargeTimer <= 0) { _superState.garpChargeTimer = 0; heartSpeed /= 0.3; _superState.garpImpactActive = true; _superState.garpImpactRadius = 0; _superState.garpImpactX = heart.x; _superState.garpImpactY = heart.y; arenaBossMaxHP = Math.floor(arenaBossMaxHP * 0.90); _superState.screenShakeAmount = 45; _superState.screenFlashWhite = 15; spawnFloatingText(heart.x, heart.y - 40, "ГАЛАКТИЧЕСКИЙ УДАР!!!", "#8844ff"); if (typeof sfxArenaVictory === 'function') sfxArenaVictory(); _superState.garpHakiActive = true; _superState.garpHakiTimer = 9.0; heartSpeed *= 1.25; spawnFloatingText(heart.x, heart.y - 30, "ХАКИ!", "#ff4444"); }
@@ -876,9 +801,7 @@ function updateSuperLogic(dt) {
     if (_superState.garpHakiActive) { _superState.garpHakiTimer -= dt; if (_superState.garpHakiTimer <= 0) { _superState.garpHakiActive = false; heartSpeed /= 1.25; } }
     if (_superState.allmightDebuffActive) { _superState.allmightDebuffTimer -= dt; if (_superState.allmightDebuffTimer <= 0) { _superState.allmightDebuffActive = false; } }
     if (_superState.markBuffActive) { _superState.markBuffTimer -= dt; if (_superState.markBuffTimer <= 0) { _superState.markBuffActive = false; heartSpeed /= _superState.markSpeedBonus; _superState.markDmgReduction = 1; _superState.markDmgBonus = 1; _superState.markSpeedBonus = 1; } }
-    
     if (arenaPhase === "dodge" && mainCard && mainCard.name === "Космический Гароу") { let now = performance.now(); _superState.positionHistory.push({ time: now, x: heart.x, y: heart.y }); while (_superState.positionHistory.length > 0 && now - _superState.positionHistory[0].time > 5000) _superState.positionHistory.shift(); }
-    
     if (_superState.usoppStunTimer > 0) { _superState.usoppStunTimer -= dt; if (_superState.usoppStunTimer < 0) _superState.usoppStunTimer = 0; }
     if (_superState.garouInvulnTimer > 0) { _superState.garouInvulnTimer -= dt; if (_superState.garouInvulnTimer < 0) _superState.garouInvulnTimer = 0; }
     if (_superState.allmightBuffTimer > 0) { _superState.allmightBuffTimer -= dt; if (_superState.allmightBuffTimer < 0) _superState.allmightBuffTimer = 0; }
@@ -887,26 +810,10 @@ function updateSuperLogic(dt) {
     if (_superState.dandyShield) { _superState.dandyShield.timer -= dt; if (_superState.dandyShield.timer <= 0) _superState.dandyShield = null; }
     if (_superState.dandyVulnerable) { _superState.dandyVulnerable.timer -= dt; if (_superState.dandyVulnerable.timer <= 0) _superState.dandyVulnerable = null; }
     if (_superState.garouMarker) { let elapsed = (performance.now() - _superState.garouMarker.time) / 1000; if (elapsed > 1.5) _superState.garouMarker = null; else _superState.garouMarker.alpha = 1 - elapsed / 1.5; }
-    
-    // Эффекты Деку: спавним черно-зеленую молнию реже (с вероятностью 20%)
-    if (_superState.dekusParticles && arenaActive) {
-        if (Math.random() < 0.2) {
-            for (let i = 0; i < 3; i++) {
-                let angle = Math.random() * Math.PI * 2; 
-                let dist = 20 + Math.random() * 30; 
-                arenaParticles.push({ 
-                    x: heart.x + Math.cos(angle) * 5, y: heart.y + Math.sin(angle) * 5, 
-                    endX: heart.x + Math.cos(angle) * dist, endY: heart.y + Math.sin(angle) * dist, 
-                    vx: 0, vy: 0, life: 18, maxLife: 18, color: "#000000", innerColor: "#00ff00", isLightning: true, width: 4 
-                });
-            }
-        }
-    }
-    
+    if (_superState.dekusParticles && arenaActive) { if (Math.random() < 0.2) { for (let i = 0; i < 3; i++) { let angle = Math.random() * Math.PI * 2; let dist = 20 + Math.random() * 30; arenaParticles.push({ x: heart.x + Math.cos(angle) * 5, y: heart.y + Math.sin(angle) * 5, endX: heart.x + Math.cos(angle) * dist, endY: heart.y + Math.sin(angle) * dist, vx: 0, vy: 0, life: 18, maxLife: 18, color: "#000000", innerColor: "#00ff00", isLightning: true, width: 4 }); } } }
     if (_superState.borosParticles && arenaActive) { for (let i = 0; i < 3; i++) arenaParticles.push({ x: heart.x + (Math.random() - 0.5) * 50, y: heart.y + (Math.random() - 0.5) * 50, vx: (Math.random() - 0.5) * 2, vy: -2 - Math.random() * 3, life: 35, maxLife: 35, color: "#66ff66", size: 3 + Math.random() * 5 }); }
     if (_superState.dandyLightnings && arenaActive) { for (let i = 0; i < 4; i++) { let angle = Math.random() * Math.PI * 2; let dist = 25 + Math.random() * 40; arenaParticles.push({ x: heart.x + Math.cos(angle) * 10, y: heart.y + Math.sin(angle) * 10, endX: heart.x + Math.cos(angle) * dist, endY: heart.y + Math.sin(angle) * dist, vx: 0, vy: 0, life: 20, maxLife: 20, color: "#ffff00", isLightning: true }); } }
     if (_superState.allmightBuffTimer > 0 && arenaActive) { _superState.allmightShockwave += dt; if (_superState.allmightShockwave >= 1.0) { _superState.allmightShockwave -= 1.0; arenaShockwaves.push({ x: heart.x, y: heart.y, r: 10, v: 15, life: 25, maxLife: 25, color: "rgba(255, 215, 0, 0.8)" }); for (let a of attacks) { let dx = (a.x + (a.size || 20) / 2) - heart.x; let dy = (a.y + (a.size || 20) / 2) - heart.y; let dist = Math.sqrt(dx * dx + dy * dy) || 1; a.spd = (a.spd || 0) + (dx / dist) * 3; a.spdY = (a.spdY || 0) + (dy / dist) * 3; } } }
-    
     for (let i = _superState.fists.length - 1; i >= 0; i--) {
         let f = _superState.fists[i]; f.x += f.vx; f.y += f.vy; f.life--;
         if (f.life % 3 === 0 && f.life > 0) arenaParticles.push({ x: f.x + (Math.random() - 0.5) * f.size, y: f.y + (Math.random() - 0.5) * f.size, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ff4444", size: 5 + Math.random() * 5 });
@@ -919,105 +826,37 @@ function updateSuperLogic(dt) {
 
 function renderSuperVisuals() {
     if (!ctx) return;
-    
     if (_superState.realityCracks.length > 0) { ctx.save(); ctx.strokeStyle = "rgba(0, 255, 255, 0.9)"; ctx.lineWidth = 3; ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 10; _superState.realityCracks.forEach(cr => { ctx.globalAlpha = cr.life; ctx.beginPath(); ctx.moveTo(cr.x1, cr.y1); let cx = cr.x1, cy = cr.y1; for(let i=1; i<=4; i++) { let t = i / 4; cx = cr.x1 + (cr.x2 - cr.x1) * t + (Math.random()-0.5)*40; cy = cr.y1 + (cr.y2 - cr.y1) * t + (Math.random()-0.5)*40; ctx.lineTo(cx, cy); } ctx.stroke(); }); ctx.restore(); }
-    
     if (_superState.dekuExplosions.length > 0) { ctx.save(); _superState.dekuExplosions.forEach(exp => { let alpha = exp.life / exp.maxLife; let radius = 40 * (1 - alpha); let grad = ctx.createRadialGradient(exp.x, exp.y, 0, exp.x, exp.y, radius); grad.addColorStop(0, 'rgba(255, 255, 255, 0.9)'); grad.addColorStop(0.3, 'rgba(68, 255, 68, 0.6)'); grad.addColorStop(0.7, 'rgba(0, 200, 0, 0.2)'); grad.addColorStop(1, 'rgba(0, 100, 0, 0)'); ctx.fillStyle = grad; ctx.globalAlpha = alpha; ctx.beginPath(); ctx.arc(exp.x, exp.y, radius, 0, Math.PI * 2); ctx.fill(); }); ctx.restore(); }
-
     if (_superState.earthCracks.length > 0) { ctx.save(); ctx.strokeStyle = "rgba(68, 255, 68, 0.9)"; ctx.lineWidth = 2.5; ctx.shadowColor = "#44ff44"; ctx.shadowBlur = 8; _superState.earthCracks.forEach(cr => { ctx.globalAlpha = cr.life; ctx.beginPath(); let startX = cr.x; let startY = cr.y; ctx.moveTo(startX, startY); let endX = startX + Math.cos(cr.angle) * cr.length; let endY = startY + Math.sin(cr.angle) * cr.length; ctx.lineTo(endX, endY); for (let b = 0; b < 2; b++) { let bx = startX + (endX - startX) * (0.3 + Math.random() * 0.5); let by = startY + (endY - startY) * (0.3 + Math.random() * 0.5); let bAngle = cr.angle + (Math.random() - 0.5) * 1.2; let bLen = cr.length * (0.2 + Math.random() * 0.3); ctx.moveTo(bx, by); ctx.lineTo(bx + Math.cos(bAngle) * bLen, by + Math.sin(bAngle) * bLen); } ctx.stroke(); }); ctx.restore(); }
-
     if (_superState.dekuDash && _superState.dekuDash.trail && _superState.dekuDash.trail.length > 0) { ctx.save(); ctx.globalAlpha = 0.6; for (let t of _superState.dekuDash.trail) { ctx.fillStyle = "#44ff44"; ctx.shadowColor = "#44ff44"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(t.x, t.y, heart.size * 0.8 * (t.life / 0.3), 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
-
     if (_superState.imAuraActive && arenaActive) { ctx.save(); ctx.globalAlpha = 0.35; ctx.fillStyle = "#ff0000"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.ellipse(130, 100, 30, 8, -0.2, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#ffd700"; ctx.beginPath(); ctx.arc(130, 100, 4, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#ff0000"; ctx.beginPath(); ctx.ellipse(270, 100, 30, 8, 0.2, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#ffd700"; ctx.beginPath(); ctx.arc(270, 100, 4, 0, Math.PI*2); ctx.fill(); ctx.restore(); }
-
     for (let r of _superState.rings) { ctx.save(); ctx.globalAlpha = Math.max(0, r.life / r.maxLife); ctx.strokeStyle = r.color; ctx.lineWidth = r.width; ctx.shadowColor = r.color; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
     if (_superState.screenFlashWhite > 0) { ctx.save(); ctx.fillStyle = "#ffffff"; ctx.globalAlpha = Math.min(1, _superState.screenFlashWhite / 10); ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
-    
     if (_superState.dekusActive && arenaActive) { ctx.save(); let glowPulse = 1.0 + Math.sin(performance.now() / 60) * 0.2; ctx.strokeStyle = "#44ff44"; ctx.lineWidth = 3; ctx.shadowColor = "#44ff44"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 1.8 * glowPulse, 0, Math.PI*2); ctx.stroke(); ctx.restore(); }
-
     if (_superState.garpChargeTimer > 0 && arenaActive) { if (Math.random() < 0.6) drawHakiLightning(heart.x, heart.y, 90, 1.0, 1.5, "#ff0000"); if (Math.random() < 0.4) drawHakiLightning(heart.x, heart.y, 120, 0.8, 1, "#4444ff"); ctx.save(); let chargePower = 1.2 - _superState.garpChargeTimer; ctx.translate(heart.x, heart.y); ctx.rotate(performance.now() / 200); ctx.beginPath(); ctx.arc(0, 0, 40 + chargePower * 30, 0, Math.PI * 2); ctx.fillStyle = "rgba(136, 68, 255, 0.15)"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "rgba(255, 0, 0, 0.5)"; ctx.setLineDash([10, 15]); ctx.stroke(); ctx.restore(); }
     if (_superState.garpImpactActive && arenaActive) { let cx = _superState.garpImpactX; let cy = _superState.garpImpactY; let r = _superState.garpImpactRadius; let progress = r / 200; let alpha = 1 - Math.pow(progress, 3); ctx.save(); ctx.globalAlpha = alpha; let grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r); grad.addColorStop(0, "#ffffff"); grad.addColorStop(0.1, "#ff44ff"); grad.addColorStop(0.4, "#220088"); grad.addColorStop(0.8, "#050022"); grad.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); for(let i = 0; i < 30; i++) { let sAngle = Math.random() * Math.PI * 2; let sDist = Math.random() * r * 0.9; let sx = cx + Math.cos(sAngle + progress * 2) * sDist; let sy = cy + Math.sin(sAngle + progress * 2) * sDist; ctx.fillStyle = (Math.random() > 0.5) ? "#ffffff" : "#ffccff"; ctx.beginPath(); ctx.arc(sx, sy, 1 + Math.random() * 2, 0, Math.PI * 2); ctx.fill(); } ctx.strokeStyle = "#ff44ff"; ctx.lineWidth = 15 * (1 - progress); ctx.shadowColor = "#ff44ff"; ctx.shadowBlur = 30; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke(); if (Math.random() < 0.8) { drawHakiLightning(cx + Math.cos(Math.random()*Math.PI*2)*r, cy + Math.sin(Math.random()*Math.PI*2)*r, 80, alpha, 2, "#ff0000"); drawHakiLightning(cx + Math.cos(Math.random()*Math.PI*2)*r, cy + Math.sin(Math.random()*Math.PI*2)*r, 100, alpha, 2, "#ff00ff"); } ctx.restore(); }
     if (_superState.garpHakiActive && arenaActive) { ctx.save(); ctx.globalAlpha = 0.2; ctx.strokeStyle = "#ff0000"; ctx.lineWidth = 4; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 20; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2.5, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); if (Math.random() < 0.5) drawHakiLightning(heart.x, heart.y, 80, 1.0, 1.2, "#ff0000"); }
     if (_superState.antispiralActive && arenaActive) { ctx.save(); ctx.globalAlpha = 0.3; ctx.strokeStyle = "#aaddff"; ctx.lineWidth = 3; ctx.shadowColor = "#aaddff"; ctx.shadowBlur = 20; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 3, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 0.15; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 4, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = "rgba(170, 221, 255, 0.15)"; ctx.lineWidth = 1; let gridScale = (performance.now() / 400) % 40; for(let r = gridScale; r < 200; r += 40) { ctx.beginPath(); ctx.arc(heart.x, heart.y, r, 0, Math.PI*2); ctx.stroke(); } for(let d=0; d<12; d++) { let ang = (d / 12) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(heart.x, heart.y); ctx.lineTo(heart.x + Math.cos(ang)*200, heart.y + Math.sin(ang)*200); ctx.stroke(); } ctx.restore(); }
-
     if (getMainCard() && getMainCard().name === "Император Марк" && arenaActive) { ctx.save(); let wingTime = performance.now() / 180; let leftWingAngle = Math.sin(wingTime) * 0.25; let rightWingAngle = -Math.sin(wingTime) * 0.25; let featherGrad = ctx.createLinearGradient(0, 0, 40, 0); featherGrad.addColorStop(0, "rgba(255, 215, 0, 0.8)"); featherGrad.addColorStop(0.5, "rgba(255, 140, 0, 0.6)"); featherGrad.addColorStop(1, "rgba(255, 69, 0, 0)"); ctx.fillStyle = featherGrad; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 15; ctx.save(); ctx.translate(heart.x - 6, heart.y); ctx.rotate(Math.PI + leftWingAngle); ctx.beginPath(); ctx.ellipse(20, -5, 22, 7, 0.1, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(15, -12, 18, 5, 0.3, 0, Math.PI*2); ctx.fill(); ctx.restore(); ctx.save(); ctx.translate(heart.x + 6, heart.y); ctx.rotate(rightWingAngle); ctx.beginPath(); ctx.ellipse(20, -5, 22, 7, -0.1, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(15, -12, 18, 5, -0.3, 0, Math.PI*2); ctx.fill(); ctx.restore(); ctx.restore(); if (Math.random() < 0.05) { arenaParticles.push({ x: heart.x + (Math.random()-0.5)*30, y: heart.y - 10, vx: (Math.random()-0.5)*1, vy: 1 + Math.random()*1.5, life: 30, maxLife: 30, color: "#ffd700", size: 2 }); } }
     if (_superState.markBuffActive && arenaActive) { ctx.save(); ctx.globalAlpha = 0.3; ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 4; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 25; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2.5, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
-    
     drawGarouTrail();
     for (let i = arenaParticles.length - 1; i >= 0; i--) { let p = arenaParticles[i]; if (p.isLightning && p.life > 0) { drawLightningBolt(p.x, p.y, p.endX, p.endY, p.color, p.life / p.maxLife, p.width || 3, p.innerColor); } }
     if (_superState.fists && _superState.fists.length > 0) { for (let f of _superState.fists) { if (f.life > 0) drawFist(f); } }
     if (_superState.garouMarker && _superState.garouMarker.alpha > 0) drawCircleMarker(_superState.garouMarker.x, _superState.garouMarker.y, "#ff8800", _superState.garouMarker.alpha, 30);
-    
     if (_superState.usoppStunTimer > 0 && arenaActive) { ctx.save(); ctx.globalAlpha = 0.8; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 8; let stunAngle = performance.now() / 150; for (let i = 0; i < 4; i++) { let angle = (i / 4) * Math.PI * 2 + stunAngle; let sx = heart.x + Math.cos(angle) * (heart.size * 1.8); let sy = heart.y + Math.sin(angle) * (heart.size * 0.8) - 15; ctx.fillStyle = "#ffd700"; ctx.font = "bold 14px sans-serif"; ctx.fillText("★", sx, sy); } ctx.restore(); }
     if (_superState.nikaActive && arenaActive) { let bounceBeat = 1.0 + Math.abs(Math.sin(performance.now() / 150)) * 0.2; ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * bounceBeat, 0, Math.PI*2); ctx.fill(); ctx.restore(); ctx.save(); ctx.globalAlpha = 0.55; let cloudAngle = performance.now() / 800; ctx.translate(heart.x, heart.y); ctx.rotate(cloudAngle); for (let i = 0; i < 5; i++) { let angle = (i / 5) * Math.PI * 2; let sx = Math.cos(angle) * (heart.size * 1.5); let sy = Math.sin(angle) * (heart.size * 1.5); ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#eeeeee"; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(sx, sy, 7, 0, Math.PI*2); ctx.fill(); } ctx.restore(); }
     if (_superState.borosHeal && arenaActive) { ctx.save(); let spiralTime = performance.now() / 200; let r = heart.size * 2.0; ctx.shadowBlur = 10; for(let yOffset = -25; yOffset <= 25; yOffset += 5) { let angle1 = spiralTime + (yOffset * 0.15); let angle2 = spiralTime + (yOffset * 0.15) + Math.PI; let alpha = 1.0 - Math.abs(yOffset) / 30; ctx.globalAlpha = alpha; ctx.fillStyle = "#66ff66"; ctx.shadowColor = "#66ff66"; ctx.beginPath(); ctx.arc(heart.x + Math.cos(angle1)*r, heart.y + yOffset, 2.5, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#00ffff"; ctx.shadowColor = "#00ffff"; ctx.beginPath(); ctx.arc(heart.x + Math.cos(angle2)*r, heart.y + yOffset, 2.5, 0, Math.PI*2); ctx.fill(); } ctx.restore(); }
     if (_superState.usoppInvuln && arenaActive) { ctx.save(); let ghostDist = 20 + Math.sin(performance.now() / 100) * 4; ctx.globalAlpha = 0.35; ctx.fillStyle = "rgba(255, 215, 0, 0.6)"; ctx.beginPath(); ctx.arc(heart.x - ghostDist, heart.y, heart.size, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(heart.x + ghostDist, heart.y, heart.size, 0, Math.PI*2); ctx.fill(); for (let i = 0; i < 3; i++) { let angle = performance.now() / 500 + i * Math.PI * 2 / 3; let sx = heart.x + Math.cos(angle) * heart.size * 2.5; let sy = heart.y + Math.sin(angle) * heart.size * 2.5; ctx.fillStyle = "#ffd700"; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 15; ctx.font = "20px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("⭐", sx, sy); } ctx.restore(); }
-
-    if (_superState.dandyRoulette && arenaActive) { ctx.save(); let elapsed = performance.now() - _superState.dandyRoulette.time; let duration = _superState.dandyRoulette.duration; let isSpinning = elapsed < duration; let progress = isSpinning ? elapsed / duration : 1.0; let result = _superState.dandyRoulette.result; let floatY = isSpinning ? -30 * progress : -45; ctx.translate(heart.x, heart.y - 45 + floatY); if (isSpinning) { ctx.shadowBlur = 15; ctx.shadowColor = "#ffd700"; } let outerRot = isSpinning ? elapsed * 0.01 : 0; for (let i = 0; i < 12; i++) { let ang = (i / 12) * Math.PI * 2 + outerRot; let x = Math.cos(ang) * 20; let y = Math.sin(ang) * 20; ctx.fillStyle = i % 3 === 0 ? "#ff3333" : (i % 3 === 1 ? "#ffff00" : "#33ff33"); ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2); ctx.fill(); } ctx.strokeStyle = "cyan"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI*2); ctx.stroke(); if (isSpinning) { let fastRot = elapsed * 0.03; for (let s = 0; s < 6; s++) { let ang = (s / 6) * Math.PI * 2 + fastRot; ctx.strokeStyle = s % 2 === 0 ? "#44ff44" : "#ff4444"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(ang)*14, Math.sin(ang)*14); ctx.stroke(); } } ctx.shadowBlur = 0; ctx.shadowColor = "transparent"; ctx.font = "bold 8px monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; if (isSpinning) { ctx.fillStyle = "#ffd700"; ctx.fillText("?", 0, 0); } else if (result) { ctx.fillStyle = result.good ? "#44ff44" : "#ff4444"; let shortText = result.name.length > 6 ? result.name.substring(0, 4) + ".." : result.name; ctx.fillText(shortText, 0, 0); } ctx.restore(); }
-
+    if (_superState.dandyRoulette && arenaActive) { ctx.save(); let elapsed = performance.now() - _superState.dandyRoulette.time; let duration = _superState.dandyRoulette.duration; let isSpinning = elapsed < duration; let progress = isSpinning ? elapsed / duration : 1.0; let result = _superState.dandyRoulette.result; let floatY = isSpinning ? -30 * progress : -45; ctx.translate(heart.x, heart.y - 45 + floatY); if (isSpinning) { ctx.shadowBlur = 15; ctx.shadowColor = "#ffd700"; } let outerRot = isSpinning ? elapsed * 0.01 : 0; for (let i = 0; i < 12; i++) { let ang = (i / 12) * Math.PI * 2 + outerRot; let x = Math.cos(ang) * 20; let y = Math.sin(ang) * 20; ctx.fillStyle = i % 3 === 0 ? "#ff3333" : (i % 3 === 1 ? "#ffff00" : "#33ff33"); ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2); ctx.fill(); } ctx.strokeStyle = "cyan"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI*2); ctx.stroke(); if (isSpinning) { let fastRot = elapsed * 0.03; for (let s = 0; s < 6; s++) { let ang = (s / 6) * Math.PI * 2 + fastRot; ctx.strokeStyle = s % 2 === 0 ? "#44ff44" : "#ff4444"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(ang)*14, Math.sin(ang)*14); ctx.stroke(); } } ctx.shadowBlur = 0; ctx.shadowColor = "transparent"; ctx.font = "bold 8px monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; if (isSpinning) { ctx.fillStyle = "#ffd700"; ctx.fillText("?", 0, 0); } else if (result) { ctx.fillStyle = result.good === true ? "#44ff44" : (result.good === false ? "#ff4444" : "#ffd700"); let shortText = result.name.length > 6 ? result.name.substring(0, 4) + ".." : result.name; ctx.fillText(shortText, 0, 0); } ctx.restore(); }
     if (_superState.kaidoBuffActive && arenaActive) { ctx.save(); let shieldTime = performance.now() / 250; let numScales = 3; ctx.shadowColor = "#ff4500"; ctx.shadowBlur = 15; for(let i=0; i<numScales; i++) { let angle = shieldTime + (i / numScales) * Math.PI * 2; let scaleX = heart.x + Math.cos(angle) * 30; let scaleY = heart.y + Math.sin(angle) * 30; ctx.fillStyle = "rgba(255, 69, 0, 0.85)"; ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(scaleX, scaleY - 6); ctx.lineTo(scaleX + 5, scaleY); ctx.lineTo(scaleX, scaleY + 6); ctx.lineTo(scaleX - 5, scaleY); ctx.closePath(); ctx.fill(); ctx.stroke(); } ctx.restore(); }
     if (_superState.imAuraActive && arenaActive) { ctx.save(); let gradient = ctx.createRadialGradient(heart.x, heart.y, 40, heart.x, heart.y, 55); gradient.addColorStop(0, 'rgba(128, 0, 128, 0.1)'); gradient.addColorStop(1, 'rgba(128, 0, 128, 0.6)'); ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(heart.x, heart.y, 55, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "rgba(200, 0, 200, 0.9)"; ctx.lineWidth = 4; ctx.shadowColor = "#800080"; ctx.shadowBlur = 25; ctx.stroke(); ctx.restore(); }
     if (_superState.allmightPermaSlow && arenaActive) { ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = "#ff0000"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 20; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
     if (_superState.allmightDebuffActive && arenaActive) { ctx.save(); ctx.globalAlpha = 0.25; ctx.fillStyle = "#ff4444"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
     if (_superState.garouInvulnTimer > 0 && arenaActive) { ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 4; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 25; ctx.beginPath(); ctx.arc(heart.x, heart.y, heart.size * 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
-    
-    // Эффект Крутящегося Урагана (Всемогущий)
-    if (_superState.allmightHurricane && arenaActive) {
-        ctx.save();
-        let vortexGrad = ctx.createRadialGradient(heart.x, heart.y, 10, heart.x, heart.y, 150);
-        vortexGrad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-        vortexGrad.addColorStop(0.2, 'rgba(0, 255, 255, 0.8)');
-        vortexGrad.addColorStop(0.6, 'rgba(0, 150, 255, 0.4)');
-        vortexGrad.addColorStop(1, 'rgba(0, 100, 200, 0)');
-        ctx.fillStyle = vortexGrad;
-        ctx.beginPath(); ctx.arc(heart.x, heart.y, 150, 0, Math.PI * 2); ctx.fill();
-        
-        ctx.globalAlpha = 0.7; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4; ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 20;
-        
-        // Вращающиеся кольца торнадо
-        for (let r = 0; r < 5; r++) {
-            let ringRadius = 30 + r * 25;
-            let ringRotation = _superState.allmightHurricaneAngle * (1 + r * 0.5);
-            let segments = 30; 
-            ctx.beginPath(); 
-            for (let i = 0; i <= segments; i++) { 
-                let angle = (i / segments) * Math.PI * 2 + ringRotation; 
-                let waveOffset = Math.sin(i * 3 + _superState.allmightHurricaneAngle * 5) * 15; // Сильные завихрения
-                let x = heart.x + Math.cos(angle) * (ringRadius + waveOffset); 
-                let y = heart.y + Math.sin(angle) * (ringRadius + waveOffset) * 0.5; // Сжато по Y для псевдо-3D
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); 
-            } 
-            ctx.closePath(); ctx.stroke(); 
-        }
-        
-        // Осколки и потоки ветра внутри
-        for (let i = 0; i < 24; i++) { 
-            let angle = _superState.allmightHurricaneAngle * 3 + (i / 24) * Math.PI * 2; 
-            let dist = 30 + (i % 5) * 24; 
-            let px = heart.x + Math.cos(angle) * dist; 
-            let py = heart.y + Math.sin(angle) * dist * 0.5; 
-            ctx.fillStyle = i % 2 === 0 ? "#ffffff" : "#00ffff"; 
-            ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 10; 
-            ctx.beginPath(); ctx.arc(px, py, 2.5 + Math.random()*2, 0, Math.PI * 2); ctx.fill(); 
-            ctx.strokeStyle = "rgba(0, 255, 255, 0.8)"; ctx.lineWidth = 2; 
-            ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - Math.cos(angle) * 15, py - Math.sin(angle) * 15); ctx.stroke(); 
-        }
-        
-        // Молнии внутри урагана
-        ctx.globalAlpha = 0.6; 
-        for (let i = 0; i < 5; i++) { 
-            let angle = Math.random() * Math.PI * 2; 
-            drawLightningBolt(heart.x, heart.y, heart.x + Math.cos(angle) * 140, heart.y + Math.sin(angle) * 140, "#ffffff", 0.9, 3); 
-        }
-        ctx.restore();
-    }
-    
-    // Отрисовка сердца для Всемогущего
+    if (_superState.allmightHurricane && arenaActive) { ctx.save(); let vortexGrad = ctx.createRadialGradient(heart.x, heart.y, 10, heart.x, heart.y, 150); vortexGrad.addColorStop(0, 'rgba(255, 255, 255, 1)'); vortexGrad.addColorStop(0.2, 'rgba(0, 255, 255, 0.8)'); vortexGrad.addColorStop(0.6, 'rgba(0, 150, 255, 0.4)'); vortexGrad.addColorStop(1, 'rgba(0, 100, 200, 0)'); ctx.fillStyle = vortexGrad; ctx.beginPath(); ctx.arc(heart.x, heart.y, 150, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 0.7; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4; ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 20; for (let r = 0; r < 5; r++) { let ringRadius = 30 + r * 25; let ringRotation = _superState.allmightHurricaneAngle * (1 + r * 0.5); let segments = 30; ctx.beginPath(); for (let i = 0; i <= segments; i++) { let angle = (i / segments) * Math.PI * 2 + ringRotation; let waveOffset = Math.sin(i * 3 + _superState.allmightHurricaneAngle * 5) * 15; let x = heart.x + Math.cos(angle) * (ringRadius + waveOffset); let y = heart.y + Math.sin(angle) * (ringRadius + waveOffset) * 0.5; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.closePath(); ctx.stroke(); } for (let i = 0; i < 24; i++) { let angle = _superState.allmightHurricaneAngle * 3 + (i / 24) * Math.PI * 2; let dist = 30 + (i % 5) * 24; let px = heart.x + Math.cos(angle) * dist; let py = heart.y + Math.sin(angle) * dist * 0.5; ctx.fillStyle = i % 2 === 0 ? "#ffffff" : "#00ffff"; ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(px, py, 2.5 + Math.random()*2, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "rgba(0, 255, 255, 0.8)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - Math.cos(angle) * 15, py - Math.sin(angle) * 15); ctx.stroke(); } ctx.globalAlpha = 0.6; for (let i = 0; i < 5; i++) { let angle = Math.random() * Math.PI * 2; drawLightningBolt(heart.x, heart.y, heart.x + Math.cos(angle) * 140, heart.y + Math.sin(angle) * 140, "#ffffff", 0.9, 3); } ctx.restore(); }
     if (_superState.allmightBuffTimer > 0 && arenaActive) drawAllMightHeart(heart.x, heart.y, heart.size);
-    
-    // Анимация питья Кайдо
     if (_superState.kaidoDrinking && arenaActive) drawBeerBottle(heart.x, heart.y, 1, true);
-
     if (_superState.comicTexts.length > 0) { _superState.comicTexts.forEach(t => { ctx.save(); ctx.globalAlpha = t.alpha; ctx.translate(t.x, t.y); ctx.rotate(t.angle); ctx.scale(t.scale, t.scale); ctx.font = "bold 16px Impact, Arial Black, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText(t.text, 0, 0); ctx.fillStyle = t.color; ctx.fillText(t.text, 0, 0); ctx.restore(); }); }
 }
 
