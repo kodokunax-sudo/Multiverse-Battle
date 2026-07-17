@@ -442,7 +442,7 @@ const superAbilities = {
     },
 
     "Космический Дэнди": {
-        name: "КОСМИЧЕСКАЯ УДАЧА", cooldown: 20000, toggleable: false, duration: 0,
+        name: "КОСМИЧЕСКАЯ УДАЧА", cooldown: 10000, toggleable: false, duration: 0,
         onActivate() {
             _superState.dandyRoulette = { time: performance.now(), duration: 1500, result: null, spinAngle: 0 };
             for (let i = 0; i < 10; i++) { arenaParticles.push({ x: heart.x + (Math.random()-0.5)*40, y: heart.y - 40, vx: (Math.random()-0.5)*1, vy: -1 - Math.random(), life: 20, maxLife: 20, color: "#ffd700", size: 2, isQuestionMark: true }); }
