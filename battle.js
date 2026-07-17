@@ -165,41 +165,25 @@ function initArena() {
     window.addEventListener("keydown", (e) => handleKey(e, true));
     window.addEventListener("keyup", (e) => handleKey(e, false));
     
-    canvas.addEventListener("touchstart", (e) => {
-        if (!arenaActive) return;
-        e.preventDefault();
+    canvas.addEventListener("touchend", (e) => {
+    let mobileMode = (typeof arenaSettings !== 'undefined') ? arenaSettings.mobileSuper : "button";
+    if (mobileMode === "swipeup" && mobileSuperSwipeStart) {
         let rect = canvas.getBoundingClientRect();
-        if (arenaPhase === "attack") {
-            for (let i = 0; i < e.touches.length; i++) {
-                checkClickTarget(e.touches[i].clientX - rect.left, e.touches[i].clientY - rect.top);
-            }
-            return;
+        let endY = 0;
+        if (e.changedTouches && e.changedTouches.length > 0) {
+            endY = e.changedTouches[0].clientY || 0;
         }
-        if (e.touches.length === 1) {
-            let tx = e.touches[0].clientX - rect.left;
-            let ty = e.touches[0].clientY - rect.top;
-            
-            let mobileMode = (typeof arenaSettings !== 'undefined') ? arenaSettings.mobileSuper : "button";
-            if (mobileMode === "doubletap") {
-                mobileSuperTapCount++;
-                if (mobileSuperTapTimer) clearTimeout(mobileSuperTapTimer);
-                if (mobileSuperTapCount >= 2) {
-                    mobileSuperTapCount = 0;
-                    if (typeof toggleSuper === 'function') toggleSuper();
-                    return;
-                }
-                mobileSuperTapTimer = setTimeout(() => { mobileSuperTapCount = 0; }, 300);
-            }
-            if (mobileMode === "swipeup") {
-                mobileSuperSwipeStart = { x: tx, y: ty, time: Date.now() };
-            }
-            
-            joystickActive = true;
-            joystickId = e.touches[0].identifier;
-            joystickX = tx;
-            joystickY = ty;
+        endY = endY - rect.top;
+        let dy = mobileSuperSwipeStart.y - endY;
+        let dt = Date.now() - mobileSuperSwipeStart.time;
+        if (dy > 60 && dt < 500) {
+            if (typeof toggleSuper === 'function') toggleSuper();
         }
-    });
+        mobileSuperSwipeStart = null;
+    }
+    joystickActive = false;
+    joystickId = null;
+});
     canvas.addEventListener("touchmove", (e) => {
         if (!arenaActive || arenaPhase !== "dodge") return;
         e.preventDefault();
@@ -946,7 +930,7 @@ function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
     
     let pCount = 35;
     for (let j = 0; j < pCount; j++) {
-        arenaParticles.push({ x: heart.x, heart.y, vx: (Math.random() - 0.5) * 16, vy: (Math.random() - 0.5) * 16, life: 28, maxLife: 28, color: "#ff2222", size: 2 + Math.random() * 4 });
+       let endY = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : 0;
     }
     
     if (Math.ceil(arenaHP) <= 0) loseArena();
