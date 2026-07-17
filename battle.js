@@ -1,6 +1,6 @@
-// ========== АРЕНА UNDERTALE v10.3 FINAL ==========
+// ========== АРЕНА UNDERTALE v10.4 FINAL ==========
 // Полный файл со всеми функциями
-// Добавлена поддержка superBtn2, таймер атаки босса, исправлен баг с фазой атаки
+// Исправлены ошибки: e is not defined, optional chaining
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -72,7 +72,7 @@ function initArenaAudio() {
     }
     try {
         arenaAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    } catch(e) {}
+    } catch(err) {}
 }
 
 function playArenaSound(frequency, type, duration, volume = 0.12, detune = 0) {
@@ -81,7 +81,7 @@ function playArenaSound(frequency, type, duration, volume = 0.12, detune = 0) {
     if (finalVolume <= 0.001) return;
     
     if (!arenaAudioCtx) {
-        try { initArenaAudio(); } catch(e) { return; }
+        try { initArenaAudio(); } catch(err) { return; }
     }
     if (!arenaAudioCtx) return;
     try {
@@ -96,7 +96,7 @@ function playArenaSound(frequency, type, duration, volume = 0.12, detune = 0) {
         gainNode.connect(arenaAudioCtx.destination);
         oscillator.start(arenaAudioCtx.currentTime);
         oscillator.stop(arenaAudioCtx.currentTime + duration);
-    } catch(e) {}
+    } catch(err) {}
 }
 
 function startArenaAmbient() {
@@ -154,53 +154,73 @@ function initArena() {
     if (!canvas) return;
     ctx = canvas.getContext("2d");
     
-    const handleKey = (e, isDown) => {
-        let k = e.key.toLowerCase();
-        if (k in keys) { keys[k] = isDown; e.preventDefault(); }
-        if (k === "arrowup") { keys.up = isDown; e.preventDefault(); }
-        if (k === "arrowdown") { keys.down = isDown; e.preventDefault(); }
-        if (k === "arrowleft") { keys.left = isDown; e.preventDefault(); }
-        if (k === "arrowright") { keys.right = isDown; e.preventDefault(); }
+    const handleKey = function(ev, isDown) {
+        let k = ev.key.toLowerCase();
+        if (k in keys) { keys[k] = isDown; ev.preventDefault(); }
+        if (k === "arrowup") { keys.up = isDown; ev.preventDefault(); }
+        if (k === "arrowdown") { keys.down = isDown; ev.preventDefault(); }
+        if (k === "arrowleft") { keys.left = isDown; ev.preventDefault(); }
+        if (k === "arrowright") { keys.right = isDown; ev.preventDefault(); }
     };
-    window.addEventListener("keydown", (e) => handleKey(e, true));
-    window.addEventListener("keyup", (e) => handleKey(e, false));
+    window.addEventListener("keydown", function(ev) { handleKey(ev, true); });
+    window.addEventListener("keyup", function(ev) { handleKey(ev, false); });
     
-    canvas.addEventListener("touchend", (e) => {
-    let mobileMode = (typeof arenaSettings !== 'undefined') ? arenaSettings.mobileSuper : "button";
-    if (mobileMode === "swipeup" && mobileSuperSwipeStart) {
+    canvas.addEventListener("touchstart", function(ev) {
+        if (!arenaActive) return;
+        ev.preventDefault();
         let rect = canvas.getBoundingClientRect();
-        let endY = 0;
-        if (e.changedTouches && e.changedTouches.length > 0) {
-            endY = e.changedTouches[0].clientY || 0;
+        if (arenaPhase === "attack") {
+            for (let i = 0; i < ev.touches.length; i++) {
+                checkClickTarget(ev.touches[i].clientX - rect.left, ev.touches[i].clientY - rect.top);
+            }
+            return;
         }
-        endY = endY - rect.top;
-        let dy = mobileSuperSwipeStart.y - endY;
-        let dt = Date.now() - mobileSuperSwipeStart.time;
-        if (dy > 60 && dt < 500) {
-            if (typeof toggleSuper === 'function') toggleSuper();
+        if (ev.touches.length === 1) {
+            let tx = ev.touches[0].clientX - rect.left;
+            let ty = ev.touches[0].clientY - rect.top;
+            
+            let mobileMode = (typeof arenaSettings !== 'undefined') ? arenaSettings.mobileSuper : "button";
+            if (mobileMode === "doubletap") {
+                mobileSuperTapCount++;
+                if (mobileSuperTapTimer) clearTimeout(mobileSuperTapTimer);
+                if (mobileSuperTapCount >= 2) {
+                    mobileSuperTapCount = 0;
+                    if (typeof toggleSuper === 'function') toggleSuper();
+                    return;
+                }
+                mobileSuperTapTimer = setTimeout(function() { mobileSuperTapCount = 0; }, 300);
+            }
+            if (mobileMode === "swipeup") {
+                mobileSuperSwipeStart = { x: tx, y: ty, time: Date.now() };
+            }
+            
+            joystickActive = true;
+            joystickId = ev.touches[0].identifier;
+            joystickX = tx;
+            joystickY = ty;
         }
-        mobileSuperSwipeStart = null;
-    }
-    joystickActive = false;
-    joystickId = null;
-});
-    canvas.addEventListener("touchmove", (e) => {
+    });
+    canvas.addEventListener("touchmove", function(ev) {
         if (!arenaActive || arenaPhase !== "dodge") return;
-        e.preventDefault();
-        for (let i = 0; i < e.touches.length; i++) {
-            if (e.touches[i].identifier === joystickId) {
+        ev.preventDefault();
+        for (let i = 0; i < ev.touches.length; i++) {
+            if (ev.touches[i].identifier === joystickId) {
                 let rect = canvas.getBoundingClientRect();
-                joystickX = e.touches[i].clientX - rect.left;
-                joystickY = e.touches[i].clientY - rect.top;
+                joystickX = ev.touches[i].clientX - rect.left;
+                joystickY = ev.touches[i].clientY - rect.top;
                 break;
             }
         }
     });
-    canvas.addEventListener("touchend", (e) => {
+    canvas.addEventListener("touchend", function(ev) {
         let mobileMode = (typeof arenaSettings !== 'undefined') ? arenaSettings.mobileSuper : "button";
         if (mobileMode === "swipeup" && mobileSuperSwipeStart) {
             let rect = canvas.getBoundingClientRect();
-            let endY = (e.changedTouches[0]?.clientY || 0) - rect.top;
+            let endY = 0;
+            if (ev.changedTouches && ev.changedTouches.length > 0) {
+                endY = ev.changedTouches[0].clientY || 0;
+            }
+            endY = endY - rect.top;
             let dy = mobileSuperSwipeStart.y - endY;
             let dt = Date.now() - mobileSuperSwipeStart.time;
             if (dy > 60 && dt < 500) {
@@ -211,10 +231,10 @@ function initArena() {
         joystickActive = false;
         joystickId = null;
     });
-    canvas.addEventListener("click", (e) => {
+    canvas.addEventListener("click", function(ev) {
         if (!arenaActive || arenaPhase !== "attack") return;
         let rect = canvas.getBoundingClientRect();
-        checkClickTarget(e.clientX - rect.left, e.clientY - rect.top);
+        checkClickTarget(ev.clientX - rect.left, ev.clientY - rect.top);
     });
 }
 
@@ -378,6 +398,7 @@ function startArena(bossWave) {
     let spareBtn = document.getElementById("spareBtn"); if (spareBtn) spareBtn.style.display = "none";
     let skipBtn = document.getElementById("skipArenaBtn"); if (skipBtn) skipBtn.style.display = "none";
     let superBtn2 = document.getElementById("superBtn2"); if (superBtn2) superBtn2.style.display = "none";
+    let superBtnDeact = document.getElementById("superBtnDeactivate"); if (superBtnDeact) superBtnDeact.style.display = "none";
     
     arenaBossDefeatedBefore = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossWave));
     arenaActive = true;
@@ -843,6 +864,7 @@ function stopArena() {
     let skipBtn = document.getElementById("skipBossBtn"); if (skipBtn) skipBtn.style.display = "none";
     let superBtn = document.getElementById("superBtn"); if (superBtn) superBtn.style.display = "none";
     let superBtn2 = document.getElementById("superBtn2"); if (superBtn2) superBtn2.style.display = "none";
+    let superBtnDeact = document.getElementById("superBtnDeactivate"); if (superBtnDeact) superBtnDeact.style.display = "none";
 }
 
 function winArena() {
@@ -893,7 +915,10 @@ function loseArena() {
     }, 1200);
 }
 
-function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
+function applyHit(dmg, textMsg, isTrueOneshot) {
+    if (textMsg === undefined) textMsg = null;
+    if (isTrueOneshot === undefined) isTrueOneshot = false;
+    
     if (typeof _superState !== 'undefined' && _superState.usoppInvuln) return;
     if (typeof _superState !== 'undefined' && _superState.garouInvulnTimer > 0) return;
     if (typeof _superState !== 'undefined' && _superState.dandyInvuln) return;
@@ -930,7 +955,7 @@ function applyHit(dmg, textMsg = null, isTrueOneshot = false) {
     
     let pCount = 35;
     for (let j = 0; j < pCount; j++) {
-       let endY = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : 0;
+        arenaParticles.push({ x: heart.x, y: heart.y, vx: (Math.random() - 0.5) * 16, vy: (Math.random() - 0.5) * 16, life: 28, maxLife: 28, color: "#ff2222", size: 2 + Math.random() * 4 });
     }
     
     if (Math.ceil(arenaHP) <= 0) loseArena();
@@ -1093,7 +1118,7 @@ function renderArena() {
         ctx.save();
         let vignetteGrad = ctx.createRadialGradient(200, 250, 150, 200, 250, 350);
         vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
-        vignetteGrad.addColorStop(1, `rgba(255,0,0,${arenaVignette / 30})`);
+        vignetteGrad.addColorStop(1, 'rgba(255,0,0,' + (arenaVignette / 30) + ')');
         ctx.fillStyle = vignetteGrad;
         ctx.fillRect(0, 0, 400, 500);
         ctx.restore();
@@ -1117,7 +1142,7 @@ function renderArena() {
     ctx.restore();
     
     let bc = arenaPhase === "attack" ? "#ffdd00" : (["#fff","#4499ff","#ffdd00","#ff3333","#ff69b4","#44ff44","rainbow","#ffaa00","#ff3333","#ff3333","#fff"][arenaAttackType] || "#fff");
-    if (bc === "rainbow" || arenaAttackType === 6) bc = `hsl(${(now / 5) % 360}, 100%, 50%)`;
+    if (bc === "rainbow" || arenaAttackType === 6) bc = "hsl(" + ((now / 5) % 360) + ", 100%, 50%)";
     if (arenaHitFlash > 0) bc = "#ff3333";
     ctx.save(); ctx.strokeStyle = bc; ctx.lineWidth = 3; ctx.shadowColor = bc; ctx.shadowBlur = arenaHitFlash > 0 ? 18 : 8;
     ctx.strokeRect(2, 2, 396, 496); ctx.restore();
@@ -1155,7 +1180,7 @@ function renderArena() {
     }
     ctx.fillStyle = "#fff"; ctx.font = "bold 10px monospace";
     ctx.shadowColor = "#000"; ctx.shadowBlur = 2;
-    ctx.fillText(`❤️ HP: ${Math.max(0, Math.ceil(arenaHP))} / ${arenaMaxHP}`, 16, 24);
+    ctx.fillText("❤️ HP: " + Math.max(0, Math.ceil(arenaHP)) + " / " + arenaMaxHP, 16, 24);
     ctx.shadowBlur = 0;
     
     drawMarkResurrections();
@@ -1169,14 +1194,14 @@ function renderArena() {
     ctx.globalAlpha = bossGlow;
     ctx.fillRect(14, 37, 372 * Math.max(0, arenaBossMaxHP / maxHp), 4);
     ctx.globalAlpha = 1;
-    ctx.fillStyle = "#ccc"; ctx.font = "bold 9px monospace"; ctx.fillText(`👾 ${arenaBoss}`, 16, 43);
+    ctx.fillStyle = "#ccc"; ctx.font = "bold 9px monospace"; ctx.fillText("👾 " + arenaBoss, 16, 43);
     
     drawActiveBuffs();
     
     if (arenaComboTimer > 0 && arenaComboText) {
         ctx.save();
         let comboAlpha = Math.min(1, arenaComboTimer / 20);
-        ctx.fillStyle = `rgba(255, 255, 255, ${comboAlpha})`;
+        ctx.fillStyle = "rgba(255, 255, 255, " + comboAlpha + ")";
         ctx.font = "bold 22px sans-serif";
         ctx.textAlign = "center";
         ctx.shadowColor = "#ffdd00";
@@ -1189,8 +1214,8 @@ function renderArena() {
         ctx.save();
         let alpha = wallGapIndicator.life / 35;
         let pulse = Math.sin(now / 200) * 0.2 + 0.8;
-        ctx.fillStyle = `rgba(46, 204, 113, ${0.35 * alpha * pulse})`;
-        ctx.strokeStyle = `rgba(46, 204, 113, ${0.7 * alpha})`;
+        ctx.fillStyle = "rgba(46, 204, 113, " + (0.35 * alpha * pulse) + ")";
+        ctx.strokeStyle = "rgba(46, 204, 113, " + (0.7 * alpha) + ")";
         ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.lineDashOffset = -now / 30;
         if (wallGapIndicator.vertical) {
             ctx.fillRect(wallGapIndicator.x, wallGapIndicator.y - wallGapIndicator.h / 2, wallGapIndicator.w, wallGapIndicator.h);
@@ -1309,7 +1334,7 @@ function renderArena() {
                 ctx.restore();
             }
             
-            ctx.save(); let col = a.color; if (a.type === "rainbow") col = `hsl(${(now/2+a.x)%360},100%,60%)`; ctx.fillStyle = col;
+            ctx.save(); let col = a.color; if (a.type === "rainbow") col = "hsl(" + ((now/2+a.x)%360) + ",100%,60%)"; ctx.fillStyle = col;
             if (a.type === "square" || a.type === "danger") {
                 let sz = a.size||20; ctx.translate(a.x+sz/2, a.y+sz/2);
                 if (a.color === "#ff3333") { ctx.beginPath(); ctx.moveTo(0,-sz/2); ctx.lineTo(sz/2,sz/2); ctx.lineTo(-sz/2,sz/2); ctx.closePath(); ctx.fill(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.moveTo(0,-sz/5); ctx.lineTo(sz/5,sz/3); ctx.lineTo(-sz/5,sz/3); ctx.closePath(); ctx.fill(); }
@@ -1325,7 +1350,7 @@ function renderArena() {
         if (typeof renderSuperVisuals === 'function') renderSuperVisuals();
         
         for (let i = arenaBlasters.length-1; i >= 0; i--) {
-            let b = arenaBlasters[i], ac = b.color === "rainbow" ? `hsl(${(now/2)%360},100%,60%)` : b.color;
+            let b = arenaBlasters[i], ac = b.color === "rainbow" ? "hsl(" + ((now/2)%360) + ",100%,60%)" : b.color;
             if (!frozen && !timeStopped) {
                 if (b.state === "aiming") { b.timer--; if (b.timer <= 0) { b.state = "firing"; b.timer = 15; arenaShake = 18; sfxArenaBlasterFire(); } }
                 else if (b.state === "firing") { b.timer--; if (b.timer <= 0) { b.state="fading"; b.timer=20; } }
