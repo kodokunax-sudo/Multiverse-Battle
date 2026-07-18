@@ -1,6 +1,5 @@
-// ========== АРЕНА UNDERTALE v10.6 FINAL ==========
-// Полный файл со всеми функциями
-// Добавлена поддержка: healCircle, dandyDarkness, dandyAura, dandyLava, dandyAutoRevive
+// ========== АРЕНА UNDERTALE v10.7 CLEAN ==========
+// Без Разлома Деку (он в supers.js), только база + эффекты Дэнди
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -66,14 +65,13 @@ let mobileSuperSwipeStart = null;
 let arenaAudioCtx = null;
 
 function initArenaAudio() {
-    if (arenaAudioCtx) {
-        if (arenaAudioCtx.state === 'suspended') arenaAudioCtx.resume();
-        return;
-    }
+    if (arenaAudioCtx) { if (arenaAudioCtx.state === 'suspended') arenaAudioCtx.resume(); return; }
     try { arenaAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(err) {}
 }
 
-function playArenaSound(frequency, type, duration, volume = 0.12, detune = 0) {
+function playArenaSound(frequency, type, duration, volume, detune) {
+    if (volume === undefined) volume = 0.12;
+    if (detune === undefined) detune = 0;
     let globalVol = (typeof arenaSettings !== 'undefined') ? arenaSettings.volume : 0.20;
     let finalVolume = volume * globalVol;
     if (finalVolume <= 0.001) return;
@@ -102,9 +100,7 @@ function startArenaAmbient() {
     }, 3000);
 }
 
-function stopArenaAmbient() {
-    if (arenaAmbientSoundInterval) { clearInterval(arenaAmbientSoundInterval); arenaAmbientSoundInterval = null; }
-}
+function stopArenaAmbient() { if (arenaAmbientSoundInterval) { clearInterval(arenaAmbientSoundInterval); arenaAmbientSoundInterval = null; } }
 
 // ====== ЗВУКИ ======
 function sfxWhiteWalls() { playArenaSound(80, 'sawtooth', 0.5, 0.08); setTimeout(function() { playArenaSound(60, 'sawtooth', 0.4, 0.06); }, 150); setTimeout(function() { playArenaSound(100, 'triangle', 0.3, 0.05); }, 300); }
@@ -440,7 +436,6 @@ function winArena() {
 }
 
 function loseArena() {
-    // Дэнди: воскрешение
     if (typeof _superState !== 'undefined' && _superState.dandyAutoRevive) {
         _superState.dandyAutoRevive = false;
         arenaHP = Math.ceil(arenaMaxHP * 0.5);
@@ -448,7 +443,6 @@ function loseArena() {
         spawnFloatingText(heart.x, heart.y-20, "ВОСКРЕС ДЭНДИ!", "#ffcc00");
         return;
     }
-    // Марк: воскрешение
     if (typeof _superState !== 'undefined' && _superState.markResurrectCharges > 0) {
         var mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
         if (mainCard && mainCard.name === "Император Марк") {
@@ -560,10 +554,7 @@ function renderArena() {
     if (typeof _superState !== 'undefined' && _superState.screenFlashWhite>0) { ctx.save(); ctx.fillStyle="#ffffff"; ctx.globalAlpha=Math.min(1,_superState.screenFlashWhite/20); ctx.fillRect(0,0,400,500); ctx.restore(); }
     if (screenFlash>0) { ctx.save(); ctx.fillStyle=screenFlashColor; ctx.globalAlpha=screenFlash/25; ctx.fillRect(0,0,400,500); ctx.restore(); }
     if (arenaVignette>0) { ctx.save(); var vignetteGrad=ctx.createRadialGradient(200,250,150,200,250,350); vignetteGrad.addColorStop(0,'rgba(0,0,0,0)'); vignetteGrad.addColorStop(1,'rgba(255,0,0,'+(arenaVignette/30)+')'); ctx.fillStyle=vignetteGrad; ctx.fillRect(0,0,400,500); ctx.restore(); }
-    
-    // Дэнди: Темнота — чёрный прямоугольник
     if (typeof _superState !== 'undefined' && _superState.dandyDarkness > 0) { ctx.save(); ctx.fillStyle="rgba(0,0,0,0.85)"; ctx.fillRect(0,0,400,500); ctx.restore(); }
-    
     ctx.save(); ctx.strokeStyle="rgba(255,255,255,0.02)"; ctx.lineWidth=1; var step=25;
     for (var x=0;x<=400;x+=step) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,500); ctx.stroke(); }
     for (var y=0;y<=500;y+=step) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(400,y); ctx.stroke(); } ctx.restore();
@@ -589,8 +580,6 @@ function renderArena() {
     drawActiveBuffs();
     if (arenaComboTimer>0&&arenaComboText) { ctx.save(); var comboAlpha=Math.min(1,arenaComboTimer/20); ctx.fillStyle="rgba(255,255,255,"+comboAlpha+")"; ctx.font="bold 22px sans-serif"; ctx.textAlign="center"; ctx.shadowColor="#ffdd00"; ctx.shadowBlur=15; ctx.fillText(arenaComboText,200,260); ctx.restore(); }
     if (wallGapIndicator&&wallGapIndicator.life>0) { ctx.save(); var alpha=wallGapIndicator.life/35; var pulse=Math.sin(now/200)*0.2+0.8; ctx.fillStyle="rgba(46,204,113,"+(0.35*alpha*pulse)+")"; ctx.strokeStyle="rgba(46,204,113,"+(0.7*alpha)+")"; ctx.lineWidth=2; ctx.setLineDash([6,4]); ctx.lineDashOffset=-now/30; if (wallGapIndicator.vertical) { ctx.fillRect(wallGapIndicator.x,wallGapIndicator.y-wallGapIndicator.h/2,wallGapIndicator.w,wallGapIndicator.h); ctx.strokeRect(wallGapIndicator.x,wallGapIndicator.y-wallGapIndicator.h/2,wallGapIndicator.w,wallGapIndicator.h); } else { ctx.fillRect(wallGapIndicator.x-wallGapIndicator.w/2,wallGapIndicator.y,wallGapIndicator.w,wallGapIndicator.h); ctx.strokeRect(wallGapIndicator.x-wallGapIndicator.w/2,wallGapIndicator.y,wallGapIndicator.w,wallGapIndicator.h); } ctx.setLineDash([]); ctx.restore(); }
-    
-    // Трейл
     ctx.save(); ctx.globalCompositeOperation='lighter';
     for (var i=arenaTrail.length-1;i>=0;i--) { var t=arenaTrail[i]; t.life--; var ratio=Math.max(0,t.life/t.maxLife); var trailRadius=Math.max(0.1,t.size*ratio); ctx.fillStyle=t.color; ctx.globalAlpha=ratio*0.7; ctx.beginPath(); ctx.arc(t.x,t.y-2,trailRadius,0,Math.PI*2); ctx.fill(); if (t.life<=0) arenaTrail.splice(i,1); } ctx.restore();
 
@@ -600,7 +589,6 @@ function renderArena() {
             var a=attacks[i];
             if (!frozen&&!timeStopped) { if (a.spd) a.x+=a.spd*speedMod; if (a.spdY) a.y+=a.spdY*speedMod; }
             if (typeof _superState!=='undefined'&&_superState.imAuraActive&&invulnTimer<=0) { var ax=a.x+(a.size||a.radius||20)/2, ay=a.y+(a.size||a.radius||20)/2; var dist=Math.hypot(ax-heart.x,ay-heart.y); if (dist<55) { if (Math.random()<0.5) { attacks.splice(i,1); arenaParticles.push({x:ax,y:ay,vx:0,vy:0,life:15,maxLife:15,color:"#ff00ff",size:5}); continue; } } }
-            // Дэнди: Аура разрушения — уничтожает атаки рядом
             if (typeof _superState!=='undefined'&&_superState.dandyAura>0) { var ax=a.x+(a.size||a.radius||20)/2, ay=a.y+(a.size||a.radius||20)/2; if (Math.hypot(ax-heart.x,ay-heart.y)<60) { attacks.splice(i,1); arenaParticles.push({x:ax,y:ay,vx:(Math.random()-0.5)*6,vy:(Math.random()-0.5)*6,life:15,maxLife:15,color:"#ff3300",size:3}); continue; } }
             if (a.type==="bomb") { if (!frozen&&!timeStopped) a.timer--; if (a.timer>0) { ctx.save(); var isFlashing=Math.floor(a.timer/6)%2===0, bombX=a.x, bombY=a.y; var bombRadius=Math.max(1,11+Math.abs(Math.sin(a.timer*0.45))*4); ctx.shadowColor="#ff3333"; ctx.shadowBlur=isFlashing?25:10; var gradient=ctx.createRadialGradient(bombX,bombY,Math.max(0.1,bombRadius*0.2),bombX,bombY,bombRadius); gradient.addColorStop(0,'#ffffff'); gradient.addColorStop(0.3,'#ff6600'); gradient.addColorStop(0.7,'#ff0000'); gradient.addColorStop(1,'#990000'); ctx.fillStyle=gradient; ctx.beginPath(); ctx.arc(bombX,bombY,bombRadius,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="#8B4513"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(bombX,bombY-bombRadius-2); ctx.quadraticCurveTo(bombX+5,bombY-bombRadius-16,bombX+3,bombY-bombRadius-20); ctx.stroke(); ctx.fillStyle=isFlashing?"#ffff00":"#ff8800"; ctx.shadowColor=isFlashing?"#ffff00":"#ff6600"; ctx.shadowBlur=isFlashing?12:6; ctx.beginPath(); ctx.arc(bombX+3,bombY-bombRadius-20,Math.max(1,isFlashing?5:4),0,Math.PI*2); ctx.fill(); ctx.restore(); } else if (a.timer>-35) { var progress=Math.abs(a.timer)/35, cr=Math.max(1,a.maxRadius*progress); if (!a.particlesSpawned&&progress>0.05) { a.particlesSpawned=true; sfxArenaBombExplosion(); a.shakeTime=25; } if (a.shakeTime>0) { arenaShake=Math.max(arenaShake,20); a.shakeTime--; } ctx.save(); ctx.globalCompositeOperation='lighter'; var grad=ctx.createRadialGradient(a.x,a.y,Math.max(0.1,cr*0.1),a.x,a.y,cr); grad.addColorStop(0,'#ffffff'); grad.addColorStop(0.15,'#ffff00'); grad.addColorStop(0.4,'#ff8800'); grad.addColorStop(0.7,'#ff0000'); grad.addColorStop(1,'rgba(139,0,0,0)'); ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(a.x,a.y,cr,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="rgba(255,255,255,0.7)"; ctx.lineWidth=Math.max(0.1,3*(1-progress)); for (var r=0;r<12;r++) { var angle=(r/12)*Math.PI*2; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(a.x+Math.cos(angle)*cr*0.8,a.y+Math.sin(angle)*cr*0.8); ctx.stroke(); } ctx.fillStyle="#ffffff"; for (var ep=0;ep<50;ep++) { var eAngle=Math.random()*Math.PI*2; ctx.beginPath(); ctx.arc(a.x+Math.cos(eAngle)*Math.random()*cr,a.y+Math.sin(eAngle)*Math.random()*cr,Math.max(0.1,1+Math.random()*3),0,Math.PI*2); ctx.fill(); } ctx.restore(); if (!a.hit&&invulnTimer<=0) { var dx=heart.x-a.x,dy=heart.y-a.y; if (Math.sqrt(dx*dx+dy*dy)<(cr+heart.hitbox)) { applyHit(a.damage||30,"ВЗРЫВ!"); a.hit=true; } } } else { attacks.splice(i,1); } continue; }
             if (a.type!=="wall"&&a.bouncesLeft!==undefined&&a.bouncesLeft>0&&!frozen&&!timeStopped) { var sz=a.size||(a.radius?a.radius*2:20); if (a.x<4&&a.spd<0) { a.spd=-a.spd; if (a.bouncesLeft!==Infinity) a.bouncesLeft--; sfxBounce(); } else if (a.x+sz>396&&a.spd>0) { a.spd=-a.spd; if (a.bouncesLeft!==Infinity) a.bouncesLeft--; sfxBounce(); } if (a.y<4&&a.spdY<0) { a.spdY=-a.spdY; if (a.bouncesLeft!==Infinity) a.bouncesLeft--; sfxBounce(); } else if (a.y+sz>496&&a.spdY>0) { a.spdY=-a.spdY; if (a.bouncesLeft!==Infinity) a.bouncesLeft--; sfxBounce(); } }
@@ -609,7 +597,6 @@ function renderArena() {
             else if (a.type==="sword") { var dx=heart.x-a.x,dy=heart.y-a.y; hit=Math.sqrt(dx*dx+dy*dy)<(heart.hitbox+a.size/2); }
             else { var sz=a.size||20,cx=a.x+sz/2,cy=a.y+sz/2; hit=Math.abs(heart.x-cx)<(sz/2+heart.hitbox)&&Math.abs(heart.y-cy)<(sz/2+heart.hitbox); }
             if (hit&&invulnTimer<=0) {
-                // Хил-блоки Дэнди (healCircle)
                 if (a.type==="healCircle") { var healAmount=Math.floor(arenaMaxHP*(a.healPercent||0.10)); arenaHP=Math.min(arenaMaxHP,arenaHP+healAmount); arenaKarma=Math.max(0,arenaKarma-Math.floor(arenaMaxHP*0.05)); sfxArenaHeal(); spawnFloatingText(heart.x,heart.y-20,"+"+healAmount,"#44ff44"); document.getElementById("arenaHP").innerText=Math.ceil(arenaHP); attacks.splice(i,1); continue; }
                 var bhd=a.damage||arenaBaseDmg||5;
                 if (a.color==="#ffaa00"||a.type==="sword") { if (!heartWasMoving) applyHit(Math.max(1,Math.floor(bhd/4)),"ЗАЩИТА!"); else applyHit(bhd,"ДВИЖЕНИЕ!"); attacks.splice(i,1); continue; }
@@ -624,30 +611,18 @@ function renderArena() {
             ctx.save(); var col=a.color; if (a.type==="rainbow") col="hsl("+((now/2+a.x)%360)+",100%,60%)"; if (a.type==="healCircle") col="#44ff44"; ctx.fillStyle=col;
             if (a.type==="square"||a.type==="danger") { var sz=a.size||20; ctx.translate(a.x+sz/2,a.y+sz/2); if (a.color==="#ff3333") { ctx.beginPath(); ctx.moveTo(0,-sz/2); ctx.lineTo(sz/2,sz/2); ctx.lineTo(-sz/2,sz/2); ctx.closePath(); ctx.fill(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.moveTo(0,-sz/5); ctx.lineTo(sz/5,sz/3); ctx.lineTo(-sz/5,sz/3); ctx.closePath(); ctx.fill(); } else if (a.color==="#ff69b4") { ctx.fillRect(-sz/2,-sz/2,sz,sz); ctx.strokeStyle="#fff"; ctx.lineWidth=2; ctx.strokeRect(-sz/4,-sz/4,sz/2,sz/2); } else if (a.color==="#4499ff") { ctx.fillRect(-sz/2,-sz/2,sz,sz); ctx.strokeStyle="#fff"; ctx.lineWidth=1.5; ctx.strokeRect(-sz/2+2,-sz/2+2,sz-4,sz-4); ctx.fillStyle="#fff"; ctx.fillRect(-sz/4,-sz/4,sz/2,sz/2); } else { ctx.fillRect(-sz/2,-sz/2,sz,sz); ctx.strokeStyle="rgba(0,0,0,0.25)"; ctx.lineWidth=1.5; ctx.strokeRect(-sz/2+2,-sz/2+2,sz-4,sz-4); ctx.fillStyle="#fff"; ctx.fillRect(-sz/4,-sz/4,sz/2,sz/2); } }
             else if (a.type==="sword") { ctx.translate(a.x,a.y); ctx.rotate(a.angle||0); ctx.globalAlpha=0.4; ctx.beginPath(); ctx.moveTo(a.size+3,0); ctx.lineTo(0,a.width/2+2); ctx.lineTo(-a.size-3,0); ctx.lineTo(0,-a.width/2-2); ctx.fill(); ctx.globalAlpha=1.0; ctx.fillStyle="#fff"; ctx.beginPath(); ctx.moveTo(a.size,0); ctx.lineTo(0,a.width/4); ctx.lineTo(-a.size,0); ctx.lineTo(0,-a.width/4); ctx.fill(); }
-            else if (a.type==="circle"||a.type==="healCircle") { var circleR=Math.max(0.1,a.radius||10); ctx.shadowColor=a.color==="#44ff44"?"#44ff44":"#44ff44"; ctx.shadowBlur=12; ctx.beginPath(); ctx.arc(a.x,a.y,circleR,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,0.2)"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(a.x,a.y,Math.max(0.1,circleR*0.7),0,Math.PI*2); ctx.stroke(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(a.x,a.y,Math.max(0.1,circleR*0.4),0,Math.PI*2); ctx.fill(); }
+            else if (a.type==="circle"||a.type==="healCircle") { var circleR=Math.max(0.1,a.radius||10); ctx.shadowColor="#44ff44"; ctx.shadowBlur=12; ctx.beginPath(); ctx.arc(a.x,a.y,circleR,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,0.2)"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(a.x,a.y,Math.max(0.1,circleR*0.7),0,Math.PI*2); ctx.stroke(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(a.x,a.y,Math.max(0.1,circleR*0.4),0,Math.PI*2); ctx.fill(); }
             else if (a.type==="rainbow") { var rainbowR=Math.max(0.1,a.radius||10); ctx.beginPath(); ctx.arc(a.x,a.y,rainbowR,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,0.2)"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(a.x,a.y,Math.max(0.1,rainbowR*0.7),0,Math.PI*2); ctx.stroke(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(a.x,a.y,Math.max(0.1,rainbowR*0.4),0,Math.PI*2); ctx.fill(); }
             ctx.restore();
         }
         if (typeof renderSuperVisuals === 'function') renderSuperVisuals();
         for (var i=arenaBlasters.length-1;i>=0;i--) { var b=arenaBlasters[i],ac=b.color==="rainbow"?"hsl("+((now/2)%360)+",100%,60%)":b.color; if (!frozen&&!timeStopped) { if (b.state==="aiming") { b.timer--; if (b.timer<=0) { b.state="firing"; b.timer=15; arenaShake=18; sfxArenaBlasterFire(); } } else if (b.state==="firing") { b.timer--; if (b.timer<=0) { b.state="fading"; b.timer=20; } } else if (b.state==="fading") { b.timer--; if (b.timer<=0) arenaBlasters.splice(i,1); } } if (b.state==="aiming") { if (b.timer>30) b.angle=Math.atan2(heart.y-b.y,heart.x-b.x); ctx.save(); ctx.globalAlpha=0.2+Math.abs(Math.sin(b.timer*0.25))*0.2; ctx.strokeStyle=ac; ctx.lineWidth=2; ctx.setLineDash([6,4]); ctx.lineDashOffset=-now/40; ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(b.x+Math.cos(b.angle)*800,b.y+Math.sin(b.angle)*800); ctx.stroke(); ctx.setLineDash([]); ctx.restore(); } else if (b.state==="firing"||b.state==="fading") { ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.shadowColor=ac; ctx.shadowBlur=15; var bWidth=Math.max(1,b.width+16+Math.random()*10); ctx.strokeStyle=ac; ctx.lineWidth=bWidth; ctx.globalAlpha=0.3; ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(b.x+Math.cos(b.angle)*800,b.y+Math.sin(b.angle)*800); ctx.stroke(); ctx.lineWidth=Math.max(1,b.width); ctx.globalAlpha=0.9; ctx.stroke(); ctx.strokeStyle="#fff"; ctx.lineWidth=Math.max(0.5,b.width*0.4); ctx.globalAlpha=1.0; ctx.stroke(); ctx.restore(); if (!b.hasHit&&invulnTimer<=0&&!frozen&&!timeStopped) { var dx=heart.x-b.x,dy=heart.y-b.y,dist=Math.abs(dx*Math.sin(b.angle)-dy*Math.cos(b.angle)); if (dist<Math.max(1,b.width/2)+heart.hitbox) { var bdmg=0,msg=""; if (b.color==="rainbow") applyHit(arenaMaxHP,"ФАТАЛЬНО!",true); else if (b.color==="#fff") { bdmg=Math.floor(arenaBaseDmg*2); msg="ЛУЧ!"; } else if (b.color==="#ffdd00") { if (!heartWasMoving) { bdmg=Math.max(1,Math.floor(arenaBaseDmg*3/4)); msg="ЗАЩИТА!"; } else { bdmg=Math.floor(arenaBaseDmg*3); msg="ДВИЖЕНИЕ!"; } } else if (b.color==="#ff3333") { if (heartWasMoving) { bdmg=Math.max(1,Math.floor(arenaBaseDmg*3/4)); msg="ЗАЩИТА!"; } else { bdmg=Math.floor(arenaBaseDmg*3); msg="ЗАМЕР!"; } } if (bdmg>0) applyHit(bdmg,msg); b.hasHit=true; } } } }
-        if (invulnTimer<=0||Math.floor(now/80)%2===0) { ctx.save(); ctx.translate(heart.x,heart.y-2); var heartPulse=1.0+Math.abs(Math.sin(now/140))*0.1; ctx.rotate(heartRotation*0.3); ctx.scale(heartPulse,heartPulse); var heartGrad=ctx.createRadialGradient(0,0,2,0,0,8); heartGrad.addColorStop(0,'#ff4444'); heartGrad.addColorStop(1,'#990000'); ctx.fillStyle=heartGrad; ctx.shadowColor=(typeof _superState!=='undefined'&&_superState.dekusParticles)?"#44ff44":(typeof _superState!=='undefined'&&_superState.allmightBuffTimer>0)?"#ffd700":(typeof _superState!=='undefined'&&_superState.usoppInvuln)?"#ffff00":"#ff0000"; ctx.shadowBlur=(typeof _superState!=='undefined'&&(_superState.dekusParticles||_superState.allmightBuffTimer>0))?30:12; ctx.beginPath(); ctx.arc(-3.5,-2,4.5,Math.PI,0); ctx.arc(3.5,-2,4.5,Math.PI,0); ctx.lineTo(0,6); ctx.closePath(); ctx.fill(); ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.shadowBlur=0; ctx.beginPath(); ctx.arc(-2,-2,1.5,0,Math.PI*2); ctx.fill(); if (invulnTimer>0) { var shieldGrad=ctx.createRadialGradient(0,2,Math.max(0.1,heart.size*1.1),0,2,Math.max(0.1,heart.size*1.4)); shieldGrad.addColorStop(0,'rgba(0,191,255,0.1)'); shieldGrad.addColorStop(1,'rgba(0,191,255,0.6)'); ctx.strokeStyle=shieldGrad; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,2,Math.max(0.1,heart.size*1.3),0,Math.PI*2); ctx.stroke(); } ctx.restore(); }
+        if (invulnTimer<=0||Math.floor(now/80)%2===0) { ctx.save(); ctx.translate(heart.x,heart.y-2); var heartPulse=1.0+Math.abs(Math.sin(now/140))*0.1; ctx.rotate(heartRotation*0.3); ctx.scale(heartPulse,heartPulse); var heartGrad=ctx.createRadialGradient(0,0,2,0,0,8); heartGrad.addColorStop(0,'#ff4444'); heartGrad.addColorStop(1,'#990000'); ctx.fillStyle=heartGrad; ctx.shadowColor=(typeof _superState!=='undefined'&&_superState.dekusParticles)?"#50c878":(typeof _superState!=='undefined'&&_superState.allmightBuffTimer>0)?"#ffd700":(typeof _superState!=='undefined'&&_superState.usoppInvuln)?"#ffff00":"#ff0000"; ctx.shadowBlur=(typeof _superState!=='undefined'&&(_superState.dekusParticles||_superState.allmightBuffTimer>0))?30:12; ctx.beginPath(); ctx.arc(-3.5,-2,4.5,Math.PI,0); ctx.arc(3.5,-2,4.5,Math.PI,0); ctx.lineTo(0,6); ctx.closePath(); ctx.fill(); ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.shadowBlur=0; ctx.beginPath(); ctx.arc(-2,-2,1.5,0,Math.PI*2); ctx.fill(); if (invulnTimer>0) { var shieldGrad=ctx.createRadialGradient(0,2,Math.max(0.1,heart.size*1.1),0,2,Math.max(0.1,heart.size*1.4)); shieldGrad.addColorStop(0,'rgba(0,191,255,0.1)'); shieldGrad.addColorStop(1,'rgba(0,191,255,0.6)'); ctx.strokeStyle=shieldGrad; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,2,Math.max(0.1,heart.size*1.3),0,Math.PI*2); ctx.stroke(); } ctx.restore(); }
     } else if (arenaPhase==="attack") { for (var i=0;i<arenaClickTargets.length;i++) { var t=arenaClickTargets[i]; if (t.hit) continue; t.pulse+=0.12; var r=Math.max(0.1,t.radius+Math.sin(t.pulse)*3); ctx.save(); var glowPulse=Math.sin(now/300+i)*0.3+0.7; var grad=ctx.createRadialGradient(t.x,t.y,2,t.x,t.y,r); grad.addColorStop(0,"rgba(255,255,255,0.4)"); grad.addColorStop(0.7,"rgba(255,221,0,0.15)"); grad.addColorStop(1,"rgba(255,221,0,0)"); ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(t.x,t.y,r,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="#ffdd00"; ctx.lineWidth=2; ctx.shadowColor="#ffdd00"; ctx.shadowBlur=8*glowPulse; ctx.beginPath(); ctx.arc(t.x,t.y,Math.max(0.1,t.radius),0,Math.PI*2); ctx.stroke(); ctx.restore(); } }
     ctx.save(); ctx.globalCompositeOperation='lighter'; for (var i=arenaParticles.length-1;i>=0;i--) { var p=arenaParticles[i]; p.x+=p.vx; p.y+=p.vy; p.vx*=0.95; p.vy*=0.95; p.life--; var ratio=Math.max(0,p.life/p.maxLife); if (!p.isLightning) { var pSize=Math.max(0.1,p.size*ratio); ctx.fillStyle=p.color; ctx.globalAlpha=Math.max(0,ratio); ctx.beginPath(); ctx.arc(p.x,p.y,pSize,0,Math.PI*2); ctx.fill(); } if (p.life<=0) arenaParticles.splice(i,1); } ctx.restore();
     ctx.save(); for (var i=arenaShockwaves.length-1;i>=0;i--) { var sw=arenaShockwaves[i]; sw.r+=sw.v; sw.life--; var ratio=Math.max(0,sw.life/sw.maxLife); var swR=Math.max(0.1,sw.r); ctx.strokeStyle=sw.color; ctx.lineWidth=Math.max(0.1,2.5*ratio); ctx.globalAlpha=ratio; ctx.beginPath(); ctx.arc(sw.x,sw.y,swR,0,Math.PI*2); ctx.stroke(); if (sw.life<=0) arenaShockwaves.splice(i,1); } ctx.restore();
     ctx.save(); for (var i=floatingTexts.length-1;i>=0;i--) { var ft=floatingTexts[i]; ft.y+=ft.vy; ft.x+=(ft.vx||0); ft.life--; ctx.fillStyle=ft.color; ctx.globalAlpha=Math.max(0,ft.life/50); ctx.font="bold 14px monospace"; ctx.shadowColor=ft.color; ctx.shadowBlur=4; ctx.textAlign="center"; ctx.fillText(ft.text,ft.x,ft.y); if (ft.life<=0) floatingTexts.splice(i,1); } ctx.restore();
-    
-    // Дэнди: Лава — рисуем и наносим урон
-    if (typeof _superState !== 'undefined' && _superState.dandyLava > 0) {
-        ctx.save();
-        for (var i=0;i<60;i++) {
-            var lx=Math.random()*400, ly=460+Math.random()*40;
-            ctx.fillStyle="#ff4400"; ctx.globalAlpha=0.6+Math.random()*0.4;
-            ctx.beginPath(); ctx.arc(lx,ly,2+Math.random()*4,0,Math.PI*2); ctx.fill();
-        }
-        ctx.restore();
-        if (heart.y>420) { applyHit(3,"ЛАВА!"); }
-    }
-    
+    if (typeof _superState !== 'undefined' && _superState.dandyLava > 0) { ctx.save(); for (var i=0;i<60;i++) { var lx=Math.random()*400, ly=460+Math.random()*40; ctx.fillStyle="#ff4400"; ctx.globalAlpha=0.6+Math.random()*0.4; ctx.beginPath(); ctx.arc(lx,ly,2+Math.random()*4,0,Math.PI*2); ctx.fill(); } ctx.restore(); if (heart.y>420) { applyHit(3,"ЛАВА!"); } }
     ctx.restore();
     animFrameId = requestAnimationFrame(renderArena);
 }
