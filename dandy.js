@@ -65,6 +65,227 @@ const DANDY_GOOD = [
     { name: "ФАНТОМНЫЙ РЫВОК", apply() { _superState.phantomDash = true; createVFX(heart.x, heart.y, 30, 8, "#6600ff", "burst"); spawnFloatingText(heart.x, heart.y-20, "ФАНТОМ!", "#6600ff"); } },
     { name: "УЛЬТРА-ИНСТИНКТ (3с)", apply() { _superState.dandyInvuln = true; heartSpeed *= 3; setTimeout(() => { _superState.dandyInvuln = false; heartSpeed /= 3; }, 3000); createVFX(heart.x, heart.y, 50, 10, "#ffffff", "spiral"); addShockwaveRing(heart.x, heart.y, "#ffffff", 200, 2, 8); spawnFloatingText(heart.x, heart.y-20, "ИНСТИНКТ!", "#ffffff"); } },
     { name: "ВОСКРЕШЕНИЕ", apply() { _superState.autoRevive = true; createVFX(heart.x, heart.y, 60, 2, "#ffcc00", "implode"); spawnFloatingText(heart.x, heart.y-20, "АНГЕЛ!", "#ffcc00"); } }
+    // 31-45: Скиллы других персонажей (новые!)
+{ name: "РЫВОК ДЕКУ", apply() { 
+    let dx = 0, dy = 0;
+    if (keys.w || keys.up) dy = -1;
+    if (keys.s || keys.down) dy = 1;
+    if (keys.a || keys.left) dx = -1;
+    if (keys.d || keys.right) dx = 1;
+    if (dx === 0 && dy === 0) { let ang = Math.random() * Math.PI * 2; dx = Math.cos(ang); dy = Math.sin(ang); }
+    let len = Math.sqrt(dx*dx + dy*dy) || 1; dx /= len; dy /= len;
+    
+    _superState.dekuDash = { startX: heart.x, startY: heart.y, dirX: dx, dirY: dy, distance: 180, traveled: 0, trail: [], life: 0.35 };
+    let dmg = Math.floor(arenaBossMaxHP * 0.06);
+    arenaBossMaxHP -= dmg;
+    
+    let dashWidth = 55;
+    for (let i = attacks.length - 1; i >= 0; i--) {
+        let a = attacks[i];
+        let ax = a.x + (a.size || a.radius || 20) / 2;
+        let ay = a.y + (a.size || a.radius || 20) / 2;
+        let t = ((ax - heart.x) * dx + (ay - heart.y) * dy) / (dx*dx + dy*dy);
+        if (t > 0 && t < 180) {
+            let projX = heart.x + dx * t; let projY = heart.y + dy * t;
+            if (Math.sqrt((ax - projX)**2 + (ay - projY)**2) < dashWidth) {
+                attacks.splice(i, 1);
+                createVFX(ax, ay, 8, 3, "#44ff44", "burst");
+            }
+        }
+    }
+    createVFX(heart.x, heart.y, 25, 6, "#44ff44", "spiral");
+    spawnFloatingText(heart.x, heart.y-25, "РЫВОК ДЕКУ!", "#44ff44");
+} },
+{ name: "РАЗЛОМ ДЕКУ", apply() { 
+    for (let i = 0; i < 4; i++) {
+        let ex = 50 + Math.random() * 300;
+        let ey = 50 + Math.random() * 350;
+        let dmg = Math.floor(arenaBossMaxHP * 0.02);
+        arenaBossMaxHP -= dmg;
+        addShockwaveRing(ex, ey, "#44ff44", 200, 0.4, 4);
+        for (let j = attacks.length - 1; j >= 0; j--) {
+            let a = attacks[j];
+            let ax = a.x + (a.size || a.radius || 20) / 2;
+            let ay = a.y + (a.size || a.radius || 20) / 2;
+            if (Math.hypot(ax - ex, ay - ey) < 60) {
+                attacks.splice(j, 1);
+                createVFX(ax, ay, 5, 2, "#44ff44", "burst");
+            }
+        }
+        createVFX(ex, ey, 15, 4, "#44ff44", "burst");
+    }
+    _superState.screenShakeAmount = 12;
+    spawnFloatingText(heart.x, heart.y-25, "РАЗЛОМ ДЕКУ!", "#44ff44");
+} },
+{ name: "ВСЕМОГУЩИЙ (10с)", apply() { 
+    let origHitbox = heart.hitbox;
+    let origSize = heart.size;
+    heart.hitbox *= 2;
+    heart.size *= 2;
+    _superState.allmightDmgMult = 3;
+    _superState.allmightBuffTimer = 10;
+    _superState.screenFlashWhite = 10;
+    createVFX(heart.x, heart.y, 40, 8, "#ffd700", "burst");
+    spawnFloatingText(heart.x, heart.y-30, "СИМВОЛ МИРА!", "#ffd700");
+    setTimeout(() => {
+        heart.hitbox = origHitbox;
+        heart.size = origSize;
+        _superState.allmightDmgMult = 1;
+        // Без дебаффа!
+    }, 10000);
+} },
+{ name: "100% ДЕКУ (8с)", apply() { 
+    let origSpeed = heartSpeed;
+    _superState.dekusActive = true;
+    _superState.dekusDmgMult = 2;
+    _superState.dekusParticles = true;
+    heartSpeed *= 3;
+    createVFX(heart.x, heart.y, 35, 5, "#44ff44", "spiral");
+    spawnFloatingText(heart.x, heart.y-30, "100% ПОКРЫТИЕ!", "#44ff44");
+    setTimeout(() => {
+        _superState.dekusActive = false;
+        _superState.dekusDmgMult = 1;
+        _superState.dekusParticles = false;
+        heartSpeed = origSpeed;
+    }, 8000);
+} },
+{ name: "ГАЛАКТИЧЕСКИЙ УДАР", apply() { 
+    _superState.garpImpactActive = true;
+    _superState.garpImpactRadius = 0;
+    _superState.garpImpactX = heart.x;
+    _superState.garpImpactY = heart.y;
+    arenaBossMaxHP = Math.floor(arenaBossMaxHP * 0.92);
+    _superState.screenShakeAmount = 35;
+    _superState.screenFlashWhite = 10;
+    createVFX(heart.x, heart.y, 50, 10, "#8844ff", "burst");
+    addShockwaveRing(heart.x, heart.y, "#8844ff", 500, 0.6, 8);
+    spawnFloatingText(heart.x, heart.y-30, "ГАЛАКТИКА!", "#8844ff");
+} },
+{ name: "ТЕНЕВОЕ ПРАВЛЕНИЕ (6с)", apply() { 
+    _superState.imAuraActive = true;
+    createVFX(heart.x, heart.y, 30, 4, "#800080", "spiral");
+    spawnFloatingText(heart.x, heart.y-25, "ТЬМА ИМА!", "#800080");
+    setTimeout(() => { _superState.imAuraActive = false; }, 6000);
+} },
+{ name: "НИКА (6с)", apply() { 
+    let origHb = heart.hitbox;
+    let origSz = heart.size;
+    _superState.nikaActive = true;
+    heart.hitbox *= 2;
+    heart.size *= 2;
+    _superState.nikaDmgMult = 1.5;
+    heartSpeed *= 1.3;
+    createVFX(heart.x, heart.y, 30, 5, "#ffffff", "burst");
+    spawnFloatingText(heart.x, heart.y-30, "НИКА!", "#ffffff");
+    setTimeout(() => {
+        _superState.nikaActive = false;
+        heart.hitbox = origHb;
+        heart.size = origSz;
+        _superState.nikaDmgMult = 1;
+        heartSpeed /= 1.3;
+    }, 6000);
+} },
+{ name: "СТИРАНИЕ ЗЕНО", apply() { 
+    attacks = [];
+    arenaBlasters = [];
+    arenaBossMaxHP = Math.floor(arenaBossMaxHP * 0.9);
+    _superState.screenFlashWhite = 20;
+    for (let i = 0; i < 6; i++) {
+        _superState.realityCracks.push({ x1: Math.random()*400, y1: Math.random()*500, x2: Math.random()*400, y2: Math.random()*500, life: 1.5 });
+    }
+    createVFX(200, 250, 60, 10, "#ff00ff", "burst");
+    spawnFloatingText(200, 250, "СТЁРТО!", "#ff00ff");
+} },
+{ name: "СЖАТИЕ АНТИ-СПИРАЛИ (6с)", apply() { 
+    _superState.antispiralActive = true;
+    _superState.antispiralOrigHitbox = heart.hitbox;
+    _superState.antispiralOrigSize = heart.size;
+    _superState.antispiralOrigSpeed = heartSpeed;
+    heart.hitbox *= 0.7;
+    heart.size *= 0.7;
+    heartSpeed *= 0.7;
+    for (let a of attacks) { if (a.size) a.size *= 0.7; if (a.radius) a.radius *= 0.7; if (a.spd) a.spd *= 0.7; if (a.spdY) a.spdY *= 0.7; }
+    _superState.antispiralShrinkAttacks = true;
+    createVFX(heart.x, heart.y, 25, 3, "#aaddff", "implode");
+    spawnFloatingText(heart.x, heart.y-25, "СЖАТИЕ!", "#aaddff");
+    setTimeout(() => {
+        _superState.antispiralActive = false;
+        _superState.antispiralShrinkAttacks = false;
+        heart.hitbox = _superState.antispiralOrigHitbox;
+        heart.size = _superState.antispiralOrigSize;
+        heartSpeed = _superState.antispiralOrigSpeed;
+        for (let a of attacks) { if (a.size) a.size /= 0.7; if (a.radius) a.radius /= 0.7; if (a.spd) a.spd /= 0.7; if (a.spdY) a.spdY /= 0.7; }
+    }, 6000);
+} },
+{ name: "РЕГЕН БОРОСА (5с)", apply() { 
+    _superState.borosHeal = { active: true, healPerSec: arenaMaxHP * 0.06, elapsed: 0, totalDuration: 5 };
+    _superState.borosParticles = true;
+    heartSpeed *= 0.7;
+    createVFX(heart.x, heart.y, 20, 3, "#66ff66", "spiral");
+    spawnFloatingText(heart.x, heart.y-25, "РЕГЕН БОРОСА!", "#66ff66");
+    setTimeout(() => {
+        if (_superState.borosHeal) { heartSpeed /= 0.7; _superState.borosHeal = null; _superState.borosParticles = false; }
+    }, 5000);
+} },
+{ name: "НЕУЯЗВИМОСТЬ УСОППА (3с)", apply() { 
+    _superState.usoppInvuln = true;
+    createVFX(heart.x, heart.y, 20, 4, "#ffff00", "burst");
+    spawnFloatingText(heart.x, heart.y-25, "БОГ УСОПП!", "#ffff00");
+    setTimeout(() => { _superState.usoppInvuln = false; _superState.usoppStunTimer = 1; }, 3000);
+} },
+{ name: "ЯРОСТЬ КАЙДО (8с)", apply() { 
+    _superState.kaidoBuffActive = true;
+    _superState.kaidoDmgReduction = true;
+    _superState.kaidoDmgBonus = 1.8;
+    heartSpeed *= 1.5;
+    _superState.invertControls = true;
+    _superState.screenShakeAmount = 15;
+    arenaHP = Math.min(arenaMaxHP, arenaHP + arenaMaxHP * 0.08);
+    document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
+    createVFX(heart.x, heart.y, 35, 6, "#ff4500", "burst");
+    spawnFloatingText(heart.x, heart.y-30, "ЯРОСТЬ КАЙДО!", "#ff4500");
+    setTimeout(() => {
+        _superState.kaidoBuffActive = false;
+        _superState.kaidoDmgReduction = false;
+        _superState.kaidoDmgBonus = 1;
+        heartSpeed /= 1.5;
+        _superState.invertControls = false;
+    }, 8000);
+} },
+{ name: "ТЕЛЕПОРТ ГАРОУ", apply() { 
+    let targetX = heart.x, targetY = heart.y;
+    if (_superState.positionHistory && _superState.positionHistory.length > 0) {
+        let oldPos = _superState.positionHistory[0];
+        targetX = oldPos.x;
+        targetY = oldPos.y;
+    }
+    createVFX(heart.x, heart.y, 20, 4, "#8800ff", "implode");
+    heart.x = targetX;
+    heart.y = targetY;
+    clampHeart();
+    _superState.garouInvulnTimer = 0.8;
+    createVFX(heart.x, heart.y, 25, 6, "#ff8800", "burst");
+    spawnFloatingText(heart.x, heart.y-25, "ТЕЛЕПОРТ ГАРОУ!", "#ff8800");
+} },
+{ name: "УРАГАН ВСЕМОГУЩЕГО", apply() { 
+    _superState.allmightHurricane = true;
+    _superState.allmightHurricaneTimer = 2.0;
+    _superState.allmightHurricaneAngle = 0;
+    let hurricaneRadius = 120;
+    for (let a of attacks) {
+        let ax = a.x + (a.size || a.radius || 20) / 2;
+        let ay = a.y + (a.size || a.radius || 20) / 2;
+        let dist = Math.hypot(ax - heart.x, ay - heart.y);
+        if (dist < hurricaneRadius) {
+            let dx = ax - heart.x; let dy = ay - heart.y;
+            let d = Math.sqrt(dx*dx + dy*dy) || 1;
+            a.spd = (a.spd || 0) + (dx / d) * 6 + (dy / d) * 3;
+            a.spdY = (a.spdY || 0) + (dy / d) * 6 - (dx / d) * 3;
+        }
+    }
+    createVFX(heart.x, heart.y, 40, 8, "#00ffff", "spiral");
+    spawnFloatingText(heart.x, heart.y-25, "УРАГАН!", "#00ffff");
+} }
 ];
 
 const DANDY_NEUTRAL = [
