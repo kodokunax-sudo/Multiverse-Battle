@@ -325,7 +325,7 @@ function tickSupers() { if (!arenaActive || !ctx) return; var now = performance.
                     _superState.screenShakeAmount = Math.max(_superState.screenShakeAmount, 20);
                 }
             }
-        } else {
+             } else {
             // ВОТ ГЛАВНОЕ ИСПРАВЛЕНИЕ — корректно восстанавливаем всё
             _superState.dekuSmashActive = false;
             _superState.dekuFists = [];
@@ -333,6 +333,9 @@ function tickSupers() { if (!arenaActive || !ctx) return; var now = performance.
             arenaGlobalSpeedMod = _superState.originalGlobalSpeedMod;
             // Восстанавливаем таймер через функцию
             restoreArenaTimer();
+            // СБРАСЫВАЕМ ТРЯСКУ И ПОЗИЦИЮ КАМЕРЫ
+            _superState.screenShakeAmount = 0;
+            if (typeof arenaShake !== 'undefined') arenaShake = 0;
         }
     }
     
