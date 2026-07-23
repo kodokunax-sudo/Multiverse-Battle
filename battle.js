@@ -1,5 +1,5 @@
-// ========== АРЕНА UNDERTALE v10.7 CLEAN ==========
-// Без Разлома Деку (он в supers.js), только база + эффекты Дэнди
+// ========== АРЕНА UNDERTALE v10.8 FIXED ==========
+// Ядерный сброс камеры после Разлома Деку
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -543,8 +543,20 @@ function renderArena() {
     if (ghostBossHP<arenaBossMaxHP) ghostBossHP=arenaBossMaxHP;
     var superShakeX=0, superShakeY=0;
     if (typeof _superState !== 'undefined' && _superState.screenShakeAmount>0) { superShakeX=(Math.random()-0.5)*_superState.screenShakeAmount; superShakeY=(Math.random()-0.5)*_superState.screenShakeAmount; }
-    var sx=(arenaShake?(Math.random()-0.5)*arenaShake:0)+superShakeX, sy=(arenaShake?(Math.random()-0.5)*arenaShake:0)+superShakeY;
-    if (arenaShake>0) { arenaShake*=0.88; if (arenaShake<0.1) arenaShake=0; }
+    
+    // ИСПРАВЛЕНО: тряска теперь всегда затухает
+    var sx=0, sy=0;
+    if (arenaShake > 0.1) {
+        arenaShake *= 0.88;
+        if (arenaShake < 0.15) arenaShake = 0;
+        sx = (Math.random()-0.5)*arenaShake + superShakeX;
+        sy = (Math.random()-0.5)*arenaShake + superShakeY;
+    } else {
+        arenaShake = 0;
+        sx = superShakeX;
+        sy = superShakeY;
+    }
+    
     if (arenaHitFlash>0) arenaHitFlash-=3; if (invulnTimer>0) invulnTimer--; if (arenaComboTimer>0) arenaComboTimer--;
     if (wallGapIndicator) { wallGapIndicator.life--; if (wallGapIndicator.life<=0) wallGapIndicator=null; }
     if (screenFlash>0) screenFlash--; if (arenaVignette>0) arenaVignette--;
@@ -626,3 +638,7 @@ function renderArena() {
     ctx.restore();
     animFrameId = requestAnimationFrame(renderArena);
 }
+
+// Экспорт arenaShake для сброса из supers.js
+window._arenaShakeRef = function() { return arenaShake; };
+window._setArenaShake = function(v) { arenaShake = v; };
