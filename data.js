@@ -20,8 +20,9 @@ function sfxRebirth() { playSound(300, 'triangle', 0.3); }
 
 // ========== МИРЫ ==========
 const worlds = [
-    { name: "Лес начала и конца", minWave: 1, maxWave: 300, color: "#2ecc71" },
-    { name: "Огненная пустошь", minWave: 301, maxWave: 600, color: "#e74c3c" },
+    { name: "Лес начала и конца", minWave: 1, maxWave: 250, color: "#2ecc71" },
+    { name: "Огненная пустошь", minWave: 251, maxWave: 499, color: "#e74c3c" },
+    { name: "Сломанный Космос", minWave: 500, maxWave: 600, color: "#2d3436" },
     { name: "Гранд Лайн", minWave: 601, maxWave: 900, color: "#3498db" },
     { name: "Замороженные земли", minWave: 901, maxWave: 1200, color: "#00cec9" },
     { name: "Тёмное измерение", minWave: 1201, maxWave: 1500, color: "#6c5ce7" },
@@ -245,7 +246,7 @@ const bossTemplates = {
     350: { name: "Ледяной Титан", hpMult: 12, dmgMult: 1.5, dialogue: "Я заморожу само время!", enemyStatus: { type: "freezeStacks", value: 3 }, canSpare: true, arenaTypes: [0,1,8] },
     400: { name: "Теневой Дракон", hpMult: 10, dmgMult: 2.0, dialogue: "Тени поглотят тебя целиком.", enemyStatus: { type: "blind", value: 2 }, canSpare: true, arenaTypes: [1,3] },
     450: { name: "Гаара (Хвостатый)", hpMult: 9.3, dmgMult: 2.3, dialogue: "Песок защитит меня... и похоронит тебя.", enemyStatus: { type: "bleed", value: 0.25 }, canSpare: true, arenaTypes: [2,3] },
-    500: { name: "Король Пиратов", hpMult: 11.3, dmgMult: 2.4, dialogue: "Моё сокровище? Ищите! Я всё оставил там!", canSpare: true, spareReward: "Король Пиратов", isSpecial: true, arenaTypes: [0,1,2,3] },
+    500: { name: "Путеводная Звезда", hpMult: 15, dmgMult: 2.4, dialogue: "Ты дошел довольно долеко... Победи меня и я покажу тебе истенный путь", canSpare: true, spareReward: "Король Пиратов", isSpecial: true, arenaTypes: [0,1,2,3] },
     550: { name: "Кайдо (Гибрид)", hpMult: 14.7, dmgMult: 2.8, dialogue: "Хочешь умереть? Я дам тебе эту честь!", enemyStatus: { type: "fire", damage: 8, duration: 5000 }, canSpare: true, spareReward: "Кайдо", arenaTypes: [2,3,7] },
     600: { name: "Мадара Учиха", hpMult: 16, dmgMult: 3.2, dialogue: "Реальность — лишь иллюзия. Моя иллюзия.", enemyStatus: { type: "blind", value: 3 }, canSpare: true, arenaTypes: [0,1,2,3,8] },
     650: { name: "Король Смерти", hpMult: 18.7, dmgMult: 2.0, dialogue: "Твоя душа... такая вкусная.", enemyStatus: { type: "poison", damage: 5 }, canSpare: true, arenaTypes: [5,6,7] },
