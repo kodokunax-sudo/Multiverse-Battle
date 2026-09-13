@@ -246,7 +246,7 @@ const bossTemplates = {
     350: { name: "Ледяной Титан", hpMult: 12, dmgMult: 1.5, dialogue: "Я заморожу само время!", enemyStatus: { type: "freezeStacks", value: 3 }, canSpare: true, arenaTypes: [0,1,8] },
     400: { name: "Теневой Дракон", hpMult: 10, dmgMult: 2.0, dialogue: "Тени поглотят тебя целиком.", enemyStatus: { type: "blind", value: 2 }, canSpare: true, arenaTypes: [1,3] },
     450: { name: "Гаара (Хвостатый)", hpMult: 9.3, dmgMult: 2.3, dialogue: "Песок защитит меня... и похоронит тебя.", enemyStatus: { type: "bleed", value: 0.25 }, canSpare: true, arenaTypes: [2,3] },
-    500: { name: "Путеводная Звезда", hpMult: 15, dmgMult: 2.4, dialogue: "Ты дошел довольно долеко... Победи меня и я покажу тебе истенный путь", canSpare: true, spareReward: "Король Пиратов", isSpecial: true, arenaTypes: [0,1,2,3] },
+    500: { name: "Путеводная Звезда", hpMult: 200, dmgMult: 2.4, dialogue: "Ты дошел довольно долеко... Победи меня и я покажу тебе истенный путь", canSpare: true, spareReward: "Король Пиратов", isSpecial: true, arenaTypes: [0,1,2,3] },
     550: { name: "Кайдо (Гибрид)", hpMult: 14.7, dmgMult: 2.8, dialogue: "Хочешь умереть? Я дам тебе эту честь!", enemyStatus: { type: "fire", damage: 8, duration: 5000 }, canSpare: true, spareReward: "Кайдо", arenaTypes: [2,3,7] },
     600: { name: "Мадара Учиха", hpMult: 16, dmgMult: 3.2, dialogue: "Реальность — лишь иллюзия. Моя иллюзия.", enemyStatus: { type: "blind", value: 3 }, canSpare: true, arenaTypes: [0,1,2,3,8] },
     650: { name: "Король Смерти", hpMult: 18.7, dmgMult: 2.0, dialogue: "Твоя душа... такая вкусная.", enemyStatus: { type: "poison", damage: 5 }, canSpare: true, arenaTypes: [5,6,7] },
