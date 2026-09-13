@@ -1,5 +1,5 @@
-// ========== АРЕНА UNDERTALE v10.8 FIXED ==========
-// Ядерный сброс камеры после Разлома Деку
+// ========== АРЕНА UNDERTALE v10.9 ==========
+// Добавлена поддержка специальных боссов (Живой Камень)
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -60,6 +60,29 @@ let arenaPhaseTimeout = null;
 let mobileSuperTapTimer = null;
 let mobileSuperTapCount = 0;
 let mobileSuperSwipeStart = null;
+
+// ========== СПИСОК СПЕЦИАЛЬНЫХ БОССОВ ==========
+// Волны, на которых запускается особый режим боя вместо обычной арены
+const SPECIAL_BOSSES = {
+    200: { name: "Живой камень", startFunc: "startLivingStoneFight" }
+};
+
+function isSpecialBoss(waveNum) {
+    return SPECIAL_BOSSES[waveNum] !== undefined;
+}
+
+function startSpecialBoss(waveNum) {
+    var boss = SPECIAL_BOSSES[waveNum];
+    if (!boss) return false;
+    var startFunc = window[boss.startFunc];
+    if (typeof startFunc === 'function') {
+        // Скрываем обычную арену, если она открыта
+        if (arenaActive) stopArena();
+        startFunc();
+        return true;
+    }
+    return false;
+}
 
 // ========== ЗВУКОВАЯ СИСТЕМА АРЕНЫ ==========
 let arenaAudioCtx = null;
@@ -266,6 +289,12 @@ function getAttackTypes(bossWave) {
 function skipDefeatedBoss() { stopArena(); if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0; if (typeof victory === 'function') victory(); }
 
 function startArena(bossWave) {
+    // ★ ПРОВЕРКА НА СПЕЦИАЛЬНОГО БОССА ★
+    if (isSpecialBoss(bossWave)) {
+        startSpecialBoss(bossWave);
+        return;
+    }
+    
     initArenaAudio();
     var btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = "none";
     var spareBtn = document.getElementById("spareBtn"); if (spareBtn) spareBtn.style.display = "none";
@@ -544,7 +573,6 @@ function renderArena() {
     var superShakeX=0, superShakeY=0;
     if (typeof _superState !== 'undefined' && _superState.screenShakeAmount>0) { superShakeX=(Math.random()-0.5)*_superState.screenShakeAmount; superShakeY=(Math.random()-0.5)*_superState.screenShakeAmount; }
     
-    // ИСПРАВЛЕНО: тряска теперь всегда затухает
     var sx=0, sy=0;
     if (arenaShake > 0.1) {
         arenaShake *= 0.88;
@@ -638,7 +666,3 @@ function renderArena() {
     ctx.restore();
     animFrameId = requestAnimationFrame(renderArena);
 }
-
-// Экспорт arenaShake для сброса из supers.js
-window._arenaShakeRef = function() { return arenaShake; };
-window._setArenaShake = function(v) { arenaShake = v; };
