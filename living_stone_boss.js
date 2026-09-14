@@ -1,6 +1,7 @@
 // ============================================================
-// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v4.3
-// + мобильное управление + HP 150 + 3 новые атаки
+// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v4.4
+// + скорость x1.5 (игрок, атаки) + удаление атак при попадании
+// + фикс предзагрузки музыки (2 пути, fetch в фоне)
 // ============================================================
 
 let livingStoneActive = false;
@@ -29,7 +30,10 @@ let livingStoneBgParticles = [];
 let livingStoneRestoreCount = 0;
 let livingStoneRestoring = false;
 
-// ★ МОБИЛЬНОЕ УПРАВЛЕНИЕ ★
+// ★ ГЛОБАЛЬНЫЙ МНОЖИТЕЛЬ СКОРОСТИ ★
+let lsSpeedMult = 1.5;
+
+// Мобильное управление
 let lsTouchActive = false;
 let lsTouchId = null;
 let lsTouchX = 0;
@@ -65,23 +69,54 @@ let qteSparks = [];
 let qteScreenDistort = 0;
 let qteFlashBursts = [];
 
-// Музыка
+// ★ МУЗЫКА: предзагрузка через fetch в ArrayBuffer ★
 let qteMusic = null;
-let qteMusicPreload = null;
+let qteMusicBlobUrl = null;
+let qteMusicPreloaded = false;
 let qteMusicReady = false;
 let qteMusicStartOffset = 30;
 let qteMusicQteStart = 52;
 let qteMusicQteEnd = 80;
+let qteMusicPaths = [
+    "music/стендзи хер ай реалзайз.mp3",
+    "music/standing_here_i_realize.mp3",
+    "music/standing_here.mp3",
+    "music/qte.mp3"
+];
+let qteMusicWorkingPath = null;
 
-// ========== ПРЕДЗАГРУЗКА МУЗЫКИ ==========
+// ========== ПРЕДЗАГРУЗКА МУЗЫКИ ЧЕРЕЗ FETCH ==========
 function preloadQTEMusic() {
-    if (qteMusicPreload) return;
-    try {
-        qteMusicPreload = new Audio();
-        qteMusicPreload.preload = "auto";
-        qteMusicPreload.src = "music/стендзи хер ай реалзайз.mp3";
-        qteMusicPreload.load();
-    } catch(e) {}
+    if (qteMusicPreloaded) return;
+    qteMusicPreloaded = true;
+    
+    // Пробуем скачать каждый путь через fetch
+    var tryFetchIndex = 0;
+    
+    function tryFetch() {
+        if (tryFetchIndex >= qteMusicPaths.length) {
+            console.warn("[LIVING STONE] Не удалось загрузить музыку ни по одному пути");
+            return;
+        }
+        var path = qteMusicPaths[tryFetchIndex++];
+        
+        fetch(path, { method: 'GET' })
+            .then(function(response) {
+                if (!response.ok) throw new Error("HTTP " + response.status);
+                return response.blob();
+            })
+            .then(function(blob) {
+                qteMusicBlobUrl = URL.createObjectURL(blob);
+                qteMusicWorkingPath = path;
+                console.log("[LIVING STONE] Музыка загружена в фоне:", path);
+            })
+            .catch(function(err) {
+                console.warn("[LIVING STONE] Не найден:", path);
+                tryFetch();
+            });
+    }
+    
+    tryFetch();
 }
 preloadQTEMusic();
 
@@ -155,7 +190,6 @@ function startLivingStoneFight() {
     if (typeof canvas === 'undefined' || !canvas) return;
     if (typeof arenaActive !== 'undefined') arenaActive = false;
     
-    // ★ НОВЫЕ ОБРАБОТЧИКИ ДЛЯ МОБИЛЬНОГО УПРАВЛЕНИЯ ★
     canvas.addEventListener("click", handleQTEClick);
     canvas.addEventListener("touchstart", handleLSTouchStart);
     canvas.addEventListener("touchmove", handleLSTouchMove);
@@ -213,11 +247,9 @@ function stopLivingStoneFight() {
     if (typeof startBattleMusic === 'function') startBattleMusic();
 }
 
-// ★ ОБРАБОТЧИКИ КАСАНИЙ ★
 function handleLSTouchStart(ev) {
     if (!livingStoneActive) return;
     
-    // В QTE режиме — клик для ударов
     if (livingStoneState === "qte_punch" && qteActive) {
         ev.preventDefault();
         for (var i = 0; i < ev.touches.length; i++) {
@@ -226,7 +258,6 @@ function handleLSTouchStart(ev) {
         return;
     }
     
-    // В обычном режиме — управление сердечком
     if (livingStoneState === "phase1" || livingStoneState === "phase2") {
         ev.preventDefault();
         if (ev.touches.length > 0 && !lsTouchActive) {
@@ -235,13 +266,6 @@ function handleLSTouchStart(ev) {
             var rect = canvas.getBoundingClientRect();
             lsTouchX = ev.touches[0].clientX - rect.left;
             lsTouchY = ev.touches[0].clientY - rect.top;
-            // Мгновенный сдвиг к касанию
-            var dx = lsTouchX - livingStonePlayer.x;
-            var dy = lsTouchY - livingStonePlayer.y;
-            var dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist > 20) {
-                // Плавное движение начнётся в updateLivingStonePlayer
-            }
         }
     }
 }
@@ -266,7 +290,6 @@ function handleLSTouchEnd(ev) {
     if (!livingStoneActive) return;
     if (!lsTouchActive) return;
     
-    // Проверяем, остался ли наш палец
     var stillTouching = false;
     for (var i = 0; i < ev.touches.length; i++) {
         if (ev.touches[i].identifier === lsTouchId) {
@@ -338,9 +361,7 @@ function spawnMegaImpact(x, y) {
             points.push({ x: px, y: py });
         }
         qteLightningBolts.push({
-            points: points,
-            life: 25,
-            maxLife: 25,
+            points: points, life: 25, maxLife: 25,
             color: i % 2 === 0 ? "#ffffff" : "#ffdd00",
             width: 3 + Math.random() * 3
         });
@@ -352,9 +373,7 @@ function spawnMegaImpact(x, y) {
             y: y + (Math.random() - 0.5) * 80,
             angle: Math.random() * Math.PI * 2,
             length: 60 + Math.random() * 60,
-            life: 30,
-            maxLife: 30,
-            width: 4 + Math.random() * 4
+            life: 30, maxLife: 30, width: 4 + Math.random() * 4
         });
     }
     
@@ -363,13 +382,10 @@ function spawnMegaImpact(x, y) {
         var spd = 8 + Math.random() * 18;
         qteSparks.push({
             x: x, y: y,
-            vx: Math.cos(angle3) * spd,
-            vy: Math.sin(angle3) * spd,
-            life: 40 + Math.random() * 30,
-            maxLife: 70,
+            vx: Math.cos(angle3) * spd, vy: Math.sin(angle3) * spd,
+            life: 40 + Math.random() * 30, maxLife: 70,
             color: ["#ffffff", "#ffdd00", "#ff4400", "#ff2222"][Math.floor(Math.random() * 4)],
-            size: 2 + Math.random() * 4,
-            trail: []
+            size: 2 + Math.random() * 4, trail: []
         });
     }
     
@@ -378,8 +394,7 @@ function spawnMegaImpact(x, y) {
             x: x + (Math.random() - 0.5) * 60,
             y: y + (Math.random() - 0.5) * 60,
             size: 30 + Math.random() * 40,
-            life: 20,
-            maxLife: 20
+            life: 20, maxLife: 20
         });
     }
     
@@ -395,7 +410,8 @@ function livingStoneShoot() {
         x: livingStonePlayer.x,
         y: livingStonePlayer.y - 8,
         vx: 0,
-        vy: -7,
+        // ★ Скорость пули x1.5 ★
+        vy: -7 * lsSpeedMult,
         size: 4,
         damage: 250,
         life: 120
@@ -409,7 +425,8 @@ function livingStoneShoot() {
 function livingStoneSpawnAttack() {
     var type = livingStoneAttackType;
     var isPhase2 = (livingStoneState === "phase2");
-    var speedMult = isPhase2 ? 1.4 : 1.0;
+    // ★ Скорость атак x1.5 через общий множитель ★
+    var speedMult = (isPhase2 ? 1.4 : 1.0) * lsSpeedMult;
     var dmgMult = isPhase2 ? 1.3 : 1.0;
     
     if (type === 0) {
@@ -417,7 +434,8 @@ function livingStoneSpawnAttack() {
         for (var i = 0; i < count; i++) {
             livingStoneAttacks.push({
                 type: "rock", x: 30 + Math.random() * 340, y: -20,
-                vx: (Math.random() - 0.5) * 1.2, vy: (2.2 + Math.random() * 1.2) * speedMult,
+                vx: (Math.random() - 0.5) * 1.2 * lsSpeedMult,
+                vy: (2.2 + Math.random() * 1.2) * speedMult,
                 size: 14, rotation: 0, rotSpeed: (Math.random() - 0.5) * 0.1,
                 damage: Math.floor(8 * dmgMult)
             });
@@ -425,7 +443,8 @@ function livingStoneSpawnAttack() {
     } else if (type === 1) {
         livingStoneAttacks.push({
             type: "ring", x: livingStoneBoss.x, y: livingStoneBoss.y,
-            radius: 10, maxRadius: 320, growth: 2.0 * speedMult,
+            radius: 10, maxRadius: 320,
+            growth: 2.0 * speedMult,
             damage: Math.floor(7 * dmgMult), thickness: 18, color: "#8B7355"
         });
     } else if (type === 2) {
@@ -434,7 +453,8 @@ function livingStoneSpawnAttack() {
             var angle = (i / count2) * Math.PI * 2;
             livingStoneAttacks.push({
                 type: "orb", x: livingStoneBoss.x, y: livingStoneBoss.y,
-                vx: Math.cos(angle) * 2.2 * speedMult, vy: Math.sin(angle) * 2.2 * speedMult,
+                vx: Math.cos(angle) * 2.2 * speedMult,
+                vy: Math.sin(angle) * 2.2 * speedMult,
                 size: 8, damage: Math.floor(6 * dmgMult), life: 200, color: "#a08060"
             });
         }
@@ -444,14 +464,16 @@ function livingStoneSpawnAttack() {
             var angle = Math.random() * Math.PI * 2;
             livingStoneAttacks.push({
                 type: "homing", x: livingStoneBoss.x, y: livingStoneBoss.y,
-                vx: Math.cos(angle) * 1.2, vy: Math.sin(angle) * 1.2,
+                vx: Math.cos(angle) * 1.2 * lsSpeedMult,
+                vy: Math.sin(angle) * 1.2 * lsSpeedMult,
                 size: 11, damage: Math.floor(8 * dmgMult), life: 350, color: "#8B7355"
             });
         }
     } else if (type === 4) {
         var laserX = 60 + Math.random() * 280;
         livingStoneAttacks.push({
-            type: "laser_warning", x: laserX, y: 0, width: 40, timer: 60,
+            type: "laser_warning", x: laserX, y: 0, width: 40,
+            timer: Math.floor(60 / lsSpeedMult),
             damage: Math.floor(10 * dmgMult)
         });
     } else if (type === 5) {
@@ -471,59 +493,52 @@ function livingStoneSpawnAttack() {
         for (var i = 0; i < countR; i++) {
             livingStoneAttacks.push({
                 type: "rock", x: Math.random() * 400, y: -20 - Math.random() * 100,
-                vx: (Math.random() - 0.5) * 0.8, vy: (3.0 + Math.random() * 1.0) * speedMult,
-                size: 10 + Math.random() * 6, rotation: 0, rotSpeed: (Math.random() - 0.5) * 0.15,
+                vx: (Math.random() - 0.5) * 0.8 * lsSpeedMult,
+                vy: (3.0 + Math.random() * 1.0) * speedMult,
+                size: 10 + Math.random() * 6, rotation: 0,
+                rotSpeed: (Math.random() - 0.5) * 0.15,
                 damage: Math.floor(6 * dmgMult)
             });
         }
     }
     
-    // ★ НОВАЯ АТАКА 1: СПИРАЛЬ ★
     if (type === 7) {
         var spiralCount = isPhase2 ? 24 : 16;
         for (var i = 0; i < spiralCount; i++) {
             var baseAngle = (i / spiralCount) * Math.PI * 2;
-            var delay = i * 60;
+            var delay = i * Math.floor(60 / lsSpeedMult);
             (function(ang, dly) {
                 setTimeout(function() {
                     if (!livingStoneActive || (livingStoneState !== "phase1" && livingStoneState !== "phase2")) return;
                     livingStoneAttacks.push({
                         type: "orb",
-                        x: livingStoneBoss.x,
-                        y: livingStoneBoss.y,
+                        x: livingStoneBoss.x, y: livingStoneBoss.y,
                         vx: Math.cos(ang) * 2.0 * speedMult,
                         vy: Math.sin(ang) * 2.0 * speedMult,
-                        size: 7,
-                        damage: Math.floor(5 * dmgMult),
-                        life: 250,
-                        color: "#ff8800"
+                        size: 7, damage: Math.floor(5 * dmgMult),
+                        life: 250, color: "#ff8800"
                     });
                 }, dly);
             })(baseAngle, delay);
         }
     }
     
-    // ★ НОВАЯ АТАКА 2: КРЕСТ ★
     if (type === 8) {
         var centerX = 150 + Math.random() * 100;
         var centerY = 200 + Math.random() * 100;
-        // Горизонтальная линия
         for (var i = 0; i < 6; i++) {
             livingStoneAttacks.push({
                 type: "rock",
-                x: centerX - 150 + i * 60,
-                y: centerY - 150,
+                x: centerX - 150 + i * 60, y: centerY - 150,
                 vx: 0, vy: 3.0 * speedMult,
                 size: 18, rotation: 0, rotSpeed: 0.05,
                 damage: Math.floor(9 * dmgMult)
             });
         }
-        // Вертикальная линия
         for (var i = 0; i < 6; i++) {
             livingStoneAttacks.push({
                 type: "rock",
-                x: centerX,
-                y: centerY - 150 + i * 60,
+                x: centerX, y: centerY - 150 + i * 60,
                 vx: 0, vy: 3.0 * speedMult,
                 size: 18, rotation: 0, rotSpeed: 0.05,
                 damage: Math.floor(9 * dmgMult)
@@ -531,7 +546,6 @@ function livingStoneSpawnAttack() {
         }
     }
     
-    // ★ НОВАЯ АТАКА 3: V-ОБРАЗНЫЙ ЗАЛП ★
     if (type === 9) {
         var vCount = isPhase2 ? 14 : 10;
         for (var i = 0; i < vCount; i++) {
@@ -539,25 +553,22 @@ function livingStoneSpawnAttack() {
             var baseAngle2 = Math.PI * 0.5 + spread;
             livingStoneAttacks.push({
                 type: "orb",
-                x: livingStoneBoss.x,
-                y: livingStoneBoss.y,
+                x: livingStoneBoss.x, y: livingStoneBoss.y,
                 vx: Math.cos(baseAngle2) * 2.6 * speedMult,
                 vy: Math.sin(baseAngle2) * 2.6 * speedMult,
-                size: 9,
-                damage: Math.floor(6 * dmgMult),
-                life: 250,
-                color: "#ffcc00"
+                size: 9, damage: Math.floor(6 * dmgMult),
+                life: 250, color: "#ffcc00"
             });
         }
     }
     
-    // ФАЗА 2 ЭКСКЛЮЗИВНЫЕ (были 7,9,10 — стали 10,11,12)
     if (type === 10 && isPhase2) {
         for (var i = 0; i < 5; i++) {
             var x = 30 + i * 85 + Math.random() * 30;
             livingStoneAttacks.push({
                 type: "spike", x: x, y: 500, height: 0,
-                maxHeight: 60 + Math.random() * 40, warningTimer: 45,
+                maxHeight: 60 + Math.random() * 40,
+                warningTimer: Math.floor(45 / lsSpeedMult),
                 damage: Math.floor(12 * dmgMult), color: "#5a4030"
             });
         }
@@ -593,13 +604,15 @@ function livingStoneSpawnAttack() {
     } else if (type === 12 && isPhase2) {
         var laserX2 = 100 + Math.random() * 200;
         livingStoneAttacks.push({
-            type: "laser_warning", x: laserX2, y: 0, width: 70, timer: 50,
+            type: "laser_warning", x: laserX2, y: 0, width: 70,
+            timer: Math.floor(50 / lsSpeedMult),
             damage: Math.floor(15 * dmgMult)
         });
         for (var i = 0; i < 4; i++) {
             livingStoneAttacks.push({
                 type: "rock", x: Math.random() * 400, y: -20,
-                vx: (Math.random() - 0.5) * 1.0, vy: (2.8 + Math.random() * 1.0) * speedMult,
+                vx: (Math.random() - 0.5) * 1.0 * lsSpeedMult,
+                vy: (2.8 + Math.random() * 1.0) * speedMult,
                 size: 12, rotation: 0, rotSpeed: 0.08,
                 damage: Math.floor(7 * dmgMult)
             });
@@ -615,9 +628,9 @@ function updateLivingStonePlayer() {
     if (typeof keys === 'undefined') return;
     
     var mx = 0, my = 0;
-    var speed = (livingStoneState === "phase2") ? 4.5 : 3.0;
+    // ★ Скорость игрока x1.5 в обеих фазах ★
+    var speed = ((livingStoneState === "phase2") ? 4.5 : 3.0) * lsSpeedMult;
     
-    // ★ МОБИЛЬНОЕ УПРАВЛЕНИЕ ★
     if (lsTouchActive) {
         var tx = lsTouchX - livingStonePlayer.x;
         var ty = lsTouchY - livingStonePlayer.y;
@@ -625,13 +638,9 @@ function updateLivingStonePlayer() {
         if (dist > 5) {
             mx = tx / dist;
             my = ty / dist;
-            // Ускорение при большом расстоянии
-            if (dist > 50) {
-                speed *= 1.3;
-            }
+            if (dist > 50) speed *= 1.3;
         }
     } else {
-        // Клавиатура
         if (keys.w || keys.up) my -= 1;
         if (keys.s || keys.down) my += 1;
         if (keys.a || keys.left) mx -= 1;
@@ -649,7 +658,8 @@ function updateLivingStonePlayer() {
 function updateLivingStoneBoss() {
     if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
     
-    var speedMult = (livingStoneState === "phase2") ? 1.8 : 1.0;
+    // ★ Босс тоже x1.5 ★
+    var speedMult = ((livingStoneState === "phase2") ? 1.8 : 1.0) * lsSpeedMult;
     livingStoneBoss.x += livingStoneBoss.vx * speedMult;
     if (livingStoneBoss.x < 80 || livingStoneBoss.x > 320) livingStoneBoss.vx *= -1;
     livingStoneBoss.rotation += 0.01 * speedMult;
@@ -707,13 +717,13 @@ function triggerRestoreScene() {
     
     var healInterval = setInterval(function() {
         if (!livingStoneActive) { clearInterval(healInterval); return; }
-        livingStoneBossHp = Math.min(livingStoneBossMaxHp, livingStoneBossHp + livingStoneBossMaxHp * 0.04);
+        livingStoneBossHp = Math.min(livingStoneBossMaxHp, livingStoneBossHp + livingStoneBossMaxHp * 0.06);
         spawnLivingStoneParticles(livingStoneBoss.x + (Math.random() - 0.5) * 40, livingStoneBoss.y + (Math.random() - 0.5) * 40, 3, "#a08060", 3);
         if (livingStoneBossHp >= livingStoneBossMaxHp) {
             clearInterval(healInterval);
             livingStoneBossHp = livingStoneBossMaxHp;
         }
-    }, 40);
+    }, Math.floor(40 / lsSpeedMult));
     
     if (typeof playArenaSound === 'function') {
         playArenaSound(80, 'sawtooth', 2.0, 0.25);
@@ -725,7 +735,7 @@ function triggerRestoreScene() {
     
     setTimeout(function() {
         if (livingStoneActive) triggerMusicScene();
-    }, 3000);
+    }, Math.floor(3000 / lsSpeedMult));
 }
 
 // ========== МУЗЫКАЛЬНАЯ СЦЕНА ==========
@@ -745,12 +755,12 @@ function triggerMusicScene() {
         spawnCinematicText(200, 115, "I REALIZE...", "#ffdd00", 240, 26);
         livingStoneScreenFlash = 15;
         livingStoneScreenFlashColor = "#ffffff";
-    }, 4000);
+    }, Math.floor(4000 / lsSpeedMult));
     
     setTimeout(function() {
         if (!livingStoneActive) return;
         triggerCinematic();
-    }, 8000);
+    }, Math.floor(8000 / lsSpeedMult));
 }
 
 // ========== КИНЕМАТИК ==========
@@ -766,12 +776,10 @@ function triggerCinematic() {
     qteBossArm = {
         startX: livingStoneBoss.x, startY: livingStoneBoss.y,
         endX: livingStonePlayer.x, endY: livingStonePlayer.y,
-        progress: 0, duration: 1.2
+        progress: 0, duration: 1.2 / lsSpeedMult
     };
     
-    if (typeof playArenaSound === 'function') {
-        playArenaSound(120, 'sawtooth', 0.6, 0.3);
-    }
+    if (typeof playArenaSound === 'function') playArenaSound(120, 'sawtooth', 0.6, 0.3);
     
     setTimeout(function() {
         if (!livingStoneActive) return;
@@ -786,7 +794,7 @@ function triggerCinematic() {
         }
         
         spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y, 30, "#ffffff", 8);
-        qtePlayerVel = { x: 12, y: 8 };
+        qtePlayerVel = { x: 12 * lsSpeedMult, y: 8 * lsSpeedMult };
         
         setTimeout(function() {
             if (!livingStoneActive) return;
@@ -849,12 +857,12 @@ function triggerCinematic() {
                             qteCinematicActive = false;
                             qteCinematicPhase = "done";
                             triggerQTEStart();
-                        }, 1200);
-                    }, 1500);
-                }, 1500);
-            }, 1500);
-        }, 1500);
-    }, 1200);
+                        }, Math.floor(1200 / lsSpeedMult));
+                    }, Math.floor(1500 / lsSpeedMult));
+                }, Math.floor(1500 / lsSpeedMult));
+            }, Math.floor(1500 / lsSpeedMult));
+        }, Math.floor(1500 / lsSpeedMult));
+    }, Math.floor(1200 / lsSpeedMult));
 }
 
 // ========== QTE ==========
@@ -876,7 +884,7 @@ function triggerQTEStart() {
     qteBarrageInterval = setInterval(function() {
         if (!qteActive || !livingStoneActive) { clearInterval(qteBarrageInterval); qteBarrageInterval = null; return; }
         spawnQTEBarrage();
-    }, 400);
+    }, Math.floor(400 / lsSpeedMult));
     
     qteEndTimer = setTimeout(function() {
         if (qteBarrageInterval) { clearInterval(qteBarrageInterval); qteBarrageInterval = null; }
@@ -899,7 +907,7 @@ function spawnQTEBarrage() {
         var dx = livingStoneBoss.x - startX;
         var dy = livingStoneBoss.y - startY;
         var len = Math.sqrt(dx*dx + dy*dy) || 1;
-        var speed = 12 + Math.random() * 8;
+        var speed = (12 + Math.random() * 8) * lsSpeedMult;
         
         qteBullets.push({
             x: startX, y: startY,
@@ -913,8 +921,8 @@ function spawnQTEBarrage() {
         qteBullets.push({
             x: livingStonePlayer.x + (Math.random() - 0.5) * 30,
             y: livingStonePlayer.y,
-            vx: (Math.random() - 0.5) * 3,
-            vy: -15 - Math.random() * 5,
+            vx: (Math.random() - 0.5) * 3 * lsSpeedMult,
+            vy: (-15 - Math.random() * 5) * lsSpeedMult,
             size: 5 + Math.random() * 4, life: 60, color: "#ffffff"
         });
     }
@@ -966,7 +974,7 @@ function handleQTEClick(ev) {
         
         qteBullets.push({
             x: sx, y: sy,
-            vx: (dx/len) * 15, vy: (dy/len) * 15,
+            vx: (dx/len) * 15 * lsSpeedMult, vy: (dy/len) * 15 * lsSpeedMult,
             size: 4 + Math.random() * 3, life: 60,
             color: Math.random() > 0.5 ? "#ffdd00" : "#ffffff"
         });
@@ -998,7 +1006,7 @@ function triggerQTEFinish() {
                     livingStonePlayer.x = Math.max(16, Math.min(384, livingStonePlayer.x));
                     livingStonePlayer.y = Math.max(80, Math.min(484, livingStonePlayer.y));
                     spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y, 5, "#ff3333", 4);
-                }, idx * 50);
+                }, Math.floor(idx * 50 / lsSpeedMult));
             })(i);
         }
         
@@ -1015,8 +1023,8 @@ function triggerQTEFinish() {
         setTimeout(function() {
             if (!livingStoneActive) return;
             triggerPhase2();
-        }, 2500);
-    }, 500);
+        }, Math.floor(2500 / lsSpeedMult));
+    }, Math.floor(500 / lsSpeedMult));
 }
 
 function triggerPhase2() {
@@ -1069,7 +1077,7 @@ function livingStoneVictory() {
         stopLivingStoneFight();
         if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0;
         if (typeof victory === 'function') victory();
-    }, 2500);
+    }, Math.floor(2500 / lsSpeedMult));
 }
 
 function livingStoneDefeat() {
@@ -1084,7 +1092,7 @@ function livingStoneDefeat() {
         stopLivingStoneFight();
         if (typeof playerHp !== 'undefined') playerHp = 0;
         if (typeof defeat === 'function') defeat();
-    }, 2500);
+    }, Math.floor(2500 / lsSpeedMult));
 }
 
 // ========== ОБНОВЛЕНИЕ АТАК ==========
@@ -1105,21 +1113,22 @@ function updateLivingStoneAttacks() {
             var dx = livingStonePlayer.x - a.x;
             var dy = livingStonePlayer.y - a.y;
             var len = Math.sqrt(dx*dx + dy*dy) || 1;
-            a.vx += (dx/len) * 0.12;
-            a.vy += (dy/len) * 0.12;
+            a.vx += (dx/len) * 0.12 * lsSpeedMult;
+            a.vy += (dy/len) * 0.12 * lsSpeedMult;
             var spd = Math.sqrt(a.vx*a.vx + a.vy*a.vy);
-            if (spd > 2.8) { a.vx = (a.vx/spd)*2.8; a.vy = (a.vy/spd)*2.8; }
+            var maxSpd = 2.8 * lsSpeedMult;
+            if (spd > maxSpd) { a.vx = (a.vx/spd)*maxSpd; a.vy = (a.vy/spd)*maxSpd; }
             a.x += a.vx; a.y += a.vy; a.life--;
             if (a.life <= 0 || a.y > 520 || a.y < -20 || a.x < -20 || a.x > 420) livingStoneAttacks.splice(i, 1);
         } else if (a.type === "spike") {
             if (a.warningTimer > 0) a.warningTimer--;
             else {
-                a.height += 4;
+                a.height += 4 * lsSpeedMult;
                 if (a.height >= a.maxHeight) {
                     a.height = a.maxHeight;
                     a.stayTimer = (a.stayTimer || 0) + 1;
                     if (a.stayTimer > 30) {
-                        a.height -= 3;
+                        a.height -= 3 * lsSpeedMult;
                         if (a.height <= 0) livingStoneAttacks.splice(i, 1);
                     }
                 }
@@ -1129,7 +1138,8 @@ function updateLivingStoneAttacks() {
             if (a.timer <= 0) {
                 livingStoneAttacks.splice(i, 1);
                 livingStoneAttacks.push({
-                    type: "laser", x: a.x, y: 0, width: a.width, timer: 25,
+                    type: "laser", x: a.x, y: 0, width: a.width,
+                    timer: Math.floor(25 / lsSpeedMult),
                     damage: a.damage, hit: false
                 });
                 livingStoneShake = 12;
@@ -1167,6 +1177,13 @@ function checkLivingStoneCollisions() {
         
         if (hit) {
             damageLivingStonePlayer(a.damage || 5);
+            // ★ УДАЛЯЕМ АТАКУ ПРИ ПОПАДАНИИ ★
+            if (a.type !== "ring" && a.type !== "laser") {
+                spawnLivingStoneParticles(a.x || px, a.y || py, 8, "#ffffff", 5);
+                livingStoneAttacks.splice(i, 1);
+            } else if (a.type === "ring") {
+                // Кольцо не удаляем, но помечаем что нанесло урон
+            }
             return;
         }
     }
@@ -1192,57 +1209,75 @@ function damageLivingStonePlayer(dmg) {
     }
 }
 
-// ========== МУЗЫКА ==========
+// ========== МУЗЫКА (fetch-предзагрузка) ==========
 function startQTEMusic() {
     if (qteMusic) { try { qteMusic.pause(); } catch(e) {} qteMusic = null; }
     if (typeof stopAllMusic === 'function') stopAllMusic();
     if (typeof initAudio === 'function') { try { initAudio(); } catch(e) {} }
     if (typeof initArenaAudio === 'function') { try { initArenaAudio(); } catch(e) {} }
     
-    var paths = [
-        "music/стендзи хер ай реалзайз.mp3",
-        "music/standing_here_i_realize.mp3",
-        "music/standing_here.mp3",
-        "music/qte.mp3"
-    ];
+    // Если уже есть Blob URL — используем его
+    if (qteMusicBlobUrl) {
+        playQTEMusicFromUrl(qteMusicBlobUrl);
+        return;
+    }
     
+    // Иначе пробуем ещё раз скачать
     var tryLoadIndex = 0;
     function tryLoadNext() {
-        if (tryLoadIndex >= paths.length) return;
-        var path = paths[tryLoadIndex++];
-        var testAudio = new Audio();
-        testAudio.src = path;
-        
-        testAudio.addEventListener('error', function() { tryLoadNext(); });
-        testAudio.addEventListener('canplay', function() {
-            qteMusic = new Audio(path);
-            qteMusic.volume = 0.6;
-            
-            var seekToStart = function() { try { qteMusic.currentTime = qteMusicStartOffset; } catch(e) {} };
-            qteMusic.addEventListener('loadedmetadata', seekToStart);
-            if (qteMusic.readyState >= 1) seekToStart();
-            
-            qteMusic.addEventListener('timeupdate', function() {
-                if (!qteMusic || !qteMusic.duration) return;
-                if (qteMusic.currentTime >= qteMusic.duration - 0.5) {
-                    try { qteMusic.currentTime = qteMusicStartOffset; } catch(e) {}
-                }
+        if (tryLoadIndex >= qteMusicPaths.length) {
+            console.warn("[LIVING STONE] Не удалось найти музыку");
+            return;
+        }
+        var path = qteMusicPaths[tryLoadIndex++];
+        fetch(path)
+            .then(function(r) {
+                if (!r.ok) throw new Error("HTTP " + r.status);
+                return r.blob();
+            })
+            .then(function(blob) {
+                qteMusicBlobUrl = URL.createObjectURL(blob);
+                qteMusicWorkingPath = path;
+                playQTEMusicFromUrl(qteMusicBlobUrl);
+            })
+            .catch(function() {
+                tryLoadNext();
             });
-            
-            qteMusic.play().then(function() { qteMusicReady = true; }).catch(function(err) {
-                qteMusicReady = false;
-                var retryOnClick = function() {
-                    try { qteMusic.play(); } catch(e) {}
-                    document.removeEventListener("click", retryOnClick);
-                    document.removeEventListener("touchstart", retryOnClick);
-                };
-                document.addEventListener("click", retryOnClick);
-                document.addEventListener("touchstart", retryOnClick);
-            });
-        });
-        testAudio.load();
     }
     tryLoadNext();
+}
+
+function playQTEMusicFromUrl(url) {
+    qteMusic = new Audio(url);
+    qteMusic.volume = 0.6;
+    
+    var seekToStart = function() {
+        try { qteMusic.currentTime = qteMusicStartOffset; } catch(e) {}
+    };
+    qteMusic.addEventListener('loadedmetadata', seekToStart);
+    if (qteMusic.readyState >= 1) seekToStart();
+    
+    qteMusic.addEventListener('timeupdate', function() {
+        if (!qteMusic || !qteMusic.duration) return;
+        if (qteMusic.currentTime >= qteMusic.duration - 0.5) {
+            try { qteMusic.currentTime = qteMusicStartOffset; } catch(e) {}
+        }
+    });
+    
+    qteMusic.play().then(function() {
+        qteMusicReady = true;
+        console.log("[LIVING STONE] Музыка играет");
+    }).catch(function(err) {
+        console.warn("[LIVING STONE] Автоплей заблокирован, ждём клик:", err);
+        qteMusicReady = false;
+        var retryOnClick = function() {
+            try { qteMusic.play().then(function() { qteMusicReady = true; }); } catch(e) {}
+            document.removeEventListener("click", retryOnClick);
+            document.removeEventListener("touchstart", retryOnClick);
+        };
+        document.addEventListener("click", retryOnClick);
+        document.addEventListener("touchstart", retryOnClick);
+    });
 }
 
 function stopQTEMusic() {
@@ -1257,7 +1292,7 @@ function stopQTEMusic() {
 function updateCinematic() {
     if (qteCinematicPhase === "grabbed") {
         if (qteBossArm) {
-            qteBossArm.progress += 0.02;
+            qteBossArm.progress += 0.02 * lsSpeedMult;
             if (qteBossArm.progress > 1) qteBossArm.progress = 1;
         }
     } else if (qteCinematicPhase === "flying") {
@@ -1282,8 +1317,8 @@ function updateCinematic() {
         var dy = targetY - livingStonePlayer.y;
         var len = Math.sqrt(dx*dx + dy*dy) || 1;
         if (len > 3) {
-            livingStonePlayer.x += (dx/len) * 2.5;
-            livingStonePlayer.y += (dy/len) * 2.5;
+            livingStonePlayer.x += (dx/len) * 2.5 * lsSpeedMult;
+            livingStonePlayer.y += (dy/len) * 2.5 * lsSpeedMult;
         }
         qtePlayerTrail.push({ x: livingStonePlayer.x, y: livingStonePlayer.y, life: 20, maxLife: 20 });
     } else if (qteCinematicPhase === "running_fast") {
@@ -1293,8 +1328,8 @@ function updateCinematic() {
         var dy2 = targetY2 - livingStonePlayer.y;
         var len2 = Math.sqrt(dx2*dx2 + dy2*dy2) || 1;
         if (len2 > 3) {
-            livingStonePlayer.x += (dx2/len2) * 7;
-            livingStonePlayer.y += (dy2/len2) * 7;
+            livingStonePlayer.x += (dx2/len2) * 7 * lsSpeedMult;
+            livingStonePlayer.y += (dy2/len2) * 7 * lsSpeedMult;
         }
         qtePlayerTrail.push({ x: livingStonePlayer.x, y: livingStonePlayer.y, life: 20, maxLife: 20 });
         spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y, 1, "#ff4444", 2);
@@ -1351,13 +1386,16 @@ function livingStoneRenderLoop() {
     
     if (livingStoneState === "phase1" || livingStoneState === "phase2") {
         livingStoneShootTimer++;
-        if (livingStoneShootTimer >= 6) {
+        // ★ Стрельба быстрее x1.5 ★
+        var shootRate = Math.max(2, Math.floor(6 / lsSpeedMult));
+        if (livingStoneShootTimer >= shootRate) {
             livingStoneShootTimer = 0;
             livingStoneShoot();
         }
         
         livingStoneAttackTimer++;
-        var attackRate = (livingStoneState === "phase2") ? 30 : 45;
+        // ★ Частота атак x1.5 ★
+        var attackRate = Math.floor(((livingStoneState === "phase2") ? 30 : 45) / lsSpeedMult);
         if (livingStoneAttackTimer >= attackRate) {
             livingStoneAttackTimer = 0;
             livingStoneSpawnAttack();
@@ -1366,14 +1404,12 @@ function livingStoneRenderLoop() {
         livingStoneTypeTimer--;
         if (livingStoneTypeTimer <= 0) {
             if (livingStoneState === "phase2") {
-                // Фаза 2: все кроме кольца (тип 1)
                 var allowedP2 = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
                 livingStoneAttackType = allowedP2[Math.floor(Math.random() * allowedP2.length)];
-                livingStoneTypeTimer = 200 + Math.floor(Math.random() * 200);
+                livingStoneTypeTimer = Math.floor((200 + Math.floor(Math.random() * 200)) / lsSpeedMult);
             } else {
-                // Фаза 1: типы 0-9
                 livingStoneAttackType = Math.floor(Math.random() * 10);
-                livingStoneTypeTimer = 250 + Math.floor(Math.random() * 250);
+                livingStoneTypeTimer = Math.floor((250 + Math.floor(Math.random() * 250)) / lsSpeedMult);
             }
             var typeNames = [
                 "🪨 КАМНЕПАД", "💫 КОЛЬЦО", "🌀 ОБЛОМКИ", "🎯 ГОМИНГ",
@@ -1422,7 +1458,7 @@ function livingStoneRenderLoop() {
     
     for (var i = 0; i < livingStoneBgParticles.length; i++) {
         var bp = livingStoneBgParticles[i];
-        bp.y += bp.speed;
+        bp.y += bp.speed * lsSpeedMult;
         if (bp.y > 500) { bp.y = 0; bp.x = Math.random() * 400; }
     }
     
@@ -1499,7 +1535,6 @@ function livingStoneRenderLoop() {
     ctx.strokeRect(2, 2, 396, 496);
     ctx.shadowBlur = 0;
     
-    // Атаки
     for (var i = 0; i < livingStoneAttacks.length; i++) {
         var a = livingStoneAttacks[i];
         if (a.type === "rock") {
@@ -1593,7 +1628,7 @@ function livingStoneRenderLoop() {
             ctx.restore();
         } else if (a.type === "laser") {
             ctx.save();
-            ctx.globalAlpha = a.timer / 25;
+            ctx.globalAlpha = Math.min(1, a.timer / 25 * lsSpeedMult);
             ctx.fillStyle = "#ffffff";
             ctx.shadowColor = "#ff4400";
             ctx.shadowBlur = 30;
@@ -1604,7 +1639,6 @@ function livingStoneRenderLoop() {
         }
     }
     
-    // Пули игрока
     for (var i = 0; i < livingStoneBullets.length; i++) {
         var b = livingStoneBullets[i];
         ctx.save();
@@ -1646,7 +1680,6 @@ function livingStoneRenderLoop() {
         ctx.restore();
     }
     
-    // Мега-эффекты
     for (var i = 0; i < qteShockwaves.length; i++) {
         var sw = qteShockwaves[i];
         var progress = 1 - sw.life / sw.maxLife;
@@ -1862,7 +1895,6 @@ function livingStoneRenderLoop() {
         ctx.restore();
     }
     
-    // ★ ВИЗУАЛЬНЫЙ ДЖОЙСТИК ДЛЯ МОБИЛЬНОГО ★
     if (lsTouchActive && (livingStoneState === "phase1" || livingStoneState === "phase2")) {
         ctx.save();
         ctx.globalAlpha = 0.3;
@@ -2203,4 +2235,5 @@ function drawQTEOverlay() {
 window.startLivingStoneFight = startLivingStoneFight;
 window.stopLivingStoneFight = stopLivingStoneFight;
 window.preloadQTEMusic = preloadQTEMusic;
-console.log("[LIVING STONE] Модуль загружен v4.3");
+window.lsSpeedMult = lsSpeedMult;
+console.log("[LIVING STONE] Модуль загружен v4.4");
