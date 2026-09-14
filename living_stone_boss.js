@@ -1,7 +1,6 @@
 // ============================================================
-// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v4.4
-// + скорость x1.5 (игрок, атаки) + удаление атак при попадании
-// + фикс предзагрузки музыки (2 пути, fetch в фоне)
+// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v4.5
+// + Гравитационный Колодец вместо Креста
 // ============================================================
 
 let livingStoneActive = false;
@@ -30,7 +29,7 @@ let livingStoneBgParticles = [];
 let livingStoneRestoreCount = 0;
 let livingStoneRestoring = false;
 
-// ★ ГЛОБАЛЬНЫЙ МНОЖИТЕЛЬ СКОРОСТИ ★
+// Глобальный множитель скорости
 let lsSpeedMult = 1.5;
 
 // Мобильное управление
@@ -69,7 +68,7 @@ let qteSparks = [];
 let qteScreenDistort = 0;
 let qteFlashBursts = [];
 
-// ★ МУЗЫКА: предзагрузка через fetch в ArrayBuffer ★
+// Музыка
 let qteMusic = null;
 let qteMusicBlobUrl = null;
 let qteMusicPreloaded = false;
@@ -85,12 +84,11 @@ let qteMusicPaths = [
 ];
 let qteMusicWorkingPath = null;
 
-// ========== ПРЕДЗАГРУЗКА МУЗЫКИ ЧЕРЕЗ FETCH ==========
+// ========== ПРЕДЗАГРУЗКА МУЗЫКИ ==========
 function preloadQTEMusic() {
     if (qteMusicPreloaded) return;
     qteMusicPreloaded = true;
     
-    // Пробуем скачать каждый путь через fetch
     var tryFetchIndex = 0;
     
     function tryFetch() {
@@ -410,7 +408,6 @@ function livingStoneShoot() {
         x: livingStonePlayer.x,
         y: livingStonePlayer.y - 8,
         vx: 0,
-        // ★ Скорость пули x1.5 ★
         vy: -7 * lsSpeedMult,
         size: 4,
         damage: 250,
@@ -425,7 +422,6 @@ function livingStoneShoot() {
 function livingStoneSpawnAttack() {
     var type = livingStoneAttackType;
     var isPhase2 = (livingStoneState === "phase2");
-    // ★ Скорость атак x1.5 через общий множитель ★
     var speedMult = (isPhase2 ? 1.4 : 1.0) * lsSpeedMult;
     var dmgMult = isPhase2 ? 1.3 : 1.0;
     
@@ -443,8 +439,7 @@ function livingStoneSpawnAttack() {
     } else if (type === 1) {
         livingStoneAttacks.push({
             type: "ring", x: livingStoneBoss.x, y: livingStoneBoss.y,
-            radius: 10, maxRadius: 320,
-            growth: 2.0 * speedMult,
+            radius: 10, maxRadius: 320, growth: 2.0 * speedMult,
             damage: Math.floor(7 * dmgMult), thickness: 18, color: "#8B7355"
         });
     } else if (type === 2) {
@@ -523,27 +518,80 @@ function livingStoneSpawnAttack() {
         }
     }
     
+    // ★ ГРАВИТАЦИОННЫЙ КОЛОДЕЦ ★
     if (type === 8) {
-        var centerX = 150 + Math.random() * 100;
-        var centerY = 200 + Math.random() * 100;
-        for (var i = 0; i < 6; i++) {
+        var wellX = 100 + Math.random() * 200;
+        var wellY = 150 + Math.random() * 200;
+        var wellDuration = 300;
+        
+        livingStoneAttacks.push({
+            type: "gravity_well",
+            x: wellX,
+            y: wellY,
+            radius: 45,
+            maxRadius: 55,
+            life: wellDuration,
+            maxLife: wellDuration,
+            pulse: 0,
+            damage: Math.floor(11 * dmgMult),
+            hit: false,
+            hitCooldown: 0
+        });
+        
+        var stoneCount = isPhase2 ? 14 : 10;
+        for (var i = 0; i < stoneCount; i++) {
+            var angle = (i / stoneCount) * Math.PI * 2 + Math.random() * 0.3;
+            var spawnDist = 250 + Math.random() * 80;
+            var sx = wellX + Math.cos(angle) * spawnDist;
+            var sy = wellY + Math.sin(angle) * spawnDist;
+            
             livingStoneAttacks.push({
-                type: "rock",
-                x: centerX - 150 + i * 60, y: centerY - 150,
-                vx: 0, vy: 3.0 * speedMult,
-                size: 18, rotation: 0, rotSpeed: 0.05,
-                damage: Math.floor(9 * dmgMult)
+                type: "gravity_stone",
+                x: sx,
+                y: sy,
+                vx: 0,
+                vy: 0,
+                wellX: wellX,
+                wellY: wellY,
+                size: 10 + Math.random() * 6,
+                rotation: Math.random() * Math.PI * 2,
+                rotSpeed: (Math.random() - 0.5) * 0.2,
+                damage: Math.floor(7 * dmgMult),
+                pullSpeed: 0,
+                maxPullSpeed: (3.5 + Math.random() * 1.5) * speedMult,
+                life: 250,
+                color: "#8B7355"
             });
         }
-        for (var i = 0; i < 6; i++) {
-            livingStoneAttacks.push({
-                type: "rock",
-                x: centerX, y: centerY - 150 + i * 60,
-                vx: 0, vy: 3.0 * speedMult,
-                size: 18, rotation: 0, rotSpeed: 0.05,
-                damage: Math.floor(9 * dmgMult)
-            });
-        }
+        
+        setTimeout(function() {
+            if (!livingStoneActive) return;
+            for (var k = livingStoneAttacks.length - 1; k >= 0; k--) {
+                if (livingStoneAttacks[k].type === "gravity_well") {
+                    var w = livingStoneAttacks[k];
+                    for (var j = 0; j < 12; j++) {
+                        var ang = (j / 12) * Math.PI * 2;
+                        livingStoneAttacks.push({
+                            type: "orb",
+                            x: w.x, y: w.y,
+                            vx: Math.cos(ang) * 3.5 * speedMult,
+                            vy: Math.sin(ang) * 3.5 * speedMult,
+                            size: 9,
+                            damage: Math.floor(9 * dmgMult),
+                            life: 200,
+                            color: "#ffcc00"
+                        });
+                    }
+                    livingStoneAttacks.splice(k, 1);
+                }
+            }
+            livingStoneShake = 15;
+            livingStoneScreenFlash = 10;
+            livingStoneScreenFlashColor = "#ffcc00";
+            if (typeof playArenaSound === 'function') {
+                playArenaSound(80, 'square', 0.6, 0.3);
+            }
+        }, Math.floor(1500 / lsSpeedMult));
     }
     
     if (type === 9) {
@@ -628,7 +676,6 @@ function updateLivingStonePlayer() {
     if (typeof keys === 'undefined') return;
     
     var mx = 0, my = 0;
-    // ★ Скорость игрока x1.5 в обеих фазах ★
     var speed = ((livingStoneState === "phase2") ? 4.5 : 3.0) * lsSpeedMult;
     
     if (lsTouchActive) {
@@ -658,7 +705,6 @@ function updateLivingStonePlayer() {
 function updateLivingStoneBoss() {
     if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
     
-    // ★ Босс тоже x1.5 ★
     var speedMult = ((livingStoneState === "phase2") ? 1.8 : 1.0) * lsSpeedMult;
     livingStoneBoss.x += livingStoneBoss.vx * speedMult;
     if (livingStoneBoss.x < 80 || livingStoneBoss.x > 320) livingStoneBoss.vx *= -1;
@@ -1120,6 +1166,44 @@ function updateLivingStoneAttacks() {
             if (spd > maxSpd) { a.vx = (a.vx/spd)*maxSpd; a.vy = (a.vy/spd)*maxSpd; }
             a.x += a.vx; a.y += a.vy; a.life--;
             if (a.life <= 0 || a.y > 520 || a.y < -20 || a.x < -20 || a.x > 420) livingStoneAttacks.splice(i, 1);
+        } else if (a.type === "gravity_well") {
+            // ★ Колодец пульсирует ★
+            a.life--;
+            a.pulse += 0.15;
+            a.radius = a.maxRadius * (0.9 + Math.sin(a.pulse) * 0.15);
+            if (a.hitCooldown > 0) a.hitCooldown--;
+            if (a.life <= 0) livingStoneAttacks.splice(i, 1);
+        } else if (a.type === "gravity_stone") {
+            // ★ Камень притягивается к колодцу ★
+            var dx = a.wellX - a.x;
+            var dy = a.wellY - a.y;
+            var dist = Math.sqrt(dx*dx + dy*dy) || 1;
+            
+            if (a.pullSpeed < a.maxPullSpeed) {
+                a.pullSpeed += 0.15 * lsSpeedMult;
+            }
+            if (a.pullSpeed > a.maxPullSpeed) a.pullSpeed = a.maxPullSpeed;
+            
+            a.vx += (dx / dist) * a.pullSpeed * 0.3;
+            a.vy += (dy / dist) * a.pullSpeed * 0.3;
+            
+            var spd2 = Math.sqrt(a.vx*a.vx + a.vy*a.vy);
+            if (spd2 > a.maxPullSpeed) {
+                a.vx = (a.vx / spd2) * a.maxPullSpeed;
+                a.vy = (a.vy / spd2) * a.maxPullSpeed;
+            }
+            
+            a.x += a.vx;
+            a.y += a.vy;
+            a.rotation += a.rotSpeed;
+            a.life--;
+            
+            if (dist < 30) {
+                spawnLivingStoneParticles(a.x, a.y, 5, "#8B7355", 3);
+                livingStoneAttacks.splice(i, 1);
+            } else if (a.life <= 0) {
+                livingStoneAttacks.splice(i, 1);
+            }
         } else if (a.type === "spike") {
             if (a.warningTimer > 0) a.warningTimer--;
             else {
@@ -1173,16 +1257,23 @@ function checkLivingStoneCollisions() {
             if (Math.abs(px - a.x) < 30 + ph && py > 500 - a.height) hit = true;
         } else if (a.type === "laser") {
             if (Math.abs(px - a.x) < a.width/2 + ph) hit = true;
+        } else if (a.type === "gravity_well") {
+            var dx = px - a.x, dy = py - a.y;
+            var dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < a.radius && a.hitCooldown <= 0) {
+                hit = true;
+                a.hitCooldown = 30;
+            }
+        } else if (a.type === "gravity_stone") {
+            var dx = px - a.x, dy = py - a.y;
+            if (Math.sqrt(dx*dx + dy*dy) < a.size + ph) hit = true;
         }
         
         if (hit) {
             damageLivingStonePlayer(a.damage || 5);
-            // ★ УДАЛЯЕМ АТАКУ ПРИ ПОПАДАНИИ ★
-            if (a.type !== "ring" && a.type !== "laser") {
+            if (a.type !== "ring" && a.type !== "laser" && a.type !== "gravity_well") {
                 spawnLivingStoneParticles(a.x || px, a.y || py, 8, "#ffffff", 5);
                 livingStoneAttacks.splice(i, 1);
-            } else if (a.type === "ring") {
-                // Кольцо не удаляем, но помечаем что нанесло урон
             }
             return;
         }
@@ -1209,26 +1300,21 @@ function damageLivingStonePlayer(dmg) {
     }
 }
 
-// ========== МУЗЫКА (fetch-предзагрузка) ==========
+// ========== МУЗЫКА ==========
 function startQTEMusic() {
     if (qteMusic) { try { qteMusic.pause(); } catch(e) {} qteMusic = null; }
     if (typeof stopAllMusic === 'function') stopAllMusic();
     if (typeof initAudio === 'function') { try { initAudio(); } catch(e) {} }
     if (typeof initArenaAudio === 'function') { try { initArenaAudio(); } catch(e) {} }
     
-    // Если уже есть Blob URL — используем его
     if (qteMusicBlobUrl) {
         playQTEMusicFromUrl(qteMusicBlobUrl);
         return;
     }
     
-    // Иначе пробуем ещё раз скачать
     var tryLoadIndex = 0;
     function tryLoadNext() {
-        if (tryLoadIndex >= qteMusicPaths.length) {
-            console.warn("[LIVING STONE] Не удалось найти музыку");
-            return;
-        }
+        if (tryLoadIndex >= qteMusicPaths.length) return;
         var path = qteMusicPaths[tryLoadIndex++];
         fetch(path)
             .then(function(r) {
@@ -1266,9 +1352,7 @@ function playQTEMusicFromUrl(url) {
     
     qteMusic.play().then(function() {
         qteMusicReady = true;
-        console.log("[LIVING STONE] Музыка играет");
     }).catch(function(err) {
-        console.warn("[LIVING STONE] Автоплей заблокирован, ждём клик:", err);
         qteMusicReady = false;
         var retryOnClick = function() {
             try { qteMusic.play().then(function() { qteMusicReady = true; }); } catch(e) {}
@@ -1386,7 +1470,6 @@ function livingStoneRenderLoop() {
     
     if (livingStoneState === "phase1" || livingStoneState === "phase2") {
         livingStoneShootTimer++;
-        // ★ Стрельба быстрее x1.5 ★
         var shootRate = Math.max(2, Math.floor(6 / lsSpeedMult));
         if (livingStoneShootTimer >= shootRate) {
             livingStoneShootTimer = 0;
@@ -1394,7 +1477,6 @@ function livingStoneRenderLoop() {
         }
         
         livingStoneAttackTimer++;
-        // ★ Частота атак x1.5 ★
         var attackRate = Math.floor(((livingStoneState === "phase2") ? 30 : 45) / lsSpeedMult);
         if (livingStoneAttackTimer >= attackRate) {
             livingStoneAttackTimer = 0;
@@ -1414,7 +1496,7 @@ function livingStoneRenderLoop() {
             var typeNames = [
                 "🪨 КАМНЕПАД", "💫 КОЛЬЦО", "🌀 ОБЛОМКИ", "🎯 ГОМИНГ",
                 "🔺 ЛАЗЕР", "🌊 ВЕЕР", "☔ ДОЖДЬ КАМНЕЙ",
-                "🌪️ СПИРАЛЬ", "✖️ КРЕСТ", "🔻 V-ЗАЛП",
+                "🌪️ СПИРАЛЬ", "🌌 ГРАВИТАЦИОННЫЙ КОЛОДЕЦ", "🔻 V-ЗАЛП",
                 "⚡ РАЗЛОМ", "🧱 СТЕНА", "🔴 МЕГА-ЛАЗЕР"
             ];
             spawnLivingStoneText(200, 60, typeNames[livingStoneAttackType], "#888888", 60);
@@ -1535,6 +1617,7 @@ function livingStoneRenderLoop() {
     ctx.strokeRect(2, 2, 396, 496);
     ctx.shadowBlur = 0;
     
+    // Атаки
     for (var i = 0; i < livingStoneAttacks.length; i++) {
         var a = livingStoneAttacks[i];
         if (a.type === "rock") {
@@ -1590,6 +1673,108 @@ function livingStoneRenderLoop() {
             ctx.strokeStyle = "#ff6600";
             ctx.lineWidth = 2;
             ctx.stroke();
+            ctx.restore();
+        } else if (a.type === "gravity_well") {
+            // ★ ГРАВИТАЦИОННЫЙ КОЛОДЕЦ ★
+            ctx.save();
+            var pulseScale = 1 + Math.sin(a.pulse) * 0.1;
+            var r = a.radius * pulseScale;
+            
+            var grad = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, r * 2);
+            grad.addColorStop(0, "rgba(80, 20, 120, 0.9)");
+            grad.addColorStop(0.3, "rgba(150, 50, 200, 0.6)");
+            grad.addColorStop(0.6, "rgba(80, 20, 120, 0.3)");
+            grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(a.x, a.y, r * 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.shadowColor = "#aa44ff";
+            ctx.shadowBlur = 25;
+            for (var k = 0; k < 6; k++) {
+                var ang = a.pulse * 0.5 + (k / 6) * Math.PI * 2;
+                var innerR = r * 0.4;
+                var outerR = r * 1.3;
+                ctx.strokeStyle = "rgba(180, 100, 255, " + (0.4 + Math.sin(a.pulse * 2 + k) * 0.3) + ")";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(a.x + Math.cos(ang) * innerR, a.y + Math.sin(ang) * innerR);
+                ctx.lineTo(a.x + Math.cos(ang) * outerR, a.y + Math.sin(ang) * outerR);
+                ctx.stroke();
+            }
+            
+            var coreGrad = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, r * 0.6);
+            coreGrad.addColorStop(0, "#000000");
+            coreGrad.addColorStop(0.5, "#1a0030");
+            coreGrad.addColorStop(1, "#6600aa");
+            ctx.fillStyle = coreGrad;
+            ctx.beginPath();
+            ctx.arc(a.x, a.y, r * 0.6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = "#cc66ff";
+            ctx.lineWidth = 2;
+            ctx.shadowColor = "#cc66ff";
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.arc(a.x, a.y, r * 0.6, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            for (var k = 0; k < 8; k++) {
+                var ang = -a.pulse * 0.8 + (k / 8) * Math.PI * 2;
+                var orbitR = r * 1.1;
+                var dotX = a.x + Math.cos(ang) * orbitR;
+                var dotY = a.y + Math.sin(ang) * orbitR;
+                ctx.fillStyle = "#ffffff";
+                ctx.shadowColor = "#aa44ff";
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.arc(dotX, dotY, 3 + Math.sin(a.pulse * 3 + k) * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.restore();
+        } else if (a.type === "gravity_stone") {
+            // ★ Камень с фиолетовым трейлом ★
+            ctx.save();
+            
+            ctx.globalAlpha = 0.4;
+            ctx.fillStyle = "#aa44ff";
+            ctx.shadowColor = "#aa44ff";
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(a.x - a.vx * 1.5, a.y - a.vy * 1.5, a.size * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 0.2;
+            ctx.beginPath();
+            ctx.arc(a.x - a.vx * 3, a.y - a.vy * 3, a.size * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.globalAlpha = 1;
+            ctx.translate(a.x, a.y);
+            ctx.rotate(a.rotation);
+            ctx.shadowColor = "#000000";
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = "#8B7355";
+            ctx.beginPath();
+            ctx.moveTo(-a.size, -a.size * 0.5);
+            ctx.lineTo(a.size * 0.7, -a.size);
+            ctx.lineTo(a.size, a.size * 0.3);
+            ctx.lineTo(0, a.size);
+            ctx.lineTo(-a.size * 0.8, a.size * 0.5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = "#5a4030";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.strokeStyle = "#cc66ff";
+            ctx.lineWidth = 1.5;
+            ctx.shadowColor = "#cc66ff";
+            ctx.shadowBlur = 10;
+            ctx.stroke();
+            
             ctx.restore();
         } else if (a.type === "spike") {
             if (a.warningTimer > 0) {
@@ -2236,4 +2421,4 @@ window.startLivingStoneFight = startLivingStoneFight;
 window.stopLivingStoneFight = stopLivingStoneFight;
 window.preloadQTEMusic = preloadQTEMusic;
 window.lsSpeedMult = lsSpeedMult;
-console.log("[LIVING STONE] Модуль загружен v4.4");
+console.log("[LIVING STONE] Модуль загружен v4.5");
