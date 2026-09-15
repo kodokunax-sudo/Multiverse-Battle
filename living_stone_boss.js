@@ -1,11 +1,8 @@
 // ============================================================
-// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v4.9
-// + оптимизированный пресс (без лагов)
-// + выбор устройства (телефон/ПК)
-// + 20 кубиков пресса с 3D-эффектом
-// + морфинг при ударах
-// + гравитационный колодец только один
-// + скорость x0.5
+// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v5.0
+// + QTE и кинематик на НОРМАЛЬНОЙ скорости
+// + фазы 1/2 замедлены x0.5
+// + оптимизированный пресс
 // ============================================================
 
 let livingStoneActive = false;
@@ -34,6 +31,7 @@ let livingStoneBgParticles = [];
 let livingStoneRestoreCount = 0;
 let livingStoneRestoring = false;
 
+// ★ Скорость фаз (только бой, не QTE) ★
 let lsSpeedMult = 0.5;
 let activeGravityWell = false;
 
@@ -142,7 +140,7 @@ function startLivingStoneFight() {
     lsMobileMode = isPhone;
     lsPerfMult = isPhone ? 0.35 : 1.0;
     
-    console.log("[LIVING STONE] Режим:", isPhone ? "ТЕЛЕФОН (эффекты x0.35)" : "ПК (полные эффекты)");
+    console.log("[LIVING STONE] Режим:", isPhone ? "ТЕЛЕФОН" : "ПК");
     
     _startLivingStoneFightInternal();
 }
@@ -802,9 +800,10 @@ function triggerRestoreScene() {
     
     livingStoneShake = 25;
     
+    // ★ Нормальная скорость — не делим на lsSpeedMult ★
     setTimeout(function() {
         if (livingStoneActive) triggerMusicScene();
-    }, Math.floor(3000 / lsSpeedMult));
+    }, 3000);
 }
 
 // ========== МУЗЫКАЛЬНАЯ СЦЕНА ==========
@@ -819,20 +818,21 @@ function triggerMusicScene() {
     
     spawnCinematicText(200, 80, "STANDING HERE...", "#ffffff", 240, 28);
     
+    // ★ НОРМАЛЬНАЯ СКОРОСТЬ — без деления ★
     setTimeout(function() {
         if (!livingStoneActive) return;
         spawnCinematicText(200, 115, "I REALIZE...", "#ffdd00", 240, 26);
         livingStoneScreenFlash = 15;
         livingStoneScreenFlashColor = "#ffffff";
-    }, Math.floor(4000 / lsSpeedMult));
+    }, 4000);
     
     setTimeout(function() {
         if (!livingStoneActive) return;
         triggerCinematic();
-    }, Math.floor(8000 / lsSpeedMult));
+    }, 8000);
 }
 
-// ========== КИНЕМАТИК ==========
+// ========== КИНЕМАТИК (НОРМАЛЬНАЯ СКОРОСТЬ) ==========
 function triggerCinematic() {
     if (!livingStoneActive) return;
     livingStoneState = "qte_cinematic";
@@ -845,11 +845,12 @@ function triggerCinematic() {
     qteBossArm = {
         startX: livingStoneBoss.x, startY: livingStoneBoss.y,
         endX: livingStonePlayer.x, endY: livingStonePlayer.y,
-        progress: 0, duration: 1.2 / lsSpeedMult
+        progress: 0, duration: 1.2
     };
     
     if (typeof playArenaSound === 'function') playArenaSound(120, 'sawtooth', 0.6, 0.3);
     
+    // ★ БЕЗ деления на lsSpeedMult — нормальные 1.2 сек ★
     setTimeout(function() {
         if (!livingStoneActive) return;
         qteCinematicPhase = "flying";
@@ -863,8 +864,9 @@ function triggerCinematic() {
         }
         
         spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y, 30, "#ffffff", 8);
-        qtePlayerVel = { x: 12 * lsSpeedMult, y: 8 * lsSpeedMult };
+        qtePlayerVel = { x: 12, y: 8 };
         
+        // ★ 1.5 сек ★
         setTimeout(function() {
             if (!livingStoneActive) return;
             qteCinematicPhase = "angry";
@@ -880,6 +882,7 @@ function triggerCinematic() {
             if (typeof playArenaSound === 'function') playArenaSound(60, 'sawtooth', 0.8, 0.3);
             qtePlayerAngry = true;
             
+            // ★ 1.5 сек ★
             setTimeout(function() {
                 if (!livingStoneActive) return;
                 qteCinematicPhase = "running_slow";
@@ -888,6 +891,7 @@ function triggerCinematic() {
                 
                 if (typeof playArenaSound === 'function') playArenaSound(100, 'square', 0.5, 0.25);
                 
+                // ★ 1.5 сек ★
                 setTimeout(function() {
                     if (!livingStoneActive) return;
                     qteCinematicPhase = "running_fast";
@@ -897,6 +901,7 @@ function triggerCinematic() {
                         setTimeout(function() { playArenaSound(300, 'square', 0.3, 0.25); }, 100);
                     }
                     
+                    // ★ 1.5 сек ★
                     setTimeout(function() {
                         if (!livingStoneActive) return;
                         qteCinematicPhase = "punch";
@@ -920,20 +925,21 @@ function triggerCinematic() {
                         spawnLivingStoneText(200, 200, "ТЫ!", "#ffffff", 150);
                         spawnLivingStoneText(200, 240, "«...ХВАТИТ!»", "#ffdd00", 150);
                         
+                        // ★ 1.2 сек ★
                         setTimeout(function() {
                             if (!livingStoneActive) return;
                             qteCinematicActive = false;
                             qteCinematicPhase = "done";
                             triggerQTEStart();
-                        }, Math.floor(1200 / lsSpeedMult));
-                    }, Math.floor(1500 / lsSpeedMult));
-                }, Math.floor(1500 / lsSpeedMult));
-            }, Math.floor(1500 / lsSpeedMult));
-        }, Math.floor(1500 / lsSpeedMult));
-    }, Math.floor(1200 / lsSpeedMult));
+                        }, 1200);
+                    }, 1500);
+                }, 1500);
+            }, 1500);
+        }, 1500);
+    }, 1200);
 }
 
-// ========== QTE ==========
+// ========== QTE (НОРМАЛЬНАЯ СКОРОСТЬ) ==========
 function triggerQTEStart() {
     if (!livingStoneActive) return;
     livingStoneState = "qte_punch";
@@ -951,10 +957,11 @@ function triggerQTEStart() {
     spawnLivingStoneText(200, 200, "«100 УДАРОВ!»", "#ffdd00", 180);
     spawnQTEBarrage();
     
+    // ★ Нормальные 400мс ★
     qteBarrageInterval = setInterval(function() {
         if (!qteActive || !livingStoneActive) { clearInterval(qteBarrageInterval); qteBarrageInterval = null; return; }
         spawnQTEBarrage();
-    }, Math.floor(400 / lsSpeedMult));
+    }, 400);
     
     qteEndTimer = setTimeout(function() {
         if (qteBarrageInterval) { clearInterval(qteBarrageInterval); qteBarrageInterval = null; }
@@ -991,7 +998,8 @@ function spawnQTEBarrage() {
         var dx = livingStoneBoss.x - startX;
         var dy = livingStoneBoss.y - startY;
         var len = Math.sqrt(dx*dx + dy*dy) || 1;
-        var speed = (12 + Math.random() * 8) * lsSpeedMult;
+        // ★ Нормальная скорость ★
+        var speed = 12 + Math.random() * 8;
         
         qteBullets.push({
             x: startX, y: startY,
@@ -1006,8 +1014,8 @@ function spawnQTEBarrage() {
         qteBullets.push({
             x: livingStonePlayer.x + (Math.random() - 0.5) * 30,
             y: livingStonePlayer.y,
-            vx: (Math.random() - 0.5) * 3 * lsSpeedMult,
-            vy: (-15 - Math.random() * 5) * lsSpeedMult,
+            vx: (Math.random() - 0.5) * 3,
+            vy: -15 - Math.random() * 5,
             size: 5 + Math.random() * 4, life: 60, color: "#ffffff"
         });
     }
@@ -1062,7 +1070,8 @@ function handleQTEClick(ev) {
         
         qteBullets.push({
             x: sx, y: sy,
-            vx: (dx/len) * 15 * lsSpeedMult, vy: (dy/len) * 15 * lsSpeedMult,
+            // ★ Нормальная скорость ★
+            vx: (dx/len) * 15, vy: (dy/len) * 15,
             size: 4 + Math.random() * 3, life: 60,
             color: Math.random() > 0.5 ? "#ffdd00" : "#ffffff"
         });
@@ -1093,6 +1102,7 @@ function triggerQTEFinish() {
         var power = 25;
         for (var i = 0; i < 8; i++) {
             (function(idx) {
+                // ★ Нормальная скорость ★
                 setTimeout(function() {
                     var t = idx / 8;
                     livingStonePlayer.x += Math.cos(angle) * power * (1 - t);
@@ -1100,7 +1110,7 @@ function triggerQTEFinish() {
                     livingStonePlayer.x = Math.max(16, Math.min(384, livingStonePlayer.x));
                     livingStonePlayer.y = Math.max(80, Math.min(484, livingStonePlayer.y));
                     spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y, 5, "#ff3333", 4);
-                }, Math.floor(idx * 50 / lsSpeedMult));
+                }, idx * 50);
             })(i);
         }
         
@@ -1114,11 +1124,12 @@ function triggerQTEFinish() {
         spawnLivingStoneText(200, 250, "БЕСПОЛЕЗНО!", "#888888", 120);
         spawnLivingStoneText(200, 290, "«ТЫ НИЧЕГО МНЕ НЕ СДЕЛАЕШЬ!»", "#666666", 120);
         
+        // ★ Нормальная скорость ★
         setTimeout(function() {
             if (!livingStoneActive) return;
             triggerPhase2();
-        }, Math.floor(2500 / lsSpeedMult));
-    }, Math.floor(500 / lsSpeedMult));
+        }, 2500);
+    }, 500);
 }
 
 function triggerPhase2() {
@@ -1173,7 +1184,7 @@ function livingStoneVictory() {
         stopLivingStoneFight();
         if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0;
         if (typeof victory === 'function') victory();
-    }, Math.floor(2500 / lsSpeedMult));
+    }, 2500);
 }
 
 function livingStoneDefeat() {
@@ -1188,7 +1199,7 @@ function livingStoneDefeat() {
         stopLivingStoneFight();
         if (typeof playerHp !== 'undefined') playerHp = 0;
         if (typeof defeat === 'function') defeat();
-    }, Math.floor(2500 / lsSpeedMult));
+    }, 2500);
 }
 
 // ========== ОБНОВЛЕНИЕ АТАК ==========
@@ -1420,7 +1431,7 @@ function stopQTEMusic() {
 function updateCinematic() {
     if (qteCinematicPhase === "grabbed") {
         if (qteBossArm) {
-            qteBossArm.progress += 0.02 * lsSpeedMult;
+            qteBossArm.progress += 0.02;
             if (qteBossArm.progress > 1) qteBossArm.progress = 1;
         }
     } else if (qteCinematicPhase === "flying") {
@@ -1445,8 +1456,8 @@ function updateCinematic() {
         var dy = targetY - livingStonePlayer.y;
         var len = Math.sqrt(dx*dx + dy*dy) || 1;
         if (len > 3) {
-            livingStonePlayer.x += (dx/len) * 2.5 * lsSpeedMult;
-            livingStonePlayer.y += (dy/len) * 2.5 * lsSpeedMult;
+            livingStonePlayer.x += (dx/len) * 2.5;
+            livingStonePlayer.y += (dy/len) * 2.5;
         }
         qtePlayerTrail.push({ x: livingStonePlayer.x, y: livingStonePlayer.y, life: 20, maxLife: 20 });
     } else if (qteCinematicPhase === "running_fast") {
@@ -1456,8 +1467,8 @@ function updateCinematic() {
         var dy2 = targetY2 - livingStonePlayer.y;
         var len2 = Math.sqrt(dx2*dx2 + dy2*dy2) || 1;
         if (len2 > 3) {
-            livingStonePlayer.x += (dx2/len2) * 7 * lsSpeedMult;
-            livingStonePlayer.y += (dy2/len2) * 7 * lsSpeedMult;
+            livingStonePlayer.x += (dx2/len2) * 7;
+            livingStonePlayer.y += (dy2/len2) * 7;
         }
         qtePlayerTrail.push({ x: livingStonePlayer.x, y: livingStonePlayer.y, life: 20, maxLife: 20 });
         spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y, 1, "#ff4444", 2);
@@ -1663,7 +1674,6 @@ function livingStoneRenderLoop() {
     ctx.strokeRect(2, 2, 396, 496);
     ctx.shadowBlur = 0;
     
-    // Атаки
     for (var i = 0; i < livingStoneAttacks.length; i++) {
         var a = livingStoneAttacks[i];
         if (a.type === "rock") {
@@ -2216,7 +2226,6 @@ function drawLivingStoneBoss() {
     ctx.translate(b.x + bossShakeX, b.y + bossShakeY);
     ctx.rotate(Math.sin(b.rotation) * 0.05);
     
-    // Тень
     ctx.fillStyle = "rgba(0,0,0,0.4)";
     ctx.beginPath();
     if (isPhase2) {
@@ -2226,7 +2235,6 @@ function drawLivingStoneBoss() {
     }
     ctx.fill();
     
-    // Градиент тела
     var grad = ctx.createRadialGradient(-size*0.3, -size*0.3, 1, 0, 0, size * 1.8);
     if (livingStoneBossFlash > 0) {
         grad.addColorStop(0, "#ffffff");
@@ -2243,7 +2251,6 @@ function drawLivingStoneBoss() {
     ctx.fillStyle = grad;
     
     if (isPhase2) {
-        // ★ ВЫСОКОЕ ТЕЛО ★
         var bodyW = size * 1.1 * widthGrow;
         var bodyH = size * 2.4 * heightShrink;
         
@@ -2254,11 +2261,9 @@ function drawLivingStoneBoss() {
         ctx.lineWidth = 4;
         ctx.stroke();
         
-        // ★★★ ОПТИМИЗИРОВАННЫЙ ПРЕСС ★★★
-        // 4 колонки × 5 рядов
+        // ПРЕСС
         var cols = 4;
         var rows = 5;
-        
         var pressW = bodyW * 1.15;
         var pressH = bodyH * 0.7;
         var pressCenterY = -bodyH * 0.1;
@@ -2274,7 +2279,6 @@ function drawLivingStoneBoss() {
         var totalCubes = cols * rows;
         var activeCubes = Math.floor(totalCubes * (1 - damage * 0.7));
         
-        // Тёмный фон пресса
         ctx.fillStyle = "#2a1810";
         ctx.fillRect(
             -pressW/2 - gapX,
@@ -2283,7 +2287,6 @@ function drawLivingStoneBoss() {
             pressH + gapY * 2
         );
         
-        // ★ РИСУЕМ КУБИКИ (оптимизированно) ★
         for (var row = 0; row < rows; row++) {
             for (var col = 0; col < cols; col++) {
                 var index = row * cols + col;
@@ -2292,7 +2295,6 @@ function drawLivingStoneBoss() {
                 var cx2 = -pressW/2 + col * cubeW + cubeW/2;
                 var cy2 = pressCenterY - pressH/2 + row * cubeH + cubeH/2;
                 
-                // Отваливание
                 var flyOffsetX = 0, flyOffsetY = 0;
                 var opacity = 1;
                 var rot2 = 0;
@@ -2308,7 +2310,6 @@ function drawLivingStoneBoss() {
                 
                 if (opacity <= 0) continue;
                 
-                // ★ ТОЛЬКО ПРОСТОЙ ГРАДИЕНТ (без бликов и 3D-граней) ★
                 ctx.save();
                 ctx.globalAlpha = opacity;
                 
@@ -2321,7 +2322,6 @@ function drawLivingStoneBoss() {
                     ctx.lineWidth = 1;
                     ctx.strokeRect(-drawW/2, -drawH/2, drawW, drawH);
                 } else {
-                    // Живые кубики — градиент
                     var cubeGrad = ctx.createLinearGradient(cx2 - drawW/2, cy2 - drawH/2, cx2 + drawW/2, cy2 + drawH/2);
                     cubeGrad.addColorStop(0, "#d4a878");
                     cubeGrad.addColorStop(0.5, "#b08060");
@@ -2329,11 +2329,9 @@ function drawLivingStoneBoss() {
                     ctx.fillStyle = cubeGrad;
                     ctx.fillRect(cx2 - drawW/2, cy2 - drawH/2, drawW, drawH);
                     
-                    // Один яркий блик сверху
                     ctx.fillStyle = "rgba(255, 240, 220, 0.4)";
                     ctx.fillRect(cx2 - drawW/2, cy2 - drawH/2, drawW, drawH * 0.25);
                     
-                    // Тёмный контур
                     ctx.strokeStyle = "rgba(30, 15, 5, 0.8)";
                     ctx.lineWidth = 1.5;
                     ctx.strokeRect(cx2 - drawW/2, cy2 - drawH/2, drawW, drawH);
@@ -2342,7 +2340,6 @@ function drawLivingStoneBoss() {
             }
         }
     } else {
-        // Фаза 1 — восьмиугольник
         var sides = 8;
         ctx.beginPath();
         for (var i = 0; i < sides; i++) {
@@ -2359,7 +2356,6 @@ function drawLivingStoneBoss() {
         ctx.lineWidth = 4;
         ctx.stroke();
         
-        // Трещины
         ctx.strokeStyle = "#2a1810";
         ctx.lineWidth = 2;
         for (var i = 0; i < 4; i++) {
@@ -2373,7 +2369,6 @@ function drawLivingStoneBoss() {
         }
     }
     
-    // Трещины от QTE
     if (isQTEPunch && damage > 0) {
         var damageCracks = Math.floor(damage * 10);
         ctx.strokeStyle = "rgba(255, 100, 0, " + (0.6 + damage * 0.4) + ")";
@@ -2387,7 +2382,6 @@ function drawLivingStoneBoss() {
         }
     }
     
-    // Глаза
     var eyeColor = isPhase2 ? "#ff2200" : "#ffaa00";
     if (isQTEPunch) eyeColor = "#ff0000";
     ctx.fillStyle = eyeColor;
@@ -2409,7 +2403,6 @@ function drawLivingStoneBoss() {
     ctx.arc(eyeOffsetX, eyeOffsetY, eyeSize, 0, Math.PI * 2);
     ctx.fill();
     
-    // Зрачки
     ctx.fillStyle = "#000000";
     ctx.shadowBlur = 0;
     var pupilOffset = damage * size * 0.08;
@@ -2420,7 +2413,6 @@ function drawLivingStoneBoss() {
     ctx.arc(eyeOffsetX + pupilOffset, eyeOffsetY, eyeSize * 0.4, 0, Math.PI * 2);
     ctx.fill();
     
-    // Злые брови
     if (isPhase2) {
         ctx.strokeStyle = "#1a0808";
         ctx.lineWidth = 7;
@@ -2444,7 +2436,6 @@ function drawLivingStoneBoss() {
         ctx.shadowBlur = 0;
     }
     
-    // Злой рот
     if (isPhase2) {
         ctx.strokeStyle = "#1a0808";
         ctx.lineWidth = 5;
@@ -2710,4 +2701,4 @@ window.startLivingStoneFight = startLivingStoneFight;
 window.stopLivingStoneFight = stopLivingStoneFight;
 window.preloadQTEMusic = preloadQTEMusic;
 window.lsSpeedMult = lsSpeedMult;
-console.log("[LIVING STONE] Модуль загружен v4.9 (оптимизировано)");
+console.log("[LIVING STONE] Модуль загружен v5.0 (QTE на нормальной скорости)");
