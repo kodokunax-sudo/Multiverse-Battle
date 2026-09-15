@@ -1061,7 +1061,7 @@ function startFinalScene() {
     livingStoneBullets = [];
     chainExplosionsQueue = [];
     
-    /    // Диалоги камня (БЕЗ русских кавычек — используем обычные)
+    //  диолог (БЕЗ русских кавычек — используем обычные)
     finalTexts = [
         { text: "...не может быть...", time: 90 },
         { text: "я... я не могу проиграть!", time: 90 },
