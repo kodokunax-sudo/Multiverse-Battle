@@ -1061,13 +1061,13 @@ function startFinalScene() {
     livingStoneBullets = [];
     chainExplosionsQueue = [];
     
-    // Диалоги камня
+    /    // Диалоги камня (БЕЗ русских кавычек — используем обычные)
     finalTexts = [
-        { text: "«...не может быть...», time: 90 },
-        { text: "«я... я не могу проиграть!», time: 90 },
-        { text: "«ты... ты просто...»", time: 90 },
-        { text: "«...ха-ха-ха!», time: 60 },
-        { text: "«знаешь что? ИДИ СЮДА!», time: 90 }
+        { text: "...не может быть...", time: 90 },
+        { text: "я... я не могу проиграть!", time: 90 },
+        { text: "ты... ты просто...", time: 90 },
+        { text: "...ха-ха-ха!", time: 60 },
+        { text: "знаешь что? ИДИ НАХУЙ!", time: 90 }
     ];
     
     if (typeof playArenaSound === 'function') {
