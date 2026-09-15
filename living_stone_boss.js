@@ -2095,8 +2095,7 @@ function drawBossArm() {
 function drawLivingStoneBoss() {
     var b = livingStoneBoss;
     var pulse = 1.0 + Math.sin(performance.now() / 300) * 0.05;
-    // ★ РАЗМЕР x1.5 ДЛЯ ВИДИМОСТИ ★
-    var size = b.size * pulse * 1.5;
+    var size = b.size * pulse;
     var isPhase2 = (livingStoneState === "phase2");
     var isQTEPunch = (livingStoneState === "qte_punch");
     var isFinal = finalSceneActive;
@@ -2119,10 +2118,10 @@ function drawLivingStoneBoss() {
     // Тень
     ctx.fillStyle = "rgba(0,0,0,0.4)";
     ctx.beginPath();
-    ctx.arc(0, 0, size * 1.25, 0, Math.PI * 2);
+    ctx.arc(0, 0, size * 1.35, 0, Math.PI * 2);
     ctx.fill();
     
-    // Градиент
+    // ★ СТАРЫЙ ГРАДИЕНТ (как в v5.0) ★
     var grad = ctx.createRadialGradient(-size * 0.3, -size * 0.3, 1, 0, 0, size * 1.5);
     if (livingStoneBossFlash > 0) {
         grad.addColorStop(0, "#ffffff");
@@ -2132,18 +2131,18 @@ function drawLivingStoneBoss() {
         grad.addColorStop(0.5, "#8B4a30");
         grad.addColorStop(1, "#3a1808");
     } else {
-        grad.addColorStop(0, "#c8a888");
-        grad.addColorStop(0.5, "#9B8365");
-        grad.addColorStop(1, "#5a4838");
+        grad.addColorStop(0, "#b89878");
+        grad.addColorStop(0.5, "#8B7355");
+        grad.addColorStop(1, "#4a3828");
     }
     ctx.fillStyle = grad;
     
-    // ★ ФОРМА — ВОСЬМИУГОЛЬНИК (упрощена для видимости) ★
+    // ★ СТАРАЯ ФОРМА — ВОСЬМИУГОЛЬНИК С НЕРОВНЫМИ КРАЯМИ ★
     var sides = 8;
     ctx.beginPath();
     for (var i = 0; i < sides; i++) {
-        var ang = (i / sides) * Math.PI * 2 - Math.PI / 2;
-        var rad = size * 0.95;
+        var ang = (i / sides) * Math.PI * 2;
+        var rad = size * (0.9 + Math.sin(i * 1.7) * 0.15);
         var px = Math.cos(ang) * rad;
         var py = Math.sin(ang) * rad;
         if (i === 0) ctx.moveTo(px, py);
@@ -2152,41 +2151,38 @@ function drawLivingStoneBoss() {
     ctx.closePath();
     ctx.fill();
     
-    // ★ ТЕКСТУРА БЕЗ CLIP — ТОЧКИ РИСУЮТСЯ ВНУТРИ ★
+    // ★ ТЕКСТУРА — CLIP ВНУТРИ ФОРМЫ ★
+    ctx.save();
+    ctx.clip();
+    
     var texPoints = (isPhase2 || isFinal) ? stoneTexturePhase2 : stoneTexturePoints;
     for (var i = 0; i < texPoints.length; i++) {
         var tp = texPoints[i];
         if (tp.type === "spot" || tp.type === "grain" || tp.type === "burn" || tp.type === "glow") {
-            var x = Math.cos(tp.angle) * size * tp.dist * 0.7;
-            var y = Math.sin(tp.angle) * size * tp.dist * 0.7;
+            var x = Math.cos(tp.angle) * size * tp.dist;
+            var y = Math.sin(tp.angle) * size * tp.dist;
             if (tp.type === "burn") ctx.fillStyle = "rgba(20, 8, 3, " + tp.alpha + ")";
             else if (tp.type === "glow") ctx.fillStyle = "rgba(255, 100, 20, " + tp.alpha + ")";
             else ctx.fillStyle = "rgba(60, 40, 25, " + tp.alpha + ")";
             ctx.beginPath();
-            ctx.arc(x, y, tp.size * (size / 60), 0, Math.PI * 2);
+            ctx.arc(x, y, tp.size * (size / 40), 0, Math.PI * 2);
             ctx.fill();
         } else if (tp.type === "vein" || tp.type === "crack") {
             ctx.strokeStyle = (tp.type === "crack") ? "rgba(20, 8, 3, " + tp.alpha + ")" : "rgba(60, 40, 25, " + tp.alpha + ")";
             ctx.lineWidth = tp.w;
             ctx.beginPath();
-            ctx.moveTo(Math.cos(tp.a1) * size * tp.r1 * 0.7, Math.sin(tp.a1) * size * tp.r1 * 0.7);
-            ctx.lineTo(Math.cos(tp.a2) * size * tp.r2 * 0.7, Math.sin(tp.a2) * size * tp.r2 * 0.7);
-            ctx.lineTo(Math.cos(tp.a3) * size * tp.r3 * 0.7, Math.sin(tp.a3) * size * tp.r3 * 0.7);
+            ctx.moveTo(Math.cos(tp.a1) * size * tp.r1, Math.sin(tp.a1) * size * tp.r1);
+            ctx.lineTo(Math.cos(tp.a2) * size * tp.r2, Math.sin(tp.a2) * size * tp.r2);
+            ctx.lineTo(Math.cos(tp.a3) * size * tp.r3, Math.sin(tp.a3) * size * tp.r3);
             ctx.stroke();
         }
     }
     
-    // ★ ЯРКИЙ ВНЕШНИЙ КОНТУР (белый с оранжевым свечением) ★
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 5;
-    ctx.shadowColor = "#ff8800";
-    ctx.shadowBlur = 25;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+    ctx.restore();
     
-    // Тёмный контур внутри
+    // ★ СТАРЫЙ ТЁМНЫЙ КОНТУР (без яркого белого) ★
     ctx.strokeStyle = "#2a1810";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     ctx.stroke();
     
     // Трещины в фазе 2 / финале
@@ -2261,7 +2257,7 @@ function drawLivingStoneBoss() {
     ctx.arc(eyeOX + pupOff, eyeOY, eyeS * 0.4, 0, Math.PI * 2);
     ctx.fill();
     
-    // Брови
+    // Злые брови
     if (isPhase2 || isFinal) {
         ctx.strokeStyle = "#1a0808";
         ctx.lineWidth = 8;
@@ -2282,7 +2278,7 @@ function drawLivingStoneBoss() {
         ctx.shadowBlur = 0;
     }
     
-    // ★ РОТ ПРИ СМЕХЕ — В 1.5 РАЗА МЕНЬШЕ ★
+    // Рот при смехе (в 1.5 раза меньше)
     if (isFinal && finalScenePhase === "laugh") {
         ctx.fillStyle = "#1a0808";
         ctx.beginPath();
