@@ -1,5 +1,10 @@
 // ============================================================
-// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v5.3 (CLEAN BUILD)
+// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v5.4
+// + видимый босс (усиленный контур, размер x1.5)
+// + рот в 1.5 раза меньше при смехе
+// + чёрная дыра появляется РЯДОМ с сердечком
+// + усиленное притяжение
+// + текстура без clip (точки рисуются поверх)
 // ============================================================
 
 let livingStoneActive = false;
@@ -90,7 +95,7 @@ function generateStoneTextures() {
     for (var i = 0; i < 40; i++) {
         stoneTexturePoints.push({
             type: "spot", angle: Math.random() * Math.PI * 2,
-            dist: Math.random() * 0.85, size: 2 + Math.random() * 5,
+            dist: Math.random() * 0.7, size: 2 + Math.random() * 5,
             alpha: 0.15 + Math.random() * 0.25
         });
     }
@@ -98,21 +103,21 @@ function generateStoneTextures() {
         stoneTexturePoints.push({
             type: "vein",
             a1: Math.random() * Math.PI * 2, a2: Math.random() * Math.PI * 2, a3: Math.random() * Math.PI * 2,
-            r1: 0.2 + Math.random() * 0.2, r2: 0.5 + Math.random() * 0.2, r3: 0.7 + Math.random() * 0.2,
+            r1: 0.2 + Math.random() * 0.2, r2: 0.5 + Math.random() * 0.15, r3: 0.65 + Math.random() * 0.15,
             w: 1 + Math.random() * 2, alpha: 0.3 + Math.random() * 0.3
         });
     }
     for (var i = 0; i < 25; i++) {
         stoneTexturePoints.push({
             type: "grain", angle: Math.random() * Math.PI * 2,
-            dist: Math.random() * 0.9, size: 1 + Math.random() * 2,
+            dist: Math.random() * 0.75, size: 1 + Math.random() * 2,
             alpha: 0.2 + Math.random() * 0.3
         });
     }
     for (var i = 0; i < 35; i++) {
         stoneTexturePhase2.push({
             type: "burn", angle: Math.random() * Math.PI * 2,
-            dist: Math.random() * 0.85, size: 4 + Math.random() * 8,
+            dist: Math.random() * 0.7, size: 4 + Math.random() * 8,
             alpha: 0.3 + Math.random() * 0.4
         });
     }
@@ -120,14 +125,14 @@ function generateStoneTextures() {
         stoneTexturePhase2.push({
             type: "crack",
             a1: Math.random() * Math.PI * 2, a2: Math.random() * Math.PI * 2, a3: Math.random() * Math.PI * 2,
-            r1: 0.1 + Math.random() * 0.2, r2: 0.5 + Math.random() * 0.2, r3: 0.75 + Math.random() * 0.2,
+            r1: 0.1 + Math.random() * 0.2, r2: 0.5 + Math.random() * 0.15, r3: 0.7 + Math.random() * 0.15,
             w: 1 + Math.random() * 2, alpha: 0.6 + Math.random() * 0.3
         });
     }
     for (var i = 0; i < 20; i++) {
         stoneTexturePhase2.push({
             type: "glow", angle: Math.random() * Math.PI * 2,
-            dist: 0.2 + Math.random() * 0.6, size: 3 + Math.random() * 6,
+            dist: 0.2 + Math.random() * 0.5, size: 3 + Math.random() * 6,
             alpha: 0.3 + Math.random() * 0.4
         });
     }
@@ -233,11 +238,11 @@ function _startLivingStoneFightInternal() {
     var overlay = document.getElementById("arenaOverlay");
     if (overlay) overlay.style.display = "flex";
     var bossNameEl = document.getElementById("arenaBossName");
-    if (bossNameEl) bossNameEl.innerText = "\uD83E\uDEA8 ЖИВОЙ КАМЕНЬ";
+    if (bossNameEl) bossNameEl.innerText = "ЖИВОЙ КАМЕНЬ";
     var arenaHpEl = document.getElementById("arenaHP");
     if (arenaHpEl) arenaHpEl.innerText = livingStonePlayerHp;
     var timerEl = document.getElementById("arenaTimer");
-    if (timerEl) timerEl.innerText = "\u221E";
+    if (timerEl) timerEl.innerText = "∞";
     
     if (typeof initArena === 'function') initArena();
     if (typeof canvas === 'undefined' || !canvas) return;
@@ -1058,7 +1063,15 @@ function updateFinalScene() {
         }
     } else if (finalScenePhase === "blackhole_appear") {
         if (!finalBlackHole) {
-            finalBlackHole = { x: livingStonePlayer.x, y: livingStonePlayer.y, radius: 5, maxRadius: 80, progress: 0 };
+            // ★ ДЫРА ПОЯВЛЯЕТСЯ РЯДОМ С СЕРДЕЧКОМ ★
+            var bhSide = Math.random() > 0.5 ? 1 : -1;
+            finalBlackHole = {
+                x: livingStonePlayer.x + bhSide * 70,
+                y: livingStonePlayer.y + (Math.random() - 0.5) * 40,
+                radius: 5,
+                maxRadius: 80,
+                progress: 0
+            };
             if (typeof playArenaSound === 'function') {
                 playArenaSound(60, 'sawtooth', 1.5, 0.3);
                 setTimeout(function() { playArenaSound(45, 'sawtooth', 1.2, 0.25); }, 300);
@@ -1074,7 +1087,8 @@ function updateFinalScene() {
             var dy = finalBlackHole.y - livingStonePlayer.y;
             var dist = Math.sqrt(dx * dx + dy * dy);
             if (dist > 5) {
-                var pullStrength = 0.5 + finalSceneTimer * 0.008;
+                // ★ СИЛЬНОЕ ПРИТЯЖЕНИЕ ★
+                var pullStrength = 1.5 + finalSceneTimer * 0.02;
                 livingStonePlayer.x += (dx / dist) * pullStrength;
                 livingStonePlayer.y += (dy / dist) * pullStrength;
             }
@@ -2077,10 +2091,12 @@ function drawBossArm() {
     ctx.restore();
 }
 
+// ★★★ РЕНДЕР БОССА С ЯРКИМ КОНТУРОМ И РАЗМЕРОМ x1.5 ★★★
 function drawLivingStoneBoss() {
     var b = livingStoneBoss;
     var pulse = 1.0 + Math.sin(performance.now() / 300) * 0.05;
-    var size = b.size * pulse;
+    // ★ РАЗМЕР x1.5 ДЛЯ ВИДИМОСТИ ★
+    var size = b.size * pulse * 1.5;
     var isPhase2 = (livingStoneState === "phase2");
     var isQTEPunch = (livingStoneState === "qte_punch");
     var isFinal = finalSceneActive;
@@ -2100,11 +2116,13 @@ function drawLivingStoneBoss() {
     ctx.translate(b.x + bossShakeX, b.y + bossShakeY);
     ctx.rotate(Math.sin(b.rotation) * 0.05);
     
+    // Тень
     ctx.fillStyle = "rgba(0,0,0,0.4)";
     ctx.beginPath();
-    ctx.arc(0, 0, size * 1.35, 0, Math.PI * 2);
+    ctx.arc(0, 0, size * 1.25, 0, Math.PI * 2);
     ctx.fill();
     
+    // Градиент
     var grad = ctx.createRadialGradient(-size * 0.3, -size * 0.3, 1, 0, 0, size * 1.5);
     if (livingStoneBossFlash > 0) {
         grad.addColorStop(0, "#ffffff");
@@ -2114,54 +2132,64 @@ function drawLivingStoneBoss() {
         grad.addColorStop(0.5, "#8B4a30");
         grad.addColorStop(1, "#3a1808");
     } else {
-        grad.addColorStop(0, "#b89878");
-        grad.addColorStop(0.5, "#8B7355");
-        grad.addColorStop(1, "#4a3828");
+        grad.addColorStop(0, "#c8a888");
+        grad.addColorStop(0.5, "#9B8365");
+        grad.addColorStop(1, "#5a4838");
     }
     ctx.fillStyle = grad;
     
+    // ★ ФОРМА — ВОСЬМИУГОЛЬНИК (упрощена для видимости) ★
     var sides = 8;
     ctx.beginPath();
     for (var i = 0; i < sides; i++) {
-        var ang = (i / sides) * Math.PI * 2;
-        var rad = size * (0.9 + Math.sin(i * 1.7) * 0.15);
+        var ang = (i / sides) * Math.PI * 2 - Math.PI / 2;
+        var rad = size * 0.95;
         var px = Math.cos(ang) * rad;
         var py = Math.sin(ang) * rad;
         if (i === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
     }
     ctx.closePath();
-    ctx.save();
-    ctx.clip();
+    ctx.fill();
     
+    // ★ ТЕКСТУРА БЕЗ CLIP — ТОЧКИ РИСУЮТСЯ ВНУТРИ ★
     var texPoints = (isPhase2 || isFinal) ? stoneTexturePhase2 : stoneTexturePoints;
     for (var i = 0; i < texPoints.length; i++) {
         var tp = texPoints[i];
         if (tp.type === "spot" || tp.type === "grain" || tp.type === "burn" || tp.type === "glow") {
-            var x = Math.cos(tp.angle) * size * tp.dist;
-            var y = Math.sin(tp.angle) * size * tp.dist;
+            var x = Math.cos(tp.angle) * size * tp.dist * 0.7;
+            var y = Math.sin(tp.angle) * size * tp.dist * 0.7;
             if (tp.type === "burn") ctx.fillStyle = "rgba(20, 8, 3, " + tp.alpha + ")";
             else if (tp.type === "glow") ctx.fillStyle = "rgba(255, 100, 20, " + tp.alpha + ")";
             else ctx.fillStyle = "rgba(60, 40, 25, " + tp.alpha + ")";
             ctx.beginPath();
-            ctx.arc(x, y, tp.size * (size / 40), 0, Math.PI * 2);
+            ctx.arc(x, y, tp.size * (size / 60), 0, Math.PI * 2);
             ctx.fill();
         } else if (tp.type === "vein" || tp.type === "crack") {
             ctx.strokeStyle = (tp.type === "crack") ? "rgba(20, 8, 3, " + tp.alpha + ")" : "rgba(60, 40, 25, " + tp.alpha + ")";
             ctx.lineWidth = tp.w;
             ctx.beginPath();
-            ctx.moveTo(Math.cos(tp.a1) * size * tp.r1, Math.sin(tp.a1) * size * tp.r1);
-            ctx.lineTo(Math.cos(tp.a2) * size * tp.r2, Math.sin(tp.a2) * size * tp.r2);
-            ctx.lineTo(Math.cos(tp.a3) * size * tp.r3, Math.sin(tp.a3) * size * tp.r3);
+            ctx.moveTo(Math.cos(tp.a1) * size * tp.r1 * 0.7, Math.sin(tp.a1) * size * tp.r1 * 0.7);
+            ctx.lineTo(Math.cos(tp.a2) * size * tp.r2 * 0.7, Math.sin(tp.a2) * size * tp.r2 * 0.7);
+            ctx.lineTo(Math.cos(tp.a3) * size * tp.r3 * 0.7, Math.sin(tp.a3) * size * tp.r3 * 0.7);
             ctx.stroke();
         }
     }
-    ctx.restore();
     
+    // ★ ЯРКИЙ ВНЕШНИЙ КОНТУР (белый с оранжевым свечением) ★
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 5;
+    ctx.shadowColor = "#ff8800";
+    ctx.shadowBlur = 25;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    
+    // Тёмный контур внутри
     ctx.strokeStyle = "#2a1810";
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 3;
     ctx.stroke();
     
+    // Трещины в фазе 2 / финале
     if ((isPhase2 || isFinal) && finalCracksLevel > 0) {
         ctx.strokeStyle = "#1a0808";
         ctx.lineWidth = 3;
@@ -2188,6 +2216,7 @@ function drawLivingStoneBoss() {
         ctx.shadowBlur = 0;
     }
     
+    // Трещины от QTE
     if (isQTEPunch && damage > 0) {
         var dCracks = Math.floor(damage * 12);
         ctx.strokeStyle = "rgba(255, 100, 0, " + (0.6 + damage * 0.4) + ")";
@@ -2208,6 +2237,7 @@ function drawLivingStoneBoss() {
         ctx.shadowBlur = 0;
     }
     
+    // Глаза
     var eyeColor = (isPhase2 || isFinal) ? "#ff0000" : "#ffaa00";
     if (isQTEPunch) eyeColor = "#ff0000";
     ctx.fillStyle = eyeColor;
@@ -2231,6 +2261,7 @@ function drawLivingStoneBoss() {
     ctx.arc(eyeOX + pupOff, eyeOY, eyeS * 0.4, 0, Math.PI * 2);
     ctx.fill();
     
+    // Брови
     if (isPhase2 || isFinal) {
         ctx.strokeStyle = "#1a0808";
         ctx.lineWidth = 8;
@@ -2251,17 +2282,18 @@ function drawLivingStoneBoss() {
         ctx.shadowBlur = 0;
     }
     
+    // ★ РОТ ПРИ СМЕХЕ — В 1.5 РАЗА МЕНЬШЕ ★
     if (isFinal && finalScenePhase === "laugh") {
         ctx.fillStyle = "#1a0808";
         ctx.beginPath();
-        var laughW = size * 0.9 * (1 + Math.abs(Math.sin(finalSceneTimer / 8)) * 0.2);
-        var laughH = size * 0.5 * (1 + Math.abs(Math.sin(finalSceneTimer / 8)) * 0.3);
+        var laughW = size * 0.6 * (1 + Math.abs(Math.sin(finalSceneTimer / 8)) * 0.15);
+        var laughH = size * 0.33 * (1 + Math.abs(Math.sin(finalSceneTimer / 8)) * 0.2);
         ctx.ellipse(0, size * 0.3, laughW, laughH, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = "#ffffff";
         for (var i = 0; i < 5; i++) {
             var tx = -laughW + (i + 0.5) * (laughW * 2 / 5);
-            ctx.fillRect(tx - 2, size * 0.3 - laughH + 2, 4, 6);
+            ctx.fillRect(tx - 2, size * 0.3 - laughH + 2, 4, 5);
         }
     }
     
@@ -2475,4 +2507,4 @@ function drawQTEOverlay() {
 window.startLivingStoneFight = startLivingStoneFight;
 window.stopLivingStoneFight = stopLivingStoneFight;
 window.preloadQTEMusic = preloadQTEMusic;
-console.log("[LIVING STONE] Модуль загружен v5.3 (clean)");
+console.log("[LIVING STONE] Модуль загружен v5.4");
