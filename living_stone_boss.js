@@ -1,8 +1,9 @@
 // ============================================================
-// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v5.6
+// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v5.7
 // + падающие капсулы модификаций (5 типов, 7 сек)
+// + ФИКС: самонаведение (lsAutoFireSkip)
+// + ФИКС: отражение — разворот атаки в босса
 // + защита от повторного запуска (если 200 уже побеждён)
-// + гарантированное добавление 200 в defeatedBosses
 // ============================================================
 
 let livingStoneActive = false;
@@ -73,15 +74,15 @@ let finalTexts = [];
 let finalTextTimer = 0;
 let finalSceneEndTimer = 0;
 
-// ★ НОВОЕ: МОДИФИКАЦИИ ★
-let lsModCapsules = [];         // падающие капсулы
-let lsModSpawnTimer = 0;        // таймер спавна (в кадрах)
-let lsModSpawnInterval = 25 * 60; // 25 секунд при 60fps
-let lsActiveMod = null;         // { type, name, timer, duration }
-let lsModDuration = 7 * 60;     // 7 секунд при 60fps
-let lsPlayerVelocity = { x: 0, y: 0 }; // для отражения и щита
+// ★ МОДИФИКАЦИИ ★
+let lsModCapsules = [];
+let lsModSpawnTimer = 0;
+let lsModSpawnInterval = 25 * 60;
+let lsActiveMod = null;
+let lsModDuration = 7 * 60;
+let lsPlayerVelocity = { x: 0, y: 0 };
+let lsAutoFireSkip = 0;
 
-// Определения модификаций
 const LS_MODS = [
     { id: 1, name: "ДРОБОВИК", icon: "🎯", color: "#ff8800", desc: "3 пульки веером!" },
     { id: 2, name: "САМОНАВЕДЕНИЕ", icon: "🧲", color: "#00d4ff", desc: "Пульки летят в босса" },
@@ -250,6 +251,7 @@ function _startLivingStoneFightInternal() {
     lsModSpawnTimer = 0;
     lsActiveMod = null;
     lsPlayerVelocity = { x: 0, y: 0 };
+    lsAutoFireSkip = 0;
     initLivingStoneBgParticles();
     preloadQTEMusic();
     if (typeof stopAllMusic === 'function') stopAllMusic();
@@ -296,7 +298,7 @@ function stopLivingStoneFight() {
     qteBullets = []; qtePunches = []; qtePlayerTrail = []; qteCinematicTexts = [];
     qteShockwaves = []; qteLightningBolts = []; qteSlashMarks = []; qteSparks = []; qteFlashBursts = [];
     chainExplosionsQueue = []; activeGravityWell = false;
-    lsModCapsules = []; lsActiveMod = null;  // ★ очищаем моды ★
+    lsModCapsules = []; lsActiveMod = null;
     stopQTEMusic();
     if (qteTimerRef) { clearTimeout(qteTimerRef); qteTimerRef = null; }
     if (qteStartDelayTimer) { clearTimeout(qteStartDelayTimer); qteStartDelayTimer = null; }
@@ -476,22 +478,19 @@ function spawnMegaImpact(x, y) {
     livingStoneScreenFlashColor = "#ffffff";
 }
 
-// ========== ★ СТРЕЛЬБА С МОДИФИКАЦИЯМИ ★ ==========
+// ========== СТРЕЛЬБА С МОДИФИКАЦИЯМИ ==========
 function livingStoneShoot() {
     var baseSpeed = 7 * lsSpeedMult;
     var bulletSize = 4;
     var bulletDamage = 250;
     var modId = lsActiveMod ? lsActiveMod.type : 0;
 
-    // ★ МОД 5: размер пульки +25% ★
     if (modId === 5) bulletSize *= 1.25;
 
     // ★ МОД 2: стреляет реже (пропускаем каждый 2-й выстрел) ★
     if (modId === 2) {
-        // счётчик пропусков - каждый 2-й выстрел скипается
-        if (!livingStone._autoFireSkip) livingStone._autoFireSkip = 0;
-        livingStone._autoFireSkip++;
-        if (livingStone._autoFireSkip % 2 !== 0) return;
+        lsAutoFireSkip++;
+        if (lsAutoFireSkip % 2 !== 0) return;
     }
 
     var bulletsToSpawn = [];
@@ -499,10 +498,9 @@ function livingStoneShoot() {
     var startY = livingStonePlayer.y - 8;
 
     if (modId === 1) {
-        // ★ МОД 1: 3 пульки веером (дробовик) ★
-        var spreadAngles = [-0.35, 0, 0.35]; // радианы
+        var spreadAngles = [-0.35, 0, 0.35];
         for (var i = 0; i < 3; i++) {
-            var ang = -Math.PI / 2 + spreadAngles[i]; // базово вверх (-PI/2)
+            var ang = -Math.PI / 2 + spreadAngles[i];
             var vx = Math.cos(ang) * baseSpeed;
             var vy = Math.sin(ang) * baseSpeed;
             bulletsToSpawn.push({
@@ -511,7 +509,6 @@ function livingStoneShoot() {
             });
         }
     } else if (modId === 2) {
-        // ★ МОД 2: самонаведение ★
         var dx = livingStoneBoss.x - startX;
         var dy = livingStoneBoss.y - startY;
         var len = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -522,7 +519,6 @@ function livingStoneShoot() {
             size: bulletSize, damage: bulletDamage, life: 180, homing: true, homingSpeed: 0.35, reflect: false
         });
     } else {
-        // Обычная пулька
         bulletsToSpawn.push({
             x: startX, y: startY, vx: 0, vy: -baseSpeed,
             size: bulletSize, damage: bulletDamage, life: 120, homing: false, reflect: false
@@ -745,9 +741,7 @@ function updateLivingStonePlayer() {
     if (typeof keys === 'undefined') return;
     var mx = 0, my = 0;
     var speed = ((livingStoneState === "phase2") ? 4.5 : 3.0) * lsSpeedMult;
-    // ★ МОД 3: -15% скорости при щите ★
     if (lsActiveMod && lsActiveMod.type === 3) speed *= 0.85;
-    // ★ МОД 5: +35% скорости ★
     if (lsActiveMod && lsActiveMod.type === 5) speed *= 1.35;
     if (lsTouchActive) {
         var tx = lsTouchX - livingStonePlayer.x, ty = lsTouchY - livingStonePlayer.y;
@@ -768,7 +762,6 @@ function updateLivingStonePlayer() {
     livingStonePlayer.y += my * speed;
     livingStonePlayer.x = Math.max(16, Math.min(384, livingStonePlayer.x));
     livingStonePlayer.y = Math.max(80, Math.min(484, livingStonePlayer.y));
-    // ★ Сохраняем скорость для отражения ★
     lsPlayerVelocity.x = livingStonePlayer.x - oldX;
     lsPlayerVelocity.y = livingStonePlayer.y - oldY;
 }
@@ -785,14 +778,12 @@ function updateLivingStoneBoss() {
 function updateLivingStoneBullets() {
     for (var i = livingStoneBullets.length - 1; i >= 0; i--) {
         var b = livingStoneBullets[i];
-        // ★ МОД 2: самонаведение ★
         if (b.homing && b.homingSpeed) {
             var dxH = livingStoneBoss.x - b.x;
             var dyH = livingStoneBoss.y - b.y;
             var lenH = Math.sqrt(dxH * dxH + dyH * dyH) || 1;
             b.vx += (dxH / lenH) * b.homingSpeed;
             b.vy += (dyH / lenH) * b.homingSpeed;
-            // ограничиваем скорость
             var maxSpd = 9 * lsSpeedMult;
             var curSpd = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
             if (curSpd > maxSpd) {
@@ -802,12 +793,9 @@ function updateLivingStoneBullets() {
         }
         b.x += b.vx; b.y += b.vy; b.life--;
 
-        // ★ МОД 4: отражение — если пулька попала в босса, но это отражённая пулька, урон уже был ★
-        // (обычные пульки игрока)
         var dx = b.x - livingStoneBoss.x, dy = b.y - livingStoneBoss.y;
         if (Math.sqrt(dx * dx + dy * dy) < livingStoneBoss.size + b.size) {
             var dmg = b.damage;
-            // ★ МОД 5: +25% урона ★
             if (lsActiveMod && lsActiveMod.type === 5) dmg = Math.floor(dmg * 1.25);
             damageLivingStone(dmg);
             spawnLivingStoneParticles(b.x, b.y, 6, "#ffdd00", 3);
@@ -827,7 +815,7 @@ function damageLivingStone(dmg) {
     if (livingStoneBossHp <= 0 && livingStoneState === "phase2") { livingStoneBossHp = 0; livingStoneVictory(); }
 }
 
-// ========== ★ МОДИФИКАЦИИ ★ ==========
+// ========== МОДИФИКАЦИИ ==========
 function spawnLSModCapsule() {
     if (!livingStoneActive) return;
     if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
@@ -855,25 +843,21 @@ function updateLSModCapsules() {
         c.wobble += 0.1;
         c.life--;
 
-        // Столкновение с игроком
         var dx = c.x - livingStonePlayer.x;
         var dy = c.y - livingStonePlayer.y;
         var dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < c.size + 12) {
-            // ★ ПОДБИРАЕМ МОД ★
             activateLSMod(c.mod);
             spawnLivingStoneParticles(c.x, c.y, 20, c.mod.color, 5);
             lsModCapsules.splice(i, 1);
             continue;
         }
 
-        // Удаляем если упала ниже пола или закончилась жизнь
         if (c.y > 520 || c.life <= 0) {
             lsModCapsules.splice(i, 1);
         }
     }
 
-    // ★ ТАЙМЕР СПАВНА ★
     lsModSpawnTimer++;
     if (lsModSpawnTimer >= lsModSpawnInterval) {
         lsModSpawnTimer = 0;
@@ -1338,6 +1322,35 @@ function updateFinalScene() {
 function updateLivingStoneAttacks() {
     for (var i = livingStoneAttacks.length - 1; i >= 0; i--) {
         var a = livingStoneAttacks[i];
+
+        // ★ ОТРАЖЁННАЯ АТАКА — летит в босса ★
+        if (a.type === "reflected") {
+            a.x += a.vx;
+            a.y += a.vy;
+            a.life--;
+            var dxB = a.x - livingStoneBoss.x;
+            var dyB = a.y - livingStoneBoss.y;
+            var distB = Math.sqrt(dxB * dxB + dyB * dyB);
+            if (distB < livingStoneBoss.size + (a.size || a.radius || 10)) {
+                var reflectDmg = a.reflectedDamage || a.damage || 5;
+                damageLivingStone(reflectDmg);
+                spawnLivingStoneParticles(a.x, a.y, 25, "#00aaff", 8);
+                spawnLivingStoneParticles(a.x, a.y, 15, "#ffffff", 6);
+                spawnLivingStoneText(livingStoneBoss.x, livingStoneBoss.y - 50, "-" + reflectDmg + " ОТРАЖЕНО!", "#00aaff", 70);
+                livingStoneShake = 18;
+                if (typeof playArenaSound === 'function') {
+                    playArenaSound(400, 'square', 0.2, 0.25);
+                    setTimeout(function() { playArenaSound(200, 'sawtooth', 0.3, 0.2); }, 100);
+                }
+                livingStoneAttacks.splice(i, 1);
+                continue;
+            }
+            if (a.life <= 0 || a.x < -100 || a.x > 500 || a.y < -100 || a.y > 600) {
+                livingStoneAttacks.splice(i, 1);
+            }
+            continue;
+        }
+
         if (a.type === "rock") {
             a.x += a.vx; a.y += a.vy; a.rotation += a.rotSpeed;
             if (a.y > 520 || a.y < -150 || a.x < -100 || a.x > 500) livingStoneAttacks.splice(i, 1);
@@ -1420,12 +1433,12 @@ function checkLivingStoneCollisions() {
     if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
     if (finalSceneActive) return;
     var px = livingStonePlayer.x, py = livingStonePlayer.y, ph = 6;
-    // ★ МОД 4: синий щит впереди (смещение вверх от сердечка) ★
     var shieldActive = lsActiveMod && lsActiveMod.type === 4;
     var shieldX = px, shieldY = py - 22, shieldR = 16;
 
     for (var i = 0; i < livingStoneAttacks.length; i++) {
         var a = livingStoneAttacks[i];
+        if (a.type === "reflected") continue; // отражённые не сталкиваются с игроком
         var hit = false;
         if (a.type === "rock" || a.type === "homing" || a.type === "orb" || a.type === "falling_star") {
             var dx = px - a.x, dy = py - a.y;
@@ -1454,29 +1467,33 @@ function checkLivingStoneCollisions() {
             var shieldDist = Math.sqrt(shieldDx * shieldDx + shieldDy * shieldDy);
             var aSize = a.size || a.radius || 15;
             if (shieldDist < shieldR + aSize) {
-                // 75% шанс отразить
                 if (Math.random() < 0.75) {
-                    // Отражение: атака летит в босса
-                    var dmgToPlayer = a.damage || 5;
-                    // ★ Урон по боссу = урон по игроку ★
-                    damageLivingStone(dmgToPlayer);
-                    spawnLivingStoneParticles(a.x || px, a.y || py, 15, "#00aaff", 6);
-                    // Убираем атаку
-                    if (a.type !== "ring" && a.type !== "laser" && a.type !== "gravity_well") {
-                        livingStoneAttacks.splice(i, 1);
-                    } else if (a.type === "ring" || a.type === "laser") {
-                        // для ринга и лазера просто уничтожаем
-                        livingStoneAttacks.splice(i, 1);
-                    }
+                    // ★ ОТРАЖЕНИЕ: разворачиваем атаку в сторону босса ★
+                    var toBossX = livingStoneBoss.x - (a.x || px);
+                    var toBossY = livingStoneBoss.y - (a.y || py);
+                    var toBossLen = Math.sqrt(toBossX * toBossX + toBossY * toBossY) || 1;
+                    var baseSpeed = 6 * lsSpeedMult;
+
+                    a.type = "reflected";
+                    a.reflectedDamage = a.damage || 5;
+                    a.vx = (toBossX / toBossLen) * baseSpeed;
+                    a.vy = (toBossY / toBossLen) * baseSpeed;
+                    a.spd = a.vx;
+                    a.spdY = a.vy;
+                    if (a.size) a.size = Math.max(6, a.size * 0.8);
+                    if (a.radius) a.radius = Math.max(6, a.radius * 0.8);
+                    a.life = 200;
+
+                    spawnLivingStoneParticles(a.x || px, a.y || py, 20, "#00aaff", 6);
+                    spawnLivingStoneParticles(a.x || px, a.y || py, 10, "#ffffff", 4);
                     if (typeof playArenaSound === 'function') {
                         playArenaSound(1200, 'square', 0.1, 0.15);
                         setTimeout(function() { playArenaSound(800, 'square', 0.15, 0.12); }, 80);
                     }
-                    spawnLivingStoneText(shieldX, shieldY - 20, "ОТРАЖЕНО!", "#00aaff", 50);
+                    spawnLivingStoneText(shieldX, shieldY - 25, "ОТРАЖЕНО!", "#00aaff", 60);
                     continue;
                 } else {
-                    // 25% - пробивает
-                    spawnLivingStoneText(shieldX, shieldY - 20, "ПРОБИТ!", "#ff3333", 50);
+                    spawnLivingStoneText(shieldX, shieldY - 25, "ПРОБИТ!", "#ff3333", 60);
                 }
             }
         }
@@ -1505,9 +1522,7 @@ function triggerChainExplosion(x, y, damage) {
 
 function damageLivingStonePlayer(dmg) {
     if (livingStoneInvulnTimer > 0) return;
-    // ★ МОД 3: щит -50% урона ★
     if (lsActiveMod && lsActiveMod.type === 3) dmg = Math.floor(dmg * 0.5);
-    // ★ МОД 5: -20% получаемого урона ★
     if (lsActiveMod && lsActiveMod.type === 5) dmg = Math.floor(dmg * 0.8);
     livingStonePlayerHp -= dmg;
     livingStoneInvulnTimer = 50;
@@ -1641,7 +1656,6 @@ function livingStoneRenderLoop() {
     updateChainExplosions();
     if (finalSceneActive) updateFinalScene();
     
-    // ★ ОБНОВЛЕНИЕ МОДИФИКАЦИЙ ★
     if (!finalSceneActive && (livingStoneState === "phase1" || livingStoneState === "phase2")) {
         updateLSModCapsules();
     }
@@ -1650,7 +1664,6 @@ function livingStoneRenderLoop() {
     if (!finalSceneActive && (livingStoneState === "phase1" || livingStoneState === "phase2")) {
         livingStoneShootTimer++;
         var shootRate = Math.max(2, Math.floor(6 / lsSpeedMult));
-        // ★ МОД 2: стреляем реже (интервал ×2) ★
         if (lsActiveMod && lsActiveMod.type === 2) shootRate *= 2;
         if (livingStoneShootTimer >= shootRate) { livingStoneShootTimer = 0; livingStoneShoot(); }
         livingStoneAttackTimer++;
@@ -1762,14 +1775,13 @@ function livingStoneRenderLoop() {
     ctx.strokeRect(2, 2, 396, 496);
     ctx.shadowBlur = 0;
     
-    // ★ РЕНДЕР ПАДАЮЩИХ КАПСУЛ ★
+    // Капсулы модификаций
     for (var i = 0; i < lsModCapsules.length; i++) {
         var c = lsModCapsules[i];
         ctx.save();
         ctx.translate(c.x, c.y);
         ctx.rotate(Math.sin(c.wobble) * 0.15);
         
-        // Свечение
         var glowGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, c.size * 2);
         glowGrad.addColorStop(0, c.mod.color + "cc");
         glowGrad.addColorStop(0.5, c.mod.color + "66");
@@ -1779,7 +1791,6 @@ function livingStoneRenderLoop() {
         ctx.arc(0, 0, c.size * 2, 0, Math.PI * 2);
         ctx.fill();
         
-        // Капсула (шестиугольник)
         ctx.shadowColor = c.mod.color;
         ctx.shadowBlur = 20;
         ctx.fillStyle = c.mod.color;
@@ -1794,13 +1805,11 @@ function livingStoneRenderLoop() {
         ctx.closePath();
         ctx.fill();
         
-        // Внутренний круг
         ctx.fillStyle = "rgba(0,0,0,0.5)";
         ctx.beginPath();
         ctx.arc(0, 0, c.size * 0.65, 0, Math.PI * 2);
         ctx.fill();
         
-        // Иконка
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold " + (c.size * 1.1) + "px sans-serif";
         ctx.textAlign = "center";
@@ -1811,7 +1820,7 @@ function livingStoneRenderLoop() {
         ctx.restore();
     }
     
-    // Черная дыра в финале
+    // Черная дыра
     if (finalSceneActive && finalBlackHole && finalScenePhase !== "laugh" && finalScenePhase !== "done") {
         ctx.save();
         var bh = finalBlackHole;
@@ -1855,6 +1864,39 @@ function livingStoneRenderLoop() {
     // Атаки
     for (var i = 0; i < livingStoneAttacks.length; i++) {
         var a = livingStoneAttacks[i];
+
+        // ★ РЕНДЕР ОТРАЖЁННОЙ АТАКИ ★
+        if (a.type === "reflected") {
+            ctx.save();
+            var size = a.size || a.radius || 10;
+            var rg = ctx.createRadialGradient(a.x, a.y, 1, a.x, a.y, size * 2.5);
+            rg.addColorStop(0, "rgba(200, 240, 255, 0.9)");
+            rg.addColorStop(0.4, "rgba(0, 170, 255, 0.7)");
+            rg.addColorStop(1, "rgba(0, 100, 200, 0)");
+            ctx.fillStyle = rg;
+            ctx.beginPath();
+            ctx.arc(a.x, a.y, size * 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowColor = "#00d4ff";
+            ctx.shadowBlur = 25;
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(a.x, a.y, size * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+            var rot = performance.now() / 100;
+            ctx.strokeStyle = "#00d4ff";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (var k = 0; k < 3; k++) {
+                var an1 = rot + (k / 3) * Math.PI * 2;
+                var an2 = an1 + Math.PI * 0.6;
+                ctx.arc(a.x, a.y, size * 1.2, an1, an2);
+            }
+            ctx.stroke();
+            ctx.restore();
+            continue;
+        }
+
         if (a.type === "rock") {
             ctx.save();
             ctx.translate(a.x, a.y);
@@ -2075,7 +2117,7 @@ function livingStoneRenderLoop() {
         }
     }
     
-    // ★ РЕНДЕР ПУЛЕК ИГРОКА (с модификациями) ★
+    // Пульки игрока
     for (var i = 0; i < livingStoneBullets.length; i++) {
         var b = livingStoneBullets[i];
         ctx.save();
@@ -2106,7 +2148,7 @@ function livingStoneRenderLoop() {
         drawLivingStonePlayer();
     }
     
-    // ★ РЕНДЕР СИНЕГО ЩИТА ВПЕРЁДИ (мод 4) ★
+    // Синий щит (мод 4)
     if (lsActiveMod && lsActiveMod.type === 4 && (livingStoneState === "phase1" || livingStoneState === "phase2") && !finalSceneActive) {
         ctx.save();
         var shieldPulse = 1 + Math.sin(performance.now() / 150) * 0.15;
@@ -2128,7 +2170,6 @@ function livingStoneRenderLoop() {
         ctx.beginPath();
         ctx.arc(shieldX, shieldY, 16, 0, Math.PI * 2);
         ctx.stroke();
-        // Вращающиеся сегменты
         var rot = performance.now() / 500;
         for (var k = 0; k < 6; k++) {
             var an = rot + (k / 6) * Math.PI * 2;
@@ -2379,7 +2420,6 @@ function livingStoneRenderLoop() {
         drawQTEOverlay();
     }
     if (!isQTE && !finalSceneActive) drawLivingStoneHpBars();
-    // ★ РЕНДЕР АКТИВНОЙ МОДИФИКАЦИИ ★
     drawLSActiveModUI();
     if (lsMobileMode) {
         ctx.save();
@@ -2393,7 +2433,7 @@ function livingStoneRenderLoop() {
     livingStoneAnimFrame = requestAnimationFrame(livingStoneRenderLoop);
 }
 
-// ★ UI АКТИВНОЙ МОДИФИКАЦИИ ★
+// UI активной модификации
 function drawLSActiveModUI() {
     if (!lsActiveMod) return;
     ctx.save();
@@ -2401,33 +2441,27 @@ function drawLSActiveModUI() {
     var x = 200 - w / 2;
     var y = 458;
     var progress = lsActiveMod.timer / lsActiveMod.duration;
-    // Фон
     ctx.fillStyle = "rgba(0,0,0,0.75)";
     ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
-    // Рамка
     ctx.strokeStyle = lsActiveMod.color;
     ctx.lineWidth = 2;
     ctx.shadowColor = lsActiveMod.color;
     ctx.shadowBlur = 12;
     ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
     ctx.shadowBlur = 0;
-    // Полоса таймера
     ctx.fillStyle = lsActiveMod.color + "44";
     ctx.fillRect(x, y, w, h);
     ctx.fillStyle = lsActiveMod.color + "aa";
     ctx.fillRect(x, y, w * progress, h);
-    // Иконка
     ctx.font = "bold 22px sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#ffffff";
     ctx.fillText(lsActiveMod.icon, x + 8, y + h / 2);
-    // Название
     ctx.font = "bold 14px monospace";
     ctx.textAlign = "left";
     ctx.fillStyle = "#ffffff";
     ctx.fillText(lsActiveMod.name, x + 38, y + h / 2 - 5);
-    // Секунды
     var secLeft = (lsActiveMod.timer / 60).toFixed(1);
     ctx.font = "bold 11px monospace";
     ctx.fillStyle = lsActiveMod.color;
@@ -2868,4 +2902,4 @@ function drawQTEOverlay() {
 window.startLivingStoneFight = startLivingStoneFight;
 window.stopLivingStoneFight = stopLivingStoneFight;
 window.preloadQTEMusic = preloadQTEMusic;
-console.log("[LIVING STONE] Модуль загружен v5.6 — с модификациями");
+console.log("[LIVING STONE] Модуль загружен v5.7 — с модификациями и фиксами");
