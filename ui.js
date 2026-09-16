@@ -78,7 +78,6 @@ function renderTeam() {
         let mStars = "";
         for (let i = 1; i <= 5; i++) mStars += (i <= lvl ? "★" : "☆");
         let masteryTeam = '<div style="font-size:9px;color:' + (lvl >= 5 ? "#ffd700" : lvl >= 4 ? "#e056fd" : lvl >= 3 ? "#9b59b6" : lvl >= 2 ? "#3498db" : "#95a5a6") + ';font-weight:bold;margin-top:2px;">' + mStars + '</div>';
-        // ★ ОПЫТ В ОТРЯДЕ ★
         let expTeam = '';
         if (lvl < 5 && typeof getMasteryExpNeeded === 'function') {
             let expNeeded = getMasteryExpNeeded(cd, lvl + 1);
@@ -237,7 +236,6 @@ function renderUpgrades() { let h = ""; for (let [k, u] of Object.entries(upgrad
 function renderBook() { let all = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))); let ds = new Set(discoveredCards); document.getElementById("bookList").innerHTML = all.map(t => { let kn = ds.has(t.name); let s = cardStats[t.rarity]; let clickAction = (moderUnlocked && mode === 'moder') ? 'bookGet(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')' : 'bookInfoCard(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')'; let superPreview = ''; if (t.superAbility && kn) { superPreview = '<div style="font-size:8px;color:#ffd700;margin-top:2px;">' + t.superAbility.name + '</div>'; } return '<div class="book-item ' + (kn ? '' : 'unknown-card') + '" onclick="' + clickAction + '"><div class="name">' + (kn ? t.name : '???') + '</div><div class="rarity-tag ' + rarityColors[t.rarity] + '">' + t.rarity + '</div><div>💪' + (t.damage ?? s.damage) + ' ❤️' + (t.hp ?? s.hp) + ' ⚡' + (t.speed ?? s.speed ?? '?') + '</div>' + superPreview + '</div>'; }).join(''); document.getElementById("discoveredCount").innerText = discoveredCards.length; document.getElementById("totalTemplatesCount").innerText = all.length; }
 
 function bookInfoCard(rarity, name) { let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === name && t.rarity === rarity); if (!t) return; let s = cardStats[rarity]; let info = '📄 ' + t.name + '\n\n'; info += '⭐ Редкость: ' + rarity + '\n'; info += '🌌 Вселенная: ' + (t.universe || 'Неизвестно') + '\n'; info += '💪 Урон: ' + (t.damage ?? s.damage) + '\n'; info += '❤️ Здоровье: ' + (t.hp ?? s.hp) + '\n'; info += '⚡ Скорость: ' + (t.speed ?? s.speed ?? '?') + '\n'; if (t.sellPrice) info += '💰 Цена продажи: ' + t.sellPrice + '⭐\n'; if (t.minRebirth) info += '🔒 Мин. ребиртх: ' + t.minRebirth + '\n'; if (t.desc) { info += '\n📝 Описание:\n' + t.desc + '\n'; } if (t.ability) { info += '\n✨ Способность (ур.4): ' + t.ability.desc + '\n'; } if (t.statusAbility) { info += '🌀 Статус-эффект (ур.3): ' + t.statusAbility.desc + '\n'; } if (t.superAbility) { info += '\n⚡ ' + t.superAbility.name + ' (ур.5)\n' + t.superAbility.desc + '\n'; } if (t.unsellable) info += '\n🔒 Не продаётся\n'; 
-    // ★ ОПЫТ ДЛЯ ПРОКАЧКИ ★
     if (typeof getMasteryExpNeeded === 'function') {
         info += '\n📊 ОПЫТ ДЛЯ МАСТЕРСТВА:\n';
         info += '• Ур.2: ' + getMasteryExpNeeded({ rarity: rarity }, 2) + '\n';
@@ -296,11 +294,76 @@ function renderEvoTab() {
     c.innerHTML = html; 
 }
 
-function renderRebirthInfo() { let req = getRebirthRequirement(); let world = getWorldForWave(highestCheckpoint); document.getElementById("rebirthInfo").innerHTML = '<div style="background:rgba(0,0,0,0.3);padding:15px;border-radius:15px;"><div>Текущий ребиртх: <b>' + rebirthCount + '</b></div><div>Множитель: <b>x' + getRebirthMult().toFixed(1) + '</b></div><div>Текущий мир: <b style="color:' + world.color + ';">' + world.name + '</b></div><div>Требуется волн: <b>' + req + '</b> (пройдено ' + highestCheckpoint + ')</div></div>'; document.getElementById("doRebirthBtn").disabled = highestCheckpoint < req; }
+// ★ НОВАЯ renderRebirthInfo ★
+function renderRebirthInfo() { 
+    let reqInfo = getRebirthRequirementInfo(); 
+    let world = getWorldForWave(highestWaveReached); 
+    let hasDefeatedBoss = canDoRebirth();
+    let nextRebirth = rebirthCount + 1;
+    
+    let html = '<div style="background:rgba(0,0,0,0.3);padding:15px;border-radius:15px;">';
+    html += '<div style="font-size:14px;line-height:1.8;">';
+    html += '<div>🔄 Текущий ребёрн: <b>' + rebirthCount + '</b></div>';
+    html += '<div>⚡ Множитель: <b>x' + getRebirthMult().toFixed(1) + '</b></div>';
+    html += '<div>🌍 Текущий мир: <b style="color:' + world.color + ';">' + world.name + '</b></div>';
+    html += '<div style="margin-top:8px;padding:8px 12px;background:rgba(0,0,0,0.4);border-radius:10px;">';
+    html += '<div>📊 <b>Достигнута волна:</b> <b style="color:#f5af19;font-size:16px;">' + highestWaveReached + '</b></div>';
+    html += '</div>';
+    html += '</div>';
+    
+    html += '<div style="margin-top:12px;padding:12px;background:' + (hasDefeatedBoss ? 'rgba(46,204,113,0.15)' : 'rgba(231,76,60,0.15)') + ';border:2px solid ' + (hasDefeatedBoss ? '#2ecc71' : '#e74c3c') + ';border-radius:12px;">';
+    html += '<div style="font-size:11px;color:#aaa;margin-bottom:6px;">ТРЕБОВАНИЕ ДЛЯ РЕБЁРНА ' + nextRebirth + ':</div>';
+    html += '<div style="font-size:14px;font-weight:bold;">👑 Победить босса:</div>';
+    html += '<div style="font-size:16px;font-weight:900;color:#f5af19;margin-top:4px;">Волна ' + reqInfo.wave + '</div>';
+    html += '<div style="font-size:13px;color:#fff;margin-top:2px;">«' + reqInfo.bossName + '»</div>';
+    html += '<div style="margin-top:8px;font-size:14px;font-weight:bold;color:' + (hasDefeatedBoss ? '#2ecc71' : '#e74c3c') + ';">';
+    html += hasDefeatedBoss ? '✅ БОСС ПОБЕЖДЁН — можно сделать ребёрн!' : '❌ Босс ещё не побеждён';
+    html += '</div>';
+    html += '</div>';
+    
+    html += '</div>';
+    
+    document.getElementById("rebirthInfo").innerHTML = html; 
+    document.getElementById("doRebirthBtn").disabled = !hasDefeatedBoss; 
+}
 
-function renderRebirthStats() { let c = document.getElementById("rebirthStatsList"); if (!rebirthStats.length) { c.innerHTML = "<div style='color:#888;'>Нет данных</div>"; return; } c.innerHTML = rebirthStats.map(s => '<div class="shop-item"><div><b>Ребиртх ' + s.rebirth + '</b></div><div>🌊 Волна: ' + s.highestWave + '<br>🌍 Мир: ' + (s.world || 'Лес начала') + '<br>📊 Ур: ' + s.playerLevel + '<br>👆 Кликов: ' + (s.totalClicks || 0) + '<br>⭐ Макс. звёзд: ' + (s.maxPoints || 0) + '<br>🃏 Карт: ' + s.totalCards + '</div></div>').join(''); }
+// ★ НОВАЯ renderRebirthStats ★
+function renderRebirthStats() { 
+    let c = document.getElementById("rebirthStatsList"); 
+    if (!rebirthStats.length) { 
+        c.innerHTML = "<div style='color:#888;'>Нет данных</div>"; 
+        return; 
+    } 
+    c.innerHTML = rebirthStats.map(s => 
+        '<div class="shop-item">' +
+            '<div><b>🔄 Ребёрн ' + s.rebirth + '</b></div>' +
+            '<div>' +
+                '🌊 <b>Достигнута волна:</b> <span style="color:#f5af19;font-size:15px;font-weight:900;">' + (s.highestWave || s.highestCheckpoint || '?') + '</span><br>' +
+                '🌍 Мир: ' + (s.world || 'Лес начала') + '<br>' +
+                '📊 Уровень: ' + s.playerLevel + '<br>' +
+                '👆 Кликов: ' + (s.totalClicks || 0) + '<br>' +
+                '⭐ Макс. звёзд: ' + (s.maxPoints || 0) + '<br>' +
+                '🃏 Карт: ' + s.totalCards +
+            '</div>' +
+        '</div>'
+    ).join(''); 
+}
 
-function renderGlobalStats() { let el = document.getElementById("globalStats"); if (!el) return; el.innerHTML = '<div>👆 Всего кликов: <b>' + totalClicks + '</b></div>' + '<div>🃏 Всего карт получено: <b>' + totalCardsObtained + '</b></div>' + '<div>⭐ Максимум звёзд: <b>' + maxPoints + '</b></div>' + '<div>🌊 Текущая волна: <b>' + wave + '</b></div>' + '<div>💀 Всего поражений: <b>' + defeatHistory.length + '</b></div>' + '<div>🏆 Всего побед: <b>' + totalWins + '</b></div>' + '<div>🔄 Ребиртхов: <b>' + rebirthCount + '</b></div>' + (gameCompleted ? '<div>🏆 <b>ИГРА ПРОЙДЕНА!</b></div>' : ''); }
+// ★ НОВАЯ renderGlobalStats ★
+function renderGlobalStats() { 
+    let el = document.getElementById("globalStats"); 
+    if (!el) return; 
+    el.innerHTML = 
+        '<div>📊 <b>Макс. достигнутая волна:</b> <span style="color:#f5af19;font-size:16px;font-weight:900;">' + highestWaveReached + '</span></div>' +
+        '<div>🌊 Текущая волна: <b>' + wave + '</b></div>' +
+        '<div>👆 Всего кликов: <b>' + totalClicks + '</b></div>' + 
+        '<div>🃏 Всего карт получено: <b>' + totalCardsObtained + '</b></div>' + 
+        '<div>⭐ Максимум звёзд: <b>' + maxPoints + '</b></div>' + 
+        '<div>💀 Всего поражений: <b>' + defeatHistory.length + '</b></div>' + 
+        '<div>🏆 Всего побед: <b>' + totalWins + '</b></div>' + 
+        '<div>🔄 Ребёрнов: <b>' + rebirthCount + '</b></div>' + 
+        (gameCompleted ? '<div>🏆 <b>ИГРА ПРОЙДЕНА!</b></div>' : ''); 
+}
 
 function renderModerControls() { let el = document.getElementById("moderControls"); if (!el) return; if (moderUnlocked && mode === "moder") { el.style.display = "block"; } else { el.style.display = "none"; } }
 
