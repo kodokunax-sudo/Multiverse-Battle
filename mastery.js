@@ -1,5 +1,5 @@
 // ============================================================
-// МАСТЕРСТВО КАРТ v2.0 — СИСТЕМА ОПЫТА
+// МАСТЕРСТВО КАРТ v2.2 — ОПЫТ + МОЛНИЯ ⚡ + ПРИРОСТ
 // ============================================================
 
 // Множители характеристик по уровням
@@ -21,6 +21,15 @@ const MASTERY_RARITY_MULT = {
 };
 
 let powerPoints = 0;
+
+// ========== ПРИРОСТ ПО УРОВНЯМ (для отображения) ==========
+const MASTERY_GAIN_TEXT = {
+    1: "60%",    // стартовый уровень
+    2: "+15%",
+    3: "+10%",
+    4: "+10%",
+    5: "+5%"
+};
 
 // ========== ПОЛУЧЕНИЕ ОЧКОВ СИЛЫ ==========
 function addPowerPoints(amount) {
@@ -112,18 +121,19 @@ function upgradeMastery(cardIndex) {
     renderAll();
     updatePlayerStats();
     if (typeof sfxLevelUp === 'function') sfxLevelUp();
-    showFloatingText("⭐ МАСТЕРСТВО " + targetLevel + "!", "#ffd700");
+    showFloatingText("⭐ МАСТЕРСТВО " + targetLevel + "! (" + MASTERY_GAIN_TEXT[targetLevel] + ")", "#ffd700");
     renderPowerPoints();
 
-    if (targetLevel === 3 && card.statusAbility) setTimeout(function() { alert("⭐ Уровень 3!\nРазблокирован статус-эффект:\n" + card.statusAbility.desc); }, 300);
-    if (targetLevel === 4 && card.ability) setTimeout(function() { alert("⭐ Уровень 4!\nРазблокирована способность:\n" + card.ability.desc); }, 300);
-    if (targetLevel === 5 && card.superAbility) setTimeout(function() { alert("⭐ Уровень 5!\nРазблокирована СУПЕР-УЛЬТА:\n" + card.superAbility.name + "\n" + card.superAbility.desc); }, 300);
+    if (targetLevel === 3 && card.statusAbility) setTimeout(function() { alert("⭐ Уровень 3 (" + MASTERY_GAIN_TEXT[3] + ")!\nРазблокирован статус-эффект:\n" + card.statusAbility.desc); }, 300);
+    if (targetLevel === 4 && card.ability) setTimeout(function() { alert("⭐ Уровень 4 (" + MASTERY_GAIN_TEXT[4] + ")!\nРазблокирована способность:\n" + card.ability.desc); }, 300);
+    if (targetLevel === 5 && card.superAbility) setTimeout(function() { alert("⭐ Уровень 5 (" + MASTERY_GAIN_TEXT[5] + ")!\nРазблокирована СУПЕР-УЛЬТА:\n" + card.superAbility.name + "\n" + card.superAbility.desc); }, 300);
 }
 
-// ========== HTML КАРТОЧКИ (звёзды + полоска опыта) ==========
+// ========== HTML КАРТОЧКИ (звёзды + прирост + полоска опыта) ==========
 function getMasteryHTML(card) {
     let lvl = card.mastery || 1;
-    let percent = Math.floor(MASTERY_MULT[lvl] * 100);
+    // ★ ПРИРОСТ вместо абсолютного % ★
+    let gainText = MASTERY_GAIN_TEXT[lvl] || "60%";
     let color = lvl >= 5 ? "#ffd700" : lvl >= 4 ? "#e056fd" : lvl >= 3 ? "#9b59b6" : lvl >= 2 ? "#3498db" : "#95a5a6";
     let stars = "";
     for (let i = 1; i <= 5; i++) stars += (i <= lvl ? "★" : "☆");
@@ -135,7 +145,17 @@ function getMasteryHTML(card) {
         expHtml = '<div style="font-size:8px;color:#00d4ff;font-weight:bold;margin-top:2px;">📊 ' + Math.floor(currentExp) + '/' + expNeeded + '</div>';
         expHtml += '<div style="background:rgba(0,0,0,0.5);border-radius:4px;height:3px;margin-top:1px;overflow:hidden;"><div style="width:' + expPct + '%;height:100%;background:linear-gradient(90deg, #00d4ff, #0099ff);"></div></div>';
     }
-    return '<div style="font-size:9px;color:' + color + ';font-weight:bold;margin-top:2px;">' + stars + ' ' + percent + '%</div>' + expHtml;
+    return '<div style="font-size:9px;color:' + color + ';font-weight:bold;margin-top:2px;">' + stars + ' ' + gainText + '</div>' + expHtml;
+}
+
+// ========== SVG МОЛНИЯ (для переиспользования) ==========
+function getLightningSVG(size, color) {
+    if (size === undefined) size = 20;
+    if (color === undefined) color = "#ffd700";
+    return '<span style="display:inline-block;width:' + size + 'px;height:' + size + 'px;vertical-align:middle;flex-shrink:0;">' +
+        '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;filter:drop-shadow(0 0 5px ' + color + ');">' +
+        '<path d="M13 2L4.5 13.5H11L10 22L19.5 9.5H13L13 2Z" fill="' + color + '" stroke="#ffaa00" stroke-width="1.5" stroke-linejoin="round"/>' +
+        '</svg></span>';
 }
 
 // ========== МОДАЛКА МАСТЕРСТВА ==========
@@ -148,7 +168,15 @@ function showMasteryModal(cardIndex) {
     let html = '<h2>⭐ МАСТЕРСТВО КАРТЫ</h2>';
     html += '<div style="text-align:center;font-size:18px;font-weight:900;margin-bottom:5px;">' + (typeof escapeHtml === 'function' ? escapeHtml(card.name) : card.name) + '</div>';
     html += '<div style="text-align:center;font-size:11px;color:#aaa;margin-bottom:15px;">' + card.rarity + '</div>';
-    html += '<div style="font-size:14px;color:#aaa;margin-bottom:15px;text-align:center;">Уровень: <span style="color:#ffd700;font-weight:900;">' + lvl + '/5</span> (' + Math.floor(MASTERY_MULT[lvl]*100) + '% характеристик)</div>';
+
+    // ★ ТЕКУЩИЙ БОНУС ★
+    let currentBonusText = "";
+    if (lvl === 1) currentBonusText = "60% характеристик";
+    else if (lvl === 2) currentBonusText = "+15% (всего 75%)";
+    else if (lvl === 3) currentBonusText = "+10% (всего 85%)";
+    else if (lvl === 4) currentBonusText = "+10% (всего 95%)";
+    else if (lvl === 5) currentBonusText = "+5% (всего 100%)";
+    html += '<div style="font-size:13px;color:#aaa;margin-bottom:15px;text-align:center;">Уровень: <span style="color:#ffd700;font-weight:900;">' + lvl + '/5</span> — <span style="color:#00d4ff;font-weight:bold;">' + currentBonusText + '</span></div>';
 
     html += '<div style="display:flex;gap:4px;margin-bottom:20px;">';
     for (let i = 1; i <= 5; i++) {
@@ -157,12 +185,13 @@ function showMasteryModal(cardIndex) {
     }
     html += '</div>';
 
+    // ★ СПИСОК УРОВНЕЙ С ПРИРОСТОМ ★
     html += '<div style="text-align:left;font-size:12px;margin-bottom:20px;line-height:1.8;background:rgba(0,0,0,0.3);padding:12px;border-radius:12px;">';
-    html += '<div style="opacity:' + (lvl >= 1 ? 1 : 0.4) + ';">✅ Ур 1: Базовые характеристики (60%)</div>';
-    html += '<div style="opacity:' + (lvl >= 2 ? 1 : 0.4) + ';">' + (lvl >= 2 ? '✅' : '🔒') + ' Ур 2: +15% (75%)</div>';
-    html += '<div style="opacity:' + (lvl >= 3 ? 1 : 0.4) + ';">' + (lvl >= 3 ? '✅' : '🔒') + ' Ур 3: +10% (85%)' + (card.statusAbility ? '<br><span style="color:#e056fd;font-size:10px;margin-left:15px;">✨ ' + card.statusAbility.desc + '</span>' : '') + '</div>';
-    html += '<div style="opacity:' + (lvl >= 4 ? 1 : 0.4) + ';">' + (lvl >= 4 ? '✅' : '🔒') + ' Ур 4: +10% (95%)' + (card.ability ? '<br><span style="color:#e056fd;font-size:10px;margin-left:15px;">✨ ' + card.ability.desc + '</span>' : '') + '</div>';
-    html += '<div style="opacity:' + (lvl >= 5 ? 1 : 0.4) + ';">' + (lvl >= 5 ? '✅' : '🔒') + ' Ур 5: +5% (100%)' + (card.superAbility ? '<br><span style="color:#e056fd;font-size:10px;margin-left:15px;">⚡ ' + card.superAbility.name + '</span>' : '') + '</div>';
+    html += '<div style="opacity:' + (lvl >= 1 ? 1 : 0.4) + ';">✅ Ур 1: <span style="color:#00d4ff;font-weight:bold;">60%</span> характеристик</div>';
+    html += '<div style="opacity:' + (lvl >= 2 ? 1 : 0.4) + ';">' + (lvl >= 2 ? '✅' : '🔒') + ' Ур 2: <span style="color:#00d4ff;font-weight:bold;">+15%</span> (75%)</div>';
+    html += '<div style="opacity:' + (lvl >= 3 ? 1 : 0.4) + ';">' + (lvl >= 3 ? '✅' : '🔒') + ' Ур 3: <span style="color:#00d4ff;font-weight:bold;">+10%</span> (85%)' + (card.statusAbility ? '<br><span style="color:#e056fd;font-size:10px;margin-left:15px;">✨ ' + card.statusAbility.desc + '</span>' : '') + '</div>';
+    html += '<div style="opacity:' + (lvl >= 4 ? 1 : 0.4) + ';">' + (lvl >= 4 ? '✅' : '🔒') + ' Ур 4: <span style="color:#00d4ff;font-weight:bold;">+10%</span> (95%)' + (card.ability ? '<br><span style="color:#e056fd;font-size:10px;margin-left:15px;">✨ ' + card.ability.desc + '</span>' : '') + '</div>';
+    html += '<div style="opacity:' + (lvl >= 5 ? 1 : 0.4) + ';">' + (lvl >= 5 ? '✅' : '🔒') + ' Ур 5: <span style="color:#00d4ff;font-weight:bold;">+5%</span> (100%)' + (card.superAbility ? '<br><span style="color:#e056fd;font-size:10px;margin-left:15px;">⚡ ' + card.superAbility.name + '</span>' : '') + '</div>';
     html += '</div>';
 
     if (lvl < 5) {
@@ -172,6 +201,10 @@ function showMasteryModal(cardIndex) {
         let canPower = mode === "moder" || powerPoints >= cost.power;
         let canExp = mode === "moder" || currentExp >= expNeeded;
         let canAfford = canStars && canPower && canExp;
+
+        // ★ ПРИРОСТ СЛЕДУЮЩЕГО УРОВНЯ ★
+        let nextGain = MASTERY_GAIN_TEXT[lvl + 1] || "";
+        let nextGainClean = nextGain.replace('+', '');
 
         // Опыт
         html += '<div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:12px;margin-bottom:12px;">';
@@ -184,17 +217,17 @@ function showMasteryModal(cardIndex) {
         if (!canExp) html += '<div style="text-align:center;font-size:10px;color:#ff8888;margin-top:6px;">⚠️ Недостаточно опыта!</div>';
         html += '</div>';
 
-        // Стоимость
+        // Стоимость (⚡ + ⭐)
         html += '<div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:12px;margin-bottom:12px;">';
-        html += '<div style="font-size:12px;color:#aaa;margin-bottom:8px;text-align:center;">До уровня ' + (lvl+1) + ':</div>';
-        html += '<div style="display:flex;justify-content:space-around;font-size:15px;font-weight:900;">';
+        html += '<div style="font-size:12px;color:#aaa;margin-bottom:8px;text-align:center;">До уровня ' + (lvl+1) + ' — прирост <span style="color:#00d4ff;font-weight:bold;">' + nextGain + '</span>:</div>';
+        html += '<div style="display:flex;justify-content:space-around;align-items:center;font-size:15px;font-weight:900;">';
         html += '<span style="color:' + (canStars ? '#ffd700' : '#ff3333') + ';">⭐ ' + cost.stars.toLocaleString() + '</span>';
-        html += '<span style="color:' + (canPower ? '#a855f7' : '#ff3333') + ';">🔮 ' + cost.power + '</span>';
+        html += '<span style="color:' + (canPower ? '#ffd700' : '#ff3333') + ';display:inline-flex;align-items:center;gap:4px;">' + getLightningSVG(16, canPower ? '#ffd700' : '#ff3333') + ' ' + cost.power + '</span>';
         html += '</div></div>';
 
-        html += '<button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" onclick="closeModal();upgradeMastery(' + cardIndex + ');" ' + (!canAfford ? 'disabled' : '') + '>⬆️ ПРОКАЧАТЬ ДО УР ' + (lvl+1) + '</button>';
+        html += '<button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" onclick="closeModal();upgradeMastery(' + cardIndex + ');" ' + (!canAfford ? 'disabled' : '') + '>⬆️ ПРОКАЧАТЬ +' + nextGainClean + '</button>';
     } else {
-        html += '<div style="text-align:center;color:#ffd700;font-size:18px;font-weight:900;padding:15px;">🏆 МАКСИМУМ</div>';
+        html += '<div style="text-align:center;color:#ffd700;font-size:18px;font-weight:900;padding:15px;">🏆 МАКСИМУМ (+5% бонус)</div>';
     }
     html += '<button class="btn" style="width:100%;padding:10px;margin-top:10px;background:#555;" onclick="closeModal()">Закрыть</button>';
 
@@ -204,7 +237,7 @@ function showMasteryModal(cardIndex) {
     if (el) el.style.display = "flex";
 }
 
-// ========== РЕНДЕР ОЧКОВ СИЛЫ (🔮) ==========
+// ========== РЕНДЕР ОЧКОВ СИЛЫ (⚡ SVG МОЛНИЯ) ==========
 function renderPowerPoints() {
     let elem = document.getElementById("powerPointsDisplay");
     if (!elem) {
@@ -212,8 +245,8 @@ function renderPowerPoints() {
         if (pointsElem && pointsElem.parentNode) {
             let newElem = document.createElement("div");
             newElem.id = "powerPointsDisplay";
-            newElem.style.cssText = "font-size:20px;font-weight:900;color:#a855f7;text-align:center;margin-bottom:10px;text-shadow:0 2px 8px rgba(168,85,247,0.4);background:rgba(0,0,0,0.2);padding:8px;border-radius:15px;";
-            newElem.innerHTML = '🔮 <span id="powerPointsAmount">0</span> Сила';
+            newElem.style.cssText = "font-size:20px;font-weight:900;color:#ffd700;text-align:center;margin-bottom:10px;text-shadow:0 2px 8px rgba(255,215,0,0.5);background:rgba(0,0,0,0.2);padding:8px;border-radius:15px;display:flex;align-items:center;justify-content:center;gap:6px;";
+            newElem.innerHTML = getLightningSVG(20, '#ffd700') + ' <span id="powerPointsAmount">0</span> Сила';
             pointsElem.parentNode.insertBefore(newElem, pointsElem.nextSibling);
             elem = newElem;
         }
@@ -225,11 +258,12 @@ function renderPowerPoints() {
 // ========== НАГРАДА СИЛЫ ЗА БОССА ==========
 function grantMasteryPowerForBoss() {
     addPowerPoints(3);
-    showFloatingText("🔮 +3 СИЛЫ!", "#a855f7");
+    showFloatingText("⚡ +3 СИЛЫ!", "#ffd700");
 }
 
 // ========== ЭКСПОРТ ==========
 window.MASTERY_MULT = MASTERY_MULT;
+window.MASTERY_GAIN_TEXT = MASTERY_GAIN_TEXT;
 window.getMasteryMult = getMasteryMult;
 window.hasMasteryStatus = hasMasteryStatus;
 window.hasMasteryAbility = hasMasteryAbility;
@@ -241,10 +275,11 @@ window.grantMasteryExpFromFight = grantMasteryExpFromFight;
 window.upgradeMastery = upgradeMastery;
 window.showMasteryModal = showMasteryModal;
 window.getMasteryHTML = getMasteryHTML;
+window.getLightningSVG = getLightningSVG;
 window.renderPowerPoints = renderPowerPoints;
 window.addPowerPoints = addPowerPoints;
 window.grantMasteryPowerForBoss = grantMasteryPowerForBoss;
 window.getPowerPoints = function() { return powerPoints; };
 window.setPowerPoints = function(v) { powerPoints = v; };
 
-console.log("[MASTERY] v2.0 — с опытом");
+console.log("[MASTERY] v2.2 — опыт + молния ⚡ + прирост");
