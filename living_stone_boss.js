@@ -1,9 +1,10 @@
 // ============================================================
-// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v5.9
+// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v6.0
+// + дробовик: реже стрельба, ОЧЕНЬ быстрые пули (x4)
+// + самонаведение: ×2 быстрее стрельба, слабое притяжение (0.05)
+// + длительность мода 10 секунд
 // + чёрная дыра БЕЗ УРОНА, только лёгкое притяжение
 // + финальная чёрная дыра — в ЦЕНТРЕ экрана
-// + самонаведение ослаблено (0.08)
-// + дробовик в 1.5 раза быстрее
 // ============================================================
 
 let livingStoneActive = false;
@@ -79,13 +80,14 @@ let lsModCapsules = [];
 let lsModSpawnTimer = 0;
 let lsModSpawnInterval = 25 * 60;
 let lsActiveMod = null;
-let lsModDuration = 7 * 60;
+let lsModDuration = 10 * 60;  // ★ 10 секунд ★
 let lsPlayerVelocity = { x: 0, y: 0 };
 let lsAutoFireSkip = 0;
+let lsShotgunSkip = 0;  // ★ счётчик пропуска для дробовика ★
 
 const LS_MODS = [
-    { id: 1, name: "ДРОБОВИК", icon: "🎯", color: "#ff8800", desc: "3 пульки веером (x1.5 скорость!)" },
-    { id: 2, name: "САМОНАВЕДЕНИЕ", icon: "🧲", color: "#00d4ff", desc: "Слабое самонаведение" },
+    { id: 1, name: "ДРОБОВИК", icon: "🎯", color: "#ff8800", desc: "3 пульки веером (очень быстрые!)" },
+    { id: 2, name: "САМОНАВЕДЕНИЕ", icon: "🧲", color: "#00d4ff", desc: "Быстрая стрельба + слабое наведение" },
     { id: 3, name: "ЩИТ", icon: "🛡️", color: "#2ecc71", desc: "-50% урона, -15% скорости" },
     { id: 4, name: "ОТРАЖЕНИЕ", icon: "🔷", color: "#00aaff", desc: "75% шанс отразить в босса" },
     { id: 5, name: "ПЕРЕГРУЗКА", icon: "⚡", color: "#ffd700", desc: "+35% скорости, +25% урона" }
@@ -251,6 +253,7 @@ function _startLivingStoneFightInternal() {
     lsActiveMod = null;
     lsPlayerVelocity = { x: 0, y: 0 };
     lsAutoFireSkip = 0;
+    lsShotgunSkip = 0;
     initLivingStoneBgParticles();
     preloadQTEMusic();
     if (typeof stopAllMusic === 'function') stopAllMusic();
@@ -486,9 +489,13 @@ function livingStoneShoot() {
 
     if (modId === 5) bulletSize *= 1.25;
 
-    if (modId === 2) {
-        lsAutoFireSkip++;
-        if (lsAutoFireSkip % 2 !== 0) return;
+    // ★ МОД 2: стреляет ЧАЩЕ (×2) — убираем пропуск, оставляем только для дробовика ★
+    // (мод 2 стал быстрее в livingStoneRenderLoop)
+
+    // ★ МОД 1: дробовик стреляет РЕЖЕ — каждый 2-й выстрел пропускается ★
+    if (modId === 1) {
+        lsShotgunSkip++;
+        if (lsShotgunSkip % 2 !== 0) return;
     }
 
     var bulletsToSpawn = [];
@@ -496,7 +503,8 @@ function livingStoneShoot() {
     var startY = livingStonePlayer.y - 8;
 
     if (modId === 1) {
-        var shotgunSpeed = baseSpeed * 1.5;
+        // ★ МОД 1: 3 пульки веером, ОЧЕНЬ быстрые (×4) ★
+        var shotgunSpeed = baseSpeed * 4;
         var spreadAngles = [-0.35, 0, 0.35];
         for (var i = 0; i < 3; i++) {
             var ang = -Math.PI / 2 + spreadAngles[i];
@@ -508,6 +516,7 @@ function livingStoneShoot() {
             });
         }
     } else if (modId === 2) {
+        // ★ МОД 2: слабое самонаведение (0.05) + стреляет чаще (в renderLoop) ★
         var dx = livingStoneBoss.x - startX;
         var dy = livingStoneBoss.y - startY;
         var len = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -515,7 +524,7 @@ function livingStoneShoot() {
             x: startX, y: startY,
             vx: (dx / len) * baseSpeed,
             vy: (dy / len) * baseSpeed,
-            size: bulletSize, damage: bulletDamage, life: 180, homing: true, homingSpeed: 0.08, reflect: false
+            size: bulletSize, damage: bulletDamage, life: 180, homing: true, homingSpeed: 0.05, reflect: false
         });
     } else {
         bulletsToSpawn.push({
@@ -1241,7 +1250,6 @@ function updateFinalScene() {
         }
     } else if (finalScenePhase === "blackhole_appear") {
         if (!finalBlackHole) {
-            // ★ ЧЁРНАЯ ДЫРА В ЦЕНТРЕ ЭКРАНА ★
             finalBlackHole = {
                 x: 200,
                 y: 250,
@@ -1264,7 +1272,6 @@ function updateFinalScene() {
             var dy = finalBlackHole.y - livingStonePlayer.y;
             var dist = Math.sqrt(dx * dx + dy * dy);
             if (dist > 5) {
-                // ★ УСИЛЕННОЕ притяжение к центру ★
                 var pullStrength = 2.5 + finalSceneTimer * 0.04;
                 livingStonePlayer.x += (dx / dist) * pullStrength;
                 livingStonePlayer.y += (dy / dist) * pullStrength;
@@ -1323,7 +1330,6 @@ function updateLivingStoneAttacks() {
     for (var i = livingStoneAttacks.length - 1; i >= 0; i--) {
         var a = livingStoneAttacks[i];
 
-        // ОТРАЖЁННАЯ АТАКА
         if (a.type === "reflected") {
             a.x += a.vx;
             a.y += a.vy;
@@ -1375,7 +1381,6 @@ function updateLivingStoneAttacks() {
             a.pulse += 0.15;
             a.radius = a.maxRadius * (0.9 + Math.sin(a.pulse) * 0.15);
             if (a.hitCooldown > 0) a.hitCooldown--;
-            // ★ БЕЗ УРОНА — только лёгкое притяжение ★
             var dxP = a.x - livingStonePlayer.x;
             var dyP = a.y - livingStonePlayer.y;
             var distP = Math.sqrt(dxP * dxP + dyP * dyP);
@@ -1453,7 +1458,7 @@ function checkLivingStoneCollisions() {
         } else if (a.type === "laser") {
             if (Math.abs(px - a.x) < a.width / 2 + ph) hit = true;
         } else if (a.type === "gravity_well") {
-            // ★ БЕЗ УРОНА — пропускаем ★
+            // БЕЗ УРОНА
         } else if (a.type === "gravity_stone") {
             var dx = px - a.x, dy = py - a.y;
             if (Math.sqrt(dx * dx + dy * dy) < a.size + ph) hit = true;
@@ -1661,7 +1666,8 @@ function livingStoneRenderLoop() {
     if (!finalSceneActive && (livingStoneState === "phase1" || livingStoneState === "phase2")) {
         livingStoneShootTimer++;
         var shootRate = Math.max(2, Math.floor(6 / lsSpeedMult));
-        if (lsActiveMod && lsActiveMod.type === 2) shootRate *= 2;
+        // ★ МОД 2: ×2 быстрее стрельба ★
+        if (lsActiveMod && lsActiveMod.type === 2) shootRate = Math.max(1, Math.floor(shootRate / 2));
         if (livingStoneShootTimer >= shootRate) { livingStoneShootTimer = 0; livingStoneShoot(); }
         livingStoneAttackTimer++;
         var attackRate = Math.floor(((livingStoneState === "phase2") ? 30 : 45) / lsSpeedMult);
@@ -2898,4 +2904,4 @@ function drawQTEOverlay() {
 window.startLivingStoneFight = startLivingStoneFight;
 window.stopLivingStoneFight = stopLivingStoneFight;
 window.preloadQTEMusic = preloadQTEMusic;
-console.log("[LIVING STONE] Модуль загружен v5.9 — чёрная дыра без урона + центр в финале");
+console.log("[LIVING STONE] Модуль загружен v6.0 — дробовик реже/быстрее, авто-наводка чаще/слабее, мод 10 сек");
