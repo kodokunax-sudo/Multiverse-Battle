@@ -225,13 +225,24 @@ function renderActiveBuffs() {
     document.getElementById("activeBuffs").innerHTML = l.length ? l.join("<br>") : "<span style='color:#888;'>Нет активных баффов</span>"; 
 }
 
-function renderFreeSpins() { document.getElementById("freeSpinsCount").innerText = freeSpins; }
+function renderFreeSpins() { let el = document.getElementById("freeSpinsCount"); if (el) el.innerText = freeSpins; }
 
 function renderBulkSell() { let c = document.getElementById("bulkSellItems"); if (rebirthCount < 1) { c.innerHTML = '<div class="shop-item"><div style="color:#888;font-weight:bold;text-align:center;width:100%;">🔒 Авто-продажа откроется после 1 ребиртха</div></div>'; return; } c.innerHTML = bulkSellOptions.map(o => { let cost = getAutoSellCost(o.rarity); let pur = purchasedAutoSell[o.rarity] || false; let act = autoSellSettings[o.rarity] || false; let desc = !pur ? '<span style="color:var(--gold);">Купить за ' + cost + '⭐</span>' : (act ? '<span style="color:var(--green);">Активна</span>' : 'Куплена'); let btn; if (!pur) { btn = '<button class="btn btn-primary" style="padding:6px 12px;" onclick="purchaseAutoSell(\'' + o.rarity + '\')">Купить</button>'; } else if (act) { btn = '<button class="btn" style="padding:6px 12px;border-color:var(--green);" onclick="toggleAutoSell(\'' + o.rarity + '\')">Выкл</button>'; } else { btn = '<button class="btn" style="padding:6px 12px;" onclick="toggleAutoSell(\'' + o.rarity + '\')">Выкл ▶</button>'; } return '<div class="shop-item ' + (act ? 'auto-active' : '') + '"><div><strong>' + o.name + '</strong><br><small>' + desc + '</small></div><div>' + btn + '</div></div>'; }).join(''); }
 
 function renderAutoRest() { let c = document.getElementById("autoRestItems"); if (rebirthCount < 3) { c.innerHTML = '<div class="shop-item"><div style="color:#888;font-weight:bold;text-align:center;width:100%;">🔒 Авто-отдых откроется после 3 ребиртха</div></div>'; return; } c.innerHTML = autoRestOptions.map(o => { let cost = getAutoRestCost(o.threshold); let pur = autoRest.purchased && autoRest.threshold === o.threshold; let act = autoRest.active && autoRest.threshold === o.threshold; let desc = !pur ? '<span style="color:var(--gold);">Купить за ' + cost + '⭐</span>' : (act ? '<span style="color:var(--green);">Активен</span>' : 'Куплен'); let btn; if (!pur) { btn = '<button class="btn btn-primary" style="padding:6px 12px;" onclick="purchaseAutoRest(' + o.threshold + ')">Купить</button>'; } else if (act) { btn = '<button class="btn" style="padding:6px 12px;border-color:var(--green);" onclick="toggleAutoRest(' + o.threshold + ')">Выкл</button>'; } else { btn = '<button class="btn" style="padding:6px 12px;" onclick="toggleAutoRest(' + o.threshold + ')">Выкл ▶</button>'; } return '<div class="shop-item ' + (act ? 'auto-active' : '') + '"><div><strong>' + o.name + ' усталости</strong><br><small>' + desc + '</small></div><div>' + btn + '</div></div>'; }).join(''); }
 
-function renderUpgrades() { let h = ""; for (let [k, u] of Object.entries(upgrades)) { let un = isUpgradeUnlocked(k), c = Math.floor(u.baseCost * (1 + u.level * 0.3)), cur = u.level * u.increment; let extraInfo = ''; if (k === 'luck') extraInfo = '<br><span style="color:#aaa;font-size:10px;">🎲 Работает на легендарных+ крутках</span>'; if (k === 'crit') extraInfo = '<br><span style="color:#aaa;font-size:10px;">⚡ +' + (cur * 100).toFixed(1) + '% к шансу крита</span>'; if (k === 'fatigueResist') extraInfo = '<br><span style="color:#aaa;font-size:10px;">💪 -' + (cur * 100).toFixed(1) + '% набора усталости</span>'; h += '<div class="upgrade-item ' + (un ? '' : 'locked') + '"><div><strong>' + u.name + '</strong> (+' + cur.toFixed(2) + ')' + (un ? '' : '<br><span style="color:var(--red);">🔒 Нужен ур. ' + u.reqLevel + '</span>') + extraInfo + '</div><div><span class="upgrade-price">' + c + '⭐</span><button class="btn btn-primary" style="border-radius:50%;width:36px;height:36px;font-size:20px;" onclick="buyUpgrade(\'' + k + '\')" ' + (un ? '' : 'disabled') + '>+</button></div></div>'; } document.getElementById("upgradeItems").innerHTML = h; }
+// ★ УБРАН LUCK ИЗ RENDERUPGRADES ★
+function renderUpgrades() { 
+    let h = ""; 
+    for (let [k, u] of Object.entries(upgrades)) { 
+        let un = isUpgradeUnlocked(k), c = Math.floor(u.baseCost * (1 + u.level * 0.3)), cur = u.level * u.increment; 
+        let extraInfo = ''; 
+        if (k === 'crit') extraInfo = '<br><span style="color:#aaa;font-size:10px;">⚡ +' + (cur * 100).toFixed(1) + '% к шансу крита</span>'; 
+        if (k === 'fatigueResist') extraInfo = '<br><span style="color:#aaa;font-size:10px;">💪 -' + (cur * 100).toFixed(1) + '% набора усталости</span>'; 
+        h += '<div class="upgrade-item ' + (un ? '' : 'locked') + '"><div><strong>' + u.name + '</strong> (+' + cur.toFixed(2) + ')' + (un ? '' : '<br><span style="color:var(--red);">🔒 Нужен ур. ' + u.reqLevel + '</span>') + extraInfo + '</div><div><span class="upgrade-price">' + c + '⭐</span><button class="btn btn-primary" style="border-radius:50%;width:36px;height:36px;font-size:20px;" onclick="buyUpgrade(\'' + k + '\')" ' + (un ? '' : 'disabled') + '>+</button></div></div>'; 
+    } 
+    document.getElementById("upgradeItems").innerHTML = h; 
+}
 
 function renderBook() { let all = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))); let ds = new Set(discoveredCards); document.getElementById("bookList").innerHTML = all.map(t => { let kn = ds.has(t.name); let s = cardStats[t.rarity]; let clickAction = (moderUnlocked && mode === 'moder') ? 'bookGet(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')' : 'bookInfoCard(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')'; let superPreview = ''; if (t.superAbility && kn) { superPreview = '<div style="font-size:8px;color:#ffd700;margin-top:2px;">' + t.superAbility.name + '</div>'; } return '<div class="book-item ' + (kn ? '' : 'unknown-card') + '" onclick="' + clickAction + '"><div class="name">' + (kn ? t.name : '???') + '</div><div class="rarity-tag ' + rarityColors[t.rarity] + '">' + t.rarity + '</div><div>💪' + (t.damage ?? s.damage) + ' ❤️' + (t.hp ?? s.hp) + ' ⚡' + (t.speed ?? s.speed ?? '?') + '</div>' + superPreview + '</div>'; }).join(''); document.getElementById("discoveredCount").innerText = discoveredCards.length; document.getElementById("totalTemplatesCount").innerText = all.length; }
 
@@ -294,7 +305,6 @@ function renderEvoTab() {
     c.innerHTML = html; 
 }
 
-// ★ НОВАЯ renderRebirthInfo ★
 function renderRebirthInfo() { 
     let reqInfo = getRebirthRequirementInfo(); 
     let world = getWorldForWave(highestWaveReached); 
@@ -313,27 +323,28 @@ function renderRebirthInfo() {
     
     html += '<div style="margin-top:12px;padding:12px;background:' + (hasDefeatedBoss ? 'rgba(46,204,113,0.15)' : 'rgba(231,76,60,0.15)') + ';border:2px solid ' + (hasDefeatedBoss ? '#2ecc71' : '#e74c3c') + ';border-radius:12px;">';
     html += '<div style="font-size:11px;color:#aaa;margin-bottom:6px;">ТРЕБОВАНИЕ ДЛЯ РЕБЁРНА ' + nextRebirth + ':</div>';
-    html += '<div style="font-size:14px;font-weight:bold;">👑 Победить босса:</div>';
+    if (reqInfo.isBossRequirement) {
+        html += '<div style="font-size:14px;font-weight:bold;">👑 Победить босса:</div>';
+    } else {
+        html += '<div style="font-size:14px;font-weight:bold;">🌊 Достигнуть волны:</div>';
+    }
     html += '<div style="font-size:16px;font-weight:900;color:#f5af19;margin-top:4px;">Волна ' + reqInfo.wave + '</div>';
-    html += '<div style="font-size:13px;color:#fff;margin-top:2px;">«' + reqInfo.bossName + '»</div>';
+    if (reqInfo.bossName && reqInfo.bossName !== "—") {
+        html += '<div style="font-size:13px;color:#fff;margin-top:2px;">«' + reqInfo.bossName + '»</div>';
+    }
     html += '<div style="margin-top:8px;font-size:14px;font-weight:bold;color:' + (hasDefeatedBoss ? '#2ecc71' : '#e74c3c') + ';">';
-    html += hasDefeatedBoss ? '✅ БОСС ПОБЕЖДЁН — можно сделать ребёрн!' : '❌ Босс ещё не побеждён';
+    html += hasDefeatedBoss ? '✅ ГОТОВО — можно сделать ребёрн!' : '❌ Условие ещё не выполнено';
     html += '</div>';
     html += '</div>';
-    
     html += '</div>';
     
     document.getElementById("rebirthInfo").innerHTML = html; 
     document.getElementById("doRebirthBtn").disabled = !hasDefeatedBoss; 
 }
 
-// ★ НОВАЯ renderRebirthStats ★
 function renderRebirthStats() { 
     let c = document.getElementById("rebirthStatsList"); 
-    if (!rebirthStats.length) { 
-        c.innerHTML = "<div style='color:#888;'>Нет данных</div>"; 
-        return; 
-    } 
+    if (!rebirthStats.length) { c.innerHTML = "<div style='color:#888;'>Нет данных</div>"; return; } 
     c.innerHTML = rebirthStats.map(s => 
         '<div class="shop-item">' +
             '<div><b>🔄 Ребёрн ' + s.rebirth + '</b></div>' +
@@ -349,7 +360,6 @@ function renderRebirthStats() {
     ).join(''); 
 }
 
-// ★ НОВАЯ renderGlobalStats ★
 function renderGlobalStats() { 
     let el = document.getElementById("globalStats"); 
     if (!el) return; 
