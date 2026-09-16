@@ -1,9 +1,9 @@
 // ============================================================
-// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v5.8
-// + самонаведение ОСЛАБЛЕНО (0.08 вместо 0.35)
-// + дробовик в 1.5 раза БЫСТРЕЕ
-// + падающие капсулы модификаций (5 типов, 7 сек)
-// + ФИКС: отражение — разворот атаки в босса
+// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v5.9
+// + чёрная дыра БЕЗ УРОНА, только лёгкое притяжение
+// + финальная чёрная дыра — в ЦЕНТРЕ экрана
+// + самонаведение ослаблено (0.08)
+// + дробовик в 1.5 раза быстрее
 // ============================================================
 
 let livingStoneActive = false;
@@ -486,7 +486,6 @@ function livingStoneShoot() {
 
     if (modId === 5) bulletSize *= 1.25;
 
-    // ★ МОД 2: стреляет реже (пропускаем каждый 2-й выстрел) ★
     if (modId === 2) {
         lsAutoFireSkip++;
         if (lsAutoFireSkip % 2 !== 0) return;
@@ -497,7 +496,6 @@ function livingStoneShoot() {
     var startY = livingStonePlayer.y - 8;
 
     if (modId === 1) {
-        // ★ МОД 1: 3 пульки веером, скорость x1.5 ★
         var shotgunSpeed = baseSpeed * 1.5;
         var spreadAngles = [-0.35, 0, 0.35];
         for (var i = 0; i < 3; i++) {
@@ -510,7 +508,6 @@ function livingStoneShoot() {
             });
         }
     } else if (modId === 2) {
-        // ★ МОД 2: слабое самонаведение (0.08) ★
         var dx = livingStoneBoss.x - startX;
         var dy = livingStoneBoss.y - startY;
         var len = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -630,7 +627,7 @@ function livingStoneSpawnAttack() {
         livingStoneAttacks.push({
             type: "gravity_well", x: wellX, y: wellY,
             radius: 45, maxRadius: 55, life: wellDur, maxLife: wellDur,
-            pulse: 0, damage: Math.floor(11 * dmgMult), hit: false, hitCooldown: 0
+            pulse: 0, damage: 0, hit: false, hitCooldown: 0
         });
         var stoneCount = isPhase2 ? 14 : 10;
         for (var i = 0; i < stoneCount; i++) {
@@ -1244,10 +1241,10 @@ function updateFinalScene() {
         }
     } else if (finalScenePhase === "blackhole_appear") {
         if (!finalBlackHole) {
-            var bhSide = Math.random() > 0.5 ? 1 : -1;
+            // ★ ЧЁРНАЯ ДЫРА В ЦЕНТРЕ ЭКРАНА ★
             finalBlackHole = {
-                x: livingStonePlayer.x + bhSide * 70,
-                y: livingStonePlayer.y + (Math.random() - 0.5) * 40,
+                x: 200,
+                y: 250,
                 radius: 5,
                 maxRadius: 80,
                 progress: 0
@@ -1267,7 +1264,8 @@ function updateFinalScene() {
             var dy = finalBlackHole.y - livingStonePlayer.y;
             var dist = Math.sqrt(dx * dx + dy * dy);
             if (dist > 5) {
-                var pullStrength = 1.5 + finalSceneTimer * 0.02;
+                // ★ УСИЛЕННОЕ притяжение к центру ★
+                var pullStrength = 2.5 + finalSceneTimer * 0.04;
                 livingStonePlayer.x += (dx / dist) * pullStrength;
                 livingStonePlayer.y += (dy / dist) * pullStrength;
             }
@@ -1287,7 +1285,7 @@ function updateFinalScene() {
         if (finalBlackHole) {
             finalBlackHole.radius *= 0.95;
             finalBlackHole.x += (200 - finalBlackHole.x) * 0.02;
-            finalBlackHole.y += (200 - finalBlackHole.y) * 0.02;
+            finalBlackHole.y += (250 - finalBlackHole.y) * 0.02;
             if (finalBlackHole.radius < 2 || finalSceneTimer > 120) {
                 finalBlackHole = null;
                 finalScenePhase = "laugh";
@@ -1325,7 +1323,7 @@ function updateLivingStoneAttacks() {
     for (var i = livingStoneAttacks.length - 1; i >= 0; i--) {
         var a = livingStoneAttacks[i];
 
-        // ★ ОТРАЖЁННАЯ АТАКА ★
+        // ОТРАЖЁННАЯ АТАКА
         if (a.type === "reflected") {
             a.x += a.vx;
             a.y += a.vy;
@@ -1377,11 +1375,12 @@ function updateLivingStoneAttacks() {
             a.pulse += 0.15;
             a.radius = a.maxRadius * (0.9 + Math.sin(a.pulse) * 0.15);
             if (a.hitCooldown > 0) a.hitCooldown--;
+            // ★ БЕЗ УРОНА — только лёгкое притяжение ★
             var dxP = a.x - livingStonePlayer.x;
             var dyP = a.y - livingStonePlayer.y;
             var distP = Math.sqrt(dxP * dxP + dyP * dyP);
-            if (distP < 200 && distP > 20) {
-                var pull = 0.12 * (1 - distP / 200);
+            if (distP < 180 && distP > 25) {
+                var pull = 0.05 * (1 - distP / 180);
                 livingStonePlayer.x += (dxP / distP) * pull * 2;
                 livingStonePlayer.y += (dyP / distP) * pull * 2;
             }
@@ -1454,9 +1453,7 @@ function checkLivingStoneCollisions() {
         } else if (a.type === "laser") {
             if (Math.abs(px - a.x) < a.width / 2 + ph) hit = true;
         } else if (a.type === "gravity_well") {
-            var dx = px - a.x, dy = py - a.y;
-            var dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < a.radius && a.hitCooldown <= 0) { hit = true; a.hitCooldown = 30; }
+            // ★ БЕЗ УРОНА — пропускаем ★
         } else if (a.type === "gravity_stone") {
             var dx = px - a.x, dy = py - a.y;
             if (Math.sqrt(dx * dx + dy * dy) < a.size + ph) hit = true;
@@ -1865,7 +1862,6 @@ function livingStoneRenderLoop() {
     for (var i = 0; i < livingStoneAttacks.length; i++) {
         var a = livingStoneAttacks[i];
 
-        // ★ РЕНДЕР ОТРАЖЁННОЙ АТАКИ ★
         if (a.type === "reflected") {
             ctx.save();
             var size = a.size || a.radius || 10;
@@ -2902,4 +2898,4 @@ function drawQTEOverlay() {
 window.startLivingStoneFight = startLivingStoneFight;
 window.stopLivingStoneFight = stopLivingStoneFight;
 window.preloadQTEMusic = preloadQTEMusic;
-console.log("[LIVING STONE] Модуль загружен v5.8 — самонаведение ослаблено, дробовик ускорен");
+console.log("[LIVING STONE] Модуль загружен v5.9 — чёрная дыра без урона + центр в финале");
