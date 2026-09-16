@@ -1,9 +1,9 @@
 // ============================================================
-// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v5.7
+// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v5.8
+// + самонаведение ОСЛАБЛЕНО (0.08 вместо 0.35)
+// + дробовик в 1.5 раза БЫСТРЕЕ
 // + падающие капсулы модификаций (5 типов, 7 сек)
-// + ФИКС: самонаведение (lsAutoFireSkip)
 // + ФИКС: отражение — разворот атаки в босса
-// + защита от повторного запуска (если 200 уже побеждён)
 // ============================================================
 
 let livingStoneActive = false;
@@ -84,8 +84,8 @@ let lsPlayerVelocity = { x: 0, y: 0 };
 let lsAutoFireSkip = 0;
 
 const LS_MODS = [
-    { id: 1, name: "ДРОБОВИК", icon: "🎯", color: "#ff8800", desc: "3 пульки веером!" },
-    { id: 2, name: "САМОНАВЕДЕНИЕ", icon: "🧲", color: "#00d4ff", desc: "Пульки летят в босса" },
+    { id: 1, name: "ДРОБОВИК", icon: "🎯", color: "#ff8800", desc: "3 пульки веером (x1.5 скорость!)" },
+    { id: 2, name: "САМОНАВЕДЕНИЕ", icon: "🧲", color: "#00d4ff", desc: "Слабое самонаведение" },
     { id: 3, name: "ЩИТ", icon: "🛡️", color: "#2ecc71", desc: "-50% урона, -15% скорости" },
     { id: 4, name: "ОТРАЖЕНИЕ", icon: "🔷", color: "#00aaff", desc: "75% шанс отразить в босса" },
     { id: 5, name: "ПЕРЕГРУЗКА", icon: "⚡", color: "#ffd700", desc: "+35% скорости, +25% урона" }
@@ -246,7 +246,6 @@ function _startLivingStoneFightInternal() {
     finalHeartVel = { x: 0, y: 0 }; finalHeartVisible = true; finalLaughOffset = 0;
     finalDialogIndex = 0; finalTexts = []; finalTextTimer = 0; finalSceneEndTimer = 0;
     lsTouchActive = false; lsTouchId = null;
-    // ★ СБРОС МОДИФИКАЦИЙ ★
     lsModCapsules = [];
     lsModSpawnTimer = 0;
     lsActiveMod = null;
@@ -498,17 +497,20 @@ function livingStoneShoot() {
     var startY = livingStonePlayer.y - 8;
 
     if (modId === 1) {
+        // ★ МОД 1: 3 пульки веером, скорость x1.5 ★
+        var shotgunSpeed = baseSpeed * 1.5;
         var spreadAngles = [-0.35, 0, 0.35];
         for (var i = 0; i < 3; i++) {
             var ang = -Math.PI / 2 + spreadAngles[i];
-            var vx = Math.cos(ang) * baseSpeed;
-            var vy = Math.sin(ang) * baseSpeed;
+            var vx = Math.cos(ang) * shotgunSpeed;
+            var vy = Math.sin(ang) * shotgunSpeed;
             bulletsToSpawn.push({
                 x: startX, y: startY, vx: vx, vy: vy,
                 size: bulletSize, damage: bulletDamage, life: 120, homing: false, reflect: false
             });
         }
     } else if (modId === 2) {
+        // ★ МОД 2: слабое самонаведение (0.08) ★
         var dx = livingStoneBoss.x - startX;
         var dy = livingStoneBoss.y - startY;
         var len = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -516,7 +518,7 @@ function livingStoneShoot() {
             x: startX, y: startY,
             vx: (dx / len) * baseSpeed,
             vy: (dy / len) * baseSpeed,
-            size: bulletSize, damage: bulletDamage, life: 180, homing: true, homingSpeed: 0.35, reflect: false
+            size: bulletSize, damage: bulletDamage, life: 180, homing: true, homingSpeed: 0.08, reflect: false
         });
     } else {
         bulletsToSpawn.push({
@@ -1323,7 +1325,7 @@ function updateLivingStoneAttacks() {
     for (var i = livingStoneAttacks.length - 1; i >= 0; i--) {
         var a = livingStoneAttacks[i];
 
-        // ★ ОТРАЖЁННАЯ АТАКА — летит в босса ★
+        // ★ ОТРАЖЁННАЯ АТАКА ★
         if (a.type === "reflected") {
             a.x += a.vx;
             a.y += a.vy;
@@ -1438,7 +1440,7 @@ function checkLivingStoneCollisions() {
 
     for (var i = 0; i < livingStoneAttacks.length; i++) {
         var a = livingStoneAttacks[i];
-        if (a.type === "reflected") continue; // отражённые не сталкиваются с игроком
+        if (a.type === "reflected") continue;
         var hit = false;
         if (a.type === "rock" || a.type === "homing" || a.type === "orb" || a.type === "falling_star") {
             var dx = px - a.x, dy = py - a.y;
@@ -1460,7 +1462,6 @@ function checkLivingStoneCollisions() {
             if (Math.sqrt(dx * dx + dy * dy) < a.size + ph) hit = true;
         }
 
-        // ★ МОД 4: проверка попадания в синий щит ВПЕРЁДИ ★
         if (shieldActive && !hit) {
             var shieldDx = shieldX - (a.x || px);
             var shieldDy = shieldY - (a.y || py);
@@ -1468,7 +1469,6 @@ function checkLivingStoneCollisions() {
             var aSize = a.size || a.radius || 15;
             if (shieldDist < shieldR + aSize) {
                 if (Math.random() < 0.75) {
-                    // ★ ОТРАЖЕНИЕ: разворачиваем атаку в сторону босса ★
                     var toBossX = livingStoneBoss.x - (a.x || px);
                     var toBossY = livingStoneBoss.y - (a.y || py);
                     var toBossLen = Math.sqrt(toBossX * toBossX + toBossY * toBossY) || 1;
@@ -2902,4 +2902,4 @@ function drawQTEOverlay() {
 window.startLivingStoneFight = startLivingStoneFight;
 window.stopLivingStoneFight = stopLivingStoneFight;
 window.preloadQTEMusic = preloadQTEMusic;
-console.log("[LIVING STONE] Модуль загружен v5.7 — с модификациями и фиксами");
+console.log("[LIVING STONE] Модуль загружен v5.8 — самонаведение ослаблено, дробовик ускорен");
