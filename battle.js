@@ -1,5 +1,5 @@
 // ========== АРЕНА UNDERTALE v10.9 ==========
-// Добавлена поддержка специальных боссов (Живой Камень)
+// Без изменений — мастерство проверяется в supers.js
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -60,29 +60,6 @@ let arenaPhaseTimeout = null;
 let mobileSuperTapTimer = null;
 let mobileSuperTapCount = 0;
 let mobileSuperSwipeStart = null;
-
-// ========== СПИСОК СПЕЦИАЛЬНЫХ БОССОВ ==========
-// Волны, на которых запускается особый режим боя вместо обычной арены
-const SPECIAL_BOSSES = {
-    200: { name: "Живой камень", startFunc: "startLivingStoneFight" }
-};
-
-function isSpecialBoss(waveNum) {
-    return SPECIAL_BOSSES[waveNum] !== undefined;
-}
-
-function startSpecialBoss(waveNum) {
-    var boss = SPECIAL_BOSSES[waveNum];
-    if (!boss) return false;
-    var startFunc = window[boss.startFunc];
-    if (typeof startFunc === 'function') {
-        // Скрываем обычную арену, если она открыта
-        if (arenaActive) stopArena();
-        startFunc();
-        return true;
-    }
-    return false;
-}
 
 // ========== ЗВУКОВАЯ СИСТЕМА АРЕНЫ ==========
 let arenaAudioCtx = null;
@@ -289,12 +266,6 @@ function getAttackTypes(bossWave) {
 function skipDefeatedBoss() { stopArena(); if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0; if (typeof victory === 'function') victory(); }
 
 function startArena(bossWave) {
-    // ★ ПРОВЕРКА НА СПЕЦИАЛЬНОГО БОССА ★
-    if (isSpecialBoss(bossWave)) {
-        startSpecialBoss(bossWave);
-        return;
-    }
-    
     initArenaAudio();
     var btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = "none";
     var spareBtn = document.getElementById("spareBtn"); if (spareBtn) spareBtn.style.display = "none";
@@ -563,7 +534,12 @@ function renderArena() {
     if (typeof tickSupers === 'function') tickSupers();
     if (typeof arenaSettings !== 'undefined' && arenaSettings.autoSuper) {
         var mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
-        if (mainCard && typeof _superCooldowns !== 'undefined' && _superCooldowns[mainCard.name] && _superCooldowns[mainCard.name].ready) { if (typeof toggleSuper === 'function') toggleSuper(); }
+        if (mainCard && typeof _superCooldowns !== 'undefined' && _superCooldowns[mainCard.name] && _superCooldowns[mainCard.name].ready) { 
+            // ★ АВТО-СУПЕР только если мастерство 5+ ★
+            if (typeof hasMasterySuper !== 'function' || hasMasterySuper(mainCard)) {
+                if (typeof toggleSuper === 'function') toggleSuper(); 
+            }
+        }
     }
     var now = Date.now();
     if (arenaPhase === "dodge") { moveHeart(); if (arenaAllowedTypes.includes(10) && !heartWasMoving) { var bw=arenaCurrentWave; var ct=bw>=700?70:(bw>=350?90:110); if (heartStandingTime>ct) { spawnBlaster(bw); heartStandingTime=0; } } }
