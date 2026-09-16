@@ -1,13 +1,48 @@
 // ========== ОТРИСОВКА КАРТОЧЕК ==========
-function renderMyCards() { let c = document.getElementById("collectionGrid"); document.getElementById("totalCards").innerText = myCards.length; if (!myCards.length) { c.innerHTML = "<div style='width:100%;text-align:center;padding:20px;color:#888;'>Нет карт</div>"; return; } c.innerHTML = myCards.map((cd, idx) => { let isSeven = cd.name === "Семёрка"; let cvMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.2 : 1); let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); let skFinger = hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now() && cd.name === sukunaTarget; let dmgMult = 1; if (cd.ability?.type === 'scaleWithWins') dmgMult *= (1 + totalWins * cd.ability.value); if (cd.statusAbility?.type === 'scaleWithWins') dmgMult *= (1 + totalWins * cd.statusAbility.value); let dmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1)); let hp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1)); let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(cd.rarity); let cardImg = showImage ? getCardImage(cd.name) : null; let imgHTML = cardImg ? '<img src="' + cardImg + '" class="card-image">' : ''; 
-    // Только название SUPER-скилла, без описания
-    let superHTML = '';
-    if (cd.superAbility) {
-        superHTML = '<div style="font-size:9px;color:#ffd700;font-weight:bold;margin-top:3px;text-align:center;line-height:1.2;background:rgba(0,0,0,0.3);border-radius:8px;padding:2px 4px;">' + cd.superAbility.name + '</div>';
-    }
-    // Показываем иконку если активны Пальцы Сукуны
-    let sukunaIndicator = skFinger ? '<div style="font-size:9px;color:#ff4444;font-weight:bold;margin-top:2px;">🗿 Сукуна</div>' : '';
-    return '<div class="card-item ' + (team.includes(idx) ? 'team-selected' : '') + ' ' + (afkTeam.includes(idx) ? 'afk-selected' : '') + '" onclick="toggleTeam(' + idx + ')">' + imgHTML + '<div class="card-name">' + escapeHtml(cd.name) + '</div>' + '<div class="rarity-tag ' + rarityColors[cd.rarity] + '">' + cd.rarity + '</div>' + '<div class="card-stats">💪' + dmg + ' ❤️' + hp + ' ⚡' + (cd.speed || 0.5).toFixed(1) + '</div>' + superHTML + sukunaIndicator + (cd.ability ? '<div style="font-size:10px;color:#f5af19;font-weight:bold;margin-top:2px;">✨ ' + cd.ability.desc + '</div>' : '') + (cd.statusAbility ? '<div style="font-size:9px;color:#f5af19;margin-top:2px;">' + cd.statusAbility.desc + '</div>' : '') + '<div style="display:flex;gap:4px;justify-content:center;margin-top:6px;flex-wrap:wrap;">' + '<div class="remove-icon" onclick="event.stopPropagation();toggleTeam(' + idx + ')" style="background:#f5af19;color:#000;">⚔️</div>' + '<div class="remove-icon" onclick="event.stopPropagation();toggleAfk(' + idx + ')" style="background:#2ecc71;color:#000;">💤</div>' + (!cd.unsellable ? '<div class="remove-icon" onclick="event.stopPropagation();sellCard(' + idx + ')">💰</div>' : '') + '</div></div>'; }).join(''); }
+function renderMyCards() { 
+    let c = document.getElementById("collectionGrid"); 
+    document.getElementById("totalCards").innerText = myCards.length; 
+    if (!myCards.length) { c.innerHTML = "<div style='width:100%;text-align:center;padding:20px;color:#888;'>Нет карт</div>"; return; } 
+    c.innerHTML = myCards.map((cd, idx) => { 
+        let isSeven = cd.name === "Семёрка"; 
+        let cvMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.2 : 1); 
+        let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); 
+        let skFinger = hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now() && cd.name === sukunaTarget; 
+        let dmgMult = 1; 
+        if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + totalWins * cd.ability.value); 
+        if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + totalWins * cd.statusAbility.value); 
+        // ★ МНОЖИТЕЛЬ МАСТЕРСТВА ★
+        let masteryMult = typeof getMasteryMult === 'function' ? getMasteryMult(cd) : 1;
+        let dmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1) * masteryMult); 
+        let hp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult); 
+        let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(cd.rarity); 
+        let cardImg = showImage ? getCardImage(cd.name) : null; 
+        let imgHTML = cardImg ? '<img src="' + cardImg + '" class="card-image">' : ''; 
+        let superHTML = '';
+        if (cd.superAbility && (typeof hasMasterySuper === 'function' ? hasMasterySuper(cd) : true)) {
+            superHTML = '<div style="font-size:9px;color:#ffd700;font-weight:bold;margin-top:3px;text-align:center;line-height:1.2;background:rgba(0,0,0,0.3);border-radius:8px;padding:2px 4px;">' + cd.superAbility.name + '</div>';
+        }
+        let sukunaIndicator = skFinger ? '<div style="font-size:9px;color:#ff4444;font-weight:bold;margin-top:2px;">🗿 Сукуна</div>' : '';
+        // ★ HTML МАСТЕРСТВА ★
+        let masteryHTML = typeof getMasteryHTML === 'function' ? getMasteryHTML(cd) : '';
+        return '<div class="card-item ' + (team.includes(idx) ? 'team-selected' : '') + ' ' + (afkTeam.includes(idx) ? 'afk-selected' : '') + '" onclick="toggleTeam(' + idx + ')">' 
+            + imgHTML 
+            + '<div class="card-name">' + escapeHtml(cd.name) + '</div>' 
+            + '<div class="rarity-tag ' + rarityColors[cd.rarity] + '">' + cd.rarity + '</div>' 
+            + '<div class="card-stats">💪' + dmg + ' ❤️' + hp + ' ⚡' + (cd.speed || 0.5).toFixed(1) + '</div>' 
+            + superHTML 
+            + sukunaIndicator 
+            + masteryHTML 
+            + (cd.ability ? '<div style="font-size:10px;color:#f5af19;font-weight:bold;margin-top:2px;">✨ ' + cd.ability.desc + '</div>' : '') 
+            + (cd.statusAbility ? '<div style="font-size:9px;color:#f5af19;margin-top:2px;">' + cd.statusAbility.desc + '</div>' : '') 
+            + '<div style="display:flex;gap:4px;justify-content:center;margin-top:6px;flex-wrap:wrap;">' 
+            + '<div class="remove-icon" onclick="event.stopPropagation();showMasteryModal(' + idx + ')" style="background:#ffd700;color:#000;">⭐</div>' 
+            + '<div class="remove-icon" onclick="event.stopPropagation();toggleTeam(' + idx + ')" style="background:#f5af19;color:#000;">⚔️</div>' 
+            + '<div class="remove-icon" onclick="event.stopPropagation();toggleAfk(' + idx + ')" style="background:#2ecc71;color:#000;">💤</div>' 
+            + (!cd.unsellable ? '<div class="remove-icon" onclick="event.stopPropagation();sellCard(' + idx + ')">💰</div>' : '') 
+            + '</div></div>'; 
+    }).join(''); 
+}
 
 function renderTeam() { 
     let c = document.getElementById("teamList"), d = 0, h = 0, html = ""; 
@@ -26,26 +61,33 @@ function renderTeam() {
         let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); 
         let skFinger = hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now() && cd.name === sukunaTarget; 
         let dmgMult = 1; 
-        if (cd.ability?.type === 'scaleWithWins') dmgMult *= (1 + totalWins * cd.ability.value); 
-        if (cd.statusAbility?.type === 'scaleWithWins') dmgMult *= (1 + totalWins * cd.statusAbility.value); 
-        let cDmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1)); 
-        let cHp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1)); 
+        if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + totalWins * cd.ability.value); 
+        if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + totalWins * cd.statusAbility.value); 
+        // ★ МНОЖИТЕЛЬ МАСТЕРСТВА ★
+        let masteryMult = typeof getMasteryMult === 'function' ? getMasteryMult(cd) : 1;
+        let cDmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1) * masteryMult); 
+        let cHp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult); 
         let cSpd = cd.speed || 0.5;
-        if (cd.ability?.type === 'copyEnemyChance' && currentEnemy && Math.random() < cd.ability.chance) { 
+        if (cd.ability?.type === 'copyEnemyChance' && currentEnemy && Math.random() < cd.ability.chance && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { 
             cDmg = currentEnemy.damage; cHp = currentEnemy.hp; 
         } 
         d += cDmg; h += cHp; 
-        // В отряде только название SUPER-скилла
         let superInfo = '';
-        if (cd.superAbility) {
+        if (cd.superAbility && (typeof hasMasterySuper === 'function' ? hasMasterySuper(cd) : true)) {
             superInfo = '<div style="font-size:10px;color:#ffd700;margin-top:2px;font-weight:bold;">' + cd.superAbility.name + '</div>';
         }
         let sukunaTag = skFinger ? ' <span style="color:#ff4444;font-size:10px;">🗿</span>' : '';
+        // ★ МАСТЕРСТВО В ОТРЯДЕ ★
+        let lvl = cd.mastery || 1;
+        let mStars = "";
+        for (let i = 1; i <= 5; i++) mStars += (i <= lvl ? "★" : "☆");
+        let masteryTeam = '<div style="font-size:9px;color:' + (lvl >= 5 ? "#ffd700" : lvl >= 4 ? "#e056fd" : lvl >= 3 ? "#9b59b6" : lvl >= 2 ? "#3498db" : "#95a5a6") + ';font-weight:bold;margin-top:2px;">' + mStars + '</div>';
         html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border:2px solid ' + (isMain ? '#f5af19' : (skFinger ? '#ff4444' : 'rgba(255,255,255,0.08)')) + ';border-radius:12px;margin-bottom:6px;' + (isMain ? 'box-shadow: 0 0 12px rgba(245,175,25,0.4);' : (skFinger ? 'box-shadow: 0 0 12px rgba(255,68,68,0.3);' : '')) + '">' +
             '<div style="flex:1;">' +
                 '<span style="font-weight:800;">' + (isMain ? '👑 ' : '') + escapeHtml(cd.name) + sukunaTag + '</span>' +
                 '<span style="font-size:12px;margin-left:8px;">💪' + cDmg + ' ❤️' + cHp + ' ⚡' + cSpd.toFixed(1) + '</span>' +
                 superInfo +
+                masteryTeam +
             '</div>' +
             '<div style="display:flex;gap:4px;align-items:center;">' +
                 (isMain ? '<span style="font-size:10px;color:#f5af19;font-weight:bold;">ГЛАВНЫЙ</span>' : '<button class="btn" style="padding:3px 8px;font-size:10px;background:rgba(245,175,25,0.3);border:1px solid #f5af19;color:#f5af19;border-radius:15px;" onclick="event.stopPropagation();setMainCard(' + s + ')">👑</button>') +
@@ -74,7 +116,7 @@ function renderTeam() {
     }
 }
 
-function renderAfkTeam() { let c = document.getElementById("afkTeamList"), d = 0, h = 0, html = ""; if (!afkTeam.length) { c.innerHTML = "<div style='padding:10px;text-align:center;color:#888;'>Пусто</div>"; return; } afkTeam.forEach((idx, s) => { let cd = myCards[idx]; if (!cd) return; let isSeven = cd.name === "Семёрка"; let cvMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.2 : 1); let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); let skFinger = hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now() && cd.name === sukunaTarget; let dmgMult = 1; if (cd.ability?.type === 'scaleWithWins') dmgMult *= (1 + totalWins * cd.ability.value); if (cd.statusAbility?.type === 'scaleWithWins') dmgMult *= (1 + totalWins * cd.statusAbility.value); let cDmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1)); let cHp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1)); d += cDmg; h += cHp; html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);border-radius:12px;margin-bottom:6px;"><span style="font-weight:800;">' + escapeHtml(cd.name) + (skFinger ? ' 🗿' : '') + '</span><span>💪' + Math.floor(cDmg * 0.8) + ' ❤️' + Math.floor(cHp * 0.8) + '</span><button class="btn" style="padding:4px 10px;background:rgba(231,76,60,0.8);border:none;" onclick="afkTeam.splice(' + s + ',1);renderAll();">X</button></div>'; }); c.innerHTML = html; document.getElementById("afkTotalDamage").innerText = Math.floor(d * 0.8); document.getElementById("afkTotalHpBonus").innerText = Math.floor(h * 0.8); window.afkTeamDamage = Math.floor(d * 0.8); window.afkTeamHpBonus = Math.floor(h * 0.8); }
+function renderAfkTeam() { let c = document.getElementById("afkTeamList"), d = 0, h = 0, html = ""; if (!afkTeam.length) { c.innerHTML = "<div style='padding:10px;text-align:center;color:#888;'>Пусто</div>"; return; } afkTeam.forEach((idx, s) => { let cd = myCards[idx]; if (!cd) return; let isSeven = cd.name === "Семёрка"; let cvMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.2 : 1); let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); let skFinger = hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now() && cd.name === sukunaTarget; let dmgMult = 1; if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + totalWins * cd.ability.value); if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + totalWins * cd.statusAbility.value); let masteryMult = typeof getMasteryMult === 'function' ? getMasteryMult(cd) : 1; let cDmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1) * masteryMult); let cHp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult); d += cDmg; h += cHp; html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);border-radius:12px;margin-bottom:6px;"><span style="font-weight:800;">' + escapeHtml(cd.name) + (skFinger ? ' 🗿' : '') + '</span><span>💪' + Math.floor(cDmg * 0.8) + ' ❤️' + Math.floor(cHp * 0.8) + '</span><button class="btn" style="padding:4px 10px;background:rgba(231,76,60,0.8);border:none;" onclick="afkTeam.splice(' + s + ',1);renderAll();">X</button></div>'; }); c.innerHTML = html; document.getElementById("afkTotalDamage").innerText = Math.floor(d * 0.8); document.getElementById("afkTotalHpBonus").innerText = Math.floor(h * 0.8); window.afkTeamDamage = Math.floor(d * 0.8); window.afkTeamHpBonus = Math.floor(h * 0.8); }
 
 function renderEnemy() { if (!currentEnemy) generateEnemy(); let p = (currentEnemy.hp / currentEnemy.maxHp) * 100; let rew = currentEnemy.isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); document.getElementById("enemyContainer").innerHTML = '<div style="font-size:22px;font-weight:900;margin-bottom:8px;">' + currentEnemy.name + '</div><div style="font-size:14px;margin-bottom:5px;">❤️ ' + Math.floor(currentEnemy.hp) + ' / ' + currentEnemy.maxHp + '</div><div style="background:rgba(0,0,0,0.5);border-radius:10px;margin-bottom:8px;"><div style="width:' + p + '%;background:linear-gradient(90deg, #e74c3c, #f5af19);height:12px;border-radius:10px;"></div></div><div style="font-size:14px;color:#aaa;">⚔️ Урон: ' + currentEnemy.damage + '</div>'; document.getElementById("waveNumber").innerText = wave; document.getElementById("rewardPreview").innerText = rew; if (currentEnemy.isBoss && currentEnemy.hp <= currentEnemy.maxHp * 0.3 && currentEnemy.hp > 0) { document.getElementById("spareBtn").style.display = "block"; } else { document.getElementById("spareBtn").style.display = "none"; } if (currentDialog && wave === 10000 && currentEnemy.hp <= currentEnemy.maxHp * 0.5 && currentEnemy.hp > 0) { renderDialog(); } document.getElementById("worldIndicator").innerHTML = '🌍 Мир: <span style="color:' + getCurrentWorld().color + ';">' + getCurrentWorld().name + '</span> <button id="musicToggleBtn" class="btn" style="padding:2px 8px;font-size:12px;margin-left:8px;" onclick="toggleMusic()">' + (musicEnabled ? '🔊' : '🔇') + '</button>'; }
 
@@ -140,7 +182,6 @@ function renderActiveBuffs() {
             l.push('<span style="color:var(--gold);">' + name + '</span> (' + timeStr + ')'); 
         } else delete activeBuffs[id]; 
     } 
-    // Пальцы Сукуны с таймером
     if (hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now()) {
         let remaining = Math.max(0, sukunaExpireTime - Date.now());
         let mins = Math.floor(remaining / 60000);
@@ -166,11 +207,11 @@ function renderUpgrades() { let h = ""; for (let [k, u] of Object.entries(upgrad
 
 function renderBook() { let all = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))); let ds = new Set(discoveredCards); document.getElementById("bookList").innerHTML = all.map(t => { let kn = ds.has(t.name); let s = cardStats[t.rarity]; let clickAction = (moderUnlocked && mode === 'moder') ? 'bookGet(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')' : 'bookInfoCard(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')'; let superPreview = ''; if (t.superAbility && kn) { superPreview = '<div style="font-size:8px;color:#ffd700;margin-top:2px;">' + t.superAbility.name + '</div>'; } return '<div class="book-item ' + (kn ? '' : 'unknown-card') + '" onclick="' + clickAction + '"><div class="name">' + (kn ? t.name : '???') + '</div><div class="rarity-tag ' + rarityColors[t.rarity] + '">' + t.rarity + '</div><div>💪' + (t.damage ?? s.damage) + ' ❤️' + (t.hp ?? s.hp) + ' ⚡' + (t.speed ?? s.speed ?? '?') + '</div>' + superPreview + '</div>'; }).join(''); document.getElementById("discoveredCount").innerText = discoveredCards.length; document.getElementById("totalTemplatesCount").innerText = all.length; }
 
-function bookInfoCard(rarity, name) { let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === name && t.rarity === rarity); if (!t) return; let s = cardStats[rarity]; let info = '📄 ' + t.name + '\n\n'; info += '⭐ Редкость: ' + rarity + '\n'; info += '🌌 Вселенная: ' + (t.universe || 'Неизвестно') + '\n'; info += '💪 Урон: ' + (t.damage ?? s.damage) + '\n'; info += '❤️ Здоровье: ' + (t.hp ?? s.hp) + '\n'; info += '⚡ Скорость: ' + (t.speed ?? s.speed ?? '?') + '\n'; if (t.sellPrice) info += '💰 Цена продажи: ' + t.sellPrice + '⭐\n'; if (t.minRebirth) info += '🔒 Мин. ребиртх: ' + t.minRebirth + '\n'; if (t.desc) { info += '\n📝 Описание:\n' + t.desc + '\n'; } if (t.ability) { info += '\n✨ Способность: ' + t.ability.desc + '\n'; } if (t.statusAbility) { info += '🌀 Статус-эффект: ' + t.statusAbility.desc + '\n'; } if (t.superAbility) { info += '\n⚡ ' + t.superAbility.name + '\n' + t.superAbility.desc + '\n'; } if (t.unsellable) info += '\n🔒 Не продаётся\n'; showModal('📄 Информация о карте', info); }
+function bookInfoCard(rarity, name) { let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === name && t.rarity === rarity); if (!t) return; let s = cardStats[rarity]; let info = '📄 ' + t.name + '\n\n'; info += '⭐ Редкость: ' + rarity + '\n'; info += '🌌 Вселенная: ' + (t.universe || 'Неизвестно') + '\n'; info += '💪 Урон: ' + (t.damage ?? s.damage) + '\n'; info += '❤️ Здоровье: ' + (t.hp ?? s.hp) + '\n'; info += '⚡ Скорость: ' + (t.speed ?? s.speed ?? '?') + '\n'; if (t.sellPrice) info += '💰 Цена продажи: ' + t.sellPrice + '⭐\n'; if (t.minRebirth) info += '🔒 Мин. ребиртх: ' + t.minRebirth + '\n'; if (t.desc) { info += '\n📝 Описание:\n' + t.desc + '\n'; } if (t.ability) { info += '\n✨ Способность (ур.4): ' + t.ability.desc + '\n'; } if (t.statusAbility) { info += '🌀 Статус-эффект (ур.3): ' + t.statusAbility.desc + '\n'; } if (t.superAbility) { info += '\n⚡ ' + t.superAbility.name + ' (ур.5)\n' + t.superAbility.desc + '\n'; } if (t.unsellable) info += '\n🔒 Не продаётся\n'; showModal('📄 Информация о карте', info); }
 
-window.bookGet = function(r, n) { if (!moderUnlocked || mode !== 'moder') return; let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === n && t.rarity === r); if (t) { let s = cardStats[r]; let c = { id: Date.now() + Math.random() * 10000, name: t.name, rarity: r, damage: t.damage ?? s.damage, hp: t.hp ?? s.hp, sellPrice: t.sellPrice ?? s.sellPrice, speed: t.speed ?? s.speed ?? 0.5, ability: t.ability || null, universe: t.universe || "?", unsellable: t.unsellable || false, minRebirth: t.minRebirth || 0, statusAbility: t.statusAbility || null, extraStatus: t.extraStatus || null, superAbility: t.superAbility || null }; if (!discoveredCards.includes(t.name)) { discoveredCards.push(t.name); } myCards.push(c); saveAll(); renderMyCards(); sfxCardObtain(); alert("🎴 Получена карта: " + t.name + " (" + r + ")"); } };
+window.bookGet = function(r, n) { if (!moderUnlocked || mode !== 'moder') return; let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === n && t.rarity === r); if (t) { let s = cardStats[r]; let c = { id: Date.now() + Math.random() * 10000, name: t.name, rarity: r, damage: t.damage ?? s.damage, hp: t.hp ?? s.hp, sellPrice: t.sellPrice ?? s.sellPrice, speed: t.speed ?? s.speed ?? 0.5, ability: t.ability || null, universe: t.universe || "?", unsellable: t.unsellable || false, minRebirth: t.minRebirth || 0, statusAbility: t.statusAbility || null, extraStatus: t.extraStatus || null, superAbility: t.superAbility || null, mastery: 1 }; if (!discoveredCards.includes(t.name)) { discoveredCards.push(t.name); } myCards.push(c); saveAll(); renderMyCards(); sfxCardObtain(); alert("🎴 Получена карта: " + t.name + " (" + r + ")"); } };
 
-// ========== ОТРИСОВКА ЭВОЛЮЦИЙ ==========
+// ========== ЭВОЛЮЦИИ ==========
 function renderEvoTab() { 
     let c = document.getElementById("evoContent"); 
     if (rebirthCount < 5) { c.innerHTML = "<div style='text-align:center;color:#888;'>Сделайте 5 ребиртхов.</div>"; return; } 
@@ -226,7 +267,7 @@ function renderModerControls() { let el = document.getElementById("moderControls
 
 function renderCheckpoints() { let c = document.getElementById("checkpointList"); let html = ''; let maxCp = Math.max(highestCheckpoint, Math.floor(wave / 50) * 50); for (let cp = 50; cp <= maxCp; cp += 50) { let unlocked = cp <= highestCheckpoint; html += '<div class="checkpoint-item" style="opacity:' + (unlocked ? '1' : '0.5') + '"><div>🚩 Волна ' + cp + (unlocked ? '' : ' 🔒') + '</div><button class="btn ' + (activeCheckpoint === cp ? 'auto-active' : '') + '" style="padding:6px 12px;" onclick="toggleCheckpoint(' + cp + ')" ' + (unlocked ? '' : 'disabled') + '>' + (activeCheckpoint === cp ? 'Выбрано ✅' : 'Выбрать ▶') + '</button></div>'; } c.innerHTML = html || "<div style='text-align:center;padding:15px;color:#888;font-weight:bold;'>Дойдите до 50 волны</div>"; }
 
-// ========== РЕНДЕР ГАЧА-КРУТОК ==========
+// ========== РЕНДЕР ГАЧА ==========
 function renderGachaTab() {
     let container = document.getElementById("gachaItems");
     if (!container) return;
@@ -289,4 +330,4 @@ function renderGachaTab() {
     container.innerHTML = html;
 }
 
-function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); renderSettings(); renderSlotsInGame(); renderDailyRewards(); renderPass(); if (typeof renderGachaTab === 'function') renderGachaTab(); updatePlayerStats(); updateStatusDisplay(); }
+function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); renderSettings(); renderSlotsInGame(); renderDailyRewards(); renderPass(); if (typeof renderGachaTab === 'function') renderGachaTab(); if (typeof renderPowerPoints === 'function') renderPowerPoints(); updatePlayerStats(); updateStatusDisplay(); }
