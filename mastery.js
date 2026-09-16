@@ -1,19 +1,17 @@
 // ============================================================
-// МАСТЕРСТВО КАРТ v2.3 — ОПЫТ + МОЛНИЯ ⚡ + ПРИРОСТ + ПЕРЕНОС ОПЫТА
+// МАСТЕРСТВО КАРТ v2.4 — ОПЫТ + МОЛНИЯ ⚡ + ПРИРОСТ + ПЕРЕНОС
+// + очки силы × 10 (цены и добыча)
 // ============================================================
 
-// Множители характеристик по уровням
 const MASTERY_MULT = [0, 0.60, 0.75, 0.85, 0.95, 1.00];
 
-// Стоимость апгрейда (индекс = целевой уровень)
 const MASTERY_BASE_STARS = [0, 0, 100, 200, 400, 800];
-const MASTERY_BASE_POWER = [0, 0, 5, 10, 20, 40];
+// ★ СТОИМОСТЬ В ОЧКАХ СИЛЫ × 10 ★
+const MASTERY_BASE_POWER = [0, 0, 50, 100, 200, 400];
 
-// ★ ОПЫТ ДЛЯ ПРОКАЧКИ ★
 const MASTERY_BASE_EXP = 200;
 const MASTERY_EXP_LEVEL_MULT = [0, 0, 1, 2, 4, 8];
 
-// Множители по редкости
 const MASTERY_RARITY_MULT = {
     "Обычная": 1, "Редкая": 1.5, "Сверх редкая": 2.5, "Эпик": 4,
     "Мифическая": 6, "Легендарная": 10, "Секретная": 15,
@@ -22,7 +20,6 @@ const MASTERY_RARITY_MULT = {
 
 let powerPoints = 0;
 
-// ========== ПРИРОСТ ПО УРОВНЯМ (для отображения) ==========
 const MASTERY_GAIN_TEXT = {
     1: "60%",
     2: "+15%",
@@ -37,21 +34,19 @@ function addPowerPoints(amount) {
     saveAll();
     renderPowerPoints();
     renderPoints();
+    if (typeof renderPass === 'function') renderPass();
 }
 
-// ========== МНОЖИТЕЛЬ МАСТЕРСТВА ==========
 function getMasteryMult(card) {
     if (!card) return 1.0;
     let lvl = Math.max(1, Math.min(5, card.mastery || 1));
     return MASTERY_MULT[lvl];
 }
 
-// ========== ПРОВЕРКИ РАЗБЛОКИРОВКИ ==========
 function hasMasteryStatus(card) { return card && (card.mastery || 1) >= 3; }
 function hasMasteryAbility(card) { return card && (card.mastery || 1) >= 4; }
 function hasMasterySuper(card) { return card && (card.mastery || 1) >= 5; }
 
-// ========== СТОИМОСТЬ АПГРЕЙДА ==========
 function getMasteryUpgradeCost(card, targetLevel) {
     if (!card) return { stars: 999999, power: 99999 };
     let rarMult = MASTERY_RARITY_MULT[card.rarity] || 1;
@@ -61,7 +56,6 @@ function getMasteryUpgradeCost(card, targetLevel) {
     };
 }
 
-// ========== СКОЛЬКО ОПЫТА НУЖНО ==========
 function getMasteryExpNeeded(card, targetLevel) {
     if (!card || targetLevel < 2 || targetLevel > 5) return 0;
     let rarMult = MASTERY_RARITY_MULT[card.rarity] || 1;
@@ -69,7 +63,6 @@ function getMasteryExpNeeded(card, targetLevel) {
     return Math.floor(MASTERY_BASE_EXP * lvlMult * rarMult);
 }
 
-// ========== НАЧИСЛЕНИЕ ОПЫТА КАРТЕ ==========
 function addCardMasteryExp(card, expAmount) {
     if (!card || expAmount <= 0) return;
     if ((card.mastery || 1) >= 5) return;
@@ -77,7 +70,6 @@ function addCardMasteryExp(card, expAmount) {
     card.masteryExp += expAmount;
 }
 
-// ========== ОПЫТ ЗА БОЙ (урон + полученный урон) ==========
 function grantMasteryExpFromFight(damageDealt, damageTaken) {
     let exp = 0;
     if (damageDealt > 0) {
@@ -96,7 +88,6 @@ function grantMasteryExpFromFight(damageDealt, damageTaken) {
     }
 }
 
-// ========== АПГРЕЙД МАСТЕРСТВА (С ПЕРЕНОСОМ ОПЫТА) ==========
 function upgradeMastery(cardIndex) {
     let card = myCards[cardIndex];
     if (!card) return;
@@ -115,7 +106,6 @@ function upgradeMastery(cardIndex) {
         powerPoints -= cost.power;
     }
 
-    // ★ ПЕРЕНОС ОПЫТА — не сбрасываем в 0, а вычитаем нужное ★
     let leftoverExp = Math.floor(currentExp - expNeeded);
     if (leftoverExp < 0) leftoverExp = 0;
 
@@ -140,7 +130,6 @@ function upgradeMastery(cardIndex) {
     if (targetLevel === 5 && card.superAbility) setTimeout(function() { alert("⭐ Уровень 5 (" + MASTERY_GAIN_TEXT[5] + ")!\nРазблокирована СУПЕР-УЛЬТА:\n" + card.superAbility.name + "\n" + card.superAbility.desc); }, 300);
 }
 
-// ========== HTML КАРТОЧКИ (звёзды + прирост + полоска опыта) ==========
 function getMasteryHTML(card) {
     let lvl = card.mastery || 1;
     let gainText = MASTERY_GAIN_TEXT[lvl] || "60%";
@@ -158,7 +147,6 @@ function getMasteryHTML(card) {
     return '<div style="font-size:9px;color:' + color + ';font-weight:bold;margin-top:2px;">' + stars + ' ' + gainText + '</div>' + expHtml;
 }
 
-// ========== SVG МОЛНИЯ ==========
 function getLightningSVG(size, color) {
     if (size === undefined) size = 20;
     if (color === undefined) color = "#ffd700";
@@ -168,7 +156,6 @@ function getLightningSVG(size, color) {
         '</svg></span>';
 }
 
-// ========== МОДАЛКА МАСТЕРСТВА ==========
 function showMasteryModal(cardIndex) {
     let card = myCards[cardIndex];
     if (!card) return;
@@ -212,11 +199,8 @@ function showMasteryModal(cardIndex) {
 
         let nextGain = MASTERY_GAIN_TEXT[lvl + 1] || "";
         let nextGainClean = nextGain.replace('+', '');
-
-        // ★ СКОЛЬКО ОСТАНЕТСЯ ОПЫТА ★
         let leftoverAfter = Math.max(0, Math.floor(currentExp - expNeeded));
 
-        // Опыт
         html += '<div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:12px;margin-bottom:12px;">';
         html += '<div style="font-size:12px;color:#aaa;margin-bottom:6px;text-align:center;">📊 Опыт карты:</div>';
         html += '<div style="background:rgba(0,0,0,0.5);border-radius:8px;height:16px;overflow:hidden;position:relative;">';
@@ -231,7 +215,6 @@ function showMasteryModal(cardIndex) {
         }
         html += '</div>';
 
-        // Стоимость
         html += '<div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:12px;margin-bottom:12px;">';
         html += '<div style="font-size:12px;color:#aaa;margin-bottom:8px;text-align:center;">До уровня ' + (lvl+1) + ' — прирост <span style="color:#00d4ff;font-weight:bold;">' + nextGain + '</span>:</div>';
         html += '<div style="display:flex;justify-content:space-around;align-items:center;font-size:15px;font-weight:900;">';
@@ -251,7 +234,6 @@ function showMasteryModal(cardIndex) {
     if (el) el.style.display = "flex";
 }
 
-// ========== РЕНДЕР ОЧКОВ СИЛЫ (⚡) ==========
 function renderPowerPoints() {
     let elem = document.getElementById("powerPointsDisplay");
     if (!elem) {
@@ -269,13 +251,12 @@ function renderPowerPoints() {
     if (amt) amt.innerText = powerPoints.toLocaleString();
 }
 
-// ========== НАГРАДА СИЛЫ ЗА БОССА ==========
+// ★ +30 СИЛЫ ВМЕСТО +3 ★
 function grantMasteryPowerForBoss() {
-    addPowerPoints(3);
-    showFloatingText("⚡ +3 СИЛЫ!", "#ffd700");
+    addPowerPoints(30);
+    showFloatingText("⚡ +30 СИЛЫ!", "#ffd700");
 }
 
-// ========== ЭКСПОРТ ==========
 window.MASTERY_MULT = MASTERY_MULT;
 window.MASTERY_GAIN_TEXT = MASTERY_GAIN_TEXT;
 window.getMasteryMult = getMasteryMult;
@@ -296,4 +277,4 @@ window.grantMasteryPowerForBoss = grantMasteryPowerForBoss;
 window.getPowerPoints = function() { return powerPoints; };
 window.setPowerPoints = function(v) { powerPoints = v; };
 
-console.log("[MASTERY] v2.3 — перенос опыта");
+console.log("[MASTERY] v2.4 — молния + очки силы × 10");
