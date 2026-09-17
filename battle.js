@@ -1,5 +1,5 @@
-// ========== АРЕНА UNDERTALE v10.9 ==========
-// Без изменений — мастерство проверяется в supers.js
+// ========== АРЕНА UNDERTALE v11.0 ==========
+// + патч ожирения: скорость сердечка × getObesitySpeedMult()
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -296,6 +296,8 @@ function startArena(bossWave) {
         var mainCardIdx = team[mainCardIndex];
         if (typeof myCards !== 'undefined' && mainCardIdx >= 0 && mainCardIdx < myCards.length) { var mainCard = myCards[mainCardIdx]; if (mainCard && typeof mainCard.speed === 'number') heartSpeed = mainCard.speed; }
     }
+    // ★ ОЖИРЕНИЕ СНИЖАЕТ СКОРОСТЬ ★
+    if (typeof getObesitySpeedMult === 'function') heartSpeed *= getObesitySpeedMult();
     var speedDisplay = document.getElementById("arenaSpeedDisplay"); if (speedDisplay) speedDisplay.innerText = heartSpeed.toFixed(1);
     arenaClickTargets = []; arenaClicksHit = 0; arenaPhase = "dodge"; attacks = []; arenaBlasters = []; arenaParticles = []; floatingTexts = []; arenaTrail = []; arenaShockwaves = []; wallGapIndicator = null;
     arenaShake = 0; arenaHitFlash = 0; invulnTimer = 0; arenaComboText = ""; arenaComboTimer = 0; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0; heartRotation = 0; heartWasMoving = false; heartStandingTime = 0;
@@ -535,7 +537,6 @@ function renderArena() {
     if (typeof arenaSettings !== 'undefined' && arenaSettings.autoSuper) {
         var mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
         if (mainCard && typeof _superCooldowns !== 'undefined' && _superCooldowns[mainCard.name] && _superCooldowns[mainCard.name].ready) { 
-            // ★ АВТО-СУПЕР только если мастерство 5+ ★
             if (typeof hasMasterySuper !== 'function' || hasMasterySuper(mainCard)) {
                 if (typeof toggleSuper === 'function') toggleSuper(); 
             }
