@@ -164,6 +164,9 @@ function updateStatusDisplay() { let html = ''; if (enemyStatuses.fireTicks > 0)
     if (typeof poisonTimer !== 'undefined' && poisonTimer > 0) {
         html += ' <span class="status-effect" style="color:#aa00aa;">☠️ Отравление: ' + Math.floor(poisonTimer) + 'с</span>';
     }
+    if (typeof activeBuffs !== 'undefined' && activeBuffs["pepperSpeed"] && activeBuffs["pepperSpeed"] > Date.now()) {
+        html += ' <span class="status-effect" style="color:#ff4400;">🌶️ Перец!</span>';
+    }
     document.getElementById("statusEffects").innerHTML = html; 
 }
 
@@ -175,15 +178,13 @@ function renderAchievements() { let c = document.getElementById("achievementsLis
 
 function renderChallenges() { let c = document.getElementById("challengeList"); if (!challenges.length) { c.innerHTML = "Квесты загружаются..."; return; } c.innerHTML = challenges.map(ch => '<div class="challenge-item" style="opacity:' + (ch.completed ? 0.6 : 1) + '"><div><b>' + ch.name + '</b><br><small>' + (ch.progress || 0) + '/' + ch.target + '</small></div><div><span style="color:#f5af19;">' + ch.reward + '⭐</span> ' + (ch.completed ? '✅' : '') + '</div></div>').join(''); }
 
-// ★ ОБНОВЛЕНО: 9 фруктов в тайнике ★
+// ★ renderShop с фиксом тайника + кнопкой использовать ключ ★
 function renderShop() { 
-    // ТАЙНИК
     let treasureHtml = '';
     if (typeof getTreasureUnlocked === 'function' && getTreasureUnlocked()) {
         treasureHtml = '<div style="padding:12px;background:rgba(46,204,113,0.1);border:2px solid #2ecc71;border-radius:14px;margin-bottom:10px;">';
         treasureHtml += '<div style="font-weight:900;font-size:14px;color:#2ecc71;margin-bottom:10px;text-align:center;">🔓 ТАЙНИК ОТКРЫТ</div>';
         treasureHtml += '<div style="display:flex;flex-direction:column;gap:8px;">';
-        // ★ 9 ФРУКТОВ ★
         let fruits = [
             { id: "apple", name: "🍏 Яблоко", cost: 200, desc: "+5% HP, -10% голода, -1 ожирение" },
             { id: "orange", name: "🍊 Апельсин", cost: 350, desc: "+8% HP, -15% голода, -1 ожирение" },
@@ -203,20 +204,47 @@ function renderShop() {
             treasureHtml += '<button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="buyFruitFromTreasure(\'' + f.id + '\',' + f.cost + ')" ' + (!canBuy ? 'disabled' : '') + '>Купить</button></div>';
             treasureHtml += '</div>';
         });
-        treasureHtml += '</div></div>';
+        treasureHtml += '</div>';
+        
+        treasureHtml += '<div style="margin-top:15px;padding-top:15px;border-top:2px dashed rgba(46,204,113,0.4);">';
+        treasureHtml += '<div style="font-weight:900;font-size:13px;color:#2ecc71;margin-bottom:8px;text-align:center;">🍄 РАСХОДНИКИ</div>';
+        let consumables = [
+            { id: "bread", name: "🍞 Хлеб", cost: 250, desc: "-40% голода, +1 ожирение" },
+            { id: "mushroom", name: "🍄 Гриб", cost: 300, desc: "50/50: волшебный или ядовитый" },
+            { id: "pepper", name: "🌶️ Перец", cost: 400, desc: "+30% скорости, но жжёт HP" },
+            { id: "ice", name: "🧊 Лёд", cost: 600, desc: "Заморозка врага +5" },
+            { id: "antidote_potion", name: "🧪 Мини-зелье", cost: 700, desc: "Мгновенно снять отравление" },
+            { id: "honey", name: "🍯 Мёд", cost: 800, desc: "+3% HP/сек × 10 сек" },
+            { id: "egg", name: "🥚 Яйцо", cost: 1000, desc: "Рандомная награда" }
+        ];
+        consumables.forEach(function(c) {
+            let canBuy = (mode === "moder") || points >= c.cost;
+            treasureHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border-radius:10px;margin-bottom:6px;">';
+            treasureHtml += '<div><div style="font-weight:800;font-size:13px;">' + c.name + '</div><div style="font-size:10px;color:#aaa;">' + c.desc + '</div></div>';
+            treasureHtml += '<div><span style="color:#f5af19;font-weight:900;margin-right:8px;">' + c.cost + '⭐</span>';
+            treasureHtml += '<button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="buyFruitFromTreasure(\'' + c.id + '\',' + c.cost + ')" ' + (!canBuy ? 'disabled' : '') + '>Купить</button></div>';
+            treasureHtml += '</div>';
+        });
+        treasureHtml += '</div>';
+        treasureHtml += '</div>';
     } else {
         treasureHtml = '<div style="padding:15px;background:rgba(155,89,182,0.15);border:2px solid #9b59b6;border-radius:14px;margin-bottom:10px;text-align:center;">';
         treasureHtml += '<div style="font-size:32px;margin-bottom:8px;">🔐</div>';
         treasureHtml += '<div style="font-weight:900;font-size:14px;color:#9b59b6;margin-bottom:6px;">ТАЙНИК ЗАКРЫТ</div>';
-        treasureHtml += '<div style="font-size:12px;color:#aaa;line-height:1.5;">Найди Ключ Живого Камня и нажми «Использовать» в инвентаре — товары откроются.</div>';
+        let hasKey = false;
+        try { hasKey = (typeof getItemCount === 'function' && getItemCount("key") > 0); } catch(e) {}
+        if (hasKey) {
+            treasureHtml += '<div style="font-size:12px;color:#f5af19;line-height:1.5;margin-bottom:10px;">🎉 У тебя есть <b>Ключ Живого Камня</b>! Используй его, чтобы открыть.</div>';
+            treasureHtml += '<button class="btn btn-primary" style="padding:10px 24px;font-size:14px;font-weight:900;" onclick="useKey();renderShop();">🔓 ИСПОЛЬЗОВАТЬ КЛЮЧ</button>';
+        } else {
+            treasureHtml += '<div style="font-size:12px;color:#aaa;line-height:1.5;">Найди Ключ Живого Камня (победи Живого Камня на 200 волне) и нажми «Использовать» в инвентаре — товары откроются.</div>';
+        }
         treasureHtml += '</div>';
     }
     
-    // Убираем старый блок тайника
     let existingTreasure = document.getElementById("treasureBlock");
     if (existingTreasure) existingTreasure.remove();
     
-    // Вставляем новый блок ПЕРЕД shopItems
     let shopContainer = document.getElementById("shopItems");
     if (shopContainer && shopContainer.parentNode) {
         let t = document.createElement("div");
@@ -249,7 +277,6 @@ function renderShop() {
     renderAutoRest(); 
 }
 
-// Функция покупки фрукта из тайника
 window.buyFruitFromTreasure = function(fruitId, cost) {
     if (mode !== "moder" && points < cost) return;
     if (mode !== "moder") points -= cost;
@@ -280,6 +307,7 @@ function renderActiveBuffs() {
             else if (id === "fatigueImmune") name = "Иммунитет к усталости";
             else if (id === "doubleExp") name = "Двойной опыт";
             else if (id === "arenaInvuln") name = "Неуязвимость (арена)";
+            else if (id === "pepperSpeed") name = "🌶️ Перец (+30% скорости)";
             let timeStr = h > 0 ? h + 'ч ' + m + 'м' : (m > 0 ? m + 'м ' + s + 'с' : s + 'с');
             l.push('<span style="color:var(--gold);">' + name + '</span> (' + timeStr + ')'); 
         } else delete activeBuffs[id]; 
