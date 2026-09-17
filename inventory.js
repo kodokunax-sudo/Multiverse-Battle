@@ -1,8 +1,14 @@
 // ============================================================
-// ИНВЕНТАРЬ v1.2 — жарка в сетке + фикс тайника
+// ИНВЕНТАРЬ v1.3 — Звезда + 7 расходников
 // ============================================================
 
 const ITEMS = {
+    // ★ ВИРТУАЛЬНЫЙ ПРЕДМЕТ — ЗВЕЗДА ★
+    star: {
+        name: "Звезда", icon: "⭐",
+        desc: "Твоя основная валюта. Тратится на крутки, товары, прокачку и готовку. Зарабатывается за победы над врагами и боссами. Чем выше волна — тем больше звёзд.",
+        stack: 999999, canSell: false, isVirtual: true
+    },
     bone: {
         name: "Кость", icon: "🦴",
         desc: "Белесая кость. Продай — получишь звёзды.",
@@ -20,6 +26,50 @@ const ITEMS = {
         stack: 99, canSell: false,
         actionFunction: "eatCookedMeat"
     },
+    // ★ НОВЫЕ РАСХОДНИКИ ★
+    mushroom: {
+        name: "Гриб", icon: "🍄",
+        desc: "Странный гриб. Мгновенно +15% HP. 50% шанс что это ядовитый гриб (накладывает короткое отравление на 15 сек). 50% шанс что волшебный (даёт +10 очков антидота и -1 ожирение).",
+        cost: 300, stack: 99, canEat: true,
+        actionFunction: "eatMushroom"
+    },
+    honey: {
+        name: "Мёд", icon: "🍯",
+        desc: "Сладкий мёд. Восстанавливает +3% HP в секунду в течение 10 секунд. Всего +30% HP. Не вызывает ожирение.",
+        cost: 800, stack: 99, canEat: true,
+        actionFunction: "eatHoney"
+    },
+    pepper: {
+        name: "Перец", icon: "🌶️",
+        desc: "Жгучий перец! Даёт +30% скорости сердечка на 30 секунд. НО пока эффект активен — теряешь 1% HP каждую секунду (жжёт!).",
+        cost: 400, stack: 99, canEat: true,
+        actionFunction: "eatPepper"
+    },
+    ice: {
+        name: "Лёд", icon: "🧊",
+        desc: "Кусок вечного льда. Замораживает текущего врага на 5 дополнительных кликов (враг не отвечает ударом).",
+        cost: 600, stack: 99, canEat: true,
+        actionFunction: "eatIce"
+    },
+    egg: {
+        name: "Яйцо", icon: "🥚",
+        desc: "Загадочное яйцо. Что внутри — неизвестно! При съедании мгновенно даёт случайную награду: звёзды, карту, или... ничего.",
+        cost: 1000, stack: 99, canEat: true,
+        actionFunction: "eatEgg"
+    },
+    bread: {
+        name: "Хлеб", icon: "🍞",
+        desc: "Свежий хлеб. Убирает 40% голода. Но добавляет +1 очко ожирения (хлебушек!).",
+        cost: 250, stack: 99, canEat: true,
+        actionFunction: "eatBread"
+    },
+    antidote_potion: {
+        name: "Мини-зелье", icon: "🧪",
+        desc: "Маленькое зелье. Мгновенно снимает отравление и обнуляет счётчик антидота. Работает сразу же.",
+        cost: 700, stack: 99, canEat: true,
+        actionFunction: "drinkAntidote"
+    },
+    // ФРУКТЫ
     apple: {
         name: "Яблоко", icon: "🍏",
         desc: "+5% HP, -10% голода, -1 ожирение, +1 антидот",
@@ -108,11 +158,13 @@ let poisonTimer = 0;
 let antidotePoints = 0;
 let treasureUnlocked = false;
 let treasureKeyUsed = false;
+let pepperActive = false;
 
 // ========== БАЗОВЫЕ ==========
 function addItem(id, count) {
     if (count === undefined) count = 1;
     if (!ITEMS[id]) return;
+    if (ITEMS[id].isVirtual) return;
     if (!inventory[id]) inventory[id] = 0;
     inventory[id] += count;
     let maxStack = ITEMS[id].stack || 999;
@@ -132,7 +184,10 @@ function removeItem(id, count) {
     return true;
 }
 
-function getItemCount(id) { return inventory[id] || 0; }
+function getItemCount(id) {
+    if (id === "star") return (typeof points !== 'undefined') ? points : 0;
+    return inventory[id] || 0;
+}
 
 // ========== ДРОП ==========
 function tryDropLoot(isBoss) {
@@ -144,10 +199,19 @@ function tryDropLoot(isBoss) {
             addItem(f, 1);
             if (typeof showFloatingText === 'function') showFloatingText("🍎 " + ITEMS[f].name + "!", "#2ecc71");
         }
+        // ★ ЯЙЦО С БОССОВ ★
+        if (Math.random() < 0.05) {
+            addItem("egg", 1);
+            if (typeof showFloatingText === 'function') showFloatingText("🥚 Яйцо!", "#f5af19");
+        }
     } else {
         if (Math.random() < 0.3) addItem("bone", 1);
         if (Math.random() < 0.1) addItem("raw_meat", 1);
         if (Math.random() < 0.05) addItem("coin", 1);
+        // ★ ГРИБ И ПЕРЕЦ С ВРАГОВ ★
+        if (Math.random() < 0.05) addItem("mushroom", 1);
+        if (Math.random() < 0.03) addItem("pepper", 1);
+        if (Math.random() < 0.08) addItem("bread", 1);
     }
 }
 
@@ -160,7 +224,7 @@ function dropLivingStoneLoot() {
     }
 }
 
-// ========== ДЕЙСТВИЯ ==========
+// ========== ЕДА ==========
 function eatRawMeat() {
     if (getItemCount("raw_meat") <= 0) return;
     removeItem("raw_meat", 1);
@@ -195,6 +259,142 @@ function eatCookedMeat() {
     if (typeof closeModal === 'function') closeModal();
 }
 
+// ★ НОВЫЕ ФУНКЦИИ ★
+function eatMushroom() {
+    if (getItemCount("mushroom") <= 0) return;
+    removeItem("mushroom", 1);
+    if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
+        playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.15);
+    }
+    if (Math.random() < 0.5) {
+        // Волшебный
+        antidotePoints += 10;
+        obesityPoints = Math.max(0, obesityPoints - 1);
+        if (typeof showFloatingText === 'function') showFloatingText("✨ ВОЛШЕБНЫЙ ГРИБ!", "#e056fd");
+    } else {
+        // Ядовитый
+        poisonTimer += 15;
+        if (typeof showFloatingText === 'function') showFloatingText("☠️ ЯДОВИТЫЙ! +15 сек яда!", "#aa00aa");
+    }
+    if (antidotePoints >= 10) {
+        poisonTimer = 0;
+        antidotePoints = 0;
+        if (typeof showFloatingText === 'function') showFloatingText("✅ Отравление снято!", "#2ecc71");
+    }
+    if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function eatHoney() {
+    if (getItemCount("honey") <= 0) return;
+    removeItem("honey", 1);
+    let healPerTick = (typeof window.playerMaxHp !== 'undefined') ? window.playerMaxHp * 0.03 : 3;
+    let ticks = 0;
+    let honeyInterval = setInterval(function() {
+        if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
+            playerHp = Math.min(window.playerMaxHp, playerHp + healPerTick);
+            if (typeof updatePlayerStats === 'function') updatePlayerStats();
+        }
+        ticks++;
+        if (ticks >= 10) clearInterval(honeyInterval);
+    }, 1000);
+    if (typeof showFloatingText === 'function') showFloatingText("🍯 МЁД! +30% HP за 10 сек", "#f5af19");
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function eatPepper() {
+    if (getItemCount("pepper") <= 0) return;
+    removeItem("pepper", 1);
+    if (typeof activeBuffs !== 'undefined') {
+        activeBuffs["pepperSpeed"] = Date.now() + 30000;
+    }
+    pepperActive = true;
+    if (typeof showFloatingText === 'function') showFloatingText("🌶️ ПЕРЕЦ! Скорость +30% на 30 сек", "#ff4400");
+    if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function eatIce() {
+    if (getItemCount("ice") <= 0) return;
+    removeItem("ice", 1);
+    if (typeof enemyStatuses !== 'undefined') {
+        enemyStatuses.freezeStacks = (enemyStatuses.freezeStacks || 0) + 5;
+    }
+    if (typeof showFloatingText === 'function') showFloatingText("🧊 ВРАГ ЗАМОРОЖЕН! +5 кликов", "#00d4ff");
+    if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function eatEgg() {
+    if (getItemCount("egg") <= 0) return;
+    removeItem("egg", 1);
+    let roll = Math.random();
+    if (roll < 0.40) {
+        // Звёзды
+        let earned = Math.floor(100 + Math.random() * 200);
+        if (typeof points !== 'undefined') {
+            points += earned;
+            if (typeof maxPoints !== 'undefined' && points > maxPoints) maxPoints = points;
+        }
+        if (typeof showFloatingText === 'function') showFloatingText("🥚 +" + earned + "⭐!", "#f5af19");
+    } else if (roll < 0.70) {
+        // Обычная карта
+        if (typeof createCard === 'function' && typeof myCards !== 'undefined') {
+            let c = createCard("Обычная");
+            if (c) myCards.push(c);
+        }
+        if (typeof showFloatingText === 'function') showFloatingText("🥚 Обычная карта!", "#fff");
+    } else if (roll < 0.90) {
+        // Ничего
+        if (typeof showFloatingText === 'function') showFloatingText("🥚 ...пусто. Мусор.", "#888");
+    } else {
+        // Редкая карта
+        if (typeof createCard === 'function' && typeof myCards !== 'undefined') {
+            let c = createCard("Редкая");
+            if (c) myCards.push(c);
+        }
+        if (typeof showFloatingText === 'function') showFloatingText("🥚 РЕДКАЯ КАРТА!", "#17a2b8");
+    }
+    if (typeof renderPoints === 'function') renderPoints();
+    if (typeof renderMyCards === 'function') renderMyCards();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function eatBread() {
+    if (getItemCount("bread") <= 0) return;
+    removeItem("bread", 1);
+    hunger = Math.max(0, hunger - 40);
+    obesityPoints += 1;
+    if (obesityPoints > 60) obesityPoints = 60;
+    if (typeof showFloatingText === 'function') showFloatingText("🍞 ХЛЕБ! -40% голода (+1 ожирение)", "#f5af19");
+    if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function drinkAntidote() {
+    if (getItemCount("antidote_potion") <= 0) return;
+    removeItem("antidote_potion", 1);
+    poisonTimer = 0;
+    antidotePoints = 0;
+    if (typeof showFloatingText === 'function') showFloatingText("🧪 ОТРАВЛЕНИЕ СНЯТО!", "#2ecc71");
+    if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
 function eatFruit(fruitId) {
     if (!ITEMS[fruitId] || !ITEMS[fruitId].canEat) return;
     if (getItemCount(fruitId) <= 0) return;
@@ -218,6 +418,7 @@ function eatFruit(fruitId) {
     if (typeof closeModal === 'function') closeModal();
 }
 
+// ========== ГОТОВКА ==========
 function cookMeat() {
     if (getItemCount("raw_meat") <= 0) {
         if (typeof showFloatingText === 'function') showFloatingText("Нет сырого мяса!", "#ff3333");
@@ -267,7 +468,7 @@ function useKey() {
     if (typeof closeModal === 'function') closeModal();
 }
 
-// ========== ГОЛОД ==========
+// ========== ГОЛОД / ОЖИРЕНИЕ ==========
 function tickHunger(dt) {
     if (hunger < 100) {
         hunger += 0.028 * dt;
@@ -289,7 +490,6 @@ function getHungerFatigueMult() {
     return 2.5;
 }
 
-// ========== ОЖИРЕНИЕ ==========
 function getObesitySpeedMult() {
     if (obesityPoints < 20) return 1.0;
     if (obesityPoints < 40) return 0.75;
@@ -304,7 +504,7 @@ function getObesityStageName() {
     return "Ожирение III";
 }
 
-// ========== ОТРАВЛЕНИЕ ==========
+// ========== ОТРАВЛЕНИЕ + ПЕРЕЦ ==========
 function tickPoison(dt) {
     if (poisonTimer > 0) {
         poisonTimer -= dt;
@@ -314,6 +514,15 @@ function tickPoison(dt) {
             playerHp -= dmg;
             if (playerHp <= 0 && typeof defeat === 'function') defeat();
         }
+    }
+    // ★ ПЕРЕЦ ЖЖЁТ ★
+    if (typeof activeBuffs !== 'undefined' && activeBuffs["pepperSpeed"] && activeBuffs["pepperSpeed"] > Date.now()) {
+        if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
+            playerHp -= window.playerMaxHp * 0.01 * dt;
+            if (playerHp <= 0 && typeof defeat === 'function') defeat();
+        }
+    } else if (pepperActive && (!activeBuffs || !activeBuffs["pepperSpeed"] || activeBuffs["pepperSpeed"] <= Date.now())) {
+        pepperActive = false;
     }
 }
 
@@ -326,7 +535,8 @@ function saveInventory() {
         poisonTimer: poisonTimer,
         antidotePoints: antidotePoints,
         treasureUnlocked: treasureUnlocked,
-        treasureKeyUsed: treasureKeyUsed
+        treasureKeyUsed: treasureKeyUsed,
+        pepperActive: pepperActive
     };
 }
 
@@ -339,6 +549,7 @@ function loadInventory(data) {
     antidotePoints = data.antidotePoints || 0;
     treasureUnlocked = data.treasureUnlocked === true ? true : false;
     treasureKeyUsed = data.treasureKeyUsed === true ? true : false;
+    pepperActive = data.pepperActive || false;
 }
 
 function resetInventory() {
@@ -349,6 +560,7 @@ function resetInventory() {
     antidotePoints = 0;
     treasureUnlocked = false;
     treasureKeyUsed = false;
+    pepperActive = false;
 }
 
 // ========== РЕНДЕР ==========
@@ -375,8 +587,19 @@ function renderInventory() {
     html += '</div>';
 
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">';
+    
+    // ★ ЗВЕЗДА — ВСЕГДА ПЕРВАЯ ★
+    let currentStars = (typeof points !== 'undefined') ? points : 0;
+    html += '<div style="background:linear-gradient(180deg,#3a2f15,#1a1510);border:2px solid #f5af19;border-radius:14px;padding:10px 6px;text-align:center;box-shadow:0 0 15px rgba(245,175,25,0.3);">';
+    html += '<div onclick="showItemModal(\'star\')" style="cursor:pointer;">';
+    html += '<div style="font-size:36px;">⭐</div>';
+    html += '<div style="font-size:11px;font-weight:800;margin-top:4px;line-height:1.2;color:#f5af19;">Звезда</div>';
+    html += '<div style="font-size:12px;font-weight:900;color:#f5af19;margin-top:2px;">x' + currentStars + '</div>';
+    html += '</div></div>';
+    
     let hasAny = false;
     for (let id in ITEMS) {
+        if (id === "star") continue;
         let count = getItemCount(id);
         if (count > 0) {
             hasAny = true;
@@ -387,7 +610,6 @@ function renderInventory() {
             html += '<div style="font-size:11px;font-weight:800;margin-top:4px;line-height:1.2;">' + item.name + '</div>';
             html += '<div style="font-size:12px;font-weight:900;color:#f5af19;margin-top:2px;">x' + count + '</div>';
             html += '</div>';
-            // ★ КНОПКА ЖАРКИ ПРЯМО В СЕТКЕ ★
             if (item.canCook && id === "raw_meat") {
                 let currentPoints = (typeof points !== 'undefined') ? points : 0;
                 let isModer = (typeof mode !== 'undefined' && mode === "moder");
@@ -397,7 +619,7 @@ function renderInventory() {
             html += '</div>';
         }
     }
-    if (!hasAny) html += '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-weight:bold;">📦 Инвентарь пуст</div>';
+    if (!hasAny) html += '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-weight:bold;">📦 Больше предметов нет</div>';
     html += '</div>';
 
     container.innerHTML = html;
@@ -406,8 +628,13 @@ function renderInventory() {
 function showItemModal(id) {
     let item = ITEMS[id];
     if (!item) return;
-    let count = getItemCount(id);
-    if (count <= 0) return;
+    let count;
+    if (item.isVirtual) {
+        count = (typeof points !== 'undefined') ? points : 0;
+    } else {
+        count = getItemCount(id);
+        if (count <= 0) return;
+    }
 
     let html = '<h2>' + item.icon + ' ' + item.name.toUpperCase() + '</h2>';
     html += '<div style="text-align:center;font-size:14px;color:#aaa;margin-bottom:10px;">Количество: <b style="color:#f5af19;">' + count + '</b></div>';
@@ -416,11 +643,27 @@ function showItemModal(id) {
     if (item.unsellable) html += '<div style="text-align:center;margin-bottom:10px;font-size:14px;color:#ff4444;">❌ Не продаётся</div>';
 
     html += '<div style="display:flex;flex-direction:column;gap:8px;">';
-    if (item.actionFunction === "eatRawMeat") {
+    if (item.isVirtual) {
+        html += '<div style="text-align:center;font-size:13px;color:#f5af19;font-weight:900;padding:10px;background:rgba(245,175,25,0.15);border-radius:10px;">⭐ Твоя валюта — тратится на всё в игре</div>';
+    } else if (item.actionFunction === "eatRawMeat") {
         html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatRawMeat();">🍴 Съесть (ОПАСНО — отравишься)</button>';
         html += '<button class="btn" style="padding:12px;background:linear-gradient(135deg,#f5af19,#f12711);color:white;font-weight:900;border:none;" onclick="cookMeat();">🔥 Пожарить (10⭐)</button>';
     } else if (item.actionFunction === "eatCookedMeat") {
         html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatCookedMeat();">🍴 Съесть (+25% HP, +2 ожирение)</button>';
+    } else if (item.actionFunction === "eatMushroom") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatMushroom();">🍄 Съесть гриб (50/50)</button>';
+    } else if (item.actionFunction === "eatHoney") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatHoney();">🍯 Съесть мёд (+30% HP за 10 сек)</button>';
+    } else if (item.actionFunction === "eatPepper") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatPepper();">🌶️ Съесть перец (+30% скорости, жжёт)</button>';
+    } else if (item.actionFunction === "eatIce") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatIce();">🧊 Съесть лёд (заморозка врага +5)</button>';
+    } else if (item.actionFunction === "eatEgg") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatEgg();">🥚 Открыть яйцо (рандом)</button>';
+    } else if (item.actionFunction === "eatBread") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatBread();">🍞 Съесть хлеб (-40% голода)</button>';
+    } else if (item.actionFunction === "drinkAntidote") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="drinkAntidote();">🧪 Выпить (снять отравление)</button>';
     } else if (item.actionFunction === "eatFruit") {
         html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatFruit(\'' + id + '\');">' + item.icon + ' Съесть</button>';
     } else if (item.actionFunction === "useKey") {
@@ -446,6 +689,13 @@ window.tryDropLoot = tryDropLoot;
 window.dropLivingStoneLoot = dropLivingStoneLoot;
 window.eatRawMeat = eatRawMeat;
 window.eatCookedMeat = eatCookedMeat;
+window.eatMushroom = eatMushroom;
+window.eatHoney = eatHoney;
+window.eatPepper = eatPepper;
+window.eatIce = eatIce;
+window.eatEgg = eatEgg;
+window.eatBread = eatBread;
+window.drinkAntidote = drinkAntidote;
 window.eatFruit = eatFruit;
 window.cookMeat = cookMeat;
 window.sellBones = sellBones;
@@ -462,4 +712,4 @@ window.renderInventory = renderInventory;
 window.showItemModal = showItemModal;
 window.getTreasureUnlocked = function() { return treasureUnlocked === true; };
 
-console.log("[INVENTORY] v1.2 — кнопка жарки в сетке + фикс тайника");
+console.log("[INVENTORY] v1.3 — звезда + 7 расходников");
