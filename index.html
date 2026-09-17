@@ -428,6 +428,7 @@
         <div id="shopTab" class="tab-content">
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" data-subtab="shopItems">🛍️ Товары</button>
+                <button class="sub-tab-btn" data-subtab="inventory">🎒 Инвентарь</button>
                 <button class="sub-tab-btn" data-subtab="gacha">🎰 Гача</button>
                 <button class="sub-tab-btn" data-subtab="daily">🎁 Ежедневно</button>
                 <button class="sub-tab-btn" data-subtab="bulkSell">💰 Скупка</button>
@@ -442,6 +443,10 @@
                 <div class="card"><div class="card-title">🛍️ Товары <button class="btn" style="padding:4px 10px;font-size:11px;float:right;border-radius:20px;" onclick="refreshShopNow()">🔄 1000⭐</button></div><div id="shopItems" class="shop-grid"></div></div>
                 <div class="card"><div class="card-title">🗿 Артефакты</div><div id="artifactItems" class="shop-grid"></div></div>
                 <div class="card"><div class="card-title">✨ Баффы</div><div id="activeBuffs" class="buff-active"></div></div>
+            </div>
+            <div id="inventorySubTab" class="sub-tab-content">
+                <div class="points">⭐ <span id="pointsAmountInv">0</span></div>
+                <div class="card"><div class="card-title">🎒 Инвентарь</div><div id="inventoryContent"></div></div>
             </div>
             <div id="gachaSubTab" class="sub-tab-content">
                 <div class="points">⭐ <span id="pointsAmountGacha">0</span></div>
@@ -563,6 +568,7 @@
 <script src="battle.js"></script>
 <script src="supers.js"></script>
 <script src="living_stone_boss.js"></script>
+<script src="inventory.js"></script>
 <script src="ui.js"></script>
 </body>
 </html>
