@@ -152,7 +152,21 @@ function renderDialog() { if (!currentDialog || !Array.isArray(currentDialog)) r
 
 function selectDialog(index) { if (!currentDialog || !currentDialog[index]) return; let d = currentDialog[index]; let html = '<div class="dialog-box"><b>Вы:</b> «' + d.text + '»</div>'; html += '<div class="dialog-box"><b>' + currentEnemy.name + ':</b> «' + d.response + '» ' + d.mood + '</div>'; document.getElementById("dialogBox").innerHTML = html; currentDialog = null; }
 
-function updateStatusDisplay() { let html = ''; if (enemyStatuses.fireTicks > 0) html += '<span class="status-effect">🔥 Горит (' + enemyStatuses.fireTicks + ')</span>'; if (enemyStatuses.poisonDamage > 0) html += '<span class="status-effect">🌀 Яд: ' + enemyStatuses.poisonDamage + '</span>'; if (enemyStatuses.bleedMult > 1.0) html += '<span class="status-effect">🩸 Кровотечение: x' + enemyStatuses.bleedMult.toFixed(2) + '</span>'; if (enemyStatuses.freezeStacks > 0) html += '<span class="status-effect">❄️ Обледенение: +' + enemyStatuses.freezeStacks + '</span>'; if (enemyStatuses.shockChance > 0) html += '<span class="status-effect">⚡ Шок: ' + Math.floor(enemyStatuses.shockChance * 100) + '%</span>'; if (enemyStatuses.blindStacks > 0) html += '<span class="status-effect">🕶️ Ослепление: +' + enemyStatuses.blindStacks + '</span>'; html += ' <span class="status-effect" style="background:#ff4400;color:#fff;">⚡Комбо: x' + comboMultiplier + '</span>'; document.getElementById("statusEffects").innerHTML = html; }
+function updateStatusDisplay() { let html = ''; if (enemyStatuses.fireTicks > 0) html += '<span class="status-effect">🔥 Горит (' + enemyStatuses.fireTicks + ')</span>'; if (enemyStatuses.poisonDamage > 0) html += '<span class="status-effect">🌀 Яд: ' + enemyStatuses.poisonDamage + '</span>'; if (enemyStatuses.bleedMult > 1.0) html += '<span class="status-effect">🩸 Кровотечение: x' + enemyStatuses.bleedMult.toFixed(2) + '</span>'; if (enemyStatuses.freezeStacks > 0) html += '<span class="status-effect">❄️ Обледенение: +' + enemyStatuses.freezeStacks + '</span>'; if (enemyStatuses.shockChance > 0) html += '<span class="status-effect">⚡ Шок: ' + Math.floor(enemyStatuses.shockChance * 100) + '%</span>'; if (enemyStatuses.blindStacks > 0) html += '<span class="status-effect">🕶️ Ослепление: +' + enemyStatuses.blindStacks + '</span>'; html += ' <span class="status-effect" style="background:#ff4400;color:#fff;">⚡Комбо: x' + comboMultiplier + '</span>'; 
+    // ★ ПОКАЗ ГОЛОДА И ОТРАВЛЕНИЯ В БОЮ ★
+    if (typeof hunger !== 'undefined' && hunger > 0) {
+        let hColor = hunger < 30 ? "#2ecc71" : hunger < 60 ? "#f5af19" : hunger < 85 ? "#e67e22" : "#e74c3c";
+        html += ' <span class="status-effect" style="color:' + hColor + ';">🍽️ Голод: ' + Math.floor(hunger) + '%</span>';
+    }
+    if (typeof obesityPoints !== 'undefined' && obesityPoints >= 20) {
+        let obName = (typeof getObesityStageName === 'function') ? getObesityStageName() : "Ожирение";
+        html += ' <span class="status-effect" style="color:#e67e22;">🍔 ' + obName + '</span>';
+    }
+    if (typeof poisonTimer !== 'undefined' && poisonTimer > 0) {
+        html += ' <span class="status-effect" style="color:#aa00aa;">☠️ Отравление: ' + Math.floor(poisonTimer) + 'с</span>';
+    }
+    document.getElementById("statusEffects").innerHTML = html; 
+}
 
 function updateEnemyStatusDisplay() { let html = ''; if (enemyStatuses.freezeStacks > 0) html += '<span class="status-effect">❄️ Заморозка врага: +' + enemyStatuses.freezeStacks + '</span>'; if (enemyStatuses.bleedMult > 1.0) html += '<span class="status-effect">🩸 Усиление врага: x' + enemyStatuses.bleedMult.toFixed(1) + '</span>'; if (enemyStatuses.shockChance > 0) html += '<span class="status-effect">⚡ Шок врага: ' + Math.floor(enemyStatuses.shockChance * 100) + '%</span>'; document.getElementById("enemyStatusEffects").innerHTML = html; }
 
@@ -162,7 +176,52 @@ function renderAchievements() { let c = document.getElementById("achievementsLis
 
 function renderChallenges() { let c = document.getElementById("challengeList"); if (!challenges.length) { c.innerHTML = "Квесты загружаются..."; return; } c.innerHTML = challenges.map(ch => '<div class="challenge-item" style="opacity:' + (ch.completed ? 0.6 : 1) + '"><div><b>' + ch.name + '</b><br><small>' + (ch.progress || 0) + '/' + ch.target + '</small></div><div><span style="color:#f5af19;">' + ch.reward + '⭐</span> ' + (ch.completed ? '✅' : '') + '</div></div>').join(''); }
 
-function renderShop() { let c = document.getElementById("shopItems"); c.innerHTML = shopItems.map((it, i) => it ? '<div class="shop-item"><div><strong>' + it.name + '</strong>' + (it.desc ? '<br><small>' + it.desc + '</small>' : '') + '</div><div><span class="shop-price">' + it.cost + '⭐</span><button class="btn btn-primary" style="padding:6px 12px;" onclick="buyShopItem(' + i + ')">Купить</button></div></div>' : '<div class="shop-item"><div style="color:#888;">Пусто</div></div>').join(''); 
+// ★ ОБНОВЛЕНО: блок тайника с ключом ★
+function renderShop() { 
+    // ТАЙНИК
+    let treasureHtml = '';
+    if (typeof getTreasureUnlocked === 'function' && getTreasureUnlocked()) {
+        treasureHtml = '<div style="padding:12px;background:rgba(46,204,113,0.1);border:2px solid #2ecc71;border-radius:14px;margin-bottom:10px;">';
+        treasureHtml += '<div style="font-weight:900;font-size:14px;color:#2ecc71;margin-bottom:10px;text-align:center;">🔓 ТАЙНИК ОТКРЫТ</div>';
+        treasureHtml += '<div style="display:flex;flex-direction:column;gap:8px;">';
+        let fruits = [
+            { id: "apple", name: "🍏 Яблоко", cost: 200, desc: "+5% HP, -10% голода, -1 ожирение" },
+            { id: "banana", name: "🍌 Банан", cost: 500, desc: "+10% HP, -20% голода, -2 ожирение" },
+            { id: "grapes", name: "🍇 Виноград", cost: 1500, desc: "+15% HP, -35% голода, -4 ожирение" },
+            { id: "pineapple", name: "🍍 Ананас", cost: 5000, desc: "+25% HP, -60% голода, -10 ожирение" }
+        ];
+        fruits.forEach(function(f) {
+            let canBuy = (mode === "moder") || points >= f.cost;
+            treasureHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border-radius:10px;">';
+            treasureHtml += '<div><div style="font-weight:800;font-size:13px;">' + f.name + '</div><div style="font-size:10px;color:#aaa;">' + f.desc + '</div></div>';
+            treasureHtml += '<div><span style="color:#f5af19;font-weight:900;margin-right:8px;">' + f.cost + '⭐</span>';
+            treasureHtml += '<button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="buyFruitFromTreasure(\'' + f.id + '\',' + f.cost + ')" ' + (!canBuy ? 'disabled' : '') + '>Купить</button></div>';
+            treasureHtml += '</div>';
+        });
+        treasureHtml += '</div></div>';
+    } else {
+        treasureHtml = '<div style="padding:15px;background:rgba(155,89,182,0.15);border:2px solid #9b59b6;border-radius:14px;margin-bottom:10px;text-align:center;">';
+        treasureHtml += '<div style="font-size:32px;margin-bottom:8px;">🔐</div>';
+        treasureHtml += '<div style="font-weight:900;font-size:14px;color:#9b59b6;margin-bottom:6px;">ТАЙНИК ЗАКРЫТ</div>';
+        treasureHtml += '<div style="font-size:12px;color:#aaa;line-height:1.5;">Найди Ключ Живого Камня и нажми «Использовать» в инвентаре — товары откроются.</div>';
+        treasureHtml += '</div>';
+    }
+    
+    // Убираем старый блок тайника
+    let existingTreasure = document.getElementById("treasureBlock");
+    if (existingTreasure) existingTreasure.remove();
+    
+    // Вставляем новый блок ПЕРЕД shopItems
+    let shopContainer = document.getElementById("shopItems");
+    if (shopContainer && shopContainer.parentNode) {
+        let t = document.createElement("div");
+        t.id = "treasureBlock";
+        t.innerHTML = treasureHtml;
+        shopContainer.parentNode.insertBefore(t, shopContainer);
+    }
+    
+    let c = document.getElementById("shopItems"); 
+    c.innerHTML = shopItems.map((it, i) => it ? '<div class="shop-item"><div><strong>' + it.name + '</strong>' + (it.desc ? '<br><small>' + it.desc + '</small>' : '') + '</div><div><span class="shop-price">' + it.cost + '⭐</span><button class="btn btn-primary" style="padding:6px 12px;" onclick="buyShopItem(' + i + ')">Купить</button></div></div>' : '<div class="shop-item"><div style="color:#888;">Пусто</div></div>').join(''); 
     let timeLeft = shopRefreshTime ? Math.max(0, 3600000 - (Date.now() - shopRefreshTime)) : 0;
     let timerHtml = '';
     if (timeLeft > 0) {
@@ -184,6 +243,16 @@ function renderShop() { let c = document.getElementById("shopItems"); c.innerHTM
     renderBulkSell(); 
     renderAutoRest(); 
 }
+
+// Функция покупки фрукта из тайника
+window.buyFruitFromTreasure = function(fruitId, cost) {
+    if (mode !== "moder" && points < cost) return;
+    if (mode !== "moder") points -= cost;
+    if (typeof addItem === 'function') addItem(fruitId, 1);
+    if (typeof renderPoints === 'function') renderPoints();
+    if (typeof renderShop === 'function') renderShop();
+    if (typeof showFloatingText === 'function') showFloatingText("🍎 Куплено!", "#2ecc71");
+};
 
 function renderActiveBuffs() { 
     let n = Date.now(), l = []; 
@@ -231,7 +300,6 @@ function renderBulkSell() { let c = document.getElementById("bulkSellItems"); if
 
 function renderAutoRest() { let c = document.getElementById("autoRestItems"); if (rebirthCount < 3) { c.innerHTML = '<div class="shop-item"><div style="color:#888;font-weight:bold;text-align:center;width:100%;">🔒 Авто-отдых откроется после 3 ребиртха</div></div>'; return; } c.innerHTML = autoRestOptions.map(o => { let cost = getAutoRestCost(o.threshold); let pur = autoRest.purchased && autoRest.threshold === o.threshold; let act = autoRest.active && autoRest.threshold === o.threshold; let desc = !pur ? '<span style="color:var(--gold);">Купить за ' + cost + '⭐</span>' : (act ? '<span style="color:var(--green);">Активен</span>' : 'Куплен'); let btn; if (!pur) { btn = '<button class="btn btn-primary" style="padding:6px 12px;" onclick="purchaseAutoRest(' + o.threshold + ')">Купить</button>'; } else if (act) { btn = '<button class="btn" style="padding:6px 12px;border-color:var(--green);" onclick="toggleAutoRest(' + o.threshold + ')">Выкл</button>'; } else { btn = '<button class="btn" style="padding:6px 12px;" onclick="toggleAutoRest(' + o.threshold + ')">Выкл ▶</button>'; } return '<div class="shop-item ' + (act ? 'auto-active' : '') + '"><div><strong>' + o.name + ' усталости</strong><br><small>' + desc + '</small></div><div>' + btn + '</div></div>'; }).join(''); }
 
-// ★ УБРАН LUCK ИЗ RENDERUPGRADES ★
 function renderUpgrades() { 
     let h = ""; 
     for (let [k, u] of Object.entries(upgrades)) { 
@@ -442,4 +510,34 @@ function renderGachaTab() {
     container.innerHTML = html;
 }
 
-function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); renderSettings(); renderSlotsInGame(); renderDailyRewards(); renderPass(); if (typeof renderGachaTab === 'function') renderGachaTab(); if (typeof renderPowerPoints === 'function') renderPowerPoints(); updatePlayerStats(); updateStatusDisplay(); }
+// ★ ОБНОВЛЕНО: добавил renderInventory ★
+function renderAll() { 
+    renderMyCards(); 
+    renderTeam(); 
+    renderAfkTeam(); 
+    renderEnemy(); 
+    renderPoints(); 
+    renderShop(); 
+    if (typeof renderInventory === 'function') renderInventory();
+    renderUpgrades(); 
+    renderActiveBuffs(); 
+    renderDefeatHistory(); 
+    renderFreeSpins(); 
+    renderAchievements(); 
+    renderChallenges(); 
+    renderBook(); 
+    renderCheckpoints(); 
+    renderRebirthInfo(); 
+    renderRebirthStats(); 
+    renderEvoTab(); 
+    renderGlobalStats(); 
+    renderModerControls(); 
+    renderSettings(); 
+    renderSlotsInGame(); 
+    renderDailyRewards(); 
+    renderPass(); 
+    if (typeof renderGachaTab === 'function') renderGachaTab(); 
+    if (typeof renderPowerPoints === 'function') renderPowerPoints(); 
+    updatePlayerStats(); 
+    updateStatusDisplay(); 
+}
