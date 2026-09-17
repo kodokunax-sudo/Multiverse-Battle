@@ -1,7 +1,6 @@
 // ============================================================
-// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v6.1
-// + дроп ключа и куска камня после победы
-// + модификации, отражение, чёрная дыра без урона
+// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v6.2
+// + после победы повторный QTE не запускается
 // ============================================================
 
 let livingStoneActive = false;
@@ -202,10 +201,14 @@ function silentWarmupMusic() {
 preloadQTEMusic();
 generateStoneTextures();
 
-// ========== ВЫБОР УСТРОЙСТВА ==========
+// ========== СТАРТ ==========
+// ★★★ ГЛАВНАЯ ПРАВКА: ЕСЛИ КАМЕНЬ УЖЕ ПОБЕЖДЁН — НЕ ЗАПУСКАЕМ QTE ★★★
 function startLivingStoneFight() {
+    // Если камень уже побеждён — не запускаем QTE-битву, показываем сообщение
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200)) {
-        if (typeof showFloatingText === 'function') showFloatingText("⏭️ Живой камень уже побеждён!", "#ffaa00");
+        if (typeof showFloatingText === 'function') {
+            showFloatingText("⏭️ Живой Камень уже побеждён! Бей его кликами.", "#ffaa00");
+        }
         return;
     }
     var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1158,7 +1161,6 @@ function livingStoneVictory() {
             if (typeof saveAll === 'function') saveAll();
         }
     }
-    // ★ ДРОП: КЛЮЧ + КУСОК КАМНЯ ★
     if (typeof dropLivingStoneLoot === 'function') dropLivingStoneLoot();
     spawnLivingStoneText(200, 200, "КАМЕНЬ РАЗБИТ!", "#ffffff", 180);
     livingStoneScreenFlash = 40; livingStoneScreenFlashColor = "#ffffff";
@@ -2888,4 +2890,4 @@ function drawQTEOverlay() {
 window.startLivingStoneFight = startLivingStoneFight;
 window.stopLivingStoneFight = stopLivingStoneFight;
 window.preloadQTEMusic = preloadQTEMusic;
-console.log("[LIVING STONE] Модуль загружен v6.1 — дроп ключа и камня");
+console.log("[LIVING STONE] v6.2 — повторный QTE заблокирован после победы");
