@@ -178,11 +178,34 @@ function renderAchievements() { let c = document.getElementById("achievementsLis
 
 function renderChallenges() { let c = document.getElementById("challengeList"); if (!challenges.length) { c.innerHTML = "Квесты загружаются..."; return; } c.innerHTML = challenges.map(ch => '<div class="challenge-item" style="opacity:' + (ch.completed ? 0.6 : 1) + '"><div><b>' + ch.name + '</b><br><small>' + (ch.progress || 0) + '/' + ch.target + '</small></div><div><span style="color:#f5af19;">' + ch.reward + '⭐</span> ' + (ch.completed ? '✅' : '') + '</div></div>').join(''); }
 
-// ★ renderShop с фиксом тайника + кнопкой использовать ключ ★
+// ★★★ ФИКС ТАЙНИКА: ЖЁСТКОЕ УДАЛЕНИЕ ВСЕХ ДУБЛЕЙ ★★★
 function renderShop() { 
+    // ШАГ 1: ЖЁСТКО УДАЛЯЕМ ВСЁ, ЧТО ПОХОЖЕ НА БЛОК ТАЙНИКА
+    // Ищем по id, по классу, и по тексту "ТАЙНИК"
+    document.querySelectorAll("#treasureBlock").forEach(function(el) { el.remove(); });
+    document.querySelectorAll(".treasure-block").forEach(function(el) { el.remove(); });
+    
+    let shopTab = document.getElementById("shopItemsSubTab");
+    if (shopTab) {
+        let children = Array.from(shopTab.children);
+        for (let i = 0; i < children.length; i++) {
+            let child = children[i];
+            // Не трогаем сам контейнер товаров и карточки с другими заголовками
+            if (child.id === "shopItems") continue;
+            if (child.querySelector && child.querySelector("#shopItems")) continue;
+            // Если внутри есть слово "ТАЙНИК" — удаляем
+            if (child.textContent && child.textContent.indexOf("ТАЙНИК") !== -1) {
+                child.remove();
+            }
+        }
+    }
+    
+    // ШАГ 2: СТРОИМ HTML БЛОКА ТАЙНИКА
     let treasureHtml = '';
-    if (typeof getTreasureUnlocked === 'function' && getTreasureUnlocked()) {
-        treasureHtml = '<div style="padding:12px;background:rgba(46,204,113,0.1);border:2px solid #2ecc71;border-radius:14px;margin-bottom:10px;">';
+    let isUnlocked = (typeof getTreasureUnlocked === 'function') && getTreasureUnlocked();
+    
+    if (isUnlocked) {
+        treasureHtml = '<div id="treasureBlock" class="treasure-block" style="padding:12px;background:rgba(46,204,113,0.1);border:2px solid #2ecc71;border-radius:14px;margin-bottom:10px;">';
         treasureHtml += '<div style="font-weight:900;font-size:14px;color:#2ecc71;margin-bottom:10px;text-align:center;">🔓 ТАЙНИК ОТКРЫТ</div>';
         treasureHtml += '<div style="display:flex;flex-direction:column;gap:8px;">';
         let fruits = [
@@ -217,18 +240,18 @@ function renderShop() {
             { id: "honey", name: "🍯 Мёд", cost: 800, desc: "+3% HP/сек × 10 сек" },
             { id: "egg", name: "🥚 Яйцо", cost: 1000, desc: "Рандомная награда" }
         ];
-        consumables.forEach(function(c) {
-            let canBuy = (mode === "moder") || points >= c.cost;
+        consumables.forEach(function(cn) {
+            let canBuy = (mode === "moder") || points >= cn.cost;
             treasureHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border-radius:10px;margin-bottom:6px;">';
-            treasureHtml += '<div><div style="font-weight:800;font-size:13px;">' + c.name + '</div><div style="font-size:10px;color:#aaa;">' + c.desc + '</div></div>';
-            treasureHtml += '<div><span style="color:#f5af19;font-weight:900;margin-right:8px;">' + c.cost + '⭐</span>';
-            treasureHtml += '<button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="buyFruitFromTreasure(\'' + c.id + '\',' + c.cost + ')" ' + (!canBuy ? 'disabled' : '') + '>Купить</button></div>';
+            treasureHtml += '<div><div style="font-weight:800;font-size:13px;">' + cn.name + '</div><div style="font-size:10px;color:#aaa;">' + cn.desc + '</div></div>';
+            treasureHtml += '<div><span style="color:#f5af19;font-weight:900;margin-right:8px;">' + cn.cost + '⭐</span>';
+            treasureHtml += '<button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="buyFruitFromTreasure(\'' + cn.id + '\',' + cn.cost + ')" ' + (!canBuy ? 'disabled' : '') + '>Купить</button></div>';
             treasureHtml += '</div>';
         });
         treasureHtml += '</div>';
         treasureHtml += '</div>';
     } else {
-        treasureHtml = '<div style="padding:15px;background:rgba(155,89,182,0.15);border:2px solid #9b59b6;border-radius:14px;margin-bottom:10px;text-align:center;">';
+        treasureHtml = '<div id="treasureBlock" class="treasure-block" style="padding:15px;background:rgba(155,89,182,0.15);border:2px solid #9b59b6;border-radius:14px;margin-bottom:10px;text-align:center;">';
         treasureHtml += '<div style="font-size:32px;margin-bottom:8px;">🔐</div>';
         treasureHtml += '<div style="font-weight:900;font-size:14px;color:#9b59b6;margin-bottom:6px;">ТАЙНИК ЗАКРЫТ</div>';
         let hasKey = false;
@@ -242,19 +265,17 @@ function renderShop() {
         treasureHtml += '</div>';
     }
     
-    let existingTreasure = document.getElementById("treasureBlock");
-    if (existingTreasure) existingTreasure.remove();
-    
+    // ШАГ 3: ВСТАВЛЯЕМ БЛОК ТАЙНИКА ПЕРЕД КОНТЕЙНЕРОМ ТОВАРОВ
     let shopContainer = document.getElementById("shopItems");
     if (shopContainer && shopContainer.parentNode) {
-        let t = document.createElement("div");
-        t.id = "treasureBlock";
-        t.innerHTML = treasureHtml;
-        shopContainer.parentNode.insertBefore(t, shopContainer);
+        shopContainer.insertAdjacentHTML('beforebegin', treasureHtml);
     }
     
+    // ШАГ 4: РЕНДЕРИМ ОБЫЧНЫЕ ТОВАРЫ
     let c = document.getElementById("shopItems"); 
+    if (!c) return;
     c.innerHTML = shopItems.map((it, i) => it ? '<div class="shop-item"><div><strong>' + it.name + '</strong>' + (it.desc ? '<br><small>' + it.desc + '</small>' : '') + '</div><div><span class="shop-price">' + it.cost + '⭐</span><button class="btn btn-primary" style="padding:6px 12px;" onclick="buyShopItem(' + i + ')">Купить</button></div></div>' : '<div class="shop-item"><div style="color:#888;">Пусто</div></div>').join(''); 
+    
     let timeLeft = shopRefreshTime ? Math.max(0, 3600000 - (Date.now() - shopRefreshTime)) : 0;
     let timerHtml = '';
     if (timeLeft > 0) {
@@ -266,18 +287,28 @@ function renderShop() {
         timerHtml = '<div style="text-align:center;margin-top:8px;font-weight:600;color:#2ecc71;font-size:12px;">✅ Можно обновить бесплатно!</div>';
     }
     c.innerHTML += timerHtml;
-    let artHtml = ''; if (rebirthCount >= 4) { 
+    
+    // ШАГ 5: АРТЕФАКТЫ
+    let artHtml = ''; 
+    if (rebirthCount >= 4) { 
         artHtml += '<div class="shop-item"><div><b>🗿 Пальцы Сукуны</b><br><small>Усиливает одного героя на 1 час: +50% урона, +40% HP.</small></div><div><span class="shop-price">15000⭐</span><button class="btn" style="padding:6px 12px;" onclick="' + (hasSukunaFingers ? 'showSukunaModal()' : 'buySukuna()') + '">' + (hasSukunaFingers ? 'Выбрать героя' : 'Купить') + '</button></div></div>'; 
         artHtml += '<div class="shop-item"><div><b>💉 Препарат V</b><br><small>Баффает героя: +20% урона, +30% HP.</small></div><div><span class="shop-price">5000⭐</span><button class="btn" style="padding:6px 12px;" onclick="showCompoundVModal()">Купить</button></div></div>'; 
         artHtml += '<div class="shop-item"><div><b>📓 Тетрадь смерти</b></div><div><input id="dnInput" type="number" min="1" style="width:60px;background:rgba(0,0,0,0.5);color:white;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:4px;text-align:center;" value="' + (deathNoteTarget || '') + '" placeholder="Волна"><span class="shop-price">500к⭐</span><button class="btn" style="padding:4px 10px;" onclick="buyDeathNote()">Купить</button></div></div>'; 
         artHtml += '<div class="shop-item"><div><b>🔥 Огонь Дома</b></div><div><button class="btn use-artifact-btn" onclick="useFireArtifact()" ' + (hasFireArtifact ? '' : 'disabled') + '>' + (hasFireArtifact ? '🔥 Исп.' : 'Купить (100к)') + '</button></div></div>'; 
-    } else { artHtml = '<div class="shop-item"><div style="color:#888;text-align:center;width:100%;">🔒 Артефакты откроются после 4 ребиртха</div></div>'; } 
+    } else { 
+        artHtml = '<div class="shop-item"><div style="color:#888;text-align:center;width:100%;">🔒 Артефакты откроются после 4 ребиртха</div></div>'; 
+    } 
     document.getElementById("artifactItems").innerHTML = artHtml; 
     renderBulkSell(); 
     renderAutoRest(); 
 }
 
+// ★★★ ФИКС: ЗАЩИТА ОТ ПОКУПКИ ПРИ ЗАКРЫТОМ ТАЙНИКЕ ★★★
 window.buyFruitFromTreasure = function(fruitId, cost) {
+    if (typeof getTreasureUnlocked !== 'function' || !getTreasureUnlocked()) {
+        if (typeof showFloatingText === 'function') showFloatingText("🔒 Тайник закрыт!", "#ff3333");
+        return;
+    }
     if (mode !== "moder" && points < cost) return;
     if (mode !== "moder") points -= cost;
     if (typeof addItem === 'function') addItem(fruitId, 1);
