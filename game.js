@@ -50,6 +50,7 @@ function finishSlotLoad(slot) {
     renderDailyRewards(); renderPass();
     if (typeof renderGachaTab === 'function') renderGachaTab();
     if (typeof renderPowerPoints === 'function') renderPowerPoints();
+    if (typeof renderInventory === 'function') renderInventory();
     updateLevelDisplay(); updateFatigue(); updateRestBtn(); updateClaimTimer(); setMode(mode);
     updatePlayerStats(); updateStatusDisplay();
     el = document.getElementById("waveNumber"); if (el) el.innerText = wave;
@@ -98,15 +99,12 @@ function applyArenaSettings() {
     let volValue = document.getElementById("arenaVolumeValue");
     if (volSlider) volSlider.value = Math.floor(arenaSettings.volume * 100);
     if (volValue) volValue.innerText = Math.floor(arenaSettings.volume * 100) + "%";
-    
     let effSlider = document.getElementById("arenaEffectsSlider");
     let effValue = document.getElementById("arenaEffectsValue");
     if (effSlider) effSlider.value = Math.floor(arenaSettings.effectsOpacity * 100);
     if (effValue) effValue.innerText = Math.floor(arenaSettings.effectsOpacity * 100) + "%";
-    
     let autoCheck = document.getElementById("autoSuperCheckbox");
     if (autoCheck) autoCheck.checked = arenaSettings.autoSuper;
-    
     let mobileSelect = document.getElementById("mobileSuperSelect");
     if (mobileSelect) mobileSelect.value = arenaSettings.mobileSuper;
 }
@@ -190,6 +188,8 @@ function loadGameData(d) {
     mainCardIndex = d.mainCardIndex ?? 0;
     slotData.nickname = d.nickname || loadSlotMeta(currentSlot).nickname;
     if (typeof setPowerPoints === 'function') setPowerPoints(d.powerPoints || 0);
+    // ★ ЗАГРУЗКА ИНВЕНТАРЯ ★
+    if (typeof loadInventory === 'function') loadInventory(d.inventory);
     if (Array.isArray(myCards)) {
         for (let i = 0; i < myCards.length; i++) {
             if (myCards[i] && typeof myCards[i].mastery === 'undefined') myCards[i].mastery = 1;
@@ -287,6 +287,8 @@ function initNewGame() {
     dailyRewards = { currentDay: 1, lastClaimDate: null, claimedToday: false };
     passData = { currentTier: 1, passExp: 0, claimedTiers: [] };
     if (typeof setPowerPoints === 'function') setPowerPoints(0);
+    // ★ СБРОС ИНВЕНТАРЯ ★
+    if (typeof resetInventory === 'function') resetInventory();
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; }
     if (fireInterval) { clearInterval(fireInterval); fireInterval = null; }
     for (let i = 0; i < 3; i++) { let c = createCard(getRandomRarity()); if (c) myCards.push(c); } 
@@ -361,6 +363,8 @@ function saveAll() {
     slotData.dailyRewards = dailyRewards;
     slotData.passData = passData;
     if (typeof getPowerPoints === 'function') slotData.powerPoints = getPowerPoints();
+    // ★ СОХРАНЕНИЕ ИНВЕНТАРЯ ★
+    if (typeof saveInventory === 'function') slotData.inventory = saveInventory();
     saveGameToSlot(currentSlot); 
     window._needSave = false; 
 }
@@ -456,7 +460,22 @@ function addExp(a) { playerExp += a; let lu = false; while (playerExp >= getExpN
 function updateLevelDisplay() { let el = document.getElementById("playerLevel"); if (el) el.innerText = playerLevel; el = document.getElementById("playerExp"); if (el) el.innerText = Math.floor(playerExp); let n = getExpNeeded(playerLevel); el = document.getElementById("expToNext"); if (el) el.innerText = n; el = document.getElementById("expBar"); if (el) el.style.width = (playerExp / n) * 100 + "%"; }
 function isUpgradeUnlocked(k) { return upgrades[k] && playerLevel >= upgrades[k].reqLevel; }
 function getRestCost() { return Math.min(200, Math.floor(30 + fatigue * 2.5)); }
-function increaseFatigue(clickSpeedMultiplier = 1) { if (activeBuffs["fatigueImmune"] && activeBuffs["fatigueImmune"] > Date.now()) return; let resist = upgrades.fatigueResist.level * upgrades.fatigueResist.increment; if (hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now()) resist *= 4; team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'fatigueResist' && (!hasMasteryAbility || hasMasteryAbility(cd))) resist += cd.ability.value; }); let baseIncrease = 2 * clickSpeedMultiplier; let increase = Math.max(0.1, baseIncrease - resist); let oldFatigue = fatigue; fatigue = Math.min(100, fatigue + increase); updateFatigue(); updateRestBtn(); checkAutoRest(); if (fatigue <= 0 && oldFatigue > 0) updateChallengeProgress("fatigueZero", 1); }
+function increaseFatigue(clickSpeedMultiplier = 1) { 
+    if (activeBuffs["fatigueImmune"] && activeBuffs["fatigueImmune"] > Date.now()) return; 
+    let resist = upgrades.fatigueResist.level * upgrades.fatigueResist.increment; 
+    if (hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now()) resist *= 4; 
+    team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'fatigueResist' && (!hasMasteryAbility || hasMasteryAbility(cd))) resist += cd.ability.value; }); 
+    let baseIncrease = 2 * clickSpeedMultiplier; 
+    // ★ ГОЛОД УСИЛИВАЕТ УСТАЛОСТЬ ★
+    let hungerFatigue = (typeof getHungerFatigueMult === 'function') ? getHungerFatigueMult() : 1.0;
+    let increase = Math.max(0.1, baseIncrease - resist) * hungerFatigue; 
+    let oldFatigue = fatigue; 
+    fatigue = Math.min(100, fatigue + increase); 
+    updateFatigue(); 
+    updateRestBtn(); 
+    checkAutoRest(); 
+    if (fatigue <= 0 && oldFatigue > 0) updateChallengeProgress("fatigueZero", 1); 
+}
 function rest() { if (mode !== "moder" && points < getRestCost()) return; if (mode !== "moder") points -= getRestCost(); let oldFatigue = fatigue; fatigue = Math.max(0, fatigue - 40); updateFatigue(); updateRestBtn(); renderPoints(); if (fatigue <= 0 && oldFatigue > 0) updateChallengeProgress("fatigueZero", 1); }
 function updateFatigue() { let el = document.getElementById("fatiguePercent"); if (el) el.innerText = fatigue.toFixed(1); el = document.getElementById("fatigueBar"); if (el) el.style.width = fatigue + "%"; }
 function updateRestBtn() { let el = document.getElementById("restCost"); if (el) el.innerText = getRestCost(); }
@@ -540,14 +559,52 @@ function getPassiveModifiers() {
     return { dmgMult: dm, takenMult: Math.max(0.01, tm), bossBonus: bb, hpMult: hm }; 
 }
 
-function updatePlayerStats() { let m = getPassiveModifiers(); let fm = 1 - fatigue / 100; let base = 5 + upgrades.damage.level * upgrades.damage.increment; let total = (base + (window.teamDamage || 0)) * fm; let db = 1.0; if (activeBuffs["doubleDamage"] && activeBuffs["doubleDamage"] > Date.now()) db = 2.0; else if (activeBuffs["dmg13"] && activeBuffs["dmg13"] > Date.now()) db = 1.3; else if (activeBuffs["dmg15"] && activeBuffs["dmg15"] > Date.now()) db = 1.5; else if (activeBuffs["quadDamage"] && activeBuffs["quadDamage"] > Date.now()) db = 4.0; let fd = Math.floor(total * m.dmgMult * db); let el = document.getElementById("playerDamage"); if (el) el.innerText = fd; window.playerFinalDamage = fd; let baseHp = 50 + upgrades.hp.level * upgrades.hp.increment; let totalHp = (baseHp + (window.teamHpBonus || 0)) * fm * m.hpMult; if (hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now()) totalHp *= 1.4; let hb = 1.0; if (activeBuffs["doubleHp"] && activeBuffs["doubleHp"] > Date.now()) hb = 2.0; else if (activeBuffs["tripleHp"] && activeBuffs["tripleHp"] > Date.now()) hb = 3.0; let maxHp = Math.floor(totalHp * hb); if (playerHp > maxHp && !hpDecayInterval) { hpDecayInterval = setInterval(() => { if (playerHp > maxHp) { playerHp = Math.max(maxHp, playerHp - 2); let el = document.getElementById("playerHp"); if (el) el.innerText = Math.floor(playerHp); } else { clearInterval(hpDecayInterval); hpDecayInterval = null; } }, 1000); } el = document.getElementById("playerHp"); if (el) el.innerText = Math.floor(playerHp); el = document.getElementById("playerMaxHp"); if (el) el.innerText = maxHp; window.playerMaxHp = maxHp; }
+// ★ ОБНОВЛЕНО: голод уменьшает макс HP ★
+function updatePlayerStats() { 
+    let m = getPassiveModifiers(); 
+    let fm = 1 - fatigue / 100; 
+    let base = 5 + upgrades.damage.level * upgrades.damage.increment; 
+    let total = (base + (window.teamDamage || 0)) * fm; 
+    let db = 1.0; 
+    if (activeBuffs["doubleDamage"] && activeBuffs["doubleDamage"] > Date.now()) db = 2.0; 
+    else if (activeBuffs["dmg13"] && activeBuffs["dmg13"] > Date.now()) db = 1.3; 
+    else if (activeBuffs["dmg15"] && activeBuffs["dmg15"] > Date.now()) db = 1.5; 
+    else if (activeBuffs["quadDamage"] && activeBuffs["quadDamage"] > Date.now()) db = 4.0; 
+    let fd = Math.floor(total * m.dmgMult * db); 
+    let el = document.getElementById("playerDamage"); if (el) el.innerText = fd; 
+    window.playerFinalDamage = fd; 
+    let baseHp = 50 + upgrades.hp.level * upgrades.hp.increment; 
+    let totalHp = (baseHp + (window.teamHpBonus || 0)) * fm * m.hpMult; 
+    if (hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now()) totalHp *= 1.4; 
+    let hb = 1.0; 
+    if (activeBuffs["doubleHp"] && activeBuffs["doubleHp"] > Date.now()) hb = 2.0; 
+    else if (activeBuffs["tripleHp"] && activeBuffs["tripleHp"] > Date.now()) hb = 3.0; 
+    // ★ ГОЛОД СНИЖАЕТ МАКС HP ★
+    let hungerMult = (typeof getHungerHpMult === 'function') ? getHungerHpMult() : 1.0;
+    let maxHp = Math.floor(totalHp * hb * hungerMult); 
+    if (playerHp > maxHp && !hpDecayInterval) { 
+        hpDecayInterval = setInterval(() => { 
+            if (playerHp > maxHp) { 
+                playerHp = Math.max(maxHp, playerHp - 2); 
+                let el = document.getElementById("playerHp"); 
+                if (el) el.innerText = Math.floor(playerHp); 
+            } else { 
+                clearInterval(hpDecayInterval); 
+                hpDecayInterval = null; 
+            } 
+        }, 1000); 
+    } 
+    el = document.getElementById("playerHp"); if (el) el.innerText = Math.floor(playerHp); 
+    el = document.getElementById("playerMaxHp"); if (el) el.innerText = maxHp; 
+    window.playerMaxHp = maxHp; 
+}
 
 function showFloatingText(text, color) { const area = document.getElementById('clickArea'); if (!area) return; const el = document.createElement('div'); el.className = 'floating-text'; el.textContent = text; el.style.color = color; el.style.left = Math.random() * 60 + 20 + '%'; el.style.top = '50%'; area.appendChild(el); setTimeout(() => el.remove(), 1000); }
 function showModal(title, content) { let el = document.getElementById("modalContent"); if (el) el.innerHTML = '<h2>' + title + '</h2><p style="margin-top:10px;white-space:pre-line;">' + content + '</p><button class="btn btn-primary" style="width:100%;padding:12px;" onclick="closeModal()">Закрыть</button>'; el = document.getElementById("modalOverlay"); if (el) el.style.display = "flex"; }
 function closeModal() { let el = document.getElementById("modalOverlay"); if (el) el.style.display = "none"; }
 function startFireEffectPassive(damage, durationMs) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } let elapsed = 0; fireInterval = setInterval(() => { if (!currentEnemy || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } return; } currentEnemy.hp -= damage; showFloatingText("🔥 -" + damage, "#ff6b6b"); renderEnemy(); elapsed += 2000; if (elapsed >= durationMs || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } if (currentEnemy && currentEnemy.hp <= 0) victory(); } }, 2000); }
 
-// ========== ОФЛАЙН-ПРОГРЕСС (★ очки силы за волны ★) ==========
+// ========== ОФЛАЙН-ПРОГРЕСС ==========
 function processOfflineProgress() { 
     if (!afkTeam.length) return; 
     let now = Date.now(); 
@@ -589,7 +646,6 @@ function processOfflineProgress() {
         afkWavesCompleted += wavesCompleted; 
         afkCurrentWave = simWave; 
         if (simWave > highestWaveReached) highestWaveReached = simWave; 
-        // ★ ОЧКИ СИЛЫ ЗА ОФЛАЙН АФК ★
         if (typeof getPowerPerWave === 'function' && typeof getPowerPoints === 'function' && typeof setPowerPoints === 'function') {
             let powerEarned = 0;
             for (let w = startWaveForPower; w < simWave; w++) {
@@ -598,6 +654,15 @@ function processOfflineProgress() {
             if (powerEarned > 0) {
                 setPowerPoints(getPowerPoints() + powerEarned);
                 showFloatingText("⚡ +" + powerEarned + " СИЛЫ за АФК!", "#ffd700");
+            }
+        }
+        // ★ ДРОП ПРЕДМЕТОВ В ОФЛАЙН ★
+        if (typeof tryDropLoot === 'function') {
+            let drops = Math.floor(wavesCompleted * 0.5);
+            for (let i = 0; i < drops; i++) {
+                if (Math.random() < 0.3) addItem("bone", 1);
+                if (Math.random() < 0.1) addItem("raw_meat", 1);
+                if (Math.random() < 0.05) addItem("coin", 1);
             }
         }
         let mins = Math.floor(elapsed / 60); 
@@ -648,7 +713,8 @@ function generateEnemy() { firstAttackThisFight = true; bossSupportUsedThisFight
         skipBtn.style.display = alreadyDefeated ? "block" : "none";
     }
     
-    startBattleMusic(); renderEnemy(); updateStatusDisplay(); updateEnemyStatusDisplay(); }
+    startBattleMusic(); renderEnemy(); updateStatusDisplay(); updateEnemyStatusDisplay(); 
+}
 function showBossDialogue(msg) { let d = document.getElementById("bossDialogue"); if (d) { d.innerText = '«' + msg + '»'; d.style.display = "block"; } }
 function hideBossDialogue() { let d = document.getElementById("bossDialogue"); if (d) d.style.display = "none"; }
 function spareBoss() { if (!currentEnemy || !currentEnemy.isBoss || currentEnemy.hp <= 0) return; let isUniqueBoss = (typeof bossTemplates !== 'undefined' && bossTemplates[wave] !== undefined); if (!isUniqueBoss) { alert("⚠️ Обычного босса нельзя пощадить!"); return; } if (currentEnemy.hp > currentEnemy.maxHp * 0.3) { alert("⚠️ Здоровье босса должно быть ниже 30% чтобы пощадить!"); return; } let spareChance = 0.30 + spareBonusFromTeam; if (Math.random() < spareChance) { let bt = bossTemplates[wave]; if (bt && bt.spareReward) { let template = customCardTemplates["Босс"].find(t => t.name === bt.spareReward); if (template) { let rewardCard = createCardFromTemplate(template, "Босс"); myCards.push(rewardCard); sfxCardObtain(); alert("🎉 Босс присоединился! Получена карта: " + bt.spareReward + " (шанс был " + Math.floor(spareChance*100) + "%)"); saveAll(); } } currentEnemy.hp = 0; victory(); } else { let extraDmg = Math.floor(currentEnemy.damage * 3); playerHp -= extraDmg; alert("💢 Босс отказался! Он наносит тройной урон: " + extraDmg + "!"); let el = document.getElementById("spareBtn"); if (el) el.style.display = "none"; if (playerHp <= 0) defeat(); else { renderEnemy(); updatePlayerStats(); } } }
@@ -691,7 +757,7 @@ function handleClick() { initAudio(); if (typeof arenaActive !== 'undefined' && 
         if (playerHp <= 0) { defeat(); return; } 
     } if (Math.random() < enemyStatuses.shockChance && clicksSinceLastCounter === maxClicks - 1) { clicksSinceLastCounter = 0; } increaseFatigue(fatigueMultiplier); renderEnemy(); let el = document.getElementById("playerHp"); if (el) el.innerText = Math.floor(playerHp); el = document.getElementById("clicksToCounter"); if (el) el.innerText = maxClicks - clicksSinceLastCounter; updateStatusDisplay(); window._needSave = true; }
 
-// ========== ПОБЕДА (★ очки силы за волну ★) ==========
+// ========== ПОБЕДА ==========
 function victory() { 
     let isBoss = wave % 10 === 0; 
     let rew = isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); 
@@ -704,10 +770,11 @@ function victory() {
     updateChallengeProgress("wins", 1); 
     if (isBoss) updateChallengeProgress("bossKills", 1); 
     if (isBoss && wave % 50 === 0) { highestCheckpoint = Math.max(highestCheckpoint, wave); grantBossGachaReward(wave); saveAll(); renderCheckpoints(); } 
-    // ★ ОЧКИ СИЛЫ ЗА ВОЛНУ (всегда) ★
+    // ★ ОЧКИ СИЛЫ ЗА ВОЛНУ ★
     if (typeof grantPowerForWave === 'function') grantPowerForWave(wave);
-    // ★ +50 ЗА БОССА ★
     if (isBoss && typeof grantMasteryPowerForBoss === 'function') grantMasteryPowerForBoss();
+    // ★ ДРОП ПРЕДМЕТОВ ★
+    if (typeof tryDropLoot === 'function') tryDropLoot(isBoss);
     if (isBoss) checkEvolutionQuests(); 
     if (wave === 10000 && isBoss) { gameCompleted = true; saveAll(); alert("🏆 ПОЗДРАВЛЯЕМ! Вы победили финального босса на 10000 волне!\n\nИгра пройдена! Но вы можете продолжать играть бесконечно.\n\nВсе ваши чекпоинты сохранены."); } 
     if (isBoss) { 
@@ -751,8 +818,6 @@ function resetGame() { wave = 1; playerHp = window.playerMaxHp || 100; clicksSin
 function checkAutoSell() { if (rebirthCount < 1) return; let anyActive = false; for (let r in autoSellSettings) { if (autoSellSettings[r]) { anyActive = true; break; } } if (!anyActive) return; for (let i = myCards.length - 1; i >= 0; i--) { let c = myCards[i]; if (!c.unsellable && autoSellSettings[c.rarity]) { points += Math.floor((c.sellPrice || 0) * getStarMult()); if (points > maxPoints) maxPoints = points; removeCard(i); } } saveAll(); renderMyCards(); renderPoints(); }
 function startAfk() { if (afkActive || !afkTeam.length) return; afkActive = true; afkCurrentWave = wave; let el = document.getElementById("afkStatus"); if (el) { el.innerText = "Активен"; el.className = "afk-active"; } el = document.getElementById("toggleAfkBtn"); if (el) el.innerText = "⏹ Остановить"; runAfkTick(); saveAll(); }
 function stopAfk() { afkActive = false; if (afkTimer) clearTimeout(afkTimer); let el = document.getElementById("afkStatus"); if (el) { el.innerText = "Неактивен"; el.className = "afk-inactive"; } el = document.getElementById("toggleAfkBtn"); if (el) el.innerText = "▶ Запустить"; saveAll(); }
-
-// ★ АФК — очки силы за волну ★
 function runAfkTick() { 
     if (!afkActive) return; 
     let dmg = (5 + upgrades.damage.level * upgrades.damage.increment + (window.afkTeamDamage || 0)) * 0.8; 
@@ -770,8 +835,8 @@ function runAfkTick() {
         addPassExp(afkCurrentWave % 10 === 0 ? 25 : 5); 
         updateChallengeProgress("earnPoints", rew); 
         updateChallengeProgress("wins", 1); 
-        // ★ ОЧКИ СИЛЫ ЗА ВОЛНУ В АФК ★
         if (typeof grantPowerForWave === 'function') grantPowerForWave(afkCurrentWave);
+        if (typeof tryDropLoot === 'function') tryDropLoot(afkCurrentWave % 10 === 0);
         if (afkCurrentWave % 10 === 0) { 
             if (typeof grantMasteryPowerForBoss === 'function') grantMasteryPowerForBoss();
             updateChallengeProgress("bossKills", 1); 
@@ -947,6 +1012,10 @@ function doRebirth() {
     lastSaveTime = Date.now(); 
     bossSupportUsedThisFight = false; 
     evoProgress = {wavesSaitamaGarou:0,damageGarpKuzan:0,luffyKingUnlocked:false,sgUnlocked:false,gkUnlocked:false,sevenUnlocked:false,williamUnlocked:false,oneShotCount:0}; 
+    // ★ СБРОС ИНВЕНТАРЯ КРОМЕ КУСКА КАМНЯ ★
+    let savedStonePiece = (typeof inventory !== 'undefined' && inventory["stone_piece"]) ? inventory["stone_piece"] : 0;
+    if (typeof resetInventory === 'function') resetInventory();
+    if (savedStonePiece > 0 && typeof addItem === 'function') addItem("stone_piece", savedStonePiece);
     resetDailyRewards();
     passData = { currentTier: 1, passExp: 0, claimedTiers: [] };
     for (let i = 0; i < 3; i++) { let c = createCard(getRandomRarity()); if (c) myCards.push(c); } 
@@ -961,10 +1030,10 @@ function doRebirth() {
     alert('🔄 Ребёрн ' + rebirthCount + '! Множитель x' + getRebirthMult().toFixed(1)); 
 }
 
-function switchTab(tabName) { document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); let btn = document.querySelector(".tab-btn[data-tab='" + tabName + "']"); if (btn) btn.classList.add("active"); document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active")); let tab = document.getElementById(tabName + "Tab"); if (tab) tab.classList.add("active"); if (tabName === "collection") { renderPass(); } if (tabName === "battle") { startBattleMusic(); } else if (tabName === "shop") { startShopMusic(); let now = Date.now(); if (!shopRefreshTime || (now - shopRefreshTime) > 3600000) { refreshShop(); } else { renderShop(); } if (typeof renderGachaTab === 'function') renderGachaTab(); renderDailyRewards(); setTimeout(hideFreeSpinsUI, 50); } else { startMainMusic(); } if (tabName === "other") { renderRebirthInfo(); renderRebirthStats(); renderSettings(); renderSlotsInGame(); } }
-function switchSubTab(subtabName, parentTabId) { let parent = document.getElementById(parentTabId); if (!parent) return; parent.querySelectorAll(".sub-tab-btn").forEach(b => b.classList.remove("active")); let subBtn = parent.querySelector(".sub-tab-btn[data-subtab='" + subtabName + "']"); if (subBtn) subBtn.classList.add("active"); parent.querySelectorAll(".sub-tab-content").forEach(t => t.classList.remove("active")); let sub = document.getElementById(subtabName + "SubTab"); if (sub) sub.classList.add("active"); if (subtabName === "book") renderBook(); if (subtabName === "pass") renderPass(); if (subtabName === "evolution") renderEvoTab(); if (subtabName === "shopItems") renderShop(); if (subtabName === "gacha") renderGachaTab(); if (subtabName === "daily") renderDailyRewards(); if (subtabName === "bulkSell") renderBulkSell(); if (subtabName === "autoRest") renderAutoRest(); if (subtabName === "upgrades") renderUpgrades(); if (subtabName === "challenges") renderChallenges(); if (subtabName === "checkpoint") renderCheckpoints(); if (subtabName === "rebirthMain") renderRebirthInfo(); if (subtabName === "rebirthStats") renderRebirthStats(); if (subtabName === "slots") renderSlotsInGame(); if (subtabName === "settings") renderSettings(); }
-function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); renderSettings(); renderSlotsInGame(); renderDailyRewards(); renderPass(); if (typeof renderGachaTab === 'function') renderGachaTab(); if (typeof renderPowerPoints === 'function') renderPowerPoints(); updatePlayerStats(); updateStatusDisplay(); setTimeout(hideFreeSpinsUI, 50); }
-function renderPoints() { let displayPoints = (mode === "moder" && moderUnlocked) ? "∞" : points; ['pointsAmount', 'pointsAmount2', 'pointsAmount3', 'pointsAmountBulk', 'pointsAmountRest', 'pointsAmountGacha'].forEach(id => { let e = document.getElementById(id); if (e) e.innerText = displayPoints; }); }
+function switchTab(tabName) { document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); let btn = document.querySelector(".tab-btn[data-tab='" + tabName + "']"); if (btn) btn.classList.add("active"); document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active")); let tab = document.getElementById(tabName + "Tab"); if (tab) tab.classList.add("active"); if (tabName === "collection") { renderPass(); } if (tabName === "battle") { startBattleMusic(); } else if (tabName === "shop") { startShopMusic(); let now = Date.now(); if (!shopRefreshTime || (now - shopRefreshTime) > 3600000) { refreshShop(); } else { renderShop(); } if (typeof renderGachaTab === 'function') renderGachaTab(); renderDailyRewards(); if (typeof renderInventory === 'function') renderInventory(); setTimeout(hideFreeSpinsUI, 50); } else { startMainMusic(); } if (tabName === "other") { renderRebirthInfo(); renderRebirthStats(); renderSettings(); renderSlotsInGame(); } }
+function switchSubTab(subtabName, parentTabId) { let parent = document.getElementById(parentTabId); if (!parent) return; parent.querySelectorAll(".sub-tab-btn").forEach(b => b.classList.remove("active")); let subBtn = parent.querySelector(".sub-tab-btn[data-subtab='" + subtabName + "']"); if (subBtn) subBtn.classList.add("active"); parent.querySelectorAll(".sub-tab-content").forEach(t => t.classList.remove("active")); let sub = document.getElementById(subtabName + "SubTab"); if (sub) sub.classList.add("active"); if (subtabName === "book") renderBook(); if (subtabName === "pass") renderPass(); if (subtabName === "evolution") renderEvoTab(); if (subtabName === "shopItems") renderShop(); if (subtabName === "inventory") { if (typeof renderInventory === 'function') renderInventory(); if (typeof renderPoints === 'function') renderPoints(); } if (subtabName === "gacha") renderGachaTab(); if (subtabName === "daily") renderDailyRewards(); if (subtabName === "bulkSell") renderBulkSell(); if (subtabName === "autoRest") renderAutoRest(); if (subtabName === "upgrades") renderUpgrades(); if (subtabName === "challenges") renderChallenges(); if (subtabName === "checkpoint") renderCheckpoints(); if (subtabName === "rebirthMain") renderRebirthInfo(); if (subtabName === "rebirthStats") renderRebirthStats(); if (subtabName === "slots") renderSlotsInGame(); if (subtabName === "settings") renderSettings(); }
+function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); if (typeof renderInventory === 'function') renderInventory(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); renderSettings(); renderSlotsInGame(); renderDailyRewards(); renderPass(); if (typeof renderGachaTab === 'function') renderGachaTab(); if (typeof renderPowerPoints === 'function') renderPowerPoints(); updatePlayerStats(); updateStatusDisplay(); setTimeout(hideFreeSpinsUI, 50); }
+function renderPoints() { let displayPoints = (mode === "moder" && moderUnlocked) ? "∞" : points; ['pointsAmount', 'pointsAmount2', 'pointsAmount3', 'pointsAmountBulk', 'pointsAmountRest', 'pointsAmountGacha', 'pointsAmountInv'].forEach(id => { let e = document.getElementById(id); if (e) e.innerText = displayPoints; }); }
 function escapeHtml(s) { return s ? s.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])) : ''; }
 function showSlotSelectScreen() { let slotScreen = document.getElementById("slotSelectScreen"); let gameScreen = document.getElementById("gameScreen"); if (slotScreen) slotScreen.style.display = "block"; if (gameScreen) gameScreen.style.display = "none"; let html = ''; for (let i = 0; i < 3; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select" onclick="showNicknamePrompt(' + i + ')"><div style="font-size:20px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + '</div></div>'; } let el = document.getElementById("slotList"); if (el) el.innerHTML = html; }
 function showNicknamePrompt(slot) { let meta = loadSlotMeta(slot); let nickname = prompt("Введите ник для слота " + (slot + 1) + ":", meta.nickname); if (nickname === null) return; if (nickname.trim() === "" && !meta.exists) return; if (nickname.trim() !== "") { meta.nickname = nickname.trim(); } saveSlotMeta(slot, meta); selectSlot(slot); }
@@ -1007,12 +1076,22 @@ document.addEventListener("DOMContentLoaded", function () {
     setInterval(function () { 
         if (currentSlot >= 0) { 
             updatePlayerStats(); 
+            // ★ ГОЛОД И ОТРАВЛЕНИЕ ★
+            if (typeof tickHunger === 'function') tickHunger(1);
+            if (typeof tickPoison === 'function') tickPoison(1);
             updateClaimTimer(); 
             checkFreeSpinReset(); 
             checkGachaReset(); 
             if (!challenges.length || Date.now() - (lastChallengeReset || 0) >= 86400000) genChallenges(); 
             if (window._needSave) { saveAll(); window._needSave = false; } 
             hideFreeSpinsUI();
+            // Обновление инвентаря если открыт
+            if (document.getElementById("inventorySubTab") && document.getElementById("inventorySubTab").classList.contains("active")) {
+                if (typeof renderInventory === 'function') renderInventory();
+            }
+            // Обновление HP если открыт бой
+            let hpEl = document.getElementById("playerHp");
+            if (hpEl) hpEl.innerText = Math.floor(playerHp);
         } 
     }, 1000);
 });
