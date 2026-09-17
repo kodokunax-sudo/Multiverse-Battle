@@ -1,5 +1,5 @@
 // ============================================================
-// ИНВЕНТАРЬ v1.0 — предметы, голод, ожирение, отравление
+// ИНВЕНТАРЬ v1.1 — фиксы + новые фрукты
 // ============================================================
 
 const ITEMS = {
@@ -10,7 +10,7 @@ const ITEMS = {
     },
     raw_meat: {
         name: "Сырое мясо", icon: "🥩",
-        desc: "Вкусно пахнет, но есть сырым — плохая идея. Мгновенно +15% HP, но накладывает отравление на 60 секунд (-2% HP/сек). 10 очков антидота снимают отравление.",
+        desc: "Вкусно пахнет, но есть сырым — плохая идея. Мгновенно +15% HP, но накладывает отравление на 60 секунд (-2% HP/сек). Повторное поедание УСКОРЯЕТ смерть (-10 сек). 10 очков антидота снимают отравление.",
         stack: 99, canSell: false, canCook: true,
         actionFunction: "eatRawMeat"
     },
@@ -48,6 +48,42 @@ const ITEMS = {
         hp: 25, hunger: 60, obesity: 10, antidote: 10,
         actionFunction: "eatFruit"
     },
+    // ★ НОВЫЕ ФРУКТЫ ★
+    orange: {
+        name: "Апельсин", icon: "🍊",
+        desc: "+8% HP, -15% голода, -1 ожирение, +2 антидот",
+        cost: 350, stack: 99, canEat: true,
+        hp: 8, hunger: 15, obesity: 1, antidote: 2,
+        actionFunction: "eatFruit"
+    },
+    watermelon: {
+        name: "Арбуз", icon: "🍉",
+        desc: "+20% HP, -50% голода, -6 ожирение, +3 антидот",
+        cost: 2500, stack: 99, canEat: true,
+        hp: 20, hunger: 50, obesity: 6, antidote: 3,
+        actionFunction: "eatFruit"
+    },
+    lemon: {
+        name: "Лимон", icon: "🍋",
+        desc: "+3% HP, -5% голода, -8 ожирение, +6 антидот (кислый!)",
+        cost: 1200, stack: 99, canEat: true,
+        hp: 3, hunger: 5, obesity: 8, antidote: 6,
+        actionFunction: "eatFruit"
+    },
+    cherry: {
+        name: "Вишня", icon: "🍒",
+        desc: "+7% HP, -12% голода, -3 ожирение, +5 антидот",
+        cost: 800, stack: 99, canEat: true,
+        hp: 7, hunger: 12, obesity: 3, antidote: 5,
+        actionFunction: "eatFruit"
+    },
+    mango: {
+        name: "Манго", icon: "🥭",
+        desc: "+18% HP, -45% голода, -7 ожирение, +8 антидот",
+        cost: 3500, stack: 99, canEat: true,
+        hp: 18, hunger: 45, obesity: 7, antidote: 8,
+        actionFunction: "eatFruit"
+    },
     coin: {
         name: "Монета", icon: "🪙",
         desc: "Блестит. Наверное, что-то значит. Но ты не знаешь что.",
@@ -72,6 +108,7 @@ let obesityPoints = 0;
 let poisonTimer = 0;
 let antidotePoints = 0;
 let treasureUnlocked = false;
+let treasureKeyUsed = false; // ★ НОВОЕ: флаг что ключ уже применялся ★
 
 // ========== БАЗОВЫЕ ==========
 function addItem(id, count) {
@@ -103,7 +140,7 @@ function tryDropLoot(isBoss) {
     if (isBoss) {
         addItem("bone", 10);
         if (Math.random() < 0.3) {
-            let fruits = ["apple", "banana", "grapes", "pineapple"];
+            let fruits = ["apple", "banana", "grapes", "pineapple", "orange", "watermelon", "lemon", "cherry", "mango"];
             let f = fruits[Math.floor(Math.random() * fruits.length)];
             addItem(f, 1);
             if (typeof showFloatingText === 'function') showFloatingText("🍎 " + ITEMS[f].name + "!", "#2ecc71");
@@ -130,6 +167,11 @@ function eatRawMeat() {
     removeItem("raw_meat", 1);
     if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
         playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.15);
+    }
+    // ★ ПОВТОРНОЕ МЯСО УСКОРЯЕТ СМЕРТЬ НА 10 СЕК ★
+    if (poisonTimer > 0) {
+        poisonTimer = Math.max(0, poisonTimer - 10);
+        if (typeof showFloatingText === 'function') showFloatingText("☠️ -10 сек до смерти!", "#ff00ff");
     }
     poisonTimer += 60;
     if (typeof showFloatingText === 'function') showFloatingText("☠️ ОТРАВЛЕНИЕ!", "#aa00aa");
@@ -178,13 +220,19 @@ function eatFruit(fruitId) {
     if (typeof closeModal === 'function') closeModal();
 }
 
+// ★ ФИКС ЖАРКИ ★
 function cookMeat() {
-    if (getItemCount("raw_meat") <= 0) return;
-    if (typeof points === 'undefined' || points < 10) {
+    if (getItemCount("raw_meat") <= 0) {
+        if (typeof showFloatingText === 'function') showFloatingText("Нет сырого мяса!", "#ff3333");
+        return;
+    }
+    let currentPoints = (typeof points !== 'undefined') ? points : 0;
+    let isModer = (typeof mode !== 'undefined' && mode === "moder");
+    if (!isModer && currentPoints < 10) {
         if (typeof showFloatingText === 'function') showFloatingText("Нужно 10⭐!", "#ff3333");
         return;
     }
-    points -= 10;
+    if (!isModer && typeof points !== 'undefined') points -= 10;
     removeItem("raw_meat", 1);
     addItem("cooked_meat", 1);
     if (typeof showFloatingText === 'function') showFloatingText("🔥 Готово!", "#f5af19");
@@ -208,9 +256,14 @@ function sellBones() {
     if (typeof closeModal === 'function') closeModal();
 }
 
+// ★ ФИКС КЛЮЧА ★
 function useKey() {
-    if (getItemCount("key") <= 0) return;
+    if (getItemCount("key") <= 0) {
+        if (typeof showFloatingText === 'function') showFloatingText("Нет ключа!", "#ff3333");
+        return;
+    }
     treasureUnlocked = true;
+    treasureKeyUsed = true;
     removeItem("key", 1);
     if (typeof showFloatingText === 'function') showFloatingText("🔓 Тайник открыт!", "#ffd700");
     if (typeof saveAll === 'function') saveAll();
@@ -276,7 +329,8 @@ function saveInventory() {
         obesityPoints: obesityPoints,
         poisonTimer: poisonTimer,
         antidotePoints: antidotePoints,
-        treasureUnlocked: treasureUnlocked
+        treasureUnlocked: treasureUnlocked,
+        treasureKeyUsed: treasureKeyUsed
     };
 }
 
@@ -288,6 +342,9 @@ function loadInventory(data) {
     poisonTimer = data.poisonTimer || 0;
     antidotePoints = data.antidotePoints || 0;
     treasureUnlocked = data.treasureUnlocked || false;
+    treasureKeyUsed = data.treasureKeyUsed || false;
+    // ★ ФОЛБЭК: если ключа нет, но флаг использования стоит — считаем открыт ★
+    if (!treasureUnlocked && treasureKeyUsed) treasureUnlocked = true;
 }
 
 function resetInventory() {
@@ -297,6 +354,7 @@ function resetInventory() {
     poisonTimer = 0;
     antidotePoints = 0;
     treasureUnlocked = false;
+    treasureKeyUsed = false;
 }
 
 // ========== РЕНДЕР ==========
@@ -402,4 +460,4 @@ window.renderInventory = renderInventory;
 window.showItemModal = showItemModal;
 window.getTreasureUnlocked = function() { return treasureUnlocked; };
 
-console.log("[INVENTORY] Модуль загружен");
+console.log("[INVENTORY] v1.1 — фиксы + 5 новых фруктов");
