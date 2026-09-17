@@ -1,587 +1,730 @@
-// ========== ОТРИСОВКА КАРТОЧЕК ==========
-function renderMyCards() { 
-    let c = document.getElementById("collectionGrid"); 
-    document.getElementById("totalCards").innerText = myCards.length; 
-    if (!myCards.length) { c.innerHTML = "<div style='width:100%;text-align:center;padding:20px;color:#888;'>Нет карт</div>"; return; } 
-    c.innerHTML = myCards.map((cd, idx) => { 
-        let isSeven = cd.name === "Семёрка"; 
-        let cvMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.2 : 1); 
-        let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); 
-        let skFinger = hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now() && cd.name === sukunaTarget; 
-        let dmgMult = 1; 
-        if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + totalWins * cd.ability.value); 
-        if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + totalWins * cd.statusAbility.value); 
-        let masteryMult = typeof getMasteryMult === 'function' ? getMasteryMult(cd) : 1;
-        let dmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1) * masteryMult); 
-        let hp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult); 
-        let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(cd.rarity); 
-        let cardImg = showImage ? getCardImage(cd.name) : null; 
-        let imgHTML = cardImg ? '<img src="' + cardImg + '" class="card-image">' : ''; 
-        let superHTML = '';
-        if (cd.superAbility && (typeof hasMasterySuper === 'function' ? hasMasterySuper(cd) : true)) {
-            superHTML = '<div style="font-size:9px;color:#ffd700;font-weight:bold;margin-top:3px;text-align:center;line-height:1.2;background:rgba(0,0,0,0.3);border-radius:8px;padding:2px 4px;">' + cd.superAbility.name + '</div>';
-        }
-        let sukunaIndicator = skFinger ? '<div style="font-size:9px;color:#ff4444;font-weight:bold;margin-top:2px;">🗿 Сукуна</div>' : '';
-        let masteryHTML = typeof getMasteryHTML === 'function' ? getMasteryHTML(cd) : '';
-        return '<div class="card-item ' + (team.includes(idx) ? 'team-selected' : '') + ' ' + (afkTeam.includes(idx) ? 'afk-selected' : '') + '" onclick="toggleTeam(' + idx + ')">' 
-            + imgHTML 
-            + '<div class="card-name">' + escapeHtml(cd.name) + '</div>' 
-            + '<div class="rarity-tag ' + rarityColors[cd.rarity] + '">' + cd.rarity + '</div>' 
-            + '<div class="card-stats">💪' + dmg + ' ❤️' + hp + ' ⚡' + (cd.speed || 0.5).toFixed(1) + '</div>' 
-            + superHTML 
-            + sukunaIndicator 
-            + masteryHTML 
-            + (cd.ability ? '<div style="font-size:10px;color:#f5af19;font-weight:bold;margin-top:2px;">✨ ' + cd.ability.desc + '</div>' : '') 
-            + (cd.statusAbility ? '<div style="font-size:9px;color:#f5af19;margin-top:2px;">' + cd.statusAbility.desc + '</div>' : '') 
-            + '<div style="display:flex;gap:4px;justify-content:center;margin-top:6px;flex-wrap:wrap;">' 
-            + '<div class="remove-icon" onclick="event.stopPropagation();showMasteryModal(' + idx + ')" style="background:#ffd700;color:#000;">⭐</div>' 
-            + '<div class="remove-icon" onclick="event.stopPropagation();toggleTeam(' + idx + ')" style="background:#f5af19;color:#000;">⚔️</div>' 
-            + '<div class="remove-icon" onclick="event.stopPropagation();toggleAfk(' + idx + ')" style="background:#2ecc71;color:#000;">💤</div>' 
-            + (!cd.unsellable ? '<div class="remove-icon" onclick="event.stopPropagation();sellCard(' + idx + ')">💰</div>' : '') 
-            + '</div></div>'; 
-    }).join(''); 
-}
+// ============================================================
+// ИНВЕНТАРЬ v1.6 — фикс распространения между слотами
+// ============================================================
 
-function renderTeam() { 
-    let c = document.getElementById("teamList"), d = 0, h = 0, html = ""; 
-    if (!team.length) { c.innerHTML = "<div style='padding:10px;text-align:center;color:#888;'>Пусто</div>"; 
-        document.getElementById("totalDamage").innerText = 0; 
-        document.getElementById("totalHpBonus").innerText = 0; 
-        window.teamDamage = 0; window.teamHpBonus = 0; 
-        return; 
-    } 
-    team.forEach((idx, s) => { 
-        let cd = myCards[idx]; 
-        if (!cd) return; 
-        let isMain = (s === mainCardIndex);
-        let isSeven = cd.name === "Семёрка"; 
-        let cvMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.2 : 1); 
-        let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); 
-        let skFinger = hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now() && cd.name === sukunaTarget; 
-        let dmgMult = 1; 
-        if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + totalWins * cd.ability.value); 
-        if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + totalWins * cd.statusAbility.value); 
-        let masteryMult = typeof getMasteryMult === 'function' ? getMasteryMult(cd) : 1;
-        let cDmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1) * masteryMult); 
-        let cHp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult); 
-        let cSpd = cd.speed || 0.5;
-        if (cd.ability?.type === 'copyEnemyChance' && currentEnemy && Math.random() < cd.ability.chance && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { 
-            cDmg = currentEnemy.damage; cHp = currentEnemy.hp; 
-        } 
-        d += cDmg; h += cHp; 
-        let superInfo = '';
-        if (cd.superAbility && (typeof hasMasterySuper === 'function' ? hasMasterySuper(cd) : true)) {
-            superInfo = '<div style="font-size:10px;color:#ffd700;margin-top:2px;font-weight:bold;">' + cd.superAbility.name + '</div>';
-        }
-        let sukunaTag = skFinger ? ' <span style="color:#ff4444;font-size:10px;">🗿</span>' : '';
-        let lvl = cd.mastery || 1;
-        let mStars = "";
-        for (let i = 1; i <= 5; i++) mStars += (i <= lvl ? "★" : "☆");
-        let masteryTeam = '<div style="font-size:9px;color:' + (lvl >= 5 ? "#ffd700" : lvl >= 4 ? "#e056fd" : lvl >= 3 ? "#9b59b6" : lvl >= 2 ? "#3498db" : "#95a5a6") + ';font-weight:bold;margin-top:2px;">' + mStars + '</div>';
-        let expTeam = '';
-        if (lvl < 5 && typeof getMasteryExpNeeded === 'function') {
-            let expNeeded = getMasteryExpNeeded(cd, lvl + 1);
-            let currentExp = cd.masteryExp || 0;
-            let expPct = Math.min(100, (currentExp / expNeeded) * 100);
-            expTeam = '<div style="margin-top:3px;"><div style="font-size:8px;color:#00d4ff;font-weight:bold;">📊 ' + Math.floor(currentExp) + '/' + expNeeded + '</div><div style="background:rgba(0,0,0,0.5);border-radius:4px;height:3px;margin-top:1px;overflow:hidden;"><div style="width:' + expPct + '%;height:100%;background:linear-gradient(90deg, #00d4ff, #0099ff);"></div></div></div>';
-        }
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border:2px solid ' + (isMain ? '#f5af19' : (skFinger ? '#ff4444' : 'rgba(255,255,255,0.08)')) + ';border-radius:12px;margin-bottom:6px;' + (isMain ? 'box-shadow: 0 0 12px rgba(245,175,25,0.4);' : (skFinger ? 'box-shadow: 0 0 12px rgba(255,68,68,0.3);' : '')) + '">' +
-            '<div style="flex:1;">' +
-                '<span style="font-weight:800;">' + (isMain ? '👑 ' : '') + escapeHtml(cd.name) + sukunaTag + '</span>' +
-                '<span style="font-size:12px;margin-left:8px;">💪' + cDmg + ' ❤️' + cHp + ' ⚡' + cSpd.toFixed(1) + '</span>' +
-                superInfo +
-                masteryTeam +
-                expTeam +
-            '</div>' +
-            '<div style="display:flex;gap:4px;align-items:center;">' +
-                (isMain ? '<span style="font-size:10px;color:#f5af19;font-weight:bold;">ГЛАВНЫЙ</span>' : '<button class="btn" style="padding:3px 8px;font-size:10px;background:rgba(245,175,25,0.3);border:1px solid #f5af19;color:#f5af19;border-radius:15px;" onclick="event.stopPropagation();setMainCard(' + s + ')">👑</button>') +
-                '<button class="btn" style="padding:4px 10px;background:rgba(231,76,60,0.8);border:none;font-size:11px;" onclick="event.stopPropagation();team.splice(' + s + ',1);normalizeMainCard();renderAll();updatePlayerStats();">✕</button>' +
-            '</div>' +
-        '</div>'; 
-    }); 
-    c.innerHTML = html; 
-    document.getElementById("totalDamage").innerText = d; 
-    document.getElementById("totalHpBonus").innerText = h; 
-    window.teamDamage = d; window.teamHpBonus = h; 
-    
-    if (team.length > 0 && mainCardIndex >= 0 && mainCardIndex < team.length) {
-        let mainCard = myCards[team[mainCardIndex]];
-        if (mainCard) {
-            let mainSpeed = mainCard.speed || 0.5;
-            let speedDiv = document.getElementById("mainCardSpeedDisplay");
-            if (!speedDiv) {
-                speedDiv = document.createElement("div");
-                speedDiv.id = "mainCardSpeedDisplay";
-                speedDiv.style.cssText = "margin-top:8px;padding:8px 12px;background:rgba(245,175,25,0.15);border:1px solid rgba(245,175,25,0.3);border-radius:10px;font-size:12px;font-weight:bold;text-align:center;";
-                c.appendChild(speedDiv);
-            }
-            speedDiv.innerHTML = '👑 Главный: <span style="color:#f5af19;">' + escapeHtml(mainCard.name) + '</span> | ⚡ Скорость на арене: <span style="color:#f5af19;">' + mainSpeed.toFixed(1) + '</span>';
-        }
+const ITEMS = {
+    star: {
+        name: "Звезда", icon: "⭐",
+        desc: "Твоя основная валюта. Тратится на крутки, товары, прокачку и готовку. Зарабатывается за победы над врагами и боссами. Чем выше волна — тем больше звёзд. Говорят, что звезды обладают невероятной силой и энергией. Поэтому она является единственной валютой в космосе",
+        stack: 999999, canSell: false, isVirtual: true
+    },
+    bone: {
+        name: "Кость", icon: "🦴",
+        desc: "Белесая кость. Продай — получишь звёзды. Ну а зачем они еще нужны?",
+        sellPrice: 1, stack: 999, canSell: true
+    },
+    raw_meat: {
+        name: "Сырое мясо", icon: "🥩",
+        desc: "Мясо, но есть сырым — плохая идея. Почти. Мгновенно +15% HP, но накладывает отравление на 60 секунд (-2% HP/сек). Повторное поедание УСКОРЯЕТ смерть (-10 сек). 10 очков антидота снимают отравление.",
+        stack: 99, canSell: false, canCook: true,
+        actionFunction: "eatRawMeat"
+    },
+    cooked_meat: {
+        name: "Жареное мясо", icon: "🍖",
+        desc: "Сочное жареное мясо. Восстанавливает 25% HP и убирает 30% голода. Но добавляет +2 очка ожирения.",
+        stack: 99, canSell: false,
+        actionFunction: "eatCookedMeat"
+    },
+    mushroom: {
+        name: "Гриб", icon: "🍄",
+        desc: "Странный гриб. Мгновенно +15% HP. 50% шанс что это ядовитый гриб (накладывает короткое отравление на 15 сек). 50% шанс что волшебный (даёт +10 очков антидота и -1 ожирение).",
+        cost: 300, stack: 99, canEat: true,
+        actionFunction: "eatMushroom"
+    },
+    honey: {
+        name: "Мёд", icon: "🍯",
+        desc: "Сладкий мёд. Восстанавливает +3% HP в секунду в течение 10 секунд. Всего +30% HP. Не вызывает ожирение.",
+        cost: 800, stack: 99, canEat: true,
+        actionFunction: "eatHoney"
+    },
+    pepper: {
+        name: "Перец", icon: "🌶️",
+        desc: "Жгучий перец! Даёт +30% скорости сердечка на 30 секунд. НО пока эффект активен — теряешь 1% HP каждую секунду (жжёт!).",
+        cost: 400, stack: 99, canEat: true,
+        actionFunction: "eatPepper"
+    },
+    ice: {
+        name: "Лёд", icon: "🧊",
+        desc: "Кусок вечного льда. Замораживает текущего врага на 5 дополнительных кликов (враг не отвечает ударом).",
+        cost: 600, stack: 99, canEat: true,
+        actionFunction: "eatIce"
+    },
+    egg: {
+        name: "Яйцо", icon: "🥚",
+        desc: "Загадочное яйцо. Что внутри — неизвестно! При съедании мгновенно даёт случайную награду: звёзды, карту, или... ничего.",
+        cost: 1000, stack: 99, canEat: true,
+        actionFunction: "eatEgg"
+    },
+    bread: {
+        name: "Хлеб", icon: "🍞",
+        desc: "Свежий хлеб. Убирает 40% голода. Но добавляет +1 очко ожирения (хлебушек!).",
+        cost: 250, stack: 99, canEat: true,
+        actionFunction: "eatBread"
+    },
+    antidote_potion: {
+        name: "Мини-зелье", icon: "🧪",
+        desc: "Маленькое зелье. Мгновенно снимает отравление и обнуляет счётчик антидота. Работает сразу же.",
+        cost: 700, stack: 99, canEat: true,
+        actionFunction: "drinkAntidote"
+    },
+    apple: {
+        name: "Яблоко", icon: "🍏",
+        desc: "+5% HP, -10% голода, -1 ожирение, +1 антидот",
+        cost: 200, stack: 99, canEat: true,
+        hp: 5, hunger: 10, obesity: 1, antidote: 1,
+        actionFunction: "eatFruit"
+    },
+    orange: {
+        name: "Апельсин", icon: "🍊",
+        desc: "+8% HP, -15% голода, -1 ожирение, +2 антидот. Апельсин - это вкусно, но лимон круче. А ты, что думаешь?",
+        cost: 350, stack: 99, canEat: true,
+        hp: 8, hunger: 15, obesity: 1, antidote: 2,
+        actionFunction: "eatFruit"
+    },
+    banana: {
+        name: "Банан", icon: "🍌",
+        desc: "+10% HP, -20% голода, -2 ожирение, +2 антидот. Мммммм.... Бананчики....",
+        cost: 500, stack: 99, canEat: true,
+        hp: 10, hunger: 20, obesity: 2, antidote: 2,
+        actionFunction: "eatFruit"
+    },
+    cherry: {
+        name: "Вишня", icon: "🍒",
+        desc: "+7% HP, -12% голода, -3 ожирение, +5 антидот. Просто вишня. Удевительно!",
+        cost: 800, stack: 99, canEat: true,
+        hp: 7, hunger: 12, obesity: 3, antidote: 5,
+        actionFunction: "eatFruit"
+    },
+    lemon: {
+        name: "Лимон", icon: "🍋",
+        desc: "+3% HP, -5% голода, -8 ожирение, +6 антидот (кислый!). Лично я обожаю лимон",
+        cost: 1200, stack: 99, canEat: true,
+        hp: 3, hunger: 5, obesity: 8, antidote: 6,
+        actionFunction: "eatFruit"
+    },
+    grapes: {
+        name: "Виноград", icon: "🍇",
+        desc: "+15% HP, -35% голода, -4 ожирение, +4 антидот",
+        cost: 1500, stack: 99, canEat: true,
+        hp: 15, hunger: 35, obesity: 4, antidote: 4,
+        actionFunction: "eatFruit"
+    },
+    watermelon: {
+        name: "Арбуз", icon: "🍉",
+        desc: "+20% HP, -50% голода, -6 ожирение, +3 антидот. Арбуз арбуз привет...",
+        cost: 2500, stack: 99, canEat: true,
+        hp: 20, hunger: 50, obesity: 6, antidote: 3,
+        actionFunction: "eatFruit"
+    },
+    mango: {
+        name: "Манго", icon: "🥭",
+        desc: "+18% HP, -45% голода, -7 ожирение, +8 антидот. Давай в этот раз без эдитов",
+        cost: 3500, stack: 99, canEat: true,
+        hp: 18, hunger: 45, obesity: 7, antidote: 8,
+        actionFunction: "eatFruit"
+    },
+    pineapple: {
+        name: "Ананас", icon: "🍍",
+        desc: "+25% HP, -60% голода, -10 ожирение, +10 антидот (мгновенно снимает отравление). А я знаю другое приминение ананаса...",
+        cost: 5000, stack: 99, canEat: true,
+        hp: 25, hunger: 60, obesity: 10, antidote: 10,
+        actionFunction: "eatFruit"
+    },
+    coin: {
+        name: "Монета", icon: "🪙",
+        desc: "Блестит. Наверное, что-то значит. Но ты не знаешь что.",
+        stack: 999, canSell: false
+    },
+    key: {
+        name: "Ключ Живого Камня", icon: "🔑",
+        desc: "Странный ключ. Открывает тайные товары в Лавке. Пропадёт при ребиртхе.",
+        stack: 1, canSell: false,
+        actionFunction: "useKey"
+    },
+    stone_piece: {
+        name: "Кусок камня", icon: "🪨",
+        desc: "Напоминание о проигрыше против камня. Надеюсь я его больше не встречу. Хотя, кто знает...",
+        stack: 1, canSell: false, unsellable: true
     }
-}
-
-function renderAfkTeam() { 
-    let c = document.getElementById("afkTeamList"), d = 0, h = 0, html = ""; 
-    if (!afkTeam.length) { c.innerHTML = "<div style='padding:10px;text-align:center;color:#888;'>Пусто</div>"; return; } 
-    afkTeam.forEach((idx, s) => { 
-        let cd = myCards[idx]; 
-        if (!cd) return; 
-        let isSeven = cd.name === "Семёрка"; 
-        let cvMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.2 : 1); 
-        let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); 
-        let skFinger = hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now() && cd.name === sukunaTarget; 
-        let dmgMult = 1; 
-        if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + totalWins * cd.ability.value); 
-        if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + totalWins * cd.statusAbility.value); 
-        let masteryMult = typeof getMasteryMult === 'function' ? getMasteryMult(cd) : 1; 
-        let cDmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1) * masteryMult); 
-        let cHp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult); 
-        d += cDmg; h += cHp; 
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);border-radius:12px;margin-bottom:6px;"><span style="font-weight:800;">' + escapeHtml(cd.name) + (skFinger ? ' 🗿' : '') + '</span><span>💪' + Math.floor(cDmg * 0.8) + ' ❤️' + Math.floor(cHp * 0.8) + '</span><button class="btn" style="padding:4px 10px;background:rgba(231,76,60,0.8);border:none;" onclick="afkTeam.splice(' + s + ',1);renderAll();">X</button></div>'; 
-    }); 
-    c.innerHTML = html; 
-    document.getElementById("afkTotalDamage").innerText = Math.floor(d * 0.8); 
-    document.getElementById("afkTotalHpBonus").innerText = Math.floor(h * 0.8); 
-    window.afkTeamDamage = Math.floor(d * 0.8); 
-    window.afkTeamHpBonus = Math.floor(h * 0.8); 
-}
-
-function renderEnemy() { if (!currentEnemy) generateEnemy(); let p = (currentEnemy.hp / currentEnemy.maxHp) * 100; let rew = currentEnemy.isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); document.getElementById("enemyContainer").innerHTML = '<div style="font-size:22px;font-weight:900;margin-bottom:8px;">' + currentEnemy.name + '</div><div style="font-size:14px;margin-bottom:5px;">❤️ ' + Math.floor(currentEnemy.hp) + ' / ' + currentEnemy.maxHp + '</div><div style="background:rgba(0,0,0,0.5);border-radius:10px;margin-bottom:8px;"><div style="width:' + p + '%;background:linear-gradient(90deg, #e74c3c, #f5af19);height:12px;border-radius:10px;"></div></div><div style="font-size:14px;color:#aaa;">⚔️ Урон: ' + currentEnemy.damage + '</div>'; document.getElementById("waveNumber").innerText = wave; document.getElementById("rewardPreview").innerText = rew; if (currentEnemy.isBoss && currentEnemy.hp <= currentEnemy.maxHp * 0.3 && currentEnemy.hp > 0) { document.getElementById("spareBtn").style.display = "block"; } else { document.getElementById("spareBtn").style.display = "none"; } if (currentDialog && wave === 10000 && currentEnemy.hp <= currentEnemy.maxHp * 0.5 && currentEnemy.hp > 0) { renderDialog(); } document.getElementById("worldIndicator").innerHTML = '🌍 Мир: <span style="color:' + getCurrentWorld().color + ';">' + getCurrentWorld().name + '</span> <button id="musicToggleBtn" class="btn" style="padding:2px 8px;font-size:12px;margin-left:8px;" onclick="toggleMusic()">' + (musicEnabled ? '🔊' : '🔇') + '</button>'; }
-
-function renderDialog() { if (!currentDialog || !Array.isArray(currentDialog)) return; let html = '<div class="dialog-box"><b>' + currentEnemy.name + ':</b> «' + bossTemplates[10000].dialogue + '»</div>'; html += '<div style="margin-top:10px;font-weight:800;">Ответить:</div>'; currentDialog.forEach((d, i) => { html += '<div class="dialog-option" onclick="selectDialog(' + i + ')">' + d.text + '</div>'; }); document.getElementById("dialogBox").innerHTML = html; document.getElementById("dialogBox").style.display = "block"; }
-
-function selectDialog(index) { if (!currentDialog || !currentDialog[index]) return; let d = currentDialog[index]; let html = '<div class="dialog-box"><b>Вы:</b> «' + d.text + '»</div>'; html += '<div class="dialog-box"><b>' + currentEnemy.name + ':</b> «' + d.response + '» ' + d.mood + '</div>'; document.getElementById("dialogBox").innerHTML = html; currentDialog = null; }
-
-function updateStatusDisplay() { let html = ''; if (enemyStatuses.fireTicks > 0) html += '<span class="status-effect">🔥 Горит (' + enemyStatuses.fireTicks + ')</span>'; if (enemyStatuses.poisonDamage > 0) html += '<span class="status-effect">🌀 Яд: ' + enemyStatuses.poisonDamage + '</span>'; if (enemyStatuses.bleedMult > 1.0) html += '<span class="status-effect">🩸 Кровотечение: x' + enemyStatuses.bleedMult.toFixed(2) + '</span>'; if (enemyStatuses.freezeStacks > 0) html += '<span class="status-effect">❄️ Обледенение: +' + enemyStatuses.freezeStacks + '</span>'; if (enemyStatuses.shockChance > 0) html += '<span class="status-effect">⚡ Шок: ' + Math.floor(enemyStatuses.shockChance * 100) + '%</span>'; if (enemyStatuses.blindStacks > 0) html += '<span class="status-effect">🕶️ Ослепление: +' + enemyStatuses.blindStacks + '</span>'; html += ' <span class="status-effect" style="background:#ff4400;color:#fff;">⚡Комбо: x' + comboMultiplier + '</span>'; 
-    if (typeof hunger !== 'undefined' && hunger > 0) {
-        let hColor = hunger < 30 ? "#2ecc71" : hunger < 60 ? "#f5af19" : hunger < 85 ? "#e67e22" : "#e74c3c";
-        html += ' <span class="status-effect" style="color:' + hColor + ';">🍽️ Голод: ' + Math.floor(hunger) + '%</span>';
-    }
-    if (typeof obesityPoints !== 'undefined' && obesityPoints >= 20) {
-        let obName = (typeof getObesityStageName === 'function') ? getObesityStageName() : "Ожирение";
-        html += ' <span class="status-effect" style="color:#e67e22;">🍔 ' + obName + '</span>';
-    }
-    if (typeof poisonTimer !== 'undefined' && poisonTimer > 0) {
-        html += ' <span class="status-effect" style="color:#aa00aa;">☠️ Отравление: ' + Math.floor(poisonTimer) + 'с</span>';
-    }
-    if (typeof activeBuffs !== 'undefined' && activeBuffs["pepperSpeed"] && activeBuffs["pepperSpeed"] > Date.now()) {
-        html += ' <span class="status-effect" style="color:#ff4400;">🌶️ Перец!</span>';
-    }
-    document.getElementById("statusEffects").innerHTML = html; 
-}
-
-function updateEnemyStatusDisplay() { let html = ''; if (enemyStatuses.freezeStacks > 0) html += '<span class="status-effect">❄️ Заморозка врага: +' + enemyStatuses.freezeStacks + '</span>'; if (enemyStatuses.bleedMult > 1.0) html += '<span class="status-effect">🩸 Усиление врага: x' + enemyStatuses.bleedMult.toFixed(1) + '</span>'; if (enemyStatuses.shockChance > 0) html += '<span class="status-effect">⚡ Шок врага: ' + Math.floor(enemyStatuses.shockChance * 100) + '%</span>'; document.getElementById("enemyStatusEffects").innerHTML = html; }
-
-function renderDefeatHistory() { document.getElementById("fightHistory").innerHTML = defeatHistory.length ? defeatHistory.map(h => '<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">💀 Волна ' + h.wave + ' <span style="color:#aaa;">| HP ' + h.hp + '</span></div>').join('') : "Нет поражений"; }
-
-function renderAchievements() { let c = document.getElementById("achievementsList"), l = []; if (achievements.win10) l.push("10🏆"); if (achievements.win50) l.push("50🏆"); if (achievements.win100) l.push("100🏆"); if (achievements.win500) l.push("500🏆"); if (achievements.legendaryTeam) l.push("Легенды"); if (achievements.secretTeam) l.push("Секреты"); if (achievements.level20) l.push("20ур"); if (achievements.level50) l.push("50ур"); c.innerHTML = l.length ? l.map(a => '<span class="rarity-tag" style="background:#f5af19;color:#1a1a2e;box-shadow:none;">' + a + '</span>').join('') : "Нет"; }
-
-function renderChallenges() { let c = document.getElementById("challengeList"); if (!challenges.length) { c.innerHTML = "Квесты загружаются..."; return; } c.innerHTML = challenges.map(ch => '<div class="challenge-item" style="opacity:' + (ch.completed ? 0.6 : 1) + '"><div><b>' + ch.name + '</b><br><small>' + (ch.progress || 0) + '/' + ch.target + '</small></div><div><span style="color:#f5af19;">' + ch.reward + '⭐</span> ' + (ch.completed ? '✅' : '') + '</div></div>').join(''); }
-
-// ★★★ ФИКС: ТАЙНИК — УДАЛЯЕМ ВСЕ БЛОКИ, ПРОВЕРЯЕМ СОСТОЯНИЕ ★★★
-function renderShop() { 
-    let treasureHtml = '';
-    let isUnlocked = (typeof getTreasureUnlocked === 'function') && getTreasureUnlocked();
-    
-    if (isUnlocked) {
-        treasureHtml = '<div id="treasureBlock" style="padding:12px;background:rgba(46,204,113,0.1);border:2px solid #2ecc71;border-radius:14px;margin-bottom:10px;">';
-        treasureHtml += '<div style="font-weight:900;font-size:14px;color:#2ecc71;margin-bottom:10px;text-align:center;">🔓 ТАЙНИК ОТКРЫТ</div>';
-        treasureHtml += '<div style="display:flex;flex-direction:column;gap:8px;">';
-        let fruits = [
-            { id: "apple", name: "🍏 Яблоко", cost: 200, desc: "+5% HP, -10% голода, -1 ожирение" },
-            { id: "orange", name: "🍊 Апельсин", cost: 350, desc: "+8% HP, -15% голода, -1 ожирение" },
-            { id: "banana", name: "🍌 Банан", cost: 500, desc: "+10% HP, -20% голода, -2 ожирение" },
-            { id: "cherry", name: "🍒 Вишня", cost: 800, desc: "+7% HP, -12% голода, -3 ожирение" },
-            { id: "lemon", name: "🍋 Лимон", cost: 1200, desc: "+3% HP, -5% голода, -8 ожирение, +6 антидот" },
-            { id: "grapes", name: "🍇 Виноград", cost: 1500, desc: "+15% HP, -35% голода, -4 ожирение" },
-            { id: "watermelon", name: "🍉 Арбуз", cost: 2500, desc: "+20% HP, -50% голода, -6 ожирение" },
-            { id: "mango", name: "🥭 Манго", cost: 3500, desc: "+18% HP, -45% голода, -7 ожирение" },
-            { id: "pineapple", name: "🍍 Ананас", cost: 5000, desc: "+25% HP, -60% голода, -10 ожирение" }
-        ];
-        fruits.forEach(function(f) {
-            let canBuy = (mode === "moder") || points >= f.cost;
-            treasureHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border-radius:10px;">';
-            treasureHtml += '<div><div style="font-weight:800;font-size:13px;">' + f.name + '</div><div style="font-size:10px;color:#aaa;">' + f.desc + '</div></div>';
-            treasureHtml += '<div><span style="color:#f5af19;font-weight:900;margin-right:8px;">' + f.cost + '⭐</span>';
-            treasureHtml += '<button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="buyFruitFromTreasure(\'' + f.id + '\',' + f.cost + ')" ' + (!canBuy ? 'disabled' : '') + '>Купить</button></div>';
-            treasureHtml += '</div>';
-        });
-        treasureHtml += '</div>';
-        
-        treasureHtml += '<div style="margin-top:15px;padding-top:15px;border-top:2px dashed rgba(46,204,113,0.4);">';
-        treasureHtml += '<div style="font-weight:900;font-size:13px;color:#2ecc71;margin-bottom:8px;text-align:center;">🍄 РАСХОДНИКИ</div>';
-        let consumables = [
-            { id: "bread", name: "🍞 Хлеб", cost: 250, desc: "-40% голода, +1 ожирение" },
-            { id: "mushroom", name: "🍄 Гриб", cost: 300, desc: "50/50: волшебный или ядовитый" },
-            { id: "pepper", name: "🌶️ Перец", cost: 400, desc: "+30% скорости, но жжёт HP" },
-            { id: "ice", name: "🧊 Лёд", cost: 600, desc: "Заморозка врага +5" },
-            { id: "antidote_potion", name: "🧪 Мини-зелье", cost: 700, desc: "Мгновенно снять отравление" },
-            { id: "honey", name: "🍯 Мёд", cost: 800, desc: "+3% HP/сек × 10 сек" },
-            { id: "egg", name: "🥚 Яйцо", cost: 1000, desc: "Рандомная награда" }
-        ];
-        consumables.forEach(function(c) {
-            let canBuy = (mode === "moder") || points >= c.cost;
-            treasureHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border-radius:10px;margin-bottom:6px;">';
-            treasureHtml += '<div><div style="font-weight:800;font-size:13px;">' + c.name + '</div><div style="font-size:10px;color:#aaa;">' + c.desc + '</div></div>';
-            treasureHtml += '<div><span style="color:#f5af19;font-weight:900;margin-right:8px;">' + c.cost + '⭐</span>';
-            treasureHtml += '<button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="buyFruitFromTreasure(\'' + c.id + '\',' + c.cost + ')" ' + (!canBuy ? 'disabled' : '') + '>Купить</button></div>';
-            treasureHtml += '</div>';
-        });
-        treasureHtml += '</div>';
-        treasureHtml += '</div>';
-    } else {
-        treasureHtml = '<div id="treasureBlock" style="padding:15px;background:rgba(155,89,182,0.15);border:2px solid #9b59b6;border-radius:14px;margin-bottom:10px;text-align:center;">';
-        treasureHtml += '<div style="font-size:32px;margin-bottom:8px;">🔐</div>';
-        treasureHtml += '<div style="font-weight:900;font-size:14px;color:#9b59b6;margin-bottom:6px;">ТАЙНИК ЗАКРЫТ</div>';
-        let hasKey = false;
-        try { hasKey = (typeof getItemCount === 'function' && getItemCount("key") > 0); } catch(e) {}
-        if (hasKey) {
-            treasureHtml += '<div style="font-size:12px;color:#f5af19;line-height:1.5;margin-bottom:10px;">🎉 У тебя есть <b>Ключ Живого Камня</b>! Используй его, чтобы открыть.</div>';
-            treasureHtml += '<button class="btn btn-primary" style="padding:10px 24px;font-size:14px;font-weight:900;" onclick="useKey();renderShop();">🔓 ИСПОЛЬЗОВАТЬ КЛЮЧ</button>';
-        } else {
-            treasureHtml += '<div style="font-size:12px;color:#aaa;line-height:1.5;">Найди Ключ Живого Камня (победи Живого Камня на 200 волне) и нажми «Использовать» в инвентаре — товары откроются.</div>';
-        }
-        treasureHtml += '</div>';
-    }
-    
-    // ★ УДАЛЯЕМ ВСЕ БЛОКИ ТАЙНИКА (не только первый) ★
-    let existingTreasures = document.querySelectorAll("#treasureBlock");
-    existingTreasures.forEach(function(el) { el.remove(); });
-    
-    let shopContainer = document.getElementById("shopItems");
-    if (shopContainer && shopContainer.parentNode) {
-        let t = document.createElement("div");
-        t.innerHTML = treasureHtml;
-        // Находим созданный блок и вставляем
-        let newBlock = t.firstElementChild;
-        if (newBlock) {
-            shopContainer.parentNode.insertBefore(newBlock, shopContainer);
-        }
-    }
-    
-    let c = document.getElementById("shopItems"); 
-    c.innerHTML = shopItems.map((it, i) => it ? '<div class="shop-item"><div><strong>' + it.name + '</strong>' + (it.desc ? '<br><small>' + it.desc + '</small>' : '') + '</div><div><span class="shop-price">' + it.cost + '⭐</span><button class="btn btn-primary" style="padding:6px 12px;" onclick="buyShopItem(' + i + ')">Купить</button></div></div>' : '<div class="shop-item"><div style="color:#888;">Пусто</div></div>').join(''); 
-    let timeLeft = shopRefreshTime ? Math.max(0, 3600000 - (Date.now() - shopRefreshTime)) : 0;
-    let timerHtml = '';
-    if (timeLeft > 0) {
-        let h = Math.floor(timeLeft / 3600000);
-        let m = Math.floor((timeLeft % 3600000) / 60000);
-        let s = Math.floor((timeLeft % 60000) / 1000);
-        timerHtml = '<div style="text-align:center;margin-top:8px;font-weight:600;color:#aaa;font-size:12px;">🔄 Бесплатное обновление через: ' + h + 'ч ' + m + 'м ' + s + 'с</div>';
-    } else {
-        timerHtml = '<div style="text-align:center;margin-top:8px;font-weight:600;color:#2ecc71;font-size:12px;">✅ Можно обновить бесплатно!</div>';
-    }
-    c.innerHTML += timerHtml;
-    let artHtml = ''; if (rebirthCount >= 4) { 
-        artHtml += '<div class="shop-item"><div><b>🗿 Пальцы Сукуны</b><br><small>Усиливает одного героя на 1 час: +50% урона, +40% HP.</small></div><div><span class="shop-price">15000⭐</span><button class="btn" style="padding:6px 12px;" onclick="' + (hasSukunaFingers ? 'showSukunaModal()' : 'buySukuna()') + '">' + (hasSukunaFingers ? 'Выбрать героя' : 'Купить') + '</button></div></div>'; 
-        artHtml += '<div class="shop-item"><div><b>💉 Препарат V</b><br><small>Баффает героя: +20% урона, +30% HP.</small></div><div><span class="shop-price">5000⭐</span><button class="btn" style="padding:6px 12px;" onclick="showCompoundVModal()">Купить</button></div></div>'; 
-        artHtml += '<div class="shop-item"><div><b>📓 Тетрадь смерти</b></div><div><input id="dnInput" type="number" min="1" style="width:60px;background:rgba(0,0,0,0.5);color:white;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:4px;text-align:center;" value="' + (deathNoteTarget || '') + '" placeholder="Волна"><span class="shop-price">500к⭐</span><button class="btn" style="padding:4px 10px;" onclick="buyDeathNote()">Купить</button></div></div>'; 
-        artHtml += '<div class="shop-item"><div><b>🔥 Огонь Дома</b></div><div><button class="btn use-artifact-btn" onclick="useFireArtifact()" ' + (hasFireArtifact ? '' : 'disabled') + '>' + (hasFireArtifact ? '🔥 Исп.' : 'Купить (100к)') + '</button></div></div>'; 
-    } else { artHtml = '<div class="shop-item"><div style="color:#888;text-align:center;width:100%;">🔒 Артефакты откроются после 4 ребиртха</div></div>'; } 
-    document.getElementById("artifactItems").innerHTML = artHtml; 
-    renderBulkSell(); 
-    renderAutoRest(); 
-}
-
-// ★★★ ФИКС: ЗАЩИТА ОТ ПОКУПКИ ПРИ ЗАКРЫТОМ ТАЙНИКЕ ★★★
-window.buyFruitFromTreasure = function(fruitId, cost) {
-    // ★ ПРОВЕРКА: ТАЙНИК ДОЛЖЕН БЫТЬ ОТКРЫТ ★
-    if (typeof getTreasureUnlocked !== 'function' || !getTreasureUnlocked()) {
-        if (typeof showFloatingText === 'function') showFloatingText("🔒 Тайник закрыт!", "#ff3333");
-        return;
-    }
-    if (mode !== "moder" && points < cost) return;
-    if (mode !== "moder") points -= cost;
-    if (typeof addItem === 'function') addItem(fruitId, 1);
-    if (typeof renderPoints === 'function') renderPoints();
-    if (typeof renderShop === 'function') renderShop();
-    if (typeof showFloatingText === 'function') showFloatingText("🍎 Куплено!", "#2ecc71");
 };
 
-function renderActiveBuffs() { 
-    let n = Date.now(), l = []; 
-    for (let [id, exp] of Object.entries(activeBuffs)) { 
-        if (exp > n) { 
-            let r = exp - n, h = Math.floor(r / 3600000), m = Math.floor((r % 3600000) / 60000);
-            let s = Math.floor((r % 60000) / 1000);
-            let name = id;
-            if (id === "dmg13") name = "Урон x1.3";
-            else if (id === "dmg15") name = "Урон +50%";
-            else if (id === "doubleDamage") name = "Урон x2";
-            else if (id === "quadDamage") name = "Урон x4";
-            else if (id === "doubleStars") name = "Звёзды x2";
-            else if (id === "tripleStars") name = "Звёзды x3";
-            else if (id === "doubleHp") name = "HP x2";
-            else if (id === "tripleHp") name = "HP x3";
-            else if (id === "arenaSpeedX3") name = "Скорость арены x3";
-            else if (id === "arenaSpeedX5") name = "Скорость арены x5";
-            else if (id === "arenaSpeedX2") name = "Скорость арены x2";
-            else if (id === "fatigueImmune") name = "Иммунитет к усталости";
-            else if (id === "doubleExp") name = "Двойной опыт";
-            else if (id === "arenaInvuln") name = "Неуязвимость (арена)";
-            else if (id === "pepperSpeed") name = "🌶️ Перец (+30% скорости)";
-            let timeStr = h > 0 ? h + 'ч ' + m + 'м' : (m > 0 ? m + 'м ' + s + 'с' : s + 'с');
-            l.push('<span style="color:var(--gold);">' + name + '</span> (' + timeStr + ')'); 
-        } else delete activeBuffs[id]; 
-    } 
-    if (hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now()) {
-        let remaining = Math.max(0, sukunaExpireTime - Date.now());
-        let mins = Math.floor(remaining / 60000);
-        let secs = Math.floor((remaining % 60000) / 1000);
-        l.push('<span style="color:#ff4444;">🗿 Пальцы Сукуны: ' + sukunaTarget + ' (' + mins + 'м ' + secs + 'с)</span>');
-    } else if (hasSukunaFingers && (!sukunaTarget || sukunaExpireTime <= Date.now())) {
-        l.push('<span style="color:#ffaa00;">🗿 Пальцы Сукуны: выберите героя</span>');
-    }
-    if (deathNoteTarget) l.push('<span style="color:var(--gold);">📓 Пропуск волны ' + deathNoteTarget + '</span>'); 
-    for (let name in hasCompoundV) { 
-        if (hasCompoundV[name]) l.push('<span style="color:var(--gold);">💉 Препарат V: ' + name + '</span>'); 
-    } 
-    document.getElementById("activeBuffs").innerHTML = l.length ? l.join("<br>") : "<span style='color:#888;'>Нет активных баффов</span>"; 
+let inventory = {};
+let hunger = 0;
+let obesityPoints = 0;
+let poisonTimer = 0;
+let antidotePoints = 0;
+let treasureUnlocked = false;
+let treasureKeyUsed = false;
+let pepperActive = false;
+
+// ========== БАЗОВЫЕ ==========
+function addItem(id, count) {
+    if (count === undefined) count = 1;
+    if (!ITEMS[id]) return;
+    if (ITEMS[id].isVirtual) return;
+    if (!inventory[id]) inventory[id] = 0;
+    inventory[id] += count;
+    let maxStack = ITEMS[id].stack || 999;
+    if (inventory[id] > maxStack) inventory[id] = maxStack;
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
 }
 
-function renderFreeSpins() { let el = document.getElementById("freeSpinsCount"); if (el) el.innerText = freeSpins; }
-
-function renderBulkSell() { let c = document.getElementById("bulkSellItems"); if (rebirthCount < 1) { c.innerHTML = '<div class="shop-item"><div style="color:#888;font-weight:bold;text-align:center;width:100%;">🔒 Авто-продажа откроется после 1 ребиртха</div></div>'; return; } c.innerHTML = bulkSellOptions.map(o => { let cost = getAutoSellCost(o.rarity); let pur = purchasedAutoSell[o.rarity] || false; let act = autoSellSettings[o.rarity] || false; let desc = !pur ? '<span style="color:var(--gold);">Купить за ' + cost + '⭐</span>' : (act ? '<span style="color:var(--green);">Активна</span>' : 'Куплена'); let btn; if (!pur) { btn = '<button class="btn btn-primary" style="padding:6px 12px;" onclick="purchaseAutoSell(\'' + o.rarity + '\')">Купить</button>'; } else if (act) { btn = '<button class="btn" style="padding:6px 12px;border-color:var(--green);" onclick="toggleAutoSell(\'' + o.rarity + '\')">Выкл</button>'; } else { btn = '<button class="btn" style="padding:6px 12px;" onclick="toggleAutoSell(\'' + o.rarity + '\')">Выкл ▶</button>'; } return '<div class="shop-item ' + (act ? 'auto-active' : '') + '"><div><strong>' + o.name + '</strong><br><small>' + desc + '</small></div><div>' + btn + '</div></div>'; }).join(''); }
-
-function renderAutoRest() { let c = document.getElementById("autoRestItems"); if (rebirthCount < 3) { c.innerHTML = '<div class="shop-item"><div style="color:#888;font-weight:bold;text-align:center;width:100%;">🔒 Авто-отдых откроется после 3 ребиртха</div></div>'; return; } c.innerHTML = autoRestOptions.map(o => { let cost = getAutoRestCost(o.threshold); let pur = autoRest.purchased && autoRest.threshold === o.threshold; let act = autoRest.active && autoRest.threshold === o.threshold; let desc = !pur ? '<span style="color:var(--gold);">Купить за ' + cost + '⭐</span>' : (act ? '<span style="color:var(--green);">Активен</span>' : 'Куплен'); let btn; if (!pur) { btn = '<button class="btn btn-primary" style="padding:6px 12px;" onclick="purchaseAutoRest(' + o.threshold + ')">Купить</button>'; } else if (act) { btn = '<button class="btn" style="padding:6px 12px;border-color:var(--green);" onclick="toggleAutoRest(' + o.threshold + ')">Выкл</button>'; } else { btn = '<button class="btn" style="padding:6px 12px;" onclick="toggleAutoRest(' + o.threshold + ')">Выкл ▶</button>'; } return '<div class="shop-item ' + (act ? 'auto-active' : '') + '"><div><strong>' + o.name + ' усталости</strong><br><small>' + desc + '</small></div><div>' + btn + '</div></div>'; }).join(''); }
-
-function renderUpgrades() { 
-    let h = ""; 
-    for (let [k, u] of Object.entries(upgrades)) { 
-        let un = isUpgradeUnlocked(k), c = Math.floor(u.baseCost * (1 + u.level * 0.3)), cur = u.level * u.increment; 
-        let extraInfo = ''; 
-        if (k === 'crit') extraInfo = '<br><span style="color:#aaa;font-size:10px;">⚡ +' + (cur * 100).toFixed(1) + '% к шансу крита</span>'; 
-        if (k === 'fatigueResist') extraInfo = '<br><span style="color:#aaa;font-size:10px;">💪 -' + (cur * 100).toFixed(1) + '% набора усталости</span>'; 
-        h += '<div class="upgrade-item ' + (un ? '' : 'locked') + '"><div><strong>' + u.name + '</strong> (+' + cur.toFixed(2) + ')' + (un ? '' : '<br><span style="color:var(--red);">🔒 Нужен ур. ' + u.reqLevel + '</span>') + extraInfo + '</div><div><span class="upgrade-price">' + c + '⭐</span><button class="btn btn-primary" style="border-radius:50%;width:36px;height:36px;font-size:20px;" onclick="buyUpgrade(\'' + k + '\')" ' + (un ? '' : 'disabled') + '>+</button></div></div>'; 
-    } 
-    document.getElementById("upgradeItems").innerHTML = h; 
+function removeItem(id, count) {
+    if (count === undefined) count = 1;
+    if (!inventory[id]) return false;
+    if (inventory[id] < count) return false;
+    inventory[id] -= count;
+    if (inventory[id] <= 0) delete inventory[id];
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    return true;
 }
 
-function renderBook() { let all = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))); let ds = new Set(discoveredCards); document.getElementById("bookList").innerHTML = all.map(t => { let kn = ds.has(t.name); let s = cardStats[t.rarity]; let clickAction = (moderUnlocked && mode === 'moder') ? 'bookGet(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')' : 'bookInfoCard(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')'; let superPreview = ''; if (t.superAbility && kn) { superPreview = '<div style="font-size:8px;color:#ffd700;margin-top:2px;">' + t.superAbility.name + '</div>'; } return '<div class="book-item ' + (kn ? '' : 'unknown-card') + '" onclick="' + clickAction + '"><div class="name">' + (kn ? t.name : '???') + '</div><div class="rarity-tag ' + rarityColors[t.rarity] + '">' + t.rarity + '</div><div>💪' + (t.damage ?? s.damage) + ' ❤️' + (t.hp ?? s.hp) + ' ⚡' + (t.speed ?? s.speed ?? '?') + '</div>' + superPreview + '</div>'; }).join(''); document.getElementById("discoveredCount").innerText = discoveredCards.length; document.getElementById("totalTemplatesCount").innerText = all.length; }
-
-function bookInfoCard(rarity, name) { let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === name && t.rarity === rarity); if (!t) return; let s = cardStats[rarity]; let info = '📄 ' + t.name + '\n\n'; info += '⭐ Редкость: ' + rarity + '\n'; info += '🌌 Вселенная: ' + (t.universe || 'Неизвестно') + '\n'; info += '💪 Урон: ' + (t.damage ?? s.damage) + '\n'; info += '❤️ Здоровье: ' + (t.hp ?? s.hp) + '\n'; info += '⚡ Скорость: ' + (t.speed ?? s.speed ?? '?') + '\n'; if (t.sellPrice) info += '💰 Цена продажи: ' + t.sellPrice + '⭐\n'; if (t.minRebirth) info += '🔒 Мин. ребиртх: ' + t.minRebirth + '\n'; if (t.desc) { info += '\n📝 Описание:\n' + t.desc + '\n'; } if (t.ability) { info += '\n✨ Способность (ур.4): ' + t.ability.desc + '\n'; } if (t.statusAbility) { info += '🌀 Статус-эффект (ур.3): ' + t.statusAbility.desc + '\n'; } if (t.superAbility) { info += '\n⚡ ' + t.superAbility.name + ' (ур.5)\n' + t.superAbility.desc + '\n'; } if (t.unsellable) info += '\n🔒 Не продаётся\n'; 
-    if (typeof getMasteryExpNeeded === 'function') {
-        info += '\n📊 ОПЫТ ДЛЯ МАСТЕРСТВА:\n';
-        info += '• Ур.2: ' + getMasteryExpNeeded({ rarity: rarity }, 2) + '\n';
-        info += '• Ур.3: ' + getMasteryExpNeeded({ rarity: rarity }, 3) + '\n';
-        info += '• Ур.4: ' + getMasteryExpNeeded({ rarity: rarity }, 4) + '\n';
-        info += '• Ур.5: ' + getMasteryExpNeeded({ rarity: rarity }, 5) + '\n';
-    }
-    showModal('📄 Информация о карте', info); 
+function getItemCount(id) {
+    if (id === "star") return (typeof points !== 'undefined') ? points : 0;
+    return inventory[id] || 0;
 }
 
-window.bookGet = function(r, n) { if (!moderUnlocked || mode !== 'moder') return; let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === n && t.rarity === r); if (t) { let s = cardStats[r]; let c = { id: Date.now() + Math.random() * 10000, name: t.name, rarity: r, damage: t.damage ?? s.damage, hp: t.hp ?? s.hp, sellPrice: t.sellPrice ?? s.sellPrice, speed: t.speed ?? s.speed ?? 0.5, ability: t.ability || null, universe: t.universe || "?", unsellable: t.unsellable || false, minRebirth: t.minRebirth || 0, statusAbility: t.statusAbility || null, extraStatus: t.extraStatus || null, superAbility: t.superAbility || null, mastery: 1, masteryExp: 0 }; if (!discoveredCards.includes(t.name)) { discoveredCards.push(t.name); } myCards.push(c); saveAll(); renderMyCards(); sfxCardObtain(); alert("🎴 Получена карта: " + t.name + " (" + r + ")"); } };
-
-// ========== ЭВОЛЮЦИИ ==========
-function renderEvoTab() { 
-    let c = document.getElementById("evoContent"); 
-    if (rebirthCount < 5) { c.innerHTML = "<div style='text-align:center;color:#888;'>Сделайте 5 ребиртхов.</div>"; return; } 
-    let tNames = team.map(idx => myCards[idx]?.name).filter(Boolean);
-    let luffyForms = ["Луффи", "Луффи (2 гир)", "Луффи (Таймскип)", "Луффи (4 гир)", "Луффи: Ника, Бог Солнца"];
-    let hasAllLuffys = luffyForms.every(form => tNames.includes(form));
-    let onlyFive = team.length === 5;
-    let allAreLuffys = team.every(idx => luffyForms.includes(myCards[idx]?.name));
-    let luffyDone = evoProgress.luffyKingUnlocked;
-    
-    let html = "";
-    html += '<div class="evo-quest ' + (luffyDone ? 'done' : '') + '"><b>👑 Луффи : Король пиратов</b><br>Соберите 5 Луффи в команду (только они) и победите босса 500 волны.<br>';
-    html += '<small>Луффи: ' + (hasAllLuffys ? '✅' : '❌') + ' | 5 карт: ' + (onlyFive ? '✅' : '❌ (' + team.length + ')') + ' | Все Луффи: ' + (allAreLuffys ? '✅' : '❌') + '</small><br>';
-    html += '<b>Статус:</b> ' + (luffyDone ? '✅' : '❌') + '</div>';
-    
-    let hasSaitama = tNames.includes("Сайтама");
-    let hasGarou = tNames.includes("Космический Гароу");
-    html += '<div class="evo-quest ' + (evoProgress.sgUnlocked ? 'done' : '') + '"><b>👊 Сайтама/Гароу</b><br>Ваншотните врагов 2000 раз способностью Сайтамы (Космический Гароу в команде).<br>';
-    html += '<small>Сайтама: ' + (hasSaitama ? '✅' : '❌') + ' | Космический Гароу: ' + (hasGarou ? '✅' : '❌') + '</small><br>';
-    html += evoProgress.oneShotCount + '/2000 ваншотов<br><b>Статус:</b> ' + (evoProgress.sgUnlocked ? '✅' : 'В процессе') + '</div>';
-    
-    let hasGarp = tNames.includes("Молодой Гарп");
-    let hasKuzan = tNames.includes("Кудзан");
-    html += '<div class="evo-quest ' + (evoProgress.gkUnlocked ? 'done' : '') + '"><b>❄️ Гарп/Кудзан</b><br>Накопите 1 000 000 000 урона (Молодой Гарп + Кудзан в команде).<br>';
-    html += '<small>Гарп: ' + (hasGarp ? '✅' : '❌') + ' | Кудзан: ' + (hasKuzan ? '✅' : '❌') + '</small><br>';
-    html += Math.floor(evoProgress.damageGarpKuzan).toLocaleString() + '/1 000 000 000<br><b>Статус:</b> ' + (evoProgress.gkUnlocked ? '✅' : 'В процессе') + '</div>';
-    
-    let sevenMembersNew = ["Хоумлендер", "Звёздочка", "Мреющий", "Чёрный Нуар", "Пучино", "Королева Мэйв"];
-    let hasAllSeven = sevenMembersNew.every(n => tNames.includes(n));
-    let allSevenV = sevenMembersNew.every(n => hasCompoundV[n]);
-    let sevenDone = evoProgress.sevenUnlocked;
-    html += '<div class="evo-quest ' + (sevenDone ? 'done' : '') + '"><b>🦸 Семёрка</b><br>Соберите новый состав: Хоумлендер, Звёздочка, Мреющий, Чёрный Нуар, Пучино, Королева Мэйв.<br>';
-    html += 'Все 6 с Препаратом V и 20 уровень.<br>';
-    html += '<small>Состав: ' + (hasAllSeven ? '✅' : '❌') + ' | V: ' + (allSevenV ? '✅' : '❌') + ' | Ур: ' + playerLevel + '/20</small><br>';
-    html += '<b>Статус:</b> ' + (sevenDone ? '✅' : '❌') + '</div>';
-    
-    let williamDone = evoProgress.williamUnlocked;
-    let allCommon = team.length === 6 && team.every(idx => myCards[idx]?.rarity === "Обычная");
-    html += '<div class="evo-quest ' + (williamDone ? 'done' : '') + '"><b>💀 Уильям Фрэнсис</b><br>Победите босса 2000 волны только с обычными картами (6 шт).<br>';
-    html += '<small>Обычные: ' + (allCommon ? '✅' : '❌ (нужно 6 обычных)') + '</small><br>';
-    html += '<b>Статус:</b> ' + (williamDone ? '✅' : '❌') + '</div>';
-    
-    c.innerHTML = html; 
-}
-
-function renderRebirthInfo() { 
-    let reqInfo = getRebirthRequirementInfo(); 
-    let world = getWorldForWave(highestWaveReached); 
-    let hasDefeatedBoss = canDoRebirth();
-    let nextRebirth = rebirthCount + 1;
-    
-    let html = '<div style="background:rgba(0,0,0,0.3);padding:15px;border-radius:15px;">';
-    html += '<div style="font-size:14px;line-height:1.8;">';
-    html += '<div>🔄 Текущий ребёрн: <b>' + rebirthCount + '</b></div>';
-    html += '<div>⚡ Множитель: <b>x' + getRebirthMult().toFixed(1) + '</b></div>';
-    html += '<div>🌍 Текущий мир: <b style="color:' + world.color + ';">' + world.name + '</b></div>';
-    html += '<div style="margin-top:8px;padding:8px 12px;background:rgba(0,0,0,0.4);border-radius:10px;">';
-    html += '<div>📊 <b>Достигнута волна:</b> <b style="color:#f5af19;font-size:16px;">' + highestWaveReached + '</b></div>';
-    html += '</div>';
-    html += '</div>';
-    
-    html += '<div style="margin-top:12px;padding:12px;background:' + (hasDefeatedBoss ? 'rgba(46,204,113,0.15)' : 'rgba(231,76,60,0.15)') + ';border:2px solid ' + (hasDefeatedBoss ? '#2ecc71' : '#e74c3c') + ';border-radius:12px;">';
-    html += '<div style="font-size:11px;color:#aaa;margin-bottom:6px;">ТРЕБОВАНИЕ ДЛЯ РЕБЁРНА ' + nextRebirth + ':</div>';
-    if (reqInfo.isBossRequirement) {
-        html += '<div style="font-size:14px;font-weight:bold;">👑 Победить босса:</div>';
+// ========== ДРОП ==========
+function tryDropLoot(isBoss) {
+    if (isBoss) {
+        addItem("bone", 10);
+        if (Math.random() < 0.3) {
+            let fruits = ["apple", "orange", "banana", "cherry", "lemon", "grapes", "watermelon", "mango", "pineapple"];
+            let f = fruits[Math.floor(Math.random() * fruits.length)];
+            addItem(f, 1);
+            if (typeof showFloatingText === 'function') showFloatingText("🍎 " + ITEMS[f].name + "!", "#2ecc71");
+        }
+        if (Math.random() < 0.05) {
+            addItem("egg", 1);
+            if (typeof showFloatingText === 'function') showFloatingText("🥚 Яйцо!", "#f5af19");
+        }
     } else {
-        html += '<div style="font-size:14px;font-weight:bold;">🌊 Достигнуть волны:</div>';
+        if (Math.random() < 0.3) addItem("bone", 1);
+        if (Math.random() < 0.1) addItem("raw_meat", 1);
+        if (Math.random() < 0.05) addItem("coin", 1);
+        if (Math.random() < 0.05) addItem("mushroom", 1);
+        if (Math.random() < 0.03) addItem("pepper", 1);
+        if (Math.random() < 0.08) addItem("bread", 1);
     }
-    html += '<div style="font-size:16px;font-weight:900;color:#f5af19;margin-top:4px;">Волна ' + reqInfo.wave + '</div>';
-    if (reqInfo.bossName && reqInfo.bossName !== "—") {
-        html += '<div style="font-size:13px;color:#fff;margin-top:2px;">«' + reqInfo.bossName + '»</div>';
-    }
-    html += '<div style="margin-top:8px;font-size:14px;font-weight:bold;color:' + (hasDefeatedBoss ? '#2ecc71' : '#e74c3c') + ';">';
-    html += hasDefeatedBoss ? '✅ ГОТОВО — можно сделать ребёрн!' : '❌ Условие ещё не выполнено';
-    html += '</div>';
-    html += '</div>';
-    html += '</div>';
-    
-    document.getElementById("rebirthInfo").innerHTML = html; 
-    document.getElementById("doRebirthBtn").disabled = !hasDefeatedBoss; 
 }
 
-function renderRebirthStats() { 
-    let c = document.getElementById("rebirthStatsList"); 
-    if (!rebirthStats.length) { c.innerHTML = "<div style='color:#888;'>Нет данных</div>"; return; } 
-    c.innerHTML = rebirthStats.map(s => 
-        '<div class="shop-item">' +
-            '<div><b>🔄 Ребёрн ' + s.rebirth + '</b></div>' +
-            '<div>' +
-                '🌊 <b>Достигнута волна:</b> <span style="color:#f5af19;font-size:15px;font-weight:900;">' + (s.highestWave || s.highestCheckpoint || '?') + '</span><br>' +
-                '🌍 Мир: ' + (s.world || 'Лес начала') + '<br>' +
-                '📊 Уровень: ' + s.playerLevel + '<br>' +
-                '👆 Кликов: ' + (s.totalClicks || 0) + '<br>' +
-                '⭐ Макс. звёзд: ' + (s.maxPoints || 0) + '<br>' +
-                '🃏 Карт: ' + s.totalCards +
-            '</div>' +
-        '</div>'
-    ).join(''); 
+function dropLivingStoneLoot() {
+    addItem("key", 1);
+    addItem("stone_piece", 1);
+    if (typeof showFloatingText === 'function') {
+        showFloatingText("🔑 Ключ получен!", "#ffd700");
+        setTimeout(function() { showFloatingText("🪨 Кусок камня!", "#888888"); }, 500);
+    }
 }
 
-function renderGlobalStats() { 
-    let el = document.getElementById("globalStats"); 
-    if (!el) return; 
-    el.innerHTML = 
-        '<div>📊 <b>Макс. достигнутая волна:</b> <span style="color:#f5af19;font-size:16px;font-weight:900;">' + highestWaveReached + '</span></div>' +
-        '<div>🌊 Текущая волна: <b>' + wave + '</b></div>' +
-        '<div>👆 Всего кликов: <b>' + totalClicks + '</b></div>' + 
-        '<div>🃏 Всего карт получено: <b>' + totalCardsObtained + '</b></div>' + 
-        '<div>⭐ Максимум звёзд: <b>' + maxPoints + '</b></div>' + 
-        '<div>💀 Всего поражений: <b>' + defeatHistory.length + '</b></div>' + 
-        '<div>🏆 Всего побед: <b>' + totalWins + '</b></div>' + 
-        '<div>🔄 Ребёрнов: <b>' + rebirthCount + '</b></div>' + 
-        (gameCompleted ? '<div>🏆 <b>ИГРА ПРОЙДЕНА!</b></div>' : ''); 
+// ========== ЕДА ==========
+function eatRawMeat() {
+    if (getItemCount("raw_meat") <= 0) return;
+    removeItem("raw_meat", 1);
+    if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
+        playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.15);
+    }
+    if (poisonTimer > 0) {
+        poisonTimer = Math.max(0, poisonTimer - 10);
+        if (typeof showFloatingText === 'function') showFloatingText("☠️ -10 сек до смерти!", "#ff00ff");
+    }
+    poisonTimer += 60;
+    if (typeof showFloatingText === 'function') showFloatingText("☠️ ОТРАВЛЕНИЕ!", "#aa00aa");
+    if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
 }
 
-function renderModerControls() { let el = document.getElementById("moderControls"); if (!el) return; if (moderUnlocked && mode === "moder") { el.style.display = "block"; } else { el.style.display = "none"; } }
-
-function renderCheckpoints() { let c = document.getElementById("checkpointList"); let html = ''; let maxCp = Math.max(highestCheckpoint, Math.floor(wave / 50) * 50); for (let cp = 50; cp <= maxCp; cp += 50) { let unlocked = cp <= highestCheckpoint; html += '<div class="checkpoint-item" style="opacity:' + (unlocked ? '1' : '0.5') + '"><div>🚩 Волна ' + cp + (unlocked ? '' : ' 🔒') + '</div><button class="btn ' + (activeCheckpoint === cp ? 'auto-active' : '') + '" style="padding:6px 12px;" onclick="toggleCheckpoint(' + cp + ')" ' + (unlocked ? '' : 'disabled') + '>' + (activeCheckpoint === cp ? 'Выбрано ✅' : 'Выбрать ▶') + '</button></div>'; } c.innerHTML = html || "<div style='text-align:center;padding:15px;color:#888;font-weight:bold;'>Дойдите до 50 волны</div>"; }
-
-// ========== РЕНДЕР ГАЧА ==========
-function renderGachaTab() {
-    let container = document.getElementById("gachaItems");
-    if (!container) return;
-    if (typeof checkGachaReset === 'function') checkGachaReset();
-    let html = '';
-    let types = [
-        { id: "common", name: "Обычная", icon: "⚪", color: "#6c757d", minRarity: "Обычная", maxRarity: "Мифическая", maxChance: 1 },
-        { id: "rare", name: "Редкая", icon: "🔵", color: "#17a2b8", minRarity: "Обычная", maxRarity: "Мифическая", maxChance: 3 },
-        { id: "superRare", name: "Сверхредкая", icon: "🟢", color: "#28a745", minRarity: "Редкая", maxRarity: "Легендарная", maxChance: 2 },
-        { id: "epic", name: "Эпическая", icon: "🟣", color: "#9b59b6", minRarity: "Сверх редкая", maxRarity: "Секретная", maxChance: 0.2 },
-        { id: "mythic", name: "Мифическая", icon: "🔴", color: "#e74c3c", minRarity: "Эпик", maxRarity: "Секретная", maxChance: 0.8 }
-    ];
-    types.forEach(t => {
-        let bought = (typeof gachaDailyLimits !== 'undefined' && gachaDailyLimits[t.id]) || 0;
-        let max = (typeof gachaDailyMax !== 'undefined' && gachaDailyMax[t.id]) || 0;
-        let canBuy = (typeof mode !== 'undefined' && mode === "moder") || (bought < max && (typeof points !== 'undefined' && points >= (typeof gachaPrices !== 'undefined' ? gachaPrices[t.id] : 0)));
-        let displayPrice = (typeof mode !== 'undefined' && mode === "moder") ? "∞ БЕСПЛАТНО" : ((typeof gachaPrices !== 'undefined' ? gachaPrices[t.id] : 0) + "⭐");
-        html += '<div class="shop-item gacha-item" style="border-left: 3px solid ' + t.color + ';">';
-        html += '<div><strong>' + t.icon + ' ' + t.name + ' крутка</strong>';
-        html += '<br><small>' + displayPrice + ' | ' + bought + '/' + max + ' сегодня</small>';
-        html += '<br><small style="color:#aaa;">Мин: ' + t.minRarity + ' | Макс: ' + t.maxRarity + ' (' + t.maxChance + '%)</small></div>';
-        html += '<button class="btn btn-primary gacha-btn" onclick="performGacha(\'' + t.id + '\')" ' + (!canBuy ? 'disabled' : '') + '>Крутить</button>';
-        html += '</div>';
-    });
-    if ((typeof legendaryGachaTokens !== 'undefined' && legendaryGachaTokens > 0) || (typeof mode !== 'undefined' && mode === "moder")) {
-        let canBuy = (typeof mode !== 'undefined' && mode === "moder") || ((typeof legendaryGachaTokens !== 'undefined' && legendaryGachaTokens > 0) && (typeof points !== 'undefined' && points >= (typeof gachaPrices !== 'undefined' ? gachaPrices.legendary : 0)));
-        let displayPrice = (typeof mode !== 'undefined' && mode === "moder") ? "∞ БЕСПЛАТНО" : ((typeof gachaPrices !== 'undefined' ? gachaPrices.legendary : 0) + "⭐");
-        let tokenDisplay = (typeof mode !== 'undefined' && mode === "moder") ? "∞" : (typeof legendaryGachaTokens !== 'undefined' ? legendaryGachaTokens : 0);
-        html += '<div class="shop-item gacha-item legendary-gacha" style="border-left: 3px solid #ffd700; background: rgba(255,215,0,0.1);">';
-        html += '<div><strong>🟡 Легендарная крутка</strong>';
-        html += '<br><small>' + displayPrice + ' | Разрешений: ' + tokenDisplay + '</small>';
-        html += '<br><small style="color:#aaa;">Мин: Мифическая | Макс: Секретная (2%)</small></div>';
-        html += '<button class="btn btn-primary gacha-btn legendary-btn" onclick="performGacha(\'legendary\')" ' + (!canBuy ? 'disabled' : '') + '>Крутить</button>';
-        html += '</div>';
+function eatCookedMeat() {
+    if (getItemCount("cooked_meat") <= 0) return;
+    removeItem("cooked_meat", 1);
+    if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
+        playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.25);
     }
-    if ((typeof secretGachaTokens !== 'undefined' && secretGachaTokens > 0) || (typeof mode !== 'undefined' && mode === "moder")) {
-        let canBuy = (typeof mode !== 'undefined' && mode === "moder") || ((typeof secretGachaTokens !== 'undefined' && secretGachaTokens > 0) && (typeof points !== 'undefined' && points >= (typeof gachaPrices !== 'undefined' ? gachaPrices.secret : 0)));
-        let displayPrice = (typeof mode !== 'undefined' && mode === "moder") ? "∞ БЕСПЛАТНО" : ((typeof gachaPrices !== 'undefined' ? gachaPrices.secret : 0) + "⭐");
-        let tokenDisplay = (typeof mode !== 'undefined' && mode === "moder") ? "∞" : (typeof secretGachaTokens !== 'undefined' ? secretGachaTokens : 0);
-        html += '<div class="shop-item gacha-item secret-gacha" style="border-left: 3px solid #ff00ff; background: rgba(255,0,255,0.1);">';
-        html += '<div><strong>🟣 Секретная крутка</strong>';
-        html += '<br><small>' + displayPrice + ' | Разрешений: ' + tokenDisplay + '</small>';
-        html += '<br><small style="color:#aaa;">Легендарная (80%) | Секретная (20%)</small></div>';
-        html += '<button class="btn btn-primary gacha-btn secret-btn" onclick="performGacha(\'secret\')" ' + (!canBuy ? 'disabled' : '') + '>Крутить</button>';
-        html += '</div>';
+    hunger = Math.max(0, hunger - 30);
+    obesityPoints += 2;
+    if (obesityPoints > 60) obesityPoints = 60;
+    if (typeof showFloatingText === 'function') showFloatingText("🍖 +25% HP", "#2ecc71");
+    if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function eatMushroom() {
+    if (getItemCount("mushroom") <= 0) return;
+    removeItem("mushroom", 1);
+    if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
+        playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.15);
     }
-    if (!html) html = '<div style="text-align:center;color:#888;padding:20px;font-weight:bold;">🔒 Победите нового босса (каждые 50 волн) чтобы открыть легендарные и секретные крутки!</div>';
-    
-    if (typeof lastGachaReset !== 'undefined' && lastGachaReset) {
-        let timeLeft = Math.max(0, 86400000 - (Date.now() - lastGachaReset));
-        if (timeLeft > 0) {
-            let h = Math.floor(timeLeft / 3600000);
-            let m = Math.floor((timeLeft % 3600000) / 60000);
-            html += '<div style="text-align:center;margin-top:10px;font-weight:600;color:#aaa;font-size:12px;">🔄 Сброс дневных лимитов через: ' + h + 'ч ' + m + 'м</div>';
-        } else {
-            html += '<div style="text-align:center;margin-top:10px;font-weight:600;color:#2ecc71;font-size:12px;">✅ Лимиты сброшены! Обновите страницу.</div>';
+    if (Math.random() < 0.5) {
+        antidotePoints += 10;
+        obesityPoints = Math.max(0, obesityPoints - 1);
+        if (typeof showFloatingText === 'function') showFloatingText("✨ ВОЛШЕБНЫЙ ГРИБ!", "#e056fd");
+    } else {
+        poisonTimer += 15;
+        if (typeof showFloatingText === 'function') showFloatingText("☠️ ЯДОВИТЫЙ! +15 сек яда!", "#aa00aa");
+    }
+    if (antidotePoints >= 10) {
+        poisonTimer = 0;
+        antidotePoints = 0;
+        if (typeof showFloatingText === 'function') showFloatingText("✅ Отравление снято!", "#2ecc71");
+    }
+    if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function eatHoney() {
+    if (getItemCount("honey") <= 0) return;
+    removeItem("honey", 1);
+    let healPerTick = (typeof window.playerMaxHp !== 'undefined') ? window.playerMaxHp * 0.03 : 3;
+    let ticks = 0;
+    let honeyInterval = setInterval(function() {
+        if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
+            playerHp = Math.min(window.playerMaxHp, playerHp + healPerTick);
+            if (typeof updatePlayerStats === 'function') updatePlayerStats();
+        }
+        ticks++;
+        if (ticks >= 10) clearInterval(honeyInterval);
+    }, 1000);
+    if (typeof showFloatingText === 'function') showFloatingText("🍯 МЁД! +30% HP за 10 сек", "#f5af19");
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function eatPepper() {
+    if (getItemCount("pepper") <= 0) return;
+    removeItem("pepper", 1);
+    if (typeof activeBuffs !== 'undefined') {
+        activeBuffs["pepperSpeed"] = Date.now() + 30000;
+    }
+    pepperActive = true;
+    if (typeof showFloatingText === 'function') showFloatingText("🌶️ ПЕРЕЦ! Скорость +30% на 30 сек", "#ff4400");
+    if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function eatIce() {
+    if (getItemCount("ice") <= 0) return;
+    removeItem("ice", 1);
+    if (typeof enemyStatuses !== 'undefined') {
+        enemyStatuses.freezeStacks = (enemyStatuses.freezeStacks || 0) + 5;
+    }
+    if (typeof showFloatingText === 'function') showFloatingText("🧊 ВРАГ ЗАМОРОЖЕН! +5 кликов", "#00d4ff");
+    if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function eatEgg() {
+    if (getItemCount("egg") <= 0) return;
+    removeItem("egg", 1);
+    let roll = Math.random();
+    if (roll < 0.40) {
+        let earned = Math.floor(100 + Math.random() * 200);
+        if (typeof points !== 'undefined') {
+            points += earned;
+            if (typeof maxPoints !== 'undefined' && points > maxPoints) maxPoints = points;
+        }
+        if (typeof showFloatingText === 'function') showFloatingText("🥚 +" + earned + "⭐!", "#f5af19");
+    } else if (roll < 0.70) {
+        if (typeof createCard === 'function' && typeof myCards !== 'undefined') {
+            let c = createCard("Обычная");
+            if (c) myCards.push(c);
+        }
+        if (typeof showFloatingText === 'function') showFloatingText("🥚 Обычная карта!", "#fff");
+    } else if (roll < 0.90) {
+        if (typeof showFloatingText === 'function') showFloatingText("🥚 ...пусто. Мусор.", "#888");
+    } else {
+        if (typeof createCard === 'function' && typeof myCards !== 'undefined') {
+            let c = createCard("Редкая");
+            if (c) myCards.push(c);
+        }
+        if (typeof showFloatingText === 'function') showFloatingText("🥚 РЕДКАЯ КАРТА!", "#17a2b8");
+    }
+    if (typeof renderPoints === 'function') renderPoints();
+    if (typeof renderMyCards === 'function') renderMyCards();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function eatBread() {
+    if (getItemCount("bread") <= 0) return;
+    removeItem("bread", 1);
+    hunger = Math.max(0, hunger - 40);
+    obesityPoints += 1;
+    if (obesityPoints > 60) obesityPoints = 60;
+    if (typeof showFloatingText === 'function') showFloatingText("🍞 ХЛЕБ! -40% голода (+1 ожирение)", "#f5af19");
+    if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function drinkAntidote() {
+    if (getItemCount("antidote_potion") <= 0) return;
+    removeItem("antidote_potion", 1);
+    poisonTimer = 0;
+    antidotePoints = 0;
+    if (typeof showFloatingText === 'function') showFloatingText("🧪 ОТРАВЛЕНИЕ СНЯТО!", "#2ecc71");
+    if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function eatFruit(fruitId) {
+    if (!ITEMS[fruitId] || !ITEMS[fruitId].canEat) return;
+    if (getItemCount(fruitId) <= 0) return;
+    let item = ITEMS[fruitId];
+    removeItem(fruitId, 1);
+    if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
+        playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * (item.hp / 100));
+    }
+    hunger = Math.max(0, hunger - item.hunger);
+    obesityPoints = Math.max(0, obesityPoints - item.obesity);
+    antidotePoints += item.antidote;
+    if (antidotePoints >= 10) {
+        poisonTimer = 0;
+        antidotePoints = 0;
+        if (typeof showFloatingText === 'function') showFloatingText("✅ Отравление снято!", "#2ecc71");
+    }
+    if (typeof showFloatingText === 'function') showFloatingText(item.icon + " +" + item.hp + "% HP", "#2ecc71");
+    if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+// ========== ГОТОВКА ==========
+function cookMeat() {
+    if (getItemCount("raw_meat") <= 0) {
+        if (typeof showFloatingText === 'function') showFloatingText("Нет сырого мяса!", "#ff3333");
+        return;
+    }
+    let currentPoints = (typeof points !== 'undefined') ? points : 0;
+    let isModer = (typeof mode !== 'undefined' && mode === "moder");
+    if (!isModer && currentPoints < 10) {
+        if (typeof showFloatingText === 'function') showFloatingText("Нужно 10⭐!", "#ff3333");
+        return;
+    }
+    if (!isModer && typeof points !== 'undefined') points -= 10;
+    removeItem("raw_meat", 1);
+    addItem("cooked_meat", 1);
+    if (typeof showFloatingText === 'function') showFloatingText("🔥 Готово!", "#f5af19");
+    if (typeof renderPoints === 'function') renderPoints();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function sellBones() {
+    let count = getItemCount("bone");
+    if (count <= 0) return;
+    let earned = count * 1;
+    points += earned;
+    if (points > maxPoints) maxPoints = points;
+    removeItem("bone", count);
+    if (typeof showFloatingText === 'function') showFloatingText("💰 +" + earned + "⭐ за " + count + " костей", "#f5af19");
+    if (typeof renderPoints === 'function') renderPoints();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+function useKey() {
+    if (getItemCount("key") <= 0) {
+        if (typeof showFloatingText === 'function') showFloatingText("Нет ключа!", "#ff3333");
+        return;
+    }
+    treasureUnlocked = true;
+    treasureKeyUsed = true;
+    removeItem("key", 1);
+    if (typeof showFloatingText === 'function') showFloatingText("🔓 Тайник открыт!", "#ffd700");
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderShop === 'function') renderShop();
+    if (typeof closeModal === 'function') closeModal();
+}
+
+// ========== ГОЛОД / ОЖИРЕНИЕ ==========
+function tickHunger(dt) {
+    if (hunger < 100) {
+        hunger += 0.028 * dt;
+        if (hunger > 100) hunger = 100;
+    }
+}
+
+function getHungerHpMult() {
+    if (hunger < 30) return 1.0;
+    if (hunger < 60) return 0.85;
+    if (hunger < 85) return 0.6;
+    return 0.3;
+}
+
+function getHungerFatigueMult() {
+    if (hunger < 30) return 1.0;
+    if (hunger < 60) return 1.3;
+    if (hunger < 85) return 1.7;
+    return 2.5;
+}
+
+function getObesitySpeedMult() {
+    if (obesityPoints < 20) return 1.0;
+    if (obesityPoints < 40) return 0.75;
+    if (obesityPoints < 60) return 0.6;
+    return 0.5;
+}
+
+function getObesityStageName() {
+    if (obesityPoints < 20) return null;
+    if (obesityPoints < 40) return "Ожирение I";
+    if (obesityPoints < 60) return "Ожирение II";
+    return "Ожирение III";
+}
+
+// ========== ОТРАВЛЕНИЕ + ПЕРЕЦ ==========
+function tickPoison(dt) {
+    if (poisonTimer > 0) {
+        poisonTimer -= dt;
+        if (poisonTimer < 0) poisonTimer = 0;
+        if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
+            let dmg = window.playerMaxHp * 0.02 * dt;
+            playerHp -= dmg;
+            if (playerHp <= 0 && typeof defeat === 'function') defeat();
         }
     }
+    if (typeof activeBuffs !== 'undefined' && activeBuffs["pepperSpeed"] && activeBuffs["pepperSpeed"] > Date.now()) {
+        if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
+            playerHp -= window.playerMaxHp * 0.01 * dt;
+            if (playerHp <= 0 && typeof defeat === 'function') defeat();
+        }
+    } else if (pepperActive && (!activeBuffs || !activeBuffs["pepperSpeed"] || activeBuffs["pepperSpeed"] <= Date.now())) {
+        pepperActive = false;
+    }
+}
+
+// ========== СОХРАНЕНИЕ ==========
+function saveInventory() {
+    return {
+        inventory: inventory,
+        hunger: hunger,
+        obesityPoints: obesityPoints,
+        poisonTimer: poisonTimer,
+        antidotePoints: antidotePoints,
+        treasureUnlocked: treasureUnlocked,
+        treasureKeyUsed: treasureKeyUsed,
+        pepperActive: pepperActive
+    };
+}
+
+// ★★★ ГЛАВНЫЙ ФИКС: СБРАСЫВАЕМ ИНВЕНТАРЬ ПЕРЕД ЗАГРУЗКОЙ ★★★
+function loadInventory(data) {
+    // Сначала ВСЕГДА очищаем, чтобы не текло между слотами
+    resetInventory();
     
+    if (!data) return;
+    
+    inventory = data.inventory || {};
+    hunger = data.hunger || 0;
+    obesityPoints = data.obesityPoints || 0;
+    poisonTimer = data.poisonTimer || 0;
+    antidotePoints = data.antidotePoints || 0;
+    if (data.treasureUnlocked === true) treasureUnlocked = true;
+    if (data.treasureKeyUsed === true) treasureKeyUsed = true;
+    pepperActive = data.pepperActive || false;
+    
+    // Фолбэк: если босс 200 убит и ключа нет — тайник считаем открытым
+    try {
+        if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200)) {
+            if ((inventory["key"] || 0) <= 0) {
+                treasureUnlocked = true;
+                treasureKeyUsed = true;
+            }
+        }
+    } catch(e) {}
+}
+
+function resetInventory() {
+    inventory = {};
+    hunger = 0;
+    obesityPoints = 0;
+    poisonTimer = 0;
+    antidotePoints = 0;
+    treasureUnlocked = false;
+    treasureKeyUsed = false;
+    pepperActive = false;
+}
+
+// ========== РЕНДЕР ==========
+function renderInventory() {
+    let container = document.getElementById("inventoryContent");
+    if (!container) return;
+
+    let html = '';
+
+    html += '<div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:12px;margin-bottom:12px;">';
+    let hungerColor = hunger < 30 ? "#2ecc71" : hunger < 60 ? "#f5af19" : hunger < 85 ? "#e67e22" : "#e74c3c";
+    html += '<div style="font-weight:800;font-size:13px;margin-bottom:6px;">🍽️ Голод: <span style="color:' + hungerColor + ';">' + Math.floor(hunger) + '%</span></div>';
+    html += '<div style="background:rgba(0,0,0,0.5);border-radius:6px;height:10px;overflow:hidden;"><div style="width:' + hunger + '%;height:100%;background:' + hungerColor + ';"></div></div>';
+    if (obesityPoints > 0) {
+        let obName = getObesityStageName() || "Норма";
+        html += '<div style="font-weight:800;font-size:13px;margin-top:10px;">🍔 Ожирение: <span style="color:' + (obesityPoints >= 20 ? '#e74c3c' : '#aaa') + ';">' + obName + ' (' + obesityPoints + '/60)</span></div>';
+        html += '<div style="background:rgba(0,0,0,0.5);border-radius:6px;height:10px;overflow:hidden;"><div style="width:' + (obesityPoints / 60 * 100) + '%;height:100%;background:#e67e22;"></div></div>';
+    }
+    if (poisonTimer > 0) {
+        html += '<div style="font-weight:800;font-size:13px;margin-top:10px;color:#aa00aa;">☠️ Отравление: ' + Math.floor(poisonTimer) + 'с (антидот ' + antidotePoints + '/10)</div>';
+    } else if (antidotePoints > 0) {
+        html += '<div style="font-weight:800;font-size:13px;margin-top:10px;color:#2ecc71;">💚 Антидот: ' + antidotePoints + '/10</div>';
+    }
+    html += '</div>';
+
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">';
+    
+    let currentStars = (typeof points !== 'undefined') ? points : 0;
+    html += '<div style="background:linear-gradient(180deg,#3a2f15,#1a1510);border:2px solid #f5af19;border-radius:14px;padding:10px 6px;text-align:center;box-shadow:0 0 15px rgba(245,175,25,0.3);">';
+    html += '<div onclick="showItemModal(\'star\')" style="cursor:pointer;">';
+    html += '<div style="font-size:36px;">⭐</div>';
+    html += '<div style="font-size:11px;font-weight:800;margin-top:4px;line-height:1.2;color:#f5af19;">Звезда</div>';
+    html += '<div style="font-size:12px;font-weight:900;color:#f5af19;margin-top:2px;">x' + currentStars + '</div>';
+    html += '</div></div>';
+    
+    let hasAny = false;
+    for (let id in ITEMS) {
+        if (id === "star") continue;
+        let count = getItemCount(id);
+        if (count > 0) {
+            hasAny = true;
+            let item = ITEMS[id];
+            html += '<div style="background:linear-gradient(180deg,#1e1e2f,#151522);border:2px solid rgba(255,255,255,0.08);border-radius:14px;padding:10px 6px;text-align:center;">';
+            html += '<div onclick="showItemModal(\'' + id + '\')" style="cursor:pointer;">';
+            html += '<div style="font-size:36px;">' + item.icon + '</div>';
+            html += '<div style="font-size:11px;font-weight:800;margin-top:4px;line-height:1.2;">' + item.name + '</div>';
+            html += '<div style="font-size:12px;font-weight:900;color:#f5af19;margin-top:2px;">x' + count + '</div>';
+            html += '</div>';
+            if (item.canCook && id === "raw_meat") {
+                let currentPoints = (typeof points !== 'undefined') ? points : 0;
+                let isModer = (typeof mode !== 'undefined' && mode === "moder");
+                let canCook = isModer || currentPoints >= 10;
+                html += '<button onclick="event.stopPropagation();cookMeat();" style="margin-top:6px;padding:4px 8px;font-size:10px;width:100%;background:' + (canCook ? 'linear-gradient(135deg,#f5af19,#f12711)' : '#555') + ';border:none;border-radius:8px;color:white;font-weight:800;cursor:' + (canCook ? 'pointer' : 'not-allowed') + ';" ' + (!canCook ? 'disabled' : '') + '>🔥 Жарить (10⭐)</button>';
+            }
+            html += '</div>';
+        }
+    }
+    if (!hasAny) html += '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-weight:bold;">📦 Больше предметов нет</div>';
+    html += '</div>';
+
     container.innerHTML = html;
 }
 
-function renderAll() { 
-    renderMyCards(); 
-    renderTeam(); 
-    renderAfkTeam(); 
-    renderEnemy(); 
-    renderPoints(); 
-    renderShop(); 
-    if (typeof renderInventory === 'function') renderInventory();
-    renderUpgrades(); 
-    renderActiveBuffs(); 
-    renderDefeatHistory(); 
-    renderFreeSpins(); 
-    renderAchievements(); 
-    renderChallenges(); 
-    renderBook(); 
-    renderCheckpoints(); 
-    renderRebirthInfo(); 
-    renderRebirthStats(); 
-    renderEvoTab(); 
-    renderGlobalStats(); 
-    renderModerControls(); 
-    renderSettings(); 
-    renderSlotsInGame(); 
-    renderDailyRewards(); 
-    renderPass(); 
-    if (typeof renderGachaTab === 'function') renderGachaTab(); 
-    if (typeof renderPowerPoints === 'function') renderPowerPoints(); 
-    updatePlayerStats(); 
-    updateStatusDisplay(); 
+function showItemModal(id) {
+    let item = ITEMS[id];
+    if (!item) return;
+    let count;
+    if (item.isVirtual) {
+        count = (typeof points !== 'undefined') ? points : 0;
+    } else {
+        count = getItemCount(id);
+        if (count <= 0) return;
+    }
+
+    let html = '<h2>' + item.icon + ' ' + item.name.toUpperCase() + '</h2>';
+    html += '<div style="text-align:center;font-size:14px;color:#aaa;margin-bottom:10px;">Количество: <b style="color:#f5af19;">' + count + '</b></div>';
+    html += '<div style="background:rgba(0,0,0,0.3);padding:12px;border-radius:12px;margin-bottom:12px;font-size:13px;line-height:1.5;">' + item.desc + '</div>';
+    if (item.sellPrice) html += '<div style="text-align:center;margin-bottom:10px;font-size:14px;">💰 Продать: <b style="color:#f5af19;">' + item.sellPrice + '⭐</b> за штуку</div>';
+    if (item.unsellable) html += '<div style="text-align:center;margin-bottom:10px;font-size:14px;color:#ff4444;">❌ Не продаётся</div>';
+
+    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+    if (item.isVirtual) {
+        html += '<div style="text-align:center;font-size:13px;color:#f5af19;font-weight:900;padding:10px;background:rgba(245,175,25,0.15);border-radius:10px;">⭐ Твоя валюта — тратится на всё в игре</div>';
+    } else if (item.actionFunction === "eatRawMeat") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatRawMeat();">🍴 Съесть (ОПАСНО — отравишься)</button>';
+        html += '<button class="btn" style="padding:12px;background:linear-gradient(135deg,#f5af19,#f12711);color:white;font-weight:900;border:none;" onclick="cookMeat();">🔥 Пожарить (10⭐)</button>';
+    } else if (item.actionFunction === "eatCookedMeat") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatCookedMeat();">🍴 Съесть (+25% HP, +2 ожирение)</button>';
+    } else if (item.actionFunction === "eatMushroom") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatMushroom();">🍄 Съесть гриб (50/50)</button>';
+    } else if (item.actionFunction === "eatHoney") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatHoney();">🍯 Съесть мёд (+30% HP за 10 сек)</button>';
+    } else if (item.actionFunction === "eatPepper") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatPepper();">🌶️ Съесть перец (+30% скорости, жжёт)</button>';
+    } else if (item.actionFunction === "eatIce") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatIce();">🧊 Съесть лёд (заморозка врага +5)</button>';
+    } else if (item.actionFunction === "eatEgg") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatEgg();">🥚 Открыть яйцо (рандом)</button>';
+    } else if (item.actionFunction === "eatBread") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatBread();">🍞 Съесть хлеб (-40% голода)</button>';
+    } else if (item.actionFunction === "drinkAntidote") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="drinkAntidote();">🧪 Выпить (снять отравление)</button>';
+    } else if (item.actionFunction === "eatFruit") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatFruit(\'' + id + '\');">' + item.icon + ' Съесть</button>';
+    } else if (item.actionFunction === "useKey") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="useKey();">🔓 Использовать ключ</button>';
+    }
+    if (item.canSell && item.sellPrice) {
+        html += '<button class="btn" style="padding:12px;background:#f5af19;color:#000;font-weight:900;" onclick="sellBones();">💰 Продать всё (' + (count * item.sellPrice) + '⭐)</button>';
+    }
+    html += '<button class="btn" style="padding:10px;background:#555;" onclick="closeModal()">Закрыть</button>';
+    html += '</div>';
+
+    let el = document.getElementById("modalContent");
+    if (el) el.innerHTML = html;
+    el = document.getElementById("modalOverlay");
+    if (el) el.style.display = "flex";
 }
+
+window.ITEMS = ITEMS;
+window.addItem = addItem;
+window.removeItem = removeItem;
+window.getItemCount = getItemCount;
+window.tryDropLoot = tryDropLoot;
+window.dropLivingStoneLoot = dropLivingStoneLoot;
+window.eatRawMeat = eatRawMeat;
+window.eatCookedMeat = eatCookedMeat;
+window.eatMushroom = eatMushroom;
+window.eatHoney = eatHoney;
+window.eatPepper = eatPepper;
+window.eatIce = eatIce;
+window.eatEgg = eatEgg;
+window.eatBread = eatBread;
+window.drinkAntidote = drinkAntidote;
+window.eatFruit = eatFruit;
+window.cookMeat = cookMeat;
+window.sellBones = sellBones;
+window.useKey = useKey;
+window.tickHunger = tickHunger;
+window.tickPoison = tickPoison;
+window.getHungerHpMult = getHungerHpMult;
+window.getHungerFatigueMult = getHungerFatigueMult;
+window.getObesitySpeedMult = getObesitySpeedMult;
+window.saveInventory = saveInventory;
+window.loadInventory = loadInventory;
+window.resetInventory = resetInventory;
+window.renderInventory = renderInventory;
+window.showItemModal = showItemModal;
+
+window.getTreasureUnlocked = function() { 
+    if (treasureUnlocked === true) return true;
+    if (treasureKeyUsed === true) return true;
+    try {
+        if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200)) {
+            if (getItemCount("key") <= 0) {
+                treasureUnlocked = true;
+                treasureKeyUsed = true;
+                return true;
+            }
+        }
+    } catch(e) {}
+    return false;
+};
+
+console.log("[INVENTORY] v1.6 — фикс распространения между слотами");
