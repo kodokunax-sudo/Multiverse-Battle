@@ -1,12 +1,11 @@
 // ============================================================
-// ИНВЕНТАРЬ v1.3 — Звезда + 7 расходников
+// ИНВЕНТАРЬ v1.4 — фикс тайника + fallback
 // ============================================================
 
 const ITEMS = {
-    // ★ ВИРТУАЛЬНЫЙ ПРЕДМЕТ — ЗВЕЗДА ★
     star: {
         name: "Звезда", icon: "⭐",
-        desc: "Твоя основная валюта. Тратится на крутки, товары, прокачку и готовку. Зарабатывается за победы над врагами и боссами. Чем выше волна — тем больше звёзд. Говорят,что звезды обладают невероятной силой и энергией. Поэтому она является единственной валютой в космосе",
+        desc: "Твоя основная валюта. Тратится на крутки, товары, прокачку и готовку. Зарабатывается за победы над врагами и боссами. Чем выше волна — тем больше звёзд. Говорят, что звезды обладают невероятной силой и энергией. Поэтому она является единственной валютой в космосе",
         stack: 999999, canSell: false, isVirtual: true
     },
     bone: {
@@ -26,7 +25,6 @@ const ITEMS = {
         stack: 99, canSell: false,
         actionFunction: "eatCookedMeat"
     },
-    // ★ НОВЫЕ РАСХОДНИКИ ★
     mushroom: {
         name: "Гриб", icon: "🍄",
         desc: "Странный гриб. Мгновенно +15% HP. 50% шанс что это ядовитый гриб (накладывает короткое отравление на 15 сек). 50% шанс что волшебный (даёт +10 очков антидота и -1 ожирение).",
@@ -69,7 +67,6 @@ const ITEMS = {
         cost: 700, stack: 99, canEat: true,
         actionFunction: "drinkAntidote"
     },
-    // ФРУКТЫ
     apple: {
         name: "Яблоко", icon: "🍏",
         desc: "+5% HP, -10% голода, -1 ожирение, +1 антидот",
@@ -79,7 +76,7 @@ const ITEMS = {
     },
     orange: {
         name: "Апельсин", icon: "🍊",
-        desc: "+8% HP, -15% голода, -1 ожирение, +2 антидот. Апельсин - это вкусно,но лимон круче. А ты, что думаешь?",
+        desc: "+8% HP, -15% голода, -1 ожирение, +2 антидот. Апельсин - это вкусно, но лимон круче. А ты, что думаешь?",
         cost: 350, stack: 99, canEat: true,
         hp: 8, hunger: 15, obesity: 1, antidote: 2,
         actionFunction: "eatFruit"
@@ -146,7 +143,7 @@ const ITEMS = {
     },
     stone_piece: {
         name: "Кусок камня", icon: "🪨",
-        desc: "Напоминание о проигрыше против камня. Надеюсь я его больше не встречу. Хотя,кто знает...",
+        desc: "Напоминание о проигрыше против камня. Надеюсь я его больше не встречу. Хотя, кто знает...",
         stack: 1, canSell: false, unsellable: true
     }
 };
@@ -199,7 +196,6 @@ function tryDropLoot(isBoss) {
             addItem(f, 1);
             if (typeof showFloatingText === 'function') showFloatingText("🍎 " + ITEMS[f].name + "!", "#2ecc71");
         }
-        // ★ ЯЙЦО С БОССОВ ★
         if (Math.random() < 0.05) {
             addItem("egg", 1);
             if (typeof showFloatingText === 'function') showFloatingText("🥚 Яйцо!", "#f5af19");
@@ -208,7 +204,6 @@ function tryDropLoot(isBoss) {
         if (Math.random() < 0.3) addItem("bone", 1);
         if (Math.random() < 0.1) addItem("raw_meat", 1);
         if (Math.random() < 0.05) addItem("coin", 1);
-        // ★ ГРИБ И ПЕРЕЦ С ВРАГОВ ★
         if (Math.random() < 0.05) addItem("mushroom", 1);
         if (Math.random() < 0.03) addItem("pepper", 1);
         if (Math.random() < 0.08) addItem("bread", 1);
@@ -259,7 +254,6 @@ function eatCookedMeat() {
     if (typeof closeModal === 'function') closeModal();
 }
 
-// ★ НОВЫЕ ФУНКЦИИ ★
 function eatMushroom() {
     if (getItemCount("mushroom") <= 0) return;
     removeItem("mushroom", 1);
@@ -267,12 +261,10 @@ function eatMushroom() {
         playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.15);
     }
     if (Math.random() < 0.5) {
-        // Волшебный
         antidotePoints += 10;
         obesityPoints = Math.max(0, obesityPoints - 1);
         if (typeof showFloatingText === 'function') showFloatingText("✨ ВОЛШЕБНЫЙ ГРИБ!", "#e056fd");
     } else {
-        // Ядовитый
         poisonTimer += 15;
         if (typeof showFloatingText === 'function') showFloatingText("☠️ ЯДОВИТЫЙ! +15 сек яда!", "#aa00aa");
     }
@@ -338,7 +330,6 @@ function eatEgg() {
     removeItem("egg", 1);
     let roll = Math.random();
     if (roll < 0.40) {
-        // Звёзды
         let earned = Math.floor(100 + Math.random() * 200);
         if (typeof points !== 'undefined') {
             points += earned;
@@ -346,17 +337,14 @@ function eatEgg() {
         }
         if (typeof showFloatingText === 'function') showFloatingText("🥚 +" + earned + "⭐!", "#f5af19");
     } else if (roll < 0.70) {
-        // Обычная карта
         if (typeof createCard === 'function' && typeof myCards !== 'undefined') {
             let c = createCard("Обычная");
             if (c) myCards.push(c);
         }
         if (typeof showFloatingText === 'function') showFloatingText("🥚 Обычная карта!", "#fff");
     } else if (roll < 0.90) {
-        // Ничего
         if (typeof showFloatingText === 'function') showFloatingText("🥚 ...пусто. Мусор.", "#888");
     } else {
-        // Редкая карта
         if (typeof createCard === 'function' && typeof myCards !== 'undefined') {
             let c = createCard("Редкая");
             if (c) myCards.push(c);
@@ -515,7 +503,6 @@ function tickPoison(dt) {
             if (playerHp <= 0 && typeof defeat === 'function') defeat();
         }
     }
-    // ★ ПЕРЕЦ ЖЖЁТ ★
     if (typeof activeBuffs !== 'undefined' && activeBuffs["pepperSpeed"] && activeBuffs["pepperSpeed"] > Date.now()) {
         if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
             playerHp -= window.playerMaxHp * 0.01 * dt;
@@ -547,9 +534,18 @@ function loadInventory(data) {
     obesityPoints = data.obesityPoints || 0;
     poisonTimer = data.poisonTimer || 0;
     antidotePoints = data.antidotePoints || 0;
-    treasureUnlocked = data.treasureUnlocked === true ? true : false;
-    treasureKeyUsed = data.treasureKeyUsed === true ? true : false;
+    if (data.treasureUnlocked === true) treasureUnlocked = true;
+    if (data.treasureKeyUsed === true) treasureKeyUsed = true;
     pepperActive = data.pepperActive || false;
+    // ★ ФОЛБЭК: если босс 200 убит, ключа нет — тайник открыт ★
+    try {
+        if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200)) {
+            if ((inventory["key"] || 0) <= 0) {
+                treasureUnlocked = true;
+                treasureKeyUsed = true;
+            }
+        }
+    } catch(e) {}
 }
 
 function resetInventory() {
@@ -588,7 +584,6 @@ function renderInventory() {
 
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">';
     
-    // ★ ЗВЕЗДА — ВСЕГДА ПЕРВАЯ ★
     let currentStars = (typeof points !== 'undefined') ? points : 0;
     html += '<div style="background:linear-gradient(180deg,#3a2f15,#1a1510);border:2px solid #f5af19;border-radius:14px;padding:10px 6px;text-align:center;box-shadow:0 0 15px rgba(245,175,25,0.3);">';
     html += '<div onclick="showItemModal(\'star\')" style="cursor:pointer;">';
@@ -710,6 +705,21 @@ window.loadInventory = loadInventory;
 window.resetInventory = resetInventory;
 window.renderInventory = renderInventory;
 window.showItemModal = showItemModal;
-window.getTreasureUnlocked = function() { return treasureUnlocked === true; };
 
-console.log("[INVENTORY] v1.3 — звезда + 7 расходников");
+// ★ ФИКС ТАЙНИКА: getTreasureUnlocked с fallback ★
+window.getTreasureUnlocked = function() { 
+    if (treasureUnlocked === true) return true;
+    if (treasureKeyUsed === true) return true;
+    try {
+        if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200)) {
+            if (getItemCount("key") <= 0) {
+                treasureUnlocked = true;
+                treasureKeyUsed = true;
+                return true;
+            }
+        }
+    } catch(e) {}
+    return false;
+};
+
+console.log("[INVENTORY] v1.4 — фикс тайника + fallback");
