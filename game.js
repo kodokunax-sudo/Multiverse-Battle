@@ -188,7 +188,6 @@ function loadGameData(d) {
     mainCardIndex = d.mainCardIndex ?? 0;
     slotData.nickname = d.nickname || loadSlotMeta(currentSlot).nickname;
     if (typeof setPowerPoints === 'function') setPowerPoints(d.powerPoints || 0);
-    // ★ ЗАГРУЗКА ИНВЕНТАРЯ ★
     if (typeof loadInventory === 'function') loadInventory(d.inventory);
     if (Array.isArray(myCards)) {
         for (let i = 0; i < myCards.length; i++) {
@@ -287,7 +286,6 @@ function initNewGame() {
     dailyRewards = { currentDay: 1, lastClaimDate: null, claimedToday: false };
     passData = { currentTier: 1, passExp: 0, claimedTiers: [] };
     if (typeof setPowerPoints === 'function') setPowerPoints(0);
-    // ★ СБРОС ИНВЕНТАРЯ ★
     if (typeof resetInventory === 'function') resetInventory();
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; }
     if (fireInterval) { clearInterval(fireInterval); fireInterval = null; }
@@ -363,7 +361,6 @@ function saveAll() {
     slotData.dailyRewards = dailyRewards;
     slotData.passData = passData;
     if (typeof getPowerPoints === 'function') slotData.powerPoints = getPowerPoints();
-    // ★ СОХРАНЕНИЕ ИНВЕНТАРЯ ★
     if (typeof saveInventory === 'function') slotData.inventory = saveInventory();
     saveGameToSlot(currentSlot); 
     window._needSave = false; 
@@ -466,7 +463,6 @@ function increaseFatigue(clickSpeedMultiplier = 1) {
     if (hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now()) resist *= 4; 
     team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'fatigueResist' && (!hasMasteryAbility || hasMasteryAbility(cd))) resist += cd.ability.value; }); 
     let baseIncrease = 2 * clickSpeedMultiplier; 
-    // ★ ГОЛОД УСИЛИВАЕТ УСТАЛОСТЬ ★
     let hungerFatigue = (typeof getHungerFatigueMult === 'function') ? getHungerFatigueMult() : 1.0;
     let increase = Math.max(0.1, baseIncrease - resist) * hungerFatigue; 
     let oldFatigue = fatigue; 
@@ -559,7 +555,6 @@ function getPassiveModifiers() {
     return { dmgMult: dm, takenMult: Math.max(0.01, tm), bossBonus: bb, hpMult: hm }; 
 }
 
-// ★ ОБНОВЛЕНО: голод уменьшает макс HP ★
 function updatePlayerStats() { 
     let m = getPassiveModifiers(); 
     let fm = 1 - fatigue / 100; 
@@ -579,7 +574,6 @@ function updatePlayerStats() {
     let hb = 1.0; 
     if (activeBuffs["doubleHp"] && activeBuffs["doubleHp"] > Date.now()) hb = 2.0; 
     else if (activeBuffs["tripleHp"] && activeBuffs["tripleHp"] > Date.now()) hb = 3.0; 
-    // ★ ГОЛОД СНИЖАЕТ МАКС HP ★
     let hungerMult = (typeof getHungerHpMult === 'function') ? getHungerHpMult() : 1.0;
     let maxHp = Math.floor(totalHp * hb * hungerMult); 
     if (playerHp > maxHp && !hpDecayInterval) { 
@@ -656,7 +650,6 @@ function processOfflineProgress() {
                 showFloatingText("⚡ +" + powerEarned + " СИЛЫ за АФК!", "#ffd700");
             }
         }
-        // ★ ДРОП ПРЕДМЕТОВ В ОФЛАЙН ★
         if (typeof tryDropLoot === 'function') {
             let drops = Math.floor(wavesCompleted * 0.5);
             for (let i = 0; i < drops; i++) {
@@ -693,16 +686,69 @@ function getCardResultHTML(card) { let rarityColor = getRarityColor(card.rarity)
 function startGachaAnimation(card, type) { let availableRarities = []; switch(type) { case "common": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "rare": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "superRare": availableRarities = ["Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная"]; break; case "epic": availableRarities = ["Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "mythic": availableRarities = ["Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "legendary": availableRarities = ["Мифическая", "Легендарная", "Секретная"]; break; case "secret": availableRarities = ["Легендарная", "Секретная"]; break; default: availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик"]; } let fakeCards = []; for (let i = 0; i < 8; i++) { let randomRarity = availableRarities[Math.floor(Math.random() * availableRarities.length)]; let fc = createCard(randomRarity); if (fc) fakeCards.push(fc); } fakeCards.push(card); gachaAnimationActive = true; let modalContent = document.getElementById("modalContent"); let modalOverlay = document.getElementById("modalOverlay"); if (!modalContent || !modalOverlay) { gachaAnimationActive = false; return; } modalOverlay.style.display = "flex"; let index = 0; let totalFlashes = 24; let flashCount = 0; let speed = 80; function flashNextCard() { if (flashCount >= totalFlashes) { modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>'; if (typeof sfxCardObtain === 'function') sfxCardObtain(); gachaAnimationActive = false; return; } let currentCard = fakeCards[index % fakeCards.length]; let rarityColor = getRarityColor(currentCard.rarity); modalContent.innerHTML = '<h2>🎰 Крутка...</h2>' + '<div style="text-align:center;padding:10px;">' + '<div style="font-size:48px;margin-bottom:10px;">🎴</div>' + '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + currentCard.name + '</div>' + '<div class="rarity-tag ' + rarityColors[currentCard.rarity] + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' + '<div style="margin-top:12px;font-size:16px;">💪 ' + currentCard.damage + ' ❤️ ' + currentCard.hp + '</div>' + '</div>' + '<button class="btn" style="width:100%;padding:8px;margin-top:10px;background:#e74c3c;border:none;color:white;font-weight:bold;" onclick="closeModal();gachaAnimationActive=false;">⏭️ ПРОПУСТИТЬ</button>'; index++; flashCount++; if (flashCount > totalFlashes * 0.7) speed += 40; else if (flashCount > totalFlashes * 0.5) speed += 20; else if (flashCount > totalFlashes * 0.3) speed += 10; setTimeout(flashNextCard, speed); } flashNextCard(); }
 
 // ========== ГЕНЕРАЦИЯ ВРАГА ==========
-function generateEnemy() { firstAttackThisFight = true; bossSupportUsedThisFight = false; if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; } if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } let el = document.getElementById("spareBtn"); if (el) el.style.display = "none"; el = document.getElementById("dialogBox"); if (el) el.style.display = "none"; currentDialog = null; let world = getCurrentWorld(); let isBoss = wave % 10 === 0; let isUniqueBoss = (typeof bossTemplates !== 'undefined' && bossTemplates[wave] !== undefined); let hp, dmg, name, dialogue = "", enemyStat = null; if (isUniqueBoss) { let bt = bossTemplates[wave]; hp = Math.floor((50 + wave * 12) * bt.hpMult); dmg = Math.floor((15 + wave * 6) * bt.dmgMult / 2); name = bt.name; dialogue = bt.dialogue || ""; if (bt.enemyStatus) enemyStat = bt.enemyStatus; showBossDialogue(dialogue); sfxBossAppear(); if (wave === 10000) currentDialog = finalBossResponses; } else if (isBoss) { hp = Math.floor((50 + wave * 12) * 2); dmg = Math.floor((15 + wave * 6) * 1); name = "👑 БОСС"; hideBossDialogue(); } else { hp = 50 + wave * 12; dmg = 15 + wave * 6; name = enemyNames[Math.floor(Math.random() * enemyNames.length)]; let randomStat = enemyStatusPool[Math.floor(Math.random() * enemyStatusPool.length)]; if (randomStat) enemyStat = randomStat; hideBossDialogue(); } enemyStatuses = { fireTicks:0, fireDamage:0, poisonDamage:0, bleedMult:1.0, freezeStacks:0, shockChance:0, blindStacks:0 }; if (enemyStat) { if (enemyStat.type === "freezeStacks") enemyStatuses.freezeStacks = enemyStat.value; if (enemyStat.type === "bleed") enemyStatuses.bleedMult = 1 + enemyStat.value; if (enemyStat.type === "shock") enemyStatuses.shockChance = enemyStat.chance; } applyStatusEffects(); currentEnemy = { name, hp, maxHp:hp, damage:dmg, isBoss:isBoss||isUniqueBoss }; let arenaWaves = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000, 3200, 3400, 3600, 3800, 4000, 4200, 4400, 4600, 4800, 5000, 10000]; let showArenaBtn = (isBoss || isUniqueBoss) && wave >= 50 && arenaWaves.includes(wave);
+function generateEnemy() { 
+    firstAttackThisFight = true; 
+    bossSupportUsedThisFight = false; 
+    if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; } 
+    if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } 
+    let el = document.getElementById("spareBtn"); if (el) el.style.display = "none"; 
+    el = document.getElementById("dialogBox"); if (el) el.style.display = "none"; 
+    currentDialog = null; 
+    let world = getCurrentWorld(); 
+    let isBoss = wave % 10 === 0; 
+    let isUniqueBoss = (typeof bossTemplates !== 'undefined' && bossTemplates[wave] !== undefined); 
+    let hp, dmg, name, dialogue = "", enemyStat = null; 
+    if (isUniqueBoss) { 
+        let bt = bossTemplates[wave]; 
+        hp = Math.floor((50 + wave * 12) * bt.hpMult); 
+        dmg = Math.floor((15 + wave * 6) * bt.dmgMult / 2); 
+        name = bt.name; 
+        dialogue = bt.dialogue || ""; 
+        if (bt.enemyStatus) enemyStat = bt.enemyStatus; 
+        showBossDialogue(dialogue); 
+        sfxBossAppear(); 
+        if (wave === 10000) currentDialog = finalBossResponses; 
+    } else if (isBoss) { 
+        hp = Math.floor((50 + wave * 12) * 2); 
+        dmg = Math.floor((15 + wave * 6) * 1); 
+        name = "👑 БОСС"; 
+        hideBossDialogue(); 
+    } else { 
+        hp = 50 + wave * 12; 
+        dmg = 15 + wave * 6; 
+        name = enemyNames[Math.floor(Math.random() * enemyNames.length)]; 
+        let randomStat = enemyStatusPool[Math.floor(Math.random() * enemyStatusPool.length)]; 
+        if (randomStat) enemyStat = randomStat; 
+        hideBossDialogue(); 
+    } 
+    enemyStatuses = { fireTicks:0, fireDamage:0, poisonDamage:0, bleedMult:1.0, freezeStacks:0, shockChance:0, blindStacks:0 }; 
+    if (enemyStat) { 
+        if (enemyStat.type === "freezeStacks") enemyStatuses.freezeStacks = enemyStat.value; 
+        if (enemyStat.type === "bleed") enemyStatuses.bleedMult = 1 + enemyStat.value; 
+        if (enemyStat.type === "shock") enemyStatuses.shockChance = enemyStat.chance; 
+    } 
+    applyStatusEffects(); 
+    currentEnemy = { name, hp, maxHp:hp, damage:dmg, isBoss:isBoss||isUniqueBoss }; 
+    let arenaWaves = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000, 3200, 3400, 3600, 3800, 4000, 4200, 4400, 4600, 4800, 5000, 10000]; 
+    let showArenaBtn = (isBoss || isUniqueBoss) && wave >= 50 && arenaWaves.includes(wave);
     
     let btn = document.getElementById("startArenaBtn");
     let livingBtn = document.getElementById("startLivingStoneBtn");
     let skipBtn = document.getElementById("skipArenaBtn");
     
+    // ★ ПРОВЕРКА ЖИВОГО КАМНЯ ★
     if (wave === 200 && isUniqueBoss) {
         let alreadyDefeatedStone = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200);
         if (btn) btn.style.display = "none";
         if (livingBtn) livingBtn.style.display = alreadyDefeatedStone ? "none" : "block";
+        
+        // ★ ЕСЛИ КАМЕНЬ УЖЕ ПОБЕЖДЁН — ДЕЛАЕМ ОБЫЧНОГО КЛИКЕРНОГО БОССА С HP x0.5 ★
+        if (alreadyDefeatedStone) {
+            currentEnemy.hp = Math.floor(currentEnemy.hp * 0.5);
+            currentEnemy.maxHp = currentEnemy.hp;
+            currentEnemy.isWeakenedStone = true;
+            currentEnemy.name = "🪨 Живой Камень (ослабленный)";
+        }
     } else {
         if (livingBtn) livingBtn.style.display = "none";
         if (btn) btn.style.display = showArenaBtn ? "block" : "none";
@@ -770,10 +816,8 @@ function victory() {
     updateChallengeProgress("wins", 1); 
     if (isBoss) updateChallengeProgress("bossKills", 1); 
     if (isBoss && wave % 50 === 0) { highestCheckpoint = Math.max(highestCheckpoint, wave); grantBossGachaReward(wave); saveAll(); renderCheckpoints(); } 
-    // ★ ОЧКИ СИЛЫ ЗА ВОЛНУ ★
     if (typeof grantPowerForWave === 'function') grantPowerForWave(wave);
     if (isBoss && typeof grantMasteryPowerForBoss === 'function') grantMasteryPowerForBoss();
-    // ★ ДРОП ПРЕДМЕТОВ ★
     if (typeof tryDropLoot === 'function') tryDropLoot(isBoss);
     if (isBoss) checkEvolutionQuests(); 
     if (wave === 10000 && isBoss) { gameCompleted = true; saveAll(); alert("🏆 ПОЗДРАВЛЯЕМ! Вы победили финального босса на 10000 волне!\n\nИгра пройдена! Но вы можете продолжать играть бесконечно.\n\nВсе ваши чекпоинты сохранены."); } 
@@ -1012,7 +1056,6 @@ function doRebirth() {
     lastSaveTime = Date.now(); 
     bossSupportUsedThisFight = false; 
     evoProgress = {wavesSaitamaGarou:0,damageGarpKuzan:0,luffyKingUnlocked:false,sgUnlocked:false,gkUnlocked:false,sevenUnlocked:false,williamUnlocked:false,oneShotCount:0}; 
-    // ★ СБРОС ИНВЕНТАРЯ КРОМЕ КУСКА КАМНЯ ★
     let savedStonePiece = (typeof inventory !== 'undefined' && inventory["stone_piece"]) ? inventory["stone_piece"] : 0;
     if (typeof resetInventory === 'function') resetInventory();
     if (savedStonePiece > 0 && typeof addItem === 'function') addItem("stone_piece", savedStonePiece);
@@ -1076,7 +1119,6 @@ document.addEventListener("DOMContentLoaded", function () {
     setInterval(function () { 
         if (currentSlot >= 0) { 
             updatePlayerStats(); 
-            // ★ ГОЛОД И ОТРАВЛЕНИЕ ★
             if (typeof tickHunger === 'function') tickHunger(1);
             if (typeof tickPoison === 'function') tickPoison(1);
             updateClaimTimer(); 
@@ -1085,11 +1127,9 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!challenges.length || Date.now() - (lastChallengeReset || 0) >= 86400000) genChallenges(); 
             if (window._needSave) { saveAll(); window._needSave = false; } 
             hideFreeSpinsUI();
-            // Обновление инвентаря если открыт
             if (document.getElementById("inventorySubTab") && document.getElementById("inventorySubTab").classList.contains("active")) {
                 if (typeof renderInventory === 'function') renderInventory();
             }
-            // Обновление HP если открыт бой
             let hpEl = document.getElementById("playerHp");
             if (hpEl) hpEl.innerText = Math.floor(playerHp);
         } 
