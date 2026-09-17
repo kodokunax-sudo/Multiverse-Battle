@@ -1,5 +1,5 @@
 // ============================================================
-// ИНВЕНТАРЬ v1.1 — фиксы + новые фрукты
+// ИНВЕНТАРЬ v1.2 — жарка в сетке + фикс тайника
 // ============================================================
 
 const ITEMS = {
@@ -27,28 +27,6 @@ const ITEMS = {
         hp: 5, hunger: 10, obesity: 1, antidote: 1,
         actionFunction: "eatFruit"
     },
-    banana: {
-        name: "Банан", icon: "🍌",
-        desc: "+10% HP, -20% голода, -2 ожирение, +2 антидот",
-        cost: 500, stack: 99, canEat: true,
-        hp: 10, hunger: 20, obesity: 2, antidote: 2,
-        actionFunction: "eatFruit"
-    },
-    grapes: {
-        name: "Виноград", icon: "🍇",
-        desc: "+15% HP, -35% голода, -4 ожирение, +4 антидот",
-        cost: 1500, stack: 99, canEat: true,
-        hp: 15, hunger: 35, obesity: 4, antidote: 4,
-        actionFunction: "eatFruit"
-    },
-    pineapple: {
-        name: "Ананас", icon: "🍍",
-        desc: "+25% HP, -60% голода, -10 ожирение, +10 антидот (мгновенно снимает отравление)",
-        cost: 5000, stack: 99, canEat: true,
-        hp: 25, hunger: 60, obesity: 10, antidote: 10,
-        actionFunction: "eatFruit"
-    },
-    // ★ НОВЫЕ ФРУКТЫ ★
     orange: {
         name: "Апельсин", icon: "🍊",
         desc: "+8% HP, -15% голода, -1 ожирение, +2 антидот",
@@ -56,18 +34,11 @@ const ITEMS = {
         hp: 8, hunger: 15, obesity: 1, antidote: 2,
         actionFunction: "eatFruit"
     },
-    watermelon: {
-        name: "Арбуз", icon: "🍉",
-        desc: "+20% HP, -50% голода, -6 ожирение, +3 антидот",
-        cost: 2500, stack: 99, canEat: true,
-        hp: 20, hunger: 50, obesity: 6, antidote: 3,
-        actionFunction: "eatFruit"
-    },
-    lemon: {
-        name: "Лимон", icon: "🍋",
-        desc: "+3% HP, -5% голода, -8 ожирение, +6 антидот (кислый!)",
-        cost: 1200, stack: 99, canEat: true,
-        hp: 3, hunger: 5, obesity: 8, antidote: 6,
+    banana: {
+        name: "Банан", icon: "🍌",
+        desc: "+10% HP, -20% голода, -2 ожирение, +2 антидот",
+        cost: 500, stack: 99, canEat: true,
+        hp: 10, hunger: 20, obesity: 2, antidote: 2,
         actionFunction: "eatFruit"
     },
     cherry: {
@@ -77,11 +48,39 @@ const ITEMS = {
         hp: 7, hunger: 12, obesity: 3, antidote: 5,
         actionFunction: "eatFruit"
     },
+    lemon: {
+        name: "Лимон", icon: "🍋",
+        desc: "+3% HP, -5% голода, -8 ожирение, +6 антидот (кислый!)",
+        cost: 1200, stack: 99, canEat: true,
+        hp: 3, hunger: 5, obesity: 8, antidote: 6,
+        actionFunction: "eatFruit"
+    },
+    grapes: {
+        name: "Виноград", icon: "🍇",
+        desc: "+15% HP, -35% голода, -4 ожирение, +4 антидот",
+        cost: 1500, stack: 99, canEat: true,
+        hp: 15, hunger: 35, obesity: 4, antidote: 4,
+        actionFunction: "eatFruit"
+    },
+    watermelon: {
+        name: "Арбуз", icon: "🍉",
+        desc: "+20% HP, -50% голода, -6 ожирение, +3 антидот",
+        cost: 2500, stack: 99, canEat: true,
+        hp: 20, hunger: 50, obesity: 6, antidote: 3,
+        actionFunction: "eatFruit"
+    },
     mango: {
         name: "Манго", icon: "🥭",
         desc: "+18% HP, -45% голода, -7 ожирение, +8 антидот",
         cost: 3500, stack: 99, canEat: true,
         hp: 18, hunger: 45, obesity: 7, antidote: 8,
+        actionFunction: "eatFruit"
+    },
+    pineapple: {
+        name: "Ананас", icon: "🍍",
+        desc: "+25% HP, -60% голода, -10 ожирение, +10 антидот (мгновенно снимает отравление)",
+        cost: 5000, stack: 99, canEat: true,
+        hp: 25, hunger: 60, obesity: 10, antidote: 10,
         actionFunction: "eatFruit"
     },
     coin: {
@@ -108,7 +107,7 @@ let obesityPoints = 0;
 let poisonTimer = 0;
 let antidotePoints = 0;
 let treasureUnlocked = false;
-let treasureKeyUsed = false; // ★ НОВОЕ: флаг что ключ уже применялся ★
+let treasureKeyUsed = false;
 
 // ========== БАЗОВЫЕ ==========
 function addItem(id, count) {
@@ -140,7 +139,7 @@ function tryDropLoot(isBoss) {
     if (isBoss) {
         addItem("bone", 10);
         if (Math.random() < 0.3) {
-            let fruits = ["apple", "banana", "grapes", "pineapple", "orange", "watermelon", "lemon", "cherry", "mango"];
+            let fruits = ["apple", "orange", "banana", "cherry", "lemon", "grapes", "watermelon", "mango", "pineapple"];
             let f = fruits[Math.floor(Math.random() * fruits.length)];
             addItem(f, 1);
             if (typeof showFloatingText === 'function') showFloatingText("🍎 " + ITEMS[f].name + "!", "#2ecc71");
@@ -168,7 +167,6 @@ function eatRawMeat() {
     if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
         playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.15);
     }
-    // ★ ПОВТОРНОЕ МЯСО УСКОРЯЕТ СМЕРТЬ НА 10 СЕК ★
     if (poisonTimer > 0) {
         poisonTimer = Math.max(0, poisonTimer - 10);
         if (typeof showFloatingText === 'function') showFloatingText("☠️ -10 сек до смерти!", "#ff00ff");
@@ -220,7 +218,6 @@ function eatFruit(fruitId) {
     if (typeof closeModal === 'function') closeModal();
 }
 
-// ★ ФИКС ЖАРКИ ★
 function cookMeat() {
     if (getItemCount("raw_meat") <= 0) {
         if (typeof showFloatingText === 'function') showFloatingText("Нет сырого мяса!", "#ff3333");
@@ -256,7 +253,6 @@ function sellBones() {
     if (typeof closeModal === 'function') closeModal();
 }
 
-// ★ ФИКС КЛЮЧА ★
 function useKey() {
     if (getItemCount("key") <= 0) {
         if (typeof showFloatingText === 'function') showFloatingText("Нет ключа!", "#ff3333");
@@ -341,10 +337,8 @@ function loadInventory(data) {
     obesityPoints = data.obesityPoints || 0;
     poisonTimer = data.poisonTimer || 0;
     antidotePoints = data.antidotePoints || 0;
-    treasureUnlocked = data.treasureUnlocked || false;
-    treasureKeyUsed = data.treasureKeyUsed || false;
-    // ★ ФОЛБЭК: если ключа нет, но флаг использования стоит — считаем открыт ★
-    if (!treasureUnlocked && treasureKeyUsed) treasureUnlocked = true;
+    treasureUnlocked = data.treasureUnlocked === true ? true : false;
+    treasureKeyUsed = data.treasureKeyUsed === true ? true : false;
 }
 
 function resetInventory() {
@@ -380,17 +374,26 @@ function renderInventory() {
     }
     html += '</div>';
 
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;">';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">';
     let hasAny = false;
     for (let id in ITEMS) {
         let count = getItemCount(id);
         if (count > 0) {
             hasAny = true;
             let item = ITEMS[id];
-            html += '<div onclick="showItemModal(\'' + id + '\')" style="background:linear-gradient(180deg,#1e1e2f,#151522);border:2px solid rgba(255,255,255,0.08);border-radius:14px;padding:10px 6px;text-align:center;cursor:pointer;transition:0.2s;">';
+            html += '<div style="background:linear-gradient(180deg,#1e1e2f,#151522);border:2px solid rgba(255,255,255,0.08);border-radius:14px;padding:10px 6px;text-align:center;">';
+            html += '<div onclick="showItemModal(\'' + id + '\')" style="cursor:pointer;">';
             html += '<div style="font-size:36px;">' + item.icon + '</div>';
             html += '<div style="font-size:11px;font-weight:800;margin-top:4px;line-height:1.2;">' + item.name + '</div>';
             html += '<div style="font-size:12px;font-weight:900;color:#f5af19;margin-top:2px;">x' + count + '</div>';
+            html += '</div>';
+            // ★ КНОПКА ЖАРКИ ПРЯМО В СЕТКЕ ★
+            if (item.canCook && id === "raw_meat") {
+                let currentPoints = (typeof points !== 'undefined') ? points : 0;
+                let isModer = (typeof mode !== 'undefined' && mode === "moder");
+                let canCook = isModer || currentPoints >= 10;
+                html += '<button onclick="event.stopPropagation();cookMeat();" style="margin-top:6px;padding:4px 8px;font-size:10px;width:100%;background:' + (canCook ? 'linear-gradient(135deg,#f5af19,#f12711)' : '#555') + ';border:none;border-radius:8px;color:white;font-weight:800;cursor:' + (canCook ? 'pointer' : 'not-allowed') + ';" ' + (!canCook ? 'disabled' : '') + '>🔥 Жарить (10⭐)</button>';
+            }
             html += '</div>';
         }
     }
@@ -415,14 +418,13 @@ function showItemModal(id) {
     html += '<div style="display:flex;flex-direction:column;gap:8px;">';
     if (item.actionFunction === "eatRawMeat") {
         html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatRawMeat();">🍴 Съесть (ОПАСНО — отравишься)</button>';
+        html += '<button class="btn" style="padding:12px;background:linear-gradient(135deg,#f5af19,#f12711);color:white;font-weight:900;border:none;" onclick="cookMeat();">🔥 Пожарить (10⭐)</button>';
     } else if (item.actionFunction === "eatCookedMeat") {
         html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatCookedMeat();">🍴 Съесть (+25% HP, +2 ожирение)</button>';
     } else if (item.actionFunction === "eatFruit") {
         html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatFruit(\'' + id + '\');">' + item.icon + ' Съесть</button>';
     } else if (item.actionFunction === "useKey") {
         html += '<button class="btn btn-primary" style="padding:12px;" onclick="useKey();">🔓 Использовать ключ</button>';
-    } else if (item.canCook) {
-        html += '<button class="btn btn-primary" style="padding:12px;" onclick="cookMeat();">🔥 Пожарить (10⭐)</button>';
     }
     if (item.canSell && item.sellPrice) {
         html += '<button class="btn" style="padding:12px;background:#f5af19;color:#000;font-weight:900;" onclick="sellBones();">💰 Продать всё (' + (count * item.sellPrice) + '⭐)</button>';
@@ -458,6 +460,6 @@ window.loadInventory = loadInventory;
 window.resetInventory = resetInventory;
 window.renderInventory = renderInventory;
 window.showItemModal = showItemModal;
-window.getTreasureUnlocked = function() { return treasureUnlocked; };
+window.getTreasureUnlocked = function() { return treasureUnlocked === true; };
 
-console.log("[INVENTORY] v1.1 — фиксы + 5 новых фруктов");
+console.log("[INVENTORY] v1.2 — кнопка жарки в сетке + фикс тайника");
