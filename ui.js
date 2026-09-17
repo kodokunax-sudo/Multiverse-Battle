@@ -153,7 +153,6 @@ function renderDialog() { if (!currentDialog || !Array.isArray(currentDialog)) r
 function selectDialog(index) { if (!currentDialog || !currentDialog[index]) return; let d = currentDialog[index]; let html = '<div class="dialog-box"><b>Вы:</b> «' + d.text + '»</div>'; html += '<div class="dialog-box"><b>' + currentEnemy.name + ':</b> «' + d.response + '» ' + d.mood + '</div>'; document.getElementById("dialogBox").innerHTML = html; currentDialog = null; }
 
 function updateStatusDisplay() { let html = ''; if (enemyStatuses.fireTicks > 0) html += '<span class="status-effect">🔥 Горит (' + enemyStatuses.fireTicks + ')</span>'; if (enemyStatuses.poisonDamage > 0) html += '<span class="status-effect">🌀 Яд: ' + enemyStatuses.poisonDamage + '</span>'; if (enemyStatuses.bleedMult > 1.0) html += '<span class="status-effect">🩸 Кровотечение: x' + enemyStatuses.bleedMult.toFixed(2) + '</span>'; if (enemyStatuses.freezeStacks > 0) html += '<span class="status-effect">❄️ Обледенение: +' + enemyStatuses.freezeStacks + '</span>'; if (enemyStatuses.shockChance > 0) html += '<span class="status-effect">⚡ Шок: ' + Math.floor(enemyStatuses.shockChance * 100) + '%</span>'; if (enemyStatuses.blindStacks > 0) html += '<span class="status-effect">🕶️ Ослепление: +' + enemyStatuses.blindStacks + '</span>'; html += ' <span class="status-effect" style="background:#ff4400;color:#fff;">⚡Комбо: x' + comboMultiplier + '</span>'; 
-    // ★ ПОКАЗ ГОЛОДА И ОТРАВЛЕНИЯ В БОЮ ★
     if (typeof hunger !== 'undefined' && hunger > 0) {
         let hColor = hunger < 30 ? "#2ecc71" : hunger < 60 ? "#f5af19" : hunger < 85 ? "#e67e22" : "#e74c3c";
         html += ' <span class="status-effect" style="color:' + hColor + ';">🍽️ Голод: ' + Math.floor(hunger) + '%</span>';
@@ -176,7 +175,7 @@ function renderAchievements() { let c = document.getElementById("achievementsLis
 
 function renderChallenges() { let c = document.getElementById("challengeList"); if (!challenges.length) { c.innerHTML = "Квесты загружаются..."; return; } c.innerHTML = challenges.map(ch => '<div class="challenge-item" style="opacity:' + (ch.completed ? 0.6 : 1) + '"><div><b>' + ch.name + '</b><br><small>' + (ch.progress || 0) + '/' + ch.target + '</small></div><div><span style="color:#f5af19;">' + ch.reward + '⭐</span> ' + (ch.completed ? '✅' : '') + '</div></div>').join(''); }
 
-// ★ ОБНОВЛЕНО: блок тайника с ключом ★
+// ★ ОБНОВЛЕНО: 9 фруктов в тайнике ★
 function renderShop() { 
     // ТАЙНИК
     let treasureHtml = '';
@@ -184,10 +183,16 @@ function renderShop() {
         treasureHtml = '<div style="padding:12px;background:rgba(46,204,113,0.1);border:2px solid #2ecc71;border-radius:14px;margin-bottom:10px;">';
         treasureHtml += '<div style="font-weight:900;font-size:14px;color:#2ecc71;margin-bottom:10px;text-align:center;">🔓 ТАЙНИК ОТКРЫТ</div>';
         treasureHtml += '<div style="display:flex;flex-direction:column;gap:8px;">';
+        // ★ 9 ФРУКТОВ ★
         let fruits = [
             { id: "apple", name: "🍏 Яблоко", cost: 200, desc: "+5% HP, -10% голода, -1 ожирение" },
+            { id: "orange", name: "🍊 Апельсин", cost: 350, desc: "+8% HP, -15% голода, -1 ожирение" },
             { id: "banana", name: "🍌 Банан", cost: 500, desc: "+10% HP, -20% голода, -2 ожирение" },
+            { id: "cherry", name: "🍒 Вишня", cost: 800, desc: "+7% HP, -12% голода, -3 ожирение" },
+            { id: "lemon", name: "🍋 Лимон", cost: 1200, desc: "+3% HP, -5% голода, -8 ожирение, +6 антидот" },
             { id: "grapes", name: "🍇 Виноград", cost: 1500, desc: "+15% HP, -35% голода, -4 ожирение" },
+            { id: "watermelon", name: "🍉 Арбуз", cost: 2500, desc: "+20% HP, -50% голода, -6 ожирение" },
+            { id: "mango", name: "🥭 Манго", cost: 3500, desc: "+18% HP, -45% голода, -7 ожирение" },
             { id: "pineapple", name: "🍍 Ананас", cost: 5000, desc: "+25% HP, -60% голода, -10 ожирение" }
         ];
         fruits.forEach(function(f) {
@@ -510,7 +515,6 @@ function renderGachaTab() {
     container.innerHTML = html;
 }
 
-// ★ ОБНОВЛЕНО: добавил renderInventory ★
 function renderAll() { 
     renderMyCards(); 
     renderTeam(); 
