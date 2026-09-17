@@ -178,101 +178,173 @@ function renderAchievements() { let c = document.getElementById("achievementsLis
 
 function renderChallenges() { let c = document.getElementById("challengeList"); if (!challenges.length) { c.innerHTML = "Квесты загружаются..."; return; } c.innerHTML = challenges.map(ch => '<div class="challenge-item" style="opacity:' + (ch.completed ? 0.6 : 1) + '"><div><b>' + ch.name + '</b><br><small>' + (ch.progress || 0) + '/' + ch.target + '</small></div><div><span style="color:#f5af19;">' + ch.reward + '⭐</span> ' + (ch.completed ? '✅' : '') + '</div></div>').join(''); }
 
-// ★★★ ФИКС ТАЙНИКА: ЖЁСТКОЕ УДАЛЕНИЕ ВСЕХ ДУБЛЕЙ ★★★
-function renderShop() { 
-    // ШАГ 1: ЖЁСТКО УДАЛЯЕМ ВСЁ, ЧТО ПОХОЖЕ НА БЛОК ТАЙНИКА
-    // Ищем по id, по классу, и по тексту "ТАЙНИК"
-    document.querySelectorAll("#treasureBlock").forEach(function(el) { el.remove(); });
-    document.querySelectorAll(".treasure-block").forEach(function(el) { el.remove(); });
-    
-    let shopTab = document.getElementById("shopItemsSubTab");
-    if (shopTab) {
-        let children = Array.from(shopTab.children);
-        for (let i = 0; i < children.length; i++) {
-            let child = children[i];
-            // Не трогаем сам контейнер товаров и карточки с другими заголовками
-            if (child.id === "shopItems") continue;
-            if (child.querySelector && child.querySelector("#shopItems")) continue;
-            // Если внутри есть слово "ТАЙНИК" — удаляем
-            if (child.textContent && child.textContent.indexOf("ТАЙНИК") !== -1) {
-                child.remove();
-            }
-        }
+// ============================================================
+// ★★★ НОВАЯ ЛОГИКА ТАЙНИКА ★★★
+// ============================================================
+
+// Пул товаров для тайника (фрукты + расходники)
+const TREASURE_POOL = [
+    // Фрукты
+    { id: "apple", name: "🍏 Яблоко", cost: 200, desc: "+5% HP, -10% голода, -1 ожирение", rarity: "common", weight: 15 },
+    { id: "orange", name: "🍊 Апельсин", cost: 350, desc: "+8% HP, -15% голода, -1 ожирение", rarity: "common", weight: 12 },
+    { id: "banana", name: "🍌 Банан", cost: 500, desc: "+10% HP, -20% голода, -2 ожирение", rarity: "common", weight: 10 },
+    { id: "cherry", name: "🍒 Вишня", cost: 800, desc: "+7% HP, -12% голода, -3 ожирение", rarity: "rare", weight: 8 },
+    { id: "lemon", name: "🍋 Лимон", cost: 1200, desc: "+3% HP, -5% голода, -8 ожирение, +6 антидот", rarity: "rare", weight: 6 },
+    { id: "grapes", name: "🍇 Виноград", cost: 1500, desc: "+15% HP, -35% голода, -4 ожирение", rarity: "rare", weight: 5 },
+    { id: "watermelon", name: "🍉 Арбуз", cost: 2500, desc: "+20% HP, -50% голода, -6 ожирение", rarity: "epic", weight: 4 },
+    { id: "mango", name: "🥭 Манго", cost: 3500, desc: "+18% HP, -45% голода, -7 ожирение", rarity: "epic", weight: 3 },
+    { id: "pineapple", name: "🍍 Ананас", cost: 5000, desc: "+25% HP, -60% голода, -10 ожирение", rarity: "legendary", weight: 2 },
+    // Расходники
+    { id: "bread", name: "🍞 Хлеб", cost: 250, desc: "-40% голода, +1 ожирение", rarity: "common", weight: 10 },
+    { id: "mushroom", name: "🍄 Гриб", cost: 300, desc: "50/50: волшебный или ядовитый", rarity: "common", weight: 10 },
+    { id: "pepper", name: "🌶️ Перец", cost: 400, desc: "+30% скорости, но жжёт HP", rarity: "common", weight: 8 },
+    { id: "ice", name: "🧊 Лёд", cost: 600, desc: "Заморозка врага +5", rarity: "rare", weight: 6 },
+    { id: "antidote_potion", name: "🧪 Мини-зелье", cost: 700, desc: "Мгновенно снять отравление", rarity: "rare", weight: 5 },
+    { id: "honey", name: "🍯 Мёд", cost: 800, desc: "+3% HP/сек × 10 сек", rarity: "rare", weight: 5 },
+    { id: "egg", name: "🥚 Яйцо", cost: 1000, desc: "Рандомная награда", rarity: "epic", weight: 3 }
+];
+
+// Хранилище 3 товаров тайника (глобально, не сохраняется между F5)
+window._treasureItems = window._treasureItems || [];
+
+function getRandomTreasureItem() {
+    let total = TREASURE_POOL.reduce((sum, it) => sum + it.weight, 0);
+    let r = Math.random() * total;
+    let acc = 0;
+    for (let it of TREASURE_POOL) {
+        acc += it.weight;
+        if (r <= acc) return { ...it, uid: Date.now() + Math.random() };
     }
+    return { ...TREASURE_POOL[0], uid: Date.now() + Math.random() };
+}
+
+function getTreasureItems() {
+    if (!window._treasureItems || window._treasureItems.length !== 3) {
+        window._treasureItems = [getRandomTreasureItem(), getRandomTreasureItem(), getRandomTreasureItem()];
+    }
+    return window._treasureItems;
+}
+
+function rerollTreasureItems() {
+    let cost = 500;
+    if (mode !== "moder" && points < cost) { if (typeof showFloatingText === 'function') showFloatingText("Нужно " + cost + "⭐!", "#ff3333"); return; }
+    if (mode !== "moder") points -= cost;
+    window._treasureItems = [getRandomTreasureItem(), getRandomTreasureItem(), getRandomTreasureItem()];
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderPoints === 'function') renderPoints();
+    renderShop();
+    if (typeof showFloatingText === 'function') showFloatingText("🔄 Товары обновлены!", "#f5af19");
+}
+
+window.buyTreasureItem = function(uid) {
+    let items = getTreasureItems();
+    let idx = items.findIndex(it => it.uid === uid);
+    if (idx === -1) return;
+    let item = items[idx];
+    if (mode !== "moder" && points < item.cost) { if (typeof showFloatingText === 'function') showFloatingText("Не хватает ⭐!", "#ff3333"); return; }
+    if (mode !== "moder") points -= item.cost;
+    if (typeof addItem === 'function') addItem(item.id, 1);
+    // Заменяем купленный товар на новый
+    window._treasureItems[idx] = getRandomTreasureItem();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderPoints === 'function') renderPoints();
+    renderShop();
+    if (typeof showFloatingText === 'function') showFloatingText("🎁 " + item.name + " куплено!", "#2ecc71");
+};
+
+// ============================================================
+// ★★★ НОВЫЙ renderShop() С ПОЛНОЙ БЛОКИРОВКОЙ ★★★
+// ============================================================
+
+function renderShop() { 
+    let subTab = document.getElementById("shopItemsSubTab");
+    if (!subTab) return;
     
-    // ШАГ 2: СТРОИМ HTML БЛОКА ТАЙНИКА
-    let treasureHtml = '';
     let isUnlocked = (typeof getTreasureUnlocked === 'function') && getTreasureUnlocked();
     
-    if (isUnlocked) {
-        treasureHtml = '<div id="treasureBlock" class="treasure-block" style="padding:12px;background:rgba(46,204,113,0.1);border:2px solid #2ecc71;border-radius:14px;margin-bottom:10px;">';
-        treasureHtml += '<div style="font-weight:900;font-size:14px;color:#2ecc71;margin-bottom:10px;text-align:center;">🔓 ТАЙНИК ОТКРЫТ</div>';
-        treasureHtml += '<div style="display:flex;flex-direction:column;gap:8px;">';
-        let fruits = [
-            { id: "apple", name: "🍏 Яблоко", cost: 200, desc: "+5% HP, -10% голода, -1 ожирение" },
-            { id: "orange", name: "🍊 Апельсин", cost: 350, desc: "+8% HP, -15% голода, -1 ожирение" },
-            { id: "banana", name: "🍌 Банан", cost: 500, desc: "+10% HP, -20% голода, -2 ожирение" },
-            { id: "cherry", name: "🍒 Вишня", cost: 800, desc: "+7% HP, -12% голода, -3 ожирение" },
-            { id: "lemon", name: "🍋 Лимон", cost: 1200, desc: "+3% HP, -5% голода, -8 ожирение, +6 антидот" },
-            { id: "grapes", name: "🍇 Виноград", cost: 1500, desc: "+15% HP, -35% голода, -4 ожирение" },
-            { id: "watermelon", name: "🍉 Арбуз", cost: 2500, desc: "+20% HP, -50% голода, -6 ожирение" },
-            { id: "mango", name: "🥭 Манго", cost: 3500, desc: "+18% HP, -45% голода, -7 ожирение" },
-            { id: "pineapple", name: "🍍 Ананас", cost: 5000, desc: "+25% HP, -60% голода, -10 ожирение" }
-        ];
-        fruits.forEach(function(f) {
-            let canBuy = (mode === "moder") || points >= f.cost;
-            treasureHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border-radius:10px;">';
-            treasureHtml += '<div><div style="font-weight:800;font-size:13px;">' + f.name + '</div><div style="font-size:10px;color:#aaa;">' + f.desc + '</div></div>';
-            treasureHtml += '<div><span style="color:#f5af19;font-weight:900;margin-right:8px;">' + f.cost + '⭐</span>';
-            treasureHtml += '<button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="buyFruitFromTreasure(\'' + f.id + '\',' + f.cost + ')" ' + (!canBuy ? 'disabled' : '') + '>Купить</button></div>';
-            treasureHtml += '</div>';
-        });
-        treasureHtml += '</div>';
-        
-        treasureHtml += '<div style="margin-top:15px;padding-top:15px;border-top:2px dashed rgba(46,204,113,0.4);">';
-        treasureHtml += '<div style="font-weight:900;font-size:13px;color:#2ecc71;margin-bottom:8px;text-align:center;">🍄 РАСХОДНИКИ</div>';
-        let consumables = [
-            { id: "bread", name: "🍞 Хлеб", cost: 250, desc: "-40% голода, +1 ожирение" },
-            { id: "mushroom", name: "🍄 Гриб", cost: 300, desc: "50/50: волшебный или ядовитый" },
-            { id: "pepper", name: "🌶️ Перец", cost: 400, desc: "+30% скорости, но жжёт HP" },
-            { id: "ice", name: "🧊 Лёд", cost: 600, desc: "Заморозка врага +5" },
-            { id: "antidote_potion", name: "🧪 Мини-зелье", cost: 700, desc: "Мгновенно снять отравление" },
-            { id: "honey", name: "🍯 Мёд", cost: 800, desc: "+3% HP/сек × 10 сек" },
-            { id: "egg", name: "🥚 Яйцо", cost: 1000, desc: "Рандомная награда" }
-        ];
-        consumables.forEach(function(cn) {
-            let canBuy = (mode === "moder") || points >= cn.cost;
-            treasureHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border-radius:10px;margin-bottom:6px;">';
-            treasureHtml += '<div><div style="font-weight:800;font-size:13px;">' + cn.name + '</div><div style="font-size:10px;color:#aaa;">' + cn.desc + '</div></div>';
-            treasureHtml += '<div><span style="color:#f5af19;font-weight:900;margin-right:8px;">' + cn.cost + '⭐</span>';
-            treasureHtml += '<button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="buyFruitFromTreasure(\'' + cn.id + '\',' + cn.cost + ')" ' + (!canBuy ? 'disabled' : '') + '>Купить</button></div>';
-            treasureHtml += '</div>';
-        });
-        treasureHtml += '</div>';
-        treasureHtml += '</div>';
-    } else {
-        treasureHtml = '<div id="treasureBlock" class="treasure-block" style="padding:15px;background:rgba(155,89,182,0.15);border:2px solid #9b59b6;border-radius:14px;margin-bottom:10px;text-align:center;">';
-        treasureHtml += '<div style="font-size:32px;margin-bottom:8px;">🔐</div>';
-        treasureHtml += '<div style="font-weight:900;font-size:14px;color:#9b59b6;margin-bottom:6px;">ТАЙНИК ЗАКРЫТ</div>';
+    // ★ ШАГ 1: УДАЛЯЕМ СТАРЫЕ БЛОКИ ТАЙНИКА И "ЗАКРЫТО" ★
+    document.querySelectorAll("#treasureBlock, #treasureLockedBlock").forEach(function(el) { el.remove(); });
+    
+    // ★ ШАГ 2: СКРЫВАЕМ ИЛИ ПОКАЗЫВАЕМ ВСЕ ДОЧЕРНИЕ .card ЭЛЕМЕНТЫ ★
+    let children = Array.from(subTab.children);
+    for (let child of children) {
+        if (child.id === "treasureBlock" || child.id === "treasureLockedBlock") continue;
+        if (child.classList && child.classList.contains("card")) {
+            child.style.display = isUnlocked ? "" : "none";
+        }
+        // Points и free-spins оставляем видимыми всегда
+    }
+    
+    // ★ ШАГ 3: ЕСЛИ ТАЙНИК ЗАКРЫТ — ПОКАЗЫВАЕМ ТОЛЬКО БЛОК "🔐 ЗАКРЫТО" ★
+    if (!isUnlocked) {
         let hasKey = false;
         try { hasKey = (typeof getItemCount === 'function' && getItemCount("key") > 0); } catch(e) {}
+        
+        let lockHtml = '<div id="treasureLockedBlock" style="margin:20px 0;padding:40px 20px;background:linear-gradient(135deg,rgba(155,89,182,0.25),rgba(75,0,130,0.25));border:3px solid #9b59b6;border-radius:24px;text-align:center;box-shadow:0 0 40px rgba(155,89,182,0.4);">';
+        lockHtml += '<div style="font-size:80px;margin-bottom:15px;filter:drop-shadow(0 0 20px #9b59b6);">🔐</div>';
+        lockHtml += '<div style="font-weight:900;font-size:22px;color:#e056fd;margin-bottom:10px;text-shadow:0 0 15px rgba(224,86,253,0.6);">ТАЙНИК ЗАКРЫТ</div>';
+        lockHtml += '<div style="font-size:14px;color:#bbb;line-height:1.6;margin-bottom:20px;">Все товары в этой вкладке недоступны.<br>Найди <b style="color:#f5af19;">Ключ Живого Камня</b>, чтобы открыть лавку.</div>';
         if (hasKey) {
-            treasureHtml += '<div style="font-size:12px;color:#f5af19;line-height:1.5;margin-bottom:10px;">🎉 У тебя есть <b>Ключ Живого Камня</b>! Используй его, чтобы открыть.</div>';
-            treasureHtml += '<button class="btn btn-primary" style="padding:10px 24px;font-size:14px;font-weight:900;" onclick="useKey();renderShop();">🔓 ИСПОЛЬЗОВАТЬ КЛЮЧ</button>';
+            lockHtml += '<div style="font-size:13px;color:#f5af19;font-weight:bold;margin-bottom:15px;">🎉 У тебя есть ключ! Используй его:</div>';
+            lockHtml += '<button class="btn btn-primary" style="padding:15px 30px;font-size:16px;font-weight:900;background:linear-gradient(135deg,#9b59b6,#e056fd);border:none;" onclick="useKey();renderShop();">🔓 ИСПОЛЬЗОВАТЬ КЛЮЧ</button>';
         } else {
-            treasureHtml += '<div style="font-size:12px;color:#aaa;line-height:1.5;">Найди Ключ Живого Камня (победи Живого Камня на 200 волне) и нажми «Использовать» в инвентаре — товары откроются.</div>';
+            lockHtml += '<div style="font-size:12px;color:#888;padding:10px;background:rgba(0,0,0,0.3);border-radius:10px;">💡 Победи Живого Камня на 200 волне, чтобы получить ключ</div>';
         }
+        lockHtml += '</div>';
+        
+        // Вставляем после points и free-spins (или просто в начало subTab)
+        subTab.insertAdjacentHTML('afterbegin', lockHtml);
+        return;
+    }
+    
+    // ★ ШАГ 4: ТАЙНИК ОТКРЫТ — РЕНДЕРИМ ВСЁ КАК ОБЫЧНО + БЛОК С 3 ТОВАРАМИ ★
+    
+    // 4.1. Блок тайника с 3 рандомными товарами
+    let treasureItems = getTreasureItems();
+    let treasureHtml = '<div id="treasureBlock" style="margin-bottom:15px;padding:15px;background:linear-gradient(135deg,rgba(46,204,113,0.15),rgba(39,174,96,0.1));border:2px solid #2ecc71;border-radius:20px;box-shadow:0 0 20px rgba(46,204,113,0.3);">';
+    treasureHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">';
+    treasureHtml += '<div style="font-weight:900;font-size:16px;color:#2ecc71;text-shadow:0 0 10px rgba(46,204,113,0.5);">🎁 ТАЙНЫЕ ТОВАРЫ</div>';
+    treasureHtml += '<button class="btn" style="padding:6px 14px;font-size:11px;background:rgba(46,204,113,0.3);border:1px solid #2ecc71;color:#2ecc71;font-weight:900;" onclick="rerollTreasureItems()">🔄 Обновить (500⭐)</button>';
+    treasureHtml += '</div>';
+    treasureHtml += '<div style="font-size:11px;color:#aaa;margin-bottom:10px;text-align:center;">3 уникальных товара • обновляются вручную</div>';
+    treasureHtml += '<div style="display:flex;flex-direction:column;gap:8px;">';
+    
+    let rarityColors = {
+        "common": "#6c757d",
+        "rare": "#17a2b8",
+        "epic": "#9b59b6",
+        "legendary": "#ffd700"
+    };
+    let rarityNames = {
+        "common": "Обычный",
+        "rare": "Редкий",
+        "epic": "Эпический",
+        "legendary": "Легендарный"
+    };
+    
+    treasureItems.forEach(function(it) {
+        let canBuy = (mode === "moder") || points >= it.cost;
+        let rColor = rarityColors[it.rarity] || "#6c757d";
+        treasureHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(0,0,0,0.35);border-radius:12px;border-left:4px solid ' + rColor + ';">';
+        treasureHtml += '<div style="flex:1;">';
+        treasureHtml += '<div style="font-weight:800;font-size:14px;">' + it.name + '</div>';
+        treasureHtml += '<div style="font-size:10px;color:#aaa;margin-top:2px;">' + it.desc + '</div>';
+        treasureHtml += '<div style="font-size:9px;color:' + rColor + ';font-weight:bold;margin-top:2px;">' + rarityNames[it.rarity] + '</div>';
         treasureHtml += '</div>';
-    }
+        treasureHtml += '<div style="display:flex;align-items:center;gap:8px;">';
+        treasureHtml += '<span style="color:#f5af19;font-weight:900;font-size:14px;">' + it.cost + '⭐</span>';
+        treasureHtml += '<button class="btn btn-primary" style="padding:6px 14px;font-size:12px;font-weight:900;" onclick="buyTreasureItem(' + it.uid + ')" ' + (!canBuy ? 'disabled' : '') + '>Купить</button>';
+        treasureHtml += '</div>';
+        treasureHtml += '</div>';
+    });
     
-    // ШАГ 3: ВСТАВЛЯЕМ БЛОК ТАЙНИКА ПЕРЕД КОНТЕЙНЕРОМ ТОВАРОВ
-    let shopContainer = document.getElementById("shopItems");
-    if (shopContainer && shopContainer.parentNode) {
-        shopContainer.insertAdjacentHTML('beforebegin', treasureHtml);
-    }
+    treasureHtml += '</div></div>';
     
-    // ШАГ 4: РЕНДЕРИМ ОБЫЧНЫЕ ТОВАРЫ
-    let c = document.getElementById("shopItems"); 
+    // Вставляем блок тайника в начало subTab
+    subTab.insertAdjacentHTML('afterbegin', treasureHtml);
+    
+    // 4.2. Обычные товары
+    let c = document.getElementById("shopItems");
     if (!c) return;
     c.innerHTML = shopItems.map((it, i) => it ? '<div class="shop-item"><div><strong>' + it.name + '</strong>' + (it.desc ? '<br><small>' + it.desc + '</small>' : '') + '</div><div><span class="shop-price">' + it.cost + '⭐</span><button class="btn btn-primary" style="padding:6px 12px;" onclick="buyShopItem(' + i + ')">Купить</button></div></div>' : '<div class="shop-item"><div style="color:#888;">Пусто</div></div>').join(''); 
     
@@ -288,7 +360,7 @@ function renderShop() {
     }
     c.innerHTML += timerHtml;
     
-    // ШАГ 5: АРТЕФАКТЫ
+    // 4.3. Артефакты
     let artHtml = ''; 
     if (rebirthCount >= 4) { 
         artHtml += '<div class="shop-item"><div><b>🗿 Пальцы Сукуны</b><br><small>Усиливает одного героя на 1 час: +50% урона, +40% HP.</small></div><div><span class="shop-price">15000⭐</span><button class="btn" style="padding:6px 12px;" onclick="' + (hasSukunaFingers ? 'showSukunaModal()' : 'buySukuna()') + '">' + (hasSukunaFingers ? 'Выбрать героя' : 'Купить') + '</button></div></div>'; 
@@ -302,20 +374,6 @@ function renderShop() {
     renderBulkSell(); 
     renderAutoRest(); 
 }
-
-// ★★★ ФИКС: ЗАЩИТА ОТ ПОКУПКИ ПРИ ЗАКРЫТОМ ТАЙНИКЕ ★★★
-window.buyFruitFromTreasure = function(fruitId, cost) {
-    if (typeof getTreasureUnlocked !== 'function' || !getTreasureUnlocked()) {
-        if (typeof showFloatingText === 'function') showFloatingText("🔒 Тайник закрыт!", "#ff3333");
-        return;
-    }
-    if (mode !== "moder" && points < cost) return;
-    if (mode !== "moder") points -= cost;
-    if (typeof addItem === 'function') addItem(fruitId, 1);
-    if (typeof renderPoints === 'function') renderPoints();
-    if (typeof renderShop === 'function') renderShop();
-    if (typeof showFloatingText === 'function') showFloatingText("🍎 Куплено!", "#2ecc71");
-};
 
 function renderActiveBuffs() { 
     let n = Date.now(), l = []; 
