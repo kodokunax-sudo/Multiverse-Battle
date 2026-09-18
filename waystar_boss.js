@@ -1,7 +1,6 @@
 // ============================================================
-// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v1.0
-// Фаза 1: Звёздные атаки (HP 100% → 50%)
-// Фаза 2: Space Invaders (30 кусочков)
+// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v1.2
+// Фикс: waystarDialogAutoTimer
 // ============================================================
 
 let waystarActive = false;
@@ -35,12 +34,13 @@ let waystarDialogStep = 0;
 let waystarDialogQueue = [];
 let waystarChoiceActive = false;
 let waystarChoiceResolved = false;
+let waystarDialogAutoTimer = 0;
 
-// ★ SPACE INVADERS (фаза 2) ★
-let waystarPieces = [];        // 30 кусочков
-let waystarPlayerBullets = []; // выстрелы игрока
-let waystarEnemyBullets = [];  // выстрелы кусочков
-let waystarInvaderDir = 1;     // 1 = вправо, -1 = влево
+// ★ SPACE INVADERS ★
+let waystarPieces = [];
+let waystarPlayerBullets = [];
+let waystarEnemyBullets = [];
+let waystarInvaderDir = 1;
 let waystarInvaderSpeed = 0.9;
 let waystarInvaderDropTimer = 0;
 let waystarInvaderShootTimer = 0;
@@ -50,13 +50,10 @@ let waystarPiecesTotal = 30;
 let waystarPiecesAlive = 30;
 let waystarPlayerLives = 3;
 
-// ★ КАРТИНКА / НАГРАДА ★
+// ★ НАГРАДА ★
 let waystarRewardGiven = false;
 
 // ========== ЗВУКИ ==========
-function _wsInitAudio() {
-    if (typeof initArenaAudio === 'function') { try { initArenaAudio(); } catch(e) {} }
-}
 function wsPlaySound(freq, type, dur, vol) {
     if (typeof playArenaSound === 'function') playArenaSound(freq, type, dur, vol);
 }
@@ -67,7 +64,6 @@ function startWaystarFight() {
         if (typeof showFloatingText === 'function') showFloatingText("⏭️ Путеводная Звезда уже побеждена!", "#ffaa00");
         return;
     }
-    // Сброс всего
     waystarActive = true;
     waystarState = "dialogue";
     waystarBossMaxHp = 250000;
@@ -86,12 +82,17 @@ function startWaystarFight() {
     waystarPiecesTotal = 30; waystarPiecesAlive = 30; waystarPlayerLives = 3;
     waystarRewardGiven = false;
     waystarTouchActive = false; waystarTouchId = null;
-    waystarDialogActive = true; waystarDialogStep = 0; waystarChoiceActive = false; waystarChoiceResolved = false;
+    waystarKeys = {};
+    // ★ ВАЖНО: сброс таймера диалога ★
+    waystarDialogActive = true;
+    waystarDialogStep = 0;
+    waystarChoiceActive = false;
+    waystarChoiceResolved = false;
+    waystarDialogAutoTimer = 0;
     
     initWaystarBgStars();
     if (typeof stopAllMusic === 'function') stopAllMusic();
     
-    // Скрыть кнопки
     ['superBtn', 'superBtn2', 'superBtnDeactivate', 'startArenaBtn', 'skipBossBtn', 'spareBtn', 'startLivingStoneBtn', 'startWaystarBtn'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.style.display = "none";
@@ -111,7 +112,6 @@ function startWaystarFight() {
     if (typeof arenaActive !== 'undefined') arenaActive = false;
     if (typeof livingStoneActive !== 'undefined') livingStoneActive = false;
     
-    // LITE MODE на телефоне
     if (typeof _disableCtxShadows === 'function') {
         var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         if (isMobile) _disableCtxShadows(ctx);
@@ -131,7 +131,6 @@ function startWaystarFight() {
     wsPlaySound(300, 'sine', 1.5, 0.2);
     setTimeout(function() { wsPlaySound(400, 'sine', 1.0, 0.15); }, 300);
     
-    // Запуск диалога
     startWaystarDialog();
 }
 
@@ -168,21 +167,22 @@ function initWaystarBgStars() {
     }
 }
 
-// ========== ДИАЛОГ (длинный, с выбором) ==========
+// ========== ДИАЛОГ ==========
 function startWaystarDialog() {
     waystarDialogActive = true;
     waystarDialogStep = 0;
     waystarChoiceActive = false;
     waystarChoiceResolved = false;
+    waystarDialogAutoTimer = 0;
     waystarDialogQueue = [
         { speaker: "🌟 Путеводная Звезда", text: "СТОЙ, ПУТНИК...", time: 3 },
-        { speaker: "🌟 Путеводная Звезда", text: "Я — ПУТЕВОДНАЯ ЗВЕЗДА. Древнее существо, что освещает путь заблудшим в бескрайней тьме космоса.", time: 4 },
-        { speaker: "🌟 Путеводная Звезда", text: "Ты проделал долгий путь. Пятьсот волн. Ты убивал. Ты собирал. Ты рос. Ты становился сильнее с каждым ударом.", time: 4 },
+        { speaker: "🌟 Путеводная Звезда", text: "Я — ПУТЕВОДНАЯ ЗВЕЗДА. Древнее существо, что освещает путь заблудшим в бескрайней тьме космоса.", time: 4.5 },
+        { speaker: "🌟 Путеводная Звезда", text: "Ты проделал долгий путь. Пятьсот волн. Ты убивал. Ты собирал. Ты рос. Ты становился сильнее с каждым ударом.", time: 4.5 },
         { speaker: "🌟 Путеводная Звезда", text: "Но ЗАЧЕМ? Что движет тобой? Что ты ищешь здесь, среди обломков мультивселенной?", time: 4 },
-        { speaker: "🌟 Путеводная Звезда", text: "Я чувствую... боль. Гнев. Что-то горит в твоей душе ярче любого солнца.", time: 3.5 },
+        { speaker: "🌟 Путеводная Звезда", text: "Я чувствую... боль. Гнев. Что-то горит в твоей душе ярче любого солнца.", time: 4 },
         { speaker: "🌟 Путеводная Звезда", text: "Рик...", time: 2 },
-        { speaker: "🌟 Путеводная Звезда", text: "Он тот, кто всё испортил. Тот, кто разорвал ткань реальности на осколки. Тот, кто создал этот... этот цирк.", time: 4.5 },
-        { speaker: "🌟 Путеводная Звезда", text: "Не знаю, зачем тебе эта информация, но по твоим глазам видно, что ты жаждешь мести.", time: 4 },
+        { speaker: "🌟 Путеводная Звезда", text: "Он тот, кто всё испортил. Тот, кто разорвал ткань реальности на осколки. Тот, кто создал этот... этот цирк.", time: 5 },
+        { speaker: "🌟 Путеводная Звезда", text: "Не знаю, зачем тебе эта информация, но по твоим глазам видно, что ты жаждешь мести.", time: 4.5 },
         { speaker: "🌟 Путеводная Звезда", text: "Но кто это? Кому ты так хочешь отомстить?", time: 3, choice: true }
     ];
 }
@@ -202,22 +202,22 @@ function selectWaystarChoice(choiceId) {
     var choices = getWaystarChoices();
     var c = choices.find(function(x) { return x.id === choiceId; });
     if (!c) return;
-    waystarDialogQueue.push({ speaker: "🌟 Путеводная Звезда", text: c.response, time: 4.5 });
+    waystarDialogQueue.push({ speaker: "🌟 Путеводная Звезда", text: c.response, time: 5 });
     waystarDialogQueue.push({ speaker: "🌟 Путеводная Звезда", text: "Достаточно разговоров. Покажи мне свою силу!", time: 3 });
     waystarDialogQueue.push({ speaker: "🌟 Путеводная Звезда", text: "Или я раздавлю тебя, как остальных!", time: 3 });
-    waystarDialogQueue.push({ speaker: "🌟 Путеводная Звезда", text: "МУЛЬТИВСЕЛЕННАЯ НЕ ПРОЩАЕТ СЛАБЫХ!", time: 3 });
+    waystarDialogQueue.push({ speaker: "🌟 Путеводная Звезда", text: "МУЛЬТИВСЕЛЕННАЯ НЕ ПРОЩАЕТ СЛАБЫХ!", time: 3.5 });
     waystarDialogStep++;
+    waystarDialogAutoTimer = 0;
     wsPlaySound(600, 'square', 0.3, 0.2);
 }
 
-// ========== ФАЗА 1 — АТАКИ ЗВЕЗДЫ ==========
+// ========== ФАЗА 1 — АТАКИ ==========
 function waystarSpawnAttack() {
     var type = waystarAttackType;
     var s = waystarSpeedMult;
     var isSecond = waystarBossHp <= waystarBossMaxHp * 0.75;
     
     if (type === 0) {
-        // 🌠 МЕТЕОРНЫЙ ДОЖДЬ
         var count = isSecond ? 6 : 4;
         for (var i = 0; i < count; i++) {
             waystarAttacks.push({
@@ -235,7 +235,6 @@ function waystarSpawnAttack() {
         }
         wsPlaySound(200, 'square', 0.3, 0.1);
     } else if (type === 1) {
-        // ✨ ЗВЁЗДНЫЙ ЛУЧ (вращающийся)
         waystarAttacks.push({
             type: "beam",
             angle: Math.random() * Math.PI * 2,
@@ -247,7 +246,6 @@ function waystarSpawnAttack() {
         });
         wsPlaySound(800, 'sine', 0.5, 0.15);
     } else if (type === 2) {
-        // 💫 КОМЕТА (летит с хвостом)
         var side = Math.floor(Math.random() * 4);
         var x, y, vx, vy;
         if (side === 0) { x = -30; y = 80 + Math.random() * 300; vx = 3 * s; vy = 0; }
@@ -261,7 +259,6 @@ function waystarSpawnAttack() {
         });
         wsPlaySound(150, 'sawtooth', 0.6, 0.15);
     } else if (type === 3) {
-        // 🌌 СОЗВЕЗДИЯ (точки соединяются линиями)
         var points = [];
         var count2 = 4 + Math.floor(Math.random() * 3);
         for (var i = 0; i < count2; i++) {
@@ -280,7 +277,6 @@ function waystarSpawnAttack() {
         });
         wsPlaySound(500, 'sine', 0.4, 0.12);
     } else if (type === 4) {
-        // 🔵 ПУЛЬС (кольцо)
         waystarAttacks.push({
             type: "pulse",
             x: 200, y: 250,
@@ -294,7 +290,6 @@ function waystarSpawnAttack() {
     }
 }
 
-// ========== ПЕРЕХОД НА ФАЗУ 2 ==========
 function waystarTriggerSplit() {
     waystarState = "split";
     waystarShake = 40; waystarScreenFlash = 30; waystarScreenFlashColor = "#ffd700";
@@ -307,13 +302,14 @@ function waystarTriggerSplit() {
     }
     
     waystarDialogActive = true;
+    waystarDialogStep = 0;
+    waystarDialogAutoTimer = 0;
     waystarDialogQueue = [
         { speaker: "🌟 Путеводная Звезда", text: "Хм... ты сильнее, чем я думала, мальчик...", time: 3.5 },
         { speaker: "🌟 Путеводная Звезда", text: "Но это только начало!", time: 2.5 },
-        { speaker: "🌟 Путеводная Звезда", text: "Я — ЛЕГИОН! Я — ТЫСЯЧА СОЛНЦ! Я — ВСЯ ВСЕЛЕННАЯ!", time: 4 },
+        { speaker: "🌟 Путеводная Звезда", text: "Я — ЛЕГИОН! Я — ТЫСЯЧА СОЛНЦ! Я — ВСЯ ВСЕЛЕННАЯ!", time: 4.5 },
         { speaker: "🌟 Путеводная Звезда", text: "ГОТОВЬСЯ К НАСТОЯЩЕЙ БИТВЕ!", time: 3 }
     ];
-    waystarDialogStep = 0;
     
     setTimeout(function() {
         if (waystarActive) {
@@ -329,7 +325,6 @@ function waystarTriggerPhase2() {
     waystarAttacks = [];
     wsPlaySound(300, 'square', 0.5, 0.3);
     
-    // Создаём 30 кусочков в сетке 6x5
     waystarPieces = [];
     var cols = 6;
     var rows = 5;
@@ -384,25 +379,16 @@ function waystarPlayerShoot() {
 }
 
 function updateWaystarSpaceInvaders() {
-    // Кулдаун выстрела
     if (waystarPlayerShootCooldown > 0) waystarPlayerShootCooldown--;
     
-    // Движение кусочков
     var alivePieces = waystarPieces.filter(function(p) { return p.alive; });
     if (alivePieces.length === 0) {
-        // ПОБЕДА
         waystarVictory();
         return;
     }
     
-    var minX = 999, maxX = -999;
-    for (var i = 0; i < alivePieces.length; i++) {
-        if (alivePieces[i].x < minX) minX = alivePieces[i].x;
-        if (alivePieces[i].x > maxX) maxX = alivePieces[i].x;
-    }
     var speed = waystarInvaderSpeed + (waystarPiecesTotal - alivePieces.length) * 0.15;
     
-    // Движение в сторону
     var hitEdge = false;
     for (var i = 0; i < waystarPieces.length; i++) {
         var p = waystarPieces[i];
@@ -411,7 +397,6 @@ function updateWaystarSpaceInvaders() {
         if (p.x - p.size < 10 || p.x + p.size > 390) hitEdge = true;
     }
     
-    // Касание края — опустить вниз и развернуться
     if (hitEdge) {
         waystarInvaderDir *= -1;
         var dropped = false;
@@ -427,18 +412,15 @@ function updateWaystarSpaceInvaders() {
         wsPlaySound(150, 'square', 0.15, 0.1);
     }
     
-    // Если дошли до низа — проигрыш
     if (waystarInvadersReachedBottom) {
         waystarDefeat();
         return;
     }
     
-    // Выстрелы кусочков
     waystarInvaderShootTimer++;
     var shootRate = Math.max(20, 60 - alivePieces.length);
     if (waystarInvaderShootTimer >= shootRate) {
         waystarInvaderShootTimer = 0;
-        // Выбираем случайный живой кусочек
         var shooters = alivePieces.filter(function(p) { return p.y < 350; });
         if (shooters.length > 0) {
             var shooter = shooters[Math.floor(Math.random() * shooters.length)];
@@ -452,13 +434,11 @@ function updateWaystarSpaceInvaders() {
         }
     }
     
-    // Движение пуль игрока
     for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
         var b = waystarPlayerBullets[i];
         b.y += b.vy; b.life--;
         if (b.y < -10 || b.life <= 0) { waystarPlayerBullets.splice(i, 1); continue; }
         
-        // Проверка попадания
         for (var j = 0; j < waystarPieces.length; j++) {
             var p = waystarPieces[j];
             if (!p.alive) continue;
@@ -479,13 +459,11 @@ function updateWaystarSpaceInvaders() {
         }
     }
     
-    // Движение пуль врагов
     for (var i = waystarEnemyBullets.length - 1; i >= 0; i--) {
         var b = waystarEnemyBullets[i];
         b.y += b.vy; b.life--;
         if (b.y > 520 || b.life <= 0) { waystarEnemyBullets.splice(i, 1); continue; }
         
-        // Попадание в игрока
         if (waystarInvulnTimer <= 0 && Math.abs(b.x - waystarPlayer.x) < 12 && Math.abs(b.y - waystarPlayer.y) < 14) {
             waystarPlayerHp -= 12;
             waystarInvulnTimer = 45;
@@ -499,7 +477,6 @@ function updateWaystarSpaceInvaders() {
         }
     }
     
-    // Пульс звёздочек
     for (var i = 0; i < waystarPieces.length; i++) {
         if (waystarPieces[i].alive) waystarPieces[i].pulse += 0.15;
     }
@@ -522,7 +499,6 @@ function handleWaystarDialogClick(ev) {
     var rect = canvas.getBoundingClientRect();
     var mx = ev.clientX - rect.left;
     var my = ev.clientY - rect.top;
-    // Кнопки в диалоге (3 штуки, вертикально)
     var btnW = 320, btnH = 40;
     var btnX = 40, startY = 260;
     for (var i = 0; i < 3; i++) {
@@ -548,7 +524,6 @@ function handleWaystarTouchStart(ev) {
         waystarTouchId = ev.touches[0].identifier;
         waystarTouchX = ev.touches[0].clientX - rect.left;
         waystarTouchY = ev.touches[0].clientY - rect.top;
-        // Тап = выстрел
         waystarPlayerShoot();
     } else if (ev.touches.length > 0 && waystarState === "phase1") {
         if (ev.touches.length > 0 && !waystarTouchActive) {
@@ -596,7 +571,6 @@ function handleWaystarKeyUp(ev) {
 // ========== ОБНОВЛЕНИЯ ==========
 function updateWaystarPlayer() {
     if (waystarState === "phase2") {
-        // Space Invaders — только влево/вправо
         var mx = 0;
         if (waystarKeys.a || waystarKeys.arrowleft) mx -= 1;
         if (waystarKeys.d || waystarKeys.arrowright) mx += 1;
@@ -648,7 +622,6 @@ function updateWaystarAttacks() {
             if (a.warning > 0) a.warning--;
             else a.angle += a.rotSpeed;
             if (a.timer <= 0) { waystarAttacks.splice(i, 1); continue; }
-            // Столкновение с лучом
             if (a.warning <= 0 && waystarInvulnTimer <= 0) {
                 var dx2 = waystarPlayer.x - 200;
                 var dy2 = waystarPlayer.y - 120;
@@ -678,7 +651,6 @@ function updateWaystarAttacks() {
             a.timer--;
             if (a.warning > 0) a.warning--;
             if (a.timer <= 0) { waystarAttacks.splice(i, 1); continue; }
-            // Проверка близости к линии
             if (a.warning <= 0 && waystarInvulnTimer <= 0 && !a.hit) {
                 for (var p = 0; p < a.points.length - 1; p++) {
                     var p1 = a.points[p], p2 = a.points[p + 1];
@@ -756,7 +728,7 @@ function waystarVictory() {
         }
     }
     
-    // Награда: предмет "Путеводная Звезда"
+    // ★ НАГРАДА: ПРЕДМЕТ "Путеводная Звезда" ★
     if (typeof addItem === 'function') addItem("waystar", 1);
     // +1 секретный токен
     if (typeof secretGachaTokens !== 'undefined') secretGachaTokens = (secretGachaTokens || 0) + 1;
@@ -767,8 +739,8 @@ function waystarVictory() {
     }
     
     if (typeof showFloatingText === 'function') showFloatingText("⭐ ПОБЕДА! ⭐", "#ffd700");
-    setTimeout(function() { showFloatingText("🌟 Путеводная Звезда получена!", "#ffd700"); }, 500);
-    setTimeout(function() { showFloatingText("💎 +1 СЕКРЕТНЫЙ ТОКЕН", "#ff00ff"); }, 1200);
+    setTimeout(function() { if (typeof showFloatingText === 'function') showFloatingText("🌟 Путеводная Звезда получена!", "#ffd700"); }, 500);
+    setTimeout(function() { if (typeof showFloatingText === 'function') showFloatingText("💎 +1 СЕКРЕТНЫЙ ТОКЕН", "#ff00ff"); }, 1200);
     
     setTimeout(function() {
         stopWaystarFight();
@@ -794,11 +766,12 @@ function waystarRenderLoop() {
     if (typeof ctx === 'undefined' || !ctx) return;
     if (typeof canvas === 'undefined' || !canvas) return;
     
-    // Обновления
+    // ★ БЕЗОПАСНАЯ ПРОВЕРКА таймера диалога ★
+    if (typeof waystarDialogAutoTimer === 'undefined') waystarDialogAutoTimer = 0;
+    
     if (!waystarDialogActive) {
         if (waystarState === "phase1") {
-            // Проверка перехода на фазу 2
-            if (waystarBossHp <= waystarBossMaxHp * 0.5 && !waystarPieces.length) {
+            if (waystarBossHp <= waystarBossMaxHp * 0.5 && !waystarPieces.length && waystarState === "phase1") {
                 waystarTriggerSplit();
             } else {
                 updateWaystarPlayer();
@@ -822,28 +795,25 @@ function waystarRenderLoop() {
             updateWaystarSpaceInvaders();
         }
     } else {
-        // В диалоге — звезда просто светится
+        // Диалог
         waystarBoss.rotation += 0.01;
         waystarBoss.pulse += 0.05;
-        // Автопродвижение диалога
-        if (!waystarChoiceActive && !waystarChoiceResolved) {
-            var current = waystarDialogQueue[waystarDialogStep];
-            if (current && current.choice) {
-                waystarChoiceActive = true;
-            }
+        
+        var current = waystarDialogQueue[waystarDialogStep];
+        
+        // Если достигли выбора — активируем
+        if (current && current.choice && !waystarChoiceResolved) {
+            waystarChoiceActive = true;
         }
-        if (waystarChoiceActive && !waystarChoiceResolved && waystarDialogQueue[waystarDialogStep] && waystarDialogQueue[waystarDialogStep].choice) {
-            // Ждём выбора
-        } else if (!waystarChoiceActive) {
-            // Автоматический ход
-            waystarDialogAutoTimer = (waystarDialogAutoTimer || 0) + 1;
-            var cur = waystarDialogQueue[waystarDialogStep];
-            if (cur && waystarDialogAutoTimer > cur.time * 60) {
+        
+        // Автопродвижение (когда нет выбора)
+        if (!waystarChoiceActive) {
+            waystarDialogAutoTimer++;
+            if (current && waystarDialogAutoTimer > current.time * 60) {
                 waystarDialogAutoTimer = 0;
                 waystarDialogStep++;
                 if (waystarDialogStep >= waystarDialogQueue.length) {
                     waystarDialogActive = false;
-                    // Начинаем бой
                     waystarState = "phase1";
                 }
             }
@@ -854,7 +824,6 @@ function waystarRenderLoop() {
     if (waystarScreenFlash > 0) waystarScreenFlash--;
     if (waystarBossFlash > 0) waystarBossFlash--;
     
-    // Частицы
     for (var i = waystarParticles.length - 1; i >= 0; i--) {
         var p = waystarParticles[i];
         p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95; p.life--;
@@ -868,7 +837,7 @@ function waystarRenderLoop() {
     }
     ctx.clearRect(-20, -20, 440, 540);
     
-    // ФОН — космос
+    // Фон
     var bg = ctx.createLinearGradient(0, 0, 0, 500);
     bg.addColorStop(0, "#0a0020");
     bg.addColorStop(0.5, "#150030");
@@ -877,7 +846,6 @@ function waystarRenderLoop() {
     ctx.fillRect(0, 0, 400, 500);
     
     // Мерцающие звёзды фона
-    var t = performance.now() / 1000;
     for (var i = 0; i < waystarBgStars.length; i++) {
         var s = waystarBgStars[i];
         s.twinkle += 0.05;
@@ -903,8 +871,8 @@ function waystarRenderLoop() {
     ctx.lineWidth = 3;
     ctx.strokeRect(2, 2, 396, 496);
     
-    // ★ РЕНДЕР В ЗАВИСИМОСТИ ОТ СОСТОЯНИЯ ★
-    if (waystarState === "phase1" || waystarDialogActive) {
+    // Рендер по состоянию
+    if (waystarState === "phase1" || waystarDialogActive || waystarState === "split") {
         drawWaystarBoss();
         drawWaystarPhase1Attacks();
     } else if (waystarState === "phase2") {
@@ -912,7 +880,7 @@ function waystarRenderLoop() {
         drawWaystarBullets();
     }
     
-    // Игрок (сердечко)
+    // Игрок
     if (waystarState === "phase1" || waystarState === "phase2") {
         drawWaystarPlayer();
     }
@@ -957,7 +925,6 @@ function drawWaystarBoss() {
     ctx.translate(b.x, b.y);
     ctx.rotate(b.rotation);
     
-    // Свечение
     var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, size * 3);
     glow.addColorStop(0, "rgba(255, 215, 0, 0.9)");
     glow.addColorStop(0.4, "rgba(255, 170, 0, 0.5)");
@@ -967,7 +934,6 @@ function drawWaystarBoss() {
     ctx.arc(0, 0, size * 3, 0, Math.PI * 2);
     ctx.fill();
     
-    // Звезда (8 лучей)
     ctx.fillStyle = "#ffd700";
     ctx.beginPath();
     for (var i = 0; i < 16; i++) {
@@ -984,7 +950,6 @@ function drawWaystarBoss() {
     ctx.lineWidth = 2;
     ctx.stroke();
     
-    // Ядро
     ctx.fillStyle = "#fff8dc";
     ctx.beginPath();
     ctx.arc(0, 0, size * 0.4, 0, Math.PI * 2);
@@ -1020,7 +985,6 @@ function drawWaystarPhase1Attacks() {
         var a = waystarAttacks[i];
         
         if (a.type === "meteor") {
-            // Хвост
             for (var j = 0; j < a.trail.length; j++) {
                 var tr = a.trail[j];
                 var alpha = (1 - j / a.trail.length) * 0.6;
@@ -1031,7 +995,6 @@ function drawWaystarPhase1Attacks() {
                 ctx.fill();
             }
             ctx.globalAlpha = 1;
-            // Сам метеор
             ctx.save();
             ctx.translate(a.x, a.y);
             ctx.rotate(a.rotation);
@@ -1046,7 +1009,6 @@ function drawWaystarPhase1Attacks() {
             ctx.restore();
         } else if (a.type === "beam") {
             if (a.warning > 0) {
-                // Предупреждение
                 ctx.save();
                 ctx.globalAlpha = 0.3 + Math.sin(performance.now() / 100) * 0.2;
                 ctx.strokeStyle = "#ff3333";
@@ -1059,7 +1021,6 @@ function drawWaystarPhase1Attacks() {
                 ctx.setLineDash([]);
                 ctx.restore();
             } else {
-                // Луч
                 ctx.save();
                 ctx.globalAlpha = 0.7;
                 ctx.strokeStyle = "#ffd700";
@@ -1135,7 +1096,6 @@ function drawWaystarPieces() {
         ctx.translate(p.x, p.y);
         var pulse = 1 + Math.sin(p.pulse) * 0.1;
         ctx.scale(pulse, pulse);
-        // Свечение
         var glow = ctx.createRadialGradient(0, 0, 2, 0, 0, p.size * 2);
         glow.addColorStop(0, "rgba(255, 215, 0, 0.8)");
         glow.addColorStop(1, "rgba(255, 100, 0, 0)");
@@ -1143,7 +1103,6 @@ function drawWaystarPieces() {
         ctx.beginPath();
         ctx.arc(0, 0, p.size * 2, 0, Math.PI * 2);
         ctx.fill();
-        // Звёздочка
         ctx.fillStyle = p.hp === 3 ? "#ffd700" : p.hp === 2 ? "#ff8800" : "#ff4400";
         ctx.beginPath();
         for (var k = 0; k < 10; k++) {
@@ -1164,7 +1123,6 @@ function drawWaystarPieces() {
 }
 
 function drawWaystarBullets() {
-    // Пули игрока
     for (var i = 0; i < waystarPlayerBullets.length; i++) {
         var b = waystarPlayerBullets[i];
         ctx.save();
@@ -1176,7 +1134,6 @@ function drawWaystarBullets() {
         ctx.fill();
         ctx.restore();
     }
-    // Пули врагов
     for (var i = 0; i < waystarEnemyBullets.length; i++) {
         var b = waystarEnemyBullets[i];
         ctx.save();
@@ -1195,7 +1152,6 @@ function drawWaystarBullets() {
 }
 
 function drawWaystarHpBars() {
-    // HP босса
     var barW = 360, barH = 12, x = 20, y = 6;
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.7)";
@@ -1203,7 +1159,6 @@ function drawWaystarHpBars() {
     ctx.fillStyle = "#1a1000";
     ctx.fillRect(x, y, barW, barH);
     if (waystarState === "phase2") {
-        // Показываем количество живых кусочков
         var ratio = waystarPiecesAlive / waystarPiecesTotal;
         ctx.fillStyle = "#ffd700";
         ctx.fillRect(x, y, barW * ratio, barH);
@@ -1222,7 +1177,6 @@ function drawWaystarHpBars() {
     }
     ctx.restore();
     
-    // HP игрока
     var y2 = 478;
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.7)";
@@ -1243,12 +1197,10 @@ function drawWaystarHpBars() {
 }
 
 function drawWaystarDialog() {
-    // Затемнение фона
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.75)";
     ctx.fillRect(0, 0, 400, 500);
     
-    // Портрет звезды
     ctx.save();
     ctx.translate(200, 80);
     var t = performance.now() / 1000;
@@ -1280,16 +1232,13 @@ function drawWaystarDialog() {
     ctx.fill();
     ctx.restore();
     
-    // Текущая реплика
     var current = waystarDialogQueue[waystarDialogStep];
     if (current) {
-        // Имя
         ctx.font = "bold 14px Nunito, sans-serif";
         ctx.textAlign = "center";
         ctx.fillStyle = "#ffd700";
         ctx.fillText(current.speaker, 200, 170);
         
-        // Текст
         ctx.font = "bold 15px Nunito, sans-serif";
         ctx.fillStyle = "#ffffff";
         var lines = wrapText(current.text, 360, ctx);
@@ -1298,7 +1247,6 @@ function drawWaystarDialog() {
         }
     }
     
-    // Варианты выбора
     if (waystarChoiceActive && !waystarChoiceResolved) {
         var choices = getWaystarChoices();
         for (var i = 0; i < choices.length; i++) {
@@ -1338,10 +1286,7 @@ function wrapText(text, maxWidth, ctx) {
     return lines;
 }
 
-// Диалог автоматически идёт через рендер-луп (таймер выше)
-
-// ========== УРОН БОССУ (фаза 1) — от способностей игрока ==========
-// В game.js при атаке на босса 500 вызываем damageWaystarBoss(dmg)
+// ========== УРОН БОССУ (фаза 1) ==========
 function damageWaystarBoss(dmg) {
     if (waystarState !== "phase1") return;
     waystarBossHp -= dmg;
@@ -1354,4 +1299,4 @@ function damageWaystarBoss(dmg) {
 window.startWaystarFight = startWaystarFight;
 window.stopWaystarFight = stopWaystarFight;
 window.damageWaystarBoss = damageWaystarBoss;
-console.log("[WAYSTAR] v1.0 — Путеводная Звезда готова");
+console.log("[WAYSTAR] v1.2 — Путеводная Звезда (фикс таймера)");
