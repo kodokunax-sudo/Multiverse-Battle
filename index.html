@@ -377,8 +377,40 @@
                 <button class="sub-tab-btn" data-subtab="evolution">🧬 Эволюция</button>
             </div>
             <div id="myCardsSubTab" class="sub-tab-content active">
-                <div class="card"><div class="card-title">📚 Карты</div><div id="collectionGrid" class="cards-grid"></div><div class="flex-between" style="margin-top:10px;font-weight:800;"><span>Всего: <span id="totalCards">0</span></span></div></div>
-                <div class="card"><div class="card-title">⚔️ Отряд (6)<button id="clearTeamBtn" class="btn" style="background:#e74c3c;border-color:#c0392b;float:right;padding:4px 10px;">Очистить</button></div><div id="teamList"></div><div id="teamStats" class="buff-active">💪 Урон: <span id="totalDamage">0</span> | ❤️ HP: <span id="totalHpBonus">0</span></div></div>
+                <div class="card">
+                    <div class="card-title">📚 Карты</div>
+                    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+                        <input type="text" id="cardSearchInput" placeholder="🔍 Поиск по имени..." style="padding:10px 14px;background:rgba(0,0,0,0.4);border:2px solid rgba(255,255,255,0.1);border-radius:12px;color:white;font-family:'Nunito',sans-serif;font-weight:bold;font-size:14px;" oninput="updateCardFilter()">
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <select id="cardRarityFilter" style="flex:1;min-width:100px;" onchange="updateCardFilter()">
+                                <option value="all">Все редкости</option>
+                                <option value="Обычная">⚪ Обычные</option>
+                                <option value="Редкая">🔵 Редкие</option>
+                                <option value="Сверх редкая">🟢 Сверх редкие</option>
+                                <option value="Эпик">🟣 Эпик</option>
+                                <option value="Мифическая">🔴 Мифические</option>
+                                <option value="Легендарная">🟡 Легендарные</option>
+                                <option value="Секретная">💎 Секретные</option>
+                            </select>
+                            <select id="cardSortFilter" style="flex:1;min-width:100px;" onchange="updateCardFilter()">
+                                <option value="default">Без сортировки</option>
+                                <option value="dmg_desc">💪 Урон ↓</option>
+                                <option value="dmg_asc">💪 Урон ↑</option>
+                                <option value="hp_desc">❤️ HP ↓</option>
+                                <option value="speed_desc">⚡ Скорость ↓</option>
+                                <option value="rarity_desc">🏆 Редкость ↓</option>
+                                <option value="mastery_desc">⭐ Мастерство ↓</option>
+                                <option value="name_asc">🔤 Имя (А-Я)</option>
+                            </select>
+                        </div>
+                        <button class="btn" style="padding:6px 12px;font-size:12px;background:#6c757d;" onclick="resetCardFilter()">✖️ Сбросить фильтры</button>
+                    </div>
+                    <div id="collectionGrid" class="cards-grid"></div>
+                    <div class="flex-between" style="margin-top:10px;font-weight:800;">
+                        <span>Показано: <span id="shownCards">0</span> / <span id="totalCards">0</span></span>
+                    </div>
+                </div>
+                <div class="card"><div class="card-title">⚔️ Отряд (6)<button id="clearTeamBtn" class="btn" style="background:#e74c3c;border-color:#c0392b;float:right;padding:4px 10px;">Очистить</button></div><div id="teamList"></div><div id="teamStats" class="buff-active">💪 Урон: <span id="totalDamage">0</span> | ❤️ HP: <span id="totalHpBonus">0</span></div><div style="margin-top:12px;padding:10px;background:rgba(0,0,0,0.3);border-radius:12px;"><div style="font-weight:800;font-size:13px;margin-bottom:8px;color:#f5af19;">💾 Пресеты отрядов</div><div id="teamPresetsList"></div></div></div>
                 <div class="card"><div class="card-title">💤 АФК (6)<button id="clearAfkTeamBtn" class="btn" style="background:#e74c3c;border-color:#c0392b;float:right;padding:4px 10px;">Очистить</button></div><div id="afkTeamList"></div><div id="afkTeamStats" class="buff-active">💪 Урон: <span id="afkTotalDamage">0</span> | ❤️ HP: <span id="afkTotalHpBonus">0</span></div></div>
                 <div class="card"><div class="card-title">🏆 Достижения</div><div id="achievementsList" style="display:flex;flex-wrap:wrap;gap:5px;"></div></div>
                 <button id="claimCardBtn" class="btn btn-primary" style="width:100%;margin-top:10px;font-size:16px;padding:15px;">🎴 Получить карту (2ч)</button>
@@ -471,7 +503,13 @@
                 <div class="card"><div class="card-title">💤 Авто-отдых</div><div id="autoRestItems" class="shop-grid"></div></div>
             </div>
             <div id="upgradesSubTab" class="sub-tab-content">
-                <div class="points">⭐ <span id="pointsAmount">0</span></div>
+                <div class="points" style="display:flex;justify-content:center;gap:25px;align-items:center;flex-wrap:wrap;">
+                    <span>⭐ <span id="pointsAmount">0</span></span>
+                    <span style="color:#ffd700;display:inline-flex;align-items:center;gap:5px;">
+                        <svg viewBox="0 0 24 24" style="width:20px;height:20px;filter:drop-shadow(0 0 5px #ffd700);"><path d="M13 2L4.5 13.5H11L10 22L19.5 9.5H13L13 2Z" fill="#ffd700" stroke="#ffaa00" stroke-width="1.5"/></svg>
+                        <span id="powerPointsAmountUpgrade">0</span> Силы
+                    </span>
+                </div>
                 <div class="level-progress"><div>📊 УРОВЕНЬ <span id="playerLevel">1</span></div><div>Опыт: <span id="playerExp">0</span> / <span id="expToNext">150</span></div><div class="level-bar" id="expBar" style="width:0%"></div></div>
                 <div class="card"><div class="card-title">📈 Улучшения</div><div id="upgradeItems" class="upgrade-grid"></div></div>
             </div>
@@ -558,17 +596,17 @@
     <div style="color:#aaa;margin-top:5px;font-size:12px;">❤️ Скорость: <span id="arenaSpeedDisplay">1.2</span></div>
 </div>
 
-<script src="images.js"></script>
-<script src="data.js"></script>
-<script src="mastery.js"></script>
-<script src="daily.js"></script>
-<script src="pass.js"></script>
-<script src="dandy.js"></script>
-<script src="game.js"></script>
-<script src="battle.js"></script>
-<script src="supers.js"></script>
-<script src="living_stone_boss.js"></script>
-<script src="inventory.js"></script>
-<script src="ui.js"></script>
+<script src="images.js?v=8"></script>
+<script src="data.js?v=8"></script>
+<script src="mastery.js?v=8"></script>
+<script src="daily.js?v=8"></script>
+<script src="pass.js?v=8"></script>
+<script src="dandy.js?v=8"></script>
+<script src="game.js?v=8"></script>
+<script src="battle.js?v=8"></script>
+<script src="supers.js?v=8"></script>
+<script src="living_stone_boss.js?v=8"></script>
+<script src="inventory.js?v=8"></script>
+<script src="ui.js?v=8"></script>
 </body>
 </html>
