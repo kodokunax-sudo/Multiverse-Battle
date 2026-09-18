@@ -62,7 +62,7 @@ function startWaystarMusic() {
     if (typeof stopAllMusic === 'function') stopAllMusic();
     if (!waystarMusic) {
         try {
-            waystarMusic = new Audio("music/Звезда 1.mp3");
+            waystarMusic = new Audio("music/Звезда.mp3");
             waystarMusic.loop = true;
             waystarMusic.volume = 0.35;
             waystarMusic.onerror = function() {
