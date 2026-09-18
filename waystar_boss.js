@@ -216,7 +216,7 @@ function startWaystarDialog() {
     ];
     for (var i = 0; i < waystarDialogQueue.length; i++) {
         var r = waystarDialogQueue[i];
-        r.time = 2 + r.text.length * 0.06;
+        r.time = 2 + r.text.length * 0.04;
     }
 }
 
