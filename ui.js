@@ -1,9 +1,52 @@
 // ========== ОТРИСОВКА КАРТОЧЕК ==========
 function renderMyCards() { 
     let c = document.getElementById("collectionGrid"); 
-    document.getElementById("totalCards").innerText = myCards.length; 
-    if (!myCards.length) { c.innerHTML = "<div style='width:100%;text-align:center;padding:20px;color:#888;'>Нет карт</div>"; return; } 
-    c.innerHTML = myCards.map((cd, idx) => { 
+    let totalEl = document.getElementById("totalCards");
+    let shownEl = document.getElementById("shownCards");
+    if (totalEl) totalEl.innerText = myCards.length; 
+    if (!myCards.length) { 
+        c.innerHTML = "<div style='width:100%;text-align:center;padding:20px;color:#888;'>Нет карт</div>"; 
+        if (shownEl) shownEl.innerText = 0;
+        return; 
+    } 
+    
+    // ★ ФИЛЬТРАЦИЯ И СОРТИРОВКА (фича #7) ★
+    let filtered = myCards.map((cd, idx) => ({ cd, idx }));
+    if (typeof cardFilter !== 'undefined') {
+        if (cardFilter.search) {
+            filtered = filtered.filter(item => item.cd.name.toLowerCase().includes(cardFilter.search));
+        }
+        if (cardFilter.rarity && cardFilter.rarity !== 'all') {
+            filtered = filtered.filter(item => item.cd.rarity === cardFilter.rarity);
+        }
+        if (cardFilter.sort !== 'default') {
+            filtered.sort((a, b) => {
+                let ca = a.cd, cb = b.cd;
+                switch(cardFilter.sort) {
+                    case 'dmg_desc': return cb.damage - ca.damage;
+                    case 'dmg_asc': return ca.damage - cb.damage;
+                    case 'hp_desc': return cb.hp - ca.hp;
+                    case 'speed_desc': return (cb.speed || 0.5) - (ca.speed || 0.5);
+                    case 'rarity_desc': {
+                        let order = ["Обычная","Редкая","Сверх редкая","Эпик","Мифическая","Легендарная","Секретная","Эволюционная","Босс"];
+                        return order.indexOf(cb.rarity) - order.indexOf(ca.rarity);
+                    }
+                    case 'mastery_desc': return (cb.mastery || 1) - (ca.mastery || 1);
+                    case 'name_asc': return ca.name.localeCompare(cb.name);
+                    default: return 0;
+                }
+            });
+        }
+    }
+    
+    if (shownEl) shownEl.innerText = filtered.length;
+    
+    if (filtered.length === 0) {
+        c.innerHTML = "<div style='width:100%;text-align:center;padding:20px;color:#888;'>🔍 Ничего не найдено</div>";
+        return;
+    }
+    
+    c.innerHTML = filtered.map(({ cd, idx }) => { 
         let isSeven = cd.name === "Семёрка"; 
         let cvMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.2 : 1); 
         let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); 
@@ -48,6 +91,7 @@ function renderTeam() {
         document.getElementById("totalDamage").innerText = 0; 
         document.getElementById("totalHpBonus").innerText = 0; 
         window.teamDamage = 0; window.teamHpBonus = 0; 
+        if (typeof renderTeamPresets === 'function') renderTeamPresets();
         return; 
     } 
     team.forEach((idx, s) => { 
@@ -118,7 +162,35 @@ function renderTeam() {
             speedDiv.innerHTML = '👑 Главный: <span style="color:#f5af19;">' + escapeHtml(mainCard.name) + '</span> | ⚡ Скорость на арене: <span style="color:#f5af19;">' + mainSpeed.toFixed(1) + '</span>';
         }
     }
+    // ★ ОБНОВЛЯЕМ ПРЕСЕТЫ (фича #8) ★
+    if (typeof renderTeamPresets === 'function') renderTeamPresets();
 }
+
+// ★ РЕНДЕР ПРЕСЕТОВ ОТРЯДОВ (фича #8) ★
+function renderTeamPresets() {
+    let c = document.getElementById("teamPresetsList");
+    if (!c) return;
+    if (typeof teamPresets === 'undefined') { c.innerHTML = ''; return; }
+    let html = '';
+    for (let i = 0; i < 5; i++) {
+        let p = teamPresets[i];
+        if (!p) continue;
+        let isEmpty = !p.team || p.team.length === 0;
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:rgba(0,0,0,0.4);border-radius:10px;margin-bottom:5px;gap:6px;flex-wrap:wrap;border:1px solid rgba(255,255,255,0.05);">';
+        html += '<div style="flex:1;min-width:100px;cursor:pointer;" onclick="renameTeamPreset(' + i + ')" title="Переименовать">';
+        html += '<div style="font-weight:800;font-size:12px;">' + (isEmpty ? '⬜' : '✅') + ' ' + escapeHtml(p.name) + '</div>';
+        html += '<div style="font-size:10px;color:#aaa;">' + (isEmpty ? 'Пусто' : p.team.length + ' карт') + '</div>';
+        html += '</div>';
+        html += '<div style="display:flex;gap:4px;">';
+        html += '<button class="btn" style="padding:4px 9px;font-size:11px;background:#2ecc71;color:#fff;border:none;" onclick="saveTeamPreset(' + i + ')" title="Сохранить">💾</button>';
+        html += '<button class="btn" style="padding:4px 9px;font-size:11px;background:#3498db;color:#fff;border:none;" onclick="loadTeamPreset(' + i + ')" ' + (isEmpty ? 'disabled style="opacity:0.4;"' : '') + ' title="Загрузить">📥</button>';
+        html += '<button class="btn" style="padding:4px 9px;font-size:11px;background:#e74c3c;color:#fff;border:none;" onclick="deleteTeamPreset(' + i + ')" ' + (isEmpty ? 'disabled style="opacity:0.4;"' : '') + ' title="Удалить">🗑️</button>';
+        html += '</div>';
+        html += '</div>';
+    }
+    c.innerHTML = html;
+}
+window.renderTeamPresets = renderTeamPresets;
 
 function renderAfkTeam() { 
     let c = document.getElementById("afkTeamList"), d = 0, h = 0, html = ""; 
@@ -179,12 +251,9 @@ function renderAchievements() { let c = document.getElementById("achievementsLis
 function renderChallenges() { let c = document.getElementById("challengeList"); if (!challenges.length) { c.innerHTML = "Квесты загружаются..."; return; } c.innerHTML = challenges.map(ch => '<div class="challenge-item" style="opacity:' + (ch.completed ? 0.6 : 1) + '"><div><b>' + ch.name + '</b><br><small>' + (ch.progress || 0) + '/' + ch.target + '</small></div><div><span style="color:#f5af19;">' + ch.reward + '⭐</span> ' + (ch.completed ? '✅' : '') + '</div></div>').join(''); }
 
 // ============================================================
-// ★★★ НОВАЯ ЛОГИКА ТАЙНИКА ★★★
+// ТАЙНИК
 // ============================================================
-
-// Пул товаров для тайника (фрукты + расходники)
 const TREASURE_POOL = [
-    // Фрукты
     { id: "apple", name: "🍏 Яблоко", cost: 200, desc: "+5% HP, -10% голода, -1 ожирение", rarity: "common", weight: 15 },
     { id: "orange", name: "🍊 Апельсин", cost: 350, desc: "+8% HP, -15% голода, -1 ожирение", rarity: "common", weight: 12 },
     { id: "banana", name: "🍌 Банан", cost: 500, desc: "+10% HP, -20% голода, -2 ожирение", rarity: "common", weight: 10 },
@@ -194,7 +263,6 @@ const TREASURE_POOL = [
     { id: "watermelon", name: "🍉 Арбуз", cost: 2500, desc: "+20% HP, -50% голода, -6 ожирение", rarity: "epic", weight: 4 },
     { id: "mango", name: "🥭 Манго", cost: 3500, desc: "+18% HP, -45% голода, -7 ожирение", rarity: "epic", weight: 3 },
     { id: "pineapple", name: "🍍 Ананас", cost: 5000, desc: "+25% HP, -60% голода, -10 ожирение", rarity: "legendary", weight: 2 },
-    // Расходники
     { id: "bread", name: "🍞 Хлеб", cost: 250, desc: "-40% голода, +1 ожирение", rarity: "common", weight: 10 },
     { id: "mushroom", name: "🍄 Гриб", cost: 300, desc: "50/50: волшебный или ядовитый", rarity: "common", weight: 10 },
     { id: "pepper", name: "🌶️ Перец", cost: 400, desc: "+30% скорости, но жжёт HP", rarity: "common", weight: 8 },
@@ -204,7 +272,6 @@ const TREASURE_POOL = [
     { id: "egg", name: "🥚 Яйцо", cost: 1000, desc: "Рандомная награда", rarity: "epic", weight: 3 }
 ];
 
-// Хранилище 3 товаров тайника (глобально, не сохраняется между F5)
 window._treasureItems = window._treasureItems || [];
 
 function getRandomTreasureItem() {
@@ -244,7 +311,6 @@ window.buyTreasureItem = function(uid) {
     if (mode !== "moder" && points < item.cost) { if (typeof showFloatingText === 'function') showFloatingText("Не хватает ⭐!", "#ff3333"); return; }
     if (mode !== "moder") points -= item.cost;
     if (typeof addItem === 'function') addItem(item.id, 1);
-    // Заменяем купленный товар на новый
     window._treasureItems[idx] = getRandomTreasureItem();
     if (typeof saveAll === 'function') saveAll();
     if (typeof renderPoints === 'function') renderPoints();
@@ -252,30 +318,22 @@ window.buyTreasureItem = function(uid) {
     if (typeof showFloatingText === 'function') showFloatingText("🎁 " + item.name + " куплено!", "#2ecc71");
 };
 
-// ============================================================
-// ★★★ НОВЫЙ renderShop() С ПОЛНОЙ БЛОКИРОВКОЙ ★★★
-// ============================================================
-
 function renderShop() { 
     let subTab = document.getElementById("shopItemsSubTab");
     if (!subTab) return;
     
     let isUnlocked = (typeof getTreasureUnlocked === 'function') && getTreasureUnlocked();
     
-    // ★ ШАГ 1: УДАЛЯЕМ СТАРЫЕ БЛОКИ ТАЙНИКА И "ЗАКРЫТО" ★
     document.querySelectorAll("#treasureBlock, #treasureLockedBlock").forEach(function(el) { el.remove(); });
     
-    // ★ ШАГ 2: СКРЫВАЕМ ИЛИ ПОКАЗЫВАЕМ ВСЕ ДОЧЕРНИЕ .card ЭЛЕМЕНТЫ ★
     let children = Array.from(subTab.children);
     for (let child of children) {
         if (child.id === "treasureBlock" || child.id === "treasureLockedBlock") continue;
         if (child.classList && child.classList.contains("card")) {
             child.style.display = isUnlocked ? "" : "none";
         }
-        // Points и free-spins оставляем видимыми всегда
     }
     
-    // ★ ШАГ 3: ЕСЛИ ТАЙНИК ЗАКРЫТ — ПОКАЗЫВАЕМ ТОЛЬКО БЛОК "🔐 ЗАКРЫТО" ★
     if (!isUnlocked) {
         let hasKey = false;
         try { hasKey = (typeof getItemCount === 'function' && getItemCount("key") > 0); } catch(e) {}
@@ -292,14 +350,10 @@ function renderShop() {
         }
         lockHtml += '</div>';
         
-        // Вставляем после points и free-spins (или просто в начало subTab)
         subTab.insertAdjacentHTML('afterbegin', lockHtml);
         return;
     }
     
-    // ★ ШАГ 4: ТАЙНИК ОТКРЫТ — РЕНДЕРИМ ВСЁ КАК ОБЫЧНО + БЛОК С 3 ТОВАРАМИ ★
-    
-    // 4.1. Блок тайника с 3 рандомными товарами
     let treasureItems = getTreasureItems();
     let treasureHtml = '<div id="treasureBlock" style="margin-bottom:15px;padding:15px;background:linear-gradient(135deg,rgba(46,204,113,0.15),rgba(39,174,96,0.1));border:2px solid #2ecc71;border-radius:20px;box-shadow:0 0 20px rgba(46,204,113,0.3);">';
     treasureHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">';
@@ -340,10 +394,8 @@ function renderShop() {
     
     treasureHtml += '</div></div>';
     
-    // Вставляем блок тайника в начало subTab
     subTab.insertAdjacentHTML('afterbegin', treasureHtml);
     
-    // 4.2. Обычные товары
     let c = document.getElementById("shopItems");
     if (!c) return;
     c.innerHTML = shopItems.map((it, i) => it ? '<div class="shop-item"><div><strong>' + it.name + '</strong>' + (it.desc ? '<br><small>' + it.desc + '</small>' : '') + '</div><div><span class="shop-price">' + it.cost + '⭐</span><button class="btn btn-primary" style="padding:6px 12px;" onclick="buyShopItem(' + i + ')">Купить</button></div></div>' : '<div class="shop-item"><div style="color:#888;">Пусто</div></div>').join(''); 
@@ -360,7 +412,6 @@ function renderShop() {
     }
     c.innerHTML += timerHtml;
     
-    // 4.3. Артефакты
     let artHtml = ''; 
     if (rebirthCount >= 4) { 
         artHtml += '<div class="shop-item"><div><b>🗿 Пальцы Сукуны</b><br><small>Усиливает одного героя на 1 час: +50% урона, +40% HP.</small></div><div><span class="shop-price">15000⭐</span><button class="btn" style="padding:6px 12px;" onclick="' + (hasSukunaFingers ? 'showSukunaModal()' : 'buySukuna()') + '">' + (hasSukunaFingers ? 'Выбрать героя' : 'Купить') + '</button></div></div>'; 
@@ -374,6 +425,19 @@ function renderShop() {
     renderBulkSell(); 
     renderAutoRest(); 
 }
+
+window.buyFruitFromTreasure = function(fruitId, cost) {
+    if (typeof getTreasureUnlocked !== 'function' || !getTreasureUnlocked()) {
+        if (typeof showFloatingText === 'function') showFloatingText("🔒 Тайник закрыт!", "#ff3333");
+        return;
+    }
+    if (mode !== "moder" && points < cost) return;
+    if (mode !== "moder") points -= cost;
+    if (typeof addItem === 'function') addItem(fruitId, 1);
+    if (typeof renderPoints === 'function') renderPoints();
+    if (typeof renderShop === 'function') renderShop();
+    if (typeof showFloatingText === 'function') showFloatingText("🍎 Куплено!", "#2ecc71");
+};
 
 function renderActiveBuffs() { 
     let n = Date.now(), l = []; 
@@ -659,6 +723,7 @@ function renderAll() {
     renderPass(); 
     if (typeof renderGachaTab === 'function') renderGachaTab(); 
     if (typeof renderPowerPoints === 'function') renderPowerPoints(); 
+    if (typeof renderTeamPresets === 'function') renderTeamPresets();
     updatePlayerStats(); 
     updateStatusDisplay(); 
 }
