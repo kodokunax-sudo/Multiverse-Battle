@@ -51,6 +51,7 @@ function finishSlotLoad(slot) {
     if (typeof renderGachaTab === 'function') renderGachaTab();
     if (typeof renderPowerPoints === 'function') renderPowerPoints();
     if (typeof renderInventory === 'function') renderInventory();
+    if (typeof renderTeamPresets === 'function') renderTeamPresets();
     updateLevelDisplay(); updateFatigue(); updateRestBtn(); updateClaimTimer(); setMode(mode);
     updatePlayerStats(); updateStatusDisplay();
     el = document.getElementById("waveNumber"); if (el) el.innerText = wave;
@@ -195,6 +196,10 @@ function loadGameData(d) {
             if (myCards[i] && typeof myCards[i].masteryExp === 'undefined') myCards[i].masteryExp = 0;
         }
     }
+    // ★ ПРЕСЕТЫ ОТРЯДОВ ★
+    if (d.teamPresets && Array.isArray(d.teamPresets) && d.teamPresets.length === 5) {
+        teamPresets = d.teamPresets;
+    }
     if (d.dailyRewards) {
         dailyRewards.currentDay = d.dailyRewards.currentDay || 1;
         dailyRewards.lastClaimDate = d.dailyRewards.lastClaimDate || null;
@@ -283,6 +288,14 @@ function initNewGame() {
     lastSaveTime = Date.now();
     bossSupportUsedThisFight = false;
     mainCardIndex = 0;
+    // ★ СБРОС ПРЕСЕТОВ ★
+    teamPresets = [
+        { name: "Пресет 1", team: [], mainIndex: 0 },
+        { name: "Пресет 2", team: [], mainIndex: 0 },
+        { name: "Пресет 3", team: [], mainIndex: 0 },
+        { name: "Пресет 4", team: [], mainIndex: 0 },
+        { name: "Пресет 5", team: [], mainIndex: 0 }
+    ];
     dailyRewards = { currentDay: 1, lastClaimDate: null, claimedToday: false };
     passData = { currentTier: 1, passExp: 0, claimedTiers: [] };
     if (typeof setPowerPoints === 'function') setPowerPoints(0);
@@ -360,6 +373,7 @@ function saveAll() {
     slotData.nickname = slotData.nickname || loadSlotMeta(currentSlot).nickname;
     slotData.dailyRewards = dailyRewards;
     slotData.passData = passData;
+    slotData.teamPresets = teamPresets; // ★ ПРЕСЕТЫ ОТРЯДОВ ★
     if (typeof getPowerPoints === 'function') slotData.powerPoints = getPowerPoints();
     if (typeof saveInventory === 'function') slotData.inventory = saveInventory();
     saveGameToSlot(currentSlot); 
@@ -405,6 +419,97 @@ let hpDecayInterval = null;
 let mainCardIndex = 0;
 window._needSave = false;
 
+// ========== ФИЛЬТР КАРТ (фича #7) ==========
+let cardFilter = {
+    search: '',
+    rarity: 'all',
+    sort: 'default'
+};
+
+function updateCardFilter() {
+    let searchEl = document.getElementById("cardSearchInput");
+    let rarityEl = document.getElementById("cardRarityFilter");
+    let sortEl = document.getElementById("cardSortFilter");
+    if (searchEl) cardFilter.search = searchEl.value.toLowerCase().trim();
+    if (rarityEl) cardFilter.rarity = rarityEl.value;
+    if (sortEl) cardFilter.sort = sortEl.value;
+    if (typeof renderMyCards === 'function') renderMyCards();
+    if (typeof sfxUITab === 'function') sfxUITab();
+}
+
+function resetCardFilter() {
+    cardFilter = { search: '', rarity: 'all', sort: 'default' };
+    let searchEl = document.getElementById("cardSearchInput");
+    let rarityEl = document.getElementById("cardRarityFilter");
+    let sortEl = document.getElementById("cardSortFilter");
+    if (searchEl) searchEl.value = '';
+    if (rarityEl) rarityEl.value = 'all';
+    if (sortEl) sortEl.value = 'default';
+    if (typeof renderMyCards === 'function') renderMyCards();
+    if (typeof sfxUIClose === 'function') sfxUIClose();
+}
+
+window.updateCardFilter = updateCardFilter;
+window.resetCardFilter = resetCardFilter;
+
+// ========== ПРЕСЕТЫ ОТРЯДОВ (фича #8) ==========
+let teamPresets = [
+    { name: "Пресет 1", team: [], mainIndex: 0 },
+    { name: "Пресет 2", team: [], mainIndex: 0 },
+    { name: "Пресет 3", team: [], mainIndex: 0 },
+    { name: "Пресет 4", team: [], mainIndex: 0 },
+    { name: "Пресет 5", team: [], mainIndex: 0 }
+];
+
+function saveTeamPreset(slot) {
+    if (slot < 0 || slot >= 5) return;
+    if (!team.length) { if (typeof showFloatingText === 'function') showFloatingText("Отряд пуст!", "#ff3333"); return; }
+    teamPresets[slot] = { name: teamPresets[slot].name, team: [...team], mainIndex: mainCardIndex };
+    saveAll();
+    if (typeof renderTeamPresets === 'function') renderTeamPresets();
+    if (typeof sfxUIPreset === 'function') sfxUIPreset();
+    if (typeof showFloatingText === 'function') showFloatingText("💾 " + teamPresets[slot].name + " сохранён!", "#2ecc71");
+}
+
+function loadTeamPreset(slot) {
+    if (slot < 0 || slot >= 5) return;
+    let p = teamPresets[slot];
+    if (!p || !p.team || !p.team.length) { if (typeof showFloatingText === 'function') showFloatingText("Пресет пуст!", "#ff3333"); return; }
+    let validTeam = p.team.filter(idx => idx >= 0 && idx < myCards.length);
+    if (!validTeam.length) { if (typeof showFloatingText === 'function') showFloatingText("Карты пресета не найдены!", "#ff3333"); return; }
+    team = validTeam;
+    mainCardIndex = Math.min(p.mainIndex || 0, team.length - 1);
+    normalizeMainCard();
+    saveAll();
+    if (typeof renderAll === 'function') renderAll();
+    updatePlayerStats();
+    if (typeof sfxUIPreset === 'function') sfxUIPreset();
+    if (typeof showFloatingText === 'function') showFloatingText("📥 " + p.name + " загружен!", "#2ecc71");
+}
+
+function deleteTeamPreset(slot) {
+    if (slot < 0 || slot >= 5) return;
+    if (!confirm("Удалить " + teamPresets[slot].name + "?")) return;
+    teamPresets[slot] = { name: "Пресет " + (slot + 1), team: [], mainIndex: 0 };
+    saveAll();
+    if (typeof renderTeamPresets === 'function') renderTeamPresets();
+    if (typeof showFloatingText === 'function') showFloatingText("🗑️ Пресет удалён", "#ffaa00");
+}
+
+function renameTeamPreset(slot) {
+    if (slot < 0 || slot >= 5) return;
+    let newName = prompt("Новое имя пресета:", teamPresets[slot].name);
+    if (newName === null || newName.trim() === "") return;
+    teamPresets[slot].name = newName.trim();
+    saveAll();
+    if (typeof renderTeamPresets === 'function') renderTeamPresets();
+}
+
+window.saveTeamPreset = saveTeamPreset;
+window.loadTeamPreset = loadTeamPreset;
+window.deleteTeamPreset = deleteTeamPreset;
+window.renameTeamPreset = renameTeamPreset;
+
 // ========== МУЗЫКА ==========
 let mainMusic = null, battleMusic = null, shopMusic = null, currentMusic = null;
 let musicLoadFailed = { main: false, battle: false, shop: false };
@@ -414,6 +519,53 @@ function startMainMusic() { if (!musicEnabled) return; if (!mainMusic && !musicL
 function startBattleMusic() { if (!musicEnabled) return; if (!battleMusic && !musicLoadFailed.battle) initMusic(); if (!battleMusic || currentMusic === battleMusic) return; stopAllMusic(); currentMusic = battleMusic; try { battleMusic.play().catch(() => {}); } catch(e) {} }
 function startShopMusic() { if (!musicEnabled) return; if (!shopMusic && !musicLoadFailed.shop) initMusic(); if (!shopMusic || currentMusic === shopMusic) return; stopAllMusic(); currentMusic = shopMusic; try { shopMusic.play().catch(() => {}); } catch(e) {} }
 function toggleMusic() { musicEnabled = !musicEnabled; if (musicEnabled) { if (currentMusic) { try { currentMusic.play().catch(() => {}); } catch(e) {} } else { startMainMusic(); } } else { stopAllMusic(); } let btn = document.getElementById("musicToggleBtn"); if (btn) btn.innerText = musicEnabled ? "🔊" : "🔇"; }
+
+// ========== UI ЗВУКИ (фича #14) ==========
+let _uiAudioCtx = null;
+function _initUIAudio() {
+    if (_uiAudioCtx) { if (_uiAudioCtx.state === 'suspended') _uiAudioCtx.resume(); return; }
+    try { _uiAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+}
+function _playUISound(freq, type, dur, vol) {
+    if (vol === undefined) vol = 0.1;
+    _initUIAudio();
+    if (!_uiAudioCtx) return;
+    try {
+        let o = _uiAudioCtx.createOscillator();
+        let g = _uiAudioCtx.createGain();
+        o.type = type || 'sine';
+        o.frequency.setValueAtTime(freq, _uiAudioCtx.currentTime);
+        g.gain.setValueAtTime(vol, _uiAudioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, _uiAudioCtx.currentTime + dur);
+        o.connect(g);
+        g.connect(_uiAudioCtx.destination);
+        o.start();
+        o.stop(_uiAudioCtx.currentTime + dur);
+    } catch(e) {}
+}
+function sfxUISell() { _playUISound(700, 'sine', 0.15, 0.08); setTimeout(function() { _playUISound(900, 'sine', 0.12, 0.06); }, 60); }
+function sfxUIBuy() { _playUISound(500, 'square', 0.1, 0.06); setTimeout(function() { _playUISound(700, 'square', 0.1, 0.05); }, 50); }
+function sfxUIOpen() { _playUISound(600, 'sine', 0.1, 0.05); }
+function sfxUIClose() { _playUISound(400, 'sine', 0.1, 0.05); }
+function sfxUINotification() { _playUISound(800, 'sine', 0.15, 0.08); setTimeout(function() { _playUISound(1000, 'sine', 0.2, 0.08); }, 100); }
+function sfxUIMastery() { _playUISound(600, 'sine', 0.15, 0.1); setTimeout(function() { _playUISound(800, 'sine', 0.15, 0.1); }, 80); setTimeout(function() { _playUISound(1200, 'sine', 0.25, 0.12); }, 160); }
+function sfxUIPreset() { _playUISound(500, 'triangle', 0.12, 0.08); setTimeout(function() { _playUISound(800, 'triangle', 0.15, 0.08); }, 80); }
+function sfxUITab() { _playUISound(500, 'sine', 0.06, 0.04); }
+function sfxUIError() { _playUISound(200, 'sawtooth', 0.3, 0.1); setTimeout(function() { _playUISound(150, 'sawtooth', 0.3, 0.1); }, 100); }
+function sfxUIModalOpen() { _playUISound(700, 'sine', 0.08, 0.05); setTimeout(function() { _playUISound(900, 'sine', 0.1, 0.05); }, 50); }
+function sfxUIModalClose() { _playUISound(500, 'sine', 0.1, 0.05); }
+
+window.sfxUISell = sfxUISell;
+window.sfxUIBuy = sfxUIBuy;
+window.sfxUIOpen = sfxUIOpen;
+window.sfxUIClose = sfxUIClose;
+window.sfxUINotification = sfxUINotification;
+window.sfxUIMastery = sfxUIMastery;
+window.sfxUIPreset = sfxUIPreset;
+window.sfxUITab = sfxUITab;
+window.sfxUIError = sfxUIError;
+window.sfxUIModalOpen = sfxUIModalOpen;
+window.sfxUIModalClose = sfxUIModalClose;
 
 // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 function getRebirthMult() { return 1 + rebirthCount * 0.3; }
@@ -483,7 +635,15 @@ function checkFreeSpinReset() { let n = Date.now(); if (!lastFreeSpinReset) { la
 function useFreeSpin() { if (freeSpins <= 0) return; let c = createCard(getRandomRarity()); if (!c) return; myCards.push(c); freeSpins--; saveAll(); renderMyCards(); sfxCardObtain(); }
 function buySpin() { if (mode !== "moder" && points < 150) return; if (mode !== "moder") points -= 150; let c = createCard(getRandomRarity()); if (!c) return; myCards.push(c); saveAll(); renderMyCards(); renderPoints(); sfxCardObtain(); }
 function sellCard(idx) { let c = myCards[idx]; if (!c || c.unsellable) return; let requiresConfirmation = ["Мифическая", "Легендарная", "Секретная", "Босс"].includes(c.rarity); if (!requiresConfirmation) { doSellCard(idx); return; } if (confirm("⚠️ Вы точно хотите продать " + c.name + " (" + c.rarity + ")?")) doSellCard(idx); }
-function doSellCard(idx) { let c = myCards[idx]; points += Math.floor((c.sellPrice || 0) * getStarMult()); if (points > maxPoints) maxPoints = points; totalCardsObtained--; removeCard(idx); if (!achievements.sellCard100 && myCards.length <= 0) { achievements.sellCard100 = true; points += Math.floor(200 * getStarMult()); saveAll(); renderAchievements(); } }
+function doSellCard(idx) { 
+    if (typeof sfxUISell === 'function') sfxUISell(); 
+    let c = myCards[idx]; 
+    points += Math.floor((c.sellPrice || 0) * getStarMult()); 
+    if (points > maxPoints) maxPoints = points; 
+    totalCardsObtained--; 
+    removeCard(idx); 
+    if (!achievements.sellCard100 && myCards.length <= 0) { achievements.sellCard100 = true; points += Math.floor(200 * getStarMult()); saveAll(); renderAchievements(); } 
+}
 function removeCard(idx) { let p = team.indexOf(idx); if (p !== -1) { team.splice(p, 1); normalizeMainCard(); } p = afkTeam.indexOf(idx); if (p !== -1) afkTeam.splice(p, 1); myCards.splice(idx, 1); for (let i = 0; i < team.length; i++) if (team[i] > idx) team[i]--; for (let i = 0; i < afkTeam.length; i++) if (afkTeam[i] > idx) afkTeam[i]--; normalizeMainCard(); saveAll(); renderAll(); updatePlayerStats(); }
 function toggleTeam(idx) { let p = team.indexOf(idx); if (p !== -1) { team.splice(p, 1); } else { if (afkTeam.includes(idx)) return; if (team.length >= 6) return; team.push(idx); } normalizeMainCard(); saveAll(); renderAll(); updatePlayerStats(); checkAchievements(); }
 function toggleAfk(idx) { let p = afkTeam.indexOf(idx); if (p !== -1) afkTeam.splice(p, 1); else { if (team.includes(idx)) return; if (afkTeam.length >= 6) return; afkTeam.push(idx); } saveAll(); renderAll(); }
@@ -594,8 +754,18 @@ function updatePlayerStats() {
 }
 
 function showFloatingText(text, color) { const area = document.getElementById('clickArea'); if (!area) return; const el = document.createElement('div'); el.className = 'floating-text'; el.textContent = text; el.style.color = color; el.style.left = Math.random() * 60 + 20 + '%'; el.style.top = '50%'; area.appendChild(el); setTimeout(() => el.remove(), 1000); }
-function showModal(title, content) { let el = document.getElementById("modalContent"); if (el) el.innerHTML = '<h2>' + title + '</h2><p style="margin-top:10px;white-space:pre-line;">' + content + '</p><button class="btn btn-primary" style="width:100%;padding:12px;" onclick="closeModal()">Закрыть</button>'; el = document.getElementById("modalOverlay"); if (el) el.style.display = "flex"; }
-function closeModal() { let el = document.getElementById("modalOverlay"); if (el) el.style.display = "none"; }
+function showModal(title, content) { 
+    if (typeof sfxUIModalOpen === 'function') sfxUIModalOpen(); 
+    let el = document.getElementById("modalContent"); 
+    if (el) el.innerHTML = '<h2>' + title + '</h2><p style="margin-top:10px;white-space:pre-line;">' + content + '</p><button class="btn btn-primary" style="width:100%;padding:12px;" onclick="closeModal()">Закрыть</button>'; 
+    el = document.getElementById("modalOverlay"); 
+    if (el) el.style.display = "flex"; 
+}
+function closeModal() { 
+    if (typeof sfxUIModalClose === 'function') sfxUIModalClose(); 
+    let el = document.getElementById("modalOverlay"); 
+    if (el) el.style.display = "none"; 
+}
 function startFireEffectPassive(damage, durationMs) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } let elapsed = 0; fireInterval = setInterval(() => { if (!currentEnemy || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } return; } currentEnemy.hp -= damage; showFloatingText("🔥 -" + damage, "#ff6b6b"); renderEnemy(); elapsed += 2000; if (elapsed >= durationMs || currentEnemy.hp <= 0) { if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } if (currentEnemy && currentEnemy.hp <= 0) victory(); } }, 2000); }
 
 // ========== ОФЛАЙН-ПРОГРЕСС ==========
@@ -736,13 +906,11 @@ function generateEnemy() {
     let livingBtn = document.getElementById("startLivingStoneBtn");
     let skipBtn = document.getElementById("skipArenaBtn");
     
-    // ★ ПРОВЕРКА ЖИВОГО КАМНЯ ★
     if (wave === 200 && isUniqueBoss) {
         let alreadyDefeatedStone = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200);
         if (btn) btn.style.display = "none";
         if (livingBtn) livingBtn.style.display = alreadyDefeatedStone ? "none" : "block";
         
-        // ★ ЕСЛИ КАМЕНЬ УЖЕ ПОБЕЖДЁН — ДЕЛАЕМ ОБЫЧНОГО КЛИКЕРНОГО БОССА С HP x0.5 ★
         if (alreadyDefeatedStone) {
             currentEnemy.hp = Math.floor(currentEnemy.hp * 0.2);
             currentEnemy.maxHp = currentEnemy.hp;
@@ -952,7 +1120,20 @@ function stackBuff(buffId, duration) {
     renderActiveBuffs(); 
 }
 
-window.buyShopItem = function (i) { let it = shopItems[i]; if (!it || (mode !== "moder" && points < it.cost)) return; if (mode !== "moder") points -= it.cost; if (it.type === "card") { let c = createCard(it.rarity); if (!c) return; myCards.push(c); renderMyCards(); sfxCardObtain(); } else if (it.type === "buff") { stackBuff(it.buffId, it.duration); } shopItems[i] = null; saveAll(); renderShop(); renderPoints(); renderActiveBuffs(); updatePlayerStats(); };
+window.buyShopItem = function (i) { 
+    let it = shopItems[i]; 
+    if (!it || (mode !== "moder" && points < it.cost)) return; 
+    if (mode !== "moder") points -= it.cost; 
+    if (it.type === "card") { let c = createCard(it.rarity); if (!c) return; myCards.push(c); renderMyCards(); sfxCardObtain(); } 
+    else if (it.type === "buff") { stackBuff(it.buffId, it.duration); } 
+    shopItems[i] = null; 
+    saveAll(); 
+    renderShop(); 
+    renderPoints(); 
+    renderActiveBuffs(); 
+    updatePlayerStats(); 
+    if (typeof sfxUIBuy === 'function') sfxUIBuy(); 
+};
 function showCompoundVModal() { if (rebirthCount < 4 || (mode !== "moder" && points < 5000)) return; let html = '<h2>💉 Выберите героя</h2><div style="max-height:300px;overflow-y:auto;">'; if (!team.length) { html += '<p style="color:#888;">Нет героев в команде.</p>'; } else { team.forEach((idx, s) => { let cd = myCards[idx]; if (!cd) return; let hasV = hasCompoundV[cd.name] || false; html += '<div class="team-select-item ' + (hasV ? 'disabled' : '') + '" onclick="' + (hasV ? '' : 'applyCompoundV(\'' + cd.name.replace(/'/g, "\\'") + '\')') + '"><span>' + escapeHtml(cd.name) + '</span><span>' + (hasV ? '✅ Куплен' : '▶ Выбрать') + '</span></div>'; }); } html += '</div><button class="btn" style="width:100%;margin-top:10px;background:#e74c3c;" onclick="closeModal()">Отмена</button>'; let el = document.getElementById("modalContent"); if (el) el.innerHTML = html; el = document.getElementById("modalOverlay"); if (el) el.style.display = "flex"; }
 function applyCompoundV(name) { if (mode !== "moder" && points < 5000) return; if (hasCompoundV[name]) return; if (mode !== "moder") points -= 5000; hasCompoundV[name] = true; saveAll(); renderAll(); updatePlayerStats(); closeModal(); }
 window.buyDeathNote = function () { if (rebirthCount < 4 || (mode !== "moder" && points < 500000)) return; let v = parseInt(document.getElementById("dnInput").value); if (!v || v < 1) return; if (mode !== "moder") points -= 500000; deathNoteTarget = v; skipUsed = false; saveAll(); renderShop(); renderPoints(); };
@@ -963,11 +1144,22 @@ function toggleAutoSell(rarity) { if (!purchasedAutoSell[rarity]) return; autoSe
 function getAutoRestCost(th) { return 100 * Math.pow(2, autoRestOptions.findIndex(o => o.threshold === th)); }
 function purchaseAutoRest(th) { if (rebirthCount < 3 || (mode !== "moder" && points < getAutoRestCost(th))) return; if (mode !== "moder") points -= getAutoRestCost(th); autoRest.purchased = true; autoRest.threshold = th; autoRest.active = true; saveAll(); renderAutoRest(); renderPoints(); }
 function toggleAutoRest(th) { if (!autoRest.purchased || autoRest.threshold !== th) return; autoRest.active = !autoRest.active; saveAll(); renderAutoRest(); }
-window.buyUpgrade = function (k) { if (!isUpgradeUnlocked(k)) return; let u = upgrades[k], c = Math.floor(u.baseCost * (1 + u.level * 0.3)); if (mode !== "moder" && points < c) return; if (mode !== "moder") points -= c; u.level++; saveAll(); renderUpgrades(); renderPoints(); updatePlayerStats(); };
+window.buyUpgrade = function (k) { 
+    if (!isUpgradeUnlocked(k)) return; 
+    let u = upgrades[k], c = Math.floor(u.baseCost * (1 + u.level * 0.3)); 
+    if (mode !== "moder" && points < c) return; 
+    if (mode !== "moder") points -= c; 
+    u.level++; 
+    saveAll(); 
+    renderUpgrades(); 
+    renderPoints(); 
+    updatePlayerStats(); 
+    if (typeof sfxUIBuy === 'function') sfxUIBuy(); 
+};
 function goToWave() { if (mode !== "moder" || !moderUnlocked) return; let w = parseInt(prompt("Введите номер волны:")); if (!w || w < 1) return; wave = w; playerHp = window.playerMaxHp || 100; generateEnemy(); saveAll(); renderAll(); }
 function submitCode() { let inp = document.getElementById("codeInput").value.trim(); let cd = codeList[inp]; if (!cd) { document.getElementById("codeResult").innerHTML = "❌ Неверный код"; return; } if (usedCodes.includes(inp)) { document.getElementById("codeResult").innerHTML = "⚠️ Код уже использован"; return; } usedCodes.push(inp); switch (cd.type) { case "points": points += cd.amount; if (points > maxPoints) maxPoints = points; break; case "card": let t = customCardTemplates[cd.rarity].find(t => t.name === cd.tpl); if (t) { let c = createCardFromTemplate(t, cd.rarity); if (c) myCards.push(c); if (cd.points) { points += cd.points; if (points > maxPoints) maxPoints = points; } } break; case "buff": stackBuff(cd.buffId, cd.duration); break; case "moderUnlock": moderUnlocked = true; let modeEl = document.querySelector('.toggle span[data-mode="moder"]'); if (modeEl) modeEl.style.display = ''; saveAll(); document.getElementById("codeResult").innerHTML = "✅ Модер разблокирован!"; return; } document.getElementById("codeResult").innerHTML = "✅ Успешно активировано!"; saveAll(); renderAll(); renderActiveBuffs(); updatePlayerStats(); }
 function genChallenges() { let t = [ { name: "10 боссов", target: 10, reward: Math.floor(500 * getStarMult()), type: "bossKills", progress: 0 }, { name: "1000⭐", target: 1000, reward: Math.floor(300 * getStarMult()), type: "earnPoints", progress: 0 }, { name: "50 побед", target: 50, reward: Math.floor(400 * getStarMult()), type: "wins", progress: 0 }, { name: "10к урон", target: 10000, reward: Math.floor(350 * getStarMult()), type: "bigDamage", progress: 0 }, { name: "10 ур.", target: 10, reward: Math.floor(800 * getStarMult()), type: "levelUp", progress: playerLevel }, { name: "Усталость 0", target: 1, reward: Math.floor(200 * getStarMult()), type: "fatigueZero", progress: 0 }, { name: "5 карт", target: 5, reward: Math.floor(150 * getStarMult()), type: "collectCards", progress: myCards.length }, { name: "1000 кликов", target: 1000, reward: Math.floor(200 * getStarMult()), type: "totalClicksGoal", progress: 0 } ]; challenges = []; for (let i = 0; i < 3; i++) { let tp = t[Math.floor(Math.random() * t.length)]; challenges.push({ ...tp, id: Date.now() + i, completed: false }); } lastChallengeReset = Date.now(); saveAll(); renderChallenges(); }
-function updateChallengeProgress(tp, v) { if (!challenges || !challenges.length) return; let updated = false; challenges.forEach(ch => { if (!ch.completed && ch.type === tp) { ch.progress = (ch.progress || 0) + v; if (ch.type === "levelUp") ch.progress = playerLevel; if (ch.type === "collectCards") ch.progress = myCards.length; if (ch.type === "totalClicksGoal") ch.progress = totalClicks; if (ch.progress >= ch.target) { ch.completed = true; points += Math.floor(ch.reward * getStarMult()); if (points > maxPoints) maxPoints = points; addExp(Math.floor(ch.target * 2)); updated = true; showFloatingText("✅ Квест: " + ch.name + " +" + Math.floor(ch.reward * getStarMult()) + "⭐", "#2ecc71"); } } }); if (updated) { renderChallenges(); saveAll(); renderPoints(); } }
+function updateChallengeProgress(tp, v) { if (!challenges || !challenges.length) return; let updated = false; challenges.forEach(ch => { if (!ch.completed && ch.type === tp) { ch.progress = (ch.progress || 0) + v; if (ch.type === "levelUp") ch.progress = playerLevel; if (ch.type === "collectCards") ch.progress = myCards.length; if (ch.type === "totalClicksGoal") ch.progress = totalClicks; if (ch.progress >= ch.target) { ch.completed = true; points += Math.floor(ch.reward * getStarMult()); if (points > maxPoints) maxPoints = points; addExp(Math.floor(ch.target * 2)); updated = true; showFloatingText("✅ Квест: " + ch.name + " +" + Math.floor(ch.reward * getStarMult()) + "⭐", "#2ecc71"); if (typeof sfxUINotification === 'function') sfxUINotification(); } } }); if (updated) { renderChallenges(); saveAll(); renderPoints(); } }
 
 function getRebirthRequirementInfo() {
     if (rebirthCount < REBIRTH_REQUIREMENTS.length) {
@@ -1073,10 +1265,96 @@ function doRebirth() {
     alert('🔄 Ребёрн ' + rebirthCount + '! Множитель x' + getRebirthMult().toFixed(1)); 
 }
 
-function switchTab(tabName) { document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); let btn = document.querySelector(".tab-btn[data-tab='" + tabName + "']"); if (btn) btn.classList.add("active"); document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active")); let tab = document.getElementById(tabName + "Tab"); if (tab) tab.classList.add("active"); if (tabName === "collection") { renderPass(); } if (tabName === "battle") { startBattleMusic(); } else if (tabName === "shop") { startShopMusic(); let now = Date.now(); if (!shopRefreshTime || (now - shopRefreshTime) > 3600000) { refreshShop(); } else { renderShop(); } if (typeof renderGachaTab === 'function') renderGachaTab(); renderDailyRewards(); if (typeof renderInventory === 'function') renderInventory(); setTimeout(hideFreeSpinsUI, 50); } else { startMainMusic(); } if (tabName === "other") { renderRebirthInfo(); renderRebirthStats(); renderSettings(); renderSlotsInGame(); } }
-function switchSubTab(subtabName, parentTabId) { let parent = document.getElementById(parentTabId); if (!parent) return; parent.querySelectorAll(".sub-tab-btn").forEach(b => b.classList.remove("active")); let subBtn = parent.querySelector(".sub-tab-btn[data-subtab='" + subtabName + "']"); if (subBtn) subBtn.classList.add("active"); parent.querySelectorAll(".sub-tab-content").forEach(t => t.classList.remove("active")); let sub = document.getElementById(subtabName + "SubTab"); if (sub) sub.classList.add("active"); if (subtabName === "book") renderBook(); if (subtabName === "pass") renderPass(); if (subtabName === "evolution") renderEvoTab(); if (subtabName === "shopItems") renderShop(); if (subtabName === "inventory") { if (typeof renderInventory === 'function') renderInventory(); if (typeof renderPoints === 'function') renderPoints(); } if (subtabName === "gacha") renderGachaTab(); if (subtabName === "daily") renderDailyRewards(); if (subtabName === "bulkSell") renderBulkSell(); if (subtabName === "autoRest") renderAutoRest(); if (subtabName === "upgrades") renderUpgrades(); if (subtabName === "challenges") renderChallenges(); if (subtabName === "checkpoint") renderCheckpoints(); if (subtabName === "rebirthMain") renderRebirthInfo(); if (subtabName === "rebirthStats") renderRebirthStats(); if (subtabName === "slots") renderSlotsInGame(); if (subtabName === "settings") renderSettings(); }
-function renderAll() { renderMyCards(); renderTeam(); renderAfkTeam(); renderEnemy(); renderPoints(); renderShop(); if (typeof renderInventory === 'function') renderInventory(); renderUpgrades(); renderActiveBuffs(); renderDefeatHistory(); renderFreeSpins(); renderAchievements(); renderChallenges(); renderBook(); renderCheckpoints(); renderRebirthInfo(); renderRebirthStats(); renderEvoTab(); renderGlobalStats(); renderModerControls(); renderSettings(); renderSlotsInGame(); renderDailyRewards(); renderPass(); if (typeof renderGachaTab === 'function') renderGachaTab(); if (typeof renderPowerPoints === 'function') renderPowerPoints(); updatePlayerStats(); updateStatusDisplay(); setTimeout(hideFreeSpinsUI, 50); }
-function renderPoints() { let displayPoints = (mode === "moder" && moderUnlocked) ? "∞" : points; ['pointsAmount', 'pointsAmount2', 'pointsAmount3', 'pointsAmountBulk', 'pointsAmountRest', 'pointsAmountGacha', 'pointsAmountInv'].forEach(id => { let e = document.getElementById(id); if (e) e.innerText = displayPoints; }); }
+function switchTab(tabName) { 
+    if (typeof sfxUITab === 'function') sfxUITab(); 
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); 
+    let btn = document.querySelector(".tab-btn[data-tab='" + tabName + "']"); 
+    if (btn) btn.classList.add("active"); 
+    document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active")); 
+    let tab = document.getElementById(tabName + "Tab"); 
+    if (tab) tab.classList.add("active"); 
+    if (tabName === "collection") { renderPass(); } 
+    if (tabName === "battle") { startBattleMusic(); } 
+    else if (tabName === "shop") { 
+        startShopMusic(); 
+        let now = Date.now(); 
+        if (!shopRefreshTime || (now - shopRefreshTime) > 3600000) { refreshShop(); } else { renderShop(); } 
+        if (typeof renderGachaTab === 'function') renderGachaTab(); 
+        renderDailyRewards(); 
+        if (typeof renderInventory === 'function') renderInventory(); 
+        setTimeout(hideFreeSpinsUI, 50); 
+    } else { startMainMusic(); } 
+    if (tabName === "other") { renderRebirthInfo(); renderRebirthStats(); renderSettings(); renderSlotsInGame(); } 
+}
+function switchSubTab(subtabName, parentTabId) { 
+    if (typeof sfxUITab === 'function') sfxUITab(); 
+    let parent = document.getElementById(parentTabId); 
+    if (!parent) return; 
+    parent.querySelectorAll(".sub-tab-btn").forEach(b => b.classList.remove("active")); 
+    let subBtn = parent.querySelector(".sub-tab-btn[data-subtab='" + subtabName + "']"); 
+    if (subBtn) subBtn.classList.add("active"); 
+    parent.querySelectorAll(".sub-tab-content").forEach(t => t.classList.remove("active")); 
+    let sub = document.getElementById(subtabName + "SubTab"); 
+    if (sub) sub.classList.add("active"); 
+    if (subtabName === "book") renderBook(); 
+    if (subtabName === "pass") renderPass(); 
+    if (subtabName === "evolution") renderEvoTab(); 
+    if (subtabName === "shopItems") renderShop(); 
+    if (subtabName === "inventory") { if (typeof renderInventory === 'function') renderInventory(); if (typeof renderPoints === 'function') renderPoints(); } 
+    if (subtabName === "gacha") renderGachaTab(); 
+    if (subtabName === "daily") renderDailyRewards(); 
+    if (subtabName === "bulkSell") renderBulkSell(); 
+    if (subtabName === "autoRest") renderAutoRest(); 
+    if (subtabName === "upgrades") renderUpgrades(); 
+    if (subtabName === "challenges") renderChallenges(); 
+    if (subtabName === "checkpoint") renderCheckpoints(); 
+    if (subtabName === "rebirthMain") renderRebirthInfo(); 
+    if (subtabName === "rebirthStats") renderRebirthStats(); 
+    if (subtabName === "slots") renderSlotsInGame(); 
+    if (subtabName === "settings") renderSettings(); 
+}
+function renderAll() { 
+    renderMyCards(); 
+    renderTeam(); 
+    renderAfkTeam(); 
+    renderEnemy(); 
+    renderPoints(); 
+    renderShop(); 
+    if (typeof renderInventory === 'function') renderInventory(); 
+    renderUpgrades(); 
+    renderActiveBuffs(); 
+    renderDefeatHistory(); 
+    renderFreeSpins(); 
+    renderAchievements(); 
+    renderChallenges(); 
+    renderBook(); 
+    renderCheckpoints(); 
+    renderRebirthInfo(); 
+    renderRebirthStats(); 
+    renderEvoTab(); 
+    renderGlobalStats(); 
+    renderModerControls(); 
+    renderSettings(); 
+    renderSlotsInGame(); 
+    renderDailyRewards(); 
+    renderPass(); 
+    if (typeof renderGachaTab === 'function') renderGachaTab(); 
+    if (typeof renderPowerPoints === 'function') renderPowerPoints(); 
+    if (typeof renderTeamPresets === 'function') renderTeamPresets(); 
+    updatePlayerStats(); 
+    updateStatusDisplay(); 
+    setTimeout(hideFreeSpinsUI, 50); 
+}
+function renderPoints() { 
+    let displayPoints = (mode === "moder" && moderUnlocked) ? "∞" : points; 
+    ['pointsAmount', 'pointsAmount2', 'pointsAmount3', 'pointsAmountBulk', 'pointsAmountRest', 'pointsAmountGacha', 'pointsAmountInv'].forEach(id => { 
+        let e = document.getElementById(id); 
+        if (e) e.innerText = displayPoints; 
+    }); 
+    // ★ ОЧКИ СИЛЫ В ПРОКАЧКЕ (фича #1) ★
+    let ppEl = document.getElementById("powerPointsAmountUpgrade");
+    if (ppEl && typeof getPowerPoints === 'function') ppEl.innerText = getPowerPoints().toLocaleString();
+}
 function escapeHtml(s) { return s ? s.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])) : ''; }
 function showSlotSelectScreen() { let slotScreen = document.getElementById("slotSelectScreen"); let gameScreen = document.getElementById("gameScreen"); if (slotScreen) slotScreen.style.display = "block"; if (gameScreen) gameScreen.style.display = "none"; let html = ''; for (let i = 0; i < 3; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select" onclick="showNicknamePrompt(' + i + ')"><div style="font-size:20px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + '</div></div>'; } let el = document.getElementById("slotList"); if (el) el.innerHTML = html; }
 function showNicknamePrompt(slot) { let meta = loadSlotMeta(slot); let nickname = prompt("Введите ник для слота " + (slot + 1) + ":", meta.nickname); if (nickname === null) return; if (nickname.trim() === "" && !meta.exists) return; if (nickname.trim() !== "") { meta.nickname = nickname.trim(); } saveSlotMeta(slot, meta); selectSlot(slot); }
