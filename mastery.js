@@ -1,5 +1,5 @@
 // ============================================================
-// МАСТЕРСТВО КАРТ v2.5 — ОЧКИ СИЛЫ ЗА ВОЛНУ
+// МАСТЕРСТВО КАРТ v2.6 — ОЧКИ СИЛЫ ЗА ВОЛНУ + UI ЗВУКИ
 // ============================================================
 
 const MASTERY_MULT = [0, 0.60, 0.75, 0.85, 0.95, 1.00];
@@ -35,7 +35,6 @@ function addPowerPoints(amount) {
     if (typeof renderPass === 'function') renderPass();
 }
 
-// ★ ОЧКИ СИЛЫ ЗА ВОЛНУ ★
 function getPowerPerWave(waveNum) {
     if (waveNum < 100) return 1;
     if (waveNum < 200) return 2;
@@ -58,6 +57,8 @@ function grantPowerForWave(waveNum) {
     powerPoints += amount;
     saveAll();
     renderPowerPoints();
+    // ★ ОБНОВЛЯЕМ ОЧКИ СИЛЫ В ПРОКАЧКЕ ★
+    if (typeof renderPoints === 'function') renderPoints();
 }
 
 function getMasteryMult(card) {
@@ -139,6 +140,8 @@ function upgradeMastery(cardIndex) {
     renderAll();
     updatePlayerStats();
     if (typeof sfxLevelUp === 'function') sfxLevelUp();
+    // ★ ЗВУК МАСТЕРСТВА ★
+    if (typeof sfxUIMastery === 'function') sfxUIMastery();
 
     if (leftoverExp > 0) {
         showFloatingText("⭐ МАСТЕРСТВО " + targetLevel + "! (+" + MASTERY_GAIN_TEXT[targetLevel] + ")", "#ffd700");
@@ -147,6 +150,8 @@ function upgradeMastery(cardIndex) {
         showFloatingText("⭐ МАСТЕРСТВО " + targetLevel + "! (+" + MASTERY_GAIN_TEXT[targetLevel] + ")", "#ffd700");
     }
     renderPowerPoints();
+    // ★ ОБНОВЛЯЕМ ОЧКИ СИЛЫ В ПРОКАЧКЕ ★
+    if (typeof renderPoints === 'function') renderPoints();
 
     if (targetLevel === 3 && card.statusAbility) setTimeout(function() { alert("⭐ Уровень 3 (" + MASTERY_GAIN_TEXT[3] + ")!\nРазблокирован статус-эффект:\n" + card.statusAbility.desc); }, 300);
     if (targetLevel === 4 && card.ability) setTimeout(function() { alert("⭐ Уровень 4 (" + MASTERY_GAIN_TEXT[4] + ")!\nРазблокирована способность:\n" + card.ability.desc); }, 300);
@@ -272,9 +277,11 @@ function renderPowerPoints() {
     }
     let amt = document.getElementById("powerPointsAmount");
     if (amt) amt.innerText = powerPoints.toLocaleString();
+    // ★ ОБНОВЛЯЕМ ОЧКИ СИЛЫ В ПРОКАЧКЕ ★
+    let ppEl = document.getElementById("powerPointsAmountUpgrade");
+    if (ppEl) ppEl.innerText = powerPoints.toLocaleString();
 }
 
-// ★ БОНУС ЗА БОССА: +50 ★
 function grantMasteryPowerForBoss() {
     addPowerPoints(50);
     showFloatingText("⚡ +50 СИЛЫ ЗА БОССА!", "#ffd700");
@@ -302,4 +309,4 @@ window.grantPowerForWave = grantPowerForWave;
 window.getPowerPoints = function() { return powerPoints; };
 window.setPowerPoints = function(v) { powerPoints = v; };
 
-console.log("[MASTERY] v2.5 — очки силы за волну");
+console.log("[MASTERY] v2.6 — очки силы + звуки");
