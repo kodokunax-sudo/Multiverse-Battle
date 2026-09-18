@@ -744,7 +744,7 @@ function generateEnemy() {
         
         // ★ ЕСЛИ КАМЕНЬ УЖЕ ПОБЕЖДЁН — ДЕЛАЕМ ОБЫЧНОГО КЛИКЕРНОГО БОССА С HP x0.5 ★
         if (alreadyDefeatedStone) {
-            currentEnemy.hp = Math.floor(currentEnemy.hp * 0.5);
+            currentEnemy.hp = Math.floor(currentEnemy.hp * 0.2);
             currentEnemy.maxHp = currentEnemy.hp;
             currentEnemy.isWeakenedStone = true;
             currentEnemy.name = "🪨 Живой Камень (ослабленный)";
