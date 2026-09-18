@@ -1,6 +1,7 @@
 // ============================================================
-// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v6.2
-// + после победы повторный QTE не запускается
+// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v6.3
+// + расширенная анимация вступления (+3 сек, больше диалогов)
+// + LITE MODE для телефона (отключение теней для FPS)
 // ============================================================
 
 let livingStoneActive = false;
@@ -102,6 +103,29 @@ let qteMusicPaths = [
     "music/qte.mp3"
 ];
 
+// ========== LITE MODE (для телефона) ==========
+// Полностью отключает тени и свечения в canvas для FPS
+function _disableCtxShadows(c) {
+    if (!c) return;
+    try {
+        let _blur = 0;
+        let _color = 'rgba(0,0,0,0)';
+        Object.defineProperty(c, 'shadowBlur', {
+            get: function() { return _blur; },
+            set: function(v) { _blur = 0; },
+            configurable: true
+        });
+        Object.defineProperty(c, 'shadowColor', {
+            get: function() { return _color; },
+            set: function(v) { _color = 'rgba(0,0,0,0)'; },
+            configurable: true
+        });
+        console.log("[LS] LITE MODE: тени отключены");
+    } catch(e) {
+        console.warn("[LS] Не удалось отключить тени:", e);
+    }
+}
+
 // ========== ГЕНЕРАЦИЯ ТЕКСТУРЫ ==========
 function generateStoneTextures() {
     stoneTexturePoints = [];
@@ -202,9 +226,8 @@ preloadQTEMusic();
 generateStoneTextures();
 
 // ========== СТАРТ ==========
-// ★★★ ГЛАВНАЯ ПРАВКА: ЕСЛИ КАМЕНЬ УЖЕ ПОБЕЖДЁН — НЕ ЗАПУСКАЕМ QTE ★★★
+// ★ ЕСЛИ КАМЕНЬ УЖЕ ПОБЕЖДЁН — НЕ ЗАПУСКАЕМ QTE ★
 function startLivingStoneFight() {
-    // Если камень уже побеждён — не запускаем QTE-битву, показываем сообщение
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200)) {
         if (typeof showFloatingText === 'function') {
             showFloatingText("⏭️ Живой Камень уже побеждён! Бей его кликами.", "#ffaa00");
@@ -214,9 +237,9 @@ function startLivingStoneFight() {
     var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     var isPhone;
     if (isMobile) {
-        isPhone = confirm("ОБНАРУЖЕН ТЕЛЕФОН\n\nВключить режим производительности?\n\nOK = Телефон\nОтмена = ПК");
+        isPhone = confirm("ОБНАРУЖЕН ТЕЛЕФОН\n\nВключить режим производительности?\n\nOK = Телефон (без теней, быстрее)\nОтмена = ПК (полные эффекты)");
     } else {
-        isPhone = confirm("Ты на телефоне?\n\nOK = Телефон\nОтмена = ПК");
+        isPhone = confirm("Ты на телефоне?\n\nOK = Телефон (LITE MODE, без теней)\nОтмена = ПК (полные эффекты)");
     }
     lsMobileMode = isPhone;
     lsPerfMult = isPhone ? 0.35 : 1.0;
@@ -275,6 +298,11 @@ function _startLivingStoneFightInternal() {
     if (typeof initArena === 'function') initArena();
     if (typeof canvas === 'undefined' || !canvas) return;
     if (typeof arenaActive !== 'undefined') arenaActive = false;
+    
+    // ★ LITE MODE: если телефон — отключаем тени ★
+    if (lsMobileMode && typeof ctx !== 'undefined' && ctx) {
+        _disableCtxShadows(ctx);
+    }
     
     canvas.addEventListener("click", handleQTEClick);
     canvas.addEventListener("touchstart", handleLSTouchStart);
@@ -914,6 +942,7 @@ function triggerRestoreScene() {
     setTimeout(function() { if (livingStoneActive) triggerMusicScene(); }, 3000);
 }
 
+// ========== РАСШИРЕННАЯ СЦЕНА ВСТУПЛЕНИЯ (+3 СЕК) ==========
 function triggerMusicScene() {
     if (!livingStoneActive) return;
     livingStoneState = "qte_intro";
@@ -921,13 +950,71 @@ function triggerMusicScene() {
     livingStoneRestoring = false;
     livingStoneBoss.vx = 0;
     startQTEMusic();
-    spawnCinematicText(200, 80, "STANDING HERE...", "#ffffff", 240, 28);
+    
+    // ★ ТЕКСТ 1: STANDING HERE (0 сек) ★
+    spawnCinematicText(200, 65, "STANDING HERE...", "#ffffff", 400, 28);
+    for (var i = 0; i < 20; i++) {
+        spawnLivingStoneParticles(
+            200 + (Math.random() - 0.5) * 200,
+            400 + (Math.random() - 0.5) * 60,
+            1, "#ffffff", 2
+        );
+    }
+    if (typeof playArenaSound === 'function') playArenaSound(400, 'sine', 0.6, 0.1);
+    
+    // ★ ТЕКСТ 2: I REALIZE (3 сек) ★
     setTimeout(function() {
         if (!livingStoneActive) return;
-        spawnCinematicText(200, 115, "I REALIZE...", "#ffdd00", 240, 26);
+        spawnCinematicText(200, 105, "I REALIZE...", "#ffdd00", 400, 26);
         livingStoneScreenFlash = 15; livingStoneScreenFlashColor = "#ffffff";
-    }, 4000);
-    setTimeout(function() { if (livingStoneActive) triggerCinematic(); }, 8000);
+        if (typeof playArenaSound === 'function') playArenaSound(500, 'sine', 0.5, 0.12);
+    }, 3000);
+    
+    // ★ ТЕКСТ 3: УГРОЗА БОССА (6 сек) — НОВОЕ ★
+    setTimeout(function() {
+        if (!livingStoneActive) return;
+        spawnCinematicText(200, 145, "ТЫ НЕ СМОЖЕШЬ МЕНЯ ПРОБИТЬ", "#ff6644", 300, 22);
+        spawnCinematicText(200, 180, "НИКОГДА!", "#ff2200", 300, 20);
+        livingStoneScreenFlash = 10; livingStoneScreenFlashColor = "#ff0000";
+        livingStoneShake = 12;
+        if (typeof playArenaSound === 'function') playArenaSound(120, 'sawtooth', 0.5, 0.15);
+        for (var i = 0; i < 15; i++) {
+            spawnLivingStoneParticles(200 + (Math.random() - 0.5) * 100, 100, 1, "#ff3300", 3);
+        }
+    }, 6000);
+    
+    // ★ ТЕКСТ 4: ЗЛОБНЫЙ СМЕХ (8 сек) — НОВОЕ ★
+    setTimeout(function() {
+        if (!livingStoneActive) return;
+        spawnCinematicText(200, 220, "ХА-ХА-ХА!", "#ff0000", 250, 26);
+        spawnCinematicText(200, 255, "ТЫ ВСЁ РАВНО УМРЁШЬ!", "#ff4400", 250, 18);
+        livingStoneShake = 18;
+        livingStoneScreenFlash = 12; livingStoneScreenFlashColor = "#ff0000";
+        if (typeof playArenaSound === 'function') {
+            playArenaSound(100, 'sawtooth', 0.8, 0.2);
+            setTimeout(function() { playArenaSound(150, 'square', 0.4, 0.15); }, 300);
+        }
+        for (var i = 0; i < 20; i++) {
+            spawnLivingStoneParticles(200 + (Math.random() - 0.5) * 150, 100 + (Math.random() - 0.5) * 40, 1, "#ff6600", 4);
+        }
+    }, 8000);
+    
+    // ★ ТЕКСТ 5: ФИНАЛЬНЫЙ КРИК (10 сек) — НОВОЕ ★
+    setTimeout(function() {
+        if (!livingStoneActive) return;
+        spawnCinematicText(200, 300, "ПОШЁЛ ПРОЧЬ!", "#ffffff", 200, 22);
+        livingStoneScreenFlash = 20; livingStoneScreenFlashColor = "#ffffff";
+        livingStoneShake = 25;
+        if (typeof playArenaSound === 'function') {
+            playArenaSound(80, 'sawtooth', 0.8, 0.3);
+            setTimeout(function() { playArenaSound(140, 'sawtooth', 0.6, 0.25); }, 200);
+        }
+    }, 10000);
+    
+    // ★ КИНЕМАТИК (11 сек — было 8, стало 11, +3 секунды) ★
+    setTimeout(function() { 
+        if (livingStoneActive) triggerCinematic(); 
+    }, 11000);
 }
 
 // ========== КИНЕМАТИК ==========
@@ -2890,4 +2977,4 @@ function drawQTEOverlay() {
 window.startLivingStoneFight = startLivingStoneFight;
 window.stopLivingStoneFight = stopLivingStoneFight;
 window.preloadQTEMusic = preloadQTEMusic;
-console.log("[LIVING STONE] v6.2 — повторный QTE заблокирован после победы");
+console.log("[LIVING STONE] v6.3 — расширенная анимация + LITE MODE");
