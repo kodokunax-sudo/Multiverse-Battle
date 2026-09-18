@@ -1,11 +1,11 @@
 // ============================================================
-// ИНВЕНТАРЬ v1.6 — фикс распространения между слотами
+// ИНВЕНТАРЬ v1.7 — фикс слотов + Путеводная Звезда
 // ============================================================
 
 const ITEMS = {
     star: {
         name: "Звезда", icon: "⭐",
-        desc: "Твоя основная валюта. Тратится на крутки, товары, прокачку и готовку. Зарабатывается за победы над врагами и боссами. Чем выше волна — тем больше звёзд. Говорят, что звезды обладают невероятной силой и энергией. Поэтому она является единственной валютой в космосе",
+        desc: "Твоя основная валюта. Тратится на крутки, товары, прокачку и готовку. Зарабатывается за победы над врагами и боссами. Чем выше волна — тем больше звёзд.",
         stack: 999999, canSell: false, isVirtual: true
     },
     bone: {
@@ -63,7 +63,7 @@ const ITEMS = {
     },
     antidote_potion: {
         name: "Мини-зелье", icon: "🧪",
-        desc: "Маленькое зелье. Мгновенно снимает отравление и обнуляет счётчик антидота. Работает сразу же.",
+        desc: "Маленькое зелье. Мгновенно снимает отравление и обнуляет счётчик антидота.",
         cost: 700, stack: 99, canEat: true,
         actionFunction: "drinkAntidote"
     },
@@ -76,28 +76,28 @@ const ITEMS = {
     },
     orange: {
         name: "Апельсин", icon: "🍊",
-        desc: "+8% HP, -15% голода, -1 ожирение, +2 антидот. Апельсин - это вкусно, но лимон круче. А ты, что думаешь?",
+        desc: "+8% HP, -15% голода, -1 ожирение, +2 антидот",
         cost: 350, stack: 99, canEat: true,
         hp: 8, hunger: 15, obesity: 1, antidote: 2,
         actionFunction: "eatFruit"
     },
     banana: {
         name: "Банан", icon: "🍌",
-        desc: "+10% HP, -20% голода, -2 ожирение, +2 антидот. Мммммм.... Бананчики....",
+        desc: "+10% HP, -20% голода, -2 ожирение, +2 антидот",
         cost: 500, stack: 99, canEat: true,
         hp: 10, hunger: 20, obesity: 2, antidote: 2,
         actionFunction: "eatFruit"
     },
     cherry: {
         name: "Вишня", icon: "🍒",
-        desc: "+7% HP, -12% голода, -3 ожирение, +5 антидот. Просто вишня. Удевительно!",
+        desc: "+7% HP, -12% голода, -3 ожирение, +5 антидот",
         cost: 800, stack: 99, canEat: true,
         hp: 7, hunger: 12, obesity: 3, antidote: 5,
         actionFunction: "eatFruit"
     },
     lemon: {
         name: "Лимон", icon: "🍋",
-        desc: "+3% HP, -5% голода, -8 ожирение, +6 антидот (кислый!). Лично я обожаю лимон",
+        desc: "+3% HP, -5% голода, -8 ожирение, +6 антидот (кислый!)",
         cost: 1200, stack: 99, canEat: true,
         hp: 3, hunger: 5, obesity: 8, antidote: 6,
         actionFunction: "eatFruit"
@@ -111,21 +111,21 @@ const ITEMS = {
     },
     watermelon: {
         name: "Арбуз", icon: "🍉",
-        desc: "+20% HP, -50% голода, -6 ожирение, +3 антидот. Арбуз арбуз привет...",
+        desc: "+20% HP, -50% голода, -6 ожирение, +3 антидот",
         cost: 2500, stack: 99, canEat: true,
         hp: 20, hunger: 50, obesity: 6, antidote: 3,
         actionFunction: "eatFruit"
     },
     mango: {
         name: "Манго", icon: "🥭",
-        desc: "+18% HP, -45% голода, -7 ожирение, +8 антидот. Давай в этот раз без эдитов",
+        desc: "+18% HP, -45% голода, -7 ожирение, +8 антидот",
         cost: 3500, stack: 99, canEat: true,
         hp: 18, hunger: 45, obesity: 7, antidote: 8,
         actionFunction: "eatFruit"
     },
     pineapple: {
         name: "Ананас", icon: "🍍",
-        desc: "+25% HP, -60% голода, -10 ожирение, +10 антидот (мгновенно снимает отравление). А я знаю другое приминение ананаса...",
+        desc: "+25% HP, -60% голода, -10 ожирение, +10 антидот (мгновенно снимает отравление)",
         cost: 5000, stack: 99, canEat: true,
         hp: 25, hunger: 60, obesity: 10, antidote: 10,
         actionFunction: "eatFruit"
@@ -145,6 +145,13 @@ const ITEMS = {
         name: "Кусок камня", icon: "🪨",
         desc: "Напоминание о проигрыше против камня. Надеюсь я его больше не встречу. Хотя, кто знает...",
         stack: 1, canSell: false, unsellable: true
+    },
+    // ★ НОВЫЙ ПРЕДМЕТ: ПУТЕВОДНАЯ ЗВЕЗДА ★
+    waystar: {
+        name: "Путеводная Звезда", icon: "🌟",
+        desc: "Древняя звезда, что освещала путь в бескрайней тьме. Осколок космической силы. При активации даёт 25 000 ⭐. Использовать можно только один раз за предмет.",
+        stack: 99, canSell: false, unsellable: true,
+        actionFunction: "useWaystar"
     }
 };
 
@@ -217,6 +224,29 @@ function dropLivingStoneLoot() {
         showFloatingText("🔑 Ключ получен!", "#ffd700");
         setTimeout(function() { showFloatingText("🪨 Кусок камня!", "#888888"); }, 500);
     }
+}
+
+// ========== ★ ИСПОЛЬЗОВАНИЕ ПУТЕВОДНОЙ ЗВЕЗДЫ ★ ==========
+function useWaystar() {
+    if (getItemCount("waystar") <= 0) {
+        if (typeof showFloatingText === 'function') showFloatingText("Нет Путеводной Звезды!", "#ff3333");
+        return;
+    }
+    removeItem("waystar", 1);
+    let reward = 25000;
+    if (typeof points !== 'undefined') {
+        points += reward;
+        if (typeof maxPoints !== 'undefined' && points > maxPoints) maxPoints = points;
+    }
+    if (typeof renderPoints === 'function') renderPoints();
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof showFloatingText === 'function') {
+        showFloatingText("🌟 +" + reward.toLocaleString() + "⭐!", "#ffd700");
+        setTimeout(function() { showFloatingText("СИЛА ЗВЕЗДЫ ТВОЯ!", "#ff8800"); }, 500);
+    }
+    // Звук
+    if (typeof sfxUINotification === 'function') sfxUINotification();
+    if (typeof closeModal === 'function') closeModal();
 }
 
 // ========== ЕДА ==========
@@ -527,13 +557,9 @@ function saveInventory() {
     };
 }
 
-// ★★★ ГЛАВНЫЙ ФИКС: СБРАСЫВАЕМ ИНВЕНТАРЬ ПЕРЕД ЗАГРУЗКОЙ ★★★
 function loadInventory(data) {
-    // Сначала ВСЕГДА очищаем, чтобы не текло между слотами
     resetInventory();
-    
     if (!data) return;
-    
     inventory = data.inventory || {};
     hunger = data.hunger || 0;
     obesityPoints = data.obesityPoints || 0;
@@ -542,8 +568,6 @@ function loadInventory(data) {
     if (data.treasureUnlocked === true) treasureUnlocked = true;
     if (data.treasureKeyUsed === true) treasureKeyUsed = true;
     pepperActive = data.pepperActive || false;
-    
-    // Фолбэк: если босс 200 убит и ключа нет — тайник считаем открытым
     try {
         if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200)) {
             if ((inventory["key"] || 0) <= 0) {
@@ -605,7 +629,11 @@ function renderInventory() {
         if (count > 0) {
             hasAny = true;
             let item = ITEMS[id];
-            html += '<div style="background:linear-gradient(180deg,#1e1e2f,#151522);border:2px solid rgba(255,255,255,0.08);border-radius:14px;padding:10px 6px;text-align:center;">';
+            // Особая подсветка для Путеводной Звезды
+            let isWaystar = (id === "waystar");
+            let borderColor = isWaystar ? "#ffd700" : "rgba(255,255,255,0.08)";
+            let extraShadow = isWaystar ? "box-shadow:0 0 15px rgba(255,215,0,0.5);" : "";
+            html += '<div style="background:linear-gradient(180deg,#1e1e2f,#151522);border:2px solid ' + borderColor + ';border-radius:14px;padding:10px 6px;text-align:center;' + extraShadow + '">';
             html += '<div onclick="showItemModal(\'' + id + '\')" style="cursor:pointer;">';
             html += '<div style="font-size:36px;">' + item.icon + '</div>';
             html += '<div style="font-size:11px;font-weight:800;margin-top:4px;line-height:1.2;">' + item.name + '</div>';
@@ -669,6 +697,8 @@ function showItemModal(id) {
         html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatFruit(\'' + id + '\');">' + item.icon + ' Съесть</button>';
     } else if (item.actionFunction === "useKey") {
         html += '<button class="btn btn-primary" style="padding:12px;" onclick="useKey();">🔓 Использовать ключ</button>';
+    } else if (item.actionFunction === "useWaystar") {
+        html += '<button class="btn" style="padding:14px;background:linear-gradient(135deg,#ffd700,#ff8800);color:#1a1a2e;font-weight:900;border:none;font-size:15px;box-shadow:0 0 20px rgba(255,215,0,0.5);" onclick="useWaystar();">🌟 АКТИВИРОВАТЬ (+25 000⭐)</button>';
     }
     if (item.canSell && item.sellPrice) {
         html += '<button class="btn" style="padding:12px;background:#f5af19;color:#000;font-weight:900;" onclick="sellBones();">💰 Продать всё (' + (count * item.sellPrice) + '⭐)</button>';
@@ -701,6 +731,7 @@ window.eatFruit = eatFruit;
 window.cookMeat = cookMeat;
 window.sellBones = sellBones;
 window.useKey = useKey;
+window.useWaystar = useWaystar;
 window.tickHunger = tickHunger;
 window.tickPoison = tickPoison;
 window.getHungerHpMult = getHungerHpMult;
@@ -727,4 +758,4 @@ window.getTreasureUnlocked = function() {
     return false;
 };
 
-console.log("[INVENTORY] v1.6 — фикс распространения между слотами");
+console.log("[INVENTORY] v1.7 — фикс слотов + Путеводная Звезда");
