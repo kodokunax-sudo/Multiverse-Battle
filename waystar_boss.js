@@ -246,7 +246,7 @@ function startWaystarFight() {
     waystarPhase3AttacksStarted = false;
 
     var playerDmg = (typeof window.playerFinalDamage !== 'undefined') ? window.playerFinalDamage : 100;
-    waystarBossMaxHp = Math.max(25000, playerDmg * 120);
+    waystarBossMaxHp = Math.max(25000, playerDmg * 80);
     waystarBossHp = waystarBossMaxHp;
 
     waystarBoss = { x: 200, y: 100, size: 55, vx: 1.5, rotation: 0, pulse: 0, time: 0, alpha: 1 };
