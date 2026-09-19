@@ -1,409 +1,1841 @@
-// ========== СУПЕР-СПОСОБНОСТИ СЕКРЕТНЫХ КАРТ (АРЕНА) v14.5 ==========
-// + Проверка мастерства карты (супер работает только с ур.5)
+// ============================================================
+// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v7.0
+// ФИКС: лазеры стреляют, победа не фризит, 3 фаза — БЕШЕНСТВО
+// ============================================================
 
-let _superState = {
-    fists: [], rings: [],
-    dekusActive: false, dekusOriginalSpeed: 1.2, dekusDmgMult: 1, dekusParticles: false,
-    dekuEarthShatterReady: false, dekuDashSmashReady: false,
-    dekuEarthShatterCooldown: 0, dekuDashSmashCooldown: 0,
-    dekuSmashActive: false, dekuSmashBlackoutTimer: 0, dekuSmashSequenceTimer: 0, dekuFists: [],
-    originalHeartSpeed: 1.2, originalGlobalSpeedMod: 1.0,
-    borosHeal: null, borosParticles: false,
-    usoppInvuln: false, usoppStunTimer: 0,
-    nikaActive: false, nikaHitboxOriginal: 4, nikaSizeOriginal: 14, nikaDmgMult: 1, nikaSpeedBonus: 1,
-    positionHistory: [], garouMarker: null, garouInvulnTimer: 0, garouTimeStop: false,
-    garpChargeTimer: 0, garpImpactActive: false, garpImpactRadius: 0, garpImpactX: 0, garpImpactY: 0,
-    garpHakiActive: false, garpHakiTimer: 0,
-    imAuraActive: false, imSpeedPenalty: false,
-    antispiralActive: false, antispiralOrigHitbox: 4, antispiralOrigSize: 14, antispiralOrigSpeed: 1.2, antispiralShrinkAttacks: false,
-    dandyLightnings: false, dandyInvuln: false, dandyDmgBuff: null, dandyShield: null, dandyVulnerable: null, dandyDoubleTargets: false, dandyRoulette: null,
-    dandyDarkness: 0, dandyAura: 0, dandyLava: 0, dandyAutoRevive: false,
-    kaidoDrinking: false, kaidoBuffActive: false, kaidoDmgReduction: false, kaidoDmgBonus: 1, kaidoSpeedBonus: 1, invertControls: false, kaidoScream: false,
-    markResurrectCharges: 2,
-    markBuffActive: false, markBuffTimer: 0, markDmgReduction: 1, markDmgBonus: 1, markSpeedBonus: 1,
-    allmightPermaSlow: false, allmightDmgMult: 1, allmightBuffTimer: 0, allmightOrigSize: 14, allmightOrigHitbox: 4, allmightShockwave: 0,
-    allmightDebuffActive: false, allmightDebuffTimer: 0, allmightDebuffDmgMult: 1,
-    allmightHurricane: false, allmightHurricaneTimer: 0, allmightHurricaneAngle: 0,
-    screenShakeAmount: 0, screenFlashWhite: 0,
-    realityCracks: [], comicTexts: [], earthCracks: [],
-    dekuDash: null, dekuExplosions: []
-};
+let waystarActive = false;
+let waystarState = "dialogue";
+let waystarBoss = { x: 200, y: 100, size: 55, vx: 1.5, rotation: 0, pulse: 0, time: 0, alpha: 1 };
+let waystarBoss2 = { x: 200, y: 100, size: 40, vx: -1.5, rotation: 0, pulse: 0, alpha: 1, active: false };
+let waystarPlayer = { x: 200, y: 430 };
+let waystarBossHp = 0;
+let waystarBossMaxHp = 0;
+let waystarPlayerHp = 200;
+let waystarPlayerMaxHp = 200;
+let waystarAttacks = [];
+let waystarPlayerBullets = [];
+let waystarParticles = [];
+let waystarTexts = [];
+let waystarAttackTimer = 0;
+let waystarAttackType = 0;
+let waystarTypeTimer = 250;
+let waystarInvulnTimer = 0;
+let waystarShake = 0;
+let waystarScreenFlash = 0;
+let waystarScreenFlashColor = "#ffffff";
+let waystarBossFlash = 0;
+let waystarAnimFrame = null;
+let waystarBgStars = [];
+let waystarSpeedMult = 1.3;
+let waystarKeys = {};
+let waystarTouchActive = false, waystarTouchId = null, waystarTouchX = 0, waystarTouchY = 0;
 
-let _superCooldowns = {};
-let _activeSuperName = null;
-let _superLastTick = 0;
-let _allmightHurricaneReady = false;
-let _allmightHurricaneCooldown = 0;
+let waystarShootCooldown = 0;
+let waystarShootInterval = 6;
 
-// ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======
-function drawHakiLightning(x, y, maxDist, alpha, widthMod, customColor) {
-    if (widthMod === undefined) widthMod = 1;
-    if (customColor === undefined) customColor = "#ff0000";
-    if (!ctx) return;
-    ctx.save(); ctx.globalAlpha = alpha;
-    var angle = Math.random() * Math.PI * 2;
-    ctx.beginPath(); ctx.moveTo(x, y);
-    var cx = x, cy = y;
-    var steps = 4 + Math.floor(Math.random() * 5);
-    for (var i = 0; i < steps; i++) { angle += (Math.random() - 0.5) * 2.0; cx += Math.cos(angle) * (maxDist / steps); cy += Math.sin(angle) * (maxDist / steps); ctx.lineTo(cx, cy); }
-    ctx.strokeStyle = customColor; ctx.lineWidth = 6 * widthMod; ctx.shadowColor = customColor; ctx.shadowBlur = 20; ctx.stroke();
-    ctx.strokeStyle = "#000000"; ctx.lineWidth = 2 * widthMod; ctx.shadowBlur = 0; ctx.stroke(); ctx.restore();
-}
+let waystarShockwaves = [];
+let waystarLightningBolts = [];
+let waystarSlashMarks = [];
+let waystarFlashBursts = [];
+let waystarScreenDistort = 0;
+let waystarVignette = 0;
+let waystarNebulas = [];
+let waystarAmbientTimer = 0;
+let waystarRageMode = false;
 
-function addShockwaveRing(x, y, color, speed, maxLife, width) {
+let waystarDialogActive = false;
+let waystarDialogStep = 0;
+let waystarDialogQueue = [];
+let waystarChoiceActive = false;
+let waystarChoiceResolved = false;
+let waystarDialogAutoTimer = 0;
+let waystarDialogOnComplete = null;
+
+let waystarSplitAnim = null;
+let waystarEscapeAnim = null;
+let waystarFinalDeathAnim = null;
+
+let waystarPieces = [];
+let waystarEnemyBullets = [];
+let waystarInvaderDir = 1;
+let waystarInvaderSpeed = 1.0;
+let waystarInvaderShootTimer = 0;
+let waystarPiecesTotal = 60;
+let waystarPiecesAlive = 60;
+
+let waystarReturning = false;
+let waystarReturnTimer = 0;
+let waystarSmallBoss = { x: 200, y: 100, size: 28, rotation: 0, pulse: 0, time: 0, alpha: 0, trail: [] };
+let waystarBombs = [];
+let waystarDash = null;
+
+let waystarRewardGiven = false;
+
+// ★ Усиленные эффекты для 3 фазы ★
+let waystarPhase3Embers = [];
+let waystarPhase3Rings = [];
+let waystarPhase3AuraPulse = 0;
+
+// ========== ЭФФЕКТЫ ==========
+function addWaystarShockwave(x, y, color, maxRadius, life, width) {
     if (width === undefined) width = 4;
-    _superState.rings.push({ x: x, y: y, radius: 10, color: color, speed: speed, life: maxLife, maxLife: maxLife, width: width });
+    waystarShockwaves.push({ x: x, y: y, radius: 10, maxRadius: maxRadius, life: life, maxLife: life, color: color, width: width });
 }
-
-function drawLightningBolt(x1, y1, x2, y2, color, alpha, width, innerColor) {
+function addWaystarLightning(x1, y1, x2, y2, color, alpha, width) {
     if (width === undefined) width = 2;
-    if (!ctx) return;
-    ctx.save(); ctx.globalAlpha = alpha;
-    ctx.strokeStyle = color; ctx.lineWidth = width * alpha;
-    ctx.shadowColor = innerColor ? innerColor : color; ctx.shadowBlur = innerColor ? 15 * alpha : 12 * alpha;
-    ctx.beginPath(); ctx.moveTo(x1, y1);
-    var segments = 5, pts = [];
-    for (var i = 1; i < segments; i++) { var t = i / segments; pts.push({ x: x1 + (x2 - x1) * t + (Math.random() - 0.5) * 15, y: y1 + (y2 - y1) * t + (Math.random() - 0.5) * 15 }); }
-    for (var p of pts) ctx.lineTo(p.x, p.y);
-    ctx.lineTo(x2, y2); ctx.stroke();
-    if (innerColor) { ctx.strokeStyle = innerColor; ctx.lineWidth = (width * 0.4) * alpha; ctx.shadowBlur = 0; ctx.beginPath(); ctx.moveTo(x1, y1); for (var p of pts) ctx.lineTo(p.x, p.y); ctx.lineTo(x2, y2); ctx.stroke(); }
-    ctx.restore();
+    var pts = [];
+    var steps = 5 + Math.floor(Math.random() * 4);
+    for (var i = 1; i < steps; i++) {
+        var t = i / steps;
+        pts.push({ x: x1 + (x2 - x1) * t + (Math.random() - 0.5) * 30, y: y1 + (y2 - y1) * t + (Math.random() - 0.5) * 30 });
+    }
+    waystarLightningBolts.push({ x1: x1, y1: y1, x2: x2, y2: y2, pts: pts, color: color, alpha: alpha, life: 15, maxLife: 15, width: width });
+}
+function addWaystarSlash(x, y, angle, length, width) {
+    waystarSlashMarks.push({ x: x, y: y, angle: angle, length: length, width: width || 4, life: 25, maxLife: 25 });
+}
+function addWaystarFlash(x, y, size) {
+    waystarFlashBursts.push({ x: x, y: y, size: size || 40, life: 20, maxLife: 20 });
+}
+function spawnWaystarParticles(x, y, count, color, speed) {
+    for (var i = 0; i < count; i++) {
+        var a = Math.random() * Math.PI * 2, s = speed * (0.3 + Math.random());
+        waystarParticles.push({
+            x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+            life: 25 + Math.random() * 20, maxLife: 45,
+            color: color, size: 1.5 + Math.random() * 3
+        });
+    }
+}
+function updateWaystarMegaEffects() {
+    for (var i = waystarShockwaves.length - 1; i >= 0; i--) {
+        var sw = waystarShockwaves[i];
+        sw.radius += (sw.maxRadius - sw.radius) * 0.15;
+        sw.life--;
+        if (sw.life <= 0) waystarShockwaves.splice(i, 1);
+    }
+    for (var i = waystarLightningBolts.length - 1; i >= 0; i--) { waystarLightningBolts[i].life--; if (waystarLightningBolts[i].life <= 0) waystarLightningBolts.splice(i, 1); }
+    for (var i = waystarSlashMarks.length - 1; i >= 0; i--) { waystarSlashMarks[i].life--; if (waystarSlashMarks[i].life <= 0) waystarSlashMarks.splice(i, 1); }
+    for (var i = waystarFlashBursts.length - 1; i >= 0; i--) { waystarFlashBursts[i].life--; if (waystarFlashBursts[i].life <= 0) waystarFlashBursts.splice(i, 1); }
+    if (waystarScreenDistort > 0) waystarScreenDistort *= 0.85;
+    if (waystarScreenDistort < 0.5) waystarScreenDistort = 0;
+    if (waystarVignette > 0) waystarVignette--;
+    for(var i=0; i<waystarNebulas.length; i++) {
+        waystarNebulas[i].y += waystarNebulas[i].speed;
+        waystarNebulas[i].angle += waystarNebulas[i].rotSpeed;
+        if(waystarNebulas[i].y > 600) waystarNebulas[i].y = -100;
+    }
 }
 
-function drawFist(f) {
-    if (!ctx) return;
-    var alpha = f.life > 10 ? 1 : f.life / 10;
-    ctx.save(); ctx.globalAlpha = alpha;
-    if (f.owner === "Сайтама") { var gradFire = ctx.createLinearGradient(f.x, f.y, f.x, f.y + 100); gradFire.addColorStop(0, "rgba(255,100,0,0.8)"); gradFire.addColorStop(0.5, "rgba(255,200,0,0.4)"); gradFire.addColorStop(1, "rgba(255,0,0,0)"); ctx.fillStyle = gradFire; ctx.beginPath(); ctx.moveTo(f.x - f.size/2, f.y); ctx.lineTo(f.x, f.y + 120); ctx.lineTo(f.x + f.size/2, f.y); ctx.closePath(); ctx.fill(); }
-    ctx.translate(f.x, f.y); var s = f.size;
-    ctx.shadowColor = f.owner === "Гарп" ? "#4444ff" : "#ff0000"; ctx.shadowBlur = f.owner === "Гарп" ? 40 : 50;
-    if (f.owner === "Гарп") { for (var i = 0; i < 15; i++) { ctx.fillStyle = "rgba(255, 255, 255, " + (Math.random() * 0.8) + ")"; ctx.beginPath(); ctx.arc((Math.random() - 0.5) * s * 2, (Math.random() - 0.5) * s * 2.4, 1 + Math.random() * 2, 0, Math.PI * 2); ctx.fill(); } ctx.fillStyle = "#1111aa"; ctx.fillRect(-s, -s * 1.2, s * 2, s * 2.4); ctx.fillStyle = "#3333ff"; ctx.fillRect(-s * 0.6, -s * 1.2, s * 0.3, s * 2.4); ctx.fillRect(s * 0.3, -s * 1.2, s * 0.3, s * 2.4); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4; }
-    else { ctx.fillStyle = "#cc0000"; ctx.fillRect(-s, -s * 1.2, s * 2, s * 2.4); ctx.fillStyle = "#ff3333"; ctx.fillRect(-s * 0.7, -s * 1.2, s * 0.4, s * 2.4); ctx.fillRect(s * 0.3, -s * 1.2, s * 0.4, s * 2.4); ctx.fillStyle = "#880000"; ctx.fillRect(-s, s * 0.8, s * 2, s * 0.4); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4; }
-    ctx.shadowBlur = 0; ctx.strokeRect(-s, -s * 1.2, s * 2, s * 2.4);
-    ctx.fillStyle = "#ffffff"; ctx.font = "bold " + (s * 0.5) + "px monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.shadowColor = "#000"; ctx.shadowBlur = 6; ctx.fillText(f.owner === "Гарп" ? "ГАЛАКТИКА" : "УДАР", 0, 0); ctx.restore();
+// ========== БЕШЕНАЯ АТМОСФЕРА ФАЗЫ 3 ==========
+function updateWaystarAmbient() {
+    if (waystarState !== "phase3") return;
+    waystarAmbientTimer++;
+    waystarPhase3AuraPulse += 0.15;
+
+    // Вращающиеся энергетические кольца вокруг босса
+    if (waystarAmbientTimer % 3 === 0) {
+        waystarPhase3Rings.push({
+            x: waystarSmallBoss.x, y: waystarSmallBoss.y,
+            radius: 30, maxRadius: 90,
+            angle: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random() - 0.5) * 0.3,
+            life: 25, maxLife: 25,
+            color: Math.random() > 0.5 ? "#ff00ff" : "#ffffff"
+        });
+    }
+    // Эмберы (падающие снизу вверх)
+    if (waystarAmbientTimer % 2 === 0) {
+        waystarPhase3Embers.push({
+            x: Math.random() * 400, y: 500 + Math.random() * 40,
+            vx: (Math.random() - 0.5) * 1.5,
+            vy: -(2 + Math.random() * 3),
+            size: 1 + Math.random() * 2.5,
+            life: 60 + Math.random() * 40,
+            color: Math.random() > 0.5 ? "#ff00ff" : "#ffaa00"
+        });
+    }
+    // Случайные молнии вокруг босса
+    if (waystarAmbientTimer % 14 === 0) {
+        var ang = Math.random() * Math.PI * 2;
+        addWaystarLightning(waystarSmallBoss.x, waystarSmallBoss.y,
+            waystarSmallBoss.x + Math.cos(ang) * (100 + Math.random() * 80),
+            waystarSmallBoss.y + Math.sin(ang) * (100 + Math.random() * 80),
+            Math.random() > 0.5 ? "#ff00ff" : "#ffffff", 0.9, 2.5);
+    }
+    // Слэши по краям экрана
+    if (waystarAmbientTimer % 6 === 0) {
+        addWaystarSlash(30 + Math.random() * 340, 60 + Math.random() * 380, Math.random() * Math.PI * 2, 30 + Math.random() * 60, 3);
+    }
+    // Вспышки вокруг босса
+    if (waystarAmbientTimer % 10 === 0) {
+        addWaystarFlash(waystarSmallBoss.x + (Math.random() - 0.5) * 80, waystarSmallBoss.y + (Math.random() - 0.5) * 80, 25 + Math.random() * 40);
+    }
+    // Вспышки экрана
+    if (waystarAmbientTimer % 40 === 0) {
+        waystarScreenFlash = 8; waystarScreenFlashColor = "#ff00ff";
+    }
+    // Постоянные искры от босса
+    if (waystarAmbientTimer % 1 === 0) {
+        spawnWaystarParticles(waystarSmallBoss.x + (Math.random() - 0.5) * 40, waystarSmallBoss.y + (Math.random() - 0.5) * 40, 1, ["#ff00ff", "#ffaa00", "#ffffff"][Math.floor(Math.random() * 3)], 3);
+    }
+    // Трейл босса
+    waystarSmallBoss.trail.push({ x: waystarSmallBoss.x, y: waystarSmallBoss.y, life: 18, maxLife: 18 });
+    if (waystarSmallBoss.trail.length > 8) waystarSmallBoss.trail.shift();
 }
 
-function drawCircleMarker(x, y, color, alpha, radius) {
-    if (radius === undefined) radius = 25;
-    if (!ctx) return;
-    ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.shadowColor = color; ctx.shadowBlur = 20;
-    ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-    var pulse = 1 + Math.sin(performance.now() / 100) * 0.3;
-    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, 6 * pulse, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+function updateWaystarPhase3Special() {
+    for (var i = waystarPhase3Embers.length - 1; i >= 0; i--) {
+        var e = waystarPhase3Embers[i];
+        e.x += e.vx; e.y += e.vy; e.life--;
+        e.vy *= 0.99;
+        if (e.life <= 0 || e.y < -20) waystarPhase3Embers.splice(i, 1);
+    }
+    for (var i = waystarPhase3Rings.length - 1; i >= 0; i--) {
+        var r = waystarPhase3Rings[i];
+        r.radius += 3;
+        r.angle += r.rotSpeed;
+        r.life--;
+        if (r.life <= 0 || r.radius > r.maxRadius) waystarPhase3Rings.splice(i, 1);
+    }
+    for (var i = waystarSmallBoss.trail.length - 1; i >= 0; i--) {
+        waystarSmallBoss.trail[i].life--;
+        if (waystarSmallBoss.trail[i].life <= 0) waystarSmallBoss.trail.splice(i, 1);
+    }
 }
 
-function drawGarouTrail() {
-    var mainCard = getMainCard();
-    if (!mainCard || mainCard.name !== "Космический Гароу") return;
-    if (!ctx || !_superState.positionHistory || _superState.positionHistory.length < 2) return;
-    ctx.save();
-    for (var i = 1; i < _superState.positionHistory.length; i++) { var p1 = _superState.positionHistory[i - 1], p2 = _superState.positionHistory[i]; var age = (performance.now() - p2.time) / 2000; var alpha = 1 - age; if (alpha <= 0) continue; ctx.globalAlpha = alpha * 0.5; var gradient = ctx.createLinearGradient(p1.x, p1.y, p2.x, p2.y); gradient.addColorStop(0, "rgba(186, 85, 211, " + alpha + ")"); gradient.addColorStop(0.5, "rgba(75, 0, 130, " + (alpha * 0.7) + ")"); gradient.addColorStop(1, "rgba(0, 0, 0, 0)"); ctx.strokeStyle = gradient; ctx.lineWidth = 8 * alpha; ctx.shadowColor = "#ba55d3"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); if (Math.random() < 0.15) { ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(p2.x + (Math.random()-0.5)*10, p2.y + (Math.random()-0.5)*10, 1 + Math.random()*1.5, 0, Math.PI*2); ctx.fill(); } }
-    ctx.restore();
+// ========== МУЗЫКА ==========
+let waystarMusic = null;
+function startWaystarMusic() {
+    if (typeof stopAllMusic === 'function') stopAllMusic();
+    if (!waystarMusic) {
+        try {
+            waystarMusic = new Audio("music/Звезда.mp3");
+            waystarMusic.loop = true;
+            waystarMusic.volume = 0.45;
+            waystarMusic.onerror = function() { waystarMusic = null; };
+        } catch(e) { waystarMusic = null; }
+    }
+    if (waystarMusic) { try { waystarMusic.currentTime = 0; waystarMusic.play().catch(function(){}); } catch(e) {} }
+}
+function stopWaystarMusic() {
+    if (waystarMusic) { try { waystarMusic.pause(); waystarMusic.currentTime = 0; } catch(e) {} }
+}
+function wsPlaySound(freq, type, dur, vol) {
+    if (typeof playArenaSound === 'function') playArenaSound(freq, type, dur, vol);
 }
 
-function drawBeerBottle(x, y, alpha, isDrinking) {
-    if (!ctx) return;
-    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y - 30);
-    if (isDrinking) { var tilt = Math.abs(Math.sin(performance.now() / 150)) * (Math.PI / 2.5); ctx.rotate(tilt); if (Math.random() < 0.25) { arenaParticles.push({x: x + 15, y: y - 30, vx: Math.random(), vy: 2 + Math.random()*2, life: 15, maxLife: 15, color: "#D2691E", size: 2}); } }
-    ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(-6, -12, 14, 22); ctx.fillStyle = "#8B4513"; ctx.fillRect(-8, -15, 16, 28); ctx.fillStyle = "#D2691E"; ctx.fillRect(-6, -20, 12, 8); ctx.fillStyle = "#FFD700"; ctx.fillRect(-5, -24, 10, 6); ctx.fillStyle = "#FFD700"; ctx.fillRect(-6, -5, 12, 10); ctx.fillStyle = "#000"; ctx.font = "bold 6px monospace"; ctx.textAlign = "center"; ctx.fillText("BEER", 0, 2); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(-8, -15, 16, 28);
-    for (var i = 0; i < 3; i++) { var bx = -4 + Math.random() * 10, by = -10 - Math.random() * 10; ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(bx, by, 1.5, 0, Math.PI * 2); ctx.fill(); }
-    ctx.restore();
+// ========== СТАРТ ==========
+function startWaystarFight() {
+    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500)) {
+        if (typeof showFloatingText === 'function') showFloatingText("⏭️ Путеводная Звезда уже побеждена!", "#ffaa00");
+        return;
+    }
+    waystarActive = true;
+    waystarState = "dialogue";
+    waystarRageMode = false;
+
+    // Фаза 1: как было — 120x урона
+    var playerDmg = (typeof window.playerFinalDamage !== 'undefined') ? window.playerFinalDamage : 100;
+    waystarBossMaxHp = Math.max(25000, playerDmg * 120);
+    waystarBossHp = waystarBossMaxHp;
+
+    waystarBoss = { x: 200, y: 100, size: 55, vx: 1.5, rotation: 0, pulse: 0, time: 0, alpha: 1 };
+    waystarBoss2 = { x: 200, y: 100, size: 40, vx: -1.5, rotation: 0, pulse: 0, alpha: 1, active: false };
+    waystarSmallBoss = { x: 200, y: 100, size: 28, rotation: 0, pulse: 0, time: 0, alpha: 0, trail: [] };
+    waystarPlayer = { x: 200, y: 430 };
+    waystarPlayerHp = 200;
+    waystarPlayerMaxHp = 200;
+    waystarInvulnTimer = 0;
+
+    waystarAttacks = []; waystarPlayerBullets = []; waystarParticles = []; waystarTexts = [];
+    waystarShockwaves = []; waystarLightningBolts = []; waystarSlashMarks = []; waystarFlashBursts = [];
+    waystarPhase3Embers = []; waystarPhase3Rings = [];
+    waystarAttackTimer = 0; waystarAttackType = 0; waystarTypeTimer = 250;
+    waystarShake = 0; waystarScreenFlash = 0; waystarBossFlash = 0;
+    waystarScreenDistort = 0; waystarVignette = 0;
+    waystarPieces = []; waystarEnemyBullets = [];
+    waystarBombs = []; waystarDash = null;
+    waystarReturning = false; waystarReturnTimer = 0;
+    waystarSplitAnim = null; waystarEscapeAnim = null; waystarFinalDeathAnim = null;
+    waystarAmbientTimer = 0;
+    waystarShootCooldown = 0;
+    waystarRewardGiven = false;
+    waystarDialogOnComplete = null;
+    waystarTouchActive = false; waystarTouchId = null;
+    waystarKeys = {};
+    waystarDialogActive = true; waystarDialogStep = 0; waystarChoiceActive = false; waystarChoiceResolved = false;
+    waystarDialogAutoTimer = 0;
+
+    initWaystarBgStars();
+    startWaystarMusic();
+
+    ['superBtn', 'superBtn2', 'superBtnDeactivate', 'startArenaBtn', 'skipBossBtn', 'spareBtn', 'startLivingStoneBtn', 'startWaystarBtn'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = "none";
+    });
+
+    var overlay = document.getElementById("arenaOverlay");
+    if (overlay) overlay.style.display = "flex";
+    var bossNameEl = document.getElementById("arenaBossName");
+    if (bossNameEl) bossNameEl.innerText = "🌟 ПУТЕВОДНАЯ ЗВЕЗДА";
+    var arenaHpEl = document.getElementById("arenaHP");
+    if (arenaHpEl) arenaHpEl.innerText = waystarPlayerHp;
+    var timerEl = document.getElementById("arenaTimer");
+    if (timerEl) timerEl.innerText = "∞";
+
+    if (typeof initArena === 'function') initArena();
+    if (typeof canvas === 'undefined' || !canvas) return;
+    if (typeof arenaActive !== 'undefined') arenaActive = false;
+    if (typeof livingStoneActive !== 'undefined') livingStoneActive = false;
+
+    canvas.addEventListener("click", handleWaystarClick);
+    canvas.addEventListener("touchstart", handleWaystarTouchStart, {passive: false});
+    canvas.addEventListener("touchmove", handleWaystarTouchMove, {passive: false});
+    canvas.addEventListener("touchend", handleWaystarTouchEnd);
+    canvas.addEventListener("touchcancel", handleWaystarTouchEnd);
+    window.addEventListener("keydown", handleWaystarKeyDown);
+    window.addEventListener("keyup", handleWaystarKeyUp);
+
+    if (waystarAnimFrame) cancelAnimationFrame(waystarAnimFrame);
+    waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
+
+    wsPlaySound(300, 'sine', 1.5, 0.2);
+    setTimeout(function() { wsPlaySound(400, 'sine', 1.0, 0.15); }, 300);
+
+    startWaystarDialog();
 }
 
-function drawAllMightHeart(hx, hy, size) {
-    if (!ctx) return;
-    ctx.save(); ctx.translate(hx, hy - 2);
-    var pulse = 1.0 + Math.abs(Math.sin(performance.now() / 140)) * 0.15;
-    var glowGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, size * 4.5); glowGrad.addColorStop(0, 'rgba(0, 100, 255, 0.8)'); glowGrad.addColorStop(0.4, 'rgba(255, 215, 0, 0.6)'); glowGrad.addColorStop(0.7, 'rgba(255, 0, 0, 0.5)'); glowGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.fillStyle = glowGrad; ctx.beginPath(); ctx.arc(0, 2, size * 4.5, 0, Math.PI * 2); ctx.fill();
-    ctx.scale(pulse, pulse);
-    var heartGrad = ctx.createLinearGradient(0, -size, 0, size); heartGrad.addColorStop(0, '#0055ff'); heartGrad.addColorStop(0.5, '#ffd700'); heartGrad.addColorStop(1, '#ff0000');
-    ctx.fillStyle = heartGrad; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 20; var hs = size * 0.8;
-    ctx.beginPath(); ctx.arc(-hs/2, -hs/3, hs/2, Math.PI, 0); ctx.arc(hs/2, -hs/3, hs/2, Math.PI, 0); ctx.lineTo(0, hs); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = Math.sin(performance.now()/50) > 0 ? "#ffffff" : "#ffaaaa"; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+function stopWaystarFight() {
+    waystarActive = false;
+    stopWaystarMusic();
+    if (waystarAnimFrame) { cancelAnimationFrame(waystarAnimFrame); waystarAnimFrame = null; }
+    if (typeof canvas !== 'undefined' && canvas) {
+        canvas.removeEventListener("click", handleWaystarClick);
+        canvas.removeEventListener("touchstart", handleWaystarTouchStart);
+        canvas.removeEventListener("touchmove", handleWaystarTouchMove);
+        canvas.removeEventListener("touchend", handleWaystarTouchEnd);
+        canvas.removeEventListener("touchcancel", handleWaystarTouchEnd);
+    }
+    window.removeEventListener("keydown", handleWaystarKeyDown);
+    window.removeEventListener("keyup", handleWaystarKeyUp);
+    var overlay = document.getElementById("arenaOverlay");
+    if (overlay) overlay.style.display = "none";
+    if (typeof startBattleMusic === 'function') startBattleMusic();
 }
 
-// ====== ОПИСАНИЯ СПОСОБНОСТЕЙ ======
-const superAbilities = {
-    "Деку (100%)": { name: "ПОЛНОЕ 100% ПОКРЫТИЕ", cooldown: 15000, toggleable: true, duration: Infinity,
-        onActivate() { _superState.dekusActive = true; _superState.dekusOriginalSpeed = heartSpeed; _superState.dekusDmgMult = 2; _superState.dekusParticles = true; heartSpeed *= 3; _superState.screenShakeAmount = 15; _superState.dekuEarthShatterReady = true; _superState.dekuDashSmashReady = true; _superState.dekuEarthShatterCooldown = 0; _superState.dekuDashSmashCooldown = 0; addShockwaveRing(heart.x, heart.y, "#44ff44", 400, 0.5); spawnFloatingText(heart.x, heart.y - 30, "100%!!!", "#44ff44"); },
-        onDeactivate() { heartSpeed = _superState.dekusOriginalSpeed; _superState.dekusActive = false; _superState.dekusDmgMult = 1; _superState.dekusParticles = false; _superState.dekuEarthShatterReady = false; _superState.dekuDashSmashReady = false; _superState.dekuEarthShatterCooldown = 0; _superState.dekuDashSmashCooldown = 0; _superState.dekuDash = null; _superState.earthCracks = []; _superState.dekuExplosions = []; _superState.dekuSmashActive = false; _superState.dekuFists = []; _superState.dekuSmashBlackoutTimer = 0; _superState.dekuSmashSequenceTimer = 0; heartSpeed = _superState.originalHeartSpeed; arenaGlobalSpeedMod = _superState.originalGlobalSpeedMod; restoreArenaTimer(); _superState.screenShakeAmount = 0; },
-        onTick(dt) { if (_superState.dekusActive && arenaActive) { var drain = arenaMaxHP * 0.02 * dt; arenaHP = Math.max(0, arenaHP - drain); document.getElementById("arenaHP").innerText = Math.max(0, Math.ceil(arenaHP)); if (arenaHP <= 0 && typeof loseArena === 'function') loseArena(); } } },
-    "Сайтама": { name: "ОБЫЧНЫЙ УДАР", cooldown: 12000, toggleable: false, duration: 0, onActivate() { var willOneshot = Math.random() < 0.01; _superState.fists.push({ x: heart.x, y: heart.y - 30, vx: 0, vy: -3.5, size: 70, life: 100, color: "#ff2222", willOneshot: willOneshot, oneshotChecked: false, pathWidth: 120, owner: "Сайтама" }); _superState.screenShakeAmount = 25; _superState.screenFlashWhite = 3; addShockwaveRing(heart.x, heart.y, "#ff0000", 350, 0.6); for (var i = 0; i < 20; i++) { var ang = (i / 20) * Math.PI * 2; arenaParticles.push({ x: heart.x, y: heart.y, vx: Math.cos(ang) * 12, vy: Math.sin(ang) * 12, life: 15, maxLife: 15, color: "#ffaa00", size: 3 }); } if (typeof sfxWhoosh === 'function') sfxWhoosh(); spawnFloatingText(heart.x, heart.y - 40, "УДАР!", "#ff0000"); }, onTick() {} },
-    "Борос": { name: "РЕГЕНЕРАЦИЯ", cooldown: 20000, toggleable: false, duration: 5000, onActivate() { _superState.borosHeal = { active: true, healPerSec: arenaMaxHP * 0.06, elapsed: 0, totalDuration: 5 }; _superState.borosParticles = true; heartSpeed *= 0.7; addShockwaveRing(heart.x, heart.y, "#66ff66", 200, 0.8); spawnFloatingText(heart.x, heart.y - 30, "РЕГЕН!", "#66ff66"); }, onDeactivate() { if (_superState.borosHeal) { heartSpeed /= 0.7; _superState.borosHeal = null; _superState.borosParticles = false; } _superState.screenFlashWhite = 5; }, onTick(dt) { if (_superState.borosHeal && _superState.borosHeal.active && arenaActive) { var h = _superState.borosHeal.healPerSec * dt; arenaHP = Math.min(arenaMaxHP, arenaHP + h); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); _superState.borosHeal.elapsed += dt; if (_superState.borosHeal.elapsed >= _superState.borosHeal.totalDuration) { this.onDeactivate(); startCooldown("Борос", this.cooldown); } } } },
-    "Бог Усопп": { name: "ЛОЖЬ СТАНОВИТСЯ ПРАВДОЙ", cooldown: 35000, toggleable: false, duration: 3000, onActivate() { _superState.usoppInvuln = true; spawnFloatingText(heart.x, heart.y - 30, "НЕУЯЗВИМ!", "#ffff00"); }, onDeactivate() { _superState.usoppInvuln = false; _superState.usoppStunTimer = 1; spawnFloatingText(heart.x, heart.y - 30, "ОГЛУШЕНИЕ!", "#ff8800"); }, onTick(dt) {} },
-    "Луффи: Ника, Бог Солнца": { name: "ОСВОБОЖДЕНИЕ", cooldown: 25000, toggleable: true, duration: Infinity, onActivate() { _superState.nikaActive = true; _superState.nikaHitboxOriginal = heart.hitbox; _superState.nikaSizeOriginal = heart.size; heart.hitbox *= 2; heart.size *= 2; _superState.nikaDmgMult = 1.5; _superState.nikaSpeedBonus = 1.3; heartSpeed *= 1.3; _superState.screenFlashWhite = 8; addShockwaveRing(heart.x, heart.y, "#ffffff", 500, 0.8); spawnFloatingText(heart.x, heart.y - 40, "НИКА!", "#ffffff"); }, onDeactivate() { _superState.nikaActive = false; heart.hitbox = _superState.nikaHitboxOriginal; heart.size = _superState.nikaSizeOriginal; _superState.nikaDmgMult = 1; heartSpeed /= 1.3; }, onTick(dt) {} },
-    "Космический Гароу": { name: "ПОТОК ВСЕЛЕННОЙ", cooldown: 30000, toggleable: false, duration: 0, onActivate() { var now = performance.now(); var target = null; for (var i = _superState.positionHistory.length - 1; i >= 0; i--) { if (now - _superState.positionHistory[i].time >= 2000) { target = _superState.positionHistory[i]; break; } } if (!target && _superState.positionHistory.length > 0) target = _superState.positionHistory[0]; if (target) { _superState.garouTimeStop = true; setTimeout(function() { _superState.garouTimeStop = false; }, 300); addShockwaveRing(heart.x, heart.y, "#ba55d3", 250, 0.6, 6); for(var i=0; i<15; i++) { var ang = Math.random() * Math.PI*2; var sp = 3 + Math.random()*5; arenaParticles.push({ x: heart.x, y: heart.y, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, life: 25, maxLife: 25, color: "#4b0082", size: 4 }); } _superState.garouMarker = { x: target.x, y: target.y, alpha: 1.0, time: now }; heart.x = target.x; heart.y = target.y; addShockwaveRing(heart.x, heart.y, "#ff8800", 300, 0.5, 6); _superState.garouInvulnTimer = 1.0; _superState.screenShakeAmount = 15; spawnFloatingText(heart.x, heart.y - 30, "ТЕЛЕПОРТ!", "#ff8800"); } _superState.positionHistory = []; }, onTick(dt) {} },
-    "Зено": { name: "СТИРАНИЕ", cooldown: 45000, toggleable: false, duration: 0, onActivate() { _superState.screenFlashWhite = 20; attacks = []; arenaBlasters = []; arenaBossMaxHP = Math.floor(arenaBossMaxHP * 0.9); _superState.realityCracks = []; for (var i = 0; i < 8; i++) { _superState.realityCracks.push({ x1: Math.random() * 400, y1: Math.random() * 500, x2: Math.random() * 400, y2: Math.random() * 500, life: 1.5 }); } if (typeof sfxArenaVictory === 'function') sfxArenaVictory(); spawnFloatingText(heart.x, heart.y - 30, "СТЁРТО!", "#ff00ff"); }, onTick() {} },
-    "Анти-спираль": { name: "СЖАТИЕ ПРОСТРАНСТВА", cooldown: 25000, toggleable: true, duration: Infinity, onActivate() { _superState.antispiralActive = true; _superState.antispiralOrigHitbox = heart.hitbox; _superState.antispiralOrigSize = heart.size; _superState.antispiralOrigSpeed = heartSpeed; heart.hitbox = heart.hitbox * 0.7; heart.size = heart.size * 0.7; heartSpeed = heartSpeed * 0.7; for (var a of attacks) { if (a.size) a.size *= 0.7; if (a.radius) a.radius *= 0.7; if (a.spd) a.spd *= 0.7; if (a.spdY) a.spdY *= 0.7; } _superState.antispiralShrinkAttacks = true; spawnFloatingText(heart.x, heart.y - 30, "ПРОСТРАНСТВО СЖАТО!", "#aaddff"); }, onDeactivate() { _superState.antispiralActive = false; _superState.antispiralShrinkAttacks = false; heart.hitbox = _superState.antispiralOrigHitbox; heart.size = _superState.antispiralOrigSize; heartSpeed = _superState.antispiralOrigSpeed; for (var a of attacks) { if (a.size) a.size /= 0.7; if (a.radius) a.radius /= 0.7; if (a.spd) a.spd /= 0.7; if (a.spdY) a.spdY /= 0.7; } }, onTick(dt) {} },
-    "Молодой Гарп": { name: "ГАЛАКТИЧЕСКИЙ УДАР", cooldown: 30000, toggleable: false, duration: 0, onActivate() { heartSpeed *= 0.3; _superState.garpChargeTimer = 1.2; _superState.screenShakeAmount = 12; spawnFloatingText(heart.x, heart.y - 40, "ЗАРЯДКА ХАКИ...", "#ff0000"); }, onTick(dt) {} },
-    "Им (Правитель)": { name: "ТЕНЕВОЕ ПРАВЛЕНИЕ", cooldown: 30000, toggleable: true, duration: Infinity, onActivate() { _superState.imAuraActive = true; _superState.imSpeedPenalty = true; heartSpeed *= 0.7; spawnFloatingText(heart.x, heart.y - 30, "ТЬМА!", "#800080"); }, onDeactivate() { _superState.imAuraActive = false; _superState.imSpeedPenalty = false; heartSpeed /= 0.7; }, onTick(dt) {} },
-    "Космический Дэнди": { name: "КОСМИЧЕСКАЯ УДАЧА", cooldown: 20000, toggleable: false, duration: 0, onActivate() { _superState.dandyRoulette = { time: performance.now(), duration: 1500, result: null, spinAngle: 0 }; for (var i = 0; i < 10; i++) { arenaParticles.push({ x: heart.x + (Math.random()-0.5)*40, y: heart.y - 40, vx: (Math.random()-0.5)*1, vy: -1 - Math.random(), life: 20, maxLife: 20, color: "#ffd700", size: 2, isQuestionMark: true }); } setTimeout(function() { _superState.dandyRoulette.result = { name: "???" }; var roll = Math.random(); if (roll < 0.40) { var eff = DANDY_GOOD[Math.floor(Math.random() * DANDY_GOOD.length)]; eff.apply(); _superState.dandyRoulette.result = { name: eff.name, good: true }; for (var i = 0; i < 30; i++) { var ang = Math.random() * Math.PI*2; var sp = 2 + Math.random()*4; arenaParticles.push({ x: heart.x, y: heart.y - 30, vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, life: 40, maxLife: 40, color: "hsl(" + (Math.random()*360) + ", 100%, 50%)", size: 3 }); } spawnFloatingText(heart.x, heart.y - 40, eff.name + "!", "#44ff44"); } else if (roll < 0.60) { var eff = DANDY_NEUTRAL[Math.floor(Math.random() * DANDY_NEUTRAL.length)]; eff.apply(); _superState.dandyRoulette.result = { name: eff.name, good: null }; spawnFloatingText(heart.x, heart.y - 40, eff.name + "!", "#ffd700"); } else { var eff = DANDY_BAD[Math.floor(Math.random() * DANDY_BAD.length)]; eff.apply(); _superState.dandyRoulette.result = { name: eff.name, good: false }; screenFlash = 5; screenFlashColor = "#ff0000"; _superState.screenShakeAmount = 8; spawnFloatingText(heart.x, heart.y - 40, eff.name + "!", "#ff4444"); if (ctx) { for (var i = 0; i < 5; i++) { ctx.save(); ctx.fillStyle = "rgba(255, 0, 0, " + (Math.random() * 0.5) + ")"; ctx.fillRect(Math.random() * 400, Math.random() * 500, Math.random() * 80, Math.random() * 20); ctx.restore(); } } } setTimeout(function() { _superState.dandyRoulette = null; }, 1000); }, 1500); }, onTick() {} },
-    "Кайдо": { name: "ДЫХАНИЕ РАЗРУШЕНИЯ", cooldown: 25000, toggleable: false, duration: 0, onActivate() { _superState.kaidoDrinking = true; heartSpeed *= 0.5; spawnFloatingText(heart.x, heart.y - 30, "ГЛОТОК...", "#D2691E"); setTimeout(function() { _superState.kaidoDrinking = false; heartSpeed /= 0.5; _superState.kaidoBuffActive = true; _superState.kaidoDmgReduction = true; _superState.kaidoSpeedBonus = 1.5; heartSpeed *= 1.5; _superState.kaidoDmgBonus = 1.8; _superState.invertControls = true; _superState.kaidoScream = true; _superState.screenShakeAmount = 25; arenaHP = Math.min(arenaMaxHP, arenaHP + arenaMaxHP * 0.1); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); spawnFloatingText(heart.x, heart.y - 40, "ЯРОСТЬ!!!", "#ff4444"); setTimeout(function() { _superState.kaidoScream = false; }, 500); setTimeout(function() { _superState.kaidoBuffActive = false; _superState.kaidoDmgReduction = false; heartSpeed /= 1.5; _superState.kaidoSpeedBonus = 1; _superState.kaidoDmgBonus = 1; _superState.invertControls = false; heartSpeed *= 0.5; spawnFloatingText(heart.x, heart.y - 30, "ПОХМЕЛЬЕ...", "#8B4513"); setTimeout(function() { heartSpeed /= 0.5; }, 3000); }, 10000); }, 2000); }, onTick() {} },
-    "Император Марк": { name: "ПАССИВНАЯ", cooldown: 0, toggleable: false, duration: 0, onActivate() {}, onTick() {} },
-    "Всемогущий (прайм)": { name: "СИМВОЛ МИРА", cooldown: 60000, toggleable: false, duration: 0, onActivate() { _superState.allmightOrigHitbox = heart.hitbox; _superState.allmightOrigSize = heart.size; heart.hitbox *= 2; heart.size *= 2; _superState.allmightDmgMult = 3; _superState.allmightBuffTimer = 15; _superState.allmightShockwave = 0; _superState.screenFlashWhite = 20; spawnFloatingText(heart.x, heart.y - 50, "СИМВОЛ МИРА!!!", "#ffd700"); _superState.allmightDebuffActive = false; _superState.allmightDebuffTimer = 0; _superState.allmightDebuffDmgMult = 1; _allmightHurricaneReady = true; _allmightHurricaneCooldown = 0; var phrases = ["DETROIT!", "TEXAS!", "CAROLINA!", "UNITED STATES!"]; var phraseDelay = 0; phrases.forEach(function(p) { setTimeout(function() { if (_superState.allmightBuffTimer > 0) { _superState.comicTexts.push({ text: p + " SMASH!", x: 50 + Math.random()*300, y: 100 + Math.random()*250, alpha: 1.0, scale: 1.5 + Math.random()*0.5, angle: (Math.random()-0.5)*0.3, color: Math.random() > 0.5 ? "#ffd700" : "#ff3333" }); _superState.screenShakeAmount = 15; } }, phraseDelay); phraseDelay += 3000; }); setTimeout(function() { heart.hitbox = _superState.allmightOrigHitbox; heart.size = _superState.allmightOrigSize; _superState.allmightDmgMult = 1; arenaHP = Math.max(1, arenaHP - Math.floor(arenaMaxHP * 0.3)); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); _superState.allmightPermaSlow = true; heartSpeed = heartSpeed / 3; _superState.allmightDebuffActive = true; _superState.allmightDebuffDmgMult = 0.5; _allmightHurricaneReady = false; _superState.allmightHurricane = false; spawnFloatingText(heart.x, heart.y - 40, "ИСТОЩЕНИЕ НАВСЕГДА!", "#ff0000"); if (arenaHP <= 0 && typeof loseArena === 'function') loseArena(); }, 15000); }, onTick() {} }
-};
+function initWaystarBgStars() {
+    waystarBgStars = [];
+    waystarNebulas = [];
+    for (var i = 0; i < 120; i++) {
+        waystarBgStars.push({
+            x: Math.random() * 400, y: Math.random() * 500,
+            size: 0.5 + Math.random() * 2.2,
+            speed: 0.1 + Math.random() * 0.4,
+            alpha: 0.2 + Math.random() * 0.8,
+            twinkle: Math.random() * Math.PI * 2
+        });
+    }
+    var colors = ["#1a0a2e", "#0a1a3a", "#2a0a2a", "#0a1a2a"];
+    for(var j=0; j<4; j++) {
+        waystarNebulas.push({
+            x: Math.random() * 400, y: Math.random() * 500,
+            radius: 100 + Math.random() * 150,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            speed: 0.2 + Math.random() * 0.3,
+            angle: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random() - 0.5) * 0.01
+        });
+    }
+}
 
-// ====== ВОССТАНОВЛЕНИЕ ТАЙМЕРА ======
-function restoreArenaTimer() {
-    if (typeof arenaDodgeTimerInterval !== 'undefined' && arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); }
-    if (typeof arenaActive !== 'undefined' && arenaActive) {
-        arenaDodgeTimerInterval = setInterval(function() {
-            if (typeof arenaPhase !== 'undefined' && arenaPhase === "dodge" && typeof arenaActive !== 'undefined' && arenaActive) {
-                if (typeof arenaDodgeTimer !== 'undefined') { arenaDodgeTimer--; if (arenaDodgeTimer <= 0) arenaDodgeTimer = 0; }
-                if (typeof updateDodgeTimerDisplay === 'function') updateDodgeTimerDisplay();
+// ========== ДИАЛОГ ==========
+function startWaystarDialog() {
+    waystarDialogActive = true;
+    waystarDialogStep = 0;
+    waystarChoiceActive = false;
+    waystarChoiceResolved = false;
+    waystarDialogAutoTimer = 0;
+    waystarDialogOnComplete = function() { waystarState = "phase1"; waystarAttackTimer = 0; };
+    waystarDialogQueue = [
+        { speaker: "🌟 Путеводная Звезда", text: "СТОЙ, ПУТНИК..." },
+        { speaker: "🌟 Путеводная Звезда", text: "Я — ПУТЕВОДНАЯ ЗВЕЗДА. Древнее существо, что освещает путь заблудшим в бескрайней тьме космоса." },
+        { speaker: "🌟 Путеводная Звезда", text: "Ты проделал долгий путь. Пятьсот волн. Ты убивал. Ты собирал. Ты рос." },
+        { speaker: "🌟 Путеводная Звезда", text: "Но ЗАЧЕМ? Что движет тобой? Что ты ищешь среди обломков мультивселенной?" },
+        { speaker: "🌟 Путеводная Звезда", text: "Я чувствую... боль. Гнев. Что-то горит в твоей душе ярче любого солнца." },
+        { speaker: "🌟 Путеводная Звезда", text: "Рик..." },
+        { speaker: "🌟 Путеводная Звезда", text: "Он тот, кто всё испортил. Тот, кто разорвал ткань реальности на осколки." },
+        { speaker: "🌟 Путеводная Звезда", text: "По твоим глазам видно, что ты жаждешь мести." },
+        { speaker: "🌟 Путеводная Звезда", text: "Но кто это? Кому ты хочешь отомстить?", choice: true }
+    ];
+    for (var i = 0; i < waystarDialogQueue.length; i++) {
+        waystarDialogQueue[i].time = 2 + waystarDialogQueue[i].text.length * 0.03;
+    }
+}
+
+function getWaystarChoices() {
+    return [
+        { id: 1, text: "Тебя это не касается! Ты тут не причем.", response: "В любом случае битва неизбежна." },
+        { id: 2, text: "Это значит Рик... Я отомщу ему...!", response: "Да. Но чтобы пройти, ты должен победить меня." },
+        { id: 3, text: "Ебать, даже звезда разговаривает. Прямо как тот камень.", response: "Камень? Видимо он пропитался силой звёзд. Но я сильнее!" }
+    ];
+}
+
+function selectWaystarChoice(choiceId) {
+    if (waystarChoiceResolved) return;
+    waystarChoiceResolved = true;
+    waystarChoiceActive = false;
+    var c = getWaystarChoices().find(function(x) { return x.id === choiceId; });
+    var responses = [
+        { speaker: "🌟 Путеводная Звезда", text: c.response },
+        { speaker: "🌟 Путеводная Звезда", text: "Достаточно разговоров. Покажи мне свою силу!" },
+        { speaker: "🌟 Путеводная Звезда", text: "МУЛЬТИВСЕЛЕННАЯ НЕ ПРОЩАЕТ СЛАБЫХ!" }
+    ];
+    for (var i = 0; i < responses.length; i++) {
+        responses[i].time = 2 + responses[i].text.length * 0.04;
+        waystarDialogQueue.push(responses[i]);
+    }
+    waystarDialogStep++;
+    waystarDialogAutoTimer = 0;
+    wsPlaySound(600, 'square', 0.3, 0.2);
+}
+
+function waystarProgressDialog() {
+    waystarDialogStep++;
+    waystarDialogAutoTimer = 0;
+    wsPlaySound(800, 'triangle', 0.05, 0.1);
+    if (waystarDialogStep >= waystarDialogQueue.length) {
+        waystarDialogActive = false;
+        if (waystarDialogOnComplete) {
+            var cb = waystarDialogOnComplete;
+            waystarDialogOnComplete = null;
+            cb();
+        }
+    }
+}
+
+// ========== АВТО-СТРЕЛЬБА ==========
+function updateWaystarShooting() {
+    if (waystarState !== "phase1" && waystarState !== "phase3") return;
+    if (waystarShootCooldown > 0) { waystarShootCooldown--; return; }
+    waystarShootCooldown = waystarShootInterval;
+    var dmgBase = Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4));
+    waystarPlayerBullets.push({
+        x: waystarPlayer.x, y: waystarPlayer.y - 12,
+        vy: -12, vx: 0, size: 5, damage: dmgBase, life: 80, trail: []
+    });
+    addWaystarFlash(waystarPlayer.x, waystarPlayer.y - 12, 15);
+    wsPlaySound(1100, 'square', 0.04, 0.06);
+}
+
+// ========== АТАКИ ФАЗЫ 1 ==========
+function waystarSpawnAttack() {
+    var type = waystarAttackType;
+    var s = waystarSpeedMult;
+    var isSecond = waystarBossHp <= waystarBossMaxHp * 0.75;
+
+    if (type === 0) {
+        var count = isSecond ? 8 : 5;
+        for (var i = 0; i < count; i++) {
+            waystarAttacks.push({ type: "meteor", x: 20 + Math.random() * 360, y: -40 - Math.random()*50,
+                vx: (Math.random() - 0.5) * 2 * s, vy: (3.5 + Math.random() * 2.5) * s,
+                size: 12 + Math.random() * 6, rotation: Math.random() * Math.PI * 2,
+                rotSpeed: (Math.random() - 0.5) * 0.3, damage: 12, life: 300, trail: [] });
+        }
+        addWaystarShockwave(waystarBoss.x, waystarBoss.y, "#ff8800", 100, 15, 3);
+        wsPlaySound(200, 'square', 0.3, 0.15);
+    } else if (type === 1) {
+        var count = isSecond ? 20 : 14;
+        var baseAngle = Math.random() * Math.PI * 2;
+        for (var i = 0; i < count; i++) {
+            var ang = baseAngle + (i / count) * Math.PI * 4;
+            var delay = i * 4;
+            (function(a, d) {
+                setTimeout(function() {
+                    if (!waystarActive || waystarState !== "phase1") return;
+                    waystarAttacks.push({ type: "spiral", x: waystarBoss.x, y: waystarBoss.y,
+                        vx: Math.cos(a) * 4 * s, vy: Math.sin(a) * 4 * s,
+                        size: 7, damage: 10, life: 250, trail: [] });
+                }, d);
+            })(ang, delay);
+        }
+        addWaystarShockwave(waystarBoss.x, waystarBoss.y, "#ff00ff", 80, 12, 3);
+        wsPlaySound(400, 'sine', 0.5, 0.12);
+    } else if (type === 2) {
+        // ★ ЛАЗЕРЫ ФАЗЫ 1 — ПЕРЕПИСАНО ★
+        var lasers = isSecond ? 2 : 1;
+        for (var l = 0; l < lasers; l++) {
+            var targetX = 60 + Math.random() * 280;
+            waystarAttacks.push({
+                type: "laser",
+                state: "warning",
+                x: targetX,
+                width: 55,
+                warningTimer: 35,   // короче, чтобы быстрее стрелял
+                activeTimer: 0,
+                maxActive: 70,      // дольше активен
+                damage: 18,
+                hit: false,
+                chargeParticles: 0
+            });
+        }
+        wsPlaySound(300, 'square', 0.3, 0.15);
+    } else if (type === 3) {
+        var points = [];
+        var count2 = isSecond ? 6 : 4;
+        for (var i = 0; i < count2; i++) points.push({ x: 40 + Math.random() * 320, y: 80 + Math.random() * 340 });
+        waystarAttacks.push({ type: "constellation", points: points, timer: 150, warning: 50, damage: 20, hit: false });
+        addWaystarShockwave(200, 250, "#00ffff", 100, 15, 2);
+        wsPlaySound(500, 'sine', 0.4, 0.15);
+    } else if (type === 4) {
+        var count3 = isSecond ? 14 : 10;
+        for (var i = 0; i < count3; i++) {
+            var side = Math.random() > 0.5 ? 1 : -1;
+            waystarAttacks.push({ type: "star_rain", x: side > 0 ? -30 : 430,
+                y: Math.random() * 200 - 100, vx: side > 0 ? 5 * s : -5 * s, vy: 3 * s,
+                size: 10, rotation: Math.random() * Math.PI * 2,
+                rotSpeed: (Math.random() - 0.5) * 0.3, damage: 11, life: 250, trail: [] });
+        }
+        addWaystarShockwave(waystarBoss.x, waystarBoss.y, "#ffffff", 90, 12, 3);
+        wsPlaySound(800, 'sawtooth', 0.2, 0.1);
+    }
+}
+
+// ========== РАЗДЕЛЕНИЕ НА 2 ЧАСТИ ==========
+function waystarTriggerSplit() {
+    waystarState = "split1_anim";
+    waystarShake = 50;
+    waystarScreenFlash = 40; waystarScreenFlashColor = "#ffffff";
+    waystarScreenDistort = 35;
+    waystarVignette = 25;
+
+    wsPlaySound(200, 'sawtooth', 1.5, 0.4);
+    setTimeout(function() { wsPlaySound(100, 'sawtooth', 1.5, 0.4); }, 400);
+
+    for (var i = 0; i < 6; i++) {
+        setTimeout(function(idx) {
+            addWaystarShockwave(waystarBoss.x, waystarBoss.y, ["#ffffff", "#ffd700", "#ff00ff", "#ff4400"][idx%4], 350, 30, 6);
+        }, i * 100);
+    }
+    for (var i = 0; i < 20; i++) {
+        var ang = (i / 20) * Math.PI * 2 + Math.random() * 0.3;
+        addWaystarLightning(waystarBoss.x, waystarBoss.y, waystarBoss.x + Math.cos(ang) * 200, waystarBoss.y + Math.sin(ang) * 200, i % 2 === 0 ? "#ffffff" : "#ffd700", 1.0, 3);
+    }
+    for (var i = 0; i < 200; i++) spawnWaystarParticles(waystarBoss.x, waystarBoss.y, 1, ["#ffd700", "#ffffff", "#ff8800", "#ff00ff"][Math.floor(Math.random() * 4)], 18);
+
+    waystarSplitAnim = { timer: 0, duration: 90, boss1StartX: waystarBoss.x, boss2StartX: waystarBoss.x, boss1TargetX: waystarBoss.x - 60, boss2TargetX: waystarBoss.x + 60 };
+    waystarBoss2.active = true;
+    waystarBoss2.x = waystarBoss.x;
+    waystarBoss2.y = waystarBoss.y;
+    waystarBoss2.alpha = 0;
+
+    setTimeout(function() {
+        if (!waystarActive) return;
+        waystarSplitAnim = null;
+        waystarBoss.x = 140; waystarBoss2.x = 260;
+        waystarBoss2.alpha = 1; waystarBoss2.vx = -1.5;
+
+        waystarState = "pre_split2_dialog";
+        waystarDialogActive = true;
+        waystarDialogStep = 0;
+        waystarDialogAutoTimer = 0;
+        waystarDialogQueue = [
+            { speaker: "🌟 Путеводная Звезда", text: "Ты сильнее, чем я думала..." },
+            { speaker: "🌟 Путеводная Звезда (двойник)", text: "Я ухожу... но я вернусь. И буду вдвое сильнее!" },
+            { speaker: "🌟 Путеводная Звезда", text: "А пока — принимай мой Легион!" }
+        ];
+        for (var i = 0; i < waystarDialogQueue.length; i++) waystarDialogQueue[i].time = 2 + waystarDialogQueue[i].text.length * 0.04;
+        waystarDialogOnComplete = function() { waystarState = "split2_anim"; waystarStartSplit2Animation(); };
+    }, 2000);
+}
+
+// ========== АНИМАЦИЯ РАЗДЕЛЕНИЯ НА 60 ==========
+function waystarStartSplit2Animation() {
+    wsPlaySound(150, 'sawtooth', 0.8, 0.2);
+    waystarEscapeAnim = { timer: 0, duration: 120, startX: waystarBoss2.x, startY: waystarBoss2.y };
+    waystarBoss2.active = "escaping";
+
+    setTimeout(function() {
+        if (!waystarActive) return;
+        waystarShake = 60;
+        waystarScreenFlash = 50; waystarScreenFlashColor = "#ffffff";
+        waystarScreenDistort = 40;
+
+        wsPlaySound(200, 'sawtooth', 1.5, 0.4);
+        setTimeout(function() { wsPlaySound(100, 'sawtooth', 1.2, 0.35); }, 200);
+
+        for (var i = 0; i < 60; i++) {
+            var ang = (i / 60) * Math.PI * 2 + Math.random() * 0.2;
+            var len = 150 + Math.random() * 150;
+            addWaystarLightning(waystarBoss.x, waystarBoss.y, waystarBoss.x + Math.cos(ang) * len, waystarBoss.y + Math.sin(ang) * len, i % 3 === 0 ? "#ffffff" : (i % 3 === 1 ? "#ffd700" : "#ff00ff"), 1.0, 3);
+        }
+        for (var i = 0; i < 8; i++) {
+            setTimeout(function(idx) {
+                addWaystarShockwave(waystarBoss.x, waystarBoss.y, ["#ffffff", "#ffd700", "#ff00ff", "#ff4400"][idx%4], 400, 35, 7);
+            }, i * 80);
+        }
+        for (var i = 0; i < 60; i++) {
+            var ang = (i / 60) * Math.PI * 2;
+            var dist = 100 + Math.random() * 60;
+            waystarParticles.push({ x: waystarBoss.x, y: waystarBoss.y,
+                vx: Math.cos(ang) * 3, vy: Math.sin(ang) * 3,
+                targetX: waystarBoss.x + Math.cos(ang) * dist, targetY: waystarBoss.y + Math.sin(ang) * dist,
+                isSplitPiece: true, life: 90, maxLife: 90,
+                color: ["#ffd700", "#ff00ff", "#ffffff"][i % 3], size: 4 + Math.random() * 3 });
+        }
+        for (var i = 0; i < 300; i++) spawnWaystarParticles(waystarBoss.x, waystarBoss.y, 1, ["#ffd700", "#ffffff", "#ff8800", "#ff00ff"][Math.floor(Math.random() * 4)], 20);
+
+        waystarBoss.alpha = 0;
+
+        setTimeout(function() {
+            if (!waystarActive) return;
+            waystarState = "pre_phase2_dialog";
+            waystarDialogActive = true;
+            waystarDialogStep = 0;
+            waystarDialogAutoTimer = 0;
+            waystarDialogQueue = [
+                { speaker: "🌟 Путеводная Звезда", text: "Я — ЛЕГИОН! Я — 60 ОСКОЛКОВ!" },
+                { speaker: "🌟 Путеводная Звезда", text: "Попробуй пробей каждого!" }
+            ];
+            for (var i = 0; i < waystarDialogQueue.length; i++) waystarDialogQueue[i].time = 2 + waystarDialogQueue[i].text.length * 0.04;
+            waystarDialogOnComplete = function() { waystarStartPhase2(); };
+        }, 2500);
+    }, 1000);
+}
+
+function waystarStartPhase2() {
+    waystarState = "phase2";
+    waystarAttacks = []; waystarPlayerBullets = [];
+    wsPlaySound(300, 'square', 0.5, 0.3);
+    waystarPieces = [];
+    var cols = 10, rows = 6;
+    var startX = 25, startY = 60, gapX = 38, gapY = 40;
+    for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
+        waystarPieces.push({ x: startX + c * gapX, y: startY + r * gapY, size: 10, hp: 2, maxHp: 2, alive: true, row: r, col: c, pulse: Math.random() * Math.PI * 2, trail: [] });
+    }
+    waystarPiecesTotal = waystarPieces.length;
+    waystarPiecesAlive = waystarPieces.length;
+    waystarInvaderDir = 1;
+    waystarEnemyBullets = [];
+    waystarPlayer = { x: 200, y: 450 };
+    waystarShootCooldown = 0;
+    waystarInvaderShootTimer = 0;
+    if (typeof showFloatingText === 'function') showFloatingText("⭐ 60 ОСКОЛКОВ! ⭐", "#ffd700");
+}
+
+function updateWaystarSpaceInvaders() {
+    if (waystarShootCooldown > 0) waystarShootCooldown--;
+    else {
+        waystarShootCooldown = waystarShootInterval;
+        waystarPlayerBullets.push({ x: waystarPlayer.x, y: waystarPlayer.y - 12, vy: -12, vx: 0, size: 5, damage: 1, life: 80, trail: [] });
+        addWaystarFlash(waystarPlayer.x, waystarPlayer.y - 12, 12);
+        wsPlaySound(1100, 'square', 0.04, 0.06);
+    }
+
+    var alivePieces = waystarPieces.filter(function(p) { return p.alive; });
+    if (alivePieces.length === 0) { waystarStartReturning(); return; }
+
+    var speed = waystarInvaderSpeed + (waystarPiecesTotal - alivePieces.length) * 0.08;
+    var minX = 9999, maxX = -9999;
+    for (var i = 0; i < waystarPieces.length; i++) {
+        var p = waystarPieces[i];
+        if (!p.alive) continue;
+        if (p.x - p.size < minX) minX = p.x - p.size;
+        if (p.x + p.size > maxX) maxX = p.x + p.size;
+    }
+    if (waystarInvaderDir > 0 && maxX + speed > 390) waystarInvaderDir = -1;
+    if (waystarInvaderDir < 0 && minX - speed < 10) waystarInvaderDir = 1;
+
+    for (var i = 0; i < waystarPieces.length; i++) {
+        var p = waystarPieces[i];
+        if (!p.alive) continue;
+        p.trail.push({ x: p.x, y: p.y, life: 10 });
+        if (p.trail.length > 5) p.trail.shift();
+        p.x += waystarInvaderDir * speed;
+    }
+
+    waystarInvaderShootTimer++;
+    var shootRate = Math.max(10, 40 - alivePieces.length / 2);
+    if (waystarInvaderShootTimer >= shootRate) {
+        waystarInvaderShootTimer = 0;
+        var shooter = alivePieces[Math.floor(Math.random() * alivePieces.length)];
+        waystarEnemyBullets.push({ x: shooter.x, y: shooter.y + 15, vy: 5 + Math.random() * 3, size: 8, life: 200, trail: [] });
+        wsPlaySound(400, 'sawtooth', 0.1, 0.1);
+    }
+
+    for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
+        var b = waystarPlayerBullets[i];
+        b.y += b.vy; b.life--;
+        b.trail.push({ x: b.x, y: b.y, life: 10 });
+        if (b.trail.length > 5) b.trail.shift();
+        if (b.y < -10 || b.life <= 0) { waystarPlayerBullets.splice(i, 1); continue; }
+        for (var j = 0; j < waystarPieces.length; j++) {
+            var p = waystarPieces[j];
+            if (!p.alive) continue;
+            if (Math.abs(b.x - p.x) < p.size + 5 && Math.abs(b.y - p.y) < p.size + 5) {
+                p.hp--;
+                wsPlaySound(1200, 'square', 0.08, 0.1);
+                spawnWaystarParticles(p.x, p.y, 8, "#ffd700", 4);
+                addWaystarFlash(p.x, p.y, 12);
+                if (p.hp <= 0) {
+                    p.alive = false;
+                    waystarPiecesAlive--;
+                    addWaystarShockwave(p.x, p.y, "#ff00ff", 60, 12, 3);
+                    addWaystarFlash(p.x, p.y, 25);
+                    spawnWaystarParticles(p.x, p.y, 25, "#ff00ff", 6);
+                    wsPlaySound(200, 'sawtooth', 0.3, 0.2);
+                }
+                waystarPlayerBullets.splice(i, 1);
+                break;
             }
-        }, 1000);
+        }
+    }
+
+    for (var i = waystarEnemyBullets.length - 1; i >= 0; i--) {
+        var b = waystarEnemyBullets[i];
+        b.y += b.vy; b.life--;
+        if (b.trail) { b.trail.push({ x: b.x, y: b.y, life: 8 }); if (b.trail.length > 4) b.trail.shift(); }
+        if (b.y > 520 || b.life <= 0) { waystarEnemyBullets.splice(i, 1); continue; }
+        if (waystarInvulnTimer <= 0 && Math.abs(b.x - waystarPlayer.x) < 14 && Math.abs(b.y - waystarPlayer.y) < 16) {
+            applyWaystarHit(15, "ОСКОЛОК!");
+            waystarEnemyBullets.splice(i, 1);
+        }
+    }
+    for (var i = 0; i < waystarPieces.length; i++) if (waystarPieces[i].alive) waystarPieces[i].pulse += 0.2;
+}
+
+// ========== ВОЗВРАЩЕНИЕ ==========
+function waystarStartReturning() {
+    waystarState = "returning_anim";
+    waystarReturning = true;
+    waystarReturnTimer = 0;
+    wsPlaySound(500, 'sine', 1.0, 0.3);
+    addWaystarShockwave(200, 100, "#ff00ff", 400, 30, 6);
+    for (var i = 0; i < 30; i++) {
+        var ang = (i / 30) * Math.PI * 2;
+        addWaystarLightning(200, 100, 200 + Math.cos(ang) * 250, 100 + Math.sin(ang) * 250, "#ff00ff", 0.8, 3);
+    }
+    for (var i = 0; i < 150; i++) spawnWaystarParticles(200, 100, 1, ["#ff00ff", "#ffffff", "#ffaa00"][Math.floor(Math.random() * 3)], 15);
+    waystarSmallBoss = { x: 200, y: 100, size: 28, rotation: 0, pulse: 0, time: 0, alpha: 0, trail: [] };
+
+    setTimeout(function() {
+        if (!waystarActive) return;
+        waystarState = "pre_phase3_dialog";
+        waystarDialogActive = true;
+        waystarDialogStep = 0;
+        waystarDialogAutoTimer = 0;
+        waystarDialogQueue = [
+            { speaker: "🌟 Путеводная Звезда (двойник)", text: "Ты справился с моим Легионом..." },
+            { speaker: "🌟 Путеводная Звезда (двойник)", text: "Я стала вдвое сильнее! И вдвое меньше!" },
+            { speaker: "🌟 Путеводная Звезда (двойник)", text: "Это твой последний шанс!" },
+            { speaker: "🌟 Путеводная Звезда (двойник)", text: "УМРИ!" }
+        ];
+        for (var i = 0; i < waystarDialogQueue.length; i++) waystarDialogQueue[i].time = 2 + waystarDialogQueue[i].text.length * 0.04;
+        waystarDialogOnComplete = function() { waystarStartPhase3(); };
+    }, 2000);
+}
+
+function waystarStartPhase3() {
+    waystarState = "phase3";
+    // ★ ФИКС: HP 3-й фазы СНИЖЕН (был ×80) — теперь быстрее убивается ★
+    waystarBossMaxHp = Math.max(6000, (window.playerFinalDamage || 100) * 30);
+    waystarBossHp = waystarBossMaxHp;
+    waystarSmallBoss.alpha = 0;
+    waystarSmallBoss.size = 28;
+    waystarSmallBoss.x = 200;
+    waystarSmallBoss.y = 100;
+    waystarSmallBoss.trail = [];
+    waystarAttackTimer = 0;
+    waystarTypeTimer = 250;
+    waystarAmbientTimer = 0;
+    waystarShootCooldown = 0;
+    waystarRageMode = false;
+    waystarPhase3Embers = [];
+    waystarPhase3Rings = [];
+
+    wsPlaySound(200, 'sawtooth', 1.0, 0.3);
+    setTimeout(function() { wsPlaySound(400, 'square', 0.5, 0.25); }, 200);
+    setTimeout(function() { wsPlaySound(800, 'sawtooth', 0.8, 0.3); }, 400);
+
+    waystarShake = 40;
+    waystarScreenFlash = 30; waystarScreenFlashColor = "#ff00ff";
+    waystarScreenDistort = 35;
+
+    for (var i = 0; i < 6; i++) {
+        setTimeout(function(idx) {
+            addWaystarShockwave(200, 100, ["#ff00ff", "#ffd700", "#ffffff", "#ff00ff"][idx%4], 350, 30, 6);
+        }, i * 100);
+    }
+    for (var i = 0; i < 40; i++) {
+        var ang = (i / 40) * Math.PI * 2;
+        addWaystarLightning(200, 100, 200 + Math.cos(ang) * 250, 100 + Math.sin(ang) * 250, i % 2 === 0 ? "#ff00ff" : "#ffffff", 1.0, 3);
+    }
+    for (var i = 0; i < 300; i++) spawnWaystarParticles(200, 100, 1, ["#ff00ff", "#ffffff", "#ffd700", "#ff4400"][Math.floor(Math.random() * 4)], 20);
+
+    if (typeof showFloatingText === 'function') showFloatingText("💥 ФИНАЛЬНАЯ ФАЗА! 💥", "#ff00ff");
+}
+
+// ========== АТАКИ ФАЗЫ 3 ==========
+function waystarSpawnPhase3Attack() {
+    var type = waystarAttackType;
+    var s = waystarSpeedMult * (waystarRageMode ? 1.25 : 1.0);
+
+    if (type === 0) {
+        // ДРОБОВИК
+        var count = waystarRageMode ? 9 : 6;
+        var baseAngle = Math.atan2(waystarPlayer.y - waystarSmallBoss.y, waystarPlayer.x - waystarSmallBoss.x);
+        for (var i = 0; i < count; i++) {
+            var offset = (i - (count-1)/2) * 0.12;
+            var ang = baseAngle + offset;
+            waystarAttacks.push({ type: "shotgun_bullet", x: waystarSmallBoss.x, y: waystarSmallBoss.y,
+                vx: Math.cos(ang) * 5.5 * s, vy: Math.sin(ang) * 5.5 * s,
+                size: 6, damage: 9, life: 250, trail: [] });
+        }
+        addWaystarShockwave(waystarSmallBoss.x, waystarSmallBoss.y, "#ff4400", 80, 15, 4);
+        addWaystarFlash(waystarSmallBoss.x, waystarSmallBoss.y, 50);
+        wsPlaySound(200, 'sawtooth', 0.2, 0.2);
+    } else if (type === 1) {
+        // ЗВЕЗДА-БОМБА
+        var bombCount = waystarRageMode ? 3 : 2;
+        for (var k = 0; k < bombCount; k++) {
+            var bx = 60 + Math.random() * 280;
+            var by = 80 + Math.random() * 300;
+            waystarBombs.push({ x: bx, y: by, timer: 100, maxTimer: 100, radius: 70, damage: 25, exploded: false, explosionTimer: 0 });
+        }
+        wsPlaySound(500, 'sine', 0.3, 0.15);
+    } else if (type === 2) {
+        // РЫВОК
+        if (!waystarDash) {
+            var dx = waystarPlayer.x - waystarSmallBoss.x;
+            var dy = waystarPlayer.y - waystarSmallBoss.y;
+            var len = Math.sqrt(dx * dx + dy * dy) || 1;
+            waystarDash = { x: waystarSmallBoss.x, y: waystarSmallBoss.y,
+                startX: waystarSmallBoss.x, startY: waystarSmallBoss.y,
+                targetX: waystarPlayer.x, targetY: waystarPlayer.y,
+                dirX: dx / len, dirY: dy / len,
+                progress: 0, duration: 35, damage: 20, hit: false };
+        }
+        wsPlaySound(150, 'sawtooth', 0.5, 0.25);
+    } else if (type === 3) {
+        // ★ ГИГА-ЛАЗЕР — ПЕРЕПИСАНО, ТЕПЕРЬ СТРЕЛЯЕТ ★
+        waystarAttacks.push({
+            type: "giant_laser",
+            state: "warning",
+            x: waystarSmallBoss.x, y: waystarSmallBoss.y,
+            angle: Math.atan2(waystarPlayer.y - waystarSmallBoss.y, waystarPlayer.x - waystarSmallBoss.x),
+            width: 55, warningTimer: 35, activeTimer: 0, maxActive: 65,
+            damage: 25, hit: false, trackTimer: 25
+        });
+        wsPlaySound(400, 'square', 0.4, 0.2);
+    } else if (type === 4) {
+        // ДВОЙНАЯ СПИРАЛЬ
+        var count = waystarRageMode ? 26 : 20;
+        for (var i = 0; i < count; i++) {
+            var baseAng = (i / count) * Math.PI * 4;
+            var delay = i * 4;
+            (function(a, d) {
+                setTimeout(function() {
+                    if (!waystarActive || waystarState !== "phase3") return;
+                    waystarAttacks.push({ type: "spiral", x: waystarSmallBoss.x, y: waystarSmallBoss.y,
+                        vx: Math.cos(a) * 3.2 * s, vy: Math.sin(a) * 3.2 * s,
+                        size: 6, damage: 9, life: 250, trail: [] });
+                }, d);
+            })(baseAng, delay);
+            (function(a, d) {
+                setTimeout(function() {
+                    if (!waystarActive || waystarState !== "phase3") return;
+                    waystarAttacks.push({ type: "spiral", x: waystarSmallBoss.x, y: waystarSmallBoss.y,
+                        vx: Math.cos(-a) * 3.2 * s, vy: Math.sin(-a) * 3.2 * s,
+                        size: 6, damage: 9, life: 250, trail: [] });
+                }, d);
+            })(baseAng, delay);
+        }
+        wsPlaySound(600, 'sine', 0.5, 0.15);
+    } else if (type === 5) {
+        // МИНИ-ВЗРЫВЫ
+        var mineCount = waystarRageMode ? 7 : 5;
+        for (var i = 0; i < mineCount; i++) {
+            var bx = 40 + Math.random() * 320;
+            var by = 80 + Math.random() * 320;
+            waystarBombs.push({ x: bx, y: by, timer: 70, maxTimer: 70, radius: 40, damage: 12, exploded: false, explosionTimer: 0, small: true });
+        }
+        wsPlaySound(450, 'sine', 0.2, 0.12);
     }
 }
 
-// ====== РАЗЛОМ ДЕКУ ======
-function triggerDekuSmash() {
-    if (!arenaActive) return;
-    _superState.dekuSmashActive = true; _superState.dekuSmashBlackoutTimer = 60; _superState.dekuSmashSequenceTimer = 150;
-    _superState.originalHeartSpeed = heartSpeed; _superState.originalGlobalSpeedMod = arenaGlobalSpeedMod;
-    heartSpeed = heartSpeed / 3; arenaGlobalSpeedMod = 0.33;
-    if (typeof arenaDodgeTimerInterval !== 'undefined' && arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = setInterval(function() { if (typeof arenaPhase !== 'undefined' && arenaPhase === "dodge" && typeof arenaActive !== 'undefined' && arenaActive) { if (typeof arenaDodgeTimer !== 'undefined') { arenaDodgeTimer--; if (arenaDodgeTimer <= 0) arenaDodgeTimer = 0; } if (typeof updateDodgeTimerDisplay === 'function') updateDodgeTimerDisplay(); } }, 3000); }
-    _superState.dekuFists = [];
-    for (var i = 0; i < 8; i++) { _superState.dekuFists.push({ x: 50 + Math.random() * 300, y: 50 + Math.random() * 400, radius: 70, delay: 60 + (i * 10), life: 25, active: false }); }
-    if (typeof playArenaSound === 'function') playArenaSound(80, 'sawtooth', 2.0, 0.3);
-}
-
-function activateDekuEarthShatter() {
-    if (!_superState.dekusActive) return; if (!_superState.dekuEarthShatterReady) return; if (!arenaActive) return;
-    _superState.dekuEarthShatterReady = false; _superState.dekuEarthShatterCooldown = 25;
-    triggerDekuSmash();
-    var dmg = Math.floor(arenaBossMaxHP * 0.12); arenaBossMaxHP -= dmg;
-    spawnFloatingText(heart.x, heart.y - 40, "РАЗЛОМ ДЕКУ!", "#44ff44");
-}
-
-function activateDekuDashSmash() {
-    if (!_superState.dekusActive) return; if (!_superState.dekuDashSmashReady) return; if (!arenaActive) return;
-    _superState.dekuDashSmashReady = false; _superState.dekuDashSmashCooldown = 20;
-    var dx = 0, dy = 0;
-    if (keys.w || keys.up) dy = -1; if (keys.s || keys.down) dy = 1; if (keys.a || keys.left) dx = -1; if (keys.d || keys.right) dx = 1;
-    if (dx === 0 && dy === 0) { var ang = Math.random() * Math.PI * 2; dx = Math.cos(ang); dy = Math.sin(ang); }
-    var len = Math.sqrt(dx*dx + dy*dy) || 1; dx /= len; dy /= len;
-    _superState.dekuDash = { startX: heart.x, startY: heart.y, dirX: dx, dirY: dy, distance: 200, traveled: 0, trail: [], life: 0.4 };
-    var dmg = Math.floor(arenaBossMaxHP * 0.08); arenaBossMaxHP -= dmg;
-    var dashWidth = 60;
-    for (var i = attacks.length - 1; i >= 0; i--) { var a = attacks[i]; var ax = a.x + (a.size || a.radius || 20) / 2; var ay = a.y + (a.size || a.radius || 20) / 2; var t = ((ax - heart.x) * dx + (ay - heart.y) * dy) / (dx*dx + dy*dy); if (t > 0 && t < 200) { var projX = heart.x + dx * t; var projY = heart.y + dy * t; if (Math.sqrt((ax - projX)*(ax - projX) + (ay - projY)*(ay - projY)) < dashWidth) { attacks.splice(i, 1); arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 20, maxLife: 20, color: "#44ff44", size: 3 }); } } }
-    _superState.screenShakeAmount = 15; addShockwaveRing(heart.x, heart.y, "#44ff44", 400, 0.5, 5);
-    spawnFloatingText(heart.x, heart.y - 30, "РЫВОК! -8%", "#44ff44");
-}
-
-function deactivateDeku100() { if (!_superState.dekusActive) return; var ab = superAbilities["Деку (100%)"]; if (ab.onDeactivate) ab.onDeactivate(); _activeSuperName = null; startCooldown("Деку (100%)", ab.cooldown); updateSuperButton(); }
-
-// ====== УРАГАН ВСЕМОГУЩЕГО ======
-function activateAllmightHurricane() { if (!_allmightHurricaneReady) return; if (_allmightHurricaneCooldown > 0) return; if (!arenaActive) return; _superState.allmightHurricane = true; _superState.allmightHurricaneTimer = 2.0; _superState.allmightHurricaneAngle = 0; _allmightHurricaneCooldown = 5.0; var hurricaneRadius = 150; for (var a of attacks) { var ax = a.x + (a.size || a.radius || 20) / 2; var ay = a.y + (a.size || a.radius || 20) / 2; var dist = Math.hypot(ax - heart.x, ay - heart.y); if (dist < hurricaneRadius) { var dx = ax - heart.x; var dy = ay - heart.y; var d = Math.sqrt(dx*dx + dy*dy) || 1; a.spd = (a.spd || 0) + (dx / d) * 8 + (dy / d) * 4; a.spdY = (a.spdY || 0) + (dy / d) * 8 - (dx / d) * 4; } } addShockwaveRing(heart.x, heart.y, "#00ffff", 400, 0.5, 6); _superState.screenShakeAmount = 15; spawnFloatingText(heart.x, heart.y - 40, "УРАГАН!", "#00ffff"); }
-
-// ====== УПРАВЛЕНИЕ ======
-function getMainCard() { if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0) { var idx = team[mainCardIndex]; if (typeof myCards !== 'undefined' && idx >= 0 && idx < myCards.length) return myCards[idx]; } return null; }
-
-function toggleSuper() { 
-    if (!arenaActive) return; 
-    var mainCard = getMainCard(); 
-    if (!mainCard) return; 
-    // ★ ПРОВЕРКА МАСТЕРСТВА (только с ур.5) ★
-    if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
-        return;
+// ========== УПРАВЛЕНИЕ ==========
+function handleWaystarClick(ev) {
+    if (!waystarActive) return;
+    if (waystarDialogActive) {
+        if (waystarChoiceActive) {
+            var rect = canvas.getBoundingClientRect();
+            var mx = ev.clientX - rect.left;
+            var my = ev.clientY - rect.top;
+            var btnW = 360, btnX = 20, startY = 240, btnH = 55, gap = 12;
+            for (var i = 0; i < 3; i++) {
+                var by = startY + i * (btnH + gap);
+                if (mx > btnX && mx < btnX + btnW && my > by && my < by + btnH) { selectWaystarChoice(i + 1); return; }
+            }
+        } else {
+            waystarProgressDialog();
+        }
     }
-    if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) { activateAllmightHurricane(); return; } 
-    if (mainCard.name === "Деку (100%)") { if (!_superState.dekusActive) { var ab = superAbilities["Деку (100%)"]; ab.onActivate(); _activeSuperName = "Деку (100%)"; updateSuperButton(); return; } else { activateDekuEarthShatter(); return; } } 
-    if (!superAbilities[mainCard.name]) return; 
-    var ab = superAbilities[mainCard.name]; 
-    if (ab.cooldown === 0 && !ab.toggleable) return; 
-    var cd = _superCooldowns[mainCard.name] || { ready: true }; 
-    if (!cd.ready) return; 
-    if (ab.toggleable) { if (_activeSuperName === mainCard.name) { if (ab.onDeactivate) ab.onDeactivate(); _activeSuperName = null; startCooldown(mainCard.name, ab.cooldown); } else { if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) superAbilities[_activeSuperName].onDeactivate(); ab.onActivate(); _activeSuperName = mainCard.name; } } else { ab.onActivate(); if (ab.duration > 0) { startCooldown(mainCard.name, ab.cooldown); setTimeout(function() { if (ab.onDeactivate) ab.onDeactivate(); if (_activeSuperName === mainCard.name) _activeSuperName = null; }, ab.duration); } else { startCooldown(mainCard.name, ab.cooldown); } } 
-    updateSuperButton(); 
 }
-
-function startCooldown(cardName, ms) { var cd = _superCooldowns[cardName]; if (cd && cd.interval) clearInterval(cd.interval); _superCooldowns[cardName] = { ready: false, remaining: ms, start: Date.now() }; var interval = setInterval(function() { var elapsed = Date.now() - _superCooldowns[cardName].start; _superCooldowns[cardName].remaining = ms - elapsed; if (_superCooldowns[cardName].remaining <= 0) { clearInterval(interval); _superCooldowns[cardName].ready = true; updateSuperButton(); } else updateSuperButton(); }, 100); _superCooldowns[cardName].interval = interval; }
-
-function resetAllCooldowns() { for (var key in _superCooldowns) { if (_superCooldowns[key].interval) clearInterval(_superCooldowns[key].interval); } _superCooldowns = {}; _allmightHurricaneReady = false; _allmightHurricaneCooldown = 0; _superState.dekuEarthShatterReady = false; _superState.dekuDashSmashReady = false; _superState.dekuEarthShatterCooldown = 0; _superState.dekuDashSmashCooldown = 0; updateSuperButton(); }
-
-function updateSuperButton() { 
-    var btn = document.getElementById("superBtn"); 
-    var btn2 = document.getElementById("superBtn2"); 
-    var btnDeact = document.getElementById("superBtnDeactivate"); 
-    if (!btn) return; 
-    var mainCard = getMainCard(); 
-    if (!mainCard) { btn.style.display = "none"; if (btn2) btn2.style.display = "none"; if (btnDeact) btnDeact.style.display = "none"; return; } 
-    // ★ СКРЫВАЕМ КНОПКУ ЕСЛИ МАСТЕРСТВО < 5 ★
-    if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
-        btn.style.display = "none";
-        if (btn2) btn2.style.display = "none";
-        if (btnDeact) btnDeact.style.display = "none";
-        return;
+function handleWaystarTouchStart(ev) {
+    if (!waystarActive) return;
+    ev.preventDefault();
+    if (waystarDialogActive) { var t = ev.touches[0]; handleWaystarClick({ clientX: t.clientX, clientY: t.clientY }); return; }
+    if (ev.touches.length > 0) {
+        var rect = canvas.getBoundingClientRect();
+        waystarTouchActive = true;
+        waystarTouchId = ev.touches[0].identifier;
+        waystarTouchX = ev.touches[0].clientX - rect.left;
+        waystarTouchY = ev.touches[0].clientY - rect.top;
     }
-    if (mainCard.name === "Деку (100%)") { if (!_superState.dekusActive) { btn.style.display = "block"; if (btn2) btn2.style.display = "none"; if (btnDeact) btnDeact.style.display = "none"; var cd = _superCooldowns["Деку (100%)"]; if (cd && !cd.ready) { var sec = Math.ceil(cd.remaining / 1000); btn.textContent = "⏳ 100% (" + sec + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; } else { btn.textContent = "💚 100%"; btn.style.background = "linear-gradient(135deg, #44ff44, #00aa00)"; btn.style.animation = "superPulse 2s infinite"; } } else { btn.style.display = "block"; if (btn2) btn2.style.display = "block"; if (btnDeact) btnDeact.style.display = "block"; if (_superState.dekuEarthShatterCooldown > 0) { btn.textContent = "⏳ РАЗЛОМ (" + Math.ceil(_superState.dekuEarthShatterCooldown) + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; } else { btn.textContent = "💥 РАЗЛОМ"; btn.style.background = "linear-gradient(135deg, #ff8800, #ff4400)"; btn.style.animation = "superPulse 2s infinite"; } if (btn2) { if (_superState.dekuDashSmashCooldown > 0) { btn2.textContent = "⏳ РЫВОК (" + Math.ceil(_superState.dekuDashSmashCooldown) + "с)"; btn2.style.background = "#555"; btn2.style.animation = "none"; } else { btn2.textContent = "💨 РЫВОК"; btn2.style.background = "linear-gradient(135deg, #44ff44, #00ffff)"; btn2.style.animation = "superPulse 2s infinite"; } } } return; } 
-    if (btn2) btn2.style.display = "none"; 
-    if (btnDeact) btnDeact.style.display = "none"; 
-    if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) { btn.style.display = "block"; if (_allmightHurricaneCooldown > 0) { btn.textContent = "🌪️ УРАГАН (" + Math.ceil(_allmightHurricaneCooldown) + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; } else { btn.textContent = "🌪️ УРАГАН"; btn.style.background = "linear-gradient(135deg, #00ffff, #0088ff)"; btn.style.animation = "superPulse 2s infinite"; } return; } 
-    if (!superAbilities[mainCard.name]) { btn.style.display = "none"; return; } 
-    var ab = superAbilities[mainCard.name]; 
-    if (ab.cooldown === 0 && !ab.toggleable) { btn.style.display = "none"; return; } 
-    btn.style.display = "block"; 
-    var cd = _superCooldowns[mainCard.name]; 
-    if (_activeSuperName === mainCard.name) { btn.textContent = "⏹ " + ab.name + " (АКТИВЕН)"; btn.style.background = "#ff4444"; btn.style.animation = "none"; } 
-    else if (cd && !cd.ready) { var sec = Math.ceil(cd.remaining / 1000); btn.textContent = "⏳ " + ab.name + " (" + sec + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; } 
-    else { btn.textContent = "⚡ " + ab.name; btn.style.background = "linear-gradient(135deg, #f5af19, #f12711)"; btn.style.animation = "superPulse 2s infinite"; } 
+}
+function handleWaystarTouchMove(ev) {
+    if (!waystarActive || !waystarTouchActive) return;
+    ev.preventDefault();
+    var rect = canvas.getBoundingClientRect();
+    for (var i = 0; i < ev.touches.length; i++) if (ev.touches[i].identifier === waystarTouchId) { waystarTouchX = ev.touches[i].clientX - rect.left; waystarTouchY = ev.touches[i].clientY - rect.top; break; }
+}
+function handleWaystarTouchEnd(ev) {
+    if (!waystarTouchActive) return;
+    var still = false;
+    for (var i = 0; i < ev.touches.length; i++) if (ev.touches[i].identifier === waystarTouchId) { still = true; break; }
+    if (!still) { waystarTouchActive = false; waystarTouchId = null; }
+}
+function handleWaystarKeyDown(ev) { if (!waystarActive) return; waystarKeys[ev.key.toLowerCase()] = true; }
+function handleWaystarKeyUp(ev) { if (!waystarActive) return; waystarKeys[ev.key.toLowerCase()] = false; }
+
+// ========== ОБНОВЛЕНИЯ ==========
+function updateWaystarPlayer() {
+    if (waystarState === "phase2") {
+        var mx = 0;
+        if (waystarKeys.a || waystarKeys.arrowleft) mx -= 1;
+        if (waystarKeys.d || waystarKeys.arrowright) mx += 1;
+        if (waystarTouchActive) { var tx = waystarTouchX - waystarPlayer.x; if (Math.abs(tx) > 5) mx = tx > 0 ? 1 : -1; }
+        waystarPlayer.x += mx * 6.5;
+        waystarPlayer.x = Math.max(20, Math.min(380, waystarPlayer.x));
+    } else if (waystarState === "phase1" || waystarState === "phase3") {
+        var mx = 0, my = 0, speed = 4.5;
+        if (waystarTouchActive) { var tx = waystarTouchX - waystarPlayer.x, ty = waystarTouchY - waystarPlayer.y; var dist = Math.sqrt(tx * tx + ty * ty); if (dist > 5) { mx = tx / dist; my = ty / dist; } }
+        else {
+            if (waystarKeys.w || waystarKeys.arrowup) my -= 1;
+            if (waystarKeys.s || waystarKeys.arrowdown) my += 1;
+            if (waystarKeys.a || waystarKeys.arrowleft) mx -= 1;
+            if (waystarKeys.d || waystarKeys.arrowright) mx += 1;
+            if (mx !== 0 && my !== 0) { mx *= 0.707; my *= 0.707; }
+        }
+        waystarPlayer.x += mx * speed;
+        waystarPlayer.y += my * speed;
+        waystarPlayer.x = Math.max(16, Math.min(384, waystarPlayer.x));
+        waystarPlayer.y = Math.max(80, Math.min(484, waystarPlayer.y));
+    }
+    if (waystarInvulnTimer > 0) waystarInvulnTimer--;
 }
 
-function resetAllSupers() { 
-    if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) superAbilities[_activeSuperName].onDeactivate(); 
-    _activeSuperName = null; 
-    if (_superState.nikaActive) { heart.hitbox = _superState.nikaHitboxOriginal; heart.size = _superState.nikaSizeOriginal; } 
-    if (_superState.antispiralActive) { heart.hitbox = _superState.antispiralOrigHitbox; heart.size = _superState.antispiralOrigSize; heartSpeed = _superState.antispiralOrigSpeed; } 
-    _superState.dekusActive = false; _superState.dekusDmgMult = 1; _superState.dekusParticles = false; _superState.dekuEarthShatterReady = false; _superState.dekuDashSmashReady = false; _superState.dekuEarthShatterCooldown = 0; _superState.dekuDashSmashCooldown = 0; _superState.dekuSmashActive = false; _superState.dekuFists = []; _superState.dekuSmashBlackoutTimer = 0; _superState.dekuSmashSequenceTimer = 0; 
-    restoreArenaTimer();
-    _superState.borosHeal = null; _superState.borosParticles = false; _superState.usoppInvuln = false; _superState.usoppStunTimer = 0; _superState.nikaActive = false; _superState.nikaDmgMult = 1; 
-    _superState.positionHistory = []; _superState.garouMarker = null; _superState.garouInvulnTimer = 0; _superState.garouTimeStop = false; 
-    _superState.garpChargeTimer = 0; _superState.garpImpactActive = false; _superState.garpHakiActive = false; _superState.garpHakiTimer = 0; 
-    _superState.antispiralActive = false; _superState.antispiralShrinkAttacks = false; _superState.imAuraActive = false; _superState.imSpeedPenalty = false; 
-    _superState.kaidoDrinking = false; _superState.kaidoBuffActive = false; _superState.kaidoDmgReduction = false; _superState.kaidoDmgBonus = 1; _superState.kaidoSpeedBonus = 1; _superState.invertControls = false; _superState.kaidoScream = false; 
-    _superState.allmightDmgMult = 1; _superState.allmightBuffTimer = 0; _superState.allmightShockwave = 0; _superState.allmightDebuffActive = false; _superState.allmightDebuffTimer = 0; _superState.allmightDebuffDmgMult = 1; _superState.allmightHurricane = false; _superState.allmightHurricaneTimer = 0; _superState.allmightHurricaneAngle = 0; 
-    _superState.markBuffActive = false; _superState.markBuffTimer = 0; _superState.markDmgReduction = 1; _superState.markDmgBonus = 1; _superState.markSpeedBonus = 1; 
-    _superState.dandyLightnings = false; _superState.dandyInvuln = false; _superState.dandyDmgBuff = null; _superState.dandyShield = null; _superState.dandyVulnerable = null; _superState.dandyDoubleTargets = false; _superState.dandyRoulette = null; _superState.dandyDarkness = 0; _superState.dandyAura = 0; _superState.dandyLava = 0; _superState.dandyAutoRevive = false; 
-    _superState.fists = []; _superState.rings = []; _superState.realityCracks = []; _superState.earthCracks = []; _superState.dekuExplosions = []; _superState.dekuDash = null; _superState.comicTexts = []; 
-    _superState.screenShakeAmount = 0; _superState.screenFlashWhite = 0; _allmightHurricaneReady = false; _allmightHurricaneCooldown = 0; 
-    var btnDeact = document.getElementById("superBtnDeactivate"); if (btnDeact) btnDeact.style.display = "none"; 
-    resetAllCooldowns(); 
+function updateWaystarBoss() {
+    if (waystarDialogActive) return;
+    if (waystarState === "phase1") {
+        waystarBoss.x += waystarBoss.vx * waystarSpeedMult;
+        if (waystarBoss.x < 60 || waystarBoss.x > 340) waystarBoss.vx *= -1;
+        waystarBoss.rotation += 0.015 * waystarSpeedMult;
+        waystarBoss.pulse += 0.08;
+        waystarBoss.time += 0.02;
+    } else if (waystarState === "phase3") {
+        waystarSmallBoss.alpha = Math.min(1, waystarSmallBoss.alpha + 0.02);
+        var mSpeed = waystarRageMode ? 3.8 : 2.8;
+        waystarSmallBoss.x += Math.sin(waystarSmallBoss.time) * mSpeed * waystarSpeedMult;
+        waystarSmallBoss.x = Math.max(40, Math.min(360, waystarSmallBoss.x));
+        waystarSmallBoss.y = 100 + Math.sin(waystarSmallBoss.time * 0.7) * (waystarRageMode ? 22 : 15);
+        waystarSmallBoss.rotation += (waystarRageMode ? 0.09 : 0.05) * waystarSpeedMult;
+        waystarSmallBoss.pulse += (waystarRageMode ? 0.28 : 0.18);
+        waystarSmallBoss.time += (waystarRageMode ? 0.09 : 0.06);
+    }
+    if (waystarBoss2.active === true) {
+        waystarBoss2.x += waystarBoss2.vx * waystarSpeedMult;
+        if (waystarBoss2.x < 60 || waystarBoss2.x > 340) waystarBoss2.vx *= -1;
+        waystarBoss2.rotation -= 0.02 * waystarSpeedMult;
+        waystarBoss2.pulse += 0.1;
+    } else if (waystarBoss2.active === "leaving") {
+        waystarBoss2.y -= 4; waystarBoss2.alpha -= 0.02;
+        if (waystarBoss2.alpha <= 0) waystarBoss2.active = false;
+    }
 }
 
-function initSuperState() { _activeSuperName = null; resetAllSupers(); _superState.markResurrectCharges = 2; _superLastTick = performance.now(); updateSuperButton(); }
+function updateWaystarAttacks() {
+    for (var i = waystarAttacks.length - 1; i >= 0; i--) {
+        var a = waystarAttacks[i];
 
-function tickSupers() { 
-    if (!arenaActive || !ctx) return; 
-    var now = performance.now(); 
-    var dt = (now - _superLastTick) / 1000; 
-    if (dt <= 0) dt = 0.016; 
-    _superLastTick = now; 
-    
-    if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onTick) superAbilities[_activeSuperName].onTick(dt); 
-    if (_superState.borosHeal && _superState.borosHeal.active && superAbilities["Борос"] && superAbilities["Борос"].onTick) superAbilities["Борос"].onTick(dt); 
-    
-    if (_superState.dekusActive && _superState.dekuEarthShatterCooldown > 0) { _superState.dekuEarthShatterCooldown -= dt; if (_superState.dekuEarthShatterCooldown <= 0) { _superState.dekuEarthShatterCooldown = 0; _superState.dekuEarthShatterReady = true; updateSuperButton(); } else updateSuperButton(); } 
-    if (_superState.dekusActive && _superState.dekuDashSmashCooldown > 0) { _superState.dekuDashSmashCooldown -= dt; if (_superState.dekuDashSmashCooldown <= 0) { _superState.dekuDashSmashCooldown = 0; _superState.dekuDashSmashReady = true; updateSuperButton(); } else updateSuperButton(); } 
-    if (_superState.dekuDash) { _superState.dekuDash.life -= dt; if (_superState.dekuDash.life <= 0) { _superState.dekuDash = null; } else { var speed = _superState.dekuDash.distance / 0.4; var moveX = _superState.dekuDash.dirX * speed * dt; var moveY = _superState.dekuDash.dirY * speed * dt; heart.x += moveX; heart.y += moveY; _superState.dekuDash.trail.push({ x: heart.x, y: heart.y, life: 0.3 }); clampHeart(); var dashWidth = 60; for (var i = attacks.length - 1; i >= 0; i--) { var a = attacks[i]; var ax = a.x + (a.size || a.radius || 20) / 2; var ay = a.y + (a.size || a.radius || 20) / 2; var dist = Math.sqrt((ax - heart.x)*(ax - heart.x) + (ay - heart.y)*(ay - heart.y)); if (dist < dashWidth) { attacks.splice(i, 1); arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 20, maxLife: 20, color: "#44ff44", size: 3 }); } } } } 
-    for (var i = _superState.dekuExplosions.length - 1; i >= 0; i--) { _superState.dekuExplosions[i].life -= dt; if (_superState.dekuExplosions[i].life <= 0) _superState.dekuExplosions.splice(i, 1); } 
-    if (_allmightHurricaneReady && _allmightHurricaneCooldown > 0) { _allmightHurricaneCooldown -= dt; if (_allmightHurricaneCooldown < 0) _allmightHurricaneCooldown = 0; updateSuperButton(); }
-    
-    if (_superState.dekuSmashActive) {
-        if (_superState.dekuSmashBlackoutTimer > 0) { _superState.dekuSmashBlackoutTimer--; }
-        if (_superState.dekuSmashSequenceTimer > 0) {
-            _superState.dekuSmashSequenceTimer--;
-            for (var i = 0; i < _superState.dekuFists.length; i++) {
-                var fist = _superState.dekuFists[i];
-                if (!fist.active && _superState.dekuSmashSequenceTimer <= (150 - fist.delay)) {
-                    fist.active = true;
-                    for (var j = attacks.length - 1; j >= 0; j--) {
-                        var a = attacks[j];
-                        var dx = a.x - fist.x; var dy = a.y - fist.y;
-                        if (Math.sqrt(dx*dx + dy*dy) < fist.radius + 35) {
-                            attacks.splice(j, 1);
-                            for (var k = 0; k < 6; k++) { arenaParticles.push({ x: a.x, y: a.y, vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15, life: 30, maxLife: 30, color: "#50c878", size: 4+Math.random()*4 }); }
-                        }
+        if (a.type === "meteor" || a.type === "spiral" || a.type === "star_rain" || a.type === "shotgun_bullet") {
+            a.trail.push({ x: a.x, y: a.y, life: 12 });
+            if (a.trail.length > 8) a.trail.shift();
+            a.x += a.vx; a.y += a.vy; a.rotation += (a.rotSpeed||0); a.life--;
+            if (a.y > 520 || a.x < -30 || a.x > 430 || a.life <= 0) {
+                if (a.y > 500 && a.type === "meteor") { addWaystarShockwave(a.x, 500, "#ff8800", 50, 12, 3); spawnWaystarParticles(a.x, 500, 12, "#ff8800", 5); }
+                waystarAttacks.splice(i, 1); continue;
+            }
+            if (waystarInvulnTimer <= 0 && Math.sqrt(Math.pow(waystarPlayer.x - a.x, 2) + Math.pow(waystarPlayer.y - a.y, 2)) < a.size + 8) {
+                var msg = a.type === "meteor" ? "МЕТЕОР!" : (a.type === "spiral" ? "ВИХРЬ!" : (a.type === "shotgun_bullet" ? "ДРОБЬ!" : "ЗВЕЗДА!"));
+                applyWaystarHit(a.damage, msg);
+                waystarAttacks.splice(i, 1);
+            }
+        }
+        // ★ ОБЫЧНЫЙ ЛАЗЕР — ПЕРЕПИСАНО ★
+        else if (a.type === "laser") {
+            if (a.state === "warning") {
+                a.warningTimer--;
+                // Частицы заряда внизу
+                a.chargeParticles++;
+                if (a.chargeParticles % 3 === 0) {
+                    spawnWaystarParticles(a.x + (Math.random() - 0.5) * a.width, 490 - Math.random() * 40, 2, "#ff3333", 4);
+                }
+                if (a.warningTimer <= 0) {
+                    a.state = "active";
+                    a.activeTimer = a.maxActive;
+                    addWaystarFlash(a.x, 250, 140);
+                    addWaystarShockwave(a.x, 250, "#ff3333", 160, 22, 5);
+                    addWaystarShockwave(a.x, 250, "#ffffff", 100, 16, 3);
+                    wsPlaySound(150, 'sawtooth', 0.7, 0.35);
+                    waystarShake = 20;
+                    waystarScreenFlash = 10; waystarScreenFlashColor = "#ff3333";
+                    // Молнии вдоль луча
+                    for (var l = 0; l < 4; l++) {
+                        addWaystarLightning(a.x, 0, a.x + (Math.random() - 0.5) * 30, 500, "#ffffff", 0.9, 2);
                     }
-                    _superState.screenShakeAmount = Math.max(_superState.screenShakeAmount, 20);
+                }
+            } else if (a.state === "active") {
+                a.activeTimer--;
+                // Проверка урона
+                if (!a.hit && waystarInvulnTimer <= 0 && Math.abs(waystarPlayer.x - a.x) < a.width / 2 + 8) {
+                    a.hit = true;
+                    applyWaystarHit(a.damage, "ЛАЗЕР!");
+                }
+                // Частицы вдоль активного луча
+                if (a.activeTimer % 2 === 0) {
+                    spawnWaystarParticles(a.x + (Math.random() - 0.5) * a.width, Math.random() * 500, 3, Math.random() > 0.5 ? "#ffffff" : "#ff3333", 5);
+                }
+                // Слэши
+                if (a.activeTimer % 8 === 0) {
+                    addWaystarSlash(a.x, Math.random() * 500, Math.PI / 2, 60, 3);
+                }
+                if (a.activeTimer <= 0) a.state = "done";
+            } else { waystarAttacks.splice(i, 1); continue; }
+        }
+        // ★ ГИГА-ЛАЗЕР — ПЕРЕПИСАНО ★
+        else if (a.type === "giant_laser") {
+            if (a.state === "warning") {
+                a.warningTimer--;
+                if (a.trackTimer > 0) {
+                    a.trackTimer--;
+                    a.x = waystarSmallBoss.x; a.y = waystarSmallBoss.y;
+                    a.angle = Math.atan2(waystarPlayer.y - a.y, waystarPlayer.x - a.x);
+                }
+                if (a.warningTimer <= 0) {
+                    a.state = "active";
+                    a.activeTimer = a.maxActive;
+                    a.x = waystarSmallBoss.x; a.y = waystarSmallBoss.y;
+                    addWaystarFlash(a.x, a.y, 180);
+                    addWaystarShockwave(a.x, a.y, "#ff00ff", 220, 28, 7);
+                    addWaystarShockwave(a.x, a.y, "#ffffff", 160, 22, 4);
+                    wsPlaySound(150, 'sawtooth', 0.9, 0.4);
+                    waystarShake = 30;
+                    waystarScreenFlash = 20; waystarScreenFlashColor = "#ff00ff";
+                    for (var sIdx = 0; sIdx < 8; sIdx++) addWaystarSlash(a.x, a.y, a.angle + (Math.random()-0.5)*0.6, 80, 5);
+                }
+            } else if (a.state === "active") {
+                a.activeTimer--;
+                if (!a.hit && waystarInvulnTimer <= 0) {
+                    var dx = waystarPlayer.x - a.x, dy = waystarPlayer.y - a.y;
+                    var dist = Math.sqrt(dx*dx + dy*dy);
+                    var playerAngle = Math.atan2(dy, dx);
+                    var angleDiff = Math.abs(playerAngle - a.angle);
+                    while (angleDiff > Math.PI) angleDiff = Math.abs(angleDiff - Math.PI * 2);
+                    var perpDist = Math.abs(Math.sin(angleDiff)) * dist;
+                    if (perpDist < a.width / 2 + 10) { a.hit = true; applyWaystarHit(a.damage, "ГИГА-ЛАЗЕР!"); }
+                }
+                if (a.activeTimer % 2 === 0) {
+                    var dist2 = Math.random() * 400;
+                    spawnWaystarParticles(a.x + Math.cos(a.angle) * dist2, a.y + Math.sin(a.angle) * dist2, 3, ["#ff00ff", "#ffffff"][Math.floor(Math.random()*2)], 6);
+                }
+                if (a.activeTimer <= 0) a.state = "done";
+            } else { waystarAttacks.splice(i, 1); continue; }
+        }
+        // СОЗВЕЗДИЕ
+        else if (a.type === "constellation") {
+            a.timer--;
+            if (a.warning > 0) a.warning--;
+            if (a.timer <= 0) { waystarAttacks.splice(i, 1); continue; }
+            if (a.warning <= 0 && waystarInvulnTimer <= 0 && !a.hit) {
+                for (var p = 0; p < a.points.length - 1; p++) {
+                    var p1 = a.points[p], p2 = a.points[p + 1];
+                    var d = distToSegment(waystarPlayer.x, waystarPlayer.y, p1.x, p1.y, p2.x, p2.y);
+                    if (d < 12) { a.hit = true; applyWaystarHit(a.damage, "СОЗВЕЗДИЕ!"); break; }
                 }
             }
         }
-        if (_superState.dekuSmashSequenceTimer <= 0 && _superState.dekuSmashBlackoutTimer <= 0) {
-            _superState.dekuSmashActive = false;
-            _superState.dekuFists = [];
-            heartSpeed = _superState.originalHeartSpeed;
-            arenaGlobalSpeedMod = _superState.originalGlobalSpeedMod;
-            restoreArenaTimer();
+    }
+
+    for (var i = waystarBombs.length - 1; i >= 0; i--) {
+        var bomb = waystarBombs[i];
+        if (!bomb.exploded) {
+            bomb.timer--;
+            if (bomb.timer <= 0) {
+                bomb.exploded = true; bomb.explosionTimer = 20;
+                addWaystarShockwave(bomb.x, bomb.y, "#ff4400", bomb.radius * 1.5, 25, 6);
+                addWaystarFlash(bomb.x, bomb.y, bomb.radius);
+                spawnWaystarParticles(bomb.x, bomb.y, 40, "#ff4400", 8);
+                wsPlaySound(100, 'sawtooth', 0.6, 0.3);
+                var dx = waystarPlayer.x - bomb.x, dy = waystarPlayer.y - bomb.y;
+                if (Math.sqrt(dx*dx + dy*dy) < bomb.radius && waystarInvulnTimer <= 0) applyWaystarHit(bomb.damage, "ВЗРЫВ!");
+            }
+        } else { bomb.explosionTimer--; if (bomb.explosionTimer <= 0) waystarBombs.splice(i, 1); }
+    }
+
+    if (waystarDash) {
+        waystarDash.progress++;
+        var t = waystarDash.progress / waystarDash.duration;
+        if (t >= 1) waystarDash = null;
+        else {
+            var newX = waystarDash.startX + (waystarDash.targetX - waystarDash.startX) * t;
+            var newY = waystarDash.startY + (waystarDash.targetY - waystarDash.startY) * t;
+            for (var k = waystarAttacks.length - 1; k >= 0; k--) {
+                if (waystarAttacks[k].type === "shotgun_bullet" || waystarAttacks[k].type === "spiral" || waystarAttacks[k].type === "star_rain") {
+                    var d = Math.sqrt(Math.pow(waystarAttacks[k].x - newX, 2) + Math.pow(waystarAttacks[k].y - newY, 2));
+                    if (d < 80) { spawnWaystarParticles(waystarAttacks[k].x, waystarAttacks[k].y, 8, "#ff00ff", 5); waystarAttacks.splice(k, 1); }
+                }
+            }
+            if (!waystarDash.hit && waystarInvulnTimer <= 0) {
+                var d = Math.sqrt(Math.pow(waystarPlayer.x - newX, 2) + Math.pow(waystarPlayer.y - newY, 2));
+                if (d < 25) {
+                    waystarDash.hit = true;
+                    applyWaystarHit(waystarDash.damage, "РЫВОК!");
+                    var angle = Math.atan2(waystarPlayer.y - newY, waystarPlayer.x - newX);
+                    waystarPlayer.x += Math.cos(angle) * 60; waystarPlayer.y += Math.sin(angle) * 60;
+                    waystarPlayer.x = Math.max(16, Math.min(384, waystarPlayer.x));
+                    waystarPlayer.y = Math.max(80, Math.min(484, waystarPlayer.y));
+                    waystarShake = 40;
+                    addWaystarShockwave(waystarPlayer.x, waystarPlayer.y, "#ff00ff", 200, 20, 6);
+                }
+            }
+            waystarSmallBoss.x = newX; waystarSmallBoss.y = newY;
+            for (var i = 0; i < 4; i++) spawnWaystarParticles(newX + (Math.random()-0.5)*25, newY + (Math.random()-0.5)*25, 1, ["#ff00ff", "#ffffff"][Math.floor(Math.random()*2)], 5);
+            if (waystarDash.progress % 3 === 0) addWaystarSlash(newX, newY, Math.random() * Math.PI * 2, 40, 4);
         }
     }
-    
-    updateSuperLogic(dt); 
-    updateSuperButton(); 
 }
 
-function updateSuperLogic(dt) { 
-    var mainCard = getMainCard(); 
-    if (_superState.screenShakeAmount > 0) { _superState.screenShakeAmount *= 0.88; if (_superState.screenShakeAmount < 0.15) _superState.screenShakeAmount = 0; }
-    if (_superState.screenFlashWhite > 0) _superState.screenFlashWhite -= dt * 25; 
-    for (var i = _superState.rings.length - 1; i >= 0; i--) { var r = _superState.rings[i]; r.radius += r.speed * dt; r.life -= dt; if (r.life <= 0) _superState.rings.splice(i, 1); } 
-    for (var i = _superState.realityCracks.length - 1; i >= 0; i--) { _superState.realityCracks[i].life -= dt; if (_superState.realityCracks[i].life <= 0) _superState.realityCracks.splice(i, 1); } 
-    for (var i = _superState.earthCracks.length - 1; i >= 0; i--) { _superState.earthCracks[i].life -= dt; if (_superState.earthCracks[i].life <= 0) _superState.earthCracks.splice(i, 1); } 
-    if (_superState.dekuDash && _superState.dekuDash.trail) { for (var i = _superState.dekuDash.trail.length - 1; i >= 0; i--) { _superState.dekuDash.trail[i].life -= dt; if (_superState.dekuDash.trail[i].life <= 0) _superState.dekuDash.trail.splice(i, 1); } } 
-    for (var i = _superState.comicTexts.length - 1; i >= 0; i--) { _superState.comicTexts[i].alpha -= dt * 0.8; _superState.comicTexts[i].y -= dt * 10; if (_superState.comicTexts[i].alpha <= 0) _superState.comicTexts.splice(i, 1); } 
-    if (_superState.allmightHurricane) { _superState.allmightHurricaneTimer -= dt; _superState.allmightHurricaneAngle += dt * 25; if (_superState.allmightHurricaneTimer <= 0) { _superState.allmightHurricane = false; } } 
-    if (_superState.garpChargeTimer > 0) { _superState.garpChargeTimer -= dt; if (_superState.garpChargeTimer <= 0) { _superState.garpChargeTimer = 0; heartSpeed /= 0.3; _superState.garpImpactActive = true; _superState.garpImpactRadius = 0; _superState.garpImpactX = heart.x; _superState.garpImpactY = heart.y; arenaBossMaxHP = Math.floor(arenaBossMaxHP * 0.90); _superState.screenShakeAmount = 45; _superState.screenFlashWhite = 15; spawnFloatingText(heart.x, heart.y - 40, "ГАЛАКТИЧЕСКИЙ УДАР!!!", "#8844ff"); if (typeof sfxArenaVictory === 'function') sfxArenaVictory(); _superState.garpHakiActive = true; _superState.garpHakiTimer = 9.0; heartSpeed *= 1.25; spawnFloatingText(heart.x, heart.y - 30, "ХАКИ!", "#ff4444"); } } 
-    if (_superState.garpImpactActive) { _superState.garpImpactRadius += dt * 700; if (_superState.garpImpactRadius > 250) { _superState.garpImpactActive = false; } for (var j = attacks.length - 1; j >= 0; j--) { var a = attacks[j]; var ax = a.x + (a.size || a.radius || 20) / 2; var ay = a.y + (a.size || a.radius || 20) / 2; if (Math.hypot(ax - _superState.garpImpactX, ay - _superState.garpImpactY) < _superState.garpImpactRadius) { attacks.splice(j, 1); arenaParticles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*12, vy: (Math.random()-0.5)*12, life: 25, maxLife: 25, color: "#8844ff", size: 4 }); } } } 
-    if (_superState.garpHakiActive) { _superState.garpHakiTimer -= dt; if (_superState.garpHakiTimer <= 0) { _superState.garpHakiActive = false; heartSpeed /= 1.25; } } 
-    if (_superState.allmightDebuffActive) { _superState.allmightDebuffTimer -= dt; if (_superState.allmightDebuffTimer <= 0) { _superState.allmightDebuffActive = false; } } 
-    if (_superState.markBuffActive) { _superState.markBuffTimer -= dt; if (_superState.markBuffTimer <= 0) { _superState.markBuffActive = false; heartSpeed /= _superState.markSpeedBonus; _superState.markDmgReduction = 1; _superState.markDmgBonus = 1; _superState.markSpeedBonus = 1; } } 
-    if (typeof arenaPhase !== 'undefined' && arenaPhase === "dodge" && mainCard && mainCard.name === "Космический Гароу") { var now = performance.now(); _superState.positionHistory.push({ time: now, x: heart.x, y: heart.y }); while (_superState.positionHistory.length > 0 && now - _superState.positionHistory[0].time > 5000) _superState.positionHistory.shift(); } 
-    if (_superState.usoppStunTimer > 0) { _superState.usoppStunTimer -= dt; if (_superState.usoppStunTimer < 0) _superState.usoppStunTimer = 0; } 
-    if (_superState.garouInvulnTimer > 0) { _superState.garouInvulnTimer -= dt; if (_superState.garouInvulnTimer < 0) _superState.garouInvulnTimer = 0; } 
-    if (_superState.allmightBuffTimer > 0) { _superState.allmightBuffTimer -= dt; if (_superState.allmightBuffTimer < 0) _superState.allmightBuffTimer = 0; } 
-    if (_superState.allmightShockwave > 0) _superState.allmightShockwave -= dt; 
-    if (_superState.dandyDmgBuff) { _superState.dandyDmgBuff.timer -= dt; if (_superState.dandyDmgBuff.timer <= 0) _superState.dandyDmgBuff = null; } 
-    if (_superState.dandyShield) { _superState.dandyShield.timer -= dt; if (_superState.dandyShield.timer <= 0) _superState.dandyShield = null; } 
-    if (_superState.dandyVulnerable) { _superState.dandyVulnerable.timer -= dt; if (_superState.dandyVulnerable.timer <= 0) _superState.dandyVulnerable = null; } 
-    if (_superState.dandyDarkness > 0) { _superState.dandyDarkness -= dt; if (_superState.dandyDarkness < 0) _superState.dandyDarkness = 0; } 
-    if (_superState.dandyAura > 0) { _superState.dandyAura -= dt; if (_superState.dandyAura < 0) _superState.dandyAura = 0; } 
-    if (_superState.dandyLava > 0) { _superState.dandyLava -= dt; if (_superState.dandyLava < 0) _superState.dandyLava = 0; } 
-    if (_superState.garouMarker) { var elapsed = (performance.now() - _superState.garouMarker.time) / 1000; if (elapsed > 1.5) _superState.garouMarker = null; else _superState.garouMarker.alpha = 1 - elapsed / 1.5; }
-    if (_superState.dekusParticles && arenaActive) { if (Math.random() < 0.2) { for (var i = 0; i < 3; i++) { var angle = Math.random() * Math.PI * 2; var dist = 20 + Math.random() * 30; arenaParticles.push({ x: heart.x + Math.cos(angle) * 5, y: heart.y + Math.sin(angle) * 5, endX: heart.x + Math.cos(angle) * dist, endY: heart.y + Math.sin(angle) * dist, vx: 0, vy: 0, life: 18, maxLife: 18, color: "#000000", innerColor: "#50c878", isLightning: true, width: 4 }); } } }
-    if (_superState.borosParticles && arenaActive) { for (var i = 0; i < 3; i++) arenaParticles.push({ x: heart.x + (Math.random() - 0.5) * 50, y: heart.y + (Math.random() - 0.5) * 50, vx: (Math.random() - 0.5) * 2, vy: -2 - Math.random() * 3, life: 35, maxLife: 35, color: "#66ff66", size: 3 + Math.random() * 5 }); } 
-    if (_superState.dandyLightnings && arenaActive) { for (var i = 0; i < 4; i++) { var angle = Math.random() * Math.PI * 2; var dist = 25 + Math.random() * 40; arenaParticles.push({ x: heart.x + Math.cos(angle) * 10, y: heart.y + Math.sin(angle) * 10, endX: heart.x + Math.cos(angle) * dist, endY: heart.y + Math.sin(angle) * dist, vx: 0, vy: 0, life: 20, maxLife: 20, color: "#ffff00", isLightning: true }); } } 
-    if (_superState.allmightBuffTimer > 0 && arenaActive) { _superState.allmightShockwave += dt; if (_superState.allmightShockwave >= 1.0) { _superState.allmightShockwave -= 1.0; arenaShockwaves.push({ x: heart.x, y: heart.y, r: 10, v: 15, life: 25, maxLife: 25, color: "rgba(255, 215, 0, 0.8)" }); for (var a of attacks) { var dx = (a.x + (a.size || 20) / 2) - heart.x; var dy = (a.y + (a.size || 20) / 2) - heart.y; var dist = Math.sqrt(dx * dx + dy * dy) || 1; a.spd = (a.spd || 0) + (dx / dist) * 3; a.spdY = (a.spdY || 0) + (dy / dist) * 3; } } } 
-    for (var i = _superState.fists.length - 1; i >= 0; i--) { var f = _superState.fists[i]; f.x += f.vx; f.y += f.vy; f.life--; if (f.life % 3 === 0 && f.life > 0) arenaParticles.push({ x: f.x + (Math.random() - 0.5) * f.size, y: f.y + (Math.random() - 0.5) * f.size, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ff4444", size: 5 + Math.random() * 5 }); var pathWidth = f.pathWidth || 120; for (var j = attacks.length - 1; j >= 0; j--) { var a = attacks[j]; var ax = a.x + (a.size || a.radius || 20) / 2; var ay = a.y + (a.size || a.radius || 20) / 2; if (Math.abs(ax - f.x) < pathWidth / 2 && Math.abs(ay - f.y) < f.size + 20) { _superState.screenShakeAmount = Math.max(_superState.screenShakeAmount, 10); addShockwaveRing(ax, ay, "#ffaa00", 200, 0.3, 2); for (var p = 0; p < 20; p++) arenaParticles.push({ x: ax, y: ay, vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15, life: 25, maxLife: 25, color: "#ffaa00", size: 2 + Math.random() * 6 }); attacks.splice(j, 1); if (typeof sfxBounce === 'function') sfxBounce(); } } if (f.willOneshot && !f.oneshotChecked && arenaBossMaxHP > 0) { f.oneshotChecked = true; arenaBossMaxHP = 0; _superState.screenFlashWhite = 20; _superState.screenShakeAmount = 50; for (var p = 0; p < 100; p++) arenaParticles.push({ x: f.x, y: f.y, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 30, life: 40, maxLife: 40, color: "#ffffff", size: 3 + Math.random() * 8 }); if (typeof sfxArenaVictory === 'function') sfxArenaVictory(); if (typeof winArena === 'function') winArena(); _superState.fists.splice(i, 1); break; } if (f.life <= 0 || f.y < -150 || f.y > 650 || f.x < -50 || f.x > 450) _superState.fists.splice(i, 1); } 
+function distToSegment(px, py, x1, y1, x2, y2) {
+    var dx = x2 - x1, dy = y2 - y1, len2 = dx * dx + dy * dy;
+    if (len2 === 0) return Math.sqrt((px - x1) * (px - x1) + (py - y1) * (py - y1));
+    var t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / len2));
+    var projX = x1 + t * dx, projY = y1 + t * dy;
+    return Math.sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
 }
 
-function renderSuperVisuals() { 
-    if (!ctx) return; 
-    if (_superState.realityCracks.length > 0) { ctx.save(); ctx.strokeStyle = "rgba(0, 255, 255, 0.9)"; ctx.lineWidth = 3; ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 10; _superState.realityCracks.forEach(function(cr) { ctx.globalAlpha = cr.life; ctx.beginPath(); ctx.moveTo(cr.x1, cr.y1); var cx = cr.x1, cy = cr.y1; for(var i=1; i<=4; i++) { var t = i / 4; cx = cr.x1 + (cr.x2 - cr.x1) * t + (Math.random()-0.5)*40; cy = cr.y1 + (cr.y2 - cr.y1) * t + (Math.random()-0.5)*40; ctx.lineTo(cx, cy); } ctx.stroke(); }); ctx.restore(); }
-    if (_superState.dekuSmashActive && _superState.dekuFists.length > 0) { ctx.save(); for (var i = 0; i < _superState.dekuFists.length; i++) { var fist = _superState.dekuFists[i]; if (!fist.active) continue; ctx.save(); ctx.translate(fist.x, fist.y); ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 25; ctx.fillStyle = "#110000"; ctx.beginPath(); ctx.arc(0, 0, fist.radius, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#ff6600"; ctx.beginPath(); ctx.arc(0, 0, fist.radius * 0.75, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#ffcc00"; for(var p = -1.5; p <= 1.5; p++) { ctx.fillRect(p * 20 - 8, -fist.radius*0.4, 16, fist.radius*0.8); } ctx.fillRect(-fist.radius*0.6, -10, 20, 30); ctx.fillStyle = "#ff69b4"; ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(-15, -15, fist.radius * 0.35, 0, Math.PI * 2); ctx.fill(); ctx.restore(); } }
-    if (_superState.dekuExplosions.length > 0) { ctx.save(); _superState.dekuExplosions.forEach(function(exp) { var alpha = exp.life / exp.maxLife; var radius = 40 * (1 - alpha); var grad = ctx.createRadialGradient(exp.x, exp.y, 0, exp.x, exp.y, Math.max(0.1, radius)); grad.addColorStop(0, 'rgba(255, 255, 255, 0.9)'); grad.addColorStop(0.3, 'rgba(68, 255, 68, 0.6)'); grad.addColorStop(0.7, 'rgba(0, 200, 0, 0.2)'); grad.addColorStop(1, 'rgba(0, 100, 0, 0)'); ctx.fillStyle = grad; ctx.globalAlpha = alpha; ctx.beginPath(); ctx.arc(exp.x, exp.y, Math.max(0.1, radius), 0, Math.PI * 2); ctx.fill(); }); ctx.restore(); } 
-    if (_superState.earthCracks.length > 0) { ctx.save(); ctx.strokeStyle = "rgba(68, 255, 68, 0.9)"; ctx.lineWidth = 2.5; ctx.shadowColor = "#44ff44"; ctx.shadowBlur = 8; _superState.earthCracks.forEach(function(cr) { ctx.globalAlpha = cr.life; ctx.beginPath(); var startX = cr.x; var startY = cr.y; ctx.moveTo(startX, startY); var endX = startX + Math.cos(cr.angle) * cr.length; var endY = startY + Math.sin(cr.angle) * cr.length; ctx.lineTo(endX, endY); for (var b = 0; b < 2; b++) { var bx = startX + (endX - startX) * (0.3 + Math.random() * 0.5); var by = startY + (endY - startY) * (0.3 + Math.random() * 0.5); var bAngle = cr.angle + (Math.random() - 0.5) * 1.2; var bLen = cr.length * (0.2 + Math.random() * 0.3); ctx.moveTo(bx, by); ctx.lineTo(bx + Math.cos(bAngle) * bLen, by + Math.sin(bAngle) * bLen); } ctx.stroke(); }); ctx.restore(); } 
-    if (_superState.dekuDash && _superState.dekuDash.trail && _superState.dekuDash.trail.length > 0) { ctx.save(); ctx.globalAlpha = 0.6; for (var t of _superState.dekuDash.trail) { ctx.fillStyle = "#44ff44"; ctx.shadowColor = "#44ff44"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(t.x, t.y, Math.max(0.1, heart.size * 0.8 * (t.life / 0.3)), 0, Math.PI * 2); ctx.fill(); } ctx.restore(); } 
-    if (_superState.imAuraActive && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); ctx.globalAlpha = 0.35; ctx.fillStyle = "#ff0000"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.ellipse(130, 100, 30, 8, -0.2, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#ffd700"; ctx.beginPath(); ctx.arc(130, 100, 4, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#ff0000"; ctx.beginPath(); ctx.ellipse(270, 100, 30, 8, 0.2, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#ffd700"; ctx.beginPath(); ctx.arc(270, 100, 4, 0, Math.PI*2); ctx.fill(); ctx.restore(); } 
-    for (var r of _superState.rings) { ctx.save(); ctx.globalAlpha = Math.max(0, r.life / r.maxLife); ctx.strokeStyle = r.color; ctx.lineWidth = r.width; ctx.shadowColor = r.color; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(r.x, r.y, Math.max(0.1, r.radius), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); } 
-    if (_superState.screenFlashWhite > 0) { ctx.save(); ctx.fillStyle = "#ffffff"; ctx.globalAlpha = Math.min(1, _superState.screenFlashWhite / 10); ctx.fillRect(0, 0, 400, 500); ctx.restore(); } 
-    if (_superState.dekusActive && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); var glowPulse = 1.0 + Math.sin(performance.now() / 60) * 0.2; ctx.strokeStyle = "#44ff44"; ctx.lineWidth = 3; ctx.shadowColor = "#44ff44"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(heart.x, heart.y, Math.max(0.1, heart.size * 1.8 * glowPulse), 0, Math.PI*2); ctx.stroke(); ctx.restore(); } 
-    if (_superState.garpChargeTimer > 0 && typeof arenaActive !== 'undefined' && arenaActive) { if (Math.random() < 0.6) drawHakiLightning(heart.x, heart.y, 90, 1.0, 1.5, "#ff0000"); if (Math.random() < 0.4) drawHakiLightning(heart.x, heart.y, 120, 0.8, 1, "#4444ff"); ctx.save(); var chargePower = 1.2 - _superState.garpChargeTimer; ctx.translate(heart.x, heart.y); ctx.rotate(performance.now() / 200); ctx.beginPath(); ctx.arc(0, 0, 40 + chargePower * 30, 0, Math.PI * 2); ctx.fillStyle = "rgba(136, 68, 255, 0.15)"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "rgba(255, 0, 0, 0.5)"; ctx.setLineDash([10, 15]); ctx.stroke(); ctx.restore(); } 
-    if (_superState.garpImpactActive && typeof arenaActive !== 'undefined' && arenaActive) { var cx = _superState.garpImpactX; var cy = _superState.garpImpactY; var r = _superState.garpImpactRadius; var progress = r / 200; var alpha = 1 - Math.pow(progress, 3); ctx.save(); ctx.globalAlpha = alpha; var grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(0.1, r)); grad.addColorStop(0, "#ffffff"); grad.addColorStop(0.1, "#ff44ff"); grad.addColorStop(0.4, "#220088"); grad.addColorStop(0.8, "#050022"); grad.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cx, cy, Math.max(0.1, r), 0, Math.PI * 2); ctx.fill(); for(var i = 0; i < 30; i++) { var sAngle = Math.random() * Math.PI * 2; var sDist = Math.random() * r * 0.9; var sx = cx + Math.cos(sAngle + progress * 2) * sDist; var sy = cy + Math.sin(sAngle + progress * 2) * sDist; ctx.fillStyle = (Math.random() > 0.5) ? "#ffffff" : "#ffccff"; ctx.beginPath(); ctx.arc(sx, sy, 1 + Math.random() * 2, 0, Math.PI * 2); ctx.fill(); } ctx.strokeStyle = "#ff44ff"; ctx.lineWidth = 15 * (1 - progress); ctx.shadowColor = "#ff44ff"; ctx.shadowBlur = 30; ctx.beginPath(); ctx.arc(cx, cy, Math.max(0.1, r), 0, Math.PI * 2); ctx.stroke(); if (Math.random() < 0.8) { drawHakiLightning(cx + Math.cos(Math.random()*Math.PI*2)*r, cy + Math.sin(Math.random()*Math.PI*2)*r, 80, alpha, 2, "#ff0000"); drawHakiLightning(cx + Math.cos(Math.random()*Math.PI*2)*r, cy + Math.sin(Math.random()*Math.PI*2)*r, 100, alpha, 2, "#ff00ff"); } ctx.restore(); } 
-    if (_superState.garpHakiActive && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); ctx.globalAlpha = 0.2; ctx.strokeStyle = "#ff0000"; ctx.lineWidth = 4; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 20; ctx.beginPath(); ctx.arc(heart.x, heart.y, Math.max(0.1, heart.size * 2.5), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); if (Math.random() < 0.5) drawHakiLightning(heart.x, heart.y, 80, 1.0, 1.2, "#ff0000"); } 
-    if (_superState.antispiralActive && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); ctx.globalAlpha = 0.3; ctx.strokeStyle = "#aaddff"; ctx.lineWidth = 3; ctx.shadowColor = "#aaddff"; ctx.shadowBlur = 20; ctx.beginPath(); ctx.arc(heart.x, heart.y, Math.max(0.1, heart.size * 3), 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 0.15; ctx.beginPath(); ctx.arc(heart.x, heart.y, Math.max(0.1, heart.size * 4), 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = "rgba(170, 221, 255, 0.15)"; ctx.lineWidth = 1; var gridScale = (performance.now() / 400) % 40; for(var r = gridScale; r < 200; r += 40) { ctx.beginPath(); ctx.arc(heart.x, heart.y, r, 0, Math.PI*2); ctx.stroke(); } for(var d=0; d<12; d++) { var ang = (d / 12) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(heart.x, heart.y); ctx.lineTo(heart.x + Math.cos(ang)*200, heart.y + Math.sin(ang)*200); ctx.stroke(); } ctx.restore(); } 
-    if (getMainCard() && getMainCard().name === "Император Марк" && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); var wingTime = performance.now() / 180; var leftWingAngle = Math.sin(wingTime) * 0.25; var rightWingAngle = -Math.sin(wingTime) * 0.25; var featherGrad = ctx.createLinearGradient(0, 0, 40, 0); featherGrad.addColorStop(0, "rgba(255, 215, 0, 0.8)"); featherGrad.addColorStop(0.5, "rgba(255, 140, 0, 0.6)"); featherGrad.addColorStop(1, "rgba(255, 69, 0, 0)"); ctx.fillStyle = featherGrad; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 15; ctx.save(); ctx.translate(heart.x - 6, heart.y); ctx.rotate(Math.PI + leftWingAngle); ctx.beginPath(); ctx.ellipse(20, -5, 22, 7, 0.1, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(15, -12, 18, 5, 0.3, 0, Math.PI*2); ctx.fill(); ctx.restore(); ctx.save(); ctx.translate(heart.x + 6, heart.y); ctx.rotate(rightWingAngle); ctx.beginPath(); ctx.ellipse(20, -5, 22, 7, -0.1, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(15, -12, 18, 5, -0.3, 0, Math.PI*2); ctx.fill(); ctx.restore(); ctx.restore(); if (Math.random() < 0.05) { arenaParticles.push({ x: heart.x + (Math.random()-0.5)*30, y: heart.y - 10, vx: (Math.random()-0.5)*1, vy: 1 + Math.random()*1.5, life: 30, maxLife: 30, color: "#ffd700", size: 2 }); } } 
-    if (_superState.markBuffActive && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); ctx.globalAlpha = 0.3; ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 4; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 25; ctx.beginPath(); ctx.arc(heart.x, heart.y, Math.max(0.1, heart.size * 2.5), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); } 
-    drawGarouTrail(); 
-    for (var i = arenaParticles.length - 1; i >= 0; i--) { var p = arenaParticles[i]; if (p.isLightning && p.life > 0) { drawLightningBolt(p.x, p.y, p.endX, p.endY, p.color, p.life / p.maxLife, p.width || 3, p.innerColor); } } 
-    if (_superState.fists && _superState.fists.length > 0) { for (var f of _superState.fists) { if (f.life > 0) drawFist(f); } } 
-    if (_superState.garouMarker && _superState.garouMarker.alpha > 0) drawCircleMarker(_superState.garouMarker.x, _superState.garouMarker.y, "#ff8800", _superState.garouMarker.alpha, 30); 
-    if (_superState.usoppStunTimer > 0 && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); ctx.globalAlpha = 0.8; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 8; var stunAngle = performance.now() / 150; for (var i = 0; i < 4; i++) { var angle = (i / 4) * Math.PI * 2 + stunAngle; var sx = heart.x + Math.cos(angle) * (heart.size * 1.8); var sy = heart.y + Math.sin(angle) * (heart.size * 0.8) - 15; ctx.fillStyle = "#ffd700"; ctx.font = "bold 14px sans-serif"; ctx.fillText("★", sx, sy); } ctx.restore(); } 
-    if (_superState.nikaActive && typeof arenaActive !== 'undefined' && arenaActive) { var bounceBeat = 1.0 + Math.abs(Math.sin(performance.now() / 150)) * 0.2; ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(heart.x, heart.y, Math.max(0.1, heart.size * bounceBeat), 0, Math.PI*2); ctx.fill(); ctx.restore(); ctx.save(); ctx.globalAlpha = 0.55; var cloudAngle = performance.now() / 800; ctx.translate(heart.x, heart.y); ctx.rotate(cloudAngle); for (var i = 0; i < 5; i++) { var angle = (i / 5) * Math.PI * 2; var sx = Math.cos(angle) * (heart.size * 1.5); var sy = Math.sin(angle) * (heart.size * 1.5); ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#eeeeee"; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(sx, sy, 7, 0, Math.PI*2); ctx.fill(); } ctx.restore(); } 
-    if (_superState.borosHeal && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); var spiralTime = performance.now() / 200; var r = heart.size * 2.0; ctx.shadowBlur = 10; for(var yOffset = -25; yOffset <= 25; yOffset += 5) { var angle1 = spiralTime + (yOffset * 0.15); var angle2 = spiralTime + (yOffset * 0.15) + Math.PI; var alpha = 1.0 - Math.abs(yOffset) / 30; ctx.globalAlpha = alpha; ctx.fillStyle = "#66ff66"; ctx.shadowColor = "#66ff66"; ctx.beginPath(); ctx.arc(heart.x + Math.cos(angle1)*r, heart.y + yOffset, 2.5, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = "#00ffff"; ctx.shadowColor = "#00ffff"; ctx.beginPath(); ctx.arc(heart.x + Math.cos(angle2)*r, heart.y + yOffset, 2.5, 0, Math.PI*2); ctx.fill(); } ctx.restore(); } 
-    if (_superState.usoppInvuln && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); var ghostDist = 20 + Math.sin(performance.now() / 100) * 4; ctx.globalAlpha = 0.35; ctx.fillStyle = "rgba(255, 215, 0, 0.6)"; ctx.beginPath(); ctx.arc(heart.x - ghostDist, heart.y, Math.max(0.1, heart.size), 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(heart.x + ghostDist, heart.y, Math.max(0.1, heart.size), 0, Math.PI*2); ctx.fill(); for (var i = 0; i < 3; i++) { var angle = performance.now() / 500 + i * Math.PI * 2 / 3; var sx = heart.x + Math.cos(angle) * heart.size * 2.5; var sy = heart.y + Math.sin(angle) * heart.size * 2.5; ctx.fillStyle = "#ffd700"; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 15; ctx.font = "20px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("⭐", sx, sy); } ctx.restore(); } 
-    if (_superState.dandyRoulette && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); var elapsed = performance.now() - _superState.dandyRoulette.time; var duration = _superState.dandyRoulette.duration; var isSpinning = elapsed < duration; var progress = isSpinning ? elapsed / duration : 1.0; var result = _superState.dandyRoulette.result; var floatY = isSpinning ? -30 * progress : -45; ctx.translate(heart.x, heart.y - 45 + floatY); if (isSpinning) { ctx.shadowBlur = 15; ctx.shadowColor = "#ffd700"; } var outerRot = isSpinning ? elapsed * 0.01 : 0; for (var i = 0; i < 12; i++) { var ang = (i / 12) * Math.PI * 2 + outerRot; var x = Math.cos(ang) * 20; var y = Math.sin(ang) * 20; ctx.fillStyle = i % 3 === 0 ? "#ff3333" : (i % 3 === 1 ? "#ffff00" : "#33ff33"); ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2); ctx.fill(); } ctx.strokeStyle = "cyan"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI*2); ctx.stroke(); if (isSpinning) { var fastRot = elapsed * 0.03; for (var s = 0; s < 6; s++) { var ang = (s / 6) * Math.PI * 2 + fastRot; ctx.strokeStyle = s % 2 === 0 ? "#44ff44" : "#ff4444"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(ang)*14, Math.sin(ang)*14); ctx.stroke(); } } ctx.shadowBlur = 0; ctx.shadowColor = "transparent"; ctx.font = "bold 8px monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; if (isSpinning) { ctx.fillStyle = "#ffd700"; ctx.fillText("?", 0, 0); } else if (result) { ctx.fillStyle = result.good === true ? "#44ff44" : (result.good === false ? "#ff4444" : "#ffd700"); var shortText = result.name.length > 6 ? result.name.substring(0, 4) + ".." : result.name; ctx.fillText(shortText, 0, 0); } ctx.restore(); } 
-    if (_superState.kaidoBuffActive && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); var shieldTime = performance.now() / 250; var numScales = 3; ctx.shadowColor = "#ff4500"; ctx.shadowBlur = 15; for(var i=0; i<numScales; i++) { var angle = shieldTime + (i / numScales) * Math.PI * 2; var scaleX = heart.x + Math.cos(angle) * 30; var scaleY = heart.y + Math.sin(angle) * 30; ctx.fillStyle = "rgba(255, 69, 0, 0.85)"; ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(scaleX, scaleY - 6); ctx.lineTo(scaleX + 5, scaleY); ctx.lineTo(scaleX, scaleY + 6); ctx.lineTo(scaleX - 5, scaleY); ctx.closePath(); ctx.fill(); ctx.stroke(); } ctx.restore(); } 
-    if (_superState.imAuraActive && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); var gradient = ctx.createRadialGradient(heart.x, heart.y, 40, heart.x, heart.y, 55); gradient.addColorStop(0, 'rgba(128, 0, 128, 0.1)'); gradient.addColorStop(1, 'rgba(128, 0, 128, 0.6)'); ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(heart.x, heart.y, 55, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "rgba(200, 0, 200, 0.9)"; ctx.lineWidth = 4; ctx.shadowColor = "#800080"; ctx.shadowBlur = 25; ctx.stroke(); ctx.restore(); } 
-    if (_superState.allmightPermaSlow && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); ctx.globalAlpha = 0.2; ctx.fillStyle = "#ff0000"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 20; ctx.beginPath(); ctx.arc(heart.x, heart.y, Math.max(0.1, heart.size * 2), 0, Math.PI * 2); ctx.fill(); ctx.restore(); } 
-    if (_superState.allmightDebuffActive && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); ctx.globalAlpha = 0.25; ctx.fillStyle = "#ff4444"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(heart.x, heart.y, Math.max(0.1, heart.size * 2), 0, Math.PI * 2); ctx.fill(); ctx.restore(); } 
-    if (_superState.garouInvulnTimer > 0 && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 4; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 25; ctx.beginPath(); ctx.arc(heart.x, heart.y, Math.max(0.1, heart.size * 2), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); } 
-    if (_superState.allmightHurricane && typeof arenaActive !== 'undefined' && arenaActive) { ctx.save(); var vortexGrad = ctx.createRadialGradient(heart.x, heart.y, 10, heart.x, heart.y, 150); vortexGrad.addColorStop(0, 'rgba(255, 255, 255, 1)'); vortexGrad.addColorStop(0.2, 'rgba(0, 255, 255, 0.8)'); vortexGrad.addColorStop(0.6, 'rgba(0, 150, 255, 0.4)'); vortexGrad.addColorStop(1, 'rgba(0, 100, 200, 0)'); ctx.fillStyle = vortexGrad; ctx.beginPath(); ctx.arc(heart.x, heart.y, 150, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 0.7; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4; ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 20; for (var r = 0; r < 5; r++) { var ringRadius = 30 + r * 25; var ringRotation = _superState.allmightHurricaneAngle * (1 + r * 0.5); var segments = 30; ctx.beginPath(); for (var i = 0; i <= segments; i++) { var angle = (i / segments) * Math.PI * 2 + ringRotation; var waveOffset = Math.sin(i * 3 + _superState.allmightHurricaneAngle * 5) * 15; var x = heart.x + Math.cos(angle) * (ringRadius + waveOffset); var y = heart.y + Math.sin(angle) * (ringRadius + waveOffset) * 0.5; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.closePath(); ctx.stroke(); } for (var i = 0; i < 24; i++) { var angle = _superState.allmightHurricaneAngle * 3 + (i / 24) * Math.PI * 2; var dist = 30 + (i % 5) * 24; var px = heart.x + Math.cos(angle) * dist; var py = heart.y + Math.sin(angle) * dist * 0.5; ctx.fillStyle = i % 2 === 0 ? "#ffffff" : "#00ffff"; ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(px, py, 2.5 + Math.random()*2, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "rgba(0, 255, 255, 0.8)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - Math.cos(angle) * 15, py - Math.sin(angle) * 15); ctx.stroke(); } ctx.globalAlpha = 0.6; for (var i = 0; i < 5; i++) { var angle = Math.random() * Math.PI * 2; drawLightningBolt(heart.x, heart.y, heart.x + Math.cos(angle) * 140, heart.y + Math.sin(angle) * 140, "#ffffff", 0.9, 3); } ctx.restore(); } 
-    if (_superState.allmightBuffTimer > 0 && typeof arenaActive !== 'undefined' && arenaActive) drawAllMightHeart(heart.x, heart.y, heart.size); 
-    if (_superState.kaidoDrinking && typeof arenaActive !== 'undefined' && arenaActive) drawBeerBottle(heart.x, heart.y, 1, true); 
-    if (_superState.comicTexts.length > 0) { _superState.comicTexts.forEach(function(t) { ctx.save(); ctx.globalAlpha = t.alpha; ctx.translate(t.x, t.y); ctx.rotate(t.angle); ctx.scale(t.scale, t.scale); ctx.font = "bold 16px Impact, Arial Black, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText(t.text, 0, 0); ctx.fillStyle = t.color; ctx.fillText(t.text, 0, 0); ctx.restore(); }); } 
+function applyWaystarHit(dmg, textMsg) {
+    if (waystarInvulnTimer > 0) return;
+    waystarPlayerHp -= dmg;
+    waystarInvulnTimer = 40;
+    waystarShake = 18;
+    waystarScreenFlash = 10; waystarScreenFlashColor = "#ff0000";
+    waystarVignette = 20;
+    spawnWaystarParticles(waystarPlayer.x, waystarPlayer.y, 25, "#ff3333", 7);
+    addWaystarShockwave(waystarPlayer.x, waystarPlayer.y, "#ff0000", 80, 12, 3);
+    addWaystarFlash(waystarPlayer.x, waystarPlayer.y, 20);
+    if (textMsg && typeof showFloatingText === 'function') showFloatingText(textMsg, "#ff3333");
+    wsPlaySound(80, 'sawtooth', 0.5, 0.2);
+    updateWaystarHpBar();
+
+    // ★ RAGE MODE: если HP < 50%, фаза 3 становится ещё бешенее ★
+    if (waystarState === "phase3" && !waystarRageMode && waystarPlayerHp < waystarPlayerMaxHp * 0.5) {
+        waystarRageMode = true;
+        waystarSpeedMult *= 1.3;
+        waystarScreenFlash = 25; waystarScreenFlashColor = "#ff0000";
+        waystarShake = 35;
+        if (typeof showFloatingText === 'function') showFloatingText("🔥 RAGE MODE!", "#ff0000");
+        for (var i = 0; i < 60; i++) spawnWaystarParticles(waystarSmallBoss.x, waystarSmallBoss.y, 1, ["#ff0000", "#ff6600", "#ffff00"][Math.floor(Math.random()*3)], 15);
+        wsPlaySound(120, 'sawtooth', 1.5, 0.4);
+    }
+
+    if (waystarPlayerHp <= 0) waystarDefeat();
 }
 
-// ========== ЭКСПОРТ ==========
-window.toggleSuper = toggleSuper;
-window.activateDekuDashSmash = activateDekuDashSmash;
-window.activateDekuEarthShatter = activateDekuEarthShatter;
-window.deactivateDeku100 = deactivateDeku100;
-window.activateAllmightHurricane = activateAllmightHurricane;
-window.initSuperState = initSuperState;
-window.tickSupers = tickSupers;
-window.renderSuperVisuals = renderSuperVisuals;
-window.resetAllSupers = resetAllSupers;
-window.resetAllCooldowns = resetAllCooldowns;
-window.getMainCard = getMainCard;
+function updateWaystarHpBar() {
+    var el = document.getElementById("arenaHP");
+    if (el) el.innerText = Math.max(0, Math.ceil(waystarPlayerHp));
+}
+
+// ========== ПОБЕДА / ПОРАЖЕНИЕ ==========
+function waystarVictory() {
+    if (waystarRewardGiven) return;
+    waystarRewardGiven = true;
+
+    // ★ Очищаем атаки, чтобы не добивали игрока во время диалога ★
+    waystarAttacks = [];
+    waystarPlayerBullets = [];
+    waystarEnemyBullets = [];
+    waystarBombs = [];
+    waystarDash = null;
+
+    waystarState = "final_dialog";
+    waystarDialogActive = true;
+    waystarDialogStep = 0;
+    waystarDialogAutoTimer = 0;
+    waystarDialogQueue = [
+        { speaker: "🌟 Путеводная Звезда", text: "Ах... ты победил меня..." },
+        { speaker: "🌟 Путеводная Звезда", text: "Удивительно, как такой человечек смог уничтожить звезду, которой 56 миллионов лет..." },
+        { speaker: "🌟 Путеводная Звезда", text: "Когда звёзды живут слишком долго, они становятся мощнее и мощнее. А иногда даже получают разум, как я." },
+        { speaker: "🌟 Путеводная Звезда", text: "Но, похоже, я облажался..." },
+        { speaker: "🌟 Путеводная Звезда", text: "Надеюсь, ты найдёшь то, что ты так искал... Удачи." }
+    ];
+    for (var i = 0; i < waystarDialogQueue.length; i++) waystarDialogQueue[i].time = 2 + waystarDialogQueue[i].text.length * 0.06;
+
+    waystarDialogOnComplete = function() { grantWaystarReward(); };
+
+    wsPlaySound(500, 'sine', 0.6, 0.2);
+    setTimeout(function() { wsPlaySound(800, 'sine', 0.6, 0.2); }, 200);
+}
+
+function grantWaystarReward() {
+    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(500)) {
+        defeatedBosses.push(500);
+        if (typeof saveAll === 'function') saveAll();
+    }
+    if (typeof addItem === 'function') addItem("waystar", 1);
+    if (typeof secretGachaTokens !== 'undefined') secretGachaTokens = (secretGachaTokens || 0) + 1;
+    if (typeof saveAll === 'function') saveAll();
+
+    for (var i = 0; i < 5; i++) {
+        setTimeout(function(idx) { addWaystarShockwave(200, 250, ["#ffffff", "#ffd700", "#ffaa00"][idx % 3], 350, 30, 5); }, i * 100);
+    }
+    for (var i = 0; i < 150; i++) spawnWaystarParticles(200 + (Math.random() - 0.5) * 400, 250 + (Math.random() - 0.5) * 400, 1, ["#ffd700", "#ffffff", "#ffaa00"][Math.floor(Math.random() * 3)], 12);
+
+    if (typeof showFloatingText === 'function') {
+        showFloatingText("⭐ ПОБЕДА! ⭐", "#ffd700");
+        setTimeout(function() { showFloatingText("🌟 Путеводная Звезда получена!", "#ffd700"); }, 600);
+        setTimeout(function() { showFloatingText("💎 +1 СЕКРЕТНЫЙ ТОКЕН", "#ff00ff"); }, 1200);
+    }
+
+    setTimeout(function() {
+        stopWaystarFight();
+        if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0;
+        if (typeof victory === 'function') victory();
+    }, 3500);
+}
+
+function waystarDefeat() {
+    waystarState = "defeat";
+    if (typeof showFloatingText === 'function') showFloatingText("ТЫ ПАЛ...", "#ff0000");
+    wsPlaySound(40, 'sawtooth', 2.0, 0.4);
+    waystarScreenFlash = 60; waystarScreenFlashColor = "#ff0000";
+    for (var i = 0; i < 80; i++) spawnWaystarParticles(waystarPlayer.x, waystarPlayer.y, 1, "#ff3333", 10);
+    setTimeout(function() {
+        stopWaystarFight();
+        if (typeof playerHp !== 'undefined') playerHp = 0;
+        if (typeof defeat === 'function') defeat();
+    }, 2500);
+}
+
+// ========== RENDER LOOP ==========
+function waystarRenderLoop() {
+    if (!waystarActive || !ctx || !canvas) return;
+
+    if (waystarSplitAnim) {
+        waystarSplitAnim.timer++;
+        var t = Math.min(1, waystarSplitAnim.timer / waystarSplitAnim.duration);
+        waystarBoss.x = waystarSplitAnim.boss1StartX + (waystarSplitAnim.boss1TargetX - waystarSplitAnim.boss1StartX) * t;
+        waystarBoss2.x = waystarSplitAnim.boss2StartX + (waystarSplitAnim.boss2TargetX - waystarSplitAnim.boss2StartX) * t;
+        waystarBoss2.alpha = Math.min(1, t * 2);
+        waystarBoss.rotation += 0.03; waystarBoss2.rotation -= 0.03;
+    }
+
+    if (waystarEscapeAnim) {
+        waystarEscapeAnim.timer++;
+        var et = Math.min(1, waystarEscapeAnim.timer / waystarEscapeAnim.duration);
+        waystarBoss2.y = waystarEscapeAnim.startY - et * 300;
+        waystarBoss2.x = waystarEscapeAnim.startX + Math.sin(et * Math.PI * 2) * 30;
+        waystarBoss2.size = 40 * (1 - et * 0.6);
+        waystarBoss2.alpha = 1 - et * 0.5;
+        waystarBoss2.rotation += 0.1;
+        if (et < 0.9) spawnWaystarParticles(waystarBoss2.x, waystarBoss2.y, 2, "#ff00ff", 3);
+    }
+
+    if (!waystarDialogActive) {
+        if (waystarState === "phase1") {
+            if (waystarBossHp <= waystarBossMaxHp * 0.5 && waystarBossHp > 0) {
+                waystarTriggerSplit();
+            } else {
+                updateWaystarPlayer();
+                updateWaystarShooting();
+                for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
+                    var b = waystarPlayerBullets[i];
+                    b.y += b.vy; b.x += (b.vx || 0); b.life--;
+                    b.trail.push({ x: b.x, y: b.y, life: 10 }); if (b.trail.length > 5) b.trail.shift();
+                    var dx = b.x - waystarBoss.x, dy = b.y - waystarBoss.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < waystarBoss.size + b.size) {
+                        waystarBossHp -= b.damage; waystarBossFlash = 6;
+                        spawnWaystarParticles(b.x, b.y, 8, "#ffd700", 5);
+                        addWaystarFlash(b.x, b.y, 15);
+                        if (Math.random() < 0.3) addWaystarLightning(b.x, b.y, b.x+(Math.random()-0.5)*50, b.y+(Math.random()-0.5)*50, "#ffffff", 0.6, 2);
+                        wsPlaySound(1400, 'square', 0.08, 0.08);
+                        if (waystarBossHp < waystarBossMaxHp * 0.5) waystarBossHp = waystarBossMaxHp * 0.5;
+                        waystarPlayerBullets.splice(i, 1); continue;
+                    }
+                    if (b.y < -20 || b.life <= 0) waystarPlayerBullets.splice(i, 1);
+                }
+                updateWaystarBoss(); updateWaystarAttacks();
+                waystarAttackTimer++;
+                var aRate = Math.floor(35 / waystarSpeedMult);
+                if (waystarAttackTimer >= aRate) { waystarAttackTimer = 0; waystarSpawnAttack(); }
+                waystarTypeTimer--;
+                if (waystarTypeTimer <= 0) {
+                    waystarAttackType = Math.floor(Math.random() * 5);
+                    waystarTypeTimer = Math.floor(200 + Math.random() * 150);
+                    var typeNames = ["МЕТЕОРЫ", "ВИХРЬ", "ЛАЗЕРЫ", "СОЗВЕЗДИЕ", "ЗВЁЗДНЫЙ ДОЖДЬ"];
+                    spawnWaystarText(200, 60, typeNames[waystarAttackType], "#ffffff", 70);
+                    addWaystarShockwave(waystarBoss.x, waystarBoss.y, "#ffffff", 60, 12, 2);
+                }
+            }
+        } else if (waystarState === "phase2") {
+            updateWaystarPlayer(); updateWaystarSpaceInvaders();
+        } else if (waystarState === "phase3") {
+            updateWaystarAmbient();
+            updateWaystarPhase3Special();
+            updateWaystarPlayer(); updateWaystarShooting();
+            for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
+                var b = waystarPlayerBullets[i];
+                b.y += b.vy; b.life--;
+                b.trail.push({ x: b.x, y: b.y, life: 10 }); if (b.trail.length > 5) b.trail.shift();
+                var dx = b.x - waystarSmallBoss.x, dy = b.y - waystarSmallBoss.y;
+                if (Math.sqrt(dx * dx + dy * dy) < waystarSmallBoss.size + b.size) {
+                    waystarBossHp -= b.damage; waystarBossFlash = 6;
+                    spawnWaystarParticles(b.x, b.y, 10, "#ff00ff", 5);
+                    addWaystarFlash(b.x, b.y, 20);
+                    addWaystarShockwave(b.x, b.y, "#ff00ff", 40, 10, 2);
+                    if (Math.random() < 0.4) addWaystarLightning(b.x, b.y, b.x+(Math.random()-0.5)*60, b.y+(Math.random()-0.5)*60, "#ff00ff", 0.7, 2);
+                    if (Math.random() < 0.3) addWaystarSlash(b.x, b.y, Math.random()*Math.PI*2, 30, 3);
+                    wsPlaySound(1400, 'square', 0.08, 0.08);
+                    waystarPlayerBullets.splice(i, 1);
+                    // ★ ФИКС ЗАЛИПАНИЯ: было `return`, стало `break` ★
+                    if (waystarBossHp <= 0) { waystarVictory(); break; }
+                    continue;
+                }
+                if (b.y < -20 || b.life <= 0) waystarPlayerBullets.splice(i, 1);
+            }
+            // Проверяем, не завершилась ли игра (чтобы не запускать лишние апдейты)
+            if (waystarState !== "phase3") {
+                // Ничего не делаем — диалог победы сам всё обработает
+            } else {
+                updateWaystarBoss(); updateWaystarAttacks();
+                waystarAttackTimer++;
+                var aRate = Math.floor(40 / waystarSpeedMult);
+                if (waystarRageMode) aRate = Math.floor(aRate * 0.6);
+                if (waystarAttackTimer >= aRate) { waystarAttackTimer = 0; waystarSpawnPhase3Attack(); }
+                waystarTypeTimer--;
+                if (waystarTypeTimer <= 0) {
+                    waystarAttackType = Math.floor(Math.random() * 6);
+                    waystarTypeTimer = Math.floor((waystarRageMode ? 100 : 150) + Math.random() * 100);
+                    var typeNames = ["ДРОБОВИК", "ЗВЕЗДА-БОМБА", "РЫВОК", "ГИГА-ЛАЗЕР", "СПИРАЛЬ", "МИНИ-ВЗРЫВЫ"];
+                    spawnWaystarText(200, 60, typeNames[waystarAttackType], "#ff00ff", 70);
+                    addWaystarShockwave(waystarSmallBoss.x, waystarSmallBoss.y, "#ff00ff", 80, 12, 3);
+                }
+            }
+        }
+    } else {
+        waystarBoss.rotation += 0.02; waystarBoss.pulse += 0.08;
+        if (waystarBoss2.active === true) { waystarBoss2.rotation -= 0.02; waystarBoss2.pulse += 0.1; }
+        else if (waystarBoss2.active === "leaving") { waystarBoss2.y -= 4; waystarBoss2.alpha -= 0.02; if (waystarBoss2.alpha <= 0) waystarBoss2.active = false; }
+        if (waystarState === "returning_anim") { waystarSmallBoss.alpha = Math.min(1, waystarSmallBoss.alpha + 0.02); waystarSmallBoss.rotation += 0.03; waystarSmallBoss.pulse += 0.1; waystarSmallBoss.time += 0.04; }
+        if (waystarState === "final_dialog") { waystarSmallBoss.rotation += 0.05; waystarSmallBoss.pulse += 0.15; }
+
+        var current = waystarDialogQueue[waystarDialogStep];
+        if (current && current.choice && !waystarChoiceResolved) waystarChoiceActive = true;
+        if (!waystarChoiceActive) {
+            waystarDialogAutoTimer++;
+            if (current && waystarDialogAutoTimer > current.time * 60) waystarProgressDialog();
+        }
+    }
+
+    if (waystarShake > 0.1) waystarShake *= 0.85;
+    if (waystarScreenFlash > 0) waystarScreenFlash--;
+    if (waystarBossFlash > 0) waystarBossFlash--;
+
+    updateWaystarMegaEffects();
+
+    for (var i = waystarParticles.length - 1; i >= 0; i--) {
+        var p = waystarParticles[i];
+        if (p.isSplitPiece && p.targetX !== undefined) { p.vx += (p.targetX - p.x) * 0.008; p.vy += (p.targetY - p.y) * 0.008; }
+        p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life--;
+        if (p.life <= 0) waystarParticles.splice(i, 1);
+    }
+    for (var i = waystarTexts.length - 1; i >= 0; i--) { var t = waystarTexts[i]; t.y += t.vy; t.life--; if (t.life <= 0) waystarTexts.splice(i, 1); }
+
+    ctx.save();
+    if (waystarShake > 0.5) ctx.translate((Math.random() - 0.5) * waystarShake, (Math.random() - 0.5) * waystarShake);
+    if (waystarScreenDistort > 0.5) { ctx.translate((Math.random() - 0.5) * waystarScreenDistort, (Math.random() - 0.5) * waystarScreenDistort); ctx.scale(1 + waystarScreenDistort / 500, 1 + waystarScreenDistort / 500); }
+
+    var bg = ctx.createLinearGradient(0, 0, 0, 500);
+    if (waystarState === "phase3" && waystarRageMode) { bg.addColorStop(0, "#1a0000"); bg.addColorStop(0.5, "#200015"); bg.addColorStop(1, "#000000"); }
+    else if (waystarState === "phase3") { bg.addColorStop(0, "#150015"); bg.addColorStop(0.5, "#200030"); bg.addColorStop(1, "#000000"); }
+    else { bg.addColorStop(0, "#050015"); bg.addColorStop(0.5, "#0a0020"); bg.addColorStop(1, "#000000"); }
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, 400, 500);
+
+    for(var i=0; i<waystarNebulas.length; i++) {
+        var neb = waystarNebulas[i];
+        ctx.save(); ctx.translate(neb.x, neb.y); ctx.rotate(neb.angle);
+        var ng = ctx.createRadialGradient(0,0,0,0,0,neb.radius);
+        ng.addColorStop(0, neb.color); ng.addColorStop(1, "transparent");
+        ctx.fillStyle = ng; ctx.globalAlpha = waystarState === "phase3" ? (waystarRageMode ? 0.5 : 0.35) : 0.25;
+        ctx.beginPath(); ctx.arc(0,0,neb.radius,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+
+    for (var i = 0; i < waystarBgStars.length; i++) {
+        var s = waystarBgStars[i]; s.twinkle += 0.1;
+        ctx.globalAlpha = s.alpha * (0.5 + Math.sin(s.twinkle) * 0.5);
+        ctx.fillStyle = waystarState === "phase3" ? (waystarRageMode ? "#ffaaaa" : "#ffaaff") : "#ffffff";
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // ★ ЭФФЕКТЫ 3 ФАЗЫ — эмберы и кольца ★
+    if (waystarState === "phase3") {
+        for (var i = 0; i < waystarPhase3Embers.length; i++) {
+            var e = waystarPhase3Embers[i];
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, e.life / 100);
+            ctx.fillStyle = e.color;
+            ctx.shadowColor = e.color;
+            ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        }
+        for (var i = 0; i < waystarPhase3Rings.length; i++) {
+            var r = waystarPhase3Rings[i];
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, r.life / r.maxLife) * 0.6;
+            ctx.translate(r.x, r.y);
+            ctx.rotate(r.angle);
+            ctx.strokeStyle = r.color;
+            ctx.lineWidth = 2.5;
+            ctx.shadowColor = r.color;
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(0, 0, r.radius, 0, Math.PI * 1.7);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    if (waystarScreenFlash > 0) { ctx.globalAlpha = waystarScreenFlash / 40; ctx.fillStyle = waystarScreenFlashColor; ctx.fillRect(0, 0, 400, 500); ctx.globalAlpha = 1; }
+    if (waystarVignette > 0) { var vg = ctx.createRadialGradient(200, 250, 100, 200, 250, 400); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(255,0,0," + (waystarVignette / 30) + ")"); ctx.fillStyle = vg; ctx.fillRect(0, 0, 400, 500); }
+
+    ctx.strokeStyle = waystarState === "phase3" ? (waystarRageMode ? "#ff0000" : "#ff00ff") : "#ffd700"; ctx.lineWidth = 3; ctx.strokeRect(2, 2, 396, 496);
+
+    for (var i = 0; i < waystarShockwaves.length; i++) { var sw = waystarShockwaves[i]; var progress = 1 - sw.life / sw.maxLife; ctx.save(); ctx.globalAlpha = (1 - progress) * 0.8; ctx.strokeStyle = sw.color; ctx.lineWidth = sw.width * (1 - progress); ctx.beginPath(); ctx.arc(sw.x, sw.y, Math.max(0.1, sw.radius), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+    for (var i = 0; i < waystarLightningBolts.length; i++) { var lb = waystarLightningBolts[i]; ctx.save(); ctx.globalAlpha = (lb.life / lb.maxLife) * 0.9; ctx.strokeStyle = lb.color; ctx.lineWidth = lb.width; ctx.beginPath(); ctx.moveTo(lb.x1, lb.y1); for (var p = 0; p < lb.pts.length; p++) ctx.lineTo(lb.pts[p].x, lb.pts[p].y); ctx.lineTo(lb.x2, lb.y2); ctx.stroke(); ctx.restore(); }
+    for (var i = 0; i < waystarSlashMarks.length; i++) { var sm = waystarSlashMarks[i]; ctx.save(); ctx.globalAlpha = sm.life / sm.maxLife; ctx.translate(sm.x, sm.y); ctx.rotate(sm.angle); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = sm.width * (sm.life / sm.maxLife); ctx.beginPath(); ctx.moveTo(-sm.length / 2, 0); ctx.lineTo(sm.length / 2, 0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, -sm.length / 2); ctx.lineTo(0, sm.length / 2); ctx.stroke(); ctx.restore(); }
+    for (var i = 0; i < waystarFlashBursts.length; i++) { var fb = waystarFlashBursts[i]; ctx.save(); ctx.globalAlpha = (fb.life / fb.maxLife) * 0.5; var r = fb.size * (1 - fb.life / fb.maxLife + 0.5); var g = ctx.createRadialGradient(fb.x, fb.y, 0, fb.x, fb.y, r); g.addColorStop(0, "#ffffff"); g.addColorStop(0.4, "rgba(255,215,0,0.4)"); g.addColorStop(1, "transparent"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(fb.x, fb.y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+
+    if (waystarState === "phase1" || waystarDialogActive || waystarState === "split1_anim" || waystarState === "split2_anim" || waystarState === "pre_split2_dialog" || waystarState === "pre_phase2_dialog" || waystarState === "pre_phase3_dialog" || waystarState === "final_dialog") {
+        if (waystarBoss.alpha > 0) drawWaystarBoss();
+        if (waystarBoss2.active) drawWaystarBoss2();
+        if (waystarState === "phase1") {
+            drawWaystarPhase1Attacks();
+            drawWaystarPlayerBullets();
+        }
+    } else if (waystarState === "phase2") {
+        drawWaystarPieces(); drawWaystarEnemyBullets(); drawWaystarPlayerBullets();
+    } else if (waystarState === "returning_anim" || waystarState === "phase3") {
+        if (waystarSmallBoss.alpha > 0) drawWaystarSmallBoss();
+        if (waystarState === "phase3") { drawWaystarPhase1Attacks(); drawWaystarPlayerBullets(); drawWaystarBombs(); drawWaystarDash(); }
+    }
+
+    if (waystarState === "phase1" || waystarState === "phase2" || waystarState === "phase3") drawWaystarPlayer();
+
+    for (var i = 0; i < waystarParticles.length; i++) { var p = waystarParticles[i]; ctx.globalAlpha = Math.max(0, p.life / p.maxLife) * 0.8; ctx.fillStyle = p.color; if (p.isSplitPiece) { ctx.fillRect(p.x - p.size, p.y - p.size, p.size * 2, p.size * 2); } else { ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); } }
+    ctx.globalAlpha = 1;
+
+    for (var i = 0; i < waystarTexts.length; i++) { var t = waystarTexts[i]; ctx.globalAlpha = Math.min(1, t.life / 30); ctx.font = "bold 18px monospace"; ctx.textAlign = "center"; ctx.fillStyle = t.color; ctx.fillText(t.text, t.x, t.y); }
+    ctx.globalAlpha = 1;
+
+    if (!waystarDialogActive) drawWaystarHpBars();
+    if (waystarDialogActive) drawWaystarDialog();
+
+    if (!waystarDialogActive) {
+        ctx.save(); ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillStyle = waystarState === "phase3" ? "rgba(255,100,255,0.9)" : "rgba(255,215,0,0.7)";
+        var hintText = "";
+        if (waystarState === "phase1" || waystarState === "phase3") hintText = "⌨️ WASD — двигаться | 🔫 Авто-стрельба";
+        else if (waystarState === "phase2") hintText = "← → двигаться | 🔫 Авто-стрельба";
+        if (hintText) ctx.fillText(hintText, 200, 495);
+        ctx.restore();
+    }
+
+    // ★ RAGE MODE индикатор ★
+    if (waystarRageMode && waystarState === "phase3") {
+        ctx.save();
+        ctx.font = "bold 16px monospace";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#ff0000";
+        ctx.shadowColor = "#ff0000";
+        ctx.shadowBlur = 15;
+        var rageGlow = 0.5 + Math.abs(Math.sin(performance.now() / 100)) * 0.5;
+        ctx.globalAlpha = rageGlow;
+        ctx.fillText("🔥 RAGE MODE 🔥", 200, 470);
+        ctx.restore();
+    }
+
+    ctx.restore();
+    waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
+}
+
+function spawnWaystarText(x, y, text, color, life) { waystarTexts.push({ x: x, y: y, text: text, color: color, life: life || 60, vy: -0.5 }); }
+
+// ========== ОТРИСОВКА ==========
+function drawWaystarBoss() {
+    var b = waystarBoss; var pulse = 1 + Math.sin(b.pulse) * 0.12; var size = b.size * pulse;
+    ctx.save(); ctx.translate(b.x, b.y); ctx.globalAlpha = b.alpha;
+    var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, size * 4.7);
+    if (waystarBossFlash > 0) { glow.addColorStop(0, "rgba(255, 255, 255, 0.95)"); glow.addColorStop(0.5, "rgba(255, 200, 100, 0.6)"); glow.addColorStop(1, "transparent"); }
+    else { glow.addColorStop(0, "rgba(255, 215, 0, 0.8)"); glow.addColorStop(0.5, "rgba(255, 150, 0, 0.4)"); glow.addColorStop(1, "transparent"); }
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, size * 4.7, 0, Math.PI * 2); ctx.fill();
+    ctx.rotate(b.time); ctx.strokeStyle = "rgba(255,215,0,0.5)"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); for (var i = 0; i < 6; i++) { var a = (i / 6) * Math.PI * 2; ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*size*1.6, Math.sin(a)*size*1.6); } ctx.stroke();
+    ctx.rotate(-b.time * 2 + b.rotation); ctx.fillStyle = waystarBossFlash > 0 ? "#ffffff" : "#ffd700"; ctx.shadowColor = "#ffaa00"; ctx.shadowBlur = 15;
+    ctx.beginPath(); for (var i = 0; i < 16; i++) { var ang = (i / 16) * Math.PI * 2 - Math.PI / 2; var r = (i % 2 === 0) ? size : size * 0.4; var px = Math.cos(ang) * r, py = Math.sin(ang) * r; if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); } ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, size * 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+}
+
+function drawWaystarBoss2() {
+    var b = waystarBoss2; var pulse = 1 + Math.sin(b.pulse) * 0.12; var size = b.size * pulse;
+    ctx.save(); ctx.translate(b.x, b.y); ctx.globalAlpha = b.alpha;
+    var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, size * 3.75);
+    glow.addColorStop(0, "rgba(255, 0, 255, 0.7)"); glow.addColorStop(0.5, "rgba(200, 0, 200, 0.35)"); glow.addColorStop(1, "transparent");
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, size * 3.75, 0, Math.PI * 2); ctx.fill();
+    ctx.rotate(b.rotation); ctx.fillStyle = "#ff00ff"; ctx.shadowColor = "#ff00ff"; ctx.shadowBlur = 15;
+    ctx.beginPath(); for (var i = 0; i < 16; i++) { var ang = (i / 16) * Math.PI * 2 - Math.PI / 2; var r = (i % 2 === 0) ? size : size * 0.4; if (i === 0) ctx.moveTo(Math.cos(ang)*r, Math.sin(ang)*r); else ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r); } ctx.closePath(); ctx.fill();
+    ctx.restore();
+}
+
+function drawWaystarSmallBoss() {
+    var b = waystarSmallBoss; if (b.alpha <= 0) return; var pulse = 1 + Math.sin(b.pulse) * (waystarRageMode ? 0.32 : 0.2); var size = b.size * pulse;
+    ctx.save(); ctx.translate(b.x, b.y); ctx.globalAlpha = b.alpha;
+
+    // ★ ТРЕЙЛ ★
+    for (var i = 0; i < b.trail.length; i++) {
+        var tr = b.trail[i];
+        var alpha = (tr.life / tr.maxLife) * 0.5;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = waystarRageMode ? "#ff0000" : "#ff00ff";
+        ctx.beginPath();
+        ctx.arc(tr.x - b.x, tr.y - b.y, size * (tr.life / tr.maxLife) * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // ★ АУРА (пульсирующая) ★
+    var auraSize = size * (waystarRageMode ? 5.5 : 4.7);
+    var glow = ctx.createRadialGradient(0, 0, 3, 0, 0, auraSize);
+    if (waystarRageMode) {
+        glow.addColorStop(0, "rgba(255, 0, 0, 0.95)");
+        glow.addColorStop(0.3, "rgba(255, 100, 100, 0.6)");
+        glow.addColorStop(0.6, "rgba(255, 0, 0, 0.3)");
+        glow.addColorStop(1, "transparent");
+    } else {
+        glow.addColorStop(0, "rgba(255, 0, 255, 0.95)");
+        glow.addColorStop(0.3, "rgba(255, 100, 255, 0.6)");
+        glow.addColorStop(0.6, "rgba(255, 0, 255, 0.3)");
+        glow.addColorStop(1, "transparent");
+    }
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, auraSize, 0, Math.PI * 2); ctx.fill();
+
+    // ★ ВРАЩАЮЩИЕСЯ ЛУЧИ ★
+    ctx.save(); ctx.rotate(-b.time * 0.5); ctx.strokeStyle = waystarRageMode ? "rgba(255, 100, 100, 0.7)" : "rgba(255, 100, 255, 0.6)"; ctx.lineWidth = 2;
+    var rayCount = waystarRageMode ? 12 : 8;
+    ctx.beginPath(); for (var i = 0; i < rayCount; i++) { var a = (i / rayCount) * Math.PI * 2; ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a)*size*2.2, Math.sin(a)*size*2.2); } ctx.stroke(); ctx.restore();
+
+    // ★ ЯДРО БОССА ★
+    ctx.rotate(b.time); ctx.fillStyle = waystarRageMode ? "#ff0000" : "#ff00ff"; ctx.shadowColor = waystarRageMode ? "#ff0000" : "#ff00ff"; ctx.shadowBlur = waystarRageMode ? 35 : 25;
+    ctx.beginPath(); for (var i = 0; i < 16; i++) { var ang = (i / 16) * Math.PI * 2 - Math.PI / 2; var r = (i % 2 === 0) ? size : size * 0.4; if (i === 0) ctx.moveTo(Math.cos(ang)*r, Math.sin(ang)*r); else ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r); } ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, size * 0.35, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+}
+
+function drawWaystarPlayer() {
+    if (waystarInvulnTimer > 0 && Math.floor(waystarInvulnTimer / 3) % 2 === 0) return;
+    ctx.save(); ctx.translate(waystarPlayer.x, waystarPlayer.y);
+    var glow = ctx.createRadialGradient(0, 0, 1, 0, 0, 22); glow.addColorStop(0, "rgba(255,100,100,0.5)"); glow.addColorStop(1, "transparent");
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(255, 100, 0, 0.4)"; ctx.beginPath(); ctx.moveTo(-4, 8); ctx.lineTo(4, 8); ctx.lineTo(0, 15 + Math.random()*8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ff1111"; var hs = 12;
+    ctx.beginPath(); ctx.moveTo(0, hs * 0.7); ctx.bezierCurveTo(-hs * 1.4, -hs * 0.2, -hs * 0.7, -hs * 1.1, 0, -hs * 0.4); ctx.bezierCurveTo(hs * 0.7, -hs * 1.1, hs * 1.4, -hs * 0.2, 0, hs * 0.7); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
+}
+
+function drawWaystarPlayerBullets() {
+    for (var i = 0; i < waystarPlayerBullets.length; i++) {
+        var b = waystarPlayerBullets[i];
+        if (b.trail) { for (var j = 0; j < b.trail.length; j++) { var tr = b.trail[j], alpha = (1 - j / b.trail.length) * 0.5; ctx.globalAlpha = alpha; ctx.fillStyle = "#00d4ff"; ctx.beginPath(); ctx.arc(tr.x, tr.y, b.size * (1 - j / b.trail.length) * 0.7, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1; }
+        var glow = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.size * 1.8); glow.addColorStop(0, "#ffffff"); glow.addColorStop(0.5, "#00d4ff"); glow.addColorStop(1, "transparent");
+        ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 0.6, 0, Math.PI * 2); ctx.fill();
+    }
+}
+
+function drawWaystarEnemyBullets() {
+    for (var i = 0; i < waystarEnemyBullets.length; i++) {
+        var b = waystarEnemyBullets[i];
+        if (b.trail) { for (var j = 0; j < b.trail.length; j++) { var tr = b.trail[j], alpha = (1 - j / b.trail.length) * 0.6; ctx.globalAlpha = alpha; ctx.fillStyle = "#ff6600"; ctx.beginPath(); ctx.arc(tr.x, tr.y, b.size * (1 - j / b.trail.length) * 0.8, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1; }
+        var bigGlow = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.size * 4); bigGlow.addColorStop(0, "rgba(255, 100, 100, 0.8)"); bigGlow.addColorStop(0.5, "rgba(255, 50, 50, 0.5)"); bigGlow.addColorStop(1, "rgba(255, 0, 0, 0)");
+        ctx.fillStyle = bigGlow; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 4, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 1.4, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = "#ff2222"; ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 0.5, 0, Math.PI * 2); ctx.fill();
+    }
+}
+
+function drawWaystarPhase1Attacks() {
+    for (var i = 0; i < waystarAttacks.length; i++) {
+        var a = waystarAttacks[i];
+        if (a.type === "meteor" || a.type === "spiral" || a.type === "star_rain" || a.type === "shotgun_bullet") {
+            for (var j = 0; j < a.trail.length; j++) { var tr = a.trail[j], alpha = (1 - j / a.trail.length) * 0.5; ctx.globalAlpha = alpha; ctx.fillStyle = a.type === "meteor" ? "#ff8800" : (a.type === "spiral" ? "#ff00ff" : (a.type === "shotgun_bullet" ? "#ff4400" : "#ffd700")); ctx.beginPath(); ctx.arc(tr.x, tr.y, a.size * (1 - j / a.trail.length) * 0.7, 0, Math.PI * 2); ctx.fill(); }
+            ctx.globalAlpha = 1; ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.rotation||0);
+            ctx.fillStyle = a.type === "meteor" ? "#ffd700" : (a.type === "spiral" ? "#ff00ff" : (a.type === "shotgun_bullet" ? "#ff4400" : "#ffd700"));
+            ctx.beginPath(); ctx.arc(0, 0, a.size, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, a.size * 0.5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        } else if (a.type === "laser") {
+            ctx.save();
+            if (a.state === "warning") {
+                var pulseAlpha = 0.3 + Math.sin(performance.now() / 60) * 0.25;
+                // Заряд внизу
+                var chargeR = 15 + Math.abs(Math.sin(performance.now() / 80)) * 15;
+                var chargeGlow = ctx.createRadialGradient(a.x, 490, 0, a.x, 490, chargeR * 2);
+                chargeGlow.addColorStop(0, "rgba(255, 255, 255, 0.9)");
+                chargeGlow.addColorStop(0.4, "rgba(255, 100, 100, 0.6)");
+                chargeGlow.addColorStop(1, "transparent");
+                ctx.fillStyle = chargeGlow;
+                ctx.beginPath(); ctx.arc(a.x, 490, chargeR * 2, 0, Math.PI * 2); ctx.fill();
+                // Предупреждение
+                ctx.globalAlpha = pulseAlpha; ctx.fillStyle = "#ff3333"; ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
+                ctx.globalAlpha = 0.9; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
+                ctx.beginPath(); ctx.moveTo(a.x - a.width / 2, 0); ctx.lineTo(a.x - a.width / 2, 500); ctx.moveTo(a.x + a.width / 2, 0); ctx.lineTo(a.x + a.width / 2, 500); ctx.stroke(); ctx.setLineDash([]);
+                ctx.globalAlpha = 1;
+            } else if (a.state === "active") {
+                // ★ ЯРКИЙ АКТИВНЫЙ ЛАЗЕР — постоянно яркий, плавно затухает в конце ★
+                var lifeRatio = a.activeTimer / a.maxActive;
+                var fadeIn = Math.min(1, (a.maxActive - a.activeTimer) / 5 + 0.3);
+                var fadeOut = Math.min(1, a.activeTimer / 12);
+                var activeAlpha = Math.min(fadeIn, fadeOut);
+
+                ctx.globalAlpha = activeAlpha;
+
+                // Внешнее свечение
+                var outerGlow = ctx.createLinearGradient(a.x - a.width * 1.5, 0, a.x + a.width * 1.5, 0);
+                outerGlow.addColorStop(0, "rgba(255, 50, 50, 0)");
+                outerGlow.addColorStop(0.3, "rgba(255, 100, 50, 0.5)");
+                outerGlow.addColorStop(0.5, "rgba(255, 255, 255, 0.9)");
+                outerGlow.addColorStop(0.7, "rgba(255, 100, 50, 0.5)");
+                outerGlow.addColorStop(1, "rgba(255, 50, 50, 0)");
+                ctx.fillStyle = outerGlow;
+                ctx.fillRect(a.x - a.width * 1.5, 0, a.width * 3, 500);
+
+                // Красный слой
+                ctx.fillStyle = "#ff3333"; ctx.globalAlpha = activeAlpha * 0.95;
+                ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
+
+                // Белое ядро (пульсирующее)
+                var coreWidth = a.width * (0.35 + Math.sin(performance.now() / 40) * 0.08);
+                ctx.fillStyle = "#ffffff"; ctx.globalAlpha = activeAlpha;
+                ctx.fillRect(a.x - coreWidth / 2, 0, coreWidth, 500);
+
+                // Края луча — голубоватые полоски
+                ctx.fillStyle = "#00d4ff"; ctx.globalAlpha = activeAlpha * 0.6;
+                ctx.fillRect(a.x - a.width / 2 + 4, 0, 6, 500);
+                ctx.fillRect(a.x + a.width / 2 - 10, 0, 6, 500);
+
+                // Тонкие белые края
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.globalAlpha = activeAlpha;
+                ctx.beginPath(); ctx.moveTo(a.x - a.width / 2, 0); ctx.lineTo(a.x - a.width / 2, 500); ctx.moveTo(a.x + a.width / 2, 0); ctx.lineTo(a.x + a.width / 2, 500); ctx.stroke();
+
+                // Дополнительные молнии вдоль луча для эпичности
+                if (a.activeTimer % 3 === 0) {
+                    addWaystarLightning(a.x + (Math.random() - 0.5) * a.width, 0, a.x + (Math.random() - 0.5) * a.width, 500, "#ffffff", 0.5, 1.5);
+                }
+            }
+            ctx.restore();
+        } else if (a.type === "giant_laser") {
+            ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.angle);
+            if (a.state === "warning") {
+                var pulseAlpha2 = 0.4 + Math.sin(performance.now() / 60) * 0.25;
+                var chargeR2 = 20 + Math.abs(Math.sin(performance.now() / 70)) * 25;
+                var chargeGlow2 = ctx.createRadialGradient(0, 0, 0, 0, 0, chargeR2 * 2.5);
+                chargeGlow2.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+                chargeGlow2.addColorStop(0.4, "rgba(255, 100, 255, 0.7)");
+                chargeGlow2.addColorStop(1, "transparent");
+                ctx.fillStyle = chargeGlow2;
+                ctx.beginPath(); ctx.arc(0, 0, chargeR2 * 2.5, 0, Math.PI * 2); ctx.fill();
+
+                ctx.globalAlpha = pulseAlpha2; ctx.fillStyle = "#ff00ff"; ctx.fillRect(0, -a.width / 2, 800, a.width);
+                ctx.globalAlpha = 0.95; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
+                ctx.beginPath(); ctx.moveTo(0, -a.width / 2); ctx.lineTo(800, -a.width / 2); ctx.moveTo(0, a.width / 2); ctx.lineTo(800, a.width / 2); ctx.stroke(); ctx.setLineDash([]);
+                ctx.globalAlpha = 1; ctx.font = "bold 22px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffffff"; ctx.fillText("⚠", 200, 8);
+            } else if (a.state === "active") {
+                var lifeRatio2 = a.activeTimer / a.maxActive;
+                var fadeIn2 = Math.min(1, (a.maxActive - a.activeTimer) / 5 + 0.3);
+                var fadeOut2 = Math.min(1, a.activeTimer / 12);
+                var activeAlpha2 = Math.min(fadeIn2, fadeOut2);
+
+                ctx.globalAlpha = activeAlpha2;
+
+                // Внешнее свечение
+                var outerGlow2 = ctx.createLinearGradient(0, -a.width * 1.5, 0, a.width * 1.5);
+                outerGlow2.addColorStop(0, "rgba(255, 0, 255, 0)");
+                outerGlow2.addColorStop(0.3, "rgba(255, 100, 255, 0.5)");
+                outerGlow2.addColorStop(0.5, "rgba(255, 255, 255, 0.95)");
+                outerGlow2.addColorStop(0.7, "rgba(255, 100, 255, 0.5)");
+                outerGlow2.addColorStop(1, "rgba(255, 0, 255, 0)");
+                ctx.fillStyle = outerGlow2;
+                ctx.fillRect(0, -a.width * 1.5, 800, a.width * 3);
+
+                // Основной луч
+                ctx.fillStyle = "#ff00ff"; ctx.globalAlpha = activeAlpha2 * 0.95;
+                ctx.fillRect(0, -a.width / 2, 800, a.width);
+
+                // Белое ядро
+                var coreWidth2 = a.width * (0.35 + Math.sin(performance.now() / 40) * 0.1);
+                ctx.fillStyle = "#ffffff"; ctx.globalAlpha = activeAlpha2;
+                ctx.fillRect(0, -coreWidth2 / 2, 800, coreWidth2);
+
+                // Края луча
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.globalAlpha = activeAlpha2;
+                ctx.beginPath(); ctx.moveTo(0, -a.width / 2); ctx.lineTo(800, -a.width / 2); ctx.moveTo(0, a.width / 2); ctx.lineTo(800, a.width / 2); ctx.stroke();
+
+                // Дополнительные слэши
+                if (a.activeTimer % 4 === 0) {
+                    var dist3 = Math.random() * 400;
+                    addWaystarSlash(a.x + Math.cos(a.angle) * dist3, a.y + Math.sin(a.angle) * dist3, a.angle + Math.PI/2, 60, 4);
+                }
+            }
+            ctx.restore();
+        } else if (a.type === "constellation") {
+            ctx.save(); var isWarn = a.warning > 0;
+            ctx.globalAlpha = isWarn ? 0.3 + Math.sin(performance.now() / 100) * 0.2 : 0.9;
+            ctx.strokeStyle = isWarn ? "#00d4ff" : "#ffffff"; ctx.lineWidth = isWarn ? 2 : 4; if (isWarn) ctx.setLineDash([8, 6]);
+            ctx.beginPath(); for (var p = 0; p < a.points.length; p++) { if (p === 0) ctx.moveTo(a.points[p].x, a.points[p].y); else ctx.lineTo(a.points[p].x, a.points[p].y); } ctx.stroke(); ctx.setLineDash([]);
+            for (var p = 0; p < a.points.length; p++) { ctx.fillStyle = isWarn ? "#00d4ff" : "#ffffff"; ctx.beginPath(); ctx.arc(a.points[p].x, a.points[p].y, isWarn ? 4 : 6, 0, Math.PI * 2); ctx.fill(); }
+            ctx.restore();
+        }
+    }
+}
+
+function drawWaystarBombs() {
+    for (var i = 0; i < waystarBombs.length; i++) {
+        var b = waystarBombs[i]; ctx.save();
+        if (!b.exploded) {
+            var pulseProgress = 1 - b.timer / b.maxTimer; var r = (b.small ? 10 : 15) + pulseProgress * (b.small ? 15 : 25);
+            var glow = ctx.createRadialGradient(b.x, b.y, 2, b.x, b.y, r * 2); glow.addColorStop(0, "rgba(255, 100, 0, 0.9)"); glow.addColorStop(0.5, "rgba(255, 200, 0, 0.5)"); glow.addColorStop(1, "transparent");
+            ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(b.x, b.y, r * 2, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#ff4400"; ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(b.x, b.y, r * 0.4, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "rgba(255, 0, 0, 0.6)"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+        } else {
+            var explProgress = 1 - b.explosionTimer / 20; var explR = b.radius * explProgress; var explAlpha = 1 - explProgress;
+            ctx.globalAlpha = explAlpha; ctx.fillStyle = "#ff4400"; ctx.beginPath(); ctx.arc(b.x, b.y, explR, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#ffd700"; ctx.beginPath(); ctx.arc(b.x, b.y, explR * 0.6, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+    }
+}
+
+function drawWaystarDash() {
+    if (!waystarDash) return; ctx.save(); var d = waystarDash;
+    for (var i = 0; i < 8; i++) { var t = i / 8; var x = d.startX + (d.targetX - d.startX) * t; var y = d.startY + (d.targetY - d.startY) * t; ctx.globalAlpha = (1 - t) * 0.4; ctx.fillStyle = "#ff00ff"; ctx.beginPath(); ctx.arc(x, y, 20 * (1 - t), 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+}
+
+function drawWaystarPieces() {
+    for (var i = 0; i < waystarPieces.length; i++) {
+        var p = waystarPieces[i]; if (!p.alive) continue;
+        if (p.trail) { for (var j = 0; j < p.trail.length; j++) { var tr = p.trail[j], alpha = (1 - j / p.trail.length) * 0.4; ctx.globalAlpha = alpha; ctx.fillStyle = "#ffd700"; ctx.beginPath(); ctx.arc(tr.x, tr.y, p.size * (1 - j / p.trail.length) * 0.6, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1; }
+        ctx.save(); ctx.translate(p.x, p.y); var pulse = 1 + Math.sin(p.pulse) * 0.12; ctx.scale(pulse, pulse);
+        ctx.fillStyle = p.hp >= 2 ? "#ffd700" : "#ff6600";
+        ctx.beginPath(); for (var k = 0; k < 10; k++) { var ang = (k / 10) * Math.PI * 2 - Math.PI / 2; var r = (k % 2 === 0) ? p.size : p.size * 0.4; if (k === 0) ctx.moveTo(Math.cos(ang)*r, Math.sin(ang)*r); else ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r); } ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
+    }
+}
+
+function drawWaystarHpBars() {
+    var barW = 360, barH = 14, x = 20, y = 6;
+    ctx.save(); ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(x - 4, y - 4, barW + 8, barH + 8); ctx.fillStyle = "#1a001a"; ctx.fillRect(x, y, barW, barH);
+    var ratio, color, label;
+    if (waystarState === "phase2") { ratio = waystarPiecesAlive / waystarPiecesTotal; color = "#ff00ff"; label = "🌟 " + waystarPiecesAlive + " / " + waystarPiecesTotal + " осколков"; }
+    else if (waystarState === "phase3") { ratio = Math.max(0, waystarBossHp / waystarBossMaxHp); color = waystarRageMode ? "#ff0000" : "#ff00ff"; label = "💥 " + Math.ceil(waystarBossHp) + " / " + Math.ceil(waystarBossMaxHp); }
+    else { ratio = Math.max(0, waystarBossHp / waystarBossMaxHp); color = "#ffd700"; label = "🌟 " + Math.ceil(waystarBossHp) + " / " + Math.ceil(waystarBossMaxHp); }
+    ctx.fillStyle = color; ctx.fillRect(x, y, barW * ratio, barH);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText(label, x + barW / 2, y + barH - 3);
+    ctx.restore();
+
+    var y2 = 478; ctx.save(); ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(x - 4, y2 - 4, barW + 8, 20); ctx.fillStyle = "#2a0000"; ctx.fillRect(x, y2, barW, 12);
+    var r2 = Math.max(0, waystarPlayerHp / waystarPlayerMaxHp); ctx.fillStyle = r2 > 0.3 ? "#00ff66" : "#ff3333"; ctx.fillRect(x, y2, barW * r2, 12);
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.strokeRect(x, y2, barW, 12);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText(Math.ceil(waystarPlayerHp) + " / " + waystarPlayerMaxHp, x + barW / 2, y2 + 10);
+    ctx.restore();
+}
+
+function drawWaystarDialog() {
+    ctx.save(); ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(0, 0, 400, 500);
+    ctx.save(); ctx.translate(200, 90); var t = performance.now() / 1000, pulse = 1 + Math.sin(t * 3) * 0.1; ctx.scale(pulse, pulse);
+    var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, 125);
+    glow.addColorStop(0, "rgba(255, 215, 0, 0.8)"); glow.addColorStop(0.5, "rgba(255, 170, 0, 0.4)"); glow.addColorStop(1, "transparent");
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, 125, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffd700";
+    ctx.beginPath(); for (var i = 0; i < 16; i++) { var ang = (i / 16) * Math.PI * 2 - Math.PI / 2, r = (i % 2 === 0) ? 42 : 18; if (i === 0) ctx.moveTo(Math.cos(ang)*r, Math.sin(ang)*r); else ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r); } ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+
+    var current = waystarDialogQueue[waystarDialogStep];
+    if (current) {
+        ctx.font = "bold 15px Nunito, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd700"; ctx.fillText(current.speaker, 200, 175);
+        ctx.font = "bold 16px Nunito, sans-serif"; ctx.fillStyle = "#ffffff";
+        var lines = wrapText(current.text, 360, ctx);
+        for (var i = 0; i < lines.length; i++) ctx.fillText(lines[i], 200, 205 + i * 24);
+        if (!waystarChoiceActive) { ctx.globalAlpha = 0.5 + Math.sin(t * 5) * 0.5; ctx.font = "12px monospace"; ctx.fillStyle = "#aaaaaa"; ctx.fillText(">> Кликните для пропуска <<", 200, 480); ctx.globalAlpha = 1; }
+    }
+
+    if (waystarChoiceActive && !waystarChoiceResolved) {
+        var choices = getWaystarChoices();
+        var btnW = 360, btnX = 20, startY = 260, btnH = 55, gap = 12;
+        for (var i = 0; i < choices.length; i++) {
+            var btnY = startY + i * (btnH + gap);
+            ctx.fillStyle = "rgba(40,20,50,0.95)"; ctx.strokeStyle = "#ffaa00"; ctx.lineWidth = 2;
+            ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(btnX, btnY, btnW, btnH, 12); else ctx.rect(btnX, btnY, btnW, btnH); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#ffd700"; ctx.font = "bold 15px Nunito, sans-serif"; ctx.textAlign = "left"; ctx.fillText((i+1) + ".", btnX + 12, btnY + 23);
+            ctx.fillStyle = "#ffffff"; ctx.font = "bold 13px Nunito, sans-serif";
+            var lines = wrapText(choices[i].text, btnW - 50, ctx);
+            for (var li = 0; li < Math.min(lines.length, 3); li++) ctx.fillText(lines[li], btnX + 35, btnY + 21 + li * 16);
+        }
+    }
+    ctx.restore();
+}
+
+function wrapText(text, maxWidth, ctx) {
+    var words = text.split(' '), lines = [], currentLine = '';
+    for (var i = 0; i < words.length; i++) {
+        var testLine = currentLine ? currentLine + ' ' + words[i] : words[i];
+        if (ctx.measureText(testLine).width > maxWidth && currentLine) { lines.push(currentLine); currentLine = words[i]; }
+        else { currentLine = testLine; }
+    }
+    if (currentLine) lines.push(currentLine);
+    return lines;
+}
+
+window.startWaystarFight = startWaystarFight;
+window.stopWaystarFight = stopWaystarFight;
+window.damageWaystarBoss = function(dmg) { if (waystarState === "phase1") waystarBossHp -= dmg; };
+console.log("[WAYSTAR] v7.0 — лазеры стреляют + победа не фризит + 3 фаза БЕШЕНАЯ + RAGE MODE");
