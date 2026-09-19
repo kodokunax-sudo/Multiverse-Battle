@@ -443,7 +443,7 @@ function updateWaystarShooting() {
     // ★ РЕЖИМ МОДЕРА: 10000 урона ★
     var dmgBase;
     if (isWaystarModerActive()) {
-        dmgBase = 10000;
+        dmgBase = 1000ёё000;
     } else {
         dmgBase = Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4));
     }
