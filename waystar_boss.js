@@ -1,85 +1,88 @@
 // ============================================================
-// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v9.0
-// ФИКС: лазеры стреляют, победа не фризит
-// 3 фаза — ДОЛГАЯ и ЗАМЕДЛЕННАЯ (успеваешь реагировать) + эскалация
+// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v9.1
+// ФИКС: двойная загрузка, атаки 3 фазы, меньше снарядов
 // ============================================================
 
-let waystarActive = false;
-let waystarState = "dialogue";
-let waystarBoss = { x: 200, y: 100, size: 55, vx: 1.5, rotation: 0, pulse: 0, time: 0, alpha: 1 };
-let waystarBoss2 = { x: 200, y: 100, size: 40, vx: -1.5, rotation: 0, pulse: 0, alpha: 1, active: false };
-let waystarPlayer = { x: 200, y: 430 };
-let waystarBossHp = 0;
-let waystarBossMaxHp = 0;
-let waystarPlayerHp = 200;
-let waystarPlayerMaxHp = 200;
-let waystarAttacks = [];
-let waystarPlayerBullets = [];
-let waystarParticles = [];
-let waystarTexts = [];
-let waystarAttackTimer = 0;
-let waystarAttackType = 0;
-let waystarTypeTimer = 250;
-let waystarInvulnTimer = 0;
-let waystarShake = 0;
-let waystarScreenFlash = 0;
-let waystarScreenFlashColor = "#ffffff";
-let waystarBossFlash = 0;
-let waystarAnimFrame = null;
-let waystarBgStars = [];
-let waystarSpeedMult = 1.3;
-let waystarKeys = {};
-let waystarTouchActive = false, waystarTouchId = null, waystarTouchX = 0, waystarTouchY = 0;
+// ★ ЗАЩИТА ОТ ДВОЙНОЙ ЗАГРУЗКИ ★
+if (window._waystarBossLoaded) {
+    console.warn("[WAYSTAR] Скрипт уже загружен, пропускаю повторное выполнение");
+} else {
+    window._waystarBossLoaded = true;
 
-let waystarShootCooldown = 0;
-let waystarShootInterval = 6;
+var waystarActive = false;
+var waystarState = "dialogue";
+var waystarBoss = { x: 200, y: 100, size: 55, vx: 1.5, rotation: 0, pulse: 0, time: 0, alpha: 1 };
+var waystarBoss2 = { x: 200, y: 100, size: 40, vx: -1.5, rotation: 0, pulse: 0, alpha: 1, active: false };
+var waystarPlayer = { x: 200, y: 430 };
+var waystarBossHp = 0;
+var waystarBossMaxHp = 0;
+var waystarPlayerHp = 200;
+var waystarPlayerMaxHp = 200;
+var waystarAttacks = [];
+var waystarPlayerBullets = [];
+var waystarParticles = [];
+var waystarTexts = [];
+var waystarAttackTimer = 0;
+var waystarAttackType = 0;
+var waystarTypeTimer = 250;
+var waystarInvulnTimer = 0;
+var waystarShake = 0;
+var waystarScreenFlash = 0;
+var waystarScreenFlashColor = "#ffffff";
+var waystarBossFlash = 0;
+var waystarAnimFrame = null;
+var waystarBgStars = [];
+var waystarSpeedMult = 1.3;
+var waystarKeys = {};
+var waystarTouchActive = false, waystarTouchId = null, waystarTouchX = 0, waystarTouchY = 0;
 
-let waystarShockwaves = [];
-let waystarLightningBolts = [];
-let waystarSlashMarks = [];
-let waystarFlashBursts = [];
-let waystarScreenDistort = 0;
-let waystarVignette = 0;
-let waystarNebulas = [];
-let waystarAmbientTimer = 0;
-let waystarRageMode = false;
+var waystarShootCooldown = 0;
+var waystarShootInterval = 6;
 
-// ★ ЭСКАЛАЦИЯ 3 ФАЗЫ ★
-let waystarEscalationLevel = 0;
-let waystarEscalationTimer = 0;
+var waystarShockwaves = [];
+var waystarLightningBolts = [];
+var waystarSlashMarks = [];
+var waystarFlashBursts = [];
+var waystarScreenDistort = 0;
+var waystarVignette = 0;
+var waystarNebulas = [];
+var waystarAmbientTimer = 0;
+var waystarRageMode = false;
 
-let waystarDialogActive = false;
-let waystarDialogStep = 0;
-let waystarDialogQueue = [];
-let waystarChoiceActive = false;
-let waystarChoiceResolved = false;
-let waystarDialogAutoTimer = 0;
-let waystarDialogOnComplete = null;
+var waystarEscalationLevel = 0;
+var waystarEscalationTimer = 0;
 
-let waystarSplitAnim = null;
-let waystarEscapeAnim = null;
-let waystarFinalDeathAnim = null;
+var waystarDialogActive = false;
+var waystarDialogStep = 0;
+var waystarDialogQueue = [];
+var waystarChoiceActive = false;
+var waystarChoiceResolved = false;
+var waystarDialogAutoTimer = 0;
+var waystarDialogOnComplete = null;
 
-let waystarPieces = [];
-let waystarEnemyBullets = [];
-let waystarInvaderDir = 1;
-let waystarInvaderSpeed = 1.0;
-let waystarInvaderShootTimer = 0;
-let waystarPiecesTotal = 60;
-let waystarPiecesAlive = 60;
+var waystarSplitAnim = null;
+var waystarEscapeAnim = null;
+var waystarFinalDeathAnim = null;
 
-let waystarReturning = false;
-let waystarReturnTimer = 0;
-let waystarSmallBoss = { x: 200, y: 100, size: 28, rotation: 0, pulse: 0, time: 0, alpha: 0, trail: [] };
-let waystarBombs = [];
-let waystarDash = null;
+var waystarPieces = [];
+var waystarEnemyBullets = [];
+var waystarInvaderDir = 1;
+var waystarInvaderSpeed = 1.0;
+var waystarInvaderShootTimer = 0;
+var waystarPiecesTotal = 60;
+var waystarPiecesAlive = 60;
 
-let waystarRewardGiven = false;
+var waystarReturning = false;
+var waystarReturnTimer = 0;
+var waystarSmallBoss = { x: 200, y: 100, size: 28, rotation: 0, pulse: 0, time: 0, alpha: 0, trail: [] };
+var waystarBombs = [];
+var waystarDash = null;
 
-// ★ Эффекты для 3 фазы ★
-let waystarPhase3Embers = [];
-let waystarPhase3Rings = [];
-let waystarPhase3AuraPulse = 0;
+var waystarRewardGiven = false;
+
+var waystarPhase3Embers = [];
+var waystarPhase3Rings = [];
+var waystarPhase3AuraPulse = 0;
 
 // ========== ЭФФЕКТЫ ==========
 function addWaystarShockwave(x, y, color, maxRadius, life, width) {
@@ -132,7 +135,6 @@ function updateWaystarMegaEffects() {
     }
 }
 
-// ========== АТМОСФЕРА ФАЗЫ 3 ==========
 function updateWaystarAmbient() {
     if (waystarState !== "phase3") return;
     waystarAmbientTimer++;
@@ -205,7 +207,7 @@ function updateWaystarPhase3Special() {
 }
 
 // ========== МУЗЫКА ==========
-let waystarMusic = null;
+var waystarMusic = null;
 function startWaystarMusic() {
     if (typeof stopAllMusic === 'function') stopAllMusic();
     if (!waystarMusic) {
@@ -357,7 +359,7 @@ function startWaystarDialog() {
     waystarChoiceActive = false;
     waystarChoiceResolved = false;
     waystarDialogAutoTimer = 0;
-    waystarDialogOnComplete = function() { waystarState = "phase1"; waystarAttackTimer = 0; };
+    waystarDialogOnComplete = function() { waystarState = "phase1"; waystarAttackTimer = 0; waystarDialogActive = false; };
     waystarDialogQueue = [
         { speaker: "🌟 Путеводная Звезда", text: "СТОЙ, ПУТНИК..." },
         { speaker: "🌟 Путеводная Звезда", text: "Я — ПУТЕВОДНАЯ ЗВЕЗДА. Древнее существо, что освещает путь заблудшим в бескрайней тьме космоса." },
@@ -429,14 +431,15 @@ function updateWaystarShooting() {
     wsPlaySound(1100, 'square', 0.04, 0.06);
 }
 
-// ========== АТАКИ ФАЗЫ 1 ==========
+// ========== АТАКИ ФАЗЫ 1 (МЕТЕОРЫ И ЛАЗЕРЫ УМЕНЬШЕНЫ) ==========
 function waystarSpawnAttack() {
     var type = waystarAttackType;
     var s = waystarSpeedMult;
     var isSecond = waystarBossHp <= waystarBossMaxHp * 0.75;
 
     if (type === 0) {
-        var count = isSecond ? 8 : 5;
+        // ★ МЕТЕОРЫ: было 5-8, стало 2-4 (в 2 раза меньше) ★
+        var count = isSecond ? 4 : 2;
         for (var i = 0; i < count; i++) {
             waystarAttacks.push({ type: "meteor", x: 20 + Math.random() * 360, y: -40 - Math.random()*50,
                 vx: (Math.random() - 0.5) * 2 * s, vy: (3.5 + Math.random() * 2.5) * s,
@@ -463,15 +466,16 @@ function waystarSpawnAttack() {
         addWaystarShockwave(waystarBoss.x, waystarBoss.y, "#ff00ff", 80, 12, 3);
         wsPlaySound(400, 'sine', 0.5, 0.12);
     } else if (type === 2) {
-        var lasers = isSecond ? 2 : 1;
-        for (var l = 0; l < lasers; l++) {
+        // ★ ЛАЗЕРЫ: было 1-2, стало 0-1 (в 3 раза меньше) ★
+        // Шанс 33% что вообще появится лазер
+        if (Math.random() < 0.33) {
             var targetX = 60 + Math.random() * 280;
             waystarAttacks.push({
                 type: "laser",
                 state: "warning",
                 x: targetX,
                 width: 55,
-                warningTimer: 35,
+                warningTimer: 45,
                 activeTimer: 0,
                 maxActive: 70,
                 damage: 18,
@@ -504,6 +508,7 @@ function waystarSpawnAttack() {
 // ========== РАЗДЕЛЕНИЕ НА 2 ЧАСТИ ==========
 function waystarTriggerSplit() {
     waystarState = "split1_anim";
+    waystarDialogActive = false; // ← ФИКС
     waystarShake = 50;
     waystarScreenFlash = 40; waystarScreenFlashColor = "#ffffff";
     waystarScreenDistort = 35;
@@ -549,8 +554,8 @@ function waystarTriggerSplit() {
     }, 2000);
 }
 
-// ========== АНИМАЦИЯ РАЗДЕЛЕНИЯ НА 60 ==========
 function waystarStartSplit2Animation() {
+    waystarDialogActive = false; // ← ФИКС
     wsPlaySound(150, 'sawtooth', 0.8, 0.2);
     waystarEscapeAnim = { timer: 0, duration: 120, startX: waystarBoss2.x, startY: waystarBoss2.y };
     waystarBoss2.active = "escaping";
@@ -605,6 +610,7 @@ function waystarStartSplit2Animation() {
 
 function waystarStartPhase2() {
     waystarState = "phase2";
+    waystarDialogActive = false; // ← ФИКС: принудительно выключаем диалог
     waystarAttacks = []; waystarPlayerBullets = [];
     wsPlaySound(300, 'square', 0.5, 0.3);
     waystarPieces = [];
@@ -704,9 +710,9 @@ function updateWaystarSpaceInvaders() {
     for (var i = 0; i < waystarPieces.length; i++) if (waystarPieces[i].alive) waystarPieces[i].pulse += 0.2;
 }
 
-// ========== ВОЗВРАЩЕНИЕ ==========
 function waystarStartReturning() {
     waystarState = "returning_anim";
+    waystarDialogActive = false; // ← ФИКС
     waystarReturning = true;
     waystarReturnTimer = 0;
     wsPlaySound(500, 'sine', 1.0, 0.3);
@@ -737,7 +743,7 @@ function waystarStartReturning() {
 
 function waystarStartPhase3() {
     waystarState = "phase3";
-    // HP 3-й фазы: ×120 — долгий финальный бой
+    waystarDialogActive = false; // ← ГЛАВНЫЙ ФИКС: принудительно выключаем диалог!
     waystarBossMaxHp = Math.max(25000, (window.playerFinalDamage || 100) * 120);
     waystarBossHp = waystarBossMaxHp;
     waystarSmallBoss.alpha = 0;
@@ -746,7 +752,8 @@ function waystarStartPhase3() {
     waystarSmallBoss.y = 100;
     waystarSmallBoss.trail = [];
     waystarAttackTimer = 0;
-    waystarTypeTimer = 250;
+    waystarAttackType = 0; // ← ФИКС: явно сбрасываем на дробовик
+    waystarTypeTimer = 120; // ← ФИКС: короче первый интервал, чтобы босс быстрее начал атаковать разными типами
     waystarAmbientTimer = 0;
     waystarShootCooldown = 0;
     waystarRageMode = false;
@@ -777,10 +784,9 @@ function waystarStartPhase3() {
     if (typeof showFloatingText === 'function') showFloatingText("💥 ФИНАЛЬНАЯ ФАЗА! 💥", "#ff00ff");
 }
 
-// ========== АТАКИ ФАЗЫ 3 (ЗАМЕДЛЕНЫ) ==========
+// ========== АТАКИ ФАЗЫ 3 ==========
 function waystarSpawnPhase3Attack() {
     var type = waystarAttackType;
-    // ★ ЗАМЕДЛЕНО: снаряды медленнее ★
     var s = waystarSpeedMult * (waystarRageMode ? 1.05 : 0.85);
 
     if (type === 0) {
@@ -799,7 +805,7 @@ function waystarSpawnPhase3Attack() {
         addWaystarFlash(waystarSmallBoss.x, waystarSmallBoss.y, 50);
         wsPlaySound(200, 'sawtooth', 0.2, 0.2);
     } else if (type === 1) {
-        // ЗВЕЗДА-БОМБА (долгий таймер)
+        // ЗВЕЗДА-БОМБА
         var bombCount = 2 + Math.floor(waystarEscalationLevel / 2);
         if (waystarRageMode) bombCount += 1;
         for (var k = 0; k < bombCount; k++) {
@@ -809,7 +815,7 @@ function waystarSpawnPhase3Attack() {
         }
         wsPlaySound(500, 'sine', 0.3, 0.15);
     } else if (type === 2) {
-        // РЫВОК (замедлен)
+        // РЫВОК
         if (!waystarDash) {
             var dx = waystarPlayer.x - waystarSmallBoss.x;
             var dy = waystarPlayer.y - waystarSmallBoss.y;
@@ -822,7 +828,7 @@ function waystarSpawnPhase3Attack() {
         }
         wsPlaySound(150, 'sawtooth', 0.5, 0.25);
     } else if (type === 3) {
-        // ГИГА-ЛАЗЕР (замедлен)
+        // ГИГА-ЛАЗЕР
         waystarAttacks.push({
             type: "giant_laser",
             state: "warning",
@@ -833,7 +839,7 @@ function waystarSpawnPhase3Attack() {
         });
         wsPlaySound(400, 'square', 0.4, 0.2);
     } else if (type === 4) {
-        // ДВОЙНАЯ СПИРАЛЬ (замедлена)
+        // ДВОЙНАЯ СПИРАЛЬ
         var count = 20 + waystarEscalationLevel * 2;
         if (waystarRageMode) count += 4;
         for (var i = 0; i < count; i++) {
@@ -858,7 +864,7 @@ function waystarSpawnPhase3Attack() {
         }
         wsPlaySound(600, 'sine', 0.5, 0.15);
     } else if (type === 5) {
-        // МИНИ-ВЗРЫВЫ (замедлены)
+        // МИНИ-ВЗРЫВЫ
         var mineCount = 5 + waystarEscalationLevel;
         if (waystarRageMode) mineCount += 2;
         for (var i = 0; i < mineCount; i++) {
@@ -952,7 +958,6 @@ function updateWaystarBoss() {
         waystarBoss.time += 0.02;
     } else if (waystarState === "phase3") {
         waystarSmallBoss.alpha = Math.min(1, waystarSmallBoss.alpha + 0.02);
-        // ★ ЗАМЕДЛЕНО: босс двигается плавнее ★
         var mSpeed = waystarRageMode ? 2.2 : 1.6;
         mSpeed += waystarEscalationLevel * 0.15;
         waystarSmallBoss.x += Math.sin(waystarSmallBoss.time) * mSpeed * waystarSpeedMult;
@@ -1322,16 +1327,15 @@ function waystarRenderLoop() {
                 if (b.y < -20 || b.life <= 0) waystarPlayerBullets.splice(i, 1);
             }
             if (waystarState !== "phase3") {
-                // Победа — не запускаем апдейты
+                // Победа
             } else {
                 updateWaystarBoss(); updateWaystarAttacks();
 
-                // ★ ЭСКАЛАЦИЯ (мягкая) ★
                 waystarEscalationTimer++;
                 if (waystarEscalationTimer >= 90) {
                     waystarEscalationTimer = 0;
                     var hpRatio = waystarBossHp / waystarBossMaxHp;
-                    var newLevel = Math.floor((1 - hpRatio) * 4); // макс 4 уровня
+                    var newLevel = Math.floor((1 - hpRatio) * 4);
                     if (newLevel > waystarEscalationLevel) {
                         waystarEscalationLevel = newLevel;
                         waystarScreenFlash = 12; waystarScreenFlashColor = "#ff00ff";
@@ -1345,7 +1349,6 @@ function waystarRenderLoop() {
                     }
                 }
 
-                // ★ ЗАМЕДЛЕНО: атаки реже ★
                 var escalationMult = 1 - waystarEscalationLevel * 0.08;
                 if (escalationMult < 0.55) escalationMult = 0.55;
                 var aRate = Math.floor((75 / waystarSpeedMult) * escalationMult);
@@ -1424,7 +1427,6 @@ function waystarRenderLoop() {
     }
     ctx.globalAlpha = 1;
 
-    // ЭФФЕКТЫ 3 ФАЗЫ
     if (waystarState === "phase3") {
         for (var i = 0; i < waystarPhase3Embers.length; i++) {
             var e = waystarPhase3Embers[i];
@@ -1841,4 +1843,8 @@ function wrapText(text, maxWidth, ctx) {
 window.startWaystarFight = startWaystarFight;
 window.stopWaystarFight = stopWaystarFight;
 window.damageWaystarBoss = function(dmg) { if (waystarState === "phase1") waystarBossHp -= dmg; };
-console.log("[WAYSTAR] v9.0 — ЗАМЕДЛЕННАЯ 3 фаза + эскалация + все фиксы");
+window.getWaystarActive = function() { return waystarActive; };
+
+console.log("[WAYSTAR] v9.1 — загружено (защита от дублей, меньше снарядов, 3 фаза атакует)");
+
+} // ← конец защиты от двойной загрузки
