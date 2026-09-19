@@ -1,6 +1,7 @@
 // ============================================================
-// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v8.0
-// ФИКС: лазеры стреляют, победа не фризит, 3 фаза — долгая с ЭСКАЛАЦИЕЙ
+// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v9.0
+// ФИКС: лазеры стреляют, победа не фризит
+// 3 фаза — ДОЛГАЯ и ЗАМЕДЛЕННАЯ (успеваешь реагировать) + эскалация
 // ============================================================
 
 let waystarActive = false;
@@ -75,7 +76,7 @@ let waystarDash = null;
 
 let waystarRewardGiven = false;
 
-// ★ Усиленные эффекты для 3 фазы ★
+// ★ Эффекты для 3 фазы ★
 let waystarPhase3Embers = [];
 let waystarPhase3Rings = [];
 let waystarPhase3AuraPulse = 0;
@@ -131,52 +132,53 @@ function updateWaystarMegaEffects() {
     }
 }
 
-// ========== БЕШЕНАЯ АТМОСФЕРА ФАЗЫ 3 ==========
+// ========== АТМОСФЕРА ФАЗЫ 3 ==========
 function updateWaystarAmbient() {
     if (waystarState !== "phase3") return;
     waystarAmbientTimer++;
     waystarPhase3AuraPulse += 0.15;
 
-    // Чем выше эскалация — тем больше эффектов
-    var escMult = 1 + waystarEscalationLevel * 0.3;
+    var escMult = 1 + waystarEscalationLevel * 0.2;
 
-    if (waystarAmbientTimer % 3 === 0) {
+    if (waystarAmbientTimer % 4 === 0) {
         waystarPhase3Rings.push({
             x: waystarSmallBoss.x, y: waystarSmallBoss.y,
-            radius: 30, maxRadius: 90 + waystarEscalationLevel * 15,
+            radius: 30, maxRadius: 90 + waystarEscalationLevel * 12,
             angle: Math.random() * Math.PI * 2,
-            rotSpeed: (Math.random() - 0.5) * 0.3,
-            life: 25, maxLife: 25,
+            rotSpeed: (Math.random() - 0.5) * 0.25,
+            life: 30, maxLife: 30,
             color: Math.random() > 0.5 ? "#ff00ff" : "#ffffff"
         });
     }
-    if (waystarAmbientTimer % Math.max(1, Math.floor(2 / escMult)) === 0) {
+    if (waystarAmbientTimer % Math.max(2, Math.floor(3 / escMult)) === 0) {
         waystarPhase3Embers.push({
             x: Math.random() * 400, y: 500 + Math.random() * 40,
-            vx: (Math.random() - 0.5) * 1.5,
-            vy: -(2 + Math.random() * 3) * escMult,
+            vx: (Math.random() - 0.5) * 1.2,
+            vy: -(1.5 + Math.random() * 2) * escMult,
             size: 1 + Math.random() * 2.5,
-            life: 60 + Math.random() * 40,
+            life: 70 + Math.random() * 40,
             color: Math.random() > 0.5 ? "#ff00ff" : "#ffaa00"
         });
     }
-    if (waystarAmbientTimer % Math.max(4, Math.floor(14 / escMult)) === 0) {
+    if (waystarAmbientTimer % Math.max(8, Math.floor(24 / escMult)) === 0) {
         var ang = Math.random() * Math.PI * 2;
         addWaystarLightning(waystarSmallBoss.x, waystarSmallBoss.y,
             waystarSmallBoss.x + Math.cos(ang) * (100 + Math.random() * 80),
             waystarSmallBoss.y + Math.sin(ang) * (100 + Math.random() * 80),
             Math.random() > 0.5 ? "#ff00ff" : "#ffffff", 0.9, 2.5);
     }
-    if (waystarAmbientTimer % Math.max(2, Math.floor(6 / escMult)) === 0) {
+    if (waystarAmbientTimer % Math.max(5, Math.floor(14 / escMult)) === 0) {
         addWaystarSlash(30 + Math.random() * 340, 60 + Math.random() * 380, Math.random() * Math.PI * 2, 30 + Math.random() * 60, 3);
     }
-    if (waystarAmbientTimer % Math.max(3, Math.floor(10 / escMult)) === 0) {
+    if (waystarAmbientTimer % Math.max(6, Math.floor(18 / escMult)) === 0) {
         addWaystarFlash(waystarSmallBoss.x + (Math.random() - 0.5) * 80, waystarSmallBoss.y + (Math.random() - 0.5) * 80, 25 + Math.random() * 40);
     }
-    if (waystarAmbientTimer % Math.max(10, Math.floor(40 / escMult)) === 0) {
-        waystarScreenFlash = 8; waystarScreenFlashColor = waystarEscalationLevel >= 4 ? "#ff0000" : "#ff00ff";
+    if (waystarAmbientTimer % Math.max(20, Math.floor(70 / escMult)) === 0) {
+        waystarScreenFlash = 8; waystarScreenFlashColor = waystarEscalationLevel >= 3 ? "#ff0000" : "#ff00ff";
     }
-    spawnWaystarParticles(waystarSmallBoss.x + (Math.random() - 0.5) * 40, waystarSmallBoss.y + (Math.random() - 0.5) * 40, 1, ["#ff00ff", "#ffaa00", "#ffffff"][Math.floor(Math.random() * 3)], 3);
+    if (waystarAmbientTimer % 2 === 0) {
+        spawnWaystarParticles(waystarSmallBoss.x + (Math.random() - 0.5) * 40, waystarSmallBoss.y + (Math.random() - 0.5) * 40, 1, ["#ff00ff", "#ffaa00", "#ffffff"][Math.floor(Math.random() * 3)], 2.5);
+    }
 
     waystarSmallBoss.trail.push({ x: waystarSmallBoss.x, y: waystarSmallBoss.y, life: 18, maxLife: 18 });
     if (waystarSmallBoss.trail.length > 8) waystarSmallBoss.trail.shift();
@@ -191,7 +193,7 @@ function updateWaystarPhase3Special() {
     }
     for (var i = waystarPhase3Rings.length - 1; i >= 0; i--) {
         var r = waystarPhase3Rings[i];
-        r.radius += 3;
+        r.radius += 2;
         r.angle += r.rotSpeed;
         r.life--;
         if (r.life <= 0 || r.radius > r.maxRadius) waystarPhase3Rings.splice(i, 1);
@@ -735,7 +737,7 @@ function waystarStartReturning() {
 
 function waystarStartPhase3() {
     waystarState = "phase3";
-    // ★ HP 3-й фазы: ×120 — долгий финальный бой ★
+    // HP 3-й фазы: ×120 — долгий финальный бой
     waystarBossMaxHp = Math.max(25000, (window.playerFinalDamage || 100) * 120);
     waystarBossHp = waystarBossMaxHp;
     waystarSmallBoss.alpha = 0;
@@ -750,7 +752,6 @@ function waystarStartPhase3() {
     waystarRageMode = false;
     waystarPhase3Embers = [];
     waystarPhase3Rings = [];
-    // ★ СБРОС ЭСКАЛАЦИИ ★
     waystarEscalationLevel = 0;
     waystarEscalationTimer = 0;
 
@@ -776,10 +777,11 @@ function waystarStartPhase3() {
     if (typeof showFloatingText === 'function') showFloatingText("💥 ФИНАЛЬНАЯ ФАЗА! 💥", "#ff00ff");
 }
 
-// ========== АТАКИ ФАЗЫ 3 (с эскалацией) ==========
+// ========== АТАКИ ФАЗЫ 3 (ЗАМЕДЛЕНЫ) ==========
 function waystarSpawnPhase3Attack() {
     var type = waystarAttackType;
-    var s = waystarSpeedMult * (waystarRageMode ? 1.25 : 1.0);
+    // ★ ЗАМЕДЛЕНО: снаряды медленнее ★
+    var s = waystarSpeedMult * (waystarRageMode ? 1.05 : 0.85);
 
     if (type === 0) {
         // ДРОБОВИК
@@ -790,24 +792,24 @@ function waystarSpawnPhase3Attack() {
             var offset = (i - (count-1)/2) * 0.12;
             var ang = baseAngle + offset;
             waystarAttacks.push({ type: "shotgun_bullet", x: waystarSmallBoss.x, y: waystarSmallBoss.y,
-                vx: Math.cos(ang) * 5.5 * s, vy: Math.sin(ang) * 5.5 * s,
+                vx: Math.cos(ang) * 3.8 * s, vy: Math.sin(ang) * 3.8 * s,
                 size: 6, damage: 9, life: 250, trail: [] });
         }
         addWaystarShockwave(waystarSmallBoss.x, waystarSmallBoss.y, "#ff4400", 80, 15, 4);
         addWaystarFlash(waystarSmallBoss.x, waystarSmallBoss.y, 50);
         wsPlaySound(200, 'sawtooth', 0.2, 0.2);
     } else if (type === 1) {
-        // ЗВЕЗДА-БОМБА
+        // ЗВЕЗДА-БОМБА (долгий таймер)
         var bombCount = 2 + Math.floor(waystarEscalationLevel / 2);
         if (waystarRageMode) bombCount += 1;
         for (var k = 0; k < bombCount; k++) {
             var bx = 60 + Math.random() * 280;
             var by = 80 + Math.random() * 300;
-            waystarBombs.push({ x: bx, y: by, timer: 100, maxTimer: 100, radius: 70, damage: 25, exploded: false, explosionTimer: 0 });
+            waystarBombs.push({ x: bx, y: by, timer: 150, maxTimer: 150, radius: 70, damage: 25, exploded: false, explosionTimer: 0 });
         }
         wsPlaySound(500, 'sine', 0.3, 0.15);
     } else if (type === 2) {
-        // РЫВОК
+        // РЫВОК (замедлен)
         if (!waystarDash) {
             var dx = waystarPlayer.x - waystarSmallBoss.x;
             var dy = waystarPlayer.y - waystarSmallBoss.y;
@@ -816,32 +818,32 @@ function waystarSpawnPhase3Attack() {
                 startX: waystarSmallBoss.x, startY: waystarSmallBoss.y,
                 targetX: waystarPlayer.x, targetY: waystarPlayer.y,
                 dirX: dx / len, dirY: dy / len,
-                progress: 0, duration: 35, damage: 20, hit: false };
+                progress: 0, duration: 55, damage: 20, hit: false };
         }
         wsPlaySound(150, 'sawtooth', 0.5, 0.25);
     } else if (type === 3) {
-        // ГИГА-ЛАЗЕР
+        // ГИГА-ЛАЗЕР (замедлен)
         waystarAttacks.push({
             type: "giant_laser",
             state: "warning",
             x: waystarSmallBoss.x, y: waystarSmallBoss.y,
             angle: Math.atan2(waystarPlayer.y - waystarSmallBoss.y, waystarPlayer.x - waystarSmallBoss.x),
-            width: 55, warningTimer: 35, activeTimer: 0, maxActive: 65,
-            damage: 25, hit: false, trackTimer: 25
+            width: 55, warningTimer: 70, activeTimer: 0, maxActive: 55,
+            damage: 25, hit: false, trackTimer: 45
         });
         wsPlaySound(400, 'square', 0.4, 0.2);
     } else if (type === 4) {
-        // ДВОЙНАЯ СПИРАЛЬ
+        // ДВОЙНАЯ СПИРАЛЬ (замедлена)
         var count = 20 + waystarEscalationLevel * 2;
         if (waystarRageMode) count += 4;
         for (var i = 0; i < count; i++) {
             var baseAng = (i / count) * Math.PI * 4;
-            var delay = i * 4;
+            var delay = i * 6;
             (function(a, d) {
                 setTimeout(function() {
                     if (!waystarActive || waystarState !== "phase3") return;
                     waystarAttacks.push({ type: "spiral", x: waystarSmallBoss.x, y: waystarSmallBoss.y,
-                        vx: Math.cos(a) * 3.2 * s, vy: Math.sin(a) * 3.2 * s,
+                        vx: Math.cos(a) * 2.2 * s, vy: Math.sin(a) * 2.2 * s,
                         size: 6, damage: 9, life: 250, trail: [] });
                 }, d);
             })(baseAng, delay);
@@ -849,20 +851,20 @@ function waystarSpawnPhase3Attack() {
                 setTimeout(function() {
                     if (!waystarActive || waystarState !== "phase3") return;
                     waystarAttacks.push({ type: "spiral", x: waystarSmallBoss.x, y: waystarSmallBoss.y,
-                        vx: Math.cos(-a) * 3.2 * s, vy: Math.sin(-a) * 3.2 * s,
+                        vx: Math.cos(-a) * 2.2 * s, vy: Math.sin(-a) * 2.2 * s,
                         size: 6, damage: 9, life: 250, trail: [] });
                 }, d);
             })(baseAng, delay);
         }
         wsPlaySound(600, 'sine', 0.5, 0.15);
     } else if (type === 5) {
-        // МИНИ-ВЗРЫВЫ
+        // МИНИ-ВЗРЫВЫ (замедлены)
         var mineCount = 5 + waystarEscalationLevel;
         if (waystarRageMode) mineCount += 2;
         for (var i = 0; i < mineCount; i++) {
             var bx = 40 + Math.random() * 320;
             var by = 80 + Math.random() * 320;
-            waystarBombs.push({ x: bx, y: by, timer: 70, maxTimer: 70, radius: 40, damage: 12, exploded: false, explosionTimer: 0, small: true });
+            waystarBombs.push({ x: bx, y: by, timer: 110, maxTimer: 110, radius: 40, damage: 12, exploded: false, explosionTimer: 0, small: true });
         }
         wsPlaySound(450, 'sine', 0.2, 0.12);
     }
@@ -950,14 +952,15 @@ function updateWaystarBoss() {
         waystarBoss.time += 0.02;
     } else if (waystarState === "phase3") {
         waystarSmallBoss.alpha = Math.min(1, waystarSmallBoss.alpha + 0.02);
-        var mSpeed = waystarRageMode ? 3.8 : 2.8;
-        mSpeed += waystarEscalationLevel * 0.25;
+        // ★ ЗАМЕДЛЕНО: босс двигается плавнее ★
+        var mSpeed = waystarRageMode ? 2.2 : 1.6;
+        mSpeed += waystarEscalationLevel * 0.15;
         waystarSmallBoss.x += Math.sin(waystarSmallBoss.time) * mSpeed * waystarSpeedMult;
         waystarSmallBoss.x = Math.max(40, Math.min(360, waystarSmallBoss.x));
-        waystarSmallBoss.y = 100 + Math.sin(waystarSmallBoss.time * 0.7) * (waystarRageMode ? 22 : 15);
-        waystarSmallBoss.rotation += (waystarRageMode ? 0.09 : 0.05) * waystarSpeedMult;
-        waystarSmallBoss.pulse += (waystarRageMode ? 0.28 : 0.18);
-        waystarSmallBoss.time += (waystarRageMode ? 0.09 : 0.06);
+        waystarSmallBoss.y = 100 + Math.sin(waystarSmallBoss.time * 0.7) * (waystarRageMode ? 18 : 12);
+        waystarSmallBoss.rotation += (waystarRageMode ? 0.06 : 0.035) * waystarSpeedMult;
+        waystarSmallBoss.pulse += (waystarRageMode ? 0.20 : 0.13);
+        waystarSmallBoss.time += (waystarRageMode ? 0.06 : 0.04);
     }
     if (waystarBoss2.active === true) {
         waystarBoss2.x += waystarBoss2.vx * waystarSpeedMult;
@@ -1146,10 +1149,8 @@ function applyWaystarHit(dmg, textMsg) {
     wsPlaySound(80, 'sawtooth', 0.5, 0.2);
     updateWaystarHpBar();
 
-    // RAGE MODE: HP < 50%
     if (waystarState === "phase3" && !waystarRageMode && waystarPlayerHp < waystarPlayerMaxHp * 0.5) {
         waystarRageMode = true;
-        waystarSpeedMult *= 1.3;
         waystarScreenFlash = 25; waystarScreenFlashColor = "#ff0000";
         waystarShake = 35;
         if (typeof showFloatingText === 'function') showFloatingText("🔥 RAGE MODE!", "#ff0000");
@@ -1170,7 +1171,6 @@ function waystarVictory() {
     if (waystarRewardGiven) return;
     waystarRewardGiven = true;
 
-    // Очищаем атаки, чтобы не добивали игрока во время диалога
     waystarAttacks = [];
     waystarPlayerBullets = [];
     waystarEnemyBullets = [];
@@ -1326,17 +1326,17 @@ function waystarRenderLoop() {
             } else {
                 updateWaystarBoss(); updateWaystarAttacks();
 
-                // ★ ЭСКАЛАЦИЯ: чем меньше HP, тем агрессивнее ★
+                // ★ ЭСКАЛАЦИЯ (мягкая) ★
                 waystarEscalationTimer++;
-                if (waystarEscalationTimer >= 60) {
+                if (waystarEscalationTimer >= 90) {
                     waystarEscalationTimer = 0;
                     var hpRatio = waystarBossHp / waystarBossMaxHp;
-                    var newLevel = Math.floor((1 - hpRatio) * 6);
+                    var newLevel = Math.floor((1 - hpRatio) * 4); // макс 4 уровня
                     if (newLevel > waystarEscalationLevel) {
                         waystarEscalationLevel = newLevel;
                         waystarScreenFlash = 12; waystarScreenFlashColor = "#ff00ff";
                         waystarShake = 20;
-                        var escNames = ["", "ЭСКАЛАЦИЯ I", "ЭСКАЛАЦИЯ II", "ЭСКАЛАЦИЯ III", "ЭСКАЛАЦИЯ IV", "ФИНАЛЬНАЯ ЯРОСТЬ!"];
+                        var escNames = ["", "ЭСКАЛАЦИЯ I", "ЭСКАЛАЦИЯ II", "ЭСКАЛАЦИЯ III", "ФИНАЛЬНАЯ ЯРОСТЬ!"];
                         if (waystarEscalationLevel < escNames.length) {
                             spawnWaystarText(200, 120, escNames[waystarEscalationLevel], "#ff00ff", 100);
                         }
@@ -1345,21 +1345,21 @@ function waystarRenderLoop() {
                     }
                 }
 
-                // Частота атак зависит от эскалации и rage mode
-                var escalationMult = 1 - waystarEscalationLevel * 0.12;
-                if (escalationMult < 0.4) escalationMult = 0.4;
-                var aRate = Math.floor((40 / waystarSpeedMult) * escalationMult);
-                if (waystarRageMode) aRate = Math.floor(aRate * 0.6);
-                if (aRate < 12) aRate = 12;
+                // ★ ЗАМЕДЛЕНО: атаки реже ★
+                var escalationMult = 1 - waystarEscalationLevel * 0.08;
+                if (escalationMult < 0.55) escalationMult = 0.55;
+                var aRate = Math.floor((75 / waystarSpeedMult) * escalationMult);
+                if (waystarRageMode) aRate = Math.floor(aRate * 0.75);
+                if (aRate < 30) aRate = 30;
                 if (waystarAttackTimer >= aRate) { waystarAttackTimer = 0; waystarSpawnPhase3Attack(); }
 
                 waystarTypeTimer--;
                 if (waystarTypeTimer <= 0) {
                     waystarAttackType = Math.floor(Math.random() * 6);
-                    var typeBase = waystarRageMode ? 100 : 150;
-                    var typeEsc = typeBase - waystarEscalationLevel * 12;
-                    if (typeEsc < 60) typeEsc = 60;
-                    waystarTypeTimer = Math.floor(typeEsc + Math.random() * 100);
+                    var typeBase = waystarRageMode ? 180 : 260;
+                    var typeEsc = typeBase - waystarEscalationLevel * 10;
+                    if (typeEsc < 130) typeEsc = 130;
+                    waystarTypeTimer = Math.floor(typeEsc + Math.random() * 120);
                     var typeNames = ["ДРОБОВИК", "ЗВЕЗДА-БОМБА", "РЫВОК", "ГИГА-ЛАЗЕР", "СПИРАЛЬ", "МИНИ-ВЗРЫВЫ"];
                     spawnWaystarText(200, 60, typeNames[waystarAttackType], "#ff00ff", 70);
                     addWaystarShockwave(waystarSmallBoss.x, waystarSmallBoss.y, "#ff00ff", 80, 12, 3);
@@ -1424,7 +1424,7 @@ function waystarRenderLoop() {
     }
     ctx.globalAlpha = 1;
 
-    // ЭФФЕКТЫ 3 ФАЗЫ — эмберы и кольца
+    // ЭФФЕКТЫ 3 ФАЗЫ
     if (waystarState === "phase3") {
         for (var i = 0; i < waystarPhase3Embers.length; i++) {
             var e = waystarPhase3Embers[i];
@@ -1497,7 +1497,6 @@ function waystarRenderLoop() {
         ctx.restore();
     }
 
-    // RAGE MODE индикатор
     if (waystarRageMode && waystarState === "phase3") {
         ctx.save();
         ctx.font = "bold 16px monospace";
@@ -1511,14 +1510,13 @@ function waystarRenderLoop() {
         ctx.restore();
     }
 
-    // ЭСКАЛАЦИЯ индикатор
     if (waystarState === "phase3" && waystarEscalationLevel > 0) {
         ctx.save();
         ctx.font = "bold 13px monospace";
         ctx.textAlign = "center";
-        var escColors = ["#ff00ff", "#ff00ff", "#ff4400", "#ff4400", "#ff0000", "#ff0000"];
-        var escName = waystarEscalationLevel >= 5 ? "💀 ФИНАЛЬНАЯ ЯРОСТЬ 💀" : "⚠ ЭСКАЛАЦИЯ " + "I".repeat(waystarEscalationLevel);
-        ctx.fillStyle = escColors[Math.min(waystarEscalationLevel, 5)];
+        var escColors = ["#ff00ff", "#ff00ff", "#ff4400", "#ff4400", "#ff0000"];
+        var escName = waystarEscalationLevel >= 4 ? "💀 ФИНАЛЬНАЯ ЯРОСТЬ 💀" : "⚠ ЭСКАЛАЦИЯ " + "I".repeat(waystarEscalationLevel);
+        ctx.fillStyle = escColors[Math.min(waystarEscalationLevel, 4)];
         ctx.shadowColor = ctx.fillStyle;
         ctx.shadowBlur = 12;
         ctx.globalAlpha = 0.7 + Math.abs(Math.sin(performance.now() / 200)) * 0.3;
@@ -1564,7 +1562,6 @@ function drawWaystarSmallBoss() {
     var b = waystarSmallBoss; if (b.alpha <= 0) return; var pulse = 1 + Math.sin(b.pulse) * (waystarRageMode ? 0.32 : 0.2); var size = b.size * pulse;
     ctx.save(); ctx.translate(b.x, b.y); ctx.globalAlpha = b.alpha;
 
-    // ТРЕЙЛ
     for (var i = 0; i < b.trail.length; i++) {
         var tr = b.trail[i];
         var alpha = (tr.life / tr.maxLife) * 0.5;
@@ -1577,7 +1574,6 @@ function drawWaystarSmallBoss() {
         ctx.restore();
     }
 
-    // АУРА
     var auraSize = size * (waystarRageMode ? 5.5 : 4.7) + waystarEscalationLevel * 5;
     var glow = ctx.createRadialGradient(0, 0, 3, 0, 0, auraSize);
     if (waystarRageMode) {
@@ -1593,13 +1589,11 @@ function drawWaystarSmallBoss() {
     }
     ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, auraSize, 0, Math.PI * 2); ctx.fill();
 
-    // ВРАЩАЮЩИЕСЯ ЛУЧИ
     ctx.save(); ctx.rotate(-b.time * 0.5); ctx.strokeStyle = waystarRageMode ? "rgba(255, 100, 100, 0.7)" : "rgba(255, 100, 255, 0.6)"; ctx.lineWidth = 2;
     var rayCount = waystarRageMode ? 12 : 8;
     rayCount += waystarEscalationLevel;
     ctx.beginPath(); for (var i = 0; i < rayCount; i++) { var a = (i / rayCount) * Math.PI * 2; ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a)*size*2.2, Math.sin(a)*size*2.2); } ctx.stroke(); ctx.restore();
 
-    // ЯДРО БОССА
     ctx.rotate(b.time); ctx.fillStyle = waystarRageMode ? "#ff0000" : "#ff00ff"; ctx.shadowColor = waystarRageMode ? "#ff0000" : "#ff00ff"; ctx.shadowBlur = waystarRageMode ? 35 : 25;
     ctx.beginPath(); for (var i = 0; i < 16; i++) { var ang = (i / 16) * Math.PI * 2 - Math.PI / 2; var r = (i % 2 === 0) ? size : size * 0.4; if (i === 0) ctx.moveTo(Math.cos(ang)*r, Math.sin(ang)*r); else ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r); } ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
     ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.stroke();
@@ -1847,4 +1841,4 @@ function wrapText(text, maxWidth, ctx) {
 window.startWaystarFight = startWaystarFight;
 window.stopWaystarFight = stopWaystarFight;
 window.damageWaystarBoss = function(dmg) { if (waystarState === "phase1") waystarBossHp -= dmg; };
-console.log("[WAYSTAR] v8.0 — долгий бой + ЭСКАЛАЦИЯ + все фиксы");
+console.log("[WAYSTAR] v9.0 — ЗАМЕДЛЕННАЯ 3 фаза + эскалация + все фиксы");
