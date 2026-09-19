@@ -1,6 +1,6 @@
 // ============================================================
-// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v5.3
-// ФИКС: дробовик ослаблен, урон фазы 3 ×2, пульки 2 фазы заметнее
+// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v5.4
+// ФИКС: гига-лазер работает + финальный диалог + анимации побега и разделения
 // ============================================================
 
 let waystarActive = false;
@@ -48,7 +48,10 @@ let waystarChoiceActive = false;
 let waystarChoiceResolved = false;
 let waystarDialogAutoTimer = 0;
 
+// ★ АНИМАЦИИ ★
 let waystarSplitAnim = null;
+let waystarEscapeAnim = null;
+let waystarFinalDeathAnim = null;
 
 let waystarPieces = [];
 let waystarEnemyBullets = [];
@@ -159,7 +162,7 @@ function startWaystarFight() {
     waystarPieces = []; waystarEnemyBullets = [];
     waystarBombs = []; waystarDash = null;
     waystarReturning = false; waystarReturnTimer = 0;
-    waystarSplitAnim = null;
+    waystarSplitAnim = null; waystarEscapeAnim = null; waystarFinalDeathAnim = null;
     waystarShootCooldown = 0;
     waystarRewardGiven = false;
     waystarTouchActive = false; waystarTouchId = null;
@@ -312,6 +315,10 @@ function waystarProgressDialog() {
             waystarStartPhase2();
         } else if (waystarState === "pre_phase3_dialog") {
             waystarStartPhase3();
+        } else if (waystarState === "final_dialog") {
+            // Финальный диалог — ждём смерти звезды
+            waystarState = "final_death_anim";
+            waystarStartFinalDeathAnimation();
         } else {
             waystarState = "phase1";
             waystarAttackTimer = 0;
@@ -325,9 +332,8 @@ function updateWaystarShooting() {
     if (waystarShootCooldown > 0) { waystarShootCooldown--; return; }
     waystarShootCooldown = waystarShootInterval;
     
-    // ★ УРОН ФАЗЫ 3 ×2 ★
     var dmgBase = Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4));
-    if (waystarState === "phase3") dmgBase = Math.max(1, Math.floor((window.playerFinalDamage || 100) / 2));
+    if (waystarState === "phase3") dmgBase = Math.max(1, Math.floor((window.playerFinalDamage || 100) / 1.3));
     
     waystarPlayerBullets.push({
         x: waystarPlayer.x, y: waystarPlayer.y - 12,
@@ -482,12 +488,21 @@ function waystarTriggerSplit() {
     }, 2000);
 }
 
+// ========== АНИМАЦИЯ: ФИОЛЕТОВАЯ ЗВЕЗДА УБЕГАЕТ + РАЗДЕЛЕНИЕ НА 60 ==========
 function waystarStartSplit2Animation() {
     waystarState = "split2_anim";
     wsPlaySound(150, 'sawtooth', 0.8, 0.2);
     
-    waystarBoss2.active = "leaving";
+    // ★ ЗАПУСКАЕМ АНИМАЦИЮ ПОБЕГА ★
+    waystarEscapeAnim = {
+        timer: 0,
+        duration: 120,
+        startX: waystarBoss2.x,
+        startY: waystarBoss2.y
+    };
+    waystarBoss2.active = "escaping";
     
+    // Через 1 сек — разделение первой звезды на 60 осколков
     setTimeout(function() {
         if (!waystarActive) return;
         
@@ -498,6 +513,7 @@ function waystarStartSplit2Animation() {
         wsPlaySound(200, 'sawtooth', 1.5, 0.4);
         setTimeout(function() { wsPlaySound(100, 'sawtooth', 1.2, 0.35); }, 200);
         
+        // 60 молний во все стороны
         for (var i = 0; i < 60; i++) {
             var ang = (i / 60) * Math.PI * 2 + Math.random() * 0.2;
             var len = 150 + Math.random() * 150;
@@ -510,12 +526,32 @@ function waystarStartSplit2Animation() {
             }, i * 80);
         }
         
-        for (var i = 0; i < 400; i++) {
+        // ★ 60 частиц разлетаются — визуально показываем разделение ★
+        for (var i = 0; i < 60; i++) {
+            var ang = (i / 60) * Math.PI * 2;
+            var dist = 100 + Math.random() * 60;
+            var tx = waystarBoss.x + Math.cos(ang) * dist;
+            var ty = waystarBoss.y + Math.sin(ang) * dist;
+            // Частица с "целью" — визуально как кусочек улетает
+            waystarParticles.push({
+                x: waystarBoss.x, y: waystarBoss.y,
+                vx: Math.cos(ang) * 3, vy: Math.sin(ang) * 3,
+                targetX: tx, targetY: ty,
+                isSplitPiece: true,
+                life: 90, maxLife: 90,
+                color: ["#ffd700", "#ff00ff", "#ffffff"][i % 3],
+                size: 4 + Math.random() * 3
+            });
+        }
+        
+        // Дополнительные частицы
+        for (var i = 0; i < 300; i++) {
             spawnWaystarParticles(waystarBoss.x, waystarBoss.y, 1, ["#ffd700", "#ffffff", "#ff8800", "#ff00ff"][Math.floor(Math.random() * 4)], 20);
         }
         
         waystarBoss.alpha = 0;
         
+        // Через 2.5 сек — диалог перед фазой 2
         setTimeout(function() {
             if (!waystarActive) return;
             waystarState = "pre_phase2_dialog";
@@ -529,8 +565,8 @@ function waystarStartSplit2Animation() {
             for (var i = 0; i < waystarDialogQueue.length; i++) {
                 waystarDialogQueue[i].time = 2 + waystarDialogQueue[i].text.length * 0.04;
             }
-        }, 2000);
-    }, 600);
+        }, 2500);
+    }, 1000);
 }
 
 function waystarStartPhase2() {
@@ -696,7 +732,6 @@ function waystarStartReturning() {
 
 function waystarStartPhase3() {
     waystarState = "phase3";
-    // ★ ФАЗА 3: HP в 1.5 раза меньше (было 30, стало 20) ★
     waystarBossMaxHp = Math.max(4000, (window.playerFinalDamage || 100) * 20);
     waystarBossHp = waystarBossMaxHp;
     waystarSmallBoss.alpha = 0;
@@ -704,7 +739,7 @@ function waystarStartPhase3() {
     waystarSmallBoss.x = 200;
     waystarSmallBoss.y = 100;
     waystarAttackTimer = 0;
-    waystarTypeTimer = 300; // ★ Фаза 3 реже атакует (было 200) ★
+    waystarTypeTimer = 300;
     waystarShootCooldown = 0;
     wsPlaySound(200, 'sawtooth', 1.0, 0.3);
     
@@ -717,7 +752,7 @@ function waystarSpawnPhase3Attack() {
     var s = waystarSpeedMult;
     
     if (type === 0) {
-        // 🔫 ДРОБОВИК — ОСЛАБЛЕН: 5 пуль (было 7), разброс меньше (0.12 вместо 0.15)
+        // ДРОБОВИК
         var count = 5;
         var baseAngle = Math.atan2(waystarPlayer.y - waystarSmallBoss.y, waystarPlayer.x - waystarSmallBoss.x);
         for (var i = 0; i < count; i++) {
@@ -726,14 +761,14 @@ function waystarSpawnPhase3Attack() {
             waystarAttacks.push({
                 type: "shotgun_bullet",
                 x: waystarSmallBoss.x, y: waystarSmallBoss.y,
-                vx: Math.cos(ang) * 5 * s, vy: Math.sin(ang) * 5 * s,  // ★ медленнее (было 6) ★
-                size: 6, damage: 8, life: 250, trail: []  // ★ урон меньше (было 10) ★
+                vx: Math.cos(ang) * 5 * s, vy: Math.sin(ang) * 5 * s,
+                size: 6, damage: 8, life: 250, trail: []
             });
         }
         addWaystarShockwave(waystarSmallBoss.x, waystarSmallBoss.y, "#ff4400", 70, 12, 3);
         wsPlaySound(200, 'sawtooth', 0.2, 0.2);
     } else if (type === 1) {
-        // 💥 ЗВЕЗДА-БОМБА — радиус меньше (было 90, стало 70), таймер больше (90 → 100)
+        // ЗВЕЗДА-БОМБА
         var bx = 60 + Math.random() * 280;
         var by = 80 + Math.random() * 300;
         waystarBombs.push({
@@ -742,7 +777,7 @@ function waystarSpawnPhase3Attack() {
         });
         wsPlaySound(500, 'sine', 0.3, 0.15);
     } else if (type === 2) {
-        // 🌀 РЫВОК — оставляем, он эпичный
+        // РЫВОК
         if (!waystarDash) {
             var dx = waystarPlayer.x - waystarSmallBoss.x;
             var dy = waystarPlayer.y - waystarSmallBoss.y;
@@ -752,12 +787,12 @@ function waystarSpawnPhase3Attack() {
                 startX: waystarSmallBoss.x, startY: waystarSmallBoss.y,
                 targetX: waystarPlayer.x, targetY: waystarPlayer.y,
                 dirX: dx / len, dirY: dy / len,
-                progress: 0, duration: 35, damage: 20, hit: false  // ★ медленнее (было 30), урон меньше (25 → 20) ★
+                progress: 0, duration: 35, damage: 20, hit: false
             };
         }
         wsPlaySound(150, 'sawtooth', 0.5, 0.25);
     } else if (type === 3) {
-        // 🔆 ГИГА-ЛАЗЕР — ширина меньше (60 → 50), предупреждение дольше (55 → 65)
+        // ГИГА-ЛАЗЕР — фикс!
         waystarAttacks.push({
             type: "giant_laser",
             x: waystarSmallBoss.x, y: waystarSmallBoss.y,
@@ -769,7 +804,7 @@ function waystarSpawnPhase3Attack() {
         });
         wsPlaySound(400, 'square', 0.4, 0.2);
     } else if (type === 4) {
-        // 🌪️ СПИРАЛЬ — меньше пуль (24 → 18) и медленнее (3.5 → 3.0)
+        // СПИРАЛЬ
         var count = 18;
         for (var i = 0; i < count; i++) {
             var baseAng = (i / count) * Math.PI * 4;
@@ -788,7 +823,7 @@ function waystarSpawnPhase3Attack() {
         }
         wsPlaySound(600, 'sine', 0.5, 0.15);
     } else if (type === 5) {
-        // 💫 МИНИ-ВЗРЫВЫ — 3 бомбы (было 4), радиус 40 (было 50)
+        // МИНИ-ВЗРЫВЫ
         for (var i = 0; i < 3; i++) {
             var bx = 60 + Math.random() * 280;
             var by = 100 + Math.random() * 280;
@@ -964,10 +999,18 @@ function updateWaystarAttacks() {
                 continue;
             }
         } else if (a.type === "giant_laser") {
+            // ★ ГИГА-ЛАЗЕР — РАБОТАЮЩАЯ ЛОГИКА ★
             if (a.warningTimer > 0) {
                 a.warningTimer--;
+                // Обновляем угол на игрока во время предупреждения (первые 30 кадров)
+                if (a.warningTimer > 35) {
+                    a.x = waystarSmallBoss.x;
+                    a.y = waystarSmallBoss.y;
+                    a.angle = Math.atan2(waystarPlayer.y - a.y, waystarPlayer.x - a.x);
+                }
             } else if (a.activeTimer > 0) {
                 a.activeTimer--;
+                // Проверка попадания
                 if (!a.hit && waystarInvulnTimer <= 0) {
                     var dx = waystarPlayer.x - a.x, dy = waystarPlayer.y - a.y;
                     var dist = Math.sqrt(dx*dx + dy*dy);
@@ -975,16 +1018,21 @@ function updateWaystarAttacks() {
                     var angleDiff = Math.abs(playerAngle - a.angle);
                     while (angleDiff > Math.PI) angleDiff = Math.abs(angleDiff - Math.PI * 2);
                     var perpDist = Math.abs(Math.sin(angleDiff)) * dist;
-                    if (perpDist < a.width / 2 + 6) {
+                    if (perpDist < a.width / 2 + 8) {
                         a.hit = true;
                         applyWaystarHit(a.damage, "ГИГА-ЛАЗЕР!");
                     }
                 }
             } else {
-                a.activeTimer = 25;
+                // Запуск активной фазы
+                a.activeTimer = 30;
+                a.x = waystarSmallBoss.x;
+                a.y = waystarSmallBoss.y;
                 addWaystarFlash(a.x, a.y, 120);
                 addWaystarShockwave(a.x, a.y, "#ff00ff", 150, 18, 4);
+                addWaystarShockwave(a.x, a.y, "#ffffff", 100, 15, 3);
                 wsPlaySound(150, 'sawtooth', 0.8, 0.3);
+                waystarShake = 20;
             }
             if (a.warningTimer <= 0 && a.activeTimer <= 0) {
                 waystarAttacks.splice(i, 1);
@@ -1105,15 +1153,104 @@ function spawnWaystarParticles(x, y, count, color, speed) {
     }
 }
 
+// ========== ФИНАЛЬНАЯ СМЕРТЬ ЗВЕЗДЫ ==========
+function waystarStartFinalDeathAnimation() {
+    waystarState = "final_death_anim";
+    waystarFinalDeathAnim = {
+        timer: 0,
+        duration: 180  // 3 секунды
+    };
+    
+    wsPlaySound(300, 'sine', 2.0, 0.3);
+    setTimeout(function() { wsPlaySound(200, 'sine', 1.5, 0.25); }, 400);
+    setTimeout(function() { wsPlaySound(100, 'sawtooth', 2.0, 0.3); }, 1000);
+    
+    // Вспышки и молнии
+    for (var i = 0; i < 8; i++) {
+        setTimeout(function(idx) {
+            addWaystarShockwave(200, 100, ["#ff00ff", "#ffd700", "#ffffff", "#ff8800"][idx%4], 300, 30, 5);
+        }, i * 200);
+    }
+    
+    // Медленное исчезновение
+    var fadeInterval = setInterval(function() {
+        if (!waystarActive) { clearInterval(fadeInterval); return; }
+        waystarSmallBoss.alpha -= 0.02;
+        if (waystarSmallBoss.alpha <= 0) {
+            clearInterval(fadeInterval);
+            waystarSmallBoss.alpha = 0;
+        }
+    }, 50);
+    
+    // Частицы
+    var particleInterval = setInterval(function() {
+        if (!waystarActive) { clearInterval(particleInterval); return; }
+        for (var i = 0; i < 5; i++) {
+            spawnWaystarParticles(waystarSmallBoss.x + (Math.random()-0.5)*40, waystarSmallBoss.y + (Math.random()-0.5)*40, 1, ["#ff00ff", "#ffd700", "#ffffff"][Math.floor(Math.random()*3)], 5);
+        }
+    }, 80);
+    
+    // Через 3 сек — финальный диалог
+    setTimeout(function() {
+        if (!waystarActive) return;
+        clearInterval(particleInterval);
+        waystarState = "final_dialog";
+        waystarDialogActive = true;
+        waystarDialogStep = 0;
+        waystarDialogAutoTimer = 0;
+        waystarDialogQueue = [
+            { speaker: "🌟 Путеводная Звезда", text: "Ах... ты победил меня..." },
+            { speaker: "🌟 Путеводная Звезда", text: "Удивительно, как такой человечек смог уничтожить звезду, которой 56 миллионов лет..." },
+            { speaker: "🌟 Путеводная Звезда", text: "Когда звёзды живут слишком долго, они становятся мощнее и мощнее. А иногда даже получают разум, как я." },
+            { speaker: "🌟 Путеводная Звезда", text: "Но, похоже, я облажался..." },
+            { speaker: "🌟 Путеводная Звезда", text: "Надеюсь, ты найдёшь то, что ты так искал... Удачи." }
+        ];
+        for (var i = 0; i < waystarDialogQueue.length; i++) {
+            waystarDialogQueue[i].time = 2 + waystarDialogQueue[i].text.length * 0.05;
+        }
+    }, 3000);
+}
+
 // ========== ПОБЕДА / ПОРАЖЕНИЕ ==========
 function waystarVictory() {
     if (waystarRewardGiven) return;
     waystarRewardGiven = true;
-    waystarState = "victory";
+    
+    // ★ ЗАПУСКАЕМ ФИНАЛЬНЫЙ ДИАЛОГ ★
+    waystarState = "final_dialog_trigger";
+    waystarDialogActive = true;
+    waystarDialogStep = 0;
+    waystarDialogAutoTimer = 0;
+    waystarDialogQueue = [
+        { speaker: "🌟 Путеводная Звезда", text: "Ах... ты победил меня..." },
+        { speaker: "🌟 Путеводная Звезда", text: "Удивительно, как такой человечек смог уничтожить звезду, которой 56 миллионов лет..." },
+        { speaker: "🌟 Путеводная Звезда", text: "Когда звёзды живут слишком долго, они становятся мощнее и мощнее. А иногда даже получают разум, как я." },
+        { speaker: "🌟 Путеводная Звезда", text: "Но, похоже, я облажался..." },
+        { speaker: "🌟 Путеводная Звезда", text: "Надеюсь, ты найдёшь то, что ты так искал... Удачи." }
+    ];
+    for (var i = 0; i < waystarDialogQueue.length; i++) {
+        waystarDialogQueue[i].time = 2 + waystarDialogQueue[i].text.length * 0.05;
+    }
+    
     wsPlaySound(500, 'sine', 0.6, 0.2);
     setTimeout(function() { wsPlaySound(800, 'sine', 0.6, 0.2); }, 200);
-    setTimeout(function() { wsPlaySound(1200, 'sine', 0.8, 0.25); }, 400);
-    
+}
+
+function waystarDefeat() {
+    waystarState = "defeat";
+    if (typeof showFloatingText === 'function') showFloatingText("ТЫ ПАЛ...", "#ff0000");
+    wsPlaySound(40, 'sawtooth', 2.0, 0.4);
+    waystarScreenFlash = 60; waystarScreenFlashColor = "#ff0000";
+    for (var i = 0; i < 80; i++) spawnWaystarParticles(waystarPlayer.x, waystarPlayer.y, 1, "#ff3333", 10);
+    setTimeout(function() {
+        stopWaystarFight();
+        if (typeof playerHp !== 'undefined') playerHp = 0;
+        if (typeof defeat === 'function') defeat();
+    }, 2500);
+}
+
+// ========== НАГРАДА ПОСЛЕ ФИНАЛЬНОГО ДИАЛОГА ==========
+function grantWaystarReward() {
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(500)) {
         defeatedBosses.push(500);
         if (typeof saveAll === 'function') saveAll();
@@ -1136,6 +1273,7 @@ function waystarVictory() {
         setTimeout(function() { showFloatingText("🌟 Путеводная Звезда получена!", "#ffd700"); }, 600);
         setTimeout(function() { showFloatingText("💎 +1 СЕКРЕТНЫЙ ТОКЕН", "#ff00ff"); }, 1200);
     }
+    
     setTimeout(function() {
         stopWaystarFight();
         if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0;
@@ -1143,23 +1281,11 @@ function waystarVictory() {
     }, 3500);
 }
 
-function waystarDefeat() {
-    waystarState = "defeat";
-    if (typeof showFloatingText === 'function') showFloatingText("ТЫ ПАЛ...", "#ff0000");
-    wsPlaySound(40, 'sawtooth', 2.0, 0.4);
-    waystarScreenFlash = 60; waystarScreenFlashColor = "#ff0000";
-    for (var i = 0; i < 80; i++) spawnWaystarParticles(waystarPlayer.x, waystarPlayer.y, 1, "#ff3333", 10);
-    setTimeout(function() {
-        stopWaystarFight();
-        if (typeof playerHp !== 'undefined') playerHp = 0;
-        if (typeof defeat === 'function') defeat();
-    }, 2500);
-}
-
 // ========== RENDER LOOP ==========
 function waystarRenderLoop() {
     if (!waystarActive || !ctx || !canvas) return;
     
+    // Анимация разделения
     if (waystarSplitAnim) {
         waystarSplitAnim.timer++;
         var t = waystarSplitAnim.timer / waystarSplitAnim.duration;
@@ -1169,6 +1295,23 @@ function waystarRenderLoop() {
         waystarBoss2.alpha = Math.min(1, t * 2);
         waystarBoss.rotation += 0.03;
         waystarBoss2.rotation -= 0.03;
+    }
+    
+    // ★ АНИМАЦИЯ ПОБЕГА ФИОЛЕТОВОЙ ЗВЕЗДЫ ★
+    if (waystarEscapeAnim) {
+        waystarEscapeAnim.timer++;
+        var et = waystarEscapeAnim.timer / waystarEscapeAnim.duration;
+        if (et > 1) et = 1;
+        // Звезда уходит вверх и в сторону, уменьшается
+        waystarBoss2.y = waystarEscapeAnim.startY - et * 300;
+        waystarBoss2.x = waystarEscapeAnim.startX + Math.sin(et * Math.PI * 2) * 30;
+        waystarBoss2.size = 40 * (1 - et * 0.6);
+        waystarBoss2.alpha = 1 - et * 0.5;
+        waystarBoss2.rotation += 0.1;
+        // Трейл частиц
+        if (et < 0.9) {
+            spawnWaystarParticles(waystarBoss2.x, waystarBoss2.y, 2, "#ff00ff", 3);
+        }
     }
     
     if (!waystarDialogActive) {
@@ -1250,7 +1393,7 @@ function waystarRenderLoop() {
             updateWaystarAttacks();
             
             waystarAttackTimer++;
-            var aRate = Math.floor(45 / waystarSpeedMult); // ★ Реже атакует (было 35) ★
+            var aRate = Math.floor(45 / waystarSpeedMult);
             if (waystarAttackTimer >= aRate) {
                 waystarAttackTimer = 0;
                 waystarSpawnPhase3Attack();
@@ -1258,14 +1401,17 @@ function waystarRenderLoop() {
             waystarTypeTimer--;
             if (waystarTypeTimer <= 0) {
                 waystarAttackType = Math.floor(Math.random() * 6);
-                waystarTypeTimer = Math.floor(200 + Math.random() * 150); // ★ дольше между сменами типов ★
+                waystarTypeTimer = Math.floor(200 + Math.random() * 150);
                 var typeNames = ["ДРОБОВИК", "ЗВЕЗДА-БОМБА", "РЫВОК", "ГИГА-ЛАЗЕР", "СПИРАЛЬ", "МИНИ-ВЗРЫВЫ"];
                 spawnWaystarText(200, 60, typeNames[waystarAttackType], "#ff00ff", 70);
             }
         } else if (waystarState === "split1_anim" || waystarState === "split2_anim") {
             // ждём анимации
+        } else if (waystarState === "final_death_anim") {
+            // ждём анимации
         }
     } else {
+        // во время диалога
         waystarBoss.rotation += 0.02;
         waystarBoss.pulse += 0.08;
         if (waystarBoss2.active === true) {
@@ -1286,12 +1432,22 @@ function waystarRenderLoop() {
             waystarSmallBoss.rotation += 0.03;
             waystarSmallBoss.pulse += 0.1;
         }
+        if (waystarState === "final_dialog" || waystarState === "final_dialog_trigger") {
+            waystarSmallBoss.rotation += 0.05;
+            waystarSmallBoss.pulse += 0.15;
+        }
         
         var current = waystarDialogQueue[waystarDialogStep];
         if (current && current.choice && !waystarChoiceResolved) waystarChoiceActive = true;
         if (!waystarChoiceActive) {
             waystarDialogAutoTimer++;
-            if (current && waystarDialogAutoTimer > current.time * 60) waystarProgressDialog();
+            if (current && waystarDialogAutoTimer > current.time * 60) {
+                waystarProgressDialog();
+                // ★ Если закончился финальный диалог — выдаём награду ★
+                if (waystarState === "final_dialog" && waystarDialogStep >= waystarDialogQueue.length) {
+                    grantWaystarReward();
+                }
+            }
         }
     }
     
@@ -1303,6 +1459,13 @@ function waystarRenderLoop() {
     
     for (var i = waystarParticles.length - 1; i >= 0; i--) {
         var p = waystarParticles[i];
+        if (p.isSplitPiece && p.targetX !== undefined) {
+            // Анимация "разделения на кусочки" — летит к цели
+            var dxT = p.targetX - p.x;
+            var dyT = p.targetY - p.y;
+            p.vx += dxT * 0.008;
+            p.vy += dyT * 0.008;
+        }
         p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life--;
         if (p.life <= 0) waystarParticles.splice(i, 1);
     }
@@ -1438,12 +1601,14 @@ function waystarRenderLoop() {
         drawWaystarPieces();
         drawWaystarEnemyBullets();
         drawWaystarPlayerBullets();
-    } else if (waystarState === "returning_anim" || waystarState === "phase3") {
+    } else if (waystarState === "returning_anim" || waystarState === "phase3" || waystarState === "final_dialog" || waystarState === "final_dialog_trigger" || waystarState === "final_death_anim") {
         if (waystarSmallBoss.alpha > 0) drawWaystarSmallBoss();
-        drawWaystarPhase1Attacks();
-        drawWaystarPlayerBullets();
-        drawWaystarBombs();
-        drawWaystarDash();
+        if (waystarState === "phase3") {
+            drawWaystarPhase1Attacks();
+            drawWaystarPlayerBullets();
+            drawWaystarBombs();
+            drawWaystarDash();
+        }
     }
     
     if (waystarState === "phase1" || waystarState === "phase2" || waystarState === "phase3") {
@@ -1454,9 +1619,14 @@ function waystarRenderLoop() {
         var p = waystarParticles[i];
         ctx.globalAlpha = Math.max(0, p.life / p.maxLife) * 0.8;
         ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
+        if (p.isSplitPiece) {
+            // Кусочки разделения — квадратики
+            ctx.fillRect(p.x - p.size, p.y - p.size, p.size * 2, p.size * 2);
+        } else {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
     ctx.globalAlpha = 1;
     
@@ -1503,21 +1673,22 @@ function drawWaystarBoss() {
     ctx.translate(b.x, b.y);
     ctx.globalAlpha = b.alpha;
     
-    var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, size * 3.75);
+    // ★ СВЕЧЕНИЕ ×1.25 от предыдущего (было 3.75, теперь 4.7) ★
+    var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, size * 4.7);
     if (waystarBossFlash > 0) {
-        glow.addColorStop(0, "rgba(255, 255, 255, 0.9)");
-        glow.addColorStop(0.5, "rgba(255, 200, 100, 0.5)");
+        glow.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+        glow.addColorStop(0.5, "rgba(255, 200, 100, 0.6)");
         glow.addColorStop(1, "transparent");
     } else {
-        glow.addColorStop(0, "rgba(255, 215, 0, 0.7)");
-        glow.addColorStop(0.5, "rgba(255, 150, 0, 0.3)");
+        glow.addColorStop(0, "rgba(255, 215, 0, 0.8)");
+        glow.addColorStop(0.5, "rgba(255, 150, 0, 0.4)");
         glow.addColorStop(1, "transparent");
     }
     ctx.fillStyle = glow;
-    ctx.beginPath(); ctx.arc(0, 0, size * 3.75, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, size * 4.7, 0, Math.PI * 2); ctx.fill();
     
     ctx.rotate(b.time);
-    ctx.strokeStyle = "rgba(255,215,0,0.4)";
+    ctx.strokeStyle = "rgba(255,215,0,0.5)";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (var i = 0; i < 6; i++) {
@@ -1530,7 +1701,7 @@ function drawWaystarBoss() {
     ctx.rotate(-b.time * 2 + b.rotation);
     ctx.fillStyle = waystarBossFlash > 0 ? "#ffffff" : "#ffd700";
     ctx.shadowColor = "#ffaa00";
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 15;
     ctx.beginPath();
     for (var i = 0; i < 16; i++) {
         var ang = (i / 16) * Math.PI * 2 - Math.PI / 2;
@@ -1560,17 +1731,17 @@ function drawWaystarBoss2() {
     ctx.translate(b.x, b.y);
     ctx.globalAlpha = b.alpha;
     
-    var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, size * 3);
-    glow.addColorStop(0, "rgba(255, 0, 255, 0.6)");
-    glow.addColorStop(0.5, "rgba(200, 0, 200, 0.3)");
+    var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, size * 3.75);
+    glow.addColorStop(0, "rgba(255, 0, 255, 0.7)");
+    glow.addColorStop(0.5, "rgba(200, 0, 200, 0.35)");
     glow.addColorStop(1, "transparent");
     ctx.fillStyle = glow;
-    ctx.beginPath(); ctx.arc(0, 0, size * 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, size * 3.75, 0, Math.PI * 2); ctx.fill();
     
     ctx.rotate(b.rotation);
     ctx.fillStyle = "#ff00ff";
     ctx.shadowColor = "#ff00ff";
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 15;
     ctx.beginPath();
     for (var i = 0; i < 16; i++) {
         var ang = (i / 16) * Math.PI * 2 - Math.PI / 2;
@@ -1584,6 +1755,7 @@ function drawWaystarBoss2() {
 
 function drawWaystarSmallBoss() {
     var b = waystarSmallBoss;
+    if (b.alpha <= 0) return;
     var pulse = 1 + Math.sin(b.pulse) * 0.15;
     var size = b.size * pulse;
     
@@ -1591,17 +1763,17 @@ function drawWaystarSmallBoss() {
     ctx.translate(b.x, b.y);
     ctx.globalAlpha = b.alpha;
     
-    var glow = ctx.createRadialGradient(0, 0, 3, 0, 0, size * 3);
-    glow.addColorStop(0, "rgba(255, 0, 255, 0.8)");
-    glow.addColorStop(0.5, "rgba(255, 100, 255, 0.4)");
+    var glow = ctx.createRadialGradient(0, 0, 3, 0, 0, size * 3.75);
+    glow.addColorStop(0, "rgba(255, 0, 255, 0.85)");
+    glow.addColorStop(0.5, "rgba(255, 100, 255, 0.45)");
     glow.addColorStop(1, "transparent");
     ctx.fillStyle = glow;
-    ctx.beginPath(); ctx.arc(0, 0, size * 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, size * 3.75, 0, Math.PI * 2); ctx.fill();
     
     ctx.rotate(b.time);
     ctx.fillStyle = "#ff00ff";
     ctx.shadowColor = "#ff00ff";
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 18;
     ctx.beginPath();
     for (var i = 0; i < 16; i++) {
         var ang = (i / 16) * Math.PI * 2 - Math.PI / 2;
@@ -1676,7 +1848,6 @@ function drawWaystarPlayerBullets() {
 }
 
 function drawWaystarEnemyBullets() {
-    // ★ ПУЛЬКИ ФАЗЫ 2 — ЯРКИЕ И ЗАМЕТНЫЕ ★
     for (var i = 0; i < waystarEnemyBullets.length; i++) {
         var b = waystarEnemyBullets[i];
         if (b.trail) {
@@ -1688,7 +1859,6 @@ function drawWaystarEnemyBullets() {
             }
             ctx.globalAlpha = 1;
         }
-        // Внешнее большое свечение
         var bigGlow = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.size * 4);
         bigGlow.addColorStop(0, "rgba(255, 100, 100, 0.8)");
         bigGlow.addColorStop(0.5, "rgba(255, 50, 50, 0.5)");
@@ -1696,16 +1866,13 @@ function drawWaystarEnemyBullets() {
         ctx.fillStyle = bigGlow;
         ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 4, 0, Math.PI * 2); ctx.fill();
         
-        // Внешний контур — белый
         ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 1.4, 0, Math.PI * 2); ctx.stroke();
         
-        // Ядро — красное
         ctx.fillStyle = "#ff2222";
         ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2); ctx.fill();
         
-        // Внутренний — белый блик
         ctx.fillStyle = "#ffffff";
         ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 0.5, 0, Math.PI * 2); ctx.fill();
     }
@@ -1773,16 +1940,17 @@ function drawWaystarPhase1Attacks() {
             }
             ctx.restore();
         } else if (a.type === "giant_laser") {
+            // ★ ГИГА-ЛАЗЕР — рисуем правильно ★
             ctx.save();
             ctx.translate(a.x, a.y);
             ctx.rotate(a.angle);
             if (a.warningTimer > 0) {
-                var pulseAlpha = 0.25 + Math.sin(performance.now() / 60) * 0.15;
-                ctx.globalAlpha = pulseAlpha;
+                var pulseAlpha2 = 0.35 + Math.sin(performance.now() / 60) * 0.2;
+                ctx.globalAlpha = pulseAlpha2;
                 ctx.fillStyle = "#ff00ff";
                 ctx.fillRect(0, -a.width / 2, 800, a.width);
                 
-                ctx.globalAlpha = 0.9;
+                ctx.globalAlpha = 0.95;
                 ctx.strokeStyle = "#ffffff";
                 ctx.lineWidth = 2;
                 ctx.setLineDash([8, 6]);
@@ -1797,21 +1965,24 @@ function drawWaystarPhase1Attacks() {
                 ctx.globalAlpha = 1;
                 ctx.font = "bold 20px monospace";
                 ctx.textAlign = "center";
-                ctx.fillStyle = "#ff66ff";
+                ctx.fillStyle = "#ffffff";
                 ctx.fillText("⚠", 200, 0);
             } else if (a.activeTimer > 0) {
-                var activeAlpha = Math.min(1, a.activeTimer / 15);
-                ctx.globalAlpha = activeAlpha;
+                var activeAlpha2 = Math.min(1, a.activeTimer / 15);
+                ctx.globalAlpha = activeAlpha2;
+                // Внешнее свечение
                 var grad2 = ctx.createLinearGradient(0, -a.width, 0, a.width);
                 grad2.addColorStop(0, "rgba(255,0,255,0)");
                 grad2.addColorStop(0.5, "rgba(255,255,255,1)");
                 grad2.addColorStop(1, "rgba(255,0,255,0)");
                 ctx.fillStyle = grad2;
                 ctx.fillRect(0, -a.width, 800, a.width * 2);
+                // Ядро
                 ctx.fillStyle = "#ffffff";
                 ctx.fillRect(0, -a.width / 2, 800, a.width);
+                // Окантовка
                 ctx.fillStyle = "#ff00ff";
-                ctx.globalAlpha = activeAlpha * 0.7;
+                ctx.globalAlpha = activeAlpha2 * 0.7;
                 ctx.fillRect(0, -a.width / 2 + 8, 800, 10);
                 ctx.fillRect(0, a.width / 2 - 18, 800, 10);
             }
@@ -1978,12 +2149,12 @@ function drawWaystarDialog() {
     var t = performance.now() / 1000, pulse = 1 + Math.sin(t * 3) * 0.1;
     ctx.scale(pulse, pulse);
     
-    var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, 100);
-    glow.addColorStop(0, "rgba(255, 215, 0, 0.7)");
-    glow.addColorStop(0.5, "rgba(255, 170, 0, 0.3)");
+    var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, 125);
+    glow.addColorStop(0, "rgba(255, 215, 0, 0.8)");
+    glow.addColorStop(0.5, "rgba(255, 170, 0, 0.4)");
     glow.addColorStop(1, "transparent");
     ctx.fillStyle = glow;
-    ctx.beginPath(); ctx.arc(0, 0, 100, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, 125, 0, Math.PI * 2); ctx.fill();
     
     ctx.fillStyle = "#ffd700";
     ctx.beginPath();
@@ -2049,4 +2220,4 @@ function wrapText(text, maxWidth, ctx) {
 window.startWaystarFight = startWaystarFight;
 window.stopWaystarFight = stopWaystarFight;
 window.damageWaystarBoss = function(dmg) { if (waystarState === "phase1") waystarBossHp -= dmg; };
-console.log("[WAYSTAR] v5.3 — дробовик ослаблен + урон фазы 3 ×2 + пульки 2 фазы заметнее");
+console.log("[WAYSTAR] v5.4 — фикс гига-лазера + финальный диалог + анимации побега и разделения + свечение ×1.25");
