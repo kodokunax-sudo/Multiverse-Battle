@@ -281,7 +281,7 @@ function getWaystarChoices() {
     return [
         { id: 1, text: "Тебя это не касается! Ты тут не причем.", response: "В любом случае битва неизбежна." },
         { id: 2, text: "Это значит Рик... Я отомщу ему...!", response: "Да. Но чтобы пройти, ты должен победить меня." },
-        { id: 3, text: "Ебать, даже звезда разговаривает. Прямо как тот камень.", response: "Камень? Видимо он пропитался силой звёзд. Но я сильнее!" }
+        { id: 3, text: "Ебать, даже звезда разговаривает. Прямо как тот камень.", response: "Камень? Видимо он пропитался силой звёзд, поэтому он... Живой.... Но я сильнее!" }
     ];
 }
 
@@ -391,8 +391,8 @@ function waystarStartSplit2Animation() {
             if (!waystarActive) return;
             waystarState = "pre_phase2_dialog"; waystarDialogActive = true; waystarDialogStep = 0; waystarDialogAutoTimer = 0;
             waystarDialogQueue = [
-                { speaker: "🌟 Путеводная Звезда", text: "Я — ЛЕГИОН! Я — 60 ОСКОЛКОВ!" },
-                { speaker: "🌟 Путеводная Звезда", text: "Попробуй пробей каждого!" }
+                { speaker: "🌟 Путеводная Звезда", text: "Я — ЛЕГИОН! Я разделился на 60 ОСКОЛКОВ!" },
+                { speaker: "🌟 Путеводная Звезда", text: "Попробуй уничтожить каждого!" }
             ];
             for (var i = 0; i < waystarDialogQueue.length; i++) waystarDialogQueue[i].time = 2 + waystarDialogQueue[i].text.length * 0.04;
             waystarDialogOnComplete = function() { waystarStartPhase2(); };
@@ -808,8 +808,8 @@ function grantWaystarSpareDebt() {
         }
     } catch(e) { console.warn("[WAYSTAR] Не удалось сохранить флаг долга:", e); }
     if (typeof showFloatingText === 'function') {
-        showFloatingText("🤝 Звезда запомнила твою доброту", "#88ddff");
-        setTimeout(function() { showFloatingText("💫 Однажды она вернёт долг...", "#88ddff"); }, 1500);
+        showFloatingText("🤝Звезда запомнила твою доброту", "#88ddff");
+        setTimeout(function() { showFloatingText("💫Однажды она вернёт долг", "#88ddff"); }, 1500);
     }
 }
 
