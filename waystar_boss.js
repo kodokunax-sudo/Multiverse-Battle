@@ -848,7 +848,7 @@ function updateWaystarFinalScene() {
             }
         }
         else if (waystarFinalPhase === "kill_reward") {
-            if (waystarFinalTimer > 60) { waystarFinalPhase = "blackout"; waystarFinalTimer = 0; waystarWakeText = "Вы очнулись, но чувствуете себя плохо.\nПродолжайте путь..."; }
+            if (waystarFinalTimer > 60) { waystarFinalPhase = "blackout"; waystarFinalTimer = 0; waystarWakeText = "Вы убили Путеводную звезду и получи за это предмет..\nПродолжайте путь..."; }
         }
 
         // ★ ДИАЛОГ МИРНОЙ КОНЦОВКИ ★
