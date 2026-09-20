@@ -1,6 +1,6 @@
 // ============================================================
-// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v10.3
-// Рабочая версия + режим модера
+// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v10.4
+// Фикс финальной сцены (не зависает) + режим модера
 // ============================================================
 
 if (window._waystarBossLoaded === true) {
@@ -9,7 +9,7 @@ if (window._waystarBossLoaded === true) {
     window._waystarBossLoaded = true;
 
 // ★★★ НАСТРОЙКА РЕЖИМА МОДЕРА ★★★
-var WAYSTAR_MODER_DAMAGE = 1000000;
+var WAYSTAR_MODER_DAMAGE = 100000;
 
 // ========== ПРОВЕРКА РЕЖИМА МОДЕРА ==========
 function isWaystarModerActive() {
@@ -104,6 +104,7 @@ var waystarWakeText = "";
 var waystarWakeAlpha = 0;
 var waystarFinalRewardGiven = false;
 var waystarFinalDone = false;
+var waystarFinalWatchdog = 0;
 
 // ========== ЭФФЕКТЫ ==========
 function addWaystarShockwave(x, y, color, maxRadius, life, width) {
@@ -244,6 +245,7 @@ function startWaystarFight() {
     waystarFinalActive = false;
     waystarFinalPhase = "idle";
     waystarFinalTimer = 0;
+    waystarFinalWatchdog = 0;
     waystarChoiceSelection = null;
     waystarFinalRewardGiven = false;
     waystarFinalDone = false;
@@ -1260,17 +1262,26 @@ function waystarVictory() {
     waystarRewardGiven = true;
     console.log("[WAYSTAR] ПОБЕДА! Запуск финальной сцены");
 
+    // ★ ФИКС: принудительно выключаем всё старое ★
     waystarAttacks = [];
     waystarPlayerBullets = [];
     waystarEnemyBullets = [];
     waystarBombs = [];
     waystarDash = null;
+    waystarDialogActive = false;
+    waystarDialogQueue = [];
+    waystarDialogStep = 0;
+    waystarChoiceActive = false;
+    waystarChoiceResolved = false;
 
+    // ★ Включаем финальную сцену ★
     waystarFinalActive = true;
     waystarFinalPhase = "choice";
     waystarFinalTimer = 0;
+    waystarFinalWatchdog = 0;
     waystarChoiceSelection = null;
-    waystarDialogActive = false;
+
+    console.log("[WAYSTAR] Финальная сцена активна, фаза: choice");
 
     wsPlaySound(500, 'sine', 0.6, 0.2);
     setTimeout(function() { wsPlaySound(800, 'sine', 0.6, 0.2); }, 200);
@@ -1315,9 +1326,11 @@ function waystarDefeat() {
 function updateWaystarFinalScene() {
     if (!waystarFinalActive) return;
     waystarFinalTimer++;
+    waystarFinalWatchdog++;
 
-    if (waystarFinalTimer > 2400 && waystarFinalPhase !== "done") {
-        console.warn("[WAYSTAR] WATCHDOG: принудительное завершение финала");
+    // ★ WATCHDOG: если висим больше 40 секунд — принудительно завершаем ★
+    if (waystarFinalWatchdog > 2400 && waystarFinalPhase !== "done") {
+        console.warn("[WAYSTAR] WATCHDOG: принудительное завершение финала (фаза была: " + waystarFinalPhase + ")");
         waystarFinalPhase = "done";
         waystarFinalTimer = 0;
         return;
@@ -1497,6 +1510,7 @@ function updateWaystarFinalScene() {
 function waystarRenderLoop() {
     if (!waystarActive || !ctx || !canvas) return;
 
+    // ★ ФИНАЛЬНАЯ СЦЕНА — обрабатывается ПЕРВОЙ, если активна ★
     if (waystarFinalActive) {
         updateWaystarFinalScene();
         renderWaystarFinalScene();
@@ -1506,6 +1520,7 @@ function waystarRenderLoop() {
             p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life--;
             if (p.life <= 0) waystarParticles.splice(i, 1);
         }
+        for (var i = waystarTexts.length - 1; i >= 0; i--) { var t = waystarTexts[i]; t.y += t.vy; t.life--; if (t.life <= 0) waystarTexts.splice(i, 1); }
         if (waystarShake > 0.1) waystarShake *= 0.85;
         if (waystarScreenFlash > 0) waystarScreenFlash--;
         waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
@@ -2583,6 +2598,6 @@ window.stopWaystarFight = stopWaystarFight;
 window.damageWaystarBoss = function(dmg) { if (waystarState === "phase1") waystarBossHp -= dmg; };
 window.getWaystarActive = function() { return waystarActive; };
 
-console.log("[WAYSTAR] v10.3 загружено! Рабочая версия + режим модера");
+console.log("[WAYSTAR] v10.4 загружено! Фикс финальной сцены + режим модера (урон 100000)");
 
 } // ★ КОНЕЦ ЗАЩИТЫ ★
