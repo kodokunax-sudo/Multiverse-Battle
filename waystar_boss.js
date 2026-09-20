@@ -808,7 +808,7 @@ function grantWaystarSpareDebt() {
         }
     } catch(e) { console.warn("[WAYSTAR] Не удалось сохранить флаг долга:", e); }
     if (typeof showFloatingText === 'function') {
-        showFloatingText("🤝Звезда запомнила твою доброту", "#88ddff");
+        showFloatingText("🤝Звезда запомнила это", "#88ddff");
         setTimeout(function() { showFloatingText("💫Однажды она вернёт долг", "#88ddff"); }, 1500);
     }
 }
