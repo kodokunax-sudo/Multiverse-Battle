@@ -1,6 +1,6 @@
 // ============================================================
-// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v10.2
-// Замедленный темп + режим модера (10к урона, ∞ HP)
+// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v10.3
+// Рабочая версия + режим модера
 // ============================================================
 
 if (window._waystarBossLoaded === true) {
@@ -8,13 +8,10 @@ if (window._waystarBossLoaded === true) {
 } else {
     window._waystarBossLoaded = true;
 
+// ★★★ НАСТРОЙКА РЕЖИМА МОДЕРА ★★★
+var WAYSTAR_MODER_DAMAGE = 10000;
+
 // ========== ПРОВЕРКА РЕЖИМА МОДЕРА ==========
-function isWaystarModerMode() {
-    try {
-        return (typeof mode !== 'undefined' && mode === "moder") ||
-               (typeof moderUnlocked !== 'undefined' && moderUnlocked === true && typeof mode !== 'undefined' && mode === "moder");
-    } catch(e) { return false; }
-}
 function isWaystarModerActive() {
     try {
         return typeof mode !== 'undefined' && mode === "moder";
@@ -265,7 +262,6 @@ function startWaystarFight() {
     waystarSmallBoss = { x: 200, y: 100, size: 28, rotation: 0, pulse: 0, time: 0, alpha: 0, trail: [] };
     waystarPlayer = { x: 200, y: 430 };
 
-    // ★ РЕЖИМ МОДЕРА: бесконечное HP ★
     if (isWaystarModerActive()) {
         waystarPlayerHp = 999999;
         waystarPlayerMaxHp = 999999;
@@ -439,15 +435,14 @@ function updateWaystarShooting() {
     if (waystarState !== "phase1" && waystarState !== "phase3") return;
     if (waystarShootCooldown > 0) { waystarShootCooldown--; return; }
     waystarShootCooldown = waystarShootInterval;
-    
-    // ★ РЕЖИМ МОДЕРА: 10000 урона ★
+
     var dmgBase;
     if (isWaystarModerActive()) {
-        dmgBase = 1000ёё000;
+        dmgBase = WAYSTAR_MODER_DAMAGE;
     } else {
         dmgBase = Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4));
     }
-    
+
     waystarPlayerBullets.push({ x: waystarPlayer.x, y: waystarPlayer.y - 12, vy: -12, vx: 0, size: 5, damage: dmgBase, life: 80, trail: [] });
     addWaystarFlash(waystarPlayer.x, waystarPlayer.y - 12, 15);
     wsPlaySound(1100, 'square', 0.04, 0.06);
@@ -744,7 +739,7 @@ function waystarStartPhase3() {
     waystarSmallBoss.trail = [];
     waystarAttackTimer = 0;
     waystarAttackType = 0;
-    waystarTypeTimer = 400; // ★ ЗАМЕДЛЕНО: было 120
+    waystarTypeTimer = 400;
     waystarAmbientTimer = 0;
     waystarShootCooldown = 0;
     waystarRageMode = false;
@@ -971,7 +966,6 @@ function updateWaystarBoss() {
         waystarBoss.time += 0.02;
     } else if (waystarState === "phase3") {
         waystarSmallBoss.alpha = Math.min(1, waystarSmallBoss.alpha + 0.02);
-        // ★ ЗАМЕДЛЕНО: было 2.2/1.6 ★
         var mSpeed = waystarRageMode ? 1.6 : 1.1;
         mSpeed += waystarEscalationLevel * 0.1;
         waystarSmallBoss.x += Math.sin(waystarSmallBoss.time) * mSpeed * waystarSpeedMult;
@@ -1219,12 +1213,11 @@ function distToSegment(px, py, x1, y1, x2, y2) {
 }
 
 function applyWaystarHit(dmg, textMsg) {
-    // ★ РЕЖИМ МОДЕРА: не получаем урон ★
     if (isWaystarModerActive()) {
         if (textMsg && typeof showFloatingText === 'function') showFloatingText(textMsg + " (∞ HP)", "#ffff00");
         return;
     }
-    
+
     if (waystarInvulnTimer > 0) return;
     waystarPlayerHp -= dmg;
     waystarInvulnTimer = 40;
@@ -1300,12 +1293,11 @@ function grantWaystarReward() {
 }
 
 function waystarDefeat() {
-    // ★ РЕЖИМ МОДЕРА: не умираем ★
     if (isWaystarModerActive()) {
         waystarPlayerHp = 999999;
         return;
     }
-    
+
     console.log("[WAYSTAR] Поражение");
     waystarState = "defeat";
     if (typeof showFloatingText === 'function') showFloatingText("ТЫ ПАЛ...", "#ff0000");
@@ -1622,7 +1614,6 @@ function waystarRenderLoop() {
                 }
             }
 
-            // ★ ЗАМЕДЛЕНО: было 75, теперь 130 ★
             var escalationMult = 1 - waystarEscalationLevel * 0.05;
             if (escalationMult < 0.75) escalationMult = 0.75;
             var aRate = Math.floor((130 / waystarSpeedMult) * escalationMult);
@@ -1642,7 +1633,6 @@ function waystarRenderLoop() {
             waystarTypeTimer--;
             if (waystarTypeTimer <= 0) {
                 waystarAttackType = Math.floor(Math.random() * 6);
-                // ★ ЗАМЕДЛЕНО: было 180/260 ★
                 var typeBase = waystarRageMode ? 350 : 500;
                 var typeEsc = typeBase - waystarEscalationLevel * 20;
                 if (typeEsc < 280) typeEsc = 280;
@@ -1808,7 +1798,6 @@ function waystarRenderLoop() {
         ctx.restore();
     }
 
-    // ★ Индикатор модера ★
     if (isWaystarModerActive()) {
         ctx.save();
         ctx.font = "bold 11px monospace";
@@ -2528,16 +2517,17 @@ function drawWaystarHpBars() {
     ctx.restore();
 
     var y2 = 478; ctx.save(); ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(x - 4, y2 - 4, barW + 8, 20); ctx.fillStyle = "#2a0000"; ctx.fillRect(x, y2, barW, 12);
-    var r2 = Math.max(0, waystarPlayerHp / waystarPlayerMaxHp);
     if (isWaystarModerActive()) {
         ctx.fillStyle = "#ffd700";
         ctx.fillRect(x, y2, barW, 12);
-        ctx.fillStyle = "#fff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText("∞ HP (МОДЕР)", x + barW / 2, y2 + 10);
+        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.strokeRect(x, y2, barW, 12);
+        ctx.fillStyle = "#000"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText("∞ HP (МОДЕР)", x + barW / 2, y2 + 10);
     } else {
+        var r2 = Math.max(0, waystarPlayerHp / waystarPlayerMaxHp);
         ctx.fillStyle = r2 > 0.3 ? "#00ff66" : "#ff3333"; ctx.fillRect(x, y2, barW * r2, 12);
+        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.strokeRect(x, y2, barW, 12);
         ctx.fillStyle = "#fff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText(Math.ceil(waystarPlayerHp) + " / " + waystarPlayerMaxHp, x + barW / 2, y2 + 10);
     }
-    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.strokeRect(x, y2, barW, 12);
     ctx.restore();
 }
 
@@ -2593,6 +2583,6 @@ window.stopWaystarFight = stopWaystarFight;
 window.damageWaystarBoss = function(dmg) { if (waystarState === "phase1") waystarBossHp -= dmg; };
 window.getWaystarActive = function() { return waystarActive; };
 
-console.log("[WAYSTAR] v10.2 загружено! Замедленный темп + режим модера");
+console.log("[WAYSTAR] v10.3 загружено! Рабочая версия + режим модера");
 
 } // ★ КОНЕЦ ЗАЩИТЫ ★
