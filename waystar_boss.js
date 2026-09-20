@@ -9,7 +9,7 @@ if (window._waystarBossLoaded === true) {
     window._waystarBossLoaded = true;
 
 // ★★★ НАСТРОЙКА РЕЖИМА МОДЕРА ★★★
-var WAYSTAR_MODER_DAMAGE = 10000;
+var WAYSTAR_MODER_DAMAGE = 1000000;
 
 // ========== ПРОВЕРКА РЕЖИМА МОДЕРА ==========
 function isWaystarModerActive() {
