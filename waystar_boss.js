@@ -1,6 +1,6 @@
 // ============================================================
-// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v10.6
-// Мирная концовка: без Живого Камня
+// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v10.7
+// Правильная мирная концовка: благодарность, долг, без предмета
 // ============================================================
 
 if (window._waystarBossLoaded === true) {
@@ -93,6 +93,11 @@ var waystarFinalDone = false;
 var waystarFinalWatchdog = 0;
 var waystarSpareBlessing = { active: false, progress: 0, flash: 0 };
 
+// ★ Диалог мирной концовки ★
+var waystarSpareDialog = [];
+var waystarSpareDialogStep = 0;
+var waystarSpareDialogTimer = 0;
+
 function addWaystarShockwave(x, y, color, maxRadius, life, width) {
     if (width === undefined) width = 4;
     waystarShockwaves.push({ x: x, y: y, radius: 10, maxRadius: maxRadius, life: life, maxLife: life, color: color, width: width });
@@ -173,6 +178,9 @@ function startWaystarFight() {
     waystarStoneText = "";
     waystarStone = { x: 200, y: 480, size: 40, alpha: 0, rotation: 0, scale: 1, vx: 0, vy: 0 };
     waystarSpareBlessing = { active: false, progress: 0, flash: 0 };
+    waystarSpareDialog = [];
+    waystarSpareDialogStep = 0;
+    waystarSpareDialogTimer = 0;
     var playerDmg = (typeof window.playerFinalDamage !== 'undefined') ? window.playerFinalDamage : 100;
     waystarBossMaxHp = Math.max(25000, playerDmg * 120);
     waystarBossHp = waystarBossMaxHp;
@@ -537,13 +545,21 @@ function handleWaystarClick(ev) {
             }
             if (my > spareY && my < spareY + btnH) {
                 waystarChoiceSelection = "spare";
-                waystarFinalPhase = "spare_thanks";
+                waystarFinalPhase = "spare_dialog";
                 waystarFinalTimer = 0;
+                waystarSpareDialogStep = 0;
+                waystarSpareDialogTimer = 0;
+                setupWaystarSpareDialog();
                 wsPlaySound(500, 'sine', 0.6, 0.25);
-                console.log("[WAYSTAR] Выбор: ПОЩАДИТЬ → spare_thanks");
+                console.log("[WAYSTAR] Выбор: ПОЩАДИТЬ → spare_dialog");
                 return;
             }
         }
+    }
+    // Клик по диалогу мирной концовки — пропускаем
+    if (waystarFinalActive && waystarFinalPhase === "spare_dialog") {
+        advanceWaystarSpareDialog();
+        return;
     }
     if (waystarDialogActive) {
         if (waystarChoiceActive) {
@@ -560,13 +576,45 @@ function handleWaystarClick(ev) {
 function handleWaystarTouchStart(ev) {
     if (!waystarActive) return;
     ev.preventDefault();
-    if (waystarDialogActive || (waystarFinalActive && waystarFinalPhase === "choice")) { var t = ev.touches[0]; handleWaystarClick({ clientX: t.clientX, clientY: t.clientY }); return; }
+    if (waystarDialogActive || (waystarFinalActive && (waystarFinalPhase === "choice" || waystarFinalPhase === "spare_dialog"))) { var t = ev.touches[0]; handleWaystarClick({ clientX: t.clientX, clientY: t.clientY }); return; }
     if (ev.touches.length > 0) { var rect = canvas.getBoundingClientRect(); waystarTouchActive = true; waystarTouchId = ev.touches[0].identifier; waystarTouchX = ev.touches[0].clientX - rect.left; waystarTouchY = ev.touches[0].clientY - rect.top; }
 }
 function handleWaystarTouchMove(ev) { if (!waystarActive || !waystarTouchActive) return; ev.preventDefault(); var rect = canvas.getBoundingClientRect(); for (var i = 0; i < ev.touches.length; i++) if (ev.touches[i].identifier === waystarTouchId) { waystarTouchX = ev.touches[i].clientX - rect.left; waystarTouchY = ev.touches[i].clientY - rect.top; break; } }
 function handleWaystarTouchEnd(ev) { if (!waystarTouchActive) return; var still = false; for (var i = 0; i < ev.touches.length; i++) if (ev.touches[i].identifier === waystarTouchId) { still = true; break; } if (!still) { waystarTouchActive = false; waystarTouchId = null; } }
 function handleWaystarKeyDown(ev) { if (!waystarActive) return; waystarKeys[ev.key.toLowerCase()] = true; }
 function handleWaystarKeyUp(ev) { if (!waystarActive) return; waystarKeys[ev.key.toLowerCase()] = false; }
+
+// ★ ДИАЛОГ МИРНОЙ КОНЦОВКИ ★
+function setupWaystarSpareDialog() {
+    waystarSpareDialog = [
+        { speaker: "🌟 Путеводная Звезда", text: "Ты... ты пощадил меня?" },
+        { speaker: "🌟 Путеводная Звезда", text: "Прости меня, путник. Я не хотела с тобой сражаться." },
+        { speaker: "🌟 Путеводная Звезда", text: "Я просто... не могла тебя пропустить дальше." },
+        { speaker: "🌟 Путеводная Звезда", text: "За этим рубежом — места, куда не ступала нога ни одного живого существа. Там правит сама смерть." },
+        { speaker: "🌟 Путеводная Звезда", text: "Я видела, как тысячи сильных мира сего уходили туда — и не возвращались." },
+        { speaker: "🌟 Путеводная Звезда", text: "Я думала, что ты станешь ещё одним. Что ты не готов." },
+        { speaker: "🌟 Путеводная Звезда", text: "Но ты победил меня. Ты оказался сильнее, чем я могла себе представить." },
+        { speaker: "🌟 Путеводная Звезда", text: "Значит... ты готов. Ты действительно готов идти дальше." },
+        { speaker: "🌟 Путеводная Звезда", text: "Иди, путник. Путь перед тобой открыт." },
+        { speaker: "🌟 Путеводная Звезда", text: "И знай — я в долгу перед тобой. Однажды, когда тебе будет тяжело..." },
+        { speaker: "🌟 Путеводная Звезда", text: "...я приду на помощь. Обещаю." },
+        { speaker: "🌟 Путеводная Звезда", text: "Прощай, герой. Пусть звёзды осветят твой путь." }
+    ];
+    waystarSpareDialogStep = 0;
+    waystarSpareDialogTimer = 0;
+}
+
+function advanceWaystarSpareDialog() {
+    waystarSpareDialogStep++;
+    waystarSpareDialogTimer = 0;
+    wsPlaySound(700, 'triangle', 0.05, 0.1);
+    if (waystarSpareDialogStep >= waystarSpareDialog.length) {
+        waystarFinalPhase = "spare_blessing";
+        waystarFinalTimer = 0;
+        waystarSpareBlessing = { active: true, progress: 0, flash: 0 };
+        console.log("[WAYSTAR] Финал: диалог завершён, благословение");
+    }
+}
 
 function updateWaystarPlayer() {
     if (waystarState === "phase2") {
@@ -720,14 +768,18 @@ function waystarVictory() {
     waystarFinalWatchdog = 0;
     waystarChoiceSelection = null;
     waystarSpareBlessing = { active: false, progress: 0, flash: 0 };
+    waystarSpareDialog = [];
+    waystarSpareDialogStep = 0;
+    waystarSpareDialogTimer = 0;
     if (waystarAnimFrame) { try { cancelAnimationFrame(waystarAnimFrame); } catch(e) {} }
     waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
     wsPlaySound(500, 'sine', 0.6, 0.2);
     setTimeout(function() { wsPlaySound(800, 'sine', 0.6, 0.2); }, 200);
 }
 
+// ★ Награда за убийство (с предметом) ★
 function grantWaystarReward() {
-    console.log("[WAYSTAR] Выдача награды");
+    console.log("[WAYSTAR] Выдача награды (убийство)");
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(500)) { defeatedBosses.push(500); if (typeof saveAll === 'function') saveAll(); }
     if (typeof addItem === 'function') addItem("waystar", 1);
     if (typeof secretGachaTokens !== 'undefined') secretGachaTokens = (secretGachaTokens || 0) + 1;
@@ -736,6 +788,28 @@ function grantWaystarReward() {
         showFloatingText("⭐ ПОБЕДА! ⭐", "#ffd700");
         setTimeout(function() { showFloatingText("🌟 Путеводная Звезда получена!", "#ffd700"); }, 600);
         setTimeout(function() { showFloatingText("💎 +1 СЕКРЕТНЫЙ ТОКЕН", "#ff00ff"); }, 1200);
+    }
+}
+
+// ★ Награда за пощаду (БЕЗ предмета, только долг) ★
+function grantWaystarSpareDebt() {
+    console.log("[WAYSTAR] Пощада: долг записан (без предмета)");
+    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(500)) { defeatedBosses.push(500); if (typeof saveAll === 'function') saveAll(); }
+    // ★ Предмет НЕ ДАЁТСЯ ★
+    // ★ Записываем флаг долга в глобальные данные ★
+    try {
+        if (typeof window !== 'undefined') {
+            window.waystarOwesDebt = true;
+            // Пытаемся сохранить в slotData, если он есть
+            if (typeof slotData !== 'undefined' && slotData) {
+                slotData.waystarOwesDebt = true;
+                if (typeof saveAll === 'function') saveAll();
+            }
+        }
+    } catch(e) { console.warn("[WAYSTAR] Не удалось сохранить флаг долга:", e); }
+    if (typeof showFloatingText === 'function') {
+        showFloatingText("🤝 Звезда запомнила твою доброту", "#88ddff");
+        setTimeout(function() { showFloatingText("💫 Однажды она вернёт долг...", "#88ddff"); }, 1500);
     }
 }
 
@@ -757,7 +831,7 @@ function updateWaystarFinalScene() {
         waystarFinalTimer++;
         waystarFinalWatchdog++;
 
-        if (waystarFinalWatchdog > 2400 && waystarFinalPhase !== "done") {
+        if (waystarFinalWatchdog > 3000 && waystarFinalPhase !== "done") {
             console.warn("[WAYSTAR] WATCHDOG (фаза: " + waystarFinalPhase + ")");
             waystarFinalPhase = "done";
             waystarFinalTimer = 0;
@@ -777,43 +851,41 @@ function updateWaystarFinalScene() {
             if (waystarFinalTimer > 60) { waystarFinalPhase = "blackout"; waystarFinalTimer = 0; waystarWakeText = "Вы очнулись, но чувствуете себя плохо.\nПродолжайте путь..."; }
         }
 
-        // ★★★ МИРНАЯ КОНЦОВКА — без Живого Камня ★★★
-        else if (waystarFinalPhase === "spare_thanks") {
-            // Звезда благодарит, светится мягким светом
+        // ★ ДИАЛОГ МИРНОЙ КОНЦОВКИ ★
+        else if (waystarFinalPhase === "spare_dialog") {
+            // Звезда мягко светится, летят золотые частицы
             if (waystarFinalTimer % 3 === 0) {
-                spawnWaystarParticles(waystarSmallBoss.x + (Math.random()-0.5)*80, waystarSmallBoss.y + (Math.random()-0.5)*80, 2, ["#ffd700", "#ffffff", "#88ddff"][Math.floor(Math.random()*3)], 4);
+                spawnWaystarParticles(waystarSmallBoss.x + (Math.random()-0.5)*60, waystarSmallBoss.y + (Math.random()-0.5)*60, 1, ["#ffd700", "#88ddff", "#ffffff"][Math.floor(Math.random()*3)], 3);
             }
-            if (waystarFinalTimer % 20 === 0) {
-                addWaystarShockwave(waystarSmallBoss.x, waystarSmallBoss.y, "#ffd700", 150, 25, 3);
-                wsPlaySound(600 + Math.random()*200, 'sine', 0.4, 0.12);
-            }
-            if (waystarFinalTimer > 150) {
-                waystarFinalPhase = "spare_blessing";
-                waystarFinalTimer = 0;
-                waystarSpareBlessing = { active: true, progress: 0, flash: 0 };
-                console.log("[WAYSTAR] Финал: благословение");
-                wsPlaySound(700, 'sine', 0.6, 0.2);
+            // Свечение пульсирует
+            waystarSmallBoss.pulse += 0.1;
+            // Автопрогресс диалога
+            waystarSpareDialogTimer++;
+            var currentLine = waystarSpareDialog[waystarSpareDialogStep];
+            if (currentLine) {
+                var lineDuration = 3 + currentLine.text.length * 0.05;
+                if (waystarSpareDialogTimer > lineDuration * 60) {
+                    advanceWaystarSpareDialog();
+                }
             }
         }
         else if (waystarFinalPhase === "spare_blessing") {
-            // Луч света от звезды к игроку
+            // Луч света от звезды в игрока
             var beamProgress = Math.min(1, waystarFinalTimer / 90);
             if (waystarFinalTimer % 2 === 0) {
                 var bx = waystarSmallBoss.x + (waystarPlayer.x - waystarSmallBoss.x) * beamProgress;
                 var by = waystarSmallBoss.y + (waystarPlayer.y - waystarSmallBoss.y) * beamProgress;
-                spawnWaystarParticles(bx, by, 3, "#ffd700", 3);
+                spawnWaystarParticles(bx, by, 2, "#ffd700", 3);
                 spawnWaystarParticles(bx + (Math.random()-0.5)*20, by + (Math.random()-0.5)*20, 1, "#ffffff", 2);
             }
             if (waystarFinalTimer % 4 === 0) {
                 addWaystarLightning(waystarSmallBoss.x, waystarSmallBoss.y, waystarPlayer.x, waystarPlayer.y, "#ffd700", 0.9, 3);
             }
-            // Звезда светится всё ярче
             waystarSmallBoss.pulse += 0.3;
             if (waystarFinalTimer % 10 === 0) {
                 addWaystarShockwave(waystarSmallBoss.x, waystarSmallBoss.y, "#ffd700", 100, 15, 2);
             }
             if (waystarFinalTimer >= 90) {
-                // Луч достиг игрока — вспышка
                 waystarScreenFlash = 40;
                 waystarScreenFlashColor = "#ffd700";
                 for (var i = 0; i < 60; i++) {
@@ -823,44 +895,42 @@ function updateWaystarFinalScene() {
                 wsPlaySound(500, 'sine', 0.8, 0.25);
                 setTimeout(function() { wsPlaySound(700, 'sine', 0.6, 0.2); }, 150);
                 setTimeout(function() { wsPlaySound(1000, 'sine', 0.8, 0.25); }, 300);
-                console.log("[WAYSTAR] Финал: благословение передано");
-                waystarFinalPhase = "spare_fade";
+                // ★ Записываем долг, НЕ ДАЁМ предмет ★
+                grantWaystarSpareDebt();
+                waystarFinalPhase = "spare_farewell";
                 waystarFinalTimer = 0;
+                console.log("[WAYSTAR] Финал: благословение передано, долг записан");
             }
         }
-        else if (waystarFinalPhase === "spare_fade") {
-            // Звезда медленно растворяется в свете
-            waystarSmallBoss.alpha -= 0.012;
-            waystarSmallBoss.size *= 0.995;
-            if (waystarFinalTimer % 3 === 0) {
-                spawnWaystarParticles(waystarSmallBoss.x + (Math.random()-0.5)*50, waystarSmallBoss.y + (Math.random()-0.5)*50, 2, "#ffd700", 2);
-                spawnWaystarParticles(waystarSmallBoss.x + (Math.random()-0.5)*30, waystarSmallBoss.y + (Math.random()-0.5)*30, 1, "#ffffff", 1.5);
+        else if (waystarFinalPhase === "spare_farewell") {
+            // Звезда прощается и растворяется
+            waystarSmallBoss.alpha -= 0.008;
+            waystarSmallBoss.size *= 0.997;
+            if (waystarFinalTimer % 4 === 0) {
+                spawnWaystarParticles(waystarSmallBoss.x + (Math.random()-0.5)*50, waystarSmallBoss.y + (Math.random()-0.5)*50, 1, ["#ffd700", "#88ddff"][Math.floor(Math.random()*2)], 1.5);
             }
-            if (waystarFinalTimer % 20 === 0) {
-                addWaystarShockwave(waystarSmallBoss.x, waystarSmallBoss.y, "#ffd700", 120, 25, 2);
-                wsPlaySound(800 + Math.random()*400, 'sine', 0.5, 0.1);
+            if (waystarFinalTimer % 30 === 0) {
+                addWaystarShockwave(waystarSmallBoss.x, waystarSmallBoss.y, "#ffd700", 100, 20, 2);
+                wsPlaySound(700 + Math.random()*300, 'sine', 0.5, 0.08);
             }
-            if (waystarSmallBoss.alpha <= 0 || waystarFinalTimer > 200) {
+            if (waystarSmallBoss.alpha <= 0 || waystarFinalTimer > 250) {
                 waystarSmallBoss.alpha = 0;
-                // Финальная вспышка
                 waystarScreenFlash = 30;
                 waystarScreenFlashColor = "#ffd700";
-                for (var i = 0; i < 100; i++) {
-                    spawnWaystarParticles(200 + (Math.random()-0.5)*400, 100 + (Math.random()-0.5)*200, 1, ["#ffd700", "#ffffff", "#88ddff"][Math.floor(Math.random()*3)], 10);
+                for (var i = 0; i < 80; i++) {
+                    spawnWaystarParticles(200 + (Math.random()-0.5)*400, 100 + (Math.random()-0.5)*200, 1, ["#ffd700", "#ffffff", "#88ddff"][Math.floor(Math.random()*3)], 8);
                 }
-                addWaystarShockwave(200, 100, "#ffd700", 400, 40, 6);
-                addWaystarShockwave(200, 100, "#ffffff", 300, 30, 4);
-                wsPlaySound(400, 'sine', 1.2, 0.3);
-                setTimeout(function() { wsPlaySound(600, 'sine', 1.0, 0.25); }, 200);
-                setTimeout(function() { wsPlaySound(900, 'sine', 1.5, 0.3); }, 400);
-                grantWaystarReward();
-                if (typeof showFloatingText === 'function') showFloatingText("🌟 ЗВЕЗДА ОСВОБОЖДЕНА!", "#ffd700");
+                addWaystarShockwave(200, 100, "#ffd700", 350, 35, 5);
+                addWaystarShockwave(200, 100, "#ffffff", 280, 28, 3);
+                wsPlaySound(400, 'sine', 1.0, 0.25);
+                setTimeout(function() { wsPlaySound(600, 'sine', 1.0, 0.2); }, 200);
+                setTimeout(function() { wsPlaySound(900, 'sine', 1.2, 0.25); }, 400);
                 console.log("[WAYSTAR] Финал: звезда растворилась");
                 setTimeout(function() {
                     if (!waystarFinalActive) return;
                     waystarFinalPhase = "blackout";
                     waystarFinalTimer = 0;
-                    waystarWakeText = "Звезда растворилась в тёплом свете...\n\nВы чувствуете себя лучше. Милосердие было вознаграждено.";
+                    waystarWakeText = "Звезда исчезла в тёплом свете...\n\nПуть перед тобой открыт. Ты готов.\n\nОна запомнила твою доброту. Однажды... она вернёт долг.";
                 }, 1500);
             }
         }
@@ -872,7 +942,7 @@ function updateWaystarFinalScene() {
         else if (waystarFinalPhase === "wakeup") {
             waystarBlackoutAlpha = 1;
             waystarWakeAlpha = Math.min(1, waystarWakeAlpha + 0.02);
-            if (waystarFinalTimer > 240) { waystarFinalPhase = "done"; waystarFinalTimer = 0; }
+            if (waystarFinalTimer > 300) { waystarFinalPhase = "done"; waystarFinalTimer = 0; }
         }
         else if (waystarFinalPhase === "done") {
             if (!waystarFinalDone) {
@@ -903,10 +973,7 @@ function waystarRenderLoop() {
             for (var i = waystarTexts.length - 1; i >= 0; i--) { var t = waystarTexts[i]; t.y += t.vy; t.life--; if (t.life <= 0) waystarTexts.splice(i, 1); }
             if (waystarShake > 0.1) waystarShake *= 0.85;
             if (waystarScreenFlash > 0) waystarScreenFlash--;
-        } catch(e) {
-            console.error("[WAYSTAR] ОШИБКА в финале (render):", e);
-            waystarFinalPhase = "done";
-        }
+        } catch(e) { console.error("[WAYSTAR] ОШИБКА в финале:", e); waystarFinalPhase = "done"; }
         waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
         return;
     }
@@ -1054,15 +1121,10 @@ function renderWaystarFinalScene() {
         ctx.save();
         if (waystarShake > 0.5) ctx.translate((Math.random() - 0.5) * waystarShake, (Math.random() - 0.5) * waystarShake);
         var bg = ctx.createLinearGradient(0, 0, 0, 500);
-        if (waystarFinalPhase === "spare_thanks" || waystarFinalPhase === "spare_blessing" || waystarFinalPhase === "spare_fade") {
-            // Тёплые цвета для мирной концовки
-            bg.addColorStop(0, "#15100a");
-            bg.addColorStop(0.5, "#1a1530");
-            bg.addColorStop(1, "#000000");
+        if (waystarFinalPhase === "spare_dialog" || waystarFinalPhase === "spare_blessing" || waystarFinalPhase === "spare_farewell") {
+            bg.addColorStop(0, "#15100a"); bg.addColorStop(0.5, "#1a1530"); bg.addColorStop(1, "#000000");
         } else {
-            bg.addColorStop(0, "#0a0015");
-            bg.addColorStop(0.5, "#1a0025");
-            bg.addColorStop(1, "#000000");
+            bg.addColorStop(0, "#0a0015"); bg.addColorStop(0.5, "#1a0025"); bg.addColorStop(1, "#000000");
         }
         ctx.fillStyle = bg; ctx.fillRect(0, 0, 400, 500);
         for (var i = 0; i < waystarBgStars.length; i++) { var s = waystarBgStars[i]; s.twinkle += 0.1; ctx.globalAlpha = s.alpha * (0.5 + Math.sin(s.twinkle) * 0.5); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill(); }
@@ -1072,26 +1134,12 @@ function renderWaystarFinalScene() {
         for (var i = 0; i < waystarLightningBolts.length; i++) { var lb = waystarLightningBolts[i]; ctx.save(); ctx.globalAlpha = (lb.life / lb.maxLife) * 0.9; ctx.strokeStyle = lb.color; ctx.lineWidth = lb.width; ctx.beginPath(); ctx.moveTo(lb.x1, lb.y1); for (var p = 0; p < lb.pts.length; p++) ctx.lineTo(lb.pts[p].x, lb.pts[p].y); ctx.lineTo(lb.x2, lb.y2); ctx.stroke(); ctx.restore(); }
         for (var i = 0; i < waystarShockwaves.length; i++) { var sw = waystarShockwaves[i]; var progress = 1 - sw.life / sw.maxLife; ctx.save(); ctx.globalAlpha = (1 - progress) * 0.8; ctx.strokeStyle = sw.color; ctx.lineWidth = sw.width * (1 - progress); ctx.beginPath(); ctx.arc(sw.x, sw.y, Math.max(0.1, sw.radius), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
         for (var i = 0; i < waystarFlashBursts.length; i++) { var fb = waystarFlashBursts[i]; ctx.save(); ctx.globalAlpha = (fb.life / fb.maxLife) * 0.6; var r = fb.size * (1 - fb.life / fb.maxLife + 0.5); var g = ctx.createRadialGradient(fb.x, fb.y, 0, fb.x, fb.y, r); g.addColorStop(0, "#ffffff"); g.addColorStop(0.4, "rgba(255,215,0,0.4)"); g.addColorStop(1, "transparent"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(fb.x, fb.y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-
-        // Звезда (в мирной концовке показывается до полного исчезновения)
         if (waystarSmallBoss.alpha > 0) { drawWaystarSmallBoss(); }
-        // Игрок (в kill-ветке)
-        if (waystarFinalPhase !== "blackout" && waystarFinalPhase !== "wakeup" && waystarFinalPhase !== "done") { drawWaystarPlayer(); }
-
+        if (waystarFinalPhase !== "blackout" && waystarFinalPhase !== "wakeup" && waystarFinalPhase !== "done" && waystarFinalPhase !== "spare_dialog" && waystarFinalPhase !== "spare_blessing" && waystarFinalPhase !== "spare_farewell") { drawWaystarPlayer(); }
         if (waystarFinalPhase === "choice") { drawWaystarFinalChoice(); }
-
-        // Текст для мирной ветки
-        if (waystarFinalPhase === "spare_thanks" && waystarFinalTimer > 30) {
-            ctx.save();
-            ctx.font = "italic bold 16px monospace";
-            ctx.textAlign = "center";
-            ctx.fillStyle = "#ffd700";
-            ctx.shadowColor = "#ffd700";
-            ctx.shadowBlur = 12;
-            var pulse = 0.85 + Math.abs(Math.sin(waystarFinalTimer / 20)) * 0.15;
-            ctx.globalAlpha = pulse;
-            ctx.fillText("«Спасибо тебе, путник...»", 200, 380);
-            ctx.restore();
+        // ★ Рисуем диалог мирной концовки ★
+        if (waystarFinalPhase === "spare_dialog") {
+            drawWaystarSpareDialog();
         }
         if (waystarFinalPhase === "spare_blessing" && waystarFinalTimer > 30) {
             ctx.save();
@@ -1101,10 +1149,10 @@ function renderWaystarFinalScene() {
             ctx.shadowColor = "#88ddff";
             ctx.shadowBlur = 12;
             ctx.globalAlpha = 0.85 + Math.abs(Math.sin(waystarFinalTimer / 15)) * 0.15;
-            ctx.fillText("«Возьми мой свет...»", 200, 380);
+            ctx.fillText("«Иди, герой. Путь открыт...»", 200, 400);
             ctx.restore();
         }
-        if (waystarFinalPhase === "spare_fade" && waystarFinalTimer > 30) {
+        if (waystarFinalPhase === "spare_farewell" && waystarFinalTimer > 30) {
             ctx.save();
             ctx.font = "italic bold 14px monospace";
             ctx.textAlign = "center";
@@ -1113,18 +1161,51 @@ function renderWaystarFinalScene() {
             ctx.shadowBlur = 12;
             var fadeAlpha = Math.min(1, (waystarFinalTimer - 30) / 40);
             ctx.globalAlpha = fadeAlpha * 0.9;
-            ctx.fillText("«Пусть свет ведёт тебя дальше...»", 200, 380);
+            ctx.fillText("«Прощай...»", 200, 400);
             ctx.restore();
         }
-
         if (waystarBlackoutAlpha > 0) { ctx.save(); ctx.globalAlpha = waystarBlackoutAlpha; ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
-        if (waystarWakeText && waystarWakeAlpha > 0) { ctx.save(); ctx.globalAlpha = waystarWakeAlpha; ctx.font = "bold 18px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#aaaaaa"; ctx.shadowBlur = 10; var lines = waystarWakeText.split("\n"); for (var i = 0; i < lines.length; i++) { ctx.fillText(lines[i], 200, 200 + i * 28); } ctx.restore(); }
+        if (waystarWakeText && waystarWakeAlpha > 0) { ctx.save(); ctx.globalAlpha = waystarWakeAlpha; ctx.font = "bold 17px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#aaaaaa"; ctx.shadowBlur = 10; var lines = waystarWakeText.split("\n"); for (var i = 0; i < lines.length; i++) { ctx.fillText(lines[i], 200, 180 + i * 26); } ctx.restore(); }
         if (waystarVignette > 0) { var vg = ctx.createRadialGradient(200, 250, 100, 200, 250, 400); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(255,0,0," + (waystarVignette / 30) + ")"); ctx.fillStyle = vg; ctx.fillRect(0, 0, 400, 500); }
         if (waystarScreenFlash > 0) { ctx.globalAlpha = waystarScreenFlash / 40; ctx.fillStyle = waystarScreenFlashColor; ctx.fillRect(0, 0, 400, 500); ctx.globalAlpha = 1; }
         ctx.restore();
-    } catch(e) {
-        console.error("[WAYSTAR] ОШИБКА в renderWaystarFinalScene:", e);
+    } catch(e) { console.error("[WAYSTAR] ОШИБКА в renderWaystarFinalScene:", e); }
+}
+
+function drawWaystarSpareDialog() {
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+    ctx.fillRect(0, 0, 400, 500);
+    // Звезда сверху
+    ctx.save();
+    ctx.translate(200, 90);
+    var t = performance.now() / 1000;
+    var pulse = 1 + Math.sin(t * 3) * 0.12;
+    ctx.scale(pulse, pulse);
+    var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, 125);
+    glow.addColorStop(0, "rgba(255, 215, 0, 0.9)");
+    glow.addColorStop(0.5, "rgba(255, 200, 100, 0.5)");
+    glow.addColorStop(1, "transparent");
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(0, 0, 125, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffd700";
+    ctx.beginPath(); for (var i = 0; i < 16; i++) { var ang = (i / 16) * Math.PI * 2 - Math.PI / 2, r = (i % 2 === 0) ? 42 : 18; if (i === 0) ctx.moveTo(Math.cos(ang)*r, Math.sin(ang)*r); else ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r); } ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    var currentLine = waystarSpareDialog[waystarSpareDialogStep];
+    if (currentLine) {
+        ctx.font = "bold 15px Nunito, sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd700"; ctx.fillText(currentLine.speaker, 200, 175);
+        ctx.font = "bold 15px Nunito, sans-serif"; ctx.fillStyle = "#ffffff";
+        var lines = wrapText(currentLine.text, 360, ctx);
+        for (var i = 0; i < lines.length; i++) { ctx.fillText(lines[i], 200, 205 + i * 24); }
+        // Подсказка
+        ctx.globalAlpha = 0.5 + Math.sin(t * 5) * 0.5;
+        ctx.font = "12px monospace"; ctx.fillStyle = "#aaaaaa";
+        ctx.fillText(">> Кликните для продолжения (" + (waystarSpareDialogStep + 1) + "/" + waystarSpareDialog.length + ") <<", 200, 480);
+        ctx.globalAlpha = 1;
     }
+    ctx.restore();
 }
 
 function drawWaystarFinalChoice() {
@@ -1164,17 +1245,12 @@ function drawWaystarSmallBoss() {
     var b = waystarSmallBoss; if (b.alpha <= 0) return; var pulse = 1 + Math.sin(b.pulse) * (waystarRageMode ? 0.32 : 0.2); var size = b.size * pulse;
     ctx.save(); ctx.translate(b.x, b.y); ctx.globalAlpha = b.alpha;
     for (var i = 0; i < b.trail.length; i++) { var tr = b.trail[i]; var alpha = (tr.life / tr.maxLife) * 0.5; ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = waystarRageMode ? "#ff0000" : "#ff00ff"; ctx.beginPath(); ctx.arc(tr.x - b.x, tr.y - b.y, size * (tr.life / tr.maxLife) * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-    // В мирной концовке звезда светится золотым
-    var isSpare = (waystarFinalActive && (waystarFinalPhase === "spare_thanks" || waystarFinalPhase === "spare_blessing" || waystarFinalPhase === "spare_fade"));
+    var isSpare = (waystarFinalActive && (waystarFinalPhase === "spare_dialog" || waystarFinalPhase === "spare_blessing" || waystarFinalPhase === "spare_farewell"));
     var auraColor = isSpare ? "#ffd700" : (waystarRageMode ? "#ff0000" : "#ff00ff");
     var auraSize = size * (isSpare ? 6.5 : (waystarRageMode ? 5.5 : 4.7)) + waystarEscalationLevel * 5;
     var glow = ctx.createRadialGradient(0, 0, 3, 0, 0, auraSize);
-    if (isSpare) {
-        glow.addColorStop(0, "rgba(255, 215, 0, 0.95)");
-        glow.addColorStop(0.3, "rgba(255, 200, 100, 0.7)");
-        glow.addColorStop(0.6, "rgba(255, 180, 50, 0.4)");
-        glow.addColorStop(1, "transparent");
-    } else if (waystarRageMode) { glow.addColorStop(0, "rgba(255, 0, 0, 0.95)"); glow.addColorStop(0.3, "rgba(255, 100, 100, 0.6)"); glow.addColorStop(0.6, "rgba(255, 0, 0, 0.3)"); glow.addColorStop(1, "transparent"); }
+    if (isSpare) { glow.addColorStop(0, "rgba(255, 215, 0, 0.95)"); glow.addColorStop(0.3, "rgba(255, 200, 100, 0.7)"); glow.addColorStop(0.6, "rgba(255, 180, 50, 0.4)"); glow.addColorStop(1, "transparent"); }
+    else if (waystarRageMode) { glow.addColorStop(0, "rgba(255, 0, 0, 0.95)"); glow.addColorStop(0.3, "rgba(255, 100, 100, 0.6)"); glow.addColorStop(0.6, "rgba(255, 0, 0, 0.3)"); glow.addColorStop(1, "transparent"); }
     else { glow.addColorStop(0, "rgba(255, 0, 255, 0.95)"); glow.addColorStop(0.3, "rgba(255, 100, 255, 0.6)"); glow.addColorStop(0.6, "rgba(255, 0, 255, 0.3)"); glow.addColorStop(1, "transparent"); }
     ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, auraSize, 0, Math.PI * 2); ctx.fill();
     ctx.save(); ctx.rotate(-b.time * 0.5); ctx.strokeStyle = isSpare ? "rgba(255, 215, 0, 0.8)" : (waystarRageMode ? "rgba(255, 100, 100, 0.7)" : "rgba(255, 100, 255, 0.6)"); ctx.lineWidth = 2;
@@ -1303,6 +1379,6 @@ window.stopWaystarFight = stopWaystarFight;
 window.damageWaystarBoss = function(dmg) { if (waystarState === "phase1") waystarBossHp -= dmg; };
 window.getWaystarActive = function() { return waystarActive; };
 
-console.log("[WAYSTAR] v10.6 загружено! Мирная концовка без Живого Камня");
+console.log("[WAYSTAR] v10.7 загружено! Мирная концовка с долгом (без предмета)");
 
 }
