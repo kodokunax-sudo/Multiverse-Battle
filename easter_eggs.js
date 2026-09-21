@@ -21,7 +21,7 @@ const EASTER_CARD_NAMES = ["Пельмешка", "Попугай Соня", "К�
 const EASTER_CODES = {
     "DrinkTea2Win": {
         type: "easterCard",
-        cardName: "Кофе",            // ← шаблон из data.js
+        cardName: "DrinkTea2Win",            // ← шаблон из data.js
         displayName: "DrinkTea2Win",  // ← как показывается в коллекции
         desc: "🥤 Пасхалка: карта DrinkTea2Win"
     }
