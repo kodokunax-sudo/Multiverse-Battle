@@ -12,11 +12,8 @@ function sfxLevelUp() { playSound(1000, 'square', 0.1); setTimeout(() => playSou
 function sfxAbility() { playSound(400, 'sawtooth', 0.15); }
 function sfxRebirth() { playSound(300, 'triangle', 0.3); }
 
-// ========== МУЗЫКАЛЬНЫЕ ТЕМЫ (АУДИОФАЙЛЫ) ==========
-// Файлы должны быть в папке music/ :
-// music/main.mp3 - основная музыка (меню, коллекция, слоты, ребиртх)
-// music/battle.mp3 - музыка битвы
-// music/shop.mp3 - музыка магазина
+// ========== МУЗЫКАЛЬНЫЕ ТЕМЫ ==========
+// music/main.mp3, music/battle.mp3, music/shop.mp3
 
 // ========== МИРЫ ==========
 const worlds = [
@@ -36,7 +33,7 @@ const worlds = [
 function getCurrentWorld() { for (let w of worlds) { if (wave >= w.minWave && wave <= w.maxWave) return w; } return worlds[worlds.length - 1]; }
 function getWorldForWave(w) { for (let world of worlds) { if (w >= world.minWave && w <= world.maxWave) return world; } return worlds[0]; }
 
-// ========== ШАБЛОНЫ КАРТ (С ИНДИВИДУАЛЬНОЙ СКОРОСТЬЮ) ==========
+// ========== ШАБЛОНЫ КАРТ ==========
 const customCardTemplates = {
     "Обычная": [
         { name: "Луффи", universe: "One Piece", damage: 4, hp: 8, speed: 0.6, desc: "Базовый Луффи. Никаких способностей, просто бьёт." },
@@ -231,11 +228,11 @@ const customCardTemplates = {
     "Пасхалка": [
         { name: "Пельмешка", universe: "Кухня", damage: 35, hp: 60, speed: 1.0, unsellable: true, ability: { type: "luckAura", value: 0.50, desc: "+50% удачи" }, desc: "Вкусный пельмень. +50% к удаче." },
         { name: "Попугай Соня", universe: "Зоопарк", damage: 3, hp: 5, speed: 0.8, unsellable: true, ability: { type: "deathBonus", value: 0.30, desc: "+30% звёзд" }, desc: "После смерти даёт +30% к накопленным звёздам." },
-        { name: "Кофе", universe: "AoT", damage: 20, hp: 50, speed: 1.5, unsellable: true, ability: { type: "fatigueResist", value: 0.50, desc: "-50% усталости" }, desc: "Бодрящий напиток. Снижает набор усталости на 50%." }
+        { name: "DrinkTea2Win", universe: "Кухня", damage: 20, hp: 50, speed: 1.5, unsellable: true, ability: { type: "fatigueResist", value: 0.50, desc: "-50% усталости" }, desc: "Бодрящий напиток. Победа... в чашке? Снижает набор усталости на 50%." }
     ]
 };
 
-// ========== БОССЫ И ДИАЛОГИ ==========
+// ========== БОССЫ ==========
 const bossTemplates = {
     50:  { name: "Король Демонов", hpMult: 4, dmgMult: 0.8, dialogue: "Ты думаешь, что сможешь одолеть меня? Глупец.", enemyStatus: { type: "freezeStacks", value: 1 }, canSpare: true, spareReward: "Король Демонов", arenaTypes: [0] },
     100: { name: "Маджин Буу", hpMult: 5.3, dmgMult: 0.1, dialogue: "Буу, я голоден! Ты станешь моим обедом!", enemyStatus: { type: "bleed", value: 0.2 }, canSpare: true, spareReward: "Маджин Буу", arenaTypes: [0] },
@@ -318,5 +315,14 @@ const shopItemsPool = { common: [{ name: "Обычная карта", type: "car
 const specialPotions = [{ name: "🧪 Зелье урона x4", desc: "12 часов", buffId: "quadDamage", duration: 43200000, cost: 3000 }, { name: "🧪 Зелье звёзд x2", desc: "6 часов", buffId: "doubleStars", duration: 21600000, cost: 5000 }, { name: "🧪 Зелье HP x3", desc: "4 часа", buffId: "tripleHp", duration: 14400000, cost: 2000 }];
 const bulkSellOptions = [{ name: "Обычные", rarity: "Обычная" }, { name: "Редкие", rarity: "Редкая" }, { name: "Сверхредкие", rarity: "Сверх редкая" }, { name: "Эпики", rarity: "Эпик" }, { name: "Мифические", rarity: "Мифическая" }, { name: "Легендарные", rarity: "Легендарная" }];
 const autoRestOptions = [{ name: "90%", threshold: 90 }, { name: "80%", threshold: 80 }, { name: "70%", threshold: 70 }, { name: "60%", threshold: 60 }, { name: "50%", threshold: 50 }, { name: "40%", threshold: 40 }, { name: "35%", threshold: 35 }, { name: "30%", threshold: 30 }, { name: "25%", threshold: 25 }, { name: "20%", threshold: 20 }, { name: "15%", threshold: 15 }, { name: "10%", threshold: 10 }, { name: "5%", threshold: 5 }, { name: "1%", threshold: 1 }];
-const codeList = { "PELMESHKA": { type: "card", rarity: "Пасхалка", tpl: "Пельмешка", points: 1000 }, "Хочу Звезды": { type: "points", amount: 5000 }, "Сила": { type: "buff", buffId: "dmg13", duration: 86400000 }, "789456123": { type: "moderUnlock" } };
+
+// ========== КОДЫ (промокоды) ==========
+const codeList = {
+    "PELMESHKA": { type: "card", rarity: "Пасхалка", tpl: "Пельмешка", points: 1000 },
+    "Хочу Звезды": { type: "points", amount: 5000 },
+    "Сила": { type: "buff", buffId: "dmg13", duration: 86400000 },
+    "789456123": { type: "moderUnlock" },
+    "DrinkTea2Win": { type: "card", rarity: "Пасхалка", tpl: "DrinkTea2Win", points: 0 }
+};
+
 const worldMusicNotes = {};
