@@ -1,33 +1,30 @@
 // ============================================================
-// EASTER EGGS v1.0 — Промокоды и пасхалки
+// EASTER EGGS v1.1 — Промокоды и пасхалки
 // Пасхалочные карты НЕ исчезают после ребиртха
 // ============================================================
 // ПОДКЛЮЧАТЬ ПОСЛЕ data.js, НО ДО game.js!
+// ВАЖНО: этот файл НЕ требует изменений в game.js
 // ============================================================
 
-// ★★★ ЗАЩИТА ОТ ДВОЙНОЙ ЗАГРУЗКИ ★★★
 if (window._easterEggsLoaded === true) {
     console.warn("[EASTER] Уже загружен, игнорирую повтор.");
 } else {
     window._easterEggsLoaded = true;
 
 // ========== СПИСОК ПАСХАЛОЧНЫХ КАРТ ==========
-// Эти карты НЕ удаляются при ребиртхе
 const EASTER_CARD_NAMES = ["Пельмешка", "Попугай Соня", "Кофе"];
 
-// ========== ПРОМОКОДЫ (расширение codeList из data.js) ==========
-// Добавляются к существующим промокодам
+// ========== ПРОМОКОДЫ ==========
 const EASTER_CODES = {
     "DrinkTea2Win": {
         type: "easterCard",
         cardName: "Кофе",
         desc: "🥤 Пасхалка: карта Кофе"
     }
-    // Сюда можно добавлять новые промокоды:
     // "НовыйКод": { type: "easterCard", cardName: "Пельмешка", desc: "..." }
 };
 
-// ========== ФУНКЦИЯ: получить все промокоды (старые + пасхальные) ==========
+// ========== ПОЛУЧИТЬ ВСЕ ПРОМОКОДЫ ==========
 function getAllCodes() {
     let base = {};
     if (typeof codeList !== 'undefined' && codeList) {
@@ -36,9 +33,8 @@ function getAllCodes() {
     return Object.assign(base, EASTER_CODES);
 }
 
-// ========== ФУНКЦИЯ: выдать пасхальную карту по имени ==========
+// ========== ВЫДАТЬ ПАСХАЛЬНУЮ КАРТУ ==========
 function giveEasterCard(cardName) {
-    // Ищем шаблон во всех редкостях
     let template = null;
     let templateRarity = null;
 
@@ -47,7 +43,7 @@ function giveEasterCard(cardName) {
         return false;
     }
 
-    // Сначала ищем в "Пасхалка"
+    // Ищем шаблон
     let pools = ["Пасхалка", "Секретная", "Легендарная", "Обычная"];
     for (let rarity of pools) {
         let arr = customCardTemplates[rarity];
@@ -66,17 +62,13 @@ function giveEasterCard(cardName) {
     }
 
     // Создаём карту
-    let card;
+    let card = null;
     if (typeof createCardFromTemplate === 'function') {
         card = createCardFromTemplate(template, templateRarity);
-    } else if (typeof createCard === 'function') {
-        // Fallback: ищем карту через createCard N раз (не идеально, но сработает)
-        console.warn("[EASTER] createCardFromTemplate не найдено, использую fallback");
-        card = null;
     }
 
     if (!card) {
-        // Ручное создание карты
+        // Fallback: ручное создание
         let s = (typeof cardStats !== 'undefined' && cardStats[templateRarity])
             ? cardStats[templateRarity]
             : { damage: 10, hp: 20, sellPrice: 100, speed: 1.0 };
@@ -100,7 +92,7 @@ function giveEasterCard(cardName) {
         };
     }
 
-    // ★ Помечаем карту как пасхалку — она не исчезнет при ребиртхе ★
+    // ★ Помечаем как пасхалку ★
     card._isEasterEgg = true;
 
     // Добавляем в коллекцию
@@ -108,24 +100,23 @@ function giveEasterCard(cardName) {
         myCards.push(card);
     }
 
-    // Записываем в бестиарий
+    // В бестиарий
     if (typeof discoveredCards !== 'undefined' && Array.isArray(discoveredCards)) {
         if (!discoveredCards.includes(card.name)) {
             discoveredCards.push(card.name);
         }
     }
 
-    // Сохраняем
     if (typeof saveAll === 'function') saveAll();
     if (typeof renderMyCards === 'function') renderMyCards();
     if (typeof renderBook === 'function') renderBook();
     if (typeof sfxCardObtain === 'function') sfxCardObtain();
 
+    console.log("[EASTER] Выдана пасхалка:", cardName, "редкость:", templateRarity);
     return true;
 }
 
 // ========== ПЕРЕХВАТ SUBMITCODE ==========
-// Заменяем стандартный submitCode на расширенный
 function easterSubmitCode() {
     let inpEl = document.getElementById("codeInput");
     if (!inpEl) return;
@@ -136,18 +127,15 @@ function easterSubmitCode() {
     if (EASTER_CODES[inp]) {
         let cd = EASTER_CODES[inp];
 
-        // Проверка "уже использован"
         if (typeof usedCodes !== 'undefined' && Array.isArray(usedCodes) && usedCodes.includes(inp)) {
             if (resultEl) resultEl.innerHTML = "⚠️ Код уже использован";
             return;
         }
 
-        // Помечаем как использованный
         if (typeof usedCodes !== 'undefined' && Array.isArray(usedCodes)) {
             usedCodes.push(inp);
         }
 
-        // Выдаём награду
         if (cd.type === "easterCard") {
             let ok = giveEasterCard(cd.cardName);
             if (ok) {
@@ -165,33 +153,27 @@ function easterSubmitCode() {
         return;
     }
 
-    // Если это не пасхальный код — вызываем оригинальный submitCode
+    // Не пасхальный — отдаём оригиналу
     if (typeof window._originalSubmitCode === 'function') {
         window._originalSubmitCode();
     } else if (typeof submitCode === 'function') {
-        // Старая версия submitCode (если перехват не удался)
         submitCode();
     }
 }
 
-// ========== ФУНКЦИЯ ДЛЯ СОХРАНЕНИЯ ПАСХАЛОК ПРИ РЕБИРТХЕ ==========
-// Вызывается в doRebirth() ДО очистки myCards
+// ========== СОХРАНЕНИЕ ПАСХАЛОК ==========
 function saveEasterCards() {
     if (typeof myCards === 'undefined' || !Array.isArray(myCards)) return [];
     return myCards.filter(c => c && (c._isEasterEgg || EASTER_CARD_NAMES.includes(c.name)));
 }
 
-// Восстанавливает пасхалки после ребиртха
 function restoreEasterCards(savedCards) {
     if (!Array.isArray(savedCards) || savedCards.length === 0) return;
     if (typeof myCards === 'undefined' || !Array.isArray(myCards)) return;
 
     for (let c of savedCards) {
-        // На всякий случай помечаем
         c._isEasterEgg = true;
-        // Восстанавливаем карту
         myCards.push(c);
-        // Возвращаем в бестиарий
         if (typeof discoveredCards !== 'undefined' && Array.isArray(discoveredCards)) {
             if (!discoveredCards.includes(c.name)) {
                 discoveredCards.push(c.name);
@@ -201,53 +183,83 @@ function restoreEasterCards(savedCards) {
     console.log("[EASTER] Восстановлено пасхалок:", savedCards.length);
 }
 
-// ========== АВТОПАТЧ DO REBIRTH ==========
-// Оборачиваем doRebirth, чтобы сохранить пасхалки
-function patchRebirth() {
-    if (typeof window.doRebirth !== 'function') {
-        console.warn("[EASTER] doRebirth не найдена, патч отложен");
-        return false;
-    }
-    if (window._easterRebirthPatched) return true;
+// ========== ПАТЧ КНОПКИ РЕБИРТХА ==========
+// Перевешиваем обработчик на кнопку doRebirthBtn,
+// чтобы НЕ менять game.js
+function patchRebirthButton() {
+    let btn = document.getElementById("doRebirthBtn");
+    if (!btn) return false;
+    if (window._easterRebirthBtnPatched) return true;
+
+    // Клонируем — снимаем все старые обработчики
+    let newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+
+    // Вешаем свой
+    newBtn.addEventListener("click", function() {
+        // ★ СОХРАНЯЕМ ДО ★
+        let savedEasterCards = saveEasterCards();
+        console.log("[EASTER] Перед ребиртхом сохранено пасхалок:", savedEasterCards.length);
+
+        // Вызываем оригинальную doRebirth
+        if (typeof doRebirth === 'function') {
+            try {
+                doRebirth();
+            } catch(e) {
+                console.error("[EASTER] Ошибка в doRebirth:", e);
+            }
+        }
+
+        // ★ ВОССТАНАВЛИВАЕМ ПОСЛЕ ★
+        restoreEasterCards(savedEasterCards);
+
+        if (typeof saveAll === 'function') saveAll();
+        if (typeof renderAll === 'function') renderAll();
+
+        if (savedEasterCards.length > 0 && typeof showFloatingText === 'function') {
+            showFloatingText("🥚 Пасхалки сохранены!", "#ffd700");
+        }
+    });
+
+    window._easterRebirthBtnPatched = true;
+    console.log("[EASTER] Кнопка ребиртха пропатчена");
+    return true;
+}
+
+// ========== ПАТЧ WINDOW.DOREbIRTH (для программных вызовов) ==========
+function patchRebirthFunction() {
+    if (typeof window.doRebirth !== 'function') return false;
+    if (window._easterRebirthFnPatched) return true;
 
     let originalRebirth = window.doRebirth;
 
     window.doRebirth = function() {
-        // ★ СОХРАНЯЕМ ПАСХАЛКИ ДО РЕБИРТХА ★
         let savedEasterCards = saveEasterCards();
-        console.log("[EASTER] Сохранено пасхалок перед ребиртхом:", savedEasterCards.length);
+        console.log("[EASTER] Программный ребиртх, сохранено пасхалок:", savedEasterCards.length);
 
-        // Вызываем оригинальный doRebirth
         originalRebirth.apply(this, arguments);
 
-        // ★ ВОССТАНАВЛИВАЕМ ПАСХАЛКИ ПОСЛЕ ★
         restoreEasterCards(savedEasterCards);
 
-        // Пересохраняем
         if (typeof saveAll === 'function') saveAll();
         if (typeof renderAll === 'function') renderAll();
     };
 
-    window._easterRebirthPatched = true;
-    console.log("[EASTER] doRebirth пропатчен — пасхалки сохраняются");
+    window._easterRebirthFnPatched = true;
     return true;
 }
 
-// ========== АВТОПАТЧ SUBMITCODE ==========
+// ========== ПАТЧ SUBMITCODE ==========
 function patchSubmitCode() {
     if (typeof window.submitCode !== 'function') return false;
     if (window._easterSubmitPatched) return true;
 
-    // Сохраняем оригинал
     window._originalSubmitCode = window.submitCode;
-
-    // Заменяем на наш
     window.submitCode = easterSubmitCode;
 
     // Перепривязываем кнопку
     let btn = document.getElementById("submitCodeBtn");
     if (btn) {
-        // Убираем старый обработчик, вешаем новый
         let newBtn = btn.cloneNode(true);
         btn.parentNode.replaceChild(newBtn, btn);
         newBtn.addEventListener("click", easterSubmitCode);
@@ -258,8 +270,7 @@ function patchSubmitCode() {
     return true;
 }
 
-// ========== АВТОПАТЧ LOADGAMEDATA ==========
-// Чтобы при загрузке сохранения старые пасхалки тоже помечались
+// ========== ПАТЧ LOADGAMEDATA ==========
 function patchLoadGameData() {
     if (typeof window.loadGameData !== 'function') return false;
     if (window._easterLoadPatched) return true;
@@ -268,7 +279,6 @@ function patchLoadGameData() {
 
     window.loadGameData = function(d) {
         originalLoad.apply(this, arguments);
-        // Помечаем все пасхалки в загруженной коллекции
         if (typeof myCards !== 'undefined' && Array.isArray(myCards)) {
             for (let c of myCards) {
                 if (c && EASTER_CARD_NAMES.includes(c.name)) {
@@ -282,23 +292,24 @@ function patchLoadGameData() {
     return true;
 }
 
-// ========== ИНИЦИАЛИЗАЦИЯ С ЗАДЕРЖКОЙ ==========
-// Ждём, пока загрузятся game.js и ui.js
+// ========== ИНИЦИАЛИЗАЦИЯ ==========
 function initEasterEggs() {
     let attempts = 0;
     let maxAttempts = 50;
 
     function tryPatch() {
         attempts++;
-        let rebirthOk = patchRebirth();
+        let rebirthBtnOk = patchRebirthButton();
+        let rebirthFnOk = patchRebirthFunction();
         let submitOk = patchSubmitCode();
         let loadOk = patchLoadGameData();
 
-        if (rebirthOk && submitOk && loadOk) {
+        if (rebirthBtnOk && rebirthFnOk && submitOk && loadOk) {
             console.log("╔════════════════════════════════════════╗");
-            console.log("║  🥚 EASTER EGGS v1.0 загружено        ║");
+            console.log("║  🥚 EASTER EGGS v1.1 загружено        ║");
             console.log("║  Промокод: DrinkTea2Win → Кофе        ║");
             console.log("║  Пасхалки сохраняются при ребиртхе    ║");
+            console.log("║  game.js НЕ изменялся                 ║");
             console.log("╚════════════════════════════════════════╝");
             return;
         }
@@ -306,11 +317,11 @@ function initEasterEggs() {
         if (attempts < maxAttempts) {
             setTimeout(tryPatch, 100);
         } else {
-            console.warn("[EASTER] Не удалось пропатчить всё, но промокоды работают");
+            console.warn("[EASTER] Патч не завершён (попыток:", attempts, ")");
+            console.warn("[EASTER] Кнопка ребиртха:", rebirthBtnOk, "| Функция:", rebirthFnOk, "| Коды:", submitOk, "| Загрузка:", loadOk);
         }
     }
 
-    // Если DOM уже загружен — стартуем сразу
     if (document.readyState === "complete" || document.readyState === "interactive") {
         setTimeout(tryPatch, 100);
     } else {
@@ -329,5 +340,6 @@ window.giveEasterCard = giveEasterCard;
 window.saveEasterCards = saveEasterCards;
 window.restoreEasterCards = restoreEasterCards;
 window.easterSubmitCode = easterSubmitCode;
+window.getAllCodes = getAllCodes;
 
 } // ★ КОНЕЦ ЗАЩИТЫ ★
