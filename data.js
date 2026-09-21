@@ -228,7 +228,7 @@ const customCardTemplates = {
     "Пасхалка": [
         { name: "Пельмешка", universe: "Кухня", damage: 35, hp: 60, speed: 1.0, unsellable: true, ability: { type: "luckAura", value: 0.50, desc: "+50% удачи" }, desc: "Вкусный пельмень. +50% к удаче." },
         { name: "Попугай Соня", universe: "Зоопарк", damage: 3, hp: 5, speed: 0.8, unsellable: true, ability: { type: "deathBonus", value: 0.30, desc: "+30% звёзд" }, desc: "После смерти даёт +30% к накопленным звёздам." },
-        { name: "DrinkTea2Win", universe: "Кухня", damage: 20, hp: 50, speed: 1.5, unsellable: true, ability: { type: "fatigueResist", value: 0.50, desc: "-50% усталости" }, desc: "Бодрящий напиток. Победа... в чашке? Снижает набор усталости на 50%." }
+        { name: "DrinkTea2Win", universe: "Кухня", damage: 20, hp: 550, speed: 6, unsellable: true, ability: { type: "fatigueResist", value: 0.50, desc: "-50% усталости" }, desc: "Бодрящий напиток. Победа... в чашке? Снижает набор усталости на 50%." }
     ]
 };
 
