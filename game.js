@@ -173,6 +173,13 @@ function loadGameData(d) {
     maxPoints = d.maxPoints || points; 
     gameCompleted = d.gameCompleted || false; 
     defeatedBosses = d.defeatedBosses || []; 
+    
+    // ★★★ ВОССТАНАВЛИВАЕМ ФЛАГ ЭВОЛЮЦИИ ИЗ СЕЙВА ★★★
+    if (d.evolutionUnlocked === true && !defeatedBosses.includes(500)) {
+        defeatedBosses.push(500);
+        console.log("[LOAD] Флаг эволюции восстановлен (добавлена победа над 500)");
+    }
+    
     gachaDailyLimits = d.gachaDailyLimits || { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
     gachaDailyMax = d.gachaDailyMax || { common:50, rare:35, superRare:20, epic:10, mythic:5, legendary:10, secret:2 };
     legendaryGachaTokens = d.legendaryGachaTokens || 0;
@@ -357,6 +364,11 @@ function saveAll() {
     slotData.maxPoints = maxPoints; 
     slotData.gameCompleted = gameCompleted; 
     slotData.defeatedBosses = defeatedBosses; 
+    
+    // ★★★ СОХРАНЯЕМ ФЛАГ ЭВОЛЮЦИИ ★★★
+    slotData.evolutionUnlocked = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500)) 
+        || (typeof slotData !== 'undefined' && slotData && slotData.evolutionUnlocked === true);
+    
     slotData.gachaDailyLimits = gachaDailyLimits;
     slotData.gachaDailyMax = gachaDailyMax;
     slotData.legendaryGachaTokens = legendaryGachaTokens;
@@ -853,7 +865,7 @@ function getRarityEmoji(rarity) { let emojis = { "Обычная": "⚪", "Ре�
 function getCardResultHTML(card) { let rarityColor = getRarityColor(card.rarity); let rarityEmoji = getRarityEmoji(card.rarity); let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(card.rarity); let cardImg = showImage && typeof getCardImage === 'function' ? getCardImage(card.name) : null; let imgHTML = cardImg ? '<img src="' + cardImg + '" style="width:100px;height:100px;border-radius:12px;object-fit:cover;margin-bottom:10px;">' : ''; return '<div style="text-align:center;">' + '<div style="font-size:64px;margin-bottom:10px;">' + rarityEmoji + '</div>' + imgHTML + '<div style="font-size:32px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 30px ' + rarityColor + ';margin-bottom:8px;">' + card.name + '</div>' + '<div class="rarity-tag ' + rarityColors[card.rarity] + '" style="font-size:18px;padding:10px 25px;">' + card.rarity + '</div>' + '<div style="margin-top:15px;font-size:18px;">💪 ' + card.damage + ' ❤️ ' + card.hp + '</div>' + (card.ability ? '<div style="margin-top:10px;color:#f5af19;font-weight:bold;">✨ ' + card.ability.desc + '</div>' : '') + '</div>'; }
 function startGachaAnimation(card, type) { let availableRarities = []; switch(type) { case "common": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "rare": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "superRare": availableRarities = ["Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная"]; break; case "epic": availableRarities = ["Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "mythic": availableRarities = ["Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "legendary": availableRarities = ["Мифическая", "Легендарная", "Секретная"]; break; case "secret": availableRarities = ["Легендарная", "Секретная"]; break; default: availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик"]; } let fakeCards = []; for (let i = 0; i < 8; i++) { let randomRarity = availableRarities[Math.floor(Math.random() * availableRarities.length)]; let fc = createCard(randomRarity); if (fc) fakeCards.push(fc); } fakeCards.push(card); gachaAnimationActive = true; let modalContent = document.getElementById("modalContent"); let modalOverlay = document.getElementById("modalOverlay"); if (!modalContent || !modalOverlay) { gachaAnimationActive = false; return; } modalOverlay.style.display = "flex"; let index = 0; let totalFlashes = 24; let flashCount = 0; let speed = 80; function flashNextCard() { if (flashCount >= totalFlashes) { modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>'; if (typeof sfxCardObtain === 'function') sfxCardObtain(); gachaAnimationActive = false; return; } let currentCard = fakeCards[index % fakeCards.length]; let rarityColor = getRarityColor(currentCard.rarity); modalContent.innerHTML = '<h2>🎰 Крутка...</h2>' + '<div style="text-align:center;padding:10px;">' + '<div style="font-size:48px;margin-bottom:10px;">🎴</div>' + '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + currentCard.name + '</div>' + '<div class="rarity-tag ' + rarityColors[currentCard.rarity] + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' + '<div style="margin-top:12px;font-size:16px;">💪 ' + currentCard.damage + ' ❤️ ' + currentCard.hp + '</div>' + '</div>' + '<button class="btn" style="width:100%;padding:8px;margin-top:10px;background:#e74c3c;border:none;color:white;font-weight:bold;" onclick="closeModal();gachaAnimationActive=false;">⏭️ ПРОПУСТИТЬ</button>'; index++; flashCount++; if (flashCount > totalFlashes * 0.7) speed += 40; else if (flashCount > totalFlashes * 0.5) speed += 20; else if (flashCount > totalFlashes * 0.3) speed += 10; setTimeout(flashNextCard, speed); } flashNextCard(); }
 
-// ========== ГЕНЕРАЦИЯ ВРАГА (с Путеводной Звездой) ==========
+// ========== ГЕНЕРАЦИЯ ВРАГА ==========
 function generateEnemy() { 
     firstAttackThisFight = true; 
     bossSupportUsedThisFight = false; 
@@ -905,7 +917,6 @@ function generateEnemy() {
     let waystarBtn = document.getElementById("startWaystarBtn");
     let skipBtn = document.getElementById("skipArenaBtn");
     
-    // ★ ЖИВОЙ КАМЕНЬ (200) ★
     if (wave === 200 && isUniqueBoss) {
         let alreadyDefeatedStone = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200);
         if (btn) btn.style.display = "none";
@@ -918,14 +929,12 @@ function generateEnemy() {
             currentEnemy.name = "🪨 Живой Камень (ослабленный)";
         }
     } 
-    // ★ ПУТЕВОДНАЯ ЗВЕЗДА (500) ★
     else if (wave === 500 && isUniqueBoss) {
         let alreadyDefeatedWaystar = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500);
         if (btn) btn.style.display = "none";
         if (livingBtn) livingBtn.style.display = "none";
         if (waystarBtn) waystarBtn.style.display = alreadyDefeatedWaystar ? "none" : "block";
         if (alreadyDefeatedWaystar) {
-            // Обычный кликерный босс с половинным HP
             currentEnemy.hp = Math.floor(currentEnemy.hp * 0.5);
             currentEnemy.maxHp = currentEnemy.hp;
             currentEnemy.isWeakenedWaystar = true;
@@ -975,8 +984,108 @@ function skipArenaFight() {
 }
 function createCardFromTemplate(tm, r) { let s = cardStats[r]; let d = tm.damage ?? s.damage, hp = tm.hp ?? s.hp, sp = tm.sellPrice ?? s.sellPrice, spd = tm.speed ?? s.speed ?? 0.5; let n = tm.name, a = tm.ability || null, u = tm.universe || "?", uns = tm.unsellable || false; if (!discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } totalCardsObtained++; if (points > maxPoints) maxPoints = points; return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, minRebirth: tm.minRebirth || 0, statusAbility: tm.statusAbility || null, extraStatus: tm.extraStatus || null, superAbility: tm.superAbility || null, mastery: 1, masteryExp: 0 }; }
 
-// ========== ЭВОЛЮЦИИ ==========
-function checkEvolutionQuests() { if (rebirthCount < 5) return; let tNames = team.map(idx => myCards[idx]?.name).filter(Boolean); let luffyForms = ["Луффи", "Луффи (2 гир)", "Луффи (Таймскип)", "Луффи (4 гир)", "Луффи: Ника, Бог Солнца"]; if (wave === 500 && !evoProgress.luffyKingUnlocked && currentEnemy && currentEnemy.hp <= 0) { let hasAllLuffys = luffyForms.every(form => tNames.includes(form)); let onlyFiveCards = team.length === 5; let allAreLuffys = team.every(idx => luffyForms.includes(myCards[idx]?.name)); if (hasAllLuffys && onlyFiveCards && allAreLuffys) { evoProgress.luffyKingUnlocked = true; let template = customCardTemplates["Эволюционная"].find(t => t.name === "Луффи : Король пиратов"); if (template) { let c = createCardFromTemplate(template, "Эволюционная"); c.unsellable = true; myCards.push(c); alert("🧬 Эволюция: Луффи : Король пиратов!\n\n5 Луффи победили Короля Пиратов!"); sfxRebirth(); saveAll(); } } } if (tNames.includes("Сайтама") && tNames.includes("Космический Гароу") && !evoProgress.sgUnlocked) { if (evoProgress.oneShotCount >= 2000) { evoProgress.sgUnlocked = true; let template = customCardTemplates["Эволюционная"].find(t => t.name === "Сайтама/Гароу"); if (template) { let c = createCardFromTemplate(template, "Эволюционная"); c.unsellable = true; myCards.push(c); alert("🧬 Эволюция: Сайтама/Гароу!\n\n2000 ваншотов c Сайтамой и Космическим Гароу в команде!"); sfxRebirth(); saveAll(); } } } if (tNames.includes("Молодой Гарп") && tNames.includes("Кудзан") && !evoProgress.gkUnlocked) { evoProgress.damageGarpKuzan += (window.playerFinalDamage || 0); if (evoProgress.damageGarpKuzan >= 1000000000) { evoProgress.gkUnlocked = true; let template = customCardTemplates["Эволюционная"].find(t => t.name === "Гарп/Кудзан"); if (template) { let c = createCardFromTemplate(template, "Эволюционная"); c.unsellable = true; myCards.push(c); alert("🧬 Эволюция: Гарп/Кудзан!\n\n1 000 000 000 урона с Гарпом и Кудзаном!"); sfxRebirth(); saveAll(); } } } let sevenMembersNew = ["Хоумлендер", "Звёздочка", "Мреющий", "Чёрный Нуар", "Пучино", "Королева Мэйв"]; if (tNames.length === 6 && sevenMembersNew.every(n => tNames.includes(n)) && !evoProgress.sevenUnlocked && playerLevel >= 20) { if (sevenMembersNew.every(n => hasCompoundV[n])) { evoProgress.sevenUnlocked = true; let template = customCardTemplates["Эволюционная"].find(t => t.name === "Семёрка"); if (template) { let c = createCardFromTemplate(template, "Эволюционная"); c.unsellable = true; myCards.push(c); alert("🧬 Эволюция: Семёрка!\n\nВся Семёрка с Препаратом V!"); sfxRebirth(); saveAll(); } } } if (wave === 2000 && !evoProgress.williamUnlocked && currentEnemy && currentEnemy.hp <= 0) { let allCommon = team.length === 6 && team.every(idx => myCards[idx]?.rarity === "Обычная"); if (allCommon) { evoProgress.williamUnlocked = true; let template = customCardTemplates["Эволюционная"].find(t => t.name === "Уильям Фрэнсис"); if (template) { let c = createCardFromTemplate(template, "Эволюционная"); c.unsellable = true; myCards.push(c); alert("🧬 Эволюция: Уильям Фрэнсис!\n\nПобеда над боссом 2000 волны только с обычными картами!"); sfxRebirth(); saveAll(); } } } renderEvoTab(); }
+// ========== ЭВОЛЮЦИИ (НОВОЕ УСЛОВИЕ) ==========
+function checkEvolutionQuests() { 
+    // ★★★ НОВОЕ УСЛОВИЕ: победа над Путеводной Звездой ★★★
+    let evolutionUnlocked = false;
+    try {
+        if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500)) evolutionUnlocked = true;
+        if (typeof window !== 'undefined' && window.waystarOwesDebt === true) evolutionUnlocked = true;
+        if (typeof slotData !== 'undefined' && slotData && slotData.waystarOwesDebt === true) evolutionUnlocked = true;
+        if (typeof slotData !== 'undefined' && slotData && slotData.evolutionUnlocked === true) evolutionUnlocked = true;
+        if (typeof evoProgress !== 'undefined' && evoProgress) {
+            if (evoProgress.luffyKingUnlocked || evoProgress.sgUnlocked || evoProgress.gkUnlocked || evoProgress.sevenUnlocked || evoProgress.williamUnlocked) evolutionUnlocked = true;
+        }
+    } catch(e) {}
+    
+    if (!evolutionUnlocked) return; 
+    
+    let tNames = team.map(idx => myCards[idx]?.name).filter(Boolean); 
+    let luffyForms = ["Луффи", "Луффи (2 гир)", "Луффи (Таймскип)", "Луффи (4 гир)", "Луффи: Ника, Бог Солнца"]; 
+    
+    if (wave === 500 && !evoProgress.luffyKingUnlocked && currentEnemy && currentEnemy.hp <= 0) { 
+        let hasAllLuffys = luffyForms.every(form => tNames.includes(form)); 
+        let onlyFiveCards = team.length === 5; 
+        let allAreLuffys = team.every(idx => luffyForms.includes(myCards[idx]?.name)); 
+        if (hasAllLuffys && onlyFiveCards && allAreLuffys) { 
+            evoProgress.luffyKingUnlocked = true; 
+            let template = customCardTemplates["Эволюционная"].find(t => t.name === "Луффи : Король пиратов"); 
+            if (template) { 
+                let c = createCardFromTemplate(template, "Эволюционная"); 
+                c.unsellable = true; 
+                myCards.push(c); 
+                alert("🧬 Эволюция: Луффи : Король пиратов!\n\n5 Луффи победили Короля Пиратов!"); 
+                sfxRebirth(); 
+                saveAll(); 
+            } 
+        } 
+    } 
+    
+    if (tNames.includes("Сайтама") && tNames.includes("Космический Гароу") && !evoProgress.sgUnlocked) { 
+        if (evoProgress.oneShotCount >= 2000) { 
+            evoProgress.sgUnlocked = true; 
+            let template = customCardTemplates["Эволюционная"].find(t => t.name === "Сайтама/Гароу"); 
+            if (template) { 
+                let c = createCardFromTemplate(template, "Эволюционная"); 
+                c.unsellable = true; 
+                myCards.push(c); 
+                alert("🧬 Эволюция: Сайтама/Гароу!\n\n2000 ваншотов c Сайтамой и Космическим Гароу в команде!"); 
+                sfxRebirth(); 
+                saveAll(); 
+            } 
+        } 
+    } 
+    
+    if (tNames.includes("Молодой Гарп") && tNames.includes("Кудзан") && !evoProgress.gkUnlocked) { 
+        evoProgress.damageGarpKuzan += (window.playerFinalDamage || 0); 
+        if (evoProgress.damageGarpKuzan >= 1000000000) { 
+            evoProgress.gkUnlocked = true; 
+            let template = customCardTemplates["Эволюционная"].find(t => t.name === "Гарп/Кудзан"); 
+            if (template) { 
+                let c = createCardFromTemplate(template, "Эволюционная"); 
+                c.unsellable = true; 
+                myCards.push(c); 
+                alert("🧬 Эволюция: Гарп/Кудзан!\n\n1 000 000 000 урона с Гарпом и Кудзаном!"); 
+                sfxRebirth(); 
+                saveAll(); 
+            } 
+        } 
+    } 
+    
+    let sevenMembersNew = ["Хоумлендер", "Звёздочка", "Мреющий", "Чёрный Нуар", "Пучино", "Королева Мэйв"]; 
+    if (tNames.length === 6 && sevenMembersNew.every(n => tNames.includes(n)) && !evoProgress.sevenUnlocked && playerLevel >= 20) { 
+        if (sevenMembersNew.every(n => hasCompoundV[n])) { 
+            evoProgress.sevenUnlocked = true; 
+            let template = customCardTemplates["Эволюционная"].find(t => t.name === "Семёрка"); 
+            if (template) { 
+                let c = createCardFromTemplate(template, "Эволюционная"); 
+                c.unsellable = true; 
+                myCards.push(c); 
+                alert("🧬 Эволюция: Семёрка!\n\nВся Сёмёрка с Препаратом V!"); 
+                sfxRebirth(); 
+                saveAll(); 
+            } 
+        } 
+    } 
+    
+    if (wave === 2000 && !evoProgress.williamUnlocked && currentEnemy && currentEnemy.hp <= 0) { 
+        let allCommon = team.length === 6 && team.every(idx => myCards[idx]?.rarity === "Обычная"); 
+        if (allCommon) { 
+            evoProgress.williamUnlocked = true; 
+            let template = customCardTemplates["Эволюционная"].find(t => t.name === "Уильям Фрэнсис"); 
+            if (template) { 
+                let c = createCardFromTemplate(template, "Эволюционная"); 
+                c.unsellable = true; 
+                myCards.push(c); 
+                alert("🧬 Эволюция: Уильям Фрэнсис!\n\nПобеда над боссом 2000 волны только с обычными картами!"); 
+                sfxRebirth(); 
+                saveAll(); 
+            } 
+        } 
+    } 
+    
+    renderEvoTab(); 
+}
 
 // ========== КЛИК ==========
 function handleClick() { 
@@ -1017,7 +1126,6 @@ function handleClick() {
     if (oneShotChance > 0 && Math.random() < oneShotChance) { dmg = currentEnemy.hp; if (team.some(idx => myCards[idx]?.name === "Сайтама") && team.some(idx => myCards[idx]?.name === "Космический Гароу")) { evoProgress.oneShotCount++; } sfxCrit(); showFloatingText("💀 ВАНШОТ!", "#ff0000"); } else { dmg = Math.floor(dmg * comboMultiplier); if (Math.random() < cc) { dmg = Math.floor(dmg * 2); sfxCrit(); showFloatingText("💥 КРИТ! x2", "#feca57"); } else { sfxClick(); showFloatingText("-" + dmg, "#fff"); } dmg = Math.floor(dmg * enemyStatuses.bleedMult); } 
     if (enemyStatuses.fireTicks > 0 && enemyStatuses.fireDamage > 0) { startFireEffectPassive(enemyStatuses.fireDamage, enemyStatuses.fireTicks * 1000); enemyStatuses.fireTicks = 0; } 
     currentEnemy.hp -= dmg; 
-    // ★ Если урон по Путеводной Звезде в фазе 1 — передать урон боссу-арене ★
     if (wave === 500 && typeof waystarActive !== 'undefined' && waystarActive && typeof waystarState !== 'undefined' && waystarState === "phase1" && typeof damageWaystarBoss === 'function') {
         damageWaystarBoss(dmg);
     }
@@ -1291,8 +1399,13 @@ function doRebirth() {
         }
         return; 
     }
+    
+    // ★★★ СОХРАНЯЕМ ФЛАГ ПУТЕВОДНОЙ ЗВЕЗДЫ ДО РЕБИРТХА ★★★
+    let _hadWaystar = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500));
+    
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; } 
     if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } 
+    
     rebirthStats.push({ 
         rebirth: rebirthCount, 
         totalWins, 
@@ -1304,6 +1417,7 @@ function doRebirth() {
         totalClicks, 
         maxPoints 
     }); 
+    
     myCards = []; 
     team = []; 
     afkTeam = []; 
@@ -1332,7 +1446,15 @@ function doRebirth() {
     newcomerBonus = true; 
     newcomerBonusEnd = Date.now() + 600000; 
     gameCompleted = false; 
+    
+    // ★★★ ВОССТАНАВЛИВАЕМ ФЛАГ 500 ПОСЛЕ ОЧИСТКИ ★★★
     defeatedBosses = []; 
+    if (_hadWaystar) {
+        defeatedBosses.push(500);
+        if (typeof slotData !== 'undefined' && slotData) slotData.evolutionUnlocked = true;
+        console.log("[REBIRTH] Флаг Путеводной Звезды (500) сохранён после ребиртха");
+    }
+    
     gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 }; 
     gachaDailyMax = { common:50, rare:35, superRare:20, epic:10, mythic:5, legendary:10, secret:2 }; 
     legendaryGachaTokens = 0; 
