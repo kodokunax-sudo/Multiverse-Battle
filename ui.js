@@ -513,10 +513,50 @@ function bookInfoCard(rarity, name) { let t = Object.entries(customCardTemplates
 
 window.bookGet = function(r, n) { if (!moderUnlocked || mode !== 'moder') return; let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === n && t.rarity === r); if (t) { let s = cardStats[r]; let c = { id: Date.now() + Math.random() * 10000, name: t.name, rarity: r, damage: t.damage ?? s.damage, hp: t.hp ?? s.hp, sellPrice: t.sellPrice ?? s.sellPrice, speed: t.speed ?? s.speed ?? 0.5, ability: t.ability || null, universe: t.universe || "?", unsellable: t.unsellable || false, minRebirth: t.minRebirth || 0, statusAbility: t.statusAbility || null, extraStatus: t.extraStatus || null, superAbility: t.superAbility || null, mastery: 1, masteryExp: 0 }; if (!discoveredCards.includes(t.name)) { discoveredCards.push(t.name); } myCards.push(c); saveAll(); renderMyCards(); sfxCardObtain(); alert("🎴 Получена карта: " + t.name + " (" + r + ")"); } };
 
-// ========== ЭВОЛЮЦИИ ==========
+// ========== ЭВОЛЮЦИИ (НОВОЕ УСЛОВИЕ — ПУТЕВОДНАЯ ЗВЕЗДА) ==========
 function renderEvoTab() { 
     let c = document.getElementById("evoContent"); 
-    if (rebirthCount < 5) { c.innerHTML = "<div style='text-align:center;color:#888;'>Сделайте 5 ребиртхов.</div>"; return; } 
+    if (!c) return;
+    
+    // ★★★ ПРОВЕРКА РАЗБЛОКИРОВКИ (Путеводная Звезда) ★★★
+    let evolutionUnlocked = false;
+    try {
+        if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500)) evolutionUnlocked = true;
+        if (typeof window !== 'undefined' && window.waystarOwesDebt === true) evolutionUnlocked = true;
+        if (typeof slotData !== 'undefined' && slotData && slotData.waystarOwesDebt === true) evolutionUnlocked = true;
+        if (typeof slotData !== 'undefined' && slotData && slotData.evolutionUnlocked === true) evolutionUnlocked = true;
+        if (typeof evoProgress !== 'undefined' && evoProgress) {
+            if (evoProgress.luffyKingUnlocked || evoProgress.sgUnlocked || evoProgress.gkUnlocked || evoProgress.sevenUnlocked || evoProgress.williamUnlocked) evolutionUnlocked = true;
+        }
+    } catch(e) {}
+    
+    if (!evolutionUnlocked) { 
+        c.innerHTML = `
+            <div style="text-align:center;padding:20px 10px;">
+                <div style="font-size:60px;margin-bottom:15px;filter:drop-shadow(0 0 20px #9b59b6);">🧬</div>
+                <div style="font-weight:900;font-size:18px;color:#e056fd;margin-bottom:10px;text-shadow:0 0 12px rgba(224,86,253,0.5);">ЭВОЛЮЦИЯ ЗАКРЫТА</div>
+                <div style="font-size:13px;color:#bbb;line-height:1.6;margin-bottom:20px;padding:0 10px;">
+                    Чтобы открыть эту вкладку, нужно<br>
+                    победить особого босса на <b style="color:#ffd700;">500 волне</b>:
+                </div>
+                <div style="background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,170,0,0.08));border:2px solid #ffd700;border-radius:16px;padding:15px;margin:0 auto;max-width:280px;box-shadow:0 0 25px rgba(255,215,0,0.3);">
+                    <div style="font-size:50px;margin-bottom:8px;filter:drop-shadow(0 0 15px #ffd700);">🌟</div>
+                    <div style="font-weight:900;font-size:16px;color:#ffd700;margin-bottom:4px;text-shadow:0 0 10px rgba(255,215,0,0.6);">ПУТЕВОДНАЯ ЗВЕЗДА</div>
+                    <div style="font-size:11px;color:#ffd700;">Волна 500</div>
+                </div>
+                <div style="margin-top:20px;padding:12px;background:rgba(0,0,0,0.3);border-radius:12px;font-size:11px;color:#aaa;line-height:1.6;">
+                    💡 <b>Как добраться до 500 волны:</b><br>
+                    • Фарми волны кликером<br>
+                    • Качай мастерство карт<br>
+                    • Побеждай боссов на каждой 50-й волне<br>
+                    • Делай ребиртх при упоре в стену
+                </div>
+            </div>
+        `;
+        return; 
+    } 
+    
+    // ★★★ РАЗБЛОКИРОВАНО — показываем квесты ★★★
     let tNames = team.map(idx => myCards[idx]?.name).filter(Boolean);
     let luffyForms = ["Луффи", "Луффи (2 гир)", "Луффи (Таймскип)", "Луффи (4 гир)", "Луффи: Ника, Бог Солнца"];
     let hasAllLuffys = luffyForms.every(form => tNames.includes(form));
