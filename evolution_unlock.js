@@ -1,10 +1,10 @@
 // ============================================================
-// EVOLUTION UNLOCK v1.0 — Разблокировка вкладки «Эволюция»
+// EVOLUTION UNLOCK v2.0 — Разблокировка вкладки «Эволюция»
 // ============================================================
-// Теперь вкладка открывается после победы над Путеводной Звездой
-// (босс 500 волны), НЕ зависит от количества ребиртхов.
-//
-// ПОДКЛЮЧАТЬ ПОСЛЕ ui.js, ПОСЛЕ game.js, ПОСЛЕ waystar_boss.js
+// ЧИСТЫЕ УСЛОВИЯ: победа над Путеводной Звездой (500) ИЛИ её пощада
+// НЕ зависит от ребиртхов
+// НЕ делает флаг "залипающим"
+// Автоматически чистит устаревший флаг
 // ============================================================
 
 (function() {
@@ -16,53 +16,44 @@
     }
     window._evolutionUnlockLoaded = true;
 
-    // ========== ПРОВЕРКА: РАЗБЛОКИРОВАНА ЛИ ЭВОЛЮЦИЯ ==========
+    // ========== ЧИСТАЯ ПРОВЕРКА РАЗБЛОКИРОВКИ ==========
     function isEvolutionUnlocked() {
-        // 1. Убил Путеводную Звезду (500 волна) — основное условие
+        // Условие 1: победа над Путеводной Звездой (500) — есть в defeatedBosses
         try {
             if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
                 if (defeatedBosses.includes(500)) return true;
             }
         } catch(e) {}
 
-        // 2. Запасной путь: если кто-то пощадил Звезду и записан долг
+        // Условие 2: пощада Звезды (записан флаг долга)
         try {
             if (typeof window !== 'undefined' && window.waystarOwesDebt === true) return true;
             if (typeof slotData !== 'undefined' && slotData && slotData.waystarOwesDebt === true) return true;
         } catch(e) {}
 
-        // 3. Для старых сохранений: если уже открыта хоть одна эволюция
-        try {
-            if (typeof evoProgress !== 'undefined' && evoProgress) {
-                if (evoProgress.luffyKingUnlocked ||
-                    evoProgress.sgUnlocked ||
-                    evoProgress.gkUnlocked ||
-                    evoProgress.sevenUnlocked ||
-                    evoProgress.williamUnlocked) {
-                    return true;
-                }
-            }
-        } catch(e) {}
-
-        // 4. Флаг-сохранение в слоте (на случай будущих механик)
-        try {
-            if (typeof slotData !== 'undefined' && slotData && slotData.evolutionUnlocked === true) {
-                return true;
-            }
-        } catch(e) {}
-
         return false;
     }
 
-    // ========== ЗАМЕНА renderEvoTab ==========
-    // Оригинал требует rebirthCount < 5. Наша версия — по Путеводной Звезде.
+    // ========== ОЧИСТКА УСТАРЕВШЕГО ФЛАГА ==========
+    // Если флаг стоит, но легитимных причин нет — сбрасываем
+    function cleanStaleFlag() {
+        try {
+            if (typeof slotData !== 'undefined' && slotData) {
+                if (slotData.evolutionUnlocked === true && !isEvolutionUnlocked()) {
+                    console.warn("[EVO-UNLOCK] Устаревший флаг evolutionUnlocked найден. Сбрасываю.");
+                    slotData.evolutionUnlocked = false;
+                }
+            }
+        } catch(e) {}
+    }
+
+    // ========== ПАТЧ renderEvoTab ==========
     function patchedRenderEvoTab() {
         let c = document.getElementById("evoContent");
         if (!c) return;
 
-        // ★ НОВОЕ УСЛОВИЕ: победа над Путеводной Звездой ★
         if (!isEvolutionUnlocked()) {
-            let progressHtml = `
+            c.innerHTML = `
                 <div style="text-align:center;padding:20px 10px;">
                     <div style="font-size:60px;margin-bottom:15px;filter:drop-shadow(0 0 20px #9b59b6);">🧬</div>
                     <div style="font-weight:900;font-size:18px;color:#e056fd;margin-bottom:10px;text-shadow:0 0 12px rgba(224,86,253,0.5);">ЭВОЛЮЦИЯ ЗАКРЫТА</div>
@@ -84,18 +75,61 @@
                     </div>
                 </div>
             `;
-            c.innerHTML = progressHtml;
             return;
         }
 
-        // ★ РАЗБЛОКИРОВАНО — рисуем оригинальный контент ★
-        // Вызываем оригинальную renderEvoTab (она рисует квесты)
+        // Разблокировано — вызываем оригинал (из ui.js)
         if (typeof window._originalRenderEvoTab === 'function') {
             window._originalRenderEvoTab();
         } else {
-            // Если оригинала нет — минимальный fallback
-            c.innerHTML = '<div style="text-align:center;color:#888;">Эволюция разблокирована! (перезагрузи страницу)</div>';
+            c.innerHTML = '<div style="text-align:center;color:#2ecc71;padding:20px;font-weight:900;">🧬 ЭВОЛЮЦИЯ РАЗБЛОКИРОВАНА!</div>';
         }
+    }
+
+    // ========== ПАТЧ saveAll (убираем «залипание») ==========
+    function patchSaveAll() {
+        if (typeof window.saveAll !== 'function') return false;
+        if (window._evolutionSavePatched) return true;
+
+        let originalSave = window.saveAll;
+
+        window.saveAll = function() {
+            // Пересчитываем флаг КАЖДЫЙ РАЗ без залипания
+            try {
+                if (typeof slotData !== 'undefined' && slotData) {
+                    slotData.evolutionUnlocked = isEvolutionUnlocked();
+                }
+            } catch(e) {}
+            originalSave.apply(this, arguments);
+        };
+
+        window._evolutionSavePatched = true;
+        return true;
+    }
+
+    // ========== ПАТЧ loadGameData (убираем авто-пуш 500) ==========
+    function patchLoadGameData() {
+        if (typeof window.loadGameData !== 'function') return false;
+        if (window._evolutionLoadPatched) return true;
+
+        let originalLoad = window.loadGameData;
+
+        window.loadGameData = function(d) {
+            originalLoad.apply(this, arguments);
+
+            // Просто чистим устаревший флаг — НЕ пушим 500
+            cleanStaleFlag();
+
+            // Перерисовываем вкладку
+            setTimeout(function() {
+                if (typeof window.renderEvoTab === 'function') {
+                    window.renderEvoTab();
+                }
+            }, 300);
+        };
+
+        window._evolutionLoadPatched = true;
+        return true;
     }
 
     // ========== ПАТЧ renderEvoTab ==========
@@ -103,15 +137,8 @@
         if (typeof window.renderEvoTab !== 'function') return false;
         if (window._evolutionRenderPatched) return true;
 
-        // Сохраняем оригинал
         window._originalRenderEvoTab = window.renderEvoTab;
-        // Заменяем
         window.renderEvoTab = patchedRenderEvoTab;
-
-        // Также на случай, если game.js вызывает функцию по имени в глобальном scope
-        if (typeof window.renderEvoTab === 'function') {
-            window.renderEvoTab = patchedRenderEvoTab;
-        }
 
         window._evolutionRenderPatched = true;
         console.log("[EVO-UNLOCK] renderEvoTab пропатчен");
@@ -119,8 +146,6 @@
     }
 
     // ========== ПАТЧ checkEvolutionQuests ==========
-    // Оригинал: if (rebirthCount < 5) return;
-    // Наш: if (!isEvolutionUnlocked()) return;
     function patchCheckEvolutionQuests() {
         if (typeof window.checkEvolutionQuests !== 'function') return false;
         if (window._evolutionCheckPatched) return true;
@@ -128,18 +153,15 @@
         let originalCheck = window.checkEvolutionQuests;
 
         window.checkEvolutionQuests = function() {
-            // ★ НОВОЕ УСЛОВИЕ ★
             if (!isEvolutionUnlocked()) return;
-            // Вызываем оригинал
             originalCheck.apply(this, arguments);
         };
 
         window._evolutionCheckPatched = true;
-        console.log("[EVO-UNLOCK] checkEvolutionQuests пропатчен");
         return true;
     }
 
-    // ========== ПАТЧ SWITCHSUBTAB (для правильного показа) ==========
+    // ========== ПАТЧ switchSubTab ==========
     function patchSwitchSubTab() {
         if (typeof window.switchSubTab !== 'function') return false;
         if (window._evolutionSwitchPatched) return true;
@@ -148,7 +170,6 @@
 
         window.switchSubTab = function(subtabName, parentTabId) {
             originalSwitch.apply(this, arguments);
-            // Если открыли "Эволюцию" — вызываем наш renderEvoTab
             if (subtabName === "evolution") {
                 setTimeout(function() {
                     if (typeof window.renderEvoTab === 'function') {
@@ -162,8 +183,7 @@
         return true;
     }
 
-    // ========== ПАТЧ DO REBIRTH (не сбрасывать флаг победы над Звездой) ==========
-    // В doRebirth() defeatedBosses = [] — но нам нужно сохранить 500
+    // ========== ПАТЧ doRebirth (сохраняем 500 в defeatedBosses) ==========
     function patchDoRebirth() {
         if (typeof window.doRebirth !== 'function') return false;
         if (window._evolutionRebirthPatched) return true;
@@ -171,7 +191,6 @@
         let originalRebirth = window.doRebirth;
 
         window.doRebirth = function() {
-            // ★ СОХРАНЯЕМ ПОБЕДУ НАД ЗВЕЗДОЙ ДО РЕБИРТХА ★
             let hadWaystar = false;
             try {
                 hadWaystar = typeof defeatedBosses !== 'undefined'
@@ -181,91 +200,32 @@
 
             originalRebirth.apply(this, arguments);
 
-            // ★ ВОССТАНАВЛИВАЕМ ФЛАГ ПОСЛЕ ★
-            // (в doRebirth defeatedBosses = [], но эволюция должна остаться)
+            // Восстанавливаем 500 после очистки
             if (hadWaystar) {
                 try {
                     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
                         if (!defeatedBosses.includes(500)) defeatedBosses.push(500);
                     }
-                    if (typeof slotData !== 'undefined' && slotData) {
-                        slotData.evolutionUnlocked = true;
-                    }
                 } catch(e) {}
             }
 
-            // ★ ПЕРЕРИСОВЫВАЕМ ВКЛАДКУ ПОСЛЕ ★
+            // Обновляем флаг и перерисовываем
             setTimeout(function() {
-                if (typeof window.renderEvoTab === 'function') {
-                    window.renderEvoTab();
-                }
+                try {
+                    if (typeof slotData !== 'undefined' && slotData) {
+                        slotData.evolutionUnlocked = isEvolutionUnlocked();
+                    }
+                } catch(e) {}
+                if (typeof window.renderEvoTab === 'function') window.renderEvoTab();
                 if (typeof saveAll === 'function') saveAll();
             }, 200);
-
-            console.log("[EVO-UNLOCK] Ребиртх: флаг Путеводной Звезды сохранён:", hadWaystar);
         };
 
         window._evolutionRebirthPatched = true;
         return true;
     }
 
-    // ========== ПАТЧ LOADGAMEDATA (при загрузке — проверка флага) ==========
-    function patchLoadGameData() {
-        if (typeof window.loadGameData !== 'function') return false;
-        if (window._evolutionLoadPatched) return true;
-
-        let originalLoad = window.loadGameData;
-
-        window.loadGameData = function(d) {
-            originalLoad.apply(this, arguments);
-
-            // ★ Если в сохранении был флаг — восстановим defeatedBosses[500] ★
-            try {
-                if (d && d.evolutionUnlocked === true) {
-                    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
-                        if (!defeatedBosses.includes(500)) defeatedBosses.push(500);
-                    }
-                }
-            } catch(e) {}
-
-            // ★ Перерисуем вкладку после загрузки ★
-            setTimeout(function() {
-                if (typeof window.renderEvoTab === 'function') {
-                    window.renderEvoTab();
-                }
-            }, 300);
-        };
-
-        window._evolutionLoadPatched = true;
-        return true;
-    }
-
-    // ========== ПАТЧ SAVEALL (записать флаг) ==========
-    function patchSaveAll() {
-        if (typeof window.saveAll !== 'function') return false;
-        if (window._evolutionSavePatched) return true;
-
-        let originalSave = window.saveAll;
-
-        window.saveAll = function() {
-            // Перед сохранением — записываем флаг в slotData
-            try {
-                if (typeof slotData !== 'undefined' && slotData) {
-                    if (isEvolutionUnlocked()) {
-                        slotData.evolutionUnlocked = true;
-                    }
-                }
-            } catch(e) {}
-            originalSave.apply(this, arguments);
-        };
-
-        window._evolutionSavePatched = true;
-        return true;
-    }
-
-    // ========== ПАТЧ VICTORY (проверка победы над 500) ==========
-    // Когда побеждаешь Путеводную Звезду — сейчас вызывается victory() и wave++
-    // Нужно чтобы после победы сразу разблокировалась эволюция
+    // ========== ПАТЧ victory (уведомление при победе над 500) ==========
     function patchVictory() {
         if (typeof window.victory !== 'function') return false;
         if (window._evolutionVictoryPatched) return true;
@@ -275,30 +235,18 @@
         window.victory = function() {
             originalVictory.apply(this, arguments);
 
-            // ★ ПРОВЕРЯЕМ: если победили 500 — разблокируем эволюцию ★
             setTimeout(function() {
                 try {
                     if (typeof defeatedBosses !== 'undefined'
                         && Array.isArray(defeatedBosses)
                         && defeatedBosses.includes(500)) {
-
-                        // Помечаем флаг в сейве
-                        if (typeof slotData !== 'undefined' && slotData) {
-                            slotData.evolutionUnlocked = true;
-                        }
-                        // Перерисовываем вкладку
-                        if (typeof window.renderEvoTab === 'function') {
-                            window.renderEvoTab();
-                        }
-                        // Уведомление
+                        if (typeof window.renderEvoTab === 'function') window.renderEvoTab();
                         if (typeof showFloatingText === 'function') {
                             showFloatingText("🧬 ЭВОЛЮЦИЯ РАЗБЛОКИРОВАНА!", "#e056fd");
                         }
                         if (typeof saveAll === 'function') saveAll();
                     }
-                } catch(e) {
-                    console.warn("[EVO-UNLOCK] Ошибка в victory-патче:", e);
-                }
+                } catch(e) {}
             }, 500);
         };
 
@@ -306,7 +254,62 @@
         return true;
     }
 
-    // ========== ИНИЦИАЛИЗАЦИЯ С ЗАДЕРЖКОЙ ==========
+    // ========== ФУНКЦИЯ СБРОСА (для отладки) ==========
+    window.resetEvolutionUnlock = function() {
+        console.log("[EVO-UNLOCK] Принудительный сброс...");
+        try {
+            // Убираем 500 из defeatedBosses
+            if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
+                let idx = defeatedBosses.indexOf(500);
+                while (idx !== -1) {
+                    defeatedBosses.splice(idx, 1);
+                    idx = defeatedBosses.indexOf(500);
+                }
+            }
+            // Сбрасываем флаги
+            if (typeof slotData !== 'undefined' && slotData) {
+                slotData.evolutionUnlocked = false;
+                slotData.waystarOwesDebt = false;
+            }
+            if (typeof window !== 'undefined') {
+                window.waystarOwesDebt = false;
+            }
+            // Сбрасываем прогресс эволюций
+            if (typeof evoProgress !== 'undefined' && evoProgress) {
+                evoProgress.luffyKingUnlocked = false;
+                evoProgress.sgUnlocked = false;
+                evoProgress.gkUnlocked = false;
+                evoProgress.sevenUnlocked = false;
+                evoProgress.williamUnlocked = false;
+            }
+            // Сохраняем и перерисовываем
+            if (typeof saveAll === 'function') saveAll();
+            if (typeof window.renderEvoTab === 'function') window.renderEvoTab();
+            console.log("[EVO-UNLOCK] ✅ Сброс завершён. Эволюция закрыта.");
+        } catch(e) {
+            console.error("[EVO-UNLOCK] Ошибка сброса:", e);
+        }
+    };
+
+    // ========== ФУНКЦИЯ РАЗБЛОКИРОВКИ (для отладки) ==========
+    window.forceUnlockEvolution = function() {
+        console.log("[EVO-UNLOCK] Принудительная разблокировка...");
+        try {
+            if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
+                if (!defeatedBosses.includes(500)) defeatedBosses.push(500);
+            }
+            if (typeof slotData !== 'undefined' && slotData) {
+                slotData.evolutionUnlocked = true;
+            }
+            if (typeof saveAll === 'function') saveAll();
+            if (typeof window.renderEvoTab === 'function') window.renderEvoTab();
+            console.log("[EVO-UNLOCK] ✅ Разблокировано!");
+        } catch(e) {
+            console.error("[EVO-UNLOCK] Ошибка:", e);
+        }
+    };
+
+    // ========== ИНИЦИАЛИЗАЦИЯ ==========
     function init() {
         let attempts = 0;
         let maxAttempts = 100;
@@ -322,25 +325,30 @@
             let g = patchVictory();
 
             if (a && b && c && d && e && f && g) {
+                // Чистим устаревший флаг сразу
+                cleanStaleFlag();
+
                 console.log("╔════════════════════════════════════════╗");
-                console.log("║  🧬 EVOLUTION UNLOCK v1.0 загружено   ║");
-                console.log("║  Открывается после победы над          ║");
-                console.log("║  Путеводной Звездой (500)             ║");
-                console.log("║  Не зависит от ребиртхов              ║");
+                console.log("║  🧬 EVOLUTION UNLOCK v2.0 загружено   ║");
+                console.log("║  Условие: победа над Путеводной        ║");
+                console.log("║  Звездой (500) ИЛИ её пощада           ║");
+                console.log("║  Флаг больше не «залипает»             ║");
+                console.log("║  Сброс: resetEvolutionUnlock()         ║");
+                console.log("║  Форс: forceUnlockEvolution()          ║");
                 console.log("╚════════════════════════════════════════╝");
 
-                // Первичный рендер вкладки
-                if (typeof window.renderEvoTab === 'function') {
-                    setTimeout(function() { window.renderEvoTab(); }, 500);
-                }
+                setTimeout(function() {
+                    if (typeof window.renderEvoTab === 'function') {
+                        window.renderEvoTab();
+                    }
+                }, 500);
                 return;
             }
 
             if (attempts < maxAttempts) {
                 setTimeout(tryPatch, 100);
             } else {
-                console.warn("[EVO-UNLOCK] Не всё пропатчено (попыток:", attempts, ")");
-                console.warn("[EVO-UNLOCK] renderEvoTab:", a, "| checkEvolutionQuests:", b, "| switchSubTab:", c, "| doRebirth:", d, "| loadGameData:", e, "| saveAll:", f, "| victory:", g);
+                console.warn("[EVO-UNLOCK] Не всё пропатчено. renderEvoTab:", a, "| checkEvolutionQuests:", b, "| switchSubTab:", c, "| doRebirth:", d, "| loadGameData:", e, "| saveAll:", f, "| victory:", g);
             }
         }
 
@@ -357,6 +365,5 @@
 
     // ========== ЭКСПОРТ ==========
     window.isEvolutionUnlocked = isEvolutionUnlocked;
-    window.patchedRenderEvoTab = patchedRenderEvoTab;
 
 })();
