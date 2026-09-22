@@ -1,10 +1,7 @@
 // ============================================================
-// HELP SYSTEM v1.0 — Встроенная справка по всем механикам
+// HELP SYSTEM v2.0 — Справка с наглядными примерами из игры
 // ============================================================
 // ПОДКЛЮЧАТЬ ПОСЛЕ ui.js (в самом конце)
-// Автоматически:
-//   - Добавляет вкладку "❓ Справка" в раздел "Прочее"
-//   - Добавляет кнопки "?" к ключевым секциям
 // ============================================================
 
 (function() {
@@ -16,86 +13,269 @@
     }
     window._helpSystemLoaded = true;
 
-    // ========== ДАННЫЕ СПРАВКИ ==========
+    // ========== CSS ДЛЯ ДЕМО-БЛОКОВ ==========
+    const helpStyles = document.createElement('style');
+    helpStyles.textContent = `
+        .help-demo {
+            background: linear-gradient(135deg, rgba(245,175,25,0.12), rgba(245,175,25,0.04));
+            border: 2px dashed #f5af19;
+            border-radius: 14px;
+            padding: 14px 10px;
+            margin: 14px 0;
+            text-align: center;
+        }
+        .help-demo-title {
+            font-size: 11px;
+            color: #f5af19;
+            font-weight: 900;
+            margin-bottom: 10px;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+        }
+        .help-demo-stage {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 6px;
+            min-height: 30px;
+            overflow: hidden;
+        }
+        .help-demo-stage > * { max-width: 100%; }
+        .help-demo-caption {
+            font-size: 11px;
+            color: #bbb;
+            margin-top: 10px;
+            line-height: 1.5;
+            font-weight: 600;
+        }
+        .help-arrow-down {
+            font-size: 14px;
+            color: #f5af19;
+            font-weight: 900;
+            margin: 4px 0;
+            letter-spacing: 1px;
+        }
+        .help-legend {
+            display: inline-block;
+            background: rgba(0,0,0,0.5);
+            border-radius: 8px;
+            padding: 6px 10px;
+            margin-top: 8px;
+            font-size: 11px;
+            line-height: 1.7;
+            text-align: left;
+            color: #ddd;
+        }
+        .help-battle-mock {
+            background: rgba(30,30,47,0.95);
+            border-radius: 14px;
+            padding: 10px;
+            max-width: 290px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .help-enemy-mock {
+            text-align: center;
+            padding: 6px;
+            background: rgba(44,44,58,0.5);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .help-inv-mock {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 6px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 12px;
+            max-width: 280px;
+            margin: 0 auto;
+        }
+        .help-item-mock {
+            background: linear-gradient(180deg,#1e1e2f,#151522);
+            border:2px solid rgba(255,255,255,0.08);
+            border-radius:12px;
+            padding:8px 6px;
+            text-align:center;
+            width:80px;
+            flex-shrink:0;
+        }
+        .help-stage-list {
+            display:flex;
+            align-items:center;
+            gap:8px;
+            padding:8px 10px;
+            border-radius:10px;
+            border:2px solid;
+            max-width:280px;
+            margin:0 auto 6px;
+            font-size:11px;
+            text-align:left;
+        }
+    `;
+    document.head.appendChild(helpStyles);
+
+    // ========== ХЕЛПЕРЫ ДЛЯ МАКЕТОВ ==========
+
+    function demo(title, stageHTML, caption) {
+        return '<div class="help-demo">' +
+            '<div class="help-demo-title">👇 ' + title + ' 👇</div>' +
+            '<div class="help-demo-stage">' + stageHTML + '</div>' +
+            (caption ? '<div class="help-demo-caption">' + caption + '</div>' : '') +
+            '</div>';
+    }
+
+    // Макет карточки карты (как в коллекции)
+    function mockCard(name, rarity, rarityClass, stats, isSelected, isAfk) {
+        let cls = 'card-item';
+        if (isSelected) cls += ' team-selected';
+        if (isAfk) cls += ' afk-selected';
+        return '<div class="' + cls + '" style="pointer-events:none;transform:scale(0.9);">' +
+            '<div class="card-name">' + name + '</div>' +
+            '<div class="rarity-tag ' + rarityClass + '">' + rarity + '</div>' +
+            '<div class="card-stats">' + stats + '</div>' +
+            '<div style="display:flex;gap:4px;justify-content:center;margin-top:6px;">' +
+                '<div class="remove-icon" style="background:#ffd700;color:#000;">⭐</div>' +
+                '<div class="remove-icon" style="background:#f5af19;color:#000;">⚔️</div>' +
+                '<div class="remove-icon" style="background:#2ecc71;color:#000;">💤</div>' +
+                '<div class="remove-icon">💰</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    // ========== СПРАВКА ==========
     const HELP_SECTIONS = [
         // ========== 1. КЛИКЕР ==========
         {
             id: "clicker",
             icon: "👆",
             title: "Основы: Кликер",
-            short: "Как бить врагов, комбо, криты",
+            short: "Как бить врагов, комбо, криты, усталость",
             content: `
-<b>🎯 Как играть:</b> Нажимай на оранжевую кнопку <b>💥 НАЖМИ ДЛЯ АТАКИ! 💥</b> — это наносит урон врагу. Каждый клик = 1 удар.
+Вот так выглядит <b>боевой экран</b>. Разберём элементы:
 
-<b>⚡ Комбо:</b> Если кликать быстро (интервал < 0.5 сек) — растёт счётчик комбо. Даёт множитель урона:
+` + demo("ЭТУ КНОПКУ НАДО НАЖИМАТЬ",
+    `<div class="help-battle-mock" style="transform:scale(0.95);">
+        <div class="help-enemy-mock">
+            <div style="font-weight:900;font-size:14px;">👾 Орк-берсерк</div>
+            <div style="font-size:11px;color:#aaa;margin-top:2px;">❤️ 200 / 200</div>
+            <div style="background:rgba(0,0,0,0.5);border-radius:6px;height:8px;margin-top:5px;">
+                <div style="width:100%;background:linear-gradient(90deg,#e74c3c,#f5af19);height:8px;border-radius:6px;"></div>
+            </div>
+        </div>
+        <div class="click-area" style="font-size:16px;padding:16px 10px;box-shadow:0 5px 0 #b84000;animation:none;">💥 НАЖМИ ДЛЯ АТАКИ! 💥</div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#ddd;margin-top:8px;padding:6px;background:rgba(0,0,0,0.4);border-radius:8px;font-weight:800;">
+            <span>💪 45</span><span>❤️ 100/100</span><span>⏳ 3</span><span>⭐ +10</span>
+        </div>
+    </div>`,
+    "Большая оранжевая кнопка — твоя атака. Кликай по ней, чтобы бить врага. Полоска HP врага — сверху."
+) + `
 
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#0f0;line-height:1.6;">
-[СЕРИЯ КЛИКОВ — ПРИМЕР]<br>
-▸ Клик 1-9:    x1 урона     [combo 1-9]<br>
-▸ Клик 10-24:  x2 урона ⚡  [combo x2]<br>
-▸ Клик 25-49:  x3 урона ⚡⚡ [combo x3]<br>
-▸ Клик 50+:    x5 урона 🔥  [combo x5]
-</div>
+` + demo("ПОЛОСКА УСТАЛОСТИ",
+    `<div style="background:rgba(0,0,0,0.4);padding:10px;border-radius:12px;width:250px;">
+        <div style="font-size:12px;font-weight:800;margin-bottom:5px;">😫 Усталость: <span style="color:#e74c3c;">45.3%</span></div>
+        <div style="background:rgba(0,0,0,0.5);border-radius:6px;height:10px;overflow:hidden;">
+            <div style="width:45%;height:10px;background:linear-gradient(90deg,#e74c3c,#c0392b);border-radius:6px;box-shadow:0 0 10px rgba(231,76,60,0.5);"></div>
+        </div>
+        <button class="btn" style="margin-top:8px;padding:6px 12px;width:100%;font-size:11px;">💤 Отдых (45⭐)</button>
+    </div>`,
+    "За каждый клик растёт усталость. Чем выше — тем меньше урона. Кнопка «Отдых» снижает её за звёзды."
+) + `
 
-<b>💥 Криты:</b> Улучшай <b>⚡ Крит. шанс</b> в прокачке (вкладка Лавка → Прокачка). Базово 0%, с улучшениями растёт.
+` + demo("КОМБО — КЛИКАЙ БЫСТРО",
+    `<div style="display:flex;flex-direction:column;gap:5px;width:250px;">
+        <div style="display:flex;justify-content:space-between;padding:6px 10px;background:rgba(0,0,0,0.3);border-radius:8px;font-size:11px;font-weight:800;">
+            <span>Кликов подряд: <b style="color:#00d4ff;">9</b></span>
+            <span>Множитель: <b style="color:#aaa;">x1</b></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 10px;background:rgba(255,170,0,0.15);border:1px solid #ffaa00;border-radius:8px;font-size:11px;font-weight:800;">
+            <span>Кликов подряд: <b style="color:#00d4ff;">24</b></span>
+            <span>Множитель: <b style="color:#ffaa00;">x2 ⚡</b></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 10px;background:rgba(255,68,0,0.15);border:1px solid #ff4400;border-radius:8px;font-size:11px;font-weight:800;">
+            <span>Кликов подряд: <b style="color:#00d4ff;">50+</b></span>
+            <span>Множитель: <b style="color:#ff4400;">x5 🔥</b></span>
+        </div>
+    </div>`,
+    "Комбо растёт, если кликать с интервалом меньше 0.5 сек. Даёт до x5 урона!"
+) + `
 
-<b>😫 Усталость:</b> За каждый клик растёт усталость. Чем выше усталость — тем меньше урон и HP. При 100% ты почти не бьёшь.
-
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#ffaa00;line-height:1.6;">
-[УСТАЛОСТЬ — ПРИМЕР]<br>
+<b>😫 Усталость:</b>
+<div class="help-legend">
 Усталость 0%:   💪 100% урона<br>
 Усталость 50%:  💪 50% урона<br>
 Усталость 90%:  💪 10% урона ⚠️<br>
 Усталость 100%: 💪 0% урона  💀
 </div>
 
-<b>💤 Отдых:</b> Кнопка <b>💤 Отдых</b> в бою снижает усталость на 40% за звёзды. Цена растёт с уровнем усталости.
-
-<b>👆 Быстрые клики = быстрее усталость!</b> Если кликать слишком часто (интервал < 0.1 сек) — усталость растёт в 3 раза быстрее.
+<b>⚠️ Осторожно:</b> если кликать слишком часто (интервал < 0.1 сек) — усталость растёт <b>в 3 раза быстрее!</b>
             `
         },
+
         // ========== 2. КАРТЫ ==========
         {
             id: "cards",
             icon: "🃏",
             title: "Карты и редкости",
-            short: "Что такое редкости, откуда брать",
+            short: "Что такое карты и откуда их брать",
             content: `
-<b>🃏 Карты:</b> Твои бойцы. У каждой карты есть:
-• <b>💪 Урон</b> — сколько бьёт
-• <b>❤️ HP</b> — сколько живёт
-• <b>⚡ Скорость</b> — скорость сердечка на арене
-• <b>✨ Способность</b> (с мастерства 4)
-• <b>🌀 Статус</b> (с мастерства 3)
-• <b>⚡ СУПЕР</b> (с мастерства 5)
+Каждая карта в коллекции выглядит так:
 
-<b>🏆 Редкости (от слабых к сильным):</b>
+` + demo("ТАК ВЫГЛЯДИТ КАРТА В КОЛЛЕКЦИИ",
+    mockCard("Луффи", "Обычная", "common", "💪4 ❤️8 ⚡0.6", false, false),
+    "Клик по карте → добавление в отряд. Кнопки внизу — быстрое управление."
+) + `
 
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;line-height:1.8;">
-⚪ Обычная       — база, слабые<br>
-🔵 Редкая         — чуть сильнее<br>
-🟢 Сверх редкая   — середина<br>
-🟣 Эпик           — сильные<br>
-🔴 Мифическая     — очень сильные<br>
-🟡 Легендарная    — топовые<br>
-💎 Секретная      — имба, с SUPER<br>
-🧬 Эволюционная   — только крафт<br>
-👑 Босс           — с пощады боссов<br>
-🥚 Пасхалка       — секретные
+` + demo("ЧТО ЗНАЧАТ КНОПКИ НА КАРТЕ",
+    `<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div class="remove-icon" style="background:#ffd700;color:#000;font-size:14px;padding:6px 12px;">⭐</div>
+            <span style="font-size:10px;color:#aaa;">Мастерство</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div class="remove-icon" style="background:#f5af19;color:#000;font-size:14px;padding:6px 12px;">⚔️</div>
+            <span style="font-size:10px;color:#aaa;">В отряд</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div class="remove-icon" style="background:#2ecc71;color:#000;font-size:14px;padding:6px 12px;">💤</div>
+            <span style="font-size:10px;color:#aaa;">В АФК</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div class="remove-icon" style="font-size:14px;padding:6px 12px;">💰</div>
+            <span style="font-size:10px;color:#aaa;">Продать</span>
+        </div>
+    </div>`,
+    "Жёлтая — прокачать мастерство. Оранжевая — в отряд. Зелёная — в АФК. Красная — продать за звёзды."
+) + `
+
+<b>🏆 Все редкости (от слабых к сильным):</b>
+
+<div class="help-legend" style="font-size:12px;line-height:2;">
+<span class="rarity-tag common">⚪ Обычная</span> — база, слабые<br>
+<span class="rarity-tag rare">🔵 Редкая</span> — чуть сильнее<br>
+<span class="rarity-tag superrare">🟢 Сверх редкая</span> — середина<br>
+<span class="rarity-tag epic">🟣 Эпик</span> — сильные<br>
+<span class="rarity-tag mythic">🔴 Мифическая</span> — очень сильные<br>
+<span class="rarity-tag legendary">🟡 Легендарная</span> — топовые<br>
+<span class="rarity-tag secret">💎 Секретная</span> — имба, с СУПЕР<br>
+<span class="rarity-tag evolutionary">🧬 Эволюционная</span> — только крафт<br>
+<span class="rarity-tag boss-rarity">👑 Босс</span> — с пощады боссов<br>
+<span class="rarity-tag easter">🥚 Пасхалка</span> — секретные
 </div>
 
-<b>📚 Где брать карты:</b>
-• <b>🎴 Получить карту (2ч)</b> — в коллекции, бесплатно каждые 2 часа
+<b>📚 Откуда брать карты:</b>
+• <b>🎴 Получить карту (2ч)</b> — кнопка в коллекции, бесплатно каждые 2 часа
 • <b>🎰 Гача</b> — в лавке за звёзды
-• <b>👑 Боссы</b> — 50% шанс выпадения с боссов
-• <b>🎁 Пасс</b> — награды за этапы
+• <b>👑 Боссы</b> — 50% шанс выпадения
+• <b>🎫 Пасс</b> — награды за этапы
 • <b>📅 Ежедневки</b> — за вход
 • <b>🎁 Промокоды</b>
-• <b>👑 Пощада боссов</b> — даёт босс-карту
 
-<b>🔍 Поиск и сортировка:</b> В коллекции есть поиск по имени, фильтр по редкости и сортировка (по урону, HP, редкости и т.д.).
+<b>🔍 Поиск и сортировка:</b> В коллекции есть поиск по имени, фильтр по редкости и сортировка (по урону, HP, редкости).
             `
         },
+
         // ========== 3. ОТРЯД ==========
         {
             id: "team",
@@ -103,274 +283,266 @@
             title: "Отряд (6 карт)",
             short: "Как собрать команду и пресеты",
             content: `
-<b>⚔️ Отряд:</b> До 6 карт. Их суммарный урон/HP влияет на твой урон в бою.
+<b>⚔️ Отряд:</b> до 6 карт. Их суммарный урон/HP идёт в бой.
 
-<b>👑 Главная карта:</b> Та, что стоит 1-й. Её <b>⚡ скорость</b> определяет скорость сердечка на арене Undertale.
+` + demo("КАРТА В ОТРЯДЕ — ЖЁЛТАЯ ОБВОДКА",
+    mockCard("Луффи", "Обычная", "common", "💪4 ❤️8 ⚡0.6", true, false),
+    "Такая карта уже в отряде. Жёлтая обводка + свечение."
+) + `
 
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#0ff;line-height:1.6;">
-[ПРИМЕР: ГЛАВНАЯ КАРТА]<br>
-▸ Сайтама (скорость 4.0) — сердце 🚀 быстрое<br>
-▸ Ездок  (скорость 0.3) — сердце 🐢 медленное<br>
-▸ Киллуа (скорость 1.3) — сердце ⚡ среднее
-</div>
+` + demo("КАРТА В АФК — ЗЕЛЁНАЯ ОБВОДКА",
+    mockCard("Усопп", "Обычная", "common", "💪3 ❤️6 ⚡0.4", false, true),
+    "Зелёная обводка = карта в АФК-отряде. Она фармит оффлайн."
+) + `
 
-<b>Как выбрать главную:</b> В списке отряда нажми <b>👑</b> рядом с картой.
+` + demo("ВЫБОР ГЛАВНОЙ КАРТЫ (КНОПКА 👑)",
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(0,0,0,0.4);border:2px solid #f5af19;border-radius:12px;width:280px;box-shadow:0 0 12px rgba(245,175,25,0.4);">
+        <div>
+            <div style="font-weight:800;font-size:13px;">👑 Луффи</div>
+            <div style="font-size:10px;color:#aaa;">💪4 ❤️8 ⚡0.6</div>
+        </div>
+        <div style="font-size:10px;color:#f5af19;font-weight:bold;">ГЛАВНЫЙ</div>
+    </div>
+    <div style="margin-top:8px;font-size:10px;color:#aaa;text-align:center;">или так — если карта ещё не главная:</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(0,0,0,0.3);border:2px solid rgba(255,255,255,0.08);border-radius:12px;width:280px;margin-top:6px;">
+        <div>
+            <div style="font-weight:800;font-size:13px;">Киллуа</div>
+            <div style="font-size:10px;color:#aaa;">💪10 ❤️13 ⚡1.3</div>
+        </div>
+        <button class="btn" style="padding:3px 8px;font-size:10px;background:rgba(245,175,25,0.3);border:1px solid #f5af19;color:#f5af19;border-radius:15px;">👑</button>
+    </div>`,
+    "Скорость главной карты = скорость твоего сердца ❤️ на арене боссов."
+) + `
 
-<b>💾 Пресеты отрядов:</b> Сохраняй разные составы (до 5 штук):
-• <b>💾</b> — сохранить текущий отряд
-• <b>📥</b> — загрузить пресет
-• <b>🗑️</b> — удалить
-• Клик по названию — переименовать
+<b>💾 Пресеты отрядов (до 5 штук):</b>
 
-<b>💤 АФК-отряд:</b> Отдельные 6 карт, которые фармят, пока ты в оффлайне. Работает даже когда игра закрыта (2 часа максимум).
+` + demo("ТАК ВЫГЛЯДИТ ПРЕСЕТ",
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(0,0,0,0.4);border-radius:10px;width:280px;border:1px solid rgba(255,255,255,0.05);">
+        <div style="text-align:left;">
+            <div style="font-weight:800;font-size:12px;">✅ Кликер-сет</div>
+            <div style="font-size:10px;color:#aaa;">6 карт</div>
+        </div>
+        <div style="display:flex;gap:4px;">
+            <button class="btn" style="padding:4px 9px;font-size:11px;background:#2ecc71;color:#fff;border:none;">💾</button>
+            <button class="btn" style="padding:4px 9px;font-size:11px;background:#3498db;color:#fff;border:none;">📥</button>
+            <button class="btn" style="padding:4px 9px;font-size:11px;background:#e74c3c;color:#fff;border:none;">🗑️</button>
+        </div>
+    </div>`,
+    "💾 сохранить • 📥 загрузить • 🗑️ удалить. Клик по названию — переименовать."
+) + `
 
-<b>👆 Как добавить карту:</b>
-• В коллекции нажми карту → попадёт в отряд
-• Или нажми <b>⚔️</b> на карточке
-• Или <b>💤</b> — для АФК
+<b>💡 Совет:</b> держи 2-3 пресета: для кликера (макс урон), для арены (скорость), для АФК (HP).
             `
         },
+
         // ========== 4. МАСТЕРСТВО ==========
         {
             id: "mastery",
             icon: "⭐",
             title: "Мастерство карт",
-            short: "Прокачка карт от 1 до 5 звёзд",
+            short: "Прокачка от 1 до 5 звёзд",
             content: `
-<b>⭐ Мастерство:</b> Каждая карта имеет уровень 1-5. Чем выше — тем сильнее карта.
+<b>⭐ Мастерство:</b> уровень карты от 1 до 5. Чем выше — тем сильнее.
 
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#ffd700;line-height:1.8;">
-⭐ Уровень 1 (☆☆☆☆☆): 60% характеристик<br>
-⭐⭐ Уровень 2 (★☆☆☆☆): 75% (+15%)<br>
-⭐⭐⭐ Уровень 3 (★★☆☆☆): 85% (+10%) + статус-эффект<br>
-⭐⭐⭐⭐ Уровень 4 (★★★☆☆): 95% (+10%) + способность<br>
-⭐⭐⭐⭐⭐ Уровень 5 (★★★★★): 100% (+5%) + СУПЕР ⚡
+` + demo("ТАК ВЫГЛЯДИТ МОДАЛКА МАСТЕРСТВА",
+    `<div style="background:linear-gradient(180deg,#1e1e2f,#151522);border:2px solid #f5af19;border-radius:16px;padding:14px;max-width:280px;width:100%;">
+        <div style="font-weight:900;font-size:14px;color:#f5af19;text-align:center;margin-bottom:6px;">⭐ МАСТЕРСТВО</div>
+        <div style="text-align:center;font-weight:900;font-size:13px;margin-bottom:2px;">Луффи</div>
+        <div style="text-align:center;font-size:10px;color:#aaa;margin-bottom:10px;">Обычная</div>
+        <div style="font-size:11px;color:#aaa;text-align:center;margin-bottom:8px;">Уровень: <span style="color:#ffd700;font-weight:900;">3/5</span></div>
+        <div style="display:flex;gap:4px;margin-bottom:12px;">
+            <div style="flex:1;height:8px;background:#ffd700;border-radius:4px;"></div>
+            <div style="flex:1;height:8px;background:#ffd700;border-radius:4px;"></div>
+            <div style="flex:1;height:8px;background:#ffd700;border-radius:4px;"></div>
+            <div style="flex:1;height:8px;background:#333;border-radius:4px;"></div>
+            <div style="flex:1;height:8px;background:#333;border-radius:4px;"></div>
+        </div>
+        <div style="font-size:10px;line-height:1.7;background:rgba(0,0,0,0.3);padding:8px;border-radius:8px;margin-bottom:10px;">
+            ✅ Ур 1: 60%<br>
+            ✅ Ур 2: +15%<br>
+            ✅ Ур 3: +10% + статус<br>
+            🔒 Ур 4: +10% + способность<br>
+            🔒 Ур 5: +5% + СУПЕР ⚡
+        </div>
+        <div style="font-size:10px;color:#aaa;text-align:center;margin-bottom:5px;">📊 Опыт карты:</div>
+        <div style="background:rgba(0,0,0,0.5);border-radius:6px;height:14px;overflow:hidden;margin-bottom:8px;position:relative;">
+            <div style="width:65%;height:100%;background:linear-gradient(90deg,#00d4ff,#0099ff);"></div>
+            <div style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;">1300 / 2000</div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;padding:10px;font-size:13px;font-weight:900;">⬆️ ПРОКАЧАТЬ +10%</button>
+    </div>`,
+    "Кнопка внизу — прокачать на следующий уровень. Стоит звёзды + Силу ⚡ + требует опыт."
+) + `
+
+<b>📊 Уровни и бонусы:</b>
+<div class="help-legend">
+⭐ 1/5:  60% характеристик<br>
+⭐⭐ 2/5:  75% (+15%)<br>
+⭐⭐⭐ 3/5:  85% (+10%) + <b>статус-эффект</b><br>
+⭐⭐⭐⭐ 4/5:  95% (+10%) + <b>способность</b><br>
+⭐⭐⭐⭐⭐ 5/5: 100% (+5%) + <b>СУПЕР ⚡</b>
 </div>
 
 <b>📊 Как качать:</b>
-1. <b>Опыт карты</b> — копится за бои, где карта в отряде
-2. <b>⭐ Звёзды</b> — цена зависит от редкости
-3. <b>⚡ Сила (Power Points)</b> — отдельная валюта
+• <b>Опыт карты</b> — копится за бои (карта должна быть в отряде)
+• <b>⭐ Звёзды</b> — цена зависит от редкости
+• <b>⚡ Сила (Power Points)</b> — отдельная валюта
 
-<b>Пример для эпик-карты:</b>
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#0f0;line-height:1.6;">
-Ур 1→2: 100⭐ + 2⚡ + 800 опыта<br>
-Ур 2→3: 800⭐ + 50⚡ + 1600 опыта<br>
-Ур 3→4: 1600⭐ + 200⚡ + 3200 опыта<br>
-Ур 4→5: 3200⭐ + 800⚡ + 6400 опыта
-</div>
-
-<b>⚡ Сила (Power Points):</b> Даётся за победы над волнами (чем выше волна, тем больше) и за боссов (+50 за каждого).
-
-<b>📖 Как открыть мастерство:</b> В коллекции нажми <b>⭐</b> на карточке карты.
+<b>⚡ Где брать Силу:</b> За победы над волнами (чем выше волна, тем больше) и +50 за боссов.
             `
         },
+
         // ========== 5. СУПЕР-СПОСОБНОСТИ ==========
         {
             id: "supers",
             icon: "⚡",
             title: "СУПЕР-способности",
-            short: "Ульты на арене Undertale",
+            short: "Ульты, доступные с мастерства 5",
             content: `
-<b>⚡ СУПЕР:</b> Открывается только на <b>мастерстве 5</b> (★★★★★) у секретных и особых карт.
+<b>⚡ СУПЕР:</b> ульта карты. Открывается только на <b>мастерстве 5</b> (★★★★★). Есть у секретных и особых карт.
 
-<b>🎮 Как использовать на арене:</b>
-1. Открой бой с боссом (кнопка <b>⚔️ СРАЗИТЬСЯ С БОССОМ!</b>)
-2. Когда СУПЕР готов — появится кнопка <b>⚡ СУПЕР</b> внизу
-3. Нажми её — активируешь ульту
+` + demo("КНОПКА СУПЕР НА АРЕНЕ БОССА",
+    `<button class="btn btn-super" style="padding:10px 22px;font-size:15px;animation:superPulse 2s infinite;">⚡ СУПЕР</button>`,
+    "Появляется внизу арены, когда готова. Нажми — активируешь ульту."
+) + `
 
-<b>📱 На телефоне:</b> Есть 3 способа активации (настройки → Управление SUPER):
-• <b>Кнопка</b> — обычная кнопка
-• <b>Двойное нажатие</b> — тапни 2 раза по арене
-• <b>Свайп вверх</b> — свайп от сердца
+` + demo("КОГДА НА КУЛДАУНЕ — СЕРАЯ",
+    `<div style="display:flex;gap:8px;justify-content:center;">
+        <button class="btn btn-super" style="padding:10px 22px;font-size:15px;">⚡ СУПЕР</button>
+        <button class="btn btn-super" style="padding:10px 22px;font-size:15px;background:#555;animation:none;box-shadow:none;cursor:not-allowed;" disabled>⏳ 8с</button>
+    </div>`,
+    "Слева — готова к бою. Справа — на кулдауне, надо подождать."
+) + `
 
-<b>⏱️ Перезарядка:</b> У каждой СУПЕР свой кулдаун. После использования серый, потом снова доступен.
+<b>📱 Настройки SUPER для телефона:</b>
+<div class="help-legend">
+• <b>Кнопка</b> — обычная кнопка внизу<br>
+• <b>Двойное нажатие</b> — тапни 2 раза по арене<br>
+• <b>Свайп вверх</b> — свайпни от сердца вверх
+</div>
 
 <b>🔥 Примеры СУПЕР:</b>
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#ff6600;line-height:1.8;">
+<div class="help-legend">
 <b>Сайтама — «ОБЫЧНЫЙ УДАР»</b><br>
 ▸ Красный кулак летит вверх<br>
 ▸ Сметает все атаки<br>
 ▸ 1% ваншот босса!<br><br>
+
 <b>Луффи Ника — «ОСВОБОЖДЕНИЕ»</b><br>
 ▸ Сердце становится огромным<br>
 ▸ Урон x2, но получаешь больше<br><br>
+
 <b>Зено — «СТИРАНИЕ»</b><br>
 ▸ Уничтожает ВСЕ атаки<br>
 ▸ -10% HP боссу
 </div>
 
-<b>⚙️ Авто-СУПЕР:</b> В настройках можно включить авто-использование, когда готов.
+<b>⚙️ Авто-СУПЕР:</b> включи в настройках, если лень нажимать — будет активироваться сама при готовности.
             `
         },
-        // ========== 6. АРЕНА UNDERTALE ==========
-        {
-            id: "arena",
-            icon: "🎮",
-            title: "Арена Undertale",
-            short: "Битва с боссами уклонением",
-            content: `
-<b>🎮 Что это:</b> Особая битва с боссами (50, 100, 150... волны). Не кликер, а мини-игра как в Undertale!
 
-<b>🕹️ Управление:</b>
-• <b>Клавиатура:</b> WASD или стрелки — двигать ❤️
-• <b>Телефон:</b> Тапай по экрану — сердце следует за пальцем
-
-<b>⚔️ Фазы боя:</b>
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#0ff;line-height:1.8;">
-▸ <b>УКЛОНЕНИЕ (10-16 сек)</b><br>
-  Босс атакует — уворачивайся ❤️<br>
-  Вверху имя атаки и таймер<br><br>
-▸ <b>АТАКА (2 сек)</b><br>
-  На экране появляются 🎯 цели<br>
-  Кликай по ним МАКСИМАЛЬНО быстро<br><br>
-▸ <b>УРОН</b><br>
-  Зависит от % попаданий:<br>
-  100% целей → x2.5 урона 🔥<br>
-  80-99% → x1.8 ⚡<br>
-  60-79% → x1.3 ✨<br>
-  40-59% → x1.0 👍<br>
-  20-39% → x0.6 💤<br>
-  0-19%  → x0.2 🥱
-</div>
-
-<b>💥 Твоё HP:</b> Считается от карт в отряде + улучшений. Показано сверху.
-
-<b>☠️ Karma:</b> Урон от ядовитых атак накапливается и постепенно тикает (как в Undertale).
-
-<b>🟢 Хил-блоки:</b> Зелёные кружки — подбери ❤️, восстановишь HP.
-
-<b>💗 Розовые:</b> Отбрасывают сердце. Не наносят урона, но могут вкинуть в шипы!
-
-<b>⚠️ Шипы (тип 4):</b> Не касайся стенок арены — получишь урон.
-
-<b>🎯 Совет:</b> Сначала ВСЕГДА уклоняйся, потом бей. Лучше попасть 60%, чем 100% урона от атаки.
-            `
-        },
-        // ========== 7. ОСОБЫЕ БОССЫ ==========
-        {
-            id: "specialBosses",
-            icon: "👑",
-            title: "Особые боссы",
-            short: "Живой Камень и Путеводная Звезда",
-            content: `
-<b>👑 Живой Камень (волна 200):</b> Особый QTE-босс.
-
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#8B7355;line-height:1.8;">
-<b>📜 СЦЕНАРИЙ:</b><br>
-1. Диалог: "Попробуй меня пробить!"<br>
-2. Кино: тебя откидывает, ты возвращаешься<br>
-3. <b>QTE:</b> 100 ударов за 30 секунд!<br>
-4. Фаза 2: босс злится, реальный бой<br>
-5. Победа → получаешь 🔑 Ключ<br>
-</div>
-
-<b>🎁 Награда:</b>
-• 🔑 Ключ Живого Камня (открывает Тайник в лавке)
-• 🪨 Кусок камня (коллекционный предмет)
-
-<b>👑 Путеводная Звезда (волна 500):</b> Многофазный босс с диалогами.
-
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#ffd700;line-height:1.8;">
-<b>📜 3 ФАЗЫ:</b><br>
-<b>Фаза 1:</b> Диалог + обычный бой<br>
-  Собери 5 Луффи в отряд (ровно 5!)<br>
-  Победи Звезду → эволюция!<br><br>
-<b>Фаза 2:</b> 60 осколков-пришельцев<br>
-  Управление: ← → (только в стороны)<br>
-  Авто-стрельба, убивай всех<br><br>
-<b>Фаза 3:</b> Финальная форма<br>
-  Все виды атак + эскалации<br>
-  RAGE MODE при 50% HP<br>
-</div>
-
-<b>🎁 Награды:</b>
-• Пощада: долг (Звезда вернётся помочь в будущем)
-• Убийство: 🌟 Путеводная Звезда (карта-предмет) + 💎 секретный токен
-            `
-        },
-        // ========== 8. ПОЩАДА ==========
-        {
-            id: "spare",
-            icon: "🤝",
-            title: "Пощада боссов",
-            short: "Как получить босс-карту",
-            content: `
-<b>🤝 Пощада:</b> Особый способ победить босса — не убить, а пощадить.
-
-<b>📋 Условия:</b>
-1. Босс должен быть уникальным (с диалогом)
-2. HP босса ниже <b>30%</b>
-3. Кнопка <b>🤝 ПОЩАДИТЬ БОССА</b> появится внизу
-
-<b>🎲 Шанс:</b> Базово <b>30%</b>. Можно увеличить:
-• Карты с <b>+% к пощаде</b> (Деку, Деку 20%)
-• Бонус от команды
-
-<b>🎁 Что даёт:</b>
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#0f0;line-height:1.8;">
-<b>Пример: Король Демонов (волна 50)</b><br>
-▸ Убить: 25⭐ + шанс обычной карты<br>
-▸ Пощадить: 👑 карта "Король Демонов"<br>
-  (+10% урона боссам в команде!)<br><br>
-<b>Пример: Маджин Буу (волна 100)</b><br>
-▸ Убить: 50⭐<br>
-▸ Пощадить: 👑 карта "Маджин Буу"<br>
-  (+10% кровотечение)
-</div>
-
-<b>⚠️ Если провал:</b> Босс наносит ТРОЙНОЙ урон! Будь осторожен.
-
-<b>💡 Совет:</b> Всегда щади уникальных боссов, если можешь — они дают эксклюзивные карты.
-            `
-        },
-        // ========== 9. ГАЧА ==========
+        // ========== 6. ГАЧА ==========
         {
             id: "gacha",
             icon: "🎰",
             title: "Гача (крутки)",
-            short: "Как крутить карты и лимиты",
+            short: "Как крутить карты и дневные лимиты",
             content: `
-<b>🎰 Гача:</b> Способ получить случайную карту за звёзды.
+<b>🎰 Гача:</b> способ получить случайную карту за звёзды.
 
-<b>📊 Типы круток:</b>
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;line-height:1.8;">
+` + demo("ТАК ВЫГЛЯДИТ КРУТКА В ЛАВКЕ",
+    `<div style="background:rgba(15,15,31,0.6);border-radius:12px;padding:12px;border-left:3px solid #e74c3c;width:280px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="text-align:left;">
+            <div style="font-weight:800;font-size:13px;">🔴 Мифическая крутка</div>
+            <div style="font-size:10px;color:#aaa;margin-top:2px;">3200⭐ | 2/5 сегодня</div>
+            <div style="font-size:9px;color:#aaa;margin-top:1px;">Мин: Эпик | Макс: Секретная (0.8%)</div>
+        </div>
+        <button class="btn btn-primary" style="padding:8px 14px;font-size:12px;min-width:80px;">Крутить</button>
+    </div>`,
+    "Нажми «Крутить» — начнётся анимация, в конце покажет выпавшую карту."
+) + `
+
+` + demo("ЛЕГЕНДАРНАЯ И СЕКРЕТНАЯ — ОСОБЕННЫЕ",
+    `<div style="display:flex;flex-direction:column;gap:8px;width:280px;">
+        <div style="background:rgba(255,215,0,0.1);border-radius:12px;padding:10px;border-left:3px solid #ffd700;display:flex;justify-content:space-between;align-items:center;">
+            <div style="text-align:left;">
+                <div style="font-weight:800;font-size:12px;">🟡 Легендарная крутка</div>
+                <div style="font-size:9px;color:#aaa;">Разрешений: <b style="color:#ffd700;">3</b></div>
+            </div>
+            <button class="btn legendary-btn" style="padding:6px 12px;font-size:11px;">Крутить</button>
+        </div>
+        <div style="background:rgba(255,0,255,0.1);border-radius:12px;padding:10px;border-left:3px solid #ff00ff;display:flex;justify-content:space-between;align-items:center;">
+            <div style="text-align:left;">
+                <div style="font-weight:800;font-size:12px;">💎 Секретная крутка</div>
+                <div style="font-size:9px;color:#aaa;">Разрешений: <b style="color:#ff00ff;">1</b></div>
+            </div>
+            <button class="btn secret-btn" style="padding:6px 12px;font-size:11px;">Крутить</button>
+        </div>
+    </div>`,
+    "Открываются только после победы над НОВЫМ боссом. За каждого нового босса — +2 легендарных токена и 15% шанс на секретный."
+) + `
+
+<b>📊 Все крутки:</b>
+<div class="help-legend">
 ⚪ <b>Обычная</b> — 200⭐, до 50/день<br>
 🔵 <b>Редкая</b> — 400⭐, до 35/день<br>
 🟢 <b>Сверхредкая</b> — 800⭐, до 20/день<br>
 🟣 <b>Эпическая</b> — 1600⭐, до 10/день<br>
 🔴 <b>Мифическая</b> — 3200⭐, до 5/день<br>
-🟡 <b>Легендарная</b> — 10000⭐, до 10/день*<br>
-💎 <b>Секретная</b> — 20000⭐, до 2/день*
+🟡 <b>Легендарная</b> — токен с босса<br>
+💎 <b>Секретная</b> — токен с босса
 </div>
 
-<b>* Легендарная и Секретная</b> доступны только после победы над <b>НОВЫМ</b> боссом (каждые 50 волн). За каждого босса дают токены.
-
-<b>🎁 Токены:</b>
-• 🎰 Легендарные токены — за победу над новым боссом (+2)
-• 💎 Секретные токены — редко (15% шанс), +1 за босса
-
-<b>⏰ Сброс лимитов:</b> Раз в 24 часа.
-
-<b>💡 Совет:</b> Не трати все звёзды на крутки. Копи на прокачку и инвентарь. Легендарки выпадают с боссов чаще.
+<b>⏰ Лимиты сбрасываются раз в 24 часа.</b>
             `
         },
-        // ========== 10. ПАСС ==========
+
+        // ========== 7. ПАСС ==========
         {
             id: "pass",
             icon: "🎫",
             title: "Мультиверс Пасс",
             short: "60 этапов с наградами",
             content: `
-<b>🎫 Пасс:</b> Прогрессия из 60 этапов. На каждом — награда.
+<b>🎫 Пасс:</b> прогрессия из 60 этапов. На каждом — награда.
 
-<b>📊 Как качать опыт пасса:</b>
-• <b>+1 опыт</b> за клик
-• <b>+5 опыта</b> за обычную волну
+` + demo("ТАК ВЫГЛЯДЯТ ЭТАПЫ ПАССА",
+    `<div style="max-width:280px;width:100%;">
+        <div style="text-align:center;margin-bottom:8px;font-size:11px;color:#aaa;">Этап <b style="color:#ffd700;">5</b> из 60</div>
+        <div style="background:rgba(0,0,0,0.5);border-radius:8px;height:10px;margin-bottom:10px;overflow:hidden;">
+            <div style="width:8%;height:100%;background:linear-gradient(90deg,#ffd700,#ff8c00);"></div>
+        </div>
+
+        <div class="help-stage-list" style="background:rgba(46,204,113,0.15);border-color:#2ecc71;">
+            <span style="font-size:16px;">⚡</span>
+            <div style="flex:1;">Этап 5: 50 СИЛЫ</div>
+            <span style="color:#2ecc71;">✅</span>
+        </div>
+
+        <div class="help-stage-list" style="background:rgba(245,175,25,0.2);border-color:#f5af19;">
+            <span style="font-size:16px;">⭐</span>
+            <div style="flex:1;">Этап 6: 200 звёзд</div>
+            <button class="btn btn-primary" style="padding:4px 12px;font-size:10px;">Забрать</button>
+        </div>
+
+        <div class="help-stage-list" style="background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.05);opacity:0.4;">
+            <span style="font-size:16px;">🌟</span>
+            <div style="flex:1;">Этап 7: Звёзды x2</div>
+            <span>🔒</span>
+        </div>
+    </div>`,
+    "Зелёный — награда уже забрана. Жёлтый — можно забрать. Серый — этап закрыт."
+) + `
+
+<b>📊 Как качается опыт пасса:</b>
+<div class="help-legend">
+• <b>+1 опыт</b> за клик<br>
+• <b>+5 опыта</b> за обычную волну<br>
 • <b>+25 опыта</b> за босса
+</div>
 
-<b>🏆 Награды по этапам:</b>
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#ffd700;line-height:1.6;">
+<b>🏆 Топовые награды:</b>
+<div class="help-legend">
 Этап 1:   ⚪⚪⚪ 3 обычные карты<br>
 Этап 5:   ⚡ 50 СИЛЫ<br>
 Этап 10:  💥 Урон x2 на 15 мин<br>
@@ -380,75 +552,49 @@
 Этап 50:  💎 Секретная крутка<br>
 Этап 60:  🎉 3 БЕСПЛАТНЫЕ СЕКРЕТКИ!
 </div>
-
-<b>💡 Совет:</b> Пасс сам качается, играй активно — откроются все награды.
             `
         },
-        // ========== 11. ЭВОЛЮЦИИ ==========
-        {
-            id: "evolution",
-            icon: "🧬",
-            title: "Эволюции карт",
-            short: "Как получить топовые карты",
-            content: `
-<b>🧬 Эволюции:</b> Особые карты, которые нельзя получить гачей. Только выполнив квесты.
 
-<b>📋 Все эволюции (нужен 5 ребиртх):</b>
-
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;line-height:1.8;">
-<b>👑 Луффи: Король пиратов</b><br>
-▸ Собери 5 РАЗНЫХ Луффи в отряд<br>
-▸ Победи босса 500 волны<br>
-▸ Награда: 1200 урона, +50% боссам<br><br>
-
-<b>👊 Сайтама/Гароу</b><br>
-▸ Сайтама + Космический Гароу в отряде<br>
-▸ 2000 ваншотов способностью<br>
-▸ Награда: 1500 урона, 15% ваншот<br><br>
-
-<b>❄️ Гарп/Кудзан</b><br>
-▸ Молодой Гарп + Кудзан в отряде<br>
-▸ 1 000 000 000 урона<br>
-▸ Награда: 1400 урона, -50% урона<br><br>
-
-<b>🦸 Семёрка</b><br>
-▸ 6 членов Семёрки + V у всех<br>
-▸ Уровень 20+<br>
-▸ Награда: 1600 урона, хил 5%/волна<br><br>
-
-<b>💀 Уильям Фрэнсис</b><br>
-▸ Победи босса 2000 волны<br>
-▸ Только обычные карты (6 шт)<br>
-▸ Награда: 800 урона, 15% копирование
-</div>
-            `
-        },
-        // ========== 12. РЕБИРТХ ==========
+        // ========== 8. РЕБИРТХ ==========
         {
             id: "rebirth",
             icon: "🔄",
             title: "Ребиртх (Престиж)",
-            short: "Сброс ради множителя",
+            short: "Сброс ради постоянного множителя",
             content: `
-<b>🔄 Ребиртх:</b> Сброс всего ради постоянного множителя.
+<b>🔄 Ребиртх:</b> сброс всего ради <b>постоянного множителя</b> ко всему.
 
-<b>🎯 Что даёт:</b>
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#0f0;line-height:1.8;">
+` + demo("ТАК ВЫГЛЯДИТ ИНФО-БЛОК РЕБИРТХА",
+    `<div style="background:rgba(0,0,0,0.3);padding:12px;border-radius:12px;max-width:280px;text-align:left;font-size:11px;line-height:1.8;">
+        <div>🔄 Текущий ребёрн: <b>0</b></div>
+        <div>⚡ Множитель: <b style="color:#ffd700;">x1.0</b></div>
+        <div>🌍 Текущий мир: <b>Лес начала и конца</b></div>
+        <div style="margin-top:6px;padding:6px 10px;background:rgba(0,0,0,0.4);border-radius:8px;font-size:12px;">
+            📊 Достигнута волна: <b style="color:#f5af19;">85</b>
+        </div>
+        <div style="margin-top:10px;padding:10px;background:rgba(231,76,60,0.15);border:2px solid #e74c3c;border-radius:10px;">
+            <div style="font-size:10px;color:#aaa;margin-bottom:4px;">ТРЕБОВАНИЕ ДЛЯ РЕБЁРНА 1:</div>
+            <div style="font-size:12px;font-weight:bold;">👑 Победить босса:</div>
+            <div style="font-size:14px;font-weight:900;color:#f5af19;margin-top:2px;">Волна 200</div>
+            <div style="font-size:11px;color:#fff;margin-top:2px;">«Живой камень»</div>
+            <div style="margin-top:6px;font-size:12px;color:#e74c3c;font-weight:bold;">❌ Условие ещё не выполнено</div>
+        </div>
+    </div>`,
+    "Показывает требования, множитель и текущий мир."
+) + `
+
+` + demo("КНОПКА РЕБИРТХА",
+    `<button class="btn btn-primary" style="padding:14px 24px;font-size:15px;font-weight:900;">🔄 Совершить Ребиртх!</button>`,
+    "Кнопка неактивна, пока не выполнено требование. Как только готово — нажимай!"
+) + `
+
+<b>📈 Что даёт множитель:</b>
+<div class="help-legend">
 Ребиртх 1: x1.3 ко всему<br>
 Ребиртх 2: x1.6<br>
 Ребиртх 3: x1.9<br>
 Ребиртх 5: x2.5<br>
 Ребиртх 10: x4.0
-</div>
-
-<b>📋 Требования:</b>
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;line-height:1.6;">
-Реб 1: победить Живого Камня (200)<br>
-Реб 2: победить Путеводную Звезду (500)<br>
-Реб 3: победить Короля Смерти (650)<br>
-Реб 4: победить Астарота (800)<br>
-Реб 5: победить Императора Хаоса (1000)<br>
-Реб 6+: 1250, 1500, 1750... волны
 </div>
 
 <b>💥 Что СБРАСЫВАЕТСЯ:</b>
@@ -462,115 +608,217 @@
 • 🪨 Кусок камня<br>
 • Статистика и ребиртх-история
 
-<b>💡 Совет:</b> Делай ребиртх, когда упёрся в стену. Множитель x1.3 очень заметен!
+<b>📋 Требования:</b>
+<div class="help-legend">
+Реб 1: победить Живого Камня (200)<br>
+Реб 2: победить Путеводную Звезду (500)<br>
+Реб 3: победить Короля Смерти (650)<br>
+Реб 4: победить Астарота (800)<br>
+Реб 5: победить Императора Хаоса (1000)<br>
+Реб 6+: волны 1250, 1500, 1750...
+</div>
             `
         },
-        // ========== 13. ЕДА И ГОЛОД ==========
+
+        // ========== 9. ЕДА ==========
         {
             id: "food",
             icon: "🍔",
             title: "Еда, голод, ожирение",
-            short: "Как кормить команду",
+            short: "Как кормить команду и что будет если не кормить",
             content: `
-<b>🍽️ Голод:</b> Растёт со временем (0.028/сек). Влияет на HP и усталость.
+<b>🍽️ Голод:</b> растёт со временем. Влияет на HP и усталость.
 
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;line-height:1.6;">
+` + demo("ТАК ВЫГЛЯДИТ ПОЛОСКА ГОЛОДА",
+    `<div style="background:rgba(0,0,0,0.3);padding:12px;border-radius:12px;width:250px;">
+        <div style="font-weight:800;font-size:13px;margin-bottom:6px;">🍽️ Голод: <span style="color:#f5af19;">55%</span></div>
+        <div style="background:rgba(0,0,0,0.5);border-radius:6px;height:10px;overflow:hidden;">
+            <div style="width:55%;height:10px;background:#f5af19;border-radius:6px;"></div>
+        </div>
+        <div style="font-weight:800;font-size:13px;margin-top:12px;">🍔 Ожирение: <span style="color:#e74c3c;">22/60 (Ож I)</span></div>
+        <div style="background:rgba(0,0,0,0.5);border-radius:6px;height:10px;overflow:hidden;margin-top:6px;">
+            <div style="width:37%;height:10px;background:#e67e22;border-radius:6px;"></div>
+        </div>
+    </div>`,
+    "Полоска голода — чем краснее, тем меньше HP. Ожирение — замедляет сердце на арене."
+) + `
+
+` + demo("ТАК ВЫГЛЯДЯТ ПРОДУКТЫ В ИНВЕНТАРЕ",
+    `<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <div class="help-item-mock">
+            <div style="font-size:32px;">🍏</div>
+            <div style="font-size:10px;font-weight:800;margin-top:4px;">Яблоко</div>
+            <div style="font-size:11px;font-weight:900;color:#f5af19;">x3</div>
+        </div>
+        <div class="help-item-mock">
+            <div style="font-size:32px;">🍖</div>
+            <div style="font-size:10px;font-weight:800;margin-top:4px;">Жар. мясо</div>
+            <div style="font-size:11px;font-weight:900;color:#f5af19;">x1</div>
+        </div>
+        <div class="help-item-mock">
+            <div style="font-size:32px;">🍯</div>
+            <div style="font-size:10px;font-weight:800;margin-top:4px;">Мёд</div>
+            <div style="font-size:11px;font-weight:900;color:#f5af19;">x2</div>
+        </div>
+    </div>`,
+    "Клик по продукту в инвентаре → откроется меню «Съесть»."
+) + `
+
+<b>📊 Влияние голода на HP:</b>
+<div class="help-legend">
 Голод 0-30%:   ✅ норма (100% HP)<br>
 Голод 30-60%:  ⚠️ -15% HP<br>
 Голод 60-85%:  ⚠️ -40% HP<br>
 Голод 85-100%: 💀 -70% HP
 </div>
 
-<b>🍔 Ожирение:</b> Даётся от жирной еды (хлеб, мясо). Влияет на скорость сердца.
-
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;line-height:1.6;">
-Ож 0-19:    ✅ норма<br>
-Ож 20-39:   🐢 скорость x0.75 (Ож I)<br>
-Ож 40-59:   🐢 скорость x0.6 (Ож II)<br>
-Ож 60:      🐌 скорость x0.5 (Ож III)
+<b>📊 Влияние ожирения на скорость:</b>
+<div class="help-legend">
+Ож 0-19:   ✅ норма<br>
+Ож 20-39:  🐢 скорость x0.75 (Ож I)<br>
+Ож 40-59:  🐢 скорость x0.6 (Ож II)<br>
+Ож 60:     🐌 скорость x0.5 (Ож III)
 </div>
 
-<b>☠️ Отравление:</b> От сырого мяса и ядовитых грибов. Тикает -2% HP/сек.
-
-<b>💚 Антидот:</b> Копится от фруктов. 10 очков = снимает отравление.
+<b>☠️ Отравление:</b> от сырого мяса и ядовитых грибов. Тикает -2% HP/сек. Лечится 🧪 зельем или 💚 10 очками антидота.
 
 <b>🍎 Полезные продукты:</b>
-• 🍏 Яблоко: +5% HP, -10% голода
-• 🍉 Арбуз: +20% HP, -50% голода
-• 🍍 Ананас: +25% HP, -60% голода
-• 🍯 Мёд: реген 30% HP за 10 сек
-• 🥭 Манго: +8 антидота
+<div class="help-legend">
+🍏 Яблоко: +5% HP, -10% голода<br>
+🍉 Арбуз: +20% HP, -50% голода<br>
+🍍 Ананас: +25% HP, -60% голода<br>
+🍯 Мёд: реген 30% HP за 10 сек<br>
+🥭 Манго: +8 антидота
+</div>
 
 <b>⚠️ Вредные:</b>
-• 🍞 Хлеб: -40% голода, но +1 ожирение
-• 🥩 Сырое мясо: +15% HP, но отравление
-• 🌶️ Перец: +30% скорости, но -1% HP/сек
+<div class="help-legend">
+🍞 Хлеб: -40% голода, но +1 ожирение<br>
+🥩 Сырое мясо: +15% HP, но отравление<br>
+🌶️ Перец: +30% скорости, но -1% HP/сек
+</div>
             `
         },
-        // ========== 14. ИНВЕНТАРЬ ==========
+
+        // ========== 10. ИНВЕНТАРЬ ==========
         {
             id: "inventory",
             icon: "🎒",
             title: "Инвентарь и предметы",
-            short: "Что можно носить и использовать",
+            short: "Что можно носить и как использовать",
             content: `
-<b>🎒 Инвентарь:</b> Вкладка Лавка → Инвентарь. Все предметы, которые ты собрал.
+<b>🎒 Инвентарь:</b> открывается в <b>Лавка → Инвентарь</b>. Здесь все твои предметы.
 
-<b>📦 Предметы:</b>
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;line-height:1.6;">
+` + demo("ТАК ВЫГЛЯДИТ ПРЕДМЕТ В ИНВЕНТАРЕ",
+    `<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <div class="help-item-mock" style="border-color:#f5af19;box-shadow:0 0 15px rgba(245,175,25,0.3);">
+            <div style="font-size:36px;">⭐</div>
+            <div style="font-size:11px;font-weight:800;margin-top:4px;color:#f5af19;">Звезда</div>
+            <div style="font-size:12px;font-weight:900;color:#f5af19;">x12450</div>
+        </div>
+        <div class="help-item-mock" style="border-color:#ffd700;box-shadow:0 0 15px rgba(255,215,0,0.5);">
+            <div style="font-size:36px;">🌟</div>
+            <div style="font-size:11px;font-weight:800;margin-top:4px;">Путеводная</div>
+            <div style="font-size:12px;font-weight:900;color:#f5af19;">x1</div>
+        </div>
+        <div class="help-item-mock">
+            <div style="font-size:36px;">🦴</div>
+            <div style="font-size:11px;font-weight:800;margin-top:4px;">Кость</div>
+            <div style="font-size:12px;font-weight:900;color:#f5af19;">x87</div>
+        </div>
+    </div>`,
+    "Клик по предмету → откроется меню с действиями (съесть, использовать, продать)."
+) + `
+
+` + demo("МЕНЮ ПРЕДМЕТА (ПРИ КЛИКЕ)",
+    `<div style="background:linear-gradient(180deg,#1e1e2f,#151522);border:2px solid #f5af19;border-radius:14px;padding:12px;max-width:240px;">
+        <div style="text-align:center;font-weight:900;font-size:14px;color:#f5af19;">🥩 СЫРОЕ МЯСО</div>
+        <div style="text-align:center;font-size:10px;color:#aaa;margin:6px 0;">Количество: <b style="color:#f5af19;">3</b></div>
+        <div style="background:rgba(0,0,0,0.3);padding:8px;border-radius:8px;font-size:10px;line-height:1.5;margin-bottom:8px;">
+            Мясо, но есть сырым — плохая идея. +15% HP, но отравление на 60 сек.
+        </div>
+        <button class="btn btn-primary" style="width:100%;padding:8px;font-size:11px;margin-bottom:5px;">🍴 Съесть (ОПАСНО)</button>
+        <button class="btn" style="width:100%;padding:8px;font-size:11px;background:linear-gradient(135deg,#f5af19,#f12711);color:white;border:none;">🔥 Пожарить (10⭐)</button>
+    </div>`,
+    "Кнопки действий зависят от предмета: съесть, пожарить, использовать, продать."
+) + `
+
+<b>📦 Ключевые предметы:</b>
+<div class="help-legend">
 🦴 <b>Кость</b> — продать за 1⭐<br>
-🥩 <b>Сырое мясо</b> — есть или жарить<br>
-🍖 <b>Жареное мясо</b> — +25% HP, +2 ож<br>
+🥩 <b>Сырое мясо</b> — есть (опасно) или жарить<br>
+🍖 <b>Жареное мясо</b> — +25% HP, +2 ожирение<br>
 🍄 <b>Гриб</b> — 50/50 волшебный/ядовитый<br>
-🍯 <b>Мёд</b> — реген HP<br>
-🌶️ <b>Перец</b> — скорость+жжёт<br>
-🧊 <b>Лёд</b> — заморозка врага<br>
+🍯 <b>Мёд</b> — реген HP за 10 сек<br>
+🌶️ <b>Перец</b> — скорость + жжёт<br>
+🧊 <b>Лёд</b> — заморозка врага +5 кликов<br>
 🥚 <b>Яйцо</b> — рандомная награда<br>
 🧪 <b>Зелье</b> — снять отравление<br>
-🍏🍊🍌🍒🍋🍇🍉🥭🍍 <b>Фрукты</b> — полезные<br>
-🔑 <b>Ключ Живого Камня</b> — откр. Тайник<br>
-🌟 <b>Путеводная Звезда</b> — 25 000⭐ при активации!
+🔑 <b>Ключ Живого Камня</b> — открыть Тайник<br>
+🌟 <b>Путеводная Звезда</b> — даёт 25 000⭐!
 </div>
 
-<b>👆 Как использовать:</b> Нажми на предмет → откроется меню с действиями.
-
-<b>💰 Скупка костей:</b> В Лавка → Скупка можно продать кости и прочие предметы за звёзды.
+<b>💰 Продажа:</b> в <b>Лавка → Скупка</b> можно продать кости и другие предметы за звёзды.
             `
         },
-        // ========== 15. ПРОМОКОДЫ ==========
+
+        // ========== 11. ПРОМОКОДЫ ==========
         {
             id: "codes",
             icon: "🎁",
             title: "Промокоды",
             short: "Бесплатные награды по коду",
             content: `
-<b>🎁 Промокоды:</b> Введи код → получи награду. Вкладка <b>Прочее → Коды</b>.
+<b>🎁 Промокоды:</b> введи код → получи награду. Вкладка <b>Прочее → Коды</b>.
+
+` + demo("ТАК ВЫГЛЯДИТ ВВОД КОДА",
+    `<div style="width:280px;">
+        <input type="text" class="code-input" placeholder="Введите код..." value="DrinkTea2Win" readonly style="font-size:14px;padding:12px;">
+        <button class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;margin-top:8px;">Активировать</button>
+        <div style="margin-top:10px;text-align:center;font-weight:900;font-size:18px;color:#2ecc71;">✅ Успешно активировано!</div>
+    </div>`,
+    "Введи код в поле и нажми «Активировать». Результат появится ниже."
+) + `
 
 <b>📋 Известные коды:</b>
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;color:#0f0;line-height:1.8;">
-<b>DrinkTea2Win</b> → 🥤 Пасхалка DrinkTea2Win<br>
-<b>PELMESHKA</b> → 🥟 Пасхалка Пельмешка + 1000⭐<br>
-<b>Хочу Звезды</b> → ⭐ 5000 звёзд<br>
-<b>Сила</b> → 💪 Бафф урона x1.3 на сутки<br>
-<b>789456123</b> → 👑 Модер-режим
+<div class="help-legend">
+<b style="color:#00ff88;">DrinkTea2Win</b> → 🥤 Пасхалка DrinkTea2Win<br>
+<b style="color:#00ff88;">PELMESHKA</b> → 🥟 Пасхалка Пельмешка + 1000⭐<br>
+<b style="color:#00ff88;">Хочу Звезды</b> → ⭐ 5000 звёзд<br>
+<b style="color:#00ff88;">Сила</b> → 💪 Бафф урона x1.3 на сутки<br>
+<b style="color:#00ff88;">789456123</b> → 👑 Модер-режим
 </div>
 
 <b>⚠️ Каждый код можно использовать 1 раз.</b>
 
-<b>💡 Совет:</b> Подписывайся на обновления — иногда выходят новые коды.
+<b>💡 Совет:</b> подписывайся на обновления — иногда выходят новые коды.
             `
         },
-        // ========== 16. СИЛА ==========
+
+        // ========== 12. СИЛА ==========
         {
             id: "power",
             icon: "⚡",
             title: "Сила (Power Points)",
             short: "Отдельная валюта для мастерства",
             content: `
-<b>⚡ Сила:</b> Отдельная валюта, только для прокачки <b>мастерства карт</b>.
+<b>⚡ Сила:</b> отдельная валюта. Используется ТОЛЬКО для прокачки мастерства карт.
 
-<b>📊 Где брать:</b>
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;line-height:1.6;">
+` + demo("ТАК СИЛА ОТОБРАЖАЕТСЯ В ИГРЕ",
+    `<div style="display:flex;gap:20px;align-items:center;justify-content:center;flex-wrap:wrap;">
+        <span style="font-size:22px;font-weight:900;color:#f5af19;">⭐ 12 450</span>
+        <span style="font-size:20px;font-weight:900;color:#ffd700;display:inline-flex;align-items:center;gap:5px;">
+            <span style="display:inline-block;width:22px;height:22px;vertical-align:middle;">
+                <svg viewBox="0 0 24 24" style="width:100%;height:100%;filter:drop-shadow(0 0 5px #ffd700);"><path d="M13 2L4.5 13.5H11L10 22L19.5 9.5H13L13 2Z" fill="#ffd700" stroke="#ffaa00" stroke-width="1.5"/></svg>
+            </span>
+            <span>2 340</span> <span style="font-size:14px;">Силы</span>
+        </span>
+    </div>`,
+    "Звёзды (⭐) — основная валюта. Сила (⚡) — для мастерства карт."
+) + `
+
+<b>📊 Где брать Силу:</b>
+<div class="help-legend">
 Волна 1-99:    +1 ⚡<br>
 Волна 100-199: +2 ⚡<br>
 Волна 200-299: +3 ⚡<br>
@@ -579,43 +827,69 @@
 Босс:          +50 ⚡ бонусом
 </div>
 
-<b>🎯 Куда тратить:</b> Только на мастерство карт (кнопка ⭐ на карточке).
+<b>🎯 Куда тратить:</b> только на мастерство карт (кнопка ⭐ на карточке карты).
 
-<b>💡 Совет:</b> Не копи слишком много — качай карты, что в отряде. Иначе Сила копится впустую.
+<b>💡 Совет:</b> не копи слишком много — качай карты, что в отряде.
             `
         },
-        // ========== 17. ЧЕКПОИНТЫ ==========
+
+        // ========== 13. ЧЕКПОИНТЫ ==========
         {
             id: "checkpoints",
             icon: "🚩",
             title: "Чекпоинты",
             short: "Сохранение прогресса волн",
             content: `
-<b>🚩 Чекпоинты:</b> Каждые 50 волн открывается чекпоинт. При смерти можно вернуться.
+<b>🚩 Чекпоинты:</b> каждые 50 волн открывается чекпоинт. При смерти можно вернуться.
 
-<b>📋 Где смотреть:</b> Вкладка <b>Битва → Чекпоинты</b>.
+` + demo("ТАК ВЫГЛЯДЯТ ЧЕКПОИНТЫ",
+    `<div style="display:flex;flex-direction:column;gap:6px;width:280px;">
+        <div class="help-stage-list" style="background:rgba(15,15,31,0.6);border-color:rgba(255,255,255,0.05);">
+            <span style="color:#f5af19;">🚩</span>
+            <div style="flex:1;">Волна 50</div>
+            <button class="btn auto-active" style="padding:4px 10px;font-size:10px;background:transparent;border:2px solid #2ecc71;">Выбрано ✅</button>
+        </div>
+        <div class="help-stage-list" style="background:rgba(15,15,31,0.6);border-color:rgba(255,255,255,0.05);">
+            <span style="color:#f5af19;">🚩</span>
+            <div style="flex:1;">Волна 100</div>
+            <button class="btn" style="padding:4px 10px;font-size:10px;">Выбрать ▶</button>
+        </div>
+        <div class="help-stage-list" style="background:rgba(15,15,31,0.6);border-color:rgba(255,255,255,0.05);opacity:0.5;">
+            <span>🚩</span>
+            <div style="flex:1;">Волна 150 🔒</div>
+            <button class="btn" style="padding:4px 10px;font-size:10px;" disabled>Выбрать ▶</button>
+        </div>
+    </div>`,
+    "Зелёная обводка — активный чекпоинт, при смерти вернёшься сюда."
+) + `
 
-<b>🎯 Варианты использования:</b>
-1. <b>Перейти сейчас</b> — телепорт на волну (для повторного фарма)
-2. <b>Авто-возврат</b> — при смерти возвращаться на чекпоинт
+<b>🎯 Как использовать:</b>
+• <b>Клик по кнопке</b> — активировать чекпоинт
+• При смерти — если есть активный, вернёшься туда
+• Если нет активного — вернёшься на 1 волну
 
-<b>💀 При смерти:</b>
-• Если есть активный чекпоинт → вернёшься туда
-• Если нет → вернёшься на 1 волну
-
-<b>🌟 Зено-бонус:</b> Если в отряде Зено — 10% шанс открыть СЛЕДУЮЩИЙ чекпоинт автоматически.
+<b>🌟 Зено-бонус:</b> если Зено в отряде — 10% шанс открыть СЛЕДУЮЩИЙ чекпоинт автоматически при победе.
             `
         },
-        // ========== 18. МИРЫ ==========
+
+        // ========== 14. МИРЫ ==========
         {
             id: "worlds",
             icon: "🌍",
             title: "Миры и волны",
             short: "12 миров на 10000 волн",
             content: `
-<b>🌍 Миры:</b> Игра состоит из 12 миров, каждый со своим стилем.
+<b>🌍 Миры:</b> игра состоит из 12 миров, каждый со своим стилем.
 
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;line-height:1.8;">
+` + demo("ТАК ПОКАЗАН ТЕКУЩИЙ МИР",
+    `<div class="world-indicator" style="max-width:300px;">
+        🌍 Мир: <span style="color:#2ecc71;">Лес начала и конца</span>
+    </div>`,
+    "Индикатор вверху экрана — всегда видно, в каком ты мире."
+) + `
+
+<b>📋 Все миры:</b>
+<div class="help-legend">
 🌲 <b>Лес начала и конца</b> (1-250)<br>
 🔥 <b>Огненная пустошь</b> (251-499)<br>
 🌌 <b>Сломанный Космос</b> (500-600)<br>
@@ -630,80 +904,80 @@
 🎯 <b>Возвращение Охотника</b> (10000)
 </div>
 
-<b>Боссы</b> — каждые 50 волн. Ослабленные уникальные боссы (50, 100, 150...) дают особые награды.
+<b>👑 Боссы</b> — каждые 50 волн. Уникальные боссы (50, 100, 150...) дают особые награды и иногда особые бои.
             `
         },
-        // ========== 19. СОВЕТЫ ==========
+
+        // ========== 15. СОВЕТЫ ==========
         {
             id: "tips",
             icon: "💡",
             title: "Про-советы",
-            short: "Как играть эффективнее",
+            short: "Топ-10 тактик для эффективной игры",
             content: `
-<b>💡 Топ-10 советов:</b>
+<b>💡 Топ-10 советов от бывалых:</b>
 
-<div style="background:#000;padding:10px;border-radius:10px;font-family:monospace;font-size:11px;line-height:1.8;">
+<div class="help-legend" style="display:block;line-height:1.9;">
+
 <b>1. Всегда щади уникальных боссов</b><br>
-Они дают эксклюзивные карты, которые нельзя получить иначе.<br><br>
+Пощада даёт эксклюзивные карты, которые нельзя получить иначе. Шанс 30%+.<br><br>
 
 <b>2. Качай мастерство главных карт</b><br>
-Скорость сердечка критична на арене. Сайтама (4.0) — топ.<br><br>
+Скорость сердечка критична на арене. Сайтама (4.0) — топ, Киллуа (1.3) — хороший.<br><br>
 
-<b>3. Комбо на кликере</b><br>
-Кликай с интервалом 0.2-0.5 сек — держишь x2-x5 урон.<br><br>
+<b>3. Держи комбо на кликере</b><br>
+Кликай с интервалом 0.2-0.5 сек — держишь x2-x5 урон постоянно.<br><br>
 
 <b>4. Не копи звёзды</b><br>
-Трати их на мастерство и апгрейды. Копи только на ребиртх.<br><br>
+Трати на мастерство и апгрейды. Копи только на крутки и ребиртх.<br><br>
 
 <b>5. АФК — твой друг</b><br>
-Перед выходом из игры закрой АФК-отряд — нафармит оффлайн.<br><br>
+Перед выходом из игры заполни АФК-отряд — нафармит оффлайн до 2 часов.<br><br>
 
-<b>6. Хилки на арене</b><br>
-Зелёные кружки — подбирай. Часто спасают жизнь.<br><br>
+<b>6. Не забывай про еду</b><br>
+Голод 60%+ = -40% HP. Фрукты дёшевы, скупай их и ешь перед боем.<br><br>
 
-<b>7. Розыгрыш ПРЕСЕТОВ</b><br>
-Сохрани 2-3 сета: для кликера (макс. урон), для арены (скорость), для АФК (HP).<br><br>
+<b>7. Используй пресеты отрядов</b><br>
+Сохрани 2-3 сета: для кликера (макс урон), для арены (скорость), для АФК (HP).<br><br>
 
-<b>8. Коды и ежедневки</b><br>
-Заходи каждый день — накопишь много ресурсов.<br><br>
+<b>8. Заходи каждый день</b><br>
+Ежедневки + 2-часовые карты + промокоды = много ресурсов бесплатно.<br><br>
 
-<b>9. Эволюции — цель</b><br>
-После 5 ребиртхов начинай собирать карты для эволюций.<br><br>
+<b>9. Эволюции — цель на 5+ реб</b><br>
+После 5 ребиртхов начинай собирать карты для эволюций — там топовые бойцы.<br><br>
 
 <b>10. Настройки арены</b><br>
-Включи авто-СУПЕР, если лень нажимать. Понизь эффекты на телефоне.
+Включи авто-СУПЕР, если лень нажимать. Понизь эффекты на телефоне для FPS.
 </div>
             `
         }
     ];
 
-    // ========== КАРТА КНОПОК "?" ==========
-    // Где искать → какой раздел открыть
+    // ========== КНОПКИ "?" У СЕКЦИЙ ==========
     const HELP_BUTTON_MAP = [
-        { selector: 'button#claimCardBtn', section: 'cards', position: 'before' },
-        { selector: '#teamList', section: 'team', position: 'before' },
-        { selector: '#afkTeamList', section: 'team', position: 'before' },
-        { selector: '#fatigueBar', section: 'clicker', position: 'before' },
-        { selector: '#passContent', section: 'pass', position: 'before' },
-        { selector: '#evoContent', section: 'evolution', position: 'before' },
-        { selector: '#rebirthInfo', section: 'rebirth', position: 'before' },
-        { selector: '#gachaItems', section: 'gacha', position: 'before' },
-        { selector: '#inventoryContent', section: 'inventory', position: 'before' },
-        { selector: '#checkpointList', section: 'checkpoints', position: 'before' },
-        { selector: '#upgradeItems', section: 'power', position: 'before' },
-        { selector: '#dailyRewardsList', section: 'codes', position: 'before' }
+        { selector: 'button#claimCardBtn', section: 'cards' },
+        { selector: '#teamList', section: 'team' },
+        { selector: '#afkTeamList', section: 'team' },
+        { selector: '#fatigueBar', section: 'clicker' },
+        { selector: '#passContent', section: 'pass' },
+        { selector: '#rebirthInfo', section: 'rebirth' },
+        { selector: '#gachaItems', section: 'gacha' },
+        { selector: '#inventoryContent', section: 'inventory' },
+        { selector: '#checkpointList', section: 'checkpoints' },
+        { selector: '#upgradeItems', section: 'power' },
+        { selector: '#dailyRewardsList', section: 'codes' }
     ];
 
-    // ========== РЕНДЕР СПРАВКИ ==========
+    // ========== РЕНДЕР ==========
     function renderHelpIndex() {
         let html = '';
         html += '<div style="text-align:center;margin-bottom:15px;">';
         html += '<div style="font-size:22px;font-weight:900;color:#f5af19;margin-bottom:5px;">📖 СПРАВКА ПО ИГРЕ</div>';
-        html += '<div style="font-size:12px;color:#aaa;">Нажми на раздел, чтобы узнать подробнее</div>';
+        html += '<div style="font-size:12px;color:#aaa;">Нажми на раздел — увидишь примеры прямо из игры</div>';
         html += '</div>';
         html += '<div style="display:grid;grid-template-columns:1fr;gap:8px;">';
         for (let s of HELP_SECTIONS) {
-            html += '<div class="help-card" onclick="openHelpSection(\'' + s.id + '\')" style="background:rgba(0,0,0,0.4);padding:12px;border-radius:14px;cursor:pointer;border:1px solid rgba(255,255,255,0.08);transition:all 0.2s;display:flex;align-items:center;gap:10px;" onmouseover="this.style.background=\'rgba(245,175,25,0.15)\';this.style.borderColor=\'#f5af19\'" onmouseout="this.style.background=\'rgba(0,0,0,0.4)\';this.style.borderColor=\'rgba(255,255,255,0.08)\'">';
+            html += '<div onclick="openHelpSection(\'' + s.id + '\')" style="background:rgba(0,0,0,0.4);padding:12px;border-radius:14px;cursor:pointer;border:1px solid rgba(255,255,255,0.08);transition:all 0.2s;display:flex;align-items:center;gap:10px;" onmouseover="this.style.background=\'rgba(245,175,25,0.15)\';this.style.borderColor=\'#f5af19\'" onmouseout="this.style.background=\'rgba(0,0,0,0.4)\';this.style.borderColor=\'rgba(255,255,255,0.08)\'">';
             html += '<div style="font-size:26px;flex-shrink:0;">' + s.icon + '</div>';
             html += '<div style="flex:1;">';
             html += '<div style="font-weight:900;font-size:14px;color:#f5af19;">' + s.title + '</div>';
@@ -720,10 +994,7 @@
 
     function renderHelpSection(sectionId) {
         let s = HELP_SECTIONS.find(x => x.id === sectionId);
-        if (!s) {
-            renderHelpIndex();
-            return;
-        }
+        if (!s) { renderHelpIndex(); return; }
         let html = '';
         html += '<button class="btn" style="padding:6px 14px;margin-bottom:12px;font-size:12px;background:#555;" onclick="closeHelpSection()">← К списку</button>';
         html += '<div style="text-align:center;margin-bottom:15px;">';
@@ -741,32 +1012,24 @@
         }
     }
 
-    function openHelpSection(sectionId) {
-        renderHelpSection(sectionId);
-    }
+    function openHelpSection(sectionId) { renderHelpSection(sectionId); }
+    function closeHelpSection() { renderHelpIndex(); }
 
-    function closeHelpSection() {
-        renderHelpIndex();
-    }
-
-    // ========== ИНЪЕКЦИЯ ВКЛАДКИ "❓ Справка" ==========
+    // ========== ИНЪЕКЦИЯ ВКЛАДКИ ==========
     function injectHelpSubTab() {
         let subTabsContainer = document.querySelector('#otherTab .sub-tabs');
         if (!subTabsContainer) return false;
-        if (document.getElementById('helpSubTabBtn')) return true; // уже есть
+        if (document.getElementById('helpSubTabBtn')) return true;
 
-        // Создаём кнопку sub-tab
         let btn = document.createElement('button');
         btn.className = 'sub-tab-btn';
         btn.setAttribute('data-subtab', 'help');
         btn.id = 'helpSubTabBtn';
         btn.innerHTML = '❓ Справка';
         btn.addEventListener('click', function() {
-            // Убираем active у других sub-tab в otherTab
             let parent = document.getElementById('otherTab');
             parent.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
             parent.querySelectorAll('.sub-tab-content').forEach(c => c.classList.remove('active'));
-            // Активируем наш
             btn.classList.add('active');
             let content = document.getElementById('helpSubTab');
             if (content) content.classList.add('active');
@@ -774,7 +1037,6 @@
         });
         subTabsContainer.appendChild(btn);
 
-        // Создаём контейнер sub-tab-content
         let content = document.createElement('div');
         content.id = 'helpSubTab';
         content.className = 'sub-tab-content';
@@ -790,47 +1052,37 @@
         for (let item of HELP_BUTTON_MAP) {
             let el = document.querySelector(item.selector);
             if (!el) continue;
-            // Проверяем, не добавили ли уже
             if (el.dataset && el.dataset.helpAdded === "1") continue;
 
-            // Ищем ближайший .card-title или сам элемент
             let target = el.closest('.card');
             if (!target) target = el;
-
-            // Ищем .card-title
             let title = target.querySelector('.card-title') || target;
 
-            // Создаём кнопку "?"
             let qBtn = document.createElement('button');
             qBtn.className = 'help-q-btn';
             qBtn.innerHTML = '?';
-            qBtn.title = 'Справка: ' + (HELP_SECTIONS.find(s => s.id === item.section)?.title || '');
+            let sec = HELP_SECTIONS.find(s => s.id === item.section);
+            qBtn.title = 'Справка: ' + (sec ? sec.title : '');
             qBtn.style.cssText = 'margin-left:6px;padding:0;width:20px;height:20px;border-radius:50%;background:#f5af19;color:#1a1a2e;font-weight:900;font-size:13px;border:none;cursor:pointer;line-height:1;vertical-align:middle;box-shadow:0 2px 6px rgba(245,175,25,0.4);';
             qBtn.onclick = function(e) {
                 e.stopPropagation();
                 e.preventDefault();
-                // Переключаемся на вкладку Помощь
                 let helpBtn = document.getElementById('helpSubTabBtn');
                 if (helpBtn) {
-                    // Открываем вкладку "Прочее" если не открыта
                     let otherTabBtn = document.querySelector('.tab-btn[data-tab="other"]');
                     if (otherTabBtn && !document.getElementById('otherTab').classList.contains('active')) {
                         otherTabBtn.click();
                     }
-                    // Открываем sub-tab "Справка"
                     helpBtn.click();
-                    // Открываем нужный раздел
                     setTimeout(function() { openHelpSection(item.section); }, 100);
                 }
             };
 
-            // Вставляем
             title.appendChild(qBtn);
             if (el.dataset) el.dataset.helpAdded = "1";
         }
     }
 
-    // ========== ПОВТОРНАЯ ИНЪЕКЦИЯ (на случай перерисовки UI) ==========
     function reInject() {
         injectHelpSubTab();
         addQuestionButtons();
@@ -840,18 +1092,16 @@
     function init() {
         let attempts = 0;
         let maxAttempts = 100;
-
         function tryInit() {
             attempts++;
             let ok = injectHelpSubTab();
             if (ok) {
                 addQuestionButtons();
-                // Периодически проверяем новые кнопки (для перерисованных секций)
                 setInterval(reInject, 2000);
                 console.log("╔════════════════════════════════════════╗");
-                console.log("║  📖 HELP SYSTEM v1.0 загружено        ║");
+                console.log("║  📖 HELP SYSTEM v2.0 загружено        ║");
+                console.log("║  15 разделов с примерами из игры      ║");
                 console.log("║  Вкладка: Прочее → ❓ Справка         ║");
-                console.log("║  Кнопки ? у ключевых секций           ║");
                 console.log("╚════════════════════════════════════════╝");
                 return;
             }
@@ -861,7 +1111,6 @@
                 console.warn("[HELP] Не удалось найти #otherTab .sub-tabs");
             }
         }
-
         if (document.readyState === "complete" || document.readyState === "interactive") {
             setTimeout(tryInit, 500);
         } else {
