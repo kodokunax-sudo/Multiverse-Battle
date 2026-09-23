@@ -1,5 +1,7 @@
-// ========== АРЕНА UNDERTALE v11.0 ==========
+// ========== АРЕНА UNDERTALE v12.0 ==========
 // + патч ожирения: скорость сердечка × getObesitySpeedMult()
+// + фикс атаки "Стены": подсказка заранее, кратчайший путь, гарантированная щель
+// + разделение скорости и количества стен
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -60,6 +62,11 @@ let arenaPhaseTimeout = null;
 let mobileSuperTapTimer = null;
 let mobileSuperTapCount = 0;
 let mobileSuperSwipeStart = null;
+
+// ★★★ НОВОЕ: РАЗДЕЛЕНИЕ СКОРОСТИ И КОЛИЧЕСТВА СТЕН ★★★
+let wallSpeedMult = 1.0;   // скорость стен (растёт медленно, кап x4)
+let wallCountMult = 1.0;   // количество стен (растёт быстрее, кап x2)
+let wallWarningTimer = null; // таймер для задержки спавна стены
 
 // ========== ЗВУКОВАЯ СИСТЕМА АРЕНЫ ==========
 let arenaAudioCtx = null;
@@ -278,6 +285,7 @@ function startArena(bossWave) {
     arenaKarma = 0; screenFlash = 0; arenaVignette = 0; arenaGlobalSpeedMod = 1.0; arenaDodgeTimer = 0;
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
+    if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
     
     if (typeof _superState !== 'undefined') {
         _superState.markResurrectCharges = 2; _superState.markBuffActive = false; _superState.markBuffTimer = 0; _superState.markDmgReduction = 1; _superState.markDmgBonus = 1; _superState.markSpeedBonus = 1;
@@ -302,7 +310,16 @@ function startArena(bossWave) {
     arenaClickTargets = []; arenaClicksHit = 0; arenaPhase = "dodge"; attacks = []; arenaBlasters = []; arenaParticles = []; floatingTexts = []; arenaTrail = []; arenaShockwaves = []; wallGapIndicator = null;
     arenaShake = 0; arenaHitFlash = 0; invulnTimer = 0; arenaComboText = ""; arenaComboTimer = 0; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0; heartRotation = 0; heartWasMoving = false; heartStandingTime = 0;
     
+    // ★★★ РАЗДЕЛЕНИЕ СКОРОСТИ И КОЛИЧЕСТВА СТЕН ★★★
     arenaSpeedMult = Math.min(15.0, 1.0+Math.floor((bossWave-50)/50)*0.1); if (bossWave < 50) arenaSpeedMult = 1.0;
+    // Скорость стен: растёт МЕДЛЕННО, кап x4
+    wallSpeedMult = Math.min(4.0, 1.0 + Math.floor((bossWave - 50) / 100) * 0.15);
+    if (bossWave < 50) wallSpeedMult = 1.0;
+    // Количество стен: растёт БЫСТРЕЕ, кап x2
+    wallCountMult = Math.min(2.0, 1.0 + Math.floor((bossWave - 50) / 200) * 0.15);
+    if (bossWave < 50) wallCountMult = 1.0;
+    console.log("[ARENA] Wave " + bossWave + " — wallSpeed: x" + wallSpeedMult.toFixed(2) + ", wallCount: x" + wallCountMult.toFixed(2));
+    
     arenaAllowedTypes = getAttackTypes(bossWave);
     var bt = typeof bossTemplates !== 'undefined' ? bossTemplates[bossWave] : null;
     arenaBoss = bt ? bt.name : "БОСС ВРАТ"; arenaBossMaxHP = bt ? Math.floor((50+bossWave*12)*bt.hpMult) : 1000+bossWave*10; ghostBossHP = arenaBossMaxHP;
@@ -321,6 +338,7 @@ function startDodgePhase() {
     arenaPhase = "dodge"; attacks = []; arenaBlasters = []; wallGapIndicator = null; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0;
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
+    if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
     arenaAttackType = arenaAllowedTypes[Math.floor(Math.random()*arenaAllowedTypes.length)];
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     var baseInterval = 2400;
@@ -341,6 +359,7 @@ function updateDodgeTimerDisplay() {
 
 function startAttackPhase() {
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
+    if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
     arenaPhase = "attack"; attacks = []; arenaBlasters = []; wallGapIndicator = null; arenaClickTargets = []; arenaClicksHit = 0;
     arenaTotalTargets = 4+Math.floor(arenaSpeedMult*0.8);
     if (typeof _superState !== 'undefined' && _superState.dandyDoubleTargets) { arenaTotalTargets *= 2; _superState.dandyDoubleTargets = false; }
@@ -393,14 +412,111 @@ function spawnBlaster(w) {
 
 function shrinkAttack(a) { if (a.size) a.size*=0.7; if (a.radius) a.radius*=0.7; if (a.spd) a.spd*=0.7; if (a.spdY) a.spdY*=0.7; if (a.width) a.width*=0.7; }
 
+// ★★★ ФУНКЦИЯ СПАВНА СТЕН С ПОДСКАЗКОЙ ЗАРАНЕЕ И КРАТЧАЙШИМ ПУТЁМ ★★★
+function spawnWallAttack(isEarly, dmg, shouldShrink) {
+    var isVertical = Math.random() > 0.5;
+    
+    // ★ Количество стен зависит от wallCountMult ★
+    var wallSeriesCount = 1;
+    if (wallCountMult >= 1.3) wallSeriesCount = 2;
+    if (wallCountMult >= 1.7) wallSeriesCount = 3;
+    
+    // ★ Скорость стен зависит от wallSpeedMult ★
+    var wallSpeed = wallSpeedMult;
+    
+    console.log("[WALL] Спавн " + wallSeriesCount + " стен(ы), направление: " + (isVertical ? "вертикаль" : "горизонталь") + ", скорость x" + wallSpeed.toFixed(2));
+    
+    // ★ Считаем позицию щели ЗАРАНЕЕ (гарантированно в пределах арены) ★
+    var gapSize = 90 + Math.random() * 30; // 90-120px
+    var gapCenter;
+    
+    if (isVertical) {
+        // Щель по вертикали — ограничиваем так, чтобы она была в пределах арены
+        var minGap = gapSize / 2 + 15; // минимум 15px от края
+        var maxGap = 500 - gapSize / 2 - 15;
+        var desired = heart.y + (Math.random() > 0.5 ? 1 : -1) * (60 + Math.random() * 60);
+        gapCenter = Math.max(minGap, Math.min(maxGap, desired));
+    } else {
+        // Щель по горизонтали
+        var minGapH = gapSize / 2 + 15;
+        var maxGapH = 400 - gapSize / 2 - 15;
+        var desiredH = heart.x + (Math.random() > 0.5 ? 1 : -1) * (60 + Math.random() * 60);
+        gapCenter = Math.max(minGapH, Math.min(maxGapH, desiredH));
+    }
+    
+    // ★ ШАГ 1: Показать подсказку СРАЗУ (за 1 секунду до спавна) ★
+    if (isVertical) {
+        wallGapIndicator = {
+            x: 0, y: gapCenter, w: 30, h: gapSize,
+            life: 70, // ~1.15 сек
+            vertical: true,
+            arrowFromX: heart.x, arrowFromY: heart.y,
+            arrowToX: heart.x, arrowToY: gapCenter
+        };
+    } else {
+        wallGapIndicator = {
+            x: gapCenter, y: 0, w: gapSize, h: 30,
+            life: 70,
+            vertical: false,
+            arrowFromX: heart.x, arrowFromY: heart.y,
+            arrowToX: gapCenter, arrowToY: heart.y
+        };
+    }
+    
+    // Звук предупреждения (тихий сигнал)
+    playArenaSound(400, 'sine', 0.15, 0.06);
+    setTimeout(function() { playArenaSound(500, 'sine', 0.1, 0.04); }, 150);
+    
+    // ★ ШАГ 2: Через 1000 мс — спавним стену ★
+    wallWarningTimer = setTimeout(function() {
+        if (arenaPhase !== "dodge" || !arenaActive) return;
+        
+        for (var seriesIdx = 0; seriesIdx < wallSeriesCount; seriesIdx++) {
+            (function(idx) {
+                var seriesDelay = idx * 500; // 0.5 сек между стенами в серии
+                
+                setTimeout(function() {
+                    if (arenaPhase !== "dodge" || !arenaActive) return;
+                    
+                    if (isVertical) {
+                        var startX = Math.random() > 0.5 ? -30 : 430;
+                        var dirX = startX < 0 ? 3.0 * wallSpeed : -3.0 * wallSpeed;
+                        for (var i = 10; i < 490; i += 22) {
+                            if (Math.abs(i - gapCenter) < gapSize / 2) continue;
+                            var atk = { type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 0 };
+                            if (shouldShrink) shrinkAttack(atk);
+                            attacks.push(atk);
+                        }
+                    } else {
+                        var startY = Math.random() > 0.5 ? -30 : 530;
+                        var dirY = startY < 0 ? 2.4 * wallSpeed : -2.4 * wallSpeed;
+                        for (var i = 10; i < 390; i += 22) {
+                            if (Math.abs(i - gapCenter) < gapSize / 2) continue;
+                            var atk = { type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 0 };
+                            if (shouldShrink) shrinkAttack(atk);
+                            attacks.push(atk);
+                        }
+                    }
+                    
+                    // Обновляем подсказку: теперь пусть живёт пока стена летит
+                    if (wallGapIndicator) {
+                        wallGapIndicator.life = 40;
+                    }
+                    
+                    playArenaSound(200, 'sawtooth', 0.3, 0.08);
+                }, seriesDelay);
+            })(seriesIdx);
+        }
+    }, 1000);
+}
+
 function spawnAttack() {
     var s = arenaSpeedMult; var bw = arenaCurrentWave; var isEarly = bw<100; var dmg = arenaBaseDmg;
     var shouldShrink = (typeof _superState !== 'undefined' && _superState.antispiralShrinkAttacks);
     switch (arenaAttackType) {
         case 0:
-            var isVertical = Math.random()>0.5;
-            if (isVertical) { var offsetDirection=Math.random()>0.5?1:-1; var gapCenter=heart.y+offsetDirection*(50+Math.random()*80); var gapSize=70+Math.random()*40; var startX=Math.random()>0.5?-30:430; var dirX=startX<0?3.5*s:-3.5*s; wallGapIndicator={x:startX<0?0:370,y:gapCenter,w:30,h:gapSize,life:35,vertical:true}; for (var i=10;i<490;i+=22) { if (Math.abs(i-gapCenter)<gapSize/2) continue; var atk={type:"square",x:startX,y:i,size:24,spd:dirX,spdY:0,color:"#fff",damage:dmg,bouncesLeft:0}; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } }
-            else { var offsetDirection=Math.random()>0.5?1:-1; var gapCenter=heart.x+offsetDirection*(50+Math.random()*80); var gapSize=70+Math.random()*40; var startY=Math.random()>0.5?-30:530; var dirY=startY<0?2.4*s:-2.4*s; wallGapIndicator={x:gapCenter,y:startY<0?0:470,w:gapSize,h:30,life:35,vertical:false}; for (var i=10;i<390;i+=22) { if (Math.abs(i-gapCenter)<gapSize/2) continue; var atk={type:"square",x:i,y:startY,size:24,spd:0,spdY:dirY,color:"#fff",damage:dmg,bouncesLeft:0}; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } }
+            // ★ СТЕНЫ — теперь с подсказкой заранее и кратчайшим путём ★
+            spawnWallAttack(isEarly, dmg, shouldShrink);
             break;
         case 1: var chaosCount=isEarly?1:2; for (var i=0;i<chaosCount;i++) { var side=Math.floor(Math.random()*4); var x,y; if (side===0){x=Math.random()*400;y=-30;}else if(side===1){x=Math.random()*400;y=530;}else if(side===2){x=-30;y=Math.random()*500;}else{x=430;y=Math.random()*500;} var angle=Math.atan2(heart.y-y,heart.x-x); var atk={type:"square",x:x,y:y,size:20,spd:Math.cos(angle)*2.0,spdY:Math.sin(angle)*2.0,color:"#4499ff",damage:Math.floor(dmg/2),bouncesLeft:3}; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
         case 2: for (var i=0;i<(isEarly?1:2);i++) { var side=Math.floor(Math.random()*4); var xPos,yPos; if (side===0){xPos=Math.random()*400;yPos=-40;}else if(side===1){xPos=Math.random()*400;yPos=540;}else if(side===2){xPos=-40;yPos=Math.random()*500;}else{xPos=440;yPos=Math.random()*500;} var angle=Math.atan2(heart.y-yPos,heart.x-xPos); var atk={type:"sword",x:xPos,y:yPos,angle:angle,size:45,width:15,color:"#ffaa00",spd:Math.cos(angle)*2.4,spdY:Math.sin(angle)*2.4,damageOnStanding:true,damage:Math.floor(dmg*1.2),bouncesLeft:0}; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
@@ -418,6 +534,7 @@ function spawnAttack() {
 function stopArena() {
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
+    if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
     if (typeof resetAllSupers === 'function') resetAllSupers();
     arenaActive = false; stopArenaAmbient(); if (arenaAttackInterval) clearInterval(arenaAttackInterval); if (animFrameId) cancelAnimationFrame(animFrameId);
     arenaAttackInterval = null; animFrameId = null;
@@ -596,7 +713,71 @@ function renderArena() {
     ctx.fillStyle="#ccc"; ctx.font="bold 9px monospace"; ctx.fillText("👾 "+arenaBoss,16,43);
     drawActiveBuffs();
     if (arenaComboTimer>0&&arenaComboText) { ctx.save(); var comboAlpha=Math.min(1,arenaComboTimer/20); ctx.fillStyle="rgba(255,255,255,"+comboAlpha+")"; ctx.font="bold 22px sans-serif"; ctx.textAlign="center"; ctx.shadowColor="#ffdd00"; ctx.shadowBlur=15; ctx.fillText(arenaComboText,200,260); ctx.restore(); }
-    if (wallGapIndicator&&wallGapIndicator.life>0) { ctx.save(); var alpha=wallGapIndicator.life/35; var pulse=Math.sin(now/200)*0.2+0.8; ctx.fillStyle="rgba(46,204,113,"+(0.35*alpha*pulse)+")"; ctx.strokeStyle="rgba(46,204,113,"+(0.7*alpha)+")"; ctx.lineWidth=2; ctx.setLineDash([6,4]); ctx.lineDashOffset=-now/30; if (wallGapIndicator.vertical) { ctx.fillRect(wallGapIndicator.x,wallGapIndicator.y-wallGapIndicator.h/2,wallGapIndicator.w,wallGapIndicator.h); ctx.strokeRect(wallGapIndicator.x,wallGapIndicator.y-wallGapIndicator.h/2,wallGapIndicator.w,wallGapIndicator.h); } else { ctx.fillRect(wallGapIndicator.x-wallGapIndicator.w/2,wallGapIndicator.y,wallGapIndicator.w,wallGapIndicator.h); ctx.strokeRect(wallGapIndicator.x-wallGapIndicator.w/2,wallGapIndicator.y,wallGapIndicator.w,wallGapIndicator.h); } ctx.setLineDash([]); ctx.restore(); }
+    
+    // ★★★ НОВЫЙ РЕНДЕР ПОДСКАЗКИ СО СТРЕЛКОЙ КРАТЧАЙШЕГО ПУТИ ★★★
+    if (wallGapIndicator && wallGapIndicator.life > 0) {
+        ctx.save();
+        var alpha = Math.min(1, wallGapIndicator.life / 20);
+        var pulse = Math.sin(now / 200) * 0.2 + 0.8;
+        
+        // ★ Зелёная зона прохода ★
+        ctx.fillStyle = "rgba(46,204,113," + (0.35 * alpha * pulse) + ")";
+        ctx.strokeStyle = "rgba(46,204,113," + (0.9 * alpha) + ")";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 4]);
+        ctx.lineDashOffset = -now / 30;
+        
+        if (wallGapIndicator.vertical) {
+            ctx.fillRect(wallGapIndicator.x, wallGapIndicator.y - wallGapIndicator.h / 2, wallGapIndicator.w, wallGapIndicator.h);
+            ctx.strokeRect(wallGapIndicator.x, wallGapIndicator.y - wallGapIndicator.h / 2, wallGapIndicator.w, wallGapIndicator.h);
+        } else {
+            ctx.fillRect(wallGapIndicator.x - wallGapIndicator.w / 2, wallGapIndicator.y, wallGapIndicator.w, wallGapIndicator.h);
+            ctx.strokeRect(wallGapIndicator.x - wallGapIndicator.w / 2, wallGapIndicator.y, wallGapIndicator.w, wallGapIndicator.h);
+        }
+        ctx.setLineDash([]);
+        
+        // ★ СТРЕЛКА КРАТЧАЙШЕГО ПУТИ ★
+        if (wallGapIndicator.arrowToX !== undefined && wallGapIndicator.arrowToY !== undefined) {
+            var ax1 = wallGapIndicator.arrowFromX;
+            var ay1 = wallGapIndicator.arrowFromY;
+            var ax2 = wallGapIndicator.arrowToX;
+            var ay2 = wallGapIndicator.arrowToY;
+            
+            // Линия от сердца к щели
+            ctx.strokeStyle = "rgba(46,255,113," + (0.85 * alpha) + ")";
+            ctx.lineWidth = 3;
+            ctx.shadowColor = "#2ecc71";
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.moveTo(ax1, ay1);
+            ctx.lineTo(ax2, ay2);
+            ctx.stroke();
+            
+            // Наконечник стрелки
+            var angle = Math.atan2(ay2 - ay1, ax2 - ax1);
+            var arrowSize = 14;
+            var headX = ax2 - Math.cos(angle) * 8;
+            var headY = ay2 - Math.sin(angle) * 8;
+            ctx.fillStyle = "rgba(46,255,113," + (0.95 * alpha) + ")";
+            ctx.beginPath();
+            ctx.moveTo(headX + Math.cos(angle) * arrowSize, headY + Math.sin(angle) * arrowSize);
+            ctx.lineTo(headX + Math.cos(angle + 2.5) * arrowSize * 0.7, headY + Math.sin(angle + 2.5) * arrowSize * 0.7);
+            ctx.lineTo(headX + Math.cos(angle - 2.5) * arrowSize * 0.7, headY + Math.sin(angle - 2.5) * arrowSize * 0.7);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Пульсирующий кружок в точке назначения
+            ctx.strokeStyle = "rgba(46,255,113," + (0.7 * alpha) + ")";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(ax2, ay2, 10 + Math.sin(now / 100) * 3, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            ctx.shadowBlur = 0;
+        }
+        ctx.restore();
+    }
+    
     ctx.save(); ctx.globalCompositeOperation='lighter';
     for (var i=arenaTrail.length-1;i>=0;i--) { var t=arenaTrail[i]; t.life--; var ratio=Math.max(0,t.life/t.maxLife); var trailRadius=Math.max(0.1,t.size*ratio); ctx.fillStyle=t.color; ctx.globalAlpha=ratio*0.7; ctx.beginPath(); ctx.arc(t.x,t.y-2,trailRadius,0,Math.PI*2); ctx.fill(); if (t.life<=0) arenaTrail.splice(i,1); } ctx.restore();
 
