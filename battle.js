@@ -1,6 +1,6 @@
-// ========== АРЕНА UNDERTALE v12.0 ==========
+// ========== АРЕНА UNDERTALE v13.0 ==========
 // + патч ожирения: скорость сердечка × getObesitySpeedMult()
-// + фикс атаки "Стены": подсказка заранее, кратчайший путь, гарантированная щель
+// + фикс атаки "Стены": подсказка заранее, ломаная стрелка, полупрозрачная щель
 // + разделение скорости и количества стен
 
 let arenaActive = false;
@@ -63,7 +63,7 @@ let mobileSuperTapTimer = null;
 let mobileSuperTapCount = 0;
 let mobileSuperSwipeStart = null;
 
-// ★★★ НОВОЕ: РАЗДЕЛЕНИЕ СКОРОСТИ И КОЛИЧЕСТВА СТЕН ★★★
+// ★★★ РАЗДЕЛЕНИЕ СКОРОСТИ И КОЛИЧЕСТВА СТЕН ★★★
 let wallSpeedMult = 1.0;   // скорость стен (растёт медленно, кап x4)
 let wallCountMult = 1.0;   // количество стен (растёт быстрее, кап x2)
 let wallWarningTimer = null; // таймер для задержки спавна стены
@@ -312,10 +312,8 @@ function startArena(bossWave) {
     
     // ★★★ РАЗДЕЛЕНИЕ СКОРОСТИ И КОЛИЧЕСТВА СТЕН ★★★
     arenaSpeedMult = Math.min(15.0, 1.0+Math.floor((bossWave-50)/50)*0.1); if (bossWave < 50) arenaSpeedMult = 1.0;
-    // Скорость стен: растёт МЕДЛЕННО, кап x4
     wallSpeedMult = Math.min(4.0, 1.0 + Math.floor((bossWave - 50) / 100) * 0.15);
     if (bossWave < 50) wallSpeedMult = 1.0;
-    // Количество стен: растёт БЫСТРЕЕ, кап x2
     wallCountMult = Math.min(2.0, 1.0 + Math.floor((bossWave - 50) / 200) * 0.15);
     if (bossWave < 50) wallCountMult = 1.0;
     console.log("[ARENA] Wave " + bossWave + " — wallSpeed: x" + wallSpeedMult.toFixed(2) + ", wallCount: x" + wallCountMult.toFixed(2));
@@ -412,68 +410,67 @@ function spawnBlaster(w) {
 
 function shrinkAttack(a) { if (a.size) a.size*=0.7; if (a.radius) a.radius*=0.7; if (a.spd) a.spd*=0.7; if (a.spdY) a.spdY*=0.7; if (a.width) a.width*=0.7; }
 
-// ★★★ ФУНКЦИЯ СПАВНА СТЕН С ПОДСКАЗКОЙ ЗАРАНЕЕ И КРАТЧАЙШИМ ПУТЁМ ★★★
+// ★★★ СПАВН СТЕН С ПОДСКАЗКОЙ ЗАРАНЕЕ И ЛОМАНОЙ СТРЕЛКОЙ ★★★
 function spawnWallAttack(isEarly, dmg, shouldShrink) {
     var isVertical = Math.random() > 0.5;
     
-    // ★ Количество стен зависит от wallCountMult ★
     var wallSeriesCount = 1;
     if (wallCountMult >= 1.3) wallSeriesCount = 2;
     if (wallCountMult >= 1.7) wallSeriesCount = 3;
     
-    // ★ Скорость стен зависит от wallSpeedMult ★
     var wallSpeed = wallSpeedMult;
     
-    console.log("[WALL] Спавн " + wallSeriesCount + " стен(ы), направление: " + (isVertical ? "вертикаль" : "горизонталь") + ", скорость x" + wallSpeed.toFixed(2));
+    console.log("[WALL] Спавн " + wallSeriesCount + " стен(ы), " + (isVertical ? "вертикаль" : "горизонталь") + ", скорость x" + wallSpeed.toFixed(2));
     
-    // ★ Считаем позицию щели ЗАРАНЕЕ (гарантированно в пределах арены) ★
-    var gapSize = 90 + Math.random() * 30; // 90-120px
+    // ★ Считаем позицию щели ЗАРАНЕЕ ★
+    var gapSize = 90 + Math.random() * 30;
     var gapCenter;
     
     if (isVertical) {
-        // Щель по вертикали — ограничиваем так, чтобы она была в пределах арены
-        var minGap = gapSize / 2 + 15; // минимум 15px от края
+        var minGap = gapSize / 2 + 15;
         var maxGap = 500 - gapSize / 2 - 15;
         var desired = heart.y + (Math.random() > 0.5 ? 1 : -1) * (60 + Math.random() * 60);
         gapCenter = Math.max(minGap, Math.min(maxGap, desired));
     } else {
-        // Щель по горизонтали
         var minGapH = gapSize / 2 + 15;
         var maxGapH = 400 - gapSize / 2 - 15;
         var desiredH = heart.x + (Math.random() > 0.5 ? 1 : -1) * (60 + Math.random() * 60);
         gapCenter = Math.max(minGapH, Math.min(maxGapH, desiredH));
     }
     
-    // ★ ШАГ 1: Показать подсказку СРАЗУ (за 1 секунду до спавна) ★
+    // ★ СОЗДАЁМ ПОДСКАЗКУ — ЛОМАНАЯ СТРЕЛКА (безопасная точка) ★
     if (isVertical) {
+        // Вертикальная стена → нужно двигаться по Y к gapCenter.
+        // Конечная точка стрелки — x=200 (середина арены, безопасно), y=gapCenter.
         wallGapIndicator = {
             x: 0, y: gapCenter, w: 30, h: gapSize,
-            life: 70, // ~1.15 сек
+            life: 70,
             vertical: true,
             arrowFromX: heart.x, arrowFromY: heart.y,
-            arrowToX: heart.x, arrowToY: gapCenter
+            arrowToX: 200, arrowToY: gapCenter
         };
     } else {
+        // Горизонтальная стена → нужно двигаться по X к gapCenter.
+        // Конечная точка — x=gapCenter, y=250 (середина арены).
         wallGapIndicator = {
             x: gapCenter, y: 0, w: gapSize, h: 30,
             life: 70,
             vertical: false,
             arrowFromX: heart.x, arrowFromY: heart.y,
-            arrowToX: gapCenter, arrowToY: heart.y
+            arrowToX: gapCenter, arrowToY: 250
         };
     }
     
-    // Звук предупреждения (тихий сигнал)
     playArenaSound(400, 'sine', 0.15, 0.06);
     setTimeout(function() { playArenaSound(500, 'sine', 0.1, 0.04); }, 150);
     
-    // ★ ШАГ 2: Через 1000 мс — спавним стену ★
+    // ★ Через 1000 мс — спавним стену ★
     wallWarningTimer = setTimeout(function() {
         if (arenaPhase !== "dodge" || !arenaActive) return;
         
         for (var seriesIdx = 0; seriesIdx < wallSeriesCount; seriesIdx++) {
             (function(idx) {
-                var seriesDelay = idx * 500; // 0.5 сек между стенами в серии
+                var seriesDelay = idx * 500;
                 
                 setTimeout(function() {
                     if (arenaPhase !== "dodge" || !arenaActive) return;
@@ -498,8 +495,10 @@ function spawnWallAttack(isEarly, dmg, shouldShrink) {
                         }
                     }
                     
-                    // Обновляем подсказку: теперь пусть живёт пока стена летит
+                    // ★ Стена заспавнилась — обнуляем стрелку, оставляем только щель ★
                     if (wallGapIndicator) {
+                        wallGapIndicator.arrowToX = undefined;
+                        wallGapIndicator.arrowToY = undefined;
                         wallGapIndicator.life = 40;
                     }
                     
@@ -514,10 +513,7 @@ function spawnAttack() {
     var s = arenaSpeedMult; var bw = arenaCurrentWave; var isEarly = bw<100; var dmg = arenaBaseDmg;
     var shouldShrink = (typeof _superState !== 'undefined' && _superState.antispiralShrinkAttacks);
     switch (arenaAttackType) {
-        case 0:
-            // ★ СТЕНЫ — теперь с подсказкой заранее и кратчайшим путём ★
-            spawnWallAttack(isEarly, dmg, shouldShrink);
-            break;
+        case 0: spawnWallAttack(isEarly, dmg, shouldShrink); break;
         case 1: var chaosCount=isEarly?1:2; for (var i=0;i<chaosCount;i++) { var side=Math.floor(Math.random()*4); var x,y; if (side===0){x=Math.random()*400;y=-30;}else if(side===1){x=Math.random()*400;y=530;}else if(side===2){x=-30;y=Math.random()*500;}else{x=430;y=Math.random()*500;} var angle=Math.atan2(heart.y-y,heart.x-x); var atk={type:"square",x:x,y:y,size:20,spd:Math.cos(angle)*2.0,spdY:Math.sin(angle)*2.0,color:"#4499ff",damage:Math.floor(dmg/2),bouncesLeft:3}; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
         case 2: for (var i=0;i<(isEarly?1:2);i++) { var side=Math.floor(Math.random()*4); var xPos,yPos; if (side===0){xPos=Math.random()*400;yPos=-40;}else if(side===1){xPos=Math.random()*400;yPos=540;}else if(side===2){xPos=-40;yPos=Math.random()*500;}else{xPos=440;yPos=Math.random()*500;} var angle=Math.atan2(heart.y-yPos,heart.x-xPos); var atk={type:"sword",x:xPos,y:yPos,angle:angle,size:45,width:15,color:"#ffaa00",spd:Math.cos(angle)*2.4,spdY:Math.sin(angle)*2.4,damageOnStanding:true,damage:Math.floor(dmg*1.2),bouncesLeft:0}; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
         case 3: for (var i=0;i<(isEarly?1:2);i++) { var vx=(Math.random()>0.5?1:-1)*(0.8+Math.random()*0.4)*s; var vy=(Math.random()>0.5?1:-1)*(0.8+Math.random()*0.4)*s; var atk={type:"danger",x:200,y:180,size:70,spd:vx,spdY:vy,color:"#ff3333",damageOnMoving:true,damage:Math.floor(dmg*1.6),bouncesLeft:1}; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
@@ -714,16 +710,16 @@ function renderArena() {
     drawActiveBuffs();
     if (arenaComboTimer>0&&arenaComboText) { ctx.save(); var comboAlpha=Math.min(1,arenaComboTimer/20); ctx.fillStyle="rgba(255,255,255,"+comboAlpha+")"; ctx.font="bold 22px sans-serif"; ctx.textAlign="center"; ctx.shadowColor="#ffdd00"; ctx.shadowBlur=15; ctx.fillText(arenaComboText,200,260); ctx.restore(); }
     
-    // ★★★ НОВЫЙ РЕНДЕР ПОДСКАЗКИ СО СТРЕЛКОЙ КРАТЧАЙШЕГО ПУТИ ★★★
+    // ★★★ РЕНДЕР ПОДСКАЗКИ: ЩЕЛЬ 50% + ЛОМАНАЯ СТРЕЛКА ★★★
     if (wallGapIndicator && wallGapIndicator.life > 0) {
         ctx.save();
         var alpha = Math.min(1, wallGapIndicator.life / 20);
         var pulse = Math.sin(now / 200) * 0.2 + 0.8;
         
-        // ★ Зелёная зона прохода ★
-        ctx.fillStyle = "rgba(46,204,113," + (0.35 * alpha * pulse) + ")";
-        ctx.strokeStyle = "rgba(46,204,113," + (0.9 * alpha) + ")";
-        ctx.lineWidth = 3;
+        // ★ ЩЕЛЬ — полупрозрачная (50% от оригинала) ★
+        ctx.fillStyle = "rgba(46,204,113," + (0.20 * alpha * pulse) + ")";
+        ctx.strokeStyle = "rgba(46,204,113," + (0.45 * alpha) + ")";
+        ctx.lineWidth = 2;
         ctx.setLineDash([6, 4]);
         ctx.lineDashOffset = -now / 30;
         
@@ -736,45 +732,102 @@ function renderArena() {
         }
         ctx.setLineDash([]);
         
-        // ★ СТРЕЛКА КРАТЧАЙШЕГО ПУТИ ★
-        if (wallGapIndicator.arrowToX !== undefined && wallGapIndicator.arrowToY !== undefined) {
+        // ★ ЛОМАНАЯ СТРЕЛКА (только пока идёт подсказка — life > 30) ★
+        if (wallGapIndicator.life > 30 && wallGapIndicator.arrowToX !== undefined && wallGapIndicator.arrowToY !== undefined) {
             var ax1 = wallGapIndicator.arrowFromX;
             var ay1 = wallGapIndicator.arrowFromY;
             var ax2 = wallGapIndicator.arrowToX;
             var ay2 = wallGapIndicator.arrowToY;
             
-            // Линия от сердца к щели
-            ctx.strokeStyle = "rgba(46,255,113," + (0.85 * alpha) + ")";
+            // ★ Промежуточная точка для ломаной ★
+            var midX, midY;
+            if (wallGapIndicator.vertical) {
+                // Вертикальная стена → сначала идём по Y (к щели), потом по X (к центру арены)
+                if (Math.abs(ay1 - ay2) < 10) {
+                    // Уже в щели по Y — просто идём по X к центру
+                    midX = ax2;
+                    midY = ay2;
+                } else {
+                    // Идём сначала по Y, потом по X
+                    midX = ax1;
+                    midY = ay2;
+                }
+            } else {
+                // Горизонтальная стена → сначала по X (к щели), потом по Y (к центру)
+                if (Math.abs(ax1 - ax2) < 10) {
+                    // Уже в щели по X — просто идём по Y к центру
+                    midX = ax2;
+                    midY = ay2;
+                } else {
+                    // Идём сначала по X, потом по Y
+                    midX = ax2;
+                    midY = ay1;
+                }
+            }
+            
+            var points = [
+                { x: ax1, y: ay1 },
+                { x: midX, y: midY },
+                { x: ax2, y: ay2 }
+            ];
+            
+            // Убираем дубликаты
+            var cleanPoints = [points[0]];
+            for (var p = 1; p < points.length; p++) {
+                var prev = cleanPoints[cleanPoints.length - 1];
+                if (Math.abs(prev.x - points[p].x) > 2 || Math.abs(prev.y - points[p].y) > 2) {
+                    cleanPoints.push(points[p]);
+                }
+            }
+            
+            // Рисуем ломаную
+            ctx.strokeStyle = "rgba(46,255,113," + (0.9 * alpha) + ")";
             ctx.lineWidth = 3;
             ctx.shadowColor = "#2ecc71";
             ctx.shadowBlur = 12;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            
             ctx.beginPath();
-            ctx.moveTo(ax1, ay1);
-            ctx.lineTo(ax2, ay2);
+            ctx.moveTo(cleanPoints[0].x, cleanPoints[0].y);
+            for (var p = 1; p < cleanPoints.length; p++) {
+                ctx.lineTo(cleanPoints[p].x, cleanPoints[p].y);
+            }
             ctx.stroke();
             
             // Наконечник стрелки
-            var angle = Math.atan2(ay2 - ay1, ax2 - ax1);
-            var arrowSize = 14;
-            var headX = ax2 - Math.cos(angle) * 8;
-            var headY = ay2 - Math.sin(angle) * 8;
-            ctx.fillStyle = "rgba(46,255,113," + (0.95 * alpha) + ")";
-            ctx.beginPath();
-            ctx.moveTo(headX + Math.cos(angle) * arrowSize, headY + Math.sin(angle) * arrowSize);
-            ctx.lineTo(headX + Math.cos(angle + 2.5) * arrowSize * 0.7, headY + Math.sin(angle + 2.5) * arrowSize * 0.7);
-            ctx.lineTo(headX + Math.cos(angle - 2.5) * arrowSize * 0.7, headY + Math.sin(angle - 2.5) * arrowSize * 0.7);
-            ctx.closePath();
-            ctx.fill();
+            if (cleanPoints.length >= 2) {
+                var last = cleanPoints[cleanPoints.length - 1];
+                var beforeLast = cleanPoints[cleanPoints.length - 2];
+                var angle = Math.atan2(last.y - beforeLast.y, last.x - beforeLast.x);
+                var arrowSize = 14;
+                ctx.fillStyle = "rgba(46,255,113," + (0.95 * alpha) + ")";
+                ctx.beginPath();
+                ctx.moveTo(last.x, last.y);
+                ctx.lineTo(last.x - Math.cos(angle - 0.4) * arrowSize, last.y - Math.sin(angle - 0.4) * arrowSize);
+                ctx.lineTo(last.x - Math.cos(angle + 0.4) * arrowSize, last.y - Math.sin(angle + 0.4) * arrowSize);
+                ctx.closePath();
+                ctx.fill();
+            }
             
             // Пульсирующий кружок в точке назначения
-            ctx.strokeStyle = "rgba(46,255,113," + (0.7 * alpha) + ")";
+            ctx.strokeStyle = "rgba(46,255,113," + (0.8 * alpha) + ")";
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(ax2, ay2, 10 + Math.sin(now / 100) * 3, 0, Math.PI * 2);
             ctx.stroke();
             
+            // ★ Точка на изгибе ★
+            for (var p = 1; p < cleanPoints.length - 1; p++) {
+                ctx.fillStyle = "rgba(46,255,113," + (0.9 * alpha) + ")";
+                ctx.beginPath();
+                ctx.arc(cleanPoints[p].x, cleanPoints[p].y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
             ctx.shadowBlur = 0;
         }
+        
         ctx.restore();
     }
     
