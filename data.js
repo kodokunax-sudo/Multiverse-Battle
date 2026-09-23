@@ -15,13 +15,14 @@ function sfxRebirth() { playSound(300, 'triangle', 0.3); }
 // ========== МУЗЫКАЛЬНЫЕ ТЕМЫ ==========
 // music/main.mp3, music/battle.mp3, music/shop.mp3
 
-// ========== МИРЫ ==========
+// ========== МИРЫ (ИСПРАВЛЕНЫ) ==========
 const worlds = [
     { name: "Лес начала и конца", minWave: 1, maxWave: 250, color: "#2ecc71" },
     { name: "Огненная пустошь", minWave: 251, maxWave: 499, color: "#e74c3c" },
     { name: "Сломанный Космос", minWave: 500, maxWave: 600, color: "#2d3436" },
-    { name: "Гранд Лайн", minWave: 601, maxWave: 900, color: "#3498db" },
-    { name: "Замороженные земли", minWave: 901, maxWave: 1200, color: "#00cec9" },
+    { name: "Гранд Лайн", minWave: 601, maxWave: 950, color: "#3498db" },        // ★ ИСПРАВЛЕНО: 601-950 ★
+    { name: "Легенды Роджера", minWave: 951, maxWave: 1000, color: "#ff8800" },  // ★ НОВЫЙ МИР: битва с Роджером и Белоусом ★
+    { name: "Замороженные земли", minWave: 1001, maxWave: 1200, color: "#00cec9" }, // ★ ИСПРАВЛЕНО: 1001-1200 ★
     { name: "Тёмное измерение", minWave: 1201, maxWave: 1500, color: "#6c5ce7" },
     { name: "Небесный дворец", minWave: 1501, maxWave: 2000, color: "#fdcb6e" },
     { name: "Бездна отчаяния", minWave: 2001, maxWave: 3000, color: "#636e72" },
@@ -253,7 +254,7 @@ const bossTemplates = {
     850: { name: "Левиафан (Пробуждённый)", hpMult: 24, dmgMult: 2.7, dialogue: "Океан поглотит всё.", enemyStatus: { type: "bleed", value: 0.3 }, canSpare: true, arenaTypes: [2,3,5,7] },
     900: { name: "Властелин Молний", hpMult: 18.7, dmgMult: 3.9, dialogue: "Быстрее молнии? Не в этой жизни.", enemyStatus: { type: "shock", chance: 0.6 }, canSpare: true, arenaTypes: [1,3,9,10] },
     950: { name: "Жнец Душ", hpMult: 22.7, dmgMult: 3.5, dialogue: "Твоя жизнь... она закончится здесь.", enemyStatus: { type: "poison", damage: 8 }, canSpare: true, arenaTypes: [1,5,6,7] },
-   1000: { name: "Император Хаоса", hpMult: 26.7, dmgMult: 2.8, dialogue: "Хаос — это не беспорядок. Это свобода!", enemyStatus: { type: "bleed", value: 0.35 }, canSpare: true, arenaTypes: [0,2,4,6,8] },
+   1000: { name: "Гол Д. Роджер и Эдвард Ньюгейт", hpMult: 30, dmgMult: 3.0, dialogue: "Мы — легенды прошлого. Покажи, достоин ли ты идти дальше!", canSpare: false, isSpecial: true, arenaTypes: [0,1,2,3] },
     1100: { name: "Архидемон Баал", hpMult: 29.3, dmgMult: 3.0, dialogue: "Я сожгу твою душу дотла.", enemyStatus: { type: "fire", damage: 15, duration: 3000 }, canSpare: true, arenaTypes: [3,5,7,9,10] },
     1200: { name: "Хранитель Бездны", hpMult: 32, dmgMult: 2.7, dialogue: "Бездна смотрит в тебя... и улыбается.", enemyStatus: { type: "freezeStacks", value: 4 }, canSpare: true, arenaTypes: [0,1,2,3,8] },
     1300: { name: "Небесный Страж", hpMult: 28, dmgMult: 3.4, dialogue: "Небеса не простят твоих грехов.", enemyStatus: { type: "blind", value: 4 }, canSpare: true, arenaTypes: [4,6,7,10] },
