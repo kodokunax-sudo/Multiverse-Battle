@@ -1,5 +1,5 @@
 // ============================================================
-// EQUIPMENT COMBAT v2.0 — Оружие и броня в боях с боссами
+// EQUIPMENT COMBAT v2.1 — Оружие и броня в боях с боссами
 // ============================================================
 // Работает с:
 //   🪨 Живой Камень (QTE — множитель урона)
@@ -37,6 +37,70 @@
         } catch(e) {}
         return { hpMult: 1, speedMult: 1, damageReduction: 0, reflectChance: 0, regen: 0 };
     }
+
+    // ========== ★ ГЛАВНАЯ ФУНКЦИЯ: стрельба по запросу боссов ★ ==========
+    // Боссы вызывают это. Если возвращает null — стреляй как обычно.
+    window.firePlayerWeapon = function(px, py, attackMode, playerHp, playerMaxHp) {
+        let weapon = getWeapon();
+        if (!weapon) return null;
+
+        let rate = weapon.shootRate || 12;
+
+        // Перк «Ярость» — быстрее при низком HP
+        if (weapon.legendaryPerk === "rageSpeed" && playerHp !== undefined && playerMaxHp !== undefined && playerMaxHp > 0) {
+            let hpRatio = playerHp / playerMaxHp;
+            rate = Math.max(2, Math.floor(rate / (1 + (1 - hpRatio) * 0.25)));
+        }
+
+        let bullets = [];
+        let bulletCount = weapon.bullets || 1;
+        let spread = weapon.spread || 0;
+        let dmgMult = weapon.damageMult || 1.0;
+        let isLegendary = weapon.id && weapon.id.indexOf("legendary") !== -1;
+        let isSniper = weapon.id && weapon.id.indexOf("sniper") !== -1;
+        let isSMG = weapon.id && weapon.id.indexOf("smg") !== -1;
+
+        let speed = 11;
+        if (isSniper) speed = 16;
+        if (isSMG) speed = 12;
+
+        for (let i = 0; i < bulletCount; i++) {
+            let angleOffset = bulletCount > 1 ? (i - (bulletCount - 1) / 2) * spread : 0;
+            let ang = -Math.PI / 2 + angleOffset;
+
+            let bullet = {
+                x: px,
+                y: py - 14,
+                vx: Math.cos(ang) * speed,
+                vy: Math.sin(ang) * speed,
+                size: isSniper ? 7 : 5,
+                life: 120,
+                color: isLegendary ? "#ffd700" : "#ffdd00",
+                damage: 2 * dmgMult,
+                isBlue: false,
+                weaponId: weapon.id
+            };
+
+            if (weapon.legendaryPerk === "destroyAttacks") bullet.canDestroy = true;
+            if (weapon.legendaryPerk === "absorb15") bullet.hasAbsorb = true;
+            if (weapon.legendaryPerk === "autoAim35" && Math.random() < 0.35) {
+                // Наведение вверх (у боссов боссы сверху)
+                bullet.vx = 0;
+                bullet.vy = -speed;
+            }
+
+            bullets.push(bullet);
+        }
+
+        return { rate: rate, bullets: bullets };
+    };
+
+    // ========== ПОЛУЧИТЬ МНОЖИТЕЛЬ УРОНА ДЛЯ QTE ==========
+    window.getWeaponDamageMult = function() {
+        let weapon = getWeapon();
+        if (!weapon) return 1.0;
+        return weapon.damageMult || 1.0;
+    };
 
     // ========== ПАТЧ applyHit (поглощение + отражение) ==========
     function patchApplyHit() {
@@ -89,215 +153,12 @@
             return result;
         };
         window._eqStartArenaPatched = true;
-        return true;
-    }
-
-    // ========== ФУНКЦИЯ СТРЕЛЬБЫ ОРУЖИЕМ ==========
-    function fireWeapon(px, py, fallbackColor) {
-        let weapon = getWeapon();
-        if (!weapon) {
-            return [{
-                x: px, y: py - 14,
-                vx: 0, vy: -11,
-                size: 5, life: 120,
-                color: fallbackColor || "#ffdd00",
-                damage: 2,
-                isBlue: false
-            }];
-        }
-
-        let bullets = [];
-        let isLegendary = weapon.id && weapon.id.indexOf("legendary") !== -1;
-        let baseColor = isLegendary ? "#ffd700" : "#ffdd00";
-        let dmgMult = weapon.damageMult || 1.0;
-        let baseDamage = 2 * dmgMult;
-
-        let bulletCount = weapon.bullets || 1;
-        let spread = weapon.spread || 0;
-        let speed = 11;
-        if (weapon.id && weapon.id.indexOf("sniper") !== -1) speed = 16;
-        if (weapon.id && weapon.id.indexOf("smg") !== -1) speed = 12;
-
-        for (let i = 0; i < bulletCount; i++) {
-            let angleOffset = 0;
-            if (bulletCount > 1) {
-                angleOffset = (i - (bulletCount - 1) / 2) * spread;
-            }
-            let ang = -Math.PI / 2 + angleOffset; // вверх
-
-            let bullet = {
-                x: px,
-                y: py - 14,
-                vx: Math.cos(ang) * speed,
-                vy: Math.sin(ang) * speed,
-                size: (weapon.id && weapon.id.indexOf("sniper") !== -1) ? 7 : 5,
-                life: 120,
-                color: baseColor,
-                damage: baseDamage,
-                isBlue: false,
-                weaponId: weapon.id
-            };
-
-            if (weapon.legendaryPerk === "absorb15") bullet.hasAbsorb = true;
-            if (weapon.legendaryPerk === "destroyAttacks") bullet.canDestroy = true;
-
-            bullets.push(bullet);
-        }
-
-        return bullets;
-    }
-
-    // ========== ПАТЧ РОДЖЕРА (движение + стрельба оружием) ==========
-    function patchRogerWhitebeard() {
-        if (typeof window.getRWBPlayer !== 'function') return false;
-        if (window._eqRWPPatched) return true;
-
-        // Заменяем updateRWBPlayer
-        let originalUpdate = window.updateRWBPlayer;
-        window.updateRWBPlayer = function() {
-            let weapon = getWeapon();
-            if (!weapon) {
-                // Оружия нет — стандартное поведение
-                return originalUpdate.apply(this, arguments);
-            }
-
-            // Оружие есть — своя логика (движение + стрельба оружием)
-            let rwbPlayer = window.getRWBPlayer();
-            let rwbPlayerBullets = window.getRWBBullets();
-            let rwbKeys = window.getRWBKeys();
-            let rwbTouch = window.getRWBTouch();
-
-            if (!rwbPlayer || !rwbPlayerBullets) return;
-
-            let mx = 0, my = 0;
-            let speed = 4.5;
-
-            if (rwbTouch.active) {
-                let tx = rwbTouch.x - rwbPlayer.x;
-                let ty = rwbTouch.y - rwbPlayer.y;
-                let dist = Math.sqrt(tx * tx + ty * ty);
-                if (dist > 5) { mx = tx / dist; my = ty / dist; }
-            } else {
-                if (rwbKeys.w || rwbKeys.arrowup) my -= 1;
-                if (rwbKeys.s || rwbKeys.arrowdown) my += 1;
-                if (rwbKeys.a || rwbKeys.arrowleft) mx -= 1;
-                if (rwbKeys.d || rwbKeys.arrowright) mx += 1;
-                if (mx !== 0 && my !== 0) { mx *= 0.707; my *= 0.707; }
-            }
-
-            rwbPlayer.x += mx * speed;
-            rwbPlayer.y += my * speed;
-            rwbPlayer.x = Math.max(16, Math.min(384, rwbPlayer.x));
-            rwbPlayer.y = Math.max(160, Math.min(484, rwbPlayer.y));
-
-            if (rwbPlayer.invulnTimer > 0) rwbPlayer.invulnTimer--;
-
-            // ★ Стрельба оружием ★
-            if (rwbPlayer.attackTimer <= 0) {
-                let rate = weapon.shootRate || 12;
-
-                // Перк «Ярость» — быстрее при низком HP
-                if (weapon.legendaryPerk === "rageSpeed") {
-                    let hpRatio = rwbPlayer.hp / rwbPlayer.maxHp;
-                    let speedBonus = 1 + (1 - hpRatio) * 0.25;
-                    rate = Math.max(2, Math.floor(rate / speedBonus));
-                }
-
-                rwbPlayer.attackTimer = rate;
-
-                let bullets = fireWeapon(rwbPlayer.x, rwbPlayer.y, "#ffdd00");
-                for (let b of bullets) rwbPlayerBullets.push(b);
-
-                if (window.rwbSound) window.rwbSound(1200, 'square', 0.03, 0.05);
-            }
-            if (rwbPlayer.attackTimer > 0) rwbPlayer.attackTimer--;
-        };
-
-        // Патчим updateRWBPlayerBullets — добавляем canDestroy
-        let originalBullets = window.updateRWBPlayerBullets;
-        window.updateRWBPlayerBullets = function() {
-            let rwbPlayerBullets = window.getRWBBullets();
-            let rwbAttacks = window.getRWBAttacks();
-
-            // Уничтожение атак (меч-разрушитель)
-            if (rwbPlayerBullets && rwbAttacks) {
-                for (let i = rwbPlayerBullets.length - 1; i >= 0; i--) {
-                    let b = rwbPlayerBullets[i];
-                    if (!b.canDestroy) continue;
-                    for (let j = rwbAttacks.length - 1; j >= 0; j--) {
-                        let a = rwbAttacks[j];
-                        let dx = b.x - a.x, dy = b.y - a.y;
-                        if (Math.sqrt(dx*dx + dy*dy) < (a.size || 20) + b.size + 8) {
-                            if (typeof spawnDestroyParticles === 'function') spawnDestroyParticles(a.x, a.y, a.color || "#ffd700");
-                            if (window.rwbSound) window.rwbSound(600, 'square', 0.15, 0.2);
-                            rwbAttacks.splice(j, 1);
-                            rwbPlayerBullets.splice(i, 1);
-                            break;
-                        }
-                    }
-                }
-            }
-
-            return originalBullets.apply(this, arguments);
-        };
-
-        window._eqRWPPatched = true;
-        console.log("[EQ-COMBAT] ✅ Роджер/Белоус — оружие работает");
-        return true;
-    }
-
-    // ========== ПАТЧ ПУТЕВОДНОЙ ЗВЕЗДЫ ==========
-    function patchWaystar() {
-        if (typeof window.getWaystarPlayer !== 'function') return false;
-        if (window._eqWaystarPatched) return true;
-
-        let originalShooting = window.updateWaystarShooting;
-        window.updateWaystarShooting = function() {
-            let weapon = getWeapon();
-            if (!weapon) {
-                return originalShooting.apply(this, arguments);
-            }
-
-            // Оружие есть — стрельба оружием
-            let waystarPlayer = window.getWaystarPlayer();
-            let waystarPlayerBullets = window.getWaystarBullets();
-            if (!waystarPlayer || !waystarPlayerBullets) return;
-
-            if (waystarPlayer._attackTimer === undefined) waystarPlayer._attackTimer = 0;
-            if (waystarPlayer._attackTimer > 0) { waystarPlayer._attackTimer--; return; }
-
-            let rate = weapon.shootRate || 12;
-
-            if (weapon.legendaryPerk === "rageSpeed") {
-                let hpRatio = (waystarPlayer.hp / waystarPlayer.maxHp) || 1;
-                rate = Math.max(2, Math.floor(rate / (1 + (1 - hpRatio) * 0.25)));
-            }
-
-            waystarPlayer._attackTimer = rate;
-
-            let isModer = false;
-            try { isModer = (typeof window.isWaystarModerActive === 'function') && window.isWaystarModerActive(); } catch(e) {}
-
-            let bullets = fireWeapon(waystarPlayer.x, waystarPlayer.y, "#ffdd00");
-            for (let b of bullets) {
-                if (isModer) b.damage = 100000;
-                waystarPlayerBullets.push(b);
-            }
-
-            if (window.waystarSound) window.waystarSound(1100, 'square', 0.04, 0.06);
-        };
-
-        window._eqWaystarPatched = true;
-        console.log("[EQ-COMBAT] ✅ Путеводная Звезда — оружие работает");
+        console.log("[EQ-COMBAT] ✅ startArena пропатчен");
         return true;
     }
 
     // ========== ПАТЧ ЖИВОГО КАМНЯ (QTE-урон) ==========
     function patchLivingStone() {
-        // Живой Камень использует QTE — клики по целям.
-        // Урон от QTE = window.playerFinalDamage * множитель попаданий.
-        // Патчим через updatePlayerStats — умножаем playerFinalDamage когда активен LS.
-
         if (window._eqLSPatched) return true;
 
         let originalUpdateStats = window.updatePlayerStats;
@@ -305,7 +166,6 @@
             window.updatePlayerStats = function() {
                 let result = originalUpdateStats.apply(this, arguments);
 
-                // Проверяем активен ли Живой Камень
                 try {
                     let lsActive = (typeof window.getLSActive === 'function') && window.getLSActive();
                     if (lsActive) {
@@ -326,6 +186,35 @@
         return true;
     }
 
+    // ========== ПАТЧ УНИЧТОЖЕНИЯ АТАК (меч-разрушитель) ==========
+    function patchBulletDestruction() {
+        // Для Роджера/Белоуса — updateRWBPlayerBullets
+        if (typeof window.updateRWBPlayerBullets === 'function' && !window._eqRWBBulletsPatched) {
+            let original = window.updateRWBPlayerBullets;
+            window.updateRWBPlayerBullets = function() {
+                if (typeof rwbPlayerBullets !== 'undefined' && Array.isArray(rwbPlayerBullets) && typeof rwbAttacks !== 'undefined') {
+                    for (let i = rwbPlayerBullets.length - 1; i >= 0; i--) {
+                        let b = rwbPlayerBullets[i];
+                        if (!b.canDestroy) continue;
+                        for (let j = rwbAttacks.length - 1; j >= 0; j--) {
+                            let a = rwbAttacks[j];
+                            let dx = b.x - a.x, dy = b.y - a.y;
+                            if (Math.sqrt(dx * dx + dy * dy) < (a.size || 20) + b.size + 8) {
+                                if (typeof spawnDestroyParticles === 'function') spawnDestroyParticles(a.x, a.y, a.color || "#ffd700");
+                                if (typeof rwbSound === 'function') rwbSound(600, 'square', 0.15, 0.2);
+                                rwbAttacks.splice(j, 1);
+                                rwbPlayerBullets.splice(i, 1);
+                                break;
+                            }
+                        }
+                    }
+                }
+                return original.apply(this, arguments);
+            };
+            window._eqRWBBulletsPatched = true;
+        }
+    }
+
     // ========== ИНИЦИАЛИЗАЦИЯ ==========
     function init() {
         let attempts = 0;
@@ -335,22 +224,20 @@
             attempts++;
             let a = patchApplyHit();
             let b = patchStartArena();
-            let c = patchRogerWhitebeard();
-            let d = patchWaystar();
-            let e = patchLivingStone();
+            let c = patchLivingStone();
+            patchBulletDestruction();
 
-            if (a && b && c && d && e) {
+            if (a && b && c) {
                 console.log("╔════════════════════════════════════════╗");
-                console.log("║  ⚔️ EQUIPMENT COMBAT v2.0 загружено    ║");
-                console.log("║  Роджер/Белоус: оружие ✅             ║");
-                console.log("║  Звезда: оружие ✅                    ║");
-                console.log("║  Живой Камень: множитель урона ✅     ║");
+                console.log("║  ⚔️ EQUIPMENT COMBAT v2.1 загружено    ║");
+                console.log("║  firePlayerWeapon() — главная функция  ║");
+                console.log("║  Роджер/Звезда/Камень — оружие ✅     ║");
                 console.log("║  Броня: поглощение/отражение/скор. ✅ ║");
                 console.log("╚════════════════════════════════════════╝");
                 return;
             }
             if (attempts < maxAttempts) setTimeout(tryPatch, 100);
-            else console.warn("[EQ-COMBAT] Не всё пропатчено:", { applyHit: a, startArena: b, rwb: c, waystar: d, ls: e });
+            else console.warn("[EQ-COMBAT] Не всё пропатчено:", { applyHit: a, startArena: b, ls: c });
         }
 
         if (document.readyState === "complete" || document.readyState === "interactive") {
@@ -366,7 +253,6 @@
 
     // ========== ЭКСПОРТ ==========
     window.getEquippedWeapon = getWeapon;
-    window.getArmorBonuses = getArmorBonuses;
-    window.fireWeapon = fireWeapon;
+    window.getArmorBonusesPublic = getArmorBonuses;
 
 })();
