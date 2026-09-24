@@ -1,5 +1,8 @@
 // ============================================================
 // ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v6.3
+// + расширенная анимация вступления (+3 сек, больше диалогов)
+// + LITE MODE для телефона (отключение теней для FPS)
+// + ЭКСПОРТ ДЛЯ EQUIPMENT_COMBAT
 // ============================================================
 
 let livingStoneActive = false;
@@ -102,7 +105,6 @@ let qteMusicPaths = [
 ];
 
 // ========== LITE MODE (для телефона) ==========
-// Полностью отключает тени и свечения в canvas для FPS
 function _disableCtxShadows(c) {
     if (!c) return;
     try {
@@ -224,7 +226,6 @@ preloadQTEMusic();
 generateStoneTextures();
 
 // ========== СТАРТ ==========
-// ★ ЕСЛИ КАМЕНЬ УЖЕ ПОБЕЖДЁН — НЕ ЗАПУСКАЕМ QTE ★
 function startLivingStoneFight() {
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200)) {
         if (typeof showFloatingText === 'function') {
@@ -297,7 +298,6 @@ function _startLivingStoneFightInternal() {
     if (typeof canvas === 'undefined' || !canvas) return;
     if (typeof arenaActive !== 'undefined') arenaActive = false;
     
-    // ★ LITE MODE: если телефон — отключаем тени ★
     if (lsMobileMode && typeof ctx !== 'undefined' && ctx) {
         _disableCtxShadows(ctx);
     }
@@ -949,7 +949,6 @@ function triggerMusicScene() {
     livingStoneBoss.vx = 0;
     startQTEMusic();
     
-    // ★ ТЕКСТ 1: STANDING HERE (0 сек) ★
     spawnCinematicText(200, 65, "STANDING HERE...", "#ffffff", 400, 28);
     for (var i = 0; i < 20; i++) {
         spawnLivingStoneParticles(
@@ -960,7 +959,6 @@ function triggerMusicScene() {
     }
     if (typeof playArenaSound === 'function') playArenaSound(400, 'sine', 0.6, 0.1);
     
-    // ★ ТЕКСТ 2: I REALIZE (3 сек) ★
     setTimeout(function() {
         if (!livingStoneActive) return;
         spawnCinematicText(200, 105, "I REALIZE...", "#ffdd00", 400, 26);
@@ -968,7 +966,6 @@ function triggerMusicScene() {
         if (typeof playArenaSound === 'function') playArenaSound(500, 'sine', 0.5, 0.12);
     }, 3000);
     
-    // ★ ТЕКСТ 3: УГРОЗА БОССА (6 сек) — НОВОЕ ★
     setTimeout(function() {
         if (!livingStoneActive) return;
         spawnCinematicText(200, 145, "ТЫ НЕ СМОЖЕШЬ МЕНЯ ПРОБИТЬ", "#ff6644", 300, 22);
@@ -981,7 +978,6 @@ function triggerMusicScene() {
         }
     }, 6000);
     
-    // ★ ТЕКСТ 4: ЗЛОБНЫЙ СМЕХ (8 сек) — НОВОЕ ★
     setTimeout(function() {
         if (!livingStoneActive) return;
         spawnCinematicText(200, 220, "ХА-ХА-ХА!", "#ff0000", 250, 26);
@@ -997,7 +993,6 @@ function triggerMusicScene() {
         }
     }, 8000);
     
-    // ★ ТЕКСТ 5: ФИНАЛЬНЫЙ КРИК (10 сек) — НОВОЕ ★
     setTimeout(function() {
         if (!livingStoneActive) return;
         spawnCinematicText(200, 300, "ПОШЁЛ ПРОЧЬ!", "#ffffff", 200, 22);
@@ -1009,7 +1004,6 @@ function triggerMusicScene() {
         }
     }, 10000);
     
-    // ★ КИНЕМАТИК (11 сек — было 8, стало 11, +3 секунды) ★
     setTimeout(function() { 
         if (livingStoneActive) triggerCinematic(); 
     }, 11000);
@@ -1538,7 +1532,6 @@ function checkLivingStoneCollisions() {
         } else if (a.type === "laser") {
             if (Math.abs(px - a.x) < a.width / 2 + ph) hit = true;
         } else if (a.type === "gravity_well") {
-            // БЕЗ УРОНА
         } else if (a.type === "gravity_stone") {
             var dx = px - a.x, dy = py - a.y;
             if (Math.sqrt(dx * dx + dy * dy) < a.size + ph) hit = true;
@@ -2975,4 +2968,13 @@ function drawQTEOverlay() {
 window.startLivingStoneFight = startLivingStoneFight;
 window.stopLivingStoneFight = stopLivingStoneFight;
 window.preloadQTEMusic = preloadQTEMusic;
-console.log("[LIVING STONE] v6.3 — расширенная анимация + LITE MODE");
+
+// ★★★ ЭКСПОРТ ДЛЯ EQUIPMENT_COMBAT ★★★
+window.getLSPlayer = function() { return livingStonePlayer; };
+window.getLSPlayerHp = function() { return livingStonePlayerHp; };
+window.getLSBossHp = function() { return livingStoneBossHp; };
+window.getLSActive = function() { return livingStoneActive; };
+window.getLSState = function() { return livingStoneState; };
+window.applyArenaDamageLS = applyArenaDamage;
+
+console.log("[LIVING STONE] v6.3 — расширенная анимация + LITE MODE + EXPORT");
