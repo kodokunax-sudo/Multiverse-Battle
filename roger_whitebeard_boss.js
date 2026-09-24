@@ -1627,14 +1627,24 @@
         }
     }
 
-    window.startRogerWhitebeardFight = startRogerWhitebeardFight;
-    window.stopRogerWhitebeardFight = stopRogerWhitebeardFight;
+   window.startRogerWhitebeardFight = startRogerWhitebeardFight;
+window.stopRogerWhitebeardFight = stopRogerWhitebeardFight;
 
-    console.log("╔════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v4.3            ║");
-    console.log("║  Хаки: КРАСНОЕ внутри, ЧЁРНОЕ снаружи  ║");
-    console.log("║  Камни: 1-2 штуки, вниз, 3 HP          ║");
-    console.log("║  🟡 по боссам / 🔵 по атакам            ║");
-    console.log("╚════════════════════════════════════════╝");
+// ★★★ ЭКСПОРТ ДЛЯ EQUIPMENT_COMBAT ★★★
+window.updateRWBPlayer = updateRWBPlayer;
+window.updateRWBPlayerBullets = updateRWBPlayerBullets;
+window.getRWBPlayer = function() { return rwbPlayer; };
+window.getRWBBullets = function() { return rwbPlayerBullets; };
+window.getRWBAttacks = function() { return rwbAttacks; };
+window.getRWBKeys = function() { return rwbKeys; };
+window.getRWBTouch = function() { return { active: rwbTouchActive, x: rwbTouchX, y: rwbTouchY }; };
+window.rwbSound = rwbSound;
+
+console.log("╔════════════════════════════════════════╗");
+console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v4.3 + EXPORT   ║");
+console.log("║  Хаки: КРАСНОЕ внутри, ЧЁРНОЕ снаружи  ║");
+console.log("║  Камни: 1-2 штуки, вниз, 3 HP          ║");
+console.log("║  🟡 по боссам / 🔵 по атакам            ║");
+console.log("╚════════════════════════════════════════╝");
 
 })();
