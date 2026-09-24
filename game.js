@@ -197,6 +197,11 @@ function loadGameData(d) {
     slotData.nickname = d.nickname || loadSlotMeta(currentSlot).nickname;
     if (typeof setPowerPoints === 'function') setPowerPoints(d.powerPoints || 0);
     if (typeof loadInventory === 'function') loadInventory(d.inventory);
+    
+    // ★★★ ЗАГРУЖАЕМ РЕСУРСЫ И СНАРЯЖЕНИЕ ★★★
+    if (typeof window.setResourcesData === 'function') window.setResourcesData(d.resources);
+    if (typeof window.setEquipmentData === 'function') window.setEquipmentData(d.equipment);
+    
     if (Array.isArray(myCards)) {
         for (let i = 0; i < myCards.length; i++) {
             if (myCards[i] && typeof myCards[i].mastery === 'undefined') myCards[i].mastery = 1;
@@ -305,6 +310,11 @@ function initNewGame() {
     passData = { currentTier: 1, passExp: 0, claimedTiers: [] };
     if (typeof setPowerPoints === 'function') setPowerPoints(0);
     if (typeof resetInventory === 'function') resetInventory();
+    
+    // ★★★ СБРАСЫВАЕМ РЕСУРСЫ И СНАРЯЖЕНИЕ ★★★
+    if (typeof window.setResourcesData === 'function') window.setResourcesData({});
+    if (typeof window.setEquipmentData === 'function') window.setEquipmentData({ weapon: null, armor: null });
+    
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; }
     if (fireInterval) { clearInterval(fireInterval); fireInterval = null; }
     for (let i = 0; i < 3; i++) { let c = createCard(getRandomRarity()); if (c) myCards.push(c); } 
@@ -386,6 +396,11 @@ function saveAll() {
     slotData.teamPresets = teamPresets;
     if (typeof getPowerPoints === 'function') slotData.powerPoints = getPowerPoints();
     if (typeof saveInventory === 'function') slotData.inventory = saveInventory();
+    
+    // ★★★ СОХРАНЯЕМ РЕСУРСЫ И СНАРЯЖЕНИЕ ★★★
+    if (typeof window.getResourcesData === 'function') slotData.resources = window.getResourcesData();
+    if (typeof window.getEquipmentData === 'function') slotData.equipment = window.getEquipmentData();
+    
     saveGameToSlot(currentSlot); 
     window._needSave = false; 
 }
@@ -838,6 +853,13 @@ function processOfflineProgress() {
                 if (Math.random() < 0.05) addItem("coin", 1);
             }
         }
+        // ★ АФК тоже дропает ресурсы ★
+        if (typeof tryDropResources === 'function') {
+            let resourceDrops = Math.floor(wavesCompleted * 0.3);
+            for (let i = 0; i < resourceDrops; i++) {
+                tryDropResources(simWave, false);
+            }
+        }
         let mins = Math.floor(elapsed / 60); 
         showFloatingText("💤 АФК: +" + earnedPoints + "⭐ за " + mins + "мин!", "#2ecc71"); 
         updateChallengeProgress("earnPoints", earnedPoints); 
@@ -865,7 +887,7 @@ function getRarityEmoji(rarity) { let emojis = { "Обычная": "⚪", "Ре�
 function getCardResultHTML(card) { let rarityColor = getRarityColor(card.rarity); let rarityEmoji = getRarityEmoji(card.rarity); let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(card.rarity); let cardImg = showImage && typeof getCardImage === 'function' ? getCardImage(card.name) : null; let imgHTML = cardImg ? '<img src="' + cardImg + '" style="width:100px;height:100px;border-radius:12px;object-fit:cover;margin-bottom:10px;">' : ''; return '<div style="text-align:center;">' + '<div style="font-size:64px;margin-bottom:10px;">' + rarityEmoji + '</div>' + imgHTML + '<div style="font-size:32px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 30px ' + rarityColor + ';margin-bottom:8px;">' + card.name + '</div>' + '<div class="rarity-tag ' + rarityColors[card.rarity] + '" style="font-size:18px;padding:10px 25px;">' + card.rarity + '</div>' + '<div style="margin-top:15px;font-size:18px;">💪 ' + card.damage + ' ❤️ ' + card.hp + '</div>' + (card.ability ? '<div style="margin-top:10px;color:#f5af19;font-weight:bold;">✨ ' + card.ability.desc + '</div>' : '') + '</div>'; }
 function startGachaAnimation(card, type) { let availableRarities = []; switch(type) { case "common": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "rare": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "superRare": availableRarities = ["Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная"]; break; case "epic": availableRarities = ["Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "mythic": availableRarities = ["Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "legendary": availableRarities = ["Мифическая", "Легендарная", "Секретная"]; break; case "secret": availableRarities = ["Легендарная", "Секретная"]; break; default: availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик"]; } let fakeCards = []; for (let i = 0; i < 8; i++) { let randomRarity = availableRarities[Math.floor(Math.random() * availableRarities.length)]; let fc = createCard(randomRarity); if (fc) fakeCards.push(fc); } fakeCards.push(card); gachaAnimationActive = true; let modalContent = document.getElementById("modalContent"); let modalOverlay = document.getElementById("modalOverlay"); if (!modalContent || !modalOverlay) { gachaAnimationActive = false; return; } modalOverlay.style.display = "flex"; let index = 0; let totalFlashes = 24; let flashCount = 0; let speed = 80; function flashNextCard() { if (flashCount >= totalFlashes) { modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>'; if (typeof sfxCardObtain === 'function') sfxCardObtain(); gachaAnimationActive = false; return; } let currentCard = fakeCards[index % fakeCards.length]; let rarityColor = getRarityColor(currentCard.rarity); modalContent.innerHTML = '<h2>🎰 Крутка...</h2>' + '<div style="text-align:center;padding:10px;">' + '<div style="font-size:48px;margin-bottom:10px;">🎴</div>' + '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + currentCard.name + '</div>' + '<div class="rarity-tag ' + rarityColors[currentCard.rarity] + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' + '<div style="margin-top:12px;font-size:16px;">💪 ' + currentCard.damage + ' ❤️ ' + currentCard.hp + '</div>' + '</div>' + '<button class="btn" style="width:100%;padding:8px;margin-top:10px;background:#e74c3c;border:none;color:white;font-weight:bold;" onclick="closeModal();gachaAnimationActive=false;">⏭️ ПРОПУСТИТЬ</button>'; index++; flashCount++; if (flashCount > totalFlashes * 0.7) speed += 40; else if (flashCount > totalFlashes * 0.5) speed += 20; else if (flashCount > totalFlashes * 0.3) speed += 10; setTimeout(flashNextCard, speed); } flashNextCard(); }
 
-// ========== ГЕНЕРАЦИЯ ВРАГА (с интеграцией Роджера и Белоуса) ==========
+// ========== ГЕНЕРАЦИЯ ВРАГА ==========
 function generateEnemy() { 
     firstAttackThisFight = true; 
     bossSupportUsedThisFight = false; 
@@ -918,7 +940,7 @@ function generateEnemy() {
     let skipBtn = document.getElementById("skipArenaBtn");
     let rwbBtn = document.getElementById("startRogerWB");
     
-    // ★★ ВОЛНА 200 — ЖИВОЙ КАМЕНЬ ★★
+    // ВОЛНА 200 — ЖИВОЙ КАМЕНЬ
     if (wave === 200 && isUniqueBoss) {
         let alreadyDefeatedStone = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200);
         if (btn) btn.style.display = "none";
@@ -932,7 +954,7 @@ function generateEnemy() {
             currentEnemy.name = "🪨 Живой Камень (ослабленный)";
         }
     } 
-    // ★★ ВОЛНА 500 — ПУТЕВОДНАЯ ЗВЕЗДА ★★
+    // ВОЛНА 500 — ПУТЕВОДНАЯ ЗВЕЗДА
     else if (wave === 500 && isUniqueBoss) {
         let alreadyDefeatedWaystar = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500);
         if (btn) btn.style.display = "none";
@@ -946,14 +968,13 @@ function generateEnemy() {
             currentEnemy.name = "🌟 Путеводная Звезда (ослабленная)";
         }
     }
-    // ★★ ВОЛНА 1000 — РОДЖЕР И БЕЛОУС ★★
+    // ВОЛНА 1000 — РОДЖЕР И БЕЛОУС
     else if (wave === 1000) {
         let alreadyDefeatedRogerWB = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(1000);
         if (btn) btn.style.display = "none";
         if (livingBtn) livingBtn.style.display = "none";
         if (waystarBtn) waystarBtn.style.display = "none";
         
-        // Создаём кнопку если её нет
         if (!rwbBtn) {
             rwbBtn = document.createElement('button');
             rwbBtn.id = "startRogerWB";
@@ -965,14 +986,12 @@ function generateEnemy() {
                     startRogerWhitebeardFight();
                 }
             };
-            // Вставляем в контейнер с кнопками
             let container = document.querySelector('#fightSubTab .card') || document.body;
             if (container) container.insertBefore(rwbBtn, container.firstChild);
         }
         
         if (alreadyDefeatedRogerWB) {
             rwbBtn.style.display = "none";
-            // Ослабленная версия — обычный бой
             currentEnemy.hp = Math.floor(currentEnemy.hp * 0.3);
             currentEnemy.maxHp = currentEnemy.hp;
             currentEnemy.name = "👑 РОДЖЕР и БЕЛОУС (ослабленные)";
@@ -980,7 +999,7 @@ function generateEnemy() {
             rwbBtn.style.display = "block";
         }
     }
-    // ★★ ОСТАЛЬНЫЕ ВОЛНЫ ★★
+    // ОСТАЛЬНЫЕ ВОЛНЫ
     else {
         if (livingBtn) livingBtn.style.display = "none";
         if (waystarBtn) waystarBtn.style.display = "none";
@@ -1027,9 +1046,8 @@ function skipArenaFight() {
 }
 function createCardFromTemplate(tm, r) { let s = cardStats[r]; let d = tm.damage ?? s.damage, hp = tm.hp ?? s.hp, sp = tm.sellPrice ?? s.sellPrice, spd = tm.speed ?? s.speed ?? 0.5; let n = tm.name, a = tm.ability || null, u = tm.universe || "?", uns = tm.unsellable || false; if (!discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } totalCardsObtained++; if (points > maxPoints) maxPoints = points; return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, minRebirth: tm.minRebirth || 0, statusAbility: tm.statusAbility || null, extraStatus: tm.extraStatus || null, superAbility: tm.superAbility || null, mastery: 1, masteryExp: 0 }; }
 
-// ========== ЭВОЛЮЦИИ (НОВОЕ УСЛОВИЕ) ==========
+// ========== ЭВОЛЮЦИИ ==========
 function checkEvolutionQuests() { 
-    // ★★★ НОВОЕ УСЛОВИЕ: победа над Путеводной Звездой ★★★
     let evolutionUnlocked = false;
     try {
         if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500)) evolutionUnlocked = true;
@@ -1446,7 +1464,6 @@ function doRebirth() {
         return; 
     }
     
-    // ★★★ СОХРАНЯЕМ ФЛАГ ПУТЕВОДНОЙ ЗВЕЗДЫ ДО РЕБИРТХА ★★★
     let _hadWaystar = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500));
     
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; } 
@@ -1493,7 +1510,6 @@ function doRebirth() {
     newcomerBonusEnd = Date.now() + 600000; 
     gameCompleted = false; 
     
-    // ★★★ ВОССТАНАВЛИВАЕМ ФЛАГ 500 ПОСЛЕ ОЧИСТКИ ★★★
     defeatedBosses = []; 
     if (_hadWaystar) {
         defeatedBosses.push(500);
