@@ -1,8 +1,6 @@
 // ============================================================
-// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v6.3
-// + расширенная анимация вступления (+3 сек, больше диалогов)
-// + LITE MODE для телефона (отключение теней для FPS)
-// + ЭКСПОРТ ДЛЯ EQUIPMENT_COMBAT
+// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v6.4
+// + ОРУЖИЕ РАБОТАЕТ
 // ============================================================
 
 let livingStoneActive = false;
@@ -104,7 +102,7 @@ let qteMusicPaths = [
     "music/qte.mp3"
 ];
 
-// ========== LITE MODE (для телефона) ==========
+// ========== LITE MODE ==========
 function _disableCtxShadows(c) {
     if (!c) return;
     try {
@@ -121,9 +119,7 @@ function _disableCtxShadows(c) {
             configurable: true
         });
         console.log("[LS] LITE MODE: тени отключены");
-    } catch(e) {
-        console.warn("[LS] Не удалось отключить тени:", e);
-    }
+    } catch(e) {}
 }
 
 // ========== ГЕНЕРАЦИЯ ТЕКСТУРЫ ==========
@@ -506,13 +502,29 @@ function spawnMegaImpact(x, y) {
     livingStoneScreenFlashColor = "#ffffff";
 }
 
-// ========== СТРЕЛЬБА С МОДИФИКАЦИЯМИ ==========
+// ========== ★ СТРЕЛЬБА С ОРУЖИЕМ ★ ==========
 function livingStoneShoot() {
     var baseSpeed = 7 * lsSpeedMult;
     var bulletSize = 4;
     var bulletDamage = 250;
     var modId = lsActiveMod ? lsActiveMod.type : 0;
 
+    // ★★★ ПРОВЕРКА ОРУЖИЯ ★★★
+    if (typeof window.firePlayerWeapon === 'function' && !lsActiveMod) {
+        let result = window.firePlayerWeapon(livingStonePlayer.x, livingStonePlayer.y, "normal", livingStonePlayerHp, livingStonePlayerMaxHp);
+        if (result && result.bullets) {
+            for (var i = 0; i < result.bullets.length; i++) {
+                var b = result.bullets[i];
+                // Масштабируем урон оружия под Живого Камня
+                b.damage = bulletDamage * (b.damage / 2);
+                livingStoneBullets.push(b);
+            }
+            if (typeof playArenaSound === 'function') playArenaSound(900, 'square', 0.05, 0.02);
+            return;
+        }
+    }
+
+    // Стандартная стрельба
     if (modId === 5) bulletSize *= 1.25;
 
     if (modId === 1) {
@@ -940,7 +952,7 @@ function triggerRestoreScene() {
     setTimeout(function() { if (livingStoneActive) triggerMusicScene(); }, 3000);
 }
 
-// ========== РАСШИРЕННАЯ СЦЕНА ВСТУПЛЕНИЯ (+3 СЕК) ==========
+// ========== СЦЕНА ВСТУПЛЕНИЯ ==========
 function triggerMusicScene() {
     if (!livingStoneActive) return;
     livingStoneState = "qte_intro";
@@ -1740,6 +1752,15 @@ function livingStoneRenderLoop() {
         livingStoneShootTimer++;
         var shootRate = Math.max(2, Math.floor(6 / lsSpeedMult));
         if (lsActiveMod && lsActiveMod.type === 2) shootRate = Math.max(1, Math.floor(shootRate / 2));
+        
+        // ★ ЕСЛИ ОРУЖИЕ НАДЕТО — берём rate от него ★
+        if (typeof window.firePlayerWeapon === 'function' && !lsActiveMod) {
+            let eqData = window.getEquippedWeapon && window.getEquippedWeapon();
+            if (eqData && eqData.shootRate) {
+                shootRate = eqData.shootRate;
+            }
+        }
+        
         if (livingStoneShootTimer >= shootRate) { livingStoneShootTimer = 0; livingStoneShoot(); }
         livingStoneAttackTimer++;
         var attackRate = Math.floor(((livingStoneState === "phase2") ? 30 : 45) / lsSpeedMult);
@@ -2977,4 +2998,4 @@ window.getLSActive = function() { return livingStoneActive; };
 window.getLSState = function() { return livingStoneState; };
 window.applyArenaDamageLS = applyArenaDamage;
 
-console.log("[LIVING STONE] v6.3 — расширенная анимация + LITE MODE + EXPORT");
+console.log("[LIVING STONE] v6.4 — оружие работает + LITE MODE + EXPORT");
