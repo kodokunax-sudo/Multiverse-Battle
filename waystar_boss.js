@@ -1475,6 +1475,15 @@ window.stopWaystarFight = stopWaystarFight;
 window.damageWaystarBoss = function(dmg) { if (waystarState === "phase1") waystarBossHp -= dmg; };
 window.getWaystarActive = function() { return waystarActive; };
 
-console.log("[WAYSTAR] v11.0 загружено! Медленнее в 1.5x + Змейка + лёгкие эффекты");
+// ★★★ ЭКСПОРТ ДЛЯ EQUIPMENT_COMBAT ★★★
+window.updateWaystarShooting = updateWaystarShooting;
+window.getWaystarPlayer = function() { return waystarPlayer; };
+window.getWaystarBullets = function() { return waystarPlayerBullets; };
+window.getWaystarKeys = function() { return waystarKeys; };
+window.getWaystarTouch = function() { return { active: waystarTouchActive, x: waystarTouchX, y: waystarTouchY }; };
+window.waystarSound = wsPlaySound;
+window.isWaystarModerActive = isWaystarModerActive;
+
+console.log("[WAYSTAR] v11.0 + EXPORT загружено! Медленнее в 1.5x + Змейка + лёгкие эффекты");
 
 } // ★ КОНЕЦ ЗАЩИТЫ ★
