@@ -1,5 +1,5 @@
 // ============================================================
-// CRAFTING v2.1 — Хранилище снаряжения внутри "Снаряжение"
+// CRAFTING v2.2 — ФИКС equipWeapon is not defined
 // ============================================================
 // ПОДКЛЮЧАТЬ ПОСЛЕ inventory.js
 // ============================================================
@@ -151,28 +151,24 @@
     // БРОНЯ
     // ============================================================
     const ARMOR_RECIPES = [
-        // КОЖАНАЯ КУРТКА
         { id: "jacket_c", name: "Кожаная куртка", icon: "🧥", rarity: "Обычная", rarityClass: "common", tier: 1, bonuses: { speedMult: 1.05 }, desc: "+5% скорость.", recipe: { plastic: 5, wood: 3 } },
         { id: "jacket_r", name: "Куртка+", icon: "🧥", rarity: "Редкая", rarityClass: "rare", tier: 2, bonuses: { speedMult: 1.10, hpMult: 1.05 }, desc: "+10% скор., +5% HP.", fromArmor: "jacket_c", recipe: { normal_parts: 2, steel: 2, hardened_steel: 1 } },
         { id: "jacket_sr", name: "Куртка++", icon: "🧥", rarity: "Сверх редкая", rarityClass: "superrare", tier: 3, bonuses: { speedMult: 1.15, hpMult: 1.10 }, desc: "+15% скор., +10% HP.", fromArmor: "jacket_r", recipe: { quality_parts: 2, polymer: 2, hardened_steel: 1 } },
         { id: "jacket_e", name: "Куртка Элит", icon: "🧥", rarity: "Эпик", rarityClass: "epic", tier: 4, bonuses: { speedMult: 1.20, hpMult: 1.15 }, desc: "+20% скор., +15% HP.", fromArmor: "jacket_sr", recipe: { power_parts: 2, power_steel: 2, magic_powder: 1 } },
         { id: "jacket_l", name: "Куртка «Скороход»", icon: "🧥", rarity: "Легендарная", rarityClass: "legendary", tier: 5, bonuses: { speedMult: 1.30, hpMult: 1.25 }, desc: "+30% скор., +25% HP.", fromArmor: "jacket_e", recipe: { magic_steel: 2, soul_crystal: 1, elemental_heart: 1 } },
 
-        // КОЛЬЧУГА
         { id: "chain_c", name: "Кольчуга", icon: "⛓️", rarity: "Обычная", rarityClass: "common", tier: 1, bonuses: { hpMult: 1.10, damageReduction: 0.03 }, desc: "+10% HP, +3% погл.", recipe: { iron: 15, steel: 5 } },
         { id: "chain_r", name: "Кольчуга+", icon: "⛓️", rarity: "Редкая", rarityClass: "rare", tier: 2, bonuses: { hpMult: 1.20, damageReduction: 0.06 }, desc: "+20% HP, +6% погл.", fromArmor: "chain_c", recipe: { normal_parts: 3, hardened_steel: 2, steel: 4 } },
         { id: "chain_sr", name: "Кольчуга++", icon: "⛓️", rarity: "Сверх редкая", rarityClass: "superrare", tier: 3, bonuses: { hpMult: 1.35, damageReduction: 0.10 }, desc: "+35% HP, +10% погл.", fromArmor: "chain_r", recipe: { quality_parts: 3, polymer: 2, hardened_steel: 3 } },
         { id: "chain_e", name: "Кольчуга Элит", icon: "⛓️", rarity: "Эпик", rarityClass: "epic", tier: 4, bonuses: { hpMult: 1.60, damageReduction: 0.15 }, desc: "+60% HP, +15% погл.", fromArmor: "chain_sr", recipe: { power_parts: 3, power_steel: 3, magic_powder: 2 } },
         { id: "chain_l", name: "Кольчуга «Стальная стена»", icon: "⛓️", rarity: "Легендарная", rarityClass: "legendary", tier: 5, bonuses: { hpMult: 2.0, damageReduction: 0.22 }, desc: "+100% HP, +22% погл.", fromArmor: "chain_e", recipe: { magic_steel: 3, soul_crystal: 2, elemental_heart: 2 } },
 
-        // ТЯЖЁЛЫЙ ДОСПЕХ
         { id: "heavy_c", name: "Тяжёлый доспех", icon: "🛡️", rarity: "Обычная", rarityClass: "common", tier: 1, bonuses: { hpMult: 1.25, speedMult: 0.92 }, desc: "+25% HP, -8% скор.", recipe: { iron: 25, steel: 10 } },
         { id: "heavy_r", name: "Тяжёлый+", icon: "🛡️", rarity: "Редкая", rarityClass: "rare", tier: 2, bonuses: { hpMult: 1.40, speedMult: 0.90, damageReduction: 0.05 }, desc: "+40% HP, -10% скор., +5% погл.", fromArmor: "heavy_c", recipe: { normal_parts: 4, hardened_steel: 3, steel: 5 } },
         { id: "heavy_sr", name: "Тяжёлый++", icon: "🛡️", rarity: "Сверх редкая", rarityClass: "superrare", tier: 3, bonuses: { hpMult: 1.60, speedMult: 0.88, damageReduction: 0.10 }, desc: "+60% HP, +10% погл.", fromArmor: "heavy_r", recipe: { quality_parts: 4, polymer: 3, hardened_steel: 4 } },
         { id: "heavy_e", name: "Тяжёлый Элит", icon: "🛡️", rarity: "Эпик", rarityClass: "epic", tier: 4, bonuses: { hpMult: 2.0, speedMult: 0.85, damageReduction: 0.15 }, desc: "+100% HP, +15% погл.", fromArmor: "heavy_sr", recipe: { power_parts: 4, power_steel: 4, magic_powder: 2 } },
         { id: "heavy_l", name: "Доспех титана", icon: "🗿", rarity: "Легендарная", rarityClass: "legendary", tier: 5, bonuses: { hpMult: 4.0, speedMult: 0.60, damageReduction: 0.30, regen: 0.03 }, desc: "+300% HP, +30% погл., реген 3%/сек.", fromArmor: "heavy_e", recipe: { magic_steel: 5, soul_crystal: 3, elemental_heart: 3 } },
 
-        // МАНТИЯ
         { id: "mage_c", name: "Мантия мага", icon: "🧙", rarity: "Обычная", rarityClass: "common", tier: 1, bonuses: { hpMult: 1.05, reflectChance: 0.02 }, desc: "+5% HP, 2% отражение.", recipe: { plastic: 8, wood: 5 } },
         { id: "mage_r", name: "Мантия+", icon: "🧙", rarity: "Редкая", rarityClass: "rare", tier: 2, bonuses: { hpMult: 1.15, reflectChance: 0.05 }, desc: "+15% HP, 5% отражение.", fromArmor: "mage_c", recipe: { normal_parts: 3, steel: 3, magic_dust: 2 } },
         { id: "mage_sr", name: "Мантия++", icon: "🧙", rarity: "Сверх редкая", rarityClass: "superrare", tier: 3, bonuses: { hpMult: 1.25, reflectChance: 0.08 }, desc: "+25% HP, 8% отражение.", fromArmor: "mage_r", recipe: { quality_parts: 3, polymer: 3, magic_dust: 3 } },
@@ -185,9 +181,8 @@
     // ============================================================
     let resources = {};
     let equipment = { weapon: null, armor: null };
-    // ★ ХРАНИЛИЩЕ ★
-    let weaponStorage = []; // массив оружия, которое не надето
-    let armorStorage = [];  // массив брони, которая не надета
+    let weaponStorage = [];
+    let armorStorage = [];
 
     // ============================================================
     // ФУНКЦИИ
@@ -281,23 +276,20 @@
         if (typeof showFloatingText === 'function') showFloatingText(proc.icon + " " + proc.name + " готово!", "#f5af19");
     }
 
-    // ★★★ КРАФТ С ХРАНИЛИЩЕМ ★★★
     function craftItem(recipeId, type) {
         let list = (type === "weapon") ? WEAPON_RECIPES : ARMOR_RECIPES;
         let recipe = list.find(r => r.id === recipeId);
         if (!recipe) { alert("❌ Рецепт не найден"); return; }
         let freeMode = isModer();
 
-        // ★ Проверка "fromWeapon" / "fromArmor" — должно быть в СЛОТЕ или в ХРАНИЛИЩЕ ★
         if (recipe.fromWeapon && !freeMode) {
             let currentW = equipment.weapon;
             let inStorage = weaponStorage.some(w => w.id === recipe.fromWeapon);
             if ((!currentW || currentW.id !== recipe.fromWeapon) && !inStorage) {
                 let baseName = WEAPON_RECIPES.find(r => r.id === recipe.fromWeapon);
-                alert("❌ Нужно иметь: " + (baseName ? baseName.name : recipe.fromWeapon) + "\n(надень или положи в хранилище)");
+                alert("❌ Нужно иметь: " + (baseName ? baseName.name : recipe.fromWeapon));
                 return;
             }
-            // Списываем предыдущее из хранилища
             if (inStorage) {
                 let idx = weaponStorage.findIndex(w => w.id === recipe.fromWeapon);
                 if (idx !== -1) weaponStorage.splice(idx, 1);
@@ -323,20 +315,14 @@
         }
 
         let item = JSON.parse(JSON.stringify(recipe));
-        item.uid = Date.now() + Math.random() + Math.random(); // гарантируем уникальность
+        item.uid = Date.now() + Math.random() + Math.random();
         item.craftedAt = Date.now();
 
-        // ★★★ ЛОГИКА ХРАНИЛИЩА ★★★
         if (type === "weapon") {
-            if (equipment.weapon) {
-                // Старое — в хранилище
-                weaponStorage.push(equipment.weapon);
-            }
-            equipment.weapon = item; // новое — надеваем
+            if (equipment.weapon) weaponStorage.push(equipment.weapon);
+            equipment.weapon = item;
         } else if (type === "armor") {
-            if (equipment.armor) {
-                armorStorage.push(equipment.armor);
-            }
+            if (equipment.armor) armorStorage.push(equipment.armor);
             equipment.armor = item;
         }
 
@@ -348,7 +334,6 @@
         if (typeof showFloatingText === 'function') showFloatingText("🔨 " + item.icon + " " + item.name + " надето!", "#f5af19");
     }
 
-    // ★ НАДЕТЬ ИЗ ХРАНИЛИЩА ★
     function equipFromStorage(uid, type) {
         if (type === "weapon") {
             let idx = weaponStorage.findIndex(w => w.uid === uid);
@@ -356,7 +341,7 @@
             let old = equipment.weapon;
             equipment.weapon = weaponStorage[idx];
             weaponStorage.splice(idx, 1);
-            if (old) weaponStorage.push(old); // старое — в хранилище
+            if (old) weaponStorage.push(old);
         } else if (type === "armor") {
             let idx = armorStorage.findIndex(a => a.uid === uid);
             if (idx === -1) return;
@@ -372,28 +357,20 @@
         if (typeof showFloatingText === 'function') showFloatingText("⚔️ Надето из хранилища!", "#2ecc71");
     }
 
-    // ★ ПРОДАТЬ ИЗ ХРАНИЛИЩА ★
     function sellFromStorage(uid, type) {
-        let list, item;
+        let item;
         if (type === "weapon") {
             let idx = weaponStorage.findIndex(w => w.uid === uid);
             if (idx === -1) return;
             item = weaponStorage[idx];
-            list = "weapon";
         } else if (type === "armor") {
             let idx = armorStorage.findIndex(a => a.uid === uid);
             if (idx === -1) return;
             item = armorStorage[idx];
-            list = "armor";
         }
         if (!item) return;
-
-        let rarityPrices = {
-            "Обычная": 50, "Редкая": 200, "Сверх редкая": 800,
-            "Эпик": 3000, "Легендарная": 15000
-        };
+        let rarityPrices = { "Обычная": 50, "Редкая": 200, "Сверх редкая": 800, "Эпик": 3000, "Легендарная": 15000 };
         let price = rarityPrices[item.rarity] || 100;
-
         if (!confirm("💰 Продать " + item.icon + " " + item.name + " за " + price + "⭐?")) return;
 
         if (type === "weapon") {
@@ -580,7 +557,7 @@
     // ============================================================
     let currentInvTab = "items";
     let currentCraftTab = "processes";
-    let currentEquipTab = "weapons"; // weapons | armors
+    let currentEquipTab = "weapons";
 
     function renderInventoryExtended() {
         let container = document.getElementById("inventoryContent");
@@ -668,14 +645,11 @@
             '</div>';
     }
 
-    // ★★★ ГЛАВНОЕ: СНАРЯЖЕНИЕ С ХРАНИЛИЩЕМ ★★★
     function renderEquipmentTab() {
         let html = '';
         let eq = getEquipmentBonuses();
 
-        // === 2 слота: надетое оружие + броня ===
         html += '<div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;">';
-        // Оружие
         html += '<div style="flex:1;min-width:150px;background:rgba(0,0,0,0.4);border:2px dashed rgba(255,255,255,0.15);border-radius:16px;padding:12px;text-align:center;">';
         html += '<div style="font-size:11px;color:#aaa;margin-bottom:6px;">⚔️ НАДЕТО</div>';
         if (equipment.weapon) {
@@ -688,7 +662,6 @@
             html += '<div style="font-size:11px;color:#888;margin-top:6px;">Пусто</div>';
         }
         html += '</div>';
-        // Броня
         html += '<div style="flex:1;min-width:150px;background:rgba(0,0,0,0.4);border:2px dashed rgba(255,255,255,0.15);border-radius:16px;padding:12px;text-align:center;">';
         html += '<div style="font-size:11px;color:#aaa;margin-bottom:6px;">🛡️ НАДЕТО</div>';
         if (equipment.armor) {
@@ -703,7 +676,6 @@
         html += '</div>';
         html += '</div>';
 
-        // Бонусы
         html += '<div style="background:rgba(0,0,0,0.3);border-radius:14px;padding:12px;font-size:12px;line-height:1.8;margin-bottom:15px;">';
         html += '<div style="font-weight:900;margin-bottom:8px;color:#f5af19;">📊 СУММАРНЫЕ БОНУСЫ</div>';
         let hasBonus = false;
@@ -720,10 +692,7 @@
         if (!hasBonus) html += '<div style="color:#888;">Нет активных бонусов</div>';
         html += '</div>';
 
-        // ★★★ ХРАНИЛИЩЕ ★★★
         html += '<div style="font-weight:900;font-size:14px;color:#f5af19;margin-bottom:10px;">🎒 ХРАНИЛИЩЕ</div>';
-
-        // Подвкладки хранилища
         html += '<div style="display:flex;gap:6px;margin-bottom:10px;">';
         let eqTabs = [
             { id: "weapons", label: "⚔️ Оружие (" + weaponStorage.length + ")" },
@@ -891,8 +860,7 @@
         if (el) el.style.display = "flex";
     };
 
-    window.equipWeapon = equipWeapon;
-    window.equipArmor = equipArmor;
+    // ★★★ ФИКС: убраны несуществующие equipWeapon / equipArmor ★★★
     window.unequipWeapon = unequipWeapon;
     window.unequipArmor = unequipArmor;
     window.equipFromStorage = equipFromStorage;
@@ -936,9 +904,9 @@
             let g = patchRunAfkTick();
             if (a && b && c && d && e && f && g) {
                 console.log("╔════════════════════════════════════════╗");
-                console.log("║  🔨 CRAFTING v2.1 загружено            ║");
+                console.log("║  🔨 CRAFTING v2.2 загружено            ║");
+                console.log("║  ✅ ФИКС: equipWeapon is not defined   ║");
                 console.log("║  🎒 Хранилище снаряжения работает      ║");
-                console.log("║  Внутри вкладки «Снаряжение»           ║");
                 console.log("╚════════════════════════════════════════╝");
                 return;
             }
