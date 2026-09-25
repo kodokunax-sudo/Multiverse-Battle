@@ -1,6 +1,6 @@
 // ============================================================
 // ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v6.5
-// + EXPORT damageLivingStonePlayer для EQUIPMENT_COMBAT
+// + ЭКСПОРТ damageLivingStonePlayer (для брони)
 // ============================================================
 
 let livingStoneActive = false;
@@ -94,6 +94,7 @@ let qteMusicPaths = [
     "music/qte.mp3"
 ];
 
+// ========== LITE MODE ==========
 function _disableCtxShadows(c) {
     if (!c) return;
     try {
@@ -109,9 +110,11 @@ function _disableCtxShadows(c) {
             set: function(v) { _color = 'rgba(0,0,0,0)'; },
             configurable: true
         });
+        console.log("[LS] LITE MODE: тени отключены");
     } catch(e) {}
 }
 
+// ========== ГЕНЕРАЦИЯ ТЕКСТУРЫ ==========
 function generateStoneTextures() {
     stoneTexturePoints = [];
     stoneTexturePhase2 = [];
@@ -161,6 +164,7 @@ function generateStoneTextures() {
     }
 }
 
+// ========== ПРЕДЗАГРУЗКА МУЗЫКИ ==========
 function preloadQTEMusic() {
     if (qteMusicPreloaded) return;
     qteMusicPreloaded = true;
@@ -490,14 +494,13 @@ function spawnMegaImpact(x, y) {
     livingStoneScreenFlashColor = "#ffffff";
 }
 
-// ========== СТРЕЛЬБА С ОРУЖИЕМ ==========
+// ========== СТРЕЛЬБА ==========
 function livingStoneShoot() {
     var baseSpeed = 7 * lsSpeedMult;
     var bulletSize = 4;
     var bulletDamage = 250;
     var modId = lsActiveMod ? lsActiveMod.type : 0;
 
-    // ★★★ ПРОВЕРКА ОРУЖИЯ ★★★
     if (typeof window.firePlayerWeapon === 'function' && !lsActiveMod) {
         let result = window.firePlayerWeapon(livingStonePlayer.x, livingStonePlayer.y, "normal", livingStonePlayerHp, livingStonePlayerMaxHp);
         if (result && result.bullets) {
@@ -1546,6 +1549,7 @@ function checkLivingStoneCollisions() {
                     var toBossY = livingStoneBoss.y - (a.y || py);
                     var toBossLen = Math.sqrt(toBossX * toBossX + toBossY * toBossY) || 1;
                     var baseSpeed = 6 * lsSpeedMult;
+
                     a.type = "reflected";
                     a.reflectedDamage = a.damage || 5;
                     a.vx = (toBossX / toBossLen) * baseSpeed;
@@ -1555,6 +1559,7 @@ function checkLivingStoneCollisions() {
                     if (a.size) a.size = Math.max(6, a.size * 0.8);
                     if (a.radius) a.radius = Math.max(6, a.radius * 0.8);
                     a.life = 200;
+
                     spawnLivingStoneParticles(a.x || px, a.y || py, 20, "#00aaff", 6);
                     spawnLivingStoneParticles(a.x || px, a.y || py, 10, "#ffffff", 4);
                     if (typeof playArenaSound === 'function') {
@@ -1855,6 +1860,7 @@ function livingStoneRenderLoop() {
         ctx.save();
         ctx.translate(c.x, c.y);
         ctx.rotate(Math.sin(c.wobble) * 0.15);
+        
         var glowGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, c.size * 2);
         glowGrad.addColorStop(0, c.mod.color + "cc");
         glowGrad.addColorStop(0.5, c.mod.color + "66");
@@ -1863,6 +1869,7 @@ function livingStoneRenderLoop() {
         ctx.beginPath();
         ctx.arc(0, 0, c.size * 2, 0, Math.PI * 2);
         ctx.fill();
+        
         ctx.shadowColor = c.mod.color;
         ctx.shadowBlur = 20;
         ctx.fillStyle = c.mod.color;
@@ -1876,16 +1883,19 @@ function livingStoneRenderLoop() {
         }
         ctx.closePath();
         ctx.fill();
+        
         ctx.fillStyle = "rgba(0,0,0,0.5)";
         ctx.beginPath();
         ctx.arc(0, 0, c.size * 0.65, 0, Math.PI * 2);
         ctx.fill();
+        
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold " + (c.size * 1.1) + "px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.shadowBlur = 8;
         ctx.fillText(c.mod.icon, 0, 2);
+        
         ctx.restore();
     }
     
@@ -1931,6 +1941,7 @@ function livingStoneRenderLoop() {
     
     for (var i = 0; i < livingStoneAttacks.length; i++) {
         var a = livingStoneAttacks[i];
+
         if (a.type === "reflected") {
             ctx.save();
             var size = a.size || a.radius || 10;
@@ -1948,9 +1959,20 @@ function livingStoneRenderLoop() {
             ctx.beginPath();
             ctx.arc(a.x, a.y, size * 0.7, 0, Math.PI * 2);
             ctx.fill();
+            var rot = performance.now() / 100;
+            ctx.strokeStyle = "#00d4ff";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (var k = 0; k < 3; k++) {
+                var an1 = rot + (k / 3) * Math.PI * 2;
+                var an2 = an1 + Math.PI * 0.6;
+                ctx.arc(a.x, a.y, size * 1.2, an1, an2);
+            }
+            ctx.stroke();
             ctx.restore();
             continue;
         }
+
         if (a.type === "rock") {
             ctx.save();
             ctx.translate(a.x, a.y);
@@ -2055,11 +2077,56 @@ function livingStoneRenderLoop() {
             ctx.beginPath();
             ctx.arc(a.x, a.y, r * 2, 0, Math.PI * 2);
             ctx.fill();
+            ctx.shadowColor = "#aa44ff";
+            ctx.shadowBlur = 25;
+            for (var k = 0; k < 6; k++) {
+                var an = a.pulse * 0.5 + (k / 6) * Math.PI * 2;
+                ctx.strokeStyle = "rgba(180, 100, 255, " + (0.4 + Math.sin(a.pulse * 2 + k) * 0.3) + ")";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(a.x + Math.cos(an) * r * 0.4, a.y + Math.sin(an) * r * 0.4);
+                ctx.lineTo(a.x + Math.cos(an) * r * 1.3, a.y + Math.sin(an) * r * 1.3);
+                ctx.stroke();
+            }
+            var cg = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, r * 0.6);
+            cg.addColorStop(0, "#000000");
+            cg.addColorStop(0.5, "#1a0030");
+            cg.addColorStop(1, "#6600aa");
+            ctx.fillStyle = cg;
+            ctx.beginPath();
+            ctx.arc(a.x, a.y, r * 0.6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#cc66ff";
+            ctx.lineWidth = 2;
+            ctx.shadowColor = "#cc66ff";
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.arc(a.x, a.y, r * 0.6, 0, Math.PI * 2);
+            ctx.stroke();
+            for (var k = 0; k < 8; k++) {
+                var an2 = -a.pulse * 0.8 + (k / 8) * Math.PI * 2;
+                ctx.fillStyle = "#ffffff";
+                ctx.shadowColor = "#aa44ff";
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.arc(a.x + Math.cos(an2) * r * 1.1, a.y + Math.sin(an2) * r * 1.1, 3 + Math.sin(a.pulse * 3 + k) * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
             ctx.restore();
         } else if (a.type === "gravity_stone") {
             ctx.save();
+            ctx.globalAlpha = 0.4;
+            ctx.fillStyle = "#aa44ff";
+            ctx.shadowColor = "#aa44ff";
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(a.x - a.vx * 1.5, a.y - a.vy * 1.5, a.size * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
             ctx.translate(a.x, a.y);
             ctx.rotate(a.rotation);
+            ctx.shadowColor = "#000000";
+            ctx.shadowBlur = 8;
             ctx.fillStyle = "#8B7355";
             ctx.beginPath();
             ctx.moveTo(-a.size, -a.size * 0.5);
@@ -2072,6 +2139,11 @@ function livingStoneRenderLoop() {
             ctx.strokeStyle = "#5a4030";
             ctx.lineWidth = 2;
             ctx.stroke();
+            ctx.strokeStyle = "#cc66ff";
+            ctx.lineWidth = 1.5;
+            ctx.shadowColor = "#cc66ff";
+            ctx.shadowBlur = 10;
+            ctx.stroke();
             ctx.restore();
         } else if (a.type === "spike") {
             if (a.warningTimer > 0) {
@@ -2079,16 +2151,24 @@ function livingStoneRenderLoop() {
                 ctx.globalAlpha = 0.3 + Math.abs(Math.sin(a.warningTimer * 0.3)) * 0.4;
                 ctx.fillStyle = "#ff4400";
                 ctx.fillRect(a.x - 30, 500 - 5, 60, 5);
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(a.x - 30, 500 - 5, 60, 5);
                 ctx.restore();
             } else if (a.height > 0) {
                 ctx.save();
                 ctx.fillStyle = a.color || "#5a4030";
+                ctx.shadowColor = "#000000";
+                ctx.shadowBlur = 10;
                 ctx.beginPath();
                 ctx.moveTo(a.x - 30, 500);
                 ctx.lineTo(a.x, 500 - a.height);
                 ctx.lineTo(a.x + 30, 500);
                 ctx.closePath();
                 ctx.fill();
+                ctx.strokeStyle = "#8B7355";
+                ctx.lineWidth = 2;
+                ctx.stroke();
                 ctx.restore();
             }
         } else if (a.type === "laser_warning") {
@@ -2096,6 +2176,9 @@ function livingStoneRenderLoop() {
             ctx.globalAlpha = 0.3 + Math.abs(Math.sin(a.timer * 0.3)) * 0.4;
             ctx.fillStyle = "#ff3333";
             ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(a.x - a.width / 2, 0, a.width, 500);
             ctx.restore();
         } else if (a.type === "laser") {
             ctx.save();
@@ -2104,6 +2187,8 @@ function livingStoneRenderLoop() {
             ctx.shadowColor = "#ff4400";
             ctx.shadowBlur = 30;
             ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
+            ctx.fillStyle = "#ff4400";
+            ctx.fillRect(a.x - a.width / 3, 0, a.width * 2 / 3, 500);
             ctx.restore();
         }
     }
@@ -2152,6 +2237,21 @@ function livingStoneRenderLoop() {
         ctx.beginPath();
         ctx.arc(shieldX, shieldY, 20 * shieldPulse, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = "#00d4ff";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = "#00d4ff";
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(shieldX, shieldY, 16, 0, Math.PI * 2);
+        ctx.stroke();
+        var rot = performance.now() / 500;
+        for (var k = 0; k < 6; k++) {
+            var an = rot + (k / 6) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.moveTo(shieldX + Math.cos(an) * 12, shieldY + Math.sin(an) * 12);
+            ctx.lineTo(shieldX + Math.cos(an) * 18, shieldY + Math.sin(an) * 18);
+            ctx.stroke();
+        }
         ctx.restore();
     }
 
@@ -2196,6 +2296,10 @@ function livingStoneRenderLoop() {
             else ctx.lineTo(lb.points[k].x, lb.points[k].y);
         }
         ctx.stroke();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = lb.width * 0.4;
+        ctx.shadowBlur = 0;
+        ctx.stroke();
         ctx.restore();
     }
     for (var i = 0; i < qteSlashMarks.length; i++) {
@@ -2206,14 +2310,32 @@ function livingStoneRenderLoop() {
         ctx.rotate(sm.angle);
         ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = sm.width * (sm.life / sm.maxLife);
+        ctx.shadowColor = "#ffdd00";
+        ctx.shadowBlur = 20;
         ctx.beginPath();
         ctx.moveTo(-sm.length / 2, 0);
         ctx.lineTo(sm.length / 2, 0);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, -sm.length / 2);
+        ctx.lineTo(0, sm.length / 2);
         ctx.stroke();
         ctx.restore();
     }
     for (var i = 0; i < qteSparks.length; i++) {
         var sp = qteSparks[i];
+        for (var k = 0; k < sp.trail.length; k++) {
+            var tr = sp.trail[k];
+            ctx.save();
+            ctx.globalAlpha = (1 - k / sp.trail.length) * (sp.life / sp.maxLife) * 0.6;
+            ctx.fillStyle = sp.color;
+            ctx.shadowColor = sp.color;
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(tr.x, tr.y, sp.size * (1 - k / sp.trail.length) * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
         ctx.save();
         ctx.globalAlpha = sp.life / sp.maxLife;
         ctx.fillStyle = sp.color;
@@ -2221,6 +2343,11 @@ function livingStoneRenderLoop() {
         ctx.shadowBlur = 15;
         ctx.beginPath();
         ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, sp.size * 0.4, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
@@ -2273,6 +2400,10 @@ function livingStoneRenderLoop() {
                 ctx.lineTo(p.x + Math.cos(an) * p.size, p.y + Math.sin(an) * p.size);
                 ctx.stroke();
             }
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * 0.5 * (p.life / p.maxLife), 0, Math.PI * 2);
+            ctx.fill();
             ctx.restore();
         }
     }
@@ -2291,6 +2422,18 @@ function livingStoneRenderLoop() {
         ctx.beginPath();
         ctx.arc(impact.x, impact.y, r, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 4 * (1 - progress);
+        ctx.shadowColor = "#ffffff";
+        ctx.shadowBlur = 20;
+        var rays = lsMobileMode ? 6 : 12;
+        for (var j = 0; j < rays; j++) {
+            var an = (j / rays) * Math.PI * 2 + progress;
+            ctx.beginPath();
+            ctx.moveTo(impact.x, impact.y);
+            ctx.lineTo(impact.x + Math.cos(an) * r, impact.y + Math.sin(an) * r);
+            ctx.stroke();
+        }
         ctx.restore();
     }
     
@@ -2299,7 +2442,8 @@ function livingStoneRenderLoop() {
         ctx.save();
         ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
         ctx.fillStyle = p.color;
-        ctx.beginPath();
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
         ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
         ctx.restore();
     }
@@ -2310,6 +2454,8 @@ function livingStoneRenderLoop() {
         ctx.font = "bold 18px monospace";
         ctx.textAlign = "center";
         ctx.fillStyle = t.color;
+        ctx.shadowColor = t.color;
+        ctx.shadowBlur = 10;
         ctx.fillText(t.text, t.x, t.y);
         ctx.restore();
     }
@@ -2323,7 +2469,24 @@ function livingStoneRenderLoop() {
         ctx.lineWidth = 3;
         ctx.strokeText(t.text, t.x, t.y);
         ctx.fillStyle = t.color;
+        ctx.shadowColor = t.color;
+        ctx.shadowBlur = 15;
         ctx.fillText(t.text, t.x, t.y);
+        ctx.restore();
+    }
+    
+    if (lsTouchActive && (livingStoneState === "phase1" || livingStoneState === "phase2") && !finalSceneActive) {
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(lsTouchX, lsTouchY, 40, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(lsTouchX, lsTouchY, 15, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
     }
     
@@ -2332,6 +2495,14 @@ function livingStoneRenderLoop() {
     }
     if (!isQTE && !finalSceneActive) drawLivingStoneHpBars();
     drawLSActiveModUI();
+    if (lsMobileMode) {
+        ctx.save();
+        ctx.font = "bold 10px monospace";
+        ctx.textAlign = "right";
+        ctx.fillStyle = "rgba(255,255,255,0.5)";
+        ctx.fillText("LITE", 395, 495);
+        ctx.restore();
+    }
     ctx.restore();
     livingStoneAnimFrame = requestAnimationFrame(livingStoneRenderLoop);
 }
@@ -2347,7 +2518,10 @@ function drawLSActiveModUI() {
     ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
     ctx.strokeStyle = lsActiveMod.color;
     ctx.lineWidth = 2;
+    ctx.shadowColor = lsActiveMod.color;
+    ctx.shadowBlur = 12;
     ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
+    ctx.shadowBlur = 0;
     ctx.fillStyle = lsActiveMod.color + "44";
     ctx.fillRect(x, y, w, h);
     ctx.fillStyle = lsActiveMod.color + "aa";
@@ -2374,6 +2548,8 @@ function drawBossArm() {
     var cx = arm.startX + (arm.endX - arm.startX) * ep;
     var cy = arm.startY + (arm.endY - arm.startY) * ep;
     ctx.save();
+    ctx.shadowColor = "#000000";
+    ctx.shadowBlur = 15;
     ctx.fillStyle = "#8B7355";
     ctx.strokeStyle = "#3a2818";
     ctx.lineWidth = 4;
@@ -2381,6 +2557,18 @@ function drawBossArm() {
     ctx.arc(cx, cy, 45, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    ctx.fillStyle = "#a08060";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#5a4030";
+    ctx.lineWidth = 3;
+    for (var i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(cx - 20 + i * 15, cy - 20);
+        ctx.lineTo(cx - 20 + i * 15, cy + 20);
+        ctx.stroke();
+    }
     ctx.restore();
 }
 
@@ -2389,14 +2577,34 @@ function drawLivingStoneBoss() {
     var pulse = 1.0 + Math.sin(performance.now() / 300) * 0.05;
     var size = b.size * pulse;
     var isPhase2 = (livingStoneState === "phase2");
+    var isQTEPunch = (livingStoneState === "qte_punch");
+    var isFinal = finalSceneActive;
+    
+    var bossShakeX = 0, bossShakeY = 0;
+    if (qteBossShake > 0.5) {
+        bossShakeX = (Math.random() - 0.5) * qteBossShake;
+        bossShakeY = (Math.random() - 0.5) * qteBossShake;
+    }
+    if (isFinal && finalScenePhase === "laugh") {
+        bossShakeY += finalLaughOffset;
+    }
+    
+    var damage = isQTEPunch ? qteBossDamageLevel : 0;
+    
     ctx.save();
-    ctx.translate(b.x, b.y);
+    ctx.translate(b.x + bossShakeX, b.y + bossShakeY);
     ctx.rotate(Math.sin(b.rotation) * 0.05);
+    
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 1.35, 0, Math.PI * 2);
+    ctx.fill();
+    
     var grad = ctx.createRadialGradient(-size * 0.3, -size * 0.3, 1, 0, 0, size * 1.5);
     if (livingStoneBossFlash > 0) {
         grad.addColorStop(0, "#ffffff");
         grad.addColorStop(1, "#ff8800");
-    } else if (isPhase2) {
+    } else if (isPhase2 || isFinal) {
         grad.addColorStop(0, "#c09070");
         grad.addColorStop(0.5, "#8B4a30");
         grad.addColorStop(1, "#3a1808");
@@ -2406,6 +2614,7 @@ function drawLivingStoneBoss() {
         grad.addColorStop(1, "#4a3828");
     }
     ctx.fillStyle = grad;
+    
     var sides = 8;
     ctx.beginPath();
     for (var i = 0; i < sides; i++) {
@@ -2418,20 +2627,142 @@ function drawLivingStoneBoss() {
     }
     ctx.closePath();
     ctx.fill();
+    
+    ctx.save();
+    ctx.clip();
+    
+    var texPoints = (isPhase2 || isFinal) ? stoneTexturePhase2 : stoneTexturePoints;
+    for (var i = 0; i < texPoints.length; i++) {
+        var tp = texPoints[i];
+        if (tp.type === "spot" || tp.type === "grain" || tp.type === "burn" || tp.type === "glow") {
+            var x = Math.cos(tp.angle) * size * tp.dist;
+            var y = Math.sin(tp.angle) * size * tp.dist;
+            if (tp.type === "burn") ctx.fillStyle = "rgba(20, 8, 3, " + tp.alpha + ")";
+            else if (tp.type === "glow") ctx.fillStyle = "rgba(255, 100, 20, " + tp.alpha + ")";
+            else ctx.fillStyle = "rgba(60, 40, 25, " + tp.alpha + ")";
+            ctx.beginPath();
+            ctx.arc(x, y, tp.size * (size / 40), 0, Math.PI * 2);
+            ctx.fill();
+        } else if (tp.type === "vein" || tp.type === "crack") {
+            ctx.strokeStyle = (tp.type === "crack") ? "rgba(20, 8, 3, " + tp.alpha + ")" : "rgba(60, 40, 25, " + tp.alpha + ")";
+            ctx.lineWidth = tp.w;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(tp.a1) * size * tp.r1, Math.sin(tp.a1) * size * tp.r1);
+            ctx.lineTo(Math.cos(tp.a2) * size * tp.r2, Math.sin(tp.a2) * size * tp.r2);
+            ctx.lineTo(Math.cos(tp.a3) * size * tp.r3, Math.sin(tp.a3) * size * tp.r3);
+            ctx.stroke();
+        }
+    }
+    
+    ctx.restore();
+    
     ctx.strokeStyle = "#2a1810";
     ctx.lineWidth = 4;
     ctx.stroke();
-    var eyeColor = isPhase2 ? "#ff0000" : "#ffaa00";
+    
+    if ((isPhase2 || isFinal) && finalCracksLevel > 0) {
+        ctx.strokeStyle = "#1a0808";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = "#ff2200";
+        ctx.shadowBlur = 8;
+        var crackCount = 8 + Math.floor(finalCracksLevel * 8);
+        for (var i = 0; i < crackCount; i++) {
+            var a1 = (i / crackCount) * Math.PI * 2 + 0.3;
+            var a2 = a1 + 0.8 + Math.random() * 0.4;
+            var a3 = a2 + 0.6;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a1) * size * 0.15, Math.sin(a1) * size * 0.15);
+            var mx = Math.cos(a2) * size * 0.5, my = Math.sin(a2) * size * 0.5;
+            ctx.lineTo(mx, my);
+            ctx.lineTo(Math.cos(a3) * size * 0.85, Math.sin(a3) * size * 0.85);
+            ctx.stroke();
+            if (i % 2 === 0) {
+                ctx.beginPath();
+                ctx.moveTo(mx, my);
+                ctx.lineTo(mx + Math.cos(a2 + 1) * size * 0.2, my + Math.sin(a2 + 1) * size * 0.2);
+                ctx.stroke();
+            }
+        }
+        ctx.shadowBlur = 0;
+    }
+    
+    if (isQTEPunch && damage > 0) {
+        var dCracks = Math.floor(damage * 12);
+        ctx.strokeStyle = "rgba(255, 100, 0, " + (0.6 + damage * 0.4) + ")";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = "#ff4400";
+        ctx.shadowBlur = 10;
+        for (var i = 0; i < dCracks; i++) {
+            var a3 = (i / dCracks) * Math.PI * 2 + performance.now() / 1000;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a3) * size * 0.2, Math.sin(a3) * size * 0.2);
+            for (var k = 1; k <= 4; k++) {
+                var t = k / 4;
+                var r = size * (0.2 + t * 0.7);
+                ctx.lineTo(Math.cos(a3 + (Math.random() - 0.5) * 0.3) * r, Math.sin(a3 + (Math.random() - 0.5) * 0.3) * r);
+            }
+            ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+    }
+    
+    var eyeColor = (isPhase2 || isFinal) ? "#ff0000" : "#ffaa00";
+    if (isQTEPunch) eyeColor = "#ff0000";
     ctx.fillStyle = eyeColor;
     ctx.shadowColor = eyeColor;
-    ctx.shadowBlur = isPhase2 ? 25 : 15;
+    ctx.shadowBlur = (isPhase2 || isFinal) ? 25 : 15;
     var eyeOX = size * 0.3, eyeOY = -size * 0.15, eyeS = size * 0.12;
+    if (isQTEPunch && damage > 0.5) eyeS *= (1 - (damage - 0.5) * 0.5);
     ctx.beginPath();
     ctx.arc(-eyeOX, eyeOY, eyeS, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
     ctx.arc(eyeOX, eyeOY, eyeS, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = "#000000";
+    ctx.shadowBlur = 0;
+    var pupOff = (isQTEPunch ? damage : 0) * size * 0.08;
+    ctx.beginPath();
+    ctx.arc(-eyeOX + pupOff, eyeOY, eyeS * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(eyeOX + pupOff, eyeOY, eyeS * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    if (isPhase2 || isFinal) {
+        ctx.strokeStyle = "#1a0808";
+        ctx.lineWidth = 8;
+        ctx.lineCap = "round";
+        ctx.shadowColor = "#ff0000";
+        ctx.shadowBlur = 18;
+        var bSq = 1 + (isQTEPunch ? damage * 0.3 : 0);
+        var bY = eyeOY - size * 0.4;
+        ctx.beginPath();
+        ctx.moveTo(-size * 0.55 * bSq, bY - size * 0.08);
+        ctx.lineTo(-size * 0.1 * bSq, bY + size * 0.12);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(size * 0.55 * bSq, bY - size * 0.08);
+        ctx.lineTo(size * 0.1 * bSq, bY + size * 0.12);
+        ctx.stroke();
+        ctx.lineCap = "butt";
+        ctx.shadowBlur = 0;
+    }
+    
+    if (isFinal && finalScenePhase === "laugh") {
+        ctx.fillStyle = "#1a0808";
+        ctx.beginPath();
+        var laughW = size * 0.6 * (1 + Math.abs(Math.sin(finalSceneTimer / 8)) * 0.15);
+        var laughH = size * 0.33 * (1 + Math.abs(Math.sin(finalSceneTimer / 8)) * 0.2);
+        ctx.ellipse(0, size * 0.3, laughW, laughH, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        for (var i = 0; i < 5; i++) {
+            var tx = -laughW + (i + 0.5) * (laughW * 2 / 5);
+            ctx.fillRect(tx - 2, size * 0.3 - laughH + 2, 4, 5);
+        }
+    }
+    
     ctx.restore();
 }
 
@@ -2440,6 +2771,39 @@ function drawLivingStonePlayer() {
     if (livingStoneInvulnTimer > 0 && Math.floor(livingStoneInvulnTimer / 4) % 2 === 0) return;
     ctx.save();
     ctx.translate(p.x, p.y);
+    if (qtePlayerAngry && qteCinematicPhase === "angry") {
+        var pa = 1.0 + Math.sin(performance.now() / 80) * 0.3;
+        var ag = ctx.createRadialGradient(0, 0, 5, 0, 0, 40 * pa);
+        ag.addColorStop(0, "rgba(255,50,50,0.8)");
+        ag.addColorStop(0.5, "rgba(255,0,0,0.4)");
+        ag.addColorStop(1, "rgba(255,0,0,0)");
+        ctx.fillStyle = ag;
+        ctx.beginPath();
+        ctx.arc(0, 0, 40 * pa, 0, Math.PI * 2);
+        ctx.fill();
+        for (var i = 0; i < 4; i++) {
+            var ang = Math.random() * Math.PI * 2;
+            ctx.strokeStyle = "#ff2222";
+            ctx.lineWidth = 3;
+            ctx.shadowColor = "#ff0000";
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            var lx = 0, ly = 0;
+            for (var k = 0; k < 4; k++) {
+                ang += (Math.random() - 0.5) * 1.5;
+                lx += Math.cos(ang) * 8;
+                ly += Math.sin(ang) * 8;
+                ctx.lineTo(lx, ly);
+            }
+            ctx.stroke();
+        }
+    }
+    var finalScale = 1;
+    if (finalSceneActive && finalScenePhase === "pull_heart") {
+        finalScale = Math.max(0.2, 1 - finalSceneTimer / 240);
+    }
+    ctx.scale(finalScale, finalScale);
     var gg = ctx.createRadialGradient(0, 0, 1, 0, 0, 22);
     gg.addColorStop(0, "rgba(255,100,100,0.6)");
     gg.addColorStop(1, "rgba(255,0,0,0)");
@@ -2448,6 +2812,8 @@ function drawLivingStonePlayer() {
     ctx.arc(0, 0, 22, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#ff2222";
+    ctx.shadowColor = "#ff0000";
+    ctx.shadowBlur = 10;
     var hs = 11;
     ctx.beginPath();
     ctx.moveTo(0, hs * 0.7);
@@ -2467,14 +2833,27 @@ function drawLivingStoneHpBars() {
     ctx.fillRect(x, y, barW, barH);
     var ratio = Math.max(0, livingStoneBossHp / livingStoneBossMaxHp);
     var hpW = barW * ratio;
-    ctx.fillStyle = livingStoneState === "phase2" ? "#ff8800" : "#a08060";
+    var hg = ctx.createLinearGradient(x, y, x, y + barH);
+    if (livingStoneState === "phase2") {
+        hg.addColorStop(0, "#ff8800");
+        hg.addColorStop(1, "#cc2200");
+    } else {
+        hg.addColorStop(0, "#a08060");
+        hg.addColorStop(1, "#5a4030");
+    }
+    ctx.fillStyle = hg;
+    ctx.shadowColor = livingStoneState === "phase2" ? "#ff4400" : "#8B7355";
+    ctx.shadowBlur = 10;
     ctx.fillRect(x, y, hpW, barH);
+    ctx.shadowBlur = 0;
     ctx.strokeStyle = "#8B7355";
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, barW, barH);
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 10px monospace";
     ctx.textAlign = "center";
+    ctx.shadowColor = "#000";
+    ctx.shadowBlur = 3;
     ctx.fillText(livingStoneBossHp + " / " + livingStoneBossMaxHp, x + barW / 2, y + barH - 3);
     ctx.restore();
     var y2 = 480;
@@ -2485,13 +2864,17 @@ function drawLivingStoneHpBars() {
     ctx.fillRect(x, y2, barW, 12);
     var r2 = Math.max(0, livingStonePlayerHp / livingStonePlayerMaxHp);
     ctx.fillStyle = r2 > 0.3 ? "#00ff66" : "#ff3333";
+    ctx.shadowColor = r2 > 0.3 ? "#00ff66" : "#ff3333";
+    ctx.shadowBlur = 8;
     ctx.fillRect(x, y2, barW * r2, 12);
+    ctx.shadowBlur = 0;
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 1.5;
     ctx.strokeRect(x, y2, barW, 12);
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 10px monospace";
-    ctx.textAlign = "center";
+    ctx.shadowColor = "#000";
+    ctx.shadowBlur = 3;
     ctx.fillText(livingStonePlayerHp + " / " + livingStonePlayerMaxHp, x + barW / 2, y2 + 10);
     ctx.restore();
 }
@@ -2500,21 +2883,41 @@ function drawQTEOverlay() {
     ctx.save();
     ctx.font = "bold 28px Impact, Arial Black, sans-serif";
     ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillStyle = "#ffffff";
     ctx.strokeStyle = "#ff0000";
     ctx.lineWidth = 4;
-    ctx.strokeText("STANDING HERE", 200, 80);
-    ctx.fillText("STANDING HERE", 200, 80);
+    ctx.shadowColor = "#ff0000";
+    ctx.shadowBlur = 20;
+    var tm = performance.now() / 1000;
+    var sc = 1.0 + Math.sin(tm * 4) * 0.05;
+    ctx.translate(200, 80);
+    ctx.scale(sc, sc);
+    ctx.strokeText("STANDING HERE", 0, 0);
+    ctx.fillText("STANDING HERE", 0, 0);
     ctx.restore();
     ctx.save();
     ctx.font = "bold 24px Impact, Arial Black, sans-serif";
     ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillStyle = "#ffffff";
     ctx.strokeStyle = "#ff0000";
     ctx.lineWidth = 3;
+    ctx.shadowColor = "#ff0000";
+    ctx.shadowBlur = 15;
     ctx.fillText("I REALIZE", 200, 115);
     ctx.restore();
-    if (livingStoneState === "qte_punch") {
+    if (livingStoneState === "qte_intro") {
+        ctx.save();
+        ctx.font = "bold 16px monospace";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#ffdd00";
+        ctx.shadowColor = "#ffdd00";
+        ctx.shadowBlur = 15;
+        var bl = Math.floor(performance.now() / 300) % 2 === 0;
+        if (bl) ctx.fillText("ПРИГОТОВЬСЯ...", 200, 460);
+        ctx.restore();
+    } else if (livingStoneState === "qte_punch") {
         var bW = 300, bH = 20, bX = 50, bY = 430;
         var pr = Math.min(1, qteClicks / qteClickTarget);
         ctx.save();
@@ -2527,33 +2930,57 @@ function drawQTEOverlay() {
         g.addColorStop(0.5, "#ff4400");
         g.addColorStop(1, "#ffdd00");
         ctx.fillStyle = g;
+        ctx.shadowColor = "#ff4400";
+        ctx.shadowBlur = 15;
         ctx.fillRect(bX, bY, bW * pr, bH);
+        ctx.shadowBlur = 0;
         ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = 2;
         ctx.strokeRect(bX, bY, bW, bH);
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 14px monospace";
         ctx.textAlign = "center";
+        ctx.shadowColor = "#000";
+        ctx.shadowBlur = 3;
         ctx.fillText(qteClicks + " / " + qteClickTarget, bX + bW / 2, bY + bH / 2 + 5);
+        ctx.restore();
+        ctx.save();
+        ctx.font = "bold 22px Impact, Arial Black, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#ff0000";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = "#ff0000";
+        ctx.shadowBlur = 20;
+        var bl2 = Math.floor(performance.now() / 150) % 2 === 0;
+        if (bl2) ctx.fillText("НАЖИМАЙ!", 200, 470);
+        ctx.restore();
+    } else if (livingStoneState === "qte_finish") {
+        ctx.save();
+        ctx.font = "bold 24px Impact, Arial Black, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#888888";
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = "#000000";
+        ctx.shadowBlur = 10;
+        ctx.fillText("БЕСПОЛЕЗНО...", 200, 440);
         ctx.restore();
     }
 }
 
-// ============================================================
-// ★★★ ЭКСПОРТ ДЛЯ EQUIPMENT_COMBAT ★★★
-// ============================================================
+// ========== ЭКСПОРТ ==========
 window.startLivingStoneFight = startLivingStoneFight;
 window.stopLivingStoneFight = stopLivingStoneFight;
 window.preloadQTEMusic = preloadQTEMusic;
 
+// ★★★ ЭКСПОРТ ДЛЯ EQUIPMENT_COMBAT ★★★
 window.getLSPlayer = function() { return livingStonePlayer; };
 window.getLSPlayerHp = function() { return livingStonePlayerHp; };
 window.getLSBossHp = function() { return livingStoneBossHp; };
 window.getLSActive = function() { return livingStoneActive; };
 window.getLSState = function() { return livingStoneState; };
 window.applyArenaDamageLS = applyArenaDamage;
+window.damageLivingStonePlayer = damageLivingStonePlayer;   // ← ★ ЕДИНСТВЕННОЕ ДОБАВЛЕНИЕ ★
 
-// ★★★ ГЛАВНОЕ: ЭКСПОРТ damageLivingStonePlayer для патча брони ★★★
-window.damageLivingStonePlayer = damageLivingStonePlayer;
-
-console.log("[LIVING STONE] v6.5 — экспорт damageLivingStonePlayer + броня работает");
+console.log("[LIVING STONE] v6.5 — ЭКСПОРТ damageLivingStonePlayer для брони");
