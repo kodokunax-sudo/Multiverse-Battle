@@ -174,10 +174,9 @@ function loadGameData(d) {
     gameCompleted = d.gameCompleted || false; 
     defeatedBosses = d.defeatedBosses || []; 
     
-    // ★★★ ВОССТАНАВЛИВАЕМ ФЛАГ ЭВОЛЮЦИИ ИЗ СЕЙВА ★★★
-    if (d.evolutionUnlocked === true && !defeatedBosses.includes(500)) {
-        defeatedBosses.push(500);
-        console.log("[LOAD] Флаг эволюции восстановлен (добавлена победа над 500)");
+    // ★★★ ЗАГРУЖАЕМ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★★★
+    if (typeof window !== 'undefined') {
+        window.waystarDefeatedThisRun = d.waystarDefeatedThisRun === true;
     }
     
     gachaDailyLimits = d.gachaDailyLimits || { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
@@ -198,7 +197,6 @@ function loadGameData(d) {
     if (typeof setPowerPoints === 'function') setPowerPoints(d.powerPoints || 0);
     if (typeof loadInventory === 'function') loadInventory(d.inventory);
     
-    // ★★★ ЗАГРУЖАЕМ РЕСУРСЫ И СНАРЯЖЕНИЕ ★★★
     if (typeof window.setResourcesData === 'function') window.setResourcesData(d.resources);
     if (typeof window.setEquipmentData === 'function') window.setEquipmentData(d.equipment);
     
@@ -285,6 +283,10 @@ function initNewGame() {
     maxPoints = 100; 
     gameCompleted = false; 
     defeatedBosses = []; 
+    
+    // ★★★ СБРАСЫВАЕМ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★★★
+    if (typeof window !== 'undefined') window.waystarDefeatedThisRun = false;
+    
     gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
     gachaDailyMax = { common:50, rare:35, superRare:20, epic:10, mythic:5, legendary:10, secret:2 };
     legendaryGachaTokens = 0;
@@ -311,7 +313,6 @@ function initNewGame() {
     if (typeof setPowerPoints === 'function') setPowerPoints(0);
     if (typeof resetInventory === 'function') resetInventory();
     
-    // ★★★ СБРАСЫВАЕМ РЕСУРСЫ И СНАРЯЖЕНИЕ ★★★
     if (typeof window.setResourcesData === 'function') window.setResourcesData({});
     if (typeof window.setEquipmentData === 'function') window.setEquipmentData({ weapon: null, armor: null });
     
@@ -375,9 +376,11 @@ function saveAll() {
     slotData.gameCompleted = gameCompleted; 
     slotData.defeatedBosses = defeatedBosses; 
     
-    // ★★★ СОХРАНЯЕМ ФЛАГ ЭВОЛЮЦИИ ★★★
-    slotData.evolutionUnlocked = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500)) 
-        || (typeof slotData !== 'undefined' && slotData && slotData.evolutionUnlocked === true);
+    // ★★★ ФЛАГ ЭВОЛЮЦИИ = ТОЛЬКО ПО defeatedBosses (не залипает) ★★★
+    slotData.evolutionUnlocked = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500));
+    
+    // ★★★ СОХРАНЯЕМ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★★★
+    slotData.waystarDefeatedThisRun = (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true);
     
     slotData.gachaDailyLimits = gachaDailyLimits;
     slotData.gachaDailyMax = gachaDailyMax;
@@ -397,7 +400,6 @@ function saveAll() {
     if (typeof getPowerPoints === 'function') slotData.powerPoints = getPowerPoints();
     if (typeof saveInventory === 'function') slotData.inventory = saveInventory();
     
-    // ★★★ СОХРАНЯЕМ РЕСУРСЫ И СНАРЯЖЕНИЕ ★★★
     if (typeof window.getResourcesData === 'function') slotData.resources = window.getResourcesData();
     if (typeof window.getEquipmentData === 'function') slotData.equipment = window.getEquipmentData();
     
@@ -853,7 +855,6 @@ function processOfflineProgress() {
                 if (Math.random() < 0.05) addItem("coin", 1);
             }
         }
-        // ★ АФК тоже дропает ресурсы ★
         if (typeof tryDropResources === 'function') {
             let resourceDrops = Math.floor(wavesCompleted * 0.3);
             for (let i = 0; i < resourceDrops; i++) {
@@ -954,9 +955,9 @@ function generateEnemy() {
             currentEnemy.name = "🪨 Живой Камень (ослабленный)";
         }
     } 
-    // ВОЛНА 500 — ПУТЕВОДНАЯ ЗВЕЗДА
+    // ВОЛНА 500 — ПУТЕВОДНАЯ ЗВЕЗДА (★ ПРОВЕРКА ФЛАГА ЭТОЙ ЖИЗНИ ★)
     else if (wave === 500 && isUniqueBoss) {
-        let alreadyDefeatedWaystar = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500);
+        let alreadyDefeatedWaystar = (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true);
         if (btn) btn.style.display = "none";
         if (livingBtn) livingBtn.style.display = "none";
         if (waystarBtn) waystarBtn.style.display = alreadyDefeatedWaystar ? "none" : "block";
@@ -1464,8 +1465,6 @@ function doRebirth() {
         return; 
     }
     
-    let _hadWaystar = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500));
-    
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; } 
     if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } 
     
@@ -1510,12 +1509,18 @@ function doRebirth() {
     newcomerBonusEnd = Date.now() + 600000; 
     gameCompleted = false; 
     
+    // ★★★ РЕБИРТХ: СБРАСЫВАЕМ ВСЁ, ЭВОЛЮЦИЯ СНОВА ЗАКРЫТА ★★★
+    // defeatedBosses = [] — значит эволюция закрыта, пока не победишь Звезду заново
+    // waystarDefeatedThisRun = false — значит кнопка боя со Звездой снова появится
     defeatedBosses = []; 
-    if (_hadWaystar) {
-        defeatedBosses.push(500);
-        if (typeof slotData !== 'undefined' && slotData) slotData.evolutionUnlocked = true;
-        console.log("[REBIRTH] Флаг Путеводной Звезды (500) сохранён после ребиртха");
+    if (typeof window !== 'undefined') window.waystarDefeatedThisRun = false;
+    if (typeof slotData !== 'undefined' && slotData) {
+        slotData.evolutionUnlocked = false;
+        slotData.waystarDefeatedThisRun = false;
+        slotData.waystarOwesDebt = false;
     }
+    if (typeof window !== 'undefined') window.waystarOwesDebt = false;
+    console.log("[REBIRTH] Флаг Звезды сброшен — эволюция закрыта, бой доступен");
     
     gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 }; 
     gachaDailyMax = { common:50, rare:35, superRare:20, epic:10, mythic:5, legendary:10, secret:2 }; 
@@ -1547,7 +1552,7 @@ function doRebirth() {
     saveAll(); 
     renderAll(); 
     startMainMusic(); 
-    alert('🔄 Ребёрн ' + rebirthCount + '! Множитель x' + getRebirthMult().toFixed(1)); 
+    alert('🔄 Ребёрн ' + rebirthCount + '! Множитель x' + getRebirthMult().toFixed(1) + '\n\n💡 Эволюция снова закрыта — победи Путеводную Звезду (500) заново!'); 
 }
 
 function switchTab(tabName) { 
