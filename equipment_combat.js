@@ -1,8 +1,8 @@
 // ============================================================
-// EQUIPMENT COMBAT v2.3 — Броня работает на всех боссах
+// EQUIPMENT COMBAT v2.4 — Броня работает на всех боссах
 // ============================================================
-// Патчит: applyHit, damageLivingStonePlayer, applyWaystarHit, hitPlayer
-// Через window.xxx — чтобы обойти локальные ссылки
+// Патчит: applyHit (арена), damageLivingStonePlayer, applyWaystarHit, hitPlayer
+// Плюс экспортирует applyArmorToBossDamage — используется боссами НАПРЯМУЮ
 // ============================================================
 
 (function() {
@@ -106,8 +106,14 @@
             }
 
             if (weapon.legendaryPerk === "destroyAttacks") bullet.canDestroy = true;
-            if (weapon.legendaryPerk === "absorb15") bullet.hasAbsorb = true;
+            if (weapon.legendaryPerk === "absorb5") bullet.hasAbsorb = true;
+            if (weapon.legendaryPerk === "absorb15") bullet.hasAbsorb = true; // legacy
+            if (weapon.legendaryPerk === "autoAim10" && Math.random() < 0.10) {
+                bullet.vx = 0;
+                bullet.vy = -speed;
+            }
             if (weapon.legendaryPerk === "autoAim35" && Math.random() < 0.35) {
+                // legacy
                 bullet.vx = 0;
                 bullet.vy = -speed;
             }
@@ -137,66 +143,6 @@
     }
 
     // ============================================================
-    // ★★★ ГЛАВНЫЙ ФИКС: патч damageLivingStonePlayer через getter ★★★
-    // ============================================================
-    function patchLivingStoneDamage() {
-        // Способ 1: через window.damageLivingStonePlayer — если экспортирован
-        if (typeof window.damageLivingStonePlayer === 'function' && !window._eqLSDmgPatched) {
-            let original = window.damageLivingStonePlayer;
-            window.damageLivingStonePlayer = function(dmg) {
-                let result = applyArmorToDamage(dmg);
-                if (result.blocked) return;
-                return original.call(this, result.dmg);
-            };
-            window._eqLSDmgPatched = true;
-            console.log("[EQ-COMBAT] ✅ damageLivingStonePlayer пропатчен (экспорт)");
-        }
-    }
-
-    // ============================================================
-    // ПАТЧ applyWaystarHit (для Путеводной Звезды)
-    // ============================================================
-    function patchWaystarDamage() {
-        if (typeof window.applyWaystarHit === 'function' && !window._eqWSDmgPatched) {
-            let original = window.applyWaystarHit;
-            window.applyWaystarHit = function(dmg, msg, isTrueOneshot) {
-                let result = applyArmorToDamage(dmg);
-                if (result.blocked) return;
-                return original.call(this, result.dmg, msg, isTrueOneshot);
-            };
-            window._eqWSDmgPatched = true;
-            console.log("[EQ-COMBAT] ✅ applyWaystarHit пропатчен");
-        }
-    }
-
-    // ============================================================
-    // ПАТЧ hitPlayer (для Роджера и Белоуса)
-    // ============================================================
-    function patchRWBHit() {
-        if (typeof window.hitPlayer === 'function' && !window._eqRWBDmgPatched) {
-            let original = window.hitPlayer;
-            window.hitPlayer = function(dmg) {
-                let result = applyArmorToDamage(dmg);
-                if (result.blocked) return;
-                return original.call(this, result.dmg);
-            };
-            window._eqRWBDmgPatched = true;
-            console.log("[EQ-COMBAT] ✅ hitPlayer пропатчен");
-        }
-        // Альтернативное имя в Роджере
-        if (typeof window.rwbHitPlayer === 'function' && !window._eqRWB2DmgPatched) {
-            let original = window.rwbHitPlayer;
-            window.rwbHitPlayer = function(dmg) {
-                let result = applyArmorToDamage(dmg);
-                if (result.blocked) return;
-                return original.call(this, result.dmg);
-            };
-            window._eqRWB2DmgPatched = true;
-            console.log("[EQ-COMBAT] ✅ rwbHitPlayer пропатчен");
-        }
-    }
-
-    // ============================================================
     // ПАТЧ СКОРОСТИ СЕРДЕЧКА
     // ============================================================
     function patchStartArena() {
@@ -219,32 +165,6 @@
         };
         window._eqStartArenaPatched = true;
         console.log("[EQ-COMBAT] ✅ startArena пропатчен (скорость брони)");
-        return true;
-    }
-
-    // ============================================================
-    // ПАТЧ QTE-УРОНА (Живой Камень)
-    // ============================================================
-    function patchLivingStoneQTE() {
-        if (window._eqLSPatched) return true;
-        let originalUpdateStats = window.updatePlayerStats;
-        if (typeof originalUpdateStats === 'function') {
-            window.updatePlayerStats = function() {
-                let result = originalUpdateStats.apply(this, arguments);
-                try {
-                    let lsActive = (typeof window.getLSActive === 'function') && window.getLSActive();
-                    if (lsActive) {
-                        let weapon = getWeapon();
-                        if (weapon && weapon.damageMult) {
-                            let baseDmg = window.playerFinalDamage || 20;
-                            window.playerFinalDamage = Math.floor(baseDmg * weapon.damageMult);
-                        }
-                    }
-                } catch(e) {}
-                return result;
-            };
-        }
-        window._eqLSPatched = true;
         return true;
     }
 
@@ -279,32 +199,6 @@
     }
 
     // ============================================================
-    // ★★★ ХАК: если damageLivingStonePlayer не в window ★★★
-    // Патчим через перехват state — но проще через периодическую проверку
-    // ============================================================
-    function tryInjectViaStorage() {
-        // Через 2 сек после старта проверяем
-        setTimeout(function() {
-            // Проверяем есть ли damageLivingStonePlayer в window
-            if (typeof window.damageLivingStonePlayer === 'undefined') {
-                console.warn("[EQ-COMBAT] damageLivingStonePlayer НЕ в window — патч через экспорт не сработает");
-                console.warn("[EQ-COMBAT] Решение: добавить в living_stone_boss.js строку:");
-                console.warn("[EQ-COMBAT]   window.damageLivingStonePlayer = damageLivingStonePlayer;");
-            }
-            if (typeof window.applyWaystarHit === 'undefined') {
-                console.warn("[EQ-COMBAT] applyWaystarHit НЕ в window");
-                console.warn("[EQ-COMBAT] Добавить в waystar_boss.js:");
-                console.warn("[EQ-COMBAT]   window.applyWaystarHit = applyWaystarHit;");
-            }
-            if (typeof window.hitPlayer === 'undefined') {
-                console.warn("[EQ-COMBAT] hitPlayer НЕ в window");
-                console.warn("[EQ-COMBAT] Добавить в roger_whitebeard_boss.js:");
-                console.warn("[EQ-COMBAT]   window.hitPlayer = hitPlayer;");
-            }
-        }, 2000);
-    }
-
-    // ============================================================
     // ИНИЦИАЛИЗАЦИЯ
     // ============================================================
     function init() {
@@ -313,24 +207,19 @@
         function tryPatch() {
             attempts++;
             let a = patchStartArena();
-            let b = patchLivingStoneQTE();
             patchApplyHit();
-            patchLivingStoneDamage();
-            patchWaystarDamage();
-            patchRWBHit();
             patchBulletDestruction();
 
-            if (a && b) {
+            if (a) {
                 console.log("╔════════════════════════════════════════╗");
-                console.log("║  ⚔️ EQUIPMENT COMBAT v2.3 загружено    ║");
-                console.log("║  Броня: поглощение + отражение         ║");
-                console.log("║  Работает на ВСЕХ боссах               ║");
+                console.log("║  ⚔️ EQUIPMENT COMBAT v2.4 загружено    ║");
+                console.log("║  Броня работает на ВСЕХ боссах         ║");
+                console.log("║  Экспорт: applyArmorToBossDamage       ║");
                 console.log("╚════════════════════════════════════════╝");
-                tryInjectViaStorage();
                 return;
             }
             if (attempts < maxAttempts) setTimeout(tryPatch, 100);
-            else console.warn("[EQ-COMBAT] Не всё пропатчено:", { startArena: a, ls: b });
+            else console.warn("[EQ-COMBAT] Не всё пропатчено:", { startArena: a });
         }
         if (document.readyState === "complete" || document.readyState === "interactive") {
             setTimeout(tryPatch, 800);
@@ -343,5 +232,8 @@
 
     window.getEquippedWeapon = getWeapon;
     window.getArmorBonusesPublic = getArmorBonuses;
+
+    // ★★★ ГЛАВНЫЙ ЭКСПОРТ ДЛЯ БОССОВ ★★★
+    window.applyArmorToBossDamage = applyArmorToDamage;
 
 })();
