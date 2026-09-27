@@ -1,6 +1,7 @@
 // ============================================================
-// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v11.1
+// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v11.2
 // + БРОНЯ РАБОТАЕТ (applyArmorToBossDamage)
+// + ПОВТОРНЫЙ БОЙ ПОСЛЕ РЕБИРТХА (waystarDefeatedThisRun)
 // ============================================================
 
 if (window._waystarBossLoaded === true) {
@@ -8,8 +9,13 @@ if (window._waystarBossLoaded === true) {
 } else {
     window._waystarBossLoaded = true;
 
+// ★ ФЛАГ ПОВТОРНОГО БОЯ (в этой жизни) ★
+if (typeof window.waystarDefeatedThisRun === 'undefined') {
+    window.waystarDefeatedThisRun = false;
+}
+
 var WAYSTAR_MODER_DAMAGE = 100000;
-var WAYSTAR_SLOWDOWN = 1.5; // ★ Множитель замедления боя ★
+var WAYSTAR_SLOWDOWN = 1.5;
 
 function isWaystarModerActive() {
     try { return typeof mode !== 'undefined' && mode === "moder"; } catch(e) { return false; }
@@ -96,11 +102,7 @@ var waystarSpareBlessing = { active: false, progress: 0, flash: 0 };
 var waystarSpareDialog = [];
 var waystarSpareDialogStep = 0;
 var waystarSpareDialogTimer = 0;
-
-// ★ Флаг: созвездие использовалось (не повторяется) ★
 var waystarConstellationUsed = false;
-
-// ========== ЗМЕЙКА (новая атака) ==========
 var waystarSnakes = [];
 
 function addWaystarShockwave(x, y, color, maxRadius, life, width) {
@@ -159,11 +161,12 @@ function stopWaystarMusic() { if (waystarMusic) { try { waystarMusic.pause(); wa
 function wsPlaySound(freq, type, dur, vol) { if (typeof playArenaSound === 'function') playArenaSound(freq, type, dur, vol); }
 
 function startWaystarFight() {
-    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500)) {
-        if (typeof showFloatingText === 'function') showFloatingText("⏭️ Путеводная Звезда уже побеждена!", "#ffaa00");
+    // ★ БЛОКИРУЕМ ТОЛЬКО ЕСЛИ ПОБЕДИЛИ В ЭТОЙ ЖИЗНИ ★
+    if (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true) {
+        if (typeof showFloatingText === 'function') showFloatingText("⏭️ Путеводная Звезда уже побеждена в этой жизни!", "#ffaa00");
         return;
     }
-    console.log("[WAYSTAR] Старт боя v11.1 (с бронёй). Модер:", isWaystarModerActive());
+    console.log("[WAYSTAR] Старт боя v11.2. Модер:", isWaystarModerActive());
     waystarActive = true;
     waystarState = "dialogue";
     waystarRageMode = false;
@@ -329,7 +332,6 @@ function updateWaystarShooting() {
     wsPlaySound(1100, 'square', 0.04, 0.06);
 }
 
-// ========== ЗМЕЙКА ==========
 function spawnWaystarSnake(startX, startY) {
     var segments = [];
     var segCount = 20;
@@ -864,11 +866,7 @@ function distToSegment(px, py, x1, y1, x2, y2) {
     return Math.sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
 }
 
-// ============================================================
-// ★★★ ГЛАВНАЯ ФУНКЦИЯ УРОНА — ЗДЕСЬ ПРИМЕНЯЕТСЯ БРОНЯ ★★★
-// ============================================================
 function applyWaystarHit(dmg, textMsg) {
-    // ★ ПРИМЕНЯЕМ БРОНЮ ★
     if (typeof window.applyArmorToBossDamage === 'function') {
         let result = window.applyArmorToBossDamage(dmg);
         if (result.blocked) return;
@@ -931,7 +929,10 @@ function waystarVictory() {
 
 function grantWaystarReward() {
     console.log("[WAYSTAR] Выдача награды (убийство)");
-    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(500)) { defeatedBosses.push(500); if (typeof saveAll === 'function') saveAll(); }
+    // ★ УСТАНАВЛИВАЕМ ФЛАГ ПОВТОРНОГО БОЯ ★
+    if (typeof window !== 'undefined') window.waystarDefeatedThisRun = true;
+    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(500)) { defeatedBosses.push(500); }
+    if (typeof slotData !== 'undefined' && slotData) slotData.evolutionUnlocked = true;
     if (typeof addItem === 'function') addItem("waystar", 1);
     if (typeof secretGachaTokens !== 'undefined') secretGachaTokens = (secretGachaTokens || 0) + 1;
     if (typeof saveAll === 'function') saveAll();
@@ -943,17 +944,20 @@ function grantWaystarReward() {
 }
 
 function grantWaystarSpareDebt() {
-    console.log("[WAYSTAR] Пощада: долг записан (без предмета)");
-    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(500)) { defeatedBosses.push(500); if (typeof saveAll === 'function') saveAll(); }
+    console.log("[WAYSTAR] Пощада: долг записан");
+    // ★ УСТАНАВЛИВАЕМ ФЛАГ ПОВТОРНОГО БОЯ ★
+    if (typeof window !== 'undefined') window.waystarDefeatedThisRun = true;
+    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(500)) { defeatedBosses.push(500); }
     try {
         if (typeof window !== 'undefined') {
             window.waystarOwesDebt = true;
             if (typeof slotData !== 'undefined' && slotData) {
                 slotData.waystarOwesDebt = true;
-                if (typeof saveAll === 'function') saveAll();
+                slotData.evolutionUnlocked = true;
             }
         }
-    } catch(e) { console.warn("[WAYSTAR] Не удалось сохранить флаг долга:", e); }
+    } catch(e) {}
+    if (typeof saveAll === 'function') saveAll();
     if (typeof showFloatingText === 'function') {
         showFloatingText("🤝 Звезда запомнила твою доброту", "#88ddff");
         setTimeout(function() { showFloatingText("💫 Однажды она вернёт долг...", "#88ddff"); }, 1500);
@@ -1024,7 +1028,7 @@ function updateWaystarFinalScene() {
                 grantWaystarSpareDebt();
                 waystarFinalPhase = "spare_farewell";
                 waystarFinalTimer = 0;
-                console.log("[WAYSTAR] Финал: благословение передано, долг записан");
+                console.log("[WAYSTAR] Финал: благословение передано");
             }
         }
         else if (waystarFinalPhase === "spare_farewell") {
@@ -1041,7 +1045,6 @@ function updateWaystarFinalScene() {
                 wsPlaySound(400, 'sine', 1.0, 0.25);
                 setTimeout(function() { wsPlaySound(600, 'sine', 1.0, 0.2); }, 250);
                 setTimeout(function() { wsPlaySound(900, 'sine', 1.2, 0.25); }, 500);
-                console.log("[WAYSTAR] Финал: звезда растворилась");
                 setTimeout(function() {
                     if (!waystarFinalActive) return;
                     waystarFinalPhase = "blackout";
@@ -1071,7 +1074,6 @@ function updateWaystarFinalScene() {
         }
     } catch(e) {
         console.error("[WAYSTAR] ОШИБКА в updateWaystarFinalScene:", e);
-        console.error(e.stack);
         waystarFinalPhase = "done";
         waystarFinalTimer = 0;
     }
@@ -1459,7 +1461,6 @@ window.stopWaystarFight = stopWaystarFight;
 window.damageWaystarBoss = function(dmg) { if (waystarState === "phase1") waystarBossHp -= dmg; };
 window.getWaystarActive = function() { return waystarActive; };
 
-// ★★★ ЭКСПОРТ ДЛЯ EQUIPMENT_COMBAT ★★★
 window.updateWaystarShooting = updateWaystarShooting;
 window.getWaystarPlayer = function() { return waystarPlayer; };
 window.getWaystarBullets = function() { return waystarPlayerBullets; };
@@ -1468,6 +1469,6 @@ window.getWaystarTouch = function() { return { active: waystarTouchActive, x: wa
 window.waystarSound = wsPlaySound;
 window.isWaystarModerActive = isWaystarModerActive;
 
-console.log("[WAYSTAR] v11.1 + БРОНЯ загружено!");
+console.log("[WAYSTAR] v11.2 + БРОНЯ + ПОВТОРНЫЙ БОЙ загружено!");
 
 } // ★ КОНЕЦ ЗАЩИТЫ ★
