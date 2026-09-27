@@ -1,6 +1,6 @@
 // ============================================================
-// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v11.0
-// Медленнее в 1.5 раза + Змейка вместо Созвездия + лёгкие эффекты
+// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v11.1
+// + БРОНЯ РАБОТАЕТ (applyArmorToBossDamage)
 // ============================================================
 
 if (window._waystarBossLoaded === true) {
@@ -163,14 +163,14 @@ function startWaystarFight() {
         if (typeof showFloatingText === 'function') showFloatingText("⏭️ Путеводная Звезда уже побеждена!", "#ffaa00");
         return;
     }
-    console.log("[WAYSTAR] Старт боя v11.0. Модер:", isWaystarModerActive());
+    console.log("[WAYSTAR] Старт боя v11.1 (с бронёй). Модер:", isWaystarModerActive());
     waystarActive = true;
     waystarState = "dialogue";
     waystarRageMode = false;
     waystarEscalationLevel = 0;
     waystarEscalationTimer = 0;
     waystarPhase3AttacksStarted = false;
-    waystarConstellationUsed = false; // ★ Сброс флага созвездия ★
+    waystarConstellationUsed = false;
     waystarSnakes = [];
     waystarFinalActive = false;
     waystarFinalPhase = "idle";
@@ -329,7 +329,7 @@ function updateWaystarShooting() {
     wsPlaySound(1100, 'square', 0.04, 0.06);
 }
 
-// ========== НОВАЯ АТАКА: ЗМЕЙКА ==========
+// ========== ЗМЕЙКА ==========
 function spawnWaystarSnake(startX, startY) {
     var segments = [];
     var segCount = 20;
@@ -367,18 +367,15 @@ function updateWaystarSnakes() {
         snake.life--;
         snake.wiggle += 0.3;
 
-        // ★ Голова двигается к цели по кривой ★
         var targetX = waystarPlayer.x;
         var targetY = waystarPlayer.y;
         var dx = targetX - snake.headX;
         var dy = targetY - snake.headY;
         var dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
-        // Плавно поворачиваем к цели
         var targetVx = (dx / dist) * 3.2 * waystarSpeedMult;
         var targetVy = (dy / dist) * 3.2 * waystarSpeedMult;
 
-        // Плюс небольшое покачивание для эффекта "змейки"
         var perpX = -dy / dist;
         var perpY = dx / dist;
         var wiggleAmp = Math.sin(snake.wiggle) * 1.2;
@@ -391,7 +388,6 @@ function updateWaystarSnakes() {
         snake.headX += snake.vx;
         snake.headY += snake.vy;
 
-        // Обновляем сегменты: каждый сегмент тянется к предыдущему
         var prevX = snake.headX;
         var prevY = snake.headY;
         for (var s = 0; s < snake.segments.length; s++) {
@@ -408,20 +404,17 @@ function updateWaystarSnakes() {
             prevY = seg.y;
         }
 
-        // ★ Проверка попадания в игрока ★
         if (!snake.hit && waystarInvulnTimer <= 0) {
             var hdx = snake.headX - waystarPlayer.x;
             var hdy = snake.headY - waystarPlayer.y;
             if (Math.sqrt(hdx * hdx + hdy * hdy) < snake.size + 10) {
                 snake.hit = true;
                 applyWaystarHit(snake.damage, "ЗМЕЙКА!");
-                // При попадании — голова останавливается
                 snake.vx *= 0.3;
                 snake.vy *= 0.3;
             }
         }
 
-        // Убираем если жизнь кончилась или ушла за экран
         if (snake.life <= 0 || snake.headX < -100 || snake.headX > 500 || snake.headY < -100 || snake.headY > 600) {
             waystarSnakes.splice(i, 1);
         }
@@ -433,13 +426,11 @@ function drawWaystarSnakes() {
         var snake = waystarSnakes[i];
         var alpha = Math.min(1, snake.life / 40);
 
-        // Рисуем с хвоста к голове (чтобы голова была сверху)
         for (var s = snake.segments.length - 1; s >= 0; s--) {
             var seg = snake.segments[s];
             var t = s / snake.segments.length;
             var segSize = snake.size * (1 - t * 0.6);
 
-            // Внутреннее ядро
             ctx.save();
             ctx.globalAlpha = alpha * (0.9 - t * 0.5);
             ctx.shadowColor = "#00ffff";
@@ -456,7 +447,6 @@ function drawWaystarSnakes() {
             ctx.restore();
         }
 
-        // Голова — побольше и с ярким свечением
         ctx.save();
         ctx.globalAlpha = alpha;
         var headGlow = ctx.createRadialGradient(snake.headX, snake.headY, 0, snake.headX, snake.headY, snake.size * 2);
@@ -476,7 +466,6 @@ function drawWaystarSnakes() {
 }
 
 function spawnLightningLines(startX, startY) {
-    // ★ Лёгкие молнии-линии (вместо тяжёлого созвездия) ★
     for (var i = 0; i < 8; i++) {
         var endX = startX + (Math.random() - 0.5) * 300;
         var endY = startY + (Math.random() - 0.5) * 300;
@@ -488,36 +477,30 @@ function spawnLightningLines(startX, startY) {
 function waystarSpawnAttack() {
     var type = waystarAttackType; var s = waystarSpeedMult; var isSecond = waystarBossHp <= waystarBossMaxHp * 0.75;
     if (type === 0) {
-        // ★ МЕТЕОРЫ (замедлено в 1.5 раза) ★
         var count = isSecond ? 4 : 2;
         for (var i = 0; i < count; i++) { waystarAttacks.push({ type: "meteor", x: 20 + Math.random() * 360, y: -40 - Math.random()*50, vx: (Math.random() - 0.5) * 1.5 * s, vy: (2.5 + Math.random() * 1.8) * s, size: 12 + Math.random() * 6, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.2, damage: 12, life: 400, trail: [] }); }
         addWaystarShockwave(waystarBoss.x, waystarBoss.y, "#ff8800", 100, 15, 3);
         wsPlaySound(200, 'square', 0.3, 0.15);
     } else if (type === 1) {
-        // ★ ВИХРЬ (замедлено) ★
         var count = isSecond ? 14 : 10; var baseAngle = Math.random() * Math.PI * 2;
         for (var i = 0; i < count; i++) { var ang = baseAngle + (i / count) * Math.PI * 4; var delay = i * 6; (function(a, d) { setTimeout(function() { if (!waystarActive || waystarState !== "phase1") return; waystarAttacks.push({ type: "spiral", x: waystarBoss.x, y: waystarBoss.y, vx: Math.cos(a) * 3 * s, vy: Math.sin(a) * 3 * s, size: 7, damage: 10, life: 350, trail: [] }); }, d); })(ang, delay); }
         addWaystarShockwave(waystarBoss.x, waystarBoss.y, "#ff00ff", 80, 12, 3);
         wsPlaySound(400, 'sine', 0.5, 0.12);
     } else if (type === 2) {
-        // ★ ЛАЗЕРЫ (замедлено) ★
         if (Math.random() < 0.33) { var targetX = 60 + Math.random() * 280; waystarAttacks.push({ type: "laser", state: "warning", x: targetX, width: 55, warningTimer: 70, activeTimer: 0, maxActive: 50, damage: 18, hit: false, chargeParticles: 0 }); }
         wsPlaySound(300, 'square', 0.3, 0.15);
     } else if (type === 3) {
-        // ★ ЗМЕЙКА (вместо созвездия, только один раз за бой) ★
         if (!waystarConstellationUsed) {
             waystarConstellationUsed = true;
             spawnWaystarSnake(waystarBoss.x, waystarBoss.y);
             spawnLightningLines(waystarBoss.x, waystarBoss.y);
             console.log("[WAYSTAR] Змейка выпущена!");
         } else {
-            // Если уже использовалось — заменяем на метеоры
             var count = isSecond ? 4 : 2;
             for (var i = 0; i < count; i++) { waystarAttacks.push({ type: "meteor", x: 20 + Math.random() * 360, y: -40 - Math.random()*50, vx: (Math.random() - 0.5) * 1.5 * s, vy: (2.5 + Math.random() * 1.8) * s, size: 12 + Math.random() * 6, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.2, damage: 12, life: 400, trail: [] }); }
             wsPlaySound(200, 'square', 0.3, 0.15);
         }
     } else if (type === 4) {
-        // ★ ЗВЁЗДНЫЙ ДОЖДЬ (замедлено) ★
         var count3 = isSecond ? 10 : 7;
         for (var i = 0; i < count3; i++) { var side = Math.random() > 0.5 ? 1 : -1; waystarAttacks.push({ type: "star_rain", x: side > 0 ? -30 : 430, y: Math.random() * 200 - 100, vx: side > 0 ? 3.5 * s : -3.5 * s, vy: 2.2 * s, size: 10, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.2, damage: 11, life: 350, trail: [] }); }
         addWaystarShockwave(waystarBoss.x, waystarBoss.y, "#ffffff", 90, 12, 3);
@@ -591,7 +574,6 @@ function updateWaystarSpaceInvaders() {
     else { waystarShootCooldown = waystarShootInterval; waystarPlayerBullets.push({ x: waystarPlayer.x, y: waystarPlayer.y - 12, vy: -12, vx: 0, size: 5, damage: 1, life: 80, trail: [] }); addWaystarFlash(waystarPlayer.x, waystarPlayer.y - 12, 12); wsPlaySound(1100, 'square', 0.04, 0.06); }
     var alivePieces = waystarPieces.filter(function(p) { return p.alive; });
     if (alivePieces.length === 0) { waystarStartReturning(); return; }
-    // ★ Замедлено ★
     var speed = (waystarInvaderSpeed + (waystarPiecesTotal - alivePieces.length) * 0.05) / WAYSTAR_SLOWDOWN;
     var minX = 9999, maxX = -9999;
     for (var i = 0; i < waystarPieces.length; i++) { var p = waystarPieces[i]; if (!p.alive) continue; if (p.x - p.size < minX) minX = p.x - p.size; if (p.x + p.size > maxX) maxX = p.x + p.size; }
@@ -599,7 +581,6 @@ function updateWaystarSpaceInvaders() {
     if (waystarInvaderDir < 0 && minX - speed < 10) waystarInvaderDir = 1;
     for (var i = 0; i < waystarPieces.length; i++) { var p = waystarPieces[i]; if (!p.alive) continue; p.trail.push({ x: p.x, y: p.y, life: 10 }); if (p.trail.length > 5) p.trail.shift(); p.x += waystarInvaderDir * speed; }
     waystarInvaderShootTimer++;
-    // ★ Замедлено: стреляют реже ★
     var shootRate = Math.max(30, 80 - alivePieces.length / 2);
     if (waystarInvaderShootTimer >= shootRate) { waystarInvaderShootTimer = 0; var shooter = alivePieces[Math.floor(Math.random() * alivePieces.length)]; waystarEnemyBullets.push({ x: shooter.x, y: shooter.y + 15, vy: 3.5 + Math.random() * 2, size: 8, life: 300, trail: [] }); wsPlaySound(400, 'sawtooth', 0.1, 0.1); }
     for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
@@ -666,7 +647,7 @@ function waystarStartPhase3() {
 }
 
 function waystarSpawnPhase3Attack() {
-    var type = waystarAttackType; var s = waystarSpeedMult * (waystarRageMode ? 0.9 : 0.7); // ★ Замедлено ★
+    var type = waystarAttackType; var s = waystarSpeedMult * (waystarRageMode ? 0.9 : 0.7);
     if (type === 0) {
         var count = 5 + Math.floor(waystarEscalationLevel / 2); if (waystarRageMode) count += 1;
         var baseAngle = Math.atan2(waystarPlayer.y - waystarSmallBoss.y, waystarPlayer.x - waystarSmallBoss.x);
@@ -793,7 +774,7 @@ function updateWaystarPlayer() {
         if (waystarTouchActive) { var tx = waystarTouchX - waystarPlayer.x; if (Math.abs(tx) > 5) mx = tx > 0 ? 1 : -1; }
         waystarPlayer.x += mx * 5; waystarPlayer.x = Math.max(20, Math.min(380, waystarPlayer.x));
     } else if (waystarState === "phase1" || waystarState === "phase3") {
-        var mx = 0, my = 0, speed = 4; // ★ Чуть медленнее игрока ★
+        var mx = 0, my = 0, speed = 4;
         if (waystarTouchActive) { var tx = waystarTouchX - waystarPlayer.x, ty = waystarTouchY - waystarPlayer.y; var dist = Math.sqrt(tx * tx + ty * ty); if (dist > 5) { mx = tx / dist; my = ty / dist; } }
         else { if (waystarKeys.w || waystarKeys.arrowup) my -= 1; if (waystarKeys.s || waystarKeys.arrowdown) my += 1; if (waystarKeys.a || waystarKeys.arrowleft) mx -= 1; if (waystarKeys.d || waystarKeys.arrowright) mx += 1; if (mx !== 0 && my !== 0) { mx *= 0.707; my *= 0.707; } }
         waystarPlayer.x += mx * speed; waystarPlayer.y += my * speed;
@@ -830,7 +811,6 @@ function updateWaystarAttacks() {
             else { waystarAttacks.splice(i, 1); continue; }
         }
         else if (a.type === "constellation") {
-            // ★ Не используется (заменено на змейку) ★
             waystarAttacks.splice(i, 1);
         }
     }
@@ -873,7 +853,6 @@ function updateWaystarAttacks() {
             if (waystarDash.progress % 5 === 0) addWaystarSlash(newX, newY, Math.random() * Math.PI * 2, 35, 3);
         }
     }
-    // ★ Обновляем змейки ★
     updateWaystarSnakes();
 }
 
@@ -885,7 +864,16 @@ function distToSegment(px, py, x1, y1, x2, y2) {
     return Math.sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
 }
 
+// ============================================================
+// ★★★ ГЛАВНАЯ ФУНКЦИЯ УРОНА — ЗДЕСЬ ПРИМЕНЯЕТСЯ БРОНЯ ★★★
+// ============================================================
 function applyWaystarHit(dmg, textMsg) {
+    // ★ ПРИМЕНЯЕМ БРОНЮ ★
+    if (typeof window.applyArmorToBossDamage === 'function') {
+        let result = window.applyArmorToBossDamage(dmg);
+        if (result.blocked) return;
+        dmg = result.dmg;
+    }
     if (isWaystarModerActive()) { if (textMsg && typeof showFloatingText === 'function') showFloatingText(textMsg + " (∞ HP)", "#ffff00"); return; }
     if (waystarInvulnTimer > 0) return;
     waystarPlayerHp -= dmg; waystarInvulnTimer = 45; waystarShake = 15;
@@ -994,7 +982,7 @@ function updateWaystarFinalScene() {
             waystarFinalTimer = 0;
             return;
         }
-        if (waystarFinalPhase === "choice") { /* ждём клик */ }
+        if (waystarFinalPhase === "choice") { }
         else if (waystarFinalPhase === "kill_flash") {
             if (waystarFinalTimer > 40) {
                 waystarFinalPhase = "kill_reward"; waystarFinalTimer = 0;
@@ -1127,7 +1115,6 @@ function waystarRenderLoop() {
                 }
                 updateWaystarBoss(); updateWaystarAttacks();
                 waystarAttackTimer++;
-                // ★ Замедлено: интервал атак увеличен в 1.5 раза ★
                 var aRate = Math.floor((50 / waystarSpeedMult) * WAYSTAR_SLOWDOWN);
                 if (waystarAttackTimer >= aRate) { waystarAttackTimer = 0; waystarSpawnAttack(); }
                 waystarTypeTimer--;
@@ -1155,7 +1142,6 @@ function waystarRenderLoop() {
             }
             updateWaystarBoss(); updateWaystarAttacks();
             waystarEscalationTimer++;
-            // ★ Эскалация медленнее ★
             if (waystarEscalationTimer >= 140) {
                 waystarEscalationTimer = 0;
                 var hpRatio = waystarBossHp / waystarBossMaxHp;
@@ -1169,7 +1155,6 @@ function waystarRenderLoop() {
                     for (var ei = 0; ei < 30; ei++) spawnWaystarParticles(waystarSmallBoss.x, waystarSmallBoss.y, 1, ["#ff00ff", "#ff0000", "#ffffff"][Math.floor(Math.random()*3)], 10);
                 }
             }
-            // ★ Атаки сильно замедлены ★
             var escalationMult = 1 - waystarEscalationLevel * 0.04;
             if (escalationMult < 0.8) escalationMult = 0.8;
             var aRate = Math.floor((120 / waystarSpeedMult) * escalationMult);
@@ -1231,7 +1216,6 @@ function waystarRenderLoop() {
     if (waystarState === "phase1" || waystarDialogActive || waystarState === "split1_anim" || waystarState === "split2_anim" || waystarState === "pre_split2_dialog" || waystarState === "pre_phase2_dialog" || waystarState === "pre_phase3_dialog") { if (waystarBoss.alpha > 0) drawWaystarBoss(); if (waystarBoss2.active) drawWaystarBoss2(); if (waystarState === "phase1") { drawWaystarPhase1Attacks(); drawWaystarPlayerBullets(); } }
     else if (waystarState === "phase2") { drawWaystarPieces(); drawWaystarEnemyBullets(); drawWaystarPlayerBullets(); }
     else if (waystarState === "returning_anim" || waystarState === "phase3") { if (waystarSmallBoss.alpha > 0) drawWaystarSmallBoss(); if (waystarState === "phase3") { drawWaystarPhase1Attacks(); drawWaystarPlayerBullets(); drawWaystarBombs(); drawWaystarDash(); } }
-    // ★ Рисуем змейки в фазе 1 ★
     if (waystarState === "phase1") { drawWaystarSnakes(); }
     if (waystarState === "phase1" || waystarState === "phase2" || waystarState === "phase3") drawWaystarPlayer();
     for (var i = 0; i < waystarParticles.length; i++) { var p = waystarParticles[i]; ctx.globalAlpha = Math.max(0, p.life / p.maxLife) * 0.8; ctx.fillStyle = p.color; if (p.isSplitPiece) { ctx.fillRect(p.x - p.size, p.y - p.size, p.size * 2, p.size * 2); } else { ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); } }
@@ -1484,6 +1468,6 @@ window.getWaystarTouch = function() { return { active: waystarTouchActive, x: wa
 window.waystarSound = wsPlaySound;
 window.isWaystarModerActive = isWaystarModerActive;
 
-console.log("[WAYSTAR] v11.0 + EXPORT загружено! Медленнее в 1.5x + Змейка + лёгкие эффекты");
+console.log("[WAYSTAR] v11.1 + БРОНЯ загружено!");
 
 } // ★ КОНЕЦ ЗАЩИТЫ ★
