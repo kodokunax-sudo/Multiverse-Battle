@@ -1,5 +1,5 @@
 // ============================================================
-// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v11.4
+// ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v12.0
 // + БРОНЯ РАБОТАЕТ
 // + ПОВТОРНЫЙ БОЙ ПОСЛЕ РЕБИРТХА
 // + ОРУЖИЕ РАБОТАЕТ
@@ -7,6 +7,7 @@
 // + СКОРОСТЬ АТАК РАСТЁТ С HP
 // + БОМБЫ ПО ОДНОЙ + РЯДОМ С ИГРОКОМ
 // + ФИКС: waystarSpawnAttack восстановлена
+// ★ v12.0: SUPER РАБОТАЕТ НА ЗВЕЗДЕ ★
 // ============================================================
 
 if (window._waystarBossLoaded === true) {
@@ -112,6 +113,9 @@ var waystarSpareDialogTimer = 0;
 var waystarConstellationUsed = false;
 var waystarSnakes = [];
 
+// ★ Флаг: суперы уже инициализированы для этого боя ★
+var waystarSupersInitialized = false;
+
 function addWaystarShockwave(x, y, color, maxRadius, life, width) {
     if (width === undefined) width = 4;
     waystarShockwaves.push({ x: x, y: y, radius: 10, maxRadius: maxRadius, life: life, maxLife: life, color: color, width: width });
@@ -167,12 +171,30 @@ function startWaystarMusic() {
 function stopWaystarMusic() { if (waystarMusic) { try { waystarMusic.pause(); waystarMusic.currentTime = 0; } catch(e) {} } }
 function wsPlaySound(freq, type, dur, vol) { if (typeof playArenaSound === 'function') playArenaSound(freq, type, dur, vol); }
 
+// ============================================================
+// ★★★ ИНИЦИАЛИЗАЦИЯ СУПЕРОВ ДЛЯ ЗВЕЗДЫ ★★★
+// ============================================================
+function initWaystarSupers() {
+    if (typeof initSuperState === 'function') {
+        initSuperState();
+    }
+    if (typeof window !== 'undefined') {
+        window._uniqueSuperCharges = 3;
+        window._uniqueSuperBossId = 'waystar';
+    }
+    waystarSupersInitialized = true;
+    console.log("[WAYSTAR] ✅ Суперы инициализированы (3 заряда)");
+    if (typeof updateSuperButton === 'function') {
+        setTimeout(updateSuperButton, 100);
+    }
+}
+
 function startWaystarFight() {
     if (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true) {
         if (typeof showFloatingText === 'function') showFloatingText("⏭️ Путеводная Звезда уже побеждена в этой жизни!", "#ffaa00");
         return;
     }
-    console.log("[WAYSTAR] Старт боя v11.4. Модер:", isWaystarModerActive());
+    console.log("[WAYSTAR] Старт боя v12.0. Модер:", isWaystarModerActive());
     waystarActive = true;
     waystarState = "dialogue";
     waystarRageMode = false;
@@ -228,6 +250,10 @@ function startWaystarFight() {
     waystarDialogAutoTimer = 0;
     initWaystarBgStars();
     startWaystarMusic();
+    
+    // ★ ИНИЦИАЛИЗАЦИЯ СУПЕРОВ ★
+    initWaystarSupers();
+    
     ['superBtn', 'superBtn2', 'superBtnDeactivate', 'startArenaBtn', 'skipBossBtn', 'spareBtn', 'startLivingStoneBtn', 'startWaystarBtn'].forEach(function(id) { var el = document.getElementById(id); if (el) el.style.display = "none"; });
     var overlay = document.getElementById("arenaOverlay"); if (overlay) overlay.style.display = "flex";
     var bossNameEl = document.getElementById("arenaBossName"); if (bossNameEl) bossNameEl.innerText = "🌟 ПУТЕВОДНАЯ ЗВЕЗДА";
@@ -256,6 +282,16 @@ function stopWaystarFight() {
     waystarActive = false;
     waystarFinalActive = false;
     stopWaystarMusic();
+    
+    // ★ СБРОС СУПЕРОВ ★
+    if (typeof resetAllSupers === 'function') {
+        try { resetAllSupers(); } catch(e) {}
+    }
+    waystarSupersInitialized = false;
+    if (typeof window !== 'undefined') {
+        window._uniqueSuperBossId = null;
+    }
+    
     if (waystarAnimFrame) { cancelAnimationFrame(waystarAnimFrame); waystarAnimFrame = null; }
     if (typeof canvas !== 'undefined' && canvas) {
         canvas.removeEventListener("click", handleWaystarClick);
@@ -342,6 +378,15 @@ function updateWaystarShooting() {
             for (var i = 0; i < result.bullets.length; i++) {
                 var b = result.bullets[i];
                 var dmgBase = isWaystarModerActive() ? WAYSTAR_MODER_DAMAGE : Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4));
+                // ★ Учёт супер-баффа на урон ★
+                if (typeof _superState !== 'undefined') {
+                    if (_superState.nikaDmgMult > 1) dmgBase = Math.floor(dmgBase * _superState.nikaDmgMult);
+                    if (_superState.dekusDmgMult > 1) dmgBase = Math.floor(dmgBase * _superState.dekusDmgMult);
+                    if (_superState.allmightDmgMult > 1) dmgBase = Math.floor(dmgBase * _superState.allmightDmgMult);
+                    if (_superState.kaidoBuffActive && _superState.kaidoDmgBonus > 1) dmgBase = Math.floor(dmgBase * _superState.kaidoDmgBonus);
+                    if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) dmgBase = Math.floor(dmgBase * _superState.dandyDmgBuff.mult);
+                    if (_superState.markBuffActive && _superState.markDmgBonus > 1) dmgBase = Math.floor(dmgBase * _superState.markDmgBonus);
+                }
                 b.damage = Math.max(1, Math.floor(dmgBase * (b.damage / 2)));
                 waystarPlayerBullets.push(b);
             }
@@ -356,6 +401,15 @@ function updateWaystarShooting() {
         var dmgBase2;
         if (isWaystarModerActive()) { dmgBase2 = WAYSTAR_MODER_DAMAGE; }
         else { dmgBase2 = Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4)); }
+        // ★ Учёт супер-баффа ★
+        if (typeof _superState !== 'undefined') {
+            if (_superState.nikaDmgMult > 1) dmgBase2 = Math.floor(dmgBase2 * _superState.nikaDmgMult);
+            if (_superState.dekusDmgMult > 1) dmgBase2 = Math.floor(dmgBase2 * _superState.dekusDmgMult);
+            if (_superState.allmightDmgMult > 1) dmgBase2 = Math.floor(dmgBase2 * _superState.allmightDmgMult);
+            if (_superState.kaidoBuffActive && _superState.kaidoDmgBonus > 1) dmgBase2 = Math.floor(dmgBase2 * _superState.kaidoDmgBonus);
+            if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) dmgBase2 = Math.floor(dmgBase2 * _superState.dandyDmgBuff.mult);
+            if (_superState.markBuffActive && _superState.markDmgBonus > 1) dmgBase2 = Math.floor(dmgBase2 * _superState.markDmgBonus);
+        }
         waystarPlayerBullets.push({ x: waystarPlayer.x, y: waystarPlayer.y - 12, vy: -12, vx: 0, size: 5, damage: dmgBase2, life: 80, trail: [] });
         addWaystarFlash(waystarPlayer.x, waystarPlayer.y - 12, 15);
         wsPlaySound(1100, 'square', 0.04, 0.06);
@@ -877,8 +931,17 @@ function updateWaystarPlayer() {
         waystarPlayer.x += mx * 5; waystarPlayer.x = Math.max(20, Math.min(380, waystarPlayer.x));
     } else if (waystarState === "phase1" || waystarState === "phase3") {
         var mx = 0, my = 0, speed = 4;
+        // ★ Инверсия управления от Кайдо ★
+        var invert = (typeof _superState !== 'undefined' && _superState.invertControls);
         if (waystarTouchActive) { var tx = waystarTouchX - waystarPlayer.x, ty = waystarTouchY - waystarPlayer.y; var dist = Math.sqrt(tx * tx + ty * ty); if (dist > 5) { mx = tx / dist; my = ty / dist; } }
-        else { if (waystarKeys.w || waystarKeys.arrowup) my -= 1; if (waystarKeys.s || waystarKeys.arrowdown) my += 1; if (waystarKeys.a || waystarKeys.arrowleft) mx -= 1; if (waystarKeys.d || waystarKeys.arrowright) mx += 1; if (mx !== 0 && my !== 0) { mx *= 0.707; my *= 0.707; } }
+        else { 
+            if (waystarKeys.w || waystarKeys.arrowup) my -= 1; 
+            if (waystarKeys.s || waystarKeys.arrowdown) my += 1; 
+            if (waystarKeys.a || waystarKeys.arrowleft) mx -= 1; 
+            if (waystarKeys.d || waystarKeys.arrowright) mx += 1; 
+            if (mx !== 0 && my !== 0) { mx *= 0.707; my *= 0.707; } 
+        }
+        if (invert) { mx = -mx; my = -my; }
         waystarPlayer.x += mx * speed; waystarPlayer.y += my * speed;
         waystarPlayer.x = Math.max(16, Math.min(384, waystarPlayer.x)); waystarPlayer.y = Math.max(80, Math.min(484, waystarPlayer.y));
     }
@@ -974,6 +1037,20 @@ function applyWaystarHit(dmg, textMsg) {
     }
     if (isWaystarModerActive()) { if (textMsg && typeof showFloatingText === 'function') showFloatingText(textMsg + " (∞ HP)", "#ffff00"); return; }
     if (waystarInvulnTimer > 0) return;
+    
+    // ★ Обработка супер-защит ★
+    if (typeof _superState !== 'undefined') {
+        if (_superState.usoppInvuln) return;
+        if (_superState.dandyInvuln) return;
+        if (_superState.garouInvulnTimer > 0) return;
+        if (_superState.nikaActive) dmg = Math.floor(dmg * 0.6);
+        if (_superState.kaidoDmgReduction) dmg = Math.floor(dmg * 0.7);
+        if (_superState.garpHakiActive) dmg = Math.floor(dmg * 0.4);
+        if (_superState.dandyShield && _superState.dandyShield.timer > 0) dmg = Math.floor(dmg * _superState.dandyShield.mult);
+        if (_superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
+        if (_superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
+    }
+    
     waystarPlayerHp -= dmg; waystarInvulnTimer = 45; waystarShake = 15;
     waystarScreenFlash = 8; waystarScreenFlashColor = "#ff0000"; waystarVignette = 15;
     spawnWaystarParticles(waystarPlayer.x, waystarPlayer.y, 18, "#ff3333", 6);
@@ -1187,8 +1264,18 @@ function getWaystarHpSpeedMult() {
     return speedMult;
 }
 
+// ============================================================
+// ★★★ ГЛАВНЫЙ РЕНДЕР-ЛУП ★★★
+// С интеграцией суперов
+// ============================================================
 function waystarRenderLoop() {
     if (!waystarActive || !ctx || !canvas) return;
+    
+    // ★★★ ТИК СУПЕРОВ (работает всегда, даже в финале) ★★★
+    if (typeof tickSupers === 'function') {
+        try { tickSupers(); } catch(e) { console.error("[WAYSTAR] tickSupers error:", e); }
+    }
+    
     if (waystarFinalActive) {
         try {
             updateWaystarFinalScene();
@@ -1198,6 +1285,11 @@ function waystarRenderLoop() {
             for (var i = waystarTexts.length - 1; i >= 0; i--) { var t = waystarTexts[i]; t.y += t.vy; t.life--; if (t.life <= 0) waystarTexts.splice(i, 1); }
             if (waystarShake > 0.1) waystarShake *= 0.85;
             if (waystarScreenFlash > 0) waystarScreenFlash--;
+            
+            // ★ Рендер суперов в финале тоже ★
+            if (typeof renderSuperVisuals === 'function') {
+                try { renderSuperVisuals(); } catch(e) {}
+            }
         } catch(e) { console.error("[WAYSTAR] ОШИБКА в финале:", e); waystarFinalPhase = "done"; }
         waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
         return;
@@ -1339,6 +1431,12 @@ function waystarRenderLoop() {
     ctx.globalAlpha = 1;
     if (!waystarDialogActive) drawWaystarHpBars();
     if (waystarDialogActive) drawWaystarDialog();
+    
+    // ★★★ РЕНДЕР СУПЕР-ВИЗУАЛОВ ★★★
+    if (typeof renderSuperVisuals === 'function') {
+        try { renderSuperVisuals(); } catch(e) { console.error("[WAYSTAR] renderSuperVisuals error:", e); }
+    }
+    
     if (!waystarDialogActive) { ctx.save(); ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillStyle = waystarState === "phase3" ? "rgba(255,100,255,0.9)" : "rgba(255,215,0,0.7)"; var hintText = ""; if (waystarState === "phase1" || waystarState === "phase3") hintText = "⌨️ WASD — двигаться | 🔫 Авто-стрельба"; else if (waystarState === "phase2") hintText = "← → двигаться | 🔫 Авто-стрельба"; if (hintText) ctx.fillText(hintText, 200, 495); ctx.restore(); }
     if (waystarRageMode && waystarState === "phase3") { ctx.save(); ctx.font = "bold 16px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ff0000"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15; var rageGlow = 0.5 + Math.abs(Math.sin(performance.now() / 150)) * 0.5; ctx.globalAlpha = rageGlow; ctx.fillText("🔥 RAGE MODE 🔥", 200, 470); ctx.restore(); }
     if (waystarState === "phase3" && waystarEscalationLevel > 0) { ctx.save(); ctx.font = "bold 13px monospace"; ctx.textAlign = "center"; var escColors = ["#ff00ff", "#ff00ff", "#ff4400", "#ff4400", "#ff0000"]; var escName = waystarEscalationLevel >= 4 ? "💀 ФИНАЛЬНАЯ ЯРОСТЬ 💀" : "⚠ ЭСКАЛАЦИЯ " + "I".repeat(waystarEscalationLevel); ctx.fillStyle = escColors[Math.min(waystarEscalationLevel, 4)]; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 12; ctx.globalAlpha = 0.7 + Math.abs(Math.sin(performance.now() / 250)) * 0.3; ctx.fillText(escName, 200, 455); ctx.restore(); }
@@ -1581,7 +1679,8 @@ window.getWaystarKeys = function() { return waystarKeys; };
 window.getWaystarTouch = function() { return { active: waystarTouchActive, x: waystarTouchX, y: waystarTouchY }; };
 window.waystarSound = wsPlaySound;
 window.isWaystarModerActive = isWaystarModerActive;
+window.initWaystarSupers = initWaystarSupers;
 
-console.log("[WAYSTAR] v11.4 + ФИКС waystarSpawnAttack + все правки");
+console.log("[WAYSTAR] v12.0 + SUPER РАБОТАЕТ (tickSupers + renderSuperVisuals в главном лупе)");
 
 } // ★ КОНЕЦ ЗАЩИТЫ ★
