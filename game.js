@@ -174,9 +174,14 @@ function loadGameData(d) {
     gameCompleted = d.gameCompleted || false; 
     defeatedBosses = d.defeatedBosses || []; 
     
-    // ★★★ ЗАГРУЖАЕМ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★★★
+    // ★ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★
     if (typeof window !== 'undefined') {
         window.waystarDefeatedThisRun = d.waystarDefeatedThisRun === true;
+    }
+    
+    // ★ ФЛАГ LEVEL 7 КАРТЫ ★
+    if (typeof window !== 'undefined') {
+        window._level7CardId = d.level7CardId || null;
     }
     
     gachaDailyLimits = d.gachaDailyLimits || { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
@@ -284,8 +289,10 @@ function initNewGame() {
     gameCompleted = false; 
     defeatedBosses = []; 
     
-    // ★★★ СБРАСЫВАЕМ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★★★
+    // ★ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★
     if (typeof window !== 'undefined') window.waystarDefeatedThisRun = false;
+    // ★ ФЛАГ LEVEL 7 КАРТЫ ★
+    if (typeof window !== 'undefined') window._level7CardId = null;
     
     gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
     gachaDailyMax = { common:50, rare:35, superRare:20, epic:10, mythic:5, legendary:10, secret:2 };
@@ -376,11 +383,14 @@ function saveAll() {
     slotData.gameCompleted = gameCompleted; 
     slotData.defeatedBosses = defeatedBosses; 
     
-    // ★★★ ФЛАГ ЭВОЛЮЦИИ = ТОЛЬКО ПО defeatedBosses (не залипает) ★★★
+    // ★ ФЛАГ ЭВОЛЮЦИИ ★
     slotData.evolutionUnlocked = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500));
     
-    // ★★★ СОХРАНЯЕМ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★★★
+    // ★ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★
     slotData.waystarDefeatedThisRun = (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true);
+    
+    // ★ ФЛАГ LEVEL 7 КАРТЫ ★
+    slotData.level7CardId = (typeof window !== 'undefined' && window._level7CardId) || null;
     
     slotData.gachaDailyLimits = gachaDailyLimits;
     slotData.gachaDailyMax = gachaDailyMax;
@@ -941,7 +951,6 @@ function generateEnemy() {
     let skipBtn = document.getElementById("skipArenaBtn");
     let rwbBtn = document.getElementById("startRogerWB");
     
-    // ВОЛНА 200 — ЖИВОЙ КАМЕНЬ
     if (wave === 200 && isUniqueBoss) {
         let alreadyDefeatedStone = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200);
         if (btn) btn.style.display = "none";
@@ -955,7 +964,6 @@ function generateEnemy() {
             currentEnemy.name = "🪨 Живой Камень (ослабленный)";
         }
     } 
-    // ВОЛНА 500 — ПУТЕВОДНАЯ ЗВЕЗДА (★ ПРОВЕРКА ФЛАГА ЭТОЙ ЖИЗНИ ★)
     else if (wave === 500 && isUniqueBoss) {
         let alreadyDefeatedWaystar = (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true);
         if (btn) btn.style.display = "none";
@@ -969,7 +977,6 @@ function generateEnemy() {
             currentEnemy.name = "🌟 Путеводная Звезда (ослабленная)";
         }
     }
-    // ВОЛНА 1000 — РОДЖЕР И БЕЛОУС
     else if (wave === 1000) {
         let alreadyDefeatedRogerWB = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(1000);
         if (btn) btn.style.display = "none";
@@ -1000,7 +1007,6 @@ function generateEnemy() {
             rwbBtn.style.display = "block";
         }
     }
-    // ОСТАЛЬНЫЕ ВОЛНЫ
     else {
         if (livingBtn) livingBtn.style.display = "none";
         if (waystarBtn) waystarBtn.style.display = "none";
@@ -1480,6 +1486,22 @@ function doRebirth() {
         maxPoints 
     }); 
     
+    // ★★★ СОХРАНЯЕМ СНАРЯЖЕНИЕ ПЕРЕД РЕБИРТХОМ ★★★
+    if (typeof window.saveEquipmentBeforeRebirth === 'function') {
+        window.saveEquipmentBeforeRebirth();
+    }
+    
+    // ★★★ СОХРАНЯЕМ LEVEL 7 КАРТУ ★★★
+    let _level7CardSave = null;
+    if (typeof window !== 'undefined' && window._level7CardId) {
+        let found = myCards.find(c => c && c.id === window._level7CardId);
+        if (found && (found.mastery || 1) >= 7 && found._level7Carry > 0) {
+            _level7CardSave = JSON.parse(JSON.stringify(found));
+            _level7CardSave._level7Carry = 0; // следующий ребиртх её НЕ сохранит
+            console.log("[REBIRTH] Level 7 карта сохранена:", _level7CardSave.name);
+        }
+    }
+    
     myCards = []; 
     team = []; 
     afkTeam = []; 
@@ -1509,9 +1531,7 @@ function doRebirth() {
     newcomerBonusEnd = Date.now() + 600000; 
     gameCompleted = false; 
     
-    // ★★★ РЕБИРТХ: СБРАСЫВАЕМ ВСЁ, ЭВОЛЮЦИЯ СНОВА ЗАКРЫТА ★★★
-    // defeatedBosses = [] — значит эволюция закрыта, пока не победишь Звезду заново
-    // waystarDefeatedThisRun = false — значит кнопка боя со Звездой снова появится
+    // ★ РЕБИРТХ: сбрасываем defeatedBosses, эволюция снова закрыта ★
     defeatedBosses = []; 
     if (typeof window !== 'undefined') window.waystarDefeatedThisRun = false;
     if (typeof slotData !== 'undefined' && slotData) {
@@ -1544,15 +1564,36 @@ function doRebirth() {
     resetDailyRewards();
     passData = { currentTier: 1, passExp: 0, claimedTiers: [] };
     for (let i = 0; i < 3; i++) { let c = createCard(getRandomRarity()); if (c) myCards.push(c); } 
+    
+    // ★★★ ВОССТАНАВЛИВАЕМ LEVEL 7 КАРТУ ★★★
+    if (_level7CardSave) {
+        myCards.push(_level7CardSave);
+        if (typeof window !== 'undefined') window._level7CardId = _level7CardSave.id;
+        console.log("[REBIRTH] Level 7 карта восстановлена, _level7Carry теперь 0");
+    } else {
+        if (typeof window !== 'undefined') window._level7CardId = null;
+    }
+    
     team = [0, 1, 2]; 
     normalizeMainCard(); 
+    
+    // ★★★ ВОССТАНАВЛИВАЕМ СНАРЯЖЕНИЕ ПОСЛЕ РЕБИРТХА ★★★
+    if (typeof window.restoreEquipmentAfterRebirth === 'function') {
+        window.restoreEquipmentAfterRebirth();
+    }
+    
     sfxRebirth(); 
     refreshShop(); 
     generateEnemy(); 
     saveAll(); 
     renderAll(); 
     startMainMusic(); 
-    alert('🔄 Ребёрн ' + rebirthCount + '! Множитель x' + getRebirthMult().toFixed(1) + '\n\n💡 Эволюция снова закрыта — победи Путеводную Звезду (500) заново!'); 
+    
+    let rebirthMsg = '🔄 Ребёрн ' + rebirthCount + '! Множитель x' + getRebirthMult().toFixed(1) + '\n\n💡 Эволюция снова закрыта — победи Путеводную Звезду (500) заново!';
+    if (_level7CardSave) {
+        rebirthMsg += '\n\n⭐ Level 7 карта "' + _level7CardSave.name + '" перешла с тобой! Следующий ребиртх её потеряет.';
+    }
+    alert(rebirthMsg);
 }
 
 function switchTab(tabName) { 
