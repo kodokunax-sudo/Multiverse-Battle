@@ -1,7 +1,7 @@
 // ============================================================
-// CRAFTING v2.4 — ФИКС: снаряжение сохраняется при ребиртхе + после перезагрузки
+// CRAFTING v3.0 — ФИКС: снаряжение сохраняется после перезагрузки
 // ============================================================
-// ПОДКЛЮЧАТЬ ПОСЛЕ inventory.js
+// ПОДКЛЮЧАТЬ ПОСЛЕ inventory.js, ПОСЛЕ game.js
 // ============================================================
 
 (function() {
@@ -105,7 +105,7 @@
     };
 
     // ============================================================
-    // ОРУЖИЕ (★ НЕРФЛЕНО ★)
+    // ОРУЖИЕ
     // ============================================================
     const WEAPON_RECIPES = [
         { id: "pistol_c", name: "Пистолет", icon: "🔫", rarity: "Обычная", rarityClass: "common", tier: 1, damageMult: 0.5, shootRate: 12, bullets: 1, desc: "Стандартное оружие.", recipe: { melted_plastic: 5, weak_parts: 2, gas_powder: 1 } },
@@ -188,12 +188,32 @@
         } catch(e) { return false; }
     }
 
+    // ★★★ ЦЕНТРАЛЬНАЯ ФУНКЦИЯ: записать всё в slotData ★★★
+    function syncToSlotData() {
+        try {
+            if (typeof slotData !== 'undefined' && slotData) {
+                slotData.resources = JSON.parse(JSON.stringify(resources));
+                slotData.equipment = JSON.parse(JSON.stringify(equipment));
+                slotData.weaponStorage = JSON.parse(JSON.stringify(weaponStorage));
+                slotData.armorStorage = JSON.parse(JSON.stringify(armorStorage));
+            }
+        } catch(e) { console.error("[CRAFT] syncToSlotData error:", e); }
+    }
+
+    // ★★★ ГЛАВНОЕ: сохранить ВСЁ (ресурсы + снаряжение + хранилище) ★★★
+    function saveCraftingData() {
+        syncToSlotData();
+        // Вызываем saveAll() чтобы записать slotData в localStorage
+        if (typeof saveAll === 'function') {
+            saveAll();
+        }
+    }
+
     function addResource(id, count) {
         if (!RESOURCES[id] && !INTERMEDIATE[id]) return;
         if (!resources[id]) resources[id] = 0;
         resources[id] += count;
-        syncToSlotData();
-        if (typeof saveAll === 'function') saveAll();
+        saveCraftingData();
         if (typeof renderInventory === 'function') renderInventory();
     }
 
@@ -203,20 +223,8 @@
         if (!resources[id] || resources[id] < count) return false;
         resources[id] -= count;
         if (resources[id] <= 0) delete resources[id];
-        syncToSlotData();
-        if (typeof saveAll === 'function') saveAll();
+        saveCraftingData();
         return true;
-    }
-
-    function syncToSlotData() {
-        try {
-            if (typeof slotData !== 'undefined' && slotData) {
-                slotData.resources = JSON.parse(JSON.stringify(resources));
-                slotData.equipment = JSON.parse(JSON.stringify(equipment));
-                slotData.weaponStorage = JSON.parse(JSON.stringify(weaponStorage));
-                slotData.armorStorage = JSON.parse(JSON.stringify(armorStorage));
-            }
-        } catch(e) {}
     }
 
     function getDropChance(id, wave) {
@@ -264,8 +272,7 @@
             for (let id in proc.input) removeResource(id, proc.input[id]);
         }
         for (let id in proc.output) addResource(id, proc.output[id]);
-        syncToSlotData();
-        if (typeof saveAll === 'function') saveAll();
+        saveCraftingData();
         if (typeof renderInventory === 'function') renderInventory();
         if (typeof sfxCardObtain === 'function') sfxCardObtain();
         if (typeof showFloatingText === 'function') showFloatingText(proc.icon + " " + proc.name + " готово!", "#f5af19");
@@ -321,8 +328,7 @@
             equipment.armor = item;
         }
 
-        syncToSlotData();
-        if (typeof saveAll === 'function') saveAll();
+        saveCraftingData();
         if (typeof renderInventory === 'function') renderInventory();
         if (typeof updatePlayerStats === 'function') { try { updatePlayerStats(); } catch(e) {} }
         if (typeof sfxCardObtain === 'function') sfxCardObtain();
@@ -345,8 +351,7 @@
             armorStorage.splice(idx, 1);
             if (old) armorStorage.push(old);
         }
-        syncToSlotData();
-        if (typeof saveAll === 'function') saveAll();
+        saveCraftingData();
         if (typeof renderInventory === 'function') renderInventory();
         if (typeof updatePlayerStats === 'function') { try { updatePlayerStats(); } catch(e) {} }
         if (typeof showFloatingText === 'function') showFloatingText("⚔️ Надето из хранилища!", "#2ecc71");
@@ -381,8 +386,7 @@
             if (typeof maxPoints !== 'undefined' && points > maxPoints) maxPoints = points;
         }
         if (typeof renderPoints === 'function') renderPoints();
-        syncToSlotData();
-        if (typeof saveAll === 'function') saveAll();
+        saveCraftingData();
         if (typeof renderInventory === 'function') renderInventory();
         if (typeof showFloatingText === 'function') showFloatingText("💰 +" + price + "⭐", "#f5af19");
     }
@@ -392,8 +396,7 @@
             weaponStorage.push(equipment.weapon);
             equipment.weapon = null;
         }
-        syncToSlotData();
-        if (typeof saveAll === 'function') saveAll();
+        saveCraftingData();
         if (typeof renderInventory === 'function') renderInventory();
         if (typeof updatePlayerStats === 'function') { try { updatePlayerStats(); } catch(e) {} }
     }
@@ -403,8 +406,7 @@
             armorStorage.push(equipment.armor);
             equipment.armor = null;
         }
-        syncToSlotData();
-        if (typeof saveAll === 'function') saveAll();
+        saveCraftingData();
         if (typeof renderInventory === 'function') renderInventory();
         if (typeof updatePlayerStats === 'function') { try { updatePlayerStats(); } catch(e) {} }
     }
@@ -449,8 +451,7 @@
         armorStorage = _equipmentSavedForRebirth.armorStorage;
         _equipmentSavedForRebirth = null;
         console.log("[CRAFT] Снаряжение восстановлено после ребиртха");
-        syncToSlotData();
-        if (typeof saveAll === 'function') saveAll();
+        saveCraftingData();
     }
 
     // ============================================================
@@ -479,6 +480,7 @@
         return true;
     }
 
+    // ★★★ ФИКС: синхронизация ПЕРЕД saveAll ★★★
     function patchSaveAll() {
         if (typeof window.saveAll !== 'function') return false;
         if (window._craftSaveAllPatched) return true;
@@ -491,27 +493,33 @@
                     slotData.weaponStorage = JSON.parse(JSON.stringify(weaponStorage));
                     slotData.armorStorage = JSON.parse(JSON.stringify(armorStorage));
                 }
-            } catch(e) {}
+            } catch(e) { console.error("[CRAFT] saveAll patch error:", e); }
             return original.apply(this, arguments);
         };
         window._craftSaveAllPatched = true;
+        console.log("[CRAFT] ✅ saveAll пропатчен");
         return true;
     }
 
+    // ★★★ ФИКС: загрузка с ПРАВИЛЬНЫМ восстановлением ★★★
     function patchLoadGameData() {
         if (typeof window.loadGameData !== 'function') return false;
         if (window._craftLoadPatched) return true;
         let original = window.loadGameData;
         window.loadGameData = function(d) {
-            resources = {};
-            equipment = { weapon: null, armor: null };
-            weaponStorage = [];
-            armorStorage = [];
-            if (d && d.resources) resources = JSON.parse(JSON.stringify(d.resources));
-            if (d && d.equipment) equipment = JSON.parse(JSON.stringify(d.equipment));
-            if (d && d.weaponStorage) weaponStorage = JSON.parse(JSON.stringify(d.weaponStorage));
-            if (d && d.armorStorage) armorStorage = JSON.parse(JSON.stringify(d.armorStorage));
+            // ★ СНАЧАЛА читаем данные из d (сохранённые в localStorage) ★
+            let loadedResources = (d && d.resources) ? JSON.parse(JSON.stringify(d.resources)) : {};
+            let loadedEquipment = (d && d.equipment) ? JSON.parse(JSON.stringify(d.equipment)) : { weapon: null, armor: null };
+            let loadedWeaponStorage = (d && d.weaponStorage) ? JSON.parse(JSON.stringify(d.weaponStorage)) : [];
+            let loadedArmorStorage = (d && d.armorStorage) ? JSON.parse(JSON.stringify(d.armorStorage)) : [];
 
+            // ★ Применяем ★
+            resources = loadedResources;
+            equipment = loadedEquipment;
+            weaponStorage = loadedWeaponStorage;
+            armorStorage = loadedArmorStorage;
+
+            // ★ Нерфим старое оружие (если у кого-то остались старые версии) ★
             function nerfItem(item) {
                 if (!item || !item.id) return;
                 let nerfed = WEAPON_RECIPES.find(r => r.id === item.id);
@@ -526,22 +534,41 @@
             nerfItem(equipment.weapon);
             for (let w of weaponStorage) nerfItem(w);
 
-            // ★ Вызываем оригинал (game_load) — он через setEquipmentData может перезаписать equipment
+            // ★ Вызываем оригинал (game.js loadGameData) ★
             let result = original.apply(this, arguments);
 
-            // ★ ВОССТАНАВЛИВАЕМ — потому что game_load мог сбросить на d.equipment ★
-            if (d && d.equipment) equipment = JSON.parse(JSON.stringify(d.equipment));
-            if (d && d.resources) resources = JSON.parse(JSON.stringify(d.resources));
-            if (d && d.weaponStorage) weaponStorage = JSON.parse(JSON.stringify(d.weaponStorage));
-            if (d && d.armorStorage) armorStorage = JSON.parse(JSON.stringify(d.armorStorage));
+            // ★★★ ВАЖНО: ВОССТАНАВЛИВАЕМ ПОСЛЕ ОРИГИНАЛА ★★★
+            // Потому что game.js loadGameData мог сбросить slotData.equipment = d.equipment
+            // или вообще очистить slotData
+            resources = loadedResources;
+            equipment = loadedEquipment;
+            weaponStorage = loadedWeaponStorage;
+            armorStorage = loadedArmorStorage;
+
             // Повторно нерфим
             nerfItem(equipment.weapon);
             for (let w of weaponStorage) nerfItem(w);
 
-            syncToSlotData();
+            // ★ Синхронизируем обратно в slotData ★
+            if (typeof slotData !== 'undefined' && slotData) {
+                slotData.resources = JSON.parse(JSON.stringify(resources));
+                slotData.equipment = JSON.parse(JSON.stringify(equipment));
+                slotData.weaponStorage = JSON.parse(JSON.stringify(weaponStorage));
+                slotData.armorStorage = JSON.parse(JSON.stringify(armorStorage));
+            }
+
+            console.log("[CRAFT] Загружено снаряжение:", {
+                weapon: equipment.weapon ? equipment.weapon.name : null,
+                armor: equipment.armor ? equipment.armor.name : null,
+                weaponsInStorage: weaponStorage.length,
+                armorsInStorage: armorStorage.length,
+                resourcesCount: Object.keys(resources).length
+            });
+
             return result;
         };
         window._craftLoadPatched = true;
+        console.log("[CRAFT] ✅ loadGameData пропатчен");
         return true;
     }
 
@@ -575,22 +602,18 @@
         return true;
     }
 
-    // ★★★ ПАТЧ ДЛЯ РЕБИРТХА — оружие сохраняется ★★★
+    // ★★★ ПАТЧ ДЛЯ РЕБИРТХА ★★★
     function patchDoRebirth() {
         if (typeof window.doRebirth !== 'function') return false;
         if (window._craftRebirthPatched) return true;
         let original = window.doRebirth;
         window.doRebirth = function() {
-            // Сохраняем снаряжение ПЕРЕД ребиртхом
             saveEquipmentBeforeRebirth();
-            // Вызываем оригинал (внутри может быть сброс)
             let result = original.apply(this, arguments);
-            // Восстанавливаем ПОСЛЕ
             restoreEquipmentAfterRebirth();
-            // Обновляем UI
             if (typeof renderInventory === 'function') renderInventory();
             if (typeof updatePlayerStats === 'function') { try { updatePlayerStats(); } catch(e) {} }
-            if (typeof saveAll === 'function') saveAll();
+            saveCraftingData();
             return result;
         };
         window._craftRebirthPatched = true;
@@ -624,6 +647,34 @@
             return original.apply(this, arguments);
         };
         window._craftAfkPatched = true;
+        return true;
+    }
+
+    // ★★★ ПАТЧ ФИНИШНОЙ ЗАГРУЗКИ СЛОТА ★★★
+    // После finishSlotLoad перечитываем снаряжение из slotData
+    function patchFinishSlotLoad() {
+        if (typeof window.finishSlotLoad !== 'function') return false;
+        if (window._craftFinishSlotPatched) return true;
+        let original = window.finishSlotLoad;
+        window.finishSlotLoad = function(slot) {
+            let result = original.apply(this, arguments);
+            // ★ После загрузки слота ещё раз читаем снаряжение ★
+            try {
+                if (typeof slotData !== 'undefined' && slotData) {
+                    if (slotData.resources) resources = JSON.parse(JSON.stringify(slotData.resources));
+                    if (slotData.equipment) equipment = JSON.parse(JSON.stringify(slotData.equipment));
+                    if (slotData.weaponStorage) weaponStorage = JSON.parse(JSON.stringify(slotData.weaponStorage));
+                    if (slotData.armorStorage) armorStorage = JSON.parse(JSON.stringify(slotData.armorStorage));
+                    console.log("[CRAFT] Снаряжение перечитано после finishSlotLoad");
+                }
+            } catch(e) {}
+            if (typeof renderInventory === 'function') {
+                setTimeout(renderInventory, 100);
+            }
+            return result;
+        };
+        window._craftFinishSlotPatched = true;
+        console.log("[CRAFT] ✅ finishSlotLoad пропатчен");
         return true;
     }
 
@@ -959,9 +1010,10 @@
     window.getWeaponStorage = function() { return weaponStorage; };
     window.getArmorStorage = function() { return armorStorage; };
 
-    // ★ ЭКСПОРТ ДЛЯ РЕБИРТХА ★
     window.saveEquipmentBeforeRebirth = saveEquipmentBeforeRebirth;
     window.restoreEquipmentAfterRebirth = restoreEquipmentAfterRebirth;
+    window.saveCraftingData = saveCraftingData;
+    window.syncToSlotData = syncToSlotData;
 
     window.renderInventory = renderInventoryExtended;
 
@@ -980,17 +1032,21 @@
             let e = patchUpdatePlayerStats();
             let f = patchVictory();
             let g = patchRunAfkTick();
-            let h = patchDoRebirth(); // ★ ПАТЧ РЕБИРТХА ★
+            let h = patchDoRebirth();
+            let i = patchFinishSlotLoad();  // ★ НОВЫЙ ПАТЧ ★
+            
             if (a && b && c && d && e && f && g && h) {
-                console.log("╔════════════════════════════════════════╗");
-                console.log("║  🔨 CRAFTING v2.4 загружено            ║");
-                console.log("║  ✅ Снаряжение сохраняется при ребиртхе║");
-                console.log("║  ✅ Снаряжение сохраняется после перез.║");
-                console.log("╚════════════════════════════════════════╝");
+                console.log("╔════════════════════════════════════════════════════╗");
+                console.log("║  🔨 CRAFTING v3.0 загружено                        ║");
+                console.log("║  ✅ Снаряжение СОХРАНЯЕТСЯ после перезагрузки      ║");
+                console.log("║  ✅ Снаряжение сохраняется при ребиртхе            ║");
+                console.log("║  ✅ Ресурсы сохраняются                            ║");
+                console.log("║  ✅ finishSlotLoad пропатчен: " + i + "                        ║");
+                console.log("╚════════════════════════════════════════════════════╝");
                 return;
             }
             if (attempts < maxAttempts) setTimeout(tryPatch, 100);
-            else console.warn("[CRAFT] Не все патчи применены:", {saveAll: a, load: b, init: c, switch: d, stats: e, victory: f, afk: g, rebirth: h});
+            else console.warn("[CRAFT] Не все патчи применены:", {saveAll: a, load: b, init: c, switch: d, stats: e, victory: f, afk: g, rebirth: h, finishSlot: i});
         }
         if (document.readyState === "complete" || document.readyState === "interactive") {
             setTimeout(tryPatch, 500);
