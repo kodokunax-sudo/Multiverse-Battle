@@ -1,5 +1,5 @@
 // ============================================================
-// CRAFTING v2.2 — ФИКС equipWeapon is not defined
+// CRAFTING v2.4 — ФИКС: снаряжение сохраняется при ребиртхе + после перезагрузки
 // ============================================================
 // ПОДКЛЮЧАТЬ ПОСЛЕ inventory.js
 // ============================================================
@@ -62,9 +62,6 @@
         elemental_heart: { minWave: 700, baseChance: 0.003, maxChance: 0.015 }
     };
 
-    // ============================================================
-    // ПРОЦЕССЫ
-    // ============================================================
     const PROCESSES = [
         { id: "melt_plastic",  name: "Плавка пластика",     icon: "🔥", desc: "Расплавить пластик в жидкую массу.",
           input: { plastic: 3 },  output: { melted_plastic: 1 }, tier: 1 },
@@ -111,35 +108,30 @@
     // ОРУЖИЕ (★ НЕРФЛЕНО ★)
     // ============================================================
     const WEAPON_RECIPES = [
-        // ПИСТОЛЕТ
         { id: "pistol_c", name: "Пистолет", icon: "🔫", rarity: "Обычная", rarityClass: "common", tier: 1, damageMult: 0.5, shootRate: 12, bullets: 1, desc: "Стандартное оружие.", recipe: { melted_plastic: 5, weak_parts: 2, gas_powder: 1 } },
         { id: "pistol_r", name: "Пистолет+", icon: "🔫", rarity: "Редкая", rarityClass: "rare", tier: 2, damageMult: 0.7, shootRate: 11, bullets: 1, desc: "Улучшенный пистолет.", fromWeapon: "pistol_c", recipe: { normal_parts: 3, steel: 2, hardened_steel: 1 } },
         { id: "pistol_sr", name: "Пистолет++", icon: "🔫", rarity: "Сверх редкая", rarityClass: "superrare", tier: 3, damageMult: 1.0, shootRate: 10, bullets: 1, desc: "Продвинутый пистолет.", fromWeapon: "pistol_r", recipe: { quality_parts: 3, polymer: 2, hardened_steel: 2 } },
         { id: "pistol_e", name: "Пистолет Элит", icon: "🔫", rarity: "Эпик", rarityClass: "epic", tier: 4, damageMult: 1.4, shootRate: 9, bullets: 1, desc: "Элитный пистолет.", fromWeapon: "pistol_sr", recipe: { power_parts: 3, power_steel: 2, magic_powder: 1 } },
         { id: "pistol_l", name: "Пистолет Дракона", icon: "🐉🔫", rarity: "Легендарная", rarityClass: "legendary", tier: 5, damageMult: 1.9, shootRate: 8, bullets: 2, spread: 0.1, desc: "Двойной выстрел!", fromWeapon: "pistol_e", legendaryPerk: "doubleShot", recipe: { magic_steel: 2, soul_crystal: 1, elemental_heart: 1 } },
 
-        // ДРОБОВИК
         { id: "shotgun_c", name: "Дробовик", icon: "🔫", rarity: "Обычная", rarityClass: "common", tier: 1, damageMult: 0.3, shootRate: 20, bullets: 3, spread: 0.3, desc: "3 пули веером.", recipe: { melted_plastic: 8, weak_parts: 3, gas_powder: 2 } },
         { id: "shotgun_r", name: "Дробовик+", icon: "🔫", rarity: "Редкая", rarityClass: "rare", tier: 2, damageMult: 0.42, shootRate: 18, bullets: 3, spread: 0.32, desc: "Улучшенный дробовик.", fromWeapon: "shotgun_c", recipe: { normal_parts: 4, steel: 3, hardened_steel: 2 } },
         { id: "shotgun_sr", name: "Дробовик++", icon: "🔫", rarity: "Сверх редкая", rarityClass: "superrare", tier: 3, damageMult: 0.6, shootRate: 17, bullets: 4, spread: 0.35, desc: "4 пули веером.", fromWeapon: "shotgun_r", recipe: { quality_parts: 4, polymer: 3, hardened_steel: 2 } },
         { id: "shotgun_e", name: "Дробовик Элит", icon: "🔫", rarity: "Эпик", rarityClass: "epic", tier: 4, damageMult: 0.85, shootRate: 16, bullets: 4, spread: 0.38, desc: "Мощный 4-ствольный.", fromWeapon: "shotgun_sr", recipe: { power_parts: 4, power_steel: 3, magic_powder: 2 } },
         { id: "shotgun_l", name: "Дробовик «Поглотитель»", icon: "🔫", rarity: "Легендарная", rarityClass: "legendary", tier: 5, damageMult: 1.1, shootRate: 15, bullets: 5, spread: 0.4, desc: "+5% поглощения урона.", fromWeapon: "shotgun_e", legendaryPerk: "absorb5", recipe: { magic_steel: 3, soul_crystal: 1, elemental_heart: 1 } },
 
-        // СНАЙПЕРКА
         { id: "sniper_c", name: "Снайперка", icon: "🎯", rarity: "Обычная", rarityClass: "common", tier: 1, damageMult: 0.8, shootRate: 60, bullets: 1, desc: "Медленная, но мощная.", recipe: { melted_plastic: 6, weak_parts: 3, gas_powder: 2, avia_alum: 3 } },
         { id: "sniper_r", name: "Снайперка+", icon: "🎯", rarity: "Редкая", rarityClass: "rare", tier: 2, damageMult: 1.2, shootRate: 55, bullets: 1, desc: "Улучшенная дальность.", fromWeapon: "sniper_c", recipe: { normal_parts: 4, steel: 3, hardened_steel: 2 } },
         { id: "sniper_sr", name: "Снайперка++", icon: "🎯", rarity: "Сверх редкая", rarityClass: "superrare", tier: 3, damageMult: 1.8, shootRate: 50, bullets: 1, desc: "Пробивная мощь.", fromWeapon: "sniper_r", recipe: { quality_parts: 5, polymer: 3, hardened_steel: 3 } },
         { id: "sniper_e", name: "Снайперка Элит", icon: "🎯", rarity: "Эпик", rarityClass: "epic", tier: 4, damageMult: 2.6, shootRate: 45, bullets: 1, desc: "Элитная дальнобойность.", fromWeapon: "sniper_sr", recipe: { power_parts: 5, power_steel: 4, magic_powder: 2 } },
         { id: "sniper_l", name: "Снайперка «Прицел»", icon: "🎯", rarity: "Легендарная", rarityClass: "legendary", tier: 5, damageMult: 3.8, shootRate: 40, bullets: 1, desc: "+10% авто-наведение.", fromWeapon: "sniper_e", legendaryPerk: "autoAim10", recipe: { magic_steel: 4, soul_crystal: 2, elemental_heart: 1 } },
 
-        // МЕЧ
         { id: "sword_c", name: "Меч", icon: "⚔️", rarity: "Обычная", rarityClass: "common", tier: 1, damageMult: 0.6, shootRate: 14, bullets: 1, isMelee: true, desc: "Летящая волна.", recipe: { iron: 10, wood: 5, weak_parts: 2 } },
         { id: "sword_r", name: "Меч+", icon: "⚔️", rarity: "Редкая", rarityClass: "rare", tier: 2, damageMult: 0.9, shootRate: 13, bullets: 1, isMelee: true, desc: "Заточенный клинок.", fromWeapon: "sword_c", recipe: { normal_parts: 3, steel: 4, hardened_steel: 1 } },
         { id: "sword_sr", name: "Меч++", icon: "⚔️", rarity: "Сверх редкая", rarityClass: "superrare", tier: 3, damageMult: 1.3, shootRate: 12, bullets: 1, isMelee: true, desc: "Клинок из крепкой стали.", fromWeapon: "sword_r", recipe: { quality_parts: 4, polymer: 2, hardened_steel: 3 } },
         { id: "sword_e", name: "Меч Элит", icon: "⚔️", rarity: "Эпик", rarityClass: "epic", tier: 4, damageMult: 1.8, shootRate: 11, bullets: 1, isMelee: true, desc: "Мощный клинок.", fromWeapon: "sword_sr", recipe: { power_parts: 4, power_steel: 4, magic_powder: 2 } },
         { id: "sword_l", name: "Меч «Разрушитель»", icon: "⚔️", rarity: "Легендарная", rarityClass: "legendary", tier: 5, damageMult: 2.6, shootRate: 10, bullets: 1, isMelee: true, desc: "Уничтожает атаки босса.", fromWeapon: "sword_e", legendaryPerk: "destroyAttacks", recipe: { magic_steel: 3, soul_crystal: 2, elemental_heart: 2 } },
 
-        // ПУЛЕМЁТ
         { id: "smg_c", name: "Пулемёт", icon: "🔫", rarity: "Обычная", rarityClass: "common", tier: 1, damageMult: 0.15, shootRate: 6, bullets: 1, desc: "Быстрая стрельба.", recipe: { melted_plastic: 10, weak_parts: 4, gas_powder: 3, avia_alum: 4 } },
         { id: "smg_r", name: "Пулемёт+", icon: "🔫", rarity: "Редкая", rarityClass: "rare", tier: 2, damageMult: 0.22, shootRate: 5, bullets: 1, desc: "Ещё быстрее.", fromWeapon: "smg_c", recipe: { normal_parts: 4, steel: 3, hardened_steel: 2 } },
         { id: "smg_sr", name: "Пулемёт++", icon: "🔫", rarity: "Сверх редкая", rarityClass: "superrare", tier: 3, damageMult: 0.32, shootRate: 4, bullets: 1, desc: "Шквал пуль.", fromWeapon: "smg_r", recipe: { quality_parts: 5, polymer: 3, hardened_steel: 2 } },
@@ -183,6 +175,9 @@
     let equipment = { weapon: null, armor: null };
     let weaponStorage = [];
     let armorStorage = [];
+
+    // ★ ФЛАГ ДЛЯ РЕБИРТХА — сохранить снаряжение ★
+    let _equipmentSavedForRebirth = null;
 
     // ============================================================
     // ФУНКЦИИ
@@ -427,6 +422,37 @@
         return total;
     }
 
+    // ★★★ ФУНКЦИИ ДЛЯ РЕБИРТХА ★★★
+    function saveEquipmentBeforeRebirth() {
+        _equipmentSavedForRebirth = {
+            weapon: equipment.weapon ? JSON.parse(JSON.stringify(equipment.weapon)) : null,
+            armor: equipment.armor ? JSON.parse(JSON.stringify(equipment.armor)) : null,
+            weaponStorage: JSON.parse(JSON.stringify(weaponStorage)),
+            armorStorage: JSON.parse(JSON.stringify(armorStorage))
+        };
+        console.log("[CRAFT] Снаряжение сохранено перед ребиртхом:", {
+            weapon: _equipmentSavedForRebirth.weapon ? _equipmentSavedForRebirth.weapon.name : null,
+            armor: _equipmentSavedForRebirth.armor ? _equipmentSavedForRebirth.armor.name : null,
+            weaponsInStorage: _equipmentSavedForRebirth.weaponStorage.length,
+            armorsInStorage: _equipmentSavedForRebirth.armorStorage.length
+        });
+    }
+
+    function restoreEquipmentAfterRebirth() {
+        if (!_equipmentSavedForRebirth) {
+            console.warn("[CRAFT] Нет сохранённого снаряжения для восстановления");
+            return;
+        }
+        equipment.weapon = _equipmentSavedForRebirth.weapon;
+        equipment.armor = _equipmentSavedForRebirth.armor;
+        weaponStorage = _equipmentSavedForRebirth.weaponStorage;
+        armorStorage = _equipmentSavedForRebirth.armorStorage;
+        _equipmentSavedForRebirth = null;
+        console.log("[CRAFT] Снаряжение восстановлено после ребиртха");
+        syncToSlotData();
+        if (typeof saveAll === 'function') saveAll();
+    }
+
     // ============================================================
     // ПАТЧИ
     // ============================================================
@@ -486,7 +512,6 @@
             if (d && d.weaponStorage) weaponStorage = JSON.parse(JSON.stringify(d.weaponStorage));
             if (d && d.armorStorage) armorStorage = JSON.parse(JSON.stringify(d.armorStorage));
 
-            // ★ НЕРФ УЖЕ СОХРАНЁННОГО ОРУЖИЯ ★
             function nerfItem(item) {
                 if (!item || !item.id) return;
                 let nerfed = WEAPON_RECIPES.find(r => r.id === item.id);
@@ -501,7 +526,18 @@
             nerfItem(equipment.weapon);
             for (let w of weaponStorage) nerfItem(w);
 
+            // ★ Вызываем оригинал (game_load) — он через setEquipmentData может перезаписать equipment
             let result = original.apply(this, arguments);
+
+            // ★ ВОССТАНАВЛИВАЕМ — потому что game_load мог сбросить на d.equipment ★
+            if (d && d.equipment) equipment = JSON.parse(JSON.stringify(d.equipment));
+            if (d && d.resources) resources = JSON.parse(JSON.stringify(d.resources));
+            if (d && d.weaponStorage) weaponStorage = JSON.parse(JSON.stringify(d.weaponStorage));
+            if (d && d.armorStorage) armorStorage = JSON.parse(JSON.stringify(d.armorStorage));
+            // Повторно нерфим
+            nerfItem(equipment.weapon);
+            for (let w of weaponStorage) nerfItem(w);
+
             syncToSlotData();
             return result;
         };
@@ -536,6 +572,29 @@
             return original.apply(this, arguments);
         };
         window._craftSwitchSlotPatched = true;
+        return true;
+    }
+
+    // ★★★ ПАТЧ ДЛЯ РЕБИРТХА — оружие сохраняется ★★★
+    function patchDoRebirth() {
+        if (typeof window.doRebirth !== 'function') return false;
+        if (window._craftRebirthPatched) return true;
+        let original = window.doRebirth;
+        window.doRebirth = function() {
+            // Сохраняем снаряжение ПЕРЕД ребиртхом
+            saveEquipmentBeforeRebirth();
+            // Вызываем оригинал (внутри может быть сброс)
+            let result = original.apply(this, arguments);
+            // Восстанавливаем ПОСЛЕ
+            restoreEquipmentAfterRebirth();
+            // Обновляем UI
+            if (typeof renderInventory === 'function') renderInventory();
+            if (typeof updatePlayerStats === 'function') { try { updatePlayerStats(); } catch(e) {} }
+            if (typeof saveAll === 'function') saveAll();
+            return result;
+        };
+        window._craftRebirthPatched = true;
+        console.log("[CRAFT] ✅ doRebirth пропатчен — снаряжение сохраняется");
         return true;
     }
 
@@ -900,6 +959,10 @@
     window.getWeaponStorage = function() { return weaponStorage; };
     window.getArmorStorage = function() { return armorStorage; };
 
+    // ★ ЭКСПОРТ ДЛЯ РЕБИРТХА ★
+    window.saveEquipmentBeforeRebirth = saveEquipmentBeforeRebirth;
+    window.restoreEquipmentAfterRebirth = restoreEquipmentAfterRebirth;
+
     window.renderInventory = renderInventoryExtended;
 
     // ============================================================
@@ -917,15 +980,17 @@
             let e = patchUpdatePlayerStats();
             let f = patchVictory();
             let g = patchRunAfkTick();
-            if (a && b && c && d && e && f && g) {
+            let h = patchDoRebirth(); // ★ ПАТЧ РЕБИРТХА ★
+            if (a && b && c && d && e && f && g && h) {
                 console.log("╔════════════════════════════════════════╗");
-                console.log("║  🔨 CRAFTING v2.3 (NERF) загружено     ║");
-                console.log("║  ⚔️ Оружие нерфлено в ~3-4 раза        ║");
-                console.log("║  🎒 Хранилище снаряжения работает      ║");
+                console.log("║  🔨 CRAFTING v2.4 загружено            ║");
+                console.log("║  ✅ Снаряжение сохраняется при ребиртхе║");
+                console.log("║  ✅ Снаряжение сохраняется после перез.║");
                 console.log("╚════════════════════════════════════════╝");
                 return;
             }
             if (attempts < maxAttempts) setTimeout(tryPatch, 100);
+            else console.warn("[CRAFT] Не все патчи применены:", {saveAll: a, load: b, init: c, switch: d, stats: e, victory: f, afk: g, rebirth: h});
         }
         if (document.readyState === "complete" || document.readyState === "interactive") {
             setTimeout(tryPatch, 500);
