@@ -1,6 +1,7 @@
 // ============================================================
-// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v6.5
+// ЖИВОЙ КАМЕНЬ - БОСС 200 ВОЛНЫ v7.0
 // + ЭКСПОРТ damageLivingStonePlayer (для брони)
+// ★ v7.0: SUPER РАБОТАЕТ НА КАМНЕ ★
 // ============================================================
 
 let livingStoneActive = false;
@@ -73,6 +74,9 @@ let lsModDuration = 10 * 60;
 let lsPlayerVelocity = { x: 0, y: 0 };
 let lsAutoFireSkip = 0;
 let lsShotgunSkip = 0;
+
+// ★ Флаг инициализации суперов ★
+let lsSupersInitialized = false;
 
 const LS_MODS = [
     { id: 1, name: "ДРОБОВИК", icon: "🎯", color: "#ff8800", desc: "3 пульки веером (очень быстрые!)" },
@@ -213,6 +217,24 @@ function silentWarmupMusic() {
 preloadQTEMusic();
 generateStoneTextures();
 
+// ============================================================
+// ★★★ ИНИЦИАЛИЗАЦИЯ СУПЕРОВ ДЛЯ КАМНЯ ★★★
+// ============================================================
+function initLSSupers() {
+    if (typeof initSuperState === 'function') {
+        initSuperState();
+    }
+    if (typeof window !== 'undefined') {
+        window._uniqueSuperCharges = 3;
+        window._uniqueSuperBossId = 'stone';
+    }
+    lsSupersInitialized = true;
+    console.log("[LS] ✅ Суперы инициализированы (3 заряда)");
+    if (typeof updateSuperButton === 'function') {
+        setTimeout(updateSuperButton, 100);
+    }
+}
+
 // ========== СТАРТ ==========
 function startLivingStoneFight() {
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200)) {
@@ -268,6 +290,9 @@ function _startLivingStoneFightInternal() {
     preloadQTEMusic();
     if (typeof stopAllMusic === 'function') stopAllMusic();
     
+    // ★ ИНИЦИАЛИЗАЦИЯ СУПЕРОВ ★
+    initLSSupers();
+    
     ['superBtn', 'superBtn2', 'superBtnDeactivate', 'startArenaBtn', 'skipBossBtn', 'spareBtn', 'startLivingStoneBtn'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.style.display = "none";
@@ -309,6 +334,16 @@ function _startLivingStoneFightInternal() {
 
 function stopLivingStoneFight() {
     livingStoneActive = false;
+    
+    // ★ СБРОС СУПЕРОВ ★
+    if (typeof resetAllSupers === 'function') {
+        try { resetAllSupers(); } catch(e) {}
+    }
+    lsSupersInitialized = false;
+    if (typeof window !== 'undefined') {
+        window._uniqueSuperBossId = null;
+    }
+    
     if (livingStoneAnimFrame) { cancelAnimationFrame(livingStoneAnimFrame); livingStoneAnimFrame = null; }
     livingStoneAttacks = []; livingStoneBullets = []; livingStoneParticles = []; livingStoneTexts = [];
     qteBullets = []; qtePunches = []; qtePlayerTrail = []; qteCinematicTexts = [];
@@ -507,6 +542,15 @@ function livingStoneShoot() {
             for (var i = 0; i < result.bullets.length; i++) {
                 var b = result.bullets[i];
                 b.damage = bulletDamage * (b.damage / 2);
+                // ★ Учёт супер-баффа урона ★
+                if (typeof _superState !== 'undefined') {
+                    if (_superState.nikaDmgMult > 1) b.damage = Math.floor(b.damage * _superState.nikaDmgMult);
+                    if (_superState.dekusDmgMult > 1) b.damage = Math.floor(b.damage * _superState.dekusDmgMult);
+                    if (_superState.allmightDmgMult > 1) b.damage = Math.floor(b.damage * _superState.allmightDmgMult);
+                    if (_superState.kaidoBuffActive && _superState.kaidoDmgBonus > 1) b.damage = Math.floor(b.damage * _superState.kaidoDmgBonus);
+                    if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) b.damage = Math.floor(b.damage * _superState.dandyDmgBuff.mult);
+                    if (_superState.markBuffActive && _superState.markDmgBonus > 1) b.damage = Math.floor(b.damage * _superState.markDmgBonus);
+                }
                 livingStoneBullets.push(b);
             }
             if (typeof playArenaSound === 'function') playArenaSound(900, 'square', 0.05, 0.02);
@@ -772,6 +816,10 @@ function updateLivingStonePlayer() {
     var speed = ((livingStoneState === "phase2") ? 4.5 : 3.0) * lsSpeedMult;
     if (lsActiveMod && lsActiveMod.type === 3) speed *= 0.85;
     if (lsActiveMod && lsActiveMod.type === 5) speed *= 1.35;
+    
+    // ★ Инверсия от Кайдо ★
+    var invert = (typeof _superState !== 'undefined' && _superState.invertControls);
+    
     if (lsTouchActive) {
         var tx = lsTouchX - livingStonePlayer.x, ty = lsTouchY - livingStonePlayer.y;
         var dist = Math.sqrt(tx * tx + ty * ty);
@@ -786,6 +834,7 @@ function updateLivingStonePlayer() {
         if (keys.d || keys.right) mx += 1;
         if (mx !== 0 && my !== 0) { mx *= 0.707; my *= 0.707; }
     }
+    if (invert) { mx = -mx; my = -my; }
     var oldX = livingStonePlayer.x, oldY = livingStonePlayer.y;
     livingStonePlayer.x += mx * speed;
     livingStonePlayer.y += my * speed;
@@ -1598,6 +1647,20 @@ function triggerChainExplosion(x, y, damage) {
 
 function damageLivingStonePlayer(dmg) {
     if (livingStoneInvulnTimer > 0) return;
+    
+    // ★ Обработка супер-защит ★
+    if (typeof _superState !== 'undefined') {
+        if (_superState.usoppInvuln) return;
+        if (_superState.dandyInvuln) return;
+        if (_superState.garouInvulnTimer > 0) return;
+        if (_superState.nikaActive) dmg = Math.floor(dmg * 0.6);
+        if (_superState.kaidoDmgReduction) dmg = Math.floor(dmg * 0.7);
+        if (_superState.garpHakiActive) dmg = Math.floor(dmg * 0.4);
+        if (_superState.dandyShield && _superState.dandyShield.timer > 0) dmg = Math.floor(dmg * _superState.dandyShield.mult);
+        if (_superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
+        if (_superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
+    }
+    
     if (lsActiveMod && lsActiveMod.type === 3) dmg = Math.floor(dmg * 0.5);
     if (lsActiveMod && lsActiveMod.type === 5) dmg = Math.floor(dmg * 0.8);
     livingStonePlayerHp -= dmg;
@@ -1719,11 +1782,19 @@ function updateMegaEffects() {
     if (qteBossShake < 0.3) qteBossShake = 0;
 }
 
-// ========== РЕНДЕР ==========
+// ============================================================
+// ★★★ ГЛАВНЫЙ РЕНДЕР-ЛУП ★★★
+// С интеграцией суперов
+// ============================================================
 function livingStoneRenderLoop() {
     if (!livingStoneActive) return;
     if (typeof ctx === 'undefined' || !ctx) return;
     if (typeof canvas === 'undefined' || !canvas) return;
+    
+    // ★★★ ТИК СУПЕРОВ ★★★
+    if (typeof tickSupers === 'function') {
+        try { tickSupers(); } catch(e) { console.error("[LS] tickSupers error:", e); }
+    }
     
     updateLivingStonePlayer();
     updateLivingStoneBoss();
@@ -2495,6 +2566,12 @@ function livingStoneRenderLoop() {
     }
     if (!isQTE && !finalSceneActive) drawLivingStoneHpBars();
     drawLSActiveModUI();
+    
+    // ★★★ РЕНДЕР СУПЕР-ВИЗУАЛОВ ★★★
+    if (typeof renderSuperVisuals === 'function') {
+        try { renderSuperVisuals(); } catch(e) { console.error("[LS] renderSuperVisuals error:", e); }
+    }
+    
     if (lsMobileMode) {
         ctx.save();
         ctx.font = "bold 10px monospace";
@@ -2981,6 +3058,7 @@ window.getLSBossHp = function() { return livingStoneBossHp; };
 window.getLSActive = function() { return livingStoneActive; };
 window.getLSState = function() { return livingStoneState; };
 window.applyArenaDamageLS = applyArenaDamage;
-window.damageLivingStonePlayer = damageLivingStonePlayer;   // ← ★ ЕДИНСТВЕННОЕ ДОБАВЛЕНИЕ ★
+window.damageLivingStonePlayer = damageLivingStonePlayer;
+window.initLSSupers = initLSSupers;
 
-console.log("[LIVING STONE] v6.5 — ЭКСПОРТ damageLivingStonePlayer для брони");
+console.log("[LIVING STONE] v7.0 + SUPER РАБОТАЕТ (tickSupers + renderSuperVisuals)");
