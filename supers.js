@@ -1,8 +1,31 @@
-// ========== СУПЕР-СПОСОБНОСТИ v16.0 ==========
+// ========== СУПЕР-СПОСОБНОСТИ v16.1 ==========
 // ★ ПОЛНАЯ ПОДДЕРЖКА УНИКАЛЬНЫХ БОССОВ ★
 // Работает на: арене Undertale, Живом Камне, Путеводной Звезде, Роджере vs Белоусе
-// На уникальных: 3 заряда на бой, кулдаун как на арене
+// На уникальных: N зарядов на бой (настраивается ниже!), кулдаун как на арене
 // + Проверка мастерства карты (ур.5 = SUPER, ур.6 = на уникальных)
+
+// ╔══════════════════════════════════════════════════════════╗
+// ║  ★★★ НАСТРОЙКА СУПЕРОВ — МЕНЯЙ ЗДЕСЬ ★★★                 ║
+// ╚══════════════════════════════════════════════════════════╝
+
+// ★ Сколько раз можно использовать SUPER на УНИКАЛЬНОМ боссе ★
+//   (Живой Камень, Путеводная Звезда, Роджер vs Белоус)
+//   По умолчанию: 3
+var UNIQUE_SUPER_MAX = 3;
+
+// ★ Множитель кулдауна SUPER на уникальных боссах ★
+//   1.0 = как на арене
+//   0.5 = в 2 раза быстрее восстанавливается
+//   2.0 = в 2 раза медленнее
+var UNIQUE_SUPER_COOLDOWN_MULT = 1.0;
+
+// ★ Показывать ли счётчик зарядов в кнопке SUPER ★
+//   true = "[2/3]", false = без счётчика
+var UNIQUE_SUPER_SHOW_CHARGES = true;
+
+// ╔══════════════════════════════════════════════════════════╗
+// ║  КОНЕЦ НАСТРОЙКИ                                          ║
+// ╚══════════════════════════════════════════════════════════╝
 
 let _superState = {
     fists: [], rings: [],
@@ -39,9 +62,38 @@ let _allmightHurricaneReady = false;
 let _allmightHurricaneCooldown = 0;
 
 // ★ Уникальные боссы — счётчик зарядов ★
-if (typeof window._uniqueSuperCharges === 'undefined') window._uniqueSuperCharges = 3;
+if (typeof window._uniqueSuperCharges === 'undefined') window._uniqueSuperCharges = UNIQUE_SUPER_MAX;
 if (typeof window._uniqueSuperBossId === 'undefined') window._uniqueSuperBossId = null;
-var UNIQUE_SUPER_MAX = 3;
+
+// ============================================================
+// ★ ФУНКЦИЯ ДЛЯ ИЗМЕНЕНИЯ КОЛИЧЕСТВА ЗАРЯДОВ НА ЛЕТУ ★
+// Вызови из консоли: setUniqueSuperMax(5)
+// ============================================================
+window.setUniqueSuperMax = function(newMax) {
+    if (typeof newMax !== 'number' || newMax < 0) {
+        console.warn("[SUPER] Некорректное значение. Используй: setUniqueSuperMax(3)");
+        return;
+    }
+    UNIQUE_SUPER_MAX = newMax;
+    window.UNIQUE_SUPER_MAX = newMax;
+    console.log("[SUPER] ✅ Максимум зарядов изменён на: " + newMax);
+    // Если сейчас идёт бой с уникальным — обновим текущие заряды
+    var bossType = isUniqueBossActive();
+    if (bossType) {
+        window._uniqueSuperCharges = newMax;
+        console.log("[SUPER] Текущие заряды сброшены на: " + newMax);
+        if (typeof showFloatingText === 'function') {
+            showFloatingText("⚡ Заряды SUPER: " + newMax, "#ffd700");
+        }
+    }
+    updateSuperButton();
+};
+
+// ★ Быстрые команды для консоли ★
+window.setSuperCharges3 = function() { window.setUniqueSuperMax(3); };
+window.setSuperCharges5 = function() { window.setUniqueSuperMax(5); };
+window.setSuperCharges10 = function() { window.setUniqueSuperMax(10); };
+window.setSuperChargesInfinite = function() { window.setUniqueSuperMax(999); };
 
 // ============================================================
 // ★★★ ОПРЕДЕЛЕНИЕ АКТИВНОГО УНИКАЛЬНОГО БОССА ★★★
@@ -57,16 +109,13 @@ function isUniqueBossActive() {
 
 // ============================================================
 // ★★★ ПСЕВДО-АРЕНА — МАППИНГ НА ПЕРЕМЕННЫЕ БОССА ★★★
-// Все функции супера работают с этими псевдо-переменными
 // ============================================================
 function getBossContext() {
     var bossType = isUniqueBossActive();
     if (!bossType) {
-        // ★ ОБЫЧНАЯ АРЕНА UNDERTALE ★
         if (typeof arenaActive !== 'undefined' && arenaActive) {
             return {
                 type: 'arena',
-                heart: (typeof heart !== 'undefined') ? heart : null,
                 getHeartX: function() { return heart.x; },
                 setHeartX: function(v) { heart.x = v; },
                 getHeartY: function() { return heart.y; },
@@ -712,7 +761,6 @@ function toggleSuper() {
     var isUnique = bossType !== null;
     var isArena = (typeof arenaActive !== 'undefined' && arenaActive);
     
-    // ★ Если ни один бой не активен — выход ★
     if (!isUnique && !isArena) return;
     
     var mainCard = getMainCard();
@@ -721,8 +769,6 @@ function toggleSuper() {
         return;
     }
     
-    // ★ ПРОВЕРКА МАСТЕРСТВА ★
-    // На арене Undertale нужен ур.5, на уникальных — ур.5 (и есть заряды)
     if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
         if (typeof showFloatingText === 'function') showFloatingText("Нужно мастерство 5★!", "#ff3333");
         return;
@@ -731,15 +777,13 @@ function toggleSuper() {
     // ★ ДЛЯ УНИКАЛЬНОГО БОССА — проверка зарядов ★
     if (isUnique) {
         if (window._uniqueSuperCharges <= 0) {
-            if (typeof showFloatingText === 'function') showFloatingText("❌ Заряды SUPER кончились!", "#ff3333");
+            if (typeof showFloatingText === 'function') showFloatingText("❌ Заряды SUPER кончились! (" + UNIQUE_SUPER_MAX + " макс.)", "#ff3333");
             return;
         }
     }
     
     var ab = superAbilities[mainCard.name];
     
-    // ★ ОСОБЫЕ СЛУЧАИ ★
-    // Всемогущий — ураган
     if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
         if (isUnique) window._uniqueSuperCharges--;
         activateAllmightHurricane();
@@ -747,7 +791,6 @@ function toggleSuper() {
         return;
     }
     
-    // Деку — переключатель + РАЗЛОМ
     if (mainCard.name === "Деку (100%)") {
         if (!_superState.dekusActive) {
             if (isUnique) window._uniqueSuperCharges--;
@@ -757,7 +800,6 @@ function toggleSuper() {
             updateSuperButton();
             return;
         } else {
-            // Повторное нажатие — разлом
             activateDekuEarthShatter();
             return;
         }
@@ -768,7 +810,6 @@ function toggleSuper() {
         return;
     }
     
-    // Пассивные суперы (Марк)
     if (ab.cooldown === 0 && !ab.toggleable) {
         if (typeof showFloatingText === 'function') showFloatingText("Пассивная способность — всегда активна!", "#ffaa00");
         return;
@@ -783,14 +824,12 @@ function toggleSuper() {
     // ★ СПИСЫВАЕМ ЗАРЯД (для уникального) ★
     if (isUnique) window._uniqueSuperCharges--;
     
-    // ★ АКТИВАЦИЯ ★
     if (ab.toggleable) {
         if (_activeSuperName === mainCard.name) {
             if (ab.onDeactivate) ab.onDeactivate();
             _activeSuperName = null;
             startCooldown(mainCard.name, ab.cooldown);
         } else {
-            // Деактивируем предыдущий
             if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) {
                 superAbilities[_activeSuperName].onDeactivate();
             }
@@ -813,6 +852,10 @@ function toggleSuper() {
 }
 
 function startCooldown(cardName, ms) { 
+    // ★ Применяем множитель кулдауна для уникальных боссов ★
+    if (isUniqueBossActive() && UNIQUE_SUPER_COOLDOWN_MULT !== 1.0) {
+        ms = Math.floor(ms * UNIQUE_SUPER_COOLDOWN_MULT);
+    }
     var cd = _superCooldowns[cardName]; 
     if (cd && cd.interval) clearInterval(cd.interval); 
     _superCooldowns[cardName] = { ready: false, remaining: ms, start: Date.now() }; 
@@ -842,6 +885,12 @@ function resetAllCooldowns() {
     updateSuperButton(); 
 }
 
+// ★ Вспомогательная функция для счётчика зарядов в кнопке ★
+function getChargesDisplay() {
+    if (!UNIQUE_SUPER_SHOW_CHARGES) return "";
+    return " [" + window._uniqueSuperCharges + "/" + UNIQUE_SUPER_MAX + "]";
+}
+
 function updateSuperButton() {
     var btn = document.getElementById("superBtn");
     var btn2 = document.getElementById("superBtn2");
@@ -852,7 +901,6 @@ function updateSuperButton() {
     var isUnique = isUniqueBossActive() !== null;
     var isArena = (typeof arenaActive !== 'undefined' && arenaActive);
 
-    // ★ Кнопка видна только если есть активный бой ★
     if (!isUnique && !isArena) {
         btn.style.display = "none";
         if (btn2) btn2.style.display = "none";
@@ -867,7 +915,6 @@ function updateSuperButton() {
         return; 
     }
 
-    // ★ ПРОВЕРКА МАСТЕРСТВА ★
     if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
         btn.style.display = "none";
         if (btn2) btn2.style.display = "none";
@@ -875,23 +922,23 @@ function updateSuperButton() {
         return;
     }
 
-    // ★ ДЛЯ УНИКАЛЬНЫХ БОССОВ — ДРУГОЙ ФОРМАТ КНОПКИ ★
+    var chargesStr = getChargesDisplay();
+
     if (isUnique) {
         btn.style.display = "block";
         if (btn2) btn2.style.display = "none";
         if (btnDeact) btnDeact.style.display = "none";
 
-        // Деку (100%) — особый
         if (mainCard.name === "Деку (100%)") {
             if (!_superState.dekusActive) {
                 var cdDeku = _superCooldowns["Деку (100%)"];
                 if (cdDeku && !cdDeku.ready) {
                     var secDeku = Math.ceil(cdDeku.remaining / 1000);
-                    btn.textContent = "⏳ 100% (" + secDeku + "с) [" + window._uniqueSuperCharges + "/3]";
+                    btn.textContent = "⏳ 100% (" + secDeku + "с)" + chargesStr;
                     btn.style.background = "#555";
                     btn.style.animation = "none";
                 } else {
-                    btn.textContent = "💚 100% [" + window._uniqueSuperCharges + "/3]";
+                    btn.textContent = "💚 100%" + chargesStr;
                     btn.style.background = "linear-gradient(135deg, #44ff44, #00aa00)";
                     btn.style.animation = "superPulse 2s infinite";
                 }
@@ -908,21 +955,19 @@ function updateSuperButton() {
             return;
         }
 
-        // Всемогущий — УРАГАН
         if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
             if (_allmightHurricaneCooldown > 0) {
-                btn.textContent = "🌪️ УРАГАН (" + Math.ceil(_allmightHurricaneCooldown) + "с) [" + window._uniqueSuperCharges + "/3]";
+                btn.textContent = "🌪️ УРАГАН (" + Math.ceil(_allmightHurricaneCooldown) + "с)" + chargesStr;
                 btn.style.background = "#555";
                 btn.style.animation = "none";
             } else {
-                btn.textContent = "🌪️ УРАГАН [" + window._uniqueSuperCharges + "/3]";
+                btn.textContent = "🌪️ УРАГАН" + chargesStr;
                 btn.style.background = "linear-gradient(135deg, #00ffff, #0088ff)";
                 btn.style.animation = "superPulse 2s infinite";
             }
             return;
         }
 
-        // Обычные суперы
         if (!superAbilities[mainCard.name]) {
             btn.style.display = "none";
             return;
@@ -943,16 +988,16 @@ function updateSuperButton() {
             btn.style.animation = "none";
         } else if (cdU && !cdU.ready) {
             var secU = Math.ceil(cdU.remaining / 1000);
-            btn.textContent = "⏳ " + abU.name + " (" + secU + "с) [" + window._uniqueSuperCharges + "/3]";
+            btn.textContent = "⏳ " + abU.name + " (" + secU + "с)" + chargesStr;
             btn.style.background = "#555";
             btn.style.animation = "none";
         } else if (window._uniqueSuperCharges <= 0) {
-            btn.textContent = "❌ ЗАРЯДЫ КОНЧИЛИСЬ";
+            btn.textContent = "❌ ЗАРЯДЫ КОНЧИЛИСЬ (0/" + UNIQUE_SUPER_MAX + ")";
             btn.style.background = "#333";
             btn.style.animation = "none";
             btn.disabled = true;
         } else {
-            btn.textContent = "⚡ " + abU.name + " [" + window._uniqueSuperCharges + "/3]";
+            btn.textContent = "⚡ " + abU.name + chargesStr;
             btn.style.background = "linear-gradient(135deg, #f5af19, #f12711)";
             btn.style.animation = "superPulse 2s infinite";
             btn.disabled = false;
@@ -960,7 +1005,7 @@ function updateSuperButton() {
         return;
     }
 
-    // ★ АРЕНА UNDERTALE — оригинальная логика ★
+    // АРЕНА UNDERTALE — оригинальная логика
     if (mainCard.name === "Деку (100%)") {
         if (!_superState.dekusActive) {
             btn.style.display = "block";
@@ -1142,7 +1187,6 @@ function initSuperState() {
 }
 
 function tickSupers() {
-    // ★ Работает если есть активный бой (арена ИЛИ уникальный босс) ★
     var ctxB = getBossContext();
     if (!ctxB) return;
     if (!ctx) return;
@@ -2024,7 +2068,7 @@ setInterval(function() {
     } catch(e) {}
 }, 300);
 
-// ★★★ ПАТЧ КНОПОК СУПЕРА — чтобы клик работал ★★★
+// ★★★ ПАТЧ КНОПОК СУПЕРА ★★★
 function patchSuperButtons() {
     var btn = document.getElementById("superBtn");
     var btn2 = document.getElementById("superBtn2");
@@ -2056,7 +2100,6 @@ function patchSuperButtons() {
     }
 }
 
-// Патчим кнопки при загрузке + периодически
 if (document.readyState === "complete" || document.readyState === "interactive") {
     setTimeout(patchSuperButtons, 100);
 } else {
@@ -2078,5 +2121,14 @@ window.resetAllCooldowns = resetAllCooldowns;
 window.getMainCard = getMainCard;
 window.isUniqueBossActive = isUniqueBossActive;
 window.getBossContext = getBossContext;
+window.UNIQUE_SUPER_MAX = UNIQUE_SUPER_MAX;
+window.UNIQUE_SUPER_COOLDOWN_MULT = UNIQUE_SUPER_COOLDOWN_MULT;
+window.getUniqueSuperMax = function() { return UNIQUE_SUPER_MAX; };
+window.getUniqueSuperCharges = function() { return window._uniqueSuperCharges; };
 
-console.log("[SUPERS] v16.0 — SUPER РАБОТАЕТ на всех боссах (арена + Живой Камень + Звезда + Роджер vs Белоус)");
+console.log("╔════════════════════════════════════════════════╗");
+console.log("║  ⚡ SUPERS v16.1 — НАСТРОЙКА ЗАРЯДОВ          ║");
+console.log("║  UNIQUE_SUPER_MAX = " + UNIQUE_SUPER_MAX + " (вверху файла)             ║");
+console.log("║  Уникальные: Камень, Звезда, Роджер vs Белоус ║");
+console.log("║  Изменить на лету: setUniqueSuperMax(N)        ║");
+console.log("╚════════════════════════════════════════════════╝");
