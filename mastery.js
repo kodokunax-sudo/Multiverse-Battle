@@ -1,14 +1,17 @@
 // ============================================================
-// МАСТЕРСТВО КАРТ v2.7 — БАЛАНС В МОДАЛКЕ + ЗВУКИ
+// МАСТЕРСТВО КАРТ v3.0 — уровни 1-7
+// ============================================================
+// Ур.6: SUPER на уникальных боссах (3 заряда)
+// Ур.7: одна карта, переживает 1 ребиртх
 // ============================================================
 
-const MASTERY_MULT = [0, 0.60, 0.75, 0.85, 0.95, 1.00];
+const MASTERY_MULT = [0, 0.60, 0.75, 0.85, 0.95, 1.00, 1.05, 1.30];
 
-const MASTERY_BASE_STARS = [0, 0, 100, 200, 400, 800];
-const MASTERY_BASE_POWER = [0, 0, 50, 100, 200, 400];
+const MASTERY_BASE_STARS = [0, 0, 100, 200, 400, 800, 100000, 10000000];
+const MASTERY_BASE_POWER = [0, 0, 50, 100, 200, 400, 20000, 1000000];
 
 const MASTERY_BASE_EXP = 200;
-const MASTERY_EXP_LEVEL_MULT = [0, 0, 1, 2, 4, 8];
+const MASTERY_EXP_LEVEL_MULT = [0, 0, 1, 2, 4, 8, 25, 80];
 
 const MASTERY_RARITY_MULT = {
     "Обычная": 1, "Редкая": 1.5, "Сверх редкая": 2.5, "Эпик": 4,
@@ -19,11 +22,8 @@ const MASTERY_RARITY_MULT = {
 let powerPoints = 0;
 
 const MASTERY_GAIN_TEXT = {
-    1: "60%",
-    2: "+15%",
-    3: "+10%",
-    4: "+10%",
-    5: "+5%"
+    1: "60%", 2: "+15%", 3: "+10%", 4: "+10%", 5: "+5%",
+    6: "+5% + СУПЕР БОСС", 7: "+25% + ПРОХОД СКВОЗЬ РЕБИРТХ"
 };
 
 // ========== ПОЛУЧЕНИЕ ОЧКОВ СИЛЫ ==========
@@ -62,13 +62,15 @@ function grantPowerForWave(waveNum) {
 
 function getMasteryMult(card) {
     if (!card) return 1.0;
-    let lvl = Math.max(1, Math.min(5, card.mastery || 1));
+    let lvl = Math.max(1, Math.min(7, card.mastery || 1));
     return MASTERY_MULT[lvl];
 }
 
 function hasMasteryStatus(card) { return card && (card.mastery || 1) >= 3; }
 function hasMasteryAbility(card) { return card && (card.mastery || 1) >= 4; }
 function hasMasterySuper(card) { return card && (card.mastery || 1) >= 5; }
+function hasMasteryUniqueSuper(card) { return card && (card.mastery || 1) >= 6; } // ★ ур.6+
+function hasMastery7(card) { return card && (card.mastery || 1) >= 7; } // ★ ур.7
 
 function getMasteryUpgradeCost(card, targetLevel) {
     if (!card) return { stars: 999999, power: 99999 };
@@ -80,7 +82,7 @@ function getMasteryUpgradeCost(card, targetLevel) {
 }
 
 function getMasteryExpNeeded(card, targetLevel) {
-    if (!card || targetLevel < 2 || targetLevel > 5) return 0;
+    if (!card || targetLevel < 2 || targetLevel > 7) return 0;
     let rarMult = MASTERY_RARITY_MULT[card.rarity] || 1;
     let lvlMult = MASTERY_EXP_LEVEL_MULT[targetLevel] || 1;
     return Math.floor(MASTERY_BASE_EXP * lvlMult * rarMult);
@@ -88,7 +90,7 @@ function getMasteryExpNeeded(card, targetLevel) {
 
 function addCardMasteryExp(card, expAmount) {
     if (!card || expAmount <= 0) return;
-    if ((card.mastery || 1) >= 5) return;
+    if ((card.mastery || 1) >= 7) return;
     if (typeof card.masteryExp === 'undefined') card.masteryExp = 0;
     card.masteryExp += expAmount;
 }
@@ -111,12 +113,33 @@ function grantMasteryExpFromFight(damageDealt, damageTaken) {
     }
 }
 
+// ★★★ ПРОВЕРКА: МОЖНО ЛИ УЛУЧШИТЬ ДО 7 ★★★
+function canUpgradeToLevel7(card) {
+    if (!card) return { ok: false, reason: "Нет карты" };
+    if ((card.mastery || 1) >= 7) return { ok: false, reason: "Уже 7" };
+    let currentL7 = (typeof window !== 'undefined') ? window._level7CardId : null;
+    if (currentL7 && currentL7 !== card.id) {
+        return { ok: false, reason: "Другая карта уже на 7 уровне" };
+    }
+    return { ok: true, reason: "" };
+}
+
 function upgradeMastery(cardIndex) {
     let card = myCards[cardIndex];
     if (!card) return;
     let currentLvl = card.mastery || 1;
-    if (currentLvl >= 5) { showFloatingText("МАКС УРОВЕНЬ!", "#ff8800"); return; }
+    if (currentLvl >= 7) { showFloatingText("МАКС УРОВЕНЬ!", "#ff8800"); return; }
     let targetLevel = currentLvl + 1;
+
+    // ★ ПРОВЕРКА УРОВНЯ 7 ★
+    if (targetLevel === 7) {
+        let check = canUpgradeToLevel7(card);
+        if (!check.ok) {
+            showFloatingText("❌ " + check.reason, "#ff3333");
+            return;
+        }
+    }
+
     let cost = getMasteryUpgradeCost(card, targetLevel);
     let expNeeded = getMasteryExpNeeded(card, targetLevel);
     let currentExp = card.masteryExp || 0;
@@ -135,13 +158,22 @@ function upgradeMastery(cardIndex) {
     card.mastery = targetLevel;
     card.masteryExp = leftoverExp;
 
+    // ★ УСТАНАВЛИВАЕМ ФЛАГИ УРОВНЯ 7 ★
+    if (targetLevel === 7) {
+        if (typeof window !== 'undefined') window._level7CardId = card.id;
+        card._level7 = true;
+        card._level7Carry = 1; // переживёт 1 ребиртх
+        setTimeout(function() {
+            alert("🏆 МАКСИМУМ ДОСТИГНУТ!\n\n" + card.name + " — уровень 7!\n\n• +30% статов\n• Карта переживёт СЛЕДУЮЩИЙ ребиртх\n• После этого — потеряется при следующем\n• Только ОДНА карта может быть 7★\n• Может быть только одна 7★ одновременно");
+        }, 300);
+    }
+
     saveAll();
     renderAll();
     updatePlayerStats();
     if (typeof sfxLevelUp === 'function') sfxLevelUp();
     if (typeof sfxUIMastery === 'function') sfxUIMastery();
 
-    // ★ ОБНОВЛЯЕМ БАЛАНС В ОТКРЫТОЙ МОДАЛКЕ ★
     setTimeout(function() {
         if (document.getElementById("modalOverlay") && document.getElementById("modalOverlay").style.display === "flex") {
             showMasteryModal(cardIndex);
@@ -149,34 +181,34 @@ function upgradeMastery(cardIndex) {
     }, 100);
 
     if (leftoverExp > 0) {
-        showFloatingText("⭐ МАСТЕРСТВО " + targetLevel + "! (+" + MASTERY_GAIN_TEXT[targetLevel] + ")", "#ffd700");
-        setTimeout(function() { showFloatingText("📊 Осталось опыта: " + leftoverExp, "#00d4ff"); }, 400);
+        showFloatingText("⭐ МАСТЕРСТВО " + targetLevel + "!", "#ffd700");
     } else {
-        showFloatingText("⭐ МАСТЕРСТВО " + targetLevel + "! (+" + MASTERY_GAIN_TEXT[targetLevel] + ")", "#ffd700");
+        showFloatingText("⭐ МАСТЕРСТВО " + targetLevel + "!", "#ffd700");
     }
     renderPowerPoints();
     if (typeof renderPoints === 'function') renderPoints();
 
-    if (targetLevel === 3 && card.statusAbility) setTimeout(function() { alert("⭐ Уровень 3 (" + MASTERY_GAIN_TEXT[3] + ")!\nРазблокирован статус-эффект:\n" + card.statusAbility.desc); }, 300);
-    if (targetLevel === 4 && card.ability) setTimeout(function() { alert("⭐ Уровень 4 (" + MASTERY_GAIN_TEXT[4] + ")!\nРазблокирована способность:\n" + card.ability.desc); }, 300);
-    if (targetLevel === 5 && card.superAbility) setTimeout(function() { alert("⭐ Уровень 5 (" + MASTERY_GAIN_TEXT[5] + ")!\nРазблокирована СУПЕР-УЛЬТА:\n" + card.superAbility.name + "\n" + card.superAbility.desc); }, 300);
+    if (targetLevel === 3 && card.statusAbility) setTimeout(function() { alert("⭐ Уровень 3!\n" + card.statusAbility.desc); }, 300);
+    if (targetLevel === 4 && card.ability) setTimeout(function() { alert("⭐ Уровень 4!\n" + card.ability.desc); }, 300);
+    if (targetLevel === 5 && card.superAbility) setTimeout(function() { alert("⭐ Уровень 5!\n" + card.superAbility.name + "\n" + card.superAbility.desc); }, 300);
+    if (targetLevel === 6) setTimeout(function() { alert("⭐ Уровень 6!\n🎯 СУПЕР на уникальных боссах!\n3 заряда на бой."); }, 300);
 }
 
 function getMasteryHTML(card) {
     let lvl = card.mastery || 1;
     let gainText = MASTERY_GAIN_TEXT[lvl] || "60%";
-    let color = lvl >= 5 ? "#ffd700" : lvl >= 4 ? "#e056fd" : lvl >= 3 ? "#9b59b6" : lvl >= 2 ? "#3498db" : "#95a5a6";
+    let color = lvl >= 7 ? "#ff00ff" : (lvl >= 6 ? "#ff8800" : (lvl >= 5 ? "#ffd700" : (lvl >= 4 ? "#e056fd" : (lvl >= 3 ? "#9b59b6" : (lvl >= 2 ? "#3498db" : "#95a5a6")))));
     let stars = "";
-    for (let i = 1; i <= 5; i++) stars += (i <= lvl ? "★" : "☆");
+    for (let i = 1; i <= 7; i++) stars += (i <= lvl ? "★" : "☆");
     let expHtml = "";
-    if (lvl < 5) {
+    if (lvl < 7) {
         let expNeeded = getMasteryExpNeeded(card, lvl + 1);
         let currentExp = card.masteryExp || 0;
         let expPct = Math.min(100, (currentExp / expNeeded) * 100);
         expHtml = '<div style="font-size:8px;color:#00d4ff;font-weight:bold;margin-top:2px;">📊 ' + Math.floor(currentExp) + '/' + expNeeded + '</div>';
         expHtml += '<div style="background:rgba(0,0,0,0.5);border-radius:4px;height:3px;margin-top:1px;overflow:hidden;"><div style="width:' + expPct + '%;height:100%;background:linear-gradient(90deg, #00d4ff, #0099ff);"></div></div>';
     }
-    return '<div style="font-size:9px;color:' + color + ';font-weight:bold;margin-top:2px;">' + stars + ' ' + gainText + '</div>' + expHtml;
+    return '<div style="font-size:9px;color:' + color + ';font-weight:bold;margin-top:2px;">' + stars + ' ' + (lvl >= 7 ? "7★ MAX" : gainText) + '</div>' + expHtml;
 }
 
 function getLightningSVG(size, color) {
@@ -196,10 +228,9 @@ function showMasteryModal(cardIndex) {
 
     let html = '<h2>⭐ МАСТЕРСТВО КАРТЫ</h2>';
 
-    // ★ ПОКАЗЫВАЕМ БАЛАНС СВЕРХУ ★
     html += '<div style="display:flex;justify-content:center;gap:25px;align-items:center;flex-wrap:wrap;margin-bottom:15px;padding:10px;background:rgba(0,0,0,0.3);border-radius:14px;border:1px solid rgba(245,175,25,0.2);">';
     html += '<span style="font-weight:900;font-size:15px;color:#f5af19;text-shadow:0 0 8px rgba(245,175,25,0.4);">⭐ ' + (typeof points !== 'undefined' ? points.toLocaleString() : 0) + '</span>';
-    html += '<span style="font-weight:900;font-size:15px;color:#ffd700;display:inline-flex;align-items:center;gap:5px;text-shadow:0 0 8px rgba(255,215,0,0.4);">' + (typeof getLightningSVG === 'function' ? getLightningSVG(18, '#ffd700') : '⚡') + ' ' + (typeof powerPoints !== 'undefined' ? powerPoints.toLocaleString() : 0) + ' Силы</span>';
+    html += '<span style="font-weight:900;font-size:15px;color:#ffd700;display:inline-flex;align-items:center;gap:5px;text-shadow:0 0 8px rgba(255,215,0,0.4);">' + getLightningSVG(18, '#ffd700') + ' ' + (typeof powerPoints !== 'undefined' ? powerPoints.toLocaleString() : 0) + ' Силы</span>';
     html += '</div>';
 
     html += '<div style="text-align:center;font-size:18px;font-weight:900;margin-bottom:5px;">' + (typeof escapeHtml === 'function' ? escapeHtml(card.name) : card.name) + '</div>';
@@ -207,63 +238,78 @@ function showMasteryModal(cardIndex) {
 
     let currentBonusText = "";
     if (lvl === 1) currentBonusText = "60% характеристик";
-    else if (lvl === 2) currentBonusText = "+15% (всего 75%)";
-    else if (lvl === 3) currentBonusText = "+10% (всего 85%)";
-    else if (lvl === 4) currentBonusText = "+10% (всего 95%)";
-    else if (lvl === 5) currentBonusText = "+5% (всего 100%)";
-    html += '<div style="font-size:13px;color:#aaa;margin-bottom:15px;text-align:center;">Уровень: <span style="color:#ffd700;font-weight:900;">' + lvl + '/5</span> — <span style="color:#00d4ff;font-weight:bold;">' + currentBonusText + '</span></div>';
+    else if (lvl === 2) currentBonusText = "+15% (75%)";
+    else if (lvl === 3) currentBonusText = "+10% + статус (85%)";
+    else if (lvl === 4) currentBonusText = "+10% + способность (95%)";
+    else if (lvl === 5) currentBonusText = "+5% + СУПЕР (100%)";
+    else if (lvl === 6) currentBonusText = "+5% + СУПЕР БОСС (105%)";
+    else if (lvl === 7) currentBonusText = "+25% + РЕБИРТХ-ПРОХОД (130%)";
+    html += '<div style="font-size:13px;color:#aaa;margin-bottom:15px;text-align:center;">Уровень: <span style="color:#ffd700;font-weight:900;">' + lvl + '/7</span> — <span style="color:#00d4ff;font-weight:bold;">' + currentBonusText + '</span></div>';
 
-    html += '<div style="display:flex;gap:4px;margin-bottom:20px;">';
-    for (let i = 1; i <= 5; i++) {
-        let col = i <= lvl ? "#ffd700" : "#333";
-        html += '<div style="flex:1;height:10px;background:' + col + ';border-radius:5px;box-shadow:' + (i <= lvl ? '0 0 8px #ffd700' : 'none') + ';"></div>';
+    html += '<div style="display:flex;gap:3px;margin-bottom:20px;">';
+    for (let i = 1; i <= 7; i++) {
+        let col = i <= lvl ? (i >= 7 ? "#ff00ff" : (i >= 6 ? "#ff8800" : "#ffd700")) : "#333";
+        html += '<div style="flex:1;height:10px;background:' + col + ';border-radius:5px;box-shadow:' + (i <= lvl ? '0 0 8px ' + col : 'none') + ';"></div>';
     }
     html += '</div>';
 
-    html += '<div style="text-align:left;font-size:12px;margin-bottom:20px;line-height:1.8;background:rgba(0,0,0,0.3);padding:12px;border-radius:12px;">';
-    html += '<div style="opacity:' + (lvl >= 1 ? 1 : 0.4) + ';">✅ Ур 1: <span style="color:#00d4ff;font-weight:bold;">60%</span> характеристик</div>';
-    html += '<div style="opacity:' + (lvl >= 2 ? 1 : 0.4) + ';">' + (lvl >= 2 ? '✅' : '🔒') + ' Ур 2: <span style="color:#00d4ff;font-weight:bold;">+15%</span> (75%)</div>';
-    html += '<div style="opacity:' + (lvl >= 3 ? 1 : 0.4) + ';">' + (lvl >= 3 ? '✅' : '🔒') + ' Ур 3: <span style="color:#00d4ff;font-weight:bold;">+10%</span> (85%)' + (card.statusAbility ? '<br><span style="color:#e056fd;font-size:10px;margin-left:15px;">✨ ' + card.statusAbility.desc + '</span>' : '') + '</div>';
-    html += '<div style="opacity:' + (lvl >= 4 ? 1 : 0.4) + ';">' + (lvl >= 4 ? '✅' : '🔒') + ' Ур 4: <span style="color:#00d4ff;font-weight:bold;">+10%</span> (95%)' + (card.ability ? '<br><span style="color:#e056fd;font-size:10px;margin-left:15px;">✨ ' + card.ability.desc + '</span>' : '') + '</div>';
-    html += '<div style="opacity:' + (lvl >= 5 ? 1 : 0.4) + ';">' + (lvl >= 5 ? '✅' : '🔒') + ' Ур 5: <span style="color:#00d4ff;font-weight:bold;">+5%</span> (100%)' + (card.superAbility ? '<br><span style="color:#e056fd;font-size:10px;margin-left:15px;">⚡ ' + card.superAbility.name + '</span>' : '') + '</div>';
+    html += '<div style="text-align:left;font-size:11px;margin-bottom:20px;line-height:1.7;background:rgba(0,0,0,0.3);padding:12px;border-radius:12px;">';
+    html += '<div style="opacity:' + (lvl >= 1 ? 1 : 0.4) + ';">✅ 1: 60%</div>';
+    html += '<div style="opacity:' + (lvl >= 2 ? 1 : 0.4) + ';">' + (lvl >= 2 ? '✅' : '🔒') + ' 2: +15% (75%)</div>';
+    html += '<div style="opacity:' + (lvl >= 3 ? 1 : 0.4) + ';">' + (lvl >= 3 ? '✅' : '🔒') + ' 3: +10% + статус</div>';
+    html += '<div style="opacity:' + (lvl >= 4 ? 1 : 0.4) + ';">' + (lvl >= 4 ? '✅' : '🔒') + ' 4: +10% + способность</div>';
+    html += '<div style="opacity:' + (lvl >= 5 ? 1 : 0.4) + ';">' + (lvl >= 5 ? '✅' : '🔒') + ' 5: +5% + СУПЕР (арена)</div>';
+    html += '<div style="opacity:' + (lvl >= 6 ? 1 : 0.4) + ';color:#ff8800;">' + (lvl >= 6 ? '✅' : '🔒') + ' 6: <b>СУПЕР на УНИКАЛЬНЫХ БОССАХ (3 заряда)</b></div>';
+    html += '<div style="opacity:' + (lvl >= 7 ? 1 : 0.4) + ';color:#ff00ff;">' + (lvl >= 7 ? '✅' : '🔒') + ' 7: <b>+25% статов + переживает 1 ребиртх</b><br><span style="font-size:10px;color:#aaa;">Только ОДНА карта на сейв!</span></div>';
     html += '</div>';
 
-    if (lvl < 5) {
+    if (lvl < 7) {
         let cost = getMasteryUpgradeCost(card, lvl + 1);
         let expNeeded = getMasteryExpNeeded(card, lvl + 1);
         let canStars = mode === "moder" || points >= cost.stars;
         let canPower = mode === "moder" || powerPoints >= cost.power;
         let canExp = mode === "moder" || currentExp >= expNeeded;
-        let canAfford = canStars && canPower && canExp;
+
+        // ★ ПРОВЕРКА УР.7 ★
+        let level7Check = (lvl + 1 === 7) ? canUpgradeToLevel7(card) : { ok: true, reason: "" };
+        let canAfford = canStars && canPower && canExp && level7Check.ok;
 
         let nextGain = MASTERY_GAIN_TEXT[lvl + 1] || "";
-        let nextGainClean = nextGain.replace('+', '');
         let leftoverAfter = Math.max(0, Math.floor(currentExp - expNeeded));
 
         html += '<div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:12px;margin-bottom:12px;">';
         html += '<div style="font-size:12px;color:#aaa;margin-bottom:6px;text-align:center;">📊 Опыт карты:</div>';
         html += '<div style="background:rgba(0,0,0,0.5);border-radius:8px;height:16px;overflow:hidden;position:relative;">';
         let expPct = Math.min(100, (currentExp / expNeeded) * 100);
-        html += '<div style="width:' + expPct + '%;height:100%;background:linear-gradient(90deg, #00d4ff, #0099ff);transition:width 0.4s;"></div>';
+        html += '<div style="width:' + expPct + '%;height:100%;background:linear-gradient(90deg, #00d4ff, #0099ff);"></div>';
         html += '<div style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;text-shadow:0 0 4px #000;">' + Math.floor(currentExp) + ' / ' + expNeeded + '</div>';
         html += '</div>';
-        if (!canExp) {
-            html += '<div style="text-align:center;font-size:10px;color:#ff8888;margin-top:6px;">⚠️ Недостаточно опыта!</div>';
-        } else if (leftoverAfter > 0) {
-            html += '<div style="text-align:center;font-size:11px;color:#00d4ff;margin-top:6px;font-weight:bold;">✅ После прокачки останется: ' + leftoverAfter + ' опыта</div>';
-        }
+        if (!canExp) html += '<div style="text-align:center;font-size:10px;color:#ff8888;margin-top:6px;">⚠️ Недостаточно опыта!</div>';
+        else if (leftoverAfter > 0) html += '<div style="text-align:center;font-size:11px;color:#00d4ff;margin-top:6px;font-weight:bold;">✅ Останется: ' + leftoverAfter + '</div>';
         html += '</div>';
 
         html += '<div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:12px;margin-bottom:12px;">';
-        html += '<div style="font-size:12px;color:#aaa;margin-bottom:8px;text-align:center;">До уровня ' + (lvl+1) + ' — прирост <span style="color:#00d4ff;font-weight:bold;">' + nextGain + '</span>:</div>';
+        html += '<div style="font-size:12px;color:#aaa;margin-bottom:8px;text-align:center;">До ур.' + (lvl+1) + ' — <span style="color:#00d4ff;font-weight:bold;">' + nextGain + '</span>:</div>';
         html += '<div style="display:flex;justify-content:space-around;align-items:center;font-size:15px;font-weight:900;">';
         html += '<span style="color:' + (canStars ? '#ffd700' : '#ff3333') + ';">⭐ ' + cost.stars.toLocaleString() + '</span>';
-        html += '<span style="color:' + (canPower ? '#ffd700' : '#ff3333') + ';display:inline-flex;align-items:center;gap:4px;">' + getLightningSVG(16, canPower ? '#ffd700' : '#ff3333') + ' ' + cost.power + '</span>';
+        html += '<span style="color:' + (canPower ? '#ffd700' : '#ff3333') + ';display:inline-flex;align-items:center;gap:4px;">' + getLightningSVG(16, canPower ? '#ffd700' : '#ff3333') + ' ' + cost.power.toLocaleString() + '</span>';
         html += '</div></div>';
 
-        html += '<button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" onclick="closeModal();upgradeMastery(' + cardIndex + ');" ' + (!canAfford ? 'disabled' : '') + '>⬆️ ПРОКАЧАТЬ +' + nextGainClean + '</button>';
+        if (!level7Check.ok) {
+            html += '<div style="background:rgba(255,50,50,0.2);border:2px solid #ff3333;border-radius:12px;padding:10px;margin-bottom:10px;text-align:center;color:#ff8888;font-weight:bold;">⚠️ ' + level7Check.reason + '</div>';
+        }
+        if (lvl + 1 === 7) {
+            html += '<div style="background:rgba(255,0,255,0.15);border:2px solid #ff00ff;border-radius:12px;padding:10px;margin-bottom:10px;font-size:11px;color:#ff88ff;text-align:center;">⚠️ ТОЛЬКО ОДНА карта может быть 7★!<br>Переживёт СЛЕДУЮЩИЙ ребиртх, потом потеряется</div>';
+        }
+
+        html += '<button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" onclick="closeModal();upgradeMastery(' + cardIndex + ');" ' + (!canAfford ? 'disabled' : '') + '>' + (lvl + 1 === 7 ? '⭐⭐⭐ ПРОКАЧАТЬ ДО 7★ ⭐⭐⭐' : '⬆️ ПРОКАЧАТЬ') + '</button>';
     } else {
-        html += '<div style="text-align:center;color:#ffd700;font-size:18px;font-weight:900;padding:15px;">🏆 МАКСИМУМ (+5% бонус)</div>';
+        html += '<div style="text-align:center;color:#ff00ff;font-size:18px;font-weight:900;padding:15px;text-shadow:0 0 15px #ff00ff;">🏆 7★ МАКСИМУМ!</div>';
+        if (card._level7Carry > 0) {
+            html += '<div style="text-align:center;color:#88ff88;font-size:13px;margin-top:10px;">✅ Переживёт следующий ребиртх</div>';
+        } else {
+            html += '<div style="text-align:center;color:#ff8888;font-size:13px;margin-top:10px;">⚠️ Следующий ребиртх потеряет эту карту</div>';
+        }
     }
     html += '<button class="btn" style="width:100%;padding:10px;margin-top:10px;background:#555;" onclick="closeModal()">Закрыть</button>';
 
@@ -303,6 +349,9 @@ window.getMasteryMult = getMasteryMult;
 window.hasMasteryStatus = hasMasteryStatus;
 window.hasMasteryAbility = hasMasteryAbility;
 window.hasMasterySuper = hasMasterySuper;
+window.hasMasteryUniqueSuper = hasMasteryUniqueSuper;
+window.hasMastery7 = hasMastery7;
+window.canUpgradeToLevel7 = canUpgradeToLevel7;
 window.getMasteryUpgradeCost = getMasteryUpgradeCost;
 window.getMasteryExpNeeded = getMasteryExpNeeded;
 window.addCardMasteryExp = addCardMasteryExp;
@@ -319,4 +368,4 @@ window.grantPowerForWave = grantPowerForWave;
 window.getPowerPoints = function() { return powerPoints; };
 window.setPowerPoints = function(v) { powerPoints = v; };
 
-console.log("[MASTERY] v2.7 — баланс в модалке + звуки");
+console.log("[MASTERY] v3.0 — уровни 1-7 загружено");
