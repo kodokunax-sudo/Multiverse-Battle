@@ -1,31 +1,80 @@
-// ========== СУПЕР-СПОСОБНОСТИ v16.1 ==========
+// ========== СУПЕР-СПОСОБНОСТИ v17.0 ==========
 // ★ ПОЛНАЯ ПОДДЕРЖКА УНИКАЛЬНЫХ БОССОВ ★
 // Работает на: арене Undertale, Живом Камне, Путеводной Звезде, Роджере vs Белоусе
-// На уникальных: N зарядов на бой (настраивается ниже!), кулдаун как на арене
-// + Проверка мастерства карты (ур.5 = SUPER, ур.6 = на уникальных)
+// ★ НАСТРОЙКА ЗАРЯДОВ ПОД КАЖДОГО БОССА И ПЕРСОНАЖА ★
 
-// ╔══════════════════════════════════════════════════════════╗
-// ║  ★★★ НАСТРОЙКА СУПЕРОВ — МЕНЯЙ ЗДЕСЬ ★★★                 ║
-// ╚══════════════════════════════════════════════════════════╝
+// ============================================================
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+// ★★★                                                                    ★★★
+// ★★★         ⚙️  НАСТРОЙКИ ЗАРЯДОВ SUPER — МЕНЯЙ ЗДЕСЬ!                ★★★
+// ★★★                                                                    ★★★
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+// ============================================================
 
-// ★ Сколько раз можно использовать SUPER на УНИКАЛЬНОМ боссе ★
-//   (Живой Камень, Путеводная Звезда, Роджер vs Белоус)
-//   По умолчанию: 3
-var UNIQUE_SUPER_MAX = 3;
+// ★★★ ОБЩЕЕ КОЛИЧЕСТВО ЗАРЯДОВ ПО УМОЛЧАНИЮ (для всех уникальных боссов) ★★★
+const SUPER_DEFAULT_CHARGES = 3;
 
-// ★ Множитель кулдауна SUPER на уникальных боссах ★
-//   1.0 = как на арене
-//   0.5 = в 2 раза быстрее восстанавливается
-//   2.0 = в 2 раза медленнее
-var UNIQUE_SUPER_COOLDOWN_MULT = 1.0;
+// ★★★ ЗАРЯДЫ ДЛЯ КОНКРЕТНЫХ БОССОВ (перебивает общее значение) ★★★
+// Если хочешь, чтобы у какого-то босса было больше/меньше зарядов — пиши тут.
+// Если босса нет в списке — используется SUPER_DEFAULT_CHARGES
+const SUPER_CHARGES_PER_BOSS = {
+    'stone':   3,   // 🪨 Живой Камень — 3 заряда
+    'waystar': 3,   // 🌟 Путеводная Звезда — 3 заряда
+    'rwb':     5,   // 👑 Роджер vs Белоус — 5 зарядов (сложный бой)
+    // 'boss_id': N, добавляй свои
+};
 
-// ★ Показывать ли счётчик зарядов в кнопке SUPER ★
-//   true = "[2/3]", false = без счётчика
-var UNIQUE_SUPER_SHOW_CHARGES = true;
+// ★★★ ПЕРСОНАЛЬНЫЕ ЛИМИТЫ ДЛЯ КАЖДОГО СУПЕРА ★★★
+// Сколько раз КОНКРЕТНЫЙ персонаж может активировать свой SUPER за бой.
+// Работает ТОЛЬКО для уникальных боссов (на арене Undertale лимит не тратится).
+// Если персонажа нет в списке — используется SUPER_DEFAULT_CHARGES (или заряд босса)
+// 
+// Значение -1 = безлимит для этого персонажа
+//
+// ВАЖНО: этот лимит МЕНЬШЕ или РАВЕН лимиту босса.
+// Если у босса 3 заряда, а у персонажа стоит 5 — реально будет 3 (ограничение босса).
+// Если у босса 5 зарядов, а у персонажа 3 — реально будет 3 (ограничение персонажа).
+const SUPER_CHARGES_PER_HERO = {
+    // Секретные персонажи
+    "Сайтама":                  5,    // 🥊 Обычный удар
+    "Космический Гароу":        5,    // 🌀 Поток вселенной
+    "Луффи: Ника, Бог Солнца":  3,    // 🌞 Освобождение
+    "Борос":                    4,    // 💚 Регенерация
+    "Бог Усопп":                3,    // ⭐ Ложь становится правдой
+    "Зено":                     1,    // 🌌 Стирание (имба — только 1 раз)
+    "Анти-спираль":             3,    // 🔵 Сжатие пространства
+    "Молодой Гарп":             3,    // 👊 Галактический удар
+    "Им (Правитель)":           3,    // 🟣 Теневое правление
+    "Космический Дэнди":        10,    // 🎲 Космическая удача (рулетка — можно чаще)
+    "Кайдо":                    2,    // 🍺 Дыхание разрушения
+    "Император Марк":           -1,   // 👑 Пассивка — безлимит (не важно, всё равно пассивная)
+    "Деку (100%)":              3,    // 💚 Полное 100% покрытие
+    "Всемогущий (прайм)":       1,    // 💛 Символ мира (сильный — только 1 раз)
+};
 
-// ╔══════════════════════════════════════════════════════════╗
-// ║  КОНЕЦ НАСТРОЙКИ                                          ║
-// ╚══════════════════════════════════════════════════════════╝
+// ★★★ ЛИМИТЫ ПО КОНКРЕТНОМУ БОССУ ДЛЯ ПЕРСОНАЖА (самый точный уровень) ★★★
+// Формат: SUPER_CHARGES_HERO_PER_BOSS['boss_id']['hero_name'] = charges
+// Перебивает и SUPER_CHARGES_PER_BOSS, и SUPER_CHARGES_PER_HERO
+// 
+// Пример: на Живом Камне Сайтама может бить 5 раз, а на Звезде — только 2
+const SUPER_CHARGES_HERO_PER_BOSS = {
+    // 'stone': {
+    //     "Сайтама": 5,
+    //     "Зено": 2,
+    // },
+    // 'waystar': {
+    //     "Сайтама": 2,
+    // },
+    // 'rwb': {
+    //     "Кайдо": 3,
+    // },
+};
+
+// ============================================================
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+// ★★★              КОНЕЦ НАСТРОЕК — НИЖЕ ТОЛЬКО ЛОГИКА                ★★★
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+// ============================================================
 
 let _superState = {
     fists: [], rings: [],
@@ -61,39 +110,101 @@ let _superLastTick = 0;
 let _allmightHurricaneReady = false;
 let _allmightHurricaneCooldown = 0;
 
-// ★ Уникальные боссы — счётчик зарядов ★
-if (typeof window._uniqueSuperCharges === 'undefined') window._uniqueSuperCharges = UNIQUE_SUPER_MAX;
+// ★★★ СЧЁТЧИКИ ЗАРЯДОВ ★★★
+if (typeof window._uniqueSuperCharges === 'undefined') window._uniqueSuperCharges = SUPER_DEFAULT_CHARGES;
+if (typeof window._uniqueSuperMaxCharges === 'undefined') window._uniqueSuperMaxCharges = SUPER_DEFAULT_CHARGES;
 if (typeof window._uniqueSuperBossId === 'undefined') window._uniqueSuperBossId = null;
 
+// ★ Счётчики на каждого персонажа (сбрасываются при старте боя) ★
+window._heroSuperCharges = window._heroSuperCharges || {};
+
 // ============================================================
-// ★ ФУНКЦИЯ ДЛЯ ИЗМЕНЕНИЯ КОЛИЧЕСТВА ЗАРЯДОВ НА ЛЕТУ ★
-// Вызови из консоли: setUniqueSuperMax(5)
+// ★★★ ФУНКЦИИ ПОЛУЧЕНИЯ ЛИМИТОВ ★★★
 // ============================================================
-window.setUniqueSuperMax = function(newMax) {
-    if (typeof newMax !== 'number' || newMax < 0) {
-        console.warn("[SUPER] Некорректное значение. Используй: setUniqueSuperMax(3)");
+
+// Получить лимит зарядов для конкретного босса
+function getBossChargeLimit(bossId) {
+    if (!bossId) return SUPER_DEFAULT_CHARGES;
+    return SUPER_CHARGES_PER_BOSS[bossId] || SUPER_DEFAULT_CHARGES;
+}
+
+// Получить лимит зарядов для конкретного персонажа (с учётом босса)
+function getHeroChargeLimit(heroName, bossId) {
+    // 1. Ищем в самой точной таблице (персонаж + босс)
+    if (bossId && SUPER_CHARGES_HERO_PER_BOSS[bossId] && 
+        SUPER_CHARGES_HERO_PER_BOSS[bossId][heroName] !== undefined) {
+        return SUPER_CHARGES_HERO_PER_BOSS[bossId][heroName];
+    }
+    // 2. Ищем в общей таблице персонажей
+    if (SUPER_CHARGES_PER_HERO[heroName] !== undefined) {
+        return SUPER_CHARGES_PER_HERO[heroName];
+    }
+    // 3. Если нет — используем лимит босса
+    return getBossChargeLimit(bossId);
+}
+
+// Получить реальный лимит для персонажа (минимум из лимита босса и лимита персонажа)
+function getEffectiveHeroChargeLimit(heroName, bossId) {
+    var bossLimit = getBossChargeLimit(bossId);
+    var heroLimit = getHeroChargeLimit(heroName, bossId);
+    if (heroLimit === -1) return bossLimit; // безлимит у персонажа = лимит босса
+    return Math.min(bossLimit, heroLimit);
+}
+
+// Получить текущий счётчик зарядов персонажа
+function getHeroCurrentCharges(heroName) {
+    if (window._heroSuperCharges[heroName] === undefined) {
+        return null; // ещё не инициализирован
+    }
+    return window._heroSuperCharges[heroName];
+}
+
+// Установить текущий счётчик зарядов персонажа
+function setHeroCurrentCharges(heroName, value) {
+    window._heroSuperCharges[heroName] = value;
+}
+
+// Проверка: есть ли у персонажа ещё заряды
+function canHeroUseSuper(heroName, bossId) {
+    var current = getHeroCurrentCharges(heroName);
+    if (current === null) {
+        // Ещё не инициализирован — инициализируем
+        var limit = getEffectiveHeroChargeLimit(heroName, bossId);
+        setHeroCurrentCharges(heroName, limit);
+        return limit > 0;
+    }
+    return current > 0;
+}
+
+// Списать заряд у персонажа
+function consumeHeroCharge(heroName, bossId) {
+    var current = getHeroCurrentCharges(heroName);
+    if (current === null) {
+        var limit = getEffectiveHeroChargeLimit(heroName, bossId);
+        setHeroCurrentCharges(heroName, Math.max(0, limit - 1));
         return;
     }
-    UNIQUE_SUPER_MAX = newMax;
-    window.UNIQUE_SUPER_MAX = newMax;
-    console.log("[SUPER] ✅ Максимум зарядов изменён на: " + newMax);
-    // Если сейчас идёт бой с уникальным — обновим текущие заряды
-    var bossType = isUniqueBossActive();
-    if (bossType) {
-        window._uniqueSuperCharges = newMax;
-        console.log("[SUPER] Текущие заряды сброшены на: " + newMax);
-        if (typeof showFloatingText === 'function') {
-            showFloatingText("⚡ Заряды SUPER: " + newMax, "#ffd700");
-        }
+    if (current > 0) {
+        setHeroCurrentCharges(heroName, current - 1);
     }
-    updateSuperButton();
-};
+}
 
-// ★ Быстрые команды для консоли ★
-window.setSuperCharges3 = function() { window.setUniqueSuperMax(3); };
-window.setSuperCharges5 = function() { window.setUniqueSuperMax(5); };
-window.setSuperCharges10 = function() { window.setUniqueSuperMax(10); };
-window.setSuperChargesInfinite = function() { window.setUniqueSuperMax(999); };
+// Сбросить все счётчики (при старте нового боя)
+function resetHeroCharges(bossId) {
+    window._heroSuperCharges = {};
+    var bossLimit = getBossChargeLimit(bossId);
+    window._uniqueSuperCharges = bossLimit;
+    window._uniqueSuperMaxCharges = bossLimit;
+    
+    // Инициализируем для всех персонажей из таблицы
+    for (var heroName in SUPER_CHARGES_PER_HERO) {
+        var limit = getEffectiveHeroChargeLimit(heroName, bossId);
+        window._heroSuperCharges[heroName] = limit;
+    }
+    
+    console.log("[SUPER] Сброс зарядов для босса " + bossId + " (лимит босса: " + bossLimit + ")");
+    console.log("[SUPER] Персональные лимиты:", JSON.stringify(window._heroSuperCharges));
+}
 
 // ============================================================
 // ★★★ ОПРЕДЕЛЕНИЕ АКТИВНОГО УНИКАЛЬНОГО БОССА ★★★
@@ -774,10 +885,23 @@ function toggleSuper() {
         return;
     }
     
-    // ★ ДЛЯ УНИКАЛЬНОГО БОССА — проверка зарядов ★
+    // ★★★ ПРОВЕРКА ЗАРЯДОВ (для уникальных боссов) ★★★
     if (isUnique) {
+        // Инициализируем если ещё не инициализирован
+        if (getHeroCurrentCharges(mainCard.name) === null) {
+            var limit = getEffectiveHeroChargeLimit(mainCard.name, bossType);
+            setHeroCurrentCharges(mainCard.name, limit);
+        }
+        
+        var heroCharges = getHeroCurrentCharges(mainCard.name);
+        if (heroCharges <= 0) {
+            var limit = getEffectiveHeroChargeLimit(mainCard.name, bossType);
+            if (typeof showFloatingText === 'function') showFloatingText("❌ " + mainCard.name + ": заряды кончились (" + limit + "/" + limit + ")", "#ff3333");
+            return;
+        }
+        
         if (window._uniqueSuperCharges <= 0) {
-            if (typeof showFloatingText === 'function') showFloatingText("❌ Заряды SUPER кончились! (" + UNIQUE_SUPER_MAX + " макс.)", "#ff3333");
+            if (typeof showFloatingText === 'function') showFloatingText("❌ Общие заряды кончились!", "#ff3333");
             return;
         }
     }
@@ -785,7 +909,10 @@ function toggleSuper() {
     var ab = superAbilities[mainCard.name];
     
     if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
-        if (isUnique) window._uniqueSuperCharges--;
+        if (isUnique) {
+            consumeHeroCharge(mainCard.name, bossType);
+            window._uniqueSuperCharges--;
+        }
         activateAllmightHurricane();
         updateSuperButton();
         return;
@@ -793,7 +920,10 @@ function toggleSuper() {
     
     if (mainCard.name === "Деку (100%)") {
         if (!_superState.dekusActive) {
-            if (isUnique) window._uniqueSuperCharges--;
+            if (isUnique) {
+                consumeHeroCharge(mainCard.name, bossType);
+                window._uniqueSuperCharges--;
+            }
             var abDeku = superAbilities["Деку (100%)"];
             abDeku.onActivate();
             _activeSuperName = "Деку (100%)";
@@ -821,8 +951,10 @@ function toggleSuper() {
         return;
     }
     
-    // ★ СПИСЫВАЕМ ЗАРЯД (для уникального) ★
-    if (isUnique) window._uniqueSuperCharges--;
+    if (isUnique) {
+        consumeHeroCharge(mainCard.name, bossType);
+        window._uniqueSuperCharges--;
+    }
     
     if (ab.toggleable) {
         if (_activeSuperName === mainCard.name) {
@@ -852,10 +984,6 @@ function toggleSuper() {
 }
 
 function startCooldown(cardName, ms) { 
-    // ★ Применяем множитель кулдауна для уникальных боссов ★
-    if (isUniqueBossActive() && UNIQUE_SUPER_COOLDOWN_MULT !== 1.0) {
-        ms = Math.floor(ms * UNIQUE_SUPER_COOLDOWN_MULT);
-    }
     var cd = _superCooldowns[cardName]; 
     if (cd && cd.interval) clearInterval(cd.interval); 
     _superCooldowns[cardName] = { ready: false, remaining: ms, start: Date.now() }; 
@@ -885,12 +1013,6 @@ function resetAllCooldowns() {
     updateSuperButton(); 
 }
 
-// ★ Вспомогательная функция для счётчика зарядов в кнопке ★
-function getChargesDisplay() {
-    if (!UNIQUE_SUPER_SHOW_CHARGES) return "";
-    return " [" + window._uniqueSuperCharges + "/" + UNIQUE_SUPER_MAX + "]";
-}
-
 function updateSuperButton() {
     var btn = document.getElementById("superBtn");
     var btn2 = document.getElementById("superBtn2");
@@ -898,7 +1020,8 @@ function updateSuperButton() {
     if (!btn) return;
 
     var mainCard = getMainCard();
-    var isUnique = isUniqueBossActive() !== null;
+    var bossType = isUniqueBossActive();
+    var isUnique = bossType !== null;
     var isArena = (typeof arenaActive !== 'undefined' && arenaActive);
 
     if (!isUnique && !isArena) {
@@ -922,23 +1045,32 @@ function updateSuperButton() {
         return;
     }
 
-    var chargesStr = getChargesDisplay();
-
     if (isUnique) {
         btn.style.display = "block";
         if (btn2) btn2.style.display = "none";
         if (btnDeact) btnDeact.style.display = "none";
+
+        // ★ Получаем лимиты ★
+        var heroLimit = getEffectiveHeroChargeLimit(mainCard.name, bossType);
+        var heroCurrent = getHeroCurrentCharges(mainCard.name);
+        if (heroCurrent === null) {
+            setHeroCurrentCharges(mainCard.name, heroLimit);
+            heroCurrent = heroLimit;
+        }
+
+        // ★ Формат отображения: "имя [N/M]" где N — текущие, M — макс ★
+        var chargesText = "[" + heroCurrent + "/" + heroLimit + "]";
 
         if (mainCard.name === "Деку (100%)") {
             if (!_superState.dekusActive) {
                 var cdDeku = _superCooldowns["Деку (100%)"];
                 if (cdDeku && !cdDeku.ready) {
                     var secDeku = Math.ceil(cdDeku.remaining / 1000);
-                    btn.textContent = "⏳ 100% (" + secDeku + "с)" + chargesStr;
+                    btn.textContent = "⏳ 100% (" + secDeku + "с) " + chargesText;
                     btn.style.background = "#555";
                     btn.style.animation = "none";
                 } else {
-                    btn.textContent = "💚 100%" + chargesStr;
+                    btn.textContent = "💚 100% " + chargesText;
                     btn.style.background = "linear-gradient(135deg, #44ff44, #00aa00)";
                     btn.style.animation = "superPulse 2s infinite";
                 }
@@ -957,11 +1089,11 @@ function updateSuperButton() {
 
         if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
             if (_allmightHurricaneCooldown > 0) {
-                btn.textContent = "🌪️ УРАГАН (" + Math.ceil(_allmightHurricaneCooldown) + "с)" + chargesStr;
+                btn.textContent = "🌪️ УРАГАН (" + Math.ceil(_allmightHurricaneCooldown) + "с) " + chargesText;
                 btn.style.background = "#555";
                 btn.style.animation = "none";
             } else {
-                btn.textContent = "🌪️ УРАГАН" + chargesStr;
+                btn.textContent = "🌪️ УРАГАН " + chargesText;
                 btn.style.background = "linear-gradient(135deg, #00ffff, #0088ff)";
                 btn.style.animation = "superPulse 2s infinite";
             }
@@ -988,16 +1120,16 @@ function updateSuperButton() {
             btn.style.animation = "none";
         } else if (cdU && !cdU.ready) {
             var secU = Math.ceil(cdU.remaining / 1000);
-            btn.textContent = "⏳ " + abU.name + " (" + secU + "с)" + chargesStr;
+            btn.textContent = "⏳ " + abU.name + " (" + secU + "с) " + chargesText;
             btn.style.background = "#555";
             btn.style.animation = "none";
-        } else if (window._uniqueSuperCharges <= 0) {
-            btn.textContent = "❌ ЗАРЯДЫ КОНЧИЛИСЬ (0/" + UNIQUE_SUPER_MAX + ")";
+        } else if (heroCurrent <= 0) {
+            btn.textContent = "❌ ЗАРЯДЫ КОНЧИЛИСЬ " + chargesText;
             btn.style.background = "#333";
             btn.style.animation = "none";
             btn.disabled = true;
         } else {
-            btn.textContent = "⚡ " + abU.name + chargesStr;
+            btn.textContent = "⚡ " + abU.name + " " + chargesText;
             btn.style.background = "linear-gradient(135deg, #f5af19, #f12711)";
             btn.style.animation = "superPulse 2s infinite";
             btn.disabled = false;
@@ -1005,7 +1137,7 @@ function updateSuperButton() {
         return;
     }
 
-    // АРЕНА UNDERTALE — оригинальная логика
+    // ★ АРЕНА UNDERTALE — оригинальная логика ★
     if (mainCard.name === "Деку (100%)") {
         if (!_superState.dekusActive) {
             btn.style.display = "block";
@@ -2048,21 +2180,22 @@ function renderSuperVisuals() {
     }
 }
 
-// ★★★ ИНТЕРВАЛ: следим за сменой босса и обнуляем заряды ★★★
+// ★★★ ИНТЕРВАЛ: следим за сменой босса и сбрасываем заряды ★★★
 setInterval(function() {
     try {
         var bossType = isUniqueBossActive();
         if (bossType) {
             if (window._uniqueSuperBossId !== bossType) {
                 window._uniqueSuperBossId = bossType;
-                window._uniqueSuperCharges = UNIQUE_SUPER_MAX;
-                console.log("[SUPER] Уникальный босс: " + bossType + ", заряды: " + UNIQUE_SUPER_MAX);
+                resetHeroCharges(bossType);
+                console.log("[SUPER] Новый уникальный босс: " + bossType);
+                console.log("[SUPER] Лимит босса: " + getBossChargeLimit(bossType));
+                console.log("[SUPER] Лимиты по персонажам:", JSON.stringify(window._heroSuperCharges));
             }
             updateSuperButton();
         } else {
             if (window._uniqueSuperBossId !== null) {
                 window._uniqueSuperBossId = null;
-                console.log("[SUPER] Уникальный босс закрыт");
             }
         }
     } catch(e) {}
@@ -2121,14 +2254,22 @@ window.resetAllCooldowns = resetAllCooldowns;
 window.getMainCard = getMainCard;
 window.isUniqueBossActive = isUniqueBossActive;
 window.getBossContext = getBossContext;
-window.UNIQUE_SUPER_MAX = UNIQUE_SUPER_MAX;
-window.UNIQUE_SUPER_COOLDOWN_MULT = UNIQUE_SUPER_COOLDOWN_MULT;
-window.getUniqueSuperMax = function() { return UNIQUE_SUPER_MAX; };
-window.getUniqueSuperCharges = function() { return window._uniqueSuperCharges; };
 
-console.log("╔════════════════════════════════════════════════╗");
-console.log("║  ⚡ SUPERS v16.1 — НАСТРОЙКА ЗАРЯДОВ          ║");
-console.log("║  UNIQUE_SUPER_MAX = " + UNIQUE_SUPER_MAX + " (вверху файла)             ║");
-console.log("║  Уникальные: Камень, Звезда, Роджер vs Белоус ║");
-console.log("║  Изменить на лету: setUniqueSuperMax(N)        ║");
-console.log("╚════════════════════════════════════════════════╝");
+// ★★★ ЭКСПОРТ ФУНКЦИЙ ЗАРЯДОВ (для отладки) ★★★
+window.getBossChargeLimit = getBossChargeLimit;
+window.getHeroChargeLimit = getHeroChargeLimit;
+window.getEffectiveHeroChargeLimit = getEffectiveHeroChargeLimit;
+window.getHeroCurrentCharges = getHeroCurrentCharges;
+window.setHeroCurrentCharges = setHeroCurrentCharges;
+window.resetHeroCharges = resetHeroCharges;
+window.SUPER_DEFAULT_CHARGES = SUPER_DEFAULT_CHARGES;
+window.SUPER_CHARGES_PER_BOSS = SUPER_CHARGES_PER_BOSS;
+window.SUPER_CHARGES_PER_HERO = SUPER_CHARGES_PER_HERO;
+window.SUPER_CHARGES_HERO_PER_BOSS = SUPER_CHARGES_HERO_PER_BOSS;
+
+console.log("╔════════════════════════════════════════════════════════════╗");
+console.log("║  [SUPERS] v17.0 — НАСТРОЙКА ЗАРЯДОВ РАБОТАЕТ              ║");
+console.log("║  Общий лимит: " + SUPER_DEFAULT_CHARGES + " заряда на уникального босса          ║");
+console.log("║  Лимиты по боссам: " + JSON.stringify(SUPER_CHARGES_PER_BOSS));
+console.log("║  Лимиты по персонажам: см. SUPER_CHARGES_PER_HERO          ║");
+console.log("╚════════════════════════════════════════════════════════════╝");
