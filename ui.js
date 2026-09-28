@@ -10,7 +10,6 @@ function renderMyCards() {
         return; 
     } 
     
-    // ★ ФИЛЬТРАЦИЯ И СОРТИРОВКА (фича #7) ★
     let filtered = myCards.map((cd, idx) => ({ cd, idx }));
     if (typeof cardFilter !== 'undefined') {
         if (cardFilter.search) {
@@ -120,10 +119,10 @@ function renderTeam() {
         let sukunaTag = skFinger ? ' <span style="color:#ff4444;font-size:10px;">🗿</span>' : '';
         let lvl = cd.mastery || 1;
         let mStars = "";
-        for (let i = 1; i <= 5; i++) mStars += (i <= lvl ? "★" : "☆");
-        let masteryTeam = '<div style="font-size:9px;color:' + (lvl >= 5 ? "#ffd700" : lvl >= 4 ? "#e056fd" : lvl >= 3 ? "#9b59b6" : lvl >= 2 ? "#3498db" : "#95a5a6") + ';font-weight:bold;margin-top:2px;">' + mStars + '</div>';
+        for (let i = 1; i <= 7; i++) mStars += (i <= lvl ? "★" : "☆");
+        let masteryTeam = '<div style="font-size:9px;color:' + (lvl >= 7 ? "#ff00ff" : lvl >= 6 ? "#ff8800" : lvl >= 5 ? "#ffd700" : lvl >= 4 ? "#e056fd" : lvl >= 3 ? "#9b59b6" : lvl >= 2 ? "#3498db" : "#95a5a6") + ';font-weight:bold;margin-top:2px;">' + mStars + '</div>';
         let expTeam = '';
-        if (lvl < 5 && typeof getMasteryExpNeeded === 'function') {
+        if (lvl < 7 && typeof getMasteryExpNeeded === 'function') {
             let expNeeded = getMasteryExpNeeded(cd, lvl + 1);
             let currentExp = cd.masteryExp || 0;
             let expPct = Math.min(100, (currentExp / expNeeded) * 100);
@@ -162,11 +161,9 @@ function renderTeam() {
             speedDiv.innerHTML = '👑 Главный: <span style="color:#f5af19;">' + escapeHtml(mainCard.name) + '</span> | ⚡ Скорость на арене: <span style="color:#f5af19;">' + mainSpeed.toFixed(1) + '</span>';
         }
     }
-    // ★ ОБНОВЛЯЕМ ПРЕСЕТЫ (фича #8) ★
     if (typeof renderTeamPresets === 'function') renderTeamPresets();
 }
 
-// ★ РЕНДЕР ПРЕСЕТОВ ОТРЯДОВ (фича #8) ★
 function renderTeamPresets() {
     let c = document.getElementById("teamPresetsList");
     if (!c) return;
@@ -363,7 +360,7 @@ function renderShop() {
     treasureHtml += '<div style="font-size:11px;color:#aaa;margin-bottom:10px;text-align:center;">3 уникальных товара • обновляются вручную</div>';
     treasureHtml += '<div style="display:flex;flex-direction:column;gap:8px;">';
     
-    let rarityColors = {
+    let rarityColorsLocal = {
         "common": "#6c757d",
         "rare": "#17a2b8",
         "epic": "#9b59b6",
@@ -378,7 +375,7 @@ function renderShop() {
     
     treasureItems.forEach(function(it) {
         let canBuy = (mode === "moder") || points >= it.cost;
-        let rColor = rarityColors[it.rarity] || "#6c757d";
+        let rColor = rarityColorsLocal[it.rarity] || "#6c757d";
         treasureHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(0,0,0,0.35);border-radius:12px;border-left:4px solid ' + rColor + ';">';
         treasureHtml += '<div style="flex:1;">';
         treasureHtml += '<div style="font-weight:800;font-size:14px;">' + it.name + '</div>';
@@ -500,25 +497,34 @@ function renderUpgrades() {
 
 function renderBook() { let all = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))); let ds = new Set(discoveredCards); document.getElementById("bookList").innerHTML = all.map(t => { let kn = ds.has(t.name); let s = cardStats[t.rarity]; let clickAction = (moderUnlocked && mode === 'moder') ? 'bookGet(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')' : 'bookInfoCard(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')'; let superPreview = ''; if (t.superAbility && kn) { superPreview = '<div style="font-size:8px;color:#ffd700;margin-top:2px;">' + t.superAbility.name + '</div>'; } return '<div class="book-item ' + (kn ? '' : 'unknown-card') + '" onclick="' + clickAction + '"><div class="name">' + (kn ? t.name : '???') + '</div><div class="rarity-tag ' + rarityColors[t.rarity] + '">' + t.rarity + '</div><div>💪' + (t.damage ?? s.damage) + ' ❤️' + (t.hp ?? s.hp) + ' ⚡' + (t.speed ?? s.speed ?? '?') + '</div>' + superPreview + '</div>'; }).join(''); document.getElementById("discoveredCount").innerText = discoveredCards.length; document.getElementById("totalTemplatesCount").innerText = all.length; }
 
-function bookInfoCard(rarity, name) { let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === name && t.rarity === rarity); if (!t) return; let s = cardStats[rarity]; let info = '📄 ' + t.name + '\n\n'; info += '⭐ Редкость: ' + rarity + '\n'; info += '🌌 Вселенная: ' + (t.universe || 'Неизвестно') + '\n'; info += '💪 Урон: ' + (t.damage ?? s.damage) + '\n'; info += '❤️ Здоровье: ' + (t.hp ?? s.hp) + '\n'; info += '⚡ Скорость: ' + (t.speed ?? s.speed ?? '?') + '\n'; if (t.sellPrice) info += '💰 Цена продажи: ' + t.sellPrice + '⭐\n'; if (t.minRebirth) info += '🔒 Мин. ребиртх: ' + t.minRebirth + '\n'; if (t.desc) { info += '\n📝 Описание:\n' + t.desc + '\n'; } if (t.ability) { info += '\n✨ Способность (ур.4): ' + t.ability.desc + '\n'; } if (t.statusAbility) { info += '🌀 Статус-эффект (ур.3): ' + t.statusAbility.desc + '\n'; } if (t.superAbility) { info += '\n⚡ ' + t.superAbility.name + ' (ур.5)\n' + t.superAbility.desc + '\n'; } if (t.unsellable) info += '\n🔒 Не продаётся\n'; 
-    if (typeof getMasteryExpNeeded === 'function') {
-        info += '\n📊 ОПЫТ ДЛЯ МАСТЕРСТВА:\n';
-        info += '• Ур.2: ' + getMasteryExpNeeded({ rarity: rarity }, 2) + '\n';
-        info += '• Ур.3: ' + getMasteryExpNeeded({ rarity: rarity }, 3) + '\n';
-        info += '• Ур.4: ' + getMasteryExpNeeded({ rarity: rarity }, 4) + '\n';
-        info += '• Ур.5: ' + getMasteryExpNeeded({ rarity: rarity }, 5) + '\n';
-    }
+// ★★★ ИСПРАВЛЕНО: убрана надпись "ОПЫТ ДЛЯ МАСТЕРСТВА" ★★★
+function bookInfoCard(rarity, name) { 
+    let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === name && t.rarity === rarity); 
+    if (!t) return; 
+    let s = cardStats[rarity]; 
+    let info = '📄 ' + t.name + '\n\n'; 
+    info += '⭐ Редкость: ' + rarity + '\n'; 
+    info += '🌌 Вселенная: ' + (t.universe || 'Неизвестно') + '\n'; 
+    info += '💪 Урон: ' + (t.damage ?? s.damage) + '\n'; 
+    info += '❤️ Здоровье: ' + (t.hp ?? s.hp) + '\n'; 
+    info += '⚡ Скорость: ' + (t.speed ?? s.speed ?? '?') + '\n'; 
+    if (t.sellPrice) info += '💰 Цена продажи: ' + t.sellPrice + '⭐\n'; 
+    if (t.minRebirth) info += '🔒 Мин. ребиртх: ' + t.minRebirth + '\n'; 
+    if (t.desc) { info += '\n📝 Описание:\n' + t.desc + '\n'; } 
+    if (t.ability) { info += '\n✨ Способность (ур.4): ' + t.ability.desc + '\n'; } 
+    if (t.statusAbility) { info += '🌀 Статус-эффект (ур.3): ' + t.statusAbility.desc + '\n'; } 
+    if (t.superAbility) { info += '\n⚡ ' + t.superAbility.name + ' (ур.5)\n' + t.superAbility.desc + '\n'; } 
+    if (t.unsellable) info += '\n🔒 Не продаётся\n'; 
     showModal('📄 Информация о карте', info); 
 }
 
 window.bookGet = function(r, n) { if (!moderUnlocked || mode !== 'moder') return; let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === n && t.rarity === r); if (t) { let s = cardStats[r]; let c = { id: Date.now() + Math.random() * 10000, name: t.name, rarity: r, damage: t.damage ?? s.damage, hp: t.hp ?? s.hp, sellPrice: t.sellPrice ?? s.sellPrice, speed: t.speed ?? s.speed ?? 0.5, ability: t.ability || null, universe: t.universe || "?", unsellable: t.unsellable || false, minRebirth: t.minRebirth || 0, statusAbility: t.statusAbility || null, extraStatus: t.extraStatus || null, superAbility: t.superAbility || null, mastery: 1, masteryExp: 0 }; if (!discoveredCards.includes(t.name)) { discoveredCards.push(t.name); } myCards.push(c); saveAll(); renderMyCards(); sfxCardObtain(); alert("🎴 Получена карта: " + t.name + " (" + r + ")"); } };
 
-// ========== ЭВОЛЮЦИИ (НОВОЕ УСЛОВИЕ — ПУТЕВОДНАЯ ЗВЕЗДА) ==========
+// ========== ЭВОЛЮЦИИ ==========
 function renderEvoTab() { 
     let c = document.getElementById("evoContent"); 
     if (!c) return;
     
-    // ★★★ ПРОВЕРКА РАЗБЛОКИРОВКИ (Путеводная Звезда) ★★★
     let evolutionUnlocked = false;
     try {
         if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500)) evolutionUnlocked = true;
@@ -556,7 +562,6 @@ function renderEvoTab() {
         return; 
     } 
     
-    // ★★★ РАЗБЛОКИРОВАНО — показываем квесты ★★★
     let tNames = team.map(idx => myCards[idx]?.name).filter(Boolean);
     let luffyForms = ["Луффи", "Луффи (2 гир)", "Луффи (Таймскип)", "Луффи (4 гир)", "Луффи: Ника, Бог Солнца"];
     let hasAllLuffys = luffyForms.every(form => tNames.includes(form));
