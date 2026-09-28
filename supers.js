@@ -1,5 +1,6 @@
-// ========== СУПЕР-СПОСОБНОСТИ v15.0 ==========
-// + SUPER на уникальных боссах (ур.6, 3 заряда)
+// ========== СУПЕР-СПОСОБНОСТИ v15.1 ==========
+// SUPER работает на всех боссах (включая уникальных)
+// На уникальных: 3 заряда на бой, кулдаун как на арене
 // + Проверка мастерства карты
 
 let _superState = {
@@ -36,10 +37,10 @@ let _superLastTick = 0;
 let _allmightHurricaneReady = false;
 let _allmightHurricaneCooldown = 0;
 
-// ★★★ СОСТОЯНИЕ УНИКАЛЬНОГО SUPER (для боссов 500/200/1000) ★★★
-if (typeof window._uniqueSuperCharges === 'undefined') window._uniqueSuperCharges = 0;
+// ★ Уникальные боссы — счётчик зарядов ★
+if (typeof window._uniqueSuperCharges === 'undefined') window._uniqueSuperCharges = 3;
 if (typeof window._uniqueSuperBossId === 'undefined') window._uniqueSuperBossId = null;
-if (typeof window._uniqueSuperMax === 'undefined') window._uniqueSuperMax = 3;
+var UNIQUE_SUPER_MAX = 3;
 
 // ====== ВСПОМОГАТЕЛЬНЫЕ ======
 function drawHakiLightning(x, y, maxDist, alpha, widthMod, customColor) {
@@ -204,7 +205,7 @@ function activateAllmightHurricane() { if (!_allmightHurricaneReady) return; if 
 function getMainCard() { if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0) { var idx = team[mainCardIndex]; if (typeof myCards !== 'undefined' && idx >= 0 && idx < myCards.length) return myCards[idx]; } return null; }
 
 // ============================================================
-// ★★★ УНИКАЛЬНЫЙ SUPER ДЛЯ БОССОВ (ур.6+) ★★★
+// ★★★ ОПРЕДЕЛЕНИЕ АКТИВНОГО УНИКАЛЬНОГО БОССА ★★★
 // ============================================================
 function isUniqueBossActive() {
     try {
@@ -215,173 +216,165 @@ function isUniqueBossActive() {
     return null;
 }
 
-function getPlayerLevel6Card() {
-    try {
-        if (typeof team === 'undefined' || typeof myCards === 'undefined') return null;
-        for (let i = 0; i < team.length; i++) {
-            let card = myCards[team[i]];
-            if (card && (card.mastery || 1) >= 6) return card;
-        }
-    } catch(e) {}
+// ★ Псевдо-арена для уникальных боссов ★
+// Когда супер активируется на уникальном, все функции супера работают с этими
+// псевдо-переменными, которые мапятся на реальные переменные босса
+function getPseudoArena() {
+    var bossType = isUniqueBossActive();
+    if (bossType === 'waystar') {
+        try {
+            return {
+                heart: typeof waystarPlayer !== 'undefined' ? waystarPlayer : null,
+                heartSize: 14,
+                heartHitbox: 6,
+                attacks: typeof waystarAttacks !== 'undefined' ? waystarAttacks : null,
+                blasters: [],
+                bossMaxHp: typeof waystarBossMaxHp !== 'undefined' ? waystarBossMaxHp : 1000,
+                getBossMaxHp: function() { return typeof waystarBossMaxHp !== 'undefined' ? waystarBossMaxHp : 1000; },
+                setBossMaxHp: function(v) { if (typeof waystarBossMaxHp !== 'undefined') waystarBossMaxHp = v; },
+                particles: typeof waystarParticles !== 'undefined' ? waystarParticles : [],
+                shake: function(v) { if (typeof waystarShake !== 'undefined') waystarShake = Math.max(waystarShake, v); },
+                flashWhite: function(v) { if (typeof waystarScreenFlash !== 'undefined') waystarScreenFlash = Math.max(waystarScreenFlash, v); },
+                sound: function(f,t,d,vol) { if (typeof wsPlaySound === 'function') wsPlaySound(f,t,d,vol); }
+            };
+        } catch(e) { return null; }
+    } else if (bossType === 'stone') {
+        try {
+            return {
+                heart: typeof livingStonePlayer !== 'undefined' ? livingStonePlayer : null,
+                heartSize: 14,
+                heartHitbox: 6,
+                attacks: typeof livingStoneAttacks !== 'undefined' ? livingStoneAttacks : null,
+                blasters: [],
+                bossMaxHp: typeof livingStoneBossMaxHp !== 'undefined' ? livingStoneBossMaxHp : 1000,
+                getBossMaxHp: function() { return typeof livingStoneBossMaxHp !== 'undefined' ? livingStoneBossMaxHp : 1000; },
+                setBossMaxHp: function(v) { if (typeof livingStoneBossMaxHp !== 'undefined') livingStoneBossMaxHp = v; },
+                particles: typeof livingStoneParticles !== 'undefined' ? livingStoneParticles : [],
+                shake: function(v) { if (typeof livingStoneShake !== 'undefined') livingStoneShake = Math.max(livingStoneShake, v); },
+                flashWhite: function(v) { if (typeof livingStoneScreenFlash !== 'undefined') livingStoneScreenFlash = Math.max(livingStoneScreenFlash, v); },
+                sound: function(f,t,d,vol) { if (typeof playArenaSound === 'function') playArenaSound(f,t,d,vol); }
+            };
+        } catch(e) { return null; }
+    } else if (bossType === 'rwb') {
+        try {
+            var rwbPlayerObj = (typeof window.getRWBPlayer === 'function') ? window.getRWBPlayer() : null;
+            var rwbBullets = (typeof window.getRWBBullets === 'function') ? window.getRWBBullets() : null;
+            var rwbAtk = (typeof window.getRWBAttacks === 'function') ? window.getRWBAttacks() : null;
+            return {
+                heart: rwbPlayerObj,
+                heartSize: 12,
+                heartHitbox: 6,
+                attacks: rwbAtk,
+                blasters: [],
+                bossMaxHp: 500,
+                getBossMaxHp: function() { return 500; },
+                setBossMaxHp: function(v) {},
+                particles: [],
+                shake: function(v) { if (typeof window.rwbShake !== 'undefined') window.rwbShake = Math.max(window.rwbShake || 0, v); },
+                flashWhite: function(v) { if (typeof window.rwbScreenFlash !== 'undefined') window.rwbScreenFlash = Math.max(window.rwbScreenFlash || 0, v); },
+                sound: function(f,t,d,vol) { if (typeof window.rwbSound === 'function') window.rwbSound(f,t,d,vol); }
+            };
+        } catch(e) { return null; }
+    }
     return null;
 }
 
-window.useUniqueBossSuper = function() {
-    let bossType = isUniqueBossActive();
-    if (!bossType) return;
-    if (window._uniqueSuperCharges <= 0) {
-        if (typeof showFloatingText === 'function') showFloatingText("❌ Заряды кончились!", "#ff3333");
-        return;
-    }
-    let card = getPlayerLevel6Card();
-    if (!card) {
-        if (typeof showFloatingText === 'function') showFloatingText("❌ Нужна карта уровня 6+!", "#ff3333");
-        return;
-    }
-
-    window._uniqueSuperCharges--;
-
-    if (typeof showFloatingText === 'function') {
-        showFloatingText("⚡ SUPER: " + card.name + "!", "#ffd700");
-    }
-
-    // ★ Урон боссу ★
-    let dmg = 0;
-    if (bossType === 'waystar') {
-        if (typeof waystarBossHp !== 'undefined' && typeof waystarBossMaxHp !== 'undefined') {
-            // Если фаза 2 — наносим урон осколкам
-            if (typeof waystarPieces !== 'undefined' && waystarPieces.length > 0 && typeof waystarPiecesAlive !== 'undefined' && waystarPiecesAlive > 0) {
-                let toKill = Math.min(10, waystarPiecesAlive);
-                for (let p of waystarPieces) {
-                    if (toKill <= 0) break;
-                    if (p.alive) { p.alive = false; p.hp = 0; waystarPiecesAlive--; toKill--; }
-                }
-            } else {
-                dmg = Math.floor(waystarBossMaxHp * 0.15);
-                waystarBossHp = Math.max(0, waystarBossHp - dmg);
-            }
-        }
-    } else if (bossType === 'stone') {
-        if (typeof livingStoneBossHp !== 'undefined' && typeof livingStoneBossMaxHp !== 'undefined') {
-            dmg = Math.floor(livingStoneBossMaxHp * 0.15);
-            livingStoneBossHp = Math.max(0, livingStoneBossHp - dmg);
-        }
-    } else if (bossType === 'rwb') {
-        // Роджер/Белоус — сложнее, наносим активному боссу
-        try {
-            if (typeof window.getRWBAttacks === 'function') {} // заглушка
-            // Просто уменьшаем HP всех активных
-            // (roger, whitebeard, rwbActiveBoss — локальные, но есть в window через экспорт?)
-            // Попробуем найти через DOM или fallback
-        } catch(e) {}
-        // Fallback — просто визуалка
-        if (typeof showFloatingText === 'function') showFloatingText("⚡ СУПЕР!", "#ffd700");
-    }
-
-    // ★ Неуязвимость 2 сек ★
-    if (bossType === 'waystar' && typeof waystarInvulnTimer !== 'undefined') waystarInvulnTimer = 120;
-    if (bossType === 'stone' && typeof livingStoneInvulnTimer !== 'undefined') livingStoneInvulnTimer = 120;
-    if (bossType === 'rwb') {
-        try {
-            // Попробуем найти переменную игрока через экспорт
-            if (typeof window.getRWBPlayer === 'function') {
-                var p = window.getRWBPlayer();
-                if (p) p.invulnTimer = 120;
-            }
-        } catch(e) {}
-    }
-
-    // ★ Визуальные эффекты — пытаемся использовать доступные функции ★
-    try {
-        if (typeof spawnWaystarParticles === 'function') spawnWaystarParticles(200, 250, 80, "#ffd700", 15);
-        if (typeof addWaystarShockwave === 'function') addWaystarShockwave(200, 250, "#ffd700", 400, 30, 6);
-        if (typeof addWaystarFlash === 'function') addWaystarFlash(200, 250, 150);
-        if (typeof addWaystarLightning === 'function') { for (var l = 0; l < 12; l++) { var ang = Math.random() * Math.PI * 2; addWaystarLightning(200, 250, 200 + Math.cos(ang) * 250, 250 + Math.sin(ang) * 250, "#ffd700", 1.0, 3); } }
-    } catch(e) {}
-
-    try {
-        if (typeof spawnLivingStoneParticles === 'function') spawnLivingStoneParticles(200, 250, 80, "#ffd700", 15);
-        if (typeof spawnMegaImpact === 'function') spawnMegaImpact(200, 250);
-    } catch(e) {}
-
-    try {
-        if (typeof wsPlaySound === 'function') wsPlaySound(600, 'sine', 0.5, 0.35);
-        if (typeof rwbSound === 'function') rwbSound(600, 'sine', 0.5, 0.35);
-        if (typeof playArenaSound === 'function') playArenaSound(600, 'sine', 0.5, 0.35);
-    } catch(e) {}
-
-    updateUniqueSuperButton();
-};
-
-function updateUniqueSuperButton() {
-    let btn = document.getElementById("superBtn");
-    if (!btn) return;
-    let bossType = isUniqueBossActive();
-    if (!bossType) return;
-    let card = getPlayerLevel6Card();
-
-    if (!card) {
-        btn.style.display = "none";
-        return;
-    }
-
-    btn.style.display = "block";
-    btn.setAttribute('onclick', 'useUniqueBossSuper()');
-
-    if (window._uniqueSuperCharges > 0) {
-        btn.textContent = "⚡ " + card.name.substring(0, 12) + " (" + window._uniqueSuperCharges + "/3)";
-        btn.style.background = "linear-gradient(135deg, #f5af19, #f12711)";
-        btn.style.animation = "superPulse 2s infinite";
-        btn.disabled = false;
-    } else {
-        btn.textContent = "⚡ ЗАРЯДЫ КОНЧИЛИСЬ";
-        btn.style.background = "#555";
-        btn.style.animation = "none";
-        btn.disabled = true;
-    }
-}
-
-// ★ ИНТЕРВАЛ ДЛЯ ОБНОВЛЕНИЯ КНОПКИ ★
-setInterval(function() {
-    try {
-        let bossType = isUniqueBossActive();
-        if (bossType) {
-            if (window._uniqueSuperBossId !== bossType) {
-                window._uniqueSuperBossId = bossType;
-                window._uniqueSuperCharges = window._uniqueSuperMax;
-                console.log("[SUPER] Уникальный босс " + bossType + ", заряды: 3");
-            }
-            updateUniqueSuperButton();
-        } else {
-            window._uniqueSuperBossId = null;
-        }
-    } catch(e) {}
-}, 500);
-
 // ============================================================
-// toggleSuper — с поддержкой уникальных боссов
+// ★★★ toggleSuper — ЕДИНАЯ ФУНКЦИЯ ДЛЯ ВСЕХ БОССОВ ★★★
 // ============================================================
 function toggleSuper() {
-    // ★ Проверка уникального босса ★
-    if (isUniqueBossActive()) {
-        window.useUniqueBossSuper();
-        return;
-    }
+    // ★ Определяем контекст ★
+    var bossType = isUniqueBossActive();
+    var isUnique = bossType !== null;
 
-    if (!arenaActive) return;
+    if (!isUnique && !arenaActive) return;
+
     var mainCard = getMainCard();
     if (!mainCard) return;
+
+    // ★ Проверка мастерства ★
     if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
         return;
     }
-    if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) { activateAllmightHurricane(); return; }
-    if (mainCard.name === "Деку (100%)") { if (!_superState.dekusActive) { var ab = superAbilities["Деку (100%)"]; ab.onActivate(); _activeSuperName = "Деку (100%)"; updateSuperButton(); return; } else { activateDekuEarthShatter(); return; } }
-    if (!superAbilities[mainCard.name]) return;
+
+    // ★ ДЛЯ УНИКАЛЬНОГО БОССА — проверка зарядов ★
+    if (isUnique) {
+        if (window._uniqueSuperCharges <= 0) {
+            if (typeof showFloatingText === 'function') showFloatingText("❌ Заряды кончились!", "#ff3333");
+            return;
+        }
+    }
+
+    // ★ Проверка кулдауна (для всех) ★
     var ab = superAbilities[mainCard.name];
+    if (!ab && mainCard.name !== "Всемогущий (прайм)" && mainCard.name !== "Деку (100%)") return;
+
+    // Особые случаи
+    if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
+        if (isUnique) {
+            if (window._uniqueSuperCharges <= 0) return;
+            window._uniqueSuperCharges--;
+        }
+        activateAllmightHurricane();
+        updateSuperButton();
+        return;
+    }
+
+    if (mainCard.name === "Деку (100%)") {
+        // Особый случай — деку активируется через переключатель
+        if (!_superState.dekusActive) {
+            if (isUnique) {
+                if (window._uniqueSuperCharges <= 0) return;
+                window._uniqueSuperCharges--;
+            }
+            var abDeku = superAbilities["Деку (100%)"];
+            abDeku.onActivate();
+            _activeSuperName = "Деку (100%)";
+            updateSuperButton();
+            return;
+        } else {
+            // Повторное нажатие — разлом
+            activateDekuEarthShatter();
+            return;
+        }
+    }
+
+    if (!ab) return;
     if (ab.cooldown === 0 && !ab.toggleable) return;
+
     var cd = _superCooldowns[mainCard.name] || { ready: true };
     if (!cd.ready) return;
-    if (ab.toggleable) { if (_activeSuperName === mainCard.name) { if (ab.onDeactivate) ab.onDeactivate(); _activeSuperName = null; startCooldown(mainCard.name, ab.cooldown); } else { if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) superAbilities[_activeSuperName].onDeactivate(); ab.onActivate(); _activeSuperName = mainCard.name; } } else { ab.onActivate(); if (ab.duration > 0) { startCooldown(mainCard.name, ab.cooldown); setTimeout(function() { if (ab.onDeactivate) ab.onDeactivate(); if (_activeSuperName === mainCard.name) _activeSuperName = null; }, ab.duration); } else { startCooldown(mainCard.name, ab.cooldown); } }
+
+    // ★ СПИСЫВАЕМ ЗАРЯД (для уникального) ★
+    if (isUnique) {
+        window._uniqueSuperCharges--;
+    }
+
+    // ★ СТАРАЯ ЛОГИКА ★
+    if (ab.toggleable) {
+        if (_activeSuperName === mainCard.name) {
+            if (ab.onDeactivate) ab.onDeactivate();
+            _activeSuperName = null;
+            startCooldown(mainCard.name, ab.cooldown);
+        } else {
+            if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) {
+                superAbilities[_activeSuperName].onDeactivate();
+            }
+            ab.onActivate();
+            _activeSuperName = mainCard.name;
+        }
+    } else {
+        ab.onActivate();
+        if (ab.duration > 0) {
+            startCooldown(mainCard.name, ab.cooldown);
+            setTimeout(function() {
+                if (ab.onDeactivate) ab.onDeactivate();
+                if (_activeSuperName === mainCard.name) _activeSuperName = null;
+            }, ab.duration);
+        } else {
+            startCooldown(mainCard.name, ab.cooldown);
+        }
+    }
     updateSuperButton();
 }
 
@@ -390,31 +383,184 @@ function startCooldown(cardName, ms) { var cd = _superCooldowns[cardName]; if (c
 function resetAllCooldowns() { for (var key in _superCooldowns) { if (_superCooldowns[key].interval) clearInterval(_superCooldowns[key].interval); } _superCooldowns = {}; _allmightHurricaneReady = false; _allmightHurricaneCooldown = 0; _superState.dekuEarthShatterReady = false; _superState.dekuDashSmashReady = false; _superState.dekuEarthShatterCooldown = 0; _superState.dekuDashSmashCooldown = 0; updateSuperButton(); }
 
 function updateSuperButton() {
-    if (isUniqueBossActive()) { updateUniqueSuperButton(); return; }
     var btn = document.getElementById("superBtn");
     var btn2 = document.getElementById("superBtn2");
     var btnDeact = document.getElementById("superBtnDeactivate");
     if (!btn) return;
+
     var mainCard = getMainCard();
+    var isUnique = isUniqueBossActive() !== null;
+
     if (!mainCard) { btn.style.display = "none"; if (btn2) btn2.style.display = "none"; if (btnDeact) btnDeact.style.display = "none"; return; }
+
     if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
         btn.style.display = "none";
         if (btn2) btn2.style.display = "none";
         if (btnDeact) btnDeact.style.display = "none";
         return;
     }
-    if (mainCard.name === "Деку (100%)") { if (!_superState.dekusActive) { btn.style.display = "block"; if (btn2) btn2.style.display = "none"; if (btnDeact) btnDeact.style.display = "none"; var cd = _superCooldowns["Деку (100%)"]; if (cd && !cd.ready) { var sec = Math.ceil(cd.remaining / 1000); btn.textContent = "⏳ 100% (" + sec + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; } else { btn.textContent = "💚 100%"; btn.style.background = "linear-gradient(135deg, #44ff44, #00aa00)"; btn.style.animation = "superPulse 2s infinite"; } } else { btn.style.display = "block"; if (btn2) btn2.style.display = "block"; if (btnDeact) btnDeact.style.display = "block"; if (_superState.dekuEarthShatterCooldown > 0) { btn.textContent = "⏳ РАЗЛОМ (" + Math.ceil(_superState.dekuEarthShatterCooldown) + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; } else { btn.textContent = "💥 РАЗЛОМ"; btn.style.background = "linear-gradient(135deg, #ff8800, #ff4400)"; btn.style.animation = "superPulse 2s infinite"; } if (btn2) { if (_superState.dekuDashSmashCooldown > 0) { btn2.textContent = "⏳ РЫВОК (" + Math.ceil(_superState.dekuDashSmashCooldown) + "с)"; btn2.style.background = "#555"; btn2.style.animation = "none"; } else { btn2.textContent = "💨 РЫВОК"; btn2.style.background = "linear-gradient(135deg, #44ff44, #00ffff)"; btn2.style.animation = "superPulse 2s infinite"; } } } return; }
+
+    // ★ ДЛЯ УНИКАЛЬНЫХ БОССОВ — ДРУГОЙ ФОРМАТ КНОПКИ ★
+    if (isUnique) {
+        btn.style.display = "block";
+        if (btn2) btn2.style.display = "none";
+        if (btnDeact) btnDeact.style.display = "none";
+
+        // ★ Деку (100%) — особый случай ★
+        if (mainCard.name === "Деку (100%)") {
+            if (!_superState.dekusActive) {
+                var cdDeku = _superCooldowns["Деку (100%)"];
+                if (cdDeku && !cdDeku.ready) {
+                    var secDeku = Math.ceil(cdDeku.remaining / 1000);
+                    btn.textContent = "⏳ 100% (" + secDeku + "с) [" + window._uniqueSuperCharges + "/3]";
+                    btn.style.background = "#555";
+                    btn.style.animation = "none";
+                } else {
+                    btn.textContent = "💚 100% [" + window._uniqueSuperCharges + "/3]";
+                    btn.style.background = "linear-gradient(135deg, #44ff44, #00aa00)";
+                    btn.style.animation = "superPulse 2s infinite";
+                }
+            } else {
+                btn.textContent = "💥 РАЗЛОМ";
+                btn.style.background = "linear-gradient(135deg, #ff8800, #ff4400)";
+                btn.style.animation = "superPulse 2s infinite";
+                if (btn2) btn2.style.display = "block";
+                btn2.textContent = "💨 РЫВОК";
+                btn2.style.background = "linear-gradient(135deg, #44ff44, #00ffff)";
+                btn2.style.animation = "superPulse 2s infinite";
+                if (btnDeact) btnDeact.style.display = "block";
+            }
+            return;
+        }
+
+        // ★ Всемогущий — УРАГАН ★
+        if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
+            if (_allmightHurricaneCooldown > 0) {
+                btn.textContent = "🌪️ УРАГАН (" + Math.ceil(_allmightHurricaneCooldown) + "с) [" + window._uniqueSuperCharges + "/3]";
+                btn.style.background = "#555";
+                btn.style.animation = "none";
+            } else {
+                btn.textContent = "🌪️ УРАГАН [" + window._uniqueSuperCharges + "/3]";
+                btn.style.background = "linear-gradient(135deg, #00ffff, #0088ff)";
+                btn.style.animation = "superPulse 2s infinite";
+            }
+            return;
+        }
+
+        // ★ Обычные суперы — кулдаун + заряды ★
+        if (!superAbilities[mainCard.name]) {
+            btn.style.display = "none";
+            return;
+        }
+
+        var abU = superAbilities[mainCard.name];
+        if (abU.cooldown === 0 && !abU.toggleable) {
+            btn.style.display = "none";
+            return;
+        }
+
+        var cdU = _superCooldowns[mainCard.name];
+        if (_activeSuperName === mainCard.name) {
+            btn.textContent = "⏹ " + abU.name + " [АКТИВЕН]";
+            btn.style.background = "#ff4444";
+            btn.style.animation = "none";
+        } else if (cdU && !cdU.ready) {
+            var secU = Math.ceil(cdU.remaining / 1000);
+            btn.textContent = "⏳ " + abU.name + " (" + secU + "с) [" + window._uniqueSuperCharges + "/3]";
+            btn.style.background = "#555";
+            btn.style.animation = "none";
+        } else if (window._uniqueSuperCharges <= 0) {
+            btn.textContent = "❌ ЗАРЯДЫ КОНЧИЛИСЬ";
+            btn.style.background = "#333";
+            btn.style.animation = "none";
+            btn.disabled = true;
+        } else {
+            btn.textContent = "⚡ " + abU.name + " [" + window._uniqueSuperCharges + "/3]";
+            btn.style.background = "linear-gradient(135deg, #f5af19, #f12711)";
+            btn.style.animation = "superPulse 2s infinite";
+            btn.disabled = false;
+        }
+        return;
+    }
+
+    // ★ АРЕНА UNDERTALE — оригинальная логика ★
+    if (mainCard.name === "Деку (100%)") {
+        if (!_superState.dekusActive) {
+            btn.style.display = "block";
+            if (btn2) btn2.style.display = "none";
+            if (btnDeact) btnDeact.style.display = "none";
+            var cd = _superCooldowns["Деку (100%)"];
+            if (cd && !cd.ready) {
+                var sec = Math.ceil(cd.remaining / 1000);
+                btn.textContent = "⏳ 100% (" + sec + "с)";
+                btn.style.background = "#555";
+                btn.style.animation = "none";
+            } else {
+                btn.textContent = "💚 100%";
+                btn.style.background = "linear-gradient(135deg, #44ff44, #00aa00)";
+                btn.style.animation = "superPulse 2s infinite";
+            }
+        } else {
+            btn.style.display = "block";
+            if (btn2) btn2.style.display = "block";
+            if (btnDeact) btnDeact.style.display = "block";
+            if (_superState.dekuEarthShatterCooldown > 0) {
+                btn.textContent = "⏳ РАЗЛОМ (" + Math.ceil(_superState.dekuEarthShatterCooldown) + "с)";
+                btn.style.background = "#555";
+                btn.style.animation = "none";
+            } else {
+                btn.textContent = "💥 РАЗЛОМ";
+                btn.style.background = "linear-gradient(135deg, #ff8800, #ff4400)";
+                btn.style.animation = "superPulse 2s infinite";
+            }
+            if (btn2) {
+                if (_superState.dekuDashSmashCooldown > 0) {
+                    btn2.textContent = "⏳ РЫВОК (" + Math.ceil(_superState.dekuDashSmashCooldown) + "с)";
+                    btn2.style.background = "#555";
+                    btn2.style.animation = "none";
+                } else {
+                    btn2.textContent = "💨 РЫВОК";
+                    btn2.style.background = "linear-gradient(135deg, #44ff44, #00ffff)";
+                    btn2.style.animation = "superPulse 2s infinite";
+                }
+            }
+        }
+        return;
+    }
     if (btn2) btn2.style.display = "none";
     if (btnDeact) btnDeact.style.display = "none";
-    if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) { btn.style.display = "block"; if (_allmightHurricaneCooldown > 0) { btn.textContent = "🌪️ УРАГАН (" + Math.ceil(_allmightHurricaneCooldown) + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; } else { btn.textContent = "🌪️ УРАГАН"; btn.style.background = "linear-gradient(135deg, #00ffff, #0088ff)"; btn.style.animation = "superPulse 2s infinite"; } return; }
+    if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
+        btn.style.display = "block";
+        if (_allmightHurricaneCooldown > 0) {
+            btn.textContent = "🌪️ УРАГАН (" + Math.ceil(_allmightHurricaneCooldown) + "с)";
+            btn.style.background = "#555";
+            btn.style.animation = "none";
+        } else {
+            btn.textContent = "🌪️ УРАГАН";
+            btn.style.background = "linear-gradient(135deg, #00ffff, #0088ff)";
+            btn.style.animation = "superPulse 2s infinite";
+        }
+        return;
+    }
     if (!superAbilities[mainCard.name]) { btn.style.display = "none"; return; }
     var ab = superAbilities[mainCard.name];
     if (ab.cooldown === 0 && !ab.toggleable) { btn.style.display = "none"; return; }
     btn.style.display = "block";
     var cd = _superCooldowns[mainCard.name];
-    if (_activeSuperName === mainCard.name) { btn.textContent = "⏹ " + ab.name + " (АКТИВЕН)"; btn.style.background = "#ff4444"; btn.style.animation = "none"; }
-    else if (cd && !cd.ready) { var sec = Math.ceil(cd.remaining / 1000); btn.textContent = "⏳ " + ab.name + " (" + sec + "с)"; btn.style.background = "#555"; btn.style.animation = "none"; }
-    else { btn.textContent = "⚡ " + ab.name; btn.style.background = "linear-gradient(135deg, #f5af19, #f12711)"; btn.style.animation = "superPulse 2s infinite"; }
+    if (_activeSuperName === mainCard.name) {
+        btn.textContent = "⏹ " + ab.name + " (АКТИВЕН)";
+        btn.style.background = "#ff4444";
+        btn.style.animation = "none";
+    } else if (cd && !cd.ready) {
+        var sec = Math.ceil(cd.remaining / 1000);
+        btn.textContent = "⏳ " + ab.name + " (" + sec + "с)";
+        btn.style.background = "#555";
+        btn.style.animation = "none";
+    } else {
+        btn.textContent = "⚡ " + ab.name;
+        btn.style.background = "linear-gradient(135deg, #f5af19, #f12711)";
+        btn.style.animation = "superPulse 2s infinite";
+    }
 }
 
 function resetAllSupers() {
@@ -560,6 +706,23 @@ function renderSuperVisuals() {
     if (_superState.comicTexts.length > 0) { _superState.comicTexts.forEach(function(t) { ctx.save(); ctx.globalAlpha = t.alpha; ctx.translate(t.x, t.y); ctx.rotate(t.angle); ctx.scale(t.scale, t.scale); ctx.font = "bold 16px Impact, Arial Black, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText(t.text, 0, 0); ctx.fillStyle = t.color; ctx.fillText(t.text, 0, 0); ctx.restore(); }); }
 }
 
+// ★ ИНТЕРВАЛ ДЛЯ ОБНОВЛЕНИЯ ЗАРЯДОВ ★
+setInterval(function() {
+    try {
+        var bossType = isUniqueBossActive();
+        if (bossType) {
+            if (window._uniqueSuperBossId !== bossType) {
+                window._uniqueSuperBossId = bossType;
+                window._uniqueSuperCharges = UNIQUE_SUPER_MAX;
+                console.log("[SUPER] Уникальный босс " + bossType + ", заряды: " + UNIQUE_SUPER_MAX);
+            }
+            updateSuperButton();
+        } else {
+            window._uniqueSuperBossId = null;
+        }
+    } catch(e) {}
+}, 500);
+
 // ========== ЭКСПОРТ ==========
 window.toggleSuper = toggleSuper;
 window.activateDekuDashSmash = activateDekuDashSmash;
@@ -573,7 +736,5 @@ window.resetAllSupers = resetAllSupers;
 window.resetAllCooldowns = resetAllCooldowns;
 window.getMainCard = getMainCard;
 window.isUniqueBossActive = isUniqueBossActive;
-window.getPlayerLevel6Card = getPlayerLevel6Card;
-window.updateUniqueSuperButton = updateUniqueSuperButton;
 
-console.log("[SUPERS] v15.0 — уровни 6/7 + SUPER на уникальных боссах");
+console.log("[SUPERS] v15.1 — SUPER на уникальных боссах (3 заряда, тот же кулдаун)");
