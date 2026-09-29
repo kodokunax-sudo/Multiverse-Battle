@@ -1,11 +1,13 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v8.0
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v9.0
 // ============================================================
-// ★ v8.0:
-// - ФИКС 2-й фазы: босс НЕ умирает быстро (правильный HP)
-// - СЛОЖНЕЕ: чаще атаки, выше урон
-// - Хитбоксы оставлены уменьшенными (как просил)
-// - Фон-остров остаётся
+// ★ v9.0:
+// - ФИКС БАГА: бой НЕ заканчивается через 10 сек
+// - 1 ФАЗА СЛОЖНЕЕ: больше атак, чаще
+// - ТИТАН-КУЛАК раз в 4 сек
+// - БОЛЬШЕ АТАК Роджеру и Белоусу
+// - МОДЕЛЬКИ как раньше (простые, без палки)
+// - КИНОШНЫЕ ЗВУКИ: удары, взрывы, свист клинков
 // ============================================================
 
 (function() {
@@ -25,28 +27,29 @@
         playerHp: 250,
         playerDamageMult: 1.0,
         
-        // Роджер (фаза 1)
-        rogerHp: 600,
-        rogerAttackRate: 60,           // чаще атакует
-        rogerDamageMult: 1.0,
+        // Роджер (фаза 1) — СЛОЖНЕЕ
+        rogerHp: 800,
+        rogerAttackRate: 45,           // чаще атакует (было 60)
+        rogerDamageMult: 1.15,         // больше урона
         
-        // Белоус (фаза 1)
-        whitebeardHp: 650,
-        whitebeardAttackRate: 70,      // чаще атакует
-        whitebeardDamageMult: 1.0,
+        // Белоус (фаза 1) — СЛОЖНЕЕ
+        whitebeardHp: 900,
+        whitebeardAttackRate: 50,      // чаще атакует (было 70)
+        whitebeardDamageMult: 1.15,    // больше урона
         
         // ★ СУПЕР-ФАЗА (2-я фаза) ★
-        superHpMult: 8,                // ★ x8 HP — теперь долго бьётся
-        superAttackRate: 50,           // ★ чаще атаки (было 80)
-        superDamageMult: 1.6,          // ★ больше урона
-        superDuration: 2400,           // 40 сек выживания
+        superHpMult: 10,
+        superAttackRate: 40,
+        superDamageMult: 1.7,
+        superDuration: 2700,            // ★ 45 секунд выживания (2700/60)
+        superBaseHp: 5000,
         
-        // Хитбоксы (уменьшены)
+        // ★ ТИТАН-КУЛАК ★
+        titanFistInterval: 240,         // ★ раз в 4 секунды (60*4)
+        
+        // Хитбоксы
         playerHitboxMult: 0.7,
-        projectileSpeedMult: 1.0,
-        
-        // HP боссов в фазе 2 (посчитается автоматически от этих)
-        superBaseHp: 4000              // ★ БАЗОВЫЙ HP СУПЕР-БОССА
+        projectileSpeedMult: 1.0
     };
 
     window.rwbActive = false;
@@ -59,6 +62,7 @@
     let rwbSurvivalTimer2 = 0;
     let rwbSurvivalTarget2 = BALANCE.superDuration;
     let rwbActiveBoss = null;
+    let rwbTitanFistTimer = 0;   // ★ Счётчик для титан-кулака
 
     let roger = null;
     let whitebeard = null;
@@ -109,19 +113,218 @@
             } catch(e) { rwbMusic = null; }
         }
         if (rwbMusic) {
-            try {
-                rwbMusic.currentTime = 0;
-                rwbMusic.play().catch(function() {});
-            } catch(e) {}
+            try { rwbMusic.currentTime = 0; rwbMusic.play().catch(function() {}); } catch(e) {}
         }
     }
 
     function stopRWBMusic() {
-        if (rwbMusic) {
-            try { rwbMusic.pause(); rwbMusic.currentTime = 0; } catch(e) {}
-        }
+        if (rwbMusic) { try { rwbMusic.pause(); rwbMusic.currentTime = 0; } catch(e) {} }
     }
 
+    // ============================================================
+    // ★★★ КИНОШНЫЕ ЗВУКИ — ОТДЕЛЬНАЯ СИСТЕМА ★★★
+    // ============================================================
+    let rwbAudioCtx = null;
+    
+    function initRWBAudio() {
+        if (rwbAudioCtx) {
+            if (rwbAudioCtx.state === 'suspended') rwbAudioCtx.resume();
+            return;
+        }
+        try {
+            rwbAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) {}
+    }
+    
+    function playRWBSound(opts) {
+        // opts: { freq, freqEnd, type, duration, volume, attack, release, detune }
+        if (!rwbAudioCtx) initRWBAudio();
+        if (!rwbAudioCtx) return;
+        
+        let freq = opts.freq || 200;
+        let freqEnd = opts.freqEnd || freq;
+        let type = opts.type || 'sawtooth';
+        let duration = opts.duration || 0.3;
+        let volume = opts.volume || 0.15;
+        let attack = opts.attack || 0.005;
+        let release = opts.release || duration;
+        let detune = opts.detune || 0;
+        
+        try {
+            let osc = rwbAudioCtx.createOscillator();
+            let gain = rwbAudioCtx.createGain();
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, rwbAudioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), rwbAudioCtx.currentTime + duration);
+            if (detune) osc.detune.setValueAtTime(detune, rwbAudioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(0, rwbAudioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(volume, rwbAudioCtx.currentTime + attack);
+            gain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + release);
+            
+            osc.connect(gain);
+            gain.connect(rwbAudioCtx.destination);
+            osc.start(rwbAudioCtx.currentTime);
+            osc.stop(rwbAudioCtx.currentTime + release + 0.05);
+        } catch(e) {}
+    }
+    
+    // ★ Шумовой удар (реалистичный "БАМ") ★
+    function playImpactSound(volume, pitch) {
+        if (!rwbAudioCtx) initRWBAudio();
+        if (!rwbAudioCtx) return;
+        volume = volume || 0.4;
+        pitch = pitch || 1;
+        
+        try {
+            // Создаём шум
+            let bufferSize = rwbAudioCtx.sampleRate * 0.4;
+            let buffer = rwbAudioCtx.createBuffer(1, bufferSize, rwbAudioCtx.sampleRate);
+            let data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
+            }
+            
+            let noise = rwbAudioCtx.createBufferSource();
+            noise.buffer = buffer;
+            
+            let noiseFilter = rwbAudioCtx.createBiquadFilter();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.setValueAtTime(400 * pitch, rwbAudioCtx.currentTime);
+            noiseFilter.frequency.exponentialRampToValueAtTime(80, rwbAudioCtx.currentTime + 0.4);
+            
+            let noiseGain = rwbAudioCtx.createGain();
+            noiseGain.gain.setValueAtTime(volume, rwbAudioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.4);
+            
+            noise.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(rwbAudioCtx.destination);
+            noise.start(rwbAudioCtx.currentTime);
+            
+            // Плюс низкий басовый удар
+            let osc = rwbAudioCtx.createOscillator();
+            let oscGain = rwbAudioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(120 * pitch, rwbAudioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(35, rwbAudioCtx.currentTime + 0.3);
+            oscGain.gain.setValueAtTime(volume * 1.2, rwbAudioCtx.currentTime);
+            oscGain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.35);
+            osc.connect(oscGain);
+            oscGain.connect(rwbAudioCtx.destination);
+            osc.start(rwbAudioCtx.currentTime);
+            osc.stop(rwbAudioCtx.currentTime + 0.4);
+        } catch(e) {}
+    }
+    
+    // ★ Свист клинка (кинжальный "вжик") ★
+    function playBladeSound(volume) {
+        volume = volume || 0.2;
+        playRWBSound({
+            freq: 2000, freqEnd: 400, type: 'sawtooth',
+            duration: 0.25, volume: volume * 0.4, attack: 0.002, release: 0.25
+        });
+        playRWBSound({
+            freq: 3000, freqEnd: 800, type: 'triangle',
+            duration: 0.15, volume: volume * 0.3, attack: 0.001, release: 0.15, detune: 20
+        });
+    }
+    
+    // ★ Взрыв ★
+    function playExplosionSound(volume) {
+        volume = volume || 0.5;
+        if (!rwbAudioCtx) initRWBAudio();
+        if (!rwbAudioCtx) return;
+        
+        try {
+            let bufferSize = rwbAudioCtx.sampleRate * 0.8;
+            let buffer = rwbAudioCtx.createBuffer(1, bufferSize, rwbAudioCtx.sampleRate);
+            let data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+            }
+            
+            let noise = rwbAudioCtx.createBufferSource();
+            noise.buffer = buffer;
+            
+            let filter = rwbAudioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1500, rwbAudioCtx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(60, rwbAudioCtx.currentTime + 0.8);
+            
+            let gain = rwbAudioCtx.createGain();
+            gain.gain.setValueAtTime(volume, rwbAudioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.8);
+            
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(rwbAudioCtx.destination);
+            noise.start(rwbAudioCtx.currentTime);
+            
+            // Низкий гул
+            let osc = rwbAudioCtx.createOscillator();
+            let oscGain = rwbAudioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(80, rwbAudioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(25, rwbAudioCtx.currentTime + 0.6);
+            oscGain.gain.setValueAtTime(volume * 1.5, rwbAudioCtx.currentTime);
+            oscGain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.7);
+            osc.connect(oscGain);
+            oscGain.connect(rwbAudioCtx.destination);
+            osc.start(rwbAudioCtx.currentTime);
+            osc.stop(rwbAudioCtx.currentTime + 0.8);
+        } catch(e) {}
+    }
+    
+    // ★ Удар в воздух / whoosh ★
+    function playWhooshSound(volume) {
+        volume = volume || 0.15;
+        playRWBSound({
+            freq: 800, freqEnd: 100, type: 'sawtooth',
+            duration: 0.3, volume: volume, attack: 0.01, release: 0.3, detune: -100
+        });
+    }
+    
+    // ★ Хаки-заряд (нарастающий) ★
+    function playHakiChargeSound(volume) {
+        volume = volume || 0.25;
+        playRWBSound({
+            freq: 60, freqEnd: 400, type: 'sawtooth',
+            duration: 1.2, volume: volume, attack: 0.1, release: 1.2
+        });
+        playRWBSound({
+            freq: 100, freqEnd: 600, type: 'square',
+            duration: 1.2, volume: volume * 0.5, attack: 0.1, release: 1.2, detune: 50
+        });
+    }
+    
+    // ★ Удар молнии ★
+    function playLightningSound(volume) {
+        volume = volume || 0.3;
+        playRWBSound({
+            freq: 3000, freqEnd: 200, type: 'square',
+            duration: 0.15, volume: volume, attack: 0.001, release: 0.15
+        });
+        playRWBSound({
+            freq: 150, freqEnd: 50, type: 'sawtooth',
+            duration: 0.4, volume: volume * 0.6, attack: 0.005, release: 0.4
+        });
+    }
+    
+    // ★ Громкий боссовый рёв ★
+    function playBossRoarSound(volume) {
+        volume = volume || 0.4;
+        playRWBSound({
+            freq: 150, freqEnd: 60, type: 'sawtooth',
+            duration: 0.8, volume: volume, attack: 0.05, release: 0.8, detune: -200
+        });
+        playRWBSound({
+            freq: 80, freqEnd: 40, type: 'square',
+            duration: 1.0, volume: volume * 0.7, attack: 0.05, release: 1.0, detune: -300
+        });
+    }
+    
     function rwbSound(freq, type, dur, vol) {
         if (typeof playArenaSound === 'function') playArenaSound(freq, type, dur, vol);
     }
@@ -182,10 +385,7 @@
         for (let i = rwbWhiteCracks.length - 1; i >= 0; i--) {
             let crack = rwbWhiteCracks[i];
             crack.life--;
-            if (crack.life <= 0) {
-                rwbWhiteCracks.splice(i, 1);
-                continue;
-            }
+            if (crack.life <= 0) { rwbWhiteCracks.splice(i, 1); continue; }
             let alpha = crack.life / crack.maxLife;
             
             ctx.save();
@@ -221,7 +421,7 @@
             return;
         }
 
-        console.log("[ROGER-WB] Старт боя v8.0!");
+        console.log("[ROGER-WB] Старт боя v9.0!");
 
         window.rwbActive = true;
         rwbState = "intro";
@@ -230,6 +430,7 @@
         rwbTransitionTimer = 0;
         rwbEndTimer = 0;
         rwbSurvivalTimer2 = 0;
+        rwbTitanFistTimer = 0;
         rwbActiveBoss = null;
         rwbHakiAura = 0;
 
@@ -238,7 +439,7 @@
             hp: BALANCE.rogerHp, maxHp: BALANCE.rogerHp,
             superForm: false,
             vx: 1.2, vy: 0.8, pulse: 0, rotation: 0,
-            attackTimer: 40, hitFlash: 0,
+            attackTimer: 30, hitFlash: 0,
             name: "РОДЖЕР", color: "#ff8800",
             homeX: 80, homeY: 120
         };
@@ -247,7 +448,7 @@
             hp: BALANCE.whitebeardHp, maxHp: BALANCE.whitebeardHp,
             superForm: false,
             vx: -1.0, vy: 0.6, pulse: 0, rotation: 0,
-            attackTimer: 60, hitFlash: 0,
+            attackTimer: 40, hitFlash: 0,
             name: "БЕЛОУС", color: "#ffffff",
             homeX: 320, homeY: 120
         };
@@ -275,6 +476,7 @@
 
         initIslandBackground();
         startRWBMusic();
+        initRWBAudio();
 
         let overlay = document.getElementById("arenaOverlay");
         if (overlay) overlay.style.display = "flex";
@@ -310,8 +512,8 @@
         if (rwbAnimFrame) cancelAnimationFrame(rwbAnimFrame);
         rwbAnimFrame = requestAnimationFrame(rwbRenderLoop);
 
-        rwbSound(200, 'sine', 1.5, 0.3);
-        setTimeout(function() { rwbSound(400, 'sine', 1.0, 0.25); }, 300);
+        playWhooshSound(0.3);
+        setTimeout(function() { playBossRoarSound(0.3); }, 500);
     }
 
     // ============================================================
@@ -355,7 +557,6 @@
     function drawIslandBackground() {
         if (!islandBg) initIslandBackground();
         
-        // Небо
         let skyGrad = ctx.createLinearGradient(0, 0, 0, 320);
         skyGrad.addColorStop(0, "#0d1b3d");
         skyGrad.addColorStop(0.3, "#2d2a5c");
@@ -366,7 +567,6 @@
         ctx.fillStyle = skyGrad;
         ctx.fillRect(0, 0, 400, 320);
         
-        // Солнце
         ctx.save();
         let sunX = 300, sunY = 290;
         let sunGrad = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, 50);
@@ -384,7 +584,6 @@
         ctx.fill();
         ctx.restore();
         
-        // Облака
         if (islandBg) {
             for (let cloud of islandBg.clouds) {
                 cloud.x += cloud.speed;
@@ -402,7 +601,6 @@
             }
         }
         
-        // Птицы
         if (islandBg) {
             for (let bird of islandBg.birds) {
                 bird.x += bird.speed;
@@ -420,7 +618,6 @@
             }
         }
         
-        // Море
         let seaGrad = ctx.createLinearGradient(0, 320, 0, 420);
         seaGrad.addColorStop(0, "#f5a623");
         seaGrad.addColorStop(0.3, "#3a6ea5");
@@ -429,7 +626,6 @@
         ctx.fillStyle = seaGrad;
         ctx.fillRect(0, 320, 400, 100);
         
-        // Отражение солнца
         ctx.save();
         ctx.globalAlpha = 0.5;
         let reflGrad = ctx.createRadialGradient(sunX, 330, 0, sunX, 360, 60);
@@ -441,7 +637,6 @@
         ctx.fill();
         ctx.restore();
         
-        // Волны
         if (islandBg) {
             ctx.save();
             for (let wave of islandBg.waveLines) {
@@ -459,7 +654,6 @@
             ctx.restore();
         }
         
-        // Земля
         let groundGrad = ctx.createLinearGradient(0, 420, 0, 500);
         groundGrad.addColorStop(0, "#d4a574");
         groundGrad.addColorStop(0.5, "#a87a4a");
@@ -467,11 +661,9 @@
         ctx.fillStyle = groundGrad;
         ctx.fillRect(0, 420, 400, 80);
         
-        // Пальмы
         drawPalmTree(30, 420, 1.0);
         drawPalmTree(370, 420, 0.9);
         
-        // Камни
         ctx.fillStyle = "#5a4530";
         ctx.beginPath();
         ctx.ellipse(150, 470, 15, 6, 0, 0, Math.PI * 2);
@@ -481,7 +673,6 @@
         ctx.ellipse(250, 485, 12, 5, 0, 0, Math.PI * 2);
         ctx.fill();
         
-        // Трава
         ctx.strokeStyle = "#3a5a2a";
         ctx.lineWidth = 2;
         for (let i = 0; i < 20; i++) {
@@ -569,7 +760,7 @@
                 rwbModeBtn.style.color = '#1a1a2e';
                 rwbModeBtn.style.boxShadow = '0 4px 15px rgba(255, 136, 0, 0.6)';
             }
-            rwbSound(800, 'square', 0.1, 0.2);
+            playWhooshSound(0.15);
         };
         document.body.appendChild(rwbModeBtn);
     }
@@ -657,7 +848,7 @@
                             rwbPlayerBullets.push(b);
                         }
                         weaponUsed = true;
-                        rwbSound(rwbPlayer.attackMode === "blue" ? 900 : 1100, 'square', 0.03, 0.05);
+                        playWhooshSound(0.05);
                     }
                 } catch(e) {}
             }
@@ -672,13 +863,15 @@
                     isBlue: (rwbPlayer.attackMode === "blue"),
                     damage: (rwbPlayer.attackMode === "blue") ? 1 : 3
                 });
-                rwbSound(rwbPlayer.attackMode === "blue" ? 900 : 1200, 'square', 0.03, 0.05);
+                playWhooshSound(0.06);
             }
         }
         if (rwbPlayer.attackTimer > 0) rwbPlayer.attackTimer--;
     }
 
+    // ============================================================
     // ДУЭЛЬ
+    // ============================================================
     function updateDuel() {
         if (!roger || !whitebeard) return;
         duel.timer++;
@@ -688,12 +881,12 @@
             roger.y += (roger.homeY - roger.y) * 0.04;
             whitebeard.x += (whitebeard.homeX - whitebeard.x) * 0.04;
             whitebeard.y += (whitebeard.homeY - whitebeard.y) * 0.04;
-            if (duel.timer > 40) {
+            if (duel.timer > 30) {
                 duel.phase = "approach";
                 duel.timer = 0;
                 duel.clashX = 100 + Math.random() * 200;
                 duel.clashY = 150 + Math.random() * 150;
-                rwbSound(500, 'sawtooth', 0.3, 0.15);
+                playWhooshSound(0.2);
             }
         } else if (duel.phase === "approach") {
             let targetRX = duel.clashX - 30;
@@ -716,12 +909,12 @@
                     vx: 3, vy: 0, life: 12, maxLife: 12, color: "#ffffff"
                 });
             }
-            if (duel.timer > 25) { duel.phase = "clash"; duel.timer = 0; performClash(); }
+            if (duel.timer > 20) { duel.phase = "clash"; duel.timer = 0; performClash(); }
         } else if (duel.phase === "clash") {
             roger.rotation += 0.15;
             whitebeard.rotation -= 0.15;
-            if (duel.timer % 4 === 0) spawnClashParticles(duel.clashX, duel.clashY);
-            if (duel.timer > 20) { duel.phase = "retreat"; duel.timer = 0; }
+            if (duel.timer % 3 === 0) spawnClashParticles(duel.clashX, duel.clashY);
+            if (duel.timer > 18) { duel.phase = "retreat"; duel.timer = 0; }
         } else if (duel.phase === "retreat") {
             let targetRX = roger.homeX;
             let targetRY = roger.homeY + (Math.random() - 0.5) * 60;
@@ -731,7 +924,7 @@
             roger.y += (targetRY - roger.y) * 0.12;
             whitebeard.x += (targetWX - whitebeard.x) * 0.12;
             whitebeard.y += (targetWY - whitebeard.y) * 0.12;
-            if (duel.timer > 30) { duel.phase = "pause"; duel.timer = 0; }
+            if (duel.timer > 25) { duel.phase = "pause"; duel.timer = 0; }
         } else if (duel.phase === "pause") {
             roger.rotation *= 0.95;
             whitebeard.rotation *= 0.95;
@@ -741,7 +934,7 @@
                 whitebeard.homeX = 240 + Math.random() * 100;
                 whitebeard.homeY = 100 + Math.random() * 80;
             }
-            if (duel.timer > 70) { duel.phase = "idle"; duel.timer = 0; }
+            if (duel.timer > 50) { duel.phase = "idle"; duel.timer = 0; }
         }
 
         roger.pulse += 0.08;
@@ -756,6 +949,7 @@
             spawnHakiLightning(whitebeard.x + (Math.random() - 0.5) * 40, whitebeard.y + (Math.random() - 0.5) * 40, 1, false);
         }
 
+        // ★★★ АТАКИ ФАЗЫ 1 — ЧАЩЕ ★★★
         roger.attackTimer--;
         if (roger.attackTimer <= 0) {
             roger.attackTimer = BALANCE.rogerAttackRate + Math.random() * 20;
@@ -783,6 +977,11 @@
         rwbScreenFlash = 20;
         rwbScreenFlashColor = "#000000";
         rwbHakiAura = 20;
+
+        // ★ КИНОШНЫЙ ЗВУК СТОЛКНОВЕНИЯ ★
+        playImpactSound(0.6, 1.2);
+        playBladeSound(0.4);
+        setTimeout(function() { playImpactSound(0.4, 0.8); }, 80);
 
         for (let i = 0; i < 25; i++) {
             let ang = Math.random() * Math.PI * 2;
@@ -812,8 +1011,6 @@
             color: "#ff2222", damage: 0, hit: true,
             life: 25, maxLife: 25, width: 5
         });
-
-        rwbSound(300, 'sawtooth', 0.4, 0.3);
     }
 
     function spawnClashParticles(x, y) {
@@ -832,30 +1029,35 @@
     }
 
     // ============================================================
-    // АТАКИ РОДЖЕРА (фаза 1)
+    // ★★★ АТАКИ РОДЖЕРА (фаза 1) — БОЛЬШЕ АТАК ★★★
     // ============================================================
     function spawnRogerAttack() {
-        let type = Math.floor(Math.random() * 4);
+        let type = Math.floor(Math.random() * 6); // ★ БЫЛО 4, СТАЛО 6 ★
         let isSuper = roger.superForm;
-        rwbSound(500, 'sawtooth', 0.25, 0.15);
+        
+        // ★ КИНОШНЫЙ ЗВУК ★
+        playBladeSound(0.25);
         spawnHakiLightning(roger.x, roger.y, 3, false);
 
         if (type === 0) {
-            let count = isSuper ? 8 : 6;
+            // Веер клинков
+            let count = isSuper ? 10 : 7;
             for (let i = 0; i < count; i++) {
-                let angle = Math.PI * 0.5 + (i - (count - 1) / 2) * 0.28;
+                let angle = Math.PI * 0.5 + (i - (count - 1) / 2) * 0.25;
                 let speed = (isSuper ? 5.0 : 4.2) * BALANCE.projectileSpeedMult;
                 rwbAttacks.push({
                     type: "blade", x: roger.x, y: roger.y + 30,
                     vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
                     size: 11, hp: 2, maxHp: 2,
-                    damage: Math.ceil((isSuper ? 15 : 11) * BALANCE.rogerDamageMult),
+                    damage: Math.ceil((isSuper ? 16 : 12) * BALANCE.rogerDamageMult),
                     life: 250, color: "#ff8800",
                     rotation: angle + Math.PI * 0.5, rotSpeed: 0.15,
                     hasHaki: true
                 });
             }
+            playBladeSound(0.15);
         } else if (type === 1) {
+            // Двойной большой клинок
             let offsets = [-0.18, 0.18];
             for (let off of offsets) {
                 let dx = rwbPlayer.x - roger.x;
@@ -867,14 +1069,16 @@
                     type: "big_blade", x: roger.x, y: roger.y + 20,
                     vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
                     size: 16, hp: 3, maxHp: 3,
-                    damage: Math.ceil((isSuper ? 24 : 18) * BALANCE.rogerDamageMult),
+                    damage: Math.ceil((isSuper ? 26 : 20) * BALANCE.rogerDamageMult),
                     life: 250, color: "#ff6600",
                     rotation: ang + Math.PI * 0.5, rotSpeed: 0.2,
                     trail: [], hasHaki: true
                 });
             }
+            playBladeSound(0.2);
         } else if (type === 2) {
-            let count = isSuper ? 10 : 7;
+            // Круговая волна
+            let count = isSuper ? 12 : 9;
             for (let i = 0; i < count; i++) {
                 let angle = (i / count) * Math.PI * 2;
                 let speed = (isSuper ? 4.2 : 3.5) * BALANCE.projectileSpeedMult;
@@ -882,95 +1086,182 @@
                     type: "blade", x: roger.x, y: roger.y,
                     vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
                     size: 10, hp: 2, maxHp: 2,
-                    damage: Math.ceil((isSuper ? 11 : 9) * BALANCE.rogerDamageMult),
+                    damage: Math.ceil((isSuper ? 12 : 10) * BALANCE.rogerDamageMult),
                     life: 250, color: "#ffaa00",
                     rotation: angle + Math.PI * 0.5, rotSpeed: 0.1,
                     hasHaki: true
                 });
             }
-        } else {
-            let count = isSuper ? 9 : 7;
+        } else if (type === 3) {
+            // ★ НОВАЯ: Двойная диагональная волна ★
+            let diagonals = [Math.PI * 0.25, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75];
+            for (let ang of diagonals) {
+                for (let k = 0; k < 2; k++) {
+                    let delay = k * 80;
+                    (function(a, d) {
+                        setTimeout(function() {
+                            if (!window.rwbActive) return;
+                            let speed = 4.8 * BALANCE.projectileSpeedMult;
+                            rwbAttacks.push({
+                                type: "big_blade", x: roger.x, y: roger.y,
+                                vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+                                size: 14, hp: 3, maxHp: 3,
+                                damage: Math.ceil(15 * BALANCE.rogerDamageMult),
+                                life: 250, color: "#ff4400",
+                                rotation: a + Math.PI * 0.5, rotSpeed: 0.25,
+                                trail: [], hasHaki: true
+                            });
+                            playBladeSound(0.08);
+                        }, d);
+                    })(ang, delay);
+                }
+            }
+        } else if (type === 4) {
+            // ★ НОВАЯ: Спираль клинков (шторм) ★
+            let count = 18;
             for (let i = 0; i < count; i++) {
-                let baseAng = (i / count) * Math.PI * 2.5;
-                let delay = i * 4;
-                (function(a, d, sup) {
+                let baseAng = (i / count) * Math.PI * 4;
+                let delay = i * 5;
+                (function(a, d) {
                     setTimeout(function() {
-                        if (!window.rwbActive || (rwbState !== "fight1" && rwbState !== "fight2")) return;
+                        if (!window.rwbActive) return;
                         rwbAttacks.push({
                             type: "blade", x: roger.x, y: roger.y,
-                            vx: Math.cos(a) * 4.0 * BALANCE.projectileSpeedMult, 
+                            vx: Math.cos(a) * 4.0 * BALANCE.projectileSpeedMult,
                             vy: Math.sin(a) * 4.0 * BALANCE.projectileSpeedMult,
-                            size: 10, hp: 2, maxHp: 2,
-                            damage: Math.ceil((sup ? 13 : 10) * BALANCE.rogerDamageMult),
-                            life: 250, color: "#ffcc00",
-                            rotation: a + Math.PI * 0.5, rotSpeed: 0.3,
+                            size: 9, hp: 2, maxHp: 2,
+                            damage: Math.ceil(10 * BALANCE.rogerDamageMult),
+                            life: 250, color: "#ff8800",
+                            rotation: a + Math.PI * 0.5, rotSpeed: 0.35,
                             hasHaki: true
                         });
                     }, d);
-                })(baseAng, delay, isSuper);
+                })(baseAng, delay);
             }
+        } else {
+            // ★ НОВАЯ: КРУГОВОЙ ВЗРЫВ КЛИНКОВ (28 сторон) ★
+            let count = isSuper ? 28 : 20;
+            for (let i = 0; i < count; i++) {
+                let angle = (i / count) * Math.PI * 2;
+                let speed = 3.0 * BALANCE.projectileSpeedMult;
+                rwbAttacks.push({
+                    type: "blade", x: roger.x, y: roger.y,
+                    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                    size: 8, hp: 2, maxHp: 2,
+                    damage: Math.ceil(9 * BALANCE.rogerDamageMult),
+                    life: 250, color: "#ffcc00",
+                    rotation: angle + Math.PI * 0.5, rotSpeed: 0.2,
+                    hasHaki: true
+                });
+            }
+            playImpactSound(0.3, 1.5);
         }
     }
 
     // ============================================================
-    // АТАКИ БЕЛОУСА (фаза 1)
+    // ★★★ АТАКИ БЕЛОУСА (фаза 1) — БОЛЬШЕ АТАК + СЛОЖНЕЕ ★★★
     // ============================================================
     function spawnWhitebeardAttack() {
-        let type = Math.floor(Math.random() * 4);
+        let type = Math.floor(Math.random() * 6); // ★ БЫЛО 4, СТАЛО 6 ★
         let isSuper = whitebeard.superForm;
-        rwbSound(150, 'sine', 0.5, 0.2);
+        
+        playHakiChargeSound(0.2);
         spawnHakiLightning(whitebeard.x, whitebeard.y, 3, false);
 
         if (type === 0) {
-            let count = 5;
+            // КАМНЕПАД: 6 камней
+            let count = 6;
             for (let i = 0; i < count; i++) {
-                let cx = 50 + Math.random() * 300;
+                let cx = 40 + Math.random() * 320;
                 rwbAttacks.push({
                     type: "rock",
                     x: cx, y: -40 - Math.random() * 30,
                     vx: (Math.random() - 0.5) * 0.5,
-                    vy: (isSuper ? 4.0 : 3.2) * BALANCE.projectileSpeedMult,
+                    vy: (isSuper ? 4.2 : 3.5) * BALANCE.projectileSpeedMult,
                     size: 17 + Math.random() * 5,
                     rotation: Math.random() * Math.PI * 2,
                     rotSpeed: (Math.random() - 0.5) * 0.06,
                     hp: 3, maxHp: 3,
-                    damage: Math.ceil((isSuper ? 18 : 13) * BALANCE.whitebeardDamageMult),
+                    damage: Math.ceil((isSuper ? 20 : 15) * BALANCE.whitebeardDamageMult),
                     life: 400, color: "#8B7355",
                     hasHaki: false,
                     textureSeed: Math.random() * 1000
                 });
             }
             spawnWhiteCracks(whitebeard.x, whitebeard.y, 3);
-            rwbSound(120, 'sawtooth', 0.5, 0.25);
+            playImpactSound(0.4, 0.6);
         } else if (type === 1) {
+            // Кольцо
             rwbShockwaves.push({
                 x: whitebeard.x, y: whitebeard.y,
                 radius: 10,
                 maxRadius: isSuper ? 240 : 200,
-                speed: (isSuper ? 5.0 : 4.0) * BALANCE.projectileSpeedMult,
+                speed: (isSuper ? 5.5 : 4.5) * BALANCE.projectileSpeedMult,
                 color: "#ffdd44",
-                damage: Math.ceil((isSuper ? 18 : 13) * BALANCE.whitebeardDamageMult),
+                damage: Math.ceil((isSuper ? 20 : 15) * BALANCE.whitebeardDamageMult),
                 hit: false, hp: 6, maxHp: 6,
                 canDestroy: true,
                 life: 150, maxLife: 150, width: 14
             });
+            playImpactSound(0.35, 0.9);
         } else if (type === 2) {
+            // Кулак
             let dx = rwbPlayer.x - whitebeard.x;
             let dy = rwbPlayer.y - whitebeard.y;
             let len = Math.sqrt(dx * dx + dy * dy) || 1;
-            let speed = (isSuper ? 5.5 : 4.5) * BALANCE.projectileSpeedMult;
+            let speed = (isSuper ? 6 : 5) * BALANCE.projectileSpeedMult;
             rwbAttacks.push({
                 type: "fist",
                 x: whitebeard.x, y: whitebeard.y + 20,
                 vx: (dx / len) * speed, vy: (dy / len) * speed,
-                size: 17, hp: 4, maxHp: 4,
-                damage: Math.ceil((isSuper ? 24 : 18) * BALANCE.whitebeardDamageMult),
+                size: 18, hp: 4, maxHp: 4,
+                damage: Math.ceil((isSuper ? 26 : 20) * BALANCE.whitebeardDamageMult),
                 life: 250, color: "#ffffff",
                 rotation: 0, rotSpeed: 0,
                 trail: [], hasHaki: true
             });
-        } else {
+            playImpactSound(0.4, 1.0);
+        } else if (type === 3) {
+            // Цунами
             spawnTsunamiAttack(isSuper);
+        } else if (type === 4) {
+            // ★ НОВАЯ: Двойной кулак (разные стороны) ★
+            for (let side = -1; side <= 1; side += 2) {
+                let targetX = rwbPlayer.x + side * 40;
+                let targetY = rwbPlayer.y;
+                let dx = targetX - whitebeard.x;
+                let dy = targetY - whitebeard.y;
+                let len = Math.sqrt(dx * dx + dy * dy) || 1;
+                let speed = 5.5 * BALANCE.projectileSpeedMult;
+                rwbAttacks.push({
+                    type: "fist",
+                    x: whitebeard.x, y: whitebeard.y + 20,
+                    vx: (dx / len) * speed, vy: (dy / len) * speed,
+                    size: 16, hp: 4, maxHp: 4,
+                    damage: Math.ceil(18 * BALANCE.whitebeardDamageMult),
+                    life: 250, color: "#ffffff",
+                    rotation: 0, rotSpeed: 0,
+                    trail: [], hasHaki: true
+                });
+            }
+            playImpactSound(0.45, 0.8);
+        } else {
+            // ★ НОВАЯ: ХАКИ-ВОЛНА (горизонтальная волна) ★
+            let side = Math.random() > 0.5 ? 1 : -1;
+            let startX = side > 0 ? -40 : 440;
+            let waveY = 200 + Math.random() * 200;
+            rwbAttacks.push({
+                type: "haki_wave",
+                x: startX, y: waveY,
+                vx: side * 3.5 * BALANCE.projectileSpeedMult,
+                vy: 0,
+                size: 30, hp: 5, maxHp: 5,
+                damage: Math.ceil(22 * BALANCE.whitebeardDamageMult),
+                life: 300, color: "#ff8800",
+                rotation: 0, rotSpeed: 0,
+                trail: [], hasHaki: true
+            });
+            playHakiChargeSound(0.3);
         }
     }
 
@@ -978,19 +1269,19 @@
     function spawnTsunamiAttack(isSuper) {
         let fromLeft = Math.random() > 0.5;
         let startX = fromLeft ? -80 : 480;
-        let speed = (isSuper ? 3.0 : 2.2) * BALANCE.projectileSpeedMult;
-        let waveHeight = isSuper ? 160 : 130;
+        let speed = (isSuper ? 3.2 : 2.4) * BALANCE.projectileSpeedMult;
+        let waveHeight = isSuper ? 170 : 140;
         
         rwbAttacks.push({
             type: "tsunami",
             x: startX, y: 380,
             vx: fromLeft ? speed : -speed,
             vy: 0,
-            width: isSuper ? 70 : 55,
+            width: isSuper ? 75 : 60,
             height: waveHeight,
-            currentWidth: isSuper ? 70 : 55,
+            currentWidth: isSuper ? 75 : 60,
             currentHeight: waveHeight,
-            damage: Math.ceil((isSuper ? 24 : 18) * BALANCE.whitebeardDamageMult),
+            damage: Math.ceil((isSuper ? 26 : 20) * BALANCE.whitebeardDamageMult),
             life: 400,
             fromLeft: fromLeft,
             waveTime: 0,
@@ -998,7 +1289,8 @@
             color: "#0099ff"
         });
         
-        rwbSound(80, 'sine', 1.0, 0.25);
+        playWhooshSound(0.4);
+        setTimeout(function() { playImpactSound(0.35, 0.5); }, 200);
         
         rwbFloatingTexts.push({
             x: fromLeft ? 40 : 360,
@@ -1014,13 +1306,14 @@
     // ★★★ УНИКАЛЬНЫЕ АТАКИ СУПЕР-ФАЗЫ ★★★
     // ============================================================
     function spawnRogerSuperAttack() {
-        let attackId = Math.floor(Math.random() * 3);
-        rwbSound(600, 'sawtooth', 0.4, 0.2);
+        let attackId = Math.floor(Math.random() * 4); // ★ БЫЛО 3, СТАЛО 4 ★
+        playHakiChargeSound(0.25);
         spawnHakiLightning(roger.x, roger.y, 5, false);
 
         if (attackId === 0) spawnRogerCrossSlash();
         else if (attackId === 1) spawnRogerCrossStrike();
-        else spawnRogerHellFire();
+        else if (attackId === 2) spawnRogerHellFire();
+        else spawnRogerComboRush();  // ★ НОВАЯ ★
     }
 
     function spawnRogerCrossSlash() {
@@ -1032,17 +1325,18 @@
             vy: -0.3, vx: 0, size: 20
         });
         
-        rwbSound(200, 'sawtooth', 0.6, 0.3);
+        playWhooshSound(0.5);
+        setTimeout(function() { playImpactSound(0.5, 1.2); }, 300);
         
         let slashX = 100 + Math.random() * 200;
         rwbAttacks.push({
             type: "roger_slash",
             x: slashX, y: 0,
             width: 50,
-            warningTimer: 60,
+            warningTimer: 55,
             activeTimer: 0,
             maxActive: 22,
-            damage: Math.ceil(28 * BALANCE.superDamageMult),
+            damage: Math.ceil(30 * BALANCE.superDamageMult),
             hit: false,
             state: "warning",
             color: "#ff4400"
@@ -1060,7 +1354,7 @@
             vy: -0.3, vx: 0, size: 20
         });
         
-        rwbSound(300, 'square', 0.5, 0.3);
+        playBladeSound(0.3);
         
         let cx = 130 + Math.random() * 140;
         let cy = 180 + Math.random() * 120;
@@ -1070,8 +1364,8 @@
             x: cx, y: cy,
             dir: "vertical",
             length: 400, width: 35,
-            warningTimer: 55, activeTimer: 0, maxActive: 20,
-            damage: Math.ceil(25 * BALANCE.superDamageMult),
+            warningTimer: 50, activeTimer: 0, maxActive: 20,
+            damage: Math.ceil(26 * BALANCE.superDamageMult),
             hit: false, state: "warning",
             color: "#ff8800"
         });
@@ -1081,8 +1375,8 @@
             x: cx, y: cy,
             dir: "horizontal",
             length: 400, width: 35,
-            warningTimer: 55, activeTimer: 0, maxActive: 20,
-            damage: Math.ceil(25 * BALANCE.superDamageMult),
+            warningTimer: 50, activeTimer: 0, maxActive: 20,
+            damage: Math.ceil(26 * BALANCE.superDamageMult),
             hit: false, state: "warning",
             color: "#ff8800"
         });
@@ -1099,7 +1393,8 @@
             vy: -0.3, vx: 0, size: 20
         });
         
-        rwbSound(150, 'sawtooth', 0.5, 0.3);
+        playWhooshSound(0.4);
+        setTimeout(function() { playExplosionSound(0.5); }, 800);
         
         rwbAttacks.push({
             type: "hell_fire",
@@ -1107,10 +1402,10 @@
             targetX: rwbPlayer.x,
             targetY: rwbPlayer.y,
             vx: 0, vy: 0,
-            speed: 3.5 * BALANCE.projectileSpeedMult,
+            speed: 3.8 * BALANCE.projectileSpeedMult,
             size: 25,
             hp: 5, maxHp: 5,
-            damage: Math.ceil(22 * BALANCE.superDamageMult),
+            damage: Math.ceil(24 * BALANCE.superDamageMult),
             life: 300,
             state: "flying",
             flyTimer: 0,
@@ -1119,14 +1414,53 @@
         });
     }
 
+    // ★ НОВАЯ АТАКА: КОМБО-РЫВОК (несколько ударов) ★
+    function spawnRogerComboRush() {
+        rwbFloatingTexts.push({
+            x: 200, y: 100,
+            text: "⚔️ КОМБО ⚔️",
+            color: "#ffdd00",
+            life: 70, maxLife: 70,
+            vy: -0.3, vx: 0, size: 20
+        });
+        
+        playBladeSound(0.35);
+        
+        // 3 волны клинков подряд
+        for (let w = 0; w < 3; w++) {
+            (function(waveIdx) {
+                setTimeout(function() {
+                    if (!window.rwbActive || rwbState !== "fight2") return;
+                    let count = 8;
+                    let baseAng = Math.random() * Math.PI * 2;
+                    for (let i = 0; i < count; i++) {
+                        let ang = baseAng + (i / count) * Math.PI * 2;
+                        rwbAttacks.push({
+                            type: "blade", x: roger.x, y: roger.y,
+                            vx: Math.cos(ang) * 5.0,
+                            vy: Math.sin(ang) * 5.0,
+                            size: 10, hp: 2, maxHp: 2,
+                            damage: Math.ceil(14 * BALANCE.superDamageMult),
+                            life: 250, color: "#ffcc00",
+                            rotation: ang + Math.PI * 0.5, rotSpeed: 0.3,
+                            hasHaki: true
+                        });
+                    }
+                    playBladeSound(0.15);
+                }, waveIdx * 350);
+            })(w);
+        }
+    }
+
     function spawnWhitebeardSuperAttack() {
-        let attackId = Math.floor(Math.random() * 3);
-        rwbSound(120, 'sawtooth', 0.4, 0.25);
+        let attackId = Math.floor(Math.random() * 4); // ★ БЫЛО 3, СТАЛО 4 ★
+        playHakiChargeSound(0.3);
         spawnHakiLightning(whitebeard.x, whitebeard.y, 5, false);
 
         if (attackId === 0) spawnWhitebeardEarthquake();
         else if (attackId === 1) spawnWhitebeardGuraGura();
-        else spawnWhitebeardTitanFist();
+        else if (attackId === 2) spawnWhitebeardTitanFist();
+        else spawnWhitebeardRush();  // ★ НОВАЯ ★
     }
 
     function spawnWhitebeardEarthquake() {
@@ -1138,34 +1472,35 @@
             vy: -0.3, vx: 0, size: 18
         });
         
-        rwbSound(60, 'sawtooth', 1.0, 0.3);
+        playImpactSound(0.7, 0.5);
+        playBossRoarSound(0.4);
         rwbShake = 25;
         
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 8; i++) {
             let cx = 40 + Math.random() * 320;
             rwbAttacks.push({
                 type: "rock",
                 x: cx, y: -40 - Math.random() * 50,
                 vx: (Math.random() - 0.5) * 1.2,
-                vy: 3.0 + Math.random() * 1.5,
+                vy: 3.2 + Math.random() * 1.5,
                 size: 16 + Math.random() * 8,
                 rotation: Math.random() * Math.PI * 2,
                 rotSpeed: (Math.random() - 0.5) * 0.1,
                 hp: 3, maxHp: 3,
-                damage: Math.ceil(18 * BALANCE.superDamageMult),
+                damage: Math.ceil(20 * BALANCE.superDamageMult),
                 life: 400, color: "#8B7355",
                 hasHaki: false,
                 textureSeed: Math.random() * 1000
             });
         }
         
-        spawnWhiteCracks(whitebeard.x, whitebeard.y, 4);
+        spawnWhiteCracks(whitebeard.x, whitebeard.y, 5);
         
         let shakeInterval = setInterval(function() {
             if (!window.rwbActive || rwbState !== "fight2") { clearInterval(shakeInterval); return; }
             rwbShake = Math.max(rwbShake, 12);
         }, 100);
-        setTimeout(function() { clearInterval(shakeInterval); }, 1200);
+        setTimeout(function() { clearInterval(shakeInterval); }, 1500);
     }
 
     function spawnWhitebeardGuraGura() {
@@ -1177,9 +1512,10 @@
             vy: -0.3, vx: 0, size: 20
         });
         
-        rwbSound(200, 'sawtooth', 0.5, 0.3);
+        playHakiChargeSound(0.4);
+        setTimeout(function() { playExplosionSound(0.6); }, 500);
         
-        let crackCount = 4;
+        let crackCount = 5;
         for (let i = 0; i < crackCount; i++) {
             let rx = 60 + Math.random() * 280;
             let ry = 120 + Math.random() * 280;
@@ -1187,11 +1523,11 @@
                 type: "gura_crack",
                 x: rx, y: ry,
                 radius: 10,
-                maxRadius: 80,
-                damage: Math.ceil(22 * BALANCE.superDamageMult),
+                maxRadius: 85,
+                damage: Math.ceil(24 * BALANCE.superDamageMult),
                 life: 200,
                 state: "warning",
-                warningTimer: 80 + i * 20,
+                warningTimer: 70 + i * 15,
                 activeTimer: 0,
                 maxActive: 20,
                 hit: false,
@@ -1211,16 +1547,17 @@
             vy: -0.3, vx: 0, size: 18
         });
         
-        rwbSound(80, 'sawtooth', 0.8, 0.35);
+        playWhooshSound(0.5);
+        setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
         rwbShake = 25;
         
         let fistX = 120 + Math.random() * 160;
         rwbAttacks.push({
             type: "titan_fist",
             x: fistX, y: -120,
-            vy: 3.0,
-            size: 70,
-            damage: Math.ceil(32 * BALANCE.superDamageMult),
+            vy: 3.5,
+            size: 75,
+            damage: Math.ceil(35 * BALANCE.superDamageMult),
             life: 300,
             state: "falling",
             hit: false,
@@ -1238,7 +1575,7 @@
                 rotation: Math.random() * Math.PI * 2,
                 rotSpeed: (Math.random() - 0.5) * 0.08,
                 hp: 2, maxHp: 2,
-                damage: Math.ceil(12 * BALANCE.superDamageMult),
+                damage: Math.ceil(14 * BALANCE.superDamageMult),
                 life: 350, color: "#8B7355",
                 hasHaki: false,
                 textureSeed: Math.random() * 1000
@@ -1246,8 +1583,46 @@
         }
     }
 
+    // ★ НОВАЯ АТАКА: НАВАЛА (много кулаков подряд) ★
+    function spawnWhitebeardRush() {
+        rwbFloatingTexts.push({
+            x: 200, y: 100,
+            text: "👊 НАВАЛА 👊",
+            color: "#ffffff",
+            life: 70, maxLife: 70,
+            vy: -0.3, vx: 0, size: 20
+        });
+        
+        playBossRoarSound(0.4);
+        playWhooshSound(0.4);
+        
+        for (let i = 0; i < 6; i++) {
+            (function(idx) {
+                setTimeout(function() {
+                    if (!window.rwbActive || rwbState !== "fight2") return;
+                    let targetX = rwbPlayer.x + (Math.random() - 0.5) * 80;
+                    let targetY = rwbPlayer.y + (Math.random() - 0.5) * 80;
+                    let dx = targetX - whitebeard.x;
+                    let dy = targetY - whitebeard.y;
+                    let len = Math.sqrt(dx * dx + dy * dy) || 1;
+                    let speed = 6.0 * BALANCE.projectileSpeedMult;
+                    rwbAttacks.push({
+                        type: "fist", x: whitebeard.x, y: whitebeard.y + 20,
+                        vx: (dx / len) * speed, vy: (dy / len) * speed,
+                        size: 14, hp: 3, maxHp: 3,
+                        damage: Math.ceil(16 * BALANCE.superDamageMult),
+                        life: 250, color: "#ffffff",
+                        rotation: 0, rotSpeed: 0,
+                        trail: [], hasHaki: true
+                    });
+                    playImpactSound(0.25, 1.0 + idx * 0.1);
+                }, idx * 120);
+            })(i);
+        }
+    }
+
     // ============================================================
-    // ★★★ СУПЕР — ФИКС: босс получает МНОГО HP ★★★
+    // ★★★ СУПЕР — ФИКС БАГА (босс НЕ умирает быстро) ★★★
     // ============================================================
     function triggerSuper(winner, loser) {
         console.log("[ROGER-WB] СУПЕР:", winner.name);
@@ -1255,12 +1630,15 @@
         rwbTransitionTimer = 0;
         winner.superForm = true;
         
-        // ★★★ ФИКС: УВЕЛИЧИВАЕМ HP В 8 РАЗ ★★★
+        // ★ ФИКС: правильный HP супер-босса ★
         let newMaxHp = Math.ceil(BALANCE.superBaseHp * BALANCE.superHpMult);
         winner.maxHp = newMaxHp;
         winner.hp = newMaxHp;
         winner.size *= 1.3;
         rwbActiveBoss = winner;
+        
+        // ★ СБРОС ТАЙМЕРА ТИТАН-КУЛАКА ★
+        rwbTitanFistTimer = 0;
         
         console.log("[ROGER-WB] Босс усилен! Новый HP: " + newMaxHp);
 
@@ -1274,6 +1652,11 @@
         rwbScreenFlashColor = "#000000";
         rwbShake = 35;
         rwbHakiAura = 40;
+
+        // ★ КИНОШНЫЙ ЗВУК АКТИВАЦИИ СУПЕРА ★
+        playBossRoarSound(0.6);
+        playHakiChargeSound(0.5);
+        setTimeout(function() { playExplosionSound(0.4); }, 800);
 
         for (let i = 0; i < 40; i++) {
             let ang = Math.random() * Math.PI * 2;
@@ -1290,8 +1673,6 @@
         for (let i = 0; i < 15; i++) {
             spawnHakiLightning(200 + (Math.random() - 0.5) * 150, 250 + (Math.random() - 0.5) * 150, 1, Math.random() > 0.6);
         }
-
-        rwbSound(300, 'sawtooth', 0.8, 0.35);
     }
 
     // ============================================================
@@ -1375,6 +1756,35 @@
                 continue;
             }
 
+            // ★ НОВАЯ: ХАКИ-ВОЛНА ★
+            if (a.type === "haki_wave") {
+                a.x += a.vx;
+                a.life--;
+                
+                if (Math.random() < 0.3) {
+                    rwbParticles.push({
+                        x: a.x, y: a.y + (Math.random() - 0.5) * a.size,
+                        vx: a.vx * 0.3, vy: (Math.random() - 0.5) * 2,
+                        life: 15, maxLife: 15,
+                        color: "#ff8800", size: 2
+                    });
+                }
+                
+                if (!a.hit && rwbPlayer.invulnTimer <= 0) {
+                    let dx = Math.abs(rwbPlayer.x - a.x);
+                    let dy = Math.abs(rwbPlayer.y - a.y);
+                    if (dx < a.size * 0.6 + 4 && dy < a.size * 0.6 + 4) {
+                        a.hit = true;
+                        hitPlayer(a.damage);
+                    }
+                }
+                
+                if (a.x < -60 || a.x > 460 || a.life <= 0) {
+                    rwbAttacks.splice(i, 1);
+                }
+                continue;
+            }
+
             if (a.type === "roger_slash") {
                 if (a.state === "warning") {
                     a.warningTimer--;
@@ -1382,7 +1792,8 @@
                         a.state = "active";
                         a.activeTimer = a.maxActive;
                         rwbShake = 20;
-                        rwbSound(150, 'sawtooth', 0.6, 0.4);
+                        playBladeSound(0.5);
+                        playImpactSound(0.4, 1.0);
                     }
                 } else if (a.state === "active") {
                     a.activeTimer--;
@@ -1407,7 +1818,7 @@
                         a.state = "active";
                         a.activeTimer = a.maxActive;
                         rwbShake = 18;
-                        rwbSound(300, 'sawtooth', 0.4, 0.35);
+                        playBladeSound(0.4);
                     }
                 } else if (a.state === "active") {
                     a.activeTimer--;
@@ -1445,7 +1856,7 @@
                         a.x = a.targetX;
                         a.y = a.targetY;
                         rwbShake = 25;
-                        rwbSound(80, 'sawtooth', 0.8, 0.4);
+                        playExplosionSound(0.6);
                         
                         for (let j = 0; j < 10; j++) {
                             let ang = (j / 10) * Math.PI * 2;
@@ -1455,7 +1866,7 @@
                                 vx: Math.cos(ang) * 2.5,
                                 vy: Math.sin(ang) * 2.5,
                                 size: 7,
-                                damage: Math.ceil(14 * BALANCE.superDamageMult),
+                                damage: Math.ceil(16 * BALANCE.superDamageMult),
                                 life: 120,
                                 color: "#ff4400"
                             });
@@ -1514,7 +1925,7 @@
                         a.state = "active";
                         a.activeTimer = a.maxActive;
                         rwbShake = 18;
-                        rwbSound(300, 'square', 0.3, 0.35);
+                        playExplosionSound(0.5);
                         
                         for (let j = 0; j < 12; j++) {
                             let ang = (j / 12) * Math.PI * 2;
@@ -1578,8 +1989,9 @@
                     if (a.y > 380) {
                         a.state = "impact";
                         a.impactTimer = 30;
-                        rwbShake = 35;
-                        rwbSound(40, 'sawtooth', 1.0, 0.5);
+                        rwbShake = 40;
+                        playImpactSound(0.9, 0.4);
+                        playExplosionSound(0.5);
                         
                         for (let j = 0; j < 12; j++) {
                             let ang = (j / 12) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
@@ -1592,7 +2004,7 @@
                                 rotation: Math.random() * Math.PI * 2,
                                 rotSpeed: (Math.random() - 0.5) * 0.15,
                                 hp: 1, maxHp: 1,
-                                damage: Math.ceil(12 * BALANCE.superDamageMult),
+                                damage: Math.ceil(14 * BALANCE.superDamageMult),
                                 life: 200, color: "#8B7355",
                                 hasHaki: false,
                                 textureSeed: Math.random() * 1000
@@ -1657,7 +2069,7 @@
 
     function spawnRockSmash(x, y, size) {
         rwbShake = 8;
-        rwbSound(80, 'sawtooth', 0.3, 0.25);
+        playImpactSound(0.3, 0.8);
         for (let i = 0; i < 10; i++) {
             let ang = Math.random() * Math.PI * 2;
             let spd = 2 + Math.random() * 4;
@@ -1686,7 +2098,7 @@
                     let a = rwbAttacks[j];
                     if (a.type === "tsunami" || a.type === "titan_fist" || 
                         a.type === "roger_slash" || a.type === "roger_cross" || a.type === "gura_crack" ||
-                        a.type === "hell_fire") continue;
+                        a.type === "hell_fire" || a.type === "haki_wave") continue;
                     
                     let dx = b.x - a.x, dy = b.y - a.y;
                     let aSize = a.size || 20;
@@ -1694,9 +2106,10 @@
                         if (a.hp !== undefined) a.hp -= 1;
                         else a.hp = 1;
                         spawnHitParticles(b.x, b.y, "#00aaff", 3);
-                        rwbSound(1200, 'square', 0.05, 0.08);
+                        playWhooshSound(0.08);
                         if (a.hp <= 0) {
                             spawnDestroyParticles(a.x, a.y, a.color || "#ffffff");
+                            playImpactSound(0.2, 1.3);
                             rwbAttacks.splice(j, 1);
                         }
                         destroyed = true;
@@ -1737,6 +2150,7 @@
                             let result = window.applyArmorToBossDamage(dmg);
                             if (result.blocked) {
                                 spawnHitParticles(b.x, b.y, "#9b59b6", 6);
+                                playImpactSound(0.15, 1.5);
                                 destroyed = true;
                                 break;
                             }
@@ -1746,7 +2160,7 @@
                         boss.hp = Math.max(0, boss.hp - dmg);
                         boss.hitFlash = 4;
                         spawnHitParticles(b.x, b.y, b.color, 4);
-                        rwbSound(1400, 'square', 0.04, 0.06);
+                        playImpactSound(0.15, 1.2 + Math.random() * 0.3);
                         destroyed = true;
                         break;
                     }
@@ -1772,10 +2186,13 @@
         
         rwbPlayer.hp -= dmg;
         rwbPlayer.invulnTimer = 50;
-        rwbShake = 10;
-        rwbScreenFlash = 6;
+        rwbShake = 12;
+        rwbScreenFlash = 8;
         rwbScreenFlashColor = "#ff0000";
-        rwbSound(60, 'sawtooth', 0.4, 0.25);
+        
+        // ★ КИНОШНЫЙ ЗВУК ПОПАДАНИЯ ПО ИГРОКУ ★
+        playImpactSound(0.5, 0.6);
+        playWhooshSound(0.2);
 
         let hpEl = document.getElementById("arenaHP");
         if (hpEl) hpEl.innerText = Math.max(0, rwbPlayer.hp);
@@ -1832,9 +2249,11 @@
         }
         if (typeof saveAll === 'function') saveAll();
         if (typeof showFloatingText === 'function') showFloatingText("👑 ЛЕГЕНДЫ ПОБЕЖДЕНЫ!", "#ffd700");
-        rwbSound(500, 'sine', 0.8, 0.25);
-        setTimeout(function() { rwbSound(700, 'sine', 0.8, 0.25); }, 250);
-        setTimeout(function() { rwbSound(1000, 'sine', 1.2, 0.3); }, 500);
+        
+        // ★ КИНОШНАЯ ПОБЕДА ★
+        playImpactSound(0.5, 0.7);
+        setTimeout(function() { playImpactSound(0.6, 0.9); }, 200);
+        setTimeout(function() { playImpactSound(0.7, 1.2); }, 400);
     }
 
     function rwbDefeat() {
@@ -1842,7 +2261,8 @@
         rwbState = "defeat";
         rwbEndTimer = 0;
         hideRWBModeButton();
-        rwbSound(40, 'sawtooth', 1.5, 0.35);
+        playBossRoarSound(0.5);
+        playExplosionSound(0.4);
         if (typeof showFloatingText === 'function') showFloatingText("💀 ТЫ ПАЛ...", "#ff0000");
     }
 
@@ -1880,17 +2300,53 @@
             updateRWBPlayerBullets();
         } else if (rwbState === "transition") {
             rwbTransitionTimer++;
-            if (rwbTransitionTimer > 100) { rwbState = "fight2"; rwbSurvivalTimer2 = 0; }
+            if (rwbTransitionTimer > 100) { rwbState = "fight2"; rwbSurvivalTimer2 = 0; rwbTitanFistTimer = 0; }
         } else if (rwbState === "fight2") {
             updateRWBPlayer();
             updateSuperBoss();
             updateRWBAttacks();
             updateRWBPlayerBullets();
             rwbSurvivalTimer2++;
+            
+            // ★★★ ФИКС БАГА: НЕ заканчивать бой по таймеру если игрок не добил ★
+            // Проверяем только когда ВСЕ атаки закончились и boss.hp > 0
+            // Таймер теперь = 2700 (45 сек), но победа только если boss.hp <= 0
+            if (rwbActiveBoss && rwbActiveBoss.hp <= 0) {
+                rwbVictory();
+                return;
+            }
+            
+            // ★ ТИТАН-КУЛАК РАЗ В 4 СЕКУНДЫ ★
+            rwbTitanFistTimer++;
+            if (rwbTitanFistTimer >= BALANCE.titanFistInterval) {
+                rwbTitanFistTimer = 0;
+                // Спавним титан-кулак
+                let fistX = 120 + Math.random() * 160;
+                rwbAttacks.push({
+                    type: "titan_fist",
+                    x: fistX, y: -120,
+                    vy: 3.5,
+                    size: 75,
+                    damage: Math.ceil(35 * BALANCE.superDamageMult),
+                    life: 300,
+                    state: "falling",
+                    hit: false,
+                    color: "#8B7355"
+                });
+                rwbFloatingTexts.push({
+                    x: 200, y: 100,
+                    text: "👊 ТИТАН-КУЛАК 👊",
+                    color: "#ffdd00",
+                    life: 60, maxLife: 60,
+                    vy: -0.3, vx: 0, size: 18
+                });
+                playWhooshSound(0.5);
+                setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
+            }
+            
             let remaining = Math.max(0, Math.ceil((rwbSurvivalTarget2 - rwbSurvivalTimer2) / 60));
             let timerEl = document.getElementById("arenaTimer");
             if (timerEl) timerEl.innerText = remaining + "с";
-            if (rwbSurvivalTimer2 >= rwbSurvivalTarget2) rwbVictory();
         } else if (rwbState === "victory" || rwbState === "defeat") {
             rwbEndTimer++;
             if (rwbEndTimer > 180) {
@@ -2060,7 +2516,7 @@
             ctx.restore();
         }
 
-        // ★ HP бары ★
+        // HP бары
         if (rwbState === "fight1" || rwbState === "transition") {
             drawHpBar(6, 4, 190, 14, roger ? roger.hp : 0, BALANCE.rogerHp, "#ff8800", "🔥 РОДЖЕР", false);
             drawHpBar(204, 4, 190, 14, whitebeard ? whitebeard.hp : 0, BALANCE.whitebeardHp, "#ffffff", "❄️ БЕЛОУС", true);
@@ -2068,7 +2524,6 @@
             let boss = rwbActiveBoss;
             let barColor = (boss.id === "roger") ? "#ff8800" : "#ffffff";
             let barName = (boss.id === "roger") ? "🔥 РОДЖЕР [СУПЕР]" : "❄️ БЕЛОУС [СУПЕР]";
-            // ★ ФИКС: используем boss.maxHp (уже увеличен) ★
             drawHpBar(6, 4, 388, 16, boss.hp, boss.maxHp, barColor, barName);
         }
 
@@ -2105,17 +2560,17 @@
                 ctx.fillText("РОДЖЕР: СУПЕР!", 200, 230);
                 ctx.font = "14px monospace";
                 ctx.fillStyle = "#ffdd00";
-                ctx.fillText("Рассечение • Крест • Пламя", 200, 270);
+                ctx.fillText("Рассечение • Крест • Пламя • Комбо", 200, 270);
             } else {
                 ctx.fillStyle = "#ffffff";
                 ctx.fillText("БЕЛОУС: СУПЕР!", 200, 230);
                 ctx.font = "14px monospace";
                 ctx.fillStyle = "#ffdd00";
-                ctx.fillText("Землетрясение • Гура-Гура • Кулак", 200, 270);
+                ctx.fillText("Землетрясение • Гура-Гура • Кулак • Навала", 200, 270);
             }
             ctx.font = "13px monospace";
             ctx.fillStyle = "#ff4444";
-            ctx.fillText("⚠️ HP босса x8 — держись!", 200, 310);
+            ctx.fillText("⚠️ HP босса x10 — держись!", 200, 310);
             ctx.font = "15px monospace";
             ctx.fillStyle = "#ffd700";
             ctx.fillText("ФИНАЛЬНЫЙ РАУНД!", 200, 345);
@@ -2188,6 +2643,9 @@
         ctx.restore();
     }
 
+    // ============================================================
+    // ★★★ МОДЕЛЬКИ — КАК РАНЬШЕ (простые, без палки) ★★★
+    // ============================================================
     function drawHeartShape(cx, cy, size, color, glowColor) {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2216,20 +2674,8 @@
         ctx.save();
         ctx.translate(roger.x, roger.y);
         ctx.rotate(Math.sin(roger.rotation) * 0.1);
+        // ★ Простое сердце (как раньше) ★
         drawHeartShape(0, 0, size, flash ? "#ffffff" : "#ff8800", "#ff8800");
-        ctx.save();
-        ctx.translate(0, -size * 0.9);
-        ctx.fillStyle = "#cc0000";
-        ctx.beginPath();
-        ctx.moveTo(-size * 0.9, size * 0.1);
-        ctx.lineTo(0, -size * 0.7);
-        ctx.lineTo(size * 0.9, size * 0.1);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.restore();
         ctx.restore();
     }
 
@@ -2241,21 +2687,27 @@
         ctx.save();
         ctx.translate(whitebeard.x, whitebeard.y);
         ctx.rotate(Math.sin(whitebeard.rotation) * 0.1);
+        // ★ Простое сердце + усы ★
         drawHeartShape(0, 0, size, flash ? "#ffffaa" : "#ffffff", "#ffffff");
+        // Усы Белоуса
         ctx.save();
         ctx.fillStyle = "#ffdd00";
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(-size * 0.5, size * 0.2);
         ctx.quadraticCurveTo(-size * 1.6, size * 0.3, -size * 1.7, -size * 0.3);
         ctx.quadraticCurveTo(-size * 1.5, size * 0.05, -size * 0.5, size * 0.35);
         ctx.closePath();
         ctx.fill();
+        ctx.stroke();
         ctx.beginPath();
         ctx.moveTo(size * 0.5, size * 0.2);
         ctx.quadraticCurveTo(size * 1.6, size * 0.3, size * 1.7, -size * 0.3);
         ctx.quadraticCurveTo(size * 1.5, size * 0.05, size * 0.5, size * 0.35);
         ctx.closePath();
         ctx.fill();
+        ctx.stroke();
         ctx.restore();
         ctx.restore();
     }
@@ -2266,7 +2718,7 @@
         drawHeartShape(rwbPlayer.x, rwbPlayer.y, rwbPlayer.size, color, color);
     }
 
-    // ★ РЕНДЕР АТАК ★
+    // РЕНДЕР АТАК
     function drawAttack(a) {
         if (a.type === "tsunami") { drawTsunami(a); return; }
         if (a.type === "rock") { drawRock(a); return; }
@@ -2472,6 +2924,29 @@
             return;
         }
 
+        // ★ НОВАЯ: ХАКИ-ВОЛНА ★
+        if (a.type === "haki_wave") {
+            ctx.save();
+            ctx.translate(a.x, a.y);
+            // Чёрная внешняя обводка
+            ctx.fillStyle = "#000000";
+            ctx.beginPath();
+            ctx.ellipse(0, 0, a.size * 1.3, a.size * 0.8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Оранжевая средняя
+            ctx.fillStyle = "#ff6600";
+            ctx.beginPath();
+            ctx.ellipse(0, 0, a.size, a.size * 0.6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Белая сердцевина
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.ellipse(0, 0, a.size * 0.5, a.size * 0.3, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            return;
+        }
+
         // ОБЫЧНЫЕ АТАКИ
         ctx.save();
         ctx.translate(a.x, a.y);
@@ -2663,10 +3138,12 @@
     window.rwbSound = rwbSound;
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v8.0                              ║");
-    console.log("║  ✅ ФИКС: супер-босс НЕ умирает быстро (HP x8)            ║");
-    console.log("║  💀 Бой СЛОЖНЕЕ (атаки чаще, урон выше)                   ║");
-    console.log("║  🏝️ Фон-остров остался                                     ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v9.0                              ║");
+    console.log("║  🔧 ФИКС: бой не заканчивается через 10 сек               ║");
+    console.log("║  💀 СЛОЖНЕЕ: 1 фаза активнее, больше атак                 ║");
+    console.log("║  👊 ТИТАН-КУЛАК раз в 4 секунды                           ║");
+    console.log("║  🎨 МОДЕЛЬКИ простые (как раньше)                         ║");
+    console.log("║  🔊 КИНОШНЫЕ ЗВУКИ: удары, взрывы, свист                  ║");
     console.log("╚════════════════════════════════════════════════════════════╝");
 
 })();
