@@ -215,37 +215,126 @@ function renderAfkTeam() {
     window.afkTeamHpBonus = Math.floor(h * 0.8); 
 }
 
-function renderEnemy() { if (!currentEnemy) generateEnemy(); let p = (currentEnemy.hp / currentEnemy.maxHp) * 100; let rew = currentEnemy.isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); document.getElementById("enemyContainer").innerHTML = '<div style="font-size:22px;font-weight:900;margin-bottom:8px;">' + currentEnemy.name + '</div><div style="font-size:14px;margin-bottom:5px;">❤️ ' + Math.floor(currentEnemy.hp) + ' / ' + currentEnemy.maxHp + '</div><div style="background:rgba(0,0,0,0.5);border-radius:10px;margin-bottom:8px;"><div style="width:' + p + '%;background:linear-gradient(90deg, #e74c3c, #f5af19);height:12px;border-radius:10px;"></div></div><div style="font-size:14px;color:#aaa;">⚔️ Урон: ' + currentEnemy.damage + '</div>'; document.getElementById("waveNumber").innerText = wave; document.getElementById("rewardPreview").innerText = rew; if (currentEnemy.isBoss && currentEnemy.hp <= currentEnemy.maxHp * 0.3 && currentEnemy.hp > 0) { document.getElementById("spareBtn").style.display = "block"; } else { document.getElementById("spareBtn").style.display = "none"; } if (currentDialog && wave === 10000 && currentEnemy.hp <= currentEnemy.maxHp * 0.5 && currentEnemy.hp > 0) { renderDialog(); } document.getElementById("worldIndicator").innerHTML = '🌍 Мир: <span style="color:' + getCurrentWorld().color + ';">' + getCurrentWorld().name + '</span> <button id="musicToggleBtn" class="btn" style="padding:2px 8px;font-size:12px;margin-left:8px;" onclick="toggleMusic()">' + (musicEnabled ? '🔊' : '🔇') + '</button>'; }
+function renderEnemy() { 
+    if (!currentEnemy) generateEnemy(); 
+    let p = (currentEnemy.hp / currentEnemy.maxHp) * 100; 
+    let rew = currentEnemy.isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); 
+    document.getElementById("enemyContainer").innerHTML = '<div style="font-size:22px;font-weight:900;margin-bottom:8px;">' + currentEnemy.name + '</div><div style="font-size:14px;margin-bottom:5px;">❤️ ' + Math.floor(currentEnemy.hp) + ' / ' + currentEnemy.maxHp + '</div><div style="background:rgba(0,0,0,0.5);border-radius:10px;margin-bottom:8px;"><div style="width:' + p + '%;background:linear-gradient(90deg, #e74c3c, #f5af19);height:12px;border-radius:10px;"></div></div><div style="font-size:14px;color:#aaa;">⚔️ Урон: ' + currentEnemy.damage + '</div>'; 
+    document.getElementById("waveNumber").innerText = wave; 
+    document.getElementById("rewardPreview").innerText = rew; 
+    if (currentEnemy.isBoss && currentEnemy.hp <= currentEnemy.maxHp * 0.3 && currentEnemy.hp > 0) { 
+        document.getElementById("spareBtn").style.display = "block"; 
+    } else { 
+        document.getElementById("spareBtn").style.display = "none"; 
+    } 
+    if (currentDialog && wave === 10000 && currentEnemy.hp <= currentEnemy.maxHp * 0.5 && currentEnemy.hp > 0) { 
+        renderDialog(); 
+    } 
+    document.getElementById("worldIndicator").innerHTML = '🌍 Мир: <span style="color:' + getCurrentWorld().color + ';">' + getCurrentWorld().name + '</span> <button id="musicToggleBtn" class="btn" style="padding:2px 8px;font-size:12px;margin-left:8px;" onclick="toggleMusic()">' + (musicEnabled ? '🔊' : '🔇') + '</button>'; 
+}
 
-function renderDialog() { if (!currentDialog || !Array.isArray(currentDialog)) return; let html = '<div class="dialog-box"><b>' + currentEnemy.name + ':</b> «' + bossTemplates[10000].dialogue + '»</div>'; html += '<div style="margin-top:10px;font-weight:800;">Ответить:</div>'; currentDialog.forEach((d, i) => { html += '<div class="dialog-option" onclick="selectDialog(' + i + ')">' + d.text + '</div>'; }); document.getElementById("dialogBox").innerHTML = html; document.getElementById("dialogBox").style.display = "block"; }
+function renderDialog() { 
+    if (!currentDialog || !Array.isArray(currentDialog)) return; 
+    let html = '<div class="dialog-box"><b>' + currentEnemy.name + ':</b> «' + bossTemplates[10000].dialogue + '»</div>'; 
+    html += '<div style="margin-top:10px;font-weight:800;">Ответить:</div>'; 
+    currentDialog.forEach((d, i) => { html += '<div class="dialog-option" onclick="selectDialog(' + i + ')">' + d.text + '</div>'; }); 
+    document.getElementById("dialogBox").innerHTML = html; 
+    document.getElementById("dialogBox").style.display = "block"; 
+}
 
-function selectDialog(index) { if (!currentDialog || !currentDialog[index]) return; let d = currentDialog[index]; let html = '<div class="dialog-box"><b>Вы:</b> «' + d.text + '»</div>'; html += '<div class="dialog-box"><b>' + currentEnemy.name + ':</b> «' + d.response + '» ' + d.mood + '</div>'; document.getElementById("dialogBox").innerHTML = html; currentDialog = null; }
+function selectDialog(index) { 
+    if (!currentDialog || !currentDialog[index]) return; 
+    let d = currentDialog[index]; 
+    let html = '<div class="dialog-box"><b>Вы:</b> «' + d.text + '»</div>'; 
+    html += '<div class="dialog-box"><b>' + currentEnemy.name + ':</b> «' + d.response + '» ' + d.mood + '</div>'; 
+    document.getElementById("dialogBox").innerHTML = html; 
+    currentDialog = null; 
+}
 
-function updateStatusDisplay() { let html = ''; if (enemyStatuses.fireTicks > 0) html += '<span class="status-effect">🔥 Горит (' + enemyStatuses.fireTicks + ')</span>'; if (enemyStatuses.poisonDamage > 0) html += '<span class="status-effect">🌀 Яд: ' + enemyStatuses.poisonDamage + '</span>'; if (enemyStatuses.bleedMult > 1.0) html += '<span class="status-effect">🩸 Кровотечение: x' + enemyStatuses.bleedMult.toFixed(2) + '</span>'; if (enemyStatuses.freezeStacks > 0) html += '<span class="status-effect">❄️ Обледенение: +' + enemyStatuses.freezeStacks + '</span>'; if (enemyStatuses.shockChance > 0) html += '<span class="status-effect">⚡ Шок: ' + Math.floor(enemyStatuses.shockChance * 100) + '%</span>'; if (enemyStatuses.blindStacks > 0) html += '<span class="status-effect">🕶️ Ослепление: +' + enemyStatuses.blindStacks + '</span>'; html += ' <span class="status-effect" style="background:#ff4400;color:#fff;">⚡Комбо: x' + comboMultiplier + '</span>'; 
+// ============================================================
+// ★★★ ОБНОВЛЁННЫЙ updateStatusDisplay — ОЖИРЕНИЕ ТОЛЬКО ПРИ КРИТИЧНОМ ★★★
+// ============================================================
+function updateStatusDisplay() { 
+    let html = ''; 
+    
+    // Вражеские статусы
+    if (enemyStatuses.fireTicks > 0) html += '<span class="status-effect">🔥 Горит (' + enemyStatuses.fireTicks + ')</span>'; 
+    if (enemyStatuses.poisonDamage > 0) html += '<span class="status-effect">🌀 Яд: ' + enemyStatuses.poisonDamage + '</span>'; 
+    if (enemyStatuses.bleedMult > 1.0) html += '<span class="status-effect">🩸 Кровотечение: x' + enemyStatuses.bleedMult.toFixed(2) + '</span>'; 
+    if (enemyStatuses.freezeStacks > 0) html += '<span class="status-effect">❄️ Обледенение: +' + enemyStatuses.freezeStacks + '</span>'; 
+    if (enemyStatuses.shockChance > 0) html += '<span class="status-effect">⚡ Шок: ' + Math.floor(enemyStatuses.shockChance * 100) + '%</span>'; 
+    if (enemyStatuses.blindStacks > 0) html += '<span class="status-effect">🕶️ Ослепление: +' + enemyStatuses.blindStacks + '</span>'; 
+    
+    // Комбо
+    html += ' <span class="status-effect" style="background:#ff4400;color:#fff;">⚡Комбо: x' + comboMultiplier + '</span>'; 
+    
+    // ★★★ ГОЛОД ★★★
     if (typeof hunger !== 'undefined' && hunger > 0) {
         let hColor = hunger < 30 ? "#2ecc71" : hunger < 60 ? "#f5af19" : hunger < 85 ? "#e67e22" : "#e74c3c";
         html += ' <span class="status-effect" style="color:' + hColor + ';">🍽️ Голод: ' + Math.floor(hunger) + '%</span>';
     }
-    if (typeof obesityPoints !== 'undefined' && obesityPoints >= 20) {
-        let obName = (typeof getObesityStageName === 'function') ? getObesityStageName() : "Ожирение";
-        html += ' <span class="status-effect" style="color:#e67e22;">🍔 ' + obName + '</span>';
+    
+    // ★★★ ОЖИРЕНИЕ — ТОЛЬКО ПРИ КРИТИЧНОМ (40+) ★★★
+    if (typeof obesityPoints !== 'undefined' && obesityPoints >= 40) {
+        let obName = "Ожирение II";
+        let obColor = "#e67e22";
+        if (obesityPoints >= 60) { obName = "Ожирение III"; obColor = "#e74c3c"; }
+        
+        html += ' <span class="status-effect" style="color:' + obColor + ';border-color:' + obColor + ';font-weight:bold;">🍔 ' + obName + ' (' + obesityPoints + '/60)</span>';
     }
+    
+    // ★★★ ОТРАВЛЕНИЕ ★★★
     if (typeof poisonTimer !== 'undefined' && poisonTimer > 0) {
         html += ' <span class="status-effect" style="color:#aa00aa;">☠️ Отравление: ' + Math.floor(poisonTimer) + 'с</span>';
     }
+    
+    // ★★★ ПЕРЕЦ ★★★
     if (typeof activeBuffs !== 'undefined' && activeBuffs["pepperSpeed"] && activeBuffs["pepperSpeed"] > Date.now()) {
         html += ' <span class="status-effect" style="color:#ff4400;">🌶️ Перец!</span>';
     }
-    document.getElementById("statusEffects").innerHTML = html; 
+    
+    // ★★★ ЗВЁЗДЫ x2 (бонус новичка) ★★★
+    if (typeof activeBuffs !== 'undefined' && activeBuffs["doubleStars"] && activeBuffs["doubleStars"] > Date.now()) {
+        let remain = Math.ceil((activeBuffs["doubleStars"] - Date.now()) / 1000);
+        let mins = Math.floor(remain / 60);
+        let secs = remain % 60;
+        html += ' <span class="status-effect" style="color:#ffd700;">🌟 x2 ⭐ (' + mins + ':' + String(secs).padStart(2, '0') + ')</span>';
+    }
+    
+    let el = document.getElementById("statusEffects");
+    if (el) el.innerHTML = html;
 }
 
-function updateEnemyStatusDisplay() { let html = ''; if (enemyStatuses.freezeStacks > 0) html += '<span class="status-effect">❄️ Заморозка врага: +' + enemyStatuses.freezeStacks + '</span>'; if (enemyStatuses.bleedMult > 1.0) html += '<span class="status-effect">🩸 Усиление врага: x' + enemyStatuses.bleedMult.toFixed(1) + '</span>'; if (enemyStatuses.shockChance > 0) html += '<span class="status-effect">⚡ Шок врага: ' + Math.floor(enemyStatuses.shockChance * 100) + '%</span>'; document.getElementById("enemyStatusEffects").innerHTML = html; }
+function updateEnemyStatusDisplay() { 
+    let html = ''; 
+    if (enemyStatuses.freezeStacks > 0) html += '<span class="status-effect">❄️ Заморозка врага: +' + enemyStatuses.freezeStacks + '</span>'; 
+    if (enemyStatuses.bleedMult > 1.0) html += '<span class="status-effect">🩸 Усиление врага: x' + enemyStatuses.bleedMult.toFixed(1) + '</span>'; 
+    if (enemyStatuses.shockChance > 0) html += '<span class="status-effect">⚡ Шок врага: ' + Math.floor(enemyStatuses.shockChance * 100) + '%</span>'; 
+    document.getElementById("enemyStatusEffects").innerHTML = html; 
+}
 
-function renderDefeatHistory() { document.getElementById("fightHistory").innerHTML = defeatHistory.length ? defeatHistory.map(h => '<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">💀 Волна ' + h.wave + ' <span style="color:#aaa;">| HP ' + h.hp + '</span></div>').join('') : "Нет поражений"; }
+function renderDefeatHistory() { 
+    document.getElementById("fightHistory").innerHTML = defeatHistory.length ? defeatHistory.map(h => '<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);">💀 Волна ' + h.wave + ' <span style="color:#aaa;">| HP ' + h.hp + '</span></div>').join('') : "Нет поражений"; 
+}
 
-function renderAchievements() { let c = document.getElementById("achievementsList"), l = []; if (achievements.win10) l.push("10🏆"); if (achievements.win50) l.push("50🏆"); if (achievements.win100) l.push("100🏆"); if (achievements.win500) l.push("500🏆"); if (achievements.legendaryTeam) l.push("Легенды"); if (achievements.secretTeam) l.push("Секреты"); if (achievements.level20) l.push("20ур"); if (achievements.level50) l.push("50ур"); c.innerHTML = l.length ? l.map(a => '<span class="rarity-tag" style="background:#f5af19;color:#1a1a2e;box-shadow:none;">' + a + '</span>').join('') : "Нет"; }
+function renderAchievements() { 
+    let c = document.getElementById("achievementsList"), l = []; 
+    if (achievements.win10) l.push("10🏆"); 
+    if (achievements.win50) l.push("50🏆"); 
+    if (achievements.win100) l.push("100🏆"); 
+    if (achievements.win500) l.push("500🏆"); 
+    if (achievements.legendaryTeam) l.push("Легенды"); 
+    if (achievements.secretTeam) l.push("Секреты"); 
+    if (achievements.level20) l.push("20ур"); 
+    if (achievements.level50) l.push("50ур"); 
+    c.innerHTML = l.length ? l.map(a => '<span class="rarity-tag" style="background:#f5af19;color:#1a1a2e;box-shadow:none;">' + a + '</span>').join('') : "Нет"; 
+}
 
-function renderChallenges() { let c = document.getElementById("challengeList"); if (!challenges.length) { c.innerHTML = "Квесты загружаются..."; return; } c.innerHTML = challenges.map(ch => '<div class="challenge-item" style="opacity:' + (ch.completed ? 0.6 : 1) + '"><div><b>' + ch.name + '</b><br><small>' + (ch.progress || 0) + '/' + ch.target + '</small></div><div><span style="color:#f5af19;">' + ch.reward + '⭐</span> ' + (ch.completed ? '✅' : '') + '</div></div>').join(''); }
+function renderChallenges() { 
+    let c = document.getElementById("challengeList"); 
+    if (!challenges.length) { c.innerHTML = "Квесты загружаются..."; return; } 
+    c.innerHTML = challenges.map(ch => '<div class="challenge-item" style="opacity:' + (ch.completed ? 0.6 : 1) + '"><div><b>' + ch.name + '</b><br><small>' + (ch.progress || 0) + '/' + ch.target + '</small></div><div><span style="color:#f5af19;">' + ch.reward + '⭐</span> ' + (ch.completed ? '✅' : '') + '</div></div>').join(''); 
+}
 
 // ============================================================
 // ТАЙНИК
@@ -447,8 +536,8 @@ function renderActiveBuffs() {
             else if (id === "dmg15") name = "Урон +50%";
             else if (id === "doubleDamage") name = "Урон x2";
             else if (id === "quadDamage") name = "Урон x4";
-            else if (id === "doubleStars") name = "Звёзды x2";
-            else if (id === "tripleStars") name = "Звёзды x3";
+            else if (id === "doubleStars") name = "🌟 Звёзды x2";
+            else if (id === "tripleStars") name = "🌟 Звёзды x3";
             else if (id === "doubleHp") name = "HP x2";
             else if (id === "tripleHp") name = "HP x3";
             else if (id === "arenaSpeedX3") name = "Скорость арены x3";
@@ -497,7 +586,6 @@ function renderUpgrades() {
 
 function renderBook() { let all = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))); let ds = new Set(discoveredCards); document.getElementById("bookList").innerHTML = all.map(t => { let kn = ds.has(t.name); let s = cardStats[t.rarity]; let clickAction = (moderUnlocked && mode === 'moder') ? 'bookGet(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')' : 'bookInfoCard(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')'; let superPreview = ''; if (t.superAbility && kn) { superPreview = '<div style="font-size:8px;color:#ffd700;margin-top:2px;">' + t.superAbility.name + '</div>'; } return '<div class="book-item ' + (kn ? '' : 'unknown-card') + '" onclick="' + clickAction + '"><div class="name">' + (kn ? t.name : '???') + '</div><div class="rarity-tag ' + rarityColors[t.rarity] + '">' + t.rarity + '</div><div>💪' + (t.damage ?? s.damage) + ' ❤️' + (t.hp ?? s.hp) + ' ⚡' + (t.speed ?? s.speed ?? '?') + '</div>' + superPreview + '</div>'; }).join(''); document.getElementById("discoveredCount").innerText = discoveredCards.length; document.getElementById("totalTemplatesCount").innerText = all.length; }
 
-// ★★★ ИСПРАВЛЕНО: убрана надпись "ОПЫТ ДЛЯ МАСТЕРСТВА" ★★★
 function bookInfoCard(rarity, name) { 
     let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === name && t.rarity === rarity); 
     if (!t) return; 
