@@ -1,7 +1,9 @@
-// ========== АРЕНА UNDERTALE v13.0 ==========
+// ========== АРЕНА UNDERTALE v14.0 ==========
 // + патч ожирения: скорость сердечка × getObesitySpeedMult()
 // + фикс атаки "Стены": подсказка заранее, ломаная стрелка, полупрозрачная щель
 // + разделение скорости и количества стен
+// ★ v14.0: ФИКС СКОРОСТИ — убрано двойное применение бонуса брони
+// ★ v14.0: ожирение показывается только при критичной стадии
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -64,9 +66,12 @@ let mobileSuperTapCount = 0;
 let mobileSuperSwipeStart = null;
 
 // ★★★ РАЗДЕЛЕНИЕ СКОРОСТИ И КОЛИЧЕСТВА СТЕН ★★★
-let wallSpeedMult = 1.0;   // скорость стен (растёт медленно, кап x4)
-let wallCountMult = 1.0;   // количество стен (растёт быстрее, кап x2)
-let wallWarningTimer = null; // таймер для задержки спавна стены
+let wallSpeedMult = 1.0;
+let wallCountMult = 1.0;
+let wallWarningTimer = null;
+
+// ★ Флаг: можно ли применять бонус брони к скорости (сброс после каждого боя) ★
+if (typeof window._armorSpeedApplied === 'undefined') window._armorSpeedApplied = false;
 
 // ========== ЗВУКОВАЯ СИСТЕМА АРЕНЫ ==========
 let arenaAudioCtx = null;
@@ -272,6 +277,9 @@ function getAttackTypes(bossWave) {
 
 function skipDefeatedBoss() { stopArena(); if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0; if (typeof victory === 'function') victory(); }
 
+// ============================================================
+// ★★★ СТАРТ АРЕНЫ — ФИКС СКОРОСТИ ★★★
+// ============================================================
 function startArena(bossWave) {
     initArenaAudio();
     var btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = "none";
@@ -299,14 +307,56 @@ function startArena(bossWave) {
         _superState.garouInvulnTimer = 0; _superState.garouTimeStop = false; _superState.screenShakeAmount = 0; _superState.screenFlashWhite = 0;
     }
     
-    heartSpeed = 1.2;
-    if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0 && mainCardIndex >= 0 && mainCardIndex < team.length) {
-        var mainCardIdx = team[mainCardIndex];
-        if (typeof myCards !== 'undefined' && mainCardIdx >= 0 && mainCardIdx < myCards.length) { var mainCard = myCards[mainCardIdx]; if (mainCard && typeof mainCard.speed === 'number') heartSpeed = mainCard.speed; }
+    // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+    // ★★★ ФИКС СКОРОСТИ: считаем ЧИСТУЮ скорость от карты + броню + ожирение ★★★
+    // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+    heartSpeed = 1.2;  // база
+    var mainCard = null;
+    var cardBaseSpeed = 1.2;
+    
+    try {
+        if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0 && mainCardIndex >= 0 && mainCardIndex < team.length) {
+            var mainCardIdx = team[mainCardIndex];
+            if (typeof myCards !== 'undefined' && mainCardIdx >= 0 && mainCardIdx < myCards.length) {
+                mainCard = myCards[mainCardIdx];
+                if (mainCard && typeof mainCard.speed === 'number' && mainCard.speed > 0) {
+                    cardBaseSpeed = mainCard.speed;
+                    heartSpeed = cardBaseSpeed;
+                    console.log("[ARENA] 📇 Карта: '" + mainCard.name + "' | Базовая скорость: " + cardBaseSpeed);
+                }
+            }
+        }
+    } catch(e) { console.warn("[ARENA] Ошибка чтения карты:", e); }
+    
+    // ★ Применяем бонус брони ОДИН РАЗ ★
+    if (!window._armorSpeedApplied && typeof window.getArmorBonusesPublic === 'function') {
+        try {
+            var eqBonus = window.getArmorBonusesPublic();
+            if (eqBonus && eqBonus.speedMult && eqBonus.speedMult !== 1.0) {
+                heartSpeed *= eqBonus.speedMult;
+                window._armorSpeedApplied = true;
+                console.log("[ARENA] 🛡️ Бонус брони: x" + eqBonus.speedMult + " → " + heartSpeed.toFixed(2));
+            }
+        } catch(e) {}
     }
-    // ★ ОЖИРЕНИЕ СНИЖАЕТ СКОРОСТЬ ★
-    if (typeof getObesitySpeedMult === 'function') heartSpeed *= getObesitySpeedMult();
-    var speedDisplay = document.getElementById("arenaSpeedDisplay"); if (speedDisplay) speedDisplay.innerText = heartSpeed.toFixed(1);
+    
+    // ★ Применяем ожирение ★
+    if (typeof getObesitySpeedMult === 'function') {
+        var obesityMult = getObesitySpeedMult();
+        if (obesityMult !== 1.0) {
+            heartSpeed *= obesityMult;
+            console.log("[ARENA] 🍔 Ожирение: x" + obesityMult + " → " + heartSpeed.toFixed(2));
+        }
+    }
+    
+    // ★ Ограничиваем ★
+    heartSpeed = Math.max(0.4, Math.min(6.0, heartSpeed));
+    window._currentHeartSpeed = heartSpeed;
+    console.log("[ARENA] ✅ ИТОГОВАЯ СКОРОСТЬ: " + heartSpeed.toFixed(2));
+    
+    var speedDisplay = document.getElementById("arenaSpeedDisplay"); 
+    if (speedDisplay) speedDisplay.innerText = heartSpeed.toFixed(2);
+    
     arenaClickTargets = []; arenaClicksHit = 0; arenaPhase = "dodge"; attacks = []; arenaBlasters = []; arenaParticles = []; floatingTexts = []; arenaTrail = []; arenaShockwaves = []; wallGapIndicator = null;
     arenaShake = 0; arenaHitFlash = 0; invulnTimer = 0; arenaComboText = ""; arenaComboTimer = 0; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0; heartRotation = 0; heartWasMoving = false; heartStandingTime = 0;
     
@@ -316,7 +366,6 @@ function startArena(bossWave) {
     if (bossWave < 50) wallSpeedMult = 1.0;
     wallCountMult = Math.min(2.0, 1.0 + Math.floor((bossWave - 50) / 200) * 0.15);
     if (bossWave < 50) wallCountMult = 1.0;
-    console.log("[ARENA] Wave " + bossWave + " — wallSpeed: x" + wallSpeedMult.toFixed(2) + ", wallCount: x" + wallCountMult.toFixed(2));
     
     arenaAllowedTypes = getAttackTypes(bossWave);
     var bt = typeof bossTemplates !== 'undefined' ? bossTemplates[bossWave] : null;
@@ -325,11 +374,17 @@ function startArena(bossWave) {
     arenaBaseDmg = Math.max(2, Math.floor((5+bossWave*1.5)*arenaBossDmgMult/3));
     
     document.getElementById("arenaOverlay").style.display = "flex";
-    document.getElementById("arenaBossName").innerText = arenaBoss; document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); document.getElementById("arenaTimer").innerText = "∞";
-    var skipBossBtn = document.getElementById("skipBossBtn"); if (skipBossBtn) skipBossBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
+    document.getElementById("arenaBossName").innerText = arenaBoss; 
+    document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); 
+    document.getElementById("arenaTimer").innerText = "∞";
+    var skipBossBtn = document.getElementById("skipBossBtn"); 
+    if (skipBossBtn) skipBossBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
     if (typeof initSuperState === 'function') initSuperState();
-    if (!ctx) initArena(); if (animFrameId) cancelAnimationFrame(animFrameId);
-    startArenaAmbient(); startDodgePhase(); animFrameId = requestAnimationFrame(renderArena);
+    if (!ctx) initArena(); 
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    startArenaAmbient(); 
+    startDodgePhase(); 
+    animFrameId = requestAnimationFrame(renderArena);
 }
 
 function startDodgePhase() {
@@ -352,7 +407,7 @@ function startDodgePhase() {
 function updateDodgeTimerDisplay() {
     var typeNames = { 0:"⬜ СТЕНЫ", 1:"🔷 ХАОС", 2:"⚡ ЖЁЛТЫЕ", 3:"🛑 КРАСНЫЕ", 4:"💗 РОЗОВЫЕ", 5:"💚 ЗЕЛЁНЫЕ", 6:"🌈 РАДУЖНЫЕ", 7:"⚡🛑 МИКС", 8:"🟥⬜ ЗОНЫ", 9:"💣 БОМБЫ", 10:"🔫 БЛАСТЕРЫ" };
     var timerEl = document.getElementById("arenaTimer"); if (timerEl && arenaPhase==="dodge") timerEl.innerText = arenaDodgeTimer+"с";
-    var bossNameEl = document.getElementById("arenaBossName"); if (bossNameEl && arenaPhase==="dodge") bossNameEl.innerText = arenaBoss+" — "+(typeNames[arenaAttackType]||"Атака")+" | ⚡"+heartSpeed.toFixed(1)+" | ⏱️"+arenaDodgeTimer+"с";
+    var bossNameEl = document.getElementById("arenaBossName"); if (bossNameEl && arenaPhase==="dodge") bossNameEl.innerText = arenaBoss+" — "+(typeNames[arenaAttackType]||"Атака")+" | ⚡"+heartSpeed.toFixed(2)+" | ⏱️"+arenaDodgeTimer+"с";
 }
 
 function startAttackPhase() {
@@ -420,8 +475,6 @@ function spawnWallAttack(isEarly, dmg, shouldShrink) {
     
     var wallSpeed = wallSpeedMult;
     
-    console.log("[WALL] Спавн " + wallSeriesCount + " стен(ы), " + (isVertical ? "вертикаль" : "горизонталь") + ", скорость x" + wallSpeed.toFixed(2));
-    
     // ★ Считаем позицию щели ЗАРАНЕЕ ★
     var gapSize = 90 + Math.random() * 30;
     var gapCenter;
@@ -438,10 +491,8 @@ function spawnWallAttack(isEarly, dmg, shouldShrink) {
         gapCenter = Math.max(minGapH, Math.min(maxGapH, desiredH));
     }
     
-    // ★ СОЗДАЁМ ПОДСКАЗКУ — ЛОМАНАЯ СТРЕЛКА (безопасная точка) ★
+    // ★ СОЗДАЁМ ПОДСКАЗКУ — ЛОМАНАЯ СТРЕЛКА ★
     if (isVertical) {
-        // Вертикальная стена → нужно двигаться по Y к gapCenter.
-        // Конечная точка стрелки — x=200 (середина арены, безопасно), y=gapCenter.
         wallGapIndicator = {
             x: 0, y: gapCenter, w: 30, h: gapSize,
             life: 70,
@@ -450,8 +501,6 @@ function spawnWallAttack(isEarly, dmg, shouldShrink) {
             arrowToX: 200, arrowToY: gapCenter
         };
     } else {
-        // Горизонтальная стена → нужно двигаться по X к gapCenter.
-        // Конечная точка — x=gapCenter, y=250 (середина арены).
         wallGapIndicator = {
             x: gapCenter, y: 0, w: gapSize, h: 30,
             life: 70,
@@ -495,7 +544,6 @@ function spawnWallAttack(isEarly, dmg, shouldShrink) {
                         }
                     }
                     
-                    // ★ Стена заспавнилась — обнуляем стрелку, оставляем только щель ★
                     if (wallGapIndicator) {
                         wallGapIndicator.arrowToX = undefined;
                         wallGapIndicator.arrowToY = undefined;
@@ -535,6 +583,8 @@ function stopArena() {
     arenaActive = false; stopArenaAmbient(); if (arenaAttackInterval) clearInterval(arenaAttackInterval); if (animFrameId) cancelAnimationFrame(animFrameId);
     arenaAttackInterval = null; animFrameId = null;
     attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = []; arenaBlasters = []; arenaShockwaves = [];
+    // ★ СБРОС ФЛАГА БРОНИ ★
+    window._armorSpeedApplied = false;
     document.getElementById("arenaOverlay").style.display = "none";
     var skipBtn = document.getElementById("skipBossBtn"); if (skipBtn) skipBtn.style.display = "none";
     var superBtn = document.getElementById("superBtn"); if (superBtn) superBtn.style.display = "none";
@@ -644,6 +694,46 @@ function drawMarkResurrections() {
     ctx.fillStyle="#ffd700"; ctx.fillText(text,18,58); ctx.restore();
 }
 
+// ★★★ ПОКАЗ ОЖИРЕНИЯ В БОЮ — ТОЛЬКО ПРИ КРИТИЧНОМ УРОВНЕ ★★★
+function drawObesityWarning() {
+    if (!ctx) return;
+    if (typeof obesityPoints === 'undefined') return;
+    // Показываем ТОЛЬКО если ожирение критичное (стадия II или III — 40+)
+    if (obesityPoints < 40) return;
+    
+    var obName = "ОЖИРЕНИЕ";
+    var obColor = "#e67e22";
+    if (obesityPoints >= 60) { obName = "ОЖИРЕНИЕ III"; obColor = "#e74c3c"; }
+    else if (obesityPoints >= 40) { obName = "ОЖИРЕНИЕ II"; obColor = "#e67e22"; }
+    
+    var obIcon = "🍔";
+    var text = obIcon + " " + obName + " (" + obesityPoints + "/60)";
+    
+    ctx.save();
+    var w = 180, h = 22;
+    var x = 200 - w/2;
+    var y = 470;
+    
+    // Фон с пульсацией
+    var pulse = 0.7 + Math.abs(Math.sin(performance.now() / 300)) * 0.3;
+    
+    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+    
+    ctx.strokeStyle = obColor;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = pulse;
+    ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
+    ctx.globalAlpha = 1;
+    
+    ctx.font = "bold 12px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = obColor;
+    ctx.fillText(text, 200, y + h/2);
+    ctx.restore();
+}
+
 function renderArena() {
     if (!arenaActive || !ctx) return;
     if (typeof tickSupers === 'function') tickSupers();
@@ -710,13 +800,12 @@ function renderArena() {
     drawActiveBuffs();
     if (arenaComboTimer>0&&arenaComboText) { ctx.save(); var comboAlpha=Math.min(1,arenaComboTimer/20); ctx.fillStyle="rgba(255,255,255,"+comboAlpha+")"; ctx.font="bold 22px sans-serif"; ctx.textAlign="center"; ctx.shadowColor="#ffdd00"; ctx.shadowBlur=15; ctx.fillText(arenaComboText,200,260); ctx.restore(); }
     
-    // ★★★ РЕНДЕР ПОДСКАЗКИ: ЩЕЛЬ 50% + ЛОМАНАЯ СТРЕЛКА ★★★
+    // ★★★ ПОДСКАЗКА ЩЕЛИ + СТРЕЛКА ★★★
     if (wallGapIndicator && wallGapIndicator.life > 0) {
         ctx.save();
         var alpha = Math.min(1, wallGapIndicator.life / 20);
         var pulse = Math.sin(now / 200) * 0.2 + 0.8;
         
-        // ★ ЩЕЛЬ — полупрозрачная (50% от оригинала) ★
         ctx.fillStyle = "rgba(46,204,113," + (0.20 * alpha * pulse) + ")";
         ctx.strokeStyle = "rgba(46,204,113," + (0.45 * alpha) + ")";
         ctx.lineWidth = 2;
@@ -732,70 +821,39 @@ function renderArena() {
         }
         ctx.setLineDash([]);
         
-        // ★ ЛОМАНАЯ СТРЕЛКА (только пока идёт подсказка — life > 30) ★
         if (wallGapIndicator.life > 30 && wallGapIndicator.arrowToX !== undefined && wallGapIndicator.arrowToY !== undefined) {
             var ax1 = wallGapIndicator.arrowFromX;
             var ay1 = wallGapIndicator.arrowFromY;
             var ax2 = wallGapIndicator.arrowToX;
             var ay2 = wallGapIndicator.arrowToY;
             
-            // ★ Промежуточная точка для ломаной ★
             var midX, midY;
             if (wallGapIndicator.vertical) {
-                // Вертикальная стена → сначала идём по Y (к щели), потом по X (к центру арены)
-                if (Math.abs(ay1 - ay2) < 10) {
-                    // Уже в щели по Y — просто идём по X к центру
-                    midX = ax2;
-                    midY = ay2;
-                } else {
-                    // Идём сначала по Y, потом по X
-                    midX = ax1;
-                    midY = ay2;
-                }
+                if (Math.abs(ay1 - ay2) < 10) { midX = ax2; midY = ay2; }
+                else { midX = ax1; midY = ay2; }
             } else {
-                // Горизонтальная стена → сначала по X (к щели), потом по Y (к центру)
-                if (Math.abs(ax1 - ax2) < 10) {
-                    // Уже в щели по X — просто идём по Y к центру
-                    midX = ax2;
-                    midY = ay2;
-                } else {
-                    // Идём сначала по X, потом по Y
-                    midX = ax2;
-                    midY = ay1;
-                }
+                if (Math.abs(ax1 - ax2) < 10) { midX = ax2; midY = ay2; }
+                else { midX = ax2; midY = ay1; }
             }
             
-            var points = [
-                { x: ax1, y: ay1 },
-                { x: midX, y: midY },
-                { x: ax2, y: ay2 }
-            ];
-            
-            // Убираем дубликаты
+            var points = [{ x: ax1, y: ay1 }, { x: midX, y: midY }, { x: ax2, y: ay2 }];
             var cleanPoints = [points[0]];
             for (var p = 1; p < points.length; p++) {
                 var prev = cleanPoints[cleanPoints.length - 1];
-                if (Math.abs(prev.x - points[p].x) > 2 || Math.abs(prev.y - points[p].y) > 2) {
-                    cleanPoints.push(points[p]);
-                }
+                if (Math.abs(prev.x - points[p].x) > 2 || Math.abs(prev.y - points[p].y) > 2) cleanPoints.push(points[p]);
             }
             
-            // Рисуем ломаную
             ctx.strokeStyle = "rgba(46,255,113," + (0.9 * alpha) + ")";
             ctx.lineWidth = 3;
             ctx.shadowColor = "#2ecc71";
             ctx.shadowBlur = 12;
             ctx.lineCap = "round";
             ctx.lineJoin = "round";
-            
             ctx.beginPath();
             ctx.moveTo(cleanPoints[0].x, cleanPoints[0].y);
-            for (var p = 1; p < cleanPoints.length; p++) {
-                ctx.lineTo(cleanPoints[p].x, cleanPoints[p].y);
-            }
+            for (var p = 1; p < cleanPoints.length; p++) ctx.lineTo(cleanPoints[p].x, cleanPoints[p].y);
             ctx.stroke();
             
-            // Наконечник стрелки
             if (cleanPoints.length >= 2) {
                 var last = cleanPoints[cleanPoints.length - 1];
                 var beforeLast = cleanPoints[cleanPoints.length - 2];
@@ -810,24 +868,20 @@ function renderArena() {
                 ctx.fill();
             }
             
-            // Пульсирующий кружок в точке назначения
             ctx.strokeStyle = "rgba(46,255,113," + (0.8 * alpha) + ")";
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(ax2, ay2, 10 + Math.sin(now / 100) * 3, 0, Math.PI * 2);
             ctx.stroke();
             
-            // ★ Точка на изгибе ★
             for (var p = 1; p < cleanPoints.length - 1; p++) {
                 ctx.fillStyle = "rgba(46,255,113," + (0.9 * alpha) + ")";
                 ctx.beginPath();
                 ctx.arc(cleanPoints[p].x, cleanPoints[p].y, 4, 0, Math.PI * 2);
                 ctx.fill();
             }
-            
             ctx.shadowBlur = 0;
         }
-        
         ctx.restore();
     }
     
@@ -874,6 +928,10 @@ function renderArena() {
     ctx.save(); for (var i=arenaShockwaves.length-1;i>=0;i--) { var sw=arenaShockwaves[i]; sw.r+=sw.v; sw.life--; var ratio=Math.max(0,sw.life/sw.maxLife); var swR=Math.max(0.1,sw.r); ctx.strokeStyle=sw.color; ctx.lineWidth=Math.max(0.1,2.5*ratio); ctx.globalAlpha=ratio; ctx.beginPath(); ctx.arc(sw.x,sw.y,swR,0,Math.PI*2); ctx.stroke(); if (sw.life<=0) arenaShockwaves.splice(i,1); } ctx.restore();
     ctx.save(); for (var i=floatingTexts.length-1;i>=0;i--) { var ft=floatingTexts[i]; ft.y+=ft.vy; ft.x+=(ft.vx||0); ft.life--; ctx.fillStyle=ft.color; ctx.globalAlpha=Math.max(0,ft.life/50); ctx.font="bold 14px monospace"; ctx.shadowColor=ft.color; ctx.shadowBlur=4; ctx.textAlign="center"; ctx.fillText(ft.text,ft.x,ft.y); if (ft.life<=0) floatingTexts.splice(i,1); } ctx.restore();
     if (typeof _superState !== 'undefined' && _superState.dandyLava > 0) { ctx.save(); for (var i=0;i<60;i++) { var lx=Math.random()*400, ly=460+Math.random()*40; ctx.fillStyle="#ff4400"; ctx.globalAlpha=0.6+Math.random()*0.4; ctx.beginPath(); ctx.arc(lx,ly,2+Math.random()*4,0,Math.PI*2); ctx.fill(); } ctx.restore(); if (heart.y>420) { applyHit(3,"ЛАВА!"); } }
+    
+    // ★★★ ПОКАЗ КРИТИЧНОГО ОЖИРЕНИЯ ★★★
+    drawObesityWarning();
+    
     ctx.restore();
     animFrameId = requestAnimationFrame(renderArena);
 }
