@@ -1,5 +1,8 @@
 // ============================================================
-// EQUIPMENT COMBAT v2.4 — Броня работает на всех боссах
+// EQUIPMENT COMBAT v2.5 — Броня работает на всех боссах
+// ============================================================
+// ★ ФИКС v2.5: УБРАН patchStartArena — больше НЕТ двойного
+//              применения бонуса скорости брони
 // ============================================================
 // Патчит: applyHit (арена), damageLivingStonePlayer, applyWaystarHit, hitPlayer
 // Плюс экспортирует applyArmorToBossDamage — используется боссами НАПРЯМУЮ
@@ -107,13 +110,12 @@
 
             if (weapon.legendaryPerk === "destroyAttacks") bullet.canDestroy = true;
             if (weapon.legendaryPerk === "absorb5") bullet.hasAbsorb = true;
-            if (weapon.legendaryPerk === "absorb15") bullet.hasAbsorb = true; // legacy
+            if (weapon.legendaryPerk === "absorb15") bullet.hasAbsorb = true;
             if (weapon.legendaryPerk === "autoAim10" && Math.random() < 0.10) {
                 bullet.vx = 0;
                 bullet.vy = -speed;
             }
             if (weapon.legendaryPerk === "autoAim35" && Math.random() < 0.35) {
-                // legacy
                 bullet.vx = 0;
                 bullet.vy = -speed;
             }
@@ -143,30 +145,12 @@
     }
 
     // ============================================================
-    // ПАТЧ СКОРОСТИ СЕРДЕЧКА
+    // ★★★ УДАЛЕНО: patchStartArena() ★★★
     // ============================================================
-    function patchStartArena() {
-        if (typeof window.startArena !== 'function') return false;
-        if (window._eqStartArenaPatched) return true;
-        let original = window.startArena;
-        window.startArena = function(bossWave) {
-            let result = original.apply(this, arguments);
-            try {
-                if (typeof heartSpeed !== 'undefined') {
-                    let eq = getArmorBonuses();
-                    if (eq.speedMult !== 1.0) {
-                        heartSpeed *= eq.speedMult;
-                        let speedDisplay = document.getElementById("arenaSpeedDisplay");
-                        if (speedDisplay) speedDisplay.innerText = heartSpeed.toFixed(1);
-                    }
-                }
-            } catch(e) {}
-            return result;
-        };
-        window._eqStartArenaPatched = true;
-        console.log("[EQ-COMBAT] ✅ startArena пропатчен (скорость брони)");
-        return true;
-    }
+    // Раньше эта функция умножала heartSpeed на бонус брони,
+    // а battle.js делал это ЖЕ. Из-за этого скорость была завышена.
+    // Теперь бонус применяется ТОЛЬКО в battle.js::startArena().
+    // ============================================================
 
     // ============================================================
     // ПАТЧ УНИЧТОЖЕНИЯ АТАК (меч)
@@ -206,20 +190,18 @@
         let maxAttempts = 100;
         function tryPatch() {
             attempts++;
-            let a = patchStartArena();
             patchApplyHit();
             patchBulletDestruction();
 
-            if (a) {
-                console.log("╔════════════════════════════════════════╗");
-                console.log("║  ⚔️ EQUIPMENT COMBAT v2.4 загружено    ║");
-                console.log("║  Броня работает на ВСЕХ боссах         ║");
-                console.log("║  Экспорт: applyArmorToBossDamage       ║");
-                console.log("╚════════════════════════════════════════╝");
-                return;
-            }
-            if (attempts < maxAttempts) setTimeout(tryPatch, 100);
-            else console.warn("[EQ-COMBAT] Не всё пропатчено:", { startArena: a });
+            // ★ patchStartArena() БОЛЬШЕ НЕ ВЫЗЫВАЕТСЯ ★
+            console.log("╔════════════════════════════════════════════╗");
+            console.log("║  ⚔️ EQUIPMENT COMBAT v2.5 загружено        ║");
+            console.log("║  ✅ Броня работает на ВСЕХ боссах          ║");
+            console.log("║  ✅ Экспорт: applyArmorToBossDamage        ║");
+            console.log("║  🎯 ФИКС: скорость НЕ применяется дважды   ║");
+            console.log("║     (удалён patchStartArena)               ║");
+            console.log("╚════════════════════════════════════════════╝");
+            return;
         }
         if (document.readyState === "complete" || document.readyState === "interactive") {
             setTimeout(tryPatch, 800);
