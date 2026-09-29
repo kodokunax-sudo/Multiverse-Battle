@@ -1,11 +1,11 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v10.0
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v10.1
 // ============================================================
-// ★ v10.0:
-// - МОДЕЛЬКИ С ШЛЯПАМИ (как в самом первом файле)
-// - РАБОТАЮЩИЙ СУПЕР (кнопка + логика)
-// - ТИТАН-КАМЕНЬ раз в 4 сек (постоянно в фазе 2)
-// - СИНЯЯ АТАКА стреляет в ближайшие блоки (авто-прицел)
+// ★ v10.1:
+// - КНОПКА СУПЕР теперь снизу по центру (рядом с кнопкой режима)
+// - СУПЕР работает (улучшена активация)
+// - МОДЕЛЬКИ С ШЛЯПАМИ (канон One Piece)
+// - ТИТАН-КУЛАК раз в 4 сек
 // ============================================================
 
 (function() {
@@ -38,8 +38,8 @@
         superDuration: 2700,
         superBaseHp: 5000,
         
-        titanFistInterval: 240,       // раз в 4 секунды
-        titanRockInterval: 240,        // ★ ОГРОМНЫЙ КАМЕНЬ раз в 4 секунды
+        titanFistInterval: 240,        // ★ раз в 4 секунды
+        titanRockInterval: 240,         // ★ раз в 4 секунды
         
         playerHitboxMult: 0.7,
         projectileSpeedMult: 1.0
@@ -56,8 +56,8 @@
     let rwbSurvivalTarget2 = BALANCE.superDuration;
     let rwbActiveBoss = null;
     let rwbTitanFistTimer = 0;
-    let rwbTitanRockTimer = 0;    // ★ Отдельный таймер для огромного камня
-    let rwbSuperReady = true;      // ★ Флаг готовности супера
+    let rwbTitanRockTimer = 0;
+    let rwbSuperReady = true;
     let rwbSuperCooldown = 0;
 
     let roger = null;
@@ -88,7 +88,7 @@
     let rwbTouchY = 0;
 
     let rwbModeBtn = null;
-    let rwbSuperBtn = null;  // ★ Кнопка супера
+    let rwbSuperBtn = null;
 
     // ★ МУЗЫКА ★
     let rwbMusic = null;
@@ -395,7 +395,7 @@
             return;
         }
 
-        console.log("[ROGER-WB] Старт боя v10.0!");
+        console.log("[ROGER-WB] Старт боя v10.1!");
 
         window.rwbActive = true;
         rwbState = "intro";
@@ -484,8 +484,9 @@
         window.addEventListener("keyup", handleRWBKeyUp);
 
         createRWBModeButton();
-        createRWBSuperButton();   // ★ СОЗДАЁМ КНОПКУ СУПЕРА ★
+        createRWBSuperButton();
         showRWBModeButton();
+        showRWBSuperButton();
 
         if (rwbAnimFrame) cancelAnimationFrame(rwbAnimFrame);
         rwbAnimFrame = requestAnimationFrame(rwbRenderLoop);
@@ -707,23 +708,25 @@
     }
 
     // ============================================================
-    // ★ КНОПКА РЕЖИМА ★
+    // ★★★ КНОПКИ СНИЗУ (рядом друг с другом) ★★★
     // ============================================================
     function createRWBModeButton() {
         if (rwbModeBtn) return;
         rwbModeBtn = document.createElement('button');
         rwbModeBtn.id = 'rwbModeBtn';
         rwbModeBtn.style.cssText = [
-            'position: fixed', 'bottom: 8px', 'left: 30%', 'transform: translateX(-50%)',
-            'padding: 10px 20px', 'border-radius: 30px',
+            'position: fixed', 'bottom: 10px', 'left: 50%', 
+            'transform: translateX(-110%)',  // слева от центра
+            'padding: 12px 20px', 'border-radius: 30px',
             'background: linear-gradient(135deg, #ffdd00, #ff8800)',
             'color: #1a1a2e', 'font-weight: 900', 'font-size: 13px',
             'font-family: "Nunito", sans-serif', 'border: 3px solid #fff',
             'box-shadow: 0 4px 15px rgba(255, 136, 0, 0.6)',
             'cursor: pointer', 'z-index: 99999', 'letter-spacing: 0.5px',
-            'user-select: none', 'touch-action: manipulation', 'transition: all 0.2s'
+            'user-select: none', 'touch-action: manipulation', 'transition: all 0.2s',
+            'white-space: nowrap'
         ].join(';');
-        rwbModeBtn.innerHTML = '🟡 ОБЫЧНЫЙ';
+        rwbModeBtn.innerHTML = '🟡 РЕЖИМ';
         rwbModeBtn.onclick = function(e) {
             e.preventDefault(); e.stopPropagation();
             rwbPlayer.attackMode = (rwbPlayer.attackMode === "normal") ? "blue" : "normal";
@@ -733,7 +736,7 @@
                 rwbModeBtn.style.color = '#fff';
                 rwbModeBtn.style.boxShadow = '0 4px 15px rgba(0, 170, 255, 0.7)';
             } else {
-                rwbModeBtn.innerHTML = '🟡 ОБЫЧНЫЙ';
+                rwbModeBtn.innerHTML = '🟡 РЕЖИМ';
                 rwbModeBtn.style.background = 'linear-gradient(135deg, #ffdd00, #ff8800)';
                 rwbModeBtn.style.color = '#1a1a2e';
                 rwbModeBtn.style.boxShadow = '0 4px 15px rgba(255, 136, 0, 0.6)';
@@ -743,58 +746,67 @@
         document.body.appendChild(rwbModeBtn);
     }
 
-    // ============================================================
-    // ★★★ КНОПКА СУПЕРА ★★★
-    // ============================================================
     function createRWBSuperButton() {
         if (rwbSuperBtn) return;
         rwbSuperBtn = document.createElement('button');
         rwbSuperBtn.id = 'rwbSuperBtn';
         rwbSuperBtn.style.cssText = [
-            'position: fixed', 'bottom: 8px', 'right: 30px', 'transform: translateX(50%)',
-            'padding: 10px 20px', 'border-radius: 30px',
+            'position: fixed', 'bottom: 10px', 'left: 50%',
+            'transform: translateX(10%)',  // справа от центра
+            'padding: 12px 20px', 'border-radius: 30px',
             'background: linear-gradient(135deg, #f5af19, #f12711)',
             'color: #fff', 'font-weight: 900', 'font-size: 13px',
             'font-family: "Nunito", sans-serif', 'border: 3px solid #fff',
             'box-shadow: 0 4px 15px rgba(245, 175, 25, 0.7)',
             'cursor: pointer', 'z-index: 99999', 'letter-spacing: 0.5px',
             'user-select: none', 'touch-action: manipulation', 'transition: all 0.2s',
-            'animation: superPulse 2s infinite'
+            'white-space: nowrap'
         ].join(';');
         rwbSuperBtn.innerHTML = '⚡ СУПЕР';
         rwbSuperBtn.onclick = function(e) {
             e.preventDefault(); e.stopPropagation();
+            console.log("[ROGER-WB] Кнопка СУПЕР нажата");
             activateRWBPlayerSuper();
         };
         document.body.appendChild(rwbSuperBtn);
     }
 
+    function showRWBModeButton() { if (rwbModeBtn) rwbModeBtn.style.display = 'block'; }
+    function hideRWBModeButton() { if (rwbModeBtn) rwbModeBtn.style.display = 'none'; }
     function showRWBSuperButton() { if (rwbSuperBtn) rwbSuperBtn.style.display = 'block'; }
     function hideRWBSuperButton() { if (rwbSuperBtn) rwbSuperBtn.style.display = 'none'; }
 
-    // ★ Активация супера игрока ★
+    // ★ АКТИВАЦИЯ СУПЕРА ИГРОКА ★
     function activateRWBPlayerSuper() {
-        if (!window.rwbActive) return;
+        if (!window.rwbActive) {
+            console.log("[ROGER-WB] Не активен бой");
+            return;
+        }
+        
+        // ★ Кулдаун ★
         if (!rwbSuperReady) {
             if (typeof showFloatingText === 'function') showFloatingText("⏳ Кулдаун: " + Math.ceil(rwbSuperCooldown / 60) + "с", "#ffaa00");
             return;
         }
         
-        // ★ Ищем главную карту и её супер ★
+        // ★ Получаем главную карту ★
         let mainCard = null;
         try {
             if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0) {
                 let idx = team[mainCardIndex];
                 if (idx >= 0 && idx < myCards.length) mainCard = myCards[idx];
             }
-        } catch(e) {}
+        } catch(e) { console.warn("[ROGER-WB] Card read error:", e); }
         
         if (!mainCard) {
+            console.log("[ROGER-WB] Нет главной карты");
             if (typeof showFloatingText === 'function') showFloatingText("Нет главной карты!", "#ff3333");
             return;
         }
         
-        // Проверка мастерства
+        console.log("[ROGER-WB] Активация супера для:", mainCard.name);
+        
+        // ★ Проверка мастерства ★
         if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
             if (typeof showFloatingText === 'function') showFloatingText("Нужно мастерство 5★!", "#ff3333");
             return;
@@ -806,23 +818,34 @@
                 window.toggleSuper();
                 rwbSuperReady = false;
                 rwbSuperCooldown = 300; // 5 сек
-                if (typeof showFloatingText === 'function') showFloatingText("⚡ " + (mainCard.superAbility ? mainCard.superAbility.name : "СУПЕР!"), "#ffd700");
+                if (typeof showFloatingText === 'function') {
+                    let superName = mainCard.superAbility ? mainCard.superAbility.name : "СУПЕР!";
+                    showFloatingText("⚡ " + superName, "#ffd700");
+                }
                 playHakiChargeSound(0.4);
+                console.log("[ROGER-WB] ✅ Супер активирован");
                 return;
             } catch(e) {
-                console.warn("[ROGER-WB] Supers error:", e);
+                console.error("[ROGER-WB] Ошибка toggleSuper:", e);
             }
         }
         
-        // Fallback — локальный простой супер
+        // Fallback если toggleSuper нет
+        console.log("[ROGER-WB] Fallback super");
         if (typeof showFloatingText === 'function') showFloatingText("⚡ СУПЕР!", "#ffd700");
         rwbSuperReady = false;
         rwbSuperCooldown = 300;
         playHakiChargeSound(0.4);
+        
+        // Простой бафф: +50% урона на 5 сек
+        if (typeof window.playerFinalDamage !== 'undefined') {
+            let originalDmg = window.playerFinalDamage;
+            window.playerFinalDamage = Math.floor(originalDmg * 1.5);
+            setTimeout(function() {
+                window.playerFinalDamage = originalDmg;
+            }, 5000);
+        }
     }
-
-    function showRWBModeButton() { if (rwbModeBtn) rwbModeBtn.style.display = 'block'; }
-    function hideRWBModeButton() { if (rwbModeBtn) rwbModeBtn.style.display = 'none'; }
 
     // УПРАВЛЕНИЕ
     function handleRWBKeyDown(ev) { if (!window.rwbActive) return; rwbKeys[ev.key.toLowerCase()] = true; }
@@ -899,7 +922,6 @@
                                 b.isBlue = true;
                                 b.color = "#00aaff";
                                 b.damage = 1;
-                                // ★★★ АВТО-ПРИЦЕЛ В БЛИЖАЙШУЮ АТАКУ ★★★
                                 aimBulletAtNearestAttack(b);
                             } else {
                                 b.isBlue = false;
@@ -922,7 +944,6 @@
                     isBlue: (rwbPlayer.attackMode === "blue"),
                     damage: (rwbPlayer.attackMode === "blue") ? 1 : 3
                 };
-                // ★ АВТО-ПРИЦЕЛ ★
                 if (rwbPlayer.attackMode === "blue") {
                     aimBulletAtNearestAttack(b);
                 }
@@ -933,7 +954,7 @@
         if (rwbPlayer.attackTimer > 0) rwbPlayer.attackTimer--;
     }
 
-    // ★★★ АВТО-ПРИЦЕЛ СИНЕЙ ПУЛИ В БЛИЖАЙШУЮ АТАКУ ★★★
+    // АВТО-ПРИЦЕЛ СИНЕЙ ПУЛИ
     function aimBulletAtNearestAttack(bullet) {
         if (!rwbAttacks || rwbAttacks.length === 0) return;
         
@@ -942,13 +963,11 @@
         
         for (let i = 0; i < rwbAttacks.length; i++) {
             let a = rwbAttacks[i];
-            // Пропускаем неуязвимые атаки
             if (a.type === "tsunami" || a.type === "titan_fist" || 
                 a.type === "roger_slash" || a.type === "roger_cross" || 
                 a.type === "gura_crack" || a.type === "hell_fire" || 
                 a.type === "haki_wave") continue;
             
-            // Не стреляем в атаки без hp (они неуязвимы)
             if (a.hp === undefined) continue;
             
             let ax = a.x + (a.size || a.radius || 20) / 2;
@@ -964,13 +983,10 @@
         }
         
         if (nearestAttack) {
-            // Меняем направление пули к ближайшей атаке
             let dx = nearestAttack.x - bullet.x;
             let dy = nearestAttack.y - bullet.y;
             let len = Math.sqrt(dx * dx + dy * dy) || 1;
             let speed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy) || 11;
-            
-            // ★ Увеличиваем скорость синей пули для лучшего прицела
             speed = Math.max(speed, 13);
             
             bullet.vx = (dx / len) * speed;
@@ -1708,9 +1724,7 @@
         }
     }
 
-    // ============================================================
-    // ОГРОМНЫЙ КАМЕНЬ (раз в 4 сек) — НОВАЯ АТАКА
-    // ============================================================
+    // ★ ОГРОМНЫЙ КАМЕНЬ ★
     function spawnGiantRock() {
         let rx = 80 + Math.random() * 240;
         rwbAttacks.push({
@@ -1718,10 +1732,10 @@
             x: rx, y: -120,
             vx: (Math.random() - 0.5) * 0.4,
             vy: 2.5,
-            size: 60,                    // ★ ОГРОМНЫЙ ★
+            size: 60,
             rotation: Math.random() * Math.PI * 2,
             rotSpeed: (Math.random() - 0.5) * 0.04,
-            hp: 8, maxHp: 8,             // больше HP — надо много синих пуль
+            hp: 8, maxHp: 8,
             damage: Math.ceil(28 * BALANCE.whitebeardDamageMult),
             life: 500,
             color: "#8B7355",
@@ -1742,10 +1756,10 @@
     }
 
     // ============================================================
-    // СУПЕР
+    // СУПЕР (босс)
     // ============================================================
     function triggerSuper(winner, loser) {
-        console.log("[ROGER-WB] СУПЕР:", winner.name);
+        console.log("[ROGER-WB] СУПЕР босса:", winner.name);
         rwbState = "transition";
         rwbTransitionTimer = 0;
         winner.superForm = true;
@@ -1800,7 +1814,6 @@
         for (let i = rwbAttacks.length - 1; i >= 0; i--) {
             let a = rwbAttacks[i];
             
-            // ★★★ ОГРОМНЫЙ КАМЕНЬ ★★★
             if (a.type === "giant_rock") {
                 a.x += a.vx;
                 a.y += a.vy;
@@ -1821,7 +1834,6 @@
                     }
                 }
                 
-                // Проверка столкновения с игроком
                 if (rwbPlayer.invulnTimer <= 0) {
                     let dx = rwbPlayer.x - a.x;
                     let dy = rwbPlayer.y - a.y;
@@ -1834,7 +1846,6 @@
                     }
                 }
                 
-                // Достиг низа — взрыв
                 if (a.y > 480 || a.life <= 0) {
                     spawnRockSmash(a.x, 480, a.size);
                     playImpactSound(0.8, 0.4);
@@ -2246,9 +2257,6 @@
         }
     }
 
-    // ============================================================
-    // ПУЛИ (синие с авто-прицелом уже выше)
-    // ============================================================
     function updateRWBPlayerBullets() {
         for (let i = rwbPlayerBullets.length - 1; i >= 0; i--) {
             let b = rwbPlayerBullets[i];
@@ -2336,7 +2344,6 @@
         }
     }
 
-    // ХЕЛПЕРЫ
     function hitPlayer(dmg) {
         if (rwbPlayer.invulnTimer > 0) return;
         
@@ -2399,7 +2406,6 @@
         }
     }
 
-    // ПОБЕДА / ПОРАЖЕНИЕ
     function rwbVictory() {
         if (rwbState === "victory") return;
         rwbState = "victory";
@@ -2453,7 +2459,6 @@
         if (!window.rwbActive || !ctx || !canvas) return;
         rwbTimer++;
 
-        // ★ Кулдаун супера ★
         if (!rwbSuperReady && rwbSuperCooldown > 0) {
             rwbSuperCooldown--;
             if (rwbSuperCooldown <= 0) {
@@ -2726,7 +2731,7 @@
             ctx.fillText("🔥 РОДЖЕР vs ❄️ БЕЛОУС", 200, 260);
             ctx.font = "12px monospace";
             ctx.fillStyle = "#dddddd";
-            ctx.fillText("🔵 Синяя атака — авто-прицел по блокам", 200, 310);
+            ctx.fillText("🔵 Синяя — авто-прицел по блокам", 200, 310);
             ctx.fillText("🟡 Жёлтая бьёт только боссов", 200, 330);
             ctx.fillStyle = "#ffff00";
             ctx.fillText("⚡ СУПЕР кнопка справа внизу", 200, 355);
@@ -2826,7 +2831,7 @@
     }
 
     // ============================================================
-    // ★★★ МОДЕЛЬКИ С ШЛЯПАМИ (как в самом первом файле) ★★★
+    // ★★★ МОДЕЛЬКИ С ШЛЯПАМИ (КАНON ONE PIECE) ★★★
     // ============================================================
     function drawHeartShape(cx, cy, size, color, glowColor) {
         ctx.save();
@@ -2848,7 +2853,7 @@
         ctx.restore();
     }
 
-    // ★ РОДЖЕР — сердце + шляпа-треуголка с пером ★
+    // ★ РОДЖЕР — сердце + чёрная треуголка + жёлтая бандана + Весёлый Роджер ★
     function drawRoger() {
         if (!roger) return;
         let pulse = 1 + Math.sin(roger.pulse) * 0.06;
@@ -2861,50 +2866,70 @@
         // ★ Сердце ★
         drawHeartShape(0, 0, size, flash ? "#ffffff" : "#ff8800", "#ff8800");
         
-        // ★ Шляпа-треуголка ★
+        // ★ Чёрная треуголка ★
         ctx.save();
-        ctx.translate(0, -size * 1.1);
+        ctx.translate(0, -size * 1.15);
         
-        // Основа шляпы
+        // Основа
         ctx.fillStyle = "#1a1a2e";
         ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(-size * 1.3, size * 0.1);
-        ctx.lineTo(0, -size * 0.6);
-        ctx.lineTo(size * 1.3, size * 0.1);
+        ctx.moveTo(-size * 1.4, size * 0.15);
+        ctx.lineTo(0, -size * 0.75);
+        ctx.lineTo(size * 1.4, size * 0.15);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
         
-        // Поля шляпы
+        // Поля
         ctx.fillStyle = "#0f0f1a";
         ctx.beginPath();
-        ctx.ellipse(0, size * 0.15, size * 1.5, size * 0.2, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, size * 0.2, size * 1.6, size * 0.22, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         
-        // Красная лента
-        ctx.fillStyle = "#cc0000";
-        ctx.fillRect(-size * 0.5, size * 0.0, size * 1.0, size * 0.15);
-        
-        // ★ Перо ★
+        // ★ Жёлтая бандана с пятнами ★
         ctx.fillStyle = "#ffdd00";
-        ctx.strokeStyle = "#000";
+        ctx.fillRect(-size * 0.9, size * 0.02, size * 1.8, size * 0.18);
+        ctx.fillStyle = "#cc9900";
+        for (let i = 0; i < 5; i++) {
+            let px = -size * 0.8 + i * size * 0.35;
+            let py = size * 0.02 + (i % 3) * size * 0.06;
+            ctx.beginPath();
+            ctx.arc(px, py, size * 0.05, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // ★ Весёлый Роджер — череп с костями ★
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#000000";
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(size * 1.2, size * 0.05);
-        ctx.quadraticCurveTo(size * 1.6, -size * 0.5, size * 1.4, -size * 0.9);
-        ctx.quadraticCurveTo(size * 1.3, -size * 0.6, size * 1.0, size * 0.1);
-        ctx.closePath();
+        ctx.arc(0, size * 0.08, size * 0.16, 0, Math.PI * 2);
         ctx.fill();
+        ctx.stroke();
+        // Глаза
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.arc(-size * 0.06, size * 0.06, size * 0.04, 0, Math.PI * 2);
+        ctx.arc(size * 0.06, size * 0.06, size * 0.04, 0, Math.PI * 2);
+        ctx.fill();
+        // Кости (крест)
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = size * 0.05;
+        ctx.beginPath();
+        ctx.moveTo(-size * 0.25, size * 0.28);
+        ctx.lineTo(size * 0.25, -size * 0.1);
+        ctx.moveTo(size * 0.25, size * 0.28);
+        ctx.lineTo(-size * 0.25, -size * 0.1);
         ctx.stroke();
         
         ctx.restore();
         ctx.restore();
     }
 
-    // ★ БЕЛОУС — сердце + белая шляпа-капитан + усы ★
+    // ★ БЕЛОУС — сердце + жёлто-синяя шляпа + чёрная бандана + Весёлый Роджер + усы ★
     function drawWhitebeard() {
         if (!whitebeard) return;
         let pulse = 1 + Math.sin(whitebeard.pulse) * 0.06;
@@ -2917,66 +2942,78 @@
         // ★ Сердце ★
         drawHeartShape(0, 0, size, flash ? "#ffffaa" : "#ffffff", "#ffffff");
         
-        // ★ Белая шляпа капитана ★
+        // ★ Жёлто-синяя пиратская шляпа ★
         ctx.save();
-        ctx.translate(0, -size * 1.1);
+        ctx.translate(0, -size * 1.15);
         
-        // Основная часть
-        ctx.fillStyle = "#ffffff";
+        // Синяя часть
+        ctx.fillStyle = "#1a3a6a";
         ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(-size * 1.0, size * 0.15);
-        ctx.lineTo(-size * 0.7, -size * 0.4);
-        ctx.lineTo(size * 0.7, -size * 0.4);
-        ctx.lineTo(size * 1.0, size * 0.15);
+        ctx.moveTo(-size * 1.1, size * 0.15);
+        ctx.lineTo(-size * 0.8, -size * 0.5);
+        ctx.lineTo(size * 0.8, -size * 0.5);
+        ctx.lineTo(size * 1.1, size * 0.15);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
         
-        // Поля шляпы (широкие)
-        ctx.fillStyle = "#eeeeee";
+        // ★ Жёлтая полоса ★
+        ctx.fillStyle = "#ffdd00";
+        ctx.fillRect(-size * 0.9, size * 0.0, size * 1.8, size * 0.15);
+        
+        // Поля
+        ctx.fillStyle = "#0a2a4a";
         ctx.beginPath();
         ctx.ellipse(0, size * 0.2, size * 1.6, size * 0.22, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         
-        // Жёлтая лента
-        ctx.fillStyle = "#ffdd00";
-        ctx.fillRect(-size * 0.8, size * 0.0, size * 1.6, size * 0.15);
+        // ★ Чёрная бандана поверх ★
+        ctx.fillStyle = "#1a1a1a";
+        ctx.fillRect(-size * 1.0, -size * 0.1, size * 2.0, size * 0.12);
         
-        // ★ Эмблема — череп ★
+        // ★ Весёлый Роджер ★
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(0, size * 0.05, size * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
         ctx.fillStyle = "#000000";
         ctx.beginPath();
-        ctx.arc(0, size * 0.1, size * 0.15, 0, Math.PI * 2);
+        ctx.arc(-size * 0.05, size * 0.03, size * 0.035, 0, Math.PI * 2);
+        ctx.arc(size * 0.05, size * 0.03, size * 0.035, 0, Math.PI * 2);
         ctx.fill();
-        // Глаза черепа
-        ctx.fillStyle = "#ffdd00";
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = size * 0.04;
         ctx.beginPath();
-        ctx.arc(-size * 0.06, size * 0.08, size * 0.04, 0, Math.PI * 2);
-        ctx.arc(size * 0.06, size * 0.08, size * 0.04, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(-size * 0.22, size * 0.22);
+        ctx.lineTo(size * 0.22, -size * 0.08);
+        ctx.moveTo(size * 0.22, size * 0.22);
+        ctx.lineTo(-size * 0.22, -size * 0.08);
+        ctx.stroke();
         
         ctx.restore();
         
-        // ★ Усы ★
+        // ★ Усы (полумесяц) ★
         ctx.save();
         ctx.fillStyle = "#ffdd00";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 1;
-        // Левый ус
         ctx.beginPath();
         ctx.moveTo(-size * 0.5, size * 0.2);
-        ctx.quadraticCurveTo(-size * 1.6, size * 0.3, -size * 1.7, -size * 0.3);
-        ctx.quadraticCurveTo(-size * 1.5, size * 0.05, -size * 0.5, size * 0.35);
+        ctx.quadraticCurveTo(-size * 1.7, size * 0.4, -size * 1.8, -size * 0.2);
+        ctx.quadraticCurveTo(-size * 1.6, size * 0.1, -size * 0.5, size * 0.35);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
-        // Правый ус
         ctx.beginPath();
         ctx.moveTo(size * 0.5, size * 0.2);
-        ctx.quadraticCurveTo(size * 1.6, size * 0.3, size * 1.7, -size * 0.3);
-        ctx.quadraticCurveTo(size * 1.5, size * 0.05, size * 0.5, size * 0.35);
+        ctx.quadraticCurveTo(size * 1.7, size * 0.4, size * 1.8, -size * 0.2);
+        ctx.quadraticCurveTo(size * 1.6, size * 0.1, size * 0.5, size * 0.35);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -3217,7 +3254,6 @@
             return;
         }
 
-        // ОБЫЧНЫЕ АТАКИ
         ctx.save();
         ctx.translate(a.x, a.y);
         ctx.rotate(a.rotation || 0);
@@ -3319,7 +3355,6 @@
         ctx.restore();
     }
 
-    // ★ ОГРОМНЫЙ КАМЕНЬ (новый) ★
     function drawGiantRock(a) {
         ctx.save();
         ctx.translate(a.x, a.y);
@@ -3328,7 +3363,6 @@
         let s = a.size;
         let seed = a.textureSeed || 0;
         
-        // ★ Многоугольник (объёмный) ★
         let points = [];
         let sides = 8;
         for (let i = 0; i < sides; i++) {
@@ -3338,7 +3372,6 @@
             points.push({ x: Math.cos(ang) * r, y: Math.sin(ang) * r });
         }
         
-        // Тень на земле
         ctx.save();
         ctx.globalAlpha = 0.4;
         ctx.fillStyle = "#000000";
@@ -3347,7 +3380,6 @@
         ctx.fill();
         ctx.restore();
         
-        // Градиент
         let grad = ctx.createRadialGradient(-s * 0.3, -s * 0.3, s * 0.1, 0, 0, s * 1.3);
         grad.addColorStop(0, "#b8a080");
         grad.addColorStop(0.5, "#8B7355");
@@ -3362,12 +3394,10 @@
         ctx.closePath();
         ctx.fill();
         
-        // Чёрный контур (толстый)
         ctx.strokeStyle = "#1a1008";
         ctx.lineWidth = 4;
         ctx.stroke();
         
-        // Трещины
         ctx.strokeStyle = "rgba(30, 20, 10, 0.8)";
         ctx.lineWidth = 2;
         for (let i = 0; i < 4; i++) {
@@ -3379,7 +3409,6 @@
             ctx.stroke();
         }
         
-        // Блик
         ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
         ctx.beginPath();
         ctx.arc(-s * 0.3, -s * 0.35, s * 0.18, 0, Math.PI * 2);
@@ -3388,7 +3417,6 @@
         ctx.arc(-s * 0.15, -s * 0.5, s * 0.08, 0, Math.PI * 2);
         ctx.fill();
         
-        // HP-полоска над камнем
         if (a.hp !== undefined && a.hp < a.maxHp) {
             let barW = s * 1.6;
             let barH = 8;
@@ -3503,12 +3531,11 @@
     window.rwbSound = rwbSound;
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v10.0                             ║");
-    console.log("║  🎩 МОДЕЛЬКИ С ШЛЯПАМИ (как в самом начале)               ║");
-    console.log("║  ⚡ КНОПКА СУПЕР (справа внизу) — работает                ║");
-    console.log("║  🔵 СИНЯЯ АТАКА — авто-прицел по блокам                    ║");
-    console.log("║  🪨 ОГРОМНЫЙ КАМЕНЬ раз в 4 сек                           ║");
-    console.log("║  🔊 КИНОШНЫЕ ЗВУКИ                                         ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v10.1                             ║");
+    console.log("║  🎩 МОДЕЛЬКИ С ШЛЯПАМИ (канон One Piece)                  ║");
+    console.log("║  ⚡ КНОПКА СУПЕР — снизу по центру (рядом с РЕЖИМ)          ║");
+    console.log("║  🔵 СИНЯЯ АТАКА — авто-прицел                              ║");
+    console.log("║  🪨 ТИТАН-КУЛАК + ОГРОМНЫЙ КАМЕНЬ раз в 4 сек              ║");
     console.log("╚════════════════════════════════════════════════════════════╝");
 
 })();
