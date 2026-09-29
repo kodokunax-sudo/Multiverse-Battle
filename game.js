@@ -9,6 +9,9 @@ let arenaSettings = {
     mobileSuper: "button"
 };
 
+// ★★★ НАСТРОЙКА БОНУСА НОВИЧКА ★★★
+const NEWCOMER_BONUS_MINUTES = 20; // Сколько минут длится бафф "Звёзды x2"
+
 // ========== СЛОТЫ СОХРАНЕНИЙ ==========
 function getSlotKey(slot) { return "cgV20_slot" + slot; }
 function loadSlotMeta(slot) { let s = localStorage.getItem(getSlotKey(slot) + "_meta"); return s ? JSON.parse(s) : { nickname: "Слот " + (slot + 1), exists: false }; }
@@ -288,6 +291,9 @@ function initNewGame() {
     maxPoints = 100; 
     gameCompleted = false; 
     defeatedBosses = []; 
+    
+    // ★★★ НОВЫЙ БОНУС: Звёзды x2 на 20 минут при первом заходе ★★★
+    activeBuffs["doubleStars"] = Date.now() + NEWCOMER_BONUS_MINUTES * 60 * 1000;
     
     // ★ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★
     if (typeof window !== 'undefined') window.waystarDefeatedThisRun = false;
@@ -1497,7 +1503,7 @@ function doRebirth() {
         let found = myCards.find(c => c && c.id === window._level7CardId);
         if (found && (found.mastery || 1) >= 7 && found._level7Carry > 0) {
             _level7CardSave = JSON.parse(JSON.stringify(found));
-            _level7CardSave._level7Carry = 0; // следующий ребиртх её НЕ сохранит
+            _level7CardSave._level7Carry = 0;
             console.log("[REBIRTH] Level 7 карта сохранена:", _level7CardSave.name);
         }
     }
@@ -1530,6 +1536,9 @@ function doRebirth() {
     newcomerBonus = true; 
     newcomerBonusEnd = Date.now() + 600000; 
     gameCompleted = false; 
+    
+    // ★★★ НОВЫЙ БОНУС: Звёзды x2 на 20 минут после ребиртха ★★★
+    activeBuffs["doubleStars"] = Date.now() + NEWCOMER_BONUS_MINUTES * 60 * 1000;
     
     // ★ РЕБИРТХ: сбрасываем defeatedBosses, эволюция снова закрыта ★
     defeatedBosses = []; 
@@ -1589,7 +1598,7 @@ function doRebirth() {
     renderAll(); 
     startMainMusic(); 
     
-    let rebirthMsg = '🔄 Ребёрн ' + rebirthCount + '! Множитель x' + getRebirthMult().toFixed(1) + '\n\n💡 Эволюция снова закрыта — победи Путеводную Звезду (500) заново!';
+    let rebirthMsg = '🔄 Ребёрн ' + rebirthCount + '! Множитель x' + getRebirthMult().toFixed(1) + '\n\n💡 Эволюция снова закрыта — победи Путеводную Звезду (500) заново!\n\n🌟 БОНУС: Звёзды x2 на ' + NEWCOMER_BONUS_MINUTES + ' минут!';
     if (_level7CardSave) {
         rebirthMsg += '\n\n⭐ Level 7 карта "' + _level7CardSave.name + '" перешла с тобой! Следующий ребиртх её потеряет.';
     }
