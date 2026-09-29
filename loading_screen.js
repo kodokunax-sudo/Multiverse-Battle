@@ -1,11 +1,13 @@
 // ============================================================
-// LOADING SCREEN v1.0 — ПРЕДЗАГРУЗКА МУЗЫКИ
+// LOADING SCREEN v2.0 — ФОНОВАЯ ЗАГРУЗКА МУЗЫКИ + КЭШ
 // ============================================================
-// Показывает красивый экран загрузки, качает все mp3 в Blob,
-// даёт игре готовые URL. Больше никаких задержек и заиканий.
-//
-// ПОДКЛЮЧАТЬ В index.html ПЕРВЫМ, ДО ВСЕХ ОСТАЛЬНЫХ СКРИПТОВ
-// (или после fps-fix.js, но до data.js / game.js)
+// ★ НОВОЕ:
+// - Кнопка "Продолжить игру" (можно не ждать)
+// - Музыка качается в ФОНЕ (не блокирует)
+// - Cache API — треки сохраняются в браузерном кэше
+// - Таймаут 20 сек на каждый трек
+// ============================================================
+// ПОДКЛЮЧАТЬ В index.html ВТОРЫМ (после fps-fix.js)
 // ============================================================
 
 (function() {
@@ -15,11 +17,8 @@
     window._loadingScreenLoaded = true;
 
     // ============================================================
-    // ★ СПИСОК ВСЕЙ МУЗЫКИ ДЛЯ ЗАГРУЗКИ ★
+    // ★ СПИСОК МУЗЫКИ ★
     // ============================================================
-    // Если добавляешь новый трек — просто дописывай в этот список.
-    // Ключ — то, как ты будешь обращаться к треку из кода (window.getLoadedMusic('ключ'))
-    // Значение — путь к файлу.
     const MUSIC_FILES = {
         "main":         "music/main.mp3",
         "battle":       "music/battle.mp3",
@@ -29,34 +28,31 @@
         "rwb":          "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3"
     };
 
-    // ★ Минимальное время показа (чтобы экран не мигал, даже если всё быстро)
-    const MIN_SHOW_TIME = 1500; // мс
+    const CACHE_NAME = 'multiverse-music-v1';
+    const MIN_SHOW_TIME = 1200;   // минимум показа экрана
+    const FETCH_TIMEOUT = 20000;  // 20 секунд на трек
 
-    // ★ Хранилище загруженных Blob URL
+    // ★ Хранилище ★
     window.__loadedMusic = {};
     window.__musicLoaded = false;
+    window.__musicLoadProgress = { loaded: 0, total: Object.keys(MUSIC_FILES).length };
 
-    // ★ Публичный API: получить Blob URL по ключу
+    // ★ Публичный API ★
     window.getLoadedMusic = function(key) {
         return window.__loadedMusic[key] || null;
     };
-
-    // ★ Публичный API: подождать загрузки (для других скриптов)
-    window.onMusicLoaded = function(callback) {
-        if (window.__musicLoaded) {
-            callback();
-            return;
-        }
+    window.onMusicLoaded = function(cb) {
+        if (window.__musicLoaded) { cb(); return; }
         window.__musicLoadedCallbacks = window.__musicLoadedCallbacks || [];
-        window.__musicLoadedCallbacks.push(callback);
+        window.__musicLoadedCallbacks.push(cb);
     };
 
     // ============================================================
-    // ★ CSS ЭКРАНА ЗАГРУЗКИ ★
+    // ★ CSS ЭКРАНА ★
     // ============================================================
-    const loadingCSS = document.createElement('style');
-    loadingCSS.id = 'loadingScreenStyles';
-    loadingCSS.textContent = `
+    const css = document.createElement('style');
+    css.id = 'loadingScreenStyles';
+    css.textContent = `
         #loadingScreen {
             position: fixed;
             top: 0; left: 0;
@@ -70,8 +66,7 @@
             align-items: center;
             z-index: 999999;
             font-family: 'Nunito', -apple-system, sans-serif;
-            overflow: hidden;
-            transition: opacity 0.6s ease;
+            transition: opacity 0.5s ease;
         }
         #loadingScreen.hidden {
             opacity: 0;
@@ -82,31 +77,8 @@
             50% { background-position: 100% 50%; }
         }
 
-        /* ★ Летающие звёзды на фоне ★ */
-        #loadingScreen::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background-image:
-                radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.7), transparent),
-                radial-gradient(2px 2px at 60% 70%, rgba(245,175,25,0.7), transparent),
-                radial-gradient(1px 1px at 50% 50%, rgba(255,255,255,0.5), transparent),
-                radial-gradient(2px 2px at 80% 10%, rgba(224,86,253,0.7), transparent),
-                radial-gradient(1px 1px at 90% 60%, rgba(255,255,255,0.6), transparent),
-                radial-gradient(1px 1px at 33% 80%, rgba(0,212,255,0.6), transparent),
-                radial-gradient(2px 2px at 15% 65%, rgba(255,255,255,0.5), transparent);
-            background-size: 200% 200%;
-            animation: lsStarsDrift 60s linear infinite;
-            pointer-events: none;
-        }
-        @keyframes lsStarsDrift {
-            from { background-position: 0 0; }
-            to { background-position: 100% 100%; }
-        }
-
-        /* ★ Логотип ★ */
         #loadingLogo {
-            font-size: 48px;
+            font-size: 44px;
             font-weight: 900;
             background: linear-gradient(90deg, #fff 0%, #f5af19 50%, #fff 100%);
             background-size: 200% auto;
@@ -114,35 +86,29 @@
             background-clip: text;
             -webkit-text-fill-color: transparent;
             animation: lsTitleShine 3s linear infinite;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
             letter-spacing: 2px;
             text-align: center;
-            filter: drop-shadow(0 0 25px rgba(245,175,25,0.5));
-            position: relative;
-            z-index: 2;
+            filter: drop-shadow(0 0 20px rgba(245,175,25,0.5));
         }
         @keyframes lsTitleShine {
             to { background-position: 200% center; }
         }
 
         #loadingSubtitle {
-            font-size: 14px;
+            font-size: 13px;
             color: #888;
             letter-spacing: 4px;
             text-transform: uppercase;
             font-weight: 800;
-            margin-bottom: 50px;
-            position: relative;
-            z-index: 2;
+            margin-bottom: 40px;
         }
 
-        /* ★ Крутящееся кольцо ★ */
         #loadingRingWrap {
             position: relative;
-            width: 140px;
-            height: 140px;
-            margin-bottom: 30px;
-            z-index: 2;
+            width: 120px;
+            height: 120px;
+            margin-bottom: 25px;
         }
         #loadingRing {
             width: 100%;
@@ -152,7 +118,7 @@
             border-top-color: #f5af19;
             border-right-color: #e056fd;
             animation: lsRingSpin 1.2s linear infinite;
-            box-shadow: 0 0 30px rgba(245,175,25,0.3), inset 0 0 20px rgba(245,175,25,0.1);
+            box-shadow: 0 0 25px rgba(245,175,25,0.3);
         }
         @keyframes lsRingSpin {
             to { transform: rotate(360deg); }
@@ -160,8 +126,8 @@
         #loadingRingInner {
             position: absolute;
             top: 50%; left: 50%;
-            width: 90px; height: 90px;
-            margin: -45px 0 0 -45px;
+            width: 80px; height: 80px;
+            margin: -40px 0 0 -40px;
             border-radius: 50%;
             border: 3px solid rgba(224, 86, 253, 0.15);
             border-bottom-color: #e056fd;
@@ -171,7 +137,7 @@
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 32px;
+            font-size: 28px;
             animation: lsPulse 1.5s ease-in-out infinite;
         }
         @keyframes lsPulse {
@@ -179,18 +145,15 @@
             50% { transform: translate(-50%, -50%) scale(1.15); }
         }
 
-        /* ★ Прогресс-бар ★ */
         #loadingBarWrap {
             width: 320px;
             max-width: 80vw;
-            height: 14px;
+            height: 12px;
             background: rgba(0, 0, 0, 0.5);
             border-radius: 10px;
             border: 2px solid rgba(255, 255, 255, 0.08);
             overflow: hidden;
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
-            position: relative;
-            z-index: 2;
+            margin-bottom: 15px;
         }
         #loadingBar {
             height: 100%;
@@ -207,71 +170,99 @@
             50% { background-position: 100% 50%; }
         }
 
-        /* ★ Текст статуса ★ */
         #loadingStatus {
-            margin-top: 20px;
             font-size: 13px;
             color: #aaa;
             font-weight: 700;
             letter-spacing: 1px;
             min-height: 20px;
             text-align: center;
-            position: relative;
-            z-index: 2;
+            padding: 0 20px;
         }
-        #loadingPercent {
-            margin-top: 8px;
-            font-size: 24px;
-            color: #f5af19;
+
+        /* ★★★ КНОПКА "ПРОДОЛЖИТЬ ИГРУ" ★★★ */
+        #continueBtn {
+            margin-top: 35px;
+            padding: 14px 42px;
+            font-family: 'Nunito', sans-serif;
+            font-size: 16px;
             font-weight: 900;
-            text-shadow: 0 0 15px rgba(245,175,25,0.6);
+            letter-spacing: 1.5px;
+            color: #1a1a2e;
+            background: linear-gradient(135deg, #f5af19, #f12711);
+            border: 3px solid #fff;
+            border-radius: 40px;
+            cursor: pointer;
+            box-shadow: 0 6px 25px rgba(245, 175, 25, 0.6), inset 0 -3px 0 rgba(0,0,0,0.2);
+            transition: all 0.2s;
+            animation: continuePulse 2s ease-in-out infinite;
             position: relative;
-            z-index: 2;
+            overflow: hidden;
         }
-        #loadingHint {
-            position: absolute;
-            bottom: 30px;
-            left: 0; right: 0;
-            text-align: center;
-            font-size: 12px;
+        #continueBtn:hover {
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 10px 30px rgba(245, 175, 25, 0.8);
+        }
+        #continueBtn:active {
+            transform: translateY(0) scale(0.98);
+        }
+        @keyframes continuePulse {
+            0%, 100% { box-shadow: 0 6px 25px rgba(245, 175, 25, 0.6), inset 0 -3px 0 rgba(0,0,0,0.2); }
+            50% { box-shadow: 0 6px 35px rgba(245, 175, 25, 1), inset 0 -3px 0 rgba(0,0,0,0.2); }
+        }
+
+        #continueHint {
+            margin-top: 12px;
+            font-size: 11px;
             color: #666;
             font-weight: 600;
-            padding: 0 20px;
-            z-index: 2;
         }
 
-        /* ★ Тонкая надпись "первый запуск" ★ */
-        #loadingFirstTime {
-            margin-top: 15px;
-            font-size: 11px;
+        /* ★ Индикатор фоновой загрузки (в правом верхнем углу) ★ */
+        #bgLoadingIndicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #f5af19;
+            border-radius: 30px;
+            padding: 8px 14px;
+            font-family: 'Nunito', sans-serif;
+            font-size: 12px;
+            font-weight: 900;
             color: #f5af19;
+            z-index: 99998;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 20px rgba(245, 175, 25, 0.4);
+            pointer-events: none;
+        }
+        #bgLoadingIndicator.show {
+            display: flex;
+        }
+        #bgLoadingDot {
+            width: 8px;
+            height: 8px;
+            background: #f5af19;
+            border-radius: 50%;
+            animation: bgDotPulse 1s ease-in-out infinite;
+        }
+        @keyframes bgDotPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.7); }
+        }
+        #bgLoadingText {
+            color: #fff;
             font-weight: 700;
-            letter-spacing: 1px;
-            opacity: 0;
-            transition: opacity 0.5s;
-            position: relative;
-            z-index: 2;
-        }
-        #loadingFirstTime.show {
-            opacity: 0.8;
-        }
-
-        /* ★ Плавное появление и исчезновение ★ */
-        #loadingScreen {
-            animation: lsFadeIn 0.5s ease-out;
-        }
-        @keyframes lsFadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
         }
     `;
-    document.head.appendChild(loadingCSS);
+    document.head.appendChild(css);
 
     // ============================================================
-    // ★ СОЗДАНИЕ ЭКРАНА ЗАГРУЗКИ ★
+    // ★ СОЗДАНИЕ ЭКРАНА ★
     // ============================================================
     function createLoadingScreen() {
-        // Если уже есть — не создаём
         if (document.getElementById('loadingScreen')) return;
 
         const div = document.createElement('div');
@@ -287,17 +278,39 @@
             <div id="loadingBarWrap">
                 <div id="loadingBar"></div>
             </div>
-            <div id="loadingPercent">0%</div>
-            <div id="loadingStatus">Загрузка музыки...</div>
-            <div id="loadingFirstTime">✨ Первый запуск — это может занять некоторое время</div>
-            <div id="loadingHint">Все треки будут доступны мгновенно после загрузки</div>
+            <div id="loadingStatus">Загрузка музыки в фоне...</div>
+            <button id="continueBtn">▶ ПРОДОЛЖИТЬ ИГРУ</button>
+            <div id="continueHint">Музыка докачается в фоне (сохранится в кэш браузера)</div>
         `;
 
-        // Вставляем в начало body (или в html, если body ещё нет)
         if (document.body) {
             document.body.insertBefore(div, document.body.firstChild);
         } else {
             document.documentElement.appendChild(div);
+        }
+
+        // ★ Кнопка "Продолжить игру" ★
+        const btn = document.getElementById('continueBtn');
+        if (btn) {
+            btn.addEventListener('click', function() {
+                console.log("[LOADING] Игрок нажал 'Продолжить игру'");
+                skipLoadingScreen();
+            });
+        }
+
+        // ★ Создаём индикатор фоновой загрузки (изначально скрыт) ★
+        if (!document.getElementById('bgLoadingIndicator')) {
+            const ind = document.createElement('div');
+            ind.id = 'bgLoadingIndicator';
+            ind.innerHTML = `
+                <div id="bgLoadingDot"></div>
+                <div id="bgLoadingText">Загрузка музыки: 0/6</div>
+            `;
+            if (document.body) {
+                document.body.appendChild(ind);
+            } else {
+                document.documentElement.appendChild(ind);
+            }
         }
     }
 
@@ -307,9 +320,10 @@
     function updateProgress(loaded, total) {
         const percent = total > 0 ? Math.round((loaded / total) * 100) : 0;
         const bar = document.getElementById('loadingBar');
-        const pct = document.getElementById('loadingPercent');
         if (bar) bar.style.width = percent + '%';
-        if (pct) pct.textContent = percent + '%';
+
+        const bgText = document.getElementById('bgLoadingText');
+        if (bgText) bgText.textContent = "Загрузка музыки: " + loaded + "/" + total;
     }
 
     function setStatus(text) {
@@ -317,34 +331,105 @@
         if (el) el.textContent = text;
     }
 
-    function showFirstTimeHint() {
-        const el = document.getElementById('loadingFirstTime');
-        if (el) el.classList.add('show');
+    function showBgIndicator() {
+        const ind = document.getElementById('bgLoadingIndicator');
+        if (ind) ind.classList.add('show');
+    }
+
+    function hideBgIndicator() {
+        const ind = document.getElementById('bgLoadingIndicator');
+        if (ind) ind.classList.remove('show');
     }
 
     // ============================================================
-    // ★ СКАЧИВАНИЕ ОДНОГО ФАЙЛА ★
+    // ★ ПРОВЕРКА: есть ли трек в Cache API ★
+    // ============================================================
+    async function getFromCache(path) {
+        if (!('caches' in window)) return null;
+        try {
+            const cache = await caches.open(CACHE_NAME);
+            const response = await cache.match(path);
+            if (response) {
+                let blob = await response.blob();
+                return blob;
+            }
+        } catch(e) {
+            console.warn("[LOADING] cache error:", e);
+        }
+        return null;
+    }
+
+    // ============================================================
+    // ★ СОХРАНЕНИЕ В Cache API ★
+    // ============================================================
+    async function saveToCache(path, blob) {
+        if (!('caches' in window)) return;
+        try {
+            const cache = await caches.open(CACHE_NAME);
+            // Создаём Response с blob и сохраняем
+            const response = new Response(blob, {
+                headers: { 'Content-Type': 'audio/mpeg' }
+            });
+            await cache.put(path, response);
+            console.log("[LOADING] 💾 В кэш: " + path);
+        } catch(e) {
+            console.warn("[LOADING] cache save error:", e);
+        }
+    }
+
+    // ============================================================
+    // ★ ЗАГРУЗКА ОДНОГО ФАЙЛА (с таймаутом + кэш) ★
     // ============================================================
     function loadOneMusic(key, path) {
-        return new Promise(function(resolve) {
-            fetch(path, { cache: 'force-cache' })
+        return new Promise(async function(resolve) {
+            // ★ 1. Проверяем кэш ★
+            let blob = await getFromCache(path);
+            
+            if (blob) {
+                console.log("[LOADING] ✅ Из кэша: " + key + " (" + path + ")");
+                window.__loadedMusic[key] = {
+                    blob: blob,
+                    url: URL.createObjectURL(blob),
+                    path: path,
+                    size: blob.size,
+                    fromCache: true
+                };
+                resolve({ key: key, success: true, fromCache: true, size: blob.size });
+                return;
+            }
+
+            // ★ 2. Качаем из сети с таймаутом ★
+            let controller = new AbortController();
+            let timeoutId = setTimeout(function() {
+                controller.abort();
+                console.warn("[LOADING] ⏰ Таймаут: " + key + " (" + path + ")");
+            }, FETCH_TIMEOUT);
+
+            fetch(path, { cache: 'force-cache', signal: controller.signal })
                 .then(function(response) {
                     if (!response.ok) throw new Error("HTTP " + response.status);
                     return response.blob();
                 })
-                .then(function(blob) {
-                    // ★ Сохраняем Blob и Blob URL ★
+                .then(async function(blob) {
+                    clearTimeout(timeoutId);
+                    
                     window.__loadedMusic[key] = {
                         blob: blob,
                         url: URL.createObjectURL(blob),
                         path: path,
-                        size: blob.size
+                        size: blob.size,
+                        fromCache: false
                     };
-                    console.log("[LOADING] ✅ " + key + " (" + path + ") — " + Math.round(blob.size / 1024) + " КБ");
-                    resolve({ key: key, success: true, size: blob.size });
+                    console.log("[LOADING] ✅ " + key + " (" + Math.round(blob.size / 1024) + " КБ)");
+                    
+                    // ★ Сохраняем в Cache API ★
+                    saveToCache(path, blob);
+                    
+                    resolve({ key: key, success: true, fromCache: false, size: blob.size });
                 })
                 .catch(function(err) {
-                    console.warn("[LOADING] ❌ " + key + " (" + path + ") — " + err.message);
+                    clearTimeout(timeoutId);
+                    console.warn("[LOADING] ❌ " + key + " — " + err.message);
                     window.__loadedMusic[key] = null;
                     resolve({ key: key, success: false, error: err.message });
                 });
@@ -352,56 +437,49 @@
     }
 
     // ============================================================
-    // ★ ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ ★
+    // ★ ГЛАВНАЯ ФУНКЦИЯ — ФОНОВАЯ ЗАГРУЗКА ★
     // ============================================================
-    async function loadAllMusic() {
+    let startTime = 0;
+    let bgLoadCompleted = false;
+
+    async function loadAllMusicBackground() {
         const keys = Object.keys(MUSIC_FILES);
         const total = keys.length;
         let loaded = 0;
         let successCount = 0;
-        let totalBytes = 0;
+        let fromCacheCount = 0;
 
-        setStatus("Загрузка музыки (0/" + total + ")...");
+        // ★ Проверяем кэш ПЕРВЫМ (быстрая проверка) ★
+        setStatus("Проверка кэша музыки...");
 
-        // ★ ПРОВЕРЯЕМ: есть ли в localStorage флаг "уже загружали" ★
-        const isFirstTime = !localStorage.getItem('music_loaded_once');
-        if (isFirstTime) {
-            showFirstTimeHint();
-        }
+        // ★ Запускаем все загрузки ПАРАЛЛЕЛЬНО (быстрее) ★
+        const promises = keys.map(function(key) {
+            return loadOneMusic(key, MUSIC_FILES[key]).then(function(result) {
+                loaded++;
+                if (result.success) {
+                    successCount++;
+                    if (result.fromCache) fromCacheCount++;
+                }
+                updateProgress(loaded, total);
+                return result;
+            });
+        });
 
-        // ★ Загружаем ПОСЛЕДОВАТЕЛЬНО (чтобы не перегружать сеть) ★
-        // Если хочешь быстрее — можно параллельно, но тогда прогресс прыгает.
-        for (let i = 0; i < keys.length; i++) {
-            const key = keys[i];
-            const path = MUSIC_FILES[key];
-            setStatus("Загрузка: " + path.split('/').pop() + " (" + (i + 1) + "/" + total + ")");
+        // ★ Ждём ВСЕ, но каждые 500мс обновляем статус ★
+        let statusInterval = setInterval(function() {
+            setStatus("Загрузка музыки в фоне: " + loaded + "/" + total);
+        }, 500);
 
-            const result = await loadOneMusic(key, path);
-            if (result.success) {
-                successCount++;
-                totalBytes += result.size || 0;
-            }
-            loaded++;
-            updateProgress(loaded, total);
-        }
+        await Promise.all(promises);
+        clearInterval(statusInterval);
 
         // ★ Финальный статус ★
-        const totalMB = (totalBytes / 1024 / 1024).toFixed(1);
-        if (successCount === total) {
-            setStatus("✅ Всё готово! (" + totalMB + " МБ)");
-        } else {
-            setStatus("⚠️ Загружено " + successCount + "/" + total + " треков");
-        }
+        setStatus("✅ Музыка готова! (" + successCount + "/" + total + (fromCacheCount > 0 ? ", из кэша: " + fromCacheCount : "") + ")");
 
-        // ★ Ставим флаг "первый запуск пройден" ★
-        try {
-            localStorage.setItem('music_loaded_once', '1');
-        } catch(e) {}
-
-        // ★ Устанавливаем глобальный флаг готовности ★
         window.__musicLoaded = true;
+        bgLoadCompleted = true;
 
-        // ★ Вызываем все колбэки, которые ждали ★
+        // ★ Вызываем колбэки ★
         if (window.__musicLoadedCallbacks && window.__musicLoadedCallbacks.length > 0) {
             for (let cb of window.__musicLoadedCallbacks) {
                 try { cb(); } catch(e) { console.error("[LOADING] callback error:", e); }
@@ -409,15 +487,42 @@
             window.__musicLoadedCallbacks = [];
         }
 
-        // ★ Ждём MIN_SHOW_TIME, потом скрываем ★
-        const elapsed = performance.now() - startTime;
-        const waitTime = Math.max(0, MIN_SHOW_TIME - elapsed);
-        setTimeout(hideLoadingScreen, waitTime);
+        // ★ Скрываем индикатор фоновой загрузки ★
+        setTimeout(hideBgIndicator, 1500);
+
+        // ★ Если экран загрузки ещё открыт — скрываем его ★
+        const screen = document.getElementById('loadingScreen');
+        if (screen && !screen.classList.contains('hidden')) {
+            const elapsed = performance.now() - startTime;
+            const waitTime = Math.max(0, MIN_SHOW_TIME - elapsed);
+            setTimeout(hideLoadingScreen, waitTime);
+        }
+
+        console.log("[LOADING] Все треки загружены! Из кэша: " + fromCacheCount + "/" + total);
     }
 
     // ============================================================
-    // ★ СКРЫТИЕ ЭКРАНА ★
+    // ★ СКРЫТИЕ ЭКРАНА (с фоновой загрузкой) ★
     // ============================================================
+    function skipLoadingScreen() {
+        // Скрываем экран
+        const screen = document.getElementById('loadingScreen');
+        if (screen) {
+            screen.classList.add('hidden');
+            setTimeout(function() {
+                if (screen.parentNode) screen.parentNode.removeChild(screen);
+            }, 500);
+        }
+        
+        // ★ Показываем индикатор фоновой загрузки (если ещё грузится) ★
+        if (!bgLoadCompleted) {
+            showBgIndicator();
+        }
+        
+        // ★ Показываем слоты / игру (эмулируем как будто загрузка завершена) ★
+        console.log("[LOADING] Экран пропущен, музыка докачивается в фоне");
+    }
+
     function hideLoadingScreen() {
         const el = document.getElementById('loadingScreen');
         if (!el) return;
@@ -425,71 +530,59 @@
         setTimeout(function() {
             if (el.parentNode) el.parentNode.removeChild(el);
             console.log("[LOADING] Экран загрузки скрыт");
-        }, 700);
+        }, 500);
     }
 
     // ============================================================
-    // ★ ПАТЧ Audio() — чтобы игра брала готовые Blob URL ★
+    // ★ ПАТЧ Audio() — используем кэш ★
     // ============================================================
     function patchAudioConstructor() {
-        // ★ Запоминаем оригинальный конструктор ★
         const OriginalAudio = window.Audio;
 
         window.Audio = function(src) {
-            // ★ Если src — строка и это путь к mp3, который мы загрузили ★
             if (typeof src === 'string') {
-                // Ищем по ключу
+                // Ищем по точному пути
                 if (window.__loadedMusic) {
                     for (let key in window.__loadedMusic) {
                         let entry = window.__loadedMusic[key];
                         if (entry && entry.path === src) {
-                            // ★ Нашли — используем Blob URL ★
-                            // console.log("[LOADING] Audio() → Blob для " + src);
                             return new OriginalAudio(entry.url);
                         }
                     }
                 }
-                // ★ Ищем по последней части пути (на случай если пути чуть разные) ★
+                // Ищем по имени файла
                 let srcFile = src.split('/').pop();
                 for (let key in window.__loadedMusic) {
                     let entry = window.__loadedMusic[key];
                     if (entry && entry.path) {
                         let entryFile = entry.path.split('/').pop();
                         if (entryFile === srcFile) {
-                            // console.log("[LOADING] Audio() → Blob (по имени файла) для " + src);
                             return new OriginalAudio(entry.url);
                         }
                     }
                 }
             }
-            // ★ Иначе — обычный конструктор ★
             return new OriginalAudio(src);
         };
 
-        // Копируем прототип
         window.Audio.prototype = OriginalAudio.prototype;
         window.Audio.constructor = window.Audio;
-
-        console.log("[LOADING] ✅ Audio() пропатчен — игра будет использовать предзагруженные треки");
+        console.log("[LOADING] ✅ Audio() пропатчен");
     }
 
     // ============================================================
-    // ★ ПАТЧ — для fetch() в других скриптах ★
+    // ★ ПАТЧ fetch() — используем кэш ★
     // ============================================================
-    // В living_stone_boss.js есть fetch() на mp3 файл для QTE
-    // Подменяем его, чтобы брал из кэша
     function patchFetch() {
         const originalFetch = window.fetch;
         window.fetch = function(url, options) {
-            // ★ Если url — строка и это mp3 из нашего списка ★
             if (typeof url === 'string' && window.__loadedMusic) {
+                // Точный путь
                 for (let key in window.__loadedMusic) {
                     let entry = window.__loadedMusic[key];
                     if (entry && entry.path === url) {
-                        // Возвращаем фейковый Response с нашим Blob
                         return Promise.resolve(new Response(entry.blob, {
                             status: 200,
-                            statusText: "OK (from cache)",
                             headers: { 'Content-Type': 'audio/mpeg' }
                         }));
                     }
@@ -503,7 +596,6 @@
                         if (entryFile === urlFile) {
                             return Promise.resolve(new Response(entry.blob, {
                                 status: 200,
-                                statusText: "OK (from cache)",
                                 headers: { 'Content-Type': 'audio/mpeg' }
                             }));
                         }
@@ -512,41 +604,36 @@
             }
             return originalFetch.apply(this, arguments);
         };
-        console.log("[LOADING] ✅ fetch() пропатчен — будет использовать кэш");
+        console.log("[LOADING] ✅ fetch() пропатчен");
     }
 
     // ============================================================
-    // ★ ЗАПУСК ★
+    // ★ ИНИЦИАЛИЗАЦИЯ ★
     // ============================================================
-    let startTime = 0;
-
     function init() {
         startTime = performance.now();
 
-        // ★ Создаём экран загрузки как можно раньше ★
         if (document.body) {
             createLoadingScreen();
         } else {
-            // Если body ещё нет — ждём
             document.addEventListener('DOMContentLoaded', function() {
                 createLoadingScreen();
             });
         }
 
-        // ★ Патчим Audio и fetch ДО начала загрузки ★
         patchAudioConstructor();
         patchFetch();
 
-        // ★ Начинаем загрузку ★
-        // Используем setTimeout чтобы DOM успел отрисоваться
+        // ★ Запускаем фоновую загрузку через 200мс ★
+        // (даём экрану отрисоваться)
         setTimeout(function() {
-            loadAllMusic().catch(function(err) {
-                console.error("[LOADING] Критическая ошибка загрузки:", err);
-                setStatus("⚠️ Ошибка загрузки, продолжаем без музыки");
+            loadAllMusicBackground().catch(function(err) {
+                console.error("[LOADING] Критическая ошибка:", err);
+                setStatus("⚠️ Ошибка, играем без музыки");
                 window.__musicLoaded = true;
                 setTimeout(hideLoadingScreen, 1500);
             });
-        }, 100);
+        }, 200);
     }
 
     if (document.readyState === 'loading') {
@@ -555,31 +642,39 @@
         init();
     }
 
-    // ============================================================
-    // ★ ЭКСПОРТ ДЛЯ ОТЛАДКИ ★
-    // ============================================================
+    // ★ Экспорт для отладки ★
     window.loadingScreen = {
         MUSIC_FILES: MUSIC_FILES,
         reload: function() {
             window.__loadedMusic = {};
             window.__musicLoaded = false;
-            loadAllMusic();
+            loadAllMusicBackground();
+        },
+        clearCache: async function() {
+            if ('caches' in window) {
+                try {
+                    await caches.delete(CACHE_NAME);
+                    console.log("[LOADING] Кэш очищен");
+                } catch(e) {}
+            }
         },
         getLoadedList: function() {
             let list = [];
-            for (let key in window.__loadedMusic) {
+            for (let key in MUSIC_FILES) {
                 let e = window.__loadedMusic[key];
-                if (e) list.push({ key: key, path: e.path, size: e.size });
-                else list.push({ key: key, path: MUSIC_FILES[key], size: 0, failed: true });
+                if (e) list.push({ key: key, path: e.path, size: e.size, fromCache: e.fromCache });
+                else list.push({ key: key, path: MUSIC_FILES[key], missing: true });
             }
             return list;
         }
     };
 
     console.log("╔════════════════════════════════════════════════╗");
-    console.log("║  🎵 LOADING SCREEN v1.0 загружено              ║");
-    console.log("║  📁 Файлов для загрузки: " + Object.keys(MUSIC_FILES).length + "                    ║");
-    console.log("║  🔧 Audio() и fetch() будут использовать кэш   ║");
+    console.log("║  🎵 LOADING SCREEN v2.0                        ║");
+    console.log("║  ✅ Фоновая загрузка музыки                    ║");
+    console.log("║  ✅ Кнопка 'Продолжить игру'                   ║");
+    console.log("║  ✅ Cache API — переживает F5                  ║");
+    console.log("║  ⏰ Таймаут: " + (FETCH_TIMEOUT/1000) + " сек/трек              ║");
     console.log("╚════════════════════════════════════════════════╝");
 
 })();
