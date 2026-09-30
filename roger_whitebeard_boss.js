@@ -84,7 +84,7 @@ const BALANCE = {
     superDuration: 2700,
     superBaseHp: 5000,
     
-    titanFistInterval: 240,        // 4 сек
+    titanFistInterval: 540,        // 4 сек
     titanRockInterval: 240,         // 4 сек
     
     playerHitboxMult: 0.7,
