@@ -1,8 +1,6 @@
-// ========== АРЕНА UNDERTALE v16.0 ==========
-// + ИНТЕГРАЦИЯ С JOYSTICK.JS
-// + dodge-фаза с джойстиком
-// + attack-фаза с тапом по целям (не джойстик)
-// ★ v16.0: поддержка window._joystick
+// ========== АРЕНА UNDERTALE v16.1 ==========
+// + ЭКСПОРТ arenaActive и arenaPhase в window для joystick.js
+// + moveHeart читает window._joystick
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -138,21 +136,6 @@ function sfxWhoosh() { playArenaSound(200, 'sine', 0.3, 0.05, -200); setTimeout(
 function sfxBounce() { playArenaSound(300, 'square', 0.1, 0.03); setTimeout(function() { playArenaSound(200, 'square', 0.08, 0.02); }, 40); }
 function sfxShieldBreak() { playArenaSound(150, 'sawtooth', 0.3, 0.08); setTimeout(function() { playArenaSound(100, 'sawtooth', 0.2, 0.06); }, 80); }
 
-// ============================================================
-// ★★★ ПРОВЕРКА: АКТИВЕН ЛИ ВНЕШНИЙ ДЖОЙСТИК ★★★
-// ============================================================
-function isExternalJoystickActive() {
-    return window._joystick && window._joystick.enabled && window._joystick.active;
-}
-
-function getExternalJoystickVector() {
-    if (!isExternalJoystickActive()) return null;
-    return {
-        x: window._joystick.vectorX,
-        y: window._joystick.vectorY
-    };
-}
-
 // ====== ОСНОВНЫЕ ФУНКЦИИ ======
 function initArena() {
     canvas = document.getElementById("arenaCanvas");
@@ -170,11 +153,9 @@ function initArena() {
     window.addEventListener("keydown", function(ev) { handleKey(ev, true); });
     window.addEventListener("keyup", function(ev) { handleKey(ev, false); });
 
-    // ★★★ TOUCHSTART — с проверкой внешнего джойстика ★★★
     canvas.addEventListener("touchstart", function(ev) {
         if (!arenaActive) return;
 
-        // ★ Если внешний джойстик включён — не вмешиваемся (кроме фазы атаки) ★
         if (window._joystick && window._joystick.enabled) {
             if (arenaPhase === "attack") {
                 ev.preventDefault();
@@ -183,7 +164,6 @@ function initArena() {
                     checkClickTarget(ev.touches[i].clientX - rectA.left, ev.touches[i].clientY - rectA.top);
                 }
             }
-            // В dodge-фазе джойстик обрабатывает joystick.js
             return;
         }
 
@@ -210,7 +190,6 @@ function initArena() {
         }
     });
 
-    // ★★★ TOUCHMOVE ★★★
     canvas.addEventListener("touchmove", function(ev) {
         if (!arenaActive || arenaPhase !== "dodge") return;
         if (window._joystick && window._joystick.enabled) return;
@@ -224,7 +203,6 @@ function initArena() {
         }
     });
 
-    // ★★★ TOUCHEND ★★★
     canvas.addEventListener("touchend", function(ev) {
         if (window._joystick && window._joystick.enabled) return;
         var mobileMode = (typeof arenaSettings !== 'undefined') ? arenaSettings.mobileSuper : "button";
@@ -241,7 +219,6 @@ function initArena() {
         joystickActive = false; joystickId = null;
     });
 
-    // Клик мышью по целям
     canvas.addEventListener("click", function(ev) {
         if (!arenaActive || arenaPhase !== "attack") return;
         var rect = canvas.getBoundingClientRect();
@@ -254,22 +231,18 @@ function clampHeart() {
     heart.y = Math.max(heart.size, Math.min(500 - heart.size, heart.y));
 }
 
-// ============================================================
-// ★★★ moveHeart — с поддержкой внешнего джойстика ★★★
-// ============================================================
 function moveHeart() {
     if (typeof _superState !== 'undefined' && _superState.usoppStunTimer > 0) return;
     if (typeof _superState !== 'undefined' && _superState.garouTimeStop) return;
 
     var mx = 0, my = 0;
 
-    // ★★★ ПРИОРИТЕТ 1: Внешний джойстик ★★★
-    var extVec = getExternalJoystickVector();
-    if (extVec) {
-        mx = extVec.x;
-        my = extVec.y;
+    // ★ ПРИОРИТЕТ 1: внешний джойстик из joystick.js ★
+    if (window._joystick && window._joystick.enabled && window._joystick.active) {
+        mx = window._joystick.vectorX || 0;
+        my = window._joystick.vectorY || 0;
     }
-    // ★ ПРИОРИТЕТ 2: Внутренний touch (следование за пальцем) ★
+    // ★ ПРИОРИТЕТ 2: внутренний touch ★
     else if (joystickActive) {
         mx = (joystickX - heart.x) / 15;
         my = (joystickY - heart.y) / 15;
@@ -277,13 +250,12 @@ function moveHeart() {
         if (len > 1) { mx /= len; my /= len; }
     }
 
-    // ★ ПРИОРИТЕТ 3: Клавиатура (всегда работает) ★
+    // ★ ПРИОРИТЕТ 3: клавиатура ★
     if (keys.w || keys.up) my -= 1;
     if (keys.s || keys.down) my += 1;
     if (keys.a || keys.left) mx -= 1;
     if (keys.d || keys.right) mx += 1;
 
-    // Инверсия управления (от Кайдо)
     if (typeof _superState !== 'undefined' && _superState.invertControls) { mx = -mx; my = -my; }
 
     var isMoving = Math.abs(mx) > 0.05 || Math.abs(my) > 0.05;
@@ -980,11 +952,25 @@ function renderArena() {
 
     drawObesityWarning();
 
-    // ★★★ РИСУЕМ ДЖОЙСТИК (внешний) ★★★
-    if (typeof window.drawJoystick === 'function') {
-        window.drawJoystick();
-    }
+    if (typeof window.drawJoystick === 'function') window.drawJoystick();
 
     ctx.restore();
     animFrameId = requestAnimationFrame(renderArena);
 }
+
+// ============================================================
+// ★★★ ЭКСПОРТ В WINDOW ДЛЯ JOYSTICK.JS ★★★
+// ============================================================
+// joystick.js читает window.arenaActive / window.arenaPhase
+// Так как let-переменные не становятся свойствами window,
+// используем defineProperty с геттерами — они всегда возвращают актуальное значение
+Object.defineProperty(window, 'arenaActive', {
+    get: function() { return arenaActive; },
+    configurable: true
+});
+Object.defineProperty(window, 'arenaPhase', {
+    get: function() { return arenaPhase; },
+    configurable: true
+});
+
+console.log("[BATTLE] v16.1 — экспорт arenaActive/arenaPhase в window для joystick.js");
