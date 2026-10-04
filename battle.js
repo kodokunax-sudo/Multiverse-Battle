@@ -1,9 +1,8 @@
-// ========== АРЕНА UNDERTALE v14.0 ==========
-// + патч ожирения: скорость сердечка × getObesitySpeedMult()
-// + фикс атаки "Стены": подсказка заранее, ломаная стрелка, полупрозрачная щель
-// + разделение скорости и количества стен
-// ★ v14.0: ФИКС СКОРОСТИ — убрано двойное применение бонуса брони
-// ★ v14.0: ожирение показывается только при критичной стадии
+// ========== АРЕНА UNDERTALE v15.0 ==========
+// + ФИКС СКОРОСТИ ГЛАВНОЙ КАРТЫ
+// + Подробное логирование выбора карты
+// + Fallback: если главная карта не выбрана — берётся самая быстрая из отряда
+// + Бонус брони применяется ОДИН РАЗ и корректно сбрасывается
 
 let arenaActive = false;
 let arenaBoss = null;
@@ -70,7 +69,7 @@ let wallSpeedMult = 1.0;
 let wallCountMult = 1.0;
 let wallWarningTimer = null;
 
-// ★ Флаг: можно ли применять бонус брони к скорости (сброс после каждого боя) ★
+// ★ Флаг: можно ли применять бонус брони к скорости
 if (typeof window._armorSpeedApplied === 'undefined') window._armorSpeedApplied = false;
 
 // ========== ЗВУКОВАЯ СИСТЕМА АРЕНЫ ==========
@@ -278,7 +277,110 @@ function getAttackTypes(bossWave) {
 function skipDefeatedBoss() { stopArena(); if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0; if (typeof victory === 'function') victory(); }
 
 // ============================================================
-// ★★★ СТАРТ АРЕНЫ — ФИКС СКОРОСТИ ★★★
+// ★★★ ГЛАВНАЯ ФУНКЦИЯ: ПОЛУЧЕНИЕ СКОРОСТИ ГЛАВНОЙ КАРТЫ ★★★
+// ============================================================
+function getMainCardSpeedForArena() {
+    var result = {
+        speed: 1.2,
+        cardName: "Нет карты",
+        cardRarity: "—",
+        source: "базовая",
+        details: []
+    };
+    
+    // 1. Проверяем наличие данных
+    if (typeof team === 'undefined' || !Array.isArray(team) || team.length === 0) {
+        result.details.push("Отряд пуст");
+        console.log("[ARENA-SPEED] Отряд пуст — используется базовая скорость 1.2");
+        return result;
+    }
+    
+    if (typeof myCards === 'undefined' || !Array.isArray(myCards) || myCards.length === 0) {
+        result.details.push("myCards пуст");
+        console.log("[ARENA-SPEED] myCards пуст — используется базовая скорость 1.2");
+        return result;
+    }
+    
+    // 2. Проверяем mainCardIndex
+    var idxInTeam = (typeof mainCardIndex !== 'undefined') ? mainCardIndex : -1;
+    result.details.push("mainCardIndex = " + idxInTeam);
+    result.details.push("team = [" + team.join(", ") + "]");
+    
+    // 3. Если mainCardIndex некорректен — ищем лучшую карту в отряде
+    var needFallback = false;
+    if (idxInTeam < 0 || idxInTeam >= team.length) {
+        needFallback = true;
+        result.details.push("mainCardIndex вне диапазона team — fallback");
+    } else {
+        var cardIdx = team[idxInTeam];
+        if (cardIdx < 0 || cardIdx >= myCards.length) {
+            needFallback = true;
+            result.details.push("team[" + idxInTeam + "] = " + cardIdx + " вне диапазона myCards — fallback");
+        }
+    }
+    
+    var mainCard = null;
+    var realIdxInTeam = -1;
+    
+    if (!needFallback) {
+        var cardIdx = team[idxInTeam];
+        mainCard = myCards[cardIdx];
+        realIdxInTeam = idxInTeam;
+        
+        if (!mainCard) {
+            needFallback = true;
+            result.details.push("myCards[" + cardIdx + "] = undefined — fallback");
+        } else if (typeof mainCard.speed !== 'number' || mainCard.speed <= 0) {
+            needFallback = true;
+            result.details.push("У карты '" + mainCard.name + "' некорректная скорость: " + mainCard.speed + " — fallback");
+        }
+    }
+    
+    // 4. Fallback: берём карту с максимальной скоростью из отряда
+    if (needFallback) {
+        var bestSpeed = 1.2;
+        var bestCard = null;
+        var bestIdxInTeam = -1;
+        for (var i = 0; i < team.length; i++) {
+            var ci = team[i];
+            if (ci < 0 || ci >= myCards.length) continue;
+            var c = myCards[ci];
+            if (!c || typeof c.speed !== 'number' || c.speed <= 0) continue;
+            if (c.speed > bestSpeed) {
+                bestSpeed = c.speed;
+                bestCard = c;
+                bestIdxInTeam = i;
+            }
+        }
+        if (bestCard) {
+            mainCard = bestCard;
+            realIdxInTeam = bestIdxInTeam;
+            result.details.push("Fallback: выбрана самая быстрая карта в отряде — '" + bestCard.name + "' (x" + bestSpeed + ")");
+            console.log("[ARENA-SPEED] ⚠️ Fallback: mainCardIndex был " + idxInTeam + ", взята карта '" + bestCard.name + "' (индекс в отряде: " + bestIdxInTeam + ")");
+        } else {
+            result.details.push("Fallback не нашёл карт с корректной скоростью");
+            console.log("[ARENA-SPEED] Fallback не нашёл карт — базовая 1.2");
+            return result;
+        }
+    }
+    
+    // 5. Возвращаем результат
+    result.speed = mainCard.speed;
+    result.cardName = mainCard.name;
+    result.cardRarity = mainCard.rarity || "—";
+    result.source = needFallback ? "fallback" : "mainCardIndex";
+    
+    console.log("[ARENA-SPEED] ✅ Итог:");
+    console.log("[ARENA-SPEED]    Карта: '" + mainCard.name + "' (" + mainCard.rarity + ")");
+    console.log("[ARENA-SPEED]    Скорость: " + mainCard.speed);
+    console.log("[ARENA-SPEED]    Источник: " + result.source);
+    console.log("[ARENA-SPEED]    mainCardIndex: " + idxInTeam + " → team[" + realIdxInTeam + "] → myCards[" + team[realIdxInTeam] + "]");
+    
+    return result;
+}
+
+// ============================================================
+// ★★★ СТАРТ АРЕНЫ ★★★
 // ============================================================
 function startArena(bossWave) {
     initArenaAudio();
@@ -308,59 +410,66 @@ function startArena(bossWave) {
     }
     
     // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-    // ★★★ ФИКС СКОРОСТИ: считаем ЧИСТУЮ скорость от карты + броню + ожирение ★★★
+    // ★★★ ПОЛУЧАЕМ СКОРОСТЬ ГЛАВНОЙ КАРТЫ ★★★
     // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-    heartSpeed = 1.2;  // база
-    var mainCard = null;
-    var cardBaseSpeed = 1.2;
+    console.log("╔══════════════════════════════════════════════════════╗");
+    console.log("║  🎮 START ARENA — ВЫБОР СКОРОСТИ                     ║");
+    console.log("╚══════════════════════════════════════════════════════╝");
     
-    try {
-        if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0 && mainCardIndex >= 0 && mainCardIndex < team.length) {
-            var mainCardIdx = team[mainCardIndex];
-            if (typeof myCards !== 'undefined' && mainCardIdx >= 0 && mainCardIdx < myCards.length) {
-                mainCard = myCards[mainCardIdx];
-                if (mainCard && typeof mainCard.speed === 'number' && mainCard.speed > 0) {
-                    cardBaseSpeed = mainCard.speed;
-                    heartSpeed = cardBaseSpeed;
-                    console.log("[ARENA] 📇 Карта: '" + mainCard.name + "' | Базовая скорость: " + cardBaseSpeed);
-                }
-            }
-        }
-    } catch(e) { console.warn("[ARENA] Ошибка чтения карты:", e); }
+    var speedInfo = getMainCardSpeedForArena();
+    heartSpeed = speedInfo.speed;
     
-    // ★ Применяем бонус брони ОДИН РАЗ ★
-    if (!window._armorSpeedApplied && typeof window.getArmorBonusesPublic === 'function') {
+    // Применяем бонус брони (один раз за бой)
+    window._armorSpeedApplied = false;
+    if (typeof window.getArmorBonusesPublic === 'function') {
         try {
             var eqBonus = window.getArmorBonusesPublic();
             if (eqBonus && eqBonus.speedMult && eqBonus.speedMult !== 1.0) {
+                var before = heartSpeed;
                 heartSpeed *= eqBonus.speedMult;
                 window._armorSpeedApplied = true;
-                console.log("[ARENA] 🛡️ Бонус брони: x" + eqBonus.speedMult + " → " + heartSpeed.toFixed(2));
+                console.log("[ARENA-SPEED] 🛡️ Бонус брони: x" + eqBonus.speedMult + " (" + before.toFixed(2) + " → " + heartSpeed.toFixed(2) + ")");
+            } else {
+                console.log("[ARENA-SPEED] 🛡️ Броня без бонуса скорости (speedMult = " + (eqBonus ? eqBonus.speedMult : "?") + ")");
             }
-        } catch(e) {}
+        } catch(e) { console.warn("[ARENA-SPEED] Ошибка чтения брони:", e); }
     }
     
-    // ★ Применяем ожирение ★
+    // Применяем ожирение
     if (typeof getObesitySpeedMult === 'function') {
         var obesityMult = getObesitySpeedMult();
         if (obesityMult !== 1.0) {
+            var beforeOb = heartSpeed;
             heartSpeed *= obesityMult;
-            console.log("[ARENA] 🍔 Ожирение: x" + obesityMult + " → " + heartSpeed.toFixed(2));
+            console.log("[ARENA-SPEED] 🍔 Ожирение: x" + obesityMult + " (" + beforeOb.toFixed(2) + " → " + heartSpeed.toFixed(2) + ")");
         }
     }
     
-    // ★ Ограничиваем ★
+    // Ограничиваем
     heartSpeed = Math.max(0.4, Math.min(6.0, heartSpeed));
     window._currentHeartSpeed = heartSpeed;
-    console.log("[ARENA] ✅ ИТОГОВАЯ СКОРОСТЬ: " + heartSpeed.toFixed(2));
     
+    console.log("[ARENA-SPEED] ✅ ИТОГОВАЯ СКОРОСТЬ: " + heartSpeed.toFixed(2));
+    console.log("╚══════════════════════════════════════════════════════╝");
+    
+    // Обновляем UI
     var speedDisplay = document.getElementById("arenaSpeedDisplay"); 
     if (speedDisplay) speedDisplay.innerText = heartSpeed.toFixed(2);
+    
+    // Показываем плашку с главной картой на арене
+    var mainCardDisplay = document.getElementById("arenaMainCardDisplay");
+    if (!mainCardDisplay) {
+        mainCardDisplay = document.createElement("div");
+        mainCardDisplay.id = "arenaMainCardDisplay";
+        mainCardDisplay.style.cssText = "position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.7);color:#fff;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:bold;z-index:100;pointer-events:none;font-family:'Nunito',sans-serif;";
+        var overlay = document.getElementById("arenaOverlay");
+        if (overlay) overlay.appendChild(mainCardDisplay);
+    }
+    mainCardDisplay.innerHTML = '👑 ' + speedInfo.cardName + ' | ⚡ ' + heartSpeed.toFixed(2);
     
     arenaClickTargets = []; arenaClicksHit = 0; arenaPhase = "dodge"; attacks = []; arenaBlasters = []; arenaParticles = []; floatingTexts = []; arenaTrail = []; arenaShockwaves = []; wallGapIndicator = null;
     arenaShake = 0; arenaHitFlash = 0; invulnTimer = 0; arenaComboText = ""; arenaComboTimer = 0; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0; heartRotation = 0; heartWasMoving = false; heartStandingTime = 0;
     
-    // ★★★ РАЗДЕЛЕНИЕ СКОРОСТИ И КОЛИЧЕСТВА СТЕН ★★★
     arenaSpeedMult = Math.min(15.0, 1.0+Math.floor((bossWave-50)/50)*0.1); if (bossWave < 50) arenaSpeedMult = 1.0;
     wallSpeedMult = Math.min(4.0, 1.0 + Math.floor((bossWave - 50) / 100) * 0.15);
     if (bossWave < 50) wallSpeedMult = 1.0;
@@ -475,7 +584,6 @@ function spawnWallAttack(isEarly, dmg, shouldShrink) {
     
     var wallSpeed = wallSpeedMult;
     
-    // ★ Считаем позицию щели ЗАРАНЕЕ ★
     var gapSize = 90 + Math.random() * 30;
     var gapCenter;
     
@@ -491,7 +599,6 @@ function spawnWallAttack(isEarly, dmg, shouldShrink) {
         gapCenter = Math.max(minGapH, Math.min(maxGapH, desiredH));
     }
     
-    // ★ СОЗДАЁМ ПОДСКАЗКУ — ЛОМАНАЯ СТРЕЛКА ★
     if (isVertical) {
         wallGapIndicator = {
             x: 0, y: gapCenter, w: 30, h: gapSize,
@@ -513,7 +620,6 @@ function spawnWallAttack(isEarly, dmg, shouldShrink) {
     playArenaSound(400, 'sine', 0.15, 0.06);
     setTimeout(function() { playArenaSound(500, 'sine', 0.1, 0.04); }, 150);
     
-    // ★ Через 1000 мс — спавним стену ★
     wallWarningTimer = setTimeout(function() {
         if (arenaPhase !== "dodge" || !arenaActive) return;
         
@@ -583,13 +689,13 @@ function stopArena() {
     arenaActive = false; stopArenaAmbient(); if (arenaAttackInterval) clearInterval(arenaAttackInterval); if (animFrameId) cancelAnimationFrame(animFrameId);
     arenaAttackInterval = null; animFrameId = null;
     attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = []; arenaBlasters = []; arenaShockwaves = [];
-    // ★ СБРОС ФЛАГА БРОНИ ★
     window._armorSpeedApplied = false;
     document.getElementById("arenaOverlay").style.display = "none";
     var skipBtn = document.getElementById("skipBossBtn"); if (skipBtn) skipBtn.style.display = "none";
     var superBtn = document.getElementById("superBtn"); if (superBtn) superBtn.style.display = "none";
     var superBtn2 = document.getElementById("superBtn2"); if (superBtn2) superBtn2.style.display = "none";
     var superBtnDeact = document.getElementById("superBtnDeactivate"); if (superBtnDeact) superBtnDeact.style.display = "none";
+    var mainCardDisplay = document.getElementById("arenaMainCardDisplay"); if (mainCardDisplay) mainCardDisplay.remove();
 }
 
 function winArena() {
@@ -698,7 +804,6 @@ function drawMarkResurrections() {
 function drawObesityWarning() {
     if (!ctx) return;
     if (typeof obesityPoints === 'undefined') return;
-    // Показываем ТОЛЬКО если ожирение критичное (стадия II или III — 40+)
     if (obesityPoints < 40) return;
     
     var obName = "ОЖИРЕНИЕ";
@@ -714,7 +819,6 @@ function drawObesityWarning() {
     var x = 200 - w/2;
     var y = 470;
     
-    // Фон с пульсацией
     var pulse = 0.7 + Math.abs(Math.sin(performance.now() / 300)) * 0.3;
     
     ctx.fillStyle = "rgba(0,0,0,0.85)";
@@ -800,7 +904,6 @@ function renderArena() {
     drawActiveBuffs();
     if (arenaComboTimer>0&&arenaComboText) { ctx.save(); var comboAlpha=Math.min(1,arenaComboTimer/20); ctx.fillStyle="rgba(255,255,255,"+comboAlpha+")"; ctx.font="bold 22px sans-serif"; ctx.textAlign="center"; ctx.shadowColor="#ffdd00"; ctx.shadowBlur=15; ctx.fillText(arenaComboText,200,260); ctx.restore(); }
     
-    // ★★★ ПОДСКАЗКА ЩЕЛИ + СТРЕЛКА ★★★
     if (wallGapIndicator && wallGapIndicator.life > 0) {
         ctx.save();
         var alpha = Math.min(1, wallGapIndicator.life / 20);
@@ -929,7 +1032,6 @@ function renderArena() {
     ctx.save(); for (var i=floatingTexts.length-1;i>=0;i--) { var ft=floatingTexts[i]; ft.y+=ft.vy; ft.x+=(ft.vx||0); ft.life--; ctx.fillStyle=ft.color; ctx.globalAlpha=Math.max(0,ft.life/50); ctx.font="bold 14px monospace"; ctx.shadowColor=ft.color; ctx.shadowBlur=4; ctx.textAlign="center"; ctx.fillText(ft.text,ft.x,ft.y); if (ft.life<=0) floatingTexts.splice(i,1); } ctx.restore();
     if (typeof _superState !== 'undefined' && _superState.dandyLava > 0) { ctx.save(); for (var i=0;i<60;i++) { var lx=Math.random()*400, ly=460+Math.random()*40; ctx.fillStyle="#ff4400"; ctx.globalAlpha=0.6+Math.random()*0.4; ctx.beginPath(); ctx.arc(lx,ly,2+Math.random()*4,0,Math.PI*2); ctx.fill(); } ctx.restore(); if (heart.y>420) { applyHit(3,"ЛАВА!"); } }
     
-    // ★★★ ПОКАЗ КРИТИЧНОГО ОЖИРЕНИЯ ★★★
     drawObesityWarning();
     
     ctx.restore();
