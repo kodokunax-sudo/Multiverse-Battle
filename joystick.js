@@ -1,5 +1,5 @@
 // ============================================================
-// JOYSTICK v1.3 — Универсальный виртуальный джойстик
+// JOYSTICK v1.4 — Универсальный виртуальный джойстик
 // ============================================================
 // Работает на ВСЕХ аренах:
 //   - Undertale    → window.getArenaActive() / window.getArenaPhase()
@@ -7,8 +7,7 @@
 //   - Звезда       → window.getWaystarActive() / window.getWaystarState()
 //   - Роджер/Белоус→ window.getRWBActive() / window.getRWBState()
 //
-// ★ v1.3: getActiveArena() читает через ФУНКЦИИ window.*
-//          (let-переменные не становятся свойствами window)
+// ★ v1.4: добавлена поддержка МЫШИ (для ПК/тестирования)
 // ПОДКЛЮЧАТЬ В КОНЦЕ index.html, ПОСЛЕ всех боссов
 // ============================================================
 
@@ -93,7 +92,6 @@
     // ============================================================
     function getActiveArena() {
         try {
-            // ★ Undertale — через функцию ★
             if (typeof window.getArenaActive === 'function' && window.getArenaActive() === true) {
                 return {
                     type: 'arena',
@@ -101,7 +99,6 @@
                     phase: (typeof window.getArenaPhase === 'function') ? window.getArenaPhase() : "dodge"
                 };
             }
-            // ★ Живой Камень — через функцию ★
             if (typeof window.getLivingStoneActive === 'function' && window.getLivingStoneActive() === true) {
                 return {
                     type: 'stone',
@@ -109,7 +106,6 @@
                     phase: (typeof window.getLivingStoneState === 'function') ? window.getLivingStoneState() : "phase1"
                 };
             }
-            // ★ Путеводная Звезда — через функцию ★
             if (typeof window.getWaystarActive === 'function' && window.getWaystarActive() === true) {
                 return {
                     type: 'waystar',
@@ -117,7 +113,6 @@
                     phase: (typeof window.getWaystarState === 'function') ? window.getWaystarState() : "phase1"
                 };
             }
-            // ★ Роджер vs Белоус — через функцию ★
             if (typeof window.getRWBActive === 'function' && window.getRWBActive() === true) {
                 return {
                     type: 'rwb',
@@ -125,7 +120,7 @@
                     phase: (typeof window.getRWBState === 'function') ? window.getRWBState() : "fight1"
                 };
             }
-            // ★ Fallback: если функции не заданы, проверяем window.* напрямую ★
+            // Fallback через window.* напрямую
             if (window.arenaActive === true) {
                 return { type: 'arena', canvas: document.getElementById("arenaCanvas"), phase: window.arenaPhase || "dodge" };
             }
@@ -181,12 +176,13 @@
     }
 
     // ============================================================
-    // ★★★ ПАТЧ CANVAS — свои обработчики тача ★★★
+    // ★★★ ПАТЧ CANVAS — TOUCH + MOUSE ★★★
     // ============================================================
     function patchCanvas(c) {
         if (!c || c._joystickPatched) return;
         c._joystickPatched = true;
 
+        // ========== TOUCHSTART ==========
         c.addEventListener("touchstart", function(ev) {
             var j = window._joystick;
             if (!j.enabled) return;
@@ -220,10 +216,11 @@
                 j.knobY = j.baseY;
 
                 if (typeof playArenaSound === 'function') playArenaSound(400, 'sine', 0.05, 0.03);
-                console.log("[JOYSTICK] Активирован на " + Math.floor(j.baseX) + "," + Math.floor(j.baseY) + " (арена: " + arena.type + ")");
+                console.log("[JOYSTICK] Активирован (touch) на " + Math.floor(j.baseX) + "," + Math.floor(j.baseY) + " (арена: " + arena.type + ")");
             }
         }, { passive: false });
 
+        // ========== TOUCHMOVE ==========
         c.addEventListener("touchmove", function(ev) {
             var j = window._joystick;
             if (!j.enabled || !j.active) return;
@@ -256,6 +253,7 @@
             }
         }, { passive: false });
 
+        // ========== TOUCHEND ==========
         c.addEventListener("touchend", function(ev) {
             var j = window._joystick;
             if (!j.enabled) return;
@@ -281,7 +279,79 @@
             j.vectorY = 0;
         });
 
-        console.log("[JOYSTICK] Canvas пропатчен");
+        // ========== MOUSE DOWN (для ПК/теста) ==========
+        c.addEventListener("mousedown", function(ev) {
+            var j = window._joystick;
+            if (!j.enabled) return;
+
+            var arena = getActiveArena();
+            if (!arena) return;
+            if (arena.type === 'arena' && arena.phase === 'attack') return;
+            if (!canControl(arena)) return;
+
+            if (ev.button !== 0) return; // только левая кнопка
+
+            var rect = c.getBoundingClientRect();
+            var tx = ev.clientX - rect.left;
+            var ty = ev.clientY - rect.top;
+
+            j.active = true;
+            j.touchId = "mouse";
+            j.baseX = tx;
+            j.baseY = ty;
+            j.knobX = tx;
+            j.knobY = ty;
+
+            var minDist = j.maxRadius + 10;
+            j.baseX = Math.max(minDist, Math.min(c.width - minDist, j.baseX));
+            j.baseY = Math.max(minDist, Math.min(c.height - minDist, j.baseY));
+            j.knobX = j.baseX;
+            j.knobY = j.baseY;
+
+            if (typeof playArenaSound === 'function') playArenaSound(400, 'sine', 0.05, 0.03);
+            console.log("[JOYSTICK] Активирован (mouse) на " + Math.floor(j.baseX) + "," + Math.floor(j.baseY) + " (арена: " + arena.type + ")");
+        });
+
+        // ========== MOUSE MOVE (на window, чтобы двигать за пределами canvas) ==========
+        window.addEventListener("mousemove", function(ev) {
+            var j = window._joystick;
+            if (!j.enabled || !j.active || j.touchId !== "mouse") return;
+
+            var arena = getActiveArena();
+            if (!canControl(arena)) return;
+
+            var rect = c.getBoundingClientRect();
+            var tx = ev.clientX - rect.left;
+            var ty = ev.clientY - rect.top;
+
+            var dx = tx - j.baseX;
+            var dy = ty - j.baseY;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > j.maxRadius) {
+                dx = (dx / dist) * j.maxRadius;
+                dy = (dy / dist) * j.maxRadius;
+            }
+
+            j.knobX = j.baseX + dx;
+            j.knobY = j.baseY + dy;
+        });
+
+        // ========== MOUSE UP ==========
+        window.addEventListener("mouseup", function(ev) {
+            var j = window._joystick;
+            if (j.touchId === "mouse" && j.active) {
+                j.active = false;
+                j.touchId = null;
+                j.vectorX = 0;
+                j.vectorY = 0;
+            }
+        });
+
+        // Отключаем контекстное меню на canvas
+        c.addEventListener("contextmenu", function(ev) { ev.preventDefault(); });
+
+        console.log("[JOYSTICK] Canvas пропатчен (touch + mouse)");
     }
 
     // ============================================================
@@ -577,9 +647,9 @@
     readSettings();
 
     console.log("╔════════════════════════════════════════╗");
-    console.log("║  🕹️ JOYSTICK v1.3 загружен             ║");
-    console.log("║  ✅ Читает через window.getArenaActive()║");
-    console.log("║  ✅ Логи только при изменении          ║");
+    console.log("║  🕹️ JOYSTICK v1.4 загружен             ║");
+    console.log("║  ✅ Touch + Mouse                       ║");
+    console.log("║  ✅ Читает через window.get*Active()   ║");
     console.log("║  ✅ Патчи для всех 4 боссов            ║");
     console.log("╚════════════════════════════════════════╝");
 
