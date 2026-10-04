@@ -3543,6 +3543,16 @@
     window.getRWBTouch = function() { return { active: rwbTouchActive, x: rwbTouchX, y: rwbTouchY }; };
     window.rwbSound = rwbSound;
 
+
+
+    // ============================================================
+// ★★★ ЭКСПОРТ ДЛЯ JOYSTICK.JS ★★★
+// ============================================================
+window.getRWBActive = function() { return window.rwbActive === true; };
+window.getRWBState  = function() { return rwbState; };
+
+
+    
     console.log("╔════════════════════════════════════════════════════════════╗");
     console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v11.0                             ║");
     console.log("║  ✅ getBossContext экспортирован (суперы работают)          ║");
