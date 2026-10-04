@@ -1,12 +1,18 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v12.0
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v13.0
 // ============================================================
-// ★ v12.0 (финальная):
-//   - HP в СУПЕР-ФАЗЕ: Роджер 1800, Белоус 2000 (было 50000)
-//   - Обычная фаза НЕ ТРОНУТА: 800 / 900
-//   - У Роджера ГАРАНТИРОВАННО нет каменных атак (защита-фильтр)
-//   - Экспорт window.getRWBActive/getRWBState для joystick.js
-//   - Скорость атаки, титан-кулак, огромный камень — как было
+// ★ v13.0:
+//   - HP в СУПЕР-ФАЗЕ: Роджер 1800, Белоус 2000
+//   - Обычная фаза: 800 / 900 (не тронута)
+//   - У РОДЖЕРА ПОЛНОСТЬЮ УБРАНЫ КАМНИ (даже в drawAttack)
+//   - У БЕЛОУСА УБРАН КАМНЕПАД (type 0) — заменён на кулаки
+//   - АТАКИ РОДЖЕРА СТАЛИ РАЗНООБРАЗНЕЕ:
+//       • Прямо в игрока
+//       • По углам (4 диагонали)
+//       • По центру веером
+//       • Круговая волна
+//       • Спираль
+//   - Экспорт getRWBActive/getRWBState для joystick.js
 // ============================================================
 
 (function() {
@@ -21,28 +27,20 @@
     // ============================================================
     // ★★★★★★★★★  НАСТРОЙКИ  ★★★★★★★
     // ============================================================
-    // ★ HP в СУПЕР-ФАЗЕ (2-я фаза) — каждому своё ★
     const RWB_SUPER_ROGER_HP = 1800;
     const RWB_SUPER_WB_HP = 2000;
 
-    // ★ Скорость атаки босса: чем БОЛЬШЕ — тем РЕЖЕ атаки
     const RWB_ATTACK_SPEED = 45;
-
-    // ★ Кулдаун супера игрока (в кадрах, 60 = 1 сек)
     const RWB_SUPER_COOLDOWN = 300;
-
-    // ★ Интервал титан-кулака (240 = 4 сек)
     const RWB_TITAN_INTERVAL = 240;
-
-    // ★ Интервал огромного камня (240 = 4 сек)
     const RWB_ROCK_INTERVAL = 240;
 
     const BALANCE = {
         playerHp: 250,
         playerDamageMult: 1.0,
-        rogerHp: 800,           // ← НЕ ТРОГАЕМ (обычная фаза)
+        rogerHp: 800,
         rogerDamageMult: 1.15,
-        whitebeardHp: 900,      // ← НЕ ТРОГАЕМ (обычная фаза)
+        whitebeardHp: 900,
         whitebeardDamageMult: 1.15,
         superAttackRate: 40,
         superDamageMult: 1.7,
@@ -96,7 +94,6 @@
     let rwbModeBtn = null;
     let rwbSuperBtn = null;
 
-    // ★ МУЗЫКА ★
     let rwbMusic = null;
     const RWB_MUSIC_PATH = "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3";
 
@@ -125,7 +122,7 @@
     }
 
     // ============================================================
-    // ★★★ КИНОШНЫЕ ЗВУКИ ★★★
+    // ЗВУКИ
     // ============================================================
     let rwbAudioCtx = null;
 
@@ -306,7 +303,7 @@
     }
 
     // ============================================================
-    // ★★★ getBossContext ДЛЯ СУПЕРОВ ★★★
+    // getBossContext ДЛЯ СУПЕРОВ
     // ============================================================
     window.getRWBContext = function() {
         return {
@@ -435,7 +432,7 @@
     }
 
     // ============================================================
-    // ★★★ СТАРТ ★★★
+    // СТАРТ
     // ============================================================
     function startRogerWhitebeardFight() {
         if (window.rwbActive) return;
@@ -445,7 +442,7 @@
             return;
         }
 
-        console.log("[ROGER-WB] Старт боя v12.0! Супер-HP: Роджер=" + RWB_SUPER_ROGER_HP + ", Белоус=" + RWB_SUPER_WB_HP);
+        console.log("[ROGER-WB] Старт боя v13.0! Камни убраны, атаки Роджера разнообразны");
 
         window.rwbActive = true;
         rwbState = "intro";
@@ -757,7 +754,7 @@
     }
 
     // ============================================================
-    // ★ КНОПКА РЕЖИМА ★
+    // КНОПКИ
     // ============================================================
     function createRWBModeButton() {
         if (rwbModeBtn) return;
@@ -793,9 +790,6 @@
         document.body.appendChild(rwbModeBtn);
     }
 
-    // ============================================================
-    // ★★★ КНОПКА СУПЕРА ★★★
-    // ============================================================
     function createRWBSuperButton() {
         if (rwbSuperBtn) return;
         rwbSuperBtn = document.createElement('button');
@@ -1096,7 +1090,6 @@
             spawnHakiLightning(whitebeard.x + (Math.random() - 0.5) * 40, whitebeard.y + (Math.random() - 0.5) * 40, 1, false);
         }
 
-        // ★ СКОРОСТЬ АТАКИ ★
         roger.attackTimer--;
         if (roger.attackTimer <= 0) {
             roger.attackTimer = RWB_ATTACK_SPEED + Math.random() * 20;
@@ -1175,17 +1168,43 @@
     }
 
     // ============================================================
-    // ★★★ АТАКИ РОДЖЕРА — БЕЗ КАМНЕЙ! ★★★
+    // ★★★ АТАКИ РОДЖЕРА — РАЗНООБРАЗНЫЕ, БЕЗ КАМНЕЙ ★★★
     // ============================================================
     function spawnRogerAttack() {
-        let type = Math.floor(Math.random() * 5); // 0-4
+        // 8 типов атак с разными паттернами
+        let type = Math.floor(Math.random() * 8);
         let isSuper = roger.superForm;
 
         playBladeSound(0.25);
         spawnHakiLightning(roger.x, roger.y, 3, false);
 
+        // ★ Расчёт направления на игрока ★
+        let dxPlayer = rwbPlayer.x - roger.x;
+        let dyPlayer = rwbPlayer.y - roger.y;
+        let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
+        let distToPlayer = Math.sqrt(dxPlayer * dxPlayer + dyPlayer * dyPlayer);
+
         if (type === 0) {
-            // Веер клинков
+            // ★ ПРЯМО В ИГРОКА — 3 клинка точно в цель ★
+            let count = isSuper ? 5 : 3;
+            for (let i = 0; i < count; i++) {
+                let spread = (i - (count - 1) / 2) * 0.12;
+                let ang = angleToPlayer + spread;
+                let speed = (isSuper ? 5.5 : 4.8) * BALANCE.projectileSpeedMult;
+                rwbAttacks.push({
+                    type: "blade", x: roger.x, y: roger.y + 30,
+                    vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
+                    size: 12, hp: 2, maxHp: 2,
+                    damage: Math.ceil((isSuper ? 16 : 13) * BALANCE.rogerDamageMult),
+                    life: 250, color: "#ff6600",
+                    rotation: ang + Math.PI * 0.5, rotSpeed: 0.15,
+                    hasHaki: true
+                });
+            }
+            // Звук "прицельного" выстрела
+            playWhooshSound(0.3);
+        } else if (type === 1) {
+            // ★ ВЕЕР по центру сверху (классика) ★
             let count = isSuper ? 10 : 7;
             for (let i = 0; i < count; i++) {
                 let angle = Math.PI * 0.5 + (i - (count - 1) / 2) * 0.25;
@@ -1200,27 +1219,54 @@
                     hasHaki: true
                 });
             }
-        } else if (type === 1) {
-            // Двойной большой клинок
-            let offsets = [-0.18, 0.18];
-            for (let off of offsets) {
-                let dx = rwbPlayer.x - roger.x;
-                let dy = rwbPlayer.y - roger.y;
-                let baseAng = Math.atan2(dy, dx);
-                let ang = baseAng + off;
-                let speed = (isSuper ? 5.5 : 4.5) * BALANCE.projectileSpeedMult;
+        } else if (type === 2) {
+            // ★ ПО УГЛАМ — 4 клинка по диагоналям от центра ★
+            let corners = [
+                Math.PI * 0.25,      // вправо-вниз
+                Math.PI * 0.75,      // влево-вниз
+                -Math.PI * 0.25,     // вправо-вверх
+                -Math.PI * 0.75      // влево-вверх
+            ];
+            for (let baseAng of corners) {
+                for (let k = 0; k < (isSuper ? 2 : 1); k++) {
+                    let delay = k * 60;
+                    (function(a, d) {
+                        setTimeout(function() {
+                            if (!window.rwbActive) return;
+                            let speed = (isSuper ? 5.2 : 4.5) * BALANCE.projectileSpeedMult;
+                            rwbAttacks.push({
+                                type: "big_blade", x: roger.x, y: roger.y,
+                                vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+                                size: 14, hp: 3, maxHp: 3,
+                                damage: Math.ceil((isSuper ? 20 : 15) * BALANCE.rogerDamageMult),
+                                life: 250, color: "#ff4400",
+                                rotation: a + Math.PI * 0.5, rotSpeed: 0.2,
+                                trail: [], hasHaki: true
+                            });
+                        }, d);
+                    })(baseAng, delay);
+                }
+            }
+        } else if (type === 3) {
+            // ★ ПО СЕРЕДИНЕ ЭКРАНА — клинки по вертикали ★
+            let midX = 200;
+            let count = isSuper ? 6 : 4;
+            for (let i = 0; i < count; i++) {
+                let startY = 100 + i * 70;
+                let angle = (roger.x < 200) ? 0 : Math.PI; // вправо или влево
+                let speed = (isSuper ? 5.0 : 4.3) * BALANCE.projectileSpeedMult;
                 rwbAttacks.push({
-                    type: "big_blade", x: roger.x, y: roger.y + 20,
-                    vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
-                    size: 16, hp: 3, maxHp: 3,
-                    damage: Math.ceil((isSuper ? 26 : 20) * BALANCE.rogerDamageMult),
-                    life: 250, color: "#ff6600",
-                    rotation: ang + Math.PI * 0.5, rotSpeed: 0.2,
-                    trail: [], hasHaki: true
+                    type: "blade", x: roger.x, y: startY,
+                    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed * 0.3,
+                    size: 11, hp: 2, maxHp: 2,
+                    damage: Math.ceil((isSuper ? 14 : 11) * BALANCE.rogerDamageMult),
+                    life: 250, color: "#ffaa00",
+                    rotation: angle + Math.PI * 0.5, rotSpeed: 0.2,
+                    hasHaki: true
                 });
             }
-        } else if (type === 2) {
-            // Круговая волна
+        } else if (type === 4) {
+            // ★ КРУГОВАЯ ВОЛНА — все стороны ★
             let count = isSuper ? 12 : 9;
             for (let i = 0; i < count; i++) {
                 let angle = (i / count) * Math.PI * 2;
@@ -1235,8 +1281,24 @@
                     hasHaki: true
                 });
             }
-        } else if (type === 3) {
-            // Диагональные волны
+        } else if (type === 5) {
+            // ★ ДВОЙНОЙ БОЛЬШОЙ КЛИНОК точно в игрока ★
+            let offsets = [-0.18, 0.18];
+            for (let off of offsets) {
+                let ang = angleToPlayer + off;
+                let speed = (isSuper ? 5.5 : 4.5) * BALANCE.projectileSpeedMult;
+                rwbAttacks.push({
+                    type: "big_blade", x: roger.x, y: roger.y + 20,
+                    vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
+                    size: 16, hp: 3, maxHp: 3,
+                    damage: Math.ceil((isSuper ? 26 : 20) * BALANCE.rogerDamageMult),
+                    life: 250, color: "#ff6600",
+                    rotation: ang + Math.PI * 0.5, rotSpeed: 0.2,
+                    trail: [], hasHaki: true
+                });
+            }
+        } else if (type === 6) {
+            // ★ ДИАГОНАЛЬНЫЕ СЕРИИ — по 2 клинка в 4 стороны ★
             let diagonals = [Math.PI * 0.25, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75];
             for (let ang of diagonals) {
                 for (let k = 0; k < 2; k++) {
@@ -1260,7 +1322,7 @@
                 }
             }
         } else {
-            // Спираль клинков
+            // ★ СПИРАЛЬ — закрученные клинки ★
             let count = 18;
             for (let i = 0; i < count; i++) {
                 let baseAng = (i / count) * Math.PI * 4;
@@ -1285,38 +1347,47 @@
     }
 
     // ============================================================
-    // АТАКИ БЕЛОУСА (с камнями — это нормально для него)
+    // АТАКИ БЕЛОУСА — БЕЗ КАМНЕПАДА! Только кулаки, волны, цунами
     // ============================================================
     function spawnWhitebeardAttack() {
-        let type = Math.floor(Math.random() * 6);
+        // ★ type 0 (камнепад) УБРАН — теперь 5 типов вместо 6 ★
+        let type = Math.floor(Math.random() * 5);
         let isSuper = whitebeard.superForm;
 
         playHakiChargeSound(0.2);
         spawnHakiLightning(whitebeard.x, whitebeard.y, 3, false);
 
+        let dxPlayer = rwbPlayer.x - whitebeard.x;
+        let dyPlayer = rwbPlayer.y - whitebeard.y;
+        let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
+
         if (type === 0) {
-            // Камнепад: 6 камней
-            let count = 6;
-            for (let i = 0; i < count; i++) {
-                let cx = 40 + Math.random() * 320;
-                rwbAttacks.push({
-                    type: "rock",
-                    x: cx, y: -40 - Math.random() * 30,
-                    vx: (Math.random() - 0.5) * 0.5,
-                    vy: (isSuper ? 4.2 : 3.5) * BALANCE.projectileSpeedMult,
-                    size: 17 + Math.random() * 5,
-                    rotation: Math.random() * Math.PI * 2,
-                    rotSpeed: (Math.random() - 0.5) * 0.06,
-                    hp: 3, maxHp: 3,
-                    damage: Math.ceil((isSuper ? 20 : 15) * BALANCE.whitebeardDamageMult),
-                    life: 400, color: "#8B7355",
-                    hasHaki: false,
-                    textureSeed: Math.random() * 1000
-                });
+            // ★ ВМЕСТО КАМНЕПАДА — тройной кулак в игрока ★
+            for (let i = 0; i < 3; i++) {
+                let delay = i * 100;
+                (function(d) {
+                    setTimeout(function() {
+                        if (!window.rwbActive) return;
+                        let spread = (Math.random() - 0.5) * 0.3;
+                        let ang = angleToPlayer + spread;
+                        let speed = (isSuper ? 6.5 : 5.5) * BALANCE.projectileSpeedMult;
+                        rwbAttacks.push({
+                            type: "fist",
+                            x: whitebeard.x, y: whitebeard.y + 20,
+                            vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
+                            size: 18, hp: 4, maxHp: 4,
+                            damage: Math.ceil((isSuper ? 24 : 18) * BALANCE.whitebeardDamageMult),
+                            life: 250, color: "#ffffff",
+                            rotation: 0, rotSpeed: 0,
+                            trail: [], hasHaki: true
+                        });
+                        playImpactSound(0.3, 1.0);
+                    }, d);
+                })(delay);
             }
             spawnWhiteCracks(whitebeard.x, whitebeard.y, 3);
-            playImpactSound(0.4, 0.6);
         } else if (type === 1) {
+            // Круговая волна-удар
             rwbShockwaves.push({
                 x: whitebeard.x, y: whitebeard.y,
                 radius: 10,
@@ -1330,14 +1401,12 @@
             });
             playImpactSound(0.35, 0.9);
         } else if (type === 2) {
-            let dx = rwbPlayer.x - whitebeard.x;
-            let dy = rwbPlayer.y - whitebeard.y;
-            let len = Math.sqrt(dx * dx + dy * dy) || 1;
+            // Один большой кулак в игрока
             let speed = (isSuper ? 6 : 5) * BALANCE.projectileSpeedMult;
             rwbAttacks.push({
                 type: "fist",
                 x: whitebeard.x, y: whitebeard.y + 20,
-                vx: (dx / len) * speed, vy: (dy / len) * speed,
+                vx: Math.cos(angleToPlayer) * speed, vy: Math.sin(angleToPlayer) * speed,
                 size: 18, hp: 4, maxHp: 4,
                 damage: Math.ceil((isSuper ? 26 : 20) * BALANCE.whitebeardDamageMult),
                 life: 250, color: "#ffffff",
@@ -1346,9 +1415,10 @@
             });
             playImpactSound(0.4, 1.0);
         } else if (type === 3) {
+            // Цунами
             spawnTsunamiAttack(isSuper);
         } else if (type === 4) {
-            // Двойной кулак
+            // Двойной кулак по сторонам
             for (let side = -1; side <= 1; side += 2) {
                 let targetX = rwbPlayer.x + side * 40;
                 let targetY = rwbPlayer.y;
@@ -1368,23 +1438,6 @@
                 });
             }
             playImpactSound(0.45, 0.8);
-        } else {
-            // Хаки-волна
-            let side = Math.random() > 0.5 ? 1 : -1;
-            let startX = side > 0 ? -40 : 440;
-            let waveY = 200 + Math.random() * 200;
-            rwbAttacks.push({
-                type: "haki_wave",
-                x: startX, y: waveY,
-                vx: side * 3.5 * BALANCE.projectileSpeedMult,
-                vy: 0,
-                size: 30, hp: 5, maxHp: 5,
-                damage: Math.ceil(22 * BALANCE.whitebeardDamageMult),
-                life: 300, color: "#ff8800",
-                rotation: 0, rotSpeed: 0,
-                trail: [], hasHaki: true
-            });
-            playHakiChargeSound(0.3);
         }
     }
 
@@ -1596,22 +1649,32 @@
         playBossRoarSound(0.4);
         rwbShake = 25;
 
-        for (let i = 0; i < 8; i++) {
-            let cx = 40 + Math.random() * 320;
-            rwbAttacks.push({
-                type: "rock",
-                x: cx, y: -40 - Math.random() * 50,
-                vx: (Math.random() - 0.5) * 1.2,
-                vy: 3.2 + Math.random() * 1.5,
-                size: 16 + Math.random() * 8,
-                rotation: Math.random() * Math.PI * 2,
-                rotSpeed: (Math.random() - 0.5) * 0.1,
-                hp: 3, maxHp: 3,
-                damage: Math.ceil(20 * BALANCE.superDamageMult),
-                life: 400, color: "#8B7355",
-                hasHaki: false,
-                textureSeed: Math.random() * 1000
-            });
+        // ★ Тройной кулак вместо камней ★
+        let dxPlayer = rwbPlayer.x - whitebeard.x;
+        let dyPlayer = rwbPlayer.y - whitebeard.y;
+        let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
+
+        for (let i = 0; i < 3; i++) {
+            let delay = i * 120;
+            (function(d) {
+                setTimeout(function() {
+                    if (!window.rwbActive) return;
+                    let spread = (Math.random() - 0.5) * 0.3;
+                    let ang = angleToPlayer + spread;
+                    let speed = 6.5;
+                    rwbAttacks.push({
+                        type: "fist",
+                        x: whitebeard.x, y: whitebeard.y + 20,
+                        vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
+                        size: 20, hp: 5, maxHp: 5,
+                        damage: Math.ceil(22 * BALANCE.superDamageMult),
+                        life: 250, color: "#ffffff",
+                        rotation: 0, rotSpeed: 0,
+                        trail: [], hasHaki: true
+                    });
+                    playImpactSound(0.35, 1.0);
+                }, d);
+            })(delay);
         }
 
         spawnWhiteCracks(whitebeard.x, whitebeard.y, 5);
@@ -1684,22 +1747,29 @@
             color: "#8B7355"
         });
 
+        // ★ Тройной кулак вместо камней ★
+        let dxPlayer = rwbPlayer.x - whitebeard.x;
+        let dyPlayer = rwbPlayer.y - whitebeard.y;
+        let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
+
         for (let i = 0; i < 3; i++) {
-            let cx = 40 + Math.random() * 320;
-            rwbAttacks.push({
-                type: "rock",
-                x: cx, y: -40 - Math.random() * 30,
-                vx: (Math.random() - 0.5) * 0.6,
-                vy: 3.0 + Math.random() * 1.0,
-                size: 12 + Math.random() * 5,
-                rotation: Math.random() * Math.PI * 2,
-                rotSpeed: (Math.random() - 0.5) * 0.08,
-                hp: 2, maxHp: 2,
-                damage: Math.ceil(14 * BALANCE.superDamageMult),
-                life: 350, color: "#8B7355",
-                hasHaki: false,
-                textureSeed: Math.random() * 1000
-            });
+            (function(idx) {
+                setTimeout(function() {
+                    if (!window.rwbActive) return;
+                    let ang = angleToPlayer + (Math.random() - 0.5) * 0.4;
+                    let speed = 5.5;
+                    rwbAttacks.push({
+                        type: "fist",
+                        x: whitebeard.x, y: whitebeard.y + 20,
+                        vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
+                        size: 14, hp: 3, maxHp: 3,
+                        damage: Math.ceil(16 * BALANCE.superDamageMult),
+                        life: 250, color: "#ffffff",
+                        rotation: 0, rotSpeed: 0,
+                        trail: [], hasHaki: true
+                    });
+                }, idx * 150);
+            })(i);
         }
     }
 
@@ -1741,7 +1811,7 @@
     }
 
     // ============================================================
-    // ОГРОМНЫЙ КАМЕНЬ
+    // ОГРОМНЫЙ КАМЕНЬ (только Белоус, в супер-фазе)
     // ============================================================
     function spawnGiantRock() {
         let rx = 80 + Math.random() * 240;
@@ -1779,7 +1849,6 @@
     function triggerSuper(winner, loser) {
         console.log("[ROGER-WB] СУПЕР босса:", winner.name);
 
-        // ★★★ ГЛАВНОЕ: СВОЁ HP КАЖДОМУ ★★★
         var superHp = RWB_SUPER_WB_HP;
         if (winner.id === "roger") superHp = RWB_SUPER_ROGER_HP;
 
@@ -1915,42 +1984,7 @@
                 continue;
             }
 
-            if (a.type === "rock") {
-                a.x += a.vx;
-                a.y += a.vy;
-                a.rotation += a.rotSpeed;
-                a.life--;
-
-                if (Math.random() < 0.15) {
-                    rwbParticles.push({
-                        x: a.x + (Math.random() - 0.5) * a.size,
-                        y: a.y - a.size * 0.5,
-                        vx: (Math.random() - 0.5) * 1,
-                        vy: -0.5 - Math.random() * 1,
-                        life: 12, maxLife: 12,
-                        color: "#5a4030", size: 1.5
-                    });
-                }
-
-                if (rwbPlayer.invulnTimer <= 0) {
-                    let dx = rwbPlayer.x - a.x;
-                    let dy = rwbPlayer.y - a.y;
-                    let hb = a.size * 0.75 * BALANCE.playerHitboxMult + 4;
-                    if (Math.sqrt(dx * dx + dy * dy) < hb) {
-                        hitPlayer(a.damage);
-                        spawnRockSmash(a.x, a.y, a.size);
-                        rwbAttacks.splice(i, 1);
-                        continue;
-                    }
-                }
-
-                if (a.y > 500 || a.life <= 0) {
-                    spawnRockSmash(a.x, 480, a.size);
-                    rwbAttacks.splice(i, 1);
-                    continue;
-                }
-                continue;
-            }
+            // ★★★ УБРАН БЛОК type === "rock" ПОЛНОСТЬЮ ★★★
 
             if (a.type === "haki_wave") {
                 a.x += a.vx;
@@ -2188,21 +2222,24 @@
                         playImpactSound(0.9, 0.4);
                         playExplosionSound(0.5);
 
-                        for (let j = 0; j < 12; j++) {
-                            let ang = (j / 12) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+                        // ★ Кулаки вместо камней ★
+                        let dxPlayer = rwbPlayer.x - a.x;
+                        let dyPlayer = rwbPlayer.y - a.y;
+                        let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
+
+                        for (let j = 0; j < 8; j++) {
+                            let ang = angleToPlayer + (j - 4) * 0.2;
                             rwbAttacks.push({
-                                type: "rock",
+                                type: "fist",
                                 x: a.x, y: a.y,
-                                vx: Math.cos(ang) * 3,
-                                vy: Math.sin(ang) * 3 - 1.5,
-                                size: 10 + Math.random() * 6,
-                                rotation: Math.random() * Math.PI * 2,
-                                rotSpeed: (Math.random() - 0.5) * 0.15,
-                                hp: 1, maxHp: 1,
-                                damage: Math.ceil(14 * BALANCE.superDamageMult),
-                                life: 200, color: "#8B7355",
-                                hasHaki: false,
-                                textureSeed: Math.random() * 1000
+                                vx: Math.cos(ang) * 4,
+                                vy: Math.sin(ang) * 4,
+                                size: 10,
+                                hp: 2, maxHp: 2,
+                                damage: Math.ceil(12 * BALANCE.superDamageMult),
+                                life: 200, color: "#ffffff",
+                                rotation: 0, rotSpeed: 0,
+                                trail: [], hasHaki: true
                             });
                         }
                     }
@@ -2216,7 +2253,7 @@
                 continue;
             }
 
-            // ОБЫЧНЫЕ АТАКИ
+            // ОБЫЧНЫЕ АТАКИ (blade, big_blade, fist)
             a.x += a.vx; a.y += a.vy;
             a.rotation += a.rotSpeed || 0;
             a.life--;
@@ -2811,7 +2848,6 @@
             ctx.restore();
         }
 
-        // ★★★ РИСУЕМ ДЖОЙСТИК ★★★
         if (typeof window.drawJoystick === 'function') {
             try { window.drawJoystick(); } catch(e) {}
         }
@@ -2898,7 +2934,6 @@
 
         drawHeartShape(0, 0, size, flash ? "#ffffff" : "#ff8800", "#ff8800");
 
-        // Чёрная треуголка
         ctx.save();
         ctx.translate(0, -size * 1.15);
 
@@ -2919,7 +2954,6 @@
         ctx.fill();
         ctx.stroke();
 
-        // Жёлтая бандана
         ctx.fillStyle = "#ffdd00";
         ctx.fillRect(-size * 0.9, size * 0.02, size * 1.8, size * 0.18);
         ctx.fillStyle = "#cc9900";
@@ -2931,7 +2965,6 @@
             ctx.fill();
         }
 
-        // Весёлый Роджер
         ctx.fillStyle = "#ffffff";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 1;
@@ -2968,7 +3001,6 @@
 
         drawHeartShape(0, 0, size, flash ? "#ffffaa" : "#ffffff", "#ffffff");
 
-        // Жёлто-синяя шляпа
         ctx.save();
         ctx.translate(0, -size * 1.15);
 
@@ -2996,7 +3028,6 @@
         ctx.fillStyle = "#1a1a1a";
         ctx.fillRect(-size * 1.0, -size * 0.1, size * 2.0, size * 0.12);
 
-        // Весёлый Роджер
         ctx.fillStyle = "#ffffff";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 1;
@@ -3020,7 +3051,6 @@
 
         ctx.restore();
 
-        // Усы
         ctx.save();
         ctx.fillStyle = "#ffdd00";
         ctx.strokeStyle = "#000000";
@@ -3054,7 +3084,7 @@
     function drawAttack(a) {
         if (a.type === "giant_rock") { drawGiantRock(a); return; }
         if (a.type === "tsunami") { drawTsunami(a); return; }
-        if (a.type === "rock") { drawRock(a); return; }
+        // ★ БОЛЬШЕ НЕТ drawRock — камни полностью убраны ★
 
         if (a.type === "roger_slash") {
             ctx.save();
@@ -3323,59 +3353,7 @@
         ctx.restore();
     }
 
-    function drawRock(a) {
-        ctx.save();
-        ctx.translate(a.x, a.y);
-        ctx.rotate(a.rotation || 0);
-
-        let s = a.size;
-        let seed = a.textureSeed || 0;
-
-        let points = [];
-        let sides = 6;
-        for (let i = 0; i < sides; i++) {
-            let ang = (i / sides) * Math.PI * 2 - Math.PI / 2;
-            let noise = Math.sin(seed + i * 1.7) * 0.15;
-            let r = s * (1 + noise);
-            points.push({ x: Math.cos(ang) * r, y: Math.sin(ang) * r });
-        }
-
-        let grad = ctx.createRadialGradient(-s * 0.3, -s * 0.3, s * 0.1, 0, 0, s * 1.2);
-        grad.addColorStop(0, "#a89070");
-        grad.addColorStop(0.6, "#8B7355");
-        grad.addColorStop(1, "#3a2818");
-
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
-        }
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.strokeStyle = "#1a1008";
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-
-        ctx.strokeStyle = "rgba(30, 20, 10, 0.7)";
-        ctx.lineWidth = 1.5;
-        for (let i = 0; i < 2; i++) {
-            let ang1 = (seed + i * 1.3) % (Math.PI * 2);
-            let ang2 = ang1 + 1.2;
-            ctx.beginPath();
-            ctx.moveTo(Math.cos(ang1) * s * 0.3, Math.sin(ang1) * s * 0.3);
-            ctx.lineTo(Math.cos(ang2) * s * 0.8, Math.sin(ang2) * s * 0.8);
-            ctx.stroke();
-        }
-
-        ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-        ctx.beginPath();
-        ctx.arc(-s * 0.3, -s * 0.35, s * 0.15, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.restore();
-    }
+    // ★ drawRock УДАЛЁН — камни больше не отрисовываются ★
 
     function drawGiantRock(a) {
         ctx.save();
@@ -3541,7 +3519,7 @@
     }
 
     // ============================================================
-    // ★★★ ЭКСПОРТ ДЛЯ JOYSTICK.JS ★★★
+    // ЭКСПОРТ
     // ============================================================
     window.getRWBActive = function() { return window.rwbActive === true; };
     window.getRWBState  = function() { return rwbState; };
@@ -3559,11 +3537,13 @@
     window.rwbSound = rwbSound;
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v12.0                             ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v13.0                             ║");
+    console.log("║  ✅ У РОДЖЕРА ПОЛНОСТЬЮ УБРАНЫ КАМНИ                       ║");
+    console.log("║  ✅ Атаки Роджера разнообразны (8 типов):                  ║");
+    console.log("║     прямо, веер, по углам, по центру, круг, спираль         ║");
+    console.log("║  ✅ У Белоуса убран камнепад (type 0) → тройной кулак      ║");
     console.log("║  ✅ Супер-HP: Роджер=" + RWB_SUPER_ROGER_HP + ", Белоус=" + RWB_SUPER_WB_HP + "              ║");
     console.log("║  ✅ Обычная фаза: 800 / 900 (не тронута)                  ║");
-    console.log("║  ✅ У Роджера НЕТ каменных атак                            ║");
-    console.log("║  ✅ Экспорт getRWBActive/getRWBState для joystick.js      ║");
     console.log("╚════════════════════════════════════════════════════════════╝");
 
 })();
