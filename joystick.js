@@ -1,13 +1,13 @@
 // ============================================================
-// JOYSTICK v1.1 — Универсальный виртуальный джойстик
+// JOYSTICK v1.2 — Универсальный виртуальный джойстик
 // ============================================================
 // Работает на ВСЕХ аренах:
-//   - Undertale (battle.js)
-//   - Живой Камень (living_stone_boss.js)
-//   - Путеводная Звезда (waystar_boss.js)
-//   - Роджер vs Белоус (roger_whitebeard_boss.js)
+//   - Undertale (battle.js) → window.arenaActive / window.arenaPhase
+//   - Живой Камень (living_stone_boss.js) → нужно добавить экспорт
+//   - Путеводная Звезда (waystar_boss.js) → нужно добавить экспорт
+//   - Роджер vs Белоус (roger_whitebeard_boss.js) → window.rwbActive
 //
-// ★ v1.1: убран спам в консоль (лог только при изменении)
+// ★ v1.2: getActiveArena() читает через window (для let-переменных)
 // ПОДКЛЮЧАТЬ В КОНЦЕ index.html, ПОСЛЕ всех боссов
 // ============================================================
 
@@ -37,7 +37,6 @@
         opacity: 0.6
     };
 
-    // ★ Кэш настроек — чтобы не логировать каждый кадр ★
     var _lastSettings = {
         enabled: null,
         size: null,
@@ -45,7 +44,7 @@
     };
 
     // ============================================================
-    // ★★★ ЧТЕНИЕ НАСТРОЕК ИЗ arenaSettings ★★★
+    // ★★★ ЧТЕНИЕ НАСТРОЕК ★★★
     // ============================================================
     function readSettings() {
         var settings = window.arenaSettings || (typeof arenaSettings !== 'undefined' ? arenaSettings : null);
@@ -75,7 +74,6 @@
         j.deadzone = newDeadzone;
         j.opacity = newOpacity;
 
-        // ★ Логируем ТОЛЬКО если что-то изменилось ★
         var changed = (
             _lastSettings.enabled !== newEnabled ||
             _lastSettings.size !== newMaxRadius ||
@@ -90,36 +88,40 @@
     }
 
     // ============================================================
-    // ★★★ ОПРЕДЕЛЕНИЕ АКТИВНОЙ АРЕНЫ ★★★
+    // ★★★ ОПРЕДЕЛЕНИЕ АКТИВНОЙ АРЕНЫ — ЧЕРЕЗ WINDOW ★★★
     // ============================================================
     function getActiveArena() {
         try {
-            if (typeof arenaActive !== 'undefined' && arenaActive) {
+            // ★ Undertale — window.arenaActive через Object.defineProperty в battle.js ★
+            if (window.arenaActive === true) {
                 return {
                     type: 'arena',
-                    canvas: (typeof canvas !== 'undefined') ? canvas : document.getElementById("arenaCanvas"),
-                    phase: (typeof arenaPhase !== 'undefined') ? arenaPhase : "dodge"
+                    canvas: document.getElementById("arenaCanvas"),
+                    phase: window.arenaPhase || "dodge"
                 };
             }
-            if (typeof livingStoneActive !== 'undefined' && livingStoneActive) {
+            // ★ Живой Камень — читаем через window, если экспортировано ★
+            if (window.livingStoneActive === true) {
                 return {
                     type: 'stone',
-                    canvas: (typeof canvas !== 'undefined') ? canvas : document.getElementById("arenaCanvas"),
-                    phase: (typeof livingStoneState !== 'undefined') ? livingStoneState : "phase1"
+                    canvas: document.getElementById("arenaCanvas"),
+                    phase: window.livingStoneState || "phase1"
                 };
             }
-            if (typeof waystarActive !== 'undefined' && waystarActive) {
+            // ★ Путеводная Звезда ★
+            if (window.waystarActive === true) {
                 return {
                     type: 'waystar',
-                    canvas: (typeof canvas !== 'undefined') ? canvas : document.getElementById("arenaCanvas"),
-                    phase: (typeof waystarState !== 'undefined') ? waystarState : "phase1"
+                    canvas: document.getElementById("arenaCanvas"),
+                    phase: window.waystarState || "phase1"
                 };
             }
-            if (typeof window.rwbActive !== 'undefined' && window.rwbActive) {
+            // ★ Роджер vs Белоус — уже через window.rwbActive ★
+            if (window.rwbActive === true) {
                 return {
                     type: 'rwb',
-                    canvas: (typeof canvas !== 'undefined') ? canvas : document.getElementById("arenaCanvas"),
-                    phase: (typeof rwbState !== 'undefined') ? rwbState : "fight1"
+                    canvas: document.getElementById("arenaCanvas"),
+                    phase: window.rwbState || "fight1"
                 };
             }
         } catch(e) {}
@@ -127,7 +129,7 @@
     }
 
     // ============================================================
-    // ★★★ ПРОВЕРКА: МОЖНО ЛИ УПРАВЛЯТЬ СЕЙЧАС ★★★
+    // ★★★ ПРОВЕРКА: МОЖНО ЛИ УПРАВЛЯТЬ ★★★
     // ============================================================
     function canControl(arena) {
         if (!arena) return false;
@@ -139,7 +141,7 @@
     }
 
     // ============================================================
-    // ★★★ ОБНОВЛЕНИЕ ВЕКТОРА ДВИЖЕНИЯ ★★★
+    // ★★★ ВЕКТОР ДВИЖЕНИЯ ★★★
     // ============================================================
     function updateVector() {
         var j = window._joystick;
@@ -165,7 +167,7 @@
     }
 
     // ============================================================
-    // ★★★ ПАТЧ CANVAS: перехватываем тач-события ★★★
+    // ★★★ ПАТЧ CANVAS ★★★
     // ============================================================
     function patchCanvas(c) {
         if (!c || c._joystickPatched) return;
@@ -204,6 +206,7 @@
                 j.knobY = j.baseY;
 
                 if (typeof playArenaSound === 'function') playArenaSound(400, 'sine', 0.05, 0.03);
+                console.log("[JOYSTICK] Активирован на " + Math.floor(j.baseX) + "," + Math.floor(j.baseY) + " (арена: " + arena.type + ")");
             }
         }, { passive: false });
 
@@ -283,7 +286,6 @@
         context.save();
         context.globalAlpha = j.opacity;
 
-        // Внешний круг
         context.strokeStyle = "#ffffff";
         context.lineWidth = 3;
         context.shadowColor = "#000000";
@@ -292,13 +294,11 @@
         context.arc(j.baseX, j.baseY, j.maxRadius, 0, Math.PI * 2);
         context.stroke();
 
-        // Заливка
         context.fillStyle = "rgba(255, 255, 255, 0.08)";
         context.beginPath();
         context.arc(j.baseX, j.baseY, j.maxRadius, 0, Math.PI * 2);
         context.fill();
 
-        // Мёртвая зона
         context.strokeStyle = "rgba(255, 255, 255, 0.3)";
         context.lineWidth = 1;
         context.shadowBlur = 0;
@@ -306,7 +306,6 @@
         context.arc(j.baseX, j.baseY, j.deadzone, 0, Math.PI * 2);
         context.stroke();
 
-        // Стрелки
         context.strokeStyle = "rgba(255, 255, 255, 0.35)";
         context.lineWidth = 2;
         var arrowDist = j.maxRadius * 0.72;
@@ -337,7 +336,6 @@
         context.closePath();
         context.stroke();
 
-        // Шайба
         context.fillStyle = "#ffdd00";
         context.shadowColor = "#ffaa00";
         context.shadowBlur = 15;
@@ -345,14 +343,12 @@
         context.arc(j.knobX, j.knobY, j.maxRadius * 0.35, 0, Math.PI * 2);
         context.fill();
 
-        // Блик
         context.fillStyle = "rgba(255, 255, 255, 0.6)";
         context.shadowBlur = 0;
         context.beginPath();
         context.arc(j.knobX - j.maxRadius * 0.1, j.knobY - j.maxRadius * 0.1, j.maxRadius * 0.12, 0, Math.PI * 2);
         context.fill();
 
-        // Линия от базы к шайбе
         context.strokeStyle = "rgba(255, 221, 0, 0.5)";
         context.lineWidth = 2;
         context.beginPath();
@@ -364,7 +360,7 @@
     }
 
     // ============================================================
-    // ★★★ АВТО-ОБНОВЛЕНИЕ ВЕКТОРА (60 раз в секунду) ★★★
+    // ★★★ АВТО-ОБНОВЛЕНИЕ ВЕКТОРА ★★★
     // ============================================================
     setInterval(function() {
         var j = window._joystick;
@@ -376,11 +372,7 @@
     // ★★★ ПАТЧ CANVAS — при появлении ★★★
     // ============================================================
     function tryPatchCanvas() {
-        var c = null;
-        try {
-            if (typeof canvas !== 'undefined' && canvas) c = canvas;
-            else c = document.getElementById("arenaCanvas");
-        } catch(e) {}
+        var c = document.getElementById("arenaCanvas");
         if (c && !c._joystickPatched) patchCanvas(c);
     }
 
@@ -522,7 +514,6 @@
             var j = window._joystick;
             var arena = getActiveArena();
             if (j && j.enabled && j.active && arena && arena.type === 'rwb') {
-                // RWB использует rwbTouchActive/rwbTouchX/rwbTouchY
                 if (typeof rwbTouchActive !== 'undefined') {
                     rwbTouchActive = true;
                     if (typeof rwbPlayer !== 'undefined' && rwbPlayer) {
@@ -539,7 +530,6 @@
         return true;
     }
 
-    // -------- ИНИЦИАЛИЗАЦИЯ ПАТЧЕЙ --------
     function tryPatches() {
         patchBattleMoveHeart();
         patchLivingStonePlayer();
@@ -563,15 +553,11 @@
     window.isJoystickEnabled = function() { return window._joystick.enabled; };
     window.refreshJoystickSettings = readSettings;
 
-    // ★ Первое чтение настроек при загрузке ★
     readSettings();
 
-    // ============================================================
-    // ЛОГ
-    // ============================================================
     console.log("╔════════════════════════════════════════╗");
-    console.log("║  🕹️ JOYSTICK v1.1 загружен             ║");
-    console.log("║  ✅ Работает на ВСЕХ аренах            ║");
+    console.log("║  🕹️ JOYSTICK v1.2 загружен             ║");
+    console.log("║  ✅ Читает window.arenaActive          ║");
     console.log("║  ✅ Логи только при изменении          ║");
     console.log("║  ✅ Патчи для всех 4 боссов            ║");
     console.log("╚════════════════════════════════════════╝");
