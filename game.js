@@ -6,11 +6,15 @@ let arenaSettings = {
     volume: 0.20,
     effectsOpacity: 1.0,
     autoSuper: false,
-    mobileSuper: "button"
+    mobileSuper: "button",
+    // ★ НОВОЕ: настройки джойстика ★
+    arenaControl: "auto",
+    joystickSize: 100,
+    joystickOpacity: 60
 };
 
 // ★★★ НАСТРОЙКА БОНУСА НОВИЧКА ★★★
-const NEWCOMER_BONUS_MINUTES = 20; // Сколько минут длится бафф "Звёзды x2"
+const NEWCOMER_BONUS_MINUTES = 20;
 
 // ========== СЛОТЫ СОХРАНЕНИЙ ==========
 function getSlotKey(slot) { return "cgV20_slot" + slot; }
@@ -91,6 +95,10 @@ function loadArenaSettings() {
             arenaSettings.effectsOpacity = s.effectsOpacity ?? 1.0;
             arenaSettings.autoSuper = s.autoSuper ?? false;
             arenaSettings.mobileSuper = s.mobileSuper ?? "button";
+            // ★ НОВОЕ ★
+            arenaSettings.arenaControl = s.arenaControl ?? "auto";
+            arenaSettings.joystickSize = s.joystickSize ?? 100;
+            arenaSettings.joystickOpacity = s.joystickOpacity ?? 60;
         } catch(e) {}
     }
     applyArenaSettings();
@@ -111,13 +119,77 @@ function applyArenaSettings() {
     if (autoCheck) autoCheck.checked = arenaSettings.autoSuper;
     let mobileSelect = document.getElementById("mobileSuperSelect");
     if (mobileSelect) mobileSelect.value = arenaSettings.mobileSuper;
+    
+    // ★ НОВОЕ: джойстик ★
+    let controlSelect = document.getElementById("arenaControlSelect");
+    if (controlSelect) controlSelect.value = arenaSettings.arenaControl;
+    let sizeSlider = document.getElementById("joystickSizeSlider");
+    let sizeValue = document.getElementById("joystickSizeValue");
+    if (sizeSlider) sizeSlider.value = arenaSettings.joystickSize;
+    if (sizeValue) sizeValue.innerText = arenaSettings.joystickSize + "%";
+    let opSlider = document.getElementById("joystickOpacitySlider");
+    let opValue = document.getElementById("joystickOpacityValue");
+    if (opSlider) opSlider.value = arenaSettings.joystickOpacity;
+    if (opValue) opValue.innerText = arenaSettings.joystickOpacity + "%";
+    
+    // ★ Применяем настройки джойстика ★
+    if (typeof window.refreshJoystickSettings === 'function') window.refreshJoystickSettings();
 }
 
 function changeArenaVolume(val) { arenaSettings.volume = val / 100; document.getElementById("arenaVolumeValue").innerText = val + "%"; saveArenaSettings(); }
 function changeArenaEffects(val) { arenaSettings.effectsOpacity = val / 100; document.getElementById("arenaEffectsValue").innerText = val + "%"; saveArenaSettings(); }
 function toggleAutoSuper(checked) { arenaSettings.autoSuper = checked; saveArenaSettings(); }
 function changeMobileSuper(val) { arenaSettings.mobileSuper = val; saveArenaSettings(); }
-function resetArenaSettings() { arenaSettings = { volume: 0.20, effectsOpacity: 1.0, autoSuper: false, mobileSuper: "button" }; saveArenaSettings(); applyArenaSettings(); }
+
+// ★★★ НОВЫЕ ФУНКЦИИ ДЛЯ ДЖОЙСТИКА ★★★
+function changeArenaControl(val) { 
+    arenaSettings.arenaControl = val; 
+    saveArenaSettings(); 
+    if (typeof window.refreshJoystickSettings === 'function') window.refreshJoystickSettings();
+    if (typeof renderSettings === 'function') renderSettings();
+    if (typeof showFloatingText === 'function') {
+        let names = {
+            "auto": "🤖 Авто (ПК — клавиатура, тел. — джойстик)",
+            "touch": "👆 Следование за пальцем",
+            "joystick": "🕹️ Джойстик",
+            "keyboard": "⌨️ Только клавиатура"
+        };
+        showFloatingText("🎮 " + (names[val] || val), "#f5af19");
+    }
+    console.log("[SETTINGS] Управление: " + val);
+}
+
+function changeJoystickSize(val) { 
+    arenaSettings.joystickSize = parseInt(val); 
+    let el = document.getElementById("joystickSizeValue");
+    if (el) el.innerText = val + "%";
+    saveArenaSettings(); 
+    if (typeof window.refreshJoystickSettings === 'function') window.refreshJoystickSettings();
+}
+
+function changeJoystickOpacity(val) { 
+    arenaSettings.joystickOpacity = parseInt(val); 
+    let el = document.getElementById("joystickOpacityValue");
+    if (el) el.innerText = val + "%";
+    saveArenaSettings(); 
+    if (typeof window.refreshJoystickSettings === 'function') window.refreshJoystickSettings();
+}
+
+function resetArenaSettings() { 
+    arenaSettings = { 
+        volume: 0.20, 
+        effectsOpacity: 1.0, 
+        autoSuper: false, 
+        mobileSuper: "button",
+        arenaControl: "auto",
+        joystickSize: 100,
+        joystickOpacity: 60
+    }; 
+    saveArenaSettings(); 
+    applyArenaSettings(); 
+    if (typeof showFloatingText === 'function') showFloatingText("🔄 Настройки сброшены", "#f5af19");
+}
+
 function renderSettings() { applyArenaSettings(); }
 
 function loadGameData(d) { 
@@ -177,12 +249,10 @@ function loadGameData(d) {
     gameCompleted = d.gameCompleted || false; 
     defeatedBosses = d.defeatedBosses || []; 
     
-    // ★ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★
     if (typeof window !== 'undefined') {
         window.waystarDefeatedThisRun = d.waystarDefeatedThisRun === true;
     }
     
-    // ★ ФЛАГ LEVEL 7 КАРТЫ ★
     if (typeof window !== 'undefined') {
         window._level7CardId = d.level7CardId || null;
     }
@@ -295,9 +365,7 @@ function initNewGame() {
     // ★★★ НОВЫЙ БОНУС: Звёзды x2 на 20 минут при первом заходе ★★★
     activeBuffs["doubleStars"] = Date.now() + NEWCOMER_BONUS_MINUTES * 60 * 1000;
     
-    // ★ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★
     if (typeof window !== 'undefined') window.waystarDefeatedThisRun = false;
-    // ★ ФЛАГ LEVEL 7 КАРТЫ ★
     if (typeof window !== 'undefined') window._level7CardId = null;
     
     gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
@@ -389,13 +457,8 @@ function saveAll() {
     slotData.gameCompleted = gameCompleted; 
     slotData.defeatedBosses = defeatedBosses; 
     
-    // ★ ФЛАГ ЭВОЛЮЦИИ ★
     slotData.evolutionUnlocked = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500));
-    
-    // ★ ФЛАГ ПОВТОРНОГО БОЯ ЗВЕЗДЫ ★
     slotData.waystarDefeatedThisRun = (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true);
-    
-    // ★ ФЛАГ LEVEL 7 КАРТЫ ★
     slotData.level7CardId = (typeof window !== 'undefined' && window._level7CardId) || null;
     
     slotData.gachaDailyLimits = gachaDailyLimits;
@@ -1492,12 +1555,10 @@ function doRebirth() {
         maxPoints 
     }); 
     
-    // ★★★ СОХРАНЯЕМ СНАРЯЖЕНИЕ ПЕРЕД РЕБИРТХОМ ★★★
     if (typeof window.saveEquipmentBeforeRebirth === 'function') {
         window.saveEquipmentBeforeRebirth();
     }
     
-    // ★★★ СОХРАНЯЕМ LEVEL 7 КАРТУ ★★★
     let _level7CardSave = null;
     if (typeof window !== 'undefined' && window._level7CardId) {
         let found = myCards.find(c => c && c.id === window._level7CardId);
@@ -1537,10 +1598,8 @@ function doRebirth() {
     newcomerBonusEnd = Date.now() + 600000; 
     gameCompleted = false; 
     
-    // ★★★ НОВЫЙ БОНУС: Звёзды x2 на 20 минут после ребиртха ★★★
     activeBuffs["doubleStars"] = Date.now() + NEWCOMER_BONUS_MINUTES * 60 * 1000;
     
-    // ★ РЕБИРТХ: сбрасываем defeatedBosses, эволюция снова закрыта ★
     defeatedBosses = []; 
     if (typeof window !== 'undefined') window.waystarDefeatedThisRun = false;
     if (typeof slotData !== 'undefined' && slotData) {
@@ -1574,7 +1633,6 @@ function doRebirth() {
     passData = { currentTier: 1, passExp: 0, claimedTiers: [] };
     for (let i = 0; i < 3; i++) { let c = createCard(getRandomRarity()); if (c) myCards.push(c); } 
     
-    // ★★★ ВОССТАНАВЛИВАЕМ LEVEL 7 КАРТУ ★★★
     if (_level7CardSave) {
         myCards.push(_level7CardSave);
         if (typeof window !== 'undefined') window._level7CardId = _level7CardSave.id;
@@ -1586,7 +1644,6 @@ function doRebirth() {
     team = [0, 1, 2]; 
     normalizeMainCard(); 
     
-    // ★★★ ВОССТАНАВЛИВАЕМ СНАРЯЖЕНИЕ ПОСЛЕ РЕБИРТХА ★★★
     if (typeof window.restoreEquipmentAfterRebirth === 'function') {
         window.restoreEquipmentAfterRebirth();
     }
