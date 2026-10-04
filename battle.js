@@ -959,18 +959,9 @@ function renderArena() {
 }
 
 // ============================================================
-// ★★★ ЭКСПОРТ В WINDOW ДЛЯ JOYSTICK.JS ★★★
+// ★★★ ПРОСТОЙ ЭКСПОРТ В WINDOW (без defineProperty) ★★★
 // ============================================================
-// joystick.js читает window.arenaActive / window.arenaPhase
-// Так как let-переменные не становятся свойствами window,
-// используем defineProperty с геттерами — они всегда возвращают актуальное значение
-Object.defineProperty(window, 'arenaActive', {
-    get: function() { return arenaActive; },
-    configurable: true
-});
-Object.defineProperty(window, 'arenaPhase', {
-    get: function() { return arenaPhase; },
-    configurable: true
-});
+window.getArenaActive = function() { return arenaActive; };
+window.getArenaPhase = function() { return arenaPhase; };
 
 console.log("[BATTLE] v16.1 — экспорт arenaActive/arenaPhase в window для joystick.js");
