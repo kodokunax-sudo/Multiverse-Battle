@@ -1,18 +1,12 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v13.0
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v13.1
 // ============================================================
-// ★ v13.0:
-//   - HP в СУПЕР-ФАЗЕ: Роджер 1800, Белоус 2000
-//   - Обычная фаза: 800 / 900 (не тронута)
-//   - У РОДЖЕРА ПОЛНОСТЬЮ УБРАНЫ КАМНИ (даже в drawAttack)
-//   - У БЕЛОУСА УБРАН КАМНЕПАД (type 0) — заменён на кулаки
-//   - АТАКИ РОДЖЕРА СТАЛИ РАЗНООБРАЗНЕЕ:
-//       • Прямо в игрока
-//       • По углам (4 диагонали)
-//       • По центру веером
-//       • Круговая волна
-//       • Спираль
-//   - Экспорт getRWBActive/getRWBState для joystick.js
+// ★ v13.1 (от v12.0):
+//   - ФИКС: Титан-Кулак и Огромный камень спавнятся ТОЛЬКО у Белоуса.
+//     У Роджера в супер-фазе их НЕТ вообще.
+//   - Атаки Роджера разнообразнее: в игрока, веер, по углам, по центру,
+//     круговая, двойной клинок, диагонали, спираль (8 типов).
+//   - Всё остальное — как в v12.0.
 // ============================================================
 
 (function() {
@@ -24,12 +18,8 @@
     }
     window._rogerWhitebeardLoaded = true;
 
-    // ============================================================
-    // ★★★★★★★★★  НАСТРОЙКИ  ★★★★★★★
-    // ============================================================
     const RWB_SUPER_ROGER_HP = 1800;
     const RWB_SUPER_WB_HP = 2000;
-
     const RWB_ATTACK_SPEED = 45;
     const RWB_SUPER_COOLDOWN = 300;
     const RWB_TITAN_INTERVAL = 240;
@@ -121,9 +111,6 @@
         if (rwbMusic) { try { rwbMusic.pause(); rwbMusic.currentTime = 0; } catch(e) {} }
     }
 
-    // ============================================================
-    // ЗВУКИ
-    // ============================================================
     let rwbAudioCtx = null;
 
     function initRWBAudio() {
@@ -139,7 +126,6 @@
     function playRWBSound(opts) {
         if (!rwbAudioCtx) initRWBAudio();
         if (!rwbAudioCtx) return;
-
         let freq = opts.freq || 200;
         let freqEnd = opts.freqEnd || freq;
         let type = opts.type || 'sawtooth';
@@ -148,20 +134,16 @@
         let attack = opts.attack || 0.005;
         let release = opts.release || duration;
         let detune = opts.detune || 0;
-
         try {
             let osc = rwbAudioCtx.createOscillator();
             let gain = rwbAudioCtx.createGain();
-
             osc.type = type;
             osc.frequency.setValueAtTime(freq, rwbAudioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), rwbAudioCtx.currentTime + duration);
             if (detune) osc.detune.setValueAtTime(detune, rwbAudioCtx.currentTime);
-
             gain.gain.setValueAtTime(0, rwbAudioCtx.currentTime);
             gain.gain.linearRampToValueAtTime(volume, rwbAudioCtx.currentTime + attack);
             gain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + release);
-
             osc.connect(gain);
             gain.connect(rwbAudioCtx.destination);
             osc.start(rwbAudioCtx.currentTime);
@@ -174,7 +156,6 @@
         if (!rwbAudioCtx) return;
         volume = volume || 0.4;
         pitch = pitch || 1;
-
         try {
             let bufferSize = rwbAudioCtx.sampleRate * 0.4;
             let buffer = rwbAudioCtx.createBuffer(1, bufferSize, rwbAudioCtx.sampleRate);
@@ -182,24 +163,19 @@
             for (let i = 0; i < bufferSize; i++) {
                 data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
             }
-
             let noise = rwbAudioCtx.createBufferSource();
             noise.buffer = buffer;
-
             let noiseFilter = rwbAudioCtx.createBiquadFilter();
             noiseFilter.type = 'lowpass';
             noiseFilter.frequency.setValueAtTime(400 * pitch, rwbAudioCtx.currentTime);
             noiseFilter.frequency.exponentialRampToValueAtTime(80, rwbAudioCtx.currentTime + 0.4);
-
             let noiseGain = rwbAudioCtx.createGain();
             noiseGain.gain.setValueAtTime(volume, rwbAudioCtx.currentTime);
             noiseGain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.4);
-
             noise.connect(noiseFilter);
             noiseFilter.connect(noiseGain);
             noiseGain.connect(rwbAudioCtx.destination);
             noise.start(rwbAudioCtx.currentTime);
-
             let osc = rwbAudioCtx.createOscillator();
             let oscGain = rwbAudioCtx.createGain();
             osc.type = 'sine';
@@ -216,21 +192,14 @@
 
     function playBladeSound(volume) {
         volume = volume || 0.2;
-        playRWBSound({
-            freq: 2000, freqEnd: 400, type: 'sawtooth',
-            duration: 0.25, volume: volume * 0.4, attack: 0.002, release: 0.25
-        });
-        playRWBSound({
-            freq: 3000, freqEnd: 800, type: 'triangle',
-            duration: 0.15, volume: volume * 0.3, attack: 0.001, release: 0.15, detune: 20
-        });
+        playRWBSound({ freq: 2000, freqEnd: 400, type: 'sawtooth', duration: 0.25, volume: volume * 0.4, attack: 0.002, release: 0.25 });
+        playRWBSound({ freq: 3000, freqEnd: 800, type: 'triangle', duration: 0.15, volume: volume * 0.3, attack: 0.001, release: 0.15, detune: 20 });
     }
 
     function playExplosionSound(volume) {
         volume = volume || 0.5;
         if (!rwbAudioCtx) initRWBAudio();
         if (!rwbAudioCtx) return;
-
         try {
             let bufferSize = rwbAudioCtx.sampleRate * 0.8;
             let buffer = rwbAudioCtx.createBuffer(1, bufferSize, rwbAudioCtx.sampleRate);
@@ -238,24 +207,19 @@
             for (let i = 0; i < bufferSize; i++) {
                 data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
             }
-
             let noise = rwbAudioCtx.createBufferSource();
             noise.buffer = buffer;
-
             let filter = rwbAudioCtx.createBiquadFilter();
             filter.type = 'lowpass';
             filter.frequency.setValueAtTime(1500, rwbAudioCtx.currentTime);
             filter.frequency.exponentialRampToValueAtTime(60, rwbAudioCtx.currentTime + 0.8);
-
             let gain = rwbAudioCtx.createGain();
             gain.gain.setValueAtTime(volume, rwbAudioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.8);
-
             noise.connect(filter);
             filter.connect(gain);
             gain.connect(rwbAudioCtx.destination);
             noise.start(rwbAudioCtx.currentTime);
-
             let osc = rwbAudioCtx.createOscillator();
             let oscGain = rwbAudioCtx.createGain();
             osc.type = 'sine';
@@ -272,39 +236,21 @@
 
     function playWhooshSound(volume) {
         volume = volume || 0.15;
-        playRWBSound({
-            freq: 800, freqEnd: 100, type: 'sawtooth',
-            duration: 0.3, volume: volume, attack: 0.01, release: 0.3, detune: -100
-        });
+        playRWBSound({ freq: 800, freqEnd: 100, type: 'sawtooth', duration: 0.3, volume: volume, attack: 0.01, release: 0.3, detune: -100 });
     }
 
     function playHakiChargeSound(volume) {
         volume = volume || 0.25;
-        playRWBSound({
-            freq: 60, freqEnd: 400, type: 'sawtooth',
-            duration: 1.2, volume: volume, attack: 0.1, release: 1.2
-        });
-        playRWBSound({
-            freq: 100, freqEnd: 600, type: 'square',
-            duration: 1.2, volume: volume * 0.5, attack: 0.1, release: 1.2, detune: 50
-        });
+        playRWBSound({ freq: 60, freqEnd: 400, type: 'sawtooth', duration: 1.2, volume: volume, attack: 0.1, release: 1.2 });
+        playRWBSound({ freq: 100, freqEnd: 600, type: 'square', duration: 1.2, volume: volume * 0.5, attack: 0.1, release: 1.2, detune: 50 });
     }
 
     function playBossRoarSound(volume) {
         volume = volume || 0.4;
-        playRWBSound({
-            freq: 150, freqEnd: 60, type: 'sawtooth',
-            duration: 0.8, volume: volume, attack: 0.05, release: 0.8, detune: -200
-        });
-        playRWBSound({
-            freq: 80, freqEnd: 40, type: 'square',
-            duration: 1.0, volume: volume * 0.7, attack: 0.05, release: 1.0, detune: -300
-        });
+        playRWBSound({ freq: 150, freqEnd: 60, type: 'sawtooth', duration: 0.8, volume: volume, attack: 0.05, release: 0.8, detune: -200 });
+        playRWBSound({ freq: 80, freqEnd: 40, type: 'square', duration: 1.0, volume: volume * 0.7, attack: 0.05, release: 1.0, detune: -300 });
     }
 
-    // ============================================================
-    // getBossContext ДЛЯ СУПЕРОВ
-    // ============================================================
     window.getRWBContext = function() {
         return {
             type: 'rwb',
@@ -330,15 +276,9 @@
             addShake: function(v) { rwbShake = Math.max(rwbShake || 0, v); },
             addFlash: function(v, color) { rwbScreenFlash = v; if (color) rwbScreenFlashColor = color; },
             addFlashWhite: function(v) { rwbScreenFlash = Math.max(rwbScreenFlash, v); rwbScreenFlashColor = "#ffffff"; },
-            spawnFloatingText: function(x, y, text, color) {
-                if (typeof window.spawnFloatingText === 'function') window.spawnFloatingText(x, y, text, color);
-            },
-            playSound: function(f, t, d, v) {
-                if (typeof window.rwbSound === 'function') window.rwbSound(f, t, d, v);
-            },
-            addShockwave: function(x, y, color, speed, life, width) {
-                rwbShockwaves.push({ x: x, y: y, radius: 10, maxRadius: 200, speed: speed, color: color, life: life, maxLife: life, width: width || 4 });
-            },
+            spawnFloatingText: function(x, y, text, color) { if (typeof window.spawnFloatingText === 'function') window.spawnFloatingText(x, y, text, color); },
+            playSound: function(f, t, d, v) { if (typeof window.rwbSound === 'function') window.rwbSound(f, t, d, v); },
+            addShockwave: function(x, y, color, speed, life, width) { rwbShockwaves.push({ x: x, y: y, radius: 10, maxRadius: 200, speed: speed, color: color, life: life, maxLife: life, width: width || 4 }); },
             clampHeart: function() {},
             isDodgePhase: function() { return false; }
         };
@@ -350,14 +290,10 @@
         if (typeof playArenaSound === 'function') playArenaSound(freq, type, dur, vol);
     }
 
-    // ============================================================
-    // ЭФФЕКТЫ
-    // ============================================================
     function spawnHakiLightning(x, y, count, isWhite) {
         if (rwbHakiLightnings.length > 20) return;
         if (!count) count = 1;
         count = Math.min(count, 2);
-
         for (let i = 0; i < count; i++) {
             let ang = Math.random() * Math.PI * 2;
             let len = 20 + Math.random() * 35;
@@ -390,7 +326,6 @@
             let side = i % 2 === 0 ? -1 : 1;
             let startX = bossX + side * (25 + Math.random() * 15);
             let startY = bossY + (Math.random() - 0.5) * 50;
-
             rwbWhiteCracks.push({
                 x: startX, y: startY,
                 angle: (side === -1 ? Math.PI : 0) + (Math.random() - 0.5) * 0.5,
@@ -408,18 +343,15 @@
             crack.life--;
             if (crack.life <= 0) { rwbWhiteCracks.splice(i, 1); continue; }
             let alpha = crack.life / crack.maxLife;
-
             ctx.save();
             ctx.globalAlpha = alpha;
             ctx.strokeStyle = "#ffffff";
             ctx.lineWidth = crack.width;
             ctx.beginPath();
             ctx.moveTo(crack.x, crack.y);
-
             let cx = crack.x, cy = crack.y;
             let ang = crack.angle;
             let segLen = crack.length / 4;
-
             for (let s = 0; s < 4; s++) {
                 ang += (Math.random() - 0.5) * 0.4;
                 cx += Math.cos(ang) * segLen;
@@ -431,18 +363,14 @@
         }
     }
 
-    // ============================================================
-    // СТАРТ
-    // ============================================================
     function startRogerWhitebeardFight() {
         if (window.rwbActive) return;
-
         if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(1000)) {
             if (typeof showFloatingText === 'function') showFloatingText("⏭️ Босс 1000 волны уже побеждён!", "#ffaa00");
             return;
         }
 
-        console.log("[ROGER-WB] Старт боя v13.0! Камни убраны, атаки Роджера разнообразны");
+        console.log("[ROGER-WB] Старт боя v13.1!");
 
         window.rwbActive = true;
         rwbState = "intro";
@@ -541,47 +469,23 @@
         setTimeout(function() { playBossRoarSound(0.3); }, 500);
     }
 
-    // ============================================================
-    // ФОН-ОСТРОВ
-    // ============================================================
     let islandBg = null;
 
     function initIslandBackground() {
         islandBg = { clouds: [], birds: [], waveLines: [] };
-
         for (let i = 0; i < 6; i++) {
-            islandBg.clouds.push({
-                x: Math.random() * 400,
-                y: 40 + Math.random() * 100,
-                size: 30 + Math.random() * 40,
-                speed: 0.08 + Math.random() * 0.15,
-                alpha: 0.3 + Math.random() * 0.3
-            });
+            islandBg.clouds.push({ x: Math.random() * 400, y: 40 + Math.random() * 100, size: 30 + Math.random() * 40, speed: 0.08 + Math.random() * 0.15, alpha: 0.3 + Math.random() * 0.3 });
         }
-
         for (let i = 0; i < 4; i++) {
-            islandBg.birds.push({
-                x: Math.random() * 400,
-                y: 60 + Math.random() * 80,
-                speed: 0.3 + Math.random() * 0.4,
-                wingPhase: Math.random() * Math.PI * 2,
-                size: 4 + Math.random() * 3
-            });
+            islandBg.birds.push({ x: Math.random() * 400, y: 60 + Math.random() * 80, speed: 0.3 + Math.random() * 0.4, wingPhase: Math.random() * Math.PI * 2, size: 4 + Math.random() * 3 });
         }
-
         for (let i = 0; i < 8; i++) {
-            islandBg.waveLines.push({
-                y: 320 + i * 8,
-                offset: Math.random() * 100,
-                speed: 0.15 + Math.random() * 0.2,
-                length: 30 + Math.random() * 40
-            });
+            islandBg.waveLines.push({ y: 320 + i * 8, offset: Math.random() * 100, speed: 0.15 + Math.random() * 0.2, length: 30 + Math.random() * 40 });
         }
     }
 
     function drawIslandBackground() {
         if (!islandBg) initIslandBackground();
-
         let skyGrad = ctx.createLinearGradient(0, 0, 0, 320);
         skyGrad.addColorStop(0, "#0d1b3d");
         skyGrad.addColorStop(0.3, "#2d2a5c");
@@ -625,7 +529,6 @@
                 ctx.restore();
             }
         }
-
         if (islandBg) {
             for (let bird of islandBg.birds) {
                 bird.x += bird.speed;
@@ -718,7 +621,6 @@
         ctx.save();
         ctx.translate(x, baseY);
         ctx.scale(scale, scale);
-
         ctx.strokeStyle = "#4a2f1a";
         ctx.lineWidth = 6;
         ctx.lineCap = "round";
@@ -726,11 +628,9 @@
         ctx.moveTo(0, 0);
         ctx.quadraticCurveTo(-5, -40, 5, -90);
         ctx.stroke();
-
         ctx.fillStyle = "#2d5a2d";
         ctx.strokeStyle = "#1a3a1a";
         ctx.lineWidth = 1;
-
         let leafAngles = [-2.5, -2.0, -1.5, -1.0, -0.5, 0, 0.5];
         for (let ang of leafAngles) {
             ctx.save();
@@ -742,20 +642,15 @@
             ctx.stroke();
             ctx.restore();
         }
-
         ctx.fillStyle = "#3a2a10";
         ctx.beginPath();
         ctx.arc(0, -88, 3, 0, Math.PI * 2);
         ctx.arc(-4, -85, 3, 0, Math.PI * 2);
         ctx.arc(4, -85, 3, 0, Math.PI * 2);
         ctx.fill();
-
         ctx.restore();
     }
 
-    // ============================================================
-    // КНОПКИ
-    // ============================================================
     function createRWBModeButton() {
         if (rwbModeBtn) return;
         rwbModeBtn = document.createElement('button');
@@ -822,7 +717,6 @@
             if (typeof showFloatingText === 'function') showFloatingText("⏳ Кулдаун: " + Math.ceil(rwbSuperCooldown / 60) + "с", "#ffaa00");
             return;
         }
-
         let mainCard = null;
         try {
             if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0) {
@@ -830,17 +724,14 @@
                 if (idx >= 0 && idx < myCards.length) mainCard = myCards[idx];
             }
         } catch(e) {}
-
         if (!mainCard) {
             if (typeof showFloatingText === 'function') showFloatingText("Нет главной карты!", "#ff3333");
             return;
         }
-
         if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
             if (typeof showFloatingText === 'function') showFloatingText("Нужно мастерство 5★!", "#ff3333");
             return;
         }
-
         if (typeof window.toggleSuper === 'function') {
             try {
                 window.toggleSuper();
@@ -853,7 +744,6 @@
                 console.warn("[ROGER-WB] Supers error:", e);
             }
         }
-
         if (typeof showFloatingText === 'function') showFloatingText("⚡ СУПЕР!", "#ffd700");
         rwbSuperReady = false;
         rwbSuperCooldown = RWB_SUPER_COOLDOWN;
@@ -863,7 +753,6 @@
     function showRWBModeButton() { if (rwbModeBtn) rwbModeBtn.style.display = 'block'; }
     function hideRWBModeButton() { if (rwbModeBtn) rwbModeBtn.style.display = 'none'; }
 
-    // УПРАВЛЕНИЕ
     function handleRWBKeyDown(ev) { if (!window.rwbActive) return; rwbKeys[ev.key.toLowerCase()] = true; }
     function handleRWBKeyUp(ev) { if (!window.rwbActive) return; rwbKeys[ev.key.toLowerCase()] = false; }
     function handleRWBTouchStart(ev) {
@@ -899,9 +788,6 @@
     }
     function handleRWBClick(ev) {}
 
-    // ============================================================
-    // ИГРОК
-    // ============================================================
     function updateRWBPlayer() {
         if (rwbState !== "fight1" && rwbState !== "fight2") return;
         let mx = 0, my = 0;
@@ -949,7 +835,6 @@
                     }
                 } catch(e) {}
             }
-
             if (!weaponUsed) {
                 rwbPlayer.attackTimer = rwbPlayer.shootRate;
                 let bulletColor = (rwbPlayer.attackMode === "blue") ? "#00aaff" : "#ffdd00";
@@ -972,47 +857,34 @@
 
     function aimBulletAtNearestAttack(bullet) {
         if (!rwbAttacks || rwbAttacks.length === 0) return;
-
         let nearestAttack = null;
         let nearestDist = Infinity;
-
         for (let i = 0; i < rwbAttacks.length; i++) {
             let a = rwbAttacks[i];
             if (a.type === "tsunami" || a.type === "titan_fist" ||
                 a.type === "roger_slash" || a.type === "roger_cross" ||
                 a.type === "gura_crack" || a.type === "hell_fire" ||
                 a.type === "haki_wave") continue;
-
             if (a.hp === undefined) continue;
-
             let ax = a.x + (a.size || a.radius || 20) / 2;
             let ay = a.y + (a.size || a.radius || 20) / 2;
             let dx = ax - bullet.x;
             let dy = ay - bullet.y;
             let dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < nearestDist) {
-                nearestDist = dist;
-                nearestAttack = { x: ax, y: ay };
-            }
+            if (dist < nearestDist) { nearestDist = dist; nearestAttack = { x: ax, y: ay }; }
         }
-
         if (nearestAttack) {
             let dx = nearestAttack.x - bullet.x;
             let dy = nearestAttack.y - bullet.y;
             let len = Math.sqrt(dx * dx + dy * dy) || 1;
             let speed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy) || 11;
             speed = Math.max(speed, 13);
-
             bullet.vx = (dx / len) * speed;
             bullet.vy = (dy / len) * speed;
             bullet.life = Math.max(bullet.life, 120);
         }
     }
 
-    // ============================================================
-    // ДУЭЛЬ
-    // ============================================================
     function updateDuel() {
         if (!roger || !whitebeard) return;
         duel.timer++;
@@ -1023,32 +895,21 @@
             whitebeard.x += (whitebeard.homeX - whitebeard.x) * 0.04;
             whitebeard.y += (whitebeard.homeY - whitebeard.y) * 0.04;
             if (duel.timer > 30) {
-                duel.phase = "approach";
-                duel.timer = 0;
+                duel.phase = "approach"; duel.timer = 0;
                 duel.clashX = 100 + Math.random() * 200;
                 duel.clashY = 150 + Math.random() * 150;
                 playWhooshSound(0.2);
             }
         } else if (duel.phase === "approach") {
-            let targetRX = duel.clashX - 30;
-            let targetRY = duel.clashY;
-            let targetWX = duel.clashX + 30;
-            let targetWY = duel.clashY;
+            let targetRX = duel.clashX - 30, targetRY = duel.clashY;
+            let targetWX = duel.clashX + 30, targetWY = duel.clashY;
             roger.x += (targetRX - roger.x) * 0.15;
             roger.y += (targetRY - roger.y) * 0.15;
             whitebeard.x += (targetWX - whitebeard.x) * 0.15;
             whitebeard.y += (targetWY - whitebeard.y) * 0.15;
             if (duel.timer % 3 === 0) {
-                rwbSpeedLines.push({
-                    x: roger.x + (Math.random() - 0.5) * 20,
-                    y: roger.y + (Math.random() - 0.5) * 20,
-                    vx: -3, vy: 0, life: 12, maxLife: 12, color: "#ff8800"
-                });
-                rwbSpeedLines.push({
-                    x: whitebeard.x + (Math.random() - 0.5) * 20,
-                    y: whitebeard.y + (Math.random() - 0.5) * 20,
-                    vx: 3, vy: 0, life: 12, maxLife: 12, color: "#ffffff"
-                });
+                rwbSpeedLines.push({ x: roger.x + (Math.random() - 0.5) * 20, y: roger.y + (Math.random() - 0.5) * 20, vx: -3, vy: 0, life: 12, maxLife: 12, color: "#ff8800" });
+                rwbSpeedLines.push({ x: whitebeard.x + (Math.random() - 0.5) * 20, y: whitebeard.y + (Math.random() - 0.5) * 20, vx: 3, vy: 0, life: 12, maxLife: 12, color: "#ffffff" });
             }
             if (duel.timer > 20) { duel.phase = "clash"; duel.timer = 0; performClash(); }
         } else if (duel.phase === "clash") {
@@ -1057,10 +918,8 @@
             if (duel.timer % 3 === 0) spawnClashParticles(duel.clashX, duel.clashY);
             if (duel.timer > 18) { duel.phase = "retreat"; duel.timer = 0; }
         } else if (duel.phase === "retreat") {
-            let targetRX = roger.homeX;
-            let targetRY = roger.homeY + (Math.random() - 0.5) * 60;
-            let targetWX = whitebeard.homeX;
-            let targetWY = whitebeard.homeY + (Math.random() - 0.5) * 60;
+            let targetRX = roger.homeX, targetRY = roger.homeY + (Math.random() - 0.5) * 60;
+            let targetWX = whitebeard.homeX, targetWY = whitebeard.homeY + (Math.random() - 0.5) * 60;
             roger.x += (targetRX - roger.x) * 0.12;
             roger.y += (targetRY - roger.y) * 0.12;
             whitebeard.x += (targetWX - whitebeard.x) * 0.12;
@@ -1083,12 +942,8 @@
         if (roger.hitFlash > 0) roger.hitFlash--;
         if (whitebeard.hitFlash > 0) whitebeard.hitFlash--;
 
-        if (Math.random() < 0.08) {
-            spawnHakiLightning(roger.x + (Math.random() - 0.5) * 40, roger.y + (Math.random() - 0.5) * 40, 1, false);
-        }
-        if (Math.random() < 0.08) {
-            spawnHakiLightning(whitebeard.x + (Math.random() - 0.5) * 40, whitebeard.y + (Math.random() - 0.5) * 40, 1, false);
-        }
+        if (Math.random() < 0.08) spawnHakiLightning(roger.x + (Math.random() - 0.5) * 40, roger.y + (Math.random() - 0.5) * 40, 1, false);
+        if (Math.random() < 0.08) spawnHakiLightning(whitebeard.x + (Math.random() - 0.5) * 40, whitebeard.y + (Math.random() - 0.5) * 40, 1, false);
 
         roger.attackTimer--;
         if (roger.attackTimer <= 0) {
@@ -1133,23 +988,10 @@
                 size: 2 + Math.random() * 3
             });
         }
+        for (let i = 0; i < 10; i++) spawnHakiLightning(duel.clashX, duel.clashY, 1, Math.random() > 0.7);
 
-        for (let i = 0; i < 10; i++) {
-            spawnHakiLightning(duel.clashX, duel.clashY, 1, Math.random() > 0.7);
-        }
-
-        rwbShockwaves.push({
-            x: duel.clashX, y: duel.clashY,
-            radius: 10, maxRadius: 200, speed: 9,
-            color: "#000000", damage: 0, hit: true,
-            life: 28, maxLife: 28, width: 8
-        });
-        rwbShockwaves.push({
-            x: duel.clashX, y: duel.clashY,
-            radius: 5, maxRadius: 150, speed: 6,
-            color: "#ff2222", damage: 0, hit: true,
-            life: 25, maxLife: 25, width: 5
-        });
+        rwbShockwaves.push({ x: duel.clashX, y: duel.clashY, radius: 10, maxRadius: 200, speed: 9, color: "#000000", damage: 0, hit: true, life: 28, maxLife: 28, width: 8 });
+        rwbShockwaves.push({ x: duel.clashX, y: duel.clashY, radius: 5, maxRadius: 150, speed: 6, color: "#ff2222", damage: 0, hit: true, life: 25, maxLife: 25, width: 5 });
     }
 
     function spawnClashParticles(x, y) {
@@ -1168,24 +1010,21 @@
     }
 
     // ============================================================
-    // ★★★ АТАКИ РОДЖЕРА — РАЗНООБРАЗНЫЕ, БЕЗ КАМНЕЙ ★★★
+    // ★★★ АТАКИ РОДЖЕРА — 8 РАЗНООБРАЗНЫХ ПАТТЕРНОВ ★★★
     // ============================================================
     function spawnRogerAttack() {
-        // 8 типов атак с разными паттернами
         let type = Math.floor(Math.random() * 8);
         let isSuper = roger.superForm;
 
         playBladeSound(0.25);
         spawnHakiLightning(roger.x, roger.y, 3, false);
 
-        // ★ Расчёт направления на игрока ★
         let dxPlayer = rwbPlayer.x - roger.x;
         let dyPlayer = rwbPlayer.y - roger.y;
         let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
-        let distToPlayer = Math.sqrt(dxPlayer * dxPlayer + dyPlayer * dyPlayer);
 
         if (type === 0) {
-            // ★ ПРЯМО В ИГРОКА — 3 клинка точно в цель ★
+            // ★ ПРЯМО В ИГРОКА — 3-5 клинков точно в цель ★
             let count = isSuper ? 5 : 3;
             for (let i = 0; i < count; i++) {
                 let spread = (i - (count - 1) / 2) * 0.12;
@@ -1201,10 +1040,9 @@
                     hasHaki: true
                 });
             }
-            // Звук "прицельного" выстрела
             playWhooshSound(0.3);
         } else if (type === 1) {
-            // ★ ВЕЕР по центру сверху (классика) ★
+            // ★ ВЕЕР сверху ★
             let count = isSuper ? 10 : 7;
             for (let i = 0; i < count; i++) {
                 let angle = Math.PI * 0.5 + (i - (count - 1) / 2) * 0.25;
@@ -1220,13 +1058,8 @@
                 });
             }
         } else if (type === 2) {
-            // ★ ПО УГЛАМ — 4 клинка по диагоналям от центра ★
-            let corners = [
-                Math.PI * 0.25,      // вправо-вниз
-                Math.PI * 0.75,      // влево-вниз
-                -Math.PI * 0.25,     // вправо-вверх
-                -Math.PI * 0.75      // влево-вверх
-            ];
+            // ★ ПО УГЛАМ — 4 диагонали × 2 клинка ★
+            let corners = [Math.PI * 0.25, Math.PI * 0.75, -Math.PI * 0.25, -Math.PI * 0.75];
             for (let baseAng of corners) {
                 for (let k = 0; k < (isSuper ? 2 : 1); k++) {
                     let delay = k * 60;
@@ -1248,12 +1081,11 @@
                 }
             }
         } else if (type === 3) {
-            // ★ ПО СЕРЕДИНЕ ЭКРАНА — клинки по вертикали ★
-            let midX = 200;
+            // ★ ПО СЕРЕДИНЕ ЭКРАНА — клинки по вертикали в стороны ★
             let count = isSuper ? 6 : 4;
+            let angle = (roger.x < 200) ? 0 : Math.PI;
             for (let i = 0; i < count; i++) {
                 let startY = 100 + i * 70;
-                let angle = (roger.x < 200) ? 0 : Math.PI; // вправо или влево
                 let speed = (isSuper ? 5.0 : 4.3) * BALANCE.projectileSpeedMult;
                 rwbAttacks.push({
                     type: "blade", x: roger.x, y: startY,
@@ -1266,7 +1098,7 @@
                 });
             }
         } else if (type === 4) {
-            // ★ КРУГОВАЯ ВОЛНА — все стороны ★
+            // ★ КРУГОВАЯ ВОЛНА ★
             let count = isSuper ? 12 : 9;
             for (let i = 0; i < count; i++) {
                 let angle = (i / count) * Math.PI * 2;
@@ -1282,7 +1114,7 @@
                 });
             }
         } else if (type === 5) {
-            // ★ ДВОЙНОЙ БОЛЬШОЙ КЛИНОК точно в игрока ★
+            // ★ ДВОЙНОЙ БОЛЬШОЙ КЛИНОК в игрока ★
             let offsets = [-0.18, 0.18];
             for (let off of offsets) {
                 let ang = angleToPlayer + off;
@@ -1298,7 +1130,7 @@
                 });
             }
         } else if (type === 6) {
-            // ★ ДИАГОНАЛЬНЫЕ СЕРИИ — по 2 клинка в 4 стороны ★
+            // ★ ДИАГОНАЛЬНЫЕ СЕРИИ ★
             let diagonals = [Math.PI * 0.25, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75];
             for (let ang of diagonals) {
                 for (let k = 0; k < 2; k++) {
@@ -1322,7 +1154,7 @@
                 }
             }
         } else {
-            // ★ СПИРАЛЬ — закрученные клинки ★
+            // ★ СПИРАЛЬ ★
             let count = 18;
             for (let i = 0; i < count; i++) {
                 let baseAng = (i / count) * Math.PI * 4;
@@ -1346,48 +1178,35 @@
         }
     }
 
-    // ============================================================
-    // АТАКИ БЕЛОУСА — БЕЗ КАМНЕПАДА! Только кулаки, волны, цунами
-    // ============================================================
     function spawnWhitebeardAttack() {
-        // ★ type 0 (камнепад) УБРАН — теперь 5 типов вместо 6 ★
-        let type = Math.floor(Math.random() * 5);
+        let type = Math.floor(Math.random() * 6);
         let isSuper = whitebeard.superForm;
 
         playHakiChargeSound(0.2);
         spawnHakiLightning(whitebeard.x, whitebeard.y, 3, false);
 
-        let dxPlayer = rwbPlayer.x - whitebeard.x;
-        let dyPlayer = rwbPlayer.y - whitebeard.y;
-        let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
-
         if (type === 0) {
-            // ★ ВМЕСТО КАМНЕПАДА — тройной кулак в игрока ★
-            for (let i = 0; i < 3; i++) {
-                let delay = i * 100;
-                (function(d) {
-                    setTimeout(function() {
-                        if (!window.rwbActive) return;
-                        let spread = (Math.random() - 0.5) * 0.3;
-                        let ang = angleToPlayer + spread;
-                        let speed = (isSuper ? 6.5 : 5.5) * BALANCE.projectileSpeedMult;
-                        rwbAttacks.push({
-                            type: "fist",
-                            x: whitebeard.x, y: whitebeard.y + 20,
-                            vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
-                            size: 18, hp: 4, maxHp: 4,
-                            damage: Math.ceil((isSuper ? 24 : 18) * BALANCE.whitebeardDamageMult),
-                            life: 250, color: "#ffffff",
-                            rotation: 0, rotSpeed: 0,
-                            trail: [], hasHaki: true
-                        });
-                        playImpactSound(0.3, 1.0);
-                    }, d);
-                })(delay);
+            let count = 6;
+            for (let i = 0; i < count; i++) {
+                let cx = 40 + Math.random() * 320;
+                rwbAttacks.push({
+                    type: "rock",
+                    x: cx, y: -40 - Math.random() * 30,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (isSuper ? 4.2 : 3.5) * BALANCE.projectileSpeedMult,
+                    size: 17 + Math.random() * 5,
+                    rotation: Math.random() * Math.PI * 2,
+                    rotSpeed: (Math.random() - 0.5) * 0.06,
+                    hp: 3, maxHp: 3,
+                    damage: Math.ceil((isSuper ? 20 : 15) * BALANCE.whitebeardDamageMult),
+                    life: 400, color: "#8B7355",
+                    hasHaki: false,
+                    textureSeed: Math.random() * 1000
+                });
             }
             spawnWhiteCracks(whitebeard.x, whitebeard.y, 3);
+            playImpactSound(0.4, 0.6);
         } else if (type === 1) {
-            // Круговая волна-удар
             rwbShockwaves.push({
                 x: whitebeard.x, y: whitebeard.y,
                 radius: 10,
@@ -1401,12 +1220,14 @@
             });
             playImpactSound(0.35, 0.9);
         } else if (type === 2) {
-            // Один большой кулак в игрока
+            let dx = rwbPlayer.x - whitebeard.x;
+            let dy = rwbPlayer.y - whitebeard.y;
+            let len = Math.sqrt(dx * dx + dy * dy) || 1;
             let speed = (isSuper ? 6 : 5) * BALANCE.projectileSpeedMult;
             rwbAttacks.push({
                 type: "fist",
                 x: whitebeard.x, y: whitebeard.y + 20,
-                vx: Math.cos(angleToPlayer) * speed, vy: Math.sin(angleToPlayer) * speed,
+                vx: (dx / len) * speed, vy: (dy / len) * speed,
                 size: 18, hp: 4, maxHp: 4,
                 damage: Math.ceil((isSuper ? 26 : 20) * BALANCE.whitebeardDamageMult),
                 life: 250, color: "#ffffff",
@@ -1415,10 +1236,8 @@
             });
             playImpactSound(0.4, 1.0);
         } else if (type === 3) {
-            // Цунами
             spawnTsunamiAttack(isSuper);
         } else if (type === 4) {
-            // Двойной кулак по сторонам
             for (let side = -1; side <= 1; side += 2) {
                 let targetX = rwbPlayer.x + side * 40;
                 let targetY = rwbPlayer.y;
@@ -1438,6 +1257,22 @@
                 });
             }
             playImpactSound(0.45, 0.8);
+        } else {
+            let side = Math.random() > 0.5 ? 1 : -1;
+            let startX = side > 0 ? -40 : 440;
+            let waveY = 200 + Math.random() * 200;
+            rwbAttacks.push({
+                type: "haki_wave",
+                x: startX, y: waveY,
+                vx: side * 3.5 * BALANCE.projectileSpeedMult,
+                vy: 0,
+                size: 30, hp: 5, maxHp: 5,
+                damage: Math.ceil(22 * BALANCE.whitebeardDamageMult),
+                life: 300, color: "#ff8800",
+                rotation: 0, rotSpeed: 0,
+                trail: [], hasHaki: true
+            });
+            playHakiChargeSound(0.3);
         }
     }
 
@@ -1446,7 +1281,6 @@
         let startX = fromLeft ? -80 : 480;
         let speed = (isSuper ? 3.2 : 2.4) * BALANCE.projectileSpeedMult;
         let waveHeight = isSuper ? 170 : 140;
-
         rwbAttacks.push({
             type: "tsunami",
             x: startX, y: 380,
@@ -1463,10 +1297,8 @@
             hit: false,
             color: "#0099ff"
         });
-
         playWhooshSound(0.4);
         setTimeout(function() { playImpactSound(0.35, 0.5); }, 200);
-
         rwbFloatingTexts.push({
             x: fromLeft ? 40 : 360,
             y: 380,
@@ -1477,14 +1309,10 @@
         });
     }
 
-    // ============================================================
-    // СУПЕР-АТАКИ
-    // ============================================================
     function spawnRogerSuperAttack() {
         let attackId = Math.floor(Math.random() * 4);
         playHakiChargeSound(0.25);
         spawnHakiLightning(roger.x, roger.y, 5, false);
-
         if (attackId === 0) spawnRogerCrossSlash();
         else if (attackId === 1) spawnRogerCrossStrike();
         else if (attackId === 2) spawnRogerHellFire();
@@ -1492,114 +1320,53 @@
     }
 
     function spawnRogerCrossSlash() {
-        rwbFloatingTexts.push({
-            x: 200, y: 100,
-            text: "⚡ РАССЕЧЕНИЕ ⚡",
-            color: "#ff4400",
-            life: 70, maxLife: 70,
-            vy: -0.3, vx: 0, size: 20
-        });
-
+        rwbFloatingTexts.push({ x: 200, y: 100, text: "⚡ РАССЕЧЕНИЕ ⚡", color: "#ff4400", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
         playWhooshSound(0.5);
         setTimeout(function() { playImpactSound(0.5, 1.2); }, 300);
-
         let slashX = 100 + Math.random() * 200;
         rwbAttacks.push({
-            type: "roger_slash",
-            x: slashX, y: 0,
-            width: 50,
-            warningTimer: 55,
-            activeTimer: 0,
-            maxActive: 22,
+            type: "roger_slash", x: slashX, y: 0,
+            width: 50, warningTimer: 55, activeTimer: 0, maxActive: 22,
             damage: Math.ceil(30 * BALANCE.superDamageMult),
-            hit: false,
-            state: "warning",
-            color: "#ff4400"
+            hit: false, state: "warning", color: "#ff4400"
         });
-
         rwbShake = 15;
     }
 
     function spawnRogerCrossStrike() {
-        rwbFloatingTexts.push({
-            x: 200, y: 100,
-            text: "❌ КРЕСТ ❌",
-            color: "#ff6600",
-            life: 70, maxLife: 70,
-            vy: -0.3, vx: 0, size: 20
-        });
-
+        rwbFloatingTexts.push({ x: 200, y: 100, text: "❌ КРЕСТ ❌", color: "#ff6600", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
         playBladeSound(0.3);
-
         let cx = 130 + Math.random() * 140;
         let cy = 180 + Math.random() * 120;
-
         rwbAttacks.push({
-            type: "roger_cross",
-            x: cx, y: cy,
-            dir: "vertical",
-            length: 400, width: 35,
-            warningTimer: 50, activeTimer: 0, maxActive: 20,
-            damage: Math.ceil(26 * BALANCE.superDamageMult),
-            hit: false, state: "warning",
-            color: "#ff8800"
+            type: "roger_cross", x: cx, y: cy, dir: "vertical",
+            length: 400, width: 35, warningTimer: 50, activeTimer: 0, maxActive: 20,
+            damage: Math.ceil(26 * BALANCE.superDamageMult), hit: false, state: "warning", color: "#ff8800"
         });
-
         rwbAttacks.push({
-            type: "roger_cross",
-            x: cx, y: cy,
-            dir: "horizontal",
-            length: 400, width: 35,
-            warningTimer: 50, activeTimer: 0, maxActive: 20,
-            damage: Math.ceil(26 * BALANCE.superDamageMult),
-            hit: false, state: "warning",
-            color: "#ff8800"
+            type: "roger_cross", x: cx, y: cy, dir: "horizontal",
+            length: 400, width: 35, warningTimer: 50, activeTimer: 0, maxActive: 20,
+            damage: Math.ceil(26 * BALANCE.superDamageMult), hit: false, state: "warning", color: "#ff8800"
         });
-
         rwbShake = 18;
     }
 
     function spawnRogerHellFire() {
-        rwbFloatingTexts.push({
-            x: 200, y: 100,
-            text: "🔥 ПЛАМЯ 🔥",
-            color: "#ff2200",
-            life: 70, maxLife: 70,
-            vy: -0.3, vx: 0, size: 20
-        });
-
+        rwbFloatingTexts.push({ x: 200, y: 100, text: "🔥 ПЛАМЯ 🔥", color: "#ff2200", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
         playWhooshSound(0.4);
         setTimeout(function() { playExplosionSound(0.5); }, 800);
-
         rwbAttacks.push({
-            type: "hell_fire",
-            x: roger.x, y: roger.y + 20,
-            targetX: rwbPlayer.x,
-            targetY: rwbPlayer.y,
-            vx: 0, vy: 0,
-            speed: 3.8 * BALANCE.projectileSpeedMult,
-            size: 25,
-            hp: 5, maxHp: 5,
-            damage: Math.ceil(24 * BALANCE.superDamageMult),
-            life: 300,
-            state: "flying",
-            flyTimer: 0,
-            explosionTimer: 0,
-            color: "#ff3300"
+            type: "hell_fire", x: roger.x, y: roger.y + 20,
+            targetX: rwbPlayer.x, targetY: rwbPlayer.y,
+            vx: 0, vy: 0, speed: 3.8 * BALANCE.projectileSpeedMult, size: 25,
+            hp: 5, maxHp: 5, damage: Math.ceil(24 * BALANCE.superDamageMult),
+            life: 300, state: "flying", flyTimer: 0, explosionTimer: 0, color: "#ff3300"
         });
     }
 
     function spawnRogerComboRush() {
-        rwbFloatingTexts.push({
-            x: 200, y: 100,
-            text: "⚔️ КОМБО ⚔️",
-            color: "#ffdd00",
-            life: 70, maxLife: 70,
-            vy: -0.3, vx: 0, size: 20
-        });
-
+        rwbFloatingTexts.push({ x: 200, y: 100, text: "⚔️ КОМБО ⚔️", color: "#ffdd00", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
         playBladeSound(0.35);
-
         for (let w = 0; w < 3; w++) {
             (function(waveIdx) {
                 setTimeout(function() {
@@ -1610,13 +1377,11 @@
                         let ang = baseAng + (i / count) * Math.PI * 2;
                         rwbAttacks.push({
                             type: "blade", x: roger.x, y: roger.y,
-                            vx: Math.cos(ang) * 5.0,
-                            vy: Math.sin(ang) * 5.0,
+                            vx: Math.cos(ang) * 5.0, vy: Math.sin(ang) * 5.0,
                             size: 10, hp: 2, maxHp: 2,
                             damage: Math.ceil(14 * BALANCE.superDamageMult),
                             life: 250, color: "#ffcc00",
-                            rotation: ang + Math.PI * 0.5, rotSpeed: 0.3,
-                            hasHaki: true
+                            rotation: ang + Math.PI * 0.5, rotSpeed: 0.3, hasHaki: true
                         });
                     }
                     playBladeSound(0.15);
@@ -1629,7 +1394,6 @@
         let attackId = Math.floor(Math.random() * 4);
         playHakiChargeSound(0.3);
         spawnHakiLightning(whitebeard.x, whitebeard.y, 5, false);
-
         if (attackId === 0) spawnWhitebeardEarthquake();
         else if (attackId === 1) spawnWhitebeardGuraGura();
         else if (attackId === 2) spawnWhitebeardTitanFist();
@@ -1637,48 +1401,24 @@
     }
 
     function spawnWhitebeardEarthquake() {
-        rwbFloatingTexts.push({
-            x: 200, y: 100,
-            text: "🌋 ЗЕМЛЕТРЯСЕНИЕ 🌋",
-            color: "#8B7355",
-            life: 70, maxLife: 70,
-            vy: -0.3, vx: 0, size: 18
-        });
-
+        rwbFloatingTexts.push({ x: 200, y: 100, text: "🌋 ЗЕМЛЕТРЯСЕНИЕ 🌋", color: "#8B7355", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 18 });
         playImpactSound(0.7, 0.5);
         playBossRoarSound(0.4);
         rwbShake = 25;
-
-        // ★ Тройной кулак вместо камней ★
-        let dxPlayer = rwbPlayer.x - whitebeard.x;
-        let dyPlayer = rwbPlayer.y - whitebeard.y;
-        let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
-
-        for (let i = 0; i < 3; i++) {
-            let delay = i * 120;
-            (function(d) {
-                setTimeout(function() {
-                    if (!window.rwbActive) return;
-                    let spread = (Math.random() - 0.5) * 0.3;
-                    let ang = angleToPlayer + spread;
-                    let speed = 6.5;
-                    rwbAttacks.push({
-                        type: "fist",
-                        x: whitebeard.x, y: whitebeard.y + 20,
-                        vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
-                        size: 20, hp: 5, maxHp: 5,
-                        damage: Math.ceil(22 * BALANCE.superDamageMult),
-                        life: 250, color: "#ffffff",
-                        rotation: 0, rotSpeed: 0,
-                        trail: [], hasHaki: true
-                    });
-                    playImpactSound(0.35, 1.0);
-                }, d);
-            })(delay);
+        for (let i = 0; i < 8; i++) {
+            let cx = 40 + Math.random() * 320;
+            rwbAttacks.push({
+                type: "rock", x: cx, y: -40 - Math.random() * 50,
+                vx: (Math.random() - 0.5) * 1.2, vy: 3.2 + Math.random() * 1.5,
+                size: 16 + Math.random() * 8,
+                rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.1,
+                hp: 3, maxHp: 3,
+                damage: Math.ceil(20 * BALANCE.superDamageMult),
+                life: 400, color: "#8B7355", hasHaki: false,
+                textureSeed: Math.random() * 1000
+            });
         }
-
         spawnWhiteCracks(whitebeard.x, whitebeard.y, 5);
-
         let shakeInterval = setInterval(function() {
             if (!window.rwbActive || rwbState !== "fight2") { clearInterval(shakeInterval); return; }
             rwbShake = Math.max(rwbShake, 12);
@@ -1687,104 +1427,56 @@
     }
 
     function spawnWhitebeardGuraGura() {
-        rwbFloatingTexts.push({
-            x: 200, y: 100,
-            text: "💥 ГУРА-ГУРА 💥",
-            color: "#ffffff",
-            life: 70, maxLife: 70,
-            vy: -0.3, vx: 0, size: 20
-        });
-
+        rwbFloatingTexts.push({ x: 200, y: 100, text: "💥 ГУРА-ГУРА 💥", color: "#ffffff", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
         playHakiChargeSound(0.4);
         setTimeout(function() { playExplosionSound(0.6); }, 500);
-
         let crackCount = 5;
         for (let i = 0; i < crackCount; i++) {
             let rx = 60 + Math.random() * 280;
             let ry = 120 + Math.random() * 280;
             rwbAttacks.push({
-                type: "gura_crack",
-                x: rx, y: ry,
-                radius: 10,
-                maxRadius: 85,
+                type: "gura_crack", x: rx, y: ry,
+                radius: 10, maxRadius: 85,
                 damage: Math.ceil(24 * BALANCE.superDamageMult),
-                life: 200,
-                state: "warning",
-                warningTimer: 70 + i * 15,
-                activeTimer: 0,
-                maxActive: 20,
-                hit: false,
-                color: "#ffffff"
+                life: 200, state: "warning",
+                warningTimer: 70 + i * 15, activeTimer: 0, maxActive: 20,
+                hit: false, color: "#ffffff"
             });
         }
-
         rwbShake = 20;
     }
 
     function spawnWhitebeardTitanFist() {
-        rwbFloatingTexts.push({
-            x: 200, y: 100,
-            text: "👊 ТИТАН-КУЛАК 👊",
-            color: "#ffdd00",
-            life: 70, maxLife: 70,
-            vy: -0.3, vx: 0, size: 18
-        });
-
+        rwbFloatingTexts.push({ x: 200, y: 100, text: "👊 ТИТАН-КУЛАК 👊", color: "#ffdd00", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 18 });
         playWhooshSound(0.5);
         setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
         rwbShake = 25;
-
         let fistX = 120 + Math.random() * 160;
         rwbAttacks.push({
-            type: "titan_fist",
-            x: fistX, y: -120,
-            vy: 3.5,
-            size: 75,
+            type: "titan_fist", x: fistX, y: -120,
+            vy: 3.5, size: 75,
             damage: Math.ceil(35 * BALANCE.superDamageMult),
-            life: 300,
-            state: "falling",
-            hit: false,
-            color: "#8B7355"
+            life: 300, state: "falling", hit: false, color: "#8B7355"
         });
-
-        // ★ Тройной кулак вместо камней ★
-        let dxPlayer = rwbPlayer.x - whitebeard.x;
-        let dyPlayer = rwbPlayer.y - whitebeard.y;
-        let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
-
         for (let i = 0; i < 3; i++) {
-            (function(idx) {
-                setTimeout(function() {
-                    if (!window.rwbActive) return;
-                    let ang = angleToPlayer + (Math.random() - 0.5) * 0.4;
-                    let speed = 5.5;
-                    rwbAttacks.push({
-                        type: "fist",
-                        x: whitebeard.x, y: whitebeard.y + 20,
-                        vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
-                        size: 14, hp: 3, maxHp: 3,
-                        damage: Math.ceil(16 * BALANCE.superDamageMult),
-                        life: 250, color: "#ffffff",
-                        rotation: 0, rotSpeed: 0,
-                        trail: [], hasHaki: true
-                    });
-                }, idx * 150);
-            })(i);
+            let cx = 40 + Math.random() * 320;
+            rwbAttacks.push({
+                type: "rock", x: cx, y: -40 - Math.random() * 30,
+                vx: (Math.random() - 0.5) * 0.6, vy: 3.0 + Math.random() * 1.0,
+                size: 12 + Math.random() * 5,
+                rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.08,
+                hp: 2, maxHp: 2,
+                damage: Math.ceil(14 * BALANCE.superDamageMult),
+                life: 350, color: "#8B7355", hasHaki: false,
+                textureSeed: Math.random() * 1000
+            });
         }
     }
 
     function spawnWhitebeardRush() {
-        rwbFloatingTexts.push({
-            x: 200, y: 100,
-            text: "👊 НАВАЛА 👊",
-            color: "#ffffff",
-            life: 70, maxLife: 70,
-            vy: -0.3, vx: 0, size: 20
-        });
-
+        rwbFloatingTexts.push({ x: 200, y: 100, text: "👊 НАВАЛА 👊", color: "#ffffff", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
         playBossRoarSound(0.4);
         playWhooshSound(0.4);
-
         for (let i = 0; i < 6; i++) {
             (function(idx) {
                 setTimeout(function() {
@@ -1810,54 +1502,36 @@
         }
     }
 
-    // ============================================================
-    // ОГРОМНЫЙ КАМЕНЬ (только Белоус, в супер-фазе)
-    // ============================================================
     function spawnGiantRock() {
         let rx = 80 + Math.random() * 240;
         rwbAttacks.push({
-            type: "giant_rock",
-            x: rx, y: -120,
-            vx: (Math.random() - 0.5) * 0.4,
-            vy: 2.5,
-            size: 60,
-            rotation: Math.random() * Math.PI * 2,
+            type: "giant_rock", x: rx, y: -120,
+            vx: (Math.random() - 0.5) * 0.4, vy: 2.5,
+            size: 60, rotation: Math.random() * Math.PI * 2,
             rotSpeed: (Math.random() - 0.5) * 0.04,
             hp: 8, maxHp: 8,
             damage: Math.ceil(28 * BALANCE.whitebeardDamageMult),
-            life: 500,
-            color: "#8B7355",
-            hasHaki: false,
+            life: 500, color: "#8B7355", hasHaki: false,
             textureSeed: Math.random() * 1000
         });
-
         rwbFloatingTexts.push({
-            x: rx, y: 80,
-            text: "🪨 ОГРОМНЫЙ КАМЕНЬ 🪨",
-            color: "#8B7355",
-            life: 90, maxLife: 90,
+            x: rx, y: 80, text: "🪨 ОГРОМНЫЙ КАМЕНЬ 🪨",
+            color: "#8B7355", life: 90, maxLife: 90,
             vy: -0.2, vx: 0, size: 16
         });
-
         playWhooshSound(0.6);
         setTimeout(function() { playImpactSound(0.7, 0.5); }, 1200);
     }
 
-    // ============================================================
-    // СУПЕР БОССА
-    // ============================================================
     function triggerSuper(winner, loser) {
         console.log("[ROGER-WB] СУПЕР босса:", winner.name);
-
         var superHp = RWB_SUPER_WB_HP;
         if (winner.id === "roger") superHp = RWB_SUPER_ROGER_HP;
-
         console.log("[ROGER-WB] " + winner.name + " получает " + superHp + " HP в супер-фазе");
 
         rwbState = "transition";
         rwbTransitionTimer = 0;
         winner.superForm = true;
-
         winner.maxHp = superHp;
         winner.hp = superHp;
         winner.size *= 1.3;
@@ -1892,258 +1566,145 @@
                 size: 3 + Math.random() * 4
             });
         }
-
         for (let i = 0; i < 15; i++) {
             spawnHakiLightning(200 + (Math.random() - 0.5) * 150, 250 + (Math.random() - 0.5) * 150, 1, Math.random() > 0.6);
         }
     }
 
-    // ============================================================
-    // ОБНОВЛЕНИЕ АТАК
-    // ============================================================
     function updateRWBAttacks() {
         for (let i = rwbAttacks.length - 1; i >= 0; i--) {
             let a = rwbAttacks[i];
 
             if (a.type === "giant_rock") {
-                a.x += a.vx;
-                a.y += a.vy;
-                a.rotation += a.rotSpeed;
-                a.life--;
-
+                a.x += a.vx; a.y += a.vy; a.rotation += a.rotSpeed; a.life--;
                 if (Math.random() < 0.4) {
                     for (let k = 0; k < 2; k++) {
-                        rwbParticles.push({
-                            x: a.x + (Math.random() - 0.5) * a.size,
-                            y: a.y - a.size * 0.5,
-                            vx: (Math.random() - 0.5) * 2,
-                            vy: -1 - Math.random() * 2,
-                            life: 20, maxLife: 20,
-                            color: Math.random() > 0.5 ? "#8B7355" : "#5a4030",
-                            size: 2 + Math.random() * 3
-                        });
+                        rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.size, y: a.y - a.size * 0.5, vx: (Math.random() - 0.5) * 2, vy: -1 - Math.random() * 2, life: 20, maxLife: 20, color: Math.random() > 0.5 ? "#8B7355" : "#5a4030", size: 2 + Math.random() * 3 });
                     }
                 }
-
                 if (rwbPlayer.invulnTimer <= 0) {
-                    let dx = rwbPlayer.x - a.x;
-                    let dy = rwbPlayer.y - a.y;
+                    let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
                     let hb = a.size * 0.7 * BALANCE.playerHitboxMult + 4;
                     if (Math.sqrt(dx * dx + dy * dy) < hb) {
-                        hitPlayer(a.damage);
-                        spawnRockSmash(a.x, a.y, a.size);
-                        rwbAttacks.splice(i, 1);
-                        continue;
+                        hitPlayer(a.damage); spawnRockSmash(a.x, a.y, a.size); rwbAttacks.splice(i, 1); continue;
                     }
                 }
-
                 if (a.y > 480 || a.life <= 0) {
-                    spawnRockSmash(a.x, 480, a.size);
-                    playImpactSound(0.8, 0.4);
-                    rwbShake = 30;
-                    rwbAttacks.splice(i, 1);
-                    continue;
+                    spawnRockSmash(a.x, 480, a.size); playImpactSound(0.8, 0.4); rwbShake = 30; rwbAttacks.splice(i, 1); continue;
                 }
                 continue;
             }
 
             if (a.type === "tsunami") {
-                a.waveTime += 0.06;
-                a.x += a.vx;
-                a.life--;
-
+                a.waveTime += 0.06; a.x += a.vx; a.life--;
                 a.currentHeight = a.height * (1 + Math.sin(a.waveTime) * 0.08);
                 a.currentWidth = a.width * (1 + Math.cos(a.waveTime * 1.3) * 0.05);
-
                 if (Math.random() < 0.2) {
-                    rwbParticles.push({
-                        x: a.x + (Math.random() - 0.5) * a.currentWidth,
-                        y: a.y + (Math.random() - 0.5) * a.currentHeight,
-                        vx: a.fromLeft ? -1 : 1,
-                        vy: (Math.random() - 0.5) * 2,
-                        life: 20, maxLife: 20,
-                        color: Math.random() > 0.5 ? "#ffffff" : "#88ddff",
-                        size: 1.5
-                    });
+                    rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.currentWidth, y: a.y + (Math.random() - 0.5) * a.currentHeight, vx: a.fromLeft ? -1 : 1, vy: (Math.random() - 0.5) * 2, life: 20, maxLife: 20, color: Math.random() > 0.5 ? "#ffffff" : "#88ddff", size: 1.5 });
                 }
-
                 if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                    let dx = Math.abs(rwbPlayer.x - a.x);
-                    let dy = Math.abs(rwbPlayer.y - a.y);
-                    let hbX = a.currentWidth / 2 * 0.6;
-                    let hbY = a.currentHeight / 2 * 0.7;
-                    if (dx < hbX + 4 && dy < hbY + 4) {
-                        a.hit = true;
-                        hitPlayer(a.damage);
-                    }
+                    let dx = Math.abs(rwbPlayer.x - a.x), dy = Math.abs(rwbPlayer.y - a.y);
+                    let hbX = a.currentWidth / 2 * 0.6, hbY = a.currentHeight / 2 * 0.7;
+                    if (dx < hbX + 4 && dy < hbY + 4) { a.hit = true; hitPlayer(a.damage); }
                 }
-
-                if (a.x < -150 || a.x > 550 || a.life <= 0) {
-                    rwbAttacks.splice(i, 1);
-                }
+                if (a.x < -150 || a.x > 550 || a.life <= 0) rwbAttacks.splice(i, 1);
                 continue;
             }
 
-            // ★★★ УБРАН БЛОК type === "rock" ПОЛНОСТЬЮ ★★★
-
-            if (a.type === "haki_wave") {
-                a.x += a.vx;
-                a.life--;
-
-                if (Math.random() < 0.3) {
-                    rwbParticles.push({
-                        x: a.x, y: a.y + (Math.random() - 0.5) * a.size,
-                        vx: a.vx * 0.3, vy: (Math.random() - 0.5) * 2,
-                        life: 15, maxLife: 15,
-                        color: "#ff8800", size: 2
-                    });
+            if (a.type === "rock") {
+                a.x += a.vx; a.y += a.vy; a.rotation += a.rotSpeed; a.life--;
+                if (Math.random() < 0.15) {
+                    rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.size, y: a.y - a.size * 0.5, vx: (Math.random() - 0.5) * 1, vy: -0.5 - Math.random() * 1, life: 12, maxLife: 12, color: "#5a4030", size: 1.5 });
                 }
-
-                if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                    let dx = Math.abs(rwbPlayer.x - a.x);
-                    let dy = Math.abs(rwbPlayer.y - a.y);
-                    if (dx < a.size * 0.6 + 4 && dy < a.size * 0.6 + 4) {
-                        a.hit = true;
-                        hitPlayer(a.damage);
+                if (rwbPlayer.invulnTimer <= 0) {
+                    let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
+                    let hb = a.size * 0.75 * BALANCE.playerHitboxMult + 4;
+                    if (Math.sqrt(dx * dx + dy * dy) < hb) {
+                        hitPlayer(a.damage); spawnRockSmash(a.x, a.y, a.size); rwbAttacks.splice(i, 1); continue;
                     }
                 }
+                if (a.y > 500 || a.life <= 0) { spawnRockSmash(a.x, 480, a.size); rwbAttacks.splice(i, 1); continue; }
+                continue;
+            }
 
-                if (a.x < -60 || a.x > 460 || a.life <= 0) {
-                    rwbAttacks.splice(i, 1);
+            if (a.type === "haki_wave") {
+                a.x += a.vx; a.life--;
+                if (Math.random() < 0.3) {
+                    rwbParticles.push({ x: a.x, y: a.y + (Math.random() - 0.5) * a.size, vx: a.vx * 0.3, vy: (Math.random() - 0.5) * 2, life: 15, maxLife: 15, color: "#ff8800", size: 2 });
                 }
+                if (!a.hit && rwbPlayer.invulnTimer <= 0) {
+                    let dx = Math.abs(rwbPlayer.x - a.x), dy = Math.abs(rwbPlayer.y - a.y);
+                    if (dx < a.size * 0.6 + 4 && dy < a.size * 0.6 + 4) { a.hit = true; hitPlayer(a.damage); }
+                }
+                if (a.x < -60 || a.x > 460 || a.life <= 0) rwbAttacks.splice(i, 1);
                 continue;
             }
 
             if (a.type === "roger_slash") {
                 if (a.state === "warning") {
                     a.warningTimer--;
-                    if (a.warningTimer <= 0) {
-                        a.state = "active";
-                        a.activeTimer = a.maxActive;
-                        rwbShake = 20;
-                        playBladeSound(0.5);
-                        playImpactSound(0.4, 1.0);
-                    }
+                    if (a.warningTimer <= 0) { a.state = "active"; a.activeTimer = a.maxActive; rwbShake = 20; playBladeSound(0.5); playImpactSound(0.4, 1.0); }
                 } else if (a.state === "active") {
                     a.activeTimer--;
                     if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                        if (Math.abs(rwbPlayer.x - a.x) < a.width / 2 * 0.7 + 4) {
-                            a.hit = true;
-                            hitPlayer(a.damage);
-                        }
+                        if (Math.abs(rwbPlayer.x - a.x) < a.width / 2 * 0.7 + 4) { a.hit = true; hitPlayer(a.damage); }
                     }
                     if (a.activeTimer <= 0) a.state = "done";
-                } else {
-                    rwbAttacks.splice(i, 1);
-                    continue;
-                }
+                } else { rwbAttacks.splice(i, 1); continue; }
                 continue;
             }
 
             if (a.type === "roger_cross") {
                 if (a.state === "warning") {
                     a.warningTimer--;
-                    if (a.warningTimer <= 0) {
-                        a.state = "active";
-                        a.activeTimer = a.maxActive;
-                        rwbShake = 18;
-                        playBladeSound(0.4);
-                    }
+                    if (a.warningTimer <= 0) { a.state = "active"; a.activeTimer = a.maxActive; rwbShake = 18; playBladeSound(0.4); }
                 } else if (a.state === "active") {
                     a.activeTimer--;
                     if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                        let dx = rwbPlayer.x - a.x;
-                        let dy = rwbPlayer.y - a.y;
+                        let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
                         let hit = false;
                         let hb = a.width / 2 * 0.7 + 4;
                         if (a.dir === "vertical") hit = Math.abs(dx) < hb;
                         else if (a.dir === "horizontal") hit = Math.abs(dy) < hb;
-
-                        if (hit) {
-                            a.hit = true;
-                            hitPlayer(a.damage);
-                        }
+                        if (hit) { a.hit = true; hitPlayer(a.damage); }
                     }
                     if (a.activeTimer <= 0) a.state = "done";
-                } else {
-                    rwbAttacks.splice(i, 1);
-                    continue;
-                }
+                } else { rwbAttacks.splice(i, 1); continue; }
                 continue;
             }
 
             if (a.type === "hell_fire") {
                 if (a.state === "flying") {
                     a.flyTimer++;
-                    let dx = a.targetX - a.x;
-                    let dy = a.targetY - a.y;
+                    let dx = a.targetX - a.x, dy = a.targetY - a.y;
                     let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-
                     if (dist < a.speed) {
-                        a.state = "exploding";
-                        a.explosionTimer = 50;
-                        a.x = a.targetX;
-                        a.y = a.targetY;
-                        rwbShake = 25;
-                        playExplosionSound(0.6);
-
+                        a.state = "exploding"; a.explosionTimer = 50;
+                        a.x = a.targetX; a.y = a.targetY;
+                        rwbShake = 25; playExplosionSound(0.6);
                         for (let j = 0; j < 10; j++) {
                             let ang = (j / 10) * Math.PI * 2;
-                            rwbAttacks.push({
-                                type: "fire_piece",
-                                x: a.x, y: a.y,
-                                vx: Math.cos(ang) * 2.5,
-                                vy: Math.sin(ang) * 2.5,
-                                size: 7,
-                                damage: Math.ceil(16 * BALANCE.superDamageMult),
-                                life: 120,
-                                color: "#ff4400"
-                            });
+                            rwbAttacks.push({ type: "fire_piece", x: a.x, y: a.y, vx: Math.cos(ang) * 2.5, vy: Math.sin(ang) * 2.5, size: 7, damage: Math.ceil(16 * BALANCE.superDamageMult), life: 120, color: "#ff4400" });
                         }
-                    } else {
-                        a.x += (dx / dist) * a.speed;
-                        a.y += (dy / dist) * a.speed;
-                    }
-
+                    } else { a.x += (dx / dist) * a.speed; a.y += (dy / dist) * a.speed; }
                     if (Math.random() < 0.3) {
-                        rwbParticles.push({
-                            x: a.x + (Math.random() - 0.5) * a.size,
-                            y: a.y + (Math.random() - 0.5) * a.size,
-                            vx: 0, vy: -1,
-                            life: 20, maxLife: 20,
-                            color: Math.random() > 0.5 ? "#ff4400" : "#ffcc00",
-                            size: 2
-                        });
+                        rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.size, y: a.y + (Math.random() - 0.5) * a.size, vx: 0, vy: -1, life: 20, maxLife: 20, color: Math.random() > 0.5 ? "#ff4400" : "#ffcc00", size: 2 });
                     }
                 } else if (a.state === "exploding") {
                     a.explosionTimer--;
                     if (a.explosionTimer <= 0) a.state = "done";
-                } else {
-                    rwbAttacks.splice(i, 1);
-                    continue;
-                }
+                } else { rwbAttacks.splice(i, 1); continue; }
                 continue;
             }
 
             if (a.type === "fire_piece") {
-                a.x += a.vx;
-                a.y += a.vy;
-                a.life--;
-
+                a.x += a.vx; a.y += a.vy; a.life--;
                 if (rwbPlayer.invulnTimer <= 0) {
-                    let dx = rwbPlayer.x - a.x;
-                    let dy = rwbPlayer.y - a.y;
+                    let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
                     let hb = a.size * 0.7 * BALANCE.playerHitboxMult + 3;
-                    if (Math.sqrt(dx*dx + dy*dy) < hb) {
-                        hitPlayer(a.damage);
-                        rwbAttacks.splice(i, 1);
-                        continue;
-                    }
+                    if (Math.sqrt(dx*dx + dy*dy) < hb) { hitPlayer(a.damage); rwbAttacks.splice(i, 1); continue; }
                 }
-
-                if (a.life <= 0 || a.x < -20 || a.x > 420 || a.y < -20 || a.y > 520) {
-                    rwbAttacks.splice(i, 1);
-                }
+                if (a.life <= 0 || a.x < -20 || a.x > 420 || a.y < -20 || a.y > 520) rwbAttacks.splice(i, 1);
                 continue;
             }
 
@@ -2151,109 +1712,61 @@
                 if (a.state === "warning") {
                     a.warningTimer--;
                     if (a.warningTimer <= 0) {
-                        a.state = "active";
-                        a.activeTimer = a.maxActive;
-                        rwbShake = 18;
-                        playExplosionSound(0.5);
-
+                        a.state = "active"; a.activeTimer = a.maxActive;
+                        rwbShake = 18; playExplosionSound(0.5);
                         for (let j = 0; j < 12; j++) {
                             let ang = (j / 12) * Math.PI * 2;
-                            rwbParticles.push({
-                                x: a.x, y: a.y,
-                                vx: Math.cos(ang) * 5,
-                                vy: Math.sin(ang) * 5,
-                                life: 22, maxLife: 22,
-                                color: "#ffffff", size: 2
-                            });
+                            rwbParticles.push({ x: a.x, y: a.y, vx: Math.cos(ang) * 5, vy: Math.sin(ang) * 5, life: 22, maxLife: 22, color: "#ffffff", size: 2 });
                         }
                     }
                 } else if (a.state === "active") {
                     a.activeTimer--;
                     a.radius = a.maxRadius * (1 - a.activeTimer / a.maxActive);
-
                     if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                        let dx = rwbPlayer.x - a.x;
-                        let dy = rwbPlayer.y - a.y;
-                        if (Math.sqrt(dx*dx + dy*dy) < a.radius * 0.85 + 4) {
-                            a.hit = true;
-                            hitPlayer(a.damage);
-                        }
+                        let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
+                        if (Math.sqrt(dx*dx + dy*dy) < a.radius * 0.85 + 4) { a.hit = true; hitPlayer(a.damage); }
                     }
-
                     if (a.activeTimer <= 0) a.state = "done";
-                } else {
-                    rwbAttacks.splice(i, 1);
-                    continue;
-                }
+                } else { rwbAttacks.splice(i, 1); continue; }
                 continue;
             }
 
             if (a.type === "titan_fist") {
                 if (a.state === "falling") {
-                    a.y += a.vy;
-                    a.life--;
-
+                    a.y += a.vy; a.life--;
                     if (Math.random() < 0.3) {
-                        rwbParticles.push({
-                            x: a.x + (Math.random() - 0.5) * a.size,
-                            y: a.y + a.size * 0.5,
-                            vx: (Math.random() - 0.5) * 2,
-                            vy: -1,
-                            life: 20, maxLife: 20,
-                            color: Math.random() > 0.5 ? "#ff6600" : "#ffaa00",
-                            size: 2
-                        });
+                        rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.size, y: a.y + a.size * 0.5, vx: (Math.random() - 0.5) * 2, vy: -1, life: 20, maxLife: 20, color: Math.random() > 0.5 ? "#ff6600" : "#ffaa00", size: 2 });
                     }
-
                     if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                        let dx = rwbPlayer.x - a.x;
-                        let dy = rwbPlayer.y - a.y;
+                        let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
                         let hb = a.size * 0.7 * BALANCE.playerHitboxMult + 4;
-                        if (Math.sqrt(dx*dx + dy*dy) < hb) {
-                            a.hit = true;
-                            hitPlayer(a.damage);
-                        }
+                        if (Math.sqrt(dx*dx + dy*dy) < hb) { a.hit = true; hitPlayer(a.damage); }
                     }
-
                     if (a.y > 380) {
-                        a.state = "impact";
-                        a.impactTimer = 30;
-                        rwbShake = 40;
-                        playImpactSound(0.9, 0.4);
-                        playExplosionSound(0.5);
-
-                        // ★ Кулаки вместо камней ★
-                        let dxPlayer = rwbPlayer.x - a.x;
-                        let dyPlayer = rwbPlayer.y - a.y;
-                        let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
-
-                        for (let j = 0; j < 8; j++) {
-                            let ang = angleToPlayer + (j - 4) * 0.2;
+                        a.state = "impact"; a.impactTimer = 30;
+                        rwbShake = 40; playImpactSound(0.9, 0.4); playExplosionSound(0.5);
+                        for (let j = 0; j < 12; j++) {
+                            let ang = (j / 12) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
                             rwbAttacks.push({
-                                type: "fist",
-                                x: a.x, y: a.y,
-                                vx: Math.cos(ang) * 4,
-                                vy: Math.sin(ang) * 4,
-                                size: 10,
-                                hp: 2, maxHp: 2,
-                                damage: Math.ceil(12 * BALANCE.superDamageMult),
-                                life: 200, color: "#ffffff",
-                                rotation: 0, rotSpeed: 0,
-                                trail: [], hasHaki: true
+                                type: "rock", x: a.x, y: a.y,
+                                vx: Math.cos(ang) * 3, vy: Math.sin(ang) * 3 - 1.5,
+                                size: 10 + Math.random() * 6,
+                                rotation: Math.random() * Math.PI * 2,
+                                rotSpeed: (Math.random() - 0.5) * 0.15,
+                                hp: 1, maxHp: 1,
+                                damage: Math.ceil(14 * BALANCE.superDamageMult),
+                                life: 200, color: "#8B7355", hasHaki: false,
+                                textureSeed: Math.random() * 1000
                             });
                         }
                     }
                 } else if (a.state === "impact") {
                     a.impactTimer--;
                     if (a.impactTimer <= 0) a.state = "done";
-                } else {
-                    rwbAttacks.splice(i, 1);
-                    continue;
-                }
+                } else { rwbAttacks.splice(i, 1); continue; }
                 continue;
             }
 
-            // ОБЫЧНЫЕ АТАКИ (blade, big_blade, fist)
             a.x += a.vx; a.y += a.vy;
             a.rotation += a.rotSpeed || 0;
             a.life--;
@@ -2263,9 +1776,7 @@
                 if (a.trail.length > 4) a.trail.shift();
             }
 
-            if (a.hasHaki && Math.random() < 0.04) {
-                spawnHakiLightning(a.x, a.y, 1, false);
-            }
+            if (a.hasHaki && Math.random() < 0.04) spawnHakiLightning(a.x, a.y, 1, false);
 
             if (rwbPlayer.invulnTimer <= 0 && (rwbState === "fight1" || rwbState === "fight2")) {
                 let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
@@ -2277,23 +1788,17 @@
                 }
             }
 
-            if (a.life <= 0 || a.y > 520 || a.x < -60 || a.x > 460 || a.y < -150) {
-                rwbAttacks.splice(i, 1);
-            }
+            if (a.life <= 0 || a.y > 520 || a.x < -60 || a.x > 460 || a.y < -150) rwbAttacks.splice(i, 1);
         }
 
         for (let i = rwbShockwaves.length - 1; i >= 0; i--) {
             let sw = rwbShockwaves[i];
             sw.radius += sw.speed;
             sw.life--;
-
             if (sw.canDestroy && !sw.hit && rwbPlayer.invulnTimer <= 0 && (rwbState === "fight1" || rwbState === "fight2")) {
                 let dx = rwbPlayer.x - sw.x, dy = rwbPlayer.y - sw.y;
                 let dist = Math.sqrt(dx * dx + dy * dy);
-                if (Math.abs(dist - sw.radius) < sw.width * 0.7 + 4) {
-                    sw.hit = true;
-                    hitPlayer(sw.damage);
-                }
+                if (Math.abs(dist - sw.radius) < sw.width * 0.7 + 4) { sw.hit = true; hitPlayer(sw.damage); }
             }
             if (sw.life <= 0 || sw.radius > sw.maxRadius) rwbShockwaves.splice(i, 1);
         }
@@ -2305,20 +1810,10 @@
         for (let i = 0; i < 10; i++) {
             let ang = Math.random() * Math.PI * 2;
             let spd = 2 + Math.random() * 4;
-            rwbParticles.push({
-                x: x, y: y,
-                vx: Math.cos(ang) * spd,
-                vy: Math.sin(ang) * spd - 1.5,
-                life: 22, maxLife: 22,
-                color: Math.random() > 0.5 ? "#8B7355" : "#5a4030",
-                size: 2 + Math.random() * 2
-            });
+            rwbParticles.push({ x: x, y: y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 1.5, life: 22, maxLife: 22, color: Math.random() > 0.5 ? "#8B7355" : "#5a4030", size: 2 + Math.random() * 2 });
         }
     }
 
-    // ============================================================
-    // ПУЛИ
-    // ============================================================
     function updateRWBPlayerBullets() {
         for (let i = rwbPlayerBullets.length - 1; i >= 0; i--) {
             let b = rwbPlayerBullets[i];
@@ -2331,12 +1826,10 @@
                     if (a.type === "tsunami" || a.type === "titan_fist" ||
                         a.type === "roger_slash" || a.type === "roger_cross" || a.type === "gura_crack" ||
                         a.type === "hell_fire" || a.type === "haki_wave") continue;
-
                     let dx = b.x - a.x, dy = b.y - a.y;
                     let aSize = a.size || 20;
                     if (Math.sqrt(dx * dx + dy * dy) < aSize * 0.7 + b.size + 4) {
-                        if (a.hp !== undefined) a.hp -= 1;
-                        else a.hp = 1;
+                        if (a.hp !== undefined) a.hp -= 1; else a.hp = 1;
                         spawnHitParticles(b.x, b.y, "#00aaff", 3);
                         playWhooshSound(0.08);
                         if (a.hp <= 0) {
@@ -2344,8 +1837,7 @@
                             playImpactSound(0.2, 1.3);
                             rwbAttacks.splice(j, 1);
                         }
-                        destroyed = true;
-                        break;
+                        destroyed = true; break;
                     }
                 }
                 if (!destroyed) {
@@ -2357,12 +1849,8 @@
                         if (Math.abs(dist - sw.radius) < sw.width * 0.7 + b.size) {
                             sw.hp -= 1;
                             spawnHitParticles(b.x, b.y, "#00aaff", 3);
-                            if (sw.hp <= 0) {
-                                spawnDestroyParticles(b.x, b.y, sw.color);
-                                rwbShockwaves.splice(j, 1);
-                            }
-                            destroyed = true;
-                            break;
+                            if (sw.hp <= 0) { spawnDestroyParticles(b.x, b.y, sw.color); rwbShockwaves.splice(j, 1); }
+                            destroyed = true; break;
                         }
                     }
                 }
@@ -2388,7 +1876,6 @@
                             }
                             dmg = result.dmg;
                         }
-
                         boss.hp = Math.max(0, boss.hp - dmg);
                         boss.hitFlash = 4;
                         spawnHitParticles(b.x, b.y, b.color, 4);
@@ -2400,44 +1887,30 @@
             }
 
             if (destroyed) { rwbPlayerBullets.splice(i, 1); continue; }
-            if (b.life <= 0 || b.y < -20 || b.x < -20 || b.x > 420) {
-                rwbPlayerBullets.splice(i, 1);
-            }
+            if (b.life <= 0 || b.y < -20 || b.x < -20 || b.x > 420) rwbPlayerBullets.splice(i, 1);
         }
     }
 
-    // ХЕЛПЕРЫ
     function hitPlayer(dmg) {
         if (rwbPlayer.invulnTimer > 0) return;
-
         if (typeof window.applyArmorToBossDamage === 'function') {
             let result = window.applyArmorToBossDamage(dmg);
             if (result.blocked) return;
             dmg = result.dmg;
         }
-
         rwbPlayer.hp -= dmg;
         rwbPlayer.invulnTimer = 50;
         rwbShake = 12;
         rwbScreenFlash = 8;
         rwbScreenFlashColor = "#ff0000";
-
         playImpactSound(0.5, 0.6);
         playWhooshSound(0.2);
-
         let hpEl = document.getElementById("arenaHP");
         if (hpEl) hpEl.innerText = Math.max(0, rwbPlayer.hp);
-
         for (let p = 0; p < 12; p++) {
             let ang = Math.random() * Math.PI * 2;
-            rwbParticles.push({
-                x: rwbPlayer.x, y: rwbPlayer.y,
-                vx: Math.cos(ang) * 5, vy: Math.sin(ang) * 5,
-                life: 20, maxLife: 20,
-                color: "#ff3333", size: 2 + Math.random() * 2
-            });
+            rwbParticles.push({ x: rwbPlayer.x, y: rwbPlayer.y, vx: Math.cos(ang) * 5, vy: Math.sin(ang) * 5, life: 20, maxLife: 20, color: "#ff3333", size: 2 + Math.random() * 2 });
         }
-
         if (rwbPlayer.hp <= 0) rwbDefeat();
     }
 
@@ -2445,12 +1918,7 @@
         if (!count) count = 6;
         for (let i = 0; i < count; i++) {
             let ang = Math.random() * Math.PI * 2;
-            rwbParticles.push({
-                x: x, y: y,
-                vx: Math.cos(ang) * 3, vy: Math.sin(ang) * 3,
-                life: 15, maxLife: 15,
-                color: color, size: 2
-            });
+            rwbParticles.push({ x: x, y: y, vx: Math.cos(ang) * 3, vy: Math.sin(ang) * 3, life: 15, maxLife: 15, color: color, size: 2 });
         }
     }
 
@@ -2458,18 +1926,10 @@
         for (let i = 0; i < 12; i++) {
             let ang = Math.random() * Math.PI * 2;
             let spd = 2 + Math.random() * 5;
-            rwbParticles.push({
-                x: x, y: y,
-                vx: Math.cos(ang) * spd,
-                vy: Math.sin(ang) * spd - 1,
-                life: 22, maxLife: 22,
-                color: i % 2 === 0 ? "#ff2222" : color,
-                size: 2
-            });
+            rwbParticles.push({ x: x, y: y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 1, life: 22, maxLife: 22, color: i % 2 === 0 ? "#ff2222" : color, size: 2 });
         }
     }
 
-    // ПОБЕДА / ПОРАЖЕНИЕ
     function rwbVictory() {
         if (rwbState === "victory") return;
         rwbState = "victory";
@@ -2481,7 +1941,6 @@
         }
         if (typeof saveAll === 'function') saveAll();
         if (typeof showFloatingText === 'function') showFloatingText("👑 ЛЕГЕНДЫ ПОБЕЖДЕНЫ!", "#ffd700");
-
         playImpactSound(0.5, 0.7);
         setTimeout(function() { playImpactSound(0.6, 0.9); }, 200);
         setTimeout(function() { playImpactSound(0.7, 1.2); }, 400);
@@ -2518,7 +1977,6 @@
         if (typeof startBattleMusic === 'function') startBattleMusic();
     }
 
-    // РЕНДЕР-ЛУП
     function rwbRenderLoop() {
         if (!window.rwbActive || !ctx || !canvas) return;
         rwbTimer++;
@@ -2562,36 +2020,32 @@
                 return;
             }
 
-            rwbTitanFistTimer++;
-            if (rwbTitanFistTimer >= RWB_TITAN_INTERVAL) {
-                rwbTitanFistTimer = 0;
-                let fistX = 120 + Math.random() * 160;
-                rwbAttacks.push({
-                    type: "titan_fist",
-                    x: fistX, y: -120,
-                    vy: 3.5,
-                    size: 75,
-                    damage: Math.ceil(35 * BALANCE.superDamageMult),
-                    life: 300,
-                    state: "falling",
-                    hit: false,
-                    color: "#8B7355"
-                });
-                rwbFloatingTexts.push({
-                    x: 200, y: 100,
-                    text: "👊 ТИТАН-КУЛАК 👊",
-                    color: "#ffdd00",
-                    life: 60, maxLife: 60,
-                    vy: -0.3, vx: 0, size: 18
-                });
-                playWhooshSound(0.5);
-                setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
-            }
+            // ★★★ ФИКС: Титан-Кулак и Огромный камень — ТОЛЬКО для Белоуса ★★★
+            if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") {
+                rwbTitanFistTimer++;
+                if (rwbTitanFistTimer >= RWB_TITAN_INTERVAL) {
+                    rwbTitanFistTimer = 0;
+                    let fistX = 120 + Math.random() * 160;
+                    rwbAttacks.push({
+                        type: "titan_fist", x: fistX, y: -120,
+                        vy: 3.5, size: 75,
+                        damage: Math.ceil(35 * BALANCE.superDamageMult),
+                        life: 300, state: "falling", hit: false, color: "#8B7355"
+                    });
+                    rwbFloatingTexts.push({
+                        x: 200, y: 100, text: "👊 ТИТАН-КУЛАК 👊",
+                        color: "#ffdd00", life: 60, maxLife: 60,
+                        vy: -0.3, vx: 0, size: 18
+                    });
+                    playWhooshSound(0.5);
+                    setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
+                }
 
-            rwbTitanRockTimer++;
-            if (rwbTitanRockTimer >= RWB_ROCK_INTERVAL) {
-                rwbTitanRockTimer = 0;
-                spawnGiantRock();
+                rwbTitanRockTimer++;
+                if (rwbTitanRockTimer >= RWB_ROCK_INTERVAL) {
+                    rwbTitanRockTimer = 0;
+                    spawnGiantRock();
+                }
             }
 
             let remaining = Math.max(0, Math.ceil((rwbSurvivalTarget2 - rwbSurvivalTimer2) / 60));
@@ -2615,15 +2069,12 @@
 
         for (let i = rwbParticles.length - 1; i >= 0; i--) {
             let p = rwbParticles[i];
-            p.x += p.vx; p.y += p.vy;
-            p.vx *= 0.94; p.vy *= 0.94;
-            p.life--;
+            p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life--;
             if (p.life <= 0) rwbParticles.splice(i, 1);
         }
         for (let i = rwbSpeedLines.length - 1; i >= 0; i--) {
             let s = rwbSpeedLines[i];
-            s.x += s.vx; s.y += s.vy;
-            s.life--;
+            s.x += s.vx; s.y += s.vy; s.life--;
             if (s.life <= 0) rwbSpeedLines.splice(i, 1);
         }
         for (let i = rwbHakiLightnings.length - 1; i >= 0; i--) {
@@ -2633,8 +2084,7 @@
         }
         for (let i = rwbFloatingTexts.length - 1; i >= 0; i--) {
             let t = rwbFloatingTexts[i];
-            t.life--;
-            t.y += t.vy;
+            t.life--; t.y += t.vy;
             if (t.life <= 0) rwbFloatingTexts.splice(i, 1);
         }
 
@@ -2654,7 +2104,6 @@
             ctx.fillRect(0, 0, 400, 500);
             ctx.restore();
         }
-
         if (rwbScreenFlash > 0) {
             ctx.globalAlpha = rwbScreenFlash / 30;
             ctx.fillStyle = rwbScreenFlashColor;
@@ -2900,9 +2349,6 @@
         ctx.restore();
     }
 
-    // ============================================================
-    // МОДЕЛЬКИ
-    // ============================================================
     function drawHeartShape(cx, cy, size, color, glowColor) {
         ctx.save();
         ctx.translate(cx, cy);
@@ -2931,12 +2377,10 @@
         ctx.save();
         ctx.translate(roger.x, roger.y);
         ctx.rotate(Math.sin(roger.rotation) * 0.1);
-
         drawHeartShape(0, 0, size, flash ? "#ffffff" : "#ff8800", "#ff8800");
 
         ctx.save();
         ctx.translate(0, -size * 1.15);
-
         ctx.fillStyle = "#1a1a2e";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 2;
@@ -2947,13 +2391,11 @@
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
-
         ctx.fillStyle = "#0f0f1a";
         ctx.beginPath();
         ctx.ellipse(0, size * 0.2, size * 1.6, size * 0.22, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-
         ctx.fillStyle = "#ffdd00";
         ctx.fillRect(-size * 0.9, size * 0.02, size * 1.8, size * 0.18);
         ctx.fillStyle = "#cc9900";
@@ -2964,7 +2406,6 @@
             ctx.arc(px, py, size * 0.05, 0, Math.PI * 2);
             ctx.fill();
         }
-
         ctx.fillStyle = "#ffffff";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 1;
@@ -2985,7 +2426,6 @@
         ctx.moveTo(size * 0.25, size * 0.25);
         ctx.lineTo(-size * 0.25, -size * 0.1);
         ctx.stroke();
-
         ctx.restore();
         ctx.restore();
     }
@@ -2998,12 +2438,9 @@
         ctx.save();
         ctx.translate(whitebeard.x, whitebeard.y);
         ctx.rotate(Math.sin(whitebeard.rotation) * 0.1);
-
         drawHeartShape(0, 0, size, flash ? "#ffffaa" : "#ffffff", "#ffffff");
-
         ctx.save();
         ctx.translate(0, -size * 1.15);
-
         ctx.fillStyle = "#1a3a6a";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 2;
@@ -3015,19 +2452,15 @@
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
-
         ctx.fillStyle = "#ffdd00";
         ctx.fillRect(-size * 0.9, size * 0.0, size * 1.8, size * 0.15);
-
         ctx.fillStyle = "#0a2a4a";
         ctx.beginPath();
         ctx.ellipse(0, size * 0.2, size * 1.6, size * 0.22, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-
         ctx.fillStyle = "#1a1a1a";
         ctx.fillRect(-size * 1.0, -size * 0.1, size * 2.0, size * 0.12);
-
         ctx.fillStyle = "#ffffff";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 1;
@@ -3048,9 +2481,7 @@
         ctx.moveTo(size * 0.22, size * 0.22);
         ctx.lineTo(-size * 0.22, -size * 0.08);
         ctx.stroke();
-
         ctx.restore();
-
         ctx.save();
         ctx.fillStyle = "#ffdd00";
         ctx.strokeStyle = "#000000";
@@ -3070,7 +2501,6 @@
         ctx.fill();
         ctx.stroke();
         ctx.restore();
-
         ctx.restore();
     }
 
@@ -3080,11 +2510,10 @@
         drawHeartShape(rwbPlayer.x, rwbPlayer.y, rwbPlayer.size, color, color);
     }
 
-    // РЕНДЕР АТАК
     function drawAttack(a) {
         if (a.type === "giant_rock") { drawGiantRock(a); return; }
         if (a.type === "tsunami") { drawTsunami(a); return; }
-        // ★ БОЛЬШЕ НЕТ drawRock — камни полностью убраны ★
+        if (a.type === "rock") { drawRock(a); return; }
 
         if (a.type === "roger_slash") {
             ctx.save();
@@ -3125,10 +2554,8 @@
             let angle = 0;
             if (a.dir === "vertical") angle = 0;
             else if (a.dir === "horizontal") angle = Math.PI / 2;
-
             ctx.translate(a.x, a.y);
             ctx.rotate(angle);
-
             if (a.state === "warning") {
                 let pulseAlpha = 0.4 + Math.sin(performance.now() / 100) * 0.2;
                 ctx.globalAlpha = pulseAlpha;
@@ -3245,7 +2672,6 @@
         if (a.type === "titan_fist") {
             ctx.save();
             ctx.translate(a.x, a.y);
-
             if (a.state === "falling") {
                 ctx.save();
                 ctx.globalAlpha = 0.4;
@@ -3254,7 +2680,6 @@
                 ctx.ellipse(0, 400 - a.y, a.size * 1.1, 18, 0, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
-
                 ctx.fillStyle = "#8B7355";
                 ctx.beginPath();
                 ctx.arc(0, 0, a.size, 0, Math.PI * 2);
@@ -3309,7 +2734,6 @@
         ctx.save();
         ctx.translate(a.x, a.y);
         ctx.rotate(a.rotation || 0);
-
         if (a.type === "blade" || a.type === "big_blade") {
             ctx.fillStyle = "#000000";
             ctx.beginPath();
@@ -3349,20 +2773,59 @@
             ctx.arc(0, 0, a.size * 0.6, 0, Math.PI * 2);
             ctx.fill();
         }
-
         ctx.restore();
     }
 
-    // ★ drawRock УДАЛЁН — камни больше не отрисовываются ★
+    function drawRock(a) {
+        ctx.save();
+        ctx.translate(a.x, a.y);
+        ctx.rotate(a.rotation || 0);
+        let s = a.size;
+        let seed = a.textureSeed || 0;
+        let points = [];
+        let sides = 6;
+        for (let i = 0; i < sides; i++) {
+            let ang = (i / sides) * Math.PI * 2 - Math.PI / 2;
+            let noise = Math.sin(seed + i * 1.7) * 0.15;
+            let r = s * (1 + noise);
+            points.push({ x: Math.cos(ang) * r, y: Math.sin(ang) * r });
+        }
+        let grad = ctx.createRadialGradient(-s * 0.3, -s * 0.3, s * 0.1, 0, 0, s * 1.2);
+        grad.addColorStop(0, "#a89070");
+        grad.addColorStop(0.6, "#8B7355");
+        grad.addColorStop(1, "#3a2818");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "#1a1008";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(30, 20, 10, 0.7)";
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 2; i++) {
+            let ang1 = (seed + i * 1.3) % (Math.PI * 2);
+            let ang2 = ang1 + 1.2;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(ang1) * s * 0.3, Math.sin(ang1) * s * 0.3);
+            ctx.lineTo(Math.cos(ang2) * s * 0.8, Math.sin(ang2) * s * 0.8);
+            ctx.stroke();
+        }
+        ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+        ctx.beginPath();
+        ctx.arc(-s * 0.3, -s * 0.35, s * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
 
     function drawGiantRock(a) {
         ctx.save();
         ctx.translate(a.x, a.y);
         ctx.rotate(a.rotation || 0);
-
         let s = a.size;
         let seed = a.textureSeed || 0;
-
         let points = [];
         let sides = 8;
         for (let i = 0; i < sides; i++) {
@@ -3371,7 +2834,6 @@
             let r = s * (1 + noise);
             points.push({ x: Math.cos(ang) * r, y: Math.sin(ang) * r });
         }
-
         ctx.save();
         ctx.globalAlpha = 0.4;
         ctx.fillStyle = "#000000";
@@ -3379,25 +2841,19 @@
         ctx.ellipse(0, 480 - a.y, s * 0.9, 12, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
-
         let grad = ctx.createRadialGradient(-s * 0.3, -s * 0.3, s * 0.1, 0, 0, s * 1.3);
         grad.addColorStop(0, "#b8a080");
         grad.addColorStop(0.5, "#8B7355");
         grad.addColorStop(1, "#2a1808");
-
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
-        }
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
         ctx.closePath();
         ctx.fill();
-
         ctx.strokeStyle = "#1a1008";
         ctx.lineWidth = 4;
         ctx.stroke();
-
         ctx.strokeStyle = "rgba(30, 20, 10, 0.8)";
         ctx.lineWidth = 2;
         for (let i = 0; i < 4; i++) {
@@ -3408,7 +2864,6 @@
             ctx.lineTo(Math.cos(ang2) * s * 0.8, Math.sin(ang2) * s * 0.8);
             ctx.stroke();
         }
-
         ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
         ctx.beginPath();
         ctx.arc(-s * 0.3, -s * 0.35, s * 0.18, 0, Math.PI * 2);
@@ -3416,13 +2871,11 @@
         ctx.beginPath();
         ctx.arc(-s * 0.15, -s * 0.5, s * 0.08, 0, Math.PI * 2);
         ctx.fill();
-
         if (a.hp !== undefined && a.hp < a.maxHp) {
             let barW = s * 1.6;
             let barH = 8;
             let barX = -barW / 2;
             let barY = -s - 25;
-
             ctx.fillStyle = "rgba(0,0,0,0.7)";
             ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
             ctx.fillStyle = "#333";
@@ -3432,33 +2885,28 @@
             ctx.strokeStyle = "#ffffff";
             ctx.lineWidth = 1;
             ctx.strokeRect(barX, barY, barW, barH);
-
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 10px monospace";
             ctx.textAlign = "center";
             ctx.fillText(a.hp + "/" + a.maxHp, 0, barY + barH - 2);
         }
-
         ctx.restore();
     }
 
     function drawTsunami(a) {
         ctx.save();
-
         let cx = a.x;
         let cy = a.y;
         let w = a.currentWidth || a.width;
         let h = a.currentHeight || a.height;
         let waveTime = a.waveTime;
         let fromLeft = a.fromLeft;
-
         ctx.globalAlpha = 0.3;
         ctx.fillStyle = "#000000";
         ctx.beginPath();
         ctx.ellipse(cx, 480, w * 1.3, 10, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
-
         let grad = ctx.createLinearGradient(cx - w / 2, 0, cx + w / 2, 0);
         if (fromLeft) {
             grad.addColorStop(0, "#001a33");
@@ -3469,11 +2917,9 @@
             grad.addColorStop(0.5, "#0088dd");
             grad.addColorStop(1, "#001a33");
         }
-
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.moveTo(cx - w / 2, cy + h / 2);
-
         let segments = 8;
         for (let i = 0; i <= segments; i++) {
             let t = i / segments;
@@ -3481,15 +2927,12 @@
             let topY = cy - h / 2 - Math.sin(t * Math.PI * 3 + waveTime * 2) * 8;
             ctx.lineTo(x, topY);
         }
-
         ctx.lineTo(cx + w / 2, cy + h / 2);
         ctx.closePath();
         ctx.fill();
-
         ctx.strokeStyle = "#003366";
         ctx.lineWidth = 2.5;
         ctx.stroke();
-
         ctx.fillStyle = "#ffffff";
         for (let i = 0; i <= segments; i++) {
             let t = i / segments;
@@ -3499,7 +2942,6 @@
             ctx.arc(x, topY, 3, 0, Math.PI * 2);
             ctx.fill();
         }
-
         ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
         ctx.lineWidth = 2;
         for (let li = 0; li < 2; li++) {
@@ -3514,13 +2956,9 @@
             }
             ctx.stroke();
         }
-
         ctx.restore();
     }
 
-    // ============================================================
-    // ЭКСПОРТ
-    // ============================================================
     window.getRWBActive = function() { return window.rwbActive === true; };
     window.getRWBState  = function() { return rwbState; };
 
@@ -3537,13 +2975,13 @@
     window.rwbSound = rwbSound;
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v13.0                             ║");
-    console.log("║  ✅ У РОДЖЕРА ПОЛНОСТЬЮ УБРАНЫ КАМНИ                       ║");
-    console.log("║  ✅ Атаки Роджера разнообразны (8 типов):                  ║");
-    console.log("║     прямо, веер, по углам, по центру, круг, спираль         ║");
-    console.log("║  ✅ У Белоуса убран камнепад (type 0) → тройной кулак      ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v13.1                             ║");
+    console.log("║  ✅ ФИКС: Титан-Кулак и Огромный камень — ТОЛЬКО у Белоуса ║");
+    console.log("║  ✅ У Роджера в супер-фазе НЕТ камней вообще              ║");
+    console.log("║  ✅ Атаки Роджера — 8 паттернов (в игрока, веер, углы,    ║");
+    console.log("║     центр, круг, двойной клинок, диагонали, спираль)      ║");
     console.log("║  ✅ Супер-HP: Роджер=" + RWB_SUPER_ROGER_HP + ", Белоус=" + RWB_SUPER_WB_HP + "              ║");
-    console.log("║  ✅ Обычная фаза: 800 / 900 (не тронута)                  ║");
+    console.log("║  ✅ Обычная фаза: 800 / 900 (как в v12.0)                 ║");
     console.log("╚════════════════════════════════════════════════════════════╝");
 
 })();
