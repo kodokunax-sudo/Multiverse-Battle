@@ -646,6 +646,12 @@
         }
     };
 
+    // ============================================================
+// ★★★ ЭКСПОРТ ДЛЯ JOYSTICK.JS ★★★
+// ============================================================
+window.getLivingStoneActive = function() { return livingStoneActive; };
+window.getLivingStoneState  = function() { return livingStoneState; };
+    
     console.log("╔════════════════════════════════════════╗");
     console.log("║  🎵 LOADING SCREEN v3.0                ║");
     console.log("║  ✅ XMLHttpRequest (надёжно)           ║");
