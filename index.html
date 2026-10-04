@@ -574,6 +574,35 @@
                             </select>
                         </div>
                     </div>
+
+                    <!-- ★★★ НОВЫЙ БЛОК: ДЖОЙСТИК ★★★ -->
+                    <div class="shop-item">
+                        <div><strong>🎮 Управление на арене</strong></div>
+                        <div>
+                            <select id="arenaControlSelect" onchange="changeArenaControl(this.value)">
+                                <option value="auto">🤖 Авто (ПК — клавиатура, тел. — джойстик)</option>
+                                <option value="touch">👆 Следование за пальцем</option>
+                                <option value="joystick">🕹️ Джойстик</option>
+                                <option value="keyboard">⌨️ Только клавиатура</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="shop-item">
+                        <div><strong>🕹️ Размер джойстика</strong></div>
+                        <div>
+                            <input type="range" id="joystickSizeSlider" min="60" max="160" value="100" style="width:120px;" oninput="changeJoystickSize(this.value)"> 
+                            <span id="joystickSizeValue">100%</span>
+                        </div>
+                    </div>
+                    <div class="shop-item">
+                        <div><strong>👻 Прозрачность джойстика</strong></div>
+                        <div>
+                            <input type="range" id="joystickOpacitySlider" min="20" max="100" value="60" style="width:120px;" oninput="changeJoystickOpacity(this.value)"> 
+                            <span id="joystickOpacityValue">60%</span>
+                        </div>
+                    </div>
+                    <!-- ★★★ КОНЕЦ БЛОКА ДЖОЙСТИКА ★★★ -->
+
                     <button class="btn" style="width:100%;margin-top:10px;" onclick="resetArenaSettings()">🔄 Сбросить настройки</button>
                 </div>
             </div>
@@ -614,7 +643,7 @@
 <script src="dandy.js?v=9"></script>
 <script src="game.js?v=9"></script>
 <script src="battle.js?v=9"></script>
-<script src="supers.js?v=9"></script>
+<script src="supers.js?v=10"></script>
 <script src="living_stone_boss.js?v=9"></script>
 <script src="waystar_boss.js?v=10"></script>
 <script src="roger_whitebeard_boss.js?v=1"></script>
@@ -626,5 +655,9 @@
 <script src="evolution_unlock.js?v=1"></script>
 <script src="fix_code.js?v=1"></script>
 <script src="visuals.js"></script>
+
+<!-- ★★★ ДЖОЙСТИК — САМЫМ ПОСЛЕДНИМ ★★★ -->
+<script src="joystick.js?v=1"></script>
+
 </body>
 </html>
