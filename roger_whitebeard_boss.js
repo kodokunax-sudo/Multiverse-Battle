@@ -1,12 +1,13 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v13.1
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v14.0
 // ============================================================
-// ★ v13.1 (от v12.0):
-//   - ФИКС: Титан-Кулак и Огромный камень спавнятся ТОЛЬКО у Белоуса.
-//     У Роджера в супер-фазе их НЕТ вообще.
-//   - Атаки Роджера разнообразнее: в игрока, веер, по углам, по центру,
-//     круговая, двойной клинок, диагонали, спираль (8 типов).
-//   - Всё остальное — как в v12.0.
+// ★ v14.0 (от v13.1):
+//   - РАСШИРЕНО РАССЕЧЕНИЕ (roger_slash): теперь 8 вариантов позиции
+//     • по центру (верт/гориз)
+//     • по игроку (верт/гориз)
+//     • по краям (левый/правый/верх/низ)
+//     • двойное крест-накрест в супер-форме
+//   - Всё остальное — как в v13.1 (камни только у Белоуса)
 // ============================================================
 
 (function() {
@@ -370,7 +371,7 @@
             return;
         }
 
-        console.log("[ROGER-WB] Старт боя v13.1!");
+        console.log("[ROGER-WB] Старт боя v14.0! Рассечение теперь разнообразное");
 
         window.rwbActive = true;
         rwbState = "intro";
@@ -1010,7 +1011,232 @@
     }
 
     // ============================================================
-    // ★★★ АТАКИ РОДЖЕРА — 8 РАЗНООБРАЗНЫХ ПАТТЕРНОВ ★★★
+    // ★★★ НОВАЯ ФУНКЦИЯ: СОЗДАНИЕ РАССЕЧЕНИЯ (roger_slash) ★★★
+    // 8 вариантов позиции на карте
+    // ============================================================
+    function spawnRogerSlash(position) {
+        let isSuper = roger.superForm;
+        let slashWidth = isSuper ? 65 : 50;
+        let warningTime = isSuper ? 45 : 55;
+        let maxActive = isSuper ? 26 : 22;
+        let dmg = Math.ceil((isSuper ? 34 : 30) * BALANCE.superDamageMult);
+
+        let slash;
+
+        switch(position) {
+            case 0:
+                // ★ ВЕРТИКАЛЬНО ПО ЦЕНТРУ ★
+                slash = {
+                    type: "roger_slash",
+                    direction: "vertical",
+                    x: 200,
+                    y: 0,
+                    width: slashWidth,
+                    warningTimer: warningTime,
+                    activeTimer: 0,
+                    maxActive: maxActive,
+                    damage: dmg,
+                    hit: false,
+                    state: "warning",
+                    color: "#ff4400"
+                };
+                break;
+
+            case 1:
+                // ★ ВЕРТИКАЛЬНО ПО ИГРОКУ ★
+                slash = {
+                    type: "roger_slash",
+                    direction: "vertical",
+                    x: rwbPlayer.x,
+                    y: 0,
+                    width: slashWidth,
+                    warningTimer: warningTime,
+                    activeTimer: 0,
+                    maxActive: maxActive,
+                    damage: dmg,
+                    hit: false,
+                    state: "warning",
+                    color: "#ff2200"
+                };
+                break;
+
+            case 2:
+                // ★ ГОРИЗОНТАЛЬНО ПО ЦЕНТРУ ★
+                slash = {
+                    type: "roger_slash",
+                    direction: "horizontal",
+                    x: 0,
+                    y: 250,
+                    width: slashWidth,
+                    warningTimer: warningTime,
+                    activeTimer: 0,
+                    maxActive: maxActive,
+                    damage: dmg,
+                    hit: false,
+                    state: "warning",
+                    color: "#ff6600"
+                };
+                break;
+
+            case 3:
+                // ★ ГОРИЗОНТАЛЬНО ПО ИГРОКУ ★
+                slash = {
+                    type: "roger_slash",
+                    direction: "horizontal",
+                    x: 0,
+                    y: rwbPlayer.y,
+                    width: slashWidth,
+                    warningTimer: warningTime,
+                    activeTimer: 0,
+                    maxActive: maxActive,
+                    damage: dmg,
+                    hit: false,
+                    state: "warning",
+                    color: "#ff3300"
+                };
+                break;
+
+            case 4:
+                // ★ ЛЕВЫЙ КРАЙ (вертикально) ★
+                slash = {
+                    type: "roger_slash",
+                    direction: "vertical",
+                    x: 60,
+                    y: 0,
+                    width: slashWidth * 0.9,
+                    warningTimer: warningTime,
+                    activeTimer: 0,
+                    maxActive: maxActive,
+                    damage: dmg,
+                    hit: false,
+                    state: "warning",
+                    color: "#ff5500"
+                };
+                break;
+
+            case 5:
+                // ★ ПРАВЫЙ КРАЙ (вертикально) ★
+                slash = {
+                    type: "roger_slash",
+                    direction: "vertical",
+                    x: 340,
+                    y: 0,
+                    width: slashWidth * 0.9,
+                    warningTimer: warningTime,
+                    activeTimer: 0,
+                    maxActive: maxActive,
+                    damage: dmg,
+                    hit: false,
+                    state: "warning",
+                    color: "#ff5500"
+                };
+                break;
+
+            case 6:
+                // ★ ВЕРХНИЙ КРАЙ (горизонтально) ★
+                slash = {
+                    type: "roger_slash",
+                    direction: "horizontal",
+                    x: 0,
+                    y: 80,
+                    width: slashWidth * 0.9,
+                    warningTimer: warningTime,
+                    activeTimer: 0,
+                    maxActive: maxActive,
+                    damage: dmg,
+                    hit: false,
+                    state: "warning",
+                    color: "#ff5500"
+                };
+                break;
+
+            case 7:
+                // ★ НИЖНИЙ КРАЙ (горизонтально) ★
+                slash = {
+                    type: "roger_slash",
+                    direction: "horizontal",
+                    x: 0,
+                    y: 420,
+                    width: slashWidth * 0.9,
+                    warningTimer: warningTime,
+                    activeTimer: 0,
+                    maxActive: maxActive,
+                    damage: dmg,
+                    hit: false,
+                    state: "warning",
+                    color: "#ff5500"
+                };
+                break;
+
+            default:
+                // fallback — вертикально в случайном X
+                slash = {
+                    type: "roger_slash",
+                    direction: "vertical",
+                    x: 100 + Math.random() * 200,
+                    y: 0,
+                    width: slashWidth,
+                    warningTimer: warningTime,
+                    activeTimer: 0,
+                    maxActive: maxActive,
+                    damage: dmg,
+                    hit: false,
+                    state: "warning",
+                    color: "#ff4400"
+                };
+        }
+
+        rwbAttacks.push(slash);
+        rwbShake = 15;
+        playBladeSound(0.3);
+    }
+
+    // ============================================================
+    // ★★★ ДВОЙНОЕ РАССЕЧЕНИЕ (крест-накрест) ★★★
+    // ============================================================
+    function spawnRogerDoubleSlash() {
+        // Вертикально + горизонтально, крест
+        let crossX = 100 + Math.random() * 200;
+        let crossY = 150 + Math.random() * 200;
+
+        // Вертикальная полоса
+        rwbAttacks.push({
+            type: "roger_slash",
+            direction: "vertical",
+            x: crossX,
+            y: 0,
+            width: 55,
+            warningTimer: 55,
+            activeTimer: 0,
+            maxActive: 22,
+            damage: Math.ceil(28 * BALANCE.superDamageMult),
+            hit: false,
+            state: "warning",
+            color: "#ff4400"
+        });
+
+        // Горизонтальная полоса
+        rwbAttacks.push({
+            type: "roger_slash",
+            direction: "horizontal",
+            x: 0,
+            y: crossY,
+            width: 55,
+            warningTimer: 55,
+            activeTimer: 0,
+            maxActive: 22,
+            damage: Math.ceil(28 * BALANCE.superDamageMult),
+            hit: false,
+            state: "warning",
+            color: "#ff6600"
+        });
+
+        rwbShake = 20;
+        playBladeSound(0.4);
+    }
+
+    // ============================================================
+    // ★★★ АТАКИ РОДЖЕРА — 8 ПАТТЕРНОВ + РАСШИРЕННОЕ РАССЕЧЕНИЕ ★★★
     // ============================================================
     function spawnRogerAttack() {
         let type = Math.floor(Math.random() * 8);
@@ -1024,7 +1250,11 @@
         let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
 
         if (type === 0) {
-            // ★ ПРЯМО В ИГРОКА — 3-5 клинков точно в цель ★
+            // ★ РАССЕЧЕНИЕ — случайная позиция из 8 вариантов ★
+            let position = Math.floor(Math.random() * 8);
+            spawnRogerSlash(position);
+        } else if (type === 1) {
+            // ★ ПРЯМО В ИГРОКА — 3-5 клинков ★
             let count = isSuper ? 5 : 3;
             for (let i = 0; i < count; i++) {
                 let spread = (i - (count - 1) / 2) * 0.12;
@@ -1041,7 +1271,7 @@
                 });
             }
             playWhooshSound(0.3);
-        } else if (type === 1) {
+        } else if (type === 2) {
             // ★ ВЕЕР сверху ★
             let count = isSuper ? 10 : 7;
             for (let i = 0; i < count; i++) {
@@ -1057,8 +1287,8 @@
                     hasHaki: true
                 });
             }
-        } else if (type === 2) {
-            // ★ ПО УГЛАМ — 4 диагонали × 2 клинка ★
+        } else if (type === 3) {
+            // ★ ПО УГЛАМ — 4 диагонали ★
             let corners = [Math.PI * 0.25, Math.PI * 0.75, -Math.PI * 0.25, -Math.PI * 0.75];
             for (let baseAng of corners) {
                 for (let k = 0; k < (isSuper ? 2 : 1); k++) {
@@ -1080,23 +1310,6 @@
                     })(baseAng, delay);
                 }
             }
-        } else if (type === 3) {
-            // ★ ПО СЕРЕДИНЕ ЭКРАНА — клинки по вертикали в стороны ★
-            let count = isSuper ? 6 : 4;
-            let angle = (roger.x < 200) ? 0 : Math.PI;
-            for (let i = 0; i < count; i++) {
-                let startY = 100 + i * 70;
-                let speed = (isSuper ? 5.0 : 4.3) * BALANCE.projectileSpeedMult;
-                rwbAttacks.push({
-                    type: "blade", x: roger.x, y: startY,
-                    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed * 0.3,
-                    size: 11, hp: 2, maxHp: 2,
-                    damage: Math.ceil((isSuper ? 14 : 11) * BALANCE.rogerDamageMult),
-                    life: 250, color: "#ffaa00",
-                    rotation: angle + Math.PI * 0.5, rotSpeed: 0.2,
-                    hasHaki: true
-                });
-            }
         } else if (type === 4) {
             // ★ КРУГОВАЯ ВОЛНА ★
             let count = isSuper ? 12 : 9;
@@ -1114,21 +1327,8 @@
                 });
             }
         } else if (type === 5) {
-            // ★ ДВОЙНОЙ БОЛЬШОЙ КЛИНОК в игрока ★
-            let offsets = [-0.18, 0.18];
-            for (let off of offsets) {
-                let ang = angleToPlayer + off;
-                let speed = (isSuper ? 5.5 : 4.5) * BALANCE.projectileSpeedMult;
-                rwbAttacks.push({
-                    type: "big_blade", x: roger.x, y: roger.y + 20,
-                    vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
-                    size: 16, hp: 3, maxHp: 3,
-                    damage: Math.ceil((isSuper ? 26 : 20) * BALANCE.rogerDamageMult),
-                    life: 250, color: "#ff6600",
-                    rotation: ang + Math.PI * 0.5, rotSpeed: 0.2,
-                    trail: [], hasHaki: true
-                });
-            }
+            // ★ ДВОЙНОЕ РАССЕЧЕНИЕ (крест-накрест) ★
+            spawnRogerDoubleSlash();
         } else if (type === 6) {
             // ★ ДИАГОНАЛЬНЫЕ СЕРИИ ★
             let diagonals = [Math.PI * 0.25, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75];
@@ -1310,27 +1510,23 @@
     }
 
     function spawnRogerSuperAttack() {
-        let attackId = Math.floor(Math.random() * 4);
+        let attackId = Math.floor(Math.random() * 5);
         playHakiChargeSound(0.25);
         spawnHakiLightning(roger.x, roger.y, 5, false);
         if (attackId === 0) spawnRogerCrossSlash();
         else if (attackId === 1) spawnRogerCrossStrike();
         else if (attackId === 2) spawnRogerHellFire();
-        else spawnRogerComboRush();
+        else if (attackId === 3) spawnRogerComboRush();
+        else spawnRogerDoubleSlash(); // ★ Новое — двойное рассечение ★
     }
 
     function spawnRogerCrossSlash() {
         rwbFloatingTexts.push({ x: 200, y: 100, text: "⚡ РАССЕЧЕНИЕ ⚡", color: "#ff4400", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
         playWhooshSound(0.5);
         setTimeout(function() { playImpactSound(0.5, 1.2); }, 300);
-        let slashX = 100 + Math.random() * 200;
-        rwbAttacks.push({
-            type: "roger_slash", x: slashX, y: 0,
-            width: 50, warningTimer: 55, activeTimer: 0, maxActive: 22,
-            damage: Math.ceil(30 * BALANCE.superDamageMult),
-            hit: false, state: "warning", color: "#ff4400"
-        });
-        rwbShake = 15;
+        // Используем новую spawnRogerSlash с случайной позицией
+        let position = Math.floor(Math.random() * 8);
+        spawnRogerSlash(position);
     }
 
     function spawnRogerCrossStrike() {
@@ -1640,17 +1836,38 @@
                 continue;
             }
 
+            // ★★★ РАССЕЧЕНИЕ — ОБРАБОТКА С УЧЁТОМ НАПРАВЛЕНИЯ ★★★
             if (a.type === "roger_slash") {
                 if (a.state === "warning") {
                     a.warningTimer--;
-                    if (a.warningTimer <= 0) { a.state = "active"; a.activeTimer = a.maxActive; rwbShake = 20; playBladeSound(0.5); playImpactSound(0.4, 1.0); }
+                    if (a.warningTimer <= 0) {
+                        a.state = "active";
+                        a.activeTimer = a.maxActive;
+                        rwbShake = 20;
+                        playBladeSound(0.5);
+                        playImpactSound(0.4, 1.0);
+                    }
                 } else if (a.state === "active") {
                     a.activeTimer--;
                     if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                        if (Math.abs(rwbPlayer.x - a.x) < a.width / 2 * 0.7 + 4) { a.hit = true; hitPlayer(a.damage); }
+                        let hit = false;
+                        if (a.direction === "horizontal") {
+                            // Горизонтальная полоса — проверяем Y
+                            hit = Math.abs(rwbPlayer.y - a.y) < a.width / 2 * 0.7 + 4;
+                        } else {
+                            // Вертикальная полоса (по умолчанию) — проверяем X
+                            hit = Math.abs(rwbPlayer.x - a.x) < a.width / 2 * 0.7 + 4;
+                        }
+                        if (hit) {
+                            a.hit = true;
+                            hitPlayer(a.damage);
+                        }
                     }
                     if (a.activeTimer <= 0) a.state = "done";
-                } else { rwbAttacks.splice(i, 1); continue; }
+                } else {
+                    rwbAttacks.splice(i, 1);
+                    continue;
+                }
                 continue;
             }
 
@@ -2020,7 +2237,7 @@
                 return;
             }
 
-            // ★★★ ФИКС: Титан-Кулак и Огромный камень — ТОЛЬКО для Белоуса ★★★
+            // ★ Титан-Кулак и Огромный камень — ТОЛЬКО у Белоуса ★
             if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") {
                 rwbTitanFistTimer++;
                 if (rwbTitanFistTimer >= RWB_TITAN_INTERVAL) {
@@ -2510,6 +2727,9 @@
         drawHeartShape(rwbPlayer.x, rwbPlayer.y, rwbPlayer.size, color, color);
     }
 
+    // ============================================================
+    // ★★★ РЕНДЕР АТАК — с поддержкой ГОРИЗОНТАЛЬНОГО РАССЕЧЕНИЯ ★★★
+    // ============================================================
     function drawAttack(a) {
         if (a.type === "giant_rock") { drawGiantRock(a); return; }
         if (a.type === "tsunami") { drawTsunami(a); return; }
@@ -2517,33 +2737,68 @@
 
         if (a.type === "roger_slash") {
             ctx.save();
+            // ★ Проверяем направление ★
+            let isHorizontal = (a.direction === "horizontal");
+
             if (a.state === "warning") {
                 let pulseAlpha = 0.4 + Math.sin(performance.now() / 100) * 0.2;
                 ctx.globalAlpha = pulseAlpha;
-                ctx.fillStyle = "#ff4400";
-                ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
-                ctx.globalAlpha = 1;
-                ctx.strokeStyle = "#ffffff";
-                ctx.lineWidth = 2.5;
-                ctx.setLineDash([12, 8]);
-                ctx.beginPath();
-                ctx.moveTo(a.x - a.width / 2, 0);
-                ctx.lineTo(a.x - a.width / 2, 500);
-                ctx.moveTo(a.x + a.width / 2, 0);
-                ctx.lineTo(a.x + a.width / 2, 500);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.fillStyle = "#fff";
-                ctx.font = "bold 12px monospace";
-                ctx.textAlign = "center";
-                ctx.fillText("⚠️", a.x, 250);
+                ctx.fillStyle = a.color || "#ff4400";
+
+                if (isHorizontal) {
+                    // ★ ГОРИЗОНТАЛЬНАЯ ПОЛОСА ★
+                    ctx.fillRect(0, a.y - a.width / 2, 400, a.width);
+                    ctx.globalAlpha = 1;
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.lineWidth = 2.5;
+                    ctx.setLineDash([12, 8]);
+                    ctx.beginPath();
+                    ctx.moveTo(0, a.y - a.width / 2);
+                    ctx.lineTo(400, a.y - a.width / 2);
+                    ctx.moveTo(0, a.y + a.width / 2);
+                    ctx.lineTo(400, a.y + a.width / 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = "#fff";
+                    ctx.font = "bold 12px monospace";
+                    ctx.textAlign = "center";
+                    ctx.fillText("⚠️", 200, a.y + 4);
+                } else {
+                    // ★ ВЕРТИКАЛЬНАЯ ПОЛОСА ★
+                    ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
+                    ctx.globalAlpha = 1;
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.lineWidth = 2.5;
+                    ctx.setLineDash([12, 8]);
+                    ctx.beginPath();
+                    ctx.moveTo(a.x - a.width / 2, 0);
+                    ctx.lineTo(a.x - a.width / 2, 500);
+                    ctx.moveTo(a.x + a.width / 2, 0);
+                    ctx.lineTo(a.x + a.width / 2, 500);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = "#fff";
+                    ctx.font = "bold 12px monospace";
+                    ctx.textAlign = "center";
+                    ctx.fillText("⚠️", a.x, 250);
+                }
             } else if (a.state === "active") {
                 let fade = Math.min(1, a.activeTimer / 10);
                 ctx.globalAlpha = fade;
-                ctx.fillStyle = "#ff2200";
-                ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(a.x - a.width * 0.15, 0, a.width * 0.3, 500);
+
+                if (isHorizontal) {
+                    // ★ АКТИВНАЯ ГОРИЗОНТАЛЬНАЯ ★
+                    ctx.fillStyle = a.color || "#ff2200";
+                    ctx.fillRect(0, a.y - a.width / 2, 400, a.width);
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, a.y - a.width * 0.15, 400, a.width * 0.3);
+                } else {
+                    // ★ АКТИВНАЯ ВЕРТИКАЛЬНАЯ ★
+                    ctx.fillStyle = a.color || "#ff2200";
+                    ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(a.x - a.width * 0.15, 0, a.width * 0.3, 500);
+                }
             }
             ctx.restore();
             return;
@@ -2975,13 +3230,14 @@
     window.rwbSound = rwbSound;
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v13.1                             ║");
-    console.log("║  ✅ ФИКС: Титан-Кулак и Огромный камень — ТОЛЬКО у Белоуса ║");
-    console.log("║  ✅ У Роджера в супер-фазе НЕТ камней вообще              ║");
-    console.log("║  ✅ Атаки Роджера — 8 паттернов (в игрока, веер, углы,    ║");
-    console.log("║     центр, круг, двойной клинок, диагонали, спираль)      ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v14.0                             ║");
+    console.log("║  ✅ РАСШИРЕНО РАССЕЧЕНИЕ РОДЖЕРА:                          ║");
+    console.log("║     • по центру (верт/гориз)                               ║");
+    console.log("║     • по игроку (верт/гориз)                               ║");
+    console.log("║     • по краям (лево/право/верх/низ)                       ║");
+    console.log("║     • двойное крест-накрест (супер)                        ║");
+    console.log("║  ✅ Камни у Роджера ОТСУТСТВУЮТ                            ║");
     console.log("║  ✅ Супер-HP: Роджер=" + RWB_SUPER_ROGER_HP + ", Белоус=" + RWB_SUPER_WB_HP + "              ║");
-    console.log("║  ✅ Обычная фаза: 800 / 900 (как в v12.0)                 ║");
     console.log("╚════════════════════════════════════════════════════════════╝");
 
 })();
