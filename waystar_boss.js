@@ -1,14 +1,9 @@
 // ============================================================
 // ПУТЕВОДНАЯ ЗВЕЗДА — БОСС 500 ВОЛНЫ v13.0
-// + БРОНЯ РАБОТАЕТ
-// + ПОВТОРНЫЙ БОЙ ПОСЛЕ РЕБИРТХА
-// + ОРУЖИЕ РАБОТАЕТ
-// + RAGE ПРИ 40% (гарантированно)
-// + СКОРОСТЬ АТАК РАСТЁТ С HP
-// + БОМБЫ ПО ОДНОЙ + РЯДОМ С ИГРОКОМ
-// + ФИКС: waystarSpawnAttack восстановлена
-// ★ v12.0: SUPER РАБОТАЕТ НА ЗВЕЗДЕ
-// ★ v13.0: ЭКСПОРТ для joystick.js + ЗМЕЙКА → ОСЛЕПЛЕНИЕ (1.5 сек)
+// ★ НОВОЕ:
+//   + Экспорт window.getWaystarActive/getWaystarState (для joystick.js)
+//   + Атака "Змейка" заменена на "ОСЛЕПЛЕНИЕ" (1.5 сек темноты)
+//   + ЯРОСТЬ при 40% HP — ГАРАНТИРОВАННО (не рандом)
 // ============================================================
 
 if (window._waystarBossLoaded === true) {
@@ -23,6 +18,11 @@ if (typeof window.waystarDefeatedThisRun === 'undefined') {
 var WAYSTAR_MODER_DAMAGE = 100000;
 var WAYSTAR_SLOWDOWN = 1.5;
 var WAYSTAR_RAGE_THRESHOLD = 0.40;
+
+// ★ Длительность ослепления (в кадрах при 60 FPS) ★
+var WAYSTAR_BLIND_DURATION = 90;      // 1.5 сек
+var WAYSTAR_BLIND_WARNING = 30;       // 0.5 сек предупреждения
+var WAYSTAR_BLIND_FADE = 20;          // 0.33 сек плавного проявления/ухода
 
 function isWaystarModerActive() {
     try { return typeof mode !== 'undefined' && mode === "moder"; } catch(e) { return false; }
@@ -111,14 +111,16 @@ var waystarSpareBlessing = { active: false, progress: 0, flash: 0 };
 var waystarSpareDialog = [];
 var waystarSpareDialogStep = 0;
 var waystarSpareDialogTimer = 0;
+var waystarConstellationUsed = false;
 
-// ★★★ НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ ОСЛЕПЛЕНИЯ ★★★
-var waystarBlindnessTimer = 0;         // сколько кадров ещё слепота (1.5 сек = ~90 кадров)
-var waystarBlindnessAlpha = 0;         // текущая прозрачность черного экрана (0-1)
-var waystarBlindnessSoundPlayed = false;
-var waystarBlindnessCountdownText = 0;
+// ★★★ НОВЫЕ ПЕРЕМЕННЫЕ: ОСЛЕПЛЕНИЕ ★★★
+var waystarBlindTimer = 0;          // сколько кадров ещё слепота
+var waystarBlindPhase = null;       // null | "warning" | "blind" | "fadein" | "fadeout"
+var waystarBlindWarnings = [];      // значки ⚠️ перед ослеплением
+var waystarBlindTotalTimer = 0;     // полный таймер атаки
+var waystarBlindFlash = 0;          // белая вспышка перед тьмой
+var waystarBlindUsed = false;       // использована ли уже атака (для переиспользования)
 
-// ★ Флаг: суперы уже инициализированы для этого боя
 var waystarSupersInitialized = false;
 
 function addWaystarShockwave(x, y, color, maxRadius, life, width) {
@@ -176,9 +178,6 @@ function startWaystarMusic() {
 function stopWaystarMusic() { if (waystarMusic) { try { waystarMusic.pause(); waystarMusic.currentTime = 0; } catch(e) {} } }
 function wsPlaySound(freq, type, dur, vol) { if (typeof playArenaSound === 'function') playArenaSound(freq, type, dur, vol); }
 
-// ============================================================
-// ★★★ ИНИЦИАЛИЗАЦИЯ СУПЕРОВ ДЛЯ ЗВЕЗДЫ ★★★
-// ============================================================
 function initWaystarSupers() {
     if (typeof initSuperState === 'function') {
         initSuperState();
@@ -206,6 +205,7 @@ function startWaystarFight() {
     waystarEscalationLevel = 0;
     waystarEscalationTimer = 0;
     waystarPhase3AttacksStarted = false;
+    waystarConstellationUsed = false;
     waystarFinalActive = false;
     waystarFinalPhase = "idle";
     waystarFinalTimer = 0;
@@ -223,11 +223,13 @@ function startWaystarFight() {
     waystarSpareDialogStep = 0;
     waystarSpareDialogTimer = 0;
 
-    // ★★★ СБРОС ОСЛЕПЛЕНИЯ ★★★
-    waystarBlindnessTimer = 0;
-    waystarBlindnessAlpha = 0;
-    waystarBlindnessSoundPlayed = false;
-    waystarBlindnessCountdownText = 0;
+    // ★ СБРОС ОСЛЕПЛЕНИЯ ★
+    waystarBlindTimer = 0;
+    waystarBlindPhase = null;
+    waystarBlindWarnings = [];
+    waystarBlindTotalTimer = 0;
+    waystarBlindFlash = 0;
+    waystarBlindUsed = false;
 
     var playerDmg = (typeof window.playerFinalDamage !== 'undefined') ? window.playerFinalDamage : 100;
     waystarBossMaxHp = Math.max(25000, playerDmg * 120);
@@ -260,8 +262,6 @@ function startWaystarFight() {
     waystarDialogAutoTimer = 0;
     initWaystarBgStars();
     startWaystarMusic();
-
-    // ★ ИНИЦИАЛИЗАЦИЯ СУПЕРОВ ★
     initWaystarSupers();
 
     ['superBtn', 'superBtn2', 'superBtnDeactivate', 'startArenaBtn', 'skipBossBtn', 'spareBtn', 'startLivingStoneBtn', 'startWaystarBtn'].forEach(function(id) { var el = document.getElementById(id); if (el) el.style.display = "none"; });
@@ -291,11 +291,8 @@ function stopWaystarFight() {
     console.log("[WAYSTAR] Стоп боя");
     waystarActive = false;
     waystarFinalActive = false;
-    waystarBlindnessTimer = 0;
-    waystarBlindnessAlpha = 0;
     stopWaystarMusic();
 
-    // ★ СБРОС СУПЕРОВ ★
     if (typeof resetAllSupers === 'function') {
         try { resetAllSupers(); } catch(e) {}
     }
@@ -375,9 +372,6 @@ function waystarProgressDialog() {
     }
 }
 
-// ============================================================
-// ★★★ СТРЕЛЬБА — ОРУЖИЕ РАБОТАЕТ ★★★
-// ============================================================
 function updateWaystarShooting() {
     if (waystarState !== "phase1" && waystarState !== "phase3") return;
     if (waystarShootCooldown > 0) { waystarShootCooldown--; return; }
@@ -427,118 +421,212 @@ function updateWaystarShooting() {
 }
 
 // ============================================================
-// ★★★ АТАКА "ОСЛЕПЛЕНИЕ" — новая атака вместо змейки ★★★
+// ★★★ НОВАЯ АТАКА: ОСЛЕПЛЕНИЕ (заменяет Змейку) ★★★
 // ============================================================
-function waystarTriggerBlindness() {
-    // 1.5 секунды = ~90 кадров при 60 FPS
-    waystarBlindnessTimer = 90;
-    waystarBlindnessAlpha = 0;
-    waystarBlindnessSoundPlayed = false;
-    waystarBlindnessCountdownText = 90;
+function spawnWaystarBlindAttack() {
+    // Запускаем фазу предупреждения
+    waystarBlindPhase = "warning";
+    waystarBlindTotalTimer = 0;
+    waystarBlindWarnings = [];
 
-    console.log("[WAYSTAR] 🌑 ОСЛЕПЛЕНИЕ! (1.5 сек)");
+    // 4 предупреждающих значка ⚠️ по углам
+    var corners = [
+        { x: 50, y: 80, delay: 0 },
+        { x: 350, y: 80, delay: 8 },
+        { x: 50, y: 430, delay: 16 },
+        { x: 350, y: 430, delay: 24 }
+    ];
 
-    // Звук ослепления — резкий, глухой удар
-    wsPlaySound(120, 'sawtooth', 0.6, 0.5);
-    setTimeout(function() { wsPlaySound(60, 'sine', 1.2, 0.4); }, 100);
-    setTimeout(function() { wsPlaySound(40, 'sine', 1.0, 0.3); }, 300);
-
-    // Вспышка на старте
-    waystarScreenFlash = 30;
-    waystarScreenFlashColor = "#000000";
-    waystarShake = 30;
-
-    // Много тёмных частиц от босса
-    for (var i = 0; i < 60; i++) {
-        var ang = Math.random() * Math.PI * 2;
-        var spd = 3 + Math.random() * 8;
-        waystarParticles.push({
-            x: waystarSmallBoss ? waystarSmallBoss.x : waystarBoss.x,
-            y: waystarSmallBoss ? waystarSmallBoss.y : waystarBoss.y,
-            vx: Math.cos(ang) * spd,
-            vy: Math.sin(ang) * spd,
-            life: 40, maxLife: 40,
-            color: i % 3 === 0 ? "#000000" : (i % 3 === 1 ? "#440044" : "#880088"),
-            size: 3 + Math.random() * 6
+    for (var i = 0; i < corners.length; i++) {
+        waystarBlindWarnings.push({
+            x: corners[i].x,
+            y: corners[i].y,
+            delay: corners[i].delay,
+            timer: 0,
+            active: false,
+            pulse: Math.random() * Math.PI * 2
         });
     }
 
-    // Тёмные молнии от босса
-    var bossX = (waystarState === "phase3") ? waystarSmallBoss.x : waystarBoss.x;
-    var bossY = (waystarState === "phase3") ? waystarSmallBoss.y : waystarBoss.y;
-    for (var k = 0; k < 8; k++) {
-        var ang2 = (k / 8) * Math.PI * 2 + Math.random() * 0.3;
-        addWaystarLightning(bossX, bossY, bossX + Math.cos(ang2) * 250, bossY + Math.sin(ang2) * 250, "#000000", 1.0, 3);
+    // Звук предупреждения
+    wsPlaySound(500, 'sine', 0.3, 0.25);
+    setTimeout(function() { wsPlaySound(700, 'sine', 0.25, 0.25); }, 200);
+    setTimeout(function() { wsPlaySound(900, 'sine', 0.2, 0.25); }, 400);
+
+    // Показываем подсказку
+    if (typeof showFloatingText === 'function') {
+        showFloatingText("⚠️ ЗВЕЗДА ГОТОВИТ ОСЛЕПЛЕНИЕ!", "#ffcc00");
     }
 
-    // Шоквейв
-    addWaystarShockwave(bossX, bossY, "#440044", 400, 30, 6);
-    addWaystarShockwave(bossX, bossY, "#000000", 300, 25, 4);
+    console.log("[WAYSTAR] Ослепление: предупреждение (0.5 сек)");
 }
 
-function updateWaystarBlindness() {
-    if (waystarBlindnessTimer <= 0) {
-        if (waystarBlindnessAlpha > 0) {
-            waystarBlindnessAlpha = Math.max(0, waystarBlindnessAlpha - 0.05);
+function updateWaystarBlind() {
+    if (!waystarBlindPhase) return;
+
+    waystarBlindTotalTimer++;
+
+    if (waystarBlindPhase === "warning") {
+        // Обновляем предупреждающие значки
+        var allActive = true;
+        for (var i = 0; i < waystarBlindWarnings.length; i++) {
+            var w = waystarBlindWarnings[i];
+            w.timer++;
+            w.pulse += 0.15;
+            if (w.timer > w.delay) w.active = true;
+            if (w.timer < WAYSTAR_BLIND_WARNING) allActive = false;
         }
-        return;
+
+        if (waystarBlindTotalTimer >= WAYSTAR_BLIND_WARNING) {
+            // Переходим к фазе ослепления
+            waystarBlindPhase = "blind";
+            waystarBlindTimer = WAYSTAR_BLIND_DURATION;
+            waystarBlindFlash = 25; // белая вспышка
+            waystarShake = 30;
+
+            // Звук вспышки
+            wsPlaySound(1200, 'sawtooth', 0.4, 0.5);
+            setTimeout(function() { wsPlaySound(200, 'sawtooth', 1.5, 0.4); }, 150);
+
+            if (typeof showFloatingText === 'function') {
+                showFloatingText("💀 НИЧЕГО НЕ ВИДНО!", "#000000");
+            }
+
+            console.log("[WAYSTAR] Ослепление: началось (1.5 сек темноты)");
+        }
+    }
+    else if (waystarBlindPhase === "blind") {
+        waystarBlindTimer--;
+        if (waystarBlindTimer <= 0) {
+            // Плавное завершение
+            waystarBlindPhase = "fadeout";
+            waystarBlindTimer = WAYSTAR_BLIND_FADE;
+            console.log("[WAYSTAR] Ослепление: завершается");
+        }
+    }
+    else if (waystarBlindPhase === "fadeout") {
+        waystarBlindTimer--;
+        if (waystarBlindTimer <= 0) {
+            waystarBlindPhase = null;
+            waystarBlindTimer = 0;
+            console.log("[WAYSTAR] Ослепление: закончилось");
+        }
     }
 
-    waystarBlindnessTimer--;
-
-    // Фаза 1: 0-10 кадров — быстрое затемнение (0 → 1)
-    if (waystarBlindnessTimer > 80) {
-        waystarBlindnessAlpha = (90 - waystarBlindnessTimer) / 10;
-    }
-    // Фаза 2: 10-80 кадров — полная темнота (1.0), 70 кадров ≈ 1.17 сек
-    else if (waystarBlindnessTimer > 10) {
-        waystarBlindnessAlpha = 1.0;
-    }
-    // Фаза 3: 0-10 кадров — быстрое прояснение (1 → 0)
-    else {
-        waystarBlindnessAlpha = waystarBlindnessTimer / 10;
-    }
-
-    // Начинаем отсчёт вслух через 10 кадров после старта
-    if (waystarBlindnessTimer < 80 && waystarBlindnessTimer > 10) {
-        waystarBlindnessCountdownText = (waystarBlindnessTimer - 10) / 60; // в секундах
-    }
-
-    // Один раз проигрываем звук "тик" на середине
-    if (!waystarBlindnessSoundPlayed && waystarBlindnessTimer <= 45 && waystarBlindnessTimer > 40) {
-        waystarBlindnessSoundPlayed = true;
-        wsPlaySound(200, 'sine', 0.3, 0.15);
-    }
+    if (waystarBlindFlash > 0) waystarBlindFlash--;
 }
 
-function drawWaystarBlindness() {
-    if (waystarBlindnessAlpha <= 0.01) return;
+function drawWaystarBlind() {
+    // Если нет активного ослепления — не рисуем
+    if (!waystarBlindPhase) return;
+
     ctx.save();
-    ctx.globalAlpha = waystarBlindnessAlpha;
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(-50, -50, 500, 600);
-    ctx.restore();
 
-    // Если темнота полная — показываем только текст-подсказку
-    if (waystarBlindnessAlpha > 0.7) {
-        ctx.save();
-        ctx.globalAlpha = 0.5 + Math.abs(Math.sin(performance.now() / 200)) * 0.3;
-        ctx.font = "bold 22px monospace";
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#880088";
-        ctx.shadowColor = "#ff00ff";
-        ctx.shadowBlur = 20;
-        ctx.fillText("🌑 ТЫ ОСЛЕПЛЁН 🌑", 200, 200);
-        ctx.font = "bold 16px monospace";
-        ctx.fillStyle = "#aa44aa";
-        ctx.fillText("Ничего не видно...", 200, 235);
-        if (waystarBlindnessCountdownText > 0) {
-            ctx.font = "bold 28px monospace";
-            ctx.fillStyle = "#ffffff";
-            ctx.fillText(waystarBlindnessCountdownText.toFixed(1) + "с", 200, 290);
+    // ====== ФАЗА ПРЕДУПРЕЖДЕНИЯ ======
+    if (waystarBlindPhase === "warning") {
+        for (var i = 0; i < waystarBlindWarnings.length; i++) {
+            var w = waystarBlindWarnings[i];
+            if (!w.active) continue;
+
+            var pulse = 1 + Math.sin(w.pulse) * 0.3;
+            var alpha = Math.min(1, (w.timer - w.delay) / 10);
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(w.x, w.y);
+            ctx.scale(pulse, pulse);
+
+            // Жёлтый треугольник
+            ctx.fillStyle = "#ffcc00";
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, -22);
+            ctx.lineTo(20, 18);
+            ctx.lineTo(-20, 18);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Восклицательный знак
+            ctx.fillStyle = "#000000";
+            ctx.font = "bold 22px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("!", 0, 6);
+
+            // Свечение
+            ctx.shadowColor = "#ffcc00";
+            ctx.shadowBlur = 20;
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 28 + Math.sin(w.pulse * 1.5) * 4, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.restore();
         }
-        ctx.restore();
     }
+
+    // ====== ФАЗА ОСЛЕПЛЕНИЯ ======
+    if (waystarBlindPhase === "blind" || waystarBlindPhase === "fadeout") {
+        var alpha = 1.0;
+
+        if (waystarBlindPhase === "blind") {
+            // Полная тьма на первые 0.2 сек, потом лёгкое просветление в центре
+            var elapsed = WAYSTAR_BLIND_DURATION - waystarBlindTimer;
+            if (elapsed < 12) {
+                alpha = 1.0; // полная темнота
+            } else {
+                // Постепенно показываем немного по краям (эффект "туннельного зрения")
+                var t = (elapsed - 12) / (WAYSTAR_BLIND_DURATION - 12);
+                alpha = 1.0 - t * 0.15; // до 0.85 — всё ещё почти ничего не видно
+            }
+        } else if (waystarBlindPhase === "fadeout") {
+            alpha = (waystarBlindTimer / WAYSTAR_BLIND_FADE) * 0.85;
+        }
+
+        // Основная тьма
+        ctx.fillStyle = "#000000";
+        ctx.globalAlpha = alpha;
+        ctx.fillRect(0, 0, 400, 500);
+
+        // Текст в темноте
+        if (waystarBlindPhase === "blind" && waystarBlindTimer > 30) {
+            ctx.globalAlpha = Math.min(1, (waystarBlindTimer - 30) / 20) * 0.6;
+            ctx.fillStyle = "#ff0000";
+            ctx.font = "bold 24px monospace";
+            ctx.textAlign = "center";
+            ctx.shadowColor = "#ff0000";
+            ctx.shadowBlur = 20;
+            ctx.fillText("💀", 200, 240);
+            ctx.font = "bold 16px monospace";
+            ctx.fillText("НИЧЕГО НЕ ВИДНО", 200, 275);
+            ctx.shadowBlur = 0;
+        }
+
+        // Белая вспышка при входе в ослепление
+        if (waystarBlindFlash > 0) {
+            ctx.globalAlpha = waystarBlindFlash / 25 * 0.8;
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, 400, 500);
+        }
+    }
+
+    ctx.restore();
+}
+
+// ============================================================
+// ★★★ КОНЕЦ НОВОЙ АТАКИ ★★★
+// ============================================================
+
+function spawnLightningLines(startX, startY) {
+    for (var i = 0; i < 8; i++) {
+        var endX = startX + (Math.random() - 0.5) * 300;
+        var endY = startY + (Math.random() - 0.5) * 300;
+        addWaystarLightning(startX, startY, endX, endY, "#00ffff", 0.8, 2);
+    }
+    addWaystarShockwave(startX, startY, "#00ffff", 150, 20, 4);
 }
 
 function waystarSpawnAttack() {
@@ -557,8 +645,8 @@ function waystarSpawnAttack() {
         if (Math.random() < 0.33) { var targetX = 60 + Math.random() * 280; waystarAttacks.push({ type: "laser", state: "warning", x: targetX, width: 55, warningTimer: 70, activeTimer: 0, maxActive: 50, damage: 18, hit: false, chargeParticles: 0 }); }
         wsPlaySound(300, 'square', 0.3, 0.15);
     } else if (type === 3) {
-        // ★★★ ОСЛЕПЛЕНИЕ — НОВАЯ АТАКА ★★★
-        waystarTriggerBlindness();
+        // ★★★ ЗАМЕНА: вместо змейки — ОСЛЕПЛЕНИЕ ★★★
+        spawnWaystarBlindAttack();
     } else if (type === 4) {
         var count4 = isSecond ? 10 : 7;
         for (var i = 0; i < count4; i++) { var side = Math.random() > 0.5 ? 1 : -1; waystarAttacks.push({ type: "star_rain", x: side > 0 ? -30 : 430, y: Math.random() * 200 - 100, vx: side > 0 ? 3.5 * s : -3.5 * s, vy: 2.2 * s, size: 10, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.2, damage: 11, life: 350, trail: [] }); }
@@ -719,7 +807,6 @@ function waystarStartPhase3() {
     waystarPhase3Embers = []; waystarPhase3Rings = [];
     waystarEscalationLevel = 0; waystarEscalationTimer = 0; waystarPhase3AttacksStarted = false;
     waystarBombs = []; waystarBombQueue = []; waystarBombSpawnTimer = 0;
-    waystarBlindnessTimer = 0; waystarBlindnessAlpha = 0;
     wsPlaySound(200, 'sawtooth', 1.0, 0.3); setTimeout(function() { wsPlaySound(400, 'square', 0.5, 0.25); }, 300); setTimeout(function() { wsPlaySound(800, 'sawtooth', 0.8, 0.3); }, 600);
     waystarShake = 40; waystarScreenFlash = 30; waystarScreenFlashColor = "#ff00ff"; waystarScreenDistort = 35;
     for (var i = 0; i < 6; i++) { setTimeout(function(idx) { addWaystarShockwave(200, 100, ["#ff00ff", "#ffd700", "#ffffff", "#ff00ff"][idx%4], 350, 30, 6); }, i * 150); }
@@ -945,9 +1032,6 @@ function updateWaystarAttacks() {
             else if (a.state === "active") { a.activeTimer--; if (!a.hit && waystarInvulnTimer <= 0) { var dx = waystarPlayer.x - a.x, dy = waystarPlayer.y - a.y; var dist = Math.sqrt(dx*dx + dy*dy); var playerAngle = Math.atan2(dy, dx); var angleDiff = Math.abs(playerAngle - a.angle); while (angleDiff > Math.PI) angleDiff = Math.abs(angleDiff - Math.PI * 2); var perpDist = Math.abs(Math.sin(angleDiff)) * dist; if (perpDist < a.width / 2 + 10) { a.hit = true; applyWaystarHit(a.damage, "ГИГА-ЛАЗЕР!"); } } if (a.activeTimer % 3 === 0) { var dist2 = Math.random() * 400; spawnWaystarParticles(a.x + Math.cos(a.angle) * dist2, a.y + Math.sin(a.angle) * dist2, 2, ["#ff00ff", "#ffffff"][Math.floor(Math.random()*2)], 5); } if (a.activeTimer <= 0) a.state = "done"; }
             else { waystarAttacks.splice(i, 1); continue; }
         }
-        else if (a.type === "constellation") {
-            waystarAttacks.splice(i, 1);
-        }
     }
     for (var i = waystarBombs.length - 1; i >= 0; i--) {
         var bomb = waystarBombs[i];
@@ -990,14 +1074,6 @@ function updateWaystarAttacks() {
     }
 }
 
-function distToSegment(px, py, x1, y1, x2, y2) {
-    var dx = x2 - x1, dy = y2 - y1, len2 = dx * dx + dy * dy;
-    if (len2 === 0) return Math.sqrt((px - x1) * (px - x1) + (py - y1) * (py - y1));
-    var t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / len2));
-    var projX = x1 + t * dx, projY = y1 + t * dy;
-    return Math.sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
-}
-
 function applyWaystarHit(dmg, textMsg) {
     if (typeof window.applyArmorToBossDamage === 'function') {
         let result = window.applyArmorToBossDamage(dmg);
@@ -1027,14 +1103,38 @@ function applyWaystarHit(dmg, textMsg) {
     if (textMsg && typeof showFloatingText === 'function') showFloatingText(textMsg, "#ff3333");
     wsPlaySound(80, 'sawtooth', 0.5, 0.2);
     updateWaystarHpBar();
-    if (waystarState === "phase3" && !waystarRageMode && waystarPlayerHp <= waystarPlayerMaxHp * WAYSTAR_RAGE_THRESHOLD) {
-        waystarRageMode = true;
-        waystarScreenFlash = 25; waystarScreenFlashColor = "#ff0000"; waystarShake = 30;
-        if (typeof showFloatingText === 'function') showFloatingText("🔥 RAGE MODE!", "#ff0000");
-        for (var i = 0; i < 40; i++) spawnWaystarParticles(waystarSmallBoss.x, waystarSmallBoss.y, 1, ["#ff0000", "#ff6600", "#ffff00"][Math.floor(Math.random()*3)], 12);
-        wsPlaySound(120, 'sawtooth', 1.5, 0.4);
+
+    // ★★★ ГАРАНТИРОВАННАЯ ЯРОСТЬ при 40% (и в phase3) ★★★
+    checkWaystarRage();
+}
+
+// ============================================================
+// ★★★ ПРОВЕРКА ЯРОСТИ — ГАРАНТИРОВАННО при 40% ★★★
+// ============================================================
+function checkWaystarRage() {
+    if (waystarState !== "phase3") return;
+    if (waystarRageMode) return;
+
+    // Считаем процент по игроку
+    var hpRatio = waystarPlayerHp / Math.max(1, waystarPlayerMaxHp);
+    if (hpRatio > WAYSTAR_RAGE_THRESHOLD) return;
+
+    // ★ ЯРОСТЬ! Без рандома ★
+    waystarRageMode = true;
+    waystarScreenFlash = 25;
+    waystarScreenFlashColor = "#ff0000";
+    waystarShake = 30;
+
+    if (typeof showFloatingText === 'function') {
+        showFloatingText("🔥 RAGE MODE!", "#ff0000");
     }
-    if (waystarPlayerHp <= 0) waystarDefeat();
+
+    for (var i = 0; i < 40; i++) {
+        spawnWaystarParticles(waystarSmallBoss.x, waystarSmallBoss.y, 1, ["#ff0000", "#ff6600", "#ffff00"][Math.floor(Math.random() * 3)], 12);
+    }
+    wsPlaySound(120, 'sawtooth', 1.5, 0.4);
+
+    console.log("[WAYSTAR] 🔥 ЯРОСТЬ активирована при " + Math.round(hpRatio * 100) + "% HP");
 }
 
 function updateWaystarHpBar() {
@@ -1052,6 +1152,8 @@ function waystarVictory() {
     waystarBombs = [];
     waystarBombQueue = [];
     waystarDash = null;
+    waystarBlindPhase = null;
+    waystarBlindTimer = 0;
     waystarDialogActive = false;
     waystarDialogQueue = [];
     waystarDialogStep = 0;
@@ -1231,9 +1333,6 @@ function getWaystarHpSpeedMult() {
     return speedMult;
 }
 
-// ============================================================
-// ★★★ ГЛАВНЫЙ РЕНДЕР-ЛУП ★★★
-// ============================================================
 function waystarRenderLoop() {
     if (!waystarActive || !ctx || !canvas) return;
 
@@ -1246,21 +1345,24 @@ function waystarRenderLoop() {
             updateWaystarFinalScene();
             renderWaystarFinalScene();
             updateWaystarMegaEffects();
+            updateWaystarBlind(); // обновляем на всякий случай
             for (var i = waystarParticles.length - 1; i >= 0; i--) { var p = waystarParticles[i]; p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life--; if (p.life <= 0) waystarParticles.splice(i, 1); }
             for (var i = waystarTexts.length - 1; i >= 0; i--) { var t = waystarTexts[i]; t.y += t.vy; t.life--; if (t.life <= 0) waystarTexts.splice(i, 1); }
             if (waystarShake > 0.1) waystarShake *= 0.85;
             if (waystarScreenFlash > 0) waystarScreenFlash--;
-            if (typeof renderSuperVisuals === 'function') { try { renderSuperVisuals(); } catch(e) {} }
+            if (typeof renderSuperVisuals === 'function') {
+                try { renderSuperVisuals(); } catch(e) {}
+            }
         } catch(e) { console.error("[WAYSTAR] ОШИБКА в финале:", e); waystarFinalPhase = "done"; }
         waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
         return;
     }
-
-    // ★ Обновление ослепления всегда ★
-    updateWaystarBlindness();
-
     if (waystarSplitAnim) { waystarSplitAnim.timer++; var t = Math.min(1, waystarSplitAnim.timer / waystarSplitAnim.duration); waystarBoss.x = waystarSplitAnim.boss1StartX + (waystarSplitAnim.boss1TargetX - waystarSplitAnim.boss1StartX) * t; waystarBoss2.x = waystarSplitAnim.boss2StartX + (waystarSplitAnim.boss2TargetX - waystarSplitAnim.boss2StartX) * t; waystarBoss2.alpha = Math.min(1, t * 2); waystarBoss.rotation += 0.025; waystarBoss2.rotation -= 0.025; }
     if (waystarEscapeAnim) { waystarEscapeAnim.timer++; var et = Math.min(1, waystarEscapeAnim.timer / waystarEscapeAnim.duration); waystarBoss2.y = waystarEscapeAnim.startY - et * 300; waystarBoss2.x = waystarEscapeAnim.startX + Math.sin(et * Math.PI * 2) * 30; waystarBoss2.size = 40 * (1 - et * 0.6); waystarBoss2.alpha = 1 - et * 0.5; waystarBoss2.rotation += 0.08; if (et < 0.9) spawnWaystarParticles(waystarBoss2.x, waystarBoss2.y, 2, "#ff00ff", 3); }
+
+    // ★★★ ОБНОВЛЕНИЕ ОСЛЕПЛЕНИЯ (главный тик) ★★★
+    updateWaystarBlind();
+
     if (!waystarDialogActive) {
         if (waystarState === "phase1") {
             if (waystarBossHp <= waystarBossMaxHp * 0.5 && waystarBossHp > 0) { waystarTriggerSplit(); }
@@ -1288,7 +1390,7 @@ function waystarRenderLoop() {
                 if (aRate < 12) aRate = 12;
                 if (waystarAttackTimer >= aRate) { waystarAttackTimer = 0; waystarSpawnAttack(); }
                 waystarTypeTimer--;
-                if (waystarTypeTimer <= 0) { waystarAttackType = Math.floor(Math.random() * 5); waystarTypeTimer = Math.floor(400 + Math.random() * 200); var typeNames = ["МЕТЕОРЫ", "ВИХРЬ", "ЛАЗЕРЫ", "🌑 ОСЛЕПЛЕНИЕ", "ЗВЁЗДНЫЙ ДОЖДЬ"]; spawnWaystarText(200, 60, typeNames[waystarAttackType], "#ffffff", 70); addWaystarShockwave(waystarBoss.x, waystarBoss.y, "#ffffff", 60, 12, 2); }
+                if (waystarTypeTimer <= 0) { waystarAttackType = Math.floor(Math.random() * 5); waystarTypeTimer = Math.floor(400 + Math.random() * 200); var typeNames = ["МЕТЕОРЫ", "ВИХРЬ", "ЛАЗЕРЫ", "ОСЛЕПЛЕНИЕ", "ЗВЁЗДНЫЙ ДОЖДЬ"]; spawnWaystarText(200, 60, typeNames[waystarAttackType], "#ffffff", 70); addWaystarShockwave(waystarBoss.x, waystarBoss.y, "#ffffff", 60, 12, 2); }
             }
         } else if (waystarState === "phase2") { updateWaystarPlayer(); updateWaystarSpaceInvaders(); }
         else if (waystarState === "phase3") {
@@ -1346,6 +1448,9 @@ function waystarRenderLoop() {
                 spawnWaystarText(200, 60, typeNames2[waystarAttackType], "#ff00ff", 70);
                 addWaystarShockwave(waystarSmallBoss.x, waystarSmallBoss.y, "#ff00ff", 80, 12, 3);
             }
+
+            // ★ ГАРАНТИРОВАННАЯ проверка ярости каждый кадр ★
+            checkWaystarRage();
         }
     } else {
         waystarBoss.rotation += 0.015; waystarBoss.pulse += 0.06;
@@ -1396,6 +1501,9 @@ function waystarRenderLoop() {
     if (!waystarDialogActive) drawWaystarHpBars();
     if (waystarDialogActive) drawWaystarDialog();
 
+    // ★★★ РИСУЕМ ОСЛЕПЛЕНИЕ (ПОВЕРХ ВСЕГО) ★★★
+    drawWaystarBlind();
+
     if (typeof renderSuperVisuals === 'function') {
         try { renderSuperVisuals(); } catch(e) { console.error("[WAYSTAR] renderSuperVisuals error:", e); }
     }
@@ -1404,17 +1512,7 @@ function waystarRenderLoop() {
     if (waystarRageMode && waystarState === "phase3") { ctx.save(); ctx.font = "bold 16px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ff0000"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15; var rageGlow = 0.5 + Math.abs(Math.sin(performance.now() / 150)) * 0.5; ctx.globalAlpha = rageGlow; ctx.fillText("🔥 RAGE MODE 🔥", 200, 470); ctx.restore(); }
     if (waystarState === "phase3" && waystarEscalationLevel > 0) { ctx.save(); ctx.font = "bold 13px monospace"; ctx.textAlign = "center"; var escColors = ["#ff00ff", "#ff00ff", "#ff4400", "#ff4400", "#ff0000"]; var escName = waystarEscalationLevel >= 4 ? "💀 ФИНАЛЬНАЯ ЯРОСТЬ 💀" : "⚠ ЭСКАЛАЦИЯ " + "I".repeat(waystarEscalationLevel); ctx.fillStyle = escColors[Math.min(waystarEscalationLevel, 4)]; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 12; ctx.globalAlpha = 0.7 + Math.abs(Math.sin(performance.now() / 250)) * 0.3; ctx.fillText(escName, 200, 455); ctx.restore(); }
     if (isWaystarModerActive()) { ctx.save(); ctx.font = "bold 11px monospace"; ctx.textAlign = "right"; ctx.fillStyle = "#ffd700"; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 8; ctx.globalAlpha = 0.8; ctx.fillText("👑 MODER", 395, 20); ctx.restore(); }
-
-    // ★★★ РИСУЕМ ДЖОЙСТИК ★★★
-    if (typeof window.drawJoystick === 'function') {
-        try { window.drawJoystick(); } catch(e) {}
-    }
-
     ctx.restore();
-
-    // ★★★ ОСЛЕПЛЕНИЕ — рисуем ПОВЕРХ всего (после ctx.restore) ★★★
-    drawWaystarBlindness();
-
     waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
 }
 
@@ -1443,7 +1541,6 @@ function renderWaystarFinalScene() {
         if (waystarWakeText && waystarWakeAlpha > 0) { ctx.save(); ctx.globalAlpha = waystarWakeAlpha; ctx.font = "bold 17px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#aaaaaa"; ctx.shadowBlur = 10; var lines = waystarWakeText.split("\n"); for (var i = 0; i < lines.length; i++) { ctx.fillText(lines[i], 200, 180 + i * 26); } ctx.restore(); }
         if (waystarVignette > 0) { var vg = ctx.createRadialGradient(200, 250, 100, 200, 250, 400); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(255,0,0," + (waystarVignette / 30) + ")"); ctx.fillStyle = vg; ctx.fillRect(0, 0, 400, 500); }
         if (waystarScreenFlash > 0) { ctx.globalAlpha = waystarScreenFlash / 40; ctx.fillStyle = waystarScreenFlashColor; ctx.fillRect(0, 0, 400, 500); ctx.globalAlpha = 1; }
-        if (typeof window.drawJoystick === 'function') { try { window.drawJoystick(); } catch(e) {} }
         ctx.restore();
     } catch(e) { console.error("[WAYSTAR] ОШИБКА в renderWaystarFinalScene:", e); }
 }
@@ -1641,6 +1738,12 @@ function wrapText(text, maxWidth, ctx) {
     return lines;
 }
 
+// ============================================================
+// ★★★ ЭКСПОРТ ДЛЯ JOYSTICK.JS ★★★
+// ============================================================
+window.getWaystarActive = function() { return waystarActive; };
+window.getWaystarState  = function() { return waystarState; };
+
 window.startWaystarFight = startWaystarFight;
 window.stopWaystarFight = stopWaystarFight;
 window.damageWaystarBoss = function(dmg) { if (waystarState === "phase1") waystarBossHp -= dmg; };
@@ -1655,11 +1758,6 @@ window.waystarSound = wsPlaySound;
 window.isWaystarModerActive = isWaystarModerActive;
 window.initWaystarSupers = initWaystarSupers;
 
-// ============================================================
-// ★★★ ЭКСПОРТ ДЛЯ JOYSTICK.JS ★★★
-// ============================================================
-window.getWaystarState = function() { return waystarState; };
-
-console.log("[WAYSTAR] v13.0 + SUPER + JOYSTICK + ОСЛЕПЛЕНИЕ (1.5 сек)");
+console.log("[WAYSTAR] v13.0 — Ослепление + Гарантированная ярость + экспорт для joystick.js");
 
 } // ★ КОНЕЦ ЗАЩИТЫ ★
