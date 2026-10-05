@@ -1,12 +1,12 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v18.0
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v18.1
 // ============================================================
-// ★ v18.0 — ДИАЛОГ КАК У ЗВЕЗДЫ:
-//   - Диалог рисуется ОТДЕЛЬНОЙ фазой render loop
-//   - Флаг rwbDialogActive вместо rwbState = "dialog_xxx"
-//   - Watchdog отключён во время диалога
-//   - Награда выдаётся ТОЛЬКО после диалога
-//   - Работает так же как у Путеводной Звезды
+// ★ v18.1:
+//   - Атаки Роджера: белое → ЧЁРНОЕ (клинья, центр, вспышки)
+//   - Синяя атака может ломать hell_fire, fire_piece, blade, big_blade
+//     НО НЕ ЛОМАЕТ roger_slash и roger_cross (лазеры/клинки)
+//   - Портреты в диалоге: Роджер с усами+шляпой, Белоус с белой шляпой
+//     и усами (как на фото)
 // ============================================================
 
 (function() {
@@ -63,9 +63,8 @@
     var rwbWBPhase = "intro";
     var rwbDialogQueue = [];
 
-    // ★ НОВЫЕ ФЛАГИ ДЛЯ ДИАЛОГА
     var rwbDialogActive = false;
-    var rwbDialogType = null;  // "roger" | "whitebeard"
+    var rwbDialogType = null;
     var rwbDialogTimer = 0;
     var rwbRewardReady = false;
 
@@ -450,9 +449,8 @@
         }
     }
 
-    // ★★★ ФИНАЛИЗАЦИЯ — вызывается ТОЛЬКО после диалога ★★★
     function rwbFinalCleanup() {
-        console.log("[ROGER-WB] FINAL CLEANUP — выдача награды и завершение");
+        console.log("[ROGER-WB] FINAL CLEANUP");
         
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
         
@@ -495,13 +493,6 @@
         }
     }
 
-    function forceFinishRWB() {
-        if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
-        console.warn("[ROGER-WB] WATCHDOG — форсирую финал");
-        rwbFinalCleanup();
-    }
-
-    // ★★★ СТАРТ ДИАЛОГА — как у Путеводной Звезды ★★★
     function startRWBDialog() {
         rwbDialogActive = true;
         rwbDialogTimer = 0;
@@ -519,12 +510,10 @@
         }
     }
 
-    // ★★★ ОБРАБОТКА КЛИКОВ В ДИАЛОГЕ ★★★
     function handleRogersDialogClick() {
         rwbDialogStage++;
         playWhooshSound(0.1);
         if (rwbDialogStage >= RWB_ROGER_DIALOG.length) {
-            // Диалог Роджера закончен → выдача награды
             console.log("[ROGER-WB] Диалог Роджера завершён → выдача награды");
             rwbDialogActive = false;
             rwbFinalCleanup();
@@ -532,7 +521,6 @@
     }
 
     function handleWhitebeardDialogClick(ev) {
-        // Если показывается реплика — продвигаем
         if (rwbDialogQueue.length > 0) {
             rwbDialogQueue.shift();
             playWhooshSound(0.1);
@@ -541,7 +529,6 @@
                     rwbWhitebeardDisabled[0] = true;
                     rwbWBPhase = "choice";
                 } else if (rwbWBPhase === "choice_response_2") {
-                    // ★ ФИНАЛ — вариант 2
                     console.log("[ROGER-WB] Выбор 2 → финал");
                     rwbDialogActive = false;
                     rwbFinalCleanup();
@@ -557,7 +544,6 @@
             return;
         }
 
-        // Выбор варианта
         if (rwbWBPhase === "choice") {
             var rect = canvas.getBoundingClientRect();
             var mx = ev.clientX - rect.left;
@@ -735,8 +721,10 @@
             let alpha = crack.life / crack.maxLife;
             ctx.save();
             ctx.globalAlpha = alpha;
-            ctx.strokeStyle = "#ffffff";
+            ctx.strokeStyle = "#000000";
             ctx.lineWidth = crack.width;
+            ctx.shadowColor = "#000000";
+            ctx.shadowBlur = 8;
             ctx.beginPath();
             ctx.moveTo(crack.x, crack.y);
             let cx = crack.x, cy = crack.y;
@@ -760,7 +748,7 @@
             return;
         }
 
-        console.log("[ROGER-WB] Старт боя v18.0!");
+        console.log("[ROGER-WB] Старт боя v18.1!");
 
         window.rwbActive = true;
         rwbState = "intro";
@@ -1164,11 +1152,9 @@
     function handleRWBTouchStart(ev) {
         if (!window.rwbActive) return;
         
-        // ★ ДИАЛОГ — тап работает как клик
         if (rwbDialogActive) {
             ev.preventDefault();
             if (ev.touches.length > 0) {
-                var rect = canvas.getBoundingClientRect();
                 var fakeEvent = { clientX: ev.touches[0].clientX, clientY: ev.touches[0].clientY };
                 if (rwbDialogType === "roger") {
                     handleRogersDialogClick();
@@ -1211,23 +1197,18 @@
         if (!still) { rwbTouchActive = false; rwbTouchId = null; }
     }
 
-    // ★★★ ГЛАВНЫЙ ОБРАБОТЧИК КЛИКОВ ★★★
     function handleRWBClick(ev) {
         if (!window.rwbActive) return;
         
-        // ДИАЛОГ РОДЖЕРА
         if (rwbDialogActive && rwbDialogType === "roger") {
             handleRogersDialogClick();
             return;
         }
         
-        // ДИАЛОГ БЕЛОУСА
         if (rwbDialogActive && rwbDialogType === "whitebeard") {
             handleWhitebeardDialogClick(ev);
             return;
         }
-        
-        // Обычный клик — ничего не делаем
     }
 
     function updateRWBPlayer() {
@@ -1297,17 +1278,31 @@
         if (rwbPlayer.attackTimer > 0) rwbPlayer.attackTimer--;
     }
 
+    // ★★★ АВТО-ПРИЦЕЛ: НЕ целится в лазеры, но целится во всё остальное
     function aimBulletAtNearestAttack(bullet) {
         if (!rwbAttacks || rwbAttacks.length === 0) return;
         let nearestAttack = null;
         let nearestDist = Infinity;
         for (let i = 0; i < rwbAttacks.length; i++) {
             let a = rwbAttacks[i];
-            if (a.type === "tsunami" || a.type === "titan_fist" ||
-                a.type === "roger_slash" || a.type === "roger_cross" ||
-                a.type === "gura_crack" || a.type === "hell_fire" || a.type === "fire_piece" ||
-                a.type === "haki_wave" || a.type === "purple_crack_zone") continue;
+            // ★ НЕ ломаем roger_slash и roger_cross (лазеры/мечи)
+            if (a.type === "roger_slash" || a.type === "roger_cross") continue;
+            // Не ломаем tsunami (не ломается)
+            if (a.type === "tsunami") continue;
+            // Не ломаем titan_fist (крупная)
+            if (a.type === "titan_fist") continue;
+            // Не ломаем gura_crack (взрыв)
+            if (a.type === "gura_crack") continue;
+            // Не ломаем haki_wave
+            if (a.type === "haki_wave") continue;
+            // Не ломаем purple_crack_zone
+            if (a.type === "purple_crack_zone") continue;
+            // Не ломаем giant_rock (hp 5)
+            if (a.type === "giant_rock") continue;
+            
+            // ★ ЛОМАЕМ: hell_fire, fire_piece, blade, big_blade, fist, rock
             if (a.hp === undefined) continue;
+            
             let ax = a.x + (a.size || a.radius || 20) / 2;
             let ay = a.y + (a.size || a.radius || 20) / 2;
             let dx = ax - bullet.x;
@@ -2102,7 +2097,7 @@
                 damage: Math.ceil(24 * BALANCE.superDamageMult),
                 life: 200, state: "warning",
                 warningTimer: 70 + i * 15, activeTimer: 0, maxActive: 20,
-                hit: false, color: "#ffffff"
+                hit: false, color: "#000000"
             });
         }
         rwbShake = 20;
@@ -2446,7 +2441,7 @@
                         rwbShake = 18; playExplosionSound(0.5);
                         for (let j = 0; j < 12; j++) {
                             let ang = (j / 12) * Math.PI * 2;
-                            rwbParticles.push({ x: a.x, y: a.y, vx: Math.cos(ang) * 5, vy: Math.sin(ang) * 5, life: 22, maxLife: 22, color: "#ffffff", size: 2 });
+                            rwbParticles.push({ x: a.x, y: a.y, vx: Math.cos(ang) * 5, vy: Math.sin(ang) * 5, life: 22, maxLife: 22, color: "#000000", size: 2 });
                         }
                     }
                 } else if (a.state === "active") {
@@ -2568,10 +2563,14 @@
             if (b.isBlue) {
                 for (let j = rwbAttacks.length - 1; j >= 0; j--) {
                     let a = rwbAttacks[j];
+                    // ★ Синяя ломает: hell_fire, fire_piece, blade, big_blade, fist, rock
+                    // НО НЕ ЛОМАЕТ: roger_slash, roger_cross, tsunami, titan_fist, 
+                    //              gura_crack, haki_wave, purple_crack_zone, giant_rock
                     if (a.type === "tsunami" || a.type === "titan_fist" ||
                         a.type === "roger_slash" || a.type === "roger_cross" || a.type === "gura_crack" ||
-                        a.type === "hell_fire" || a.type === "fire_piece" || a.type === "haki_wave" ||
-                        a.type === "purple_crack_zone") continue;
+                        a.type === "haki_wave" || a.type === "purple_crack_zone" ||
+                        a.type === "giant_rock") continue;
+                    
                     let dx = b.x - a.x, dy = b.y - a.y;
                     let aSize = a.size || 20;
                     if (Math.sqrt(dx * dx + dy * dy) < aSize * 0.7 + b.size + 4) {
@@ -2680,7 +2679,6 @@
         }
     }
 
-    // ★★★ ПОБЕДА — запускает диалог ★★★
     function rwbVictory() {
         if (rwbDialogActive || rwbState === "done") return;
         if (rwbState === "victory") return;
@@ -2702,7 +2700,6 @@
         setTimeout(function() { playImpactSound(0.6, 0.9); }, 200);
         setTimeout(function() { playImpactSound(0.7, 1.2); }, 400);
 
-        // ★ Через 1.5 сек запускаем диалог
         setTimeout(function() {
             if (window.rwbActive && !rwbDialogActive) {
                 startRWBDialog();
@@ -2764,10 +2761,8 @@
             }
         }
 
-        // ★ ДИАЛОГ — рендерим отдельно, не обновляем бой
         if (rwbDialogActive) {
             rwbDialogTimer++;
-            // Останавливаем игрока
             if (rwbPlayer && rwbPlayer.invulnTimer > 0) rwbPlayer.invulnTimer--;
         } else {
             if (rwbState === "intro") {
@@ -3070,7 +3065,6 @@
             ctx.restore();
         }
 
-        // ★ ДИАЛОГ — рисуем поверх всего
         if (rwbDialogActive) {
             drawRWBDialogOverlay();
         }
@@ -3095,6 +3089,431 @@
         rwbAnimFrame = requestAnimationFrame(rwbRenderLoop);
     }
 
+    // ============================================================
+    // ★★★ НОВЫЕ ПОРТРЕТЫ — РОДЖЕР И БЕЛОУС КАК НА ФОТО ★★★
+    // ============================================================
+    
+    function drawRogerPortrait(cx, cy, scale) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(scale, scale);
+        
+        // Аура
+        var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, 75);
+        glow.addColorStop(0, "rgba(255, 136, 0, 0.6)");
+        glow.addColorStop(0.7, "rgba(255, 100, 0, 0.2)");
+        glow.addColorStop(1, "transparent");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(0, 0, 75, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Задний план — золотая аура
+        ctx.strokeStyle = "rgba(255, 215, 0, 0.4)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 60, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Шляпа Роджера (красная с золотой каймой)
+        // Поля шляпы
+        ctx.fillStyle = "#8B0000";
+        ctx.beginPath();
+        ctx.ellipse(0, -42, 62, 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#5a0000";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Верх шляпы
+        ctx.fillStyle = "#a01010";
+        ctx.beginPath();
+        ctx.ellipse(0, -55, 42, 22, 0, Math.PI, 0);
+        ctx.fill();
+        ctx.strokeStyle = "#5a0000";
+        ctx.stroke();
+        
+        // Золотая кайма на шляпе
+        ctx.strokeStyle = "#ffd700";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(0, -42, 58, 12, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Череп с костями на шляпе
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(0, -55, 7, 0, Math.PI * 2);
+        ctx.fill();
+        // Глаза черепа
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.arc(-2.5, -56, 1.8, 0, Math.PI * 2);
+        ctx.arc(2.5, -56, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+        // Кости под черепом
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(-10, -50);
+        ctx.lineTo(10, -50);
+        ctx.moveTo(-10, -48);
+        ctx.lineTo(-6, -50);
+        ctx.moveTo(10, -48);
+        ctx.lineTo(6, -50);
+        ctx.stroke();
+        // Улыбка черепа
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-3, -52);
+        ctx.lineTo(3, -52);
+        ctx.stroke();
+        
+        // Волосы (чёрные, торчат из-под шляпы)
+        ctx.fillStyle = "#0a0a0a";
+        ctx.beginPath();
+        ctx.moveTo(-40, -40);
+        ctx.quadraticCurveTo(-50, -25, -48, -10);
+        ctx.quadraticCurveTo(-52, -5, -48, 0);
+        ctx.lineTo(-42, -8);
+        ctx.quadraticCurveTo(-45, -25, -38, -38);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(40, -40);
+        ctx.quadraticCurveTo(50, -25, 48, -10);
+        ctx.quadraticCurveTo(52, -5, 48, 0);
+        ctx.lineTo(42, -8);
+        ctx.quadraticCurveTo(45, -25, 38, -38);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Голова
+        ctx.fillStyle = "#f4c896";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 36, 42, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#a08060";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        
+        // Тёмные брови
+        ctx.strokeStyle = "#0a0a0a";
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(-22, -10);
+        ctx.lineTo(-8, -14);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(22, -10);
+        ctx.lineTo(8, -14);
+        ctx.stroke();
+        
+        // Глаза (серьёзные, с бликом)
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.ellipse(-14, 0, 8, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(14, 0, 8, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#3a2010";
+        ctx.beginPath();
+        ctx.arc(-14, 1, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(14, 1, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.arc(-14, 1.5, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(14, 1.5, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(-15.5, -0.5, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(12.5, -0.5, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Нос
+        ctx.strokeStyle = "#a07050";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 8);
+        ctx.lineTo(-2, 14);
+        ctx.lineTo(2, 14);
+        ctx.stroke();
+        
+        // УСЫ — густые, чёрные, как у Роджера
+        ctx.fillStyle = "#0a0a0a";
+        // Правый ус
+        ctx.beginPath();
+        ctx.moveTo(2, 18);
+        ctx.quadraticCurveTo(20, 22, 30, 16);
+        ctx.quadraticCurveTo(28, 22, 20, 26);
+        ctx.quadraticCurveTo(10, 26, 2, 22);
+        ctx.closePath();
+        ctx.fill();
+        // Левый ус
+        ctx.beginPath();
+        ctx.moveTo(-2, 18);
+        ctx.quadraticCurveTo(-20, 22, -30, 16);
+        ctx.quadraticCurveTo(-28, 22, -20, 26);
+        ctx.quadraticCurveTo(-10, 26, -2, 22);
+        ctx.closePath();
+        ctx.fill();
+        // Центральная часть усов
+        ctx.beginPath();
+        ctx.ellipse(0, 22, 6, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Рот с ухмылкой
+        ctx.strokeStyle = "#5a3030";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-8, 30);
+        ctx.quadraticCurveTo(0, 34, 8, 30);
+        ctx.stroke();
+        
+        // Шрам / морщины
+        ctx.strokeStyle = "rgba(120, 80, 40, 0.5)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-25, 8);
+        ctx.lineTo(-32, 12);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(25, 8);
+        ctx.lineTo(32, 12);
+        ctx.stroke();
+        
+        ctx.restore();
+    }
+    
+    function drawWhitebeardPortrait(cx, cy, scale) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(scale, scale);
+        
+        // Аура
+        var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, 75);
+        glow.addColorStop(0, "rgba(136, 221, 255, 0.6)");
+        glow.addColorStop(0.7, "rgba(100, 180, 255, 0.2)");
+        glow.addColorStop(1, "transparent");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(0, 0, 75, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Синяя аура
+        ctx.strokeStyle = "rgba(136, 221, 255, 0.4)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 60, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Белая шляпа Белоуса с широкими полями
+        // Поля шляпы
+        ctx.fillStyle = "#f0f0f0";
+        ctx.beginPath();
+        ctx.ellipse(0, -44, 70, 16, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#aaaaaa";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Верх шляпы (высокий цилиндр)
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.moveTo(-38, -44);
+        ctx.quadraticCurveTo(-40, -70, -30, -75);
+        ctx.lineTo(30, -75);
+        ctx.quadraticCurveTo(40, -70, 38, -44);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "#aaaaaa";
+        ctx.stroke();
+        
+        // Золотая кайма
+        ctx.strokeStyle = "#ffd700";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(0, -44, 66, 13, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Эмблема на шляпе (белая с золотом)
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(0, -60, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#ffd700";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Простой рисунок черепа на эмблеме
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.arc(-3, -62, 1.5, 0, Math.PI * 2);
+        ctx.arc(3, -62, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-3, -58);
+        ctx.lineTo(3, -58);
+        ctx.stroke();
+        
+        // Волосы (светло-русые/золотистые, длинные)
+        ctx.fillStyle = "#e8c860";
+        ctx.beginPath();
+        ctx.moveTo(-38, -44);
+        ctx.quadraticCurveTo(-48, -30, -50, -10);
+        ctx.quadraticCurveTo(-52, 10, -48, 30);
+        ctx.quadraticCurveTo(-46, 40, -42, 45);
+        ctx.lineTo(-38, 40);
+        ctx.quadraticCurveTo(-42, 20, -40, 0);
+        ctx.quadraticCurveTo(-42, -25, -35, -42);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(38, -44);
+        ctx.quadraticCurveTo(48, -30, 50, -10);
+        ctx.quadraticCurveTo(52, 10, 48, 30);
+        ctx.quadraticCurveTo(46, 40, 42, 45);
+        ctx.lineTo(38, 40);
+        ctx.quadraticCurveTo(42, 20, 40, 0);
+        ctx.quadraticCurveTo(42, -25, 35, -42);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Голова
+        ctx.fillStyle = "#f4c896";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 36, 42, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#a08060";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        
+        // Тёмные брови
+        ctx.strokeStyle = "#5a4020";
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(-22, -10);
+        ctx.lineTo(-8, -13);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(22, -10);
+        ctx.lineTo(8, -13);
+        ctx.stroke();
+        
+        // Глаза (жёлтые, светящиеся)
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.ellipse(-14, 0, 9, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(14, 0, 9, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffd700";
+        ctx.beginPath();
+        ctx.arc(-14, 1, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(14, 1, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.arc(-14, 1.5, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(14, 1.5, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(-15.5, -0.5, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(12.5, -0.5, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Нос
+        ctx.strokeStyle = "#a07050";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 8);
+        ctx.lineTo(-2, 14);
+        ctx.lineTo(2, 14);
+        ctx.stroke();
+        
+        // БЕЛЫЕ УСЫ — огромные, как полумесяц, главная фишка Белоуса
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#d0d0d0";
+        ctx.lineWidth = 1.5;
+        // Правый ус (большой, изогнутый)
+        ctx.beginPath();
+        ctx.moveTo(3, 22);
+        ctx.quadraticCurveTo(30, 22, 48, 8);
+        ctx.quadraticCurveTo(52, 4, 50, 0);
+        ctx.quadraticCurveTo(45, 8, 30, 18);
+        ctx.quadraticCurveTo(15, 22, 3, 24);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Левый ус
+        ctx.beginPath();
+        ctx.moveTo(-3, 22);
+        ctx.quadraticCurveTo(-30, 22, -48, 8);
+        ctx.quadraticCurveTo(-52, 4, -50, 0);
+        ctx.quadraticCurveTo(-45, 8, -30, 18);
+        ctx.quadraticCurveTo(-15, 22, -3, 24);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Центральная часть
+        ctx.beginPath();
+        ctx.ellipse(0, 23, 7, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Рот с суровой улыбкой
+        ctx.strokeStyle = "#5a3030";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-8, 32);
+        ctx.quadraticCurveTo(0, 35, 8, 32);
+        ctx.stroke();
+        
+        // Морщины (мудрость)
+        ctx.strokeStyle = "rgba(120, 80, 40, 0.5)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-25, 8);
+        ctx.lineTo(-32, 12);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(25, 8);
+        ctx.lineTo(32, 12);
+        ctx.stroke();
+        // Морщины на лбу
+        ctx.beginPath();
+        ctx.moveTo(-15, -18);
+        ctx.lineTo(15, -18);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-12, -22);
+        ctx.lineTo(12, -22);
+        ctx.stroke();
+        
+        ctx.restore();
+    }
+    
     function drawRWBDialogOverlay() {
         if (!ctx) return;
 
@@ -3103,26 +3522,8 @@
         ctx.fillRect(0, 0, 400, 500);
 
         if (rwbDialogType === "roger") {
-            // Портрет Роджера
-            ctx.save();
-            ctx.translate(200, 130);
-            ctx.scale(1.5, 1.5);
-            var glow = ctx.createRadialGradient(0, 0, 3, 0, 0, 60);
-            glow.addColorStop(0, "rgba(255, 136, 0, 0.8)");
-            glow.addColorStop(1, "transparent");
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(0, 0, 60, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#ff8800";
-            ctx.beginPath();
-            ctx.arc(0, 0, 28, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#ffffff";
-            ctx.beginPath();
-            ctx.arc(0, 0, 12, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
+            // ★ НОВЫЙ ПОРТРЕТ РОДЖЕРА
+            drawRogerPortrait(200, 130, 1.4);
 
             var line = RWB_ROGER_DIALOG[rwbDialogStage];
             if (line) {
@@ -3131,43 +3532,25 @@
                 ctx.fillStyle = "#ff8800";
                 ctx.shadowColor = "#ff8800";
                 ctx.shadowBlur = 15;
-                ctx.fillText(line.speaker, 200, 210);
+                ctx.fillText(line.speaker, 200, 240);
 
                 ctx.shadowBlur = 0;
                 ctx.fillStyle = "#ffffff";
                 ctx.font = "italic bold 15px Nunito, sans-serif";
                 var lines = wrapText(line.text, 340, ctx);
                 for (var i = 0; i < lines.length; i++) {
-                    ctx.fillText(lines[i], 200, 250 + i * 26);
+                    ctx.fillText(lines[i], 200, 280 + i * 26);
                 }
             }
 
             if (Math.floor(performance.now() / 500) % 2 === 0) {
                 ctx.font = "12px monospace";
                 ctx.fillStyle = "#aaaaaa";
-                ctx.fillText(">> Кликните для продолжения <<", 200, 460);
+                ctx.fillText(">> Кликните для продолжения <<", 200, 470);
             }
         } else if (rwbDialogType === "whitebeard") {
-            // Портрет Белоуса
-            ctx.save();
-            ctx.translate(200, 90);
-            ctx.scale(1.2, 1.2);
-            var glow2 = ctx.createRadialGradient(0, 0, 3, 0, 0, 55);
-            glow2.addColorStop(0, "rgba(136, 221, 255, 0.8)");
-            glow2.addColorStop(1, "transparent");
-            ctx.fillStyle = glow2;
-            ctx.beginPath();
-            ctx.arc(0, 0, 55, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#1a3a6a";
-            ctx.beginPath();
-            ctx.arc(0, 0, 25, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#ffffff";
-            ctx.beginPath();
-            ctx.ellipse(0, 22, 30, 12, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
+            // ★ НОВЫЙ ПОРТРЕТ БЕЛОУСА
+            drawWhitebeardPortrait(200, 110, 1.3);
 
             if (rwbDialogQueue.length > 0) {
                 var line2 = rwbDialogQueue[0];
@@ -3176,20 +3559,20 @@
                 ctx.fillStyle = line2.speaker.indexOf("БЕЛОУС") !== -1 ? "#88ddff" : "#ffd700";
                 ctx.shadowColor = ctx.fillStyle;
                 ctx.shadowBlur = 12;
-                ctx.fillText(line2.speaker, 200, 175);
+                ctx.fillText(line2.speaker, 200, 210);
 
                 ctx.shadowBlur = 0;
                 ctx.fillStyle = "#ffffff";
                 ctx.font = "bold 14px Nunito, sans-serif";
                 var lines2 = wrapText(line2.text, 340, ctx);
                 for (var i = 0; i < lines2.length; i++) {
-                    ctx.fillText(lines2[i], 200, 215 + i * 24);
+                    ctx.fillText(lines2[i], 200, 250 + i * 24);
                 }
 
                 if (Math.floor(performance.now() / 500) % 2 === 0) {
                     ctx.font = "12px monospace";
                     ctx.fillStyle = "#aaaaaa";
-                    ctx.fillText(">> Кликните для продолжения <<", 200, 470);
+                    ctx.fillText(">> Кликните для продолжения <<", 200, 475);
                 }
             } else if (rwbWBPhase === "choice") {
                 ctx.font = "bold 16px Nunito, sans-serif";
@@ -3197,10 +3580,10 @@
                 ctx.fillStyle = "#88ddff";
                 ctx.shadowColor = "#88ddff";
                 ctx.shadowBlur = 12;
-                ctx.fillText("ЧТО ОТВЕТИШЬ?", 200, 180);
+                ctx.fillText("ЧТО ОТВЕТИШЬ?", 200, 220);
                 ctx.shadowBlur = 0;
 
-                var btnW = 360, btnX = 20, startY = 220, btnH = 60, gap = 10;
+                var btnW = 360, btnX = 20, startY = 250, btnH = 55, gap = 8;
                 for (var i = 0; i < 3; i++) {
                     var by = startY + i * (btnH + gap);
                     var disabled = rwbWhitebeardDisabled[i];
@@ -3224,7 +3607,7 @@
                     ctx.fillStyle = disabled ? "#666666" : "#ffffff";
                     var choiceLines = wrapText(RWB_WB_CHOICES[i].text, btnW - 30, ctx);
                     for (var li = 0; li < Math.min(choiceLines.length, 2); li++) {
-                        ctx.fillText(choiceLines[li], btnX + 15, by + 26 + li * 18);
+                        ctx.fillText(choiceLines[li], btnX + 15, by + 24 + li * 16);
                     }
 
                     if (disabled) {
@@ -3481,7 +3864,7 @@
                 ctx.beginPath();
                 ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = "#ffffff";
+                ctx.strokeStyle = "#000000";
                 ctx.lineWidth = 3;
                 ctx.beginPath();
                 ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
@@ -3498,12 +3881,12 @@
             if (a.state === "warning") {
                 let pulseAlpha = 0.4 + Math.sin(performance.now() / 100) * 0.2;
                 ctx.globalAlpha = pulseAlpha;
-                ctx.fillStyle = a.color || "#ff4400";
+                ctx.fillStyle = "#000000";  // ★ ЧЁРНЫЙ
 
                 if (isHorizontal) {
                     ctx.fillRect(0, a.y - a.width / 2, 400, a.width);
                     ctx.globalAlpha = 1;
-                    ctx.strokeStyle = "#ffffff";
+                    ctx.strokeStyle = "#ff4400";  // ★ ОРАНЖЕВАЯ обводка (видно на чёрном)
                     ctx.lineWidth = 2.5;
                     ctx.setLineDash([12, 8]);
                     ctx.beginPath();
@@ -3513,14 +3896,14 @@
                     ctx.lineTo(400, a.y + a.width / 2);
                     ctx.stroke();
                     ctx.setLineDash([]);
-                    ctx.fillStyle = "#fff";
+                    ctx.fillStyle = "#ff4400";
                     ctx.font = "bold 12px monospace";
                     ctx.textAlign = "center";
                     ctx.fillText("⚠️", 200, a.y + 4);
                 } else {
                     ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
                     ctx.globalAlpha = 1;
-                    ctx.strokeStyle = "#ffffff";
+                    ctx.strokeStyle = "#ff4400";
                     ctx.lineWidth = 2.5;
                     ctx.setLineDash([12, 8]);
                     ctx.beginPath();
@@ -3530,7 +3913,7 @@
                     ctx.lineTo(a.x + a.width / 2, 500);
                     ctx.stroke();
                     ctx.setLineDash([]);
-                    ctx.fillStyle = "#fff";
+                    ctx.fillStyle = "#ff4400";
                     ctx.font = "bold 12px monospace";
                     ctx.textAlign = "center";
                     ctx.fillText("⚠️", a.x, 250);
@@ -3540,14 +3923,14 @@
                 ctx.globalAlpha = fade;
 
                 if (isHorizontal) {
-                    ctx.fillStyle = a.color || "#ff2200";
+                    ctx.fillStyle = "#000000";  // ★ ЧЁРНЫЙ
                     ctx.fillRect(0, a.y - a.width / 2, 400, a.width);
-                    ctx.fillStyle = "#ffffff";
+                    ctx.fillStyle = "#ff4400";  // ★ ОРАНЖЕВАЯ центральная линия
                     ctx.fillRect(0, a.y - a.width * 0.15, 400, a.width * 0.3);
                 } else {
-                    ctx.fillStyle = a.color || "#ff2200";
+                    ctx.fillStyle = "#000000";
                     ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
-                    ctx.fillStyle = "#ffffff";
+                    ctx.fillStyle = "#ff4400";
                     ctx.fillRect(a.x - a.width * 0.15, 0, a.width * 0.3, 500);
                 }
             }
@@ -3565,10 +3948,10 @@
             if (a.state === "warning") {
                 let pulseAlpha = 0.4 + Math.sin(performance.now() / 100) * 0.2;
                 ctx.globalAlpha = pulseAlpha;
-                ctx.fillStyle = "#ff6600";
+                ctx.fillStyle = "#000000";  // ★ ЧЁРНЫЙ
                 ctx.fillRect(-a.width / 2, -a.length / 2, a.width, a.length);
                 ctx.globalAlpha = 1;
-                ctx.strokeStyle = "#ffffff";
+                ctx.strokeStyle = "#ff4400";  // ★ ОРАНЖЕВАЯ
                 ctx.lineWidth = 2.5;
                 ctx.setLineDash([12, 8]);
                 ctx.strokeRect(-a.width / 2, -a.length / 2, a.width, a.length);
@@ -3576,9 +3959,9 @@
             } else if (a.state === "active") {
                 let fade = Math.min(1, a.activeTimer / 8);
                 ctx.globalAlpha = fade;
-                ctx.fillStyle = "#ff4400";
+                ctx.fillStyle = "#000000";  // ★ ЧЁРНЫЙ
                 ctx.fillRect(-a.width / 2, -a.length / 2, a.width, a.length);
-                ctx.fillStyle = "#ffffff";
+                ctx.fillStyle = "#ff4400";  // ★ ОРАНЖЕВАЯ
                 ctx.fillRect(-a.width * 0.15, -a.length / 2, a.width * 0.3, a.length);
             }
             ctx.restore();
@@ -3592,18 +3975,18 @@
                 ctx.beginPath();
                 ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = "#ffffff";
+                ctx.strokeStyle = "#000000";  // ★ ЧЁРНАЯ обводка
                 ctx.lineWidth = 2;
                 ctx.stroke();
                 ctx.fillStyle = "#ffcc00";
                 ctx.beginPath();
                 ctx.arc(a.x, a.y, a.size * 0.6, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.fillStyle = "#ffffff";
+                ctx.fillStyle = "#000000";  // ★ ЧЁРНЫЙ центр
                 ctx.beginPath();
                 ctx.arc(a.x, a.y, a.size * 0.3, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = "rgba(255, 50, 50, 0.7)";
+                ctx.strokeStyle = "rgba(0, 0, 0, 0.7)";  // ★ ЧЁРНЫЙ круг цели
                 ctx.lineWidth = 2;
                 ctx.setLineDash([6, 4]);
                 ctx.beginPath();
@@ -3618,7 +4001,7 @@
                 ctx.beginPath();
                 ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = "#ffffff";
+                ctx.strokeStyle = "#000000";  // ★ ЧЁРНАЯ обводка
                 ctx.lineWidth = 3;
                 ctx.stroke();
             }
@@ -3632,7 +4015,7 @@
             ctx.beginPath();
             ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = "#ffffff";
+            ctx.strokeStyle = "#000000";  // ★ ЧЁРНАЯ обводка
             ctx.lineWidth = 1.5;
             ctx.stroke();
             ctx.restore();
@@ -3644,7 +4027,7 @@
             if (a.state === "warning") {
                 let pulseAlpha = 0.5 + Math.sin(performance.now() / 80) * 0.3;
                 ctx.globalAlpha = pulseAlpha;
-                ctx.strokeStyle = "#ffffff";
+                ctx.strokeStyle = "#000000";  // ★ ЧЁРНЫЙ
                 ctx.lineWidth = 3;
                 ctx.beginPath();
                 ctx.arc(a.x, a.y, a.maxRadius, 0, Math.PI * 2);
@@ -3653,7 +4036,7 @@
                 ctx.arc(a.x, a.y, a.maxRadius * 0.5, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.globalAlpha = 1;
-                ctx.fillStyle = "#ffffff";
+                ctx.fillStyle = "#000000";  // ★ ЧЁРНЫЙ
                 ctx.font = "bold 14px monospace";
                 ctx.textAlign = "center";
                 ctx.fillText("💥", a.x, a.y + 5);
@@ -3661,11 +4044,11 @@
                 let fade = a.activeTimer / a.maxActive;
                 ctx.globalAlpha = fade;
                 let r = a.radius;
-                ctx.fillStyle = "#ffffff";
+                ctx.fillStyle = "#000000";  // ★ ЧЁРНЫЙ
                 ctx.beginPath();
                 ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = "#aaddff";
+                ctx.strokeStyle = "#ff4400";  // ★ ОРАНЖЕВАЯ обводка
                 ctx.lineWidth = 3;
                 ctx.beginPath();
                 ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
@@ -3690,7 +4073,7 @@
                 ctx.beginPath();
                 ctx.arc(0, 0, a.size, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = "#1a1008";
+                ctx.strokeStyle = "#000000";  // ★ ЧЁРНАЯ обводка
                 ctx.lineWidth = 4;
                 ctx.stroke();
                 ctx.fillStyle = "#a89070";
@@ -3698,7 +4081,7 @@
                     ctx.beginPath();
                     ctx.arc(i * a.size * 0.3, -a.size * 0.3, a.size * 0.18, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.strokeStyle = "#1a1008";
+                    ctx.strokeStyle = "#000000";
                     ctx.lineWidth = 2;
                     ctx.stroke();
                 }
@@ -3710,7 +4093,7 @@
                 ctx.beginPath();
                 ctx.arc(0, 0, r, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = "#ffffff";
+                ctx.strokeStyle = "#000000";  // ★ ЧЁРНАЯ обводка
                 ctx.lineWidth = 3;
                 ctx.stroke();
             }
@@ -3729,7 +4112,7 @@
             ctx.beginPath();
             ctx.ellipse(0, 0, a.size, a.size * 0.6, 0, 0, Math.PI * 2);
             ctx.fill();
-            ctx.fillStyle = "#ffffff";
+            ctx.fillStyle = "#000000";  // ★ ЧЁРНЫЙ центр
             ctx.beginPath();
             ctx.ellipse(0, 0, a.size * 0.5, a.size * 0.3, 0, 0, Math.PI * 2);
             ctx.fill();
@@ -3741,6 +4124,7 @@
         ctx.translate(a.x, a.y);
         ctx.rotate(a.rotation || 0);
         if (a.type === "blade" || a.type === "big_blade") {
+            // ★ Чёрный клинок
             ctx.fillStyle = "#000000";
             ctx.beginPath();
             ctx.moveTo(0, -a.size - 3);
@@ -3757,7 +4141,7 @@
             ctx.lineTo(-a.size * 0.4, 0);
             ctx.closePath();
             ctx.fill();
-            ctx.fillStyle = "#ffffff";
+            ctx.fillStyle = "#000000";  // ★ ЧЁРНЫЙ центр
             ctx.beginPath();
             ctx.moveTo(0, -a.size * 0.6);
             ctx.lineTo(a.size * 0.15, 0);
@@ -3774,7 +4158,7 @@
             ctx.beginPath();
             ctx.arc(0, 0, a.size, 0, Math.PI * 2);
             ctx.fill();
-            ctx.fillStyle = "#ffffff";
+            ctx.fillStyle = "#000000";  // ★ ЧЁРНЫЙ центр
             ctx.beginPath();
             ctx.arc(0, 0, a.size * 0.6, 0, Math.PI * 2);
             ctx.fill();
@@ -3806,10 +4190,10 @@
         for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = "#1a1008";
+        ctx.strokeStyle = "#000000";  // ★ ЧЁРНАЯ обводка
         ctx.lineWidth = 2.5;
         ctx.stroke();
-        ctx.strokeStyle = "rgba(30, 20, 10, 0.7)";
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";  // ★ Чёрные трещины
         ctx.lineWidth = 1.5;
         for (let i = 0; i < 2; i++) {
             let ang1 = (seed + i * 1.3) % (Math.PI * 2);
@@ -3819,7 +4203,7 @@
             ctx.lineTo(Math.cos(ang2) * s * 0.8, Math.sin(ang2) * s * 0.8);
             ctx.stroke();
         }
-        ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+        ctx.fillStyle = "rgba(0, 0, 0, 0.3)";  // ★ ЧЁРНЫЙ блик
         ctx.beginPath();
         ctx.arc(-s * 0.3, -s * 0.35, s * 0.15, 0, Math.PI * 2);
         ctx.fill();
@@ -3857,10 +4241,10 @@
         for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = "#1a1008";
+        ctx.strokeStyle = "#000000";  // ★ ЧЁРНАЯ обводка
         ctx.lineWidth = 4;
         ctx.stroke();
-        ctx.strokeStyle = "rgba(30, 20, 10, 0.8)";
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
         ctx.lineWidth = 2;
         for (let i = 0; i < 4; i++) {
             let ang1 = (seed + i * 1.3) % (Math.PI * 2);
@@ -3870,7 +4254,7 @@
             ctx.lineTo(Math.cos(ang2) * s * 0.8, Math.sin(ang2) * s * 0.8);
             ctx.stroke();
         }
-        ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
         ctx.beginPath();
         ctx.arc(-s * 0.3, -s * 0.35, s * 0.18, 0, Math.PI * 2);
         ctx.fill();
@@ -3888,7 +4272,7 @@
             ctx.fillRect(barX, barY, barW, barH);
             ctx.fillStyle = "#e74c3c";
             ctx.fillRect(barX, barY, barW * (a.hp / a.maxHp), barH);
-            ctx.strokeStyle = "#ffffff";
+            ctx.strokeStyle = "#000000";  // ★ ЧЁРНАЯ обводка
             ctx.lineWidth = 1;
             ctx.strokeRect(barX, barY, barW, barH);
             ctx.fillStyle = "#ffffff";
@@ -3968,11 +4352,11 @@
         ctx.closePath();
         ctx.fill();
 
-        ctx.strokeStyle = "#001a33";
+        ctx.strokeStyle = "#000000";  // ★ ЧЁРНАЯ обводка
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = "#000000";  // ★ Чёрные точки сверху
         for (let i = 0; i <= 20; i++) {
             let t = i / 20;
             let x = fromRight ? a.x + t * w : t * w;
@@ -3982,7 +4366,7 @@
             ctx.fill();
         }
 
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";  // ★ ЧЁРНЫЕ линии
         ctx.lineWidth = 2;
         for (let li = 0; li < 3; li++) {
             let lineOffset = -h * 0.2 + li * h * 0.2;
@@ -4016,10 +4400,10 @@
     window.rwbSound = rwbSound;
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v18.0                             ║");
-    console.log("║  ✅ ДИАЛОГ КАК У ЗВЕЗДЫ — отдельная фаза                    ║");
-    console.log("║  ✅ Watchdog НЕ мешает диалогу                             ║");
-    console.log("║  ✅ Награда ТОЛЬКО после диалога                            ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v18.1                             ║");
+    console.log("║  ✅ Атаки Роджера: белое → ЧЁРНОЕ                          ║");
+    console.log("║  ✅ Синяя ломает всё КРОМЕ лазеров/крупных                  ║");
+    console.log("║  ✅ НОВЫЕ ПОРТРЕТЫ: Роджер и Белоус                        ║");
     console.log("╚════════════════════════════════════════════════════════════╝");
 
 })();
