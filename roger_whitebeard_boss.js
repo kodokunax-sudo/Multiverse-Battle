@@ -17,8 +17,8 @@
     }
     window._rogerWhitebeardLoaded = true;
 
-    const RWB_SUPER_ROGER_HP = 2800;
-    const RWB_SUPER_WB_HP = 2000;
+    const RWB_SUPER_ROGER_HP = 2200;
+    const RWB_SUPER_WB_HP = 2600;
     const RWB_ATTACK_SPEED = 45;
     const RWB_ATTACK_SPEED_SUPER_ROGER = 30;
     const RWB_SUPER_COOLDOWN = 300;
