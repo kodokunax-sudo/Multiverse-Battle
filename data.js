@@ -211,6 +211,13 @@ const customCardTemplates = {
             statusAbility: { type: "bossDamageAura", value: 0.10, desc: "+25% (босс)" }, 
             desc: "Символ мира в прайме. +15% урона команде и +25% при битве с боссом.",
             superAbility: { name: "SUPER: СИМВОЛ МИРА", desc: "Хитбокс x2, урон x3 на 15 секунд! Но потом теряешь 50% HP и НАВСЕГДА замедляешься в 3 раза. ПЛЮЮЮС УЛЬТРААААА!", passive: false }
+        },
+        { 
+            name: "Белоус", universe: "One Piece", damage: 400, hp: 250, speed: 2.0, sellPrice: 800, minRebirth: 0,
+            unsellable: true,
+            ability: { type: "whitebeardSpecial", desc: "3% воскрешение | 1% HP/волна | 2% шанс x5 комбо" },
+            desc: "Эдвард Ньюгейт. Сильнейший человек в мире. Нельзя получить через гачу — только победив супер-Белоуса.",
+            superAbility: null
         }
     ],
     "Эволюционная": [
