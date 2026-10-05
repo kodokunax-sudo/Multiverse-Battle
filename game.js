@@ -804,7 +804,6 @@ function getPassiveModifiers() {
             if (a.type === 'dmgTakenIncrease') tm += a.value * ab * mult; 
             if (a.type === 'spareChanceBonus') { sb += a.value * ab; } 
             if (a.type === 'zenoCheckpoint') { window.hasZenoInTeam = true; } 
-            // ★ Белоус: 3% воскрешение
             if (a.type === 'whitebeardSpecial') { /* обрабатывается в defeat() */ } 
         } 
         if (cd.statusAbility?.type === 'absoluteFreeze' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) tm -= cd.statusAbility.value * ab * mult; 
@@ -964,7 +963,7 @@ function getCardResultHTML(card) { let rarityColor = getRarityColor(card.rarity)
 function startGachaAnimation(card, type) { let availableRarities = []; switch(type) { case "common": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "rare": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "superRare": availableRarities = ["Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная"]; break; case "epic": availableRarities = ["Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "mythic": availableRarities = ["Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "legendary": availableRarities = ["Мифическая", "Легендарная", "Секретная"]; break; case "secret": availableRarities = ["Легендарная", "Секретная"]; break; default: availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик"]; } let fakeCards = []; for (let i = 0; i < 8; i++) { let randomRarity = availableRarities[Math.floor(Math.random() * availableRarities.length)]; let fc = createCard(randomRarity); if (fc) fakeCards.push(fc); } fakeCards.push(card); gachaAnimationActive = true; let modalContent = document.getElementById("modalContent"); let modalOverlay = document.getElementById("modalOverlay"); if (!modalContent || !modalOverlay) { gachaAnimationActive = false; return; } modalOverlay.style.display = "flex"; let index = 0; let totalFlashes = 24; let flashCount = 0; let speed = 80; function flashNextCard() { if (flashCount >= totalFlashes) { modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>'; if (typeof sfxCardObtain === 'function') sfxCardObtain(); gachaAnimationActive = false; return; } let currentCard = fakeCards[index % fakeCards.length]; let rarityColor = getRarityColor(currentCard.rarity); modalContent.innerHTML = '<h2>🎰 Крутка...</h2>' + '<div style="text-align:center;padding:10px;">' + '<div style="font-size:48px;margin-bottom:10px;">🎴</div>' + '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + currentCard.name + '</div>' + '<div class="rarity-tag ' + rarityColors[currentCard.rarity] + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' + '<div style="margin-top:12px;font-size:16px;">💪 ' + currentCard.damage + ' ❤️ ' + currentCard.hp + '</div>' + '</div>' + '<button class="btn" style="width:100%;padding:8px;margin-top:10px;background:#e74c3c;border:none;color:white;font-weight:bold;" onclick="closeModal();gachaAnimationActive=false;">⏭️ ПРОПУСТИТЬ</button>'; index++; flashCount++; if (flashCount > totalFlashes * 0.7) speed += 40; else if (flashCount > totalFlashes * 0.5) speed += 20; else if (flashCount > totalFlashes * 0.3) speed += 10; setTimeout(flashNextCard, speed); } flashNextCard(); }
 
 // ============================================================
-// ГЕНЕРАЦИЯ ВРАГА — с обновлённым блоком wave 1000
+// ГЕНЕРАЦИЯ ВРАГА — с ОБНОВЛЁННЫМ блоком wave 1000
 // ============================================================
 function generateEnemy() { 
     firstAttackThisFight = true; 
@@ -1045,12 +1044,13 @@ function generateEnemy() {
         }
     }
     else if (wave === 1000) {
-        // ★★★ ОБНОВЛЕНО: вариант В — ослабленная версия + пропуск ★★★
+        // ★★★ КАК У КАМНЯ / ЗВЕЗДЫ: только одна кнопка ★★★
         let alreadyDefeatedRogerWB = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(1000);
         if (btn) btn.style.display = "none";
         if (livingBtn) livingBtn.style.display = "none";
         if (waystarBtn) waystarBtn.style.display = "none";
         
+        // Создаём кнопку сражения (если ещё нет)
         if (!rwbBtn) {
             rwbBtn = document.createElement('button');
             rwbBtn.id = "startRogerWB";
@@ -1066,32 +1066,34 @@ function generateEnemy() {
             if (container) container.insertBefore(rwbBtn, container.firstChild);
         }
         
+        // Создаём кнопку пропуска (если ещё нет)
+        let skipRwbBtn = document.getElementById("skipRWBBtn");
+        if (!skipRwbBtn) {
+            skipRwbBtn = document.createElement('button');
+            skipRwbBtn.id = "skipRWBBtn";
+            skipRwbBtn.className = "btn btn-skip-arena";
+            skipRwbBtn.style.cssText = "width:100%;padding:12px;font-size:16px;margin-bottom:10px;display:none;";
+            skipRwbBtn.innerHTML = "⏭️ ПРОПУСТИТЬ АРЕНУ (уже побеждён)";
+            skipRwbBtn.onclick = function() {
+                if (typeof showFloatingText === 'function') showFloatingText("⏭️ Босс пропущен!", "#ffaa00");
+                if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0;
+                if (typeof victory === 'function') victory();
+            };
+            let container2 = document.querySelector('#fightSubTab .card') || document.body;
+            if (container2) container2.insertBefore(skipRwbBtn, container2.firstChild);
+        }
+        
         if (alreadyDefeatedRogerWB) {
-            // ★ Вариант В: босс побеждён — только пропуск
+            // Босс побеждён → показываем ТОЛЬКО "Пропустить"
             rwbBtn.style.display = "none";
-            let skipRwbBtn = document.getElementById("skipRWBBtn");
-            if (!skipRwbBtn) {
-                skipRwbBtn = document.createElement('button');
-                skipRwbBtn.id = "skipRWBBtn";
-                skipRwbBtn.className = "btn btn-skip-arena";
-                skipRwbBtn.style.cssText = "width:100%;padding:12px;font-size:16px;margin-bottom:10px;";
-                skipRwbBtn.innerHTML = "⏭️ ПРОПУСТИТЬ АРЕНУ (уже побеждён)";
-                skipRwbBtn.onclick = function() {
-                    if (typeof showFloatingText === 'function') showFloatingText("⏭️ Босс пропущен!", "#ffaa00");
-                    if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0;
-                    if (typeof victory === 'function') victory();
-                };
-                let container2 = document.querySelector('#fightSubTab .card') || document.body;
-                if (container2) container2.insertBefore(skipRwbBtn, container2.firstChild);
-            }
             skipRwbBtn.style.display = "block";
             currentEnemy.hp = Math.floor(currentEnemy.hp * 0.3);
             currentEnemy.maxHp = currentEnemy.hp;
             currentEnemy.name = "👑 РОДЖЕР и БЕЛОУС (ослабленные)";
         } else {
+            // Босс НЕ побеждён → показываем ТОЛЬКО "Сразиться"
             rwbBtn.style.display = "block";
-            let skipRwbBtn2 = document.getElementById("skipRWBBtn");
-            if (skipRwbBtn2) skipRwbBtn2.style.display = "none";
+            skipRwbBtn.style.display = "none";
         }
     }
     else {
@@ -1328,7 +1330,7 @@ function handleClick() {
 }
 
 // ============================================================
-// ПОБЕДА — с добавленной абилкой Белоуса (+1% HP за волну)
+// ПОБЕДА — с абилкой Белоуса (+1% HP за волну)
 // ============================================================
 function victory() { 
     let isBoss = wave % 10 === 0; 
@@ -1386,7 +1388,7 @@ function victory() {
 }
 
 // ============================================================
-// ПОРАЖЕНИЕ — с добавленной абилкой Белоуса (3% воскрешение)
+// ПОРАЖЕНИЕ — с абилкой Белоуса (3% воскрешение)
 // ============================================================
 function defeat() { 
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; } 
