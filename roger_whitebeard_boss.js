@@ -1,11 +1,15 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v16.0
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v17.0
 // ============================================================
-// ★ v16.0:
-//   - ФИКС ЦУНАМИ: волна НЕ на всю ширину, есть ЩЕЛЬ 1/3 экрана
-//     Волны не перекрывают друг друга — вторая идёт после первой
-//   - Пули Роджера уменьшены в 1.5 раза (веер, углы, круг, спираль)
-//   - Всё остальное как в v15.0
+// ★ v17.0:
+//   - ФИКС ЗАВИСАНИЯ: награда выдаётся ДО сохранения
+//   - Watchdog на 8 сек — защита от зависания
+//   - try/catch вокруг выдачи награды
+//   - Диалог Роджера: "Неужели я вот так погибну не найдя ван пис? Эх... Жаль..."
+//   - Диалог Белоуса с 3 вариантами (1-й исчезает после выбора)
+//   - Сабля Роджера (damageMult 2.2) — в хранилище оружия
+//   - Карта Белоус (400 dmg / 250 hp) — в коллекцию
+//   - Ослабленная версия (пропуск) после победы
 // ============================================================
 
 (function() {
@@ -54,6 +58,43 @@
     let rwbSuperReady = true;
     let rwbSuperCooldown = 0;
 
+    // ★★★ НОВЫЕ ПЕРЕМЕННЫЕ v17.0 ★★★
+    var rwbWinner = null;                    // "roger" или "whitebeard"
+    var rwbRewardGiven = false;              // защита от двойной выдачи
+    var rwbWatchdog = null;                  // таймер-страховка
+    var rwbDialogStage = 0;                  // стадия диалога Роджера
+    var rwbWhitebeardDisabled = [false, false, false];  // отключённые варианты Белоуса
+    var rwbWBPhase = "intro";                // "intro" | "choice" | "choice_response_1" | "choice_response_2" | "choice_response_3_a" | "choice_response_3_b"
+    var rwbDialogQueue = [];                 // очередь диалогов для показа
+
+    // ★★★ ДАННЫЕ ДИАЛОГОВ ★★★
+    var RWB_ROGER_DIALOG = [
+        { speaker: "🔥 РОДЖЕР", text: "Неужели я вот так погибну не найдя ван пис? Эх... Жаль..." }
+    ];
+
+    var RWB_WHITEBEARD_DIALOG_INITIAL = [
+        { speaker: "❄️ БЕЛОУС", text: "Я настолько слабак, что меня победил какой-то чел, который любит играть в какие-то игры..." }
+    ];
+
+    var RWB_WB_CHOICES = [
+        { id: 0, text: "Проблемы с навыками. Играть не умеешь" },
+        { id: 1, text: "Вступи в мою команду и стань сильнее" },
+        { id: 2, text: "КАКОЙ СЛАБАК!!???? Я МИЛЛИАРД РАЗ СДОХ ИЗ ЗА ВАС" }
+    ];
+
+    var RWB_WB_RESPONSE_1 = [
+        { speaker: "❄️ БЕЛОУС", text: "Может ты и прав... Но откуда мне знать кто ты? А вдруг ты читер?" }
+    ];
+    var RWB_WB_RESPONSE_2 = [
+        { speaker: "❄️ БЕЛОУС", text: "Хорошо, надеюсь это правда" }
+    ];
+    var RWB_WB_RESPONSE_3_A = [
+        { speaker: "❄️ БЕЛОУС", text: "Ты о чем?" }
+    ];
+    var RWB_WB_RESPONSE_3_B = [
+        { speaker: "👤 ИГРОК", text: "Временная шкатулка... Она наполняется прогрессом и можно путешествовать по времени. Это как снимать фильм" }
+    ];
+
     let roger = null;
     let whitebeard = null;
     let duel = null;
@@ -84,7 +125,6 @@
     let rwbModeBtn = null;
     let rwbSuperBtn = null;
 
-    // ★ Отслеживание цунами ★
     let rwbTsunamiActive = false;
 
     let rwbMusic = null;
@@ -254,6 +294,222 @@
         playRWBSound({ freq: 80, freqEnd: 40, type: 'square', duration: 1.0, volume: volume * 0.7, attack: 0.05, release: 1.0, detune: -300 });
     }
 
+    // ========== УТИЛИТЫ ==========
+    function wrapText(text, maxWidth, ctx) {
+        var words = text.split(' ');
+        var lines = [];
+        var currentLine = '';
+        for (var i = 0; i < words.length; i++) {
+            var testLine = currentLine ? currentLine + ' ' + words[i] : words[i];
+            if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+                lines.push(currentLine);
+                currentLine = words[i];
+            } else {
+                currentLine = testLine;
+            }
+        }
+        if (currentLine) lines.push(currentLine);
+        return lines;
+    }
+
+    // ============================================================
+    // ★★★ ВЫДАЧА НАГРАД ★★★
+    // ============================================================
+    function grantRogerReward() {
+        console.log("[ROGER-WB] Выдача награды: Сабля Роджера");
+
+        if (typeof showFloatingText === 'function') {
+            showFloatingText("🗡️ САБЛЯ РОДЖЕРА!", "#ffd700");
+        }
+
+        var rogerSaber = {
+            id: "roger_saber",
+            name: "Сабля Роджера",
+            icon: "🗡️",
+            rarity: "Легендарная",
+            rarityClass: "legendary",
+            tier: 5,
+            damageMult: 2.2,
+            shootRate: 10,
+            bullets: 1,
+            isMelee: true,
+            desc: "Сабля Короля Пиратов. Прочная, острая, с историей.",
+            recipe: {},
+            isReward: true,
+            uid: Date.now() + Math.random() + Math.random(),
+            craftedAt: Date.now()
+        };
+
+        try {
+            if (typeof window !== 'undefined' && typeof window.getWeaponStorage === 'function') {
+                var storage = window.getWeaponStorage();
+                if (storage && Array.isArray(storage)) {
+                    // ★ Проверка на дубликат
+                    var alreadyHas = false;
+                    for (var i = 0; i < storage.length; i++) {
+                        if (storage[i] && storage[i].id === "roger_saber") {
+                            alreadyHas = true;
+                            break;
+                        }
+                    }
+                    if (!alreadyHas) {
+                        storage.push(rogerSaber);
+                        console.log("[ROGER-WB] Сабля добавлена в хранилище");
+                    } else {
+                        console.log("[ROGER-WB] Сабля уже есть в хранилище");
+                    }
+                }
+            }
+            if (typeof window.saveCraftingData === 'function') {
+                window.saveCraftingData();
+            }
+            if (typeof window.renderInventory === 'function') {
+                setTimeout(window.renderInventory, 100);
+            }
+        } catch(e) {
+            console.error("[ROGER-WB] Ошибка выдачи Сабли:", e);
+        }
+
+        setTimeout(function() {
+            if (typeof showFloatingText === 'function') {
+                showFloatingText("Проверь хранилище оружия!", "#88ddff");
+            }
+        }, 1500);
+    }
+
+    function grantWhitebeardReward() {
+        console.log("[ROGER-WB] Выдача награды: карта Белоус");
+
+        if (typeof showFloatingText === 'function') {
+            showFloatingText("🌊 БЕЛОУС ВСТУПАЕТ В КОМАНДУ!", "#ffffff");
+        }
+
+        var alreadyHave = false;
+        if (typeof myCards !== 'undefined' && Array.isArray(myCards)) {
+            for (var i = 0; i < myCards.length; i++) {
+                if (myCards[i] && myCards[i].name === "Белоус") {
+                    alreadyHave = true;
+                    break;
+                }
+            }
+        }
+
+        if (alreadyHave) {
+            console.warn("[ROGER-WB] Белоус уже в коллекции, дубликат не создаём");
+            if (typeof showFloatingText === 'function') {
+                showFloatingText("Карта уже есть в коллекции!", "#ffaa00");
+            }
+            return;
+        }
+
+        try {
+            var template = null;
+            if (typeof customCardTemplates !== 'undefined' && customCardTemplates["Секретная"]) {
+                template = customCardTemplates["Секретная"].find(function(t) { return t.name === "Белоус"; });
+            }
+
+            var card = null;
+            if (template && typeof createCardFromTemplate === 'function') {
+                card = createCardFromTemplate(template, "Секретная");
+            }
+
+            if (!card) {
+                card = {
+                    id: Date.now() + Math.random() * 10000,
+                    name: "Белоус",
+                    rarity: "Секретная",
+                    damage: 400,
+                    hp: 250,
+                    sellPrice: 800,
+                    speed: 2.0,
+                    ability: {
+                        type: "whitebeardSpecial",
+                        desc: "3% воскрешение | 1% HP/волна | 2% x5 комбо"
+                    },
+                    universe: "One Piece",
+                    unsellable: true,
+                    minRebirth: 0,
+                    statusAbility: null,
+                    extraStatus: null,
+                    superAbility: null,
+                    mastery: 1,
+                    masteryExp: 0
+                };
+            }
+
+            if (card && typeof myCards !== 'undefined') {
+                myCards.push(card);
+                if (typeof discoveredCards !== 'undefined' && !discoveredCards.includes("Белоус")) {
+                    discoveredCards.push("Белоус");
+                }
+                console.log("[ROGER-WB] Карта Белоус выдана");
+            }
+        } catch(e) {
+            console.error("[ROGER-WB] Ошибка выдачи карты Белоус:", e);
+        }
+
+        if (typeof sfxCardObtain === 'function') sfxCardObtain();
+        if (typeof renderMyCards === 'function') setTimeout(renderMyCards, 200);
+    }
+
+    // ============================================================
+    // ★★★ ФИНАЛИЗАЦИЯ (безопасная) ★★★
+    // ============================================================
+    function rwbFinalCleanup() {
+        if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
+        try {
+            if (!rwbRewardGiven && rwbWinner) {
+                rwbRewardGiven = true;
+                if (rwbWinner === "roger") {
+                    grantRogerReward();
+                } else if (rwbWinner === "whitebeard") {
+                    grantWhitebeardReward();
+                }
+            }
+
+            if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
+                if (!defeatedBosses.includes(1000)) defeatedBosses.push(1000);
+            }
+            if (typeof window !== 'undefined') window.waystarDefeatedThisRun = true;
+            if (typeof saveAll === 'function') saveAll();
+
+            rwbState = "done";
+            stopRogerWhitebeardFight();
+            if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0;
+            if (typeof victory === 'function') victory();
+        } catch(e) {
+            console.error("[ROGER-WB] ОШИБКА в rwbFinalCleanup:", e);
+            try { stopRogerWhitebeardFight(); } catch(_) {}
+            try { if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0; } catch(_) {}
+            try { if (typeof victory === 'function') victory(); } catch(_) {}
+        }
+    }
+
+    function forceFinishRWB() {
+        if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
+        console.warn("[ROGER-WB] WATCHDOG — форсирую финал");
+        rwbFinalCleanup();
+    }
+
+    // ============================================================
+    // ★★★ СТАРТ ДИАЛОГА ★★★
+    // ============================================================
+    function startRWBDialog() {
+        if (rwbWinner === "roger") {
+            rwbState = "dialog_roger";
+            rwbDialogStage = 0;
+        } else if (rwbWinner === "whitebeard") {
+            rwbState = "dialog_whitebeard";
+            rwbWBPhase = "intro";
+            rwbWhitebeardDisabled = [false, false, false];
+            rwbDialogQueue = RWB_WHITEBEARD_DIALOG_INITIAL.slice();
+        }
+        console.log("[ROGER-WB] Диалог запущен для:", rwbWinner);
+    }
+
+    // ============================================================
+    // ★★★ АКТИВАЦИЯ СУПЕР-КНОПКИ ★★★
+    // ============================================================
     window.getRWBContext = function() {
         return {
             type: 'rwb',
@@ -366,6 +622,9 @@
         }
     }
 
+    // ============================================================
+    // ★★★ СТАРТ БОЯ ★★★
+    // ============================================================
     function startRogerWhitebeardFight() {
         if (window.rwbActive) return;
         if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(1000)) {
@@ -373,7 +632,7 @@
             return;
         }
 
-        console.log("[ROGER-WB] Старт боя v16.0!");
+        console.log("[ROGER-WB] Старт боя v17.0!");
 
         window.rwbActive = true;
         rwbState = "intro";
@@ -389,6 +648,15 @@
         rwbActiveBoss = null;
         rwbHakiAura = 0;
         rwbTsunamiActive = false;
+
+        // ★ Сброс новых переменных
+        rwbWinner = null;
+        rwbRewardGiven = false;
+        rwbDialogStage = 0;
+        rwbWhitebeardDisabled = [false, false, false];
+        rwbWBPhase = "intro";
+        rwbDialogQueue = [];
+        if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
 
         roger = {
             id: "roger", x: 80, y: 120, size: 28,
@@ -759,8 +1027,17 @@
 
     function handleRWBKeyDown(ev) { if (!window.rwbActive) return; rwbKeys[ev.key.toLowerCase()] = true; }
     function handleRWBKeyUp(ev) { if (!window.rwbActive) return; rwbKeys[ev.key.toLowerCase()] = false; }
+
     function handleRWBTouchStart(ev) {
         if (!window.rwbActive) return;
+        // ★ Диалоги — тап работает как клик
+        if (rwbState === "dialog_roger" || rwbState === "dialog_whitebeard") {
+            ev.preventDefault();
+            if (ev.touches.length > 0) {
+                handleRWBClick({ clientX: ev.touches[0].clientX, clientY: ev.touches[0].clientY });
+            }
+            return;
+        }
         if (rwbState !== "fight1" && rwbState !== "fight2") return;
         ev.preventDefault();
         if (ev.touches.length > 0) {
@@ -770,6 +1047,7 @@
             rwbTouchY = ev.touches[0].clientY - rect.top;
         }
     }
+
     function handleRWBTouchMove(ev) {
         if (!window.rwbActive || !rwbTouchActive) return;
         ev.preventDefault();
@@ -782,6 +1060,7 @@
             }
         }
     }
+
     function handleRWBTouchEnd(ev) {
         if (!rwbTouchActive) return;
         let still = false;
@@ -790,8 +1069,79 @@
         }
         if (!still) { rwbTouchActive = false; rwbTouchId = null; }
     }
-    function handleRWBClick(ev) {}
 
+    // ============================================================
+    // ★★★ ОБРАБОТЧИК КЛИКОВ — ДИАЛОГИ + ВЫБОРЫ ★★★
+    // ============================================================
+    function handleRWBClick(ev) {
+        // ★ Диалог Роджера
+        if (rwbState === "dialog_roger") {
+            rwbDialogStage++;
+            playWhooshSound(0.1);
+            if (rwbDialogStage >= RWB_ROGER_DIALOG.length) {
+                rwbState = "reward";
+                rwbEndTimer = 0;
+            }
+            return;
+        }
+
+        // ★ Диалог Белоуса
+        if (rwbState === "dialog_whitebeard") {
+            // Если показывается реплика — продвигаем
+            if (rwbDialogQueue.length > 0) {
+                rwbDialogQueue.shift();
+                playWhooshSound(0.1);
+                if (rwbDialogQueue.length === 0) {
+                    if (rwbWBPhase === "choice_response_1") {
+                        rwbWhitebeardDisabled[0] = true;
+                        rwbWBPhase = "choice";
+                    } else if (rwbWBPhase === "choice_response_2") {
+                        rwbState = "reward";
+                        rwbEndTimer = 0;
+                    } else if (rwbWBPhase === "choice_response_3_a") {
+                        rwbWBPhase = "choice_response_3_b";
+                        rwbDialogQueue = RWB_WB_RESPONSE_3_B.slice();
+                    } else if (rwbWBPhase === "choice_response_3_b") {
+                        rwbWBPhase = "choice";
+                    } else if (rwbWBPhase === "intro") {
+                        rwbWBPhase = "choice";
+                    }
+                }
+                return;
+            }
+
+            // Выбор варианта
+            if (rwbWBPhase === "choice") {
+                var rect = canvas.getBoundingClientRect();
+                var mx = ev.clientX - rect.left;
+                var my = ev.clientY - rect.top;
+
+                var btnW = 360, btnX = 20, startY = 250, btnH = 55, gap = 12;
+                for (var i = 0; i < 3; i++) {
+                    if (rwbWhitebeardDisabled[i]) continue;
+                    var by = startY + i * (btnH + gap);
+                    if (mx > btnX && mx < btnX + btnW && my > by && my < by + btnH) {
+                        if (i === 0) {
+                            rwbWBPhase = "choice_response_1";
+                            rwbDialogQueue = RWB_WB_RESPONSE_1.slice();
+                        } else if (i === 1) {
+                            rwbWBPhase = "choice_response_2";
+                            rwbDialogQueue = RWB_WB_RESPONSE_2.slice();
+                        } else if (i === 2) {
+                            rwbWBPhase = "choice_response_3_a";
+                            rwbDialogQueue = RWB_WB_RESPONSE_3_A.slice();
+                        }
+                        playBladeSound(0.3);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    // ============================================================
+    // ★★★ ОБНОВЛЕНИЕ ИГРОКА ★★★
+    // ============================================================
     function updateRWBPlayer() {
         if (rwbState !== "fight1" && rwbState !== "fight2") return;
         let mx = 0, my = 0;
@@ -1118,7 +1468,7 @@
         playHakiChargeSound(0.5);
         rwbShake = 25;
 
-        let count = 16;  // было 24 — уменьшено
+        let count = 16;
         let baseAng = Math.random() * Math.PI * 2;
         for (let i = 0; i < count; i++) {
             let delay = i * 30;
@@ -1151,7 +1501,7 @@
         playHakiChargeSound(0.4);
         rwbShake = 30;
 
-        for (let i = 0; i < 10; i++) {  // было 15 — уменьшено
+        for (let i = 0; i < 10; i++) {
             let delay = i * 60;
             (function(d) {
                 setTimeout(function() {
@@ -1173,9 +1523,6 @@
         }
     }
 
-    // ============================================================
-    // ★★★ АТАКИ РОДЖЕРА — уменьшено количество пуль в 1.5 раза ★★★
-    // ============================================================
     function spawnRogerAttack() {
         let type = Math.floor(Math.random() * 8);
         let isSuper = roger.superForm;
@@ -1191,7 +1538,6 @@
             let position = Math.floor(Math.random() * 8);
             spawnRogerSlash(position);
         } else if (type === 1) {
-            // ★ ПРЯМО В ИГРОКА: было 3-5, стало 2-3 ★
             let count = isSuper ? 3 : 2;
             for (let i = 0; i < count; i++) {
                 let spread = (i - (count - 1) / 2) * 0.12;
@@ -1209,7 +1555,6 @@
             }
             playWhooshSound(0.3);
         } else if (type === 2) {
-            // ★ ВЕЕР: было 7-10, стало 5-7 ★
             let count = isSuper ? 7 : 5;
             for (let i = 0; i < count; i++) {
                 let angle = Math.PI * 0.5 + (i - (count - 1) / 2) * 0.25;
@@ -1225,10 +1570,9 @@
                 });
             }
         } else if (type === 3) {
-            // ★ ПО УГЛАМ: было 1-2 в каждом углу, стало 1 в каждом ★
             let corners = [Math.PI * 0.25, Math.PI * 0.75, -Math.PI * 0.25, -Math.PI * 0.75];
             for (let baseAng of corners) {
-                for (let k = 0; k < (isSuper ? 1 : 1); k++) {  // всегда 1
+                for (let k = 0; k < 1; k++) {
                     let delay = k * 60;
                     (function(a, d) {
                         setTimeout(function() {
@@ -1248,7 +1592,6 @@
                 }
             }
         } else if (type === 4) {
-            // ★ КРУГ: было 9-12, стало 6-8 ★
             let count = isSuper ? 8 : 6;
             for (let i = 0; i < count; i++) {
                 let angle = (i / count) * Math.PI * 2;
@@ -1266,7 +1609,6 @@
         } else if (type === 5) {
             spawnRogerDoubleSlash();
         } else if (type === 6) {
-            // ★ ДИАГОНАЛИ: было 8, стало 4 ★
             let diagonals = [Math.PI * 0.25, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75];
             for (let ang of diagonals) {
                 (function(a) {
@@ -1287,7 +1629,6 @@
                 })(ang);
             }
         } else {
-            // ★ СПИРАЛЬ: было 18, стало 12 ★
             let count = 12;
             for (let i = 0; i < count; i++) {
                 let baseAng = (i / count) * Math.PI * 4;
@@ -1311,12 +1652,7 @@
         }
     }
 
-    // ============================================================
-    // ★★★ ЦУНАМИ — С ЩЕЛЬЮ 1/3 ЭКРАНА ★★★
-    // Волна НЕ на всю ширину — есть проход
-    // ============================================================
     function spawnTsunamiAttack(isSuper) {
-        // Если цунами уже активно — не запускаем
         if (rwbTsunamiActive) return;
         rwbTsunamiActive = true;
 
@@ -1330,15 +1666,13 @@
             vy: -0.3, vx: 0, size: 24
         });
 
-        // ★ ВОЛНА 1: Справа, есть ЩЕЛЬ слева (0-130) ★
-        // Занимает область x = 130..400, высота — горизонтальная полоса
         let wave1 = {
             type: "tsunami",
             fromRight: true,
-            x: 130,             // левый край волны
-            y: -60,             // старт над экраном
-            vy: 4.5,            // вниз
-            width: 270,         // ширина волны (400-130)
+            x: 130,
+            y: -60,
+            vy: 4.5,
+            width: 270,
             height: 55,
             currentWidth: 270,
             currentHeight: 55,
@@ -1350,17 +1684,16 @@
         };
         rwbAttacks.push(wave1);
 
-        // ★ ВОЛНА 2: Слева, есть ЩЕЛЬ справа (270-400) — через паузу ★
         setTimeout(function() {
             if (!window.rwbActive) return;
 
             let wave2 = {
                 type: "tsunami",
                 fromRight: false,
-                x: 0,               // правый край волны
+                x: 0,
                 y: -60,
                 vy: 4.5,
-                width: 270,         // 0..270
+                width: 270,
                 height: 55,
                 currentWidth: 270,
                 currentHeight: 55,
@@ -1382,7 +1715,7 @@
             });
 
             setTimeout(function() { rwbTsunamiActive = false; }, 1500);
-        }, 1600);  // ← вторая волна после того, как первая уйдёт
+        }, 1600);
     }
 
     function spawnWhitebeardAttack() {
@@ -1549,7 +1882,7 @@
         rwbFloatingTexts.push({ x: 200, y: 100, text: "🔥 ПЛАМЯ 🔥", color: "#ff2200", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
         playWhooshSound(0.4);
         setTimeout(function() { playExplosionSound(0.5); }, 800);
-        for (let i = 0; i < 2; i++) {  // было 3, стало 2
+        for (let i = 0; i < 2; i++) {
             setTimeout(function() {
                 if (!window.rwbActive) return;
                 rwbAttacks.push({
@@ -1573,7 +1906,7 @@
             (function(waveIdx) {
                 setTimeout(function() {
                     if (!window.rwbActive || rwbState !== "fight2") return;
-                    let count = 6;  // было 8 — уменьшено
+                    let count = 6;
                     let baseAng = Math.random() * Math.PI * 2;
                     for (let i = 0; i < count; i++) {
                         let ang = baseAng + (i / count) * Math.PI * 2;
@@ -1797,7 +2130,6 @@
                 continue;
             }
 
-            // ★★★ ЦУНАМИ — движение вниз, есть ЩЕЛЬ ★★★
             if (a.type === "tsunami") {
                 a.waveTime += 0.08;
                 a.y += a.vy;
@@ -1818,20 +2150,16 @@
                     });
                 }
 
-                // ★ Коллизия с учётом ЩЕЛИ ★
                 if (!a.hit && rwbPlayer.invulnTimer <= 0) {
                     let dy = Math.abs(rwbPlayer.y - a.y);
                     let hbY = a.currentHeight / 2 + 6;
 
-                    // Игрок внутри полосы волны по Y и внутри её области по X
                     if (a.fromRight) {
-                        // Волна занимает X = 130..400
                         if (dy < hbY && rwbPlayer.x >= a.x && rwbPlayer.x <= 400) {
                             a.hit = true;
                             hitPlayer(a.damage);
                         }
                     } else {
-                        // Волна занимает X = 0..270
                         if (dy < hbY && rwbPlayer.x >= 0 && rwbPlayer.x <= a.width) {
                             a.hit = true;
                             hitPlayer(a.damage);
@@ -2173,20 +2501,39 @@
         }
     }
 
+    // ============================================================
+    // ★★★ ПОБЕДА — НЕ СОХРАНЯЕМ СРАЗУ! ★★★
+    // ============================================================
     function rwbVictory() {
-        if (rwbState === "victory") return;
+        if (rwbState === "victory" || rwbState === "dialog_roger" || rwbState === "dialog_whitebeard" || rwbState === "reward" || rwbState === "done") return;
+
+        rwbWinner = rwbActiveBoss ? rwbActiveBoss.id : null;
+        console.log("[ROGER-WB] Победа над:", rwbWinner);
+
         rwbState = "victory";
         rwbEndTimer = 0;
+        rwbRewardGiven = false;
+
         hideRWBModeButton();
         hideRWBSuperButton();
-        if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
-            if (!defeatedBosses.includes(1000)) defeatedBosses.push(1000);
+
+        // ★ НЕ сохраняем тут и НЕ пушим defeatedBosses
+
+        if (typeof showFloatingText === 'function') {
+            showFloatingText(rwbWinner === "roger" ? "🔥 РОДЖЕР ПАЛ!" : "❄️ БЕЛОУС ПАЛ!", "#ffd700");
         }
-        if (typeof saveAll === 'function') saveAll();
-        if (typeof showFloatingText === 'function') showFloatingText("👑 ЛЕГЕНДЫ ПОБЕЖДЕНЫ!", "#ffd700");
         playImpactSound(0.5, 0.7);
         setTimeout(function() { playImpactSound(0.6, 0.9); }, 200);
         setTimeout(function() { playImpactSound(0.7, 1.2); }, 400);
+
+        // ★ Watchdog
+        if (rwbWatchdog) clearTimeout(rwbWatchdog);
+        rwbWatchdog = setTimeout(function() {
+            if (window.rwbActive && rwbState !== "done") {
+                console.warn("[ROGER-WB] WATCHDOG сработал! Форсирую завершение.");
+                forceFinishRWB();
+            }
+        }, 8000);
     }
 
     function rwbDefeat() {
@@ -2201,6 +2548,7 @@
     }
 
     function stopRogerWhitebeardFight() {
+        if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
         window.rwbActive = false;
         hideRWBModeButton();
         hideRWBSuperButton();
@@ -2220,6 +2568,9 @@
         if (typeof startBattleMusic === 'function') startBattleMusic();
     }
 
+    // ============================================================
+    // ★★★ ГЛАВНЫЙ ЛУП ★★★
+    // ============================================================
     function rwbRenderLoop() {
         if (!window.rwbActive || !ctx || !canvas) return;
         rwbTimer++;
@@ -2240,6 +2591,7 @@
             }
         }
 
+        // ★★★ ОБНОВЛЕНИЕ СОСТОЯНИЙ ★★★
         if (rwbState === "intro") {
             rwbIntroTimer++;
             if (rwbIntroTimer > 150) rwbState = "fight1";
@@ -2293,22 +2645,35 @@
             let remaining = Math.max(0, Math.ceil((rwbSurvivalTarget2 - rwbSurvivalTimer2) / 60));
             let timerEl = document.getElementById("arenaTimer");
             if (timerEl) timerEl.innerText = remaining + "с";
-        } else if (rwbState === "victory" || rwbState === "defeat") {
+        } else if (rwbState === "victory") {
+            // ★ Ждём 1.5 сек → запускаем диалог
             rwbEndTimer++;
-            if (rwbEndTimer > 180) {
-                let wasVictory = (rwbState === "victory");
-                stopRogerWhitebeardFight();
-                if (wasVictory) {
-                    if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0;
-                    if (typeof victory === 'function') victory();
-                } else {
-                    if (typeof playerHp !== 'undefined') playerHp = 0;
-                    if (typeof defeat === 'function') defeat();
-                }
+            if (rwbEndTimer > 90) {
+                startRWBDialog();
+            }
+        } else if (rwbState === "dialog_roger" || rwbState === "dialog_whitebeard") {
+            // ★ Диалог — ждём кликов
+            rwbEndTimer++;
+        } else if (rwbState === "reward") {
+            // ★ Ждём 2 сек → финализация
+            rwbEndTimer++;
+            if (rwbEndTimer > 120) {
+                rwbFinalCleanup();
                 return;
             }
+        } else if (rwbState === "defeat") {
+            rwbEndTimer++;
+            if (rwbEndTimer > 180) {
+                stopRogerWhitebeardFight();
+                if (typeof playerHp !== 'undefined') playerHp = 0;
+                if (typeof defeat === 'function') defeat();
+                return;
+            }
+        } else if (rwbState === "done") {
+            return;
         }
 
+        // ★★★ ОБНОВЛЕНИЕ ЧАСТИЦ И ЭФФЕКТОВ ★★★
         for (let i = rwbParticles.length - 1; i >= 0; i--) {
             let p = rwbParticles[i];
             p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life--;
@@ -2334,6 +2699,7 @@
         if (rwbShake > 0.1) rwbShake *= 0.88;
         if (rwbScreenFlash > 0) rwbScreenFlash--;
 
+        // ★★★ РЕНДЕР ★★★
         ctx.save();
         if (rwbShake > 0.5) ctx.translate((Math.random() - 0.5) * rwbShake, (Math.random() - 0.5) * rwbShake);
 
@@ -2540,6 +2906,11 @@
             ctx.restore();
         }
 
+        // ★★★ ОТРИСОВКА ДИАЛОГОВ ★★★
+        if (rwbState === "dialog_roger" || rwbState === "dialog_whitebeard") {
+            drawRWBDialogOverlay();
+        }
+
         if (typeof window.drawJoystick === 'function') {
             try { window.drawJoystick(); } catch(e) {}
         }
@@ -2548,6 +2919,165 @@
         rwbAnimFrame = requestAnimationFrame(rwbRenderLoop);
     }
 
+    // ============================================================
+    // ★★★ РЕНДЕР ДИАЛОГОВ ★★★
+    // ============================================================
+    function drawRWBDialogOverlay() {
+        if (!ctx) return;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+        ctx.fillRect(0, 0, 400, 500);
+
+        // ★ Диалог Роджера
+        if (rwbState === "dialog_roger") {
+            // Портрет Роджера (упрощённый)
+            ctx.save();
+            ctx.translate(200, 130);
+            ctx.scale(1.5, 1.5);
+            var glow = ctx.createRadialGradient(0, 0, 3, 0, 0, 60);
+            glow.addColorStop(0, "rgba(255, 136, 0, 0.8)");
+            glow.addColorStop(1, "transparent");
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(0, 0, 60, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#ff8800";
+            ctx.beginPath();
+            ctx.arc(0, 0, 28, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Реплика
+            var line = RWB_ROGER_DIALOG[rwbDialogStage];
+            if (line) {
+                ctx.font = "bold 16px Nunito, sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillStyle = "#ff8800";
+                ctx.shadowColor = "#ff8800";
+                ctx.shadowBlur = 15;
+                ctx.fillText(line.speaker, 200, 210);
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "italic bold 15px Nunito, sans-serif";
+                var lines = wrapText(line.text, 340, ctx);
+                for (var i = 0; i < lines.length; i++) {
+                    ctx.fillText(lines[i], 200, 250 + i * 26);
+                }
+            }
+
+            // Подсказка
+            if (Math.floor(performance.now() / 500) % 2 === 0) {
+                ctx.font = "12px monospace";
+                ctx.fillStyle = "#aaaaaa";
+                ctx.fillText(">> Кликните для продолжения <<", 200, 460);
+            }
+        }
+
+        // ★ Диалог Белоуса
+        if (rwbState === "dialog_whitebeard") {
+            // Портрет Белоуса
+            ctx.save();
+            ctx.translate(200, 90);
+            ctx.scale(1.2, 1.2);
+            var glow2 = ctx.createRadialGradient(0, 0, 3, 0, 0, 55);
+            glow2.addColorStop(0, "rgba(136, 221, 255, 0.8)");
+            glow2.addColorStop(1, "transparent");
+            ctx.fillStyle = glow2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 55, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#1a3a6a";
+            ctx.beginPath();
+            ctx.arc(0, 0, 25, 0, Math.PI * 2);
+            ctx.fill();
+            // Белая борода
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.ellipse(0, 22, 30, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Реплика или выбор
+            if (rwbDialogQueue.length > 0) {
+                var line2 = rwbDialogQueue[0];
+                ctx.font = "bold 15px Nunito, sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillStyle = line2.speaker.indexOf("БЕЛОУС") !== -1 ? "#88ddff" : "#ffd700";
+                ctx.shadowColor = ctx.fillStyle;
+                ctx.shadowBlur = 12;
+                ctx.fillText(line2.speaker, 200, 175);
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 14px Nunito, sans-serif";
+                var lines2 = wrapText(line2.text, 340, ctx);
+                for (var i = 0; i < lines2.length; i++) {
+                    ctx.fillText(lines2[i], 200, 215 + i * 24);
+                }
+
+                if (Math.floor(performance.now() / 500) % 2 === 0) {
+                    ctx.font = "12px monospace";
+                    ctx.fillStyle = "#aaaaaa";
+                    ctx.fillText(">> Кликните для продолжения <<", 200, 470);
+                }
+            } else if (rwbWBPhase === "choice") {
+                ctx.font = "bold 16px Nunito, sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillStyle = "#88ddff";
+                ctx.shadowColor = "#88ddff";
+                ctx.shadowBlur = 12;
+                ctx.fillText("ЧТО ОТВЕТИШЬ?", 200, 180);
+                ctx.shadowBlur = 0;
+
+                var btnW = 360, btnX = 20, startY = 220, btnH = 60, gap = 10;
+                for (var i = 0; i < 3; i++) {
+                    var by = startY + i * (btnH + gap);
+                    var disabled = rwbWhitebeardDisabled[i];
+
+                    if (disabled) {
+                        ctx.fillStyle = "rgba(30, 30, 30, 0.6)";
+                        ctx.strokeStyle = "#444444";
+                    } else {
+                        ctx.fillStyle = "rgba(40, 60, 90, 0.95)";
+                        ctx.strokeStyle = "#88ddff";
+                    }
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(btnX, by, btnW, btnH, 12);
+                    else ctx.rect(btnX, by, btnW, btnH);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.font = "bold 12px Nunito, sans-serif";
+                    ctx.textAlign = "left";
+                    ctx.fillStyle = disabled ? "#666666" : "#ffffff";
+                    var choiceLines = wrapText(RWB_WB_CHOICES[i].text, btnW - 30, ctx);
+                    for (var li = 0; li < Math.min(choiceLines.length, 2); li++) {
+                        ctx.fillText(choiceLines[li], btnX + 15, by + 26 + li * 18);
+                    }
+
+                    if (disabled) {
+                        ctx.font = "bold 10px monospace";
+                        ctx.fillStyle = "#555555";
+                        ctx.textAlign = "right";
+                        ctx.fillText("✕", btnX + btnW - 12, by + btnH - 10);
+                    }
+                }
+            }
+        }
+
+        ctx.restore();
+    }
+
+    // ============================================================
+    // ★★★ РИСОВАНИЕ ★★★
+    // ============================================================
     function updateSuperBoss() {
         let active = rwbActiveBoss;
         if (!active) return;
@@ -3167,9 +3697,6 @@
         ctx.restore();
     }
 
-    // ============================================================
-    // ★★★ РЕНДЕР ЦУНАМИ С ВИДИМОЙ ЩЕЛЬЮ ★★★
-    // ============================================================
     function drawTsunami(a) {
         ctx.save();
 
@@ -3179,22 +3706,18 @@
         let waveTime = a.waveTime;
         let fromRight = a.fromRight;
 
-        // ★ Область щели — подсвечиваем её полупрозрачным зелёным ★
         if (a.y > 0 && a.y < 500) {
             ctx.save();
             ctx.globalAlpha = 0.15 + Math.sin(performance.now() / 200) * 0.08;
             ctx.fillStyle = "#00ff00";
             if (fromRight) {
-                // Щель слева — 0..a.x
                 ctx.fillRect(0, cy - h / 2, a.x, h);
             } else {
-                // Щель справа — (a.width)..400
                 ctx.fillRect(a.width, cy - h / 2, 400 - a.width, h);
             }
             ctx.restore();
         }
 
-        // Основная волна — градиент
         let grad = ctx.createLinearGradient(0, cy - h / 2, 0, cy + h / 2);
         if (fromRight) {
             grad.addColorStop(0, "#003366");
@@ -3212,7 +3735,6 @@
         ctx.beginPath();
 
         if (fromRight) {
-            // Справа: волна занимает a.x..400
             ctx.moveTo(a.x, cy - h / 2);
             for (let i = 0; i <= 20; i++) {
                 let t = i / 20;
@@ -3227,7 +3749,6 @@
                 ctx.lineTo(x, yBot);
             }
         } else {
-            // Слева: волна занимает 0..a.width
             ctx.moveTo(0, cy - h / 2);
             for (let i = 0; i <= 20; i++) {
                 let t = i / 20;
@@ -3245,12 +3766,10 @@
         ctx.closePath();
         ctx.fill();
 
-        // Обводка
         ctx.strokeStyle = "#001a33";
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        // Пузырьки сверху
         ctx.fillStyle = "#ffffff";
         for (let i = 0; i <= 20; i++) {
             let t = i / 20;
@@ -3261,7 +3780,6 @@
             ctx.fill();
         }
 
-        // Внутренние линии
         ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
         ctx.lineWidth = 2;
         for (let li = 0; li < 3; li++) {
@@ -3280,6 +3798,7 @@
         ctx.restore();
     }
 
+    // ★★★ ЭКСПОРТЫ ★★★
     window.getRWBActive = function() { return window.rwbActive === true; };
     window.getRWBState  = function() { return rwbState; };
 
@@ -3296,10 +3815,12 @@
     window.rwbSound = rwbSound;
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v16.0                             ║");
-    console.log("║  ✅ ФИКС ЦУНАМИ: волна занимает 2/3, щель 1/3              ║");
-    console.log("║  ✅ Волны не перекрывают друг друга                         ║");
-    console.log("║  ✅ Пули Роджера уменьшены в 1.5 раза                       ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v17.0                             ║");
+    console.log("║  ✅ ФИКС ЗАВИСАНИЯ (watchdog + безопасная награда)         ║");
+    console.log("║  ✅ Диалоги: Роджер и Белоус                               ║");
+    console.log("║  ✅ Сабля Роджера → хранилище оружия                       ║");
+    console.log("║  ✅ Карта Белоус → коллекция                               ║");
+    console.log("║  ✅ Ослабленная версия (пропуск)                           ║");
     console.log("╚════════════════════════════════════════════════════════════╝");
 
 })();
