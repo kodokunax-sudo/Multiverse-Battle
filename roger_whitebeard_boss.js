@@ -22,16 +22,16 @@
     const RWB_ATTACK_SPEED = 45;
     const RWB_ATTACK_SPEED_SUPER_ROGER = 30;
     const RWB_SUPER_COOLDOWN = 300;
-    const RWB_TITAN_INTERVAL = 240;
-    const RWB_ROCK_INTERVAL = 240;
+    const RWB_TITAN_INTERVAL = 640;
+    const RWB_ROCK_INTERVAL = 500;
 
     const BALANCE = {
         playerHp: 250,
         playerDamageMult: 1.0,
         rogerHp: 800,
-        rogerDamageMult: 1.15,
+        rogerDamageMult: 1.3,
         whitebeardHp: 900,
-        whitebeardDamageMult: 1.15,
+        whitebeardDamageMult: 0.8,
         superAttackRate: 40,
         superDamageMult: 1.7,
         superDuration: 2700,
