@@ -1,13 +1,12 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v17.3
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v18.0
 // ============================================================
-// ★ v17.3:
-//   - Модер-бессмертие (hitPlayer игнорируется)
-//   - Модер-ваншот (боссы умирают с 1 удара)
-//   - Синий авто-прицел НЕ целится в hell_fire/fire_piece
-//   - HP супер-Белоуса −10% (1560)
-//   - Камни Белоуса в 3 раза реже (1500 кадров)
-//   - НОВЫЙ СКИЛ: ГУРА-ГУРА РАЗЛОМ (фиолетовые трещины)
+// ★ v18.0 — ДИАЛОГ КАК У ЗВЕЗДЫ:
+//   - Диалог рисуется ОТДЕЛЬНОЙ фазой render loop
+//   - Флаг rwbDialogActive вместо rwbState = "dialog_xxx"
+//   - Watchdog отключён во время диалога
+//   - Награда выдаётся ТОЛЬКО после диалога
+//   - Работает так же как у Путеводной Звезды
 // ============================================================
 
 (function() {
@@ -64,6 +63,12 @@
     var rwbWBPhase = "intro";
     var rwbDialogQueue = [];
 
+    // ★ НОВЫЕ ФЛАГИ ДЛЯ ДИАЛОГА
+    var rwbDialogActive = false;
+    var rwbDialogType = null;  // "roger" | "whitebeard"
+    var rwbDialogTimer = 0;
+    var rwbRewardReady = false;
+
     var RWB_ROGER_DIALOG = [
         { speaker: "🔥 РОДЖЕР", text: "Неужели я вот так погибну не найдя ван пис? Эх... Жаль..." }
     ];
@@ -111,8 +116,6 @@
     let rwbBgStars = [];
 
     let rwbWhiteCracks = [];
-
-    // ★ НОВОЕ: ФИОЛЕТОВЫЕ ТРЕЩИНЫ (скил Белоуса)
     let rwbPurpleCracks = [];
 
     let rwbKeys = {};
@@ -447,7 +450,10 @@
         }
     }
 
+    // ★★★ ФИНАЛИЗАЦИЯ — вызывается ТОЛЬКО после диалога ★★★
     function rwbFinalCleanup() {
+        console.log("[ROGER-WB] FINAL CLEANUP — выдача награды и завершение");
+        
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
         
         try {
@@ -474,6 +480,7 @@
         } catch(e) {}
         
         rwbState = "done";
+        rwbDialogActive = false;
         
         try { stopRogerWhitebeardFight(); } catch(e) {}
         
@@ -494,17 +501,88 @@
         rwbFinalCleanup();
     }
 
+    // ★★★ СТАРТ ДИАЛОГА — как у Путеводной Звезды ★★★
     function startRWBDialog() {
+        rwbDialogActive = true;
+        rwbDialogTimer = 0;
+        
         if (rwbWinner === "roger") {
-            rwbState = "dialog_roger";
+            rwbDialogType = "roger";
             rwbDialogStage = 0;
+            console.log("[ROGER-WB] Диалог Роджера запущен");
         } else if (rwbWinner === "whitebeard") {
-            rwbState = "dialog_whitebeard";
+            rwbDialogType = "whitebeard";
             rwbWBPhase = "intro";
             rwbWhitebeardDisabled = [false, false, false];
             rwbDialogQueue = RWB_WHITEBEARD_DIALOG_INITIAL.slice();
+            console.log("[ROGER-WB] Диалог Белоуса запущен");
         }
-        console.log("[ROGER-WB] Диалог запущен для:", rwbWinner);
+    }
+
+    // ★★★ ОБРАБОТКА КЛИКОВ В ДИАЛОГЕ ★★★
+    function handleRogersDialogClick() {
+        rwbDialogStage++;
+        playWhooshSound(0.1);
+        if (rwbDialogStage >= RWB_ROGER_DIALOG.length) {
+            // Диалог Роджера закончен → выдача награды
+            console.log("[ROGER-WB] Диалог Роджера завершён → выдача награды");
+            rwbDialogActive = false;
+            rwbFinalCleanup();
+        }
+    }
+
+    function handleWhitebeardDialogClick(ev) {
+        // Если показывается реплика — продвигаем
+        if (rwbDialogQueue.length > 0) {
+            rwbDialogQueue.shift();
+            playWhooshSound(0.1);
+            if (rwbDialogQueue.length === 0) {
+                if (rwbWBPhase === "choice_response_1") {
+                    rwbWhitebeardDisabled[0] = true;
+                    rwbWBPhase = "choice";
+                } else if (rwbWBPhase === "choice_response_2") {
+                    // ★ ФИНАЛ — вариант 2
+                    console.log("[ROGER-WB] Выбор 2 → финал");
+                    rwbDialogActive = false;
+                    rwbFinalCleanup();
+                } else if (rwbWBPhase === "choice_response_3_a") {
+                    rwbWBPhase = "choice_response_3_b";
+                    rwbDialogQueue = RWB_WB_RESPONSE_3_B.slice();
+                } else if (rwbWBPhase === "choice_response_3_b") {
+                    rwbWBPhase = "choice";
+                } else if (rwbWBPhase === "intro") {
+                    rwbWBPhase = "choice";
+                }
+            }
+            return;
+        }
+
+        // Выбор варианта
+        if (rwbWBPhase === "choice") {
+            var rect = canvas.getBoundingClientRect();
+            var mx = ev.clientX - rect.left;
+            var my = ev.clientY - rect.top;
+
+            var btnW = 360, btnX = 20, startY = 240, btnH = 60, gap = 10;
+            for (var i = 0; i < 3; i++) {
+                if (rwbWhitebeardDisabled[i]) continue;
+                var by = startY + i * (btnH + gap);
+                if (mx > btnX && mx < btnX + btnW && my > by && my < by + btnH) {
+                    if (i === 0) {
+                        rwbWBPhase = "choice_response_1";
+                        rwbDialogQueue = RWB_WB_RESPONSE_1.slice();
+                    } else if (i === 1) {
+                        rwbWBPhase = "choice_response_2";
+                        rwbDialogQueue = RWB_WB_RESPONSE_2.slice();
+                    } else if (i === 2) {
+                        rwbWBPhase = "choice_response_3_a";
+                        rwbDialogQueue = RWB_WB_RESPONSE_3_A.slice();
+                    }
+                    playBladeSound(0.3);
+                    return;
+                }
+            }
+        }
     }
 
     window.getRWBContext = function() {
@@ -592,7 +670,6 @@
         }
     }
 
-    // ★ НОВОЕ: фиолетовые трещины для скила Гура-Гура
     function spawnPurpleCracks(centerX, centerY, count) {
         if (!count) count = 8;
         for (let i = 0; i < count; i++) {
@@ -683,7 +760,7 @@
             return;
         }
 
-        console.log("[ROGER-WB] Старт боя v17.3!");
+        console.log("[ROGER-WB] Старт боя v18.0!");
 
         window.rwbActive = true;
         rwbState = "intro";
@@ -706,6 +783,11 @@
         rwbWhitebeardDisabled = [false, false, false];
         rwbWBPhase = "intro";
         rwbDialogQueue = [];
+        rwbDialogActive = false;
+        rwbDialogType = null;
+        rwbDialogTimer = 0;
+        rwbRewardReady = false;
+        
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
 
         roger = {
@@ -1081,13 +1163,22 @@
 
     function handleRWBTouchStart(ev) {
         if (!window.rwbActive) return;
-        if (rwbState === "dialog_roger" || rwbState === "dialog_whitebeard") {
+        
+        // ★ ДИАЛОГ — тап работает как клик
+        if (rwbDialogActive) {
             ev.preventDefault();
             if (ev.touches.length > 0) {
-                handleRWBClick({ clientX: ev.touches[0].clientX, clientY: ev.touches[0].clientY });
+                var rect = canvas.getBoundingClientRect();
+                var fakeEvent = { clientX: ev.touches[0].clientX, clientY: ev.touches[0].clientY };
+                if (rwbDialogType === "roger") {
+                    handleRogersDialogClick();
+                } else if (rwbDialogType === "whitebeard") {
+                    handleWhitebeardDialogClick(fakeEvent);
+                }
             }
             return;
         }
+        
         if (rwbState !== "fight1" && rwbState !== "fight2") return;
         ev.preventDefault();
         if (ev.touches.length > 0) {
@@ -1120,66 +1211,23 @@
         if (!still) { rwbTouchActive = false; rwbTouchId = null; }
     }
 
+    // ★★★ ГЛАВНЫЙ ОБРАБОТЧИК КЛИКОВ ★★★
     function handleRWBClick(ev) {
-        if (rwbState === "dialog_roger") {
-            rwbDialogStage++;
-            playWhooshSound(0.1);
-            if (rwbDialogStage >= RWB_ROGER_DIALOG.length) {
-                rwbState = "reward";
-                rwbEndTimer = 0;
-            }
+        if (!window.rwbActive) return;
+        
+        // ДИАЛОГ РОДЖЕРА
+        if (rwbDialogActive && rwbDialogType === "roger") {
+            handleRogersDialogClick();
             return;
         }
-
-        if (rwbState === "dialog_whitebeard") {
-            if (rwbDialogQueue.length > 0) {
-                rwbDialogQueue.shift();
-                playWhooshSound(0.1);
-                if (rwbDialogQueue.length === 0) {
-                    if (rwbWBPhase === "choice_response_1") {
-                        rwbWhitebeardDisabled[0] = true;
-                        rwbWBPhase = "choice";
-                    } else if (rwbWBPhase === "choice_response_2") {
-                        rwbState = "reward";
-                        rwbEndTimer = 0;
-                    } else if (rwbWBPhase === "choice_response_3_a") {
-                        rwbWBPhase = "choice_response_3_b";
-                        rwbDialogQueue = RWB_WB_RESPONSE_3_B.slice();
-                    } else if (rwbWBPhase === "choice_response_3_b") {
-                        rwbWBPhase = "choice";
-                    } else if (rwbWBPhase === "intro") {
-                        rwbWBPhase = "choice";
-                    }
-                }
-                return;
-            }
-
-            if (rwbWBPhase === "choice") {
-                var rect = canvas.getBoundingClientRect();
-                var mx = ev.clientX - rect.left;
-                var my = ev.clientY - rect.top;
-
-                var btnW = 360, btnX = 20, startY = 250, btnH = 55, gap = 12;
-                for (var i = 0; i < 3; i++) {
-                    if (rwbWhitebeardDisabled[i]) continue;
-                    var by = startY + i * (btnH + gap);
-                    if (mx > btnX && mx < btnX + btnW && my > by && my < by + btnH) {
-                        if (i === 0) {
-                            rwbWBPhase = "choice_response_1";
-                            rwbDialogQueue = RWB_WB_RESPONSE_1.slice();
-                        } else if (i === 1) {
-                            rwbWBPhase = "choice_response_2";
-                            rwbDialogQueue = RWB_WB_RESPONSE_2.slice();
-                        } else if (i === 2) {
-                            rwbWBPhase = "choice_response_3_a";
-                            rwbDialogQueue = RWB_WB_RESPONSE_3_A.slice();
-                        }
-                        playBladeSound(0.3);
-                        return;
-                    }
-                }
-            }
+        
+        // ДИАЛОГ БЕЛОУСА
+        if (rwbDialogActive && rwbDialogType === "whitebeard") {
+            handleWhitebeardDialogClick(ev);
+            return;
         }
+        
+        // Обычный клик — ничего не делаем
     }
 
     function updateRWBPlayer() {
@@ -1249,7 +1297,6 @@
         if (rwbPlayer.attackTimer > 0) rwbPlayer.attackTimer--;
     }
 
-    // ★★★ АВТО-ПРИЦЕЛ — НЕ ЦЕЛИТСЯ В hell_fire / fire_piece ★★★
     function aimBulletAtNearestAttack(bullet) {
         if (!rwbAttacks || rwbAttacks.length === 0) return;
         let nearestAttack = null;
@@ -1259,7 +1306,7 @@
             if (a.type === "tsunami" || a.type === "titan_fist" ||
                 a.type === "roger_slash" || a.type === "roger_cross" ||
                 a.type === "gura_crack" || a.type === "hell_fire" || a.type === "fire_piece" ||
-                a.type === "haki_wave") continue;
+                a.type === "haki_wave" || a.type === "purple_crack_zone") continue;
             if (a.hp === undefined) continue;
             let ax = a.x + (a.size || a.radius || 20) / 2;
             let ay = a.y + (a.size || a.radius || 20) / 2;
@@ -1952,7 +1999,6 @@
         }
     }
 
-    // ★★★ НОВЫЙ СКИЛ: ГУРА-ГУРА РАЗЛОМ ★★★
     function spawnWhitebeardGuraRazlom() {
         rwbFloatingTexts.push({
             x: 200, y: 100, text: "💜 ГУРА-ГУРА РАЗЛОМ 💜",
@@ -2450,7 +2496,6 @@
                 continue;
             }
 
-            // ★ ГОМИНГ-КУЛАК (для нового скила)
             if (a.isHoming) {
                 if (a.targetX !== undefined && a.targetY !== undefined) {
                     let dx = a.targetX - a.x;
@@ -2525,7 +2570,8 @@
                     let a = rwbAttacks[j];
                     if (a.type === "tsunami" || a.type === "titan_fist" ||
                         a.type === "roger_slash" || a.type === "roger_cross" || a.type === "gura_crack" ||
-                        a.type === "hell_fire" || a.type === "fire_piece" || a.type === "haki_wave") continue;
+                        a.type === "hell_fire" || a.type === "fire_piece" || a.type === "haki_wave" ||
+                        a.type === "purple_crack_zone") continue;
                     let dx = b.x - a.x, dy = b.y - a.y;
                     let aSize = a.size || 20;
                     if (Math.sqrt(dx * dx + dy * dy) < aSize * 0.7 + b.size + 4) {
@@ -2594,7 +2640,6 @@
     }
 
     function hitPlayer(dmg) {
-        // ★★★ МОДЕР-БЕССМЕРТИЕ ★★★
         if (isModerActive()) return;
         
         if (rwbPlayer.invulnTimer > 0) return;
@@ -2635,8 +2680,10 @@
         }
     }
 
+    // ★★★ ПОБЕДА — запускает диалог ★★★
     function rwbVictory() {
-        if (rwbState === "victory" || rwbState === "dialog_roger" || rwbState === "dialog_whitebeard" || rwbState === "reward" || rwbState === "done") return;
+        if (rwbDialogActive || rwbState === "done") return;
+        if (rwbState === "victory") return;
 
         rwbWinner = rwbActiveBoss ? rwbActiveBoss.id : null;
         console.log("[ROGER-WB] Победа над:", rwbWinner);
@@ -2655,13 +2702,12 @@
         setTimeout(function() { playImpactSound(0.6, 0.9); }, 200);
         setTimeout(function() { playImpactSound(0.7, 1.2); }, 400);
 
-        if (rwbWatchdog) clearTimeout(rwbWatchdog);
-        rwbWatchdog = setTimeout(function() {
-            if (window.rwbActive && rwbState !== "done") {
-                console.warn("[ROGER-WB] WATCHDOG сработал! Форсирую завершение.");
-                forceFinishRWB();
+        // ★ Через 1.5 сек запускаем диалог
+        setTimeout(function() {
+            if (window.rwbActive && !rwbDialogActive) {
+                startRWBDialog();
             }
-        }, 8000);
+        }, 1500);
     }
 
     function rwbDefeat() {
@@ -2679,6 +2725,7 @@
     function stopRogerWhitebeardFight() {
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
         window.rwbActive = false;
+        rwbDialogActive = false;
         hideRWBModeButton();
         hideRWBSuperButton();
         stopRWBMusic();
@@ -2717,82 +2764,77 @@
             }
         }
 
-        if (rwbState === "intro") {
-            rwbIntroTimer++;
-            if (rwbIntroTimer > 150) rwbState = "fight1";
-        } else if (rwbState === "fight1") {
-            updateRWBPlayer();
-            updateDuel();
-            updateRWBAttacks();
-            updateRWBPlayerBullets();
-        } else if (rwbState === "transition") {
-            rwbTransitionTimer++;
-            if (rwbTransitionTimer > 100) { rwbState = "fight2"; rwbSurvivalTimer2 = 0; rwbTitanFistTimer = 0; rwbTitanRockTimer = 0; }
-        } else if (rwbState === "fight2") {
-            updateRWBPlayer();
-            updateSuperBoss();
-            updateRWBAttacks();
-            updateRWBPlayerBullets();
-            rwbSurvivalTimer2++;
+        // ★ ДИАЛОГ — рендерим отдельно, не обновляем бой
+        if (rwbDialogActive) {
+            rwbDialogTimer++;
+            // Останавливаем игрока
+            if (rwbPlayer && rwbPlayer.invulnTimer > 0) rwbPlayer.invulnTimer--;
+        } else {
+            if (rwbState === "intro") {
+                rwbIntroTimer++;
+                if (rwbIntroTimer > 150) rwbState = "fight1";
+            } else if (rwbState === "fight1") {
+                updateRWBPlayer();
+                updateDuel();
+                updateRWBAttacks();
+                updateRWBPlayerBullets();
+            } else if (rwbState === "transition") {
+                rwbTransitionTimer++;
+                if (rwbTransitionTimer > 100) { rwbState = "fight2"; rwbSurvivalTimer2 = 0; rwbTitanFistTimer = 0; rwbTitanRockTimer = 0; }
+            } else if (rwbState === "fight2") {
+                updateRWBPlayer();
+                updateSuperBoss();
+                updateRWBAttacks();
+                updateRWBPlayerBullets();
+                rwbSurvivalTimer2++;
 
-            if (rwbActiveBoss && rwbActiveBoss.hp <= 0) {
-                rwbVictory();
-                return;
-            }
-
-            if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") {
-                rwbTitanFistTimer++;
-                if (rwbTitanFistTimer >= RWB_TITAN_INTERVAL) {
-                    rwbTitanFistTimer = 0;
-                    let fistX = 120 + Math.random() * 160;
-                    rwbAttacks.push({
-                        type: "titan_fist", x: fistX, y: -120,
-                        vy: 3.5, size: 75,
-                        damage: Math.ceil(35 * BALANCE.superDamageMult),
-                        life: 300, state: "falling", hit: false, color: "#8B7355"
-                    });
-                    rwbFloatingTexts.push({
-                        x: 200, y: 100, text: "👊 ТИТАН-КУЛАК 👊",
-                        color: "#ffdd00", life: 60, maxLife: 60,
-                        vy: -0.3, vx: 0, size: 18
-                    });
-                    playWhooshSound(0.5);
-                    setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
+                if (rwbActiveBoss && rwbActiveBoss.hp <= 0) {
+                    rwbVictory();
                 }
 
-                rwbTitanRockTimer++;
-                if (rwbTitanRockTimer >= RWB_ROCK_INTERVAL) {
-                    rwbTitanRockTimer = 0;
-                    spawnGiantRock();
-                }
-            }
+                if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") {
+                    rwbTitanFistTimer++;
+                    if (rwbTitanFistTimer >= RWB_TITAN_INTERVAL) {
+                        rwbTitanFistTimer = 0;
+                        let fistX = 120 + Math.random() * 160;
+                        rwbAttacks.push({
+                            type: "titan_fist", x: fistX, y: -120,
+                            vy: 3.5, size: 75,
+                            damage: Math.ceil(35 * BALANCE.superDamageMult),
+                            life: 300, state: "falling", hit: false, color: "#8B7355"
+                        });
+                        rwbFloatingTexts.push({
+                            x: 200, y: 100, text: "👊 ТИТАН-КУЛАК 👊",
+                            color: "#ffdd00", life: 60, maxLife: 60,
+                            vy: -0.3, vx: 0, size: 18
+                        });
+                        playWhooshSound(0.5);
+                        setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
+                    }
 
-            let remaining = Math.max(0, Math.ceil((rwbSurvivalTarget2 - rwbSurvivalTimer2) / 60));
-            let timerEl = document.getElementById("arenaTimer");
-            if (timerEl) timerEl.innerText = remaining + "с";
-        } else if (rwbState === "victory") {
-            rwbEndTimer++;
-            if (rwbEndTimer > 90) {
-                startRWBDialog();
-            }
-        } else if (rwbState === "dialog_roger" || rwbState === "dialog_whitebeard") {
-            rwbEndTimer++;
-        } else if (rwbState === "reward") {
-            rwbEndTimer++;
-            if (rwbEndTimer > 120) {
-                rwbFinalCleanup();
+                    rwbTitanRockTimer++;
+                    if (rwbTitanRockTimer >= RWB_ROCK_INTERVAL) {
+                        rwbTitanRockTimer = 0;
+                        spawnGiantRock();
+                    }
+                }
+
+                let remaining = Math.max(0, Math.ceil((rwbSurvivalTarget2 - rwbSurvivalTimer2) / 60));
+                let timerEl = document.getElementById("arenaTimer");
+                if (timerEl) timerEl.innerText = remaining + "с";
+            } else if (rwbState === "victory") {
+                rwbEndTimer++;
+            } else if (rwbState === "defeat") {
+                rwbEndTimer++;
+                if (rwbEndTimer > 180) {
+                    stopRogerWhitebeardFight();
+                    if (typeof playerHp !== 'undefined') playerHp = 0;
+                    if (typeof defeat === 'function') defeat();
+                    return;
+                }
+            } else if (rwbState === "done") {
                 return;
             }
-        } else if (rwbState === "defeat") {
-            rwbEndTimer++;
-            if (rwbEndTimer > 180) {
-                stopRogerWhitebeardFight();
-                if (typeof playerHp !== 'undefined') playerHp = 0;
-                if (typeof defeat === 'function') defeat();
-                return;
-            }
-        } else if (rwbState === "done") {
-            return;
         }
 
         for (let i = rwbParticles.length - 1; i >= 0; i--) {
@@ -3028,11 +3070,11 @@
             ctx.restore();
         }
 
-        if (rwbState === "dialog_roger" || rwbState === "dialog_whitebeard") {
+        // ★ ДИАЛОГ — рисуем поверх всего
+        if (rwbDialogActive) {
             drawRWBDialogOverlay();
         }
 
-        // ★ ИНДИКАТОР МОДЕРА
         if (isModerActive()) {
             ctx.save();
             ctx.font = "bold 11px monospace";
@@ -3057,10 +3099,11 @@
         if (!ctx) return;
 
         ctx.save();
-        ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+        ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
         ctx.fillRect(0, 0, 400, 500);
 
-        if (rwbState === "dialog_roger") {
+        if (rwbDialogType === "roger") {
+            // Портрет Роджера
             ctx.save();
             ctx.translate(200, 130);
             ctx.scale(1.5, 1.5);
@@ -3104,9 +3147,8 @@
                 ctx.fillStyle = "#aaaaaa";
                 ctx.fillText(">> Кликните для продолжения <<", 200, 460);
             }
-        }
-
-        if (rwbState === "dialog_whitebeard") {
+        } else if (rwbDialogType === "whitebeard") {
+            // Портрет Белоуса
             ctx.save();
             ctx.translate(200, 90);
             ctx.scale(1.2, 1.2);
@@ -3974,12 +4016,10 @@
     window.rwbSound = rwbSound;
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v17.3                             ║");
-    console.log("║  ✅ Модер-бессмертие + ваншот                              ║");
-    console.log("║  ✅ Синий НЕ целится в hell_fire/fire_piece                 ║");
-    console.log("║  ✅ HP Белоуса: 1560 (−10%)                                ║");
-    console.log("║  ✅ Камни в 3 раза реже (1500)                             ║");
-    console.log("║  ✅ НОВЫЙ СКИЛ: ГУРА-ГУРА РАЗЛОМ                            ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v18.0                             ║");
+    console.log("║  ✅ ДИАЛОГ КАК У ЗВЕЗДЫ — отдельная фаза                    ║");
+    console.log("║  ✅ Watchdog НЕ мешает диалогу                             ║");
+    console.log("║  ✅ Награда ТОЛЬКО после диалога                            ║");
     console.log("╚════════════════════════════════════════════════════════════╝");
 
 })();
