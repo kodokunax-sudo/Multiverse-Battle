@@ -7,7 +7,6 @@ let arenaSettings = {
     effectsOpacity: 1.0,
     autoSuper: false,
     mobileSuper: "button",
-    // ★ НОВОЕ: настройки джойстика ★
     arenaControl: "auto",
     joystickSize: 100,
     joystickOpacity: 60
@@ -95,7 +94,6 @@ function loadArenaSettings() {
             arenaSettings.effectsOpacity = s.effectsOpacity ?? 1.0;
             arenaSettings.autoSuper = s.autoSuper ?? false;
             arenaSettings.mobileSuper = s.mobileSuper ?? "button";
-            // ★ НОВОЕ ★
             arenaSettings.arenaControl = s.arenaControl ?? "auto";
             arenaSettings.joystickSize = s.joystickSize ?? 100;
             arenaSettings.joystickOpacity = s.joystickOpacity ?? 60;
@@ -120,7 +118,6 @@ function applyArenaSettings() {
     let mobileSelect = document.getElementById("mobileSuperSelect");
     if (mobileSelect) mobileSelect.value = arenaSettings.mobileSuper;
     
-    // ★ НОВОЕ: джойстик ★
     let controlSelect = document.getElementById("arenaControlSelect");
     if (controlSelect) controlSelect.value = arenaSettings.arenaControl;
     let sizeSlider = document.getElementById("joystickSizeSlider");
@@ -132,7 +129,6 @@ function applyArenaSettings() {
     if (opSlider) opSlider.value = arenaSettings.joystickOpacity;
     if (opValue) opValue.innerText = arenaSettings.joystickOpacity + "%";
     
-    // ★ Применяем настройки джойстика ★
     if (typeof window.refreshJoystickSettings === 'function') window.refreshJoystickSettings();
 }
 
@@ -141,7 +137,6 @@ function changeArenaEffects(val) { arenaSettings.effectsOpacity = val / 100; doc
 function toggleAutoSuper(checked) { arenaSettings.autoSuper = checked; saveArenaSettings(); }
 function changeMobileSuper(val) { arenaSettings.mobileSuper = val; saveArenaSettings(); }
 
-// ★★★ НОВЫЕ ФУНКЦИИ ДЛЯ ДЖОЙСТИКА ★★★
 function changeArenaControl(val) { 
     arenaSettings.arenaControl = val; 
     saveArenaSettings(); 
@@ -362,7 +357,6 @@ function initNewGame() {
     gameCompleted = false; 
     defeatedBosses = []; 
     
-    // ★★★ НОВЫЙ БОНУС: Звёзды x2 на 20 минут при первом заходе ★★★
     activeBuffs["doubleStars"] = Date.now() + NEWCOMER_BONUS_MINUTES * 60 * 1000;
     
     if (typeof window !== 'undefined') window.waystarDefeatedThisRun = false;
@@ -810,6 +804,8 @@ function getPassiveModifiers() {
             if (a.type === 'dmgTakenIncrease') tm += a.value * ab * mult; 
             if (a.type === 'spareChanceBonus') { sb += a.value * ab; } 
             if (a.type === 'zenoCheckpoint') { window.hasZenoInTeam = true; } 
+            // ★ Белоус: 3% воскрешение
+            if (a.type === 'whitebeardSpecial') { /* обрабатывается в defeat() */ } 
         } 
         if (cd.statusAbility?.type === 'absoluteFreeze' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) tm -= cd.statusAbility.value * ab * mult; 
         if (cd.statusAbility?.type === 'bossDamageAura' && currentEnemy?.isBoss && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) bb += cd.statusAbility.value * ab * mult; 
@@ -967,7 +963,9 @@ function getRarityEmoji(rarity) { let emojis = { "Обычная": "⚪", "Ре�
 function getCardResultHTML(card) { let rarityColor = getRarityColor(card.rarity); let rarityEmoji = getRarityEmoji(card.rarity); let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(card.rarity); let cardImg = showImage && typeof getCardImage === 'function' ? getCardImage(card.name) : null; let imgHTML = cardImg ? '<img src="' + cardImg + '" style="width:100px;height:100px;border-radius:12px;object-fit:cover;margin-bottom:10px;">' : ''; return '<div style="text-align:center;">' + '<div style="font-size:64px;margin-bottom:10px;">' + rarityEmoji + '</div>' + imgHTML + '<div style="font-size:32px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 30px ' + rarityColor + ';margin-bottom:8px;">' + card.name + '</div>' + '<div class="rarity-tag ' + rarityColors[card.rarity] + '" style="font-size:18px;padding:10px 25px;">' + card.rarity + '</div>' + '<div style="margin-top:15px;font-size:18px;">💪 ' + card.damage + ' ❤️ ' + card.hp + '</div>' + (card.ability ? '<div style="margin-top:10px;color:#f5af19;font-weight:bold;">✨ ' + card.ability.desc + '</div>' : '') + '</div>'; }
 function startGachaAnimation(card, type) { let availableRarities = []; switch(type) { case "common": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "rare": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "superRare": availableRarities = ["Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная"]; break; case "epic": availableRarities = ["Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "mythic": availableRarities = ["Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "legendary": availableRarities = ["Мифическая", "Легендарная", "Секретная"]; break; case "secret": availableRarities = ["Легендарная", "Секретная"]; break; default: availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик"]; } let fakeCards = []; for (let i = 0; i < 8; i++) { let randomRarity = availableRarities[Math.floor(Math.random() * availableRarities.length)]; let fc = createCard(randomRarity); if (fc) fakeCards.push(fc); } fakeCards.push(card); gachaAnimationActive = true; let modalContent = document.getElementById("modalContent"); let modalOverlay = document.getElementById("modalOverlay"); if (!modalContent || !modalOverlay) { gachaAnimationActive = false; return; } modalOverlay.style.display = "flex"; let index = 0; let totalFlashes = 24; let flashCount = 0; let speed = 80; function flashNextCard() { if (flashCount >= totalFlashes) { modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>'; if (typeof sfxCardObtain === 'function') sfxCardObtain(); gachaAnimationActive = false; return; } let currentCard = fakeCards[index % fakeCards.length]; let rarityColor = getRarityColor(currentCard.rarity); modalContent.innerHTML = '<h2>🎰 Крутка...</h2>' + '<div style="text-align:center;padding:10px;">' + '<div style="font-size:48px;margin-bottom:10px;">🎴</div>' + '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + currentCard.name + '</div>' + '<div class="rarity-tag ' + rarityColors[currentCard.rarity] + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' + '<div style="margin-top:12px;font-size:16px;">💪 ' + currentCard.damage + ' ❤️ ' + currentCard.hp + '</div>' + '</div>' + '<button class="btn" style="width:100%;padding:8px;margin-top:10px;background:#e74c3c;border:none;color:white;font-weight:bold;" onclick="closeModal();gachaAnimationActive=false;">⏭️ ПРОПУСТИТЬ</button>'; index++; flashCount++; if (flashCount > totalFlashes * 0.7) speed += 40; else if (flashCount > totalFlashes * 0.5) speed += 20; else if (flashCount > totalFlashes * 0.3) speed += 10; setTimeout(flashNextCard, speed); } flashNextCard(); }
 
-// ========== ГЕНЕРАЦИЯ ВРАГА ==========
+// ============================================================
+// ГЕНЕРАЦИЯ ВРАГА — с обновлённым блоком wave 1000
+// ============================================================
 function generateEnemy() { 
     firstAttackThisFight = true; 
     bossSupportUsedThisFight = false; 
@@ -1047,6 +1045,7 @@ function generateEnemy() {
         }
     }
     else if (wave === 1000) {
+        // ★★★ ОБНОВЛЕНО: вариант В — ослабленная версия + пропуск ★★★
         let alreadyDefeatedRogerWB = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(1000);
         if (btn) btn.style.display = "none";
         if (livingBtn) livingBtn.style.display = "none";
@@ -1068,12 +1067,31 @@ function generateEnemy() {
         }
         
         if (alreadyDefeatedRogerWB) {
+            // ★ Вариант В: босс побеждён — только пропуск
             rwbBtn.style.display = "none";
+            let skipRwbBtn = document.getElementById("skipRWBBtn");
+            if (!skipRwbBtn) {
+                skipRwbBtn = document.createElement('button');
+                skipRwbBtn.id = "skipRWBBtn";
+                skipRwbBtn.className = "btn btn-skip-arena";
+                skipRwbBtn.style.cssText = "width:100%;padding:12px;font-size:16px;margin-bottom:10px;";
+                skipRwbBtn.innerHTML = "⏭️ ПРОПУСТИТЬ АРЕНУ (уже побеждён)";
+                skipRwbBtn.onclick = function() {
+                    if (typeof showFloatingText === 'function') showFloatingText("⏭️ Босс пропущен!", "#ffaa00");
+                    if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0;
+                    if (typeof victory === 'function') victory();
+                };
+                let container2 = document.querySelector('#fightSubTab .card') || document.body;
+                if (container2) container2.insertBefore(skipRwbBtn, container2.firstChild);
+            }
+            skipRwbBtn.style.display = "block";
             currentEnemy.hp = Math.floor(currentEnemy.hp * 0.3);
             currentEnemy.maxHp = currentEnemy.hp;
             currentEnemy.name = "👑 РОДЖЕР и БЕЛОУС (ослабленные)";
         } else {
             rwbBtn.style.display = "block";
+            let skipRwbBtn2 = document.getElementById("skipRWBBtn");
+            if (skipRwbBtn2) skipRwbBtn2.style.display = "none";
         }
     }
     else {
@@ -1224,7 +1242,9 @@ function checkEvolutionQuests() {
     renderEvoTab(); 
 }
 
-// ========== КЛИК ==========
+// ============================================================
+// КЛИК — с добавленной абилкой Белоуса (2% x5 комбо)
+// ============================================================
 function handleClick() { 
     initAudio(); 
     if (typeof arenaActive !== 'undefined' && arenaActive) return; 
@@ -1263,6 +1283,21 @@ function handleClick() {
     let oneShotChance = 0; 
     team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'oneShot' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { oneShotChance += cd.ability.chance * (1 + abilityUpgradeLevel * 0.1); } }); 
     team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'critChance' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) cc += cd.ability.value * (1 + abilityUpgradeLevel * 0.1); if (cd?.ability?.type === 'damageMultChance' && Math.random() < cd.ability.chance && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmg = Math.floor(dmg * cd.ability.mult); }); 
+    
+    // ★★★ БЕЛОУС: 2% шанс мгновенно x5 комбо ★★★
+    team.forEach(idx => {
+        let cd = myCards[idx];
+        if (cd?.name === "Белоус" && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) {
+            if (Math.random() < 0.02) {
+                comboCount = 50;
+                comboMultiplier = 5;
+                if (typeof showFloatingText === 'function') {
+                    showFloatingText("🌊 БЕЛОУС: x5 КОМБО!", "#88ddff");
+                }
+            }
+        }
+    });
+    
     if (oneShotChance > 0 && Math.random() < oneShotChance) { dmg = currentEnemy.hp; if (team.some(idx => myCards[idx]?.name === "Сайтама") && team.some(idx => myCards[idx]?.name === "Космический Гароу")) { evoProgress.oneShotCount++; } sfxCrit(); showFloatingText("💀 ВАНШОТ!", "#ff0000"); } else { dmg = Math.floor(dmg * comboMultiplier); if (Math.random() < cc) { dmg = Math.floor(dmg * 2); sfxCrit(); showFloatingText("💥 КРИТ! x2", "#feca57"); } else { sfxClick(); showFloatingText("-" + dmg, "#fff"); } dmg = Math.floor(dmg * enemyStatuses.bleedMult); } 
     if (enemyStatuses.fireTicks > 0 && enemyStatuses.fireDamage > 0) { startFireEffectPassive(enemyStatuses.fireDamage, enemyStatuses.fireTicks * 1000); enemyStatuses.fireTicks = 0; } 
     currentEnemy.hp -= dmg; 
@@ -1292,7 +1327,9 @@ function handleClick() {
     window._needSave = true; 
 }
 
-// ========== ПОБЕДА ==========
+// ============================================================
+// ПОБЕДА — с добавленной абилкой Белоуса (+1% HP за волну)
+// ============================================================
 function victory() { 
     let isBoss = wave % 10 === 0; 
     let rew = isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); 
@@ -1326,6 +1363,12 @@ function victory() {
     } else { sfxVictory(); } 
     if (team.some(idx => myCards[idx]?.ability?.type === 'teamHealOnWave' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(myCards[idx]) : true))) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.02); } 
     if (team.some(idx => myCards[idx]?.ability?.type === 'sevenSpecial' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(myCards[idx]) : true))) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.05); } 
+    
+    // ★★★ БЕЛОУС: +1% HP за волну ★★★
+    if (team.some(idx => myCards[idx]?.name === "Белоус")) {
+        playerHp = Math.min(window.playerMaxHp, playerHp + (window.playerMaxHp || 100) * 0.01);
+    }
+    
     enemyStatuses.poisonDamage = 0; 
     wave++; 
     if (wave > highestWaveReached) highestWaveReached = wave;
@@ -1342,10 +1385,32 @@ function victory() {
     saveAll(); 
 }
 
+// ============================================================
+// ПОРАЖЕНИЕ — с добавленной абилкой Белоуса (3% воскрешение)
+// ============================================================
 function defeat() { 
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; } 
     if (fireInterval) { clearInterval(fireInterval); fireInterval = null; }
     if (wave > highestWaveReached) highestWaveReached = wave;
+    
+    // ★★★ БЕЛОУС: 3% шанс воскрешения ★★★
+    if (!resurrectedThisFight) {
+        for (let idx of team) {
+            let cd = myCards[idx];
+            if (cd?.name === "Белоус" && Math.random() < 0.03) {
+                playerHp = window.playerMaxHp || 100;
+                resurrectedThisFight = true;
+                if (typeof sfxAbility === 'function') sfxAbility();
+                if (typeof showFloatingText === 'function') {
+                    showFloatingText("🌊 БЕЛОУС ВОСКРЕШАЕТ!", "#88ddff");
+                }
+                renderEnemy();
+                updatePlayerStats();
+                return;
+            }
+        }
+    }
+    
     if (!resurrectedThisFight) { for (let idx of team) { let cd = myCards[idx]; if (cd?.ability?.type === 'resurrect' && Math.random() < cd.ability.chance * (1 + abilityUpgradeLevel * 0.1) && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { playerHp = window.playerMaxHp || 100; resurrectedThisFight = true; sfxAbility(); showFloatingText("✨ Воскрешение!", "#2ecc71"); renderEnemy(); updatePlayerStats(); return; } } } 
     let bonus = 0; 
     team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'deathBonus' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) bonus += cd.ability.value; }); 
