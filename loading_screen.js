@@ -267,7 +267,7 @@
         screenElement = document.createElement('div');
         screenElement.id = 'loadingScreen';
         screenElement.innerHTML = `
-            <div id="loadingLogo">MULTIVERSE STAPLE</div>
+            <div id="loadingLogo">MULTIVERSE BATTLE</div>
             <div id="loadingSubtitle">BETA</div>
             <div id="loadingRingWrap">
                 <div id="loadingRing"></div>
