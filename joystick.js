@@ -1,27 +1,104 @@
 // ============================================================
-// JOYSTICK v1.4 — Универсальный виртуальный джойстик
+// JOYSTICK v2.0 — Плавающий джойстик + фикс pull-to-refresh
 // ============================================================
-// Работает на ВСЕХ аренах:
-//   - Undertale    → window.getArenaActive() / window.getArenaPhase()
-//   - Живой Камень → window.getLivingStoneActive() / window.getLivingStoneState()
-//   - Звезда       → window.getWaystarActive() / window.getWaystarState()
-//   - Роджер/Белоус→ window.getRWBActive() / window.getRWBState()
-//
-// ★ v1.4: добавлена поддержка МЫШИ (для ПК/тестирования)
-// ПОДКЛЮЧАТЬ В КОНЦЕ index.html, ПОСЛЕ всех боссов
+// ★ v2.0:
+//   - ПЛАВАЮЩИЙ джойстик (появляется где тапнул)
+//   - Красивый дизайн (градиенты, стрелки, блики)
+//   - Плавный отклик (нелинейная кривая)
+//   - ФИКС PULL-TO-REFRESH (не перезагружает при свайпе вниз)
+//   - Работает на всех аренах
 // ============================================================
 
 (function() {
     'use strict';
 
     if (window._joystickLoaded) {
-        console.warn("[JOYSTICK] Уже загружено, игнорирую повтор.");
+        console.warn("[JOYSTICK] Уже загружено.");
         return;
     }
     window._joystickLoaded = true;
 
     // ============================================================
-    // ★★★ ГЛОБАЛЬНОЕ СОСТОЯНИЕ ДЖОЙСТИКА ★★★
+    // ★★★ ФИКС PULL-TO-REFRESH ★★★
+    // ============================================================
+    var pullFixStyle = document.createElement('style');
+    pullFixStyle.id = 'joystick-pull-fix';
+    pullFixStyle.textContent = `
+        /* Глобальный фикс pull-to-refresh */
+        html, body {
+            overscroll-behavior: none !important;
+            overscroll-behavior-y: none !important;
+            overscroll-behavior-x: none !important;
+        }
+        
+        /* На арене — полная блокировка скролла и жестов */
+        #arenaCanvas,
+        #arenaOverlay,
+        #arenaOverlay * {
+            touch-action: none !important;
+            -ms-touch-action: none !important;
+            overscroll-behavior: contain !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+            -webkit-touch-callout: none !important;
+            -webkit-tap-highlight-color: transparent !important;
+        }
+        
+        /* Пока идёт бой — блокируем body скролл */
+        body.battle-active {
+            overflow: hidden !important;
+            position: fixed !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+    `;
+    document.head.appendChild(pullFixStyle);
+
+    // Блокируем touchmove на документе когда идёт бой
+    document.addEventListener('touchmove', function(e) {
+        var inBattle = false;
+        try {
+            inBattle = (
+                (typeof arenaActive !== 'undefined' && arenaActive) ||
+                (typeof livingStoneActive !== 'undefined' && livingStoneActive) ||
+                (typeof waystarActive !== 'undefined' && waystarActive) ||
+                (window.rwbActive === true)
+            );
+        } catch(err) {}
+        
+        if (!inBattle) return;
+        
+        // Если тап был по canvas или overlay — блокируем скролл
+        var target = e.target;
+        if (target && (
+            target.id === 'arenaCanvas' ||
+            (target.closest && target.closest('#arenaOverlay'))
+        )) {
+            if (e.cancelable) e.preventDefault();
+        }
+    }, { passive: false });
+
+    // Следим за состоянием боя и ставим класс на body
+    setInterval(function() {
+        var inBattle = false;
+        try {
+            inBattle = (
+                (typeof arenaActive !== 'undefined' && arenaActive) ||
+                (typeof livingStoneActive !== 'undefined' && livingStoneActive) ||
+                (typeof waystarActive !== 'undefined' && waystarActive) ||
+                (window.rwbActive === true)
+            );
+        } catch(err) {}
+        
+        if (inBattle && !document.body.classList.contains('battle-active')) {
+            document.body.classList.add('battle-active');
+        } else if (!inBattle && document.body.classList.contains('battle-active')) {
+            document.body.classList.remove('battle-active');
+        }
+    }, 300);
+
+    // ============================================================
+    // ★★★ ГЛОБАЛЬНОЕ СОСТОЯНИЕ ★★★
     // ============================================================
     window._joystick = {
         enabled: false,
@@ -29,22 +106,25 @@
         touchId: null,
         baseX: 0, baseY: 0,
         knobX: 0, knobY: 0,
-        maxRadius: 70,
-        deadzone: 10,
+        maxRadius: 80,
+        deadzone: 8,
         vectorX: 0,
         vectorY: 0,
         sizeMult: 1.0,
-        opacity: 0.6
+        opacity: 0.65,
+        floating: true,
+        // Для плавности
+        targetVectorX: 0,
+        targetVectorY: 0,
+        currentVectorX: 0,
+        currentVectorY: 0,
+        smoothFactor: 0.35
     };
 
-    var _lastSettings = {
-        enabled: null,
-        size: null,
-        opacity: null
-    };
+    var _lastSettings = { enabled: null, size: null, opacity: null };
 
     // ============================================================
-    // ★★★ ЧТЕНИЕ НАСТРОЕК ★★★
+    // ЧТЕНИЕ НАСТРОЕК
     // ============================================================
     function readSettings() {
         var settings = window.arenaSettings || (typeof arenaSettings !== 'undefined' ? arenaSettings : null);
@@ -54,17 +134,13 @@
         var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
         var newEnabled;
-        if (control === "auto") {
-            newEnabled = isMobile;
-        } else if (control === "joystick") {
-            newEnabled = true;
-        } else {
-            newEnabled = false;
-        }
+        if (control === "auto") newEnabled = isMobile;
+        else if (control === "joystick") newEnabled = true;
+        else newEnabled = false;
 
         var newSizeMult = (settings.joystickSize || 100) / 100;
-        var newMaxRadius = Math.round(70 * newSizeMult);
-        var newDeadzone = Math.round(10 * newSizeMult);
+        var newMaxRadius = Math.round(80 * newSizeMult);
+        var newDeadzone = Math.round(8 * newSizeMult);
         var newOpacity = (settings.joystickOpacity || 60) / 100;
 
         var j = window._joystick;
@@ -74,72 +150,36 @@
         j.deadzone = newDeadzone;
         j.opacity = newOpacity;
 
-        var changed = (
-            _lastSettings.enabled !== newEnabled ||
-            _lastSettings.size !== newMaxRadius ||
-            _lastSettings.opacity !== newOpacity
-        );
-        if (changed) {
-            _lastSettings.enabled = newEnabled;
-            _lastSettings.size = newMaxRadius;
-            _lastSettings.opacity = newOpacity;
-            console.log("[JOYSTICK] Настройки: enabled=" + newEnabled + ", size=" + newMaxRadius + "px, opacity=" + newOpacity.toFixed(2));
-        }
+        _lastSettings.enabled = newEnabled;
+        _lastSettings.size = newMaxRadius;
+        _lastSettings.opacity = newOpacity;
     }
 
     // ============================================================
-    // ★★★ ОПРЕДЕЛЕНИЕ АКТИВНОЙ АРЕНЫ — ЧЕРЕЗ ФУНКЦИИ WINDOW ★★★
+    // ОПРЕДЕЛЕНИЕ АКТИВНОЙ АРЕНЫ
     // ============================================================
     function getActiveArena() {
         try {
             if (typeof window.getArenaActive === 'function' && window.getArenaActive() === true) {
-                return {
-                    type: 'arena',
-                    canvas: document.getElementById("arenaCanvas"),
-                    phase: (typeof window.getArenaPhase === 'function') ? window.getArenaPhase() : "dodge"
-                };
+                return { type: 'arena', canvas: document.getElementById("arenaCanvas"), phase: (typeof window.getArenaPhase === 'function') ? window.getArenaPhase() : "dodge" };
             }
             if (typeof window.getLivingStoneActive === 'function' && window.getLivingStoneActive() === true) {
-                return {
-                    type: 'stone',
-                    canvas: document.getElementById("arenaCanvas"),
-                    phase: (typeof window.getLivingStoneState === 'function') ? window.getLivingStoneState() : "phase1"
-                };
+                return { type: 'stone', canvas: document.getElementById("arenaCanvas"), phase: (typeof window.getLivingStoneState === 'function') ? window.getLivingStoneState() : "phase1" };
             }
             if (typeof window.getWaystarActive === 'function' && window.getWaystarActive() === true) {
-                return {
-                    type: 'waystar',
-                    canvas: document.getElementById("arenaCanvas"),
-                    phase: (typeof window.getWaystarState === 'function') ? window.getWaystarState() : "phase1"
-                };
+                return { type: 'waystar', canvas: document.getElementById("arenaCanvas"), phase: (typeof window.getWaystarState === 'function') ? window.getWaystarState() : "phase1" };
             }
             if (typeof window.getRWBActive === 'function' && window.getRWBActive() === true) {
-                return {
-                    type: 'rwb',
-                    canvas: document.getElementById("arenaCanvas"),
-                    phase: (typeof window.getRWBState === 'function') ? window.getRWBState() : "fight1"
-                };
+                return { type: 'rwb', canvas: document.getElementById("arenaCanvas"), phase: (typeof window.getRWBState === 'function') ? window.getRWBState() : "fight1" };
             }
-            // Fallback через window.* напрямую
-            if (window.arenaActive === true) {
-                return { type: 'arena', canvas: document.getElementById("arenaCanvas"), phase: window.arenaPhase || "dodge" };
-            }
-            if (window.livingStoneActive === true) {
-                return { type: 'stone', canvas: document.getElementById("arenaCanvas"), phase: window.livingStoneState || "phase1" };
-            }
-            if (window.waystarActive === true) {
-                return { type: 'waystar', canvas: document.getElementById("arenaCanvas"), phase: window.waystarState || "phase1" };
-            }
-            if (window.rwbActive === true) {
-                return { type: 'rwb', canvas: document.getElementById("arenaCanvas"), phase: window.rwbState || "fight1" };
-            }
+            if (window.arenaActive === true) return { type: 'arena', canvas: document.getElementById("arenaCanvas"), phase: window.arenaPhase || "dodge" };
+            if (window.livingStoneActive === true) return { type: 'stone', canvas: document.getElementById("arenaCanvas"), phase: window.livingStoneState || "phase1" };
+            if (window.waystarActive === true) return { type: 'waystar', canvas: document.getElementById("arenaCanvas"), phase: window.waystarState || "phase1" };
+            if (window.rwbActive === true) return { type: 'rwb', canvas: document.getElementById("arenaCanvas"), phase: window.rwbState || "fight1" };
         } catch(e) {}
         return null;
     }
 
-    // ============================================================
-    // ★★★ ПРОВЕРКА: МОЖНО ЛИ УПРАВЛЯТЬ ★★★
-    // ============================================================
     function canControl(arena) {
         if (!arena) return false;
         if (arena.type === 'arena') return arena.phase === "dodge";
@@ -150,39 +190,45 @@
     }
 
     // ============================================================
-    // ★★★ ВЕКТОР ДВИЖЕНИЯ ★★★
+    // ОБНОВЛЕНИЕ ВЕКТОРА (с плавностью)
     // ============================================================
     function updateVector() {
         var j = window._joystick;
         if (!j.active) {
-            j.vectorX = 0;
-            j.vectorY = 0;
-            return;
+            j.targetVectorX = 0;
+            j.targetVectorY = 0;
+        } else {
+            var dx = j.knobX - j.baseX;
+            var dy = j.knobY - j.baseY;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < j.deadzone) {
+                j.targetVectorX = 0;
+                j.targetVectorY = 0;
+            } else {
+                var norm = Math.min(1, dist / j.maxRadius);
+                // ★ Нелинейная кривая — плавный старт, полная скорость в конце
+                var curve = norm < 0.5 ? norm * 0.6 : 0.3 + (norm - 0.5) * 1.4;
+                j.targetVectorX = (dx / dist) * curve;
+                j.targetVectorY = (dy / dist) * curve;
+            }
         }
 
-        var dx = j.knobX - j.baseX;
-        var dy = j.knobY - j.baseY;
-        var dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < j.deadzone) {
-            j.vectorX = 0;
-            j.vectorY = 0;
-            return;
-        }
-
-        var norm = Math.min(1, dist / j.maxRadius);
-        j.vectorX = (dx / dist) * norm;
-        j.vectorY = (dy / dist) * norm;
+        // ★ Сглаживание — плавный переход
+        j.currentVectorX += (j.targetVectorX - j.currentVectorX) * j.smoothFactor;
+        j.currentVectorY += (j.targetVectorY - j.currentVectorY) * j.smoothFactor;
+        j.vectorX = j.currentVectorX;
+        j.vectorY = j.currentVectorY;
     }
 
     // ============================================================
-    // ★★★ ПАТЧ CANVAS — TOUCH + MOUSE ★★★
+    // ПАТЧ CANVAS
     // ============================================================
     function patchCanvas(c) {
         if (!c || c._joystickPatched) return;
         c._joystickPatched = true;
 
-        // ========== TOUCHSTART ==========
+        // ============ TOUCHSTART — ПОЯВЛЕНИЕ ДЖОЙСТИКА ============
         c.addEventListener("touchstart", function(ev) {
             var j = window._joystick;
             if (!j.enabled) return;
@@ -192,35 +238,44 @@
             if (arena.type === 'arena' && arena.phase === 'attack') return;
             if (!canControl(arena)) return;
 
+            // Если уже активен — не переключаем
+            if (j.active) return;
+
             ev.preventDefault();
+            ev.stopPropagation();
 
-            for (var i = 0; i < ev.touches.length; i++) {
-                var t = ev.touches[i];
-                if (j.active) continue;
+            var t = ev.touches[0];
+            var rect = c.getBoundingClientRect();
+            var tx = t.clientX - rect.left;
+            var ty = t.clientY - rect.top;
 
-                var rect = c.getBoundingClientRect();
-                var tx = t.clientX - rect.left;
-                var ty = t.clientY - rect.top;
+            // ★★★ ПЛАВАЮЩИЙ — база появляется где тапнул ★★★
+            j.baseX = tx;
+            j.baseY = ty;
+            j.knobX = tx;
+            j.knobY = ty;
+            j.touchId = t.identifier;
+            j.active = true;
+            j.targetVectorX = 0;
+            j.targetVectorY = 0;
+            j.currentVectorX = 0;
+            j.currentVectorY = 0;
+            j.vectorX = 0;
+            j.vectorY = 0;
 
-                j.active = true;
-                j.touchId = t.identifier;
-                j.baseX = tx;
-                j.baseY = ty;
-                j.knobX = tx;
-                j.knobY = ty;
+            // Подгоняем базу чтобы круг не вылезал за пределы
+            var minDist = j.maxRadius + 8;
+            j.baseX = Math.max(minDist, Math.min(c.width - minDist, j.baseX));
+            j.baseY = Math.max(minDist, Math.min(c.height - minDist, j.baseY));
+            j.knobX = j.baseX;
+            j.knobY = j.baseY;
 
-                var minDist = j.maxRadius + 10;
-                j.baseX = Math.max(minDist, Math.min(c.width - minDist, j.baseX));
-                j.baseY = Math.max(minDist, Math.min(c.height - minDist, j.baseY));
-                j.knobX = j.baseX;
-                j.knobY = j.baseY;
-
-                if (typeof playArenaSound === 'function') playArenaSound(400, 'sine', 0.05, 0.03);
-                console.log("[JOYSTICK] Активирован (touch) на " + Math.floor(j.baseX) + "," + Math.floor(j.baseY) + " (арена: " + arena.type + ")");
+            if (typeof playArenaSound === 'function') {
+                playArenaSound(500, 'sine', 0.04, 0.03);
             }
         }, { passive: false });
 
-        // ========== TOUCHMOVE ==========
+        // ============ TOUCHMOVE — движение пальца ============
         c.addEventListener("touchmove", function(ev) {
             var j = window._joystick;
             if (!j.enabled || !j.active) return;
@@ -229,6 +284,7 @@
             if (!canControl(arena)) return;
 
             ev.preventDefault();
+            ev.stopPropagation();
 
             for (var i = 0; i < ev.touches.length; i++) {
                 var t = ev.touches[i];
@@ -242,6 +298,20 @@
                 var dy = ty - j.baseY;
                 var dist = Math.sqrt(dx * dx + dy * dy);
 
+                // ★ Если сильно оттянули — двигаем базу за пальцем (плавающий)
+                if (dist > j.maxRadius * 1.4) {
+                    var moveAmount = dist - j.maxRadius * 1.4;
+                    j.baseX += (dx / dist) * moveAmount;
+                    j.baseY += (dy / dist) * moveAmount;
+                    // Ограничиваем базу
+                    var minDist = j.maxRadius + 8;
+                    j.baseX = Math.max(minDist, Math.min(c.width - minDist, j.baseX));
+                    j.baseY = Math.max(minDist, Math.min(c.height - minDist, j.baseY));
+                    dx = tx - j.baseX;
+                    dy = ty - j.baseY;
+                    dist = Math.sqrt(dx * dx + dy * dy);
+                }
+
                 if (dist > j.maxRadius) {
                     dx = (dx / dist) * j.maxRadius;
                     dy = (dy / dist) * j.maxRadius;
@@ -253,7 +323,7 @@
             }
         }, { passive: false });
 
-        // ========== TOUCHEND ==========
+        // ============ TOUCHEND ============
         c.addEventListener("touchend", function(ev) {
             var j = window._joystick;
             if (!j.enabled) return;
@@ -266,8 +336,8 @@
             if (!stillHeld) {
                 j.active = false;
                 j.touchId = null;
-                j.vectorX = 0;
-                j.vectorY = 0;
+                j.targetVectorX = 0;
+                j.targetVectorY = 0;
             }
         });
 
@@ -275,11 +345,11 @@
             var j = window._joystick;
             j.active = false;
             j.touchId = null;
-            j.vectorX = 0;
-            j.vectorY = 0;
+            j.targetVectorX = 0;
+            j.targetVectorY = 0;
         });
 
-        // ========== MOUSE DOWN (для ПК/теста) ==========
+        // ============ MOUSE (для ПК/теста) ============
         c.addEventListener("mousedown", function(ev) {
             var j = window._joystick;
             if (!j.enabled) return;
@@ -288,35 +358,35 @@
             if (!arena) return;
             if (arena.type === 'arena' && arena.phase === 'attack') return;
             if (!canControl(arena)) return;
+            if (ev.button !== 0) return;
 
-            if (ev.button !== 0) return; // только левая кнопка
+            ev.preventDefault();
 
             var rect = c.getBoundingClientRect();
             var tx = ev.clientX - rect.left;
             var ty = ev.clientY - rect.top;
 
-            j.active = true;
-            j.touchId = "mouse";
             j.baseX = tx;
             j.baseY = ty;
             j.knobX = tx;
             j.knobY = ty;
+            j.touchId = "mouse";
+            j.active = true;
+            j.targetVectorX = 0;
+            j.targetVectorY = 0;
+            j.currentVectorX = 0;
+            j.currentVectorY = 0;
 
-            var minDist = j.maxRadius + 10;
+            var minDist = j.maxRadius + 8;
             j.baseX = Math.max(minDist, Math.min(c.width - minDist, j.baseX));
             j.baseY = Math.max(minDist, Math.min(c.height - minDist, j.baseY));
             j.knobX = j.baseX;
             j.knobY = j.baseY;
-
-            if (typeof playArenaSound === 'function') playArenaSound(400, 'sine', 0.05, 0.03);
-            console.log("[JOYSTICK] Активирован (mouse) на " + Math.floor(j.baseX) + "," + Math.floor(j.baseY) + " (арена: " + arena.type + ")");
         });
 
-        // ========== MOUSE MOVE (на window, чтобы двигать за пределами canvas) ==========
         window.addEventListener("mousemove", function(ev) {
             var j = window._joystick;
             if (!j.enabled || !j.active || j.touchId !== "mouse") return;
-
             var arena = getActiveArena();
             if (!canControl(arena)) return;
 
@@ -327,140 +397,219 @@
             var dx = tx - j.baseX;
             var dy = ty - j.baseY;
             var dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist > j.maxRadius) {
-                dx = (dx / dist) * j.maxRadius;
-                dy = (dy / dist) * j.maxRadius;
-            }
-
+            if (dist > j.maxRadius) { dx = (dx / dist) * j.maxRadius; dy = (dy / dist) * j.maxRadius; }
             j.knobX = j.baseX + dx;
             j.knobY = j.baseY + dy;
         });
 
-        // ========== MOUSE UP ==========
         window.addEventListener("mouseup", function(ev) {
             var j = window._joystick;
             if (j.touchId === "mouse" && j.active) {
                 j.active = false;
                 j.touchId = null;
-                j.vectorX = 0;
-                j.vectorY = 0;
+                j.targetVectorX = 0;
+                j.targetVectorY = 0;
             }
         });
 
-        // Отключаем контекстное меню на canvas
         c.addEventListener("contextmenu", function(ev) { ev.preventDefault(); });
 
-        console.log("[JOYSTICK] Canvas пропатчен (touch + mouse)");
+        console.log("[JOYSTICK] Canvas пропатчен");
     }
 
     // ============================================================
-    // ★★★ РИСУЕМ ДЖОЙСТИК ★★★
+    // РИСУЕМ ДЖОЙСТИК
     // ============================================================
     function drawJoystick() {
         var j = window._joystick;
         if (!j.enabled || !j.active) return;
 
         var context = null;
-        try {
-            if (typeof ctx !== 'undefined' && ctx) context = ctx;
-        } catch(e) {}
+        try { if (typeof ctx !== 'undefined' && ctx) context = ctx; } catch(e) {}
         if (!context) return;
 
         context.save();
         context.globalAlpha = j.opacity;
 
-        // Внешний круг
-        context.strokeStyle = "#ffffff";
+        // ====== ВНЕШНИЙ КРУГ (фон) ======
+        var outerGrad = context.createRadialGradient(
+            j.baseX, j.baseY, j.maxRadius * 0.3,
+            j.baseX, j.baseY, j.maxRadius
+        );
+        outerGrad.addColorStop(0, "rgba(20, 20, 40, 0.3)");
+        outerGrad.addColorStop(0.7, "rgba(30, 30, 60, 0.4)");
+        outerGrad.addColorStop(1, "rgba(10, 10, 25, 0.6)");
+        context.fillStyle = outerGrad;
+        context.beginPath();
+        context.arc(j.baseX, j.baseY, j.maxRadius, 0, Math.PI * 2);
+        context.fill();
+
+        // ====== ВНЕШНИЙ КОНТУР ======
+        context.strokeStyle = "rgba(255, 255, 255, 0.85)";
         context.lineWidth = 3;
         context.shadowColor = "#000000";
-        context.shadowBlur = 8;
+        context.shadowBlur = 12;
         context.beginPath();
         context.arc(j.baseX, j.baseY, j.maxRadius, 0, Math.PI * 2);
         context.stroke();
-
-        // Заливка
-        context.fillStyle = "rgba(255, 255, 255, 0.08)";
-        context.beginPath();
-        context.arc(j.baseX, j.baseY, j.maxRadius, 0, Math.PI * 2);
-        context.fill();
-
-        // Мёртвая зона
-        context.strokeStyle = "rgba(255, 255, 255, 0.3)";
-        context.lineWidth = 1;
         context.shadowBlur = 0;
+
+        // ====== ВНУТРЕННЯЯ ОБВОДКА (для красоты) ======
+        context.strokeStyle = "rgba(255, 255, 255, 0.2)";
+        context.lineWidth = 1.5;
         context.beginPath();
-        context.arc(j.baseX, j.baseY, j.deadzone, 0, Math.PI * 2);
+        context.arc(j.baseX, j.baseY, j.maxRadius - 4, 0, Math.PI * 2);
         context.stroke();
 
-        // Стрелки
-        context.strokeStyle = "rgba(255, 255, 255, 0.35)";
-        context.lineWidth = 2;
-        var arrowDist = j.maxRadius * 0.72;
+        // ====== СТРЕЛКИ ======
+        var arrowDist = j.maxRadius * 0.78;
         var arrowSize = j.maxRadius * 0.13;
+        var currentX = j.vectorX;
+        var currentY = j.vectorY;
 
+        // Цвет стрелок — ярче в направлении движения
+        function getArrowColor(dirX, dirY) {
+            var dot = currentX * dirX + currentY * dirY;
+            if (dot > 0.3) return "#ffdd00";  // активная
+            return "rgba(255, 255, 255, 0.5)";
+        }
+
+        // Вверх
+        context.strokeStyle = getArrowColor(0, -1);
+        context.lineWidth = 3;
+        context.lineCap = "round";
         context.beginPath();
         context.moveTo(j.baseX, j.baseY - arrowDist + arrowSize);
-        context.lineTo(j.baseX - arrowSize, j.baseY - arrowDist);
-        context.lineTo(j.baseX + arrowSize, j.baseY - arrowDist);
-        context.closePath();
+        context.lineTo(j.baseX - arrowSize, j.baseY - arrowDist + arrowSize * 2);
+        context.moveTo(j.baseX, j.baseY - arrowDist + arrowSize);
+        context.lineTo(j.baseX + arrowSize, j.baseY - arrowDist + arrowSize * 2);
         context.stroke();
+
+        // Вниз
+        context.strokeStyle = getArrowColor(0, 1);
         context.beginPath();
         context.moveTo(j.baseX, j.baseY + arrowDist - arrowSize);
-        context.lineTo(j.baseX - arrowSize, j.baseY + arrowDist);
-        context.lineTo(j.baseX + arrowSize, j.baseY + arrowDist);
-        context.closePath();
+        context.lineTo(j.baseX - arrowSize, j.baseY + arrowDist - arrowSize * 2);
+        context.moveTo(j.baseX, j.baseY + arrowDist - arrowSize);
+        context.lineTo(j.baseX + arrowSize, j.baseY + arrowDist - arrowSize * 2);
         context.stroke();
+
+        // Влево
+        context.strokeStyle = getArrowColor(-1, 0);
         context.beginPath();
         context.moveTo(j.baseX - arrowDist + arrowSize, j.baseY);
-        context.lineTo(j.baseX - arrowDist, j.baseY - arrowSize);
-        context.lineTo(j.baseX - arrowDist, j.baseY + arrowSize);
-        context.closePath();
+        context.lineTo(j.baseX - arrowDist + arrowSize * 2, j.baseY - arrowSize);
+        context.moveTo(j.baseX - arrowDist + arrowSize, j.baseY);
+        context.lineTo(j.baseX - arrowDist + arrowSize * 2, j.baseY + arrowSize);
         context.stroke();
+
+        // Вправо
+        context.strokeStyle = getArrowColor(1, 0);
         context.beginPath();
         context.moveTo(j.baseX + arrowDist - arrowSize, j.baseY);
-        context.lineTo(j.baseX + arrowDist, j.baseY - arrowSize);
-        context.lineTo(j.baseX + arrowDist, j.baseY + arrowSize);
-        context.closePath();
+        context.lineTo(j.baseX + arrowDist - arrowSize * 2, j.baseY - arrowSize);
+        context.moveTo(j.baseX + arrowDist - arrowSize, j.baseY);
+        context.lineTo(j.baseX + arrowDist - arrowSize * 2, j.baseY + arrowSize);
         context.stroke();
 
-        // Шайба
-        context.fillStyle = "#ffdd00";
-        context.shadowColor = "#ffaa00";
-        context.shadowBlur = 15;
+        context.lineCap = "butt";
+
+        // ====== ШАЙБА (KNOB) ======
+        var knobRadius = j.maxRadius * 0.38;
+
+        // Свечение под шайбой
+        var glowGrad = context.createRadialGradient(
+            j.knobX, j.knobY, 0,
+            j.knobX, j.knobY, knobRadius * 2
+        );
+        glowGrad.addColorStop(0, "rgba(255, 221, 0, 0.5)");
+        glowGrad.addColorStop(0.5, "rgba(255, 170, 0, 0.2)");
+        glowGrad.addColorStop(1, "rgba(255, 170, 0, 0)");
+        context.fillStyle = glowGrad;
         context.beginPath();
-        context.arc(j.knobX, j.knobY, j.maxRadius * 0.35, 0, Math.PI * 2);
+        context.arc(j.knobX, j.knobY, knobRadius * 2, 0, Math.PI * 2);
         context.fill();
+
+        // Тело шайбы с градиентом
+        var knobGrad = context.createRadialGradient(
+            j.knobX - knobRadius * 0.35, j.knobY - knobRadius * 0.35, 1,
+            j.knobX, j.knobY, knobRadius
+        );
+        knobGrad.addColorStop(0, "#ffffcc");
+        knobGrad.addColorStop(0.3, "#ffdd44");
+        knobGrad.addColorStop(0.7, "#ffaa00");
+        knobGrad.addColorStop(1, "#cc6600");
+
+        context.fillStyle = knobGrad;
+        context.shadowColor = "#ff8800";
+        context.shadowBlur = 22;
+        context.beginPath();
+        context.arc(j.knobX, j.knobY, knobRadius, 0, Math.PI * 2);
+        context.fill();
+        context.shadowBlur = 0;
+
+        // Обводка шайбы
+        context.strokeStyle = "#ffffff";
+        context.lineWidth = 3;
+        context.beginPath();
+        context.arc(j.knobX, j.knobY, knobRadius, 0, Math.PI * 2);
+        context.stroke();
+
+        // Внутренняя обводка
+        context.strokeStyle = "rgba(255, 200, 50, 0.8)";
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.arc(j.knobX, j.knobY, knobRadius - 3, 0, Math.PI * 2);
+        context.stroke();
 
         // Блик
-        context.fillStyle = "rgba(255, 255, 255, 0.6)";
-        context.shadowBlur = 0;
+        context.fillStyle = "rgba(255, 255, 255, 0.75)";
         context.beginPath();
-        context.arc(j.knobX - j.maxRadius * 0.1, j.knobY - j.maxRadius * 0.1, j.maxRadius * 0.12, 0, Math.PI * 2);
+        context.arc(
+            j.knobX - knobRadius * 0.35,
+            j.knobY - knobRadius * 0.35,
+            knobRadius * 0.22,
+            0, Math.PI * 2
+        );
         context.fill();
 
-        // Линия
-        context.strokeStyle = "rgba(255, 221, 0, 0.5)";
-        context.lineWidth = 2;
+        // ====== ЛИНИЯ ОТ БАЗЫ К ШАЙБЕ ======
+        context.strokeStyle = "rgba(255, 221, 0, 0.55)";
+        context.lineWidth = 3;
+        context.shadowColor = "#ffdd00";
+        context.shadowBlur = 8;
         context.beginPath();
         context.moveTo(j.baseX, j.baseY);
         context.lineTo(j.knobX, j.knobY);
+        context.stroke();
+        context.shadowBlur = 0;
+
+        // ====== ТОЧКА В ЦЕНТРЕ БАЗЫ ======
+        context.fillStyle = "rgba(255, 255, 255, 0.4)";
+        context.beginPath();
+        context.arc(j.baseX, j.baseY, 4, 0, Math.PI * 2);
+        context.fill();
+
+        context.strokeStyle = "rgba(255, 255, 255, 0.7)";
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.arc(j.baseX, j.baseY, 4, 0, Math.PI * 2);
         context.stroke();
 
         context.restore();
     }
 
     // ============================================================
-    // ★★★ АВТО-ОБНОВЛЕНИЕ ВЕКТОРА ★★★
+    // АВТО-ОБНОВЛЕНИЕ ВЕКТОРА (60 fps)
     // ============================================================
-    setInterval(function() {
+    var vectorInterval = setInterval(function() {
         var j = window._joystick;
         if (!j.enabled) return;
         updateVector();
     }, 16);
 
     // ============================================================
-    // ★★★ ПАТЧ CANVAS — при появлении ★★★
+    // ПАТЧ CANVAS при появлении
     // ============================================================
     function tryPatchCanvas() {
         var c = document.getElementById("arenaCanvas");
@@ -468,13 +617,11 @@
     }
 
     setTimeout(tryPatchCanvas, 500);
-    setInterval(tryPatchCanvas, 2000);
+    setInterval(tryPatchCanvas, 1500);
 
     // ============================================================
-    // ★★★ ПАТЧИ ДЛЯ БОССОВ ★★★
+    // ПАТЧИ ДЛЯ БОССОВ
     // ============================================================
-
-    // -------- Undertale (moveHeart) --------
     function patchBattleMoveHeart() {
         if (typeof window.moveHeart !== 'function') return false;
         if (window._joystickMoveHeartPatched) return true;
@@ -489,9 +636,7 @@
                 var mx = j.vectorX;
                 var my = j.vectorY;
 
-                if (typeof _superState !== 'undefined' && _superState.invertControls) {
-                    mx = -mx; my = -my;
-                }
+                if (typeof _superState !== 'undefined' && _superState.invertControls) { mx = -mx; my = -my; }
 
                 var isMoving = Math.abs(mx) > 0.05 || Math.abs(my) > 0.05;
                 if (typeof heartWasMoving !== 'undefined') heartWasMoving = isMoving;
@@ -522,14 +667,18 @@
                 if (typeof clampHeart === 'function') clampHeart();
 
                 if (typeof arenaTrail !== 'undefined' && Math.random() > 0.3) {
-                    arenaTrail.push({ x: heart.x, y: heart.y, life: 12, maxLife: 12, size: Math.max(1, heart.size*0.75), color: "rgba(255, 30, 30, 0.35)" });
+                    arenaTrail.push({
+                        x: heart.x, y: heart.y, life: 12, maxLife: 12,
+                        size: Math.max(1, heart.size * 0.75),
+                        color: "rgba(255, 30, 30, 0.35)"
+                    });
                 }
 
                 if (typeof arenaAttackType !== 'undefined' && arenaAttackType === 4) {
                     if (heart.x - heart.hitbox < 2 || heart.x + heart.hitbox > 398 || heart.y - heart.hitbox < 2 || heart.y + heart.hitbox > 498) {
                         if (invulnTimer <= 0) {
                             invulnTimer = 20;
-                            applyHit(Math.max(8, Math.floor(arenaBaseDmg*1.5)), "ШИПЫ!");
+                            applyHit(Math.max(8, Math.floor(arenaBaseDmg * 1.5)), "ШИПЫ!");
                         }
                     }
                 }
@@ -539,11 +688,10 @@
         };
 
         window._joystickMoveHeartPatched = true;
-        console.log("[JOYSTICK] ✅ moveHeart пропатчен (Undertale)");
+        console.log("[JOYSTICK] ✅ moveHeart пропатчен");
         return true;
     }
 
-    // -------- Живой Камень --------
     function patchLivingStonePlayer() {
         if (typeof window.updateLivingStonePlayer !== 'function') return false;
         if (window._joystickLSPlayerPatched) return true;
@@ -565,11 +713,9 @@
         };
 
         window._joystickLSPlayerPatched = true;
-        console.log("[JOYSTICK] ✅ updateLivingStonePlayer пропатчен");
         return true;
     }
 
-    // -------- Путеводная Звезда --------
     function patchWaystarPlayer() {
         if (typeof window.updateWaystarPlayer !== 'function') return false;
         if (window._joystickWSPlayerPatched) return true;
@@ -591,11 +737,9 @@
         };
 
         window._joystickWSPlayerPatched = true;
-        console.log("[JOYSTICK] ✅ updateWaystarPlayer пропатчен");
         return true;
     }
 
-    // -------- Роджер vs Белоус --------
     function patchRWBPlayer() {
         if (typeof window.updateRWBPlayer !== 'function') return false;
         if (window._joystickRWBPlayerPatched) return true;
@@ -617,7 +761,6 @@
         };
 
         window._joystickRWBPlayerPatched = true;
-        console.log("[JOYSTICK] ✅ updateRWBPlayer пропатчен");
         return true;
     }
 
@@ -633,7 +776,7 @@
     setInterval(tryPatches, 3000);
 
     // ============================================================
-    // ★★★ ЭКСПОРТ ★★★
+    // ЭКСПОРТ
     // ============================================================
     window.drawJoystick = drawJoystick;
     window.getJoystickVector = function() {
@@ -647,10 +790,11 @@
     readSettings();
 
     console.log("╔════════════════════════════════════════╗");
-    console.log("║  🕹️ JOYSTICK v1.4 загружен             ║");
-    console.log("║  ✅ Touch + Mouse                       ║");
-    console.log("║  ✅ Читает через window.get*Active()   ║");
-    console.log("║  ✅ Патчи для всех 4 боссов            ║");
+    console.log("║  🕹️ JOYSTICK v2.0 загружен             ║");
+    console.log("║  ✅ Плавающий джойстик                  ║");
+    console.log("║  ✅ Красивый дизайн                     ║");
+    console.log("║  ✅ Плавный отклик                      ║");
+    console.log("║  ✅ Фикс pull-to-refresh                ║");
     console.log("╚════════════════════════════════════════╝");
 
 })();
