@@ -1,10 +1,12 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v18.1
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v18.2
 // ============================================================
-// ★ v18.1:
-//   - Портреты Роджера и Белоуса как в оригинале
-//   - Белые части в атаках Роджера → чёрные
-//   - Синяя ломает ВСЕ атаки Роджера
+// ★ v18.2:
+//   - Модели: СЕРДЕЧКИ + детали (шляпы/усы)
+//   - Белое → чёрное ТОЛЬКО у Роджера
+//   - У Белоуса белые части остаются
+//   - Верхняя граница арены разрешена
+//   - Близкий контакт = слеш-отталкивание (оба босса, 2 фаза)
 // ============================================================
 
 (function() {
@@ -23,6 +25,10 @@
     const RWB_SUPER_COOLDOWN = 300;
     const RWB_TITAN_INTERVAL = 640;
     const RWB_ROCK_INTERVAL = 1500;
+    const RWB_MELEE_RANGE = 55;      // ★ радиус близкого контакта
+    const RWB_MELEE_COOLDOWN = 40;   // ★ кулдаун слеша отталкивания
+    const RWB_MELEE_DAMAGE = 15;     // ★ урон от слеша
+    const RWB_MELEE_KNOCKBACK = 40;  // ★ сила отталкивания
 
     const BALANCE = {
         playerHp: 250,
@@ -52,6 +58,7 @@
     let rwbTitanRockTimer = 0;
     let rwbSuperReady = true;
     let rwbSuperCooldown = 0;
+    let rwbMeleeCooldown = 0;
 
     var rwbWinner = null;
     var rwbRewardGiven = false;
@@ -129,9 +136,7 @@
     const RWB_MUSIC_PATH = "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3";
 
     function isModerActive() {
-        try {
-            return typeof mode !== 'undefined' && mode === "moder";
-        } catch(e) { return false; }
+        try { return typeof mode !== 'undefined' && mode === "moder"; } catch(e) { return false; }
     }
 
     function startRWBMusic() {
@@ -144,46 +149,31 @@
                     if (loaded && loaded.url) src = loaded.url;
                 }
                 rwbMusic = new Audio(src);
-                rwbMusic.loop = true;
-                rwbMusic.volume = 0.45;
+                rwbMusic.loop = true; rwbMusic.volume = 0.45;
                 rwbMusic.onerror = function() { rwbMusic = null; };
             } catch(e) { rwbMusic = null; }
         }
-        if (rwbMusic) {
-            try { rwbMusic.currentTime = 0; rwbMusic.play().catch(function() {}); } catch(e) {}
-        }
+        if (rwbMusic) { try { rwbMusic.currentTime = 0; rwbMusic.play().catch(function() {}); } catch(e) {} }
     }
 
-    function stopRWBMusic() {
-        if (rwbMusic) { try { rwbMusic.pause(); rwbMusic.currentTime = 0; } catch(e) {} }
-    }
+    function stopRWBMusic() { if (rwbMusic) { try { rwbMusic.pause(); rwbMusic.currentTime = 0; } catch(e) {} } }
 
     let rwbAudioCtx = null;
 
     function initRWBAudio() {
-        if (rwbAudioCtx) {
-            if (rwbAudioCtx.state === 'suspended') rwbAudioCtx.resume();
-            return;
-        }
-        try {
-            rwbAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        } catch(e) {}
+        if (rwbAudioCtx) { if (rwbAudioCtx.state === 'suspended') rwbAudioCtx.resume(); return; }
+        try { rwbAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
     }
 
     function playRWBSound(opts) {
         if (!rwbAudioCtx) initRWBAudio();
         if (!rwbAudioCtx) return;
-        let freq = opts.freq || 200;
-        let freqEnd = opts.freqEnd || freq;
-        let type = opts.type || 'sawtooth';
-        let duration = opts.duration || 0.3;
-        let volume = opts.volume || 0.15;
-        let attack = opts.attack || 0.005;
-        let release = opts.release || duration;
-        let detune = opts.detune || 0;
+        let freq = opts.freq || 200, freqEnd = opts.freqEnd || freq;
+        let type = opts.type || 'sawtooth', duration = opts.duration || 0.3;
+        let volume = opts.volume || 0.15, attack = opts.attack || 0.005;
+        let release = opts.release || duration, detune = opts.detune || 0;
         try {
-            let osc = rwbAudioCtx.createOscillator();
-            let gain = rwbAudioCtx.createGain();
+            let osc = rwbAudioCtx.createOscillator(), gain = rwbAudioCtx.createGain();
             osc.type = type;
             osc.frequency.setValueAtTime(freq, rwbAudioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), rwbAudioCtx.currentTime + duration);
@@ -191,8 +181,7 @@
             gain.gain.setValueAtTime(0, rwbAudioCtx.currentTime);
             gain.gain.linearRampToValueAtTime(volume, rwbAudioCtx.currentTime + attack);
             gain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + release);
-            osc.connect(gain);
-            gain.connect(rwbAudioCtx.destination);
+            osc.connect(gain); gain.connect(rwbAudioCtx.destination);
             osc.start(rwbAudioCtx.currentTime);
             osc.stop(rwbAudioCtx.currentTime + release + 0.05);
         } catch(e) {}
@@ -201,37 +190,28 @@
     function playImpactSound(volume, pitch) {
         if (!rwbAudioCtx) initRWBAudio();
         if (!rwbAudioCtx) return;
-        volume = volume || 0.4;
-        pitch = pitch || 1;
+        volume = volume || 0.4; pitch = pitch || 1;
         try {
             let bufferSize = rwbAudioCtx.sampleRate * 0.4;
             let buffer = rwbAudioCtx.createBuffer(1, bufferSize, rwbAudioCtx.sampleRate);
             let data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
-            }
-            let noise = rwbAudioCtx.createBufferSource();
-            noise.buffer = buffer;
-            let noiseFilter = rwbAudioCtx.createBiquadFilter();
-            noiseFilter.type = 'lowpass';
+            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
+            let noise = rwbAudioCtx.createBufferSource(); noise.buffer = buffer;
+            let noiseFilter = rwbAudioCtx.createBiquadFilter(); noiseFilter.type = 'lowpass';
             noiseFilter.frequency.setValueAtTime(400 * pitch, rwbAudioCtx.currentTime);
             noiseFilter.frequency.exponentialRampToValueAtTime(80, rwbAudioCtx.currentTime + 0.4);
             let noiseGain = rwbAudioCtx.createGain();
             noiseGain.gain.setValueAtTime(volume, rwbAudioCtx.currentTime);
             noiseGain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.4);
-            noise.connect(noiseFilter);
-            noiseFilter.connect(noiseGain);
-            noiseGain.connect(rwbAudioCtx.destination);
+            noise.connect(noiseFilter); noiseFilter.connect(noiseGain); noiseGain.connect(rwbAudioCtx.destination);
             noise.start(rwbAudioCtx.currentTime);
-            let osc = rwbAudioCtx.createOscillator();
-            let oscGain = rwbAudioCtx.createGain();
+            let osc = rwbAudioCtx.createOscillator(), oscGain = rwbAudioCtx.createGain();
             osc.type = 'sine';
             osc.frequency.setValueAtTime(120 * pitch, rwbAudioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(35, rwbAudioCtx.currentTime + 0.3);
             oscGain.gain.setValueAtTime(volume * 1.2, rwbAudioCtx.currentTime);
             oscGain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.35);
-            osc.connect(oscGain);
-            oscGain.connect(rwbAudioCtx.destination);
+            osc.connect(oscGain); oscGain.connect(rwbAudioCtx.destination);
             osc.start(rwbAudioCtx.currentTime);
             osc.stop(rwbAudioCtx.currentTime + 0.4);
         } catch(e) {}
@@ -251,31 +231,23 @@
             let bufferSize = rwbAudioCtx.sampleRate * 0.8;
             let buffer = rwbAudioCtx.createBuffer(1, bufferSize, rwbAudioCtx.sampleRate);
             let data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
-            }
-            let noise = rwbAudioCtx.createBufferSource();
-            noise.buffer = buffer;
-            let filter = rwbAudioCtx.createBiquadFilter();
-            filter.type = 'lowpass';
+            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+            let noise = rwbAudioCtx.createBufferSource(); noise.buffer = buffer;
+            let filter = rwbAudioCtx.createBiquadFilter(); filter.type = 'lowpass';
             filter.frequency.setValueAtTime(1500, rwbAudioCtx.currentTime);
             filter.frequency.exponentialRampToValueAtTime(60, rwbAudioCtx.currentTime + 0.8);
             let gain = rwbAudioCtx.createGain();
             gain.gain.setValueAtTime(volume, rwbAudioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.8);
-            noise.connect(filter);
-            filter.connect(gain);
-            gain.connect(rwbAudioCtx.destination);
+            noise.connect(filter); filter.connect(gain); gain.connect(rwbAudioCtx.destination);
             noise.start(rwbAudioCtx.currentTime);
-            let osc = rwbAudioCtx.createOscillator();
-            let oscGain = rwbAudioCtx.createGain();
+            let osc = rwbAudioCtx.createOscillator(), oscGain = rwbAudioCtx.createGain();
             osc.type = 'sine';
             osc.frequency.setValueAtTime(80, rwbAudioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(25, rwbAudioCtx.currentTime + 0.6);
             oscGain.gain.setValueAtTime(volume * 1.5, rwbAudioCtx.currentTime);
             oscGain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.7);
-            osc.connect(oscGain);
-            oscGain.connect(rwbAudioCtx.destination);
+            osc.connect(oscGain); oscGain.connect(rwbAudioCtx.destination);
             osc.start(rwbAudioCtx.currentTime);
             osc.stop(rwbAudioCtx.currentTime + 0.8);
         } catch(e) {}
@@ -299,631 +271,280 @@
     }
 
     function wrapText(text, maxWidth, ctx) {
-        var words = text.split(' ');
-        var lines = [];
-        var currentLine = '';
+        var words = text.split(' '), lines = [], currentLine = '';
         for (var i = 0; i < words.length; i++) {
             var testLine = currentLine ? currentLine + ' ' + words[i] : words[i];
-            if (ctx.measureText(testLine).width > maxWidth && currentLine) {
-                lines.push(currentLine);
-                currentLine = words[i];
-            } else {
-                currentLine = testLine;
-            }
+            if (ctx.measureText(testLine).width > maxWidth && currentLine) { lines.push(currentLine); currentLine = words[i]; }
+            else { currentLine = testLine; }
         }
         if (currentLine) lines.push(currentLine);
         return lines;
     }
 
     // ============================================================
-    // ★★★ ПОРТРЕТ РОДЖЕРА (большой, для диалога) ★★★
+    // ★★★ ПОРТРЕТЫ ДЛЯ ДИАЛОГА (детальные) ★★★
     // ============================================================
     function drawRogerPortrait(x, y, scale) {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.scale(scale, scale);
-        
-        // Плащ / плечи
+        ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
+        // Плащ
         ctx.fillStyle = "#8B0000";
-        ctx.beginPath();
-        ctx.moveTo(-55, 80);
-        ctx.lineTo(-45, 25);
-        ctx.lineTo(-25, 15);
-        ctx.lineTo(25, 15);
-        ctx.lineTo(45, 25);
-        ctx.lineTo(55, 80);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Золотые эполеты
+        ctx.beginPath(); ctx.moveTo(-55, 80); ctx.lineTo(-45, 25); ctx.lineTo(-25, 15); ctx.lineTo(25, 15); ctx.lineTo(45, 25); ctx.lineTo(55, 80); ctx.closePath(); ctx.fill();
+        // Эполеты
         ctx.fillStyle = "#FFD700";
-        ctx.beginPath();
-        ctx.ellipse(-38, 30, 15, 10, -0.3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(38, 30, 15, 10, 0.3, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Золотые полоски на эполетах
-        ctx.strokeStyle = "#B8860B";
-        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(-38, 30, 15, 10, -0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(38, 30, 15, 10, 0.3, 0, Math.PI * 2); ctx.fill();
+        // Полоски на эполетах
+        ctx.strokeStyle = "#B8860B"; ctx.lineWidth = 1.5;
         for (let i = -1; i <= 1; i++) {
-            ctx.beginPath();
-            ctx.moveTo(-48, 25 + i * 6);
-            ctx.lineTo(-28, 25 + i * 6);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(28, 25 + i * 6);
-            ctx.lineTo(48, 25 + i * 6);
-            ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-48, 25 + i * 6); ctx.lineTo(-28, 25 + i * 6); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(28, 25 + i * 6); ctx.lineTo(48, 25 + i * 6); ctx.stroke();
         }
-        
-        // Белый шарф
+        // Шарф
         ctx.fillStyle = "#F5F5F5";
-        ctx.beginPath();
-        ctx.moveTo(-22, 25);
-        ctx.quadraticCurveTo(0, 50, 22, 25);
-        ctx.lineTo(20, 15);
-        ctx.quadraticCurveTo(0, 30, -20, 15);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = "#CCCCCC";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        
+        ctx.beginPath(); ctx.moveTo(-22, 25); ctx.quadraticCurveTo(0, 50, 22, 25); ctx.lineTo(20, 15); ctx.quadraticCurveTo(0, 30, -20, 15); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#CCCCCC"; ctx.lineWidth = 1; ctx.stroke();
         // Шея
-        ctx.fillStyle = "#E8B896";
-        ctx.fillRect(-10, 5, 20, 15);
-        
+        ctx.fillStyle = "#E8B896"; ctx.fillRect(-10, 5, 20, 15);
         // Голова
         ctx.fillStyle = "#F0C9A8";
-        ctx.beginPath();
-        ctx.ellipse(0, -20, 22, 26, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#C49A78";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        
-        // Чёрные волосы (основная масса)
+        ctx.beginPath(); ctx.ellipse(0, -20, 22, 26, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#C49A78"; ctx.lineWidth = 1; ctx.stroke();
+        // Волосы чёрные
         ctx.fillStyle = "#0a0a0a";
-        ctx.beginPath();
-        ctx.arc(-20, -35, 15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(20, -35, 15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(0, -40, 24, 12, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Волосы спускающиеся по бокам
-        ctx.beginPath();
-        ctx.moveTo(-24, -30);
-        ctx.quadraticCurveTo(-30, -10, -28, 5);
-        ctx.lineTo(-22, 5);
-        ctx.quadraticCurveTo(-22, -15, -18, -25);
-        ctx.closePath();
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(24, -30);
-        ctx.quadraticCurveTo(30, -10, 28, 5);
-        ctx.lineTo(22, 5);
-        ctx.quadraticCurveTo(22, -15, 18, -25);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Тёмно-красная треуголка
+        ctx.beginPath(); ctx.arc(-20, -35, 15, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(20, -35, 15, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(0, -40, 24, 12, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-24, -30); ctx.quadraticCurveTo(-30, -10, -28, 5); ctx.lineTo(-22, 5); ctx.quadraticCurveTo(-22, -15, -18, -25); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(24, -30); ctx.quadraticCurveTo(30, -10, 28, 5); ctx.lineTo(22, 5); ctx.quadraticCurveTo(22, -15, 18, -25); ctx.closePath(); ctx.fill();
+        // Треуголка
         ctx.fillStyle = "#8B0000";
         ctx.beginPath();
-        ctx.moveTo(-40, -42);
-        ctx.quadraticCurveTo(-15, -75, 0, -75);
-        ctx.quadraticCurveTo(15, -75, 40, -42);
-        ctx.lineTo(30, -38);
-        ctx.quadraticCurveTo(15, -55, 0, -55);
-        ctx.quadraticCurveTo(-15, -55, -30, -38);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = "#5a0000";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        
-        // Золотая окантовка треуголки
-        ctx.strokeStyle = "#FFD700";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(-38, -40);
-        ctx.quadraticCurveTo(-15, -70, 0, -70);
-        ctx.quadraticCurveTo(15, -70, 38, -40);
-        ctx.stroke();
-        
-        // Череп с костями на треуголке
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.arc(0, -62, 7, 0, Math.PI * 2);
-        ctx.fill();
-        // Глаза черепа
+        ctx.moveTo(-40, -42); ctx.quadraticCurveTo(-15, -75, 0, -75); ctx.quadraticCurveTo(15, -75, 40, -42);
+        ctx.lineTo(30, -38); ctx.quadraticCurveTo(15, -55, 0, -55); ctx.quadraticCurveTo(-15, -55, -30, -38); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#5a0000"; ctx.lineWidth = 1.5; ctx.stroke();
+        // Золотая окантовка
+        ctx.strokeStyle = "#FFD700"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-38, -40); ctx.quadraticCurveTo(-15, -70, 0, -70); ctx.quadraticCurveTo(15, -70, 38, -40); ctx.stroke();
+        // Череп
+        ctx.fillStyle = "#FFFFFF"; ctx.beginPath(); ctx.arc(0, -62, 7, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#000000";
-        ctx.beginPath();
-        ctx.arc(-2.5, -63, 1.8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(2.5, -63, 1.8, 0, Math.PI * 2);
-        ctx.fill();
-        // Зубы
+        ctx.beginPath(); ctx.arc(-2.5, -63, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(2.5, -63, 1.8, 0, Math.PI * 2); ctx.fill();
         ctx.fillRect(-3, -58, 6, 2);
-        // Кости
-        ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(-12, -55);
-        ctx.lineTo(-5, -60);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(12, -55);
-        ctx.lineTo(5, -60);
-        ctx.stroke();
-        
+        ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(-12, -55); ctx.lineTo(-5, -60); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(12, -55); ctx.lineTo(5, -60); ctx.stroke();
         // Уши
         ctx.fillStyle = "#F0C9A8";
-        ctx.beginPath();
-        ctx.ellipse(-22, -20, 4, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(22, -20, 4, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
+        ctx.beginPath(); ctx.ellipse(-22, -20, 4, 6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(22, -20, 4, 6, 0, 0, Math.PI * 2); ctx.fill();
         // Глаза
         ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.ellipse(-8, -22, 5, 4, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(8, -22, 5, 4, 0, 0, Math.PI * 2);
-        ctx.fill();
-        // Зрачки
+        ctx.beginPath(); ctx.ellipse(-8, -22, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(8, -22, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#000000";
-        ctx.beginPath();
-        ctx.arc(-8, -21, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(8, -21, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Огромные чёрные усы (характерная черта)
+        ctx.beginPath(); ctx.arc(-8, -21, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(8, -21, 2.5, 0, Math.PI * 2); ctx.fill();
+        // Усы
         ctx.fillStyle = "#0a0a0a";
-        ctx.beginPath();
-        ctx.moveTo(-3, -12);
-        ctx.quadraticCurveTo(-18, -10, -26, -5);
-        ctx.quadraticCurveTo(-20, -3, -10, -8);
-        ctx.quadraticCurveTo(-6, -6, -3, -7);
-        ctx.closePath();
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(3, -12);
-        ctx.quadraticCurveTo(18, -10, 26, -5);
-        ctx.quadraticCurveTo(20, -3, 10, -8);
-        ctx.quadraticCurveTo(6, -6, 3, -7);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Улыбка (характерная)
-        ctx.strokeStyle = "#3a1a0a";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, -10, 8, 0.15 * Math.PI, 0.85 * Math.PI);
-        ctx.stroke();
-        // Зубы
+        ctx.beginPath(); ctx.moveTo(-3, -12); ctx.quadraticCurveTo(-18, -10, -26, -5); ctx.quadraticCurveTo(-20, -3, -10, -8); ctx.quadraticCurveTo(-6, -6, -3, -7); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(3, -12); ctx.quadraticCurveTo(18, -10, 26, -5); ctx.quadraticCurveTo(20, -3, 10, -8); ctx.quadraticCurveTo(6, -6, 3, -7); ctx.closePath(); ctx.fill();
+        // Улыбка
+        ctx.strokeStyle = "#3a1a0a"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, -10, 8, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
         ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.moveTo(-6, -5);
-        ctx.quadraticCurveTo(0, -3, 6, -5);
-        ctx.lineTo(6, -6);
-        ctx.quadraticCurveTo(0, -4, -6, -6);
-        ctx.closePath();
-        ctx.fill();
-        // Щербинка
-        ctx.fillStyle = "#000000";
-        ctx.beginPath();
-        ctx.arc(2, -4.5, 1, 0, Math.PI * 2);
-        ctx.fill();
-        
+        ctx.beginPath(); ctx.moveTo(-6, -5); ctx.quadraticCurveTo(0, -3, 6, -5); ctx.lineTo(6, -6); ctx.quadraticCurveTo(0, -4, -6, -6); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(2, -4.5, 1, 0, Math.PI * 2); ctx.fill();
         // Нос
-        ctx.strokeStyle = "#C49A78";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, -18);
-        ctx.lineTo(0, -14);
-        ctx.stroke();
-        
+        ctx.strokeStyle = "#C49A78"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(0, -14); ctx.stroke();
         ctx.restore();
     }
 
-    // ============================================================
-    // ★★★ ПОРТРЕТ БЕЛОУСА (большой, для диалога) ★★★
-    // ============================================================
     function drawWhitebeardPortrait(x, y, scale) {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.scale(scale, scale);
-        
-        // Красный плащ-подложка
+        ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
+        // Красный плащ
         ctx.fillStyle = "#8B0000";
-        ctx.beginPath();
-        ctx.moveTo(-65, 90);
-        ctx.lineTo(-55, 30);
-        ctx.lineTo(55, 30);
-        ctx.lineTo(65, 90);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Белый плащ / рубашка
+        ctx.beginPath(); ctx.moveTo(-65, 90); ctx.lineTo(-55, 30); ctx.lineTo(55, 30); ctx.lineTo(65, 90); ctx.closePath(); ctx.fill();
+        // Белый плащ
         ctx.fillStyle = "#F5F5F5";
-        ctx.beginPath();
-        ctx.moveTo(-50, 85);
-        ctx.lineTo(-40, 25);
-        ctx.lineTo(-15, 15);
-        ctx.lineTo(15, 15);
-        ctx.lineTo(40, 25);
-        ctx.lineTo(50, 85);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = "#CCCCCC";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        
-        // Золотые эполеты (большие)
+        ctx.beginPath(); ctx.moveTo(-50, 85); ctx.lineTo(-40, 25); ctx.lineTo(-15, 15); ctx.lineTo(15, 15); ctx.lineTo(40, 25); ctx.lineTo(50, 85); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#CCCCCC"; ctx.lineWidth = 1; ctx.stroke();
+        // Эполеты
         ctx.fillStyle = "#FFD700";
-        ctx.beginPath();
-        ctx.ellipse(-42, 32, 18, 12, -0.3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(42, 32, 18, 12, 0.3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#B8860B";
-        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(-42, 32, 18, 12, -0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(42, 32, 18, 12, 0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#B8860B"; ctx.lineWidth = 1.5;
         for (let i = -1; i <= 1; i++) {
-            ctx.beginPath();
-            ctx.moveTo(-55, 25 + i * 7);
-            ctx.lineTo(-28, 25 + i * 7);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(28, 25 + i * 7);
-            ctx.lineTo(55, 25 + i * 7);
-            ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-55, 25 + i * 7); ctx.lineTo(-28, 25 + i * 7); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(28, 25 + i * 7); ctx.lineTo(55, 25 + i * 7); ctx.stroke();
         }
-        
-        // Открытая грудь (загорелая, со шрамами)
+        // Грудь
         ctx.fillStyle = "#E8B896";
-        ctx.beginPath();
-        ctx.moveTo(-15, 15);
-        ctx.lineTo(-20, 50);
-        ctx.lineTo(20, 50);
-        ctx.lineTo(15, 15);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Шрамы на груди (характерные)
-        ctx.strokeStyle = "#C49A78";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(-10, 25);
-        ctx.lineTo(5, 45);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(10, 20);
-        ctx.lineTo(-5, 48);
-        ctx.stroke();
-        
-        // Мышцы
-        ctx.strokeStyle = "#D4A880";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(-15, 30);
-        ctx.quadraticCurveTo(0, 35, 15, 30);
-        ctx.stroke();
-        
-        // Шея (мощная)
-        ctx.fillStyle = "#E8B896";
-        ctx.fillRect(-12, 5, 24, 15);
-        ctx.strokeStyle = "#C49A78";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-8, 10);
-        ctx.lineTo(-8, 18);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(8, 10);
-        ctx.lineTo(8, 18);
-        ctx.stroke();
-        
+        ctx.beginPath(); ctx.moveTo(-15, 15); ctx.lineTo(-20, 50); ctx.lineTo(20, 50); ctx.lineTo(15, 15); ctx.closePath(); ctx.fill();
+        // Шрамы
+        ctx.strokeStyle = "#C49A78"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-10, 25); ctx.lineTo(5, 45); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(10, 20); ctx.lineTo(-5, 48); ctx.stroke();
+        ctx.strokeStyle = "#D4A880"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(-15, 30); ctx.quadraticCurveTo(0, 35, 15, 30); ctx.stroke();
+        // Шея
+        ctx.fillStyle = "#E8B896"; ctx.fillRect(-12, 5, 24, 15);
+        ctx.strokeStyle = "#C49A78"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-8, 10); ctx.lineTo(-8, 18); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(8, 10); ctx.lineTo(8, 18); ctx.stroke();
         // Голова
         ctx.fillStyle = "#F0C9A8";
-        ctx.beginPath();
-        ctx.ellipse(0, -20, 24, 28, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#C49A78";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        
-        // Длинные светлые волосы (золотистые)
+        ctx.beginPath(); ctx.ellipse(0, -20, 24, 28, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#C49A78"; ctx.lineWidth = 1; ctx.stroke();
+        // Волосы (золотистые)
         ctx.fillStyle = "#E8C878";
-        // Левая сторона
-        ctx.beginPath();
-        ctx.moveTo(-24, -35);
-        ctx.quadraticCurveTo(-38, -10, -35, 25);
-        ctx.lineTo(-28, 25);
-        ctx.quadraticCurveTo(-30, -10, -22, -30);
-        ctx.closePath();
-        ctx.fill();
-        // Правая сторона
-        ctx.beginPath();
-        ctx.moveTo(24, -35);
-        ctx.quadraticCurveTo(38, -10, 35, 25);
-        ctx.lineTo(28, 25);
-        ctx.quadraticCurveTo(30, -10, 22, -30);
-        ctx.closePath();
-        ctx.fill();
-        // Верхняя часть
-        ctx.beginPath();
-        ctx.ellipse(0, -42, 26, 14, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Волны волос (детали)
-        ctx.strokeStyle = "#C9A850";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(-30, -20);
-        ctx.quadraticCurveTo(-32, 0, -30, 20);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(30, -20);
-        ctx.quadraticCurveTo(32, 0, 30, 20);
-        ctx.stroke();
-        
+        ctx.beginPath(); ctx.moveTo(-24, -35); ctx.quadraticCurveTo(-38, -10, -35, 25); ctx.lineTo(-28, 25); ctx.quadraticCurveTo(-30, -10, -22, -30); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(24, -35); ctx.quadraticCurveTo(38, -10, 35, 25); ctx.lineTo(28, 25); ctx.quadraticCurveTo(30, -10, 22, -30); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(0, -42, 26, 14, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#C9A850"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(-30, -20); ctx.quadraticCurveTo(-32, 0, -30, 20); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(30, -20); ctx.quadraticCurveTo(32, 0, 30, 20); ctx.stroke();
         // Белая треуголка
         ctx.fillStyle = "#F5F5F5";
         ctx.beginPath();
-        ctx.moveTo(-45, -45);
-        ctx.quadraticCurveTo(-15, -80, 0, -80);
-        ctx.quadraticCurveTo(15, -80, 45, -45);
-        ctx.lineTo(35, -40);
-        ctx.quadraticCurveTo(15, -60, 0, -60);
-        ctx.quadraticCurveTo(-15, -60, -35, -40);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = "#999999";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        
-        // Золотая цепь на треуголке
-        ctx.strokeStyle = "#FFD700";
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(-42, -43);
-        ctx.quadraticCurveTo(-15, -74, 0, -74);
-        ctx.quadraticCurveTo(15, -74, 42, -43);
-        ctx.stroke();
-        
-        // Мелкие детали цепи
+        ctx.moveTo(-45, -45); ctx.quadraticCurveTo(-15, -80, 0, -80); ctx.quadraticCurveTo(15, -80, 45, -45);
+        ctx.lineTo(35, -40); ctx.quadraticCurveTo(15, -60, 0, -60); ctx.quadraticCurveTo(-15, -60, -35, -40); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#999999"; ctx.lineWidth = 1.5; ctx.stroke();
+        // Золотая цепь
+        ctx.strokeStyle = "#FFD700"; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(-42, -43); ctx.quadraticCurveTo(-15, -74, 0, -74); ctx.quadraticCurveTo(15, -74, 42, -43); ctx.stroke();
         ctx.fillStyle = "#FFD700";
-        for (let i = -3; i <= 3; i++) {
-            ctx.beginPath();
-            ctx.arc(i * 11, -50 + Math.abs(i) * 3, 2, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        
-        // Череп на треуголке
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.arc(0, -66, 8, 0, Math.PI * 2);
-        ctx.fill();
+        for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.arc(i * 11, -50 + Math.abs(i) * 3, 2, 0, Math.PI * 2); ctx.fill(); }
+        // Череп
+        ctx.fillStyle = "#FFFFFF"; ctx.beginPath(); ctx.arc(0, -66, 8, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#000000";
-        ctx.beginPath();
-        ctx.arc(-3, -67, 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(3, -67, 2, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(-3, -67, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(3, -67, 2, 0, Math.PI * 2); ctx.fill();
         ctx.fillRect(-3.5, -61, 7, 2);
-        
         // Уши
         ctx.fillStyle = "#F0C9A8";
-        ctx.beginPath();
-        ctx.ellipse(-24, -20, 4, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(24, -20, 4, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Глаза (узкие, спокойные)
+        ctx.beginPath(); ctx.ellipse(-24, -20, 4, 6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(24, -20, 4, 6, 0, 0, Math.PI * 2); ctx.fill();
+        // Глаза
         ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.ellipse(-9, -22, 5, 3.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(9, -22, 5, 3.5, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.ellipse(-9, -22, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(9, -22, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#000000";
-        ctx.beginPath();
-        ctx.arc(-9, -22, 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(9, -22, 2, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // ГЛАВНАЯ ХАРАКТЕРНАЯ ЧЕРТА: огромные белые усы в форме полумесяца
-        ctx.fillStyle = "#FFFFFF";
-        // Левый ус (большая дуга)
-        ctx.beginPath();
-        ctx.moveTo(-3, -10);
-        ctx.bezierCurveTo(-15, -8, -50, -5, -55, -18);
-        ctx.bezierCurveTo(-52, -22, -40, -18, -30, -14);
-        ctx.bezierCurveTo(-20, -11, -10, -12, -3, -13);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = "#CCCCCC";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        // Правый ус
+        ctx.beginPath(); ctx.arc(-9, -22, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(9, -22, 2, 0, Math.PI * 2); ctx.fill();
+        // Огромные белые усы
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
-        ctx.moveTo(3, -10);
-        ctx.bezierCurveTo(15, -8, 50, -5, 55, -18);
-        ctx.bezierCurveTo(52, -22, 40, -18, 30, -14);
-        ctx.bezierCurveTo(20, -11, 10, -12, 3, -13);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        
-        // Рот / улыбка
-        ctx.strokeStyle = "#3a1a0a";
-        ctx.lineWidth = 2;
+        ctx.moveTo(-3, -10); ctx.bezierCurveTo(-15, -8, -50, -5, -55, -18);
+        ctx.bezierCurveTo(-52, -22, -40, -18, -30, -14); ctx.bezierCurveTo(-20, -11, -10, -12, -3, -13); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#CCCCCC"; ctx.lineWidth = 1; ctx.stroke();
         ctx.beginPath();
-        ctx.moveTo(-5, -5);
-        ctx.quadraticCurveTo(0, -3, 5, -5);
+        ctx.moveTo(3, -10); ctx.bezierCurveTo(15, -8, 50, -5, 55, -18);
+        ctx.bezierCurveTo(52, -22, 40, -18, 30, -14); ctx.bezierCurveTo(20, -11, 10, -12, 3, -13); ctx.closePath(); ctx.fill();
         ctx.stroke();
-        
+        // Рот
+        ctx.strokeStyle = "#3a1a0a"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-5, -5); ctx.quadraticCurveTo(0, -3, 5, -5); ctx.stroke();
         // Нос
-        ctx.strokeStyle = "#C49A78";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, -18);
-        ctx.lineTo(0, -14);
-        ctx.stroke();
-        
+        ctx.strokeStyle = "#C49A78"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(0, -14); ctx.stroke();
         ctx.restore();
     }
 
     // ============================================================
-    // ★★★ МАЛЕНЬКИЕ МОДЕЛИ ДЛЯ БОЯ ★★★
+    // ★★★ МОДЕЛИ ДЛЯ БОЯ — СЕРДЕЧКИ С ДЕТАЛЯМИ ★★★
     // ============================================================
     function drawRogerModel(cx, cy, size, flash, rotation) {
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(rotation);
-        let s = size / 30; // масштаб
         
-        // Плащ
-        ctx.fillStyle = flash ? "#ffffff" : "#8B0000";
+        // ★ СЕРДЕЧКО (основа) — как у игрока
+        ctx.save();
+        let heartSize = size * 0.9;
+        ctx.fillStyle = flash ? "#ffffff" : "#ff8800";
+        ctx.shadowColor = "#ff8800";
+        ctx.shadowBlur = flash ? 25 : 12;
         ctx.beginPath();
-        ctx.moveTo(-22 * s, 30 * s);
-        ctx.lineTo(-18 * s, 12 * s);
-        ctx.lineTo(18 * s, 12 * s);
-        ctx.lineTo(22 * s, 30 * s);
+        ctx.moveTo(0, heartSize * 0.7);
+        ctx.bezierCurveTo(-heartSize * 1.4, -heartSize * 0.2, -heartSize * 0.7, -heartSize * 1.1, 0, -heartSize * 0.4);
+        ctx.bezierCurveTo(heartSize * 0.7, -heartSize * 1.1, heartSize * 1.4, -heartSize * 0.2, 0, heartSize * 0.7);
         ctx.closePath();
         ctx.fill();
         ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         ctx.stroke();
+        ctx.restore();
         
-        // Эполеты
-        ctx.fillStyle = "#FFD700";
-        ctx.beginPath();
-        ctx.arc(-15 * s, 14 * s, 5 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(15 * s, 14 * s, 5 * s, 0, Math.PI * 2);
-        ctx.fill();
+        let s = size / 30;
         
-        // Шарф
-        ctx.fillStyle = "#F5F5F5";
-        ctx.fillRect(-9 * s, 5 * s, 18 * s, 8 * s);
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(-9 * s, 5 * s, 18 * s, 8 * s);
-        
-        // Голова
-        ctx.fillStyle = "#F0C9A8";
-        ctx.beginPath();
-        ctx.arc(0, -5 * s, 10 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        
-        // Волосы
-        ctx.fillStyle = "#0a0a0a";
-        ctx.beginPath();
-        ctx.arc(0, -10 * s, 11 * s, Math.PI, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(-9 * s, -6 * s, 5 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(9 * s, -6 * s, 5 * s, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Треуголка
+        // ★ ТРЕУГОЛКА ПОВЕРХ СЕРДЕЧКА
+        ctx.save();
+        ctx.translate(0, -size * 0.9);
         ctx.fillStyle = "#8B0000";
         ctx.beginPath();
-        ctx.moveTo(-15 * s, -14 * s);
-        ctx.quadraticCurveTo(0, -26 * s, 15 * s, -14 * s);
-        ctx.lineTo(11 * s, -12 * s);
-        ctx.quadraticCurveTo(0, -20 * s, -11 * s, -12 * s);
+        ctx.moveTo(-16 * s, -3 * s);
+        ctx.quadraticCurveTo(0, -18 * s, 16 * s, -3 * s);
+        ctx.lineTo(12 * s, -1 * s);
+        ctx.quadraticCurveTo(0, -12 * s, -12 * s, -1 * s);
         ctx.closePath();
         ctx.fill();
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 1.5;
         ctx.stroke();
         
-        // Золотая окантовка
+        // Золотая окантовка треуголки
         ctx.strokeStyle = "#FFD700";
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
-        ctx.moveTo(-14 * s, -13 * s);
-        ctx.quadraticCurveTo(0, -23 * s, 14 * s, -13 * s);
+        ctx.moveTo(-15 * s, -2 * s);
+        ctx.quadraticCurveTo(0, -16 * s, 15 * s, -2 * s);
         ctx.stroke();
         
-        // Череп
+        // Череп на треуголке
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
-        ctx.arc(0, -20 * s, 2.5 * s, 0, Math.PI * 2);
+        ctx.arc(0, -10 * s, 3 * s, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = "#000000";
         ctx.beginPath();
-        ctx.arc(-1 * s, -20.5 * s, 0.7 * s, 0, Math.PI * 2);
+        ctx.arc(-1 * s, -10.5 * s, 0.8 * s, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(1 * s, -20.5 * s, 0.7 * s, 0, Math.PI * 2);
+        ctx.arc(1 * s, -10.5 * s, 0.8 * s, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
         
-        // Глаза
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.arc(-3.5 * s, -6 * s, 2 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(3.5 * s, -6 * s, 2 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#000000";
-        ctx.beginPath();
-        ctx.arc(-3.5 * s, -6 * s, 1 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(3.5 * s, -6 * s, 1 * s, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Усы (чёрные)
+        // ★ ЧЁРНЫЕ УСЫ ПОВЕРХ СЕРДЕЧКА
+        ctx.save();
+        ctx.translate(0, size * 0.15);
         ctx.fillStyle = "#0a0a0a";
         ctx.beginPath();
         ctx.moveTo(-1 * s, 0);
-        ctx.quadraticCurveTo(-7 * s, 1 * s, -9 * s, 3 * s);
-        ctx.quadraticCurveTo(-6 * s, 2 * s, -1 * s, 1 * s);
+        ctx.quadraticCurveTo(-8 * s, -1 * s, -12 * s, 3 * s);
+        ctx.quadraticCurveTo(-8 * s, 1 * s, -1 * s, 1 * s);
         ctx.closePath();
         ctx.fill();
         ctx.beginPath();
         ctx.moveTo(1 * s, 0);
-        ctx.quadraticCurveTo(7 * s, 1 * s, 9 * s, 3 * s);
-        ctx.quadraticCurveTo(6 * s, 2 * s, 1 * s, 1 * s);
+        ctx.quadraticCurveTo(8 * s, -1 * s, 12 * s, 3 * s);
+        ctx.quadraticCurveTo(8 * s, 1 * s, 1 * s, 1 * s);
         ctx.closePath();
         ctx.fill();
+        ctx.restore();
         
-        // Улыбка
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 1;
+        // ★ ГЛАЗА НА СЕРДЕЧКЕ
+        ctx.save();
+        ctx.translate(0, -size * 0.1);
+        ctx.fillStyle = "#000000";
         ctx.beginPath();
-        ctx.arc(0, 0, 3 * s, 0.1 * Math.PI, 0.9 * Math.PI);
-        ctx.stroke();
+        ctx.arc(-3.5 * s, 0, 1.2 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(3.5 * s, 0, 1.2 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
         
         ctx.restore();
     }
@@ -932,93 +553,35 @@
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(rotation);
+        
+        // ★ СЕРДЕЧКО — белое (как у Белоуса в ориге)
+        ctx.save();
+        let heartSize = size * 1.0;  // чуть больше, т.к. Белоус огромный
+        ctx.fillStyle = flash ? "#ffffff" : "#ffffff";
+        ctx.shadowColor = "#88ddff";
+        ctx.shadowBlur = flash ? 30 : 15;
+        ctx.beginPath();
+        ctx.moveTo(0, heartSize * 0.7);
+        ctx.bezierCurveTo(-heartSize * 1.4, -heartSize * 0.2, -heartSize * 0.7, -heartSize * 1.1, 0, -heartSize * 0.4);
+        ctx.bezierCurveTo(heartSize * 0.7, -heartSize * 1.1, heartSize * 1.4, -heartSize * 0.2, 0, heartSize * 0.7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "#1a3a6a";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.restore();
+        
         let s = size / 32;
         
-        // Плащ красный
-        ctx.fillStyle = flash ? "#ffffaa" : "#8B0000";
-        ctx.beginPath();
-        ctx.moveTo(-28 * s, 35 * s);
-        ctx.lineTo(-22 * s, 12 * s);
-        ctx.lineTo(22 * s, 12 * s);
-        ctx.lineTo(28 * s, 35 * s);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        
-        // Белый плащ
-        ctx.fillStyle = flash ? "#ffffcc" : "#F5F5F5";
-        ctx.beginPath();
-        ctx.moveTo(-20 * s, 32 * s);
-        ctx.lineTo(-16 * s, 10 * s);
-        ctx.lineTo(16 * s, 10 * s);
-        ctx.lineTo(20 * s, 32 * s);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        
-        // Эполеты
-        ctx.fillStyle = "#FFD700";
-        ctx.beginPath();
-        ctx.arc(-17 * s, 13 * s, 6 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(17 * s, 13 * s, 6 * s, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Грудь
-        ctx.fillStyle = "#E8B896";
-        ctx.fillRect(-7 * s, 5 * s, 14 * s, 8 * s);
-        
-        // Шрамы
-        ctx.strokeStyle = "#C49A78";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-3 * s, 6 * s);
-        ctx.lineTo(2 * s, 11 * s);
-        ctx.stroke();
-        
-        // Шея
-        ctx.fillStyle = "#E8B896";
-        ctx.fillRect(-5 * s, -3 * s, 10 * s, 8 * s);
-        
-        // Голова
-        ctx.fillStyle = "#F0C9A8";
-        ctx.beginPath();
-        ctx.arc(0, -10 * s, 11 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        
-        // Волосы (золотые, длинные)
-        ctx.fillStyle = "#E8C878";
-        ctx.beginPath();
-        ctx.arc(0, -16 * s, 12 * s, Math.PI, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(-11 * s, -10 * s);
-        ctx.quadraticCurveTo(-15 * s, 5 * s, -13 * s, 15 * s);
-        ctx.lineTo(-9 * s, 15 * s);
-        ctx.quadraticCurveTo(-10 * s, 0, -9 * s, -8 * s);
-        ctx.closePath();
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(11 * s, -10 * s);
-        ctx.quadraticCurveTo(15 * s, 5 * s, 13 * s, 15 * s);
-        ctx.lineTo(9 * s, 15 * s);
-        ctx.quadraticCurveTo(10 * s, 0, 9 * s, -8 * s);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Белая треуголка
+        // ★ БЕЛАЯ ТРЕУГОЛКА
+        ctx.save();
+        ctx.translate(0, -size * 0.95);
         ctx.fillStyle = "#F5F5F5";
         ctx.beginPath();
-        ctx.moveTo(-16 * s, -20 * s);
-        ctx.quadraticCurveTo(0, -32 * s, 16 * s, -20 * s);
-        ctx.lineTo(12 * s, -18 * s);
-        ctx.quadraticCurveTo(0, -26 * s, -12 * s, -18 * s);
+        ctx.moveTo(-18 * s, -3 * s);
+        ctx.quadraticCurveTo(0, -20 * s, 18 * s, -3 * s);
+        ctx.lineTo(13 * s, -1 * s);
+        ctx.quadraticCurveTo(0, -13 * s, -13 * s, -1 * s);
         ctx.closePath();
         ctx.fill();
         ctx.strokeStyle = "#000000";
@@ -1029,76 +592,69 @@
         ctx.strokeStyle = "#FFD700";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(-15 * s, -19 * s);
-        ctx.quadraticCurveTo(0, -29 * s, 15 * s, -19 * s);
+        ctx.moveTo(-17 * s, -2 * s);
+        ctx.quadraticCurveTo(0, -18 * s, 17 * s, -2 * s);
         ctx.stroke();
         
         // Череп
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
-        ctx.arc(0, -26 * s, 3 * s, 0, Math.PI * 2);
+        ctx.arc(0, -11 * s, 3.5 * s, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = "#000000";
         ctx.beginPath();
-        ctx.arc(-1 * s, -26.5 * s, 0.8 * s, 0, Math.PI * 2);
+        ctx.arc(-1.2 * s, -11.5 * s, 0.9 * s, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(1 * s, -26.5 * s, 0.8 * s, 0, Math.PI * 2);
+        ctx.arc(1.2 * s, -11.5 * s, 0.9 * s, 0, Math.PI * 2);
         ctx.fill();
+        ctx.fillRect(-1.5 * s, -9 * s, 3 * s, 1 * s);
+        ctx.restore();
         
-        // Глаза
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.arc(-4 * s, -11 * s, 2 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(4 * s, -11 * s, 2 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#000000";
-        ctx.beginPath();
-        ctx.arc(-4 * s, -11 * s, 1 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(4 * s, -11 * s, 1 * s, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // ОГРОМНЫЕ усы полумесяцем
+        // ★ ОГРОМНЫЕ БЕЛЫЕ УСЫ
+        ctx.save();
+        ctx.translate(0, size * 0.1);
         ctx.fillStyle = "#FFFFFF";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(-1 * s, -5 * s);
-        ctx.bezierCurveTo(-8 * s, -4 * s, -22 * s, -2 * s, -23 * s, -9 * s);
-        ctx.bezierCurveTo(-21 * s, -11 * s, -16 * s, -8 * s, -12 * s, -6 * s);
-        ctx.bezierCurveTo(-8 * s, -4 * s, -4 * s, -5 * s, -1 * s, -6 * s);
+        ctx.moveTo(-1 * s, 0);
+        ctx.bezierCurveTo(-10 * s, -1 * s, -26 * s, -1 * s, -28 * s, -10 * s);
+        ctx.bezierCurveTo(-25 * s, -13 * s, -18 * s, -8 * s, -12 * s, -5 * s);
+        ctx.bezierCurveTo(-7 * s, -3 * s, -3 * s, -1 * s, -1 * s, -1 * s);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
         ctx.beginPath();
-        ctx.moveTo(1 * s, -5 * s);
-        ctx.bezierCurveTo(8 * s, -4 * s, 22 * s, -2 * s, 23 * s, -9 * s);
-        ctx.bezierCurveTo(21 * s, -11 * s, 16 * s, -8 * s, 12 * s, -6 * s);
-        ctx.bezierCurveTo(8 * s, -4 * s, 4 * s, -5 * s, 1 * s, -6 * s);
+        ctx.moveTo(1 * s, 0);
+        ctx.bezierCurveTo(10 * s, -1 * s, 26 * s, -1 * s, 28 * s, -10 * s);
+        ctx.bezierCurveTo(25 * s, -13 * s, 18 * s, -8 * s, 12 * s, -5 * s);
+        ctx.bezierCurveTo(7 * s, -3 * s, 3 * s, -1 * s, 1 * s, -1 * s);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+        ctx.restore();
         
-        // Рот
-        ctx.strokeStyle = "#3a1a0a";
-        ctx.lineWidth = 1;
+        // ★ ГЛАЗА
+        ctx.save();
+        ctx.translate(0, -size * 0.15);
+        ctx.fillStyle = "#000000";
         ctx.beginPath();
-        ctx.moveTo(-2 * s, -2 * s);
-        ctx.quadraticCurveTo(0, -1 * s, 2 * s, -2 * s);
-        ctx.stroke();
+        ctx.arc(-4 * s, 0, 1.3 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(4 * s, 0, 1.3 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
         
         ctx.restore();
     }
 
     // ============================================================
-    // ★★★ ВЫДАЧА НАГРАД ★★★
+    // ВЫДАЧА НАГРАД
     // ============================================================
     function grantRogerReward() {
-        console.log("[ROGER-WB] Выдача награды: Сабля Роджера");
+        console.log("[ROGER-WB] Сабля Роджера");
         try {
             if (typeof showFloatingText === 'function') showFloatingText("🗡️ САБЛЯ РОДЖЕРА!", "#ffd700");
             var rogerSaber = {
@@ -1116,19 +672,17 @@
                     for (var i = 0; i < storage.length; i++) {
                         if (storage[i] && storage[i].id === "roger_saber") { alreadyHas = true; break; }
                     }
-                    if (!alreadyHas) { storage.push(rogerSaber); console.log("[ROGER-WB] Сабля в хранилище"); }
+                    if (!alreadyHas) storage.push(rogerSaber);
                 }
             }
             if (typeof window.saveCraftingData === 'function') window.saveCraftingData();
             if (typeof window.renderInventory === 'function') setTimeout(window.renderInventory, 100);
         } catch(e) { console.error("[ROGER-WB] Ошибка Сабли:", e); }
-        setTimeout(function() {
-            if (typeof showFloatingText === 'function') showFloatingText("Проверь хранилище оружия!", "#88ddff");
-        }, 1500);
+        setTimeout(function() { if (typeof showFloatingText === 'function') showFloatingText("Проверь хранилище!", "#88ddff"); }, 1500);
     }
 
     function grantWhitebeardReward() {
-        console.log("[ROGER-WB] Выдача награды: Белоус");
+        console.log("[ROGER-WB] Белоус");
         try {
             if (typeof showFloatingText === 'function') showFloatingText("🌊 БЕЛОУС В КОМАНДЕ!", "#ffffff");
             var alreadyHave = false;
@@ -1154,7 +708,6 @@
     }
 
     function rwbFinalCleanup() {
-        console.log("[ROGER-WB] FINAL CLEANUP");
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
         try {
             if (!rwbRewardGiven && rwbWinner) {
@@ -1173,18 +726,15 @@
         rwbDialogActive = false;
         try { stopRogerWhitebeardFight(); } catch(e) {}
         try { if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0; } catch(e) {}
-        try { if (typeof victory === 'function') victory(); } catch(e) { console.error("[ROGER-WB] victory err:", e); }
+        try { if (typeof victory === 'function') victory(); } catch(e) {}
     }
 
     function startRWBDialog() {
-        rwbDialogActive = true;
-        rwbDialogTimer = 0;
+        rwbDialogActive = true; rwbDialogTimer = 0;
         if (rwbWinner === "roger") {
-            rwbDialogType = "roger";
-            rwbDialogStage = 0;
+            rwbDialogType = "roger"; rwbDialogStage = 0;
         } else if (rwbWinner === "whitebeard") {
-            rwbDialogType = "whitebeard";
-            rwbWBPhase = "intro";
+            rwbDialogType = "whitebeard"; rwbWBPhase = "intro";
             rwbWhitebeardDisabled = [false, false, false];
             rwbDialogQueue = RWB_WHITEBEARD_DIALOG_INITIAL.slice();
         }
@@ -1193,16 +743,12 @@
     function handleRogersDialogClick() {
         rwbDialogStage++;
         playWhooshSound(0.1);
-        if (rwbDialogStage >= RWB_ROGER_DIALOG.length) {
-            rwbDialogActive = false;
-            rwbFinalCleanup();
-        }
+        if (rwbDialogStage >= RWB_ROGER_DIALOG.length) { rwbDialogActive = false; rwbFinalCleanup(); }
     }
 
     function handleWhitebeardDialogClick(ev) {
         if (rwbDialogQueue.length > 0) {
-            rwbDialogQueue.shift();
-            playWhooshSound(0.1);
+            rwbDialogQueue.shift(); playWhooshSound(0.1);
             if (rwbDialogQueue.length === 0) {
                 if (rwbWBPhase === "choice_response_1") { rwbWhitebeardDisabled[0] = true; rwbWBPhase = "choice"; }
                 else if (rwbWBPhase === "choice_response_2") { rwbDialogActive = false; rwbFinalCleanup(); }
@@ -1214,8 +760,7 @@
         }
         if (rwbWBPhase === "choice") {
             var rect = canvas.getBoundingClientRect();
-            var mx = ev.clientX - rect.left;
-            var my = ev.clientY - rect.top;
+            var mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
             var btnW = 360, btnX = 20, startY = 240, btnH = 60, gap = 10;
             for (var i = 0; i < 3; i++) {
                 if (rwbWhitebeardDisabled[i]) continue;
@@ -1237,7 +782,7 @@
             getHeartX: function() { return rwbPlayer ? rwbPlayer.x : 200; },
             setHeartX: function(v) { if (rwbPlayer) rwbPlayer.x = Math.max(16, Math.min(384, v)); },
             getHeartY: function() { return rwbPlayer ? rwbPlayer.y : 400; },
-            setHeartY: function(v) { if (rwbPlayer) rwbPlayer.y = Math.max(350, Math.min(484, v)); },
+            setHeartY: function(v) { if (rwbPlayer) rwbPlayer.y = Math.max(0, Math.min(484, v)); },
             getHeartSize: function() { return 12; }, setHeartSize: function(v) {},
             getHeartHitbox: function() { return 6; }, setHeartHitbox: function(v) {},
             getHeartSpeed: function() { return 4.5; }, setHeartSpeed: function(v) {},
@@ -1325,25 +870,18 @@
             let alpha = crack.life / crack.maxLife;
             ctx.save();
             ctx.globalAlpha = alpha;
-            ctx.strokeStyle = "#aa00ff";
-            ctx.lineWidth = crack.width;
-            ctx.shadowColor = "#cc44ff";
-            ctx.shadowBlur = 20;
-            ctx.beginPath();
-            ctx.moveTo(crack.x, crack.y);
+            ctx.strokeStyle = "#aa00ff"; ctx.lineWidth = crack.width;
+            ctx.shadowColor = "#cc44ff"; ctx.shadowBlur = 20;
+            ctx.beginPath(); ctx.moveTo(crack.x, crack.y);
             let cx = crack.x, cy = crack.y, ang = crack.angle;
             let segLen = crack.length / 5;
             for (let s = 0; s < 5; s++) {
                 ang += (Math.random() - 0.5) * 0.35;
-                cx += Math.cos(ang) * segLen;
-                cy += Math.sin(ang) * segLen;
+                cx += Math.cos(ang) * segLen; cy += Math.sin(ang) * segLen;
                 ctx.lineTo(cx, cy);
             }
             ctx.stroke();
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = crack.width * 0.4;
-            ctx.shadowBlur = 10;
-            ctx.stroke();
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = crack.width * 0.4; ctx.shadowBlur = 10; ctx.stroke();
             ctx.restore();
         }
     }
@@ -1355,22 +893,17 @@
             crack.life--;
             if (crack.life <= 0) { rwbWhiteCracks.splice(i, 1); continue; }
             let alpha = crack.life / crack.maxLife;
-            ctx.save();
-            ctx.globalAlpha = alpha;
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = crack.width;
-            ctx.beginPath();
-            ctx.moveTo(crack.x, crack.y);
+            ctx.save(); ctx.globalAlpha = alpha;
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = crack.width;
+            ctx.beginPath(); ctx.moveTo(crack.x, crack.y);
             let cx = crack.x, cy = crack.y, ang = crack.angle;
             let segLen = crack.length / 4;
             for (let s = 0; s < 4; s++) {
                 ang += (Math.random() - 0.5) * 0.4;
-                cx += Math.cos(ang) * segLen;
-                cy += Math.sin(ang) * segLen;
+                cx += Math.cos(ang) * segLen; cy += Math.sin(ang) * segLen;
                 ctx.lineTo(cx, cy);
             }
-            ctx.stroke();
-            ctx.restore();
+            ctx.stroke(); ctx.restore();
         }
     }
 
@@ -1380,13 +913,13 @@
             if (typeof showFloatingText === 'function') showFloatingText("⏭️ Босс уже побеждён!", "#ffaa00");
             return;
         }
-        console.log("[ROGER-WB] Старт боя v18.1!");
+        console.log("[ROGER-WB] Старт боя v18.2!");
 
         window.rwbActive = true;
         rwbState = "intro"; rwbTimer = 0; rwbIntroTimer = 0;
         rwbTransitionTimer = 0; rwbEndTimer = 0; rwbSurvivalTimer2 = 0;
         rwbTitanFistTimer = 0; rwbTitanRockTimer = 0;
-        rwbSuperReady = true; rwbSuperCooldown = 0;
+        rwbSuperReady = true; rwbSuperCooldown = 0; rwbMeleeCooldown = 0;
         rwbActiveBoss = null; rwbHakiAura = 0; rwbTsunamiActive = false;
         rwbWinner = null; rwbRewardGiven = false; rwbDialogStage = 0;
         rwbWhitebeardDisabled = [false, false, false]; rwbWBPhase = "intro";
@@ -1397,14 +930,14 @@
             id: "roger", x: 80, y: 120, size: 28,
             hp: BALANCE.rogerHp, maxHp: BALANCE.rogerHp, superForm: false,
             vx: 1.2, vy: 0.8, pulse: 0, rotation: 0,
-            attackTimer: 30, hitFlash: 0,
+            attackTimer: 30, hitFlash: 0, meleeTimer: 0,
             name: "РОДЖЕР", color: "#ff8800", homeX: 80, homeY: 120
         };
         whitebeard = {
             id: "whitebeard", x: 320, y: 120, size: 32,
             hp: BALANCE.whitebeardHp, maxHp: BALANCE.whitebeardHp, superForm: false,
             vx: -1.0, vy: 0.6, pulse: 0, rotation: 0,
-            attackTimer: 40, hitFlash: 0,
+            attackTimer: 40, hitFlash: 0, meleeTimer: 0,
             name: "БЕЛОУС", color: "#ffffff", homeX: 320, homeY: 120
         };
 
@@ -1733,7 +1266,8 @@
         }
         rwbPlayer.x += mx * speed; rwbPlayer.y += my * speed;
         rwbPlayer.x = Math.max(16, Math.min(384, rwbPlayer.x));
-        rwbPlayer.y = Math.max(350, Math.min(484, rwbPlayer.y));
+        // ★ РАЗРЕШЕНО выходить за верхнюю часть арены (Y = 0)
+        rwbPlayer.y = Math.max(0, Math.min(484, rwbPlayer.y));
         if (rwbPlayer.invulnTimer > 0) rwbPlayer.invulnTimer--;
 
         if (rwbPlayer.attackTimer <= 0) {
@@ -1771,33 +1305,24 @@
         if (rwbPlayer.attackTimer > 0) rwbPlayer.attackTimer--;
     }
 
-    // ★★★ АВТО-ПРИЦЕЛ — наводится на ЛЮБУЮ атаку Роджера ★★★
     function aimBulletAtNearestAttack(bullet) {
         if (!rwbAttacks || rwbAttacks.length === 0) return;
-        let nearestAttack = null;
-        let nearestDist = Infinity;
+        let nearestAttack = null, nearestDist = Infinity;
         for (let i = 0; i < rwbAttacks.length; i++) {
             let a = rwbAttacks[i];
-            // Пропускаем только атаки Белоуса (нельзя ломать)
-            if (a.type === "tsunami" || a.type === "titan_fist" ||
-                a.type === "gura_crack" || a.type === "purple_crack_zone" ||
-                a.type === "haki_wave") continue;
-            // Роджеровские атаки — можно наводить
+            if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave") continue;
             let ax = a.x + (a.size || a.radius || 20) / 2;
             let ay = a.y + (a.size || a.radius || 20) / 2;
-            let dx = ax - bullet.x;
-            let dy = ay - bullet.y;
+            let dx = ax - bullet.x, dy = ay - bullet.y;
             let dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < nearestDist) { nearestDist = dist; nearestAttack = { x: ax, y: ay }; }
         }
         if (nearestAttack) {
-            let dx = nearestAttack.x - bullet.x;
-            let dy = nearestAttack.y - bullet.y;
+            let dx = nearestAttack.x - bullet.x, dy = nearestAttack.y - bullet.y;
             let len = Math.sqrt(dx * dx + dy * dy) || 1;
             let speed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy) || 11;
             speed = Math.max(speed, 13);
-            bullet.vx = (dx / len) * speed;
-            bullet.vy = (dy / len) * speed;
+            bullet.vx = (dx / len) * speed; bullet.vy = (dy / len) * speed;
             bullet.life = Math.max(bullet.life, 120);
         }
     }
@@ -1853,6 +1378,66 @@
         else if (whitebeard.hp <= 0) { whitebeard.hp = 0; triggerSuper(roger, whitebeard); }
     }
 
+    // ★★★ СЛЕШ ОТТАЛКИВАНИЯ ПРИ БЛИЗКОМ КОНТАКТЕ (2 фаза) ★★★
+    function checkMeleeContact() {
+        if (rwbState !== "fight2") return;
+        if (rwbMeleeCooldown > 0) { rwbMeleeCooldown--; return; }
+        if (!rwbActiveBoss) return;
+        let boss = rwbActiveBoss;
+        let dx = rwbPlayer.x - boss.x;
+        let dy = rwbPlayer.y - boss.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < RWB_MELEE_RANGE) {
+            // Отталкивание
+            let pushAngle = Math.atan2(dy, dx);
+            rwbPlayer.vx = Math.cos(pushAngle) * RWB_MELEE_KNOCKBACK;
+            rwbPlayer.vy = Math.sin(pushAngle) * RWB_MELEE_KNOCKBACK;
+            
+            // Урон
+            hitPlayer(RWB_MELEE_DAMAGE);
+            
+            // Визуал
+            rwbShake = 18;
+            playBladeSound(0.6);
+            rwbScreenFlash = 8;
+            rwbScreenFlashColor = boss.id === "roger" ? "#ff4400" : "#88ddff";
+            
+            // Эффект слеша
+            let slashAngle = pushAngle;
+            for (let i = 0; i < 3; i++) {
+                rwbShockwaves.push({
+                    x: boss.x, y: boss.y, radius: 10,
+                    maxRadius: RWB_MELEE_RANGE * 1.5,
+                    speed: 8, color: boss.id === "roger" ? "#ff4400" : "#ffffff",
+                    damage: 0, hit: true, life: 15, maxLife: 15, width: 4
+                });
+            }
+            
+            // Частицы
+            for (let i = 0; i < 15; i++) {
+                let ang = pushAngle + (Math.random() - 0.5) * 1.5;
+                let spd = 4 + Math.random() * 6;
+                rwbParticles.push({
+                    x: boss.x + Math.cos(pushAngle) * 30,
+                    y: boss.y + Math.sin(pushAngle) * 30,
+                    vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
+                    life: 25, maxLife: 25,
+                    color: boss.id === "roger" ? "#ff4400" : "#ffffff",
+                    size: 3
+                });
+            }
+            
+            // Floating text
+            rwbFloatingTexts.push({
+                x: rwbPlayer.x, y: rwbPlayer.y - 30,
+                text: "СЛЕШ!", color: boss.id === "roger" ? "#ff4400" : "#88ddff",
+                life: 40, maxLife: 40, vy: -0.8, vx: 0, size: 18
+            });
+            
+            rwbMeleeCooldown = RWB_MELEE_COOLDOWN;
+        }
+    }
+
     function performClash() {
         duel.clashes++;
         let dmg = 12 + Math.random() * 8;
@@ -1863,8 +1448,7 @@
         playImpactSound(0.6, 1.2); playBladeSound(0.4);
         setTimeout(function() { playImpactSound(0.4, 0.8); }, 80);
         for (let i = 0; i < 25; i++) {
-            let ang = Math.random() * Math.PI * 2;
-            let spd = 3 + Math.random() * 6;
+            let ang = Math.random() * Math.PI * 2, spd = 3 + Math.random() * 6;
             rwbParticles.push({
                 x: duel.clashX, y: duel.clashY,
                 vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
@@ -1880,8 +1464,7 @@
 
     function spawnClashParticles(x, y) {
         for (let i = 0; i < 6; i++) {
-            let ang = Math.random() * Math.PI * 2;
-            let spd = 3 + Math.random() * 6;
+            let ang = Math.random() * Math.PI * 2, spd = 3 + Math.random() * 6;
             rwbParticles.push({
                 x: x + (Math.random() - 0.5) * 30, y: y + (Math.random() - 0.5) * 30,
                 vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
@@ -1915,8 +1498,7 @@
     }
 
     function spawnRogerDoubleSlash() {
-        let crossX = 100 + Math.random() * 200;
-        let crossY = 150 + Math.random() * 200;
+        let crossX = 100 + Math.random() * 200, crossY = 150 + Math.random() * 200;
         rwbAttacks.push({ type: "roger_slash", direction: "vertical", x: crossX, y: 0, width: 55, warningTimer: 55, activeTimer: 0, maxActive: 22, damage: Math.ceil(28 * BALANCE.superDamageMult), hit: false, state: "warning", color: "#ff4400" });
         rwbAttacks.push({ type: "roger_slash", direction: "horizontal", x: 0, y: crossY, width: 55, warningTimer: 55, activeTimer: 0, maxActive: 22, damage: Math.ceil(28 * BALANCE.superDamageMult), hit: false, state: "warning", color: "#ff6600" });
         rwbShake = 20; playBladeSound(0.4);
@@ -1925,18 +1507,9 @@
     function spawnRogerTripleSlash() {
         rwbFloatingTexts.push({ x: 200, y: 100, text: "⚔️⚔️⚔️ ТРОЙНОЕ ⚔️⚔️⚔️", color: "#ff2200", life: 80, maxLife: 80, vy: -0.3, vx: 0, size: 22 });
         playHakiChargeSound(0.5); rwbShake = 25;
-        let positions = [
-            { dir: "vertical", x: 100, y: 0 },
-            { dir: "vertical", x: 300, y: 0 },
-            { dir: "horizontal", x: 0, y: 250 }
-        ];
+        let positions = [{ dir: "vertical", x: 100, y: 0 }, { dir: "vertical", x: 300, y: 0 }, { dir: "horizontal", x: 0, y: 250 }];
         for (let pos of positions) {
-            rwbAttacks.push({
-                type: "roger_slash", direction: pos.dir, x: pos.x, y: pos.y,
-                width: 60, warningTimer: 60, activeTimer: 0, maxActive: 25,
-                damage: Math.ceil(32 * BALANCE.superDamageMult),
-                hit: false, state: "warning", color: "#ff3300"
-            });
+            rwbAttacks.push({ type: "roger_slash", direction: pos.dir, x: pos.x, y: pos.y, width: 60, warningTimer: 60, activeTimer: 0, maxActive: 25, damage: Math.ceil(32 * BALANCE.superDamageMult), hit: false, state: "warning", color: "#ff3300" });
         }
         setTimeout(function() { playBladeSound(0.5); }, 300);
     }
@@ -1944,22 +1517,14 @@
     function spawnRogerWhirlwind() {
         rwbFloatingTexts.push({ x: 200, y: 100, text: "🌀 СМЕРЧ 🌀", color: "#ff00ff", life: 80, maxLife: 80, vy: -0.3, vx: 0, size: 22 });
         playHakiChargeSound(0.5); rwbShake = 25;
-        let count = 16;
-        let baseAng = Math.random() * Math.PI * 2;
+        let count = 16, baseAng = Math.random() * Math.PI * 2;
         for (let i = 0; i < count; i++) {
             let delay = i * 30;
             (function(idx, d) {
                 setTimeout(function() {
                     if (!window.rwbActive) return;
                     let ang = baseAng + (idx / count) * Math.PI * 4;
-                    rwbAttacks.push({
-                        type: "blade", x: roger.x, y: roger.y,
-                        vx: Math.cos(ang) * 5.5, vy: Math.sin(ang) * 5.5,
-                        size: 11, hp: 2, maxHp: 2,
-                        damage: Math.ceil(15 * BALANCE.superDamageMult),
-                        life: 300, color: "#ff00ff",
-                        rotation: ang + Math.PI * 0.5, rotSpeed: 0.4, hasHaki: true
-                    });
+                    rwbAttacks.push({ type: "blade", x: roger.x, y: roger.y, vx: Math.cos(ang) * 5.5, vy: Math.sin(ang) * 5.5, size: 11, hp: 2, maxHp: 2, damage: Math.ceil(15 * BALANCE.superDamageMult), life: 300, color: "#ff00ff", rotation: ang + Math.PI * 0.5, rotSpeed: 0.4, hasHaki: true });
                     if (idx % 4 === 0) playBladeSound(0.08);
                 }, d);
             })(i, delay);
@@ -1975,14 +1540,7 @@
                 setTimeout(function() {
                     if (!window.rwbActive) return;
                     let rx = 30 + Math.random() * 340;
-                    rwbAttacks.push({
-                        type: "blade", x: rx, y: -30,
-                        vx: (Math.random() - 0.5) * 1.5, vy: 5.5 + Math.random() * 2,
-                        size: 12, hp: 2, maxHp: 2,
-                        damage: Math.ceil(16 * BALANCE.superDamageMult),
-                        life: 350, color: "#ffaa00",
-                        rotation: Math.PI * 0.5, rotSpeed: 0.3, hasHaki: true
-                    });
+                    rwbAttacks.push({ type: "blade", x: rx, y: -30, vx: (Math.random() - 0.5) * 1.5, vy: 5.5 + Math.random() * 2, size: 12, hp: 2, maxHp: 2, damage: Math.ceil(16 * BALANCE.superDamageMult), life: 350, color: "#ffaa00", rotation: Math.PI * 0.5, rotSpeed: 0.3, hasHaki: true });
                 }, d);
             })(delay);
         }
@@ -1993,11 +1551,10 @@
         let isSuper = roger.superForm;
         playBladeSound(0.25);
         spawnHakiLightning(roger.x, roger.y, 3, false);
-        let dxPlayer = rwbPlayer.x - roger.x;
-        let dyPlayer = rwbPlayer.y - roger.y;
+        let dxPlayer = rwbPlayer.x - roger.x, dyPlayer = rwbPlayer.y - roger.y;
         let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
 
-        if (type === 0) { let position = Math.floor(Math.random() * 8); spawnRogerSlash(position); }
+        if (type === 0) { spawnRogerSlash(Math.floor(Math.random() * 8)); }
         else if (type === 1) {
             let count = isSuper ? 3 : 2;
             for (let i = 0; i < count; i++) {
@@ -2154,8 +1711,7 @@
     function spawnRogerCrossStrike() {
         rwbFloatingTexts.push({ x: 200, y: 100, text: "❌ КРЕСТ ❌", color: "#ff6600", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
         playBladeSound(0.3);
-        let cx = 130 + Math.random() * 140;
-        let cy = 180 + Math.random() * 120;
+        let cx = 130 + Math.random() * 140, cy = 180 + Math.random() * 120;
         rwbAttacks.push({ type: "roger_cross", x: cx, y: cy, dir: "vertical", length: 400, width: 35, warningTimer: 50, activeTimer: 0, maxActive: 20, damage: Math.ceil(26 * BALANCE.superDamageMult), hit: false, state: "warning", color: "#ff8800" });
         rwbAttacks.push({ type: "roger_cross", x: cx, y: cy, dir: "horizontal", length: 400, width: 35, warningTimer: 50, activeTimer: 0, maxActive: 20, damage: Math.ceil(26 * BALANCE.superDamageMult), hit: false, state: "warning", color: "#ff8800" });
         rwbShake = 18;
@@ -2180,8 +1736,7 @@
             (function(waveIdx) {
                 setTimeout(function() {
                     if (!window.rwbActive || rwbState !== "fight2") return;
-                    let count = 6;
-                    let baseAng = Math.random() * Math.PI * 2;
+                    let count = 6, baseAng = Math.random() * Math.PI * 2;
                     for (let i = 0; i < count; i++) {
                         let ang = baseAng + (i / count) * Math.PI * 2;
                         rwbAttacks.push({ type: "blade", x: roger.x, y: roger.y, vx: Math.cos(ang) * 5.5, vy: Math.sin(ang) * 5.5, size: 10, hp: 2, maxHp: 2, damage: Math.ceil(14 * BALANCE.superDamageMult), life: 250, color: "#ffcc00", rotation: ang + Math.PI * 0.5, rotSpeed: 0.3, hasHaki: true });
@@ -2288,6 +1843,7 @@
         winner.superForm = true; winner.maxHp = superHp; winner.hp = superHp;
         winner.size *= 1.3; rwbActiveBoss = winner;
         rwbTitanFistTimer = 0; rwbTitanRockTimer = 0;
+        rwbMeleeCooldown = 30;  // небольшая пауза перед первым слешем
         if (loser === roger) roger = null;
         if (loser === whitebeard) whitebeard = null;
         rwbAttacks = []; rwbShockwaves = [];
@@ -2532,7 +2088,6 @@
         }
     }
 
-    // ★★★ СИНЯЯ АТАКА ЛОМАЕТ ВСЕ АТАКИ РОДЖЕРА ★★★
     function updateRWBPlayerBullets() {
         for (let i = rwbPlayerBullets.length - 1; i >= 0; i--) {
             let b = rwbPlayerBullets[i];
@@ -2542,11 +2097,7 @@
             if (b.isBlue) {
                 for (let j = rwbAttacks.length - 1; j >= 0; j--) {
                     let a = rwbAttacks[j];
-                    // Пропускаем ТОЛЬКО атаки Белоуса (нельзя ломать)
-                    if (a.type === "tsunami" || a.type === "titan_fist" ||
-                        a.type === "gura_crack" || a.type === "purple_crack_zone" ||
-                        a.type === "haki_wave") continue;
-                    // a.hp должен быть для разрушаемости
+                    if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave") continue;
                     if (a.hp === undefined) continue;
                     let dx = b.x - a.x, dy = b.y - a.y;
                     let aSize = a.size || a.radius || 20;
@@ -2649,9 +2200,7 @@
         playImpactSound(0.5, 0.7);
         setTimeout(function() { playImpactSound(0.6, 0.9); }, 200);
         setTimeout(function() { playImpactSound(0.7, 1.2); }, 400);
-        setTimeout(function() {
-            if (window.rwbActive && !rwbDialogActive) startRWBDialog();
-        }, 1500);
+        setTimeout(function() { if (window.rwbActive && !rwbDialogActive) startRWBDialog(); }, 1500);
     }
 
     function rwbDefeat() {
@@ -2710,6 +2259,7 @@
                 if (rwbTransitionTimer > 100) { rwbState = "fight2"; rwbSurvivalTimer2 = 0; rwbTitanFistTimer = 0; rwbTitanRockTimer = 0; }
             } else if (rwbState === "fight2") {
                 updateRWBPlayer(); updateSuperBoss(); updateRWBAttacks(); updateRWBPlayerBullets();
+                checkMeleeContact();  // ★ проверка близкого контакта
                 rwbSurvivalTimer2++;
                 if (rwbActiveBoss && rwbActiveBoss.hp <= 0) rwbVictory();
                 if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") {
@@ -2738,6 +2288,18 @@
                     return;
                 }
             } else if (rwbState === "done") { return; }
+        }
+
+        // ★ Отталкивание игрока
+        if (Math.abs(rwbPlayer.vx) > 0.1 || Math.abs(rwbPlayer.vy) > 0.1) {
+            rwbPlayer.x += rwbPlayer.vx;
+            rwbPlayer.y += rwbPlayer.vy;
+            rwbPlayer.vx *= 0.88;
+            rwbPlayer.vy *= 0.88;
+            rwbPlayer.x = Math.max(16, Math.min(384, rwbPlayer.x));
+            rwbPlayer.y = Math.max(0, Math.min(484, rwbPlayer.y));
+            if (Math.abs(rwbPlayer.vx) < 0.2) rwbPlayer.vx = 0;
+            if (Math.abs(rwbPlayer.vy) < 0.2) rwbPlayer.vy = 0;
         }
 
         for (let i = rwbParticles.length - 1; i >= 0; i--) {
@@ -2782,8 +2344,7 @@
             ctx.restore();
         }
 
-        drawWhiteCracks();
-        drawPurpleCracks();
+        drawWhiteCracks(); drawPurpleCracks();
 
         if (rwbState === "fight1" || rwbState === "transition") {
             if (roger) drawRoger();
@@ -2886,6 +2447,8 @@
             ctx.fillText("⚠️ HP: " + (rwbActiveBoss && rwbActiveBoss.id === "roger" ? RWB_SUPER_ROGER_HP : RWB_SUPER_WB_HP), 200, 320);
             ctx.font = "15px monospace"; ctx.fillStyle = "#ffd700";
             ctx.fillText("ФИНАЛЬНЫЙ РАУНД!", 200, 355);
+            ctx.font = "12px monospace"; ctx.fillStyle = "#ff8888";
+            ctx.fillText("⚠️ Близко = СЛЕШ!", 200, 385);
             ctx.restore();
         } else if (rwbState === "victory") {
             ctx.save(); ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0, 0, 400, 500);
@@ -2909,7 +2472,6 @@
         rwbAnimFrame = requestAnimationFrame(rwbRenderLoop);
     }
 
-    // ★★★ ДИАЛОГ С НОРМАЛЬНЫМИ ПОРТРЕТАМИ ★★★
     function drawRWBDialogOverlay() {
         if (!ctx) return;
         ctx.save();
@@ -3068,7 +2630,7 @@
             ctx.restore(); return;
         }
 
-        // ★★★ АТАКИ РОДЖЕРА — БЕЛЫЕ ПОЛОСЫ ЗАМЕНЕНЫ НА ЧЁРНЫЕ ★★★
+        // ★ РОДЖЕР: БЕЛОЕ → ЧЁРНОЕ
         if (a.type === "roger_slash") {
             ctx.save();
             let isHorizontal = (a.direction === "horizontal");
@@ -3098,14 +2660,12 @@
                 if (isHorizontal) {
                     ctx.fillStyle = a.color || "#ff2200";
                     ctx.fillRect(0, a.y - a.width / 2, 400, a.width);
-                    // ★ БЫЛО #ffffff → СТАЛО #000000
-                    ctx.fillStyle = "#000000";
+                    ctx.fillStyle = "#000000";  // ★ ЧЁРНОЕ
                     ctx.fillRect(0, a.y - a.width * 0.15, 400, a.width * 0.3);
                 } else {
                     ctx.fillStyle = a.color || "#ff2200";
                     ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
-                    // ★ БЫЛО #ffffff → СТАЛО #000000
-                    ctx.fillStyle = "#000000";
+                    ctx.fillStyle = "#000000";  // ★ ЧЁРНОЕ
                     ctx.fillRect(a.x - a.width * 0.15, 0, a.width * 0.3, 500);
                 }
             }
@@ -3131,8 +2691,7 @@
                 ctx.globalAlpha = fade;
                 ctx.fillStyle = "#ff4400";
                 ctx.fillRect(-a.width / 2, -a.length / 2, a.width, a.length);
-                // ★ БЫЛО #ffffff → СТАЛО #000000
-                ctx.fillStyle = "#000000";
+                ctx.fillStyle = "#000000";  // ★ ЧЁРНОЕ
                 ctx.fillRect(-a.width * 0.15, -a.length / 2, a.width * 0.3, a.length);
             }
             ctx.restore(); return;
@@ -3144,8 +2703,8 @@
                 ctx.fillStyle = "#ff3300"; ctx.beginPath(); ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = "#000000"; ctx.lineWidth = 2; ctx.stroke();
                 ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.arc(a.x, a.y, a.size * 0.6, 0, Math.PI * 2); ctx.fill();
-                // ★ БЫЛО #ffffff → СТАЛО #000000
-                ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(a.x, a.y, a.size * 0.3, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#000000";  // ★ ЧЁРНОЕ
+                ctx.beginPath(); ctx.arc(a.x, a.y, a.size * 0.3, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = "rgba(255, 50, 50, 0.7)"; ctx.lineWidth = 2;
                 ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.arc(a.targetX, a.targetY, 30, 0, Math.PI * 2); ctx.stroke();
                 ctx.setLineDash([]);
@@ -3215,14 +2774,20 @@
             ctx.beginPath(); ctx.moveTo(0, -a.size - 3); ctx.lineTo(a.size * 0.4 + 2, 0); ctx.lineTo(0, a.size + 3); ctx.lineTo(-a.size * 0.4 - 2, 0); ctx.closePath(); ctx.fill();
             ctx.fillStyle = a.color;
             ctx.beginPath(); ctx.moveTo(0, -a.size); ctx.lineTo(a.size * 0.4, 0); ctx.lineTo(0, a.size); ctx.lineTo(-a.size * 0.4, 0); ctx.closePath(); ctx.fill();
-            // ★ БЫЛО #ffffff → СТАЛО #000000
             ctx.fillStyle = "#000000";
             ctx.beginPath(); ctx.moveTo(0, -a.size * 0.6); ctx.lineTo(a.size * 0.15, 0); ctx.lineTo(0, a.size * 0.6); ctx.lineTo(-a.size * 0.15, 0); ctx.closePath(); ctx.fill();
         } else if (a.type === "fist") {
+            // ★ У белоуса белые кулаки остаются белыми
+            let isWhitebeardFist = (a.color === "#ffffff");
             ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(0, 0, a.size + 3, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = a.color; ctx.beginPath(); ctx.arc(0, 0, a.size, 0, Math.PI * 2); ctx.fill();
-            // ★ БЫЛО #ffffff → СТАЛО #000000
-            ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(0, 0, a.size * 0.6, 0, Math.PI * 2); ctx.fill();
+            // Белые кулаки — оставляем белыми внутри, не чёрными
+            if (isWhitebeardFist) {
+                ctx.fillStyle = "#ffffff";  // ★ Белоус — БЕЛОЕ
+            } else {
+                ctx.fillStyle = "#000000";  // ★ Роджер и остальные — ЧЁРНОЕ
+            }
+            ctx.beginPath(); ctx.arc(0, 0, a.size * 0.6, 0, Math.PI * 2); ctx.fill();
         }
         ctx.restore();
     }
@@ -3299,11 +2864,8 @@
 
     function drawTsunami(a) {
         ctx.save();
-        let cy = a.y;
-        let w = a.currentWidth || a.width;
-        let h = a.currentHeight || a.height;
-        let waveTime = a.waveTime;
-        let fromRight = a.fromRight;
+        let cy = a.y, w = a.currentWidth || a.width, h = a.currentHeight || a.height;
+        let waveTime = a.waveTime, fromRight = a.fromRight;
         if (a.y > 0 && a.y < 500) {
             ctx.save();
             ctx.globalAlpha = 0.15 + Math.sin(performance.now() / 200) * 0.08;
@@ -3354,10 +2916,11 @@
     window.rwbSound = rwbSound;
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v18.1                             ║");
-    console.log("║  ✅ Портреты как в оригинале                               ║");
-    console.log("║  ✅ Белые части → чёрные в атаках Роджера                  ║");
-    console.log("║  ✅ Синяя ломает все атаки Роджера                         ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v18.2                             ║");
+    console.log("║  ✅ Сердечки с деталями                                    ║");
+    console.log("║  ✅ Белое→чёрное ТОЛЬКО у Роджера                          ║");
+    console.log("║  ✅ Верхняя граница арены разрешена                        ║");
+    console.log("║  ✅ Близкий контакт = СЛЕШ (2 фаза)                        ║");
     console.log("╚════════════════════════════════════════════════════════════╝");
 
 })();
