@@ -1178,6 +1178,13 @@ function ensureTakabaState() {
     if (typeof _superState.takabaDuckMode !== 'boolean') _superState.takabaDuckMode = false;
     if (typeof _superState.takabaDmgMult !== 'number') _superState.takabaDmgMult = 1;
     if (typeof _superState.takabaDamageTakenMult !== 'number') _superState.takabaDamageTakenMult = 1;
+    if (typeof _superState.takabaRandomEvent !== 'string') _superState.takabaRandomEvent = null;
+    if (typeof _superState.takabaRandomEventTimer !== 'number') _superState.takabaRandomEventTimer = 0;
+    if (typeof _superState.takabaArenaSpeedMult !== 'number') _superState.takabaArenaSpeedMult = 1;
+    if (typeof _superState.takabaBallMode !== 'boolean') _superState.takabaBallMode = false;
+    if (typeof _superState.takabaLaughText !== 'boolean') _superState.takabaLaughText = false;
+    if (typeof _superState.takabaRainbowTrail !== 'boolean') _superState.takabaRainbowTrail = false;
+    if (typeof _superState.takabaRandomColors !== 'boolean') _superState.takabaRandomColors = false;
 }
 
 function getTakabaLevel(confidence) {
@@ -1226,39 +1233,63 @@ function hasTakabaAbilityInTeam() {
 function triggerTakabaComedy() {
     ensureTakabaState();
     var ctxB = getBossContext();
-    if (!ctxB || ctxB.type !== 'arena') return;
-    if (_superState.takabaTimeStop || _superState.takabaJokeActive) return;
+    if (!ctxB || ctxB.type !== 'arena' || _superState.takabaRandomEventTimer > 0) return;
 
-    var roll = Math.floor(Math.random() * 3);
-    _superState.takabaCurrentJoke = TAKABA_JOKES[Math.floor(Math.random() * TAKABA_JOKES.length)];
-    _superState.takabaBgColor = ["#ff66ff", "#66ffff", "#ffd700"][roll];
-    _superState.takabaEffectType = roll;
-    _superState.takabaEffectTimer = roll === 0 ? 1.2 : (roll === 1 ? 2.5 : 2.0);
-    _superState.takabaJokeActive = true;
+    var events = ["background","speed2","speedHalf","teleport","balloons","laughtexts","ducks","sound","rainbowtrail","knockback","pizza","colors","confetti","gravity","heal","shrink","speedchaos","party","joke","blackout"];
+    var event = events[Math.floor(Math.random() * events.length)];
+    var atk = ctxB.getAttacks();
+    _superState.takabaRandomEvent = event;
+    _superState.takabaRandomEventTimer = 3;
+    var label = "🎭 ТАКАБА: " + event.toUpperCase();
 
-    if (roll === 0) {
-        _superState.takabaTimeStop = true;
-        adjustTakabaConfidence(8, false);
-        ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "🎭 СТОП! " + Math.round(_superState.takabaConfidence) + "%", "#ff66ff");
-    } else if (roll === 1) {
-        _superState.takabaDuckMode = true;
-        adjustTakabaConfidence(5, false);
-        ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "🦆 УТКИ?!", "#ffd700");
-    } else {
-        var atk = ctxB.getAttacks();
-        var removeCount = Math.floor(atk.length * 0.4);
-        for (var i = 0; i < removeCount; i++) {
-            if (!atk.length) break;
-            atk.splice(Math.floor(Math.random() * atk.length), 1);
-        }
-        adjustTakabaConfidence(10, false);
-        ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "🤣 РЕАЛЬНОСТЬ СЛОМАЛАСЬ!", "#66ffff");
+    if (event === "background") {
+        _superState.takabaBgColor = ["#ff66ff","#ffd700","#66ffff"][Math.floor(Math.random()*3)];
+        label = "🎨 КАКОГО ЦВЕТА МЫ СЕЙЧАС?";
+    } else if (event === "speed2") {
+        _superState.takabaArenaSpeedMult = 2; label = "⚡ ПОЧЕМУ ВСЁ x2?!";
+    } else if (event === "speedHalf") {
+        _superState.takabaArenaSpeedMult = 0.5; label = "🐌 А ТЕПЕРЬ МЕДЛЕННО...";
+    } else if (event === "teleport") {
+        heart.x = 20 + Math.random()*360; heart.y = 20 + Math.random()*460; clampHeart(); label = "🌪️ А ТЫ ГДЕ?";
+    } else if (event === "balloons") {
+        _superState.takabaBallMode = true; label = "🎈 ЭТО БЫЛИ НЕ АТАКИ.";
+    } else if (event === "laughtexts") {
+        _superState.takabaLaughText = true; label = "💬 ХА-ХА-ХА-ХА-ХА.";
+    } else if (event === "ducks") {
+        _superState.takabaDuckMode = true; label = "🦆 КРЯ.";
+    } else if (event === "sound") {
+        var fns=["sfxWhoosh","sfxBounce","sfxVictory","sfxArenaHeal"], fn=fns[Math.floor(Math.random()*fns.length)];
+        if(typeof window[fn]==="function") window[fn](); label="🎵 *НЕПОНЯТНЫЙ ЗВУК*";
+    } else if (event === "rainbowtrail") {
+        _superState.takabaRainbowTrail = true; label="🌈 СЕРДЦЕ ОФИЦИАЛЬНО РАДУГА.";
+    } else if (event === "knockback") {
+        heart.vx += (Math.random()-0.5)*120; heart.vy += (Math.random()-0.5)*120; label="💫 ОЙ.";
+    } else if (event === "pizza") {
+        adjustTakabaConfidence(5,true); label="🍕 ПИЦЦА! +5 УВЕРЕННОСТИ";
+    } else if (event === "colors") {
+        _superState.takabaRandomColors = true; label="🎩 АТАКИ ПЕРЕДУМАЛИ ЦВЕТ.";
+    } else if (event === "confetti") {
+        for(var c=0;c<40;c++) arenaParticles.push({x:Math.random()*400,y:-10,vx:(Math.random()-.5)*5,vy:2+Math.random()*4,life:70,maxLife:70,color:["#ff66ff","#66ffff","#ffd700","#66ff66"][Math.floor(Math.random()*4)],size:2+Math.random()*4});
+        label="🎉 ПОЧЕМУ КОНФЕТТИ?!";
+    } else if (event === "gravity") {
+        for(var g=0;g<atk.length;g++) atk[g].spdY=-(atk[g].spdY||0); label="⬆️ ГРАВИТАЦИЯ УШЛА.";
+    } else if (event === "heal") {
+        var h=Math.floor(arenaMaxHP*.05); arenaHP=Math.min(arenaMaxHP,arenaHP+h); adjustTakabaConfidence(3,false); label="🍕 ДАЖЕ ХИЛ СТАЛ СМЕШНЫМ +3";
+    } else if (event === "shrink") {
+        for(var q=0;q<atk.length;q++){if(atk[q].size)atk[q].size*=.5;if(atk[q].radius)atk[q].radius*=.5;} label="🔬 АТАКИ УМЕНЬШИЛИСЬ. ПОЧЕМУ.";
+    } else if (event === "speedchaos") {
+        for(var v=0;v<atk.length;v++){if(atk[v].spd)atk[v].spd*=.3+Math.random()*2.5;if(atk[v].spdY)atk[v].spdY*=.3+Math.random()*2.5;} label="🎲 СКОРОСТЬ: НА УДАЧУ.";
+    } else if (event === "party") {
+        for(var j=0;j<atk.length;j++) atk[j].spd=(atk[j].spd||0)*1.15; label="🕺 АТАКИ ТАНЦУЮТ.";
+    } else if (event === "joke") {
+        _superState.takabaJokeActive=true; _superState.takabaCurrentJoke=TAKABA_JOKES[Math.floor(Math.random()*TAKABA_JOKES.length)]; _superState.takabaEffectTimer=2; label="😂 "+_superState.takabaCurrentJoke;
+    } else if (event === "blackout") {
+        _superState.screenFlashWhite=8; label="🌑 СВЕТ? НЕ ЗНАЮ ТАКОГО.";
     }
 
-    if (typeof sfxWhoosh === 'function') sfxWhoosh();
-    _superState.screenFlashWhite = 6;
+    ctxB.spawnFloatingText(ctxB.getHeartX(),ctxB.getHeartY()-45,label,"#ff66ff");
+    if(typeof sfxWhoosh==="function")sfxWhoosh();
 }
-
 function updateTakabaAbility(dt) {
     ensureTakabaState();
 
@@ -1277,6 +1308,15 @@ function updateTakabaAbility(dt) {
 
     _superState.takabaEventTimer += dt;
 
+    if (_superState.takabaRandomEventTimer > 0) {
+        _superState.takabaRandomEventTimer -= dt;
+        if (_superState.takabaRandomEventTimer <= 0) {
+            _superState.takabaRandomEventTimer=0; _superState.takabaArenaSpeedMult=1;
+            _superState.takabaBgColor=null; _superState.takabaBallMode=false; _superState.takabaLaughText=false;
+            _superState.takabaRainbowTrail=false; _superState.takabaRandomColors=false;
+            _superState.takabaDuckMode=false; _superState.takabaJokeActive=false;
+        }
+    }
     if (_superState.takabaEffectTimer > 0) {
         _superState.takabaEffectTimer -= dt;
         if (_superState.takabaEffectTimer <= 0) {
