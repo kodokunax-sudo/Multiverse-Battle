@@ -1,14 +1,10 @@
-// ========== СУПЕР-СПОСОБНОСТИ v19.0 ==========
+// ========== СУПЕР-СПОСОБНОСТИ v20.0 ==========
 // ★ ПОЛНАЯ ПОДДЕРЖКА УНИКАЛЬНЫХ БОССОВ ★
 // Работает на: арене Undertale, Живом Камне, Путеводной Звезде, Роджере vs Белоусе
-// ★ v19.0 — ПОЛНЫЙ ФИКС ДЛЯ ВСЕХ БОССОВ:
-//   - garouTimeStop останавливает ВСЕ атаки (проверка в каждом боссе)
-//   - Поглощение урона (щит/редукция) правильно применяется
-//   - Увеличение урона (nika/dekus/allmight/kaido/dandy/mark) к пулям
-//   - Ураган Всемогущего работает через getAttacks()
-//   - Анти-спираль работает: heartSpeed для Undertale,
-//     lsSpeedMult для Камня, waystarPlayerSpeedMult для Звезды,
-//     rwbSpeedMult для Роджера
+// ★ v20.0 — ДОБАВЛЕН БЕЛОУС:
+//   - СУПЕР: "ГУРА-ГУРА: КОНЕЦ МИРА" — заморозка атак + урон 15% + цунами
+//   - ПАССИВКА: 10% поглощение урона + 2% HP/5сек (при 4★+)
+//   - Экспорт applyWhitebeardPassiveReduction для боссов
 
 // ============================================================
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
@@ -39,6 +35,7 @@ const SUPER_CHARGES_PER_HERO = {
     "Император Марк":           -1,
     "Деку (100%)":              3,
     "Всемогущий (прайм)":       1,
+    "Белоус":                   3,
 };
 
 const SUPER_CHARGES_HERO_PER_BOSS = {
@@ -77,7 +74,16 @@ let _superState = {
     allmightHurricane: false, allmightHurricaneTimer: 0, allmightHurricaneAngle: 0,
     screenShakeAmount: 0, screenFlashWhite: 0,
     realityCracks: [], comicTexts: [], earthCracks: [],
-    dekuDash: null, dekuExplosions: []
+    dekuDash: null, dekuExplosions: [],
+    // ★ БЕЛОУС ★
+    whitebeardCharging: false,
+    whitebeardChargeTimer: 0,
+    whitebeardX: 0,
+    whitebeardY: 0,
+    whitebeardTimeStop: false,
+    whitebeardTsunami: false,
+    whitebeardTsunamiY: 0,
+    whitebeardTsunamiTimer: 0
 };
 
 let _superCooldowns = {};
@@ -228,7 +234,6 @@ function getBossContext() {
             setHeartSize: function(v) {},
             getHeartHitbox: function() { return 6; },
             setHeartHitbox: function(v) {},
-            // ★ Реальная скорость через waystarPlayerSpeedMult ★
             getHeartSpeed: function() {
                 var mult = (typeof waystarPlayerSpeedMult !== 'undefined') ? waystarPlayerSpeedMult : 1.0;
                 return 4 * mult;
@@ -270,7 +275,6 @@ function getBossContext() {
             setHeartSize: function(v) {},
             getHeartHitbox: function() { return 6; },
             setHeartHitbox: function(v) {},
-            // ★ Реальная скорость через lsSpeedMult ★
             getHeartSpeed: function() {
                 var base = (typeof livingStoneState !== 'undefined' && livingStoneState === "phase2") ? 4.5 : 3.0;
                 return base * (typeof lsSpeedMult !== 'undefined' ? lsSpeedMult : 0.5) * 2;
@@ -299,7 +303,7 @@ function getBossContext() {
         };
     }
 
-    // ★★★ RWB (РОДЖЕР/БЕЛОУС) — ЧЕРЕЗ WINDOW-ФУНКЦИИ ★★★
+    // ★★★ RWB (РОДЖЕР/БЕЛОУС) ★★★
     if (bossType === 'rwb') {
         return {
             type: 'rwb',
@@ -308,9 +312,9 @@ function getBossContext() {
             getHeartY: function() { var p = window.getRWBPlayer ? window.getRWBPlayer() : null; return p ? p.y : 400; },
             setHeartY: function(v) { var p = window.getRWBPlayer ? window.getRWBPlayer() : null; if (p) p.y = Math.max(0, Math.min(484, v)); },
             getHeartSize: function() { return 12; },
-            setHeartSize: function(v) { /* фикс */ },
+            setHeartSize: function(v) {},
             getHeartHitbox: function() { return 6; },
-            setHeartHitbox: function(v) { /* фикс */ },
+            setHeartHitbox: function(v) {},
             getHeartSpeed: function() {
                 if (typeof window.getRWBBaseSpeed === 'function' && typeof window.getRWBSpeedMult === 'function') {
                     return window.getRWBBaseSpeed() * window.getRWBSpeedMult();
@@ -575,7 +579,6 @@ const superAbilities = {
         for (var i = _superState.positionHistory.length - 1; i >= 0; i--) { if (now - _superState.positionHistory[i].time >= 2000) { target = _superState.positionHistory[i]; break; } }
         if (!target && _superState.positionHistory.length > 0) target = _superState.positionHistory[0];
 
-        // ★★★ ОСТАНОВКА ВРЕМЕНИ ★★★
         _superState.garouTimeStop = true;
         setTimeout(function() {
             _superState.garouTimeStop = false;
@@ -778,8 +781,231 @@ const superAbilities = {
             _superState.allmightHurricane = false;
             ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "ИСТОЩЕНИЕ НАВСЕГДА!", "#ff0000");
         }, 15000);
-    }, onTick() {} }
+    }, onTick() {} },
+    // ★★★ БЕЛОУС ★★★
+    "Белоус": { 
+        name: "ГУРА-ГУРА: КОНЕЦ МИРА", 
+        cooldown: 40000, 
+        toggleable: false, 
+        duration: 0, 
+        onActivate() {
+            var ctxB = getBossContext();
+            if (!ctxB) return;
+            
+            var hx = ctxB.getHeartX();
+            var hy = ctxB.getHeartY();
+            
+            // ФАЗА 1: ЗАРЯДКА
+            _superState.whitebeardCharging = true;
+            _superState.whitebeardChargeTimer = 30;
+            _superState.whitebeardX = hx;
+            _superState.whitebeardY = hy;
+            
+            for (var i = 0; i < 12; i++) {
+                _superState.rings.push({
+                    x: hx, y: hy,
+                    radius: 20 + i * 3,
+                    color: "#aa00ff",
+                    speed: 0,
+                    life: 30, maxLife: 30,
+                    width: 2
+                });
+            }
+            
+            _superState.screenShakeAmount = 8;
+            if (typeof playArenaSound === 'function') playArenaSound(80, 'sawtooth', 0.5, 0.2);
+            else if (typeof wsPlaySound === 'function') wsPlaySound(80, 'sawtooth', 0.5, 0.2);
+            
+            ctxB.spawnFloatingText(hx, hy - 50, "ГУРА-ГУРА...", "#aa00ff");
+            console.log("[SUPER] 🌊 Белоус: зарядка");
+            
+            // ФАЗА 2: УДАР (через 0.5 сек)
+            setTimeout(function() {
+                if (!_superState.whitebeardCharging) return;
+                _superState.whitebeardCharging = false;
+                
+                var ctxB2 = getBossContext();
+                if (!ctxB2) return;
+                
+                _superState.whitebeardTimeStop = true;
+                setTimeout(function() { _superState.whitebeardTimeStop = false; }, 800);
+                
+                _superState.screenShakeAmount = 60;
+                _superState.screenFlashWhite = 25;
+                
+                for (var i = 0; i < 20; i++) {
+                    var ang = (i / 20) * Math.PI * 2 + Math.random() * 0.3;
+                    var len = 150 + Math.random() * 150;
+                    _superState.realityCracks.push({
+                        x1: hx, y1: hy,
+                        x2: hx + Math.cos(ang) * len,
+                        y2: hy + Math.sin(ang) * len,
+                        life: 2.0
+                    });
+                }
+                
+                var bossMaxHp = ctxB2.getBossMaxHp();
+                var dmg1 = Math.floor(bossMaxHp * 0.12);
+                ctxB2.setBossMaxHp(bossMaxHp - dmg1);
+                
+                var atk = ctxB2.getAttacks();
+                for (var ai = 0; ai < atk.length; ai++) {
+                    var a = atk[ai];
+                    if (a.spd !== undefined) a.spd *= -3;
+                    if (a.spdY !== undefined) a.spdY *= -3;
+                    if (a.vx !== undefined) a.vx *= -3;
+                    if (a.vy !== undefined) a.vy *= -3;
+                }
+                
+                addShockwaveRing(hx, hy, "#aa00ff", 800, 1.2, 10);
+                addShockwaveRing(hx, hy, "#ffffff", 500, 0.8, 6);
+                
+                for (var pi = 0; pi < 60; pi++) {
+                    var ang2 = Math.random() * Math.PI * 2;
+                    var spd2 = 8 + Math.random() * 15;
+                    ctxB2.getParticles().push({
+                        x: hx, y: hy,
+                        vx: Math.cos(ang2) * spd2,
+                        vy: Math.sin(ang2) * spd2,
+                        life: 40, maxLife: 40,
+                        color: pi % 3 === 0 ? "#ffffff" : (pi % 3 === 1 ? "#aa00ff" : "#ff66ff"),
+                        size: 3 + Math.random() * 4
+                    });
+                }
+                
+                if (typeof playArenaSound === 'function') {
+                    playArenaSound(60, 'sawtooth', 1.5, 0.5);
+                    setTimeout(function() { playArenaSound(40, 'sawtooth', 1.2, 0.4); }, 200);
+                } else if (typeof wsPlaySound === 'function') {
+                    wsPlaySound(60, 'sawtooth', 1.5, 0.5);
+                    setTimeout(function() { wsPlaySound(40, 'sawtooth', 1.2, 0.4); }, 200);
+                }
+                
+                ctxB2.spawnFloatingText(hx, hy - 60, "КОНЕЦ МИРА!!!", "#aa00ff");
+                ctxB2.spawnFloatingText(hx, hy - 40, "-" + dmg1 + " HP БОССУ!", "#ff66ff");
+                
+                console.log("[SUPER] 🌊 Белоус: удар! Урон: " + dmg1);
+                
+                // ФАЗА 3: ЦУНАМИ (через 0.8 сек)
+                setTimeout(function() {
+                    var ctxB3 = getBossContext();
+                    if (!ctxB3) return;
+                    
+                    _superState.whitebeardTsunami = true;
+                    _superState.whitebeardTsunamiY = 520;
+                    _superState.whitebeardTsunamiTimer = 0;
+                    
+                    var bossMaxHp3 = ctxB3.getBossMaxHp();
+                    var dmg2 = Math.floor(bossMaxHp3 * 0.03);
+                    ctxB3.setBossMaxHp(bossMaxHp3 - dmg2);
+                    
+                    ctxB3.spawnFloatingText(hx, hy - 30, "-" + dmg2 + " HP (ВОЛНА)!", "#00ccff");
+                    
+                    if (typeof playArenaSound === 'function') playArenaSound(500, 'sine', 1.0, 0.3);
+                    else if (typeof wsPlaySound === 'function') wsPlaySound(500, 'sine', 1.0, 0.3);
+                    
+                    console.log("[SUPER] 🌊 Белоус: цунами!");
+                }, 800);
+                
+            }, 500);
+        }, 
+        onTick(dt) {
+            if (_superState.whitebeardCharging) {
+                _superState.whitebeardChargeTimer -= dt * 60;
+                if (_superState.whitebeardChargeTimer < 0) _superState.whitebeardChargeTimer = 0;
+            }
+            if (_superState.whitebeardTsunami) {
+                _superState.whitebeardTsunamiTimer++;
+            }
+        }
+    }
 };
+
+// ============================================================
+// ★★★ БЕЛОУС: ПАССИВКА — 10% ПОГЛОЩЕНИЕ УРОНА ★★★
+// ============================================================
+function applyWhitebeardPassiveReduction(dmg) {
+    if (!dmg || dmg <= 0) return dmg;
+    try {
+        if (typeof team === 'undefined' || !Array.isArray(team)) return dmg;
+        if (typeof myCards === 'undefined' || !Array.isArray(myCards)) return dmg;
+        var hasWhitebeard = false;
+        for (var i = 0; i < team.length; i++) {
+            var idx = team[i];
+            var cd = myCards[idx];
+            if (cd && cd.name === "Белоус") {
+                if (typeof hasMasteryAbility === 'function' && !hasMasteryAbility(cd)) continue;
+                hasWhitebeard = true;
+                break;
+            }
+        }
+        if (hasWhitebeard) {
+            return Math.max(1, Math.floor(dmg * 0.9));
+        }
+    } catch(e) {}
+    return dmg;
+}
+window.applyWhitebeardPassiveReduction = applyWhitebeardPassiveReduction;
+
+// ============================================================
+// ★★★ БЕЛОУС: ПАССИВКА — РЕГЕН 2% HP КАЖДЫЕ 5 СЕК ★★★
+// ============================================================
+if (typeof window._whitebeardRegenTimer === 'undefined') window._whitebeardRegenTimer = 0;
+
+function tickWhitebeardRegen(dt) {
+    try {
+        if (typeof team === 'undefined' || !Array.isArray(team)) return;
+        if (typeof myCards === 'undefined' || !Array.isArray(myCards)) return;
+        var hasWhitebeard = false;
+        for (var i = 0; i < team.length; i++) {
+            var idx = team[i];
+            var cd = myCards[idx];
+            if (cd && cd.name === "Белоус") {
+                if (typeof hasMasteryAbility === 'function' && !hasMasteryAbility(cd)) continue;
+                hasWhitebeard = true;
+                break;
+            }
+        }
+        if (!hasWhitebeard) {
+            window._whitebeardRegenTimer = 0;
+            return;
+        }
+        
+        window._whitebeardRegenTimer += dt;
+        if (window._whitebeardRegenTimer >= 5) {
+            window._whitebeardRegenTimer = 0;
+            
+            var ctxB = getBossContext();
+            if (!ctxB) return;
+            
+            var maxHp = ctxB.getPlayerMaxHp();
+            var curHp = ctxB.getPlayerHp();
+            if (curHp >= maxHp) return;
+            
+            var heal = Math.floor(maxHp * 0.02);
+            ctxB.setPlayerHp(Math.min(maxHp, curHp + heal));
+            
+            ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 25, "+" + heal + " 🌊", "#66ccff");
+            
+            for (var i = 0; i < 8; i++) {
+                var ang = (i / 8) * Math.PI * 2;
+                ctxB.getParticles().push({
+                    x: ctxB.getHeartX() + Math.cos(ang) * 20,
+                    y: ctxB.getHeartY() + Math.sin(ang) * 20,
+                    vx: Math.cos(ang) * 1.5,
+                    vy: Math.sin(ang) * 1.5 - 1,
+                    life: 30, maxLife: 30,
+                    color: "#66ccff", size: 3
+                });
+            }
+            
+            if (typeof playArenaSound === 'function') {
+                playArenaSound(600, 'sine', 0.15, 0.05);
+            }
+        }
+    } catch(e) {}
+}
+window.tickWhitebeardRegen = tickWhitebeardRegen;
 
 function restoreArenaTimer() {
     if (typeof arenaDodgeTimerInterval !== 'undefined' && arenaDodgeTimerInterval) clearInterval(arenaDodgeTimerInterval);
@@ -868,9 +1094,6 @@ function deactivateDeku100() {
     updateSuperButton();
 }
 
-// ============================================================
-// ★★★ УРАГАН ВСЕМОГУЩЕГО — РАБОТАЕТ НА ВСЕХ ★★★
-// ============================================================
 function activateAllmightHurricane() {
     if (!_allmightHurricaneReady) return;
     if (_allmightHurricaneCooldown > 0) return;
@@ -883,7 +1106,6 @@ function activateAllmightHurricane() {
     var hurricaneRadius = 150;
     var atk = ctxB.getAttacks();
 
-    // ★ Толкаем атаки (spd/spdY для Undertale, vx/vy для RWB) ★
     for (var a of atk) {
         var ax = a.x + (a.size || a.radius || 20) / 2;
         var ay = a.y + (a.size || a.radius || 20) / 2;
@@ -912,9 +1134,6 @@ function getMainCard() {
     return null;
 }
 
-// ============================================================
-// ★★★ ЕДИНАЯ ФУНКЦИЯ АКТИВАЦИИ SUPER ★★★
-// ============================================================
 function toggleSuper() {
     var bossType = isUniqueBossActive();
     var isUnique = bossType !== null;
@@ -952,7 +1171,6 @@ function toggleSuper() {
 
     var ab = superAbilities[mainCard.name];
 
-    // ★ Всемогущий: ураган (отдельно) ★
     if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
         if (_allmightHurricaneCooldown > 0) {
             if (typeof showFloatingText === 'function') showFloatingText("⏳ Ураган: " + Math.ceil(_allmightHurricaneCooldown) + "с", "#ffaa00");
@@ -967,7 +1185,6 @@ function toggleSuper() {
         return;
     }
 
-    // ★ Деку: 100% активируется, потом РАЗЛОМ ★
     if (mainCard.name === "Деку (100%)") {
         if (!_superState.dekusActive) {
             if (isUnique) {
@@ -1179,7 +1396,6 @@ function updateSuperButton() {
         return;
     }
 
-    // ★ АРЕНА UNDERTALE ★
     if (mainCard.name === "Деку (100%)") {
         if (!_superState.dekusActive) {
             btn.style.display = "block";
@@ -1259,9 +1475,6 @@ function updateSuperButton() {
     }
 }
 
-// ============================================================
-// resetAllSupers() — БЕЗОПАСНЫЙ СБРОС
-// ============================================================
 function resetAllSupers() {
     var ctxB = getBossContext();
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) {
@@ -1357,6 +1570,13 @@ function resetAllSupers() {
     _superState.screenFlashWhite = 0;
     _allmightHurricaneReady = false;
     _allmightHurricaneCooldown = 0;
+    // ★ БЕЛОУС ★
+    _superState.whitebeardCharging = false;
+    _superState.whitebeardChargeTimer = 0;
+    _superState.whitebeardTimeStop = false;
+    _superState.whitebeardTsunami = false;
+    _superState.whitebeardTsunamiY = 0;
+    _superState.whitebeardTsunamiTimer = 0;
     var btnDeact = document.getElementById("superBtnDeactivate");
     if (btnDeact) btnDeact.style.display = "none";
     resetAllCooldowns();
@@ -1389,6 +1609,9 @@ function tickSupers() {
     if (dt <= 0) dt = 0.016;
     if (dt > 0.1) dt = 0.1;
     _superLastTick = now;
+
+    // ★ БЕЛОУС: реген ★
+    tickWhitebeardRegen(dt);
 
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onTick) superAbilities[_activeSuperName].onTick(dt);
     if (_superState.borosHeal && _superState.borosHeal.active && superAbilities["Борос"] && superAbilities["Борос"].onTick) superAbilities["Борос"].onTick(dt);
@@ -1663,6 +1886,33 @@ function updateSuperLogic(dt) {
             break;
         }
         if (f.life <= 0 || f.y < -150 || f.y > 650 || f.x < -50 || f.x > 450) _superState.fists.splice(i, 1);
+    }
+
+    // ★ БЕЛОУС: анимация цунами ★
+    if (_superState.whitebeardTsunami) {
+        _superState.whitebeardTsunamiY -= 8;
+        
+        var ctxBTsunami = getBossContext();
+        if (ctxBTsunami) {
+            var atkTsunami = ctxBTsunami.getAttacks();
+            for (var i = atkTsunami.length - 1; i >= 0; i--) {
+                var aT = atkTsunami[i];
+                if (Math.abs((aT.y || 0) - _superState.whitebeardTsunamiY) < 80) {
+                    ctxBTsunami.getParticles().push({
+                        x: aT.x, y: aT.y,
+                        vx: (Math.random() - 0.5) * 10,
+                        vy: (Math.random() - 0.5) * 10,
+                        life: 20, maxLife: 20,
+                        color: "#00ccff", size: 4
+                    });
+                    atkTsunami.splice(i, 1);
+                }
+            }
+        }
+        
+        if (_superState.whitebeardTsunamiY < -60) {
+            _superState.whitebeardTsunami = false;
+        }
     }
 }
 
@@ -2232,6 +2482,97 @@ function renderSuperVisuals() {
             ctx.restore();
         });
     }
+
+    // ★ БЕЛОУС: зарядка ★
+    if (_superState.whitebeardCharging) {
+        ctx.save();
+        var chargePower = 1 - (_superState.whitebeardChargeTimer / 30);
+        ctx.globalAlpha = 0.5 + Math.sin(performance.now() / 50) * 0.3;
+        ctx.strokeStyle = "#aa00ff";
+        ctx.lineWidth = 3 + chargePower * 3;
+        ctx.shadowColor = "#aa00ff";
+        ctx.shadowBlur = 30;
+        ctx.beginPath();
+        ctx.arc(hx, hy, 30 + chargePower * 50, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        var wbGrad = ctx.createRadialGradient(hx, hy, 0, hx, hy, 40);
+        wbGrad.addColorStop(0, "rgba(255, 255, 255, " + (0.5 + chargePower * 0.5) + ")");
+        wbGrad.addColorStop(0.5, "rgba(170, 0, 255, 0.6)");
+        wbGrad.addColorStop(1, "rgba(170, 0, 255, 0)");
+        ctx.fillStyle = wbGrad;
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.arc(hx, hy, 40, 0, Math.PI * 2);
+        ctx.fill();
+        
+        if (Math.random() < 0.6) {
+            drawHakiLightning(hx, hy, 60 + chargePower * 40, 0.9, 1.5, "#aa00ff");
+        }
+        ctx.restore();
+    }
+    
+    // ★ БЕЛОУС: цунами ★
+    if (_superState.whitebeardTsunami) {
+        ctx.save();
+        var ty = _superState.whitebeardTsunamiY;
+        var tw = 400;
+        var th = 100;
+        
+        var tGrad = ctx.createLinearGradient(0, ty - th/2, 0, ty + th/2);
+        tGrad.addColorStop(0, "#003366");
+        tGrad.addColorStop(0.3, "#00aaff");
+        tGrad.addColorStop(0.7, "#00ddff");
+        tGrad.addColorStop(1, "#003366");
+        ctx.fillStyle = tGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, ty - th/2);
+        for (var i = 0; i <= 20; i++) {
+            var t = i / 20;
+            var x = t * tw;
+            var yTop = ty - th/2 + Math.sin(t * Math.PI * 3 + performance.now() / 100) * 12;
+            ctx.lineTo(x, yTop);
+        }
+        for (var i = 20; i >= 0; i--) {
+            var t = i / 20;
+            var x = t * tw;
+            var yBot = ty + th/2 + Math.sin(t * Math.PI * 3 + performance.now() / 100) * 12;
+            ctx.lineTo(x, yBot);
+        }
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.strokeStyle = "#001a33";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        ctx.fillStyle = "#ffffff";
+        for (var i = 0; i <= 20; i++) {
+            var t = i / 20;
+            var x = t * tw;
+            var yTop = ty - th/2 + Math.sin(t * Math.PI * 3 + performance.now() / 100) * 12;
+            ctx.beginPath();
+            ctx.arc(x, yTop, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+        ctx.lineWidth = 2;
+        for (var li = 0; li < 3; li++) {
+            var lineOffset = -th * 0.2 + li * th * 0.2;
+            ctx.beginPath();
+            for (var i = 0; i <= 20; i++) {
+                var t = i / 20;
+                var x = t * tw;
+                var y = ty + lineOffset + Math.sin(t * Math.PI * 4 + performance.now() / 100 + li) * 5;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        
+        ctx.restore();
+    }
 }
 
 setInterval(function() {
@@ -2306,11 +2647,13 @@ window.SUPER_CHARGES_PER_BOSS = SUPER_CHARGES_PER_BOSS;
 window.SUPER_CHARGES_PER_HERO = SUPER_CHARGES_PER_HERO;
 window.SUPER_CHARGES_HERO_PER_BOSS = SUPER_CHARGES_HERO_PER_BOSS;
 
+// ★ БЕЛОУС: ПАССИВКА — экспорт ★
+window.applyWhitebeardPassiveReduction = applyWhitebeardPassiveReduction;
+window.tickWhitebeardRegen = tickWhitebeardRegen;
+
 console.log("╔════════════════════════════════════════════════════════════╗");
-console.log("║  [SUPERS] v19.0 — ПОЛНЫЙ ФИКС ВСЕХ БОССОВ                 ║");
-console.log("║  ✅ garouTimeStop везде                                    ║");
-console.log("║  ✅ Анти-спираль на всех (через контекст)                  ║");
-console.log("║  ✅ Увеличение урона применяется                           ║");
-console.log("║  ✅ Ураган Всемогущего работает                            ║");
-console.log("║  ✅ Поглощение урона работает                              ║");
+console.log("║  [SUPERS] v20.0 — БЕЛОУС ДОБАВЛЕН                        ║");
+console.log("║  ✅ СУПЕР: ГУРА-ГУРА КОНЕЦ МИРА (заморозка + урон + цунами)║");
+console.log("║  ✅ ПАССИВКА: 10% поглощение + 2% HP/5сек                 ║");
+console.log("║  ✅ Всё работает на 4 уникальных боссах                   ║");
 console.log("╚════════════════════════════════════════════════════════════╝");
