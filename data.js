@@ -15,7 +15,7 @@ function sfxRebirth() { playSound(300, 'triangle', 0.3); }
 // ========== МУЗЫКАЛЬНЫЕ ТЕМЫ ==========
 // music/main.mp3, music/battle.mp3, music/shop.mp3
 
-// ========== МИРЫ (ИСПРАВЛЕНЫ) ==========
+// ========== МИРЫ ==========
 const worlds = [
     { name: "Лес начала и конца", minWave: 1, maxWave: 250, color: "#2ecc71" },
     { name: "Огненная пустошь", minWave: 251, maxWave: 499, color: "#e74c3c" },
@@ -121,7 +121,27 @@ const customCardTemplates = {
         { name: "Мадара", universe: "Naruto", damage: 120, hp: 100, speed: 2.2, ability: { type: "damageReduction", value: 0.05, desc: "-5% урона" }, statusAbility: { type: "freezeStacks", value: 1, desc: "Заморозка +1" }, desc: "Призрак Учиха. -5% получаемого урона и заморозка +1." },
         { name: "Гарп (Galaxy impact)", universe: "One Piece", damage: 105, hp: 140, speed: 2.0, ability: { type: "damageAura", value: 0.20, desc: "+20% урона" }, desc: "Кулак галактики. +20% урона всей команде." },
         { name: "Омни-Мэн", universe: "Invincible", damage: 120, hp: 130, speed: 2.6, ability: { type: "damageAura", value: 0.12, desc: "+12% урона" }, statusAbility: { type: "bleed", value: 0.15, desc: "Кровотечение +15%" }, desc: "Нолан Грейсон. +12% урона команде и +15% урона через кровотечение." },
-        { name: "Ло (Пробужденный)", universe: "One Piece", damage: 105, hp: 145, speed: 2.4, ability: { type: "healOnWin", percent: 0.03, desc: "+3% HP" }, statusAbility: { type: "shock", chance: 0.10, desc: "Электричество 10%" }, desc: "Пробуждённый фрукт. Лечит 3% HP при победе и 10% шанс шока." }
+        { name: "Ло (Пробужденный)", universe: "One Piece", damage: 105, hp: 145, speed: 2.4, ability: { type: "healOnWin", percent: 0.03, desc: "+3% HP" }, statusAbility: { type: "shock", chance: 0.10, desc: "Электричество 10%" }, desc: "Пробуждённый фрукт. Лечит 3% HP при победе и 10% шанс шока." },
+        // ★★★ ТАКАБА ★★★
+        { 
+            name: "Такаба", 
+            universe: "JJK", 
+            damage: 280, 
+            hp: 480, 
+            speed: 3.0, 
+            sellPrice: 500, 
+            minRebirth: 3,
+            ability: { 
+                type: "takabaConfidence", 
+                desc: "Уверенность 0-100. Чем выше — тем сильнее урон и защита" 
+            }, 
+            desc: "Комедиант, чья техника «Комик» перестраивает реальность вокруг его шуток. 5 уровней уверенности. На 3+ каждые 7 секунд случается что-то тупое.",
+            superAbility: { 
+                name: "SUPER: ШУТКА ТАКАБЫ", 
+                desc: "Такаба говорит тупую шутку. Всё замирает на 1.5 секунды, потом +30 уверенности. «Ха-ха! А вы смеялись!»", 
+                passive: false 
+            }
+        }
     ],
     "Секретная": [
         { 
@@ -217,8 +237,7 @@ const customCardTemplates = {
             unsellable: true,
             ability: { type: "whitebeardSpecial", desc: "10% поглощение | 2% HP/5сек | 3% воскрес | 1% HP/волна | 2% x5 комбо" },
             superAbility: { name: "SUPER: ГУРА-ГУРА КОНЕЦ МИРА", desc: "Белоус раскалывает воздух: все атаки замирают на 0.8 сек, затем разлетаются в стороны. Босс теряет 15% HP. Цунами добивает остатки. «Я — сильнейший человек в мире!»", passive: false },
-            desc: "Эдвард Ньюгейт. Сильнейший человек в мире. Нельзя получить через гачу — только победив супер-Белоуса.",
-            superAbility: null
+            desc: "Эдвард Ньюгейт. Сильнейший человек в мире. Нельзя получить через гачу — только победив супер-Белоуса."
         }
     ],
     "Эволюционная": [
