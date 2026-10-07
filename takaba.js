@@ -46,7 +46,18 @@ function confidence(d,txt){
     showFloatingText("🎭 ТАКАБА: "+Math.round(_superState.takabaConfidence)+"% — УР. "+level(_superState.takabaConfidence),"#ff66ff");
   return _superState.takabaConfidence;
 }
-function modifiers(c){var l=level(c);return{level:l,dmgMult:[1,1.05,1.15,1.3,1.6][l-1],damageTakenMult:[1,.97,.9,.85,.8][l-1]};}
+function modifiers(c){
+  var conf=Math.max(0,Math.min(100,Number(c)||0)),l=level(conf);
+  return{level:l,dmgMult:1+conf*0.006,damageTakenMult:1-conf*0.005,speedMult:1+conf*0.006};
+}
+function getTakabaCombatModifiers(){
+  ensureTakabaState();
+  if(!hasTakaba())return{level:1,dmgMult:1,damageTakenMult:1,speedMult:1,confidence:0};
+  var m=modifiers(_superState.takabaConfidence||0);
+  m.confidence=Math.max(0,Math.min(100,Number(_superState.takabaConfidence)||0));
+  return m;
+}
+window.getTakabaCombatModifiers=getTakabaCombatModifiers;
 function getMainTeamCard(){
   try{
     if(typeof team==="undefined"||!Array.isArray(team)||typeof myCards==="undefined"||!Array.isArray(myCards))return null;
