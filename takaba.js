@@ -83,7 +83,7 @@ function randColor(){return "hsl("+Math.floor(Math.random()*360)+",100%,60%)";}
 
 function triggerTakabaComedy(){
   ensureTakabaState(); var c=ctx(); if(!hasTakaba()||!c||_superState.takabaRandomEventTimer>0)return;
-  if(typeof arenaPhase!=="undefined" && arenaPhase!=="dodge") {
+  if(c.type==="arena" && typeof arenaPhase!=="undefined" && arenaPhase!=="dodge") {
     _superState.takabaRandomEventTimer=0; _superState.takabaRandomEvent=null; _superState.takabaEffectTimer=0;
     _superState.takabaArenaSpeedMult=1; _superState.takabaBgColor=null; _superState.takabaBallMode=false;
     _superState.takabaLaughText=false; _superState.takabaRainbowTrail=false; _superState.takabaRandomColors=false; _superState.takabaDuckMode=false;
@@ -119,12 +119,12 @@ function triggerTakabaComedy(){
     case "blackout": _superState.screenFlashWhite=18;label="🌑 СВЕТА НЕТ.";break;
     case "reverse": for(i=0;i<a.length;i++){if(a[i].spd)a[i].spd=-a[i].spd;if(a[i].spdY)a[i].spdY=-a[i].spdY;}label="🔄 АТАКИ ПОЕХАЛИ НАЗАД.";break;
     case "spin": for(i=0;i<a.length;i++){var s=a[i].spd||0,sy=a[i].spdY||0;a[i].spd=-sy;a[i].spdY=s;}label="🌀 ВСЁ ПОВЕРНУЛОСЬ.";break;
-    case "giantHeart": heart.size*=2;heart.hitbox*=1.5;label="❤️ ОГРОМНОЕ СЕРДЦЕ. ПЛОХАЯ ИДЕЯ.";break;
-    case "tinyHeart": heart.size*=.45;heart.hitbox*=.45;label="💗 МИКРО-СЕРДЦЕ.";break;
-    case "swapXY": x=heart.x;heart.x=heart.y;heart.y=x;if(typeof clampHeart==="function")clampHeart();label="🔀 X И Y ПОМЕНЯЛИСЬ МЕСТАМИ.";break;
+    case "giantHeart": if(c.type==="arena" && typeof heart!=="undefined"){heart.size*=2;heart.hitbox*=1.5;}else{c.setHeartSpeed(c.getHeartSpeed()*0.65);}label="❤️ ОГРОМНОЕ СЕРДЦЕ. ПЛОХАЯ ИДЕЯ.";break;
+    case "tinyHeart": if(c.type==="arena" && typeof heart!=="undefined"){heart.size*=.45;heart.hitbox*=.45;}else{c.setHeartSpeed(c.getHeartSpeed()*1.45);}label="💗 МИКРО-СЕРДЦЕ.";break;
+    case "swapXY": x=c.getHeartX();c.setHeartX(c.getHeartY());c.setHeartY(x);if(c.clampHeart)c.clampHeart();label="🔀 X И Y ПОМЕНЯЛИСЬ МЕСТАМИ.";break;
     case "freezeAttacks": for(i=0;i<a.length;i++){a[i]._takabaOldSpd=a[i].spd;a[i]._takabaOldSpdY=a[i].spdY;a[i].spd=0;a[i].spdY=0;}label="🧊 АТАКИ ЗАБЫЛИ КАК ХОДИТЬ.";break;
     case "rushAttacks": for(i=0;i<a.length;i++){if(a[i].spd)a[i].spd*=4;if(a[i].spdY)a[i].spdY*=4;}label="🏎️ АТАКИ НА ТУРБО.";break;
-    case "homing": for(i=0;i<a.length;i++){a[i].spdY=(heart.y-a[i].y)*.02;a[i].spd=(heart.x-a[i].x)*.02;}label="🎯 АТАКИ НАШЛИ GPS.";break;
+    case "homing": for(i=0;i<a.length;i++){a[i].spdY=(c.getHeartY()-a[i].y)*.02;a[i].spd=(c.getHeartX()-a[i].x)*.02;}label="🎯 АТАКИ НАШЛИ GPS.";break;
     case "wall": for(i=0;i<8;i++){x=Math.random()*380;y=Math.random()*460;particle(x,y,0,0,"#ffffff",8,100);}label="🧱 НЕВИДИМАЯ СТЕНА. НАВЕРНОЕ.";break;
     case "clone": {var copy=a.slice(0,Math.min(8,a.length));for(i=0;i<copy.length;i++){var q=Object.assign({},copy[i]);q.x=Math.random()*380;q.y=Math.random()*460;a.push(q);}label="👯 АТАКИ РАЗМНОЖИЛИСЬ.";break;}
     case "deleteHalf": for(i=a.length-1;i>=0;i-=2)a.splice(i,1);label="🗑️ ПОЛОВИНУ АТАК УДАЛИЛИ.";break;
