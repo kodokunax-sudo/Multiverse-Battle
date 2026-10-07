@@ -62,6 +62,14 @@ function randColor(){return "hsl("+Math.floor(Math.random()*360)+",100%,60%)";}
 
 function triggerTakabaComedy(){
   ensureTakabaState(); var c=ctx(); if(!c||c.type!=="arena"||_superState.takabaRandomEventTimer>0)return;
+  if(typeof arenaPhase!=="undefined" && arenaPhase!=="dodge") {
+    _superState.takabaRandomEventTimer=0; _superState.takabaRandomEvent=null; _superState.takabaEffectTimer=0;
+    _superState.takabaArenaSpeedMult=1; _superState.takabaBgColor=null; _superState.takabaBallMode=false;
+    _superState.takabaLaughText=false; _superState.takabaRainbowTrail=false; _superState.takabaRandomColors=false; _superState.takabaDuckMode=false;
+    _superState.screenShakeAmount=0;
+    if(typeof heart!=="undefined"){heart.size=14;heart.hitbox=4;}
+    return;
+  }
   var ev=EVENT_NAMES[Math.floor(Math.random()*EVENT_NAMES.length)], a=attacks();
   _superState.takabaRandomEvent=ev; _superState.takabaRandomEventTimer=4; _superState.takabaEffectTimer=4;
   var label="🎭 ТАКАБА: "+ev.toUpperCase();
