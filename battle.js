@@ -257,15 +257,15 @@ function updateTakabaConfidenceDisplay() {
         if (!overlay) return;
         el = document.createElement("div");
         el.id = "arenaTakabaConfidenceDisplay";
-        el.style.cssText = "position:absolute;top:8px;right:8px;left:auto;background:rgba(25,8,30,0.94);color:#fff;padding:7px 9px;border-radius:9px;font-size:11px;font-weight:900;z-index:1000;pointer-events:none;font-family:'Nunito',sans-serif;box-shadow:0 0 14px rgba(255,102,255,0.65);border:1px solid rgba(255,153,238,0.65);";
+        el.style.cssText = "position:absolute;top:8px;left:8px;right:auto;background:rgba(25,8,30,0.94);color:#fff;padding:7px 9px;border-radius:9px;font-size:11px;font-weight:900;z-index:1000;pointer-events:none;font-family:'Nunito',sans-serif;box-shadow:0 0 14px rgba(255,102,255,0.65);border:1px solid rgba(255,153,238,0.65);";
         overlay.appendChild(el);
     }
     var tc = Math.max(0, Math.min(100, Number(_superState.takabaConfidence) || 0));
     var tl = typeof getTakabaLevel === 'function' ? getTakabaLevel(tc) : 1;
     var pct = Math.round(tc);
     el.style.top = "8px";
-    el.style.right = "8px";
-    el.style.left = "auto";
+    el.style.left = "8px";
+    el.style.right = "auto";
     el.style.width = "190px";
     el.style.boxSizing = "border-box";
     el.innerHTML = '<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px;"><span>🎭 УВЕРЕННОСТЬ</span><b>' + Math.round(tc) + ' / 100</b></div>' +
@@ -568,7 +568,7 @@ function applyArenaDamage() {
     if (typeof adjustTakabaConfidence === 'function' && typeof _superState !== 'undefined' &&
         (typeof hasTakaba !== 'function' || hasTakaba())) {
         try {
-            var confidenceDelta = ratio >= 1 ? 8 : ratio >= 0.8 ? 5 : ratio >= 0.6 ? 2 : ratio >= 0.4 ? -3 : ratio > 0 ? -7 : -10;
+            var confidenceDelta = ratio >= 1 ? 5 : ratio >= 0.8 ? 2 : ratio >= 0.6 ? 0 : ratio >= 0.4 ? -8 : ratio > 0 ? -15 : -20;
             adjustTakabaConfidence(confidenceDelta, true);
         } catch(e) {}
     }
@@ -762,7 +762,7 @@ function applyHit(dmg, textMsg, isTrueOneshot) {
     if (typeof _superState !== 'undefined' && _superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
     if(typeof getTakabaCombatModifiers==="function"){try{dmg=Math.max(1,Math.floor(dmg*getTakabaCombatModifiers().damageTakenMult));}catch(e){}}
     if(typeof adjustTakabaConfidence==="function"&&typeof hasTakaba==="function"&&hasTakaba()){
-        try{adjustTakabaConfidence(-Math.max(1,Math.ceil(dmg/20)),false);}catch(e){}
+        try{adjustTakabaConfidence(-Math.max(8,Math.ceil(dmg/5)),false);}catch(e){}
     }
     if (invulnTimer > 0) return; if (arenaAttackType !== 10) invulnTimer = 45;
     if (isTrueOneshot || dmg >= arenaMaxHP) { arenaHP = 0; }
@@ -1097,6 +1097,33 @@ function renderArena() {
             ctx.shadowBlur = 0;
         }
         ctx.restore();
+    }
+
+    // ★ БЕЛОУС: ВИДИМОЕ ЦУНАМИ ★
+    if (typeof _superState !== 'undefined' && _superState.whitebeardSkillTsunamiActive) {
+        var wy = _superState.whitebeardSkillTsunamiY;
+        ctx.save();
+        var pulse = 0.82 + Math.sin(now / 90) * 0.18;
+        ctx.globalCompositeOperation = "lighter";
+        ctx.shadowColor = "#00ccff"; ctx.shadowBlur = 24;
+        ctx.strokeStyle = "rgba(0,220,255," + pulse + ")"; ctx.lineWidth = 18;
+        ctx.beginPath();
+        for (var wx = -40; wx <= 440; wx += 8) {
+            var waveY = wy + Math.sin(wx / 28 + now / 110) * 18 + Math.sin(wx / 11 + now / 70) * 5;
+            if (wx === -40) ctx.moveTo(wx, waveY); else ctx.lineTo(wx, waveY);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 8; ctx.strokeStyle = "#fff"; ctx.lineWidth = 5; ctx.beginPath();
+        for (var wx2 = -40; wx2 <= 440; wx2 += 8) {
+            var waveY2 = wy + Math.sin(wx2 / 28 + now / 110) * 18 + Math.sin(wx2 / 11 + now / 70) * 5 - 3;
+            if (wx2 === -40) ctx.moveTo(wx2, waveY2); else ctx.lineTo(wx2, waveY2);
+        }
+        ctx.stroke();
+        ctx.fillStyle = "rgba(80,220,255,0.28)"; ctx.beginPath(); ctx.moveTo(-40,wy);
+        for (var wx3=-40;wx3<=440;wx3+=8) ctx.lineTo(wx3,wy+Math.sin(wx3/28+now/110)*18);
+        ctx.lineTo(440,wy+58);ctx.lineTo(-40,wy+58);ctx.closePath();ctx.fill();
+        for(var wi=0;wi<16;wi++){var px=(wi*31+now*.12)%440-20,py=wy+Math.sin(wi*1.7+now/120)*18;ctx.fillStyle="#fff";ctx.globalAlpha=.65+Math.sin(now/80+wi)*.25;ctx.beginPath();ctx.arc(px,py-8,3+(wi%3),0,Math.PI*2);ctx.fill();}
+        ctx.globalAlpha=1;ctx.restore();
     }
 
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
