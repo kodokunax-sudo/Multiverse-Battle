@@ -1144,7 +1144,7 @@ function clearWhitebeardSkillState() {
 }
 
 function whitebeardSkillStrike() {
-    if (!arenaActive || !isWhitebeardMainActive()) return;
+    if ((!arenaActive && !isUniqueBossActive()) || !isWhitebeardMainActive()) return;
     if (typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
         if (typeof showFloatingText === "function") showFloatingText("⚔️ СНАЧАЛА ЗАКОНЧИ АТАКУ!", "#ffdd00");
         return;
@@ -1155,7 +1155,7 @@ function whitebeardSkillStrike() {
     }
 
     var c = getBossContext();
-    if (!c || c.type !== "arena") return;
+    if (!c) return;
 
     var hx = c.getHeartX(), hy = c.getHeartY();
     _superState.whitebeardSkillCooldown = 30;
@@ -1180,18 +1180,24 @@ function whitebeardSkillStrike() {
         if (a._whitebeardPushTimer === undefined) a._whitebeardPushTimer = 0.18;
     }
 
-    addShockwaveRing(hx, hy, "#00ccff", 850, 0.8, 10);
-    addShockwaveRing(hx, hy, "#ffffff", 520, 0.55, 5);
-    if(typeof arenaParticles!=="undefined")for(var pi=0;pi<70;pi++){var pa=Math.random()*Math.PI*2,pr=30+Math.random()*180;arenaParticles.push({x:hx,y:hy,vx:Math.cos(pa)*pr/18,vy:Math.sin(pa)*pr/18,life:42,maxLife:42,color:pi%2?"#66ddff":"#ffffff",size:2+Math.random()*5});}
-    if(typeof showFloatingText==="function")showFloatingText("💥 ГУРА-ГУРА! АТАКИ ОТБРОШЕНЫ!","#66ddff");
+    if (c.addShockwave) {
+        c.addShockwave(hx, hy, "#00ccff", 850, 0.8, 10);
+        c.addShockwave(hx, hy, "#ffffff", 520, 0.55, 5);
+    } else {
+        addShockwaveRing(hx, hy, "#00ccff", 850, 0.8, 10);
+        addShockwaveRing(hx, hy, "#ffffff", 520, 0.55, 5);
+    }
+    var wbParticles = c.getParticles ? c.getParticles() : [];
+    for(var pi=0;pi<70;pi++){var pa=Math.random()*Math.PI*2,pr=30+Math.random()*180;wbParticles.push({x:hx,y:hy,vx:Math.cos(pa)*pr/18,vy:Math.sin(pa)*pr/18,life:42,maxLife:42,color:pi%2?"#66ddff":"#ffffff",size:2+Math.random()*5});}
+    if(c.spawnFloatingText)c.spawnFloatingText(hx,hy-40,"💥 ГУРА-ГУРА! АТАКИ ОТБРОШЕНЫ!","#66ddff");
     _superState.screenShakeAmount = 22;
     _superState.screenFlashWhite = 5;
-    if (typeof showFloatingText === "function") showFloatingText("👊 ГУРА-ГУРА: УДАР В СТОРОНЫ!", "#66ddff");
-    if (typeof playArenaSound === "function") playArenaSound(95, "square", 0.45, 0.25);
+    if (c.spawnFloatingText) c.spawnFloatingText(hx,hy-20,"👊 ГУРА-ГУРА: УДАР В СТОРОНЫ!","#66ddff");
+    if (c.playSound) c.playSound(95,"square",0.45,0.25);
 }
 
 function whitebeardSkillTsunami() {
-    if (!arenaActive || !isWhitebeardMainActive()) return;
+    if ((!arenaActive && !isUniqueBossActive()) || !isWhitebeardMainActive()) return;
     if (typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
         if (typeof showFloatingText === "function") showFloatingText("⚔️ СНАЧАЛА ЗАКОНЧИ АТАКУ!", "#ffdd00");
         return;
@@ -1206,7 +1212,7 @@ function whitebeardSkillTsunami() {
 }
 
 function useWhitebeardSkill() {
-    if (!arenaActive || !isWhitebeardMainActive()) return;
+    if ((!arenaActive && !isUniqueBossActive()) || !isWhitebeardMainActive()) return;
     if (typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
         if (typeof showFloatingText === "function") showFloatingText("⚔️ СНАЧАЛА ЗАКОНЧИ АТАКУ!", "#ffdd00");
         return;
@@ -1219,7 +1225,8 @@ function useWhitebeardSkill() {
 }
 
 function updateWhitebeardSkill(dt) {
-    if (!arenaActive) return;
+    var uniqueActive = isUniqueBossActive();
+    if (!arenaActive && !uniqueActive) return;
     if (!isWhitebeardMainActive()) {
         _superState.whitebeardSkillWindow = 0;
         _superState.whitebeardSkillMode = "strike";
@@ -1256,7 +1263,7 @@ function updateWhitebeardSkill(dt) {
     if (_superState.whitebeardSkillTsunamiActive) {
         _superState.whitebeardSkillTsunamiY -= 125 * dt;
         var c = getBossContext();
-        if (c && c.type === "arena") {
+        if (c) {
             var atk = c.getAttacks();
             var waveY = _superState.whitebeardSkillTsunamiY;
             for (var i = 0; i < atk.length; i++) {
@@ -1290,7 +1297,8 @@ function updateWhitebeardSkill(dt) {
 function updateWhitebeardSkillButton() {
     var btn = document.getElementById("whitebeardSkillBtn");
     if (!btn) return;
-    if (!arenaActive || !isWhitebeardMainActive()) {
+    var uniqueBoss = isUniqueBossActive();
+    if ((!arenaActive && !uniqueBoss) || !isWhitebeardMainActive() || uniqueBoss === "rwb") {
         btn.style.display = "none";
         btn.disabled = false;
         return;
@@ -1528,6 +1536,15 @@ function updateSuperButton() {
         btn.style.display = "none";
         if (btn2) btn2.style.display = "none";
         if (btnDeact) btnDeact.style.display = "none";
+        return;
+    }
+
+    if (isUnique && bossType === "rwb") {
+        btn.style.display = "none";
+        if (btn2) btn2.style.display = "none";
+        if (btnDeact) btnDeact.style.display = "none";
+        var wbBtn = document.getElementById("whitebeardSkillBtn");
+        if (wbBtn) wbBtn.style.display = "none";
         return;
     }
 
