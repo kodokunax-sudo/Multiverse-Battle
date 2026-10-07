@@ -277,6 +277,16 @@ function loadGameData(d) {
         for (let i = 0; i < myCards.length; i++) {
             if (myCards[i] && typeof myCards[i].mastery === 'undefined') myCards[i].mastery = 1;
             if (myCards[i] && typeof myCards[i].masteryExp === 'undefined') myCards[i].masteryExp = 0;
+
+            // ★ МИГРАЦИЯ ТАКАБЫ: раньше карта была Легендарной, теперь она Секретная.
+            if (myCards[i] && myCards[i].name === "Такаба") {
+                myCards[i].rarity = "Секретная";
+                myCards[i].damage = 230;
+                myCards[i].hp = 360;
+                myCards[i].speed = 2.7;
+                myCards[i].sellPrice = 1800;
+                myCards[i].minRebirth = 3;
+            }
         }
     }
     if (d.teamPresets && Array.isArray(d.teamPresets) && d.teamPresets.length === 5) {
