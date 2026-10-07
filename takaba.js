@@ -58,7 +58,8 @@ function getMainTeamCard(){
 function hasTakaba(){
   try{
     var card=getMainTeamCard();
-    return !!(card&&card.name==="Такаба"&&(!hasMasteryAbility||hasMasteryAbility(card)));
+    var masteryOk=(typeof hasMasteryAbility!=="function")||hasMasteryAbility(card);
+    return !!(card&&card.name==="Такаба"&&masteryOk);
   }catch(e){}
   return false;
 }
@@ -70,7 +71,7 @@ function manyParticles(n,fn){for(var i=0;i<n;i++)fn(i);}
 function randColor(){return "hsl("+Math.floor(Math.random()*360)+",100%,60%)";}
 
 function triggerTakabaComedy(){
-  ensureTakabaState(); var c=ctx(); if(!c||c.type!=="arena"||_superState.takabaRandomEventTimer>0)return;
+  ensureTakabaState(); var c=ctx(); if(!hasTakaba()||!c||c.type!=="arena"||_superState.takabaRandomEventTimer>0)return;
   if(typeof arenaPhase!=="undefined" && arenaPhase!=="dodge") {
     _superState.takabaRandomEventTimer=0; _superState.takabaRandomEvent=null; _superState.takabaEffectTimer=0;
     _superState.takabaArenaSpeedMult=1; _superState.takabaBgColor=null; _superState.takabaBallMode=false;
@@ -147,7 +148,17 @@ function triggerTakabaComedy(){
 
 function updateTakabaAbility(dt){
   ensureTakabaState();
-  if(!hasTakaba()){_superState.takabaDmgMult=1;_superState.takabaDamageTakenMult=1;return;}
+  if(!hasTakaba()){
+    _superState.takabaDmgMult=1; _superState.takabaDamageTakenMult=1;
+    _superState.takabaEventTimer=0; _superState.takabaEffectTimer=0;
+    _superState.takabaRandomEvent=null; _superState.takabaRandomEventTimer=0;
+    _superState.takabaTimeStop=false; _superState.takabaJokeActive=false; _superState.takabaCurrentJoke="";
+    _superState.takabaBgColor=null; _superState.takabaDuckMode=false; _superState.takabaArenaSpeedMult=1;
+    _superState.takabaBallMode=false; _superState.takabaLaughText=false;
+    _superState.takabaRainbowTrail=false; _superState.takabaRandomColors=false;
+    if(typeof heart!=="undefined"){ heart.size=14; heart.hitbox=4; }
+    return;
+  }
   var m=modifiers(_superState.takabaConfidence);_superState.takabaDmgMult=m.dmgMult;_superState.takabaDamageTakenMult=m.damageTakenMult;
   var c=ctx();if(!c||c.type!=="arena")return;
   if(_superState.takabaEffectTimer>0){ _superState.takabaEffectTimer=Math.max(0,_superState.takabaEffectTimer-dt); }
