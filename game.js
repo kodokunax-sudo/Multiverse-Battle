@@ -12,7 +12,6 @@ let arenaSettings = {
     joystickOpacity: 60
 };
 
-// ★★★ НАСТРОЙКА БОНУСА НОВИЧКА ★★★
 const NEWCOMER_BONUS_MINUTES = 20;
 
 // ========== СЛОТЫ СОХРАНЕНИЙ ==========
@@ -805,6 +804,7 @@ function getPassiveModifiers() {
             if (a.type === 'spareChanceBonus') { sb += a.value * ab; } 
             if (a.type === 'zenoCheckpoint') { window.hasZenoInTeam = true; } 
             if (a.type === 'whitebeardSpecial') { /* обрабатывается в defeat() */ } 
+            if (a.type === 'takabaConfidence') { /* обрабатывается в supers.js */ } 
         } 
         if (cd.statusAbility?.type === 'absoluteFreeze' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) tm -= cd.statusAbility.value * ab * mult; 
         if (cd.statusAbility?.type === 'bossDamageAura' && currentEnemy?.isBoss && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) bb += cd.statusAbility.value * ab * mult; 
@@ -816,6 +816,7 @@ function getPassiveModifiers() {
     return { dmgMult: dm, takenMult: Math.max(0.01, tm), bossBonus: bb, hpMult: hm }; 
 }
 
+// ★★★ ОБНОВЛЕНО: учёт множителя Такабы ★★★
 function updatePlayerStats() { 
     let m = getPassiveModifiers(); 
     let fm = 1 - fatigue / 100; 
@@ -827,6 +828,15 @@ function updatePlayerStats() {
     else if (activeBuffs["dmg15"] && activeBuffs["dmg15"] > Date.now()) db = 1.5; 
     else if (activeBuffs["quadDamage"] && activeBuffs["quadDamage"] > Date.now()) db = 4.0; 
     let fd = Math.floor(total * m.dmgMult * db); 
+    
+    // ★ ТАКАБА: множитель урона ★
+    if (typeof _superState !== 'undefined' && _superState.takabaDmgMult && _superState.takabaDmgMult !== 1) {
+        fd = Math.floor(fd * _superState.takabaDmgMult);
+    }
+    if (typeof _superState !== 'undefined' && _superState.takabaDmgBonus && _superState.takabaDmgBonus > 1) {
+        fd = Math.floor(fd * _superState.takabaDmgBonus);
+    }
+    
     let el = document.getElementById("playerDamage"); if (el) el.innerText = fd; 
     window.playerFinalDamage = fd; 
     let baseHp = 50 + upgrades.hp.level * upgrades.hp.increment; 
@@ -963,7 +973,7 @@ function getCardResultHTML(card) { let rarityColor = getRarityColor(card.rarity)
 function startGachaAnimation(card, type) { let availableRarities = []; switch(type) { case "common": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "rare": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "superRare": availableRarities = ["Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная"]; break; case "epic": availableRarities = ["Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "mythic": availableRarities = ["Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "legendary": availableRarities = ["Мифическая", "Легендарная", "Секретная"]; break; case "secret": availableRarities = ["Легендарная", "Секретная"]; break; default: availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик"]; } let fakeCards = []; for (let i = 0; i < 8; i++) { let randomRarity = availableRarities[Math.floor(Math.random() * availableRarities.length)]; let fc = createCard(randomRarity); if (fc) fakeCards.push(fc); } fakeCards.push(card); gachaAnimationActive = true; let modalContent = document.getElementById("modalContent"); let modalOverlay = document.getElementById("modalOverlay"); if (!modalContent || !modalOverlay) { gachaAnimationActive = false; return; } modalOverlay.style.display = "flex"; let index = 0; let totalFlashes = 24; let flashCount = 0; let speed = 80; function flashNextCard() { if (flashCount >= totalFlashes) { modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>'; if (typeof sfxCardObtain === 'function') sfxCardObtain(); gachaAnimationActive = false; return; } let currentCard = fakeCards[index % fakeCards.length]; let rarityColor = getRarityColor(currentCard.rarity); modalContent.innerHTML = '<h2>🎰 Крутка...</h2>' + '<div style="text-align:center;padding:10px;">' + '<div style="font-size:48px;margin-bottom:10px;">🎴</div>' + '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + currentCard.name + '</div>' + '<div class="rarity-tag ' + rarityColors[currentCard.rarity] + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' + '<div style="margin-top:12px;font-size:16px;">💪 ' + currentCard.damage + ' ❤️ ' + currentCard.hp + '</div>' + '</div>' + '<button class="btn" style="width:100%;padding:8px;margin-top:10px;background:#e74c3c;border:none;color:white;font-weight:bold;" onclick="closeModal();gachaAnimationActive=false;">⏭️ ПРОПУСТИТЬ</button>'; index++; flashCount++; if (flashCount > totalFlashes * 0.7) speed += 40; else if (flashCount > totalFlashes * 0.5) speed += 20; else if (flashCount > totalFlashes * 0.3) speed += 10; setTimeout(flashNextCard, speed); } flashNextCard(); }
 
 // ============================================================
-// ГЕНЕРАЦИЯ ВРАГА — с ОБНОВЛЁННЫМ блоком wave 1000
+// ГЕНЕРАЦИЯ ВРАГА
 // ============================================================
 function generateEnemy() { 
     firstAttackThisFight = true; 
@@ -1044,13 +1054,11 @@ function generateEnemy() {
         }
     }
     else if (wave === 1000) {
-        // ★★★ КАК У КАМНЯ / ЗВЕЗДЫ: только одна кнопка ★★★
         let alreadyDefeatedRogerWB = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(1000);
         if (btn) btn.style.display = "none";
         if (livingBtn) livingBtn.style.display = "none";
         if (waystarBtn) waystarBtn.style.display = "none";
         
-        // Создаём кнопку сражения (если ещё нет)
         if (!rwbBtn) {
             rwbBtn = document.createElement('button');
             rwbBtn.id = "startRogerWB";
@@ -1066,7 +1074,6 @@ function generateEnemy() {
             if (container) container.insertBefore(rwbBtn, container.firstChild);
         }
         
-        // Создаём кнопку пропуска (если ещё нет)
         let skipRwbBtn = document.getElementById("skipRWBBtn");
         if (!skipRwbBtn) {
             skipRwbBtn = document.createElement('button');
@@ -1084,14 +1091,12 @@ function generateEnemy() {
         }
         
         if (alreadyDefeatedRogerWB) {
-            // Босс побеждён → показываем ТОЛЬКО "Пропустить"
             rwbBtn.style.display = "none";
             skipRwbBtn.style.display = "block";
             currentEnemy.hp = Math.floor(currentEnemy.hp * 0.3);
             currentEnemy.maxHp = currentEnemy.hp;
             currentEnemy.name = "👑 РОДЖЕР и БЕЛОУС (ослабленные)";
         } else {
-            // Босс НЕ побеждён → показываем ТОЛЬКО "Сразиться"
             rwbBtn.style.display = "block";
             skipRwbBtn.style.display = "none";
         }
@@ -1245,7 +1250,7 @@ function checkEvolutionQuests() {
 }
 
 // ============================================================
-// КЛИК — с добавленной абилкой Белоуса (2% x5 комбо)
+// КЛИК — с обновлением уверенности Такабы
 // ============================================================
 function handleClick() { 
     initAudio(); 
@@ -1286,7 +1291,7 @@ function handleClick() {
     team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'oneShot' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { oneShotChance += cd.ability.chance * (1 + abilityUpgradeLevel * 0.1); } }); 
     team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'critChance' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) cc += cd.ability.value * (1 + abilityUpgradeLevel * 0.1); if (cd?.ability?.type === 'damageMultChance' && Math.random() < cd.ability.chance && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmg = Math.floor(dmg * cd.ability.mult); }); 
     
-    // ★★★ БЕЛОУС: 2% шанс мгновенно x5 комбо ★★★
+    // ★ БЕЛОУС: 2% шанс x5 комбо ★
     team.forEach(idx => {
         let cd = myCards[idx];
         if (cd?.name === "Белоус" && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) {
@@ -1322,6 +1327,23 @@ function handleClick() {
     } 
     if (Math.random() < enemyStatuses.shockChance && clicksSinceLastCounter === maxClicks - 1) { clicksSinceLastCounter = 0; } 
     increaseFatigue(fatigueMultiplier); 
+    
+    // ★ ТАКАБА: уверенность растёт от кликов ★
+    if (typeof _superState !== 'undefined' && typeof team !== 'undefined' && Array.isArray(team)) {
+        var hasTakabaHit = false;
+        for (var ti = 0; ti < team.length; ti++) {
+            var tcd = myCards[team[ti]];
+            if (tcd && tcd.name === "Такаба") {
+                if (typeof hasMasteryAbility === 'function' && !hasMasteryAbility(tcd)) continue;
+                hasTakabaHit = true; break;
+            }
+        }
+        if (hasTakabaHit) {
+            _superState.takabaConfidence = Math.min(100, (_superState.takabaConfidence || 50) + 0.15);
+            if (typeof window.updateTakabaLevel === 'function') window.updateTakabaLevel();
+        }
+    }
+    
     renderEnemy(); 
     let el = document.getElementById("playerHp"); if (el) el.innerText = Math.floor(playerHp); 
     el = document.getElementById("clicksToCounter"); if (el) el.innerText = maxClicks - clicksSinceLastCounter; 
@@ -1330,7 +1352,7 @@ function handleClick() {
 }
 
 // ============================================================
-// ПОБЕДА — с абилкой Белоуса (+1% HP за волну)
+// ПОБЕДА
 // ============================================================
 function victory() { 
     let isBoss = wave % 10 === 0; 
@@ -1366,7 +1388,7 @@ function victory() {
     if (team.some(idx => myCards[idx]?.ability?.type === 'teamHealOnWave' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(myCards[idx]) : true))) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.02); } 
     if (team.some(idx => myCards[idx]?.ability?.type === 'sevenSpecial' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(myCards[idx]) : true))) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.05); } 
     
-    // ★★★ БЕЛОУС: +1% HP за волну ★★★
+    // ★ БЕЛОУС: +1% HP за волну ★
     if (team.some(idx => myCards[idx]?.name === "Белоус")) {
         playerHp = Math.min(window.playerMaxHp, playerHp + (window.playerMaxHp || 100) * 0.01);
     }
@@ -1388,14 +1410,14 @@ function victory() {
 }
 
 // ============================================================
-// ПОРАЖЕНИЕ — с абилкой Белоуса (3% воскрешение)
+// ПОРАЖЕНИЕ
 // ============================================================
 function defeat() { 
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; } 
     if (fireInterval) { clearInterval(fireInterval); fireInterval = null; }
     if (wave > highestWaveReached) highestWaveReached = wave;
     
-    // ★★★ БЕЛОУС: 3% шанс воскрешения ★★★
+    // ★ БЕЛОУС: 3% шанс воскрешения ★
     if (!resurrectedThisFight) {
         for (let idx of team) {
             let cd = myCards[idx];
@@ -1675,7 +1697,6 @@ function doRebirth() {
         slotData.waystarOwesDebt = false;
     }
     if (typeof window !== 'undefined') window.waystarOwesDebt = false;
-    console.log("[REBIRTH] Флаг Звезды сброшен — эволюция закрыта, бой доступен");
     
     gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 }; 
     gachaDailyMax = { common:50, rare:35, superRare:20, epic:10, mythic:5, legendary:10, secret:2 }; 
@@ -1703,7 +1724,7 @@ function doRebirth() {
     if (_level7CardSave) {
         myCards.push(_level7CardSave);
         if (typeof window !== 'undefined') window._level7CardId = _level7CardSave.id;
-        console.log("[REBIRTH] Level 7 карта восстановлена, _level7Carry теперь 0");
+        console.log("[REBIRTH] Level 7 карта восстановлена");
     } else {
         if (typeof window !== 'undefined') window._level7CardId = null;
     }
