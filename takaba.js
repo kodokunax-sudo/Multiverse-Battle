@@ -41,6 +41,7 @@ function level(c){c=Math.max(0,Math.min(100,Number(c)||0));return c<20?1:c<40?2:
 function confidence(d,txt){
   ensureTakabaState(); var old=_superState.takabaConfidence;
   _superState.takabaConfidence=Math.max(0,Math.min(100,old+(Number(d)||0)));
+  if(typeof updateTakabaConfidenceDisplay==="function") updateTakabaConfidenceDisplay();
   if(txt&&level(old)!==level(_superState.takabaConfidence)&&typeof showFloatingText==="function")
     showFloatingText("🎭 ТАКАБА: "+Math.round(_superState.takabaConfidence)+"% — УР. "+level(_superState.takabaConfidence),"#ff66ff");
   return _superState.takabaConfidence;
