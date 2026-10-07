@@ -5,6 +5,7 @@
 //   + Атака "Змейка" заменена на "ОСЛЕПЛЕНИЕ" (1.5 сек темноты)
 //   + ЯРОСТЬ при 40% HP — ГАРАНТИРОВАННО (не рандом)
 //   + ФИКС СУПЕРОВ: Гароу-стоп, Анти-спираль, заморозка
+//   + ПОДДЕРЖКА ПАССИВКИ БЕЛОУСА (10% поглощение)
 // ============================================================
 
 if (window._waystarBossLoaded === true) {
@@ -122,11 +123,9 @@ var waystarBlindUsed = false;
 
 var waystarSupersInitialized = false;
 
-// ★ НОВОЕ: множитель скорости игрока (для Анти-спирали) ★
 var waystarPlayerSpeedMult = 1.0;
 const WAYSTAR_BASE_PLAYER_SPEED = 4;
 
-// ★★★ ФИКС: Заморозка атак суперами ★★★
 function wsIsTimeStopped() {
     if (typeof _superState === 'undefined') return false;
     return _superState.garouTimeStop === true || _superState.antispiralFrozen === true;
@@ -213,7 +212,6 @@ function initWaystarSupers() {
         window._uniqueSuperCharges = 3;
         window._uniqueSuperBossId = 'waystar';
     }
-    // ★ ФИКС: сброс множителя скорости игрока ★
     waystarPlayerSpeedMult = 1.0;
     waystarSupersInitialized = true;
     console.log("[WAYSTAR] ✅ Суперы инициализированы (3 заряда), waystarPlayerSpeedMult = 1.0");
@@ -259,7 +257,6 @@ function startWaystarFight() {
     waystarBlindFlash = 0;
     waystarBlindUsed = false;
 
-    // ★ ФИКС: сброс скорости игрока ★
     waystarPlayerSpeedMult = 1.0;
     waystarSpeedMult = 1.3;
 
@@ -332,7 +329,6 @@ function stopWaystarFight() {
     if (typeof window !== 'undefined') {
         window._uniqueSuperBossId = null;
     }
-    // ★ ФИКС: сброс скорости игрока ★
     waystarPlayerSpeedMult = 1.0;
     waystarSpeedMult = 1.3;
 
@@ -407,7 +403,6 @@ function waystarProgressDialog() {
     }
 }
 
-// ★ ФИКС: не стреляем при гароу-стопе ★
 function updateWaystarShooting() {
     if (wsIsPlayerFrozen()) return;
 
@@ -422,7 +417,6 @@ function updateWaystarShooting() {
             for (var i = 0; i < result.bullets.length; i++) {
                 var b = result.bullets[i];
                 var dmgBase = isWaystarModerActive() ? WAYSTAR_MODER_DAMAGE : Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4));
-                // ★ ФИКС: применяем супер-множители через общую функцию ★
                 dmgBase = wsApplySuperDmgMult(dmgBase);
                 b.damage = Math.max(1, Math.floor(dmgBase * (b.damage / 2)));
                 waystarPlayerBullets.push(b);
@@ -714,7 +708,6 @@ function waystarStartPhase2() {
     if (typeof showFloatingText === 'function') showFloatingText("⭐ 60 ОСКОЛКОВ! ⭐", "#ffd700");
 }
 
-// ★ ФИКС: не движемся при гароу-стопе ★
 function updateWaystarSpaceInvaders() {
     if (wsIsTimeStopped()) return;
 
@@ -885,7 +878,6 @@ function waystarSpawnPhase3Attack() {
 
 function updateWaystarBombQueue() {
     if (waystarBombQueue.length === 0) return;
-    // ★ ФИКС: гароу-стоп ★
     if (wsIsTimeStopped()) return;
     waystarBombSpawnTimer++;
     for (var i = waystarBombQueue.length - 1; i >= 0; i--) {
@@ -985,9 +977,7 @@ function advanceWaystarSpareDialog() {
     }
 }
 
-// ★ ФИКС: используем waystarPlayerSpeedMult (только игрок), garouTimeStop блокирует ★
 function updateWaystarPlayer() {
-    // ★ ФИКС: гароу-стоп и оглушение ★
     if (wsIsPlayerFrozen()) return;
 
     if (waystarState === "phase2") {
@@ -996,7 +986,6 @@ function updateWaystarPlayer() {
         waystarPlayer.x += mx * 5; waystarPlayer.x = Math.max(20, Math.min(380, waystarPlayer.x));
     } else if (waystarState === "phase1" || waystarState === "phase3") {
         var mx = 0, my = 0;
-        // ★ ФИКС: скорость через waystarPlayerSpeedMult (Анти-спираль меняет его) ★
         var speed = WAYSTAR_BASE_PLAYER_SPEED * waystarPlayerSpeedMult;
         var invert = (typeof _superState !== 'undefined' && _superState.invertControls);
         if (waystarTouchActive) { var tx = waystarTouchX - waystarPlayer.x, ty = waystarTouchY - waystarPlayer.y; var dist = Math.sqrt(tx * tx + ty * ty); if (dist > 5) { mx = tx / dist; my = ty / dist; } }
@@ -1016,7 +1005,6 @@ function updateWaystarPlayer() {
 
 function updateWaystarBoss() {
     if (waystarDialogActive) return;
-    // ★ ФИКС: гароу-стоп ★
     if (wsIsTimeStopped()) return;
 
     if (waystarState === "phase1") { waystarBoss.x += waystarBoss.vx * waystarSpeedMult / WAYSTAR_SLOWDOWN; if (waystarBoss.x < 60 || waystarBoss.x > 340) waystarBoss.vx *= -1; waystarBoss.rotation += 0.01 * waystarSpeedMult; waystarBoss.pulse += 0.06; waystarBoss.time += 0.015; }
@@ -1025,14 +1013,12 @@ function updateWaystarBoss() {
     else if (waystarBoss2.active === "leaving") { waystarBoss2.y -= 4; waystarBoss2.alpha -= 0.02; if (waystarBoss2.alpha <= 0) waystarBoss2.active = false; }
 }
 
-// ★ ФИКС: гароу-стоп замораживает все атаки ★
 function updateWaystarAttacks() {
     var stopAll = wsIsTimeStopped();
 
     for (var i = waystarAttacks.length - 1; i >= 0; i--) {
         var a = waystarAttacks[i];
 
-        // ★★★ Пропускаем всю логику движения ★★★
         if (stopAll) continue;
 
         if (a.type === "meteor" || a.type === "spiral" || a.type === "star_rain" || a.type === "shotgun_bullet") {
@@ -1052,7 +1038,6 @@ function updateWaystarAttacks() {
             else { waystarAttacks.splice(i, 1); continue; }
         }
     }
-    // Бомбы
     for (var i = waystarBombs.length - 1; i >= 0; i--) {
         var bomb = waystarBombs[i];
         if (!bomb.exploded) {
@@ -1078,7 +1063,6 @@ function updateWaystarAttacks() {
             }
         } else { bomb.explosionTimer--; if (bomb.explosionTimer <= 0) waystarBombs.splice(i, 1); }
     }
-    // Рывок
     if (waystarDash) {
         waystarDash.progress++;
         var t = waystarDash.progress / waystarDash.duration;
@@ -1096,6 +1080,10 @@ function updateWaystarAttacks() {
 }
 
 function applyWaystarHit(dmg, textMsg) {
+    // ★ БЕЛОУС: 10% поглощение урона ★
+    if (typeof applyWhitebeardPassiveReduction === 'function') {
+        dmg = applyWhitebeardPassiveReduction(dmg);
+    }
     if (typeof window.applyArmorToBossDamage === 'function') {
         let result = window.applyArmorToBossDamage(dmg);
         if (result.blocked) return;
@@ -1767,10 +1755,9 @@ window.waystarSound = wsPlaySound;
 window.isWaystarModerActive = isWaystarModerActive;
 window.initWaystarSupers = initWaystarSupers;
 
-// ★ ДЛЯ JOYSTICK.JS ★
 window.getLivingStoneActive = function() { return (typeof livingStoneActive !== 'undefined' ? livingStoneActive : false); };
 window.getLivingStoneState  = function() { return (typeof livingStoneState !== 'undefined' ? livingStoneState : "phase1"); };
 
-console.log("[WAYSTAR] v14.0 — ФИКС СУПЕРОВ + экспорт для joystick.js");
+console.log("[WAYSTAR] v14.0 — ФИКС СУПЕРОВ + Белоус поглощение + экспорт для joystick.js");
 
 } // ★ КОНЕЦ ЗАЩИТЫ ★
