@@ -48,7 +48,7 @@ function confidence(d,txt){
 }
 function modifiers(c){
   var conf=Math.max(0,Math.min(100,Number(c)||0)),l=level(conf);
-  return{level:l,dmgMult:1+conf*0.006,damageTakenMult:1-conf*0.005,speedMult:1+conf*0.006};
+  return{level:l,dmgMult:1+conf*0.006,damageTakenMult:1-conf*0.006,speedMult:1+conf*0.006};
 }
 function getTakabaCombatModifiers(){
   ensureTakabaState();
