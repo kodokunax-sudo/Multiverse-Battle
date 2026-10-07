@@ -77,13 +77,15 @@
             opacity: 0;
             transition: opacity 0.2s;
             pointer-events: none;
-            z-index: 10;
+            z-index: 2147483647;
             letter-spacing: 0.5px;
         }
         .combo-badge.show { opacity: 1; }
 
         /* ===== Цифры урона: жирнее и чище ===== */
         .floating-text {
+            position: relative !important;
+            z-index: 2147483647 !important;
             font-weight: 900;
             text-shadow: 0 2px 6px rgba(0,0,0,0.9);
         }
