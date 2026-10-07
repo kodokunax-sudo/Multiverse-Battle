@@ -2181,6 +2181,54 @@ function renderSuperVisuals() {
     var hy = ctxB.getHeartY();
     var hSize = ctxB.getHeartSize();
 
+    // ★ ТАКАБА: дополнительные визуалы для уникальных боссов.
+    if (ctxB.type !== "arena" && _superState.takabaRandomEventTimer > 0) {
+        ctx.save();
+        if (_superState.takabaBgColor) {
+            ctx.globalAlpha = 0.22;
+            ctx.fillStyle = _superState.takabaBgColor;
+            ctx.fillRect(0, 0, 400, 500);
+        }
+        var ta = ctxB.getAttacks ? ctxB.getAttacks() : [];
+        if (_superState.takabaBallMode) {
+            ctx.font = "16px sans-serif";
+            ctx.textAlign = "center";
+            for (var ti = 0; ti < Math.min(18, ta.length); ti++) {
+                var tv = ta[ti];
+                ctx.fillText("🎈", (tv.x || 0) + ((tv.size || tv.radius || 16) / 2), (tv.y || 0) + 6);
+            }
+        }
+        if (_superState.takabaLaughText) {
+            ctx.font = "bold 14px monospace";
+            ctx.fillStyle = "#ff66ff";
+            for (var li = 0; li < 5; li++) {
+                ctx.globalAlpha = 0.25 + 0.15 * Math.sin(performance.now() / 120 + li);
+                ctx.fillText("ХА-ХА-ХА", 55 + li * 75, 55 + Math.sin(performance.now() / 180 + li) * 18);
+            }
+        }
+        if (_superState.takabaJokeActive && _superState.takabaCurrentJoke) {
+            ctx.globalAlpha = 0.95;
+            ctx.fillStyle = "rgba(255,102,255,0.94)";
+            ctx.fillRect(35, 205, 330, 90);
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(35, 205, 330, 90);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 12px sans-serif";
+            ctx.textAlign = "center";
+            var words = String(_superState.takabaCurrentJoke).split(" ");
+            var line = "", lines = [];
+            for (var wi = 0; wi < words.length; wi++) {
+                var test = line ? line + " " + words[wi] : words[wi];
+                if (test.length > 42) { lines.push(line); line = words[wi]; } else line = test;
+            }
+            if (line) lines.push(line);
+            ctx.fillText("🎭 ТАКАБА", 200, 228);
+            for (var wli = 0; wli < Math.min(4, lines.length); wli++) ctx.fillText(lines[wli], 200, 250 + wli * 16);
+        }
+        ctx.restore();
+    }
+
     if (_superState.realityCracks.length > 0) {
         ctx.save();
         ctx.strokeStyle = "rgba(0, 255, 255, 0.9)";
