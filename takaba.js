@@ -75,14 +75,14 @@ function hasTakaba(){
   return false;
 }
 function ctx(){try{return typeof getBossContext==="function"?getBossContext():null;}catch(e){return null;}}
-function attacks(){var c=ctx();return c&&c.type==="arena"?c.getAttacks():[];}
+function attacks(){var c=ctx();return c&&typeof c.getAttacks==="function"?c.getAttacks():[];}
 function float(t,col){var c=ctx();if(c&&typeof c.spawnFloatingText==="function")c.spawnFloatingText(c.getHeartX(),c.getHeartY()-45,t,col||"#ff66ff");}
-function particle(x,y,vx,vy,color,size,life){if(typeof arenaParticles==="undefined")return;arenaParticles.push({x:x,y:y,vx:vx,vy:vy,life:life||60,maxLife:life||60,color:color,size:size||3});}
+function particle(x,y,vx,vy,color,size,life){var c=ctx();if(!c||typeof c.getParticles!=="function")return;c.getParticles().push({x:x,y:y,vx:vx,vy:vy,life:life||60,maxLife:life||60,color:color,size:size||3});}
 function manyParticles(n,fn){for(var i=0;i<n;i++)fn(i);}
 function randColor(){return "hsl("+Math.floor(Math.random()*360)+",100%,60%)";}
 
 function triggerTakabaComedy(){
-  ensureTakabaState(); var c=ctx(); if(!hasTakaba()||!c||c.type!=="arena"||_superState.takabaRandomEventTimer>0)return;
+  ensureTakabaState(); var c=ctx(); if(!hasTakaba()||!c||_superState.takabaRandomEventTimer>0)return;
   if(typeof arenaPhase!=="undefined" && arenaPhase!=="dodge") {
     _superState.takabaRandomEventTimer=0; _superState.takabaRandomEvent=null; _superState.takabaEffectTimer=0;
     _superState.takabaArenaSpeedMult=1; _superState.takabaBgColor=null; _superState.takabaBallMode=false;
@@ -100,18 +100,18 @@ function triggerTakabaComedy(){
     case "background": _superState.takabaBgColor=randColor(); label="🎨 АРЕНА ПЕРЕКРАСИЛАСЬ."; break;
     case "speed2": _superState.takabaArenaSpeedMult=2; label="⚡ ВСЁ x2. ЗАЧЕМ."; break;
     case "speedHalf": _superState.takabaArenaSpeedMult=.5; label="🐌 ВСЁ x0.5. МЫ ЧЕРЕПАХИ."; break;
-    case "teleport": heart.x=20+Math.random()*360;heart.y=20+Math.random()*460;if(typeof clampHeart==="function")clampHeart();label="🌪️ ГДЕ ТЫ?";break;
+    case "teleport": c.setHeartX(20+Math.random()*360);c.setHeartY(20+Math.random()*460);if(c.clampHeart)c.clampHeart();label="🌪️ ГДЕ ТЫ?";break;
     case "balloons": _superState.takabaBallMode=true;label="🎈 АТАКИ СТАЛИ ШАРИКАМИ.";break;
     case "laughtexts": _superState.takabaLaughText=true;label="💬 ХА-ХА-ХА НАВСЕГДА.";break;
     case "ducks": _superState.takabaDuckMode=true;label="🦆 КРЯ.";break;
     case "sound": {var fs=["sfxWhoosh","sfxBounce","sfxVictory","sfxArenaHeal","sfxArenaDeath"];var fn=fs[Math.floor(Math.random()*fs.length)];if(typeof window[fn]==="function")window[fn]();label="🔊 ЗВУК, КОТОРЫЙ НИКТО НЕ ПРОСИЛ.";break;}
     case "rainbowtrail": _superState.takabaRainbowTrail=true;label="🌈 СЕРДЦЕ СТАЛО РАДУГОЙ.";break;
-    case "knockback": heart.vx+=(Math.random()-.5)*120;heart.vy+=(Math.random()-.5)*120;label="💫 ФИЗИКА ПЕРЕДУМАЛА.";break;
+    case "knockback": c.setHeartX(c.getHeartX()+(Math.random()-.5)*45);c.setHeartY(c.getHeartY()+(Math.random()-.5)*45);if(c.clampHeart)c.clampHeart();label="💫 ФИЗИКА ПЕРЕДУМАЛА.";break;
     case "pizza": confidence(5,true);label="🍕 ПИЦЦА +5 УВЕРЕННОСТИ.";break;
     case "colors": _superState.takabaRandomColors=true;label="🎨 АТАКИ ЗАБЫЛИ СВОЙ ЦВЕТ.";break;
     case "confetti": manyParticles(70,function(){particle(Math.random()*400,-10,(Math.random()-.5)*5,2+Math.random()*5,randColor(),2+Math.random()*4,80);});label="🎉 КОНФЕТТИ!";break;
     case "gravity": for(i=0;i<a.length;i++)a[i].spdY=-(a[i].spdY||0);label="⬆️ ГРАВИТАЦИЯ В ОТПУСКЕ.";break;
-    case "heal": {var h=Math.floor(arenaMaxHP*.08);arenaHP=Math.min(arenaMaxHP,arenaHP+h);confidence(3,false);label="💚 ХИЛ +8% И НИКАКИХ ОБЪЯСНЕНИЙ.";break;}
+    case "heal": {var maxHp=c.getPlayerMaxHp();var h=Math.floor(maxHp*.08);c.setPlayerHp(Math.min(maxHp,c.getPlayerHp()+h));confidence(3,false);label="💚 ХИЛ +8% И НИКАКИХ ОБЪЯСНЕНИЙ.";break;}
     case "shrink": for(i=0;i<a.length;i++){if(a[i].size)a[i].size*=.5;if(a[i].radius)a[i].radius*=.5;}label="🔬 АТАКИ ПОХУДЕЛИ.";break;
     case "speedchaos": for(i=0;i<a.length;i++){if(a[i].spd)a[i].spd*=.25+Math.random()*2.5;if(a[i].spdY)a[i].spdY*=.25+Math.random()*2.5;}label="🎲 СКОРОСТЬ: КАК ПОЛУЧИТСЯ.";break;
     case "party": for(i=0;i<a.length;i++)a[i].spd=(a[i].spd||0)*1.2;label="🕺 АТАКИ ТАНЦУЮТ.";break;
@@ -140,12 +140,12 @@ function triggerTakabaComedy(){
     case "explode": for(i=0;i<a.length;i++){x=a[i].x;y=a[i].y;manyParticles(5,function(){particle(x,y,(Math.random()-.5)*5,(Math.random()-.5)*5,"#ff8800",3,35);});}label="💥 ВСЁ ВЗОРВАЛОСЬ, НО НЕ УМЕРЛО.";break;
     case "pacifist": for(i=0;i<a.length;i++)a[i].damage=0;label="☮️ АТАКИ СТАЛИ ПАЦИФИСТАМИ.";break;
     case "chaosDamage": for(i=0;i<a.length;i++)a[i].damage=Math.floor(Math.random()*80);label="🎰 УРОН: РУЛЕТКА.";break;
-    case "bossHeal": if(typeof arenaBossHP!=="undefined"&&typeof arenaBossMaxHP!=="undefined")arenaBossHP=Math.min(arenaBossMaxHP,arenaBossHP+Math.floor(arenaBossMaxHP*.05));label="💀 БОСС ТОЖЕ ХОЧЕТ ЖИТЬ.";break;
-    case "hpLottery": if(typeof arenaHP!=="undefined"&&typeof arenaMaxHP!=="undefined")arenaHP=Math.max(1,Math.random()*arenaMaxHP);label="🎰 HP ЛОТЕРЕЯ.";break;
+    case "bossHeal": {var bHp=c.getBossHp(),bMax=Math.max(bHp,c.getBossMaxHp());c.setBossHp(Math.min(bMax,bHp+Math.floor(bMax*.05)));label="💀 БОСС ТОЖЕ ХОЧЕТ ЖИТЬ.";break;}
+    case "hpLottery": {var maxP=c.getPlayerMaxHp();c.setPlayerHp(Math.max(1,Math.random()*maxP));label="🎰 HP ЛОТЕРЕЯ.";break;}
     case "confidenceLottery": confidence(Math.random()*40-20,true);label="🎲 УВЕРЕННОСТЬ: РУЛЕТКА.";break;
     case "disco": _superState.takabaBgColor=randColor();_superState.takabaRandomColors=true;label="🪩 ДИСКОТЕКА.";break;
     case "attackRain": manyParticles(50,function(){particle(Math.random()*400,-20,(Math.random()-.5)*2,4+Math.random()*5,randColor(),2,70);});label="☄️ ДОЖДЬ ЧЕГО-ТО.";break;
-    case "heartParty": heart.vx+=(Math.random()-.5)*30;heart.vy+=(Math.random()-.5)*30;confidence(2,false);label="❤️ СЕРДЦЕ ПРАЗДНУЕТ.";break;
+    case "heartParty": c.setHeartX(c.getHeartX()+(Math.random()-.5)*18);c.setHeartY(c.getHeartY()+(Math.random()-.5)*18);if(c.clampHeart)c.clampHeart();confidence(2,false);label="❤️ СЕРДЦЕ ПРАЗДНУЕТ.";break;
     case "absoluteTrash": {
       confidence(7,true);_superState.takabaArenaSpeedMult=[.35,.5,1.5,2.5][Math.floor(Math.random()*4)];
       _superState.takabaRandomColors=true;_superState.takabaBallMode=true;_superState.takabaLaughText=true;
@@ -171,7 +171,7 @@ function updateTakabaAbility(dt){
     return;
   }
   var m=modifiers(_superState.takabaConfidence);_superState.takabaDmgMult=m.dmgMult;_superState.takabaDamageTakenMult=m.damageTakenMult;
-  var c=ctx();if(!c||c.type!=="arena")return;
+  var c=ctx();if(!c)return;
   if(_superState.takabaEffectTimer>0){ _superState.takabaEffectTimer=Math.max(0,_superState.takabaEffectTimer-dt); }
   // Во время фазы атаки Такаба полностью молчит: никаких случайных событий.
   if(typeof arenaPhase!=="undefined" && arenaPhase!=="dodge") return;
@@ -184,7 +184,7 @@ function updateTakabaAbility(dt){
       _superState.takabaRandomColors=false;_superState.takabaDuckMode=false;_superState.takabaJokeActive=false;
       _superState.screenShakeAmount=0;
       // Возвращаем размеры сердца после giant/tiny.
-      heart.size=14;heart.hitbox=4;
+      if(c && c.type==="arena" && typeof heart!=="undefined"){heart.size=14;heart.hitbox=4;}
     }
   }
   if(getTakabaLevel(_superState.takabaConfidence)>=3&&_superState.takabaEventTimer>=7&&_superState.takabaEffectTimer<=0&&!_superState.takabaTimeStop&&!_superState.takabaJokeActive){
