@@ -84,7 +84,7 @@
 
         /* ===== Цифры урона: жирнее и чище ===== */
         .floating-text {
-            position: relative !important;
+            position: absolute !important;
             z-index: 2147483647 !important;
             font-weight: 900;
             text-shadow: 0 2px 6px rgba(0,0,0,0.9);
