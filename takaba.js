@@ -46,10 +46,18 @@ function confidence(d,txt){
   return _superState.takabaConfidence;
 }
 function modifiers(c){var l=level(c);return{level:l,dmgMult:[1,1.05,1.15,1.3,1.6][l-1],damageTakenMult:[1,.97,.9,.85,.8][l-1]};}
+function getMainTeamCard(){
+  try{
+    if(typeof team==="undefined"||!Array.isArray(team)||typeof myCards==="undefined"||!Array.isArray(myCards))return null;
+    var idx=(typeof mainCardIndex==="number")?mainCardIndex:-1;
+    if(idx<0||idx>=team.length)return null;
+    return myCards[team[idx]]||null;
+  }catch(e){return null;}
+}
 function hasTakaba(){
   try{
-    if(typeof team==="undefined"||!Array.isArray(team)||typeof myCards==="undefined")return false;
-    for(var i=0;i<team.length;i++){var card=myCards[team[i]];if(card&&card.name==="Такаба"&&(!hasMasteryAbility||hasMasteryAbility(card)))return true;}
+    var card=getMainTeamCard();
+    return !!(card&&card.name==="Такаба"&&(!hasMasteryAbility||hasMasteryAbility(card)));
   }catch(e){}
   return false;
 }
