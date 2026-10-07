@@ -931,14 +931,10 @@ function applyWhitebeardPassiveReduction(dmg) {
         if (typeof team === 'undefined' || !Array.isArray(team)) return dmg;
         if (typeof myCards === 'undefined' || !Array.isArray(myCards)) return dmg;
         var hasWhitebeard = false;
-        for (var i = 0; i < team.length; i++) {
-            var idx = team[i];
-            var cd = myCards[idx];
-            if (cd && cd.name === "Белоус") {
-                if (typeof hasMasteryAbility === 'function' && !hasMasteryAbility(cd)) continue;
-                hasWhitebeard = true;
-                break;
-            }
+        var mainIdx = (typeof mainCardIndex === 'number') ? mainCardIndex : -1;
+        if (mainIdx >= 0 && mainIdx < team.length) {
+            var cd = myCards[team[mainIdx]];
+            if (cd && cd.name === "Белоус" && (typeof hasMasteryAbility !== 'function' || hasMasteryAbility(cd))) hasWhitebeard = true;
         }
         if (hasWhitebeard) {
             return Math.max(1, Math.floor(dmg * 0.9));
@@ -958,14 +954,10 @@ function tickWhitebeardRegen(dt) {
         if (typeof team === 'undefined' || !Array.isArray(team)) return;
         if (typeof myCards === 'undefined' || !Array.isArray(myCards)) return;
         var hasWhitebeard = false;
-        for (var i = 0; i < team.length; i++) {
-            var idx = team[i];
-            var cd = myCards[idx];
-            if (cd && cd.name === "Белоус") {
-                if (typeof hasMasteryAbility === 'function' && !hasMasteryAbility(cd)) continue;
-                hasWhitebeard = true;
-                break;
-            }
+        var mainIdx = (typeof mainCardIndex === 'number') ? mainCardIndex : -1;
+        if (mainIdx >= 0 && mainIdx < team.length) {
+            var cd = myCards[team[mainIdx]];
+            if (cd && cd.name === "Белоус" && (typeof hasMasteryAbility !== 'function' || hasMasteryAbility(cd))) hasWhitebeard = true;
         }
         if (!hasWhitebeard) {
             window._whitebeardRegenTimer = 0;
