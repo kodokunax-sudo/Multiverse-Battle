@@ -236,6 +236,28 @@ function clampHeart() {
     heart.y = Math.max(heart.size, Math.min(500 - heart.size, heart.y));
 }
 
+function updateTakabaConfidenceDisplay() {
+    if (typeof _superState === 'undefined') return;
+    var el = document.getElementById("arenaTakabaConfidenceDisplay");
+    var hasTakaba = (typeof hasTakabaAbilityInTeam === 'function') && hasTakabaAbilityInTeam();
+    if (!hasTakaba) {
+        if (el) el.style.display = "none";
+        return;
+    }
+    if (!el) {
+        var overlay = document.getElementById("arenaOverlay");
+        if (!overlay) return;
+        el = document.createElement("div");
+        el.id = "arenaTakabaConfidenceDisplay";
+        el.style.cssText = "position:absolute;top:34px;left:8px;background:rgba(255,20,180,0.88);color:#fff;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:900;z-index:100;pointer-events:none;font-family:'Nunito',sans-serif;box-shadow:0 0 12px rgba(255,102,255,0.7);";
+        overlay.appendChild(el);
+    }
+    var tc = Math.round(_superState.takabaConfidence || 0);
+    var tl = typeof getTakabaLevel === 'function' ? getTakabaLevel(tc) : 1;
+    el.innerHTML = '🎭 УВЕРЕННОСТЬ ТАКАБЫ: ' + tc + '% | УР. ' + tl;
+    el.style.display = "block";
+}
+
 // ★★★ ФИКС: Такаба замораживает игрока ★★★
 function moveHeart() {
     if (typeof _superState !== 'undefined' && _superState.takabaTimeStop) return;
@@ -439,30 +461,16 @@ function startArena(bossWave) {
     var speedDisplay = document.getElementById("arenaSpeedDisplay");
     if (speedDisplay) speedDisplay.innerText = heartSpeed.toFixed(2);
 
+    var overlay = document.getElementById("arenaOverlay");
     var mainCardDisplay = document.getElementById("arenaMainCardDisplay");
     if (!mainCardDisplay) {
         mainCardDisplay = document.createElement("div");
         mainCardDisplay.id = "arenaMainCardDisplay";
         mainCardDisplay.style.cssText = "position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.7);color:#fff;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:bold;z-index:100;pointer-events:none;font-family:'Nunito',sans-serif;";
-        var overlay = document.getElementById("arenaOverlay");
         if (overlay) overlay.appendChild(mainCardDisplay);
     }
     mainCardDisplay.innerHTML = '👑 ' + speedInfo.cardName + ' | ⚡ ' + heartSpeed.toFixed(2);
-    var takabaDisplay = document.getElementById("arenaTakabaConfidenceDisplay");
-    if (typeof _superState !== 'undefined' && hasTakabaAbilityInTeam && hasTakabaAbilityInTeam()) {
-        if (!takabaDisplay) {
-            takabaDisplay = document.createElement("div");
-            takabaDisplay.id = "arenaTakabaConfidenceDisplay";
-            takabaDisplay.style.cssText = "position:absolute;top:34px;left:8px;background:rgba(255,20,180,0.88);color:#fff;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:900;z-index:100;pointer-events:none;font-family:'Nunito',sans-serif;box-shadow:0 0 12px rgba(255,102,255,0.7);";
-            if (overlay) overlay.appendChild(takabaDisplay);
-        }
-        var tc = Math.round(_superState.takabaConfidence || 0);
-        var tl = typeof getTakabaLevel === 'function' ? getTakabaLevel(tc) : 1;
-        takabaDisplay.innerHTML = '🎭 УВЕРЕННОСТЬ ТАКАБЫ: ' + tc + '% | УР. ' + tl;
-        takabaDisplay.style.display = "block";
-    } else if (takabaDisplay) {
-        takabaDisplay.style.display = "none";
-    }
+    updateTakabaConfidenceDisplay();
 
     arenaClickTargets = []; arenaClicksHit = 0; arenaPhase = "dodge"; attacks = []; arenaBlasters = []; arenaParticles = []; floatingTexts = []; arenaTrail = []; arenaShockwaves = []; wallGapIndicator = null;
     arenaShake = 0; arenaHitFlash = 0; invulnTimer = 0; arenaComboText = ""; arenaComboTimer = 0; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0; heartRotation = 0; heartWasMoving = false; heartStandingTime = 0;
@@ -1108,6 +1116,7 @@ function renderArena() {
     if (typeof _superState !== 'undefined' && _superState.dandyLava > 0) { ctx.save(); for (var i = 0; i < 60; i++) { var lx = Math.random() * 400, ly = 460 + Math.random() * 40; ctx.fillStyle = "#ff4400"; ctx.globalAlpha = 0.6 + Math.random() * 0.4; ctx.beginPath(); ctx.arc(lx, ly, 2 + Math.random() * 4, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); if (heart.y > 420) { applyHit(3, "ЛАВА!"); } }
 
     drawObesityWarning();
+    updateTakabaConfidenceDisplay();
     // ★ ТАКАБА: шутка ★
     drawTakabaJoke();
 
