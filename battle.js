@@ -451,6 +451,7 @@ function startArena(bossWave) {
         _superState.takabaDuckMode = false;
         _superState.takabaDmgMult = 1;
         _superState.takabaDamageTakenMult = 1;
+        window._takabaSpeedMult = 1;
     }
 
     var speedInfo = getMainCardSpeedForArena();
@@ -472,6 +473,7 @@ function startArena(bossWave) {
         if (obesityMult !== 1.0) heartSpeed *= obesityMult;
     }
 
+    if(typeof getTakabaCombatModifiers==="function"){try{var tm=getTakabaCombatModifiers();heartSpeed*=tm.speedMult;window._takabaSpeedMult=tm.speedMult;}catch(e){window._takabaSpeedMult=1;}}else window._takabaSpeedMult=1;
     heartSpeed = Math.max(0.4, Math.min(6.0, heartSpeed));
     window._currentHeartSpeed = heartSpeed;
 
@@ -590,6 +592,7 @@ function applyArenaDamage() {
         if (_superState.allmightPermaSlow && _superState.allmightDebuffDmgMult < 1) finalDmg = Math.floor(finalDmg * _superState.allmightDebuffDmgMult);
         if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) finalDmg = Math.floor(finalDmg * _superState.dandyDmgBuff.mult);
         if (_superState.markBuffActive && _superState.markDmgBonus > 1) finalDmg = Math.floor(finalDmg * _superState.markDmgBonus);
+        if(typeof getTakabaCombatModifiers==="function"){try{finalDmg=Math.floor(finalDmg*getTakabaCombatModifiers().dmgMult);}catch(e){}}
         if (_superState.takabaDmgMult && _superState.takabaDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.takabaDmgMult);
     }
     if (finalDmg > 0) {
@@ -757,7 +760,10 @@ function applyHit(dmg, textMsg, isTrueOneshot) {
     if (typeof _superState !== 'undefined' && _superState.dandyShield && _superState.dandyShield.timer > 0) dmg = Math.floor(dmg * _superState.dandyShield.mult);
     if (typeof _superState !== 'undefined' && _superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
     if (typeof _superState !== 'undefined' && _superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
-    if (typeof _superState !== "undefined" && _superState.takabaDamageTakenMult && _superState.takabaDamageTakenMult < 1) dmg = Math.max(1, Math.floor(dmg * _superState.takabaDamageTakenMult));
+    if(typeof getTakabaCombatModifiers==="function"){try{dmg=Math.max(1,Math.floor(dmg*getTakabaCombatModifiers().damageTakenMult));}catch(e){}}
+    if(typeof adjustTakabaConfidence==="function"&&typeof hasTakaba==="function"&&hasTakaba()){
+        try{adjustTakabaConfidence(-Math.max(1,Math.ceil(dmg/20)),false);}catch(e){}
+    }
     if (invulnTimer > 0) return; if (arenaAttackType !== 10) invulnTimer = 45;
     if (isTrueOneshot || dmg >= arenaMaxHP) { arenaHP = 0; }
     else { var directDmg = 1; var karmaDmg = dmg - directDmg; if (karmaDmg < 0) karmaDmg = 0; arenaHP -= directDmg; arenaKarma += karmaDmg; }
