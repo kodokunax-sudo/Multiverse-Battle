@@ -122,28 +122,29 @@ const customCardTemplates = {
         { name: "Гарп (Galaxy impact)", universe: "One Piece", damage: 105, hp: 140, speed: 2.0, ability: { type: "damageAura", value: 0.20, desc: "+20% урона" }, desc: "Кулак галактики. +20% урона всей команде." },
         { name: "Омни-Мэн", universe: "Invincible", damage: 120, hp: 130, speed: 2.6, ability: { type: "damageAura", value: 0.12, desc: "+12% урона" }, statusAbility: { type: "bleed", value: 0.15, desc: "Кровотечение +15%" }, desc: "Нолан Грейсон. +12% урона команде и +15% урона через кровотечение." },
         { name: "Ло (Пробужденный)", universe: "One Piece", damage: 105, hp: 145, speed: 2.4, ability: { type: "healOnWin", percent: 0.03, desc: "+3% HP" }, statusAbility: { type: "shock", chance: 0.10, desc: "Электричество 10%" }, desc: "Пробуждённый фрукт. Лечит 3% HP при победе и 10% шанс шока." },
+        
+    ],
+    "Секретная": [
         // ★★★ ТАКАБА ★★★
         { 
             name: "Такаба", 
             universe: "JJK", 
-            damage: 280, 
-            hp: 480, 
-            speed: 3.0, 
-            sellPrice: 500, 
+            damage: 230, 
+            hp: 360, 
+            speed: 2.7, 
+            sellPrice: 1800, 
             minRebirth: 3,
             ability: { 
                 type: "takabaConfidence", 
                 desc: "Уверенность 0-100. Чем выше — тем сильнее урон и защита" 
             }, 
-            desc: "Комедиант, чья техника «Комик» перестраивает реальность вокруг его шуток. 5 уровней уверенности. На 3+ каждые 7 секунд случается что-то тупое.",
+            desc: "Комедиант с техникой «Комик». 5 уровней уверенности. На 3+ каждые 7 секунд может случиться что-то абсолютно нелепое.",
             superAbility: { 
                 name: "SUPER: ШУТКА ТАКАБЫ", 
-                desc: "Такаба говорит тупую шутку. Всё замирает на 1.5 секунды, потом +30 уверенности. «Ха-ха! А вы смеялись!»", 
+                desc: "Такаба рассказывает тупую шутку. Всё замирает на 1.5 секунды, затем +30 уверенности.",
                 passive: false 
             }
-        }
-    ],
-    "Секретная": [
+        },
         { 
             name: "Луффи: Ника, Бог Солнца", universe: "One Piece", damage: 150, hp: 200, speed: 3.8, sellPrice: 1500, minRebirth: 2, 
             ability: { type: "bossDamage", value: 0.30, desc: "+30% боссам", damageReduction: 0.10 }, 
