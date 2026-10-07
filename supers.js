@@ -1,14 +1,17 @@
-// ========== СУПЕР-СПОСОБНОСТИ v17.2 ==========
+// ========== СУПЕР-СПОСОБНОСТИ v18.0 ==========
 // ★ ПОЛНАЯ ПОДДЕРЖКА УНИКАЛЬНЫХ БОССОВ ★
 // Работает на: арене Undertale, Живом Камне, Путеводной Звезде, Роджере vs Белоусе
-// ★ НАСТРОЙКА ЗАРЯДОВ ПОД КАЖДОГО БОССА И ПЕРСОНАЖА ★
-// ★ v17.2: ФИКС — supеrs.js теперь использует window-функции для rwb (Роджер/Белоус)
+// ★ v18.0 — ФИКСЫ ДЛЯ RWB (Роджер/Белоус):
+//   - garouTimeStop останавливает ВСЕ атаки (проверка в rwb через _superState)
+//   - Поглощение урона (щит/редукция) правильно применяется
+//   - Увеличение урона (nika/dekus/allmight/kaido/dandy/mark) к пулям
+//   - Ураган Всемогущего работает (getAttacks через контекст)
+//   - Анти-спираль реально замедляет игрока (rwbSpeedMult)
+//   - heartSpeed через setHeartSpeed() в контексте
 
 // ============================================================
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-// ★★★                                                                    ★★★
 // ★★★         ⚙️  НАСТРОЙКИ ЗАРЯДОВ SUPER — МЕНЯЙ ЗДЕСЬ!                ★★★
-// ★★★                                                                    ★★★
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 // ============================================================
 
@@ -62,6 +65,7 @@ let _superState = {
     garpHakiActive: false, garpHakiTimer: 0,
     imAuraActive: false, imSpeedPenalty: false,
     antispiralActive: false, antispiralOrigHitbox: 4, antispiralOrigSize: 14, antispiralOrigSpeed: 1.2, antispiralShrinkAttacks: false,
+    antispiralFrozen: false,
     dandyLightnings: false, dandyInvuln: false, dandyDmgBuff: null, dandyShield: null, dandyVulnerable: null, dandyDoubleTargets: false, dandyRoulette: null,
     dandyDarkness: 0, dandyAura: 0, dandyLava: 0, dandyAutoRevive: false,
     kaidoDrinking: false, kaidoBuffActive: false, kaidoDmgReduction: false, kaidoDmgBonus: 1, kaidoSpeedBonus: 1, invertControls: false, kaidoScream: false,
@@ -154,7 +158,6 @@ function resetHeroCharges(bossId) {
     }
 
     console.log("[SUPER] Сброс зарядов для босса " + bossId + " (лимит босса: " + bossLimit + ")");
-    console.log("[SUPER] Персональные лимиты:", JSON.stringify(window._heroSuperCharges));
 }
 
 // ============================================================
@@ -170,12 +173,12 @@ function isUniqueBossActive() {
 }
 
 // ============================================================
-// ★★★ ПСЕВДО-АРЕНА — МАППИНГ ЧЕРЕЗ WINDOW-ФУНКЦИИ ★★★
+// ★★★ ЕДИНЫЙ КОНТЕКСТ БОССА ★★★
 // ============================================================
 function getBossContext() {
     var bossType = isUniqueBossActive();
 
-    // ★★★ UNDERTALE ARENA ★★★
+    // ★ UNDERTALE ARENA ★
     if (!bossType) {
         if (typeof arenaActive !== 'undefined' && arenaActive) {
             return {
@@ -212,7 +215,7 @@ function getBossContext() {
         return null;
     }
 
-    // ★★★ WAYSTAR ★★★
+    // ★ WAYSTAR ★
     if (bossType === 'waystar') {
         return {
             type: 'waystar',
@@ -246,7 +249,7 @@ function getBossContext() {
         };
     }
 
-    // ★★★ LIVING STONE ★★★
+    // ★ LIVING STONE ★
     if (bossType === 'stone') {
         return {
             type: 'stone',
@@ -280,7 +283,7 @@ function getBossContext() {
         };
     }
 
-    // ★★★ ROGER / WHITEBEARD — ЧЕРЕЗ WINDOW-ФУНКЦИИ ★★★
+    // ★★★ RWB (РОДЖЕР/БЕЛОУС) — ЧЕРЕЗ WINDOW-ФУНКЦИИ ★★★
     if (bossType === 'rwb') {
         return {
             type: 'rwb',
@@ -289,14 +292,26 @@ function getBossContext() {
             getHeartY: function() { var p = window.getRWBPlayer ? window.getRWBPlayer() : null; return p ? p.y : 400; },
             setHeartY: function(v) { var p = window.getRWBPlayer ? window.getRWBPlayer() : null; if (p) p.y = Math.max(0, Math.min(484, v)); },
             getHeartSize: function() { return 12; },
-            setHeartSize: function(v) {},
+            setHeartSize: function(v) { /* фикс */ },
             getHeartHitbox: function() { return 6; },
-            setHeartHitbox: function(v) {},
-            getHeartSpeed: function() { return 4.5; },
-            setHeartSpeed: function(v) {},
+            setHeartHitbox: function(v) { /* фикс */ },
+            getHeartSpeed: function() {
+                // ★ Возвращаем итоговую скорость с учётом множителя ★
+                if (typeof window.getRWBBaseSpeed === 'function' && typeof window.getRWBSpeedMult === 'function') {
+                    return window.getRWBBaseSpeed() * window.getRWBSpeedMult();
+                }
+                return 4.5;
+            },
+            setHeartSpeed: function(v) {
+                // ★ Устанавливаем множитель так, чтобы итог был = v ★
+                if (typeof window.getRWBBaseSpeed === 'function' && typeof window.setRWBSpeedMult === 'function') {
+                    var base = window.getRWBBaseSpeed();
+                    if (base > 0) window.setRWBSpeedMult(v / base);
+                }
+            },
             getAttacks: function() { return (typeof window.getRWBAttacks === 'function') ? window.getRWBAttacks() : []; },
             getBlasters: function() { return []; },
-            getParticles: function() { return (typeof window.getRWBParticles === 'function') ? window.getRWBParticles() : []; },
+            getParticles: function() { return (typeof window.getRWBPlayer === 'function' && window.rwbPlayer) ? [] : []; },
             getBossMaxHp: function() { var b = window.rwbActiveBoss; return b ? b.maxHp : 500; },
             setBossMaxHp: function(v) { var b = window.rwbActiveBoss; if (b) b.maxHp = v; },
             getBossHp: function() { var b = window.rwbActiveBoss; return b ? b.hp : 0; },
@@ -410,24 +425,25 @@ function drawAllMightHeart(hx, hy, size) {
 const superAbilities = {
     "Деку (100%)": { name: "ПОЛНОЕ 100% ПОКРЫТИЕ", cooldown: 15000, toggleable: true, duration: Infinity,
         onActivate() {
+            var ctxB = getBossContext();
             _superState.dekusActive = true;
-            _superState.dekusOriginalSpeed = heartSpeed;
+            _superState.dekusOriginalSpeed = ctxB ? ctxB.getHeartSpeed() : 1.2;
             _superState.dekusDmgMult = 2;
             _superState.dekusParticles = true;
-            heartSpeed *= 3;
+            if (ctxB) ctxB.setHeartSpeed(_superState.dekusOriginalSpeed * 3);
             _superState.screenShakeAmount = 15;
             _superState.dekuEarthShatterReady = true;
             _superState.dekuDashSmashReady = true;
             _superState.dekuEarthShatterCooldown = 0;
             _superState.dekuDashSmashCooldown = 0;
-            var ctxB = getBossContext();
             if (ctxB) {
                 addShockwaveRing(ctxB.getHeartX(), ctxB.getHeartY(), "#44ff44", 400, 0.5);
                 ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 30, "100%!!!", "#44ff44");
             }
         },
         onDeactivate() {
-            heartSpeed = _superState.dekusOriginalSpeed;
+            var ctxB = getBossContext();
+            if (ctxB) ctxB.setHeartSpeed(_superState.dekusOriginalSpeed);
             _superState.dekusActive = false;
             _superState.dekusDmgMult = 1;
             _superState.dekusParticles = false;
@@ -442,8 +458,6 @@ const superAbilities = {
             _superState.dekuFists = [];
             _superState.dekuSmashBlackoutTimer = 0;
             _superState.dekuSmashSequenceTimer = 0;
-            heartSpeed = _superState.originalHeartSpeed;
-            if (typeof arenaGlobalSpeedMod !== 'undefined') arenaGlobalSpeedMod = _superState.originalGlobalSpeedMod;
             if (typeof restoreArenaTimer === 'function') restoreArenaTimer();
             _superState.screenShakeAmount = 0;
         },
@@ -474,11 +488,20 @@ const superAbilities = {
         if (!ctxB) return;
         _superState.borosHeal = { active: true, healPerSec: ctxB.getPlayerMaxHp() * 0.06, elapsed: 0, totalDuration: 5 };
         _superState.borosParticles = true;
-        heartSpeed *= 0.7;
+        var curSpd = ctxB.getHeartSpeed();
+        ctxB.setHeartSpeed(curSpd * 0.7);
         addShockwaveRing(ctxB.getHeartX(), ctxB.getHeartY(), "#66ff66", 200, 0.8);
         ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 30, "РЕГЕН!", "#66ff66");
     }, onDeactivate() {
-        if (_superState.borosHeal) { heartSpeed /= 0.7; _superState.borosHeal = null; _superState.borosParticles = false; }
+        var ctxB = getBossContext();
+        if (_superState.borosHeal) {
+            if (ctxB) {
+                var curSpd = ctxB.getHeartSpeed();
+                ctxB.setHeartSpeed(curSpd / 0.7);
+            }
+            _superState.borosHeal = null;
+            _superState.borosParticles = false;
+        }
         _superState.screenFlashWhite = 5;
     }, onTick(dt) {
         if (_superState.borosHeal && _superState.borosHeal.active) {
@@ -513,7 +536,10 @@ const superAbilities = {
         }
         _superState.nikaDmgMult = 1.5;
         _superState.nikaSpeedBonus = 1.3;
-        heartSpeed *= 1.3;
+        if (ctxB) {
+            var curSpd = ctxB.getHeartSpeed();
+            ctxB.setHeartSpeed(curSpd * 1.3);
+        }
         _superState.screenFlashWhite = 8;
         if (ctxB) addShockwaveRing(ctxB.getHeartX(), ctxB.getHeartY(), "#ffffff", 500, 0.8);
     }, onDeactivate() {
@@ -522,9 +548,10 @@ const superAbilities = {
         if (ctxB) {
             ctxB.setHeartHitbox(_superState.nikaHitboxOriginal);
             ctxB.setHeartSize(_superState.nikaSizeOriginal);
+            var curSpd = ctxB.getHeartSpeed();
+            ctxB.setHeartSpeed(curSpd / 1.3);
         }
         _superState.nikaDmgMult = 1;
-        heartSpeed /= 1.3;
     }, onTick(dt) {} },
     "Космический Гароу": { name: "ПОТОК ВСЕЛЕННОЙ", cooldown: 30000, toggleable: false, duration: 0, onActivate() {
         var ctxB = getBossContext();
@@ -533,9 +560,15 @@ const superAbilities = {
         var target = null;
         for (var i = _superState.positionHistory.length - 1; i >= 0; i--) { if (now - _superState.positionHistory[i].time >= 2000) { target = _superState.positionHistory[i]; break; } }
         if (!target && _superState.positionHistory.length > 0) target = _superState.positionHistory[0];
+
+        // ★★★ ГЛАВНОЕ: ОСТАНОВКА ВРЕМЕНИ ★★★
+        _superState.garouTimeStop = true;
+        setTimeout(function() {
+            _superState.garouTimeStop = false;
+            console.log("[SUPER] Время снова пошло");
+        }, 500);  // ← длительность остановки времени (мс)
+
         if (target) {
-            _superState.garouTimeStop = true;
-            setTimeout(function() { _superState.garouTimeStop = false; }, 300);
             addShockwaveRing(ctxB.getHeartX(), ctxB.getHeartY(), "#ba55d3", 250, 0.6, 6);
             for(var i=0; i<15; i++) { var ang = Math.random() * Math.PI*2; var sp = 3 + Math.random()*5; ctxB.getParticles().push({ x: ctxB.getHeartX(), y: ctxB.getHeartY(), vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, life: 25, maxLife: 25, color: "#4b0082", size: 4 }); }
             _superState.garouMarker = { x: target.x, y: target.y, alpha: 1.0, time: now };
@@ -547,6 +580,7 @@ const superAbilities = {
             ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 30, "ТЕЛЕПОРТ!", "#ff8800");
         }
         _superState.positionHistory = [];
+        console.log("[SUPER] ⏸️ ВРЕМЯ ОСТАНОВЛЕНО на 0.5 сек");
     }, onTick(dt) {} },
     "Зено": { name: "СТИРАНИЕ", cooldown: 45000, toggleable: false, duration: 0, onActivate() {
         var ctxB = getBossContext();
@@ -569,29 +603,52 @@ const superAbilities = {
         _superState.antispiralActive = true;
         _superState.antispiralOrigHitbox = ctxB.getHeartHitbox();
         _superState.antispiralOrigSize = ctxB.getHeartSize();
-        _superState.antispiralOrigSpeed = heartSpeed;
+        // ★ Запоминаем ТЕКУЩУЮ скорость через контекст ★
+        _superState.antispiralOrigSpeed = ctxB.getHeartSpeed();
         ctxB.setHeartHitbox(ctxB.getHeartHitbox() * 0.7);
         ctxB.setHeartSize(ctxB.getHeartSize() * 0.7);
-        heartSpeed = heartSpeed * 0.7;
+        // ★ Устанавливаем скорость через контекст (для rwb это rwbSpeedMult) ★
+        ctxB.setHeartSpeed(_superState.antispiralOrigSpeed * 0.7);
         var atk = ctxB.getAttacks();
-        for (var a of atk) { if (a.size) a.size *= 0.7; if (a.radius) a.radius *= 0.7; if (a.spd) a.spd *= 0.7; if (a.spdY) a.spdY *= 0.7; }
+        for (var a of atk) {
+            if (a.size) a.size *= 0.7;
+            if (a.radius) a.radius *= 0.7;
+            if (a.spd) a.spd *= 0.7;
+            if (a.spdY) a.spdY *= 0.7;
+            // ★ Для rwb-атак с vx/vy ★
+            if (a.vx) a.vx *= 0.7;
+            if (a.vy) a.vy *= 0.7;
+        }
         _superState.antispiralShrinkAttacks = true;
+        _superState.antispiralFrozen = true;
+        setTimeout(function() { _superState.antispiralFrozen = false; }, 500);
         ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 30, "ПРОСТРАНСТВО СЖАТО!", "#aaddff");
     }, onDeactivate() {
         var ctxB = getBossContext();
         _superState.antispiralActive = false;
         _superState.antispiralShrinkAttacks = false;
+        _superState.antispiralFrozen = false;
         if (ctxB) {
             ctxB.setHeartHitbox(_superState.antispiralOrigHitbox);
             ctxB.setHeartSize(_superState.antispiralOrigSize);
+            ctxB.setHeartSpeed(_superState.antispiralOrigSpeed);
         }
-        heartSpeed = _superState.antispiralOrigSpeed;
         var atk = ctxB ? ctxB.getAttacks() : [];
-        for (var a of atk) { if (a.size) a.size /= 0.7; if (a.radius) a.radius /= 0.7; if (a.spd) a.spd /= 0.7; if (a.spdY) a.spdY /= 0.7; }
+        for (var a of atk) {
+            if (a.size) a.size /= 0.7;
+            if (a.radius) a.radius /= 0.7;
+            if (a.spd) a.spd /= 0.7;
+            if (a.spdY) a.spdY /= 0.7;
+            if (a.vx) a.vx /= 0.7;
+            if (a.vy) a.vy /= 0.7;
+        }
     }, onTick(dt) {} },
     "Молодой Гарп": { name: "ГАЛАКТИЧЕСКИЙ УДАР", cooldown: 30000, toggleable: false, duration: 0, onActivate() {
         var ctxB = getBossContext();
-        heartSpeed *= 0.3;
+        if (ctxB) {
+            var curSpd = ctxB.getHeartSpeed();
+            ctxB.setHeartSpeed(curSpd * 0.3);
+        }
         _superState.garpChargeTimer = 1.2;
         _superState.screenShakeAmount = 12;
         if (ctxB) ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "ЗАРЯДКА ХАКИ...", "#ff0000");
@@ -600,12 +657,19 @@ const superAbilities = {
         var ctxB = getBossContext();
         _superState.imAuraActive = true;
         _superState.imSpeedPenalty = true;
-        heartSpeed *= 0.7;
+        if (ctxB) {
+            var curSpd = ctxB.getHeartSpeed();
+            ctxB.setHeartSpeed(curSpd * 0.7);
+        }
         if (ctxB) ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 30, "ТЬМА!", "#800080");
     }, onDeactivate() {
+        var ctxB = getBossContext();
         _superState.imAuraActive = false;
         _superState.imSpeedPenalty = false;
-        heartSpeed /= 0.7;
+        if (ctxB) {
+            var curSpd = ctxB.getHeartSpeed();
+            ctxB.setHeartSpeed(curSpd / 0.7);
+        }
     }, onTick(dt) {} },
     "Космический Дэнди": { name: "КОСМИЧЕСКАЯ УДАЧА", cooldown: 20000, toggleable: false, duration: 0, onActivate() {
         var ctxB = getBossContext();
@@ -625,15 +689,18 @@ const superAbilities = {
         var ctxB = getBossContext();
         if (!ctxB) return;
         _superState.kaidoDrinking = true;
-        heartSpeed *= 0.5;
+        var curSpd = ctxB.getHeartSpeed();
+        ctxB.setHeartSpeed(curSpd * 0.5);
         ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 30, "ГЛОТОК...", "#D2691E");
         setTimeout(function() {
             _superState.kaidoDrinking = false;
-            heartSpeed /= 0.5;
+            var curSpd2 = ctxB.getHeartSpeed();
+            ctxB.setHeartSpeed(curSpd2 / 0.5);
             _superState.kaidoBuffActive = true;
             _superState.kaidoDmgReduction = true;
             _superState.kaidoSpeedBonus = 1.5;
-            heartSpeed *= 1.5;
+            var curSpd3 = ctxB.getHeartSpeed();
+            ctxB.setHeartSpeed(curSpd3 * 1.5);
             _superState.kaidoDmgBonus = 1.8;
             _superState.invertControls = true;
             _superState.kaidoScream = true;
@@ -644,13 +711,15 @@ const superAbilities = {
             setTimeout(function() {
                 _superState.kaidoBuffActive = false;
                 _superState.kaidoDmgReduction = false;
-                heartSpeed /= 1.5;
+                var curSpd4 = ctxB.getHeartSpeed();
+                ctxB.setHeartSpeed(curSpd4 / 1.5);
                 _superState.kaidoSpeedBonus = 1;
                 _superState.kaidoDmgBonus = 1;
                 _superState.invertControls = false;
-                heartSpeed *= 0.5;
+                var curSpd5 = ctxB.getHeartSpeed();
+                ctxB.setHeartSpeed(curSpd5 * 0.5);
                 ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 30, "ПОХМЕЛЬЕ...", "#8B4513");
-                setTimeout(function() { heartSpeed /= 0.5; }, 3000);
+                setTimeout(function() { var curSpd6 = ctxB.getHeartSpeed(); ctxB.setHeartSpeed(curSpd6 / 0.5); }, 3000);
             }, 10000);
         }, 2000);
     }, onTick() {} },
@@ -689,7 +758,8 @@ const superAbilities = {
             _superState.allmightDmgMult = 1;
             ctxB.setPlayerHp(Math.max(1, ctxB.getPlayerHp() - Math.floor(ctxB.getPlayerMaxHp() * 0.3)));
             _superState.allmightPermaSlow = true;
-            heartSpeed = heartSpeed / 3;
+            var curSpd = ctxB.getHeartSpeed();
+            ctxB.setHeartSpeed(curSpd / 3);
             _superState.allmightDebuffActive = true;
             _superState.allmightDebuffDmgMult = 0.5;
             _allmightHurricaneReady = false;
@@ -717,9 +787,9 @@ function triggerDekuSmash() {
     _superState.dekuSmashActive = true;
     _superState.dekuSmashBlackoutTimer = 60;
     _superState.dekuSmashSequenceTimer = 150;
-    _superState.originalHeartSpeed = heartSpeed;
+    _superState.originalHeartSpeed = ctxB.getHeartSpeed();
     _superState.originalGlobalSpeedMod = (typeof arenaGlobalSpeedMod !== 'undefined') ? arenaGlobalSpeedMod : 1.0;
-    heartSpeed = heartSpeed / 3;
+    ctxB.setHeartSpeed(_superState.originalHeartSpeed / 3);
     if (typeof arenaGlobalSpeedMod !== 'undefined') arenaGlobalSpeedMod = 0.33;
     if (typeof playArenaSound === 'function') playArenaSound(80, 'sawtooth', 2.0, 0.3);
 }
@@ -786,6 +856,9 @@ function deactivateDeku100() {
     updateSuperButton();
 }
 
+// ============================================================
+// ★★★ УРАГАН ВСЕМОГУЩЕГО — РАБОТАЕТ И НА RWB ★★★
+// ============================================================
 function activateAllmightHurricane() {
     if (!_allmightHurricaneReady) return;
     if (_allmightHurricaneCooldown > 0) return;
@@ -797,6 +870,8 @@ function activateAllmightHurricane() {
     _allmightHurricaneCooldown = 5.0;
     var hurricaneRadius = 150;
     var atk = ctxB.getAttacks();
+
+    // ★ Толкаем атаки (spd/spdY для Undertale, vx/vy для RWB) ★
     for (var a of atk) {
         var ax = a.x + (a.size || a.radius || 20) / 2;
         var ay = a.y + (a.size || a.radius || 20) / 2;
@@ -805,13 +880,16 @@ function activateAllmightHurricane() {
             var dx = ax - ctxB.getHeartX();
             var dy = ay - ctxB.getHeartY();
             var d = Math.sqrt(dx*dx + dy*dy) || 1;
-            a.spd = (a.spd || 0) + (dx / d) * 8 + (dy / d) * 4;
-            a.spdY = (a.spdY || 0) + (dy / d) * 8 - (dx / d) * 4;
+            if (a.spd !== undefined) a.spd += (dx / d) * 8 + (dy / d) * 4;
+            if (a.spdY !== undefined) a.spdY += (dy / d) * 8 - (dx / d) * 4;
+            if (a.vx !== undefined) a.vx += (dx / d) * 8 + (dy / d) * 4;
+            if (a.vy !== undefined) a.vy += (dy / d) * 8 - (dx / d) * 4;
         }
     }
     addShockwaveRing(ctxB.getHeartX(), ctxB.getHeartY(), "#00ffff", 400, 0.5, 6);
     _superState.screenShakeAmount = 15;
     ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "УРАГАН!", "#00ffff");
+    console.log("[SUPER] 🌪️ Ураган Всемогущего активирован на", ctxB.type);
 }
 
 function getMainCard() {
@@ -850,8 +928,8 @@ function toggleSuper() {
         }
         var heroCharges = getHeroCurrentCharges(mainCard.name);
         if (heroCharges <= 0) {
-            var limit = getEffectiveHeroChargeLimit(mainCard.name, bossType);
-            if (typeof showFloatingText === 'function') showFloatingText("❌ " + mainCard.name + ": заряды кончились (" + limit + "/" + limit + ")", "#ff3333");
+            var limit2 = getEffectiveHeroChargeLimit(mainCard.name, bossType);
+            if (typeof showFloatingText === 'function') showFloatingText("❌ " + mainCard.name + ": заряды кончились (" + limit2 + "/" + limit2 + ")", "#ff3333");
             return;
         }
         if (window._uniqueSuperCharges <= 0) {
@@ -862,7 +940,12 @@ function toggleSuper() {
 
     var ab = superAbilities[mainCard.name];
 
+    // ★★★ Всемогущий: ураган активируется ОТДЕЛЬНО ★★★
     if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
+        if (_allmightHurricaneCooldown > 0) {
+            if (typeof showFloatingText === 'function') showFloatingText("⏳ Ураган: " + Math.ceil(_allmightHurricaneCooldown) + "с", "#ffaa00");
+            return;
+        }
         if (isUnique) {
             consumeHeroCharge(mainCard.name, bossType);
             window._uniqueSuperCharges--;
@@ -872,6 +955,7 @@ function toggleSuper() {
         return;
     }
 
+    // ★★★ Деку: 100% активируется, потом РАЗЛОМ ★★★
     if (mainCard.name === "Деку (100%)") {
         if (!_superState.dekusActive) {
             if (isUnique) {
@@ -1164,15 +1248,15 @@ function updateSuperButton() {
 }
 
 // ============================================================
-// resetAllSupers() — НЕ сбрасывает heartSpeed без Анти-спирали
+// resetAllSupers() — БЕЗОПАСНЫЙ СБРОС
 // ============================================================
 function resetAllSupers() {
+    var ctxB = getBossContext();
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) {
         superAbilities[_activeSuperName].onDeactivate();
     }
     _activeSuperName = null;
 
-    var ctxB = getBossContext();
     if (ctxB) {
         if (_superState.nikaActive) {
             ctxB.setHeartHitbox(_superState.nikaHitboxOriginal);
@@ -1182,14 +1266,9 @@ function resetAllSupers() {
             ctxB.setHeartHitbox(_superState.antispiralOrigHitbox);
             ctxB.setHeartSize(_superState.antispiralOrigSize);
         }
-    }
-
-    if (_superState.antispiralActive) {
-        var restored = _superState.antispiralOrigSpeed || 1.2;
-        console.log("[SUPER-FIX] Анти-спираль была активна — восстанавливаем heartSpeed: " + heartSpeed.toFixed(2) + " → " + restored.toFixed(2));
-        heartSpeed = restored;
-    } else {
-        console.log("[SUPER-FIX] Анти-спираль не активна — heartSpeed НЕ трогаем (текущая: " + heartSpeed.toFixed(2) + ")");
+        if (_superState.antispiralActive && _superState.antispiralOrigSpeed) {
+            ctxB.setHeartSpeed(_superState.antispiralOrigSpeed);
+        }
     }
 
     _superState.dekusActive = false;
@@ -1220,6 +1299,7 @@ function resetAllSupers() {
     _superState.garpHakiTimer = 0;
     _superState.antispiralActive = false;
     _superState.antispiralShrinkAttacks = false;
+    _superState.antispiralFrozen = false;
     _superState.imAuraActive = false;
     _superState.imSpeedPenalty = false;
     _superState.kaidoDrinking = false;
@@ -1271,15 +1351,16 @@ function resetAllSupers() {
 }
 
 function initSuperState() {
-    var savedHeartSpeed = heartSpeed;
-    console.log("[SUPER-FIX] initSuperState: сохраняем heartSpeed = " + savedHeartSpeed.toFixed(2));
+    var ctxB = getBossContext();
+    var savedHeartSpeed = ctxB ? ctxB.getHeartSpeed() : 1.2;
+    console.log("[SUPER] initSuperState: сохраняем heartSpeed = " + savedHeartSpeed.toFixed(2));
 
     _activeSuperName = null;
     resetAllSupers();
 
-    heartSpeed = savedHeartSpeed;
-    window._currentHeartSpeed = heartSpeed;
-    console.log("[SUPER-FIX] initSuperState: восстановили heartSpeed = " + heartSpeed.toFixed(2));
+    if (ctxB) ctxB.setHeartSpeed(savedHeartSpeed);
+    if (typeof window !== 'undefined') window._currentHeartSpeed = savedHeartSpeed;
+    console.log("[SUPER] initSuperState: восстановили heartSpeed = " + savedHeartSpeed.toFixed(2));
 
     _superState.markResurrectCharges = 2;
     _superLastTick = performance.now();
@@ -1372,7 +1453,7 @@ function tickSupers() {
         if (_superState.dekuSmashSequenceTimer <= 0 && _superState.dekuSmashBlackoutTimer <= 0) {
             _superState.dekuSmashActive = false;
             _superState.dekuFists = [];
-            heartSpeed = _superState.originalHeartSpeed;
+            ctxB.setHeartSpeed(_superState.originalHeartSpeed);
             if (typeof arenaGlobalSpeedMod !== 'undefined') arenaGlobalSpeedMod = _superState.originalGlobalSpeedMod;
             if (typeof restoreArenaTimer === 'function') restoreArenaTimer();
         }
@@ -1418,23 +1499,26 @@ function updateSuperLogic(dt) {
         _superState.allmightHurricaneAngle += dt * 25;
         if (_superState.allmightHurricaneTimer <= 0) _superState.allmightHurricane = false;
     }
+    // ★ Гарп: зарядка ★
     if (_superState.garpChargeTimer > 0) {
         _superState.garpChargeTimer -= dt;
         if (_superState.garpChargeTimer <= 0) {
             _superState.garpChargeTimer = 0;
-            heartSpeed /= 0.3;
+            ctxB.setHeartSpeed(_superState.originalHeartSpeed || 1.2);
             _superState.garpImpactActive = true;
             _superState.garpImpactRadius = 0;
             _superState.garpImpactX = ctxB.getHeartX();
             _superState.garpImpactY = ctxB.getHeartY();
-            ctxB.setBossMaxHp(Math.floor(ctxB.getBossMaxHp() * 0.90));
+            var bossMaxHp = ctxB.getBossMaxHp();
+            ctxB.setBossMaxHp(Math.floor(bossMaxHp * 0.90));
             _superState.screenShakeAmount = 45;
             _superState.screenFlashWhite = 15;
             ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "ГАЛАКТИЧЕСКИЙ УДАР!!!", "#8844ff");
             if (typeof sfxArenaVictory === 'function') sfxArenaVictory();
             _superState.garpHakiActive = true;
             _superState.garpHakiTimer = 9.0;
-            heartSpeed *= 1.25;
+            var curSpd = ctxB.getHeartSpeed();
+            ctxB.setHeartSpeed(curSpd * 1.25);
             ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 30, "ХАКИ!", "#ff4444");
         }
     }
@@ -1454,7 +1538,11 @@ function updateSuperLogic(dt) {
     }
     if (_superState.garpHakiActive) {
         _superState.garpHakiTimer -= dt;
-        if (_superState.garpHakiTimer <= 0) { _superState.garpHakiActive = false; heartSpeed /= 1.25; }
+        if (_superState.garpHakiTimer <= 0) {
+            _superState.garpHakiActive = false;
+            var curSpd = ctxB.getHeartSpeed();
+            ctxB.setHeartSpeed(curSpd / 1.25);
+        }
     }
     if (_superState.allmightDebuffActive) {
         _superState.allmightDebuffTimer -= dt;
@@ -1464,7 +1552,8 @@ function updateSuperLogic(dt) {
         _superState.markBuffTimer -= dt;
         if (_superState.markBuffTimer <= 0) {
             _superState.markBuffActive = false;
-            heartSpeed /= _superState.markSpeedBonus;
+            var curS = ctxB.getHeartSpeed();
+            ctxB.setHeartSpeed(curS / _superState.markSpeedBonus);
             _superState.markDmgReduction = 1;
             _superState.markDmgBonus = 1;
             _superState.markSpeedBonus = 1;
@@ -1524,8 +1613,10 @@ function updateSuperLogic(dt) {
                 var dx = (a.x + (a.size || 20) / 2) - ctxB.getHeartX();
                 var dy = (a.y + (a.size || 20) / 2) - ctxB.getHeartY();
                 var dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                a.spd = (a.spd || 0) + (dx / dist) * 3;
-                a.spdY = (a.spdY || 0) + (dy / dist) * 3;
+                if (a.spd !== undefined) a.spd += (dx / dist) * 3;
+                if (a.spdY !== undefined) a.spdY += (dy / dist) * 3;
+                if (a.vx !== undefined) a.vx += (dx / dist) * 3;
+                if (a.vy !== undefined) a.vy += (dy / dist) * 3;
             }
         }
     }
@@ -2205,8 +2296,11 @@ window.SUPER_CHARGES_PER_HERO = SUPER_CHARGES_PER_HERO;
 window.SUPER_CHARGES_HERO_PER_BOSS = SUPER_CHARGES_HERO_PER_BOSS;
 
 console.log("╔════════════════════════════════════════════════════════════╗");
-console.log("║  [SUPERS] v17.2 — rwb через window-функции                ║");
-console.log("║  ✅ Работает на всех уникальных боссах                    ║");
+console.log("║  [SUPERS] v18.0 — ФИКСЫ ДЛЯ RWB                           ║");
+console.log("║  ✅ garouTimeStop останавливает ВСЕ атаки                  ║");
+console.log("║  ✅ Поглощение урона работает                              ║");
+console.log("║  ✅ Увеличение урона применяется к пулям                   ║");
+console.log("║  ✅ Ураган Всемогущего работает                            ║");
+console.log("║  ✅ Анти-спираль реально замедляет                         ║");
 console.log("║  Общий лимит: " + SUPER_DEFAULT_CHARGES + " заряда                            ║");
-console.log("║  Лимиты по боссам: " + JSON.stringify(SUPER_CHARGES_PER_BOSS));
 console.log("╚════════════════════════════════════════════════════════════╝");
