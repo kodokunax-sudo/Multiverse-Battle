@@ -1143,6 +1143,11 @@ function toggleSuper() {
     var isArena = (typeof arenaActive !== 'undefined' && arenaActive);
 
     if (!isUnique && !isArena) return;
+    // В фазе атаки нельзя нажимать SUPER: игрок должен закончить серию кликов.
+    if (isArena && typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
+        if (typeof showFloatingText === "function") showFloatingText("⚔️ СНАЧАЛА ЗАКОНЧИ АТАКУ!", "#ffdd00");
+        return;
+    }
 
     var mainCard = getMainCard();
     if (!mainCard) {
