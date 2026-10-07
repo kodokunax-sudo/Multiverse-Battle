@@ -1,13 +1,14 @@
-// ========== СУПЕР-СПОСОБНОСТИ v18.0 ==========
+// ========== СУПЕР-СПОСОБНОСТИ v19.0 ==========
 // ★ ПОЛНАЯ ПОДДЕРЖКА УНИКАЛЬНЫХ БОССОВ ★
 // Работает на: арене Undertale, Живом Камне, Путеводной Звезде, Роджере vs Белоусе
-// ★ v18.0 — ФИКСЫ ДЛЯ RWB (Роджер/Белоус):
-//   - garouTimeStop останавливает ВСЕ атаки (проверка в rwb через _superState)
+// ★ v19.0 — ПОЛНЫЙ ФИКС ДЛЯ ВСЕХ БОССОВ:
+//   - garouTimeStop останавливает ВСЕ атаки (проверка в каждом боссе)
 //   - Поглощение урона (щит/редукция) правильно применяется
 //   - Увеличение урона (nika/dekus/allmight/kaido/dandy/mark) к пулям
-//   - Ураган Всемогущего работает (getAttacks через контекст)
-//   - Анти-спираль реально замедляет игрока (rwbSpeedMult)
-//   - heartSpeed через setHeartSpeed() в контексте
+//   - Ураган Всемогущего работает через getAttacks()
+//   - Анти-спираль работает: heartSpeed для Undertale,
+//     lsSpeedMult для Камня, waystarPlayerSpeedMult для Звезды,
+//     rwbSpeedMult для Роджера
 
 // ============================================================
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
@@ -227,8 +228,16 @@ function getBossContext() {
             setHeartSize: function(v) {},
             getHeartHitbox: function() { return 6; },
             setHeartHitbox: function(v) {},
-            getHeartSpeed: function() { return 4; },
-            setHeartSpeed: function(v) {},
+            // ★ Реальная скорость через waystarPlayerSpeedMult ★
+            getHeartSpeed: function() {
+                var mult = (typeof waystarPlayerSpeedMult !== 'undefined') ? waystarPlayerSpeedMult : 1.0;
+                return 4 * mult;
+            },
+            setHeartSpeed: function(v) {
+                if (typeof waystarPlayerSpeedMult !== 'undefined') {
+                    waystarPlayerSpeedMult = v / 4;
+                }
+            },
             getAttacks: function() { return waystarAttacks; },
             getBlasters: function() { return []; },
             getParticles: function() { return waystarParticles; },
@@ -261,8 +270,15 @@ function getBossContext() {
             setHeartSize: function(v) {},
             getHeartHitbox: function() { return 6; },
             setHeartHitbox: function(v) {},
-            getHeartSpeed: function() { return 4; },
-            setHeartSpeed: function(v) {},
+            // ★ Реальная скорость через lsSpeedMult ★
+            getHeartSpeed: function() {
+                var base = (typeof livingStoneState !== 'undefined' && livingStoneState === "phase2") ? 4.5 : 3.0;
+                return base * (typeof lsSpeedMult !== 'undefined' ? lsSpeedMult : 0.5) * 2;
+            },
+            setHeartSpeed: function(v) {
+                var base = (typeof livingStoneState !== 'undefined' && livingStoneState === "phase2") ? 4.5 : 3.0;
+                if (base > 0 && typeof lsSpeedMult !== 'undefined') lsSpeedMult = v / (base * 2);
+            },
             getAttacks: function() { return livingStoneAttacks; },
             getBlasters: function() { return []; },
             getParticles: function() { return livingStoneParticles; },
@@ -296,14 +312,12 @@ function getBossContext() {
             getHeartHitbox: function() { return 6; },
             setHeartHitbox: function(v) { /* фикс */ },
             getHeartSpeed: function() {
-                // ★ Возвращаем итоговую скорость с учётом множителя ★
                 if (typeof window.getRWBBaseSpeed === 'function' && typeof window.getRWBSpeedMult === 'function') {
                     return window.getRWBBaseSpeed() * window.getRWBSpeedMult();
                 }
                 return 4.5;
             },
             setHeartSpeed: function(v) {
-                // ★ Устанавливаем множитель так, чтобы итог был = v ★
                 if (typeof window.getRWBBaseSpeed === 'function' && typeof window.setRWBSpeedMult === 'function') {
                     var base = window.getRWBBaseSpeed();
                     if (base > 0) window.setRWBSpeedMult(v / base);
@@ -311,7 +325,7 @@ function getBossContext() {
             },
             getAttacks: function() { return (typeof window.getRWBAttacks === 'function') ? window.getRWBAttacks() : []; },
             getBlasters: function() { return []; },
-            getParticles: function() { return (typeof window.getRWBPlayer === 'function' && window.rwbPlayer) ? [] : []; },
+            getParticles: function() { return (typeof window.getRWBParticles === 'function') ? window.getRWBParticles() : []; },
             getBossMaxHp: function() { var b = window.rwbActiveBoss; return b ? b.maxHp : 500; },
             setBossMaxHp: function(v) { var b = window.rwbActiveBoss; if (b) b.maxHp = v; },
             getBossHp: function() { var b = window.rwbActiveBoss; return b ? b.hp : 0; },
@@ -561,12 +575,12 @@ const superAbilities = {
         for (var i = _superState.positionHistory.length - 1; i >= 0; i--) { if (now - _superState.positionHistory[i].time >= 2000) { target = _superState.positionHistory[i]; break; } }
         if (!target && _superState.positionHistory.length > 0) target = _superState.positionHistory[0];
 
-        // ★★★ ГЛАВНОЕ: ОСТАНОВКА ВРЕМЕНИ ★★★
+        // ★★★ ОСТАНОВКА ВРЕМЕНИ ★★★
         _superState.garouTimeStop = true;
         setTimeout(function() {
             _superState.garouTimeStop = false;
             console.log("[SUPER] Время снова пошло");
-        }, 500);  // ← длительность остановки времени (мс)
+        }, 500);
 
         if (target) {
             addShockwaveRing(ctxB.getHeartX(), ctxB.getHeartY(), "#ba55d3", 250, 0.6, 6);
@@ -603,11 +617,9 @@ const superAbilities = {
         _superState.antispiralActive = true;
         _superState.antispiralOrigHitbox = ctxB.getHeartHitbox();
         _superState.antispiralOrigSize = ctxB.getHeartSize();
-        // ★ Запоминаем ТЕКУЩУЮ скорость через контекст ★
         _superState.antispiralOrigSpeed = ctxB.getHeartSpeed();
         ctxB.setHeartHitbox(ctxB.getHeartHitbox() * 0.7);
         ctxB.setHeartSize(ctxB.getHeartSize() * 0.7);
-        // ★ Устанавливаем скорость через контекст (для rwb это rwbSpeedMult) ★
         ctxB.setHeartSpeed(_superState.antispiralOrigSpeed * 0.7);
         var atk = ctxB.getAttacks();
         for (var a of atk) {
@@ -615,7 +627,6 @@ const superAbilities = {
             if (a.radius) a.radius *= 0.7;
             if (a.spd) a.spd *= 0.7;
             if (a.spdY) a.spdY *= 0.7;
-            // ★ Для rwb-атак с vx/vy ★
             if (a.vx) a.vx *= 0.7;
             if (a.vy) a.vy *= 0.7;
         }
@@ -646,6 +657,7 @@ const superAbilities = {
     "Молодой Гарп": { name: "ГАЛАКТИЧЕСКИЙ УДАР", cooldown: 30000, toggleable: false, duration: 0, onActivate() {
         var ctxB = getBossContext();
         if (ctxB) {
+            _superState.originalHeartSpeed = ctxB.getHeartSpeed();
             var curSpd = ctxB.getHeartSpeed();
             ctxB.setHeartSpeed(curSpd * 0.3);
         }
@@ -857,7 +869,7 @@ function deactivateDeku100() {
 }
 
 // ============================================================
-// ★★★ УРАГАН ВСЕМОГУЩЕГО — РАБОТАЕТ И НА RWB ★★★
+// ★★★ УРАГАН ВСЕМОГУЩЕГО — РАБОТАЕТ НА ВСЕХ ★★★
 // ============================================================
 function activateAllmightHurricane() {
     if (!_allmightHurricaneReady) return;
@@ -940,7 +952,7 @@ function toggleSuper() {
 
     var ab = superAbilities[mainCard.name];
 
-    // ★★★ Всемогущий: ураган активируется ОТДЕЛЬНО ★★★
+    // ★ Всемогущий: ураган (отдельно) ★
     if (mainCard.name === "Всемогущий (прайм)" && _allmightHurricaneReady) {
         if (_allmightHurricaneCooldown > 0) {
             if (typeof showFloatingText === 'function') showFloatingText("⏳ Ураган: " + Math.ceil(_allmightHurricaneCooldown) + "с", "#ffaa00");
@@ -955,7 +967,7 @@ function toggleSuper() {
         return;
     }
 
-    // ★★★ Деку: 100% активируется, потом РАЗЛОМ ★★★
+    // ★ Деку: 100% активируется, потом РАЗЛОМ ★
     if (mainCard.name === "Деку (100%)") {
         if (!_superState.dekusActive) {
             if (isUnique) {
@@ -1499,7 +1511,6 @@ function updateSuperLogic(dt) {
         _superState.allmightHurricaneAngle += dt * 25;
         if (_superState.allmightHurricaneTimer <= 0) _superState.allmightHurricane = false;
     }
-    // ★ Гарп: зарядка ★
     if (_superState.garpChargeTimer > 0) {
         _superState.garpChargeTimer -= dt;
         if (_superState.garpChargeTimer <= 0) {
@@ -2296,11 +2307,10 @@ window.SUPER_CHARGES_PER_HERO = SUPER_CHARGES_PER_HERO;
 window.SUPER_CHARGES_HERO_PER_BOSS = SUPER_CHARGES_HERO_PER_BOSS;
 
 console.log("╔════════════════════════════════════════════════════════════╗");
-console.log("║  [SUPERS] v18.0 — ФИКСЫ ДЛЯ RWB                           ║");
-console.log("║  ✅ garouTimeStop останавливает ВСЕ атаки                  ║");
-console.log("║  ✅ Поглощение урона работает                              ║");
-console.log("║  ✅ Увеличение урона применяется к пулям                   ║");
+console.log("║  [SUPERS] v19.0 — ПОЛНЫЙ ФИКС ВСЕХ БОССОВ                 ║");
+console.log("║  ✅ garouTimeStop везде                                    ║");
+console.log("║  ✅ Анти-спираль на всех (через контекст)                  ║");
+console.log("║  ✅ Увеличение урона применяется                           ║");
 console.log("║  ✅ Ураган Всемогущего работает                            ║");
-console.log("║  ✅ Анти-спираль реально замедляет                         ║");
-console.log("║  Общий лимит: " + SUPER_DEFAULT_CHARGES + " заряда                            ║");
+console.log("║  ✅ Поглощение урона работает                              ║");
 console.log("╚════════════════════════════════════════════════════════════╝");
