@@ -239,7 +239,15 @@ function clampHeart() {
 function updateTakabaConfidenceDisplay() {
     if (typeof _superState === 'undefined') return;
     var el = document.getElementById("arenaTakabaConfidenceDisplay");
-    var hasTakaba = (typeof hasTakabaAbilityInTeam === 'function') && hasTakabaAbilityInTeam();
+    var mainCardForTakaba = null;
+    try {
+        if (typeof team !== 'undefined' && Array.isArray(team) && typeof myCards !== 'undefined' && Array.isArray(myCards) &&
+            typeof mainCardIndex === 'number' && mainCardIndex >= 0 && mainCardIndex < team.length) {
+            mainCardForTakaba = myCards[team[mainCardIndex]];
+        }
+    } catch(e) {}
+    var hasTakaba = !!(mainCardForTakaba && mainCardForTakaba.name === "Такаба" &&
+        (typeof hasMasteryAbility !== 'function' || hasMasteryAbility(mainCardForTakaba)));
     if (!hasTakaba) {
         if (el) el.style.display = "none";
         return;
