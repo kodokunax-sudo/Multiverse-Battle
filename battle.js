@@ -257,16 +257,18 @@ function updateTakabaConfidenceDisplay() {
         if (!overlay) return;
         el = document.createElement("div");
         el.id = "arenaTakabaConfidenceDisplay";
-        el.style.cssText = "position:absolute;top:34px;left:8px;background:rgba(255,20,180,0.88);color:#fff;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:900;z-index:100;pointer-events:none;font-family:'Nunito',sans-serif;box-shadow:0 0 12px rgba(255,102,255,0.7);";
+        el.style.cssText = "position:absolute;top:8px;right:8px;left:auto;background:rgba(25,8,30,0.94);color:#fff;padding:7px 9px;border-radius:9px;font-size:11px;font-weight:900;z-index:1000;pointer-events:none;font-family:'Nunito',sans-serif;box-shadow:0 0 14px rgba(255,102,255,0.65);border:1px solid rgba(255,153,238,0.65);";
         overlay.appendChild(el);
     }
     var tc = Math.max(0, Math.min(100, Number(_superState.takabaConfidence) || 0));
     var tl = typeof getTakabaLevel === 'function' ? getTakabaLevel(tc) : 1;
     var pct = Math.round(tc);
-    el.style.top = "34px";
+    el.style.top = "8px";
+    el.style.right = "8px";
+    el.style.left = "auto";
     el.style.width = "190px";
     el.style.boxSizing = "border-box";
-    el.innerHTML = '<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px;"><span>🎭 УВЕРЕННОСТЬ</span><b>' + tc.toFixed(1) + ' / 100</b></div>' +
+    el.innerHTML = '<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px;"><span>🎭 УВЕРЕННОСТЬ</span><b>' + Math.round(tc) + ' / 100</b></div>' +
         '<div style="height:9px;background:rgba(0,0,0,.45);border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.25);">' +
         '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#ff4fd8,#ff9df0);transition:width .2s;"></div></div>' +
         '<div style="font-size:10px;margin-top:3px;text-align:center;">УР. ' + tl + '</div>';
@@ -509,6 +511,8 @@ function startArena(bossWave) {
     var skipBossBtn = document.getElementById("skipBossBtn");
     if (skipBossBtn) skipBossBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
     if (typeof initSuperState === 'function') initSuperState();
+    updateTakabaConfidenceDisplay();
+    if (typeof updateWhitebeardSkillButton === 'function') updateWhitebeardSkillButton();
     if (!ctx) initArena();
     if (animFrameId) cancelAnimationFrame(animFrameId);
     startArenaAmbient();
@@ -559,7 +563,8 @@ function applyArenaDamage() {
     if (!arenaActive) return;
     var dmgMult = 0; var ratio = arenaClicksHit / arenaTotalTargets;
     // Хорошая атака повышает уверенность, плохая — снижает.
-    if (typeof adjustTakabaConfidence === 'function' && typeof _superState !== 'undefined') {
+    if (typeof adjustTakabaConfidence === 'function' && typeof _superState !== 'undefined' &&
+        (typeof hasTakaba !== 'function' || hasTakaba())) {
         try {
             var confidenceDelta = ratio >= 1 ? 8 : ratio >= 0.8 ? 5 : ratio >= 0.6 ? 2 : ratio >= 0.4 ? -3 : ratio > 0 ? -7 : -10;
             adjustTakabaConfidence(confidenceDelta, true);
@@ -588,7 +593,8 @@ function applyArenaDamage() {
         if (_superState.takabaDmgMult && _superState.takabaDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.takabaDmgMult);
     }
     if (finalDmg > 0) {
-        if (typeof adjustTakabaConfidence === "function" && typeof getTakabaLevel === "function") {
+        if (typeof adjustTakabaConfidence === "function" && typeof getTakabaLevel === "function" &&
+            (typeof hasTakaba !== "function" || hasTakaba())) {
             try { if (getTakabaLevel(_superState.takabaConfidence || 0) >= 1) adjustTakabaConfidence(1, false); } catch(e) {}
         }
         arenaBossMaxHP -= finalDmg; arenaShake = 20; screenFlash = 10; screenFlashColor = "#ffdd00"; arenaShockwaves.push({ x: 200, y: 250, r: 15, v: 14, life: 22, maxLife: 22, color: "rgba(255,255,255,0.9)" }); for (var j = 0; j < 30; j++) { var angle = Math.random() * Math.PI * 2; arenaParticles.push({ x: 200, y: 250, vx: Math.cos(angle) * 10, vy: Math.sin(angle) * 10, life: 35, maxLife: 35, color: "#ffdd00", size: 2 + Math.random() * 5 }); } }
@@ -951,9 +957,6 @@ function renderArena() {
     if (arenaKarma > 0) { var drain = Math.max(0.15, arenaKarma * 0.05); if (arenaKarma < drain) drain = arenaKarma; arenaKarma -= drain; if (arenaHP > 1) { arenaHP -= drain; if (arenaHP < 1) arenaHP = 1; } document.getElementById("arenaHP").innerText = Math.max(0, Math.ceil(arenaHP)); }
     if (ghostBossHP > arenaBossMaxHP) { ghostBossHP -= (ghostBossHP - arenaBossMaxHP) * 0.08; if (ghostBossHP - arenaBossMaxHP < 1) ghostBossHP = arenaBossMaxHP; }
     if (ghostBossHP < arenaBossMaxHP) ghostBossHP = arenaBossMaxHP;
-    
-    // ★ БЕЛОУС: регенерация ★
-    tickWhitebeardRegenArena(1/60);
     
     var superShakeX = 0, superShakeY = 0;
     if (typeof _superState !== 'undefined' && _superState.screenShakeAmount > 0) { superShakeX = (Math.random() - 0.5) * _superState.screenShakeAmount; superShakeY = (Math.random() - 0.5) * _superState.screenShakeAmount; }
