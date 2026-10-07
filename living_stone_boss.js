@@ -3111,7 +3111,7 @@ window.getLSPlayerHp = function() { return livingStonePlayerHp; };
 window.getLSBossHp = function() { return livingStoneBossHp; };
 window.getLSActive = function() { return livingStoneActive; };
 window.getLSState = function() { return livingStoneState; };
-window.applyArenaDamageLS = applyArenaDamage;
+window.applyArenaDamageLS = function() {};  // заглушка
 window.damageLivingStonePlayer = damageLivingStonePlayer;
 window.initLSSupers = initLSSupers;
 
