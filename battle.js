@@ -252,9 +252,16 @@ function updateTakabaConfidenceDisplay() {
         el.style.cssText = "position:absolute;top:34px;left:8px;background:rgba(255,20,180,0.88);color:#fff;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:900;z-index:100;pointer-events:none;font-family:'Nunito',sans-serif;box-shadow:0 0 12px rgba(255,102,255,0.7);";
         overlay.appendChild(el);
     }
-    var tc = Math.round(_superState.takabaConfidence || 0);
+    var tc = Math.max(0, Math.min(100, Number(_superState.takabaConfidence) || 0));
     var tl = typeof getTakabaLevel === 'function' ? getTakabaLevel(tc) : 1;
-    el.innerHTML = '🎭 УВЕРЕННОСТЬ ТАКАБЫ: ' + tc + '% | УР. ' + tl;
+    var pct = Math.round(tc);
+    el.style.top = "34px";
+    el.style.width = "190px";
+    el.style.boxSizing = "border-box";
+    el.innerHTML = '<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px;"><span>🎭 УВЕРЕННОСТЬ</span><b>' + tc.toFixed(1) + ' / 100</b></div>' +
+        '<div style="height:9px;background:rgba(0,0,0,.45);border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.25);">' +
+        '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#ff4fd8,#ff9df0);transition:width .2s;"></div></div>' +
+        '<div style="font-size:10px;margin-top:3px;text-align:center;">УР. ' + tl + '</div>';
     el.style.display = "block";
 }
 
@@ -543,6 +550,13 @@ function startAttackPhase() {
 function applyArenaDamage() {
     if (!arenaActive) return;
     var dmgMult = 0; var ratio = arenaClicksHit / arenaTotalTargets;
+    // Хорошая атака повышает уверенность, плохая — снижает.
+    if (typeof adjustTakabaConfidence === 'function' && typeof _superState !== 'undefined') {
+        try {
+            var confidenceDelta = ratio >= 1 ? 8 : ratio >= 0.8 ? 5 : ratio >= 0.6 ? 2 : ratio >= 0.4 ? -3 : ratio > 0 ? -7 : -10;
+            adjustTakabaConfidence(confidenceDelta, true);
+        } catch(e) {}
+    }
     if (ratio >= 1.0) { dmgMult = 2.5; arenaComboText = "🔥 ИДЕАЛЬНО! x2.5"; sfxArenaPerfect(); }
     else if (ratio >= 0.8) { dmgMult = 1.8; arenaComboText = "⚡ ОТЛИЧНО! x1.8"; sfxArenaPerfect(); }
     else if (ratio >= 0.6) { dmgMult = 1.3; arenaComboText = "✨ ХОРОШО! x1.3"; sfxArenaTargetHit(); }
