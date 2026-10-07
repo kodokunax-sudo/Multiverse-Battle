@@ -20,9 +20,9 @@ const worlds = [
     { name: "Лес начала и конца", minWave: 1, maxWave: 250, color: "#2ecc71" },
     { name: "Огненная пустошь", minWave: 251, maxWave: 499, color: "#e74c3c" },
     { name: "Сломанный Космос", minWave: 500, maxWave: 600, color: "#2d3436" },
-    { name: "Гранд Лайн", minWave: 601, maxWave: 950, color: "#3498db" },        // ★ ИСПРАВЛЕНО: 601-950 ★
-    { name: "Легенды Роджера", minWave: 951, maxWave: 1000, color: "#ff8800" },  // ★ НОВЫЙ МИР: битва с Роджером и Белоусом ★
-    { name: "Замороженные земли", minWave: 1001, maxWave: 1200, color: "#00cec9" }, // ★ ИСПРАВЛЕНО: 1001-1200 ★
+    { name: "Гранд Лайн", minWave: 601, maxWave: 950, color: "#3498db" },
+    { name: "Легенды Роджера", minWave: 951, maxWave: 1000, color: "#ff8800" },
+    { name: "Замороженные земли", minWave: 1001, maxWave: 1200, color: "#00cec9" },
     { name: "Тёмное измерение", minWave: 1201, maxWave: 1500, color: "#6c5ce7" },
     { name: "Небесный дворец", minWave: 1501, maxWave: 2000, color: "#fdcb6e" },
     { name: "Бездна отчаяния", minWave: 2001, maxWave: 3000, color: "#636e72" },
@@ -215,13 +215,12 @@ const customCardTemplates = {
         { 
             name: "Белоус", universe: "One Piece", damage: 400, hp: 250, speed: 2.0, sellPrice: 800, minRebirth: 0,
             unsellable: true,
-            ability: { type: "whitebeardSpecial", desc: "3% воскрешение | 1% HP/волна | 2% шанс x5 комбо" },
+            ability: { type: "whitebeardSpecial", desc: "10% поглощение | 2% HP/5сек | 3% воскрес | 1% HP/волна | 2% x5 комбо" },
+            superAbility: { name: "SUPER: ГУРА-ГУРА КОНЕЦ МИРА", desc: "Белоус раскалывает воздух: все атаки замирают на 0.8 сек, затем разлетаются в стороны. Босс теряет 15% HP. Цунами добивает остатки. «Я — сильнейший человек в мире!»", passive: false },
             desc: "Эдвард Ньюгейт. Сильнейший человек в мире. Нельзя получить через гачу — только победив супер-Белоуса.",
-           superAbility: { 
-    name: "SUPER: ГУРА-ГУРА КОНЕЦ МИРА", 
-    desc: "Белоус раскалывает воздух: все атаки замирают на 0.8 сек, затем разлетаются в стороны. Босс теряет 15% HP. Цунами добивает остатки. «Я — сильнейший человек в мире!»", 
-    passive: false 
-},
+            superAbility: null
+        }
+    ],
     "Эволюционная": [
         { name: "Луффи : Король пиратов", universe: "One Piece", damage: 1200, hp: 2000, speed: 4.5, minRebirth: 5, ability: { type: "bossDamage", value: 0.50, desc: "+50% боссам", bossReduction: 0.40 }, unsellable: true, desc: "Король пиратов. +50% урона боссам и -40% получаемого урона при битве с боссом. Чтобы получить: соберите 5 разных Луффи в команду (ровно 5 карт) и победите босса 500 волны." },
         { name: "Сайтама/Гароу", universe: "Эволюция", damage: 1500, hp: 2500, speed: 5.0, minRebirth: 5, ability: { type: "oneShot", chance: 0.15, desc: "15% ваншот" }, statusAbility: { type: "scaleWithWins", value: 0.03, desc: "+3% силы/волна" }, unsellable: true, desc: "Слияние сильнейших. 15% шанс ваншота и +3% силы за каждую волну. Чтобы получить: ваншотните 2000 врагов способностью Сайтамы (Сайтама + Космический Гароу в команде)." },
