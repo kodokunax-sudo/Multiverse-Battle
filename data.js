@@ -236,7 +236,7 @@ const customCardTemplates = {
         { 
             name: "Белоус", universe: "One Piece", damage: 400, hp: 250, speed: 2.0, sellPrice: 800, minRebirth: 0,
             unsellable: true,
-            ability: { type: "whitebeardSpecial", desc: "10% поглощение | 2% HP/5сек | 3% воскрес | 1% HP/волна | 2% x5 комбо" },
+            ability: { type: "whitebeardSpecial", desc: "10% поглощение | 2% HP/5сек | 3% воскрес | 1% HP/волна | 2% x5 комбо | УДАР: кд 25с → ЦУНАМИ: окно 20с, задержка 1.5с" },
             superAbility: { name: "SUPER: ГУРА-ГУРА КОНЕЦ МИРА", desc: "Белоус раскалывает воздух: все атаки замирают на 0.8 сек, затем разлетаются в стороны. Босс теряет 15% HP. Цунами добивает остатки. «Я — сильнейший человек в мире!»", passive: false },
             desc: "Эдвард Ньюгейт. Сильнейший человек в мире. Нельзя получить через гачу — только победив супер-Белоуса."
         }
