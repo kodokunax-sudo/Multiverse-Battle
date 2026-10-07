@@ -36,6 +36,7 @@ const SUPER_CHARGES_PER_HERO = {
     "Деку (100%)":              3,
     "Всемогущий (прайм)":       1,
     "Белоус":                   3,
+    "Такаба":                   3,
 };
 
 const SUPER_CHARGES_HERO_PER_BOSS = {
@@ -1126,6 +1127,192 @@ function activateAllmightHurricane() {
     console.log("[SUPER] 🌪️ Ураган Всемогущего активирован на", ctxB.type);
 }
 
+
+// ============================================================
+// ★★★ ТАКАБА — ТЕХНИКА «КОМИК» ★★★
+// ============================================================
+const TAKABA_JOKES = [
+    "Почему утка перешла дорогу? Потому что ТАКАБА так решил.",
+    "Я придумал атаку, которой не существует. А теперь она существует.",
+    "Сейчас будет самый тупой момент в этой битве.",
+    "Почему босс квадратный? Потому что мне так смешнее.",
+    "ЭТО НЕ БАГ. ЭТО МОЯ ШУТКА.",
+    "А что, если все атаки будут утками?"
+];
+
+function ensureTakabaState() {
+    if (typeof _superState === 'undefined') return;
+    if (typeof _superState.takabaConfidence !== 'number') _superState.takabaConfidence = 50;
+    if (typeof _superState.takabaLastEventTime !== 'number') _superState.takabaLastEventTime = 0;
+    if (typeof _superState.takabaEventTimer !== 'number') _superState.takabaEventTimer = 0;
+    if (typeof _superState.takabaEffectTimer !== 'number') _superState.takabaEffectTimer = 0;
+    if (_superState.takabaEffectType === undefined) _superState.takabaEffectType = null;
+    if (typeof _superState.takabaTimeStop !== 'boolean') _superState.takabaTimeStop = false;
+    if (typeof _superState.takabaJokeActive !== 'boolean') _superState.takabaJokeActive = false;
+    if (typeof _superState.takabaCurrentJoke !== 'string') _superState.takabaCurrentJoke = "";
+    if (_superState.takabaBgColor === undefined) _superState.takabaBgColor = null;
+    if (typeof _superState.takabaDuckMode !== 'boolean') _superState.takabaDuckMode = false;
+    if (typeof _superState.takabaDmgMult !== 'number') _superState.takabaDmgMult = 1;
+    if (typeof _superState.takabaDamageTakenMult !== 'number') _superState.takabaDamageTakenMult = 1;
+}
+
+function getTakabaLevel(confidence) {
+    var c = Math.max(0, Math.min(100, Number(confidence) || 0));
+    if (c < 20) return 1;
+    if (c < 40) return 2;
+    if (c < 60) return 3;
+    if (c < 80) return 4;
+    return 5;
+}
+
+function adjustTakabaConfidence(delta, showText) {
+    ensureTakabaState();
+    var old = _superState.takabaConfidence;
+    var next = Math.max(0, Math.min(100, old + (Number(delta) || 0)));
+    _superState.takabaConfidence = next;
+    if (showText && getTakabaLevel(old) !== getTakabaLevel(next) && typeof showFloatingText === 'function') {
+        showFloatingText("🎭 ТАКАБА: " + Math.round(next) + "% УВЕРЕННОСТИ — УР. " + getTakabaLevel(next) + "!", "#ff66ff");
+    }
+    return next;
+}
+
+function getTakabaAbilityModifiers(confidence) {
+    var level = getTakabaLevel(confidence);
+    return {
+        level: level,
+        dmgMult: [1.00, 1.05, 1.15, 1.30, 1.60][level - 1],
+        damageTakenMult: [1.00, 0.97, 0.90, 0.85, 0.80][level - 1]
+    };
+}
+
+function hasTakabaAbilityInTeam() {
+    try {
+        if (typeof team === 'undefined' || !Array.isArray(team) || typeof myCards === 'undefined') return false;
+        for (var i = 0; i < team.length; i++) {
+            var card = myCards[team[i]];
+            if (card && card.name === "Такаба") {
+                if (typeof hasMasteryAbility === 'function' && !hasMasteryAbility(card)) continue;
+                return true;
+            }
+        }
+    } catch(e) {}
+    return false;
+}
+
+function triggerTakabaComedy() {
+    ensureTakabaState();
+    var ctxB = getBossContext();
+    if (!ctxB || ctxB.type !== 'arena') return;
+    if (_superState.takabaTimeStop || _superState.takabaJokeActive) return;
+
+    var roll = Math.floor(Math.random() * 3);
+    _superState.takabaCurrentJoke = TAKABA_JOKES[Math.floor(Math.random() * TAKABA_JOKES.length)];
+    _superState.takabaBgColor = ["#ff66ff", "#66ffff", "#ffd700"][roll];
+    _superState.takabaEffectType = roll;
+    _superState.takabaEffectTimer = roll === 0 ? 1.2 : (roll === 1 ? 2.5 : 2.0);
+    _superState.takabaJokeActive = true;
+
+    if (roll === 0) {
+        _superState.takabaTimeStop = true;
+        adjustTakabaConfidence(8, false);
+        ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "🎭 СТОП! " + Math.round(_superState.takabaConfidence) + "%", "#ff66ff");
+    } else if (roll === 1) {
+        _superState.takabaDuckMode = true;
+        adjustTakabaConfidence(5, false);
+        ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "🦆 УТКИ?!", "#ffd700");
+    } else {
+        var atk = ctxB.getAttacks();
+        var removeCount = Math.floor(atk.length * 0.4);
+        for (var i = 0; i < removeCount; i++) {
+            if (!atk.length) break;
+            atk.splice(Math.floor(Math.random() * atk.length), 1);
+        }
+        adjustTakabaConfidence(10, false);
+        ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "🤣 РЕАЛЬНОСТЬ СЛОМАЛАСЬ!", "#66ffff");
+    }
+
+    if (typeof sfxWhoosh === 'function') sfxWhoosh();
+    _superState.screenFlashWhite = 6;
+}
+
+function updateTakabaAbility(dt) {
+    ensureTakabaState();
+
+    if (!hasTakabaAbilityInTeam()) {
+        _superState.takabaDmgMult = 1;
+        _superState.takabaDamageTakenMult = 1;
+        return;
+    }
+
+    var mods = getTakabaAbilityModifiers(_superState.takabaConfidence);
+    _superState.takabaDmgMult = mods.dmgMult;
+    _superState.takabaDamageTakenMult = mods.damageTakenMult;
+
+    var ctxB = getBossContext();
+    if (!ctxB || ctxB.type !== 'arena') return;
+
+    _superState.takabaEventTimer += dt;
+
+    if (_superState.takabaEffectTimer > 0) {
+        _superState.takabaEffectTimer -= dt;
+        if (_superState.takabaEffectTimer <= 0) {
+            _superState.takabaEffectTimer = 0;
+            if (_superState.takabaEffectType === 0) _superState.takabaTimeStop = false;
+            if (_superState.takabaEffectType === 1) _superState.takabaDuckMode = false;
+            _superState.takabaEffectType = null;
+            _superState.takabaJokeActive = false;
+            _superState.takabaBgColor = null;
+        }
+    }
+
+    if (getTakabaLevel(_superState.takabaConfidence) >= 3 &&
+        _superState.takabaEventTimer >= 7 &&
+        _superState.takabaEffectTimer <= 0 &&
+        !_superState.takabaTimeStop &&
+        !_superState.takabaJokeActive) {
+        _superState.takabaEventTimer = 0;
+        _superState.takabaLastEventTime = Date.now();
+        triggerTakabaComedy();
+    }
+}
+
+superAbilities["Такаба"] = {
+    name: "ШУТКА ТАКАБЫ",
+    cooldown: 18000,
+    toggleable: false,
+    duration: 1500,
+    onActivate() {
+        ensureTakabaState();
+        var ctxB = getBossContext();
+        if (!ctxB) return;
+        _superState.takabaCurrentJoke = TAKABA_JOKES[Math.floor(Math.random() * TAKABA_JOKES.length)];
+        _superState.takabaTimeStop = true;
+        _superState.takabaJokeActive = true;
+        _superState.takabaEffectType = null;
+        _superState.takabaEffectTimer = 0;
+        _superState.takabaBgColor = "#ff66ff";
+        _superState.screenFlashWhite = 12;
+        _superState.screenShakeAmount = 12;
+        ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "🎭 ХА-ХА-ХА!", "#ff66ff");
+    },
+    onDeactivate() {
+        ensureTakabaState();
+        _superState.takabaTimeStop = false;
+        _superState.takabaJokeActive = false;
+        _superState.takabaBgColor = null;
+        _superState.screenShakeAmount = 0;
+        adjustTakabaConfidence(30, true);
+        var ctxB = getBossContext();
+        if (ctxB) ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "🤣 " + Math.round(_superState.takabaConfidence) + "% УВЕРЕННОСТИ!", "#ff66ff");
+    },
+    onTick() {}
+};
+
+window.getTakabaLevel = getTakabaLevel;
+window.adjustTakabaConfidence = adjustTakabaConfidence;
+window.getTakabaAbilityModifiers = getTakabaAbilityModifiers;
+window.updateTakabaAbility = updateTakabaAbility;
+
 function getMainCard() {
     if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0) {
         var idx = team[mainCardIndex];
@@ -1147,12 +1334,15 @@ function toggleSuper() {
         return;
     }
 
-    if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
+    if (isUnique) {
+        if (typeof hasMasteryUniqueSuper === 'function' && !hasMasteryUniqueSuper(mainCard)) {
+            if (typeof showFloatingText === 'function') showFloatingText("Нужно мастерство 6★ для уникального босса!", "#ff3333");
+            return;
+        }
+    } else if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
         if (typeof showFloatingText === 'function') showFloatingText("Нужно мастерство 5★!", "#ff3333");
         return;
-    }
-
-    if (isUnique) {
+    }    if (isUnique) {
         if (getHeroCurrentCharges(mainCard.name) === null) {
             var limit = getEffectiveHeroChargeLimit(mainCard.name, bossType);
             setHeroCurrentCharges(mainCard.name, limit);
@@ -1305,14 +1495,19 @@ function updateSuperButton() {
         return;
     }
 
-    if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
+    if (isUnique) {
+        if (typeof hasMasteryUniqueSuper === 'function' && !hasMasteryUniqueSuper(mainCard)) {
+            btn.style.display = "none";
+            if (btn2) btn2.style.display = "none";
+            if (btnDeact) btnDeact.style.display = "none";
+            return;
+        }
+    } else if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
         btn.style.display = "none";
         if (btn2) btn2.style.display = "none";
         if (btnDeact) btnDeact.style.display = "none";
         return;
-    }
-
-    if (isUnique) {
+    }    if (isUnique) {
         btn.style.display = "block";
         if (btn2) btn2.style.display = "none";
         if (btnDeact) btnDeact.style.display = "none";
@@ -1612,6 +1807,7 @@ function tickSupers() {
 
     // ★ БЕЛОУС: реген ★
     tickWhitebeardRegen(dt);
+    updateTakabaAbility(dt);
 
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onTick) superAbilities[_activeSuperName].onTick(dt);
     if (_superState.borosHeal && _superState.borosHeal.active && superAbilities["Борос"] && superAbilities["Борос"].onTick) superAbilities["Борос"].onTick(dt);
