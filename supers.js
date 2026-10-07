@@ -1158,7 +1158,7 @@ function whitebeardSkillStrike() {
     if (!c || c.type !== "arena") return;
 
     var hx = c.getHeartX(), hy = c.getHeartY();
-    _superState.whitebeardSkillCooldown = 999999;
+    _superState.whitebeardSkillCooldown = 30;
     _superState.whitebeardSkillWindow = 20;
     _superState.whitebeardSkillMode = "tsunami";
     _superState.whitebeardTsunamiUsed = false;
