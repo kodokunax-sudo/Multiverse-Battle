@@ -1735,10 +1735,6 @@ function doRebirth() {
         maxPoints 
     }); 
     
-    if (typeof window.saveEquipmentBeforeRebirth === 'function') {
-        window.saveEquipmentBeforeRebirth();
-    }
-    
     let _level7CardSave = null;
     if (typeof window !== 'undefined' && window._level7CardId) {
         let found = myCards.find(c => c && c.id === window._level7CardId);
@@ -1823,11 +1819,6 @@ function doRebirth() {
     
     team = [0, 1, 2]; 
     normalizeMainCard(); 
-    
-    if (typeof window.restoreEquipmentAfterRebirth === 'function') {
-        window.restoreEquipmentAfterRebirth();
-    }
-    
     sfxRebirth(); 
     refreshShop(); 
     generateEnemy(); 
