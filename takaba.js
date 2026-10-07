@@ -20,7 +20,7 @@ var JOKES = [
 
 var EVENT_NAMES = [
 "background","speed2","speedHalf","teleport","balloons","laughtexts","ducks","sound","rainbowtrail","knockback",
-"pizza","colors","confetti","gravity","heal","shrink","speedchaos","party","joke","blackout",
+"pizza","colors","confetti","gravity","heal","shrink","speedchaos","party","banana","blackout",
 "reverse","spin","giantHeart","tinyHeart","swapXY","freezeAttacks","rushAttacks","homing","wall","clone",
 "deleteHalf","deleteWeak","rainHearts","fakeBoss","shake","flash","lowGravity","highGravity","bounce","mirror",
 "explode","pacifist","chaosDamage","bossHeal","hpLottery","confidenceLottery","disco","attackRain","heartParty","absoluteTrash"
@@ -63,7 +63,7 @@ function randColor(){return "hsl("+Math.floor(Math.random()*360)+",100%,60%)";}
 function triggerTakabaComedy(){
   ensureTakabaState(); var c=ctx(); if(!c||c.type!=="arena"||_superState.takabaRandomEventTimer>0)return;
   var ev=EVENT_NAMES[Math.floor(Math.random()*EVENT_NAMES.length)], a=attacks();
-  _superState.takabaRandomEvent=ev; _superState.takabaRandomEventTimer=3;
+  _superState.takabaRandomEvent=ev; _superState.takabaRandomEventTimer=4; _superState.takabaEffectTimer=4;
   var label="🎭 ТАКАБА: "+ev.toUpperCase();
   var i,x,y;
 
@@ -86,7 +86,7 @@ function triggerTakabaComedy(){
     case "shrink": for(i=0;i<a.length;i++){if(a[i].size)a[i].size*=.5;if(a[i].radius)a[i].radius*=.5;}label="🔬 АТАКИ ПОХУДЕЛИ.";break;
     case "speedchaos": for(i=0;i<a.length;i++){if(a[i].spd)a[i].spd*=.25+Math.random()*2.5;if(a[i].spdY)a[i].spdY*=.25+Math.random()*2.5;}label="🎲 СКОРОСТЬ: КАК ПОЛУЧИТСЯ.";break;
     case "party": for(i=0;i<a.length;i++)a[i].spd=(a[i].spd||0)*1.2;label="🕺 АТАКИ ТАНЦУЮТ.";break;
-    case "joke": _superState.takabaJokeActive=true;_superState.takabaCurrentJoke=JOKES[Math.floor(Math.random()*JOKES.length)];_superState.takabaEffectTimer=2;label="😂 "+_superState.takabaCurrentJoke;break;
+    case "banana": float("🍌 БАНАН. ЗАЧЕМ?","#ffe066"); label="🍌 БАНАН ВЫШЕЛ НА АРЕНУ."; break;
     case "blackout": _superState.screenFlashWhite=18;label="🌑 СВЕТА НЕТ.";break;
     case "reverse": for(i=0;i<a.length;i++){if(a[i].spd)a[i].spd=-a[i].spd;if(a[i].spdY)a[i].spdY=-a[i].spdY;}label="🔄 АТАКИ ПОЕХАЛИ НАЗАД.";break;
     case "spin": for(i=0;i<a.length;i++){var s=a[i].spd||0,sy=a[i].spdY||0;a[i].spd=-sy;a[i].spdY=s;}label="🌀 ВСЁ ПОВЕРНУЛОСЬ.";break;
@@ -133,6 +133,9 @@ function updateTakabaAbility(dt){
   if(!hasTakaba()){_superState.takabaDmgMult=1;_superState.takabaDamageTakenMult=1;return;}
   var m=modifiers(_superState.takabaConfidence);_superState.takabaDmgMult=m.dmgMult;_superState.takabaDamageTakenMult=m.damageTakenMult;
   var c=ctx();if(!c||c.type!=="arena")return;
+  if(_superState.takabaEffectTimer>0){ _superState.takabaEffectTimer=Math.max(0,_superState.takabaEffectTimer-dt); }
+  // Во время фазы атаки Такаба полностью молчит: никаких случайных событий.
+  if(typeof arenaPhase!=="undefined" && arenaPhase!=="dodge") return;
   _superState.takabaEventTimer+=dt;
   if(_superState.takabaRandomEventTimer>0){
     _superState.takabaRandomEventTimer-=dt;
@@ -157,11 +160,11 @@ window.updateTakabaAbility=updateTakabaAbility;
 window.triggerTakabaComedy=triggerTakabaComedy;
 
 superAbilities["Такаба"]={
-  name:"ШУТКА ТАКАБЫ",cooldown:20000,toggleable:false,duration:2000,
+  name:"ШУТКА ТАКАБЫ",cooldown:20000,toggleable:false,duration:4000,
   onActivate:function(){
     ensureTakabaState();var c=ctx();if(!c)return;
     _superState.takabaCurrentJoke=JOKES[Math.floor(Math.random()*JOKES.length)];
-    _superState.takabaTimeStop=true;_superState.takabaJokeActive=true;_superState.takabaBgColor="#ff66ff";
+    _superState.takabaTimeStop=true;_superState.takabaJokeActive=true;_superState.takabaEffectTimer=4;_superState.takabaBgColor="#ff66ff";
     _superState.screenFlashWhite=12;_superState.screenShakeAmount=12;
     float("🎭 ХА-ХА-ХА!","#ff66ff");
   },
