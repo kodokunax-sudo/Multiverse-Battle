@@ -793,7 +793,7 @@ const superAbilities = {
         }, 15000);
     }, onTick() {} },
     // ★★★ БЕЛОУС ★★★
-    "Белоус": { 
+    "Белоус_УДАЛЁН": { 
         name: "ГУРА-ГУРА: КОНЕЦ МИРА", 
         cooldown: 40000, 
         toggleable: false, 
@@ -1158,7 +1158,7 @@ function whitebeardSkillStrike() {
     if (!c || c.type !== "arena") return;
 
     var hx = c.getHeartX(), hy = c.getHeartY();
-    _superState.whitebeardSkillCooldown = 25;
+    _superState.whitebeardSkillCooldown = 999999;
     _superState.whitebeardSkillWindow = 20;
     _superState.whitebeardSkillMode = "tsunami";
     _superState.whitebeardTsunamiUsed = false;
@@ -1182,6 +1182,8 @@ function whitebeardSkillStrike() {
 
     addShockwaveRing(hx, hy, "#00ccff", 850, 0.8, 10);
     addShockwaveRing(hx, hy, "#ffffff", 520, 0.55, 5);
+    if(typeof arenaParticles!=="undefined")for(var pi=0;pi<70;pi++){var pa=Math.random()*Math.PI*2,pr=30+Math.random()*180;arenaParticles.push({x:hx,y:hy,vx:Math.cos(pa)*pr/18,vy:Math.sin(pa)*pr/18,life:42,maxLife:42,color:pi%2?"#66ddff":"#ffffff",size:2+Math.random()*5});}
+    if(typeof showFloatingText==="function")showFloatingText("💥 ГУРА-ГУРА! АТАКИ ОТБРОШЕНЫ!","#66ddff");
     _superState.screenShakeAmount = 22;
     _superState.screenFlashWhite = 5;
     if (typeof showFloatingText === "function") showFloatingText("👊 ГУРА-ГУРА: УДАР В СТОРОНЫ!", "#66ddff");
@@ -1252,7 +1254,7 @@ function updateWhitebeardSkill(dt) {
     }
 
     if (_superState.whitebeardSkillTsunamiActive) {
-        _superState.whitebeardSkillTsunamiY -= 220 * dt;
+        _superState.whitebeardSkillTsunamiY -= 125 * dt;
         var c = getBossContext();
         if (c && c.type === "arena") {
             var atk = c.getAttacks();
@@ -2754,8 +2756,11 @@ function renderSuperVisuals() {
     if (_superState.whitebeardTsunami) {
         ctx.save();
         var ty = _superState.whitebeardTsunamiY;
-        var tw = 400;
-        var th = 100;
+        var tw = 430;
+        var th = 150;
+        var waveT=performance.now()/180;
+        ctx.shadowColor="#00ccff";
+        ctx.shadowBlur=25;
         
         var tGrad = ctx.createLinearGradient(0, ty - th/2, 0, ty + th/2);
         tGrad.addColorStop(0, "#003366");
@@ -2780,8 +2785,8 @@ function renderSuperVisuals() {
         ctx.closePath();
         ctx.fill();
         
-        ctx.strokeStyle = "#001a33";
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#003355";
+        ctx.lineWidth = 5;
         ctx.stroke();
         
         ctx.fillStyle = "#ffffff";
@@ -2809,7 +2814,12 @@ function renderSuperVisuals() {
             ctx.stroke();
         }
         
-        ctx.restore();
+        ctx.shadowBlur=0;
+        ctx.strokeStyle="#ffffff";ctx.lineWidth=4;
+        for(var fi=0;fi<9;fi++){var fx=20+fi*48;ctx.beginPath();ctx.arc(fx,ty-52,18+(fi%3)*5,Math.PI,Math.PI*2);ctx.stroke();}
+        ctx.globalAlpha=.75;ctx.strokeStyle="#66eeff";ctx.lineWidth=7;
+        for(var li2=0;li2<4;li2++){ctx.beginPath();for(var wi2=0;wi2<=30;wi2++){var wt2=wi2/30,x2=wt2*tw,y2=ty-30+li2*20+Math.sin(wt2*Math.PI*6+waveT+li2)*10;if(wi2===0)ctx.moveTo(x2,y2);else ctx.lineTo(x2,y2);}ctx.stroke();}
+        ctx.globalAlpha=1;ctx.restore();
     }
 }
 
