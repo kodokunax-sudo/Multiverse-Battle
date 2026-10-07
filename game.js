@@ -1397,8 +1397,11 @@ function victory() {
     if (team.some(idx => myCards[idx]?.ability?.type === 'sevenSpecial' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(myCards[idx]) : true))) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.05); } 
     
     // ★★★ БЕЛОУС: +1% HP за волну ★★★
-    if (team.some(idx => myCards[idx]?.name === "Белоус")) {
-        playerHp = Math.min(window.playerMaxHp, playerHp + (window.playerMaxHp || 100) * 0.01);
+    if (typeof mainCardIndex !== 'undefined' && team[mainCardIndex] !== undefined) {
+        const mainWB = myCards[team[mainCardIndex]];
+        if (mainWB?.name === "Белоус") {
+            playerHp = Math.min(window.playerMaxHp, playerHp + (window.playerMaxHp || 100) * 0.01);
+        }
     }
     
     enemyStatuses.poisonDamage = 0; 
