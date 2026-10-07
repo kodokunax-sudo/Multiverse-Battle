@@ -1,9 +1,14 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v18.3
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v19.0
 // ============================================================
-// ★ v18.3:
-//   - РАБОТАЮЩАЯ УЛЬТА (initSuperState + tickSupers + renderSuperVisuals)
-//   - Совместимость с supers.js
+// ★ v19.0 — ФИКС СУПЕРОВ:
+//   - garouTimeStop останавливает ВСЕ атаки
+//   - Поглощение урона (щит, редукция) работает правильно
+//   - Увеличение урона (nikaDmgMult, dekusDmgMult, allmightDmgMult,
+//     kaidoDmgBonus, dandyDmgBuff, markDmgBonus) применяется к пулям
+//   - Ураган Всемогущего работает
+//   - Анти-спираль реально замедляет игрока
+//   - rwbSpeedMult — глобальный множитель скорости игрока
 // ============================================================
 
 (function() {
@@ -42,6 +47,11 @@
     };
 
     window.rwbActive = false;
+
+    // ★ ГЛОБАЛЬНЫЙ МНОЖИТЕЛЬ СКОРОСТИ (для Анти-спирали, Деку, etc.) ★
+    let rwbSpeedMult = 1.0;
+    let rwbBaseSpeed = 4.5;
+    let rwbOriginalBaseSpeed = 4.5;
 
     let rwbState = "intro";
     let rwbTimer = 0;
@@ -133,8 +143,6 @@
     let rwbMusic = null;
     const RWB_MUSIC_PATH = "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3";
 
-    // ★★★ ЭКСПОРТ ПЕРЕМЕННЫХ В WINDOW ДЛЯ supers.js ★★★
-    // Это нужно чтобы supers.js мог читать позицию игрока и атаки
     function syncWindowVars() {
         window.rwbPlayer = rwbPlayer;
         window.rwbAttacks = rwbAttacks;
@@ -142,7 +150,6 @@
         window.rwbActiveBoss = rwbActiveBoss;
         window.rwbState = rwbState;
     }
-    // Синхронизируем каждые 100мс
     setInterval(syncWindowVars, 100);
 
     function isModerActive() {
@@ -292,7 +299,7 @@
     }
 
     // ============================================================
-    // ПОРТРЕТЫ ДЛЯ ДИАЛОГА
+    // ПОРТРЕТЫ
     // ============================================================
     function drawRogerPortrait(x, y, scale) {
         ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
@@ -432,7 +439,7 @@
     }
 
     // ============================================================
-    // МОДЕЛИ ДЛЯ БОЯ — СЕРДЕЧКИ С ДЕТАЛЯМИ
+    // МОДЕЛИ ДЛЯ БОЯ
     // ============================================================
     function drawRogerModel(cx, cy, size, flash, rotation) {
         ctx.save();
@@ -607,7 +614,6 @@
         try { if (typeof saveAll === 'function') saveAll(); } catch(e) {}
         rwbState = "done";
         rwbDialogActive = false;
-        // ★ Сброс суперов
         if (typeof resetAllSupers === 'function') { try { resetAllSupers(); } catch(e) {} }
         rwbSupersInitialized = false;
         if (typeof window !== 'undefined') window._uniqueSuperBossId = null;
@@ -663,7 +669,9 @@
         }
     }
 
-    // ★★★ КОНТЕКСТ ДЛЯ SUPERS.JS (использует window.rwbPlayer и т.д.) ★★★
+    // ============================================================
+    // ★★★ КОНТЕКСТ ДЛЯ SUPERS.JS — ЕДИНЫЙ С rwbSpeedMult ★★★
+    // ============================================================
     window.getRWBContext = function() {
         return {
             type: 'rwb',
@@ -671,10 +679,19 @@
             setHeartX: function(v) { if (rwbPlayer) rwbPlayer.x = Math.max(16, Math.min(384, v)); },
             getHeartY: function() { return rwbPlayer ? rwbPlayer.y : 400; },
             setHeartY: function(v) { if (rwbPlayer) rwbPlayer.y = Math.max(0, Math.min(484, v)); },
-            getHeartSize: function() { return 12; }, setHeartSize: function(v) {},
-            getHeartHitbox: function() { return 6; }, setHeartHitbox: function(v) {},
-            getHeartSpeed: function() { return 4.5; }, setHeartSpeed: function(v) {},
-            getAttacks: function() { return rwbAttacks; }, getBlasters: function() { return []; },
+            getHeartSize: function() { return 12; },
+            setHeartSize: function(v) { /* размер сердца фиксирован */ },
+            getHeartHitbox: function() { return 6; },
+            setHeartHitbox: function(v) { /* хитбокс фиксирован */ },
+            getHeartSpeed: function() { return rwbBaseSpeed * rwbSpeedMult; },
+            setHeartSpeed: function(v) {
+                // Устанавливаем множитель так, чтобы итоговая скорость = v
+                if (rwbBaseSpeed > 0) {
+                    rwbSpeedMult = v / rwbBaseSpeed;
+                }
+            },
+            getAttacks: function() { return rwbAttacks; },
+            getBlasters: function() { return []; },
             getParticles: function() { return rwbParticles; },
             getBossMaxHp: function() { return rwbActiveBoss ? rwbActiveBoss.maxHp : 500; },
             setBossMaxHp: function(v) { if (rwbActiveBoss) rwbActiveBoss.maxHp = v; },
@@ -687,8 +704,14 @@
             addFlashWhite: function(v) { rwbScreenFlash = Math.max(rwbScreenFlash, v); rwbScreenFlashColor = "#ffffff"; },
             spawnFloatingText: function(x, y, text, color) { if (typeof window.spawnFloatingText === 'function') window.spawnFloatingText(x, y, text, color); },
             playSound: function(f, t, d, v) { if (typeof window.rwbSound === 'function') window.rwbSound(f, t, d, v); },
-            addShockwave: function(x, y, color, speed, life, width) { rwbShockwaves.push({ x: x, y: y, radius: 10, maxRadius: 200, speed: speed, color: color, life: life, maxLife: life, width: width || 4 }); },
-            clampHeart: function() {}, isDodgePhase: function() { return false; }
+            addShockwave: function(x, y, color, speed, life, width) {
+                rwbShockwaves.push({ x: x, y: y, radius: 10, maxRadius: 200, speed: speed, color: color, life: life, maxLife: life, width: width || 4 });
+            },
+            clampHeart: function() {},
+            isDodgePhase: function() { return false; },
+            // ★ Для Анти-спирали: доступ к исходной скорости ★
+            getBaseSpeed: function() { return rwbBaseSpeed; },
+            setBaseSpeed: function(v) { rwbBaseSpeed = v; }
         };
     };
 
@@ -795,13 +818,16 @@
         }
     }
 
+    // ============================================================
+    // СТАРТ БОЯ
+    // ============================================================
     function startRogerWhitebeardFight() {
         if (window.rwbActive) return;
         if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(1000)) {
             if (typeof showFloatingText === 'function') showFloatingText("⏭️ Босс уже побеждён!", "#ffaa00");
             return;
         }
-        console.log("[ROGER-WB] Старт боя v18.3!");
+        console.log("[ROGER-WB] Старт боя v19.0!");
 
         window.rwbActive = true;
         rwbState = "intro"; rwbTimer = 0; rwbIntroTimer = 0;
@@ -813,6 +839,11 @@
         rwbWhitebeardDisabled = [false, false, false]; rwbWBPhase = "intro";
         rwbDialogQueue = []; rwbDialogActive = false; rwbDialogType = null; rwbDialogTimer = 0;
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
+
+        // ★ СБРОС СКОРОСТИ ★
+        rwbBaseSpeed = 4.5;
+        rwbOriginalBaseSpeed = 4.5;
+        rwbSpeedMult = 1.0;
 
         roger = {
             id: "roger", x: 80, y: 120, size: 28,
@@ -844,20 +875,15 @@
 
         initIslandBackground(); startRWBMusic(); initRWBAudio();
 
-        // ★★★ ИНИЦИАЛИЗАЦИЯ СУПЕРОВ ★★★
         try {
-            if (typeof initSuperState === 'function') {
-                initSuperState();
-            }
+            if (typeof initSuperState === 'function') initSuperState();
             if (typeof window !== 'undefined') {
-                window._uniqueSuperCharges = 5;  // для Роджера/Белоуса — 5 зарядов
+                window._uniqueSuperCharges = 5;
                 window._uniqueSuperBossId = 'rwb';
             }
             rwbSupersInitialized = true;
             console.log("[ROGER-WB] ✅ Суперы инициализированы (5 зарядов)");
-            if (typeof updateSuperButton === 'function') {
-                setTimeout(updateSuperButton, 100);
-            }
+            if (typeof updateSuperButton === 'function') setTimeout(updateSuperButton, 100);
         } catch(e) {
             console.error("[ROGER-WB] Ошибка initSuperState:", e);
         }
@@ -882,7 +908,6 @@
             if (el) el.style.display = "none";
         });
 
-        // Показываем кнопку СУПЕР если есть
         let superBtn = document.getElementById("superBtn");
         if (superBtn) {
             setTimeout(function() {
@@ -1163,10 +1188,37 @@
         if (rwbDialogActive && rwbDialogType === "whitebeard") { handleWhitebeardDialogClick(ev); return; }
     }
 
+    // ============================================================
+    // ★★★ ПРИМЕНЕНИЕ СУПЕР-МНОЖИТЕЛЕЙ УРОНА ★★★
+    // ============================================================
+    function applySuperDmgMult(baseDmg) {
+        let dmg = baseDmg;
+        if (typeof _superState !== 'undefined') {
+            if (_superState.nikaActive && _superState.nikaDmgMult > 1) dmg = Math.floor(dmg * _superState.nikaDmgMult);
+            if (_superState.dekusActive && _superState.dekusDmgMult > 1) dmg = Math.floor(dmg * _superState.dekusDmgMult);
+            if (_superState.allmightBuffTimer > 0 && _superState.allmightDmgMult > 1) dmg = Math.floor(dmg * _superState.allmightDmgMult);
+            if (_superState.kaidoBuffActive && _superState.kaidoDmgBonus > 1) dmg = Math.floor(dmg * _superState.kaidoDmgBonus);
+            if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) dmg = Math.floor(dmg * _superState.dandyDmgBuff.mult);
+            if (_superState.markBuffActive && _superState.markDmgBonus > 1) dmg = Math.floor(dmg * _superState.markDmgBonus);
+            if (_superState.allmightDebuffActive && _superState.allmightDebuffDmgMult < 1) dmg = Math.floor(dmg * _superState.allmightDebuffDmgMult);
+            if (_superState.allmightPermaSlow && _superState.allmightDebuffDmgMult < 1) dmg = Math.floor(dmg * _superState.allmightDebuffDmgMult);
+            if (_superState.garpHakiActive) dmg = Math.floor(dmg * 1.25);
+        }
+        return Math.max(1, dmg);
+    }
+
     function updateRWBPlayer() {
         if (rwbState !== "fight1" && rwbState !== "fight2") return;
+
+        // ★ Проверяем заморозку времени и оглушение ★
+        if (typeof _superState !== 'undefined') {
+            if (_superState.garouTimeStop) return;
+            if (_superState.usoppStunTimer > 0) return;
+        }
+
         let mx = 0, my = 0;
-        let speed = 4.5;
+        let speed = rwbBaseSpeed * rwbSpeedMult;
+
         if (window._joystick && window._joystick.enabled && window._joystick.active) {
             mx = window._joystick.vectorX;
             my = window._joystick.vectorY;
@@ -1181,6 +1233,12 @@
             if (rwbKeys.d || rwbKeys.arrowright) mx += 1;
             if (mx !== 0 && my !== 0) { mx *= 0.707; my *= 0.707; }
         }
+
+        // ★ Инверсия управления (Кайдо/Дэнди) ★
+        if (typeof _superState !== 'undefined' && _superState.invertControls) {
+            mx = -mx; my = -my;
+        }
+
         rwbPlayer.x += mx * speed; rwbPlayer.y += my * speed;
         rwbPlayer.x = Math.max(16, Math.min(384, rwbPlayer.x));
         rwbPlayer.y = Math.max(0, Math.min(484, rwbPlayer.y));
@@ -1195,9 +1253,14 @@
                         rwbPlayer.attackTimer = result.rate || rwbPlayer.shootRate;
                         for (let i = 0; i < result.bullets.length; i++) {
                             let b = result.bullets[i];
-                            b.damage = Math.ceil(b.damage * BALANCE.playerDamageMult);
-                            if (rwbPlayer.attackMode === "blue") { b.isBlue = true; b.color = "#00aaff"; b.damage = 1; aimBulletAtNearestAttack(b); }
-                            else { b.isBlue = false; }
+                            // ★★★ ПРИМЕНЯЕМ СУПЕР-МНОЖИТЕЛИ УРОНА ★★★
+                            b.damage = applySuperDmgMult(Math.ceil(b.damage * BALANCE.playerDamageMult));
+                            if (rwbPlayer.attackMode === "blue") {
+                                b.isBlue = true; b.color = "#00aaff"; b.damage = 1;
+                                aimBulletAtNearestAttack(b);
+                            } else {
+                                b.isBlue = false;
+                            }
                             rwbPlayerBullets.push(b);
                         }
                         weaponUsed = true; playWhooshSound(0.05);
@@ -1207,11 +1270,12 @@
             if (!weaponUsed) {
                 rwbPlayer.attackTimer = rwbPlayer.shootRate;
                 let bulletColor = (rwbPlayer.attackMode === "blue") ? "#00aaff" : "#ffdd00";
+                let dmg = applySuperDmgMult(3);
                 let b = {
                     x: rwbPlayer.x, y: rwbPlayer.y - 14,
                     vx: 0, vy: -11, size: 5, life: 90, color: bulletColor,
                     isBlue: (rwbPlayer.attackMode === "blue"),
-                    damage: (rwbPlayer.attackMode === "blue") ? 1 : 3
+                    damage: (rwbPlayer.attackMode === "blue") ? 1 : dmg
                 };
                 if (rwbPlayer.attackMode === "blue") aimBulletAtNearestAttack(b);
                 rwbPlayerBullets.push(b);
@@ -1361,6 +1425,9 @@
         }
     }
 
+    // ============================================================
+    // АТАКИ РОДЖЕРА
+    // ============================================================
     function spawnRogerSlash(position) {
         let isSuper = roger.superForm;
         let slashWidth = isSuper ? 65 : 50;
@@ -1503,6 +1570,9 @@
         }
     }
 
+    // ============================================================
+    // АТАКИ БЕЛОУСА
+    // ============================================================
     function spawnTsunamiAttack(isSuper) {
         let tsunamiDamage = Math.ceil(26 * BALANCE.whitebeardDamageMult);
         if (rwbTsunamiActive) return;
@@ -1574,6 +1644,9 @@
         }
     }
 
+    // ============================================================
+    // СУПЕР-АТАКИ
+    // ============================================================
     function spawnRogerSuperAttack() {
         let attackId = Math.floor(Math.random() * 7);
         playHakiChargeSound(0.25);
@@ -1743,9 +1816,28 @@
         for (let i = 0; i < 15; i++) spawnHakiLightning(200 + (Math.random() - 0.5) * 150, 250 + (Math.random() - 0.5) * 150, 1, Math.random() > 0.6);
     }
 
+    // ============================================================
+    // ★★★ ОБНОВЛЕНИЕ АТАК — С ПРОВЕРКОЙ garouTimeStop ★★★
+    // ============================================================
     function updateRWBAttacks() {
+        // ★ ЕСЛИ ВРЕМЯ ОСТАНОВЛЕНО ИЛИ АНТИ-СПИРАЛЬ ЗАМОРОЗИЛА — НЕ ДВИГАЕМ АТАКИ ★
+        var timeStopped = false;
+        var frozen = false;
+        if (typeof _superState !== 'undefined') {
+            timeStopped = (_superState.garouTimeStop === true);
+            frozen = (_superState.antispiralFrozen === true);
+        }
+        var stopAll = timeStopped || frozen;
+
         for (let i = rwbAttacks.length - 1; i >= 0; i--) {
             let a = rwbAttacks[i];
+
+            // ★★★ ФИКС: при остановке времени — только визуал, никакой логики ★
+            if (stopAll) {
+                // Замораживаем таймеры
+                // Но всё равно рисуем (рендер отдельно)
+                continue;
+            }
 
             if (a.type === "purple_crack_zone") {
                 if (a.state === "warning") {
@@ -1956,7 +2048,10 @@
         }
         for (let i = rwbShockwaves.length - 1; i >= 0; i--) {
             let sw = rwbShockwaves[i];
-            sw.radius += sw.speed; sw.life--;
+            // ★ При остановке времени шоквейвы тоже стоят ★
+            if (!stopAll) {
+                sw.radius += sw.speed; sw.life--;
+            }
             if (sw.canDestroy && !sw.hit && rwbPlayer.invulnTimer <= 0 && (rwbState === "fight1" || rwbState === "fight2")) {
                 let dx = rwbPlayer.x - sw.x, dy = rwbPlayer.y - sw.y;
                 let dist = Math.sqrt(dx * dx + dy * dy);
@@ -1975,9 +2070,17 @@
     }
 
     function updateRWBPlayerBullets() {
+        // ★ При остановке времени — пули тоже стоят ★
+        var stopAll = false;
+        if (typeof _superState !== 'undefined') {
+            stopAll = (_superState.garouTimeStop === true);
+        }
+
         for (let i = rwbPlayerBullets.length - 1; i >= 0; i--) {
             let b = rwbPlayerBullets[i];
-            b.x += b.vx; b.y += b.vy; b.life--;
+            if (!stopAll) {
+                b.x += b.vx; b.y += b.vy; b.life--;
+            }
             let destroyed = false;
 
             if (b.isBlue) {
@@ -2040,13 +2143,26 @@
         }
     }
 
+    // ============================================================
+    // ★★★ hitPlayer — ПОЛНАЯ ОБРАБОТКА СУПЕР-ЗАЩИТ ★★★
+    // ============================================================
     function hitPlayer(dmg) {
         if (isModerActive()) return;
-        if (rwbPlayer.invulnTimer > 0) return;
+
+        // ★ 1. Проверка неуязвимости (ДО всего остального) ★
         if (typeof _superState !== 'undefined') {
             if (_superState.usoppInvuln) return;
             if (_superState.dandyInvuln) return;
             if (_superState.garouInvulnTimer > 0) return;
+            if (_superState.garouTimeStop) return;
+            if (_superState.dekusActive && _superState.dekusInvuln) return;
+        }
+
+        // ★ 2. Проверка локальной неуязвимости ★
+        if (rwbPlayer.invulnTimer > 0) return;
+
+        // ★ 3. Применяем множители редукции урона ★
+        if (typeof _superState !== 'undefined') {
             if (_superState.nikaActive) dmg = Math.floor(dmg * 0.6);
             if (_superState.kaidoDmgReduction) dmg = Math.floor(dmg * 0.7);
             if (_superState.garpHakiActive) dmg = Math.floor(dmg * 0.4);
@@ -2054,11 +2170,17 @@
             if (_superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
             if (_superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
         }
+
+        // ★ 4. Применяем броню (отражение, редукция) ★
         if (typeof window.applyArmorToBossDamage === 'function') {
             let result = window.applyArmorToBossDamage(dmg);
             if (result.blocked) return;
             dmg = result.dmg;
         }
+
+        // ★ 5. Минимум 1 урона ★
+        dmg = Math.max(1, Math.floor(dmg));
+
         rwbPlayer.hp -= dmg;
         rwbPlayer.invulnTimer = 50;
         rwbShake = 12; rwbScreenFlash = 8; rwbScreenFlashColor = "#ff0000";
@@ -2113,10 +2235,14 @@
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
         window.rwbActive = false; rwbDialogActive = false;
         hideRWBModeButton(); hideRWBSuperButton(); stopRWBMusic();
-        // ★ Сброс суперов
         if (typeof resetAllSupers === 'function') { try { resetAllSupers(); } catch(e) {} }
         rwbSupersInitialized = false;
         if (typeof window !== 'undefined') window._uniqueSuperBossId = null;
+
+        // ★ СБРОС СКОРОСТИ ★
+        rwbBaseSpeed = rwbOriginalBaseSpeed;
+        rwbSpeedMult = 1.0;
+
         if (rwbAnimFrame) { cancelAnimationFrame(rwbAnimFrame); rwbAnimFrame = null; }
         if (typeof canvas !== 'undefined' && canvas) {
             canvas.removeEventListener("click", handleRWBClick);
@@ -2133,13 +2259,12 @@
     }
 
     // ============================================================
-    // ★★★ ГЛАВНЫЙ РЕНДЕР-ЛУП С ТИКОМ СУПЕРОВ ★★★
+    // ГЛАВНЫЙ РЕНДЕР-ЛУП
     // ============================================================
     function rwbRenderLoop() {
         if (!window.rwbActive || !ctx || !canvas) return;
         rwbTimer++;
 
-        // ★★★ ТИК СУПЕРОВ ★★★
         if (typeof tickSupers === 'function') {
             try { tickSupers(); } catch(e) { console.error("[ROGER-WB] tickSupers error:", e); }
         }
@@ -2370,7 +2495,6 @@
 
         if (rwbDialogActive) drawRWBDialogOverlay();
 
-        // ★★★ РИСУЕМ СУПЕР-ВИЗУАЛЫ ★★★
         if (typeof renderSuperVisuals === 'function') {
             try { renderSuperVisuals(); } catch(e) { console.error("[ROGER-WB] renderSuperVisuals error:", e); }
         }
@@ -2820,12 +2944,24 @@
     window.getRWBKeys = function() { return rwbKeys; };
     window.getRWBTouch = function() { return { active: rwbTouchActive, x: rwbTouchX, y: rwbTouchY }; };
     window.rwbSound = rwbSound;
+    window.rwbAddShake = function(v) { rwbShake = Math.max(rwbShake, v); };
+    window.rwbAddFlash = function(v, color) { rwbScreenFlash = v; if (color) rwbScreenFlashColor = color; };
+    window.rwbAddFlashWhite = function(v) { rwbScreenFlash = Math.max(rwbScreenFlash, v); rwbScreenFlashColor = "#ffffff"; };
+    window.rwbAddShockwave = function(x, y, color, speed, life, width) {
+        rwbShockwaves.push({ x: x, y: y, radius: 10, maxRadius: 200, speed: speed, color: color, life: life, maxLife: life, width: width || 4 });
+    };
+    window.getRWBBaseSpeed = function() { return rwbBaseSpeed; };
+    window.setRWBBaseSpeed = function(v) { rwbBaseSpeed = v; };
+    window.getRWBSpeedMult = function() { return rwbSpeedMult; };
+    window.setRWBSpeedMult = function(v) { rwbSpeedMult = v; };
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v18.3                             ║");
-    console.log("║  ✅ УЛЬТА РАБОТАЕТ (tickSupers + renderSuperVisuals)        ║");
-    console.log("║  ✅ initSuperState при старте боя                          ║");
-    console.log("║  ✅ 5 зарядов суперов                                      ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v19.0                             ║");
+    console.log("║  ✅ garouTimeStop останавливает ВСЕ атаки                  ║");
+    console.log("║  ✅ Поглощение урона работает                              ║");
+    console.log("║  ✅ Увеличение урона применяется к пулям                   ║");
+    console.log("║  ✅ Анти-спираль реально замедляет игрока                  ║");
+    console.log("║  ✅ rwbSpeedMult — глобальный множитель                    ║");
     console.log("╚════════════════════════════════════════════════════════════╝");
 
 })();
