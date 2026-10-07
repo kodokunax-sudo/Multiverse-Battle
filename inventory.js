@@ -144,7 +144,7 @@ const ITEMS = {
     stone_piece: {
         name: "Кусок камня", icon: "🪨",
         desc: "Напоминание о проигрыше против камня. Надеюсь я его больше не встречу. Хотя, кто знает...",
-        stack: 1, canSell: false, unsellable: true
+        stack: 999999, canSell: false, unsellable: true
     },
     // ★ НОВЫЙ ПРЕДМЕТ: ПУТЕВОДНАЯ ЗВЕЗДА ★
     waystar: {
