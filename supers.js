@@ -1302,9 +1302,9 @@ function updateTakabaAbility(dt) {
 
 superAbilities["Такаба"] = {
     name: "ШУТКА ТАКАБЫ",
-    cooldown: 18000,
+    cooldown: 20000,
     toggleable: false,
-    duration: 1500,
+    duration: 2000,
     onActivate() {
         ensureTakabaState();
         var ctxB = getBossContext();
