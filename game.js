@@ -1,4 +1,84 @@
 // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
+
+// ★ ТАКАБА: ГЛОБАЛЬНЫЙ СЧЁТЧИК УВЕРЕННОСТИ ★
+// Показывается во всех режимах боя: обычный, боссовый и уникальные боссы.
+function isTakabaInActiveTeam() {
+    try {
+        return Array.isArray(team) && team.some(function(idx) {
+            return myCards && myCards[idx] && myCards[idx].name === "Такаба";
+        });
+    } catch(e) { return false; }
+}
+
+function updateTakabaConfidenceDisplay() {
+    var el = document.getElementById("takabaConfidenceGlobal");
+    if (!el) return;
+
+    var visible = isTakabaInActiveTeam() && (
+        (typeof currentEnemy !== "undefined" && currentEnemy) ||
+        (typeof arenaActive !== "undefined" && arenaActive) ||
+        (typeof livingStoneActive !== "undefined" && livingStoneActive) ||
+        (typeof waystarActive !== "undefined" && waystarActive) ||
+        (typeof window.rwbActive !== "undefined" && window.rwbActive)
+    );
+
+    if (!visible) {
+        el.style.display = "none";
+        return;
+    }
+
+    var confidence = 50;
+    if (typeof _superState !== "undefined" && typeof _superState.takabaConfidence === "number") {
+        confidence = Math.max(0, Math.min(100, _superState.takabaConfidence));
+    }
+
+    var level = (typeof getTakabaLevel === "function") ? getTakabaLevel(confidence) :
+        (confidence >= 75 ? 3 : confidence >= 50 ? 2 : 1);
+
+    var color = level >= 3 ? "#ff4fd8" : level >= 2 ? "#f5af19" : "#aaa";
+    var bar = el.querySelector(".takaba-confidence-fill");
+    var text = el.querySelector(".takaba-confidence-value");
+    var lvl = el.querySelector(".takaba-confidence-level");
+
+    if (text) text.innerText = Math.floor(confidence) + "%";
+    if (lvl) lvl.innerText = "УР. " + level;
+    if (bar) {
+        bar.style.width = confidence + "%";
+        bar.style.background = "linear-gradient(90deg, #9b59b6, " + color + ")";
+    }
+}
+
+function ensureTakabaConfidenceDisplay() {
+    var el = document.getElementById("takabaConfidenceGlobal");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "takabaConfidenceGlobal";
+        el.innerHTML =
+            '<div style="font-size:11px;font-weight:900;letter-spacing:.5px;">🎭 УВЕРЕННОСТЬ ТАКАБЫ <span class="takaba-confidence-level" style="margin-left:5px;">УР. 2</span></div>' +
+            '<div style="display:flex;align-items:center;gap:7px;margin-top:4px;">' +
+                '<div style="height:7px;flex:1;min-width:90px;background:rgba(0,0,0,.45);border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.12);">' +
+                    '<div class="takaba-confidence-fill" style="height:100%;width:50%;border-radius:10px;"></div>' +
+                '</div>' +
+                '<span class="takaba-confidence-value" style="font-size:13px;font-weight:900;">50%</span>' +
+            '</div>';
+        el.style.cssText =
+            "position:fixed;top:14px;left:50%;transform:translateX(-50%);" +
+            "z-index:99999;display:none;min-width:205px;padding:9px 12px;" +
+            "border-radius:14px;background:rgba(20,10,30,.94);" +
+            "border:1px solid rgba(255,105,220,.55);" +
+            "box-shadow:0 4px 20px rgba(0,0,0,.45),0 0 15px rgba(255,79,216,.15);" +
+            "color:#fff;font-family:Nunito,Arial,sans-serif;text-align:center;" +
+            "pointer-events:none;backdrop-filter:blur(8px);";
+        document.body.appendChild(el);
+    }
+    updateTakabaConfidenceDisplay();
+}
+
+setInterval(function() {
+    try { ensureTakabaConfidenceDisplay(); } catch(e) {}
+}, 250);
+
+
 let currentSlot = -1;
 let slotData = {};
 
