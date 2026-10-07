@@ -84,7 +84,16 @@ let _superState = {
     whitebeardTimeStop: false,
     whitebeardTsunami: false,
     whitebeardTsunamiY: 0,
-    whitebeardTsunamiTimer: 0
+    whitebeardTsunamiTimer: 0,
+    // ★ БЕЛОУС: две отдельные аренные активки (УДАР -> ЦУНАМИ)
+    whitebeardSkillCooldown: 0,
+    whitebeardSkillWindow: 0,
+    whitebeardSkillMode: "strike",
+    whitebeardTsunamiUsed: false,
+    whitebeardTsunamiPending: 0,
+    whitebeardSkillTsunamiActive: false,
+    whitebeardSkillTsunamiY: 540,
+    whitebeardSkillTsunamiHitId: 0
 };
 
 let _superCooldowns = {};
@@ -928,15 +937,7 @@ const superAbilities = {
 function applyWhitebeardPassiveReduction(dmg) {
     if (!dmg || dmg <= 0) return dmg;
     try {
-        if (typeof team === 'undefined' || !Array.isArray(team)) return dmg;
-        if (typeof myCards === 'undefined' || !Array.isArray(myCards)) return dmg;
-        var hasWhitebeard = false;
-        var mainIdx = (typeof mainCardIndex === 'number') ? mainCardIndex : -1;
-        if (mainIdx >= 0 && mainIdx < team.length) {
-            var cd = myCards[team[mainIdx]];
-            if (cd && cd.name === "Белоус" && (typeof hasMasteryAbility !== 'function' || hasMasteryAbility(cd))) hasWhitebeard = true;
-        }
-        if (hasWhitebeard) {
+        if (isWhitebeardMainActive()) {
             return Math.max(1, Math.floor(dmg * 0.9));
         }
     } catch(e) {}
@@ -951,15 +952,7 @@ if (typeof window._whitebeardRegenTimer === 'undefined') window._whitebeardRegen
 
 function tickWhitebeardRegen(dt) {
     try {
-        if (typeof team === 'undefined' || !Array.isArray(team)) return;
-        if (typeof myCards === 'undefined' || !Array.isArray(myCards)) return;
-        var hasWhitebeard = false;
-        var mainIdx = (typeof mainCardIndex === 'number') ? mainCardIndex : -1;
-        if (mainIdx >= 0 && mainIdx < team.length) {
-            var cd = myCards[team[mainIdx]];
-            if (cd && cd.name === "Белоус" && (typeof hasMasteryAbility !== 'function' || hasMasteryAbility(cd))) hasWhitebeard = true;
-        }
-        if (!hasWhitebeard) {
+        if (!isWhitebeardMainActive()) {
             window._whitebeardRegenTimer = 0;
             return;
         }
@@ -1129,6 +1122,233 @@ function getMainCard() {
     return null;
 }
 
+function isWhitebeardMainActive() {
+    try {
+        if (typeof getMainCard !== "function") return false;
+        var card = getMainCard();
+        return !!(card && card.name === "Белоус" &&
+            (typeof hasMasteryAbility !== "function" || hasMasteryAbility(card)));
+    } catch(e) {}
+    return false;
+}
+
+function clearWhitebeardSkillState() {
+    _superState.whitebeardSkillCooldown = 0;
+    _superState.whitebeardSkillWindow = 0;
+    _superState.whitebeardSkillMode = "strike";
+    _superState.whitebeardTsunamiUsed = false;
+    _superState.whitebeardTsunamiPending = 0;
+    _superState.whitebeardSkillTsunamiActive = false;
+    _superState.whitebeardSkillTsunamiY = 540;
+    _superState.whitebeardSkillTsunamiHitId = 0;
+}
+
+function whitebeardSkillStrike() {
+    if (!arenaActive || !isWhitebeardMainActive()) return;
+    if (typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
+        if (typeof showFloatingText === "function") showFloatingText("⚔️ СНАЧАЛА ЗАКОНЧИ АТАКУ!", "#ffdd00");
+        return;
+    }
+    if (_superState.whitebeardSkillCooldown > 0) {
+        if (typeof showFloatingText === "function") showFloatingText("⏳ УДАР: " + Math.ceil(_superState.whitebeardSkillCooldown) + "с", "#ffaa00");
+        return;
+    }
+
+    var c = getBossContext();
+    if (!c || c.type !== "arena") return;
+
+    var hx = c.getHeartX(), hy = c.getHeartY();
+    _superState.whitebeardSkillCooldown = 25;
+    _superState.whitebeardSkillWindow = 20;
+    _superState.whitebeardSkillMode = "tsunami";
+    _superState.whitebeardTsunamiUsed = false;
+    _superState.whitebeardTsunamiPending = 0;
+
+    var atk = c.getAttacks();
+    for (var i = 0; i < atk.length; i++) {
+        var a = atk[i];
+        var ax = (a.x || 0) + (a.size || a.radius || 20) / 2;
+        var ay = (a.y || 0) + (a.size || a.radius || 20) / 2;
+        var dx = ax - hx, dy = ay - hy;
+        var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        var push = 8 + Math.max(0, 120 - Math.min(120, dist)) / 15;
+        var nx = dx / dist, ny = dy / dist;
+        if (a.spd !== undefined) a.spd += nx * push;
+        if (a.spdY !== undefined) a.spdY += ny * push;
+        if (a.vx !== undefined) a.vx += nx * push;
+        if (a.vy !== undefined) a.vy += ny * push;
+        if (a._whitebeardPushTimer === undefined) a._whitebeardPushTimer = 0.18;
+    }
+
+    addShockwaveRing(hx, hy, "#00ccff", 850, 0.8, 10);
+    addShockwaveRing(hx, hy, "#ffffff", 520, 0.55, 5);
+    _superState.screenShakeAmount = 22;
+    _superState.screenFlashWhite = 5;
+    if (typeof showFloatingText === "function") showFloatingText("👊 ГУРА-ГУРА: УДАР В СТОРОНЫ!", "#66ddff");
+    if (typeof playArenaSound === "function") playArenaSound(95, "square", 0.45, 0.25);
+}
+
+function whitebeardSkillTsunami() {
+    if (!arenaActive || !isWhitebeardMainActive()) return;
+    if (typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
+        if (typeof showFloatingText === "function") showFloatingText("⚔️ СНАЧАЛА ЗАКОНЧИ АТАКУ!", "#ffdd00");
+        return;
+    }
+    if (_superState.whitebeardSkillWindow <= 0 || _superState.whitebeardSkillMode !== "tsunami") return;
+    if (_superState.whitebeardTsunamiUsed || _superState.whitebeardTsunamiPending > 0 || _superState.whitebeardSkillTsunamiActive) return;
+
+    _superState.whitebeardTsunamiUsed = true;
+    _superState.whitebeardTsunamiPending = 1.5;
+    if (typeof showFloatingText === "function") showFloatingText("🌊 ЦУНАМИ ЗАРЯЖАЕТСЯ... 1.5с", "#66ddff");
+    if (typeof playArenaSound === "function") playArenaSound(180, "sine", 0.4, 0.12);
+}
+
+function useWhitebeardSkill() {
+    if (!arenaActive || !isWhitebeardMainActive()) return;
+    if (typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
+        if (typeof showFloatingText === "function") showFloatingText("⚔️ СНАЧАЛА ЗАКОНЧИ АТАКУ!", "#ffdd00");
+        return;
+    }
+    if (_superState.whitebeardSkillWindow > 0 && _superState.whitebeardSkillMode === "tsunami") {
+        whitebeardSkillTsunami();
+    } else {
+        whitebeardSkillStrike();
+    }
+}
+
+function updateWhitebeardSkill(dt) {
+    if (!arenaActive) return;
+    if (!isWhitebeardMainActive()) {
+        _superState.whitebeardSkillWindow = 0;
+        _superState.whitebeardSkillMode = "strike";
+        _superState.whitebeardTsunamiUsed = false;
+        _superState.whitebeardTsunamiPending = 0;
+        _superState.whitebeardSkillTsunamiActive = false;
+        return;
+    }
+
+    if (_superState.whitebeardSkillCooldown > 0)
+        _superState.whitebeardSkillCooldown = Math.max(0, _superState.whitebeardSkillCooldown - dt);
+
+    if (_superState.whitebeardSkillWindow > 0) {
+        _superState.whitebeardSkillWindow = Math.max(0, _superState.whitebeardSkillWindow - dt);
+        if (_superState.whitebeardSkillWindow <= 0) {
+            _superState.whitebeardSkillMode = "strike";
+            _superState.whitebeardTsunamiUsed = false;
+            _superState.whitebeardTsunamiPending = 0;
+        }
+    }
+
+    if (_superState.whitebeardTsunamiPending > 0) {
+        _superState.whitebeardTsunamiPending = Math.max(0, _superState.whitebeardTsunamiPending - dt);
+        if (_superState.whitebeardTsunamiPending <= 0) {
+            _superState.whitebeardSkillTsunamiActive = true;
+            _superState.whitebeardSkillTsunamiY = 540;
+            _superState.whitebeardSkillTsunamiHitId++;
+            if (typeof showFloatingText === "function") showFloatingText("🌊 ЦУНАМИ!!!", "#00ddff");
+            _superState.screenShakeAmount = 12;
+            if (typeof playArenaSound === "function") playArenaSound(420, "sine", 0.9, 0.18);
+        }
+    }
+
+    if (_superState.whitebeardSkillTsunamiActive) {
+        _superState.whitebeardSkillTsunamiY -= 220 * dt;
+        var c = getBossContext();
+        if (c && c.type === "arena") {
+            var atk = c.getAttacks();
+            var waveY = _superState.whitebeardSkillTsunamiY;
+            for (var i = 0; i < atk.length; i++) {
+                var a = atk[i];
+                if (a._wbTsunamiHitId === _superState.whitebeardSkillTsunamiHitId) continue;
+                var ay = (a.y || 0) + (a.size || a.radius || 20) / 2;
+                if (Math.abs(ay - waveY) < 65) {
+                    a._wbTsunamiHitId = _superState.whitebeardSkillTsunamiHitId;
+                    if (a.spd !== undefined) a.spd *= 0.45;
+                    if (a.spdY !== undefined) a.spdY *= 0.45;
+                    if (a.vx !== undefined) a.vx *= 0.45;
+                    if (a.vy !== undefined) a.vy *= 0.45;
+                    var ax = (a.x || 0) + (a.size || a.radius || 20) / 2;
+                    var dx = ax - 200;
+                    var dy = ay - waveY;
+                    var len = Math.sqrt(dx * dx + dy * dy) || 1;
+                    if (a.vy !== undefined) a.vy -= 3 + Math.random() * 2;
+                    if (a.spdY !== undefined) a.spdY -= 3 + Math.random() * 2;
+                    c.getParticles().push({x:ax,y:ay,vx:(Math.random()-.5)*6,vy:-2-Math.random()*4,life:24,maxLife:24,color:"#66ddff",size:3+Math.random()*3});
+                }
+            }
+        }
+        if (_superState.whitebeardSkillTsunamiY < -80) {
+            _superState.whitebeardSkillTsunamiActive = false;
+        }
+    }
+
+    updateWhitebeardSkillButton();
+}
+
+function updateWhitebeardSkillButton() {
+    var btn = document.getElementById("whitebeardSkillBtn");
+    if (!btn) return;
+    if (!arenaActive || !isWhitebeardMainActive()) {
+        btn.style.display = "none";
+        btn.disabled = false;
+        return;
+    }
+
+    btn.style.display = "block";
+    btn.style.width = "auto";
+    btn.style.minWidth = "190px";
+    btn.style.boxSizing = "border-box";
+    btn.style.padding = "8px 18px";
+    btn.style.fontSize = "14px";
+    btn.style.whiteSpace = "nowrap";
+
+    if (typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
+        btn.disabled = true;
+        btn.textContent = "⚔️ ЗАКОНЧИ АТАКУ";
+        btn.style.background = "#555";
+        btn.style.animation = "none";
+        return;
+    }
+
+    if (_superState.whitebeardTsunamiPending > 0) {
+        btn.disabled = true;
+        btn.textContent = "⏳ ЦУНАМИ (" + _superState.whitebeardTsunamiPending.toFixed(1) + "с)";
+        btn.style.background = "#555";
+        btn.style.animation = "none";
+        return;
+    }
+
+    if (_superState.whitebeardSkillWindow > 0 && _superState.whitebeardSkillMode === "tsunami") {
+        if (_superState.whitebeardTsunamiUsed) {
+            btn.disabled = true;
+            btn.textContent = "✅ ЦУНАМИ ЗАПУЩЕНО";
+            btn.style.background = "linear-gradient(135deg,#0b5,#00aaff)";
+            btn.style.animation = "none";
+        } else {
+            btn.disabled = false;
+            btn.textContent = "🌊 БЕЛОУС: ЦУНАМИ (" + Math.ceil(_superState.whitebeardSkillWindow) + "с)";
+            btn.style.background = "linear-gradient(135deg,#00ccff,#0066aa)";
+            btn.style.animation = "superPulse 2s infinite";
+        }
+        return;
+    }
+
+    if (_superState.whitebeardSkillCooldown > 0) {
+        btn.disabled = true;
+        btn.textContent = "⏳ БЕЛОУС: УДАР (" + Math.ceil(_superState.whitebeardSkillCooldown) + "с)";
+        btn.style.background = "#555";
+        btn.style.animation = "none";
+        return;
+    }
+
+    btn.disabled = false;
+    btn.textContent = "💥 БЕЛОУС: УДАР";
+    btn.style.background = "linear-gradient(135deg,#00ccff,#0066aa)";
+    btn.style.animation = "superPulse 2s infinite";
+}
+
+window.isWhitebeardMainActive = isWhitebeardMainActive;
+
 function toggleSuper() {
     var bossType = isUniqueBossActive();
     var isUnique = bossType !== null;
@@ -1280,10 +1500,18 @@ function resetAllCooldowns() {
     _superState.dekuDashSmashReady = false;
     _superState.dekuEarthShatterCooldown = 0;
     _superState.dekuDashSmashCooldown = 0;
+    _superState.whitebeardSkillCooldown = 0;
+    _superState.whitebeardSkillWindow = 0;
+    _superState.whitebeardSkillMode = "strike";
+    _superState.whitebeardTsunamiUsed = false;
+    _superState.whitebeardTsunamiPending = 0;
+    _superState.whitebeardSkillTsunamiActive = false;
+    _superState.whitebeardSkillTsunamiY = 540;
     updateSuperButton();
 }
 
 function updateSuperButton() {
+    updateWhitebeardSkillButton();
     var btn = document.getElementById("superBtn");
     var btn2 = document.getElementById("superBtn2");
     var btnDeact = document.getElementById("superBtnDeactivate");
@@ -1585,6 +1813,7 @@ function resetAllSupers() {
     _superState.whitebeardTsunami = false;
     _superState.whitebeardTsunamiY = 0;
     _superState.whitebeardTsunamiTimer = 0;
+    clearWhitebeardSkillState();
     var btnDeact = document.getElementById("superBtnDeactivate");
     if (btnDeact) btnDeact.style.display = "none";
     resetAllCooldowns();
@@ -1618,8 +1847,9 @@ function tickSupers() {
     if (dt > 0.1) dt = 0.1;
     _superLastTick = now;
 
-    // ★ БЕЛОУС: реген ★
+    // ★ БЕЛОУС: реген + активки
     tickWhitebeardRegen(dt);
+    updateWhitebeardSkill(dt);
 
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onTick) superAbilities[_activeSuperName].onTick(dt);
     if (_superState.borosHeal && _superState.borosHeal.active && superAbilities["Борос"] && superAbilities["Борос"].onTick) superAbilities["Борос"].onTick(dt);
@@ -2616,6 +2846,11 @@ function patchSuperButtons() {
         btn2.onclick = function(e) { e.preventDefault(); e.stopPropagation(); if (typeof activateDekuDashSmash === 'function') activateDekuDashSmash(); };
         btn2._superPatched = true;
     }
+    var wbSkillBtn = document.getElementById("whitebeardSkillBtn");
+    if (wbSkillBtn && !wbSkillBtn._wbSkillPatched) {
+        wbSkillBtn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); useWhitebeardSkill(); };
+        wbSkillBtn._wbSkillPatched = true;
+    }
     if (btnDeact && !btnDeact._superPatched) {
         btnDeact.onclick = function(e) { e.preventDefault(); e.stopPropagation(); if (typeof deactivateDeku100 === 'function') deactivateDeku100(); };
         btnDeact._superPatched = true;
@@ -2635,6 +2870,8 @@ window.activateDekuDashSmash = activateDekuDashSmash;
 window.activateDekuEarthShatter = activateDekuEarthShatter;
 window.deactivateDeku100 = deactivateDeku100;
 window.activateAllmightHurricane = activateAllmightHurricane;
+window.useWhitebeardSkill = useWhitebeardSkill;
+window.updateWhitebeardSkillButton = updateWhitebeardSkillButton;
 window.initSuperState = initSuperState;
 window.tickSupers = tickSupers;
 window.renderSuperVisuals = renderSuperVisuals;
