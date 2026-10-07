@@ -1073,6 +1073,47 @@
         document.body.appendChild(rwbModeBtn);
     }
 
+    function getRWBMainCard() {
+        try {
+            if (typeof getMainCard === "function") return getMainCard();
+            if (typeof team !== "undefined" && typeof mainCardIndex !== "undefined" && team.length > 0 && typeof myCards !== "undefined") {
+                var idx = team[mainCardIndex];
+                return (idx >= 0 && idx < myCards.length) ? myCards[idx] : null;
+            }
+        } catch(e) {}
+        return null;
+    }
+
+    function updateRWBMainSuperButton() {
+        if (!rwbSuperBtn) return;
+        var card = getRWBMainCard();
+        if (!card) return;
+        if (card.name === "Белоус" && typeof window._superState !== "undefined") {
+            var st = window._superState;
+            if (st.whitebeardTsunamiPending > 0) {
+                rwbSuperBtn.innerHTML = '⏳ ЦУНАМИ (' + st.whitebeardTsunamiPending.toFixed(1) + 'с)';
+                rwbSuperBtn.style.opacity = '0.55';
+            } else if (st.whitebeardSkillWindow > 0 && st.whitebeardSkillMode === "tsunami" && !st.whitebeardTsunamiUsed) {
+                rwbSuperBtn.innerHTML = '🌊 ЦУНАМИ (' + Math.ceil(st.whitebeardSkillWindow) + 'с)';
+                rwbSuperBtn.style.opacity = '1';
+            } else if (st.whitebeardSkillCooldown > 0) {
+                rwbSuperBtn.innerHTML = '⏳ УДАР (' + Math.ceil(st.whitebeardSkillCooldown) + 'с)';
+                rwbSuperBtn.style.opacity = '0.55';
+            } else if (st.whitebeardSkillTsunamiActive) {
+                rwbSuperBtn.innerHTML = '🌊 ЦУНАМИ ИДЁТ';
+                rwbSuperBtn.style.opacity = '0.55';
+            } else {
+                rwbSuperBtn.innerHTML = '⚡ SUPER: БЕЛОУС';
+                rwbSuperBtn.style.opacity = '1';
+            }
+            return;
+        }
+        if (typeof rwbSuperReady !== "undefined" && rwbSuperReady) {
+            rwbSuperBtn.style.opacity = '1';
+            rwbSuperBtn.innerHTML = '⚡ СУПЕР';
+        }
+    }
+
     function createRWBSuperButton() {
         if (rwbSuperBtn) return;
         rwbSuperBtn = document.createElement('button');
@@ -1116,6 +1157,13 @@
         if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
             if (typeof showFloatingText === 'function') showFloatingText("Нужно мастерство 5★!", "#ff3333");
             return;
+        }
+        if (mainCard.name === "Белоус" && typeof window.useWhitebeardSkill === "function") {
+            try {
+                window.useWhitebeardSkill();
+                if (typeof updateRWBMainSuperButton === "function") updateRWBMainSuperButton();
+                return;
+            } catch(e) { console.warn("[ROGER-WB] Whitebeard skill error:", e); }
         }
         if (typeof window.toggleSuper === 'function') {
             try {
@@ -2268,6 +2316,8 @@
         if (typeof tickSupers === 'function') {
             try { tickSupers(); } catch(e) { console.error("[ROGER-WB] tickSupers error:", e); }
         }
+
+        if (typeof updateRWBMainSuperButton === "function") updateRWBMainSuperButton();
 
         if (!rwbSuperReady && rwbSuperCooldown > 0) {
             rwbSuperCooldown--;
