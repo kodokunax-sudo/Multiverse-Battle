@@ -402,9 +402,16 @@ function startArena(bossWave) {
         // ★ ТАКАБА ★
         _superState.takabaConfidence = 50;
         _superState.takabaLastEventTime = 0;
+        _superState.takabaEventTimer = 0;
+        _superState.takabaEffectTimer = 0;
+        _superState.takabaEffectType = null;
         _superState.takabaTimeStop = false;
         _superState.takabaJokeActive = false;
+        _superState.takabaCurrentJoke = "";
         _superState.takabaBgColor = null;
+        _superState.takabaDuckMode = false;
+        _superState.takabaDmgMult = 1;
+        _superState.takabaDamageTakenMult = 1;
     }
 
     var speedInfo = getMainCardSpeedForArena();
@@ -533,8 +540,13 @@ function applyArenaDamage() {
         if (_superState.allmightPermaSlow && _superState.allmightDebuffDmgMult < 1) finalDmg = Math.floor(finalDmg * _superState.allmightDebuffDmgMult);
         if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) finalDmg = Math.floor(finalDmg * _superState.dandyDmgBuff.mult);
         if (_superState.markBuffActive && _superState.markDmgBonus > 1) finalDmg = Math.floor(finalDmg * _superState.markDmgBonus);
+        if (_superState.takabaDmgMult && _superState.takabaDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.takabaDmgMult);
     }
-    if (finalDmg > 0) { arenaBossMaxHP -= finalDmg; arenaShake = 20; screenFlash = 10; screenFlashColor = "#ffdd00"; arenaShockwaves.push({ x: 200, y: 250, r: 15, v: 14, life: 22, maxLife: 22, color: "rgba(255,255,255,0.9)" }); for (var j = 0; j < 30; j++) { var angle = Math.random() * Math.PI * 2; arenaParticles.push({ x: 200, y: 250, vx: Math.cos(angle) * 10, vy: Math.sin(angle) * 10, life: 35, maxLife: 35, color: "#ffdd00", size: 2 + Math.random() * 5 }); } }
+    if (finalDmg > 0) {
+        if (typeof adjustTakabaConfidence === "function" && typeof getTakabaLevel === "function") {
+            try { if (getTakabaLevel(_superState.takabaConfidence || 0) >= 1) adjustTakabaConfidence(1, false); } catch(e) {}
+        }
+        arenaBossMaxHP -= finalDmg; arenaShake = 20; screenFlash = 10; screenFlashColor = "#ffdd00"; arenaShockwaves.push({ x: 200, y: 250, r: 15, v: 14, life: 22, maxLife: 22, color: "rgba(255,255,255,0.9)" }); for (var j = 0; j < 30; j++) { var angle = Math.random() * Math.PI * 2; arenaParticles.push({ x: 200, y: 250, vx: Math.cos(angle) * 10, vy: Math.sin(angle) * 10, life: 35, maxLife: 35, color: "#ffdd00", size: 2 + Math.random() * 5 }); } }
     setTimeout(function() { if (arenaBossMaxHP <= 0) { sfxArenaVictory(); winArena(); return; } startDodgePhase(); }, 1500);
 }
 
@@ -694,6 +706,7 @@ function applyHit(dmg, textMsg, isTrueOneshot) {
     if (typeof _superState !== 'undefined' && _superState.dandyShield && _superState.dandyShield.timer > 0) dmg = Math.floor(dmg * _superState.dandyShield.mult);
     if (typeof _superState !== 'undefined' && _superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
     if (typeof _superState !== 'undefined' && _superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
+    if (typeof _superState !== "undefined" && _superState.takabaDamageTakenMult && _superState.takabaDamageTakenMult < 1) dmg = Math.max(1, Math.floor(dmg * _superState.takabaDamageTakenMult));
     if (invulnTimer > 0) return; if (arenaAttackType !== 10) invulnTimer = 45;
     if (isTrueOneshot || dmg >= arenaMaxHP) { arenaHP = 0; }
     else { var directDmg = 1; var karmaDmg = dmg - directDmg; if (karmaDmg < 0) karmaDmg = 0; arenaHP -= directDmg; arenaKarma += karmaDmg; }
