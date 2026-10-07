@@ -448,6 +448,21 @@ function startArena(bossWave) {
         if (overlay) overlay.appendChild(mainCardDisplay);
     }
     mainCardDisplay.innerHTML = '👑 ' + speedInfo.cardName + ' | ⚡ ' + heartSpeed.toFixed(2);
+    var takabaDisplay = document.getElementById("arenaTakabaConfidenceDisplay");
+    if (typeof _superState !== 'undefined' && hasTakabaAbilityInTeam && hasTakabaAbilityInTeam()) {
+        if (!takabaDisplay) {
+            takabaDisplay = document.createElement("div");
+            takabaDisplay.id = "arenaTakabaConfidenceDisplay";
+            takabaDisplay.style.cssText = "position:absolute;top:34px;left:8px;background:rgba(255,20,180,0.88);color:#fff;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:900;z-index:100;pointer-events:none;font-family:'Nunito',sans-serif;box-shadow:0 0 12px rgba(255,102,255,0.7);";
+            if (overlay) overlay.appendChild(takabaDisplay);
+        }
+        var tc = Math.round(_superState.takabaConfidence || 0);
+        var tl = typeof getTakabaLevel === 'function' ? getTakabaLevel(tc) : 1;
+        takabaDisplay.innerHTML = '🎭 УВЕРЕННОСТЬ ТАКАБЫ: ' + tc + '% | УР. ' + tl;
+        takabaDisplay.style.display = "block";
+    } else if (takabaDisplay) {
+        takabaDisplay.style.display = "none";
+    }
 
     arenaClickTargets = []; arenaClicksHit = 0; arenaPhase = "dodge"; attacks = []; arenaBlasters = []; arenaParticles = []; floatingTexts = []; arenaTrail = []; arenaShockwaves = []; wallGapIndicator = null;
     arenaShake = 0; arenaHitFlash = 0; invulnTimer = 0; arenaComboText = ""; arenaComboTimer = 0; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0; heartRotation = 0; heartWasMoving = false; heartStandingTime = 0;
@@ -728,6 +743,7 @@ function tickWhitebeardRegenArena(dt) {
             var cd = myCards[idx];
             if (cd && cd.name === "Белоус") {
                 if (typeof hasMasteryAbility === 'function' && !hasMasteryAbility(cd)) continue;
+                if (typeof mainCardIndex === 'undefined' || team[mainCardIndex] !== idx) continue;
                 hasWhitebeard = true;
                 break;
             }
