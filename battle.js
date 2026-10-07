@@ -1,3012 +1,1098 @@
-// ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v19.1
-// ============================================================
-// ★ v19.1 — ДОБАВЛЕНА ПОДДЕРЖКА ПАССИВКИ БЕЛОУСА (10% поглощение)
-// ★ v19.0:
-//   - garouTimeStop останавливает ВСЕ атаки
-//   - Поглощение урона (щит, редукция) работает правильно
-//   - Увеличение урона (nikaDmgMult, dekusDmgMult, allmightDmgMult,
-//     kaidoDmgBonus, dandyDmgBuff, markDmgBonus) применяется к пулям
-//   - Ураган Всемогущего работает
-//   - Анти-спираль реально замедляет игрока
-//   - rwbSpeedMult — глобальный множитель скорости игрока
-// ============================================================
+// ========== АРЕНА UNDERTALE v18.0 ==========
+// + ЭКСПОРТ arenaActive и arenaPhase в window для joystick.js
+// + moveHeart читает window._joystick
+// + ПОДДЕРЖКА ПАССИВКИ БЕЛОУСА (10% поглощение)
+// + ПОДДЕРЖКА ТАКАБЫ (остановка времени / takabaTimeStop)
 
-(function() {
-    'use strict';
+let arenaActive = false;
+let arenaBoss = null;
+let arenaHP = 70;
+let arenaMaxHP = 70;
+let arenaBossMaxHP = 1000;
+let arenaAttackType = 0;
+let arenaClickTargets = [];
+let arenaClicksHit = 0;
+let arenaTotalTargets = 8;
+let arenaAttackTimeLeft = 2;
+let heart = { x: 200, y: 400, size: 14, hitbox: 4, vx: 0, vy: 0 };
+let attacks = [];
+let arenaBlasters = [];
+let arenaAllowedTypes = [];
+let canvas = null;
+let ctx = null;
+let arenaParticles = [];
+let floatingTexts = [];
+let arenaShockwaves = [];
+let arenaBgParticles = [];
+let arenaShake = 0;
+let arenaHitFlash = 0;
+let arenaComboText = "";
+let arenaComboTimer = 0;
+let arenaTrail = [];
+let keys = { w: false, a: false, s: false, d: false, up: false, left: false, down: false, right: false };
+let heartSpeed = 1.2;
+let joystickActive = false;
+let joystickX = 0;
+let joystickY = 0;
+let joystickId = null;
+let arenaPhase = "dodge";
+let arenaAttackInterval = null;
+let animFrameId = null;
+let heartWasMoving = false;
+let heartStandingTime = 0;
+let arenaSpeedMult = 1.0;
+let arenaCurrentWave = 0;
+let invulnTimer = 0;
+let isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
+let arenaBossDefeatedBefore = false;
+let arenaBossDmgMult = 1.0;
+let arenaBaseDmg = 5;
+let arenaAmbientSoundInterval = null;
+let wallGapIndicator = null;
+let arenaKarma = 0;
+let ghostBossHP = 1000;
+let screenFlash = 0;
+let screenFlashColor = "#ffffff";
+let heartRotation = 0;
+let arenaVignette = 0;
+let arenaGlobalSpeedMod = 1.0;
+let arenaDodgeTimer = 0;
+let arenaDodgeTimerInterval = null;
+let arenaPhaseTimeout = null;
 
-    if (window._rogerWhitebeardLoaded) {
-        console.warn("[ROGER-WB] Уже загружено.");
-        return;
-    }
-    window._rogerWhitebeardLoaded = true;
+let mobileSuperTapTimer = null;
+let mobileSuperTapCount = 0;
+let mobileSuperSwipeStart = null;
 
-    const RWB_SUPER_ROGER_HP = 2200;
-    const RWB_SUPER_WB_HP = 1560;
-    const RWB_ATTACK_SPEED = 45;
-    const RWB_ATTACK_SPEED_SUPER_ROGER = 30;
-    const RWB_SUPER_COOLDOWN = 300;
-    const RWB_TITAN_INTERVAL = 640;
-    const RWB_ROCK_INTERVAL = 1500;
-    const RWB_MELEE_RANGE = 55;
-    const RWB_MELEE_COOLDOWN = 40;
-    const RWB_MELEE_DAMAGE = 15;
-    const RWB_MELEE_KNOCKBACK = 40;
+let wallSpeedMult = 1.0;
+let wallCountMult = 1.0;
+let wallWarningTimer = null;
 
-    const BALANCE = {
-        playerHp: 250,
-        playerDamageMult: 1.0,
-        rogerHp: 800,
-        rogerDamageMult: 1.3,
-        whitebeardHp: 900,
-        whitebeardDamageMult: 0.8,
-        superAttackRate: 40,
-        superDamageMult: 1.7,
-        superDuration: 2700,
-        playerHitboxMult: 0.7,
-        projectileSpeedMult: 1.0
+// ★ Регенерация Белоуса ★
+let whitebeardRegenTimer = 0;
+
+if (typeof window._armorSpeedApplied === 'undefined') window._armorSpeedApplied = false;
+
+// ========== ЗВУКОВАЯ СИСТЕМА АРЕНЫ ==========
+let arenaAudioCtx = null;
+
+function initArenaAudio() {
+    if (arenaAudioCtx) { if (arenaAudioCtx.state === 'suspended') arenaAudioCtx.resume(); return; }
+    try { arenaAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(err) {}
+}
+
+function playArenaSound(frequency, type, duration, volume, detune) {
+    if (volume === undefined) volume = 0.12;
+    if (detune === undefined) detune = 0;
+    let globalVol = (typeof arenaSettings !== 'undefined') ? arenaSettings.volume : 0.20;
+    let finalVolume = volume * globalVol;
+    if (finalVolume <= 0.001) return;
+    if (!arenaAudioCtx) { try { initArenaAudio(); } catch(err) { return; } }
+    if (!arenaAudioCtx) return;
+    try {
+        const oscillator = arenaAudioCtx.createOscillator();
+        const gainNode = arenaAudioCtx.createGain();
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, arenaAudioCtx.currentTime);
+        if (detune) oscillator.detune.setValueAtTime(detune, arenaAudioCtx.currentTime);
+        gainNode.gain.setValueAtTime(finalVolume, arenaAudioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, arenaAudioCtx.currentTime + duration);
+        oscillator.connect(gainNode);
+        gainNode.connect(arenaAudioCtx.destination);
+        oscillator.start(arenaAudioCtx.currentTime);
+        oscillator.stop(arenaAudioCtx.currentTime + duration);
+    } catch(err) {}
+}
+
+function startArenaAmbient() {
+    if (arenaAmbientSoundInterval) return;
+    arenaAmbientSoundInterval = setInterval(function() {
+        if (!arenaActive) { clearInterval(arenaAmbientSoundInterval); arenaAmbientSoundInterval = null; return; }
+        playArenaSound(30 + Math.random() * 15, 'sine', 2.0, 0.03);
+    }, 3000);
+}
+
+function stopArenaAmbient() { if (arenaAmbientSoundInterval) { clearInterval(arenaAmbientSoundInterval); arenaAmbientSoundInterval = null; } }
+
+// ====== ЗВУКИ ======
+function sfxWhiteWalls() { playArenaSound(80, 'sawtooth', 0.5, 0.08); setTimeout(function() { playArenaSound(60, 'sawtooth', 0.4, 0.06); }, 150); setTimeout(function() { playArenaSound(100, 'triangle', 0.3, 0.05); }, 300); }
+function sfxBlueChaos() { playArenaSound(600, 'square', 0.15, 0.04); setTimeout(function() { playArenaSound(800, 'square', 0.12, 0.03); }, 50); setTimeout(function() { playArenaSound(400, 'square', 0.1, 0.04); }, 100); }
+function sfxYellowSwords() { playArenaSound(200, 'sawtooth', 0.3, 0.08); setTimeout(function() { playArenaSound(300, 'sawtooth', 0.25, 0.06); }, 60); setTimeout(function() { playArenaSound(500, 'triangle', 0.2, 0.05); }, 120); }
+function sfxRedTriangles() { playArenaSound(50, 'sawtooth', 0.6, 0.1); setTimeout(function() { playArenaSound(40, 'sawtooth', 0.5, 0.08); }, 200); setTimeout(function() { playArenaSound(70, 'triangle', 0.4, 0.06); }, 400); }
+function sfxPinkKnockback() { playArenaSound(500, 'sine', 0.2, 0.06); setTimeout(function() { playArenaSound(300, 'sine', 0.25, 0.08); }, 60); setTimeout(function() { playArenaSound(700, 'sine', 0.15, 0.04); }, 120); }
+function sfxGreenHealSpawn() { playArenaSound(800, 'sine', 0.3, 0.06); setTimeout(function() { playArenaSound(1000, 'sine', 0.25, 0.05); }, 100); setTimeout(function() { playArenaSound(1200, 'sine', 0.2, 0.04); }, 200); }
+function sfxRainbowDeathSpawn() { playArenaSound(30, 'sawtooth', 1.5, 0.15); setTimeout(function() { playArenaSound(20, 'sawtooth', 1.2, 0.12); }, 200); setTimeout(function() { playArenaSound(50, 'sawtooth', 1.0, 0.1); }, 400); }
+function sfxMixAttack() { playArenaSound(150, 'square', 0.2, 0.06); setTimeout(function() { playArenaSound(60, 'sawtooth', 0.3, 0.08); }, 100); setTimeout(function() { playArenaSound(300, 'triangle', 0.15, 0.04); }, 200); }
+function sfxZoneAttack() { playArenaSound(100, 'sawtooth', 0.5, 0.08); setTimeout(function() { playArenaSound(130, 'sawtooth', 0.4, 0.06); }, 150); setTimeout(function() { playArenaSound(90, 'triangle', 0.3, 0.05); }, 300); }
+function sfxBombTick() { playArenaSound(1000, 'square', 0.08, 0.05); setTimeout(function() { playArenaSound(800, 'square', 0.06, 0.03); }, 100); }
+function sfxBlasterCharge() { playArenaSound(60, 'sawtooth', 0.8, 0.1); setTimeout(function() { playArenaSound(90, 'sawtooth', 0.6, 0.08); }, 100); setTimeout(function() { playArenaSound(120, 'sawtooth', 0.5, 0.06); }, 200); }
+function sfxArenaAttackSpawn() { playArenaSound(220, 'sawtooth', 0.25, 0.06); setTimeout(function() { playArenaSound(330, 'sawtooth', 0.2, 0.05); }, 80); }
+function sfxArenaMiss() { playArenaSound(100, 'sine', 0.6, 0.1); setTimeout(function() { playArenaSound(80, 'sine', 0.5, 0.08); }, 150); }
+function sfxArenaHit() { playArenaSound(60, 'sawtooth', 0.8, 0.25); setTimeout(function() { playArenaSound(45, 'sawtooth', 0.9, 0.2); }, 100); }
+function sfxArenaHeal() { playArenaSound(400, 'sine', 0.5, 0.1); setTimeout(function() { playArenaSound(600, 'sine', 0.5, 0.1); }, 100); setTimeout(function() { playArenaSound(800, 'sine', 0.4, 0.1); }, 200); }
+function sfxArenaBombExplosion() { playArenaSound(25, 'sawtooth', 1.5, 0.4); setTimeout(function() { playArenaSound(20, 'sawtooth', 1.3, 0.35); }, 100); setTimeout(function() { playArenaSound(15, 'sawtooth', 1.1, 0.3); }, 250); }
+function sfxArenaBlasterFire() { playArenaSound(80, 'square', 0.8, 0.25); setTimeout(function() { playArenaSound(120, 'square', 0.7, 0.2); }, 60); setTimeout(function() { playArenaSound(200, 'square', 0.6, 0.15); }, 120); }
+function sfxArenaTargetHit() { playArenaSound(500, 'square', 0.15, 0.06); setTimeout(function() { playArenaSound(700, 'square', 0.1, 0.05); }, 40); }
+function sfxArenaPerfect() { playArenaSound(300, 'sine', 0.4, 0.1); setTimeout(function() { playArenaSound(450, 'sine', 0.4, 0.1); }, 80); setTimeout(function() { playArenaSound(600, 'sine', 0.4, 0.1); }, 160); }
+function sfxArenaFailAttack() { playArenaSound(100, 'triangle', 0.8, 0.2); setTimeout(function() { playArenaSound(70, 'triangle', 0.7, 0.2); }, 150); }
+function sfxArenaDeath() { playArenaSound(40, 'sawtooth', 2.0, 0.35); setTimeout(function() { playArenaSound(30, 'sawtooth', 1.8, 0.3); }, 200); setTimeout(function() { playArenaSound(20, 'sawtooth', 1.5, 0.25); }, 500); }
+function sfxArenaVictory() { playArenaSound(400, 'sine', 0.6, 0.12); setTimeout(function() { playArenaSound(500, 'sine', 0.6, 0.12); }, 100); setTimeout(function() { playArenaSound(600, 'sine', 0.6, 0.12); }, 200); setTimeout(function() { playArenaSound(800, 'sine', 0.7, 0.15); }, 300); }
+function sfxWhoosh() { playArenaSound(200, 'sine', 0.3, 0.05, -200); setTimeout(function() { playArenaSound(150, 'sine', 0.2, 0.04, -300); }, 50); }
+function sfxBounce() { playArenaSound(300, 'square', 0.1, 0.03); setTimeout(function() { playArenaSound(200, 'square', 0.08, 0.02); }, 40); }
+function sfxShieldBreak() { playArenaSound(150, 'sawtooth', 0.3, 0.08); setTimeout(function() { playArenaSound(100, 'sawtooth', 0.2, 0.06); }, 80); }
+
+// ====== ОСНОВНЫЕ ФУНКЦИИ ======
+function initArena() {
+    canvas = document.getElementById("arenaCanvas");
+    if (!canvas) return;
+    ctx = canvas.getContext("2d");
+
+    var handleKey = function(ev, isDown) {
+        var k = ev.key.toLowerCase();
+        if (k in keys) { keys[k] = isDown; ev.preventDefault(); }
+        if (k === "arrowup") { keys.up = isDown; ev.preventDefault(); }
+        if (k === "arrowdown") { keys.down = isDown; ev.preventDefault(); }
+        if (k === "arrowleft") { keys.left = isDown; ev.preventDefault(); }
+        if (k === "arrowright") { keys.right = isDown; ev.preventDefault(); }
     };
+    window.addEventListener("keydown", function(ev) { handleKey(ev, true); });
+    window.addEventListener("keyup", function(ev) { handleKey(ev, false); });
 
-    window.rwbActive = false;
+    canvas.addEventListener("touchstart", function(ev) {
+        if (!arenaActive) return;
 
-    let rwbSpeedMult = 1.0;
-    let rwbBaseSpeed = 4.5;
-    let rwbOriginalBaseSpeed = 4.5;
-
-    let rwbState = "intro";
-    let rwbTimer = 0;
-    let rwbIntroTimer = 0;
-    let rwbTransitionTimer = 0;
-    let rwbEndTimer = 0;
-    let rwbSurvivalTimer2 = 0;
-    let rwbSurvivalTarget2 = BALANCE.superDuration;
-    let rwbActiveBoss = null;
-    let rwbTitanFistTimer = 0;
-    let rwbTitanRockTimer = 0;
-    let rwbSuperReady = true;
-    let rwbSuperCooldown = 0;
-    let rwbMeleeCooldown = 0;
-    let rwbSupersInitialized = false;
-
-    var rwbWinner = null;
-    var rwbRewardGiven = false;
-    var rwbWatchdog = null;
-    var rwbDialogStage = 0;
-    var rwbWhitebeardDisabled = [false, false, false];
-    var rwbWBPhase = "intro";
-    var rwbDialogQueue = [];
-
-    var rwbDialogActive = false;
-    var rwbDialogType = null;
-    var rwbDialogTimer = 0;
-
-    var RWB_ROGER_DIALOG = [
-        { speaker: "🔥 РОДЖЕР", text: "Неужели я вот так погибну не найдя ван пис? Эх... Жаль..." }
-    ];
-
-    var RWB_WHITEBEARD_DIALOG_INITIAL = [
-        { speaker: "❄️ БЕЛОУС", text: "Я настолько слабак, что меня победил какой-то чел, который любит играть в какие-то игры..." }
-    ];
-
-    var RWB_WB_CHOICES = [
-        { id: 0, text: "Проблемы с навыками. Играть не умеешь" },
-        { id: 1, text: "Вступи в мою команду и стань сильнее" },
-        { id: 2, text: "КАКОЙ СЛАБАК!!???? Я МИЛЛИАРД РАЗ СДОХ ИЗ ЗА ВАС" }
-    ];
-
-    var RWB_WB_RESPONSE_1 = [
-        { speaker: "❄️ БЕЛОУС", text: "Может ты и прав... Но откуда мне знать кто ты? А вдруг ты читер?" }
-    ];
-    var RWB_WB_RESPONSE_2 = [
-        { speaker: "❄️ БЕЛОУС", text: "Хорошо, надеюсь это правда" }
-    ];
-    var RWB_WB_RESPONSE_3_A = [
-        { speaker: "❄️ БЕЛОУС", text: "Ты о чем?" }
-    ];
-    var RWB_WB_RESPONSE_3_B = [
-        { speaker: "👤 ИГРОК", text: "Временная шкатулка... Она наполняется прогрессом и можно путешествовать по времени. Это как снимать фильм" }
-    ];
-
-    let roger = null;
-    let whitebeard = null;
-    let duel = null;
-    let rwbPlayer = null;
-
-    let rwbAttacks = [];
-    let rwbPlayerBullets = [];
-    let rwbParticles = [];
-    let rwbShockwaves = [];
-    let rwbFloatingTexts = [];
-    let rwbSpeedLines = [];
-    let rwbHakiLightnings = [];
-    let rwbHakiAura = 0;
-    let rwbScreenFlash = 0;
-    let rwbScreenFlashColor = "#ffffff";
-    let rwbShake = 0;
-    let rwbAnimFrame = null;
-    let rwbBgStars = [];
-
-    let rwbWhiteCracks = [];
-    let rwbPurpleCracks = [];
-
-    let rwbKeys = {};
-    let rwbTouchActive = false;
-    let rwbTouchId = null;
-    let rwbTouchX = 0;
-    let rwbTouchY = 0;
-
-    let rwbModeBtn = null;
-    let rwbSuperBtn = null;
-
-    let rwbTsunamiActive = false;
-
-    let rwbMusic = null;
-    const RWB_MUSIC_PATH = "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3";
-
-    // ★ Регенерация Белоуса ★
-    let rwbWhitebeardRegenTimer = 0;
-
-    function syncWindowVars() {
-        window.rwbPlayer = rwbPlayer;
-        window.rwbAttacks = rwbAttacks;
-        window.rwbParticles = rwbParticles;
-        window.rwbActiveBoss = rwbActiveBoss;
-        window.rwbState = rwbState;
-    }
-    setInterval(syncWindowVars, 100);
-
-    function isModerActive() {
-        try { return typeof mode !== 'undefined' && mode === "moder"; } catch(e) { return false; }
-    }
-
-    function startRWBMusic() {
-        if (typeof stopAllMusic === 'function') stopAllMusic();
-        if (!rwbMusic) {
-            try {
-                let src = RWB_MUSIC_PATH;
-                if (typeof window.getLoadedMusic === 'function') {
-                    let loaded = window.getLoadedMusic('rwb');
-                    if (loaded && loaded.url) src = loaded.url;
+        if (window._joystick && window._joystick.enabled) {
+            if (arenaPhase === "attack") {
+                ev.preventDefault();
+                var rectA = canvas.getBoundingClientRect();
+                for (var i = 0; i < ev.touches.length; i++) {
+                    checkClickTarget(ev.touches[i].clientX - rectA.left, ev.touches[i].clientY - rectA.top);
                 }
-                rwbMusic = new Audio(src);
-                rwbMusic.loop = true; rwbMusic.volume = 0.45;
-                rwbMusic.onerror = function() { rwbMusic = null; };
-            } catch(e) { rwbMusic = null; }
-        }
-        if (rwbMusic) { try { rwbMusic.currentTime = 0; rwbMusic.play().catch(function() {}); } catch(e) {} }
-    }
-
-    function stopRWBMusic() { if (rwbMusic) { try { rwbMusic.pause(); rwbMusic.currentTime = 0; } catch(e) {} } }
-
-    let rwbAudioCtx = null;
-
-    function initRWBAudio() {
-        if (rwbAudioCtx) { if (rwbAudioCtx.state === 'suspended') rwbAudioCtx.resume(); return; }
-        try { rwbAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
-    }
-
-    function playRWBSound(opts) {
-        if (!rwbAudioCtx) initRWBAudio();
-        if (!rwbAudioCtx) return;
-        let freq = opts.freq || 200, freqEnd = opts.freqEnd || freq;
-        let type = opts.type || 'sawtooth', duration = opts.duration || 0.3;
-        let volume = opts.volume || 0.15, attack = opts.attack || 0.005;
-        let release = opts.release || duration, detune = opts.detune || 0;
-        try {
-            let osc = rwbAudioCtx.createOscillator(), gain = rwbAudioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, rwbAudioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), rwbAudioCtx.currentTime + duration);
-            if (detune) osc.detune.setValueAtTime(detune, rwbAudioCtx.currentTime);
-            gain.gain.setValueAtTime(0, rwbAudioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(volume, rwbAudioCtx.currentTime + attack);
-            gain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + release);
-            osc.connect(gain); gain.connect(rwbAudioCtx.destination);
-            osc.start(rwbAudioCtx.currentTime);
-            osc.stop(rwbAudioCtx.currentTime + release + 0.05);
-        } catch(e) {}
-    }
-
-    function playImpactSound(volume, pitch) {
-        if (!rwbAudioCtx) initRWBAudio();
-        if (!rwbAudioCtx) return;
-        volume = volume || 0.4; pitch = pitch || 1;
-        try {
-            let bufferSize = rwbAudioCtx.sampleRate * 0.4;
-            let buffer = rwbAudioCtx.createBuffer(1, bufferSize, rwbAudioCtx.sampleRate);
-            let data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
-            let noise = rwbAudioCtx.createBufferSource(); noise.buffer = buffer;
-            let noiseFilter = rwbAudioCtx.createBiquadFilter(); noiseFilter.type = 'lowpass';
-            noiseFilter.frequency.setValueAtTime(400 * pitch, rwbAudioCtx.currentTime);
-            noiseFilter.frequency.exponentialRampToValueAtTime(80, rwbAudioCtx.currentTime + 0.4);
-            let noiseGain = rwbAudioCtx.createGain();
-            noiseGain.gain.setValueAtTime(volume, rwbAudioCtx.currentTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.4);
-            noise.connect(noiseFilter); noiseFilter.connect(noiseGain); noiseGain.connect(rwbAudioCtx.destination);
-            noise.start(rwbAudioCtx.currentTime);
-            let osc = rwbAudioCtx.createOscillator(), oscGain = rwbAudioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(120 * pitch, rwbAudioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(35, rwbAudioCtx.currentTime + 0.3);
-            oscGain.gain.setValueAtTime(volume * 1.2, rwbAudioCtx.currentTime);
-            oscGain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.35);
-            osc.connect(oscGain); oscGain.connect(rwbAudioCtx.destination);
-            osc.start(rwbAudioCtx.currentTime);
-            osc.stop(rwbAudioCtx.currentTime + 0.4);
-        } catch(e) {}
-    }
-
-    function playBladeSound(volume) {
-        volume = volume || 0.2;
-        playRWBSound({ freq: 2000, freqEnd: 400, type: 'sawtooth', duration: 0.25, volume: volume * 0.4, attack: 0.002, release: 0.25 });
-        playRWBSound({ freq: 3000, freqEnd: 800, type: 'triangle', duration: 0.15, volume: volume * 0.3, attack: 0.001, release: 0.15, detune: 20 });
-    }
-
-    function playExplosionSound(volume) {
-        volume = volume || 0.5;
-        if (!rwbAudioCtx) initRWBAudio();
-        if (!rwbAudioCtx) return;
-        try {
-            let bufferSize = rwbAudioCtx.sampleRate * 0.8;
-            let buffer = rwbAudioCtx.createBuffer(1, bufferSize, rwbAudioCtx.sampleRate);
-            let data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
-            let noise = rwbAudioCtx.createBufferSource(); noise.buffer = buffer;
-            let filter = rwbAudioCtx.createBiquadFilter(); filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(1500, rwbAudioCtx.currentTime);
-            filter.frequency.exponentialRampToValueAtTime(60, rwbAudioCtx.currentTime + 0.8);
-            let gain = rwbAudioCtx.createGain();
-            gain.gain.setValueAtTime(volume, rwbAudioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.8);
-            noise.connect(filter); filter.connect(gain); gain.connect(rwbAudioCtx.destination);
-            noise.start(rwbAudioCtx.currentTime);
-            let osc = rwbAudioCtx.createOscillator(), oscGain = rwbAudioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(80, rwbAudioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(25, rwbAudioCtx.currentTime + 0.6);
-            oscGain.gain.setValueAtTime(volume * 1.5, rwbAudioCtx.currentTime);
-            oscGain.gain.exponentialRampToValueAtTime(0.001, rwbAudioCtx.currentTime + 0.7);
-            osc.connect(oscGain); oscGain.connect(rwbAudioCtx.destination);
-            osc.start(rwbAudioCtx.currentTime);
-            osc.stop(rwbAudioCtx.currentTime + 0.8);
-        } catch(e) {}
-    }
-
-    function playWhooshSound(volume) {
-        volume = volume || 0.15;
-        playRWBSound({ freq: 800, freqEnd: 100, type: 'sawtooth', duration: 0.3, volume: volume, attack: 0.01, release: 0.3, detune: -100 });
-    }
-
-    function playHakiChargeSound(volume) {
-        volume = volume || 0.25;
-        playRWBSound({ freq: 60, freqEnd: 400, type: 'sawtooth', duration: 1.2, volume: volume, attack: 0.1, release: 1.2 });
-        playRWBSound({ freq: 100, freqEnd: 600, type: 'square', duration: 1.2, volume: volume * 0.5, attack: 0.1, release: 1.2, detune: 50 });
-    }
-
-    function playBossRoarSound(volume) {
-        volume = volume || 0.4;
-        playRWBSound({ freq: 150, freqEnd: 60, type: 'sawtooth', duration: 0.8, volume: volume, attack: 0.05, release: 0.8, detune: -200 });
-        playRWBSound({ freq: 80, freqEnd: 40, type: 'square', duration: 1.0, volume: volume * 0.7, attack: 0.05, release: 1.0, detune: -300 });
-    }
-
-    function wrapText(text, maxWidth, ctx) {
-        var words = text.split(' '), lines = [], currentLine = '';
-        for (var i = 0; i < words.length; i++) {
-            var testLine = currentLine ? currentLine + ' ' + words[i] : words[i];
-            if (ctx.measureText(testLine).width > maxWidth && currentLine) { lines.push(currentLine); currentLine = words[i]; }
-            else { currentLine = testLine; }
-        }
-        if (currentLine) lines.push(currentLine);
-        return lines;
-    }
-
-    // ============================================================
-    // ПОРТРЕТЫ
-    // ============================================================
-    function drawRogerPortrait(x, y, scale) {
-        ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
-        ctx.fillStyle = "#8B0000";
-        ctx.beginPath(); ctx.moveTo(-55, 80); ctx.lineTo(-45, 25); ctx.lineTo(-25, 15); ctx.lineTo(25, 15); ctx.lineTo(45, 25); ctx.lineTo(55, 80); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#FFD700";
-        ctx.beginPath(); ctx.ellipse(-38, 30, 15, 10, -0.3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(38, 30, 15, 10, 0.3, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#B8860B"; ctx.lineWidth = 1.5;
-        for (let i = -1; i <= 1; i++) {
-            ctx.beginPath(); ctx.moveTo(-48, 25 + i * 6); ctx.lineTo(-28, 25 + i * 6); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(28, 25 + i * 6); ctx.lineTo(48, 25 + i * 6); ctx.stroke();
-        }
-        ctx.fillStyle = "#F5F5F5";
-        ctx.beginPath(); ctx.moveTo(-22, 25); ctx.quadraticCurveTo(0, 50, 22, 25); ctx.lineTo(20, 15); ctx.quadraticCurveTo(0, 30, -20, 15); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#CCCCCC"; ctx.lineWidth = 1; ctx.stroke();
-        ctx.fillStyle = "#E8B896"; ctx.fillRect(-10, 5, 20, 15);
-        ctx.fillStyle = "#F0C9A8";
-        ctx.beginPath(); ctx.ellipse(0, -20, 22, 26, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#C49A78"; ctx.lineWidth = 1; ctx.stroke();
-        ctx.fillStyle = "#0a0a0a";
-        ctx.beginPath(); ctx.arc(-20, -35, 15, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(20, -35, 15, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(0, -40, 24, 12, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(-24, -30); ctx.quadraticCurveTo(-30, -10, -28, 5); ctx.lineTo(-22, 5); ctx.quadraticCurveTo(-22, -15, -18, -25); ctx.closePath(); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(24, -30); ctx.quadraticCurveTo(30, -10, 28, 5); ctx.lineTo(22, 5); ctx.quadraticCurveTo(22, -15, 18, -25); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#8B0000";
-        ctx.beginPath();
-        ctx.moveTo(-40, -42); ctx.quadraticCurveTo(-15, -75, 0, -75); ctx.quadraticCurveTo(15, -75, 40, -42);
-        ctx.lineTo(30, -38); ctx.quadraticCurveTo(15, -55, 0, -55); ctx.quadraticCurveTo(-15, -55, -30, -38); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#5a0000"; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.strokeStyle = "#FFD700"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(-38, -40); ctx.quadraticCurveTo(-15, -70, 0, -70); ctx.quadraticCurveTo(15, -70, 38, -40); ctx.stroke();
-        ctx.fillStyle = "#FFFFFF"; ctx.beginPath(); ctx.arc(0, -62, 7, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#000000";
-        ctx.beginPath(); ctx.arc(-2.5, -63, 1.8, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(2.5, -63, 1.8, 0, Math.PI * 2); ctx.fill();
-        ctx.fillRect(-3, -58, 6, 2);
-        ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 2.5;
-        ctx.beginPath(); ctx.moveTo(-12, -55); ctx.lineTo(-5, -60); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(12, -55); ctx.lineTo(5, -60); ctx.stroke();
-        ctx.fillStyle = "#F0C9A8";
-        ctx.beginPath(); ctx.ellipse(-22, -20, 4, 6, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(22, -20, 4, 6, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath(); ctx.ellipse(-8, -22, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(8, -22, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#000000";
-        ctx.beginPath(); ctx.arc(-8, -21, 2.5, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(8, -21, 2.5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#0a0a0a";
-        ctx.beginPath(); ctx.moveTo(-3, -12); ctx.quadraticCurveTo(-18, -10, -26, -5); ctx.quadraticCurveTo(-20, -3, -10, -8); ctx.quadraticCurveTo(-6, -6, -3, -7); ctx.closePath(); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(3, -12); ctx.quadraticCurveTo(18, -10, 26, -5); ctx.quadraticCurveTo(20, -3, 10, -8); ctx.quadraticCurveTo(6, -6, 3, -7); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#3a1a0a"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(0, -10, 8, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath(); ctx.moveTo(-6, -5); ctx.quadraticCurveTo(0, -3, 6, -5); ctx.lineTo(6, -6); ctx.quadraticCurveTo(0, -4, -6, -6); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(2, -4.5, 1, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#C49A78"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(0, -14); ctx.stroke();
-        ctx.restore();
-    }
-
-    function drawWhitebeardPortrait(x, y, scale) {
-        ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
-        ctx.fillStyle = "#8B0000";
-        ctx.beginPath(); ctx.moveTo(-65, 90); ctx.lineTo(-55, 30); ctx.lineTo(55, 30); ctx.lineTo(65, 90); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#F5F5F5";
-        ctx.beginPath(); ctx.moveTo(-50, 85); ctx.lineTo(-40, 25); ctx.lineTo(-15, 15); ctx.lineTo(15, 15); ctx.lineTo(40, 25); ctx.lineTo(50, 85); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#CCCCCC"; ctx.lineWidth = 1; ctx.stroke();
-        ctx.fillStyle = "#FFD700";
-        ctx.beginPath(); ctx.ellipse(-42, 32, 18, 12, -0.3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(42, 32, 18, 12, 0.3, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#B8860B"; ctx.lineWidth = 1.5;
-        for (let i = -1; i <= 1; i++) {
-            ctx.beginPath(); ctx.moveTo(-55, 25 + i * 7); ctx.lineTo(-28, 25 + i * 7); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(28, 25 + i * 7); ctx.lineTo(55, 25 + i * 7); ctx.stroke();
-        }
-        ctx.fillStyle = "#E8B896";
-        ctx.beginPath(); ctx.moveTo(-15, 15); ctx.lineTo(-20, 50); ctx.lineTo(20, 50); ctx.lineTo(15, 15); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#C49A78"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(-10, 25); ctx.lineTo(5, 45); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(10, 20); ctx.lineTo(-5, 48); ctx.stroke();
-        ctx.strokeStyle = "#D4A880"; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(-15, 30); ctx.quadraticCurveTo(0, 35, 15, 30); ctx.stroke();
-        ctx.fillStyle = "#E8B896"; ctx.fillRect(-12, 5, 24, 15);
-        ctx.strokeStyle = "#C49A78"; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(-8, 10); ctx.lineTo(-8, 18); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(8, 10); ctx.lineTo(8, 18); ctx.stroke();
-        ctx.fillStyle = "#F0C9A8";
-        ctx.beginPath(); ctx.ellipse(0, -20, 24, 28, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#C49A78"; ctx.lineWidth = 1; ctx.stroke();
-        ctx.fillStyle = "#E8C878";
-        ctx.beginPath(); ctx.moveTo(-24, -35); ctx.quadraticCurveTo(-38, -10, -35, 25); ctx.lineTo(-28, 25); ctx.quadraticCurveTo(-30, -10, -22, -30); ctx.closePath(); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(24, -35); ctx.quadraticCurveTo(38, -10, 35, 25); ctx.lineTo(28, 25); ctx.quadraticCurveTo(30, -10, 22, -30); ctx.closePath(); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(0, -42, 26, 14, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#C9A850"; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(-30, -20); ctx.quadraticCurveTo(-32, 0, -30, 20); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(30, -20); ctx.quadraticCurveTo(32, 0, 30, 20); ctx.stroke();
-        ctx.fillStyle = "#F5F5F5";
-        ctx.beginPath();
-        ctx.moveTo(-45, -45); ctx.quadraticCurveTo(-15, -80, 0, -80); ctx.quadraticCurveTo(15, -80, 45, -45);
-        ctx.lineTo(35, -40); ctx.quadraticCurveTo(15, -60, 0, -60); ctx.quadraticCurveTo(-15, -60, -35, -40); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#999999"; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.strokeStyle = "#FFD700"; ctx.lineWidth = 2.5;
-        ctx.beginPath(); ctx.moveTo(-42, -43); ctx.quadraticCurveTo(-15, -74, 0, -74); ctx.quadraticCurveTo(15, -74, 42, -43); ctx.stroke();
-        ctx.fillStyle = "#FFD700";
-        for (let i = -3; i <= 3; i++) { ctx.beginPath(); ctx.arc(i * 11, -50 + Math.abs(i) * 3, 2, 0, Math.PI * 2); ctx.fill(); }
-        ctx.fillStyle = "#FFFFFF"; ctx.beginPath(); ctx.arc(0, -66, 8, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#000000";
-        ctx.beginPath(); ctx.arc(-3, -67, 2, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(3, -67, 2, 0, Math.PI * 2); ctx.fill();
-        ctx.fillRect(-3.5, -61, 7, 2);
-        ctx.fillStyle = "#F0C9A8";
-        ctx.beginPath(); ctx.ellipse(-24, -20, 4, 6, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(24, -20, 4, 6, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath(); ctx.ellipse(-9, -22, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(9, -22, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#000000";
-        ctx.beginPath(); ctx.arc(-9, -22, 2, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(9, -22, 2, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.moveTo(-3, -10); ctx.bezierCurveTo(-15, -8, -50, -5, -55, -18);
-        ctx.bezierCurveTo(-52, -22, -40, -18, -30, -14); ctx.bezierCurveTo(-20, -11, -10, -12, -3, -13); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#CCCCCC"; ctx.lineWidth = 1; ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(3, -10); ctx.bezierCurveTo(15, -8, 50, -5, 55, -18);
-        ctx.bezierCurveTo(52, -22, 40, -18, 30, -14); ctx.bezierCurveTo(20, -11, 10, -12, 3, -13); ctx.closePath(); ctx.fill();
-        ctx.stroke();
-        ctx.strokeStyle = "#3a1a0a"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(-5, -5); ctx.quadraticCurveTo(0, -3, 5, -5); ctx.stroke();
-        ctx.strokeStyle = "#C49A78"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(0, -14); ctx.stroke();
-        ctx.restore();
-    }
-
-    // ============================================================
-    // МОДЕЛИ ДЛЯ БОЯ
-    // ============================================================
-    function drawRogerModel(cx, cy, size, flash, rotation) {
-        ctx.save();
-        ctx.translate(cx, cy); ctx.rotate(rotation);
-        ctx.save();
-        let heartSize = size * 0.9;
-        ctx.fillStyle = flash ? "#ffffff" : "#ff8800";
-        ctx.shadowColor = "#ff8800"; ctx.shadowBlur = flash ? 25 : 12;
-        ctx.beginPath();
-        ctx.moveTo(0, heartSize * 0.7);
-        ctx.bezierCurveTo(-heartSize * 1.4, -heartSize * 0.2, -heartSize * 0.7, -heartSize * 1.1, 0, -heartSize * 0.4);
-        ctx.bezierCurveTo(heartSize * 0.7, -heartSize * 1.1, heartSize * 1.4, -heartSize * 0.2, 0, heartSize * 0.7);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#000000"; ctx.lineWidth = 2; ctx.stroke();
-        ctx.restore();
-        let s = size / 30;
-        ctx.save();
-        ctx.translate(0, -size * 0.9);
-        ctx.fillStyle = "#8B0000";
-        ctx.beginPath();
-        ctx.moveTo(-16 * s, -3 * s); ctx.quadraticCurveTo(0, -18 * s, 16 * s, -3 * s);
-        ctx.lineTo(12 * s, -1 * s); ctx.quadraticCurveTo(0, -12 * s, -12 * s, -1 * s); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#000000"; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.strokeStyle = "#FFD700"; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.moveTo(-15 * s, -2 * s); ctx.quadraticCurveTo(0, -16 * s, 15 * s, -2 * s); ctx.stroke();
-        ctx.fillStyle = "#FFFFFF"; ctx.beginPath(); ctx.arc(0, -10 * s, 3 * s, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#000000";
-        ctx.beginPath(); ctx.arc(-1 * s, -10.5 * s, 0.8 * s, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(1 * s, -10.5 * s, 0.8 * s, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-        ctx.save();
-        ctx.translate(0, size * 0.15);
-        ctx.fillStyle = "#0a0a0a";
-        ctx.beginPath();
-        ctx.moveTo(-1 * s, 0); ctx.quadraticCurveTo(-8 * s, -1 * s, -12 * s, 3 * s);
-        ctx.quadraticCurveTo(-8 * s, 1 * s, -1 * s, 1 * s); ctx.closePath(); ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(1 * s, 0); ctx.quadraticCurveTo(8 * s, -1 * s, 12 * s, 3 * s);
-        ctx.quadraticCurveTo(8 * s, 1 * s, 1 * s, 1 * s); ctx.closePath(); ctx.fill();
-        ctx.restore();
-        ctx.save();
-        ctx.translate(0, -size * 0.1);
-        ctx.fillStyle = "#000000";
-        ctx.beginPath(); ctx.arc(-3.5 * s, 0, 1.2 * s, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(3.5 * s, 0, 1.2 * s, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-        ctx.restore();
-    }
-
-    function drawWhitebeardModel(cx, cy, size, flash, rotation) {
-        ctx.save();
-        ctx.translate(cx, cy); ctx.rotate(rotation);
-        ctx.save();
-        let heartSize = size * 1.0;
-        ctx.fillStyle = flash ? "#ffffff" : "#ffffff";
-        ctx.shadowColor = "#88ddff"; ctx.shadowBlur = flash ? 30 : 15;
-        ctx.beginPath();
-        ctx.moveTo(0, heartSize * 0.7);
-        ctx.bezierCurveTo(-heartSize * 1.4, -heartSize * 0.2, -heartSize * 0.7, -heartSize * 1.1, 0, -heartSize * 0.4);
-        ctx.bezierCurveTo(heartSize * 0.7, -heartSize * 1.1, heartSize * 1.4, -heartSize * 0.2, 0, heartSize * 0.7);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#1a3a6a"; ctx.lineWidth = 2.5; ctx.stroke();
-        ctx.restore();
-        let s = size / 32;
-        ctx.save();
-        ctx.translate(0, -size * 0.95);
-        ctx.fillStyle = "#F5F5F5";
-        ctx.beginPath();
-        ctx.moveTo(-18 * s, -3 * s); ctx.quadraticCurveTo(0, -20 * s, 18 * s, -3 * s);
-        ctx.lineTo(13 * s, -1 * s); ctx.quadraticCurveTo(0, -13 * s, -13 * s, -1 * s); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#000000"; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.strokeStyle = "#FFD700"; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(-17 * s, -2 * s); ctx.quadraticCurveTo(0, -18 * s, 17 * s, -2 * s); ctx.stroke();
-        ctx.fillStyle = "#FFFFFF"; ctx.beginPath(); ctx.arc(0, -11 * s, 3.5 * s, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#000000";
-        ctx.beginPath(); ctx.arc(-1.2 * s, -11.5 * s, 0.9 * s, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(1.2 * s, -11.5 * s, 0.9 * s, 0, Math.PI * 2); ctx.fill();
-        ctx.fillRect(-1.5 * s, -9 * s, 3 * s, 1 * s);
-        ctx.restore();
-        ctx.save();
-        ctx.translate(0, size * 0.1);
-        ctx.fillStyle = "#FFFFFF"; ctx.strokeStyle = "#000000"; ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-1 * s, 0); ctx.bezierCurveTo(-10 * s, -1 * s, -26 * s, -1 * s, -28 * s, -10 * s);
-        ctx.bezierCurveTo(-25 * s, -13 * s, -18 * s, -8 * s, -12 * s, -5 * s);
-        ctx.bezierCurveTo(-7 * s, -3 * s, -3 * s, -1 * s, -1 * s, -1 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(1 * s, 0); ctx.bezierCurveTo(10 * s, -1 * s, 26 * s, -1 * s, 28 * s, -10 * s);
-        ctx.bezierCurveTo(25 * s, -13 * s, 18 * s, -8 * s, 12 * s, -5 * s);
-        ctx.bezierCurveTo(7 * s, -3 * s, 3 * s, -1 * s, 1 * s, -1 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.restore();
-        ctx.save();
-        ctx.translate(0, -size * 0.15);
-        ctx.fillStyle = "#000000";
-        ctx.beginPath(); ctx.arc(-4 * s, 0, 1.3 * s, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(4 * s, 0, 1.3 * s, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-        ctx.restore();
-    }
-
-    // ============================================================
-    // ВЫДАЧА НАГРАД
-    // ============================================================
-    function grantRogerReward() {
-        console.log("[ROGER-WB] Сабля Роджера");
-        try {
-            if (typeof showFloatingText === 'function') showFloatingText("🗡️ САБЛЯ РОДЖЕРА!", "#ffd700");
-            var rogerSaber = {
-                id: "roger_saber", name: "Сабля Роджера", icon: "🗡️",
-                rarity: "Легендарная", rarityClass: "legendary", tier: 5,
-                damageMult: 2.2, shootRate: 10, bullets: 1, isMelee: true,
-                desc: "Сабля Короля Пиратов. Прочная, острая, с историей.",
-                recipe: {}, isReward: true,
-                uid: Date.now() + Math.random() + Math.random(), craftedAt: Date.now()
-            };
-            if (typeof window !== 'undefined' && typeof window.getWeaponStorage === 'function') {
-                var storage = window.getWeaponStorage();
-                if (storage && Array.isArray(storage)) {
-                    var alreadyHas = false;
-                    for (var i = 0; i < storage.length; i++) {
-                        if (storage[i] && storage[i].id === "roger_saber") { alreadyHas = true; break; }
-                    }
-                    if (!alreadyHas) storage.push(rogerSaber);
-                }
-            }
-            if (typeof window.saveCraftingData === 'function') window.saveCraftingData();
-            if (typeof window.renderInventory === 'function') setTimeout(window.renderInventory, 100);
-        } catch(e) { console.error("[ROGER-WB] Ошибка Сабли:", e); }
-        setTimeout(function() { if (typeof showFloatingText === 'function') showFloatingText("Проверь хранилище!", "#88ddff"); }, 1500);
-    }
-
-    function grantWhitebeardReward() {
-        console.log("[ROGER-WB] Белоус");
-        try {
-            if (typeof showFloatingText === 'function') showFloatingText("🌊 БЕЛОУС В КОМАНДЕ!", "#ffffff");
-            var alreadyHave = false;
-            if (typeof myCards !== 'undefined' && Array.isArray(myCards)) {
-                for (var i = 0; i < myCards.length; i++) {
-                    if (myCards[i] && myCards[i].name === "Белоус") { alreadyHave = true; break; }
-                }
-            }
-            if (alreadyHave) { if (typeof showFloatingText === 'function') showFloatingText("Карта уже есть!", "#ffaa00"); return; }
-            var card = {
-                id: Date.now() + Math.random() * 10000, name: "Белоус", rarity: "Секретная",
-                damage: 400, hp: 250, sellPrice: 800, speed: 2.0,
-                ability: { type: "whitebeardSpecial", desc: "10% поглощение | 2% HP/5сек | 3% воскрес | 1% HP/волна | 2% x5 комбо" },
-                universe: "One Piece", unsellable: true, minRebirth: 0,
-                statusAbility: null, extraStatus: null, superAbility: null,
-                mastery: 1, masteryExp: 0
-            };
-            if (typeof myCards !== 'undefined' && Array.isArray(myCards)) myCards.push(card);
-            if (typeof discoveredCards !== 'undefined' && !discoveredCards.includes("Белоус")) discoveredCards.push("Белоус");
-            if (typeof sfxCardObtain === 'function') sfxCardObtain();
-            if (typeof renderMyCards === 'function') setTimeout(renderMyCards, 200);
-        } catch(e) { console.error("[ROGER-WB] Ошибка Белоуса:", e); }
-    }
-
-    function rwbFinalCleanup() {
-        if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
-        try {
-            if (!rwbRewardGiven && rwbWinner) {
-                rwbRewardGiven = true;
-                if (rwbWinner === "roger") grantRogerReward();
-                else if (rwbWinner === "whitebeard") grantWhitebeardReward();
-            }
-        } catch(e) { console.error("[ROGER-WB] Ошибка награды:", e); }
-        try {
-            if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
-                if (!defeatedBosses.includes(1000)) defeatedBosses.push(1000);
-            }
-        } catch(e) {}
-        try { if (typeof saveAll === 'function') saveAll(); } catch(e) {}
-        rwbState = "done";
-        rwbDialogActive = false;
-        if (typeof resetAllSupers === 'function') { try { resetAllSupers(); } catch(e) {} }
-        rwbSupersInitialized = false;
-        if (typeof window !== 'undefined') window._uniqueSuperBossId = null;
-        try { stopRogerWhitebeardFight(); } catch(e) {}
-        try { if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0; } catch(e) {}
-        try { if (typeof victory === 'function') victory(); } catch(e) {}
-    }
-
-    function startRWBDialog() {
-        rwbDialogActive = true; rwbDialogTimer = 0;
-        if (rwbWinner === "roger") {
-            rwbDialogType = "roger"; rwbDialogStage = 0;
-        } else if (rwbWinner === "whitebeard") {
-            rwbDialogType = "whitebeard"; rwbWBPhase = "intro";
-            rwbWhitebeardDisabled = [false, false, false];
-            rwbDialogQueue = RWB_WHITEBEARD_DIALOG_INITIAL.slice();
-        }
-    }
-
-    function handleRogersDialogClick() {
-        rwbDialogStage++;
-        playWhooshSound(0.1);
-        if (rwbDialogStage >= RWB_ROGER_DIALOG.length) { rwbDialogActive = false; rwbFinalCleanup(); }
-    }
-
-    function handleWhitebeardDialogClick(ev) {
-        if (rwbDialogQueue.length > 0) {
-            rwbDialogQueue.shift(); playWhooshSound(0.1);
-            if (rwbDialogQueue.length === 0) {
-                if (rwbWBPhase === "choice_response_1") { rwbWhitebeardDisabled[0] = true; rwbWBPhase = "choice"; }
-                else if (rwbWBPhase === "choice_response_2") { rwbDialogActive = false; rwbFinalCleanup(); }
-                else if (rwbWBPhase === "choice_response_3_a") { rwbWBPhase = "choice_response_3_b"; rwbDialogQueue = RWB_WB_RESPONSE_3_B.slice(); }
-                else if (rwbWBPhase === "choice_response_3_b") { rwbWBPhase = "choice"; }
-                else if (rwbWBPhase === "intro") { rwbWBPhase = "choice"; }
             }
             return;
         }
-        if (rwbWBPhase === "choice") {
-            var rect = canvas.getBoundingClientRect();
-            var mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
-            var btnW = 360, btnX = 20, startY = 240, btnH = 60, gap = 10;
-            for (var i = 0; i < 3; i++) {
-                if (rwbWhitebeardDisabled[i]) continue;
-                var by = startY + i * (btnH + gap);
-                if (mx > btnX && mx < btnX + btnW && my > by && my < by + btnH) {
-                    if (i === 0) { rwbWBPhase = "choice_response_1"; rwbDialogQueue = RWB_WB_RESPONSE_1.slice(); }
-                    else if (i === 1) { rwbWBPhase = "choice_response_2"; rwbDialogQueue = RWB_WB_RESPONSE_2.slice(); }
-                    else if (i === 2) { rwbWBPhase = "choice_response_3_a"; rwbDialogQueue = RWB_WB_RESPONSE_3_A.slice(); }
-                    playBladeSound(0.3);
-                    return;
-                }
-            }
-        }
-    }
 
-    // ============================================================
-    // ★★★ КОНТЕКСТ ДЛЯ SUPERS.JS ★★★
-    // ============================================================
-    window.getRWBContext = function() {
-        return {
-            type: 'rwb',
-            getHeartX: function() { return rwbPlayer ? rwbPlayer.x : 200; },
-            setHeartX: function(v) { if (rwbPlayer) rwbPlayer.x = Math.max(16, Math.min(384, v)); },
-            getHeartY: function() { return rwbPlayer ? rwbPlayer.y : 400; },
-            setHeartY: function(v) { if (rwbPlayer) rwbPlayer.y = Math.max(0, Math.min(484, v)); },
-            getHeartSize: function() { return 12; },
-            setHeartSize: function(v) {},
-            getHeartHitbox: function() { return 6; },
-            setHeartHitbox: function(v) {},
-            getHeartSpeed: function() { return rwbBaseSpeed * rwbSpeedMult; },
-            setHeartSpeed: function(v) {
-                if (rwbBaseSpeed > 0) {
-                    rwbSpeedMult = v / rwbBaseSpeed;
-                }
-            },
-            getAttacks: function() { return rwbAttacks; },
-            getBlasters: function() { return []; },
-            getParticles: function() { return rwbParticles; },
-            getBossMaxHp: function() { return rwbActiveBoss ? rwbActiveBoss.maxHp : 500; },
-            setBossMaxHp: function(v) { if (rwbActiveBoss) rwbActiveBoss.maxHp = v; },
-            getBossHp: function() { return rwbActiveBoss ? rwbActiveBoss.hp : 0; },
-            getPlayerHp: function() { return rwbPlayer ? rwbPlayer.hp : 250; },
-            setPlayerHp: function(v) { if (rwbPlayer) rwbPlayer.hp = v; },
-            getPlayerMaxHp: function() { return rwbPlayer ? rwbPlayer.maxHp : 250; },
-            addShake: function(v) { rwbShake = Math.max(rwbShake || 0, v); },
-            addFlash: function(v, color) { rwbScreenFlash = v; if (color) rwbScreenFlashColor = color; },
-            addFlashWhite: function(v) { rwbScreenFlash = Math.max(rwbScreenFlash, v); rwbScreenFlashColor = "#ffffff"; },
-            spawnFloatingText: function(x, y, text, color) { if (typeof window.spawnFloatingText === 'function') window.spawnFloatingText(x, y, text, color); },
-            playSound: function(f, t, d, v) { if (typeof window.rwbSound === 'function') window.rwbSound(f, t, d, v); },
-            addShockwave: function(x, y, color, speed, life, width) {
-                rwbShockwaves.push({ x: x, y: y, radius: 10, maxRadius: 200, speed: speed, color: color, life: life, maxLife: life, width: width || 4 });
-            },
-            clampHeart: function() {},
-            isDodgePhase: function() { return false; },
-            getBaseSpeed: function() { return rwbBaseSpeed; },
-            setBaseSpeed: function(v) { rwbBaseSpeed = v; }
-        };
-    };
-
-    window.isRWBActive = function() { return window.rwbActive === true; };
-
-    function rwbSound(freq, type, dur, vol) { if (typeof playArenaSound === 'function') playArenaSound(freq, type, dur, vol); }
-
-    function spawnHakiLightning(x, y, count, isWhite) {
-        if (rwbHakiLightnings.length > 20) return;
-        if (!count) count = 1;
-        count = Math.min(count, 2);
-        for (let i = 0; i < count; i++) {
-            let ang = Math.random() * Math.PI * 2;
-            let len = 20 + Math.random() * 35;
-            let lightning = {
-                x1: x, y1: y, x2: x + Math.cos(ang) * len, y2: y + Math.sin(ang) * len,
-                points: [], life: 10, maxLife: 10,
-                outerColor: "#000000", innerColor: isWhite ? "#ffffff" : "#ff2222",
-                width: 2 + Math.random() * 1.5
-            };
-            let steps = 3;
-            for (let s = 1; s < steps; s++) {
-                let t = s / steps;
-                lightning.points.push({
-                    x: x + Math.cos(ang) * len * t + (Math.random() - 0.5) * 15,
-                    y: y + Math.sin(ang) * len * t + (Math.random() - 0.5) * 15
-                });
-            }
-            rwbHakiLightnings.push(lightning);
-        }
-    }
-
-    function spawnWhiteCracks(bossX, bossY, count) {
-        if (!count) count = 3;
-        count = Math.min(count, 4);
-        for (let i = 0; i < count; i++) {
-            let side = i % 2 === 0 ? -1 : 1;
-            let startX = bossX + side * (25 + Math.random() * 15);
-            let startY = bossY + (Math.random() - 0.5) * 50;
-            rwbWhiteCracks.push({
-                x: startX, y: startY,
-                angle: (side === -1 ? Math.PI : 0) + (Math.random() - 0.5) * 0.5,
-                length: 35 + Math.random() * 45, width: 2, life: 25, maxLife: 25
-            });
-        }
-    }
-
-    function spawnPurpleCracks(centerX, centerY, count) {
-        if (!count) count = 8;
-        for (let i = 0; i < count; i++) {
-            let ang = (i / count) * Math.PI * 2 + Math.random() * 0.3;
-            let len = 80 + Math.random() * 120;
-            rwbPurpleCracks.push({
-                x: centerX, y: centerY, angle: ang, length: len,
-                width: 3 + Math.random() * 2, life: 60, maxLife: 60,
-                branches: [], seed: Math.random() * 1000
-            });
-        }
-    }
-
-    function drawPurpleCracks() {
-        if (!ctx || rwbPurpleCracks.length === 0) return;
-        for (let i = rwbPurpleCracks.length - 1; i >= 0; i--) {
-            let crack = rwbPurpleCracks[i];
-            crack.life--;
-            if (crack.life <= 0) { rwbPurpleCracks.splice(i, 1); continue; }
-            let alpha = crack.life / crack.maxLife;
-            ctx.save();
-            ctx.globalAlpha = alpha;
-            ctx.strokeStyle = "#aa00ff"; ctx.lineWidth = crack.width;
-            ctx.shadowColor = "#cc44ff"; ctx.shadowBlur = 20;
-            ctx.beginPath(); ctx.moveTo(crack.x, crack.y);
-            let cx = crack.x, cy = crack.y, ang = crack.angle;
-            let segLen = crack.length / 5;
-            for (let s = 0; s < 5; s++) {
-                ang += (Math.random() - 0.5) * 0.35;
-                cx += Math.cos(ang) * segLen; cy += Math.sin(ang) * segLen;
-                ctx.lineTo(cx, cy);
-            }
-            ctx.stroke();
-            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = crack.width * 0.4; ctx.shadowBlur = 10; ctx.stroke();
-            ctx.restore();
-        }
-    }
-
-    function drawWhiteCracks() {
-        if (!ctx || rwbWhiteCracks.length === 0) return;
-        for (let i = rwbWhiteCracks.length - 1; i >= 0; i--) {
-            let crack = rwbWhiteCracks[i];
-            crack.life--;
-            if (crack.life <= 0) { rwbWhiteCracks.splice(i, 1); continue; }
-            let alpha = crack.life / crack.maxLife;
-            ctx.save(); ctx.globalAlpha = alpha;
-            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = crack.width;
-            ctx.beginPath(); ctx.moveTo(crack.x, crack.y);
-            let cx = crack.x, cy = crack.y, ang = crack.angle;
-            let segLen = crack.length / 4;
-            for (let s = 0; s < 4; s++) {
-                ang += (Math.random() - 0.5) * 0.4;
-                cx += Math.cos(ang) * segLen; cy += Math.sin(ang) * segLen;
-                ctx.lineTo(cx, cy);
-            }
-            ctx.stroke(); ctx.restore();
-        }
-    }
-
-    // ============================================================
-    // СТАРТ БОЯ
-    // ============================================================
-    function startRogerWhitebeardFight() {
-        if (window.rwbActive) return;
-        if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(1000)) {
-            if (typeof showFloatingText === 'function') showFloatingText("⏭️ Босс уже побеждён!", "#ffaa00");
-            return;
-        }
-        console.log("[ROGER-WB] Старт боя v19.1!");
-
-        window.rwbActive = true;
-        rwbState = "intro"; rwbTimer = 0; rwbIntroTimer = 0;
-        rwbTransitionTimer = 0; rwbEndTimer = 0; rwbSurvivalTimer2 = 0;
-        rwbTitanFistTimer = 0; rwbTitanRockTimer = 0;
-        rwbSuperReady = true; rwbSuperCooldown = 0; rwbMeleeCooldown = 0;
-        rwbActiveBoss = null; rwbHakiAura = 0; rwbTsunamiActive = false;
-        rwbWinner = null; rwbRewardGiven = false; rwbDialogStage = 0;
-        rwbWhitebeardDisabled = [false, false, false]; rwbWBPhase = "intro";
-        rwbDialogQueue = []; rwbDialogActive = false; rwbDialogType = null; rwbDialogTimer = 0;
-        rwbWhitebeardRegenTimer = 0;
-        if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
-
-        rwbBaseSpeed = 4.5;
-        rwbOriginalBaseSpeed = 4.5;
-        rwbSpeedMult = 1.0;
-
-        roger = {
-            id: "roger", x: 80, y: 120, size: 28,
-            hp: BALANCE.rogerHp, maxHp: BALANCE.rogerHp, superForm: false,
-            vx: 1.2, vy: 0.8, pulse: 0, rotation: 0,
-            attackTimer: 30, hitFlash: 0, meleeTimer: 0,
-            name: "РОДЖЕР", color: "#ff8800", homeX: 80, homeY: 120
-        };
-        whitebeard = {
-            id: "whitebeard", x: 320, y: 120, size: 32,
-            hp: BALANCE.whitebeardHp, maxHp: BALANCE.whitebeardHp, superForm: false,
-            vx: -1.0, vy: 0.6, pulse: 0, rotation: 0,
-            attackTimer: 40, hitFlash: 0, meleeTimer: 0,
-            name: "БЕЛОУС", color: "#ffffff", homeX: 320, homeY: 120
-        };
-
-        duel = { phase: "idle", timer: 0, clashX: 200, clashY: 200, clashes: 0 };
-        rwbPlayer = {
-            x: 200, y: 420, size: 12,
-            hp: BALANCE.playerHp, maxHp: BALANCE.playerHp,
-            invulnTimer: 0, attackMode: "normal",
-            attackTimer: 0, shootRate: 10,
-            vx: 0, vy: 0
-        };
-
-        rwbAttacks = []; rwbPlayerBullets = []; rwbParticles = []; rwbShockwaves = [];
-        rwbFloatingTexts = []; rwbSpeedLines = []; rwbHakiLightnings = [];
-        rwbWhiteCracks = []; rwbPurpleCracks = []; rwbScreenFlash = 0; rwbShake = 0; rwbBgStars = [];
-
-        initIslandBackground(); startRWBMusic(); initRWBAudio();
-
-        try {
-            if (typeof initSuperState === 'function') initSuperState();
-            if (typeof window !== 'undefined') {
-                window._uniqueSuperCharges = 5;
-                window._uniqueSuperBossId = 'rwb';
-            }
-            rwbSupersInitialized = true;
-            console.log("[ROGER-WB] ✅ Суперы инициализированы (5 зарядов)");
-            if (typeof updateSuperButton === 'function') setTimeout(updateSuperButton, 100);
-        } catch(e) {
-            console.error("[ROGER-WB] Ошибка initSuperState:", e);
-        }
-
-        let overlay = document.getElementById("arenaOverlay");
-        if (overlay) overlay.style.display = "flex";
-        let bossNameEl = document.getElementById("arenaBossName");
-        if (bossNameEl) bossNameEl.innerText = "👑 РОДЖЕР vs БЕЛОУС 👑";
-        let arenaHpEl = document.getElementById("arenaHP");
-        if (arenaHpEl) arenaHpEl.innerText = rwbPlayer.hp;
-        let timerEl = document.getElementById("arenaTimer");
-        if (timerEl) timerEl.innerText = "";
-
-        if (typeof initArena === 'function') initArena();
-        if (typeof canvas === 'undefined' || !canvas) return;
-        if (typeof arenaActive !== 'undefined') arenaActive = false;
-        if (typeof livingStoneActive !== 'undefined') livingStoneActive = false;
-        if (typeof waystarActive !== 'undefined') waystarActive = false;
-
-        ['superBtn', 'superBtn2', 'superBtnDeactivate', 'startArenaBtn', 'skipBossBtn', 'spareBtn', 'startLivingStoneBtn', 'startWaystarBtn', 'startRogerWB'].forEach(function(id) {
-            let el = document.getElementById(id);
-            if (el) el.style.display = "none";
-        });
-
-        let superBtn = document.getElementById("superBtn");
-        if (superBtn) {
-            setTimeout(function() {
-                if (typeof updateSuperButton === 'function') updateSuperButton();
-            }, 200);
-        }
-
-        canvas.addEventListener("click", handleRWBClick);
-        canvas.addEventListener("touchstart", handleRWBTouchStart, { passive: false });
-        canvas.addEventListener("touchmove", handleRWBTouchMove, { passive: false });
-        canvas.addEventListener("touchend", handleRWBTouchEnd);
-        canvas.addEventListener("touchcancel", handleRWBTouchEnd);
-        window.addEventListener("keydown", handleRWBKeyDown);
-        window.addEventListener("keyup", handleRWBKeyUp);
-
-        createRWBModeButton(); createRWBSuperButton(); showRWBModeButton();
-
-        if (rwbAnimFrame) cancelAnimationFrame(rwbAnimFrame);
-        rwbAnimFrame = requestAnimationFrame(rwbRenderLoop);
-
-        playWhooshSound(0.3);
-        setTimeout(function() { playBossRoarSound(0.3); }, 500);
-    }
-
-    let islandBg = null;
-
-    function initIslandBackground() {
-        islandBg = { clouds: [], birds: [], waveLines: [] };
-        for (let i = 0; i < 6; i++) islandBg.clouds.push({ x: Math.random() * 400, y: 40 + Math.random() * 100, size: 30 + Math.random() * 40, speed: 0.08 + Math.random() * 0.15, alpha: 0.3 + Math.random() * 0.3 });
-        for (let i = 0; i < 4; i++) islandBg.birds.push({ x: Math.random() * 400, y: 60 + Math.random() * 80, speed: 0.3 + Math.random() * 0.4, wingPhase: Math.random() * Math.PI * 2, size: 4 + Math.random() * 3 });
-        for (let i = 0; i < 8; i++) islandBg.waveLines.push({ y: 320 + i * 8, offset: Math.random() * 100, speed: 0.15 + Math.random() * 0.2, length: 30 + Math.random() * 40 });
-    }
-
-    function drawIslandBackground() {
-        if (!islandBg) initIslandBackground();
-        let skyGrad = ctx.createLinearGradient(0, 0, 0, 320);
-        skyGrad.addColorStop(0, "#0d1b3d"); skyGrad.addColorStop(0.3, "#2d2a5c");
-        skyGrad.addColorStop(0.55, "#8b3a5c"); skyGrad.addColorStop(0.75, "#e8794a");
-        skyGrad.addColorStop(0.9, "#f5af19"); skyGrad.addColorStop(1, "#ffd97a");
-        ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, 400, 320);
-        ctx.save();
-        let sunX = 300, sunY = 290;
-        let sunGrad = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, 50);
-        sunGrad.addColorStop(0, "#ffffff"); sunGrad.addColorStop(0.2, "#fff4c4");
-        sunGrad.addColorStop(0.5, "rgba(245, 175, 25, 0.8)"); sunGrad.addColorStop(1, "rgba(245, 175, 25, 0)");
-        ctx.fillStyle = sunGrad; ctx.beginPath(); ctx.arc(sunX, sunY, 50, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#fff8dc"; ctx.beginPath(); ctx.arc(sunX, sunY, 18, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-        if (islandBg) {
-            for (let cloud of islandBg.clouds) {
-                cloud.x += cloud.speed;
-                if (cloud.x > 450) cloud.x = -50;
-                ctx.save(); ctx.globalAlpha = cloud.alpha; ctx.fillStyle = "rgba(255, 200, 150, 0.9)";
-                ctx.beginPath();
-                ctx.arc(cloud.x, cloud.y, cloud.size * 0.6, 0, Math.PI * 2);
-                ctx.arc(cloud.x + cloud.size * 0.5, cloud.y - cloud.size * 0.2, cloud.size * 0.5, 0, Math.PI * 2);
-                ctx.arc(cloud.x + cloud.size * 0.9, cloud.y, cloud.size * 0.55, 0, Math.PI * 2);
-                ctx.arc(cloud.x + cloud.size * 0.4, cloud.y + cloud.size * 0.15, cloud.size * 0.45, 0, Math.PI * 2);
-                ctx.fill(); ctx.restore();
-            }
-        }
-        if (islandBg) {
-            for (let bird of islandBg.birds) {
-                bird.x += bird.speed; bird.wingPhase += 0.15;
-                if (bird.x > 450) bird.x = -50;
-                ctx.save(); ctx.strokeStyle = "rgba(30, 20, 40, 0.7)"; ctx.lineWidth = 1.5;
-                let wingOffset = Math.sin(bird.wingPhase) * 2;
-                ctx.beginPath();
-                ctx.moveTo(bird.x - bird.size, bird.y + wingOffset);
-                ctx.quadraticCurveTo(bird.x, bird.y - bird.size * 0.5, bird.x + bird.size, bird.y + wingOffset);
-                ctx.stroke(); ctx.restore();
-            }
-        }
-        let seaGrad = ctx.createLinearGradient(0, 320, 0, 420);
-        seaGrad.addColorStop(0, "#f5a623"); seaGrad.addColorStop(0.3, "#3a6ea5");
-        seaGrad.addColorStop(0.7, "#1e3a5f"); seaGrad.addColorStop(1, "#0a1a2e");
-        ctx.fillStyle = seaGrad; ctx.fillRect(0, 320, 400, 100);
-        ctx.save(); ctx.globalAlpha = 0.5;
-        let reflGrad = ctx.createRadialGradient(sunX, 330, 0, sunX, 360, 60);
-        reflGrad.addColorStop(0, "rgba(255, 240, 200, 0.8)"); reflGrad.addColorStop(1, "rgba(255, 200, 100, 0)");
-        ctx.fillStyle = reflGrad; ctx.beginPath(); ctx.ellipse(sunX, 340, 40, 15, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-        if (islandBg) {
-            ctx.save();
-            for (let wave of islandBg.waveLines) {
-                wave.offset += wave.speed;
-                if (wave.offset > 200) wave.offset = -100;
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.15)"; ctx.lineWidth = 1.5;
-                for (let x = wave.offset - 100; x < 450; x += 80) {
-                    ctx.beginPath();
-                    ctx.moveTo(x, wave.y);
-                    ctx.quadraticCurveTo(x + wave.length * 0.5, wave.y - 2, x + wave.length, wave.y);
-                    ctx.stroke();
-                }
-            }
-            ctx.restore();
-        }
-        let groundGrad = ctx.createLinearGradient(0, 420, 0, 500);
-        groundGrad.addColorStop(0, "#d4a574"); groundGrad.addColorStop(0.5, "#a87a4a"); groundGrad.addColorStop(1, "#5a3a20");
-        ctx.fillStyle = groundGrad; ctx.fillRect(0, 420, 400, 80);
-        drawPalmTree(30, 420, 1.0); drawPalmTree(370, 420, 0.9);
-        ctx.fillStyle = "#5a4530"; ctx.beginPath(); ctx.ellipse(150, 470, 15, 6, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#4a3520"; ctx.beginPath(); ctx.ellipse(250, 485, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#3a5a2a"; ctx.lineWidth = 2;
-        for (let i = 0; i < 20; i++) {
-            let gx = (i * 21) % 400, gy = 430 + (i * 7) % 40;
-            ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx - 3, gy - 8);
-            ctx.moveTo(gx, gy); ctx.lineTo(gx + 2, gy - 10);
-            ctx.moveTo(gx, gy); ctx.lineTo(gx + 5, gy - 6); ctx.stroke();
-        }
-    }
-
-    function drawPalmTree(x, baseY, scale) {
-        ctx.save(); ctx.translate(x, baseY); ctx.scale(scale, scale);
-        ctx.strokeStyle = "#4a2f1a"; ctx.lineWidth = 6; ctx.lineCap = "round";
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-5, -40, 5, -90); ctx.stroke();
-        ctx.fillStyle = "#2d5a2d"; ctx.strokeStyle = "#1a3a1a"; ctx.lineWidth = 1;
-        let leafAngles = [-2.5, -2.0, -1.5, -1.0, -0.5, 0, 0.5];
-        for (let ang of leafAngles) {
-            ctx.save(); ctx.translate(5, -90); ctx.rotate(ang);
-            ctx.beginPath(); ctx.ellipse(25, 0, 25, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.restore();
-        }
-        ctx.fillStyle = "#3a2a10";
-        ctx.beginPath();
-        ctx.arc(0, -88, 3, 0, Math.PI * 2);
-        ctx.arc(-4, -85, 3, 0, Math.PI * 2);
-        ctx.arc(4, -85, 3, 0, Math.PI * 2);
-        ctx.fill(); ctx.restore();
-    }
-
-    function createRWBModeButton() {
-        if (rwbModeBtn) return;
-        rwbModeBtn = document.createElement('button');
-        rwbModeBtn.id = 'rwbModeBtn';
-        rwbModeBtn.style.cssText = [
-            'position: fixed', 'bottom: 70px', 'left: 50%', 'transform: translateX(-50%)',
-            'padding: 10px 22px', 'border-radius: 30px',
-            'background: linear-gradient(135deg, #ffdd00, #ff8800)',
-            'color: #1a1a2e', 'font-weight: 900', 'font-size: 14px',
-            'font-family: "Nunito", sans-serif', 'border: 3px solid #fff',
-            'box-shadow: 0 4px 15px rgba(255, 136, 0, 0.6)',
-            'cursor: pointer', 'z-index: 99999', 'letter-spacing: 0.5px',
-            'user-select: none', 'touch-action: manipulation', 'transition: all 0.2s'
-        ].join(';');
-        rwbModeBtn.innerHTML = '🟡 ОБЫЧНЫЙ';
-        rwbModeBtn.onclick = function(e) {
-            e.preventDefault(); e.stopPropagation();
-            rwbPlayer.attackMode = (rwbPlayer.attackMode === "normal") ? "blue" : "normal";
-            if (rwbPlayer.attackMode === "blue") {
-                rwbModeBtn.innerHTML = '🔵 АВТО-ПРИЦЕЛ';
-                rwbModeBtn.style.background = 'linear-gradient(135deg, #00aaff, #0044cc)';
-                rwbModeBtn.style.color = '#fff';
-                rwbModeBtn.style.boxShadow = '0 4px 15px rgba(0, 170, 255, 0.7)';
-            } else {
-                rwbModeBtn.innerHTML = '🟡 ОБЫЧНЫЙ';
-                rwbModeBtn.style.background = 'linear-gradient(135deg, #ffdd00, #ff8800)';
-                rwbModeBtn.style.color = '#1a1a2e';
-                rwbModeBtn.style.boxShadow = '0 4px 15px rgba(255, 136, 0, 0.6)';
-            }
-            playWhooshSound(0.15);
-        };
-        document.body.appendChild(rwbModeBtn);
-    }
-
-    function createRWBSuperButton() {
-        if (rwbSuperBtn) return;
-        rwbSuperBtn = document.createElement('button');
-        rwbSuperBtn.id = 'rwbSuperBtn';
-        rwbSuperBtn.style.cssText = [
-            'position: fixed', 'bottom: 20px', 'left: 50%', 'transform: translateX(-50%)',
-            'padding: 10px 30px', 'border-radius: 30px',
-            'background: linear-gradient(135deg, #f5af19, #f12711)',
-            'color: #fff', 'font-weight: 900', 'font-size: 14px',
-            'font-family: "Nunito", sans-serif', 'border: 3px solid #fff',
-            'box-shadow: 0 4px 15px rgba(245, 175, 25, 0.7)',
-            'cursor: pointer', 'z-index: 99999', 'letter-spacing: 0.5px',
-            'user-select: none', 'touch-action: manipulation', 'transition: all 0.2s',
-            'animation: superPulse 2s infinite'
-        ].join(';');
-        rwbSuperBtn.innerHTML = '⚡ СУПЕР';
-        rwbSuperBtn.onclick = function(e) {
-            e.preventDefault(); e.stopPropagation();
-            activateRWBPlayerSuper();
-        };
-        document.body.appendChild(rwbSuperBtn);
-    }
-
-    function showRWBSuperButton() { if (rwbSuperBtn) rwbSuperBtn.style.display = 'block'; }
-    function hideRWBSuperButton() { if (rwbSuperBtn) rwbSuperBtn.style.display = 'none'; }
-
-    function activateRWBPlayerSuper() {
-        if (!window.rwbActive) return;
-        if (!rwbSuperReady) {
-            if (typeof showFloatingText === 'function') showFloatingText("⏳ Кулдаун: " + Math.ceil(rwbSuperCooldown / 60) + "с", "#ffaa00");
-            return;
-        }
-        let mainCard = null;
-        try {
-            if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0) {
-                let idx = team[mainCardIndex];
-                if (idx >= 0 && idx < myCards.length) mainCard = myCards[idx];
-            }
-        } catch(e) {}
-        if (!mainCard) { if (typeof showFloatingText === 'function') showFloatingText("Нет главной карты!", "#ff3333"); return; }
-        if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
-            if (typeof showFloatingText === 'function') showFloatingText("Нужно мастерство 5★!", "#ff3333");
-            return;
-        }
-        if (typeof window.toggleSuper === 'function') {
-            try {
-                window.toggleSuper();
-                rwbSuperReady = false; rwbSuperCooldown = RWB_SUPER_COOLDOWN;
-                if (typeof showFloatingText === 'function') showFloatingText("⚡ " + (mainCard.superAbility ? mainCard.superAbility.name : "СУПЕР!"), "#ffd700");
-                playHakiChargeSound(0.4);
-                return;
-            } catch(e) { console.warn("[ROGER-WB] Supers error:", e); }
-        }
-        if (typeof showFloatingText === 'function') showFloatingText("⚡ СУПЕР!", "#ffd700");
-        rwbSuperReady = false; rwbSuperCooldown = RWB_SUPER_COOLDOWN;
-        playHakiChargeSound(0.4);
-    }
-
-    function showRWBModeButton() { if (rwbModeBtn) rwbModeBtn.style.display = 'block'; }
-    function hideRWBModeButton() { if (rwbModeBtn) rwbModeBtn.style.display = 'none'; }
-
-    function handleRWBKeyDown(ev) { if (!window.rwbActive) return; rwbKeys[ev.key.toLowerCase()] = true; }
-    function handleRWBKeyUp(ev) { if (!window.rwbActive) return; rwbKeys[ev.key.toLowerCase()] = false; }
-
-    function handleRWBTouchStart(ev) {
-        if (!window.rwbActive) return;
-        if (rwbDialogActive) {
-            ev.preventDefault();
-            if (ev.touches.length > 0) {
-                var fakeEvent = { clientX: ev.touches[0].clientX, clientY: ev.touches[0].clientY };
-                if (rwbDialogType === "roger") handleRogersDialogClick();
-                else if (rwbDialogType === "whitebeard") handleWhitebeardDialogClick(fakeEvent);
-            }
-            return;
-        }
-        if (rwbState !== "fight1" && rwbState !== "fight2") return;
-        if (window._joystick && window._joystick.enabled && window._joystick.active) return;
         ev.preventDefault();
-        if (ev.touches.length > 0) {
-            let rect = canvas.getBoundingClientRect();
-            rwbTouchActive = true; rwbTouchId = ev.touches[0].identifier;
-            rwbTouchX = ev.touches[0].clientX - rect.left;
-            rwbTouchY = ev.touches[0].clientY - rect.top;
+        var rect = canvas.getBoundingClientRect();
+        if (arenaPhase === "attack") {
+            for (var i = 0; i < ev.touches.length; i++) {
+                checkClickTarget(ev.touches[i].clientX - rect.left, ev.touches[i].clientY - rect.top);
+            }
+            return;
         }
-    }
+        if (ev.touches.length === 1) {
+            var tx = ev.touches[0].clientX - rect.left;
+            var ty = ev.touches[0].clientY - rect.top;
+            var mobileMode = (typeof arenaSettings !== 'undefined') ? arenaSettings.mobileSuper : "button";
+            if (mobileMode === "doubletap") {
+                mobileSuperTapCount++;
+                if (mobileSuperTapTimer) clearTimeout(mobileSuperTapTimer);
+                if (mobileSuperTapCount >= 2) { mobileSuperTapCount = 0; if (typeof toggleSuper === 'function') toggleSuper(); return; }
+                mobileSuperTapTimer = setTimeout(function() { mobileSuperTapCount = 0; }, 300);
+            }
+            if (mobileMode === "swipeup") { mobileSuperSwipeStart = { x: tx, y: ty, time: Date.now() }; }
+            joystickActive = true; joystickId = ev.touches[0].identifier; joystickX = tx; joystickY = ty;
+        }
+    });
 
-    function handleRWBTouchMove(ev) {
-        if (!window.rwbActive || !rwbTouchActive) return;
-        if (window._joystick && window._joystick.enabled && window._joystick.active) return;
+    canvas.addEventListener("touchmove", function(ev) {
+        if (!arenaActive || arenaPhase !== "dodge") return;
+        if (window._joystick && window._joystick.enabled) return;
         ev.preventDefault();
-        let rect = canvas.getBoundingClientRect();
-        for (let i = 0; i < ev.touches.length; i++) {
-            if (ev.touches[i].identifier === rwbTouchId) {
-                rwbTouchX = ev.touches[i].clientX - rect.left;
-                rwbTouchY = ev.touches[i].clientY - rect.top;
+        for (var i = 0; i < ev.touches.length; i++) {
+            if (ev.touches[i].identifier === joystickId) {
+                var rect = canvas.getBoundingClientRect();
+                joystickX = ev.touches[i].clientX - rect.left; joystickY = ev.touches[i].clientY - rect.top;
                 break;
             }
         }
+    });
+
+    canvas.addEventListener("touchend", function(ev) {
+        if (window._joystick && window._joystick.enabled) return;
+        var mobileMode = (typeof arenaSettings !== 'undefined') ? arenaSettings.mobileSuper : "button";
+        if (mobileMode === "swipeup" && mobileSuperSwipeStart) {
+            var rect = canvas.getBoundingClientRect();
+            var endY = 0;
+            if (ev.changedTouches && ev.changedTouches.length > 0) { endY = ev.changedTouches[0].clientY || 0; }
+            endY = endY - rect.top;
+            var dy = mobileSuperSwipeStart.y - endY;
+            var dt = Date.now() - mobileSuperSwipeStart.time;
+            if (dy > 60 && dt < 500) { if (typeof toggleSuper === 'function') toggleSuper(); }
+            mobileSuperSwipeStart = null;
+        }
+        joystickActive = false; joystickId = null;
+    });
+
+    canvas.addEventListener("click", function(ev) {
+        if (!arenaActive || arenaPhase !== "attack") return;
+        var rect = canvas.getBoundingClientRect();
+        checkClickTarget(ev.clientX - rect.left, ev.clientY - rect.top);
+    });
+}
+
+function clampHeart() {
+    heart.x = Math.max(heart.size, Math.min(400 - heart.size, heart.x));
+    heart.y = Math.max(heart.size, Math.min(500 - heart.size, heart.y));
+}
+
+// ★★★ ФИКС: Такаба замораживает игрока ★★★
+function moveHeart() {
+    if (typeof _superState !== 'undefined' && _superState.takabaTimeStop) return;
+    if (typeof _superState !== 'undefined' && _superState.usoppStunTimer > 0) return;
+    if (typeof _superState !== 'undefined' && _superState.garouTimeStop) return;
+
+    var mx = 0, my = 0;
+
+    if (window._joystick && window._joystick.enabled && window._joystick.active) {
+        mx = window._joystick.vectorX || 0;
+        my = window._joystick.vectorY || 0;
+    }
+    else if (joystickActive) {
+        mx = (joystickX - heart.x) / 15;
+        my = (joystickY - heart.y) / 15;
+        var len = Math.sqrt(mx * mx + my * my);
+        if (len > 1) { mx /= len; my /= len; }
     }
 
-    function handleRWBTouchEnd(ev) {
-        if (!rwbTouchActive) return;
-        let still = false;
-        for (let i = 0; i < ev.touches.length; i++) {
-            if (ev.touches[i].identifier === rwbTouchId) { still = true; break; }
-        }
-        if (!still) { rwbTouchActive = false; rwbTouchId = null; }
+    if (keys.w || keys.up) my -= 1;
+    if (keys.s || keys.down) my += 1;
+    if (keys.a || keys.left) mx -= 1;
+    if (keys.d || keys.right) mx += 1;
+
+    if (typeof _superState !== 'undefined' && _superState.invertControls) { mx = -mx; my = -my; }
+
+    var isMoving = Math.abs(mx) > 0.05 || Math.abs(my) > 0.05;
+    heartWasMoving = isMoving;
+
+    if (isMoving) {
+        heartStandingTime = 0;
+        heartRotation += 0.15;
+        var len2 = Math.sqrt(mx * mx + my * my);
+        if (len2 > 1) { mx /= len2; my /= len2; }
+        heart.x += mx * heartSpeed;
+        heart.y += my * heartSpeed;
+    } else {
+        heartStandingTime++;
+        heartRotation *= 0.9;
     }
 
-    function handleRWBClick(ev) {
-        if (!window.rwbActive) return;
-        if (rwbDialogActive && rwbDialogType === "roger") { handleRogersDialogClick(); return; }
-        if (rwbDialogActive && rwbDialogType === "whitebeard") { handleWhitebeardDialogClick(ev); return; }
+    if (Math.abs(heart.vx) > 0.01 || Math.abs(heart.vy) > 0.01) {
+        heart.x += heart.vx;
+        heart.y += heart.vy;
+        heart.vx *= 0.92;
+        heart.vy *= 0.92;
+        if (Math.abs(heart.vx) < 0.1) heart.vx = 0;
+        if (Math.abs(heart.vy) < 0.1) heart.vy = 0;
     }
 
-    // ============================================================
-    // ★★★ ПРИМЕНЕНИЕ СУПЕР-МНОЖИТЕЛЕЙ УРОНА ★★★
-    // ============================================================
-    function applySuperDmgMult(baseDmg) {
-        let dmg = baseDmg;
-        if (typeof _superState !== 'undefined') {
-            if (_superState.nikaActive && _superState.nikaDmgMult > 1) dmg = Math.floor(dmg * _superState.nikaDmgMult);
-            if (_superState.dekusActive && _superState.dekusDmgMult > 1) dmg = Math.floor(dmg * _superState.dekusDmgMult);
-            if (_superState.allmightBuffTimer > 0 && _superState.allmightDmgMult > 1) dmg = Math.floor(dmg * _superState.allmightDmgMult);
-            if (_superState.kaidoBuffActive && _superState.kaidoDmgBonus > 1) dmg = Math.floor(dmg * _superState.kaidoDmgBonus);
-            if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) dmg = Math.floor(dmg * _superState.dandyDmgBuff.mult);
-            if (_superState.markBuffActive && _superState.markDmgBonus > 1) dmg = Math.floor(dmg * _superState.markDmgBonus);
-            if (_superState.allmightDebuffActive && _superState.allmightDebuffDmgMult < 1) dmg = Math.floor(dmg * _superState.allmightDebuffDmgMult);
-            if (_superState.allmightPermaSlow && _superState.allmightDebuffDmgMult < 1) dmg = Math.floor(dmg * _superState.allmightDebuffDmgMult);
-            if (_superState.garpHakiActive) dmg = Math.floor(dmg * 1.25);
-        }
-        return Math.max(1, dmg);
+    clampHeart();
+
+    if (Math.random() > 0.3) {
+        arenaTrail.push({ x: heart.x, y: heart.y, life: 12, maxLife: 12, size: Math.max(1, heart.size * 0.75), color: "rgba(255, 30, 30, 0.35)" });
     }
 
-    function updateRWBPlayer() {
-        if (rwbState !== "fight1" && rwbState !== "fight2") return;
-
-        if (typeof _superState !== 'undefined') {
-            if (_superState.garouTimeStop) return;
-            if (_superState.usoppStunTimer > 0) return;
-        }
-
-        let mx = 0, my = 0;
-        let speed = rwbBaseSpeed * rwbSpeedMult;
-
-        if (window._joystick && window._joystick.enabled && window._joystick.active) {
-            mx = window._joystick.vectorX;
-            my = window._joystick.vectorY;
-        } else if (rwbTouchActive) {
-            let tx = rwbTouchX - rwbPlayer.x, ty = rwbTouchY - rwbPlayer.y;
-            let dist = Math.sqrt(tx * tx + ty * ty);
-            if (dist > 5) { mx = tx / dist; my = ty / dist; }
-        } else {
-            if (rwbKeys.w || rwbKeys.arrowup) my -= 1;
-            if (rwbKeys.s || rwbKeys.arrowdown) my += 1;
-            if (rwbKeys.a || rwbKeys.arrowleft) mx -= 1;
-            if (rwbKeys.d || rwbKeys.arrowright) mx += 1;
-            if (mx !== 0 && my !== 0) { mx *= 0.707; my *= 0.707; }
-        }
-
-        if (typeof _superState !== 'undefined' && _superState.invertControls) {
-            mx = -mx; my = -my;
-        }
-
-        rwbPlayer.x += mx * speed; rwbPlayer.y += my * speed;
-        rwbPlayer.x = Math.max(16, Math.min(384, rwbPlayer.x));
-        rwbPlayer.y = Math.max(0, Math.min(484, rwbPlayer.y));
-        if (rwbPlayer.invulnTimer > 0) rwbPlayer.invulnTimer--;
-
-        if (rwbPlayer.attackTimer <= 0) {
-            let weaponUsed = false;
-            if (typeof window.firePlayerWeapon === 'function') {
-                try {
-                    let result = window.firePlayerWeapon(rwbPlayer.x, rwbPlayer.y, "normal", rwbPlayer.hp, rwbPlayer.maxHp);
-                    if (result && result.bullets) {
-                        rwbPlayer.attackTimer = result.rate || rwbPlayer.shootRate;
-                        for (let i = 0; i < result.bullets.length; i++) {
-                            let b = result.bullets[i];
-                            b.damage = applySuperDmgMult(Math.ceil(b.damage * BALANCE.playerDamageMult));
-                            if (rwbPlayer.attackMode === "blue") {
-                                b.isBlue = true; b.color = "#00aaff"; b.damage = 1;
-                                aimBulletAtNearestAttack(b);
-                            } else {
-                                b.isBlue = false;
-                            }
-                            rwbPlayerBullets.push(b);
-                        }
-                        weaponUsed = true; playWhooshSound(0.05);
-                    }
-                } catch(e) {}
-            }
-            if (!weaponUsed) {
-                rwbPlayer.attackTimer = rwbPlayer.shootRate;
-                let bulletColor = (rwbPlayer.attackMode === "blue") ? "#00aaff" : "#ffdd00";
-                let dmg = applySuperDmgMult(3);
-                let b = {
-                    x: rwbPlayer.x, y: rwbPlayer.y - 14,
-                    vx: 0, vy: -11, size: 5, life: 90, color: bulletColor,
-                    isBlue: (rwbPlayer.attackMode === "blue"),
-                    damage: (rwbPlayer.attackMode === "blue") ? 1 : dmg
-                };
-                if (rwbPlayer.attackMode === "blue") aimBulletAtNearestAttack(b);
-                rwbPlayerBullets.push(b);
-                playWhooshSound(0.06);
-            }
-        }
-        if (rwbPlayer.attackTimer > 0) rwbPlayer.attackTimer--;
-    }
-
-    function aimBulletAtNearestAttack(bullet) {
-        if (!rwbAttacks || rwbAttacks.length === 0) return;
-        let nearestAttack = null, nearestDist = Infinity;
-        for (let i = 0; i < rwbAttacks.length; i++) {
-            let a = rwbAttacks[i];
-            if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave") continue;
-            let ax = a.x + (a.size || a.radius || 20) / 2;
-            let ay = a.y + (a.size || a.radius || 20) / 2;
-            let dx = ax - bullet.x, dy = ay - bullet.y;
-            let dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < nearestDist) { nearestDist = dist; nearestAttack = { x: ax, y: ay }; }
-        }
-        if (nearestAttack) {
-            let dx = nearestAttack.x - bullet.x, dy = nearestAttack.y - bullet.y;
-            let len = Math.sqrt(dx * dx + dy * dy) || 1;
-            let speed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy) || 11;
-            speed = Math.max(speed, 13);
-            bullet.vx = (dx / len) * speed; bullet.vy = (dy / len) * speed;
-            bullet.life = Math.max(bullet.life, 120);
-        }
-    }
-
-    function updateDuel() {
-        if (!roger || !whitebeard) return;
-        duel.timer++;
-        if (duel.phase === "idle") {
-            roger.x += (roger.homeX - roger.x) * 0.04; roger.y += (roger.homeY - roger.y) * 0.04;
-            whitebeard.x += (whitebeard.homeX - whitebeard.x) * 0.04; whitebeard.y += (whitebeard.homeY - whitebeard.y) * 0.04;
-            if (duel.timer > 30) { duel.phase = "approach"; duel.timer = 0; duel.clashX = 100 + Math.random() * 200; duel.clashY = 150 + Math.random() * 150; playWhooshSound(0.2); }
-        } else if (duel.phase === "approach") {
-            let targetRX = duel.clashX - 30, targetRY = duel.clashY;
-            let targetWX = duel.clashX + 30, targetWY = duel.clashY;
-            roger.x += (targetRX - roger.x) * 0.15; roger.y += (targetRY - roger.y) * 0.15;
-            whitebeard.x += (targetWX - whitebeard.x) * 0.15; whitebeard.y += (targetWY - whitebeard.y) * 0.15;
-            if (duel.timer % 3 === 0) {
-                rwbSpeedLines.push({ x: roger.x + (Math.random() - 0.5) * 20, y: roger.y + (Math.random() - 0.5) * 20, vx: -3, vy: 0, life: 12, maxLife: 12, color: "#ff8800" });
-                rwbSpeedLines.push({ x: whitebeard.x + (Math.random() - 0.5) * 20, y: whitebeard.y + (Math.random() - 0.5) * 20, vx: 3, vy: 0, life: 12, maxLife: 12, color: "#ffffff" });
-            }
-            if (duel.timer > 20) { duel.phase = "clash"; duel.timer = 0; performClash(); }
-        } else if (duel.phase === "clash") {
-            roger.rotation += 0.15; whitebeard.rotation -= 0.15;
-            if (duel.timer % 3 === 0) spawnClashParticles(duel.clashX, duel.clashY);
-            if (duel.timer > 18) { duel.phase = "retreat"; duel.timer = 0; }
-        } else if (duel.phase === "retreat") {
-            let targetRX = roger.homeX, targetRY = roger.homeY + (Math.random() - 0.5) * 60;
-            let targetWX = whitebeard.homeX, targetWY = whitebeard.homeY + (Math.random() - 0.5) * 60;
-            roger.x += (targetRX - roger.x) * 0.12; roger.y += (targetRY - roger.y) * 0.12;
-            whitebeard.x += (targetWX - whitebeard.x) * 0.12; whitebeard.y += (targetWY - whitebeard.y) * 0.12;
-            if (duel.timer > 25) { duel.phase = "pause"; duel.timer = 0; }
-        } else if (duel.phase === "pause") {
-            roger.rotation *= 0.95; whitebeard.rotation *= 0.95;
-            if (duel.timer % 60 === 0) {
-                roger.homeX = 60 + Math.random() * 100; roger.homeY = 100 + Math.random() * 80;
-                whitebeard.homeX = 240 + Math.random() * 100; whitebeard.homeY = 100 + Math.random() * 80;
-            }
-            if (duel.timer > 50) { duel.phase = "idle"; duel.timer = 0; }
-        }
-        roger.pulse += 0.08; whitebeard.pulse += 0.07;
-        if (roger.hitFlash > 0) roger.hitFlash--;
-        if (whitebeard.hitFlash > 0) whitebeard.hitFlash--;
-
-        if (Math.random() < 0.08) spawnHakiLightning(roger.x + (Math.random() - 0.5) * 40, roger.y + (Math.random() - 0.5) * 40, 1, false);
-        if (Math.random() < 0.08) spawnHakiLightning(whitebeard.x + (Math.random() - 0.5) * 40, whitebeard.y + (Math.random() - 0.5) * 40, 1, false);
-
-        roger.attackTimer--;
-        if (roger.attackTimer <= 0) { roger.attackTimer = RWB_ATTACK_SPEED + Math.random() * 20; spawnRogerAttack(); }
-        whitebeard.attackTimer--;
-        if (whitebeard.attackTimer <= 0) { whitebeard.attackTimer = RWB_ATTACK_SPEED + Math.random() * 25; spawnWhitebeardAttack(); }
-
-        if (roger.hp <= 0) { roger.hp = 0; triggerSuper(whitebeard, roger); }
-        else if (whitebeard.hp <= 0) { whitebeard.hp = 0; triggerSuper(roger, whitebeard); }
-    }
-
-    function checkMeleeContact() {
-        if (rwbState !== "fight2") return;
-        if (rwbMeleeCooldown > 0) { rwbMeleeCooldown--; return; }
-        if (!rwbActiveBoss) return;
-        let boss = rwbActiveBoss;
-        let dx = rwbPlayer.x - boss.x;
-        let dy = rwbPlayer.y - boss.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < RWB_MELEE_RANGE) {
-            let pushAngle = Math.atan2(dy, dx);
-            rwbPlayer.vx = Math.cos(pushAngle) * RWB_MELEE_KNOCKBACK;
-            rwbPlayer.vy = Math.sin(pushAngle) * RWB_MELEE_KNOCKBACK;
-            hitPlayer(RWB_MELEE_DAMAGE);
-            rwbShake = 18;
-            playBladeSound(0.6);
-            rwbScreenFlash = 8;
-            rwbScreenFlashColor = boss.id === "roger" ? "#ff4400" : "#88ddff";
-            for (let i = 0; i < 3; i++) {
-                rwbShockwaves.push({ x: boss.x, y: boss.y, radius: 10, maxRadius: RWB_MELEE_RANGE * 1.5, speed: 8, color: boss.id === "roger" ? "#ff4400" : "#ffffff", damage: 0, hit: true, life: 15, maxLife: 15, width: 4 });
-            }
-            for (let i = 0; i < 15; i++) {
-                let ang = pushAngle + (Math.random() - 0.5) * 1.5;
-                let spd = 4 + Math.random() * 6;
-                rwbParticles.push({ x: boss.x + Math.cos(pushAngle) * 30, y: boss.y + Math.sin(pushAngle) * 30, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: 25, maxLife: 25, color: boss.id === "roger" ? "#ff4400" : "#ffffff", size: 3 });
-            }
-            rwbFloatingTexts.push({ x: rwbPlayer.x, y: rwbPlayer.y - 30, text: "СЛЕШ!", color: boss.id === "roger" ? "#ff4400" : "#88ddff", life: 40, maxLife: 40, vy: -0.8, vx: 0, size: 18 });
-            rwbMeleeCooldown = RWB_MELEE_COOLDOWN;
-        }
-    }
-
-    function performClash() {
-        duel.clashes++;
-        let dmg = 12 + Math.random() * 8;
-        roger.hp = Math.max(0, roger.hp - dmg);
-        whitebeard.hp = Math.max(0, whitebeard.hp - dmg);
-        roger.hitFlash = 10; whitebeard.hitFlash = 10;
-        rwbShake = 25; rwbScreenFlash = 20; rwbScreenFlashColor = "#000000"; rwbHakiAura = 20;
-        playImpactSound(0.6, 1.2); playBladeSound(0.4);
-        setTimeout(function() { playImpactSound(0.4, 0.8); }, 80);
-        for (let i = 0; i < 25; i++) {
-            let ang = Math.random() * Math.PI * 2, spd = 3 + Math.random() * 6;
-            rwbParticles.push({
-                x: duel.clashX, y: duel.clashY,
-                vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-                life: 30, maxLife: 30,
-                color: i % 3 === 0 ? "#000000" : (i % 3 === 1 ? "#ff2222" : "#ffffff"),
-                size: 2 + Math.random() * 3
-            });
-        }
-        for (let i = 0; i < 10; i++) spawnHakiLightning(duel.clashX, duel.clashY, 1, Math.random() > 0.7);
-        rwbShockwaves.push({ x: duel.clashX, y: duel.clashY, radius: 10, maxRadius: 200, speed: 9, color: "#000000", damage: 0, hit: true, life: 28, maxLife: 28, width: 8 });
-        rwbShockwaves.push({ x: duel.clashX, y: duel.clashY, radius: 5, maxRadius: 150, speed: 6, color: "#ff2222", damage: 0, hit: true, life: 25, maxLife: 25, width: 5 });
-    }
-
-    function spawnClashParticles(x, y) {
-        for (let i = 0; i < 6; i++) {
-            let ang = Math.random() * Math.PI * 2, spd = 3 + Math.random() * 6;
-            rwbParticles.push({
-                x: x + (Math.random() - 0.5) * 30, y: y + (Math.random() - 0.5) * 30,
-                vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-                life: 20, maxLife: 20,
-                color: ["#000000", "#ff2222", "#ff8800", "#ffdd00"][Math.floor(Math.random() * 4)],
-                size: 2 + Math.random() * 3
-            });
-        }
-    }
-
-    // ============================================================
-    // АТАКИ РОДЖЕРА
-    // ============================================================
-    function spawnRogerSlash(position) {
-        let isSuper = roger.superForm;
-        let slashWidth = isSuper ? 65 : 50;
-        let warningTime = isSuper ? 45 : 55;
-        let maxActive = isSuper ? 26 : 22;
-        let dmg = Math.ceil((isSuper ? 34 : 30) * BALANCE.superDamageMult);
-        let slash;
-        switch(position) {
-            case 0: slash = { type: "roger_slash", direction: "vertical", x: 200, y: 0, width: slashWidth, warningTimer: warningTime, activeTimer: 0, maxActive: maxActive, damage: dmg, hit: false, state: "warning", color: "#ff4400", hp: 1, maxHp: 1 }; break;
-            case 1: slash = { type: "roger_slash", direction: "vertical", x: rwbPlayer.x, y: 0, width: slashWidth, warningTimer: warningTime, activeTimer: 0, maxActive: maxActive, damage: dmg, hit: false, state: "warning", color: "#ff2200", hp: 1, maxHp: 1 }; break;
-            case 2: slash = { type: "roger_slash", direction: "horizontal", x: 0, y: 250, width: slashWidth, warningTimer: warningTime, activeTimer: 0, maxActive: maxActive, damage: dmg, hit: false, state: "warning", color: "#ff6600", hp: 1, maxHp: 1 }; break;
-            case 3: slash = { type: "roger_slash", direction: "horizontal", x: 0, y: rwbPlayer.y, width: slashWidth, warningTimer: warningTime, activeTimer: 0, maxActive: maxActive, damage: dmg, hit: false, state: "warning", color: "#ff3300", hp: 1, maxHp: 1 }; break;
-            case 4: slash = { type: "roger_slash", direction: "vertical", x: 60, y: 0, width: slashWidth * 0.9, warningTimer: warningTime, activeTimer: 0, maxActive: maxActive, damage: dmg, hit: false, state: "warning", color: "#ff5500", hp: 1, maxHp: 1 }; break;
-            case 5: slash = { type: "roger_slash", direction: "vertical", x: 340, y: 0, width: slashWidth * 0.9, warningTimer: warningTime, activeTimer: 0, maxActive: maxActive, damage: dmg, hit: false, state: "warning", color: "#ff5500", hp: 1, maxHp: 1 }; break;
-            case 6: slash = { type: "roger_slash", direction: "horizontal", x: 0, y: 80, width: slashWidth * 0.9, warningTimer: warningTime, activeTimer: 0, maxActive: maxActive, damage: dmg, hit: false, state: "warning", color: "#ff5500", hp: 1, maxHp: 1 }; break;
-            case 7: slash = { type: "roger_slash", direction: "horizontal", x: 0, y: 420, width: slashWidth * 0.9, warningTimer: warningTime, activeTimer: 0, maxActive: maxActive, damage: dmg, hit: false, state: "warning", color: "#ff5500", hp: 1, maxHp: 1 }; break;
-            default: slash = { type: "roger_slash", direction: "vertical", x: 100 + Math.random() * 200, y: 0, width: slashWidth, warningTimer: warningTime, activeTimer: 0, maxActive: maxActive, damage: dmg, hit: false, state: "warning", color: "#ff4400", hp: 1, maxHp: 1 };
-        }
-        rwbAttacks.push(slash);
-        rwbShake = 15; playBladeSound(0.3);
-    }
-
-    function spawnRogerDoubleSlash() {
-        let crossX = 100 + Math.random() * 200, crossY = 150 + Math.random() * 200;
-        rwbAttacks.push({ type: "roger_slash", direction: "vertical", x: crossX, y: 0, width: 55, warningTimer: 55, activeTimer: 0, maxActive: 22, damage: Math.ceil(28 * BALANCE.superDamageMult), hit: false, state: "warning", color: "#ff4400", hp: 1, maxHp: 1 });
-        rwbAttacks.push({ type: "roger_slash", direction: "horizontal", x: 0, y: crossY, width: 55, warningTimer: 55, activeTimer: 0, maxActive: 22, damage: Math.ceil(28 * BALANCE.superDamageMult), hit: false, state: "warning", color: "#ff6600", hp: 1, maxHp: 1 });
-        rwbShake = 20; playBladeSound(0.4);
-    }
-
-    function spawnRogerTripleSlash() {
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "⚔️⚔️⚔️ ТРОЙНОЕ ⚔️⚔️⚔️", color: "#ff2200", life: 80, maxLife: 80, vy: -0.3, vx: 0, size: 22 });
-        playHakiChargeSound(0.5); rwbShake = 25;
-        let positions = [{ dir: "vertical", x: 100, y: 0 }, { dir: "vertical", x: 300, y: 0 }, { dir: "horizontal", x: 0, y: 250 }];
-        for (let pos of positions) {
-            rwbAttacks.push({ type: "roger_slash", direction: pos.dir, x: pos.x, y: pos.y, width: 60, warningTimer: 60, activeTimer: 0, maxActive: 25, damage: Math.ceil(32 * BALANCE.superDamageMult), hit: false, state: "warning", color: "#ff3300", hp: 1, maxHp: 1 });
-        }
-        setTimeout(function() { playBladeSound(0.5); }, 300);
-    }
-
-    function spawnRogerWhirlwind() {
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "🌀 СМЕРЧ 🌀", color: "#ff00ff", life: 80, maxLife: 80, vy: -0.3, vx: 0, size: 22 });
-        playHakiChargeSound(0.5); rwbShake = 25;
-        let count = 16, baseAng = Math.random() * Math.PI * 2;
-        for (let i = 0; i < count; i++) {
-            let delay = i * 30;
-            (function(idx, d) {
-                setTimeout(function() {
-                    if (!window.rwbActive) return;
-                    let ang = baseAng + (idx / count) * Math.PI * 4;
-                    rwbAttacks.push({ type: "blade", x: roger.x, y: roger.y, vx: Math.cos(ang) * 5.5, vy: Math.sin(ang) * 5.5, size: 11, hp: 2, maxHp: 2, damage: Math.ceil(15 * BALANCE.superDamageMult), life: 300, color: "#ff00ff", rotation: ang + Math.PI * 0.5, rotSpeed: 0.4, hasHaki: true });
-                    if (idx % 4 === 0) playBladeSound(0.08);
-                }, d);
-            })(i, delay);
-        }
-    }
-
-    function spawnRogerBladeRain() {
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "☔ ГРАД КЛИНКОВ ☔", color: "#ffaa00", life: 80, maxLife: 80, vy: -0.3, vx: 0, size: 22 });
-        playHakiChargeSound(0.4); rwbShake = 30;
-        for (let i = 0; i < 10; i++) {
-            let delay = i * 60;
-            (function(d) {
-                setTimeout(function() {
-                    if (!window.rwbActive) return;
-                    let rx = 30 + Math.random() * 340;
-                    rwbAttacks.push({ type: "blade", x: rx, y: -30, vx: (Math.random() - 0.5) * 1.5, vy: 5.5 + Math.random() * 2, size: 12, hp: 2, maxHp: 2, damage: Math.ceil(16 * BALANCE.superDamageMult), life: 350, color: "#ffaa00", rotation: Math.PI * 0.5, rotSpeed: 0.3, hasHaki: true });
-                }, d);
-            })(delay);
-        }
-    }
-
-    function spawnRogerAttack() {
-        let type = Math.floor(Math.random() * 8);
-        let isSuper = roger.superForm;
-        playBladeSound(0.25);
-        spawnHakiLightning(roger.x, roger.y, 3, false);
-        let dxPlayer = rwbPlayer.x - roger.x, dyPlayer = rwbPlayer.y - roger.y;
-        let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
-
-        if (type === 0) { spawnRogerSlash(Math.floor(Math.random() * 8)); }
-        else if (type === 1) {
-            let count = isSuper ? 3 : 2;
-            for (let i = 0; i < count; i++) {
-                let spread = (i - (count - 1) / 2) * 0.12;
-                let ang = angleToPlayer + spread;
-                let speed = (isSuper ? 5.5 : 4.8) * BALANCE.projectileSpeedMult;
-                rwbAttacks.push({ type: "blade", x: roger.x, y: roger.y + 30, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, size: 12, hp: 2, maxHp: 2, damage: Math.ceil((isSuper ? 16 : 13) * BALANCE.rogerDamageMult), life: 250, color: "#ff6600", rotation: ang + Math.PI * 0.5, rotSpeed: 0.15, hasHaki: true });
-            }
-            playWhooshSound(0.3);
-        } else if (type === 2) {
-            let count = isSuper ? 7 : 5;
-            for (let i = 0; i < count; i++) {
-                let angle = Math.PI * 0.5 + (i - (count - 1) / 2) * 0.25;
-                let speed = (isSuper ? 5.0 : 4.2) * BALANCE.projectileSpeedMult;
-                rwbAttacks.push({ type: "blade", x: roger.x, y: roger.y + 30, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, size: 11, hp: 2, maxHp: 2, damage: Math.ceil((isSuper ? 16 : 12) * BALANCE.rogerDamageMult), life: 250, color: "#ff8800", rotation: angle + Math.PI * 0.5, rotSpeed: 0.15, hasHaki: true });
-            }
-        } else if (type === 3) {
-            let corners = [Math.PI * 0.25, Math.PI * 0.75, -Math.PI * 0.25, -Math.PI * 0.75];
-            for (let baseAng of corners) {
-                (function(a) {
-                    setTimeout(function() {
-                        if (!window.rwbActive) return;
-                        let speed = (isSuper ? 5.2 : 4.5) * BALANCE.projectileSpeedMult;
-                        rwbAttacks.push({ type: "big_blade", x: roger.x, y: roger.y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, size: 14, hp: 3, maxHp: 3, damage: Math.ceil((isSuper ? 20 : 15) * BALANCE.rogerDamageMult), life: 250, color: "#ff4400", rotation: a + Math.PI * 0.5, rotSpeed: 0.2, trail: [], hasHaki: true });
-                    }, 0);
-                })(baseAng);
-            }
-        } else if (type === 4) {
-            let count = isSuper ? 8 : 6;
-            for (let i = 0; i < count; i++) {
-                let angle = (i / count) * Math.PI * 2;
-                let speed = (isSuper ? 4.2 : 3.5) * BALANCE.projectileSpeedMult;
-                rwbAttacks.push({ type: "blade", x: roger.x, y: roger.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, size: 10, hp: 2, maxHp: 2, damage: Math.ceil((isSuper ? 12 : 10) * BALANCE.rogerDamageMult), life: 250, color: "#ffaa00", rotation: angle + Math.PI * 0.5, rotSpeed: 0.1, hasHaki: true });
-            }
-        } else if (type === 5) { spawnRogerDoubleSlash(); }
-        else if (type === 6) {
-            let diagonals = [Math.PI * 0.25, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75];
-            for (let ang of diagonals) {
-                (function(a) {
-                    setTimeout(function() {
-                        if (!window.rwbActive) return;
-                        let speed = 4.8 * BALANCE.projectileSpeedMult;
-                        rwbAttacks.push({ type: "big_blade", x: roger.x, y: roger.y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, size: 14, hp: 3, maxHp: 3, damage: Math.ceil(15 * BALANCE.rogerDamageMult), life: 250, color: "#ff4400", rotation: a + Math.PI * 0.5, rotSpeed: 0.25, trail: [], hasHaki: true });
-                        playBladeSound(0.08);
-                    }, 0);
-                })(ang);
-            }
-        } else {
-            let count = 12;
-            for (let i = 0; i < count; i++) {
-                let baseAng = (i / count) * Math.PI * 4;
-                let delay = i * 5;
-                (function(a, d) {
-                    setTimeout(function() {
-                        if (!window.rwbActive) return;
-                        rwbAttacks.push({ type: "blade", x: roger.x, y: roger.y, vx: Math.cos(a) * 4.0 * BALANCE.projectileSpeedMult, vy: Math.sin(a) * 4.0 * BALANCE.projectileSpeedMult, size: 9, hp: 2, maxHp: 2, damage: Math.ceil(10 * BALANCE.rogerDamageMult), life: 250, color: "#ff8800", rotation: a + Math.PI * 0.5, rotSpeed: 0.35, hasHaki: true });
-                    }, d);
-                })(baseAng, delay);
+    if (arenaAttackType === 4) {
+        if (heart.x - heart.hitbox < 2 || heart.x + heart.hitbox > 398 || heart.y - heart.hitbox < 2 || heart.y + heart.hitbox > 498) {
+            if (invulnTimer <= 0) {
+                invulnTimer = 20;
+                applyHit(Math.max(8, Math.floor(arenaBaseDmg * 1.5)), "ШИПЫ!");
             }
         }
     }
+}
 
-    // ============================================================
-    // АТАКИ БЕЛОУСА
-    // ============================================================
-    function spawnTsunamiAttack(isSuper) {
-        let tsunamiDamage = Math.ceil(26 * BALANCE.whitebeardDamageMult);
-        if (rwbTsunamiActive) return;
-        rwbTsunamiActive = true;
-        playWhooshSound(0.5); playBossRoarSound(0.3); rwbShake = 25;
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "🌊 ЦУНАМИ! 🌊", color: "#00ccff", life: 90, maxLife: 90, vy: -0.3, vx: 0, size: 24 });
-        let wave1 = { type: "tsunami", fromRight: true, x: 130, y: -60, vy: 4.5, width: 270, height: 55, currentWidth: 270, currentHeight: 55, damage: tsunamiDamage, life: 400, waveTime: 0, hit: false, color: "#0099ff" };
-        rwbAttacks.push(wave1);
-        setTimeout(function() {
-            if (!window.rwbActive) return;
-            let wave2 = { type: "tsunami", fromRight: false, x: 0, y: -60, vy: 4.5, width: 270, height: 55, currentWidth: 270, currentHeight: 55, damage: tsunamiDamage, life: 400, waveTime: 0, hit: false, color: "#00aaff" };
-            rwbAttacks.push(wave2);
-            playWhooshSound(0.5); rwbShake = 20;
-            rwbFloatingTexts.push({ x: 200, y: 100, text: "🌊 ВТОРАЯ ВОЛНА! 🌊", color: "#00ddff", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
-            setTimeout(function() { rwbTsunamiActive = false; }, 1500);
-        }, 1600);
-    }
+function spawnFloatingText(x, y, text, color) { floatingTexts.push({ x: x, y: y, text: text, color: color, life: 50, vy: -1.8, vx: (Math.random() - 0.5) * 1.5 }); }
 
-    function spawnWhitebeardAttack() {
-        let type = Math.floor(Math.random() * 8);
-        let isSuper = whitebeard.superForm;
-        playHakiChargeSound(0.2);
-        spawnHakiLightning(whitebeard.x, whitebeard.y, 3, false);
-        let dxPlayer = rwbPlayer.x - whitebeard.x, dyPlayer = rwbPlayer.y - whitebeard.y;
-        let angleToPlayer = Math.atan2(dyPlayer, dxPlayer);
-
-        if (type === 0) {
-            let count = 6;
-            for (let i = 0; i < count; i++) {
-                let cx = 40 + Math.random() * 320;
-                rwbAttacks.push({ type: "rock", x: cx, y: -40 - Math.random() * 30, vx: (Math.random() - 0.5) * 0.5, vy: (isSuper ? 4.2 : 3.5) * BALANCE.projectileSpeedMult, size: 17 + Math.random() * 5, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.06, hp: 3, maxHp: 3, damage: Math.ceil((isSuper ? 20 : 15) * BALANCE.whitebeardDamageMult), life: 400, color: "#8B7355", hasHaki: false, textureSeed: Math.random() * 1000 });
-            }
-            spawnWhiteCracks(whitebeard.x, whitebeard.y, 3); playImpactSound(0.4, 0.6);
-        } else if (type === 1) {
-            rwbShockwaves.push({ x: whitebeard.x, y: whitebeard.y, radius: 10, maxRadius: isSuper ? 240 : 200, speed: (isSuper ? 5.5 : 4.5) * BALANCE.projectileSpeedMult, color: "#ffdd44", damage: Math.ceil((isSuper ? 20 : 15) * BALANCE.whitebeardDamageMult), hit: false, hp: 6, maxHp: 6, canDestroy: true, life: 150, maxLife: 150, width: 14 });
-            playImpactSound(0.35, 0.9);
-        } else if (type === 2) {
-            rwbAttacks.push({ type: "fist", x: 430, y: 150 + Math.random() * 200, vx: -6 * BALANCE.projectileSpeedMult, vy: 0, size: 22, hp: 4, maxHp: 4, damage: Math.ceil((isSuper ? 24 : 18) * BALANCE.whitebeardDamageMult), life: 250, color: "#ffffff", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
-            playImpactSound(0.4, 1.0);
-        } else if (type === 3) {
-            rwbAttacks.push({ type: "fist", x: -30, y: 150 + Math.random() * 200, vx: 6 * BALANCE.projectileSpeedMult, vy: 0, size: 22, hp: 4, maxHp: 4, damage: Math.ceil((isSuper ? 24 : 18) * BALANCE.whitebeardDamageMult), life: 250, color: "#ffffff", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
-            playImpactSound(0.4, 1.0);
-        } else if (type === 4) { spawnTsunamiAttack(isSuper); }
-        else if (type === 5) {
-            let count = isSuper ? 8 : 5;
-            for (let i = 0; i < count; i++) {
-                let cx = 60 + i * (280 / (count - 1));
-                rwbAttacks.push({ type: "fist", x: cx, y: -30, vx: (Math.random() - 0.5) * 1, vy: 5 * BALANCE.projectileSpeedMult, size: 16, hp: 3, maxHp: 3, damage: Math.ceil((isSuper ? 18 : 14) * BALANCE.whitebeardDamageMult), life: 300, color: "#ffffff", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
-            }
-            playImpactSound(0.35, 0.9);
-        } else if (type === 6) {
-            for (let side = -1; side <= 1; side += 2) {
-                (function(s) {
-                    setTimeout(function() {
-                        if (!window.rwbActive) return;
-                        let targetX = rwbPlayer.x + s * 60, targetY = rwbPlayer.y;
-                        let dx = targetX - whitebeard.x, dy = targetY - whitebeard.y;
-                        let len = Math.sqrt(dx * dx + dy * dy) || 1;
-                        let speed = (isSuper ? 6.5 : 5.5) * BALANCE.projectileSpeedMult;
-                        rwbAttacks.push({ type: "fist", x: whitebeard.x, y: whitebeard.y + 20, vx: (dx / len) * speed, vy: (dy / len) * speed, size: 18, hp: 4, maxHp: 4, damage: Math.ceil((isSuper ? 22 : 17) * BALANCE.whitebeardDamageMult), life: 250, color: "#ffffff", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
-                    }, (s + 1) * 120);
-                })(side);
-            }
-            playImpactSound(0.45, 0.85);
-        } else {
-            let side = Math.random() > 0.5 ? 1 : -1;
-            rwbAttacks.push({ type: "haki_wave", x: side > 0 ? -40 : 440, y: 200 + Math.random() * 200, vx: side * 3.5 * BALANCE.projectileSpeedMult, vy: 0, size: 30, hp: 5, maxHp: 5, damage: Math.ceil(22 * BALANCE.whitebeardDamageMult), life: 300, color: "#ff8800", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
-            playHakiChargeSound(0.3);
+function checkClickTarget(mx, my) {
+    for (var i = arenaClickTargets.length - 1; i >= 0; i--) {
+        var t = arenaClickTargets[i];
+        if (Math.sqrt((mx - t.x) * (mx - t.x) + (my - t.y) * (my - t.y)) < t.radius + 15 && !t.hit) {
+            t.hit = true; arenaClicksHit++; arenaShake = 8;
+            arenaShockwaves.push({ x: t.x, y: t.y, r: 8, v: 6, life: 16, maxLife: 16, color: "#ffdd00" });
+            sfxArenaTargetHit();
+            for (var j = 0; j < 35; j++) { var angle = Math.random() * Math.PI * 2; var spd = 3 + Math.random() * 6; arenaParticles.push({ x: t.x, y: t.y, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, life: 28, maxLife: 28, color: Math.random() > 0.3 ? "#ffdd00" : "#ffffff", size: 1.5 + Math.random() * 4 }); }
+            break;
         }
     }
+}
 
-    // ============================================================
-    // СУПЕР-АТАКИ
-    // ============================================================
-    function spawnRogerSuperAttack() {
-        let attackId = Math.floor(Math.random() * 7);
-        playHakiChargeSound(0.25);
-        spawnHakiLightning(roger.x, roger.y, 5, false);
-        if (attackId === 0) spawnRogerCrossSlash();
-        else if (attackId === 1) spawnRogerCrossStrike();
-        else if (attackId === 2) spawnRogerHellFire();
-        else if (attackId === 3) spawnRogerComboRush();
-        else if (attackId === 4) spawnRogerDoubleSlash();
-        else if (attackId === 5) spawnRogerTripleSlash();
-        else if (attackId === 6) spawnRogerWhirlwind();
+function calculateArenaHP() {
+    var bonus = 0;
+    var cards = window.myCards || (typeof myCards !== 'undefined' ? myCards : null);
+    var teamArr = window.team || (typeof team !== 'undefined' ? team : null);
+    if (cards && teamArr && Array.isArray(cards) && Array.isArray(teamArr)) {
+        for (var i = 0; i < teamArr.length; i++) { var idx = teamArr[i]; if (idx >= 0 && idx < cards.length && cards[idx] && typeof cards[idx].hp === 'number') bonus += Math.floor(cards[idx].hp / 50); }
+    }
+    var hpUpgradeBonus = 0;
+    if (typeof upgrades !== 'undefined' && upgrades.hp) hpUpgradeBonus = Math.floor(upgrades.hp.level * upgrades.hp.increment / 2);
+    var playerMaxHp = (typeof window !== 'undefined' && window.playerMaxHp) ? window.playerMaxHp : 100;
+    var hpScaleBonus = Math.floor(playerMaxHp / 20);
+    arenaMaxHP = 70 + bonus + hpUpgradeBonus + hpScaleBonus;
+    arenaHP = arenaMaxHP;
+}
+
+function getAttackTypes(bossWave) {
+    if (typeof bossTemplates !== 'undefined' && bossTemplates[bossWave] && bossTemplates[bossWave].arenaTypes) return bossTemplates[bossWave].arenaTypes;
+    if (bossWave < 100) return [0, 1]; if (bossWave < 400) return [0, 1, 2, 3]; if (bossWave < 1000) return [0, 1, 2, 3, 4, 5]; if (bossWave < 2000) return [0, 1, 2, 3, 4, 5, 7, 8];
+    return [0, 1, 2, 3, 4, 5, 7, 8, 9, 10];
+}
+
+function skipDefeatedBoss() { stopArena(); if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0; if (typeof victory === 'function') victory(); }
+
+function getMainCardSpeedForArena() {
+    var result = { speed: 1.2, cardName: "Нет карты", cardRarity: "—", source: "базовая", details: [] };
+    if (typeof team === 'undefined' || !Array.isArray(team) || team.length === 0) { result.details.push("Отряд пуст"); return result; }
+    if (typeof myCards === 'undefined' || !Array.isArray(myCards) || myCards.length === 0) { result.details.push("myCards пуст"); return result; }
+    var idxInTeam = (typeof mainCardIndex !== 'undefined') ? mainCardIndex : -1;
+    var needFallback = false;
+    if (idxInTeam < 0 || idxInTeam >= team.length) needFallback = true;
+    else { var cardIdx = team[idxInTeam]; if (cardIdx < 0 || cardIdx >= myCards.length) needFallback = true; }
+    var mainCard = null;
+    if (!needFallback) {
+        var cardIdx = team[idxInTeam];
+        mainCard = myCards[cardIdx];
+        if (!mainCard || typeof mainCard.speed !== 'number' || mainCard.speed <= 0) needFallback = true;
+    }
+    if (needFallback) {
+        var bestSpeed = 1.2, bestCard = null;
+        for (var i = 0; i < team.length; i++) {
+            var ci = team[i];
+            if (ci < 0 || ci >= myCards.length) continue;
+            var c = myCards[ci];
+            if (!c || typeof c.speed !== 'number' || c.speed <= 0) continue;
+            if (c.speed > bestSpeed) { bestSpeed = c.speed; bestCard = c; }
+        }
+        if (bestCard) mainCard = bestCard;
+        else return result;
+    }
+    result.speed = mainCard.speed;
+    result.cardName = mainCard.name;
+    result.cardRarity = mainCard.rarity || "—";
+    result.source = needFallback ? "fallback" : "mainCardIndex";
+    return result;
+}
+
+function startArena(bossWave) {
+    initArenaAudio();
+    var btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = "none";
+    var spareBtn = document.getElementById("spareBtn"); if (spareBtn) spareBtn.style.display = "none";
+    var skipBtn = document.getElementById("skipArenaBtn"); if (skipBtn) skipBtn.style.display = "none";
+    var superBtn2 = document.getElementById("superBtn2"); if (superBtn2) superBtn2.style.display = "none";
+    var superBtnDeact = document.getElementById("superBtnDeactivate"); if (superBtnDeact) superBtnDeact.style.display = "none";
+
+    arenaBossDefeatedBefore = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossWave));
+    arenaActive = true; arenaCurrentWave = bossWave; calculateArenaHP();
+    arenaKarma = 0; screenFlash = 0; arenaVignette = 0; arenaGlobalSpeedMod = 1.0; arenaDodgeTimer = 0;
+    whitebeardRegenTimer = 0;
+    if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
+    if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
+    if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
+
+    if (typeof _superState !== 'undefined') {
+        _superState.markResurrectCharges = 2; _superState.markBuffActive = false; _superState.markBuffTimer = 0; _superState.markDmgReduction = 1; _superState.markDmgBonus = 1; _superState.markSpeedBonus = 1;
+        _superState.allmightPermaSlow = false; _superState.allmightDmgMult = 1; _superState.allmightBuffTimer = 0;
+        _superState.allmightDebuffActive = false; _superState.allmightDebuffTimer = 0; _superState.allmightDebuffDmgMult = 1;
+        _superState.antispiralActive = false; _superState.antispiralShrinkAttacks = false; _superState.imAuraActive = false;
+        _superState.kaidoDrinking = false; _superState.kaidoBuffActive = false; _superState.kaidoDmgReduction = false; _superState.kaidoDmgBonus = 1; _superState.kaidoSpeedBonus = 1; _superState.invertControls = false;
+        _superState.dandyInvuln = false; _superState.dandyLightnings = false; _superState.dandyDoubleTargets = false; _superState.dandyDmgBuff = null; _superState.dandyShield = null; _superState.dandyVulnerable = null;
+        _superState.dandyDarkness = 0; _superState.dandyAura = 0; _superState.dandyLava = 0; _superState.dandyAutoRevive = false;
+        _superState.garpHakiActive = false; _superState.garpHakiTimer = 0; _superState.garpChargeTimer = 0; _superState.garpImpactActive = false;
+        _superState.garouInvulnTimer = 0; _superState.garouTimeStop = false; _superState.screenShakeAmount = 0; _superState.screenFlashWhite = 0;
+        // ★ ТАКАБА ★
+        _superState.takabaConfidence = 50;
+        _superState.takabaLastEventTime = 0;
+        _superState.takabaTimeStop = false;
+        _superState.takabaJokeActive = false;
+        _superState.takabaBgColor = null;
     }
 
-    function spawnRogerCrossSlash() {
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "⚡ РАССЕЧЕНИЕ ⚡", color: "#ff4400", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
-        playWhooshSound(0.5);
-        setTimeout(function() { playImpactSound(0.5, 1.2); }, 300);
-        spawnRogerSlash(Math.floor(Math.random() * 8));
-    }
+    var speedInfo = getMainCardSpeedForArena();
+    heartSpeed = speedInfo.speed;
 
-    function spawnRogerCrossStrike() {
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "❌ КРЕСТ ❌", color: "#ff6600", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
-        playBladeSound(0.3);
-        let cx = 130 + Math.random() * 140, cy = 180 + Math.random() * 120;
-        rwbAttacks.push({ type: "roger_cross", x: cx, y: cy, dir: "vertical", length: 400, width: 35, warningTimer: 50, activeTimer: 0, maxActive: 20, damage: Math.ceil(26 * BALANCE.superDamageMult), hit: false, state: "warning", color: "#ff8800", hp: 1, maxHp: 1 });
-        rwbAttacks.push({ type: "roger_cross", x: cx, y: cy, dir: "horizontal", length: 400, width: 35, warningTimer: 50, activeTimer: 0, maxActive: 20, damage: Math.ceil(26 * BALANCE.superDamageMult), hit: false, state: "warning", color: "#ff8800", hp: 1, maxHp: 1 });
-        rwbShake = 18;
-    }
-
-    function spawnRogerHellFire() {
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "🔥 ПЛАМЯ 🔥", color: "#ff2200", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
-        playWhooshSound(0.4);
-        setTimeout(function() { playExplosionSound(0.5); }, 800);
-        for (let i = 0; i < 2; i++) {
-            setTimeout(function() {
-                if (!window.rwbActive) return;
-                rwbAttacks.push({ type: "hell_fire", x: roger.x + (Math.random() - 0.5) * 60, y: roger.y + 20, targetX: rwbPlayer.x + (Math.random() - 0.5) * 60, targetY: rwbPlayer.y + (Math.random() - 0.5) * 60, vx: 0, vy: 0, speed: 3.8 * BALANCE.projectileSpeedMult, size: 25, hp: 5, maxHp: 5, damage: Math.ceil(24 * BALANCE.superDamageMult), life: 300, state: "flying", flyTimer: 0, explosionTimer: 0, color: "#ff3300" });
-            }, i * 300);
-        }
-    }
-
-    function spawnRogerComboRush() {
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "⚔️ КОМБО ⚔️", color: "#ffdd00", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
-        playBladeSound(0.35);
-        for (let w = 0; w < 4; w++) {
-            (function(waveIdx) {
-                setTimeout(function() {
-                    if (!window.rwbActive || rwbState !== "fight2") return;
-                    let count = 6, baseAng = Math.random() * Math.PI * 2;
-                    for (let i = 0; i < count; i++) {
-                        let ang = baseAng + (i / count) * Math.PI * 2;
-                        rwbAttacks.push({ type: "blade", x: roger.x, y: roger.y, vx: Math.cos(ang) * 5.5, vy: Math.sin(ang) * 5.5, size: 10, hp: 2, maxHp: 2, damage: Math.ceil(14 * BALANCE.superDamageMult), life: 250, color: "#ffcc00", rotation: ang + Math.PI * 0.5, rotSpeed: 0.3, hasHaki: true });
-                    }
-                    playBladeSound(0.15);
-                }, waveIdx * 300);
-            })(w);
-        }
-    }
-
-    function spawnWhitebeardGuraRazlom() {
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "💜 ГУРА-ГУРА РАЗЛОМ 💜", color: "#aa00ff", life: 100, maxLife: 100, vy: -0.3, vx: 0, size: 24 });
-        playHakiChargeSound(0.5); playBossRoarSound(0.4); rwbShake = 30;
-        spawnPurpleCracks(whitebeard.x, whitebeard.y, 10);
-        for (let i = 0; i < 4; i++) {
-            let rx = 60 + Math.random() * 280, ry = 100 + Math.random() * 300;
-            rwbAttacks.push({ type: "purple_crack_zone", x: rx, y: ry, radius: 10, maxRadius: 70 + Math.random() * 30, warningTimer: 60 + i * 10, activeTimer: 0, maxActive: 25, state: "warning", damage: Math.ceil(22 * BALANCE.whitebeardDamageMult), hit: false, color: "#aa00ff" });
-        }
-        setTimeout(function() {
-            if (!window.rwbActive || rwbState !== "fight2") return;
-            rwbAttacks.push({ type: "fist", x: whitebeard.x, y: whitebeard.y + 20, vx: 0, vy: 0, size: 26, hp: 3, maxHp: 3, damage: Math.ceil(24 * BALANCE.superDamageMult), life: 300, color: "#aa00ff", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true, isHoming: true, targetX: rwbPlayer.x, targetY: rwbPlayer.y, homingSpeed: 0.05 });
-        }, 800);
-    }
-
-    function spawnWhitebeardSuperAttack() {
-        let attackId = Math.floor(Math.random() * 6);
-        playHakiChargeSound(0.3);
-        spawnHakiLightning(whitebeard.x, whitebeard.y, 5, false);
-        if (attackId === 0) spawnWhitebeardEarthquake();
-        else if (attackId === 1) spawnWhitebeardGuraGura();
-        else if (attackId === 2) spawnWhitebeardTitanFist();
-        else if (attackId === 3) spawnWhitebeardRush();
-        else if (attackId === 4) spawnTsunamiAttack(false);
-        else spawnWhitebeardGuraRazlom();
-    }
-
-    function spawnWhitebeardEarthquake() {
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "🌋 ЗЕМЛЕТРЯСЕНИЕ 🌋", color: "#8B7355", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 18 });
-        playImpactSound(0.7, 0.5); playBossRoarSound(0.4); rwbShake = 25;
-        for (let i = 0; i < 8; i++) {
-            let cx = 40 + Math.random() * 320;
-            rwbAttacks.push({ type: "rock", x: cx, y: -40 - Math.random() * 50, vx: (Math.random() - 0.5) * 1.2, vy: 3.2 + Math.random() * 1.5, size: 16 + Math.random() * 8, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.1, hp: 3, maxHp: 3, damage: Math.ceil(20 * BALANCE.superDamageMult), life: 400, color: "#8B7355", hasHaki: false, textureSeed: Math.random() * 1000 });
-        }
-        spawnWhiteCracks(whitebeard.x, whitebeard.y, 5);
-        let shakeInterval = setInterval(function() {
-            if (!window.rwbActive || rwbState !== "fight2") { clearInterval(shakeInterval); return; }
-            rwbShake = Math.max(rwbShake, 12);
-        }, 100);
-        setTimeout(function() { clearInterval(shakeInterval); }, 1500);
-    }
-
-    function spawnWhitebeardGuraGura() {
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "💥 ГУРА-ГУРА 💥", color: "#ffffff", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
-        playHakiChargeSound(0.4);
-        setTimeout(function() { playExplosionSound(0.6); }, 500);
-        for (let i = 0; i < 6; i++) {
-            let rx = 60 + Math.random() * 280, ry = 120 + Math.random() * 280;
-            rwbAttacks.push({ type: "gura_crack", x: rx, y: ry, radius: 10, maxRadius: 85, damage: Math.ceil(24 * BALANCE.superDamageMult), life: 200, state: "warning", warningTimer: 70 + i * 15, activeTimer: 0, maxActive: 20, hit: false, color: "#ffffff" });
-        }
-        rwbShake = 20;
-    }
-
-    function spawnWhitebeardTitanFist() {
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "👊 ТИТАН-КУЛАК 👊", color: "#ffdd00", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 18 });
-        playWhooshSound(0.5);
-        setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
-        rwbShake = 25;
-        rwbAttacks.push({ type: "titan_fist", x: 120 + Math.random() * 160, y: -120, vy: 3.5, size: 75, damage: Math.ceil(35 * BALANCE.superDamageMult), life: 300, state: "falling", hit: false, color: "#8B7355" });
-        for (let i = 0; i < 3; i++) {
-            let cx = 40 + Math.random() * 320;
-            rwbAttacks.push({ type: "rock", x: cx, y: -40 - Math.random() * 30, vx: (Math.random() - 0.5) * 0.6, vy: 3.0 + Math.random() * 1.0, size: 12 + Math.random() * 5, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.08, hp: 2, maxHp: 2, damage: Math.ceil(14 * BALANCE.superDamageMult), life: 350, color: "#8B7355", hasHaki: false, textureSeed: Math.random() * 1000 });
-        }
-    }
-
-    function spawnWhitebeardRush() {
-        rwbFloatingTexts.push({ x: 200, y: 100, text: "👊 НАВАЛА 👊", color: "#ffffff", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
-        playBossRoarSound(0.4); playWhooshSound(0.4);
-        for (let i = 0; i < 6; i++) {
-            (function(idx) {
-                setTimeout(function() {
-                    if (!window.rwbActive || rwbState !== "fight2") return;
-                    let targetX = rwbPlayer.x + (Math.random() - 0.5) * 80, targetY = rwbPlayer.y + (Math.random() - 0.5) * 80;
-                    let dx = targetX - whitebeard.x, dy = targetY - whitebeard.y;
-                    let len = Math.sqrt(dx * dx + dy * dy) || 1;
-                    rwbAttacks.push({ type: "fist", x: whitebeard.x, y: whitebeard.y + 20, vx: (dx / len) * 6.0, vy: (dy / len) * 6.0, size: 14, hp: 3, maxHp: 3, damage: Math.ceil(16 * BALANCE.superDamageMult), life: 250, color: "#ffffff", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
-                    playImpactSound(0.25, 1.0 + idx * 0.1);
-                }, idx * 120);
-            })(i);
-        }
-    }
-
-    function spawnGiantRock() {
-        let rx = 80 + Math.random() * 240;
-        rwbAttacks.push({ type: "giant_rock", x: rx, y: -120, vx: (Math.random() - 0.5) * 0.4, vy: 2.5, size: 40, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.04, hp: 5, maxHp: 5, damage: Math.ceil(28 * BALANCE.whitebeardDamageMult), life: 500, color: "#8B7355", hasHaki: false, textureSeed: Math.random() * 1000 });
-        rwbFloatingTexts.push({ x: rx, y: 80, text: "🪨 ОГРОМНЫЙ КАМЕНЬ 🪨", color: "#8B7355", life: 90, maxLife: 90, vy: -0.2, vx: 0, size: 16 });
-        playWhooshSound(0.6);
-        setTimeout(function() { playImpactSound(0.7, 0.5); }, 1200);
-    }
-
-    function triggerSuper(winner, loser) {
-        var superHp = RWB_SUPER_WB_HP;
-        if (winner.id === "roger") superHp = RWB_SUPER_ROGER_HP;
-        rwbState = "transition"; rwbTransitionTimer = 0;
-        winner.superForm = true; winner.maxHp = superHp; winner.hp = superHp;
-        winner.size *= 1.3; rwbActiveBoss = winner;
-        rwbTitanFistTimer = 0; rwbTitanRockTimer = 0;
-        rwbMeleeCooldown = 30;
-        if (loser === roger) roger = null;
-        if (loser === whitebeard) whitebeard = null;
-        rwbAttacks = []; rwbShockwaves = [];
-        rwbScreenFlash = 40; rwbScreenFlashColor = "#000000"; rwbShake = 35; rwbHakiAura = 40;
-        playBossRoarSound(0.6); playHakiChargeSound(0.5);
-        setTimeout(function() { playExplosionSound(0.4); }, 800);
-        for (let i = 0; i < 40; i++) {
-            let ang = Math.random() * Math.PI * 2, spd = 4 + Math.random() * 8;
-            rwbParticles.push({ x: 200, y: 250, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: 40, maxLife: 40, color: i % 3 === 0 ? "#000000" : (i % 3 === 1 ? "#ff2222" : "#ffffff"), size: 3 + Math.random() * 4 });
-        }
-        for (let i = 0; i < 15; i++) spawnHakiLightning(200 + (Math.random() - 0.5) * 150, 250 + (Math.random() - 0.5) * 150, 1, Math.random() > 0.6);
-    }
-
-    // ============================================================
-    // ОБНОВЛЕНИЕ АТАК
-    // ============================================================
-    function updateRWBAttacks() {
-        var timeStopped = false;
-        var frozen = false;
-        if (typeof _superState !== 'undefined') {
-            timeStopped = (_superState.garouTimeStop === true);
-            frozen = (_superState.antispiralFrozen === true);
-        }
-        var stopAll = timeStopped || frozen;
-
-        for (let i = rwbAttacks.length - 1; i >= 0; i--) {
-            let a = rwbAttacks[i];
-
-            if (stopAll) continue;
-
-            if (a.type === "purple_crack_zone") {
-                if (a.state === "warning") {
-                    a.warningTimer--;
-                    if (a.warningTimer <= 0) {
-                        a.state = "active"; a.activeTimer = a.maxActive;
-                        rwbShake = 20; playExplosionSound(0.5);
-                        spawnPurpleCracks(a.x, a.y, 6);
-                        for (let j = 0; j < 15; j++) {
-                            let ang = (j / 15) * Math.PI * 2;
-                            rwbParticles.push({ x: a.x, y: a.y, vx: Math.cos(ang) * 6, vy: Math.sin(ang) * 6, life: 25, maxLife: 25, color: "#aa00ff", size: 3 });
-                        }
-                    }
-                } else if (a.state === "active") {
-                    a.activeTimer--;
-                    a.radius = a.maxRadius * (1 - a.activeTimer / a.maxActive);
-                    if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                        let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                        if (Math.sqrt(dx * dx + dy * dy) < a.radius * 0.85 + 4) { a.hit = true; hitPlayer(a.damage); }
-                    }
-                    if (a.activeTimer <= 0) a.state = "done";
-                } else { rwbAttacks.splice(i, 1); continue; }
-                continue;
-            }
-
-            if (a.type === "giant_rock") {
-                a.x += a.vx; a.y += a.vy; a.rotation += a.rotSpeed; a.life--;
-                if (Math.random() < 0.4) {
-                    for (let k = 0; k < 2; k++) rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.size, y: a.y - a.size * 0.5, vx: (Math.random() - 0.5) * 2, vy: -1 - Math.random() * 2, life: 20, maxLife: 20, color: Math.random() > 0.5 ? "#8B7355" : "#5a4030", size: 2 + Math.random() * 3 });
-                }
-                if (rwbPlayer.invulnTimer <= 0) {
-                    let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + 4) { hitPlayer(a.damage); spawnRockSmash(a.x, a.y, a.size); rwbAttacks.splice(i, 1); continue; }
-                }
-                if (a.y > 480 || a.life <= 0) { spawnRockSmash(a.x, 480, a.size); playImpactSound(0.8, 0.4); rwbShake = 30; rwbAttacks.splice(i, 1); continue; }
-                continue;
-            }
-
-            if (a.type === "tsunami") {
-                a.waveTime += 0.08; a.y += a.vy; a.life--;
-                a.currentHeight = a.height * (1 + Math.sin(a.waveTime) * 0.15);
-                a.currentWidth = a.width * (1 + Math.cos(a.waveTime * 1.5) * 0.03);
-                if (Math.random() < 0.3) rwbParticles.push({ x: a.x + Math.random() * a.currentWidth, y: a.y + (Math.random() - 0.5) * a.currentHeight, vx: (Math.random() - 0.5) * 2, vy: 2 + Math.random() * 2, life: 25, maxLife: 25, color: Math.random() > 0.5 ? "#ffffff" : "#88ddff", size: 2 });
-                if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                    let dy = Math.abs(rwbPlayer.y - a.y);
-                    let hbY = a.currentHeight / 2 + 6;
-                    if (a.fromRight) { if (dy < hbY && rwbPlayer.x >= a.x && rwbPlayer.x <= 400) { a.hit = true; hitPlayer(a.damage); } }
-                    else { if (dy < hbY && rwbPlayer.x >= 0 && rwbPlayer.x <= a.width) { a.hit = true; hitPlayer(a.damage); } }
-                }
-                if (a.y > 600 || a.life <= 0) rwbAttacks.splice(i, 1);
-                continue;
-            }
-
-            if (a.type === "rock") {
-                a.x += a.vx; a.y += a.vy; a.rotation += a.rotSpeed; a.life--;
-                if (Math.random() < 0.15) rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.size, y: a.y - a.size * 0.5, vx: (Math.random() - 0.5) * 1, vy: -0.5 - Math.random() * 1, life: 12, maxLife: 12, color: "#5a4030", size: 1.5 });
-                if (rwbPlayer.invulnTimer <= 0) {
-                    let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.75 * BALANCE.playerHitboxMult + 4) { hitPlayer(a.damage); spawnRockSmash(a.x, a.y, a.size); rwbAttacks.splice(i, 1); continue; }
-                }
-                if (a.y > 500 || a.life <= 0) { spawnRockSmash(a.x, 480, a.size); rwbAttacks.splice(i, 1); continue; }
-                continue;
-            }
-
-            if (a.type === "haki_wave") {
-                a.x += a.vx; a.life--;
-                if (Math.random() < 0.3) rwbParticles.push({ x: a.x, y: a.y + (Math.random() - 0.5) * a.size, vx: a.vx * 0.3, vy: (Math.random() - 0.5) * 2, life: 15, maxLife: 15, color: "#ff8800", size: 2 });
-                if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                    let dx = Math.abs(rwbPlayer.x - a.x), dy = Math.abs(rwbPlayer.y - a.y);
-                    if (dx < a.size * 0.6 + 4 && dy < a.size * 0.6 + 4) { a.hit = true; hitPlayer(a.damage); }
-                }
-                if (a.x < -60 || a.x > 460 || a.life <= 0) rwbAttacks.splice(i, 1);
-                continue;
-            }
-
-            if (a.type === "roger_slash") {
-                if (a.state === "warning") {
-                    a.warningTimer--;
-                    if (a.warningTimer <= 0) { a.state = "active"; a.activeTimer = a.maxActive; rwbShake = 20; playBladeSound(0.5); playImpactSound(0.4, 1.0); }
-                } else if (a.state === "active") {
-                    a.activeTimer--;
-                    if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                        let hit = (a.direction === "horizontal") ? Math.abs(rwbPlayer.y - a.y) < a.width / 2 * 0.7 + 4 : Math.abs(rwbPlayer.x - a.x) < a.width / 2 * 0.7 + 4;
-                        if (hit) { a.hit = true; hitPlayer(a.damage); }
-                    }
-                    if (a.activeTimer <= 0) a.state = "done";
-                } else { rwbAttacks.splice(i, 1); continue; }
-                continue;
-            }
-
-            if (a.type === "roger_cross") {
-                if (a.state === "warning") {
-                    a.warningTimer--;
-                    if (a.warningTimer <= 0) { a.state = "active"; a.activeTimer = a.maxActive; rwbShake = 18; playBladeSound(0.4); }
-                } else if (a.state === "active") {
-                    a.activeTimer--;
-                    if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                        let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                        let hb = a.width / 2 * 0.7 + 4;
-                        let hit = (a.dir === "vertical") ? Math.abs(dx) < hb : Math.abs(dy) < hb;
-                        if (hit) { a.hit = true; hitPlayer(a.damage); }
-                    }
-                    if (a.activeTimer <= 0) a.state = "done";
-                } else { rwbAttacks.splice(i, 1); continue; }
-                continue;
-            }
-
-            if (a.type === "hell_fire") {
-                if (a.state === "flying") {
-                    a.flyTimer++;
-                    let dx = a.targetX - a.x, dy = a.targetY - a.y;
-                    let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                    if (dist < a.speed) {
-                        a.state = "exploding"; a.explosionTimer = 50;
-                        a.x = a.targetX; a.y = a.targetY;
-                        rwbShake = 25; playExplosionSound(0.6);
-                        for (let j = 0; j < 10; j++) {
-                            let ang = (j / 10) * Math.PI * 2;
-                            rwbAttacks.push({ type: "fire_piece", x: a.x, y: a.y, vx: Math.cos(ang) * 2.5, vy: Math.sin(ang) * 2.5, size: 7, hp: 1, maxHp: 1, damage: Math.ceil(16 * BALANCE.superDamageMult), life: 120, color: "#ff4400" });
-                        }
-                    } else { a.x += (dx / dist) * a.speed; a.y += (dy / dist) * a.speed; }
-                    if (Math.random() < 0.3) rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.size, y: a.y + (Math.random() - 0.5) * a.size, vx: 0, vy: -1, life: 20, maxLife: 20, color: Math.random() > 0.5 ? "#ff4400" : "#ffcc00", size: 2 });
-                } else if (a.state === "exploding") {
-                    a.explosionTimer--;
-                    if (a.explosionTimer <= 0) a.state = "done";
-                } else { rwbAttacks.splice(i, 1); continue; }
-                continue;
-            }
-
-            if (a.type === "fire_piece") {
-                a.x += a.vx; a.y += a.vy; a.life--;
-                if (rwbPlayer.invulnTimer <= 0) {
-                    let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + 3) { hitPlayer(a.damage); rwbAttacks.splice(i, 1); continue; }
-                }
-                if (a.life <= 0 || a.x < -20 || a.x > 420 || a.y < -20 || a.y > 520) rwbAttacks.splice(i, 1);
-                continue;
-            }
-
-            if (a.type === "gura_crack") {
-                if (a.state === "warning") {
-                    a.warningTimer--;
-                    if (a.warningTimer <= 0) {
-                        a.state = "active"; a.activeTimer = a.maxActive;
-                        rwbShake = 18; playExplosionSound(0.5);
-                        for (let j = 0; j < 12; j++) {
-                            let ang = (j / 12) * Math.PI * 2;
-                            rwbParticles.push({ x: a.x, y: a.y, vx: Math.cos(ang) * 5, vy: Math.sin(ang) * 5, life: 22, maxLife: 22, color: "#ffffff", size: 2 });
-                        }
-                    }
-                } else if (a.state === "active") {
-                    a.activeTimer--;
-                    a.radius = a.maxRadius * (1 - a.activeTimer / a.maxActive);
-                    if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                        let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                        if (Math.sqrt(dx * dx + dy * dy) < a.radius * 0.85 + 4) { a.hit = true; hitPlayer(a.damage); }
-                    }
-                    if (a.activeTimer <= 0) a.state = "done";
-                } else { rwbAttacks.splice(i, 1); continue; }
-                continue;
-            }
-
-            if (a.type === "titan_fist") {
-                if (a.state === "falling") {
-                    a.y += a.vy; a.life--;
-                    if (Math.random() < 0.3) rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.size, y: a.y + a.size * 0.5, vx: (Math.random() - 0.5) * 2, vy: -1, life: 20, maxLife: 20, color: Math.random() > 0.5 ? "#ff6600" : "#ffaa00", size: 2 });
-                    if (!a.hit && rwbPlayer.invulnTimer <= 0) {
-                        let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                        if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + 4) { a.hit = true; hitPlayer(a.damage); }
-                    }
-                    if (a.y > 380) {
-                        a.state = "impact"; a.impactTimer = 30;
-                        rwbShake = 40; playImpactSound(0.9, 0.4); playExplosionSound(0.5);
-                        for (let j = 0; j < 12; j++) {
-                            let ang = (j / 12) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
-                            rwbAttacks.push({ type: "rock", x: a.x, y: a.y, vx: Math.cos(ang) * 3, vy: Math.sin(ang) * 3 - 1.5, size: 10 + Math.random() * 6, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.15, hp: 1, maxHp: 1, damage: Math.ceil(14 * BALANCE.superDamageMult), life: 200, color: "#8B7355", hasHaki: false, textureSeed: Math.random() * 1000 });
-                        }
-                    }
-                } else if (a.state === "impact") {
-                    a.impactTimer--;
-                    if (a.impactTimer <= 0) a.state = "done";
-                } else { rwbAttacks.splice(i, 1); continue; }
-                continue;
-            }
-
-            if (a.isHoming && a.targetX !== undefined) {
-                let dx = a.targetX - a.x, dy = a.targetY - a.y;
-                let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                a.vx += (dx / dist) * a.homingSpeed;
-                a.vy += (dy / dist) * a.homingSpeed;
-                let maxSpd = 6;
-                let curSpd = Math.sqrt(a.vx * a.vx + a.vy * a.vy);
-                if (curSpd > maxSpd) { a.vx = (a.vx / curSpd) * maxSpd; a.vy = (a.vy / curSpd) * maxSpd; }
-            }
-
-            a.x += a.vx; a.y += a.vy;
-            a.rotation += a.rotSpeed || 0;
-            a.life--;
-
-            if (a.trail) { a.trail.push({ x: a.x, y: a.y, life: 10 }); if (a.trail.length > 4) a.trail.shift(); }
-            if (a.hasHaki && Math.random() < 0.04) spawnHakiLightning(a.x, a.y, 1, false);
-
-            if (rwbPlayer.invulnTimer <= 0 && (rwbState === "fight1" || rwbState === "fight2")) {
-                let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.75 * BALANCE.playerHitboxMult + 4) { hitPlayer(a.damage); rwbAttacks.splice(i, 1); continue; }
-            }
-            if (a.life <= 0 || a.y > 520 || a.x < -60 || a.x > 460 || a.y < -150) rwbAttacks.splice(i, 1);
-        }
-        for (let i = rwbShockwaves.length - 1; i >= 0; i--) {
-            let sw = rwbShockwaves[i];
-            if (!stopAll) {
-                sw.radius += sw.speed; sw.life--;
-            }
-            if (sw.canDestroy && !sw.hit && rwbPlayer.invulnTimer <= 0 && (rwbState === "fight1" || rwbState === "fight2")) {
-                let dx = rwbPlayer.x - sw.x, dy = rwbPlayer.y - sw.y;
-                let dist = Math.sqrt(dx * dx + dy * dy);
-                if (Math.abs(dist - sw.radius) < sw.width * 0.7 + 4) { sw.hit = true; hitPlayer(sw.damage); }
-            }
-            if (sw.life <= 0 || sw.radius > sw.maxRadius) rwbShockwaves.splice(i, 1);
-        }
-    }
-
-    function spawnRockSmash(x, y, size) {
-        rwbShake = 8; playImpactSound(0.3, 0.8);
-        for (let i = 0; i < 10; i++) {
-            let ang = Math.random() * Math.PI * 2, spd = 2 + Math.random() * 4;
-            rwbParticles.push({ x: x, y: y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 1.5, life: 22, maxLife: 22, color: Math.random() > 0.5 ? "#8B7355" : "#5a4030", size: 2 + Math.random() * 2 });
-        }
-    }
-
-    function updateRWBPlayerBullets() {
-        var stopAll = false;
-        if (typeof _superState !== 'undefined') {
-            stopAll = (_superState.garouTimeStop === true);
-        }
-
-        for (let i = rwbPlayerBullets.length - 1; i >= 0; i--) {
-            let b = rwbPlayerBullets[i];
-            if (!stopAll) {
-                b.x += b.vx; b.y += b.vy; b.life--;
-            }
-            let destroyed = false;
-
-            if (b.isBlue) {
-                for (let j = rwbAttacks.length - 1; j >= 0; j--) {
-                    let a = rwbAttacks[j];
-                    if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave") continue;
-                    if (a.hp === undefined) continue;
-                    let dx = b.x - a.x, dy = b.y - a.y;
-                    let aSize = a.size || a.radius || 20;
-                    if (Math.sqrt(dx * dx + dy * dy) < aSize * 0.7 + b.size + 4) {
-                        a.hp -= 1;
-                        spawnHitParticles(b.x, b.y, "#00aaff", 3);
-                        playWhooshSound(0.08);
-                        if (a.hp <= 0) {
-                            spawnDestroyParticles(a.x, a.y, a.color || "#ffffff");
-                            playImpactSound(0.2, 1.3);
-                            rwbAttacks.splice(j, 1);
-                        }
-                        destroyed = true; break;
-                    }
-                }
-                if (!destroyed) {
-                    for (let j = rwbShockwaves.length - 1; j >= 0; j--) {
-                        let sw = rwbShockwaves[j];
-                        if (!sw.canDestroy) continue;
-                        let dx = b.x - sw.x, dy = b.y - sw.y;
-                        let dist = Math.sqrt(dx * dx + dy * dy);
-                        if (Math.abs(dist - sw.radius) < sw.width * 0.7 + b.size) {
-                            sw.hp -= 1;
-                            spawnHitParticles(b.x, b.y, "#00aaff", 3);
-                            if (sw.hp <= 0) { spawnDestroyParticles(b.x, b.y, sw.color); rwbShockwaves.splice(j, 1); }
-                            destroyed = true; break;
-                        }
-                    }
-                }
-            } else {
-                let targets = [];
-                if (rwbState === "fight1") { if (roger) targets.push(roger); if (whitebeard) targets.push(whitebeard); }
-                else if (rwbState === "fight2" && rwbActiveBoss) targets.push(rwbActiveBoss);
-                for (let boss of targets) {
-                    let dx = b.x - boss.x, dy = b.y - boss.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < boss.size * 0.75 + b.size) {
-                        let dmg = b.damage;
-                        if (isModerActive()) dmg = boss.maxHp + 999999;
-                        if (typeof window.applyArmorToBossDamage === 'function' && !isModerActive()) {
-                            let result = window.applyArmorToBossDamage(dmg);
-                            if (result.blocked) { spawnHitParticles(b.x, b.y, "#9b59b6", 6); playImpactSound(0.15, 1.5); destroyed = true; break; }
-                            dmg = result.dmg;
-                        }
-                        boss.hp = Math.max(0, boss.hp - dmg);
-                        boss.hitFlash = 4;
-                        spawnHitParticles(b.x, b.y, b.color, 4);
-                        playImpactSound(0.15, 1.2 + Math.random() * 0.3);
-                        destroyed = true; break;
-                    }
-                }
-            }
-            if (destroyed) { rwbPlayerBullets.splice(i, 1); continue; }
-            if (b.life <= 0 || b.y < -20 || b.x < -20 || b.x > 420) rwbPlayerBullets.splice(i, 1);
-        }
-    }
-
-    // ★★★ ФИКС: Белоус 10% поглощение добавлено в начало ★★★
-    function hitPlayer(dmg) {
-        // ★ БЕЛОУС: 10% поглощение урона ★
-        if (typeof applyWhitebeardPassiveReduction === 'function') {
-            dmg = applyWhitebeardPassiveReduction(dmg);
-        }
-        
-        if (isModerActive()) return;
-
-        if (typeof _superState !== 'undefined') {
-            if (_superState.usoppInvuln) return;
-            if (_superState.dandyInvuln) return;
-            if (_superState.garouInvulnTimer > 0) return;
-            if (_superState.garouTimeStop) return;
-            if (_superState.dekusActive && _superState.dekusInvuln) return;
-        }
-
-        if (rwbPlayer.invulnTimer > 0) return;
-
-        if (typeof _superState !== 'undefined') {
-            if (_superState.nikaActive) dmg = Math.floor(dmg * 0.6);
-            if (_superState.kaidoDmgReduction) dmg = Math.floor(dmg * 0.7);
-            if (_superState.garpHakiActive) dmg = Math.floor(dmg * 0.4);
-            if (_superState.dandyShield && _superState.dandyShield.timer > 0) dmg = Math.floor(dmg * _superState.dandyShield.mult);
-            if (_superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
-            if (_superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
-        }
-
-        if (typeof window.applyArmorToBossDamage === 'function') {
-            let result = window.applyArmorToBossDamage(dmg);
-            if (result.blocked) return;
-            dmg = result.dmg;
-        }
-
-        dmg = Math.max(1, Math.floor(dmg));
-
-        rwbPlayer.hp -= dmg;
-        rwbPlayer.invulnTimer = 50;
-        rwbShake = 12; rwbScreenFlash = 8; rwbScreenFlashColor = "#ff0000";
-        playImpactSound(0.5, 0.6); playWhooshSound(0.2);
-        let hpEl = document.getElementById("arenaHP");
-        if (hpEl) hpEl.innerText = Math.max(0, rwbPlayer.hp);
-        for (let p = 0; p < 12; p++) {
-            let ang = Math.random() * Math.PI * 2;
-            rwbParticles.push({ x: rwbPlayer.x, y: rwbPlayer.y, vx: Math.cos(ang) * 5, vy: Math.sin(ang) * 5, life: 20, maxLife: 20, color: "#ff3333", size: 2 + Math.random() * 2 });
-        }
-        if (rwbPlayer.hp <= 0) rwbDefeat();
-    }
-
-    // ★★★ БЕЛОУС: регенерация 2% HP каждые 5 сек ★★★
-    function tickWhitebeardRegenRWB(dt) {
+    window._armorSpeedApplied = false;
+    if (typeof window.getArmorBonusesPublic === 'function') {
         try {
-            if (typeof team === 'undefined' || !Array.isArray(team)) return;
-            if (typeof myCards === 'undefined' || !Array.isArray(myCards)) return;
-            var hasWhitebeard = false;
-            for (var i = 0; i < team.length; i++) {
-                var idx = team[i];
-                var cd = myCards[idx];
-                if (cd && cd.name === "Белоус") {
-                    if (typeof hasMasteryAbility === 'function' && !hasMasteryAbility(cd)) continue;
-                    hasWhitebeard = true;
-                    break;
-                }
-            }
-            if (!hasWhitebeard) {
-                rwbWhitebeardRegenTimer = 0;
-                return;
-            }
-            
-            rwbWhitebeardRegenTimer += dt;
-            if (rwbWhitebeardRegenTimer >= 5) {
-                rwbWhitebeardRegenTimer = 0;
-                
-                if (!rwbPlayer) return;
-                if (rwbPlayer.hp >= rwbPlayer.maxHp) return;
-                
-                var heal = Math.floor(rwbPlayer.maxHp * 0.02);
-                rwbPlayer.hp = Math.min(rwbPlayer.maxHp, rwbPlayer.hp + heal);
-                
-                var hpEl = document.getElementById("arenaHP");
-                if (hpEl) hpEl.innerText = Math.ceil(rwbPlayer.hp);
-                
-                if (typeof window.spawnFloatingText === 'function') {
-                    window.spawnFloatingText(rwbPlayer.x, rwbPlayer.y - 25, "+" + heal + " 🌊", "#66ccff");
-                }
-                
-                for (var i = 0; i < 8; i++) {
-                    var ang = (i / 8) * Math.PI * 2;
-                    rwbParticles.push({
-                        x: rwbPlayer.x + Math.cos(ang) * 20,
-                        y: rwbPlayer.y + Math.sin(ang) * 20,
-                        vx: Math.cos(ang) * 1.5,
-                        vy: Math.sin(ang) * 1.5 - 1,
-                        life: 30, maxLife: 30,
-                        color: "#66ccff", size: 3
-                    });
-                }
-                
-                if (typeof rwbSound === 'function') rwbSound(600, 'sine', 0.15, 0.05);
+            var eqBonus = window.getArmorBonusesPublic();
+            if (eqBonus && eqBonus.speedMult && eqBonus.speedMult !== 1.0) {
+                heartSpeed *= eqBonus.speedMult;
+                window._armorSpeedApplied = true;
             }
         } catch(e) {}
     }
 
-    function spawnHitParticles(x, y, color, count) {
-        if (!count) count = 6;
-        for (let i = 0; i < count; i++) {
-            let ang = Math.random() * Math.PI * 2;
-            rwbParticles.push({ x: x, y: y, vx: Math.cos(ang) * 3, vy: Math.sin(ang) * 3, life: 15, maxLife: 15, color: color, size: 2 });
-        }
+    if (typeof getObesitySpeedMult === 'function') {
+        var obesityMult = getObesitySpeedMult();
+        if (obesityMult !== 1.0) heartSpeed *= obesityMult;
     }
 
-    function spawnDestroyParticles(x, y, color) {
-        for (let i = 0; i < 12; i++) {
-            let ang = Math.random() * Math.PI * 2, spd = 2 + Math.random() * 5;
-            rwbParticles.push({ x: x, y: y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 1, life: 22, maxLife: 22, color: i % 2 === 0 ? "#ff2222" : color, size: 2 });
-        }
+    heartSpeed = Math.max(0.4, Math.min(6.0, heartSpeed));
+    window._currentHeartSpeed = heartSpeed;
+
+    var speedDisplay = document.getElementById("arenaSpeedDisplay");
+    if (speedDisplay) speedDisplay.innerText = heartSpeed.toFixed(2);
+
+    var mainCardDisplay = document.getElementById("arenaMainCardDisplay");
+    if (!mainCardDisplay) {
+        mainCardDisplay = document.createElement("div");
+        mainCardDisplay.id = "arenaMainCardDisplay";
+        mainCardDisplay.style.cssText = "position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.7);color:#fff;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:bold;z-index:100;pointer-events:none;font-family:'Nunito',sans-serif;";
+        var overlay = document.getElementById("arenaOverlay");
+        if (overlay) overlay.appendChild(mainCardDisplay);
     }
+    mainCardDisplay.innerHTML = '👑 ' + speedInfo.cardName + ' | ⚡ ' + heartSpeed.toFixed(2);
 
-    function rwbVictory() {
-        if (rwbDialogActive || rwbState === "done" || rwbState === "victory") return;
-        rwbWinner = rwbActiveBoss ? rwbActiveBoss.id : null;
-        console.log("[ROGER-WB] Победа над:", rwbWinner);
-        rwbState = "victory"; rwbEndTimer = 0; rwbRewardGiven = false;
-        hideRWBModeButton(); hideRWBSuperButton();
-        if (typeof showFloatingText === 'function') showFloatingText(rwbWinner === "roger" ? "🔥 РОДЖЕР ПАЛ!" : "❄️ БЕЛОУС ПАЛ!", "#ffd700");
-        playImpactSound(0.5, 0.7);
-        setTimeout(function() { playImpactSound(0.6, 0.9); }, 200);
-        setTimeout(function() { playImpactSound(0.7, 1.2); }, 400);
-        setTimeout(function() { if (window.rwbActive && !rwbDialogActive) startRWBDialog(); }, 1500);
+    arenaClickTargets = []; arenaClicksHit = 0; arenaPhase = "dodge"; attacks = []; arenaBlasters = []; arenaParticles = []; floatingTexts = []; arenaTrail = []; arenaShockwaves = []; wallGapIndicator = null;
+    arenaShake = 0; arenaHitFlash = 0; invulnTimer = 0; arenaComboText = ""; arenaComboTimer = 0; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0; heartRotation = 0; heartWasMoving = false; heartStandingTime = 0;
+
+    arenaSpeedMult = Math.min(15.0, 1.0 + Math.floor((bossWave - 50) / 50) * 0.1); if (bossWave < 50) arenaSpeedMult = 1.0;
+    wallSpeedMult = Math.min(4.0, 1.0 + Math.floor((bossWave - 50) / 100) * 0.15);
+    if (bossWave < 50) wallSpeedMult = 1.0;
+    wallCountMult = Math.min(2.0, 1.0 + Math.floor((bossWave - 50) / 200) * 0.15);
+    if (bossWave < 50) wallCountMult = 1.0;
+
+    arenaAllowedTypes = getAttackTypes(bossWave);
+    var bt = typeof bossTemplates !== 'undefined' ? bossTemplates[bossWave] : null;
+    arenaBoss = bt ? bt.name : "БОСС ВРАТ"; arenaBossMaxHP = bt ? Math.floor((50 + bossWave * 12) * bt.hpMult) : 1000 + bossWave * 10; ghostBossHP = arenaBossMaxHP;
+    if (bt && bt.dmgMult) arenaBossDmgMult = bt.dmgMult; else arenaBossDmgMult = 1.0 + (bossWave - 50) / 100 * 0.5;
+    arenaBaseDmg = Math.max(2, Math.floor((5 + bossWave * 1.5) * arenaBossDmgMult / 3));
+
+    document.getElementById("arenaOverlay").style.display = "flex";
+    document.getElementById("arenaBossName").innerText = arenaBoss;
+    document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
+    document.getElementById("arenaTimer").innerText = "∞";
+    var skipBossBtn = document.getElementById("skipBossBtn");
+    if (skipBossBtn) skipBossBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
+    if (typeof initSuperState === 'function') initSuperState();
+    if (!ctx) initArena();
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    startArenaAmbient();
+    startDodgePhase();
+    animFrameId = requestAnimationFrame(renderArena);
+}
+
+function startDodgePhase() {
+    arenaPhase = "dodge"; attacks = []; arenaBlasters = []; wallGapIndicator = null; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0;
+    if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
+    if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
+    if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
+    arenaAttackType = arenaAllowedTypes[Math.floor(Math.random() * arenaAllowedTypes.length)];
+    if (arenaAttackInterval) clearInterval(arenaAttackInterval);
+    var baseInterval = 2400;
+    if (arenaAttackType === 0) baseInterval = 3400; if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 2200; if (arenaAttackType === 6) baseInterval = 4000; if (arenaAttackType === 7) baseInterval = 2400; if (arenaAttackType === 8) baseInterval = 2800; if (arenaAttackType === 9) baseInterval = 3400; if (arenaAttackType === 10) baseInterval = 2400;
+    switch (arenaAttackType) { case 0: sfxWhiteWalls(); break; case 1: sfxBlueChaos(); break; case 2: sfxYellowSwords(); break; case 3: sfxRedTriangles(); break; case 4: sfxPinkKnockback(); break; case 5: sfxGreenHealSpawn(); break; case 6: sfxRainbowDeathSpawn(); break; case 7: sfxMixAttack(); break; case 8: sfxZoneAttack(); break; case 9: sfxBombTick(); break; case 10: sfxBlasterCharge(); break; default: sfxArenaAttackSpawn(); }
+    arenaAttackInterval = setInterval(function() { if (arenaPhase === "dodge" && arenaActive) { spawnAttack(); switch (arenaAttackType) { case 9: sfxBombTick(); break; case 10: sfxBlasterCharge(); break; default: sfxWhoosh(); } } }, Math.max(800, baseInterval / arenaSpeedMult));
+    var dodgeTime = Math.floor(10000 + Math.random() * 6000); arenaDodgeTimer = Math.floor(dodgeTime / 1000);
+    arenaDodgeTimerInterval = setInterval(function() { if (arenaPhase === "dodge" && arenaActive) { arenaDodgeTimer--; if (arenaDodgeTimer <= 0) arenaDodgeTimer = 0; updateDodgeTimerDisplay(); } }, 1000);
+    updateDodgeTimerDisplay();
+    arenaPhaseTimeout = setTimeout(function() { if (arenaPhase === "dodge" && arenaActive) { if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; } startAttackPhase(); } }, dodgeTime);
+}
+
+function updateDodgeTimerDisplay() {
+    var typeNames = { 0: "⬜ СТЕНЫ", 1: "🔷 ХАОС", 2: "⚡ ЖЁЛТЫЕ", 3: "🛑 КРАСНЫЕ", 4: "💗 РОЗОВЫЕ", 5: "💚 ЗЕЛЁНЫЕ", 6: "🌈 РАДУЖНЫЕ", 7: "⚡🛑 МИКС", 8: "🟥⬜ ЗОНЫ", 9: "💣 БОМБЫ", 10: "🔫 БЛАСТЕРЫ" };
+    var timerEl = document.getElementById("arenaTimer"); if (timerEl && arenaPhase === "dodge") timerEl.innerText = arenaDodgeTimer + "с";
+    var bossNameEl = document.getElementById("arenaBossName"); if (bossNameEl && arenaPhase === "dodge") bossNameEl.innerText = arenaBoss + " — " + (typeNames[arenaAttackType] || "Атака") + " | ⚡" + heartSpeed.toFixed(2) + " | ⏱️" + arenaDodgeTimer + "с";
+}
+
+function startAttackPhase() {
+    if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
+    if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
+    arenaPhase = "attack"; attacks = []; arenaBlasters = []; wallGapIndicator = null; arenaClickTargets = []; arenaClicksHit = 0;
+    arenaTotalTargets = 4 + Math.floor(arenaSpeedMult * 0.8);
+    if (typeof _superState !== 'undefined' && _superState.dandyDoubleTargets) { arenaTotalTargets *= 2; _superState.dandyDoubleTargets = false; }
+    arenaAttackTimeLeft = 2;
+    if (arenaAttackInterval) { clearInterval(arenaAttackInterval); arenaAttackInterval = null; }
+    document.getElementById("arenaBossName").innerText = arenaBoss + " — ⚡ БЕЙ! (" + arenaAttackTimeLeft + "с)";
+    var timerEl = document.getElementById("arenaTimer"); if (timerEl) timerEl.innerText = arenaAttackTimeLeft + "с";
+    playArenaSound(200, 'square', 0.3, 0.08); setTimeout(function() { playArenaSound(300, 'square', 0.2, 0.06); }, 100);
+    var usedPositions = [];
+    for (var i = 0; i < arenaTotalTargets; i++) { var x, y, tooClose, attempts = 0; do { x = 40 + Math.random() * 320; y = 80 + Math.random() * 340; tooClose = false; for (var p of usedPositions) { if (Math.sqrt((x - p.x) * (x - p.x) + (y - p.y) * (y - p.y)) < 60) { tooClose = true; break; } } attempts++; } while (tooClose && attempts < 50); usedPositions.push({ x: x, y: y }); arenaClickTargets.push({ x: x, y: y, radius: 26, hit: false, pulse: Math.random() * Math.PI * 2 }); }
+    var attackTimer = setInterval(function() { arenaAttackTimeLeft--; document.getElementById("arenaBossName").innerText = arenaBoss + " — ⚡ БЕЙ! (" + arenaAttackTimeLeft + "с)"; var timerEl = document.getElementById("arenaTimer"); if (timerEl) timerEl.innerText = arenaAttackTimeLeft + "с"; playArenaSound(1000, 'square', 0.05, 0.02); if (arenaAttackTimeLeft <= 0) { clearInterval(attackTimer); applyArenaDamage(); } }, 1000);
+}
+
+function applyArenaDamage() {
+    if (!arenaActive) return;
+    var dmgMult = 0; var ratio = arenaClicksHit / arenaTotalTargets;
+    if (ratio >= 1.0) { dmgMult = 2.5; arenaComboText = "🔥 ИДЕАЛЬНО! x2.5"; sfxArenaPerfect(); }
+    else if (ratio >= 0.8) { dmgMult = 1.8; arenaComboText = "⚡ ОТЛИЧНО! x1.8"; sfxArenaPerfect(); }
+    else if (ratio >= 0.6) { dmgMult = 1.3; arenaComboText = "✨ ХОРОШО! x1.3"; sfxArenaTargetHit(); }
+    else if (ratio >= 0.4) { dmgMult = 1.0; arenaComboText = "👍 КЛАССИКА! x1.0"; }
+    else if (ratio >= 0.2) { dmgMult = 0.6; arenaComboText = "💤 СЛАБОВАТО... x0.6"; sfxArenaFailAttack(); }
+    else if (ratio > 0.0) { dmgMult = 0.2; arenaComboText = "🥱 ПОЧТИ МИМО... x0.2"; sfxArenaFailAttack(); }
+    else { dmgMult = 0.0; arenaComboText = "❌ ПРОМАХ! x0"; sfxArenaMiss(); }
+    arenaComboTimer = 55;
+    var baseDmg = typeof window !== 'undefined' && window.playerFinalDamage ? window.playerFinalDamage : 20;
+    var finalDmg = Math.floor(baseDmg * dmgMult);
+    if (typeof _superState !== 'undefined') {
+        if (_superState.dekusDmgMult && _superState.dekusDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.dekusDmgMult);
+        if (_superState.nikaDmgMult && _superState.nikaDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.nikaDmgMult);
+        if (_superState.kaidoBuffActive && _superState.kaidoDmgBonus > 1) finalDmg = Math.floor(finalDmg * _superState.kaidoDmgBonus);
+        if (_superState.garpHakiActive) finalDmg = Math.floor(finalDmg * 1.3);
+        if (_superState.allmightDmgMult && _superState.allmightDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.allmightDmgMult);
+        if (_superState.allmightDebuffActive && _superState.allmightDebuffDmgMult < 1) finalDmg = Math.floor(finalDmg * _superState.allmightDebuffDmgMult);
+        if (_superState.allmightPermaSlow && _superState.allmightDebuffDmgMult < 1) finalDmg = Math.floor(finalDmg * _superState.allmightDebuffDmgMult);
+        if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) finalDmg = Math.floor(finalDmg * _superState.dandyDmgBuff.mult);
+        if (_superState.markBuffActive && _superState.markDmgBonus > 1) finalDmg = Math.floor(finalDmg * _superState.markDmgBonus);
     }
+    if (finalDmg > 0) { arenaBossMaxHP -= finalDmg; arenaShake = 20; screenFlash = 10; screenFlashColor = "#ffdd00"; arenaShockwaves.push({ x: 200, y: 250, r: 15, v: 14, life: 22, maxLife: 22, color: "rgba(255,255,255,0.9)" }); for (var j = 0; j < 30; j++) { var angle = Math.random() * Math.PI * 2; arenaParticles.push({ x: 200, y: 250, vx: Math.cos(angle) * 10, vy: Math.sin(angle) * 10, life: 35, maxLife: 35, color: "#ffdd00", size: 2 + Math.random() * 5 }); } }
+    setTimeout(function() { if (arenaBossMaxHP <= 0) { sfxArenaVictory(); winArena(); return; } startDodgePhase(); }, 1500);
+}
 
-    function rwbDefeat() {
-        if (isModerActive()) return;
-        if (rwbState === "defeat") return;
-        rwbState = "defeat"; rwbEndTimer = 0;
-        hideRWBModeButton(); hideRWBSuperButton();
-        playBossRoarSound(0.5); playExplosionSound(0.4);
-        if (typeof showFloatingText === 'function') showFloatingText("💀 ТЫ ПАЛ...", "#ff0000");
+function spawnBlaster(w) {
+    var bossW = arenaCurrentWave; var isRainbow = Math.random() < 0.05 && bossW >= 800;
+    var colors = ["#fff", "#ffdd00", "#ff3333"]; var bColor = isRainbow ? "rainbow" : colors[Math.floor(Math.random() * colors.length)];
+    var side = Math.floor(Math.random() * 4); var x, y;
+    if (side === 0) { x = Math.random() * 400; y = -30; } else if (side === 1) { x = Math.random() * 400; y = 530; } else if (side === 2) { x = -30; y = Math.random() * 500; } else { x = 430; y = Math.random() * 500; }
+    arenaBlasters.push({ x: x, y: y, angle: Math.atan2(heart.y - y, heart.x - x), color: bColor, state: "aiming", timer: 70, width: isRainbow ? 15 : 30, hasHit: false });
+    sfxBlasterCharge();
+}
+
+function shrinkAttack(a) { if (a.size) a.size *= 0.7; if (a.radius) a.radius *= 0.7; if (a.spd) a.spd *= 0.7; if (a.spdY) a.spdY *= 0.7; if (a.width) a.width *= 0.7; }
+
+function spawnWallAttack(isEarly, dmg, shouldShrink) {
+    var isVertical = Math.random() > 0.5;
+    var wallSeriesCount = 1;
+    if (wallCountMult >= 1.3) wallSeriesCount = 2;
+    if (wallCountMult >= 1.7) wallSeriesCount = 3;
+    var wallSpeed = wallSpeedMult;
+    var gapSize = 90 + Math.random() * 30;
+    var gapCenter;
+    if (isVertical) {
+        var minGap = gapSize / 2 + 15;
+        var maxGap = 500 - gapSize / 2 - 15;
+        var desired = heart.y + (Math.random() > 0.5 ? 1 : -1) * (60 + Math.random() * 60);
+        gapCenter = Math.max(minGap, Math.min(maxGap, desired));
+    } else {
+        var minGapH = gapSize / 2 + 15;
+        var maxGapH = 400 - gapSize / 2 - 15;
+        var desiredH = heart.x + (Math.random() > 0.5 ? 1 : -1) * (60 + Math.random() * 60);
+        gapCenter = Math.max(minGapH, Math.min(maxGapH, desiredH));
     }
-
-    function stopRogerWhitebeardFight() {
-        if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
-        window.rwbActive = false; rwbDialogActive = false;
-        hideRWBModeButton(); hideRWBSuperButton(); stopRWBMusic();
-        if (typeof resetAllSupers === 'function') { try { resetAllSupers(); } catch(e) {} }
-        rwbSupersInitialized = false;
-        if (typeof window !== 'undefined') window._uniqueSuperBossId = null;
-
-        rwbBaseSpeed = rwbOriginalBaseSpeed;
-        rwbSpeedMult = 1.0;
-        rwbWhitebeardRegenTimer = 0;
-
-        if (rwbAnimFrame) { cancelAnimationFrame(rwbAnimFrame); rwbAnimFrame = null; }
-        if (typeof canvas !== 'undefined' && canvas) {
-            canvas.removeEventListener("click", handleRWBClick);
-            canvas.removeEventListener("touchstart", handleRWBTouchStart);
-            canvas.removeEventListener("touchmove", handleRWBTouchMove);
-            canvas.removeEventListener("touchend", handleRWBTouchEnd);
-            canvas.removeEventListener("touchcancel", handleRWBTouchEnd);
-        }
-        window.removeEventListener("keydown", handleRWBKeyDown);
-        window.removeEventListener("keyup", handleRWBKeyUp);
-        let overlay = document.getElementById("arenaOverlay");
-        if (overlay) overlay.style.display = "none";
-        if (typeof startBattleMusic === 'function') startBattleMusic();
+    if (isVertical) {
+        wallGapIndicator = { x: 0, y: gapCenter, w: 30, h: gapSize, life: 70, vertical: true, arrowFromX: heart.x, arrowFromY: heart.y, arrowToX: 200, arrowToY: gapCenter };
+    } else {
+        wallGapIndicator = { x: gapCenter, y: 0, w: gapSize, h: 30, life: 70, vertical: false, arrowFromX: heart.x, arrowFromY: heart.y, arrowToX: gapCenter, arrowToY: 250 };
     }
-
-    // ============================================================
-    // ГЛАВНЫЙ РЕНДЕР-ЛУП
-    // ============================================================
-    function rwbRenderLoop() {
-        if (!window.rwbActive || !ctx || !canvas) return;
-        rwbTimer++;
-
-        if (typeof tickSupers === 'function') {
-            try { tickSupers(); } catch(e) { console.error("[ROGER-WB] tickSupers error:", e); }
-        }
-
-        // ★ БЕЛОУС: регенерация ★
-        tickWhitebeardRegenRWB(1/60);
-
-        if (!rwbSuperReady && rwbSuperCooldown > 0) {
-            rwbSuperCooldown--;
-            if (rwbSuperCooldown <= 0) {
-                rwbSuperReady = true;
-                if (rwbSuperBtn) { rwbSuperBtn.style.opacity = '1'; rwbSuperBtn.innerHTML = '⚡ СУПЕР'; }
-            } else {
-                if (rwbSuperBtn) { rwbSuperBtn.style.opacity = '0.5'; rwbSuperBtn.innerHTML = '⏳ ' + Math.ceil(rwbSuperCooldown / 60) + 'с'; }
-            }
-        }
-
-        if (rwbDialogActive) {
-            rwbDialogTimer++;
-            if (rwbPlayer && rwbPlayer.invulnTimer > 0) rwbPlayer.invulnTimer--;
-        } else {
-            if (rwbState === "intro") {
-                rwbIntroTimer++;
-                if (rwbIntroTimer > 150) rwbState = "fight1";
-            } else if (rwbState === "fight1") {
-                updateRWBPlayer(); updateDuel(); updateRWBAttacks(); updateRWBPlayerBullets();
-            } else if (rwbState === "transition") {
-                rwbTransitionTimer++;
-                if (rwbTransitionTimer > 100) { rwbState = "fight2"; rwbSurvivalTimer2 = 0; rwbTitanFistTimer = 0; rwbTitanRockTimer = 0; }
-            } else if (rwbState === "fight2") {
-                updateRWBPlayer(); updateSuperBoss(); updateRWBAttacks(); updateRWBPlayerBullets();
-                checkMeleeContact();
-                rwbSurvivalTimer2++;
-                if (rwbActiveBoss && rwbActiveBoss.hp <= 0) rwbVictory();
-                if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") {
-                    rwbTitanFistTimer++;
-                    if (rwbTitanFistTimer >= RWB_TITAN_INTERVAL) {
-                        rwbTitanFistTimer = 0;
-                        rwbAttacks.push({ type: "titan_fist", x: 120 + Math.random() * 160, y: -120, vy: 3.5, size: 75, damage: Math.ceil(35 * BALANCE.superDamageMult), life: 300, state: "falling", hit: false, color: "#8B7355" });
-                        rwbFloatingTexts.push({ x: 200, y: 100, text: "👊 ТИТАН-КУЛАК 👊", color: "#ffdd00", life: 60, maxLife: 60, vy: -0.3, vx: 0, size: 18 });
-                        playWhooshSound(0.5);
-                        setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
+    playArenaSound(400, 'sine', 0.15, 0.06);
+    setTimeout(function() { playArenaSound(500, 'sine', 0.1, 0.04); }, 150);
+    wallWarningTimer = setTimeout(function() {
+        if (arenaPhase !== "dodge" || !arenaActive) return;
+        for (var seriesIdx = 0; seriesIdx < wallSeriesCount; seriesIdx++) {
+            (function(idx) {
+                var seriesDelay = idx * 500;
+                setTimeout(function() {
+                    if (arenaPhase !== "dodge" || !arenaActive) return;
+                    if (isVertical) {
+                        var startX = Math.random() > 0.5 ? -30 : 430;
+                        var dirX = startX < 0 ? 3.0 * wallSpeed : -3.0 * wallSpeed;
+                        for (var i = 10; i < 490; i += 22) {
+                            if (Math.abs(i - gapCenter) < gapSize / 2) continue;
+                            var atk = { type: "square", x: startX, y: i, size: 24, spd: dirX, spdY: 0, color: "#fff", damage: dmg, bouncesLeft: 0 };
+                            if (shouldShrink) shrinkAttack(atk);
+                            attacks.push(atk);
+                        }
+                    } else {
+                        var startY = Math.random() > 0.5 ? -30 : 530;
+                        var dirY = startY < 0 ? 2.4 * wallSpeed : -2.4 * wallSpeed;
+                        for (var i = 10; i < 390; i += 22) {
+                            if (Math.abs(i - gapCenter) < gapSize / 2) continue;
+                            var atk = { type: "square", x: i, y: startY, size: 24, spd: 0, spdY: dirY, color: "#fff", damage: dmg, bouncesLeft: 0 };
+                            if (shouldShrink) shrinkAttack(atk);
+                            attacks.push(atk);
+                        }
                     }
-                    rwbTitanRockTimer++;
-                    if (rwbTitanRockTimer >= RWB_ROCK_INTERVAL) { rwbTitanRockTimer = 0; spawnGiantRock(); }
-                }
-                let remaining = Math.max(0, Math.ceil((rwbSurvivalTarget2 - rwbSurvivalTimer2) / 60));
-                let timerEl = document.getElementById("arenaTimer");
-                if (timerEl) timerEl.innerText = remaining + "с";
-            } else if (rwbState === "victory") {
-                rwbEndTimer++;
-            } else if (rwbState === "defeat") {
-                rwbEndTimer++;
-                if (rwbEndTimer > 180) {
-                    stopRogerWhitebeardFight();
-                    if (typeof playerHp !== 'undefined') playerHp = 0;
-                    if (typeof defeat === 'function') defeat();
-                    return;
-                }
-            } else if (rwbState === "done") { return; }
+                    if (wallGapIndicator) { wallGapIndicator.arrowToX = undefined; wallGapIndicator.arrowToY = undefined; wallGapIndicator.life = 40; }
+                    playArenaSound(200, 'sawtooth', 0.3, 0.08);
+                }, seriesDelay);
+            })(seriesIdx);
         }
+    }, 1000);
+}
 
-        if (Math.abs(rwbPlayer.vx) > 0.1 || Math.abs(rwbPlayer.vy) > 0.1) {
-            rwbPlayer.x += rwbPlayer.vx;
-            rwbPlayer.y += rwbPlayer.vy;
-            rwbPlayer.vx *= 0.88;
-            rwbPlayer.vy *= 0.88;
-            rwbPlayer.x = Math.max(16, Math.min(384, rwbPlayer.x));
-            rwbPlayer.y = Math.max(0, Math.min(484, rwbPlayer.y));
-            if (Math.abs(rwbPlayer.vx) < 0.2) rwbPlayer.vx = 0;
-            if (Math.abs(rwbPlayer.vy) < 0.2) rwbPlayer.vy = 0;
-        }
-
-        for (let i = rwbParticles.length - 1; i >= 0; i--) {
-            let p = rwbParticles[i];
-            p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life--;
-            if (p.life <= 0) rwbParticles.splice(i, 1);
-        }
-        for (let i = rwbSpeedLines.length - 1; i >= 0; i--) {
-            let s = rwbSpeedLines[i];
-            s.x += s.vx; s.y += s.vy; s.life--;
-            if (s.life <= 0) rwbSpeedLines.splice(i, 1);
-        }
-        for (let i = rwbHakiLightnings.length - 1; i >= 0; i--) {
-            let h = rwbHakiLightnings[i];
-            h.life--;
-            if (h.life <= 0) rwbHakiLightnings.splice(i, 1);
-        }
-        for (let i = rwbFloatingTexts.length - 1; i >= 0; i--) {
-            let t = rwbFloatingTexts[i];
-            t.life--; t.y += t.vy;
-            if (t.life <= 0) rwbFloatingTexts.splice(i, 1);
-        }
-        if (rwbHakiAura > 0) rwbHakiAura--;
-        if (rwbShake > 0.1) rwbShake *= 0.88;
-        if (rwbScreenFlash > 0) rwbScreenFlash--;
-
-        ctx.save();
-        if (rwbShake > 0.5) ctx.translate((Math.random() - 0.5) * rwbShake, (Math.random() - 0.5) * rwbShake);
-
-        drawIslandBackground();
-
-        if (rwbHakiAura > 0) { ctx.save(); ctx.globalAlpha = rwbHakiAura / 100; ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
-        if (rwbScreenFlash > 0) { ctx.globalAlpha = rwbScreenFlash / 30; ctx.fillStyle = rwbScreenFlashColor; ctx.fillRect(0, 0, 400, 500); ctx.globalAlpha = 1; }
-
-        ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 3; ctx.strokeRect(2, 2, 396, 496);
-
-        for (let i = 0; i < rwbSpeedLines.length; i++) {
-            let s = rwbSpeedLines[i];
-            ctx.save(); ctx.globalAlpha = s.life / s.maxLife * 0.6;
-            ctx.strokeStyle = s.color; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 4, s.y - s.vy * 4); ctx.stroke();
-            ctx.restore();
-        }
-
-        drawWhiteCracks(); drawPurpleCracks();
-
-        if (rwbState === "fight1" || rwbState === "transition") {
-            if (roger) drawRoger();
-            if (whitebeard) drawWhitebeard();
-        } else if (rwbState === "fight2" && rwbActiveBoss) {
-            if (rwbActiveBoss.id === "roger") drawRoger();
-            else drawWhitebeard();
-        }
-
-        for (let i = 0; i < rwbShockwaves.length; i++) {
-            let sw = rwbShockwaves[i];
-            let p = sw.life / sw.maxLife;
-            ctx.save(); ctx.globalAlpha = p * 0.95;
-            ctx.strokeStyle = sw.color; ctx.lineWidth = sw.width * p;
-            ctx.beginPath(); ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2); ctx.stroke();
-            ctx.restore();
-        }
-
-        for (let i = 0; i < rwbAttacks.length; i++) drawAttack(rwbAttacks[i]);
-
-        for (let i = 0; i < rwbPlayerBullets.length; i++) {
-            let b = rwbPlayerBullets[i];
-            ctx.save();
-            let grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.size * 1.5);
-            grad.addColorStop(0, "#ffffff"); grad.addColorStop(0.5, b.color); grad.addColorStop(1, "transparent");
-            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 1.5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 0.5, 0, Math.PI * 2); ctx.fill();
-            ctx.restore();
-        }
-
-        if (rwbState === "fight1" || rwbState === "fight2") drawRWBPlayer();
-
-        for (let i = 0; i < rwbParticles.length; i++) {
-            let p = rwbParticles[i];
-            ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
-            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-
-        for (let i = 0; i < rwbHakiLightnings.length; i++) {
-            let h = rwbHakiLightnings[i];
-            let alpha = h.life / h.maxLife;
-            ctx.save(); ctx.globalAlpha = alpha;
-            ctx.strokeStyle = h.outerColor; ctx.lineWidth = h.width + 1.5;
-            ctx.beginPath(); ctx.moveTo(h.x1, h.y1);
-            for (let p = 0; p < h.points.length; p++) ctx.lineTo(h.points[p].x, h.points[p].y);
-            ctx.lineTo(h.x2, h.y2); ctx.stroke();
-            ctx.strokeStyle = h.innerColor; ctx.lineWidth = h.width; ctx.stroke();
-            ctx.restore();
-        }
-
-        for (let i = 0; i < rwbFloatingTexts.length; i++) {
-            let t = rwbFloatingTexts[i];
-            ctx.save(); ctx.globalAlpha = Math.min(1, t.life / 30);
-            ctx.font = "bold " + (t.size || 16) + "px Impact, Arial Black, sans-serif";
-            ctx.textAlign = "center"; ctx.strokeStyle = "#000000"; ctx.lineWidth = 3;
-            ctx.strokeText(t.text, t.x, t.y); ctx.fillStyle = t.color; ctx.fillText(t.text, t.x, t.y);
-            ctx.restore();
-        }
-
-        if (rwbState === "fight1" || rwbState === "transition") {
-            drawHpBar(6, 4, 190, 14, roger ? roger.hp : 0, BALANCE.rogerHp, "#ff8800", "🔥 РОДЖЕР", false);
-            drawHpBar(204, 4, 190, 14, whitebeard ? whitebeard.hp : 0, BALANCE.whitebeardHp, "#ffffff", "❄️ БЕЛОУС", true);
-        } else if (rwbState === "fight2" && rwbActiveBoss) {
-            let boss = rwbActiveBoss;
-            let barColor = (boss.id === "roger") ? "#ff8800" : "#ffffff";
-            let barName = (boss.id === "roger") ? "🔥 РОДЖЕР [СУПЕР]" : "❄️ БЕЛОУС [СУПЕР]";
-            drawHpBar(6, 4, 388, 16, boss.hp, boss.maxHp, barColor, barName);
-        }
-        if (rwbState === "fight1" || rwbState === "fight2") {
-            drawHpBar(6, 478, 388, 14, rwbPlayer.hp, rwbPlayer.maxHp, rwbPlayer.hp > rwbPlayer.maxHp * 0.3 ? "#00ff66" : "#ff3333", "❤️ ТЫ");
-        }
-
-        if (rwbState === "intro") {
-            ctx.save(); ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(0, 0, 400, 500);
-            ctx.font = "bold 24px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffffff";
-            ctx.fillText("ЛЕГЕНДЫ ПРОБУДИЛИСЬ", 200, 220);
-            ctx.font = "bold 15px monospace"; ctx.fillStyle = "#ff8800";
-            ctx.fillText("🔥 РОДЖЕР vs ❄️ БЕЛОУС", 200, 260);
-            ctx.font = "12px monospace"; ctx.fillStyle = "#dddddd";
-            ctx.fillText("🔵 Синяя атака — авто-прицел", 200, 310);
-            ctx.fillText("🟡 Жёлтая бьёт боссов", 200, 330);
-            ctx.fillStyle = "#ffff00"; ctx.fillText("⚡ СУПЕР кнопка внизу", 200, 355);
-            ctx.restore();
-        } else if (rwbState === "transition") {
-            ctx.save(); ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0, 0, 400, 500);
-            ctx.font = "bold 28px monospace"; ctx.textAlign = "center";
-            if (rwbActiveBoss && rwbActiveBoss.id === "roger") {
-                ctx.fillStyle = "#ff8800"; ctx.fillText("РОДЖЕР: СУПЕР!", 200, 230);
-                ctx.font = "14px monospace"; ctx.fillStyle = "#ffdd00";
-                ctx.fillText("Рассечение • Крест • Пламя • Комбо", 200, 270);
-                ctx.fillText("+ Тройное • Смерч", 200, 290);
-            } else {
-                ctx.fillStyle = "#ffffff"; ctx.fillText("БЕЛОУС: СУПЕР!", 200, 230);
-                ctx.font = "14px monospace"; ctx.fillStyle = "#ffdd00";
-                ctx.fillText("Землетрясение • Гура-Гура • Кулак", 200, 270);
-                ctx.fillText("Навала • Цунами • 💜 РАЗЛОМ", 200, 290);
-            }
-            ctx.font = "13px monospace"; ctx.fillStyle = "#ff4444";
-            ctx.fillText("⚠️ HP: " + (rwbActiveBoss && rwbActiveBoss.id === "roger" ? RWB_SUPER_ROGER_HP : RWB_SUPER_WB_HP), 200, 320);
-            ctx.font = "15px monospace"; ctx.fillStyle = "#ffd700";
-            ctx.fillText("ФИНАЛЬНЫЙ РАУНД!", 200, 355);
-            ctx.font = "12px monospace"; ctx.fillStyle = "#ff8888";
-            ctx.fillText("⚠️ Близко = СЛЕШ!", 200, 385);
-            ctx.restore();
-        } else if (rwbState === "victory") {
-            ctx.save(); ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0, 0, 400, 500);
-            ctx.font = "bold 32px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd700";
-            ctx.fillText("ПОБЕДА!", 200, 250); ctx.restore();
-        } else if (rwbState === "defeat") {
-            ctx.save(); ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0, 0, 400, 500);
-            ctx.font = "bold 32px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ff0000";
-            ctx.fillText("ПОРАЖЕНИЕ", 200, 250); ctx.restore();
-        }
-
-        if (rwbDialogActive) drawRWBDialogOverlay();
-
-        if (typeof renderSuperVisuals === 'function') {
-            try { renderSuperVisuals(); } catch(e) { console.error("[ROGER-WB] renderSuperVisuals error:", e); }
-        }
-
-        if (isModerActive()) {
-            ctx.save(); ctx.font = "bold 11px monospace"; ctx.textAlign = "left";
-            ctx.fillStyle = "#ffd700"; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 8;
-            ctx.globalAlpha = 0.85; ctx.fillText("👑 МОДЕР", 8, 495); ctx.restore();
-        }
-        if (typeof window.drawJoystick === 'function') { try { window.drawJoystick(); } catch(e) {} }
-        ctx.restore();
-        rwbAnimFrame = requestAnimationFrame(rwbRenderLoop);
+function spawnAttack() {
+    var s = arenaSpeedMult; var bw = arenaCurrentWave; var isEarly = bw < 100; var dmg = arenaBaseDmg;
+    var shouldShrink = (typeof _superState !== 'undefined' && _superState.antispiralShrinkAttacks);
+    switch (arenaAttackType) {
+        case 0: spawnWallAttack(isEarly, dmg, shouldShrink); break;
+        case 1: var chaosCount = isEarly ? 1 : 2; for (var i = 0; i < chaosCount; i++) { var side = Math.floor(Math.random() * 4); var x, y; if (side === 0) { x = Math.random() * 400; y = -30; } else if (side === 1) { x = Math.random() * 400; y = 530; } else if (side === 2) { x = -30; y = Math.random() * 500; } else { x = 430; y = Math.random() * 500; } var angle = Math.atan2(heart.y - y, heart.x - x); var atk = { type: "square", x: x, y: y, size: 20, spd: Math.cos(angle) * 2.0, spdY: Math.sin(angle) * 2.0, color: "#4499ff", damage: Math.floor(dmg / 2), bouncesLeft: 3 }; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
+        case 2: for (var i = 0; i < (isEarly ? 1 : 2); i++) { var side = Math.floor(Math.random() * 4); var xPos, yPos; if (side === 0) { xPos = Math.random() * 400; yPos = -40; } else if (side === 1) { xPos = Math.random() * 400; yPos = 540; } else if (side === 2) { xPos = -40; yPos = Math.random() * 500; } else { xPos = 440; yPos = Math.random() * 500; } var angle = Math.atan2(heart.y - yPos, heart.x - xPos); var atk = { type: "sword", x: xPos, y: yPos, angle: angle, size: 45, width: 15, color: "#ffaa00", spd: Math.cos(angle) * 2.4, spdY: Math.sin(angle) * 2.4, damageOnStanding: true, damage: Math.floor(dmg * 1.2), bouncesLeft: 0 }; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
+        case 3: for (var i = 0; i < (isEarly ? 1 : 2); i++) { var vx = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s; var vy = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s; var atk = { type: "danger", x: 200, y: 180, size: 70, spd: vx, spdY: vy, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.6), bouncesLeft: 1 }; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
+        case 4: for (var i = 0; i < (isEarly ? 2 : 3); i++) { var rx = (Math.random() - 0.5) * 2; var atk = { type: "square", x: heart.x + (Math.random() - 0.5) * 120, y: -40, size: 25, spd: rx, spdY: 1.8 + Math.random() * 1.0, color: "#ff69b4", knockback: 80, bouncesLeft: Infinity }; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
+        case 5: if (arenaHP < arenaMaxHP) { var atk = { type: "circle", x: Math.random() * 400, y: -30, radius: 18, spd: (Math.random() - 0.5) * 1.5, spdY: 2.5, color: "#44ff44", healPercent: 0.15, bouncesLeft: 2 }; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } else { var atk = { type: "square", x: Math.random() * 360 + 20, y: -30, size: 22, spd: 0, spdY: 3.0, color: "#fff", damage: dmg, bouncesLeft: 2 }; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
+        case 6: var atk6 = { type: "rainbow", x: 50 + Math.random() * 300, y: -60, radius: 30, spd: (Math.random() - 0.5) * 0.8, spdY: 1.2 + Math.random() * 0.5, color: "rainbow", oneshot: true, bouncesLeft: 0 }; if (shouldShrink) shrinkAttack(atk6); attacks.push(atk6); break;
+        case 7: for (var i = 0; i < (isEarly ? 1 : 2); i++) { var side = Math.floor(Math.random() * 4); var sx, sy; if (side === 0) { sx = Math.random() * 400; sy = -40; } else if (side === 1) { sx = Math.random() * 400; sy = 540; } else if (side === 2) { sx = -40; sy = Math.random() * 500; } else { sx = 440; sy = Math.random() * 500; } var sa = Math.atan2(heart.y - sy, heart.x - sx); var atk1 = { type: "sword", x: sx, y: sy, angle: sa, size: 40, width: 12, color: "#ffaa00", spd: Math.cos(sa) * 2.2, spdY: Math.sin(sa) * 2.2, damageOnStanding: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 }; var atk2 = { type: "danger", x: heart.x + (Math.random() - 0.5) * 100, y: 540, size: 25, spd: (Math.random() - 0.5) * 1.2, spdY: -2.2, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 }; if (shouldShrink) { shrinkAttack(atk1); shrinkAttack(atk2); } attacks.push(atk1); attacks.push(atk2); } break;
+        case 8: var atk81 = { type: "danger", x: -40, y: heart.y, size: 40, spd: 2.5 * s, spdY: 0, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.5), bouncesLeft: 0 }; if (shouldShrink) shrinkAttack(atk81); attacks.push(atk81); if (!isEarly) { var atk82 = { type: "square", x: 440, y: heart.y + (Math.random() > 0.5 ? 60 : -60), size: 30, spd: -2.5 * s, spdY: 0, color: "#fff", damage: Math.floor(dmg * 1.5), bouncesLeft: 2 }; if (shouldShrink) shrinkAttack(atk82); attacks.push(atk82); } break;
+        case 9: for (var i = 0; i < (isEarly ? 1 : (bw >= 500 ? 2 : 1)); i++) { var bx = 50 + Math.random() * 300; var by = 50 + Math.random() * 400; var atk = { type: "bomb", x: bx, y: by, timer: 60, maxRadius: isEarly ? 75 : (80 + Math.random() * 40), hit: false, damage: Math.floor(dmg * 2), bouncesLeft: 0, particlesSpawned: false, shakeTime: 0 }; if (shouldShrink) { if (atk.maxRadius) atk.maxRadius *= 0.7; } attacks.push(atk); } break;
+        case 10: spawnBlaster(bw); break;
     }
+}
 
-    function drawRWBDialogOverlay() {
-        if (!ctx) return;
-        ctx.save();
-        ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(0, 0, 400, 500);
+function stopArena() {
+    if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
+    if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
+    if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
+    if (typeof resetAllSupers === 'function') resetAllSupers();
+    arenaActive = false; stopArenaAmbient(); if (arenaAttackInterval) clearInterval(arenaAttackInterval); if (animFrameId) cancelAnimationFrame(animFrameId);
+    arenaAttackInterval = null; animFrameId = null;
+    attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = []; arenaBlasters = []; arenaShockwaves = [];
+    window._armorSpeedApplied = false;
+    whitebeardRegenTimer = 0;
+    document.getElementById("arenaOverlay").style.display = "none";
+    var skipBtn = document.getElementById("skipBossBtn"); if (skipBtn) skipBtn.style.display = "none";
+    var superBtn = document.getElementById("superBtn"); if (superBtn) superBtn.style.display = "none";
+    var superBtn2 = document.getElementById("superBtn2"); if (superBtn2) superBtn2.style.display = "none";
+    var superBtnDeact = document.getElementById("superBtnDeactivate"); if (superBtnDeact) superBtnDeact.style.display = "none";
+    var mainCardDisplay = document.getElementById("arenaMainCardDisplay"); if (mainCardDisplay) mainCardDisplay.remove();
+}
 
-        if (rwbDialogType === "roger") {
-            drawRogerPortrait(200, 130, 1.2);
-            var line = RWB_ROGER_DIALOG[rwbDialogStage];
-            if (line) {
-                ctx.font = "bold 16px Nunito, sans-serif"; ctx.textAlign = "center";
-                ctx.fillStyle = "#ff8800"; ctx.shadowColor = "#ff8800"; ctx.shadowBlur = 15;
-                ctx.fillText(line.speaker, 200, 230);
-                ctx.shadowBlur = 0; ctx.fillStyle = "#ffffff";
-                ctx.font = "italic bold 14px Nunito, sans-serif";
-                var lines = wrapText(line.text, 340, ctx);
-                for (var i = 0; i < lines.length; i++) ctx.fillText(lines[i], 200, 265 + i * 24);
-            }
-            if (Math.floor(performance.now() / 500) % 2 === 0) {
-                ctx.font = "12px monospace"; ctx.fillStyle = "#aaaaaa";
-                ctx.fillText(">> Кликните для продолжения <<", 200, 470);
-            }
-        } else if (rwbDialogType === "whitebeard") {
-            drawWhitebeardPortrait(200, 130, 1.15);
-            if (rwbDialogQueue.length > 0) {
-                var line2 = rwbDialogQueue[0];
-                ctx.font = "bold 15px Nunito, sans-serif"; ctx.textAlign = "center";
-                ctx.fillStyle = line2.speaker.indexOf("БЕЛОУС") !== -1 ? "#88ddff" : "#ffd700";
-                ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 12;
-                ctx.fillText(line2.speaker, 200, 235);
-                ctx.shadowBlur = 0; ctx.fillStyle = "#ffffff";
-                ctx.font = "bold 13px Nunito, sans-serif";
-                var lines2 = wrapText(line2.text, 340, ctx);
-                for (var i = 0; i < lines2.length; i++) ctx.fillText(lines2[i], 200, 265 + i * 22);
-                if (Math.floor(performance.now() / 500) % 2 === 0) {
-                    ctx.font = "12px monospace"; ctx.fillStyle = "#aaaaaa";
-                    ctx.fillText(">> Кликните для продолжения <<", 200, 470);
-                }
-            } else if (rwbWBPhase === "choice") {
-                ctx.font = "bold 15px Nunito, sans-serif"; ctx.textAlign = "center";
-                ctx.fillStyle = "#88ddff"; ctx.shadowColor = "#88ddff"; ctx.shadowBlur = 12;
-                ctx.fillText("ЧТО ОТВЕТИШЬ?", 200, 225); ctx.shadowBlur = 0;
-                var btnW = 360, btnX = 20, startY = 245, btnH = 55, gap = 10;
-                for (var i = 0; i < 3; i++) {
-                    var by = startY + i * (btnH + gap);
-                    var disabled = rwbWhitebeardDisabled[i];
-                    if (disabled) { ctx.fillStyle = "rgba(30, 30, 30, 0.6)"; ctx.strokeStyle = "#444444"; }
-                    else { ctx.fillStyle = "rgba(40, 60, 90, 0.95)"; ctx.strokeStyle = "#88ddff"; }
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    if (ctx.roundRect) ctx.roundRect(btnX, by, btnW, btnH, 12); else ctx.rect(btnX, by, btnW, btnH);
-                    ctx.fill(); ctx.stroke();
-                    ctx.font = "bold 12px Nunito, sans-serif"; ctx.textAlign = "left";
-                    ctx.fillStyle = disabled ? "#666666" : "#ffffff";
-                    var choiceLines = wrapText(RWB_WB_CHOICES[i].text, btnW - 30, ctx);
-                    for (var li = 0; li < Math.min(choiceLines.length, 2); li++) ctx.fillText(choiceLines[li], btnX + 15, by + 24 + li * 16);
-                    if (disabled) { ctx.font = "bold 10px monospace"; ctx.fillStyle = "#555555"; ctx.textAlign = "right"; ctx.fillText("✕", btnX + btnW - 12, by + btnH - 10); }
-                }
+function winArena() {
+    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) { if (!defeatedBosses.includes(arenaCurrentWave)) defeatedBosses.push(arenaCurrentWave); }
+    if (typeof grantBossGachaReward === 'function') grantBossGachaReward(arenaCurrentWave);
+    if (typeof resetAllCooldowns === 'function') resetAllCooldowns();
+    stopArena(); if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = Math.floor(currentEnemy.maxHp * 0.25);
+    if (typeof victory === 'function') victory();
+}
+
+function loseArena() {
+    if (typeof _superState !== 'undefined' && _superState.dandyAutoRevive) {
+        _superState.dandyAutoRevive = false;
+        arenaHP = Math.ceil(arenaMaxHP * 0.5);
+        document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
+        spawnFloatingText(heart.x, heart.y - 20, "ВОСКРЕС ДЭНДИ!", "#ffcc00");
+        return;
+    }
+    if (typeof _superState !== 'undefined' && _superState.markResurrectCharges > 0) {
+        var mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
+        if (mainCard && mainCard.name === "Император Марк") {
+            _superState.markResurrectCharges--; arenaHP = Math.ceil(arenaMaxHP * 0.25); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
+            _superState.markBuffActive = true; _superState.markBuffTimer = 5; _superState.markDmgReduction = 3; _superState.markDmgBonus = 1.5; _superState.markSpeedBonus = 2;
+            heartSpeed *= 2; _superState.screenFlashWhite = 30;
+            spawnFloatingText(heart.x, heart.y - 20, "ВОСКРЕС! (" + _superState.markResurrectCharges + ")", "#ffd700"); return;
+        }
+    }
+    if (typeof resetAllCooldowns === 'function') resetAllCooldowns();
+    if (typeof resetAllSupers === 'function') resetAllSupers();
+    sfxArenaDeath(); arenaShake = 25; screenFlash = 25; screenFlashColor = "#ff0000";
+    for (var j = 0; j < 60; j++) { var angle = Math.random() * Math.PI * 2; arenaParticles.push({ x: heart.x, y: heart.y, vx: Math.cos(angle) * 12, vy: Math.sin(angle) * 12, life: 40, maxLife: 40, color: "#ff0000", size: 3 + Math.random() * 6 }); }
+    setTimeout(function() { stopArena(); if (typeof playerHp !== 'undefined') playerHp = 0; if (typeof defeat === 'function') defeat(); }, 1200);
+}
+
+// ★★★ ФИКС: Белоус 10% поглощение + Такаба ★★★
+function applyHit(dmg, textMsg, isTrueOneshot) {
+    // ★ БЕЛОУС + ТАКАБА: поглощение урона ★
+    if (typeof applyWhitebeardPassiveReduction === 'function') {
+        dmg = applyWhitebeardPassiveReduction(dmg);
+    }
+    
+    if (textMsg === undefined) textMsg = null; if (isTrueOneshot === undefined) isTrueOneshot = false;
+    if (typeof _superState !== 'undefined' && _superState.usoppInvuln) return;
+    if (typeof _superState !== 'undefined' && _superState.garouInvulnTimer > 0) return;
+    if (typeof _superState !== 'undefined' && _superState.dandyInvuln) return;
+    if (typeof _superState !== 'undefined' && _superState.nikaActive) dmg = Math.floor(dmg * 0.6);
+    if (typeof _superState !== 'undefined' && _superState.kaidoDmgReduction) dmg = Math.floor(dmg * 0.7);
+    if (typeof _superState !== 'undefined' && _superState.garpHakiActive) dmg = Math.floor(dmg * 0.4);
+    if (typeof _superState !== 'undefined' && _superState.dandyShield && _superState.dandyShield.timer > 0) dmg = Math.floor(dmg * _superState.dandyShield.mult);
+    if (typeof _superState !== 'undefined' && _superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
+    if (typeof _superState !== 'undefined' && _superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
+    if (invulnTimer > 0) return; if (arenaAttackType !== 10) invulnTimer = 45;
+    if (isTrueOneshot || dmg >= arenaMaxHP) { arenaHP = 0; }
+    else { var directDmg = 1; var karmaDmg = dmg - directDmg; if (karmaDmg < 0) karmaDmg = 0; arenaHP -= directDmg; arenaKarma += karmaDmg; }
+    arenaHitFlash = 12; arenaShake = 18; sfxArenaHit(); screenFlash = 6; screenFlashColor = "#ff4444"; arenaVignette = 15;
+    arenaShockwaves.push({ x: heart.x, y: heart.y, r: 5, v: 5, life: 20, maxLife: 20, color: "rgba(255,50,50,0.8)" });
+    spawnFloatingText(heart.x, heart.y - 20, textMsg || "-" + dmg, "#ff3333"); document.getElementById("arenaHP").innerText = Math.max(0, Math.ceil(arenaHP));
+    for (var j = 0; j < 35; j++) { arenaParticles.push({ x: heart.x, y: heart.y, vx: (Math.random() - 0.5) * 16, vy: (Math.random() - 0.5) * 16, life: 28, maxLife: 28, color: "#ff2222", size: 2 + Math.random() * 4 }); }
+    if (Math.ceil(arenaHP) <= 0) loseArena();
+}
+
+// ★★★ БЕЛОУС: регенерация 2% HP каждые 5 сек ★★★
+function tickWhitebeardRegenArena(dt) {
+    try {
+        if (typeof team === 'undefined' || !Array.isArray(team)) return;
+        if (typeof myCards === 'undefined' || !Array.isArray(myCards)) return;
+        var hasWhitebeard = false;
+        for (var i = 0; i < team.length; i++) {
+            var idx = team[i];
+            var cd = myCards[idx];
+            if (cd && cd.name === "Белоус") {
+                if (typeof hasMasteryAbility === 'function' && !hasMasteryAbility(cd)) continue;
+                hasWhitebeard = true;
+                break;
             }
         }
-        ctx.restore();
-    }
-
-    function updateSuperBoss() {
-        let active = rwbActiveBoss;
-        if (!active) return;
-        active.pulse += 0.12; active.rotation += 0.03;
-        active.x = 200 + Math.sin(rwbTimer / 80) * 100;
-        active.y = 100 + Math.sin(rwbTimer / 60) * 20;
-        if (active.hitFlash > 0) active.hitFlash--;
-        if (Math.random() < 0.15) spawnHakiLightning(active.x + (Math.random() - 0.5) * 50, active.y + (Math.random() - 0.5) * 50, 1, false);
-        active.attackTimer--;
-        if (active.attackTimer <= 0) {
-            let interval = (active.id === "roger") ? RWB_ATTACK_SPEED_SUPER_ROGER : BALANCE.superAttackRate;
-            active.attackTimer = interval + Math.random() * 20;
-            if (active.id === "roger") spawnRogerSuperAttack();
-            else spawnWhitebeardSuperAttack();
+        if (!hasWhitebeard) {
+            whitebeardRegenTimer = 0;
+            return;
         }
-    }
-
-    function drawHpBar(x, y, w, h, current, max, color, label, alignRight) {
-        ctx.save();
-        ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
-        ctx.fillStyle = "#222"; ctx.fillRect(x, y, w, h);
-        let ratio = Math.max(0, Math.min(1, current / max));
-        let barW = w * ratio; ctx.fillStyle = color;
-        if (alignRight) ctx.fillRect(x + w - barW, y, barW, h);
-        else ctx.fillRect(x, y, barW, h);
-        ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1.5; ctx.strokeRect(x, y, w, h);
-        ctx.font = "bold 9px monospace"; ctx.textAlign = alignRight ? "right" : "left";
-        ctx.fillStyle = "#ffffff";
-        let labelText = label + " " + Math.ceil(current) + "/" + max;
-        if (alignRight) ctx.fillText(labelText, x + w - 4, y + h - 3);
-        else ctx.fillText(labelText, x + 4, y + h - 3);
-        ctx.restore();
-    }
-
-    function drawHeartShape(cx, cy, size, color, glowColor) {
-        ctx.save(); ctx.translate(cx, cy);
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.moveTo(0, size * 0.7);
-        ctx.bezierCurveTo(-size * 1.4, -size * 0.2, -size * 0.7, -size * 1.1, 0, -size * 0.4);
-        ctx.bezierCurveTo(size * 0.7, -size * 1.1, size * 1.4, -size * 0.2, 0, size * 0.7);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#000000"; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.fillStyle = "rgba(255,255,255,0.6)";
-        ctx.beginPath(); ctx.arc(-size * 0.3, -size * 0.4, size * 0.22, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-    }
-
-    function drawRoger() {
-        if (!roger) return;
-        let pulse = 1 + Math.sin(roger.pulse) * 0.06;
-        let size = roger.size * pulse;
-        let flash = roger.hitFlash > 0;
-        drawRogerModel(roger.x, roger.y, size, flash, Math.sin(roger.rotation) * 0.1);
-    }
-
-    function drawWhitebeard() {
-        if (!whitebeard) return;
-        let pulse = 1 + Math.sin(whitebeard.pulse) * 0.06;
-        let size = whitebeard.size * pulse;
-        let flash = whitebeard.hitFlash > 0;
-        drawWhitebeardModel(whitebeard.x, whitebeard.y, size, flash, Math.sin(whitebeard.rotation) * 0.1);
-    }
-
-    function drawRWBPlayer() {
-        if (rwbPlayer.invulnTimer > 0 && Math.floor(rwbPlayer.invulnTimer / 4) % 2 === 0) return;
-        let color = (rwbPlayer.attackMode === "blue") ? "#00aaff" : "#ff2222";
-        drawHeartShape(rwbPlayer.x, rwbPlayer.y, rwbPlayer.size, color, color);
-    }
-
-    function drawAttack(a) {
-        if (a.type === "giant_rock") { drawGiantRock(a); return; }
-        if (a.type === "tsunami") { drawTsunami(a); return; }
-        if (a.type === "rock") { drawRock(a); return; }
-
-        if (a.type === "purple_crack_zone") {
-            ctx.save();
-            if (a.state === "warning") {
-                let pulseAlpha = 0.5 + Math.sin(performance.now() / 80) * 0.3;
-                ctx.globalAlpha = pulseAlpha;
-                ctx.strokeStyle = "#aa00ff"; ctx.lineWidth = 3; ctx.shadowColor = "#aa00ff"; ctx.shadowBlur = 15;
-                ctx.beginPath(); ctx.arc(a.x, a.y, a.maxRadius, 0, Math.PI * 2); ctx.stroke();
-                ctx.beginPath(); ctx.arc(a.x, a.y, a.maxRadius * 0.5, 0, Math.PI * 2); ctx.stroke();
-                ctx.globalAlpha = 1; ctx.fillStyle = "#aa00ff";
-                ctx.font = "bold 14px monospace"; ctx.textAlign = "center"; ctx.fillText("💜", a.x, a.y + 5);
-            } else if (a.state === "active") {
-                let fade = a.activeTimer / a.maxActive;
-                ctx.globalAlpha = fade;
-                ctx.fillStyle = "#aa00ff"; ctx.shadowColor = "#cc44ff"; ctx.shadowBlur = 20;
-                ctx.beginPath(); ctx.arc(a.x, a.y, a.radius, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.arc(a.x, a.y, a.radius, 0, Math.PI * 2); ctx.stroke();
+        
+        whitebeardRegenTimer += dt;
+        if (whitebeardRegenTimer >= 5) {
+            whitebeardRegenTimer = 0;
+            
+            if (arenaHP >= arenaMaxHP) return;
+            
+            var heal = Math.floor(arenaMaxHP * 0.02);
+            arenaHP = Math.min(arenaMaxHP, arenaHP + heal);
+            
+            var hpEl = document.getElementById("arenaHP");
+            if (hpEl) hpEl.innerText = Math.ceil(arenaHP);
+            
+            spawnFloatingText(heart.x, heart.y - 25, "+" + heal + " 🌊", "#66ccff");
+            
+            for (var i = 0; i < 8; i++) {
+                var ang = (i / 8) * Math.PI * 2;
+                arenaParticles.push({
+                    x: heart.x + Math.cos(ang) * 20,
+                    y: heart.y + Math.sin(ang) * 20,
+                    vx: Math.cos(ang) * 1.5,
+                    vy: Math.sin(ang) * 1.5 - 1,
+                    life: 30, maxLife: 30,
+                    color: "#66ccff", size: 3
+                });
             }
-            ctx.restore(); return;
+            
+            playArenaSound(600, 'sine', 0.15, 0.05);
         }
+    } catch(e) {}
+}
 
-        if (a.type === "roger_slash") {
-            ctx.save();
-            let isHorizontal = (a.direction === "horizontal");
-            if (a.state === "warning") {
-                let pulseAlpha = 0.4 + Math.sin(performance.now() / 100) * 0.2;
-                ctx.globalAlpha = pulseAlpha; ctx.fillStyle = a.color || "#ff4400";
-                if (isHorizontal) {
-                    ctx.fillRect(0, a.y - a.width / 2, 400, a.width);
-                    ctx.globalAlpha = 1; ctx.strokeStyle = "#000000"; ctx.lineWidth = 2.5;
-                    ctx.setLineDash([12, 8]);
-                    ctx.beginPath(); ctx.moveTo(0, a.y - a.width / 2); ctx.lineTo(400, a.y - a.width / 2);
-                    ctx.moveTo(0, a.y + a.width / 2); ctx.lineTo(400, a.y + a.width / 2); ctx.stroke();
-                    ctx.setLineDash([]); ctx.fillStyle = "#000";
-                    ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("⚠️", 200, a.y + 4);
-                } else {
-                    ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
-                    ctx.globalAlpha = 1; ctx.strokeStyle = "#000000"; ctx.lineWidth = 2.5;
-                    ctx.setLineDash([12, 8]);
-                    ctx.beginPath(); ctx.moveTo(a.x - a.width / 2, 0); ctx.lineTo(a.x - a.width / 2, 500);
-                    ctx.moveTo(a.x + a.width / 2, 0); ctx.lineTo(a.x + a.width / 2, 500); ctx.stroke();
-                    ctx.setLineDash([]); ctx.fillStyle = "#000";
-                    ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("⚠️", a.x, 250);
-                }
-            } else if (a.state === "active") {
-                let fade = Math.min(1, a.activeTimer / 10);
-                ctx.globalAlpha = fade;
-                if (isHorizontal) {
-                    ctx.fillStyle = a.color || "#ff2200";
-                    ctx.fillRect(0, a.y - a.width / 2, 400, a.width);
-                    ctx.fillStyle = "#000000";
-                    ctx.fillRect(0, a.y - a.width * 0.15, 400, a.width * 0.3);
-                } else {
-                    ctx.fillStyle = a.color || "#ff2200";
-                    ctx.fillRect(a.x - a.width / 2, 0, a.width, 500);
-                    ctx.fillStyle = "#000000";
-                    ctx.fillRect(a.x - a.width * 0.15, 0, a.width * 0.3, 500);
-                }
-            }
-            ctx.restore(); return;
-        }
+function drawActiveBuffs() {
+    if (!ctx || typeof _superState === 'undefined') return;
+    var lines = [];
+    if (_superState.dekusActive) lines.push("⚡Деку: 100%");
+    if (_superState.borosHeal && _superState.borosHeal.active) { var remain = (_superState.borosHeal.totalDuration - _superState.borosHeal.elapsed).toFixed(1); lines.push("💚Борос: реген " + remain + "с"); }
+    if (_superState.usoppInvuln) lines.push("⭐Усопп: неуязвим");
+    if (_superState.usoppStunTimer > 0) lines.push("💫Усопп: оглушение " + _superState.usoppStunTimer.toFixed(1) + "с");
+    if (_superState.nikaActive) lines.push("☀️Луффи: Ника");
+    if (_superState.garouInvulnTimer > 0) lines.push("🟠Гароу: неуязвимость " + _superState.garouInvulnTimer.toFixed(1) + "с");
+    if (_superState.garpChargeTimer > 0) lines.push("🔴Гарп: зарядка Хаки " + _superState.garpChargeTimer.toFixed(1) + "с");
+    if (_superState.garpHakiActive) lines.push("🔴Гарп: Хаки " + _superState.garpHakiTimer.toFixed(1) + "с");
+    if (_superState.imAuraActive) lines.push("🟣Им: аура");
+    if (_superState.antispiralActive) lines.push("🔵Анти-спираль: сжатие");
+    if (_superState.dandyInvuln) lines.push("🌟Дэнди: неуязвимость");
+    if (_superState.dandyShield && _superState.dandyShield.timer > 0) lines.push("🛡️Дэнди: щит " + _superState.dandyShield.timer.toFixed(1) + "с");
+    if (_superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) lines.push("☠️Дэнди: уязвимость " + _superState.dandyVulnerable.timer.toFixed(1) + "с");
+    if (_superState.dandyDmgBuff && _superState.dandyDmgBuff.timer > 0) lines.push("⚔️Дэнди: урон x" + _superState.dandyDmgBuff.mult + " " + _superState.dandyDmgBuff.timer.toFixed(1) + "с");
+    if (_superState.dandyLightnings) lines.push("⚡Дэнди: молнии");
+    if (_superState.dandyDarkness > 0) lines.push("🌑Дэнди: темнота " + _superState.dandyDarkness.toFixed(1) + "с");
+    if (_superState.dandyAura > 0) lines.push("🔥Дэнди: аура " + _superState.dandyAura.toFixed(1) + "с");
+    if (_superState.dandyLava > 0) lines.push("🌋Дэнди: лава " + _superState.dandyLava.toFixed(1) + "с");
+    if (_superState.dandyAutoRevive) lines.push("💫Дэнди: воскрешение готово");
+    if (_superState.kaidoDrinking) lines.push("🍺Кайдо: глоток");
+    if (_superState.kaidoBuffActive) lines.push("🔥Кайдо: ярость");
+    if (_superState.allmightBuffTimer > 0) lines.push("💛Всемогущий: бафф " + _superState.allmightBuffTimer.toFixed(1) + "с");
+    if (_superState.allmightPermaSlow) lines.push("💔Всемогущий: истощён НАВСЕГДА");
+    if (_superState.markBuffActive) lines.push("💛Марк: бафф " + _superState.markBuffTimer.toFixed(1) + "с");
+    if (_superState.invertControls) lines.push("🔄Инверт упр.");
+    if (lines.length === 0) return;
+    var textX = 14, textY = 52, lineHeight = 12, padding = 4, maxWidth = 0;
+    ctx.font = "bold 9px monospace";
+    for (var li = 0; li < lines.length; li++) { var w = ctx.measureText(lines[li]).width; if (w > maxWidth) maxWidth = w; }
+    ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(textX - padding, textY - padding - 2, maxWidth + padding * 2, lines.length * lineHeight + padding * 2);
+    ctx.strokeStyle = "rgba(255,255,255,0.2)"; ctx.lineWidth = 1; ctx.strokeRect(textX - padding, textY - padding - 2, maxWidth + padding * 2, lines.length * lineHeight + padding * 2);
+    ctx.fillStyle = "#ffffff"; ctx.font = "bold 9px monospace"; ctx.textBaseline = "middle";
+    for (var li = 0; li < lines.length; li++) { ctx.fillText(lines[li], textX, textY + li * lineHeight); }
+}
 
-        if (a.type === "roger_cross") {
-            ctx.save();
-            let angle = 0;
-            if (a.dir === "vertical") angle = 0;
-            else if (a.dir === "horizontal") angle = Math.PI / 2;
-            ctx.translate(a.x, a.y); ctx.rotate(angle);
-            if (a.state === "warning") {
-                let pulseAlpha = 0.4 + Math.sin(performance.now() / 100) * 0.2;
-                ctx.globalAlpha = pulseAlpha; ctx.fillStyle = "#ff6600";
-                ctx.fillRect(-a.width / 2, -a.length / 2, a.width, a.length);
-                ctx.globalAlpha = 1; ctx.strokeStyle = "#000000"; ctx.lineWidth = 2.5;
-                ctx.setLineDash([12, 8]);
-                ctx.strokeRect(-a.width / 2, -a.length / 2, a.width, a.length);
-                ctx.setLineDash([]);
-            } else if (a.state === "active") {
-                let fade = Math.min(1, a.activeTimer / 8);
-                ctx.globalAlpha = fade;
-                ctx.fillStyle = "#ff4400";
-                ctx.fillRect(-a.width / 2, -a.length / 2, a.width, a.length);
-                ctx.fillStyle = "#000000";
-                ctx.fillRect(-a.width * 0.15, -a.length / 2, a.width * 0.3, a.length);
-            }
-            ctx.restore(); return;
-        }
+function drawMarkResurrections() {
+    if (!ctx || typeof _superState === 'undefined') return;
+    var mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
+    if (!mainCard || mainCard.name !== "Император Марк") return;
+    if (_superState.markResurrectCharges <= 0) return;
+    var text = "💀Марк: воскрешения " + _superState.markResurrectCharges;
+    ctx.save(); ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.font = "bold 9px monospace"; var w = ctx.measureText(text).width + 8;
+    ctx.fillRect(14, 48, w, 14); ctx.strokeStyle = "rgba(255,215,0,0.5)"; ctx.lineWidth = 1; ctx.strokeRect(14, 48, w, 14);
+    ctx.fillStyle = "#ffd700"; ctx.fillText(text, 18, 58); ctx.restore();
+}
 
-        if (a.type === "hell_fire") {
-            ctx.save();
-            if (a.state === "flying") {
-                ctx.fillStyle = "#ff3300"; ctx.beginPath(); ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = "#000000"; ctx.lineWidth = 2; ctx.stroke();
-                ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.arc(a.x, a.y, a.size * 0.6, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = "#000000";
-                ctx.beginPath(); ctx.arc(a.x, a.y, a.size * 0.3, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = "rgba(255, 50, 50, 0.7)"; ctx.lineWidth = 2;
-                ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.arc(a.targetX, a.targetY, 30, 0, Math.PI * 2); ctx.stroke();
-                ctx.setLineDash([]);
-            } else if (a.state === "exploding") {
-                let p = 1 - a.explosionTimer / 50; let r = 70 * p;
-                ctx.globalAlpha = 1 - p;
-                ctx.fillStyle = "#ff4400"; ctx.beginPath(); ctx.arc(a.x, a.y, r, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = "#000000"; ctx.lineWidth = 3; ctx.stroke();
-            }
-            ctx.restore(); return;
-        }
+function drawObesityWarning() {
+    if (!ctx) return;
+    if (typeof obesityPoints === 'undefined') return;
+    if (obesityPoints < 40) return;
+    var obName = "ОЖИРЕНИЕ";
+    var obColor = "#e67e22";
+    if (obesityPoints >= 60) { obName = "ОЖИРЕНИЕ III"; obColor = "#e74c3c"; }
+    else if (obesityPoints >= 40) { obName = "ОЖИРЕНИЕ II"; obColor = "#e67e22"; }
+    var obIcon = "🍔";
+    var text = obIcon + " " + obName + " (" + obesityPoints + "/60)";
+    ctx.save();
+    var w = 180, h = 22;
+    var x = 200 - w / 2;
+    var y = 470;
+    var pulse = 0.7 + Math.abs(Math.sin(performance.now() / 300)) * 0.3;
+    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+    ctx.strokeStyle = obColor;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = pulse;
+    ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
+    ctx.globalAlpha = 1;
+    ctx.font = "bold 12px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = obColor;
+    ctx.fillText(text, 200, y + h / 2);
+    ctx.restore();
+}
 
-        if (a.type === "fire_piece") {
-            ctx.save();
-            ctx.fillStyle = "#ff4400"; ctx.beginPath(); ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = "#000000"; ctx.lineWidth = 1.5; ctx.stroke();
-            ctx.restore(); return;
-        }
-
-        if (a.type === "gura_crack") {
-            ctx.save();
-            if (a.state === "warning") {
-                let pulseAlpha = 0.5 + Math.sin(performance.now() / 80) * 0.3;
-                ctx.globalAlpha = pulseAlpha; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.arc(a.x, a.y, a.maxRadius, 0, Math.PI * 2); ctx.stroke();
-                ctx.beginPath(); ctx.arc(a.x, a.y, a.maxRadius * 0.5, 0, Math.PI * 2); ctx.stroke();
-                ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff";
-                ctx.font = "bold 14px monospace"; ctx.textAlign = "center"; ctx.fillText("💥", a.x, a.y + 5);
-            } else if (a.state === "active") {
-                let fade = a.activeTimer / a.maxActive; ctx.globalAlpha = fade;
-                ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(a.x, a.y, a.radius, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = "#aaddff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(a.x, a.y, a.radius, 0, Math.PI * 2); ctx.stroke();
-            }
-            ctx.restore(); return;
-        }
-
-        if (a.type === "titan_fist") {
-            ctx.save(); ctx.translate(a.x, a.y);
-            if (a.state === "falling") {
-                ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = "#000000";
-                ctx.beginPath(); ctx.ellipse(0, 400 - a.y, a.size * 1.1, 18, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.restore();
-                ctx.fillStyle = "#8B7355"; ctx.beginPath(); ctx.arc(0, 0, a.size, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = "#1a1008"; ctx.lineWidth = 4; ctx.stroke();
-                ctx.fillStyle = "#a89070";
-                for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.arc(i * a.size * 0.3, -a.size * 0.3, a.size * 0.18, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#1a1008"; ctx.lineWidth = 2; ctx.stroke(); }
-            } else if (a.state === "impact") {
-                let p = 1 - a.impactTimer / 30; let r = a.size * 1.2 + 50 * p;
-                ctx.globalAlpha = 1 - p; ctx.fillStyle = "#ff4400";
-                ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = "#000000"; ctx.lineWidth = 3; ctx.stroke();
-            }
-            ctx.restore(); return;
-        }
-
-        if (a.type === "haki_wave") {
-            ctx.save(); ctx.translate(a.x, a.y);
-            ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.ellipse(0, 0, a.size * 1.3, a.size * 0.8, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "#ff6600"; ctx.beginPath(); ctx.ellipse(0, 0, a.size, a.size * 0.6, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.ellipse(0, 0, a.size * 0.5, a.size * 0.3, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.restore(); return;
-        }
-
-        ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0);
-        if (a.type === "blade" || a.type === "big_blade") {
-            ctx.fillStyle = "#000000";
-            ctx.beginPath(); ctx.moveTo(0, -a.size - 3); ctx.lineTo(a.size * 0.4 + 2, 0); ctx.lineTo(0, a.size + 3); ctx.lineTo(-a.size * 0.4 - 2, 0); ctx.closePath(); ctx.fill();
-            ctx.fillStyle = a.color;
-            ctx.beginPath(); ctx.moveTo(0, -a.size); ctx.lineTo(a.size * 0.4, 0); ctx.lineTo(0, a.size); ctx.lineTo(-a.size * 0.4, 0); ctx.closePath(); ctx.fill();
-            ctx.fillStyle = "#000000";
-            ctx.beginPath(); ctx.moveTo(0, -a.size * 0.6); ctx.lineTo(a.size * 0.15, 0); ctx.lineTo(0, a.size * 0.6); ctx.lineTo(-a.size * 0.15, 0); ctx.closePath(); ctx.fill();
-        } else if (a.type === "fist") {
-            let isWhitebeardFist = (a.color === "#ffffff");
-            ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(0, 0, a.size + 3, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = a.color; ctx.beginPath(); ctx.arc(0, 0, a.size, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = isWhitebeardFist ? "#ffffff" : "#000000";
-            ctx.beginPath(); ctx.arc(0, 0, a.size * 0.6, 0, Math.PI * 2); ctx.fill();
-        }
-        ctx.restore();
-    }
-
-    function drawRock(a) {
-        ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0);
-        let s = a.size, seed = a.textureSeed || 0;
-        let points = []; let sides = 6;
-        for (let i = 0; i < sides; i++) {
-            let ang = (i / sides) * Math.PI * 2 - Math.PI / 2;
-            let noise = Math.sin(seed + i * 1.7) * 0.15;
-            let r = s * (1 + noise);
-            points.push({ x: Math.cos(ang) * r, y: Math.sin(ang) * r });
-        }
-        let grad = ctx.createRadialGradient(-s * 0.3, -s * 0.3, s * 0.1, 0, 0, s * 1.2);
-        grad.addColorStop(0, "#a89070"); grad.addColorStop(0.6, "#8B7355"); grad.addColorStop(1, "#3a2818");
-        ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#1a1008"; ctx.lineWidth = 2.5; ctx.stroke();
-        ctx.strokeStyle = "rgba(30, 20, 10, 0.7)"; ctx.lineWidth = 1.5;
-        for (let i = 0; i < 2; i++) {
-            let ang1 = (seed + i * 1.3) % (Math.PI * 2); let ang2 = ang1 + 1.2;
-            ctx.beginPath(); ctx.moveTo(Math.cos(ang1) * s * 0.3, Math.sin(ang1) * s * 0.3);
-            ctx.lineTo(Math.cos(ang2) * s * 0.8, Math.sin(ang2) * s * 0.8); ctx.stroke();
-        }
-        ctx.fillStyle = "rgba(255, 255, 255, 0.3)"; ctx.beginPath();
-        ctx.arc(-s * 0.3, -s * 0.35, s * 0.15, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-    }
-
-    function drawGiantRock(a) {
-        ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0);
-        let s = a.size, seed = a.textureSeed || 0;
-        let points = []; let sides = 8;
-        for (let i = 0; i < sides; i++) {
-            let ang = (i / sides) * Math.PI * 2 - Math.PI / 2;
-            let noise = Math.sin(seed + i * 1.7) * 0.12;
-            let r = s * (1 + noise);
-            points.push({ x: Math.cos(ang) * r, y: Math.sin(ang) * r });
-        }
-        ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = "#000000";
-        ctx.beginPath(); ctx.ellipse(0, 480 - a.y, s * 0.9, 12, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-        let grad = ctx.createRadialGradient(-s * 0.3, -s * 0.3, s * 0.1, 0, 0, s * 1.3);
-        grad.addColorStop(0, "#b8a080"); grad.addColorStop(0.5, "#8B7355"); grad.addColorStop(1, "#2a1808");
-        ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#1a1008"; ctx.lineWidth = 4; ctx.stroke();
-        ctx.strokeStyle = "rgba(30, 20, 10, 0.8)"; ctx.lineWidth = 2;
-        for (let i = 0; i < 4; i++) {
-            let ang1 = (seed + i * 1.3) % (Math.PI * 2); let ang2 = ang1 + 1.2;
-            ctx.beginPath(); ctx.moveTo(Math.cos(ang1) * s * 0.2, Math.sin(ang1) * s * 0.2);
-            ctx.lineTo(Math.cos(ang2) * s * 0.8, Math.sin(ang2) * s * 0.8); ctx.stroke();
-        }
-        ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
-        ctx.beginPath(); ctx.arc(-s * 0.3, -s * 0.35, s * 0.18, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(-s * 0.15, -s * 0.5, s * 0.08, 0, Math.PI * 2); ctx.fill();
-        if (a.hp !== undefined && a.hp < a.maxHp) {
-            let barW = s * 1.6, barH = 8;
-            let barX = -barW / 2, barY = -s - 25;
-            ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
-            ctx.fillStyle = "#333"; ctx.fillRect(barX, barY, barW, barH);
-            ctx.fillStyle = "#e74c3c"; ctx.fillRect(barX, barY, barW * (a.hp / a.maxHp), barH);
-            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, barH);
-            ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
-            ctx.fillText(a.hp + "/" + a.maxHp, 0, barY + barH - 2);
-        }
-        ctx.restore();
-    }
-
-    function drawTsunami(a) {
-        ctx.save();
-        let cy = a.y, w = a.currentWidth || a.width, h = a.currentHeight || a.height;
-        let waveTime = a.waveTime, fromRight = a.fromRight;
-        if (a.y > 0 && a.y < 500) {
-            ctx.save();
-            ctx.globalAlpha = 0.15 + Math.sin(performance.now() / 200) * 0.08;
-            ctx.fillStyle = "#00ff00";
-            if (fromRight) ctx.fillRect(0, cy - h / 2, a.x, h);
-            else ctx.fillRect(a.width, cy - h / 2, 400 - a.width, h);
-            ctx.restore();
-        }
-        let grad = ctx.createLinearGradient(0, cy - h / 2, 0, cy + h / 2);
-        if (fromRight) { grad.addColorStop(0, "#003366"); grad.addColorStop(0.3, "#0088dd"); grad.addColorStop(0.7, "#00ccff"); grad.addColorStop(1, "#003366"); }
-        else { grad.addColorStop(0, "#003366"); grad.addColorStop(0.3, "#00aaff"); grad.addColorStop(0.7, "#00ddff"); grad.addColorStop(1, "#003366"); }
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        if (fromRight) {
-            ctx.moveTo(a.x, cy - h / 2);
-            for (let i = 0; i <= 20; i++) { let t = i / 20; let x = a.x + t * w; let yTop = cy - h / 2 + Math.sin(t * Math.PI * 3 + waveTime * 2) * 10; ctx.lineTo(x, yTop); }
-            for (let i = 20; i >= 0; i--) { let t = i / 20; let x = a.x + t * w; let yBot = cy + h / 2 + Math.sin(t * Math.PI * 3 + waveTime * 2) * 10; ctx.lineTo(x, yBot); }
+// ★★★ ТАКАБА: показать шутку ★★★
+function drawTakabaJoke() {
+    if (!ctx || typeof _superState === 'undefined') return;
+    if (!_superState.takabaJokeActive) return;
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    ctx.fillRect(30, 200, 340, 100);
+    ctx.strokeStyle = "#ff66ff";
+    ctx.lineWidth = 3;
+    ctx.shadowColor = "#ff66ff";
+    ctx.shadowBlur = 20;
+    ctx.strokeRect(30, 200, 340, 100);
+    ctx.shadowBlur = 0;
+    
+    ctx.font = "bold 12px monospace";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ff66ff";
+    ctx.fillText("🎭 ТАКАБА ГОВОРИТ:", 200, 220);
+    
+    ctx.font = "bold 11px monospace";
+    ctx.fillStyle = "#ffffff";
+    var words = _superState.takabaCurrentJoke.split(' ');
+    var line = '';
+    var y = 245;
+    for (var i = 0; i < words.length; i++) {
+        var testLine = line + words[i] + ' ';
+        if (testLine.length > 40 && line.length > 0) {
+            ctx.fillText(line, 200, y);
+            y += 16;
+            line = words[i] + ' ';
         } else {
-            ctx.moveTo(0, cy - h / 2);
-            for (let i = 0; i <= 20; i++) { let t = i / 20; let x = t * w; let yTop = cy - h / 2 + Math.sin(t * Math.PI * 3 + waveTime * 2) * 10; ctx.lineTo(x, yTop); }
-            for (let i = 20; i >= 0; i--) { let t = i / 20; let x = t * w; let yBot = cy + h / 2 + Math.sin(t * Math.PI * 3 + waveTime * 2) * 10; ctx.lineTo(x, yBot); }
+            line = testLine;
         }
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#001a33"; ctx.lineWidth = 3; ctx.stroke();
-        ctx.fillStyle = "#ffffff";
-        for (let i = 0; i <= 20; i++) { let t = i / 20; let x = fromRight ? a.x + t * w : t * w; let yTop = cy - h / 2 + Math.sin(t * Math.PI * 3 + waveTime * 2) * 10; ctx.beginPath(); ctx.arc(x, yTop, 3, 0, Math.PI * 2); ctx.fill(); }
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.5)"; ctx.lineWidth = 2;
-        for (let li = 0; li < 3; li++) {
-            let lineOffset = -h * 0.2 + li * h * 0.2;
+    }
+    if (line) ctx.fillText(line, 200, y);
+    
+    ctx.restore();
+}
+
+function renderArena() {
+    if (!arenaActive || !ctx) return;
+    if (typeof tickSupers === 'function') tickSupers();
+    if (typeof arenaSettings !== 'undefined' && arenaSettings.autoSuper) {
+        var mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
+        if (mainCard && typeof _superCooldowns !== 'undefined' && _superCooldowns[mainCard.name] && _superCooldowns[mainCard.name].ready) {
+            if (typeof hasMasterySuper !== 'function' || hasMasterySuper(mainCard)) {
+                if (typeof toggleSuper === 'function') toggleSuper();
+            }
+        }
+    }
+    var now = Date.now();
+    // ★ ФИКС: Такаба замораживает всех ★
+    var takabaFreeze = (typeof _superState !== 'undefined' && _superState.takabaTimeStop);
+    
+    if (arenaPhase === "dodge" && !takabaFreeze) { moveHeart(); if (arenaAllowedTypes.includes(10) && !heartWasMoving) { var bw = arenaCurrentWave; var ct = bw >= 700 ? 70 : (bw >= 350 ? 90 : 110); if (heartStandingTime > ct) { spawnBlaster(bw); heartStandingTime = 0; } } }
+    if (arenaKarma > 0) { var drain = Math.max(0.15, arenaKarma * 0.05); if (arenaKarma < drain) drain = arenaKarma; arenaKarma -= drain; if (arenaHP > 1) { arenaHP -= drain; if (arenaHP < 1) arenaHP = 1; } document.getElementById("arenaHP").innerText = Math.max(0, Math.ceil(arenaHP)); }
+    if (ghostBossHP > arenaBossMaxHP) { ghostBossHP -= (ghostBossHP - arenaBossMaxHP) * 0.08; if (ghostBossHP - arenaBossMaxHP < 1) ghostBossHP = arenaBossMaxHP; }
+    if (ghostBossHP < arenaBossMaxHP) ghostBossHP = arenaBossMaxHP;
+    
+    // ★ БЕЛОУС: регенерация ★
+    tickWhitebeardRegenArena(1/60);
+    
+    var superShakeX = 0, superShakeY = 0;
+    if (typeof _superState !== 'undefined' && _superState.screenShakeAmount > 0) { superShakeX = (Math.random() - 0.5) * _superState.screenShakeAmount; superShakeY = (Math.random() - 0.5) * _superState.screenShakeAmount; }
+
+    var sx = 0, sy = 0;
+    if (arenaShake > 0.1) {
+        arenaShake *= 0.88;
+        if (arenaShake < 0.15) arenaShake = 0;
+        sx = (Math.random() - 0.5) * arenaShake + superShakeX;
+        sy = (Math.random() - 0.5) * arenaShake + superShakeY;
+    } else {
+        arenaShake = 0;
+        sx = superShakeX;
+        sy = superShakeY;
+    }
+
+    if (arenaHitFlash > 0) arenaHitFlash -= 3; if (invulnTimer > 0) invulnTimer--; if (arenaComboTimer > 0) arenaComboTimer--;
+    if (wallGapIndicator) { wallGapIndicator.life--; if (wallGapIndicator.life <= 0) wallGapIndicator = null; }
+    if (screenFlash > 0) screenFlash--; if (arenaVignette > 0) arenaVignette--;
+    var effectsOpacity = (typeof arenaSettings !== 'undefined') ? arenaSettings.effectsOpacity : 1.0;
+    ctx.save(); if (effectsOpacity < 1.0) ctx.globalAlpha = effectsOpacity;
+    ctx.translate(sx, sy); ctx.clearRect(-15, -15, 430, 530); ctx.fillStyle = "#03030b"; ctx.fillRect(0, 0, 400, 500);
+    
+    // ★ ТАКАБА: цветной фон ★
+    if (typeof _superState !== 'undefined' && _superState.takabaBgColor) {
+        ctx.save();
+        ctx.globalAlpha = 0.15;
+        ctx.fillStyle = _superState.takabaBgColor;
+        ctx.fillRect(0, 0, 400, 500);
+        ctx.restore();
+    }
+    
+    if (typeof _superState !== 'undefined' && _superState.screenFlashWhite > 0) { ctx.save(); ctx.fillStyle = "#ffffff"; ctx.globalAlpha = Math.min(1, _superState.screenFlashWhite / 20); ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
+    if (screenFlash > 0) { ctx.save(); ctx.fillStyle = screenFlashColor; ctx.globalAlpha = screenFlash / 25; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
+    if (arenaVignette > 0) { ctx.save(); var vignetteGrad = ctx.createRadialGradient(200, 250, 150, 200, 250, 350); vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)'); vignetteGrad.addColorStop(1, 'rgba(255,0,0,' + (arenaVignette / 30) + ')'); ctx.fillStyle = vignetteGrad; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
+    if (typeof _superState !== 'undefined' && _superState.dandyDarkness > 0) { ctx.save(); ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
+    ctx.save(); ctx.strokeStyle = "rgba(255,255,255,0.02)"; ctx.lineWidth = 1; var step = 25;
+    for (var x = 0; x <= 400; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 500); ctx.stroke(); }
+    for (var y = 0; y <= 500; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(400, y); ctx.stroke(); } ctx.restore();
+    var bgCap = 25; if (arenaBgParticles.length < bgCap) { arenaBgParticles.push({ x: Math.random() * 400, y: Math.random() * 500, spd: 0.1 + Math.random() * 0.3, sz: 1 + Math.random() * 2, alpha: 0.08 + Math.random() * 0.2 }); }
+    ctx.save(); for (var bpi = 0; bpi < arenaBgParticles.length; bpi++) { var bp = arenaBgParticles[bpi]; bp.y += bp.spd; if (bp.y > 500) { bp.y = 0; bp.x = Math.random() * 400; } ctx.fillStyle = "#ffffff"; ctx.globalAlpha = bp.alpha; ctx.fillRect(bp.x, bp.y, bp.sz, bp.sz); } ctx.restore();
+    var bc = arenaPhase === "attack" ? "#ffdd00" : (["#fff", "#4499ff", "#ffdd00", "#ff3333", "#ff69b4", "#44ff44", "rainbow", "#ffaa00", "#ff3333", "#ff3333", "#fff"][arenaAttackType] || "#fff");
+    if (bc === "rainbow" || arenaAttackType === 6) bc = "hsl(" + ((now / 5) % 360) + ",100%,50%)"; if (arenaHitFlash > 0) bc = "#ff3333";
+    ctx.save(); ctx.strokeStyle = bc; ctx.lineWidth = 3; ctx.shadowColor = bc; ctx.shadowBlur = arenaHitFlash > 0 ? 18 : 8; ctx.strokeRect(2, 2, 396, 496); ctx.restore();
+    if (arenaAttackType === 4 && arenaPhase === "dodge") { ctx.save(); var spikeGlow = Math.sin(now / 200) * 0.3 + 0.7; ctx.fillStyle = "#ff3333"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 10 * spikeGlow; for (var x = 0; x < 400; x += 15) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 7, 18); ctx.lineTo(x + 15, 0); ctx.fill(); } for (var x = 0; x < 400; x += 15) { ctx.beginPath(); ctx.moveTo(x, 500); ctx.lineTo(x + 7, 482); ctx.lineTo(x + 15, 500); ctx.fill(); } for (var y = 0; y < 500; y += 15) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(18, y + 7); ctx.lineTo(0, y + 15); ctx.fill(); } for (var y = 0; y < 500; y += 15) { ctx.beginPath(); ctx.moveTo(400, y); ctx.lineTo(382, y + 7); ctx.lineTo(400, y + 15); ctx.fill(); } ctx.restore(); }
+    ctx.fillStyle = "rgba(10,10,20,0.9)"; ctx.fillRect(8, 6, 384, 22);
+    var totalWidth = 372 * Math.max(0, arenaHP / arenaMaxHP), yellowWidth = 372 * Math.max(0, arenaKarma / arenaMaxHP);
+    if (yellowWidth > totalWidth) yellowWidth = totalWidth; var greenWidth = totalWidth - yellowWidth;
+    ctx.fillStyle = "#301010"; ctx.fillRect(14, 14, 372, 6);
+    if (greenWidth > 0) { ctx.fillStyle = arenaHitFlash > 0 ? "#fff" : "#00ff66"; ctx.fillRect(14, 14, greenWidth, 6); }
+    if (yellowWidth > 0) { var karmaGlow = Math.sin(now / 120) * 0.2 + 0.8; ctx.fillStyle = "#ffaa00"; ctx.globalAlpha = karmaGlow; ctx.fillRect(14 + greenWidth, 14, yellowWidth, 6); ctx.globalAlpha = 1; }
+    ctx.fillStyle = "#fff"; ctx.font = "bold 10px monospace"; ctx.shadowColor = "#000"; ctx.shadowBlur = 2; ctx.fillText("❤️ HP: " + Math.max(0, Math.ceil(arenaHP)) + " / " + arenaMaxHP, 16, 24); ctx.shadowBlur = 0;
+    drawMarkResurrections();
+    ctx.fillStyle = "rgba(10,10,20,0.9)"; ctx.fillRect(8, 32, 384, 14);
+    var maxHp = (typeof currentEnemy !== 'undefined' && currentEnemy) ? currentEnemy.maxHp : 1000;
+    ctx.fillStyle = "#202020"; ctx.fillRect(14, 37, 372, 4); ctx.fillStyle = "#ff3333"; ctx.fillRect(14, 37, 372 * Math.max(0, ghostBossHP / maxHp), 4);
+    var bossGlow = Math.sin(now / 250) * 0.15 + 0.85; ctx.fillStyle = "#ffdd00"; ctx.globalAlpha = bossGlow; ctx.fillRect(14, 37, 372 * Math.max(0, arenaBossMaxHP / maxHp), 4); ctx.globalAlpha = 1;
+    ctx.fillStyle = "#ccc"; ctx.font = "bold 9px monospace"; ctx.fillText("👾 " + arenaBoss, 16, 43);
+    drawActiveBuffs();
+    if (arenaComboTimer > 0 && arenaComboText) { ctx.save(); var comboAlpha = Math.min(1, arenaComboTimer / 20); ctx.fillStyle = "rgba(255,255,255," + comboAlpha + ")"; ctx.font = "bold 22px sans-serif"; ctx.textAlign = "center"; ctx.shadowColor = "#ffdd00"; ctx.shadowBlur = 15; ctx.fillText(arenaComboText, 200, 260); ctx.restore(); }
+
+    if (wallGapIndicator && wallGapIndicator.life > 0) {
+        ctx.save();
+        var alpha = Math.min(1, wallGapIndicator.life / 20);
+        var pulse = Math.sin(now / 200) * 0.2 + 0.8;
+        ctx.fillStyle = "rgba(46,204,113," + (0.20 * alpha * pulse) + ")";
+        ctx.strokeStyle = "rgba(46,204,113," + (0.45 * alpha) + ")";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.lineDashOffset = -now / 30;
+        if (wallGapIndicator.vertical) {
+            ctx.fillRect(wallGapIndicator.x, wallGapIndicator.y - wallGapIndicator.h / 2, wallGapIndicator.w, wallGapIndicator.h);
+            ctx.strokeRect(wallGapIndicator.x, wallGapIndicator.y - wallGapIndicator.h / 2, wallGapIndicator.w, wallGapIndicator.h);
+        } else {
+            ctx.fillRect(wallGapIndicator.x - wallGapIndicator.w / 2, wallGapIndicator.y, wallGapIndicator.w, wallGapIndicator.h);
+            ctx.strokeRect(wallGapIndicator.x - wallGapIndicator.w / 2, wallGapIndicator.y, wallGapIndicator.w, wallGapIndicator.h);
+        }
+        ctx.setLineDash([]);
+        if (wallGapIndicator.life > 30 && wallGapIndicator.arrowToX !== undefined && wallGapIndicator.arrowToY !== undefined) {
+            var ax1 = wallGapIndicator.arrowFromX;
+            var ay1 = wallGapIndicator.arrowFromY;
+            var ax2 = wallGapIndicator.arrowToX;
+            var ay2 = wallGapIndicator.arrowToY;
+            var midX, midY;
+            if (wallGapIndicator.vertical) {
+                if (Math.abs(ay1 - ay2) < 10) { midX = ax2; midY = ay2; }
+                else { midX = ax1; midY = ay2; }
+            } else {
+                if (Math.abs(ax1 - ax2) < 10) { midX = ax2; midY = ay2; }
+                else { midX = ax2; midY = ay1; }
+            }
+            var points = [{ x: ax1, y: ay1 }, { x: midX, y: midY }, { x: ax2, y: ay2 }];
+            var cleanPoints = [points[0]];
+            for (var p = 1; p < points.length; p++) {
+                var prev = cleanPoints[cleanPoints.length - 1];
+                if (Math.abs(prev.x - points[p].x) > 2 || Math.abs(prev.y - points[p].y) > 2) cleanPoints.push(points[p]);
+            }
+            ctx.strokeStyle = "rgba(46,255,113," + (0.9 * alpha) + ")";
+            ctx.lineWidth = 3;
+            ctx.shadowColor = "#2ecc71";
+            ctx.shadowBlur = 12;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
             ctx.beginPath();
-            for (let i = 0; i <= 20; i++) { let t = i / 20; let x = fromRight ? a.x + t * w : t * w; let y = cy + lineOffset + Math.sin(t * Math.PI * 4 + waveTime * 2 + li) * 4; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+            ctx.moveTo(cleanPoints[0].x, cleanPoints[0].y);
+            for (var p = 1; p < cleanPoints.length; p++) ctx.lineTo(cleanPoints[p].x, cleanPoints[p].y);
             ctx.stroke();
+            if (cleanPoints.length >= 2) {
+                var last = cleanPoints[cleanPoints.length - 1];
+                var beforeLast = cleanPoints[cleanPoints.length - 2];
+                var angle = Math.atan2(last.y - beforeLast.y, last.x - beforeLast.x);
+                var arrowSize = 14;
+                ctx.fillStyle = "rgba(46,255,113," + (0.95 * alpha) + ")";
+                ctx.beginPath();
+                ctx.moveTo(last.x, last.y);
+                ctx.lineTo(last.x - Math.cos(angle - 0.4) * arrowSize, last.y - Math.sin(angle - 0.4) * arrowSize);
+                ctx.lineTo(last.x - Math.cos(angle + 0.4) * arrowSize, last.y - Math.sin(angle + 0.4) * arrowSize);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.strokeStyle = "rgba(46,255,113," + (0.8 * alpha) + ")";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(ax2, ay2, 10 + Math.sin(now / 100) * 3, 0, Math.PI * 2);
+            ctx.stroke();
+            for (var p = 1; p < cleanPoints.length - 1; p++) {
+                ctx.fillStyle = "rgba(46,255,113," + (0.9 * alpha) + ")";
+                ctx.beginPath();
+                ctx.arc(cleanPoints[p].x, cleanPoints[p].y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.shadowBlur = 0;
         }
         ctx.restore();
     }
 
-    window.getRWBActive = function() { return window.rwbActive === true; };
-    window.getRWBState  = function() { return rwbState; };
-    window.startRogerWhitebeardFight = startRogerWhitebeardFight;
-    window.stopRogerWhitebeardFight = stopRogerWhitebeardFight;
-    window.updateRWBPlayer = updateRWBPlayer;
-    window.updateRWBPlayerBullets = updateRWBPlayerBullets;
-    window.getRWBPlayer = function() { return rwbPlayer; };
-    window.getRWBBullets = function() { return rwbPlayerBullets; };
-    window.getRWBAttacks = function() { return rwbAttacks; };
-    window.getRWBKeys = function() { return rwbKeys; };
-    window.getRWBTouch = function() { return { active: rwbTouchActive, x: rwbTouchX, y: rwbTouchY }; };
-    window.rwbSound = rwbSound;
-    window.rwbAddShake = function(v) { rwbShake = Math.max(rwbShake, v); };
-    window.rwbAddFlash = function(v, color) { rwbScreenFlash = v; if (color) rwbScreenFlashColor = color; };
-    window.rwbAddFlashWhite = function(v) { rwbScreenFlash = Math.max(rwbScreenFlash, v); rwbScreenFlashColor = "#ffffff"; };
-    window.rwbAddShockwave = function(x, y, color, speed, life, width) {
-        rwbShockwaves.push({ x: x, y: y, radius: 10, maxRadius: 200, speed: speed, color: color, life: life, maxLife: life, width: width || 4 });
-    };
-    window.getRWBBaseSpeed = function() { return rwbBaseSpeed; };
-    window.setRWBBaseSpeed = function(v) { rwbBaseSpeed = v; };
-    window.getRWBSpeedMult = function() { return rwbSpeedMult; };
-    window.setRWBSpeedMult = function(v) { rwbSpeedMult = v; };
-    window.tickWhitebeardRegenRWB = tickWhitebeardRegenRWB;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (var i = arenaTrail.length - 1; i >= 0; i--) { var t = arenaTrail[i]; t.life--; var ratio = Math.max(0, t.life / t.maxLife); var trailRadius = Math.max(0.1, t.size * ratio); ctx.fillStyle = t.color; ctx.globalAlpha = ratio * 0.7; ctx.beginPath(); ctx.arc(t.x, t.y - 2, trailRadius, 0, Math.PI * 2); ctx.fill(); if (t.life <= 0) arenaTrail.splice(i, 1); } ctx.restore();
 
-    console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v19.1                             ║");
-    console.log("║  ✅ Белоус: 10% поглощение в hitPlayer                     ║");
-    console.log("║  ✅ Белоус: реген 2%/5сек в rwbRenderLoop                  ║");
-    console.log("║  ✅ garouTimeStop останавливает ВСЕ атаки                  ║");
-    console.log("║  ✅ Ураган, Анти-спираль, все суперы работают              ║");
-    console.log("╚════════════════════════════════════════════════════════════╝");
+    if (arenaPhase === "dodge" && !takabaFreeze) {
+        var frozen = (typeof _superState !== 'undefined' && _superState.antispiralFrozen), speedMod = arenaGlobalSpeedMod * (typeof _superState !== 'undefined' && _superState.antispiralSpeedBoost ? 1.5 : 1.0), timeStopped = (typeof _superState !== 'undefined' && _superState.garouTimeStop);
+        for (var i = attacks.length - 1; i >= 0; i--) {
+            var a = attacks[i];
+            if (!frozen && !timeStopped) { if (a.spd) a.x += a.spd * speedMod; if (a.spdY) a.y += a.spdY * speedMod; }
+            if (typeof _superState !== 'undefined' && _superState.imAuraActive && invulnTimer <= 0) { var ax = a.x + (a.size || a.radius || 20) / 2, ay = a.y + (a.size || a.radius || 20) / 2; var dist = Math.hypot(ax - heart.x, ay - heart.y); if (dist < 55) { if (Math.random() < 0.5) { attacks.splice(i, 1); arenaParticles.push({ x: ax, y: ay, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ff00ff", size: 5 }); continue; } } }
+            if (typeof _superState !== 'undefined' && _superState.dandyAura > 0) { var ax = a.x + (a.size || a.radius || 20) / 2, ay = a.y + (a.size || a.radius || 20) / 2; if (Math.hypot(ax - heart.x, ay - heart.y) < 60) { attacks.splice(i, 1); arenaParticles.push({ x: ax, y: ay, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 15, maxLife: 15, color: "#ff3300", size: 3 }); continue; } }
+            if (a.type === "bomb") { if (!frozen && !timeStopped) a.timer--; if (a.timer > 0) { ctx.save(); var isFlashing = Math.floor(a.timer / 6) % 2 === 0, bombX = a.x, bombY = a.y; var bombRadius = Math.max(1, 11 + Math.abs(Math.sin(a.timer * 0.45)) * 4); ctx.shadowColor = "#ff3333"; ctx.shadowBlur = isFlashing ? 25 : 10; var gradient = ctx.createRadialGradient(bombX, bombY, Math.max(0.1, bombRadius * 0.2), bombX, bombY, bombRadius); gradient.addColorStop(0, '#ffffff'); gradient.addColorStop(0.3, '#ff6600'); gradient.addColorStop(0.7, '#ff0000'); gradient.addColorStop(1, '#990000'); ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(bombX, bombY, bombRadius, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#8B4513"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bombX, bombY - bombRadius - 2); ctx.quadraticCurveTo(bombX + 5, bombY - bombRadius - 16, bombX + 3, bombY - bombRadius - 20); ctx.stroke(); ctx.fillStyle = isFlashing ? "#ffff00" : "#ff8800"; ctx.shadowColor = isFlashing ? "#ffff00" : "#ff6600"; ctx.shadowBlur = isFlashing ? 12 : 6; ctx.beginPath(); ctx.arc(bombX + 3, bombY - bombRadius - 20, Math.max(1, isFlashing ? 5 : 4), 0, Math.PI * 2); ctx.fill(); ctx.restore(); } else if (a.timer > -35) { var progress = Math.abs(a.timer) / 35, cr = Math.max(1, a.maxRadius * progress); if (!a.particlesSpawned && progress > 0.05) { a.particlesSpawned = true; sfxArenaBombExplosion(); a.shakeTime = 25; } if (a.shakeTime > 0) { arenaShake = Math.max(arenaShake, 20); a.shakeTime--; } ctx.save(); ctx.globalCompositeOperation = 'lighter'; var grad = ctx.createRadialGradient(a.x, a.y, Math.max(0.1, cr * 0.1), a.x, a.y, cr); grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.15, '#ffff00'); grad.addColorStop(0.4, '#ff8800'); grad.addColorStop(0.7, '#ff0000'); grad.addColorStop(1, 'rgba(139,0,0,0)'); ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(a.x, a.y, cr, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = Math.max(0.1, 3 * (1 - progress)); for (var r = 0; r < 12; r++) { var angle = (r / 12) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + Math.cos(angle) * cr * 0.8, a.y + Math.sin(angle) * cr * 0.8); ctx.stroke(); } ctx.fillStyle = "#ffffff"; for (var ep = 0; ep < 50; ep++) { var eAngle = Math.random() * Math.PI * 2; ctx.beginPath(); ctx.arc(a.x + Math.cos(eAngle) * Math.random() * cr, a.y + Math.sin(eAngle) * Math.random() * cr, Math.max(0.1, 1 + Math.random() * 3), 0, Math.PI * 2); ctx.fill(); } ctx.restore(); if (!a.hit && invulnTimer <= 0) { var dx = heart.x - a.x, dy = heart.y - a.y; if (Math.sqrt(dx * dx + dy * dy) < (cr + heart.hitbox)) { applyHit(a.damage || 30, "ВЗРЫВ!"); a.hit = true; } } } else { attacks.splice(i, 1); } continue; }
+            if (a.type !== "wall" && a.bouncesLeft !== undefined && a.bouncesLeft > 0 && !frozen && !timeStopped) { var sz = a.size || (a.radius ? a.radius * 2 : 20); if (a.x < 4 && a.spd < 0) { a.spd = -a.spd; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); } else if (a.x + sz > 396 && a.spd > 0) { a.spd = -a.spd; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); } if (a.y < 4 && a.spdY < 0) { a.spdY = -a.spdY; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); } else if (a.y + sz > 496 && a.spdY > 0) { a.spdY = -a.spdY; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); } }
+            var hit = false;
+            if (a.type === "circle" || a.type === "rainbow" || a.type === "healCircle") { var dx = heart.x - a.x, dy = heart.y - a.y; var radToCheck = Math.max(0.1, (a.radius || 10) - 2); hit = Math.sqrt(dx * dx + dy * dy) < (heart.hitbox + radToCheck); }
+            else if (a.type === "sword") { var dx = heart.x - a.x, dy = heart.y - a.y; hit = Math.sqrt(dx * dx + dy * dy) < (heart.hitbox + a.size / 2); }
+            else { var sz = a.size || 20, cx = a.x + sz / 2, cy = a.y + sz / 2; hit = Math.abs(heart.x - cx) < (sz / 2 + heart.hitbox) && Math.abs(heart.y - cy) < (sz / 2 + heart.hitbox); }
+            if (hit && invulnTimer <= 0) {
+                if (a.type === "healCircle") { var healAmount = Math.floor(arenaMaxHP * (a.healPercent || 0.10)); arenaHP = Math.min(arenaMaxHP, arenaHP + healAmount); arenaKarma = Math.max(0, arenaKarma - Math.floor(arenaMaxHP * 0.05)); sfxArenaHeal(); spawnFloatingText(heart.x, heart.y - 20, "+" + healAmount, "#44ff44"); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); attacks.splice(i, 1); continue; }
+                var bhd = a.damage || arenaBaseDmg || 5;
+                if (a.color === "#ffaa00" || a.type === "sword") { if (!heartWasMoving) applyHit(Math.max(1, Math.floor(bhd / 4)), "ЗАЩИТА!"); else applyHit(bhd, "ДВИЖЕНИЕ!"); attacks.splice(i, 1); continue; }
+                if (a.color === "#ff3333" || a.type === "danger") { if (heartWasMoving) applyHit(Math.max(1, Math.floor(bhd / 4)), "ЗАЩИТА!"); else applyHit(bhd, "ЗАМЕР!"); attacks.splice(i, 1); continue; }
+                if (a.color === "#ff69b4" || a.knockback) { var dx = heart.x - a.x, dy = heart.y - a.y, dist = Math.sqrt(dx * dx + dy * dy) || 1; heart.vx += (dx / dist) * a.knockback * 0.5; heart.vy += (dy / dist) * a.knockback * 0.5; sfxPinkKnockback(); attacks.splice(i, 1); continue; }
+                if (a.heal) { var healAmount = Math.floor(arenaMaxHP * (a.healPercent || 0.15)); arenaHP = Math.min(arenaMaxHP, arenaHP + healAmount); arenaKarma = Math.max(0, arenaKarma - Math.floor(arenaMaxHP * 0.1)); sfxArenaHeal(); spawnFloatingText(heart.x, heart.y - 20, "+" + healAmount, "#44ff44"); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); attacks.splice(i, 1); continue; }
+                if (a.oneshot) { sfxArenaDeath(); applyHit(arenaMaxHP, "ФАТАЛЬНО!", true); continue; }
+                applyHit(bhd); attacks.splice(i, 1); continue;
+            }
+            if (a.y > 560 || a.y < -150 || a.x < -160 || a.x > 560) { attacks.splice(i, 1); continue; }
+            if (frozen || timeStopped) { ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = timeStopped ? "#ff8800" : "#aaddff"; ctx.strokeStyle = timeStopped ? "#ff8800" : "#88bbff"; ctx.lineWidth = 2; var sz = a.size || a.radius || 20; if (a.type === "circle" || a.type === "rainbow" || a.type === "healCircle") { var circR = Math.max(0.1, (a.radius || 10) + 3); ctx.beginPath(); ctx.arc(a.x, a.y, circR, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); } else if (a.type === "sword") { ctx.fillRect(a.x - a.size / 2 - 2, a.y - a.width / 2 - 2, a.size + 4, a.width + 4); ctx.strokeRect(a.x - a.size / 2 - 2, a.y - a.width / 2 - 2, a.size + 4, a.width + 4); } else { var sz2 = Math.max(1, sz); ctx.fillRect(a.x - 2, a.y - 2, sz2 + 4, sz2 + 4); ctx.strokeRect(a.x - 2, a.y - 2, sz2 + 4, sz2 + 4); } ctx.restore(); }
+            ctx.save(); var col = a.color; if (a.type === "rainbow") col = "hsl(" + ((now / 2 + a.x) % 360) + ",100%,60%)"; if (a.type === "healCircle") col = "#44ff44";
+            // ★ ТАКАБА: утки ★
+            if (typeof _superState !== 'undefined' && _superState.takabaDuckMode) col = "#ffcc00";
+            ctx.fillStyle = col;
+            if (a.type === "square" || a.type === "danger") { var sz = a.size || 20; ctx.translate(a.x + sz / 2, a.y + sz / 2); if (a.color === "#ff3333") { ctx.beginPath(); ctx.moveTo(0, -sz / 2); ctx.lineTo(sz / 2, sz / 2); ctx.lineTo(-sz / 2, sz / 2); ctx.closePath(); ctx.fill(); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(0, -sz / 5); ctx.lineTo(sz / 5, sz / 3); ctx.lineTo(-sz / 5, sz / 3); ctx.closePath(); ctx.fill(); } else if (a.color === "#ff69b4") { ctx.fillRect(-sz / 2, -sz / 2, sz, sz); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(-sz / 4, -sz / 4, sz / 2, sz / 2); } else if (a.color === "#4499ff") { ctx.fillRect(-sz / 2, -sz / 2, sz, sz); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.strokeRect(-sz / 2 + 2, -sz / 2 + 2, sz - 4, sz - 4); ctx.fillStyle = "#fff"; ctx.fillRect(-sz / 4, -sz / 4, sz / 2, sz / 2); } else { ctx.fillRect(-sz / 2, -sz / 2, sz, sz); ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 1.5; ctx.strokeRect(-sz / 2 + 2, -sz / 2 + 2, sz - 4, sz - 4); ctx.fillStyle = "#fff"; ctx.fillRect(-sz / 4, -sz / 4, sz / 2, sz / 2); } }
+            else if (a.type === "sword") { ctx.translate(a.x, a.y); ctx.rotate(a.angle || 0); ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.moveTo(a.size + 3, 0); ctx.lineTo(0, a.width / 2 + 2); ctx.lineTo(-a.size - 3, 0); ctx.lineTo(0, -a.width / 2 - 2); ctx.fill(); ctx.globalAlpha = 1.0; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(a.size, 0); ctx.lineTo(0, a.width / 4); ctx.lineTo(-a.size, 0); ctx.lineTo(0, -a.width / 4); ctx.fill(); }
+            else if (a.type === "circle" || a.type === "healCircle") { var circleR = Math.max(0.1, a.radius || 10); ctx.shadowColor = "#44ff44"; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(a.x, a.y, circleR, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.2)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(a.x, a.y, Math.max(0.1, circleR * 0.7), 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(a.x, a.y, Math.max(0.1, circleR * 0.4), 0, Math.PI * 2); ctx.fill(); }
+            else if (a.type === "rainbow") { var rainbowR = Math.max(0.1, a.radius || 10); ctx.beginPath(); ctx.arc(a.x, a.y, rainbowR, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,0.2)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(a.x, a.y, Math.max(0.1, rainbowR * 0.7), 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(a.x, a.y, Math.max(0.1, rainbowR * 0.4), 0, Math.PI * 2); ctx.fill(); }
+            ctx.restore();
+        }
+        if (typeof renderSuperVisuals === 'function') renderSuperVisuals();
+        for (var i = arenaBlasters.length - 1; i >= 0; i--) { var b = arenaBlasters[i], ac = b.color === "rainbow" ? "hsl(" + ((now / 2) % 360) + ",100%,60%)" : b.color; if (!frozen && !timeStopped) { if (b.state === "aiming") { b.timer--; if (b.timer <= 0) { b.state = "firing"; b.timer = 15; arenaShake = 18; sfxArenaBlasterFire(); } } else if (b.state === "firing") { b.timer--; if (b.timer <= 0) { b.state = "fading"; b.timer = 20; } } else if (b.state === "fading") { b.timer--; if (b.timer <= 0) arenaBlasters.splice(i, 1); } } if (b.state === "aiming") { if (b.timer > 30) b.angle = Math.atan2(heart.y - b.y, heart.x - b.x); ctx.save(); ctx.globalAlpha = 0.2 + Math.abs(Math.sin(b.timer * 0.25)) * 0.2; ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.lineDashOffset = -now / 40; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + Math.cos(b.angle) * 800, b.y + Math.sin(b.angle) * 800); ctx.stroke(); ctx.setLineDash([]); ctx.restore(); } else if (b.state === "firing" || b.state === "fading") { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.shadowColor = ac; ctx.shadowBlur = 15; var bWidth = Math.max(1, b.width + 16 + Math.random() * 10); ctx.strokeStyle = ac; ctx.lineWidth = bWidth; ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + Math.cos(b.angle) * 800, b.y + Math.sin(b.angle) * 800); ctx.stroke(); ctx.lineWidth = Math.max(1, b.width); ctx.globalAlpha = 0.9; ctx.stroke(); ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(0.5, b.width * 0.4); ctx.globalAlpha = 1.0; ctx.stroke(); ctx.restore(); if (!b.hasHit && invulnTimer <= 0 && !frozen && !timeStopped) { var dx = heart.x - b.x, dy = heart.y - b.y, dist = Math.abs(dx * Math.sin(b.angle) - dy * Math.cos(b.angle)); if (dist < Math.max(1, b.width / 2) + heart.hitbox) { var bdmg = 0, msg = ""; if (b.color === "rainbow") applyHit(arenaMaxHP, "ФАТАЛЬНО!", true); else if (b.color === "#fff") { bdmg = Math.floor(arenaBaseDmg * 2); msg = "ЛУЧ!"; } else if (b.color === "#ffdd00") { if (!heartWasMoving) { bdmg = Math.max(1, Math.floor(arenaBaseDmg * 3 / 4)); msg = "ЗАЩИТА!"; } else { bdmg = Math.floor(arenaBaseDmg * 3); msg = "ДВИЖЕНИЕ!"; } } else if (b.color === "#ff3333") { if (heartWasMoving) { bdmg = Math.max(1, Math.floor(arenaBaseDmg * 3 / 4)); msg = "ЗАЩИТА!"; } else { bdmg = Math.floor(arenaBaseDmg * 3); msg = "ЗАМЕР!"; } } if (bdmg > 0) applyHit(bdmg, msg); b.hasHit = true; } } } }
+        if (invulnTimer <= 0 || Math.floor(now / 80) % 2 === 0) { ctx.save(); ctx.translate(heart.x, heart.y - 2); var heartPulse = 1.0 + Math.abs(Math.sin(now / 140)) * 0.1; ctx.rotate(heartRotation * 0.3); ctx.scale(heartPulse, heartPulse); var heartGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 8); heartGrad.addColorStop(0, '#ff4444'); heartGrad.addColorStop(1, '#990000'); ctx.fillStyle = heartGrad; ctx.shadowColor = (typeof _superState !== 'undefined' && _superState.dekusParticles) ? "#50c878" : (typeof _superState !== 'undefined' && _superState.allmightBuffTimer > 0) ? "#ffd700" : (typeof _superState !== 'undefined' && _superState.usoppInvuln) ? "#ffff00" : "#ff0000"; ctx.shadowBlur = (typeof _superState !== 'undefined' && (_superState.dekusParticles || _superState.allmightBuffTimer > 0)) ? 30 : 12; ctx.beginPath(); ctx.arc(-3.5, -2, 4.5, Math.PI, 0); ctx.arc(3.5, -2, 4.5, Math.PI, 0); ctx.lineTo(0, 6); ctx.closePath(); ctx.fill(); ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.shadowBlur = 0; ctx.beginPath(); ctx.arc(-2, -2, 1.5, 0, Math.PI * 2); ctx.fill(); if (invulnTimer > 0) { var shieldGrad = ctx.createRadialGradient(0, 2, Math.max(0.1, heart.size * 1.1), 0, 2, Math.max(0.1, heart.size * 1.4)); shieldGrad.addColorStop(0, 'rgba(0,191,255,0.1)'); shieldGrad.addColorStop(1, 'rgba(0,191,255,0.6)'); ctx.strokeStyle = shieldGrad; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 2, Math.max(0.1, heart.size * 1.3), 0, Math.PI * 2); ctx.stroke(); } ctx.restore(); }
+    } else if (arenaPhase === "attack") { for (var i = 0; i < arenaClickTargets.length; i++) { var t = arenaClickTargets[i]; if (t.hit) continue; t.pulse += 0.12; var r = Math.max(0.1, t.radius + Math.sin(t.pulse) * 3); ctx.save(); var glowPulse = Math.sin(now / 300 + i) * 0.3 + 0.7; var grad = ctx.createRadialGradient(t.x, t.y, 2, t.x, t.y, r); grad.addColorStop(0, "rgba(255,255,255,0.4)"); grad.addColorStop(0.7, "rgba(255,221,0,0.15)"); grad.addColorStop(1, "rgba(255,221,0,0)"); ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#ffdd00"; ctx.lineWidth = 2; ctx.shadowColor = "#ffdd00"; ctx.shadowBlur = 8 * glowPulse; ctx.beginPath(); ctx.arc(t.x, t.y, Math.max(0.1, t.radius), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); } }
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; for (var i = arenaParticles.length - 1; i >= 0; i--) { var p = arenaParticles[i]; p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95; p.life--; var ratio = Math.max(0, p.life / p.maxLife); if (!p.isLightning) { var pSize = Math.max(0.1, p.size * ratio); ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, ratio); ctx.beginPath(); ctx.arc(p.x, p.y, pSize, 0, Math.PI * 2); ctx.fill(); } if (p.life <= 0) arenaParticles.splice(i, 1); } ctx.restore();
+    ctx.save(); for (var i = arenaShockwaves.length - 1; i >= 0; i--) { var sw = arenaShockwaves[i]; sw.r += sw.v; sw.life--; var ratio = Math.max(0, sw.life / sw.maxLife); var swR = Math.max(0.1, sw.r); ctx.strokeStyle = sw.color; ctx.lineWidth = Math.max(0.1, 2.5 * ratio); ctx.globalAlpha = ratio; ctx.beginPath(); ctx.arc(sw.x, sw.y, swR, 0, Math.PI * 2); ctx.stroke(); if (sw.life <= 0) arenaShockwaves.splice(i, 1); } ctx.restore();
+    ctx.save(); for (var i = floatingTexts.length - 1; i >= 0; i--) { var ft = floatingTexts[i]; ft.y += ft.vy; ft.x += (ft.vx || 0); ft.life--; ctx.fillStyle = ft.color; ctx.globalAlpha = Math.max(0, ft.life / 50); ctx.font = "bold 14px monospace"; ctx.shadowColor = ft.color; ctx.shadowBlur = 4; ctx.textAlign = "center"; ctx.fillText(ft.text, ft.x, ft.y); if (ft.life <= 0) floatingTexts.splice(i, 1); } ctx.restore();
+    if (typeof _superState !== 'undefined' && _superState.dandyLava > 0) { ctx.save(); for (var i = 0; i < 60; i++) { var lx = Math.random() * 400, ly = 460 + Math.random() * 40; ctx.fillStyle = "#ff4400"; ctx.globalAlpha = 0.6 + Math.random() * 0.4; ctx.beginPath(); ctx.arc(lx, ly, 2 + Math.random() * 4, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); if (heart.y > 420) { applyHit(3, "ЛАВА!"); } }
 
-})();
+    drawObesityWarning();
+    // ★ ТАКАБА: шутка ★
+    drawTakabaJoke();
+
+    if (typeof window.drawJoystick === 'function') window.drawJoystick();
+
+    ctx.restore();
+    animFrameId = requestAnimationFrame(renderArena);
+}
+
+// ============================================================
+// ★★★ ЭКСПОРТ В WINDOW ★★★
+// ============================================================
+window.getArenaActive = function() { return arenaActive; };
+window.getArenaPhase = function() { return arenaPhase; };
+window.tickWhitebeardRegenArena = tickWhitebeardRegenArena;
+
+console.log("[BATTLE] v18.0 — Такаба-заморозка + Белоус поглощение + реген");
