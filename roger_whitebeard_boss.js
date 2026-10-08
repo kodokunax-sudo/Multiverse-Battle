@@ -2642,6 +2642,15 @@
     function updateSuperBoss() {
         let active = rwbActiveBoss;
         if (!active) return;
+
+        // Все эффекты контроля из общей системы SUPER должны работать
+        // и на финального босса 1000-й волны.
+        if (typeof _superState !== 'undefined' &&
+            (_superState.garouTimeStop || _superState.takabaTimeStop ||
+             _superState.antispiralFrozen || _superState.usoppStunTimer > 0)) {
+            return;
+        }
+
         active.pulse += 0.12; active.rotation += 0.03;
         active.x = 200 + Math.sin(rwbTimer / 80) * 100;
         active.y = 100 + Math.sin(rwbTimer / 60) * 20;
