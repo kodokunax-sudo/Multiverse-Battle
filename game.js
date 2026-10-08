@@ -1476,6 +1476,14 @@ function victory() {
     if (team.some(idx => myCards[idx]?.ability?.type === 'teamHealOnWave' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(myCards[idx]) : true))) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.02); } 
     if (team.some(idx => myCards[idx]?.ability?.type === 'sevenSpecial' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(myCards[idx]) : true))) { playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.05); } 
     
+    // ★★★ DIO OVER HEAVEN: +1% HP за волну ★★★
+    if (typeof mainCardIndex !== 'undefined' && team[mainCardIndex] !== undefined) {
+        const mainDio = myCards[team[mainCardIndex]];
+        if (mainDio?.name === "ДИО Over Heaven") {
+            playerHp = Math.min(window.playerMaxHp, playerHp + (window.playerMaxHp || 100) * 0.01);
+        }
+    }
+
     // ★★★ БЕЛОУС: +1% HP за волну ★★★
     if (typeof mainCardIndex !== 'undefined' && team[mainCardIndex] !== undefined) {
         const mainWB = myCards[team[mainCardIndex]];
