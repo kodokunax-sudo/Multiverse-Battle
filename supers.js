@@ -618,9 +618,15 @@ function updateDioAggressiveBlocks(ctxB) {
     if (!ctxB || _superState.dioAggroTimer <= 0) return;
     var atk = ctxB.getAttacks();
     // Все существующие и появившиеся во время эффекта блоки становятся агрессивными.
+    var hx = ctxB.getHeartX(), hy = ctxB.getHeartY();
     for (var m = 0; m < atk.length; m++) {
-        atk[m].dioAggro = true;
-        atk[m].dioAggroNoPlayer = true;
+        var nearA = atk[m];
+        var nax = nearA.x + (nearA.size || nearA.radius || 10) / 2;
+        var nay = nearA.y + (nearA.size || nearA.radius || 10) / 2;
+        if (Math.hypot(nax - hx, nay - hy) <= 180) {
+            nearA.dioAggro = true;
+            nearA.dioAggroNoPlayer = true;
+        }
     }
     for (var i = atk.length - 1; i >= 0; i--) {
         var a = atk[i];
