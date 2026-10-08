@@ -1878,7 +1878,7 @@
         var timeStopped = false;
         var frozen = false;
         if (typeof _superState !== 'undefined') {
-            timeStopped = (_superState.garouTimeStop === true);
+            timeStopped = (_superState.garouTimeStop === true || _superState.takabaTimeStop === true);
             frozen = (_superState.antispiralFrozen === true);
         }
         var stopAll = timeStopped || frozen;
@@ -2329,6 +2329,12 @@
             try { tickSupers(); } catch(e) { console.error("[ROGER-WB] tickSupers error:", e); }
         }
 
+        // Общие SUPER-эффекты должны управлять и RWB-рендером.
+        if (typeof _superState !== 'undefined' && _superState.screenShakeAmount > 0) {
+            rwbShake = Math.max(rwbShake, _superState.screenShakeAmount);
+        }
+
+        if (typeof updateSuperButton === 'function') updateSuperButton();
         if (typeof updateRWBMainSuperButton === "function") updateRWBMainSuperButton();
 
         if (rwbDialogActive) {
