@@ -536,7 +536,23 @@ function startDodgePhase() {
     var dodgeTime = Math.floor(10000 + Math.random() * 6000); arenaDodgeTimer = Math.floor(dodgeTime / 1000);
     arenaDodgeTimerInterval = setInterval(function() { if (arenaPhase === "dodge" && arenaActive && !(typeof _superState !== 'undefined' && (_superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0))) { arenaDodgeTimer--; if (arenaDodgeTimer <= 0) arenaDodgeTimer = 0; updateDodgeTimerDisplay(); } }, 1000);
     updateDodgeTimerDisplay();
-    arenaPhaseTimeout = setTimeout(function() { if (arenaPhase === "dodge" && arenaActive) { if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; } startAttackPhase(); } }, dodgeTime);
+    // Остановка времени DIO должна останавливать и переход между фазами.
+    // Старый setTimeout продолжал жить независимо от time stop и "съедал" его.
+    arenaPhaseTimeout = setTimeout(function waitForDioStop() {
+        if (arenaPhase !== "dodge" || !arenaActive) return;
+        var stopped = typeof window.isDioTimeStopped === "function"
+            ? window.isDioTimeStopped()
+            : (typeof _superState !== "undefined" && (_superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0));
+        if (stopped) {
+            arenaPhaseTimeout = setTimeout(waitForDioStop, 50);
+            return;
+        }
+        if (arenaDodgeTimerInterval) {
+            clearInterval(arenaDodgeTimerInterval);
+            arenaDodgeTimerInterval = null;
+        }
+        startAttackPhase();
+    }, dodgeTime);
 }
 
 function updateDodgeTimerDisplay() {
