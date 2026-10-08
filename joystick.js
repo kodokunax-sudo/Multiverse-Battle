@@ -819,8 +819,8 @@
     console.log("║  ✅ Плавающий джойстик                  ║");
     console.log("║  ✅ Красивый дизайн                     ║");
     console.log("║  ✅ Плавный отклик                      ║");
-    console.log("║  ✅ Жёсткий anti-pull-to-refresh        ║
-    console.log("║  ✅ Mobile touch guard                  ║");");
+    console.log("║  ✅ Жёсткий anti-pull-to-refresh        ║");
+    console.log("║  ✅ Mobile touch guard                  ║");
     console.log("╚════════════════════════════════════════╝");
 
 })();
