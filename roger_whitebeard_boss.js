@@ -1283,7 +1283,7 @@
         // ★ Проверяем заморозку времени и оглушение ★
         if (wbVortexActive) return;
         if (typeof _superState !== 'undefined') {
-            if (_superState.garouTimeStop) return;
+            if ((_superState.garouTimeStop || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0)) return;
             if (_superState.usoppStunTimer > 0) return;
         }
 
@@ -1436,7 +1436,7 @@
         if (rwbState !== "fight2") return;
         if (wbVortexActive) return;
         if (typeof _superState !== 'undefined' &&
-            (_superState.garouTimeStop || _superState.takabaTimeStop ||
+            (_superState.garouTimeStop || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0 || _superState.takabaTimeStop ||
              _superState.antispiralFrozen || _superState.usoppStunTimer > 0)) return;
         if (rwbMeleeCooldown > 0) { rwbMeleeCooldown--; return; }
         if (!rwbActiveBoss) return;
@@ -1970,7 +1970,7 @@
         var timeStopped = false;
         var frozen = false;
         if (typeof _superState !== 'undefined') {
-            timeStopped = (_superState.garouTimeStop === true || _superState.takabaTimeStop === true);
+            timeStopped = (_superState.garouTimeStop === true || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0 || _superState.takabaTimeStop === true);
             frozen = (_superState.antispiralFrozen === true);
         }
         var stopAll = timeStopped || frozen;
@@ -2290,7 +2290,7 @@
             if (_superState.usoppInvuln) return;
             if (_superState.dandyInvuln) return;
             if (_superState.garouInvulnTimer > 0) return;
-            if (_superState.garouTimeStop) return;
+            if ((_superState.garouTimeStop || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0)) return;
             if (_superState.dekusActive && _superState.dekusInvuln) return;
         }
 
@@ -2775,7 +2775,7 @@
         // Все эффекты контроля из общей системы SUPER должны работать
         // и на финального босса 1000-й волны.
         if (typeof _superState !== 'undefined' &&
-            (_superState.garouTimeStop || _superState.takabaTimeStop ||
+            (_superState.garouTimeStop || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0 || _superState.takabaTimeStop ||
              _superState.antispiralFrozen || _superState.usoppStunTimer > 0)) {
             return;
         }
