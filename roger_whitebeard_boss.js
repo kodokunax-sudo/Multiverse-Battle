@@ -2844,9 +2844,10 @@
     function drawRWBPlayer() {
         if (rwbPlayer.invulnTimer > 0 && Math.floor(rwbPlayer.invulnTimer / 4) % 2 === 0) return;
         let color = (rwbPlayer.attackMode === "blue") ? "#00aaff" : "#ff2222";
-        drawHeartShape(rwbPlayer.x, rwbPlayer.y, rwbPlayer.size, color, color);
+        if (!drawSecretHeartTexture(ctx, rwbPlayer.x, rwbPlayer.y, rwbPlayer.size, (typeof getSecretHeartMainCardName === "function" ? getSecretHeartMainCardName() : ""), {rotation:0})) {
+            drawHeartShape(rwbPlayer.x, rwbPlayer.y, rwbPlayer.size, color, color);
+        }
     }
-
     function drawAttack(a) {
         if (a.type === "giant_rock") { drawGiantRock(a); return; }
         if (a.type === "tsunami") { drawTsunami(a); return; }
