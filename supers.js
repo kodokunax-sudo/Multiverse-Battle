@@ -868,7 +868,7 @@ function renderDioVisuals(ctxB) {
     // одновременно переходят в обратную палитру, а после остановки мгновенно возвращаются.
     try {
         if (ctx.canvas && ctx.canvas.style) {
-            ctx.canvas.style.filter = active ? "invert(1) contrast(1.08) saturate(0.92)" : "";
+            ctx.canvas.style.filter = active ? "invert(1)" : "";
         }
     } catch (e) {}
     var phase = now - (_superState.dioTimeStopStartedAt || now);
