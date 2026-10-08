@@ -2005,43 +2005,89 @@ function drawSecretHeartTexture(targetCtx, x, y, size, cardName, options) {
         ctx0.restore();
         ctx0.strokeStyle="#d88cff"; ctx0.lineWidth=1.1; ctx0.beginPath(); ctx0.arc(0,0,s*.58,0.2,Math.PI*1.55); ctx0.stroke();
     } else if (n === "Сайтама") {
-        /* Сайтама: округлая голова + жёлтый костюм, чёрный пояс и логичная белая накидка. */
+        /* Сайтама: круглая лысая голова, жёлтый костюм и белый плащ.
+           Плащ логично находится ЗА телом, а не выглядит второй головой. */
         ctx0.save();
-        ctx0.fillStyle="#ffffff"; ctx0.strokeStyle="#d8d8d8"; ctx0.lineWidth=1.2;
+        ctx0.fillStyle="#f8f8f8"; ctx0.strokeStyle="#cfcfcf"; ctx0.lineWidth=Math.max(1,s*.08);
         ctx0.beginPath();
-        ctx0.moveTo(-s*.55,-s*.48); ctx0.quadraticCurveTo(-s*1.28,s*.05,-s*.72,s*.95);
-        ctx0.quadraticCurveTo(0,s*1.30,s*.72,s*.95); ctx0.quadraticCurveTo(s*1.28,s*.05,s*.55,-s*.48);
+        ctx0.moveTo(-s*.58,-s*.45);
+        ctx0.quadraticCurveTo(-s*1.15,s*.05,-s*.78,s*.88);
+        ctx0.quadraticCurveTo(-s*.38,s*1.15,0,s*1.04);
+        ctx0.quadraticCurveTo(s*.38,s*1.15,s*.78,s*.88);
+        ctx0.quadraticCurveTo(s*1.15,s*.05,s*.58,-s*.45);
         ctx0.closePath(); ctx0.fill(); ctx0.stroke();
         ctx0.restore();
         ctx0.save();
-        ctx0.fillStyle="#f5c928"; ctx0.strokeStyle="#d49f16"; ctx0.lineWidth=1.5;
-        ctx0.beginPath(); ctx0.arc(0,0,s*.82,0,Math.PI*2); ctx0.fill(); ctx0.stroke();
-        ctx0.fillStyle="#222"; ctx0.fillRect(-s*.62,s*.45,s*1.24,s*.13);
-        ctx0.fillStyle="#d8a61c"; ctx0.beginPath(); ctx0.arc(0,s*.52,s*.18,0,Math.PI*2); ctx0.fill();
-        dot(ctx0,-s*.22,-s*.08,s*.055,"#222"); dot(ctx0,s*.22,-s*.08,s*.055,"#222");
-        ctx0.strokeStyle="#222"; ctx0.lineWidth=s*.07; ctx0.beginPath(); ctx0.arc(0,s*.13,s*.20,0,Math.PI); ctx0.stroke();
+        ctx0.fillStyle="#f4c52b"; ctx0.strokeStyle="#d49e15"; ctx0.lineWidth=Math.max(1,s*.09);
+        ctx0.beginPath(); ctx0.arc(0,-s*.02,s*.72,0,Math.PI*2); ctx0.fill(); ctx0.stroke();
+        ctx0.fillStyle="#222";
+        ctx0.fillRect(-s*.68,s*.42,s*1.36,s*.12);
+        ctx0.fillStyle="#d9a51d"; ctx0.beginPath(); ctx0.arc(0,s*.48,s*.15,0,Math.PI*2); ctx0.fill();
+        dot(ctx0,-s*.22,-s*.08,s*.045,"#222"); dot(ctx0,s*.22,-s*.08,s*.045,"#222");
         ctx0.restore();
     } else if (n === "Борос") {
-        /* Борос: белая броня/одежда с фиолетовыми узорами. */
-        fillHeart(ctx0, s, "#f7f7fb", "#a884e8", 1.8, "#d4baff");
+        /* Борос: светлая/белая броня с характерными фиолетовыми прожилками. */
+        fillHeart(ctx0,s,"#fbfbff","#8e63d8",1.8,"#c9a8ff");
         ctx0.save(); ctx0.beginPath(); heartPath(ctx0,s); ctx0.clip();
-        ctx0.strokeStyle="#713bc0"; ctx0.lineWidth=Math.max(1.2,s*.13);
-        ctx0.beginPath(); ctx0.moveTo(-s*1.1,-s*.35); ctx0.quadraticCurveTo(-s*.35,-s*.95,0,-s*.28); ctx0.quadraticCurveTo(s*.35,-s*.95,s*1.1,-s*.35);
-        ctx0.moveTo(-s*1.05,s*.45); ctx0.quadraticCurveTo(-s*.35,s*.05,0,s*.55); ctx0.quadraticCurveTo(s*.35,s*.05,s*1.05,s*.45);
+        ctx0.strokeStyle="#7040b8"; ctx0.lineWidth=Math.max(1.3,s*.105);
+        ctx0.beginPath();
+        ctx0.moveTo(-s*1.1,-s*.55); ctx0.quadraticCurveTo(-s*.45,-s*.05,0,-s*.42); ctx0.quadraticCurveTo(s*.45,-s*.05,s*1.1,-s*.55);
+        ctx0.moveTo(-s*1.05,s*.42); ctx0.quadraticCurveTo(-s*.35,s*.02,0,s*.48); ctx0.quadraticCurveTo(s*.35,s*.02,s*1.05,s*.42);
         ctx0.stroke();
-        ctx0.fillStyle="#a875e6"; ctx0.beginPath(); ctx0.arc(0,0,s*.22,0,Math.PI*2); ctx0.fill();
+        ctx0.fillStyle="#a879e6"; ctx0.beginPath(); ctx0.arc(0,0,s*.18,0,Math.PI*2); ctx0.fill();
         ctx0.restore();
     } else if (n === "Бог Усопп") {
-        /* Бог Усопп: оранжевый костюм + характерный длинный нос. */
-        fillHeart(ctx0, s, "#f28c28", "#b84f16", 1.8, "#ff9d35");
+        /* Бог Усопп: яркий оранжевый костюм и ОЧЕНЬ заметный длинный нос. */
+        fillHeart(ctx0,s,"#f28a25","#b94e15",1.8,"#ff9b38");
         ctx0.save(); ctx0.beginPath(); heartPath(ctx0,s); ctx0.clip();
-        ctx0.fillStyle="#4b2b19"; ctx0.fillRect(-s*1.4,-s*.12,s*2.8,s*.16);
-        ctx0.fillStyle="#f7c99b"; ctx0.beginPath(); ctx0.arc(0,-s*.22,s*.28,0,Math.PI*2); ctx0.fill();
-        ctx0.strokeStyle="#8a4c25"; ctx0.lineWidth=s*.10;
-        ctx0.beginPath(); ctx0.moveTo(0,-s*.20); ctx0.lineTo(s*.82,-s*.05); ctx0.lineTo(s*.02,s*.05); ctx0.stroke();
-        ctx0.fillStyle="#8d5b25"; ctx0.beginPath(); ctx0.ellipse(-s*.34,-s*.52,s*.40,s*.18,0,0,Math.PI*2); ctx0.fill();
+        ctx0.fillStyle="#d96818"; ctx0.fillRect(-s*1.4,-s*.12,s*2.8,s*.18);
+        ctx0.fillStyle="#f2bd91";
+        ctx0.beginPath(); ctx0.arc(-s*.18,-s*.30,s*.30,0,Math.PI*2); ctx0.fill();
+        ctx0.fillStyle="#f2bd91";
+        ctx0.beginPath();
+        ctx0.moveTo(-s*.02,-s*.30);
+        ctx0.lineTo(s*.92,-s*.18);
+        ctx0.lineTo(s*.18,-s*.02);
+        ctx0.lineTo(-s*.02,-s*.30);
+        ctx0.fill();
+        ctx0.strokeStyle="#7b3e20"; ctx0.lineWidth=Math.max(1,s*.055);
+        ctx0.stroke();
+        ctx0.fillStyle="#5a2b1c";
+        ctx0.beginPath(); ctx0.ellipse(-s*.38,-s*.62,s*.34,s*.16,0,0,Math.PI*2); ctx0.fill();
         ctx0.restore();
-    } else if (n === "Зено") {
+    } else if (n === "Молодой Гарп") {
+        /* Молодой Гарп: белая форма + длинный сине-серый плащ + синие узоры. */
+        ctx0.save();
+        ctx0.fillStyle="#8faedb"; ctx0.strokeStyle="#456da8"; ctx0.lineWidth=Math.max(1,s*.07);
+        ctx0.beginPath();
+        ctx0.moveTo(-s*.58,-s*.60); ctx0.lineTo(-s*1.08,s*.92);
+        ctx0.quadraticCurveTo(0,s*1.30,s*1.08,s*.92);
+        ctx0.lineTo(s*.58,-s*.60); ctx0.closePath(); ctx0.fill(); ctx0.stroke();
+        ctx0.restore();
+        fillHeart(ctx0,s,"#fafafa","#456da8",1.8,"#91b7f0");
+        ctx0.save(); ctx0.beginPath(); heartPath(ctx0,s); ctx0.clip();
+        ctx0.strokeStyle="#24589e"; ctx0.lineWidth=Math.max(1,s*.075);
+        ctx0.beginPath();
+        ctx0.moveTo(-s*.8,-s*.35); ctx0.lineTo(s*.8,-s*.35);
+        ctx0.moveTo(-s*.85,0); ctx0.lineTo(s*.85,0);
+        ctx0.moveTo(-s*.7,s*.35); ctx0.lineTo(s*.7,s*.35);
+        ctx0.stroke();
+        ctx0.strokeStyle="#6d94cc"; ctx0.lineWidth=Math.max(1,s*.055);
+        ctx0.beginPath(); ctx0.moveTo(-s*.5,-s*.62); ctx0.lineTo(0,-s*.08); ctx0.lineTo(s*.5,-s*.62); ctx0.stroke();
+        ctx0.restore();
+    } else if (n === "Космический Дэнди") {
+        /* Космический Дэнди: минимум деталей — только фирменный огромный помпадур. */
+        fillHeart(ctx0,s,"#e5a06c","#743b28",1.5,"#ff9b58");
+        ctx0.save();
+        ctx0.fillStyle="#df493d"; ctx0.strokeStyle="#7c211e"; ctx0.lineWidth=Math.max(1,s*.07);
+        ctx0.beginPath();
+        ctx0.moveTo(-s*.48,-s*.52);
+        ctx0.bezierCurveTo(-s*.82,-s*1.28,-s*.18,-s*1.62,0,-s*.88);
+        ctx0.bezierCurveTo(s*.22,-s*1.58,s*.82,-s*1.22,s*.48,-s*.50);
+        ctx0.bezierCurveTo(s*.20,-s*.76,-s*.18,-s*.76,-s*.48,-s*.52);
+        ctx0.closePath(); ctx0.fill(); ctx0.stroke();
+        ctx0.restore();
+        } else if (n === "Зено") {
         fillHeart(ctx0, s, "#7666e8", "#bfe9ff", 1.8, "#57dfff");
         ctx0.save(); ctx0.beginPath(); heartPath(ctx0,s); ctx0.clip();
         ctx0.fillStyle="#a9f1ff"; ctx0.globalAlpha=.35; ctx0.fillRect(-s*1.3,-s*1.3,s*.6,s*2.6); ctx0.globalAlpha=1; ctx0.restore();
@@ -2093,18 +2139,19 @@ function drawSecretHeartTexture(targetCtx, x, y, size, cardName, options) {
         ctx0.save();ctx0.beginPath();heartPath(ctx0,s);ctx0.clip();ctx0.fillStyle="#173f96";ctx0.fillRect(-s*1.4,-s*.3,s*2.8,s*.65);ctx0.restore();
         ctx0.strokeStyle="#ffffff";ctx0.lineWidth=s*.09;ctx0.beginPath();ctx0.moveTo(0,-s*.8);ctx0.lineTo(0,s*.58);ctx0.stroke();
     } else if (n === "Деку (100%)") {
-        /* Серое сердце теперь поверх зелёного и в 1.5 раза МЕНЬШЕ него. */
+        /* Деку 100%: зелёное основное сердце + маленькое серое сердце
+           ПОВЕРХ него. Малое = 1/1.5 от основного. */
         fillHeart(ctx0,s,"#29a84a","#63ff7b",1.8,"#28ff58");
         ctx0.save();
         ctx0.translate(0,-s*.03);
-        ctx0.globalAlpha=.78;
-        fillHeart(ctx0,s/1.5,"#858b91","#c4c8cc",1.1,"#777");
+        ctx0.globalAlpha=.82;
+        fillHeart(ctx0,s/1.5,"#858b91","#c8ccd0",1.1,"#777");
         ctx0.restore();
         ctx0.save(); ctx0.beginPath(); heartPath(ctx0,s); ctx0.clip();
-        ctx0.strokeStyle="#baffc4"; ctx0.lineWidth=Math.max(1,s*.10);
+        ctx0.strokeStyle="#baffc4"; ctx0.lineWidth=Math.max(1,s*.09);
         for(var dl=0;dl<7;dl++){var da=dl*.91+.2;ctx0.beginPath();ctx0.moveTo(Math.cos(da)*s*.05,Math.sin(da)*s*.05);ctx0.lineTo(Math.cos(da)*s*.9,Math.sin(da)*s*.9);ctx0.stroke();}
         ctx0.restore();
-    } else if (n === "Всемогущий (прайм)") {
+        } else if (n === "Всемогущий (прайм)") {
         fillHeart(ctx0, s, "#2b58c9", "#ffd42a", 2, "#ffe45c");
         ctx0.save();ctx0.beginPath();heartPath(ctx0,s);ctx0.clip();
         ctx0.fillStyle="#c92232";ctx0.fillRect(-s*1.4,s*.08,s*2.8,s*.35);
