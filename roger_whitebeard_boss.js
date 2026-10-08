@@ -1924,7 +1924,7 @@
                 }
                 if (rwbPlayer.invulnTimer <= 0) {
                     let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + 4) { hitPlayer(a.damage); spawnRockSmash(a.x, a.y, a.size); rwbAttacks.splice(i, 1); continue; }
+                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + getRWBSuperHitboxBonus()) { hitPlayer(a.damage); spawnRockSmash(a.x, a.y, a.size); rwbAttacks.splice(i, 1); continue; }
                 }
                 if (a.y > 480 || a.life <= 0) { spawnRockSmash(a.x, 480, a.size); playImpactSound(0.8, 0.4); rwbShake = 30; rwbAttacks.splice(i, 1); continue; }
                 continue;
@@ -1950,7 +1950,7 @@
                 if (Math.random() < 0.15) rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.size, y: a.y - a.size * 0.5, vx: (Math.random() - 0.5) * 1, vy: -0.5 - Math.random() * 1, life: 12, maxLife: 12, color: "#5a4030", size: 1.5 });
                 if (rwbPlayer.invulnTimer <= 0) {
                     let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.75 * BALANCE.playerHitboxMult + 4) { hitPlayer(a.damage); spawnRockSmash(a.x, a.y, a.size); rwbAttacks.splice(i, 1); continue; }
+                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.75 * BALANCE.playerHitboxMult + getRWBSuperHitboxBonus()) { hitPlayer(a.damage); spawnRockSmash(a.x, a.y, a.size); rwbAttacks.splice(i, 1); continue; }
                 }
                 if (a.y > 500 || a.life <= 0) { spawnRockSmash(a.x, 480, a.size); rwbAttacks.splice(i, 1); continue; }
                 continue;
@@ -2025,7 +2025,7 @@
                 a.x += a.vx; a.y += a.vy; a.life--;
                 if (rwbPlayer.invulnTimer <= 0) {
                     let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + 3) { hitPlayer(a.damage); rwbAttacks.splice(i, 1); continue; }
+                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + Math.max(2, getRWBSuperHitboxBonus() - 1)) { hitPlayer(a.damage); rwbAttacks.splice(i, 1); continue; }
                 }
                 if (a.life <= 0 || a.x < -20 || a.x > 420 || a.y < -20 || a.y > 520) rwbAttacks.splice(i, 1);
                 continue;
@@ -2060,7 +2060,7 @@
                     if (Math.random() < 0.3) rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.size, y: a.y + a.size * 0.5, vx: (Math.random() - 0.5) * 2, vy: -1, life: 20, maxLife: 20, color: Math.random() > 0.5 ? "#ff6600" : "#ffaa00", size: 2 });
                     if (!a.hit && rwbPlayer.invulnTimer <= 0) {
                         let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                        if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + 4) { a.hit = true; hitPlayer(a.damage); }
+                        if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + getRWBSuperHitboxBonus()) { a.hit = true; hitPlayer(a.damage); }
                     }
                     if (a.y > 380) {
                         a.state = "impact"; a.impactTimer = 30;
@@ -2096,7 +2096,7 @@
 
             if (rwbPlayer.invulnTimer <= 0 && (rwbState === "fight1" || rwbState === "fight2")) {
                 let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.75 * BALANCE.playerHitboxMult + 4) { hitPlayer(a.damage); rwbAttacks.splice(i, 1); continue; }
+                if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.75 * BALANCE.playerHitboxMult + getRWBSuperHitboxBonus()) { hitPlayer(a.damage); rwbAttacks.splice(i, 1); continue; }
             }
             if (a.life <= 0 || a.y > 520 || a.x < -60 || a.x > 460 || a.y < -150) rwbAttacks.splice(i, 1);
         }
@@ -2200,6 +2200,16 @@
     // ============================================================
     // ★★★ hitPlayer — ПОЛНАЯ ОБРАБОТКА СУПЕР-ЗАЩИТ ★★★
     // ============================================================
+    function getRWBSuperHitboxBonus() {
+        let hb = 4;
+        if (typeof _superState !== 'undefined') {
+            if (_superState.nikaActive) hb *= 2;
+            if (_superState.antispiralActive) hb *= 0.7;
+            if (_superState.allmightBuffTimer > 0) hb *= 2;
+        }
+        return hb;
+    }
+
     function hitPlayer(dmg) {
         if (isModerActive()) return;
 
