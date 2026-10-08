@@ -2127,7 +2127,10 @@
         // ★ При остановке времени — пули тоже стоят ★
         var stopAll = false;
         if (typeof _superState !== 'undefined') {
-            stopAll = (_superState.garouTimeStop === true);
+            stopAll = (_superState.garouTimeStop === true ||
+                       _superState.takabaTimeStop === true ||
+                       _superState.antispiralFrozen === true ||
+                       _superState.usoppStunTimer > 0);
         }
 
         for (let i = rwbPlayerBullets.length - 1; i >= 0; i--) {
