@@ -560,28 +560,63 @@ function dioCanUse(skill, cost, cooldown) {
 function dioStartTimeStop(duration, teleportStyle) {
     var ctxB = getBossContext();
     if (!ctxB) return;
-    var d = Number(duration) || 0;
+
+    var d = Math.max(0.05, Number(duration) || 0);
+    var now = performance.now();
+
+    // Один источник истины для всех режимов игры/боссов.
+    // Пока этот флаг активен, физика и таймеры мира должны стоять,
+    // а DIO/VFX продолжает жить.
     if (teleportStyle) _superState.dioTeleportStop = d;
     else _superState.dioTimeStop = d;
-    _superState.dioTimeStopStartedAt = performance.now();
-    _superState.dioStandFlash = teleportStyle ? 0.45 : 0.9;
+
+    _superState.dioTimeStopStartedAt = now;
+    _superState.dioStandFlash = teleportStyle ? 0.55 : 1.15;
     _superState.dioStandX = ctxB.getHeartX();
     _superState.dioStandY = ctxB.getHeartY();
 
-    // У TP свой звук. Обычный ZA WARUDO не должен проигрываться поверх него.
+    // Предзагруженный звук проигрывается без задержки.
     dioPlaySound(teleportStyle
         ? "music/dios-time-stop-teleportation-sound-effect-1.mp3"
         : "music/za-warudo-time-stop-louder.mp3");
 
-    ctxB.addFlashWhite(teleportStyle ? 3 : 8);
-    ctxB.addShake(teleportStyle ? 8 : 18);
+    // Аниме-удар: белый flash -> золото -> фиолетовый "THE WORLD".
+    ctxB.addFlashWhite(teleportStyle ? 4 : 12);
+    ctxB.addShake(teleportStyle ? 10 : 24);
     ctxB.spawnFloatingText(
         ctxB.getHeartX(),
         ctxB.getHeartY() - 35,
         teleportStyle ? "THE WORLD!" : "ZA WARUDO!",
         "#fff0a0"
     );
+
+    // Мгновенная вспышка вокруг сердца.
+    try {
+        var parts = ctxB.getParticles();
+        if (parts) {
+            var px = ctxB.getHeartX(), py = ctxB.getHeartY();
+            for (var i = 0; i < (teleportStyle ? 18 : 34); i++) {
+                var a = Math.random() * Math.PI * 2;
+                var sp = 2 + Math.random() * (teleportStyle ? 5 : 9);
+                parts.push({
+                    x: px, y: py,
+                    vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    life: 18 + Math.random() * 18, maxLife: 36,
+                    color: i % 3 === 0 ? "#ffffff" : (i % 3 === 1 ? "#ffe66d" : "#b985ff"),
+                    size: 1.5 + Math.random() * 3.5,
+                    dioTimeStopVfx: true
+                });
+            }
+        }
+    } catch (e) {}
 }
+
+function isDioTimeStopped() {
+    if (typeof _superState === "undefined") return false;
+    return (_superState.dioTimeStop || 0) > 0 ||
+           (_superState.dioTeleportStop || 0) > 0;
+}
+window.isDioTimeStopped = isDioTimeStopped;
 function activateDioTimeStop() {
     if (!dioCanUse("timeStop", 40, 25)) return;
     dioStartTimeStop(2.5, false);
@@ -638,6 +673,7 @@ window.dioUseSkill = dioUseSkill;
 function updateDioSkillCooldowns(dt) {
     var c = _superState.dioSkillCooldowns;
     for (var k in c) c[k] = Math.max(0, (c[k] || 0) - dt);
+    // DIO's own clock is the only clock that continues while the world is stopped.
     _superState.dioTimeStop = Math.max(0, (_superState.dioTimeStop || 0) - dt);
     _superState.dioTeleportStop = Math.max(0, (_superState.dioTeleportStop || 0) - dt);
     _superState.dioAggroTimer = Math.max(0, (_superState.dioAggroTimer || 0) - dt);
@@ -818,116 +854,196 @@ function dioButton(label,key,cost,cooldown,cd) {
 
 function renderDioVisuals(ctxB) {
     if (!ctxB || !isDioOverHeavenMain() || !ctx) return;
+
     var now = performance.now();
     var stop = Math.max(_superState.dioTimeStop || 0, _superState.dioTeleportStop || 0);
+    var active = stop > 0;
+    var phase = now - (_superState.dioTimeStopStartedAt || now);
+    var isTP = (_superState.dioTeleportStop || 0) > 0 && (_superState.dioTimeStop || 0) <= 0;
 
-    // ★ КАНОНИЧНАЯ АНИМЕ-ПОДАЧА: белый всплеск + золото + фиолетовый THE WORLD.
-    if (stop > 0) {
+    if (active) {
         ctx.save();
-        var phase = now - (_superState.dioTimeStopStartedAt || now);
-        var pulse = 0.5 + 0.5 * Math.sin(phase / 85);
-        var isTP = (_superState.dioTeleportStop || 0) > 0 && (_superState.dioTimeStop || 0) <= 0;
 
-        // Выбеливание и золотисто-фиолетовый сдвиг палитры.
-        var wash = ctx.createLinearGradient(0,0,400,500);
-        wash.addColorStop(0, "rgba(255,255,255," + (0.20 + pulse*0.06) + ")");
-        wash.addColorStop(0.45, "rgba(255,224,120," + (0.11 + pulse*0.04) + ")");
-        wash.addColorStop(1, "rgba(93,45,145," + (0.17 + pulse*0.05) + ")");
+        // === 1. АНИМЕ-СЕПИЯ: мир визуально "ломается" ===
+        var pulse = 0.5 + 0.5 * Math.sin(phase / 72);
+        var edge = 0.18 + pulse * 0.06;
+        var wash = ctx.createLinearGradient(0, 0, 400, 500);
+        wash.addColorStop(0, "rgba(255,255,255," + (0.24 + pulse * 0.05) + ")");
+        wash.addColorStop(0.35, "rgba(255,232,145," + (0.10 + pulse * 0.04) + ")");
+        wash.addColorStop(0.72, "rgba(141,91,205," + (0.10 + pulse * 0.04) + ")");
+        wash.addColorStop(1, "rgba(20,8,40," + (0.24 + pulse * 0.06) + ")");
         ctx.fillStyle = wash;
-        ctx.fillRect(0,0,400,500);
+        ctx.fillRect(0, 0, 400, 500);
 
-        // Радиальные лучи — ощущение резкого "щелчка" остановки.
+        // === 2. ЗАМЕРШИЕ "ОСКОЛКИ ВРЕМЕНИ" ===
         ctx.globalCompositeOperation = "lighter";
-        ctx.save();
-        ctx.translate(200,250);
-        ctx.globalAlpha = 0.16 + pulse*0.08;
-        ctx.strokeStyle = "#fff0a0";
-        ctx.lineWidth = 2;
-        for (var ray=0; ray<24; ray++) {
-            var ang = ray * Math.PI * 2 / 24;
-            var len = 285 + Math.sin(ray*4.7 + phase/120)*35;
+        for (var shard = 0; shard < 15; shard++) {
+            var sx = 20 + ((shard * 83) % 360);
+            var sy = 35 + ((shard * 137) % 430);
+            var drift = Math.sin(phase / 500 + shard) * 5;
+            ctx.globalAlpha = 0.16 + 0.08 * Math.sin(phase / 110 + shard);
+            ctx.strokeStyle = shard % 2 ? "#fff1a8" : "#c9a4ff";
+            ctx.lineWidth = shard % 3 === 0 ? 2.5 : 1;
             ctx.beginPath();
-            ctx.moveTo(Math.cos(ang)*105, Math.sin(ang)*105);
-            ctx.lineTo(Math.cos(ang)*len, Math.sin(ang)*len);
+            ctx.moveTo(sx - 8, sy + drift - 5);
+            ctx.lineTo(sx + 7, sy + drift + 7);
+            ctx.lineTo(sx + 2, sy + drift + 15);
             ctx.stroke();
         }
 
-        // Два циферблата — время буквально "заперто".
-        ctx.globalAlpha = 0.38 + pulse*0.12;
-        ctx.strokeStyle = "#ffe37a";
-        ctx.shadowColor = "#d8b34d";
-        ctx.shadowBlur = 18;
-        ctx.lineWidth = 3;
-        for (var ring=0; ring<2; ring++) {
-            var rr = 78 + ring*46 + pulse*4;
+        // === 3. ЧАСОВОЙ ЦИФЕРБЛАТ В ЦЕНТРЕ ===
+        ctx.save();
+        ctx.translate(200, 250);
+        ctx.globalAlpha = 0.22 + pulse * 0.10;
+        ctx.strokeStyle = "#ffe16b";
+        ctx.shadowColor = "#ffd23f";
+        ctx.shadowBlur = 22;
+        ctx.lineWidth = 2.5;
+
+        for (var ring = 0; ring < 3; ring++) {
+            var rr = 72 + ring * 48 + pulse * 4;
             ctx.beginPath();
-            ctx.arc(0,0,rr,0,Math.PI*2);
+            ctx.arc(0, 0, rr, 0, Math.PI * 2);
             ctx.stroke();
-            for (var tick=0; tick<12; tick++) {
-                var ta = tick*Math.PI*2/12;
+
+            for (var tick = 0; tick < 24; tick++) {
+                var ta = tick * Math.PI * 2 / 24;
+                var inner = rr - (tick % 2 ? 5 : 11);
                 ctx.beginPath();
-                ctx.moveTo(Math.cos(ta)*(rr-8),Math.sin(ta)*(rr-8));
-                ctx.lineTo(Math.cos(ta)*rr,Math.sin(ta)*rr);
+                ctx.moveTo(Math.cos(ta) * inner, Math.sin(ta) * inner);
+                ctx.lineTo(Math.cos(ta) * rr, Math.sin(ta) * rr);
                 ctx.stroke();
             }
         }
 
-        var core = ctx.createRadialGradient(0,0,2,0,0,70);
-        core.addColorStop(0,"rgba(255,255,255,.88)");
-        core.addColorStop(.18,"rgba(255,232,130,.55)");
-        core.addColorStop(.48,"rgba(174,112,255,.24)");
-        core.addColorStop(1,"rgba(75,25,120,0)");
+        // Стрелки намеренно НЕ двигаются — время застыло.
+        ctx.globalAlpha = 0.82;
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "#fff4b0";
+        ctx.beginPath();
+        ctx.moveTo(0, 5); ctx.lineTo(0, -47);
+        ctx.moveTo(0, 5); ctx.lineTo(31, 5);
+        ctx.stroke();
+
+        var core = ctx.createRadialGradient(0, 0, 3, 0, 0, 82);
+        core.addColorStop(0, "rgba(255,255,255,.95)");
+        core.addColorStop(.13, "rgba(255,236,145,.72)");
+        core.addColorStop(.36, "rgba(184,126,255,.28)");
+        core.addColorStop(1, "rgba(70,20,120,0)");
         ctx.fillStyle = core;
         ctx.beginPath();
-        ctx.arc(0,0,72 + pulse*8,0,Math.PI*2);
+        ctx.arc(0, 0, 76 + pulse * 9, 0, Math.PI * 2);
         ctx.fill();
+
+        // Крест из "пластинок времени".
+        ctx.globalAlpha = 0.18 + pulse * 0.08;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+        for (var plate = -2; plate <= 2; plate++) {
+            ctx.beginPath();
+            ctx.moveTo(-180, plate * 42);
+            ctx.lineTo(180, plate * 42);
+            ctx.moveTo(plate * 42, -180);
+            ctx.lineTo(plate * 42, 180);
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // === 4. КИНЕМАТОГРАФИЧЕСКИЕ ЛУЧИ ===
+        ctx.save();
+        ctx.translate(200, 250);
+        ctx.globalAlpha = 0.13 + pulse * 0.06;
+        ctx.strokeStyle = "#fff0a0";
+        ctx.lineWidth = 2;
+        for (var ray = 0; ray < 32; ray++) {
+            var ang = ray * Math.PI * 2 / 32;
+            var len = 245 + Math.sin(ray * 3.1 + phase / 160) * 50;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(ang) * 105, Math.sin(ang) * 105);
+            ctx.lineTo(Math.cos(ang) * len, Math.sin(ang) * len);
+            ctx.stroke();
+        }
         ctx.restore();
         ctx.globalCompositeOperation = "source-over";
 
-        ctx.globalAlpha = 0.9;
-        ctx.strokeStyle = isTP ? "#d7c5ff" : "#fff0a0";
-        ctx.shadowColor = isTP ? "#9b6cff" : "#ffd84d";
-        ctx.shadowBlur = 22;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(6,6,388,488);
+        // === 5. ЧЕРНЫЕ КИНО-БАРЫ ===
+        ctx.fillStyle = "rgba(0,0,0,.58)";
+        ctx.fillRect(0, 0, 400, 22);
+        ctx.fillRect(0, 478, 400, 22);
 
-        ctx.font = "900 25px Arial, sans-serif";
+        // === 6. РАМКА + КАНОНИЧНАЯ НАДПИСЬ ===
+        ctx.globalAlpha = 0.65 + pulse * 0.2;
+        ctx.strokeStyle = isTP ? "#cdb6ff" : "#ffe58a";
+        ctx.shadowColor = isTP ? "#9a5cff" : "#ffd447";
+        ctx.shadowBlur = 24;
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(7, 7, 386, 486);
+
+        ctx.shadowBlur = 0;
+        ctx.font = "900 25px Arial Black, Arial, sans-serif";
         ctx.textAlign = "center";
         ctx.fillStyle = "#fff";
-        ctx.shadowColor = "#7b4dba";
-        ctx.shadowBlur = 22;
-        ctx.fillText(isTP ? "THE WORLD!" : "ZA WARUDO!",200,47);
+        ctx.shadowColor = isTP ? "#7b45b8" : "#a47a1c";
+        ctx.shadowBlur = 18;
+        ctx.fillText(isTP ? "THE WORLD!" : "ZA WARUDO!", 200, 48);
         ctx.font = "900 10px monospace";
         ctx.fillStyle = "#fff0a0";
         ctx.shadowBlur = 8;
-        ctx.fillText(isTP ? "TIME SHIFT" : "TOKI WO TOMARE",200,63);
+        ctx.fillText(isTP ? "TIME SHIFT" : "TOKI WO TOMARE", 200, 64);
+
+        // === 7. VIGNETTE ===
+        var vg = ctx.createRadialGradient(200, 250, 120, 200, 250, 360);
+        vg.addColorStop(0, "rgba(255,255,255,0)");
+        vg.addColorStop(0.7, "rgba(74,35,110," + (0.05 + pulse * 0.02) + ")");
+        vg.addColorStop(1, "rgba(0,0,0," + (edge + 0.12) + ")");
+        ctx.fillStyle = vg;
+        ctx.fillRect(0, 0, 400, 500);
         ctx.restore();
     }
 
-    // ★ Силуэт THE WORLD на долю секунды появляется перед DIO.
+    // === СИЛУЭТ THE WORLD ===
     if (_superState.dioStandFlash > 0) {
         ctx.save();
-        var sa = Math.min(1,_superState.dioStandFlash*2);
-        var standPulse = 1 + Math.sin(now/70)*0.08;
+        var sa = Math.min(1, _superState.dioStandFlash * 1.8);
+        var standPulse = 1 + Math.sin(now / 52) * 0.045;
         ctx.globalAlpha = sa;
-        ctx.translate(_superState.dioStandX,_superState.dioStandY-35);
-        ctx.scale(standPulse,standPulse);
+        ctx.translate(_superState.dioStandX, _superState.dioStandY - 35);
+        ctx.scale(standPulse, standPulse);
         ctx.globalCompositeOperation = "lighter";
-        ctx.fillStyle="#f7f7ff";
-        ctx.strokeStyle="#d7c5ff";
-        ctx.lineWidth=2.5;
-        ctx.shadowColor="#b27cff";
-        ctx.shadowBlur=28;
-        ctx.beginPath();ctx.ellipse(0,0,25,37,0,0,Math.PI*2);ctx.fill();ctx.stroke();
-        ctx.fillStyle="#d7c5ff";ctx.fillRect(-20,-14,40,8);
-        ctx.fillStyle="#17111f";ctx.fillRect(-11,-2,7,4);ctx.fillRect(4,-2,7,4);
-        ctx.fillStyle="#e7d76f";ctx.fillRect(-15,12,30,6);
-        ctx.strokeStyle="#fff0a0";ctx.lineWidth=2;
-        ctx.beginPath();ctx.moveTo(-14,22);ctx.lineTo(14,22);ctx.stroke();
+
+        ctx.shadowColor = "#b57aff";
+        ctx.shadowBlur = 32;
+        ctx.fillStyle = "rgba(247,247,255,.92)";
+        ctx.strokeStyle = "#e4d0ff";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 27, 40, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Голова / глаза / золотая броня.
+        ctx.fillStyle = "#b99cff";
+        ctx.fillRect(-21, -15, 42, 9);
+        ctx.fillStyle = "#17111f";
+        ctx.fillRect(-12, -2, 7, 4);
+        ctx.fillRect(5, -2, 7, 4);
+        ctx.fillStyle = "#f0d66d";
+        ctx.fillRect(-16, 12, 32, 7);
+        ctx.strokeStyle = "#fff2a5";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-15, 23); ctx.lineTo(15, 23);
+        ctx.stroke();
+
+        // Кулаки/ореол.
+        ctx.fillStyle = "#fff";
+        ctx.globalAlpha = sa * 0.7;
+        ctx.beginPath(); ctx.arc(-35, 7, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(35, 7, 7, 0, Math.PI * 2); ctx.fill();
+
         ctx.restore();
     }
 }
-
 // ====== ОПИСАНИЯ СПОСОБНОСТЕЙ ======
 const superAbilities = {
     "Деку (100%)": { name: "ПОЛНОЕ 100% ПОКРЫТИЕ", cooldown: 15000, toggleable: true, duration: Infinity,
