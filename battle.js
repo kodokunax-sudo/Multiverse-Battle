@@ -595,6 +595,11 @@ function applyArenaDamage() {
         if(typeof getTakabaCombatModifiers==="function"){try{finalDmg=Math.floor(finalDmg*getTakabaCombatModifiers().dmgMult);}catch(e){}}
         if (_superState.takabaDmgMult && _superState.takabaDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.takabaDmgMult);
     }
+    // ★ DIO OVER HEAVEN: энергия зависит от качества попадания.
+    // x2.5 (ИДЕАЛЬНО) = ровно 40 энергии; ниже — пропорционально.
+    if (finalDmg > 0 && typeof isDioOverHeavenMain === "function" && isDioOverHeavenMain()) {
+        dioAddEnergy(Math.min(40, 16 * dmgMult));
+    }
     if (finalDmg > 0) {
         if (typeof adjustTakabaConfidence === "function" && typeof getTakabaLevel === "function" &&
             (typeof hasTakaba !== "function" || hasTakaba())) {
