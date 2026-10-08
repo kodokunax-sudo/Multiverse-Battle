@@ -93,7 +93,22 @@ let _superState = {
     whitebeardTsunamiPending: 0,
     whitebeardSkillTsunamiActive: false,
     whitebeardSkillTsunamiY: 540,
-    whitebeardSkillTsunamiHitId: 0
+    whitebeardSkillTsunamiHitId: 0,
+
+    // ★★★ DIO OVER HEAVEN ★★★
+    dioEnergy: 0,
+    dioEnergyLastBossHp: null,
+    dioEnergyBossType: null,
+    dioTimeStop: 0,
+    dioTimeStopStartedAt: 0,
+    dioTeleportStop: 0,
+    dioHistory: [],
+    dioAggroTimer: 0,
+    dioStandFlash: 0,
+    dioStandX: 0,
+    dioStandY: 0,
+    dioStandTarget: null,
+    dioSkillCooldowns: { timeStop: 0, heal: 0, teleport: 0, aggro: 0 }
 };
 
 let _superCooldowns = {};
@@ -453,6 +468,255 @@ function drawAllMightHeart(hx, hy, size) {
     ctx.fillStyle = heartGrad; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 20; var hs = size * 0.8;
     ctx.beginPath(); ctx.arc(-hs/2, -hs/3, hs/2, Math.PI, 0); ctx.arc(hs/2, -hs/3, hs/2, Math.PI, 0); ctx.lineTo(0, hs); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = Math.sin(performance.now()/50) > 0 ? "#ffffff" : "#ffaaaa"; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+}
+
+// ====== DIO OVER HEAVEN ======
+function isDioOverHeavenMain() {
+    try {
+        var c = getMainCard();
+        return !!(c && c.name === "ДИО Over Heaven" &&
+            (typeof hasMasteryAbility !== "function" || hasMasteryAbility(c)));
+    } catch(e) { return false; }
+}
+window.isDioOverHeavenMain = isDioOverHeavenMain;
+
+function dioPlaySound(path) {
+    try {
+        var a = new Audio(path);
+        a.volume = 0.72;
+        a.play().catch(function(){});
+    } catch(e) {}
+}
+
+function dioAddEnergy(amount) {
+    if (!isDioOverHeavenMain()) return;
+    _superState.dioEnergy = Math.max(0, Math.min(100, (_superState.dioEnergy || 0) + Math.max(0, Number(amount) || 0)));
+}
+window.dioAddEnergy = dioAddEnergy;
+
+function dioTrackBossDamage(ctxB) {
+    if (!isDioOverHeavenMain() || !ctxB) return;
+    var hp = Number(ctxB.getBossHp());
+    if (!isFinite(hp)) return;
+    var type = ctxB.type || "unknown";
+    if (_superState.dioEnergyBossType !== type || _superState.dioEnergyLastBossHp === null) {
+        _superState.dioEnergyBossType = type;
+        _superState.dioEnergyLastBossHp = hp;
+        return;
+    }
+    var delta = _superState.dioEnergyLastBossHp - hp;
+    if (delta > 0) {
+        // 1 энергия за 5 нанесённого урона: боссы не превращают шкалу в бесконечный спам.
+        dioAddEnergy(delta / 5);
+    }
+    _superState.dioEnergyLastBossHp = hp;
+}
+window.dioTrackBossDamage = dioTrackBossDamage;
+
+function dioCanUse(skill, cost, cooldown) {
+    var cd = _superState.dioSkillCooldowns[skill] || 0;
+    if (cd > 0) {
+        if (typeof showFloatingText === "function") showFloatingText("⏳ " + Math.ceil(cd) + "с", "#ffaa00");
+        return false;
+    }
+    if ((_superState.dioEnergy || 0) < cost) {
+        if (typeof showFloatingText === "function") showFloatingText("⚡ НУЖНО " + cost + " ЭНЕРГИИ (" + Math.floor(_superState.dioEnergy || 0) + "/100)", "#ffdd44");
+        return false;
+    }
+    _superState.dioEnergy -= cost;
+    _superState.dioSkillCooldowns[skill] = cooldown;
+    return true;
+}
+
+function dioStartTimeStop(duration, teleportStyle) {
+    var ctxB = getBossContext();
+    if (!ctxB) return;
+    var d = Number(duration) || 0;
+    if (teleportStyle) _superState.dioTeleportStop = d;
+    else _superState.dioTimeStop = d;
+    _superState.dioTimeStopStartedAt = performance.now();
+    _superState.dioStandFlash = teleportStyle ? 0.45 : 0.9;
+    _superState.dioStandX = ctxB.getHeartX();
+    _superState.dioStandY = ctxB.getHeartY();
+    dioPlaySound("music/za-warudo-time-stop-louder.mp3");
+    ctxB.addFlashWhite(teleportStyle ? 3 : 8);
+    ctxB.addShake(teleportStyle ? 8 : 18);
+    ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 35, teleportStyle ? "THE WORLD!" : "ZA WARUDO!", "#fff0a0");
+}
+
+function activateDioTimeStop() {
+    if (!dioCanUse("timeStop", 40, 25)) return;
+    dioStartTimeStop(2.5, false);
+}
+
+function activateDioHeal() {
+    var ctxB = getBossContext();
+    if (!ctxB || !dioCanUse("heal", 30, 25)) return;
+    var amount = ctxB.getPlayerMaxHp() * 0.10;
+    ctxB.setPlayerHp(Math.min(ctxB.getPlayerMaxHp(), ctxB.getPlayerHp() + amount));
+    ctxB.addShockwave(ctxB.getHeartX(), ctxB.getHeartY(), "#fff2aa", 260, 0.65, 5);
+    ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 30, "+10% REALITY HEAL", "#fff2aa");
+}
+
+function activateDioTeleport() {
+    var ctxB = getBossContext();
+    if (!ctxB || !dioCanUse("teleport", 25, 15)) return;
+    var now = performance.now(), target = null;
+    for (var i = _superState.dioHistory.length - 1; i >= 0; i--) {
+        if (now - _superState.dioHistory[i].time >= 1000) { target = _superState.dioHistory[i]; break; }
+    }
+    if (!target && _superState.dioHistory.length) target = _superState.dioHistory[0];
+    if (target) {
+        ctxB.setHeartX(target.x);
+        ctxB.setHeartY(target.y);
+        ctxB.clampHeart();
+    }
+    dioPlaySound("music/dios-time-stop-teleportation-sound-effect-1.mp3");
+    dioStartTimeStop(0.5, true);
+}
+
+function activateDioAggro() {
+    var ctxB = getBossContext();
+    if (!ctxB || !dioCanUse("aggro", 40, 30)) return;
+    _superState.dioAggroTimer = 4.0;
+    var atk = ctxB.getAttacks();
+    for (var i = 0; i < atk.length; i++) {
+        atk[i].dioAggro = true;
+        atk[i].dioAggroNoPlayer = true;
+    }
+    ctxB.addShockwave(ctxB.getHeartX(), ctxB.getHeartY(), "#d9c2ff", 360, 0.8, 6);
+    ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "OVERWRITE: АГРЕССИЯ", "#d9c2ff");
+}
+
+function dioUseSkill(skill) {
+    if (!isDioOverHeavenMain()) return;
+    if (skill === "timeStop") activateDioTimeStop();
+    else if (skill === "heal") activateDioHeal();
+    else if (skill === "teleport") activateDioTeleport();
+    else if (skill === "aggro") activateDioAggro();
+    updateSuperButton();
+}
+window.dioUseSkill = dioUseSkill;
+
+function updateDioSkillCooldowns(dt) {
+    var c = _superState.dioSkillCooldowns;
+    for (var k in c) c[k] = Math.max(0, (c[k] || 0) - dt);
+    _superState.dioTimeStop = Math.max(0, (_superState.dioTimeStop || 0) - dt);
+    _superState.dioTeleportStop = Math.max(0, (_superState.dioTeleportStop || 0) - dt);
+    _superState.dioAggroTimer = Math.max(0, (_superState.dioAggroTimer || 0) - dt);
+    _superState.dioStandFlash = Math.max(0, (_superState.dioStandFlash || 0) - dt);
+}
+
+function updateDioHistory(ctxB) {
+    if (!isDioOverHeavenMain() || !ctxB) return;
+    var now = performance.now();
+    _superState.dioHistory.push({time: now, x: ctxB.getHeartX(), y: ctxB.getHeartY()});
+    while (_superState.dioHistory.length && now - _superState.dioHistory[0].time > 2500) _superState.dioHistory.shift();
+}
+
+function updateDioAggressiveBlocks(ctxB) {
+    if (!ctxB || _superState.dioAggroTimer <= 0) return;
+    var atk = ctxB.getAttacks();
+    for (var i = atk.length - 1; i >= 0; i--) {
+        var a = atk[i];
+        if (!a.dioAggro) continue;
+        var ax = a.x + (a.size || a.radius || 10) / 2, ay = a.y + (a.size || a.radius || 10) / 2;
+        var best = -1, bestD = Infinity;
+        for (var j = 0; j < atk.length; j++) {
+            if (i === j || !atk[j].dioAggro) continue;
+            var bx = atk[j].x + (atk[j].size || atk[j].radius || 10) / 2, by = atk[j].y + (atk[j].size || atk[j].radius || 10) / 2;
+            var d = Math.hypot(bx - ax, by - ay);
+            if (d < bestD) { bestD = d; best = j; }
+        }
+        if (best >= 0 && bestD < 150) {
+            var b = atk[best], bx2 = b.x + (b.size || b.radius || 10) / 2, by2 = b.y + (b.size || b.radius || 10) / 2;
+            var dx = bx2 - ax, dy = by2 - ay, len = Math.hypot(dx,dy) || 1;
+            var speed = 4.2;
+            if (a.spd !== undefined) a.spd = dx / len * speed;
+            if (a.spdY !== undefined) a.spdY = dy / len * speed;
+            if (a.vx !== undefined) a.vx = dx / len * speed;
+            if (a.vy !== undefined) a.vy = dy / len * speed;
+            if (bestD < ((a.size || a.radius || 10) + (b.size || b.radius || 10)) * 0.45) {
+                atk.splice(Math.max(i,best),1);
+                if (Math.min(i,best) < atk.length) atk.splice(Math.min(i,best),1);
+                ctxB.getParticles().push({x:ax,y:ay,vx:0,vy:0,life:20,maxLife:20,color:"#d9c2ff",size:5});
+            }
+        }
+    }
+}
+
+function ensureDioPanel() {
+    var panel = document.getElementById("dioOverHeavenPanel");
+    if (!panel) {
+        panel = document.createElement("div");
+        panel.id = "dioOverHeavenPanel";
+        panel.style.cssText = "display:none;max-width:420px;width:calc(100% - 12px);margin-top:7px;box-sizing:border-box;";
+        var overlay = document.getElementById("arenaOverlay");
+        if (overlay) overlay.appendChild(panel);
+    }
+    return panel;
+}
+
+function updateDioPanel() {
+    var panel = ensureDioPanel();
+    if (!panel) return;
+    if (!isDioOverHeavenMain()) { panel.style.display = "none"; return; }
+    panel.style.display = "block";
+    var e = Math.floor(_superState.dioEnergy || 0);
+    var cd = _superState.dioSkillCooldowns;
+    var stop = Math.max(_superState.dioTimeStop || 0, _superState.dioTeleportStop || 0);
+    panel.innerHTML =
+        '<div style="color:#fff;text-align:center;font-weight:900;font-size:13px;margin-bottom:4px;">👑 DIO OVER HEAVEN — ЭНЕРГИЯ</div>' +
+        '<div style="height:10px;background:#17121f;border:1px solid #9b82d0;border-radius:8px;overflow:hidden;margin-bottom:6px;">' +
+        '<div style="height:100%;width:'+e+'%;background:linear-gradient(90deg,#d7d7ff,#fff1a0,#e5bfff);transition:width .15s;"></div></div>' +
+        '<div style="color:#ddd;text-align:center;font-size:11px;margin-bottom:5px;">⚡ '+e+' / 100'+(stop>0?' · ⏱️ '+stop.toFixed(1)+'с':'')+'</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;">' +
+        dioButton("⏳ ZA WARUDO", "timeStop", 40, 25, cd.timeStop) +
+        dioButton("💚 REALITY HEAL", "heal", 30, 25, cd.heal) +
+        dioButton("🌀 TIME TELEPORT", "teleport", 25, 15, cd.teleport) +
+        dioButton("👊 BLOCK RAGE", "aggro", 40, 30, cd.aggro) +
+        '</div>';
+}
+function dioButton(label,key,cost,cooldown,cd) {
+    var disabled = cd > 0 || (_superState.dioEnergy || 0) < cost || !isDioOverHeavenMain();
+    var textCd = cd > 0 ? " · "+Math.ceil(cd)+"с" : "";
+    return '<button onclick="dioUseSkill(\''+key+'\')" '+(disabled?'disabled':'')+' style="padding:7px 4px;border-radius:8px;border:1px solid #bca5ff;background:'+(disabled?'#333':'linear-gradient(135deg,#33214f,#8064a8)')+';color:white;font-size:11px;font-weight:800;">'+label+'<br><span style="font-size:9px;">⚡'+cost+textCd+'</span></button>';
+}
+
+function renderDioVisuals(ctxB) {
+    if (!ctxB || !isDioOverHeavenMain() || !ctx) return;
+    var stop = Math.max(_superState.dioTimeStop || 0, _superState.dioTeleportStop || 0);
+    if (stop > 0) {
+        ctx.save();
+        ctx.globalAlpha = 0.14 + Math.sin(performance.now()/90)*0.03;
+        ctx.fillStyle = "#d8d8e8";
+        ctx.fillRect(0,0,400,500);
+        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = "#fff3a0";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8,10]);
+        ctx.strokeRect(8,8,384,484);
+        ctx.setLineDash([]);
+        ctx.font = "bold 22px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#fff";
+        ctx.shadowColor = "#caaeff";
+        ctx.shadowBlur = 18;
+        ctx.fillText(_superState.dioTimeStop > 0 ? "ZA WARUDO!" : "THE WORLD",200,48);
+        ctx.restore();
+    }
+    if (_superState.dioStandFlash > 0) {
+        ctx.save();
+        var a = Math.min(1,_superState.dioStandFlash*2);
+        ctx.globalAlpha = a;
+        ctx.translate(_superState.dioStandX,_superState.dioStandY-35);
+        ctx.fillStyle="#f7f7ff";ctx.strokeStyle="#d7c5ff";ctx.lineWidth=2;ctx.shadowColor="#c9a8ff";ctx.shadowBlur=25;
+        ctx.beginPath();ctx.ellipse(0,0,24,34,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+        ctx.fillStyle="#d7c5ff";ctx.fillRect(-19,-13,38,8);
+        ctx.fillStyle="#111";ctx.fillRect(-11,-2,7,4);ctx.fillRect(4,-2,7,4);
+        ctx.fillStyle="#e7d76f";ctx.fillRect(-14,12,28,6);
+        ctx.restore();
+    }
 }
 
 // ====== ОПИСАНИЯ СПОСОБНОСТЕЙ ======
