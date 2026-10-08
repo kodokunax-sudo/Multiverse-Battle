@@ -506,8 +506,9 @@ function dioTrackBossDamage(ctxB) {
     }
     var delta = _superState.dioEnergyLastBossHp - hp;
     if (delta > 0) {
-        // 1 энергия за 5 нанесённого урона: боссы не превращают шкалу в бесконечный спам.
-        dioAddEnergy(delta / 5);
+        // Максимум 40 энергии за одно зарегистрированное попадание.
+        // Для обычной арены энергия начисляется прямо из оценки попадания.
+        if (type !== "arena") dioAddEnergy(Math.min(40, delta / 5));
     }
     _superState.dioEnergyLastBossHp = hp;
 }
@@ -685,7 +686,7 @@ function ensureDioPanel() {
     if (!panel) {
         panel = document.createElement("div");
         panel.id = "dioOverHeavenPanel";
-        panel.style.cssText = "display:none;max-width:420px;width:calc(100% - 12px);margin-top:7px;box-sizing:border-box;";
+        panel.style.cssText = "display:none;position:absolute;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:25;width:min(390px,calc(100% - 12px));box-sizing:border-box;pointer-events:auto;";
         var overlay = document.getElementById("arenaOverlay");
         if (overlay) overlay.appendChild(panel);
     }
@@ -707,21 +708,17 @@ function updateDioPanel() {
     var cd = _superState.dioSkillCooldowns;
     var stop = Math.max(_superState.dioTimeStop || 0, _superState.dioTeleportStop || 0);
     panel.innerHTML =
-        '<div style="color:#fff;text-align:center;font-weight:900;font-size:13px;margin-bottom:4px;">👑 DIO OVER HEAVEN — ЭНЕРГИЯ</div>' +
-        '<div style="height:10px;background:#17121f;border:1px solid #9b82d0;border-radius:8px;overflow:hidden;margin-bottom:6px;">' +
-        '<div style="height:100%;width:'+e+'%;background:linear-gradient(90deg,#d7d7ff,#fff1a0,#e5bfff);transition:width .15s;"></div></div>' +
-        '<div style="color:#ddd;text-align:center;font-size:11px;margin-bottom:5px;">⚡ '+e+' / 100'+(stop>0?' · ⏱️ '+stop.toFixed(1)+'с':'')+'</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;">' +
-        dioButton("⏳ ZA WARUDO", "timeStop", 40, 25, cd.timeStop) +
-        dioButton("💚 REALITY HEAL", "heal", 30, 25, cd.heal) +
-        dioButton("🌀 TIME TELEPORT", "teleport", 25, 15, cd.teleport) +
-        dioButton("👊 BLOCK RAGE", "aggro", 40, 30, cd.aggro) +
+        '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;">' +
+        dioButton("⏳ ZA", "timeStop", 40, 25, cd.timeStop) +
+        dioButton("💚 HEAL", "heal", 30, 25, cd.heal) +
+        dioButton("🌀 TP", "teleport", 25, 15, cd.teleport) +
+        dioButton("👊 RAGE", "aggro", 40, 30, cd.aggro) +
         '</div>';
 }
 function dioButton(label,key,cost,cooldown,cd) {
     var disabled = cd > 0 || (_superState.dioEnergy || 0) < cost || !isDioOverHeavenMain();
     var textCd = cd > 0 ? " · "+Math.ceil(cd)+"с" : "";
-    return '<button onclick="dioUseSkill(\''+key+'\')" '+(disabled?'disabled':'')+' style="padding:7px 4px;border-radius:8px;border:1px solid #bca5ff;background:'+(disabled?'#333':'linear-gradient(135deg,#33214f,#8064a8)')+';color:white;font-size:11px;font-weight:800;">'+label+'<br><span style="font-size:9px;">⚡'+cost+textCd+'</span></button>';
+    return '<button type="button" onclick="dioUseSkill(\''+key+'\')" '+(disabled?'disabled':'')+' style="width:100%;min-width:0;padding:7px 2px;border-radius:9px;border:1px solid #bca5ff;background:'+(disabled?'#333':'linear-gradient(135deg,#33214f,#8064a8)')+';color:white;font-size:10px;font-weight:900;line-height:1.05;touch-action:manipulation;pointer-events:auto;">'+label+'<br><span style="font-size:9px;">⚡'+cost+textCd+'</span></button>';
 }
 
 function renderDioVisuals(ctxB) {
