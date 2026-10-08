@@ -853,7 +853,11 @@ function dioButton(label,key,cost,cooldown,cd) {
 }
 
 function renderDioVisuals(ctxB) {
-    if (!ctxB || !isDioOverHeavenMain() || !ctx) return;
+    if (!ctx) return;
+    if (!ctxB || !isDioOverHeavenMain()) {
+        try { if (ctx.canvas && ctx.canvas.style) ctx.canvas.style.filter = ""; } catch (e) {}
+        return;
+    }
 
     var now = performance.now();
     var stop = Math.max(_superState.dioTimeStop || 0, _superState.dioTeleportStop || 0);
