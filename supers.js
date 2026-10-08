@@ -2296,7 +2296,7 @@ function drawSecretHeartTexture(targetCtx, x, y, size, cardName, options) {
         "Такаба":1, "Луффи: Ника, Бог Солнца":1, "Космический Гароу":1,
         "Сайтама":1, "Борос":1, "Бог Усопп":1, "Зено":1, "Анти-спираль":1,
         "Молодой Гарп":1, "Им (Правитель)":1, "Космический Дэнди":1, "Кайдо":1,
-        "Император Марк":1, "Деку (100%)":1, "Всемогущий (прайм)":1, "Белоус":1
+        "Император Марк":1, "Деку (100%)":1, "Всемогущий (прайм)":1, "Белоус":1, "ДИО Over Heaven":1
     };
     if (!known[n]) return false;
 
@@ -2516,6 +2516,21 @@ function drawSecretHeartTexture(targetCtx, x, y, size, cardName, options) {
         ctx0.save();ctx0.beginPath();heartPath(ctx0,s);ctx0.clip();
         ctx0.fillStyle="#c92232";ctx0.fillRect(-s*1.4,s*.08,s*2.8,s*.35);
         ctx0.fillStyle="#ffd42a";ctx0.beginPath();ctx0.moveTo(0,-s*.55);ctx0.lineTo(s*.18,-s*.1);ctx0.lineTo(s*.55,-s*.1);ctx0.lineTo(s*.25,s*.15);ctx0.lineTo(s*.35,s*.55);ctx0.lineTo(0,s*.3);ctx0.lineTo(-s*.35,s*.55);ctx0.lineTo(-s*.25,s*.15);ctx0.lineTo(-s*.55,-s*.1);ctx0.lineTo(-s*.18,-s*.1);ctx0.closePath();ctx0.fill();
+        ctx0.restore();
+    } else if (n === "ДИО Over Heaven") {
+        /* DIO OH: бело-золотой TWOH, корона и фиолетовая аура. */
+        ctx0.save();
+        ctx0.shadowColor="#d8c8ff"; ctx0.shadowBlur=s*2.4;
+        fillHeart(ctx0,s,"#f7f7ff","#d9c36a",1.8,"#b89cff");
+        ctx0.fillStyle="#e4c95f"; ctx0.strokeStyle="#fff0a0"; ctx0.lineWidth=Math.max(1,s*.10);
+        ctx0.beginPath();
+        ctx0.moveTo(-s*.72,-s*.78); ctx0.lineTo(-s*.45,-s*1.18); ctx0.lineTo(0,-s*.82);
+        ctx0.lineTo(s*.45,-s*1.18); ctx0.lineTo(s*.72,-s*.78); ctx0.closePath(); ctx0.fill(); ctx0.stroke();
+        ctx0.fillStyle="#7b4dba";
+        ctx0.beginPath();ctx0.arc(-s*.30,-s*.05,s*.13,0,Math.PI*2);ctx0.fill();
+        ctx0.beginPath();ctx0.arc(s*.30,-s*.05,s*.13,0,Math.PI*2);ctx0.fill();
+        ctx0.strokeStyle="#e4c95f";ctx0.lineWidth=s*.09;
+        ctx0.beginPath();ctx0.moveTo(-s*.42,s*.28);ctx0.quadraticCurveTo(0,s*.55,s*.42,s*.28);ctx0.stroke();
         ctx0.restore();
     } else if (n === "Белоус") {
         /* Белая капитанская шапка за сердцем + красная лента + усы. */
