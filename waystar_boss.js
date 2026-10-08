@@ -128,11 +128,11 @@ const WAYSTAR_BASE_PLAYER_SPEED = 4;
 
 function wsIsTimeStopped() {
     if (typeof _superState === 'undefined') return false;
-    return _superState.garouTimeStop === true || _superState.antispiralFrozen === true;
+    return _superState.garouTimeStop === true || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0 || _superState.antispiralFrozen === true;
 }
 function wsIsPlayerFrozen() {
     if (typeof _superState === 'undefined') return false;
-    return _superState.garouTimeStop === true || _superState.usoppStunTimer > 0;
+    return _superState.garouTimeStop === true || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0 || _superState.usoppStunTimer > 0;
 }
 function wsApplySuperDmgMult(baseDmg) {
     var dmg = baseDmg;
