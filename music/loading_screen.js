@@ -298,6 +298,7 @@
         document.getElementById('skipMusicBtn').addEventListener('click', function() {
             console.log("[LOADING] Игрок пропустил загрузку музыки");
             window.__musicSkipped = true;
+            try { localStorage.setItem('music_loaded_once', '1'); } catch (e) {}
             hideScreen();
         });
 
@@ -587,6 +588,8 @@
     // ★ ИНИЦИАЛИЗАЦИЯ ★
     // ============================================================
     function init() {
+        // ★ Старые сохранения игры никогда не трогаем.
+        // Загрузочный экран хранит только свой отдельный флаг музыки.
         if (document.body) {
             createScreen();
         } else {
@@ -597,6 +600,15 @@
 
         patchAudio();
         patchFetch();
+
+        // ★ Как раньше: если музыка уже загружалась, игру можно сразу пропустить.
+        // Музыка при этом продолжает грузиться в фоне, а прогресс игры остаётся нетронутым.
+        try {
+            if (localStorage.getItem('music_loaded_once') === '1') {
+                window.__musicSkipped = true;
+                setTimeout(hideScreen, 80);
+            }
+        } catch (e) {}
 
         // Проверка Cache API
         if (!('caches' in window)) {
