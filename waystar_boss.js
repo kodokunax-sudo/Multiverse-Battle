@@ -1633,8 +1633,19 @@ function drawWaystarSmallBoss() {
     ctx.restore();
 }
 
-function drawWaystarPlayer() { if (waystarInvulnTimer > 0 && Math.floor(waystarInvulnTimer / 3) % 2 === 0) return; ctx.save(); ctx.translate(waystarPlayer.x, waystarPlayer.y); var glow = ctx.createRadialGradient(0, 0, 1, 0, 0, 22); glow.addColorStop(0, "rgba(255,100,100,0.5)"); glow.addColorStop(1, "transparent"); ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "rgba(255, 100, 0, 0.4)"; ctx.beginPath(); ctx.moveTo(-4, 8); ctx.lineTo(4, 8); ctx.lineTo(0, 15 + Math.random()*8); ctx.closePath(); ctx.fill(); ctx.fillStyle = "#ff1111"; var hs = 12; ctx.beginPath(); ctx.moveTo(0, hs * 0.7); ctx.bezierCurveTo(-hs * 1.4, -hs * 0.2, -hs * 0.7, -hs * 1.1, 0, -hs * 0.4); ctx.bezierCurveTo(hs * 0.7, -hs * 1.1, hs * 1.4, -hs * 0.2, 0, hs * 0.7); ctx.closePath(); ctx.fill(); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); }
-
+function drawWaystarPlayer() {
+    if (waystarInvulnTimer > 0 && Math.floor(waystarInvulnTimer / 3) % 2 === 0) return;
+    ctx.save(); ctx.translate(waystarPlayer.x, waystarPlayer.y);
+    var glow = ctx.createRadialGradient(0,0,1,0,0,22);
+    glow.addColorStop(0,"rgba(255,100,100,0.5)"); glow.addColorStop(1,"transparent");
+    ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.fill();
+    if (!drawSecretHeartTexture(ctx,0,0,12,(typeof getSecretHeartMainCardName==="function"?getSecretHeartMainCardName():""),{rotation:0})) {
+        ctx.fillStyle="#ff1111"; var hs=12;
+        ctx.beginPath(); ctx.moveTo(0,hs*.7); ctx.bezierCurveTo(-hs*1.4,-hs*.2,-hs*.7,-hs*1.1,0,-hs*.4); ctx.bezierCurveTo(hs*.7,-hs*1.1,hs*1.4,-hs*.2,0,hs*.7); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle="#ffffff";ctx.lineWidth=1.5;ctx.stroke();
+    }
+    ctx.restore();
+}
 function drawWaystarPlayerBullets() { for (var i = 0; i < waystarPlayerBullets.length; i++) { var b = waystarPlayerBullets[i]; if (b.trail) { for (var j = 0; j < b.trail.length; j++) { var tr = b.trail[j], alpha = (1 - j / b.trail.length) * 0.5; ctx.globalAlpha = alpha; ctx.fillStyle = b.color || "#00d4ff"; ctx.beginPath(); ctx.arc(tr.x, tr.y, b.size * (1 - j / b.trail.length) * 0.7, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1; } var bulletColor = b.color || "#00d4ff"; var glow = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.size * 1.8); glow.addColorStop(0, "#ffffff"); glow.addColorStop(0.5, bulletColor); glow.addColorStop(1, "transparent"); ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 1.8, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 0.6, 0, Math.PI * 2); ctx.fill(); } }
 
 function drawWaystarEnemyBullets() { for (var i = 0; i < waystarEnemyBullets.length; i++) { var b = waystarEnemyBullets[i]; if (b.trail) { for (var j = 0; j < b.trail.length; j++) { var tr = b.trail[j], alpha = (1 - j / b.trail.length) * 0.6; ctx.globalAlpha = alpha; ctx.fillStyle = "#ff6600"; ctx.beginPath(); ctx.arc(tr.x, tr.y, b.size * (1 - j / b.trail.length) * 0.8, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1; } var bigGlow = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.size * 4); bigGlow.addColorStop(0, "rgba(255, 100, 100, 0.8)"); bigGlow.addColorStop(0.5, "rgba(255, 50, 50, 0.5)"); bigGlow.addColorStop(1, "rgba(255, 0, 0, 0)"); ctx.fillStyle = bigGlow; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 4, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 1.4, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = "#ff2222"; ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 0.5, 0, Math.PI * 2); ctx.fill(); } }
