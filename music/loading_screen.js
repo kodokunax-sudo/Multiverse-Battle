@@ -26,7 +26,11 @@
         "shop":         "music/shop.mp3",
         "waystar":      "music/Звезда.mp3",
         "qte":          "music/стендзи хер ай реалзайз.mp3",
-        "rwb":          "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3"
+        "rwb":          "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3",
+
+        // ★ DIO OVER HEAVEN — грузим заранее, чтобы ZA WARUDO не ждал сеть.
+        "dioTimeStop": "music/za-warudo-time-stop-louder.mp3",
+        "dioTeleport": "music/dios-time-stop-teleportation-sound-effect-1.mp3"
     };
 
     // ★ Минимальное время показа (чтобы экран не мигал, даже если всё быстро)
