@@ -1,7 +1,7 @@
 // ============================================================
-// JOYSTICK v2.0 — Плавающий джойстик + фикс pull-to-refresh
+// JOYSTICK v3.0 — Mobile control + anti pull-to-refresh
 // ============================================================
-// ★ v2.0:
+// ★ v3.0:
 //   - ПЛАВАЮЩИЙ джойстик (появляется где тапнул)
 //   - Красивый дизайн (градиенты, стрелки, блики)
 //   - Плавный отклик (нелинейная кривая)
@@ -54,7 +54,19 @@
     `;
     document.head.appendChild(pullFixStyle);
 
-    // Блокируем touchmove на документе когда идёт бой
+    // Жёсткий anti-pull-to-refresh для всей игры. Особенно важен iOS/Safari,
+    // где одного overscroll-behavior недостаточно.
+    var pullGuard = { active: false, lastY: 0 };
+    document.addEventListener('touchstart', function(e) {
+        if (!e.touches || !e.touches.length) return;
+        pullGuard.active = true;
+        pullGuard.lastY = e.touches[0].clientY;
+    }, { passive: true });
+    document.addEventListener('touchend', function() { pullGuard.active = false; }, { passive: true });
+    document.addEventListener('touchcancel', function() { pullGuard.active = false; }, { passive: true });
+
+    // Блокируем touchmove на документе когда идёт бой И защищаем верх страницы
+    // от нисходящего свайпа, который браузер трактует как pull-to-refresh.
     document.addEventListener('touchmove', function(e) {
         var inBattle = false;
         try {
@@ -66,10 +78,23 @@
             );
         } catch(err) {}
         
+        var target = e.target;
+        var isGameSurface = !!(target && (target.id === 'arenaCanvas' || (target.closest && target.closest('#arenaOverlay'))));
+        var y = (e.touches && e.touches.length) ? e.touches[0].clientY : pullGuard.lastY;
+        var movingDown = y > pullGuard.lastY + 1;
+        pullGuard.lastY = y;
+
+        // На самой верхушке страницы нисходящий жест НИКОГДА не отдаём браузеру.
+        // Это закрывает pull-to-refresh даже вне боя.
+        var atTop = (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0) <= 0;
+        if (atTop && movingDown) {
+            if (e.cancelable) e.preventDefault();
+            return;
+        }
+
         if (!inBattle) return;
         
         // Если тап был по canvas или overlay — блокируем скролл
-        var target = e.target;
         if (target && (
             target.id === 'arenaCanvas' ||
             (target.closest && target.closest('#arenaOverlay'))
@@ -95,7 +120,7 @@
         } else if (!inBattle && document.body.classList.contains('battle-active')) {
             document.body.classList.remove('battle-active');
         }
-    }, 300);
+    }, 150);
 
     // ============================================================
     // ★★★ ГЛОБАЛЬНОЕ СОСТОЯНИЕ ★★★
@@ -118,7 +143,7 @@
         targetVectorY: 0,
         currentVectorX: 0,
         currentVectorY: 0,
-        smoothFactor: 0.35
+        smoothFactor: 0.55
     };
 
     var _lastSettings = { enabled: null, size: null, opacity: null };
@@ -300,7 +325,7 @@
 
                 // ★ Если сильно оттянули — двигаем базу за пальцем (плавающий)
                 if (dist > j.maxRadius * 1.4) {
-                    var moveAmount = dist - j.maxRadius * 1.4;
+                    var moveAmount = Math.min(dist - j.maxRadius * 1.4, j.maxRadius * 0.35);
                     j.baseX += (dx / dist) * moveAmount;
                     j.baseY += (dy / dist) * moveAmount;
                     // Ограничиваем базу
@@ -790,11 +815,12 @@
     readSettings();
 
     console.log("╔════════════════════════════════════════╗");
-    console.log("║  🕹️ JOYSTICK v2.0 загружен             ║");
+    console.log("║  🕹️ JOYSTICK v3.0 загружен             ║");
     console.log("║  ✅ Плавающий джойстик                  ║");
     console.log("║  ✅ Красивый дизайн                     ║");
     console.log("║  ✅ Плавный отклик                      ║");
-    console.log("║  ✅ Фикс pull-to-refresh                ║");
+    console.log("║  ✅ Жёсткий anti-pull-to-refresh        ║
+    console.log("║  ✅ Mobile touch guard                  ║");");
     console.log("╚════════════════════════════════════════╝");
 
 })();
