@@ -698,6 +698,12 @@ function updateDioPanel() {
     if (!isDioOverHeavenMain()) { panel.style.display = "none"; return; }
     panel.style.display = "block";
     var e = Math.floor(_superState.dioEnergy || 0);
+    var hud = document.getElementById("dioEnergyHud");
+    var hudFill = document.getElementById("dioEnergyHudFill");
+    var hudValue = document.getElementById("dioEnergyHudValue");
+    if (hud) hud.style.display = isDioOverHeavenMain() ? "block" : "none";
+    if (hudFill) hudFill.style.width = e + "%";
+    if (hudValue) hudValue.textContent = e + " / 100";
     var cd = _superState.dioSkillCooldowns;
     var stop = Math.max(_superState.dioTimeStop || 0, _superState.dioTeleportStop || 0);
     panel.innerHTML =
