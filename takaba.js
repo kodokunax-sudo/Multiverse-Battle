@@ -173,6 +173,7 @@ function triggerTakabaComedy(){
 function updateTakabaAbility(dt){
   ensureTakabaState();
   if(!hasTakaba()){
+    _superState.takabaNoDamageTimer=0; _superState.takabaRecoveryTimer=0;
     _superState.takabaDmgMult=1; _superState.takabaDamageTakenMult=1;
     _superState.takabaEventTimer=0; _superState.takabaEffectTimer=0;
     _superState.takabaRandomEvent=null; _superState.takabaRandomEventTimer=0;
@@ -184,7 +185,8 @@ function updateTakabaAbility(dt){
     return;
   }
   var m=modifiers(_superState.takabaConfidence);_superState.takabaDmgMult=m.dmgMult;_superState.takabaDamageTakenMult=m.damageTakenMult;
-  var c=ctx();if(!c)return;
+  var c=ctx();
+  if(!c){ _superState.takabaNoDamageTimer=0; _superState.takabaRecoveryTimer=0; return; }
 
   // Восстановление уверенности: после 5 секунд без урона — +1 каждые 2 секунды.
   _superState.takabaNoDamageTimer=Math.max(0,Number(_superState.takabaNoDamageTimer)||0)+dt;
