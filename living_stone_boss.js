@@ -1499,8 +1499,8 @@ function updateLivingStoneAttacks() {
     for (var i = livingStoneAttacks.length - 1; i >= 0; i--) {
         var a = livingStoneAttacks[i];
 
-        // ★★★ Пропускаем всю логику движения ★★★
-        if (stopAll) continue;
+        // ★★★ ZA WARUDO: замораживаем атаки Камня, но не отражённые игроком снаряды ★★★
+        if (stopAll && a.type !== "reflected") continue;
 
         if (a.type === "reflected") {
             a.x += a.vx;
