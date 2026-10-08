@@ -614,7 +614,11 @@
 </div>
 
 <!-- Арена Undertale -->
-<div id="arenaOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:200;flex-direction:column;align-items:center;justify-content:center;">
+<div id="arenaOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:200;flex-direction:column;align-items:center;justify-content:center;">\n<div id="dioEnergyHud" style="display:none;position:absolute;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:20;width:min(360px,calc(100% - 24px));pointer-events:none;font-family:Arial,sans-serif;">
+<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid #bca5ff;border-radius:12px;background:rgba(18,12,30,.92);box-shadow:0 0 18px rgba(190,150,255,.35);">
+<span style="font-size:22px;line-height:1;">⚡</span><div style="flex:1;min-width:0;">
+<div style="display:flex;justify-content:space-between;color:#fff;font-weight:900;font-size:11px;"><span>THE WORLD OVER HEAVEN</span><span id="dioEnergyHudValue">0 / 100</span></div>
+<div style="height:9px;margin-top:3px;border-radius:7px;overflow:hidden;background:#17121f;border:1px solid #705b91;"><div id="dioEnergyHudFill" style="height:100%;width:0%;background:linear-gradient(90deg,#c9c9ff,#fff0a0,#dca8ff);transition:width .12s;"></div></div></div></div></div>
     <div style="color:white;font-size:22px;font-weight:900;margin-bottom:8px;" id="arenaBossName">БОСС</div>
     <div style="color:white;font-size:14px;margin-bottom:5px;">❤️ <span id="arenaHP">30</span> | ⏱️ <span id="arenaTimer">∞</span></div>
     <canvas id="arenaCanvas" width="400" height="500" style="border:3px solid white;background:#0a0a1a;border-radius:12px;cursor:crosshair;touch-action:none;"></canvas>
@@ -644,7 +648,7 @@
 <script src="dandy.js?v=9"></script>
 <script src="game.js?v=10"></script>
 <script src="battle.js?v=10"></script>
-<script src="supers.js?v=25"></script>
+<script src="supers.js?v=26"></script>
 <script src="takaba.js?v=9"></script>
 <script src="living_stone_boss.js?v=11"></script>
 <script src="waystar_boss.js?v=12"></script>
