@@ -903,17 +903,20 @@
         if (typeof livingStoneActive !== 'undefined') livingStoneActive = false;
         if (typeof waystarActive !== 'undefined') waystarActive = false;
 
-        ['superBtn', 'superBtn2', 'superBtnDeactivate', 'startArenaBtn', 'skipBossBtn', 'spareBtn', 'startLivingStoneBtn', 'startWaystarBtn', 'startRogerWB'].forEach(function(id) {
+        ['superBtn2', 'superBtnDeactivate', 'startArenaBtn', 'skipBossBtn', 'spareBtn', 'startLivingStoneBtn', 'startWaystarBtn', 'startRogerWB'].forEach(function(id) {
             let el = document.getElementById(id);
             if (el) el.style.display = "none";
         });
 
         let superBtn = document.getElementById("superBtn");
         if (superBtn) {
+            superBtn.style.display = "block";
             setTimeout(function() {
                 if (typeof updateSuperButton === 'function') updateSuperButton();
             }, 200);
         }
+        // Старую отдельную RWB-кнопку больше не используем.
+        hideRWBSuperButton();
 
         canvas.addEventListener("click", handleRWBClick);
         canvas.addEventListener("touchstart", handleRWBTouchStart, { passive: false });
@@ -923,7 +926,7 @@
         window.addEventListener("keydown", handleRWBKeyDown);
         window.addEventListener("keyup", handleRWBKeyUp);
 
-        createRWBModeButton(); createRWBSuperButton(); showRWBModeButton();
+        createRWBModeButton(); showRWBModeButton();
 
         if (rwbAnimFrame) cancelAnimationFrame(rwbAnimFrame);
         rwbAnimFrame = requestAnimationFrame(rwbRenderLoop);
@@ -1266,6 +1269,9 @@
 
         let mx = 0, my = 0;
         let speed = rwbBaseSpeed * rwbSpeedMult;
+        if (typeof getTakabaCombatModifiers === 'function') {
+            try { speed *= getTakabaCombatModifiers().speedMult; } catch(e) {}
+        }
 
         if (window._joystick && window._joystick.enabled && window._joystick.active) {
             mx = window._joystick.vectorX;
@@ -2218,6 +2224,9 @@
             if (_superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
             if (_superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
         }
+        if (typeof getTakabaCombatModifiers === 'function') {
+            try { dmg = Math.floor(dmg * getTakabaCombatModifiers().damageTakenMult); } catch(e) {}
+        }
 
         // ★ 4. Применяем броню (отражение, редукция) ★
         if (typeof window.applyArmorToBossDamage === 'function') {
@@ -2321,16 +2330,6 @@
         }
 
         if (typeof updateRWBMainSuperButton === "function") updateRWBMainSuperButton();
-
-        if (!rwbSuperReady && rwbSuperCooldown > 0) {
-            rwbSuperCooldown--;
-            if (rwbSuperCooldown <= 0) {
-                rwbSuperReady = true;
-                if (rwbSuperBtn) { rwbSuperBtn.style.opacity = '1'; rwbSuperBtn.innerHTML = '⚡ СУПЕР'; }
-            } else {
-                if (rwbSuperBtn) { rwbSuperBtn.style.opacity = '0.5'; rwbSuperBtn.innerHTML = '⏳ ' + Math.ceil(rwbSuperCooldown / 60) + 'с'; }
-            }
-        }
 
         if (rwbDialogActive) {
             rwbDialogTimer++;
