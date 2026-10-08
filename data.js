@@ -234,6 +234,15 @@ const customCardTemplates = {
             superAbility: { name: "SUPER: СИМВОЛ МИРА", desc: "Хитбокс x2, урон x3 на 15 секунд! Но потом теряешь 50% HP и НАВСЕГДА замедляешься в 3 раза. ПЛЮЮЮС УЛЬТРААААА!", passive: false }
         },
         { 
+            name: "ДИО Over Heaven", universe: "JoJo", damage: 280, hp: 420, speed: 3.1, sellPrice: 3500, minRebirth: 4,
+            ability: { type: "oneShot", chance: 0.03, desc: "3% шанс мгновенно уничтожить врага, даже босса" },
+            statusAbility: { type: "shock", chance: 0.15, desc: "15% шанс шока" },
+            extraStatus: [],
+            waveRegen: 0.01,
+            desc: "Heaven Ascension DIO. Слабее по голой силе, зато The World Over Heaven даёт 4 дорогих тактических навыка: остановка времени, хил, возврат на позицию 1 секунду назад и агрессивные снаряды.",
+            superAbility: { name: "SUPER: THE WORLD OVER HEAVEN", desc: "4 отдельных навыка с общей шкалой ЭНЕРГИИ 0–100. Энергия набирается от нанесённого урона. TIME STOP — 2.5с, HEAL — 10%, TELEPORT — 1с назад + 0.5с стопа, AGGRESSIVE — снаряды уничтожают друг друга.", passive: false }
+        },
+        { 
             name: "Белоус", universe: "One Piece", damage: 400, hp: 250, speed: 2.0, sellPrice: 800, minRebirth: 0,
             unsellable: true,
             ability: { type: "whitebeardSpecial", desc: "10% поглощение | 2% HP/5сек | 3% воскрес | 1% HP/волна | 2% x5 комбо | УДАР: кд 25с → ЦУНАМИ: окно 20с, задержка 1.5с" },
