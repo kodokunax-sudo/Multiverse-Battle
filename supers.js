@@ -1372,6 +1372,11 @@ function toggleSuper() {
     }
 
     var mainCard = getMainCard();
+    if (isUnique && bossType === "rwb" && mainCard && mainCard.name === "Белоус") {
+        try { useWhitebeardSkill(); } catch(e) {}
+        updateSuperButton();
+        return;
+    }
     if (!mainCard) {
         if (typeof showFloatingText === 'function') showFloatingText("Нет главной карты!", "#ff3333");
         return;
@@ -1540,12 +1545,51 @@ function updateSuperButton() {
     }
 
     if (isUnique && bossType === "rwb") {
-        btn.style.display = "none";
+        btn.style.display = "block";
         if (btn2) btn2.style.display = "none";
         if (btnDeact) btnDeact.style.display = "none";
-        var wbBtn = document.getElementById("whitebeardSkillBtn");
-        if (wbBtn) wbBtn.style.display = "none";
-        return;
+        var wbBtnRwb = document.getElementById("whitebeardSkillBtn");
+        if (wbBtnRwb) wbBtnRwb.style.display = "none";
+        // Белоус не имеет отдельной записи superAbilities: его цепочка
+        // УДАР -> ЦУНАМИ обслуживается той же оригинальной кнопкой SUPER.
+        if (mainCard && mainCard.name === "Белоус") {
+            var stWb = _superState;
+            btn.disabled = false;
+            if (stWb.whitebeardTsunamiPending > 0) {
+                btn.textContent = "⏳ ЦУНАМИ (" + stWb.whitebeardTsunamiPending.toFixed(1) + "с)";
+                btn.style.background = "#555";
+                btn.style.animation = "none";
+                btn.disabled = true;
+            } else if (stWb.whitebeardSkillWindow > 0 && stWb.whitebeardSkillMode === "tsunami") {
+                if (stWb.whitebeardTsunamiUsed) {
+                    btn.textContent = "✅ ЦУНАМИ ЗАПУЩЕНО";
+                    btn.style.background = "linear-gradient(135deg,#0b5,#00aaff)";
+                    btn.style.animation = "none";
+                    btn.disabled = true;
+                } else {
+                    btn.textContent = "🌊 SUPER: БЕЛОУС — ЦУНАМИ (" + Math.ceil(stWb.whitebeardSkillWindow) + "с)";
+                    btn.style.background = "linear-gradient(135deg,#00ccff,#0066aa)";
+                    btn.style.animation = "superPulse 2s infinite";
+                }
+            } else if (stWb.whitebeardSkillCooldown > 0) {
+                btn.textContent = "⏳ SUPER: БЕЛОУС — УДАР (" + Math.ceil(stWb.whitebeardSkillCooldown) + "с)";
+                btn.style.background = "#555";
+                btn.style.animation = "none";
+                btn.disabled = true;
+            } else if (stWb.whitebeardSkillTsunamiActive) {
+                btn.textContent = "🌊 SUPER: БЕЛОУС — ЦУНАМИ ИДЁТ";
+                btn.style.background = "linear-gradient(135deg,#0b5,#00aaff)";
+                btn.style.animation = "none";
+                btn.disabled = true;
+            } else {
+                btn.textContent = "⚡ SUPER: БЕЛОУС";
+                btn.style.background = "linear-gradient(135deg,#00ccff,#0066aa)";
+                btn.style.animation = "superPulse 2s infinite";
+            }
+            return;
+        }
+        // Для остальных карт ниже работает обычный универсальный рендер
+        // названия их настоящего SUPER.
     }
 
     if (!mainCard) {
