@@ -614,6 +614,30 @@ function updateDioHistory(ctxB) {
     while (_superState.dioHistory.length && now - _superState.dioHistory[0].time > 2500) _superState.dioHistory.shift();
 }
 
+function updateDioStandZone(ctxB) {
+    if (!ctxB || !isDioOverHeavenMain()) return;
+    var atk = ctxB.getAttacks();
+    if (!atk || !atk.length) return;
+    var hx = ctxB.getHeartX(), hy = ctxB.getHeartY(), radius = 52;
+    for (var i = atk.length - 1; i >= 0; i--) {
+        var a = atk[i];
+        if (!a || a.dioAggroNoPlayer) continue;
+        var ar = Number(a.size || a.radius || 10) * 0.5;
+        var ax = (Number(a.x) || 0) + ar, ay = (Number(a.y) || 0) + ar;
+        var inside = Math.hypot(ax - hx, ay - hy) <= radius + ar;
+        if (!inside) { a.dioStandInside = false; continue; }
+        if (a.dioStandInside) continue;
+        a.dioStandInside = true;
+        if (Math.random() < 0.02) {
+            atk.splice(i, 1);
+            _superState.dioStandFlash = Math.max(_superState.dioStandFlash || 0, 0.22);
+            _superState.dioStandX = hx; _superState.dioStandY = hy;
+            if (typeof ctxB.spawnFloatingText === "function") ctxB.spawnFloatingText(hx, hy - 28, "THE WORLD!", "#fff0a0");
+            if (typeof ctxB.addShockwave === "function") ctxB.addShockwave(hx, hy, "#e5c8ff", 120, 0.25, 3);
+        }
+    }
+}
+
 function updateDioAggressiveBlocks(ctxB) {
     if (!ctxB || _superState.dioAggroTimer <= 0) return;
     var atk = ctxB.getAttacks();
