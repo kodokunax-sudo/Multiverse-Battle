@@ -696,23 +696,44 @@ function ensureDioPanel() {
 function updateDioPanel() {
     var panel = ensureDioPanel();
     if (!panel) return;
-    if (!isDioOverHeavenMain()) { panel.style.display = "none"; return; }
+    var dioActive = isDioOverHeavenMain();
+    if (!dioActive) {
+        panel.style.display = "none";
+        panel._dioSignature = "";
+        return;
+    }
+
     panel.style.display = "block";
+
+    // ★ ВАЖНО: НЕ пересоздаём кнопки каждый кадр.
+    // Раньше innerHTML обновлялся ~60 раз/сек. На мобильном это удаляло
+    // нажатую кнопку до события click, поэтому "нажимаю — ничего".
     var e = Math.floor(_superState.dioEnergy || 0);
     var hud = document.getElementById("dioEnergyHud");
     var hudFill = document.getElementById("dioEnergyHudFill");
     var hudValue = document.getElementById("dioEnergyHudValue");
-    if (hud) hud.style.display = isDioOverHeavenMain() ? "block" : "none";
+    if (hud) hud.style.display = "block";
     if (hudFill) hudFill.style.width = e + "%";
     if (hudValue) hudValue.textContent = e + " / 100";
-    var cd = _superState.dioSkillCooldowns;
-    var stop = Math.max(_superState.dioTimeStop || 0, _superState.dioTeleportStop || 0);
+
+    var cd = _superState.dioSkillCooldowns || {};
+    var sig = [
+        e,
+        Math.ceil(cd.timeStop || 0),
+        Math.ceil(cd.heal || 0),
+        Math.ceil(cd.teleport || 0),
+        Math.ceil(cd.aggro || 0)
+    ].join("|");
+
+    if (panel._dioSignature === sig && panel.children.length) return;
+    panel._dioSignature = sig;
+
     panel.innerHTML =
         '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;">' +
-        dioButton("⏳ ZA", "timeStop", 40, 25, cd.timeStop) +
-        dioButton("💚 HEAL", "heal", 30, 25, cd.heal) +
-        dioButton("🌀 TP", "teleport", 25, 15, cd.teleport) +
-        dioButton("👊 RAGE", "aggro", 40, 30, cd.aggro) +
+        dioButton("⏳ ZA", "timeStop", 40, 25, cd.timeStop || 0) +
+        dioButton("💚 HEAL", "heal", 30, 25, cd.heal || 0) +
+        dioButton("🌀 TP", "teleport", 25, 15, cd.teleport || 0) +
+        dioButton("👊 RAGE", "aggro", 40, 30, cd.aggro || 0) +
         '</div>';
 }
 function dioButton(label,key,cost,cooldown,cd) {
