@@ -1731,7 +1731,15 @@ function toggleSuper() {
     } else if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
         if (typeof showFloatingText === 'function') showFloatingText("Нужно мастерство 5★!", "#ff3333");
         return;
-    }    if (isUnique) {
+    }
+
+    // DIO Over Heaven использует собственную энергию, а не обычные заряды SUPER.
+    if (mainCard.name === "ДИО Over Heaven") {
+        updateDioPanel();
+        return;
+    }
+
+    if (isUnique) {
         if (getHeroCurrentCharges(mainCard.name) === null) {
             var limit = getEffectiveHeroChargeLimit(mainCard.name, bossType);
             setHeroCurrentCharges(mainCard.name, limit);
@@ -1937,6 +1945,17 @@ function updateSuperButton() {
         btn.style.display = "none";
         if (btn2) btn2.style.display = "none";
         if (btnDeact) btnDeact.style.display = "none";
+        updateDioPanel();
+        return;
+    }
+
+    if (mainCard.name === "ДИО Over Heaven") {
+        btn.style.display = "none";
+        if (btn2) btn2.style.display = "none";
+        if (btnDeact) btnDeact.style.display = "none";
+        var wbDio = document.getElementById("whitebeardSkillBtn");
+        if (wbDio) wbDio.style.display = "none";
+        updateDioPanel();
         return;
     }
 
@@ -2236,6 +2255,14 @@ function initSuperState() {
     console.log("[SUPER] initSuperState: восстановили heartSpeed = " + savedHeartSpeed.toFixed(2));
 
     _superState.markResurrectCharges = 2;
+    _superState.dioEnergy = 0;
+    _superState.dioEnergyLastBossHp = null;
+    _superState.dioEnergyBossType = null;
+    _superState.dioTimeStop = 0;
+    _superState.dioTeleportStop = 0;
+    _superState.dioAggroTimer = 0;
+    _superState.dioHistory = [];
+    _superState.dioSkillCooldowns = { timeStop: 0, heal: 0, teleport: 0, aggro: 0 };
     _superLastTick = performance.now();
     updateSuperButton();
 }
@@ -2518,6 +2545,14 @@ function tickSupers() {
     if (dt <= 0) dt = 0.016;
     if (dt > 0.1) dt = 0.1;
     _superLastTick = now;
+
+    // ★ DIO OVER HEAVEN: энергия, кулдауны, время, история позиции.
+    updateDioSkillCooldowns(dt);
+    updateDioHistory(ctxB);
+    dioTrackBossDamage(ctxB);
+    updateDioAggressiveBlocks(ctxB);
+    updateDioStandZone(ctxB);
+    updateDioPanel();
 
     // ★ БЕЛОУС: реген + активки
     tickWhitebeardRegen(dt);
@@ -2833,6 +2868,8 @@ function renderSuperVisuals() {
     var hx = ctxB.getHeartX();
     var hy = ctxB.getHeartY();
     var hSize = ctxB.getHeartSize();
+
+    renderDioVisuals(ctxB);
 
     // ★ ТАКАБА: дополнительные визуалы для уникальных боссов.
     if (ctxB.type !== "arena" && _superState.takabaRandomEventTimer > 0) {
