@@ -1283,7 +1283,8 @@
         // ★ Проверяем заморозку времени и оглушение ★
         if (wbVortexActive) return;
         if (typeof _superState !== 'undefined') {
-            if ((_superState.garouTimeStop || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0)) return;
+            // ZA WARUDO freezes Roger/Whitebeard and their attacks, but DIO/player can move.
+            if (_superState.garouTimeStop) return;
             if (_superState.usoppStunTimer > 0) return;
         }
 
