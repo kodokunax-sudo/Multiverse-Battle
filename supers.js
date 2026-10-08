@@ -619,7 +619,7 @@ function isDioTimeStopped() {
 window.isDioTimeStopped = isDioTimeStopped;
 function activateDioTimeStop() {
     if (!dioCanUse("timeStop", 40, 25)) return;
-    dioStartTimeStop(2.5, false);
+    dioStartTimeStop(6, false);
 }
 
 function activateDioHeal() {
@@ -858,6 +858,15 @@ function renderDioVisuals(ctxB) {
     var now = performance.now();
     var stop = Math.max(_superState.dioTimeStop || 0, _superState.dioTeleportStop || 0);
     var active = stop > 0;
+
+    // ★ JOJO TIME STOP: полная инверсия цветов кадра, как в аниме.
+    // Инверсия применяется к самому canvas, поэтому мир, атаки и персонажи
+    // одновременно переходят в обратную палитру, а после остановки мгновенно возвращаются.
+    try {
+        if (ctx.canvas && ctx.canvas.style) {
+            ctx.canvas.style.filter = active ? "invert(1) contrast(1.08) saturate(0.92)" : "";
+        }
+    } catch (e) {}
     var phase = now - (_superState.dioTimeStopStartedAt || now);
     var isTP = (_superState.dioTeleportStop || 0) > 0 && (_superState.dioTimeStop || 0) <= 0;
 
