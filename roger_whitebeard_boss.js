@@ -149,7 +149,7 @@
     let wbVortexPullStrength = 0;
     const WB_VORTEX_INTERVAL = 1200; // 20 сек
     const WB_VORTEX_CHANCE = 0.35;
-    const WB_VORTEX_QTE_DURATION = 120; // 2 сек
+    const WB_VORTEX_QTE_DURATION = 300; // 5 сек
 
     let rwbMusic = null;
     const RWB_MUSIC_PATH = "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3";
@@ -1797,7 +1797,7 @@
             wbVortexPoints.push({
                 x: Math.max(28, Math.min(372, rwbPlayer.x + Math.cos(ang) * rr)),
                 y: Math.max(45, Math.min(455, rwbPlayer.y + Math.sin(ang) * rr)),
-                r: 18,
+                r: 54,
                 hit: false,
                 pulse: Math.random() * Math.PI * 2
             });
@@ -1838,7 +1838,7 @@
         let p = wbVortexPoints[wbVortexNextPoint];
         if (!p) return true;
         let dx = x - p.x, dy = y - p.y;
-        if (Math.sqrt(dx * dx + dy * dy) <= p.r + 12) {
+        if (Math.sqrt(dx * dx + dy * dy) <= p.r + 20) {
             p.hit = true;
             wbVortexNextPoint++;
             playImpactSound(0.18, 1.5);
@@ -2438,8 +2438,11 @@
                     if (!wbVortexActive) {
                         wbVortexTimer++;
                         if (wbVortexTimer >= WB_VORTEX_INTERVAL) {
+                            // Ровно один бросок шанса каждые 20 секунд.
                             wbVortexTimer = 0;
-                            if (Math.random() < WB_VORTEX_CHANCE) spawnWhitebeardVortex();
+                            if (Math.random() < WB_VORTEX_CHANCE) {
+                                spawnWhitebeardVortex();
+                            }
                         }
                     }
                     rwbTitanFistTimer++;
