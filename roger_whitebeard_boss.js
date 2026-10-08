@@ -2991,6 +2991,9 @@
     }
 
     window.getRWBActive = function() { return window.rwbActive === true; };
+    // SUPER-контекст не должен читать локальную let-переменную через window.
+    // Экспортируем реальные ссылки на текущего босса/игрока.
+    window.getRWBActiveBoss = function() { return rwbActiveBoss; };
     window.getRWBState  = function() { return rwbState; };
     window.startRogerWhitebeardFight = startRogerWhitebeardFight;
     window.stopRogerWhitebeardFight = stopRogerWhitebeardFight;
