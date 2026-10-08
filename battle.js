@@ -1143,6 +1143,7 @@ function renderArena() {
             if (a.type === "circle" || a.type === "rainbow" || a.type === "healCircle") { var dx = heart.x - a.x, dy = heart.y - a.y; var radToCheck = Math.max(0.1, (a.radius || 10) - 2); hit = Math.sqrt(dx * dx + dy * dy) < (heart.hitbox + radToCheck); }
             else if (a.type === "sword") { var dx = heart.x - a.x, dy = heart.y - a.y; hit = Math.sqrt(dx * dx + dy * dy) < (heart.hitbox + a.size / 2); }
             else { var sz = a.size || 20, cx = a.x + sz / 2, cy = a.y + sz / 2; hit = Math.abs(heart.x - cx) < (sz / 2 + heart.hitbox) && Math.abs(heart.y - cy) < (sz / 2 + heart.hitbox); }
+            if (a.dioAggroNoPlayer) hit = false;
             if (hit && invulnTimer <= 0 && !timeStopped) {
                 if (a.type === "healCircle") { var healAmount = Math.floor(arenaMaxHP * (a.healPercent || 0.10)); arenaHP = Math.min(arenaMaxHP, arenaHP + healAmount); arenaKarma = Math.max(0, arenaKarma - Math.floor(arenaMaxHP * 0.05)); sfxArenaHeal(); spawnFloatingText(heart.x, heart.y - 20, "+" + healAmount, "#44ff44"); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP); attacks.splice(i, 1); continue; }
                 var bhd = a.damage || arenaBaseDmg || 5;
