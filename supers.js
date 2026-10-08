@@ -1016,14 +1016,82 @@ function restoreArenaTimer() {
 function triggerDekuSmash() {
     var ctxB = getBossContext();
     if (!ctxB) return;
+
+    // ★ РАЗЛОМ ДЕКУ — визуальная атака уже описана ниже в renderSuperVisuals():
+    // большие зелёно-красные кулаки, взрывы и трещины.
+    // Раньше здесь включался только флаг dekuSmashActive, но сами кулаки
+    // в dekuFists никогда не создавались — поэтому атака была невидимой.
+    var hx = ctxB.getHeartX();
+    var hy = ctxB.getHeartY();
+
     _superState.dekuSmashActive = true;
     _superState.dekuSmashBlackoutTimer = 60;
     _superState.dekuSmashSequenceTimer = 150;
+    _superState.dekuFists = [];
+    _superState.dekuExplosions = [];
+    _superState.earthCracks = [];
+
     _superState.originalHeartSpeed = ctxB.getHeartSpeed();
     _superState.originalGlobalSpeedMod = (typeof arenaGlobalSpeedMod !== 'undefined') ? arenaGlobalSpeedMod : 1.0;
+
+    // Замедление сердца во время самого Разлома.
     ctxB.setHeartSpeed(_superState.originalHeartSpeed / 3);
     if (typeof arenaGlobalSpeedMod !== 'undefined') arenaGlobalSpeedMod = 0.33;
-    if (typeof playArenaSound === 'function') playArenaSound(80, 'sawtooth', 2.0, 0.3);
+
+    // ★ Создаём волну ударов вокруг сердца.
+    // delay — момент появления каждого кулака в существующей sequence-системе.
+    var fistCount = 9;
+    for (var fi = 0; fi < fistCount; fi++) {
+        var angle = (fi / fistCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.22;
+        var distance = 75 + Math.random() * 115;
+        var fx = Math.max(20, Math.min(380, hx + Math.cos(angle) * distance));
+        var fy = Math.max(45, Math.min(475, hy + Math.sin(angle) * distance));
+        _superState.dekuFists.push({
+            x: fx,
+            y: fy,
+            radius: 30 + Math.random() * 10,
+            delay: 12 + fi * 14 + Math.random() * 8,
+            active: false,
+            angle: angle
+        });
+    }
+
+    // ★ Центральный удар — появляется последним и выглядит мощнее.
+    _superState.dekuFists.push({
+        x: hx,
+        y: hy,
+        radius: 48,
+        delay: 138,
+        active: false,
+        angle: 0
+    });
+
+    // ★ Земля/арена трескается в момент запуска.
+    for (var ci = 0; ci < 14; ci++) {
+        var crackAngle = (ci / 14) * Math.PI * 2 + (Math.random() - 0.5) * 0.18;
+        _superState.earthCracks.push({
+            x: hx,
+            y: hy,
+            angle: crackAngle,
+            length: 35 + Math.random() * 80,
+            life: 1.4
+        });
+    }
+
+    // Начальная вспышка и кольцо удара.
+    _superState.dekuExplosions.push({
+        x: hx,
+        y: hy,
+        life: 0.55,
+        maxLife: 0.55
+    });
+    addShockwaveRing(hx, hy, "#44ff44", 520, 0.7, 6);
+    _superState.screenShakeAmount = 22;
+    _superState.screenFlashWhite = 4;
+
+    if (typeof playArenaSound === 'function') {
+        playArenaSound(80, 'sawtooth', 2.0, 0.3);
+    }
 }
 
 function activateDekuEarthShatter() {
