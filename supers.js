@@ -480,14 +480,42 @@ function isDioOverHeavenMain() {
 }
 window.isDioOverHeavenMain = isDioOverHeavenMain;
 
+// ★ DIO OH: заранее прогружаем оба звука.
+var _dioAudioCache = {};
+function preloadDioSounds() {
+    var files = [
+        "music/za-warudo-time-stop-louder.mp3",
+        "music/dios-time-stop-teleportation-sound-effect-1.mp3"
+    ];
+    for (var i = 0; i < files.length; i++) {
+        try {
+            var audio = new Audio();
+            audio.preload = "auto";
+            audio.src = files[i];
+            audio.volume = 0.72;
+            audio.load();
+            _dioAudioCache[files[i]] = audio;
+        } catch(e) {}
+    }
+}
+preloadDioSounds();
+
 function dioPlaySound(path) {
     try {
-        var a = new Audio(path);
-        a.volume = 0.72;
-        a.play().catch(function(){});
+        var audio = _dioAudioCache[path];
+        if (!audio) {
+            audio = new Audio(path);
+            audio.preload = "auto";
+            audio.volume = 0.72;
+            _dioAudioCache[path] = audio;
+        }
+        audio.currentTime = 0;
+        audio.volume = 0.72;
+        var p = audio.play();
+        if (p && typeof p.catch === "function") p.catch(function(){});
     } catch(e) {}
 }
-
+window.preloadDioSounds = preloadDioSounds;
 function dioAddEnergy(amount) {
     if (!isDioOverHeavenMain()) return;
     _superState.dioEnergy = Math.max(0, Math.min(100, (_superState.dioEnergy || 0) + Math.max(0, Number(amount) || 0)));
@@ -790,36 +818,112 @@ function dioButton(label,key,cost,cooldown,cd) {
 
 function renderDioVisuals(ctxB) {
     if (!ctxB || !isDioOverHeavenMain() || !ctx) return;
+    var now = performance.now();
     var stop = Math.max(_superState.dioTimeStop || 0, _superState.dioTeleportStop || 0);
+
+    // ★ КАНОНИЧНАЯ АНИМЕ-ПОДАЧА: белый всплеск + золото + фиолетовый THE WORLD.
     if (stop > 0) {
         ctx.save();
-        ctx.globalAlpha = 0.14 + Math.sin(performance.now()/90)*0.03;
-        ctx.fillStyle = "#d8d8e8";
+        var phase = now - (_superState.dioTimeStopStartedAt || now);
+        var pulse = 0.5 + 0.5 * Math.sin(phase / 85);
+        var isTP = (_superState.dioTeleportStop || 0) > 0 && (_superState.dioTimeStop || 0) <= 0;
+
+        // Выбеливание и золотисто-фиолетовый сдвиг палитры.
+        var wash = ctx.createLinearGradient(0,0,400,500);
+        wash.addColorStop(0, "rgba(255,255,255," + (0.20 + pulse*0.06) + ")");
+        wash.addColorStop(0.45, "rgba(255,224,120," + (0.11 + pulse*0.04) + ")");
+        wash.addColorStop(1, "rgba(93,45,145," + (0.17 + pulse*0.05) + ")");
+        ctx.fillStyle = wash;
         ctx.fillRect(0,0,400,500);
-        ctx.globalAlpha = 0.8;
-        ctx.strokeStyle = "#fff3a0";
+
+        // Радиальные лучи — ощущение резкого "щелчка" остановки.
+        ctx.globalCompositeOperation = "lighter";
+        ctx.save();
+        ctx.translate(200,250);
+        ctx.globalAlpha = 0.16 + pulse*0.08;
+        ctx.strokeStyle = "#fff0a0";
         ctx.lineWidth = 2;
-        ctx.setLineDash([8,10]);
-        ctx.strokeRect(8,8,384,484);
-        ctx.setLineDash([]);
-        ctx.font = "bold 22px sans-serif";
+        for (var ray=0; ray<24; ray++) {
+            var ang = ray * Math.PI * 2 / 24;
+            var len = 285 + Math.sin(ray*4.7 + phase/120)*35;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(ang)*105, Math.sin(ang)*105);
+            ctx.lineTo(Math.cos(ang)*len, Math.sin(ang)*len);
+            ctx.stroke();
+        }
+
+        // Два циферблата — время буквально "заперто".
+        ctx.globalAlpha = 0.38 + pulse*0.12;
+        ctx.strokeStyle = "#ffe37a";
+        ctx.shadowColor = "#d8b34d";
+        ctx.shadowBlur = 18;
+        ctx.lineWidth = 3;
+        for (var ring=0; ring<2; ring++) {
+            var rr = 78 + ring*46 + pulse*4;
+            ctx.beginPath();
+            ctx.arc(0,0,rr,0,Math.PI*2);
+            ctx.stroke();
+            for (var tick=0; tick<12; tick++) {
+                var ta = tick*Math.PI*2/12;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(ta)*(rr-8),Math.sin(ta)*(rr-8));
+                ctx.lineTo(Math.cos(ta)*rr,Math.sin(ta)*rr);
+                ctx.stroke();
+            }
+        }
+
+        var core = ctx.createRadialGradient(0,0,2,0,0,70);
+        core.addColorStop(0,"rgba(255,255,255,.88)");
+        core.addColorStop(.18,"rgba(255,232,130,.55)");
+        core.addColorStop(.48,"rgba(174,112,255,.24)");
+        core.addColorStop(1,"rgba(75,25,120,0)");
+        ctx.fillStyle = core;
+        ctx.beginPath();
+        ctx.arc(0,0,72 + pulse*8,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+        ctx.globalCompositeOperation = "source-over";
+
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = isTP ? "#d7c5ff" : "#fff0a0";
+        ctx.shadowColor = isTP ? "#9b6cff" : "#ffd84d";
+        ctx.shadowBlur = 22;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(6,6,388,488);
+
+        ctx.font = "900 25px Arial, sans-serif";
         ctx.textAlign = "center";
         ctx.fillStyle = "#fff";
-        ctx.shadowColor = "#caaeff";
-        ctx.shadowBlur = 18;
-        ctx.fillText(_superState.dioTimeStop > 0 ? "ZA WARUDO!" : "THE WORLD",200,48);
+        ctx.shadowColor = "#7b4dba";
+        ctx.shadowBlur = 22;
+        ctx.fillText(isTP ? "THE WORLD!" : "ZA WARUDO!",200,47);
+        ctx.font = "900 10px monospace";
+        ctx.fillStyle = "#fff0a0";
+        ctx.shadowBlur = 8;
+        ctx.fillText(isTP ? "TIME SHIFT" : "TOKI WO TOMARE",200,63);
         ctx.restore();
     }
+
+    // ★ Силуэт THE WORLD на долю секунды появляется перед DIO.
     if (_superState.dioStandFlash > 0) {
         ctx.save();
-        var a = Math.min(1,_superState.dioStandFlash*2);
-        ctx.globalAlpha = a;
+        var sa = Math.min(1,_superState.dioStandFlash*2);
+        var standPulse = 1 + Math.sin(now/70)*0.08;
+        ctx.globalAlpha = sa;
         ctx.translate(_superState.dioStandX,_superState.dioStandY-35);
-        ctx.fillStyle="#f7f7ff";ctx.strokeStyle="#d7c5ff";ctx.lineWidth=2;ctx.shadowColor="#c9a8ff";ctx.shadowBlur=25;
-        ctx.beginPath();ctx.ellipse(0,0,24,34,0,0,Math.PI*2);ctx.fill();ctx.stroke();
-        ctx.fillStyle="#d7c5ff";ctx.fillRect(-19,-13,38,8);
-        ctx.fillStyle="#111";ctx.fillRect(-11,-2,7,4);ctx.fillRect(4,-2,7,4);
-        ctx.fillStyle="#e7d76f";ctx.fillRect(-14,12,28,6);
+        ctx.scale(standPulse,standPulse);
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle="#f7f7ff";
+        ctx.strokeStyle="#d7c5ff";
+        ctx.lineWidth=2.5;
+        ctx.shadowColor="#b27cff";
+        ctx.shadowBlur=28;
+        ctx.beginPath();ctx.ellipse(0,0,25,37,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+        ctx.fillStyle="#d7c5ff";ctx.fillRect(-20,-14,40,8);
+        ctx.fillStyle="#17111f";ctx.fillRect(-11,-2,7,4);ctx.fillRect(4,-2,7,4);
+        ctx.fillStyle="#e7d76f";ctx.fillRect(-15,12,30,6);
+        ctx.strokeStyle="#fff0a0";ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(-14,22);ctx.lineTo(14,22);ctx.stroke();
         ctx.restore();
     }
 }
