@@ -340,15 +340,15 @@ function getBossContext() {
             getAttacks: function() { return (typeof window.getRWBAttacks === 'function') ? window.getRWBAttacks() : []; },
             getBlasters: function() { return []; },
             getParticles: function() { return (typeof window.getRWBParticles === 'function') ? window.getRWBParticles() : []; },
-            getBossMaxHp: function() { var b = window.rwbActiveBoss; return b ? b.maxHp : 500; },
+            getBossMaxHp: function() { var b = (typeof window.getRWBActiveBoss === 'function') ? window.getRWBActiveBoss() : null; return b ? b.maxHp : 500; },
             // Для RWB getBossMaxHp() — это максимальный HP, а setBossMaxHp()
             // используется супер-способностями как "нанести процент от max HP".
             // Поэтому уменьшаем текущий HP, не ломая реальный maxHp босса.
             setBossMaxHp: function(v) {
-                var b = window.rwbActiveBoss;
+                var b = (typeof window.getRWBActiveBoss === 'function') ? window.getRWBActiveBoss() : null;
                 if (b) b.hp = Math.max(0, Math.min(b.hp, v));
             },
-            getBossHp: function() { var b = window.rwbActiveBoss; return b ? b.hp : 0; },
+            getBossHp: function() { var b = (typeof window.getRWBActiveBoss === 'function') ? window.getRWBActiveBoss() : null; return b ? b.hp : 0; },
             getPlayerHp: function() { var p = window.getRWBPlayer ? window.getRWBPlayer() : null; return p ? p.hp : 250; },
             setPlayerHp: function(v) { var p = window.getRWBPlayer ? window.getRWBPlayer() : null; if (p) p.hp = v; },
             getPlayerMaxHp: function() { var p = window.getRWBPlayer ? window.getRWBPlayer() : null; return p ? p.maxHp : 250; },
