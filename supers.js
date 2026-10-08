@@ -478,7 +478,9 @@ const superAbilities = {
         onDeactivate() {
             var ctxB = getBossContext();
             if (ctxB) ctxB.setHeartSpeed(_superState.dekusOriginalSpeed);
-            _superState.dekusActive = false;
+            _superState.rwbHeartSize = 12;
+    _superState.rwbHeartHitbox = 6;
+    _superState.dekusActive = false;
             _superState.dekusDmgMult = 1;
             _superState.dekusParticles = false;
             _superState.dekuEarthShatterReady = false;
