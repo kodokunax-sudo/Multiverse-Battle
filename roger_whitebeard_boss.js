@@ -1414,6 +1414,9 @@
 
     function checkMeleeContact() {
         if (rwbState !== "fight2") return;
+        if (typeof _superState !== 'undefined' &&
+            (_superState.garouTimeStop || _superState.takabaTimeStop ||
+             _superState.antispiralFrozen || _superState.usoppStunTimer > 0)) return;
         if (rwbMeleeCooldown > 0) { rwbMeleeCooldown--; return; }
         if (!rwbActiveBoss) return;
         let boss = rwbActiveBoss;
