@@ -1104,6 +1104,9 @@ function applyWaystarHit(dmg, textMsg) {
         if (_superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
     }
 
+    if (typeof onTakabaDamageTaken === "function") {
+        try { onTakabaDamageTaken(dmg); } catch(e) {}
+    }
     waystarPlayerHp -= dmg; waystarInvulnTimer = 45; waystarShake = 15;
     waystarScreenFlash = 8; waystarScreenFlashColor = "#ff0000"; waystarVignette = 15;
     spawnWaystarParticles(waystarPlayer.x, waystarPlayer.y, 18, "#ff3333", 6);
