@@ -617,6 +617,11 @@ function updateDioHistory(ctxB) {
 function updateDioAggressiveBlocks(ctxB) {
     if (!ctxB || _superState.dioAggroTimer <= 0) return;
     var atk = ctxB.getAttacks();
+    // Все существующие и появившиеся во время эффекта блоки становятся агрессивными.
+    for (var m = 0; m < atk.length; m++) {
+        atk[m].dioAggro = true;
+        atk[m].dioAggroNoPlayer = true;
+    }
     for (var i = atk.length - 1; i >= 0; i--) {
         var a = atk[i];
         if (!a.dioAggro) continue;
