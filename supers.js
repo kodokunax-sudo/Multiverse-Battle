@@ -539,12 +539,21 @@ function dioStartTimeStop(duration, teleportStyle) {
     _superState.dioStandFlash = teleportStyle ? 0.45 : 0.9;
     _superState.dioStandX = ctxB.getHeartX();
     _superState.dioStandY = ctxB.getHeartY();
-    dioPlaySound("music/za-warudo-time-stop-louder.mp3");
+
+    // У TP свой звук. Обычный ZA WARUDO не должен проигрываться поверх него.
+    dioPlaySound(teleportStyle
+        ? "music/dios-time-stop-teleportation-sound-effect-1.mp3"
+        : "music/za-warudo-time-stop-louder.mp3");
+
     ctxB.addFlashWhite(teleportStyle ? 3 : 8);
     ctxB.addShake(teleportStyle ? 8 : 18);
-    ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 35, teleportStyle ? "THE WORLD!" : "ZA WARUDO!", "#fff0a0");
+    ctxB.spawnFloatingText(
+        ctxB.getHeartX(),
+        ctxB.getHeartY() - 35,
+        teleportStyle ? "THE WORLD!" : "ZA WARUDO!",
+        "#fff0a0"
+    );
 }
-
 function activateDioTimeStop() {
     if (!dioCanUse("timeStop", 40, 25)) return;
     dioStartTimeStop(2.5, false);
@@ -572,7 +581,6 @@ function activateDioTeleport() {
         ctxB.setHeartY(target.y);
         ctxB.clampHeart();
     }
-    dioPlaySound("music/dios-time-stop-teleportation-sound-effect-1.mp3");
     dioStartTimeStop(0.5, true);
 }
 
@@ -642,45 +650,83 @@ function updateDioStandZone(ctxB) {
 function updateDioAggressiveBlocks(ctxB) {
     if (!ctxB || _superState.dioAggroTimer <= 0) return;
     var atk = ctxB.getAttacks();
-    // Все существующие и появившиеся во время эффекта блоки становятся агрессивными.
+    if (!Array.isArray(atk) || !atk.length) return;
+
+    // В некоторых атаках движок оставляет пустые слоты. Никогда не трогаем undefined.
     var hx = ctxB.getHeartX(), hy = ctxB.getHeartY();
+
     for (var m = 0; m < atk.length; m++) {
         var nearA = atk[m];
-        var nax = nearA.x + (nearA.size || nearA.radius || 10) / 2;
-        var nay = nearA.y + (nearA.size || nearA.radius || 10) / 2;
+        if (!nearA) continue;
+
+        var nr = Number(nearA.size || nearA.radius || 10) || 10;
+        var nax = (Number(nearA.x) || 0) + nr / 2;
+        var nay = (Number(nearA.y) || 0) + nr / 2;
+
         if (Math.hypot(nax - hx, nay - hy) <= 180) {
             nearA.dioAggro = true;
             nearA.dioAggroNoPlayer = true;
         }
     }
+
     for (var i = atk.length - 1; i >= 0; i--) {
         var a = atk[i];
-        if (!a.dioAggro) continue;
-        var ax = a.x + (a.size || a.radius || 10) / 2, ay = a.y + (a.size || a.radius || 10) / 2;
+        if (!a || !a.dioAggro) continue;
+
+        var ar = Number(a.size || a.radius || 10) || 10;
+        var ax = (Number(a.x) || 0) + ar / 2;
+        var ay = (Number(a.y) || 0) + ar / 2;
         var best = -1, bestD = Infinity;
+
         for (var j = 0; j < atk.length; j++) {
-            if (i === j || !atk[j].dioAggro) continue;
-            var bx = atk[j].x + (atk[j].size || atk[j].radius || 10) / 2, by = atk[j].y + (atk[j].size || atk[j].radius || 10) / 2;
+            var candidate = atk[j];
+            if (!candidate || i === j || !candidate.dioAggro) continue;
+
+            var br = Number(candidate.size || candidate.radius || 10) || 10;
+            var bx = (Number(candidate.x) || 0) + br / 2;
+            var by = (Number(candidate.y) || 0) + br / 2;
             var d = Math.hypot(bx - ax, by - ay);
-            if (d < bestD) { bestD = d; best = j; }
+
+            if (d < bestD) {
+                bestD = d;
+                best = j;
+            }
         }
+
         if (best >= 0 && bestD < 150) {
-            var b = atk[best], bx2 = b.x + (b.size || b.radius || 10) / 2, by2 = b.y + (b.size || b.radius || 10) / 2;
-            var dx = bx2 - ax, dy = by2 - ay, len = Math.hypot(dx,dy) || 1;
+            var b = atk[best];
+            if (!b) continue;
+
+            var br2 = Number(b.size || b.radius || 10) || 10;
+            var bx2 = (Number(b.x) || 0) + br2 / 2;
+            var by2 = (Number(b.y) || 0) + br2 / 2;
+            var dx = bx2 - ax, dy = by2 - ay, len = Math.hypot(dx, dy) || 1;
             var speed = 4.2;
+
             if (a.spd !== undefined) a.spd = dx / len * speed;
             if (a.spdY !== undefined) a.spdY = dy / len * speed;
             if (a.vx !== undefined) a.vx = dx / len * speed;
             if (a.vy !== undefined) a.vy = dy / len * speed;
-            if (bestD < ((a.size || a.radius || 10) + (b.size || b.radius || 10)) * 0.45) {
-                atk.splice(Math.max(i,best),1);
-                if (Math.min(i,best) < atk.length) atk.splice(Math.min(i,best),1);
-                ctxB.getParticles().push({x:ax,y:ay,vx:0,vy:0,life:20,maxLife:20,color:"#d9c2ff",size:5});
+
+            if (bestD < (ar + br2) * 0.45) {
+                // Удаляем оба снаряда безопасно, не ломая индексы.
+                var hi = Math.max(i, best);
+                var lo = Math.min(i, best);
+                if (hi < atk.length) atk.splice(hi, 1);
+                if (lo < atk.length) atk.splice(lo, 1);
+
+                var particles = ctxB.getParticles();
+                if (particles) {
+                    particles.push({
+                        x: ax, y: ay, vx: 0, vy: 0,
+                        life: 20, maxLife: 20,
+                        color: "#d9c2ff", size: 5
+                    });
+                }
             }
         }
     }
 }
-
 function ensureDioPanel() {
     var panel = document.getElementById("dioOverHeavenPanel");
     if (!panel) {
