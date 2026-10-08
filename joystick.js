@@ -656,7 +656,7 @@
             var j = window._joystick;
             if (j && j.enabled && j.active) {
                 if (typeof _superState !== 'undefined' && _superState.usoppStunTimer > 0) return;
-                if (typeof window.isDioTimeStopped === 'function' && window.isDioTimeStopped()) return;
+
                 if (typeof _superState !== 'undefined' && _superState.garouTimeStop) return;
 
                 var mx = j.vectorX;
