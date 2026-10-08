@@ -2939,22 +2939,14 @@ function drawLivingStonePlayer() {
         finalScale = Math.max(0.2, 1 - finalSceneTimer / 240);
     }
     ctx.scale(finalScale, finalScale);
-    var gg = ctx.createRadialGradient(0, 0, 1, 0, 0, 22);
-    gg.addColorStop(0, "rgba(255,100,100,0.6)");
-    gg.addColorStop(1, "rgba(255,0,0,0)");
-    ctx.fillStyle = gg;
-    ctx.beginPath();
-    ctx.arc(0, 0, 22, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#ff2222";
-    ctx.shadowColor = "#ff0000";
-    ctx.shadowBlur = 10;
-    var hs = 11;
-    ctx.beginPath();
-    ctx.moveTo(0, hs * 0.7);
-    ctx.bezierCurveTo(-hs * 1.3, -hs * 0.2, -hs * 0.7, -hs, 0, -hs * 0.3);
-    ctx.bezierCurveTo(hs * 0.7, -hs, hs * 1.3, -hs * 0.2, 0, hs * 0.7);
-    ctx.closePath();
+    var secretName = (typeof getSecretHeartMainCardName === "function") ? getSecretHeartMainCardName() : "";
+    if (!drawSecretHeartTexture(ctx, 0, 0, 11, secretName, {rotation:0})) {
+        var gg = ctx.createRadialGradient(0, 0, 1, 0, 0, 22);
+        gg.addColorStop(0, "rgba(255,100,100,0.6)"); gg.addColorStop(1, "rgba(255,0,0,0)");
+        ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#ff2222"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 10;
+        var hs=11; ctx.beginPath(); ctx.moveTo(0,hs*.7); ctx.bezierCurveTo(-hs*1.3,-hs*.2,-hs*.7,-hs,0,-hs*.3); ctx.bezierCurveTo(hs*.7,-hs,hs*1.3,-hs*.2,0,hs*.7); ctx.closePath(); ctx.fill(); ctx.shadowBlur=0;
+    }
     ctx.fill();
     ctx.restore();
 }
