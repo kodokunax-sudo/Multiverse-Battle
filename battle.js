@@ -761,10 +761,11 @@ function applyHit(dmg, textMsg, isTrueOneshot) {
     if (typeof _superState !== 'undefined' && _superState.dandyVulnerable && _superState.dandyVulnerable.timer > 0) dmg = Math.floor(dmg * _superState.dandyVulnerable.mult);
     if (typeof _superState !== 'undefined' && _superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
     if(typeof getTakabaCombatModifiers==="function"){try{dmg=Math.max(1,Math.floor(dmg*getTakabaCombatModifiers().damageTakenMult));}catch(e){}}
-    if(typeof adjustTakabaConfidence==="function"&&typeof hasTakaba==="function"&&hasTakaba()){
-        try{adjustTakabaConfidence(-Math.max(8,Math.ceil(dmg/5)),false);}catch(e){}
+    if (invulnTimer > 0) return;
+    if (typeof onTakabaDamageTaken === "function") {
+        try { onTakabaDamageTaken(dmg); } catch(e) {}
     }
-    if (invulnTimer > 0) return; if (arenaAttackType !== 10) invulnTimer = 45;
+    if (arenaAttackType !== 10) invulnTimer = 45;
     if (isTrueOneshot || dmg >= arenaMaxHP) { arenaHP = 0; }
     else { var directDmg = 1; var karmaDmg = dmg - directDmg; if (karmaDmg < 0) karmaDmg = 0; arenaHP -= directDmg; arenaKarma += karmaDmg; }
     arenaHitFlash = 12; arenaShake = 18; sfxArenaHit(); screenFlash = 6; screenFlashColor = "#ff4444"; arenaVignette = 15;
