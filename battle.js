@@ -279,7 +279,7 @@ function updateTakabaConfidenceDisplay() {
 function moveHeart() {
     if (typeof _superState !== 'undefined' && _superState.takabaTimeStop) return;
     if (typeof _superState !== 'undefined' && _superState.usoppStunTimer > 0) return;
-    if (typeof _superState !== 'undefined' && (_superState.garouTimeStop || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0)) return;
+    if (typeof _superState !== 'undefined' && _superState.garouTimeStop) return;
 
     var mx = 0, my = 0;
 
