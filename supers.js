@@ -75,7 +75,7 @@ let _superState = {
     allmightHurricane: false, allmightHurricaneTimer: 0, allmightHurricaneAngle: 0,
     screenShakeAmount: 0, screenFlashWhite: 0,
     realityCracks: [], comicTexts: [], earthCracks: [],
-    dekuDash: null, dekuExplosions: [],
+    dekuDash: null, dekuExplosions: [], dekuSmashStartedAt: 0,
     // ★ БЕЛОУС ★
     whitebeardCharging: false,
     whitebeardChargeTimer: 0,
@@ -1025,6 +1025,7 @@ function triggerDekuSmash() {
     var hy = ctxB.getHeartY();
 
     _superState.dekuSmashActive = true;
+    _superState.dekuSmashStartedAt = performance.now();
     _superState.dekuSmashBlackoutTimer = 60;
     _superState.dekuSmashSequenceTimer = 150;
     _superState.dekuFists = [];
@@ -2638,6 +2639,80 @@ function renderSuperVisuals() {
         });
         ctx.restore();
     }
+    // ★ РАЗЛОМ ДЕКУ: усиленный VFX-слой поверх существующей атаки.
+    if (_superState.dekuSmashActive) {
+        ctx.save();
+        var dNow = performance.now();
+        var dAge = Math.max(0, (dNow - (_superState.dekuSmashStartedAt || dNow)) / 1000);
+        var pulse = 1 + Math.sin(dNow / 45) * 0.12;
+        var power = Math.min(1, dAge / 0.35);
+        ctx.globalCompositeOperation = "lighter";
+
+        // Огромные энергетические кольца.
+        for (var dr = 0; dr < 4; dr++) {
+            var rr = (45 + dr * 24) + ((dAge * (260 + dr * 55)) % 310);
+            ctx.globalAlpha = Math.max(0, 0.75 - rr / 430);
+            ctx.strokeStyle = dr % 2 ? "#baffff" : "#44ff44";
+            ctx.lineWidth = 2 + (3 - dr) * 0.8;
+            ctx.shadowColor = "#44ff44";
+            ctx.shadowBlur = 18;
+            ctx.beginPath();
+            ctx.arc(hx, hy, rr * pulse, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Молнии от центра к краям.
+        ctx.shadowColor = "#66ff66";
+        ctx.shadowBlur = 18;
+        for (var dl = 0; dl < 16; dl++) {
+            var da = (dl / 16) * Math.PI * 2 + dNow / 900;
+            var dl1 = 30 + (dl % 3) * 8;
+            var dl2 = 145 + (dl % 4) * 34;
+            ctx.globalAlpha = 0.45 + 0.35 * Math.abs(Math.sin(dNow / 90 + dl));
+            ctx.strokeStyle = dl % 3 === 0 ? "#ffffff" : "#44ff44";
+            ctx.lineWidth = 1.5 + Math.random() * 2;
+            ctx.beginPath();
+            ctx.moveTo(hx + Math.cos(da) * dl1, hy + Math.sin(da) * dl1);
+            var mx = hx + Math.cos(da) * (dl1 + dl2 * 0.5) + (Math.random() - 0.5) * 28;
+            var my = hy + Math.sin(da) * (dl1 + dl2 * 0.5) + (Math.random() - 0.5) * 28;
+            ctx.lineTo(mx, my);
+            ctx.lineTo(hx + Math.cos(da) * (dl1 + dl2), hy + Math.sin(da) * (dl1 + dl2));
+            ctx.stroke();
+        }
+
+        // Светящийся центр перед финальным ударом.
+        var coreR = (18 + Math.sin(dNow / 70) * 5) * (1 + power * 1.8);
+        var core = ctx.createRadialGradient(hx, hy, 0, hx, hy, coreR * 2.8);
+        core.addColorStop(0, "rgba(255,255,255,0.95)");
+        core.addColorStop(0.18, "rgba(170,255,170,0.9)");
+        core.addColorStop(0.55, "rgba(68,255,68,0.35)");
+        core.addColorStop(1, "rgba(68,255,68,0)");
+        ctx.fillStyle = core;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.arc(hx, hy, coreR * 2.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Финальный вертикальный разлом.
+        if (dAge > 1.15) {
+            var fp = Math.min(1, (dAge - 1.15) / 0.45);
+            ctx.globalAlpha = 0.8 * (1 - Math.max(0, fp - 0.75) / 0.25);
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 4 + fp * 8;
+            ctx.shadowColor = "#44ff44";
+            ctx.shadowBlur = 28;
+            ctx.beginPath();
+            ctx.moveTo(hx, hy - 230 * fp);
+            ctx.lineTo(hx + Math.sin(dNow / 35) * 12, hy + 230 * fp);
+            ctx.stroke();
+            ctx.strokeStyle = "#44ff44";
+            ctx.lineWidth = 12 + fp * 10;
+            ctx.globalAlpha *= 0.35;
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
     if (_superState.dekuSmashActive && _superState.dekuFists.length > 0) {
         ctx.save();
         for (var i = 0; i < _superState.dekuFists.length; i++) {
