@@ -50,6 +50,18 @@ function modifiers(c){
   var conf=Math.max(0,Math.min(100,Number(c)||0)),l=level(conf);
   return{level:l,dmgMult:1+conf*0.006,damageTakenMult:1-conf*0.006,speedMult:1+conf*0.006};
 }
+function onTakabaDamageTaken(dmg){
+  ensureTakabaState();
+  if(!hasTakaba()) return;
+  var n=Math.max(0,Number(dmg)||0);
+  if(n<=0) return;
+  // Уверенность падает только за реально полученный урон.
+  // Маленький тычок тоже должен быть заметен, но не обнулять шкалу мгновенно.
+  var loss=Math.max(3,Math.ceil(n/8));
+  adjustTakabaConfidence(-loss,false);
+}
+window.onTakabaDamageTaken=onTakabaDamageTaken;
+
 function getTakabaCombatModifiers(){
   ensureTakabaState();
   if(!hasTakaba())return{level:1,dmgMult:1,damageTakenMult:1,speedMult:1,confidence:0};
