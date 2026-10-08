@@ -29,7 +29,7 @@ var EVENT_NAMES = [
 function ensureTakabaState(){
   if(typeof _superState==="undefined") return;
   var d={
-    takabaConfidence:50,takabaLastEventTime:0,takabaEventTimer:0,takabaEffectTimer:0,
+    takabaConfidence:50,takabaLastEventTime:0,takabaEventTimer:0,takabaEffectTimer:0,takabaNoDamageTimer:0,takabaRecoveryTimer:0,
     takabaEffectType:null,takabaTimeStop:false,takabaJokeActive:false,takabaCurrentJoke:"",
     takabaBgColor:null,takabaDuckMode:false,takabaDmgMult:1,takabaDamageTakenMult:1,
     takabaRandomEvent:null,takabaRandomEventTimer:0,takabaArenaSpeedMult:1,takabaBallMode:false,
@@ -55,10 +55,11 @@ function onTakabaDamageTaken(dmg){
   if(!hasTakaba()) return;
   var n=Math.max(0,Number(dmg)||0);
   if(n<=0) return;
-  // Уверенность падает только за реально полученный урон.
-  // Маленький тычок тоже должен быть заметен, но не обнулять шкалу мгновенно.
-  var loss=Math.max(3,Math.ceil(n/8));
-  adjustTakabaConfidence(-loss,false);
+  // Каждый реальный полученный удар одинаково снижает уверенность.
+  // Размер входящего урона больше не влияет на штраф.
+  adjustTakabaConfidence(-5,false);
+  _superState.takabaNoDamageTimer=0;
+  _superState.takabaRecoveryTimer=0;
 }
 window.onTakabaDamageTaken=onTakabaDamageTaken;
 
@@ -184,6 +185,18 @@ function updateTakabaAbility(dt){
   }
   var m=modifiers(_superState.takabaConfidence);_superState.takabaDmgMult=m.dmgMult;_superState.takabaDamageTakenMult=m.damageTakenMult;
   var c=ctx();if(!c)return;
+
+  // Восстановление уверенности: после 5 секунд без урона — +1 каждые 2 секунды.
+  _superState.takabaNoDamageTimer=Math.max(0,Number(_superState.takabaNoDamageTimer)||0)+dt;
+  if(_superState.takabaNoDamageTimer>=5){
+    _superState.takabaRecoveryTimer=Math.max(0,Number(_superState.takabaRecoveryTimer)||0)+dt;
+    while(_superState.takabaRecoveryTimer>=2){
+      _superState.takabaRecoveryTimer-=2;
+      if(_superState.takabaConfidence<100) adjustTakabaConfidence(1,false);
+    }
+  }else{
+    _superState.takabaRecoveryTimer=0;
+  }
   if(_superState.takabaEffectTimer>0){ _superState.takabaEffectTimer=Math.max(0,_superState.takabaEffectTimer-dt); }
   // Во время фазы атаки Такаба полностью молчит: никаких случайных событий.
   if(typeof arenaPhase!=="undefined" && arenaPhase!=="dodge") return;
@@ -236,5 +249,5 @@ if(typeof oldTick==="function"){
     updateTakabaAbility(dt);
   };
 }
-console.log("[TAKABA] v2.0 loaded — 50 трэш-событий.");
+console.log("[TAKABA] v2.1 loaded — confidence damage/recovery reworked.");
 })();
