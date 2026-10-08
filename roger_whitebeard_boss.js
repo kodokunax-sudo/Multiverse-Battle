@@ -140,14 +140,15 @@
 
     let rwbTsunamiActive = false;
     // Белоус: супер-скилл «Воронка» + QTE
-    let wbVortexTimer = 0;
+    let wbVortexElapsedMs = 0;
+    let wbVortexClockAt = 0;
     let wbVortexActive = false;
     let wbVortexTimerLeft = 0;
     let wbVortexPoints = [];
     let wbVortexNextPoint = 0;
     let wbVortexFailed = false;
     let wbVortexPullStrength = 0;
-    const WB_VORTEX_INTERVAL = 1200; // 20 сек
+    const WB_VORTEX_INTERVAL_MS = 20000; // ровно 20 секунд реального времени
     const WB_VORTEX_CHANCE = 0.35;
     const WB_VORTEX_QTE_DURATION = 300; // 5 сек
 
@@ -883,7 +884,7 @@
         rwbAttacks = []; rwbPlayerBullets = []; rwbParticles = []; rwbShockwaves = [];
         rwbFloatingTexts = []; rwbSpeedLines = []; rwbHakiLightnings = [];
         rwbWhiteCracks = []; rwbPurpleCracks = []; rwbScreenFlash = 0; rwbShake = 0; rwbBgStars = [];
-        wbVortexTimer = 0; wbVortexActive = false; wbVortexTimerLeft = 0; wbVortexPoints = []; wbVortexNextPoint = 0; wbVortexFailed = false; wbVortexPullStrength = 0;
+        wbVortexElapsedMs = 0; wbVortexClockAt = 0; wbVortexActive = false; wbVortexTimerLeft = 0; wbVortexPoints = []; wbVortexNextPoint = 0; wbVortexFailed = false; wbVortexPullStrength = 0;
 
         initIslandBackground(); startRWBMusic(); initRWBAudio();
 
@@ -1812,6 +1813,8 @@
         wbVortexActive = false;
         wbVortexTimerLeft = 0;
         wbVortexPullStrength = 0;
+        wbVortexElapsedMs = 0;
+        wbVortexClockAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
         if (!success) {
             wbVortexFailed = true;
             rwbPlayer.vx = 0;
@@ -1864,7 +1867,7 @@
     }
 
         function spawnWhitebeardSuperAttack() {
-        let attackId = Math.floor(Math.random() * 6);
+        let attackId = Math.floor(Math.random() * 5);
         playHakiChargeSound(0.3);
         spawnHakiLightning(whitebeard.x, whitebeard.y, 5, false);
         if (attackId === 0) spawnWhitebeardEarthquake();
@@ -1872,7 +1875,6 @@
         else if (attackId === 2) spawnWhitebeardTitanFist();
         else if (attackId === 3) spawnWhitebeardRush();
         else if (attackId === 4) spawnTsunamiAttack(false);
-        else spawnWhitebeardVortex();
     }
 
     function spawnWhitebeardEarthquake() {
@@ -2435,15 +2437,23 @@
                 rwbSurvivalTimer2++;
                 if (rwbActiveBoss && rwbActiveBoss.hp <= 0) rwbVictory();
                 if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") {
+                    // Воронка имеет отдельный реальный таймер, не зависящий от FPS.
+                    // Один бросок шанса 35% ровно раз в 20 секунд.
+                    let wbNow = (typeof performance !== 'undefined' ? performance.now() : Date.now());
                     if (!wbVortexActive) {
-                        wbVortexTimer++;
-                        if (wbVortexTimer >= WB_VORTEX_INTERVAL) {
-                            // Ровно один бросок шанса каждые 20 секунд.
-                            wbVortexTimer = 0;
+                        if (!wbVortexClockAt) wbVortexClockAt = wbNow;
+                        let wbDelta = Math.max(0, wbNow - wbVortexClockAt);
+                        wbVortexClockAt = wbNow;
+                        wbVortexElapsedMs += Math.min(wbDelta, 250);
+                        if (wbVortexElapsedMs >= WB_VORTEX_INTERVAL_MS) {
+                            wbVortexElapsedMs = 0;
                             if (Math.random() < WB_VORTEX_CHANCE) {
                                 spawnWhitebeardVortex();
                             }
                         }
+                    } else {
+                        // Пока QTE идёт, новый 20-секундный цикл не накапливается.
+                        wbVortexClockAt = wbNow;
                     }
                     rwbTitanFistTimer++;
                     if (!wbVortexActive && rwbTitanFistTimer >= RWB_TITAN_INTERVAL) {
