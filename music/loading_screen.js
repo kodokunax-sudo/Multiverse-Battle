@@ -291,15 +291,19 @@
 
         logElement = document.getElementById('loadingLog');
 
-        document.getElementById('continueBtn').addEventListener('click', function() {
-            console.log("[LOADING] Игрок нажал 'Продолжить'");
-            hideScreen();
-        });
-        document.getElementById('skipMusicBtn').addEventListener('click', function() {
-            console.log("[LOADING] Игрок пропустил загрузку музыки");
+        function dismissLoadingScreen(reason) {
+            console.log("[LOADING] " + reason);
+            // Только флаг загрузчика. Сохранения игры (cgV20/cgV19/слоты и т.д.) не трогаем.
             window.__musicSkipped = true;
             try { localStorage.setItem('music_loaded_once', '1'); } catch (e) {}
             hideScreen();
+        }
+
+        document.getElementById('continueBtn').addEventListener('click', function() {
+            dismissLoadingScreen("Игрок нажал 'Продолжить'");
+        });
+        document.getElementById('skipMusicBtn').addEventListener('click', function() {
+            dismissLoadingScreen("Игрок пропустил загрузку музыки");
         });
 
         // Индикатор в углу
@@ -601,14 +605,21 @@
         patchAudio();
         patchFetch();
 
-        // ★ Как раньше: если музыка уже загружалась, игру можно сразу пропустить.
-        // Музыка при этом продолжает грузиться в фоне, а прогресс игры остаётся нетронутым.
+        // ★ Поведение как раньше: после первого решения загрузчик больше не блокирует игру.
+        // Музыка продолжает подгружаться в фоне. Игровые сохранения вообще не читаются и не изменяются.
         try {
             if (localStorage.getItem('music_loaded_once') === '1') {
                 window.__musicSkipped = true;
                 setTimeout(hideScreen, 80);
             }
         } catch (e) {}
+
+        // Escape = мгновенно пропустить загрузку, как кнопка "Продолжить".
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('loadingScreen')) {
+                dismissLoadingScreen("Игрок нажал Escape");
+            }
+        });
 
         // Проверка Cache API
         if (!('caches' in window)) {
