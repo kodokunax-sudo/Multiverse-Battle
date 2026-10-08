@@ -1180,6 +1180,16 @@ function renderArena() {
         }
         if (typeof renderSuperVisuals === 'function') { ctx.save(); renderSuperVisuals(); ctx.restore(); }
         for (var i = arenaBlasters.length - 1; i >= 0; i--) { var b = arenaBlasters[i], ac = b.color === "rainbow" ? "hsl(" + ((now / 2) % 360) + ",100%,60%)" : b.color; if (!frozen && !timeStopped) { if (b.state === "aiming") { b.timer--; if (b.timer <= 0) { b.state = "firing"; b.timer = 15; arenaShake = 18; sfxArenaBlasterFire(); } } else if (b.state === "firing") { b.timer--; if (b.timer <= 0) { b.state = "fading"; b.timer = 20; } } else if (b.state === "fading") { b.timer--; if (b.timer <= 0) arenaBlasters.splice(i, 1); } } if (b.state === "aiming") { if (b.timer > 30) b.angle = Math.atan2(heart.y - b.y, heart.x - b.x); ctx.save(); ctx.globalAlpha = 0.2 + Math.abs(Math.sin(b.timer * 0.25)) * 0.2; ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.lineDashOffset = -now / 40; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + Math.cos(b.angle) * 800, b.y + Math.sin(b.angle) * 800); ctx.stroke(); ctx.setLineDash([]); ctx.restore(); } else if (b.state === "firing" || b.state === "fading") { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.shadowColor = ac; ctx.shadowBlur = 15; var bWidth = Math.max(1, b.width + 16 + Math.random() * 10); ctx.strokeStyle = ac; ctx.lineWidth = bWidth; ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + Math.cos(b.angle) * 800, b.y + Math.sin(b.angle) * 800); ctx.stroke(); ctx.lineWidth = Math.max(1, b.width); ctx.globalAlpha = 0.9; ctx.stroke(); ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(0.5, b.width * 0.4); ctx.globalAlpha = 1.0; ctx.stroke(); ctx.restore(); if (!b.hasHit && invulnTimer <= 0 && !frozen && !timeStopped) { var dx = heart.x - b.x, dy = heart.y - b.y, dist = Math.abs(dx * Math.sin(b.angle) - dy * Math.cos(b.angle)); if (dist < Math.max(1, b.width / 2) + heart.hitbox) { var bdmg = 0, msg = ""; if (b.color === "rainbow") applyHit(arenaMaxHP, "ФАТАЛЬНО!", true); else if (b.color === "#fff") { bdmg = Math.floor(arenaBaseDmg * 2); msg = "ЛУЧ!"; } else if (b.color === "#ffdd00") { if (!heartWasMoving) { bdmg = Math.max(1, Math.floor(arenaBaseDmg * 3 / 4)); msg = "ЗАЩИТА!"; } else { bdmg = Math.floor(arenaBaseDmg * 3); msg = "ДВИЖЕНИЕ!"; } } else if (b.color === "#ff3333") { if (heartWasMoving) { bdmg = Math.max(1, Math.floor(arenaBaseDmg * 3 / 4)); msg = "ЗАЩИТА!"; } else { bdmg = Math.floor(arenaBaseDmg * 3); msg = "ЗАМЕР!"; } } if (bdmg > 0) applyHit(bdmg, msg); b.hasHit = true; } } } }
+    // ★ DIO: визуал остановки должен рисоваться даже тогда, когда основной цикл атак заморожен.
+    // Раньше renderSuperVisuals находился внутри dodge-блока и при time stop вообще не вызывался.
+    if (typeof _superState !== 'undefined' &&
+        (_superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0) &&
+        typeof renderDioVisuals === 'function') {
+        ctx.save();
+        renderDioVisuals(typeof getBossContext === 'function' ? getBossContext() : null);
+        ctx.restore();
+    }
+
     if (invulnTimer <= 0 || Math.floor(now / 80) % 2 === 0) {
         ctx.save();
         ctx.translate(heart.x, heart.y - 2);
