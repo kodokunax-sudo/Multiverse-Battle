@@ -2229,6 +2229,9 @@
         // ★ 5. Минимум 1 урона ★
         dmg = Math.max(1, Math.floor(dmg));
 
+        if (typeof onTakabaDamageTaken === "function") {
+            try { onTakabaDamageTaken(dmg); } catch(e) {}
+        }
         rwbPlayer.hp -= dmg;
         rwbPlayer.invulnTimer = 50;
         rwbShake = 12; rwbScreenFlash = 8; rwbScreenFlashColor = "#ff0000";
