@@ -55,9 +55,9 @@ function onTakabaDamageTaken(dmg){
   if(!hasTakaba()) return;
   var n=Math.max(0,Number(dmg)||0);
   if(n<=0) return;
-  // Каждый реальный полученный удар одинаково снижает уверенность.
+  // Каждый реальный полученный удар одинаково снижает уверенность на 10%.
   // Размер входящего урона больше не влияет на штраф.
-  adjustTakabaConfidence(-5,false);
+  adjustTakabaConfidence(-10,false);
   _superState.takabaNoDamageTimer=0;
   _superState.takabaRecoveryTimer=0;
 }
