@@ -2742,6 +2742,9 @@ function renderSuperVisuals() {
             ctx.fill();
             ctx.restore();
         }
+        // Закрываем внешний save() блока кулаков Разлома.
+        // Без этого Canvas transform накапливался и камера уезжала после SUPER.
+        ctx.restore();
     }
     if (_superState.dekuExplosions.length > 0) {
         ctx.save();
