@@ -321,10 +321,10 @@ function getBossContext() {
             setHeartX: function(v) { var p = window.getRWBPlayer ? window.getRWBPlayer() : null; if (p) p.x = Math.max(16, Math.min(384, v)); },
             getHeartY: function() { var p = window.getRWBPlayer ? window.getRWBPlayer() : null; return p ? p.y : 400; },
             setHeartY: function(v) { var p = window.getRWBPlayer ? window.getRWBPlayer() : null; if (p) p.y = Math.max(0, Math.min(484, v)); },
-            getHeartSize: function() { return 12; },
-            setHeartSize: function(v) {},
-            getHeartHitbox: function() { return 6; },
-            setHeartHitbox: function(v) {},
+            getHeartSize: function() { return (typeof _superState !== 'undefined' && _superState.rwbHeartSize) ? _superState.rwbHeartSize : 12; },
+            setHeartSize: function(v) { if (typeof _superState !== 'undefined') _superState.rwbHeartSize = Math.max(4, Number(v) || 12); },
+            getHeartHitbox: function() { return (typeof _superState !== 'undefined' && _superState.rwbHeartHitbox) ? _superState.rwbHeartHitbox : 6; },
+            setHeartHitbox: function(v) { if (typeof _superState !== 'undefined') _superState.rwbHeartHitbox = Math.max(2, Number(v) || 6); },
             getHeartSpeed: function() {
                 if (typeof window.getRWBBaseSpeed === 'function' && typeof window.getRWBSpeedMult === 'function') {
                     return window.getRWBBaseSpeed() * window.getRWBSpeedMult();
