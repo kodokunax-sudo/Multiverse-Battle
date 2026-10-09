@@ -212,59 +212,57 @@ function drawDioHeartVisual(targetCtx, x, y, size) {
     mainGrad.addColorStop(1, "#780018");
     targetCtx.fillStyle = mainGrad;
     heartPath(); targetCtx.fill();
+
+    // Глянцевая фактура: тонкие прожилки и тёмные складки, обрезанные по форме сердца.
+    targetCtx.save();
+    heartPath();
+    targetCtx.clip();
+    targetCtx.globalAlpha = 0.34;
+    targetCtx.strokeStyle = "#8f001d";
+    targetCtx.lineWidth = 1.15;
+    targetCtx.beginPath();
+    targetCtx.moveTo(-6.5, -7.5);
+    targetCtx.bezierCurveTo(-3.5, -5.5, -4.5, -1.5, -1, 1.5);
+    targetCtx.moveTo(6, -7);
+    targetCtx.bezierCurveTo(3.5, -4.5, 4, -1.5, 1, 2.5);
+    targetCtx.moveTo(-3, -1);
+    targetCtx.quadraticCurveTo(0, 0, 3, -1.5);
+    targetCtx.stroke();
+    targetCtx.globalAlpha = 0.22;
+    targetCtx.strokeStyle = "#ff9aa3";
+    targetCtx.lineWidth = 0.8;
+    targetCtx.beginPath();
+    targetCtx.moveTo(-5.5, -8);
+    targetCtx.quadraticCurveTo(-7, -5, -4.5, -3);
+    targetCtx.moveTo(2, -8);
+    targetCtx.quadraticCurveTo(5.5, -6, 4.5, -4);
+    targetCtx.stroke();
+    targetCtx.restore();
+
     targetCtx.shadowBlur = 0;
     targetCtx.strokeStyle = "#510014";
     targetCtx.lineWidth = 1.1;
     heartPath(); targetCtx.stroke();
+    // Блик придаёт сердцу объём, а маленькие точки работают как текстурные отблески.
     targetCtx.fillStyle = "rgba(255,245,195,.9)";
     targetCtx.beginPath();
     targetCtx.ellipse(-3.5, -6.5, 1.7, 2.4, -0.5, 0, Math.PI * 2);
     targetCtx.fill();
+    targetCtx.fillStyle = "rgba(255,160,175,.7)";
+    targetCtx.beginPath();
+    targetCtx.arc(4.8, -3.5, 0.65, 0, Math.PI * 2);
+    targetCtx.arc(-1.8, 1.5, 0.5, 0, Math.PI * 2);
+    targetCtx.fill();
 
-    // Белое сердце-стенд THE WORLD рядом с основным; чисто косметический элемент.
-    targetCtx.save();
-    targetCtx.translate(13, -5);
-    targetCtx.scale(0.84, 0.84);
-    targetCtx.shadowColor = "#ffffff";
-    targetCtx.shadowBlur = 13;
-    var standGrad = targetCtx.createLinearGradient(-7, -10, 7, 7);
-    standGrad.addColorStop(0, "#ffffff");
-    standGrad.addColorStop(0.55, "#f4f8ff");
-    standGrad.addColorStop(1, "#cbd8e8");
-    targetCtx.fillStyle = standGrad;
-    heartPath(); targetCtx.fill();
-    targetCtx.strokeStyle = "rgba(255,255,255,.98)";
-    targetCtx.lineWidth = 1.2;
-    heartPath(); targetCtx.stroke();
-    targetCtx.restore();
     targetCtx.restore();
     return true;
 }
 window.drawDioHeartVisual = drawDioHeartVisual;
 
-// DIO: отдельная узнаваемая модель персонажа и белый стенд-сердце THE WORLD.
+// В бою DIO снова использует исходный скин-сердце; GIF остаётся только для карточки.
 function drawDioPlayerVisual(c,x,y,size){
  if(!c)return false;
- var sprite=typeof window.getPreloadedImage==="function"?window.getPreloadedImage("dio", (typeof window.getCharacterImage === "function" ? window.getCharacterImage("dio") : null)):null;
- if(sprite&&sprite.complete&&sprite.naturalWidth>0&&sprite.naturalHeight>0){
-  var targetH=Math.max(30,(Number(size)||12)*3.45);
-  var aspect=sprite.naturalWidth/sprite.naturalHeight;
-  var targetW=Math.min(targetH*1.45,targetH*aspect);
-  c.save();c.translate(Number(x)||0,Number(y)||0);c.shadowColor="#e7c04d";c.shadowBlur=3;
-  c.drawImage(sprite,-targetW/2,-targetH/2,targetW,targetH);c.restore();return true;
- }
- var sc=Math.max(.78,Math.min(1.12,(Number(size)||12)/12));
- c.save();c.translate(Number(x)||0,Number(y)||0);c.scale(sc,sc);
- var halo=c.createRadialGradient(0,0,2,0,0,23);halo.addColorStop(0,"rgba(255,210,70,.34)");halo.addColorStop(.6,"rgba(100,255,190,.14)");halo.addColorStop(1,"rgba(100,255,190,0)");c.fillStyle=halo;c.beginPath();c.arc(0,0,23,0,Math.PI*2);c.fill();
- c.shadowColor="#e7c04d";c.shadowBlur=5;c.fillStyle="#286747";c.beginPath();c.moveTo(-11,1);c.quadraticCurveTo(-12,-5,-7,-6);c.lineTo(7,-6);c.quadraticCurveTo(12,-4,11,2);c.lineTo(8,12);c.quadraticCurveTo(0,15,-8,12);c.closePath();c.fill();c.shadowBlur=0;c.strokeStyle="#e7c04d";c.lineWidth=1.6;c.stroke();
- c.fillStyle="#d8ba53";c.beginPath();c.ellipse(-7,1,5,4,-.22,0,Math.PI*2);c.fill();c.beginPath();c.ellipse(7,1,5,4,.22,0,Math.PI*2);c.fill();
- c.fillStyle="#24563d";c.beginPath();c.moveTo(-5,-3);c.lineTo(0,1);c.lineTo(5,-3);c.lineTo(4,8);c.lineTo(0,10);c.lineTo(-4,8);c.closePath();c.fill();c.strokeStyle="#f6db76";c.lineWidth=1.4;c.beginPath();c.moveTo(0,1);c.lineTo(0,8);c.stroke();c.fillStyle="#f5d36a";c.beginPath();c.arc(0,5,1.8,0,Math.PI*2);c.fill();
- c.fillStyle="#f1c59e";c.beginPath();c.ellipse(0,-7,6.6,8.2,0,0,Math.PI*2);c.fill();c.strokeStyle="#70432e";c.lineWidth=1;c.stroke();
- c.fillStyle="#f4d75d";c.strokeStyle="#997224";c.lineWidth=1;c.beginPath();c.moveTo(-7,-9);c.lineTo(-10,-15);c.lineTo(-5,-13);c.lineTo(-4,-19);c.lineTo(0,-14);c.lineTo(4,-19);c.lineTo(5,-13);c.lineTo(10,-15);c.lineTo(7,-8);c.quadraticCurveTo(0,-12,-7,-9);c.closePath();c.fill();c.stroke();
- c.fillStyle="#2ca36b";c.beginPath();c.moveTo(-7,-11);c.quadraticCurveTo(0,-14,7,-11);c.lineTo(7,-8.8);c.quadraticCurveTo(0,-11,-7,-8.8);c.closePath();c.fill();
- c.strokeStyle="#1e4a35";c.lineWidth=1.2;c.beginPath();c.moveTo(-5,-7.5);c.lineTo(-1.5,-8.2);c.moveTo(1.5,-8.2);c.lineTo(5,-7.5);c.stroke();c.fillStyle="#fff";c.beginPath();c.ellipse(-3.2,-6.1,1.8,1.25,0,0,Math.PI*2);c.fill();c.beginPath();c.ellipse(3.2,-6.1,1.8,1.25,0,0,Math.PI*2);c.fill();c.fillStyle="#4b2c19";c.beginPath();c.arc(-3,-6.1,.9,0,Math.PI*2);c.fill();c.beginPath();c.arc(3,-6.1,.9,0,Math.PI*2);c.fill();
- c.strokeStyle="#8b4936";c.lineWidth=.9;c.beginPath();c.moveTo(-1.5,-1.9);c.quadraticCurveTo(0,-1,1.5,-1.9);c.stroke();c.fillStyle="#ffe78b";c.beginPath();c.arc(-6.5,-2.3,1.1,0,Math.PI*2);c.fill();c.beginPath();c.arc(6.5,-2.3,1.1,0,Math.PI*2);c.fill();
- c.fillStyle="#fff0a6";c.beginPath();c.moveTo(-5,-4);c.lineTo(0,-1);c.lineTo(-2,4);c.closePath();c.fill();c.beginPath();c.moveTo(5,-4);c.lineTo(0,-1);c.lineTo(2,4);c.closePath();c.fill();c.restore();return true;
+ return drawDioHeartVisual(c,x,y,size);
 }
 window.drawDioPlayerVisual=drawDioPlayerVisual;
 function drawDioStandVisual(c,x,y,size){
