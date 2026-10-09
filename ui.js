@@ -792,18 +792,22 @@ function renderGachaTab() {
         html += '</div>';
     });
     if ((typeof legendaryGachaTokens !== 'undefined' && legendaryGachaTokens > 0) || (typeof mode !== 'undefined' && mode === "moder")) {
-        let canBuy = (typeof mode !== 'undefined' && mode === "moder") || ((typeof legendaryGachaTokens !== 'undefined' && legendaryGachaTokens > 0) && (typeof points !== 'undefined' && points >= (typeof gachaPrices !== 'undefined' ? gachaPrices.legendary : 0)));
+        let bought = (typeof gachaDailyLimits !== 'undefined' && gachaDailyLimits.legendary) || 0;
+        let max = (typeof gachaDailyMax !== 'undefined' && gachaDailyMax.legendary) || 15;
+        let canBuy = (typeof mode !== 'undefined' && mode === "moder") || (bought < max && (typeof legendaryGachaTokens !== 'undefined' && legendaryGachaTokens > 0) && (typeof points !== 'undefined' && points >= (typeof gachaPrices !== 'undefined' ? gachaPrices.legendary : 0)));
         let displayPrice = (typeof mode !== 'undefined' && mode === "moder") ? "∞ БЕСПЛАТНО" : ((typeof gachaPrices !== 'undefined' ? gachaPrices.legendary : 0) + "⭐");
         let tokenDisplay = (typeof mode !== 'undefined' && mode === "moder") ? "∞" : (typeof legendaryGachaTokens !== 'undefined' ? legendaryGachaTokens : 0);
         html += '<div class="shop-item gacha-item legendary-gacha" style="border-left: 3px solid #ffd700; background: rgba(255,215,0,0.1);">';
         html += '<div><strong>🟡 Легендарная крутка</strong>';
-        html += '<br><small>' + displayPrice + ' | Разрешений: ' + tokenDisplay + '</small>';
+        html += '<br><small>' + displayPrice + ' | ' + bought + '/' + max + ' сегодня | Разрешений: ' + tokenDisplay + '</small>';
         html += '<br><small style="color:#aaa;">Мин: Мифическая | Макс: Секретная (2%)</small></div>';
         html += '<button class="btn btn-primary gacha-btn legendary-btn" onclick="performGacha(\'legendary\')" ' + (!canBuy ? 'disabled' : '') + '>Крутить</button>';
         html += '</div>';
     }
     if ((typeof secretGachaTokens !== 'undefined' && secretGachaTokens > 0) || (typeof mode !== 'undefined' && mode === "moder")) {
-        let canBuy = (typeof mode !== 'undefined' && mode === "moder") || ((typeof secretGachaTokens !== 'undefined' && secretGachaTokens > 0) && (typeof points !== 'undefined' && points >= (typeof gachaPrices !== 'undefined' ? gachaPrices.secret : 0)));
+        let bought = (typeof gachaDailyLimits !== 'undefined' && gachaDailyLimits.secret) || 0;
+        let max = (typeof gachaDailyMax !== 'undefined' && gachaDailyMax.secret) || 4;
+        let canBuy = (typeof mode !== 'undefined' && mode === "moder") || (bought < max && (typeof secretGachaTokens !== 'undefined' && secretGachaTokens > 0) && (typeof points !== 'undefined' && points >= (typeof gachaPrices !== 'undefined' ? gachaPrices.secret : 0)));
         let displayPrice = (typeof mode !== 'undefined' && mode === "moder") ? "∞ БЕСПЛАТНО" : ((typeof gachaPrices !== 'undefined' ? gachaPrices.secret : 0) + "⭐");
         let tokenDisplay = (typeof mode !== 'undefined' && mode === "moder") ? "∞" : (typeof secretGachaTokens !== 'undefined' ? secretGachaTokens : 0);
         html += '<div class="shop-item gacha-item secret-gacha" style="border-left: 3px solid #ff00ff; background: rgba(255,0,255,0.1);">';
@@ -815,18 +819,27 @@ function renderGachaTab() {
     }
     if (!html) html = '<div style="text-align:center;color:#888;padding:20px;font-weight:bold;">🔒 Победите нового босса (каждые 50 волн) чтобы открыть легендарные и секретные крутки!</div>';
     
-    if (typeof lastGachaReset !== 'undefined' && lastGachaReset) {
-        let timeLeft = Math.max(0, 86400000 - (Date.now() - lastGachaReset));
+    if (typeof gachaLimitCooldownAt !== 'undefined' && gachaLimitCooldownAt) {
+        let timeLeft = Math.max(0, 12 * 60 * 60 * 1000 - (Date.now() - gachaLimitCooldownAt));
         if (timeLeft > 0) {
             let h = Math.floor(timeLeft / 3600000);
             let m = Math.floor((timeLeft % 3600000) / 60000);
-            html += '<div style="text-align:center;margin-top:10px;font-weight:600;color:#aaa;font-size:12px;">🔄 Сброс дневных лимитов через: ' + h + 'ч ' + m + 'м</div>';
+            let s = Math.floor((timeLeft % 60000) / 1000);
+            html += '<div style="text-align:center;margin-top:10px;font-weight:800;color:#ffd700;font-size:13px;">⏳ До обновления лимитов: ' + h + 'ч ' + m + 'м ' + s + 'с</div>';
+            html += '<div style="text-align:center;margin-top:4px;font-weight:600;color:#aaa;font-size:11px;">12 часов после исчерпания первого лимита</div>';
         } else {
-            html += '<div style="text-align:center;margin-top:10px;font-weight:600;color:#2ecc71;font-size:12px;">✅ Лимиты сброшены! Обновите страницу.</div>';
+            html += '<div style="text-align:center;margin-top:10px;font-weight:800;color:#2ecc71;font-size:13px;">✅ Лимиты обновляются…</div>';
         }
+    } else {
+        html += '<div style="text-align:center;margin-top:10px;font-weight:600;color:#aaa;font-size:12px;">⏳ Таймер на 12 часов запустится, когда закончится любой лимит.</div>';
     }
     
     container.innerHTML = html;
+    if (typeof window !== 'undefined' && !window._gachaCooldownTicker) {
+        window._gachaCooldownTicker = setInterval(function() {
+            if (typeof gachaLimitCooldownAt !== 'undefined' && gachaLimitCooldownAt) renderGachaTab();
+        }, 1000);
+    }
 }
 
 function renderAll() { 
