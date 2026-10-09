@@ -245,7 +245,7 @@ window.drawDioHeartVisual = drawDioHeartVisual;
 // DIO: отдельная узнаваемая модель персонажа и белый стенд-сердце THE WORLD.
 function drawDioPlayerVisual(c,x,y,size){
  if(!c)return false;
- var sprite=typeof window.getPreloadedImage==="function"?window.getPreloadedImage("dio","images/Super_Dio_2.gif"):null;
+ var sprite=typeof window.getPreloadedImage==="function"?window.getPreloadedImage("dio", (typeof window.getCharacterImage === "function" ? window.getCharacterImage("dio") : null)):null;
  if(sprite&&sprite.complete&&sprite.naturalWidth>0&&sprite.naturalHeight>0){
   var targetH=Math.max(30,(Number(size)||12)*3.45);
   var aspect=sprite.naturalWidth/sprite.naturalHeight;
