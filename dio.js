@@ -246,6 +246,33 @@ function dioIsWindupActive() {
 window.dioIsWindupActive = dioIsWindupActive;
 
 var DIO_TIME_STOP_WIPE_DURATION_MS = 1800; // The ring reaches the arena edges in 1.8 seconds.
+function dioShouldFreezeEntity(entity) {
+    if (!entity) return false;
+    var windup = dioIsWindupActive();
+    if (!windup) {
+        if (!isDioTimeStopped()) {
+            try { delete entity._dioWaveFrozen; } catch (e) { entity._dioWaveFrozen = false; }
+        }
+        return false;
+    }
+    if (entity._dioWaveFrozen) return true;
+    var bossCtx = (typeof getBossContext === "function") ? getBossContext() : null;
+    if (!bossCtx || typeof bossCtx.getHeartX !== "function" || typeof bossCtx.getHeartY !== "function") return false;
+    var cx = Number(bossCtx.getHeartX()) || 0, cy = Number(bossCtx.getHeartY()) || 0;
+    var ex = Number(entity.x) || 0, ey = Number(entity.y) || 0;
+    var extent = Math.max(0, Number(entity.radius) || Number(entity.size) || Number(entity.width) || 0);
+    var maxRadius = Math.hypot(Math.max(cx, 400 - cx), Math.max(cy, 500 - cy));
+    var startedAt = Number(_superState.dioTimeStopWindupStartedAt) || performance.now();
+    var progress = Math.max(0, Math.min(1, (performance.now() - startedAt) / DIO_TIME_STOP_WIPE_DURATION_MS));
+    var waveRadius = maxRadius * progress;
+    if (Math.hypot(ex - cx, ey - cy) <= waveRadius + extent) {
+        entity._dioWaveFrozen = true;
+        return true;
+    }
+    return false;
+}
+window.dioShouldFreezeEntity = dioShouldFreezeEntity;
+
 var _dioOverlayRaf = 0;
 function dioHideTimeStopOverlay(overlay, ring, halo, flash, streaks) {
     if (overlay) overlay.style.display = "none";
