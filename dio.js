@@ -221,19 +221,19 @@ function drawDioHeartVisual(targetCtx, x, y, size) {
     targetCtx.ellipse(-3.5, -6.5, 1.7, 2.4, -0.5, 0, Math.PI * 2);
     targetCtx.fill();
 
-    // Маленькое сердце-стенд рядом с основным — чисто косметика.
+    // Белое сердце-стенд THE WORLD рядом с основным; чисто косметический элемент.
     targetCtx.save();
     targetCtx.translate(13, -5);
-    targetCtx.scale(0.56, 0.56);
-    targetCtx.shadowColor = "#d7b6ff";
-    targetCtx.shadowBlur = 11;
+    targetCtx.scale(0.84, 0.84);
+    targetCtx.shadowColor = "#ffffff";
+    targetCtx.shadowBlur = 13;
     var standGrad = targetCtx.createLinearGradient(-7, -10, 7, 7);
-    standGrad.addColorStop(0, "#fff0a0");
-    standGrad.addColorStop(0.4, "#c9a2ff");
-    standGrad.addColorStop(1, "#6044a5");
+    standGrad.addColorStop(0, "#ffffff");
+    standGrad.addColorStop(0.55, "#f4f8ff");
+    standGrad.addColorStop(1, "#cbd8e8");
     targetCtx.fillStyle = standGrad;
     heartPath(); targetCtx.fill();
-    targetCtx.strokeStyle = "rgba(255,239,165,.95)";
+    targetCtx.strokeStyle = "rgba(255,255,255,.98)";
     targetCtx.lineWidth = 1.2;
     heartPath(); targetCtx.stroke();
     targetCtx.restore();
@@ -248,7 +248,8 @@ function dioIsWindupActive() {
 }
 window.dioIsWindupActive = dioIsWindupActive;
 
-var DIO_TIME_STOP_WIPE_DURATION_MS = 1800; // The ring reaches the arena edges in 1.8 seconds.
+var DIO_TIME_STOP_WIPE_START_DELAY_MS = 1500; // Keep the ring hidden for the first 1.5 seconds.
+var DIO_TIME_STOP_WIPE_DURATION_MS = 1800; // The visible ring expands for 1.8 seconds.
 function dioShouldFreezeEntity(entity) {
     if (!entity) return false;
     var windup = dioIsWindupActive();
@@ -266,7 +267,9 @@ function dioShouldFreezeEntity(entity) {
     var extent = Math.max(0, Number(entity.radius) || Number(entity.size) || Number(entity.width) || 0);
     var maxRadius = Math.hypot(Math.max(cx, 400 - cx), Math.max(cy, 500 - cy));
     var startedAt = Number(_superState.dioTimeStopWindupStartedAt) || performance.now();
-    var progress = Math.max(0, Math.min(1, (performance.now() - startedAt) / DIO_TIME_STOP_WIPE_DURATION_MS));
+    var elapsedSinceRingStart = performance.now() - startedAt - DIO_TIME_STOP_WIPE_START_DELAY_MS;
+    if (elapsedSinceRingStart <= 0) return false;
+    var progress = Math.max(0, Math.min(1, elapsedSinceRingStart / DIO_TIME_STOP_WIPE_DURATION_MS));
     var waveRadius = maxRadius * progress;
     if (Math.hypot(ex - cx, ey - cy) <= waveRadius + extent) {
         entity._dioWaveFrozen = true;
@@ -386,12 +389,17 @@ function dioSyncTimeStopOverlay() {
         var cx = hx / overlay.width * rect.width;
         var cy = hy / overlay.height * rect.height;
 
-        // The same 1.35-second clock drives the visible wave and the time-stop trigger.
-        // This keeps the ZA WARUDO cue locked to the exact moment the wipe reaches the edges.
+        // Keep the ring hidden for 1.5 seconds, then expand it over 1.8 seconds.
+        // The same clock controls both the visual wave and gradual entity freezing.
         var startedAt = Number(_superState.dioTimeStopWindupStartedAt) || 0;
-        var progress = startedAt > 0
-            ? Math.max(0, Math.min(1, (performance.now() - startedAt) / DIO_TIME_STOP_WIPE_DURATION_MS))
-            : (windup ? Math.max(0, Math.min(1, 1 - ((_superState.dioTimeStopWindupUntil - performance.now()) / DIO_TIME_STOP_WIPE_DURATION_MS))) : 1);
+        var elapsedSinceStart = startedAt > 0
+            ? performance.now() - startedAt
+            : (DIO_TIME_STOP_WIPE_START_DELAY_MS + DIO_TIME_STOP_WIPE_DURATION_MS - Math.max(0, (_superState.dioTimeStopWindupUntil || 0) - performance.now()));
+        var progress = Math.max(0, Math.min(1, (elapsedSinceStart - DIO_TIME_STOP_WIPE_START_DELAY_MS) / DIO_TIME_STOP_WIPE_DURATION_MS));
+        if (progress <= 0) {
+            dioHideTimeStopOverlay(overlay, ring, halo, flash, streaks);
+            return;
+        }
 
         var maxRadius = Math.hypot(
             Math.max(cx, rect.width - cx),
@@ -468,8 +476,17 @@ function dioAddEnergy(amount) {
     var requested = Math.max(0, Number(amount) || 0);
     if (!requested) return;
 
-    // Sliding one-second window: never create more than 8 energy per real second,
-    // regardless of damage spikes, multi-hit effects, or overlapping callbacks.
+    // Sliding one-second window limits the base gain from multi-hit attacks.
+    // The combat-mode multiplier is applied after this shared cap.
+    var gainMultiplier = 1;
+    try {
+        var bossContext = (typeof getBossContext === "function") ? getBossContext() : null;
+        if (bossContext && (bossContext.type === "waystar" || bossContext.type === "stone" || bossContext.type === "rwb")) {
+            gainMultiplier = 1.5;
+        } else if (bossContext && bossContext.type === "arena") {
+            gainMultiplier = 2.5;
+        }
+    } catch (e) {}
     var now = performance.now();
     while (_dioEnergyGainEvents.length && now - _dioEnergyGainEvents[0].time >= 1000) {
         _dioEnergyGainEvents.shift();
@@ -480,9 +497,8 @@ function dioAddEnergy(amount) {
     if (allowed <= 0) return;
 
     var current = Math.max(0, Number(_superState.dioEnergy) || 0);
-    _superState.dioEnergy = Math.min(100, current + allowed);
-    // Consume the budget even when the meter is full, preventing instant refill
-    // after spending a skill immediately following a capped hit.
+    _superState.dioEnergy = Math.min(100, current + allowed * gainMultiplier);
+    // Consume the base budget even when the visible energy gain is multiplied or the meter is full.
     _dioEnergyGainEvents.push({ time: now, amount: allowed });
 }
 window.dioAddEnergy = dioAddEnergy;
@@ -606,11 +622,11 @@ function activateDioTimeStop() {
     var sequenceToken = (_superState.dioTimeStopSequenceToken || 0) + 1;
     _superState.dioTimeStopSequenceToken = sequenceToken;
 
-    // The ZA WARUDO track starts immediately. The ring expands for 1.8 seconds,
-    // and time stops the instant the wave reaches the arena edges.
+    // Sound starts immediately; the ring waits 1.5 seconds, expands for 1.8 seconds,
+    // and time stops when the wave reaches the arena edges.
     _superState.dioTimeStopAudioPending = false;
     _superState.dioTimeStopWindupStartedAt = startedAt;
-    _superState.dioTimeStopWindupUntil = startedAt + DIO_TIME_STOP_WIPE_DURATION_MS;
+    _superState.dioTimeStopWindupUntil = startedAt + DIO_TIME_STOP_WIPE_START_DELAY_MS + DIO_TIME_STOP_WIPE_DURATION_MS;
     _superState.dioTimeStopWipeDurationMs = DIO_TIME_STOP_WIPE_DURATION_MS;
     _superState.dioTimeStopWipeActive = true;
     _superState.dioTimeStopWipeFinishQueued = false;
@@ -635,7 +651,7 @@ function activateDioTimeStop() {
         // Sound already started at the click, so never replay it here.
         dioStartTimeStop(6, false, true);
         dioStartOverlayLoop();
-    }, Math.max(0, DIO_TIME_STOP_WIPE_DURATION_MS - (performance.now() - startedAt)));
+    }, Math.max(0, DIO_TIME_STOP_WIPE_START_DELAY_MS + DIO_TIME_STOP_WIPE_DURATION_MS - (performance.now() - startedAt)));
 }
 function activateDioHeal() {
     var ctxB = getBossContext();
