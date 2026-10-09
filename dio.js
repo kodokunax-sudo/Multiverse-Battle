@@ -6,6 +6,9 @@
 var _dioAudioCache = {};
 var _dioMusicDuckState = [];
 var _dioMusicResumeAttemptedAudio = null;
+// A rolling cap prevents fast multi-hit bosses from instantly filling DIO's meter.
+var DIO_ENERGY_GAIN_PER_SECOND = 8;
+var _dioEnergyGainEvents = [];
 
 function dioSoundKey(path) {
     if (path === "music/dios-time-stop-teleportation-sound-effect-1.mp3") return "dioTeleport";
@@ -461,26 +464,48 @@ function dioStartOverlayLoop() {
 }
 
 function dioAddEnergy(amount) {
-    if (!isDioOverHeavenMain()) return;
-    _superState.dioEnergy = Math.max(0, Math.min(100, (_superState.dioEnergy || 0) + Math.max(0, Number(amount) || 0)));
+    if (!isDioOverHeavenMain() || typeof _superState === "undefined") return;
+    var requested = Math.max(0, Number(amount) || 0);
+    if (!requested) return;
+
+    // Sliding one-second window: never create more than 8 energy per real second,
+    // regardless of damage spikes, multi-hit effects, or overlapping callbacks.
+    var now = performance.now();
+    while (_dioEnergyGainEvents.length && now - _dioEnergyGainEvents[0].time >= 1000) {
+        _dioEnergyGainEvents.shift();
+    }
+    var used = 0;
+    for (var i = 0; i < _dioEnergyGainEvents.length; i++) used += _dioEnergyGainEvents[i].amount;
+    var allowed = Math.min(requested, Math.max(0, DIO_ENERGY_GAIN_PER_SECOND - used));
+    if (allowed <= 0) return;
+
+    var current = Math.max(0, Number(_superState.dioEnergy) || 0);
+    _superState.dioEnergy = Math.min(100, current + allowed);
+    // Consume the budget even when the meter is full, preventing instant refill
+    // after spending a skill immediately following a capped hit.
+    _dioEnergyGainEvents.push({ time: now, amount: allowed });
 }
 window.dioAddEnergy = dioAddEnergy;
 
 function dioTrackBossDamage(ctxB) {
-    if (!isDioOverHeavenMain() || !ctxB) return;
+    if (!isDioOverHeavenMain() || !ctxB || typeof _superState === "undefined") return;
     var hp = Number(ctxB.getBossHp());
     if (!isFinite(hp)) return;
     var type = ctxB.type || "unknown";
-    if (_superState.dioEnergyBossType !== type || _superState.dioEnergyLastBossHp === null) {
+    if (_superState.dioEnergyBossType !== type || typeof _superState.dioEnergyLastBossHp !== "number") {
         _superState.dioEnergyBossType = type;
         _superState.dioEnergyLastBossHp = hp;
         return;
     }
     var delta = _superState.dioEnergyLastBossHp - hp;
-    if (delta > 0) {
-        // Максимум 40 энергии за одно зарегистрированное попадание.
-        // Для обычной арены энергия начисляется прямо из оценки попадания.
-        if (type !== "arena") dioAddEnergy(Math.min(40, delta / 5));
+    if (delta > 0 && type !== "arena" && type !== "rwb") {
+        // Charge by the fraction of the boss's health bar removed, not raw damage.
+        // A complete boss health bar is worth 35 energy; the rolling cap limits bursts.
+        var maxHp = 0;
+        try { maxHp = Number(ctxB.getBossMaxHp()); } catch (e) {}
+        if (isFinite(maxHp) && maxHp > 0) {
+            dioAddEnergy(Math.min(35, (delta / maxHp) * 35));
+        }
     }
     _superState.dioEnergyLastBossHp = hp;
 }
@@ -634,7 +659,9 @@ function activateDioTeleport() {
         ctxB.setHeartY(target.y);
         ctxB.clampHeart();
     }
-    dioStartTimeStop(0.5, true);
+    // Play the dedicated teleport cue immediately, then start the short teleport stop without duplicating it.
+    dioPlaySound("music/dios-time-stop-teleportation-sound-effect-1.mp3", 0.72);
+    dioStartTimeStop(0.5, true, true);
 }
 
 function activateDioAggro() {
