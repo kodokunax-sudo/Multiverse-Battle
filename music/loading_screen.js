@@ -25,7 +25,8 @@
         "qte":          "music/стендзи хер ай реалзайз.mp3",
         "rwb":          "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3",
         "dioTimeStop": "music/za-warudo-time-stop-louder.mp3",
-        "dioTeleport": "music/dios-time-stop-teleportation-sound-effect-1.mp3"
+        "dioTeleport": "music/dios-time-stop-teleportation-sound-effect-1.mp3",
+        "dioTimeResume": "music/time-resumes.mp3"
     };
 
     const FETCH_TIMEOUT = 30000; // 30 секунд на трек
