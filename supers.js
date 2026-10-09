@@ -684,7 +684,8 @@ function updateDioSkillCooldowns(dt) {
     if (wasStopped && !stoppedNow && !_superState.dioResumeSoundPlayed) {
         _superState.dioResumeSoundPlayed = true;
         try {
-            var resumeAudio = new Audio("music/time-resumes.mp3");
+            var resumeTrack = (typeof window.getLoadedMusic === "function") ? window.getLoadedMusic("dioTimeResume") : null;
+            var resumeAudio = new Audio(resumeTrack && resumeTrack.url ? resumeTrack.url : "music/time-resumes.mp3");
             resumeAudio.preload = "auto";
             resumeAudio.volume = 0.9;
             var playPromise = resumeAudio.play();
