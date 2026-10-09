@@ -56,8 +56,8 @@ function renderMyCards() {
         let masteryMult = typeof getMasteryMult === 'function' ? getMasteryMult(cd) : 1;
         let dmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1) * masteryMult); 
         let hp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult); 
-        let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(cd.rarity); 
-        let cardImg = showImage ? getCardImage(cd.name) : null; 
+        // Показываем арт именно на карточке персонажа, если для него есть запись в images.js.
+        let cardImg = typeof getCardImage === "function" ? getCardImage(cd.name) : null; 
         let imgHTML = cardImg ? '<img src="' + cardImg + '" class="card-image">' : ''; 
         let superHTML = '';
         if (cd.superAbility && (typeof hasMasterySuper === 'function' ? hasMasterySuper(cd) : true)) {
