@@ -1385,6 +1385,7 @@
     }
 
     function updateDuel() {
+        if (dioIsWindupActive() && typeof dioShouldFreezeEntity === 'function' && rwbActiveBoss && dioShouldFreezeEntity(rwbActiveBoss)) return;
         if (!roger || !whitebeard) return;
         duel.timer++;
         if (duel.phase === "idle") {
@@ -1980,6 +1981,7 @@
 
         for (let i = rwbAttacks.length - 1; i >= 0; i--) {
             let a = rwbAttacks[i];
+            if (dioIsWindupActive() && typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(a)) continue;
 
             // ★★★ ФИКС: при остановке времени — только визуал, никакой логики ★
             if (stopAll) {
