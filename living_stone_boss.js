@@ -1617,13 +1617,16 @@ function checkLivingStoneCollisions() {
     // ★ ФИКС: гароу-стоп — не проверяем столкновения ★
     if (lsIsTimeStopped()) return;
     
-    var px = livingStonePlayer.x, py = livingStonePlayer.y, ph = 6;
+    var px=livingStonePlayer.x,py=livingStonePlayer.y,ph=6;
+    var dioStoneCtx=(typeof getBossContext==="function")?getBossContext():null;
+    var dioStoneStand=(typeof window.getDioStandPosition==="function")?window.getDioStandPosition(dioStoneCtx):null;
     var shieldActive = lsActiveMod && lsActiveMod.type === 4;
     var shieldX = px, shieldY = py - 22, shieldR = 16;
 
     for (var i = 0; i < livingStoneAttacks.length; i++) {
         var a = livingStoneAttacks[i];
         if (a.type === "reflected") continue;
+        var dioStandHit=!!(dioStoneStand&&typeof window.dioAttackTouchesStand==="function"&&window.dioAttackTouchesStand(dioStoneCtx,a));
         var hit = false;
         if (a.type === "rock" || a.type === "homing" || a.type === "orb" || a.type === "falling_star") {
             var dx = px - a.x, dy = py - a.y;
@@ -1642,6 +1645,12 @@ function checkLivingStoneCollisions() {
             if (Math.sqrt(dx * dx + dy * dy) < a.size + ph) hit = true;
         }
 
+        if(dioStandHit){
+            a.dioStandHitOnce=true;
+            damageLivingStonePlayer(Math.max(1,Math.floor((Number(a.damage)||5)*.4)));
+            if(a.type!=="ring"&&a.type!=="laser"&&a.type!=="gravity_well"){spawnLivingStoneParticles(a.x||px,a.y||py,8,"#fff",5);livingStoneAttacks.splice(i,1);}
+            return;
+        }
         if (shieldActive && !hit) {
             var shieldDx = shieldX - (a.x || px);
             var shieldDy = shieldY - (a.y || py);
