@@ -2264,6 +2264,12 @@
                             dmg = result.dmg;
                         }
                         boss.hp = Math.max(0, boss.hp - dmg);
+                        // DIO energy is awarded only for a real, unblocked player hit.
+                        // Normalize by this boss's max HP so high damage cannot fill the meter instantly.
+                        if (typeof window.dioAddEnergy === 'function' && dmg > 0) {
+                            let bossMaxHpForDio = Math.max(1, Number(boss.maxHp) || 1);
+                            window.dioAddEnergy((dmg / bossMaxHpForDio) * 35);
+                        }
                         boss.hitFlash = 4;
                         spawnHitParticles(b.x, b.y, b.color, 4);
                         playImpactSound(0.15, 1.2 + Math.random() * 0.3);
