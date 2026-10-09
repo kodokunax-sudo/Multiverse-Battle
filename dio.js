@@ -245,7 +245,7 @@ function dioIsWindupActive() {
 }
 window.dioIsWindupActive = dioIsWindupActive;
 
-var DIO_TIME_STOP_WIPE_DURATION_MS = 1120; // Fast, punchy JoJo-style circular reveal.
+var DIO_TIME_STOP_WIPE_DURATION_MS = 1800; // The ring reaches the arena edges in 1.8 seconds.
 var _dioOverlayRaf = 0;
 function dioHideTimeStopOverlay(overlay, ring, halo, flash, streaks) {
     if (overlay) overlay.style.display = "none";
@@ -554,11 +554,11 @@ function activateDioTimeStop() {
     var sequenceToken = (_superState.dioTimeStopSequenceToken || 0) + 1;
     _superState.dioTimeStopSequenceToken = sequenceToken;
 
-    // The ZA WARUDO track starts immediately. Time stops exactly 2 seconds
-    // after the click; the circular inversion expands during the opening shout.
+    // The ZA WARUDO track starts immediately. The ring expands for 1.8 seconds,
+    // and time stops the instant the wave reaches the arena edges.
     _superState.dioTimeStopAudioPending = false;
     _superState.dioTimeStopWindupStartedAt = startedAt;
-    _superState.dioTimeStopWindupUntil = startedAt + 2000;
+    _superState.dioTimeStopWindupUntil = startedAt + DIO_TIME_STOP_WIPE_DURATION_MS;
     _superState.dioTimeStopWipeDurationMs = DIO_TIME_STOP_WIPE_DURATION_MS;
     _superState.dioTimeStopWipeActive = true;
     _superState.dioTimeStopWipeFinishQueued = false;
@@ -583,7 +583,7 @@ function activateDioTimeStop() {
         // Sound already started at the click, so never replay it here.
         dioStartTimeStop(6, false, true);
         dioStartOverlayLoop();
-    }, Math.max(0, 2000 - (performance.now() - startedAt)));
+    }, Math.max(0, DIO_TIME_STOP_WIPE_DURATION_MS - (performance.now() - startedAt)));
 }
 function activateDioHeal() {
     var ctxB = getBossContext();
