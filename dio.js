@@ -38,6 +38,61 @@ function dioPlaySound(path) {
     } catch(e) {}
 }
 window.preloadDioSounds = preloadDioSounds;
+
+// Красное сердце DIO и маленькое декоративное сердце THE WORLD.
+// Декоративный элемент не участвует в хитбоксах, уроне или управлении.
+function drawDioHeartVisual(targetCtx, x, y, size) {
+    if (!targetCtx) return false;
+    var hs = Math.max(0.5, (Number(size) || 14) / 14);
+    targetCtx.save();
+    targetCtx.translate(Number(x) || 0, Number(y) || 0);
+    targetCtx.scale(hs, hs);
+    var heartPath = function() {
+        targetCtx.beginPath();
+        targetCtx.moveTo(0, 6);
+        targetCtx.bezierCurveTo(-2, 4, -9, -1, -9, -5);
+        targetCtx.bezierCurveTo(-9, -11, -2, -12, 0, -7);
+        targetCtx.bezierCurveTo(2, -12, 9, -11, 9, -5);
+        targetCtx.bezierCurveTo(9, -1, 2, 4, 0, 6);
+        targetCtx.closePath();
+    };
+    targetCtx.shadowColor = "#ff1f35";
+    targetCtx.shadowBlur = 9;
+    var mainGrad = targetCtx.createLinearGradient(-7, -10, 7, 7);
+    mainGrad.addColorStop(0, "#ff6472");
+    mainGrad.addColorStop(0.42, "#ed1235");
+    mainGrad.addColorStop(1, "#780018");
+    targetCtx.fillStyle = mainGrad;
+    heartPath(); targetCtx.fill();
+    targetCtx.shadowBlur = 0;
+    targetCtx.strokeStyle = "#510014";
+    targetCtx.lineWidth = 1.1;
+    heartPath(); targetCtx.stroke();
+    targetCtx.fillStyle = "rgba(255,245,195,.9)";
+    targetCtx.beginPath();
+    targetCtx.ellipse(-3.5, -6.5, 1.7, 2.4, -0.5, 0, Math.PI * 2);
+    targetCtx.fill();
+
+    // Маленькое сердце-стенд рядом с основным — чисто косметика.
+    targetCtx.save();
+    targetCtx.translate(13, -5);
+    targetCtx.scale(0.56, 0.56);
+    targetCtx.shadowColor = "#d7b6ff";
+    targetCtx.shadowBlur = 11;
+    var standGrad = targetCtx.createLinearGradient(-7, -10, 7, 7);
+    standGrad.addColorStop(0, "#fff0a0");
+    standGrad.addColorStop(0.4, "#c9a2ff");
+    standGrad.addColorStop(1, "#6044a5");
+    targetCtx.fillStyle = standGrad;
+    heartPath(); targetCtx.fill();
+    targetCtx.strokeStyle = "rgba(255,239,165,.95)";
+    targetCtx.lineWidth = 1.2;
+    heartPath(); targetCtx.stroke();
+    targetCtx.restore();
+    targetCtx.restore();
+    return true;
+}
+window.drawDioHeartVisual = drawDioHeartVisual;
 // Круг инверсии идёт от сердца наружу в течение двух секунд перед остановкой времени.
 function dioIsWindupActive() {
     return typeof _superState !== "undefined" &&
