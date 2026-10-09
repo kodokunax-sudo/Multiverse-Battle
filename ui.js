@@ -786,7 +786,7 @@ function renderGachaTab() {
         let displayPrice = (typeof mode !== 'undefined' && mode === "moder") ? "∞ БЕСПЛАТНО" : ((typeof gachaPrices !== 'undefined' ? gachaPrices[t.id] : 0) + "⭐");
         html += '<div class="shop-item gacha-item" style="border-left: 3px solid ' + t.color + ';">';
         html += '<div><strong>' + t.icon + ' ' + t.name + ' крутка</strong>';
-        html += '<br><small>' + displayPrice + ' | ' + bought + '/' + max + ' сегодня</small>';
+        html += '<br><small>' + displayPrice + ' | ' + bought + '/' + max + ' за цикл</small>';
         html += '<br><small style="color:#aaa;">Мин: ' + t.minRarity + ' | Макс: ' + t.maxRarity + ' (' + t.maxChance + '%)</small></div>';
         html += '<button class="btn btn-primary gacha-btn" onclick="performGacha(\'' + t.id + '\')" ' + (!canBuy ? 'disabled' : '') + '>Крутить</button>';
         html += '</div>';
