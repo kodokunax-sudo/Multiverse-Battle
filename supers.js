@@ -571,6 +571,8 @@ function dioStartTimeStop(duration, teleportStyle) {
     else _superState.dioTimeStop = d;
 
     _superState.dioTimeStopStartedAt = now;
+    _superState.dioResumeSoundPlayed = false;
+    _superState.dioTimeStopWasActive = true;
     _superState.dioStandFlash = teleportStyle ? 0.55 : 1.15;
     _superState.dioStandX = ctxB.getHeartX();
     _superState.dioStandY = ctxB.getHeartY();
@@ -674,8 +676,21 @@ function updateDioSkillCooldowns(dt) {
     var c = _superState.dioSkillCooldowns;
     for (var k in c) c[k] = Math.max(0, (c[k] || 0) - dt);
     // DIO's own clock is the only clock that continues while the world is stopped.
+    var wasStopped = ((_superState.dioTimeStop || 0) > 0 || (_superState.dioTeleportStop || 0) > 0);
     _superState.dioTimeStop = Math.max(0, (_superState.dioTimeStop || 0) - dt);
     _superState.dioTeleportStop = Math.max(0, (_superState.dioTeleportStop || 0) - dt);
+    var stoppedNow = ((_superState.dioTimeStop || 0) > 0 || (_superState.dioTeleportStop || 0) > 0);
+    // Play the anime-style time-resume sound once, exactly when ZA WARUDO ends.
+    if (wasStopped && !stoppedNow && !_superState.dioResumeSoundPlayed) {
+        _superState.dioResumeSoundPlayed = true;
+        try {
+            var resumeAudio = new Audio("music/time-resumes.mp3");
+            resumeAudio.preload = "auto";
+            resumeAudio.volume = 0.9;
+            var playPromise = resumeAudio.play();
+            if (playPromise && playPromise.catch) playPromise.catch(function(){});
+        } catch (e) {}
+    }
     _superState.dioAggroTimer = Math.max(0, (_superState.dioAggroTimer || 0) - dt);
     _superState.dioStandFlash = Math.max(0, (_superState.dioStandFlash || 0) - dt);
 }
@@ -892,7 +907,38 @@ function renderDioVisuals(ctxB) {
         ctx.fillStyle = "rgba(190,210,205," + (0.08 * intensity) + ")";
         ctx.fillRect(0, 0, 400, 500);
 
-        // 2) Знаменитые диагональные линии/следы остановившегося движения.
+        // 2) Через 0.7 секунды после каста появляется фирменный круговой
+        // цветовой импульс: концентрические золотые/фиолетовые/белые кольца
+        // расходятся от DIO, как аниме-переход ZA WARUDO, а не прямоугольный фильтр.
+        if (!isTP && t >= 700 && t <= 1450) {
+            var ringT = Math.max(0, Math.min(1, (t - 700) / 750));
+            var ringRadius = 24 + ringT * 430;
+            var ringAlpha = Math.sin(ringT * Math.PI) * 0.72;
+            var ringX = _superState.dioStandX;
+            var ringY = _superState.dioStandY - 24;
+            ctx.save();
+            ctx.globalCompositeOperation = "screen";
+            ctx.globalAlpha = ringAlpha;
+            var ringColors = ["#ffffff", "#f3d66d", "#a77bff", "#79f5d0"];
+            for (var ri = 0; ri < ringColors.length; ri++) {
+                ctx.beginPath();
+                ctx.strokeStyle = ringColors[ri];
+                ctx.lineWidth = ri === 0 ? 5 : 2.2;
+                ctx.shadowColor = ringColors[ri];
+                ctx.shadowBlur = ri === 0 ? 26 : 14;
+                ctx.arc(ringX, ringY, Math.max(2, ringRadius - ri * 9), 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            var radial = ctx.createRadialGradient(ringX, ringY, Math.max(0, ringRadius - 80), ringX, ringY, ringRadius + 12);
+            radial.addColorStop(0, "rgba(255,255,255,0)");
+            radial.addColorStop(0.72, "rgba(246,222,255," + (0.16 * ringAlpha) + ")");
+            radial.addColorStop(1, "rgba(255,235,155,0)");
+            ctx.fillStyle = radial;
+            ctx.fillRect(0, 0, 400, 500);
+            ctx.restore();
+        }
+
+        // 3) Знаменитые диагональные линии/следы остановившегося движения.
         // Они НЕ двигаются вместе с таймером мира — только слегка мерцают.
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
