@@ -137,13 +137,22 @@ function dioStartTimeStop(duration, teleportStyle) {
 
 function isDioTimeStopped() {
     if (typeof _superState === "undefined") return false;
-    return (_superState.dioTimeStop || 0) > 0 ||
+    return (_superState.dioPreStop || 0) > 0 ||
+           (_superState.dioTimeStop || 0) > 0 ||
            (_superState.dioTeleportStop || 0) > 0;
 }
 window.isDioTimeStopped = isDioTimeStopped;
 function activateDioTimeStop() {
     if (!dioCanUse("timeStop", 40, 25)) return;
-    dioStartTimeStop(6, false);
+    // Freeze the player's heart immediately; ZA WARUDO begins after a 2s wind-up.
+    _superState.dioPreStop = 2;
+    _superState.dioPreStopStartedAt = performance.now();
+    var preCtx = getBossContext();
+    _superState.dioPreStopX = preCtx ? preCtx.getHeartX() : 200;
+    _superState.dioPreStopY = preCtx ? preCtx.getHeartY() : 250;
+    _superState.dioStandX = _superState.dioPreStopX;
+    _superState.dioStandY = _superState.dioPreStopY;
+    _superState.dioTimeStopWasActive = false;
 }
 
 function activateDioHeal() {
@@ -195,6 +204,14 @@ function dioUseSkill(skill) {
 window.dioUseSkill = dioUseSkill;
 
 function updateDioSkillCooldowns(dt) {
+    // DIO clock: hold the player still during the two-second wind-up.
+    if ((_superState.dioPreStop || 0) > 0) {
+        _superState.dioPreStop = Math.max(0, _superState.dioPreStop - dt);
+        if (_superState.dioPreStop <= 0) {
+            _superState.dioPreStop = 0;
+            dioStartTimeStop(6, false);
+        }
+    }
     var c = _superState.dioSkillCooldowns;
     for (var k in c) c[k] = Math.max(0, (c[k] || 0) - dt);
     // DIO's own clock is the only clock that continues while the world is stopped.
@@ -411,19 +428,47 @@ function renderDioVisuals(ctxB) {
     }
 
     var now = performance.now();
+    var preStop = Math.max(0, _superState.dioPreStop || 0);
     var stop = Math.max(_superState.dioTimeStop || 0, _superState.dioTeleportStop || 0);
     var active = stop > 0;
 
-    // ★ JOJO TIME STOP: полная инверсия цветов кадра, как в аниме.
-    // Инверсия применяется к самому canvas, поэтому мир, атаки и персонажи
-    // одновременно переходят в обратную палитру, а после остановки мгновенно возвращаются.
+    // Palette inversion happens only after the expanding ring finishes its 2s wind-up.
     try {
         if (ctx.canvas && ctx.canvas.style) {
             ctx.canvas.style.filter = active ? "invert(1)" : "";
         }
     } catch (e) {}
     var phase = now - (_superState.dioTimeStopStartedAt || now);
+    var prePhase = now - (_superState.dioPreStopStartedAt || now);
     var isTP = (_superState.dioTeleportStop || 0) > 0 && (_superState.dioTimeStop || 0) <= 0;
+
+    // Expanding circle visual while the player's heart is frozen.
+    if (preStop > 0) {
+        var pc = Math.max(0, Math.min(1, prePhase / 2000));
+        var pr = 8 + pc * 620;
+        var px = Number(_superState.dioPreStopX) || 200;
+        var py = Number(_superState.dioPreStopY) || 250;
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.95 * (1 - pc * 0.18);
+        var grad = ctx.createRadialGradient(px, py, Math.max(1, pr - 24), px, py, pr + 5);
+        grad.addColorStop(0, "rgba(255,255,255,0)");
+        grad.addColorStop(0.82, "rgba(255,235,150,0.05)");
+        grad.addColorStop(0.96, "rgba(255,255,255,0.85)");
+        grad.addColorStop(1, "rgba(170,110,255,0.05)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(px, py, pr, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#fff2a5";
+        ctx.lineWidth = 4 + (1 - pc) * 3;
+        ctx.shadowColor = "#d7b5ff";
+        ctx.shadowBlur = 24;
+        ctx.beginPath();
+        ctx.arc(px, py, pr, now / 250, now / 250 + Math.PI * 1.8);
+        ctx.stroke();
+        ctx.restore();
+    }
 
     if (active) {
         ctx.save();
@@ -635,5 +680,35 @@ function renderDioVisuals(ctxB) {
         ctx.beginPath(); ctx.arc(35, 7, 7, 0, Math.PI * 2); ctx.fill();
 
         ctx.restore();
+    }
+
+    // DIO-style crimson heart and an adjacent decorative Stand-heart (visual only).
+    var heartCtx = getBossContext();
+    if (heartCtx) {
+        var hx = heartCtx.getHeartX(), hy = heartCtx.getHeartY();
+        var pulseHeart = 1 + Math.sin(now / 115) * 0.07;
+        function drawDioHeart(x, y, scale, fill, stroke, glow) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale * pulseHeart, scale * pulseHeart);
+            ctx.globalCompositeOperation = "lighter";
+            ctx.shadowColor = glow;
+            ctx.shadowBlur = 12;
+            ctx.fillStyle = fill;
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.moveTo(0, 8);
+            ctx.bezierCurveTo(-3, 4, -12, -1, -10, -7);
+            ctx.bezierCurveTo(-8, -13, -1, -12, 0, -7);
+            ctx.bezierCurveTo(4, -13, 11, -12, 11, -6);
+            ctx.bezierCurveTo(12, -1, 5, 5, 0, 8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        }
+        drawDioHeart(hx, hy, 1.12, "#e51b35", "#ffb3c0", "#ff173d");
+        drawDioHeart(hx + 20, hy - 5, 0.58, "#8c3bde", "#f0d66d", "#b77aff");
     }
 }
