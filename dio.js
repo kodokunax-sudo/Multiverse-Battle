@@ -5,6 +5,7 @@
 // ★ DIO OH: отдельные, заранее загружаемые звуки для подготовки и остановки времени.
 var _dioAudioCache = {};
 var _dioMusicDuckState = [];
+var _dioMusicResumeAttemptedAudio = null;
 
 function dioSoundKey(path) {
     if (path === "music/dios-time-stop-teleportation-sound-effect-1.mp3") return "dioTeleport";
@@ -65,6 +66,32 @@ function dioPlaySound(path, volume) {
     } catch (e) {}
 }
 
+function dioPrimeSoundForGesture(path, restoreVolume) {
+    try {
+        var audio = dioPrepareSound(path);
+        if (audio._dioGesturePrimed || audio.readyState < 2) return;
+        var wantedVolume = (typeof restoreVolume === "number") ? restoreVolume : 0.72;
+        audio.volume = 0;
+        audio.currentTime = 0;
+        var p = audio.play();
+        if (p && typeof p.then === "function") {
+            p.then(function () {
+                // Silent prime under the real button gesture helps browsers that
+                // restrict later playback of a different Audio element.
+                audio.pause();
+                try { audio.currentTime = 0; } catch (e) {}
+                audio.volume = wantedVolume;
+                audio._dioGesturePrimed = true;
+            }).catch(function () {
+                audio.volume = wantedVolume;
+            });
+        } else {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = wantedVolume;
+        }
+    } catch (e) {}
+}
 function dioCollectBackgroundMusic() {
     var found = [];
     function add(audio, includePaused) {
@@ -98,6 +125,18 @@ function dioSyncAudioMix() {
     }
 
     if (stopped) {
+        // If the selected soundtrack was accidentally left paused while music is
+        // enabled, try to resume that same track rather than replacing it.
+        try {
+            var selectedMusic = (typeof currentMusic !== "undefined") ? currentMusic : null;
+            var musicCanPlay = (typeof musicEnabled === "undefined" || musicEnabled);
+            if (selectedMusic && musicCanPlay && selectedMusic.paused &&
+                _dioMusicResumeAttemptedAudio !== selectedMusic) {
+                _dioMusicResumeAttemptedAudio = selectedMusic;
+                var musicPromise = selectedMusic.play();
+                if (musicPromise && typeof musicPromise.catch === "function") musicPromise.catch(function () {});
+            }
+        } catch (e) {}
         var music = dioCollectBackgroundMusic();
         for (var i = 0; i < music.length; i++) {
             var audio = music[i], entry = null;
@@ -111,11 +150,14 @@ function dioSyncAudioMix() {
             var quietVolume = Math.max(0, Math.min(1, entry.volume * 0.3));
             if (Math.abs(audio.volume - quietVolume) > 0.005) audio.volume = quietVolume;
         }
-    } else if (_dioMusicDuckState.length) {
-        for (var k = 0; k < _dioMusicDuckState.length; k++) {
-            try { _dioMusicDuckState[k].audio.volume = _dioMusicDuckState[k].volume; } catch (e) {}
+    } else {
+        _dioMusicResumeAttemptedAudio = null;
+        if (_dioMusicDuckState.length) {
+            for (var k = 0; k < _dioMusicDuckState.length; k++) {
+                try { _dioMusicDuckState[k].audio.volume = _dioMusicDuckState[k].volume; } catch (e) {}
+            }
+            _dioMusicDuckState = [];
         }
-        _dioMusicDuckState = [];
     }
 }
 window.preloadDioSounds = preloadDioSounds;
@@ -438,6 +480,9 @@ function activateDioTimeStop() {
     if (typeof heart !== "undefined" && heart) { heart.vx = 0; heart.vy = 0; }
     // This sound plays immediately on the skill press; the ZA WARUDO voice plays
     // separately when the expanding circle reaches the arena boundary.
+    // Prime the later ZA WARUDO clip now, inside this tap/click gesture, so
+    // browser autoplay rules do not silently reject it two seconds later.
+    dioPrimeSoundForGesture("music/za-warudo-time-stop-louder.mp3", 0.86);
     dioPlaySound("music/dios-time-stop-teleportation-sound-effect-1.mp3", 0.72);
     dioStartOverlayLoop();
 
