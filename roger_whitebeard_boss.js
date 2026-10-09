@@ -1282,6 +1282,7 @@
 
         // ★ Проверяем заморозку времени и оглушение ★
         if (wbVortexActive) return;
+        if(typeof window.dioIsKnifeWindupActive==="function"&&window.dioIsKnifeWindupActive())return;
         if (typeof _superState !== 'undefined') {
             // During DIO's two-second windup the player stays still; normal time stop still lets DIO move.
             if ((_superState.dioTimeStopWindupUntil || 0) > performance.now()) return;
