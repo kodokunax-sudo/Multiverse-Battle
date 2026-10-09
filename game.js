@@ -766,7 +766,8 @@ function setMainCard(idxInTeam) { if (idxInTeam >= 0 && idxInTeam < team.length)
 window.setMainCard = setMainCard;
 
 function createCard(r) { 
-    let templates = customCardTemplates[r] || []; 
+    // Whitebeard is a boss-exclusive reward; never include him in random spins.
+    let templates = (customCardTemplates[r] || []).filter(t => t && t.name !== "Белоус"); 
     if (r === "Босс") return null; 
     let template = null; 
     let minRebirth = (r === "Секретная") ? 1 : 0; 
