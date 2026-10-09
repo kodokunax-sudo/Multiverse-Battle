@@ -1,5 +1,5 @@
 // ============================================================
-// LOADING SCREEN v3.0 — ПРОСТАЯ И НАДЁЖНАЯ ЗАГРУЗКА МУЗЫКИ
+// LOADING SCREEN v4.0 — ЗАГРУЗКА МУЗЫКИ И ИЗОБРАЖЕНИЙ
 // ============================================================
 // ★ v3.0:
 // - Экран НЕ исчезает сам (только по кнопке или после загрузки)
@@ -29,9 +29,32 @@
         "dioTimeResume": "music/time-resumes.mp3"
     };
 
-    const FETCH_TIMEOUT = 30000; // 30 секунд на трек
+    // Картинки персонажей загружаются и сохраняются в тот же Cache API, что и музыка.
+    const IMAGE_FILES = {
+        "dio": "images/Super_Dio_2.gif",
+        "whitebeard": "images/Belous_1.png"
+    };
+
+    const FETCH_TIMEOUT = 30000; // 30 секунд на ресурс
 
     window.__loadedMusic = {};
+    window.__loadedImages = {};
+    window.__imageLoadFailed = {};
+    window.__visualImageFallbacks = {};
+    // Возвращает закешированное изображение или загружает путь напрямую как запасной вариант.
+    // GIF остаётся настоящим Image-элементом, поэтому его кадры продолжают анимироваться на canvas.
+    window.getPreloadedImage = function(key, path) {
+        var entry = window.__loadedImages && window.__loadedImages[key];
+        if (entry && entry.image && entry.image.complete && entry.image.naturalWidth > 0) return entry.image;
+        if (!path) return entry && entry.image ? entry.image : null;
+        var fallback = window.__visualImageFallbacks[key];
+        if (!fallback) {
+            fallback = new Image();
+            window.__visualImageFallbacks[key] = fallback;
+            fallback.src = path;
+        }
+        return fallback;
+    };
     window.__musicLoaded = false;
     window.__musicLoadFailed = {};
     window.__musicLoadProgress = { loaded: 0, total: Object.keys(MUSIC_FILES).length, failed: 0 };
@@ -226,35 +249,6 @@
             max-width: 90vw;
         }
         
-        /* Индикатор в углу */
-        #bgLoadingIndicator {
-            position: fixed;
-            top: 10px; right: 10px;
-            background: rgba(0,0,0,0.85);
-            border: 2px solid #f5af19;
-            border-radius: 30px;
-            padding: 6px 12px;
-            font-family: 'Nunito', sans-serif;
-            font-size: 11px;
-            font-weight: 900;
-            color: #f5af19;
-            z-index: 99998;
-            display: none;
-            align-items: center;
-            gap: 6px;
-            box-shadow: 0 4px 15px rgba(245,175,25,0.4);
-        }
-        #bgLoadingIndicator.show { display: flex; }
-        #bgLoadingDot {
-            width: 7px; height: 7px;
-            background: #f5af19;
-            border-radius: 50%;
-            animation: bgDotPulse 1s ease-in-out infinite;
-        }
-        @keyframes bgDotPulse {
-            0%,100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(0.7); }
-        }
     `;
     document.head.appendChild(css);
 
@@ -307,13 +301,6 @@
             dismissLoadingScreen("Игрок пропустил загрузку музыки");
         });
 
-        // Индикатор в углу
-        if (!document.getElementById('bgLoadingIndicator')) {
-            const ind = document.createElement('div');
-            ind.id = 'bgLoadingIndicator';
-            ind.innerHTML = `<div id="bgLoadingDot"></div><div id="bgLoadingText">Загрузка музыки...</div>`;
-            if (document.body) document.body.appendChild(ind);
-        }
     }
 
     function addLog(msg, type) {
@@ -396,12 +383,24 @@
         return null;
     }
 
+    function contentTypeForPath(path) {
+        var lower = String(path || "").toLowerCase();
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".svg")) return "image/svg+xml";
+        if (lower.endsWith(".ogg")) return "audio/ogg";
+        if (lower.endsWith(".wav")) return "audio/wav";
+        return "audio/mpeg";
+    }
+
     async function saveToCache(path, blob) {
         if (!('caches' in window)) return;
         try {
             let cache = await caches.open(CACHE_NAME);
             let response = new Response(blob, {
-                headers: { 'Content-Type': 'audio/mpeg' }
+                headers: { 'Content-Type': contentTypeForPath(path) }
             });
             await cache.put(path, response);
         } catch(e) {}
@@ -453,26 +452,98 @@
     }
 
     // ============================================================
+    // ★ ЗАГРУЗКА ИЗОБРАЖЕНИЯ И ЕГО СОХРАНЕНИЕ В КЭШ ★
+    // ============================================================
+    async function loadOneImage(key, path) {
+        let blob = await getFromCache(path);
+        let fromCache = !!blob;
+
+        if (!blob) {
+            try {
+                blob = await loadViaXHR(path, function(loaded, total) {
+                    if (total > 0) setStatus("Скачивание изображения " + key + ": " + Math.round(loaded / total * 100) + "%");
+                });
+            } catch (e) {
+                window.__imageLoadFailed[key] = e.message;
+                addLog("❌ " + key + " — " + e.message, "err");
+                return { key: key, success: false, error: e.message };
+            }
+        }
+
+        try {
+            let objectUrl = URL.createObjectURL(blob);
+            let image = new Image();
+            await new Promise(function(resolve, reject) {
+                image.onload = function() { resolve(); };
+                image.onerror = function() { reject(new Error("Не удалось декодировать изображение")); };
+                image.src = objectUrl;
+            });
+
+            window.__loadedImages[key] = {
+                blob: blob,
+                url: objectUrl,
+                path: path,
+                size: blob.size,
+                fromCache: fromCache,
+                image: image
+            };
+            if (!fromCache) saveToCache(path, blob);
+            addLog("✅ " + key + " (" + Math.round(blob.size / 1024) + " КБ" + (fromCache ? ", из кэша" : "") + ")", "ok");
+            return { key: key, success: true, fromCache: fromCache };
+        } catch (e) {
+            window.__imageLoadFailed[key] = e.message;
+            addLog("❌ " + key + " — " + e.message, "err");
+            return { key: key, success: false, error: e.message };
+        }
+    }
+
+    // ============================================================
     // ★ ГЛАВНАЯ ФУНКЦИЯ ★
     // ============================================================
     async function loadAllMusic() {
-        let keys = Object.keys(MUSIC_FILES);
-        let total = keys.length;
+        let musicKeys = Object.keys(MUSIC_FILES);
+        let imageKeys = Object.keys(IMAGE_FILES);
+        let total = musicKeys.length + imageKeys.length;
         let loaded = 0;
         let success = 0;
         let failed = 0;
         let fromCache = 0;
+        let musicFailed = 0;
 
-        addLog("Начинаю загрузку " + total + " треков...");
+        addLog("Начинаю загрузку " + musicKeys.length + " треков и " + imageKeys.length + " изображений...");
 
-        for (let i = 0; i < keys.length; i++) {
-            let key = keys[i];
+        for (let i = 0; i < musicKeys.length; i++) {
+            let key = musicKeys[i];
             let path = MUSIC_FILES[key];
-            
-            setStatus("Загрузка: " + path.split('/').pop() + " (" + (i+1) + "/" + total + ")");
-            
+            setStatus("Загрузка музыки: " + path.split('/').pop() + " (" + (i + 1) + "/" + total + ")");
             let result = await loadOneTrack(key, path);
-            
+            if (result.success) {
+                success++;
+                if (result.fromCache) fromCache++;
+            } else {
+                failed++;
+                musicFailed++;
+            }
+            loaded++;
+            setProgress(loaded, total);
+            window.__musicLoadProgress.loaded = i + 1;
+            window.__musicLoadProgress.failed = musicFailed;
+        }
+
+        window.__musicLoaded = true;
+        // Сигнал для музыкальных модулей не ждёт декодирования изображений.
+        if (window.__musicLoadedCallbacks) {
+            for (let cb of window.__musicLoadedCallbacks) {
+                try { cb(); } catch(e) {}
+            }
+            window.__musicLoadedCallbacks = [];
+        }
+
+        for (let i = 0; i < imageKeys.length; i++) {
+            let key = imageKeys[i];
+            let path = IMAGE_FILES[key];
+            setStatus("Загрузка изображения: " + path.split('/').pop() + " (" + (musicKeys.length + i + 1) + "/" + total + ")");
+            let result = await loadOneImage(key, path);
             if (result.success) {
                 success++;
                 if (result.fromCache) fromCache++;
@@ -481,41 +552,26 @@
             }
             loaded++;
             setProgress(loaded, total);
-            window.__musicLoadProgress.loaded = loaded;
-            window.__musicLoadProgress.failed = failed;
         }
 
-        // Финальный статус
         if (failed === 0) {
-            setStatus("✅ Все " + success + " треков загружены!" + (fromCache > 0 ? " (из кэша: " + fromCache + ")" : ""));
+            setStatus("✅ Музыка и изображения загружены!" + (fromCache > 0 ? " (из кэша: " + fromCache + ")" : ""));
         } else if (success > 0) {
-            setStatus("⚠️ Загружено " + success + "/" + total + ", ошибок: " + failed);
+            setStatus("⚠️ Загружено " + success + "/" + total + " ресурсов, ошибок: " + failed);
         } else {
-            setStatus("❌ Не удалось загрузить музыку. Играем без звука.");
+            setStatus("❌ Не удалось загрузить ресурсы. Нажми «Продолжить», чтобы попробовать играть.");
         }
 
-        window.__musicLoaded = true;
-
-        // Вызываем колбэки
-        if (window.__musicLoadedCallbacks) {
-            for (let cb of window.__musicLoadedCallbacks) {
-                try { cb(); } catch(e) {}
-            }
-            window.__musicLoadedCallbacks = [];
-        }
-
-        // ★ АВТО-СКРЫТИЕ ТОЛЬКО ЕСЛИ ЗАГРУЗКА УСПЕШНА ★
+        // Экран скрывается только после попытки загрузить как музыку, так и картинки.
         if (failed === 0 || success > 0) {
             setTimeout(function() {
-                // Скрываем только если игрок не нажал кнопку
                 if (!window.__musicSkipped && document.getElementById('loadingScreen')) {
-                    addLog("Все треки загружены — скрываю экран через 2 сек...");
+                    addLog("Все ресурсы обработаны — скрываю экран через 2 сек...");
                     setTimeout(hideScreen, 2000);
                 }
             }, 500);
         } else {
-            // Если всё упало — оставляем экран, показываем кнопку
-            setStatus("❌ Музыка не загрузилась. Нажми 'Продолжить' для игры без звука.");
+            setStatus("❌ Ресурсы не загрузились. Нажми «Продолжить», чтобы войти в игру.");
         }
     }
 
@@ -530,11 +586,6 @@
             if (screen.parentNode) screen.parentNode.removeChild(screen);
         }, 500);
 
-        // Показать индикатор фоновой загрузки если ещё грузится
-        if (!window.__musicLoaded) {
-            let ind = document.getElementById('bgLoadingIndicator');
-            if (ind) ind.classList.add('show');
-        }
     }
 
     // ============================================================
@@ -648,6 +699,7 @@
     // Экспорт
     window.loadingScreen = {
         MUSIC_FILES: MUSIC_FILES,
+        IMAGE_FILES: IMAGE_FILES,
         reload: function() {
             window.__loadedMusic = {};
             window.__musicLoaded = false;
@@ -679,9 +731,9 @@ window.getLivingStoneActive = function() { return livingStoneActive; };
 window.getLivingStoneState  = function() { return livingStoneState; };
     
     console.log("╔════════════════════════════════════════╗");
-    console.log("║  🎵 LOADING SCREEN v3.0                ║");
+    console.log("║  🎵 LOADING SCREEN v4.0                ║");
     console.log("║  ✅ XMLHttpRequest (надёжно)           ║");
-    console.log("║  ✅ Экран НЕ исчезает сам              ║");
+    console.log("║  ✅ Музыка и изображения кэшируются    ║");
     console.log("║  ✅ Логи загрузки видны                ║");
     console.log("╚════════════════════════════════════════╝");
 
