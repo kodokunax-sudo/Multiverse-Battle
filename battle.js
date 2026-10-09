@@ -1241,18 +1241,18 @@ function renderArena() {
             ctx.fillStyle = "rgba(255,245,195,.9)";
             ctx.beginPath(); ctx.ellipse(-3.5, -6.5, 1.7, 2.4, -0.5, 0, Math.PI * 2); ctx.fill();
 
-            // Второе сердечко — декоративный силуэт THE WORLD, без хитбокса и механик.
+            // Увеличенное белое сердце THE WORLD — визуальный стенд без хитбокса.
             ctx.save();
             ctx.translate(heart.size * 0.95, -heart.size * 0.35);
-            ctx.scale(0.56, 0.56);
-            ctx.shadowColor = "#d7b6ff"; ctx.shadowBlur = 11;
+            ctx.scale(0.84, 0.84);
+            ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 13;
             var standGrad = ctx.createLinearGradient(-7, -10, 7, 7);
-            standGrad.addColorStop(0, "#fff0a0");
-            standGrad.addColorStop(0.4, "#c9a2ff");
-            standGrad.addColorStop(1, "#6044a5");
+            standGrad.addColorStop(0, "#ffffff");
+            standGrad.addColorStop(0.55, "#f4f8ff");
+            standGrad.addColorStop(1, "#cbd8e8");
             ctx.fillStyle = standGrad;
             dioHeartPath(); ctx.fill();
-            ctx.strokeStyle = "rgba(255,239,165,.95)"; ctx.lineWidth = 1.2; dioHeartPath(); ctx.stroke();
+            ctx.strokeStyle = "rgba(255,255,255,.98)"; ctx.lineWidth = 1.2; dioHeartPath(); ctx.stroke();
             ctx.restore();
             ctx.restore();
         } else if (!drawSecretHeartTexture(ctx, 0, 0, heart.size, getSecretHeartMainCardName(), {rotation: 0})) {
