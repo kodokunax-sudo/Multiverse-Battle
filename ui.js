@@ -799,7 +799,7 @@ function renderGachaTab() {
         let tokenDisplay = (typeof mode !== 'undefined' && mode === "moder") ? "∞" : (typeof legendaryGachaTokens !== 'undefined' ? legendaryGachaTokens : 0);
         html += '<div class="shop-item gacha-item legendary-gacha" style="border-left: 3px solid #ffd700; background: rgba(255,215,0,0.1);">';
         html += '<div><strong>🟡 Легендарная крутка</strong>';
-        html += '<br><small>' + displayPrice + ' | ' + bought + '/' + max + ' сегодня | Разрешений: ' + tokenDisplay + '</small>';
+        html += '<br><small>' + displayPrice + ' | ' + bought + '/' + max + ' за цикл | Разрешений: ' + tokenDisplay + '</small>';
         html += '<br><small style="color:#aaa;">Мин: Мифическая | Макс: Секретная (2%)</small></div>';
         html += '<button class="btn btn-primary gacha-btn legendary-btn" onclick="performGacha(\'legendary\')" ' + (!canBuy ? 'disabled' : '') + '>Крутить</button>';
         html += '</div>';
