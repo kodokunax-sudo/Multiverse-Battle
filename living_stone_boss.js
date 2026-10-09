@@ -907,6 +907,7 @@ function updateLivingStoneBullets() {
             b.x += b.vx; b.y += b.vy; b.life--;
         }
 
+        if (stopAll) continue; // замороженные пули не попадают в босса и не исчезают до возобновления времени
         var dx = b.x - livingStoneBoss.x, dy = b.y - livingStoneBoss.y;
         if (Math.sqrt(dx * dx + dy * dy) < livingStoneBoss.size + b.size) {
             var dmg = b.damage;
