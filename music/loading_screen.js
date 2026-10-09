@@ -29,10 +29,10 @@
         "dioTimeResume": "music/time-resumes.mp3"
     };
 
-    // Картинки персонажей загружаются и сохраняются в тот же Cache API, что и музыка.
+    // Пути берутся из images.js — единого реестра игровых изображений.
     const IMAGE_FILES = {
-        "dio": "images/Super_Dio_2.gif",
-        "whitebeard": "images/Belous_1.png"
+        "dio": window.getCharacterImage ? window.getCharacterImage("dio") : null,
+        "whitebeard": window.getCharacterImage ? window.getCharacterImage("whitebeard") : null
     };
 
     const FETCH_TIMEOUT = 30000; // 30 секунд на ресурс
@@ -502,7 +502,7 @@
     // ============================================================
     async function loadAllMusic() {
         let musicKeys = Object.keys(MUSIC_FILES);
-        let imageKeys = Object.keys(IMAGE_FILES);
+        let imageKeys = Object.keys(IMAGE_FILES).filter(function(key) { return !!IMAGE_FILES[key]; });
         let total = musicKeys.length + imageKeys.length;
         let loaded = 0;
         let success = 0;
