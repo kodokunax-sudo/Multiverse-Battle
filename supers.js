@@ -921,37 +921,62 @@ function renderDioVisuals(ctxB) {
         ctx.fillStyle = "rgba(190,210,205," + (0.08 * intensity) + ")";
         ctx.fillRect(0, 0, 400, 500);
 
-        // 2) Через 0.7 секунды после каста появляется фирменный круговой
-        // цветовой импульс: концентрические золотые/фиолетовые/белые кольца
-        // расходятся от DIO, как аниме-переход ZA WARUDO, а не прямоугольный фильтр.
+        // 2) Цветной импульс: оттенки реально бегут по окружности, а не стоят
+        // отдельными неподвижными кольцами. Центр следует за сердцем игрока.
+        var ringCtx = getBossContext();
+        var ringX = ringCtx ? ringCtx.getHeartX() : _superState.dioStandX;
+        var ringY = (ringCtx ? ringCtx.getHeartY() : _superState.dioStandY) - 24;
         if (!isTP && t >= 1000 && t <= 1800) {
             var ringT = Math.max(0, Math.min(1, (t - 1000) / 800));
             var ringRadius = 24 + ringT * 430;
-            var ringAlpha = Math.sin(ringT * Math.PI) * 0.78;
-            // Кольцо и его цветная энергия следуют за текущим сердцем игрока,
-            // а не остаются в точке, где DIO нажал способность.
-            var ringCtx = getBossContext();
-            var ringX = ringCtx ? ringCtx.getHeartX() : _superState.dioStandX;
-            var ringY = (ringCtx ? ringCtx.getHeartY() : _superState.dioStandY) - 24;
+            var ringAlpha = Math.sin(ringT * Math.PI) * 0.85;
+            var ringColors = ["#ffffff", "#f3d66d", "#a77bff", "#79f5d0"];
             ctx.save();
             ctx.globalCompositeOperation = "screen";
             ctx.globalAlpha = ringAlpha;
-            var ringColors = ["#ffffff", "#f3d66d", "#a77bff", "#79f5d0"];
+            // Несколько цветных дуг движутся по одному кругу, как аниме-вспышка.
             for (var ri = 0; ri < ringColors.length; ri++) {
                 ctx.beginPath();
                 ctx.strokeStyle = ringColors[ri];
-                ctx.lineWidth = ri === 0 ? 5 : 2.2;
+                ctx.lineWidth = ri === 0 ? 4 : 3;
+                ctx.lineCap = "round";
                 ctx.shadowColor = ringColors[ri];
-                ctx.shadowBlur = ri === 0 ? 26 : 14;
-                ctx.arc(ringX, ringY, Math.max(2, ringRadius - ri * 9), 0, Math.PI * 2);
+                ctx.shadowBlur = ri === 0 ? 24 : 16;
+                var arcStart = (now / 170) + ri * Math.PI / 2;
+                ctx.arc(ringX, ringY, Math.max(2, ringRadius - ri * 3), arcStart, arcStart + Math.PI * 0.72);
                 ctx.stroke();
             }
-            var radial = ctx.createRadialGradient(ringX, ringY, Math.max(0, ringRadius - 80), ringX, ringY, ringRadius + 12);
+            var radial = ctx.createRadialGradient(ringX, ringY, Math.max(0, ringRadius - 75), ringX, ringY, ringRadius + 12);
             radial.addColorStop(0, "rgba(255,255,255,0)");
-            radial.addColorStop(0.72, "rgba(246,222,255," + (0.16 * ringAlpha) + ")");
+            radial.addColorStop(0.72, "rgba(246,222,255," + (0.14 * ringAlpha) + ")");
             radial.addColorStop(1, "rgba(255,235,155,0)");
             ctx.fillStyle = radial;
             ctx.fillRect(0, 0, 400, 500);
+            ctx.restore();
+        }
+        // Телепортация — другой рисунок: короткие фиолетовые afterimage-дуги
+        // и диагональный разрез вокруг точки перемещения, без эффекта ZA WARUDO.
+        if (isTP && t < 650) {
+            var tpLife = Math.max(0, 1 - t / 650);
+            ctx.save();
+            ctx.globalCompositeOperation = "lighter";
+            ctx.globalAlpha = tpLife * 0.9;
+            for (var ti = 0; ti < 3; ti++) {
+                ctx.beginPath();
+                ctx.strokeStyle = ti === 0 ? "#ffffff" : (ti === 1 ? "#bd83ff" : "#65eaff");
+                ctx.lineWidth = ti === 0 ? 4 : 2;
+                ctx.shadowColor = ctx.strokeStyle;
+                ctx.shadowBlur = 18;
+                ctx.ellipse(ringX, ringY, 22 + ti * 13 + (1 - tpLife) * 30, 38 + ti * 8, -0.45 + ti * 0.45, now / 180 + ti, now / 180 + ti + Math.PI * 1.25);
+                ctx.stroke();
+            }
+            ctx.beginPath();
+            ctx.moveTo(ringX - 85 * tpLife, ringY + 70 * tpLife);
+            ctx.lineTo(ringX + 85 * tpLife, ringY - 70 * tpLife);
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = 22;
+            ctx.stroke();
             ctx.restore();
         }
 
