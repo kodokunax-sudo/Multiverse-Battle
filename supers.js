@@ -108,7 +108,12 @@ let _superState = {
     dioStandX: 0,
     dioStandY: 0,
     dioStandTarget: null,
-    dioSkillCooldowns: { timeStop: 0, heal: 0, teleport: 0, aggro: 0 }
+    dioSkillCooldowns: { timeStop: 0, heal: 0, teleport: 0, aggro: 0, muda: 0 },
+    dioKnives: [], dioPendingBossDamage: [], dioMudaActive: false, dioMudaMode: null,
+    dioMudaStartedAt: 0, dioMudaTargetType: null, dioMudaTargetId: null, dioMudaHitIndex: 0,
+    dioMudaTotalDamage: 0, dioMudaStandX: null, dioMudaStandY: null, dioMudaLastHitAt: 0,
+    dioMudaImpactX: 0, dioMudaImpactY: 0, dioStandAttackUntil: 0,
+    dioStandAttackSourceX: 0, dioStandAttackSourceY: 0, dioStandAttackX: 0, dioStandAttackY: 0
 };
 
 let _superCooldowns = {};
@@ -2023,7 +2028,10 @@ function initSuperState() {
     _superState.dioTeleportStop = 0;
     _superState.dioAggroTimer = 0;
     _superState.dioHistory = [];
-    _superState.dioSkillCooldowns = { timeStop: 0, heal: 0, teleport: 0, aggro: 0 };
+    _superState.dioSkillCooldowns = { timeStop: 0, heal: 0, teleport: 0, aggro: 0, muda: 0 };
+    _superState.dioKnives=[];_superState.dioPendingBossDamage=[];_superState.dioMudaActive=false;_superState.dioMudaMode=null;
+    _superState.dioMudaStartedAt=0;_superState.dioMudaTargetType=null;_superState.dioMudaTargetId=null;_superState.dioMudaHitIndex=0;_superState.dioMudaTotalDamage=0;
+    _superState.dioMudaStandX=null;_superState.dioMudaStandY=null;_superState.dioMudaLastHitAt=0;_superState.dioStandAttackUntil=0;
     _superLastTick = performance.now();
     updateSuperButton();
 }
@@ -2646,6 +2654,8 @@ function renderSuperVisuals() {
     var hSize = ctxB.getHeartSize();
 
     renderDioVisuals(ctxB);
+    if(ctxB.type!=="arena"&&typeof window.dioRenderPlayerAndStand==="function")window.dioRenderPlayerAndStand(ctxB);
+    else if(typeof window.dioRenderSkillEffects==="function")window.dioRenderSkillEffects(ctxB);
 
     // ★ ТАКАБА: дополнительные визуалы для уникальных боссов.
     if (ctxB.type !== "arena" && _superState.takabaRandomEventTimer > 0) {
