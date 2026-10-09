@@ -2,8 +2,43 @@
 // Зависит от общих игровых контекстов, которые объявляет supers.js.
 // Содержимое перенесено без изменения логики, чтобы сохранить текущее поведение.
 
-// ★ DIO OH: заранее прогружаем оба звука.
+// ★ DIO OH: отдельные, заранее загружаемые звуки для подготовки и остановки времени.
 var _dioAudioCache = {};
+var _dioMusicDuckState = [];
+
+function dioSoundKey(path) {
+    if (path === "music/dios-time-stop-teleportation-sound-effect-1.mp3") return "dioTeleport";
+    if (path === "music/za-warudo-time-stop-louder.mp3") return "dioTimeStop";
+    if (path === "music/time-resumes.mp3") return "dioTimeResume";
+    return null;
+}
+function dioResolveSoundSource(path) {
+    try {
+        var key = dioSoundKey(path);
+        var track = key && typeof window.getLoadedMusic === "function" ? window.getLoadedMusic(key) : null;
+        if (track && track.url) return track.url;
+    } catch (e) {}
+    return path;
+}
+function dioPrepareSound(path) {
+    var audio = _dioAudioCache[path];
+    var source = dioResolveSoundSource(path);
+    if (!audio) {
+        audio = new Audio();
+        audio.preload = "auto";
+        _dioAudioCache[path] = audio;
+    }
+    try {
+        var oldSource = audio.getAttribute ? audio.getAttribute("src") : "";
+        if (!oldSource || oldSource !== source) {
+            audio.src = source;
+            audio.load();
+        }
+        audio.defaultPlaybackRate = 1;
+        audio.playbackRate = 1;
+    } catch (e) {}
+    return audio;
+}
 function preloadDioSounds() {
     var files = [
         "music/za-warudo-time-stop-louder.mp3",
@@ -11,48 +46,80 @@ function preloadDioSounds() {
     ];
     for (var i = 0; i < files.length; i++) {
         try {
-            var audio = new Audio();
-            audio.preload = "auto";
-            audio.src = files[i];
+            var audio = dioPrepareSound(files[i]);
             audio.volume = 0.72;
-            audio.load();
-            _dioAudioCache[files[i]] = audio;
-        } catch(e) {}
-    }
-}
-preloadDioSounds();
-
-function dioPlaySound(path) {
-    try {
-        var audio = _dioAudioCache[path];
-        if (!audio) {
-            audio = new Audio(path);
-            audio.preload = "auto";
-            _dioAudioCache[path] = audio;
-        }
-        // DIO audio must never inherit a slow playback rate from another effect.
-        audio.defaultPlaybackRate = 1;
-        audio.playbackRate = 1;
-        audio.currentTime = 0;
-        audio.volume = isDioTimeStopped() ? 0.28 : 0.72;
-        var p = audio.play();
-        if (p && typeof p.catch === "function") p.catch(function(){});
-    } catch(e) {}
-}
-function dioSyncAudioMix() {
-    var stopped = isDioTimeStopped();
-    for (var path in _dioAudioCache) {
-        var audio = _dioAudioCache[path];
-        if (!audio) continue;
-        try {
-            // Keep normal pitch/speed and duck DIO's music/effects while time is stopped.
-            audio.defaultPlaybackRate = 1;
-            if (audio.playbackRate !== 1) audio.playbackRate = 1;
-            audio.volume = stopped ? 0.28 : 0.72;
         } catch (e) {}
     }
 }
+function dioPlaySound(path, volume) {
+    try {
+        var audio = dioPrepareSound(path);
+        // Never inherit slow playback from another effect. Every DIO cue is real-time.
+        audio.defaultPlaybackRate = 1;
+        audio.playbackRate = 1;
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = (typeof volume === "number") ? Math.max(0, Math.min(1, volume)) : 0.72;
+        var p = audio.play();
+        if (p && typeof p.catch === "function") p.catch(function () {});
+    } catch (e) {}
+}
+
+function dioCollectBackgroundMusic() {
+    var found = [];
+    function add(audio, includePaused) {
+        if (!audio || typeof audio.volume !== "number" || typeof audio.play !== "function") return;
+        if (!includePaused && audio.paused) return;
+        if (Object.keys(_dioAudioCache).some(function (path) { return _dioAudioCache[path] === audio; })) return;
+        if (found.indexOf(audio) < 0) found.push(audio);
+    }
+    // Current game soundtrack, plus boss tracks if that mode exposes them globally.
+    try { if (typeof currentMusic !== "undefined") add(currentMusic, true); } catch (e) {}
+    try { if (typeof mainMusic !== "undefined") add(mainMusic, false); } catch (e) {}
+    try { if (typeof battleMusic !== "undefined") add(battleMusic, false); } catch (e) {}
+    try { if (typeof shopMusic !== "undefined") add(shopMusic, false); } catch (e) {}
+    try { if (typeof waystarMusic !== "undefined") add(waystarMusic, false); } catch (e) {}
+    try { if (typeof qteMusic !== "undefined") add(qteMusic, false); } catch (e) {}
+    try { if (typeof lsMusic !== "undefined") add(lsMusic, false); } catch (e) {}
+    try { if (typeof rwbMusic !== "undefined") add(rwbMusic, false); } catch (e) {}
+    try { add(window.waystarMusic, false); } catch (e) {}
+    return found;
+}
+function dioSyncAudioMix() {
+    var stopped = isDioTimeStopped();
+    // Keep DIO's two sound effects at normal speed and at their chosen cue volume.
+    for (var path in _dioAudioCache) {
+        var effect = _dioAudioCache[path];
+        if (!effect) continue;
+        try {
+            effect.defaultPlaybackRate = 1;
+            if (effect.playbackRate !== 1) effect.playbackRate = 1;
+        } catch (e) {}
+    }
+
+    if (stopped) {
+        var music = dioCollectBackgroundMusic();
+        for (var i = 0; i < music.length; i++) {
+            var audio = music[i], entry = null;
+            for (var j = 0; j < _dioMusicDuckState.length; j++) {
+                if (_dioMusicDuckState[j].audio === audio) { entry = _dioMusicDuckState[j]; break; }
+            }
+            if (!entry) {
+                entry = { audio: audio, volume: audio.volume };
+                _dioMusicDuckState.push(entry);
+            }
+            var quietVolume = Math.max(0, Math.min(1, entry.volume * 0.3));
+            if (Math.abs(audio.volume - quietVolume) > 0.005) audio.volume = quietVolume;
+        }
+    } else if (_dioMusicDuckState.length) {
+        for (var k = 0; k < _dioMusicDuckState.length; k++) {
+            try { _dioMusicDuckState[k].audio.volume = _dioMusicDuckState[k].volume; } catch (e) {}
+        }
+        _dioMusicDuckState = [];
+    }
+}
 window.preloadDioSounds = preloadDioSounds;
+preloadDioSounds();
 
 // Красное сердце DIO и маленькое декоративное сердце THE WORLD.
 // Декоративный элемент не участвует в хитбоксах, уроне или управлении.
@@ -116,48 +183,67 @@ function dioIsWindupActive() {
 window.dioIsWindupActive = dioIsWindupActive;
 
 var _dioOverlayRaf = 0;
+function dioHideTimeStopOverlay(overlay, ring) {
+    if (overlay) overlay.style.display = "none";
+    if (ring) ring.style.display = "none";
+}
 function dioSyncTimeStopOverlay() {
     try {
         var base = (typeof ctx !== "undefined" && ctx && ctx.canvas) ? ctx.canvas : document.getElementById("arenaCanvas");
         var windup = dioIsWindupActive();
         var active = isDioTimeStopped();
         var dioMode = isDioOverHeavenMain();
+        var wipeActive = !!(_superState && _superState.dioTimeStopWipeActive);
+        var revealInProgress = dioMode && (windup || wipeActive);
         var overlay = document.getElementById("dioTimeStopInvertCanvas");
         var ring = document.getElementById("dioTimeStopWipeRing");
 
-        // During the wind-up, only the expanding circle reveals the inverted copy.
-        // Once it reaches the arena edges, switch to the real canvas filter so the
-        // colors stay inverted continuously throughout ZA WARUDO.
-        if (base && base.style) {
-            base.style.filter = (dioMode && active && !windup) ? "invert(1)" : "";
+        // Duck only the background soundtrack; do not pause it or slow any effect.
+        dioSyncAudioMix();
+
+        if (!base || !dioMode) {
+            if (_superState) {
+                _superState.dioTimeStopWipeActive = false;
+                _superState.dioTimeStopWipeFinishQueued = false;
+            }
+            if (base && base.style) base.style.filter = "";
+            dioHideTimeStopOverlay(overlay, ring);
+            return;
         }
 
-        if (!base || !dioMode || !windup) {
-            if (overlay) overlay.style.display = "none";
-            if (ring) ring.style.display = "none";
+        // Crucial: while the circle is travelling, the real canvas stays untouched.
+        // The inverted snapshot is revealed ONLY inside the moving circular mask.
+        if (base.style) base.style.filter = (active && !revealInProgress) ? "invert(1)" : "";
+
+        if (!revealInProgress) {
+            dioHideTimeStopOverlay(overlay, ring);
             return;
         }
 
         if (!overlay) {
             overlay = document.createElement("canvas");
             overlay.id = "dioTimeStopInvertCanvas";
-            overlay.style.cssText = "position:fixed;pointer-events:none;z-index:20;display:none;filter:invert(1);will-change:clip-path;";
+            overlay.style.cssText = "position:fixed;pointer-events:none;z-index:99998;display:none;filter:invert(1);will-change:clip-path;";
             document.body.appendChild(overlay);
         }
         if (!ring) {
             ring = document.createElement("div");
             ring.id = "dioTimeStopWipeRing";
-            ring.style.cssText = "position:fixed;pointer-events:none;z-index:21;display:none;border:2px solid rgba(255,239,165,.95);border-radius:50%;box-shadow:0 0 18px rgba(255,226,115,.9),inset 0 0 16px rgba(255,255,255,.45);";
+            ring.style.cssText = "position:fixed;pointer-events:none;z-index:99999;display:none;border:2px solid rgba(255,239,165,.98);border-radius:50%;box-shadow:0 0 18px rgba(255,226,115,.95),inset 0 0 16px rgba(255,255,255,.5);";
             document.body.appendChild(ring);
         }
 
         var rect = base.getBoundingClientRect();
-        if (!rect.width || !rect.height) return;
+        if (!rect.width || !rect.height) {
+            dioHideTimeStopOverlay(overlay, ring);
+            return;
+        }
 
         var pixelWidth = base.width || 400;
         var pixelHeight = base.height || 500;
         if (overlay.width !== pixelWidth) overlay.width = pixelWidth;
         if (overlay.height !== pixelHeight) overlay.height = pixelHeight;
+
         overlay.style.left = rect.left + "px";
         overlay.style.top = rect.top + "px";
         overlay.style.width = rect.width + "px";
@@ -176,19 +262,43 @@ function dioSyncTimeStopOverlay() {
         var hy = bctx && typeof bctx.getHeartY === "function" ? bctx.getHeartY() : overlay.height / 2;
         var cx = hx / overlay.width * rect.width;
         var cy = hy / overlay.height * rect.height;
-        var progress = Math.max(0, Math.min(1, 1 - ((_superState.dioTimeStopWindupUntil - performance.now()) / 2000)));
-        var maxRadius = Math.hypot(Math.max(cx, rect.width - cx), Math.max(cy, rect.height - cy));
-        var radius = Math.max(1, maxRadius * progress);
 
-        // Reveal the inverted image from the player's heart outward, with the
-        // golden ring exactly at the edge of the changing-color area.
+        // Use the original click time rather than the expiring wind-up flag, so the
+        // final frame remains masked even after the time-stop timer changes state.
+        var startedAt = Number(_superState.dioTimeStopWindupStartedAt) || 0;
+        var progress = startedAt > 0
+            ? Math.max(0, Math.min(1, (performance.now() - startedAt) / 2000))
+            : (windup ? Math.max(0, Math.min(1, 1 - ((_superState.dioTimeStopWindupUntil - performance.now()) / 2000))) : 1);
+
+        var maxRadius = Math.hypot(
+            Math.max(cx, rect.width - cx),
+            Math.max(cy, rect.height - cy)
+        );
+        var radius = Math.max(1, maxRadius * progress);
+        if (progress >= 1) radius = maxRadius + 3;
+
+        // Both the inverted colors and the golden ring share the same radius and center.
         overlay.style.clipPath = "circle(" + radius + "px at " + cx + "px " + cy + "px)";
         ring.style.display = "block";
         ring.style.width = (radius * 2) + "px";
         ring.style.height = (radius * 2) + "px";
         ring.style.left = (rect.left + cx - radius) + "px";
         ring.style.top = (rect.top + cy - radius) + "px";
-        ring.style.opacity = String(Math.max(0.2, 1 - progress * 0.25));
+        ring.style.opacity = String(Math.max(0.25, 1 - progress * 0.3));
+
+        // Only after a full-screen inverted frame has been painted do we swap to
+        // the permanently inverted arena canvas for the six-second time stop.
+        if (progress >= 1 && wipeActive && !_superState.dioTimeStopWipeFinishQueued) {
+            _superState.dioTimeStopWipeFinishQueued = true;
+            requestAnimationFrame(function () {
+                if (!_superState) return;
+                if (_superState.dioTimeStopWipeActive) {
+                    _superState.dioTimeStopWipeActive = false;
+                    _superState.dioTimeStopWipeFinishQueued = false;
+                    dioSyncTimeStopOverlay();
+                }
+            });
+        }
     } catch (e) {}
 }
 function dioStartOverlayLoop() {
@@ -196,7 +306,7 @@ function dioStartOverlayLoop() {
     var tick = function() {
         _dioOverlayRaf = 0;
         dioSyncTimeStopOverlay();
-        if (dioIsWindupActive() || isDioTimeStopped()) {
+        if (dioIsWindupActive() || isDioTimeStopped() || (_superState && _superState.dioTimeStopWipeActive)) {
             _dioOverlayRaf = requestAnimationFrame(tick);
         }
     };
@@ -265,11 +375,16 @@ function dioStartTimeStop(duration, teleportStyle, skipSound) {
     _superState.dioStandX = ctxB.getHeartX();
     _superState.dioStandY = ctxB.getHeartY();
 
-    // Для обычного тайм-стопа звук подготовки уже прозвучал при нажатии.
+    // Preparation/teleport sound and the ZA WARUDO call are separate cues.
+    // Lower the background track immediately, but keep this activation cue clear.
+    dioSyncAudioMix();
     if (!skipSound) {
-        dioPlaySound(teleportStyle
-            ? "music/dios-time-stop-teleportation-sound-effect-1.mp3"
-            : "music/za-warudo-time-stop-louder.mp3");
+        dioPlaySound(
+            teleportStyle
+                ? "music/dios-time-stop-teleportation-sound-effect-1.mp3"
+                : "music/za-warudo-time-stop-louder.mp3",
+            teleportStyle ? 0.72 : 0.86
+        );
     }
 
     // Аниме-удар: белый flash -> золото -> фиолетовый "THE WORLD".
@@ -318,18 +433,25 @@ function activateDioTimeStop() {
     var now = performance.now();
     _superState.dioTimeStopWindupStartedAt = now;
     _superState.dioTimeStopWindupUntil = now + 2000;
+    _superState.dioTimeStopWipeActive = true;
+    _superState.dioTimeStopWipeFinishQueued = false;
     if (typeof heart !== "undefined" && heart) { heart.vx = 0; heart.vy = 0; }
-    dioPlaySound("music/dios-time-stop-teleportation-sound-effect-1.mp3");
+    // This sound plays immediately on the skill press; the ZA WARUDO voice plays
+    // separately when the expanding circle reaches the arena boundary.
+    dioPlaySound("music/dios-time-stop-teleportation-sound-effect-1.mp3", 0.72);
     dioStartOverlayLoop();
 
     setTimeout(function() {
         if (!_superState || !(_superState.dioTimeStopWindupUntil || 0)) return;
         _superState.dioTimeStopWindupUntil = 0;
         if (!isDioOverHeavenMain() || !getBossContext()) {
+            _superState.dioTimeStopWipeActive = false;
+            _superState.dioTimeStopWipeFinishQueued = false;
             dioSyncTimeStopOverlay();
             return;
         }
-        dioStartTimeStop(6, false, true);
+        // Do NOT skip this cue: the teleportation sound was the wind-up, not ZA WARUDO.
+        dioStartTimeStop(6, false, false);
         dioStartOverlayLoop();
     }, 2000);
 }
