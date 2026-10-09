@@ -106,18 +106,27 @@ function dioSyncTimeStopOverlay() {
         var base = (typeof ctx !== "undefined" && ctx && ctx.canvas) ? ctx.canvas : document.getElementById("arenaCanvas");
         var windup = dioIsWindupActive();
         var active = isDioTimeStopped();
-        var visible = !!(base && isDioOverHeavenMain() && (windup || active));
+        var dioMode = isDioOverHeavenMain();
         var overlay = document.getElementById("dioTimeStopInvertCanvas");
         var ring = document.getElementById("dioTimeStopWipeRing");
-        if (!visible) {
+
+        // During the wind-up, only the expanding circle reveals the inverted copy.
+        // Once it reaches the arena edges, switch to the real canvas filter so the
+        // colors stay inverted continuously throughout ZA WARUDO.
+        if (base && base.style) {
+            base.style.filter = (dioMode && active && !windup) ? "invert(1)" : "";
+        }
+
+        if (!base || !dioMode || !windup) {
             if (overlay) overlay.style.display = "none";
             if (ring) ring.style.display = "none";
             return;
         }
+
         if (!overlay) {
             overlay = document.createElement("canvas");
             overlay.id = "dioTimeStopInvertCanvas";
-            overlay.style.cssText = "position:fixed;pointer-events:none;z-index:20;display:none;filter:invert(1);";
+            overlay.style.cssText = "position:fixed;pointer-events:none;z-index:20;display:none;filter:invert(1);will-change:clip-path;";
             document.body.appendChild(overlay);
         }
         if (!ring) {
@@ -126,38 +135,45 @@ function dioSyncTimeStopOverlay() {
             ring.style.cssText = "position:fixed;pointer-events:none;z-index:21;display:none;border:2px solid rgba(255,239,165,.95);border-radius:50%;box-shadow:0 0 18px rgba(255,226,115,.9),inset 0 0 16px rgba(255,255,255,.45);";
             document.body.appendChild(ring);
         }
+
         var rect = base.getBoundingClientRect();
         if (!rect.width || !rect.height) return;
-        overlay.width = base.width || 400;
-        overlay.height = base.height || 500;
+
+        var pixelWidth = base.width || 400;
+        var pixelHeight = base.height || 500;
+        if (overlay.width !== pixelWidth) overlay.width = pixelWidth;
+        if (overlay.height !== pixelHeight) overlay.height = pixelHeight;
         overlay.style.left = rect.left + "px";
         overlay.style.top = rect.top + "px";
         overlay.style.width = rect.width + "px";
         overlay.style.height = rect.height + "px";
         overlay.style.display = "block";
         overlay.style.filter = "invert(1)";
+
         var ox = overlay.getContext("2d");
         if (ox) {
             ox.clearRect(0, 0, overlay.width, overlay.height);
             ox.drawImage(base, 0, 0, overlay.width, overlay.height);
         }
+
         var bctx = (typeof getBossContext === "function") ? getBossContext() : null;
         var hx = bctx && typeof bctx.getHeartX === "function" ? bctx.getHeartX() : overlay.width / 2;
         var hy = bctx && typeof bctx.getHeartY === "function" ? bctx.getHeartY() : overlay.height / 2;
         var cx = hx / overlay.width * rect.width;
         var cy = hy / overlay.height * rect.height;
-        var progress = windup ? Math.max(0, Math.min(1, 1 - ((_superState.dioTimeStopWindupUntil - performance.now()) / 2000))) : 1;
+        var progress = Math.max(0, Math.min(1, 1 - ((_superState.dioTimeStopWindupUntil - performance.now()) / 2000)));
         var maxRadius = Math.hypot(Math.max(cx, rect.width - cx), Math.max(cy, rect.height - cy));
         var radius = Math.max(1, maxRadius * progress);
+
+        // Reveal the inverted image from the player's heart outward, with the
+        // golden ring exactly at the edge of the changing-color area.
         overlay.style.clipPath = "circle(" + radius + "px at " + cx + "px " + cy + "px)";
-        ring.style.display = windup ? "block" : "none";
-        if (windup) {
-            ring.style.width = (radius * 2) + "px";
-            ring.style.height = (radius * 2) + "px";
-            ring.style.left = (rect.left + cx - radius) + "px";
-            ring.style.top = (rect.top + cy - radius) + "px";
-            ring.style.opacity = String(Math.max(0.2, 1 - progress * 0.25));
-        }
+        ring.style.display = "block";
+        ring.style.width = (radius * 2) + "px";
+        ring.style.height = (radius * 2) + "px";
+        ring.style.left = (rect.left + cx - radius) + "px";
+        ring.style.top = (rect.top + cy - radius) + "px";
+        ring.style.opacity = String(Math.max(0.2, 1 - progress * 0.25));
     } catch (e) {}
 }
 function dioStartOverlayLoop() {
