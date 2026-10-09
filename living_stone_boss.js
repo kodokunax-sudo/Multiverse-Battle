@@ -245,7 +245,7 @@ function lsIsTimeStopped() {
 function lsIsPlayerFrozen() {
     if (typeof _superState === 'undefined') return false;
     // ZA WARUDO freezes the world, not DIO/the player.
-    return (_superState.dioTimeStopWindupUntil || 0) > performance.now() || _superState.garouTimeStop === true || _superState.usoppStunTimer > 0;
+    return (_superState.dioTimeStopWindupUntil || 0) > performance.now() || (typeof window.dioIsKnifeWindupActive==="function" && window.dioIsKnifeWindupActive()) || _superState.garouTimeStop === true || _superState.usoppStunTimer > 0;
 }
 
 // ★★★ ФИКС: Применение супер-множителей урона ★★★
