@@ -244,7 +244,16 @@ window.drawDioHeartVisual = drawDioHeartVisual;
 
 // DIO: отдельная узнаваемая модель персонажа и белый стенд-сердце THE WORLD.
 function drawDioPlayerVisual(c,x,y,size){
- if(!c)return false;var sc=Math.max(.78,Math.min(1.12,(Number(size)||12)/12));
+ if(!c)return false;
+ var sprite=typeof window.getPreloadedImage==="function"?window.getPreloadedImage("dio","images/Super_Dio_2.gif"):null;
+ if(sprite&&sprite.complete&&sprite.naturalWidth>0&&sprite.naturalHeight>0){
+  var targetH=Math.max(30,(Number(size)||12)*3.45);
+  var aspect=sprite.naturalWidth/sprite.naturalHeight;
+  var targetW=Math.min(targetH*1.45,targetH*aspect);
+  c.save();c.translate(Number(x)||0,Number(y)||0);c.shadowColor="#e7c04d";c.shadowBlur=3;
+  c.drawImage(sprite,-targetW/2,-targetH/2,targetW,targetH);c.restore();return true;
+ }
+ var sc=Math.max(.78,Math.min(1.12,(Number(size)||12)/12));
  c.save();c.translate(Number(x)||0,Number(y)||0);c.scale(sc,sc);
  var halo=c.createRadialGradient(0,0,2,0,0,23);halo.addColorStop(0,"rgba(255,210,70,.34)");halo.addColorStop(.6,"rgba(100,255,190,.14)");halo.addColorStop(1,"rgba(100,255,190,0)");c.fillStyle=halo;c.beginPath();c.arc(0,0,23,0,Math.PI*2);c.fill();
  c.shadowColor="#e7c04d";c.shadowBlur=5;c.fillStyle="#286747";c.beginPath();c.moveTo(-11,1);c.quadraticCurveTo(-12,-5,-7,-6);c.lineTo(7,-6);c.quadraticCurveTo(12,-4,11,2);c.lineTo(8,12);c.quadraticCurveTo(0,15,-8,12);c.closePath();c.fill();c.shadowBlur=0;c.strokeStyle="#e7c04d";c.lineWidth=1.6;c.stroke();
