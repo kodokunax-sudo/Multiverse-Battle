@@ -9,6 +9,7 @@ var _dioMusicResumeAttemptedAudio = null;
 // A rolling cap prevents fast multi-hit bosses from instantly filling DIO's meter.
 var DIO_ENERGY_GAIN_PER_SECOND = 8;
 var _dioEnergyGainEvents = [];
+var DIO_PASSIVE_ENERGY_INTERVAL_MS = 2000;
 
 function dioSoundKey(path) {
     if (path === "music/dios-time-stop-teleportation-sound-effect-1.mp3") return "dioTeleport";
@@ -46,7 +47,9 @@ function dioPrepareSound(path) {
 function preloadDioSounds() {
     var files = [
         "music/za-warudo-time-stop-louder.mp3",
-        "music/dios-time-stop-teleportation-sound-effect-1.mp3"
+        "music/dios-time-stop-teleportation-sound-effect-1.mp3",
+        "music/dio_muda_muda_muda.mp3",
+        "music/Voicy_Dio Brando muda muda.mp3"
     ];
     for (var i = 0; i < files.length; i++) {
         try {
@@ -324,7 +327,7 @@ function dioLaunchKnifeVolley(ctxB){
  var t=dioGetUniqueBossTarget(ctxB,_superState.dioMudaTargetId);if(!t){_superState.dioMudaActive=false;_superState.dioMudaMode=null;return;}var px=ctxB.getHeartX(),py=ctxB.getHeartY(),base=Math.atan2(t.y-py,t.x-px);if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];
  var total=Math.max(1,Math.floor(Number(_superState.dioMudaTotalDamage)||t.maxHp*.08));
  for(var i=0;i<5;i++){var a=base+(i-2)*.13;var d=Math.floor(total*(i+1)/5)-Math.floor(total*i/5);_superState.dioKnives.push({x:px+(px>300?-10:10),y:py-3,vx:Math.cos(a)*9.5,vy:Math.sin(a)*9.5,angle:a,life:180,damage:d,targetType:t.type,targetId:t.id});}
- _superState.dioMudaActive=false;_superState.dioMudaMode=null;dioPlaySoundFrom("music/Voicy_Dio Brando muda muda.mp3",.8,4);if(typeof window.showFloatingText==="function")window.showFloatingText("KNIVES — THE WORLD!","#fff0a0");
+ _superState.dioMudaActive=false;_superState.dioMudaMode=null;if(typeof window.showFloatingText==="function")window.showFloatingText("KNIVES — THE WORLD!","#fff0a0");
 }
 function dioUpdateMudaSkill(dt){
  if(!isDioOverHeavenMain()||!_superState)return;var cb=typeof getBossContext==="function"?getBossContext():null,now=performance.now();
@@ -334,11 +337,50 @@ function dioUpdateMudaSkill(dt){
  var due=Math.min(12,Math.floor(elapsed/250));while((_superState.dioMudaHitIndex||0)<due){_superState.dioMudaHitIndex=(_superState.dioMudaHitIndex||0)+1;var cur=dioGetUniqueBossTarget(cb,_superState.dioMudaTargetId);if(!cur)break;var total=Math.max(1,Math.floor(Number(_superState.dioMudaTotalDamage)||cur.maxHp*.1)),idx=_superState.dioMudaHitIndex;var hitDmg=Math.floor(total*idx/12)-Math.floor(total*(idx-1)/12);dioQueueOrApplyBossDamage(cur,hitDmg);_superState.dioMudaLastHitAt=now;_superState.dioMudaImpactX=cur.x;_superState.dioMudaImpactY=cur.y;}
  if(elapsed>=3000){_superState.dioMudaActive=false;_superState.dioMudaMode=null;_superState.dioMudaStandX=null;_superState.dioMudaStandY=null;_superState.dioStandFlash=Math.max(_superState.dioStandFlash||0,.3);}}}
  else if(_superState.dioMudaActive&&_superState.dioMudaMode==="knives"&&now-(_superState.dioMudaStartedAt||now)>=2000)dioLaunchKnifeVolley(cb);
- var knives=Array.isArray(_superState.dioKnives)?_superState.dioKnives:[];if(knives.length){if(isDioTimeStopped())return;for(var i=knives.length-1;i>=0;i--){var k=knives[i];if(!k){knives.splice(i,1);continue;}var t=dioGetUniqueBossTarget(cb,k.targetId);if(!t){knives.splice(i,1);continue;}var a=Math.atan2(t.y-k.y,t.x-k.x),sp=Math.hypot(k.vx,k.vy)||9.5;k.angle=a;k.vx=Math.cos(a)*sp;k.vy=Math.sin(a)*sp;var frames=Math.max(.25,Math.min(6,(Number(dt)||.016)*60));k.x+=k.vx*frames;k.y+=k.vy*frames;k.life-=frames;if(Math.hypot(t.x-k.x,t.y-k.y)<t.size+10){dioQueueOrApplyBossDamage(t,k.damage);knives.splice(i,1);}else if(k.life<=0||k.x<-40||k.x>440||k.y<-40||k.y>540)knives.splice(i,1);}}
+ else if(_superState.dioMudaActive&&_superState.dioMudaMode==="arenaKnives"&&now-(_superState.dioMudaStartedAt||now)>=100)dioLaunchArenaKnifeVolley(cb);
+ var knives=Array.isArray(_superState.dioKnives)?_superState.dioKnives:[];if(knives.length){if(isDioTimeStopped())return;for(var i=knives.length-1;i>=0;i--){var k=knives[i];if(!k){knives.splice(i,1);continue;}var frames=Math.max(.25,Math.min(6,(Number(dt)||.016)*60));
+  if(k.targetType==="arena"){
+   var atk=cb&&typeof cb.getAttacks==="function"?cb.getAttacks():[],target=k.targetAttack;
+   if(!target||atk.indexOf(target)<0){knives.splice(i,1);continue;}
+   var tr=Number(target.size||target.radius||target.width||18)||18,tx=(Number(target.x)||0)+tr/2,ty=(Number(target.y)||0)+tr/2;
+   var aa=Math.atan2(ty-k.y,tx-k.x),asp=Math.hypot(k.vx,k.vy)||10;k.angle=aa;k.vx=Math.cos(aa)*asp;k.vy=Math.sin(aa)*asp;k.x+=k.vx*frames;k.y+=k.vy*frames;k.life-=frames;
+   if(Math.hypot(tx-k.x,ty-k.y)<tr/2+8){var ai=atk.indexOf(target);if(ai>=0)atk.splice(ai,1);var parts=cb&&typeof cb.getParticles==="function"?cb.getParticles():[];for(var pp=0;pp<7;pp++)parts.push({x:tx,y:ty,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5,life:16,maxLife:16,color:pp%2?"#eaf3ff":"#d8b6ff",size:2+Math.random()*3});if(cb&&cb.playSound)cb.playSound(780,"square",.06,.08);knives.splice(i,1);}
+   else if(k.life<=0||k.x<-40||k.x>440||k.y<-40||k.y>540)knives.splice(i,1);
+   continue;
+  }
+  var t=dioGetUniqueBossTarget(cb,k.targetId);if(!t){knives.splice(i,1);continue;}var a=Math.atan2(t.y-k.y,t.x-k.x),sp=Math.hypot(k.vx,k.vy)||9.5;k.angle=a;k.vx=Math.cos(a)*sp;k.vy=Math.sin(a)*sp;k.x+=k.vx*frames;k.y+=k.vy*frames;k.life-=frames;if(Math.hypot(t.x-k.x,t.y-k.y)<t.size+10){dioQueueOrApplyBossDamage(t,k.damage);knives.splice(i,1);}else if(k.life<=0||k.x<-40||k.x>440||k.y<-40||k.y>540)knives.splice(i,1);
+ }}
+}
+function dioLaunchArenaKnifeVolley(cb){
+ if(!cb||cb.type!=="arena"){_superState.dioMudaActive=false;_superState.dioMudaMode=null;return;}
+ var attacks=typeof cb.getAttacks==="function"?cb.getAttacks():[];
+ if(!Array.isArray(attacks)||!attacks.length){_superState.dioMudaActive=false;_superState.dioMudaMode=null;if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ НЕТ БЛИЖАЙШИХ БЛОКОВ!","#ffaa00");return;}
+ var px=cb.getHeartX(),py=cb.getHeartY(),targets=attacks.slice().filter(Boolean).sort(function(a,b){var ar=Number(a.size||a.radius||18)||18,br=Number(b.size||b.radius||18)||18;return Math.hypot((a.x||0)+ar/2-px,(a.y||0)+ar/2-py)-Math.hypot((b.x||0)+br/2-px,(b.y||0)+br/2-py);});
+ if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];
+ for(var i=0;i<5;i++){var target=targets[i%targets.length],tr=Number(target.size||target.radius||18)||18,tx=(Number(target.x)||0)+tr/2,ty=(Number(target.y)||0)+tr/2,ang=Math.atan2(ty-py,tx-px);_superState.dioKnives.push({x:px+(px>300?-10:10),y:py-3,vx:Math.cos(ang)*10,vy:Math.sin(ang)*10,angle:ang,life:160,targetType:"arena",targetAttack:target});}
+ _superState.dioMudaActive=false;_superState.dioMudaMode=null;if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ НОЖИ ДИО!","#fff0a0");
 }
 function dioActivateMudaSkill(){
- var cb=typeof getBossContext==="function"?getBossContext():null,t=dioGetUniqueBossTarget(cb);if(!t){if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ НАВЫК ТОЛЬКО ПРОТИВ УНИКАЛЬНЫХ БОССОВ","#ffaa00");return false;}if(!dioCanUse("muda",40,30))return false;
- var px=cb.getHeartX(),py=cb.getHeartY(),close=Math.hypot(t.x-px,t.y-py)<=132;_superState.dioMudaActive=true;_superState.dioMudaMode=close?"melee":"knives";_superState.dioMudaStartedAt=performance.now();_superState.dioMudaTargetType=t.type;_superState.dioMudaTargetId=t.id;_superState.dioMudaTotalDamage=Math.max(1,Math.floor(t.maxHp*(close?.10:.08)));_superState.dioMudaHitIndex=0;_superState.dioMudaLastHitAt=0;_superState.dioMudaStandX=px+(px>300?-20:20);_superState.dioMudaStandY=py-8;if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];if(!close&&cb.type==="rwb"&&typeof window.getRWBPlayer==="function"){var rp=window.getRWBPlayer();if(rp){rp.vx=0;rp.vy=0;}}if(typeof window.showFloatingText==="function")window.showFloatingText(close?"THE WORLD — MUDA MUDA MUDA!":"ДИО ГОТОВИТ НОЖИ (2 СЕК.)","#fff0a0");return true;
+ var cb=typeof getBossContext==="function"?getBossContext():null;if(!cb||!_superState)return false;
+ var t=dioGetUniqueBossTarget(cb);
+ if(cb.type==="arena"&&!t){
+  if(!dioCanUse("muda",40,30))return false;
+  _superState.dioMudaActive=true;_superState.dioMudaMode="arenaKnives";_superState.dioMudaStartedAt=performance.now();
+  if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];
+  dioPlaySoundFrom("music/Voicy_Dio Brando muda muda.mp3",.78,4);
+  if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ ДИО ЦЕЛИТ НОЖИ!","#fff0a0");
+  return true;
+ }
+ if(!t){if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ НАВЫК ДОСТУПЕН В БОЮ С БОССОМ","#ffaa00");return false;}
+ if(!dioCanUse("muda",40,30))return false;
+ var px=cb.getHeartX(),py=cb.getHeartY(),close=Math.hypot(t.x-px,t.y-py)<=132;
+ _superState.dioMudaActive=true;_superState.dioMudaMode=close?"melee":"knives";_superState.dioMudaStartedAt=performance.now();_superState.dioMudaTargetType=t.type;_superState.dioMudaTargetId=t.id;_superState.dioMudaTotalDamage=Math.max(1,Math.floor(t.maxHp*(close?.10:.08)));_superState.dioMudaHitIndex=0;_superState.dioMudaLastHitAt=0;_superState.dioMudaStandX=px+(px>300?-20:20);_superState.dioMudaStandY=py-8;
+ if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];
+ if(close)dioPlaySoundFrom("music/dio_muda_muda_muda.mp3",.9,0);
+ else dioPlaySoundFrom("music/Voicy_Dio Brando muda muda.mp3",.78,4);
+ if(!close&&cb.type==="rwb"&&typeof window.getRWBPlayer==="function"){var rp=window.getRWBPlayer();if(rp){rp.vx=0;rp.vy=0;}}
+ if(typeof window.showFloatingText==="function")window.showFloatingText(close?"THE WORLD — MUDA MUDA MUDA!":"ДИО ГОТОВИТ НОЖИ (2 СЕК.)","#fff0a0");
+ return true;
 }
 window.dioActivateMudaSkill=dioActivateMudaSkill;
 function dioAttackTouchesStand(ctxB,a){
@@ -852,6 +894,18 @@ function updateDioSkillCooldowns(dt) {
     }
     _superState.dioAggroTimer = Math.max(0, (_superState.dioAggroTimer || 0) - dt);
     _superState.dioStandFlash = Math.max(0, (_superState.dioStandFlash || 0) - dt);
+
+    // Пассивный заряд DIO: +1 энергия каждые 2 секунды активного боя.
+    var passiveCtx = (typeof getBossContext === "function") ? getBossContext() : null;
+    if (passiveCtx && isDioOverHeavenMain()) {
+        _superState.dioPassiveChargeTimer = Math.max(0, Number(_superState.dioPassiveChargeTimer) || 0) + Math.max(0, Number(dt) || 0);
+        while (_superState.dioPassiveChargeTimer >= DIO_PASSIVE_ENERGY_INTERVAL_MS / 1000) {
+            _superState.dioPassiveChargeTimer -= DIO_PASSIVE_ENERGY_INTERVAL_MS / 1000;
+            _superState.dioEnergy = Math.min(100, (Number(_superState.dioEnergy) || 0) + 1);
+        }
+    } else {
+        _superState.dioPassiveChargeTimer = 0;
+    }
     dioUpdateMudaSkill(dt);
 }
 
@@ -1020,7 +1074,8 @@ function updateDioPanel() {
         '</div>';
 }
 function dioButton(label,key,cost,cooldown,cd) {
-    var mudaTargetMissing = key === "muda" && !dioGetUniqueBossTarget((typeof getBossContext === "function") ? getBossContext() : null);
+    var buttonBossContext = (typeof getBossContext === "function") ? getBossContext() : null;
+    var mudaTargetMissing = key === "muda" && !dioGetUniqueBossTarget(buttonBossContext) && !(buttonBossContext && buttonBossContext.type === "arena");
     var disabled = cd > 0 || (_superState.dioEnergy || 0) < cost || !isDioOverHeavenMain() || mudaTargetMissing;
     var textCd = cd > 0 ? " · "+Math.ceil(cd)+"с" : "";
     return '<button type="button" onclick="dioUseSkill(\''+key+'\')" '+(disabled?'disabled':'')+' style="width:100%;min-width:0;padding:6px 1px;border-radius:9px;border:1px solid #bca5ff;background:'+(disabled?'#333':'linear-gradient(135deg,#33214f,#8064a8)')+';color:white;font-size:10px;font-weight:900;line-height:1.05;touch-action:manipulation;pointer-events:auto;">'+label+'<br><span style="font-size:9px;">⚡'+cost+textCd+'</span></button>';
