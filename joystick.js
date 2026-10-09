@@ -653,6 +653,7 @@
 
         var originalMoveHeart = window.moveHeart;
         window.moveHeart = function() {
+            if (typeof _superState !== 'undefined' && (_superState.dioTimeStopWindupUntil || 0) > performance.now()) return;
             var j = window._joystick;
             if (j && j.enabled && j.active) {
                 if (typeof _superState !== 'undefined' && _superState.usoppStunTimer > 0) return;

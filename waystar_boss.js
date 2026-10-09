@@ -133,7 +133,7 @@ function wsIsTimeStopped() {
 function wsIsPlayerFrozen() {
     if (typeof _superState === 'undefined') return false;
     // ZA WARUDO freezes the world, not DIO/the player.
-    return _superState.garouTimeStop === true || _superState.usoppStunTimer > 0;
+    return (_superState.dioTimeStopWindupUntil || 0) > performance.now() || _superState.garouTimeStop === true || _superState.usoppStunTimer > 0;
 }
 function wsApplySuperDmgMult(baseDmg) {
     var dmg = baseDmg;

@@ -38,6 +38,140 @@ function dioPlaySound(path) {
     } catch(e) {}
 }
 window.preloadDioSounds = preloadDioSounds;
+
+// Красное сердце DIO и маленькое декоративное сердце THE WORLD.
+// Декоративный элемент не участвует в хитбоксах, уроне или управлении.
+function drawDioHeartVisual(targetCtx, x, y, size) {
+    if (!targetCtx) return false;
+    var hs = Math.max(0.5, (Number(size) || 14) / 14);
+    targetCtx.save();
+    targetCtx.translate(Number(x) || 0, Number(y) || 0);
+    targetCtx.scale(hs, hs);
+    var heartPath = function() {
+        targetCtx.beginPath();
+        targetCtx.moveTo(0, 6);
+        targetCtx.bezierCurveTo(-2, 4, -9, -1, -9, -5);
+        targetCtx.bezierCurveTo(-9, -11, -2, -12, 0, -7);
+        targetCtx.bezierCurveTo(2, -12, 9, -11, 9, -5);
+        targetCtx.bezierCurveTo(9, -1, 2, 4, 0, 6);
+        targetCtx.closePath();
+    };
+    targetCtx.shadowColor = "#ff1f35";
+    targetCtx.shadowBlur = 9;
+    var mainGrad = targetCtx.createLinearGradient(-7, -10, 7, 7);
+    mainGrad.addColorStop(0, "#ff6472");
+    mainGrad.addColorStop(0.42, "#ed1235");
+    mainGrad.addColorStop(1, "#780018");
+    targetCtx.fillStyle = mainGrad;
+    heartPath(); targetCtx.fill();
+    targetCtx.shadowBlur = 0;
+    targetCtx.strokeStyle = "#510014";
+    targetCtx.lineWidth = 1.1;
+    heartPath(); targetCtx.stroke();
+    targetCtx.fillStyle = "rgba(255,245,195,.9)";
+    targetCtx.beginPath();
+    targetCtx.ellipse(-3.5, -6.5, 1.7, 2.4, -0.5, 0, Math.PI * 2);
+    targetCtx.fill();
+
+    // Маленькое сердце-стенд рядом с основным — чисто косметика.
+    targetCtx.save();
+    targetCtx.translate(13, -5);
+    targetCtx.scale(0.56, 0.56);
+    targetCtx.shadowColor = "#d7b6ff";
+    targetCtx.shadowBlur = 11;
+    var standGrad = targetCtx.createLinearGradient(-7, -10, 7, 7);
+    standGrad.addColorStop(0, "#fff0a0");
+    standGrad.addColorStop(0.4, "#c9a2ff");
+    standGrad.addColorStop(1, "#6044a5");
+    targetCtx.fillStyle = standGrad;
+    heartPath(); targetCtx.fill();
+    targetCtx.strokeStyle = "rgba(255,239,165,.95)";
+    targetCtx.lineWidth = 1.2;
+    heartPath(); targetCtx.stroke();
+    targetCtx.restore();
+    targetCtx.restore();
+    return true;
+}
+window.drawDioHeartVisual = drawDioHeartVisual;
+// Круг инверсии идёт от сердца наружу в течение двух секунд перед остановкой времени.
+function dioIsWindupActive() {
+    return typeof _superState !== "undefined" &&
+        (_superState.dioTimeStopWindupUntil || 0) > performance.now();
+}
+window.dioIsWindupActive = dioIsWindupActive;
+
+var _dioOverlayRaf = 0;
+function dioSyncTimeStopOverlay() {
+    try {
+        var base = (typeof ctx !== "undefined" && ctx && ctx.canvas) ? ctx.canvas : document.getElementById("arenaCanvas");
+        var windup = dioIsWindupActive();
+        var active = isDioTimeStopped();
+        var visible = !!(base && isDioOverHeavenMain() && (windup || active));
+        var overlay = document.getElementById("dioTimeStopInvertCanvas");
+        var ring = document.getElementById("dioTimeStopWipeRing");
+        if (!visible) {
+            if (overlay) overlay.style.display = "none";
+            if (ring) ring.style.display = "none";
+            return;
+        }
+        if (!overlay) {
+            overlay = document.createElement("canvas");
+            overlay.id = "dioTimeStopInvertCanvas";
+            overlay.style.cssText = "position:fixed;pointer-events:none;z-index:20;display:none;filter:invert(1);";
+            document.body.appendChild(overlay);
+        }
+        if (!ring) {
+            ring = document.createElement("div");
+            ring.id = "dioTimeStopWipeRing";
+            ring.style.cssText = "position:fixed;pointer-events:none;z-index:21;display:none;border:2px solid rgba(255,239,165,.95);border-radius:50%;box-shadow:0 0 18px rgba(255,226,115,.9),inset 0 0 16px rgba(255,255,255,.45);";
+            document.body.appendChild(ring);
+        }
+        var rect = base.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        overlay.width = base.width || 400;
+        overlay.height = base.height || 500;
+        overlay.style.left = rect.left + "px";
+        overlay.style.top = rect.top + "px";
+        overlay.style.width = rect.width + "px";
+        overlay.style.height = rect.height + "px";
+        overlay.style.display = "block";
+        overlay.style.filter = "invert(1)";
+        var ox = overlay.getContext("2d");
+        if (ox) {
+            ox.clearRect(0, 0, overlay.width, overlay.height);
+            ox.drawImage(base, 0, 0, overlay.width, overlay.height);
+        }
+        var bctx = (typeof getBossContext === "function") ? getBossContext() : null;
+        var hx = bctx && typeof bctx.getHeartX === "function" ? bctx.getHeartX() : overlay.width / 2;
+        var hy = bctx && typeof bctx.getHeartY === "function" ? bctx.getHeartY() : overlay.height / 2;
+        var cx = hx / overlay.width * rect.width;
+        var cy = hy / overlay.height * rect.height;
+        var progress = windup ? Math.max(0, Math.min(1, 1 - ((_superState.dioTimeStopWindupUntil - performance.now()) / 2000))) : 1;
+        var maxRadius = Math.hypot(Math.max(cx, rect.width - cx), Math.max(cy, rect.height - cy));
+        var radius = Math.max(1, maxRadius * progress);
+        overlay.style.clipPath = "circle(" + radius + "px at " + cx + "px " + cy + "px)";
+        ring.style.display = windup ? "block" : "none";
+        if (windup) {
+            ring.style.width = (radius * 2) + "px";
+            ring.style.height = (radius * 2) + "px";
+            ring.style.left = (rect.left + cx - radius) + "px";
+            ring.style.top = (rect.top + cy - radius) + "px";
+            ring.style.opacity = String(Math.max(0.2, 1 - progress * 0.25));
+        }
+    } catch (e) {}
+}
+function dioStartOverlayLoop() {
+    if (_dioOverlayRaf || typeof requestAnimationFrame !== "function") return;
+    var tick = function() {
+        _dioOverlayRaf = 0;
+        dioSyncTimeStopOverlay();
+        if (dioIsWindupActive() || isDioTimeStopped()) {
+            _dioOverlayRaf = requestAnimationFrame(tick);
+        }
+    };
+    _dioOverlayRaf = requestAnimationFrame(tick);
+}
+
 function dioAddEnergy(amount) {
     if (!isDioOverHeavenMain()) return;
     _superState.dioEnergy = Math.max(0, Math.min(100, (_superState.dioEnergy || 0) + Math.max(0, Number(amount) || 0)));
@@ -79,7 +213,7 @@ function dioCanUse(skill, cost, cooldown) {
     return true;
 }
 
-function dioStartTimeStop(duration, teleportStyle) {
+function dioStartTimeStop(duration, teleportStyle, skipSound) {
     var ctxB = getBossContext();
     if (!ctxB) return;
 
@@ -91,6 +225,7 @@ function dioStartTimeStop(duration, teleportStyle) {
     // а DIO/VFX продолжает жить.
     if (teleportStyle) _superState.dioTeleportStop = d;
     else _superState.dioTimeStop = d;
+    _superState.dioTimeStopWindupUntil = 0;
 
     _superState.dioTimeStopStartedAt = now;
     _superState.dioResumeSoundPlayed = false;
@@ -99,10 +234,12 @@ function dioStartTimeStop(duration, teleportStyle) {
     _superState.dioStandX = ctxB.getHeartX();
     _superState.dioStandY = ctxB.getHeartY();
 
-    // Предзагруженный звук проигрывается без задержки.
-    dioPlaySound(teleportStyle
-        ? "music/dios-time-stop-teleportation-sound-effect-1.mp3"
-        : "music/za-warudo-time-stop-louder.mp3");
+    // Для обычного тайм-стопа звук подготовки уже прозвучал при нажатии.
+    if (!skipSound) {
+        dioPlaySound(teleportStyle
+            ? "music/dios-time-stop-teleportation-sound-effect-1.mp3"
+            : "music/za-warudo-time-stop-louder.mp3");
+    }
 
     // Аниме-удар: белый flash -> золото -> фиолетовый "THE WORLD".
     ctxB.addFlashWhite(teleportStyle ? 4 : 12);
@@ -142,8 +279,28 @@ function isDioTimeStopped() {
 }
 window.isDioTimeStopped = isDioTimeStopped;
 function activateDioTimeStop() {
-    if (!dioCanUse("timeStop", 40, 25)) return;
-    dioStartTimeStop(6, false);
+    if (dioIsWindupActive() || isDioTimeStopped()) return;
+    var ctxB = getBossContext();
+    if (!ctxB || !dioCanUse("timeStop", 40, 25)) return;
+
+    // DIO замирает на месте, пока золотая окружность не накроет арену.
+    var now = performance.now();
+    _superState.dioTimeStopWindupStartedAt = now;
+    _superState.dioTimeStopWindupUntil = now + 2000;
+    if (typeof heart !== "undefined" && heart) { heart.vx = 0; heart.vy = 0; }
+    dioPlaySound("music/dios-time-stop-teleportation-sound-effect-1.mp3");
+    dioStartOverlayLoop();
+
+    setTimeout(function() {
+        if (!_superState || !(_superState.dioTimeStopWindupUntil || 0)) return;
+        _superState.dioTimeStopWindupUntil = 0;
+        if (!isDioOverHeavenMain() || !getBossContext()) {
+            dioSyncTimeStopOverlay();
+            return;
+        }
+        dioStartTimeStop(6, false, true);
+        dioStartOverlayLoop();
+    }, 2000);
 }
 
 function activateDioHeal() {
@@ -186,6 +343,7 @@ function activateDioAggro() {
 
 function dioUseSkill(skill) {
     if (!isDioOverHeavenMain()) return;
+    if (dioIsWindupActive()) return;
     if (skill === "timeStop") activateDioTimeStop();
     else if (skill === "heal") activateDioHeal();
     else if (skill === "teleport") activateDioTeleport();
@@ -404,9 +562,9 @@ function dioButton(label,key,cost,cooldown,cd) {
 }
 
 function renderDioVisuals(ctxB) {
+    dioSyncTimeStopOverlay();
     if (!ctx) return;
     if (!ctxB || !isDioOverHeavenMain()) {
-        try { if (ctx.canvas && ctx.canvas.style) ctx.canvas.style.filter = ""; } catch (e) {}
         return;
     }
 
@@ -414,14 +572,7 @@ function renderDioVisuals(ctxB) {
     var stop = Math.max(_superState.dioTimeStop || 0, _superState.dioTeleportStop || 0);
     var active = stop > 0;
 
-    // ★ JOJO TIME STOP: полная инверсия цветов кадра, как в аниме.
-    // Инверсия применяется к самому canvas, поэтому мир, атаки и персонажи
-    // одновременно переходят в обратную палитру, а после остановки мгновенно возвращаются.
-    try {
-        if (ctx.canvas && ctx.canvas.style) {
-            ctx.canvas.style.filter = active ? "invert(1)" : "";
-        }
-    } catch (e) {}
+    // Инверсия цветов раскрывается отдельным слоем вслед за расширяющейся окружностью.
     var phase = now - (_superState.dioTimeStopStartedAt || now);
     var isTP = (_superState.dioTeleportStop || 0) > 0 && (_superState.dioTimeStop || 0) <= 0;
 

@@ -1283,6 +1283,8 @@
         // ★ Проверяем заморозку времени и оглушение ★
         if (wbVortexActive) return;
         if (typeof _superState !== 'undefined') {
+            // During DIO's two-second windup the player stays still; normal time stop still lets DIO move.
+            if ((_superState.dioTimeStopWindupUntil || 0) > performance.now()) return;
             // ZA WARUDO freezes Roger/Whitebeard and their attacks, but DIO/player can move.
             if (_superState.garouTimeStop) return;
             if (_superState.usoppStunTimer > 0) return;
