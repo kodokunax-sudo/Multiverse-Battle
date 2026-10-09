@@ -2003,6 +2003,10 @@
                 // Но всё равно рисуем (рендер отдельно)
                 continue;
             }
+            var dioRWBCtx=(typeof getBossContext==="function")?getBossContext():null;
+            if(rwbPlayer.invulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioRWBCtx&&window.dioAttackTouchesStand(dioRWBCtx,a)){
+                a.dioStandHitOnce=true;hitPlayer(Math.max(1,Math.floor((Number(a.damage)||8)*.4)));rwbAttacks.splice(i,1);continue;
+            }
 
             if (a.type === "giant_rock") {
                 a.x += a.vx; a.y += a.vy; a.rotation += a.rotSpeed; a.life--;
@@ -2192,6 +2196,10 @@
             // ★ При остановке времени шоквейвы тоже стоят ★
             if (!stopAll) {
                 sw.radius += sw.speed; sw.life--;
+            }
+            if(!stopAll&&!sw.hit&&rwbPlayer.invulnTimer<=0&&typeof window.getDioStandPosition==="function"&&typeof isDioOverHeavenMain==="function"&&isDioOverHeavenMain()){
+                let sd=window.getDioStandPosition((typeof getBossContext==="function")?getBossContext():null);
+                if(sd&&Math.abs(Math.hypot(sd.x-sw.x,sd.y-sw.y)-sw.radius)<sw.width*.7+(sd.radius||7)){sw.hit=true;hitPlayer(Math.max(1,Math.floor((Number(sw.damage)||8)*.4)));}
             }
             if (!stopAll && sw.canDestroy && !sw.hit && rwbPlayer.invulnTimer <= 0 && (rwbState === "fight1" || rwbState === "fight2")) {
                 let dx = rwbPlayer.x - sw.x, dy = rwbPlayer.y - sw.y;
@@ -3168,6 +3176,15 @@
     // SUPER-контекст не должен читать локальную let-переменную через window.
     // Экспортируем реальные ссылки на текущего босса/игрока.
     window.getRWBActiveBoss = function() { return rwbActiveBoss; };
+    window.getRWBTargets = function() { return [roger,whitebeard].filter(function(b){return !!b;}); };
+    window.rwbApplyDioSkillDamage = function(bossId,amount) {
+        let target=(rwbActiveBoss&&rwbActiveBoss.id===bossId)?rwbActiveBoss:[roger,whitebeard].find(function(b){return b&&b.id===bossId;});
+        if(!target)return false;
+        target.hp=Math.max(0,target.hp-Math.max(1,Math.floor(Number(amount)||1)));target.hitFlash=10;
+        rwbShockwaves.push({x:target.x,y:target.y,radius:10,maxRadius:100,speed:9,color:"#fff0a0",damage:0,hit:true,life:18,maxLife:18,width:4});
+        rwbFloatingTexts.push({x:target.x,y:target.y-35,text:"DIO −"+Math.max(1,Math.floor(Number(amount)||1)),color:"#fff0a0",life:55,maxLife:55,vy:-.6,vx:0,size:14});
+        return true;
+    };
     window.getRWBState  = function() { return rwbState; };
     window.startRogerWhitebeardFight = startRogerWhitebeardFight;
     window.stopRogerWhitebeardFight = stopRogerWhitebeardFight;
