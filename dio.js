@@ -498,7 +498,7 @@ function dioTrackBossDamage(ctxB) {
         return;
     }
     var delta = _superState.dioEnergyLastBossHp - hp;
-    if (delta > 0 && type !== "arena" && type !== "rwb") {
+    if (delta > 0 && type !== "arena") {
         // Charge by the fraction of the boss's health bar removed, not raw damage.
         // A complete boss health bar is worth 35 energy; the rolling cap limits bursts.
         var maxHp = 0;
