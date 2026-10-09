@@ -376,17 +376,7 @@
     }
 
     function drawWhitebeardPortrait(x, y, scale) {
-        var art = typeof window.getPreloadedImage === "function" ? window.getPreloadedImage("whitebeard", (typeof window.getCharacterImage === "function" ? window.getCharacterImage("whitebeard") : null)) : null;
-        if (art && art.complete && art.naturalWidth > 0 && art.naturalHeight > 0) {
-            var maxW = 128 * scale, maxH = 168 * scale;
-            var ratio = art.naturalWidth / art.naturalHeight;
-            var drawW = maxW, drawH = drawW / ratio;
-            if (drawH > maxH) { drawH = maxH; drawW = drawH * ratio; }
-            ctx.save();
-            ctx.drawImage(art, x - drawW / 2, y - drawH / 2 + 3 * scale, drawW, drawH);
-            ctx.restore();
-            return;
-        }
+        // Используем оригинальный нарисованный портрет Белоуса, без подмены на PNG.
         ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
         ctx.fillStyle = "#8B0000";
         ctx.beginPath(); ctx.moveTo(-65, 90); ctx.lineTo(-55, 30); ctx.lineTo(55, 30); ctx.lineTo(65, 90); ctx.closePath(); ctx.fill();
@@ -513,23 +503,7 @@
     }
 
     function drawWhitebeardModel(cx, cy, size, flash, rotation) {
-        var art = typeof window.getPreloadedImage === "function" ? window.getPreloadedImage("whitebeard", (typeof window.getCharacterImage === "function" ? window.getCharacterImage("whitebeard") : null)) : null;
-        if (art && art.complete && art.naturalWidth > 0 && art.naturalHeight > 0) {
-            var maxW = size * 3.3, maxH = size * 3.8;
-            var ratio = art.naturalWidth / art.naturalHeight;
-            var drawW = maxW, drawH = drawW / ratio;
-            if (drawH > maxH) { drawH = maxH; drawW = drawH * ratio; }
-            ctx.save();
-            ctx.translate(cx, cy); ctx.rotate(rotation);
-            ctx.drawImage(art, -drawW / 2, -drawH / 2, drawW, drawH);
-            if (flash) {
-                ctx.globalCompositeOperation = "source-atop";
-                ctx.fillStyle = "rgba(255,255,255,0.48)";
-                ctx.fillRect(-drawW / 2, -drawH / 2, drawW, drawH);
-            }
-            ctx.restore();
-            return;
-        }
+        // Возвращаем оригинальную модель-сердце Белоуса вместо PNG-спрайта.
         ctx.save();
         ctx.translate(cx, cy); ctx.rotate(rotation);
         ctx.save();
