@@ -442,7 +442,7 @@
             };
 
             addLog("✅ " + key + " (" + Math.round(blob.size/1024) + " КБ)", "ok");
-            saveToCache(path, blob);
+            await saveToCache(path, blob);
             return { key, success: true, fromCache: false };
         } catch(e) {
             addLog("❌ " + key + " — " + e.message, "err");
@@ -487,7 +487,7 @@
                 fromCache: fromCache,
                 image: image
             };
-            if (!fromCache) saveToCache(path, blob);
+            if (!fromCache) await saveToCache(path, blob);
             addLog("✅ " + key + " (" + Math.round(blob.size / 1024) + " КБ" + (fromCache ? ", из кэша" : "") + ")", "ok");
             return { key: key, success: true, fromCache: fromCache };
         } catch (e) {
