@@ -2264,9 +2264,11 @@
                             dmg = result.dmg;
                         }
                         boss.hp = Math.max(0, boss.hp - dmg);
-                        // DIO energy is awarded only for a real, unblocked player hit.
-                        // Normalize by this boss's max HP so high damage cannot fill the meter instantly.
-                        if (typeof window.dioAddEnergy === 'function' && dmg > 0) {
+                        // During the two-boss opening phase there is no single active boss HP
+                        // for the common tracker, so charge directly from real, unblocked hits.
+                        // Once fight2 selects a boss, dioTrackBossDamage handles its health bar.
+                        let rwbBossIsTracked = typeof window.getRWBActiveBoss === 'function' && !!window.getRWBActiveBoss();
+                        if (!rwbBossIsTracked && typeof window.dioAddEnergy === 'function' && dmg > 0) {
                             let bossMaxHpForDio = Math.max(1, Number(boss.maxHp) || 1);
                             window.dioAddEnergy((dmg / bossMaxHpForDio) * 35);
                         }
