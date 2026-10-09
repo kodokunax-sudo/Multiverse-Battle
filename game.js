@@ -333,10 +333,11 @@ function loadGameData(d) {
     }
     
     gachaDailyLimits = d.gachaDailyLimits || { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
-    gachaDailyMax = d.gachaDailyMax || { common:50, rare:35, superRare:20, epic:10, mythic:5, legendary:10, secret:2 };
+    gachaDailyMax = Object.assign({ common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4 }, d.gachaDailyMax || {}, { superRare:25, epic:20, mythic:15, legendary:15, secret:4 });
     legendaryGachaTokens = d.legendaryGachaTokens || 0;
     secretGachaTokens = d.secretGachaTokens || 0;
     lastGachaReset = d.lastGachaReset || null;
+    gachaLimitCooldownAt = d.gachaLimitCooldownAt || null;
     challenges = d.challenges || [];
     lastChallengeReset = d.lastChallengeReset || null;
     gachaAnimationActive = false;
@@ -453,10 +454,11 @@ function initNewGame() {
     if (typeof window !== 'undefined') window._level7CardId = null;
     
     gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
-    gachaDailyMax = { common:50, rare:35, superRare:20, epic:10, mythic:5, legendary:10, secret:2 };
+    gachaDailyMax = { common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4 };
     legendaryGachaTokens = 0;
     secretGachaTokens = 0;
     lastGachaReset = null;
+    gachaLimitCooldownAt = null;
     challenges = [];
     lastChallengeReset = null;
     gachaAnimationActive = false;
@@ -550,6 +552,7 @@ function saveAll() {
     slotData.legendaryGachaTokens = legendaryGachaTokens;
     slotData.secretGachaTokens = secretGachaTokens;
     slotData.lastGachaReset = lastGachaReset;
+    slotData.gachaLimitCooldownAt = gachaLimitCooldownAt;
     slotData.challenges = challenges;
     slotData.lastChallengeReset = lastChallengeReset;
     slotData.afkActive = afkActive;
@@ -597,10 +600,10 @@ let totalClicks = 0, totalCardsObtained = 0, maxPoints = 100;
 let gameCompleted = false;
 let defeatedBosses = [];
 let gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
-let gachaDailyMax = { common:50, rare:35, superRare:20, epic:10, mythic:5, legendary:10, secret:2 };
+let gachaDailyMax = { common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4 };
 let legendaryGachaTokens = 0;
 let secretGachaTokens = 0;
-let lastGachaReset = null;
+let lastGachaReset = null; let gachaLimitCooldownAt = null;
 let gachaAnimationActive = false;
 let gachaAnimationData = null;
 let lastSaveTime = Date.now();
@@ -1043,11 +1046,11 @@ window.buySukuna = function () { if (rebirthCount < 4 || (mode !== "moder" && po
 
 // ========== ГАЧА ==========
 const gachaPrices = { common: 200, rare: 400, superRare: 800, epic: 1600, mythic: 3200, legendary: 10000, secret: 20000 };
-function resetGachaLimits() { gachaDailyLimits = { common: 0, rare: 0, superRare: 0, epic: 0, mythic: 0, legendary: 0, secret: 0 }; legendaryGachaTokens = 0; secretGachaTokens = 0; lastGachaReset = Date.now(); saveAll(); }
-function checkGachaReset() { let now = Date.now(); if (!lastGachaReset) { lastGachaReset = now; saveAll(); return; } let diff = (now - lastGachaReset) / 3600000; if (diff >= 24) { resetGachaLimits(); } }
-function grantBossGachaReward(bossWave) { if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) { if (!defeatedBosses.includes(bossWave)) { defeatedBosses.push(bossWave); } } checkGachaReset(); let legendaryToAdd = Math.min(2, 10 - legendaryGachaTokens); if (legendaryToAdd > 0) { legendaryGachaTokens += legendaryToAdd; showFloatingText("🎰 +" + legendaryToAdd + " ЛЕГЕНДАРНЫХ КРУТОК!", "#ffd700"); } if (secretGachaTokens < 2 && Math.random() < 0.15) { secretGachaTokens++; showFloatingText("🎰 СЕКРЕТНАЯ КРУТКА!", "#ff00ff"); } saveAll(); if (typeof renderGachaTab === 'function') renderGachaTab(); }
+function resetGachaLimits() { gachaDailyLimits = { common: 0, rare: 0, superRare: 0, epic: 0, mythic: 0, legendary: 0, secret: 0 }; legendaryGachaTokens = 0; secretGachaTokens = 0; gachaLimitCooldownAt = null; lastGachaReset = Date.now(); saveAll(); }
+function checkGachaReset() { let now = Date.now(); if (gachaLimitCooldownAt && now - gachaLimitCooldownAt >= 12 * 60 * 60 * 1000) { resetGachaLimits(); } }
+function grantBossGachaReward(bossWave) { if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) { if (!defeatedBosses.includes(bossWave)) { defeatedBosses.push(bossWave); } } checkGachaReset(); let legendaryToAdd = Math.min(2, 15 - legendaryGachaTokens); if (legendaryToAdd > 0) { legendaryGachaTokens += legendaryToAdd; showFloatingText("🎰 +" + legendaryToAdd + " ЛЕГЕНДАРНЫХ КРУТОК!", "#ffd700"); } if (secretGachaTokens < 4 && Math.random() < 0.15) { secretGachaTokens++; showFloatingText("🎰 СЕКРЕТНАЯ КРУТКА!", "#ff00ff"); } saveAll(); if (typeof renderGachaTab === 'function') renderGachaTab(); }
 function forceStopGachaAnimation() { closeModal(); gachaAnimationActive = false; gachaAnimationData = null; }
-function performGacha(type) { initAudio(); checkGachaReset(); if (gachaAnimationActive) forceStopGachaAnimation(); if (mode !== "moder") { if (type === "legendary" && legendaryGachaTokens <= 0) { alert("Нет разрешений на легендарную крутку! Победите нового босса."); return; } if (type === "secret" && secretGachaTokens <= 0) { alert("Нет разрешений на секретную крутку! Победите нового босса."); return; } if ((gachaDailyLimits[type] || 0) >= (gachaDailyMax[type] || 0)) { alert("Дневной лимит круток этого типа исчерпан!"); return; } if (points < (gachaPrices[type] || 0)) { alert("Не хватает звёзд!"); return; } } let rarity = rollGachaRarity(type); let card = createCard(rarity); if (!card) return; if (mode !== "moder") { points -= gachaPrices[type]; gachaDailyLimits[type] = (gachaDailyLimits[type] || 0) + 1; if (type === "legendary") legendaryGachaTokens--; if (type === "secret") secretGachaTokens--; } myCards.push(card); totalCardsObtained++; if (points > maxPoints) maxPoints = points; if (!discoveredCards.includes(card.name)) discoveredCards.push(card.name); saveAll(); renderAll(); if (typeof renderGachaTab === 'function') renderGachaTab(); renderPoints(); startGachaAnimation(card, type); }
+function performGacha(type) { initAudio(); checkGachaReset(); if (gachaAnimationActive) forceStopGachaAnimation(); if (mode !== "moder") { if (type === "legendary" && legendaryGachaTokens <= 0) { alert("Нет разрешений на легендарную крутку! Победите нового босса."); return; } if (type === "secret" && secretGachaTokens <= 0) { alert("Нет разрешений на секретную крутку! Победите нового босса."); return; } if ((gachaDailyLimits[type] || 0) >= (gachaDailyMax[type] || 0)) { alert("Дневной лимит круток этого типа исчерпан!"); return; } if (points < (gachaPrices[type] || 0)) { alert("Не хватает звёзд!"); return; } } let rarity = rollGachaRarity(type); let card = createCard(rarity); if (!card) return; if (mode !== "moder") { points -= gachaPrices[type]; gachaDailyLimits[type] = (gachaDailyLimits[type] || 0) + 1; if (type === "legendary") legendaryGachaTokens--; if (type === "secret") secretGachaTokens--; if ((gachaDailyLimits[type] || 0) >= (gachaDailyMax[type] || 0) && !gachaLimitCooldownAt) gachaLimitCooldownAt = Date.now(); } myCards.push(card); totalCardsObtained++; if (points > maxPoints) maxPoints = points; if (!discoveredCards.includes(card.name)) discoveredCards.push(card.name); saveAll(); renderAll(); if (typeof renderGachaTab === 'function') renderGachaTab(); renderPoints(); startGachaAnimation(card, type); }
 function rollGachaRarity(type) { let luckBonus = 0; let roll = Math.random() * 100; switch(type) { case "common": if (roll < 1) return "Мифическая"; if (roll < 3) return "Эпик"; if (roll < 11) return "Сверх редкая"; if (roll < 31) return "Редкая"; return "Обычная"; case "rare": if (roll < 3) return "Мифическая"; if (roll < 10) return "Эпик"; if (roll < 30) return "Сверх редкая"; if (roll < 90) return "Редкая"; return "Обычная"; case "superRare": if (roll < 2) return "Легендарная"; if (roll < 7) return "Мифическая"; if (roll < 25) return "Эпик"; if (roll < 80) return "Сверх редкая"; return "Редкая"; case "epic": if (roll < 0.2) return "Секретная"; if (roll < 8) return "Легендарная"; if (roll < 30) return "Мифическая"; if (roll < 80) return "Эпик"; return "Сверх редкая"; case "mythic": if (roll < 0.8) return "Секретная"; if (roll < 30) return "Легендарная"; if (roll < 80) return "Мифическая"; return "Эпик"; case "legendary": if (roll < 2) return "Секретная"; if (roll < 80) return "Легендарная"; return "Мифическая"; case "secret": if (roll < 20) return "Секретная"; return "Легендарная"; default: return "Обычная"; } }
 function getRarityColor(rarity) { let colors = { "Обычная": "#ffffff", "Редкая": "#17a2b8", "Сверх редкая": "#28a745", "Эпик": "#9b59b6", "Мифическая": "#e74c3c", "Легендарная": "#ffd700", "Секретная": "#ff6b6b" }; return colors[rarity] || "#ffffff"; }
 function getRarityEmoji(rarity) { let emojis = { "Обычная": "⚪", "Редкая": "🔵", "Сверх редкая": "🟢", "Эпик": "🟣", "Мифическая": "🔴", "Легендарная": "🟡", "Секретная": "💎" }; return emojis[rarity] || "❓"; }
@@ -1796,7 +1799,7 @@ function doRebirth() {
     console.log("[REBIRTH] Флаг Звезды сброшен — эволюция закрыта, бой доступен");
     
     gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 }; 
-    gachaDailyMax = { common:50, rare:35, superRare:20, epic:10, mythic:5, legendary:10, secret:2 }; 
+    gachaDailyMax = { common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4 }; 
     legendaryGachaTokens = 0; 
     secretGachaTokens = 0; 
     lastGachaReset = null; 
