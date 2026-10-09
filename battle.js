@@ -277,6 +277,7 @@ function updateTakabaConfidenceDisplay() {
 
 // ★★★ ФИКС: Такаба замораживает игрока ★★★
 function moveHeart() {
+    if (typeof _superState !== 'undefined' && (_superState.dioPreStop > 0 || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0)) return;
     if (typeof _superState !== 'undefined' && _superState.takabaTimeStop) return;
     if (typeof _superState !== 'undefined' && _superState.usoppStunTimer > 0) return;
     if (typeof _superState !== 'undefined' && _superState.garouTimeStop) return;
