@@ -1368,7 +1368,7 @@ function waystarRenderLoop() {
             if (waystarBossHp <= waystarBossMaxHp * 0.5 && waystarBossHp > 0) { waystarTriggerSplit(); }
             else {
                 updateWaystarPlayer(); updateWaystarShooting();
-                for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
+                if (!wsIsTimeStopped()) for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
                     var b = waystarPlayerBullets[i]; b.y += b.vy; b.x += (b.vx || 0); b.life--;
                     if (!b.trail) b.trail = [];
                     b.trail.push({ x: b.x, y: b.y, life: 10 }); if (b.trail.length > 5) b.trail.shift();
@@ -1398,7 +1398,7 @@ function waystarRenderLoop() {
         else if (waystarState === "phase3") {
             updateWaystarAmbient(); updateWaystarPhase3Special(); updateWaystarPlayer(); updateWaystarShooting();
             updateWaystarBombQueue();
-            for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
+            if (!wsIsTimeStopped()) for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
                 var b = waystarPlayerBullets[i]; b.y += b.vy; b.x += (b.vx || 0); b.life--;
                 if (!b.trail) b.trail = [];
                 b.trail.push({ x: b.x, y: b.y, life: 10 }); if (b.trail.length > 5) b.trail.shift();
