@@ -28,14 +28,29 @@ function dioPlaySound(path) {
         if (!audio) {
             audio = new Audio(path);
             audio.preload = "auto";
-            audio.volume = 0.72;
             _dioAudioCache[path] = audio;
         }
+        // DIO audio must never inherit a slow playback rate from another effect.
+        audio.defaultPlaybackRate = 1;
+        audio.playbackRate = 1;
         audio.currentTime = 0;
-        audio.volume = 0.72;
+        audio.volume = isDioTimeStopped() ? 0.28 : 0.72;
         var p = audio.play();
         if (p && typeof p.catch === "function") p.catch(function(){});
     } catch(e) {}
+}
+function dioSyncAudioMix() {
+    var stopped = isDioTimeStopped();
+    for (var path in _dioAudioCache) {
+        var audio = _dioAudioCache[path];
+        if (!audio) continue;
+        try {
+            // Keep normal pitch/speed and duck DIO's music/effects while time is stopped.
+            audio.defaultPlaybackRate = 1;
+            if (audio.playbackRate !== 1) audio.playbackRate = 1;
+            audio.volume = stopped ? 0.28 : 0.72;
+        } catch (e) {}
+    }
 }
 window.preloadDioSounds = preloadDioSounds;
 
@@ -369,6 +384,7 @@ function dioUseSkill(skill) {
 window.dioUseSkill = dioUseSkill;
 
 function updateDioSkillCooldowns(dt) {
+    dioSyncAudioMix();
     var c = _superState.dioSkillCooldowns;
     for (var k in c) c[k] = Math.max(0, (c[k] || 0) - dt);
     // DIO's own clock is the only clock that continues while the world is stopped.
