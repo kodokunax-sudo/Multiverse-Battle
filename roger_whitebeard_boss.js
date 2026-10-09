@@ -2175,7 +2175,7 @@
             if (!stopAll) {
                 sw.radius += sw.speed; sw.life--;
             }
-            if (sw.canDestroy && !sw.hit && rwbPlayer.invulnTimer <= 0 && (rwbState === "fight1" || rwbState === "fight2")) {
+            if (!stopAll && sw.canDestroy && !sw.hit && rwbPlayer.invulnTimer <= 0 && (rwbState === "fight1" || rwbState === "fight2")) {
                 let dx = rwbPlayer.x - sw.x, dy = rwbPlayer.y - sw.y;
                 let dist = Math.sqrt(dx * dx + dy * dy);
                 if (Math.abs(dist - sw.radius) < sw.width * 0.7 + 4) { sw.hit = true; hitPlayer(sw.damage); }
@@ -2198,6 +2198,8 @@
         var stopAll = false;
         if (typeof _superState !== 'undefined') {
             stopAll = (_superState.garouTimeStop === true ||
+                       _superState.dioTimeStop > 0 ||
+                       _superState.dioTeleportStop > 0 ||
                        _superState.takabaTimeStop === true ||
                        _superState.antispiralFrozen === true ||
                        _superState.usoppStunTimer > 0);
