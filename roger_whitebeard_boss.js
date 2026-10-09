@@ -376,7 +376,7 @@
     }
 
     function drawWhitebeardPortrait(x, y, scale) {
-        var art = typeof window.getPreloadedImage === "function" ? window.getPreloadedImage("whitebeard", "images/Belous_1.png") : null;
+        var art = typeof window.getPreloadedImage === "function" ? window.getPreloadedImage("whitebeard", (typeof window.getCharacterImage === "function" ? window.getCharacterImage("whitebeard") : null)) : null;
         if (art && art.complete && art.naturalWidth > 0 && art.naturalHeight > 0) {
             var maxW = 128 * scale, maxH = 168 * scale;
             var ratio = art.naturalWidth / art.naturalHeight;
@@ -513,7 +513,7 @@
     }
 
     function drawWhitebeardModel(cx, cy, size, flash, rotation) {
-        var art = typeof window.getPreloadedImage === "function" ? window.getPreloadedImage("whitebeard", "images/Belous_1.png") : null;
+        var art = typeof window.getPreloadedImage === "function" ? window.getPreloadedImage("whitebeard", (typeof window.getCharacterImage === "function" ? window.getCharacterImage("whitebeard") : null)) : null;
         if (art && art.complete && art.naturalWidth > 0 && art.naturalHeight > 0) {
             var maxW = size * 3.3, maxH = size * 3.8;
             var ratio = art.naturalWidth / art.naturalHeight;
