@@ -1007,6 +1007,7 @@ function updateWaystarPlayer() {
 function updateWaystarBoss() {
     if (waystarDialogActive) return;
     if (wsIsTimeStopped()) return;
+    if (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(waystarBoss)) return;
 
     if (waystarState === "phase1") { waystarBoss.x += waystarBoss.vx * waystarSpeedMult / WAYSTAR_SLOWDOWN; if (waystarBoss.x < 60 || waystarBoss.x > 340) waystarBoss.vx *= -1; waystarBoss.rotation += 0.01 * waystarSpeedMult; waystarBoss.pulse += 0.06; waystarBoss.time += 0.015; }
     else if (waystarState === "phase3") { waystarSmallBoss.alpha = Math.min(1, waystarSmallBoss.alpha + 0.015); var mSpeed = (waystarRageMode ? 1.3 : 0.9) / WAYSTAR_SLOWDOWN; mSpeed += waystarEscalationLevel * 0.08; waystarSmallBoss.x += Math.sin(waystarSmallBoss.time) * mSpeed * waystarSpeedMult; waystarSmallBoss.x = Math.max(40, Math.min(360, waystarSmallBoss.x)); waystarSmallBoss.y = 100 + Math.sin(waystarSmallBoss.time * 0.7) * (waystarRageMode ? 15 : 10); waystarSmallBoss.rotation += (waystarRageMode ? 0.05 : 0.03) * waystarSpeedMult; waystarSmallBoss.pulse += (waystarRageMode ? 0.18 : 0.11); waystarSmallBoss.time += (waystarRageMode ? 0.045 : 0.03); }
@@ -1020,7 +1021,7 @@ function updateWaystarAttacks() {
     for (var i = waystarAttacks.length - 1; i >= 0; i--) {
         var a = waystarAttacks[i];
 
-        if (stopAll) continue;
+        if (stopAll || (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(a))) continue;
 
         if (a.type === "meteor" || a.type === "spiral" || a.type === "star_rain" || a.type === "shotgun_bullet") {
             a.trail.push({ x: a.x, y: a.y, life: 10 }); if (a.trail.length > 6) a.trail.shift();
@@ -1041,6 +1042,7 @@ function updateWaystarAttacks() {
     }
     for (var i = waystarBombs.length - 1; i >= 0; i--) {
         var bomb = waystarBombs[i];
+        if (wsIsTimeStopped() || (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(bomb))) continue;
         if (!bomb.exploded) {
             bomb.timer--; bomb.phaseTimer++;
             var totalTime = bomb.maxTimer; var elapsed = totalTime - bomb.timer; var progress = elapsed / totalTime;
