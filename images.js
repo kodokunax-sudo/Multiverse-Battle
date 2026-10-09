@@ -123,3 +123,18 @@ const cardImages = {
 function getCardImage(cardName) {
     return cardImages[cardName] || null;
 }
+
+
+// ========== СПРАЙТЫ БОССОВ И УНИКАЛЬНЫХ ПЕРСОНАЖЕЙ ==========
+const characterImages = {
+    dio: "images/Super_Dio_2.gif",
+    whitebeard: "images/Belous_1.png"
+};
+
+function getCharacterImage(characterKey) {
+    return characterImages[characterKey] || null;
+}
+
+// Явный экспорт нужен загрузчику и игровым модулям.
+window.characterImages = characterImages;
+window.getCharacterImage = getCharacterImage;
