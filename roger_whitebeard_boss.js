@@ -1788,9 +1788,23 @@
         }
     }
 
+    function clearWhitebeardVortexAttacks() {
+        // Clear both damaging projectiles and lingering attack indicators when the pull begins.
+        rwbAttacks.length = 0;
+        rwbShockwaves.length = 0;
+        rwbWhiteCracks.length = 0;
+        rwbPurpleCracks.length = 0;
+        rwbSpeedLines.length = 0;
+        rwbHakiLightnings.length = 0;
+    }
+
     function spawnWhitebeardVortex() {
         if (!window.rwbActive || rwbState !== "fight2" || !rwbActiveBoss || rwbActiveBoss.id !== "whitebeard" || wbVortexActive) return;
         wbVortexActive = true;
+        clearWhitebeardVortexAttacks();
+        // Restart attack intervals so no queued boss attack leaks into the pull.
+        rwbTitanFistTimer = 0;
+        rwbTitanRockTimer = 0;
         wbVortexTimerLeft = WB_VORTEX_QTE_DURATION;
         wbVortexNextPoint = 0;
         wbVortexFailed = false;
@@ -2420,7 +2434,16 @@
     // ============================================================
     function rwbRenderLoop() {
         if (!window.rwbActive || !ctx || !canvas) return;
-        rwbTimer++;
+        // The boss path is calculated from rwbTimer. Do not advance that clock while
+        // time is stopped (or during the vortex), otherwise the boss jumps on resume.
+        var rwbWorldStopped = wbVortexActive;
+        if (typeof _superState !== "undefined") {
+            rwbWorldStopped = rwbWorldStopped || _superState.garouTimeStop === true ||
+                (_superState.dioTimeStop || 0) > 0 || (_superState.dioTeleportStop || 0) > 0 ||
+                _superState.takabaTimeStop === true || _superState.antispiralFrozen === true ||
+                (_superState.usoppStunTimer || 0) > 0;
+        }
+        if (!rwbWorldStopped) rwbTimer++;
 
         if (typeof tickSupers === 'function') {
             try { tickSupers(); } catch(e) { console.error("[ROGER-WB] tickSupers error:", e); }
@@ -2478,8 +2501,10 @@
                         playWhooshSound(0.5);
                         setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
                     }
-                    rwbTitanRockTimer++;
-                    if (rwbTitanRockTimer >= RWB_ROCK_INTERVAL) { rwbTitanRockTimer = 0; spawnGiantRock(); }
+                    if (!wbVortexActive) {
+                        rwbTitanRockTimer++;
+                        if (rwbTitanRockTimer >= RWB_ROCK_INTERVAL) { rwbTitanRockTimer = 0; spawnGiantRock(); }
+                    }
                 }
                 let remaining = Math.max(0, Math.ceil((rwbSurvivalTarget2 - rwbSurvivalTimer2) / 60));
                 let timerEl = document.getElementById("arenaTimer");
@@ -2496,6 +2521,9 @@
                 }
             } else if (rwbState === "done") { return; }
         }
+
+        // Delayed attack callbacks may still fire during the vortex; keep the arena clear until it ends.
+        if (wbVortexActive) clearWhitebeardVortexAttacks();
 
         if (Math.abs(rwbPlayer.vx) > 0.1 || Math.abs(rwbPlayer.vy) > 0.1) {
             rwbPlayer.x += rwbPlayer.vx;
