@@ -241,6 +241,103 @@ function drawDioHeartVisual(targetCtx, x, y, size) {
     return true;
 }
 window.drawDioHeartVisual = drawDioHeartVisual;
+
+// DIO: отдельная узнаваемая модель персонажа и белый стенд-сердце THE WORLD.
+function drawDioPlayerVisual(c,x,y,size){
+ if(!c)return false;var sc=Math.max(.78,Math.min(1.12,(Number(size)||12)/12));
+ c.save();c.translate(Number(x)||0,Number(y)||0);c.scale(sc,sc);
+ var halo=c.createRadialGradient(0,0,2,0,0,23);halo.addColorStop(0,"rgba(255,210,70,.34)");halo.addColorStop(.6,"rgba(100,255,190,.14)");halo.addColorStop(1,"rgba(100,255,190,0)");c.fillStyle=halo;c.beginPath();c.arc(0,0,23,0,Math.PI*2);c.fill();
+ c.shadowColor="#e7c04d";c.shadowBlur=5;c.fillStyle="#286747";c.beginPath();c.moveTo(-11,1);c.quadraticCurveTo(-12,-5,-7,-6);c.lineTo(7,-6);c.quadraticCurveTo(12,-4,11,2);c.lineTo(8,12);c.quadraticCurveTo(0,15,-8,12);c.closePath();c.fill();c.shadowBlur=0;c.strokeStyle="#e7c04d";c.lineWidth=1.6;c.stroke();
+ c.fillStyle="#d8ba53";c.beginPath();c.ellipse(-7,1,5,4,-.22,0,Math.PI*2);c.fill();c.beginPath();c.ellipse(7,1,5,4,.22,0,Math.PI*2);c.fill();
+ c.fillStyle="#24563d";c.beginPath();c.moveTo(-5,-3);c.lineTo(0,1);c.lineTo(5,-3);c.lineTo(4,8);c.lineTo(0,10);c.lineTo(-4,8);c.closePath();c.fill();c.strokeStyle="#f6db76";c.lineWidth=1.4;c.beginPath();c.moveTo(0,1);c.lineTo(0,8);c.stroke();c.fillStyle="#f5d36a";c.beginPath();c.arc(0,5,1.8,0,Math.PI*2);c.fill();
+ c.fillStyle="#f1c59e";c.beginPath();c.ellipse(0,-7,6.6,8.2,0,0,Math.PI*2);c.fill();c.strokeStyle="#70432e";c.lineWidth=1;c.stroke();
+ c.fillStyle="#f4d75d";c.strokeStyle="#997224";c.lineWidth=1;c.beginPath();c.moveTo(-7,-9);c.lineTo(-10,-15);c.lineTo(-5,-13);c.lineTo(-4,-19);c.lineTo(0,-14);c.lineTo(4,-19);c.lineTo(5,-13);c.lineTo(10,-15);c.lineTo(7,-8);c.quadraticCurveTo(0,-12,-7,-9);c.closePath();c.fill();c.stroke();
+ c.fillStyle="#2ca36b";c.beginPath();c.moveTo(-7,-11);c.quadraticCurveTo(0,-14,7,-11);c.lineTo(7,-8.8);c.quadraticCurveTo(0,-11,-7,-8.8);c.closePath();c.fill();
+ c.strokeStyle="#1e4a35";c.lineWidth=1.2;c.beginPath();c.moveTo(-5,-7.5);c.lineTo(-1.5,-8.2);c.moveTo(1.5,-8.2);c.lineTo(5,-7.5);c.stroke();c.fillStyle="#fff";c.beginPath();c.ellipse(-3.2,-6.1,1.8,1.25,0,0,Math.PI*2);c.fill();c.beginPath();c.ellipse(3.2,-6.1,1.8,1.25,0,0,Math.PI*2);c.fill();c.fillStyle="#4b2c19";c.beginPath();c.arc(-3,-6.1,.9,0,Math.PI*2);c.fill();c.beginPath();c.arc(3,-6.1,.9,0,Math.PI*2);c.fill();
+ c.strokeStyle="#8b4936";c.lineWidth=.9;c.beginPath();c.moveTo(-1.5,-1.9);c.quadraticCurveTo(0,-1,1.5,-1.9);c.stroke();c.fillStyle="#ffe78b";c.beginPath();c.arc(-6.5,-2.3,1.1,0,Math.PI*2);c.fill();c.beginPath();c.arc(6.5,-2.3,1.1,0,Math.PI*2);c.fill();
+ c.fillStyle="#fff0a6";c.beginPath();c.moveTo(-5,-4);c.lineTo(0,-1);c.lineTo(-2,4);c.closePath();c.fill();c.beginPath();c.moveTo(5,-4);c.lineTo(0,-1);c.lineTo(2,4);c.closePath();c.fill();c.restore();return true;
+}
+window.drawDioPlayerVisual=drawDioPlayerVisual;
+function drawDioStandVisual(c,x,y,size){
+ if(!c)return false;var sc=Math.max(.35,(Number(size)||10)/14);c.save();c.translate(Number(x)||0,Number(y)||0);c.scale(sc,sc);c.shadowColor="#fff";c.shadowBlur=12;
+ var heart=function(){c.beginPath();c.moveTo(0,6);c.bezierCurveTo(-2,4,-9,-1,-9,-5);c.bezierCurveTo(-9,-11,-2,-12,0,-7);c.bezierCurveTo(2,-12,9,-11,9,-5);c.bezierCurveTo(9,-1,2,4,0,6);c.closePath();};
+ var g=c.createLinearGradient(-7,-10,7,7);g.addColorStop(0,"#fff");g.addColorStop(.58,"#f4f8ff");g.addColorStop(1,"#b9c8dc");c.fillStyle=g;heart();c.fill();c.shadowBlur=0;c.strokeStyle="#fff";c.lineWidth=1.4;heart();c.stroke();c.fillStyle="#52647a";c.beginPath();c.arc(-3,-4.5,1,0,Math.PI*2);c.fill();c.beginPath();c.arc(3,-4.5,1,0,Math.PI*2);c.fill();c.restore();return true;
+}
+window.drawDioStandVisual=drawDioStandVisual;
+function dioGetStandPosition(ctxB){
+ ctxB=ctxB||((typeof getBossContext==="function")?getBossContext():null);if(!ctxB||typeof ctxB.getHeartX!=="function"||typeof ctxB.getHeartY!=="function")return null;
+ var px=Number(ctxB.getHeartX())||0,py=Number(ctxB.getHeartY())||0;
+ if(typeof _superState!=="undefined"&&_superState.dioMudaActive&&_superState.dioMudaMode==="melee"&&isFinite(Number(_superState.dioMudaStandX))&&isFinite(Number(_superState.dioMudaStandY)))return{x:Number(_superState.dioMudaStandX),y:Number(_superState.dioMudaStandY),radius:7};
+ return{x:px+(px>300?-20:20),y:py-8,radius:7};
+}
+window.getDioStandPosition=dioGetStandPosition;
+function dioPlaySoundFrom(path,volume,startSeconds){
+ try{var audio=dioPrepareSound(path);if(!audio)return null;audio._dioPlaybackToken=(audio._dioPlaybackToken||0)+1;var token=audio._dioPlaybackToken;audio.defaultPlaybackRate=1;audio.playbackRate=1;audio.pause();audio.muted=false;audio.volume=Math.max(0,Math.min(1,Number(volume)||.8));var start=Math.max(0,Number(startSeconds)||0);
+ var begin=function(){if(audio._dioPlaybackToken!==token)return;try{audio.currentTime=Math.min(start,Math.max(0,(audio.duration||start+.1)-.05));}catch(e){}var p=audio.play();if(p&&p.catch)p.catch(function(){});};
+ if(audio.readyState>=1)begin();else{audio.addEventListener("loadedmetadata",begin,{once:true});try{audio.load();}catch(e){}}return audio;
+ }catch(e){return null;}
+}
+function dioDrawKnife(c,k){
+ var a=Number(k.angle)||Math.atan2(k.vy||0,k.vx||1);c.save();c.translate(k.x,k.y);c.rotate(a);c.globalAlpha=isDioTimeStopped()?.9:1;c.shadowColor="#d7e6ff";c.shadowBlur=7;c.fillStyle="#eaf3ff";c.strokeStyle="#65758c";c.lineWidth=1;c.beginPath();c.moveTo(10,0);c.lineTo(-3,-3.1);c.lineTo(-1,0);c.lineTo(-3,3.1);c.closePath();c.fill();c.stroke();c.shadowBlur=0;c.fillStyle="#cda94e";c.fillRect(-5,-1.4,4,2.8);c.fillStyle="#55452d";c.fillRect(-8,-1.2,3,2.4);c.restore();
+}
+function dioRenderSkillEffects(ctxB){
+ if(!ctx||!isDioOverHeavenMain()||typeof _superState==="undefined")return;var now=performance.now(),knives=Array.isArray(_superState.dioKnives)?_superState.dioKnives:[];
+ for(var i=0;i<knives.length;i++){var k=knives[i];if(isDioTimeStopped()){ctx.save();ctx.globalAlpha=.6;ctx.strokeStyle="#dce9ff";ctx.setLineDash([3,3]);ctx.lineWidth=1;ctx.beginPath();ctx.arc(k.x,k.y,8+Math.sin(now/100+i)*1.5,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();}dioDrawKnife(ctx,k);}
+ if((_superState.dioStandAttackUntil||0)>now){var sx=Number(_superState.dioStandAttackSourceX)||0,sy=Number(_superState.dioStandAttackSourceY)||0,tx=Number(_superState.dioStandAttackX)||sx,ty=Number(_superState.dioStandAttackY)||sy;ctx.save();ctx.globalAlpha=Math.min(1,(_superState.dioStandAttackUntil-now)/100);ctx.strokeStyle="#fff";ctx.shadowColor="#fff";ctx.shadowBlur=10;ctx.lineWidth=2.4;ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo((sx+tx)/2,Math.min(sy,ty)-11,tx,ty);ctx.stroke();ctx.strokeStyle="#d7b6ff";ctx.beginPath();ctx.moveTo(tx-5,ty-6);ctx.lineTo(tx+5,ty+6);ctx.moveTo(tx+5,ty-6);ctx.lineTo(tx-5,ty+6);ctx.stroke();ctx.restore();}
+ if(_superState.dioMudaActive&&_superState.dioMudaMode==="melee"){var t=now-(Number(_superState.dioMudaLastHitAt)||0);if(_superState.dioMudaLastHitAt>0&&t>=0&&t<170){var p=dioGetStandPosition(ctxB);if(p){ctx.save();ctx.globalAlpha=1-t/170;ctx.strokeStyle="#fff4a4";ctx.shadowColor="#ffdf73";ctx.shadowBlur=9;ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,10+(170-t)*.06,now/70,now/70+1.55);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x-10,p.y-9);ctx.lineTo(p.x+9,p.y+8);ctx.moveTo(p.x+10,p.y-8);ctx.lineTo(p.x-8,p.y+9);ctx.stroke();ctx.restore();}}}
+}
+window.dioRenderSkillEffects=dioRenderSkillEffects;
+function dioRenderPlayerAndStand(ctxB){if(!ctx||!ctxB||!isDioOverHeavenMain())return;drawDioPlayerVisual(ctx,ctxB.getHeartX(),ctxB.getHeartY(),ctxB.getHeartSize?ctxB.getHeartSize():12);var p=dioGetStandPosition(ctxB);if(p)drawDioStandVisual(ctx,p.x,p.y,10);dioRenderSkillEffects(ctxB);}
+window.dioRenderPlayerAndStand=dioRenderPlayerAndStand;
+function dioGetUniqueBossTarget(ctxB,preferredId){
+ ctxB=ctxB||((typeof getBossContext==="function")?getBossContext():null);if(!ctxB||!["waystar","stone","rwb"].includes(ctxB.type))return null;
+ if(ctxB.type==="waystar"&&typeof waystarBossHp!=="undefined"&&typeof waystarBossMaxHp!=="undefined"){var w=(typeof waystarState!=="undefined"&&waystarState==="phase3"&&typeof waystarSmallBoss!=="undefined")?waystarSmallBoss:((typeof waystarBoss!=="undefined")?waystarBoss:null);return{type:"waystar",id:"waystar",x:w?w.x:200,y:w?w.y:120,size:w?(w.size||22):22,hp:waystarBossHp,maxHp:waystarBossMaxHp,ref:w};}
+ if(ctxB.type==="stone"&&typeof livingStoneBossHp!=="undefined"&&typeof livingStoneBossMaxHp!=="undefined"){var s=typeof livingStoneBoss!=="undefined"?livingStoneBoss:null;return{type:"stone",id:"stone",x:s?s.x:200,y:s?s.y:130,size:s?(s.size||26):26,hp:livingStoneBossHp,maxHp:livingStoneBossMaxHp,ref:s};}
+ if(ctxB.type==="rwb"){var active=typeof window.getRWBActiveBoss==="function"?window.getRWBActiveBoss():null;var targets=typeof window.getRWBTargets==="function"?window.getRWBTargets():[];if(preferredId){if(active&&active.id===preferredId)return{type:"rwb",id:active.id,x:active.x,y:active.y,size:active.size||28,hp:active.hp,maxHp:active.maxHp,ref:active};for(var ri=0;ri<targets.length;ri++)if(targets[ri]&&targets[ri].id===preferredId){var q=targets[ri];return{type:"rwb",id:q.id,x:q.x,y:q.y,size:q.size||28,hp:q.hp,maxHp:q.maxHp,ref:q};}}
+ if(!active&&targets.length){var player=typeof window.getRWBPlayer==="function"?window.getRWBPlayer():null,best=null,bd=Infinity;for(var i=0;i<targets.length;i++){var cand=targets[i];if(!cand)continue;var d=player?Math.hypot(cand.x-player.x,cand.y-player.y):0;if(d<bd){best=cand;bd=d;}}active=best;}if(!active)return null;return{type:"rwb",id:active.id,x:active.x,y:active.y,size:active.size||28,hp:active.hp,maxHp:active.maxHp,ref:active};}
+ return null;
+}
+window.getDioUniqueBossTarget=dioGetUniqueBossTarget;
+function dioApplyBossDamageNow(type,id,amount){
+ amount=Math.max(0,Number(amount)||0);if(!amount)return;var cb=typeof getBossContext==="function"?getBossContext():null;if(!cb||cb.type!==type)return;var t=dioGetUniqueBossTarget(cb,id);if(!t)return;var dmg=Math.max(1,Math.round(amount));
+ if(type==="waystar"){if(typeof waystarBossHp==="undefined")return;waystarBossHp=Math.max(0,waystarBossHp-dmg);if(typeof waystarBossFlash!=="undefined")waystarBossFlash=10;if(typeof spawnWaystarParticles==="function")spawnWaystarParticles(t.x,t.y,18,"#fff0a0",5);if(typeof addWaystarFlash==="function")addWaystarFlash(t.x,t.y,26);if(typeof addWaystarSlash==="function")addWaystarSlash(t.x,t.y,Math.random()*Math.PI*2,45,4);}
+ else if(type==="stone"){if(typeof damageLivingStone==="function")damageLivingStone(dmg);if(typeof spawnLivingStoneParticles==="function")spawnLivingStoneParticles(t.x,t.y,18,"#fff",5);if(typeof spawnLivingStoneText==="function")spawnLivingStoneText(t.x,t.y-22,"-"+dmg+" DIO","#fff0a0",55);}
+ else if(type==="rwb"){if(typeof window.rwbApplyDioSkillDamage==="function")window.rwbApplyDioSkillDamage(id,dmg);else if(t.ref){t.ref.hp=Math.max(0,t.ref.hp-dmg);t.ref.hitFlash=10;}if(typeof window.rwbAddShockwave==="function")window.rwbAddShockwave(t.x,t.y,"#fff",7,.35,4);if(typeof window.rwbAddFlashWhite==="function")window.rwbAddFlashWhite(2);}
+ if(typeof window.showFloatingText==="function"){try{window.showFloatingText("-"+dmg+" DIO","#fff0a0");}catch(e){}}
+}
+function dioQueueOrApplyBossDamage(t,amount){if(!t||!(amount>0))return;if(isDioTimeStopped()){if(!Array.isArray(_superState.dioPendingBossDamage))_superState.dioPendingBossDamage=[];_superState.dioPendingBossDamage.push({type:t.type,id:t.id,amount:amount});return;}dioApplyBossDamageNow(t.type,t.id,amount);}
+function dioFlushPendingBossDamage(){if(!_superState||!Array.isArray(_superState.dioPendingBossDamage)||!_superState.dioPendingBossDamage.length)return;var list=_superState.dioPendingBossDamage.splice(0),groups={};for(var i=0;i<list.length;i++){var p=list[i];if(!p)continue;var k=p.type+":"+p.id;if(!groups[k])groups[k]={type:p.type,id:p.id,amount:0};groups[k].amount+=Math.max(0,Number(p.amount)||0);}Object.keys(groups).forEach(function(k){var g=groups[k];dioApplyBossDamageNow(g.type,g.id,g.amount);});}
+function dioLaunchKnifeVolley(ctxB){
+ var t=dioGetUniqueBossTarget(ctxB,_superState.dioMudaTargetId);if(!t){_superState.dioMudaActive=false;_superState.dioMudaMode=null;return;}var px=ctxB.getHeartX(),py=ctxB.getHeartY(),base=Math.atan2(t.y-py,t.x-px);if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];
+ var total=Math.max(1,Math.floor(Number(_superState.dioMudaTotalDamage)||t.maxHp*.08));
+ for(var i=0;i<5;i++){var a=base+(i-2)*.13;var d=Math.floor(total*(i+1)/5)-Math.floor(total*i/5);_superState.dioKnives.push({x:px+(px>300?-10:10),y:py-3,vx:Math.cos(a)*9.5,vy:Math.sin(a)*9.5,angle:a,life:180,damage:d,targetType:t.type,targetId:t.id});}
+ _superState.dioMudaActive=false;_superState.dioMudaMode=null;dioPlaySoundFrom("music/Voicy_Dio Brando muda muda.mp3",.8,4);if(typeof window.showFloatingText==="function")window.showFloatingText("KNIVES — THE WORLD!","#fff0a0");
+}
+function dioUpdateMudaSkill(dt){
+ if(!isDioOverHeavenMain()||!_superState)return;var cb=typeof getBossContext==="function"?getBossContext():null,now=performance.now();
+ if(_superState.dioMudaActive&&_superState.dioMudaMode==="melee"){var t=dioGetUniqueBossTarget(cb,_superState.dioMudaTargetId);if(!t){_superState.dioMudaActive=false;_superState.dioMudaMode=null;}else{
+ var elapsed=Math.max(0,now-(_superState.dioMudaStartedAt||now)),travel=Math.min(1,elapsed/520),px=cb.getHeartX(),py=cb.getHeartY(),orbit=elapsed>520;
+ _superState.dioMudaStandX=px+(t.x-px)*travel+(orbit?Math.sin(elapsed/42)*12:0);_superState.dioMudaStandY=py+(t.y-py)*travel+(orbit?Math.cos(elapsed/35)*8:0);
+ var due=Math.min(12,Math.floor(elapsed/250));while((_superState.dioMudaHitIndex||0)<due){_superState.dioMudaHitIndex=(_superState.dioMudaHitIndex||0)+1;var cur=dioGetUniqueBossTarget(cb,_superState.dioMudaTargetId);if(!cur)break;var total=Math.max(1,Math.floor(Number(_superState.dioMudaTotalDamage)||cur.maxHp*.1)),idx=_superState.dioMudaHitIndex;var hitDmg=Math.floor(total*idx/12)-Math.floor(total*(idx-1)/12);dioQueueOrApplyBossDamage(cur,hitDmg);_superState.dioMudaLastHitAt=now;_superState.dioMudaImpactX=cur.x;_superState.dioMudaImpactY=cur.y;}
+ if(elapsed>=3000){_superState.dioMudaActive=false;_superState.dioMudaMode=null;_superState.dioMudaStandX=null;_superState.dioMudaStandY=null;_superState.dioStandFlash=Math.max(_superState.dioStandFlash||0,.3);}}}
+ else if(_superState.dioMudaActive&&_superState.dioMudaMode==="knives"&&now-(_superState.dioMudaStartedAt||now)>=2000)dioLaunchKnifeVolley(cb);
+ var knives=Array.isArray(_superState.dioKnives)?_superState.dioKnives:[];if(knives.length){if(isDioTimeStopped())return;for(var i=knives.length-1;i>=0;i--){var k=knives[i];if(!k){knives.splice(i,1);continue;}var t=dioGetUniqueBossTarget(cb,k.targetId);if(!t){knives.splice(i,1);continue;}var a=Math.atan2(t.y-k.y,t.x-k.x),sp=Math.hypot(k.vx,k.vy)||9.5;k.angle=a;k.vx=Math.cos(a)*sp;k.vy=Math.sin(a)*sp;var frames=Math.max(.25,Math.min(6,(Number(dt)||.016)*60));k.x+=k.vx*frames;k.y+=k.vy*frames;k.life-=frames;if(Math.hypot(t.x-k.x,t.y-k.y)<t.size+10){dioQueueOrApplyBossDamage(t,k.damage);knives.splice(i,1);}else if(k.life<=0||k.x<-40||k.x>440||k.y<-40||k.y>540)knives.splice(i,1);}}
+}
+function dioActivateMudaSkill(){
+ var cb=typeof getBossContext==="function"?getBossContext():null,t=dioGetUniqueBossTarget(cb);if(!t){if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ НАВЫК ТОЛЬКО ПРОТИВ УНИКАЛЬНЫХ БОССОВ","#ffaa00");return false;}if(!dioCanUse("muda",40,30))return false;
+ var px=cb.getHeartX(),py=cb.getHeartY(),close=Math.hypot(t.x-px,t.y-py)<=132;_superState.dioMudaActive=true;_superState.dioMudaMode=close?"melee":"knives";_superState.dioMudaStartedAt=performance.now();_superState.dioMudaTargetType=t.type;_superState.dioMudaTargetId=t.id;_superState.dioMudaTotalDamage=Math.max(1,Math.floor(t.maxHp*(close?.10:.08)));_superState.dioMudaHitIndex=0;_superState.dioMudaLastHitAt=0;_superState.dioMudaStandX=px+(px>300?-20:20);_superState.dioMudaStandY=py-8;if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];if(typeof window.showFloatingText==="function")window.showFloatingText(close?"THE WORLD — MUDA MUDA MUDA!":"ДИО ГОТОВИТ НОЖИ (2 СЕК.)","#fff0a0");return true;
+}
+window.dioActivateMudaSkill=dioActivateMudaSkill;
+function dioAttackTouchesStand(ctxB,a){
+ if(!a||!isDioOverHeavenMain()||a.dioAggroNoPlayer||a.dioStandHitOnce)return false;var p=dioGetStandPosition(ctxB);if(!p)return false;var x=p.x,y=p.y,h=p.radius||7,type=ctxB?ctxB.type:null,sz=Number(a.size||a.radius||a.width||14)||14;
+ if(type==="arena"){if(a.type==="bomb"){if(a.timer>=0)return false;return Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||a.maxRadius||20)+h;}if(["circle","rainbow","healCircle"].includes(a.type))return Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||10)+h;if(a.type==="sword")return Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.size||10)+h;var s=Number(a.size)||20,cx=(Number(a.x)||0)+s/2,cy=(Number(a.y)||0)+s/2;return Math.abs(x-cx)<s/2+h&&Math.abs(y-cy)<s/2+h;}
+ if(type==="waystar"){if(a.type==="laser")return a.state==="active"&&Math.abs(x-(Number(a.x)||0))<Number(a.width||40)/2+h;if(a.type==="giant_laser"){if(a.state!=="active")return false;var dx=x-(Number(a.x)||0),dy=y-(Number(a.y)||0),ang=Number(a.angle)||0;return Math.abs(dx*Math.sin(ang)-dy*Math.cos(ang))<Number(a.width||20)/2+h;}if(a.type==="bomb"){if(!a.exploded)return false;return Math.hypot(x-a.x,y-a.y)<Number(a.radius||20)+h;}return Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<sz+h;}
+ if(type==="stone"){if(a.type==="laser")return(a.timer||0)<=0&&Math.abs(x-(Number(a.x)||0))<Number(a.width||40)/2+h;if(a.type==="ring")return Math.abs(Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))-Number(a.radius||0))<Number(a.thickness||18)/2+h;if(a.type==="spike")return(a.warningTimer||0)<=0&&(a.height||0)>10&&Math.abs(x-a.x)<30+h&&y>500-a.height;if(a.type==="gravity_well")return false;return Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<sz+h;}
+ if(type==="rwb"){if(a.type==="roger_slash"){if(a.state!=="active")return false;return a.direction==="horizontal"?Math.abs(y-a.y)<Number(a.width||0)*.35+h:Math.abs(x-a.x)<Number(a.width||0)*.35+h;}if(a.type==="roger_cross"){if(a.state!=="active")return false;return a.dir==="vertical"?Math.abs(x-a.x)<Number(a.width||0)*.35+h:Math.abs(y-a.y)<Number(a.width||0)*.35+h;}if(a.type==="tsunami"){var dy=Math.abs(y-(Number(a.y)||0)),hh=(Number(a.currentHeight)||Number(a.height)||0)/2;return dy<hh+h&&(a.fromRight?x>=(Number(a.x)||0):x<=(Number(a.width)||400));}if(a.type==="gura_crack"&&a.state!=="active")return false;if(a.type==="hell_fire"&&a.state==="flying")return Math.hypot(x-a.x,y-a.y)<sz+h;if(a.state==="warning"||a.state==="done")return false;if(a.type==="gura_crack"||a.type==="purple_crack_zone")return Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||a.maxRadius||sz)+h;return Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<sz+h;}
+ return false;
+}
+window.dioAttackTouchesStand=dioAttackTouchesStand;
+
 // Круг инверсии идёт от сердца наружу в течение двух секунд перед остановкой времени.
 function dioIsWindupActive() {
     return typeof _superState !== "undefined" &&
@@ -484,7 +581,7 @@ function dioAddEnergy(amount) {
         if (bossContext && (bossContext.type === "waystar" || bossContext.type === "stone" || bossContext.type === "rwb")) {
             gainMultiplier = 1.5;
         } else if (bossContext && bossContext.type === "arena") {
-            gainMultiplier = 2.5;
+            gainMultiplier = 4;
         }
     } catch (e) {}
     var now = performance.now();
@@ -700,6 +797,7 @@ function dioUseSkill(skill) {
     else if (skill === "heal") activateDioHeal();
     else if (skill === "teleport") activateDioTeleport();
     else if (skill === "aggro") activateDioAggro();
+    else if (skill === "muda") dioActivateMudaSkill();
     updateSuperButton();
 }
 window.dioUseSkill = dioUseSkill;
@@ -726,6 +824,7 @@ function updateDioSkillCooldowns(dt) {
     _superState.dioTimeStop = Math.max(0, (_superState.dioTimeStop || 0) - dt);
     _superState.dioTeleportStop = Math.max(0, (_superState.dioTeleportStop || 0) - dt);
     var stoppedNow = ((_superState.dioTimeStop || 0) > 0 || (_superState.dioTeleportStop || 0) > 0);
+    if (wasStopped && !stoppedNow) dioFlushPendingBossDamage();
     // Safety fallback for unusually large frame steps.
     if (wasStopped && !stoppedNow && !_superState.dioResumeSoundPlayed) {
         _superState.dioResumeSoundPlayed = true;
@@ -740,6 +839,7 @@ function updateDioSkillCooldowns(dt) {
     }
     _superState.dioAggroTimer = Math.max(0, (_superState.dioAggroTimer || 0) - dt);
     _superState.dioStandFlash = Math.max(0, (_superState.dioStandFlash || 0) - dt);
+    dioUpdateMudaSkill(dt);
 }
 
 function updateDioHistory(ctxB) {
@@ -754,21 +854,24 @@ function updateDioStandZone(ctxB) {
     var atk = ctxB.getAttacks();
     if (!atk || !atk.length) return;
     var hx = ctxB.getHeartX(), hy = ctxB.getHeartY(), radius = 52;
+    var stand = dioGetStandPosition(ctxB);
     for (var i = atk.length - 1; i >= 0; i--) {
         var a = atk[i];
         if (!a || a.dioAggroNoPlayer) continue;
         var ar = Number(a.size || a.radius || 10) * 0.5;
         var ax = (Number(a.x) || 0) + ar, ay = (Number(a.y) || 0) + ar;
-        var inside = Math.hypot(ax - hx, ay - hy) <= radius + ar;
+        var insideMain = Math.hypot(ax-hx,ay-hy)<=radius+ar;
+        var insideStand = stand && Math.hypot(ax-stand.x,ay-stand.y)<=radius+ar;
+        var inside = insideMain || insideStand;
         if (!inside) { a.dioStandInside = false; continue; }
         if (a.dioStandInside) continue;
         a.dioStandInside = true;
-        if (Math.random() < 0.02) {
-            atk.splice(i, 1);
-            _superState.dioStandFlash = Math.max(_superState.dioStandFlash || 0, 0.22);
-            _superState.dioStandX = hx; _superState.dioStandY = hy;
-            if (typeof ctxB.spawnFloatingText === "function") ctxB.spawnFloatingText(hx, hy - 28, "THE WORLD!", "#fff0a0");
-            if (typeof ctxB.addShockwave === "function") ctxB.addShockwave(hx, hy, "#e5c8ff", 120, 0.25, 3);
+        if (Math.random() < 0.05) {
+            atk.splice(i,1);var sx=insideStand&&stand?stand.x:hx,sy=insideStand&&stand?stand.y:hy;
+            _superState.dioStandFlash=Math.max(_superState.dioStandFlash||0,.3);_superState.dioStandAttackUntil=performance.now()+220;
+            _superState.dioStandAttackSourceX=sx;_superState.dioStandAttackSourceY=sy;_superState.dioStandAttackX=ax;_superState.dioStandAttackY=ay;
+            if(typeof ctxB.spawnFloatingText==="function")ctxB.spawnFloatingText(sx,sy-28,"THE WORLD!","#fff0a0");
+            if(typeof ctxB.addShockwave==="function")ctxB.addShockwave(sx,sy,"#e5c8ff",120,.25,3);
         }
     }
 }
@@ -889,29 +992,25 @@ function updateDioPanel() {
     if (hudValue) hudValue.textContent = e + " / 100";
 
     var cd = _superState.dioSkillCooldowns || {};
-    var sig = [
-        e,
-        Math.ceil(cd.timeStop || 0),
-        Math.ceil(cd.heal || 0),
-        Math.ceil(cd.teleport || 0),
-        Math.ceil(cd.aggro || 0)
-    ].join("|");
+    var sig = [e,Math.ceil(cd.timeStop||0),Math.ceil(cd.heal||0),Math.ceil(cd.teleport||0),Math.ceil(cd.aggro||0),Math.ceil(cd.muda||0)].join("|");
 
     if (panel._dioSignature === sig && panel.children.length) return;
     panel._dioSignature = sig;
 
     panel.innerHTML =
-        '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;">' +
+        '<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;">' +
         dioButton("⏳ ZA", "timeStop", 40, 25, cd.timeStop || 0) +
         dioButton("💚 HEAL", "heal", 30, 25, cd.heal || 0) +
         dioButton("🌀 TP", "teleport", 25, 15, cd.teleport || 0) +
         dioButton("👊 RAGE", "aggro", 40, 30, cd.aggro || 0) +
+        dioButton("🗡️ MUDA", "muda", 40, 30, cd.muda || 0) +
         '</div>';
 }
 function dioButton(label,key,cost,cooldown,cd) {
-    var disabled = cd > 0 || (_superState.dioEnergy || 0) < cost || !isDioOverHeavenMain();
+    var mudaTargetMissing = key === "muda" && !dioGetUniqueBossTarget((typeof getBossContext === "function") ? getBossContext() : null);
+    var disabled = cd > 0 || (_superState.dioEnergy || 0) < cost || !isDioOverHeavenMain() || mudaTargetMissing;
     var textCd = cd > 0 ? " · "+Math.ceil(cd)+"с" : "";
-    return '<button type="button" onclick="dioUseSkill(\''+key+'\')" '+(disabled?'disabled':'')+' style="width:100%;min-width:0;padding:7px 2px;border-radius:9px;border:1px solid #bca5ff;background:'+(disabled?'#333':'linear-gradient(135deg,#33214f,#8064a8)')+';color:white;font-size:10px;font-weight:900;line-height:1.05;touch-action:manipulation;pointer-events:auto;">'+label+'<br><span style="font-size:9px;">⚡'+cost+textCd+'</span></button>';
+    return '<button type="button" onclick="dioUseSkill(\''+key+'\')" '+(disabled?'disabled':'')+' style="width:100%;min-width:0;padding:6px 1px;border-radius:9px;border:1px solid #bca5ff;background:'+(disabled?'#333':'linear-gradient(135deg,#33214f,#8064a8)')+';color:white;font-size:10px;font-weight:900;line-height:1.05;touch-action:manipulation;pointer-events:auto;">'+label+'<br><span style="font-size:9px;">⚡'+cost+textCd+'</span></button>';
 }
 
 function renderDioVisuals(ctxB) {
