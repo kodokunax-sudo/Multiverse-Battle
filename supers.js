@@ -677,10 +677,23 @@ function updateDioSkillCooldowns(dt) {
     for (var k in c) c[k] = Math.max(0, (c[k] || 0) - dt);
     // DIO's own clock is the only clock that continues while the world is stopped.
     var wasStopped = ((_superState.dioTimeStop || 0) > 0 || (_superState.dioTeleportStop || 0) > 0);
+    var stopBeforeTick = Math.max(_superState.dioTimeStop || 0, _superState.dioTeleportStop || 0);
+    // Запускаем звук за 1 секунду до возобновления времени, а не после.
+    if (wasStopped && stopBeforeTick <= 1.05 && stopBeforeTick > 0 && !_superState.dioResumeSoundPlayed) {
+        _superState.dioResumeSoundPlayed = true;
+        try {
+            var resumeTrack = (typeof window.getLoadedMusic === "function") ? window.getLoadedMusic("dioTimeResume") : null;
+            var resumeAudio = new Audio(resumeTrack && resumeTrack.url ? resumeTrack.url : "music/time-resumes.mp3");
+            resumeAudio.preload = "auto";
+            resumeAudio.volume = 0.9;
+            var playPromise = resumeAudio.play();
+            if (playPromise && playPromise.catch) playPromise.catch(function(){});
+        } catch (e) {}
+    }
     _superState.dioTimeStop = Math.max(0, (_superState.dioTimeStop || 0) - dt);
     _superState.dioTeleportStop = Math.max(0, (_superState.dioTeleportStop || 0) - dt);
     var stoppedNow = ((_superState.dioTimeStop || 0) > 0 || (_superState.dioTeleportStop || 0) > 0);
-    // Play the anime-style time-resume sound once, exactly when ZA WARUDO ends.
+    // Safety fallback for unusually large frame steps.
     if (wasStopped && !stoppedNow && !_superState.dioResumeSoundPlayed) {
         _superState.dioResumeSoundPlayed = true;
         try {
@@ -911,12 +924,15 @@ function renderDioVisuals(ctxB) {
         // 2) Через 0.7 секунды после каста появляется фирменный круговой
         // цветовой импульс: концентрические золотые/фиолетовые/белые кольца
         // расходятся от DIO, как аниме-переход ZA WARUDO, а не прямоугольный фильтр.
-        if (!isTP && t >= 700 && t <= 1450) {
-            var ringT = Math.max(0, Math.min(1, (t - 700) / 750));
+        if (!isTP && t >= 1000 && t <= 1800) {
+            var ringT = Math.max(0, Math.min(1, (t - 1000) / 800));
             var ringRadius = 24 + ringT * 430;
-            var ringAlpha = Math.sin(ringT * Math.PI) * 0.72;
-            var ringX = _superState.dioStandX;
-            var ringY = _superState.dioStandY - 24;
+            var ringAlpha = Math.sin(ringT * Math.PI) * 0.78;
+            // Кольцо и его цветная энергия следуют за текущим сердцем игрока,
+            // а не остаются в точке, где DIO нажал способность.
+            var ringCtx = getBossContext();
+            var ringX = ringCtx ? ringCtx.getHeartX() : _superState.dioStandX;
+            var ringY = (ringCtx ? ringCtx.getHeartY() : _superState.dioStandY) - 24;
             ctx.save();
             ctx.globalCompositeOperation = "screen";
             ctx.globalAlpha = ringAlpha;
