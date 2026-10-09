@@ -277,6 +277,7 @@ function updateTakabaConfidenceDisplay() {
 
 // ★★★ ФИКС: Такаба замораживает игрока ★★★
 function moveHeart() {
+    if (typeof _superState !== 'undefined' && (_superState.dioTimeStopWindupUntil || 0) > performance.now()) return;
     if (typeof _superState !== 'undefined' && _superState.takabaTimeStop) return;
     if (typeof _superState !== 'undefined' && _superState.usoppStunTimer > 0) return;
     if (typeof _superState !== 'undefined' && _superState.garouTimeStop) return;
@@ -1212,7 +1213,48 @@ function renderArena() {
         ctx.save();
         ctx.translate(heart.x, heart.y - 2);
         ctx.rotate(heartRotation * 0.3);
-        if (!drawSecretHeartTexture(ctx, 0, 0, heart.size, getSecretHeartMainCardName(), {rotation: 0})) {
+        var dioMainHeart = typeof isDioOverHeavenMain === "function" && isDioOverHeavenMain();
+        if (dioMainHeart) {
+            // Сердце DIO: классический красный SOUL-силуэт с тёмной окантовкой и золотым бликом.
+            var hs = Math.max(0.7, heart.size / 14);
+            ctx.save();
+            ctx.scale(hs, hs);
+            var dioHeartPath = function() {
+                ctx.beginPath();
+                ctx.moveTo(0, 6);
+                ctx.bezierCurveTo(-2, 4, -9, -1, -9, -5);
+                ctx.bezierCurveTo(-9, -11, -2, -12, 0, -7);
+                ctx.bezierCurveTo(2, -12, 9, -11, 9, -5);
+                ctx.bezierCurveTo(9, -1, 2, 4, 0, 6);
+                ctx.closePath();
+            };
+            ctx.shadowColor = "#ff1f35"; ctx.shadowBlur = 9;
+            var dioHeartGrad = ctx.createLinearGradient(-7, -10, 7, 7);
+            dioHeartGrad.addColorStop(0, "#ff6472");
+            dioHeartGrad.addColorStop(0.42, "#ed1235");
+            dioHeartGrad.addColorStop(1, "#780018");
+            ctx.fillStyle = dioHeartGrad;
+            dioHeartPath(); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = "#510014"; ctx.lineWidth = 1.1; dioHeartPath(); ctx.stroke();
+            ctx.fillStyle = "rgba(255,245,195,.9)";
+            ctx.beginPath(); ctx.ellipse(-3.5, -6.5, 1.7, 2.4, -0.5, 0, Math.PI * 2); ctx.fill();
+
+            // Второе сердечко — декоративный силуэт THE WORLD, без хитбокса и механик.
+            ctx.save();
+            ctx.translate(heart.size * 0.95, -heart.size * 0.35);
+            ctx.scale(0.56, 0.56);
+            ctx.shadowColor = "#d7b6ff"; ctx.shadowBlur = 11;
+            var standGrad = ctx.createLinearGradient(-7, -10, 7, 7);
+            standGrad.addColorStop(0, "#fff0a0");
+            standGrad.addColorStop(0.4, "#c9a2ff");
+            standGrad.addColorStop(1, "#6044a5");
+            ctx.fillStyle = standGrad;
+            dioHeartPath(); ctx.fill();
+            ctx.strokeStyle = "rgba(255,239,165,.95)"; ctx.lineWidth = 1.2; dioHeartPath(); ctx.stroke();
+            ctx.restore();
+            ctx.restore();
+        } else if (!drawSecretHeartTexture(ctx, 0, 0, heart.size, getSecretHeartMainCardName(), {rotation: 0})) {
             var heartGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 8);
             heartGrad.addColorStop(0, '#ff4444'); heartGrad.addColorStop(1, '#990000');
             ctx.fillStyle = heartGrad;
