@@ -878,6 +878,7 @@ function updateLivingStoneBoss() {
     if (finalSceneActive) return;
     // ★ ФИКС: гароу-стоп ★
     if (lsIsTimeStopped()) return;
+    if (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(livingStoneBoss)) return;
     var speedMult = ((livingStoneState === "phase2") ? 1.8 : 1.0) * lsSpeedMult;
     livingStoneBoss.x += livingStoneBoss.vx * speedMult;
     if (livingStoneBoss.x < 80 || livingStoneBoss.x > 320) livingStoneBoss.vx *= -1;
@@ -890,7 +891,8 @@ function updateLivingStoneBullets() {
 
     for (var i = livingStoneBullets.length - 1; i >= 0; i--) {
         var b = livingStoneBullets[i];
-        if (!stopAll) {
+        var bulletStopped = stopAll || (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(b));
+        if (!bulletStopped) {
             if (b.homing && b.homingSpeed) {
                 var dxH = livingStoneBoss.x - b.x;
                 var dyH = livingStoneBoss.y - b.y;
@@ -907,7 +909,7 @@ function updateLivingStoneBullets() {
             b.x += b.vx; b.y += b.vy; b.life--;
         }
 
-        if (stopAll) continue; // замороженные пули не попадают в босса и не исчезают до возобновления времени
+        if (bulletStopped) continue; // замороженные пули не попадают в босса и не исчезают до возобновления времени
         var dx = b.x - livingStoneBoss.x, dy = b.y - livingStoneBoss.y;
         if (Math.sqrt(dx * dx + dy * dy) < livingStoneBoss.size + b.size) {
             var dmg = b.damage;
@@ -1499,6 +1501,7 @@ function updateLivingStoneAttacks() {
 
     for (var i = livingStoneAttacks.length - 1; i >= 0; i--) {
         var a = livingStoneAttacks[i];
+        if (dioIsWindupActive() && typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(a)) continue;
 
         // ★★★ ZA WARUDO: замораживаем атаки Камня, но не отражённые игроком снаряды ★★★
         if (stopAll && a.type !== "reflected") continue;
