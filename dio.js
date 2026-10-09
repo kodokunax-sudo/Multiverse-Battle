@@ -55,6 +55,8 @@ function preloadDioSounds() {
 function dioPlaySound(path, volume) {
     try {
         var audio = dioPrepareSound(path);
+        // Invalidate any delayed silent-prime callback before starting the real cue.
+        audio._dioPlaybackToken = (audio._dioPlaybackToken || 0) + 1;
         // Never inherit slow playback from another effect. Every DIO cue is real-time.
         audio.defaultPlaybackRate = 1;
         audio.playbackRate = 1;
@@ -69,26 +71,35 @@ function dioPlaySound(path, volume) {
 function dioPrimeSoundForGesture(path, restoreVolume) {
     try {
         var audio = dioPrepareSound(path);
-        if (audio._dioGesturePrimed || audio.readyState < 2) return;
+        if (audio._dioGesturePrimed || audio._dioPrimePending || audio.readyState < 2) return;
         var wantedVolume = (typeof restoreVolume === "number") ? restoreVolume : 0.72;
+        var token = (audio._dioPlaybackToken || 0) + 1;
+        audio._dioPlaybackToken = token;
+        audio._dioPrimePending = true;
         audio.volume = 0;
         audio.currentTime = 0;
         var p = audio.play();
         if (p && typeof p.then === "function") {
             p.then(function () {
-                // Silent prime under the real button gesture helps browsers that
-                // restrict later playback of a different Audio element.
+                // Do not let a late prime callback pause a real cue that has started.
+                if (audio._dioPlaybackToken !== token) return;
                 audio.pause();
                 try { audio.currentTime = 0; } catch (e) {}
                 audio.volume = wantedVolume;
                 audio._dioGesturePrimed = true;
+                audio._dioPrimePending = false;
             }).catch(function () {
-                audio.volume = wantedVolume;
+                if (audio._dioPlaybackToken === token) audio.volume = wantedVolume;
+                audio._dioPrimePending = false;
             });
         } else {
-            audio.pause();
-            audio.currentTime = 0;
-            audio.volume = wantedVolume;
+            if (audio._dioPlaybackToken === token) {
+                audio.pause();
+                audio.currentTime = 0;
+                audio.volume = wantedVolume;
+                audio._dioGesturePrimed = true;
+            }
+            audio._dioPrimePending = false;
         }
     } catch (e) {}
 }
