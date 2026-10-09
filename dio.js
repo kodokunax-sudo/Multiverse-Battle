@@ -66,7 +66,8 @@ function dioPlaySound(path, volume) {
         audio.volume = (typeof volume === "number") ? Math.max(0, Math.min(1, volume)) : 0.72;
         var p = audio.play();
         if (p && typeof p.catch === "function") p.catch(function () {});
-    } catch (e) {}
+        return audio;
+    } catch (e) { return null; }
 }
 
 function dioPrimeSoundForGesture(path, restoreVolume) {
@@ -244,13 +245,14 @@ function dioIsWindupActive() {
 }
 window.dioIsWindupActive = dioIsWindupActive;
 
-var DIO_TIME_STOP_WIPE_DURATION_MS = 1350; // Faster JoJo-style time-stop wipe.
+var DIO_TIME_STOP_WIPE_DURATION_MS = 1120; // Fast, punchy JoJo-style circular reveal.
 var _dioOverlayRaf = 0;
-function dioHideTimeStopOverlay(overlay, ring, halo, flash) {
+function dioHideTimeStopOverlay(overlay, ring, halo, flash, streaks) {
     if (overlay) overlay.style.display = "none";
     if (ring) ring.style.display = "none";
     if (halo) halo.style.display = "none";
     if (flash) flash.style.display = "none";
+    if (streaks) streaks.style.display = "none";
 }
 function dioSyncTimeStopOverlay() {
     try {
@@ -259,10 +261,12 @@ function dioSyncTimeStopOverlay() {
         var active = isDioTimeStopped();
         var dioMode = isDioOverHeavenMain();
         var wipeActive = !!(_superState && _superState.dioTimeStopWipeActive);
-        var revealInProgress = dioMode && (windup || wipeActive);
+        var audioPending = !!(_superState && _superState.dioTimeStopAudioPending);
+        var revealInProgress = dioMode && !audioPending && (windup || wipeActive);
         var overlay = document.getElementById("dioTimeStopInvertCanvas");
         var ring = document.getElementById("dioTimeStopWipeRing");
         var halo = document.getElementById("dioTimeStopWipeHalo");
+        var streaks = document.getElementById("dioTimeStopWipeStreaks");
         var flash = document.getElementById("dioTimeStopWipeFlash");
 
         // Duck only the background soundtrack; do not pause it or slow any effect.
@@ -274,7 +278,7 @@ function dioSyncTimeStopOverlay() {
                 _superState.dioTimeStopWipeFinishQueued = false;
             }
             if (base && base.style) base.style.filter = "";
-            dioHideTimeStopOverlay(overlay, ring, halo, flash);
+            dioHideTimeStopOverlay(overlay, ring, halo, flash, streaks);
             return;
         }
 
@@ -283,7 +287,7 @@ function dioSyncTimeStopOverlay() {
         if (base.style) base.style.filter = (active && !revealInProgress) ? "invert(1)" : "";
 
         if (!revealInProgress) {
-            dioHideTimeStopOverlay(overlay, ring, halo, flash);
+            dioHideTimeStopOverlay(overlay, ring, halo, flash, streaks);
             return;
         }
 
@@ -298,6 +302,12 @@ function dioSyncTimeStopOverlay() {
             halo.id = "dioTimeStopWipeHalo";
             halo.style.cssText = "position:fixed;pointer-events:none;z-index:99999;display:none;border:1px solid rgba(174,119,255,.85);border-radius:50%;box-shadow:0 0 30px 8px rgba(174,119,255,.28),0 0 16px 3px rgba(255,220,100,.42);mix-blend-mode:screen;";
             document.body.appendChild(halo);
+        }
+        if (!streaks) {
+            streaks = document.createElement("div");
+            streaks.id = "dioTimeStopWipeStreaks";
+            streaks.style.cssText = "position:fixed;pointer-events:none;z-index:99999;border-radius:50%;display:none;background:repeating-conic-gradient(from 0deg,rgba(255,255,255,0) 0deg,rgba(255,247,207,0) 8deg,rgba(255,241,174,.75) 9deg,rgba(185,128,255,0) 11deg,rgba(125,248,209,0) 18deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 26px),#000 calc(100% - 7px));mask:radial-gradient(farthest-side,transparent calc(100% - 26px),#000 calc(100% - 7px));filter:drop-shadow(0 0 8px rgba(255,241,174,.8));mix-blend-mode:screen;will-change:transform;";
+            document.body.appendChild(streaks);
         }
         if (!ring) {
             ring = document.createElement("div");
@@ -314,7 +324,7 @@ function dioSyncTimeStopOverlay() {
 
         var rect = base.getBoundingClientRect();
         if (!rect.width || !rect.height) {
-            dioHideTimeStopOverlay(overlay, ring, halo, flash);
+            dioHideTimeStopOverlay(overlay, ring, halo, flash, streaks);
             return;
         }
         flash.style.left = rect.left + "px";
@@ -372,6 +382,14 @@ function dioSyncTimeStopOverlay() {
         halo.style.left = (ringLeft - 7) + "px";
         halo.style.top = (ringTop - 7) + "px";
         halo.style.opacity = String(0.65 + Math.sin(progress * Math.PI * 8) * 0.2);
+
+        streaks.style.display = "block";
+        streaks.style.width = (diameter + 24) + "px";
+        streaks.style.height = (diameter + 24) + "px";
+        streaks.style.left = (ringLeft - 12) + "px";
+        streaks.style.top = (ringTop - 12) + "px";
+        streaks.style.transform = "rotate(" + (-performance.now() * 0.34) + "deg)";
+        streaks.style.opacity = String(0.75 + Math.sin(progress * Math.PI * 10) * 0.2);
 
         ring.style.display = "block";
         ring.style.width = diameter + "px";
@@ -478,8 +496,8 @@ function dioStartTimeStop(duration, teleportStyle, skipSound) {
     _superState.dioStandX = ctxB.getHeartX();
     _superState.dioStandY = ctxB.getHeartY();
 
-    // Preparation/teleport sound and the ZA WARUDO call are separate cues.
-    // Lower the background track immediately, but keep this activation cue clear.
+    // Main DIO activation may have played the cue before the wipe.
+    // Keep skipSound for callers that intentionally pre-play the sound.
     dioSyncAudioMix();
     if (!skipSound) {
         dioPlaySound(
@@ -528,40 +546,96 @@ function isDioTimeStopped() {
 }
 window.isDioTimeStopped = isDioTimeStopped;
 function activateDioTimeStop() {
-    if (dioIsWindupActive() || isDioTimeStopped()) return;
+    if (dioIsWindupActive() || isDioTimeStopped() ||
+        (_superState && _superState.dioTimeStopAudioPending)) return;
     var ctxB = getBossContext();
     if (!ctxB || !dioCanUse("timeStop", 40, 25)) return;
 
-    // The wipe starts NOW, on the same click frame; do not wait for either audio cue.
     var now = performance.now();
-    _superState.dioTimeStopWindupStartedAt = now;
-    _superState.dioTimeStopWindupUntil = now + DIO_TIME_STOP_WIPE_DURATION_MS;
+    // Freeze the player during the opening shout, but do not reveal the circle yet.
+    _superState.dioTimeStopWindupStartedAt = 0;
+    _superState.dioTimeStopWindupUntil = now + 10000; // Safety cap if media fails to finish.
     _superState.dioTimeStopWipeDurationMs = DIO_TIME_STOP_WIPE_DURATION_MS;
-    _superState.dioTimeStopWipeActive = true;
+    _superState.dioTimeStopAudioPending = true;
+    _superState.dioTimeStopWipeActive = false;
     _superState.dioTimeStopWipeFinishQueued = false;
     if (typeof heart !== "undefined" && heart) { heart.vx = 0; heart.vy = 0; }
 
-    // Paint the initial circular edge synchronously before requesting any sound playback.
-    dioSyncTimeStopOverlay();
-    // Teleport/wind-up SFX is immediate. ZA WARUDO stays muted during gesture unlock
-    // and is only played when the 1.35-second wipe fully covers the arena.
-    dioPrimeSoundForGesture("music/za-warudo-time-stop-louder.mp3", 0.86);
-    dioPlaySound("music/dios-time-stop-teleportation-sound-effect-1.mp3", 0.72);
+    // 1) Play ZA WARUDO immediately on the user's click. No teleport cue here.
+    var cue = dioPlaySound("music/za-warudo-time-stop-louder.mp3", 0.86);
     dioStartOverlayLoop();
 
-    setTimeout(function() {
-        if (!_superState || !(_superState.dioTimeStopWindupUntil || 0)) return;
-        _superState.dioTimeStopWindupUntil = 0;
+    var sequenceToken = (_superState.dioTimeStopSequenceToken || 0) + 1;
+    _superState.dioTimeStopSequenceToken = sequenceToken;
+    var started = false;
+    var fallbackTimer = null;
+    var safetyTimer = null;
+
+    function startCircleAfterCue() {
+        if (started || !_superState || _superState.dioTimeStopSequenceToken !== sequenceToken) return;
+        started = true;
+        if (fallbackTimer) clearTimeout(fallbackTimer);
+        if (safetyTimer) clearTimeout(safetyTimer);
+        if (cue) {
+            try { cue.removeEventListener("ended", startCircleAfterCue); } catch (e) {}
+            try { cue.removeEventListener("error", startCircleAfterCue); } catch (e) {}
+        }
+
         if (!isDioOverHeavenMain() || !getBossContext()) {
+            _superState.dioTimeStopAudioPending = false;
+            _superState.dioTimeStopWindupUntil = 0;
             _superState.dioTimeStopWipeActive = false;
-            _superState.dioTimeStopWipeFinishQueued = false;
             dioSyncTimeStopOverlay();
             return;
         }
-        // Do NOT skip this cue: the teleportation sound was the wind-up, not ZA WARUDO.
-        dioStartTimeStop(6, false, false);
+
+        // 2) Once the audio cue ends, launch the fast circular color inversion.
+        var circleStart = performance.now();
+        _superState.dioTimeStopAudioPending = false;
+        _superState.dioTimeStopWindupStartedAt = circleStart;
+        _superState.dioTimeStopWindupUntil = circleStart + DIO_TIME_STOP_WIPE_DURATION_MS;
+        _superState.dioTimeStopWipeDurationMs = DIO_TIME_STOP_WIPE_DURATION_MS;
+        _superState.dioTimeStopWipeActive = true;
+        _superState.dioTimeStopWipeFinishQueued = false;
+        dioSyncTimeStopOverlay();
         dioStartOverlayLoop();
-    }, DIO_TIME_STOP_WIPE_DURATION_MS);
+
+        setTimeout(function () {
+            if (!_superState || _superState.dioTimeStopSequenceToken !== sequenceToken) return;
+            if (!(_superState.dioTimeStopWindupUntil || 0)) return;
+            _superState.dioTimeStopWindupUntil = 0;
+            if (!isDioOverHeavenMain() || !getBossContext()) {
+                _superState.dioTimeStopWipeActive = false;
+                _superState.dioTimeStopWipeFinishQueued = false;
+                dioSyncTimeStopOverlay();
+                return;
+            }
+            // The ZA WARUDO cue has already played. Do not replay it at the end.
+            dioStartTimeStop(6, false, true);
+            dioStartOverlayLoop();
+        }, DIO_TIME_STOP_WIPE_DURATION_MS);
+    }
+
+    if (cue) {
+        try {
+            cue.addEventListener("ended", startCircleAfterCue, { once: true });
+            cue.addEventListener("error", startCircleAfterCue, { once: true });
+            function scheduleDurationFallback() {
+                if (started || fallbackTimer || !isFinite(cue.duration) || cue.duration <= 0) return;
+                var remaining = Math.max(0.15, cue.duration - (cue.currentTime || 0) + 0.2);
+                fallbackTimer = setTimeout(startCircleAfterCue, remaining * 1000);
+            }
+            if (cue.readyState >= 1) scheduleDurationFallback();
+            else cue.addEventListener("loadedmetadata", scheduleDurationFallback, { once: true });
+            // Final failsafe for a missing/broken MP3, so the player cannot remain frozen forever.
+            safetyTimer = setTimeout(startCircleAfterCue, 7000);
+        } catch (e) {
+            setTimeout(startCircleAfterCue, 250);
+        }
+    } else {
+        // If the browser blocks playback, keep the skill usable.
+        setTimeout(startCircleAfterCue, 250);
+    }
 }
 
 function activateDioHeal() {
