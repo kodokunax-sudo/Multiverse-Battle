@@ -232,8 +232,7 @@ function startDailyGachaAnimation(card, type) {
     function flashNextCard() {
         if (flashCount >= totalFlashes) {
             let rarityColor = typeof getRarityColor === 'function' ? getRarityColor(card.rarity) : "#fff";
-            let showImage = ["Эволюционная", "Секретная", "Легендарная"].includes(card.rarity);
-            let cardImg = showImage && typeof getCardImage === 'function' ? getCardImage(card.name) : null;
+            let cardImg = typeof getCardImage === 'function' ? getCardImage(card.name) : null;
             let imgHTML = cardImg ? '<img src="' + cardImg + '" style="width:100px;height:100px;border-radius:12px;object-fit:cover;margin-bottom:10px;">' : '';
             modalContent.innerHTML = '<h2>🎁 Ежедневная награда!</h2>' +
                 '<div style="text-align:center;">' +
