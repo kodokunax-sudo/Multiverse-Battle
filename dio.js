@@ -168,7 +168,7 @@ function dioSyncAudioMix() {
                 entry = { audio: audio, volume: audio.volume };
                 _dioMusicDuckState.push(entry);
             }
-            var quietVolume = Math.max(0, Math.min(1, entry.volume * 0.3));
+            var quietVolume = Math.max(0, Math.min(1, entry.volume * 0.15));
             if (Math.abs(audio.volume - quietVolume) > 0.005) audio.volume = quietVolume;
         }
     } else {
@@ -411,14 +411,13 @@ function dioSyncTimeStopOverlay() {
             setTimeout(function () {
                 if (flash) flash.style.display = "none";
             }, 150);
-            requestAnimationFrame(function () {
-                if (!_superState) return;
-                if (_superState.dioTimeStopWipeActive) {
-                    _superState.dioTimeStopWipeActive = false;
-                    _superState.dioTimeStopWipeFinishQueued = false;
-                    dioSyncTimeStopOverlay();
-                }
-            });
+            // Keep the completed inverted arena visible until the 2-second
+            // activation point. The timeout below ends the wipe when time stops.
+            if (isDioTimeStopped() && _superState.dioTimeStopWipeActive) {
+                _superState.dioTimeStopWipeActive = false;
+                _superState.dioTimeStopWipeFinishQueued = false;
+                dioSyncTimeStopOverlay();
+            }
         }
     } catch (e) {}
 }
@@ -551,93 +550,41 @@ function activateDioTimeStop() {
     var ctxB = getBossContext();
     if (!ctxB || !dioCanUse("timeStop", 40, 25)) return;
 
-    var now = performance.now();
-    // Freeze the player during the opening shout, but do not reveal the circle yet.
-    _superState.dioTimeStopWindupStartedAt = 0;
-    _superState.dioTimeStopWindupUntil = now + 10000; // Safety cap if media fails to finish.
+    var startedAt = performance.now();
+    var sequenceToken = (_superState.dioTimeStopSequenceToken || 0) + 1;
+    _superState.dioTimeStopSequenceToken = sequenceToken;
+
+    // The ZA WARUDO track starts immediately. Time stops exactly 2 seconds
+    // after the click; the circular inversion expands during the opening shout.
+    _superState.dioTimeStopAudioPending = false;
+    _superState.dioTimeStopWindupStartedAt = startedAt;
+    _superState.dioTimeStopWindupUntil = startedAt + 2000;
     _superState.dioTimeStopWipeDurationMs = DIO_TIME_STOP_WIPE_DURATION_MS;
-    _superState.dioTimeStopAudioPending = true;
-    _superState.dioTimeStopWipeActive = false;
+    _superState.dioTimeStopWipeActive = true;
     _superState.dioTimeStopWipeFinishQueued = false;
     if (typeof heart !== "undefined" && heart) { heart.vx = 0; heart.vy = 0; }
 
-    // 1) Play ZA WARUDO immediately on the user's click. No teleport cue here.
-    var cue = dioPlaySound("music/za-warudo-time-stop-louder.mp3", 0.86);
+    dioPlaySound("music/za-warudo-time-stop-louder.mp3", 0.86);
     dioStartOverlayLoop();
 
-    var sequenceToken = (_superState.dioTimeStopSequenceToken || 0) + 1;
-    _superState.dioTimeStopSequenceToken = sequenceToken;
-    var started = false;
-    var fallbackTimer = null;
-    var safetyTimer = null;
+    setTimeout(function () {
+        if (!_superState || _superState.dioTimeStopSequenceToken !== sequenceToken) return;
+        if (!(_superState.dioTimeStopWindupUntil || 0)) return;
 
-    function startCircleAfterCue() {
-        if (started || !_superState || _superState.dioTimeStopSequenceToken !== sequenceToken) return;
-        started = true;
-        if (fallbackTimer) clearTimeout(fallbackTimer);
-        if (safetyTimer) clearTimeout(safetyTimer);
-        if (cue) {
-            try { cue.removeEventListener("ended", startCircleAfterCue); } catch (e) {}
-            try { cue.removeEventListener("error", startCircleAfterCue); } catch (e) {}
-        }
+        _superState.dioTimeStopWindupUntil = 0;
+        _superState.dioTimeStopWipeActive = false;
+        _superState.dioTimeStopWipeFinishQueued = false;
 
         if (!isDioOverHeavenMain() || !getBossContext()) {
-            _superState.dioTimeStopAudioPending = false;
-            _superState.dioTimeStopWindupUntil = 0;
-            _superState.dioTimeStopWipeActive = false;
             dioSyncTimeStopOverlay();
             return;
         }
 
-        // 2) Once the audio cue ends, launch the fast circular color inversion.
-        var circleStart = performance.now();
-        _superState.dioTimeStopAudioPending = false;
-        _superState.dioTimeStopWindupStartedAt = circleStart;
-        _superState.dioTimeStopWindupUntil = circleStart + DIO_TIME_STOP_WIPE_DURATION_MS;
-        _superState.dioTimeStopWipeDurationMs = DIO_TIME_STOP_WIPE_DURATION_MS;
-        _superState.dioTimeStopWipeActive = true;
-        _superState.dioTimeStopWipeFinishQueued = false;
-        dioSyncTimeStopOverlay();
+        // Sound already started at the click, so never replay it here.
+        dioStartTimeStop(6, false, true);
         dioStartOverlayLoop();
-
-        setTimeout(function () {
-            if (!_superState || _superState.dioTimeStopSequenceToken !== sequenceToken) return;
-            if (!(_superState.dioTimeStopWindupUntil || 0)) return;
-            _superState.dioTimeStopWindupUntil = 0;
-            if (!isDioOverHeavenMain() || !getBossContext()) {
-                _superState.dioTimeStopWipeActive = false;
-                _superState.dioTimeStopWipeFinishQueued = false;
-                dioSyncTimeStopOverlay();
-                return;
-            }
-            // The ZA WARUDO cue has already played. Do not replay it at the end.
-            dioStartTimeStop(6, false, true);
-            dioStartOverlayLoop();
-        }, DIO_TIME_STOP_WIPE_DURATION_MS);
-    }
-
-    if (cue) {
-        try {
-            cue.addEventListener("ended", startCircleAfterCue, { once: true });
-            cue.addEventListener("error", startCircleAfterCue, { once: true });
-            function scheduleDurationFallback() {
-                if (started || fallbackTimer || !isFinite(cue.duration) || cue.duration <= 0) return;
-                var remaining = Math.max(0.15, cue.duration - (cue.currentTime || 0) + 0.2);
-                fallbackTimer = setTimeout(startCircleAfterCue, remaining * 1000);
-            }
-            if (cue.readyState >= 1) scheduleDurationFallback();
-            else cue.addEventListener("loadedmetadata", scheduleDurationFallback, { once: true });
-            // Final failsafe for a missing/broken MP3, so the player cannot remain frozen forever.
-            safetyTimer = setTimeout(startCircleAfterCue, 7000);
-        } catch (e) {
-            setTimeout(startCircleAfterCue, 250);
-        }
-    } else {
-        // If the browser blocks playback, keep the skill usable.
-        setTimeout(startCircleAfterCue, 250);
-    }
+    }, Math.max(0, 2000 - (performance.now() - startedAt)));
 }
-
 function activateDioHeal() {
     var ctxB = getBossContext();
     if (!ctxB || !dioCanUse("heal", 30, 25)) return;
