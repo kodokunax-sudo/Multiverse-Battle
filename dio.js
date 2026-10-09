@@ -331,6 +331,16 @@ function dioLaunchKnifeVolley(ctxB){
 }
 function dioUpdateMudaSkill(dt){
  if(!isDioOverHeavenMain()||!_superState)return;var cb=typeof getBossContext==="function"?getBossContext():null,now=performance.now();
+ // Пассивная энергия DIO: +1 каждые 2 секунды активного боя, независимо от типа босса.
+ if(cb){
+  if(!_superState.dioPassiveChargeAt)_superState.dioPassiveChargeAt=now;
+  var elapsedCharge=now-_superState.dioPassiveChargeAt;
+  if(elapsedCharge>=2000){
+   var chargeCount=Math.floor(elapsedCharge/2000);
+   _superState.dioEnergy=Math.min(100,Math.max(0,Number(_superState.dioEnergy)||0)+chargeCount);
+   _superState.dioPassiveChargeAt+=chargeCount*2000;
+  }
+ }else{_superState.dioPassiveChargeAt=now;}
  if(_superState.dioMudaActive&&_superState.dioMudaMode==="melee"){var t=dioGetUniqueBossTarget(cb,_superState.dioMudaTargetId);if(!t){_superState.dioMudaActive=false;_superState.dioMudaMode=null;}else{
  var elapsed=Math.max(0,now-(_superState.dioMudaStartedAt||now)),travel=Math.min(1,elapsed/520),px=cb.getHeartX(),py=cb.getHeartY(),orbit=elapsed>520;
  _superState.dioMudaStandX=px+(t.x-px)*travel+(orbit?Math.sin(elapsed/42)*12:0);_superState.dioMudaStandY=py+(t.y-py)*travel+(orbit?Math.cos(elapsed/35)*8:0);
@@ -355,9 +365,11 @@ function dioLaunchArenaKnifeVolley(cb){
  if(!cb||cb.type!=="arena"){_superState.dioMudaActive=false;_superState.dioMudaMode=null;return;}
  var attacks=typeof cb.getAttacks==="function"?cb.getAttacks():[];
  if(!Array.isArray(attacks)||!attacks.length){_superState.dioMudaActive=false;_superState.dioMudaMode=null;if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ НЕТ БЛИЖАЙШИХ БЛОКОВ!","#ffaa00");return;}
- var px=cb.getHeartX(),py=cb.getHeartY(),targets=attacks.slice().filter(Boolean).sort(function(a,b){var ar=Number(a.size||a.radius||18)||18,br=Number(b.size||b.radius||18)||18;return Math.hypot((a.x||0)+ar/2-px,(a.y||0)+ar/2-py)-Math.hypot((b.x||0)+br/2-px,(b.y||0)+br/2-py);});
+ var px=cb.getHeartX(),py=cb.getHeartY(),targets=attacks.slice().filter(function(a){return a&&a.type!=="wall"&&!a.heal&&!a.healPercent&&!(a.type==="circle"&&a.color==="#44ff44");}).sort(function(a,b){var ar=Number(a.size||a.radius||18)||18,br=Number(b.size||b.radius||18)||18;return Math.hypot((a.x||0)+ar/2-px,(a.y||0)+ar/2-py)-Math.hypot((b.x||0)+br/2-px,(b.y||0)+br/2-py);});
+ if(!targets.length){_superState.dioMudaActive=false;_superState.dioMudaMode=null;if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ НЕТ БЛИЖАЙШИХ БЛОКОВ!","#ffaa00");return;}
  if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];
- for(var i=0;i<5;i++){var target=targets[i%targets.length],tr=Number(target.size||target.radius||18)||18,tx=(Number(target.x)||0)+tr/2,ty=(Number(target.y)||0)+tr/2,ang=Math.atan2(ty-py,tx-px);_superState.dioKnives.push({x:px+(px>300?-10:10),y:py-3,vx:Math.cos(ang)*10,vy:Math.sin(ang)*10,angle:ang,life:160,targetType:"arena",targetAttack:target});}
+ var knifeCount=Math.min(5,targets.length);
+ for(var i=0;i<knifeCount;i++){var target=targets[i],tr=Number(target.size||target.radius||18)||18,tx=(Number(target.x)||0)+tr/2,ty=(Number(target.y)||0)+tr/2,ang=Math.atan2(ty-py,tx-px);_superState.dioKnives.push({x:px+(px>300?-10:10),y:py-3,vx:Math.cos(ang)*10,vy:Math.sin(ang)*10,angle:ang,life:160,targetType:"arena",targetAttack:target});}
  _superState.dioMudaActive=false;_superState.dioMudaMode=null;if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ НОЖИ ДИО!","#fff0a0");
 }
 function dioActivateMudaSkill(){
