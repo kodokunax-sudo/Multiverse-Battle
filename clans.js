@@ -82,6 +82,7 @@
             daily_card_gift_limit: 'Ты уже использовал все 3 передачи на сегодня.',
             not_clan_member: 'Передавать карты можно только соклановцам.',
             recipient_level7_conflict: 'У получателя уже есть карта 7★. По правилам игры такая карта может быть только одна.',
+            card_active_save_missing: 'Сначала открой игру и загрузи слот сохранения, где лежит эта карта.',
             auth_required: 'Сначала войди в аккаунт.'
         };
         var keys = Object.keys(map);
@@ -777,7 +778,7 @@
         }
     }
 
-    function renderClanCardRequests(requests, profilesById, ownedCards) {
+    function renderClanCardRequests(requests, profilesById, ownedCards, giftsRemaining) {
         var container = byId('clanCardRequests');
         if (!container) return;
         container.replaceChildren();
@@ -826,6 +827,8 @@
                     var giftBtn = actionButton('🎁 Передать', 'btn btn-primary', function () {
                         giftCardToRequest(request, select.value, giftBtn);
                     });
+                    giftBtn.disabled = busy || Number(giftsRemaining) <= 0;
+                    if (Number(giftsRemaining) <= 0) giftBtn.title = 'Лимит 3 передачи в день исчерпан';
                     controls.appendChild(select);
                     controls.appendChild(giftBtn);
                     row.appendChild(controls);
@@ -878,10 +881,10 @@
             if (profileResult.error) throw profileResult.error;
             (profileResult.data || []).forEach(function (profile) { profilesById[profile.id] = profile; });
         }
-        renderClanCardRequests(requests, profilesById, ownedCards);
+        renderClanCardRequests(requests, profilesById, ownedCards, quotaRow.gifts_remaining);
 
         var requestBtn = byId('clanCardRequestBtn');
-        if (requestBtn) requestBtn.disabled = (quotaRow.gifts_remaining < 0) || busy;
+        if (requestBtn) requestBtn.disabled = busy;
     }
 
     function refreshClanCardExchange() {
