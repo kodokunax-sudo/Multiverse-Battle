@@ -222,7 +222,7 @@ function initWaystarSupers() {
 }
 
 function startWaystarFight() {
-    if (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true) {
+    if (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true && !(window.MBOnlineWaystar && window.MBOnlineWaystar.active)) {
         if (typeof showFloatingText === 'function') showFloatingText("⏭️ Путеводная Звезда уже побеждена в этой жизни!", "#ffaa00");
         return;
     }
@@ -382,6 +382,7 @@ function getWaystarChoices() {
 function selectWaystarChoice(choiceId) {
     if (waystarChoiceResolved) return;
     waystarChoiceResolved = true; waystarChoiceActive = false;
+    if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onDialogChoice(choiceId);
     var c = getWaystarChoices().find(function(x) { return x.id === choiceId; });
     var responses = [
         { speaker: "🌟 Путеводная Звезда", text: c.response },
@@ -395,6 +396,7 @@ function selectWaystarChoice(choiceId) {
 }
 
 function waystarProgressDialog() {
+    if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onDialogProgress();
     waystarDialogStep++;
     waystarDialogAutoTimer = 0;
     wsPlaySound(800, 'triangle', 0.05, 0.1);
@@ -754,6 +756,7 @@ function updateWaystarSpaceInvaders() {
             var p = waystarPieces[j]; if (!p.alive) continue;
             if (Math.abs(b.x - p.x) < p.size + 5 && Math.abs(b.y - p.y) < p.size + 5) {
                 p.hp--;
+                if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onPieceHit(j);
                 wsPlaySound(1200, 'square', 0.08, 0.1);
                 spawnWaystarParticles(p.x, p.y, 6, "#ffd700", 3);
                 addWaystarFlash(p.x, p.y, 12);
@@ -894,6 +897,8 @@ function updateWaystarBombQueue() {
 
 function handleWaystarClick(ev) {
     if (!waystarActive) return;
+    if (window.MBOnlineWaystar && window.MBOnlineWaystar.active && !window.MBOnlineWaystar.isLeader() &&
+        (waystarDialogActive || (waystarFinalActive && (waystarFinalPhase === "choice" || waystarFinalPhase === "spare_dialog")))) return;
     if (waystarFinalActive && waystarFinalPhase === "choice" && waystarChoiceSelection === null) {
         var rect = canvas.getBoundingClientRect();
         var mx = ev.clientX - rect.left;
@@ -904,6 +909,7 @@ function handleWaystarClick(ev) {
         if (mx > btnX && mx < btnX + btnW) {
             if (my > killY && my < killY + btnH) {
                 waystarChoiceSelection = "kill";
+                if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onFinalChoice("kill");
                 waystarFinalPhase = "kill_flash";
                 waystarFinalTimer = 0;
                 wsPlaySound(300, 'sawtooth', 0.8, 0.4);
@@ -914,6 +920,7 @@ function handleWaystarClick(ev) {
             }
             if (my > spareY && my < spareY + btnH) {
                 waystarChoiceSelection = "spare";
+                if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onFinalChoice("spare");
                 waystarFinalPhase = "spare_dialog";
                 waystarFinalTimer = 0;
                 waystarSpareDialogStep = 0;
@@ -969,6 +976,7 @@ function setupWaystarSpareDialog() {
 }
 
 function advanceWaystarSpareDialog() {
+    if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onSpareAdvance();
     waystarSpareDialogStep++;
     waystarSpareDialogTimer = 0;
     wsPlaySound(700, 'triangle', 0.05, 0.1);
@@ -1153,6 +1161,7 @@ function updateWaystarHpBar() {
 
 function waystarVictory() {
     if (waystarRewardGiven) return;
+    if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onVictory();
     waystarRewardGiven = true;
     console.log("[WAYSTAR] ПОБЕДА! Запуск финальной сцены");
     waystarAttacks = [];
@@ -1362,6 +1371,7 @@ function waystarRenderLoop() {
             if (typeof renderSuperVisuals === 'function') {
                 try { renderSuperVisuals(); } catch(e) {}
             }
+            if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onFrame(ctx, canvas, waystarState);
         } catch(e) { console.error("[WAYSTAR] ОШИБКА в финале:", e); waystarFinalPhase = "done"; }
         waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
         return;
@@ -1383,6 +1393,7 @@ function waystarRenderLoop() {
                     var dx = b.x - waystarBoss.x, dy = b.y - waystarBoss.y;
                     if (Math.sqrt(dx * dx + dy * dy) < waystarBoss.size + b.size) {
                         waystarBossHp -= b.damage; waystarBossFlash = 6;
+                        if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onBossDamage(b.damage, waystarState);
                         spawnWaystarParticles(b.x, b.y, 6, "#ffd700", 4); addWaystarFlash(b.x, b.y, 12);
                         if (Math.random() < 0.3) addWaystarLightning(b.x, b.y, b.x+(Math.random()-0.5)*50, b.y+(Math.random()-0.5)*50, "#ffffff", 0.6, 2);
                         wsPlaySound(1400, 'square', 0.08, 0.08);
@@ -1413,6 +1424,7 @@ function waystarRenderLoop() {
                 var dx = b.x - waystarSmallBoss.x, dy = b.y - waystarSmallBoss.y;
                 if (Math.sqrt(dx * dx + dy * dy) < waystarSmallBoss.size + b.size) {
                     waystarBossHp -= b.damage; waystarBossFlash = 6;
+                    if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onBossDamage(b.damage, waystarState);
                     spawnWaystarParticles(b.x, b.y, 8, "#ff00ff", 4); addWaystarFlash(b.x, b.y, 18);
                     addWaystarShockwave(b.x, b.y, "#ff00ff", 40, 10, 2);
                     if (Math.random() < 0.4) addWaystarLightning(b.x, b.y, b.x+(Math.random()-0.5)*60, b.y+(Math.random()-0.5)*60, "#ff00ff", 0.7, 2);
@@ -1469,7 +1481,9 @@ function waystarRenderLoop() {
         if (waystarState === "returning_anim") { waystarSmallBoss.alpha = Math.min(1, waystarSmallBoss.alpha + 0.015); waystarSmallBoss.rotation += 0.025; waystarSmallBoss.pulse += 0.08; waystarSmallBoss.time += 0.03; }
         var current = waystarDialogQueue[waystarDialogStep];
         if (current && current.choice && !waystarChoiceResolved) waystarChoiceActive = true;
-        if (!waystarChoiceActive) { waystarDialogAutoTimer++; if (current && waystarDialogAutoTimer > current.time * 60) waystarProgressDialog(); }
+        if (window.MBOnlineWaystar && window.MBOnlineWaystar.active && !window.MBOnlineWaystar.isLeader()) {
+            waystarDialogAutoTimer = 0;
+        } else if (!waystarChoiceActive) { waystarDialogAutoTimer++; if (current && waystarDialogAutoTimer > current.time * 60) waystarProgressDialog(); }
     }
     if (waystarShake > 0.1) waystarShake *= 0.85;
     if (waystarScreenFlash > 0) waystarScreenFlash--;
@@ -1521,6 +1535,7 @@ function waystarRenderLoop() {
     if (waystarRageMode && waystarState === "phase3") { ctx.save(); ctx.font = "bold 16px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ff0000"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15; var rageGlow = 0.5 + Math.abs(Math.sin(performance.now() / 150)) * 0.5; ctx.globalAlpha = rageGlow; ctx.fillText("🔥 RAGE MODE 🔥", 200, 470); ctx.restore(); }
     if (waystarState === "phase3" && waystarEscalationLevel > 0) { ctx.save(); ctx.font = "bold 13px monospace"; ctx.textAlign = "center"; var escColors = ["#ff00ff", "#ff00ff", "#ff4400", "#ff4400", "#ff0000"]; var escName = waystarEscalationLevel >= 4 ? "💀 ФИНАЛЬНАЯ ЯРОСТЬ 💀" : "⚠ ЭСКАЛАЦИЯ " + "I".repeat(waystarEscalationLevel); ctx.fillStyle = escColors[Math.min(waystarEscalationLevel, 4)]; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 12; ctx.globalAlpha = 0.7 + Math.abs(Math.sin(performance.now() / 250)) * 0.3; ctx.fillText(escName, 200, 455); ctx.restore(); }
     if (isWaystarModerActive()) { ctx.save(); ctx.font = "bold 11px monospace"; ctx.textAlign = "right"; ctx.fillStyle = "#ffd700"; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 8; ctx.globalAlpha = 0.8; ctx.fillText("👑 MODER", 395, 20); ctx.restore(); }
+    if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onFrame(ctx, canvas, waystarState);
     ctx.restore();
     waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
 }
