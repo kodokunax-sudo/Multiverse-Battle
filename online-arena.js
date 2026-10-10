@@ -901,7 +901,7 @@
         if (!window.getWaystarActive || !window.getWaystarActive()) return;
         var amount = Math.max(0, Math.floor(Number(packet.damage) || 0));
         if (!amount) return;
-        if (packet.phase === 'phase2' || window.waystarState === 'phase2') {
+        if (packet.phase === 'phase2' || (!packet.phase && window.waystarState === 'phase2')) {
             applyRemotePhase2Damage(amount);
             return;
         }
