@@ -616,6 +616,7 @@
         ].forEach(function (key) { flags[key] = !!s[key]; });
         flags.dioTimeStop = Math.max(0, Number(s.dioTimeStop) || 0);
         flags.dioTeleportStop = Math.max(0, Number(s.dioTeleportStop) || 0);
+        flags.garpChargeTimer = Math.max(0, Number(s.garpChargeTimer) || 0);
         return {
             bullets: bullets,
             supers: {
@@ -709,7 +710,7 @@
             if(f.dekusActive)aura='#44ff44';
             else if(f.antispiralActive)aura='#aaddff';
             else if(f.nikaActive)aura='#fff';
-            else if(f.garpHakiActive||Number(f.dioTimeStop)>0||Number(f.dioTeleportStop)>0)aura='#ffdd77';
+            else if(f.garpHakiActive||Number(f.garpChargeTimer)>0||Number(f.dioTimeStop)>0||Number(f.dioTeleportStop)>0||f.dioMudaActive)aura='#ffdd77';
             else if(f.whitebeardTimeStop||f.whitebeardCharging||f.whitebeardTsunami||f.whitebeardSkillTsunamiActive)aura='#00ccff';
             else if(f.allmightHurricane||f.allmightDebuffActive||f.markBuffActive)aura='#ffd700';
             else if(f.dandyLightnings||f.imAuraActive)aura='#bc66ff';
