@@ -26,6 +26,10 @@
     var currentFriendSearchResults = [];
     var publicProfileUserId = null;
     var presenceHeartbeatTimer = null;
+    var ownStatsData = null;
+    var publicStatsData = null;
+    var ownStatsMode = 'rebirth';
+    var publicStatsMode = 'rebirth';
     var NEW_ACCOUNT_SLOT_TRANSFER_KEY = 'mb_new_account_slot_transfer_user_v1';
 
     function isPendingNewAccountTransfer(userId) {
@@ -196,7 +200,7 @@
                 : (typeof myCards !== 'undefined' && Array.isArray(myCards) ? myCards.length : 0);
             var bosses = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) ? defeatedBosses.length : 0;
             var clicks = typeof totalClicks !== 'undefined' ? totalClicks : 0;
-            return {
+            var result = {
                 total_wins: safeCount(wins),
                 highest_wave: Math.max(1, safeCount(bestWave)),
                 rebirth_count: safeCount(rebirths, 1000000),
@@ -204,6 +208,15 @@
                 bosses_defeated: safeCount(bosses, 1000000),
                 total_clicks: safeCount(clicks)
             };
+            if (window.MBGameStats && typeof window.MBGameStats.getSnapshot === 'function') {
+                var expanded = window.MBGameStats.getSnapshot();
+                if (expanded && typeof expanded === 'object') {
+                    result.current_rebirth_stats = expanded.current_rebirth_stats || {};
+                    result.lifetime_stats = expanded.lifetime_stats || {};
+                    result.rebirth_history = Array.isArray(expanded.rebirth_history) ? expanded.rebirth_history : [];
+                }
+            }
+            return result;
         } catch (_error) {
             return null;
         }
@@ -626,6 +639,134 @@
         } catch (error) { setNotice(friendlyError(error), 'error'); }
     }
 
+    function statsShownValue(value, minimum) {
+        if (value === undefined || value === null || value === '') return '—';
+        var numeric = Number(value);
+        if (!Number.isFinite(numeric) || numeric < 0) return '—';
+        return formatCount(numeric) + (minimum && numeric > 0 ? '+' : (minimum ? '+' : ''));
+    }
+
+    function renderExpandedStats(scope, data, mode) {
+        var gridId = scope === 'own' ? 'clanProfileStats' : 'clanPublicStats';
+        var historyId = scope === 'own' ? 'clanProfileRebirthHistory' : 'clanPublicRebirthHistory';
+        var grid = byId(gridId), history = byId(historyId);
+        if (!grid || !history) return;
+        var current = data && data.current_rebirth_stats && typeof data.current_rebirth_stats === 'object' ? data.current_rebirth_stats : {};
+        var lifetime = data && data.lifetime_stats && typeof data.lifetime_stats === 'object' ? data.lifetime_stats : {};
+        var entries = [];
+        if (mode === 'lifetime') {
+            entries = [
+                ['💀', 'Всего смертей', statsShownValue(lifetime.deaths, lifetime.historicalDeathMinimum || lifetime.deathsApproximate)],
+                ['🌊', 'Волн пройдено', statsShownValue(lifetime.wavesCleared, lifetime.wavesClearedApproximate || lifetime.legacyCountersPartial)],
+                ['👹', 'Боссов побеждено', statsShownValue(lifetime.bossesDefeated, lifetime.bossesDefeatedApproximate || lifetime.legacyCountersPartial)],
+                ['🎴', 'Новых карт получено с обновления', lifetime.cardsObtained],
+                ['👆', 'Всего кликов', lifetime.clicks],
+                ['🌌', 'Лучшая волна за всё время', Math.max(1, safeCount(lifetime.highestWave, 1000000000), safeCount(data && data.highest_wave, 1000000000))],
+                ['♻️', 'Количество ребёрнов', Math.max(0, safeCount(lifetime.rebirths, 1000000), safeCount(data && data.rebirth_count, 1000000))],
+                ['🏰', 'Максимальный чекпоинт', lifetime.highestCheckpoint],
+                ['⭐', 'Максимум звёзд', lifetime.maxPoints],
+                ['📦', 'Карт сейчас', lifetime.cardsOwned],
+                ['🧬', 'Уникальных персонажей сейчас', lifetime.uniqueCardsOwned]
+            ];
+        } else {
+            entries = [
+                ['♻️', 'Текущий ребёрн', safeCount(current.rebirth, safeCount(data && data.rebirth_count, 1000000))],
+                ['💀', 'Смертей в этом ребёрне', current.deaths],
+                ['🌊', 'Волн пройдено', current.wavesCleared],
+                ['👹', 'Боссов побеждено', current.bossesDefeated],
+                ['🎴', 'Новых карт получено', current.cardsObtained],
+                ['👆', 'Кликов в этом ребёрне', current.clicks],
+                ['🚩', 'Максимальная волна ребёрна', Math.max(1, safeCount(current.highestWave, 1000000000))],
+                ['🏰', 'Чекпоинт', current.highestCheckpoint],
+                ['⭐', 'Максимум звёзд в ребёрне', current.maxPoints],
+                ['⚔️', 'Текущая волна', current.currentWave],
+                ['📈', 'Текущий уровень', current.currentLevel],
+                ['🎴', 'Карт в коллекции', current.cardsOwned],
+                ['🧬', 'Уникальных персонажей', current.uniqueCardsOwned],
+                ['✨', 'Текущие звёзды', current.currentPoints]
+            ];
+        }
+        grid.replaceChildren();
+        entries.forEach(function (entry) {
+            var card = node('div', 'clan-stat expanded-stat');
+            card.appendChild(node('strong', '', typeof entry[2] === 'number' ? formatCount(entry[2]) : String(entry[2] === undefined || entry[2] === null ? '—' : entry[2])));
+            card.appendChild(node('span', '', entry[0] + ' ' + entry[1]));
+            grid.appendChild(card);
+        });
+        grid.style.display = mode === 'history' ? 'none' : '';
+        history.style.display = mode === 'history' ? '' : 'none';
+        if (mode === 'history') renderRebirthHistory(historyId, data && data.rebirth_history);
+        document.querySelectorAll('[data-stats-target="' + scope + '"]').forEach(function (button) {
+            var active = button.getAttribute('data-stats-mode') === mode;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+    }
+
+    function renderRebirthHistory(containerId, historyData) {
+        var container = byId(containerId);
+        if (!container) return;
+        container.replaceChildren();
+        var history = Array.isArray(historyData) ? historyData.slice().reverse() : [];
+        if (!history.length) {
+            container.appendChild(node('div', 'stats-history-empty', 'История ребёрнов начнёт заполняться после следующих ребёрнов. Старые сохранения не записывали подробную статистику каждого цикла.'));
+            return;
+        }
+        history.forEach(function (entry) {
+            var card = node('section', 'rebirth-history-entry');
+            var header = node('div', 'rebirth-history-header');
+            var number = safeCount(entry && entry.rebirth, 1000000) + 1;
+            header.appendChild(node('strong', '', 'До ребёрна №' + formatCount(number)));
+            header.appendChild(node('span', 'rebirth-history-world', entry && entry.world ? entry.world : 'Мультивселенная'));
+            card.appendChild(header);
+            var legacy = [
+                ['🌊', 'Лучшая волна', entry && entry.highestWave],
+                ['🏰', 'Чекпоинт', entry && entry.highestCheckpoint],
+                ['🎴', 'Карт в коллекции', entry && entry.totalCards],
+                ['📈', 'Уровень', entry && entry.playerLevel],
+                ['👆', 'Клики на тот момент', entry && entry.totalClicks],
+                ['⭐', 'Максимум звёзд', entry && entry.maxPoints]
+            ];
+            var legacyGrid = node('div', 'rebirth-history-grid');
+            legacy.forEach(function (metric) {
+                var cell = node('div', 'rebirth-history-metric');
+                cell.appendChild(node('strong', '', metric[2] === undefined || metric[2] === null ? '—' : formatCount(metric[2])));
+                cell.appendChild(node('span', '', metric[0] + ' ' + metric[1]));
+                legacyGrid.appendChild(cell);
+            });
+            card.appendChild(legacyGrid);
+            var stats = entry && entry.stats && typeof entry.stats === 'object' ? entry.stats : null;
+            if (entry && entry.statsVersion === 1 && stats) {
+                var extended = node('div', 'rebirth-history-extra');
+                [
+                    ['💀', 'Смерти', stats.deaths],
+                    ['🌊', 'Волн пройдено', stats.wavesCleared],
+                    ['👹', 'Боссы', stats.bossesDefeated],
+                    ['🎴', 'Карт получено', stats.cardsObtained],
+                    ['👆', 'Кликов за ребёрн', stats.clicks]
+                ].forEach(function (metric) {
+                    var item = node('span', 'rebirth-history-chip', metric[0] + ' ' + metric[1] + ': ' + (metric[2] === undefined ? '—' : formatCount(metric[2])));
+                    extended.appendChild(item);
+                });
+                card.appendChild(extended);
+            } else {
+                card.appendChild(node('p', 'clan-muted rebirth-history-note', 'Этот ребёрн был завершён до расширенной статистики. Сохранились только волна, чекпоинт и часть старых показателей.'));
+            }
+            container.appendChild(card);
+        });
+    }
+
+    function setExpandedStatsMode(scope, mode) {
+        if (['rebirth', 'lifetime', 'history'].indexOf(mode) === -1) mode = 'rebirth';
+        if (scope === 'own') {
+            ownStatsMode = mode;
+            renderExpandedStats('own', ownStatsData, ownStatsMode);
+        } else {
+            publicStatsMode = mode;
+            renderExpandedStats('public', publicStatsData, publicStatsMode);
+        }
+    }
+
     function updateProfileStatsPreview(stats) {
         if (stats) renderStatsGrid('clanProfileStats', stats);
     }
@@ -708,7 +849,7 @@
             var allowedSorts = ['highest_wave', 'total_wins', 'rebirth_count', 'cards_collected', 'bosses_defeated', 'total_clicks'];
             if (allowedSorts.indexOf(sortKey) === -1) sortKey = 'highest_wave';
             var result = await db.from('profiles')
-                .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, current_rebirth_stats, lifetime_stats, rebirth_history, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
                 .order(sortKey, { ascending: false })
                 .order('highest_wave', { ascending: false })
                 .limit(100);
@@ -774,7 +915,7 @@
         if (!db || !currentUser) return;
         await syncGameStats();
         var result = await db.from('profiles')
-            .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, created_at, updated_at, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+            .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, current_rebirth_stats, lifetime_stats, rebirth_history, created_at, updated_at, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
             .eq('id', currentUser.id)
             .maybeSingle();
         if (result.error) throw result.error;
@@ -786,7 +927,8 @@
         renderAvatarPicker(profileAvatarName);
         applyAvatarPreview(profileAvatarName);
         var mergedStats = Object.assign({}, result.data, readLocalGameStats() || {});
-        renderStatsGrid('clanProfileStats', mergedStats);
+        ownStatsData = mergedStats;
+        renderExpandedStats('own', ownStatsData, ownStatsMode);
         profileShowcaseSavedCards = Array.isArray(result.data.showcase_cards) ? result.data.showcase_cards.slice(0, 3) : [];
         profileShowcaseSelection = profileShowcaseSavedCards.map(function (card) { return card && card.uid !== undefined ? String(card.uid) : ''; }).filter(Boolean);
         renderShowcasePicker();
@@ -858,7 +1000,8 @@
             byId('clanPublicFriendCode').textContent = result.data.friend_code ? 'MB-' + result.data.friend_code : '—';
             showPublicTitle(result.data);
             renderPublicShowcase('clanPublicShowcase', result.data.showcase_cards);
-            renderStatsGrid('clanPublicStats', result.data);
+            publicStatsData = result.data;
+            renderExpandedStats('public', publicStatsData, publicStatsMode);
             renderAchievementBadges('clanPublicBadges', result.data, false);
             updatePublicFriendAction();
         } catch (error) {
@@ -1731,6 +1874,11 @@
         if (friendsRefreshButton) friendsRefreshButton.addEventListener('click', refreshFriendsHub);
         var showcaseSearch = byId('clanShowcaseSearch');
         if (showcaseSearch) showcaseSearch.addEventListener('input', renderShowcasePicker);
+        document.querySelectorAll('[data-stats-target]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                setExpandedStatsMode(button.getAttribute('data-stats-target'), button.getAttribute('data-stats-mode'));
+            });
+        });
         var copyFriendCodeButton = byId('clanCopyFriendCode');
         if (copyFriendCodeButton) copyFriendCodeButton.addEventListener('click', function () {
             var code = currentProfile && currentProfile.friend_code;
@@ -2022,6 +2170,10 @@
             currentUser = null;
             currentClan = null;
             currentProfile = null;
+            ownStatsData = null;
+            publicStatsData = null;
+            ownStatsMode = 'rebirth';
+            publicStatsMode = 'rebirth';
             notifyCloudSaveAuthChanged();
             showAuthState();
         });
