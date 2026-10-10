@@ -667,6 +667,12 @@
     .avatar-choice-grid .clan-avatar-option:disabled { opacity:.42; filter:grayscale(.9); cursor:not-allowed; transform:none; box-shadow:none; }
 
 /* Online arena: reuse the Undertale-style battle presentation for multiplayer testing */
+.online-arena-card{overflow:hidden}
+.online-arena-preview{height:170px;max-width:520px;margin:16px auto 14px;position:relative;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(246,181,27,.3);border-radius:18px;background:radial-gradient(ellipse at center,rgba(132,87,255,.2),transparent 55%),linear-gradient(145deg,#11111d,#07070b)}
+.online-arena-preview-ring{position:absolute;width:min(65%,230px);aspect-ratio:1;border:2px solid rgba(246,181,27,.72);border-radius:50%;box-shadow:0 0 0 10px rgba(155,121,255,.08),0 0 35px rgba(246,181,27,.2),inset 0 0 35px rgba(155,121,255,.12)}
+.online-arena-preview-icon{font-size:48px;filter:drop-shadow(0 0 18px rgba(246,181,27,.35))}
+.online-arena-enter{display:block;width:min(100%,420px);margin:0 auto;padding:14px;font-size:16px;font-weight:900}
+.online-arena-card>.online-arena-status{min-height:20px;margin:13px 0 0;text-align:center;color:#d7c9ff;font-size:12px;line-height:1.5}
 .online-arena-battle-overlay{position:fixed;inset:0;z-index:10000;box-sizing:border-box;overflow:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:max(10px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));background:#000;color:#fff;font-family:Arial,sans-serif}
 .online-arena-battle-header{width:min(100%,420px);display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .online-arena-battle-title{font-size:clamp(17px,4vw,22px);font-weight:900;letter-spacing:.5px;text-align:center}
