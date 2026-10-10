@@ -133,6 +133,54 @@
     document.addEventListener('touchend', clearTouchState, { capture: true, passive: true });
     document.addEventListener('touchcancel', clearTouchState, { capture: true, passive: true });
 
+    // Best-effort protection against accidental reload / navigation during a boss fight.
+    // Browsers do not permit websites to block every browser-UI reload, but these guards
+    // cancel keyboard reload shortcuts, request a native leave-page confirmation, and
+    // keep mobile Back navigation inside the active fight.
+    window.addEventListener('keydown', function (event) {
+        if (!isBattleActive()) return;
+        var key = String(event.key || '').toLowerCase();
+        var reloadShortcut = key === 'f5' ||
+            ((event.ctrlKey || event.metaKey) && key === 'r');
+        if (!reloadShortcut) return;
+        if (event.cancelable) event.preventDefault();
+        event.stopImmediatePropagation();
+    }, true);
+
+    document.addEventListener('contextmenu', function (event) {
+        if (isBattleActive()) event.preventDefault();
+    }, true);
+
+    window.addEventListener('beforeunload', function (event) {
+        if (!isBattleActive()) return;
+        event.preventDefault();
+        event.returnValue = '';
+        return '';
+    });
+
+    var battleHistoryGuardArmed = false;
+    function armBattleHistoryGuard() {
+        if (!isBattleActive()) {
+            battleHistoryGuardArmed = false;
+            return;
+        }
+        if (battleHistoryGuardArmed) return;
+        try {
+            window.history.pushState({ __multiverseBattleGuard: true }, '', window.location.href);
+            battleHistoryGuardArmed = true;
+        } catch (err) {}
+    }
+    window.addEventListener('popstate', function () {
+        if (!isBattleActive()) {
+            battleHistoryGuardArmed = false;
+            return;
+        }
+        try {
+            window.history.pushState({ __multiverseBattleGuard: true }, '', window.location.href);
+            battleHistoryGuardArmed = true;
+        } catch (err) {}
+    });
+
     // Defensive CSS state refresh, separate from touch processing.
     window.setInterval(function () {
         if (!document.body) return;
