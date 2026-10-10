@@ -489,7 +489,9 @@ window.addEventListener('mb:cloud-save-action', function (event) {
 });
 
 function selectSlot(slot) {
-    window.dispatchEvent(new CustomEvent('mb:slot-changing', { detail: { from: currentSlot, to: slot } }));
+    if (currentSlot >= 0 && currentSlot <= 2 && currentSlot !== slot) {
+        window.dispatchEvent(new CustomEvent('mb:slot-changing', { detail: { from: currentSlot, to: slot } }));
+    }
     currentSlot = slot;
     let saved = loadGameFromSlot(slot);
     let meta = loadSlotMeta(slot);
