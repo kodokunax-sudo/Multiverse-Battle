@@ -388,13 +388,17 @@
 
     async function openPublicProfile(userId) {
         if (!db || !currentUser || !userId) return;
+        var overlay = byId('clanPublicProfileOverlay');
         var card = byId('clanPublicProfileCard');
-        if (!card) return;
-        card.style.display = 'block';
+        if (!overlay || !card) return;
+        overlay.style.display = 'flex';
+        overlay.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('clan-profile-modal-open');
         byId('clanPublicName').textContent = 'Загружаем профиль…';
-        byId('clanPublicDescription').textContent = '';
+        byId('clanPublicDescription').textContent = 'Получаем данные игрока.';
         byId('clanPublicStats').replaceChildren();
-        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        var closeButton = byId('clanPublicProfileClose');
+        if (closeButton) closeButton.focus();
         try {
             var result = await db.from('profiles')
                 .select('id, display_name, avatar_name, description, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
@@ -406,16 +410,21 @@
             byId('clanPublicAvatar').src = avatarPathForName(result.data.avatar_name) || 'images/Super_Dio_2.gif';
             renderStatsGrid('clanPublicStats', result.data);
         } catch (error) {
-            byId('clanPublicName').textContent = friendlyError(error);
+            byId('clanPublicName').textContent = 'Не удалось открыть профиль';
+            byId('clanPublicDescription').textContent = friendlyError(error);
         }
     }
 
     function hidePublicProfile() {
-        var card = byId('clanPublicProfileCard');
-        if (card) card.style.display = 'none';
+        var overlay = byId('clanPublicProfileOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+            overlay.setAttribute('aria-hidden', 'true');
+        }
+        document.body.classList.remove('clan-profile-modal-open');
     }
 
-    function setChatState(message, failed) {
+        function setChatState(message, failed) {
         var el = byId('clanChatState');
         if (!el) return;
         el.textContent = message;
@@ -1212,6 +1221,16 @@
         byId('clanCardRequestForm').addEventListener('submit', submitClanCardRequest);
         populateClanCardRequestOptions();
         byId('clanPublicProfileClose').addEventListener('click', hidePublicProfile);
+        var publicProfileOverlay = byId('clanPublicProfileOverlay');
+        if (publicProfileOverlay) publicProfileOverlay.addEventListener('click', function (event) {
+            if (event.target === publicProfileOverlay) hidePublicProfile();
+        });
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                var overlay = byId('clanPublicProfileOverlay');
+                if (overlay && overlay.style.display !== 'none') hidePublicProfile();
+            }
+        });
         var leaderboardRefresh = byId('clanLeaderboardRefresh');
         if (leaderboardRefresh) leaderboardRefresh.addEventListener('click', loadLeaderboard);
         var leaderboardSort = byId('clanLeaderboardSort');
