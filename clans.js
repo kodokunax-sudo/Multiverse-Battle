@@ -946,6 +946,7 @@
                 currentUser = result.data.user;
                 setNotice('Аккаунт создан. Добро пожаловать!', 'success');
                 await refreshAll();
+                notifyCloudSaveAuthChanged();
             } else {
                 setNotice('Аккаунт создан. Проверь почту и перейди по ссылке подтверждения, затем войди.', 'success');
             }
@@ -968,6 +969,7 @@
             currentUser = result.data.user;
             setNotice('Вход выполнен.', 'success');
             await refreshAll();
+            notifyCloudSaveAuthChanged();
         } catch (error) {
             setNotice(friendlyError(error), 'error');
         } finally {
@@ -983,6 +985,7 @@
             if (result.error) throw result.error;
             currentUser = null;
             currentClan = null;
+            notifyCloudSaveAuthChanged();
             await closeClanChat();
             await closeGiftRealtime();
             setNotice('Ты вышел из аккаунта.', 'success');
@@ -1074,6 +1077,44 @@
         }
     }
 
+    function setCloudSaveStatus(message, kind) {
+        var el = byId('cloudSaveStatus');
+        if (!el) return;
+        el.textContent = message || '';
+        el.className = 'clan-notice' + (kind ? ' clan-notice-' + kind : '');
+    }
+
+    function notifyCloudSaveAuthChanged() {
+        try {
+            window.dispatchEvent(new CustomEvent('mb:auth-changed', {
+                detail: { userId: currentUser ? currentUser.id : null, email: currentUser ? currentUser.email : null }
+            }));
+        } catch (_error) {}
+    }
+
+    async function getCloudSave() {
+        if (!db || !currentUser) throw new Error('auth_required');
+        var result = await db.from('player_cloud_saves')
+            .select('save_data, updated_at, revision')
+            .eq('user_id', currentUser.id)
+            .maybeSingle();
+        if (result.error) throw result.error;
+        return result.data || null;
+    }
+
+    async function writeCloudSave(saveData, expectedUpdatedAt) {
+        if (!db || !currentUser) throw new Error('auth_required');
+        if (!saveData || typeof saveData !== 'object' || Array.isArray(saveData)) throw new Error('cloud_save_invalid');
+        var result = await db.rpc('write_player_cloud_save', {
+            p_save_data: saveData,
+            p_expected_updated_at: expectedUpdatedAt || null
+        });
+        if (result.error) throw result.error;
+        var row = Array.isArray(result.data) ? result.data[0] : result.data;
+        if (!row || !row.updated_at) throw new Error('cloud_save_write_no_result');
+        return { updated_at: row.updated_at, revision: row.revision };
+    }
+
     function bindEvents() {
         if (initialized) return;
         initialized = true;
@@ -1083,6 +1124,14 @@
         });
         byId('clansLoginBtn').addEventListener('click', login);
         byId('clansLogoutBtn').addEventListener('click', logout);
+        var cloudDownloadBtn = byId('cloudSaveDownloadBtn');
+        if (cloudDownloadBtn) cloudDownloadBtn.addEventListener('click', function () {
+            window.dispatchEvent(new CustomEvent('mb:cloud-save-action', { detail: { action: 'download' } }));
+        });
+        var cloudUploadBtn = byId('cloudSaveUploadBtn');
+        if (cloudUploadBtn) cloudUploadBtn.addEventListener('click', function () {
+            window.dispatchEvent(new CustomEvent('mb:cloud-save-action', { detail: { action: 'upload' } }));
+        });
         byId('clanCreateForm').addEventListener('submit', createClan);
         byId('clanProfileForm').addEventListener('submit', saveProfile);
         byId('clanChatForm').addEventListener('submit', sendClanChatMessage);
@@ -1132,11 +1181,13 @@
             currentUser = sessionResult.data.session ? sessionResult.data.session.user : null;
             showAuthState();
             await refreshAll();
+            notifyCloudSaveAuthChanged();
             db.auth.onAuthStateChange(function (_event, session) {
                 currentUser = session ? session.user : null;
                 window.setTimeout(function () {
                     showAuthState();
                     refreshAll();
+                    notifyCloudSaveAuthChanged();
                 }, 0);
             });
             setNotice(currentUser ? 'Онлайн подключён.' : 'Войди или зарегистрируйся, чтобы начать.', 'success');
@@ -1156,6 +1207,10 @@
         syncGameStats: syncGameStats,
         syncCardInventory: processClanCardInbox,
         refreshCardExchange: refreshClanCardExchange,
-        isConnected: function () { return !!db; }
+        isConnected: function () { return !!db; },
+        getCurrentUserId: function () { return currentUser ? currentUser.id : null; },
+        getCloudSave: getCloudSave,
+        writeCloudSave: writeCloudSave,
+        setCloudSaveStatus: setCloudSaveStatus
     };
 })();
