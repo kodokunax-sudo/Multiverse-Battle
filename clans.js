@@ -768,7 +768,9 @@
     }
 
     function updateProfileStatsPreview(stats) {
-        if (stats) renderStatsGrid('clanProfileStats', stats);
+        if (!stats) return;
+        ownStatsData = Object.assign({}, ownStatsData || {}, stats);
+        renderExpandedStats('own', ownStatsData, ownStatsMode);
     }
 
     var PROFILE_STICKERS = [["🔥","Огонь"],["⭐","Звезда"],["👑","Корона"],["💀","Череп"],["⚡","Молния"],["💎","Алмаз"],["👹","Они"],["🐉","Дракон"],["🌀","Спираль"],["❤️","Сердце"],["☠️","Пират"],["🌊","Волна"],["🗿","Мем"],["👁️","Глаз"],["🌟","Сияние"],["🤡","Клоун"],["🦈","Акула"],["🐸","Лягушка"],["🎭","Маска"],["🧊","Лёд"],["🌑","Тьма"],["☀️","Солнце"],["🍜","Рамен"],["💥","Взрыв"],["🦇","Летучая мышь"],["🩸","Кровь"],["🎯","Мишень"],["🏆","Кубок"],["👻","Призрак"],["🐺","Волк"]];
@@ -991,7 +993,7 @@
         if (closeButton) closeButton.focus();
         try {
             var result = await db.from('profiles')
-                .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, current_rebirth_stats, lifetime_stats, rebirth_history, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
                 .eq('id', userId).maybeSingle();
             if (result.error) throw result.error;
             if (!result.data) throw new Error('profile_not_found');
