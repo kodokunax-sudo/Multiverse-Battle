@@ -570,7 +570,10 @@ function saveAll() {
     if (typeof window.getEquipmentData === 'function') slotData.equipment = window.getEquipmentData();
     
     saveGameToSlot(currentSlot); 
-    window._needSave = false; 
+    window._needSave = false;
+    if (window.MBClans && typeof window.MBClans.syncGameStats === "function") {
+        window.MBClans.syncGameStats();
+    } 
 }
 
 // ========== ИГРОВЫЕ ПЕРЕМЕННЫЕ ==========
