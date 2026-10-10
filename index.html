@@ -712,6 +712,14 @@
                         <button id="cloudSaveUnbindBtn" class="btn" type="button">🔓 Отвязать этот слот</button>
                     </div>
                 </div>
+                <div id="clanLeaderboardCard" class="card">
+                    <div class="flex-between" style="gap:10px;">
+                        <div class="card-title" style="margin-bottom:0;">🏆 Рейтинг игроков</div>
+                        <button id="clanLeaderboardRefresh" class="btn" type="button">🔄 Обновить</button>
+                    </div>
+                    <p class="clan-muted">Сортировка по максимальной волне, затем по победам и ребёрнам. Нажми на игрока, чтобы открыть его профиль.</p>
+                    <div id="clanLeaderboard" class="clan-leaderboard"></div>
+                </div>
                 <div id="clanProfileCard" class="card">
                     <div class="card-title">👤 Мой профиль</div>
                     <form id="clanProfileForm" class="clan-form">
@@ -866,7 +874,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="clans.js?v=11"></script>
+<script src="clans.js?v=12"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
