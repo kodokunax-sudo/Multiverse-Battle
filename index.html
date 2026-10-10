@@ -353,6 +353,31 @@
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #f5af19; border-radius: 50%; cursor: pointer; }
         select { background: #1a1a2e; color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 6px 10px; font-family: 'Nunito', sans-serif; font-size: 13px; cursor: pointer; }
         input[type="checkbox"] { width: 18px; height: 18px; accent-color: #f5af19; cursor: pointer; }
+    .clan-notice { margin: 10px 0; padding: 10px 12px; border-radius: 12px; font-size: 13px; font-weight: 800; background: rgba(120,120,140,.14); border: 1px solid rgba(255,255,255,.1); overflow-wrap: anywhere; }
+    .clan-notice-success { color: #8ff0b0; border-color: rgba(46,204,113,.35); }
+    .clan-notice-error { color: #ff9c9c; border-color: rgba(231,76,60,.45); }
+    .clan-notice-warning { color: #ffd985; border-color: rgba(245,175,25,.4); }
+    .clan-form { display: grid; gap: 9px; }
+    .clan-form input, .clan-form textarea { width: 100%; min-width: 0; padding: 11px 12px; color: #fff; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.18); border-radius: 10px; font: inherit; }
+    .clan-form textarea { min-height: 74px; resize: vertical; }
+    .clan-form-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .clan-form-row > * { flex: 1 1 130px; }
+    .clan-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.09); }
+    .clan-row:last-child { border-bottom: 0; }
+    .clan-row-main { min-width: 0; flex: 1; }
+    .clan-row-heading { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 4px; }
+    .clan-row-heading strong { overflow-wrap: anywhere; }
+    .clan-tag { color: #ffd66d; font-size: 12px; font-weight: 900; white-space: nowrap; }
+    .clan-muted { color: #aaa; font-size: 12px; overflow-wrap: anywhere; }
+    .clan-pill { display: inline-block; color: #8ff0b0; border: 1px solid rgba(46,204,113,.25); background: rgba(46,204,113,.09); border-radius: 20px; padding: 5px 8px; font-size: 11px; font-weight: 900; white-space: nowrap; }
+    .clan-pill-muted { color: #ccc; background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); white-space: normal; text-align: center; }
+    .clan-action-btn { padding: 7px 11px; flex: 0 0 auto; white-space: nowrap; }
+    .clan-danger-btn { background: linear-gradient(135deg,#8f2e39,#5c1725); border-color: #b84a59; }
+    .clan-member-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+    .clan-member-row:last-child { border-bottom: 0; }
+    .clan-card-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; }
+    #clansUserPanel { align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    @media (max-width: 460px) { .clan-row { align-items: flex-start; } .clan-action-btn { white-space: normal; } }
     </style>
     <script src="anti-pull-refresh.js?v=4"></script>
 </head>
@@ -370,6 +395,7 @@
             <button class="tab-btn active" data-tab="collection">🏠 Коллекция</button>
             <button class="tab-btn" data-tab="battle">⚔️ Битва</button>
             <button class="tab-btn" data-tab="shop">🛒 Лавка</button>
+            <button class="tab-btn" data-tab="clans">🛡️ Кланы</button>
             <button class="tab-btn" data-tab="other">📋 Прочее</button>
         </div>
         <div id="collectionTab" class="tab-content active">
@@ -607,6 +633,62 @@
                     <button class="btn" style="width:100%;margin-top:10px;" onclick="resetArenaSettings()">🔄 Сбросить настройки</button>
                 </div>
             </div>
+        <div id="clansTab" class="tab-content">
+            <div class="card">
+                <div class="card-title">🛡️ Онлайн-кланы <span style="font-size:11px;color:#aaa;">BETA</span></div>
+                <p style="font-size:13px;color:#bbb;line-height:1.5;">Создавай кланы, вступай к другим игрокам и собирай команду для будущих онлайн-событий. Онлайн-данные хранятся отдельно от локального прогресса игры.</p>
+                <div id="clansNotice" class="clan-notice" role="status" aria-live="polite">Проверяем настройки онлайн-системы…</div>
+                <div id="clansAuthPanel">
+                    <form id="clansAuthForm" class="clan-form" autocomplete="on">
+                        <label for="clansDisplayName" style="font-size:12px;font-weight:800;">Игровой ник (при регистрации)</label>
+                        <input id="clansDisplayName" type="text" maxlength="24" placeholder="Например, DIO" autocomplete="nickname">
+                        <label for="clansEmail" style="font-size:12px;font-weight:800;">Электронная почта</label>
+                        <input id="clansEmail" type="email" maxlength="254" placeholder="you@example.com" autocomplete="email" required>
+                        <label for="clansPassword" style="font-size:12px;font-weight:800;">Пароль (минимум 8 символов)</label>
+                        <input id="clansPassword" type="password" minlength="8" placeholder="Пароль" autocomplete="current-password" required>
+                        <div class="clan-form-row">
+                            <button id="clansRegisterBtn" class="btn btn-primary" type="submit">Создать аккаунт</button>
+                            <button id="clansLoginBtn" class="btn" type="button">Войти</button>
+                        </div>
+                    </form>
+                </div>
+                <div id="clansUserPanel" style="display:none;">
+                    <div style="min-width:0;flex:1;"><div style="font-size:11px;color:#aaa;">Ты вошёл как</div><strong id="clansSignedInAs" style="overflow-wrap:anywhere;"></strong></div>
+                    <button id="clansLogoutBtn" type="button" class="btn" style="padding:7px 12px;">Выйти</button>
+                </div>
+            </div>
+
+            <div id="clansSignedInSections" style="display:none;">
+                <div id="clanCurrentCard" class="card" style="display:none;">
+                    <div class="card-title">🏰 Мой клан</div>
+                    <div class="clan-card-heading"><strong id="clanCurrentName"></strong><span id="clanCurrentTag" class="clan-tag"></span></div>
+                    <p id="clanCurrentDescription" class="clan-muted" style="margin-top:6px;"></p>
+                    <p id="clanCurrentRole" style="font-size:13px;font-weight:900;margin-top:8px;"></p>
+                    <div class="card-title" style="font-size:14px;margin-top:12px;">👥 Участники</div>
+                    <div id="clanMemberList"></div>
+                    <div id="clanCurrentActions" class="clan-form-row" style="margin-top:12px;"></div>
+                </div>
+
+                <div id="clanCreateCard" class="card" style="display:none;">
+                    <div class="card-title">✨ Создать клан</div>
+                    <form id="clanCreateForm" class="clan-form">
+                        <label for="clanNameInput" style="font-size:12px;font-weight:800;">Название (3–24 символа)</label>
+                        <input id="clanNameInput" type="text" maxlength="24" minlength="3" placeholder="Название клана" required>
+                        <div class="clan-form-row">
+                            <div><label for="clanTagInput" style="font-size:12px;font-weight:800;">Тег (2–5 символов)</label><input id="clanTagInput" type="text" maxlength="8" placeholder="DIO" required></div>
+                            <div><label for="clanDescriptionInput" style="font-size:12px;font-weight:800;">Описание</label><input id="clanDescriptionInput" type="text" maxlength="160" placeholder="Наш клан"></div>
+                        </div>
+                        <button id="clanCreateBtn" type="submit" class="btn btn-primary">Создать клан</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🌐 Кланы игроков</div>
+                    <p class="clan-muted" style="margin-bottom:8px;">Пока вступление открыто для всех аккаунтов. Игрок может состоять только в одном клане.</p>
+                    <div id="clanList"><p class="clan-muted">Загружаем кланы…</p></div>
+                </div>
+            </div>
+        </div>
         </div>
     </div>
 </div>
@@ -668,6 +750,9 @@
 <!-- ★★★ ДЖОЙСТИК — САМЫМ ПОСЛЕДНИМ ★★★ -->
 <script src="joystick.js?v=4"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js?v=1"></script>
+<script src="clans.js?v=1"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
