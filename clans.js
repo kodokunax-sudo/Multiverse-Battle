@@ -398,11 +398,19 @@
             setNotice('Онлайн-кланы почти готовы, но Supabase ещё не настроен. Открой ONLINE_SETUP.md и заполни supabase-config.js.', 'warning');
             showAuthState();
             var list = byId('clanList');
-            if (list) list.appendChild(node('p', 'clan-muted', 'После настройки Supabase здесь появится список кланов.'));
+            if (list) {
+                list.replaceChildren();
+                list.appendChild(node('p', 'clan-muted', 'После настройки Supabase здесь появится список кланов.'));
+            }
             return;
         }
         if (!window.supabase || typeof window.supabase.createClient !== 'function') {
             setNotice('Не загрузилась библиотека Supabase. Проверь подключение к интернету или CDN.', 'error');
+            var unavailableList = byId('clanList');
+            if (unavailableList) {
+                unavailableList.replaceChildren();
+                unavailableList.appendChild(node('p', 'clan-muted', 'Список кланов недоступен, пока библиотека не загрузится.'));
+            }
             return;
         }
         try {
