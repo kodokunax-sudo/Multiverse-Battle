@@ -134,6 +134,16 @@ function mbCloudFingerprint(value) {
 
 
 const MB_CLOUD_BINDINGS_STORAGE_KEY = 'cgV20_cloud_slot_bindings_v1';
+const MB_PENDING_NEW_ACCOUNT_TRANSFER_KEY = 'mb_new_account_slot_transfer_user_v1';
+function mbPendingNewAccountTransfer(userId) {
+    try { return !!userId && localStorage.getItem(MB_PENDING_NEW_ACCOUNT_TRANSFER_KEY) === userId; }
+    catch (_error) { return false; }
+}
+function mbClearPendingNewAccountTransfer(userId) {
+    try {
+        if (!userId || localStorage.getItem(MB_PENDING_NEW_ACCOUNT_TRANSFER_KEY) === userId) localStorage.removeItem(MB_PENDING_NEW_ACCOUNT_TRANSFER_KEY);
+    } catch (_error) {}
+}
 function mbReadCloudBindings() {
     var empty = { byUser: {}, bySlot: {} };
     try {
@@ -148,6 +158,54 @@ function mbReadCloudBindings() {
 function mbStoreCloudBindings(bindings) {
     localStorage.setItem(MB_CLOUD_BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
 }
+function mbSaveLocalRecoveryBackup(slot, saveData, reason) {
+    if (!Number.isInteger(slot) || slot < 0 || slot > 2 || !mbValidateCloudSave(saveData)) return false;
+    try {
+        var key = getSlotKey(slot) + '_recovery_backups_v1';
+        var previous = JSON.parse(localStorage.getItem(key) || '[]');
+        if (!Array.isArray(previous)) previous = [];
+        var fingerprint = mbCloudFingerprint(saveData);
+        if (previous.some(function (entry) { return entry && entry.fingerprint === fingerprint; })) return true;
+        previous.unshift({ savedAt: new Date().toISOString(), reason: String(reason || 'before-cloud-change'),
+            fingerprint: fingerprint, data: JSON.parse(JSON.stringify(saveData)) });
+        previous = previous.slice(0, 4);
+        var serialized = JSON.stringify(previous);
+        while (serialized.length > 1800000 && previous.length > 1) {
+            previous.pop();
+            serialized = JSON.stringify(previous);
+        }
+        if (serialized.length > 1800000) return false;
+        localStorage.setItem(key, serialized);
+        return true;
+    } catch (error) {
+        console.warn('[MB cloud] Не удалось сохранить локальную резервную копию:', error && error.message);
+        return false;
+    }
+}
+window.mbPrepareNewAccountSlotTransfer = function (userId, slot) {
+    slot = Number(slot);
+    if (!userId || !Number.isInteger(slot) || slot < 0 || slot > 2) return false;
+    try {
+        if (slot === currentSlot && typeof saveAll === 'function') saveAll();
+        var currentSave = mbReadCurrentLocalSave(slot);
+        if (currentSave) mbSaveLocalRecoveryBackup(slot, currentSave, 'before-new-account-transfer');
+        var bindings = mbReadCloudBindings();
+        var oldOwner = bindings.bySlot[String(slot)];
+        if (oldOwner && oldOwner !== userId && Number(bindings.byUser[oldOwner]) === slot) delete bindings.byUser[oldOwner];
+        var existingSlot = Object.prototype.hasOwnProperty.call(bindings.byUser, userId) ? Number(bindings.byUser[userId]) : slot;
+        if (Number.isInteger(existingSlot) && existingSlot >= 0 && existingSlot <= 2 && existingSlot !== slot) return false;
+        delete bindings.bySlot[String(slot)];
+        bindings.byUser[userId] = slot;
+        bindings.bySlot[String(slot)] = userId;
+        mbStoreCloudBindings(bindings);
+        localStorage.removeItem(mbCloudMarkerKey(slot));
+        mbCloudSyncReadyForUser = null;
+        return true;
+    } catch (error) {
+        console.warn('[MB cloud] Не удалось подготовить перенос слота:', error && error.message);
+        return false;
+    }
+};
 function mbCloudMarkerKey(slot) { return getSlotKey(slot) + '_cloud_sync_meta'; }
 function mbReadCloudMarker(slot) {
     try { return JSON.parse(localStorage.getItem(mbCloudMarkerKey(slot)) || 'null'); }
@@ -231,6 +289,8 @@ function mbPutCloudSaveInLocalSlot(saveData, userId, cloudRow, targetSlot) {
         mbCloudStatus('Облачное сохранение повреждено или несовместимо. Локальный прогресс не изменён.', 'error');
         return false;
     }
+    var previousLocalSave = mbReadCurrentLocalSave(targetSlot);
+    if (previousLocalSave && mbCloudFingerprint(previousLocalSave) !== mbCloudFingerprint(saveData)) mbSaveLocalRecoveryBackup(targetSlot, previousLocalSave, 'before-cloud-download');
     if (!mbRegisterCloudBinding(userId, targetSlot)) return false;
     var copy = JSON.parse(JSON.stringify(saveData));
     localStorage.setItem(getSlotKey(targetSlot), JSON.stringify(copy));
@@ -260,6 +320,7 @@ async function mbWriteCurrentSaveToCloud(localSave, userId, expectedUpdatedAt, t
         return row;
     }
     mbCloudSyncReadyForUser = targetSlot === currentSlot ? userId : null;
+    if (mbPendingNewAccountTransfer(userId)) mbClearPendingNewAccountTransfer(userId);
     mbCloudStatus(
         targetSlot === currentSlot
             ? '☁️ Синхронизировано · один аккаунт — один слот · версия ' + (result.revision || 1)
@@ -270,28 +331,25 @@ async function mbWriteCurrentSaveToCloud(localSave, userId, expectedUpdatedAt, t
 }
 async function mbResolveCloudConflict(localSave, cloudRow, userId, localFingerprint, cloudFingerprint, targetSlot) {
     var chooseCloud = window.confirm(
-        'Для этого аккаунта уже есть облачное сохранение, и прогресс на устройстве отличается.\n\n' +
-        'ОК — загрузить облачное сохранение в слот ' + (targetSlot + 1) + '.\n' +
-        'Отмена — оставить локальный прогресс и решить, отправлять ли его в облако.'
+        'Сохранение аккаунта отличается от локального слота ' + (targetSlot + 1) + '.\\n\\n' +
+        'ОК — загрузить облачную версию. Перед заменой локальная копия будет сохранена.\\n' +
+        'Отмена — оставить локальный прогресс и остановить автоматическую синхронизацию.\\n\\n' +
+        'Чтобы отправить локальную версию в облако, нажми «Сохранить в облако».'
     );
     if (chooseCloud) {
         mbPutCloudSaveInLocalSlot(cloudRow.save_data, userId, cloudRow, targetSlot);
         return;
     }
-    var chooseLocal = window.confirm(
-        'Заменить единственное облачное сохранение прогрессом из слота ' + (targetSlot + 1) + '?\n\n' +
-        'Другие устройства получат эту версию после синхронизации.'
-    );
-    if (chooseLocal) {
-        await mbWriteCurrentSaveToCloud(localSave, userId, cloudRow.updated_at, targetSlot);
-        return;
-    }
     mbCloudSyncReadyForUser = null;
-    mbCloudStatus('Синхронизация на паузе. Прогресс не перезаписан.', 'warning');
+    mbCloudStatus('Синхронизация на паузе. Локальное и облачное сохранения не перезаписаны.', 'warning');
 }
 async function mbSyncCloudSave(action) {
     action = action || 'auto';
     if (mbCloudSyncBusy) return;
+    var pendingNewAccount = mbPendingNewAccountTransfer(mbCurrentCloudUserId());
+    if (pendingNewAccount && action === 'auto') action = 'new-account';
+    var isNewAccountTransfer = action === 'new-account' && pendingNewAccount;
+    if (action === 'new-account' && !isNewAccountTransfer) action = 'auto';
     var api = window.MBClans;
     var userId = mbCurrentCloudUserId();
     if (!api || !userId) {
@@ -305,7 +363,7 @@ async function mbSyncCloudSave(action) {
         return;
     }
     var targetSlot = currentSlot;
-    var bindingProblem = mbCloudBindingProblem(userId, targetSlot);
+    var bindingProblem = isNewAccountTransfer ? null : mbCloudBindingProblem(userId, targetSlot);
     if (bindingProblem) {
         mbCloudSyncReadyForUser = null;
         mbCloudStatus(bindingProblem, 'warning');
@@ -328,6 +386,17 @@ async function mbSyncCloudSave(action) {
         var cloudFingerprint = cloudRow && mbValidateCloudSave(cloudRow.save_data)
             ? mbCloudFingerprint(cloudRow.save_data)
             : null;
+
+        if (action === 'new-account') {
+            if (cloudRow) {
+                mbClearPendingNewAccountTransfer(userId);
+                mbCloudStatus('У этого аккаунта уже есть облачное сохранение. Оно не перезаписано; выбери, какую версию оставить.', 'warning');
+                await mbResolveCloudConflict(localSave, cloudRow, userId, localFingerprint, cloudFingerprint, targetSlot);
+                return;
+            }
+            await mbWriteCurrentSaveToCloud(localSave, userId, null, targetSlot);
+            return;
+        }
 
         if (action === 'download') {
             if (!cloudRow) {
@@ -464,8 +533,45 @@ function mbUnbindCurrentCloudSlot() {
     if (mbCloudSaveTimer) { clearTimeout(mbCloudSaveTimer); mbCloudSaveTimer = null; }
     mbCloudStatus('Слот отвязан. Локальный прогресс сохранён, облачная запись не удалена. Теперь можно открыть другой слот и привязать аккаунт там.', 'success');
 }
+function mbRestoreLatestLocalRecoveryBackup() {
+    if (currentSlot < 0 || currentSlot > 2) {
+        mbCloudStatus('Сначала выбери слот сохранения.', 'warning');
+        return;
+    }
+    var key = getSlotKey(currentSlot) + '_recovery_backups_v1';
+    var backups;
+    try { backups = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_error) { backups = []; }
+    if (!Array.isArray(backups)) backups = [];
+    backups = backups.filter(function (entry) { return entry && mbValidateCloudSave(entry.data); });
+    if (!backups.length) {
+        mbCloudStatus('Резервных локальных копий пока нет. Они создаются перед загрузкой облачного сохранения.', 'warning');
+        return;
+    }
+    var backup = backups[0];
+    var dateLabel = backup.savedAt ? new Date(backup.savedAt).toLocaleString() : 'без даты';
+    var cardCount = Array.isArray(backup.data.myCards) ? backup.data.myCards.length : 0;
+    if (!window.confirm('Восстановить локальную копию от ' + dateLabel + ' со ' + cardCount + ' записями карт?\\n\\nТекущее локальное сохранение сначала тоже будет сохранено. Облако не будет изменяться автоматически.')) {
+        mbCloudStatus('Восстановление отменено. Сохранение не изменено.', 'info');
+        return;
+    }
+    var currentSave = mbReadCurrentLocalSave(currentSlot);
+    if (currentSave) mbSaveLocalRecoveryBackup(currentSlot, currentSave, 'before-manual-restore');
+    var copy = JSON.parse(JSON.stringify(backup.data));
+    localStorage.setItem(getSlotKey(currentSlot), JSON.stringify(copy));
+    var meta = loadSlotMeta(currentSlot);
+    meta.exists = true;
+    meta.nickname = copy.nickname || meta.nickname || ('Слот ' + (currentSlot + 1));
+    saveSlotMeta(currentSlot, meta);
+    localStorage.setItem('cgV20_lastSlot', String(currentSlot));
+    localStorage.removeItem(mbCloudMarkerKey(currentSlot));
+    mbCloudSyncReadyForUser = null;
+    mbCloudStatus('Локальная копия восстановлена. После перезапуска сравни её с облаком.', 'success');
+    window.setTimeout(function () { window.location.reload(); }, 250);
+}
+
 window.addEventListener('mb:auth-changed', function (event) {
-    var userId = event && event.detail ? event.detail.userId : null;
+    var detail = event && event.detail ? event.detail : {};
+    var userId = detail.userId || null;
     if (!userId) {
         mbCloudSyncReadyForUser = null;
         if (mbCloudSaveTimer) { clearTimeout(mbCloudSaveTimer); mbCloudSaveTimer = null; }
@@ -473,16 +579,21 @@ window.addEventListener('mb:auth-changed', function (event) {
         return;
     }
     mbCloudSyncReadyForUser = null;
-    if (currentSlot >= 0) mbSyncCloudSave('auto');
+    if (currentSlot >= 0) mbSyncCloudSave(mbPendingNewAccountTransfer(userId) || detail.isNewAccount ? 'new-account' : 'auto');
     else mbCloudStatus('Аккаунт подключён. Выбери сохранение игры, чтобы включить облако.', 'info');
 });
 window.addEventListener('mb:slot-ready', function () {
-    if (mbCurrentCloudUserId()) mbSyncCloudSave('auto');
+    var userId = mbCurrentCloudUserId();
+    if (userId) mbSyncCloudSave(mbPendingNewAccountTransfer(userId) ? 'new-account' : 'auto');
 });
 window.addEventListener('mb:cloud-save-action', function (event) {
     var action = event && event.detail ? event.detail.action : 'auto';
     if (action === 'unbind') {
         mbUnbindCurrentCloudSlot();
+        return;
+    }
+    if (action === 'restore-backup') {
+        mbRestoreLatestLocalRecoveryBackup();
         return;
     }
     mbSyncCloudSave(action === 'download' || action === 'upload' ? action : 'auto');
