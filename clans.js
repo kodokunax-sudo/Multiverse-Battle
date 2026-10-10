@@ -25,6 +25,11 @@
         { key: 'total_clicks', label: '👆 Кликов' }
     ];
 
+    var GIFTABLE_RARITIES = ['Обычная', 'Редкая', 'Сверх редкая', 'Эпик', 'Мифическая', 'Легендарная'];
+    var cardExchangeRefreshPromise = null;
+    var giftRealtimeChannel = null;
+    var giftRealtimeUserId = null;
+
     function byId(id) { return document.getElementById(id); }
 
     function node(tag, className, text) {
@@ -63,7 +68,21 @@
             not_in_clan: 'Ты сейчас не состоишь в клане.',
             leader_must_disband: 'Лидер пока не может покинуть клан. Передача лидерства появится позже; пока можно распустить клан.',
             leader_only_action: 'Распустить клан может только его лидер.',
-            profile_not_found: 'Профиль не найден. Перезайди в аккаунт или проверь миграцию Supabase.'
+            profile_not_found: 'Профиль не найден. Перезайди в аккаунт или проверь миграцию Supabase.',
+            card_inventory_invalid: 'Не удалось проверить инвентарь карт. Обнови игру и попробуй ещё раз.',
+            card_inventory_too_large: 'В активном сохранении слишком много карт для онлайн-проверки.',
+            card_request_invalid: 'Выбери карту из списка.',
+            card_request_limit: 'Можно держать не больше 5 активных запросов на карты.',
+            card_request_duplicate: 'Ты уже просишь такую карту.',
+            card_request_not_found: 'Этот запрос уже закрыт или удалён.',
+            card_request_own: 'Нельзя передать карту по собственному запросу.',
+            card_not_owned: 'Этой карты больше нет в твоём инвентаре. Обнови список карт.',
+            card_rarity_blocked: 'Передавать можно только карты до легендарной редкости включительно.',
+            card_request_name_mismatch: 'Выбранная карта не совпадает с запросом.',
+            daily_card_gift_limit: 'Ты уже использовал все 3 передачи на сегодня.',
+            not_clan_member: 'Передавать карты можно только соклановцам.',
+            recipient_level7_conflict: 'У получателя уже есть карта 7★. По правилам игры такая карта может быть только одна.',
+            auth_required: 'Сначала войди в аккаунт.'
         };
         var keys = Object.keys(map);
         for (var i = 0; i < keys.length; i++) {
@@ -515,6 +534,8 @@
         if (!currentClan) {
             card.style.display = 'none';
             createCard.style.display = 'block';
+            var exchangeCard = byId('clanCardExchangeCard');
+            if (exchangeCard) exchangeCard.style.display = 'none';
             await closeClanChat();
             return;
         }
@@ -567,6 +588,311 @@
             list.appendChild(node('p', 'clan-muted', 'Пока участников нет.'));
         }
         await ensureClanChat(currentClan.id);
+        await refreshClanCardExchange();
+    }
+
+
+    function isGiftableCard(card) {
+        return !!card && GIFTABLE_RARITIES.indexOf(String(card.rarity || '')) !== -1;
+    }
+
+    function giftableCardCatalog() {
+        var catalog = [];
+        var seen = Object.create(null);
+        if (typeof customCardTemplates === 'undefined' || !customCardTemplates) return catalog;
+        GIFTABLE_RARITIES.forEach(function (rarity) {
+            var templates = customCardTemplates[rarity];
+            if (!Array.isArray(templates)) return;
+            templates.forEach(function (template) {
+                var name = String(template && template.name || '').trim();
+                if (!name || seen[name]) return;
+                seen[name] = true;
+                catalog.push({ name: name, rarity: rarity });
+            });
+        });
+        return catalog;
+    }
+
+    function populateClanCardRequestOptions() {
+        var select = byId('clanCardRequestSelect');
+        if (!select) return;
+        var selected = select.value;
+        select.replaceChildren();
+        var prompt = node('option', '', 'Выбери карту…');
+        prompt.value = '';
+        prompt.disabled = true;
+        prompt.selected = true;
+        select.appendChild(prompt);
+        giftableCardCatalog().forEach(function (card) {
+            var option = node('option', '', card.name + ' · ' + card.rarity);
+            option.value = card.name;
+            select.appendChild(option);
+        });
+        if (selected && Array.from(select.options).some(function (option) { return option.value === selected; })) {
+            select.value = selected;
+        }
+        if (select.options.length <= 1) {
+            select.disabled = true;
+            setNotice('Не удалось загрузить каталог карт из data.js. Обнови игру и проверь подключение скриптов.', 'warning');
+        } else {
+            select.disabled = false;
+        }
+    }
+
+    async function syncOwnedClanCards() {
+        if (!db || !currentUser || !window.MBGameCards || typeof window.MBGameCards.getCardsForClanExchange !== 'function') return null;
+        var cards = window.MBGameCards.getCardsForClanExchange();
+        if (!Array.isArray(cards)) return null;
+        var synced = await db.rpc('sync_clan_card_inventory', { p_cards: cards });
+        if (synced.error) throw synced.error;
+        (synced.data || []).forEach(function (row) {
+            if (row && row.ownership_status === 'transferred' && row.result_card_uid) {
+                window.MBGameCards.removeTransferredCard(row.result_card_uid);
+            }
+        });
+        return window.MBGameCards.getCardsForClanExchange();
+    }
+
+    async function deliverPendingClanCards() {
+        if (!db || !currentUser || !window.MBGameCards || typeof window.MBGameCards.addReceivedClanCards !== 'function') return;
+        var pending = await db.rpc('get_pending_clan_card_gifts');
+        if (pending.error) throw pending.error;
+        if (!pending.data || !pending.data.length) return;
+        var applied = window.MBGameCards.addReceivedClanCards(pending.data);
+        if (!applied || !applied.ready || !applied.cardUids || !applied.cardUids.length) return;
+        var ack = await db.rpc('acknowledge_clan_card_gifts', { p_card_uids: applied.cardUids });
+        if (ack.error) throw ack.error;
+        if (applied.added > 0) {
+            setNotice('🎁 Получено карт от соклановцев: ' + applied.added + '. Уровень и опыт мастерства сохранены.', 'success');
+        }
+    }
+
+    async function processClanCardInbox() {
+        if (!db || !currentUser) return null;
+        var cards = await syncOwnedClanCards();
+        if (!Array.isArray(cards)) return null;
+        await deliverPendingClanCards();
+        return window.MBGameCards.getCardsForClanExchange();
+    }
+
+    async function closeGiftRealtime() {
+        var oldChannel = giftRealtimeChannel;
+        giftRealtimeChannel = null;
+        giftRealtimeUserId = null;
+        if (oldChannel && db) {
+            try { await db.removeChannel(oldChannel); } catch (_error) {}
+        }
+    }
+
+    async function ensureGiftRealtime() {
+        if (!db || !currentUser) return;
+        if (giftRealtimeChannel && giftRealtimeUserId === currentUser.id) return;
+        await closeGiftRealtime();
+        var userId = currentUser.id;
+        giftRealtimeUserId = userId;
+        giftRealtimeChannel = db.channel('mb-clan-card-gifts-' + userId)
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'clan_card_gifts',
+                filter: 'recipient_id=eq.' + userId
+            }, function () {
+                window.setTimeout(function () {
+                    if (currentUser && currentUser.id === userId) {
+                        if (currentClan) {
+                            refreshClanCardExchange().catch(function (error) { setNotice(friendlyError(error), 'error'); });
+                        } else {
+                            processClanCardInbox().catch(function (error) { setNotice(friendlyError(error), 'error'); });
+                        }
+                    }
+                }, 250);
+            })
+            .subscribe(function (status, error) {
+                if (giftRealtimeUserId !== userId) return;
+                if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    console.warn('[MB online] Realtime доставки карт временно недоступен:', error || status);
+                }
+            });
+    }
+
+    function masteryLabel(card) {
+        var level = Math.max(1, Math.min(7, Math.floor(Number(card && card.mastery) || 1)));
+        var exp = Math.max(0, Math.floor(Number(card && card.masteryExp) || 0));
+        return level + '★' + (level < 7 ? ' · ' + exp + ' опыта' : ' · MAX');
+    }
+
+    async function cancelClanCardRequest(request) {
+        if (!db || !currentUser || !request || busy) return;
+        try {
+            var result = await db.rpc('cancel_clan_card_request', { p_request_id: request.id });
+            if (result.error) throw result.error;
+            setNotice('Запрос карты отменён.', 'success');
+            await refreshClanCardExchange();
+        } catch (error) {
+            setNotice(friendlyError(error), 'error');
+        }
+    }
+
+    async function giftCardToRequest(request, cardUid, button) {
+        if (!db || !currentUser || !currentClan || !request || !cardUid) return;
+        if (button) button.disabled = true;
+        try {
+            var cards = await syncOwnedClanCards();
+            if (!Array.isArray(cards)) throw new Error('card_active_save_missing');
+            var selected = cards.find(function (card) { return card && card._mbCardUid === cardUid; });
+            if (!selected) throw new Error('card_not_owned');
+            if (!isGiftableCard(selected)) throw new Error('card_rarity_blocked');
+            if (selected.name !== request.card_name) throw new Error('card_request_name_mismatch');
+            var transfer = await db.rpc('transfer_clan_card', {
+                p_request_id: request.id,
+                p_card_uid: cardUid
+            });
+            if (transfer.error) throw transfer.error;
+            window.MBGameCards.removeTransferredCard(cardUid);
+            setNotice('🎁 ' + selected.name + ' (' + masteryLabel(selected) + ') передана игроку. Эта копия исчезла из твоего инвентаря.', 'success');
+            await refreshClanCardExchange();
+        } catch (error) {
+            setNotice(friendlyError(error), 'error');
+            if (button) button.disabled = false;
+        }
+    }
+
+    async function submitClanCardRequest(event) {
+        if (event) event.preventDefault();
+        if (!db || !currentUser || !currentClan) return setNotice('Сначала вступи в клан.', 'error');
+        var select = byId('clanCardRequestSelect');
+        var name = select ? select.value : '';
+        if (!name) return setNotice('Выбери карту, которую хочешь попросить.', 'error');
+        var button = byId('clanCardRequestBtn');
+        if (button) button.disabled = true;
+        try {
+            var result = await db.rpc('request_clan_card', { p_card_name: name });
+            if (result.error) throw result.error;
+            setNotice('📣 Запрос на карту «' + name + '» опубликован для соклановцев.', 'success');
+            await refreshClanCardExchange();
+        } catch (error) {
+            setNotice(friendlyError(error), 'error');
+        } finally {
+            if (button) button.disabled = busy;
+        }
+    }
+
+    function renderClanCardRequests(requests, profilesById, ownedCards) {
+        var container = byId('clanCardRequests');
+        if (!container) return;
+        container.replaceChildren();
+        if (!requests || !requests.length) {
+            container.appendChild(node('p', 'clan-muted', 'Пока никто не просит карты. Можешь оставить первый запрос!'));
+            return;
+        }
+
+        requests.forEach(function (request) {
+            var profile = profilesById[request.user_id] || {};
+            var row = node('div', 'clan-row');
+            var main = node('div', 'clan-row-main');
+            var heading = node('div', 'clan-row-heading');
+            heading.appendChild(node('strong', '', '🎴 ' + request.card_name));
+            main.appendChild(heading);
+            var time = new Date(request.created_at);
+            var when = Number.isNaN(time.getTime()) ? '' : time.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            main.appendChild(node('div', 'clan-muted', 'Запросил: ' + (profile.display_name || 'Игрок') + (when ? ' · ' + when : '')));
+            row.appendChild(main);
+
+            if (request.status === 'fulfilled') {
+                var fulfilledProfile = profilesById[request.fulfilled_by] || {};
+                row.appendChild(node('span', 'clan-pill', '✅ Передано' + (fulfilledProfile.display_name ? ' · ' + fulfilledProfile.display_name : '')));
+            } else if (request.status === 'cancelled') {
+                row.appendChild(node('span', 'clan-pill clan-pill-muted', 'Запрос отменён'));
+            } else if (request.user_id === currentUser.id) {
+                row.appendChild(actionButton('Отменить', 'btn clan-danger-btn', function () {
+                    cancelClanCardRequest(request);
+                }));
+            } else {
+                var matching = (ownedCards || []).filter(function (card) {
+                    return card && card.name === request.card_name && isGiftableCard(card);
+                });
+                if (!matching.length) {
+                    row.appendChild(node('span', 'clan-muted', 'Нет этой карты в активном сохранении'));
+                } else {
+                    var controls = node('div', '');
+                    controls.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;max-width:100%;';
+                    var select = node('select', '');
+                    select.style.cssText = 'max-width:220px;min-width:140px;padding:7px;border-radius:10px;background:#151522;color:white;border:1px solid rgba(255,255,255,.18);';
+                    matching.forEach(function (card) {
+                        var option = node('option', '', card.name + ' · ' + card.rarity + ' · ' + masteryLabel(card));
+                        option.value = card._mbCardUid;
+                        select.appendChild(option);
+                    });
+                    var giftBtn = actionButton('🎁 Передать', 'btn btn-primary', function () {
+                        giftCardToRequest(request, select.value, giftBtn);
+                    });
+                    controls.appendChild(select);
+                    controls.appendChild(giftBtn);
+                    row.appendChild(controls);
+                }
+            }
+            container.appendChild(row);
+        });
+    }
+
+    async function refreshClanCardExchangeImpl() {
+        var card = byId('clanCardExchangeCard');
+        if (!card) return;
+        if (!db || !currentUser || !currentClan) {
+            card.style.display = 'none';
+            return;
+        }
+        card.style.display = 'block';
+        populateClanCardRequestOptions();
+        var ownedCards = [];
+        try {
+            var syncedCards = await processClanCardInbox();
+            if (Array.isArray(syncedCards)) ownedCards = syncedCards.filter(isGiftableCard);
+        } catch (error) {
+            setNotice(friendlyError(error), 'error');
+        }
+
+        var quotaText = byId('clanGiftQuota');
+        var quota = await db.rpc('get_clan_card_gift_status');
+        if (quota.error) throw quota.error;
+        var quotaRow = quota.data && quota.data[0] ? quota.data[0] : { gifts_used: 0, gifts_remaining: 3 };
+        if (quotaText) {
+            quotaText.textContent = '🎁 Передач сегодня: ' + quotaRow.gifts_used + '/3 · Осталось: ' + quotaRow.gifts_remaining + '. Лимит общий для всех кланов.';
+        }
+
+        var requestsResult = await db.from('clan_card_requests')
+            .select('id, clan_id, user_id, card_name, status, fulfilled_by, created_at, fulfilled_at')
+            .eq('clan_id', currentClan.id)
+            .order('created_at', { ascending: false })
+            .limit(50);
+        if (requestsResult.error) throw requestsResult.error;
+        var requests = requestsResult.data || [];
+        var profileIds = [];
+        requests.forEach(function (request) {
+            if (request.user_id && profileIds.indexOf(request.user_id) < 0) profileIds.push(request.user_id);
+            if (request.fulfilled_by && profileIds.indexOf(request.fulfilled_by) < 0) profileIds.push(request.fulfilled_by);
+        });
+        var profilesById = Object.create(null);
+        if (profileIds.length) {
+            var profileResult = await db.from('profiles').select('id, display_name, avatar_name').in('id', profileIds);
+            if (profileResult.error) throw profileResult.error;
+            (profileResult.data || []).forEach(function (profile) { profilesById[profile.id] = profile; });
+        }
+        renderClanCardRequests(requests, profilesById, ownedCards);
+
+        var requestBtn = byId('clanCardRequestBtn');
+        if (requestBtn) requestBtn.disabled = (quotaRow.gifts_remaining < 0) || busy;
+    }
+
+    function refreshClanCardExchange() {
+        if (cardExchangeRefreshPromise) return cardExchangeRefreshPromise;
+        var work = refreshClanCardExchangeImpl();
+        var wrapped;
+        wrapped = work.finally(function () {
+            if (cardExchangeRefreshPromise === wrapped) cardExchangeRefreshPromise = null;
+        });
+        cardExchangeRefreshPromise = wrapped;
+        return wrapped;
     }
 
     async function refreshAll() {
@@ -574,6 +900,9 @@
             currentClan = null;
             currentProfile = null;
             await closeClanChat();
+            await closeGiftRealtime();
+            var exchangeCard = byId('clanCardExchangeCard');
+            if (exchangeCard) exchangeCard.style.display = 'none';
             showAuthState();
             var list = byId('clanList');
             if (list) {
@@ -586,6 +915,8 @@
         try {
             await loadProfile();
             await loadMyClan();
+            await ensureGiftRealtime();
+            if (!currentClan) await processClanCardInbox();
             await loadCurrentClanCard();
             await loadClanList();
         } catch (error) {
@@ -650,6 +981,7 @@
             currentUser = null;
             currentClan = null;
             await closeClanChat();
+            await closeGiftRealtime();
             setNotice('Ты вышел из аккаунта.', 'success');
             showAuthState();
             await refreshAll();
@@ -751,6 +1083,8 @@
         byId('clanCreateForm').addEventListener('submit', createClan);
         byId('clanProfileForm').addEventListener('submit', saveProfile);
         byId('clanChatForm').addEventListener('submit', sendClanChatMessage);
+        byId('clanCardRequestForm').addEventListener('submit', submitClanCardRequest);
+        populateClanCardRequestOptions();
         byId('clanPublicProfileClose').addEventListener('click', hidePublicProfile);
         var tab = document.querySelector('.tab-btn[data-tab="clans"]');
         if (tab) {
@@ -817,6 +1151,8 @@
     window.MBClans = {
         refresh: refreshAll,
         syncGameStats: syncGameStats,
+        syncCardInventory: processClanCardInbox,
+        refreshCardExchange: refreshClanCardExchange,
         isConnected: function () { return !!db; }
     };
 })();
