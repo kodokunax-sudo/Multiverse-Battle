@@ -18,6 +18,13 @@
     var activeAuthSlot = null;
     var authStateSubscription = null;
     var authSwitchChain = Promise.resolve();
+    var profileShowcaseSelection = [];
+    var currentFriends = [];
+    var currentFriendRequests = [];
+    var currentClanInvites = [];
+    var currentFriendSearchResults = [];
+    var publicProfileUserId = null;
+    var presenceHeartbeatTimer = null;
     var NEW_ACCOUNT_SLOT_TRANSFER_KEY = 'mb_new_account_slot_transfer_user_v1';
 
     function isPendingNewAccountTransfer(userId) {
@@ -92,6 +99,20 @@
             daily_card_gift_limit: 'Ты уже использовал все 3 передачи на сегодня.',
             not_clan_member: 'Передавать карты можно только соклановцам.',
             recipient_level7_conflict: 'У получателя уже есть карта 7★. По правилам игры такая карта может быть только одна.',
+            friend_search_too_short: 'Введи минимум 2 символа ника или код игрока.',
+            friend_target_invalid: 'Нельзя отправить заявку самому себе.',
+            friend_action_invalid: 'Недопустимое действие с заявкой в друзья.',
+            friend_request_not_incoming: 'Эта входящая заявка уже недоступна.',
+            friend_request_not_outgoing: 'Исходящая заявка уже недоступна.',
+            friendship_not_found: 'Дружба или заявка уже изменились.',
+            clan_invite_leader_only: 'Приглашать друзей могут только лидер и офицеры клана.',
+            clan_invite_friends_only: 'Сначала добавь игрока в друзья.',
+            clan_invite_target_in_clan: 'Этот игрок уже состоит в клане.',
+            clan_invite_target_invalid: 'Нельзя пригласить самого себя.',
+            clan_invite_not_found: 'Приглашение уже недоступно или истекло.',
+            clan_invite_not_recipient: 'Это приглашение предназначено другому игроку.',
+            clan_invite_not_sender: 'Отменить можно только своё приглашение.',
+            clan_invite_action_invalid: 'Недопустимое действие с приглашением.',
             card_active_save_missing: 'Сначала открой игру и загрузи слот сохранения, где лежит эта карта.',
             auth_required: 'Сначала войди в аккаунт.'
         };
@@ -204,6 +225,334 @@
         });
     }
 
+    var ACHIEVEMENT_TITLES = [
+        { id: 'wave_100', icon: '🌊', label: 'Покоритель волн', description: 'Достичь 100-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 100; } },
+        { id: 'boss_hunter', icon: '👹', label: 'Убийца боссов', description: 'Победить 10 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 10; } },
+        { id: 'collector', icon: '🎴', label: 'Коллекционер', description: 'Получить 50 карт', unlocked: function (s) { return safeCount(s.cards_collected) >= 50; } },
+        { id: 'champion', icon: '🏆', label: 'Чемпион', description: 'Одержать 25 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 25; } },
+        { id: 'reborn', icon: '♻️', label: 'Перерождённый', description: 'Совершить 5 перерождений', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 5; } },
+        { id: 'multiverse_legend', icon: '🌌', label: 'Легенда мультивселенной', description: 'Достичь 1000-й волны и победить 15 боссов', unlocked: function (s) { return safeCount(s.highest_wave) >= 1000 && safeCount(s.bosses_defeated) >= 15; } }
+    ];
+
+    function titleById(id) {
+        return ACHIEVEMENT_TITLES.find(function (title) { return title.id === id; }) || null;
+    }
+    function isTitleUnlocked(id, stats) {
+        if (!id) return true;
+        var title = titleById(id);
+        return !!title && title.unlocked(stats || {});
+    }
+    function titleLabel(id) {
+        var title = titleById(id);
+        return title ? title.icon + ' ' + title.label : '';
+    }
+    function renderAchievementBadges(containerId, stats, includeLocked) {
+        var container = byId(containerId);
+        if (!container) return;
+        container.replaceChildren();
+        var unlockedCount = 0;
+        ACHIEVEMENT_TITLES.forEach(function (title) {
+            var unlocked = title.unlocked(stats || {});
+            if (unlocked) unlockedCount++;
+            if (!unlocked && !includeLocked) return;
+            var badge = node('div', 'achievement-badge' + (unlocked ? '' : ' locked'));
+            badge.title = unlocked ? title.description : 'Условие: ' + title.description;
+            badge.appendChild(node('span', '', unlocked ? title.icon : '🔒'));
+            badge.appendChild(node('span', '', unlocked ? title.label : title.label + ' · закрыто'));
+            container.appendChild(badge);
+        });
+        if (!unlockedCount && !includeLocked) container.appendChild(node('p', 'clan-muted', 'Значки пока не открыты — выполняй испытания, чтобы получить первый.'));
+    }
+    function renderTitlePicker(stats, selectedId) {
+        var select = byId('clanProfileTitle');
+        if (select) {
+            select.replaceChildren();
+            select.appendChild(new Option('Без титула', ''));
+            ACHIEVEMENT_TITLES.forEach(function (title) {
+                if (title.unlocked(stats || {})) select.appendChild(new Option(title.icon + ' ' + title.label, title.id));
+            });
+            select.value = isTitleUnlocked(selectedId, stats || {}) ? (selectedId || '') : '';
+        }
+        renderAchievementBadges('clanProfileBadges', stats, true);
+    }
+    function localCollectionCards() {
+        try { if (typeof myCards !== 'undefined' && Array.isArray(myCards)) return myCards; } catch (_error) {}
+        return [];
+    }
+    function localShowcaseOptions() {
+        return localCollectionCards().map(function (card, index) {
+            card = card && typeof card === 'object' ? card : {};
+            var name = String(card.name || card.nickname || 'Неизвестная карта');
+            var rawId = card._mbCardUid || card.id;
+            var uid = rawId !== undefined && rawId !== null && String(rawId) !== '' ? String(rawId) : 'local-' + index + '-' + name;
+            return { uid: uid, name: name, rarity: String(card.rarity || 'Обычная'),
+                mastery: Math.max(1, Math.min(7, safeCount(card.mastery, 7) || 1)),
+                image: avatarPathForName(name) || 'images/Super_Dio_2.gif' };
+        });
+    }
+    function renderShowcasePicker() {
+        var container = byId('clanProfileShowcaseChoices');
+        if (!container) return;
+        container.replaceChildren();
+        var all = localShowcaseOptions();
+        var search = byId('clanShowcaseSearch');
+        var query = (search ? search.value : '').trim().toLocaleLowerCase('ru');
+        var filtered = all.filter(function (card) {
+            return !query || card.name.toLocaleLowerCase('ru').indexOf(query) !== -1 || card.rarity.toLocaleLowerCase('ru').indexOf(query) !== -1;
+        });
+        var shown = filtered.slice(0, 120);
+        if (!shown.length) {
+            container.appendChild(node('div', 'online-empty-state', all.length ? 'По этому запросу карты не найдены.' : 'Сначала открой игровой слот с коллекцией карт.'));
+        } else shown.forEach(function (card) {
+            var selected = profileShowcaseSelection.indexOf(card.uid) !== -1;
+            var button = node('button', 'showcase-pick-card' + (selected ? ' selected' : ''));
+            button.type = 'button';
+            button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+            button.title = card.name + ' · ' + card.rarity + ' · мастерство ' + card.mastery;
+            var img = node('img'); img.src = card.image; img.alt = card.name; img.loading = 'lazy';
+            button.appendChild(img);
+            button.appendChild(node('strong', '', card.name));
+            button.appendChild(node('small', '', card.rarity + ' · ' + card.mastery + '★'));
+            if (selected) button.appendChild(node('span', 'showcase-check', '✓'));
+            button.addEventListener('click', function () {
+                var at = profileShowcaseSelection.indexOf(card.uid);
+                if (at >= 0) profileShowcaseSelection.splice(at, 1);
+                else {
+                    if (profileShowcaseSelection.length >= 3) { setNotice('В витрину можно добавить максимум 3 карты.', 'warning'); return; }
+                    profileShowcaseSelection.push(card.uid);
+                }
+                renderShowcasePicker();
+            });
+            container.appendChild(button);
+        });
+        var status = byId('clanProfileShowcaseStatus');
+        if (status) {
+            var selectedNames = profileShowcaseSelection.map(function (uid) { var item = all.find(function (card) { return card.uid === uid; }); return item ? item.name : null; }).filter(Boolean);
+            status.textContent = 'Выбрано ' + selectedNames.length + ' из 3 карт' +
+                (filtered.length > 120 ? ' · показаны первые 120, используй поиск' : '') +
+                (selectedNames.length ? ' · ' + selectedNames.join(' · ') : '');
+        }
+    }
+    function selectedShowcaseSnapshots() {
+        var all = localShowcaseOptions();
+        return profileShowcaseSelection.map(function (uid) {
+            var card = all.find(function (item) { return item.uid === uid; });
+            return card ? { uid: card.uid, name: card.name, rarity: card.rarity, mastery: card.mastery } : null;
+        }).filter(Boolean).slice(0, 3);
+    }
+    function renderPublicShowcase(containerId, cards) {
+        var container = byId(containerId);
+        if (!container) return;
+        container.replaceChildren();
+        var items = Array.isArray(cards) ? cards.filter(function (card) { return card && typeof card === 'object'; }).slice(0, 3) : [];
+        if (!items.length) { container.appendChild(node('p', 'clan-muted', 'Игрок пока не выбрал карты для витрины.')); return; }
+        items.forEach(function (card) {
+            var row = node('div', 'public-showcase-card');
+            var img = node('img'); img.src = avatarPathForName(card.name) || 'images/Super_Dio_2.gif'; img.alt = card.name || 'Карта'; img.loading = 'lazy';
+            row.appendChild(img);
+            var text = node('div');
+            text.appendChild(node('strong', '', card.name || 'Карта'));
+            text.appendChild(node('small', '', (card.rarity || 'Редкость неизвестна') + (card.mastery ? ' · мастерство ' + formatCount(card.mastery) + '★' : '')));
+            row.appendChild(text); container.appendChild(row);
+        });
+    }
+    function showPublicTitle(profile) {
+        var el = byId('clanPublicTitle');
+        if (!el) return;
+        var stats = Object.assign({}, profile || {});
+        var title = isTitleUnlocked(profile && profile.active_title, stats) ? titleById(profile.active_title) : null;
+        el.style.display = title ? 'block' : 'none';
+        el.textContent = title ? title.icon + ' ' + title.label : '';
+    }
+    function copyText(textValue) {
+        var value = String(textValue || '');
+        if (!value) return;
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(value).then(function () { setNotice('Код игрока скопирован.', 'success'); })
+                .catch(function () { window.prompt('Скопируй код игрока:', value); });
+        } else window.prompt('Скопируй код игрока:', value);
+    }
+    function playerFriendRelation(userId) {
+        if (currentFriends.some(function (player) { return player.user_id === userId; })) return 'friend';
+        var request = currentFriendRequests.find(function (item) { return item.user_id === userId; });
+        return request ? request.direction : '';
+    }
+    function setListMessage(containerId, message, error) {
+        var container = byId(containerId);
+        if (!container) return;
+        container.replaceChildren(node('div', 'online-empty-state' + (error ? ' error' : ''), message));
+    }
+    function makeOnlinePlayerRow(player, actions, statusOverride) {
+        var row = node('div', 'online-player-row');
+        var uid = player.user_id || player.id;
+        var avatar = node('img', 'online-player-avatar');
+        avatar.src = avatarPathForName(player.avatar_name) || 'images/Super_Dio_2.gif'; avatar.alt = ''; avatar.loading = 'lazy';
+        row.appendChild(avatar);
+        var main = node('div', 'online-player-main');
+        var nameLine = node('div', 'online-player-name-line');
+        nameLine.appendChild(node('strong', '', player.display_name || 'Игрок'));
+        if (typeof player.is_online === 'boolean' || statusOverride) {
+            var online = statusOverride ? statusOverride === 'online' : player.is_online;
+            nameLine.appendChild(node('span', 'online-status-pill' + (online ? ' online' : ''), online ? 'В сети' : (statusOverride || 'Не в сети')));
+        }
+        main.appendChild(nameLine);
+        var meta = [];
+        if (player.active_title && titleById(player.active_title)) meta.push('🏅 ' + titleLabel(player.active_title));
+        if (player.highest_wave !== undefined && player.highest_wave !== null) meta.push('🌊 Волна ' + formatCount(player.highest_wave));
+        if (player.friend_code) meta.push('Код MB-' + player.friend_code);
+        if (player.created_at && player.direction) meta.push(player.direction === 'incoming' ? 'Входящая заявка' : 'Исходящая заявка');
+        main.appendChild(node('div', 'online-player-meta', meta.join(' · ') || 'Игрок Multiverse Battle'));
+        row.appendChild(main);
+        if (actions && actions.length) {
+            var actionWrap = node('div', 'online-player-actions');
+            actions.forEach(function (item) {
+                var button = node('button', 'btn' + (item.primary ? ' btn-primary' : ''));
+                button.type = 'button'; button.textContent = item.label; if (item.disabled) button.disabled = true;
+                button.addEventListener('click', item.action); actionWrap.appendChild(button);
+            });
+            row.appendChild(actionWrap);
+        }
+        return row;
+    }
+    function renderFriendsList() {
+        var container = byId('onlineFriendsList'); if (!container) return;
+        container.replaceChildren();
+        if (!currentFriends.length) { setListMessage('onlineFriendsList', 'Пока нет друзей. Найди игрока по нику или коду выше.'); return; }
+        currentFriends.forEach(function (player) {
+            var actions = [
+                { label: 'Профиль', action: function () { openPublicProfile(player.user_id); } },
+                { label: 'Удалить', action: function () { respondFriendRequest(player.user_id, 'remove'); } }
+            ];
+            if (currentClan && ['leader', 'officer'].indexOf(currentClan.role) !== -1) actions.splice(1, 0, { label: 'В клан', action: function () { sendClanInvite(player.user_id); } });
+            container.appendChild(makeOnlinePlayerRow(player, actions));
+        });
+    }
+    function renderFriendRequests() {
+        var container = byId('onlineFriendRequests'); if (!container) return;
+        container.replaceChildren();
+        if (!currentFriendRequests.length) { setListMessage('onlineFriendRequests', 'Новых заявок нет.'); return; }
+        currentFriendRequests.forEach(function (player) {
+            var actions = [];
+            if (player.direction === 'incoming') {
+                actions.push({ label: 'Принять', primary: true, action: function () { respondFriendRequest(player.user_id, 'accept'); } });
+                actions.push({ label: 'Отклонить', action: function () { respondFriendRequest(player.user_id, 'reject'); } });
+            } else actions.push({ label: 'Отменить', action: function () { respondFriendRequest(player.user_id, 'cancel'); } });
+            container.appendChild(makeOnlinePlayerRow(player, actions));
+        });
+    }
+    function renderClanInvites() {
+        var container = byId('onlineClanInvites'); if (!container) return;
+        container.replaceChildren();
+        if (!currentClanInvites.length) { setListMessage('onlineClanInvites', currentClan ? 'Приглашений пока нет. Ты уже состоишь в клане.' : 'Приглашений пока нет.'); return; }
+        currentClanInvites.forEach(function (invite) {
+            var row = node('div', 'online-player-row'); row.appendChild(node('div', 'friend-clan-emblem', '🛡️'));
+            var main = node('div', 'online-player-main');
+            main.appendChild(node('strong', '', '[' + (invite.clan_tag || 'CLAN') + '] ' + (invite.clan_name || 'Клан')));
+            main.appendChild(node('div', 'online-player-meta', (invite.direction === 'incoming' ? 'Приглашение от ' + (invite.sender_name || 'игрока') : 'Приглашение для ' + (invite.target_name || 'игрока')) + ' · действует до ' + new Date(invite.expires_at).toLocaleDateString()));
+            row.appendChild(main);
+            var buttons = node('div', 'online-player-actions');
+            if (invite.direction === 'incoming') {
+                var accept = node('button', 'btn btn-primary', 'Вступить'); accept.type = 'button'; accept.disabled = !!currentClan;
+                accept.addEventListener('click', function () { respondClanInvite(invite.invite_id, 'accept'); }); buttons.appendChild(accept);
+                var decline = node('button', 'btn', 'Отклонить'); decline.type = 'button';
+                decline.addEventListener('click', function () { respondClanInvite(invite.invite_id, 'decline'); }); buttons.appendChild(decline);
+            } else {
+                var cancel = node('button', 'btn', 'Отменить'); cancel.type = 'button';
+                cancel.addEventListener('click', function () { respondClanInvite(invite.invite_id, 'cancel'); }); buttons.appendChild(cancel);
+            }
+            row.appendChild(buttons); container.appendChild(row);
+        });
+    }
+    async function refreshFriendsHub() {
+        if (!db || !currentUser) {
+            setListMessage('onlineFriendsList', 'Войди в аккаунт, чтобы пользоваться друзьями.');
+            setListMessage('onlineFriendRequests', 'После входа здесь появятся заявки.');
+            setListMessage('onlineClanInvites', 'После входа здесь появятся приглашения.');
+            return;
+        }
+        try {
+            await loadMyClan();
+            var touch = await db.rpc('mb_touch_presence');
+            if (touch.error) console.warn('[MB friends] Presence update:', touch.error.message);
+            var results = await Promise.all([db.rpc('mb_get_friends'), db.rpc('mb_get_friend_requests'), db.rpc('mb_get_clan_invites')]);
+            for (var i = 0; i < results.length; i++) if (results[i].error) throw results[i].error;
+            currentFriends = results[0].data || [];
+            currentFriendRequests = results[1].data || [];
+            currentClanInvites = results[2].data || [];
+            renderFriendsList(); renderFriendRequests(); renderClanInvites();
+            if (currentFriendSearchResults.length) renderFriendSearchResults(currentFriendSearchResults);
+        } catch (error) {
+            setListMessage('onlineFriendsList', 'Не удалось загрузить друзей: ' + friendlyError(error), true);
+            setListMessage('onlineFriendRequests', 'Не удалось загрузить заявки.', true);
+            setListMessage('onlineClanInvites', 'Не удалось загрузить приглашения.', true);
+        }
+    }
+    function renderFriendSearchResults(players) {
+        var container = byId('onlineFriendSearchResults'); if (!container) return;
+        container.replaceChildren(); currentFriendSearchResults = players || [];
+        if (!currentFriendSearchResults.length) { setListMessage('onlineFriendSearchResults', 'Игроки не найдены. Проверь ник или код.'); return; }
+        currentFriendSearchResults.forEach(function (player) {
+            var relation = playerFriendRelation(player.user_id);
+            var actions = [{ label: 'Профиль', action: function () { openPublicProfile(player.user_id); } }];
+            if (relation === 'friend') actions.push({ label: '✓ Уже друзья', disabled: true, action: function () {} });
+            else if (relation === 'outgoing') actions.push({ label: 'Заявка отправлена', disabled: true, action: function () {} });
+            else if (relation === 'incoming') actions.push({ label: 'Принять', primary: true, action: function () { respondFriendRequest(player.user_id, 'accept'); } });
+            else actions.push({ label: 'Добавить', primary: true, action: function () { sendFriendRequest(player.user_id); } });
+            container.appendChild(makeOnlinePlayerRow(player, actions));
+        });
+    }
+    async function searchOnlinePlayers(event) {
+        if (event) event.preventDefault();
+        if (!db || !currentUser) return setNotice('Сначала войди в аккаунт.', 'warning');
+        var input = byId('onlineFriendSearchInput'); var query = input ? input.value.trim() : '';
+        if (query.length < 2) return setNotice('Введи минимум 2 символа ника или код игрока.', 'warning');
+        setListMessage('onlineFriendSearchResults', 'Ищем игроков…');
+        try {
+            var result = await db.rpc('mb_search_players', { p_query: query });
+            if (result.error) throw result.error;
+            renderFriendSearchResults(result.data || []);
+        } catch (error) { setListMessage('onlineFriendSearchResults', 'Ошибка поиска: ' + friendlyError(error), true); }
+    }
+    async function sendFriendRequest(targetUserId) {
+        if (!db || !currentUser || !targetUserId) return;
+        try {
+            var result = await db.rpc('mb_send_friend_request', { p_target_user_id: targetUserId });
+            if (result.error) throw result.error;
+            var status = result.data && result.data.status;
+            setNotice(status === 'accepted' ? 'Вы теперь друзья!' : status === 'already_friends' ? 'Этот игрок уже у тебя в друзьях.' :
+                status === 'already_sent' ? 'Заявка уже отправлена.' : 'Заявка в друзья отправлена.', 'success');
+            await refreshFriendsHub();
+        } catch (error) { setNotice(friendlyError(error), 'error'); }
+    }
+    async function respondFriendRequest(targetUserId, action) {
+        if (!db || !currentUser || !targetUserId) return;
+        try {
+            var result = await db.rpc('mb_respond_friend_request', { p_target_user_id: targetUserId, p_action: action });
+            if (result.error) throw result.error;
+            var labels = { accept: 'Заявка принята.', reject: 'Заявка отклонена.', cancel: 'Заявка отменена.', remove: 'Игрок удалён из друзей.' };
+            setNotice(labels[action] || 'Список друзей обновлён.', 'success');
+            await refreshFriendsHub();
+        } catch (error) { setNotice(friendlyError(error), 'error'); }
+    }
+    async function sendClanInvite(targetUserId) {
+        if (!db || !currentUser || !currentClan || ['leader', 'officer'].indexOf(currentClan.role) === -1) return setNotice('Приглашать друзей в клан могут только лидер и офицеры.', 'warning');
+        try {
+            var result = await db.rpc('mb_send_clan_invite', { p_target_user_id: targetUserId, p_clan_id: currentClan.id });
+            if (result.error) throw result.error;
+            setNotice(result.data && result.data.status === 'already_sent' ? 'Приглашение уже отправлено.' : 'Приглашение в клан отправлено.', 'success');
+            await refreshFriendsHub();
+        } catch (error) { setNotice(friendlyError(error), 'error'); }
+    }
+    async function respondClanInvite(inviteId, action) {
+        if (!db || !currentUser || !inviteId) return;
+        try {
+            var result = await db.rpc('mb_respond_clan_invite', { p_invite_id: inviteId, p_action: action });
+            if (result.error) throw result.error;
+            setNotice(action === 'accept' ? 'Ты вступил в клан!' : action === 'decline' ? 'Приглашение отклонено.' : 'Приглашение отменено.', 'success');
+            await refreshAll(); await refreshFriendsHub();
+        } catch (error) { setNotice(friendlyError(error), 'error'); }
+    }
+
     function updateProfileStatsPreview(stats) {
         if (stats) renderStatsGrid('clanProfileStats', stats);
     }
@@ -286,7 +635,7 @@
             var allowedSorts = ['highest_wave', 'total_wins', 'rebirth_count', 'cards_collected', 'bosses_defeated', 'total_clicks'];
             if (allowedSorts.indexOf(sortKey) === -1) sortKey = 'highest_wave';
             var result = await db.from('profiles')
-                .select('id, display_name, avatar_name, description, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
                 .order(sortKey, { ascending: false })
                 .order('highest_wave', { ascending: false })
                 .limit(100);
@@ -309,6 +658,7 @@
                 row.appendChild(avatar);
                 var details = node('span', 'clan-leaderboard-player');
                 details.appendChild(node('strong', '', player.display_name || 'Игрок'));
+                if (player.active_title && titleById(player.active_title)) details.appendChild(node('small', '', '🏅 ' + titleLabel(player.active_title)));
                 details.appendChild(node('small', '', '🌊 Волна ' + formatCount(player.highest_wave) + ' · 🏆 Победы ' + formatCount(player.total_wins) + ' · ♻️ Ребёрны ' + formatCount(player.rebirth_count)));
                 row.appendChild(details);
                 row.appendChild(node('span', 'clan-leaderboard-open', 'Профиль ↗'));
@@ -351,7 +701,7 @@
         if (!db || !currentUser) return;
         await syncGameStats();
         var result = await db.from('profiles')
-            .select('id, display_name, avatar_name, description, created_at, updated_at, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+            .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, created_at, updated_at, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
             .eq('id', currentUser.id)
             .maybeSingle();
         if (result.error) throw result.error;
@@ -362,7 +712,14 @@
         profileAvatarName = avatarPathForName(result.data.avatar_name) ? result.data.avatar_name : 'Дио';
         renderAvatarPicker(profileAvatarName);
         applyAvatarPreview(profileAvatarName);
-        renderStatsGrid('clanProfileStats', Object.assign({}, result.data, readLocalGameStats() || {}));
+        var mergedStats = Object.assign({}, result.data, readLocalGameStats() || {});
+        renderStatsGrid('clanProfileStats', mergedStats);
+        profileShowcaseSelection = Array.isArray(result.data.showcase_cards)
+            ? result.data.showcase_cards.map(function (card) { return card && card.uid !== undefined ? String(card.uid) : ''; }).filter(Boolean)
+            : [];
+        renderShowcasePicker();
+        renderTitlePicker(mergedStats, result.data.active_title || '');
+        if (byId('clanProfileFriendCode')) byId('clanProfileFriendCode').textContent = result.data.friend_code ? 'MB-' + result.data.friend_code : '—';
         var signedInLabel = byId('clansSignedInAs');
         if (signedInLabel) signedInLabel.textContent = (result.data.display_name || 'Игрок') + ' · ' + (currentUser.email || 'Аккаунт игрока');
     }
@@ -375,16 +732,23 @@
         if (name.length < 1 || name.length > 24) return setNotice('Имя профиля должно содержать от 1 до 24 символов.', 'error');
         if (description.length > 280) return setNotice('Описание профиля не должно превышать 280 символов.', 'error');
         if (!avatarPathForName(profileAvatarName)) return setNotice('Выбери аватар из списка персонажей.', 'error');
+        var titleStats = Object.assign({}, currentProfile || {}, readLocalGameStats() || {});
+        var activeTitle = byId('clanProfileTitle') ? byId('clanProfileTitle').value : '';
+        if (!isTitleUnlocked(activeTitle, titleStats)) return setNotice('Этот титул ещё не открыт.', 'warning');
+        var showcaseCards = selectedShowcaseSnapshots();
+        if (showcaseCards.length !== profileShowcaseSelection.length) return setNotice('Одна из выбранных карт не найдена в текущем сохранении. Выбери карты заново.', 'warning');
         setBusy(true);
         try {
             var result = await db.from('profiles').update({
                 display_name: name,
                 avatar_name: profileAvatarName,
-                description: description
+                description: description,
+                active_title: activeTitle,
+                showcase_cards: showcaseCards
             }).eq('id', currentUser.id).select('id').maybeSingle();
             if (result.error) throw result.error;
             if (!result.data) throw new Error('profile_not_found');
-            setNotice('Профиль сохранён!', 'success');
+            setNotice('Профиль, титул и витрина сохранены!', 'success');
             await refreshAll();
         } catch (error) {
             setNotice(friendlyError(error), 'error');
@@ -398,31 +762,50 @@
         var overlay = byId('clanPublicProfileOverlay');
         var card = byId('clanPublicProfileCard');
         if (!overlay || !card) return;
+        publicProfileUserId = userId;
         overlay.style.display = 'flex';
         overlay.setAttribute('aria-hidden', 'false');
         document.body.classList.add('clan-profile-modal-open');
         byId('clanPublicName').textContent = 'Загружаем профиль…';
         byId('clanPublicDescription').textContent = 'Получаем данные игрока.';
         byId('clanPublicStats').replaceChildren();
+        renderPublicShowcase('clanPublicShowcase', []);
+        var friendAction = byId('clanPublicFriendAction');
+        if (friendAction) friendAction.disabled = true;
         var closeButton = byId('clanPublicProfileClose');
         if (closeButton) closeButton.focus();
         try {
             var result = await db.from('profiles')
-                .select('id, display_name, avatar_name, description, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
                 .eq('id', userId).maybeSingle();
             if (result.error) throw result.error;
             if (!result.data) throw new Error('profile_not_found');
             byId('clanPublicName').textContent = result.data.display_name || 'Игрок';
             byId('clanPublicDescription').textContent = result.data.description || 'Игрок пока не добавил описание.';
             byId('clanPublicAvatar').src = avatarPathForName(result.data.avatar_name) || 'images/Super_Dio_2.gif';
+            byId('clanPublicFriendCode').textContent = result.data.friend_code ? 'MB-' + result.data.friend_code : '—';
+            showPublicTitle(result.data);
+            renderPublicShowcase('clanPublicShowcase', result.data.showcase_cards);
             renderStatsGrid('clanPublicStats', result.data);
+            renderAchievementBadges('clanPublicBadges', result.data, false);
+            if (friendAction) {
+                var relation = playerFriendRelation(userId);
+                var isSelf = userId === currentUser.id;
+                friendAction.style.display = isSelf ? 'none' : '';
+                friendAction.disabled = isSelf || relation === 'friend' || relation === 'outgoing';
+                friendAction.textContent = relation === 'friend' ? '✓ Уже друзья' :
+                    relation === 'outgoing' ? '⏳ Заявка отправлена' :
+                    relation === 'incoming' ? '✓ Принять заявку' : '➕ Добавить в друзья';
+            }
         } catch (error) {
             byId('clanPublicName').textContent = 'Не удалось открыть профиль';
             byId('clanPublicDescription').textContent = friendlyError(error);
+            if (friendAction) friendAction.disabled = true;
         }
     }
 
     function hidePublicProfile() {
+        publicProfileUserId = null;
         var overlay = byId('clanPublicProfileOverlay');
         if (overlay) {
             overlay.style.display = 'none';
@@ -1202,6 +1585,9 @@
     }
 
     function notifyCloudSaveAuthChanged() {
+        if (db && currentUser) db.rpc('mb_touch_presence').then(function (result) {
+            if (result.error) console.warn('[MB friends] Presence update:', result.error.message);
+        }).catch(function () {});
         try {
             window.dispatchEvent(new CustomEvent('mb:auth-changed', {
                 detail: {
@@ -1267,6 +1653,24 @@
         byId('clanCardRequestForm').addEventListener('submit', submitClanCardRequest);
         populateClanCardRequestOptions();
         byId('clanPublicProfileClose').addEventListener('click', hidePublicProfile);
+        var friendSearchForm = byId('onlineFriendSearchForm');
+        if (friendSearchForm) friendSearchForm.addEventListener('submit', searchOnlinePlayers);
+        var friendsRefreshButton = byId('onlineFriendsRefresh');
+        if (friendsRefreshButton) friendsRefreshButton.addEventListener('click', refreshFriendsHub);
+        var showcaseSearch = byId('clanShowcaseSearch');
+        if (showcaseSearch) showcaseSearch.addEventListener('input', renderShowcasePicker);
+        var copyFriendCodeButton = byId('clanCopyFriendCode');
+        if (copyFriendCodeButton) copyFriendCodeButton.addEventListener('click', function () {
+            var code = currentProfile && currentProfile.friend_code;
+            if (code) copyText('MB-' + code);
+        });
+        var publicFriendAction = byId('clanPublicFriendAction');
+        if (publicFriendAction) publicFriendAction.addEventListener('click', function () {
+            if (!publicProfileUserId || !currentUser || publicProfileUserId === currentUser.id) return;
+            var relation = playerFriendRelation(publicProfileUserId);
+            if (relation === 'incoming') respondFriendRequest(publicProfileUserId, 'accept');
+            else if (!relation) sendFriendRequest(publicProfileUserId);
+        });
         var publicProfileOverlay = byId('clanPublicProfileOverlay');
         if (publicProfileOverlay) publicProfileOverlay.addEventListener('click', function (event) {
             if (event.target === publicProfileOverlay) hidePublicProfile();
@@ -1294,6 +1698,7 @@
                 });
                 if (view === 'rating' && currentUser) loadLeaderboard();
                 if (view === 'clan' && currentUser) refreshAll();
+                if (view === 'friends' && currentUser) refreshFriendsHub();
             });
         });
         document.querySelectorAll('[data-avatar-kind]').forEach(function (button) {
@@ -1552,6 +1957,13 @@
             queueAuthForCurrentSlot(getCurrentGameSlot());
         });
         await queueAuthForCurrentSlot(getCurrentGameSlot());
+        if (presenceHeartbeatTimer === null) {
+            presenceHeartbeatTimer = window.setInterval(function () {
+                if (db && currentUser) db.rpc('mb_touch_presence').then(function (result) {
+                    if (result.error) console.warn('[MB friends] Presence update:', result.error.message);
+                }).catch(function () {});
+            }, 45000);
+        }
     }
 
     if (document.readyState === 'loading') {
