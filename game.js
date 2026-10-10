@@ -106,6 +106,7 @@ function saveGameToSlot(slot) { localStorage.setItem(getSlotKey(slot), JSON.stri
 let mbCloudSyncReadyForUser = null;
 let mbCloudSyncBusy = false;
 let mbCloudSaveTimer = null;
+let mbCloudReloadPending = false;
 
 function mbCanonicalCloudValue(value, root) {
     if (Array.isArray(value)) return value.map(function (item) { return mbCanonicalCloudValue(item, false); });
@@ -242,6 +243,7 @@ function mbPutCloudSaveInLocalSlot(saveData, userId, cloudRow, targetSlot) {
         localStorage.setItem('cgV20_lastSlot', String(targetSlot));
         mbCloudSyncReadyForUser = userId;
         mbCloudStatus('Облачное сохранение загружено. Перезапускаем игру…', 'success');
+        mbCloudReloadPending = true;
         window.setTimeout(function () { window.location.reload(); }, 150);
     } else {
         mbCloudStatus('Облачная копия записана в слот ' + (targetSlot + 1) + '. Текущий слот не изменён.', 'success');
@@ -487,6 +489,7 @@ window.addEventListener('mb:cloud-save-action', function (event) {
 });
 
 function selectSlot(slot) {
+    window.dispatchEvent(new CustomEvent('mb:slot-changing', { detail: { from: currentSlot, to: slot } }));
     currentSlot = slot;
     let saved = loadGameFromSlot(slot);
     let meta = loadSlotMeta(slot);
@@ -2341,12 +2344,36 @@ function showSlotSelectScreen() { let slotScreen = document.getElementById("slot
 function showNicknamePrompt(slot) { let meta = loadSlotMeta(slot); let nickname = prompt("Введите ник для слота " + (slot + 1) + ":", meta.nickname); if (nickname === null) return; if (nickname.trim() === "" && !meta.exists) return; if (nickname.trim() !== "") { meta.nickname = nickname.trim(); } saveSlotMeta(slot, meta); selectSlot(slot); }
 function renameSlot(slot) { let meta = loadSlotMeta(slot); let nickname = prompt("Новое имя для слота " + (slot + 1) + ":", meta.nickname); if (nickname === null) return; if (nickname.trim() === "") return; meta.nickname = nickname.trim(); saveSlotMeta(slot, meta); if (slot === currentSlot) { slotData.nickname = nickname.trim(); let el = document.getElementById("nicknameDisplay"); if (el) el.innerText = nickname.trim(); } renderSlotsInGame(); }
 function renderSlotsInGame() { let html = '<div style="display:flex;flex-direction:column;gap:10px;">'; for (let i = 0; i < 3; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select ' + (i === currentSlot ? 'active' : '') + '"><div style="font-size:18px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + (i === currentSlot ? ' ← Текущий' : '') + '</div><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn" style="padding:4px 12px;font-size:11px;" onclick="event.stopPropagation();switchToSlot(' + i + ')">Загрузить</button><button class="btn" style="padding:4px 12px;font-size:11px;background:#9b59b6;" onclick="event.stopPropagation();renameSlot(' + i + ')">✏️ Имя</button></div></div>'; } html += '</div>'; let el = document.getElementById("slotsListInGame"); if (el) el.innerHTML = html; }
-function switchToSlot(slot) {
-    if (slot === currentSlot) return;
-    // Local slot switching is always allowed. Cloud data stays bound to one slot.
+async function switchToSlot(slot) {
+    if (slot === currentSlot || !Number.isInteger(Number(slot)) || Number(slot) < 0 || Number(slot) > 2) return;
+    slot = Number(slot);
+    var previousSlot = currentSlot;
+    saveAll();
+    var outgoingUserId = mbCurrentCloudUserId();
+    if (outgoingUserId) {
+        var waitStartedAt = Date.now();
+        while (mbCloudSyncBusy && currentSlot === previousSlot && Date.now() - waitStartedAt < 15000) {
+            await new Promise(function (resolve) { window.setTimeout(resolve, 75); });
+        }
+        if (mbCloudSyncBusy || currentSlot !== previousSlot) {
+            mbCloudStatus('Облачная синхронизация ещё выполняется. Повтори переключение через несколько секунд.', 'warning');
+            return;
+        }
+        await mbSyncCloudSave('auto');
+        if (currentSlot !== previousSlot) return;
+        if (mbCloudReloadPending) return;
+        var flushStartedAt = Date.now();
+        while (mbCloudSyncBusy && currentSlot === previousSlot && Date.now() - flushStartedAt < 15000) {
+            await new Promise(function (resolve) { window.setTimeout(resolve, 75); });
+        }
+        if (mbCloudSyncBusy || currentSlot !== previousSlot || mbCloudReloadPending) {
+            mbCloudStatus('Сначала дождись завершения облачной синхронизации, затем переключай слот.', 'warning');
+            return;
+        }
+    }
     if (mbCloudSaveTimer) { clearTimeout(mbCloudSaveTimer); mbCloudSaveTimer = null; }
     mbCloudSyncReadyForUser = null;
-    saveAll();
+    window.dispatchEvent(new CustomEvent('mb:slot-changing', { detail: { from: previousSlot, to: slot } }));
     currentSlot = slot;
     let saved = loadGameFromSlot(slot);
     let meta = loadSlotMeta(slot);
