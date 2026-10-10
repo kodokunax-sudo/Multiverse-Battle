@@ -56,6 +56,16 @@ alter table public.player_card_inventory enable row level security;
 alter table public.clan_card_gift_daily enable row level security;
 alter table public.clan_card_gifts enable row level security;
 
+-- These two tables are intentionally accessible only through checked RPC functions.
+drop policy if exists player_card_inventory_no_direct_access on public.player_card_inventory;
+create policy player_card_inventory_no_direct_access
+on public.player_card_inventory for all to authenticated
+using (false) with check (false);
+drop policy if exists clan_card_gift_daily_no_direct_access on public.clan_card_gift_daily;
+create policy clan_card_gift_daily_no_direct_access
+on public.clan_card_gift_daily for all to authenticated
+using (false) with check (false);
+
 revoke all on table public.clan_card_requests from anon, authenticated;
 revoke all on table public.player_card_inventory from anon, authenticated;
 revoke all on table public.clan_card_gift_daily from anon, authenticated;
@@ -125,23 +135,15 @@ begin
             raise exception 'card_inventory_invalid' using errcode = '22023';
         end if;
 
-        -- Register transferable rarities; keep already registered rows updated even if
-        -- a card later becomes ineligible, so an old snapshot cannot bypass the rarity cap.
-        if v_rarity in ('Обычная', 'Редкая', 'Сверх редкая', 'Эпик', 'Мифическая', 'Легендарная') then
-            insert into public.player_card_inventory (card_uid, owner_id, card_data, pending_delivery)
-            values (v_card_uid, v_user_id, v_item, false)
-            on conflict (card_uid) do update
-                set card_data = excluded.card_data,
-                    updated_at = pg_catalog.now()
-                where public.player_card_inventory.owner_id = v_user_id
-                  and public.player_card_inventory.pending_delivery = false;
-        else
-            update public.player_card_inventory as i
-            set card_data = v_item, updated_at = pg_catalog.now()
-            where i.card_uid = v_card_uid
-              and i.owner_id = v_user_id
-              and i.pending_delivery = false;
-        end if;
+        -- Track every card for ownership reconciliation and level-7 uniqueness.
+        -- Actual transfer eligibility is enforced separately by transfer_clan_card().
+        insert into public.player_card_inventory (card_uid, owner_id, card_data, pending_delivery)
+        values (v_card_uid, v_user_id, v_item, false)
+        on conflict (card_uid) do update
+            set card_data = excluded.card_data,
+                updated_at = pg_catalog.now()
+            where public.player_card_inventory.owner_id = v_user_id
+              and public.player_card_inventory.pending_delivery = false;
 
         select i.owner_id into v_owner_id
         from public.player_card_inventory as i
