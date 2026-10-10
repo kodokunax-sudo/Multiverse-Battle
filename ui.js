@@ -306,7 +306,7 @@ function updateStatusDisplay() {
         let remain = Math.ceil((newcomerDamageBonusEnd - Date.now()) / 1000);
         let mins = Math.floor(remain / 60);
         let secs = remain % 60;
-        html += ' <span class="status-effect" style="color:#ff9d45;border-color:#ff9d45;font-weight:bold;">⚔️ Урон x7 (' + mins + ':' + String(secs).padStart(2, '0') + ')</span>';
+        html += ' <span class="status-effect" style="color:#ff9d45;border-color:#ff9d45;font-weight:bold;">⚔️ Урон x2 (' + mins + ':' + String(secs).padStart(2, '0') + ')</span>';
     }
     
     let el = document.getElementById("statusEffects");
