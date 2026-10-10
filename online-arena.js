@@ -146,9 +146,11 @@
     function applyHazardArray(propertyName, incoming) {
         if (!Array.isArray(incoming)) return;
         var previous = Array.isArray(window[propertyName]) ? window[propertyName] : [];
+        var previousById = new Map();
         var localFlags = new Map();
         previous.forEach(function (item) {
             if (!item || !item.__mb_coop_id) return;
+            previousById.set(item.__mb_coop_id, item);
             localFlags.set(item.__mb_coop_id, {
                 hit: item.hit === true,
                 dioStandHitOnce: item.dioStandHitOnce === true
@@ -157,9 +159,21 @@
         var next = [];
         incoming.forEach(function (source) {
             if (!source || typeof source !== 'object') return;
-            var item = source;
-            var id = item.__mb_coop_id;
+            var id = source.__mb_coop_id;
             if (id && consumedHazardIds.has(id)) return;
+
+            // Don't teleport guest-side projectiles to every 220ms host snapshot.
+            // Ease their coordinates toward the authoritative host position instead.
+            var item = source;
+            var previousItem = id ? previousById.get(id) : null;
+            if (previousItem) {
+                item = Object.assign({}, source);
+                ['x', 'y'].forEach(function (key) {
+                    if (typeof previousItem[key] === 'number' && typeof source[key] === 'number') {
+                        item[key] = previousItem[key] + (source[key] - previousItem[key]) * 0.58;
+                    }
+                });
+            }
             if (id && localFlags.has(id)) {
                 var flags = localFlags.get(id);
                 if (flags.hit) item.hit = true;
@@ -811,7 +825,17 @@
         function applyObject(targetName, data, fields) {
             var target = window[targetName];
             if (!target || !data) return;
-            fields.forEach(function (key) { if (data[key] !== undefined) target[key] = data[key]; });
+            fields.forEach(function (key) {
+                if (data[key] === undefined) return;
+                // Smooth position reconciliation on the joining client; hard snaps every
+                // network snapshot made the boss itself visibly stutter for remote players.
+                if ((key === 'x' || key === 'y') &&
+                    typeof target[key] === 'number' && typeof data[key] === 'number') {
+                    target[key] += (data[key] - target[key]) * 0.58;
+                } else {
+                    target[key] = data[key];
+                }
+            });
         }
         applyObject('waystarBoss', packet.boss, ['x','y','size','vx','rotation','pulse','time','alpha']);
         applyObject('waystarBoss2', packet.boss2, ['x','y','size','vx','rotation','pulse','alpha','active']);
@@ -844,7 +868,15 @@
             packet.pieces.forEach(function (source, index) {
                 var target = window.waystarPieces[index];
                 if (!target || !source) return;
-                ['x','y','hp','alive','pulse'].forEach(function (key) { if (source[key] !== undefined) target[key] = source[key]; });
+                ['x','y','hp','alive','pulse'].forEach(function (key) {
+                    if (source[key] === undefined) return;
+                    if ((key === 'x' || key === 'y') &&
+                        typeof target[key] === 'number' && typeof source[key] === 'number') {
+                        target[key] += (source[key] - target[key]) * 0.58;
+                    } else {
+                        target[key] = source[key];
+                    }
+                });
             });
             if (typeof packet.pieces_alive === 'number') window.waystarPiecesAlive = packet.pieces_alive;
             if (typeof packet.invader_dir === 'number') window.waystarInvaderDir = packet.invader_dir;
