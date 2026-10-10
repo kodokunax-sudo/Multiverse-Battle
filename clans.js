@@ -313,35 +313,6 @@
         }
     }
 
-    async function openPublicProfile(userId) {
-        if (!db || !currentUser || !userId) return;
-        var card = byId('clanPublicProfileCard');
-        if (!card) return;
-        card.style.display = 'block';
-        byId('clanPublicName').textContent = 'Загружаем профиль…';
-        byId('clanPublicDescription').textContent = '';
-        byId('clanPublicStats').replaceChildren();
-        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        try {
-            var result = await db.from('profiles')
-                .select('id, display_name, avatar_name, description, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
-                .eq('id', userId).maybeSingle();
-            if (result.error) throw result.error;
-            if (!result.data) throw new Error('profile_not_found');
-            byId('clanPublicName').textContent = result.data.display_name || 'Игрок';
-            byId('clanPublicDescription').textContent = result.data.description || 'Игрок пока не добавил описание.';
-            byId('clanPublicAvatar').src = avatarPathForName(result.data.avatar_name) || 'images/Super_Dio_2.gif';
-            renderStatsGrid('clanPublicStats', result.data);
-        } catch (error) {
-            byId('clanPublicName').textContent = friendlyError(error);
-        }
-    }
-
-    function hidePublicProfile() {
-        var card = byId('clanPublicProfileCard');
-        if (card) card.style.display = 'none';
-    }
-
     function syncGameStats() {
         if (!db || !currentUser) return Promise.resolve();
         var stats = readLocalGameStats();
