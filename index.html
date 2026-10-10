@@ -404,6 +404,9 @@
     .clan-chat-body { min-width:0; flex:1; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.06); padding:7px 9px; border-radius:10px; }
     .clan-chat-meta { display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:3px; }
     .clan-chat-meta strong { font-size:11px; overflow-wrap:anywhere; }
+    .global-chat-author { padding:0; border:0; background:transparent; color:#ffd66d; font:inherit; font-size:11px; font-weight:900; text-align:left; cursor:pointer; overflow-wrap:anywhere; }
+    .global-chat-author:hover { text-decoration:underline; color:#fff; }
+    .global-chat-author:focus-visible { outline:2px solid #f6b51b; outline-offset:2px; border-radius:3px; }
     .clan-chat-meta time { flex:0 0 auto; color:#888; font-size:10px; }
     .clan-chat-text { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; line-height:1.4; user-select:text; }
     .clan-chat-form { display:flex; gap:7px; margin-top:8px; }
@@ -448,7 +451,7 @@
 .online-auth-card{border:1px solid rgba(255,255,255,.09);background:linear-gradient(150deg,rgba(30,29,48,.96),rgba(18,19,30,.98))}
 #clansUserPanel{align-items:center;gap:12px;padding:13px 15px;border:1px solid rgba(169,145,255,.23);border-radius:14px;background:rgba(116,87,199,.09)}
 .online-content{margin-top:14px}
-.online-subnav{position:sticky;top:5px;z-index:20;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:6px;margin:0 0 14px;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(15,16,26,.94);backdrop-filter:blur(14px);box-shadow:0 8px 25px #0002}
+.online-subnav{position:sticky;top:5px;z-index:20;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;padding:6px;margin:0 0 14px;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(15,16,26,.94);backdrop-filter:blur(14px);box-shadow:0 8px 25px #0002}
 .online-subtab{min-width:0;border:1px solid transparent;border-radius:11px;padding:12px 8px;color:#aaa8bb;background:transparent;font:inherit;font-size:13px;font-weight:850;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
 .online-subtab:hover{background:rgba(255,255,255,.05);color:#fff}
 .online-subtab.active{color:#fff;background:linear-gradient(135deg,rgba(129,92,235,.32),rgba(75,62,130,.22));border-color:rgba(184,158,255,.34);box-shadow:inset 0 1px #ffffff12}
@@ -549,7 +552,7 @@
 
 
 /* Friends network, card showcase and achievement titles */
-.online-subnav{grid-template-columns:repeat(4,minmax(0,1fr))}
+.online-subnav{grid-template-columns:repeat(5,minmax(0,1fr))}
 .online-feature-divider{height:1px;margin:20px 0;background:linear-gradient(90deg,rgba(246,181,27,.45),rgba(155,121,255,.2),transparent)}
 .online-feature-section{margin-top:14px;padding:16px;border:1px solid rgba(155,121,255,.17);border-radius:16px;background:linear-gradient(145deg,rgba(25,23,41,.72),rgba(9,10,16,.45))}
 .online-feature-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
@@ -604,7 +607,7 @@
 .public-profile-badges{margin:12px clamp(17px,4vw,34px)}
 .public-profile-badges .achievement-badge{font-size:9px}
 @media(max-width:620px){
- .online-subnav{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px}
+ .online-subnav{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px}
  .online-subtab{font-size:10px;padding:10px 2px}
  .online-feature-section{padding:11px}
  .online-feature-heading h3{font-size:16px}
@@ -951,6 +954,7 @@
                     <button type="button" class="online-subtab active" data-online-view="profile" role="tab" aria-selected="true">👤 Профиль</button>
                     <button type="button" class="online-subtab" data-online-view="friends" role="tab" aria-selected="false">👥 Друзья</button>
                     <button type="button" class="online-subtab" data-online-view="clan" role="tab" aria-selected="false">🛡️ Клан</button>
+                    <button type="button" class="online-subtab" data-online-view="chat" role="tab" aria-selected="false">💬 Чат</button>
                     <button type="button" class="online-subtab" data-online-view="rating" role="tab" aria-selected="false">🏆 Рейтинг</button>
                 </div>
                 <div class="online-pane active" data-online-pane="profile">
@@ -1048,6 +1052,22 @@
                         <div class="online-feature-heading"><div><span>CLAN INVITATIONS</span><h3>🛡️ Приглашения в клан</h3></div></div>
                         <p class="clan-muted">Приглашать друзей в клан могут лидеры и офицеры. Приглашение действует 7 дней.</p>
                         <div id="onlineClanInvites" class="online-player-list"><p class="clan-muted">Приглашений нет.</p></div>
+                    </div>
+                </div>
+                <div class="online-pane" data-online-pane="chat">
+                    <div class="card">
+                        <div class="online-feature-heading">
+                            <div><span>COMMUNITY CHAT</span><h3>💬 Общий чат</h3></div>
+                            <button id="globalChatRefresh" class="btn" type="button">↻ Обновить</button>
+                        </div>
+                        <p class="clan-muted">Общайся со всеми игроками Multiverse Battle, даже если вы в разных кланах. Сообщения обновляются без перезагрузки.</p>
+                        <div id="globalChatState" class="clan-chat-state" role="status" aria-live="polite">Подключаем общий чат…</div>
+                        <div id="globalChatMessages" class="clan-chat-messages" role="log" aria-live="polite" aria-relevant="additions text"><div class="clan-chat-empty">Загрузка сообщений…</div></div>
+                        <form id="globalChatForm" class="clan-chat-form">
+                            <input id="globalChatInput" type="text" maxlength="300" placeholder="Напиши всем игрокам…" autocomplete="off" required>
+                            <button id="globalChatSendBtn" class="btn btn-primary" type="submit">Отправить</button>
+                        </form>
+                        <p class="clan-muted" style="margin-top:9px;">Лимит сообщения — 300 символов. Не спамь и не публикуй личные данные.</p>
                     </div>
                 </div>
                 <div class="online-pane" data-online-pane="clan">
@@ -1233,7 +1253,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="clans.js?v=24"></script>
+<script src="clans.js?v=25"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
