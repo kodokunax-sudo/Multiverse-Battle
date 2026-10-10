@@ -1130,29 +1130,44 @@ function mbStatsCardKey(card,index) {
  card._mbStatsCardKey='mbstat:'+seed;
  return card._mbStatsCardKey;
 }
+function mbStatsMigrateSeenCardKeys(block,cards) {
+ if(!block||!Array.isArray(block.seenCardIds))return;
+ var ids=new Set(block.seenCardIds);
+ (Array.isArray(cards)?cards:[]).forEach(function(card,index){
+  if(!card||typeof card!=='object')return;
+  var stable=mbStatsCardKey(card,index),oldKeys=[];
+  if(card._mbCardUid)oldKeys.push('uid:'+String(card._mbCardUid));
+  if(card.id!==undefined&&card.id!==null)oldKeys.push('id:'+String(card.id));
+  oldKeys.push('fallback:'+String(card.name||'card')+':'+String(card.rarity||'')+':'+String(index));
+  if(oldKeys.some(function(key){return ids.has(key);}))ids.add(stable);
+ });
+ block.seenCardIds=Array.from(ids);
+}
 function mbStatsSafeNumber(value,fallback){var n=Number(value);return Number.isFinite(n)&&n>=0?Math.floor(n):(fallback||0);}
 function mbStatsNormalizeBlock(input,fallback) {
  var source=input&&typeof input==='object'&&!Array.isArray(input)?input:{},result=Object.assign({},fallback||mbStatsNewBlock());
  ['deaths','wavesCleared','bossesDefeated','cardsObtained','clicks','highestWave','highestCheckpoint','maxPoints'].forEach(function(k){result[k]=mbStatsSafeNumber(source[k],result[k]);});
  result.highestWave=Math.max(1,result.highestWave||1);result.highestCheckpoint=Math.max(1,result.highestCheckpoint||1);
  result.seenCardIds=Array.isArray(source.seenCardIds)?source.seenCardIds.filter(function(k){return typeof k==='string';}):(result.seenCardIds||[]);
- result.deathsApproximate=source.deathsApproximate===true;result.wavesClearedApproximate=source.wavesClearedApproximate===true;result.bossesDefeatedApproximate=source.bossesDefeatedApproximate===true;return result;
+ result.deathsApproximate=source.deathsApproximate===true;result.wavesClearedApproximate=source.wavesClearedApproximate===true;result.bossesDefeatedApproximate=source.bossesDefeatedApproximate===true;result.cardsObtainedApproximate=source.cardsObtainedApproximate===true;return result;
 }
 function mbStatsLegacyHistoryPeak(history){var peak=1;(Array.isArray(history)?history:[]).forEach(function(e){peak=Math.max(peak,mbStatsSafeNumber(e&&e.highestWave,1));});return peak;}
+function mbStatsLegacyCheckpointPeak(history){var peak=1;(Array.isArray(history)?history:[]).forEach(function(e){peak=Math.max(peak,mbStatsSafeNumber(e&&e.highestCheckpoint,1));});return peak;}
 function mbLoadStatsFromSave(saved) {
  var data=saved&&typeof saved==='object'?saved:{},cards=Array.isArray(myCards)?myCards:[],keys=cards.map(mbStatsCardKey).filter(Boolean);
  var hasLifetime=!!(data.gameStatsLifetime&&typeof data.gameStatsLifetime==='object'),hasCurrent=!!(data.gameStatsCurrentRebirth&&typeof data.gameStatsCurrentRebirth==='object');
  var lf=mbStatsNewBlock(keys);lf.clicks=mbStatsSafeNumber(totalClicks,0);
  lf.highestWave=Math.max(1,mbStatsSafeNumber(highestWaveReached,1),mbStatsLegacyHistoryPeak(rebirthStats));
- lf.highestCheckpoint=Math.max(1,mbStatsSafeNumber(highestCheckpoint,1));lf.maxPoints=mbStatsSafeNumber(maxPoints,100);lf.rebirths=mbStatsSafeNumber(rebirthCount,0);
+ lf.highestCheckpoint=Math.max(1,mbStatsSafeNumber(highestCheckpoint,1),mbStatsLegacyCheckpointPeak(rebirthStats));lf.maxPoints=mbStatsSafeNumber(maxPoints,100);lf.rebirths=mbStatsSafeNumber(rebirthCount,0);lf.cardsObtained=keys.length;
  lf.deaths=Math.max(mbStatsSafeNumber(data.totalDeaths,0),mbStatsSafeNumber(data.deathCount,0),mbStatsSafeNumber(data.deaths,0),Array.isArray(defeatHistory)?defeatHistory.length:0);
- lf.deathsApproximate=Array.isArray(defeatHistory)&&defeatHistory.length>=10&&!hasLifetime;lf.wavesClearedApproximate=!hasLifetime;lf.bossesDefeatedApproximate=!hasLifetime;
+ lf.deathsApproximate=!hasLifetime;lf.wavesClearedApproximate=!hasLifetime;lf.bossesDefeatedApproximate=!hasLifetime;lf.cardsObtainedApproximate=!hasLifetime;
  lf.wavesCleared=(Array.isArray(rebirthStats)?rebirthStats:[]).reduce(function(sum,e){
   var entry=e||{},known=entry.stats&&entry.stats.wavesCleared!==undefined?entry.stats.wavesCleared:entry.totalWins;
   return sum+mbStatsSafeNumber(known,0);
  },mbStatsSafeNumber(totalWins,0));
- lf.bossesDefeated=(Array.isArray(rebirthStats)?rebirthStats:[]).reduce(function(sum,e){return sum+mbStatsSafeNumber(e&&e.stats&&e.stats.bossesDefeated,0);},0);
+ lf.bossesDefeated=(Array.isArray(rebirthStats)?rebirthStats:[]).reduce(function(sum,e){return sum+mbStatsSafeNumber(e&&e.stats&&e.stats.bossesDefeated,0);},Array.isArray(defeatedBosses)?defeatedBosses.length:0);
  var cf=mbStatsNewBlock(keys),previous=Array.isArray(rebirthStats)&&rebirthStats.length?rebirthStats[rebirthStats.length-1]:null;
+ cf.deathsApproximate=!hasCurrent;cf.wavesClearedApproximate=!hasCurrent;cf.bossesDefeatedApproximate=!hasCurrent;cf.cardsObtainedApproximate=!hasCurrent;
  cf.clicks=Math.max(0,mbStatsSafeNumber(totalClicks,0)-mbStatsSafeNumber(previous&&previous.totalClicks,0));
  cf.highestWave=Math.max(1,mbStatsSafeNumber(highestWaveReached,1));cf.highestCheckpoint=Math.max(1,mbStatsSafeNumber(highestCheckpoint,1));cf.maxPoints=mbStatsSafeNumber(maxPoints,100);
  gameStatsLifetime=mbStatsNormalizeBlock(hasLifetime?data.gameStatsLifetime:null,lf);
@@ -1162,7 +1177,10 @@ function mbLoadStatsFromSave(saved) {
  gameStatsLifetime.highestCheckpoint=Math.max(gameStatsLifetime.highestCheckpoint,mbStatsSafeNumber(highestCheckpoint,1));
  gameStatsCurrentRebirth=mbStatsNormalizeBlock(hasCurrent?data.gameStatsCurrentRebirth:null,cf);
  gameStatsCurrentRebirth.rebirth=mbStatsSafeNumber(rebirthCount,0);
+ gameStatsLifetime.cardsObtained=Math.max(gameStatsLifetime.cardsObtained,keys.length);
+ gameStatsLifetime.cardsObtainedApproximate=gameStatsLifetime.cardsObtainedApproximate||!hasLifetime;
  if(!hasLifetime)gameStatsLifetime.seenCardIds=keys.slice();if(!hasCurrent)gameStatsCurrentRebirth.seenCardIds=keys.slice();
+ mbStatsMigrateSeenCardKeys(gameStatsLifetime,cards);mbStatsMigrateSeenCardKeys(gameStatsCurrentRebirth,cards);
  mbLastRecordedVictoryEnemy=null;mbStatsObserveCurrentState();
 }
 function mbResetAllStatsForNewGame(){gameStatsLifetime=mbStatsNewBlock([]);gameStatsLifetime.rebirths=0;gameStatsCurrentRebirth=mbStatsNewBlock([]);gameStatsCurrentRebirth.rebirth=0;mbLastRecordedVictoryEnemy=null;}
