@@ -300,6 +300,14 @@ function updateStatusDisplay() {
         let secs = remain % 60;
         html += ' <span class="status-effect" style="color:#ffd700;">🌟 x2 ⭐ (' + mins + ':' + String(secs).padStart(2, '0') + ')</span>';
     }
+
+    // ⚔️ Новичок: удвоенный урон в течение первых 20 минут новой игры.
+    if (typeof newcomerDamageBonusEnd === 'number' && newcomerDamageBonusEnd > Date.now()) {
+        let remain = Math.ceil((newcomerDamageBonusEnd - Date.now()) / 1000);
+        let mins = Math.floor(remain / 60);
+        let secs = remain % 60;
+        html += ' <span class="status-effect" style="color:#ff9d45;border-color:#ff9d45;font-weight:bold;">⚔️ Урон x2 (' + mins + ':' + String(secs).padStart(2, '0') + ')</span>';
+    }
     
     let el = document.getElementById("statusEffects");
     if (el) el.innerHTML = html;
