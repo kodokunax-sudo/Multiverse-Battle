@@ -623,6 +623,40 @@
 .public-showcase-no-art{width:56px;height:56px;flex-basis:56px}
 .showcase-pick-card .showcase-card-no-art{margin:0 auto 0}
 
+
+/* Expanded current-rebirth and all-time profile stats */
+.stats-mode-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:12px 0}
+.stats-mode-button{min-width:0;padding:9px 7px;border:1px solid rgba(155,121,255,.18);border-radius:10px;background:rgba(10,11,18,.65);color:#aaa5be;font:inherit;font-size:11px;font-weight:850;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.stats-mode-button:hover{color:#fff;border-color:rgba(246,181,27,.34)}
+.stats-mode-button.active{color:#ffe39a;border-color:rgba(246,181,27,.42);background:linear-gradient(125deg,rgba(246,181,27,.13),rgba(131,83,255,.17));box-shadow:inset 0 -2px rgba(246,181,27,.8)}
+#clanProfileStats.clan-profile-stats,#clanPublicStats.clan-profile-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+#clanProfileStats .expanded-stat,#clanPublicStats .expanded-stat{min-height:83px;padding:12px 10px;border-color:rgba(155,121,255,.16);background:linear-gradient(145deg,rgba(34,29,52,.82),rgba(12,13,21,.94))}
+#clanProfileStats .expanded-stat strong,#clanPublicStats .expanded-stat strong{color:#ffda72;font-size:clamp(17px,2.4vw,23px);line-height:1.15;overflow-wrap:anywhere}
+#clanProfileStats .expanded-stat span,#clanPublicStats .expanded-stat span{margin-top:5px;font-size:10px;line-height:1.35;color:#aaa5bb}
+.stats-data-note{margin:12px 0 0;padding:10px 12px;border-left:2px solid rgba(246,181,27,.55);background:rgba(246,181,27,.035);color:#928ca5;font-size:10px;line-height:1.6}
+.public-stats-mode-tabs{margin:12px clamp(17px,4vw,34px)}
+.public-stats-data-note{margin:10px clamp(17px,4vw,34px) 14px}
+.rebirth-history-list{display:flex;flex-direction:column;gap:9px;margin-top:10px}
+.rebirth-history-entry{padding:13px;border:1px solid rgba(155,121,255,.18);border-radius:14px;background:linear-gradient(145deg,rgba(29,25,45,.8),rgba(10,11,18,.87))}
+.rebirth-history-header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.rebirth-history-header strong{color:#ffda72;font-size:13px}
+.rebirth-history-world{padding:4px 7px;border:1px solid rgba(155,121,255,.18);border-radius:999px;color:#bbb0df;font-size:9px;font-weight:850}
+.rebirth-history-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.rebirth-history-metric{min-width:0;padding:8px;border-radius:9px;background:rgba(255,255,255,.025)}
+.rebirth-history-metric strong{display:block;color:#e9e1fa;font-size:14px;overflow-wrap:anywhere}
+.rebirth-history-metric span{display:block;margin-top:4px;color:#948da9;font-size:9px;line-height:1.35}
+.rebirth-history-extra{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.rebirth-history-chip{padding:6px 8px;border:1px solid rgba(246,181,27,.12);border-radius:8px;color:#d8c9ee;background:rgba(246,181,27,.035);font-size:9px}
+.rebirth-history-note{margin:9px 0 0;font-size:10px;line-height:1.5}
+.stats-history-empty{padding:15px;border:1px dashed rgba(155,121,255,.2);border-radius:12px;color:#9c95b1;font-size:11px;line-height:1.6;text-align:center}
+@media(max-width:560px){
+ .stats-mode-tabs{gap:4px}
+ .stats-mode-button{padding:9px 4px;font-size:9px;line-height:1.3}
+ #clanProfileStats.clan-profile-stats,#clanPublicStats.clan-profile-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ #clanProfileStats .expanded-stat,#clanPublicStats .expanded-stat{min-height:76px;padding:10px 8px}
+ .rebirth-history-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
 </style>
     <script src="anti-pull-refresh.js?v=4"></script>
 </head>
@@ -977,8 +1011,14 @@
                         </div>
                     </form>
                     <div class="card-title" style="font-size:14px;margin-top:18px;">📊 Моя статистика</div>
+                    <div class="stats-mode-tabs" role="tablist" aria-label="Моя статистика">
+                        <button type="button" class="stats-mode-button active" data-stats-target="own" data-stats-mode="rebirth" aria-pressed="true">♻️ Текущий ребёрн</button>
+                        <button type="button" class="stats-mode-button" data-stats-target="own" data-stats-mode="lifetime" aria-pressed="false">🌌 За всё время</button>
+                        <button type="button" class="stats-mode-button" data-stats-target="own" data-stats-mode="history" aria-pressed="false">📜 История ребёрнов</button>
+                    </div>
                     <div id="clanProfileStats" class="clan-profile-stats"></div>
-                    <p class="clan-muted" style="margin-top:9px;">Статистика берётся из активного локального сохранения и обновляется онлайн. Она не является защищённым от изменений рейтингом.</p>
+                    <div id="clanProfileRebirthHistory" class="rebirth-history-list" style="display:none;"></div>
+                    <p class="stats-data-note">Счётчик смертей раньше опирался на журнал из последних 10 поражений. Теперь новые смерти считаются отдельно и не ограничены десятью. Старую статистику смертей можно восстановить только как минимум, а точные счётчики боёв ведутся с этого обновления.</p>
                 </div>
 
 
@@ -1121,7 +1161,14 @@
             <span class="public-profile-section-mark"></span>
             <div><strong>Статистика игрока</strong><small>Показатели из онлайн-профиля</small></div>
         </div>
+        <div class="stats-mode-tabs public-stats-mode-tabs" role="tablist" aria-label="Статистика игрока">
+            <button type="button" class="stats-mode-button active" data-stats-target="public" data-stats-mode="rebirth" aria-pressed="true">♻️ Текущий ребёрн</button>
+            <button type="button" class="stats-mode-button" data-stats-target="public" data-stats-mode="lifetime" aria-pressed="false">🌌 За всё время</button>
+            <button type="button" class="stats-mode-button" data-stats-target="public" data-stats-mode="history" aria-pressed="false">📜 История ребёрнов</button>
+        </div>
         <div id="clanPublicStats" class="clan-profile-stats"></div>
+        <div id="clanPublicRebirthHistory" class="rebirth-history-list" style="display:none;"></div>
+        <p class="stats-data-note public-stats-data-note">Старые сохранения могли хранить только последние 10 поражений. Новые смерти считаются отдельно; часть исторических счётчиков заполняется с обновления.</p>
         <div class="public-profile-footer"><span>◆ MULTIVERSE BATTLE</span><span>PROFILE DATA</span></div>
     </section>
 </div>
@@ -1186,7 +1233,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="clans.js?v=21"></script>
+<script src="clans.js?v=22"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
