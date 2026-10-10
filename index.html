@@ -702,6 +702,15 @@
             </div>
 
             <div id="clansSignedInSections" style="display:none;">
+                <div id="cloudSaveCard" class="card">
+                    <div class="card-title">☁️ Облачное сохранение</div>
+                    <p class="clan-muted">Прогресс автоматически синхронизируется с этим аккаунтом. На аккаунт приходится ровно одно облачное сохранение; локальные слоты на устройстве остаются отдельными.</p>
+                    <div id="cloudSaveStatus" class="clan-notice" role="status" aria-live="polite">Ожидаем подключение аккаунта…</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                        <button id="cloudSaveDownloadBtn" class="btn" type="button">⬇️ Загрузить из облака</button>
+                        <button id="cloudSaveUploadBtn" class="btn btn-primary" type="button">⬆️ Сохранить в облако</button>
+                    </div>
+                </div>
                 <div id="clanProfileCard" class="card">
                     <div class="card-title">👤 Мой профиль</div>
                     <form id="clanProfileForm" class="clan-form">
@@ -834,7 +843,7 @@
 <script src="daily.js?v=10"></script>
 <script src="pass.js?v=9"></script>
 <script src="dandy.js?v=9"></script>
-<script src="game.js?v=17"></script>
+<script src="game.js?v=18"></script>
 <script src="battle.js?v=15"></script>
 <script src="supers.js?v=31"></script>
 <script src="dio.js?v=11"></script>
@@ -856,7 +865,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="clans.js?v=6"></script>
+<script src="clans.js?v=7"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
