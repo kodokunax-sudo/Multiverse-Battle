@@ -1235,7 +1235,14 @@ function waystarDefeat() {
     wsPlaySound(40, 'sawtooth', 2.0, 0.4);
     waystarScreenFlash = 60; waystarScreenFlashColor = "#ff0000";
     for (var i = 0; i < 60; i++) spawnWaystarParticles(waystarPlayer.x, waystarPlayer.y, 1, "#ff3333", 10);
-    setTimeout(function() { stopWaystarFight(); if (typeof playerHp !== 'undefined') playerHp = 0; if (typeof defeat === 'function') defeat(); }, 2500);
+    setTimeout(function() {
+        stopWaystarFight();
+        if (window.MBOnlineWaystar && window.MBOnlineWaystar.active && typeof window.MBOnlineWaystar.onPlayerDefeated === 'function') {
+            window.MBOnlineWaystar.onPlayerDefeated();
+        }
+        if (typeof playerHp !== 'undefined') playerHp = 0;
+        if (typeof defeat === 'function') defeat();
+    }, 2500);
 }
 
 function updateWaystarFinalScene() {
