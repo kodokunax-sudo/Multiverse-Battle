@@ -184,7 +184,12 @@
     // Defensive CSS state refresh, separate from touch processing.
     window.setInterval(function () {
         if (!document.body) return;
-        if (isBattleActive()) document.body.classList.add('anti-pull-battle-lock');
-        else document.body.classList.remove('anti-pull-battle-lock');
+        if (isBattleActive()) {
+            document.body.classList.add('anti-pull-battle-lock');
+            armBattleHistoryGuard();
+        } else {
+            document.body.classList.remove('anti-pull-battle-lock');
+            armBattleHistoryGuard();
+        }
     }, 250);
 })();
