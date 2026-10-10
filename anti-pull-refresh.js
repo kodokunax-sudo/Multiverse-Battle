@@ -161,7 +161,15 @@
     var battleHistoryGuardArmed = false;
     function armBattleHistoryGuard() {
         if (!isBattleActive()) {
-            battleHistoryGuardArmed = false;
+            if (battleHistoryGuardArmed) {
+                battleHistoryGuardArmed = false;
+                // Remove our temporary same-URL guard entry when the battle ends,
+                // so normal Back navigation does not require an extra press.
+                try {
+                    var state = window.history.state;
+                    if (state && state.__multiverseBattleGuard) window.history.back();
+                } catch (err) {}
+            }
             return;
         }
         if (battleHistoryGuardArmed) return;
