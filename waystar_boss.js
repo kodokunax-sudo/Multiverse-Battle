@@ -1781,6 +1781,13 @@ window.getWaystarState  = function() { return waystarState; };
 
 window.startWaystarFight = startWaystarFight;
 window.stopWaystarFight = stopWaystarFight;
+window.waystarVictory = waystarVictory;
+window.waystarStartPhase2 = waystarStartPhase2;
+window.waystarStartPhase3 = waystarStartPhase3;
+window.waystarProgressDialog = waystarProgressDialog;
+window.selectWaystarChoice = selectWaystarChoice;
+window.advanceWaystarSpareDialog = advanceWaystarSpareDialog;
+window.setupWaystarSpareDialog = setupWaystarSpareDialog;
 window.damageWaystarBoss = function(dmg) { if (waystarState === "phase1") waystarBossHp -= dmg; };
 window.getWaystarActive = function() { return waystarActive; };
 
