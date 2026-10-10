@@ -20,6 +20,9 @@
     var lastMoveSentAt = 0;
     var lastSnapshotSentAt = 0;
     var lastFightPositionSentAt = 0;
+    var lastRemoteRenderAt = 0;
+    var snapshotSequence = 0;
+    var lastAppliedSnapshotSequence = 0;
     var victoryBroadcastForFightId = null;
     var seenEvents = new Set();
     var coopHazardCounter = 0;
@@ -268,8 +271,15 @@
                     if (!p || p.fight_id !== activeFightId || !p.session_id || p.session_id === selfSessionId) return;
                     var other = currentPlayers.get(p.session_id);
                     if (!other) return;
-                    other.fightX = clamp(Number(p.x) || 200, 12, 388);
-                    other.fightY = clamp(Number(p.y) || 430, 70, 490);
+                    var nextX = clamp(Number(p.x) || 200, 12, 388);
+                    var nextY = clamp(Number(p.y) || 430, 70, 490);
+                    // Keep the last rendered position and glide toward the newest network target.
+                    // Snapping to every WebSocket packet makes movement visibly jitter on high ping.
+                    if (typeof other.fightX !== 'number' || typeof other.fightY !== 'number') {
+                        other.fightX = nextX; other.fightY = nextY;
+                    }
+                    other.targetFightX = nextX;
+                    other.targetFightY = nextY;
                     renderFightRoster();
                 });
                 ch.on('broadcast', { event: 'boss_damage' }, function (message) {
@@ -361,6 +371,8 @@
                     y: clamp(prev ? prev.y : (Number(meta.y) || 50), 8, 92),
                     fightX: prev ? prev.fightX : null,
                     fightY: prev ? prev.fightY : null,
+                    targetFightX: prev ? prev.targetFightX : null,
+                    targetFightY: prev ? prev.targetFightY : null,
                     fight_id: meta.fight_id || null
                 });
             });
@@ -492,6 +504,8 @@
         seenEvents.clear();
         consumedHazardIds.clear();
         coopHazardCounter = 0;
+        snapshotSequence = 0;
+        lastAppliedSnapshotSequence = 0;
         sendEvent('fight_start', packet);
         startLocalFight(packet, false);
     }
@@ -506,6 +520,11 @@
         victoryBroadcastForFightId = null;
         consumedHazardIds.clear();
         coopHazardCounter = 0;
+        snapshotSequence = 0;
+        lastAppliedSnapshotSequence = 0;
+        lastSnapshotSentAt = 0;
+        lastFightPositionSentAt = 0;
+        lastRemoteRenderAt = 0;
         var api = window.MBOnlineWaystar;
         if (api) {
             api.active = true;
@@ -600,6 +619,10 @@
 
     function applyFightSnapshot(packet) {
         if (!window.getWaystarActive || !window.getWaystarActive()) return;
+        // Ignore stale snapshots if network packets arrive out of order.
+        var incomingSequence = Number(packet.snapshot_seq) || 0;
+        if (incomingSequence && incomingSequence <= lastAppliedSnapshotSequence) return;
+        if (incomingSequence) lastAppliedSnapshotSequence = incomingSequence;
         if (typeof packet.boss_hp === 'number') window.waystarBossHp = packet.boss_hp;
         if (typeof packet.boss_max_hp === 'number') window.waystarBossMaxHp = packet.boss_max_hp;
         if (typeof packet.rage === 'boolean') window.waystarRageMode = packet.rage;
@@ -797,7 +820,7 @@
         ensureHazardIds();
         var now = Date.now();
         var ownPlayer = window.waystarPlayer;
-        if (ownPlayer && now - lastFightPositionSentAt >= 80) {
+        if (ownPlayer && now - lastFightPositionSentAt >= 100) {
             lastFightPositionSentAt = now;
             var me = currentPlayers.get(selfSessionId);
             if (me) { me.fightX = ownPlayer.x; me.fightY = ownPlayer.y; }
@@ -808,17 +831,24 @@
                 y: Number(ownPlayer.y) || 430
             });
         }
-        if (isLeader() && now - lastSnapshotSentAt >= 140 && window.getWaystarActive && window.getWaystarActive()) {
+        if (isLeader() && now - lastSnapshotSentAt >= 220 && window.getWaystarActive && window.getWaystarActive()) {
             lastSnapshotSentAt = now;
             var snapshot = buildFightSnapshot();
+            snapshot.snapshot_seq = ++snapshotSequence;
             snapshot.sender_session_id = selfSessionId;
             sendEvent('fight_snapshot', snapshot);
         }
 
+        // Interpolate remote players at render rate instead of snapping on each packet.
+        var frameDelta = lastRemoteRenderAt ? Math.min(50, Math.max(0, now - lastRemoteRenderAt)) : 16.67;
+        lastRemoteRenderAt = now;
+        var blend = 1 - Math.exp(-frameDelta / 75);
         // Draw other players over the original Waystar canvas without modifying its combat renderer.
         ctx.save();
         Array.from(currentPlayers.values()).forEach(function (p) {
             if (p.session_id === selfSessionId || typeof p.fightX !== 'number' || typeof p.fightY !== 'number') return;
+            if (typeof p.targetFightX === 'number') p.fightX += (p.targetFightX - p.fightX) * blend;
+            if (typeof p.targetFightY === 'number') p.fightY += (p.targetFightY - p.fightY) * blend;
             var color = playerColor(p.user_id);
             drawHeart(ctx, p.fightX, p.fightY, color, 8.5);
             ctx.save();
