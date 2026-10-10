@@ -436,6 +436,50 @@
 .clan-avatar-section>strong{display:block;margin-bottom:8px;font-size:12px}
 .clan-sticker-option img{object-fit:contain;background:#24243b}
 @media(max-width:520px){.clan-leaderboard-row{gap:7px;padding:8px}.clan-leaderboard-rank{min-width:25px}.clan-leaderboard-open{display:none}.clan-leaderboard-player small{font-size:10px}.clan-leaderboard-sort{min-width:0;width:100%}}
+
+/* Online hub */
+.online-screen{max-width:1050px;margin-left:auto;margin-right:auto}
+.online-hero{position:relative;isolation:isolate;display:flex;align-items:center;gap:18px;overflow:hidden;margin:8px 0 16px;padding:24px;border:1px solid rgba(180,153,255,.24);border-radius:22px;background:radial-gradient(ellipse at 85% 10%,rgba(130,85,255,.28),transparent 44%),linear-gradient(125deg,#19172b,#10111d 70%);color:#fff}
+.online-hero:after{content:"";position:absolute;z-index:-1;width:180px;height:180px;right:-45px;bottom:-100px;border:1px solid rgba(202,178,255,.2);border-radius:50%;box-shadow:0 0 0 22px rgba(180,153,255,.035),0 0 0 44px rgba(180,153,255,.025)}
+.online-hero-icon{display:grid;place-items:center;width:66px;height:66px;flex:0 0 66px;border-radius:20px;font-size:31px;background:linear-gradient(145deg,#40316b,#1c1a31);border:1px solid #66518e;box-shadow:0 8px 30px #0005}
+.online-hero-copy h2{font-size:30px;line-height:1.05;margin:5px 0 7px;letter-spacing:-.8px}
+.online-hero-copy p{margin:0;color:#c4bfd6;font-size:13px;line-height:1.5}
+.online-eyebrow,.avatar-editor-kicker{font-size:9px;letter-spacing:2px;font-weight:900;color:#bca7ff}
+.online-auth-card{border:1px solid rgba(255,255,255,.09);background:linear-gradient(150deg,rgba(30,29,48,.96),rgba(18,19,30,.98))}
+#clansUserPanel{align-items:center;gap:12px;padding:13px 15px;border:1px solid rgba(169,145,255,.23);border-radius:14px;background:rgba(116,87,199,.09)}
+.online-content{margin-top:14px}
+.online-subnav{position:sticky;top:5px;z-index:20;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:6px;margin:0 0 14px;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(15,16,26,.94);backdrop-filter:blur(14px);box-shadow:0 8px 25px #0002}
+.online-subtab{min-width:0;border:1px solid transparent;border-radius:11px;padding:12px 8px;color:#aaa8bb;background:transparent;font:inherit;font-size:13px;font-weight:850;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.online-subtab:hover{background:rgba(255,255,255,.05);color:#fff}
+.online-subtab.active{color:#fff;background:linear-gradient(135deg,rgba(129,92,235,.32),rgba(75,62,130,.22));border-color:rgba(184,158,255,.34);box-shadow:inset 0 1px #ffffff12}
+.online-pane{display:none;animation:onlinePaneIn .18s ease-out}
+.online-pane.active{display:block}
+@keyframes onlinePaneIn{from{opacity:.5;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.online-pane>.card{border:1px solid rgba(255,255,255,.08);background:linear-gradient(145deg,rgba(26,27,42,.98),rgba(18,19,29,.98));border-radius:17px}
+.avatar-editor-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:16px 0 20px;padding:17px;border:1px solid rgba(171,145,255,.2);border-radius:17px;background:radial-gradient(ellipse at 15% 0,rgba(126,89,225,.16),transparent 65%),rgba(255,255,255,.025)}
+.avatar-editor-heading h3{font-size:20px;margin:5px 0}
+.avatar-editor-heading p{font-size:12px;line-height:1.45;color:#aaa8bb;margin:0}
+.avatar-preview-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0}
+.avatar-preview-wrap .clan-profile-avatar{width:84px;height:84px;border-radius:23px;border:2px solid #b49aff;box-shadow:0 0 0 5px rgba(166,135,255,.1),0 8px 24px #0005;object-fit:cover;background:#24243b}
+.avatar-preview-wrap>span{font-size:8px;letter-spacing:1.5px;font-weight:900;color:#c6b7ff}
+.avatar-choice-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:5px;border-radius:13px;background:#10111b;border:1px solid rgba(255,255,255,.08);margin-bottom:13px}
+.avatar-choice-tab{border:1px solid transparent;border-radius:9px;padding:11px 8px;background:transparent;color:#a9a6b8;font:inherit;font-size:12px;font-weight:850;cursor:pointer}
+.avatar-choice-tab.active{background:linear-gradient(135deg,#59418e,#35284f);color:#fff;border-color:#7e66ae}
+.avatar-search-label{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:11px;font-weight:850;color:#d8d3e7;margin:0 0 12px}
+.avatar-search-label input{flex:1;min-width:140px;margin:0!important;padding:10px 12px!important;border-radius:10px!important;background:#10111b!important;border:1px solid #343247!important}
+.avatar-choice-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:9px;max-height:390px;overflow:auto;padding:2px 3px 8px;overscroll-behavior:contain}
+.avatar-choice-grid .clan-avatar-option{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:7px;min-width:0;min-height:100px;padding:9px 5px;border-radius:13px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.025);color:#c9c6d7;cursor:pointer;transition:transform .14s,border-color .14s,background .14s}
+.avatar-choice-grid .clan-avatar-option:hover{transform:translateY(-2px);border-color:#8870c1;background:rgba(146,115,221,.1)}
+.avatar-choice-grid .clan-avatar-option.selected{border-color:#b49aff;background:linear-gradient(145deg,rgba(143,109,222,.24),rgba(92,68,151,.13));box-shadow:inset 0 0 0 1px #b49aff55,0 0 16px #9c7bff18;color:#fff}
+.avatar-choice-grid .clan-avatar-option.selected:after{content:"✓";position:absolute;top:5px;right:6px;display:grid;place-items:center;width:19px;height:19px;border-radius:50%;background:#b49aff;color:#20182f;font-size:12px;font-weight:1000}
+.avatar-choice-grid .clan-avatar-option img{width:56px;height:56px;object-fit:cover;border-radius:11px;background:#24243b}
+.avatar-choice-grid .clan-sticker-option img{object-fit:contain}
+.avatar-choice-grid .clan-avatar-option span{display:-webkit-box;max-width:100%;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:10px;line-height:1.3;text-align:center;overflow-wrap:anywhere}
+.avatar-selection-hint{margin:10px 0 0;font-size:11px;line-height:1.5;color:#b9a9eb}
+#clanProfileForm .clan-profile-layout{align-items:flex-start}
+#clanProfileForm .clan-profile-layout>div{flex:1;min-width:0}
+#clanProfileForm #clanProfileName,#clanProfileForm #clanProfileDescription{width:100%;box-sizing:border-box;margin:6px 0 13px}
+@media(max-width:520px){.online-hero{padding:17px;gap:13px;border-radius:17px}.online-hero-icon{width:52px;height:52px;flex-basis:52px;font-size:25px;border-radius:15px}.online-hero-copy h2{font-size:25px}.online-subtab{font-size:11px;padding:11px 3px}.avatar-editor-heading{padding:12px;gap:8px}.avatar-preview-wrap .clan-profile-avatar{width:68px;height:68px}.avatar-choice-grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px}.avatar-choice-grid .clan-avatar-option{min-height:90px}.avatar-choice-grid .clan-avatar-option img{width:49px;height:49px}}
 </style>
     <script src="anti-pull-refresh.js?v=4"></script>
 </head>
@@ -453,7 +497,7 @@
             <button class="tab-btn active" data-tab="collection">🏠 Коллекция</button>
             <button class="tab-btn" data-tab="battle">⚔️ Битва</button>
             <button class="tab-btn" data-tab="shop">🛒 Лавка</button>
-            <button class="tab-btn" data-tab="clans">🛡️ Кланы</button>
+            <button class="tab-btn" data-tab="clans">🌐 Онлайн</button>
             <button class="tab-btn" data-tab="other">📋 Прочее</button>
         </div>
         <div id="collectionTab" class="tab-content active">
@@ -692,10 +736,18 @@
                 </div>
             </div>
         </div>
-        <div id="clansTab" class="tab-content">
-            <div class="card">
-                <div class="card-title">🛡️ Онлайн-кланы <span style="font-size:11px;color:#aaa;">BETA</span></div>
-                <p style="font-size:13px;color:#bbb;line-height:1.5;">Создавай кланы, вступай к другим игрокам и собирай команду для будущих онлайн-событий. У каждого слота свой аккаунт, профиль и отдельное облачное сохранение. Переключи слот, чтобы войти в его аккаунт; первый раз авторизуйся отдельно в каждом слоте.</p>
+        <div id="clansTab" class="tab-content online-screen">
+            <div class="online-hero">
+                <div class="online-hero-icon">🌐</div>
+                <div class="online-hero-copy">
+                    <div class="online-eyebrow">MULTIVERSE BATTLE / COMMUNITY</div>
+                    <h2>Онлайн</h2>
+                    <p>Твой профиль, команда и место в рейтинге — в одном месте.</p>
+                </div>
+            </div>
+            <div class="card online-auth-card">
+                <div class="card-title">🔐 Аккаунт</div>
+                <p class="clan-muted">У каждого игрового слота свой аккаунт. На другом устройстве можно войти в тот же аккаунт.</p>
                 <div id="clansNotice" class="clan-notice" role="status" aria-live="polite">Проверяем настройки онлайн-системы…</div>
                 <div id="clansAuthPanel">
                     <form id="clansAuthForm" class="clan-form" autocomplete="on">
@@ -717,7 +769,13 @@
                 </div>
             </div>
 
-            <div id="clansSignedInSections" style="display:none;">
+            <div id="clansSignedInSections" class="online-content" style="display:none;">
+                <div class="online-subnav" role="tablist" aria-label="Разделы онлайн">
+                    <button type="button" class="online-subtab active" data-online-view="profile" role="tab" aria-selected="true">👤 Профиль</button>
+                    <button type="button" class="online-subtab" data-online-view="clan" role="tab" aria-selected="false">🛡️ Клан</button>
+                    <button type="button" class="online-subtab" data-online-view="rating" role="tab" aria-selected="false">🏆 Рейтинг</button>
+                </div>
+                <div class="online-pane active" data-online-pane="profile">
                 <div id="cloudSaveCard" class="card">
                     <div class="card-title">☁️ Облачное сохранение</div>
                     <p class="clan-muted">Прогресс автоматически синхронизируется с этим аккаунтом. На аккаунт приходится ровно одно облачное сохранение; локальные слоты на устройстве остаются отдельными.</p>
@@ -728,29 +786,10 @@
                         <button id="cloudSaveUnbindBtn" class="btn" type="button">🔓 Отвязать этот слот</button>
                     </div>
                 </div>
-                <div id="clanLeaderboardCard" class="card">
-                    <div class="flex-between" style="gap:10px;flex-wrap:wrap;">
-                        <div class="card-title" style="margin-bottom:0;">🏆 Рейтинг игроков</div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            <select id="clanLeaderboardSort" aria-label="Сортировать рейтинг" class="clan-leaderboard-sort">
-                                <option value="highest_wave">🌊 Максимальная волна</option>
-                                <option value="total_wins">🏆 Победы</option>
-                                <option value="rebirth_count">♻️ Ребёрны</option>
-                                <option value="cards_collected">🎴 Получено карт</option>
-                                <option value="bosses_defeated">👹 Побеждённые боссы</option>
-                                <option value="total_clicks">👆 Кликов</option>
-                            </select>
-                            <button id="clanLeaderboardRefresh" class="btn" type="button">🔄 Обновить</button>
-                        </div>
-                    </div>
-                    <p class="clan-muted">Сортировка по максимальной волне, затем по победам и ребёрнам. Нажми на игрока, чтобы открыть его профиль.</p>
-                    <div id="clanLeaderboard" class="clan-leaderboard"></div>
-                </div>
                 <div id="clanProfileCard" class="card">
                     <div class="card-title">👤 Мой профиль</div>
                     <form id="clanProfileForm" class="clan-form">
                         <div class="clan-profile-layout">
-                            <img id="clanProfilePreview" class="clan-profile-avatar" src="images/Super_Dio_2.gif" alt="Аватар профиля">
                             <div>
                                 <label for="clanProfileName" style="font-size:12px;font-weight:800;">Игровое имя (1–24 символа)</label>
                                 <input id="clanProfileName" type="text" maxlength="24" minlength="1" placeholder="Имя игрока" required>
@@ -758,8 +797,17 @@
                                 <textarea id="clanProfileDescription" maxlength="280" rows="3" placeholder="Расскажи о себе и любимых персонажах…"></textarea>
                             </div>
                         </div>
-                        <label style="font-size:12px;font-weight:800;">Выбери аватар персонажа</label>
-                        <div id="clanAvatarChoices" class="clan-avatar-grid" aria-label="Аватары персонажей"></div>
+                        <div class="avatar-editor-heading">
+                            <div><span class="avatar-editor-kicker">PERSONALIZATION</span><h3>Твой образ</h3><p>Выбери один стикер или картинку персонажа.</p></div>
+                            <div class="avatar-preview-wrap"><img id="clanProfilePreview" class="clan-profile-avatar" src="images/Super_Dio_2.gif" alt="Аватар профиля"><span>ПРЕВЬЮ</span></div>
+                        </div>
+                        <div class="avatar-choice-tabs" role="tablist" aria-label="Тип аватара">
+                            <button type="button" class="avatar-choice-tab active" data-avatar-kind="stickers" role="tab" aria-selected="true">✨ Стикеры</button>
+                            <button type="button" class="avatar-choice-tab" data-avatar-kind="images" role="tab" aria-selected="false">🖼️ Картинки</button>
+                        </div>
+                        <label class="avatar-search-label" for="clanAvatarSearch">Найти <input id="clanAvatarSearch" type="search" placeholder="Поиск по названию…" autocomplete="off"></label>
+                        <div id="clanAvatarChoices" class="clan-avatar-grid avatar-choice-grid" aria-label="Выбери одну аватарку"></div>
+                        <p class="avatar-selection-hint">✓ Один выбранный аватар будет отображаться в рейтинге, клане и профиле.</p>
                         <div class="clan-form-row">
                             <button id="clansProfileSaveBtn" class="btn btn-primary" type="submit">💾 Сохранить профиль</button>
                         </div>
@@ -785,6 +833,9 @@
                     <div id="clanPublicStats" class="clan-profile-stats"></div>
                 </div>
 
+
+                </div>
+                <div class="online-pane" data-online-pane="clan">
                 <div id="clanCurrentCard" class="card" style="display:none;">
                     <div class="card-title">🏰 Мой клан</div>
                     <div class="clan-card-heading"><strong id="clanCurrentName"></strong><span id="clanCurrentTag" class="clan-tag"></span></div>
@@ -835,6 +886,28 @@
                     <div class="card-title">🌐 Кланы игроков</div>
                     <p class="clan-muted" style="margin-bottom:8px;">Пока вступление открыто для всех аккаунтов. Игрок может состоять только в одном клане.</p>
                     <div id="clanList"><p class="clan-muted">Загружаем кланы…</p></div>
+                </div>
+                </div>
+                <div class="online-pane" data-online-pane="rating">
+                <div id="clanLeaderboardCard" class="card">
+                    <div class="flex-between" style="gap:10px;flex-wrap:wrap;">
+                        <div class="card-title" style="margin-bottom:0;">🏆 Рейтинг игроков</div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <select id="clanLeaderboardSort" aria-label="Сортировать рейтинг" class="clan-leaderboard-sort">
+                                <option value="highest_wave">🌊 Максимальная волна</option>
+                                <option value="total_wins">🏆 Победы</option>
+                                <option value="rebirth_count">♻️ Ребёрны</option>
+                                <option value="cards_collected">🎴 Получено карт</option>
+                                <option value="bosses_defeated">👹 Побеждённые боссы</option>
+                                <option value="total_clicks">👆 Кликов</option>
+                            </select>
+                            <button id="clanLeaderboardRefresh" class="btn" type="button">🔄 Обновить</button>
+                        </div>
+                    </div>
+                    <p class="clan-muted">Сортировка по максимальной волне, затем по победам и ребёрнам. Нажми на игрока, чтобы открыть его профиль.</p>
+                    <div id="clanLeaderboard" class="clan-leaderboard"></div>
+                </div>
+
                 </div>
             </div>
         </div>
@@ -900,7 +973,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="clans.js?v=13"></script>
+<script src="clans.js?v=14"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
