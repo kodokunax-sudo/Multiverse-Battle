@@ -669,7 +669,7 @@
         var entries = [];
         if (mode === 'lifetime') {
             entries = [
-                ['💀', 'Всего смертей', hasLifetimeData ? statsShownValue(lifetime.deaths, lifetime.historicalDeathMinimum || lifetime.deathsApproximate) : '—'],
+                ['💀', 'Всего смертей (известный минимум)', hasLifetimeData ? statsShownValue(lifetime.deaths, lifetime.historicalDeathMinimum || lifetime.deathsApproximate) : '—'],
                 ['🌊', 'Волн пройдено', hasLifetimeData ? statsShownValue(lifetime.wavesCleared, lifetime.wavesClearedApproximate || lifetime.legacyCountersPartial) : '—'],
                 ['👹', 'Боссов побеждено', hasLifetimeData ? statsShownValue(lifetime.bossesDefeated, lifetime.bossesDefeatedApproximate || lifetime.legacyCountersPartial) : '—'],
                 ['🎴', 'Новых карт получено с обновления', hasLifetimeData ? lifetime.cardsObtained : '—'],
@@ -684,11 +684,11 @@
         } else {
             entries = [
                 ['♻️', 'Текущий ребёрн', safeCount(data && data.rebirth_count, safeCount(current.rebirth, 1000000))],
-                ['💀', 'Смертей в этом ребёрне', hasCurrentData ? current.deaths : '—'],
-                ['🌊', 'Волн пройдено', hasCurrentData ? current.wavesCleared : '—'],
-                ['👹', 'Боссов побеждено', hasCurrentData ? current.bossesDefeated : '—'],
-                ['🎴', 'Новых карт получено', hasCurrentData ? current.cardsObtained : '—'],
-                ['👆', 'Кликов в этом ребёрне', hasCurrentData ? current.clicks : '—'],
+                ['💀', 'Смертей в этом ребёрне', hasCurrentData ? statsShownValue(current.deaths, current.deathsApproximate) : 'С обновления'],
+                ['🌊', 'Волн пройдено', hasCurrentData ? statsShownValue(current.wavesCleared, current.wavesClearedApproximate) : 'С обновления'],
+                ['👹', 'Боссов побеждено', hasCurrentData ? statsShownValue(current.bossesDefeated, current.bossesDefeatedApproximate) : 'С обновления'],
+                ['🎴', 'Карт получено (известный минимум)', hasCurrentData ? statsShownValue(current.cardsObtained, current.cardsObtainedApproximate) : 'С обновления'],
+                ['👆', 'Кликов в этом ребёрне', hasCurrentData ? statsShownValue(current.clicks, current.clicksApproximate) : 'С обновления'],
                 ['🚩', 'Максимальная волна ребёрна', hasCurrentData ? Math.max(1, safeCount(current.highestWave, 1000000000)) : '—'],
                 ['🏰', 'Чекпоинт', hasCurrentData ? current.highestCheckpoint : '—'],
                 ['⭐', 'Максимум звёзд в ребёрне', hasCurrentData ? current.maxPoints : '—'],
