@@ -1331,6 +1331,9 @@ function updateWaystarFinalScene() {
                 console.log("[WAYSTAR] Финал: завершение");
                 waystarFinalActive = false;
                 stopWaystarFight();
+                if (window.MBOnlineWaystar && window.MBOnlineWaystar.active && typeof window.MBOnlineWaystar.onFightEnded === 'function') {
+                    window.MBOnlineWaystar.onFightEnded();
+                }
                 if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0;
                 if (typeof victory === 'function') victory();
             }
