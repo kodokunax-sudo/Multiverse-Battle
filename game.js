@@ -896,6 +896,7 @@ function loadGameData(d) {
         passData.passExp = d.passData.passExp || 0;
         passData.claimedTiers = d.passData.claimedTiers || [];
     }
+    mbLoadStatsFromSave(d);
 }
 
 function initNewGame() { 
@@ -955,6 +956,7 @@ function initNewGame() {
     totalClicks = 0; 
     totalCardsObtained = 0; 
     maxPoints = 100; 
+    mbResetAllStatsForNewGame();
     gameCompleted = false; 
     defeatedBosses = []; 
     
@@ -1002,6 +1004,7 @@ function initNewGame() {
 
 function saveAll() { 
     if (currentSlot < 0) return; 
+    mbStatsObserveCurrentState();
     slotData.myCards = myCards; 
     slotData.team = team; 
     slotData.afkTeam = afkTeam; 
@@ -1038,6 +1041,8 @@ function saveAll() {
     slotData.highestWaveReached = highestWaveReached;
     slotData.rebirthCount = rebirthCount; 
     slotData.rebirthStats = rebirthStats; 
+    slotData.gameStatsCurrentRebirth = gameStatsCurrentRebirth;
+    slotData.gameStatsLifetime = gameStatsLifetime;
     slotData.activeCheckpoint = activeCheckpoint; 
     slotData.autoSellSettings = autoSellSettings; 
     slotData.purchasedAutoSell = purchasedAutoSell; 
@@ -1112,6 +1117,68 @@ let newcomerBonus = false, newcomerBonusEnd = 0, newcomerDamageBonusEnd = 0;
 let fireInterval = null;
 let spareBonusFromTeam = 0;
 let totalClicks = 0, totalCardsObtained = 0, maxPoints = 100;
+
+/* Expanded per-rebirth and lifetime stats. defeatHistory remains a capped battle-log, not a death counter. */
+let gameStatsCurrentRebirth = null, gameStatsLifetime = null, mbLastRecordedVictoryEnemy = null;
+function mbStatsNewBlock(seenCards) {
+ return {deaths:0,wavesCleared:0,bossesDefeated:0,cardsObtained:0,clicks:0,highestWave:1,highestCheckpoint:1,maxPoints:100,seenCardIds:(seenCards||[]).map(function(c,i){return mbStatsCardKey(c,i);}).filter(Boolean)};
+}
+function mbStatsCardKey(card,index) {
+ if(!card||typeof card!=='object')return ''; if(card._mbCardUid)return 'uid:'+String(card._mbCardUid);
+ if(card.id!==undefined&&card.id!==null)return 'id:'+String(card.id);
+ return 'fallback:'+String(card.name||'card')+':'+String(card.rarity||'')+':'+String(index);
+}
+function mbStatsSafeNumber(value,fallback){var n=Number(value);return Number.isFinite(n)&&n>=0?Math.floor(n):(fallback||0);}
+function mbStatsNormalizeBlock(input,fallback) {
+ var source=input&&typeof input==='object'&&!Array.isArray(input)?input:{},result=Object.assign({},fallback||mbStatsNewBlock());
+ ['deaths','wavesCleared','bossesDefeated','cardsObtained','clicks','highestWave','highestCheckpoint','maxPoints'].forEach(function(k){result[k]=mbStatsSafeNumber(source[k],result[k]);});
+ result.highestWave=Math.max(1,result.highestWave||1);result.highestCheckpoint=Math.max(1,result.highestCheckpoint||1);
+ result.seenCardIds=Array.isArray(source.seenCardIds)?source.seenCardIds.filter(function(k){return typeof k==='string';}):(result.seenCardIds||[]);
+ result.deathsApproximate=source.deathsApproximate===true;result.wavesClearedApproximate=source.wavesClearedApproximate===true;result.bossesDefeatedApproximate=source.bossesDefeatedApproximate===true;return result;
+}
+function mbStatsLegacyHistoryPeak(history){var peak=1;(Array.isArray(history)?history:[]).forEach(function(e){peak=Math.max(peak,mbStatsSafeNumber(e&&e.highestWave,1));});return peak;}
+function mbLoadStatsFromSave(saved) {
+ var data=saved&&typeof saved==='object'?saved:{},cards=Array.isArray(myCards)?myCards:[],keys=cards.map(mbStatsCardKey).filter(Boolean);
+ var hasLifetime=!!(data.gameStatsLifetime&&typeof data.gameStatsLifetime==='object'),hasCurrent=!!(data.gameStatsCurrentRebirth&&typeof data.gameStatsCurrentRebirth==='object');
+ var lf=mbStatsNewBlock(keys);lf.clicks=mbStatsSafeNumber(totalClicks,0);
+ lf.highestWave=Math.max(1,mbStatsSafeNumber(highestWaveReached,1),mbStatsLegacyHistoryPeak(rebirthStats));
+ lf.highestCheckpoint=Math.max(1,mbStatsSafeNumber(highestCheckpoint,1));lf.maxPoints=mbStatsSafeNumber(maxPoints,100);lf.rebirths=mbStatsSafeNumber(rebirthCount,0);
+ lf.deaths=Math.max(mbStatsSafeNumber(data.totalDeaths,0),mbStatsSafeNumber(data.deathCount,0),mbStatsSafeNumber(data.deaths,0),Array.isArray(defeatHistory)?defeatHistory.length:0);
+ lf.deathsApproximate=Array.isArray(defeatHistory)&&defeatHistory.length>=10&&!hasLifetime;lf.wavesClearedApproximate=!hasLifetime;lf.bossesDefeatedApproximate=!hasLifetime;
+ lf.wavesCleared=(Array.isArray(rebirthStats)?rebirthStats:[]).reduce(function(sum,e){return sum+mbStatsSafeNumber(e&&e.stats&&e.stats.wavesCleared,0);},0);
+ lf.bossesDefeated=(Array.isArray(rebirthStats)?rebirthStats:[]).reduce(function(sum,e){return sum+mbStatsSafeNumber(e&&e.stats&&e.stats.bossesDefeated,0);},0);
+ var cf=mbStatsNewBlock(keys),previous=Array.isArray(rebirthStats)&&rebirthStats.length?rebirthStats[rebirthStats.length-1]:null;
+ cf.clicks=Math.max(0,mbStatsSafeNumber(totalClicks,0)-mbStatsSafeNumber(previous&&previous.totalClicks,0));
+ cf.highestWave=Math.max(1,mbStatsSafeNumber(highestWaveReached,1));cf.highestCheckpoint=Math.max(1,mbStatsSafeNumber(highestCheckpoint,1));cf.maxPoints=mbStatsSafeNumber(maxPoints,100);
+ gameStatsLifetime=mbStatsNormalizeBlock(hasLifetime?data.gameStatsLifetime:null,lf);
+ gameStatsLifetime.rebirths=Math.max(mbStatsSafeNumber(gameStatsLifetime.rebirths,0),mbStatsSafeNumber(rebirthCount,0));
+ gameStatsLifetime.clicks=Math.max(gameStatsLifetime.clicks,mbStatsSafeNumber(totalClicks,0));
+ gameStatsLifetime.highestWave=Math.max(gameStatsLifetime.highestWave,mbStatsLegacyHistoryPeak(rebirthStats),mbStatsSafeNumber(highestWaveReached,1));
+ gameStatsLifetime.highestCheckpoint=Math.max(gameStatsLifetime.highestCheckpoint,mbStatsSafeNumber(highestCheckpoint,1));
+ gameStatsCurrentRebirth=mbStatsNormalizeBlock(hasCurrent?data.gameStatsCurrentRebirth:null,cf);
+ gameStatsCurrentRebirth.rebirth=mbStatsSafeNumber(rebirthCount,0);
+ if(!hasLifetime)gameStatsLifetime.seenCardIds=keys.slice();if(!hasCurrent)gameStatsCurrentRebirth.seenCardIds=keys.slice();
+ mbLastRecordedVictoryEnemy=null;mbStatsObserveCurrentState();
+}
+function mbResetAllStatsForNewGame(){gameStatsLifetime=mbStatsNewBlock([]);gameStatsLifetime.rebirths=0;gameStatsCurrentRebirth=mbStatsNewBlock([]);gameStatsCurrentRebirth.rebirth=0;mbLastRecordedVictoryEnemy=null;}
+function mbResetStatsForNextRebirth(carriedCards){if(!gameStatsLifetime)gameStatsLifetime=mbStatsNewBlock([]);gameStatsLifetime.rebirths=Math.max(gameStatsLifetime.rebirths||0,mbStatsSafeNumber(rebirthCount,0));gameStatsCurrentRebirth=mbStatsNewBlock(carriedCards||[]);gameStatsCurrentRebirth.rebirth=mbStatsSafeNumber(rebirthCount,0);mbLastRecordedVictoryEnemy=null;}
+function mbStatsRecordDeath(){if(!gameStatsCurrentRebirth)gameStatsCurrentRebirth=mbStatsNewBlock([]);if(!gameStatsLifetime)gameStatsLifetime=mbStatsNewBlock([]);gameStatsCurrentRebirth.deaths++;gameStatsLifetime.deaths++;}
+function mbStatsRecordClick(){if(!gameStatsCurrentRebirth)gameStatsCurrentRebirth=mbStatsNewBlock([]);if(!gameStatsLifetime)gameStatsLifetime=mbStatsNewBlock([]);gameStatsCurrentRebirth.clicks++;gameStatsLifetime.clicks=Math.max(gameStatsLifetime.clicks||0,mbStatsSafeNumber(totalClicks,0));}
+function mbStatsRecordWaveVictory(isBoss){if(!gameStatsCurrentRebirth)gameStatsCurrentRebirth=mbStatsNewBlock([]);if(!gameStatsLifetime)gameStatsLifetime=mbStatsNewBlock([]);gameStatsCurrentRebirth.wavesCleared++;gameStatsLifetime.wavesCleared++;if(isBoss){gameStatsCurrentRebirth.bossesDefeated++;gameStatsLifetime.bossesDefeated++;}mbStatsObservePeakWave(wave);}
+function mbStatsObservePeakWave(value){var reached=Math.max(1,mbStatsSafeNumber(value,1));if(!gameStatsCurrentRebirth)gameStatsCurrentRebirth=mbStatsNewBlock([]);if(!gameStatsLifetime)gameStatsLifetime=mbStatsNewBlock([]);gameStatsCurrentRebirth.highestWave=Math.max(gameStatsCurrentRebirth.highestWave||1,reached);gameStatsLifetime.highestWave=Math.max(gameStatsLifetime.highestWave||1,reached);gameStatsCurrentRebirth.highestCheckpoint=Math.max(gameStatsCurrentRebirth.highestCheckpoint||1,mbStatsSafeNumber(highestCheckpoint,1));gameStatsLifetime.highestCheckpoint=Math.max(gameStatsLifetime.highestCheckpoint||1,mbStatsSafeNumber(highestCheckpoint,1));}
+function mbStatsObserveCurrentState(){
+ if(!gameStatsCurrentRebirth)gameStatsCurrentRebirth=mbStatsNewBlock([]);if(!gameStatsLifetime)gameStatsLifetime=mbStatsNewBlock([]);
+ mbStatsObservePeakWave(Math.max(wave||1,highestWaveReached||1));gameStatsCurrentRebirth.maxPoints=Math.max(gameStatsCurrentRebirth.maxPoints||100,mbStatsSafeNumber(points,100));gameStatsLifetime.maxPoints=Math.max(gameStatsLifetime.maxPoints||100,mbStatsSafeNumber(points,100));
+ gameStatsLifetime.clicks=Math.max(gameStatsLifetime.clicks||0,mbStatsSafeNumber(totalClicks,0));gameStatsLifetime.rebirths=Math.max(gameStatsLifetime.rebirths||0,mbStatsSafeNumber(rebirthCount,0));
+ (Array.isArray(myCards)?myCards:[]).forEach(function(card,index){var key=mbStatsCardKey(card,index);if(!key)return;if(!gameStatsLifetime.seenCardIds.includes(key)){gameStatsLifetime.seenCardIds.push(key);gameStatsLifetime.cardsObtained++;}if(!gameStatsCurrentRebirth.seenCardIds.includes(key)){gameStatsCurrentRebirth.seenCardIds.push(key);gameStatsCurrentRebirth.cardsObtained++;}});
+}
+function mbStatsPublicBlock(block){var out={};Object.keys(block||{}).forEach(function(k){if(k!=='seenCardIds')out[k]=block[k];});return out;}
+function mbGetOnlineStatsSnapshot(){
+ mbStatsObserveCurrentState();var current=mbStatsPublicBlock(gameStatsCurrentRebirth);current.rebirth=mbStatsSafeNumber(rebirthCount,0);current.currentWave=mbStatsSafeNumber(wave,1);current.currentLevel=mbStatsSafeNumber(playerLevel,1);current.cardsOwned=Array.isArray(myCards)?myCards.length:0;current.uniqueCardsOwned=Array.isArray(myCards)?new Set(myCards.map(function(c){return c&&c.name;}).filter(Boolean)).size:0;current.currentPoints=mbStatsSafeNumber(points,0);
+ var lifetime=mbStatsPublicBlock(gameStatsLifetime);lifetime.rebirths=Math.max(lifetime.rebirths||0,mbStatsSafeNumber(rebirthCount,0));lifetime.clicks=Math.max(lifetime.clicks||0,mbStatsSafeNumber(totalClicks,0));lifetime.highestWave=Math.max(lifetime.highestWave||1,mbStatsLegacyHistoryPeak(rebirthStats),mbStatsSafeNumber(highestWaveReached,1));lifetime.historicalDeathMinimum=!!lifetime.deathsApproximate;lifetime.legacyCountersPartial=!!(lifetime.wavesClearedApproximate||lifetime.bossesDefeatedApproximate);
+ return {current_rebirth_stats:current,lifetime_stats:lifetime,rebirth_history:(Array.isArray(rebirthStats)?rebirthStats:[]).map(function(e){var copy=Object.assign({},e||{});if(copy.stats)copy.stats=mbStatsPublicBlock(copy.stats);return copy;})};
+}
+
 let gameCompleted = false;
 let defeatedBosses = [];
 let gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
@@ -1283,7 +1350,8 @@ window.normalizeMainCard = normalizeMainCard;
 function setMainCard(idxInTeam) { if (idxInTeam >= 0 && idxInTeam < team.length) { mainCardIndex = idxInTeam; saveAll(); renderTeam(); showFloatingText("👑 Главный выбран!", "#f5af19"); } }
 window.setMainCard = setMainCard;
 
-function createCard(r) { 
+function createCard(r, options) {
+    const isPreviewCard = !!(options && options.preview === true); 
     // Whitebeard is a boss-exclusive reward; never include him in random spins.
     let templates = (customCardTemplates[r] || []).filter(t => t && t.name !== "Белоус"); 
     if (r === "Босс") return null; 
@@ -1304,8 +1372,8 @@ function createCard(r) {
     let s = cardStats[r] || { damage: 5, hp: 10, sellPrice: 10, speed: 0.5 }; 
     let n = template.name, d = template.damage ?? s.damage, hp = template.hp ?? s.hp, sp = template.sellPrice ?? s.sellPrice, spd = template.speed ?? s.speed ?? 0.5; 
     let a = template.ability || null, u = template.universe || "?", uns = template.unsellable || false; 
-    if (!discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } 
-    totalCardsObtained++; 
+    if (!isPreviewCard && !discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } 
+    if (!isPreviewCard) totalCardsObtained++; 
     if (points > maxPoints) maxPoints = points; 
     updateChallengeProgress("collectCards", 1); 
     return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, minRebirth: template.minRebirth || minRebirth, statusAbility: template.statusAbility || null, extraStatus: template.extraStatus || null, superAbility: template.superAbility || null, mastery: 1, masteryExp: 0 }; 
@@ -1573,7 +1641,7 @@ function rollGachaRarity(type) { let luckBonus = 0; let roll = Math.random() * 1
 function getRarityColor(rarity) { let colors = { "Обычная": "#ffffff", "Редкая": "#17a2b8", "Сверх редкая": "#28a745", "Эпик": "#9b59b6", "Мифическая": "#e74c3c", "Легендарная": "#ffd700", "Секретная": "#ff6b6b" }; return colors[rarity] || "#ffffff"; }
 function getRarityEmoji(rarity) { let emojis = { "Обычная": "⚪", "Редкая": "🔵", "Сверх редкая": "🟢", "Эпик": "🟣", "Мифическая": "🔴", "Легендарная": "🟡", "Секретная": "💎" }; return emojis[rarity] || "❓"; }
 function getCardResultHTML(card) { let rarityColor = getRarityColor(card.rarity); let rarityEmoji = getRarityEmoji(card.rarity); let cardImg = typeof getCardImage === 'function' ? getCardImage(card.name) : null; let imgHTML = cardImg ? '<img src="' + cardImg + '" style="width:100px;height:100px;border-radius:12px;object-fit:cover;margin-bottom:10px;">' : ''; return '<div style="text-align:center;">' + '<div style="font-size:64px;margin-bottom:10px;">' + rarityEmoji + '</div>' + imgHTML + '<div style="font-size:32px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 30px ' + rarityColor + ';margin-bottom:8px;">' + card.name + '</div>' + '<div class="rarity-tag ' + rarityColors[card.rarity] + '" style="font-size:18px;padding:10px 25px;">' + card.rarity + '</div>' + '<div style="margin-top:15px;font-size:18px;">💪 ' + card.damage + ' ❤️ ' + card.hp + '</div>' + (card.ability ? '<div style="margin-top:10px;color:#f5af19;font-weight:bold;">✨ ' + card.ability.desc + '</div>' : '') + '</div>'; }
-function startGachaAnimation(card, type) { let availableRarities = []; switch(type) { case "common": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "rare": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "superRare": availableRarities = ["Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная"]; break; case "epic": availableRarities = ["Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "mythic": availableRarities = ["Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "legendary": availableRarities = ["Мифическая", "Легендарная", "Секретная"]; break; case "secret": availableRarities = ["Легендарная", "Секретная"]; break; default: availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик"]; } let fakeCards = []; for (let i = 0; i < 8; i++) { let randomRarity = availableRarities[Math.floor(Math.random() * availableRarities.length)]; let fc = createCard(randomRarity); if (fc) fakeCards.push(fc); } fakeCards.push(card); gachaAnimationActive = true; let modalContent = document.getElementById("modalContent"); let modalOverlay = document.getElementById("modalOverlay"); if (!modalContent || !modalOverlay) { gachaAnimationActive = false; return; } modalOverlay.style.display = "flex"; let index = 0; let totalFlashes = 24; let flashCount = 0; let speed = 80; function flashNextCard() { if (flashCount >= totalFlashes) { modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>'; if (typeof sfxCardObtain === 'function') sfxCardObtain(); gachaAnimationActive = false; return; } let currentCard = fakeCards[index % fakeCards.length]; let rarityColor = getRarityColor(currentCard.rarity); modalContent.innerHTML = '<h2>🎰 Крутка...</h2>' + '<div style="text-align:center;padding:10px;">' + '<div style="font-size:48px;margin-bottom:10px;">🎴</div>' + '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + currentCard.name + '</div>' + '<div class="rarity-tag ' + rarityColors[currentCard.rarity] + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' + '<div style="margin-top:12px;font-size:16px;">💪 ' + currentCard.damage + ' ❤️ ' + currentCard.hp + '</div>' + '</div>' + '<button class="btn" style="width:100%;padding:8px;margin-top:10px;background:#e74c3c;border:none;color:white;font-weight:bold;" onclick="closeModal();gachaAnimationActive=false;">⏭️ ПРОПУСТИТЬ</button>'; index++; flashCount++; if (flashCount > totalFlashes * 0.7) speed += 40; else if (flashCount > totalFlashes * 0.5) speed += 20; else if (flashCount > totalFlashes * 0.3) speed += 10; setTimeout(flashNextCard, speed); } flashNextCard(); }
+function startGachaAnimation(card, type) { let availableRarities = []; switch(type) { case "common": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "rare": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "superRare": availableRarities = ["Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная"]; break; case "epic": availableRarities = ["Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "mythic": availableRarities = ["Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "legendary": availableRarities = ["Мифическая", "Легендарная", "Секретная"]; break; case "secret": availableRarities = ["Легендарная", "Секретная"]; break; default: availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик"]; } let fakeCards = []; for (let i = 0; i < 8; i++) { let randomRarity = availableRarities[Math.floor(Math.random() * availableRarities.length)]; let fc = createCard(randomRarity, { preview: true }); if (fc) fakeCards.push(fc); } fakeCards.push(card); gachaAnimationActive = true; let modalContent = document.getElementById("modalContent"); let modalOverlay = document.getElementById("modalOverlay"); if (!modalContent || !modalOverlay) { gachaAnimationActive = false; return; } modalOverlay.style.display = "flex"; let index = 0; let totalFlashes = 24; let flashCount = 0; let speed = 80; function flashNextCard() { if (flashCount >= totalFlashes) { modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>'; if (typeof sfxCardObtain === 'function') sfxCardObtain(); gachaAnimationActive = false; return; } let currentCard = fakeCards[index % fakeCards.length]; let rarityColor = getRarityColor(currentCard.rarity); modalContent.innerHTML = '<h2>🎰 Крутка...</h2>' + '<div style="text-align:center;padding:10px;">' + '<div style="font-size:48px;margin-bottom:10px;">🎴</div>' + '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + currentCard.name + '</div>' + '<div class="rarity-tag ' + rarityColors[currentCard.rarity] + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' + '<div style="margin-top:12px;font-size:16px;">💪 ' + currentCard.damage + ' ❤️ ' + currentCard.hp + '</div>' + '</div>' + '<button class="btn" style="width:100%;padding:8px;margin-top:10px;background:#e74c3c;border:none;color:white;font-weight:bold;" onclick="closeModal();gachaAnimationActive=false;">⏭️ ПРОПУСТИТЬ</button>'; index++; flashCount++; if (flashCount > totalFlashes * 0.7) speed += 40; else if (flashCount > totalFlashes * 0.5) speed += 20; else if (flashCount > totalFlashes * 0.3) speed += 10; setTimeout(flashNextCard, speed); } flashNextCard(); }
 
 // ============================================================
 // ГЕНЕРАЦИЯ ВРАГА
@@ -1873,6 +1941,7 @@ function handleClick() {
     if (!currentEnemy || currentEnemy.hp <= 0) return; 
     if (deathNoteTarget && wave === deathNoteTarget && !skipUsed) { currentEnemy.hp = 0; skipUsed = true; deathNoteTarget = null; victory(); return; } 
     totalClicks++; 
+    mbStatsRecordClick();
     addPassExp(1); 
     updateChallengeProgress("totalClicksGoal", 1); 
     let now = Date.now(); 
@@ -1966,6 +2035,7 @@ function handleClick() {
 // ============================================================
 function victory() { 
     let isBoss = wave % 10 === 0; 
+    if (currentEnemy && mbLastRecordedVictoryEnemy !== currentEnemy) { mbLastRecordedVictoryEnemy = currentEnemy; mbStatsRecordWaveVictory(isBoss); }
     let rew = isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); 
     points += rew; 
     if (points > maxPoints) maxPoints = points; 
@@ -2057,6 +2127,7 @@ function defeat() {
     }
     
     if (!resurrectedThisFight) { for (let idx of team) { let cd = myCards[idx]; if (cd?.ability?.type === 'resurrect' && Math.random() < cd.ability.chance * (1 + abilityUpgradeLevel * 0.1) && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { playerHp = window.playerMaxHp || 100; resurrectedThisFight = true; sfxAbility(); showFloatingText("✨ Воскрешение!", "#2ecc71"); renderEnemy(); updatePlayerStats(); return; } } } 
+    mbStatsRecordDeath();
     let bonus = 0; 
     team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'deathBonus' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) bonus += cd.ability.value; }); 
     if (bonus > 0) points += Math.floor(points * bonus); 
@@ -2253,16 +2324,11 @@ function doRebirth() {
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; } 
     if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } 
     
+    mbStatsObserveCurrentState();
     rebirthStats.push({ 
-        rebirth: rebirthCount, 
-        totalWins, 
-        highestWave: highestWaveReached,
-        highestCheckpoint: highestCheckpoint,
-        totalCards: myCards.length, 
-        playerLevel, 
-        world: getWorldForWave(highestWaveReached).name,
-        totalClicks, 
-        maxPoints 
+        rebirth: rebirthCount, totalWins, highestWave: highestWaveReached, highestCheckpoint: highestCheckpoint,
+        totalCards: myCards.length, playerLevel, world: getWorldForWave(highestWaveReached).name, totalClicks, maxPoints,
+        statsVersion: 1, stats: mbStatsPublicBlock(gameStatsCurrentRebirth)
     }); 
     
     let _level7CardSave = null;
@@ -2297,6 +2363,7 @@ function doRebirth() {
     autoRest = {active:false,threshold:90,purchased:false}; 
     upgrades = {damage:{level:0,baseCost:25,increment:2,name:"💪 Сила",reqLevel:1},hp:{level:0,baseCost:25,increment:5,name:"❤️ Живучесть",reqLevel:1},crit:{level:0,baseCost:8,increment:0.001,name:"⚡ Крит",reqLevel:5},fatigueResist:{level:0,baseCost:10,increment:0.001,name:"💪 Усталость",reqLevel:10},abilityPower:{level:abilityUpgradeLevel,baseCost:200,increment:0.1,name:"✨ Усиление",reqLevel:30}}; 
     rebirthCount++; 
+    mbResetStatsForNextRebirth(_level7CardSave ? [_level7CardSave] : []);
     highestCheckpoint = 1; 
     highestWaveReached = 1;
     mainCardIndex = 0; 
