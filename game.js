@@ -1177,8 +1177,9 @@ function mbLoadStatsFromSave(saved) {
  gameStatsLifetime.highestCheckpoint=Math.max(gameStatsLifetime.highestCheckpoint,mbStatsSafeNumber(highestCheckpoint,1));
  gameStatsCurrentRebirth=mbStatsNormalizeBlock(hasCurrent?data.gameStatsCurrentRebirth:null,cf);
  gameStatsCurrentRebirth.rebirth=mbStatsSafeNumber(rebirthCount,0);
- gameStatsLifetime.cardsObtained=Math.max(gameStatsLifetime.cardsObtained,keys.length);
- gameStatsLifetime.cardsObtainedApproximate=gameStatsLifetime.cardsObtainedApproximate||!hasLifetime;
+ var storedCardCounterBeforeBaseline=mbStatsSafeNumber(gameStatsLifetime.cardsObtained,0);
+ gameStatsLifetime.cardsObtained=Math.max(storedCardCounterBeforeBaseline,keys.length);
+ gameStatsLifetime.cardsObtainedApproximate=gameStatsLifetime.cardsObtainedApproximate||!hasLifetime||keys.length>storedCardCounterBeforeBaseline;
  if(!hasLifetime)gameStatsLifetime.seenCardIds=keys.slice();if(!hasCurrent)gameStatsCurrentRebirth.seenCardIds=keys.slice();
  mbStatsMigrateSeenCardKeys(gameStatsLifetime,cards);mbStatsMigrateSeenCardKeys(gameStatsCurrentRebirth,cards);
  mbLastRecordedVictoryEnemy=null;mbStatsObserveCurrentState();
