@@ -141,3 +141,12 @@ function getCharacterImage(characterKey) {
 // Явный экспорт нужен загрузчику и игровым модулям.
 window.characterImages = characterImages;
 window.getCharacterImage = getCharacterImage;
+
+// Aвaтaры для онлайн-профилей — только изображения, реально заданные в реестре игры.
+window.MBAvatarOptions = Object.keys(cardImages)
+    .filter(function (name) {
+        return typeof cardImages[name] === "string" && cardImages[name].indexOf("images/") === 0;
+    })
+    .map(function (name) {
+        return { name: name, path: cardImages[name] };
+    });
