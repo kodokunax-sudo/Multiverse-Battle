@@ -189,15 +189,12 @@
     }
 
     function readLocalGameStats() {
-        // Не затираем онлайн-статистику стартовыми нулями, пока слот ещё не выбран.
         if (typeof currentSlot !== 'undefined' && Number(currentSlot) < 0) return null;
         try {
             var wins = typeof totalWins !== 'undefined' ? totalWins : 0;
             var bestWave = typeof highestWaveReached !== 'undefined' ? highestWaveReached : (typeof wave !== 'undefined' ? wave : 1);
             var rebirths = typeof rebirthCount !== 'undefined' ? rebirthCount : 0;
-            var cards = typeof totalCardsObtained !== 'undefined'
-                ? totalCardsObtained
-                : (typeof myCards !== 'undefined' && Array.isArray(myCards) ? myCards.length : 0);
+            var cards = typeof totalCardsObtained !== 'undefined' ? totalCardsObtained : (typeof myCards !== 'undefined' && Array.isArray(myCards) ? myCards.length : 0);
             var bosses = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) ? defeatedBosses.length : 0;
             var clicks = typeof totalClicks !== 'undefined' ? totalClicks : 0;
             var result = {
@@ -214,6 +211,9 @@
                     result.current_rebirth_stats = expanded.current_rebirth_stats || {};
                     result.lifetime_stats = expanded.lifetime_stats || {};
                     result.rebirth_history = Array.isArray(expanded.rebirth_history) ? expanded.rebirth_history : [];
+                    result.total_wins = safeCount(expanded.lifetime_stats && expanded.lifetime_stats.wavesCleared);
+                    result.highest_wave = Math.max(result.highest_wave, safeCount(expanded.lifetime_stats && expanded.lifetime_stats.highestWave, 1000000000));
+                    result.bosses_defeated = safeCount(expanded.lifetime_stats && expanded.lifetime_stats.bossesDefeated, 1000000000);
                 }
             }
             return result;
@@ -977,6 +977,7 @@
         var card = byId('clanPublicProfileCard');
         if (!overlay || !card) return;
         publicProfileUserId = userId;
+        publicStatsMode = 'rebirth';
         overlay.style.display = 'flex';
         overlay.setAttribute('aria-hidden', 'false');
         document.body.classList.add('clan-profile-modal-open');
