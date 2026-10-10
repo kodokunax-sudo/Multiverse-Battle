@@ -377,6 +377,17 @@
         var request = currentFriendRequests.find(function (item) { return item.user_id === userId; });
         return request ? request.direction : '';
     }
+    function updatePublicFriendAction() {
+        var button = byId('clanPublicFriendAction');
+        if (!button || !publicProfileUserId || !currentUser) return;
+        var relation = playerFriendRelation(publicProfileUserId);
+        var isSelf = publicProfileUserId === currentUser.id;
+        button.style.display = isSelf ? 'none' : '';
+        button.disabled = isSelf || relation === 'friend' || relation === 'outgoing';
+        button.textContent = relation === 'friend' ? '✓ Уже друзья' :
+            relation === 'outgoing' ? '⏳ Заявка отправлена' :
+            relation === 'incoming' ? '✓ Принять заявку' : '➕ Добавить в друзья';
+    }
     function setListMessage(containerId, message, error) {
         var container = byId(containerId);
         if (!container) return;
@@ -480,6 +491,7 @@
             currentFriendRequests = results[1].data || [];
             currentClanInvites = results[2].data || [];
             renderFriendsList(); renderFriendRequests(); renderClanInvites();
+            updatePublicFriendAction();
             if (currentFriendSearchResults.length) renderFriendSearchResults(currentFriendSearchResults);
         } catch (error) {
             setListMessage('onlineFriendsList', 'Не удалось загрузить друзей: ' + friendlyError(error), true);
@@ -788,15 +800,7 @@
             renderPublicShowcase('clanPublicShowcase', result.data.showcase_cards);
             renderStatsGrid('clanPublicStats', result.data);
             renderAchievementBadges('clanPublicBadges', result.data, false);
-            if (friendAction) {
-                var relation = playerFriendRelation(userId);
-                var isSelf = userId === currentUser.id;
-                friendAction.style.display = isSelf ? 'none' : '';
-                friendAction.disabled = isSelf || relation === 'friend' || relation === 'outgoing';
-                friendAction.textContent = relation === 'friend' ? '✓ Уже друзья' :
-                    relation === 'outgoing' ? '⏳ Заявка отправлена' :
-                    relation === 'incoming' ? '✓ Принять заявку' : '➕ Добавить в друзья';
-            }
+            updatePublicFriendAction();
         } catch (error) {
             byId('clanPublicName').textContent = 'Не удалось открыть профиль';
             byId('clanPublicDescription').textContent = friendlyError(error);
@@ -1585,6 +1589,14 @@
     }
 
     function notifyCloudSaveAuthChanged() {
+        if (!currentUser) {
+            currentFriends = [];
+            currentFriendRequests = [];
+            currentClanInvites = [];
+            currentFriendSearchResults = [];
+            publicProfileUserId = null;
+            hidePublicProfile();
+        }
         if (db && currentUser) db.rpc('mb_touch_presence').then(function (result) {
             if (result.error) console.warn('[MB friends] Presence update:', result.error.message);
         }).catch(function () {});
@@ -1959,9 +1971,15 @@
         await queueAuthForCurrentSlot(getCurrentGameSlot());
         if (presenceHeartbeatTimer === null) {
             presenceHeartbeatTimer = window.setInterval(function () {
-                if (db && currentUser) db.rpc('mb_touch_presence').then(function (result) {
-                    if (result.error) console.warn('[MB friends] Presence update:', result.error.message);
-                }).catch(function () {});
+                if (!db || !currentUser) return;
+                var friendsPane = document.querySelector('[data-online-pane="friends"].active');
+                if (friendsPane) {
+                    refreshFriendsHub();
+                } else {
+                    db.rpc('mb_touch_presence').then(function (result) {
+                        if (result.error) console.warn('[MB friends] Presence update:', result.error.message);
+                    }).catch(function () {});
+                }
             }, 45000);
         }
     }
