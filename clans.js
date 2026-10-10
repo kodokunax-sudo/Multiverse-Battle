@@ -283,11 +283,13 @@
         }
         container.appendChild(node('p', 'clan-muted', 'Загружаем рейтинг…'));
         try {
+            var sortKey = byId('clanLeaderboardSort') ? byId('clanLeaderboardSort').value : 'highest_wave';
+            var allowedSorts = ['highest_wave', 'total_wins', 'rebirth_count', 'cards_collected', 'bosses_defeated', 'total_clicks'];
+            if (allowedSorts.indexOf(sortKey) === -1) sortKey = 'highest_wave';
             var result = await db.from('profiles')
                 .select('id, display_name, avatar_name, description, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                .order(sortKey, { ascending: false })
                 .order('highest_wave', { ascending: false })
-                .order('total_wins', { ascending: false })
-                .order('rebirth_count', { ascending: false })
                 .limit(100);
             if (result.error) throw result.error;
             container.replaceChildren();
@@ -1220,6 +1222,8 @@
         byId('clanPublicProfileClose').addEventListener('click', hidePublicProfile);
         var leaderboardRefresh = byId('clanLeaderboardRefresh');
         if (leaderboardRefresh) leaderboardRefresh.addEventListener('click', loadLeaderboard);
+        var leaderboardSort = byId('clanLeaderboardSort');
+        if (leaderboardSort) leaderboardSort.addEventListener('change', loadLeaderboard);
         var tab = document.querySelector('.tab-btn[data-tab="clans"]');
         if (tab) {
             tab.addEventListener('click', function () {
