@@ -265,6 +265,83 @@
         });
     }
 
+    async function loadLeaderboard() {
+        var container = byId('clanLeaderboard');
+        if (!container) return;
+        container.replaceChildren();
+        if (!db || !currentUser) {
+            container.appendChild(node('p', 'clan-muted', 'Войди в аккаунт, чтобы смотреть рейтинг и профили игроков.'));
+            return;
+        }
+        container.appendChild(node('p', 'clan-muted', 'Загружаем рейтинг…'));
+        try {
+            var sortKey = byId('clanLeaderboardSort') ? byId('clanLeaderboardSort').value : 'highest_wave';
+            var allowedSorts = ['highest_wave', 'total_wins', 'rebirth_count', 'cards_collected', 'bosses_defeated', 'total_clicks'];
+            if (allowedSorts.indexOf(sortKey) === -1) sortKey = 'highest_wave';
+            var result = await db.from('profiles')
+                .select('id, display_name, avatar_name, description, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                .order(sortKey, { ascending: false })
+                .order('highest_wave', { ascending: false })
+                .limit(100);
+            if (result.error) throw result.error;
+            container.replaceChildren();
+            var players = result.data || [];
+            if (!players.length) {
+                container.appendChild(node('p', 'clan-muted', 'Пока нет игроков в рейтинге.'));
+                return;
+            }
+            players.forEach(function (player, index) {
+                var row = node('button', 'clan-leaderboard-row');
+                row.type = 'button';
+                row.addEventListener('click', function () { openPublicProfile(player.id); });
+                row.appendChild(node('span', 'clan-leaderboard-rank', '#' + (index + 1)));
+                var avatar = node('img', 'clan-leaderboard-avatar');
+                avatar.src = avatarPathForName(player.avatar_name) || 'images/Super_Dio_2.gif';
+                avatar.alt = '';
+                avatar.loading = 'lazy';
+                row.appendChild(avatar);
+                var details = node('span', 'clan-leaderboard-player');
+                details.appendChild(node('strong', '', player.display_name || 'Игрок'));
+                details.appendChild(node('small', '', '🌊 Волна ' + formatCount(player.highest_wave) + ' · 🏆 Победы ' + formatCount(player.total_wins) + ' · ♻️ Ребёрны ' + formatCount(player.rebirth_count)));
+                row.appendChild(details);
+                row.appendChild(node('span', 'clan-leaderboard-open', 'Профиль ↗'));
+                container.appendChild(row);
+            });
+        } catch (error) {
+            container.replaceChildren();
+            container.appendChild(node('p', 'clan-muted', 'Не удалось загрузить рейтинг: ' + friendlyError(error)));
+        }
+    }
+
+    async function openPublicProfile(userId) {
+        if (!db || !currentUser || !userId) return;
+        var card = byId('clanPublicProfileCard');
+        if (!card) return;
+        card.style.display = 'block';
+        byId('clanPublicName').textContent = 'Загружаем профиль…';
+        byId('clanPublicDescription').textContent = '';
+        byId('clanPublicStats').replaceChildren();
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        try {
+            var result = await db.from('profiles')
+                .select('id, display_name, avatar_name, description, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                .eq('id', userId).maybeSingle();
+            if (result.error) throw result.error;
+            if (!result.data) throw new Error('profile_not_found');
+            byId('clanPublicName').textContent = result.data.display_name || 'Игрок';
+            byId('clanPublicDescription').textContent = result.data.description || 'Игрок пока не добавил описание.';
+            byId('clanPublicAvatar').src = avatarPathForName(result.data.avatar_name) || 'images/Super_Dio_2.gif';
+            renderStatsGrid('clanPublicStats', result.data);
+        } catch (error) {
+            byId('clanPublicName').textContent = friendlyError(error);
+        }
+    }
+
+    function hidePublicProfile() {
+        var card = byId('clanPublicProfileCard');
+        if (card) card.style.display = 'none';
+    }
+
     function syncGameStats() {
         if (!db || !currentUser) return Promise.resolve();
         var stats = readLocalGameStats();
