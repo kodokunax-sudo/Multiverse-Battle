@@ -21,6 +21,16 @@
     var lastSnapshotSentAt = 0;
     var lastFightPositionSentAt = 0;
     var lastRemoteRenderAt = 0;
+    // Client-to-client RTT and render-rate diagnostics for co-op.
+    var lastPingSentAt = 0;
+    var pendingPingId = null;
+    var pendingPingStartedAt = 0;
+    var pingSequence = 0;
+    var coopPingMs = null;
+    var coopPingState = 'проверка';
+    var lastFpsSampleAt = 0;
+    var fpsFrameCount = 0;
+    var coopFps = null;
     var snapshotSequence = 0;
     var lastAppliedSnapshotSequence = 0;
     var lastAppliedSnapshotSender = null;
@@ -44,6 +54,12 @@
         });
     }
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function preciseNow() {
+        try {
+            if (window.performance && typeof window.performance.now === 'function') return window.performance.now();
+        } catch (_error) {}
+        return Date.now();
+    }
     function isLeader() { return !!leaderSessionId && leaderSessionId === selfSessionId; }
     function isFightVisible() {
         return fightStarted && !!byId('arenaOverlay') && byId('arenaOverlay').style.display !== 'none';
@@ -261,6 +277,30 @@
                 ch.on('presence', { event: 'sync' }, syncPresence);
                 ch.on('presence', { event: 'join' }, syncPresence);
                 ch.on('presence', { event: 'leave' }, syncPresence);
+                // Application-level RTT: ping travels through Realtime to the peer,
+                // and pong returns through the same channel. This is not ICMP ping.
+                ch.on('broadcast', { event: 'arena_ping' }, function (message) {
+                    var p = message && message.payload;
+                    if (!p || !p.ping_id || p.target_session_id !== selfSessionId ||
+                        p.sender_session_id === selfSessionId ||
+                        !currentPlayers.has(p.sender_session_id)) return;
+                    sendEvent('arena_pong', {
+                        ping_id: p.ping_id,
+                        target_session_id: p.sender_session_id
+                    });
+                });
+                ch.on('broadcast', { event: 'arena_pong' }, function (message) {
+                    var p = message && message.payload;
+                    if (!p || p.target_session_id !== selfSessionId ||
+                        p.sender_session_id === selfSessionId ||
+                        !currentPlayers.has(p.sender_session_id) ||
+                        !pendingPingId || p.ping_id !== pendingPingId) return;
+                    coopPingMs = Math.max(0, Math.round(preciseNow() - pendingPingStartedAt));
+                    coopPingState = 'ok';
+                    pendingPingId = null;
+                    pendingPingStartedAt = 0;
+                    updateCoopHud();
+                });
                 ch.on('broadcast', { event: 'arena_move' }, function (message) {
                     var p = message && message.payload;
                     if (!p || !p.session_id || p.session_id === selfSessionId) return;
@@ -547,6 +587,14 @@
         lastSnapshotSentAt = 0;
         lastFightPositionSentAt = 0;
         lastRemoteRenderAt = 0;
+        lastPingSentAt = 0;
+        pendingPingId = null;
+        pendingPingStartedAt = 0;
+        coopPingMs = null;
+        coopPingState = 'проверка';
+        lastFpsSampleAt = 0;
+        fpsFrameCount = 0;
+        coopFps = null;
         var api = window.MBOnlineWaystar;
         if (api) {
             api.active = true;
@@ -1019,6 +1067,49 @@
         if (!fightStarted || !activeFightId || !ctx || !canvas) return;
         ensureHazardIds();
         var now = Date.now();
+        var perfNow = preciseNow();
+
+        // Sample local FPS independently from the network RTT.
+        if (!lastFpsSampleAt) lastFpsSampleAt = perfNow;
+        fpsFrameCount++;
+        var fpsWindow = perfNow - lastFpsSampleAt;
+        if (fpsWindow >= 1000) {
+            coopFps = Math.round(fpsFrameCount * 1000 / fpsWindow);
+            fpsFrameCount = 0;
+            lastFpsSampleAt = perfNow;
+            updateCoopHud();
+        }
+
+        // Send one targeted ping every two seconds; don't stack requests if a reply is late.
+        if (pendingPingId && perfNow - pendingPingStartedAt >= 5000) {
+            pendingPingId = null;
+            pendingPingStartedAt = 0;
+            coopPingMs = null;
+            coopPingState = 'таймаут';
+            updateCoopHud();
+        }
+        if (!pendingPingId && perfNow - lastPingSentAt >= 2000) {
+            var peer = null;
+            currentPlayers.forEach(function (player) {
+                if (!peer && player.session_id !== selfSessionId) peer = player;
+            });
+            lastPingSentAt = perfNow;
+            if (peer && channel) {
+                pingSequence++;
+                pendingPingId = selfSessionId + ':' + pingSequence;
+                pendingPingStartedAt = perfNow;
+                coopPingState = 'проверка';
+                sendEvent('arena_ping', {
+                    ping_id: pendingPingId,
+                    target_session_id: peer.session_id
+                });
+            } else {
+                coopPingMs = null;
+                coopPingState = 'нет игрока';
+            }
+            updateCoopHud();
+        }
+
         var ownPlayer = window.waystarPlayer;
         if (ownPlayer && now - lastFightPositionSentAt >= 100) {
             lastFightPositionSentAt = now;
@@ -1083,6 +1174,11 @@
             label.id = 'onlineArenaCoopHudCount';
             label.textContent = '🤝 CO-OP';
             hud.appendChild(label);
+            var network = document.createElement('span');
+            network.id = 'onlineArenaCoopNetwork';
+            network.textContent = 'Пинг: проверка · FPS: —';
+            network.style.cssText = 'padding:4px 5px;border-radius:6px;background:rgba(255,255,255,.06);color:#d1d5db;white-space:nowrap;font:900 10px Arial,sans-serif;';
+            hud.appendChild(network);
             var exit = document.createElement('button');
             exit.type = 'button';
             exit.textContent = 'Выйти';
@@ -1101,6 +1197,16 @@
         var count = byId('onlineArenaCoopHudCount');
         if (count && fightStarted) {
             count.textContent = '🤝 CO-OP · ' + currentPlayers.size + ' ' + (currentPlayers.size === 1 ? 'игрок' : 'игрока');
+        }
+        var network = byId('onlineArenaCoopNetwork');
+        if (network && fightStarted) {
+            var pingText = coopPingMs !== null ? coopPingMs + ' мс' : coopPingState;
+            var fpsText = coopFps !== null ? String(coopFps) : '—';
+            var text = 'Пинг: ' + pingText + ' · FPS: ' + fpsText;
+            if (network.textContent !== text) network.textContent = text;
+            network.style.color = coopPingState === 'таймаут' ? '#ff7b7b'
+                : (coopPingMs === null ? '#d1d5db'
+                    : (coopPingMs < 90 ? '#6ee7a8' : (coopPingMs < 180 ? '#ffd166' : '#ff7b7b')));
         }
     }
 
@@ -1121,6 +1227,11 @@
         victoryBroadcastForFightId = null;
         consumedHazardIds.clear();
         coopHazardCounter = 0;
+        pendingPingId = null;
+        pendingPingStartedAt = 0;
+        coopPingMs = null;
+        coopPingState = 'проверка';
+        coopFps = null;
         if (window.MBOnlineWaystar) {
             window.MBOnlineWaystar.active = false;
             window.MBOnlineWaystar.fightId = null;
