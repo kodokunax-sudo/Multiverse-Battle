@@ -15,6 +15,9 @@
     var lastStatsFingerprint = '';
     var lastStatsSyncAt = 0;
     var pendingStatsSyncTimer = null;
+    var activeAuthSlot = null;
+    var authStateSubscription = null;
+    var authSwitchChain = Promise.resolve();
 
     var STAT_DEFS = [
         { key: 'total_wins', label: '🏆 Победы' },
@@ -139,7 +142,7 @@
         if (signedIn) {
             var email = currentUser.email || 'Аккаунт игрока';
             var title = currentUser.user_metadata && currentUser.user_metadata.display_name;
-            byId('clansSignedInAs').textContent = (title ? title + ' · ' : '') + email;
+            byId('clansSignedInAs').textContent = 'Слот ' + (getCurrentGameSlot() + 1) + ' · ' + (title ? title + ' · ' : '') + email;
         } else {
             currentProfile = null;
             hidePublicProfile();
@@ -1150,6 +1153,111 @@
         }
     }
 
+    function getCurrentGameSlot() {
+        try {
+            var liveSlot = typeof currentSlot !== 'undefined' ? Number(currentSlot) : -1;
+            if (Number.isInteger(liveSlot) && liveSlot >= 0 && liveSlot <= 2) return liveSlot;
+            var lastSlot = Number(localStorage.getItem('cgV20_lastSlot'));
+            if (Number.isInteger(lastSlot) && lastSlot >= 0 && lastSlot <= 2) return lastSlot;
+        } catch (_error) {}
+        return 0;
+    }
+
+    function authStorageKeyForSlot(slot) {
+        return 'mb-multiverse-battle-auth-slot-' + slot;
+    }
+
+    function migrateLegacyAuthSession() {
+        var config = window.MB_SUPABASE_CONFIG || {};
+        var projectRef = '';
+        try { projectRef = new URL(config.url).hostname.split('.')[0]; } catch (_error) {}
+        if (!projectRef) return;
+        var legacyKey = 'sb-' + projectRef + '-auth-token';
+        var legacyValue = localStorage.getItem(legacyKey);
+        if (!legacyValue) return;
+        for (var i = 0; i < 3; i++) {
+            if (localStorage.getItem(authStorageKeyForSlot(i))) return;
+        }
+        var targetSlot = getCurrentGameSlot();
+        try {
+            var parsed = JSON.parse(legacyValue);
+            var legacyUserId = parsed && parsed.user && parsed.user.id;
+            if (legacyUserId) {
+                var bindingData = JSON.parse(localStorage.getItem('cgV20_cloud_slot_bindings_v1') || '{}');
+                var mapped = bindingData && bindingData.byUser ? Number(bindingData.byUser[legacyUserId]) : NaN;
+                if (Number.isInteger(mapped) && mapped >= 0 && mapped <= 2) {
+                    targetSlot = mapped;
+                } else {
+                    for (var slotIndex = 0; slotIndex < 3; slotIndex++) {
+                        var marker = JSON.parse(localStorage.getItem('cgV20_slot' + slotIndex + '_cloud_sync_meta') || 'null');
+                        if (marker && marker.userId === legacyUserId) { targetSlot = slotIndex; break; }
+                    }
+                }
+            }
+        } catch (_error) {}
+        var slotKey = authStorageKeyForSlot(targetSlot);
+        if (!localStorage.getItem(slotKey)) {
+            localStorage.setItem(slotKey, legacyValue);
+            localStorage.removeItem(legacyKey);
+        }
+    }
+
+    function queueAuthForCurrentSlot(slot) {
+        var requestedSlot = Number.isInteger(Number(slot)) ? Number(slot) : getCurrentGameSlot();
+        authSwitchChain = authSwitchChain.then(async function () {
+            if (requestedSlot !== getCurrentGameSlot()) return;
+            if (activeAuthSlot === requestedSlot && db) return;
+            if (authStateSubscription) {
+                try { authStateSubscription.unsubscribe(); } catch (_error) {}
+                authStateSubscription = null;
+            }
+            await closeClanChat();
+            await closeGiftRealtime();
+            currentUser = null;
+            currentClan = null;
+            currentProfile = null;
+            db = null;
+            activeAuthSlot = requestedSlot;
+            showAuthState();
+
+            var config = window.MB_SUPABASE_CONFIG || {};
+            var client = window.supabase.createClient(config.url, config.anonKey, {
+                auth: {
+                    storageKey: authStorageKeyForSlot(requestedSlot),
+                    persistSession: true,
+                    autoRefreshToken: true,
+                    detectSessionInUrl: true
+                }
+            });
+            db = client;
+            var sessionResult = await client.auth.getSession();
+            if (requestedSlot !== getCurrentGameSlot() || db !== client) return;
+            if (sessionResult.error) throw sessionResult.error;
+            currentUser = sessionResult.data.session ? sessionResult.data.session.user : null;
+            showAuthState();
+            await refreshAll();
+            if (requestedSlot !== getCurrentGameSlot() || db !== client) return;
+            notifyCloudSaveAuthChanged();
+            var subscriptionResult = client.auth.onAuthStateChange(function (_event, session) {
+                if (db !== client || activeAuthSlot !== requestedSlot || requestedSlot !== getCurrentGameSlot()) return;
+                currentUser = session ? session.user : null;
+                window.setTimeout(function () {
+                    if (db !== client || activeAuthSlot !== requestedSlot || requestedSlot !== getCurrentGameSlot()) return;
+                    showAuthState();
+                    refreshAll();
+                    notifyCloudSaveAuthChanged();
+                }, 0);
+            });
+            authStateSubscription = subscriptionResult && subscriptionResult.data ? subscriptionResult.data.subscription : null;
+            setNotice(currentUser
+                ? 'Аккаунт слота ' + (requestedSlot + 1) + ' подключён.'
+                : 'Войди или зарегистрируй аккаунт для слота ' + (requestedSlot + 1) + '.', 'success');
+        }).catch(function (error) {
+            setNotice(friendlyError(error), 'error');
+        });
+        return authSwitchChain;
+    }
+
     async function init() {
         bindEvents();
         if (!isConfigured()) {
@@ -1171,33 +1279,18 @@
             }
             return;
         }
-        try {
-            var config = window.MB_SUPABASE_CONFIG || {};
-            db = window.supabase.createClient(config.url, config.anonKey, {
-                auth: {
-                    persistSession: true,
-                    autoRefreshToken: true,
-                    detectSessionInUrl: true
-                }
-            });
-            var sessionResult = await db.auth.getSession();
-            if (sessionResult.error) throw sessionResult.error;
-            currentUser = sessionResult.data.session ? sessionResult.data.session.user : null;
-            showAuthState();
-            await refreshAll();
+        migrateLegacyAuthSession();
+        window.addEventListener('mb:slot-changing', function () {
+            currentUser = null;
+            currentClan = null;
+            currentProfile = null;
             notifyCloudSaveAuthChanged();
-            db.auth.onAuthStateChange(function (_event, session) {
-                currentUser = session ? session.user : null;
-                window.setTimeout(function () {
-                    showAuthState();
-                    refreshAll();
-                    notifyCloudSaveAuthChanged();
-                }, 0);
-            });
-            setNotice(currentUser ? 'Онлайн подключён.' : 'Войди или зарегистрируйся, чтобы начать.', 'success');
-        } catch (error) {
-            setNotice(friendlyError(error), 'error');
-        }
+            showAuthState();
+        });
+        window.addEventListener('mb:slot-ready', function () {
+            queueAuthForCurrentSlot(getCurrentGameSlot());
+        });
+        await queueAuthForCurrentSlot(getCurrentGameSlot());
     }
 
     if (document.readyState === 'loading') {
