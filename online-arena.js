@@ -543,6 +543,8 @@
             activeFightId = null;
             if (api) { api.active = false; api.fightId = null; }
             if (stage) stage.style.display = 'flex';
+            var lobbyAfterStartError = byId('onlineArenaLobby');
+            if (lobbyAfterStartError) lobbyAfterStartError.style.display = 'block';
             setStageStatus('Не удалось запустить босса 500: ' + friendlyError(error));
         }
         updateStartButton();
@@ -765,6 +767,14 @@
         if (!fightStarted || !activeFightId) return;
         finishCoopFight(false, 'Битва с Путеводной Звездой завершена. Можно запустить тест заново.');
     }
+    function onPlayerDefeated() {
+        if (!fightStarted || !activeFightId) return;
+        var message = isLeader()
+            ? 'Создатель комнаты проиграл — совместный бой остановлен.'
+            : 'Ты проиграл, но остальные игроки могут продолжить бой.';
+        if (isLeader()) sendEvent('fight_stop', { fight_id: activeFightId });
+        finishCoopFight(false, message);
+    }
     function onDialogProgress() {
         if (!fightStarted || !activeFightId || applyingRemote || !isLeader()) return;
         sendEvent('dialog_progress', { fight_id: activeFightId });
@@ -870,6 +880,8 @@
         var hud = byId('onlineArenaCoopHud');
         if (hud) hud.remove();
         var stage = byId('onlineArenaStage');
+        var lobby = byId('onlineArenaLobby');
+        if (lobby && entered) lobby.style.display = 'block';
         if (stage && entered) stage.style.display = 'flex';
         fightStarted = false;
         activeFightId = null;
@@ -995,6 +1007,7 @@
             onPieceHit: onPieceHit,
             onVictory: onVictory,
             onFightEnded: onFightEnded,
+            onPlayerDefeated: onPlayerDefeated,
             onDialogProgress: onDialogProgress,
             onDialogChoice: onDialogChoice,
             onFinalChoice: onFinalChoice,
