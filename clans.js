@@ -1132,6 +1132,10 @@
         if (cloudUploadBtn) cloudUploadBtn.addEventListener('click', function () {
             window.dispatchEvent(new CustomEvent('mb:cloud-save-action', { detail: { action: 'upload' } }));
         });
+        var cloudUnbindBtn = byId('cloudSaveUnbindBtn');
+        if (cloudUnbindBtn) cloudUnbindBtn.addEventListener('click', function () {
+            window.dispatchEvent(new CustomEvent('mb:cloud-save-action', { detail: { action: 'unbind' } }));
+        });
         byId('clanCreateForm').addEventListener('submit', createClan);
         byId('clanProfileForm').addEventListener('submit', saveProfile);
         byId('clanChatForm').addEventListener('submit', sendClanChatMessage);
