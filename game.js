@@ -1145,7 +1145,10 @@ function mbLoadStatsFromSave(saved) {
  lf.highestCheckpoint=Math.max(1,mbStatsSafeNumber(highestCheckpoint,1));lf.maxPoints=mbStatsSafeNumber(maxPoints,100);lf.rebirths=mbStatsSafeNumber(rebirthCount,0);
  lf.deaths=Math.max(mbStatsSafeNumber(data.totalDeaths,0),mbStatsSafeNumber(data.deathCount,0),mbStatsSafeNumber(data.deaths,0),Array.isArray(defeatHistory)?defeatHistory.length:0);
  lf.deathsApproximate=Array.isArray(defeatHistory)&&defeatHistory.length>=10&&!hasLifetime;lf.wavesClearedApproximate=!hasLifetime;lf.bossesDefeatedApproximate=!hasLifetime;
- lf.wavesCleared=(Array.isArray(rebirthStats)?rebirthStats:[]).reduce(function(sum,e){return sum+mbStatsSafeNumber(e&&e.stats&&e.stats.wavesCleared,0);},0);
+ lf.wavesCleared=(Array.isArray(rebirthStats)?rebirthStats:[]).reduce(function(sum,e){
+  var entry=e||{},known=entry.stats&&entry.stats.wavesCleared!==undefined?entry.stats.wavesCleared:entry.totalWins;
+  return sum+mbStatsSafeNumber(known,0);
+ },mbStatsSafeNumber(totalWins,0));
  lf.bossesDefeated=(Array.isArray(rebirthStats)?rebirthStats:[]).reduce(function(sum,e){return sum+mbStatsSafeNumber(e&&e.stats&&e.stats.bossesDefeated,0);},0);
  var cf=mbStatsNewBlock(keys),previous=Array.isArray(rebirthStats)&&rebirthStats.length?rebirthStats[rebirthStats.length-1]:null;
  cf.clicks=Math.max(0,mbStatsSafeNumber(totalClicks,0)-mbStatsSafeNumber(previous&&previous.totalClicks,0));
@@ -1377,7 +1380,7 @@ function createCard(r, options) {
     if (!isPreviewCard && !discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } 
     if (!isPreviewCard) totalCardsObtained++; 
     if (points > maxPoints) maxPoints = points; 
-    updateChallengeProgress("collectCards", 1); 
+    if (!isPreviewCard) updateChallengeProgress("collectCards", 1); 
     return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, minRebirth: template.minRebirth || minRebirth, statusAbility: template.statusAbility || null, extraStatus: template.extraStatus || null, superAbility: template.superAbility || null, mastery: 1, masteryExp: 0 }; 
 }
 
