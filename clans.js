@@ -276,7 +276,25 @@
         }
         renderAchievementBadges('clanProfileBadges', stats, true);
     }
+    function cardArtPathForName(name) {
+        try {
+            if (typeof window.getCardImage === 'function') {
+                var imagePath = window.getCardImage(String(name || ''));
+                return typeof imagePath === 'string' && imagePath.trim() ? imagePath : null;
+            }
+        } catch (_error) {}
+        return null;
+    }
+
     function localCollectionCards() {
+        try {
+            if (window.MBGameCards && typeof window.MBGameCards.getCardsForClanExchange === 'function') {
+                var stableCards = window.MBGameCards.getCardsForClanExchange();
+                if (Array.isArray(stableCards)) return stableCards;
+            }
+        } catch (error) {
+            console.warn('[MB showcase] Не удалось получить стабильные ID карт:', error && error.message);
+        }
         try { if (typeof myCards !== 'undefined' && Array.isArray(myCards)) return myCards; } catch (_error) {}
         return [];
     }
@@ -288,7 +306,7 @@
             var uid = rawId !== undefined && rawId !== null && String(rawId) !== '' ? String(rawId) : 'local-' + index + '-' + name;
             return { uid: uid, name: name, rarity: String(card.rarity || 'Обычная'),
                 mastery: Math.max(1, Math.min(7, safeCount(card.mastery, 7) || 1)),
-                image: avatarPathForName(name) || 'images/Super_Dio_2.gif' };
+                image: cardArtPathForName(name) };
         });
     }
     function renderShowcasePicker() {
@@ -311,8 +329,13 @@
             button.type = 'button';
             button.setAttribute('aria-pressed', 'true');
             button.title = 'Эта карта сохранена в витрине, но не найдена в текущем локальном слоте. Нажми, чтобы убрать её.';
-            var img = node('img'); img.src = avatarPathForName(saved.name) || 'images/Super_Dio_2.gif'; img.alt = saved.name || 'Карта';
-            button.appendChild(img);
+            var savedArt = cardArtPathForName(saved.name);
+            if (savedArt) {
+                var img = node('img'); img.src = savedArt; img.alt = saved.name || 'Карта'; img.loading = 'lazy';
+                button.appendChild(img);
+            } else {
+                button.appendChild(node('div', 'showcase-card-no-art', ''));
+            }
             button.appendChild(node('strong', '', saved.name || 'Карта'));
             button.appendChild(node('small', '', (saved.rarity || 'Редкость неизвестна') + ' · сохранена ранее'));
             button.appendChild(node('span', 'showcase-check', '×'));
@@ -332,8 +355,12 @@
             button.type = 'button';
             button.setAttribute('aria-pressed', selected ? 'true' : 'false');
             button.title = card.name + ' · ' + card.rarity + ' · мастерство ' + card.mastery;
-            var img = node('img'); img.src = card.image; img.alt = card.name; img.loading = 'lazy';
-            button.appendChild(img);
+            if (card.image) {
+                var img = node('img'); img.src = card.image; img.alt = card.name; img.loading = 'lazy';
+                button.appendChild(img);
+            } else {
+                button.appendChild(node('div', 'showcase-card-no-art', ''));
+            }
             button.appendChild(node('strong', '', card.name));
             button.appendChild(node('small', '', card.rarity + ' · ' + card.mastery + '★'));
             if (selected) button.appendChild(node('span', 'showcase-check', '✓'));
@@ -377,8 +404,13 @@
         if (!items.length) { container.appendChild(node('p', 'clan-muted', 'Игрок пока не выбрал карты для витрины.')); return; }
         items.forEach(function (card) {
             var row = node('div', 'public-showcase-card');
-            var img = node('img'); img.src = avatarPathForName(card.name) || 'images/Super_Dio_2.gif'; img.alt = card.name || 'Карта'; img.loading = 'lazy';
-            row.appendChild(img);
+            var artPath = cardArtPathForName(card.name);
+            if (artPath) {
+                var img = node('img'); img.src = artPath; img.alt = card.name || 'Карта'; img.loading = 'lazy';
+                row.appendChild(img);
+            } else {
+                row.appendChild(node('div', 'public-showcase-no-art', ''));
+            }
             var text = node('div');
             text.appendChild(node('strong', '', card.name || 'Карта'));
             text.appendChild(node('small', '', (card.rarity || 'Редкость неизвестна') + (card.mastery ? ' · мастерство ' + formatCount(card.mastery) + '★' : '')));
