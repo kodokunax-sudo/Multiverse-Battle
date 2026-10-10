@@ -276,9 +276,64 @@ function getBossContext() {
             getAttacks: function() { return waystarAttacks; },
             getBlasters: function() { return []; },
             getParticles: function() { return waystarParticles; },
-            getBossMaxHp: function() { return waystarBossMaxHp; },
-            setBossMaxHp: function(v) { waystarBossMaxHp = v; },
-            getBossHp: function() { return waystarBossHp; },
+            getBossMaxHp: function() {
+                // In phase 2, percentage supers should damage the combined fragment HP pool.
+                if (waystarState === "phase2" && Array.isArray(window.waystarPieces) && window.waystarPieces.length) {
+                    return window.waystarPieces.reduce(function (sum, piece) { return sum + Math.max(0, Number(piece && piece.maxHp) || 0); }, 0);
+                }
+                return waystarBossMaxHp;
+            },
+            setBossMaxHp: function(v) {
+                var requested = Number(v);
+                if (!isFinite(requested)) return;
+                if (waystarState === "phase2" && Array.isArray(window.waystarPieces) && window.waystarPieces.length) {
+                    var pieces = window.waystarPieces;
+                    var maxPool = pieces.reduce(function (sum, piece) { return sum + Math.max(0, Number(piece && piece.maxHp) || 0); }, 0);
+                    var currentPool = pieces.reduce(function (sum, piece) { return sum + (piece && piece.alive ? Math.max(0, Number(piece.hp) || 0) : 0); }, 0);
+                    var targetPool = Math.max(0, Math.min(maxPool, requested));
+                    var remainingDamage = Math.max(0, Math.floor(currentPool - Math.min(currentPool, targetPool)));
+                    var actualDamage = remainingDamage;
+                    for (var i = 0; i < pieces.length && remainingDamage > 0; i++) {
+                        var piece = pieces[i];
+                        if (!piece || !piece.alive) continue;
+                        var take = Math.min(Math.max(0, Number(piece.hp) || 0), remainingDamage);
+                        piece.hp = Math.max(0, (Number(piece.hp) || 0) - take);
+                        remainingDamage -= take;
+                        if (piece.hp <= 0) {
+                            piece.alive = false;
+                            if (typeof window.spawnWaystarParticles === "function") window.spawnWaystarParticles(piece.x, piece.y, 8, "#ff00ff", 4);
+                        }
+                    }
+                    window.waystarPiecesAlive = pieces.filter(function (piece) { return piece && piece.alive; }).length;
+                    if (actualDamage > 0 && window.MBOnlineWaystar && window.MBOnlineWaystar.active) {
+                        window.MBOnlineWaystar.onBossDamage(actualDamage, "phase2");
+                    }
+                    return;
+                }
+
+                // A super asks to cap HP at a value derived from max HP; do not mutate max HP itself.
+                var maxHp = Math.max(0, Number(waystarBossMaxHp) || 0);
+                var beforeHp = Math.max(0, Number(waystarBossHp) || 0);
+                var targetHp = Math.max(0, Math.min(maxHp, requested));
+                if (waystarState === "phase1") targetHp = Math.max(maxHp * 0.5, targetHp);
+                waystarBossHp = Math.min(beforeHp, targetHp);
+                var dealt = Math.max(0, Math.floor(beforeHp - waystarBossHp));
+                if (dealt > 0 && window.MBOnlineWaystar && window.MBOnlineWaystar.active) {
+                    window.MBOnlineWaystar.onBossDamage(dealt, waystarState);
+                }
+                if (waystarState === "phase3" && waystarBossHp <= 0 &&
+                    (!window.MBOnlineWaystar || !window.MBOnlineWaystar.active ||
+                        typeof window.MBOnlineWaystar.isLeader !== "function" || window.MBOnlineWaystar.isLeader()) &&
+                    typeof window.waystarVictory === "function" && !window.waystarFinalActive) {
+                    window.waystarVictory();
+                }
+            },
+            getBossHp: function() {
+                if (waystarState === "phase2" && Array.isArray(window.waystarPieces)) {
+                    return window.waystarPieces.reduce(function (sum, piece) { return sum + (piece && piece.alive ? Math.max(0, Number(piece.hp) || 0) : 0); }, 0);
+                }
+                return waystarBossHp;
+            },
             getPlayerHp: function() { return waystarPlayerHp; },
             setPlayerHp: function(v) { waystarPlayerHp = v; },
             getPlayerMaxHp: function() { return waystarPlayerMaxHp; },
