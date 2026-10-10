@@ -94,6 +94,7 @@ let arenaSettings = {
 
 // ★★★ НАСТРОЙКА БОНУСА НОВИЧКА ★★★
 const NEWCOMER_BONUS_MINUTES = 20;
+const MODER_ACCESS_CODE_VERSION = 2;
 
 // ========== СЛОТЫ СОХРАНЕНИЙ ==========
 function getSlotKey(slot) { return "cgV20_slot" + slot; }
@@ -783,7 +784,9 @@ function loadGameData(d) {
     wave = d.wave || 1; 
     playerHp = d.playerHp || 100; 
     activeBuffs = d.activeBuffs || {}; 
-    mode = d.mode || "normal"; 
+    const savedModerAccessVersion = Number(d.moderAccessVersion) || 0;
+    const mustReenterModerCode = savedModerAccessVersion < MODER_ACCESS_CODE_VERSION;
+    mode = (mustReenterModerCode && d.mode === "moder") ? "normal" : (d.mode || "normal"); 
     defeatHistory = d.defeatHistory || []; 
     shopItems = d.shopItems || [null, null, null]; 
     shopRefreshTime = d.shopRefreshTime || null;
@@ -810,7 +813,7 @@ function loadGameData(d) {
     hasFireArtifact = d.hasFireArtifact || false; 
     hasCompoundV = d.hasCompoundV || {}; 
     usedCodes = d.usedCodes || []; 
-    moderUnlocked = d.moderUnlocked || false; 
+    moderUnlocked = !mustReenterModerCode && d.moderUnlocked === true; 
     afkWavesCompleted = d.afkWavesCompleted || 0; 
     afkWinsCompleted = d.afkWinsCompleted || 0;
     highestCheckpoint = d.highestCheckpoint || 1; 
@@ -1034,7 +1037,8 @@ function saveAll() {
     slotData.hasFireArtifact = hasFireArtifact; 
     slotData.hasCompoundV = hasCompoundV; 
     slotData.usedCodes = usedCodes; 
-    slotData.moderUnlocked = moderUnlocked; 
+    slotData.moderUnlocked = moderUnlocked;
+    slotData.moderAccessVersion = MODER_ACCESS_CODE_VERSION; 
     slotData.afkWavesCompleted = afkWavesCompleted; 
     slotData.afkWinsCompleted = afkWinsCompleted || 0;
     slotData.highestCheckpoint = highestCheckpoint; 
