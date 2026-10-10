@@ -937,7 +937,7 @@ function updatePlayerStats() {
     let fd = Math.floor(total * m.dmgMult * db);
     let newcomerDamageBonusActive = typeof newcomerDamageBonusEnd === "number" &&
         newcomerDamageBonusEnd > Date.now() && currentSlot >= 0;
-    if (newcomerDamageBonusActive) fd = Math.floor(fd * 7);
+    if (newcomerDamageBonusActive) fd = Math.floor(fd * 2);
     let el = document.getElementById("playerDamage"); if (el) el.innerText = fd; 
     window.playerFinalDamage = fd; 
     let baseHp = 50 + upgrades.hp.level * upgrades.hp.increment; 
