@@ -666,32 +666,21 @@
     .avatar-locked-hint { margin:0; padding:10px; border:1px dashed rgba(246,181,27,.22); border-radius:10px; font-size:10px; line-height:1.5; color:#c3b9d9; }
     .avatar-choice-grid .clan-avatar-option:disabled { opacity:.42; filter:grayscale(.9); cursor:not-allowed; transform:none; box-shadow:none; }
 
-/* Online arena test shell */
-.online-arena-card{overflow:hidden}
-.online-arena-preview{height:170px;max-width:520px;margin:16px auto 14px;position:relative;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(246,181,27,.3);border-radius:18px;background:radial-gradient(ellipse at center,rgba(132,87,255,.2),transparent 55%),linear-gradient(145deg,#11111d,#07070b)}
-.online-arena-preview-ring{position:absolute;width:min(65%,230px);aspect-ratio:1;border:2px solid rgba(246,181,27,.72);border-radius:50%;box-shadow:0 0 0 10px rgba(155,121,255,.08),0 0 35px rgba(246,181,27,.2),inset 0 0 35px rgba(155,121,255,.12)}
-.online-arena-preview-icon{font-size:48px;filter:drop-shadow(0 0 18px rgba(246,181,27,.35))}
-.online-arena-enter{display:block;width:min(100%,420px);margin:0 auto;padding:14px;font-size:16px;font-weight:900}
-.online-arena-status{min-height:20px;margin:13px 0 0;text-align:center;color:#d7c9ff;font-size:12px;line-height:1.5}
-.online-arena-topline{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
-.online-arena-topline h3{margin:5px 0 0;font-size:23px}
-.online-arena-exit{border-color:rgba(255,110,110,.35);color:#ffb1b1;background:rgba(180,42,57,.12)}
-.online-arena-floor{position:relative;min-height:320px;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(155,121,255,.45);border-radius:18px;background:radial-gradient(ellipse at 50% 45%,rgba(113,80,194,.17),transparent 48%),linear-gradient(180deg,#0a0a12,#050508 80%);box-shadow:inset 0 0 70px #000}
-.online-arena-floor:before{content:"";position:absolute;inset:16px;border:1px solid rgba(246,181,27,.3);border-radius:12px;pointer-events:none}
-.online-arena-ring{position:absolute;width:min(56%,300px);height:190px;border:2px solid rgba(246,181,27,.76);border-radius:50%;box-shadow:0 0 0 12px rgba(155,121,255,.055),0 0 34px rgba(246,181,27,.14),inset 0 0 30px rgba(155,121,255,.12)}
-.online-arena-center{position:absolute;color:#ffdb77;font-size:28px;text-shadow:0 0 22px #c69cff;opacity:.75}
-.online-arena-players{position:absolute;inset:0;z-index:3;pointer-events:none}
-.online-arena-player{position:absolute;display:flex;flex-direction:column;align-items:center;gap:3px;max-width:135px;min-width:66px;padding:6px 9px;border:1px solid rgba(246,181,27,.4);border-radius:12px;background:rgba(10,10,18,.92);box-shadow:0 6px 18px #0008;transform:translate(-50%,-50%);transition:left .12s linear,top .12s linear;pointer-events:none}
-.online-arena-player.is-self{border-color:#ffdf83;box-shadow:0 0 0 2px rgba(246,181,27,.18),0 0 22px rgba(246,181,27,.2)}
-.online-arena-player-avatar{display:grid;place-items:center;width:29px;height:29px;border-radius:50%;background:linear-gradient(145deg,#4e3e77,#171322);border:1px solid #b59aff;font-size:16px}
-.online-arena-player strong{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ffdf83;font-size:11px}
-.online-arena-player small{font-size:8px;letter-spacing:1.2px;color:#b6a7d7}
-.online-arena-livebar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;color:#bdb3d8;font-size:11px}
-.online-arena-livebar span:first-child{color:#ffdf83;font-weight:900}
-.online-arena-roster{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
-.online-arena-roster-item{padding:5px 9px;border:1px solid rgba(155,121,255,.22);border-radius:999px;background:rgba(155,121,255,.07);color:#d9d0f5;font-size:10px}
-.online-arena-roster-item.is-self{border-color:rgba(246,181,27,.45);color:#ffdf83}
-@media(max-width:520px){.online-subnav{grid-template-columns:repeat(3,minmax(0,1fr))}.online-arena-floor{min-height:270px}.online-arena-ring{height:155px}.online-arena-player{max-width:105px;min-width:54px;padding:5px 6px}.online-arena-player strong{max-width:95px;font-size:10px}.online-arena-livebar{font-size:10px}}
+/* Online arena: reuse the Undertale-style battle presentation for multiplayer testing */
+.online-arena-battle-overlay{position:fixed;inset:0;z-index:10000;box-sizing:border-box;overflow:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:max(10px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));background:#000;color:#fff;font-family:Arial,sans-serif}
+.online-arena-battle-header{width:min(100%,420px);display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.online-arena-battle-title{font-size:clamp(17px,4vw,22px);font-weight:900;letter-spacing:.5px;text-align:center}
+.online-arena-battle-info{width:min(100%,400px);display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-size:13px}
+.online-arena-battle-info strong{color:#ffdf83}
+#onlineArenaBattleCanvas{display:block;width:min(100%,400px);height:auto;max-height:calc(100dvh - 180px);object-fit:contain;aspect-ratio:4/5;border:3px solid #fff;border-radius:12px;background:#0a0a1a;touch-action:none;cursor:crosshair;box-sizing:border-box}
+.online-arena-battle-overlay .online-arena-status{width:min(100%,400px);min-height:18px;margin:8px 0 0;text-align:center;color:#d7c9ff;font-size:12px;line-height:1.45}
+.online-arena-battle-controls{width:min(100%,400px);margin:6px 0 0;text-align:center;color:#aaa;font-size:11px;line-height:1.5}
+.online-arena-exit{flex-shrink:0;border-color:rgba(255,110,110,.35);color:#ffb1b1;background:rgba(180,42,57,.12)}
+.online-arena-roster{width:min(100%,400px);display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:8px}
+.online-arena-roster-item{padding:5px 9px;border:1px solid rgba(155,121,255,.35);border-radius:999px;background:rgba(155,121,255,.1);color:#d9d0f5;font-size:10px}
+.online-arena-roster-item.is-self{border-color:rgba(246,181,27,.6);color:#ffdf83}
+@media(max-height:650px){.online-arena-battle-overlay{padding-top:5px}.online-arena-battle-header{margin-bottom:4px}.online-arena-battle-info{margin-bottom:4px}#onlineArenaBattleCanvas{width:min(calc(100vw - 24px),calc((100dvh - 136px)*.8));max-height:calc(100dvh - 136px)}.online-arena-battle-controls{font-size:10px;margin-top:3px}.online-arena-battle-overlay .online-arena-status{margin-top:3px}}
+
 </style>
     <script src="anti-pull-refresh.js?v=4"></script>
 </head>
@@ -1193,20 +1182,13 @@
                         <button id="onlineArenaEnter" class="btn btn-primary online-arena-enter" type="button">▶ Войти на арену</button>
                         <p id="onlineArenaStatus" class="online-arena-status" role="status" aria-live="polite">Ты находишься в меню арены.</p>
                     </div>
-                    <div id="onlineArenaStage" class="card online-arena-card" style="display:none;">
-                        <div class="online-arena-topline">
-                            <div><span class="online-eyebrow">MULTIVERSE BATTLE</span><h3>🏟️ Тестовая арена</h3></div>
-                            <button id="onlineArenaExit" class="btn online-arena-exit" type="button">🚪 Выйти с арены</button>
-                        </div>
-                        <div class="online-arena-floor" id="onlineArenaFloor" tabindex="0" aria-label="Арена. Используй стрелки или WASD для перемещения">
-                            <div class="online-arena-ring" aria-hidden="true"></div>
-                            <div class="online-arena-center" aria-hidden="true">✦</div>
-                            <div id="onlineArenaPlayers" class="online-arena-players" aria-label="Игроки на арене"></div>
-                        </div>
-                        <div class="online-arena-livebar"><span id="onlineArenaPlayerCount">👥 0 игроков</span><span>Управление: WASD / стрелки или клик по арене</span></div>
+                    <div id="onlineArenaStage" class="online-arena-battle-overlay" style="display:none;" role="dialog" aria-modal="true" aria-label="Онлайн-арена">
+                        <div class="online-arena-battle-header"><div class="online-arena-battle-title">🏟️ ОНЛАЙН-АРЕНА</div><button id="onlineArenaExit" class="btn online-arena-exit" type="button">🚪 Выйти</button></div>
+                        <div class="online-arena-battle-info"><span>👥 Игроки: <strong id="onlineArenaPlayerCount">0</strong></span><span>❤️ Тест движения</span></div>
+                        <canvas id="onlineArenaBattleCanvas" width="400" height="500" aria-label="Поле онлайн-арены. WASD или стрелки для перемещения"></canvas>
+                        <p id="onlineArenaStatusStage" class="online-arena-status" role="status" aria-live="polite">Подключаем онлайн-комнату…</p>
+                        <p class="online-arena-battle-controls">WASD / стрелки — двигаться · касание или клик по полю — переместиться</p>
                         <div id="onlineArenaRoster" class="online-arena-roster" aria-label="Список игроков на арене"></div>
-                        <p id="onlineArenaStatusStage" class="online-arena-status" aria-live="polite">Подключаем онлайн-комнату…</p>
-                        <p class="clan-muted" style="text-align:center;">Это тест видимости игроков и перемещения. Сражения пока выключены.</p>
                     </div>
                 </div>
             </div>
