@@ -1136,6 +1136,7 @@ function activateDekuEarthShatter() {
     var dmg = Math.floor(ctxB.getBossMaxHp() * 0.12);
     ctxB.setBossMaxHp(ctxB.getBossMaxHp() - dmg);
     ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "РАЗЛОМ ДЕКУ!", "#44ff44");
+    notifyWaystarSuperAction("Деку (100%) — РАЗЛОМ");
 }
 
 function activateDekuDashSmash() {
@@ -1176,6 +1177,7 @@ function activateDekuDashSmash() {
     _superState.screenShakeAmount = 15;
     addShockwaveRing(ctxB.getHeartX(), ctxB.getHeartY(), "#44ff44", 400, 0.5, 5);
     ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 30, "РЫВОК! -8%", "#44ff44");
+    notifyWaystarSuperAction("Деку (100%) — РЫВОК");
 }
 
 function deactivateDeku100() {
@@ -1217,6 +1219,7 @@ function activateAllmightHurricane() {
     _superState.screenShakeAmount = 15;
     ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "УРАГАН!", "#00ffff");
     console.log("[SUPER] 🌪️ Ураган Всемогущего активирован на", ctxB.type);
+    notifyWaystarSuperAction("Всемогущий — УРАГАН");
 }
 
 
@@ -1329,6 +1332,7 @@ function useWhitebeardSkill() {
     } else {
         whitebeardSkillStrike();
     }
+    notifyWaystarSuperAction("Белоус — Гура-Гура");
 }
 
 function updateWhitebeardSkill(dt) {
@@ -1466,6 +1470,15 @@ function updateWhitebeardSkillButton() {
 
 window.isWhitebeardMainActive = isWhitebeardMainActive;
 
+function notifyWaystarSuperAction(superName) {
+    try {
+        var api = (typeof window !== 'undefined') ? window.MBOnlineWaystar : null;
+        if (api && api.active && typeof api.onSuperAction === 'function') {
+            api.onSuperAction(String(superName || 'SUPER').slice(0, 48));
+        }
+    } catch (_error) {}
+}
+
 function toggleSuper() {
     var bossType = isUniqueBossActive();
     var isUnique = bossType !== null;
@@ -1547,6 +1560,7 @@ function toggleSuper() {
             var abDeku = superAbilities["Деку (100%)"];
             abDeku.onActivate();
             _activeSuperName = "Деку (100%)";
+            notifyWaystarSuperAction("Деку (100%)");
             updateSuperButton();
             return;
         } else {
@@ -1601,6 +1615,7 @@ function toggleSuper() {
         }
     }
     updateSuperButton();
+    notifyWaystarSuperAction(mainCard.name);
 }
 
 function startCooldown(cardName, ms) {
