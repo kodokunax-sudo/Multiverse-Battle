@@ -1202,6 +1202,26 @@
         }
     }
 
+    function accountSlotBindingError(user, slot) {
+        if (!user || !user.id) return null;
+        try {
+            if (typeof window.mbCloudBindingProblem === 'function') {
+                return window.mbCloudBindingProblem(user.id, slot);
+            }
+        } catch (_error) {}
+        return null;
+    }
+
+    async function rejectAccountForSlot(client, slot, message) {
+        currentUser = null;
+        currentClan = null;
+        currentProfile = null;
+        showAuthState();
+        setNotice(message, 'warning');
+        notifyCloudSaveAuthChanged();
+        try { await client.auth.signOut(); } catch (_error) {}
+    }
+
     function queueAuthForCurrentSlot(slot) {
         var requestedSlot = Number.isInteger(Number(slot)) ? Number(slot) : getCurrentGameSlot();
         authSwitchChain = authSwitchChain.then(async function () {
@@ -1212,6 +1232,11 @@
                 if (requestedSlot !== getCurrentGameSlot() || db !== currentClient) return;
                 if (currentSessionResult.error) throw currentSessionResult.error;
                 currentUser = currentSessionResult.data.session ? currentSessionResult.data.session.user : null;
+                var currentBindingError = accountSlotBindingError(currentUser, requestedSlot);
+                if (currentBindingError) {
+                    await rejectAccountForSlot(currentClient, requestedSlot, currentBindingError);
+                    return;
+                }
                 currentClan = null;
                 currentProfile = null;
                 showAuthState();
@@ -1247,6 +1272,11 @@
             if (requestedSlot !== getCurrentGameSlot() || db !== client) return;
             if (sessionResult.error) throw sessionResult.error;
             currentUser = sessionResult.data.session ? sessionResult.data.session.user : null;
+            var restoredBindingError = accountSlotBindingError(currentUser, requestedSlot);
+            if (restoredBindingError) {
+                await rejectAccountForSlot(client, requestedSlot, restoredBindingError);
+                return;
+            }
             showAuthState();
             await refreshAll();
             if (requestedSlot !== getCurrentGameSlot() || db !== client) return;
@@ -1254,6 +1284,22 @@
             var subscriptionResult = client.auth.onAuthStateChange(function (_event, session) {
                 if (db !== client || activeAuthSlot !== requestedSlot || requestedSlot !== getCurrentGameSlot()) return;
                 currentUser = session ? session.user : null;
+                var authBindingError = accountSlotBindingError(currentUser, requestedSlot);
+                if (authBindingError) {
+                    currentUser = null;
+                    currentClan = null;
+                    currentProfile = null;
+                    showAuthState();
+                    setNotice(authBindingError, 'warning');
+                    notifyCloudSaveAuthChanged();
+                    // Defer auth calls until after Supabase finishes its auth-state callback.
+                    window.setTimeout(function () {
+                        if (db === client && activeAuthSlot === requestedSlot && requestedSlot === getCurrentGameSlot()) {
+                            client.auth.signOut().catch(function () {});
+                        }
+                    }, 0);
+                    return;
+                }
                 window.setTimeout(function () {
                     if (db !== client || activeAuthSlot !== requestedSlot || requestedSlot !== getCurrentGameSlot()) return;
                     showAuthState();
