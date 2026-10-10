@@ -873,6 +873,8 @@
             if (allowedSorts.indexOf(sortKey) === -1) sortKey = 'highest_wave';
             var result = await db.from('profiles')
                 .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, current_rebirth_stats, lifetime_stats, rebirth_history, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                // Hide this account from the public ranking only; keep its profile and save intact.
+                .neq('id', '41f620ed-4196-4203-bfbd-a34954e23d84')
                 .order(sortKey, { ascending: false })
                 .order('highest_wave', { ascending: false })
                 .limit(100);
