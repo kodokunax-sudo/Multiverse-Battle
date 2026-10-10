@@ -12,6 +12,10 @@
     var chatChannel = null;
     var chatClanId = null;
     var chatSending = false;
+    var globalChatChannel = null;
+    var globalChatUserId = null;
+    var globalChatMessages = [];
+    var globalChatSending = false;
     var lastStatsFingerprint = '';
     var lastStatsSyncAt = 0;
     var pendingStatsSyncTimer = null;
@@ -85,6 +89,10 @@
             profile_name_invalid: 'Имя профиля должно содержать от 1 до 24 символов.',
             profile_description_too_long: 'Описание профиля не должно превышать 280 символов.',
             clan_chat_empty: 'Сообщение не может быть пустым.',
+            global_chat_auth_required: 'Войди в аккаунт, чтобы писать в общий чат.',
+            global_chat_empty: 'Напиши сообщение перед отправкой.',
+            global_chat_too_long: 'Сообщение слишком длинное: максимум 300 символов.',
+            global_chat_rate_limited: 'Не так быстро! Подожди несколько секунд перед следующим сообщением.',
             already_in_clan: 'Ты уже состоишь в клане. Сначала выйди из него.',
             clan_not_found: 'Этот клан уже не существует.',
             not_in_clan: 'Ты сейчас не состоишь в клане.',
@@ -145,7 +153,7 @@
 
     function setBusy(value) {
         busy = !!value;
-        ['clansRegisterBtn', 'clansLoginBtn', 'clansLogoutBtn', 'clanCreateBtn', 'clansProfileSaveBtn', 'clanChatSendBtn'].forEach(function (id) {
+        ['clansRegisterBtn', 'clansLoginBtn', 'clansLogoutBtn', 'clanCreateBtn', 'clansProfileSaveBtn', 'clanChatSendBtn', 'globalChatSendBtn'].forEach(function (id) {
             var el = byId(id);
             if (el) el.disabled = busy;
         });
@@ -1155,6 +1163,178 @@
         }
     }
 
+
+    function setGlobalChatState(message, failed) {
+        var el = byId('globalChatState');
+        if (!el) return;
+        el.textContent = message || '';
+        el.style.color = failed ? '#ff9c9c' : '#9be7b0';
+    }
+
+    function globalChatMessageElement(item) {
+        var mine = currentUser && String(item.user_id) === String(currentUser.id);
+        var row = node('div', 'clan-chat-message' + (mine ? ' mine' : ''));
+        var senderName = item.sender_name || 'Игрок';
+        var avatar = node('img', 'clan-chat-avatar');
+        avatar.src = avatarPathForName(item.avatar_name) || 'images/Super_Dio_2.gif';
+        avatar.alt = senderName;
+        avatar.loading = 'lazy';
+
+        var body = node('div', 'clan-chat-body');
+        var meta = node('div', 'clan-chat-meta');
+        var author = node('button', 'global-chat-author', senderName);
+        author.type = 'button';
+        author.addEventListener('click', function () {
+            if (item.user_id && currentUser) openPublicProfile(item.user_id);
+        });
+        meta.appendChild(author);
+
+        var date = new Date(item.created_at);
+        var time = node('time', '', Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
+        if (!Number.isNaN(date.getTime())) time.dateTime = date.toISOString();
+        meta.appendChild(time);
+        body.appendChild(meta);
+        body.appendChild(node('div', 'clan-chat-text', item.message || ''));
+        row.appendChild(avatar);
+        row.appendChild(body);
+        return row;
+    }
+
+    function renderGlobalChatMessages(messages, forceBottom) {
+        var container = byId('globalChatMessages');
+        if (!container) return;
+        var oldScrollTop = container.scrollTop;
+        var nearBottom = forceBottom === true ||
+            container.scrollHeight - container.scrollTop - container.clientHeight < 90;
+
+        container.replaceChildren();
+        if (!messages || !messages.length) {
+            container.appendChild(node('div', 'clan-chat-empty', 'Сообщений пока нет. Напиши первым!'));
+            container.scrollTop = container.scrollHeight;
+            return;
+        }
+        messages.forEach(function (item) {
+            container.appendChild(globalChatMessageElement(item));
+        });
+        container.scrollTop = nearBottom ? container.scrollHeight : oldScrollTop;
+    }
+
+    function mergeGlobalChatMessages(incoming) {
+        var byId = Object.create(null);
+        globalChatMessages.concat(incoming || []).forEach(function (item) {
+            if (item && item.id !== undefined && item.id !== null) byId[String(item.id)] = item;
+        });
+        var merged = Object.keys(byId).map(function (key) { return byId[key]; });
+        merged.sort(function (a, b) {
+            var delta = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+            return delta || String(a.id).localeCompare(String(b.id), 'en', { numeric: true });
+        });
+        globalChatMessages = merged.slice(-80);
+    }
+
+    async function loadGlobalChatMessages() {
+        if (!db || !currentUser) return;
+        var userId = currentUser.id;
+        var result = await db.from('global_chat_messages')
+            .select('id, user_id, sender_name, avatar_name, message, created_at')
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: false })
+            .limit(80);
+        if (result.error) throw result.error;
+        if (!currentUser || currentUser.id !== userId) return;
+        // Merge instead of replacing: a Realtime event might arrive while this query is running.
+        mergeGlobalChatMessages((result.data || []).slice().reverse());
+        renderGlobalChatMessages(globalChatMessages, true);
+    }
+
+    function addGlobalChatMessage(item) {
+        if (!item || item.id === undefined || item.id === null) return;
+        var container = byId('globalChatMessages');
+        var wasNearBottom = !container ||
+            container.scrollHeight - container.scrollTop - container.clientHeight < 90;
+        mergeGlobalChatMessages([item]);
+        renderGlobalChatMessages(globalChatMessages, wasNearBottom);
+    }
+
+    function closeGlobalChat() {
+        var oldChannel = globalChatChannel;
+        globalChatChannel = null;
+        globalChatUserId = null;
+        globalChatMessages = [];
+        var container = byId('globalChatMessages');
+        if (container) {
+            container.replaceChildren(node('div', 'clan-chat-empty', 'Войди в аккаунт, чтобы читать общий чат.'));
+        }
+        setGlobalChatState('Ожидаем вход в аккаунт…', false);
+        if (oldChannel && db) return db.removeChannel(oldChannel).catch(function () {});
+        return Promise.resolve();
+    }
+
+    async function ensureGlobalChatRealtime() {
+        if (!db || !currentUser) {
+            setGlobalChatState('Войди в аккаунт, чтобы подключиться к общему чату.', false);
+            return;
+        }
+        var userId = currentUser.id;
+        if (globalChatChannel && globalChatUserId === userId) {
+            await loadGlobalChatMessages();
+            return;
+        }
+
+        await closeGlobalChat();
+        globalChatUserId = userId;
+        setGlobalChatState('Подключаем общий чат…', false);
+        globalChatChannel = db.channel('mb-global-chat-' + userId)
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'global_chat_messages'
+            }, function (payload) {
+                if (!payload || !payload.new || globalChatUserId !== userId ||
+                    !currentUser || currentUser.id !== userId) return;
+                addGlobalChatMessage(payload.new);
+            })
+            .subscribe(function (status, error) {
+                if (globalChatUserId !== userId || !currentUser || currentUser.id !== userId) return;
+                if (status === 'SUBSCRIBED') {
+                    setGlobalChatState('● Подключён · сообщения приходят в реальном времени', false);
+                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                    setGlobalChatState(error ? friendlyError(error) : 'Соединение потеряно. Попробуй обновить чат.', true);
+                }
+            });
+        await loadGlobalChatMessages();
+    }
+
+    async function sendGlobalChatMessage(event) {
+        if (event) event.preventDefault();
+        if (!db || !currentUser || globalChatSending) return;
+        var input = byId('globalChatInput');
+        if (!input) return;
+        var message = input.value.trim();
+        if (!message) return setGlobalChatState('Напиши сообщение перед отправкой.', true);
+        if (message.length > 300) return setGlobalChatState('Сообщение слишком длинное: максимум 300 символов.', true);
+
+        globalChatSending = true;
+        var sendButton = byId('globalChatSendBtn');
+        if (sendButton) sendButton.disabled = true;
+        try {
+            var result = await db.rpc('mb_send_global_chat_message', { p_message: message });
+            if (result.error) throw result.error;
+            input.value = '';
+            var sent = result.data;
+            if (Array.isArray(sent)) sent = sent[0];
+            if (sent && sent.id !== undefined) addGlobalChatMessage(sent);
+            else await loadGlobalChatMessages();
+            setGlobalChatState('● Сообщение отправлено', false);
+        } catch (error) {
+            setGlobalChatState(friendlyError(error), true);
+        } finally {
+            globalChatSending = false;
+            if (sendButton) sendButton.disabled = busy;
+            input.focus();
+        }
+    }
+
     async function loadMyClan() {
         currentClan = null;
         if (!currentUser || !db) return null;
@@ -1591,7 +1771,9 @@
     }
 
     async function refreshAll() {
+        if (globalChatChannel && (!currentUser || globalChatUserId !== currentUser.id)) await closeGlobalChat();
         if (!db || !currentUser) {
+            await closeGlobalChat();
             currentClan = null;
             currentProfile = null;
             await closeClanChat();
@@ -1881,6 +2063,12 @@
         byId('clanCreateForm').addEventListener('submit', createClan);
         byId('clanProfileForm').addEventListener('submit', saveProfile);
         byId('clanChatForm').addEventListener('submit', sendClanChatMessage);
+        var globalChatForm = byId('globalChatForm');
+        if (globalChatForm) globalChatForm.addEventListener('submit', sendGlobalChatMessage);
+        var globalChatRefreshButton = byId('globalChatRefresh');
+        if (globalChatRefreshButton) globalChatRefreshButton.addEventListener('click', function () {
+            ensureGlobalChatRealtime().catch(function (error) { setGlobalChatState(friendlyError(error), true); });
+        });
         byId('clanCardRequestForm').addEventListener('submit', submitClanCardRequest);
         populateClanCardRequestOptions();
         byId('clanPublicProfileClose').addEventListener('click', hidePublicProfile);
@@ -1935,6 +2123,7 @@
                 if (view === 'rating' && currentUser) loadLeaderboard();
                 if (view === 'clan' && currentUser) refreshAll();
                 if (view === 'friends' && currentUser) refreshFriendsHub();
+                if (view === 'chat' && currentUser) ensureGlobalChatRealtime().catch(function (error) { setGlobalChatState(friendlyError(error), true); });
             });
         });
         document.querySelectorAll('[data-avatar-kind]').forEach(function (button) {
