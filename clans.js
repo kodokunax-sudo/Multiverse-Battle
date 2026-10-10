@@ -1,15 +1,29 @@
-/* Multiverse Battle — online clans, stage 1.
- * The browser uses only a public publishable/anon key.
- * Clan membership changes go through database RPCs with server-side checks.
- */
+/* Multiverse Battle — online profiles, game stats and clan chat. */
 (function () {
     'use strict';
 
     var db = null;
     var currentUser = null;
     var currentClan = null;
+    var currentProfile = null;
+    var profileAvatarName = 'Дио';
     var initialized = false;
     var busy = false;
+    var chatChannel = null;
+    var chatClanId = null;
+    var chatSending = false;
+    var lastStatsFingerprint = '';
+    var lastStatsSyncAt = 0;
+    var pendingStatsSyncTimer = null;
+
+    var STAT_DEFS = [
+        { key: 'total_wins', label: '🏆 Победы' },
+        { key: 'highest_wave', label: '🌊 Макс. волна' },
+        { key: 'rebirth_count', label: '♻️ Ребёрны' },
+        { key: 'cards_collected', label: '🎴 Получено карт' },
+        { key: 'bosses_defeated', label: '👹 Боссы' },
+        { key: 'total_clicks', label: '👆 Кликов' }
+    ];
 
     function byId(id) { return document.getElementById(id); }
 
@@ -40,12 +54,16 @@
             auth_required: 'Сначала войди в аккаунт.',
             invalid_clan_name: 'Название клана должно содержать от 3 до 24 символов.',
             invalid_clan_tag: 'Тег клана должен содержать от 2 до 5 английских букв или цифр.',
-            description_too_long: 'Описание не должно превышать 160 символов.',
+            description_too_long: 'Описание клана не должно превышать 160 символов.',
+            profile_name_invalid: 'Имя профиля должно содержать от 1 до 24 символов.',
+            profile_description_too_long: 'Описание профиля не должно превышать 280 символов.',
+            clan_chat_empty: 'Сообщение не может быть пустым.',
             already_in_clan: 'Ты уже состоишь в клане. Сначала выйди из него.',
             clan_not_found: 'Этот клан уже не существует.',
             not_in_clan: 'Ты сейчас не состоишь в клане.',
             leader_must_disband: 'Лидер пока не может покинуть клан. Передача лидерства появится позже; пока можно распустить клан.',
-            leader_only_action: 'Распустить клан может только его лидер.'
+            leader_only_action: 'Распустить клан может только его лидер.',
+            profile_not_found: 'Профиль не найден. Перезайди в аккаунт или проверь миграцию Supabase.'
         };
         var keys = Object.keys(map);
         for (var i = 0; i < keys.length; i++) {
@@ -54,17 +72,19 @@
         if (/duplicate key|already exists|clans_tag_key/i.test(message)) return 'Этот тег уже занят. Выбери другой.';
         if (/invalid login credentials/i.test(message)) return 'Неверная почта или пароль.';
         if (/email not confirmed/i.test(message)) return 'Сначала подтверди почту по ссылке из письма.';
+        if (/row-level security|permission denied/i.test(message)) return 'База отклонила действие по правилам доступа. Проверь, что ты вошёл и состоишь в этом клане.';
+        if (/relation .* does not exist|schema cache/i.test(message)) return 'Не хватает таблиц онлайн-системы. Примени обе SQL-миграции из папки supabase/migrations.';
         if (/fetch|network|failed to load/i.test(message)) return 'Не удалось подключиться. Проверь интернет и настройки Supabase.';
         return message || 'Неизвестная ошибка. Попробуй ещё раз.';
     }
 
     function setBusy(value) {
         busy = !!value;
-        ['clansRegisterBtn', 'clansLoginBtn', 'clansLogoutBtn', 'clanCreateBtn'].forEach(function (id) {
+        ['clansRegisterBtn', 'clansLoginBtn', 'clansLogoutBtn', 'clanCreateBtn', 'clansProfileSaveBtn', 'clanChatSendBtn'].forEach(function (id) {
             var el = byId(id);
             if (el) el.disabled = busy;
         });
-        document.querySelectorAll('#clanList button, #clanCurrentCard button').forEach(function (el) {
+        document.querySelectorAll('#clanList button, #clanCurrentCard button, #clanProfileForm button').forEach(function (el) {
             el.disabled = busy;
         });
     }
@@ -91,6 +111,324 @@
             var email = currentUser.email || 'Аккаунт игрока';
             var title = currentUser.user_metadata && currentUser.user_metadata.display_name;
             byId('clansSignedInAs').textContent = (title ? title + ' · ' : '') + email;
+        } else {
+            currentProfile = null;
+            hidePublicProfile();
+        }
+    }
+
+    function safeCount(value, maxValue) {
+        var n = Number(value);
+        if (!Number.isFinite(n) || n < 0) return 0;
+        return Math.min(maxValue || 1000000000, Math.floor(n));
+    }
+
+    function readLocalGameStats() {
+        // Не затираем онлайн-статистику стартовыми нулями, пока слот ещё не выбран.
+        if (typeof currentSlot !== 'undefined' && Number(currentSlot) < 0) return null;
+        try {
+            var wins = typeof totalWins !== 'undefined' ? totalWins : 0;
+            var bestWave = typeof highestWaveReached !== 'undefined' ? highestWaveReached : (typeof wave !== 'undefined' ? wave : 1);
+            var rebirths = typeof rebirthCount !== 'undefined' ? rebirthCount : 0;
+            var cards = typeof totalCardsObtained !== 'undefined'
+                ? totalCardsObtained
+                : (typeof myCards !== 'undefined' && Array.isArray(myCards) ? myCards.length : 0);
+            var bosses = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) ? defeatedBosses.length : 0;
+            var clicks = typeof totalClicks !== 'undefined' ? totalClicks : 0;
+            return {
+                total_wins: safeCount(wins),
+                highest_wave: Math.max(1, safeCount(bestWave)),
+                rebirth_count: safeCount(rebirths, 1000000),
+                cards_collected: safeCount(cards),
+                bosses_defeated: safeCount(bosses, 1000000),
+                total_clicks: safeCount(clicks)
+            };
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    function formatCount(value) {
+        try { return Math.max(0, Number(value) || 0).toLocaleString('ru-RU'); }
+        catch (_error) { return String(value || 0); }
+    }
+
+    function renderStatsGrid(containerId, stats) {
+        var container = byId(containerId);
+        if (!container || !stats) return;
+        container.replaceChildren();
+        STAT_DEFS.forEach(function (stat) {
+            var card = node('div', 'clan-stat');
+            card.appendChild(node('strong', '', formatCount(stats[stat.key] || 0)));
+            card.appendChild(node('span', '', stat.label));
+            container.appendChild(card);
+        });
+    }
+
+    function updateProfileStatsPreview(stats) {
+        if (stats) renderStatsGrid('clanProfileStats', stats);
+    }
+
+    function avatarPathForName(name) {
+        var list = Array.isArray(window.MBAvatarOptions) ? window.MBAvatarOptions : [];
+        var found = list.find(function (item) { return item && item.name === name && typeof item.path === 'string'; });
+        return found ? found.path : null;
+    }
+
+    function applyAvatarPreview(name) {
+        var path = avatarPathForName(name) || avatarPathForName('Дио') || 'images/Super_Dio_2.gif';
+        var preview = byId('clanProfilePreview');
+        if (preview) preview.src = path;
+    }
+
+    function chooseAvatar(name) {
+        if (!avatarPathForName(name)) return;
+        profileAvatarName = name;
+        applyAvatarPreview(name);
+        renderAvatarPicker(name);
+    }
+
+    function renderAvatarPicker(selectedName) {
+        var container = byId('clanAvatarChoices');
+        if (!container) return;
+        container.replaceChildren();
+        var list = Array.isArray(window.MBAvatarOptions) ? window.MBAvatarOptions : [];
+        if (!list.length) {
+            container.appendChild(node('p', 'clan-muted', 'В реестре images.js пока нет изображений персонажей.'));
+            return;
+        }
+        list.forEach(function (item) {
+            var button = node('button', 'clan-avatar-option' + (item.name === selectedName ? ' selected' : ''));
+            button.type = 'button';
+            button.setAttribute('aria-pressed', item.name === selectedName ? 'true' : 'false');
+            button.title = item.name;
+            var img = node('img');
+            img.src = item.path;
+            img.alt = item.name;
+            img.loading = 'lazy';
+            img.onerror = function () { img.style.opacity = '0.25'; };
+            button.appendChild(img);
+            button.appendChild(node('span', '', item.name));
+            button.addEventListener('click', function () { chooseAvatar(item.name); });
+            container.appendChild(button);
+        });
+    }
+
+    function syncGameStats() {
+        if (!db || !currentUser) return Promise.resolve();
+        var stats = readLocalGameStats();
+        if (!stats) return Promise.resolve();
+        updateProfileStatsPreview(stats);
+        var fingerprint = JSON.stringify(stats);
+        if (fingerprint === lastStatsFingerprint) return Promise.resolve();
+        var waitMs = 15000 - (Date.now() - lastStatsSyncAt);
+        if (waitMs > 0) {
+            if (pendingStatsSyncTimer === null) {
+                pendingStatsSyncTimer = window.setTimeout(function () {
+                    pendingStatsSyncTimer = null;
+                    syncGameStats();
+                }, waitMs);
+            }
+            return Promise.resolve();
+        }
+        lastStatsSyncAt = Date.now();
+        lastStatsFingerprint = fingerprint;
+        return db.from('profiles').update(stats).eq('id', currentUser.id).then(function (result) {
+            if (result.error) {
+                lastStatsFingerprint = '';
+                console.warn('[MB online] Не удалось обновить статистику профиля:', result.error.message);
+            }
+        });
+    }
+
+    async function loadProfile() {
+        if (!db || !currentUser) return;
+        await syncGameStats();
+        var result = await db.from('profiles')
+            .select('id, display_name, avatar_name, description, created_at, updated_at, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+        if (result.error) throw result.error;
+        if (!result.data) throw new Error('profile_not_found');
+        currentProfile = result.data;
+        byId('clanProfileName').value = result.data.display_name || '';
+        byId('clanProfileDescription').value = result.data.description || '';
+        profileAvatarName = avatarPathForName(result.data.avatar_name) ? result.data.avatar_name : 'Дио';
+        renderAvatarPicker(profileAvatarName);
+        applyAvatarPreview(profileAvatarName);
+        renderStatsGrid('clanProfileStats', result.data);
+    }
+
+    async function saveProfile(event) {
+        if (event) event.preventDefault();
+        if (!db || !currentUser || busy) return;
+        var name = byId('clanProfileName').value.trim();
+        var description = byId('clanProfileDescription').value.trim();
+        if (name.length < 1 || name.length > 24) return setNotice('Имя профиля должно содержать от 1 до 24 символов.', 'error');
+        if (description.length > 280) return setNotice('Описание профиля не должно превышать 280 символов.', 'error');
+        if (!avatarPathForName(profileAvatarName)) return setNotice('Выбери аватар из списка персонажей.', 'error');
+        setBusy(true);
+        try {
+            var result = await db.from('profiles').update({
+                display_name: name,
+                avatar_name: profileAvatarName,
+                description: description
+            }).eq('id', currentUser.id).select('id').maybeSingle();
+            if (result.error) throw result.error;
+            if (!result.data) throw new Error('profile_not_found');
+            setNotice('Профиль сохранён!', 'success');
+            await refreshAll();
+        } catch (error) {
+            setNotice(friendlyError(error), 'error');
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function openPublicProfile(userId) {
+        if (!db || !currentUser || !userId) return;
+        var card = byId('clanPublicProfileCard');
+        if (!card) return;
+        card.style.display = 'block';
+        byId('clanPublicName').textContent = 'Загружаем профиль…';
+        byId('clanPublicDescription').textContent = '';
+        byId('clanPublicStats').replaceChildren();
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        try {
+            var result = await db.from('profiles')
+                .select('id, display_name, avatar_name, description, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                .eq('id', userId).maybeSingle();
+            if (result.error) throw result.error;
+            if (!result.data) throw new Error('profile_not_found');
+            byId('clanPublicName').textContent = result.data.display_name || 'Игрок';
+            byId('clanPublicDescription').textContent = result.data.description || 'Игрок пока не добавил описание.';
+            byId('clanPublicAvatar').src = avatarPathForName(result.data.avatar_name) || 'images/Super_Dio_2.gif';
+            renderStatsGrid('clanPublicStats', result.data);
+        } catch (error) {
+            byId('clanPublicName').textContent = friendlyError(error);
+        }
+    }
+
+    function hidePublicProfile() {
+        var card = byId('clanPublicProfileCard');
+        if (card) card.style.display = 'none';
+    }
+
+    function setChatState(message, failed) {
+        var el = byId('clanChatState');
+        if (!el) return;
+        el.textContent = message;
+        el.style.color = failed ? '#ff9c9c' : '#9be7b0';
+    }
+
+    function closeClanChat() {
+        var oldChannel = chatChannel;
+        chatChannel = null;
+        chatClanId = null;
+        if (oldChannel && db) {
+            return db.removeChannel(oldChannel).catch(function () {});
+        }
+        return Promise.resolve();
+    }
+
+    function renderChatMessages(messages) {
+        var container = byId('clanChatMessages');
+        if (!container) return;
+        container.replaceChildren();
+        if (!messages || !messages.length) {
+            container.appendChild(node('div', 'clan-chat-empty', 'Сообщений пока нет. Начни разговор!'));
+            return;
+        }
+        messages.forEach(function (item) {
+            var relation = item.profiles;
+            if (Array.isArray(relation)) relation = relation[0];
+            var name = relation && relation.display_name ? relation.display_name : 'Игрок';
+            var messageRow = node('div', 'clan-chat-message' + (currentUser && item.user_id === currentUser.id ? ' mine' : ''));
+            var avatar = node('img', 'clan-chat-avatar');
+            avatar.src = avatarPathForName(relation && relation.avatar_name) || 'images/Super_Dio_2.gif';
+            avatar.alt = name;
+            avatar.loading = 'lazy';
+            var body = node('div', 'clan-chat-body');
+            var meta = node('div', 'clan-chat-meta');
+            meta.appendChild(node('strong', '', name));
+            var date = new Date(item.created_at);
+            var time = node('time', '', Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
+            meta.appendChild(time);
+            body.appendChild(meta);
+            body.appendChild(node('div', 'clan-chat-text', item.message));
+            messageRow.appendChild(avatar);
+            messageRow.appendChild(body);
+            container.appendChild(messageRow);
+        });
+        container.scrollTop = container.scrollHeight;
+    }
+
+    async function loadClanChatMessages(clanId) {
+        if (!db || !currentUser || !clanId) return;
+        var result = await db.from('clan_messages')
+            .select('id, clan_id, user_id, message, created_at, profiles(display_name, avatar_name)')
+            .eq('clan_id', clanId)
+            .order('created_at', { ascending: false })
+            .limit(60);
+        if (result.error) throw result.error;
+        renderChatMessages((result.data || []).slice().reverse());
+    }
+
+    async function ensureClanChat(clanId) {
+        if (!db || !currentUser || !clanId) return;
+        if (chatClanId !== clanId) {
+            await closeClanChat();
+            chatClanId = clanId;
+            setChatState('Подключаемся к чату…');
+            chatChannel = db.channel('mb-clan-chat-' + clanId)
+                .on('postgres_changes', {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'clan_messages',
+                    filter: 'clan_id=eq.' + clanId
+                }, function (payload) {
+                    if (payload && payload.new && chatClanId === clanId) {
+                        loadClanChatMessages(clanId).catch(function (error) {
+                            setChatState(friendlyError(error), true);
+                        });
+                    }
+                })
+                .subscribe(function (status, error) {
+                    if (chatClanId !== clanId) return;
+                    if (status === 'SUBSCRIBED') setChatState('● Чат подключён · обновляется в реальном времени');
+                    else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                        setChatState(error ? friendlyError(error) : 'Чат временно отключён; попробуй обновить вкладку.', true);
+                    }
+                });
+        }
+        await loadClanChatMessages(clanId);
+    }
+
+    async function sendClanChatMessage(event) {
+        if (event) event.preventDefault();
+        if (!db || !currentUser || !currentClan || chatSending) return;
+        var input = byId('clanChatInput');
+        var message = input.value.trim();
+        if (!message) return;
+        if (message.length > 500) return setNotice('Сообщение слишком длинное (максимум 500 символов).', 'error');
+        chatSending = true;
+        var sendButton = byId('clanChatSendBtn');
+        if (sendButton) sendButton.disabled = true;
+        try {
+            var result = await db.from('clan_messages').insert({
+                clan_id: currentClan.id,
+                user_id: currentUser.id,
+                message: message
+            }).select('id').single();
+            if (result.error) throw result.error;
+            input.value = '';
+            await loadClanChatMessages(currentClan.id);
+        } catch (error) {
+            setNotice(friendlyError(error), 'error');
+        } finally {
+            chatSending = false;
+            if (sendButton) sendButton.disabled = busy;
+            input.focus();
         }
     }
 
@@ -166,6 +504,7 @@
         if (!currentClan) {
             card.style.display = 'none';
             createCard.style.display = 'block';
+            await closeClanChat();
             return;
         }
         card.style.display = 'block';
@@ -185,31 +524,45 @@
         }
 
         var members = await db.from('clan_members')
-            .select('user_id, role, joined_at, profiles(display_name)')
+            .select('user_id, role, joined_at, profiles(display_name, avatar_name)')
             .eq('clan_id', currentClan.id)
             .order('joined_at', { ascending: true });
         if (members.error) throw members.error;
         var list = byId('clanMemberList');
         list.replaceChildren();
         (members.data || []).forEach(function (member) {
-            var displayName = member.profiles && member.profiles.display_name
-                ? member.profiles.display_name
-                : 'Игрок';
+            var profile = member.profiles;
+            if (Array.isArray(profile)) profile = profile[0];
+            var displayName = profile && profile.display_name ? profile.display_name : 'Игрок';
             var roleName = member.role === 'leader' ? '👑 Лидер' :
                 (member.role === 'officer' ? '🛡️ Заместитель' : 'Участник');
             var entry = node('div', 'clan-member-row');
-            entry.appendChild(node('span', '', displayName));
+            var main = node('div', 'clan-member-main');
+            var avatar = node('img', 'clan-member-avatar');
+            avatar.src = avatarPathForName(profile && profile.avatar_name) || 'images/Super_Dio_2.gif';
+            avatar.alt = displayName;
+            avatar.loading = 'lazy';
+            var identity = node('div', 'clan-member-identity');
+            identity.appendChild(node('strong', '', displayName));
+            identity.appendChild(node('div', 'clan-muted', 'Открыть профиль'));
+            main.appendChild(avatar);
+            main.appendChild(identity);
+            entry.appendChild(main);
             entry.appendChild(node('span', 'clan-muted', roleName));
+            entry.addEventListener('click', function () { openPublicProfile(member.user_id); });
             list.appendChild(entry);
         });
         if (!members.data || !members.data.length) {
             list.appendChild(node('p', 'clan-muted', 'Пока участников нет.'));
         }
+        await ensureClanChat(currentClan.id);
     }
 
     async function refreshAll() {
         if (!db || !currentUser) {
             currentClan = null;
+            currentProfile = null;
+            await closeClanChat();
             showAuthState();
             var list = byId('clanList');
             if (list) {
@@ -220,6 +573,7 @@
         }
         showAuthState();
         try {
+            await loadProfile();
             await loadMyClan();
             await loadCurrentClanCard();
             await loadClanList();
@@ -284,6 +638,7 @@
             if (result.error) throw result.error;
             currentUser = null;
             currentClan = null;
+            await closeClanChat();
             setNotice('Ты вышел из аккаунта.', 'success');
             showAuthState();
             await refreshAll();
@@ -383,6 +738,9 @@
         byId('clansLoginBtn').addEventListener('click', login);
         byId('clansLogoutBtn').addEventListener('click', logout);
         byId('clanCreateForm').addEventListener('submit', createClan);
+        byId('clanProfileForm').addEventListener('submit', saveProfile);
+        byId('clanChatForm').addEventListener('submit', sendClanChatMessage);
+        byId('clanPublicProfileClose').addEventListener('click', hidePublicProfile);
         var tab = document.querySelector('.tab-btn[data-tab="clans"]');
         if (tab) {
             tab.addEventListener('click', function () {
@@ -393,7 +751,6 @@
 
     async function init() {
         bindEvents();
-        var config = window.MB_SUPABASE_CONFIG || {};
         if (!isConfigured()) {
             setNotice('Онлайн-кланы почти готовы, но Supabase ещё не настроен. Открой ONLINE_SETUP.md и заполни supabase-config.js.', 'warning');
             showAuthState();
@@ -414,6 +771,7 @@
             return;
         }
         try {
+            var config = window.MB_SUPABASE_CONFIG || {};
             db = window.supabase.createClient(config.url, config.anonKey, {
                 auth: {
                     persistSession: true,
@@ -447,6 +805,7 @@
 
     window.MBClans = {
         refresh: refreshAll,
+        syncGameStats: syncGameStats,
         isConnected: function () { return !!db; }
     };
 })();
