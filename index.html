@@ -675,6 +675,8 @@
 .online-arena-card>.online-arena-status{min-height:20px;margin:13px 0 0;text-align:center;color:#d7c9ff;font-size:12px;line-height:1.5}
 .online-arena-battle-overlay{position:fixed;inset:0;z-index:10000;box-sizing:border-box;overflow:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:max(10px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));background:#000;color:#fff;font-family:Arial,sans-serif}
 .online-arena-battle-header{width:min(100%,420px);display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.online-arena-startboss{width:min(100%,400px);margin:10px 0 0;padding:12px;font-weight:900}
+.online-arena-startboss:disabled{opacity:.45;filter:grayscale(.6)}
 .online-arena-battle-title{font-size:clamp(17px,4vw,22px);font-weight:900;letter-spacing:.5px;text-align:center}
 .online-arena-battle-info{width:min(100%,400px);display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-size:13px}
 .online-arena-battle-info strong{color:#ffdf83}
@@ -1183,7 +1185,7 @@
                             <div><span>ONLINE TEST AREA</span><h3>🏟️ Онлайн-арена</h3></div>
                             <span class="online-feature-counter">ТЕСТ</span>
                         </div>
-                        <p class="clan-muted">Проверочная арена онлайн-раздела. Сейчас здесь проверяются только вход и выход — бой с Дио и поиск соперников добавим отдельно.</p>
+                        <p class="clan-muted">Подключитесь к одной комнате вдвоём и вместе пройдите настоящую битву с боссом 500 — Путеводной Звездой. Запускает бой создатель комнаты.</p>
                         <div class="online-arena-preview" aria-hidden="true"><div class="online-arena-preview-ring"></div><div class="online-arena-preview-icon">🏟️</div></div>
                         <button id="onlineArenaEnter" class="btn btn-primary online-arena-enter" type="button">▶ Войти на арену</button>
                         <p id="onlineArenaStatus" class="online-arena-status" role="status" aria-live="polite">Ты находишься в меню арены.</p>
@@ -1191,7 +1193,8 @@
                     <div id="onlineArenaStage" class="online-arena-battle-overlay" style="display:none;" role="dialog" aria-modal="true" aria-label="Онлайн-арена">
                         <div class="online-arena-battle-header"><div class="online-arena-battle-title">🏟️ ОНЛАЙН-АРЕНА</div><button id="onlineArenaExit" class="btn online-arena-exit" type="button">🚪 Выйти</button></div>
                         <div class="online-arena-battle-info"><span>👥 Игроки: <strong id="onlineArenaPlayerCount">0</strong></span><span>❤️ Тест движения</span></div>
-                        <canvas id="onlineArenaBattleCanvas" width="400" height="500" aria-label="Поле онлайн-арены. WASD или стрелки для перемещения"></canvas>
+                        <canvas id="onlineArenaBattleCanvas" width="400" height="500" aria-label="Поле онлайн-арены. Используется для предварительного просмотра игроков"></canvas>
+                        <button id="onlineArenaStartBoss" class="btn btn-primary online-arena-startboss" type="button" disabled>⚔️ Начать совместный бой с боссом 500</button>
                         <p id="onlineArenaStatusStage" class="online-arena-status" role="status" aria-live="polite">Подключаем онлайн-комнату…</p>
                         <p class="online-arena-battle-controls">WASD / стрелки — двигаться · касание или клик по полю — переместиться</p>
                         <div id="onlineArenaRoster" class="online-arena-roster" aria-label="Список игроков на арене"></div>
@@ -1290,7 +1293,7 @@
 <script src="dio.js?v=11"></script>
 <script src="takaba.js?v=9"></script>
 <script src="living_stone_boss.js?v=12"></script>
-<script src="waystar_boss.js?v=13"></script>
+<script src="waystar_boss.js?v=14"></script>
 <script src="roger_whitebeard_boss.js?v=16"></script>
 <script src="inventory.js?v=9"></script>
 <script src="crafting.js?v=1"></script>
@@ -1307,7 +1310,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
 <script src="clans.js?v=28"></script>
-<script src="online-arena.js?v=3"></script>
+<script src="online-arena.js?v=4"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
