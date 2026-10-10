@@ -1271,11 +1271,17 @@ function updateWaystarFinalScene() {
         else if (waystarFinalPhase === "spare_dialog") {
             if (waystarFinalTimer % 4 === 0) { spawnWaystarParticles(waystarSmallBoss.x + (Math.random()-0.5)*60, waystarSmallBoss.y + (Math.random()-0.5)*60, 1, ["#ffd700", "#88ddff", "#ffffff"][Math.floor(Math.random()*3)], 3); }
             waystarSmallBoss.pulse += 0.08;
-            waystarSpareDialogTimer++;
-            var currentLine = waystarSpareDialog[waystarSpareDialogStep];
-            if (currentLine) {
-                var lineDuration = 3.5 + currentLine.text.length * 0.06;
-                if (waystarSpareDialogTimer > lineDuration * 60) { advanceWaystarSpareDialog(); }
+            var coOpFollower = window.MBOnlineWaystar && window.MBOnlineWaystar.active && !window.MBOnlineWaystar.isLeader();
+            if (coOpFollower) {
+                // In co-op, the room leader advances story dialogue and replicates the step.
+                waystarSpareDialogTimer = 0;
+            } else {
+                waystarSpareDialogTimer++;
+                var currentLine = waystarSpareDialog[waystarSpareDialogStep];
+                if (currentLine) {
+                    var lineDuration = 3.5 + currentLine.text.length * 0.06;
+                    if (waystarSpareDialogTimer > lineDuration * 60) { advanceWaystarSpareDialog(); }
+                }
             }
         }
         else if (waystarFinalPhase === "spare_blessing") {
