@@ -1206,7 +1206,20 @@
         var requestedSlot = Number.isInteger(Number(slot)) ? Number(slot) : getCurrentGameSlot();
         authSwitchChain = authSwitchChain.then(async function () {
             if (requestedSlot !== getCurrentGameSlot()) return;
-            if (activeAuthSlot === requestedSlot && db) return;
+            if (activeAuthSlot === requestedSlot && db) {
+                var currentClient = db;
+                var currentSessionResult = await currentClient.auth.getSession();
+                if (requestedSlot !== getCurrentGameSlot() || db !== currentClient) return;
+                if (currentSessionResult.error) throw currentSessionResult.error;
+                currentUser = currentSessionResult.data.session ? currentSessionResult.data.session.user : null;
+                currentClan = null;
+                currentProfile = null;
+                showAuthState();
+                await refreshAll();
+                if (requestedSlot !== getCurrentGameSlot() || db !== currentClient) return;
+                notifyCloudSaveAuthChanged();
+                return;
+            }
             if (authStateSubscription) {
                 try { authStateSubscription.unsubscribe(); } catch (_error) {}
                 authStateSubscription = null;
