@@ -219,6 +219,18 @@
     // ============================================================
     function updateVector() {
         var j = window._joystick;
+        // Physical D-pad buttons take priority over the floating joystick and
+        // provide crisp, non-smoothed movement while a direction is held.
+        if (j.mobileDpadActive && j.mobileDpadVector) {
+            j.active = true;
+            j.targetVectorX = j.mobileDpadVector.x;
+            j.targetVectorY = j.mobileDpadVector.y;
+            j.currentVectorX = j.mobileDpadVector.x;
+            j.currentVectorY = j.mobileDpadVector.y;
+            j.vectorX = j.mobileDpadVector.x;
+            j.vectorY = j.mobileDpadVector.y;
+            return;
+        }
         if (!j.active) {
             j.targetVectorX = 0;
             j.targetVectorY = 0;
@@ -447,6 +459,8 @@
     // ============================================================
     function drawJoystick() {
         var j = window._joystick;
+        // The on-screen D-pad replaces the joystick graphic while in use.
+        if (j.mobileDpadActive) return;
         if (!j.enabled || !j.active) return;
 
         var context = null;
@@ -629,7 +643,7 @@
     // ============================================================
     var vectorInterval = setInterval(function() {
         var j = window._joystick;
-        if (!j.enabled) return;
+        if (!j.enabled && !j.mobileDpadActive) return;
         updateVector();
     }, 16);
 
@@ -655,7 +669,7 @@
         window.moveHeart = function() {
             if (typeof _superState !== 'undefined' && (_superState.dioTimeStopWindupUntil || 0) > performance.now()) return;
             var j = window._joystick;
-            if (j && j.enabled && j.active) {
+            if (j && j.active && (j.enabled || j.mobileDpadActive)) {
                 if (typeof _superState !== 'undefined' && _superState.usoppStunTimer > 0) return;
 
                 if (typeof _superState !== 'undefined' && _superState.garouTimeStop) return;
@@ -727,7 +741,7 @@
         window.updateLivingStonePlayer = function() {
             var j = window._joystick;
             var arena = getActiveArena();
-            if (j && j.enabled && j.active && arena && arena.type === 'stone') {
+            if (j && j.active && (j.enabled || j.mobileDpadActive) && arena && arena.type === 'stone') {
                 if (typeof lsTouchActive !== 'undefined') {
                     lsTouchActive = true;
                     if (typeof livingStonePlayer !== 'undefined') {
@@ -751,7 +765,7 @@
         window.updateWaystarPlayer = function() {
             var j = window._joystick;
             var arena = getActiveArena();
-            if (j && j.enabled && j.active && arena && arena.type === 'waystar') {
+            if (j && j.active && (j.enabled || j.mobileDpadActive) && arena && arena.type === 'waystar') {
                 if (typeof waystarTouchActive !== 'undefined') {
                     waystarTouchActive = true;
                     if (typeof waystarPlayer !== 'undefined') {
@@ -775,7 +789,7 @@
         window.updateRWBPlayer = function() {
             var j = window._joystick;
             var arena = getActiveArena();
-            if (j && j.enabled && j.active && arena && arena.type === 'rwb') {
+            if (j && j.active && (j.enabled || j.mobileDpadActive) && arena && arena.type === 'rwb') {
                 if (typeof rwbTouchActive !== 'undefined') {
                     rwbTouchActive = true;
                     if (typeof rwbPlayer !== 'undefined' && rwbPlayer) {
