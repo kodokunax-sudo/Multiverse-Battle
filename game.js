@@ -1679,6 +1679,8 @@ function startGachaAnimation(card, type) { let availableRarities = []; switch(ty
 // ГЕНЕРАЦИЯ ВРАГА
 // ============================================================
 function generateEnemy() { 
+    // Lock the wave-1000 skip to a single use per encounter.
+    if (Number(wave) !== 1000 && window.__mbSkipRwbUsedWave === 1000) window.__mbSkipRwbUsedWave = null;
     firstAttackThisFight = true; 
     bossSupportUsedThisFight = false; 
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; } 
@@ -1785,8 +1787,18 @@ function generateEnemy() {
             skipRwbBtn.style.cssText = "width:100%;padding:12px;font-size:16px;margin-bottom:10px;display:none;";
             skipRwbBtn.innerHTML = "⏭️ ПРОПУСТИТЬ АРЕНУ (уже побеждён)";
             skipRwbBtn.onclick = function() {
+                // Reject double-clicks/repeated reward calls for this wave.
+                if (Number(wave) !== 1000 || window.__mbSkipRwbUsedWave === 1000) return;
+                if (typeof currentEnemy === 'undefined' || !currentEnemy || currentEnemy.hp <= 0) return;
+                if (typeof defeatedBosses === 'undefined' || !Array.isArray(defeatedBosses) || !defeatedBosses.includes(1000)) return;
+                window.__mbSkipRwbUsedWave = 1000;
+                skipRwbBtn.disabled = true;
+                skipRwbBtn.style.display = "none";
+                skipRwbBtn.setAttribute('aria-disabled', 'true');
+                var genericSkip = document.getElementById("skipArenaBtn");
+                if (genericSkip) genericSkip.style.display = "none";
                 if (typeof showFloatingText === 'function') showFloatingText("⏭️ Босс пропущен!", "#ffaa00");
-                if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0;
+                currentEnemy.hp = 0;
                 if (typeof victory === 'function') victory();
             };
             let container2 = document.querySelector('#fightSubTab .card') || document.body;
@@ -1795,7 +1807,10 @@ function generateEnemy() {
         
         if (alreadyDefeatedRogerWB) {
             rwbBtn.style.display = "none";
-            skipRwbBtn.style.display = "block";
+            let skipRwbAlreadyUsed = window.__mbSkipRwbUsedWave === 1000;
+            skipRwbBtn.disabled = skipRwbAlreadyUsed;
+            skipRwbBtn.setAttribute('aria-disabled', skipRwbAlreadyUsed ? 'true' : 'false');
+            skipRwbBtn.style.display = skipRwbAlreadyUsed ? "none" : "block";
             currentEnemy.hp = Math.floor(currentEnemy.hp * 0.3);
             currentEnemy.maxHp = currentEnemy.hp;
             currentEnemy.name = "👑 РОДЖЕР и БЕЛОУС (ослабленные)";
@@ -1813,7 +1828,8 @@ function generateEnemy() {
     
     if (skipBtn) {
         let alreadyDefeated = isUniqueBoss && typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(wave);
-        skipBtn.style.display = alreadyDefeated ? "block" : "none";
+        // Wave 1000 uses a separate guarded control. Avoid showing two skip buttons.
+        skipBtn.style.display = Number(wave) === 1000 ? "none" : (alreadyDefeated ? "block" : "none");
     }
     
     startBattleMusic(); renderEnemy(); updateStatusDisplay(); updateEnemyStatusDisplay(); 
