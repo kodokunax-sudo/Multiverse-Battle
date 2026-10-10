@@ -2345,6 +2345,7 @@ function switchToSlot(slot) {
     if (slot === currentSlot) return;
     // Local slot switching is always allowed. Cloud data stays bound to one slot.
     if (mbCloudSaveTimer) { clearTimeout(mbCloudSaveTimer); mbCloudSaveTimer = null; }
+    mbCloudSyncReadyForUser = null;
     saveAll();
     currentSlot = slot;
     let saved = loadGameFromSlot(slot);
