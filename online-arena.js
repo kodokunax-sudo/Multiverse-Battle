@@ -285,8 +285,9 @@
                 ch.on('broadcast', { event: 'boss_damage' }, function (message) {
                     var p = message && message.payload;
                     if (!p || p.fight_id !== activeFightId || p.sender_session_id === selfSessionId || !markEvent(p.event_id)) return;
-                    // The host owns boss HP. All other clients consume authoritative snapshots.
-                    if (isLeader()) applyRemoteBossDamage(p);
+                    // Apply each other player's confirmed hit immediately on every client;
+                    // the host still resolves phase transitions and periodic snapshots correct drift.
+                    applyRemoteBossDamage(p);
                 });
                 ch.on('broadcast', { event: 'piece_hit' }, function (message) {
                     var p = message && message.payload;
