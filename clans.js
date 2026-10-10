@@ -2112,6 +2112,8 @@
         document.querySelectorAll('[data-online-view]').forEach(function (button) {
             button.addEventListener('click', function () {
                 var view = button.getAttribute('data-online-view');
+                // Keep the global chat subscription only while its pane is open to limit Realtime traffic.
+                if (view !== 'chat' && globalChatChannel) closeGlobalChat();
                 document.querySelectorAll('[data-online-view]').forEach(function (item) {
                     var active = item === button;
                     item.classList.toggle('active', active);
