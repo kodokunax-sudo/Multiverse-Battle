@@ -377,6 +377,48 @@
     .clan-member-row:last-child { border-bottom: 0; }
     .clan-card-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; }
     #clansUserPanel { align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+    .clan-profile-layout { display:grid; grid-template-columns:88px minmax(0,1fr); gap:13px; align-items:start; }
+    .clan-profile-avatar { width:88px; height:88px; object-fit:cover; border-radius:18px; background:#10101d; border:2px solid rgba(245,175,25,.55); }
+    .clan-profile-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:12px; }
+    .clan-stat { min-width:0; padding:10px; border-radius:12px; background:rgba(0,0,0,.24); border:1px solid rgba(255,255,255,.08); }
+    .clan-stat strong { display:block; color:#ffd66d; font-size:20px; line-height:1.3; overflow-wrap:anywhere; }
+    .clan-stat span { display:block; color:#aaa; font-size:11px; margin-top:3px; }
+    .clan-avatar-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(72px,1fr)); gap:8px; margin:6px 0 10px; }
+    .clan-avatar-option { min-width:0; padding:6px; border-radius:12px; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.1); color:#ddd; font:inherit; cursor:pointer; }
+    .clan-avatar-option img { width:100%; aspect-ratio:1; object-fit:cover; display:block; border-radius:8px; background:#10101d; }
+    .clan-avatar-option span { display:block; margin-top:5px; font-size:10px; line-height:1.25; overflow-wrap:anywhere; }
+    .clan-avatar-option.selected { border-color:#f5af19; background:rgba(245,175,25,.12); box-shadow:0 0 12px rgba(245,175,25,.2); }
+    .clan-member-main { display:flex; gap:9px; align-items:center; min-width:0; }
+    .clan-member-avatar, .clan-chat-avatar { width:34px; height:34px; flex:0 0 auto; object-fit:cover; border-radius:50%; background:#10101d; border:1px solid rgba(255,255,255,.12); }
+    .clan-member-identity { min-width:0; overflow-wrap:anywhere; }
+    .clan-member-identity strong { display:block; }
+    .clan-member-row { cursor:pointer; }
+    .clan-member-row:hover { background:rgba(255,255,255,.035); }
+    .clan-chat { margin-top:8px; }
+    .clan-chat-state { margin-bottom:7px; font-size:11px; color:#9be7b0; }
+    .clan-chat-messages { height:260px; overflow:auto; display:flex; flex-direction:column; gap:9px; padding:9px; border:1px solid rgba(255,255,255,.08); border-radius:12px; background:rgba(0,0,0,.24); overscroll-behavior:contain; }
+    .clan-chat-empty { margin:auto; padding:18px 8px; text-align:center; color:#888; font-size:12px; }
+    .clan-chat-message { display:flex; gap:8px; align-items:flex-start; min-width:0; }
+    .clan-chat-message.mine .clan-chat-body { border-color:rgba(245,175,25,.22); background:rgba(245,175,25,.06); }
+    .clan-chat-body { min-width:0; flex:1; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.06); padding:7px 9px; border-radius:10px; }
+    .clan-chat-meta { display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:3px; }
+    .clan-chat-meta strong { font-size:11px; overflow-wrap:anywhere; }
+    .clan-chat-meta time { flex:0 0 auto; color:#888; font-size:10px; }
+    .clan-chat-text { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; line-height:1.4; user-select:text; }
+    .clan-chat-form { display:flex; gap:7px; margin-top:8px; }
+    .clan-chat-form input { flex:1; min-width:0; width:0; padding:10px; color:#fff; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.18); border-radius:10px; font:inherit; }
+    .clan-chat-form button { flex:0 0 auto; }
+    #clanProfileDescription, #clanPublicDescription { white-space:pre-wrap; overflow-wrap:anywhere; }
+    @media (max-width: 460px) {
+        .clan-profile-layout { grid-template-columns:70px minmax(0,1fr); gap:10px; }
+        .clan-profile-avatar { width:70px; height:70px; border-radius:14px; }
+        .clan-avatar-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+        .clan-chat-messages { height:230px; }
+        .clan-chat-form { align-items:stretch; }
+        .clan-chat-form button { padding:8px 10px; }
+    }
+
     @media (max-width: 460px) { .clan-row { align-items: flex-start; } .clan-action-btn { white-space: normal; } }
     </style>
     <script src="anti-pull-refresh.js?v=4"></script>
@@ -660,6 +702,45 @@
             </div>
 
             <div id="clansSignedInSections" style="display:none;">
+                <div id="clanProfileCard" class="card">
+                    <div class="card-title">👤 Мой профиль</div>
+                    <form id="clanProfileForm" class="clan-form">
+                        <div class="clan-profile-layout">
+                            <img id="clanProfilePreview" class="clan-profile-avatar" src="images/Super_Dio_2.gif" alt="Аватар профиля">
+                            <div>
+                                <label for="clanProfileName" style="font-size:12px;font-weight:800;">Игровое имя (1–24 символа)</label>
+                                <input id="clanProfileName" type="text" maxlength="24" minlength="1" placeholder="Имя игрока" required>
+                                <label for="clanProfileDescription" style="font-size:12px;font-weight:800;">Описание (до 280 символов)</label>
+                                <textarea id="clanProfileDescription" maxlength="280" rows="3" placeholder="Расскажи о себе и любимых персонажах…"></textarea>
+                            </div>
+                        </div>
+                        <label style="font-size:12px;font-weight:800;">Выбери аватар персонажа</label>
+                        <div id="clanAvatarChoices" class="clan-avatar-grid" aria-label="Аватары персонажей"></div>
+                        <div class="clan-form-row">
+                            <button id="clansProfileSaveBtn" class="btn btn-primary" type="submit">💾 Сохранить профиль</button>
+                        </div>
+                    </form>
+                    <div class="card-title" style="font-size:14px;margin-top:18px;">📊 Моя статистика</div>
+                    <div id="clanProfileStats" class="clan-profile-stats"></div>
+                    <p class="clan-muted" style="margin-top:9px;">Статистика берётся из активного локального сохранения и обновляется онлайн. Она не является защищённым от изменений рейтингом.</p>
+                </div>
+
+                <div id="clanPublicProfileCard" class="card" style="display:none;">
+                    <div class="flex-between" style="gap:10px;">
+                        <div class="card-title" style="margin-bottom:0;">👤 Профиль игрока</div>
+                        <button id="clanPublicProfileClose" type="button" class="btn" style="padding:6px 10px;">Закрыть</button>
+                    </div>
+                    <div class="clan-profile-layout" style="margin-top:13px;">
+                        <img id="clanPublicAvatar" class="clan-profile-avatar" src="images/Super_Dio_2.gif" alt="Аватар игрока">
+                        <div>
+                            <strong id="clanPublicName" style="font-size:18px;overflow-wrap:anywhere;"></strong>
+                            <p id="clanPublicDescription" class="clan-muted" style="margin-top:6px;"></p>
+                        </div>
+                    </div>
+                    <div class="card-title" style="font-size:14px;margin-top:14px;">📊 Статистика игрока</div>
+                    <div id="clanPublicStats" class="clan-profile-stats"></div>
+                </div>
+
                 <div id="clanCurrentCard" class="card" style="display:none;">
                     <div class="card-title">🏰 Мой клан</div>
                     <div class="clan-card-heading"><strong id="clanCurrentName"></strong><span id="clanCurrentTag" class="clan-tag"></span></div>
@@ -667,6 +748,15 @@
                     <p id="clanCurrentRole" style="font-size:13px;font-weight:900;margin-top:8px;"></p>
                     <div class="card-title" style="font-size:14px;margin-top:12px;">👥 Участники</div>
                     <div id="clanMemberList"></div>
+                    <div class="card-title" style="font-size:14px;margin-top:16px;">💬 Чат клана</div>
+                    <div class="clan-chat">
+                        <div id="clanChatState" class="clan-chat-state">Подключаем чат…</div>
+                        <div id="clanChatMessages" class="clan-chat-messages" role="log" aria-live="polite"><div class="clan-chat-empty">Загрузка сообщений…</div></div>
+                        <form id="clanChatForm" class="clan-chat-form">
+                            <input id="clanChatInput" type="text" maxlength="500" placeholder="Написать соклановцам…" autocomplete="off" required>
+                            <button id="clanChatSendBtn" class="btn btn-primary" type="submit">Отправить</button>
+                        </form>
+                    </div>
                     <div id="clanCurrentActions" class="clan-form-row" style="margin-top:12px;"></div>
                 </div>
 
@@ -719,7 +809,7 @@
 <!-- ★★★ FPS-FIX ПОДКЛЮЧАЕТСЯ ПЕРВЫМ ★★★ -->
 <script src="fps-fix.js"></script>
     <!-- Реестр изображений подключается до загрузчика ресурсов -->
-<script src="images.js?v=10"></script>
+<script src="images.js?v=11"></script>
 <!-- Экран загрузки музыки и изображений -->
 <script src="music/loading_screen.js?v=5"></script>
 
@@ -730,7 +820,7 @@
 <script src="daily.js?v=10"></script>
 <script src="pass.js?v=9"></script>
 <script src="dandy.js?v=9"></script>
-<script src="game.js?v=13"></script>
+<script src="game.js?v=14"></script>
 <script src="battle.js?v=15"></script>
 <script src="supers.js?v=31"></script>
 <script src="dio.js?v=11"></script>
@@ -752,7 +842,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="clans.js?v=2"></script>
+<script src="clans.js?v=3"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
