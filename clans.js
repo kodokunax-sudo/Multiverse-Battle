@@ -201,7 +201,14 @@
         if (stats) renderStatsGrid('clanProfileStats', stats);
     }
 
+    var PROFILE_STICKERS = [["🔥","Огонь"],["⭐","Звезда"],["👑","Корона"],["💀","Череп"],["⚡","Молния"],["💎","Алмаз"],["👹","Они"],["🐉","Дракон"],["🌀","Спираль"],["❤️","Сердце"],["☠️","Пират"],["🌊","Волна"],["🗿","Мем"],["👁️","Глаз"],["🌟","Сияние"],["🤡","Клоун"],["🦈","Акула"],["🐸","Лягушка"],["🎭","Маска"],["🧊","Лёд"],["🌑","Тьма"],["☀️","Солнце"],["🍜","Рамен"],["💥","Взрыв"],["🦇","Летучая мышь"],["🩸","Кровь"],["🎯","Мишень"],["🏆","Кубок"],["👻","Призрак"],["🐺","Волк"]];
     function avatarPathForName(name) {
+        if (typeof name === 'string' && name.indexOf('sticker:') === 0) {
+            var emoji = name.slice(8);
+            if (!PROFILE_STICKERS.some(function (item) { return item[0] === emoji; })) return null;
+            var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" rx="28" fill="#24243b"/><text x="80" y="108" text-anchor="middle" font-size="92">' + emoji + '</text></svg>';
+            return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+        }
         var list = Array.isArray(window.MBAvatarOptions) ? window.MBAvatarOptions : [];
         var found = list.find(function (item) { return item && item.name === name && typeof item.path === 'string'; });
         return found ? found.path : null;
@@ -225,10 +232,28 @@
         if (!container) return;
         container.replaceChildren();
         var list = Array.isArray(window.MBAvatarOptions) ? window.MBAvatarOptions : [];
-        if (!list.length) {
-            container.appendChild(node('p', 'clan-muted', 'В реестре images.js пока нет изображений персонажей.'));
-            return;
-        }
+        var stickerSection = node('div', 'clan-avatar-section');
+        stickerSection.appendChild(node('strong', '', '🎟️ Стикеры — выбери только один'));
+        var stickerGrid = node('div', 'clan-avatar-grid');
+        PROFILE_STICKERS.forEach(function (item) {
+            var stickerName = 'sticker:' + item[0];
+            var button = node('button', 'clan-avatar-option clan-sticker-option' + (stickerName === selectedName ? ' selected' : ''));
+            button.type = 'button';
+            button.setAttribute('aria-pressed', stickerName === selectedName ? 'true' : 'false');
+            button.title = item[1];
+            var img = node('img');
+            img.src = avatarPathForName(stickerName);
+            img.alt = item[1];
+            button.appendChild(img);
+            button.appendChild(node('span', '', item[1]));
+            button.addEventListener('click', function () { chooseAvatar(stickerName); });
+            stickerGrid.appendChild(button);
+        });
+        stickerSection.appendChild(stickerGrid);
+        container.appendChild(stickerSection);
+        var characterSection = node('div', 'clan-avatar-section');
+        characterSection.appendChild(node('strong', '', '🖼️ Или один персонаж из игры'));
+        var characterGrid = node('div', 'clan-avatar-grid');
         list.forEach(function (item) {
             var button = node('button', 'clan-avatar-option' + (item.name === selectedName ? ' selected' : ''));
             button.type = 'button';
@@ -242,8 +267,56 @@
             button.appendChild(img);
             button.appendChild(node('span', '', item.name));
             button.addEventListener('click', function () { chooseAvatar(item.name); });
-            container.appendChild(button);
+            characterGrid.appendChild(button);
         });
+        characterSection.appendChild(characterGrid);
+        container.appendChild(characterSection);
+    }
+
+    async function loadLeaderboard() {
+        var container = byId('clanLeaderboard');
+        if (!container) return;
+        container.replaceChildren();
+        if (!db || !currentUser) {
+            container.appendChild(node('p', 'clan-muted', 'Войди в аккаунт, чтобы смотреть рейтинг и профили игроков.'));
+            return;
+        }
+        container.appendChild(node('p', 'clan-muted', 'Загружаем рейтинг…'));
+        try {
+            var result = await db.from('profiles')
+                .select('id, display_name, avatar_name, description, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                .order('highest_wave', { ascending: false })
+                .order('total_wins', { ascending: false })
+                .order('rebirth_count', { ascending: false })
+                .limit(100);
+            if (result.error) throw result.error;
+            container.replaceChildren();
+            var players = result.data || [];
+            if (!players.length) {
+                container.appendChild(node('p', 'clan-muted', 'Пока нет игроков в рейтинге.'));
+                return;
+            }
+            players.forEach(function (player, index) {
+                var row = node('button', 'clan-leaderboard-row');
+                row.type = 'button';
+                row.addEventListener('click', function () { openPublicProfile(player.id); });
+                row.appendChild(node('span', 'clan-leaderboard-rank', '#' + (index + 1)));
+                var avatar = node('img', 'clan-leaderboard-avatar');
+                avatar.src = avatarPathForName(player.avatar_name) || 'images/Super_Dio_2.gif';
+                avatar.alt = '';
+                avatar.loading = 'lazy';
+                row.appendChild(avatar);
+                var details = node('span', 'clan-leaderboard-player');
+                details.appendChild(node('strong', '', player.display_name || 'Игрок'));
+                details.appendChild(node('small', '', '🌊 Волна ' + formatCount(player.highest_wave) + ' · 🏆 Победы ' + formatCount(player.total_wins) + ' · ♻️ Ребёрны ' + formatCount(player.rebirth_count)));
+                row.appendChild(details);
+                row.appendChild(node('span', 'clan-leaderboard-open', 'Профиль ↗'));
+                container.appendChild(row);
+            });
+        } catch (error) {
+            container.replaceChildren();
+            container.appendChild(node('p', 'clan-muted', 'Не удалось загрузить рейтинг: ' + friendlyError(error)));
+        }
     }
 
     function syncGameStats() {
@@ -1145,10 +1218,15 @@
         byId('clanCardRequestForm').addEventListener('submit', submitClanCardRequest);
         populateClanCardRequestOptions();
         byId('clanPublicProfileClose').addEventListener('click', hidePublicProfile);
+        var leaderboardRefresh = byId('clanLeaderboardRefresh');
+        if (leaderboardRefresh) leaderboardRefresh.addEventListener('click', loadLeaderboard);
         var tab = document.querySelector('.tab-btn[data-tab="clans"]');
         if (tab) {
             tab.addEventListener('click', function () {
-                if (currentUser) refreshAll();
+                if (currentUser) {
+                    refreshAll();
+                    loadLeaderboard();
+                }
             });
         }
     }
