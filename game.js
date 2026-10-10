@@ -1124,9 +1124,11 @@ function mbStatsNewBlock(seenCards) {
  return {deaths:0,wavesCleared:0,bossesDefeated:0,cardsObtained:0,clicks:0,highestWave:1,highestCheckpoint:1,maxPoints:100,seenCardIds:(seenCards||[]).map(function(c,i){return mbStatsCardKey(c,i);}).filter(Boolean)};
 }
 function mbStatsCardKey(card,index) {
- if(!card||typeof card!=='object')return ''; if(card._mbCardUid)return 'uid:'+String(card._mbCardUid);
- if(card.id!==undefined&&card.id!==null)return 'id:'+String(card.id);
- return 'fallback:'+String(card.name||'card')+':'+String(card.rarity||'')+':'+String(index);
+ if(!card||typeof card!=='object')return '';
+ if(card._mbStatsCardKey)return String(card._mbStatsCardKey);
+ var seed=card._mbCardUid?'uid:'+String(card._mbCardUid):(card.id!==undefined&&card.id!==null?'id:'+String(card.id):'fallback:'+String(card.name||'card')+':'+String(card.rarity||'')+':'+String(index));
+ card._mbStatsCardKey='mbstat:'+seed;
+ return card._mbStatsCardKey;
 }
 function mbStatsSafeNumber(value,fallback){var n=Number(value);return Number.isFinite(n)&&n>=0?Math.floor(n):(fallback||0);}
 function mbStatsNormalizeBlock(input,fallback) {
@@ -1379,8 +1381,10 @@ function createCard(r, options) {
     let a = template.ability || null, u = template.universe || "?", uns = template.unsellable || false; 
     if (!isPreviewCard && !discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } 
     if (!isPreviewCard) totalCardsObtained++; 
-    if (points > maxPoints) maxPoints = points; 
-    if (!isPreviewCard) updateChallengeProgress("collectCards", 1); 
+    if (!isPreviewCard) {
+        if (points > maxPoints) maxPoints = points;
+        updateChallengeProgress("collectCards", 1);
+    } 
     return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, minRebirth: template.minRebirth || minRebirth, statusAbility: template.statusAbility || null, extraStatus: template.extraStatus || null, superAbility: template.superAbility || null, mastery: 1, masteryExp: 0 }; 
 }
 
