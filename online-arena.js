@@ -876,10 +876,36 @@
         ctx.restore();
     }
 
+    function applyRemotePhase2Damage(amount) {
+        var pieces = window.waystarPieces;
+        if (!Array.isArray(pieces) || !pieces.length) return;
+        var remaining = Math.max(0, Math.floor(Number(amount) || 0));
+        if (!remaining) return;
+        for (var i = 0; i < pieces.length && remaining > 0; i++) {
+            var piece = pieces[i];
+            if (!piece || !piece.alive) continue;
+            var take = Math.min(Math.max(0, Number(piece.hp) || 0), remaining);
+            piece.hp = Math.max(0, (Number(piece.hp) || 0) - take);
+            remaining -= take;
+            if (piece.hp <= 0) {
+                piece.alive = false;
+                if (typeof window.spawnWaystarParticles === 'function') {
+                    window.spawnWaystarParticles(piece.x, piece.y, 8, '#ff00ff', 4);
+                }
+            }
+        }
+        window.waystarPiecesAlive = pieces.filter(function (piece) { return piece && piece.alive; }).length;
+    }
+
     function applyRemoteBossDamage(packet) {
         if (!window.getWaystarActive || !window.getWaystarActive()) return;
         var amount = Math.max(0, Math.floor(Number(packet.damage) || 0));
-        if (!amount || typeof window.waystarBossHp !== 'number') return;
+        if (!amount) return;
+        if (packet.phase === 'phase2' || window.waystarState === 'phase2') {
+            applyRemotePhase2Damage(amount);
+            return;
+        }
+        if (typeof window.waystarBossHp !== 'number') return;
         window.waystarBossHp -= amount;
         if (packet.phase === 'phase1' && typeof window.waystarBossMaxHp === 'number') {
             window.waystarBossHp = Math.max(window.waystarBossMaxHp * 0.5, window.waystarBossHp);
