@@ -496,7 +496,8 @@
         }
         if (window.waystarBossHp < 0 && window.waystarState !== 'phase3') window.waystarBossHp = 0;
         if (window.waystarState === 'phase3' && window.waystarBossHp <= 0 && typeof window.waystarVictory === 'function' && !window.waystarFinalActive) {
-            setRemoteAction(function () { window.waystarVictory(); });
+            // The room leader announces the shared victory; followers wait for that event.
+            if (isLeader()) window.waystarVictory();
         }
     }
 
