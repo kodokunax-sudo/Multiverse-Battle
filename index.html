@@ -760,6 +760,20 @@
                     <div id="clanCurrentActions" class="clan-form-row" style="margin-top:12px;"></div>
                 </div>
 
+                <div id="clanCardExchangeCard" class="card" style="display:none;">
+                    <div class="card-title">🎁 Обмен картами клана</div>
+                    <p class="clan-muted" style="line-height:1.5;margin-bottom:12px;">Дарить можно только карты редкости до легендарной включительно. Передаётся именно твой экземпляр: у тебя он исчезнет, а соклановец получит его с тем же уровнем мастерства и опытом. Лимит — 3 передачи за UTC-день.</p>
+                    <div id="clanGiftQuota" class="buff-active" style="margin-bottom:12px;">🎁 Проверяем дневной лимит…</div>
+                    <form id="clanCardRequestForm" class="clan-form">
+                        <label for="clanCardRequestSelect" style="font-size:12px;font-weight:800;">Какую карту попросить у соклановцев?</label>
+                        <select id="clanCardRequestSelect" required style="width:100%;padding:12px;border-radius:14px;background:#151522;color:white;border:1px solid rgba(255,255,255,.15);margin-bottom:10px;"></select>
+                        <button id="clanCardRequestBtn" class="btn btn-primary" type="submit">📣 Попросить карту</button>
+                    </form>
+                    <div class="card-title" style="font-size:14px;margin-top:18px;">📬 Запросы соклановцев</div>
+                    <p class="clan-muted" style="margin-bottom:8px;">Выбери конкретную копию из своего активного сохранения. Карты секретной, эволюционной, боссовой и пасхальной редкости передавать нельзя.</p>
+                    <div id="clanCardRequests"><p class="clan-muted">Загружаем запросы…</p></div>
+                </div>
+
                 <div id="clanCreateCard" class="card" style="display:none;">
                     <div class="card-title">✨ Создать клан</div>
                     <form id="clanCreateForm" class="clan-form">
@@ -820,7 +834,7 @@
 <script src="daily.js?v=10"></script>
 <script src="pass.js?v=9"></script>
 <script src="dandy.js?v=9"></script>
-<script src="game.js?v=14"></script>
+<script src="game.js?v=15"></script>
 <script src="battle.js?v=15"></script>
 <script src="supers.js?v=31"></script>
 <script src="dio.js?v=11"></script>
@@ -842,7 +856,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="clans.js?v=5"></script>
+<script src="clans.js?v=6"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
