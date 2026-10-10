@@ -1,7 +1,7 @@
 /* ============================================================
    MULTIVERSE BATTLE — MOBILE BOSS CONTROLS
-   On-screen 8-way D-pad with hold-to-move, connected to the
-   existing joystick movement adapter for every boss arena.
+   On-screen 8-way D-pad. Sends real game key events so the
+   standard and unique bosses all use their native movement code.
    ============================================================ */
 (function () {
     'use strict';
@@ -121,10 +121,31 @@
     var directionsHeld = Object.create(null);
     var controls = null;
     var directionButtons = [];
-    var directionMap = {
-        up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0],
-        upleft: [-1, -1], upright: [1, -1], downleft: [-1, 1], downright: [1, 1]
+    var directionKeys = {
+        up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'],
+        upleft: ['ArrowUp', 'ArrowLeft'], upright: ['ArrowUp', 'ArrowRight'],
+        downleft: ['ArrowDown', 'ArrowLeft'], downright: ['ArrowDown', 'ArrowRight']
     };
+    var syntheticKeysDown = Object.create(null);
+
+    function dispatchGameKey(key, isDown) {
+        var type = isDown ? 'keydown' : 'keyup';
+        var event;
+        try {
+            event = new KeyboardEvent(type, {
+                key: key,
+                code: key,
+                bubbles: true,
+                cancelable: true
+            });
+        } catch (e) {
+            event = document.createEvent('Event');
+            event.initEvent(type, true, true);
+            event.key = key;
+            event.code = key;
+        }
+        window.dispatchEvent(event);
+    }
 
     function mobileLike() {
         var coarse = false;
@@ -163,42 +184,25 @@
     }
 
     function syncMovement() {
-        var x = 0, y = 0, any = false;
-        Object.keys(directionsHeld).forEach(function (key) {
-            var entry = directionsHeld[key];
+        // Recompute the set of directions still held. Reference-counting by
+        // set membership means releasing one diagonal/button won't cancel a
+        // direction that another simultaneously-held button still needs.
+        var keysNow = Object.create(null);
+        Object.keys(directionsHeld).forEach(function (direction) {
+            var entry = directionsHeld[direction];
             if (!entry || !entry.pointers || entry.pointers.size === 0) return;
-            var vec = directionMap[key];
-            if (!vec) return;
-            any = true;
-            x += vec[0];
-            y += vec[1];
+            (directionKeys[direction] || []).forEach(function (key) {
+                keysNow[key] = true;
+            });
         });
-        var len = Math.hypot(x, y);
-        if (len > 1) { x /= len; y /= len; }
 
-        var j = window._joystick;
-        if (!j) return;
-        if (any) {
-            j.mobileDpadActive = true;
-            j.mobileDpadVector = { x: x, y: y };
-            j.active = true;
-            j.targetVectorX = x;
-            j.targetVectorY = y;
-            j.currentVectorX = x;
-            j.currentVectorY = y;
-            j.vectorX = x;
-            j.vectorY = y;
-        } else {
-            j.mobileDpadActive = false;
-            j.mobileDpadVector = null;
-            // If the player was also holding the floating joystick, restore it.
-            if (j.touchId === null || typeof j.touchId === 'undefined') {
-                j.active = false;
-                j.targetVectorX = j.targetVectorY = 0;
-                j.currentVectorX = j.currentVectorY = 0;
-                j.vectorX = j.vectorY = 0;
-            }
-        }
+        Object.keys(keysNow).forEach(function (key) {
+            if (!syntheticKeysDown[key]) dispatchGameKey(key, true);
+        });
+        Object.keys(syntheticKeysDown).forEach(function (key) {
+            if (!keysNow[key]) dispatchGameKey(key, false);
+        });
+        syntheticKeysDown = keysNow;
     }
 
     function buildControls() {
