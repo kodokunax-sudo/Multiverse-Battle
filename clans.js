@@ -2450,6 +2450,14 @@
         refreshCardExchange: refreshClanCardExchange,
         isConnected: function () { return !!db; },
         getCurrentUserId: function () { return currentUser ? currentUser.id : null; },
+        getArenaContext: function () {
+            return {
+                client: db,
+                user: currentUser,
+                profile: currentProfile,
+                gameSlot: getCurrentGameSlot()
+            };
+        },
         getCloudSave: getCloudSave,
         writeCloudSave: writeCloudSave,
         setCloudSaveStatus: setCloudSaveStatus
