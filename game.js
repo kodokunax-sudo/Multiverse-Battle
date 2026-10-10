@@ -2608,6 +2608,17 @@ function mbNewOnlineCardUid() {
 }
 
 window.MBGameCards = {
+    getDiscoveredCardNames: function () {
+        if (typeof currentSlot === 'undefined' || currentSlot < 0) return [];
+        var names = new Set();
+        if (typeof discoveredCards !== 'undefined' && Array.isArray(discoveredCards)) {
+            discoveredCards.forEach(function (name) { if (typeof name === 'string' && name.trim()) names.add(name); });
+        }
+        if (Array.isArray(myCards)) {
+            myCards.forEach(function (card) { if (card && typeof card.name === 'string' && card.name.trim()) names.add(card.name); });
+        }
+        return Array.from(names);
+    },
     getCardsForClanExchange: function () {
         if (typeof currentSlot === "undefined" || currentSlot < 0 || !Array.isArray(myCards)) return null;
         var changed = false;
