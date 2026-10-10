@@ -1804,7 +1804,14 @@ window.waystarProgressDialog = waystarProgressDialog;
 window.selectWaystarChoice = selectWaystarChoice;
 window.advanceWaystarSpareDialog = advanceWaystarSpareDialog;
 window.setupWaystarSpareDialog = setupWaystarSpareDialog;
-window.damageWaystarBoss = function(dmg) { if (waystarState === "phase1") waystarBossHp -= dmg; };
+window.damageWaystarBoss = function(dmg) {
+    if (waystarState !== "phase1") return;
+    var amount = Math.max(0, Number(dmg) || 0);
+    waystarBossHp -= amount;
+    if (window.MBOnlineWaystar && window.MBOnlineWaystar.active && amount > 0) {
+        window.MBOnlineWaystar.onBossDamage(amount, waystarState);
+    }
+};
 window.getWaystarActive = function() { return waystarActive; };
 
 window.updateWaystarShooting = updateWaystarShooting;
