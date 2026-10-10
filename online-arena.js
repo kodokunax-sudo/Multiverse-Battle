@@ -222,12 +222,14 @@
                 ch.on('broadcast', { event: 'boss_damage' }, function (message) {
                     var p = message && message.payload;
                     if (!p || p.fight_id !== activeFightId || p.sender_session_id === selfSessionId || !markEvent(p.event_id)) return;
-                    applyRemoteBossDamage(p);
+                    // The host owns boss HP. All other clients consume authoritative snapshots.
+                    if (isLeader()) applyRemoteBossDamage(p);
                 });
                 ch.on('broadcast', { event: 'piece_hit' }, function (message) {
                     var p = message && message.payload;
                     if (!p || p.fight_id !== activeFightId || p.sender_session_id === selfSessionId || !markEvent(p.event_id)) return;
-                    applyRemotePieceHit(p.index);
+                    // Only the room host edits the shared fragment HP; guests are updated by snapshots.
+                    if (isLeader()) applyRemotePieceHit(p.index);
                 });
                 ch.on('broadcast', { event: 'fight_snapshot' }, function (message) {
                     var p = message && message.payload;
@@ -561,6 +563,26 @@
         applyObject('waystarBoss', packet.boss, ['x','y','size','vx','rotation','pulse','time','alpha']);
         applyObject('waystarBoss2', packet.boss2, ['x','y','size','vx','rotation','pulse','alpha','active']);
         applyObject('waystarSmallBoss', packet.small_boss, ['x','y','size','rotation','pulse','time','alpha']);
+        // Mirror the original boss's live hazards from the room host so both clients
+        // see the same meteor/laser/bomb/Invader attack pattern.
+        if (Array.isArray(packet.attacks)) window.waystarAttacks = packet.attacks;
+        if (Array.isArray(packet.enemy_bullets)) window.waystarEnemyBullets = packet.enemy_bullets;
+        if (Array.isArray(packet.bombs)) window.waystarBombs = packet.bombs;
+        if (Array.isArray(packet.bomb_queue)) window.waystarBombQueue = packet.bomb_queue;
+        if (packet.dash && typeof packet.dash === 'object') window.waystarDash = packet.dash;
+        else if (packet.dash === null) window.waystarDash = null;
+        if (typeof packet.attack_timer === 'number') window.waystarAttackTimer = packet.attack_timer;
+        if (typeof packet.type_timer === 'number') window.waystarTypeTimer = packet.type_timer;
+        if (typeof packet.attack_type === 'number') window.waystarAttackType = packet.attack_type;
+        if (typeof packet.blind_timer === 'number') window.waystarBlindTimer = packet.blind_timer;
+        if (typeof packet.blind_total_timer === 'number') window.waystarBlindTotalTimer = packet.blind_total_timer;
+        if (typeof packet.blind_flash === 'number') window.waystarBlindFlash = packet.blind_flash;
+        if (packet.blind_phase !== undefined) window.waystarBlindPhase = packet.blind_phase;
+        if (Array.isArray(packet.blind_warnings)) window.waystarBlindWarnings = packet.blind_warnings;
+        if (typeof packet.invader_shoot_timer === 'number') window.waystarInvaderShootTimer = packet.invader_shoot_timer;
+        if (typeof packet.return_timer === 'number') window.waystarReturnTimer = packet.return_timer;
+        if (packet.split_anim !== undefined) window.waystarSplitAnim = packet.split_anim;
+        if (packet.escape_anim !== undefined) window.waystarEscapeAnim = packet.escape_anim;
         if (targetRank === 2 && Array.isArray(packet.pieces) && Array.isArray(window.waystarPieces) && window.waystarPieces.length === packet.pieces.length) {
             packet.pieces.forEach(function (source, index) {
                 var target = window.waystarPieces[index];
@@ -581,6 +603,30 @@
         }
     }
 
+    function cloneSnapshotArray(value, resetLocalHitFlags) {
+        if (!Array.isArray(value)) return null;
+        try {
+            var copy = JSON.parse(JSON.stringify(value));
+            if (resetLocalHitFlags) copy.forEach(function (item) {
+                if (item && typeof item === 'object') {
+                    delete item.dioStandHitOnce;
+                    if (Object.prototype.hasOwnProperty.call(item, 'hit')) item.hit = false;
+                }
+            });
+            return copy;
+        } catch (_error) { return []; }
+    }
+    function cloneSnapshotObject(value, resetLocalHitFlags) {
+        if (!value || typeof value !== 'object') return null;
+        try {
+            var copy = JSON.parse(JSON.stringify(value));
+            if (resetLocalHitFlags) {
+                delete copy.dioStandHitOnce;
+                if (Object.prototype.hasOwnProperty.call(copy, 'hit')) copy.hit = false;
+            }
+            return copy;
+        } catch (_error) { return null; }
+    }
     function buildFightSnapshot() {
         var state = String(window.waystarState || 'dialogue');
         var pieces = Array.isArray(window.waystarPieces) ? window.waystarPieces.map(function (p) {
@@ -600,6 +646,23 @@
             pieces: pieces,
             pieces_alive: Number(window.waystarPiecesAlive) || 0,
             invader_dir: Number(window.waystarInvaderDir) || 1,
+            attacks: cloneSnapshotArray(window.waystarAttacks, true),
+            enemy_bullets: cloneSnapshotArray(window.waystarEnemyBullets, false),
+            bombs: cloneSnapshotArray(window.waystarBombs, true),
+            bomb_queue: cloneSnapshotArray(window.waystarBombQueue, false),
+            dash: cloneSnapshotObject(window.waystarDash, true),
+            attack_timer: Number(window.waystarAttackTimer) || 0,
+            attack_type: Number(window.waystarAttackType) || 0,
+            type_timer: Number(window.waystarTypeTimer) || 0,
+            blind_phase: window.waystarBlindPhase === undefined ? null : window.waystarBlindPhase,
+            blind_timer: Number(window.waystarBlindTimer) || 0,
+            blind_total_timer: Number(window.waystarBlindTotalTimer) || 0,
+            blind_flash: Number(window.waystarBlindFlash) || 0,
+            blind_warnings: cloneSnapshotArray(window.waystarBlindWarnings, false),
+            invader_shoot_timer: Number(window.waystarInvaderShootTimer) || 0,
+            return_timer: Number(window.waystarReturnTimer) || 0,
+            split_anim: cloneSnapshotObject(window.waystarSplitAnim, false),
+            escape_anim: cloneSnapshotObject(window.waystarEscapeAnim, false),
             dialog_active: !!window.waystarDialogActive,
             dialog_step: Number(window.waystarDialogStep) || 0,
             final_active: !!window.waystarFinalActive,
@@ -755,7 +818,7 @@
 
     async function exitArena(showMessage) {
         if (activeFightId) {
-            sendEvent('fight_stop', { fight_id: activeFightId });
+            await sendEvent('fight_stop', { fight_id: activeFightId });
             finishCoopFight(false, 'Ты вышел из совместного боя.');
         }
         entered = false;
