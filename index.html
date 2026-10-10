@@ -660,6 +660,11 @@
  .rebirth-history-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
+    .clan-danger-zone { margin-top: 26px; border-color: rgba(231,76,60,.28)!important; background: linear-gradient(145deg,rgba(80,22,31,.16),rgba(13,14,22,.99))!important; }
+    .clan-danger-zone .card-title { color:#ff9c9c; }
+    .clan-danger-zone .clan-danger-btn { width:100%; min-height:44px; justify-content:center; }
+    .avatar-locked-hint { margin:0; padding:10px; border:1px dashed rgba(246,181,27,.22); border-radius:10px; font-size:10px; line-height:1.5; color:#c3b9d9; }
+    .avatar-choice-grid .clan-avatar-option:disabled { opacity:.42; filter:grayscale(.9); cursor:not-allowed; transform:none; box-shadow:none; }
 </style>
     <script src="anti-pull-refresh.js?v=4"></script>
 </head>
@@ -1087,7 +1092,6 @@
                             <button id="clanChatSendBtn" class="btn btn-primary" type="submit">Отправить</button>
                         </form>
                     </div>
-                    <div id="clanCurrentActions" class="clan-form-row" style="margin-top:12px;"></div>
                 </div>
 
                 <div id="clanCardExchangeCard" class="card" style="display:none;">
@@ -1121,6 +1125,12 @@
                     <div class="card-title">🌐 Кланы игроков</div>
                     <p class="clan-muted" style="margin-bottom:8px;">Пока вступление открыто для всех аккаунтов. Игрок может состоять только в одном клане.</p>
                     <div id="clanList"><p class="clan-muted">Загружаем кланы…</p></div>
+                </div>
+
+                <div id="clanDangerZone" class="card clan-danger-zone" style="display:none;">
+                    <div class="card-title">⚠️ Опасная зона</div>
+                    <p class="clan-muted">Действия ниже могут изменить состояние всего клана. Кнопка находится в самом низу специально, чтобы не нажать её случайно.</p>
+                    <div id="clanCurrentActions" class="clan-form-row"></div>
                 </div>
                 </div>
                 <div class="online-pane" data-online-pane="rating">
@@ -1231,7 +1241,7 @@
 <script src="daily.js?v=10"></script>
 <script src="pass.js?v=9"></script>
 <script src="dandy.js?v=9"></script>
-<script src="game.js?v=27"></script>
+<script src="game.js?v=28"></script>
 <script src="battle.js?v=15"></script>
 <script src="supers.js?v=31"></script>
 <script src="dio.js?v=11"></script>
@@ -1253,7 +1263,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="clans.js?v=26"></script>
+<script src="clans.js?v=27"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
