@@ -770,8 +770,8 @@ function updateWaystarSpaceInvaders() {
         if (b.trail) { b.trail.push({ x: b.x, y: b.y, life: 8 }); if (b.trail.length > 4) b.trail.shift(); }
         if (b.y > 520 || b.life <= 0) { waystarEnemyBullets.splice(i, 1); continue; }
         var dioCtxBullets=(typeof getBossContext==="function")?getBossContext():null;
-        if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioCtxBullets&&window.dioAttackTouchesStand(dioCtxBullets,{type:"shotgun_bullet",x:b.x,y:b.y,size:b.size||8,damage:15})){applyWaystarHit(6,"THE WORLD — ЗАЩИТА!");waystarEnemyBullets.splice(i,1);continue;}
-        if (waystarInvulnTimer <= 0 && Math.abs(b.x - waystarPlayer.x) < 14 && Math.abs(b.y - waystarPlayer.y) < 16) { applyWaystarHit(15, "ОСКОЛОК!"); waystarEnemyBullets.splice(i, 1); }
+        if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioCtxBullets&&window.dioAttackTouchesStand(dioCtxBullets,{type:"shotgun_bullet",x:b.x,y:b.y,size:b.size||8,damage:15})){if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(b);applyWaystarHit(6,"THE WORLD — ЗАЩИТА!");waystarEnemyBullets.splice(i,1);continue;}
+        if (waystarInvulnTimer <= 0 && Math.abs(b.x - waystarPlayer.x) < 14 && Math.abs(b.y - waystarPlayer.y) < 16) { if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(b); applyWaystarHit(15, "ОСКОЛОК!"); waystarEnemyBullets.splice(i, 1); }
     }
     for (var i = 0; i < waystarPieces.length; i++) if (waystarPieces[i].alive) waystarPieces[i].pulse += 0.15;
 }
@@ -1033,13 +1033,13 @@ function updateWaystarAttacks() {
 
         if (stopAll || (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(a))) continue;
         var dioWsCtx=(typeof getBossContext==="function")?getBossContext():null;
-        if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioWsCtx&&window.dioAttackTouchesStand(dioWsCtx,a)){a.dioStandHitOnce=true;applyWaystarHit(Math.max(1,Math.floor((Number(a.damage)||8)*.4)),"THE WORLD — ЗАЩИТА!");waystarAttacks.splice(i,1);continue;}
+        if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioWsCtx&&window.dioAttackTouchesStand(dioWsCtx,a)){a.dioStandHitOnce=true;if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(a);applyWaystarHit(Math.max(1,Math.floor((Number(a.damage)||8)*.4)),"THE WORLD — ЗАЩИТА!");waystarAttacks.splice(i,1);continue;}
 
         if (a.type === "meteor" || a.type === "spiral" || a.type === "star_rain" || a.type === "shotgun_bullet") {
             a.trail.push({ x: a.x, y: a.y, life: 10 }); if (a.trail.length > 6) a.trail.shift();
             a.x += a.vx; a.y += a.vy; a.rotation += (a.rotSpeed||0); a.life--;
             if (a.y > 520 || a.x < -30 || a.x > 430 || a.life <= 0) { if (a.y > 500 && a.type === "meteor") { addWaystarShockwave(a.x, 500, "#ff8800", 50, 12, 3); spawnWaystarParticles(a.x, 500, 10, "#ff8800", 5); } waystarAttacks.splice(i, 1); continue; }
-            if (waystarInvulnTimer <= 0 && Math.sqrt(Math.pow(waystarPlayer.x - a.x, 2) + Math.pow(waystarPlayer.y - a.y, 2)) < a.size + 8) { var msg = a.type === "meteor" ? "МЕТЕОР!" : (a.type === "spiral" ? "ВИХРЬ!" : (a.type === "shotgun_bullet" ? "ДРОБЬ!" : "ЗВЕЗДА!")); applyWaystarHit(a.damage, msg); waystarAttacks.splice(i, 1); }
+            if (waystarInvulnTimer <= 0 && Math.sqrt(Math.pow(waystarPlayer.x - a.x, 2) + Math.pow(waystarPlayer.y - a.y, 2)) < a.size + 8) { var msg = a.type === "meteor" ? "МЕТЕОР!" : (a.type === "spiral" ? "ВИХРЬ!" : (a.type === "shotgun_bullet" ? "ДРОБЬ!" : "ЗВЕЗДА!")); if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(a); applyWaystarHit(a.damage, msg); waystarAttacks.splice(i, 1); }
         }
         else if (a.type === "laser") {
             if (a.state === "warning") { a.warningTimer--; a.chargeParticles++; if (a.chargeParticles % 5 === 0) { spawnWaystarParticles(a.x + (Math.random() - 0.5) * a.width, 490 - Math.random() * 40, 1, "#ff3333", 3); } if (a.warningTimer <= 0) { a.state = "active"; a.activeTimer = a.maxActive; addWaystarFlash(a.x, 250, 100); addWaystarShockwave(a.x, 250, "#ff3333", 120, 18, 4); wsPlaySound(150, 'sawtooth', 0.7, 0.35); waystarShake = 15; waystarScreenFlash = 8; waystarScreenFlashColor = "#ff3333"; for (var l = 0; l < 3; l++) addWaystarLightning(a.x, 0, a.x + (Math.random() - 0.5) * 30, 500, "#ffffff", 0.8, 1.5); } }
@@ -1056,7 +1056,7 @@ function updateWaystarAttacks() {
         var bomb = waystarBombs[i];
         if (wsIsTimeStopped() || (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(bomb))) continue;
         var dioBombCtx=(typeof getBossContext==="function")?getBossContext():null;
-        if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioBombCtx&&window.dioAttackTouchesStand(dioBombCtx,bomb)){bomb.dioStandHitOnce=true;applyWaystarHit(Math.max(1,Math.floor((Number(bomb.damage)||10)*.4)),"THE WORLD — ЗАЩИТА!");waystarBombs.splice(i,1);continue;}
+        if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioBombCtx&&window.dioAttackTouchesStand(dioBombCtx,bomb)){bomb.dioStandHitOnce=true;if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(bomb);applyWaystarHit(Math.max(1,Math.floor((Number(bomb.damage)||10)*.4)),"THE WORLD — ЗАЩИТА!");waystarBombs.splice(i,1);continue;}
         if (!bomb.exploded) {
             bomb.timer--; bomb.phaseTimer++;
             var totalTime = bomb.maxTimer; var elapsed = totalTime - bomb.timer; var progress = elapsed / totalTime;
