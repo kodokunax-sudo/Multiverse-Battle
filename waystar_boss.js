@@ -126,6 +126,13 @@ var waystarSupersInitialized = false;
 var waystarPlayerSpeedMult = 1.0;
 const WAYSTAR_BASE_PLAYER_SPEED = 4;
 
+function getWaystarCoopHpMultiplier() {
+    var api = (typeof window !== 'undefined') ? window.MBOnlineWaystar : null;
+    if (!api || !api.active) return 1;
+    var multiplier = Number(api.bossHpMultiplier);
+    return isFinite(multiplier) ? Math.max(1, Math.min(10, multiplier || 1)) : 1;
+}
+
 function wsIsTimeStopped() {
     if (typeof _superState === 'undefined') return false;
     return _superState.garouTimeStop === true || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0 || _superState.antispiralFrozen === true;
@@ -262,7 +269,7 @@ function startWaystarFight() {
     waystarSpeedMult = 1.3;
 
     var playerDmg = (typeof window.playerFinalDamage !== 'undefined') ? window.playerFinalDamage : 100;
-    waystarBossMaxHp = Math.max(25000, playerDmg * 120);
+    waystarBossMaxHp = Math.round(Math.max(25000, playerDmg * 120) * getWaystarCoopHpMultiplier());
     waystarBossHp = waystarBossMaxHp;
     waystarBoss = { x: 200, y: 100, size: 55, vx: 1.5, rotation: 0, pulse: 0, time: 0, alpha: 1 };
     waystarBoss2 = { x: 200, y: 100, size: 40, vx: -1.5, rotation: 0, pulse: 0, alpha: 1, active: false };
@@ -704,7 +711,9 @@ function waystarStartPhase2() {
     wsPlaySound(300, 'square', 0.5, 0.3);
     waystarPieces = [];
     var cols = 10, rows = 6; var startX = 25, startY = 60, gapX = 38, gapY = 40;
-    for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) { waystarPieces.push({ x: startX + c * gapX, y: startY + r * gapY, size: 10, hp: 2, maxHp: 2, alive: true, row: r, col: c, pulse: Math.random() * Math.PI * 2, trail: [] }); }
+    // Preserve the same 60-piece pattern but scale its total durability with party size.
+    var pieceHp = Math.max(2, Math.ceil(2 * getWaystarCoopHpMultiplier()));
+    for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) { waystarPieces.push({ x: startX + c * gapX, y: startY + r * gapY, size: 10, hp: pieceHp, maxHp: pieceHp, alive: true, row: r, col: c, pulse: Math.random() * Math.PI * 2, trail: [] }); }
     waystarPiecesTotal = waystarPieces.length; waystarPiecesAlive = waystarPieces.length;
     waystarInvaderDir = 1; waystarEnemyBullets = []; waystarPlayer = { x: 200, y: 450 };
     waystarShootCooldown = 0; waystarInvaderShootTimer = 0;
@@ -799,7 +808,8 @@ function waystarStartReturning() {
 
 function waystarStartPhase3() {
     waystarState = "phase3"; waystarDialogActive = false;
-    waystarBossMaxHp = Math.max(15000, (window.playerFinalDamage || 80) * 60);
+    // Phase 3 starts a fresh HP bar, so it must reuse the room's co-op multiplier too.
+    waystarBossMaxHp = Math.round(Math.max(15000, (window.playerFinalDamage || 80) * 60) * getWaystarCoopHpMultiplier());
     waystarBossHp = waystarBossMaxHp;
     waystarSmallBoss.alpha = 0; waystarSmallBoss.size = 28; waystarSmallBoss.x = 200; waystarSmallBoss.y = 100; waystarSmallBoss.trail = [];
     waystarAttackTimer = 0; waystarAttackType = 0; waystarTypeTimer = 600;
@@ -1161,6 +1171,11 @@ function updateWaystarHpBar() {
 
 function waystarVictory() {
     if (waystarRewardGiven) return;
+    var coopApi = (typeof window !== 'undefined') ? window.MBOnlineWaystar : null;
+    // Guests must not independently finish the fight and grant local rewards when their
+    // prediction reaches zero HP first. They enter the final scene only on the host event.
+    if (coopApi && coopApi.active && typeof coopApi.isLeader === 'function' && !coopApi.isLeader() &&
+        !(typeof coopApi.isApplyingRemote === 'function' && coopApi.isApplyingRemote())) return;
     if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onVictory();
     waystarRewardGiven = true;
     console.log("[WAYSTAR] ПОБЕДА! Запуск финальной сцены");
