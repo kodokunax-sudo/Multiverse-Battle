@@ -1,0 +1,1 @@
+-- Allow users to update their own profile cosmetic fields.
