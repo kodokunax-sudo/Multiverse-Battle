@@ -131,20 +131,26 @@ function mbCloudFingerprint(value) {
     return (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16) + ':' + source.length;
 }
 
+
+const MB_CLOUD_BINDINGS_STORAGE_KEY = 'cgV20_cloud_slot_bindings_v1';
+function mbReadCloudBindings() {
+    var empty = { byUser: {}, bySlot: {} };
+    try {
+        var parsed = JSON.parse(localStorage.getItem(MB_CLOUD_BINDINGS_STORAGE_KEY) || 'null');
+        if (!parsed || typeof parsed !== 'object') return empty;
+        return {
+            byUser: parsed.byUser && typeof parsed.byUser === 'object' ? parsed.byUser : {},
+            bySlot: parsed.bySlot && typeof parsed.bySlot === 'object' ? parsed.bySlot : {}
+        };
+    } catch (_error) { return empty; }
+}
+function mbStoreCloudBindings(bindings) {
+    localStorage.setItem(MB_CLOUD_BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
+}
 function mbCloudMarkerKey(slot) { return getSlotKey(slot) + '_cloud_sync_meta'; }
 function mbReadCloudMarker(slot) {
     try { return JSON.parse(localStorage.getItem(mbCloudMarkerKey(slot)) || 'null'); }
     catch (_error) { return null; }
-}
-function mbWriteCloudMarker(slot, userId, saveData, cloudRow) {
-    var marker = {
-        userId: userId,
-        fingerprint: mbCloudFingerprint(saveData),
-        updatedAt: cloudRow && cloudRow.updated_at ? cloudRow.updated_at : null,
-        revision: cloudRow && cloudRow.revision ? cloudRow.revision : null,
-        syncedAt: Date.now()
-    };
-    localStorage.setItem(mbCloudMarkerKey(slot), JSON.stringify(marker));
 }
 function mbCloudStatus(message, kind) {
     if (window.MBClans && typeof window.MBClans.setCloudSaveStatus === 'function') {
@@ -156,11 +162,61 @@ function mbCurrentCloudUserId() {
         ? window.MBClans.getCurrentUserId()
         : null;
 }
-function mbReadCurrentLocalSave() {
-    if (currentSlot < 0) return null;
+function mbCloudBindingProblem(userId, slot) {
+    if (!userId || slot < 0 || slot > 2) return 'Не удалось проверить привязку аккаунта к слоту.';
+    var bindings = mbReadCloudBindings();
+    if (Object.prototype.hasOwnProperty.call(bindings.byUser, userId)) {
+        var mappedSlot = Number(bindings.byUser[userId]);
+        if (Number.isInteger(mappedSlot) && mappedSlot >= 0 && mappedSlot < 3 && mappedSlot !== slot) {
+            return 'Этот аккаунт уже привязан к слоту ' + (mappedSlot + 1) + '. Слоты переключать можно, но один аккаунт нельзя привязать к двум слотам. Перейди в прежний слот и нажми «Отвязать этот слот», чтобы перенести аккаунт.';
+        }
+    }
+    var slotOwner = bindings.bySlot[String(slot)];
+    if (slotOwner && slotOwner !== userId) {
+        return 'Слот ' + (slot + 1) + ' уже привязан к другому аккаунту. Чтобы использовать его с новым аккаунтом, сначала отвяжи прежний аккаунт.';
+    }
+    for (var i = 0; i < 3; i++) {
+        var marker = mbReadCloudMarker(i);
+        if (!marker || !marker.userId) continue;
+        if (marker.userId === userId && i !== slot) {
+            return 'Этот аккаунт уже привязан к слоту ' + (i + 1) + '. Один аккаунт нельзя использовать в нескольких слотах. Для переноса вернись в исходный слот и отвяжи его.';
+        }
+        if (i === slot && marker.userId !== userId) {
+            return 'Слот ' + (slot + 1) + ' уже связан с другим аккаунтом. Сначала отвяжи прежний аккаунт от него.';
+        }
+    }
+    return null;
+}
+function mbRegisterCloudBinding(userId, slot) {
+    var problem = mbCloudBindingProblem(userId, slot);
+    if (problem) {
+        mbCloudStatus(problem, 'warning');
+        return false;
+    }
+    var bindings = mbReadCloudBindings();
+    bindings.byUser[userId] = slot;
+    bindings.bySlot[String(slot)] = userId;
+    mbStoreCloudBindings(bindings);
+    return true;
+}
+function mbWriteCloudMarker(slot, userId, saveData, cloudRow) {
+    if (!mbRegisterCloudBinding(userId, slot)) return false;
+    var marker = {
+        userId: userId,
+        fingerprint: mbCloudFingerprint(saveData),
+        updatedAt: cloudRow && cloudRow.updated_at ? cloudRow.updated_at : null,
+        revision: cloudRow && cloudRow.revision ? cloudRow.revision : null,
+        syncedAt: Date.now()
+    };
+    localStorage.setItem(mbCloudMarkerKey(slot), JSON.stringify(marker));
+    return true;
+}
+function mbReadCurrentLocalSave(slot) {
+    slot = Number.isInteger(slot) ? slot : currentSlot;
+    if (slot < 0 || slot > 2) return null;
     try {
-        var raw = localStorage.getItem(getSlotKey(currentSlot));
-        var data = raw ? JSON.parse(raw) : slotData;
+        var raw = localStorage.getItem(getSlotKey(slot));
+        var data = raw ? JSON.parse(raw) : (slot === currentSlot ? slotData : null);
         return data && typeof data === 'object' && Array.isArray(data.myCards) ? data : null;
     } catch (_error) { return null; }
 }
@@ -168,52 +224,68 @@ function mbValidateCloudSave(data) {
     return !!data && typeof data === 'object' && !Array.isArray(data) &&
         Array.isArray(data.myCards) && data.myCards.length <= 100000;
 }
-function mbPutCloudSaveInLocalSlot(saveData, userId, cloudRow) {
-    if (!mbValidateCloudSave(saveData) || currentSlot < 0) {
-        mbCloudStatus('Облачное сохранение повреждено или не подходит этой версии игры. Локальный прогресс не изменён.', 'error');
+function mbPutCloudSaveInLocalSlot(saveData, userId, cloudRow, targetSlot) {
+    targetSlot = Number.isInteger(targetSlot) ? targetSlot : currentSlot;
+    if (!mbValidateCloudSave(saveData) || targetSlot < 0 || targetSlot > 2) {
+        mbCloudStatus('Облачное сохранение повреждено или несовместимо. Локальный прогресс не изменён.', 'error');
         return false;
     }
+    if (!mbRegisterCloudBinding(userId, targetSlot)) return false;
     var copy = JSON.parse(JSON.stringify(saveData));
-    localStorage.setItem(getSlotKey(currentSlot), JSON.stringify(copy));
-    var meta = loadSlotMeta(currentSlot);
+    localStorage.setItem(getSlotKey(targetSlot), JSON.stringify(copy));
+    var meta = loadSlotMeta(targetSlot);
     meta.exists = true;
-    meta.nickname = copy.nickname || meta.nickname || ('Слот ' + (currentSlot + 1));
-    saveSlotMeta(currentSlot, meta);
-    localStorage.setItem('cgV20_lastSlot', String(currentSlot));
-    mbWriteCloudMarker(currentSlot, userId, copy, cloudRow);
-    mbCloudSyncReadyForUser = userId;
-    mbCloudStatus('Облачное сохранение загружено. Перезапускаем игру…', 'success');
-    window.setTimeout(function () { window.location.reload(); }, 150);
+    meta.nickname = copy.nickname || meta.nickname || ('Слот ' + (targetSlot + 1));
+    saveSlotMeta(targetSlot, meta);
+    mbWriteCloudMarker(targetSlot, userId, copy, cloudRow);
+    if (targetSlot === currentSlot) {
+        localStorage.setItem('cgV20_lastSlot', String(targetSlot));
+        mbCloudSyncReadyForUser = userId;
+        mbCloudStatus('Облачное сохранение загружено. Перезапускаем игру…', 'success');
+        window.setTimeout(function () { window.location.reload(); }, 150);
+    } else {
+        mbCloudStatus('Облачная копия записана в слот ' + (targetSlot + 1) + '. Текущий слот не изменён.', 'success');
+    }
     return true;
 }
-async function mbWriteCurrentSaveToCloud(localSave, userId, expectedUpdatedAt) {
+async function mbWriteCurrentSaveToCloud(localSave, userId, expectedUpdatedAt, targetSlot) {
+    targetSlot = Number.isInteger(targetSlot) ? targetSlot : currentSlot;
     var result = await window.MBClans.writeCloudSave(localSave, expectedUpdatedAt || null);
     var row = { save_data: localSave, updated_at: result.updated_at, revision: result.revision };
-    mbWriteCloudMarker(currentSlot, userId, localSave, row);
-    mbCloudSyncReadyForUser = userId;
-    mbCloudStatus('☁️ Синхронизировано · одно облачное сохранение · версия ' + (result.revision || 1), 'success');
+    if (!mbWriteCloudMarker(targetSlot, userId, localSave, row)) {
+        mbCloudSyncReadyForUser = null;
+        mbCloudStatus('Облако записано, но локальная привязка слота изменилась. Проверь привязку перед дальнейшей синхронизацией.', 'warning');
+        return row;
+    }
+    mbCloudSyncReadyForUser = targetSlot === currentSlot ? userId : null;
+    mbCloudStatus(
+        targetSlot === currentSlot
+            ? '☁️ Синхронизировано · один аккаунт — один слот · версия ' + (result.revision || 1)
+            : '☁️ Облако сохранено из слота ' + (targetSlot + 1) + '. Текущий слот не изменён.',
+        'success'
+    );
     return row;
 }
-async function mbResolveCloudConflict(localSave, cloudRow, userId, localFingerprint, cloudFingerprint) {
+async function mbResolveCloudConflict(localSave, cloudRow, userId, localFingerprint, cloudFingerprint, targetSlot) {
     var chooseCloud = window.confirm(
         'Для этого аккаунта уже есть облачное сохранение, и прогресс на устройстве отличается.\n\n' +
-        'ОК — загрузить облачное сохранение и заменить активный локальный слот.\n' +
-        'Отмена — оставить прогресс этого устройства и выбрать, отправлять ли его в облако.'
+        'ОК — загрузить облачное сохранение в слот ' + (targetSlot + 1) + '.\n' +
+        'Отмена — оставить локальный прогресс и решить, отправлять ли его в облако.'
     );
     if (chooseCloud) {
-        mbPutCloudSaveInLocalSlot(cloudRow.save_data, userId, cloudRow);
+        mbPutCloudSaveInLocalSlot(cloudRow.save_data, userId, cloudRow, targetSlot);
         return;
     }
     var chooseLocal = window.confirm(
-        'Заменить единственное облачное сохранение прогрессом с этого устройства?\n\n' +
+        'Заменить единственное облачное сохранение прогрессом из слота ' + (targetSlot + 1) + '?\n\n' +
         'Другие устройства получат эту версию после синхронизации.'
     );
     if (chooseLocal) {
-        await mbWriteCurrentSaveToCloud(localSave, userId, cloudRow.updated_at);
+        await mbWriteCurrentSaveToCloud(localSave, userId, cloudRow.updated_at, targetSlot);
         return;
     }
     mbCloudSyncReadyForUser = null;
-    mbCloudStatus('Синхронизация поставлена на паузу, прогресс не заменён. Выбери загрузку из облака или сохранение в облако вручную.', 'warning');
+    mbCloudStatus('Синхронизация на паузе. Прогресс не перезаписан.', 'warning');
 }
 async function mbSyncCloudSave(action) {
     action = action || 'auto';
@@ -225,9 +297,16 @@ async function mbSyncCloudSave(action) {
         mbCloudStatus('Войди в аккаунт Multiverse Battle, чтобы синхронизировать прогресс.', 'info');
         return;
     }
-    if (currentSlot < 0) {
+    if (currentSlot < 0 || currentSlot > 2) {
         mbCloudSyncReadyForUser = null;
         mbCloudStatus('Сначала открой сохранение игры — затем подключим облако.', 'info');
+        return;
+    }
+    var targetSlot = currentSlot;
+    var bindingProblem = mbCloudBindingProblem(userId, targetSlot);
+    if (bindingProblem) {
+        mbCloudSyncReadyForUser = null;
+        mbCloudStatus(bindingProblem, 'warning');
         return;
     }
     mbCloudSyncBusy = true;
@@ -235,14 +314,14 @@ async function mbSyncCloudSave(action) {
     if (mbCloudSaveTimer) { clearTimeout(mbCloudSaveTimer); mbCloudSaveTimer = null; }
     mbCloudStatus('☁️ Проверяем облачное сохранение…', 'info');
     try {
-        if (action !== 'download' && typeof saveAll === 'function') saveAll();
-        var localSave = mbReadCurrentLocalSave();
+        if (action !== 'download' && currentSlot === targetSlot && typeof saveAll === 'function') saveAll();
+        var localSave = mbReadCurrentLocalSave(targetSlot);
         if (!mbValidateCloudSave(localSave)) {
-            mbCloudStatus('Не найдено подходящее локальное сохранение. Открой слот и попробуй снова.', 'warning');
+            mbCloudStatus('Не найдено подходящее локальное сохранение в слоте ' + (targetSlot + 1) + '.', 'warning');
             return;
         }
         var localFingerprint = mbCloudFingerprint(localSave);
-        var marker = mbReadCloudMarker(currentSlot);
+        var marker = mbReadCloudMarker(targetSlot);
         var cloudRow = await api.getCloudSave();
         var cloudFingerprint = cloudRow && mbValidateCloudSave(cloudRow.save_data)
             ? mbCloudFingerprint(cloudRow.save_data)
@@ -253,14 +332,19 @@ async function mbSyncCloudSave(action) {
                 mbCloudStatus('В облаке пока нет сохранения для этого аккаунта.', 'warning');
                 return;
             }
-            if (cloudFingerprint === localFingerprint) {
-                mbWriteCloudMarker(currentSlot, userId, localSave, cloudRow);
-                mbCloudSyncReadyForUser = userId;
-                mbCloudStatus('Устройство уже совпадает с облаком.', 'success');
+            if (!mbValidateCloudSave(cloudRow.save_data)) {
+                mbCloudStatus('Облачная запись повреждена или несовместима. Локальный прогресс не изменён.', 'error');
                 return;
             }
-            if (window.confirm('Загрузить облачное сохранение? Оно заменит активное локальное сохранение на этом устройстве.')) {
-                mbPutCloudSaveInLocalSlot(cloudRow.save_data, userId, cloudRow);
+            if (cloudFingerprint === localFingerprint) {
+                if (mbWriteCloudMarker(targetSlot, userId, localSave, cloudRow)) {
+                    mbCloudSyncReadyForUser = targetSlot === currentSlot ? userId : null;
+                    mbCloudStatus('Устройство уже совпадает с облаком.', 'success');
+                }
+                return;
+            }
+            if (window.confirm('Загрузить облачное сохранение в слот ' + (targetSlot + 1) + '? Оно заменит локальные данные только этого слота.')) {
+                mbPutCloudSaveInLocalSlot(cloudRow.save_data, userId, cloudRow, targetSlot);
             } else {
                 mbCloudStatus('Загрузка отменена. Локальный прогресс не изменён.', 'info');
             }
@@ -269,22 +353,20 @@ async function mbSyncCloudSave(action) {
 
         if (action === 'upload') {
             if (cloudRow && cloudFingerprint !== localFingerprint &&
-                !window.confirm('Заменить единственное облачное сохранение прогрессом с этого устройства?')) {
+                !window.confirm('Заменить единственное облачное сохранение прогрессом из слота ' + (targetSlot + 1) + '?')) {
                 mbCloudStatus('Отправка отменена. Прогресс не изменён.', 'info');
                 return;
             }
-            await mbWriteCurrentSaveToCloud(localSave, userId, cloudRow ? cloudRow.updated_at : null);
+            await mbWriteCurrentSaveToCloud(localSave, userId, cloudRow ? cloudRow.updated_at : null, targetSlot);
             return;
         }
 
         if (!cloudRow) {
             if (marker && marker.userId && marker.userId !== userId) {
-                if (!window.confirm('На этом устройстве есть сохранение, ранее связанное с другим аккаунтом. Отправить активный локальный прогресс в облако текущего аккаунта?')) {
-                    mbCloudStatus('Синхронизация приостановлена. Локальный прогресс не изменён.', 'warning');
-                    return;
-                }
+                mbCloudStatus('Этот локальный слот уже связан с другим аккаунтом.', 'warning');
+                return;
             }
-            await mbWriteCurrentSaveToCloud(localSave, userId, null);
+            await mbWriteCurrentSaveToCloud(localSave, userId, null, targetSlot);
             return;
         }
 
@@ -294,28 +376,29 @@ async function mbSyncCloudSave(action) {
         }
 
         if (localFingerprint === cloudFingerprint) {
-            mbWriteCloudMarker(currentSlot, userId, localSave, cloudRow);
-            mbCloudSyncReadyForUser = userId;
-            mbCloudStatus('☁️ Синхронизировано · одно облачное сохранение на аккаунт.', 'success');
+            if (mbWriteCloudMarker(targetSlot, userId, localSave, cloudRow)) {
+                mbCloudSyncReadyForUser = targetSlot === currentSlot ? userId : null;
+                mbCloudStatus('☁️ Синхронизировано · один аккаунт — один слот.', 'success');
+            }
             return;
         }
 
         if (marker && marker.userId === userId) {
             if (localFingerprint === marker.fingerprint && cloudFingerprint !== marker.fingerprint) {
-                mbPutCloudSaveInLocalSlot(cloudRow.save_data, userId, cloudRow);
+                mbPutCloudSaveInLocalSlot(cloudRow.save_data, userId, cloudRow, targetSlot);
                 return;
             }
             if (cloudFingerprint === marker.fingerprint && localFingerprint !== marker.fingerprint) {
-                await mbWriteCurrentSaveToCloud(localSave, userId, cloudRow.updated_at);
+                await mbWriteCurrentSaveToCloud(localSave, userId, cloudRow.updated_at, targetSlot);
                 return;
             }
         }
-        await mbResolveCloudConflict(localSave, cloudRow, userId, localFingerprint, cloudFingerprint);
+        await mbResolveCloudConflict(localSave, cloudRow, userId, localFingerprint, cloudFingerprint, targetSlot);
     } catch (error) {
         var message = String(error && (error.message || error.error_description) || error || 'Неизвестная ошибка');
         if (message.indexOf('cloud_save_conflict') !== -1) {
             mbCloudSyncReadyForUser = null;
-            mbCloudStatus('Облако успело измениться на другом устройстве. Нажми синхронизацию ещё раз и выбери версию.', 'warning');
+            mbCloudStatus('Облако изменилось на другом устройстве. Нажми синхронизацию ещё раз и выбери версию.', 'warning');
         } else if (message.indexOf('player_cloud_saves') !== -1 || message.indexOf('write_player_cloud_save') !== -1) {
             mbCloudStatus('Таблица облачных сохранений не найдена. Проверь миграцию Supabase.', 'error');
         } else {
@@ -323,6 +406,9 @@ async function mbSyncCloudSave(action) {
         }
     } finally {
         mbCloudSyncBusy = false;
+        if (currentSlot !== targetSlot && mbCurrentCloudUserId()) {
+            window.setTimeout(function () { mbSyncCloudSave('auto'); }, 0);
+        }
     }
 }
 function mbScheduleCloudSave() {
@@ -335,6 +421,46 @@ function mbScheduleCloudSave() {
             mbSyncCloudSave('auto');
         }
     }, 2200);
+}
+function mbUnbindCurrentCloudSlot() {
+    if (mbCloudSyncBusy) {
+        mbCloudStatus('Синхронизация уже выполняется. Попробуй отвязать слот через пару секунд.', 'warning');
+        return;
+    }
+    var userId = mbCurrentCloudUserId();
+    if (!userId) {
+        mbCloudStatus('Сначала войди в аккаунт, который привязан к этому слоту.', 'warning');
+        return;
+    }
+    if (currentSlot < 0 || currentSlot > 2) {
+        mbCloudStatus('Сначала выбери слот сохранения.', 'warning');
+        return;
+    }
+    var bindings = mbReadCloudBindings();
+    var marker = mbReadCloudMarker(currentSlot);
+    var boundSlot = Object.prototype.hasOwnProperty.call(bindings.byUser, userId)
+        ? Number(bindings.byUser[userId]) : null;
+    if (boundSlot !== null && boundSlot !== currentSlot) {
+        mbCloudStatus('Этот аккаунт привязан к слоту ' + (boundSlot + 1) + '. Переключись на него, чтобы отвязать аккаунт.', 'warning');
+        return;
+    }
+    var slotOwner = bindings.bySlot[String(currentSlot)] || (marker && marker.userId) || null;
+    if (slotOwner && slotOwner !== userId) {
+        mbCloudStatus('Текущий слот привязан к другому аккаунту. Войди в него, чтобы снять привязку.', 'warning');
+        return;
+    }
+    if (slotOwner !== userId && boundSlot === null) {
+        mbCloudStatus('Этот слот ещё не привязан к текущему аккаунту.', 'info');
+        return;
+    }
+    if (!window.confirm('Отвязать аккаунт от слота ' + (currentSlot + 1) + '?\n\nЛокальный прогресс и облачное сохранение не удалятся. После отвязки этот аккаунт можно будет привязать к другому слоту.')) return;
+    delete bindings.bySlot[String(currentSlot)];
+    if (Number(bindings.byUser[userId]) === currentSlot) delete bindings.byUser[userId];
+    mbStoreCloudBindings(bindings);
+    if (marker && marker.userId === userId) localStorage.removeItem(mbCloudMarkerKey(currentSlot));
+    mbCloudSyncReadyForUser = null;
+    if (mbCloudSaveTimer) { clearTimeout(mbCloudSaveTimer); mbCloudSaveTimer = null; }
+    mbCloudStatus('Слот отвязан. Локальный прогресс сохранён, облачная запись не удалена. Теперь можно открыть другой слот и привязать аккаунт там.', 'success');
 }
 window.addEventListener('mb:auth-changed', function (event) {
     var userId = event && event.detail ? event.detail.userId : null;
@@ -353,9 +479,12 @@ window.addEventListener('mb:slot-ready', function () {
 });
 window.addEventListener('mb:cloud-save-action', function (event) {
     var action = event && event.detail ? event.detail.action : 'auto';
+    if (action === 'unbind') {
+        mbUnbindCurrentCloudSlot();
+        return;
+    }
     mbSyncCloudSave(action === 'download' || action === 'upload' ? action : 'auto');
 });
-
 
 function selectSlot(slot) {
     currentSlot = slot;
@@ -2214,10 +2343,8 @@ function renameSlot(slot) { let meta = loadSlotMeta(slot); let nickname = prompt
 function renderSlotsInGame() { let html = '<div style="display:flex;flex-direction:column;gap:10px;">'; for (let i = 0; i < 3; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select ' + (i === currentSlot ? 'active' : '') + '"><div style="font-size:18px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + (i === currentSlot ? ' ← Текущий' : '') + '</div><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn" style="padding:4px 12px;font-size:11px;" onclick="event.stopPropagation();switchToSlot(' + i + ')">Загрузить</button><button class="btn" style="padding:4px 12px;font-size:11px;background:#9b59b6;" onclick="event.stopPropagation();renameSlot(' + i + ')">✏️ Имя</button></div></div>'; } html += '</div>'; let el = document.getElementById("slotsListInGame"); if (el) el.innerHTML = html; }
 function switchToSlot(slot) {
     if (slot === currentSlot) return;
-    if (mbCurrentCloudUserId()) {
-        mbCloudStatus('В этом аккаунте одно облачное сохранение. Чтобы переключить локальный слот, сначала выйди из аккаунта.', 'warning');
-        return;
-    }
+    // Local slot switching is always allowed. Cloud data stays bound to one slot.
+    if (mbCloudSaveTimer) { clearTimeout(mbCloudSaveTimer); mbCloudSaveTimer = null; }
     saveAll();
     currentSlot = slot;
     let saved = loadGameFromSlot(slot);
