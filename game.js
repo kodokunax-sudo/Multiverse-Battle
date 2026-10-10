@@ -489,7 +489,7 @@ window.addEventListener('mb:cloud-save-action', function (event) {
 });
 
 function selectSlot(slot) {
-    if (currentSlot >= 0 && currentSlot <= 2 && currentSlot !== slot) {
+    if (currentSlot !== slot) {
         window.dispatchEvent(new CustomEvent('mb:slot-changing', { detail: { from: currentSlot, to: slot } }));
     }
     currentSlot = slot;
