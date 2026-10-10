@@ -680,11 +680,18 @@
 .online-arena-floor:before{content:"";position:absolute;inset:16px;border:1px solid rgba(246,181,27,.3);border-radius:12px;pointer-events:none}
 .online-arena-ring{position:absolute;width:min(56%,300px);height:190px;border:2px solid rgba(246,181,27,.76);border-radius:50%;box-shadow:0 0 0 12px rgba(155,121,255,.055),0 0 34px rgba(246,181,27,.14),inset 0 0 30px rgba(155,121,255,.12)}
 .online-arena-center{position:absolute;color:#ffdb77;font-size:28px;text-shadow:0 0 22px #c69cff;opacity:.75}
-.online-arena-player{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;max-width:80%;padding:10px 15px;border:1px solid rgba(246,181,27,.3);border-radius:14px;background:rgba(10,10,18,.85);box-shadow:0 10px 30px #0008}
-.online-arena-player>span{font-size:28px}
-.online-arena-player strong{max-width:100%;overflow-wrap:anywhere;color:#ffdf83}
-.online-arena-player small{font-size:9px;letter-spacing:1.5px;color:#b6a7d7}
-@media(max-width:520px){.online-subnav{grid-template-columns:repeat(3,minmax(0,1fr))}.online-arena-floor{min-height:270px}.online-arena-ring{height:155px}}
+.online-arena-players{position:absolute;inset:0;z-index:3;pointer-events:none}
+.online-arena-player{position:absolute;display:flex;flex-direction:column;align-items:center;gap:3px;max-width:135px;min-width:66px;padding:6px 9px;border:1px solid rgba(246,181,27,.4);border-radius:12px;background:rgba(10,10,18,.92);box-shadow:0 6px 18px #0008;transform:translate(-50%,-50%);transition:left .12s linear,top .12s linear;pointer-events:none}
+.online-arena-player.is-self{border-color:#ffdf83;box-shadow:0 0 0 2px rgba(246,181,27,.18),0 0 22px rgba(246,181,27,.2)}
+.online-arena-player-avatar{display:grid;place-items:center;width:29px;height:29px;border-radius:50%;background:linear-gradient(145deg,#4e3e77,#171322);border:1px solid #b59aff;font-size:16px}
+.online-arena-player strong{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ffdf83;font-size:11px}
+.online-arena-player small{font-size:8px;letter-spacing:1.2px;color:#b6a7d7}
+.online-arena-livebar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;color:#bdb3d8;font-size:11px}
+.online-arena-livebar span:first-child{color:#ffdf83;font-weight:900}
+.online-arena-roster{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.online-arena-roster-item{padding:5px 9px;border:1px solid rgba(155,121,255,.22);border-radius:999px;background:rgba(155,121,255,.07);color:#d9d0f5;font-size:10px}
+.online-arena-roster-item.is-self{border-color:rgba(246,181,27,.45);color:#ffdf83}
+@media(max-width:520px){.online-subnav{grid-template-columns:repeat(3,minmax(0,1fr))}.online-arena-floor{min-height:270px}.online-arena-ring{height:155px}.online-arena-player{max-width:105px;min-width:54px;padding:5px 6px}.online-arena-player strong{max-width:95px;font-size:10px}.online-arena-livebar{font-size:10px}}
 </style>
     <script src="anti-pull-refresh.js?v=4"></script>
 </head>
@@ -1191,13 +1198,15 @@
                             <div><span class="online-eyebrow">MULTIVERSE BATTLE</span><h3>🏟️ Тестовая арена</h3></div>
                             <button id="onlineArenaExit" class="btn online-arena-exit" type="button">🚪 Выйти с арены</button>
                         </div>
-                        <div class="online-arena-floor">
+                        <div class="online-arena-floor" id="onlineArenaFloor" tabindex="0" aria-label="Арена. Используй стрелки или WASD для перемещения">
                             <div class="online-arena-ring" aria-hidden="true"></div>
                             <div class="online-arena-center" aria-hidden="true">✦</div>
-                            <div class="online-arena-player"><span aria-hidden="true">🎮</span><strong id="onlineArenaPlayerName">Игрок</strong><small>ТВОЙ ИГРОК</small></div>
+                            <div id="onlineArenaPlayers" class="online-arena-players" aria-label="Игроки на арене"></div>
                         </div>
-                        <p id="onlineArenaStatusStage" class="online-arena-status" aria-live="polite">Тестовая зона открыта.</p>
-                        <p class="clan-muted" style="text-align:center;">Пока это только проверка интерфейса: соперников и боёв ещё нет.</p>
+                        <div class="online-arena-livebar"><span id="onlineArenaPlayerCount">👥 0 игроков</span><span>Управление: WASD / стрелки или клик по арене</span></div>
+                        <div id="onlineArenaRoster" class="online-arena-roster" aria-label="Список игроков на арене"></div>
+                        <p id="onlineArenaStatusStage" class="online-arena-status" aria-live="polite">Подключаем онлайн-комнату…</p>
+                        <p class="clan-muted" style="text-align:center;">Это тест видимости игроков и перемещения. Сражения пока выключены.</p>
                     </div>
                 </div>
             </div>
