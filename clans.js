@@ -1202,14 +1202,49 @@
         }
     }
 
-    function accountSlotBindingError(user, slot) {
+    function getDeviceBindingId() {
+        var key = 'mb_multiverse_device_binding_id_v1';
+        var id = localStorage.getItem(key);
+        if (id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return id;
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            id = window.crypto.randomUUID();
+        } else {
+            id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (ch) {
+                var r = Math.random() * 16 | 0;
+                return (ch === 'x' ? r : (r & 3 | 8)).toString(16);
+            });
+        }
+        localStorage.setItem(key, id);
+        return id;
+    }
+
+    async function accountSlotBindingError(user, slot) {
         if (!user || !user.id) return null;
         try {
             if (typeof window.mbCloudBindingProblem === 'function') {
-                return window.mbCloudBindingProblem(user.id, slot);
+                var localProblem = window.mbCloudBindingProblem(user.id, slot);
+                if (localProblem) return localProblem;
             }
-        } catch (_error) {}
-        return null;
+            if (!db || typeof db.rpc !== 'function') {
+                return 'Не удалось проверить уникальность аккаунта. Проверь соединение и попробуй снова.';
+            }
+            var result = await db.rpc('claim_multiverse_slot_account', {
+                p_device_id: getDeviceBindingId(),
+                p_slot_index: slot
+            });
+            if (result.error) {
+                console.error('Slot account binding check failed:', result.error);
+                return 'Не удалось проверить привязку аккаунта к слоту на сервере. Проверь интернет и попробуй снова.';
+            }
+            var verdict = result.data;
+            if (!verdict || verdict.ok !== true) {
+                return verdict && verdict.message ? verdict.message : 'Этот аккаунт нельзя использовать в выбранном слоте.';
+            }
+            return null;
+        } catch (error) {
+            console.error('Slot account binding check failed:', error);
+            return 'Не удалось проверить привязку аккаунта к слоту. Попробуй ещё раз при стабильном интернете.';
+        }
     }
 
     async function rejectAccountForSlot(client, slot, message) {
@@ -1232,7 +1267,7 @@
                 if (requestedSlot !== getCurrentGameSlot() || db !== currentClient) return;
                 if (currentSessionResult.error) throw currentSessionResult.error;
                 currentUser = currentSessionResult.data.session ? currentSessionResult.data.session.user : null;
-                var currentBindingError = accountSlotBindingError(currentUser, requestedSlot);
+                var currentBindingError = await accountSlotBindingError(currentUser, requestedSlot);
                 if (currentBindingError) {
                     await rejectAccountForSlot(currentClient, requestedSlot, currentBindingError);
                     return;
@@ -1272,7 +1307,7 @@
             if (requestedSlot !== getCurrentGameSlot() || db !== client) return;
             if (sessionResult.error) throw sessionResult.error;
             currentUser = sessionResult.data.session ? sessionResult.data.session.user : null;
-            var restoredBindingError = accountSlotBindingError(currentUser, requestedSlot);
+            var restoredBindingError = await accountSlotBindingError(currentUser, requestedSlot);
             if (restoredBindingError) {
                 await rejectAccountForSlot(client, requestedSlot, restoredBindingError);
                 return;
@@ -1284,26 +1319,23 @@
             var subscriptionResult = client.auth.onAuthStateChange(function (_event, session) {
                 if (db !== client || activeAuthSlot !== requestedSlot || requestedSlot !== getCurrentGameSlot()) return;
                 currentUser = session ? session.user : null;
-                var authBindingError = accountSlotBindingError(currentUser, requestedSlot);
-                if (authBindingError) {
-                    currentUser = null;
-                    currentClan = null;
-                    currentProfile = null;
-                    showAuthState();
-                    setNotice(authBindingError, 'warning');
-                    notifyCloudSaveAuthChanged();
-                    // Defer auth calls until after Supabase finishes its auth-state callback.
-                    window.setTimeout(function () {
-                        if (db === client && activeAuthSlot === requestedSlot && requestedSlot === getCurrentGameSlot()) {
-                            client.auth.signOut().catch(function () {});
-                        }
-                    }, 0);
-                    return;
-                }
-                window.setTimeout(function () {
+                var eventUser = currentUser;
+                window.setTimeout(async function () {
                     if (db !== client || activeAuthSlot !== requestedSlot || requestedSlot !== getCurrentGameSlot()) return;
+                    var authBindingError = await accountSlotBindingError(eventUser, requestedSlot);
+                    if (db !== client || activeAuthSlot !== requestedSlot || requestedSlot !== getCurrentGameSlot()) return;
+                    if (authBindingError) {
+                        currentUser = null;
+                        currentClan = null;
+                        currentProfile = null;
+                        showAuthState();
+                        setNotice(authBindingError, 'warning');
+                        notifyCloudSaveAuthChanged();
+                        client.auth.signOut().catch(function () {});
+                        return;
+                    }
                     showAuthState();
-                    refreshAll();
+                    await refreshAll();
                     notifyCloudSaveAuthChanged();
                 }, 0);
             });
