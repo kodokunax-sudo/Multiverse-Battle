@@ -22,6 +22,8 @@
     var lastFightPositionSentAt = 0;
     var victoryBroadcastForFightId = null;
     var seenEvents = new Set();
+    var coopHazardCounter = 0;
+    var consumedHazardIds = new Set();
     var keyHandler = null;
     var pointerDownHandler = null;
     var pointerMoveHandler = null;
@@ -119,6 +121,57 @@
             if (obj[key] !== undefined && typeof obj[key] !== 'function') result[key] = obj[key];
         });
         return result;
+    }
+    function ensureHazardIds() {
+        if (!isLeader() || !activeFightId) return;
+        var lists = [window.waystarAttacks, window.waystarEnemyBullets, window.waystarBombs, window.waystarBombQueue];
+        lists.forEach(function (list) {
+            if (!Array.isArray(list)) return;
+            list.forEach(function (hazard) {
+                if (hazard && typeof hazard === 'object' && !hazard.__mb_coop_id) {
+                    coopHazardCounter++;
+                    hazard.__mb_coop_id = activeFightId + ':h' + coopHazardCounter;
+                }
+            });
+        });
+        if (window.waystarDash && typeof window.waystarDash === 'object' && !window.waystarDash.__mb_coop_id) {
+            coopHazardCounter++;
+            window.waystarDash.__mb_coop_id = activeFightId + ':h' + coopHazardCounter;
+        }
+    }
+    function applyHazardArray(propertyName, incoming) {
+        if (!Array.isArray(incoming)) return;
+        var previous = Array.isArray(window[propertyName]) ? window[propertyName] : [];
+        var localFlags = new Map();
+        previous.forEach(function (item) {
+            if (!item || !item.__mb_coop_id) return;
+            localFlags.set(item.__mb_coop_id, {
+                hit: item.hit === true,
+                dioStandHitOnce: item.dioStandHitOnce === true
+            });
+        });
+        var next = [];
+        incoming.forEach(function (source) {
+            if (!source || typeof source !== 'object') return;
+            var item = source;
+            var id = item.__mb_coop_id;
+            if (id && consumedHazardIds.has(id)) return;
+            if (id && localFlags.has(id)) {
+                var flags = localFlags.get(id);
+                if (flags.hit) item.hit = true;
+                if (flags.dioStandHitOnce) item.dioStandHitOnce = true;
+            }
+            next.push(item);
+        });
+        window[propertyName] = next;
+    }
+    function onHazardConsumed(hazard) {
+        if (!fightStarted || !hazard || !hazard.__mb_coop_id) return;
+        consumedHazardIds.add(hazard.__mb_coop_id);
+        if (consumedHazardIds.size > 800) {
+            var first = consumedHazardIds.values().next().value;
+            if (first) consumedHazardIds.delete(first);
+        }
     }
 
     async function enterArena() {
@@ -434,6 +487,8 @@
         fightHostSessionId = selfSessionId;
         victoryBroadcastForFightId = null;
         seenEvents.clear();
+        consumedHazardIds.clear();
+        coopHazardCounter = 0;
         sendEvent('fight_start', packet);
         startLocalFight(packet, false);
     }
@@ -446,6 +501,8 @@
         fightHostSessionId = packet.host_session_id || packet.sender_session_id || leaderSessionId;
         fightStarted = true;
         victoryBroadcastForFightId = null;
+        consumedHazardIds.clear();
+        coopHazardCounter = 0;
         var api = window.MBOnlineWaystar;
         if (api) {
             api.active = true;
@@ -565,12 +622,16 @@
         applyObject('waystarSmallBoss', packet.small_boss, ['x','y','size','rotation','pulse','time','alpha']);
         // Mirror the original boss's live hazards from the room host so both clients
         // see the same meteor/laser/bomb/Invader attack pattern.
-        if (Array.isArray(packet.attacks)) window.waystarAttacks = packet.attacks;
-        if (Array.isArray(packet.enemy_bullets)) window.waystarEnemyBullets = packet.enemy_bullets;
-        if (Array.isArray(packet.bombs)) window.waystarBombs = packet.bombs;
-        if (Array.isArray(packet.bomb_queue)) window.waystarBombQueue = packet.bomb_queue;
-        if (packet.dash && typeof packet.dash === 'object') window.waystarDash = packet.dash;
-        else if (packet.dash === null) window.waystarDash = null;
+        applyHazardArray('waystarAttacks', packet.attacks);
+        applyHazardArray('waystarEnemyBullets', packet.enemy_bullets);
+        applyHazardArray('waystarBombs', packet.bombs);
+        applyHazardArray('waystarBombQueue', packet.bomb_queue);
+        if (packet.dash && typeof packet.dash === 'object') {
+            var previousDash = window.waystarDash;
+            var dash = packet.dash;
+            if (previousDash && previousDash.__mb_coop_id && previousDash.__mb_coop_id === dash.__mb_coop_id && previousDash.hit) dash.hit = true;
+            window.waystarDash = (dash.__mb_coop_id && consumedHazardIds.has(dash.__mb_coop_id)) ? null : dash;
+        } else if (packet.dash === null) window.waystarDash = null;
         if (typeof packet.attack_timer === 'number') window.waystarAttackTimer = packet.attack_timer;
         if (typeof packet.type_timer === 'number') window.waystarTypeTimer = packet.type_timer;
         if (typeof packet.attack_type === 'number') window.waystarAttackType = packet.attack_type;
@@ -716,6 +777,7 @@
 
     function onFrame(ctx, canvas, state) {
         if (!fightStarted || !activeFightId || !ctx || !canvas) return;
+        ensureHazardIds();
         var now = Date.now();
         var ownPlayer = window.waystarPlayer;
         if (ownPlayer && now - lastFightPositionSentAt >= 80) {
@@ -806,6 +868,8 @@
         activeFightId = null;
         fightHostSessionId = null;
         victoryBroadcastForFightId = null;
+        consumedHazardIds.clear();
+        coopHazardCounter = 0;
         if (window.MBOnlineWaystar) {
             window.MBOnlineWaystar.active = false;
             window.MBOnlineWaystar.fightId = null;
@@ -927,7 +991,8 @@
             onDialogChoice: onDialogChoice,
             onFinalChoice: onFinalChoice,
             onSpareAdvance: onSpareAdvance,
-            onFrame: onFrame
+            onFrame: onFrame,
+            onHazardConsumed: onHazardConsumed
         };
     }
 
