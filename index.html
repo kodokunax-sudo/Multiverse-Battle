@@ -547,6 +547,76 @@
  .public-profile-modal .clan-stat{padding:10px}
 }
 
+
+/* Friends network, card showcase and achievement titles */
+.online-subnav{grid-template-columns:repeat(4,minmax(0,1fr))}
+.online-feature-divider{height:1px;margin:20px 0;background:linear-gradient(90deg,rgba(246,181,27,.45),rgba(155,121,255,.2),transparent)}
+.online-feature-section{margin-top:14px;padding:16px;border:1px solid rgba(155,121,255,.17);border-radius:16px;background:linear-gradient(145deg,rgba(25,23,41,.72),rgba(9,10,16,.45))}
+.online-feature-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.online-feature-heading>div>span{font-size:9px;letter-spacing:1.7px;color:#bca7ff;font-weight:950}
+.online-feature-heading h3{margin:4px 0 0;font-size:18px;letter-spacing:-.2px}
+.online-feature-counter{border:1px solid rgba(246,181,27,.25);border-radius:999px;padding:5px 8px;color:#ffd66d;font-size:10px;font-weight:900;white-space:nowrap}
+.online-friend-code-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 16px;padding:12px 14px;border:1px solid rgba(246,181,27,.22);border-radius:13px;background:linear-gradient(105deg,rgba(246,181,27,.07),rgba(155,121,255,.07))}
+.online-friend-code-row span,.public-profile-code-row span{display:block;font-size:10px;color:#9c95b2;letter-spacing:.5px}
+.online-friend-code-row strong{display:block;color:#ffda72;font-size:15px;letter-spacing:1.5px;margin-top:3px}
+.online-friend-search-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:12px 0}
+.online-friend-search-form input{min-width:0;width:100%;padding:12px;border:1px solid #393348;border-radius:12px;background:#0b0b13;color:#fff;font:inherit}
+.online-friend-search-form input:focus,.online-title-select:focus,#clanShowcaseSearch:focus{outline:2px solid rgba(246,181,27,.4);outline-offset:1px;border-color:#f6b51b}
+.online-player-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.online-player-row{display:flex;align-items:center;gap:11px;min-width:0;padding:11px;border:1px solid rgba(155,121,255,.16);border-radius:14px;background:linear-gradient(105deg,rgba(123,88,205,.07),rgba(255,255,255,.018))}
+.online-player-avatar{width:48px;height:48px;object-fit:cover;flex:0 0 48px;border:1px solid rgba(246,181,27,.33);border-radius:13px;background:#11111a}
+.online-player-main{flex:1;min-width:0}
+.online-player-name-line{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.online-player-name-line strong{overflow-wrap:anywhere;font-size:13px}
+.online-player-meta{margin-top:4px;color:#9e99b1;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+.online-status-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid rgba(255,255,255,.12);border-radius:999px;color:#aaa5b6;font-size:9px;font-weight:900;white-space:nowrap}
+.online-status-pill.online{color:#9dffc0;border-color:rgba(83,237,143,.22);background:rgba(44,186,92,.09)}
+.online-status-pill.online:before{content:"";width:6px;height:6px;border-radius:50%;background:#4bec91;box-shadow:0 0 8px rgba(75,236,145,.5)}
+.online-player-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.online-player-actions .btn{padding:7px 9px;font-size:10px;white-space:nowrap}
+.online-empty-state{padding:12px;border:1px dashed rgba(155,121,255,.18);border-radius:12px;color:#918ba3;font-size:12px;text-align:center}
+.online-inline-status{margin-top:9px;color:#bca7ff;font-size:11px;font-weight:800}
+.showcase-pick-grid,.public-showcase-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;margin:12px 0 4px}
+.showcase-pick-card{position:relative;display:flex;flex-direction:column;align-items:center;min-width:0;gap:6px;padding:9px 7px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(5,6,12,.45);color:#e8e2f5;font:inherit;text-align:center;cursor:pointer;transition:border-color .15s,transform .15s,background .15s}
+.showcase-pick-card:hover{transform:translateY(-2px);border-color:rgba(155,121,255,.6)}
+.showcase-pick-card.selected{border-color:#f6b51b;background:linear-gradient(145deg,rgba(246,181,27,.12),rgba(122,84,202,.16));box-shadow:inset 0 0 0 1px rgba(246,181,27,.13)}
+.showcase-pick-card img,.public-showcase-card img{width:60px;height:60px;object-fit:contain;border-radius:10px;background:rgba(17,16,27,.9)}
+.showcase-pick-card strong{max-width:100%;font-size:10px;line-height:1.3;overflow-wrap:anywhere}
+.showcase-pick-card small{font-size:9px;color:#aaa3bf}
+.showcase-pick-card .showcase-check{position:absolute;top:6px;right:6px;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#f6b51b;color:#1a1308;font-size:11px;font-weight:950}
+.public-showcase-card{display:flex;align-items:center;gap:10px;min-width:0;padding:10px;border:1px solid rgba(246,181,27,.15);border-radius:13px;background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(0,0,0,.12))}
+.public-showcase-card img{width:56px;height:56px;flex:0 0 56px;border:1px solid rgba(155,121,255,.22)}
+.public-showcase-card strong{display:block;font-size:11px;overflow-wrap:anywhere}
+.public-showcase-card small{display:block;margin-top:4px;font-size:9px;line-height:1.4;color:#aaa3bb}
+.online-field-label{display:block;margin:13px 0 6px;color:#e2d9f4;font-size:11px;font-weight:900}
+.online-title-select{display:block;width:100%;padding:11px 12px;border:1px solid #40364f;border-radius:11px;background:#11101b;color:#fff;font:inherit;font-size:12px}
+.achievement-badges-grid{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.achievement-badge{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid rgba(246,181,27,.19);border-radius:10px;background:linear-gradient(120deg,rgba(246,181,27,.07),rgba(155,121,255,.08));color:#f4d993;font-size:10px;font-weight:850}
+.achievement-badge.locked{filter:grayscale(1);opacity:.32;border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.02);color:#a8a2b8}
+.public-profile-title{width:max-content;max-width:100%;margin:0 0 8px;padding:6px 9px;border:1px solid rgba(246,181,27,.3);border-radius:8px;background:linear-gradient(110deg,rgba(246,181,27,.1),rgba(155,121,255,.13));color:#ffda72;font-size:11px;font-weight:950}
+.public-profile-code-row{display:flex;align-items:center;gap:9px;margin-top:9px;color:#aaa}
+.public-profile-code-row strong{font-size:11px;letter-spacing:1px;color:#d0c4f4}
+.public-profile-actions{margin-top:9px}
+.public-profile-actions .btn{padding:7px 10px;font-size:11px}
+.public-profile-showcase-section{margin-bottom:14px}
+.public-profile-showcase-section .public-profile-stats-heading{margin-top:4px}
+.public-showcase-grid{margin:4px clamp(17px,4vw,34px) 0}
+.public-profile-badges{margin:12px clamp(17px,4vw,34px)}
+.public-profile-badges .achievement-badge{font-size:9px}
+@media(max-width:620px){
+ .online-subnav{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px}
+ .online-subtab{font-size:10px;padding:10px 2px}
+ .online-feature-section{padding:11px}
+ .online-feature-heading h3{font-size:16px}
+ .online-friend-search-form{grid-template-columns:minmax(0,1fr)}
+ .online-player-row{align-items:flex-start;flex-wrap:wrap}
+ .online-player-avatar{width:42px;height:42px;flex-basis:42px}
+ .online-player-main{flex:1 1 calc(100% - 60px)}
+ .online-player-actions{width:100%;justify-content:flex-start;padding-left:53px}
+ .showcase-pick-grid,.public-showcase-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .public-showcase-grid{margin-left:15px;margin-right:15px}
+}
+
 </style>
     <script src="anti-pull-refresh.js?v=4"></script>
 </head>
@@ -839,6 +909,7 @@
             <div id="clansSignedInSections" class="online-content" style="display:none;">
                 <div class="online-subnav" role="tablist" aria-label="Разделы онлайн">
                     <button type="button" class="online-subtab active" data-online-view="profile" role="tab" aria-selected="true">👤 Профиль</button>
+                    <button type="button" class="online-subtab" data-online-view="friends" role="tab" aria-selected="false">👥 Друзья</button>
                     <button type="button" class="online-subtab" data-online-view="clan" role="tab" aria-selected="false">🛡️ Клан</button>
                     <button type="button" class="online-subtab" data-online-view="rating" role="tab" aria-selected="false">🏆 Рейтинг</button>
                 </div>
@@ -856,6 +927,10 @@
                 </div>
                 <div id="clanProfileCard" class="card">
                     <div class="card-title">👤 Мой профиль</div>
+                    <div class="online-friend-code-row">
+                        <div><span>Твой код игрока</span><strong id="clanProfileFriendCode">MB-••••••••••</strong></div>
+                        <button id="clanCopyFriendCode" class="btn" type="button">📋 Скопировать код</button>
+                    </div>
                     <form id="clanProfileForm" class="clan-form">
                         <div class="clan-profile-fields">
                             <div>
@@ -876,6 +951,21 @@
                         <label class="avatar-search-label" for="clanAvatarSearch">Найти <input id="clanAvatarSearch" type="search" placeholder="Поиск по названию…" autocomplete="off"></label>
                         <div id="clanAvatarChoices" class="clan-avatar-grid avatar-choice-grid" aria-label="Выбери одну аватарку"></div>
                         <p class="avatar-selection-hint">✓ Один выбранный аватар будет отображаться в рейтинге, клане и профиле.</p>
+                        <div class="online-feature-divider"></div>
+                        <section class="online-feature-section">
+                            <div class="online-feature-heading"><div><span>COLLECTION DISPLAY</span><h3>🎴 Витрина коллекции</h3></div><span class="online-feature-counter">до 3 карт</span></div>
+                            <p class="clan-muted">Выбери до трёх любимых карт из текущего сохранения. Они появятся в твоём публичном профиле.</p>
+                            <label class="avatar-search-label" for="clanShowcaseSearch">Найти карту <input id="clanShowcaseSearch" type="search" placeholder="Название карты…" autocomplete="off"></label>
+                            <div id="clanProfileShowcaseChoices" class="showcase-pick-grid"></div>
+                            <div id="clanProfileShowcaseStatus" class="online-inline-status" role="status">Выбрано 0 из 3 карт</div>
+                        </section>
+                        <section class="online-feature-section online-title-section">
+                            <div class="online-feature-heading"><div><span>ACHIEVEMENTS</span><h3>🏅 Титулы и значки</h3></div></div>
+                            <label for="clanProfileTitle" class="online-field-label">Титул над именем</label>
+                            <select id="clanProfileTitle" class="online-title-select"></select>
+                            <p class="clan-muted">Титулы открываются за игровой прогресс. Разблокированные значки отображаются в публичном профиле.</p>
+                            <div id="clanProfileBadges" class="achievement-badges-grid"></div>
+                        </section>
                         <div class="clan-form-row">
                             <button id="clansProfileSaveBtn" class="btn btn-primary" type="submit">💾 Сохранить профиль</button>
                         </div>
@@ -888,6 +978,31 @@
 
 
 
+                </div>
+                <div class="online-pane" data-online-pane="friends">
+                    <div class="card friend-search-card">
+                        <div class="online-feature-heading"><div><span>PLAYER NETWORK</span><h3>👥 Найти игроков</h3></div><span class="online-feature-counter">MULTIVERSE</span></div>
+                        <p class="clan-muted">Ищи по игровому нику или точному коду вида <strong>MB-XXXXXXXXXX</strong>. Открывай профили и добавляй друзей.</p>
+                        <form id="onlineFriendSearchForm" class="online-friend-search-form">
+                            <input id="onlineFriendSearchInput" type="search" minlength="2" maxlength="80" placeholder="Ник игрока или код MB-…" autocomplete="off" required>
+                            <button class="btn btn-primary" type="submit">🔎 Найти</button>
+                        </form>
+                        <div id="onlineFriendSearchResults" class="online-player-list"><p class="clan-muted">Введи минимум 2 символа или код игрока.</p></div>
+                    </div>
+                    <div class="card">
+                        <div class="online-feature-heading"><div><span>YOUR PARTY</span><h3>🟢 Мои друзья</h3></div><button id="onlineFriendsRefresh" class="btn" type="button">↻ Обновить</button></div>
+                        <p class="clan-muted">Зелёная метка означает, что игрок был активен в последние две минуты.</p>
+                        <div id="onlineFriendsList" class="online-player-list"><p class="clan-muted">Загружаем друзей…</p></div>
+                    </div>
+                    <div class="card">
+                        <div class="online-feature-heading"><div><span>REQUESTS</span><h3>📨 Заявки в друзья</h3></div></div>
+                        <div id="onlineFriendRequests" class="online-player-list"><p class="clan-muted">Заявок пока нет.</p></div>
+                    </div>
+                    <div class="card">
+                        <div class="online-feature-heading"><div><span>CLAN INVITATIONS</span><h3>🛡️ Приглашения в клан</h3></div></div>
+                        <p class="clan-muted">Приглашать друзей в клан могут лидеры и офицеры. Приглашение действует 7 дней.</p>
+                        <div id="onlineClanInvites" class="online-player-list"><p class="clan-muted">Приглашений нет.</p></div>
+                    </div>
                 </div>
                 <div class="online-pane" data-online-pane="clan">
                 <div id="clanCurrentCard" class="card" style="display:none;">
@@ -982,8 +1097,19 @@
             <div class="public-profile-identity">
                 <div class="online-eyebrow">MULTIVERSE BATTLE · PLAYER PROFILE</div>
                 <h2 id="clanPublicName">Загрузка профиля…</h2>
+                <div id="clanPublicTitle" class="public-profile-title" style="display:none;"></div>
                 <p id="clanPublicDescription" class="clan-muted">Загружаем информацию об игроке.</p>
+                <div class="public-profile-code-row"><span>Код игрока</span><strong id="clanPublicFriendCode">—</strong></div>
+                <div class="public-profile-actions"><button id="clanPublicFriendAction" class="btn btn-primary" type="button">➕ Добавить в друзья</button></div>
             </div>
+        </div>
+        <div class="public-profile-showcase-section">
+            <div class="public-profile-stats-heading">
+                <span class="public-profile-section-mark"></span>
+                <div><strong>Витрина коллекции</strong><small>Три карты, которыми игрок гордится</small></div>
+            </div>
+            <div id="clanPublicShowcase" class="public-showcase-grid"><p class="clan-muted">Игрок пока не выбрал карты для витрины.</p></div>
+            <div id="clanPublicBadges" class="achievement-badges-grid public-profile-badges"></div>
         </div>
         <div class="public-profile-stats-heading">
             <span class="public-profile-section-mark"></span>
@@ -1054,7 +1180,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="clans.js?v=17"></script>
+<script src="clans.js?v=18"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
