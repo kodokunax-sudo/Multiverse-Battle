@@ -256,7 +256,9 @@
         profileAvatarName = avatarPathForName(result.data.avatar_name) ? result.data.avatar_name : 'Дио';
         renderAvatarPicker(profileAvatarName);
         applyAvatarPreview(profileAvatarName);
-        renderStatsGrid('clanProfileStats', result.data);
+        renderStatsGrid('clanProfileStats', Object.assign({}, result.data, readLocalGameStats() || {}));
+        var signedInLabel = byId('clansSignedInAs');
+        if (signedInLabel) signedInLabel.textContent = (result.data.display_name || 'Игрок') + ' · ' + (currentUser.email || 'Аккаунт игрока');
     }
 
     async function saveProfile(event) {
