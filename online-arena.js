@@ -38,6 +38,7 @@
     var seenEvents = new Set();
     var coopHazardCounter = 0;
     var consumedHazardIds = new Set();
+    var lastHostHazardIds = new Set();
     var keyHandler = null;
     var pointerDownHandler = null;
     var pointerMoveHandler = null;
@@ -341,6 +342,19 @@
                     }
                     renderFightRoster();
                 });
+                ch.on('broadcast', { event: 'super_action' }, function (message) {
+                    var p = message && message.payload;
+                    if (!p || p.fight_id !== activeFightId || p.sender_session_id === selfSessionId ||
+                        !p.event_id || !markEvent(p.event_id)) return;
+                    var other = currentPlayers.get(p.sender_session_id);
+                    if (!other) return;
+                    other.lastSuperName = String(p.super_name || 'SUPER').slice(0, 48);
+                    other.lastSuperAt = Date.now();
+                    if (p.combat_visuals && typeof p.combat_visuals === 'object') {
+                        other.combatVisuals = p.combat_visuals;
+                        other.combatVisualsReceivedAt = Date.now();
+                    }
+                });
                 ch.on('broadcast', { event: 'boss_damage' }, function (message) {
                     var p = message && message.payload;
                     if (!p || p.fight_id !== activeFightId || p.sender_session_id === selfSessionId || !markEvent(p.event_id)) return;
@@ -550,12 +564,17 @@
     function startCoopFight() {
         if (!entered || !channel || !isLeader() || currentPlayers.size < 2 || activeFightId || fightStarted) return;
         var damage = Math.max(1, Number(window.playerFinalDamage) || 100);
-        var maxHp = Math.max(25000, damage * 120);
+        // The room creator is the baseline player; each additional participant adds 50% HP.
+        var partySize = Math.max(1, currentPlayers.size);
+        var bossHpMultiplier = 1 + 0.5 * Math.max(0, partySize - 1);
+        var maxHp = Math.round(Math.max(25000, damage * 120) * bossHpMultiplier);
         var packet = {
             fight_id: createId(),
             host_session_id: selfSessionId,
             boss_max_hp: maxHp,
             boss_hp: maxHp,
+            boss_hp_multiplier: bossHpMultiplier,
+            party_size: partySize,
             starter_name: playerName
         };
         activeFightId = packet.fight_id;
@@ -563,6 +582,7 @@
         victoryBroadcastForFightId = null;
         seenEvents.clear();
         consumedHazardIds.clear();
+        lastHostHazardIds.clear();
         coopHazardCounter = 0;
         snapshotSequence = 0;
         lastAppliedSnapshotSequence = 0;
@@ -580,6 +600,7 @@
         fightStarted = true;
         victoryBroadcastForFightId = null;
         consumedHazardIds.clear();
+        lastHostHazardIds.clear();
         coopHazardCounter = 0;
         snapshotSequence = 0;
         lastAppliedSnapshotSequence = 0;
@@ -600,6 +621,8 @@
             api.active = true;
             api.fightId = activeFightId;
             api.hostSessionId = fightHostSessionId;
+            api.bossHpMultiplier = Math.max(1, Number(packet.boss_hp_multiplier) || 1);
+            api.partySize = Math.max(1, Number(packet.party_size) || currentPlayers.size || 1);
         }
         var stage = byId('onlineArenaStage');
         if (stage) stage.style.display = 'none';
@@ -669,16 +692,22 @@
         var dash = visualFields(s.dekuDash, ['startX','startY','dirX','dirY','distance','traveled','life']);
         if (dash) dash.trail = visualList(s.dekuDash.trail, ['x','y','life'], 10);
         var flags = {};
-        [
-            'dekusActive','dekuSmashActive','nikaActive','garouTimeStop','garpHakiActive',
-            'antispiralActive','imAuraActive','dandyLightnings','dandyInvuln',
-            'whitebeardTimeStop','whitebeardTsunami','whitebeardCharging',
-            'whitebeardSkillTsunamiActive','dioMudaActive','allmightHurricane',
-            'allmightDebuffActive','markBuffActive','usoppInvuln'
-        ].forEach(function (key) { flags[key] = !!s[key]; });
+        // Include every current and future boolean ultimate flag without serializing
+        // mutable gameplay state such as cooldown objects or local collision arrays.
+        Object.keys(s).forEach(function (key) {
+            if (typeof s[key] === 'boolean') flags[key] = s[key];
+        });
         flags.dioTimeStop = Math.max(0, Number(s.dioTimeStop) || 0);
         flags.dioTeleportStop = Math.max(0, Number(s.dioTeleportStop) || 0);
         flags.garpChargeTimer = Math.max(0, Number(s.garpChargeTimer) || 0);
+        flags.garouInvulnTimer = Math.max(0, Number(s.garouInvulnTimer) || 0);
+        flags.usoppStunTimer = Math.max(0, Number(s.usoppStunTimer) || 0);
+        flags.dandyDarkness = Math.max(0, Number(s.dandyDarkness) || 0);
+        flags.dandyAura = Math.max(0, Number(s.dandyAura) || 0);
+        flags.dandyLava = Math.max(0, Number(s.dandyLava) || 0);
+        flags.allmightBuffTimer = Math.max(0, Number(s.allmightBuffTimer) || 0);
+        flags.kaidoScream = !!s.kaidoScream;
+        flags.superName = (typeof _activeSuperName === 'string' ? _activeSuperName : '');
         return {
             bullets: bullets,
             supers: {
@@ -687,7 +716,14 @@
                 fists: visualList(s.fists, ['x','y','size','life','color','owner','pathWidth'], 8),
                 dekuFists: visualList(s.dekuFists, ['x','y','radius','active','delay','angle'], 12),
                 dekuExplosions: visualList(s.dekuExplosions, ['x','y','life','maxLife'], 8),
+                realityCracks: visualList(s.realityCracks, ['x','y','life','maxLife','angle','length','width'], 12),
+                earthCracks: visualList(s.earthCracks, ['x','y','life','maxLife','angle','length','width'], 12),
+                comicTexts: visualList(s.comicTexts, ['x','y','text','color','alpha','angle','scale'], 10),
                 dioKnives: visualList(s.dioKnives, ['x','y','vx','vy','angle','life'], 12),
+                borosHeal: !!s.borosHeal,
+                dandyRoulette: visualFields(s.dandyRoulette, ['time','duration']),
+                dandyShield: visualFields(s.dandyShield, ['timer','mult']),
+                dandyVulnerable: visualFields(s.dandyVulnerable, ['timer','mult']),
                 dekuDash: dash,
                 garpImpact: { active: !!s.garpImpactActive, x: Number(s.garpImpactX)||0, y: Number(s.garpImpactY)||0, radius: Math.max(0,Number(s.garpImpactRadius)||0) },
                 whitebeardTsunami: !!s.whitebeardTsunami,
@@ -735,6 +771,32 @@
                 ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(Number(f.x)||0,Number(f.y)||0,size*.45,0,Math.PI*2);ctx.stroke();
             });
             ctx.globalAlpha=1;
+            (s.realityCracks||[]).forEach(function(crack) {
+                if(!crack)return;
+                ctx.globalAlpha=clamp((Number(crack.life)||0)/Math.max(1,Number(crack.maxLife)||30),0,1)*.75;
+                ctx.strokeStyle='#c78bff';ctx.shadowColor='#a855f7';ctx.shadowBlur=12;ctx.lineWidth=clamp(Number(crack.width)||3,1,8);
+                var cx=Number(crack.x)||0,cy=Number(crack.y)||0,ca=Number(crack.angle)||0,cl=clamp(Number(crack.length)||35,8,180);
+                ctx.beginPath();ctx.moveTo(cx-Math.cos(ca)*cl/2,cy-Math.sin(ca)*cl/2);ctx.lineTo(cx,cy);ctx.lineTo(cx+Math.cos(ca)*cl/2,cy+Math.sin(ca)*cl/2);ctx.stroke();
+            });
+            (s.earthCracks||[]).forEach(function(crack) {
+                if(!crack)return;
+                ctx.globalAlpha=clamp((Number(crack.life)||0)/Math.max(1,Number(crack.maxLife)||30),0,1)*.75;
+                ctx.strokeStyle='#44ff44';ctx.shadowColor='#22c55e';ctx.shadowBlur=10;ctx.lineWidth=clamp(Number(crack.width)||3,1,7);
+                var cx=Number(crack.x)||0,cy=Number(crack.y)||0,ca=Number(crack.angle)||Math.PI/2,cl=clamp(Number(crack.length)||40,8,180);
+                ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(ca)*cl,cy+Math.sin(ca)*cl);ctx.stroke();
+            });
+            (s.comicTexts||[]).forEach(function(t) {
+                if(!t||!t.text)return;
+                ctx.globalAlpha=clamp(Number(t.alpha)||.8,0,1);ctx.font='bold 12px Impact,Arial Black,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+                ctx.lineWidth=3;ctx.strokeStyle='#111';ctx.strokeText(String(t.text).slice(0,24),Number(t.x)||0,Number(t.y)||0);
+                ctx.fillStyle=typeof t.color==='string'?t.color:'#ffd700';ctx.fillText(String(t.text).slice(0,24),Number(t.x)||0,Number(t.y)||0);
+            });
+            if(s.dekuDash && Number(s.dekuDash.life)>0) {
+                var dashX=(Number(s.dekuDash.startX)||0)+(Number(s.dekuDash.dirX)||0)*(Number(s.dekuDash.traveled)||0);
+                var dashY=(Number(s.dekuDash.startY)||0)+(Number(s.dekuDash.dirY)||0)*(Number(s.dekuDash.traveled)||0);
+                ctx.globalAlpha=.7;ctx.strokeStyle='#44ff44';ctx.shadowColor='#44ff44';ctx.shadowBlur=22;ctx.lineWidth=14;
+                ctx.beginPath();ctx.moveTo(Number(s.dekuDash.startX)||0,Number(s.dekuDash.startY)||0);ctx.lineTo(dashX,dashY);ctx.stroke();
+            }
             (s.dioKnives||[]).forEach(function(k) {
                 if(!k||(Number(k.life)||0)<=0)return;
                 ctx.save();ctx.translate(Number(k.x)||0,Number(k.y)||0);ctx.rotate(Number(k.angle)||Math.atan2(Number(k.vy)||0,Number(k.vx)||0));
@@ -768,18 +830,32 @@
                     ctx.lineTo(400,wy+45);ctx.lineTo(0,wy+45);ctx.closePath();ctx.fill();
                 }
             }
-            var f=s.flags||{},aura=null;
-            if(f.dekusActive)aura='#44ff44';
-            else if(f.antispiralActive)aura='#aaddff';
-            else if(f.nikaActive)aura='#fff';
-            else if(f.garpHakiActive||Number(f.garpChargeTimer)>0||Number(f.dioTimeStop)>0||Number(f.dioTeleportStop)>0||f.dioMudaActive)aura='#ffdd77';
-            else if(f.whitebeardTimeStop||f.whitebeardCharging||f.whitebeardTsunami||f.whitebeardSkillTsunamiActive)aura='#00ccff';
-            else if(f.allmightHurricane||f.allmightDebuffActive||f.markBuffActive)aura='#ffd700';
-            else if(f.dandyLightnings||f.imAuraActive)aura='#bc66ff';
-            else if(f.garouTimeStop||f.dekuSmashActive||f.usoppInvuln)aura='#ff4444';
-            if(aura) {
-                ctx.globalAlpha=.75+Math.sin(Date.now()/85)*.18;ctx.strokeStyle=aura;ctx.shadowColor=aura;ctx.shadowBlur=16;ctx.lineWidth=3;
-                ctx.beginPath();ctx.arc(Number(player.fightX)||200,Number(player.fightY)||430,18,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;
+            var f=s.flags||{};
+            var auraSpecs=[
+                {on:f.dekusActive||f.dekuSmashActive||f.allmightHurricane,color:'#44ff44'},
+                {on:f.antispiralActive||f.antispiralFrozen,color:'#aaddff'},
+                {on:f.nikaActive,color:'#ffffff'},
+                {on:f.garpHakiActive||Number(f.garpChargeTimer)>0||f.garpImpactActive,color:'#ff55dd'},
+                {on:Number(f.dioTimeStop)>0||Number(f.dioTeleportStop)>0||f.dioMudaActive,color:'#ffdd77'},
+                {on:f.whitebeardTimeStop||f.whitebeardCharging||f.whitebeardTsunami||f.whitebeardSkillTsunamiActive,color:'#00ccff'},
+                {on:f.allmightDebuffActive||f.allmightPermaSlow||f.markBuffActive,color:'#ffd700'},
+                {on:f.dandyLightnings||f.dandyInvuln||Number(f.dandyAura)>0||f.imAuraActive,color:'#bc66ff'},
+                {on:f.garouTimeStop||Number(f.garouInvulnTimer)>0||f.usoppInvuln||Number(f.usoppStunTimer)>0,color:'#ff4444'},
+                {on:f.kaidoBuffActive||f.kaidoDrinking||f.kaidoScream,color:'#ff8a36'},
+                {on:f.borosParticles||s.borosHeal,color:'#72ff8c'}
+            ].filter(function(spec){return !!spec.on;}).slice(0,4);
+            var px=Number(player.fightX)||200,py=Number(player.fightY)||430;
+            auraSpecs.forEach(function(spec,index) {
+                ctx.globalAlpha=.72+Math.sin(Date.now()/85+index)*.16;
+                ctx.strokeStyle=spec.color;ctx.shadowColor=spec.color;ctx.shadowBlur=14;ctx.lineWidth=3;
+                ctx.beginPath();ctx.arc(px,py,17+index*5,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;
+            });
+            if(f.superName && Date.now()-(player.lastSuperAt||0)<1300) {
+                ctx.globalAlpha=clamp(1-(Date.now()-(player.lastSuperAt||0))/1300,.2,1);
+                ctx.font='bold 10px Arial,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
+                ctx.fillStyle='#fff';ctx.strokeStyle='#111';ctx.lineWidth=3;
+                var tag='⚡ '+String(f.superName).slice(0,32);
+                ctx.strokeText(tag,px,py-34);ctx.fillText(tag,px,py-34);ctx.globalAlpha=1;
             }
             if(s.dioStand&&Number(s.dioStand.flash)>.02) {
                 ctx.globalAlpha=clamp(Number(s.dioStand.flash)*1.6,.15,1);ctx.fillStyle='#e7d1ff';ctx.shadowColor='#cba5ff';ctx.shadowBlur=20;
@@ -842,6 +918,55 @@
         });
     }
 
+    function collectLiveHazardIds() {
+        var ids = new Set();
+        ['waystarAttacks', 'waystarEnemyBullets', 'waystarBombs', 'waystarBombQueue'].forEach(function (name) {
+            var list = window[name];
+            if (!Array.isArray(list)) return;
+            list.forEach(function (hazard) {
+                if (hazard && hazard.__mb_coop_id) ids.add(hazard.__mb_coop_id);
+            });
+        });
+        if (window.waystarDash && window.waystarDash.__mb_coop_id) ids.add(window.waystarDash.__mb_coop_id);
+        return ids;
+    }
+
+    function snapshotHazardIds(packet) {
+        var ids = new Set();
+        [['attacks', 'waystarAttacks'], ['enemy_bullets', 'waystarEnemyBullets'],
+            ['bombs', 'waystarBombs'], ['bomb_queue', 'waystarBombQueue']].forEach(function (pair) {
+            var list = packet[pair[0]];
+            if (!Array.isArray(list)) return;
+            list.forEach(function (hazard) {
+                if (hazard && hazard.__mb_coop_id) ids.add(hazard.__mb_coop_id);
+            });
+        });
+        if (packet.dash && packet.dash.__mb_coop_id) ids.add(packet.dash.__mb_coop_id);
+        return ids;
+    }
+
+    function preserveLocalHazardRemovals(packet) {
+        if (isLeader()) {
+            lastHostHazardIds = snapshotHazardIds(packet);
+            return;
+        }
+        // A guest's SUPER may locally clear/freeze/deflect hazards. Remember hazards
+        // removed since the previous host snapshot so a later snapshot doesn't respawn them.
+        var liveNow = collectLiveHazardIds();
+        lastHostHazardIds.forEach(function (id) {
+            if (!liveNow.has(id)) consumedHazardIds.add(id);
+        });
+        lastHostHazardIds = snapshotHazardIds(packet);
+        if (consumedHazardIds.size > 800) {
+            var excess = consumedHazardIds.size - 800;
+            consumedHazardIds.forEach(function (id) {
+                if (excess <= 0) return;
+                consumedHazardIds.delete(id);
+                excess--;
+            });
+        }
+    }
+
     function applyFightSnapshot(packet) {
         if (!window.getWaystarActive || !window.getWaystarActive()) return;
         // Ignore stale snapshots if network packets arrive out of order.
@@ -853,8 +978,13 @@
         }
         if (incomingSequence && incomingSequence <= lastAppliedSnapshotSequence) return;
         if (incomingSequence) lastAppliedSnapshotSequence = incomingSequence;
+        preserveLocalHazardRemovals(packet);
         if (typeof packet.boss_hp === 'number') window.waystarBossHp = packet.boss_hp;
         if (typeof packet.boss_max_hp === 'number') window.waystarBossMaxHp = packet.boss_max_hp;
+        if (window.MBOnlineWaystar) {
+            if (typeof packet.boss_hp_multiplier === 'number') window.MBOnlineWaystar.bossHpMultiplier = Math.max(1, packet.boss_hp_multiplier);
+            if (typeof packet.party_size === 'number') window.MBOnlineWaystar.partySize = Math.max(1, packet.party_size);
+        }
         if (typeof packet.rage === 'boolean') window.waystarRageMode = packet.rage;
         if (typeof packet.escalation === 'number') window.waystarEscalationLevel = packet.escalation;
 
@@ -975,6 +1105,8 @@
             phase: getWaystarPhaseRank(state),
             boss_hp: Number(window.waystarBossHp) || 0,
             boss_max_hp: Number(window.waystarBossMaxHp) || 25000,
+            boss_hp_multiplier: window.MBOnlineWaystar ? Math.max(1, Number(window.MBOnlineWaystar.bossHpMultiplier) || 1) : 1,
+            party_size: window.MBOnlineWaystar ? Math.max(1, Number(window.MBOnlineWaystar.partySize) || 1) : 1,
             boss: safeCopy(window.waystarBoss, ['x','y','size','vx','rotation','pulse','time','alpha']),
             boss2: safeCopy(window.waystarBoss2, ['x','y','size','vx','rotation','pulse','alpha','active']),
             small_boss: safeCopy(window.waystarSmallBoss, ['x','y','size','rotation','pulse','time','alpha']),
@@ -1008,6 +1140,16 @@
             choice: window.waystarChoiceSelection === undefined ? null : window.waystarChoiceSelection,
             spare_step: Number(window.waystarSpareDialogStep) || 0
         };
+    }
+
+    function onSuperAction(superName) {
+        if (!fightStarted || !activeFightId || !channel) return;
+        sendEvent('super_action', {
+            fight_id: activeFightId,
+            event_id: createId(),
+            super_name: String(superName || 'SUPER').slice(0, 48),
+            combat_visuals: captureCombatVisuals()
+        });
     }
 
     function onBossDamage(damage, phase) {
@@ -1236,6 +1378,8 @@
             window.MBOnlineWaystar.active = false;
             window.MBOnlineWaystar.fightId = null;
             window.MBOnlineWaystar.hostSessionId = null;
+            window.MBOnlineWaystar.bossHpMultiplier = 1;
+            window.MBOnlineWaystar.partySize = 1;
         }
         if (message) setStageStatus(message);
         if (showMessage !== false) renderLobbyPlayers();
@@ -1345,7 +1489,11 @@
             active: false,
             fightId: null,
             hostSessionId: null,
+            bossHpMultiplier: 1,
+            partySize: 1,
             isLeader: isLeader,
+            isApplyingRemote: function () { return applyingRemote; },
+            onSuperAction: onSuperAction,
             onBossDamage: onBossDamage,
             onPieceHit: onPieceHit,
             onVictory: onVictory,
