@@ -480,6 +480,73 @@
 #clanProfileForm .clan-profile-layout>div{flex:1;min-width:0}
 #clanProfileForm #clanProfileName,#clanProfileForm #clanProfileDescription{width:100%;box-sizing:border-box;margin:6px 0 13px}
 @media(max-width:520px){.online-hero{padding:17px;gap:13px;border-radius:17px}.online-hero-icon{width:52px;height:52px;flex-basis:52px;font-size:25px;border-radius:15px}.online-hero-copy h2{font-size:25px}.online-subtab{font-size:11px;padding:11px 3px}.avatar-editor-heading{padding:12px;gap:8px}.avatar-preview-wrap .clan-profile-avatar{width:68px;height:68px}.avatar-choice-grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px}.avatar-choice-grid .clan-avatar-option{min-height:90px}.avatar-choice-grid .clan-avatar-option img{width:49px;height:49px}}
+
+/* Multiverse Battle online polish: gold + arcane violet */
+.online-screen{--mb-gold:#f6b51b;--mb-gold-soft:#ffda72;--mb-violet:#9b79ff;--mb-ink:#0b0b13}
+.online-hero{border-color:rgba(246,181,27,.24);background:radial-gradient(ellipse at 8% 115%,rgba(246,181,27,.11),transparent 48%),radial-gradient(ellipse at 85% 5%,rgba(131,83,255,.27),transparent 45%),linear-gradient(125deg,#181725,#0c0c15 78%)}
+.online-hero-icon{border-color:rgba(246,181,27,.42);box-shadow:0 0 0 4px rgba(246,181,27,.035),0 8px 30px #0008}
+.online-subtab.active{background:linear-gradient(135deg,rgba(246,181,27,.14),rgba(120,84,218,.26));border-color:rgba(246,181,27,.32);box-shadow:inset 0 -2px var(--mb-gold),inset 0 1px #ffffff12}
+.online-pane>.card{border-color:rgba(246,181,27,.13);background:radial-gradient(ellipse at 100% 0,rgba(116,84,210,.075),transparent 42%),linear-gradient(145deg,rgba(25,25,39,.99),rgba(13,14,22,.99));box-shadow:0 12px 32px rgba(0,0,0,.14)}
+.online-screen .card-title{letter-spacing:.1px}
+#clanProfileForm .clan-profile-fields{display:grid;grid-template-columns:minmax(0,1fr);width:100%;min-width:0;gap:0}
+#clanProfileForm .clan-profile-fields>div{grid-column:1/-1;min-width:0;width:100%}
+#clanProfileForm label{display:block;width:100%;max-width:100%;color:#e4deef;line-height:1.45;overflow-wrap:normal;word-break:normal}
+#clanProfileForm #clanProfileName,#clanProfileForm #clanProfileDescription{display:block;width:100%;max-width:100%;box-sizing:border-box;margin:7px 0 14px;border-color:#393348;background:rgba(7,8,14,.82);border-radius:12px}
+#clanProfileForm #clanProfileName:focus,#clanProfileForm #clanProfileDescription:focus,#clanAvatarSearch:focus{outline:2px solid rgba(246,181,27,.52);outline-offset:1px;border-color:var(--mb-gold)}
+#clanProfileForm #clanProfileDescription{min-height:98px;resize:vertical;line-height:1.55}
+.avatar-editor-heading{border-color:rgba(246,181,27,.23);background:radial-gradient(ellipse at 8% 0,rgba(246,181,27,.09),transparent 55%),radial-gradient(ellipse at 88% 10%,rgba(134,90,240,.17),transparent 48%),linear-gradient(125deg,#211d35,#171722)}
+.avatar-editor-heading h3{font-size:clamp(20px,3vw,25px);letter-spacing:-.3px}
+.avatar-preview-wrap .clan-profile-avatar{border-color:#f6b51b;box-shadow:0 0 0 4px rgba(246,181,27,.09),0 0 24px rgba(149,111,255,.22)}
+.avatar-choice-tabs{border-color:rgba(246,181,27,.18);background:#101018}
+.avatar-choice-tab.active{background:linear-gradient(135deg,#5d428e,#372849);border-color:#9f7ae9;box-shadow:inset 0 -2px var(--mb-gold)}
+.avatar-choice-grid .clan-avatar-option.selected{border-color:var(--mb-gold);background:linear-gradient(145deg,rgba(246,181,27,.13),rgba(120,81,203,.2));box-shadow:0 0 0 1px rgba(246,181,27,.18)}
+.avatar-search-label input{border-color:#393348!important;background:#090a11!important}
+.avatar-selection-hint{border-left:2px solid var(--mb-gold);padding-left:10px}
+#clansProfileSaveBtn{background:linear-gradient(135deg,#f6b51b,#c37b12);border-color:#ffd56c;color:#17110a;font-weight:950;box-shadow:0 5px 18px rgba(246,181,27,.12)}
+#clanLeaderboard .clan-leaderboard-row{border-color:rgba(246,181,27,.12);background:linear-gradient(110deg,rgba(120,86,200,.08),rgba(255,255,255,.018))}
+#clanLeaderboard .clan-leaderboard-row:hover{border-color:rgba(246,181,27,.45);background:linear-gradient(110deg,rgba(246,181,27,.11),rgba(120,86,200,.15))}
+.clan-leaderboard-rank{color:#ffcf57}
+
+/* Other players have their own full-screen profile, independent of the tab panels */
+.public-profile-overlay{position:fixed;inset:0;z-index:5000;display:none;align-items:center;justify-content:center;padding:clamp(10px,3vw,30px);overflow:auto;background:rgba(5,5,11,.88);backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px)}
+.public-profile-modal{position:relative;width:min(820px,100%);max-height:min(900px,calc(100dvh - 24px));overflow-y:auto;overscroll-behavior:contain;padding:0 0 16px;border:1px solid rgba(246,181,27,.42);border-radius:22px;color:#f6f2ff;background:radial-gradient(ellipse at 8% 0,rgba(246,181,27,.1),transparent 38%),radial-gradient(ellipse at 90% 5%,rgba(131,83,255,.21),transparent 42%),linear-gradient(150deg,#1b1a29,#0c0d15 72%);box-shadow:0 28px 100px #000b,inset 0 1px rgba(255,255,255,.05);animation:mbProfileIn .2s ease-out}
+@keyframes mbProfileIn{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+.clan-profile-modal-open{overflow:hidden}
+.public-profile-topbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:12px;min-height:58px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(13,13,22,.92);backdrop-filter:blur(12px)}
+.public-profile-back{border:1px solid rgba(246,181,27,.3);border-radius:10px;padding:8px 12px;color:#ffe09a;background:rgba(246,181,27,.07);font:inherit;font-size:12px;font-weight:900;cursor:pointer}
+.public-profile-back:hover{background:rgba(246,181,27,.15);border-color:var(--mb-gold,#f6b51b)}
+.public-profile-code{margin-left:auto;color:#8f89a6;font-size:9px;font-weight:900;letter-spacing:1.5px}
+.public-profile-badge{padding:5px 8px;border:1px solid rgba(155,121,255,.36);border-radius:6px;color:#c7b7ff;background:rgba(155,121,255,.1);font-size:9px;font-weight:950;letter-spacing:1px}
+.public-profile-hero{display:grid;grid-template-columns:136px minmax(0,1fr);align-items:center;gap:22px;padding:26px clamp(17px,4vw,34px) 24px}
+.public-profile-avatar-frame{display:grid;place-items:center;width:136px;height:136px;border:1px solid rgba(246,181,27,.65);border-radius:24px;background:linear-gradient(145deg,rgba(246,181,27,.13),rgba(132,91,219,.2));box-shadow:0 0 0 5px rgba(246,181,27,.045),0 14px 35px #0005}
+.public-profile-avatar-frame .clan-profile-avatar{width:116px;height:116px;border-radius:17px;border:2px solid #a88bff;background:#11111a;object-fit:cover}
+.public-profile-identity h2{margin:7px 0 8px;color:#fff;font-size:clamp(24px,4vw,34px);line-height:1.12;letter-spacing:-.8px;overflow-wrap:anywhere}
+.public-profile-identity .clan-muted{max-width:58ch;margin:0;color:#bbb7ca;font-size:13px;line-height:1.65;white-space:pre-wrap}
+.public-profile-stats-heading{display:flex;align-items:center;gap:10px;margin:0 clamp(17px,4vw,34px);padding:15px 0 11px;border-top:1px solid rgba(255,255,255,.08)}
+.public-profile-section-mark{display:block;width:4px;height:30px;border-radius:3px;background:linear-gradient(#ffe177,#ec9614);box-shadow:0 0 14px rgba(246,181,27,.3)}
+.public-profile-stats-heading strong,.public-profile-stats-heading small{display:block}
+.public-profile-stats-heading strong{font-size:15px}
+.public-profile-stats-heading small{margin-top:3px;color:#8f8a9f;font-size:10px}
+.public-profile-modal .clan-profile-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 clamp(17px,4vw,34px) 12px}
+.public-profile-modal .clan-stat{padding:14px;border-color:rgba(246,181,27,.12);border-radius:13px;background:linear-gradient(145deg,rgba(255,255,255,.04),rgba(0,0,0,.15))}
+.public-profile-modal .clan-stat strong{color:#ffcf57;font-size:clamp(18px,3vw,23px)}
+.public-profile-modal .clan-stat span{color:#aaa6b9;font-size:11px;line-height:1.4}
+.public-profile-footer{display:flex;justify-content:space-between;gap:12px;margin:18px clamp(17px,4vw,34px) 0;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);color:#69657b;font-size:8px;font-weight:900;letter-spacing:1.6px}
+@media(max-width:520px){
+ .public-profile-overlay{align-items:flex-end;padding:8px}
+ .public-profile-modal{max-height:calc(100dvh - 16px);border-radius:18px}
+ .public-profile-topbar{gap:8px;padding:9px 11px;min-height:52px}
+ .public-profile-code{font-size:8px;letter-spacing:.7px}
+ .public-profile-badge{padding:5px 6px;font-size:8px}
+ .public-profile-hero{grid-template-columns:82px minmax(0,1fr);gap:14px;padding:20px 15px}
+ .public-profile-avatar-frame{width:82px;height:82px;border-radius:17px}
+ .public-profile-avatar-frame .clan-profile-avatar{width:68px;height:68px;border-radius:11px}
+ .public-profile-identity h2{font-size:23px}
+ .public-profile-identity .clan-muted{font-size:12px}
+ .public-profile-modal .clan-profile-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-right:15px;margin-left:15px}
+ .public-profile-modal .clan-stat{padding:10px}
+}
+
 </style>
     <script src="anti-pull-refresh.js?v=4"></script>
 </head>
@@ -789,7 +856,7 @@
                 <div id="clanProfileCard" class="card">
                     <div class="card-title">👤 Мой профиль</div>
                     <form id="clanProfileForm" class="clan-form">
-                        <div class="clan-profile-layout">
+                        <div class="clan-profile-fields">
                             <div>
                                 <label for="clanProfileName" style="font-size:12px;font-weight:800;">Игровое имя (1–24 символа)</label>
                                 <input id="clanProfileName" type="text" maxlength="24" minlength="1" placeholder="Имя игрока" required>
@@ -817,21 +884,7 @@
                     <p class="clan-muted" style="margin-top:9px;">Статистика берётся из активного локального сохранения и обновляется онлайн. Она не является защищённым от изменений рейтингом.</p>
                 </div>
 
-                <div id="clanPublicProfileCard" class="card" style="display:none;">
-                    <div class="flex-between" style="gap:10px;">
-                        <div class="card-title" style="margin-bottom:0;">👤 Профиль игрока</div>
-                        <button id="clanPublicProfileClose" type="button" class="btn" style="padding:6px 10px;">Закрыть</button>
-                    </div>
-                    <div class="clan-profile-layout" style="margin-top:13px;">
-                        <img id="clanPublicAvatar" class="clan-profile-avatar" src="images/Super_Dio_2.gif" alt="Аватар игрока">
-                        <div>
-                            <strong id="clanPublicName" style="font-size:18px;overflow-wrap:anywhere;"></strong>
-                            <p id="clanPublicDescription" class="clan-muted" style="margin-top:6px;"></p>
-                        </div>
-                    </div>
-                    <div class="card-title" style="font-size:14px;margin-top:14px;">📊 Статистика игрока</div>
-                    <div id="clanPublicStats" class="clan-profile-stats"></div>
-                </div>
+
 
 
                 </div>
@@ -913,6 +966,33 @@
         </div>
     </div>
 </div>
+
+<div id="clanPublicProfileOverlay" class="public-profile-overlay" style="display:none;" aria-hidden="true">
+    <section id="clanPublicProfileCard" class="public-profile-modal" role="dialog" aria-modal="true" aria-labelledby="clanPublicName">
+        <div class="public-profile-topbar">
+            <button id="clanPublicProfileClose" type="button" class="public-profile-back">← Назад</button>
+            <span class="public-profile-code">MB / PLAYER DATA</span>
+            <span class="public-profile-badge">ONLINE</span>
+        </div>
+        <div class="public-profile-hero">
+            <div class="public-profile-avatar-frame">
+                <img id="clanPublicAvatar" class="clan-profile-avatar" src="images/Super_Dio_2.gif" alt="Аватар игрока">
+            </div>
+            <div class="public-profile-identity">
+                <div class="online-eyebrow">MULTIVERSE BATTLE · PLAYER PROFILE</div>
+                <h2 id="clanPublicName">Загрузка профиля…</h2>
+                <p id="clanPublicDescription" class="clan-muted">Загружаем информацию об игроке.</p>
+            </div>
+        </div>
+        <div class="public-profile-stats-heading">
+            <span class="public-profile-section-mark"></span>
+            <div><strong>Статистика игрока</strong><small>Показатели из онлайн-профиля</small></div>
+        </div>
+        <div id="clanPublicStats" class="clan-profile-stats"></div>
+        <div class="public-profile-footer"><span>◆ MULTIVERSE BATTLE</span><span>PROFILE DATA</span></div>
+    </section>
+</div>
+
 <div id="modalOverlay" class="modal-overlay" style="display:none;" onclick="closeModal()">
     <div class="modal-content" id="modalContent" onclick="event.stopPropagation()"></div>
 </div>
@@ -973,7 +1053,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="clans.js?v=15"></script>
+<script src="clans.js?v=16"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
