@@ -643,7 +643,8 @@
         if (value === undefined || value === null || value === '') return '—';
         var numeric = Number(value);
         if (!Number.isFinite(numeric) || numeric < 0) return '—';
-        return formatCount(numeric) + (minimum && numeric > 0 ? '+' : (minimum ? '+' : ''));
+        if (minimum) return numeric > 0 ? formatCount(numeric) + '+' : 'С обновления';
+        return formatCount(numeric);
     }
 
     function renderExpandedStats(scope, data, mode) {
@@ -653,37 +654,49 @@
         if (!grid || !history) return;
         var current = data && data.current_rebirth_stats && typeof data.current_rebirth_stats === 'object' ? data.current_rebirth_stats : {};
         var lifetime = data && data.lifetime_stats && typeof data.lifetime_stats === 'object' ? data.lifetime_stats : {};
+        var hasCurrentData = Object.prototype.hasOwnProperty.call(current, 'currentWave');
+        var hasLifetimeData = Object.prototype.hasOwnProperty.call(lifetime, 'historicalDeathMinimum');
+        var note = byId(scope === 'own' ? 'clanProfileStatsDataNote' : 'clanPublicStatsDataNote');
+        if (note) {
+            if (scope === 'public' && !hasCurrentData && !hasLifetimeData) {
+                note.style.display = '';
+                note.textContent = 'Игрок ещё не синхронизировал статистику после обновления. Подробные счётчики появятся после его следующего входа в игру и сохранения.';
+            } else {
+                note.style.display = '';
+                note.textContent = 'Старые сохранения не содержали полной истории боёв. Счётчики смертей, побед над боссами и карт получаются без потери новых событий после установки обновления; исторические числа могут быть нижней оценкой.';
+            }
+        }
         var entries = [];
         if (mode === 'lifetime') {
             entries = [
-                ['💀', 'Всего смертей', statsShownValue(lifetime.deaths, lifetime.historicalDeathMinimum || lifetime.deathsApproximate)],
-                ['🌊', 'Волн пройдено', statsShownValue(lifetime.wavesCleared, lifetime.wavesClearedApproximate || lifetime.legacyCountersPartial)],
-                ['👹', 'Боссов побеждено', statsShownValue(lifetime.bossesDefeated, lifetime.bossesDefeatedApproximate || lifetime.legacyCountersPartial)],
-                ['🎴', 'Новых карт получено с обновления', lifetime.cardsObtained],
-                ['👆', 'Всего кликов', lifetime.clicks],
+                ['💀', 'Всего смертей', hasLifetimeData ? statsShownValue(lifetime.deaths, lifetime.historicalDeathMinimum || lifetime.deathsApproximate) : '—'],
+                ['🌊', 'Волн пройдено', hasLifetimeData ? statsShownValue(lifetime.wavesCleared, lifetime.wavesClearedApproximate || lifetime.legacyCountersPartial) : '—'],
+                ['👹', 'Боссов побеждено', hasLifetimeData ? statsShownValue(lifetime.bossesDefeated, lifetime.bossesDefeatedApproximate || lifetime.legacyCountersPartial) : '—'],
+                ['🎴', 'Новых карт получено с обновления', hasLifetimeData ? lifetime.cardsObtained : '—'],
+                ['👆', 'Всего кликов', hasLifetimeData ? lifetime.clicks : safeCount(data && data.total_clicks, 1000000000)],
                 ['🌌', 'Лучшая волна за всё время', Math.max(1, safeCount(lifetime.highestWave, 1000000000), safeCount(data && data.highest_wave, 1000000000))],
                 ['♻️', 'Количество ребёрнов', Math.max(0, safeCount(lifetime.rebirths, 1000000), safeCount(data && data.rebirth_count, 1000000))],
-                ['🏰', 'Максимальный чекпоинт', lifetime.highestCheckpoint],
-                ['⭐', 'Максимум звёзд', lifetime.maxPoints],
-                ['📦', 'Карт сейчас', lifetime.cardsOwned],
-                ['🧬', 'Уникальных персонажей сейчас', lifetime.uniqueCardsOwned]
+                ['🏰', 'Максимальный чекпоинт', hasLifetimeData ? lifetime.highestCheckpoint : '—'],
+                ['⭐', 'Максимум звёзд', hasLifetimeData ? lifetime.maxPoints : '—'],
+                ['📦', 'Карт сейчас', hasLifetimeData ? lifetime.cardsOwned : '—'],
+                ['🧬', 'Уникальных персонажей сейчас', hasLifetimeData ? lifetime.uniqueCardsOwned : '—']
             ];
         } else {
             entries = [
-                ['♻️', 'Текущий ребёрн', safeCount(current.rebirth, safeCount(data && data.rebirth_count, 1000000))],
-                ['💀', 'Смертей в этом ребёрне', current.deaths],
-                ['🌊', 'Волн пройдено', current.wavesCleared],
-                ['👹', 'Боссов побеждено', current.bossesDefeated],
-                ['🎴', 'Новых карт получено', current.cardsObtained],
-                ['👆', 'Кликов в этом ребёрне', current.clicks],
-                ['🚩', 'Максимальная волна ребёрна', Math.max(1, safeCount(current.highestWave, 1000000000))],
-                ['🏰', 'Чекпоинт', current.highestCheckpoint],
-                ['⭐', 'Максимум звёзд в ребёрне', current.maxPoints],
-                ['⚔️', 'Текущая волна', current.currentWave],
-                ['📈', 'Текущий уровень', current.currentLevel],
-                ['🎴', 'Карт в коллекции', current.cardsOwned],
-                ['🧬', 'Уникальных персонажей', current.uniqueCardsOwned],
-                ['✨', 'Текущие звёзды', current.currentPoints]
+                ['♻️', 'Текущий ребёрн', safeCount(data && data.rebirth_count, safeCount(current.rebirth, 1000000))],
+                ['💀', 'Смертей в этом ребёрне', hasCurrentData ? current.deaths : '—'],
+                ['🌊', 'Волн пройдено', hasCurrentData ? current.wavesCleared : '—'],
+                ['👹', 'Боссов побеждено', hasCurrentData ? current.bossesDefeated : '—'],
+                ['🎴', 'Новых карт получено', hasCurrentData ? current.cardsObtained : '—'],
+                ['👆', 'Кликов в этом ребёрне', hasCurrentData ? current.clicks : '—'],
+                ['🚩', 'Максимальная волна ребёрна', hasCurrentData ? Math.max(1, safeCount(current.highestWave, 1000000000)) : '—'],
+                ['🏰', 'Чекпоинт', hasCurrentData ? current.highestCheckpoint : '—'],
+                ['⭐', 'Максимум звёзд в ребёрне', hasCurrentData ? current.maxPoints : '—'],
+                ['⚔️', 'Текущая волна', hasCurrentData ? current.currentWave : '—'],
+                ['📈', 'Текущий уровень', hasCurrentData ? current.currentLevel : '—'],
+                ['🎴', 'Карт в коллекции', hasCurrentData ? current.cardsOwned : '—'],
+                ['🧬', 'Уникальных персонажей', hasCurrentData ? current.uniqueCardsOwned : '—'],
+                ['✨', 'Текущие звёзды', hasCurrentData ? current.currentPoints : '—']
             ];
         }
         grid.replaceChildren();
