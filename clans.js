@@ -157,7 +157,7 @@
             var el = byId(id);
             if (el) el.disabled = busy;
         });
-        document.querySelectorAll('#clanList button, #clanCurrentCard button, #clanProfileForm button').forEach(function (el) {
+        document.querySelectorAll('#clanList button, #clanCurrentCard button, #clanDangerZone button, #clanProfileForm button').forEach(function (el) {
             el.disabled = busy;
         });
     }
@@ -807,6 +807,20 @@
         return found ? found.path : null;
     }
 
+    function getDiscoveredCardNamesForAvatar() {
+        var api = window.MBGameCards;
+        if (!api || typeof api.getDiscoveredCardNames !== 'function') return [];
+        try {
+            var names = api.getDiscoveredCardNames();
+            return Array.isArray(names) ? names.filter(function (name) { return typeof name === 'string'; }) : [];
+        } catch (_error) { return []; }
+    }
+
+    function isProfileAvatarUnlocked(name) {
+        if (typeof name === 'string' && name.indexOf('sticker:') === 0) return !!avatarPathForName(name);
+        return getDiscoveredCardNamesForAvatar().indexOf(name) !== -1;
+    }
+
     function applyAvatarPreview(name) {
         var path = avatarPathForName(name) || avatarPathForName('Дио') || 'images/Super_Dio_2.gif';
         var preview = byId('clanProfilePreview');
@@ -815,6 +829,10 @@
 
     function chooseAvatar(name) {
         if (!avatarPathForName(name)) return;
+        if (!isProfileAvatarUnlocked(name)) {
+            setNotice('Чтобы поставить карту на аватар, сначала получи её — она должна появиться в книге.', 'warning');
+            return;
+        }
         profileAvatarName = name;
         applyAvatarPreview(name);
         renderAvatarPicker(name);
@@ -829,9 +847,14 @@
         var search = byId('clanAvatarSearch');
         var query = (search ? search.value : '').trim().toLocaleLowerCase('ru');
         var options = activeAvatarKind === 'stickers'
-            ? PROFILE_STICKERS.map(function (item) { return { name: 'sticker:' + item[0], label: item[1], path: avatarPathForName('sticker:' + item[0]), sticker: true }; })
-            : list.map(function (item) { return { name: item.name, label: item.name, path: item.path, sticker: false }; });
+            ? PROFILE_STICKERS.map(function (item) { return { name: 'sticker:' + item[0], label: item[1], path: avatarPathForName('sticker:' + item[0]), sticker: true, unlocked: true }; })
+            : list.map(function (item) { return { name: item.name, label: item.name, path: item.path, sticker: false, unlocked: isProfileAvatarUnlocked(item.name) }; });
         options = options.filter(function (item) { return !query || item.label.toLocaleLowerCase('ru').indexOf(query) !== -1; });
+        if (activeAvatarKind === 'images') {
+            var hint = node('p', 'avatar-locked-hint', '🔒 Чтобы выбрать карту аватаром, сначала получи её. Открытые карты отмечены без замка; продажа карты не убирает её из книги.');
+            hint.style.gridColumn = '1 / -1';
+            container.appendChild(hint);
+        }
         if (!options.length) {
             container.appendChild(node('p', 'clan-muted', 'Ничего не найдено. Попробуй другое название.'));
             return;
@@ -840,14 +863,16 @@
             var selected = item.name === selectedName;
             var button = node('button', 'clan-avatar-option' + (selected ? ' selected' : '') + (item.sticker ? ' clan-sticker-option' : ''));
             button.type = 'button';
+            button.disabled = !item.unlocked;
             button.setAttribute('aria-pressed', selected ? 'true' : 'false');
-            button.title = item.label;
+            button.setAttribute('aria-label', item.label + (item.unlocked ? '' : ' — сначала открой карту в книге'));
+            button.title = item.unlocked ? item.label : 'Сначала получи эту карту, чтобы открыть аватар';
             var img = node('img');
             img.src = item.path;
             img.alt = item.label;
             img.loading = 'lazy';
             button.appendChild(img);
-            button.appendChild(node('span', '', item.label));
+            button.appendChild(node('span', '', item.label + (item.unlocked ? '' : ' 🔒')));
             button.addEventListener('click', function () { chooseAvatar(item.name); });
             container.appendChild(button);
         });
@@ -948,7 +973,7 @@
         currentProfile = result.data;
         byId('clanProfileName').value = result.data.display_name || '';
         byId('clanProfileDescription').value = result.data.description || '';
-        profileAvatarName = avatarPathForName(result.data.avatar_name) ? result.data.avatar_name : 'Дио';
+        profileAvatarName = avatarPathForName(result.data.avatar_name) && isProfileAvatarUnlocked(result.data.avatar_name) ? result.data.avatar_name : 'sticker:⭐';
         renderAvatarPicker(profileAvatarName);
         applyAvatarPreview(profileAvatarName);
         var mergedStats = Object.assign({}, result.data, readLocalGameStats() || {});
@@ -971,6 +996,7 @@
         if (name.length < 1 || name.length > 24) return setNotice('Имя профиля должно содержать от 1 до 24 символов.', 'error');
         if (description.length > 280) return setNotice('Описание профиля не должно превышать 280 символов.', 'error');
         if (!avatarPathForName(profileAvatarName)) return setNotice('Выбери аватар из списка персонажей.', 'error');
+        if (!isProfileAvatarUnlocked(profileAvatarName)) return setNotice('Сначала получи эту карту — она должна появиться в книге, и только потом её можно поставить на аватар.', 'warning');
         var titleStats = Object.assign({}, currentProfile || {}, readLocalGameStats() || {});
         var activeTitle = byId('clanProfileTitle') ? byId('clanProfileTitle').value : '';
         if (!isTitleUnlocked(activeTitle, titleStats)) return setNotice('Этот титул ещё не открыт.', 'warning');
@@ -1408,6 +1434,8 @@
         if (!card || !createCard) return;
         if (!currentClan) {
             card.style.display = 'none';
+            var dangerZone = byId('clanDangerZone');
+            if (dangerZone) dangerZone.style.display = 'none';
             createCard.style.display = 'block';
             var exchangeCard = byId('clanCardExchangeCard');
             if (exchangeCard) exchangeCard.style.display = 'none';
@@ -1422,12 +1450,16 @@
         byId('clanCurrentRole').textContent = currentClan.role === 'leader' ? '👑 Лидер' :
             (currentClan.role === 'officer' ? '🛡️ Заместитель' : '👤 Участник');
 
+        var dangerZone = byId('clanDangerZone');
+        if (dangerZone) dangerZone.style.display = 'block';
         var actions = byId('clanCurrentActions');
-        actions.replaceChildren();
-        if (currentClan.role === 'leader') {
-            actions.appendChild(actionButton('Распустить клан', 'btn clan-danger-btn', disbandClan));
-        } else {
-            actions.appendChild(actionButton('Покинуть клан', 'btn clan-danger-btn', leaveClan));
+        if (actions) {
+            actions.replaceChildren();
+            if (currentClan.role === 'leader') {
+                actions.appendChild(actionButton('Распустить клан', 'btn clan-danger-btn', disbandClan));
+            } else {
+                actions.appendChild(actionButton('Покинуть клан', 'btn clan-danger-btn', leaveClan));
+            }
         }
 
         var members = await db.from('clan_members')
