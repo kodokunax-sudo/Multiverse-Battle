@@ -665,6 +665,26 @@
     .clan-danger-zone .clan-danger-btn { width:100%; min-height:44px; justify-content:center; }
     .avatar-locked-hint { margin:0; padding:10px; border:1px dashed rgba(246,181,27,.22); border-radius:10px; font-size:10px; line-height:1.5; color:#c3b9d9; }
     .avatar-choice-grid .clan-avatar-option:disabled { opacity:.42; filter:grayscale(.9); cursor:not-allowed; transform:none; box-shadow:none; }
+
+/* Online arena test shell */
+.online-arena-card{overflow:hidden}
+.online-arena-preview{height:170px;max-width:520px;margin:16px auto 14px;position:relative;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(246,181,27,.3);border-radius:18px;background:radial-gradient(ellipse at center,rgba(132,87,255,.2),transparent 55%),linear-gradient(145deg,#11111d,#07070b)}
+.online-arena-preview-ring{position:absolute;width:min(65%,230px);aspect-ratio:1;border:2px solid rgba(246,181,27,.72);border-radius:50%;box-shadow:0 0 0 10px rgba(155,121,255,.08),0 0 35px rgba(246,181,27,.2),inset 0 0 35px rgba(155,121,255,.12)}
+.online-arena-preview-icon{font-size:48px;filter:drop-shadow(0 0 18px rgba(246,181,27,.35))}
+.online-arena-enter{display:block;width:min(100%,420px);margin:0 auto;padding:14px;font-size:16px;font-weight:900}
+.online-arena-status{min-height:20px;margin:13px 0 0;text-align:center;color:#d7c9ff;font-size:12px;line-height:1.5}
+.online-arena-topline{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.online-arena-topline h3{margin:5px 0 0;font-size:23px}
+.online-arena-exit{border-color:rgba(255,110,110,.35);color:#ffb1b1;background:rgba(180,42,57,.12)}
+.online-arena-floor{position:relative;min-height:320px;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(155,121,255,.45);border-radius:18px;background:radial-gradient(ellipse at 50% 45%,rgba(113,80,194,.17),transparent 48%),linear-gradient(180deg,#0a0a12,#050508 80%);box-shadow:inset 0 0 70px #000}
+.online-arena-floor:before{content:"";position:absolute;inset:16px;border:1px solid rgba(246,181,27,.3);border-radius:12px;pointer-events:none}
+.online-arena-ring{position:absolute;width:min(56%,300px);height:190px;border:2px solid rgba(246,181,27,.76);border-radius:50%;box-shadow:0 0 0 12px rgba(155,121,255,.055),0 0 34px rgba(246,181,27,.14),inset 0 0 30px rgba(155,121,255,.12)}
+.online-arena-center{position:absolute;color:#ffdb77;font-size:28px;text-shadow:0 0 22px #c69cff;opacity:.75}
+.online-arena-player{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;max-width:80%;padding:10px 15px;border:1px solid rgba(246,181,27,.3);border-radius:14px;background:rgba(10,10,18,.85);box-shadow:0 10px 30px #0008}
+.online-arena-player>span{font-size:28px}
+.online-arena-player strong{max-width:100%;overflow-wrap:anywhere;color:#ffdf83}
+.online-arena-player small{font-size:9px;letter-spacing:1.5px;color:#b6a7d7}
+@media(max-width:520px){.online-subnav{grid-template-columns:repeat(3,minmax(0,1fr))}.online-arena-floor{min-height:270px}.online-arena-ring{height:155px}}
 </style>
     <script src="anti-pull-refresh.js?v=4"></script>
 </head>
@@ -961,6 +981,7 @@
                     <button type="button" class="online-subtab" data-online-view="clan" role="tab" aria-selected="false">🛡️ Клан</button>
                     <button type="button" class="online-subtab" data-online-view="chat" role="tab" aria-selected="false">💬 Чат</button>
                     <button type="button" class="online-subtab" data-online-view="rating" role="tab" aria-selected="false">🏆 Рейтинг</button>
+                    <button type="button" class="online-subtab" data-online-view="arena" role="tab" aria-selected="false">🏟️ Арена</button>
                 </div>
                 <div class="online-pane active" data-online-pane="profile">
                 <div id="cloudSaveCard" class="card">
@@ -1154,6 +1175,31 @@
                 </div>
 
                 </div>
+                <div class="online-pane" data-online-pane="arena">
+                    <div id="onlineArenaLobby" class="card online-arena-card">
+                        <div class="online-feature-heading">
+                            <div><span>ONLINE TEST AREA</span><h3>🏟️ Онлайн-арена</h3></div>
+                            <span class="online-feature-counter">ТЕСТ</span>
+                        </div>
+                        <p class="clan-muted">Проверочная арена онлайн-раздела. Сейчас здесь проверяются только вход и выход — бой с Дио и поиск соперников добавим отдельно.</p>
+                        <div class="online-arena-preview" aria-hidden="true"><div class="online-arena-preview-ring"></div><div class="online-arena-preview-icon">🏟️</div></div>
+                        <button id="onlineArenaEnter" class="btn btn-primary online-arena-enter" type="button">▶ Войти на арену</button>
+                        <p id="onlineArenaStatus" class="online-arena-status" role="status" aria-live="polite">Ты находишься в меню арены.</p>
+                    </div>
+                    <div id="onlineArenaStage" class="card online-arena-card" style="display:none;">
+                        <div class="online-arena-topline">
+                            <div><span class="online-eyebrow">MULTIVERSE BATTLE</span><h3>🏟️ Тестовая арена</h3></div>
+                            <button id="onlineArenaExit" class="btn online-arena-exit" type="button">🚪 Выйти с арены</button>
+                        </div>
+                        <div class="online-arena-floor">
+                            <div class="online-arena-ring" aria-hidden="true"></div>
+                            <div class="online-arena-center" aria-hidden="true">✦</div>
+                            <div class="online-arena-player"><span aria-hidden="true">🎮</span><strong id="onlineArenaPlayerName">Игрок</strong><small>ТВОЙ ИГРОК</small></div>
+                        </div>
+                        <p id="onlineArenaStatusStage" class="online-arena-status" aria-live="polite">Тестовая зона открыта.</p>
+                        <p class="clan-muted" style="text-align:center;">Пока это только проверка интерфейса: соперников и боёв ещё нет.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1264,6 +1310,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
 <script src="clans.js?v=27"></script>
+<script src="online-arena.js?v=1"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
