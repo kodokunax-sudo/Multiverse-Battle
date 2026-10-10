@@ -19,6 +19,7 @@
     var authStateSubscription = null;
     var authSwitchChain = Promise.resolve();
     var profileShowcaseSelection = [];
+    var profileShowcaseSavedCards = [];
     var currentFriends = [];
     var currentFriendRequests = [];
     var currentClanInvites = [];
@@ -300,8 +301,30 @@
         var filtered = all.filter(function (card) {
             return !query || card.name.toLocaleLowerCase('ru').indexOf(query) !== -1 || card.rarity.toLocaleLowerCase('ru').indexOf(query) !== -1;
         });
+        var missingSaved = profileShowcaseSavedCards.filter(function (saved) {
+            return saved && saved.uid !== undefined &&
+                profileShowcaseSelection.indexOf(String(saved.uid)) !== -1 &&
+                !all.some(function (card) { return card.uid === String(saved.uid); });
+        });
+        missingSaved.forEach(function (saved) {
+            var button = node('button', 'showcase-pick-card selected');
+            button.type = 'button';
+            button.setAttribute('aria-pressed', 'true');
+            button.title = 'Эта карта сохранена в витрине, но не найдена в текущем локальном слоте. Нажми, чтобы убрать её.';
+            var img = node('img'); img.src = avatarPathForName(saved.name) || 'images/Super_Dio_2.gif'; img.alt = saved.name || 'Карта';
+            button.appendChild(img);
+            button.appendChild(node('strong', '', saved.name || 'Карта'));
+            button.appendChild(node('small', '', (saved.rarity || 'Редкость неизвестна') + ' · сохранена ранее'));
+            button.appendChild(node('span', 'showcase-check', '×'));
+            button.addEventListener('click', function () {
+                profileShowcaseSelection = profileShowcaseSelection.filter(function (uid) { return uid !== String(saved.uid); });
+                profileShowcaseSavedCards = profileShowcaseSavedCards.filter(function (item) { return String(item.uid) !== String(saved.uid); });
+                renderShowcasePicker();
+            });
+            container.appendChild(button);
+        });
         var shown = filtered.slice(0, 120);
-        if (!shown.length) {
+        if (!shown.length && !missingSaved.length) {
             container.appendChild(node('div', 'online-empty-state', all.length ? 'По этому запросу карты не найдены.' : 'Сначала открой игровой слот с коллекцией карт.'));
         } else shown.forEach(function (card) {
             var selected = profileShowcaseSelection.indexOf(card.uid) !== -1;
@@ -327,8 +350,12 @@
         });
         var status = byId('clanProfileShowcaseStatus');
         if (status) {
-            var selectedNames = profileShowcaseSelection.map(function (uid) { var item = all.find(function (card) { return card.uid === uid; }); return item ? item.name : null; }).filter(Boolean);
-            status.textContent = 'Выбрано ' + selectedNames.length + ' из 3 карт' +
+            var selectedNames = profileShowcaseSelection.map(function (uid) {
+                var item = all.find(function (card) { return card.uid === uid; }) ||
+                    profileShowcaseSavedCards.find(function (card) { return card && String(card.uid) === uid; });
+                return item ? item.name : null;
+            }).filter(Boolean);
+            status.textContent = 'Выбрано ' + profileShowcaseSelection.length + ' из 3 карт' +
                 (filtered.length > 120 ? ' · показаны первые 120, используй поиск' : '') +
                 (selectedNames.length ? ' · ' + selectedNames.join(' · ') : '');
         }
@@ -337,7 +364,9 @@
         var all = localShowcaseOptions();
         return profileShowcaseSelection.map(function (uid) {
             var card = all.find(function (item) { return item.uid === uid; });
-            return card ? { uid: card.uid, name: card.name, rarity: card.rarity, mastery: card.mastery } : null;
+            if (card) return { uid: card.uid, name: card.name, rarity: card.rarity, mastery: card.mastery };
+            var saved = profileShowcaseSavedCards.find(function (item) { return item && String(item.uid) === uid; });
+            return saved ? { uid: String(saved.uid), name: String(saved.name || 'Карта'), rarity: String(saved.rarity || ''), mastery: safeCount(saved.mastery, 7) } : null;
         }).filter(Boolean).slice(0, 3);
     }
     function renderPublicShowcase(containerId, cards) {
@@ -726,9 +755,8 @@
         applyAvatarPreview(profileAvatarName);
         var mergedStats = Object.assign({}, result.data, readLocalGameStats() || {});
         renderStatsGrid('clanProfileStats', mergedStats);
-        profileShowcaseSelection = Array.isArray(result.data.showcase_cards)
-            ? result.data.showcase_cards.map(function (card) { return card && card.uid !== undefined ? String(card.uid) : ''; }).filter(Boolean)
-            : [];
+        profileShowcaseSavedCards = Array.isArray(result.data.showcase_cards) ? result.data.showcase_cards.slice(0, 3) : [];
+        profileShowcaseSelection = profileShowcaseSavedCards.map(function (card) { return card && card.uid !== undefined ? String(card.uid) : ''; }).filter(Boolean);
         renderShowcasePicker();
         renderTitlePicker(mergedStats, result.data.active_title || '');
         if (byId('clanProfileFriendCode')) byId('clanProfileFriendCode').textContent = result.data.friend_code ? 'MB-' + result.data.friend_code : '—';
