@@ -28,6 +28,9 @@ create table if not exists public.clan_members (
 create index if not exists clan_members_clan_id_idx
     on public.clan_members (clan_id, joined_at);
 
+create index if not exists clans_owner_id_idx
+    on public.clans (owner_id);
+
 -- Backfill accounts created before this migration.
 insert into public.profiles (id, display_name)
 select
