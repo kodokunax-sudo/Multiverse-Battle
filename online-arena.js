@@ -10,7 +10,7 @@
         if (entered) return;
         var lobby = byId('onlineArenaLobby');
         var stage = byId('onlineArenaStage');
-        var status = byId('onlineArenaStatus');
+        var status = byId('onlineArenaStatusStage');
         if (!lobby || !stage) return;
         entered = true;
         lobby.style.display = 'none';
