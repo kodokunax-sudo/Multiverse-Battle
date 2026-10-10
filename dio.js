@@ -379,7 +379,7 @@ function dioActivateMudaSkill(){
   if(!dioCanUse("muda",40,30))return false;
   _superState.dioMudaActive=true;_superState.dioMudaMode="arenaKnives";_superState.dioMudaStartedAt=performance.now();
   if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];
-  dioPlaySoundFrom("music/Voicy_Dio Brando muda muda.mp3",.78,0);
+  dioPlaySoundFrom("music/Voicy_Dio Brando muda muda.mp3",.78,4);
   if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ ДИО ЦЕЛИТ НОЖИ!","#fff0a0");
   return true;
  }
@@ -389,7 +389,7 @@ function dioActivateMudaSkill(){
  _superState.dioMudaActive=true;_superState.dioMudaMode=close?"melee":"knives";_superState.dioMudaStartedAt=performance.now();_superState.dioMudaTargetType=t.type;_superState.dioMudaTargetId=t.id;_superState.dioMudaTotalDamage=Math.max(1,Math.floor(t.maxHp*(close?.10:.08)));_superState.dioMudaHitIndex=0;_superState.dioMudaLastHitAt=0;_superState.dioMudaStandX=px+(px>300?-20:20);_superState.dioMudaStandY=py-8;
  if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];
  if(close)dioPlaySoundFrom("music/dio_muda_muda_muda.mp3",.9,0);
- else dioPlaySoundFrom("music/Voicy_Dio Brando muda muda.mp3",.78,0);
+ else dioPlaySoundFrom("music/Voicy_Dio Brando muda muda.mp3",.78,4);
  if(!close&&cb.type==="rwb"&&typeof window.getRWBPlayer==="function"){var rp=window.getRWBPlayer();if(rp){rp.vx=0;rp.vy=0;}}
  if(typeof window.showFloatingText==="function")window.showFloatingText(close?"THE WORLD — MUDA MUDA MUDA!":"ДИО ГОТОВИТ НОЖИ (2 СЕК.)","#fff0a0");
  return true;
