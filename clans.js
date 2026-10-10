@@ -227,98 +227,42 @@
         renderAvatarPicker(name);
     }
 
+    var activeAvatarKind = 'stickers';
     function renderAvatarPicker(selectedName) {
         var container = byId('clanAvatarChoices');
         if (!container) return;
         container.replaceChildren();
         var list = Array.isArray(window.MBAvatarOptions) ? window.MBAvatarOptions : [];
-        var stickerSection = node('div', 'clan-avatar-section');
-        stickerSection.appendChild(node('strong', '', '🎟️ Стикеры — выбери только один'));
-        var stickerGrid = node('div', 'clan-avatar-grid');
-        PROFILE_STICKERS.forEach(function (item) {
-            var stickerName = 'sticker:' + item[0];
-            var button = node('button', 'clan-avatar-option clan-sticker-option' + (stickerName === selectedName ? ' selected' : ''));
-            button.type = 'button';
-            button.setAttribute('aria-pressed', stickerName === selectedName ? 'true' : 'false');
-            button.title = item[1];
-            var img = node('img');
-            img.src = avatarPathForName(stickerName);
-            img.alt = item[1];
-            button.appendChild(img);
-            button.appendChild(node('span', '', item[1]));
-            button.addEventListener('click', function () { chooseAvatar(stickerName); });
-            stickerGrid.appendChild(button);
-        });
-        stickerSection.appendChild(stickerGrid);
-        container.appendChild(stickerSection);
-        var characterSection = node('div', 'clan-avatar-section');
-        characterSection.appendChild(node('strong', '', '🖼️ Или один персонаж из игры'));
-        var characterGrid = node('div', 'clan-avatar-grid');
-        list.forEach(function (item) {
-            var button = node('button', 'clan-avatar-option' + (item.name === selectedName ? ' selected' : ''));
-            button.type = 'button';
-            button.setAttribute('aria-pressed', item.name === selectedName ? 'true' : 'false');
-            button.title = item.name;
-            var img = node('img');
-            img.src = item.path;
-            img.alt = item.name;
-            img.loading = 'lazy';
-            img.onerror = function () { img.style.opacity = '0.25'; };
-            button.appendChild(img);
-            button.appendChild(node('span', '', item.name));
-            button.addEventListener('click', function () { chooseAvatar(item.name); });
-            characterGrid.appendChild(button);
-        });
-        characterSection.appendChild(characterGrid);
-        container.appendChild(characterSection);
-    }
-
-    async function loadLeaderboard() {
-        var container = byId('clanLeaderboard');
-        if (!container) return;
-        container.replaceChildren();
-        if (!db || !currentUser) {
-            container.appendChild(node('p', 'clan-muted', 'Войди в аккаунт, чтобы смотреть рейтинг и профили игроков.'));
+        var search = byId('clanAvatarSearch');
+        var query = (search ? search.value : '').trim().toLocaleLowerCase('ru');
+        var options = activeAvatarKind === 'stickers'
+            ? PROFILE_STICKERS.map(function (item) { return { name: 'sticker:' + item[0], label: item[1], path: avatarPathForName('sticker:' + item[0]), sticker: true }; })
+            : list.map(function (item) { return { name: item.name, label: item.name, path: item.path, sticker: false }; });
+        options = options.filter(function (item) { return !query || item.label.toLocaleLowerCase('ru').indexOf(query) !== -1; });
+        if (!options.length) {
+            container.appendChild(node('p', 'clan-muted', 'Ничего не найдено. Попробуй другое название.'));
             return;
         }
-        container.appendChild(node('p', 'clan-muted', 'Загружаем рейтинг…'));
-        try {
-            var sortKey = byId('clanLeaderboardSort') ? byId('clanLeaderboardSort').value : 'highest_wave';
-            var allowedSorts = ['highest_wave', 'total_wins', 'rebirth_count', 'cards_collected', 'bosses_defeated', 'total_clicks'];
-            if (allowedSorts.indexOf(sortKey) === -1) sortKey = 'highest_wave';
-            var result = await db.from('profiles')
-                .select('id, display_name, avatar_name, description, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
-                .order(sortKey, { ascending: false })
-                .order('highest_wave', { ascending: false })
-                .limit(100);
-            if (result.error) throw result.error;
-            container.replaceChildren();
-            var players = result.data || [];
-            if (!players.length) {
-                container.appendChild(node('p', 'clan-muted', 'Пока нет игроков в рейтинге.'));
-                return;
-            }
-            players.forEach(function (player, index) {
-                var row = node('button', 'clan-leaderboard-row');
-                row.type = 'button';
-                row.addEventListener('click', function () { openPublicProfile(player.id); });
-                row.appendChild(node('span', 'clan-leaderboard-rank', '#' + (index + 1)));
-                var avatar = node('img', 'clan-leaderboard-avatar');
-                avatar.src = avatarPathForName(player.avatar_name) || 'images/Super_Dio_2.gif';
-                avatar.alt = '';
-                avatar.loading = 'lazy';
-                row.appendChild(avatar);
-                var details = node('span', 'clan-leaderboard-player');
-                details.appendChild(node('strong', '', player.display_name || 'Игрок'));
-                details.appendChild(node('small', '', '🌊 Волна ' + formatCount(player.highest_wave) + ' · 🏆 Победы ' + formatCount(player.total_wins) + ' · ♻️ Ребёрны ' + formatCount(player.rebirth_count)));
-                row.appendChild(details);
-                row.appendChild(node('span', 'clan-leaderboard-open', 'Профиль ↗'));
-                container.appendChild(row);
-            });
-        } catch (error) {
-            container.replaceChildren();
-            container.appendChild(node('p', 'clan-muted', 'Не удалось загрузить рейтинг: ' + friendlyError(error)));
-        }
+        options.forEach(function (item) {
+            var selected = item.name === selectedName;
+            var button = node('button', 'clan-avatar-option' + (selected ? ' selected' : '') + (item.sticker ? ' clan-sticker-option' : ''));
+            button.type = 'button';
+            button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+            button.title = item.label;
+            var img = node('img');
+            img.src = item.path;
+            img.alt = item.label;
+            img.loading = 'lazy';
+            button.appendChild(img);
+            button.appendChild(node('span', '', item.label));
+            button.addEventListener('click', function () { chooseAvatar(item.name); });
+            container.appendChild(button);
+        });
+        document.querySelectorAll('[data-avatar-kind]').forEach(function (button) {
+            var active = button.getAttribute('data-avatar-kind') === activeAvatarKind;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
     }
 
     function syncGameStats() {
@@ -1224,6 +1168,29 @@
         if (leaderboardRefresh) leaderboardRefresh.addEventListener('click', loadLeaderboard);
         var leaderboardSort = byId('clanLeaderboardSort');
         if (leaderboardSort) leaderboardSort.addEventListener('change', loadLeaderboard);
+        document.querySelectorAll('[data-online-view]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var view = button.getAttribute('data-online-view');
+                document.querySelectorAll('[data-online-view]').forEach(function (item) {
+                    var active = item === button;
+                    item.classList.toggle('active', active);
+                    item.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
+                document.querySelectorAll('[data-online-pane]').forEach(function (pane) {
+                    pane.classList.toggle('active', pane.getAttribute('data-online-pane') === view);
+                });
+                if (view === 'rating' && currentUser) loadLeaderboard();
+                if (view === 'clan' && currentUser) refreshAll();
+            });
+        });
+        document.querySelectorAll('[data-avatar-kind]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                activeAvatarKind = button.getAttribute('data-avatar-kind') === 'images' ? 'images' : 'stickers';
+                renderAvatarPicker(profileAvatarName);
+            });
+        });
+        var avatarSearch = byId('clanAvatarSearch');
+        if (avatarSearch) avatarSearch.addEventListener('input', function () { renderAvatarPicker(profileAvatarName); });
         var tab = document.querySelector('.tab-btn[data-tab="clans"]');
         if (tab) {
             tab.addEventListener('click', function () {
