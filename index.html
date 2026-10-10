@@ -617,6 +617,12 @@
  .public-showcase-grid{margin-left:15px;margin-right:15px}
 }
 
+
+/* Collection artwork: only use images registered for the actual card; no avatar fallback. */
+.showcase-card-no-art,.public-showcase-no-art{display:block;flex:0 0 auto;width:60px;height:60px;border:1px dashed rgba(183,167,219,.18);border-radius:10px;background:linear-gradient(135deg,rgba(24,23,38,.8),rgba(9,10,16,.75))}
+.public-showcase-no-art{width:56px;height:56px;flex-basis:56px}
+.showcase-pick-card .showcase-card-no-art{margin:0 auto 0}
+
 </style>
     <script src="anti-pull-refresh.js?v=4"></script>
 </head>
@@ -1180,7 +1186,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="clans.js?v=20"></script>
+<script src="clans.js?v=21"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
