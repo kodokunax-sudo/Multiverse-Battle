@@ -130,7 +130,7 @@ function getWaystarCoopHpMultiplier() {
     var api = (typeof window !== 'undefined') ? window.MBOnlineWaystar : null;
     if (!api || !api.active) return 1;
     var multiplier = Number(api.bossHpMultiplier);
-    return isFinite(multiplier) ? Math.max(1, Math.min(10, multiplier || 1)) : 1;
+    return isFinite(multiplier) ? Math.max(1, multiplier || 1) : 1;
 }
 
 function wsIsTimeStopped() {
