@@ -281,6 +281,10 @@
                     }
                     other.targetFightX = nextX;
                     other.targetFightY = nextY;
+                    if (p.combat_visuals && typeof p.combat_visuals === 'object') {
+                        other.combatVisuals = p.combat_visuals;
+                        other.combatVisualsReceivedAt = Date.now();
+                    }
                     renderFightRoster();
                 });
                 ch.on('broadcast', { event: 'boss_damage' }, function (message) {
@@ -573,6 +577,160 @@
         updateStartButton();
     }
 
+    function visualFields(item, fields) {
+        if (!item || typeof item !== 'object') return null;
+        var out = {};
+        fields.forEach(function (key) {
+            var value = item[key];
+            if (typeof value === 'number' && isFinite(value)) out[key] = value;
+            else if (typeof value === 'string' || typeof value === 'boolean') out[key] = value;
+        });
+        return out;
+    }
+    function visualList(list, fields, limit) {
+        if (!Array.isArray(list)) return [];
+        return list.slice(-limit).map(function (item) { return visualFields(item, fields); }).filter(Boolean);
+    }
+    function captureCombatVisuals() {
+        var bullets = [];
+        try {
+            var sourceBullets = typeof window.getWaystarBullets === 'function' ? window.getWaystarBullets() : [];
+            bullets = (Array.isArray(sourceBullets) ? sourceBullets.slice(-36) : []).map(function (bullet) {
+                var item = visualFields(bullet, ['x','y','size','color','damage','life']) || {};
+                item.trail = visualList(bullet && bullet.trail, ['x','y','life'], 4);
+                return item;
+            });
+        } catch (_error) { bullets = []; }
+        var s = null;
+        try { if (typeof _superState !== 'undefined' && _superState) s = _superState; } catch (_error) {}
+        if (!s) return { bullets: bullets, supers: null };
+        var dash = visualFields(s.dekuDash, ['startX','startY','dirX','dirY','distance','traveled','life']);
+        if (dash) dash.trail = visualList(s.dekuDash.trail, ['x','y','life'], 10);
+        var flags = {};
+        [
+            'dekusActive','dekuSmashActive','nikaActive','garouTimeStop','garpHakiActive',
+            'antispiralActive','imAuraActive','dandyLightnings','dandyInvuln',
+            'whitebeardTimeStop','whitebeardTsunami','whitebeardCharging',
+            'whitebeardSkillTsunamiActive','dioMudaActive','allmightHurricane',
+            'allmightDebuffActive','markBuffActive','usoppInvuln'
+        ].forEach(function (key) { flags[key] = !!s[key]; });
+        flags.dioTimeStop = Math.max(0, Number(s.dioTimeStop) || 0);
+        flags.dioTeleportStop = Math.max(0, Number(s.dioTeleportStop) || 0);
+        return {
+            bullets: bullets,
+            supers: {
+                flags: flags,
+                rings: visualList(s.rings, ['x','y','radius','color','life','maxLife','width'], 18),
+                fists: visualList(s.fists, ['x','y','size','life','color','owner','pathWidth'], 8),
+                dekuFists: visualList(s.dekuFists, ['x','y','radius','active','delay','angle'], 12),
+                dekuExplosions: visualList(s.dekuExplosions, ['x','y','life','maxLife'], 8),
+                dioKnives: visualList(s.dioKnives, ['x','y','vx','vy','angle','life'], 12),
+                dekuDash: dash,
+                garpImpact: { active: !!s.garpImpactActive, x: Number(s.garpImpactX)||0, y: Number(s.garpImpactY)||0, radius: Math.max(0,Number(s.garpImpactRadius)||0) },
+                whitebeardTsunami: !!s.whitebeardTsunami,
+                whitebeardTsunamiY: Number(s.whitebeardTsunamiY)||540,
+                whitebeardSkillTsunamiActive: !!s.whitebeardSkillTsunamiActive,
+                whitebeardSkillTsunamiY: Number(s.whitebeardSkillTsunamiY)||540,
+                dioStand: { x:Number(s.dioStandX)||0, y:Number(s.dioStandY)||0, flash:Math.max(0,Number(s.dioStandFlash)||0) },
+                garouMarker: visualFields(s.garouMarker, ['x','y','alpha'])
+            }
+        };
+    }
+    function drawRemoteCombatVisuals(ctx, player) {
+        var packet = player && player.combatVisuals;
+        if (!packet || !ctx) return;
+        if (player.combatVisualsReceivedAt && Date.now() - player.combatVisualsReceivedAt > 1200) return;
+        ctx.save();
+        (Array.isArray(packet.bullets) ? packet.bullets : []).forEach(function (b) {
+            if (!b || !isFinite(Number(b.x)) || !isFinite(Number(b.y))) return;
+            var radius = clamp(Number(b.size)||4, 2, 14);
+            var color = typeof b.color === 'string' ? b.color : '#00d4ff';
+            (Array.isArray(b.trail) ? b.trail : []).forEach(function (t, i, arr) {
+                ctx.globalAlpha = 0.12 + ((i+1)/Math.max(1,arr.length))*0.28;
+                ctx.fillStyle = color; ctx.beginPath();
+                ctx.arc(Number(t.x)||0,Number(t.y)||0,Math.max(1,radius*(i+1)/(arr.length+1)),0,Math.PI*2); ctx.fill();
+            });
+            ctx.globalAlpha = 1; ctx.shadowColor = color; ctx.shadowBlur = radius*3; ctx.fillStyle = color;
+            ctx.beginPath(); ctx.arc(b.x,b.y,radius,0,Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(b.x,b.y,Math.max(1,radius*.38),0,Math.PI*2); ctx.fill();
+        });
+        var s = packet.supers;
+        if (s) {
+            (s.rings||[]).forEach(function(ring) {
+                if (!ring) return;
+                ctx.globalAlpha=clamp((Number(ring.life)||0)/Math.max(1,Number(ring.maxLife)||1),0,1)*.85;
+                ctx.strokeStyle=typeof ring.color==='string'?ring.color:'#fff'; ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=12;
+                ctx.lineWidth=clamp(Number(ring.width)||2,1,10);
+                ctx.beginPath();ctx.arc(Number(ring.x)||0,Number(ring.y)||0,Math.max(1,Number(ring.radius)||1),0,Math.PI*2);ctx.stroke();
+            });
+            ctx.globalAlpha=1;
+            (s.fists||[]).forEach(function(f) {
+                if(!f||(Number(f.life)||0)<=0)return;
+                var color=typeof f.color==='string'?f.color:'#ff3333',size=clamp(Number(f.size)||24,8,100);
+                ctx.globalAlpha=clamp((Number(f.life)||0)/16,.25,1);ctx.shadowColor=color;ctx.shadowBlur=18;ctx.fillStyle=color;
+                ctx.beginPath();ctx.arc(Number(f.x)||0,Number(f.y)||0,size*.32,0,Math.PI*2);ctx.fill();
+                ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(Number(f.x)||0,Number(f.y)||0,size*.45,0,Math.PI*2);ctx.stroke();
+            });
+            ctx.globalAlpha=1;
+            (s.dioKnives||[]).forEach(function(k) {
+                if(!k||(Number(k.life)||0)<=0)return;
+                ctx.save();ctx.translate(Number(k.x)||0,Number(k.y)||0);ctx.rotate(Number(k.angle)||Math.atan2(Number(k.vy)||0,Number(k.vx)||0));
+                ctx.shadowColor='#e8eaff';ctx.shadowBlur=10;ctx.fillStyle='#f5f7ff';ctx.strokeStyle='#a7b8df';ctx.lineWidth=1;
+                ctx.beginPath();ctx.moveTo(-8,-2);ctx.lineTo(5,-2);ctx.lineTo(10,0);ctx.lineTo(5,2);ctx.lineTo(-8,2);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+            });
+            (s.dekuExplosions||[]).forEach(function(e) {
+                if(!e)return;var life=clamp((Number(e.life)||0)/Math.max(.01,Number(e.maxLife)||.55),0,1);
+                ctx.globalAlpha=life*.7;ctx.strokeStyle='#44ff44';ctx.shadowColor='#44ff44';ctx.shadowBlur=16;ctx.lineWidth=4;
+                ctx.beginPath();ctx.arc(Number(e.x)||0,Number(e.y)||0,Math.max(2,40*(1-life)),0,Math.PI*2);ctx.stroke();
+            });
+            (s.dekuFists||[]).forEach(function(f) {
+                if(!f||!f.active)return;
+                ctx.globalAlpha=.8;ctx.strokeStyle='#ff3333';ctx.shadowColor='#f00';ctx.shadowBlur=16;ctx.lineWidth=4;
+                ctx.beginPath();ctx.arc(Number(f.x)||0,Number(f.y)||0,clamp(Number(f.radius)||25,8,70),0,Math.PI*2);ctx.stroke();
+            });
+            if(s.dekuDash&&Array.isArray(s.dekuDash.trail))s.dekuDash.trail.forEach(function(t) {
+                ctx.globalAlpha=clamp((Number(t.life)||0)/.3,.08,.6);ctx.fillStyle='#44ff44';ctx.shadowColor='#44ff44';ctx.shadowBlur=12;
+                ctx.beginPath();ctx.arc(Number(t.x)||0,Number(t.y)||0,6,0,Math.PI*2);ctx.fill();
+            });
+            if(s.garpImpact&&s.garpImpact.active) {
+                var gr=clamp(Number(s.garpImpact.radius)||0,0,260);ctx.globalAlpha=clamp(1-gr/280,.05,.8);
+                ctx.strokeStyle='#ff44ff';ctx.shadowColor='#ff44ff';ctx.shadowBlur=24;ctx.lineWidth=10;
+                ctx.beginPath();ctx.arc(Number(s.garpImpact.x)||0,Number(s.garpImpact.y)||0,Math.max(2,gr),0,Math.PI*2);ctx.stroke();
+            }
+            if(s.whitebeardTsunami||s.whitebeardSkillTsunamiActive) {
+                var wy=s.whitebeardSkillTsunamiActive?Number(s.whitebeardSkillTsunamiY):Number(s.whitebeardTsunamiY);
+                if(isFinite(wy)&&wy>-80&&wy<560) {
+                    ctx.globalAlpha=.55;ctx.fillStyle='#00cfff';ctx.shadowColor='#00cfff';ctx.shadowBlur=20;ctx.beginPath();ctx.moveTo(0,wy);
+                    for(var wx=0;wx<=400;wx+=20)ctx.lineTo(wx,wy+Math.sin(wx/24+Date.now()/160)*14);
+                    ctx.lineTo(400,wy+45);ctx.lineTo(0,wy+45);ctx.closePath();ctx.fill();
+                }
+            }
+            var f=s.flags||{},aura=null;
+            if(f.dekusActive)aura='#44ff44';
+            else if(f.antispiralActive)aura='#aaddff';
+            else if(f.nikaActive)aura='#fff';
+            else if(f.garpHakiActive||Number(f.dioTimeStop)>0||Number(f.dioTeleportStop)>0)aura='#ffdd77';
+            else if(f.whitebeardTimeStop||f.whitebeardCharging||f.whitebeardTsunami||f.whitebeardSkillTsunamiActive)aura='#00ccff';
+            else if(f.allmightHurricane||f.allmightDebuffActive||f.markBuffActive)aura='#ffd700';
+            else if(f.dandyLightnings||f.imAuraActive)aura='#bc66ff';
+            else if(f.garouTimeStop||f.dekuSmashActive||f.usoppInvuln)aura='#ff4444';
+            if(aura) {
+                ctx.globalAlpha=.75+Math.sin(Date.now()/85)*.18;ctx.strokeStyle=aura;ctx.shadowColor=aura;ctx.shadowBlur=16;ctx.lineWidth=3;
+                ctx.beginPath();ctx.arc(Number(player.fightX)||200,Number(player.fightY)||430,18,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;
+            }
+            if(s.dioStand&&Number(s.dioStand.flash)>.02) {
+                ctx.globalAlpha=clamp(Number(s.dioStand.flash)*1.6,.15,1);ctx.fillStyle='#e7d1ff';ctx.shadowColor='#cba5ff';ctx.shadowBlur=20;
+                ctx.beginPath();ctx.ellipse(Number(s.dioStand.x)||0,(Number(s.dioStand.y)||0)-25,10,16,0,0,Math.PI*2);ctx.fill();
+                ctx.strokeStyle='#ffe6a3';ctx.lineWidth=2;ctx.stroke();
+            }
+            if(s.garouMarker&&Number(s.garouMarker.alpha)>0) {
+                ctx.globalAlpha=clamp(Number(s.garouMarker.alpha),0,1);ctx.strokeStyle='#ff8800';ctx.shadowColor='#ff8800';ctx.shadowBlur=12;ctx.lineWidth=3;
+                ctx.beginPath();ctx.arc(Number(s.garouMarker.x)||0,Number(s.garouMarker.y)||0,30,0,Math.PI*2);ctx.stroke();
+            }
+        }
+        ctx.restore();
+    }
+
     function applyRemoteBossDamage(packet) {
         if (!window.getWaystarActive || !window.getWaystarActive()) return;
         var amount = Math.max(0, Math.floor(Number(packet.damage) || 0));
@@ -837,7 +995,8 @@
                 fight_id: activeFightId,
                 session_id: selfSessionId,
                 x: Number(ownPlayer.x) || 200,
-                y: Number(ownPlayer.y) || 430
+                y: Number(ownPlayer.y) || 430,
+                combat_visuals: captureCombatVisuals()
             });
         }
         if (isLeader() && now - lastSnapshotSentAt >= 220 && window.getWaystarActive && window.getWaystarActive()) {
@@ -858,6 +1017,7 @@
             if (p.session_id === selfSessionId || typeof p.fightX !== 'number' || typeof p.fightY !== 'number') return;
             if (typeof p.targetFightX === 'number') p.fightX += (p.targetFightX - p.fightX) * blend;
             if (typeof p.targetFightY === 'number') p.fightY += (p.targetFightY - p.fightY) * blend;
+            drawRemoteCombatVisuals(ctx, p);
             var color = playerColor(p.user_id);
             drawHeart(ctx, p.fightX, p.fightY, color, 8.5);
             ctx.save();
