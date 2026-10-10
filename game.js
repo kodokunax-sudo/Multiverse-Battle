@@ -324,7 +324,8 @@ function loadGameData(d) {
     if (d.evoProgress) evoProgress = d.evoProgress; 
     dekusNerfWaves = d.dekusNerfWaves || 0; 
     newcomerBonus = d.newcomerBonus || false; 
-    newcomerBonusEnd = d.newcomerBonusEnd || 0; 
+    newcomerBonusEnd = d.newcomerBonusEnd || 0;
+    newcomerDamageBonusEnd = Number(d.newcomerDamageBonusEnd) || 0;
     totalClicks = d.totalClicks || 0; 
     totalCardsObtained = d.totalCardsObtained || 0; 
     maxPoints = d.maxPoints || points; 
@@ -448,7 +449,8 @@ function initNewGame() {
     evoProgress = {wavesSaitamaGarou:0,damageGarpKuzan:0,luffyKingUnlocked:false,sgUnlocked:false,gkUnlocked:false,sevenUnlocked:false,williamUnlocked:false,oneShotCount:0}; 
     dekusNerfWaves = 0; 
     newcomerBonus = true; 
-    newcomerBonusEnd = Date.now() + 600000; 
+    newcomerBonusEnd = Date.now() + 600000;
+    newcomerDamageBonusEnd = Date.now() + NEWCOMER_BONUS_MINUTES * 60 * 1000;
     totalClicks = 0; 
     totalCardsObtained = 0; 
     maxPoints = 100; 
@@ -543,7 +545,8 @@ function saveAll() {
     slotData.evoProgress = evoProgress; 
     slotData.dekusNerfWaves = dekusNerfWaves; 
     slotData.newcomerBonus = newcomerBonus; 
-    slotData.newcomerBonusEnd = newcomerBonusEnd; 
+    slotData.newcomerBonusEnd = newcomerBonusEnd;
+    slotData.newcomerDamageBonusEnd = newcomerDamageBonusEnd;
     slotData.totalClicks = totalClicks; 
     slotData.totalCardsObtained = totalCardsObtained; 
     slotData.maxPoints = maxPoints; 
@@ -603,7 +606,7 @@ let hasFireArtifact = false, hasCompoundV = {}, skipUsed = false, dekusNerfWaves
 let challenges = [], lastChallengeReset = null;
 let comboCount = 0, lastClickTime = 0, comboMultiplier = 1;
 let musicEnabled = false;
-let newcomerBonus = false, newcomerBonusEnd = 0;
+let newcomerBonus = false, newcomerBonusEnd = 0, newcomerDamageBonusEnd = 0;
 let fireInterval = null;
 let spareBonusFromTeam = 0;
 let totalClicks = 0, totalCardsObtained = 0, maxPoints = 100;
@@ -931,7 +934,10 @@ function updatePlayerStats() {
     else if (activeBuffs["dmg13"] && activeBuffs["dmg13"] > Date.now()) db = 1.3; 
     else if (activeBuffs["dmg15"] && activeBuffs["dmg15"] > Date.now()) db = 1.5; 
     else if (activeBuffs["quadDamage"] && activeBuffs["quadDamage"] > Date.now()) db = 4.0; 
-    let fd = Math.floor(total * m.dmgMult * db); 
+    let fd = Math.floor(total * m.dmgMult * db);
+    let newcomerDamageBonusActive = typeof newcomerDamageBonusEnd === "number" &&
+        newcomerDamageBonusEnd > Date.now() && currentSlot >= 0;
+    if (newcomerDamageBonusActive) fd = Math.floor(fd * 2);
     let el = document.getElementById("playerDamage"); if (el) el.innerText = fd; 
     window.playerFinalDamage = fd; 
     let baseHp = 50 + upgrades.hp.level * upgrades.hp.increment; 
@@ -2062,7 +2068,8 @@ document.addEventListener("DOMContentLoaded", function () {
     setTimeout(hideFreeSpinsUI, 100);
     setInterval(function () { 
         if (currentSlot >= 0) { 
-            updatePlayerStats(); 
+            updatePlayerStats();
+            if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
             if (typeof tickHunger === 'function') tickHunger(1);
             if (typeof tickPoison === 'function') tickPoison(1);
             updateClaimTimer(); 
