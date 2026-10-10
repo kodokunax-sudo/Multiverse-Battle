@@ -121,6 +121,13 @@ function finishSlotLoad(slot) {
     let el;
     el = document.getElementById("nicknameDisplay"); if (el) el.innerText = slotData.nickname || loadSlotMeta(slot).nickname;
     localStorage.setItem("cgV20_lastSlot", slot);
+    window.setTimeout(function () {
+        if (window.MBClans && typeof window.MBClans.syncCardInventory === "function") {
+            window.MBClans.syncCardInventory().catch(function (error) {
+                console.warn("[MB online] Не удалось проверить доставку карт клана:", error);
+            });
+        }
+    }, 1200);
     team = team.filter(i => myCards[i]); if (team.length > 6) team = team.slice(0, 6);
     afkTeam = afkTeam.filter(i => myCards[i]); if (afkTeam.length > 6) afkTeam = afkTeam.slice(0, 6);
     normalizeMainCard();
@@ -1944,6 +1951,83 @@ function renameSlot(slot) { let meta = loadSlotMeta(slot); let nickname = prompt
 function renderSlotsInGame() { let html = '<div style="display:flex;flex-direction:column;gap:10px;">'; for (let i = 0; i < 3; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select ' + (i === currentSlot ? 'active' : '') + '"><div style="font-size:18px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + (i === currentSlot ? ' ← Текущий' : '') + '</div><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn" style="padding:4px 12px;font-size:11px;" onclick="event.stopPropagation();switchToSlot(' + i + ')">Загрузить</button><button class="btn" style="padding:4px 12px;font-size:11px;background:#9b59b6;" onclick="event.stopPropagation();renameSlot(' + i + ')">✏️ Имя</button></div></div>'; } html += '</div>'; let el = document.getElementById("slotsListInGame"); if (el) el.innerHTML = html; }
 function switchToSlot(slot) { if (slot === currentSlot) return; saveAll(); currentSlot = slot; let saved = loadGameFromSlot(slot); let meta = loadSlotMeta(slot); if (saved) { loadGameData(saved); } else { initNewGame(); slotData.nickname = meta.nickname; } slotData.nickname = slotData.nickname || meta.nickname; saveGameToSlot(slot); finishSlotLoad(slot); renderSlotsInGame(); }
 function setMode(m) { if (m === "moder" && !moderUnlocked) return; mode = m; saveAll(); updateClaimTimer(); renderModerControls(); renderPoints(); document.querySelectorAll(".toggle span").forEach(s => s.classList.toggle("active", s.dataset.mode === m)); }
+
+function mbNewOnlineCardUid() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+        var r = Math.random() * 16 | 0;
+        var v = c === "x" ? r : (r & 3 | 8);
+        return v.toString(16);
+    });
+}
+
+window.MBGameCards = {
+    getCardsForClanExchange: function () {
+        if (typeof currentSlot === "undefined" || currentSlot < 0 || !Array.isArray(myCards)) return null;
+        var changed = false;
+        myCards.forEach(function (card) {
+            if (!card || typeof card !== "object") return;
+            if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(card._mbCardUid || ""))) {
+                card._mbCardUid = mbNewOnlineCardUid();
+                changed = true;
+            }
+        });
+        if (changed) saveAll();
+        try { return JSON.parse(JSON.stringify(myCards)); }
+        catch (_error) { return null; }
+    },
+    removeTransferredCard: function (uid) {
+        if (typeof currentSlot === "undefined" || currentSlot < 0 || !Array.isArray(myCards)) return false;
+        var index = myCards.findIndex(function (card) { return card && card._mbCardUid === uid; });
+        if (index < 0) return false;
+        var removed = myCards[index];
+        if (window._level7CardId && removed.id === window._level7CardId) window._level7CardId = null;
+        removeCard(index);
+        return true;
+    },
+    addReceivedClanCards: function (gifts) {
+        if (typeof currentSlot === "undefined" || currentSlot < 0 || !Array.isArray(myCards)) {
+            return { ready: false, added: 0, cardUids: [] };
+        }
+        var result = { ready: true, added: 0, cardUids: [] };
+        (Array.isArray(gifts) ? gifts : []).forEach(function (gift) {
+            if (!gift || !gift.card_uid || !gift.card_data || typeof gift.card_data !== "object") return;
+            var uid = String(gift.card_uid);
+            var existing = myCards.find(function (card) { return card && card._mbCardUid === uid; });
+            if (existing) {
+                result.cardUids.push(uid);
+                return;
+            }
+            var incoming;
+            try { incoming = JSON.parse(JSON.stringify(gift.card_data)); }
+            catch (_error) { return; }
+            incoming._mbCardUid = uid;
+            incoming.id = Date.now() + Math.random() * 10000;
+            incoming.mastery = Math.max(1, Math.min(7, Math.floor(Number(incoming.mastery) || 1)));
+            incoming.masteryExp = Math.max(0, Math.floor(Number(incoming.masteryExp) || 0));
+            if (incoming.mastery >= 7) {
+                var alreadyLevel7 = myCards.some(function (card) { return card && Number(card.mastery || 1) >= 7; });
+                if (alreadyLevel7) return;
+                incoming._level7 = true;
+                if (typeof incoming._level7Carry === "undefined") incoming._level7Carry = 1;
+                window._level7CardId = incoming.id;
+            }
+            myCards.push(incoming);
+            if (typeof discoveredCards !== "undefined" && Array.isArray(discoveredCards) && !discoveredCards.includes(incoming.name)) discoveredCards.push(incoming.name);
+            if (typeof totalCardsObtained !== "undefined") totalCardsObtained++;
+            result.added++;
+            result.cardUids.push(uid);
+        });
+        if (result.added > 0) {
+            saveAll();
+            if (typeof renderAll === "function") renderAll();
+            if (typeof renderMyCards === "function") renderMyCards();
+            if (typeof updatePlayerStats === "function") updatePlayerStats();
+            if (typeof renderBook === "function") renderBook();
+        }
+        return result;
+    }
+};
 
 document.addEventListener("DOMContentLoaded", function () {
     let lastSlot = parseInt(localStorage.getItem("cgV20_lastSlot") || "-1");
