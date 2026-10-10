@@ -1175,9 +1175,11 @@ function mbStatsObserveCurrentState(){
 function mbStatsPublicBlock(block){var out={};Object.keys(block||{}).forEach(function(k){if(k!=='seenCardIds')out[k]=block[k];});return out;}
 function mbGetOnlineStatsSnapshot(){
  mbStatsObserveCurrentState();var current=mbStatsPublicBlock(gameStatsCurrentRebirth);current.rebirth=mbStatsSafeNumber(rebirthCount,0);current.currentWave=mbStatsSafeNumber(wave,1);current.currentLevel=mbStatsSafeNumber(playerLevel,1);current.cardsOwned=Array.isArray(myCards)?myCards.length:0;current.uniqueCardsOwned=Array.isArray(myCards)?new Set(myCards.map(function(c){return c&&c.name;}).filter(Boolean)).size:0;current.currentPoints=mbStatsSafeNumber(points,0);
- var lifetime=mbStatsPublicBlock(gameStatsLifetime);lifetime.rebirths=Math.max(lifetime.rebirths||0,mbStatsSafeNumber(rebirthCount,0));lifetime.clicks=Math.max(lifetime.clicks||0,mbStatsSafeNumber(totalClicks,0));lifetime.highestWave=Math.max(lifetime.highestWave||1,mbStatsLegacyHistoryPeak(rebirthStats),mbStatsSafeNumber(highestWaveReached,1));lifetime.historicalDeathMinimum=!!lifetime.deathsApproximate;lifetime.legacyCountersPartial=!!(lifetime.wavesClearedApproximate||lifetime.bossesDefeatedApproximate);
+ var lifetime=mbStatsPublicBlock(gameStatsLifetime);lifetime.rebirths=Math.max(lifetime.rebirths||0,mbStatsSafeNumber(rebirthCount,0));lifetime.clicks=Math.max(lifetime.clicks||0,mbStatsSafeNumber(totalClicks,0));lifetime.highestWave=Math.max(lifetime.highestWave||1,mbStatsLegacyHistoryPeak(rebirthStats),mbStatsSafeNumber(highestWaveReached,1));lifetime.historicalDeathMinimum=!!lifetime.deathsApproximate;lifetime.legacyCountersPartial=!!(lifetime.wavesClearedApproximate||lifetime.bossesDefeatedApproximate);lifetime.cardsOwned=current.cardsOwned;lifetime.uniqueCardsOwned=current.uniqueCardsOwned;
  return {current_rebirth_stats:current,lifetime_stats:lifetime,rebirth_history:(Array.isArray(rebirthStats)?rebirthStats:[]).map(function(e){var copy=Object.assign({},e||{});if(copy.stats)copy.stats=mbStatsPublicBlock(copy.stats);return copy;})};
 }
+
+window.MBGameStats = { getSnapshot: mbGetOnlineStatsSnapshot };
 
 let gameCompleted = false;
 let defeatedBosses = [];
