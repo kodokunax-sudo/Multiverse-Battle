@@ -420,7 +420,23 @@
     }
 
     @media (max-width: 460px) { .clan-row { align-items: flex-start; } .clan-action-btn { white-space: normal; } }
-    </style>
+    
+/* Player leaderboard and profile sticker picker */
+.clan-leaderboard{display:flex;flex-direction:column;gap:7px;margin-top:12px}
+.clan-leaderboard-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.035);color:inherit;cursor:pointer}
+.clan-leaderboard-row:hover{background:rgba(130,110,255,.14);border-color:rgba(160,140,255,.4)}
+.clan-leaderboard-rank{min-width:34px;font-weight:900;color:#d8c8ff}
+.clan-leaderboard-avatar{width:44px;height:44px;object-fit:cover;border-radius:12px;background:#24243b;flex-shrink:0}
+.clan-leaderboard-player{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.clan-leaderboard-player strong{overflow-wrap:anywhere}
+.clan-leaderboard-player small{font-size:11px;opacity:.78;line-height:1.45}
+.clan-leaderboard-open{font-size:11px;opacity:.75;white-space:nowrap}
+.clan-leaderboard-sort{max-width:100%;min-width:190px;border-radius:9px;padding:8px;background:#202033;color:inherit;border:1px solid rgba(255,255,255,.18)}
+.clan-avatar-section{margin-top:12px}
+.clan-avatar-section>strong{display:block;margin-bottom:8px;font-size:12px}
+.clan-sticker-option img{object-fit:contain;background:#24243b}
+@media(max-width:520px){.clan-leaderboard-row{gap:7px;padding:8px}.clan-leaderboard-rank{min-width:25px}.clan-leaderboard-open{display:none}.clan-leaderboard-player small{font-size:10px}.clan-leaderboard-sort{min-width:0;width:100%}}
+</style>
     <script src="anti-pull-refresh.js?v=4"></script>
 </head>
 <body>
@@ -713,9 +729,19 @@
                     </div>
                 </div>
                 <div id="clanLeaderboardCard" class="card">
-                    <div class="flex-between" style="gap:10px;">
+                    <div class="flex-between" style="gap:10px;flex-wrap:wrap;">
                         <div class="card-title" style="margin-bottom:0;">🏆 Рейтинг игроков</div>
-                        <button id="clanLeaderboardRefresh" class="btn" type="button">🔄 Обновить</button>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <select id="clanLeaderboardSort" aria-label="Сортировать рейтинг" class="clan-leaderboard-sort">
+                                <option value="highest_wave">🌊 Максимальная волна</option>
+                                <option value="total_wins">🏆 Победы</option>
+                                <option value="rebirth_count">♻️ Ребёрны</option>
+                                <option value="cards_collected">🎴 Получено карт</option>
+                                <option value="bosses_defeated">👹 Побеждённые боссы</option>
+                                <option value="total_clicks">👆 Кликов</option>
+                            </select>
+                            <button id="clanLeaderboardRefresh" class="btn" type="button">🔄 Обновить</button>
+                        </div>
                     </div>
                     <p class="clan-muted">Сортировка по максимальной волне, затем по победам и ребёрнам. Нажми на игрока, чтобы открыть его профиль.</p>
                     <div id="clanLeaderboard" class="clan-leaderboard"></div>
@@ -874,7 +900,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="clans.js?v=12"></script>
+<script src="clans.js?v=13"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
 </html>
