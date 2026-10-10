@@ -23,6 +23,7 @@
     var lastRemoteRenderAt = 0;
     var snapshotSequence = 0;
     var lastAppliedSnapshotSequence = 0;
+    var lastAppliedSnapshotSender = null;
     var victoryBroadcastForFightId = null;
     var seenEvents = new Set();
     var coopHazardCounter = 0;
@@ -507,6 +508,7 @@
         coopHazardCounter = 0;
         snapshotSequence = 0;
         lastAppliedSnapshotSequence = 0;
+        lastAppliedSnapshotSender = null;
         sendEvent('fight_start', packet);
         startLocalFight(packet, false);
     }
@@ -523,6 +525,7 @@
         coopHazardCounter = 0;
         snapshotSequence = 0;
         lastAppliedSnapshotSequence = 0;
+        lastAppliedSnapshotSender = null;
         lastSnapshotSentAt = 0;
         lastFightPositionSentAt = 0;
         lastRemoteRenderAt = 0;
@@ -622,6 +625,11 @@
         if (!window.getWaystarActive || !window.getWaystarActive()) return;
         // Ignore stale snapshots if network packets arrive out of order.
         var incomingSequence = Number(packet.snapshot_seq) || 0;
+        var incomingSender = packet.sender_session_id || null;
+        if (incomingSender && incomingSender !== lastAppliedSnapshotSender) {
+            lastAppliedSnapshotSender = incomingSender;
+            lastAppliedSnapshotSequence = 0;
+        }
         if (incomingSequence && incomingSequence <= lastAppliedSnapshotSequence) return;
         if (incomingSequence) lastAppliedSnapshotSequence = incomingSequence;
         if (typeof packet.boss_hp === 'number') window.waystarBossHp = packet.boss_hp;
