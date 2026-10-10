@@ -465,6 +465,9 @@
         if (activeFightId && fightStarted) {
             button.disabled = true; button.textContent = '✅ Совместный бой уже идёт'; return;
         }
+        if (currentPlayers.size < 2) {
+            button.disabled = true; button.textContent = 'Ожидаем второго игрока…'; return;
+        }
         if (!isLeader()) {
             button.disabled = true; button.textContent = 'Ожидаем создателя комнаты'; return;
         }
@@ -473,7 +476,7 @@
     }
 
     function startCoopFight() {
-        if (!entered || !channel || !isLeader() || activeFightId || fightStarted) return;
+        if (!entered || !channel || !isLeader() || currentPlayers.size < 2 || activeFightId || fightStarted) return;
         var damage = Math.max(1, Number(window.playerFinalDamage) || 100);
         var maxHp = Math.max(25000, damage * 120);
         var packet = {
@@ -758,6 +761,10 @@
         victoryBroadcastForFightId = activeFightId;
         sendEvent('fight_victory', { fight_id: activeFightId });
     }
+    function onFightEnded() {
+        if (!fightStarted || !activeFightId) return;
+        finishCoopFight(false, 'Битва с Путеводной Звездой завершена. Можно запустить тест заново.');
+    }
     function onDialogProgress() {
         if (!fightStarted || !activeFightId || applyingRemote || !isLeader()) return;
         sendEvent('dialog_progress', { fight_id: activeFightId });
@@ -987,6 +994,7 @@
             onBossDamage: onBossDamage,
             onPieceHit: onPieceHit,
             onVictory: onVictory,
+            onFightEnded: onFightEnded,
             onDialogProgress: onDialogProgress,
             onDialogChoice: onDialogChoice,
             onFinalChoice: onFinalChoice,
