@@ -70,6 +70,15 @@
             if (message.indexOf(keys[i]) !== -1) return map[keys[i]];
         }
         if (/duplicate key|already exists|clans_tag_key/i.test(message)) return 'Этот тег уже занят. Выбери другой.';
+        var authCode = String((error && (error.code || error.error_code)) || '');
+        if (authCode === 'over_email_send_rate_limit' || /over_email_send_rate_limit|email rate limit exceeded/i.test(message)) {
+            return 'Supabase временно ограничил отправку писем (429). Встроенная почта рассчитана на тесты и разрешает около 2 писем в час. Не повторяй регистрацию много раз подряд: подключи SMTP в Supabase → Authentication → Emails → SMTP Settings, затем попробуй снова.';
+        }
+        if (authCode === 'email_address_not_authorized' || /email address.*not authorized/i.test(message)) {
+            return 'Встроенная почта Supabase не отправляет на этот адрес. Чтобы регистрировались друзья, подключи SMTP в Authentication → Emails → SMTP Settings.';
+        }
+        if (/error sending confirmation email|unexpected_failure/i.test(message)) return 'Supabase не смог отправить письмо. Проверь почтовые настройки проекта.';
+        if (/email link is invalid or has expired|one-time token not found|otp_expired/i.test(message)) return 'Ссылка подтверждения устарела или уже использована. После настройки почты запроси новое подтверждение.';
         if (/invalid login credentials/i.test(message)) return 'Неверная почта или пароль.';
         if (/email not confirmed/i.test(message)) return 'Сначала подтверди почту по ссылке из письма.';
         if (/row-level security|permission denied/i.test(message)) return 'База отклонила действие по правилам доступа. Проверь, что ты вошёл и состоишь в этом клане.';
