@@ -39,6 +39,7 @@
     var coopHazardCounter = 0;
     var consumedHazardIds = new Set();
     var lastHostHazardIds = new Set();
+    var lastHostHazardSnapshot = new Map();
     var keyHandler = null;
     var pointerDownHandler = null;
     var pointerMoveHandler = null;
@@ -350,6 +351,9 @@
                     if (!other) return;
                     other.lastSuperName = String(p.super_name || 'SUPER').slice(0, 48);
                     other.lastSuperAt = Date.now();
+                    // The host applies gameplay deltas from a guest's ultimate, then
+                    // rebroadcasts the resulting authoritative state in the next snapshot.
+                    if (isLeader() && p.hazard_effects) applySuperHazardEffects(p.hazard_effects);
                     if (p.combat_visuals && typeof p.combat_visuals === 'object') {
                         other.combatVisuals = p.combat_visuals;
                         other.combatVisualsReceivedAt = Date.now();
@@ -583,6 +587,7 @@
         seenEvents.clear();
         consumedHazardIds.clear();
         lastHostHazardIds.clear();
+        lastHostHazardSnapshot.clear();
         coopHazardCounter = 0;
         snapshotSequence = 0;
         lastAppliedSnapshotSequence = 0;
@@ -850,11 +855,12 @@
                 ctx.strokeStyle=spec.color;ctx.shadowColor=spec.color;ctx.shadowBlur=14;ctx.lineWidth=3;
                 ctx.beginPath();ctx.arc(px,py,17+index*5,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;
             });
-            if(f.superName && Date.now()-(player.lastSuperAt||0)<1300) {
+            var superLabel = String(player.lastSuperName || f.superName || '');
+            if(superLabel && Date.now()-(player.lastSuperAt||0)<1300) {
                 ctx.globalAlpha=clamp(1-(Date.now()-(player.lastSuperAt||0))/1300,.2,1);
                 ctx.font='bold 10px Arial,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
                 ctx.fillStyle='#fff';ctx.strokeStyle='#111';ctx.lineWidth=3;
-                var tag='⚡ '+String(f.superName).slice(0,32);
+                var tag='⚡ '+superLabel.slice(0,32);
                 ctx.strokeText(tag,px,py-34);ctx.fillText(tag,px,py-34);ctx.globalAlpha=1;
             }
             if(s.dioStand&&Number(s.dioStand.flash)>.02) {
@@ -918,6 +924,120 @@
         });
     }
 
+    var SUPER_SYNC_HAZARD_FIELDS = [
+        'spd', 'spdX', 'spdY', 'vx', 'vy', 'speed', 'speedX', 'speedY',
+        'gravity', '_whitebeardPushTimer', '_wbTsunamiHitId', 'frozen',
+        'isFrozen', 'freezeTimer', 'stunTimer', 'timeStopped'
+    ];
+
+    function collectSnapshotHazardState(packet) {
+        var map = new Map();
+        [
+            ['attacks', 'waystarAttacks'],
+            ['enemy_bullets', 'waystarEnemyBullets'],
+            ['bombs', 'waystarBombs'],
+            ['bomb_queue', 'waystarBombQueue']
+        ].forEach(function (pair) {
+            var list = packet && packet[pair[0]];
+            if (!Array.isArray(list)) return;
+            list.forEach(function (hazard) {
+                if (!hazard || !hazard.__mb_coop_id) return;
+                var values = {};
+                SUPER_SYNC_HAZARD_FIELDS.forEach(function (key) {
+                    if (typeof hazard[key] === 'number' && isFinite(hazard[key])) values[key] = hazard[key];
+                    else if (typeof hazard[key] === 'boolean') values[key] = hazard[key];
+                });
+                map.set(hazard.__mb_coop_id, { list: pair[1], values: values });
+            });
+        });
+        if (packet && packet.dash && packet.dash.__mb_coop_id) {
+            var dashValues = {};
+            SUPER_SYNC_HAZARD_FIELDS.forEach(function (key) {
+                if (typeof packet.dash[key] === 'number' && isFinite(packet.dash[key])) dashValues[key] = packet.dash[key];
+                else if (typeof packet.dash[key] === 'boolean') dashValues[key] = packet.dash[key];
+            });
+            map.set(packet.dash.__mb_coop_id, { list: 'waystarDash', values: dashValues });
+        }
+        return map;
+    }
+
+    function getLiveHazardObjects() {
+        var map = new Map();
+        ['waystarAttacks', 'waystarEnemyBullets', 'waystarBombs', 'waystarBombQueue'].forEach(function (name) {
+            var list = window[name];
+            if (!Array.isArray(list)) return;
+            list.forEach(function (hazard) {
+                if (hazard && hazard.__mb_coop_id) map.set(hazard.__mb_coop_id, { list: name, object: hazard });
+            });
+        });
+        if (window.waystarDash && window.waystarDash.__mb_coop_id) {
+            map.set(window.waystarDash.__mb_coop_id, { list: 'waystarDash', object: window.waystarDash });
+        }
+        return map;
+    }
+
+    function captureSuperHazardEffects() {
+        var live = getLiveHazardObjects();
+        var removed = [];
+        var updates = [];
+        lastHostHazardSnapshot.forEach(function (base, id) {
+            var entry = live.get(id);
+            if (!entry) {
+                // A hazard that already hit/was consumed locally must not despawn for everyone.
+                if (!consumedHazardIds.has(id)) removed.push(id);
+                return;
+            }
+            var changed = {};
+            SUPER_SYNC_HAZARD_FIELDS.forEach(function (key) {
+                var before = base.values && base.values[key];
+                var after = entry.object[key];
+                if (before === undefined) return;
+                if (typeof after === 'number' && isFinite(after) && Math.abs(after - before) > 0.001) changed[key] = after;
+                else if (typeof after === 'boolean' && after !== before) changed[key] = after;
+            });
+            if (Object.keys(changed).length) updates.push({ id: id, list: entry.list, values: changed });
+        });
+        return { removed_ids: removed.slice(0, 100), updates: updates.slice(0, 100) };
+    }
+
+    function applySuperHazardEffects(effects) {
+        if (!effects || typeof effects !== 'object') return;
+        var removed = new Set(Array.isArray(effects.removed_ids) ? effects.removed_ids.filter(function (id) {
+            return typeof id === 'string' && id.length < 180;
+        }).slice(0, 100) : []);
+        ['waystarAttacks', 'waystarEnemyBullets', 'waystarBombs', 'waystarBombQueue'].forEach(function (name) {
+            if (!Array.isArray(window[name])) return;
+            window[name] = window[name].filter(function (hazard) {
+                if (!hazard || !removed.has(hazard.__mb_coop_id)) return true;
+                consumedHazardIds.add(hazard.__mb_coop_id);
+                return false;
+            });
+        });
+        if (window.waystarDash && removed.has(window.waystarDash.__mb_coop_id)) {
+            consumedHazardIds.add(window.waystarDash.__mb_coop_id);
+            window.waystarDash = null;
+        }
+        var live = getLiveHazardObjects();
+        (Array.isArray(effects.updates) ? effects.updates : []).slice(0, 100).forEach(function (update) {
+            if (!update || typeof update.id !== 'string' || !update.values || typeof update.values !== 'object') return;
+            var entry = live.get(update.id);
+            if (!entry) return;
+            SUPER_SYNC_HAZARD_FIELDS.forEach(function (key) {
+                var value = update.values[key];
+                if (typeof value === 'number' && isFinite(value)) entry.object[key] = value;
+                else if (typeof value === 'boolean') entry.object[key] = value;
+            });
+        });
+        if (consumedHazardIds.size > 800) {
+            var extra = consumedHazardIds.size - 800;
+            consumedHazardIds.forEach(function (id) {
+                if (extra <= 0) return;
+                consumedHazardIds.delete(id);
+                extra--;
+            });
+        }
+    }
+
     function collectLiveHazardIds() {
         var ids = new Set();
         ['waystarAttacks', 'waystarEnemyBullets', 'waystarBombs', 'waystarBombQueue'].forEach(function (name) {
@@ -946,6 +1066,7 @@
     }
 
     function preserveLocalHazardRemovals(packet) {
+        lastHostHazardSnapshot = collectSnapshotHazardState(packet || {});
         if (isLeader()) {
             lastHostHazardIds = snapshotHazardIds(packet);
             return;
@@ -1148,6 +1269,7 @@
             fight_id: activeFightId,
             event_id: createId(),
             super_name: String(superName || 'SUPER').slice(0, 48),
+            hazard_effects: captureSuperHazardEffects(),
             combat_visuals: captureCombatVisuals()
         });
     }
