@@ -88,6 +88,8 @@ let arenaSettings = {
     autoSuper: false,
     mobileSuper: "button",
     arenaControl: "auto",
+    mobileControlStyle: "dpad8",
+    mobileControlPosition: "left",
     joystickSize: 100,
     joystickOpacity: 60
 };
@@ -789,6 +791,8 @@ function loadArenaSettings() {
             arenaSettings.autoSuper = s.autoSuper ?? false;
             arenaSettings.mobileSuper = s.mobileSuper ?? "button";
             arenaSettings.arenaControl = s.arenaControl ?? "auto";
+            arenaSettings.mobileControlStyle = s.mobileControlStyle ?? "dpad8";
+            arenaSettings.mobileControlPosition = s.mobileControlPosition ?? "left";
             arenaSettings.joystickSize = s.joystickSize ?? 100;
             arenaSettings.joystickOpacity = s.joystickOpacity ?? 60;
         } catch(e) {}
@@ -822,8 +826,13 @@ function applyArenaSettings() {
     let opValue = document.getElementById("joystickOpacityValue");
     if (opSlider) opSlider.value = arenaSettings.joystickOpacity;
     if (opValue) opValue.innerText = arenaSettings.joystickOpacity + "%";
-    
+    let layoutSelect = document.getElementById("mobileControlStyleSelect");
+    if (layoutSelect) layoutSelect.value = arenaSettings.mobileControlStyle || "dpad8";
+    let positionSelect = document.getElementById("mobileControlPositionSelect");
+    if (positionSelect) positionSelect.value = arenaSettings.mobileControlPosition || "left";
+
     if (typeof window.refreshJoystickSettings === 'function') window.refreshJoystickSettings();
+    if (typeof window.refreshMobileBattleControlsSettings === 'function') window.refreshMobileBattleControlsSettings();
 }
 
 function changeArenaVolume(val) { arenaSettings.volume = val / 100; document.getElementById("arenaVolumeValue").innerText = val + "%"; saveArenaSettings(); }
@@ -835,6 +844,7 @@ function changeArenaControl(val) {
     arenaSettings.arenaControl = val; 
     saveArenaSettings(); 
     if (typeof window.refreshJoystickSettings === 'function') window.refreshJoystickSettings();
+    if (typeof window.refreshMobileBattleControlsSettings === 'function') window.refreshMobileBattleControlsSettings();
     if (typeof renderSettings === 'function') renderSettings();
     if (typeof showFloatingText === 'function') {
         let names = {
@@ -854,6 +864,7 @@ function changeJoystickSize(val) {
     if (el) el.innerText = val + "%";
     saveArenaSettings(); 
     if (typeof window.refreshJoystickSettings === 'function') window.refreshJoystickSettings();
+    if (typeof window.refreshMobileBattleControlsSettings === 'function') window.refreshMobileBattleControlsSettings();
 }
 
 function changeJoystickOpacity(val) { 
@@ -862,6 +873,25 @@ function changeJoystickOpacity(val) {
     if (el) el.innerText = val + "%";
     saveArenaSettings(); 
     if (typeof window.refreshJoystickSettings === 'function') window.refreshJoystickSettings();
+    if (typeof window.refreshMobileBattleControlsSettings === 'function') window.refreshMobileBattleControlsSettings();
+}
+
+function changeMobileControlStyle(val) {
+    arenaSettings.mobileControlStyle = ['dpad8', 'dpad4', 'arcade', 'analog'].indexOf(val) !== -1 ? val : 'dpad8';
+    // The mobile layout picker takes control of mobile input mode, avoiding overlapping controls.
+    arenaSettings.arenaControl = 'auto';
+    saveArenaSettings();
+    applyArenaSettings();
+    if (typeof window.showFloatingText === 'function') {
+        var names = { dpad8: '8 направлений', dpad4: 'Крест: 4 направления', arcade: 'Аркадные кнопки', analog: 'Аналоговый джойстик' };
+        window.showFloatingText('🎮 ' + (names[arenaSettings.mobileControlStyle] || 'Управление'), '#f5af19');
+    }
+}
+
+function changeMobileControlPosition(val) {
+    arenaSettings.mobileControlPosition = val === 'right' ? 'right' : 'left';
+    saveArenaSettings();
+    if (typeof window.refreshMobileBattleControlsSettings === 'function') window.refreshMobileBattleControlsSettings();
 }
 
 function resetArenaSettings() { 
@@ -871,6 +901,8 @@ function resetArenaSettings() {
         autoSuper: false, 
         mobileSuper: "button",
         arenaControl: "auto",
+        mobileControlStyle: "dpad8",
+        mobileControlPosition: "left",
         joystickSize: 100,
         joystickOpacity: 60
     }; 
