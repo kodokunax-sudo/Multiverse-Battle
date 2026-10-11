@@ -776,11 +776,14 @@ function updateWaystarSpaceInvaders() {
     if (waystarInvaderShootTimer >= shootRate) { waystarInvaderShootTimer = 0; var shooter = alivePieces[Math.floor(Math.random() * alivePieces.length)]; waystarEnemyBullets.push({ x: shooter.x, y: shooter.y + 15, vy: 3.5 + Math.random() * 2, size: 8, life: 300, trail: [] }); wsPlaySound(400, 'sawtooth', 0.1, 0.1); }
     for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
         var b = waystarPlayerBullets[i]; b.y += b.vy; b.x += (b.vx || 0); b.life--;
-        if (typeof window.tryLegendarySwordBlockHit === 'function' &&
+        if (typeof window.tryLegendarySwordBlockHit === 'function') {
+
             window.tryLegendarySwordBlockHit(b, waystarAttacks,
-                function(a) { spawnWaystarParticles(a.x, a.y, 10, "#c66bff", 4); },
-                function() { spawnWaystarParticles(b.x, b.y, 2, "#c66bff", 2); })) {
-            waystarPlayerBullets.splice(i, 1); continue;
+
+                function(a) { spawnWaystarParticles(a.x, a.y, 10, "#36ff9a", 4); },
+
+                function() { spawnWaystarParticles(b.x, b.y, 2, "#36ff9a", 2); });
+
         }
         if (!b.trail) b.trail = [];
         b.trail.push({ x: b.x, y: b.y, life: 10 }); if (b.trail.length > 5) b.trail.shift();
@@ -1460,11 +1463,14 @@ function renderWaystarSimpleCoopFrame() {
             bullet.x += Number(bullet.vx) || 0;
             bullet.y += Number(bullet.vy) || -10;
             bullet.life = (Number(bullet.life) || 1) - 1;
-            if (typeof window.tryLegendarySwordBlockHit === 'function' &&
+            if (typeof window.tryLegendarySwordBlockHit === 'function') {
+
                 window.tryLegendarySwordBlockHit(bullet, waystarAttacks,
-                    function(a) { spawnWaystarParticles(a.x, a.y, 10, "#c66bff", 4); },
-                    function() { spawnWaystarParticles(bullet.x, bullet.y, 2, "#c66bff", 2); })) {
-                waystarPlayerBullets.splice(i, 1); continue;
+
+                    function(a) { spawnWaystarParticles(a.x, a.y, 10, "#36ff9a", 4); },
+
+                    function() { spawnWaystarParticles(bullet.x, bullet.y, 2, "#36ff9a", 2); });
+
             }
             var bx = bullet.x - waystarBoss.x;
             var by = bullet.y - waystarBoss.y;
@@ -1618,11 +1624,14 @@ function waystarRenderLoop() {
                 updateWaystarPlayer(); updateWaystarShooting();
                 if (!wsIsTimeStopped()) for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
                     var b = waystarPlayerBullets[i]; b.y += b.vy; b.x += (b.vx || 0); b.life--;
-                    if (typeof window.tryLegendarySwordBlockHit === 'function' &&
+                    if (typeof window.tryLegendarySwordBlockHit === 'function') {
+
                         window.tryLegendarySwordBlockHit(b, waystarAttacks,
-                            function(a) { spawnWaystarParticles(a.x, a.y, 10, "#c66bff", 4); },
-                            function() { spawnWaystarParticles(b.x, b.y, 2, "#c66bff", 2); })) {
-                        waystarPlayerBullets.splice(i, 1); continue;
+
+                            function(a) { spawnWaystarParticles(a.x, a.y, 10, "#36ff9a", 4); },
+
+                            function() { spawnWaystarParticles(b.x, b.y, 2, "#36ff9a", 2); });
+
                     }
                     if (!b.trail) b.trail = [];
                     b.trail.push({ x: b.x, y: b.y, life: 10 }); if (b.trail.length > 5) b.trail.shift();
