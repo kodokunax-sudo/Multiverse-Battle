@@ -6,6 +6,7 @@
     var connecting = false;
     var channel = null;
     var client = null;
+    var realtimeClient = null;
     var activeUserId = null;
     var selfSessionId = createId();
     var playerName = 'Игрок';
@@ -102,8 +103,8 @@
     }
     function friendlyError(error) {
         var message = error && error.message ? String(error.message) : String(error || '');
-        if (/timed out|timeout|TIMED_OUT/i.test(message)) return 'истекло время подключения. Проверь интернет и настройки Realtime в Supabase.';
-        if (/CHANNEL_ERROR|Unauthorized|permission|policy/i.test(message)) return 'Supabase Realtime отклонил подключение. Проверь настройки и права Realtime.';
+        if (/timed out|timeout|TIMED_OUT/i.test(message)) return 'истекло время подключения к Ably. Проверь интернет и настройки Ably.';
+        if (/CHANNEL_ERROR|Unauthorized|permission|policy|capability/i.test(message)) return 'Ably отклонил подключение. Проверь ключ Ably и разрешения Publish, Subscribe и Presence.';
         if (/network|fetch|offline/i.test(message)) return 'нет соединения с сервером. Проверь интернет.';
         return message || 'ошибка Realtime. Попробуй ещё раз.';
     }
@@ -211,6 +212,111 @@
         }
     }
 
+
+    // Ably transport adapter. Keeps existing co-op message handlers intact.
+    function createAblyCompatChannel(nativeChannel) {
+        var presenceHandlers = { sync: [], join: [], leave: [] };
+        var presenceRecords = Object.create(null);
+        var presenceSubscribed = false;
+
+        function normalizePresenceMember(member) {
+            if (!member || !member.data || typeof member.data !== 'object') return null;
+            var data = member.data;
+            if (!data.session_id || !data.user_id) return null;
+            return data;
+        }
+
+        function insertPresenceMember(member, notify) {
+            var data = normalizePresenceMember(member);
+            if (!data) return;
+            var action = String(member.action || 'enter');
+            var key = String(member.clientId || data.user_id || data.session_id);
+            var list = presenceRecords[key] || (presenceRecords[key] = []);
+            var idx = list.findIndex(function (item) {
+                return item && item.session_id === data.session_id;
+            });
+            if (action === 'leave' || action === 'absent') {
+                if (idx >= 0) list.splice(idx, 1);
+                if (!list.length) delete presenceRecords[key];
+            } else if (idx >= 0) {
+                list[idx] = data;
+            } else {
+                list.push(data);
+            }
+            if (notify) {
+                var eventName = (action === 'leave' || action === 'absent') ? 'leave' : 'join';
+                (presenceHandlers[eventName] || []).slice().forEach(function (handler) {
+                    try { handler({ type: 'presence', event: eventName }); } catch (error) {
+                        console.warn('[MB co-op] Presence handler failed:', error);
+                    }
+                });
+            }
+        }
+
+        function ensurePresenceSubscription() {
+            if (presenceSubscribed) return;
+            presenceSubscribed = true;
+            nativeChannel.presence.subscribe(function (member) {
+                insertPresenceMember(member, true);
+            });
+        }
+
+        return {
+            on: function (type, filter, handler) {
+                if (type === 'broadcast' && filter && filter.event && typeof handler === 'function') {
+                    nativeChannel.subscribe(filter.event, function (message) {
+                        handler({
+                            type: 'broadcast',
+                            event: filter.event,
+                            payload: message ? message.data : undefined
+                        });
+                    });
+                } else if (type === 'presence' && filter && filter.event &&
+                    typeof handler === 'function' && presenceHandlers[filter.event]) {
+                    presenceHandlers[filter.event].push(handler);
+                    ensurePresenceSubscription();
+                }
+                return this;
+            },
+            subscribe: function (callback) {
+                nativeChannel.attach().then(async function () {
+                    try {
+                        var existing = await nativeChannel.presence.get();
+                        presenceRecords = Object.create(null);
+                        (existing || []).forEach(function (member) {
+                            insertPresenceMember(Object.assign({}, member, { action: 'enter' }), false);
+                        });
+                        ensurePresenceSubscription();
+                        if (typeof callback === 'function') callback('SUBSCRIBED');
+                        (presenceHandlers.sync || []).slice().forEach(function (handler) {
+                            try { handler({ type: 'presence', event: 'sync' }); } catch (error) {
+                                console.warn('[MB co-op] Presence sync handler failed:', error);
+                            }
+                        });
+                    } catch (error) {
+                        if (typeof callback === 'function') callback('CHANNEL_ERROR', error);
+                    }
+                }).catch(function (error) {
+                    if (typeof callback === 'function') callback('CHANNEL_ERROR', error);
+                });
+                return this;
+            },
+            track: function (data) {
+                return nativeChannel.presence.enter(data).then(function () { return 'ok'; });
+            },
+            untrack: function () {
+                return nativeChannel.presence.leave().then(function () { return 'ok'; });
+            },
+            presenceState: function () {
+                return presenceRecords;
+            },
+            send: function (packet) {
+                if (!packet || !packet.event) return Promise.reject(new Error('Некорректное сообщение коопа.'));
+                return nativeChannel.publish(packet.event, packet.payload);
+            }
+        };
+    }
+
     async function enterArena() {
         if (entered || connecting) return;
         var context = getContext();
@@ -237,7 +343,7 @@
         if (stage.parentElement !== document.body) document.body.appendChild(stage);
         lobbyCtx = lobbyCanvas.getContext('2d');
         renderLobbyPlayers();
-        setStageStatus('Подключаемся к комнате кооператива…');
+        setStageStatus('Подключаемся к комнате кооператива через Ably…');
         try {
             await connectToRoom();
             connecting = false;
@@ -258,13 +364,16 @@
     function connectToRoom() {
         return new Promise(function (resolve, reject) {
             if (!client || !activeUserId) return reject(new Error('Сначала войди в онлайн-аккаунт.'));
+            if (!window.Ably || typeof window.Ably.Realtime !== 'function') {
+                return reject(new Error('Не загрузилась библиотека Ably. Обнови страницу и попробуй снова.'));
+            }
             var settled = false;
             var timeoutId = window.setTimeout(function () {
                 if (!settled) {
                     settled = true;
-                    reject(new Error('Подключение к Realtime timed out'));
+                    reject(new Error('Подключение к Ably timed out'));
                 }
-            }, 12000);
+            }, 15000);
             function done(error) {
                 if (settled) return;
                 settled = true;
@@ -273,15 +382,25 @@
                 else resolve();
             }
             try {
-                var ch = client.channel('mb-online-arena-room-v1', {
-                    config: { presence: { key: selfSessionId }, broadcast: { self: false } }
+                realtimeClient = new window.Ably.Realtime({
+                    authCallback: function (_tokenParams, callback) {
+                        client.functions.invoke('ably-token').then(function (result) {
+                            if (result.error) return callback(result.error, null);
+                            if (!result.data || !result.data.token) {
+                                return callback(new Error('Supabase не выдал Ably-токен. Проверь ABLY_API_KEY в Secrets.'), null);
+                            }
+                            callback(null, result.data);
+                        }).catch(function (error) {
+                            callback(error, null);
+                        });
+                    }
                 });
+                var nativeChannel = realtimeClient.channels.get('coop:mb-online-arena-room-v1');
+                var ch = createAblyCompatChannel(nativeChannel);
                 channel = ch;
                 ch.on('presence', { event: 'sync' }, syncPresence);
                 ch.on('presence', { event: 'join' }, syncPresence);
                 ch.on('presence', { event: 'leave' }, syncPresence);
-                // Application-level RTT: ping travels through Realtime to the peer,
-                // and pong returns through the same channel. This is not ICMP ping.
                 ch.on('broadcast', { event: 'arena_ping' }, function (message) {
                     var p = message && message.payload;
                     if (!p || !p.ping_id || p.target_session_id !== selfSessionId ||
@@ -335,17 +454,11 @@
                     }
                     var nextX = clamp(Number(p.x) || 200, 12, 388);
                     var nextY = clamp(Number(p.y) || 430, 70, 490);
-                    // Keep the last rendered position and glide toward the newest network target.
-                    // Snapping to every WebSocket packet makes movement visibly jitter on high ping.
                     if (typeof other.fightX !== 'number' || typeof other.fightY !== 'number') {
                         other.fightX = nextX; other.fightY = nextY;
                     }
                     other.targetFightX = nextX;
                     other.targetFightY = nextY;
-                    if (p.combat_visuals && typeof p.combat_visuals === 'object') {
-                        other.combatVisuals = p.combat_visuals;
-                        other.combatVisualsReceivedAt = Date.now();
-                    }
                     renderFightRoster();
                 });
                 ch.on('broadcast', { event: 'super_action' }, function (message) {
@@ -356,8 +469,6 @@
                     if (!other) return;
                     other.lastSuperName = String(p.super_name || 'SUPER').slice(0, 48);
                     other.lastSuperAt = Date.now();
-                    // The host applies gameplay deltas from a guest's ultimate, then
-                    // rebroadcasts the resulting authoritative state in the next snapshot.
                     if (isLeader() && p.hazard_effects) applySuperHazardEffects(p.hazard_effects);
                     if (p.combat_visuals && typeof p.combat_visuals === 'object') {
                         other.combatVisuals = p.combat_visuals;
@@ -367,14 +478,11 @@
                 ch.on('broadcast', { event: 'boss_damage' }, function (message) {
                     var p = message && message.payload;
                     if (!p || p.fight_id !== activeFightId || p.sender_session_id === selfSessionId || !markEvent(p.event_id)) return;
-                    // Apply each other player's confirmed hit immediately on every client;
-                    // the host still resolves phase transitions and periodic snapshots correct drift.
                     applyRemoteBossDamage(p);
                 });
                 ch.on('broadcast', { event: 'piece_hit' }, function (message) {
                     var p = message && message.payload;
                     if (!p || p.fight_id !== activeFightId || p.sender_session_id === selfSessionId || !markEvent(p.event_id)) return;
-                    // Only the room host edits the shared fragment HP; guests are updated by snapshots.
                     if (isLeader()) applyRemotePieceHit(p.index);
                 });
                 ch.on('broadcast', { event: 'fight_snapshot' }, function (message) {
@@ -400,7 +508,7 @@
                 });
                 ch.on('broadcast', { event: 'final_choice' }, function (message) {
                     var p = message && message.payload;
-                    if (!p || p.fight_id !== activeFightId || p.sender_session_id === selfSessionId) return;
+                    if (!p || !p.fight_id || p.sender_session_id === selfSessionId) return;
                     applyRemoteFinalChoice(p.choice);
                 });
                 ch.on('broadcast', { event: 'spare_advance' }, function (message) {
@@ -432,7 +540,7 @@
                             done();
                         } catch (error) { done(error); }
                     } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-                        done(err || new Error('Supabase Realtime: ' + status));
+                        done(err || new Error('Ably channel: ' + status));
                     }
                 });
             } catch (error) { done(error); }
@@ -1597,9 +1705,12 @@
         unbindLobbyMovement();
         var oldChannel = channel;
         channel = null;
-        if (oldChannel && client) {
+        if (oldChannel) {
             try { await oldChannel.untrack(); } catch (_error) {}
-            try { await client.removeChannel(oldChannel); } catch (_error) {}
+        }
+        if (realtimeClient) {
+            try { realtimeClient.close(); } catch (_error) {}
+            realtimeClient = null;
         }
         currentPlayers.clear();
         leaderSessionId = null;
