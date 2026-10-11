@@ -1,5 +1,5 @@
 /* ============================================================
-   MULTIVERSE BATTLE — MOBILE BOSS CONTROLS
+   MULTIVERSE BATTLE — MOBILE BOSS CONTROLS v2
    On-screen 8-way D-pad. Sends real game key events so the
    standard and unique bosses all use their native movement code.
    ============================================================ */
@@ -19,6 +19,9 @@
             width: 150px;
             padding: 0;
             display: none;
+            opacity: .6;
+            transform: scale(1);
+            transform-origin: bottom left;
             pointer-events: none;
             user-select: none;
             -webkit-user-select: none;
@@ -89,6 +92,16 @@
             justify-content: center;
             font-size: 15px;
         }
+        #mobileBattleControls.mb-layout-dpad4 .mb-diagonal,
+        #mobileBattleControls.mb-layout-arcade .mb-diagonal,
+        #mobileBattleControls.mb-layout-arcade .mb-dpad-center { display: none !important; }
+        #mobileBattleControls.mb-layout-arcade { width: max-content; }
+        #mobileBattleControls.mb-layout-arcade .mb-dpad-grid { display: flex; gap: 4px; }
+        #mobileBattleControls.mb-layout-arcade .mb-direction { width: 44px; height: 44px; border-radius: 12px; }
+        #mobileBattleControls.mb-layout-arcade [data-direction="left"] { order: 1; }
+        #mobileBattleControls.mb-layout-arcade [data-direction="down"] { order: 2; }
+        #mobileBattleControls.mb-layout-arcade [data-direction="up"] { order: 3; }
+        #mobileBattleControls.mb-layout-arcade [data-direction="right"] { order: 4; }
         @media (max-width: 820px), (pointer: coarse) {
             #arenaCanvas {
                 width: min(400px, calc(100vw - 16px)) !important;
@@ -127,6 +140,36 @@
         downleft: ['ArrowDown', 'ArrowLeft'], downright: ['ArrowDown', 'ArrowRight']
     };
     var syntheticKeysDown = Object.create(null);
+    var lastAppliedSettings = { style: null, position: null, size: null, opacity: null, mode: null };
+
+    function readControlSettings() {
+        var settings = window.arenaSettings || (typeof arenaSettings !== 'undefined' ? arenaSettings : {});
+        var style = settings.mobileControlStyle || 'dpad8';
+        var position = settings.mobileControlPosition === 'right' ? 'right' : 'left';
+        var size = Math.max(60, Math.min(160, Number(settings.joystickSize) || 100));
+        var opacity = Math.max(20, Math.min(100, Number(settings.joystickOpacity) || 60));
+        var mode = settings.arenaControl || 'auto';
+        return { style: style, position: position, size: size, opacity: opacity, mode: mode };
+    }
+
+    function applyControlSettings() {
+        var cfg = readControlSettings();
+        if (!controls) controls = document.getElementById('mobileBattleControls');
+        if (!controls) return;
+        controls.classList.remove('mb-layout-dpad8', 'mb-layout-dpad4', 'mb-layout-arcade');
+        controls.classList.add('mb-layout-' + (cfg.style === 'dpad4' || cfg.style === 'arcade' ? cfg.style : 'dpad8'));
+        controls.style.opacity = String(cfg.opacity / 100);
+        controls.style.transform = 'scale(' + (cfg.size / 100) + ')';
+        controls.style.left = cfg.position === 'left' ? 'max(10px, env(safe-area-inset-left))' : 'auto';
+        controls.style.right = cfg.position === 'right' ? 'max(10px, env(safe-area-inset-right))' : 'auto';
+        controls.style.transformOrigin = cfg.position === 'right' ? 'bottom right' : 'bottom left';
+        controls.setAttribute('data-control-style', cfg.style);
+        controls.setAttribute('data-control-position', cfg.position);
+        controls.setAttribute('aria-label', cfg.style === 'arcade' ? 'Аркадные кнопки движения' :
+            cfg.style === 'dpad4' ? 'Кнопочный джойстик, четыре направления' :
+            'Кнопочный джойстик, восемь направлений');
+        lastAppliedSettings = cfg;
+    }
 
     function dispatchGameKey(key, isDown) {
         var type = isDown ? 'keydown' : 'keyup';
@@ -213,6 +256,7 @@
 
         controls = document.createElement('div');
         controls.id = 'mobileBattleControls';
+        controls.className = 'mb-layout-dpad8';
         controls.setAttribute('aria-label', 'Мобильное управление движением');
         controls.innerHTML =
             '<div class="mb-dpad-label">УДЕРЖИВАЙ ДЛЯ ДВИЖЕНИЯ</div>' +
@@ -229,6 +273,7 @@
             '</div>';
         overlay.appendChild(controls);
         directionButtons = Array.prototype.slice.call(controls.querySelectorAll('[data-direction]'));
+        applyControlSettings();
 
         directionButtons.forEach(function (button, index) {
             var key = button.getAttribute('data-direction');
@@ -262,8 +307,13 @@
 
     function updateVisibility() {
         if (!buildControls()) return;
-        var show = mobileLike() && isBattleActive();
+        var cfg = readControlSettings();
+        var buttonLayout = cfg.style !== 'analog';
+        // Explicit touch/keyboard/analog modes must not stack with the button pad.
+        if (cfg.mode === 'touch' || cfg.mode === 'keyboard' || cfg.mode === 'joystick') buttonLayout = false;
+        var show = mobileLike() && isBattleActive() && buttonLayout;
         controls.style.display = show ? 'block' : 'none';
+        applyControlSettings();
         if (!show && Object.keys(directionsHeld).length) clearHeldDirections();
     }
 
@@ -293,6 +343,12 @@
         window.addEventListener('resize', updateVisibility, { passive: true });
         window.addEventListener('orientationchange', updateVisibility, { passive: true });
     }
+    window.refreshMobileBattleControlsSettings = function () {
+        if (!buildControls()) return;
+        applyControlSettings();
+        updateVisibility();
+    };
+
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
     else init();
 })();
