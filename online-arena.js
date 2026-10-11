@@ -7,6 +7,11 @@
     var channel = null;
     var client = null;
     var realtimeClient = null;
+    var ablyConnectionState = 'initialized';
+    // Keep only the newest position/snapshot while a publish acknowledgement is pending.
+    var pendingStatePackets = Object.create(null);
+    var statePublishInFlight = Object.create(null);
+    var statePublishGeneration = Object.create(null);
     var activeUserId = null;
     var selfSessionId = createId();
     var playerName = 'Игрок';
@@ -108,16 +113,60 @@
         if (/network|fetch|offline/i.test(message)) return 'нет соединения с сервером. Проверь интернет.';
         return message || 'ошибка Realtime. Попробуй ещё раз.';
     }
+    function publishPacket(event, packet) {
+        var activeChannel = channel;
+        if (!activeChannel) return Promise.resolve(null);
+        var startedAt = preciseNow();
+        var payloadSize = 0;
+        try { payloadSize = JSON.stringify(packet).length; } catch (_error) {}
+        return activeChannel.send({ type: 'broadcast', event: event, payload: packet }).then(function (result) {
+            var elapsed = preciseNow() - startedAt;
+            if (elapsed >= 900) {
+                console.warn('[MB co-op] Slow Ably publish ACK:', {
+                    event: event,
+                    ms: Math.round(elapsed),
+                    payloadChars: payloadSize,
+                    connection: ablyConnectionState
+                });
+            }
+            return result;
+        }).catch(function (error) {
+            console.warn('[MB co-op] Ably publish ' + event + ' failed:', error);
+            return null;
+        });
+    }
+
+    function flushLatestStatePacket(event) {
+        if (statePublishInFlight[event] || !pendingStatePackets[event] || !channel) return Promise.resolve(null);
+        var packet = pendingStatePackets[event];
+        pendingStatePackets[event] = null;
+        statePublishInFlight[event] = true;
+        var generation = Number(statePublishGeneration[event]) || 0;
+        return publishPacket(event, packet).then(function (result) {
+            // A disconnect invalidates an old in-flight publish generation.
+            if ((Number(statePublishGeneration[event]) || 0) !== generation) return result;
+            statePublishInFlight[event] = false;
+            if (pendingStatePackets[event] && channel && ablyConnectionState === 'connected') {
+                return flushLatestStatePacket(event);
+            }
+            return result;
+        });
+    }
+
     function sendEvent(event, payload) {
         if (!channel) return Promise.resolve(null);
         var packet = Object.assign({}, payload || {}, {
             sender_session_id: selfSessionId,
             sent_at: Date.now()
         });
-        return channel.send({ type: 'broadcast', event: event, payload: packet }).catch(function (error) {
-            console.warn('[MB co-op] Broadcast ' + event + ' failed:', error);
-            return null;
-        });
+
+        // These packets describe the latest state; sending stale copies is worse than
+        // dropping them. Coalesce them if the previous Ably acknowledgement is slow.
+        if (event === 'fight_snapshot' || event === 'fight_player_pos') {
+            pendingStatePackets[event] = packet;
+            return flushLatestStatePacket(event);
+        }
+        return publishPacket(event, packet);
     }
     function markEvent(eventId) {
         if (!eventId) return true;
@@ -383,6 +432,8 @@
             }
             try {
                 realtimeClient = new window.Ably.Realtime({
+                    // This channel never needs to receive its own state/attack packets.
+                    echoMessages: false,
                     authCallback: function (_tokenParams, callback) {
                         client.functions.invoke('ably-token').then(function (result) {
                             if (result.error) return callback(result.error, null);
@@ -395,7 +446,35 @@
                         });
                     }
                 });
-                var nativeChannel = realtimeClient.channels.get('coop:mb-online-arena-room-v1');
+                realtimeClient.connection.on('state', function (change) {
+                    if (!change || !change.current) return;
+                    var previousState = ablyConnectionState;
+                    ablyConnectionState = change.current;
+                    if (ablyConnectionState !== 'connected') {
+                        pendingPingId = null;
+                        pendingPingStartedAt = 0;
+                        coopPingMs = null;
+                        coopPingState = 'связь потеряна';
+                        ['fight_snapshot', 'fight_player_pos'].forEach(function (event) {
+                            statePublishGeneration[event] = (Number(statePublishGeneration[event]) || 0) + 1;
+                            statePublishInFlight[event] = false;
+                            pendingStatePackets[event] = null;
+                        });
+                    } else if (previousState !== 'connected') {
+                        pendingPingId = null;
+                        pendingPingStartedAt = 0;
+                        coopPingMs = null;
+                        coopPingState = 'проверка';
+                        lastPingSentAt = 0;
+                    }
+                    console.info('[MB co-op] Ably connection:', previousState, '→', ablyConnectionState);
+                    updateCoopHud();
+                    if (ablyConnectionState === 'connected') {
+                        flushLatestStatePacket('fight_snapshot');
+                        flushLatestStatePacket('fight_player_pos');
+                    }
+                });
+                var nativeChannel = realtimeClient.channels.get('coop:mb-online-arena-room-v1', { params: { echo: 'false' } });
                 var ch = createAblyCompatChannel(nativeChannel);
                 channel = ch;
                 ch.on('presence', { event: 'sync' }, syncPresence);
@@ -1515,9 +1594,11 @@
             pendingPingStartedAt = 0;
             coopPingMs = null;
             coopPingState = 'таймаут';
+            // Don't immediately overwrite the visible timeout with a fresh check.
+            lastPingSentAt = perfNow;
             updateCoopHud();
         }
-        if (!pendingPingId && perfNow - lastPingSentAt >= 2000) {
+        if (ablyConnectionState === 'connected' && !pendingPingId && perfNow - lastPingSentAt >= 2000) {
             var peer = null;
             currentPlayers.forEach(function (player) {
                 if (!peer && player.session_id !== selfSessionId) peer = player;
@@ -1540,7 +1621,7 @@
         }
 
         var ownPlayer = window.waystarPlayer;
-        if (ownPlayer && now - lastFightPositionSentAt >= 250) {
+        if (ownPlayer && now - lastFightPositionSentAt >= 350) {
             lastFightPositionSentAt = now;
             var me = currentPlayers.get(selfSessionId);
             if (me) { me.fightX = ownPlayer.x; me.fightY = ownPlayer.y; }
@@ -1551,13 +1632,13 @@
                 y: Number(ownPlayer.y) || 430
             };
             // Send bulky ultimate/projectile visuals less often than player coordinates.
-            if (now - lastCombatVisualsSentAt >= 450) {
+            if (now - lastCombatVisualsSentAt >= 650) {
                 lastCombatVisualsSentAt = now;
                 positionPacket.combat_visuals = captureCombatVisuals();
             }
             sendEvent('fight_player_pos', positionPacket);
         }
-        if (isLeader() && now - lastSnapshotSentAt >= 300 && window.getWaystarActive && window.getWaystarActive()) {
+        if (isLeader() && now - lastSnapshotSentAt >= 500 && window.getWaystarActive && window.getWaystarActive()) {
             lastSnapshotSentAt = now;
             var snapshot = buildFightSnapshot();
             snapshot.snapshot_seq = ++snapshotSequence;
@@ -1634,11 +1715,23 @@
         }
         var network = byId('onlineArenaCoopNetwork');
         if (network && fightStarted) {
-            var pingText = coopPingMs !== null ? coopPingMs + ' мс' : coopPingState;
+            var disconnected = ablyConnectionState !== 'connected';
+            var stateLabels = {
+                initialized: 'подключение',
+                connecting: 'подключение',
+                disconnected: 'связь потеряна',
+                suspended: 'связь прервана',
+                failed: 'ошибка Ably',
+                closing: 'закрытие',
+                closed: 'отключён'
+            };
+            var pingText = disconnected
+                ? ('Ably: ' + (stateLabels[ablyConnectionState] || ablyConnectionState))
+                : (coopPingMs !== null ? coopPingMs + ' мс' : coopPingState);
             var fpsText = coopFps !== null ? String(coopFps) : '—';
             var text = 'Пинг: ' + pingText + ' · FPS: ' + fpsText;
             if (network.textContent !== text) network.textContent = text;
-            network.style.color = coopPingState === 'таймаут' ? '#ff7b7b'
+            network.style.color = disconnected || coopPingState === 'таймаут' ? '#ff7b7b'
                 : (coopPingMs === null ? '#d1d5db'
                     : (coopPingMs < 90 ? '#6ee7a8' : (coopPingMs < 180 ? '#ffd166' : '#ff7b7b')));
         }
