@@ -1457,7 +1457,7 @@
         if (roger.attackTimer <= 0) { roger.attackTimer = RWB_ATTACK_SPEED + Math.random() * 20; spawnRogerAttack(); }
         whitebeard.attackTimer--;
         if (whitebeard.attackTimer <= 0) {
-            whitebeard.attackTimer = (RWB_ATTACK_SPEED + Math.random() * 25) * (isWBReflectVortexActive() ? 1.3 : 1);
+            whitebeard.attackTimer = (RWB_ATTACK_SPEED + Math.random() * 25) * (isWBReflectVortexActive() ? 1.43 : 1);
             spawnWhitebeardAttack();
         }
         let wbLock = getWhitebeardWindupAttack();
@@ -1839,8 +1839,8 @@
             vx = Math.max(44, Math.min(356, boss.x - side * 58));
         }
         rwbAttacks.push({ type: "wb_reflect_vortex", x: vx, y: vy, radius: 43, life: 285, maxLife: 285, rotation: Math.random() * Math.PI * 2, color: "#9f5cff", isSuper: !!isSuper });
-        if (whitebeard) whitebeard.attackTimer = Math.max(whitebeard.attackTimer || 0, Math.ceil(RWB_ATTACK_SPEED * 1.3));
-        if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") rwbActiveBoss.attackTimer = Math.max(rwbActiveBoss.attackTimer || 0, Math.ceil(BALANCE.superAttackRate * 1.3));
+        if (whitebeard) whitebeard.attackTimer = Math.max(whitebeard.attackTimer || 0, Math.ceil(RWB_ATTACK_SPEED * 1.43));
+        if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") rwbActiveBoss.attackTimer = Math.max(rwbActiveBoss.attackTimer || 0, Math.ceil(BALANCE.superAttackRate * 1.43));
         rwbFloatingTexts.push({ x: vx, y: vy - 48, text: "🌀 ОТРАЖЕНИЕ!", color: "#bb8cff", life: 75, maxLife: 75, vy: -0.25, vx: 0, size: 15 });
         playHakiChargeSound(0.3); playWhooshSound(0.4);
         return true;
@@ -2891,7 +2891,7 @@
                         wbVortexClockAt = wbNow;
                     }
                     rwbTitanFistTimer++;
-                    if (!wbVortexActive && rwbTitanFistTimer >= RWB_TITAN_INTERVAL) {
+                    if (!wbVortexActive && rwbTitanFistTimer >= RWB_TITAN_INTERVAL * (isWBReflectVortexActive() ? 1.43 : 1)) {
                         rwbTitanFistTimer = 0;
                         rwbAttacks.push({ type: "titan_fist", x: 120 + Math.random() * 160, y: -120, vy: 3.5, size: 75, damage: Math.ceil(35 * BALANCE.superDamageMult), life: 300, state: "falling", hit: false, color: "#8B7355" });
                         rwbFloatingTexts.push({ x: 200, y: 100, text: "👊 ТИТАН-КУЛАК 👊", color: "#ffdd00", life: 60, maxLife: 60, vy: -0.3, vx: 0, size: 18 });
@@ -2900,7 +2900,7 @@
                     }
                     if (!wbVortexActive) {
                         rwbTitanRockTimer++;
-                        if (rwbTitanRockTimer >= RWB_ROCK_INTERVAL) { rwbTitanRockTimer = 0; spawnGiantRock(); }
+                        if (rwbTitanRockTimer >= RWB_ROCK_INTERVAL * (isWBReflectVortexActive() ? 1.43 : 1)) { rwbTitanRockTimer = 0; spawnGiantRock(); }
                     }
                 }
                 let remaining = Math.max(0, Math.ceil((rwbSurvivalTarget2 - rwbSurvivalTimer2) / 60));
@@ -3249,7 +3249,7 @@
         active.attackTimer--;
         if (active.attackTimer <= 0) {
             let interval = (active.id === "roger") ? RWB_ATTACK_SPEED_SUPER_ROGER : BALANCE.superAttackRate;
-            active.attackTimer = (interval + Math.random() * 20) * (active.id === "whitebeard" && isWBReflectVortexActive() ? 1.3 : 1);
+            active.attackTimer = (interval + Math.random() * 20) * (active.id === "whitebeard" && isWBReflectVortexActive() ? 1.43 : 1);
             if (active.id === "roger") spawnRogerSuperAttack();
             else spawnWhitebeardSuperAttack();
         }
