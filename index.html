@@ -234,7 +234,62 @@
         .card-item:active { transform: scale(0.95); }
         .card-item.team-selected { border-color: #f5af19; background: linear-gradient(180deg, #2a2a3a 0%, #1a1a2e 100%); box-shadow: 0 0 15px rgba(245, 175, 25, 0.3); animation: borderGlow 2s infinite; }
         .card-item.afk-selected { border-color: #2ecc71; background: linear-gradient(180deg, #1a3a2a 0%, #0f1f15 100%); box-shadow: 0 0 15px rgba(46, 204, 113, 0.3); }
+        /* Уникальная рамка персонального подарка: не меняет обычные карты ДИО. */
+        .card-item.dio-gift-card {
+            background: linear-gradient(145deg, #100d1c 0%, #35132f 48%, #101323 100%);
+            border: 1px solid #f8d98e;
+            box-shadow: 0 0 0 1px rgba(255,76,177,.32), 0 0 18px rgba(255,190,87,.24), inset 0 0 24px rgba(167,79,224,.16);
+        }
+        .card-item.dio-gift-card::before {
+            content: ""; position: absolute; inset: 4px; border: 1px solid rgba(255,220,145,.58);
+            border-radius: 11px; pointer-events: none; z-index: 0;
+        }
+        .card-item.dio-gift-card::after {
+            content: ""; position: absolute; top: -75%; left: -70%; width: 55%; height: 250%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.12), rgba(255,211,125,.25), transparent);
+            transform: rotate(28deg); animation: dioGiftSweep 5.5s ease-in-out infinite;
+            pointer-events: none; z-index: 0;
+        }
+        .card-item.dio-gift-card > * { position: relative; z-index: 1; }
+        .dio-gift-ribbon {
+            width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+            padding: 4px 2px 3px; margin: -2px 0 7px; border-radius: 6px;
+            color: #24152d; background: linear-gradient(90deg, #ffe8a5, #ffb4d8, #d5baff, #ffe8a5);
+            background-size: 220% 100%; animation: dioGiftRibbon 5s linear infinite;
+            font-size: 7px; line-height: 1.2; font-weight: 900; letter-spacing: .25px;
+            box-shadow: 0 2px 7px rgba(255,190,87,.2);
+        }
+        .dio-gift-art-frame {
+            padding: 3px; margin-bottom: 3px; border-radius: 13px;
+            background: linear-gradient(135deg, #ffe8a5, #ff54b7, #9a7dff, #ffe8a5);
+            box-shadow: 0 0 13px rgba(255,84,183,.32), 0 0 20px rgba(255,210,133,.16);
+        }
+        .card-item.dio-gift-card .dio-gift-art {
+            display: block; width: 66px; height: 66px; object-fit: cover;
+            margin: 0; border-radius: 9px; border: 1px solid rgba(255,255,255,.38);
+            filter: saturate(1.14) contrast(1.04);
+        }
+        .card-item.dio-gift-card .card-name {
+            color: #fff1cc; text-shadow: 0 0 7px rgba(255,91,178,.48), 0 1px 2px #000;
+        }
+        .card-item.dio-gift-card .gift { box-shadow: 0 0 9px rgba(255,192,117,.28); }
+        .dio-gift-edition {
+            margin: 2px 0 1px; font-size: 7px; font-weight: 900; letter-spacing: .4px;
+            color: #ffb4d8; text-shadow: 0 0 7px rgba(255,84,183,.45);
+        }
+        .card-item.dio-gift-card .card-stats {
+            border: 1px solid rgba(255,214,141,.3);
+            background: linear-gradient(90deg, rgba(255,190,87,.11), rgba(255,84,183,.12));
+            color: #fff0d0;
+        }
+        .dio-gift-seal {
+            margin-top: 4px; padding: 3px 5px; border-radius: 6px;
+            border: 1px solid rgba(255,220,145,.32); background: rgba(8,7,17,.58);
+            color: #ffe4a4; font-size: 7px; font-weight: 900; letter-spacing: .3px;
+        }
         .card-name { font-weight: 800; font-size: 12px; word-break: break-word; line-height: 1.2; margin-bottom: 4px; max-width: 100%; }
+        @keyframes dioGiftSweep { 0%, 20% { left: -70%; opacity: 0; } 38% { opacity: 1; } 68%, 100% { left: 130%; opacity: 0; } }
+        @keyframes dioGiftRibbon { to { background-position: 220% 0; } }
         .rarity-tag {
             font-size: 9px; padding: 3px 8px; border-radius: 20px; display: inline-block; margin: 4px 0;
             font-weight: 900; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
@@ -1311,7 +1366,7 @@
 <script src="music/loading_screen.js?v=5"></script>
 
 <!-- Остальные скрипты игры -->
-<script src="data.js?v=12"></script>
+<script src="data.js?v=13"></script>
 <script src="easter_eggs.js?v=1"></script>
 <script src="mastery.js?v=9"></script>
 <script src="daily.js?v=10"></script>
@@ -1328,7 +1383,7 @@
 <script src="inventory.js?v=9"></script>
 <script src="crafting.js?v=2"></script>
 <script src="equipment_combat.js?v=15"></script>
-<script src="ui.js?v=15"></script>
+<script src="ui.js?v=16"></script>
 <script src="help.js?v=3"></script>
 <script src="evolution_unlock.js?v=1"></script>
 <script src="fix_code.js?v=1"></script>
