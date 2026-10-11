@@ -116,6 +116,7 @@
     function publishPacket(event, packet) {
         var activeChannel = channel;
         if (!activeChannel) return Promise.resolve(null);
+        if (realtimeClient && ablyConnectionState !== 'connected') return Promise.resolve(null);
         var startedAt = preciseNow();
         return activeChannel.send({ type: 'broadcast', event: event, payload: packet }).then(function (result) {
             var elapsed = preciseNow() - startedAt;
@@ -434,6 +435,8 @@
                 realtimeClient = new window.Ably.Realtime({
                     // This channel never needs to receive its own state/attack packets.
                     echoMessages: false,
+                    // Drop offline outbound packets instead of replaying stale combat state on reconnect.
+                    queueMessages: false,
                     authCallback: function (_tokenParams, callback) {
                         client.functions.invoke('ably-token').then(function (result) {
                             if (result.error) return callback(result.error, null);
