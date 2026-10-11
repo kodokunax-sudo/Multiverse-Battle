@@ -150,7 +150,7 @@
     let wbVortexPullStrength = 0;
     const WB_VORTEX_INTERVAL_MS = 20000; // ровно 20 секунд реального времени
     const WB_VORTEX_CHANCE = 0.35;
-    const WB_VORTEX_QTE_DURATION = 300; // 5 сек
+    const WB_VORTEX_QTE_DURATION = 420; // 7 сек на семь целей
 
     // Адаптивный ИИ Белоуса: запоминает привычки игрока в коротком временном окне.
     let wbBrain = {
@@ -1421,7 +1421,8 @@
         if (duel.phase === "idle") {
             roger.x += (roger.homeX - roger.x) * 0.04; roger.y += (roger.homeY - roger.y) * 0.04;
             whitebeard.x += (whitebeard.homeX - whitebeard.x) * 0.04; whitebeard.y += (whitebeard.homeY - whitebeard.y) * 0.04;
-            if (duel.timer > 30) { duel.phase = "approach"; duel.timer = 0; duel.clashX = 100 + Math.random() * 200; duel.clashY = 150 + Math.random() * 150; playWhooshSound(0.2); }
+            if (duel.clashes === 0 && duel.timer > 30) { duel.phase = "approach"; duel.timer = 0; duel.clashX = 100 + Math.random() * 200; duel.clashY = 150 + Math.random() * 150; playWhooshSound(0.2); }
+            else if (duel.clashes > 0 && duel.timer > 60) duel.timer = 0;
         } else if (duel.phase === "approach") {
             let targetRX = duel.clashX - 30, targetRY = duel.clashY;
             let targetWX = duel.clashX + 30, targetWY = duel.clashY;
@@ -1985,7 +1986,7 @@
         let slashY = Math.max(34, Math.min(466, rwbPlayer.y));
         rwbAttacks.push({
             type: "wb_crescent_slash", state: "windup",
-            x: 200, y: slashY, originX: 200, originY: slashY, targetY: slashY,
+            x: boss.x, y: slashY, originX: boss.x, originY: boss.y, targetY: slashY,
             vx: 0, vy: 0, size: 400, width: isSuper ? 42 : 34, hp: 10, maxHp: 10,
             damage: isSuper ? 30 : 24, life: 210, warningTimer: 120,
             color: "#dff8ff", rotation: 0, isSuper: !!isSuper
@@ -2002,10 +2003,10 @@
         if (wbBrain.bottomFrames >= 145 && Math.random() < 0.72) choice = "center_wave";
         else if (wbBrain.shotsInWindow >= 9 && Math.random() < 0.33) choice = "reflect_vortex";
         else if (wbBrain.stationaryFrames >= 100 && Math.random() < 0.48) choice = "fruit_punch";
-        else if (wbBrain.farFrames >= 82 && Math.random() < 0.45) choice = "crescent_slash";
-        else if (Math.random() < 0.13) {
-            let choices = ["reflect_vortex", "center_wave", "fruit_punch", "crescent_slash"];
-            choice = choices[Math.floor(Math.random() * choices.length)];
+        else if (wbBrain.farFrames >= 50 && Math.random() < 0.68) choice = "crescent_slash";
+        else if (Math.random() < 0.22) {
+            let roll = Math.random();
+            choice = roll < 0.40 ? "crescent_slash" : (roll < 0.60 ? "reflect_vortex" : (roll < 0.80 ? "fruit_punch" : "center_wave"));
         }
         if (!choice) return false;
 
@@ -2115,18 +2116,18 @@
         wbVortexFailed = false;
         wbVortexPullStrength = 1;
         wbVortexPoints = [];
-        for (let i = 0; i < 4; i++) {
-            let ang = (i / 4) * Math.PI * 2 + Math.random() * 0.8;
-            let rr = 55 + Math.random() * 80;
+        for (let i = 0; i < 7; i++) {
+            let ang = (i / 7) * Math.PI * 2 + Math.random() * 0.22;
+            let rr = 75 + Math.random() * 55;
             wbVortexPoints.push({
                 x: Math.max(28, Math.min(372, rwbPlayer.x + Math.cos(ang) * rr)),
                 y: Math.max(45, Math.min(455, rwbPlayer.y + Math.sin(ang) * rr)),
-                r: 54,
+                r: 42,
                 hit: false,
                 pulse: Math.random() * Math.PI * 2
             });
         }
-        rwbFloatingTexts.push({ x: 200, y: 80, text: "🌀 ВОРОНКА — НАЖМИ 4 ТОЧКИ!", color: "#ffffff", life: 125, maxLife: 125, vy: 0, vx: 0, size: 16 });
+        rwbFloatingTexts.push({ x: 200, y: 80, text: "🌀 ВОРОНКА — НАЖМИ 7 ТОЧЕК!", color: "#ffffff", life: 125, maxLife: 125, vy: 0, vx: 0, size: 16 });
         playBossRoarSound(0.55); playWhooshSound(0.55);
         rwbShake = 28;
     }
@@ -2168,7 +2169,7 @@
             p.hit = true;
             wbVortexNextPoint++;
             playImpactSound(0.18, 1.5);
-            if (wbVortexNextPoint >= 4) finishWhitebeardVortex(true);
+            if (wbVortexNextPoint >= 7) finishWhitebeardVortex(true);
         }
         return true;
     }
@@ -2282,6 +2283,9 @@
         if (loser === roger) roger = null;
         if (loser === whitebeard) whitebeard = null;
         rwbAttacks = []; rwbShockwaves = [];
+        // Reset Whitebeard AI when entering the second phase; otherwise a cleared wind-up can lock the brain forever.
+        wbBrain.phase = "idle"; wbBrain.phaseTimer = 0; wbBrain.recoveryTimer = 0;
+        wbBrain.adaptiveCooldown = 0; wbBrain.comboHint = null; wbBrain.lastAdaptive = null;
         rwbScreenFlash = 40; rwbScreenFlashColor = "#000000"; rwbShake = 35; rwbHakiAura = 40;
         playBossRoarSound(0.6); playHakiChargeSound(0.5);
         setTimeout(function() { playExplosionSound(0.4); }, 800);
@@ -3156,7 +3160,8 @@
                 ctx.fillText("🌀 ВОРОНКА", boss.x, boss.y - 48);
             }
             ctx.font = "bold 16px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffffff";
-            ctx.fillText("НАЖМИ 4 ТОЧКИ!", 200, 42);
+            ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("НАЖМИ 7 ТОЧЕК!", 200, 42);
+            ctx.fillStyle = "#ffffff"; ctx.fillText("НАЖМИ 7 ТОЧЕК!", 200, 42);
             ctx.font = "bold 13px monospace"; ctx.fillStyle = "#ffdd66";
             ctx.fillText("Осталось: " + Math.ceil(wbVortexTimerLeft / 60) + "с", 200, 62);
             for (let i = 0; i < wbVortexPoints.length; i++) {
@@ -3287,8 +3292,8 @@
         if (wbWindup) {
             active.x = wbWindup.originX; active.y = wbWindup.originY;
         } else {
-            active.x = 200 + Math.sin(rwbTimer / 80) * 100;
-            active.y = 100 + Math.sin(rwbTimer / 60) * 20;
+            active.x = 200 + Math.sin(rwbTimer / 110) * 22;
+            active.y = 100 + Math.sin(rwbTimer / 80) * 8;
         }
         if (active.hitFlash > 0) active.hitFlash--;
         if (Math.random() < 0.15) spawnHakiLightning(active.x + (Math.random() - 0.5) * 50, active.y + (Math.random() - 0.5) * 50, 1, false);
