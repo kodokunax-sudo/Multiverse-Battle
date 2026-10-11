@@ -1,5 +1,5 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v20.0
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v21.0
 // ============================================================
 // ★ v19.0 — ФИКС СУПЕРОВ:
 //   - garouTimeStop останавливает ВСЕ атаки
@@ -21,7 +21,7 @@
     window._rogerWhitebeardLoaded = true;
 
     const RWB_SUPER_ROGER_HP = 2200;
-    const RWB_SUPER_WB_HP = 1560;
+    const RWB_SUPER_WB_HP = 950;
     const RWB_ATTACK_SPEED = 45;
     const RWB_ATTACK_SPEED_SUPER_ROGER = 30;
     const RWB_SUPER_COOLDOWN = 300;
@@ -37,7 +37,7 @@
         playerDamageMult: 1.0,
         rogerHp: 800,
         rogerDamageMult: 1.3,
-        whitebeardHp: 900,
+        whitebeardHp: 650,
         whitebeardDamageMult: 0.8,
         superAttackRate: 40,
         superDamageMult: 1.7,
@@ -151,6 +151,16 @@
     const WB_VORTEX_INTERVAL_MS = 20000; // ровно 20 секунд реального времени
     const WB_VORTEX_CHANCE = 0.35;
     const WB_VORTEX_QTE_DURATION = 300; // 5 сек
+
+    // Адаптивный ИИ Белоуса: запоминает привычки игрока в коротком временном окне.
+    let wbBrain = {
+        bottomFrames: 0, stationaryFrames: 0, farFrames: 0,
+        shotsInWindow: 0, shotWindowTimer: 0, adaptiveCooldown: 0,
+        lastX: 200, lastY: 420, lastAdaptive: null
+    };
+    let rwbPlayerStunTimer = 0;
+    let wbFruitFlashTimer = 0;
+    let wbFruitFlashPower = 0.72;
 
     let rwbMusic = null;
     const RWB_MUSIC_PATH = "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3";
@@ -852,6 +862,8 @@
         rwbWinner = null; rwbRewardGiven = false; rwbDialogStage = 0;
         rwbWhitebeardDisabled = [false, false, false]; rwbWBPhase = "intro";
         rwbDialogQueue = []; rwbDialogActive = false; rwbDialogType = null; rwbDialogTimer = 0;
+        wbBrain = { bottomFrames: 0, stationaryFrames: 0, farFrames: 0, shotsInWindow: 0, shotWindowTimer: 180, adaptiveCooldown: 0, lastX: 200, lastY: 420, lastAdaptive: null };
+        rwbPlayerStunTimer = 0; wbFruitFlashTimer = 0; wbFruitFlashPower = 0.72;
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
 
         // ★ СБРОС СКОРОСТИ ★
@@ -1293,6 +1305,12 @@
             if (_superState.usoppStunTimer > 0) return;
         }
 
+        if (rwbPlayerStunTimer > 0) {
+            rwbPlayerStunTimer--;
+            if (rwbPlayer.invulnTimer > 0) rwbPlayer.invulnTimer--;
+            return;
+        }
+
         let mx = 0, my = 0;
         let speed = rwbBaseSpeed * rwbSpeedMult;
         if (typeof getTakabaCombatModifiers === 'function') {
@@ -1323,8 +1341,11 @@
         rwbPlayer.x = Math.max(16, Math.min(384, rwbPlayer.x));
         rwbPlayer.y = Math.max(0, Math.min(484, rwbPlayer.y));
         if (rwbPlayer.invulnTimer > 0) rwbPlayer.invulnTimer--;
+        observeWhitebeardHabit();
 
         if (rwbPlayer.attackTimer <= 0) {
+            if (wbBrain.shotWindowTimer > 0) wbBrain.shotsInWindow++;
+
             let weaponUsed = false;
             if (typeof window.firePlayerWeapon === 'function') {
                 try {
@@ -1370,7 +1391,9 @@
         let nearestAttack = null, nearestDist = Infinity;
         for (let i = 0; i < rwbAttacks.length; i++) {
             let a = rwbAttacks[i];
-            if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave") continue;
+            if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave" ||
+                a.type === "wb_reflect_vortex" || a.type === "wb_center_wave" || a.type === "wb_fruit_punch" ||
+                (a.type === "wb_crescent_slash" && a.state !== "flying")) continue;
             let ax = a.x + (a.size || a.radius || 20) / 2;
             let ay = a.y + (a.size || a.radius || 20) / 2;
             let dx = ax - bullet.x, dy = ay - bullet.y;
@@ -1433,7 +1456,12 @@
         roger.attackTimer--;
         if (roger.attackTimer <= 0) { roger.attackTimer = RWB_ATTACK_SPEED + Math.random() * 20; spawnRogerAttack(); }
         whitebeard.attackTimer--;
-        if (whitebeard.attackTimer <= 0) { whitebeard.attackTimer = RWB_ATTACK_SPEED + Math.random() * 25; spawnWhitebeardAttack(); }
+        if (whitebeard.attackTimer <= 0) {
+            whitebeard.attackTimer = (RWB_ATTACK_SPEED + Math.random() * 25) * (isWBReflectVortexActive() ? 1.3 : 1);
+            spawnWhitebeardAttack();
+        }
+        let wbLock = getWhitebeardWindupAttack();
+        if (wbLock && whitebeard) { whitebeard.x = wbLock.originX; whitebeard.y = wbLock.originY; }
 
         if (roger.hp <= 0) { roger.hp = 0; triggerSuper(whitebeard, roger); }
         else if (whitebeard.hp <= 0) { whitebeard.hp = 0; triggerSuper(roger, whitebeard); }
@@ -1677,6 +1705,8 @@
     }
 
     function spawnWhitebeardAttack() {
+        if (isWhitebeardSpecialWindupActive()) return;
+        if (maybeSpawnWhitebeardAdaptive(false)) return;
         let type = Math.floor(Math.random() * 8);
         let isSuper = whitebeard.superForm;
         playHakiChargeSound(0.2);
@@ -1727,6 +1757,166 @@
             rwbAttacks.push({ type: "haki_wave", x: side > 0 ? -40 : 440, y: 200 + Math.random() * 200, vx: side * 3.5 * BALANCE.projectileSpeedMult, vy: 0, size: 30, hp: 5, maxHp: 5, damage: Math.ceil(22 * BALANCE.whitebeardDamageMult), life: 300, color: "#ff8800", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
             playHakiChargeSound(0.3);
         }
+    }
+
+    // ============================================================
+    // АДАПТИВНЫЕ АТАКИ БЕЛОУСА
+    // ============================================================
+    function getWhitebeardEntity() {
+        if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") return rwbActiveBoss;
+        return whitebeard && whitebeard.id === "whitebeard" ? whitebeard : null;
+    }
+
+    function isWBReflectVortexActive() {
+        return rwbAttacks.some(function(a) { return a.type === "wb_reflect_vortex" && a.life > 0; });
+    }
+
+    function isWhitebeardSpecialWindupActive() {
+        return rwbAttacks.some(function(a) {
+            return (a.type === "wb_fruit_punch" && a.state === "warning") ||
+                   (a.type === "wb_crescent_slash" && a.state === "windup");
+        });
+    }
+
+    function getWhitebeardWindupAttack() {
+        return rwbAttacks.find(function(a) {
+            return (a.type === "wb_fruit_punch" && a.state === "warning") ||
+                   (a.type === "wb_crescent_slash" && a.state === "windup");
+        }) || null;
+    }
+
+    function observeWhitebeardHabit() {
+        if (!rwbPlayer || (rwbState !== "fight1" && rwbState !== "fight2")) return;
+        if (wbBrain.shotWindowTimer <= 0) {
+            wbBrain.shotWindowTimer = 180;
+            wbBrain.shotsInWindow = 0;
+        } else wbBrain.shotWindowTimer--;
+
+        if (rwbPlayer.y >= 395) wbBrain.bottomFrames++;
+        else wbBrain.bottomFrames = Math.max(0, wbBrain.bottomFrames - 3);
+
+        let moved = Math.hypot(rwbPlayer.x - wbBrain.lastX, rwbPlayer.y - wbBrain.lastY);
+        if (moved < 1.1) wbBrain.stationaryFrames++;
+        else wbBrain.stationaryFrames = Math.max(0, wbBrain.stationaryFrames - 2);
+
+        let boss = getWhitebeardEntity();
+        if (boss && Math.hypot(rwbPlayer.x - boss.x, rwbPlayer.y - boss.y) > 180) wbBrain.farFrames++;
+        else wbBrain.farFrames = Math.max(0, wbBrain.farFrames - 2);
+
+        wbBrain.lastX = rwbPlayer.x;
+        wbBrain.lastY = rwbPlayer.y;
+        if (wbBrain.adaptiveCooldown > 0) wbBrain.adaptiveCooldown--;
+    }
+
+    function whitebeardRayEndpoint(x, y, targetX, targetY) {
+        let dx = targetX - x, dy = targetY - y;
+        let len = Math.hypot(dx, dy) || 1;
+        let ux = dx / len, uy = dy / len;
+        let t = Infinity;
+        if (ux > 0) t = Math.min(t, (400 - x) / ux);
+        else if (ux < 0) t = Math.min(t, (0 - x) / ux);
+        if (uy > 0) t = Math.min(t, (500 - y) / uy);
+        else if (uy < 0) t = Math.min(t, (0 - y) / uy);
+        if (!Number.isFinite(t) || t < 0) t = 450;
+        return { x: x + ux * t, y: y + uy * t };
+    }
+
+    function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
+        let dx = x2 - x1, dy = y2 - y1;
+        let denom = dx * dx + dy * dy;
+        let t = denom ? ((px - x1) * dx + (py - y1) * dy) / denom : 0;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+    }
+
+    function spawnWBReflectVortex(isSuper) {
+        let boss = getWhitebeardEntity();
+        if (!boss || isWBReflectVortexActive()) return false;
+        let side = rwbPlayer.x >= boss.x ? -1 : 1;
+        let vx = Math.max(44, Math.min(356, boss.x + side * 58));
+        let vy = Math.max(65, Math.min(435, boss.y + 26));
+        if (Math.hypot(rwbPlayer.x - vx, rwbPlayer.y - vy) < 72) {
+            vx = Math.max(44, Math.min(356, boss.x - side * 58));
+        }
+        rwbAttacks.push({ type: "wb_reflect_vortex", x: vx, y: vy, radius: 43, life: 285, maxLife: 285, rotation: Math.random() * Math.PI * 2, color: "#9f5cff", isSuper: !!isSuper });
+        if (whitebeard) whitebeard.attackTimer = Math.max(whitebeard.attackTimer || 0, Math.ceil(RWB_ATTACK_SPEED * 1.3));
+        if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") rwbActiveBoss.attackTimer = Math.max(rwbActiveBoss.attackTimer || 0, Math.ceil(BALANCE.superAttackRate * 1.3));
+        rwbFloatingTexts.push({ x: vx, y: vy - 48, text: "🌀 ОТРАЖЕНИЕ!", color: "#bb8cff", life: 75, maxLife: 75, vy: -0.25, vx: 0, size: 15 });
+        playHakiChargeSound(0.3); playWhooshSound(0.4);
+        return true;
+    }
+
+    function spawnWBCenterPullWave(isSuper) {
+        rwbAttacks.push({ type: "wb_center_wave", x: 200, y: 480, targetY: 250, speed: isSuper ? 4.6 : 4.0, state: "warning", warningTimer: 34, life: 100, color: "#9beaff", damage: 0, isSuper: !!isSuper });
+        rwbFloatingTexts.push({ x: 200, y: 90, text: "🌊 ХВАТИТ ПРЯТАТЬСЯ!", color: "#9beaff", life: 65, maxLife: 65, vy: -0.25, vx: 0, size: 16 });
+        playHakiChargeSound(0.3);
+        return true;
+    }
+
+    function spawnWBFruitPunch(isSuper) {
+        let boss = getWhitebeardEntity();
+        if (!boss) return false;
+        let end = whitebeardRayEndpoint(boss.x, boss.y, rwbPlayer.x, rwbPlayer.y);
+        rwbAttacks.push({
+            type: "wb_fruit_punch", x: boss.x, y: boss.y, originX: boss.x, originY: boss.y,
+            targetX: rwbPlayer.x, targetY: rwbPlayer.y, endX: end.x, endY: end.y,
+            state: "warning", warningTimer: 105, activeTimer: 0, hit: false,
+            width: isSuper ? 33 : 29, damage: 20, life: 140, color: "#f7fbff", isSuper: !!isSuper
+        });
+        rwbFloatingTexts.push({ x: 200, y: 82, text: "⚠ РАЗЛОМ МИРА ⚠", color: "#ffffff", life: 90, maxLife: 90, vy: -0.2, vx: 0, size: 17 });
+        playHakiChargeSound(0.45); spawnHakiLightning(boss.x, boss.y, 3, false);
+        return true;
+    }
+
+    function spawnWBCrescentSlash(isSuper) {
+        let boss = getWhitebeardEntity();
+        if (!boss) return false;
+        rwbAttacks.push({
+            type: "wb_crescent_slash", state: "windup",
+            x: boss.x, y: boss.y, originX: boss.x, originY: boss.y,
+            vx: 0, vy: 0, size: 36, hp: 10, maxHp: 10,
+            damage: isSuper ? 24 : 20, life: 210, warningTimer: 120,
+            color: "#dff8ff", rotation: 0, isSuper: !!isSuper
+        });
+        rwbFloatingTexts.push({ x: 200, y: 82, text: "☠ РАССЕКАЮЩИЙ ГОРИЗОНТ ☠", color: "#dff8ff", life: 95, maxLife: 95, vy: -0.2, vx: 0, size: 15 });
+        playHakiChargeSound(0.45);
+        return true;
+    }
+
+    function maybeSpawnWhitebeardAdaptive(isSuper) {
+        if (!getWhitebeardEntity() || wbBrain.adaptiveCooldown > 0 || isWhitebeardSpecialWindupActive()) return false;
+        if (isWBReflectVortexActive()) return false;
+        let choice = null;
+        if (wbBrain.bottomFrames >= 145 && Math.random() < 0.72) choice = "center_wave";
+        else if (wbBrain.shotsInWindow >= 9 && Math.random() < 0.33) choice = "reflect_vortex";
+        else if (wbBrain.stationaryFrames >= 100 && Math.random() < 0.48) choice = "fruit_punch";
+        else if (wbBrain.farFrames >= 82 && Math.random() < 0.45) choice = "crescent_slash";
+        else if (Math.random() < 0.13) {
+            let choices = ["reflect_vortex", "center_wave", "fruit_punch", "crescent_slash"];
+            choice = choices[Math.floor(Math.random() * choices.length)];
+        }
+        if (!choice) return false;
+
+        // Не повторяет одну и ту же специальную контратаку два раза подряд.
+        if (choice === wbBrain.lastAdaptive) {
+            let alternatives = ["reflect_vortex", "center_wave", "fruit_punch", "crescent_slash"].filter(function(v) { return v !== choice; });
+            choice = alternatives[Math.floor(Math.random() * alternatives.length)];
+        }
+
+        let started = false;
+        if (choice === "reflect_vortex") started = spawnWBReflectVortex(isSuper);
+        else if (choice === "center_wave") started = spawnWBCenterPullWave(isSuper);
+        else if (choice === "fruit_punch") started = spawnWBFruitPunch(isSuper);
+        else if (choice === "crescent_slash") started = spawnWBCrescentSlash(isSuper);
+        if (!started) return false;
+
+        wbBrain.lastAdaptive = choice;
+        wbBrain.adaptiveCooldown = choice === "reflect_vortex" ? 240 : (choice === "center_wave" ? 205 : 180);
+        if (choice === "center_wave") wbBrain.bottomFrames = 0;
+        if (choice === "reflect_vortex") wbBrain.shotsInWindow = 0;
+        if (choice === "fruit_punch") wbBrain.stationaryFrames = 0;
+        if (choice === "crescent_slash") wbBrain.farFrames = 0;
+        return true;
     }
 
     // ============================================================
@@ -1887,7 +2077,9 @@
         if (wbVortexTimerLeft <= 0 && wbVortexActive) finishWhitebeardVortex(false);
     }
 
-        function spawnWhitebeardSuperAttack() {
+    function spawnWhitebeardSuperAttack() {
+        if (isWhitebeardSpecialWindupActive()) return;
+        if (maybeSpawnWhitebeardAdaptive(true)) return;
         let attackId = Math.floor(Math.random() * 5);
         playHakiChargeSound(0.3);
         spawnHakiLightning(whitebeard.x, whitebeard.y, 5, false);
@@ -2011,6 +2203,86 @@
                 a.dioStandHitOnce=true;hitPlayer(Math.max(1,Math.floor((Number(a.damage)||8)*.4)));rwbAttacks.splice(i,1);continue;
             }
 
+            if (a.type === "wb_reflect_vortex") {
+                a.life--; a.rotation += 0.055;
+                if (a.life <= 0) { spawnDestroyParticles(a.x, a.y, a.color); rwbAttacks.splice(i, 1); }
+                continue;
+            }
+
+            if (a.type === "wb_reflected_bullet") {
+                a.x += a.vx; a.y += a.vy; a.life--;
+                if (Math.random() < 0.5) rwbParticles.push({ x: a.x, y: a.y, vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5, life: 12, maxLife: 12, color: "#b989ff", size: 2 });
+                if (rwbPlayer.invulnTimer <= 0 && Math.hypot(rwbPlayer.x - a.x, rwbPlayer.y - a.y) < a.size + rwbPlayer.size * 0.65) {
+                    hitPlayer(a.damage); spawnHitParticles(a.x, a.y, "#b989ff", 6); rwbAttacks.splice(i, 1); continue;
+                }
+                if (a.life <= 0 || a.x < -25 || a.x > 425 || a.y < -25 || a.y > 525) rwbAttacks.splice(i, 1);
+                continue;
+            }
+
+            if (a.type === "wb_center_wave") {
+                if (a.state === "warning") {
+                    a.warningTimer--;
+                    if (a.warningTimer <= 0) { a.state = "active"; a.y = 480; playImpactSound(0.4, 0.7); rwbShake = 8; }
+                } else {
+                    a.y -= a.speed; a.life--;
+                    if (rwbPlayer.y > a.targetY) {
+                        rwbPlayer.x += Math.max(-4, Math.min(4, (200 - rwbPlayer.x) * 0.09));
+                        rwbPlayer.y = Math.max(a.targetY, rwbPlayer.y - 3.4);
+                        rwbPlayer.x = Math.max(16, Math.min(384, rwbPlayer.x));
+                        rwbPlayer.vx *= 0.5; rwbPlayer.vy = Math.min(0, rwbPlayer.vy);
+                    }
+                    if (Math.random() < 0.65) rwbParticles.push({ x: Math.random() * 400, y: a.y + (Math.random() - 0.5) * 14, vx: (Math.random() - 0.5) * 1.5, vy: -1.5 - Math.random() * 2, life: 18, maxLife: 18, color: "#9beaff", size: 2 + Math.random() * 2 });
+                    if (a.y <= a.targetY || a.life <= 0) { spawnHitParticles(200, a.targetY, "#9beaff", 14); rwbAttacks.splice(i, 1); }
+                }
+                continue;
+            }
+
+            if (a.type === "wb_fruit_punch") {
+                if (a.state === "warning") {
+                    a.warningTimer--;
+                    if (a.warningTimer <= 0) {
+                        a.state = "active"; a.activeTimer = 16; rwbShake = 28;
+                        playExplosionSound(0.65); playImpactSound(0.65, 0.5);
+                        for (let n = 1; n <= 6; n++) {
+                            let t = n / 7;
+                            spawnWhiteCracks(a.originX + (a.endX - a.originX) * t, a.originY + (a.endY - a.originY) * t, 2);
+                        }
+                        rwbShockwaves.push({ x: a.targetX, y: a.targetY, radius: 5, maxRadius: 115, speed: 8, color: "#ffffff", damage: 0, hit: true, canDestroy: false, life: 18, maxLife: 18, width: 5 });
+                    }
+                } else if (a.state === "active") {
+                    a.activeTimer--;
+                    let d = pointToSegmentDistance(rwbPlayer.x, rwbPlayer.y, a.originX, a.originY, a.endX, a.endY);
+                    if (!a.hit && rwbPlayer.invulnTimer <= 0 && d < a.width / 2 + 7) {
+                        a.hit = true; hitPlayer(20); rwbPlayerStunTimer = 30; wbFruitFlashTimer = 180; wbFruitFlashPower = 0.72;
+                    }
+                    if (a.activeTimer <= 0) rwbAttacks.splice(i, 1);
+                } else { rwbAttacks.splice(i, 1); }
+                continue;
+            }
+
+            if (a.type === "wb_crescent_slash") {
+                if (a.state === "windup") {
+                    a.warningTimer--;
+                    a.rotation += 0.045;
+                    if (a.warningTimer <= 0) {
+                        let dx = rwbPlayer.x - a.originX, dy = rwbPlayer.y - a.originY;
+                        let len = Math.hypot(dx, dy) || 1;
+                        let speed = 5.5;
+                        a.x = a.originX; a.y = a.originY;
+                        a.vx = dx / len * speed; a.vy = dy / len * speed;
+                        a.state = "flying"; a.life = 90; a.rotation = Math.atan2(a.vy, a.vx);
+                        playImpactSound(0.65, 0.65); playWhooshSound(0.55); rwbShake = 12;
+                    }
+                } else if (a.state === "flying") {
+                    a.x += a.vx; a.y += a.vy; a.life--;
+                    if (!a.hit && rwbPlayer.invulnTimer <= 0 && Math.hypot(rwbPlayer.x - a.x, rwbPlayer.y - a.y) < a.size * 0.82 + 8) {
+                        a.hit = true; hitPlayer(a.damage); spawnHitParticles(a.x, a.y, "#dff8ff", 12); rwbAttacks.splice(i, 1); continue;
+                    }
+                    if (a.life <= 0 || a.x < -60 || a.x > 460 || a.y < -60 || a.y > 560) rwbAttacks.splice(i, 1);
+                } else { rwbAttacks.splice(i, 1); }
+                continue;
+            }
+
             if (a.type === "giant_rock") {
                 a.x += a.vx; a.y += a.vy; a.rotation += a.rotSpeed; a.life--;
                 if (Math.random() < 0.4) {
@@ -2059,6 +2331,94 @@
                 }
                 if (a.x < -60 || a.x > 460 || a.life <= 0) rwbAttacks.splice(i, 1);
                 continue;
+            }
+
+            if (a.type === "wb_reflect_vortex") {
+                ctx.save();
+                let pulse = 1 + Math.sin(performance.now() / 90) * 0.12;
+                ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0);
+                ctx.shadowColor = "#a66bff"; ctx.shadowBlur = 20;
+                ctx.strokeStyle = "#d9b8ff"; ctx.lineWidth = 3;
+                for (let ring = 0; ring < 3; ring++) {
+                    ctx.globalAlpha = 0.85 - ring * 0.2;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, a.radius * pulse * (0.58 + ring * 0.2), a.radius * (0.4 + ring * 0.13), ring * 0.7, 0.2 + performance.now() / 360, Math.PI * 1.65 + performance.now() / 360);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+                ctx.fillText("ОТРАЖЕНИЕ", 0, a.radius + 19);
+                ctx.restore(); return;
+            }
+
+            if (a.type === "wb_reflected_bullet") {
+                ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(Math.atan2(a.vy, a.vx));
+                ctx.shadowColor = "#a66bff"; ctx.shadowBlur = 12; ctx.fillStyle = "#d8baff";
+                ctx.beginPath(); ctx.ellipse(0, 0, a.size * 1.6, a.size * 0.65, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); return;
+            }
+
+            if (a.type === "wb_center_wave") {
+                ctx.save();
+                ctx.strokeStyle = "#9beaff"; ctx.shadowColor = "#9beaff"; ctx.shadowBlur = 18;
+                if (a.state === "warning") {
+                    let alpha = 0.35 + Math.sin(performance.now() / 90) * 0.2;
+                    ctx.globalAlpha = alpha; ctx.lineWidth = 5;
+                    ctx.beginPath(); ctx.moveTo(0, 480); ctx.lineTo(400, 480); ctx.stroke();
+                    ctx.globalAlpha = 1; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffffff";
+                    ctx.fillText("ВОЛНА ПРИТЯЖЕНИЯ", 200, 460);
+                } else {
+                    ctx.lineWidth = 15; ctx.globalAlpha = 0.48;
+                    ctx.beginPath(); ctx.moveTo(0, a.y); ctx.lineTo(400, a.y); ctx.stroke();
+                    ctx.globalAlpha = 1; ctx.lineWidth = 4;
+                    for (let j = -1; j <= 1; j++) {
+                        ctx.beginPath(); ctx.moveTo(0, a.y + j * 9 + Math.sin(performance.now() / 50) * 3); ctx.lineTo(400, a.y + j * 9); ctx.stroke();
+                    }
+                    ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText("ЦЕНТР", 200, a.y - 10);
+                }
+                ctx.restore(); return;
+            }
+
+            if (a.type === "wb_fruit_punch") {
+                ctx.save();
+                if (a.state === "warning") {
+                    let pulse = 0.45 + Math.sin(performance.now() / 65) * 0.18;
+                    ctx.globalAlpha = pulse; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = a.width + 9;
+                    ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
+                    ctx.globalAlpha = 1; ctx.strokeStyle = "#c8f4ff"; ctx.lineWidth = 3;
+                    ctx.setLineDash([8, 7]); ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke(); ctx.setLineDash([]);
+                    ctx.fillStyle = "#ffffff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText("УДАР ФРУКТОМ!", a.targetX, a.targetY - 18);
+                } else {
+                    ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 22; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = a.width + 14;
+                    ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
+                    ctx.strokeStyle = "#b8efff"; ctx.lineWidth = a.width;
+                    ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
+                    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4;
+                    ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
+                }
+                ctx.restore(); return;
+            }
+
+            if (a.type === "wb_crescent_slash") {
+                ctx.save();
+                if (a.state === "windup") {
+                    ctx.translate(a.originX, a.originY); ctx.rotate(a.rotation || 0);
+                    ctx.globalAlpha = 0.35 + Math.sin(performance.now() / 80) * 0.18;
+                    ctx.strokeStyle = "#dff8ff"; ctx.lineWidth = 8; ctx.shadowColor = "#b9efff"; ctx.shadowBlur = 20;
+                    ctx.beginPath(); ctx.arc(0, 0, 58, -0.85, 0.85); ctx.stroke();
+                    ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+                    ctx.fillText("ГОТОВИТСЯ 2 СЕК.", 0, -75);
+                    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, 66, -1.1, 1.1); ctx.stroke();
+                } else {
+                    ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0);
+                    ctx.shadowColor = "#b9efff"; ctx.shadowBlur = 20;
+                    ctx.fillStyle = "#eafaff"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.moveTo(-a.size * 1.35, -a.size * 0.7);
+                    ctx.quadraticCurveTo(-a.size * 0.05, -a.size * 1.35, a.size * 1.5, -a.size * 0.1);
+                    ctx.quadraticCurveTo(a.size * 0.15, -a.size * 0.45, -a.size * 1.35, -a.size * 0.7); ctx.closePath(); ctx.fill(); ctx.stroke();
+                    ctx.strokeStyle = "#5c91b0"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, a.size * 0.6, -0.6, 0.9); ctx.stroke();
+                    ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText("HP " + a.hp + "/10", 0, a.size + 14);
+                }
+                ctx.restore(); return;
             }
 
             if (a.type === "roger_slash") {
@@ -2241,10 +2601,33 @@
             }
             let destroyed = false;
 
+            // Воронка ловит любой снаряд игрока и разворачивает его обратно.
+            if (!stopAll && !b.reflected) {
+                let vortex = null;
+                for (let k = rwbAttacks.length - 1; k >= 0; k--) {
+                    let candidate = rwbAttacks[k];
+                    if (candidate.type === "wb_reflect_vortex" && candidate.life > 0 &&
+                        Math.hypot(b.x - candidate.x, b.y - candidate.y) < candidate.radius + (b.size || 4)) {
+                        vortex = candidate; break;
+                    }
+                }
+                if (vortex) {
+                    let dx = rwbPlayer.x - b.x, dy = rwbPlayer.y - b.y;
+                    let len = Math.hypot(dx, dy) || 1;
+                    let speed = Math.max(6, Math.hypot(b.vx || 0, b.vy || 0));
+                    rwbAttacks.push({ type: "wb_reflected_bullet", x: b.x, y: b.y, vx: dx / len * speed, vy: dy / len * speed, size: Math.max(5, b.size || 4), damage: 7, life: 120, color: "#b989ff" });
+                    spawnHitParticles(b.x, b.y, "#b989ff", 4);
+                    rwbPlayerBullets.splice(i, 1);
+                    continue;
+                }
+            }
+
             if (b.isBlue) {
                 for (let j = rwbAttacks.length - 1; j >= 0; j--) {
                     let a = rwbAttacks[j];
-                    if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave") continue;
+                    if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave" ||
+                        a.type === "wb_reflect_vortex" || a.type === "wb_center_wave" || a.type === "wb_fruit_punch" ||
+                        (a.type === "wb_crescent_slash" && a.state !== "flying")) continue;
                     if (a.hp === undefined) continue;
                     let dx = b.x - a.x, dy = b.y - a.y;
                     let aSize = a.size || a.radius || 20;
@@ -2416,6 +2799,8 @@
     function stopRogerWhitebeardFight() {
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
         window.rwbActive = false; rwbDialogActive = false;
+        rwbPlayerStunTimer = 0; wbFruitFlashTimer = 0;
+        wbBrain = { bottomFrames: 0, stationaryFrames: 0, farFrames: 0, shotsInWindow: 0, shotWindowTimer: 0, adaptiveCooldown: 0, lastX: 200, lastY: 420, lastAdaptive: null };
         hideRWBModeButton(); hideRWBSuperButton(); stopRWBMusic();
         if (typeof resetAllSupers === 'function') { try { resetAllSupers(); } catch(e) {} }
         rwbSupersInitialized = false;
@@ -2455,6 +2840,7 @@
                 (_superState.usoppStunTimer || 0) > 0;
         }
         if (!rwbWorldStopped) rwbTimer++;
+        if (!rwbWorldStopped && wbFruitFlashTimer > 0) wbFruitFlashTimer--;
 
         if (typeof tickSupers === 'function') {
             try { tickSupers(); } catch(e) { console.error("[ROGER-WB] tickSupers error:", e); }
@@ -2750,6 +3136,21 @@
             try { renderSuperVisuals(); } catch(e) { console.error("[ROGER-WB] renderSuperVisuals error:", e); }
         }
 
+        // После попадания фруктового удара экран остаётся пересвеченным 3 секунды,
+        // но игрок не ослеплён полностью: слабые полосы дают эффект искажения.
+        if (wbFruitFlashTimer > 0) {
+            ctx.save();
+            ctx.fillStyle = "rgba(255,255,255," + wbFruitFlashPower + ")";
+            ctx.fillRect(0, 0, 400, 500);
+            ctx.globalAlpha = 0.2;
+            for (let band = 0; band < 8; band++) {
+                let yy = (band * 67 + Math.floor(performance.now() / 17) % 67) % 500;
+                ctx.fillStyle = band % 2 ? "#c8f4ff" : "#ffffff";
+                ctx.fillRect((band % 3) * 7, yy, 400 - (band % 3) * 14, 3 + (band % 2) * 2);
+            }
+            ctx.restore();
+        }
+
         if (isModerActive()) {
             ctx.save(); ctx.font = "bold 11px monospace"; ctx.textAlign = "left";
             ctx.fillStyle = "#ffd700"; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 8;
@@ -2836,14 +3237,19 @@
         }
 
         active.pulse += 0.12; active.rotation += 0.03;
-        active.x = 200 + Math.sin(rwbTimer / 80) * 100;
-        active.y = 100 + Math.sin(rwbTimer / 60) * 20;
+        let wbWindup = active.id === "whitebeard" ? getWhitebeardWindupAttack() : null;
+        if (wbWindup) {
+            active.x = wbWindup.originX; active.y = wbWindup.originY;
+        } else {
+            active.x = 200 + Math.sin(rwbTimer / 80) * 100;
+            active.y = 100 + Math.sin(rwbTimer / 60) * 20;
+        }
         if (active.hitFlash > 0) active.hitFlash--;
         if (Math.random() < 0.15) spawnHakiLightning(active.x + (Math.random() - 0.5) * 50, active.y + (Math.random() - 0.5) * 50, 1, false);
         active.attackTimer--;
         if (active.attackTimer <= 0) {
             let interval = (active.id === "roger") ? RWB_ATTACK_SPEED_SUPER_ROGER : BALANCE.superAttackRate;
-            active.attackTimer = interval + Math.random() * 20;
+            active.attackTimer = (interval + Math.random() * 20) * (active.id === "whitebeard" && isWBReflectVortexActive() ? 1.3 : 1);
             if (active.id === "roger") spawnRogerSuperAttack();
             else spawnWhitebeardSuperAttack();
         }
@@ -3212,7 +3618,7 @@
     window.setRWBSpeedMult = function(v) { rwbSpeedMult = v; };
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v20.0                             ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v21.0                             ║");
     console.log("║  ✅ garouTimeStop останавливает ВСЕ атаки                  ║");
     console.log("║  ✅ Поглощение урона работает                              ║");
     console.log("║  ✅ Увеличение урона применяется к пулям                   ║");
