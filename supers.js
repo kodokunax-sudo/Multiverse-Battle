@@ -1795,7 +1795,7 @@ function updateSuperButton() {
         return;
     }
 
-    if (mainCard.name === "ДИО Over Heaven") {
+    if (isDioOverHeavenCard(mainCard)) {
         btn.style.display = "none";
         if (btn2) btn2.style.display = "none";
         if (btnDeact) btnDeact.style.display = "none";
