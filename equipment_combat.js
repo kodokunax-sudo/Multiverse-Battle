@@ -130,52 +130,56 @@
         return { rate: rate, bullets: bullets };
     };
 
-    // Летящий воздушный слэш в стиле Zoro: широкая серповидная волна, без рукояти.
+    // Серый воздушный слэш: диагональный изогнутый разрез, а не модель меча.
     window.drawEquipmentProjectile = function(renderCtx, bullet) {
         if (!renderCtx || !bullet || bullet.isMeleeWave !== true) return false;
         var angle = Math.atan2(Number(bullet.vy) || -1, Number(bullet.vx) || 0);
         var r = Math.max(18, Math.min(29, Number(bullet.size) || 22));
-        var wobble = Math.sin((Number(bullet.age) || 0) * 0.22) * 0.035;
+        var wobble = Math.sin((Number(bullet.age) || 0) * 0.22) * 0.025;
         renderCtx.save();
         renderCtx.translate(Number(bullet.x) || 0, Number(bullet.y) || 0);
-        renderCtx.rotate(angle + Math.PI / 2 + wobble);
+
+        // Наклоняем сам разрез по диагонали относительно направления полёта.
+        // Для обычного выстрела вверх он читается как slash «/», а не вертикальный серп.
+        renderCtx.rotate(angle + 0.62 + wobble);
         renderCtx.globalCompositeOperation = "lighter";
         renderCtx.lineCap = "round";
         renderCtx.lineJoin = "round";
-        renderCtx.shadowColor = "#36ff9a";
-        renderCtx.shadowBlur = r * 1.25;
-        renderCtx.strokeStyle = "rgba(55,255,155,0.28)";
-        renderCtx.lineWidth = r * 0.62;
+
+        // Дымчатый серый след за разрезом.
+        renderCtx.shadowColor = "#aeb4bc";
+        renderCtx.shadowBlur = r * 1.05;
+        renderCtx.strokeStyle = "rgba(175,181,190,0.25)";
+        renderCtx.lineWidth = r * 0.72;
         renderCtx.beginPath();
-        renderCtx.moveTo(-r * 0.28, r * 0.72);
-        renderCtx.quadraticCurveTo(-r * 1.35, -r * 0.05, -r * 0.12, -r * 1.20);
+        renderCtx.moveTo(-r * 0.34, r * 0.70);
+        renderCtx.quadraticCurveTo(-r * 1.28, -r * 0.06, -r * 0.08, -r * 1.15);
         renderCtx.stroke();
-        renderCtx.shadowBlur = r * 0.9;
-        renderCtx.fillStyle = "#22e889";
-        renderCtx.strokeStyle = "#caffdf";
-        renderCtx.lineWidth = Math.max(1.3, r * 0.075);
+
+        // Основное лезвие воздушного разреза: серебристое, изогнутое и заострённое.
+        renderCtx.shadowBlur = r * 0.85;
+        renderCtx.fillStyle = "#969da6";
+        renderCtx.strokeStyle = "#e3e6ea";
+        renderCtx.lineWidth = Math.max(1.2, r * 0.065);
         renderCtx.beginPath();
-        renderCtx.moveTo(-r * 0.16, r * 1.02);
-        renderCtx.quadraticCurveTo(-r * 1.42, r * 0.12, -r * 0.56, -r * 0.90);
-        renderCtx.quadraticCurveTo(-r * 0.28, -r * 1.22, r * 0.02, -r * 1.24);
-        renderCtx.quadraticCurveTo(-r * 0.27, -r * 0.53, r * 0.43, r * 0.12);
-        renderCtx.quadraticCurveTo(r * 0.77, r * 0.48, r * 0.93, r * 0.40);
-        renderCtx.quadraticCurveTo(r * 0.46, r * 1.13, -r * 0.16, r * 1.02);
+        renderCtx.moveTo(-r * 0.18, r * 1.02);
+        renderCtx.quadraticCurveTo(-r * 1.38, r * 0.06, -r * 0.52, -r * 0.88);
+        renderCtx.quadraticCurveTo(-r * 0.24, -r * 1.20, r * 0.03, -r * 1.22);
+        renderCtx.quadraticCurveTo(-r * 0.20, -r * 0.53, r * 0.40, r * 0.10);
+        renderCtx.quadraticCurveTo(r * 0.72, r * 0.43, r * 0.91, r * 0.37);
+        renderCtx.quadraticCurveTo(r * 0.43, r * 1.10, -r * 0.18, r * 1.02);
         renderCtx.closePath();
         renderCtx.fill();
         renderCtx.stroke();
-        renderCtx.shadowBlur = r * 0.45;
-        renderCtx.strokeStyle = "#f2fff8";
-        renderCtx.lineWidth = Math.max(1.1, r * 0.09);
+
+        // Светлая кромка подчёркивает именно след удара, без зелёной энергии.
+        renderCtx.shadowColor = "#f4f5f7";
+        renderCtx.shadowBlur = r * 0.36;
+        renderCtx.strokeStyle = "#f7f8fa";
+        renderCtx.lineWidth = Math.max(1, r * 0.075);
         renderCtx.beginPath();
-        renderCtx.moveTo(-r * 0.32, r * 0.66);
-        renderCtx.quadraticCurveTo(-r * 0.92, r * 0.03, -r * 0.29, -r * 0.72);
-        renderCtx.stroke();
-        renderCtx.strokeStyle = "rgba(150,255,205,0.8)";
-        renderCtx.lineWidth = Math.max(1, r * 0.045);
-        renderCtx.beginPath();
-        renderCtx.moveTo(r * 0.08, r * 0.76);
-        renderCtx.quadraticCurveTo(r * 0.82, r * 0.12, r * 0.24, -r * 0.75);
+        renderCtx.moveTo(-r * 0.30, r * 0.65);
+        renderCtx.quadraticCurveTo(-r * 0.87, r * 0.02, -r * 0.27, -r * 0.70);
         renderCtx.stroke();
         renderCtx.restore();
         return true;
