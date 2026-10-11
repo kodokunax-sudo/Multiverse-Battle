@@ -82,7 +82,8 @@
         let speed = 11;
         if (isSniper) speed = 16;
         if (isSMG) speed = 12;
-        if (isMelee) speed = 14;
+        // Серповидный слэш меча летит медленнее, чтобы его траекторию было легче читать.
+        if (isMelee) speed = 8;
 
         for (let i = 0; i < bulletCount; i++) {
             let angleOffset = bulletCount > 1 ? (i - (bulletCount - 1) / 2) * spread : 0;
@@ -139,9 +140,10 @@
         renderCtx.save();
         renderCtx.translate(Number(bullet.x) || 0, Number(bullet.y) || 0);
 
-        // Наклоняем сам разрез по диагонали относительно направления полёта.
-        // Для обычного выстрела вверх он читается как slash «/», а не вертикальный серп.
-        renderCtx.rotate(angle + 0.62 + wobble);
+        // Переворачиваем наклон слэша на противоположную диагональ.
+        renderCtx.rotate(angle - 0.62 + wobble);
+        // Делаем сам разрез заметно шире, не растягивая его вдоль полёта.
+        renderCtx.scale(1.7, 1.0);
         renderCtx.globalCompositeOperation = "lighter";
         renderCtx.lineCap = "round";
         renderCtx.lineJoin = "round";
