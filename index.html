@@ -520,6 +520,11 @@
 .public-profile-back:hover{background:rgba(246,181,27,.15);border-color:var(--mb-gold,#f6b51b)}
 .public-profile-code{margin-left:auto;color:#8f89a6;font-size:9px;font-weight:900;letter-spacing:1.5px}
 .public-profile-badge{padding:5px 8px;border:1px solid rgba(155,121,255,.36);border-radius:6px;color:#c7b7ff;background:rgba(155,121,255,.1);font-size:9px;font-weight:950;letter-spacing:1px}
+.public-profile-badge.online{color:#a7ffd0;border-color:rgba(83,237,143,.42);background:rgba(44,186,92,.14)}
+.public-profile-badge.offline{color:#ffb6b6;border-color:rgba(255,105,105,.35);background:rgba(186,44,44,.12)}
+.public-profile-badge.status-unknown{color:#c7c2d4;border-color:rgba(255,255,255,.16);background:rgba(255,255,255,.05)}
+.public-profile-activity-meta{display:grid;gap:4px;margin-top:10px;color:#a9a3ba;font-size:11px;line-height:1.55;overflow-wrap:anywhere}
+.public-profile-activity-meta span{display:block}
 .public-profile-hero{display:grid;grid-template-columns:136px minmax(0,1fr);align-items:center;gap:22px;padding:26px clamp(17px,4vw,34px) 24px}
 .public-profile-avatar-frame{display:grid;place-items:center;width:136px;height:136px;border:1px solid rgba(246,181,27,.65);border-radius:24px;background:linear-gradient(145deg,rgba(246,181,27,.13),rgba(132,91,219,.2));box-shadow:0 0 0 5px rgba(246,181,27,.045),0 14px 35px #0005}
 .public-profile-avatar-frame .clan-profile-avatar{width:116px;height:116px;border-radius:17px;border:2px solid #a88bff;background:#11111a;object-fit:cover}
@@ -1210,7 +1215,7 @@
         <div class="public-profile-topbar">
             <button id="clanPublicProfileClose" type="button" class="public-profile-back">← Назад</button>
             <span class="public-profile-code">MB / PLAYER DATA</span>
-            <span class="public-profile-badge">ONLINE</span>
+            <span id="clanPublicPresenceBadge" class="public-profile-badge status-unknown">ПРОВЕРКА СТАТУСА</span>
         </div>
         <div class="public-profile-hero">
             <div class="public-profile-avatar-frame">
@@ -1222,6 +1227,10 @@
                 <div id="clanPublicTitle" class="public-profile-title" style="display:none;"></div>
                 <p id="clanPublicDescription" class="clan-muted">Загружаем информацию об игроке.</p>
                 <div class="public-profile-code-row"><span>Код игрока</span><strong id="clanPublicFriendCode">—</strong></div>
+                <div class="public-profile-activity-meta">
+                    <span id="clanPublicCreatedAt">Аккаунт создан: —</span>
+                    <span id="clanPublicLastSeen">Последний заход: —</span>
+                </div>
                 <div class="public-profile-actions"><button id="clanPublicFriendAction" class="btn btn-primary" type="button">➕ Добавить в друзья</button></div>
             </div>
         </div>
@@ -1287,7 +1296,7 @@
 <script src="daily.js?v=10"></script>
 <script src="pass.js?v=9"></script>
 <script src="dandy.js?v=9"></script>
-<script src="game.js?v=29"></script>
+<script src="game.js?v=30"></script>
 <script src="battle.js?v=15"></script>
 <script src="supers.js?v=33"></script>
 <script src="dio.js?v=11"></script>
@@ -1310,7 +1319,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
 <script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
-<script src="clans.js?v=28"></script>
+<script src="clans.js?v=29"></script>
 <script src="online-arena.js?v=18"></script>
 <script src="mobile-battle-controls.js?v=2"></script>
 </body>
