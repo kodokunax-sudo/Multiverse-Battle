@@ -1,5 +1,5 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v22.0
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v23.0
 // ============================================================
 // ★ v19.0 — ФИКС СУПЕРОВ:
 //   - garouTimeStop останавливает ВСЕ атаки
@@ -1719,6 +1719,10 @@
             if (wbBrain.stationaryFrames > 40) weights[1] += 2.0;
             if (wbBrain.bottomFrames > 60) weights[4] += 2.2;
             if (wbBrain.shotsInWindow > 6) weights[0] += 1.1;
+            if (wbBrain.comboHint !== null) {
+                if (weights[wbBrain.comboHint] !== undefined) weights[wbBrain.comboHint] += 3.4;
+                wbBrain.comboHint = null;
+            }
             if (wbBrain.lastSuperAttackId >= 0) weights[wbBrain.lastSuperAttackId] *= 0.12;
         } else {
             if (dist < 90) { weights[1] += 3.2; weights[2] += 0.9; weights[3] += 0.9; weights[0] *= 0.45; }
@@ -2197,11 +2201,11 @@
         if (!boss) return;
         playHakiChargeSound(0.3);
         spawnHakiLightning(boss.x, boss.y, 5, false);
-        if (attackId === 0) spawnWhitebeardEarthquake();
-        else if (attackId === 1) spawnWhitebeardGuraGura();
-        else if (attackId === 2) spawnWhitebeardTitanFist();
-        else if (attackId === 3) spawnWhitebeardRush();
-        else if (attackId === 4) spawnTsunamiAttack(false);
+        if (attackId === 0) { spawnWhitebeardEarthquake(); wbBrain.comboHint = 1; }
+        else if (attackId === 1) { spawnWhitebeardGuraGura(); wbBrain.comboHint = 2; }
+        else if (attackId === 2) { spawnWhitebeardTitanFist(); wbBrain.comboHint = 3; }
+        else if (attackId === 3) { spawnWhitebeardRush(); wbBrain.comboHint = 4; }
+        else if (attackId === 4) { spawnTsunamiAttack(false); wbBrain.comboHint = 3; }
     }
 
     function spawnWhitebeardEarthquake() {
@@ -2262,10 +2266,10 @@
 
     function spawnGiantRock() {
         let rx = 80 + Math.random() * 240;
-        rwbAttacks.push({ type: "giant_rock", x: rx, y: -120, vx: (Math.random() - 0.5) * 0.4, vy: 2.5, size: 40, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.04, hp: 5, maxHp: 5, damage: Math.ceil(28 * BALANCE.whitebeardDamageMult), life: 500, color: "#8B7355", hasHaki: false, textureSeed: Math.random() * 1000 });
-        rwbFloatingTexts.push({ x: rx, y: 80, text: "🪨 ОГРОМНЫЙ КАМЕНЬ 🪨", color: "#8B7355", life: 90, maxLife: 90, vy: -0.2, vx: 0, size: 16 });
-        playWhooshSound(0.6);
-        setTimeout(function() { playImpactSound(0.7, 0.5); }, 1200);
+        // The periodic arena boulder gets a visible warning instead of spawning without a tell.
+        rwbAttacks.push({ type: "wb_giant_rock_warning", x: rx, targetX: rx, y: 470, warningTimer: 42, life: 43, color: "#b99a72" });
+        rwbFloatingTexts.push({ x: rx, y: 80, text: "🪨 КАМЕНЬ НАД АРЕНОЙ 🪨", color: "#b99a72", life: 90, maxLife: 90, vy: -0.2, vx: 0, size: 16 });
+        playWhooshSound(0.25);
     }
 
     function triggerSuper(winner, loser) {
@@ -2407,6 +2411,16 @@
                     }
                     if (a.life <= 0 || a.x < -60 || a.x > 460 || a.y < -60 || a.y > 560) rwbAttacks.splice(i, 1);
                 } else { rwbAttacks.splice(i, 1); }
+                continue;
+            }
+
+            if (a.type === "wb_giant_rock_warning") {
+                a.warningTimer--;
+                if (a.warningTimer <= 0) {
+                    rwbAttacks.splice(i, 1);
+                    rwbAttacks.push({ type: "giant_rock", x: a.targetX, y: -120, vx: (Math.random() - 0.5) * 0.4, vy: 2.5, size: 40, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.04, hp: 5, maxHp: 5, damage: Math.ceil(28 * BALANCE.whitebeardDamageMult), life: 500, color: "#8B7355", hasHaki: false, textureSeed: Math.random() * 1000 });
+                    playWhooshSound(0.45);
+                }
                 continue;
             }
 
@@ -2932,10 +2946,8 @@
                     rwbTitanFistTimer++;
                     if (!wbVortexActive && rwbTitanFistTimer >= RWB_TITAN_INTERVAL * (isWBReflectVortexActive() ? 1.43 : 1)) {
                         rwbTitanFistTimer = 0;
-                        rwbAttacks.push({ type: "titan_fist", x: Math.max(75, Math.min(325, wbBrain.plannedTargetX || rwbPlayer.x)), y: -120, vy: 3.5, size: 75, damage: Math.ceil(35 * BALANCE.superDamageMult), life: 300, state: "falling", hit: false, color: "#8B7355" });
-                        rwbFloatingTexts.push({ x: 200, y: 100, text: "👊 ТИТАН-КУЛАК 👊", color: "#ffdd00", life: 60, maxLife: 60, vy: -0.3, vx: 0, size: 18 });
-                        playWhooshSound(0.5);
-                        setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
+                        // Periodic pressure uses the same readable wind-up as the normal super attack director.
+                        if (wbBrain.phase === "idle") queueWhitebeardAttack("super", 2);
                     }
                     if (!wbVortexActive) {
                         rwbTitanRockTimer++;
@@ -3385,6 +3397,20 @@
             ctx.restore(); return;
         }
 
+        if (a.type === "wb_giant_rock_warning") {
+            ctx.save();
+            let pulse = 0.35 + Math.sin(performance.now() / 65) * 0.2;
+            ctx.globalAlpha = pulse; ctx.strokeStyle = "#ffcc88"; ctx.fillStyle = "#ffcc88";
+            ctx.shadowColor = "#ffcc88"; ctx.shadowBlur = 14; ctx.lineWidth = 3;
+            ctx.setLineDash([7, 6]);
+            ctx.beginPath(); ctx.moveTo(a.targetX, 10); ctx.lineTo(a.targetX, 470); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.beginPath(); ctx.ellipse(a.targetX, 475, 40, 11, 0, 0, Math.PI * 2); ctx.stroke();
+            ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+            ctx.strokeStyle = "#111111"; ctx.lineWidth = 3; ctx.strokeText("КАМЕНЬ!", a.targetX, 450);
+            ctx.fillText("КАМЕНЬ!", a.targetX, 450); ctx.restore(); return;
+        }
+
         if (a.type === "wb_reflect_vortex") {
             ctx.save();
             let pulse = 1 + Math.sin(performance.now() / 90) * 0.12;
@@ -3781,7 +3807,7 @@
     window.setRWBSpeedMult = function(v) { rwbSpeedMult = v; };
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v22.0                             ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v23.0                             ║");
     console.log("║  ✅ garouTimeStop останавливает ВСЕ атаки                  ║");
     console.log("║  ✅ Поглощение урона работает                              ║");
     console.log("║  ✅ Увеличение урона применяется к пулям                   ║");
