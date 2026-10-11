@@ -14,6 +14,7 @@ const cardImages = {
     "Френчи": null,
     "Дональд": null,
     "ДИО Over Heaven": "images/Super_Dio_2.gif",
+    "ДИО (кастрированный)": "images/Super_Dio_2.gif",
     "Дио": "images/Super_Dio_2.gif",
     "Белоус": "images/Belous_1.png",
 
