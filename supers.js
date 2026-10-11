@@ -315,13 +315,18 @@ function getBossContext() {
                 var maxHp = Math.max(0, Number(waystarBossMaxHp) || 0);
                 var beforeHp = Math.max(0, Number(waystarBossHp) || 0);
                 var targetHp = Math.max(0, Math.min(maxHp, requested));
-                if (waystarState === "phase1") targetHp = Math.max(maxHp * 0.5, targetHp);
+                if (waystarState === "phase1" &&
+                    !(window.MBOnlineWaystar && window.MBOnlineWaystar.active && window.MBOnlineWaystar.simpleBossMode)) {
+                    targetHp = Math.max(maxHp * 0.5, targetHp);
+                }
                 waystarBossHp = Math.min(beforeHp, targetHp);
                 var dealt = Math.max(0, Math.floor(beforeHp - waystarBossHp));
                 if (dealt > 0 && window.MBOnlineWaystar && window.MBOnlineWaystar.active) {
                     window.MBOnlineWaystar.onBossDamage(dealt, waystarState);
                 }
-                if (waystarState === "phase3" && waystarBossHp <= 0 &&
+                var isSimpleCoopBoss = waystarState === "phase1" &&
+                    window.MBOnlineWaystar && window.MBOnlineWaystar.active && window.MBOnlineWaystar.simpleBossMode;
+                if ((waystarState === "phase3" || isSimpleCoopBoss) && waystarBossHp <= 0 &&
                     (!window.MBOnlineWaystar || !window.MBOnlineWaystar.active ||
                         typeof window.MBOnlineWaystar.isLeader !== "function" || window.MBOnlineWaystar.isLeader()) &&
                     typeof window.waystarVictory === "function" && !window.waystarFinalActive) {
