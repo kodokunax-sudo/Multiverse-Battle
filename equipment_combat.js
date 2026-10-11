@@ -84,6 +84,8 @@
         if (isSMG) speed = 12;
         // Серповидный слэш меча летит медленнее, чтобы его траекторию было легче читать.
         if (isMelee) speed = 8;
+        // Мечевой слэш появляется реже: увеличиваем задержку между атаками.
+        if (isMelee) rate = Math.ceil(rate * 1.6);
 
         for (let i = 0; i < bulletCount; i++) {
             let angleOffset = bulletCount > 1 ? (i - (bulletCount - 1) / 2) * spread : 0;
@@ -155,7 +157,7 @@
         renderCtx.lineWidth = r * 0.72;
         renderCtx.beginPath();
         renderCtx.moveTo(-r * 0.34, r * 0.70);
-        renderCtx.quadraticCurveTo(-r * 1.28, -r * 0.06, -r * 0.08, -r * 1.15);
+        renderCtx.quadraticCurveTo(-r * 1.72, -r * 0.02, -r * 0.08, -r * 1.28);
         renderCtx.stroke();
 
         // Основное лезвие воздушного разреза: серебристое, изогнутое и заострённое.
@@ -165,10 +167,10 @@
         renderCtx.lineWidth = Math.max(1.2, r * 0.065);
         renderCtx.beginPath();
         renderCtx.moveTo(-r * 0.18, r * 1.02);
-        renderCtx.quadraticCurveTo(-r * 1.38, r * 0.06, -r * 0.52, -r * 0.88);
+        renderCtx.quadraticCurveTo(-r * 1.78, r * 0.02, -r * 0.52, -r * 1.00);
         renderCtx.quadraticCurveTo(-r * 0.24, -r * 1.20, r * 0.03, -r * 1.22);
-        renderCtx.quadraticCurveTo(-r * 0.20, -r * 0.53, r * 0.40, r * 0.10);
-        renderCtx.quadraticCurveTo(r * 0.72, r * 0.43, r * 0.91, r * 0.37);
+        renderCtx.quadraticCurveTo(-r * 0.08, -r * 0.48, r * 0.40, r * 0.10);
+        renderCtx.quadraticCurveTo(r * 0.98, r * 0.50, r * 0.91, r * 0.37);
         renderCtx.quadraticCurveTo(r * 0.43, r * 1.10, -r * 0.18, r * 1.02);
         renderCtx.closePath();
         renderCtx.fill();
