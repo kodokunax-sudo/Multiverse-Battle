@@ -133,6 +133,11 @@ function getWaystarCoopHpMultiplier() {
     return isFinite(multiplier) ? Math.max(1, multiplier || 1) : 1;
 }
 
+function waystarIsCoopSimpleMode() {
+    var api = (typeof window !== 'undefined') ? window.MBOnlineWaystar : null;
+    return !!(api && api.active && api.simpleBossMode === true);
+}
+
 function wsIsTimeStopped() {
     if (typeof _superState === 'undefined') return false;
     return _superState.garouTimeStop === true || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0 || _superState.antispiralFrozen === true;
@@ -321,7 +326,20 @@ function startWaystarFight() {
     waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
     wsPlaySound(300, 'sine', 1.5, 0.2);
     setTimeout(function() { wsPlaySound(400, 'sine', 1.0, 0.15); }, 300);
-    startWaystarDialog();
+    if (waystarIsCoopSimpleMode()) {
+        // Co-op test uses a low-cost, single-phase training boss. Solo Waystar stays unchanged.
+        waystarState = "phase1";
+        waystarDialogActive = false;
+        waystarDialogQueue = [];
+        waystarDialogStep = 0;
+        waystarBoss = { x: 200, y: 86, size: 31, vx: 1.05, rotation: 0, pulse: 0, time: 0, alpha: 1 };
+        waystarAttackTimer = 0;
+        waystarShootCooldown = 0;
+        var simpleName = document.getElementById("arenaBossName");
+        if (simpleName) simpleName.innerText = "👹 ОБЫЧНЫЙ БОСС";
+    } else {
+        startWaystarDialog();
+    }
 }
 
 function stopWaystarFight() {
@@ -431,8 +449,8 @@ function updateWaystarShooting() {
                 b.damage = Math.max(1, Math.floor(dmgBase * (b.damage / 2)));
                 waystarPlayerBullets.push(b);
             }
-            addWaystarFlash(waystarPlayer.x, waystarPlayer.y - 12, 15);
-            wsPlaySound(1100, 'square', 0.04, 0.06);
+            if (!waystarIsCoopSimpleMode()) addWaystarFlash(waystarPlayer.x, waystarPlayer.y - 12, 15);
+            if (!waystarIsCoopSimpleMode()) wsPlaySound(1100, 'square', 0.04, 0.06);
             weaponUsed = true;
         }
     }
@@ -444,8 +462,8 @@ function updateWaystarShooting() {
         else { dmgBase2 = Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4)); }
         dmgBase2 = wsApplySuperDmgMult(dmgBase2);
         waystarPlayerBullets.push({ x: waystarPlayer.x, y: waystarPlayer.y - 12, vy: -12, vx: 0, size: 5, damage: dmgBase2, life: 80, trail: [] });
-        addWaystarFlash(waystarPlayer.x, waystarPlayer.y - 12, 15);
-        wsPlaySound(1100, 'square', 0.04, 0.06);
+        if (!waystarIsCoopSimpleMode()) addWaystarFlash(waystarPlayer.x, waystarPlayer.y - 12, 15);
+        if (!waystarIsCoopSimpleMode()) wsPlaySound(1100, 'square', 0.04, 0.06);
     }
 }
 
@@ -1134,15 +1152,19 @@ function applyWaystarHit(dmg, textMsg) {
     if (typeof onTakabaDamageTaken === "function") {
         try { onTakabaDamageTaken(dmg); } catch(e) {}
     }
-    waystarPlayerHp -= dmg; waystarInvulnTimer = 45; waystarShake = 15;
-    waystarScreenFlash = 8; waystarScreenFlashColor = "#ff0000"; waystarVignette = 15;
-    spawnWaystarParticles(waystarPlayer.x, waystarPlayer.y, 18, "#ff3333", 6);
-    addWaystarShockwave(waystarPlayer.x, waystarPlayer.y, "#ff0000", 70, 12, 3);
-    addWaystarFlash(waystarPlayer.x, waystarPlayer.y, 18);
-    if (textMsg && typeof showFloatingText === 'function') showFloatingText(textMsg, "#ff3333");
-    wsPlaySound(80, 'sawtooth', 0.5, 0.2);
+    waystarPlayerHp -= dmg;
+    waystarInvulnTimer = 45;
+    if (!waystarIsCoopSimpleMode()) {
+        waystarShake = 15;
+        waystarScreenFlash = 8; waystarScreenFlashColor = "#ff0000"; waystarVignette = 15;
+        spawnWaystarParticles(waystarPlayer.x, waystarPlayer.y, 18, "#ff3333", 6);
+        addWaystarShockwave(waystarPlayer.x, waystarPlayer.y, "#ff0000", 70, 12, 3);
+        addWaystarFlash(waystarPlayer.x, waystarPlayer.y, 18);
+        checkWaystarRage();
+    }
+    if (textMsg && typeof showFloatingText === 'function' && !waystarIsCoopSimpleMode()) showFloatingText(textMsg, "#ff3333");
+    if (!waystarIsCoopSimpleMode()) wsPlaySound(80, 'sawtooth', 0.5, 0.2);
     updateWaystarHpBar();
-    checkWaystarRage();
 }
 
 function checkWaystarRage() {
@@ -1170,6 +1192,11 @@ function updateWaystarHpBar() {
 }
 
 function waystarVictory() {
+    if (waystarIsCoopSimpleMode()) {
+        var simpleApi = window.MBOnlineWaystar;
+        if (simpleApi && typeof simpleApi.onSimpleVictory === 'function') simpleApi.onSimpleVictory();
+        return;
+    }
     if (waystarRewardGiven) return;
     var coopApi = (typeof window !== 'undefined') ? window.MBOnlineWaystar : null;
     // Guests must not independently finish the fight and grant local rewards when their
@@ -1382,11 +1409,171 @@ function getWaystarHpSpeedMult() {
     return speedMult;
 }
 
+
+function renderWaystarSimpleCoopFrame() {
+    var api = window.MBOnlineWaystar;
+    if (!api || !api.active || !api.simpleBossMode || !ctx || !canvas) return;
+    var leader = typeof api.isLeader === 'function' && api.isLeader();
+    if (waystarInvulnTimer > 0) waystarInvulnTimer--;
+    if (waystarBossFlash > 0) waystarBossFlash--;
+
+    updateWaystarPlayer();
+    updateWaystarShooting();
+
+    // The host alone advances the boss and creates its small, predictable bullet fan.
+    if (leader && !wsIsTimeStopped()) {
+        waystarBoss.x += waystarBoss.vx;
+        if (waystarBoss.x < 48 || waystarBoss.x > 352) waystarBoss.vx *= -1;
+        waystarBoss.time += 0.018;
+        waystarBoss.y = 86 + Math.sin(waystarBoss.time * 2) * 7;
+        waystarBoss.rotation += 0.008;
+        waystarBoss.pulse += 0.04;
+        waystarAttackTimer++;
+        if (waystarAttackTimer >= 72) {
+            waystarAttackTimer = 0;
+            var baseAngle = Math.atan2(waystarPlayer.y - waystarBoss.y, waystarPlayer.x - waystarBoss.x);
+            [-0.22, 0, 0.22].forEach(function (offset) {
+                var angle = baseAngle + offset;
+                waystarAttacks.push({
+                    type: "shotgun_bullet",
+                    x: waystarBoss.x,
+                    y: waystarBoss.y + 10,
+                    vx: Math.cos(angle) * 2.65,
+                    vy: Math.sin(angle) * 2.65,
+                    size: 6,
+                    damage: 9,
+                    life: 180,
+                    trail: []
+                });
+            });
+        }
+    }
+
+    if (!wsIsTimeStopped()) {
+        for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
+            var bullet = waystarPlayerBullets[i];
+            bullet.x += Number(bullet.vx) || 0;
+            bullet.y += Number(bullet.vy) || -10;
+            bullet.life = (Number(bullet.life) || 1) - 1;
+            var bx = bullet.x - waystarBoss.x;
+            var by = bullet.y - waystarBoss.y;
+            if (Math.sqrt(bx * bx + by * by) < waystarBoss.size + Math.max(2, Number(bullet.size) || 4)) {
+                var hitDamage = Math.max(1, Math.floor(Number(bullet.damage) || 1));
+                waystarBossHp = Math.max(0, waystarBossHp - hitDamage);
+                waystarBossFlash = 5;
+                api.onBossDamage(hitDamage, "phase1");
+                waystarPlayerBullets.splice(i, 1);
+                if (waystarBossHp <= 0) {
+                    if (leader && typeof api.onSimpleVictory === 'function') api.onSimpleVictory();
+                    break;
+                }
+                continue;
+            }
+            if (bullet.y < -20 || bullet.y > 520 || bullet.x < -20 || bullet.x > 420 || bullet.life <= 0) {
+                waystarPlayerBullets.splice(i, 1);
+            }
+        }
+
+        for (var j = waystarAttacks.length - 1; j >= 0; j--) {
+            var attack = waystarAttacks[j];
+            if (!attack || typeof attack !== 'object') { waystarAttacks.splice(j, 1); continue; }
+            if (typeof window.dioShouldFreezeEntity === 'function' && window.dioShouldFreezeEntity(attack)) continue;
+            attack.x += Number(attack.vx) || 0;
+            attack.y += Number(attack.vy) || 0;
+            attack.life = (Number(attack.life) || 1) - 1;
+            var ax = attack.x - waystarPlayer.x;
+            var ay = attack.y - waystarPlayer.y;
+            if (waystarInvulnTimer <= 0 && Math.sqrt(ax * ax + ay * ay) < 14 + Math.max(2, Number(attack.size) || 5)) {
+                if (typeof api.onHazardConsumed === 'function') api.onHazardConsumed(attack);
+                applyWaystarHit(Math.max(1, Math.floor(Number(attack.damage) || 9)), "УДАР БОССА");
+                waystarAttacks.splice(j, 1);
+                continue;
+            }
+            if (attack.y < -40 || attack.y > 540 || attack.x < -40 || attack.x > 440 || attack.life <= 0) {
+                if (typeof api.onHazardConsumed === 'function') api.onHazardConsumed(attack);
+                waystarAttacks.splice(j, 1);
+            }
+        }
+    }
+
+    // Draw a deliberately cheap arena: solid background, simple grid and plain shapes.
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#080c17";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "rgba(125,155,210,0.10)";
+    ctx.lineWidth = 1;
+    for (var gx = 20; gx < 400; gx += 40) {
+        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, 500); ctx.stroke();
+    }
+    for (var gy = 20; gy < 500; gy += 40) {
+        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(400, gy); ctx.stroke();
+    }
+    if (typeof renderSuperVisuals === 'function') {
+        try { renderSuperVisuals(); } catch (error) {}
+    }
+
+    // Regular monster: a compact armored orb with two horns and simple eyes.
+    ctx.save();
+    ctx.translate(waystarBoss.x, waystarBoss.y);
+    ctx.fillStyle = "rgba(255,70,70,0.15)";
+    ctx.beginPath(); ctx.arc(0, 0, 43, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = waystarBossFlash > 0 ? "#fff" : "#b83a4b";
+    ctx.strokeStyle = "#ffe0e0"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, waystarBoss.size, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#27212e";
+    ctx.beginPath(); ctx.moveTo(-21, -20); ctx.lineTo(-28, -35); ctx.lineTo(-9, -26); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(21, -20); ctx.lineTo(28, -35); ctx.lineTo(9, -26); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.ellipse(-10, -4, 5, 7, 0, 0, Math.PI * 2); ctx.ellipse(10, -4, 5, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#190d16";
+    ctx.beginPath(); ctx.arc(-9, -3, 2, 0, Math.PI * 2); ctx.arc(9, -3, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#190d16"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-9, 11); ctx.lineTo(0, 15); ctx.lineTo(9, 11); ctx.stroke();
+    ctx.restore();
+
+    var hpRatio = Math.max(0, Math.min(1, waystarBossHp / Math.max(1, waystarBossMaxHp)));
+    ctx.fillStyle = "#272a36"; ctx.fillRect(24, 16, 352, 9);
+    ctx.fillStyle = hpRatio > 0.35 ? "#f05b66" : "#ffb347";
+    ctx.fillRect(24, 16, 352 * hpRatio, 9);
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1; ctx.strokeRect(24, 16, 352, 9);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
+    ctx.fillText("ОБЫЧНЫЙ БОСС · " + Math.ceil(waystarBossHp).toLocaleString("ru-RU"), 200, 39);
+
+    waystarPlayerBullets.forEach(function (bullet) {
+        ctx.fillStyle = "#ffe9a3";
+        ctx.beginPath(); ctx.arc(Number(bullet.x) || 0, Number(bullet.y) || 0, Math.max(2, Math.min(7, Number(bullet.size) || 4)), 0, Math.PI * 2); ctx.fill();
+    });
+    waystarAttacks.forEach(function (attack) {
+        if (!attack) return;
+        ctx.fillStyle = "#ff9a63";
+        ctx.beginPath(); ctx.arc(Number(attack.x) || 0, Number(attack.y) || 0, Math.max(2, Math.min(8, Number(attack.size) || 5)), 0, Math.PI * 2); ctx.fill();
+    });
+
+    ctx.save();
+    ctx.translate(waystarPlayer.x, waystarPlayer.y);
+    ctx.fillStyle = waystarInvulnTimer > 0 ? "#ffb1bf" : "#ff304f";
+    ctx.beginPath();
+    ctx.moveTo(0, 7); ctx.bezierCurveTo(-3, 4, -13, -2, -11, -8);
+    ctx.bezierCurveTo(-9, -15, -2, -14, 0, -8);
+    ctx.bezierCurveTo(2, -14, 9, -15, 11, -8);
+    ctx.bezierCurveTo(13, -2, 3, 4, 0, 7); ctx.fill();
+    ctx.restore();
+
+    if (typeof api.onFrame === 'function') api.onFrame(ctx, canvas, waystarState);
+}
+
 function waystarRenderLoop() {
     if (!waystarActive || !ctx || !canvas) return;
 
     if (typeof tickSupers === 'function') {
         try { tickSupers(); } catch(e) { console.error("[WAYSTAR] tickSupers error:", e); }
+    }
+
+    if (waystarIsCoopSimpleMode()) {
+        try { renderWaystarSimpleCoopFrame(); }
+        catch (error) { console.error("[MB co-op] Simple boss frame error:", error); }
+        waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
+        return;
     }
 
     if (waystarFinalActive) {
@@ -1822,9 +2009,13 @@ window.setupWaystarSpareDialog = setupWaystarSpareDialog;
 window.damageWaystarBoss = function(dmg) {
     if (waystarState !== "phase1") return;
     var amount = Math.max(0, Number(dmg) || 0);
-    waystarBossHp -= amount;
+    waystarBossHp = Math.max(0, waystarBossHp - amount);
     if (window.MBOnlineWaystar && window.MBOnlineWaystar.active && amount > 0) {
         window.MBOnlineWaystar.onBossDamage(amount, waystarState);
+    }
+    if (waystarIsCoopSimpleMode() && waystarBossHp <= 0 &&
+        window.MBOnlineWaystar && typeof window.MBOnlineWaystar.onSimpleVictory === 'function') {
+        window.MBOnlineWaystar.onSimpleVictory();
     }
 };
 window.getWaystarActive = function() { return waystarActive; };
