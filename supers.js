@@ -536,13 +536,18 @@ function drawAllMightHeart(hx, hy, size) {
 }
 
 // ====== DIO OVER HEAVEN ======
+function isDioOverHeavenCard(card) {
+    return !!(card && (card.name === "ДИО Over Heaven" || card.dioGiftVariant === true));
+}
+
 function isDioOverHeavenMain() {
     try {
         var c = getMainCard();
-        return !!(c && c.name === "ДИО Over Heaven" &&
+        return !!(isDioOverHeavenCard(c) &&
             (typeof hasMasteryAbility !== "function" || hasMasteryAbility(c)));
     } catch(e) { return false; }
 }
+window.isDioOverHeavenCard = isDioOverHeavenCard;
 window.isDioOverHeavenMain = isDioOverHeavenMain;
 
 // ====== ОПИСАНИЯ СПОСОБНОСТЕЙ ======
@@ -1573,7 +1578,7 @@ function toggleSuper() {
     }
 
     // DIO Over Heaven использует собственную энергию, а не обычные заряды SUPER.
-    if (mainCard.name === "ДИО Over Heaven") {
+    if (isDioOverHeavenCard(mainCard)) {
         updateDioPanel();
         return;
     }
@@ -2140,7 +2145,7 @@ function drawSecretHeartTexture(targetCtx, x, y, size, cardName, options) {
         "Такаба":1, "Луффи: Ника, Бог Солнца":1, "Космический Гароу":1,
         "Сайтама":1, "Борос":1, "Бог Усопп":1, "Зено":1, "Анти-спираль":1,
         "Молодой Гарп":1, "Им (Правитель)":1, "Космический Дэнди":1, "Кайдо":1,
-        "Император Марк":1, "Деку (100%)":1, "Всемогущий (прайм)":1, "Белоус":1, "ДИО Over Heaven":1
+        "Император Марк":1, "Деку (100%)":1, "Всемогущий (прайм)":1, "Белоус":1, "ДИО Over Heaven":1, "ДИО (кастрированный)":1
     };
     if (!known[n]) return false;
 
@@ -2361,7 +2366,7 @@ function drawSecretHeartTexture(targetCtx, x, y, size, cardName, options) {
         ctx0.fillStyle="#c92232";ctx0.fillRect(-s*1.4,s*.08,s*2.8,s*.35);
         ctx0.fillStyle="#ffd42a";ctx0.beginPath();ctx0.moveTo(0,-s*.55);ctx0.lineTo(s*.18,-s*.1);ctx0.lineTo(s*.55,-s*.1);ctx0.lineTo(s*.25,s*.15);ctx0.lineTo(s*.35,s*.55);ctx0.lineTo(0,s*.3);ctx0.lineTo(-s*.35,s*.55);ctx0.lineTo(-s*.25,s*.15);ctx0.lineTo(-s*.55,-s*.1);ctx0.lineTo(-s*.18,-s*.1);ctx0.closePath();ctx0.fill();
         ctx0.restore();
-    } else if (n === "ДИО Over Heaven") {
+    } else if (n === "ДИО Over Heaven" || n === "ДИО (кастрированный)") {
         /* DIO OH: бело-золотой TWOH, корона и фиолетовая аура. */
         ctx0.save();
         ctx0.shadowColor="#d8c8ff"; ctx0.shadowBlur=s*2.4;
