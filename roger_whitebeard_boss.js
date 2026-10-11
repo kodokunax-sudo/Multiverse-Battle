@@ -528,7 +528,7 @@
         ctx.bezierCurveTo(-heartSize * 1.4, -heartSize * 0.2, -heartSize * 0.7, -heartSize * 1.1, 0, -heartSize * 0.4);
         ctx.bezierCurveTo(heartSize * 0.7, -heartSize * 1.1, heartSize * 1.4, -heartSize * 0.2, 0, heartSize * 0.7);
         ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#1a3a6a"; ctx.lineWidth = 2.5; ctx.stroke();
+        ctx.strokeStyle = "#000000"; ctx.lineWidth = 2.8; ctx.stroke();
         ctx.restore();
         let s = size / 32;
         ctx.save();
@@ -2108,6 +2108,9 @@
         if (!window.rwbActive || rwbState !== "fight2" || !rwbActiveBoss || rwbActiveBoss.id !== "whitebeard" || wbVortexActive) return;
         wbVortexActive = true;
         clearWhitebeardVortexAttacks();
+        // The vortex clears attacks, so release any interrupted wind-up/recovery state too.
+        wbBrain.phase = "idle"; wbBrain.phaseTimer = 0; wbBrain.recoveryTimer = 0;
+        wbBrain.adaptiveCooldown = 0;
         // Restart attack intervals so no queued boss attack leaks into the pull.
         rwbTitanFistTimer = 0;
         rwbTitanRockTimer = 0;
