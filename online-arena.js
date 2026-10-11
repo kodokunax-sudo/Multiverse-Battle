@@ -20,6 +20,7 @@
     var lastMoveSentAt = 0;
     var lastSnapshotSentAt = 0;
     var lastFightPositionSentAt = 0;
+    var lastCombatVisualsSentAt = 0;
     var lastRemoteRenderAt = 0;
     // Client-to-client RTT and render-rate diagnostics for co-op.
     var lastPingSentAt = 0;
@@ -416,6 +417,11 @@
                         setRemoteAction(function () { window.waystarVictory(); });
                     }
                 });
+                ch.on('broadcast', { event: 'simple_fight_victory' }, function (message) {
+                    var p = message && message.payload;
+                    if (!p || p.fight_id !== activeFightId || p.sender_session_id === selfSessionId) return;
+                    finishCoopFight(true, 'Обычный босс побеждён! Можно начать новый бой.');
+                });
                 ch.subscribe(async function (status, err) {
                     if (settled) return;
                     if (status === 'SUBSCRIBED') {
@@ -579,6 +585,7 @@
         var packet = {
             fight_id: createId(),
             host_session_id: selfSessionId,
+            boss_type: 'training',
             boss_max_hp: maxHp,
             boss_hp: maxHp,
             boss_hp_multiplier: bossHpMultiplier,
@@ -632,6 +639,7 @@
             api.hostSessionId = fightHostSessionId;
             api.bossHpMultiplier = Math.max(1, Number(packet.boss_hp_multiplier) || 1);
             api.partySize = Math.max(1, Number(packet.party_size) || currentPlayers.size || 1);
+            api.simpleBossMode = packet.boss_type === 'training';
         }
         var stage = byId('onlineArenaStage');
         if (stage) stage.style.display = 'none';
@@ -905,6 +913,12 @@
         if (!window.getWaystarActive || !window.getWaystarActive()) return;
         var amount = Math.max(0, Math.floor(Number(packet.damage) || 0));
         if (!amount) return;
+        var api = window.MBOnlineWaystar;
+        if (api && api.active && api.simpleBossMode) {
+            window.waystarBossHp = Math.max(0, Number(window.waystarBossHp) - amount);
+            if (window.waystarBossHp <= 0 && isLeader() && typeof api.onSimpleVictory === 'function') api.onSimpleVictory();
+            return;
+        }
         if (packet.phase === 'phase2' || (!packet.phase && window.waystarState === 'phase2')) {
             applyRemotePhase2Damage(amount);
             return;
@@ -1330,6 +1344,16 @@
         victoryBroadcastForFightId = activeFightId;
         sendEvent('fight_victory', { fight_id: activeFightId });
     }
+    function onSimpleVictory() {
+        if (!fightStarted || !activeFightId || applyingRemote || !isLeader() || victoryBroadcastForFightId === activeFightId) return;
+        victoryBroadcastForFightId = activeFightId;
+        var fightId = activeFightId;
+        sendEvent('simple_fight_victory', { fight_id: fightId }).then(function () {
+            window.setTimeout(function () {
+                if (activeFightId === fightId) finishCoopFight(true, 'Обычный босс побеждён! Можно начать новый бой.');
+            }, 300);
+        });
+    }
     function onFightEnded() {
         if (!fightStarted || !activeFightId) return;
         finishCoopFight(false, 'Битва с Путеводной Звездой завершена. Можно запустить тест заново.');
@@ -1407,19 +1431,24 @@
         }
 
         var ownPlayer = window.waystarPlayer;
-        if (ownPlayer && now - lastFightPositionSentAt >= 100) {
+        if (ownPlayer && now - lastFightPositionSentAt >= 250) {
             lastFightPositionSentAt = now;
             var me = currentPlayers.get(selfSessionId);
             if (me) { me.fightX = ownPlayer.x; me.fightY = ownPlayer.y; }
-            sendEvent('fight_player_pos', {
+            var positionPacket = {
                 fight_id: activeFightId,
                 session_id: selfSessionId,
                 x: Number(ownPlayer.x) || 200,
-                y: Number(ownPlayer.y) || 430,
-                combat_visuals: captureCombatVisuals()
-            });
+                y: Number(ownPlayer.y) || 430
+            };
+            // Send bulky ultimate/projectile visuals less often than player coordinates.
+            if (now - lastCombatVisualsSentAt >= 450) {
+                lastCombatVisualsSentAt = now;
+                positionPacket.combat_visuals = captureCombatVisuals();
+            }
+            sendEvent('fight_player_pos', positionPacket);
         }
-        if (isLeader() && now - lastSnapshotSentAt >= 220 && window.getWaystarActive && window.getWaystarActive()) {
+        if (isLeader() && now - lastSnapshotSentAt >= 300 && window.getWaystarActive && window.getWaystarActive()) {
             lastSnapshotSentAt = now;
             var snapshot = buildFightSnapshot();
             snapshot.snapshot_seq = ++snapshotSequence;
@@ -1534,6 +1563,7 @@
             window.MBOnlineWaystar.hostSessionId = null;
             window.MBOnlineWaystar.bossHpMultiplier = 1;
             window.MBOnlineWaystar.partySize = 1;
+            window.MBOnlineWaystar.simpleBossMode = false;
         }
         if (message) setStageStatus(message);
         if (showMessage !== false) renderLobbyPlayers();
@@ -1651,6 +1681,8 @@
             onBossDamage: onBossDamage,
             onPieceHit: onPieceHit,
             onVictory: onVictory,
+            onSimpleVictory: onSimpleVictory,
+            simpleBossMode: false,
             onFightEnded: onFightEnded,
             onPlayerDefeated: onPlayerDefeated,
             onDialogProgress: onDialogProgress,
