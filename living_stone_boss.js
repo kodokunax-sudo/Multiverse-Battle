@@ -2339,6 +2339,7 @@ function livingStoneRenderLoop() {
     
     for (var i = 0; i < livingStoneBullets.length; i++) {
         var b = livingStoneBullets[i];
+        if (typeof window.drawEquipmentProjectile === 'function' && window.drawEquipmentProjectile(ctx, b)) continue;
         ctx.save();
         var bulletColor = "#ffffff";
         if (lsActiveMod && lsActiveMod.type === 1) bulletColor = "#ff8800";
