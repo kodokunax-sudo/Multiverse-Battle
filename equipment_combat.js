@@ -106,11 +106,12 @@
             if (isMelee) {
                 bullet.isMeleeWave = true;
                 bullet.rotation = ang;
-                bullet.canDestroy = true;
                 bullet.rotSpeed = 0.1;
             }
-
-            if (weapon.legendaryPerk === "destroyAttacks") bullet.canDestroy = true;
+            if (weapon.legendaryPerk === "destroyAttacks") {
+                bullet.canDestroy = true;
+                bullet.destroyChance = 0.08;
+            }
             if (weapon.legendaryPerk === "absorb5") bullet.hasAbsorb = true;
             if (weapon.legendaryPerk === "absorb15") bullet.hasAbsorb = true;
             if (weapon.legendaryPerk === "autoAim10" && Math.random() < 0.10) {
@@ -128,59 +129,57 @@
         return { rate: rate, bullets: bullets };
     };
 
-    // Лунный серповидный клинок для мечей (визуально вдохновлён дыханием Луны).
-    // Возвращает true, если сам нарисовал снаряд, чтобы обычный шар не рисовался поверх.
+    // Один серповидный мечевой снаряд: изогнутое лезвие с рукоятью.
     window.drawEquipmentProjectile = function(renderCtx, bullet) {
         if (!renderCtx || !bullet || bullet.isMeleeWave !== true) return false;
-        var speedAngle = Math.atan2(Number(bullet.vy) || -1, Number(bullet.vx) || 0);
-        var wobble = Math.sin(Date.now() / 95 + (Number(bullet.x) || 0) * 0.03) * 0.09;
-        var rotation = speedAngle + Math.PI / 2 + wobble;
-        var radius = Math.max(13, Math.min(19, Number(bullet.size) || 16));
-
-        function drawMoonBlade(ctx, r, color, edge, alpha) {
-            ctx.save();
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = color;
-            ctx.strokeStyle = edge;
-            ctx.lineWidth = Math.max(1, r * 0.11);
-            ctx.shadowColor = edge;
-            ctx.shadowBlur = r * 1.05;
-            ctx.beginPath();
-            ctx.moveTo(-r * 0.28, -r * 0.96);
-            ctx.quadraticCurveTo(r * 1.22, -r * 0.35, r * 0.76, r * 0.55);
-            ctx.quadraticCurveTo(r * 0.32, r * 1.08, -r * 0.12, r * 0.88);
-            ctx.quadraticCurveTo(r * 0.42, r * 0.10, -r * 0.28, -r * 0.96);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-            ctx.shadowBlur = r * 0.4;
-            ctx.strokeStyle = "#fff2ff";
-            ctx.lineWidth = Math.max(0.8, r * 0.045);
-            ctx.beginPath();
-            ctx.moveTo(-r * 0.08, -r * 0.7);
-            ctx.quadraticCurveTo(r * 0.68, -r * 0.14, r * 0.36, r * 0.5);
-            ctx.stroke();
-            ctx.restore();
-        }
-
+        var angle = Math.atan2(Number(bullet.vy) || -1, Number(bullet.vx) || 0);
+        var r = Math.max(13, Math.min(19, Number(bullet.size) || 16));
         renderCtx.save();
         renderCtx.translate(Number(bullet.x) || 0, Number(bullet.y) || 0);
-        renderCtx.rotate(rotation);
+        renderCtx.rotate(angle + Math.PI / 2 + Math.sin(Date.now() / 100 + (Number(bullet.x) || 0) * 0.02) * 0.06);
         renderCtx.globalCompositeOperation = "lighter";
-        // Три лезвия разного размера дают характерный веер серпов.
-        drawMoonBlade(renderCtx, radius, "rgba(153,55,255,0.58)", "#f0a7ff", 0.98);
-        renderCtx.save();
-        renderCtx.translate(-radius * 0.62, -radius * 0.08);
-        renderCtx.rotate(-0.42);
-        drawMoonBlade(renderCtx, radius * 0.48, "rgba(255,48,105,0.52)", "#ff9dbd", 0.9);
-        renderCtx.restore();
-        renderCtx.save();
-        renderCtx.translate(radius * 0.56, radius * 0.12);
-        renderCtx.rotate(0.38);
-        drawMoonBlade(renderCtx, radius * 0.39, "rgba(80,110,255,0.50)", "#b9c6ff", 0.9);
-        renderCtx.restore();
-        renderCtx.restore();
-        return true;
+        renderCtx.shadowColor = "#c66bff"; renderCtx.shadowBlur = r * 1.15;
+        renderCtx.fillStyle = "#9d35e8"; renderCtx.strokeStyle = "#f0c2ff";
+        renderCtx.lineWidth = Math.max(1.2, r * 0.09);
+        renderCtx.beginPath();
+        renderCtx.moveTo(-r * 0.18, r * 0.88);
+        renderCtx.quadraticCurveTo(-r * 1.12, r * 0.12, -r * 0.52, -r * 0.72);
+        renderCtx.quadraticCurveTo(-r * 0.25, -r * 1.10, r * 0.03, -r * 0.96);
+        renderCtx.quadraticCurveTo(-r * 0.18, -r * 0.30, r * 0.56, r * 0.30);
+        renderCtx.quadraticCurveTo(r * 0.80, r * 0.51, r * 0.93, r * 0.46);
+        renderCtx.quadraticCurveTo(r * 0.38, r * 1.12, -r * 0.18, r * 0.88);
+        renderCtx.closePath(); renderCtx.fill(); renderCtx.stroke();
+        renderCtx.shadowBlur = r * 0.35; renderCtx.strokeStyle = "#fff5ff";
+        renderCtx.lineWidth = Math.max(0.8, r * 0.045);
+        renderCtx.beginPath(); renderCtx.moveTo(-r * 0.36, r * 0.60);
+        renderCtx.quadraticCurveTo(-r * 0.02, r * 0.06, -r * 0.10, -r * 0.53); renderCtx.stroke();
+        renderCtx.shadowColor = "#ff4d9d"; renderCtx.shadowBlur = r * 0.45;
+        renderCtx.lineCap = "round"; renderCtx.strokeStyle = "#4b243f"; renderCtx.lineWidth = r * 0.22;
+        renderCtx.beginPath(); renderCtx.moveTo(-r * 0.15, r * 0.77); renderCtx.lineTo(r * 0.10, r * 1.13); renderCtx.stroke();
+        renderCtx.strokeStyle = "#ffd3f1"; renderCtx.lineWidth = Math.max(1, r * 0.07);
+        renderCtx.beginPath(); renderCtx.moveTo(-r * 0.15, r * 0.77); renderCtx.lineTo(r * 0.10, r * 1.13); renderCtx.stroke();
+        renderCtx.fillStyle = "#ff73c6"; renderCtx.beginPath(); renderCtx.arc(r * 0.10, r * 1.13, r * 0.12, 0, Math.PI * 2); renderCtx.fill();
+        renderCtx.restore(); return true;
+    };
+
+    // Легендарный меч тратит удар при касании блока; уничтожение — ровно 8% на попытку.
+    window.tryLegendarySwordBlockHit = function(bullet, hazards, onDestroy, onFail) {
+        if (!bullet || bullet.weaponId !== "sword_l" || !Array.isArray(hazards)) return false;
+        var excluded = { laser: true, laser_warning: true, giant_laser: true, roger_slash: true,
+            roger_cross: true, tsunami: true, titan_fist: true, gura_crack: true,
+            purple_crack_zone: true, gravity_well: true, hell_fire: true };
+        for (var i = hazards.length - 1; i >= 0; i--) {
+            var hazard = hazards[i];
+            if (!hazard || typeof hazard !== "object" || excluded[hazard.type] || hazard.state === "warning") continue;
+            if (!Number.isFinite(Number(hazard.x)) || !Number.isFinite(Number(hazard.y))) continue;
+            var dx = (Number(bullet.x) || 0) - hazard.x, dy = (Number(bullet.y) || 0) - hazard.y;
+            var radius = Math.max(5, Number(hazard.size) || Number(hazard.radius) || 12);
+            if (Math.hypot(dx, dy) > radius + Math.max(4, Number(bullet.size) || 12)) continue;
+            if (Math.random() < 0.08) { hazards.splice(i, 1); if (typeof onDestroy === "function") onDestroy(hazard); }
+            else if (typeof onFail === "function") onFail(hazard);
+            return true;
+        }
+        return false;
     };
 
     // ============================================================
@@ -216,21 +215,17 @@
         if (typeof window.updateRWBPlayerBullets === 'function' && !window._eqRWBBulletsPatched) {
             let original = window.updateRWBPlayerBullets;
             window.updateRWBPlayerBullets = function() {
-                if (typeof rwbPlayerBullets !== 'undefined' && Array.isArray(rwbPlayerBullets) && typeof rwbAttacks !== 'undefined') {
+                if (typeof rwbPlayerBullets !== 'undefined' && Array.isArray(rwbPlayerBullets) && typeof rwbAttacks !== 'undefined' && typeof window.tryLegendarySwordBlockHit === 'function') {
                     for (let i = rwbPlayerBullets.length - 1; i >= 0; i--) {
                         let b = rwbPlayerBullets[i];
-                        if (!b.canDestroy) continue;
-                        for (let j = rwbAttacks.length - 1; j >= 0; j--) {
-                            let a = rwbAttacks[j];
-                            let dx = b.x - a.x, dy = b.y - a.y;
-                            if (Math.sqrt(dx * dx + dy * dy) < (a.size || 20) + b.size + 8) {
-                                if (typeof spawnDestroyParticles === 'function') spawnDestroyParticles(a.x, a.y, a.color || "#ffd700");
+                        if (b.weaponId !== "sword_l") continue;
+                        let hit = window.tryLegendarySwordBlockHit(b, rwbAttacks,
+                            function(a) {
+                                if (typeof spawnDestroyParticles === 'function') spawnDestroyParticles(a.x, a.y, a.color || "#c66bff");
                                 if (typeof rwbSound === 'function') rwbSound(600, 'square', 0.15, 0.2);
-                                rwbAttacks.splice(j, 1);
-                                rwbPlayerBullets.splice(i, 1);
-                                break;
-                            }
-                        }
+                            },
+                            function() { if (typeof spawnHitParticles === 'function') spawnHitParticles(b.x, b.y, "#c66bff", 2); });
+                        if (hit) rwbPlayerBullets.splice(i, 1);
                     }
                 }
                 return original.apply(this, arguments);
