@@ -3144,37 +3144,47 @@
 
         if (wbVortexActive) {
             ctx.save();
-            ctx.fillStyle = "rgba(20, 0, 35, 0.34)";
+            ctx.fillStyle = "rgba(0, 0, 0, 0.30)";
             ctx.fillRect(0, 0, 400, 500);
             let boss = rwbActiveBoss || whitebeard;
             if (boss) {
                 let pulse = 1 + Math.sin(performance.now() / 100) * 0.08;
-                ctx.strokeStyle = "#aa00ff"; ctx.lineWidth = 5; ctx.shadowColor = "#cc44ff"; ctx.shadowBlur = 22;
+                ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 20;
+                // Белая воронка, каждый яркий сегмент обведён чёрным.
                 for (let rr = 28; rr <= 105; rr += 22) {
-                    ctx.beginPath();
-                    ctx.arc(boss.x, boss.y, rr * pulse, performance.now() / 350 + rr * 0.01, performance.now() / 350 + Math.PI * 1.5);
-                    ctx.stroke();
+                    let start = performance.now() / 350 + rr * 0.01;
+                    let end = performance.now() / 350 + Math.PI * 1.5;
+                    ctx.strokeStyle = "#000000"; ctx.lineWidth = 10;
+                    ctx.beginPath(); ctx.arc(boss.x, boss.y, rr * pulse, start, end); ctx.stroke();
+                    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 5;
+                    ctx.beginPath(); ctx.arc(boss.x, boss.y, rr * pulse, start, end); ctx.stroke();
                 }
                 ctx.shadowBlur = 0;
                 ctx.fillStyle = "#ffffff"; ctx.font = "bold 13px monospace"; ctx.textAlign = "center";
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("🌀 ВОРОНКА", boss.x, boss.y - 48);
                 ctx.fillText("🌀 ВОРОНКА", boss.x, boss.y - 48);
             }
             ctx.font = "bold 16px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffffff";
             ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("НАЖМИ 7 ТОЧЕК!", 200, 42);
-            ctx.fillStyle = "#ffffff"; ctx.fillText("НАЖМИ 7 ТОЧЕК!", 200, 42);
-            ctx.font = "bold 13px monospace"; ctx.fillStyle = "#ffdd66";
+            ctx.fillText("НАЖМИ 7 ТОЧЕК!", 200, 42);
+            ctx.font = "bold 13px monospace"; ctx.fillStyle = "#ffffff";
+            ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("Осталось: " + Math.ceil(wbVortexTimerLeft / 60) + "с", 200, 62);
             ctx.fillText("Осталось: " + Math.ceil(wbVortexTimerLeft / 60) + "с", 200, 62);
             for (let i = 0; i < wbVortexPoints.length; i++) {
                 let p = wbVortexPoints[i], active = i === wbVortexNextPoint;
                 if (p.hit) continue;
                 ctx.save();
-                ctx.globalAlpha = active ? 1 : 0.45;
-                ctx.shadowColor = active ? "#ffffff" : "#88ddff"; ctx.shadowBlur = active ? 18 : 8;
-                ctx.fillStyle = active ? "#ffffff" : "#88ddff";
+                ctx.globalAlpha = active ? 1 : 0.55;
+                ctx.shadowColor = "#ffffff"; ctx.shadowBlur = active ? 18 : 8;
+                // Только белые маркеры: чёрный край делает их видимыми на любом фоне.
+                ctx.fillStyle = "#ffffff";
                 ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = "#7b2cff";
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 5; ctx.stroke();
+                ctx.fillStyle = "#f4f4f4";
                 ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 0.62, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = "#ffffff"; ctx.font = "bold 14px monospace"; ctx.textAlign = "center";
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 3; ctx.stroke();
+                ctx.fillStyle = "#000000"; ctx.font = "bold 15px monospace"; ctx.textAlign = "center";
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.strokeText(String(i + 1), p.x, p.y + 5);
                 ctx.fillText(String(i + 1), p.x, p.y + 5);
                 ctx.restore();
             }
@@ -3412,17 +3422,47 @@
         }
 
         if (a.type === "wb_reflect_vortex") {
-            ctx.save(); let pulse = 1 + Math.sin(performance.now() / 75) * 0.12;
-            ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0); ctx.shadowColor = "#9f5cff"; ctx.shadowBlur = 34;
-            ctx.globalAlpha = 0.22; ctx.fillStyle = "#6d24ff"; ctx.beginPath(); ctx.arc(0, 0, a.radius * 1.18 * pulse, 0, Math.PI * 2); ctx.fill();
+            ctx.save();
+            let pulse = 1 + Math.sin(performance.now() / 75) * 0.12;
+            ctx.translate(a.x, a.y);
+            ctx.rotate(a.rotation || 0);
+            ctx.shadowColor = "#ffffff";
+            ctx.shadowBlur = 28;
+            ctx.globalAlpha = 0.28;
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath(); ctx.arc(0, 0, a.radius * 1.18 * pulse, 0, Math.PI * 2); ctx.fill();
             for (let ring = 0; ring < 4; ring++) {
-                ctx.globalAlpha = 0.96 - ring * 0.15; ctx.strokeStyle = ring % 2 ? "#7a35ff" : "#f2dcff"; ctx.lineWidth = ring === 0 ? 5 : 2.5;
-                ctx.beginPath(); ctx.ellipse(0, 0, a.radius * pulse * (0.52 + ring * 0.19), a.radius * (0.34 + ring * 0.15), ring * 0.42, 0.15 + performance.now() / (ring % 2 ? 220 : 320), Math.PI * 1.7 + performance.now() / (ring % 2 ? 220 : 320)); ctx.stroke();
+                let rx = a.radius * pulse * (0.52 + ring * 0.19);
+                let ry = a.radius * (0.34 + ring * 0.15);
+                let rotation = ring * 0.42;
+                let start = 0.15 + performance.now() / (ring % 2 ? 220 : 320);
+                let end = Math.PI * 1.7 + performance.now() / (ring % 2 ? 220 : 320);
+                ctx.globalAlpha = 0.96 - ring * 0.13;
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = ring === 0 ? 8 : 6;
+                ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, rotation, start, end); ctx.stroke();
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = ring === 0 ? 4 : 2.8;
+                ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, rotation, start, end); ctx.stroke();
             }
-            ctx.globalAlpha = 1; ctx.fillStyle = "#210c43"; ctx.beginPath(); ctx.ellipse(0, 0, a.radius * 0.32, a.radius * 0.45, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(0, 0, a.radius * 0.32, a.radius * 0.45, 0, 0, Math.PI * 2); ctx.stroke();
-            for (let shard = 0; shard < 8; shard++) { let ang = shard * Math.PI / 4 + performance.now() / 600; ctx.fillStyle = shard % 2 ? "#b78cff" : "#ffffff"; ctx.beginPath(); ctx.moveTo(Math.cos(ang) * a.radius * 0.74, Math.sin(ang) * a.radius * 0.74); ctx.lineTo(Math.cos(ang + 0.14) * a.radius * 1.08, Math.sin(ang + 0.14) * a.radius * 1.08); ctx.lineTo(Math.cos(ang + 0.28) * a.radius * 0.74, Math.sin(ang + 0.28) * a.radius * 0.74); ctx.closePath(); ctx.fill(); }
-            ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("覇気 / ОТРАЖЕНИЕ", 0, a.radius + 26);
+            // Белая сердцевина разлома с чётким чёрным контуром и тёмной трещиной.
+            ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff";
+            ctx.beginPath(); ctx.ellipse(0, 0, a.radius * 0.32, a.radius * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "#000000"; ctx.lineWidth = 5; ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-a.radius * 0.08, -a.radius * 0.37);
+            ctx.lineTo(a.radius * 0.04, -a.radius * 0.13); ctx.lineTo(-a.radius * 0.06, a.radius * 0.02);
+            ctx.lineTo(a.radius * 0.09, a.radius * 0.19); ctx.lineTo(-a.radius * 0.01, a.radius * 0.38);
+            ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.stroke();
+            for (let shard = 0; shard < 8; shard++) {
+                let ang = shard * Math.PI / 4 + performance.now() / 600;
+                ctx.fillStyle = "#ffffff"; ctx.strokeStyle = "#000000"; ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(ang) * a.radius * 0.74, Math.sin(ang) * a.radius * 0.74);
+                ctx.lineTo(Math.cos(ang + 0.14) * a.radius * 1.08, Math.sin(ang + 0.14) * a.radius * 1.08);
+                ctx.lineTo(Math.cos(ang + 0.28) * a.radius * 0.74, Math.sin(ang + 0.28) * a.radius * 0.74);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+            }
+            ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+            ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("覇気 / ОТРАЖЕНИЕ", 0, a.radius + 26);
+            ctx.fillText("覇気 / ОТРАЖЕНИЕ", 0, a.radius + 26);
             ctx.restore(); return;
         }
 
@@ -3458,34 +3498,63 @@
             ctx.save();
             if (a.state === "warning") {
                 let pulse = 0.45 + Math.sin(performance.now() / 65) * 0.18;
-                ctx.globalAlpha = pulse; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = a.width + 9;
+                ctx.globalAlpha = pulse; ctx.strokeStyle = "#000000"; ctx.lineWidth = a.width + 18;
                 ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
-                ctx.globalAlpha = 1; ctx.strokeStyle = "#c8f4ff"; ctx.lineWidth = 3;
-                ctx.setLineDash([8, 7]); ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke(); ctx.setLineDash([]);
-                ctx.fillStyle = "#ffffff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText("УДАР ФРУКТОМ!", a.targetX, a.targetY - 18);
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = a.width + 8;
+                ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
+                ctx.globalAlpha = 1; ctx.strokeStyle = "#000000"; ctx.lineWidth = 7;
+                ctx.setLineDash([8, 7]); ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
+                ctx.strokeStyle = "#dff8ff"; ctx.lineWidth = 2.5;
+                ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke(); ctx.setLineDash([]);
+                ctx.fillStyle = "#ffffff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("УДАР ФРУКТОМ!", a.targetX, a.targetY - 18);
+                ctx.fillText("УДАР ФРУКТОМ!", a.targetX, a.targetY - 18);
             } else {
-                ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 22; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = a.width + 14;
+                ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 24; ctx.strokeStyle = "#000000"; ctx.lineWidth = a.width + 22;
                 ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
-                ctx.strokeStyle = "#b8efff"; ctx.lineWidth = a.width;
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = a.width + 12;
                 ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
-                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4;
+                ctx.strokeStyle = "#dff8ff"; ctx.lineWidth = a.width * 0.65;
+                ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 5;
+                ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
             }
             ctx.restore(); return;
         }
 
         if (a.type === "wb_crescent_slash") {
-            ctx.save(); let pulse = 0.72 + Math.sin(performance.now() / 55) * 0.2;
+            ctx.save();
+            let pulse = 0.72 + Math.sin(performance.now() / 55) * 0.2;
             if (a.state === "windup") {
-                ctx.globalAlpha = pulse * 0.75; ctx.fillStyle = "#8feaff"; ctx.shadowColor = "#b9efff"; ctx.shadowBlur = 24; ctx.fillRect(0, a.targetY - 3, 400, 6);
-                ctx.globalAlpha = 0.92; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.setLineDash([10, 7]); ctx.beginPath(); ctx.moveTo(0, a.targetY - 20); ctx.lineTo(400, a.targetY - 20); ctx.moveTo(0, a.targetY + 20); ctx.lineTo(400, a.targetY + 20); ctx.stroke(); ctx.setLineDash([]);
-                ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.strokeStyle = "#14202b"; ctx.lineWidth = 3; ctx.strokeText("РАЗРУБ ГОРИЗОНТА — УЙДИ ВВЕРХ ИЛИ ВНИЗ", 200, a.targetY - 27); ctx.fillText("РАЗРУБ ГОРИЗОНТА — УЙДИ ВВЕРХ ИЛИ ВНИЗ", 200, a.targetY - 27);
+                ctx.globalAlpha = pulse * 0.55; ctx.fillStyle = "#000000"; ctx.fillRect(0, a.targetY - 24, 400, 48);
+                ctx.globalAlpha = pulse * 0.8; ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 24;
+                ctx.fillRect(0, a.targetY - 5, 400, 10);
+                ctx.globalAlpha = 0.95; ctx.setLineDash([10, 7]);
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 6;
+                ctx.beginPath(); ctx.moveTo(0, a.targetY - 20); ctx.lineTo(400, a.targetY - 20); ctx.moveTo(0, a.targetY + 20); ctx.lineTo(400, a.targetY + 20); ctx.stroke();
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(0, a.targetY - 20); ctx.lineTo(400, a.targetY - 20); ctx.moveTo(0, a.targetY + 20); ctx.lineTo(400, a.targetY + 20); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("РАЗРУБ ГОРИЗОНТА — УЙДИ ВВЕРХ ИЛИ ВНИЗ", 200, a.targetY - 27);
+                ctx.fillText("РАЗРУБ ГОРИЗОНТА — УЙДИ ВВЕРХ ИЛИ ВНИЗ", 200, a.targetY - 27);
             } else {
-                ctx.globalAlpha = 0.22; ctx.fillStyle = "#8feaff"; ctx.fillRect(0, a.targetY - (a.width || 34), 400, (a.width || 34) * 2);
-                ctx.globalAlpha = 0.95; ctx.shadowColor = "#b9efff"; ctx.shadowBlur = 34; ctx.fillStyle = "#eafaff"; ctx.fillRect(0, a.targetY - 8, 400, 16);
-                ctx.globalAlpha = 1; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, a.targetY); ctx.lineTo(400, a.targetY); ctx.stroke();
-                for (let k = 0; k < 22; k++) { let xx = (k * 37 + performance.now() * 0.8) % 400; ctx.strokeStyle = k % 2 ? "#d9b8ff" : "#ffffff"; ctx.lineWidth = k % 3 ? 2 : 4; ctx.beginPath(); ctx.moveTo(xx, a.targetY - 15); ctx.lineTo(xx - 13, a.targetY + 15); ctx.stroke(); }
-                ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText("覇気", 200, a.targetY - 13);
+                let width = a.width || 34;
+                ctx.globalAlpha = 0.32; ctx.fillStyle = "#ffffff"; ctx.fillRect(0, a.targetY - width, 400, width * 2);
+                ctx.globalAlpha = 1; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 28;
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 22; ctx.beginPath(); ctx.moveTo(0, a.targetY); ctx.lineTo(400, a.targetY); ctx.stroke();
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 13; ctx.beginPath(); ctx.moveTo(0, a.targetY); ctx.lineTo(400, a.targetY); ctx.stroke();
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(0, a.targetY); ctx.lineTo(400, a.targetY); ctx.stroke();
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, a.targetY); ctx.lineTo(400, a.targetY); ctx.stroke();
+                for (let k = 0; k < 22; k++) {
+                    let xx = (k * 37 + performance.now() * 0.8) % 400;
+                    ctx.strokeStyle = "#000000"; ctx.lineWidth = k % 3 ? 5 : 7; ctx.beginPath(); ctx.moveTo(xx, a.targetY - 16); ctx.lineTo(xx - 13, a.targetY + 16); ctx.stroke();
+                    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = k % 3 ? 2 : 3; ctx.beginPath(); ctx.moveTo(xx, a.targetY - 16); ctx.lineTo(xx - 13, a.targetY + 16); ctx.stroke();
+                }
+                ctx.fillStyle = "#ffffff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("覇気", 200, a.targetY - 13); ctx.fillText("覇気", 200, a.targetY - 13);
             }
             ctx.restore(); return;
         }
