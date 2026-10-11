@@ -1395,7 +1395,7 @@
         let nearestAttack = null, nearestDist = Infinity;
         for (let i = 0; i < rwbAttacks.length; i++) {
             let a = rwbAttacks[i];
-            if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave" ||
+            if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave" || a.type === "wb_attack_telegraph" ||
                 a.type === "wb_reflect_vortex" || a.type === "wb_center_wave" || a.type === "wb_fruit_punch" ||
                 (a.type === "wb_crescent_slash" && a.state !== "flying")) continue;
             let ax = a.x + (a.size || a.radius || 20) / 2;
@@ -1757,8 +1757,14 @@
         let tx = Math.max(22, Math.min(378, rwbPlayer.x + wbBrain.playerVX * 10));
         let ty = Math.max(35, Math.min(465, rwbPlayer.y + wbBrain.playerVY * 10));
         let columns = [];
-        let count = (isSuper || id === 0) ? 8 : 5;
-        for (let n = 0; n < count; n++) columns.push(28 + n * (344 / Math.max(1, count - 1)));
+        let count = isSuper ? 8 : (id === 0 ? 6 : 5);
+        if (!isSuper && id === 5) {
+            for (let n = 0; n < 5; n++) columns.push(60 + n * 70);
+        } else if (!isSuper && id === 0) {
+            for (let n = 0; n < 6; n++) columns.push(40 + n * 64);
+        } else {
+            for (let n = 0; n < count; n++) columns.push(28 + n * (344 / Math.max(1, count - 1)));
+        }
         wbBrain.plannedTargetX = tx; wbBrain.plannedTargetY = ty; wbBrain.plannedRockXs = columns;
         wbBrain.phase = "windup"; wbBrain.phaseTimer = warning;
         if (isSuper) wbBrain.lastSuperAttackId = id;
@@ -2782,7 +2788,7 @@
             if (b.isBlue) {
                 for (let j = rwbAttacks.length - 1; j >= 0; j--) {
                     let a = rwbAttacks[j];
-                    if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave" ||
+                    if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave" || a.type === "wb_attack_telegraph" ||
                         a.type === "wb_reflect_vortex" || a.type === "wb_center_wave" || a.type === "wb_fruit_punch" ||
                         (a.type === "wb_crescent_slash" && a.state !== "flying")) continue;
                     if (a.hp === undefined) continue;
