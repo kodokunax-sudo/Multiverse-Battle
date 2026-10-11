@@ -2460,130 +2460,6 @@
                 continue;
             }
 
-            if (a.type === "wb_attack_telegraph") {
-            ctx.save();
-            let pulse = 0.36 + Math.sin(performance.now() / 75) * 0.14;
-            ctx.globalAlpha = pulse; ctx.strokeStyle = a.color; ctx.fillStyle = a.color;
-            ctx.shadowColor = a.color; ctx.shadowBlur = 16; ctx.lineWidth = 3;
-            if (a.attackKind === "normal" && a.attackId === 1) {
-                ctx.beginPath(); ctx.arc(a.originX, a.originY, 75 + Math.sin(performance.now() / 70) * 5, 0, Math.PI * 2); ctx.stroke();
-            } else if (a.attackKind === "normal" && [2, 3, 7].includes(a.attackId)) {
-                ctx.fillRect(0, a.targetY - 13, 400, 26);
-                ctx.globalAlpha = 0.95; ctx.setLineDash([7, 7]);
-                ctx.beginPath(); ctx.moveTo(0, a.targetY - 13); ctx.lineTo(400, a.targetY - 13); ctx.moveTo(0, a.targetY + 13); ctx.lineTo(400, a.targetY + 13); ctx.stroke(); ctx.setLineDash([]);
-            } else if (a.attackKind === "normal" && a.attackId === 6) {
-                ctx.beginPath(); ctx.arc(a.targetX, a.targetY, 23, 0, Math.PI * 2); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(a.targetX - 17, a.targetY); ctx.lineTo(a.targetX + 17, a.targetY); ctx.moveTo(a.targetX, a.targetY - 17); ctx.lineTo(a.targetX, a.targetY + 17); ctx.stroke();
-            } else if ((a.attackKind === "normal" && (a.attackId === 0 || a.attackId === 5)) || (a.attackKind === "super" && a.attackId === 0)) {
-                (a.columns || []).forEach(function(cx) { ctx.beginPath(); ctx.moveTo(cx, 18); ctx.lineTo(cx, 94); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, 92, 7, 0, Math.PI * 2); ctx.stroke(); });
-            } else if (a.attackKind === "super" && a.attackId === 1) {
-                ctx.beginPath(); ctx.arc(a.targetX, a.targetY, 58, 0, Math.PI * 2); ctx.stroke();
-            } else if (a.attackKind === "super" && a.attackId === 2) {
-                ctx.beginPath(); ctx.ellipse(a.targetX, 360, 43, 12, 0, 0, Math.PI * 2); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(a.targetX, 0); ctx.lineTo(a.targetX, 450); ctx.stroke();
-            } else if (a.attackKind === "super" && a.attackId === 4) {
-                ctx.fillRect(0, 0, 400, 22); ctx.strokeRect(0, 0, 400, 40);
-            } else if (a.attackKind === "super" && a.attackId === 3) {
-                ctx.beginPath(); ctx.arc(a.targetX, a.targetY, 46, 0, Math.PI * 2); ctx.stroke();
-            } else if (a.attackKind === "normal" && a.attackId === 4) {
-                ctx.fillRect(0, 0, 400, 24); ctx.strokeRect(0, 0, 400, 42);
-            }
-            ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.fillStyle = "#ffffff";
-            ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
-            ctx.strokeStyle = "#111111"; ctx.lineWidth = 3; ctx.strokeText("⚠ " + a.title + " ⚠", 200, 120);
-            ctx.fillText("⚠ " + a.title + " ⚠", 200, 120);
-            ctx.font = "10px monospace"; ctx.fillStyle = "#ffe9a6"; ctx.fillText("ПОДГОТОВКА", 200, 137);
-            ctx.restore(); return;
-        }
-
-        if (a.type === "wb_reflect_vortex") {
-                ctx.save();
-                let pulse = 1 + Math.sin(performance.now() / 90) * 0.12;
-                ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0);
-                ctx.shadowColor = "#a66bff"; ctx.shadowBlur = 20;
-                ctx.strokeStyle = "#d9b8ff"; ctx.lineWidth = 3;
-                for (let ring = 0; ring < 3; ring++) {
-                    ctx.globalAlpha = 0.85 - ring * 0.2;
-                    ctx.beginPath();
-                    ctx.ellipse(0, 0, a.radius * pulse * (0.58 + ring * 0.2), a.radius * (0.4 + ring * 0.13), ring * 0.7, 0.2 + performance.now() / 360, Math.PI * 1.65 + performance.now() / 360);
-                    ctx.stroke();
-                }
-                ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
-                ctx.fillText("ОТРАЖЕНИЕ", 0, a.radius + 19);
-                ctx.restore(); return;
-            }
-
-            if (a.type === "wb_reflected_bullet") {
-                ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(Math.atan2(a.vy, a.vx));
-                ctx.shadowColor = "#a66bff"; ctx.shadowBlur = 12; ctx.fillStyle = "#d8baff";
-                ctx.beginPath(); ctx.ellipse(0, 0, a.size * 1.6, a.size * 0.65, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); return;
-            }
-
-            if (a.type === "wb_center_wave") {
-                ctx.save();
-                ctx.strokeStyle = "#9beaff"; ctx.shadowColor = "#9beaff"; ctx.shadowBlur = 18;
-                if (a.state === "warning") {
-                    let alpha = 0.35 + Math.sin(performance.now() / 90) * 0.2;
-                    ctx.globalAlpha = alpha; ctx.lineWidth = 5;
-                    ctx.beginPath(); ctx.moveTo(0, 480); ctx.lineTo(400, 480); ctx.stroke();
-                    ctx.globalAlpha = 1; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffffff";
-                    ctx.fillText("ВОЛНА ПРИТЯЖЕНИЯ", 200, 460);
-                } else {
-                    ctx.lineWidth = 15; ctx.globalAlpha = 0.48;
-                    ctx.beginPath(); ctx.moveTo(0, a.y); ctx.lineTo(400, a.y); ctx.stroke();
-                    ctx.globalAlpha = 1; ctx.lineWidth = 4;
-                    for (let j = -1; j <= 1; j++) {
-                        ctx.beginPath(); ctx.moveTo(0, a.y + j * 9 + Math.sin(performance.now() / 50) * 3); ctx.lineTo(400, a.y + j * 9); ctx.stroke();
-                    }
-                    ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText("ЦЕНТР", 200, a.y - 10);
-                }
-                ctx.restore(); return;
-            }
-
-            if (a.type === "wb_fruit_punch") {
-                ctx.save();
-                if (a.state === "warning") {
-                    let pulse = 0.45 + Math.sin(performance.now() / 65) * 0.18;
-                    ctx.globalAlpha = pulse; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = a.width + 9;
-                    ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
-                    ctx.globalAlpha = 1; ctx.strokeStyle = "#c8f4ff"; ctx.lineWidth = 3;
-                    ctx.setLineDash([8, 7]); ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke(); ctx.setLineDash([]);
-                    ctx.fillStyle = "#ffffff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText("УДАР ФРУКТОМ!", a.targetX, a.targetY - 18);
-                } else {
-                    ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 22; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = a.width + 14;
-                    ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
-                    ctx.strokeStyle = "#b8efff"; ctx.lineWidth = a.width;
-                    ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
-                    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4;
-                    ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
-                }
-                ctx.restore(); return;
-            }
-
-            if (a.type === "wb_crescent_slash") {
-                ctx.save();
-                if (a.state === "windup") {
-                    ctx.translate(a.originX, a.originY); ctx.rotate(a.rotation || 0);
-                    ctx.globalAlpha = 0.35 + Math.sin(performance.now() / 80) * 0.18;
-                    ctx.strokeStyle = "#dff8ff"; ctx.lineWidth = 8; ctx.shadowColor = "#b9efff"; ctx.shadowBlur = 20;
-                    ctx.beginPath(); ctx.arc(0, 0, 58, -0.85, 0.85); ctx.stroke();
-                    ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
-                    ctx.fillText("ГОТОВИТСЯ 2 СЕК.", 0, -75);
-                    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, 66, -1.1, 1.1); ctx.stroke();
-                } else {
-                    ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0);
-                    ctx.shadowColor = "#b9efff"; ctx.shadowBlur = 20;
-                    ctx.fillStyle = "#eafaff"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
-                    ctx.beginPath(); ctx.moveTo(-a.size * 1.35, -a.size * 0.7);
-                    ctx.quadraticCurveTo(-a.size * 0.05, -a.size * 1.35, a.size * 1.5, -a.size * 0.1);
-                    ctx.quadraticCurveTo(a.size * 0.15, -a.size * 0.45, -a.size * 1.35, -a.size * 0.7); ctx.closePath(); ctx.fill(); ctx.stroke();
-                    ctx.strokeStyle = "#5c91b0"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, a.size * 0.6, -0.6, 0.9); ctx.stroke();
-                    ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText("HP " + a.hp + "/10", 0, a.size + 14);
-                }
-                ctx.restore(); return;
-            }
-
             if (a.type === "roger_slash") {
                 if (a.state === "warning") {
                     a.warningTimer--;
@@ -3473,6 +3349,130 @@
         }
     }
     function drawAttack(a) {
+        if (a.type === "wb_attack_telegraph") {
+            ctx.save();
+            let pulse = 0.36 + Math.sin(performance.now() / 75) * 0.14;
+            ctx.globalAlpha = pulse; ctx.strokeStyle = a.color; ctx.fillStyle = a.color;
+            ctx.shadowColor = a.color; ctx.shadowBlur = 16; ctx.lineWidth = 3;
+            if (a.attackKind === "normal" && a.attackId === 1) {
+                ctx.beginPath(); ctx.arc(a.originX, a.originY, 75 + Math.sin(performance.now() / 70) * 5, 0, Math.PI * 2); ctx.stroke();
+            } else if (a.attackKind === "normal" && [2, 3, 7].includes(a.attackId)) {
+                ctx.fillRect(0, a.targetY - 13, 400, 26);
+                ctx.globalAlpha = 0.95; ctx.setLineDash([7, 7]);
+                ctx.beginPath(); ctx.moveTo(0, a.targetY - 13); ctx.lineTo(400, a.targetY - 13); ctx.moveTo(0, a.targetY + 13); ctx.lineTo(400, a.targetY + 13); ctx.stroke(); ctx.setLineDash([]);
+            } else if (a.attackKind === "normal" && a.attackId === 6) {
+                ctx.beginPath(); ctx.arc(a.targetX, a.targetY, 23, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(a.targetX - 17, a.targetY); ctx.lineTo(a.targetX + 17, a.targetY); ctx.moveTo(a.targetX, a.targetY - 17); ctx.lineTo(a.targetX, a.targetY + 17); ctx.stroke();
+            } else if ((a.attackKind === "normal" && (a.attackId === 0 || a.attackId === 5)) || (a.attackKind === "super" && a.attackId === 0)) {
+                (a.columns || []).forEach(function(cx) { ctx.beginPath(); ctx.moveTo(cx, 18); ctx.lineTo(cx, 94); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, 92, 7, 0, Math.PI * 2); ctx.stroke(); });
+            } else if (a.attackKind === "super" && a.attackId === 1) {
+                ctx.beginPath(); ctx.arc(a.targetX, a.targetY, 58, 0, Math.PI * 2); ctx.stroke();
+            } else if (a.attackKind === "super" && a.attackId === 2) {
+                ctx.beginPath(); ctx.ellipse(a.targetX, 360, 43, 12, 0, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(a.targetX, 0); ctx.lineTo(a.targetX, 450); ctx.stroke();
+            } else if (a.attackKind === "super" && a.attackId === 4) {
+                ctx.fillRect(0, 0, 400, 22); ctx.strokeRect(0, 0, 400, 40);
+            } else if (a.attackKind === "super" && a.attackId === 3) {
+                ctx.beginPath(); ctx.arc(a.targetX, a.targetY, 46, 0, Math.PI * 2); ctx.stroke();
+            } else if (a.attackKind === "normal" && a.attackId === 4) {
+                ctx.fillRect(0, 0, 400, 24); ctx.strokeRect(0, 0, 400, 42);
+            }
+            ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+            ctx.strokeStyle = "#111111"; ctx.lineWidth = 3; ctx.strokeText("⚠ " + a.title + " ⚠", 200, 120);
+            ctx.fillText("⚠ " + a.title + " ⚠", 200, 120);
+            ctx.font = "10px monospace"; ctx.fillStyle = "#ffe9a6"; ctx.fillText("ПОДГОТОВКА", 200, 137);
+            ctx.restore(); return;
+        }
+
+        if (a.type === "wb_reflect_vortex") {
+            ctx.save();
+            let pulse = 1 + Math.sin(performance.now() / 90) * 0.12;
+            ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0);
+            ctx.shadowColor = "#a66bff"; ctx.shadowBlur = 20;
+            ctx.strokeStyle = "#d9b8ff"; ctx.lineWidth = 3;
+            for (let ring = 0; ring < 3; ring++) {
+                ctx.globalAlpha = 0.85 - ring * 0.2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, a.radius * pulse * (0.58 + ring * 0.2), a.radius * (0.4 + ring * 0.13), ring * 0.7, 0.2 + performance.now() / 360, Math.PI * 1.65 + performance.now() / 360);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+            ctx.fillText("ОТРАЖЕНИЕ", 0, a.radius + 19);
+            ctx.restore(); return;
+        }
+
+        if (a.type === "wb_reflected_bullet") {
+            ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(Math.atan2(a.vy, a.vx));
+            ctx.shadowColor = "#a66bff"; ctx.shadowBlur = 12; ctx.fillStyle = "#d8baff";
+            ctx.beginPath(); ctx.ellipse(0, 0, a.size * 1.6, a.size * 0.65, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); return;
+        }
+
+        if (a.type === "wb_center_wave") {
+            ctx.save();
+            ctx.strokeStyle = "#9beaff"; ctx.shadowColor = "#9beaff"; ctx.shadowBlur = 18;
+            if (a.state === "warning") {
+                let alpha = 0.35 + Math.sin(performance.now() / 90) * 0.2;
+                ctx.globalAlpha = alpha; ctx.lineWidth = 5;
+                ctx.beginPath(); ctx.moveTo(0, 480); ctx.lineTo(400, 480); ctx.stroke();
+                ctx.globalAlpha = 1; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffffff";
+                ctx.fillText("ВОЛНА ПРИТЯЖЕНИЯ", 200, 460);
+            } else {
+                ctx.lineWidth = 15; ctx.globalAlpha = 0.48;
+                ctx.beginPath(); ctx.moveTo(0, a.y); ctx.lineTo(400, a.y); ctx.stroke();
+                ctx.globalAlpha = 1; ctx.lineWidth = 4;
+                for (let j = -1; j <= 1; j++) {
+                    ctx.beginPath(); ctx.moveTo(0, a.y + j * 9 + Math.sin(performance.now() / 50) * 3); ctx.lineTo(400, a.y + j * 9); ctx.stroke();
+                }
+                ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText("ЦЕНТР", 200, a.y - 10);
+            }
+            ctx.restore(); return;
+        }
+
+        if (a.type === "wb_fruit_punch") {
+            ctx.save();
+            if (a.state === "warning") {
+                let pulse = 0.45 + Math.sin(performance.now() / 65) * 0.18;
+                ctx.globalAlpha = pulse; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = a.width + 9;
+                ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
+                ctx.globalAlpha = 1; ctx.strokeStyle = "#c8f4ff"; ctx.lineWidth = 3;
+                ctx.setLineDash([8, 7]); ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke(); ctx.setLineDash([]);
+                ctx.fillStyle = "#ffffff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center"; ctx.fillText("УДАР ФРУКТОМ!", a.targetX, a.targetY - 18);
+            } else {
+                ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 22; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = a.width + 14;
+                ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
+                ctx.strokeStyle = "#b8efff"; ctx.lineWidth = a.width;
+                ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
+            }
+            ctx.restore(); return;
+        }
+
+        if (a.type === "wb_crescent_slash") {
+            ctx.save();
+            if (a.state === "windup") {
+                ctx.translate(a.originX, a.originY); ctx.rotate(a.rotation || 0);
+                ctx.globalAlpha = 0.35 + Math.sin(performance.now() / 80) * 0.18;
+                ctx.strokeStyle = "#dff8ff"; ctx.lineWidth = 8; ctx.shadowColor = "#b9efff"; ctx.shadowBlur = 20;
+                ctx.beginPath(); ctx.arc(0, 0, 58, -0.85, 0.85); ctx.stroke();
+                ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+                ctx.fillText("ГОТОВИТСЯ 2 СЕК.", 0, -75);
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, 66, -1.1, 1.1); ctx.stroke();
+            } else {
+                ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0);
+                ctx.shadowColor = "#b9efff"; ctx.shadowBlur = 20;
+                ctx.fillStyle = "#eafaff"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(-a.size * 1.35, -a.size * 0.7);
+                ctx.quadraticCurveTo(-a.size * 0.05, -a.size * 1.35, a.size * 1.5, -a.size * 0.1);
+                ctx.quadraticCurveTo(a.size * 0.15, -a.size * 0.45, -a.size * 1.35, -a.size * 0.7); ctx.closePath(); ctx.fill(); ctx.stroke();
+                ctx.strokeStyle = "#5c91b0"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, a.size * 0.6, -0.6, 0.9); ctx.stroke();
+                ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText("HP " + a.hp + "/10", 0, a.size + 14);
+            }
+            ctx.restore(); return;
+        }
+
         if (a.type === "giant_rock") { drawGiantRock(a); return; }
         if (a.type === "tsunami") { drawTsunami(a); return; }
         if (a.type === "rock") { drawRock(a); return; }
