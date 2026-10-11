@@ -1,5 +1,5 @@
 // ============================================================
-// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v21.0
+// РОДЖЕР vs БЕЛОУС — БОСС 1000 ВОЛНЫ v22.0
 // ============================================================
 // ★ v19.0 — ФИКС СУПЕРОВ:
 //   - garouTimeStop останавливает ВСЕ атаки
@@ -156,7 +156,10 @@
     let wbBrain = {
         bottomFrames: 0, stationaryFrames: 0, farFrames: 0,
         shotsInWindow: 0, shotWindowTimer: 0, adaptiveCooldown: 0,
-        lastX: 200, lastY: 420, lastAdaptive: null
+        lastX: 200, lastY: 420, playerVX: 0, playerVY: 0,
+        lastAdaptive: null, lastAttackId: -1, lastSuperAttackId: -1,
+        comboHint: null, phase: "idle", phaseTimer: 0, recoveryTimer: 0,
+        plannedTargetX: 200, plannedTargetY: 360, plannedRockXs: []
     };
     let rwbPlayerStunTimer = 0;
     let wbFruitFlashTimer = 0;
@@ -862,7 +865,7 @@
         rwbWinner = null; rwbRewardGiven = false; rwbDialogStage = 0;
         rwbWhitebeardDisabled = [false, false, false]; rwbWBPhase = "intro";
         rwbDialogQueue = []; rwbDialogActive = false; rwbDialogType = null; rwbDialogTimer = 0;
-        wbBrain = { bottomFrames: 0, stationaryFrames: 0, farFrames: 0, shotsInWindow: 0, shotWindowTimer: 180, adaptiveCooldown: 0, lastX: 200, lastY: 420, lastAdaptive: null };
+        wbBrain = { bottomFrames: 0, stationaryFrames: 0, farFrames: 0, shotsInWindow: 0, shotWindowTimer: 180, adaptiveCooldown: 0, lastX: 200, lastY: 420, playerVX: 0, playerVY: 0, lastAdaptive: null, lastAttackId: -1, lastSuperAttackId: -1, comboHint: null, phase: "idle", phaseTimer: 0, recoveryTimer: 0, plannedTargetX: 200, plannedTargetY: 360, plannedRockXs: [] };
         rwbPlayerStunTimer = 0; wbFruitFlashTimer = 0; wbFruitFlashPower = 0.72;
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
 
@@ -896,6 +899,7 @@
         };
 
         rwbAttacks = []; rwbPlayerBullets = []; rwbParticles = []; rwbShockwaves = [];
+        wbBrain.phase = "idle"; wbBrain.phaseTimer = 0; wbBrain.recoveryTimer = 0;
         rwbFloatingTexts = []; rwbSpeedLines = []; rwbHakiLightnings = [];
         rwbWhiteCracks = []; rwbPurpleCracks = []; rwbScreenFlash = 0; rwbShake = 0; rwbBgStars = [];
         wbVortexElapsedMs = 0; wbVortexClockAt = 0; wbVortexActive = false; wbVortexTimerLeft = 0; wbVortexPoints = []; wbVortexNextPoint = 0; wbVortexFailed = false; wbVortexPullStrength = 0;
@@ -1704,11 +1708,81 @@
         }, 1600);
     }
 
+    function chooseWhitebeardAttackId(isSuper) {
+        let boss = getWhitebeardEntity();
+        let dist = boss ? Math.hypot(rwbPlayer.x - boss.x, rwbPlayer.y - boss.y) : 180;
+        let weights = isSuper ? [1.5, 1.5, 1.2, 1.3, 1.1] : [1.5, 1.4, 1.2, 1.2, 1.0, 1.1, 1.5, 1.3];
+
+        if (isSuper) {
+            if (dist < 100) { weights[2] += 2.5; weights[3] += 0.6; }
+            else if (dist > 220) { weights[0] += 1.4; weights[4] += 2.0; }
+            if (wbBrain.stationaryFrames > 40) weights[1] += 2.0;
+            if (wbBrain.bottomFrames > 60) weights[4] += 2.2;
+            if (wbBrain.shotsInWindow > 6) weights[0] += 1.1;
+            if (wbBrain.lastSuperAttackId >= 0) weights[wbBrain.lastSuperAttackId] *= 0.12;
+        } else {
+            if (dist < 90) { weights[1] += 3.2; weights[2] += 0.9; weights[3] += 0.9; weights[0] *= 0.45; }
+            else if (dist > 220) { weights[0] += 1.5; weights[4] += 1.0; weights[7] += 1.0; weights[6] += 1.6; }
+            if (rwbPlayer.x < (boss ? boss.x : 200)) weights[3] += 0.8;
+            else weights[2] += 0.8;
+            if (wbBrain.stationaryFrames > 45) { weights[6] += 1.2; weights[1] += 0.8; }
+            if (wbBrain.bottomFrames > 60) { weights[5] += 1.1; weights[4] += 0.6; }
+            if (wbBrain.shotsInWindow > 6) weights[0] += 0.7;
+            if (wbBrain.comboHint !== null && weights[wbBrain.comboHint] !== undefined) {
+                weights[wbBrain.comboHint] += 3.4;
+                wbBrain.comboHint = null;
+            }
+            if (wbBrain.lastAttackId >= 0) weights[wbBrain.lastAttackId] *= 0.16;
+        }
+
+        let total = weights.reduce(function(sum, value) { return sum + Math.max(0.05, value); }, 0);
+        let roll = Math.random() * total;
+        for (let i = 0; i < weights.length; i++) {
+            roll -= Math.max(0.05, weights[i]);
+            if (roll <= 0) return i;
+        }
+        return weights.length - 1;
+    }
+
+    function getWBAttackTell(kind, id) {
+        if (kind === "super") return ["ЗЕМЛЕТРЯСЕНИЕ", "ГУРА-ГУРА", "ТИТАН-КУЛАК", "НАВАЛА КУЛАКОВ", "ЦУНАМИ"][id] || "СУПЕР-АТАКА";
+        return ["КАМНЕПАД", "УДАРНАЯ ВОЛНА", "КУЛАК СПРАВА", "КУЛАК СЛЕВА", "ЦУНАМИ", "ГРАД КУЛАКОВ", "ДВА ПРИЦЕЛЬНЫХ УДАРА", "ВОЛНА ХАКИ"][id] || "АТАКА БЕЛОУСА";
+    }
+
+    function queueWhitebeardAttack(kind, id) {
+        let boss = getWhitebeardEntity();
+        if (!boss || wbBrain.phase !== "idle") return false;
+        let isSuper = kind === "super";
+        let warning = isSuper ? 30 : 24 + Math.floor(Math.random() * 7);
+        let tx = Math.max(22, Math.min(378, rwbPlayer.x + wbBrain.playerVX * 10));
+        let ty = Math.max(35, Math.min(465, rwbPlayer.y + wbBrain.playerVY * 10));
+        let columns = [];
+        let count = (isSuper || id === 0) ? 8 : 5;
+        for (let n = 0; n < count; n++) columns.push(28 + n * (344 / Math.max(1, count - 1)));
+        wbBrain.plannedTargetX = tx; wbBrain.plannedTargetY = ty; wbBrain.plannedRockXs = columns;
+        wbBrain.phase = "windup"; wbBrain.phaseTimer = warning;
+        if (isSuper) wbBrain.lastSuperAttackId = id;
+        else wbBrain.lastAttackId = id;
+        rwbAttacks.push({
+            type: "wb_attack_telegraph", state: "warning", attackKind: kind, attackId: id,
+            x: boss.x, y: boss.y, originX: boss.x, originY: boss.y,
+            targetX: tx, targetY: ty, columns: columns, warningTimer: warning,
+            title: getWBAttackTell(kind, id), color: isSuper ? "#ffffff" : "#9beaff",
+            life: warning + 1
+        });
+        playHakiChargeSound(isSuper ? 0.34 : 0.22);
+        spawnHakiLightning(boss.x, boss.y, isSuper ? 4 : 2, false);
+        return true;
+    }
+
     function spawnWhitebeardAttack() {
-        if (isWhitebeardSpecialWindupActive()) return;
+        if (isWhitebeardSpecialWindupActive() || wbBrain.phase !== "idle") return;
         if (maybeSpawnWhitebeardAdaptive(false)) return;
-        let type = Math.floor(Math.random() * 8);
-        let isSuper = whitebeard.superForm;
+        queueWhitebeardAttack("normal", chooseWhitebeardAttackId(false));
+    }
+
+    function executeWhitebeardAttack(type) {
+        let isSuper = whitebeard ? whitebeard.superForm : (rwbActiveBoss && rwbActiveBoss.superForm);
         playHakiChargeSound(0.2);
         spawnHakiLightning(whitebeard.x, whitebeard.y, 3, false);
         let dxPlayer = rwbPlayer.x - whitebeard.x, dyPlayer = rwbPlayer.y - whitebeard.y;
@@ -1717,20 +1791,21 @@
         if (type === 0) {
             let count = 6;
             for (let i = 0; i < count; i++) {
-                let cx = 40 + Math.random() * 320;
+                let cx = wbBrain.plannedRockXs && wbBrain.plannedRockXs.length ? wbBrain.plannedRockXs[i % wbBrain.plannedRockXs.length] : 40 + Math.random() * 320;
                 rwbAttacks.push({ type: "rock", x: cx, y: -40 - Math.random() * 30, vx: (Math.random() - 0.5) * 0.5, vy: (isSuper ? 4.2 : 3.5) * BALANCE.projectileSpeedMult, size: 17 + Math.random() * 5, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.06, hp: 3, maxHp: 3, damage: Math.ceil((isSuper ? 20 : 15) * BALANCE.whitebeardDamageMult), life: 400, color: "#8B7355", hasHaki: false, textureSeed: Math.random() * 1000 });
             }
             spawnWhiteCracks(whitebeard.x, whitebeard.y, 3); playImpactSound(0.4, 0.6);
+            wbBrain.comboHint = 1;
         } else if (type === 1) {
             rwbShockwaves.push({ x: whitebeard.x, y: whitebeard.y, radius: 10, maxRadius: isSuper ? 240 : 200, speed: (isSuper ? 5.5 : 4.5) * BALANCE.projectileSpeedMult, color: "#ffdd44", damage: Math.ceil((isSuper ? 20 : 15) * BALANCE.whitebeardDamageMult), hit: false, hp: 6, maxHp: 6, canDestroy: true, life: 150, maxLife: 150, width: 14 });
             playImpactSound(0.35, 0.9);
         } else if (type === 2) {
-            rwbAttacks.push({ type: "fist", x: 430, y: 150 + Math.random() * 200, vx: -6 * BALANCE.projectileSpeedMult, vy: 0, size: 22, hp: 4, maxHp: 4, damage: Math.ceil((isSuper ? 24 : 18) * BALANCE.whitebeardDamageMult), life: 250, color: "#ffffff", owner: "whitebeard", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
+            rwbAttacks.push({ type: "fist", x: 430, y: wbBrain.plannedTargetY || rwbPlayer.y, vx: -6 * BALANCE.projectileSpeedMult, vy: 0, size: 22, hp: 4, maxHp: 4, damage: Math.ceil((isSuper ? 24 : 18) * BALANCE.whitebeardDamageMult), life: 250, color: "#ffffff", owner: "whitebeard", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
             playImpactSound(0.4, 1.0);
         } else if (type === 3) {
-            rwbAttacks.push({ type: "fist", x: -30, y: 150 + Math.random() * 200, vx: 6 * BALANCE.projectileSpeedMult, vy: 0, size: 22, hp: 4, maxHp: 4, damage: Math.ceil((isSuper ? 24 : 18) * BALANCE.whitebeardDamageMult), life: 250, color: "#ffffff", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
+            rwbAttacks.push({ type: "fist", x: -30, y: wbBrain.plannedTargetY || rwbPlayer.y, vx: 6 * BALANCE.projectileSpeedMult, vy: 0, size: 22, hp: 4, maxHp: 4, damage: Math.ceil((isSuper ? 24 : 18) * BALANCE.whitebeardDamageMult), life: 250, color: "#ffffff", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
             playImpactSound(0.4, 1.0);
-        } else if (type === 4) { spawnTsunamiAttack(isSuper); }
+        } else if (type === 4) { spawnTsunamiAttack(isSuper); wbBrain.comboHint = 5; }
         else if (type === 5) {
             let count = isSuper ? 8 : 5;
             for (let i = 0; i < count; i++) {
@@ -1738,12 +1813,13 @@
                 rwbAttacks.push({ type: "fist", x: cx, y: -30, vx: (Math.random() - 0.5) * 1, vy: 5 * BALANCE.projectileSpeedMult, size: 16, hp: 3, maxHp: 3, damage: Math.ceil((isSuper ? 18 : 14) * BALANCE.whitebeardDamageMult), life: 300, color: "#ffffff", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
             }
             playImpactSound(0.35, 0.9);
+            wbBrain.comboHint = 6;
         } else if (type === 6) {
             for (let side = -1; side <= 1; side += 2) {
                 (function(s) {
                     setTimeout(function() {
                         if (!window.rwbActive) return;
-                        let targetX = rwbPlayer.x + s * 60, targetY = rwbPlayer.y;
+                        let targetX = (wbBrain.plannedTargetX || rwbPlayer.x) + s * 60, targetY = wbBrain.plannedTargetY || rwbPlayer.y;
                         let dx = targetX - whitebeard.x, dy = targetY - whitebeard.y;
                         let len = Math.sqrt(dx * dx + dy * dy) || 1;
                         let speed = (isSuper ? 6.5 : 5.5) * BALANCE.projectileSpeedMult;
@@ -1754,7 +1830,7 @@
             playImpactSound(0.45, 0.85);
         } else {
             let side = Math.random() > 0.5 ? 1 : -1;
-            rwbAttacks.push({ type: "haki_wave", x: side > 0 ? -40 : 440, y: 200 + Math.random() * 200, vx: side * 3.5 * BALANCE.projectileSpeedMult, vy: 0, size: 30, hp: 5, maxHp: 5, damage: Math.ceil(22 * BALANCE.whitebeardDamageMult), life: 300, color: "#ff8800", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
+            rwbAttacks.push({ type: "haki_wave", x: side > 0 ? -40 : 440, y: wbBrain.plannedTargetY || rwbPlayer.y, vx: side * 3.5 * BALANCE.projectileSpeedMult, vy: 0, size: 30, hp: 5, maxHp: 5, damage: Math.ceil(22 * BALANCE.whitebeardDamageMult), life: 300, color: "#ff8800", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
             playHakiChargeSound(0.3);
         }
     }
@@ -1773,14 +1849,17 @@
 
     function isWhitebeardSpecialWindupActive() {
         return rwbAttacks.some(function(a) {
-            return (a.type === "wb_fruit_punch" && a.state === "warning") ||
+            return (a.type === "wb_attack_telegraph" && a.state === "warning") ||
+                   (a.type === "wb_center_wave" && a.state === "warning") ||
+                   (a.type === "wb_fruit_punch" && a.state === "warning") ||
                    (a.type === "wb_crescent_slash" && a.state === "windup");
         });
     }
 
     function getWhitebeardWindupAttack() {
         return rwbAttacks.find(function(a) {
-            return (a.type === "wb_fruit_punch" && a.state === "warning") ||
+            return (a.type === "wb_attack_telegraph" && a.state === "warning") ||
+                   (a.type === "wb_fruit_punch" && a.state === "warning") ||
                    (a.type === "wb_crescent_slash" && a.state === "windup");
         }) || null;
     }
@@ -1795,9 +1874,28 @@
         if (rwbPlayer.y >= 395) wbBrain.bottomFrames++;
         else wbBrain.bottomFrames = Math.max(0, wbBrain.bottomFrames - 3);
 
-        let moved = Math.hypot(rwbPlayer.x - wbBrain.lastX, rwbPlayer.y - wbBrain.lastY);
+        let dxMoved = rwbPlayer.x - wbBrain.lastX;
+        let dyMoved = rwbPlayer.y - wbBrain.lastY;
+        let moved = Math.hypot(dxMoved, dyMoved);
+        wbBrain.playerVX = wbBrain.playerVX * 0.58 + dxMoved * 0.42;
+        wbBrain.playerVY = wbBrain.playerVY * 0.58 + dyMoved * 0.42;
         if (moved < 1.1) wbBrain.stationaryFrames++;
         else wbBrain.stationaryFrames = Math.max(0, wbBrain.stationaryFrames - 2);
+
+        // Читаемый цикл в духе Souls: подготовка → атака → восстановление.
+        if (wbBrain.phase === "windup") {
+            wbBrain.phaseTimer--;
+            if (wbBrain.phaseTimer <= 0) { wbBrain.phase = "attack"; wbBrain.phaseTimer = 7; }
+        } else if (wbBrain.phase === "attack") {
+            wbBrain.phaseTimer--;
+            if (wbBrain.phaseTimer <= 0) {
+                wbBrain.phase = "recovery";
+                wbBrain.recoveryTimer = 10 + Math.floor(Math.random() * 8);
+            }
+        } else if (wbBrain.phase === "recovery") {
+            wbBrain.recoveryTimer--;
+            if (wbBrain.recoveryTimer <= 0) wbBrain.phase = "idle";
+        }
 
         let boss = getWhitebeardEntity();
         if (boss && Math.hypot(rwbPlayer.x - boss.x, rwbPlayer.y - boss.y) > 180) wbBrain.farFrames++;
@@ -1833,6 +1931,7 @@
         let boss = getWhitebeardEntity();
         if (!boss || isWBReflectVortexActive()) return false;
         let side = rwbPlayer.x >= boss.x ? -1 : 1;
+        wbBrain.phase = "attack"; wbBrain.phaseTimer = 7;
         let vx = Math.max(44, Math.min(356, boss.x + side * 58));
         let vy = Math.max(65, Math.min(435, boss.y + 26));
         if (Math.hypot(rwbPlayer.x - vx, rwbPlayer.y - vy) < 72) {
@@ -1847,7 +1946,9 @@
     }
 
     function spawnWBCenterPullWave(isSuper) {
-        rwbAttacks.push({ type: "wb_center_wave", x: 200, y: 480, targetY: 250, speed: isSuper ? 4.6 : 4.0, state: "warning", warningTimer: 34, life: 100, color: "#9beaff", damage: 0, isSuper: !!isSuper });
+        wbBrain.phase = "windup"; wbBrain.phaseTimer = 34;
+        let boss = getWhitebeardEntity();
+        rwbAttacks.push({ type: "wb_center_wave", x: 200, y: 480, originX: boss ? boss.x : 320, originY: boss ? boss.y : 120, targetY: 250, speed: isSuper ? 4.6 : 4.0, state: "warning", warningTimer: 34, life: 100, color: "#9beaff", damage: 0, isSuper: !!isSuper });
         rwbFloatingTexts.push({ x: 200, y: 90, text: "🌊 ХВАТИТ ПРЯТАТЬСЯ!", color: "#9beaff", life: 65, maxLife: 65, vy: -0.25, vx: 0, size: 16 });
         playHakiChargeSound(0.3);
         return true;
@@ -1856,6 +1957,7 @@
     function spawnWBFruitPunch(isSuper) {
         let boss = getWhitebeardEntity();
         if (!boss) return false;
+        wbBrain.phase = "windup"; wbBrain.phaseTimer = 105;
         let end = whitebeardRayEndpoint(boss.x, boss.y, rwbPlayer.x, rwbPlayer.y);
         rwbAttacks.push({
             type: "wb_fruit_punch", x: boss.x, y: boss.y, originX: boss.x, originY: boss.y,
@@ -1871,6 +1973,7 @@
     function spawnWBCrescentSlash(isSuper) {
         let boss = getWhitebeardEntity();
         if (!boss) return false;
+        wbBrain.phase = "windup"; wbBrain.phaseTimer = 120;
         rwbAttacks.push({
             type: "wb_crescent_slash", state: "windup",
             x: boss.x, y: boss.y, originX: boss.x, originY: boss.y,
@@ -1884,7 +1987,7 @@
     }
 
     function maybeSpawnWhitebeardAdaptive(isSuper) {
-        if (!getWhitebeardEntity() || wbBrain.adaptiveCooldown > 0 || isWhitebeardSpecialWindupActive()) return false;
+        if (!getWhitebeardEntity() || wbBrain.adaptiveCooldown > 0 || wbBrain.phase !== "idle" || isWhitebeardSpecialWindupActive()) return false;
         if (isWBReflectVortexActive()) return false;
         let choice = null;
         if (wbBrain.bottomFrames >= 145 && Math.random() < 0.72) choice = "center_wave";
@@ -2078,11 +2181,16 @@
     }
 
     function spawnWhitebeardSuperAttack() {
-        if (isWhitebeardSpecialWindupActive()) return;
+        if (isWhitebeardSpecialWindupActive() || wbBrain.phase !== "idle") return;
         if (maybeSpawnWhitebeardAdaptive(true)) return;
-        let attackId = Math.floor(Math.random() * 5);
+        queueWhitebeardAttack("super", chooseWhitebeardAttackId(true));
+    }
+
+    function executeWhitebeardSuperAttack(attackId) {
+        let boss = getWhitebeardEntity();
+        if (!boss) return;
         playHakiChargeSound(0.3);
-        spawnHakiLightning(whitebeard.x, whitebeard.y, 5, false);
+        spawnHakiLightning(boss.x, boss.y, 5, false);
         if (attackId === 0) spawnWhitebeardEarthquake();
         else if (attackId === 1) spawnWhitebeardGuraGura();
         else if (attackId === 2) spawnWhitebeardTitanFist();
@@ -2094,7 +2202,7 @@
         rwbFloatingTexts.push({ x: 200, y: 100, text: "🌋 ЗЕМЛЕТРЯСЕНИЕ 🌋", color: "#8B7355", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 18 });
         playImpactSound(0.7, 0.5); playBossRoarSound(0.4); rwbShake = 25;
         for (let i = 0; i < 8; i++) {
-            let cx = 40 + Math.random() * 320;
+            let cx = wbBrain.plannedRockXs && wbBrain.plannedRockXs.length ? wbBrain.plannedRockXs[i % wbBrain.plannedRockXs.length] : 40 + Math.random() * 320;
             rwbAttacks.push({ type: "rock", x: cx, y: -40 - Math.random() * 50, vx: (Math.random() - 0.5) * 1.2, vy: 3.2 + Math.random() * 1.5, size: 16 + Math.random() * 8, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.1, hp: 3, maxHp: 3, damage: Math.ceil(20 * BALANCE.superDamageMult), life: 400, color: "#8B7355", hasHaki: false, textureSeed: Math.random() * 1000 });
         }
         spawnWhiteCracks(whitebeard.x, whitebeard.y, 5);
@@ -2110,7 +2218,8 @@
         playHakiChargeSound(0.4);
         setTimeout(function() { playExplosionSound(0.6); }, 500);
         for (let i = 0; i < 6; i++) {
-            let rx = 60 + Math.random() * 280, ry = 120 + Math.random() * 280;
+            let rx = i === 0 ? (wbBrain.plannedTargetX || rwbPlayer.x) : 60 + Math.random() * 280;
+            let ry = i === 0 ? (wbBrain.plannedTargetY || rwbPlayer.y) : 120 + Math.random() * 280;
             rwbAttacks.push({ type: "gura_crack", x: rx, y: ry, radius: 10, maxRadius: 85, damage: Math.ceil(24 * BALANCE.superDamageMult), life: 200, state: "warning", warningTimer: 70 + i * 15, activeTimer: 0, maxActive: 20, hit: false, color: "#ffffff" });
         }
         rwbShake = 20;
@@ -2121,9 +2230,9 @@
         playWhooshSound(0.5);
         setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
         rwbShake = 25;
-        rwbAttacks.push({ type: "titan_fist", x: 120 + Math.random() * 160, y: -120, vy: 3.5, size: 75, damage: Math.ceil(35 * BALANCE.superDamageMult), life: 300, state: "falling", hit: false, color: "#8B7355" });
+        rwbAttacks.push({ type: "titan_fist", x: Math.max(75, Math.min(325, wbBrain.plannedTargetX || rwbPlayer.x)), y: -120, vy: 3.5, size: 75, damage: Math.ceil(35 * BALANCE.superDamageMult), life: 300, state: "falling", hit: false, color: "#8B7355" });
         for (let i = 0; i < 3; i++) {
-            let cx = 40 + Math.random() * 320;
+            let cx = wbBrain.plannedRockXs && wbBrain.plannedRockXs.length ? wbBrain.plannedRockXs[i % wbBrain.plannedRockXs.length] : 40 + Math.random() * 320;
             rwbAttacks.push({ type: "rock", x: cx, y: -40 - Math.random() * 30, vx: (Math.random() - 0.5) * 0.6, vy: 3.0 + Math.random() * 1.0, size: 12 + Math.random() * 5, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.08, hp: 2, maxHp: 2, damage: Math.ceil(14 * BALANCE.superDamageMult), life: 350, color: "#8B7355", hasHaki: false, textureSeed: Math.random() * 1000 });
         }
     }
@@ -2135,7 +2244,7 @@
             (function(idx) {
                 setTimeout(function() {
                     if (!window.rwbActive || rwbState !== "fight2") return;
-                    let targetX = rwbPlayer.x + (Math.random() - 0.5) * 80, targetY = rwbPlayer.y + (Math.random() - 0.5) * 80;
+                    let targetX = (wbBrain.plannedTargetX || rwbPlayer.x) + (Math.random() - 0.5) * 80, targetY = (wbBrain.plannedTargetY || rwbPlayer.y) + (Math.random() - 0.5) * 80;
                     let dx = targetX - whitebeard.x, dy = targetY - whitebeard.y;
                     let len = Math.sqrt(dx * dx + dy * dy) || 1;
                     rwbAttacks.push({ type: "fist", x: whitebeard.x, y: whitebeard.y + 20, vx: (dx / len) * 6.0, vy: (dy / len) * 6.0, size: 14, hp: 3, maxHp: 3, damage: Math.ceil(16 * BALANCE.superDamageMult), life: 250, color: "#ffffff", rotation: 0, rotSpeed: 0, trail: [], hasHaki: true });
@@ -2198,6 +2307,18 @@
                 // Но всё равно рисуем (рендер отдельно)
                 continue;
             }
+            if (a.type === "wb_attack_telegraph") {
+                a.warningTimer--;
+                if (a.warningTimer <= 0) {
+                    let attackKind = a.attackKind, attackId = a.attackId;
+                    rwbAttacks.splice(i, 1);
+                    wbBrain.phase = "attack"; wbBrain.phaseTimer = 7;
+                    if (attackKind === "super") executeWhitebeardSuperAttack(attackId);
+                    else executeWhitebeardAttack(attackId);
+                }
+                continue;
+            }
+
             var dioRWBCtx=(typeof getBossContext==="function")?getBossContext():null;
             if(rwbPlayer.invulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioRWBCtx&&window.dioAttackTouchesStand(dioRWBCtx,a)){
                 a.dioStandHitOnce=true;hitPlayer(Math.max(1,Math.floor((Number(a.damage)||8)*.4)));rwbAttacks.splice(i,1);continue;
@@ -2333,7 +2454,43 @@
                 continue;
             }
 
-            if (a.type === "wb_reflect_vortex") {
+            if (a.type === "wb_attack_telegraph") {
+            ctx.save();
+            let pulse = 0.36 + Math.sin(performance.now() / 75) * 0.14;
+            ctx.globalAlpha = pulse; ctx.strokeStyle = a.color; ctx.fillStyle = a.color;
+            ctx.shadowColor = a.color; ctx.shadowBlur = 16; ctx.lineWidth = 3;
+            if (a.attackKind === "normal" && a.attackId === 1) {
+                ctx.beginPath(); ctx.arc(a.originX, a.originY, 75 + Math.sin(performance.now() / 70) * 5, 0, Math.PI * 2); ctx.stroke();
+            } else if (a.attackKind === "normal" && [2, 3, 7].includes(a.attackId)) {
+                ctx.fillRect(0, a.targetY - 13, 400, 26);
+                ctx.globalAlpha = 0.95; ctx.setLineDash([7, 7]);
+                ctx.beginPath(); ctx.moveTo(0, a.targetY - 13); ctx.lineTo(400, a.targetY - 13); ctx.moveTo(0, a.targetY + 13); ctx.lineTo(400, a.targetY + 13); ctx.stroke(); ctx.setLineDash([]);
+            } else if (a.attackKind === "normal" && a.attackId === 6) {
+                ctx.beginPath(); ctx.arc(a.targetX, a.targetY, 23, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(a.targetX - 17, a.targetY); ctx.lineTo(a.targetX + 17, a.targetY); ctx.moveTo(a.targetX, a.targetY - 17); ctx.lineTo(a.targetX, a.targetY + 17); ctx.stroke();
+            } else if ((a.attackKind === "normal" && (a.attackId === 0 || a.attackId === 5)) || (a.attackKind === "super" && a.attackId === 0)) {
+                (a.columns || []).forEach(function(cx) { ctx.beginPath(); ctx.moveTo(cx, 18); ctx.lineTo(cx, 94); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, 92, 7, 0, Math.PI * 2); ctx.stroke(); });
+            } else if (a.attackKind === "super" && a.attackId === 1) {
+                ctx.beginPath(); ctx.arc(a.targetX, a.targetY, 58, 0, Math.PI * 2); ctx.stroke();
+            } else if (a.attackKind === "super" && a.attackId === 2) {
+                ctx.beginPath(); ctx.ellipse(a.targetX, 360, 43, 12, 0, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(a.targetX, 0); ctx.lineTo(a.targetX, 450); ctx.stroke();
+            } else if (a.attackKind === "super" && a.attackId === 4) {
+                ctx.fillRect(0, 0, 400, 22); ctx.strokeRect(0, 0, 400, 40);
+            } else if (a.attackKind === "super" && a.attackId === 3) {
+                ctx.beginPath(); ctx.arc(a.targetX, a.targetY, 46, 0, Math.PI * 2); ctx.stroke();
+            } else if (a.attackKind === "normal" && a.attackId === 4) {
+                ctx.fillRect(0, 0, 400, 24); ctx.strokeRect(0, 0, 400, 42);
+            }
+            ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+            ctx.strokeStyle = "#111111"; ctx.lineWidth = 3; ctx.strokeText("⚠ " + a.title + " ⚠", 200, 120);
+            ctx.fillText("⚠ " + a.title + " ⚠", 200, 120);
+            ctx.font = "10px monospace"; ctx.fillStyle = "#ffe9a6"; ctx.fillText("ПОДГОТОВКА", 200, 137);
+            ctx.restore(); return;
+        }
+
+        if (a.type === "wb_reflect_vortex") {
                 ctx.save();
                 let pulse = 1 + Math.sin(performance.now() / 90) * 0.12;
                 ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0);
@@ -2893,7 +3050,7 @@
                     rwbTitanFistTimer++;
                     if (!wbVortexActive && rwbTitanFistTimer >= RWB_TITAN_INTERVAL * (isWBReflectVortexActive() ? 1.43 : 1)) {
                         rwbTitanFistTimer = 0;
-                        rwbAttacks.push({ type: "titan_fist", x: 120 + Math.random() * 160, y: -120, vy: 3.5, size: 75, damage: Math.ceil(35 * BALANCE.superDamageMult), life: 300, state: "falling", hit: false, color: "#8B7355" });
+                        rwbAttacks.push({ type: "titan_fist", x: Math.max(75, Math.min(325, wbBrain.plannedTargetX || rwbPlayer.x)), y: -120, vy: 3.5, size: 75, damage: Math.ceil(35 * BALANCE.superDamageMult), life: 300, state: "falling", hit: false, color: "#8B7355" });
                         rwbFloatingTexts.push({ x: 200, y: 100, text: "👊 ТИТАН-КУЛАК 👊", color: "#ffdd00", life: 60, maxLife: 60, vy: -0.3, vx: 0, size: 18 });
                         playWhooshSound(0.5);
                         setTimeout(function() { playImpactSound(0.8, 0.4); }, 900);
@@ -3618,7 +3775,7 @@
     window.setRWBSpeedMult = function(v) { rwbSpeedMult = v; };
 
     console.log("╔════════════════════════════════════════════════════════════╗");
-    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v21.0                             ║");
+    console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v22.0                             ║");
     console.log("║  ✅ garouTimeStop останавливает ВСЕ атаки                  ║");
     console.log("║  ✅ Поглощение урона работает                              ║");
     console.log("║  ✅ Увеличение урона применяется к пулям                   ║");
