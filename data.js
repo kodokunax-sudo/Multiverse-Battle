@@ -341,7 +341,7 @@ const cardStats = {
     "Мифическая":   { damage: 35, hp: 60, sellPrice: 260, speed: 1.2 },
     "Легендарная":  { damage: 60, hp: 100, sellPrice: 450, speed: 1.5 },
     "Секретная":    { damage: 100, hp: 180, sellPrice: 800, speed: 2.0 },
-    "Подарочная":   { damage: 100, hp: 180, sellPrice: 0,   speed: 2.0 },
+    "Подарочная":   { damage: 100, hp: 180, sellPrice: 0,   speed: 3.0 },
     "Эволюционная": { damage: 500, hp: 1000, sellPrice: 0,  speed: 1.8 },
     "Босс":         { damage: 80,  hp: 150, sellPrice: 1000, speed: 1.1 },
     "Пасхалка":     { damage: 10,  hp: 20,  sellPrice: 0,   speed: 1.0 }
