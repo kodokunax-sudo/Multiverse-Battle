@@ -29,6 +29,8 @@
     var currentClanInvites = [];
     var currentFriendSearchResults = [];
     var publicProfileUserId = null;
+    var publicActivityRefreshTimer = null;
+    var publicProfileCreatedAtFallback = null;
     var presenceHeartbeatTimer = null;
     var ownStatsData = null;
     var publicStatsData = null;
@@ -233,6 +235,53 @@
     function formatCount(value) {
         try { return Math.max(0, Number(value) || 0).toLocaleString('ru-RU'); }
         catch (_error) { return String(value || 0); }
+    }
+
+    function formatActivityDate(value) {
+        if (!value) return '';
+        var date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toLocaleString('ru-RU', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    function renderPublicActivity(activity, createdAtFallback) {
+        var badge = byId('clanPublicPresenceBadge');
+        var created = byId('clanPublicCreatedAt');
+        var lastSeen = byId('clanPublicLastSeen');
+        var hasStatus = !!activity && typeof activity.is_online === 'boolean';
+        var online = hasStatus && activity.is_online === true;
+
+        if (badge) {
+            badge.textContent = hasStatus ? (online ? '● В СЕТИ' : '○ НЕ В СЕТИ') : 'СТАТУС НЕ ДОСТУПЕН';
+            badge.classList.toggle('online', hasStatus && online);
+            badge.classList.toggle('offline', hasStatus && !online);
+            badge.classList.toggle('status-unknown', !hasStatus);
+        }
+
+        var createdAt = activity && activity.account_created_at ? activity.account_created_at : createdAtFallback;
+        if (created) {
+            var formattedCreated = formatActivityDate(createdAt);
+            created.textContent = formattedCreated ? 'Аккаунт создан: ' + formattedCreated : 'Аккаунт создан: нет данных';
+        }
+        if (lastSeen) {
+            var seen = activity && activity.last_seen_at ? formatActivityDate(activity.last_seen_at) : '';
+            if (online) lastSeen.textContent = 'Последний заход: сейчас';
+            else lastSeen.textContent = seen ? 'Последний заход: ' + seen : 'Последний заход: нет данных';
+        }
+    }
+
+    async function refreshPublicProfileActivity(userId, createdAtFallback) {
+        if (!db || !currentUser || !userId || publicProfileUserId !== userId) return;
+        var client = db;
+        var result = await client.rpc('mb_get_player_activity', { p_user_id: userId });
+        if (result.error) throw result.error;
+        if (client !== db || publicProfileUserId !== userId) return;
+        var activity = Array.isArray(result.data) ? result.data[0] : result.data;
+        if (!activity) throw new Error('profile_not_found');
+        renderPublicActivity(activity, createdAtFallback);
     }
 
     function renderStatsGrid(containerId, stats) {
@@ -493,6 +542,10 @@
         if (player.active_title && titleById(player.active_title)) meta.push('🏅 ' + titleLabel(player.active_title));
         if (player.highest_wave !== undefined && player.highest_wave !== null) meta.push('🌊 Волна ' + formatCount(player.highest_wave));
         if (player.friend_code) meta.push('Код MB-' + player.friend_code);
+        if (player.last_seen_at && player.is_online === false) {
+            var lastSeenText = formatActivityDate(player.last_seen_at);
+            if (lastSeenText) meta.push('Последний заход: ' + lastSeenText);
+        }
         if (player.created_at && player.direction) meta.push(player.direction === 'incoming' ? 'Входящая заявка' : 'Исходящая заявка');
         main.appendChild(node('div', 'online-player-meta', meta.join(' · ') || 'Игрок Multiverse Battle'));
         row.appendChild(main);
@@ -556,6 +609,21 @@
             row.appendChild(buttons); container.appendChild(row);
         });
     }
+    function touchCurrentPresence() {
+        if (!db || !currentUser) return Promise.resolve(null);
+        var client = db;
+        return client.rpc('mb_touch_presence').then(function (result) {
+            if (result.error) {
+                console.warn('[MB friends] Presence update:', result.error.message);
+                return null;
+            }
+            return result.data;
+        }).catch(function (error) {
+            console.warn('[MB friends] Presence update failed:', error && error.message ? error.message : error);
+            return null;
+        });
+    }
+
     async function refreshFriendsHub() {
         if (!db || !currentUser) {
             setListMessage('onlineFriendsList', 'Войди в аккаунт, чтобы пользоваться друзьями.');
@@ -1029,6 +1097,11 @@
         if (!overlay || !card) return;
         publicProfileUserId = userId;
         publicStatsMode = 'rebirth';
+        if (publicActivityRefreshTimer !== null) {
+            window.clearInterval(publicActivityRefreshTimer);
+            publicActivityRefreshTimer = null;
+        }
+        publicProfileCreatedAtFallback = null;
         overlay.style.display = 'flex';
         overlay.setAttribute('aria-hidden', 'false');
         document.body.classList.add('clan-profile-modal-open');
@@ -1042,14 +1115,30 @@
         if (closeButton) closeButton.focus();
         try {
             var result = await db.from('profiles')
-                .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, current_rebirth_stats, lifetime_stats, rebirth_history, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, current_rebirth_stats, lifetime_stats, rebirth_history, created_at, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
                 .eq('id', userId).maybeSingle();
             if (result.error) throw result.error;
             if (!result.data) throw new Error('profile_not_found');
+            if (publicProfileUserId !== userId) return;
             byId('clanPublicName').textContent = result.data.display_name || 'Игрок';
             byId('clanPublicDescription').textContent = result.data.description || 'Игрок пока не добавил описание.';
             byId('clanPublicAvatar').src = avatarPathForName(result.data.avatar_name) || 'images/Super_Dio_2.gif';
             byId('clanPublicFriendCode').textContent = result.data.friend_code ? 'MB-' + result.data.friend_code : '—';
+            renderPublicActivity(null, result.data.created_at);
+            try {
+                await refreshPublicProfileActivity(userId, result.data.created_at);
+            } catch (activityError) {
+                console.warn('[MB online] Не удалось загрузить активность игрока:', activityError.message || activityError);
+                renderPublicActivity(null, result.data.created_at);
+            }
+            if (publicProfileUserId === userId) {
+                publicProfileCreatedAtFallback = result.data.created_at || null;
+                publicActivityRefreshTimer = window.setInterval(function () {
+                    refreshPublicProfileActivity(userId, publicProfileCreatedAtFallback).catch(function (activityError) {
+                        console.warn('[MB online] Не удалось обновить статус игрока:', activityError.message || activityError);
+                    });
+                }, 30000);
+            }
             showPublicTitle(result.data);
             renderPublicShowcase('clanPublicShowcase', result.data.showcase_cards);
             publicStatsData = result.data;
@@ -1065,6 +1154,11 @@
 
     function hidePublicProfile() {
         publicProfileUserId = null;
+        if (publicActivityRefreshTimer !== null) {
+            window.clearInterval(publicActivityRefreshTimer);
+            publicActivityRefreshTimer = null;
+        }
+        publicProfileCreatedAtFallback = null;
         var overlay = byId('clanPublicProfileOverlay');
         if (overlay) {
             overlay.style.display = 'none';
@@ -2313,6 +2407,7 @@
                 showAuthState();
                 await refreshAll();
                 if (requestedSlot !== getCurrentGameSlot() || db !== currentClient) return;
+                await touchCurrentPresence();
                 notifyCloudSaveAuthChanged();
                 return;
             }
@@ -2351,6 +2446,7 @@
             showAuthState();
             await refreshAll();
             if (requestedSlot !== getCurrentGameSlot() || db !== client) return;
+            await touchCurrentPresence();
             notifyCloudSaveAuthChanged();
             var subscriptionResult = client.auth.onAuthStateChange(function (_event, session) {
                 if (db !== client || activeAuthSlot !== requestedSlot || requestedSlot !== getCurrentGameSlot()) return;
@@ -2372,6 +2468,7 @@
                     }
                     showAuthState();
                     await refreshAll();
+                    await touchCurrentPresence();
                     notifyCloudSaveAuthChanged();
                 }, 0);
             });
@@ -2429,9 +2526,7 @@
                 if (friendsPane) {
                     refreshFriendsHub();
                 } else {
-                    db.rpc('mb_touch_presence').then(function (result) {
-                        if (result.error) console.warn('[MB friends] Presence update:', result.error.message);
-                    }).catch(function () {});
+                    touchCurrentPresence();
                 }
             }, 45000);
         }
