@@ -1414,7 +1414,6 @@ function renderWaystarSimpleCoopFrame() {
     var api = window.MBOnlineWaystar;
     if (!api || !api.active || !api.simpleBossMode || !ctx || !canvas) return;
     var leader = typeof api.isLeader === 'function' && api.isLeader();
-    if (waystarInvulnTimer > 0) waystarInvulnTimer--;
     if (waystarBossFlash > 0) waystarBossFlash--;
 
     updateWaystarPlayer();
