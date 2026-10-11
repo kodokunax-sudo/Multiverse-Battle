@@ -141,7 +141,7 @@
         renderCtx.translate(Number(bullet.x) || 0, Number(bullet.y) || 0);
 
         // Переворачиваем наклон слэша на противоположную диагональ.
-        renderCtx.rotate(angle + 0.62 + wobble - Math.PI / 2);
+        renderCtx.rotate(angle + 0.62 + wobble - Math.PI);
         // Делаем сам разрез заметно шире, не растягивая его вдоль полёта.
         renderCtx.scale(1.7, 1.0);
         renderCtx.globalCompositeOperation = "lighter";
