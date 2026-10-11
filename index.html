@@ -931,6 +931,26 @@
                         </div>
                     </div>
                     <div class="shop-item">
+                        <div><strong>🎮 Вид мобильного джойстика</strong></div>
+                        <div>
+                            <select id="mobileControlStyleSelect" onchange="changeMobileControlStyle(this.value)">
+                                <option value="dpad8">🕹️ Кнопочный — 8 направлений</option>
+                                <option value="dpad4">✚ Кнопочный — крест (4 направления)</option>
+                                <option value="arcade">🎮 Аркадный ряд из 4 кнопок</option>
+                                <option value="analog">⭕ Аналоговый джойстик</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="shop-item">
+                        <div><strong>↔️ Расположение кнопок</strong></div>
+                        <div>
+                            <select id="mobileControlPositionSelect" onchange="changeMobileControlPosition(this.value)">
+                                <option value="left">⬅️ Слева</option>
+                                <option value="right">➡️ Справа</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="shop-item">
                         <div><strong>🕹️ Размер джойстика</strong></div>
                         <div>
                             <input type="range" id="joystickSizeSlider" min="60" max="160" value="100" style="width:120px;" oninput="changeJoystickSize(this.value)"> 
@@ -1296,7 +1316,7 @@
 <script src="daily.js?v=10"></script>
 <script src="pass.js?v=9"></script>
 <script src="dandy.js?v=9"></script>
-<script src="game.js?v=30"></script>
+<script src="game.js?v=31"></script>
 <script src="battle.js?v=15"></script>
 <script src="supers.js?v=33"></script>
 <script src="dio.js?v=11"></script>
@@ -1314,13 +1334,13 @@
 <script src="visuals.js"></script>
 
 <!-- ★★★ ДЖОЙСТИК — САМЫМ ПОСЛЕДНИМ ★★★ -->
-<script src="joystick.js?v=4"></script>
+<script src="joystick.js?v=5"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
 <script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
 <script src="clans.js?v=29"></script>
 <script src="online-arena.js?v=18"></script>
-<script src="mobile-battle-controls.js?v=2"></script>
+<script src="mobile-battle-controls.js?v=3"></script>
 </body>
 </html>
