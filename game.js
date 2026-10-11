@@ -98,13 +98,48 @@ const MODER_ACCESS_CODE_VERSION = 2;
 
 // ========== СЛОТЫ СОХРАНЕНИЙ ==========
 function getSlotKey(slot) { return "cgV20_slot" + slot; }
-function loadSlotMeta(slot) { let s = localStorage.getItem(getSlotKey(slot) + "_meta"); return s ? JSON.parse(s) : { nickname: "Слот " + (slot + 1), exists: false }; }
+function loadSlotMeta(slot) {
+    try {
+        let raw = localStorage.getItem(getSlotKey(slot) + "_meta");
+        let meta = raw ? JSON.parse(raw) : null;
+        if (meta && typeof meta === "object" && !Array.isArray(meta)) {
+            return { nickname: typeof meta.nickname === "string" && meta.nickname ? meta.nickname : "Слот " + (slot + 1), exists: meta.exists === true };
+        }
+    } catch (error) {
+        console.warn("[MB save] Не удалось прочитать метаданные слота:", error && error.message);
+    }
+    return { nickname: "Слот " + (slot + 1), exists: false };
+}
 function saveSlotMeta(slot, meta) { localStorage.setItem(getSlotKey(slot) + "_meta", JSON.stringify(meta)); }
-function loadGameFromSlot(slot) { let s = localStorage.getItem(getSlotKey(slot)); return s ? JSON.parse(s) : null; }
-function saveGameToSlot(slot) { localStorage.setItem(getSlotKey(slot), JSON.stringify(slotData)); let meta = loadSlotMeta(slot); meta.exists = true; meta.nickname = slotData.nickname || meta.nickname; saveSlotMeta(slot, meta); }
+function loadGameFromSlot(slot) {
+    try {
+        let raw = localStorage.getItem(getSlotKey(slot));
+        if (!raw) return null;
+        let data = JSON.parse(raw);
+        return data && typeof data === "object" && !Array.isArray(data) && Array.isArray(data.myCards) ? data : null;
+    } catch (error) {
+        console.warn("[MB save] Локальное сохранение слота повреждено:", error && error.message);
+        return null;
+    }
+}
+function saveGameToSlot(slot) {
+    if (mbCloudRecoveryPendingSlot === slot) return false;
+    try {
+        localStorage.setItem(getSlotKey(slot), JSON.stringify(slotData));
+        let meta = loadSlotMeta(slot);
+        meta.exists = true;
+        meta.nickname = slotData.nickname || meta.nickname;
+        saveSlotMeta(slot, meta);
+        return true;
+    } catch (error) {
+        console.warn("[MB save] Не удалось сохранить слот:", error && error.message);
+        return false;
+    }
+}
 
 // ========== ОБЛАЧНОЕ СОХРАНЕНИЕ (ОДНО НА АККАУНТ) ==========
 let mbCloudSyncReadyForUser = null;
+let mbCloudRecoveryPendingSlot = null;
 let mbCloudSyncBusy = false;
 let mbCloudSaveTimer = null;
 let mbCloudReloadPending = false;
@@ -280,9 +315,36 @@ function mbReadCurrentLocalSave(slot) {
         return data && typeof data === 'object' && Array.isArray(data.myCards) ? data : null;
     } catch (_error) { return null; }
 }
+function mbSlotNeedsCloudRecovery(slot, meta) {
+    // If a slot was previously used, never silently turn a missing or malformed save into a new game.
+    var rawExists = localStorage.getItem(getSlotKey(slot)) !== null;
+    var marker = mbReadCloudMarker(slot);
+    var bindings = mbReadCloudBindings();
+    return rawExists || !!(meta && meta.exists) ||
+        !!(marker && marker.userId) ||
+        !!(bindings.bySlot && bindings.bySlot[String(slot)]);
+}
 function mbValidateCloudSave(data) {
     return !!data && typeof data === 'object' && !Array.isArray(data) &&
         Array.isArray(data.myCards) && data.myCards.length <= 100000;
+}
+function mbIsStarterSave(data) {
+    if (!mbValidateCloudSave(data)) return false;
+    return Number(data.rebirthCount || 0) === 0 &&
+        Number(data.wave || 1) <= 1 &&
+        data.myCards.length <= 4 &&
+        Number(data.points || 0) <= 100 &&
+        !(Array.isArray(data.defeatedBosses) && data.defeatedBosses.length);
+}
+function mbCloudClearlyHasMoreProgress(cloudData, localData) {
+    if (!mbIsStarterSave(localData) || !mbValidateCloudSave(cloudData)) return false;
+    return Number(cloudData.rebirthCount || 0) > 0 ||
+        Number(cloudData.wave || 1) > 1 ||
+        cloudData.myCards.length > 4 ||
+        Number(cloudData.points || 0) > 100 ||
+        (Array.isArray(cloudData.defeatedBosses) && cloudData.defeatedBosses.length > 0) ||
+        (Array.isArray(cloudData.discoveredCards) && cloudData.discoveredCards.length > 0) ||
+        Number(cloudData.totalCardsObtained || 0) > 3;
 }
 function mbPutCloudSaveInLocalSlot(saveData, userId, cloudRow, targetSlot) {
     targetSlot = Number.isInteger(targetSlot) ? targetSlot : currentSlot;
@@ -300,6 +362,7 @@ function mbPutCloudSaveInLocalSlot(saveData, userId, cloudRow, targetSlot) {
     meta.nickname = copy.nickname || meta.nickname || ('Слот ' + (targetSlot + 1));
     saveSlotMeta(targetSlot, meta);
     mbWriteCloudMarker(targetSlot, userId, copy, cloudRow);
+    if (mbCloudRecoveryPendingSlot === targetSlot) mbCloudRecoveryPendingSlot = null;
     if (targetSlot === currentSlot) {
         localStorage.setItem('cgV20_lastSlot', String(targetSlot));
         mbCloudSyncReadyForUser = userId;
@@ -408,6 +471,10 @@ async function mbSyncCloudSave(action) {
                 mbCloudStatus('Облачная запись повреждена или несовместима. Локальный прогресс не изменён.', 'error');
                 return;
             }
+            if (mbCloudRecoveryPendingSlot === targetSlot && marker && marker.userId === userId) {
+                mbPutCloudSaveInLocalSlot(cloudRow.save_data, userId, cloudRow, targetSlot);
+                return;
+            }
             if (cloudFingerprint === localFingerprint) {
                 if (mbWriteCloudMarker(targetSlot, userId, localSave, cloudRow)) {
                     mbCloudSyncReadyForUser = targetSlot === currentSlot ? userId : null;
@@ -444,6 +511,14 @@ async function mbSyncCloudSave(action) {
 
         if (!mbValidateCloudSave(cloudRow.save_data)) {
             mbCloudStatus('Облачная запись повреждена или несовместима. Ничего не перезаписано.', 'error');
+            return;
+        }
+
+        // A missing local save can be recreated as a starter save by old code. Never let that
+        // starter state overwrite a clearly richer cloud save during automatic sync.
+        if (action === 'auto' && mbCloudClearlyHasMoreProgress(cloudRow.save_data, localSave)) {
+            mbPutCloudSaveInLocalSlot(cloudRow.save_data, userId, cloudRow, targetSlot);
+            mbCloudStatus('Восстановлен более полный облачный прогресс. Пустое сохранение не перезаписано.', 'success');
             return;
         }
 
@@ -580,12 +655,12 @@ window.addEventListener('mb:auth-changed', function (event) {
         return;
     }
     mbCloudSyncReadyForUser = null;
-    if (currentSlot >= 0) mbSyncCloudSave(mbPendingNewAccountTransfer(userId) || detail.isNewAccount ? 'new-account' : 'auto');
+    if (currentSlot >= 0) mbSyncCloudSave(mbCloudRecoveryPendingSlot === currentSlot ? 'download' : (mbPendingNewAccountTransfer(userId) || detail.isNewAccount ? 'new-account' : 'auto'));
     else mbCloudStatus('Аккаунт подключён. Выбери сохранение игры, чтобы включить облако.', 'info');
 });
 window.addEventListener('mb:slot-ready', function () {
     var userId = mbCurrentCloudUserId();
-    if (userId) mbSyncCloudSave(mbPendingNewAccountTransfer(userId) ? 'new-account' : 'auto');
+    if (userId) mbSyncCloudSave(mbCloudRecoveryPendingSlot === currentSlot ? 'download' : (mbPendingNewAccountTransfer(userId) ? 'new-account' : 'auto'));
 });
 window.addEventListener('mb:cloud-save-action', function (event) {
     var action = event && event.detail ? event.detail.action : 'auto';
@@ -601,15 +676,45 @@ window.addEventListener('mb:cloud-save-action', function (event) {
 });
 
 function selectSlot(slot) {
+    slot = Number(slot);
+    if (!Number.isInteger(slot) || slot < 0 || slot > 2) return;
     if (currentSlot !== slot) {
         window.dispatchEvent(new CustomEvent('mb:slot-changing', { detail: { from: currentSlot, to: slot } }));
     }
     currentSlot = slot;
     let saved = loadGameFromSlot(slot);
     let meta = loadSlotMeta(slot);
-    if (!saved && slot === 0) { let oldData = localStorage.getItem("cgV20") || localStorage.getItem("cgV19") || localStorage.getItem("cgV18"); if (oldData) { try { let d = JSON.parse(oldData); if (d.myCards && d.myCards.length > 0) { if (confirm("Найдено старое сохранение! Перенести в Слот 1?")) { loadGameData(d); slotData.nickname = meta.nickname || "Игрок"; saveGameToSlot(slot); finishSlotLoad(slot); return; } } } catch(e) {} } }
-    if (saved) { loadGameData(saved); } else { initNewGame(); slotData.nickname = meta.nickname; }
-    saveGameToSlot(slot);
+    let needsRecovery = !saved && mbSlotNeedsCloudRecovery(slot, meta);
+    if (needsRecovery) {
+        mbCloudRecoveryPendingSlot = slot;
+        initNewGame();
+        slotData.nickname = meta.nickname || ('Слот ' + (slot + 1));
+        window.setTimeout(function () {
+            mbCloudStatus('Сохранение слота ' + (slot + 1) + ' отсутствует локально. Автосохранение заблокировано до восстановления.', 'warning');
+            window.alert('В слоте ' + (slot + 1) + ' не найдено исходное сохранение. Я не буду заменять его новой игрой. Открой вкладку «Онлайн» и войди в аккаунт, привязанный к этому слоту: игра попробует восстановить облачный прогресс автоматически.');
+        }, 50);
+    } else {
+        mbCloudRecoveryPendingSlot = null;
+        if (!saved && slot === 0) {
+            let oldData = localStorage.getItem("cgV20") || localStorage.getItem("cgV19") || localStorage.getItem("cgV18");
+            if (oldData) {
+                try {
+                    let d = JSON.parse(oldData);
+                    if (d.myCards && d.myCards.length > 0 && confirm("Найдено старое сохранение! Перенести в Слот 1?")) {
+                        loadGameData(d);
+                        slotData.nickname = meta.nickname || "Игрок";
+                        saveGameToSlot(slot);
+                        finishSlotLoad(slot);
+                        return;
+                    }
+                } catch (e) {}
+            }
+        }
+        if (saved) loadGameData(saved);
+        else { initNewGame(); slotData.nickname = meta.nickname; }
+        slotData.nickname = slotData.nickname || meta.nickname;
+        saveGameToSlot(slot);
+    }
     finishSlotLoad(slot);
 }
 
@@ -1006,7 +1111,8 @@ function initNewGame() {
 }
 
 function saveAll() { 
-    if (currentSlot < 0) return; 
+    if (currentSlot < 0) return;
+    if (mbCloudRecoveryPendingSlot === currentSlot) return;
     mbStatsObserveCurrentState();
     slotData.myCards = myCards; 
     slotData.team = team; 
@@ -2605,10 +2711,22 @@ async function switchToSlot(slot) {
     currentSlot = slot;
     let saved = loadGameFromSlot(slot);
     let meta = loadSlotMeta(slot);
-    if (saved) { loadGameData(saved); }
-    else { initNewGame(); slotData.nickname = meta.nickname; }
-    slotData.nickname = slotData.nickname || meta.nickname;
-    saveGameToSlot(slot);
+    let needsRecovery = !saved && mbSlotNeedsCloudRecovery(slot, meta);
+    if (needsRecovery) {
+        mbCloudRecoveryPendingSlot = slot;
+        initNewGame();
+        slotData.nickname = meta.nickname || ('Слот ' + (slot + 1));
+        window.setTimeout(function () {
+            mbCloudStatus('Сохранение слота ' + (slot + 1) + ' отсутствует локально. Автосохранение заблокировано до восстановления.', 'warning');
+            window.alert('В слоте ' + (slot + 1) + ' не найдено исходное сохранение. Я не буду заменять его новой игрой. Войди в привязанный аккаунт во вкладке «Онлайн», чтобы восстановить облачный прогресс.');
+        }, 50);
+    } else {
+        mbCloudRecoveryPendingSlot = null;
+        if (saved) loadGameData(saved);
+        else { initNewGame(); slotData.nickname = meta.nickname; }
+        slotData.nickname = slotData.nickname || meta.nickname;
+        saveGameToSlot(slot);
+    }
     finishSlotLoad(slot);
     renderSlotsInGame();
 }
@@ -2704,15 +2822,27 @@ window.MBGameCards = {
 
 document.addEventListener("DOMContentLoaded", function () {
     let lastSlot = parseInt(localStorage.getItem("cgV20_lastSlot") || "-1");
-    if (lastSlot >= 0 && lastSlot < 3 && loadSlotMeta(lastSlot).exists) { 
-        currentSlot = lastSlot; 
-        let saved = loadGameFromSlot(lastSlot); 
-        let meta = loadSlotMeta(lastSlot); 
-        if (saved) { loadGameData(saved); } 
-        else { initNewGame(); slotData.nickname = meta.nickname; } 
-        slotData.nickname = slotData.nickname || meta.nickname; 
-        saveGameToSlot(lastSlot); 
-        finishSlotLoad(lastSlot); 
+    if (lastSlot >= 0 && lastSlot < 3 && loadSlotMeta(lastSlot).exists) {
+        currentSlot = lastSlot;
+        let saved = loadGameFromSlot(lastSlot);
+        let meta = loadSlotMeta(lastSlot);
+        let needsRecovery = !saved && mbSlotNeedsCloudRecovery(lastSlot, meta);
+        if (needsRecovery) {
+            mbCloudRecoveryPendingSlot = lastSlot;
+            initNewGame();
+            slotData.nickname = meta.nickname || ('Слот ' + (lastSlot + 1));
+            window.setTimeout(function () {
+                mbCloudStatus('Сохранение слота ' + (lastSlot + 1) + ' отсутствует локально. Автосохранение заблокировано до восстановления.', 'warning');
+                window.alert('В слоте ' + (lastSlot + 1) + ' не найдено исходное сохранение. Я не буду заменять его новой игрой. Войди в привязанный аккаунт во вкладке «Онлайн», чтобы восстановить облачный прогресс.');
+            }, 50);
+        } else {
+            mbCloudRecoveryPendingSlot = null;
+            if (saved) loadGameData(saved);
+            else { initNewGame(); slotData.nickname = meta.nickname; }
+            slotData.nickname = slotData.nickname || meta.nickname;
+            saveGameToSlot(lastSlot);
+        }
+        finishSlotLoad(lastSlot);
         checkFreeSpinReset();
         checkGachaReset();
         updateClaimTimer();
