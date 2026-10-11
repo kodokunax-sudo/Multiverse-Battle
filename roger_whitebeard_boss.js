@@ -21,7 +21,7 @@
     window._rogerWhitebeardLoaded = true;
 
     const RWB_SUPER_ROGER_HP = 2200;
-    const RWB_SUPER_WB_HP = 950;
+    const RWB_SUPER_WB_HP = 1800;
     const RWB_ATTACK_SPEED = 45;
     const RWB_ATTACK_SPEED_SUPER_ROGER = 30;
     const RWB_SUPER_COOLDOWN = 300;
@@ -37,7 +37,7 @@
         playerDamageMult: 1.0,
         rogerHp: 800,
         rogerDamageMult: 1.3,
-        whitebeardHp: 650,
+        whitebeardHp: 1000,
         whitebeardDamageMult: 0.8,
         superAttackRate: 40,
         superDamageMult: 1.7,
@@ -1942,12 +1942,10 @@
         if (!boss || isWBReflectVortexActive()) return false;
         let side = rwbPlayer.x >= boss.x ? -1 : 1;
         wbBrain.phase = "attack"; wbBrain.phaseTimer = 7;
-        let vx = Math.max(44, Math.min(356, boss.x + side * 58));
-        let vy = Math.max(65, Math.min(435, boss.y + 26));
-        if (Math.hypot(rwbPlayer.x - vx, rwbPlayer.y - vy) < 72) {
-            vx = Math.max(44, Math.min(356, boss.x - side * 58));
-        }
-        rwbAttacks.push({ type: "wb_reflect_vortex", x: vx, y: vy, radius: 43, life: 285, maxLife: 285, rotation: Math.random() * Math.PI * 2, color: "#9f5cff", isSuper: !!isSuper });
+        let vx = Math.max(52, Math.min(348, boss.x + side * 70));
+        let vy = Math.max(72, Math.min(425, boss.y + 32));
+        if (Math.hypot(rwbPlayer.x - vx, rwbPlayer.y - vy) < 92) vx = Math.max(52, Math.min(348, boss.x - side * 70));
+        rwbAttacks.push({ type: "wb_reflect_vortex", x: vx, y: vy, radius: 62, life: 320, maxLife: 320, rotation: Math.random() * Math.PI * 2, color: "#9f5cff", isSuper: !!isSuper });
         if (whitebeard) whitebeard.attackTimer = Math.max(whitebeard.attackTimer || 0, Math.ceil(RWB_ATTACK_SPEED * 1.43));
         if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") rwbActiveBoss.attackTimer = Math.max(rwbActiveBoss.attackTimer || 0, Math.ceil(BALANCE.superAttackRate * 1.43));
         rwbFloatingTexts.push({ x: vx, y: vy - 48, text: "🌀 ОТРАЖЕНИЕ!", color: "#bb8cff", life: 75, maxLife: 75, vy: -0.25, vx: 0, size: 15 });
@@ -1984,11 +1982,12 @@
         let boss = getWhitebeardEntity();
         if (!boss) return false;
         wbBrain.phase = "windup"; wbBrain.phaseTimer = 120;
+        let slashY = Math.max(34, Math.min(466, rwbPlayer.y));
         rwbAttacks.push({
             type: "wb_crescent_slash", state: "windup",
-            x: boss.x, y: boss.y, originX: boss.x, originY: boss.y,
-            vx: 0, vy: 0, size: 36, hp: 10, maxHp: 10,
-            damage: isSuper ? 24 : 20, life: 210, warningTimer: 120,
+            x: 200, y: slashY, originX: 200, originY: slashY, targetY: slashY,
+            vx: 0, vy: 0, size: 400, width: isSuper ? 42 : 34, hp: 10, maxHp: 10,
+            damage: isSuper ? 30 : 24, life: 210, warningTimer: 120,
             color: "#dff8ff", rotation: 0, isSuper: !!isSuper
         });
         rwbFloatingTexts.push({ x: 200, y: 82, text: "☠ РАССЕКАЮЩИЙ ГОРИЗОНТ ☠", color: "#dff8ff", life: 95, maxLife: 95, vy: -0.2, vx: 0, size: 15 });
@@ -2394,22 +2393,18 @@
             if (a.type === "wb_crescent_slash") {
                 if (a.state === "windup") {
                     a.warningTimer--;
-                    a.rotation += 0.045;
                     if (a.warningTimer <= 0) {
-                        let dx = rwbPlayer.x - a.originX, dy = rwbPlayer.y - a.originY;
-                        let len = Math.hypot(dx, dy) || 1;
-                        let speed = 5.5;
-                        a.x = a.originX; a.y = a.originY;
-                        a.vx = dx / len * speed; a.vy = dy / len * speed;
-                        a.state = "flying"; a.life = 90; a.rotation = Math.atan2(a.vy, a.vx);
-                        playImpactSound(0.65, 0.65); playWhooshSound(0.55); rwbShake = 12;
+                        a.state = "flying"; a.life = 18; a.x = 200; a.y = a.targetY;
+                        playImpactSound(0.85, 0.5); playWhooshSound(0.8); rwbShake = 22;
+                        rwbScreenFlash = 8; rwbScreenFlashColor = "#b9efff";
+                        for (let n = 0; n < 18; n++) spawnHakiLightning(Math.random() * 400, a.targetY + (Math.random() - 0.5) * 24, 1, true);
                     }
                 } else if (a.state === "flying") {
-                    a.x += a.vx; a.y += a.vy; a.life--;
-                    if (!a.hit && rwbPlayer.invulnTimer <= 0 && Math.hypot(rwbPlayer.x - a.x, rwbPlayer.y - a.y) < a.size * 0.82 + 8) {
-                        a.hit = true; hitPlayer(a.damage); spawnHitParticles(a.x, a.y, "#dff8ff", 12); rwbAttacks.splice(i, 1); continue;
+                    a.life--;
+                    if (!a.hit && rwbPlayer.invulnTimer <= 0 && Math.abs(rwbPlayer.y - a.targetY) < (a.width || 34) * 0.65 + rwbPlayer.size * 0.45) {
+                        a.hit = true; hitPlayer(a.damage); spawnHitParticles(rwbPlayer.x, a.targetY, "#dff8ff", 18);
                     }
-                    if (a.life <= 0 || a.x < -60 || a.x > 460 || a.y < -60 || a.y > 560) rwbAttacks.splice(i, 1);
+                    if (a.life <= 0) { spawnHitParticles(200, a.targetY, "#b9efff", 24); rwbAttacks.splice(i, 1); continue; }
                 } else { rwbAttacks.splice(i, 1); }
                 continue;
             }
@@ -3412,19 +3407,17 @@
         }
 
         if (a.type === "wb_reflect_vortex") {
-            ctx.save();
-            let pulse = 1 + Math.sin(performance.now() / 90) * 0.12;
-            ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0);
-            ctx.shadowColor = "#a66bff"; ctx.shadowBlur = 20;
-            ctx.strokeStyle = "#d9b8ff"; ctx.lineWidth = 3;
-            for (let ring = 0; ring < 3; ring++) {
-                ctx.globalAlpha = 0.85 - ring * 0.2;
-                ctx.beginPath();
-                ctx.ellipse(0, 0, a.radius * pulse * (0.58 + ring * 0.2), a.radius * (0.4 + ring * 0.13), ring * 0.7, 0.2 + performance.now() / 360, Math.PI * 1.65 + performance.now() / 360);
-                ctx.stroke();
+            ctx.save(); let pulse = 1 + Math.sin(performance.now() / 75) * 0.12;
+            ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0); ctx.shadowColor = "#9f5cff"; ctx.shadowBlur = 34;
+            ctx.globalAlpha = 0.22; ctx.fillStyle = "#6d24ff"; ctx.beginPath(); ctx.arc(0, 0, a.radius * 1.18 * pulse, 0, Math.PI * 2); ctx.fill();
+            for (let ring = 0; ring < 4; ring++) {
+                ctx.globalAlpha = 0.96 - ring * 0.15; ctx.strokeStyle = ring % 2 ? "#7a35ff" : "#f2dcff"; ctx.lineWidth = ring === 0 ? 5 : 2.5;
+                ctx.beginPath(); ctx.ellipse(0, 0, a.radius * pulse * (0.52 + ring * 0.19), a.radius * (0.34 + ring * 0.15), ring * 0.42, 0.15 + performance.now() / (ring % 2 ? 220 : 320), Math.PI * 1.7 + performance.now() / (ring % 2 ? 220 : 320)); ctx.stroke();
             }
-            ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
-            ctx.fillText("ОТРАЖЕНИЕ", 0, a.radius + 19);
+            ctx.globalAlpha = 1; ctx.fillStyle = "#210c43"; ctx.beginPath(); ctx.ellipse(0, 0, a.radius * 0.32, a.radius * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(0, 0, a.radius * 0.32, a.radius * 0.45, 0, 0, Math.PI * 2); ctx.stroke();
+            for (let shard = 0; shard < 8; shard++) { let ang = shard * Math.PI / 4 + performance.now() / 600; ctx.fillStyle = shard % 2 ? "#b78cff" : "#ffffff"; ctx.beginPath(); ctx.moveTo(Math.cos(ang) * a.radius * 0.74, Math.sin(ang) * a.radius * 0.74); ctx.lineTo(Math.cos(ang + 0.14) * a.radius * 1.08, Math.sin(ang + 0.14) * a.radius * 1.08); ctx.lineTo(Math.cos(ang + 0.28) * a.radius * 0.74, Math.sin(ang + 0.28) * a.radius * 0.74); ctx.closePath(); ctx.fill(); }
+            ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("覇気 / ОТРАЖЕНИЕ", 0, a.radius + 26);
             ctx.restore(); return;
         }
 
@@ -3477,24 +3470,17 @@
         }
 
         if (a.type === "wb_crescent_slash") {
-            ctx.save();
+            ctx.save(); let pulse = 0.72 + Math.sin(performance.now() / 55) * 0.2;
             if (a.state === "windup") {
-                ctx.translate(a.originX, a.originY); ctx.rotate(a.rotation || 0);
-                ctx.globalAlpha = 0.35 + Math.sin(performance.now() / 80) * 0.18;
-                ctx.strokeStyle = "#dff8ff"; ctx.lineWidth = 8; ctx.shadowColor = "#b9efff"; ctx.shadowBlur = 20;
-                ctx.beginPath(); ctx.arc(0, 0, 58, -0.85, 0.85); ctx.stroke();
-                ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
-                ctx.fillText("ГОТОВИТСЯ 2 СЕК.", 0, -75);
-                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, 66, -1.1, 1.1); ctx.stroke();
+                ctx.globalAlpha = pulse * 0.75; ctx.fillStyle = "#8feaff"; ctx.shadowColor = "#b9efff"; ctx.shadowBlur = 24; ctx.fillRect(0, a.targetY - 3, 400, 6);
+                ctx.globalAlpha = 0.92; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.setLineDash([10, 7]); ctx.beginPath(); ctx.moveTo(0, a.targetY - 20); ctx.lineTo(400, a.targetY - 20); ctx.moveTo(0, a.targetY + 20); ctx.lineTo(400, a.targetY + 20); ctx.stroke(); ctx.setLineDash([]);
+                ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.strokeStyle = "#14202b"; ctx.lineWidth = 3; ctx.strokeText("РАЗРУБ ГОРИЗОНТА — УЙДИ ВВЕРХ ИЛИ ВНИЗ", 200, a.targetY - 27); ctx.fillText("РАЗРУБ ГОРИЗОНТА — УЙДИ ВВЕРХ ИЛИ ВНИЗ", 200, a.targetY - 27);
             } else {
-                ctx.translate(a.x, a.y); ctx.rotate(a.rotation || 0);
-                ctx.shadowColor = "#b9efff"; ctx.shadowBlur = 20;
-                ctx.fillStyle = "#eafaff"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.moveTo(-a.size * 1.35, -a.size * 0.7);
-                ctx.quadraticCurveTo(-a.size * 0.05, -a.size * 1.35, a.size * 1.5, -a.size * 0.1);
-                ctx.quadraticCurveTo(a.size * 0.15, -a.size * 0.45, -a.size * 1.35, -a.size * 0.7); ctx.closePath(); ctx.fill(); ctx.stroke();
-                ctx.strokeStyle = "#5c91b0"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, a.size * 0.6, -0.6, 0.9); ctx.stroke();
-                ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText("HP " + a.hp + "/10", 0, a.size + 14);
+                ctx.globalAlpha = 0.22; ctx.fillStyle = "#8feaff"; ctx.fillRect(0, a.targetY - (a.width || 34), 400, (a.width || 34) * 2);
+                ctx.globalAlpha = 0.95; ctx.shadowColor = "#b9efff"; ctx.shadowBlur = 34; ctx.fillStyle = "#eafaff"; ctx.fillRect(0, a.targetY - 8, 400, 16);
+                ctx.globalAlpha = 1; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, a.targetY); ctx.lineTo(400, a.targetY); ctx.stroke();
+                for (let k = 0; k < 22; k++) { let xx = (k * 37 + performance.now() * 0.8) % 400; ctx.strokeStyle = k % 2 ? "#d9b8ff" : "#ffffff"; ctx.lineWidth = k % 3 ? 2 : 4; ctx.beginPath(); ctx.moveTo(xx, a.targetY - 15); ctx.lineTo(xx - 13, a.targetY + 15); ctx.stroke(); }
+                ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText("覇気", 200, a.targetY - 13);
             }
             ctx.restore(); return;
         }
