@@ -133,7 +133,7 @@
         return { rate: rate, bullets: bullets };
     };
 
-    // Серый воздушный слэш: диагональный изогнутый разрез, а не модель меча.
+    // Серый слэш — именно след резкого разреза: острый, тонкий по краям, без формы меча.
     window.drawEquipmentProjectile = function(renderCtx, bullet) {
         if (!renderCtx || !bullet || bullet.isMeleeWave !== true) return false;
         var angle = Math.atan2(Number(bullet.vy) || -1, Number(bullet.vx) || 0);
@@ -141,49 +141,40 @@
         var wobble = Math.sin((Number(bullet.age) || 0) * 0.22) * 0.025;
         renderCtx.save();
         renderCtx.translate(Number(bullet.x) || 0, Number(bullet.y) || 0);
-
-        // Переворачиваем наклон слэша на противоположную диагональ.
         renderCtx.rotate(angle + 0.62 + wobble - Math.PI);
-        // Делаем сам разрез заметно шире, не растягивая его вдоль полёта.
         renderCtx.scale(1.7, 1.0);
-        renderCtx.globalCompositeOperation = "lighter";
-        renderCtx.lineCap = "round";
-        renderCtx.lineJoin = "round";
+        renderCtx.globalCompositeOperation = "source-over";
+        renderCtx.lineCap = "butt";
+        renderCtx.lineJoin = "miter";
 
-        // Дымчатый серый след за разрезом.
-        renderCtx.shadowColor = "#aeb4bc";
-        renderCtx.shadowBlur = r * 1.05;
-        renderCtx.strokeStyle = "rgba(175,181,190,0.25)";
-        renderCtx.lineWidth = r * 0.72;
+        // Лёгкий короткий шлейф за линией разреза.
+        renderCtx.shadowColor = "#b8bec7";
+        renderCtx.shadowBlur = r * 0.45;
+        renderCtx.strokeStyle = "rgba(175,181,190,0.28)";
+        renderCtx.lineWidth = r * 0.32;
         renderCtx.beginPath();
-        renderCtx.moveTo(-r * 0.34, r * 0.70);
-        renderCtx.quadraticCurveTo(-r * 1.72, -r * 0.02, -r * 0.08, -r * 1.28);
+        renderCtx.moveTo(-r * 0.96, r * 0.48);
+        renderCtx.quadraticCurveTo(-r * 0.10, r * 0.08, r * 0.88, -r * 0.74);
         renderCtx.stroke();
 
-        // Основное лезвие воздушного разреза: серебристое, изогнутое и заострённое.
-        renderCtx.shadowBlur = r * 0.85;
-        renderCtx.fillStyle = "#969da6";
-        renderCtx.strokeStyle = "#e3e6ea";
-        renderCtx.lineWidth = Math.max(1.2, r * 0.065);
+        // Длинный острый штрих с сужением к обоим концам — выглядит как ударный слэш.
+        renderCtx.shadowBlur = r * 0.3;
+        renderCtx.fillStyle = "#aeb4bc";
         renderCtx.beginPath();
-        renderCtx.moveTo(-r * 0.18, r * 1.02);
-        renderCtx.quadraticCurveTo(-r * 1.78, r * 0.02, -r * 0.52, -r * 1.00);
-        renderCtx.quadraticCurveTo(-r * 0.24, -r * 1.20, r * 0.03, -r * 1.22);
-        renderCtx.quadraticCurveTo(-r * 0.08, -r * 0.48, r * 0.40, r * 0.10);
-        renderCtx.quadraticCurveTo(r * 0.98, r * 0.50, r * 0.91, r * 0.37);
-        renderCtx.quadraticCurveTo(r * 0.43, r * 1.10, -r * 0.18, r * 1.02);
+        renderCtx.moveTo(-r * 1.12, r * 0.56);
+        renderCtx.quadraticCurveTo(-r * 0.16, r * 0.24, r * 0.96, -r * 0.86);
+        renderCtx.quadraticCurveTo(r * 0.66, -r * 0.26, r * 0.20, r * 0.14);
+        renderCtx.quadraticCurveTo(-r * 0.52, r * 0.72, -r * 1.12, r * 0.56);
         renderCtx.closePath();
         renderCtx.fill();
-        renderCtx.stroke();
 
-        // Светлая кромка подчёркивает именно след удара, без зелёной энергии.
-        renderCtx.shadowColor = "#f4f5f7";
-        renderCtx.shadowBlur = r * 0.36;
-        renderCtx.strokeStyle = "#f7f8fa";
-        renderCtx.lineWidth = Math.max(1, r * 0.075);
+        // Резкая светлая кромка подчёркивает направление удара.
+        renderCtx.shadowBlur = r * 0.22;
+        renderCtx.strokeStyle = "#edf0f3";
+        renderCtx.lineWidth = Math.max(1, r * 0.045);
         renderCtx.beginPath();
-        renderCtx.moveTo(-r * 0.30, r * 0.65);
-        renderCtx.quadraticCurveTo(-r * 0.87, r * 0.02, -r * 0.27, -r * 0.70);
+        renderCtx.moveTo(-r * 0.98, r * 0.51);
+        renderCtx.quadraticCurveTo(-r * 0.06, r * 0.17, r * 0.89, -r * 0.78);
         renderCtx.stroke();
         renderCtx.restore();
         return true;
