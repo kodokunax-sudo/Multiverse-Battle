@@ -93,8 +93,10 @@
                 y: py - 14,
                 vx: Math.cos(ang) * speed,
                 vy: Math.sin(ang) * speed,
-                size: isSniper ? 7 : (isMelee ? 14 : 5),
-                life: 120,
+                size: isSniper ? 7 : (isMelee ? 16 : 5),
+                // Мечевой лунный клинок проходит около половины высоты арены (250 px).
+                life: isMelee ? Math.max(1, Math.ceil(250 / speed)) : 120,
+                range: isMelee ? 250 : null,
                 color: isLegendary ? "#ffd700" : (isMelee ? "#ff8844" : "#ffdd00"),
                 damage: 2 * dmgMult,
                 isBlue: false,
@@ -124,6 +126,61 @@
         }
 
         return { rate: rate, bullets: bullets };
+    };
+
+    // Лунный серповидный клинок для мечей (визуально вдохновлён дыханием Луны).
+    // Возвращает true, если сам нарисовал снаряд, чтобы обычный шар не рисовался поверх.
+    window.drawEquipmentProjectile = function(renderCtx, bullet) {
+        if (!renderCtx || !bullet || bullet.isMeleeWave !== true) return false;
+        var speedAngle = Math.atan2(Number(bullet.vy) || -1, Number(bullet.vx) || 0);
+        var wobble = Math.sin(Date.now() / 95 + (Number(bullet.x) || 0) * 0.03) * 0.09;
+        var rotation = speedAngle + Math.PI / 2 + wobble;
+        var radius = Math.max(13, Math.min(19, Number(bullet.size) || 16));
+
+        function drawMoonBlade(ctx, r, color, edge, alpha) {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = color;
+            ctx.strokeStyle = edge;
+            ctx.lineWidth = Math.max(1, r * 0.11);
+            ctx.shadowColor = edge;
+            ctx.shadowBlur = r * 1.05;
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.28, -r * 0.96);
+            ctx.quadraticCurveTo(r * 1.22, -r * 0.35, r * 0.76, r * 0.55);
+            ctx.quadraticCurveTo(r * 0.32, r * 1.08, -r * 0.12, r * 0.88);
+            ctx.quadraticCurveTo(r * 0.42, r * 0.10, -r * 0.28, -r * 0.96);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.shadowBlur = r * 0.4;
+            ctx.strokeStyle = "#fff2ff";
+            ctx.lineWidth = Math.max(0.8, r * 0.045);
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.08, -r * 0.7);
+            ctx.quadraticCurveTo(r * 0.68, -r * 0.14, r * 0.36, r * 0.5);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        renderCtx.save();
+        renderCtx.translate(Number(bullet.x) || 0, Number(bullet.y) || 0);
+        renderCtx.rotate(rotation);
+        renderCtx.globalCompositeOperation = "lighter";
+        // Три лезвия разного размера дают характерный веер серпов.
+        drawMoonBlade(renderCtx, radius, "rgba(153,55,255,0.58)", "#f0a7ff", 0.98);
+        renderCtx.save();
+        renderCtx.translate(-radius * 0.62, -radius * 0.08);
+        renderCtx.rotate(-0.42);
+        drawMoonBlade(renderCtx, radius * 0.48, "rgba(255,48,105,0.52)", "#ff9dbd", 0.9);
+        renderCtx.restore();
+        renderCtx.save();
+        renderCtx.translate(radius * 0.56, radius * 0.12);
+        renderCtx.rotate(0.38);
+        drawMoonBlade(renderCtx, radius * 0.39, "rgba(80,110,255,0.50)", "#b9c6ff", 0.9);
+        renderCtx.restore();
+        renderCtx.restore();
+        return true;
     };
 
     // ============================================================
