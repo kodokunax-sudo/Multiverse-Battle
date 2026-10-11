@@ -93,7 +93,7 @@
                 y: py - 14,
                 vx: Math.cos(ang) * speed,
                 vy: Math.sin(ang) * speed,
-                size: isSniper ? 7 : (isMelee ? 16 : 5),
+                size: isSniper ? 7 : (isMelee ? 22 : 5),
                 // Мечевой лунный клинок проходит около половины высоты арены (250 px).
                 life: isMelee ? Math.max(1, Math.ceil(250 / speed)) : 120,
                 range: isMelee ? 250 : null,
@@ -105,6 +105,7 @@
 
             if (isMelee) {
                 bullet.isMeleeWave = true;
+                bullet.age = 0;
                 bullet.rotation = ang;
                 bullet.rotSpeed = 0.1;
             }
@@ -129,55 +130,81 @@
         return { rate: rate, bullets: bullets };
     };
 
-    // Один серповидный мечевой снаряд: изогнутое лезвие с рукоятью.
+    // Летящий воздушный слэш в стиле Zoro: широкая серповидная волна, без рукояти.
     window.drawEquipmentProjectile = function(renderCtx, bullet) {
         if (!renderCtx || !bullet || bullet.isMeleeWave !== true) return false;
         var angle = Math.atan2(Number(bullet.vy) || -1, Number(bullet.vx) || 0);
-        var r = Math.max(13, Math.min(19, Number(bullet.size) || 16));
+        var r = Math.max(18, Math.min(29, Number(bullet.size) || 22));
+        var wobble = Math.sin((Number(bullet.age) || 0) * 0.22) * 0.035;
         renderCtx.save();
         renderCtx.translate(Number(bullet.x) || 0, Number(bullet.y) || 0);
-        renderCtx.rotate(angle + Math.PI / 2 + Math.sin(Date.now() / 100 + (Number(bullet.x) || 0) * 0.02) * 0.06);
+        renderCtx.rotate(angle + Math.PI / 2 + wobble);
         renderCtx.globalCompositeOperation = "lighter";
-        renderCtx.shadowColor = "#c66bff"; renderCtx.shadowBlur = r * 1.15;
-        renderCtx.fillStyle = "#9d35e8"; renderCtx.strokeStyle = "#f0c2ff";
-        renderCtx.lineWidth = Math.max(1.2, r * 0.09);
+        renderCtx.lineCap = "round";
+        renderCtx.lineJoin = "round";
+        renderCtx.shadowColor = "#36ff9a";
+        renderCtx.shadowBlur = r * 1.25;
+        renderCtx.strokeStyle = "rgba(55,255,155,0.28)";
+        renderCtx.lineWidth = r * 0.62;
         renderCtx.beginPath();
-        renderCtx.moveTo(-r * 0.18, r * 0.88);
-        renderCtx.quadraticCurveTo(-r * 1.12, r * 0.12, -r * 0.52, -r * 0.72);
-        renderCtx.quadraticCurveTo(-r * 0.25, -r * 1.10, r * 0.03, -r * 0.96);
-        renderCtx.quadraticCurveTo(-r * 0.18, -r * 0.30, r * 0.56, r * 0.30);
-        renderCtx.quadraticCurveTo(r * 0.80, r * 0.51, r * 0.93, r * 0.46);
-        renderCtx.quadraticCurveTo(r * 0.38, r * 1.12, -r * 0.18, r * 0.88);
-        renderCtx.closePath(); renderCtx.fill(); renderCtx.stroke();
-        renderCtx.shadowBlur = r * 0.35; renderCtx.strokeStyle = "#fff5ff";
-        renderCtx.lineWidth = Math.max(0.8, r * 0.045);
-        renderCtx.beginPath(); renderCtx.moveTo(-r * 0.36, r * 0.60);
-        renderCtx.quadraticCurveTo(-r * 0.02, r * 0.06, -r * 0.10, -r * 0.53); renderCtx.stroke();
-        renderCtx.shadowColor = "#ff4d9d"; renderCtx.shadowBlur = r * 0.45;
-        renderCtx.lineCap = "round"; renderCtx.strokeStyle = "#4b243f"; renderCtx.lineWidth = r * 0.22;
-        renderCtx.beginPath(); renderCtx.moveTo(-r * 0.15, r * 0.77); renderCtx.lineTo(r * 0.10, r * 1.13); renderCtx.stroke();
-        renderCtx.strokeStyle = "#ffd3f1"; renderCtx.lineWidth = Math.max(1, r * 0.07);
-        renderCtx.beginPath(); renderCtx.moveTo(-r * 0.15, r * 0.77); renderCtx.lineTo(r * 0.10, r * 1.13); renderCtx.stroke();
-        renderCtx.fillStyle = "#ff73c6"; renderCtx.beginPath(); renderCtx.arc(r * 0.10, r * 1.13, r * 0.12, 0, Math.PI * 2); renderCtx.fill();
-        renderCtx.restore(); return true;
+        renderCtx.moveTo(-r * 0.28, r * 0.72);
+        renderCtx.quadraticCurveTo(-r * 1.35, -r * 0.05, -r * 0.12, -r * 1.20);
+        renderCtx.stroke();
+        renderCtx.shadowBlur = r * 0.9;
+        renderCtx.fillStyle = "#22e889";
+        renderCtx.strokeStyle = "#caffdf";
+        renderCtx.lineWidth = Math.max(1.3, r * 0.075);
+        renderCtx.beginPath();
+        renderCtx.moveTo(-r * 0.16, r * 1.02);
+        renderCtx.quadraticCurveTo(-r * 1.42, r * 0.12, -r * 0.56, -r * 0.90);
+        renderCtx.quadraticCurveTo(-r * 0.28, -r * 1.22, r * 0.02, -r * 1.24);
+        renderCtx.quadraticCurveTo(-r * 0.27, -r * 0.53, r * 0.43, r * 0.12);
+        renderCtx.quadraticCurveTo(r * 0.77, r * 0.48, r * 0.93, r * 0.40);
+        renderCtx.quadraticCurveTo(r * 0.46, r * 1.13, -r * 0.16, r * 1.02);
+        renderCtx.closePath();
+        renderCtx.fill();
+        renderCtx.stroke();
+        renderCtx.shadowBlur = r * 0.45;
+        renderCtx.strokeStyle = "#f2fff8";
+        renderCtx.lineWidth = Math.max(1.1, r * 0.09);
+        renderCtx.beginPath();
+        renderCtx.moveTo(-r * 0.32, r * 0.66);
+        renderCtx.quadraticCurveTo(-r * 0.92, r * 0.03, -r * 0.29, -r * 0.72);
+        renderCtx.stroke();
+        renderCtx.strokeStyle = "rgba(150,255,205,0.8)";
+        renderCtx.lineWidth = Math.max(1, r * 0.045);
+        renderCtx.beginPath();
+        renderCtx.moveTo(r * 0.08, r * 0.76);
+        renderCtx.quadraticCurveTo(r * 0.82, r * 0.12, r * 0.24, -r * 0.75);
+        renderCtx.stroke();
+        renderCtx.restore();
+        return true;
     };
 
-    // Легендарный меч тратит удар при касании блока; уничтожение — ровно 8% на попытку.
+    // Слэш продолжает лететь после столкновения; каждый блок получает одну независимую попытку 8%.
     window.tryLegendarySwordBlockHit = function(bullet, hazards, onDestroy, onFail) {
         if (!bullet || bullet.weaponId !== "sword_l" || !Array.isArray(hazards)) return false;
         var excluded = { laser: true, laser_warning: true, giant_laser: true, roger_slash: true,
             roger_cross: true, tsunami: true, titan_fist: true, gura_crack: true,
             purple_crack_zone: true, gravity_well: true, hell_fire: true };
+        if (!bullet._swordCheckedHazards) bullet._swordCheckedHazards = [];
         for (var i = hazards.length - 1; i >= 0; i--) {
             var hazard = hazards[i];
             if (!hazard || typeof hazard !== "object" || excluded[hazard.type] || hazard.state === "warning") continue;
+            if (bullet._swordCheckedHazards.indexOf(hazard) !== -1) continue;
             if (!Number.isFinite(Number(hazard.x)) || !Number.isFinite(Number(hazard.y))) continue;
             var dx = (Number(bullet.x) || 0) - hazard.x, dy = (Number(bullet.y) || 0) - hazard.y;
             var radius = Math.max(5, Number(hazard.size) || Number(hazard.radius) || 12);
             if (Math.hypot(dx, dy) > radius + Math.max(4, Number(bullet.size) || 12)) continue;
-            if (Math.random() < 0.08) { hazards.splice(i, 1); if (typeof onDestroy === "function") onDestroy(hazard); }
-            else if (typeof onFail === "function") onFail(hazard);
-            return true;
+            bullet._swordCheckedHazards.push(hazard);
+            if (Math.random() < 0.08) {
+                hazards.splice(i, 1);
+                if (typeof onDestroy === "function") onDestroy(hazard);
+            } else if (typeof onFail === "function") {
+                onFail(hazard);
+            }
+            // Всегда false: вызывающий код не должен удалять сам летящий слэш.
+            return false;
         }
         return false;
     };
