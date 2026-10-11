@@ -332,7 +332,7 @@ const finalBossResponses = [
 // ========== КОНСТАНТЫ ==========
 const totalTemplatesCount = Object.values(customCardTemplates).flat().length;
 const rarities = ["Обычная","Редкая","Сверх редкая","Эпик","Мифическая","Легендарная","Секретная","Эволюционная","Босс","Пасхалка"];
-const rarityColors = { "Обычная":"common","Редкая":"rare","Сверх редкая":"superrare","Эпик":"epic","Мифическая":"mythic","Легендарная":"legendary","Секретная":"secret","Эволюционная":"evolutionary","Босс":"boss-rarity","Пасхалка":"easter" };
+const rarityColors = { "Обычная":"common","Редкая":"rare","Сверх редкая":"superrare","Эпик":"epic","Мифическая":"mythic","Легендарная":"legendary","Секретная":"secret","Эволюционная":"evolutionary","Босс":"boss-rarity","Пасхалка":"easter","Подарочная":"gift" };
 const cardStats = { 
     "Обычная":      { damage: 3,  hp: 5,  sellPrice: 20,  speed: 0.4 },
     "Редкая":       { damage: 6,  hp: 10, sellPrice: 45,  speed: 0.6 },
@@ -341,6 +341,7 @@ const cardStats = {
     "Мифическая":   { damage: 35, hp: 60, sellPrice: 260, speed: 1.2 },
     "Легендарная":  { damage: 60, hp: 100, sellPrice: 450, speed: 1.5 },
     "Секретная":    { damage: 100, hp: 180, sellPrice: 800, speed: 2.0 },
+    "Подарочная":   { damage: 100, hp: 180, sellPrice: 0,   speed: 2.0 },
     "Эволюционная": { damage: 500, hp: 1000, sellPrice: 0,  speed: 1.8 },
     "Босс":         { damage: 80,  hp: 150, sellPrice: 1000, speed: 1.1 },
     "Пасхалка":     { damage: 10,  hp: 20,  sellPrice: 0,   speed: 1.0 }
