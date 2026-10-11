@@ -141,7 +141,7 @@
         var wobble = Math.sin((Number(bullet.age) || 0) * 0.22) * 0.025;
         renderCtx.save();
         renderCtx.translate(Number(bullet.x) || 0, Number(bullet.y) || 0);
-        renderCtx.rotate(angle + 0.62 + wobble + Math.PI);
+        renderCtx.rotate(angle + 0.62 + wobble + (80 * Math.PI / 180));
         renderCtx.scale(1.7, 1.0);
         renderCtx.globalCompositeOperation = "source-over";
         renderCtx.lineCap = "butt";
