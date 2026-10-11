@@ -156,12 +156,19 @@
         if (!settings) return;
 
         var control = settings.arenaControl || "auto";
-        var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        var mobileStyle = settings.mobileControlStyle || "dpad8";
+        var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+            !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+            Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 820;
 
         var newEnabled;
-        if (control === "auto") newEnabled = isMobile;
-        else if (control === "joystick") newEnabled = true;
-        else newEnabled = false;
+        if (isMobile) {
+            // Auto uses exactly one mobile scheme: a button D-pad or a floating analog stick.
+            newEnabled = control === "joystick" || (control === "auto" && mobileStyle === "analog");
+            if (control === "touch" || control === "keyboard") newEnabled = false;
+        } else {
+            newEnabled = control === "joystick";
+        }
 
         var newSizeMult = (settings.joystickSize || 100) / 100;
         var newMaxRadius = Math.round(80 * newSizeMult);
