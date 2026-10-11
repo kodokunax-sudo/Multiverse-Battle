@@ -328,6 +328,10 @@
                     if (!p || p.fight_id !== activeFightId || !p.session_id || p.session_id === selfSessionId) return;
                     var other = currentPlayers.get(p.session_id);
                     if (!other) return;
+                    if (p.combat_visuals && typeof p.combat_visuals === 'object') {
+                        other.combatVisuals = p.combat_visuals;
+                        other.combatVisualsReceivedAt = Date.now();
+                    }
                     var nextX = clamp(Number(p.x) || 200, 12, 388);
                     var nextY = clamp(Number(p.y) || 430, 70, 490);
                     // Keep the last rendered position and glide toward the newest network target.
@@ -1302,11 +1306,13 @@
 
     function onBossDamage(damage, phase) {
         if (!fightStarted || !activeFightId || applyingRemote) return;
+        // Every player reports confirmed local damage (including ultimate damage).
+        // The host reconciles HP through snapshots, while event IDs prevent duplicates.
         sendEvent('boss_damage', {
             fight_id: activeFightId,
             event_id: createId(),
             damage: Math.max(0, Math.floor(Number(damage) || 0)),
-            phase: phase,
+            phase: phase || String(window.waystarState || 'phase1'),
             source_session_id: selfSessionId
         });
     }
