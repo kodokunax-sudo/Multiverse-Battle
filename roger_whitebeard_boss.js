@@ -125,6 +125,8 @@
     let rwbShake = 0;
     let rwbAnimFrame = null;
     let rwbBgStars = [];
+    let rwbWhitebeardPortraitImage = null;
+    let rwbWhitebeardPortraitImageFailed = false;
 
     let rwbWhiteCracks = [];
     let rwbPurpleCracks = [];
@@ -150,7 +152,7 @@
     let wbVortexPullStrength = 0;
     const WB_VORTEX_INTERVAL_MS = 20000; // ровно 20 секунд реального времени
     const WB_VORTEX_CHANCE = 0.35;
-    const WB_VORTEX_QTE_DURATION = 420; // 7 сек на семь целей
+    const WB_VORTEX_QTE_DURATION = 180; // ровно 3 секунды на семь целей
 
     // Адаптивный ИИ Белоуса: запоминает привычки игрока в коротком временном окне.
     let wbBrain = {
@@ -389,7 +391,68 @@
     }
 
     function drawWhitebeardPortrait(x, y, scale) {
-        // Используем оригинальный нарисованный портрет Белоуса, без подмены на PNG.
+        // В диалоге показываем тот же арт Белоуса, что и у обычной карточки.
+        if (!rwbWhitebeardPortraitImage && !rwbWhitebeardPortraitImageFailed) {
+            try {
+                rwbWhitebeardPortraitImage = new Image();
+                rwbWhitebeardPortraitImage.onerror = function() {
+                    rwbWhitebeardPortraitImageFailed = true;
+                    rwbWhitebeardPortraitImage = null;
+                };
+                var portraitSrc = (typeof getCardImage === "function" ? getCardImage("Белоус") : null) || "images/Belous_1.png";
+                rwbWhitebeardPortraitImage.src = portraitSrc;
+            } catch (e) { rwbWhitebeardPortraitImageFailed = true; }
+        }
+        var portraitNow = performance.now();
+        if (rwbWhitebeardPortraitImage && rwbWhitebeardPortraitImage.complete && rwbWhitebeardPortraitImage.naturalWidth > 0) {
+            ctx.save();
+            var frame = 112 * scale;
+            ctx.translate(x, y + Math.sin(portraitNow / 260) * 2.4);
+            ctx.rotate(Math.sin(portraitNow / 780) * 0.018);
+            ctx.shadowColor = "#88ddff"; ctx.shadowBlur = 20;
+            ctx.fillStyle = "#06080d"; ctx.strokeStyle = "#000000"; ctx.lineWidth = 8;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-frame / 2 - 5, -frame / 2 - 5, frame + 10, frame + 10, 14);
+            else ctx.rect(-frame / 2 - 5, -frame / 2 - 5, frame + 10, frame + 10);
+            ctx.fill(); ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.save();
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-frame / 2, -frame / 2, frame, frame, 10);
+            else ctx.rect(-frame / 2, -frame / 2, frame, frame);
+            ctx.clip();
+            ctx.fillStyle = "#10131c"; ctx.fillRect(-frame / 2, -frame / 2, frame, frame);
+            var img = rwbWhitebeardPortraitImage;
+            var fit = Math.min(frame / img.naturalWidth, frame / img.naturalHeight);
+            var drawW = img.naturalWidth * fit, drawH = img.naturalHeight * fit;
+            ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+            ctx.restore();
+            ctx.shadowColor = "#000000"; ctx.shadowBlur = 0;
+            ctx.strokeStyle = "#000000"; ctx.lineWidth = 7;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-frame / 2, -frame / 2, frame, frame, 10);
+            else ctx.rect(-frame / 2, -frame / 2, frame, frame);
+            ctx.stroke();
+            ctx.strokeStyle = "#88ddff"; ctx.lineWidth = 2;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-frame / 2 + 3, -frame / 2 + 3, frame - 6, frame - 6, 8);
+            else ctx.rect(-frame / 2 + 3, -frame / 2 + 3, frame - 6, frame - 6);
+            ctx.stroke();
+            // Чёрно-белые молнии хаки вокруг портрета.
+            for (var z = 0; z < 4; z++) {
+                var ang = portraitNow / 420 + z * Math.PI / 2;
+                var r1 = frame * 0.52, r2 = frame * 0.65;
+                var sx = Math.cos(ang) * r1, sy = Math.sin(ang) * r1;
+                var ex = Math.cos(ang + 0.22) * r2, ey = Math.sin(ang + 0.22) * r2;
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 5;
+                ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + (Math.random() - .5) * 8, sy + (Math.random() - .5) * 8); ctx.lineTo(ex, ey); ctx.stroke();
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + (Math.random() - .5) * 8, sy + (Math.random() - .5) * 8); ctx.lineTo(ex, ey); ctx.stroke();
+            }
+            ctx.restore();
+            return;
+        }
+        // Fallback: старая отрисовка, если PNG не загрузился.
         ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
         ctx.fillStyle = "#8B0000";
         ctx.beginPath(); ctx.moveTo(-65, 90); ctx.lineTo(-55, 30); ctx.lineTo(55, 30); ctx.lineTo(65, 90); ctx.closePath(); ctx.fill();
@@ -1398,8 +1461,8 @@
             if (a.type === "tsunami" || a.type === "titan_fist" || a.type === "gura_crack" || a.type === "purple_crack_zone" || a.type === "haki_wave" || a.type === "wb_attack_telegraph" ||
                 a.type === "wb_reflect_vortex" || a.type === "wb_center_wave" || a.type === "wb_fruit_punch" ||
                 (a.type === "wb_crescent_slash" && a.state !== "flying")) continue;
-            let ax = a.x + (a.size || a.radius || 20) / 2;
-            let ay = a.y + (a.size || a.radius || 20) / 2;
+            let ax = a.type === "wb_crescent_slash" ? 200 : a.x + (a.size || a.radius || 20) / 2;
+            let ay = a.type === "wb_crescent_slash" ? a.y : a.y + (a.size || a.radius || 20) / 2;
             let dx = ax - bullet.x, dy = ay - bullet.y;
             let dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < nearestDist) { nearestDist = dist; nearestAttack = { x: ax, y: ay }; }
@@ -1456,7 +1519,7 @@
         if (whitebeard.hitFlash > 0) whitebeard.hitFlash--;
 
         if (Math.random() < 0.08) spawnHakiLightning(roger.x + (Math.random() - 0.5) * 40, roger.y + (Math.random() - 0.5) * 40, 1, false);
-        if (Math.random() < 0.08) spawnHakiLightning(whitebeard.x + (Math.random() - 0.5) * 40, whitebeard.y + (Math.random() - 0.5) * 40, 1, false);
+        if (Math.random() < 0.16) spawnHakiLightning(whitebeard.x + (Math.random() - 0.5) * 46, whitebeard.y + (Math.random() - 0.5) * 46, 1, true);
 
         roger.attackTimer--;
         if (roger.attackTimer <= 0) { roger.attackTimer = RWB_ATTACK_SPEED + Math.random() * 20; spawnRogerAttack(); }
@@ -1981,18 +2044,23 @@
 
     function spawnWBCrescentSlash(isSuper) {
         let boss = getWhitebeardEntity();
-        if (!boss) return false;
+        if (!boss || !rwbPlayer) return false;
+        // Фиксированная горизонтальная плоскость летит через арену 1,5 секунды.
+        let startY = Math.max(45, Math.min(210, boss.y + 12));
+        let targetY = Math.max(35, Math.min(465, rwbPlayer.y));
         wbBrain.phase = "windup"; wbBrain.phaseTimer = 120;
-        let slashY = Math.max(34, Math.min(466, rwbPlayer.y));
         rwbAttacks.push({
             type: "wb_crescent_slash", state: "windup",
-            x: boss.x, y: slashY, originX: boss.x, originY: boss.y, targetY: slashY,
-            vx: 0, vy: 0, size: 400, width: isSuper ? 42 : 34, hp: 10, maxHp: 10,
-            damage: isSuper ? 30 : 24, life: 210, warningTimer: 120,
-            color: "#dff8ff", rotation: 0, isSuper: !!isSuper
+            x: 200, y: startY, originX: boss.x, originY: boss.y,
+            startY: startY, targetY: targetY, travelElapsed: 0, travelTime: 90,
+            vx: 0, vy: 0, size: 0, width: 92, hp: 10, maxHp: 10,
+            damage: 40, life: 90, warningTimer: 120,
+            color: "#ffffff", rotation: 0, isSuper: !!isSuper, hit: false
         });
-        rwbFloatingTexts.push({ x: 200, y: 82, text: "☠ РАССЕКАЮЩИЙ ГОРИЗОНТ ☠", color: "#dff8ff", life: 95, maxLife: 95, vy: -0.2, vx: 0, size: 15 });
-        playHakiChargeSound(0.45);
+        rwbFloatingTexts.push({ x: 200, y: 82, text: "⚡ БЕЛОУС ЗАРЯЖАЕТ УДАР ХАКИ ⚡", color: "#ffffff", life: 115, maxLife: 115, vy: -0.2, vx: 0, size: 15 });
+        rwbHakiAura = Math.max(rwbHakiAura, 28);
+        playHakiChargeSound(0.55);
+        spawnHakiLightning(boss.x, boss.y, 5, true);
         return true;
     }
 
@@ -2400,18 +2468,39 @@
             if (a.type === "wb_crescent_slash") {
                 if (a.state === "windup") {
                     a.warningTimer--;
+                    if (a.warningTimer % 9 === 0) {
+                        spawnHakiLightning(a.originX, a.originY, 2, true);
+                        rwbHakiAura = Math.max(rwbHakiAura, 12);
+                    }
                     if (a.warningTimer <= 0) {
-                        a.state = "flying"; a.life = 18; a.x = 200; a.y = a.targetY;
-                        playImpactSound(0.85, 0.5); playWhooshSound(0.8); rwbShake = 22;
-                        rwbScreenFlash = 8; rwbScreenFlashColor = "#b9efff";
-                        for (let n = 0; n < 18; n++) spawnHakiLightning(Math.random() * 400, a.targetY + (Math.random() - 0.5) * 24, 1, true);
+                        a.state = "flying"; a.life = 90; a.travelElapsed = 0;
+                        a.x = 200; a.y = a.startY;
+                        playImpactSound(0.95, 0.5); playWhooshSound(0.9); rwbShake = 26;
+                        rwbScreenFlash = 10; rwbScreenFlashColor = "#ffffff";
+                        for (let n = 0; n < 22; n++) spawnHakiLightning(Math.random() * 400, a.y + (Math.random() - 0.5) * 58, 1, true);
                     }
                 } else if (a.state === "flying") {
-                    a.life--;
-                    if (!a.hit && rwbPlayer.invulnTimer <= 0 && Math.abs(rwbPlayer.y - a.targetY) < (a.width || 34) * 0.65 + rwbPlayer.size * 0.45) {
-                        a.hit = true; hitPlayer(a.damage); spawnHitParticles(rwbPlayer.x, a.targetY, "#dff8ff", 18);
+                    a.travelElapsed = (a.travelElapsed || 0) + 1;
+                    let travelProgress = Math.min(1, a.travelElapsed / (a.travelTime || 90));
+                    a.y = a.startY + (a.targetY - a.startY) * travelProgress;
+                    a.life = Math.max(0, (a.travelTime || 90) - a.travelElapsed);
+                    if (Math.random() < 0.22) {
+                        spawnHakiLightning(Math.random() * 400, a.y + (Math.random() - 0.5) * 42, 1, true);
                     }
-                    if (a.life <= 0) { spawnHitParticles(200, a.targetY, "#b9efff", 24); rwbAttacks.splice(i, 1); continue; }
+                    if (!a.hit && rwbPlayer.invulnTimer <= 0 &&
+                        Math.abs(rwbPlayer.y - a.y) < (a.width || 92) * 0.5 + rwbPlayer.size * 0.45) {
+                        a.hit = true;
+                        hitPlayer(40);
+                        spawnHitParticles(rwbPlayer.x, a.y, "#ffffff", 24);
+                        rwbScreenFlash = 8; rwbScreenFlashColor = "#ffffff"; rwbShake = 18;
+                    }
+                    if (a.hp <= 0) {
+                        spawnDestroyParticles(200, a.y, "#ffffff");
+                        rwbAttacks.splice(i, 1);
+                        rwbFloatingTexts.push({ x: 200, y: Math.max(65, a.y - 35), text: "💥 СЛЭШ РАЗРУШЕН!", color: "#88ddff", life: 55, maxLife: 55, vy: -0.4, vx: 0, size: 15 });
+                        continue;
+                    }
+                    if (a.life <= 0) { spawnHitParticles(200, a.y, "#ffffff", 28); rwbAttacks.splice(i, 1); continue; }
                 } else { rwbAttacks.splice(i, 1); }
                 continue;
             }
@@ -2686,7 +2775,10 @@
                     if (a.hp === undefined) continue;
                     let dx = b.x - a.x, dy = b.y - a.y;
                     let aSize = a.size || a.radius || 20;
-                    if (Math.sqrt(dx * dx + dy * dy) < aSize * 0.7 + b.size + 4) {
+                    let hitsSlashLane = a.type === "wb_crescent_slash" && a.state === "flying" &&
+                        b.x >= 0 && b.x <= 400 &&
+                        Math.abs(b.y - a.y) <= (a.width || 92) * 0.5 + (b.size || 4);
+                    if (hitsSlashLane || (a.type !== "wb_crescent_slash" && Math.sqrt(dx * dx + dy * dy) < aSize * 0.7 + b.size + 4)) {
                         a.hp -= 1;
                         spawnHitParticles(b.x, b.y, "#00aaff", 3);
                         playWhooshSound(0.08);
@@ -3304,12 +3396,18 @@
         let wbWindup = active.id === "whitebeard" ? getWhitebeardWindupAttack() : null;
         if (wbWindup) {
             active.x = wbWindup.originX; active.y = wbWindup.originY;
+        } else if (active.id === "whitebeard") {
+            // Белоус активно перемещается по арене, а не зависает в одной точке.
+            active.x = Math.max(48, Math.min(352, 200 + Math.sin(rwbTimer / 52) * 106 + Math.sin(rwbTimer / 19) * 18));
+            active.y = Math.max(70, Math.min(205, 118 + Math.sin(rwbTimer / 68) * 31 + Math.cos(rwbTimer / 31) * 12));
         } else {
             active.x = 200 + Math.sin(rwbTimer / 110) * 22;
             active.y = 100 + Math.sin(rwbTimer / 80) * 8;
         }
         if (active.hitFlash > 0) active.hitFlash--;
-        if (Math.random() < 0.15) spawnHakiLightning(active.x + (Math.random() - 0.5) * 50, active.y + (Math.random() - 0.5) * 50, 1, false);
+        if (Math.random() < (active.id === "whitebeard" ? 0.27 : 0.15)) {
+            spawnHakiLightning(active.x + (Math.random() - 0.5) * 50, active.y + (Math.random() - 0.5) * 50, active.id === "whitebeard" ? 2 : 1, active.id === "whitebeard");
+        }
         active.attackTimer--;
         if (active.attackTimer <= 0) {
             let interval = (active.id === "roger") ? RWB_ATTACK_SPEED_SUPER_ROGER : BALANCE.superAttackRate;
@@ -3358,11 +3456,43 @@
         drawRogerModel(roger.x, roger.y, size, flash, Math.sin(roger.rotation) * 0.1);
     }
 
+    function drawWhitebeardHakiAura(cx, cy, size) {
+        var now = performance.now() / 1000;
+        var pulse = 1 + Math.sin(now * 7) * 0.09;
+        ctx.save();
+        ctx.globalAlpha = 0.66;
+        for (var ring = 0; ring < 2; ring++) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(now * (ring ? -0.75 : 0.55));
+            ctx.strokeStyle = "#000000"; ctx.lineWidth = 7; ctx.shadowColor = "#000000"; ctx.shadowBlur = 9;
+            ctx.beginPath(); ctx.ellipse(0, 0, size * (1.75 + ring * 0.2) * pulse, size * (1.3 + ring * 0.16) * pulse, 0, Math.PI * 0.12, Math.PI * 1.22); ctx.stroke();
+            ctx.strokeStyle = ring ? "#ffffff" : "#bfefff"; ctx.lineWidth = 2.2; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 12;
+            ctx.beginPath(); ctx.ellipse(0, 0, size * (1.75 + ring * 0.2) * pulse, size * (1.3 + ring * 0.16) * pulse, 0, Math.PI * 0.12, Math.PI * 1.22); ctx.stroke();
+            ctx.restore();
+        }
+        // Black-outlined white lightning arcs: visible armament/conqueror haki.
+        for (var bolt = 0; bolt < 5; bolt++) {
+            var ang = now * 1.7 + bolt * (Math.PI * 2 / 5);
+            var r1 = size * 1.15, r2 = size * (1.55 + 0.12 * Math.sin(now * 11 + bolt));
+            var x1 = cx + Math.cos(ang) * r1, y1 = cy + Math.sin(ang) * r1;
+            var x2 = cx + Math.cos(ang + 0.18) * r2, y2 = cy + Math.sin(ang + 0.18) * r2;
+            var xm = (x1 + x2) / 2 + Math.sin(now * 9 + bolt * 2) * size * 0.25;
+            var ym = (y1 + y2) / 2 + Math.cos(now * 8 + bolt) * size * 0.25;
+            ctx.strokeStyle = "#000000"; ctx.lineWidth = 5; ctx.shadowBlur = 0;
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(xm, ym); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.7; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(xm, ym); ctx.lineTo(x2, y2); ctx.stroke();
+        }
+        ctx.restore();
+    }
+
     function drawWhitebeard() {
         if (!whitebeard) return;
         let pulse = 1 + Math.sin(whitebeard.pulse) * 0.06;
         let size = whitebeard.size * pulse;
         let flash = whitebeard.hitFlash > 0;
+        drawWhitebeardHakiAura(whitebeard.x, whitebeard.y, size);
         drawWhitebeardModel(whitebeard.x, whitebeard.y, size, flash, Math.sin(whitebeard.rotation) * 0.1);
     }
 
@@ -3529,35 +3659,69 @@
 
         if (a.type === "wb_crescent_slash") {
             ctx.save();
-            let pulse = 0.72 + Math.sin(performance.now() / 55) * 0.2;
+            var now = performance.now();
+            var band = a.width || 92;
             if (a.state === "windup") {
-                ctx.globalAlpha = pulse * 0.55; ctx.fillStyle = "#000000"; ctx.fillRect(0, a.targetY - 24, 400, 48);
-                ctx.globalAlpha = pulse * 0.8; ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 24;
-                ctx.fillRect(0, a.targetY - 5, 400, 10);
-                ctx.globalAlpha = 0.95; ctx.setLineDash([10, 7]);
-                ctx.strokeStyle = "#000000"; ctx.lineWidth = 6;
-                ctx.beginPath(); ctx.moveTo(0, a.targetY - 20); ctx.lineTo(400, a.targetY - 20); ctx.moveTo(0, a.targetY + 20); ctx.lineTo(400, a.targetY + 20); ctx.stroke();
+                var chargePulse = 0.45 + Math.sin(now / 70) * 0.28;
+                // Контур зоны и указатель целевой линии.
+                ctx.globalAlpha = 0.14 + chargePulse * 0.13;
+                ctx.fillStyle = "#ffffff";
+                var lowY = Math.min(a.startY, a.targetY), highY = Math.max(a.startY, a.targetY);
+                ctx.fillRect(0, lowY, 400, Math.max(2, highY - lowY));
+                ctx.globalAlpha = 0.72;
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 7; ctx.setLineDash([9, 8]);
+                ctx.beginPath(); ctx.moveTo(0, a.targetY); ctx.lineTo(400, a.targetY); ctx.stroke();
                 ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(0, a.targetY - 20); ctx.lineTo(400, a.targetY - 20); ctx.moveTo(0, a.targetY + 20); ctx.lineTo(400, a.targetY + 20); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, a.targetY); ctx.lineTo(400, a.targetY); ctx.stroke();
                 ctx.setLineDash([]);
-                ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
-                ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("РАЗРУБ ГОРИЗОНТА — УЙДИ ВВЕРХ ИЛИ ВНИЗ", 200, a.targetY - 27);
-                ctx.fillText("РАЗРУБ ГОРИЗОНТА — УЙДИ ВВЕРХ ИЛИ ВНИЗ", 200, a.targetY - 27);
-            } else {
-                let width = a.width || 34;
-                ctx.globalAlpha = 0.32; ctx.fillStyle = "#ffffff"; ctx.fillRect(0, a.targetY - width, 400, width * 2);
-                ctx.globalAlpha = 1; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 28;
-                ctx.strokeStyle = "#000000"; ctx.lineWidth = 22; ctx.beginPath(); ctx.moveTo(0, a.targetY); ctx.lineTo(400, a.targetY); ctx.stroke();
-                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 13; ctx.beginPath(); ctx.moveTo(0, a.targetY); ctx.lineTo(400, a.targetY); ctx.stroke();
-                ctx.strokeStyle = "#000000"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(0, a.targetY); ctx.lineTo(400, a.targetY); ctx.stroke();
-                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, a.targetY); ctx.lineTo(400, a.targetY); ctx.stroke();
-                for (let k = 0; k < 22; k++) {
-                    let xx = (k * 37 + performance.now() * 0.8) % 400;
-                    ctx.strokeStyle = "#000000"; ctx.lineWidth = k % 3 ? 5 : 7; ctx.beginPath(); ctx.moveTo(xx, a.targetY - 16); ctx.lineTo(xx - 13, a.targetY + 16); ctx.stroke();
-                    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = k % 3 ? 2 : 3; ctx.beginPath(); ctx.moveTo(xx, a.targetY - 16); ctx.lineTo(xx - 13, a.targetY + 16); ctx.stroke();
+                // Заряжающаяся энергия над Белоусом.
+                ctx.globalAlpha = 0.55 + chargePulse * 0.35;
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 8; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 22;
+                ctx.beginPath(); ctx.ellipse(a.originX, a.originY, 22 + chargePulse * 14, 20 + chargePulse * 10, now / 800, 0, Math.PI * 2); ctx.stroke();
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.ellipse(a.originX, a.originY, 22 + chargePulse * 14, 20 + chargePulse * 10, -now / 600, 0, Math.PI * 2); ctx.stroke();
+                ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+                ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 4;
+                ctx.strokeText("БЕЛОУС ЗАРЯЖАЕТ РАЗРУБ ХАКИ", 200, Math.max(24, a.originY - 44));
+                ctx.fillStyle = "#ffffff"; ctx.fillText("БЕЛОУС ЗАРЯЖАЕТ РАЗРУБ ХАКИ", 200, Math.max(24, a.originY - 44));
+                ctx.font = "bold 10px monospace";
+                ctx.strokeText("УЙДИ С ЛИНИИ УДАРА", 200, a.targetY - 18);
+                ctx.fillStyle = "#ffeefc"; ctx.fillText("УЙДИ С ЛИНИИ УДАРА", 200, a.targetY - 18);
+            } else if (a.state === "flying") {
+                var pulse = 0.78 + Math.sin(now / 42) * 0.15;
+                ctx.globalAlpha = 0.22 * pulse; ctx.fillStyle = "#dff8ff";
+                ctx.fillRect(0, a.y - band * 0.78, 400, band * 1.56);
+                // Широкий горизонтальный разрез: чёрный контур, белое хаки внутри.
+                ctx.globalAlpha = 0.92;
+                ctx.fillStyle = "#000000"; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 26;
+                ctx.fillRect(0, a.y - band * 0.48, 400, band * 0.96);
+                ctx.globalAlpha = 0.95; ctx.fillStyle = "#f8fdff";
+                ctx.fillRect(0, a.y - band * 0.23, 400, band * 0.46);
+                ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+                // Неровное лезвие по всей ширине арены, но без вращения.
+                ctx.beginPath();
+                for (var xx = 0; xx <= 400; xx += 10) {
+                    var yy = a.y + Math.sin(xx * 0.045 + now / 90) * 7 + Math.sin(xx * 0.11 - now / 120) * 3;
+                    if (xx === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy);
                 }
-                ctx.fillStyle = "#ffffff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
-                ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("覇気", 200, a.targetY - 13); ctx.fillText("覇気", 200, a.targetY - 13);
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 18; ctx.stroke();
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 7; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 22; ctx.stroke();
+                ctx.strokeStyle = "#bcefff"; ctx.lineWidth = 2; ctx.stroke();
+                // Короткие чёрно-белые вспышки хаки на лезвии.
+                ctx.shadowBlur = 0;
+                for (var streak = 0; streak < 11; streak++) {
+                    var sx = (streak * 53 + now * 0.18) % 400;
+                    var sy = a.y + Math.sin(sx * 0.06 + now / 80) * 9;
+                    ctx.strokeStyle = "#000000"; ctx.lineWidth = 5;
+                    ctx.beginPath(); ctx.moveTo(sx - 8, sy - 18); ctx.lineTo(sx + 2, sy - 4); ctx.lineTo(sx - 5, sy + 12); ctx.stroke();
+                    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.7;
+                    ctx.beginPath(); ctx.moveTo(sx - 8, sy - 18); ctx.lineTo(sx + 2, sy - 4); ctx.lineTo(sx - 5, sy + 12); ctx.stroke();
+                }
+                ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("РАЗРУБ ХАКИ — 40 УРОНА", 200, a.y - band * 0.55 - 8);
+                ctx.fillStyle = "#ffffff"; ctx.fillText("РАЗРУБ ХАКИ — 40 УРОНА", 200, a.y - band * 0.55 - 8);
+                drawHpBar(130, Math.max(5, Math.min(480, a.y - band * 0.55 + 2)), 140, 7, a.hp, a.maxHp || 10, "#88ddff", "СЛЭШ " + a.hp + "/10", false);
             }
             ctx.restore(); return;
         }
