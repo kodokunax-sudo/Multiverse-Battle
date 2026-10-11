@@ -910,6 +910,12 @@ function updateLivingStoneBullets() {
         }
 
         if (bulletStopped) continue; // замороженные пули не попадают в босса и не исчезают до возобновления времени
+        if (typeof window.tryLegendarySwordBlockHit === 'function' &&
+            window.tryLegendarySwordBlockHit(b, livingStoneAttacks,
+                function(a) { spawnLivingStoneParticles(a.x, a.y, 10, "#c66bff", 4); },
+                function() { spawnLivingStoneParticles(b.x, b.y, 2, "#c66bff", 2); })) {
+            livingStoneBullets.splice(i, 1); continue;
+        }
         var dx = b.x - livingStoneBoss.x, dy = b.y - livingStoneBoss.y;
         if (Math.sqrt(dx * dx + dy * dy) < livingStoneBoss.size + b.size) {
             var dmg = b.damage;
