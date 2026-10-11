@@ -1,4 +1,4 @@
-/* Multiverse Battle — cooperative test instance of the original wave 500 Waystar fight. */
+/* Multiverse Battle — lightweight co-op training boss for network testing. */
 (function () {
     'use strict';
 
@@ -242,7 +242,7 @@
             await connectToRoom();
             connecting = false;
             bindLobbyMovement();
-            setStageStatus('✅ Ты в комнате. Дождись друга и начните босса 500 вместе.');
+            setStageStatus('✅ Ты в комнате. Дождись друга и начните обычного босса вместе.');
             updateStartButton();
         } catch (error) {
             console.warn('[MB co-op] Connection failed:', error);
@@ -572,7 +572,7 @@
             button.disabled = true; button.textContent = 'Ожидаем создателя комнаты'; return;
         }
         button.disabled = false;
-        button.textContent = '⚔️ Начать совместный бой с боссом 500';
+        button.textContent = '⚔️ Начать бой с обычным боссом';
     }
 
     function startCoopFight() {
@@ -623,6 +623,7 @@
         lastAppliedSnapshotSender = null;
         lastSnapshotSentAt = 0;
         lastFightPositionSentAt = 0;
+        lastCombatVisualsSentAt = 0;
         lastRemoteRenderAt = 0;
         lastPingSentAt = 0;
         pendingPingId = null;
@@ -644,9 +645,9 @@
         var stage = byId('onlineArenaStage');
         if (stage) stage.style.display = 'none';
         try {
-            if (typeof window.startWaystarFight !== 'function') throw new Error('Не загрузился исходный бой босса 500 (waystar_boss.js).');
+            if (typeof window.startWaystarFight !== 'function') throw new Error('Не загрузилась кооп-арена (waystar_boss.js).');
             window.startWaystarFight();
-            if (!(window.getWaystarActive && window.getWaystarActive())) throw new Error('Босс 500 не смог запуститься. Возможно, бой уже завершён в этом сохранении.');
+            if (!(window.getWaystarActive && window.getWaystarActive())) throw new Error('Обычный босс не смог запуститься. Попробуй выйти и войти на арену снова.');
             var hp = Math.max(25000, Number(packet.boss_max_hp) || 25000);
             if (typeof window.waystarBossMaxHp === 'number') window.waystarBossMaxHp = hp;
             if (typeof window.waystarBossHp === 'number') window.waystarBossHp = hp;
@@ -659,7 +660,7 @@
             }
             ensureCoopHud();
             updateCoopHud();
-            if (remote) setStageStatus('Друг начал бой 500 — подключаемся к той же битве…');
+            if (remote) setStageStatus('Друг начал бой — подключаемся к той же битве…');
             sendEvent('fight_player_pos', {
                 fight_id: activeFightId,
                 session_id: selfSessionId,
@@ -674,7 +675,7 @@
             if (stage) stage.style.display = 'flex';
             var lobbyAfterStartError = byId('onlineArenaLobby');
             if (lobbyAfterStartError) lobbyAfterStartError.style.display = 'block';
-            setStageStatus('Не удалось запустить босса 500: ' + friendlyError(error));
+            setStageStatus('Не удалось запустить обычного босса: ' + friendlyError(error));
         }
         updateStartButton();
     }
@@ -697,9 +698,9 @@
         var bullets = [];
         try {
             var sourceBullets = typeof window.getWaystarBullets === 'function' ? window.getWaystarBullets() : [];
-            bullets = (Array.isArray(sourceBullets) ? sourceBullets.slice(-36) : []).map(function (bullet) {
+            bullets = (Array.isArray(sourceBullets) ? sourceBullets.slice(-12) : []).map(function (bullet) {
                 var item = visualFields(bullet, ['x','y','size','color','damage','life']) || {};
-                item.trail = visualList(bullet && bullet.trail, ['x','y','life'], 4);
+                item.trail = visualList(bullet && bullet.trail, ['x','y','life'], 2);
                 return item;
             });
         } catch (_error) { bullets = []; }
@@ -707,7 +708,7 @@
         try { if (typeof _superState !== 'undefined' && _superState) s = _superState; } catch (_error) {}
         if (!s) return { bullets: bullets, supers: null };
         var dash = visualFields(s.dekuDash, ['startX','startY','dirX','dirY','distance','traveled','life']);
-        if (dash) dash.trail = visualList(s.dekuDash.trail, ['x','y','life'], 10);
+        if (dash) dash.trail = visualList(s.dekuDash.trail, ['x','y','life'], 6);
         var flags = {};
         // Include every current and future boolean ultimate flag without serializing
         // mutable gameplay state such as cooldown objects or local collision arrays.
@@ -729,14 +730,14 @@
             bullets: bullets,
             supers: {
                 flags: flags,
-                rings: visualList(s.rings, ['x','y','radius','color','life','maxLife','width'], 18),
-                fists: visualList(s.fists, ['x','y','size','life','color','owner','pathWidth'], 8),
-                dekuFists: visualList(s.dekuFists, ['x','y','radius','active','delay','angle'], 12),
-                dekuExplosions: visualList(s.dekuExplosions, ['x','y','life','maxLife'], 8),
-                realityCracks: visualList(s.realityCracks, ['x','y','life','maxLife','angle','length','width'], 12),
-                earthCracks: visualList(s.earthCracks, ['x','y','life','maxLife','angle','length','width'], 12),
-                comicTexts: visualList(s.comicTexts, ['x','y','text','color','alpha','angle','scale'], 10),
-                dioKnives: visualList(s.dioKnives, ['x','y','vx','vy','angle','life'], 12),
+                rings: visualList(s.rings, ['x','y','radius','color','life','maxLife','width'], 8),
+                fists: visualList(s.fists, ['x','y','size','life','color','owner','pathWidth'], 4),
+                dekuFists: visualList(s.dekuFists, ['x','y','radius','active','delay','angle'], 6),
+                dekuExplosions: visualList(s.dekuExplosions, ['x','y','life','maxLife'], 4),
+                realityCracks: visualList(s.realityCracks, ['x','y','life','maxLife','angle','length','width'], 6),
+                earthCracks: visualList(s.earthCracks, ['x','y','life','maxLife','angle','length','width'], 6),
+                comicTexts: visualList(s.comicTexts, ['x','y','text','color','alpha','angle','scale'], 4),
+                dioKnives: visualList(s.dioKnives, ['x','y','vx','vy','angle','life'], 6),
                 borosHeal: !!s.borosHeal,
                 dandyRoulette: visualFields(s.dandyRoulette, ['time','duration']),
                 dandyShield: visualFields(s.dandyShield, ['timer','mult']),
