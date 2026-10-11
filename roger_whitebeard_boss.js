@@ -2612,6 +2612,7 @@
 
         for (let i = 0; i < rwbPlayerBullets.length; i++) {
             let b = rwbPlayerBullets[i];
+            if (typeof window.drawEquipmentProjectile === 'function' && window.drawEquipmentProjectile(ctx, b)) continue;
             ctx.save();
             let grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.size * 1.5);
             grad.addColorStop(0, "#ffffff"); grad.addColorStop(0.5, b.color); grad.addColorStop(1, "transparent");
