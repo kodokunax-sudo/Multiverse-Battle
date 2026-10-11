@@ -58,23 +58,32 @@ function renderMyCards() {
         let hp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult); 
         // Показываем арт именно на карточке персонажа, если для него есть запись в images.js.
         let cardImg = typeof getCardImage === "function" ? getCardImage(cd.name) : null; 
-        let imgHTML = cardImg ? '<img src="' + cardImg + '" class="card-image">' : ''; 
+        let isDioGift = cd.dioGiftVariant === true;
+        let imgHTML = cardImg ? (isDioGift
+            ? '<div class="dio-gift-art-frame"><img src="' + cardImg + '" class="card-image dio-gift-art"></div>'
+            : '<img src="' + cardImg + '" class="card-image">') : '';
+        let giftRibbon = isDioGift ? '<div class="dio-gift-ribbon">✦ ПЕРСОНАЛЬНЫЙ ПОДАРОК ✦</div>' : '';
+        let giftEdition = isDioGift ? '<div class="dio-gift-edition">ОСЛАБЛЕННАЯ ВЕРСИЯ</div>' : '';
+        let giftSeal = isDioGift ? '<div class="dio-gift-seal">🔒 НЕ ПРОДАЁТСЯ</div>' : ''; 
         let superHTML = '';
         if (cd.superAbility && (typeof hasMasterySuper === 'function' ? hasMasterySuper(cd) : true)) {
             superHTML = '<div style="font-size:9px;color:#ffd700;font-weight:bold;margin-top:3px;text-align:center;line-height:1.2;background:rgba(0,0,0,0.3);border-radius:8px;padding:2px 4px;">' + cd.superAbility.name + '</div>';
         }
         let sukunaIndicator = skFinger ? '<div style="font-size:9px;color:#ff4444;font-weight:bold;margin-top:2px;">🗿 Сукуна</div>' : '';
         let masteryHTML = typeof getMasteryHTML === 'function' ? getMasteryHTML(cd) : '';
-        return '<div class="card-item ' + (team.includes(idx) ? 'team-selected' : '') + ' ' + (afkTeam.includes(idx) ? 'afk-selected' : '') + '" onclick="toggleTeam(' + idx + ')">' 
+        return '<div class="card-item ' + (isDioGift ? 'dio-gift-card ' : '') + (team.includes(idx) ? 'team-selected' : '') + ' ' + (afkTeam.includes(idx) ? 'afk-selected' : '') + '" onclick="toggleTeam(' + idx + ')">' 
+            + giftRibbon
             + imgHTML 
             + '<div class="card-name">' + escapeHtml(cd.name) + '</div>' 
             + '<div class="rarity-tag ' + rarityColors[cd.rarity] + '">' + cd.rarity + '</div>' 
+            + giftEdition
             + '<div class="card-stats">💪' + dmg + ' ❤️' + hp + ' ⚡' + (cd.speed || 0.5).toFixed(1) + '</div>' 
             + superHTML 
             + sukunaIndicator 
             + masteryHTML 
             + (cd.ability ? '<div style="font-size:10px;color:#f5af19;font-weight:bold;margin-top:2px;">✨ ' + cd.ability.desc + '</div>' : '') 
             + (cd.statusAbility ? '<div style="font-size:9px;color:#f5af19;margin-top:2px;">' + cd.statusAbility.desc + '</div>' : '') 
+            + giftSeal
             + '<div style="display:flex;gap:4px;justify-content:center;margin-top:6px;flex-wrap:wrap;">' 
             + '<div class="remove-icon" onclick="event.stopPropagation();showMasteryModal(' + idx + ')" style="background:#ffd700;color:#000;">⭐</div>' 
             + '<div class="remove-icon" onclick="event.stopPropagation();toggleTeam(' + idx + ')" style="background:#f5af19;color:#000;">⚔️</div>' 
