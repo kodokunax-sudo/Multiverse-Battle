@@ -2083,14 +2083,6 @@ function handleClick() {
     if (typeof livingStoneActive !== 'undefined' && livingStoneActive) return;
     if (typeof waystarActive !== 'undefined' && waystarActive) return;
     if (typeof rwbActive !== 'undefined' && rwbActive) return;
-    let arenaBtn = document.getElementById("startArenaBtn"); 
-    if (arenaBtn && arenaBtn.style.display !== "none" && arenaBtn.style.display !== "") return; 
-    let livingBtn = document.getElementById("startLivingStoneBtn"); 
-    if (livingBtn && livingBtn.style.display !== "none" && livingBtn.style.display !== "") return;
-    let waystarBtn = document.getElementById("startWaystarBtn");
-    if (waystarBtn && waystarBtn.style.display !== "none" && waystarBtn.style.display !== "") return;
-    let rwbBtn = document.getElementById("startRogerWB");
-    if (rwbBtn && rwbBtn.style.display !== "none" && rwbBtn.style.display !== "") return;
     if (playerHp <= 0) { resetGame(); return; } 
     if (!currentEnemy || currentEnemy.hp <= 0) return; 
     if (deathNoteTarget && wave === deathNoteTarget && !skipUsed) { currentEnemy.hp = 0; skipUsed = true; deathNoteTarget = null; victory(); return; } 
@@ -2101,10 +2093,18 @@ function handleClick() {
     let now = Date.now(); 
     let clickInterval = lastClickTime ? (now - lastClickTime) / 1000 : 999; 
     lastClickTime = now; 
-    let fatigueMultiplier = 1; 
-    if (clickInterval < 0.1) { fatigueMultiplier = 3; } else if (clickInterval < 0.5) { comboCount++; } else { comboCount = 0; comboMultiplier = 1; } 
-    if (comboCount >= 50) comboMultiplier = 5; 
-    else if (comboCount >= 25) comboMultiplier = 3; 
+    let fatigueMultiplier = 1;
+    // Every click inside the combo window advances the combo, including very fast clicks.
+    // Extreme spam builds fatigue faster, but no longer prevents combo progress.
+    if (clickInterval <= 0.65) {
+        comboCount++;
+        if (clickInterval < 0.1) fatigueMultiplier = 3;
+    } else {
+        comboCount = 1;
+        comboMultiplier = 1;
+    }
+    if (comboCount >= 50) comboMultiplier = 5;
+    else if (comboCount >= 25) comboMultiplier = 3;
     else if (comboCount >= 10) comboMultiplier = 2; 
     if (comboCount === 10) showFloatingText("⚡ КОМБО x2!", "#ffaa00"); 
     if (comboCount === 25) showFloatingText("⚡ КОМБО x3!", "#ff8800"); 
