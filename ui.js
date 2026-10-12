@@ -24,6 +24,8 @@ function renderMyCards() {
                 switch(cardFilter.sort) {
                     case 'dmg_desc': return cb.damage - ca.damage;
                     case 'dmg_asc': return ca.damage - cb.damage;
+                    case 'power_desc': return (typeof getCardOverallPower === 'function' ? getCardOverallPower(cb) : 0) - (typeof getCardOverallPower === 'function' ? getCardOverallPower(ca) : 0);
+                    case 'power_asc': return (typeof getCardOverallPower === 'function' ? getCardOverallPower(ca) : 0) - (typeof getCardOverallPower === 'function' ? getCardOverallPower(cb) : 0);
                     case 'hp_desc': return cb.hp - ca.hp;
                     case 'speed_desc': return (cb.speed || 0.5) - (ca.speed || 0.5);
                     case 'rarity_desc': {
@@ -77,7 +79,8 @@ function renderMyCards() {
             + '<div class="card-name">' + escapeHtml(cd.name) + '</div>' 
             + '<div class="rarity-tag ' + rarityColors[cd.rarity] + '">' + cd.rarity + '</div>' 
             + giftEdition
-            + '<div class="card-stats">💪' + dmg + ' ❤️' + hp + ' ⚡' + (cd.speed || 0.5).toFixed(1) + '</div>' 
+            + '<div class="card-stats">💪' + dmg + ' ❤️' + hp + ' ⚡' + (cd.speed || 0.5).toFixed(1) + '</div>'
+            + '<div style="font-size:10px;color:#9fdcff;margin-top:2px;">⚔️ Общая сила: ' + (typeof getCardOverallPower === 'function' ? getCardOverallPower(cd) : 0) + '</div>'
             + superHTML 
             + sukunaIndicator 
             + masteryHTML 
@@ -198,9 +201,40 @@ function renderTeamPresets() {
 }
 window.renderTeamPresets = renderTeamPresets;
 
+function renderAfkTeamPresets() {
+    const container = document.getElementById("afkTeamPresetsList");
+    if (!container) return;
+    const presets = (typeof afkTeamPresets !== 'undefined' && Array.isArray(afkTeamPresets)) ? afkTeamPresets : [];
+    let html = '';
+    for (let i = 0; i < 5; i++) {
+        const preset = presets[i] || { name: "АФК " + (i + 1), team: [] };
+        const isEmpty = !Array.isArray(preset.team) || preset.team.length === 0;
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:rgba(0,0,0,0.4);border-radius:10px;margin-bottom:5px;gap:6px;flex-wrap:wrap;border:1px solid rgba(255,255,255,0.05);">';
+        html += '<div style="flex:1;min-width:90px;cursor:pointer;" onclick="renameAfkTeamPreset(' + i + ')" title="Переименовать">';
+        html += '<div style="font-weight:800;font-size:12px;">' + (isEmpty ? '⬜' : '✅') + ' ' + escapeHtml(preset.name || ("АФК " + (i + 1))) + '</div>';
+        html += '<div style="font-size:10px;color:#aaa;">' + (isEmpty ? 'Пусто' : preset.team.length + ' карт') + '</div>';
+        html += '</div><div style="display:flex;gap:4px;">';
+        html += '<button class="btn" style="padding:4px 9px;font-size:11px;background:#2ecc71;color:#fff;border:none;" onclick="saveAfkTeamPreset(' + i + ')" title="Сохранить текущую АФК-команду">💾</button>';
+        html += '<button class="btn" style="padding:4px 9px;font-size:11px;background:#3498db;color:#fff;border:none;' + (isEmpty ? 'opacity:.4;' : '') + '" onclick="loadAfkTeamPreset(' + i + ')" ' + (isEmpty ? 'disabled' : '') + ' title="Загрузить">📥</button>';
+        html += '<button class="btn" style="padding:4px 9px;font-size:11px;background:#e74c3c;color:#fff;border:none;' + (isEmpty ? 'opacity:.4;' : '') + '" onclick="deleteAfkTeamPreset(' + i + ')" ' + (isEmpty ? 'disabled' : '') + ' title="Удалить">🗑️</button>';
+        html += '</div></div>';
+    }
+    container.innerHTML = html;
+}
+window.renderAfkTeamPresets = renderAfkTeamPresets;
+
 function renderAfkTeam() { 
     let c = document.getElementById("afkTeamList"), d = 0, h = 0, html = ""; 
-    if (!afkTeam.length) { c.innerHTML = "<div style='padding:10px;text-align:center;color:#888;'>Пусто</div>"; return; } 
+    if (!afkTeam.length) {
+        c.innerHTML = "<div style='padding:10px;text-align:center;color:#888;'>Пусто</div>";
+        let dmgEl = document.getElementById("afkTotalDamage");
+        let hpEl = document.getElementById("afkTotalHpBonus");
+        if (dmgEl) dmgEl.innerText = 0;
+        if (hpEl) hpEl.innerText = 0;
+        window.afkTeamDamage = 0; window.afkTeamHpBonus = 0;
+        if (typeof renderAfkTeamPresets === 'function') renderAfkTeamPresets();
+        return;
+    } 
     afkTeam.forEach((idx, s) => { 
         let cd = myCards[idx]; 
         if (!cd) return; 
@@ -220,8 +254,9 @@ function renderAfkTeam() {
     c.innerHTML = html; 
     document.getElementById("afkTotalDamage").innerText = Math.floor(d * 0.8); 
     document.getElementById("afkTotalHpBonus").innerText = Math.floor(h * 0.8); 
-    window.afkTeamDamage = Math.floor(d * 0.8); 
-    window.afkTeamHpBonus = Math.floor(h * 0.8); 
+    window.afkTeamDamage = Math.floor(d * 0.8);
+    window.afkTeamHpBonus = Math.floor(h * 0.8);
+    if (typeof renderAfkTeamPresets === 'function') renderAfkTeamPresets();
 }
 
 function renderEnemy() { 
