@@ -243,19 +243,23 @@ function renderAfkTeam() {
         let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); 
         let skFinger = hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now() && cd.name === sukunaTarget; 
         let dmgMult = 1; 
-        if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + totalWins * cd.ability.value); 
-        if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + totalWins * cd.statusAbility.value); 
+        if (typeof afkFarmUpgradeLevel !== 'undefined' && afkFarmUpgradeLevel >= 3) {
+            if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + totalWins * cd.ability.value);
+            if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + totalWins * cd.statusAbility.value);
+        } 
         let masteryMult = typeof getMasteryMult === 'function' ? getMasteryMult(cd) : 1; 
         let cDmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1) * masteryMult); 
         let cHp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult); 
         d += cDmg; h += cHp; 
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);border-radius:12px;margin-bottom:6px;"><span style="font-weight:800;">' + escapeHtml(cd.name) + (skFinger ? ' 🗿' : '') + '</span><span>💪' + Math.floor(cDmg * 0.8) + ' ❤️' + Math.floor(cHp * 0.8) + '</span><button class="btn" style="padding:4px 10px;background:rgba(231,76,60,0.8);border:none;" onclick="afkTeam.splice(' + s + ',1);renderAll();">X</button></div>'; 
+        const afkPowerMultiplier = typeof getAfkTeamPowerMultiplier === 'function' ? getAfkTeamPowerMultiplier() : (typeof afkFarmUpgradeLevel !== 'undefined' && afkFarmUpgradeLevel >= 5 ? 1 : 0.8);
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);border-radius:12px;margin-bottom:6px;"><span style="font-weight:800;">' + escapeHtml(cd.name) + (skFinger ? ' 🗿' : '') + '</span><span>💪' + Math.floor(cDmg * afkPowerMultiplier) + ' ❤️' + Math.floor(cHp * afkPowerMultiplier) + '</span><button class="btn" style="padding:4px 10px;background:rgba(231,76,60,0.8);border:none;" onclick="afkTeam.splice(' + s + ',1);renderAll();">X</button></div>'; 
     }); 
     c.innerHTML = html; 
-    document.getElementById("afkTotalDamage").innerText = Math.floor(d * 0.8); 
-    document.getElementById("afkTotalHpBonus").innerText = Math.floor(h * 0.8); 
-    window.afkTeamDamage = Math.floor(d * ((typeof afkFarmUpgradeLevel !== "undefined" && afkFarmUpgradeLevel >= 5) ? 1 : 0.8));
-    window.afkTeamHpBonus = Math.floor(h * ((typeof afkFarmUpgradeLevel !== "undefined" && afkFarmUpgradeLevel >= 5) ? 1 : 0.8));
+    const afkPowerMultiplier = typeof getAfkTeamPowerMultiplier === 'function' ? getAfkTeamPowerMultiplier() : (typeof afkFarmUpgradeLevel !== 'undefined' && afkFarmUpgradeLevel >= 5 ? 1 : 0.8);
+    document.getElementById("afkTotalDamage").innerText = Math.floor(d * afkPowerMultiplier);
+    document.getElementById("afkTotalHpBonus").innerText = Math.floor(h * afkPowerMultiplier);
+    window.afkTeamDamage = Math.floor(d * afkPowerMultiplier);
+    window.afkTeamHpBonus = Math.floor(h * afkPowerMultiplier);
     if (typeof renderAfkTeamPresets === 'function') renderAfkTeamPresets();
 }
 
