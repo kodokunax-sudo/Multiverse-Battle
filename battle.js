@@ -784,6 +784,7 @@ function applyHit(dmg, textMsg, isTrueOneshot) {
     if (typeof _superState !== 'undefined' && _superState.markBuffActive && _superState.markDmgReduction > 1) dmg = Math.floor(dmg / _superState.markDmgReduction);
     if(typeof getTakabaCombatModifiers==="function"){try{dmg=Math.max(1,Math.floor(dmg*getTakabaCombatModifiers().damageTakenMult));}catch(e){}}
     if (invulnTimer > 0) return;
+    if (typeof window.gojoTryNegateIncoming === "function" && window.gojoTryNegateIncoming(dmg, "arena")) return;
     if (typeof onTakabaDamageTaken === "function") {
         try { onTakabaDamageTaken(dmg); } catch(e) {}
     }
