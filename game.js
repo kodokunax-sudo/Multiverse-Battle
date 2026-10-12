@@ -1280,7 +1280,7 @@ function buyAfkFarmUpgrade(){if(playerLevel<20||afkFarmUpgradeLevel>=5)return;co
 function renderAfkFarmUpgrades(){const el=document.getElementById("afkFarmUpgradeItems");if(!el)return;const n=["⏳ Лимит 4 часа","⚡ Клик раз в секунду","✨ Способности в фарме","🎴 Шанс карт ×10","🔥 100% силы команды"],d=["Вместо 2 часов.","Вместо 2 секунд.","Пассивные бонусы способностей усиливают фарм.","Шанс карты увеличен в 10 раз.","Убирает штраф команды на 20%; стоит 50% звёзд, минимум 1 000 000."];let html="<div style=\"font-size:12px;color:#aaa\">Открывается на 20 уровне. Уровень "+afkFarmUpgradeLevel+"/5</div>";for(let i=0;i<5;i++){const done=afkFarmUpgradeLevel>i,cur=afkFarmUpgradeLevel===i,cost=cur?getAfkFarmCost():0,disabled=playerLevel<20||(mode!=="moder"&&points<cost);html+="<div class=\"upgrade-item\" style=\"margin:8px 0\"><div><b>"+(done?"✅ ":(i+1)+". ")+n[i]+"</b><br><small>"+d[i]+"</small>"+(!done?"<br><small>"+(playerLevel<20?"🔒 Нужен 20 уровень":"Стоимость: "+cost.toLocaleString("ru-RU")+"⭐")+"</small>":"")+"</div>"+(done?"Куплено":cur?"<button class=\"btn btn-primary\" onclick=\"buyAfkFarmUpgrade()\" "+(disabled?"disabled":"")+">Купить</button>":"🔒")+"</div>"}el.innerHTML=html}
 window.buyAfkFarmUpgrade=buyAfkFarmUpgrade;window.renderAfkFarmUpgrades=renderAfkFarmUpgrades;
 let evoProgress = { wavesSaitamaGarou:0, damageGarpKuzan:0, luffyKingUnlocked:false, sgUnlocked:false, gkUnlocked:false, sevenUnlocked:false, williamUnlocked:false, oneShotCount:0 };
-let upgrades={damage:{level:0,baseCost:25,increment:2,name:"💪 Сила удара",reqLevel:1},hp:{level:0,baseCost:25,increment:5,name:"❤️ Живучесть",reqLevel:1},crit:{level:0,baseCost:8,increment:0.001,name:"⚡ Крит. шанс",reqLevel:5},fatigueResist:{level:0,baseCost:10,increment:0.001,name:"💪 Сопр. усталости",reqLevel:10},abilityPower:{level:0,baseCost:200,increment:0.1,name:"✨ Усиление спос.",reqLevel:30}};
+let upgrades={damage:{level:0,baseCost:25,increment:2,name:"💪 Сила удара",reqLevel:1},hp:{level:0,baseCost:25,increment:5,name:"❤️ Живучесть",reqLevel:1},crit:{level:0,baseCost:8,increment:0.001,name:"⚡ Крит. шанс",reqLevel:5},fatigueResist:{level:0,baseCost:10,increment:0.001,name:"💪 Сопр. усталости",reqLevel:10}};
 
 const REBIRTH_REQUIREMENTS = [
     { wave: 200,  bossName: "Живой камень" },
@@ -2724,7 +2724,7 @@ function doRebirth() {
     autoSellSettings = {"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}; 
     purchasedAutoSell = {"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}; 
     autoRest = {active:false,threshold:90,purchased:false}; 
-    upgrades = {damage:{level:0,baseCost:25,increment:2,name:"💪 Сила",reqLevel:1},hp:{level:0,baseCost:25,increment:5,name:"❤️ Живучесть",reqLevel:1},crit:{level:0,baseCost:8,increment:0.001,name:"⚡ Крит",reqLevel:5},fatigueResist:{level:0,baseCost:10,increment:0.001,name:"💪 Усталость",reqLevel:10},abilityPower:{level:abilityUpgradeLevel,baseCost:200,increment:0.1,name:"✨ Усиление",reqLevel:30}}; 
+    upgrades = {damage:{level:0,baseCost:25,increment:2,name:"💪 Сила",reqLevel:1},hp:{level:0,baseCost:25,increment:5,name:"❤️ Живучесть",reqLevel:1},crit:{level:0,baseCost:8,increment:0.001,name:"⚡ Крит",reqLevel:5},fatigueResist:{level:0,baseCost:10,increment:0.001,name:"💪 Усталость",reqLevel:10}}; 
     rebirthCount++; 
     mbResetStatsForNextRebirth(_level7CardSave ? [_level7CardSave] : []);
     highestCheckpoint = 1; 
