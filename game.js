@@ -1385,8 +1385,49 @@ function afkTeamCanResurrect() {
     return false;
 }
 function buyAfkFarmUpgrade(){if(playerLevel<20||afkFarmUpgradeLevel>=5)return;const cost=getAfkFarmCost();if(mode!=="moder"&&points<cost)return;if(mode!=="moder")points-=cost;afkFarmUpgradeLevel++;if(typeof renderAfkTeam==="function")renderAfkTeam();saveAll();renderAfkFarmUpgrades();renderPoints();if(typeof showFloatingText==="function")showFloatingText("АФК-фарм улучшен: "+afkFarmUpgradeLevel+"/5","#2ecc71")}
-function renderAfkFarmUpgrades(){const el=document.getElementById("afkFarmUpgradeItems");if(!el)return;const n=["⏳ Лимит 4 часа","⚡ Клик раз в секунду","✨ Способности в фарме","🎴 Шанс карт ×10","🔥 100% силы команды"],d=["Вместо 2 часов.","Вместо 2 секунд.","Пассивные бонусы способностей усиливают фарм.","Шанс карты увеличен в 10 раз.","Убирает штраф команды на 20%; стоит 50% звёзд, минимум 1 000 000."];let html="<div style=\"font-size:12px;color:#aaa\">Открывается на 20 уровне. Уровень "+afkFarmUpgradeLevel+"/5</div>";for(let i=0;i<5;i++){const done=afkFarmUpgradeLevel>i,cur=afkFarmUpgradeLevel===i,cost=cur?getAfkFarmCost():0,disabled=playerLevel<20||(mode!=="moder"&&points<cost);html+="<div class=\"upgrade-item\" style=\"margin:8px 0\"><div><b>"+(done?"✅ ":(i+1)+". ")+n[i]+"</b><br><small>"+d[i]+"</small>"+(!done?"<br><small>"+(playerLevel<20?"🔒 Нужен 20 уровень":"Стоимость: "+cost.toLocaleString("ru-RU")+"⭐")+"</small>":"")+"</div>"+(done?"Куплено":cur?"<button class=\"btn btn-primary\" onclick=\"buyAfkFarmUpgrade()\" "+(disabled?"disabled":"")+">Купить</button>":"🔒")+"</div>"}el.innerHTML=html}
-window.buyAfkFarmUpgrade=buyAfkFarmUpgrade;window.renderAfkFarmUpgrades=renderAfkFarmUpgrades;
+function renderAfkFarmUpgrades() {
+    const el = document.getElementById("afkFarmUpgradeItems");
+    if (!el) return;
+    const names = [
+        "⏳ Лимит фарма до 4 часов",
+        "⚡ Клик каждую секунду",
+        "✨ Способности персонажей",
+        "🎴 Шанс карт ×10",
+        "🔥 100% силы команды"
+    ];
+    const descriptions = [
+        "Максимум офлайн-фарма увеличивается с 2 до 4 часов.",
+        "АФК-команда атакует каждую 1 секунду вместо 2.",
+        "Пассивные боевые способности и личные эффекты карт работают во время фарма.",
+        "Шанс выпадения карты за победу в АФК увеличивается в 10 раз.",
+        "Снимает 20%-й штраф с урона и здоровья АФК-команды. Цена: 50% звёзд, минимум 1 000 000⭐."
+    ];
+    const level = Math.max(0, Math.min(5, Number(afkFarmUpgradeLevel) || 0));
+    const unlocked = playerLevel >= 20;
+    let html = '<div style="font-size:12px;color:#aaa;margin-bottom:8px;">Уровень ' + level + '/5 · ' +
+        (unlocked ? 'Прокачка доступна' : '🔒 Откроется на 20 уровне игрока (сейчас ' + playerLevel + ')') + '</div>';
+    for (let i = 0; i < 5; i++) {
+        const done = level > i;
+        const current = level === i;
+        const cost = current ? getAfkFarmCost() : 0;
+        const canPay = mode === "moder" || points >= cost;
+        const lockedText = !unlocked ? "🔒 Требуется 20 уровень" : "🔒 Сначала предыдущий уровень";
+        const price = done ? "✅ Куплено" : current ? Number(cost).toLocaleString("ru-RU") + "⭐" : lockedText;
+        html += '<div class="upgrade-item" style="margin:8px 0;' + (current && unlocked ? 'border-color:rgba(46,204,113,.4);' : '') + '">';
+        html += '<div style="flex:1;"><b>' + (done ? '✅ ' : (i + 1) + '. ') + names[i] + '</b><br><small>' + descriptions[i] + '</small>';
+        html += (!done && current && !canPay && unlocked ? '<br><small style="color:#ff7777;">Не хватает звёзд</small>' : '') + '</div>';
+        if (done) {
+            html += '<span style="color:#7fffb0;font-size:11px;">Куплено</span>';
+        } else if (current) {
+            html += '<button class="btn btn-primary" onclick="buyAfkFarmUpgrade()" ' + (!unlocked || !canPay ? 'disabled' : '') + '>Купить · ' + price + '</button>';
+        } else {
+            html += '<span style="font-size:10px;color:#aaa;text-align:right;">' + price + '</span>';
+        }
+        html += '</div>';
+    }
+    el.innerHTML = html;
+}
+window.buyAfkFarmUpgrade=buyAfkFarmUpgrade;window.renderAfkFarmUpgrades=renderAfkFarmUpgrades;window.buyAfkFarmUpgrade=buyAfkFarmUpgrade;window.renderAfkFarmUpgrades=renderAfkFarmUpgrades;
 let evoProgress = { wavesSaitamaGarou:0, damageGarpKuzan:0, luffyKingUnlocked:false, sgUnlocked:false, gkUnlocked:false, sevenUnlocked:false, williamUnlocked:false, oneShotCount:0 };
 let upgrades={damage:{level:0,baseCost:25,increment:2,name:"💪 Сила удара",reqLevel:1},hp:{level:0,baseCost:25,increment:5,name:"❤️ Живучесть",reqLevel:1},crit:{level:0,baseCost:8,increment:0.001,name:"⚡ Крит. шанс",reqLevel:5},fatigueResist:{level:0,baseCost:10,increment:0.001,name:"💪 Сопр. усталости",reqLevel:10}};
 
@@ -1992,7 +2033,7 @@ function processOfflineProgress() {
     let simWave = afkCurrentWave || wave; 
     let simHp = playerHp; 
     let simBaseDmg = (5 + upgrades.damage.level * upgrades.damage.increment) * 0.8 + (window.afkTeamDamage || 0); 
-    let simMaxHp = window.playerMaxHp || 100; 
+    let simMaxHp = Math.max(1, Math.floor((50 + upgrades.hp.level * upgrades.hp.increment) * 0.8 + (window.afkTeamHpBonus || 0))); 
     let earnedPoints = 0; 
     let earnedCards = 0; 
     let startWaveForPower = simWave;
@@ -2673,14 +2714,15 @@ function runAfkTick() {
         if (el) el.innerText = afkCurrentWave; 
         el = document.getElementById("afkWavesCompleted"); 
         if (el) el.innerText = afkWavesCompleted; 
-        const baseAfkHeal = Math.floor((50 + upgrades.hp.level * upgrades.hp.increment + (window.afkTeamHpBonus || 0)) * 0.8 * 0.2);
+        const baseAfkHeal = Math.floor((50 + upgrades.hp.level * upgrades.hp.increment) * 0.8 * 0.2 + (window.afkTeamHpBonus || 0) * 0.2);
         const abilityAfkHeal = Math.floor((window.playerMaxHp || 100) * getAfkTeamWinHealPercent());
         playerHp = Math.min(window.playerMaxHp, playerHp + baseAfkHeal + abilityAfkHeal); 
         increaseFatigue(); 
         renderPoints(); 
         updatePlayerStats(); 
-        checkAchievements(); 
-        checkAutoSell(); 
+        checkAchievements();
+        checkAutoSell();
+        if (afkFarmUpgradeLevel >= 3 && typeof renderAfkTeam === "function") renderAfkTeam(); 
     } else { 
         if (Math.random() < 0.33) { 
             let takenDmg = Math.floor(edmg * 0.9 * getAfkIncomingDamageMultiplier(afkCurrentWave));
@@ -2692,7 +2734,7 @@ function runAfkTick() {
                     if (typeof showFloatingText === "function") showFloatingText("✨ АФК-команда спасла тебя!", "#2ecc71");
                 } else {
                     afkCurrentWave = 1;
-                    playerHp = (50 + upgrades.hp.level * upgrades.hp.increment + (window.afkTeamHpBonus || 0)) * 0.8;
+                    playerHp = (50 + upgrades.hp.level * upgrades.hp.increment) * 0.8 + (window.afkTeamHpBonus || 0);
                     fatigue = Math.max(0, fatigue - 20); 
                 updateFatigue(); 
                 updateRestBtn(); 
