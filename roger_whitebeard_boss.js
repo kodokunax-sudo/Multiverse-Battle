@@ -930,7 +930,7 @@
         rwbWinner = null; rwbRewardGiven = false; rwbDialogStage = 0;
         rwbWhitebeardDisabled = [false, false, false]; rwbWBPhase = "intro";
         rwbDialogQueue = []; rwbDialogActive = false; rwbDialogType = null; rwbDialogTimer = 0;
-        wbBrain = { bottomFrames: 0, stationaryFrames: 0, farFrames: 0, shotsInWindow: 180, shotWindowTimer: 180, adaptiveCooldown: 0, lastX: 200, lastY: 420, playerVX: 0, playerVY: 0, lastAdaptive: null, lastAttackId: -1, lastSuperAttackId: -1, comboHint: null, phase: "idle", phaseTimer: 0, recoveryTimer: 0, plannedTargetX: 200, plannedTargetY: 360, plannedRockXs: [] };
+        wbBrain = { bottomFrames: 0, stationaryFrames: 0, farFrames: 0, shotsInWindow: 0, shotWindowTimer: 180, adaptiveCooldown: 0, lastX: 200, lastY: 420, playerVX: 0, playerVY: 0, lastAdaptive: null, lastAttackId: -1, lastSuperAttackId: -1, comboHint: null, phase: "idle", phaseTimer: 0, recoveryTimer: 0, plannedTargetX: 200, plannedTargetY: 360, plannedRockXs: [] };
         wbTrapCombo = { stage: "idle", timer: 0, cooldown: 300, targetX: 200, targetY: 380, startedAt: 0 };
         rwbPlayerStunTimer = 0; wbFruitFlashTimer = 0; wbFruitFlashPower = 0.72;
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
