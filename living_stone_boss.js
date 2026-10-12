@@ -1720,6 +1720,7 @@ function triggerChainExplosion(x, y, damage) {
 
 function damageLivingStonePlayer(dmg) {
     if (livingStoneInvulnTimer > 0) return;
+    if (typeof window.gojoTryNegateIncoming === "function" && window.gojoTryNegateIncoming(dmg, "stone")) return;
     
     // ★ Уже была проверка суперов, оставляем ★
     if (typeof _superState !== 'undefined') {
