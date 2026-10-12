@@ -91,7 +91,8 @@ let arenaSettings = {
     mobileControlStyle: "dpad8",
     mobileControlPosition: "left",
     joystickSize: 100,
-    joystickOpacity: 60
+    joystickOpacity: 60,
+    autoSkipDefeatedBosses: false
 };
 
 // ★★★ НАСТРОЙКА БОНУСА НОВИЧКА ★★★
@@ -789,6 +790,7 @@ function loadArenaSettings() {
             arenaSettings.volume = s.volume ?? 0.20;
             arenaSettings.effectsOpacity = s.effectsOpacity ?? 1.0;
             arenaSettings.autoSuper = s.autoSuper ?? false;
+            arenaSettings.autoSkipDefeatedBosses = s.autoSkipDefeatedBosses ?? false;
             arenaSettings.mobileSuper = s.mobileSuper ?? "button";
             arenaSettings.arenaControl = s.arenaControl ?? "auto";
             arenaSettings.mobileControlStyle = s.mobileControlStyle ?? "dpad8";
@@ -813,6 +815,8 @@ function applyArenaSettings() {
     if (effValue) effValue.innerText = Math.floor(arenaSettings.effectsOpacity * 100) + "%";
     let autoCheck = document.getElementById("autoSuperCheckbox");
     if (autoCheck) autoCheck.checked = arenaSettings.autoSuper;
+    let autoSkipCheck = document.getElementById("autoSkipDefeatedBossesCheckbox");
+    if (autoSkipCheck) autoSkipCheck.checked = !!arenaSettings.autoSkipDefeatedBosses;
     let mobileSelect = document.getElementById("mobileSuperSelect");
     if (mobileSelect) mobileSelect.value = arenaSettings.mobileSuper;
     
@@ -838,6 +842,14 @@ function applyArenaSettings() {
 function changeArenaVolume(val) { arenaSettings.volume = val / 100; document.getElementById("arenaVolumeValue").innerText = val + "%"; saveArenaSettings(); }
 function changeArenaEffects(val) { arenaSettings.effectsOpacity = val / 100; document.getElementById("arenaEffectsValue").innerText = val + "%"; saveArenaSettings(); }
 function toggleAutoSuper(checked) { arenaSettings.autoSuper = checked; saveArenaSettings(); }
+function toggleAutoSkipDefeatedBosses(checked) {
+    arenaSettings.autoSkipDefeatedBosses = !!checked;
+    saveArenaSettings();
+    if (typeof showFloatingText === 'function') {
+        showFloatingText(arenaSettings.autoSkipDefeatedBosses ? "⏭️ Авто-пропуск повторных боссов включён" : "Авто-пропуск повторных боссов выключен", "#f5af19");
+    }
+}
+window.toggleAutoSkipDefeatedBosses = toggleAutoSkipDefeatedBosses;
 function changeMobileSuper(val) { arenaSettings.mobileSuper = val; saveArenaSettings(); }
 
 function changeArenaControl(val) { 
@@ -904,7 +916,8 @@ function resetArenaSettings() {
         mobileControlStyle: "dpad8",
         mobileControlPosition: "left",
         joystickSize: 100,
-        joystickOpacity: 60
+        joystickOpacity: 60,
+        autoSkipDefeatedBosses: false
     }; 
     saveArenaSettings(); 
     applyArenaSettings(); 
@@ -1022,6 +1035,15 @@ function loadGameData(d) {
     if (d.teamPresets && Array.isArray(d.teamPresets) && d.teamPresets.length === 5) {
         teamPresets = d.teamPresets;
     }
+    afkTeamPresets = (Array.isArray(d.afkTeamPresets) && d.afkTeamPresets.length === 5)
+        ? d.afkTeamPresets
+        : [
+            { name: "АФК 1", team: [] },
+            { name: "АФК 2", team: [] },
+            { name: "АФК 3", team: [] },
+            { name: "АФК 4", team: [] },
+            { name: "АФК 5", team: [] }
+        ];
     if (d.dailyRewards) {
         dailyRewards.currentDay = d.dailyRewards.currentDay || 1;
         dailyRewards.lastClaimDate = d.dailyRewards.lastClaimDate || null;
@@ -1127,6 +1149,13 @@ function initNewGame() {
         { name: "Пресет 4", team: [], mainIndex: 0 },
         { name: "Пресет 5", team: [], mainIndex: 0 }
     ];
+    afkTeamPresets = [
+        { name: "АФК 1", team: [] },
+        { name: "АФК 2", team: [] },
+        { name: "АФК 3", team: [] },
+        { name: "АФК 4", team: [] },
+        { name: "АФК 5", team: [] }
+    ];
     dailyRewards = { currentDay: 1, lastClaimDate: null, claimedToday: false };
     passData = { currentTier: 1, passExp: 0, claimedTiers: [] };
     if (typeof setPowerPoints === 'function') setPowerPoints(0);
@@ -1221,6 +1250,7 @@ function saveAll() {
     slotData.dailyRewards = dailyRewards;
     slotData.passData = passData;
     slotData.teamPresets = teamPresets;
+    slotData.afkTeamPresets = afkTeamPresets;
     if (typeof getPowerPoints === 'function') slotData.powerPoints = getPowerPoints();
     if (typeof saveInventory === 'function') slotData.inventory = saveInventory();
     
@@ -1369,6 +1399,59 @@ let cardFilter = {
     sort: 'default'
 };
 
+function getCardOverallPower(card) {
+    if (!card) return 0;
+    const damage = Math.max(0, Number(card.damage) || 0);
+    const hp = Math.max(0, Number(card.hp) || 0);
+    const speed = Math.max(0, Number(card.speed) || 0);
+    const mastery = Math.max(1, Math.min(7, Number(card.mastery) || 1));
+    let score = damage * 2 + hp + speed * 40;
+    score *= 1 + (mastery - 1) * 0.06;
+    if (card.ability) score *= 1.05;
+    if (card.statusAbility) score *= 1.03;
+    if (card.superAbility) score *= 1.04;
+    return Math.round(score);
+}
+window.getCardOverallPower = getCardOverallPower;
+
+function mbGetStrongestCardIndexes(limit) {
+    return (Array.isArray(myCards) ? myCards : [])
+        .map((card, index) => ({ index, power: getCardOverallPower(card) }))
+        .filter(item => myCards[item.index])
+        .sort((a, b) => b.power - a.power || a.index - b.index)
+        .slice(0, Math.max(0, limit || 6))
+        .map(item => item.index);
+}
+function autoBuildStrongTeam() {
+    const strongest = mbGetStrongestCardIndexes(6);
+    if (!strongest.length) {
+        if (typeof showFloatingText === 'function') showFloatingText("Сначала получи хотя бы одну карту", "#ff6666");
+        return;
+    }
+    team = strongest;
+    mainCardIndex = 0;
+    normalizeMainCard();
+    saveAll();
+    if (typeof renderAll === 'function') renderAll();
+    else { renderTeam(); renderMyCards(); }
+    if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof showFloatingText === 'function') showFloatingText("⚡ Собраны " + strongest.length + " сильнейших карт!", "#2ecc71");
+}
+function autoBuildStrongAfkTeam() {
+    const strongest = mbGetStrongestCardIndexes(6);
+    if (!strongest.length) {
+        if (typeof showFloatingText === 'function') showFloatingText("Сначала получи хотя бы одну карту", "#ff6666");
+        return;
+    }
+    afkTeam = strongest;
+    saveAll();
+    if (typeof renderAll === 'function') renderAll();
+    else { renderAfkTeam(); renderMyCards(); }
+    if (typeof showFloatingText === 'function') showFloatingText("💤 АФК-команда собрана из " + strongest.length + " сильнейших карт!", "#2ecc71");
+}
+window.autoBuildStrongTeam = autoBuildStrongTeam;
+window.autoBuildStrongAfkTeam = autoBuildStrongAfkTeam;
+
 function updateCardFilter() {
     let searchEl = document.getElementById("cardSearchInput");
     let rarityEl = document.getElementById("cardRarityFilter");
@@ -1402,6 +1485,13 @@ let teamPresets = [
     { name: "Пресет 3", team: [], mainIndex: 0 },
     { name: "Пресет 4", team: [], mainIndex: 0 },
     { name: "Пресет 5", team: [], mainIndex: 0 }
+];
+let afkTeamPresets = [
+    { name: "АФК 1", team: [] },
+    { name: "АФК 2", team: [] },
+    { name: "АФК 3", team: [] },
+    { name: "АФК 4", team: [] },
+    { name: "АФК 5", team: [] }
 ];
 
 function saveTeamPreset(slot) {
@@ -1452,6 +1542,57 @@ window.saveTeamPreset = saveTeamPreset;
 window.loadTeamPreset = loadTeamPreset;
 window.deleteTeamPreset = deleteTeamPreset;
 window.renameTeamPreset = renameTeamPreset;
+
+function saveAfkTeamPreset(slot) {
+    if (slot < 0 || slot >= 5) return;
+    if (!afkTeam.length) {
+        if (typeof showFloatingText === 'function') showFloatingText("АФК-команда пустая!", "#ff6666");
+        return;
+    }
+    afkTeamPresets[slot] = { name: afkTeamPresets[slot]?.name || ("АФК " + (slot + 1)), team: afkTeam.slice(0, 6) };
+    saveAll();
+    if (typeof renderAfkTeamPresets === 'function') renderAfkTeamPresets();
+    if (typeof showFloatingText === 'function') showFloatingText("💾 " + afkTeamPresets[slot].name + " сохранён!", "#2ecc71");
+}
+function loadAfkTeamPreset(slot) {
+    if (slot < 0 || slot >= 5) return;
+    const preset = afkTeamPresets[slot];
+    if (!preset || !Array.isArray(preset.team) || !preset.team.length) {
+        if (typeof showFloatingText === 'function') showFloatingText("АФК-пресет пуст!", "#ff6666");
+        return;
+    }
+    afkTeam = preset.team.filter(index => Number.isInteger(index) && index >= 0 && index < myCards.length).slice(0, 6);
+    if (!afkTeam.length) {
+        if (typeof showFloatingText === 'function') showFloatingText("Карты из пресета не найдены!", "#ff6666");
+        return;
+    }
+    saveAll();
+    if (typeof renderAll === 'function') renderAll();
+    else if (typeof renderAfkTeam === 'function') renderAfkTeam();
+    if (typeof showFloatingText === 'function') showFloatingText("📥 " + preset.name + " загружен!", "#2ecc71");
+}
+function deleteAfkTeamPreset(slot) {
+    if (slot < 0 || slot >= 5) return;
+    const preset = afkTeamPresets[slot];
+    if (preset && preset.team && preset.team.length && !confirm("Удалить " + preset.name + "?")) return;
+    afkTeamPresets[slot] = { name: "АФК " + (slot + 1), team: [] };
+    saveAll();
+    if (typeof renderAfkTeamPresets === 'function') renderAfkTeamPresets();
+}
+function renameAfkTeamPreset(slot) {
+    if (slot < 0 || slot >= 5) return;
+    const preset = afkTeamPresets[slot];
+    if (!preset) return;
+    const name = prompt("Новое имя АФК-пресета:", preset.name);
+    if (name === null || !name.trim()) return;
+    preset.name = name.trim().slice(0, 32);
+    saveAll();
+    if (typeof renderAfkTeamPresets === 'function') renderAfkTeamPresets();
+}
+window.saveAfkTeamPreset = saveAfkTeamPreset;
+window.loadAfkTeamPreset = loadAfkTeamPreset;
+window.deleteAfkTeamPreset = deleteAfkTeamPreset;
+window.renameAfkTeamPreset = renameAfkTeamPreset;
 
 // ========== UI ЗВУКИ ==========
 let _uiAudioCtx = null;
@@ -1816,6 +1957,30 @@ function startGachaAnimation(card, type) { let availableRarities = []; switch(ty
 // ============================================================
 // ГЕНЕРАЦИЯ ВРАГА
 // ============================================================
+function mbWasUniqueBossDefeatedForAutoSkip(bossWave) {
+    if (Number(bossWave) === 500) {
+        return typeof window !== 'undefined' && window.waystarDefeatedThisRun === true;
+    }
+    return typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(Number(bossWave));
+}
+function mbScheduleAutoSkipDefeatedBoss(bossWave, isUniqueBoss) {
+    if (!isUniqueBoss || !arenaSettings || arenaSettings.autoSkipDefeatedBosses !== true) return false;
+    const targetWave = Number(bossWave);
+    if (!mbWasUniqueBossDefeatedForAutoSkip(targetWave)) return false;
+    if (window.__mbAutoSkipScheduledWave === targetWave) return true;
+    const enemyAtSchedule = currentEnemy;
+    window.__mbAutoSkipScheduledWave = targetWave;
+    setTimeout(function() {
+        if (window.__mbAutoSkipScheduledWave === targetWave) window.__mbAutoSkipScheduledWave = null;
+        if (!arenaSettings || arenaSettings.autoSkipDefeatedBosses !== true) return;
+        if (Number(wave) !== targetWave || !currentEnemy || currentEnemy !== enemyAtSchedule || !currentEnemy.isBoss || currentEnemy.hp <= 0) return;
+        currentEnemy.hp = 0;
+        if (typeof showFloatingText === 'function') showFloatingText("⏭️ Повторный босс пропущен!", "#ffaa00");
+        victory();
+    }, 0);
+    return true;
+}
+
 function generateEnemy() { 
     // Lock the wave-1000 skip to a single use per encounter.
     if (Number(wave) !== 1000 && window.__mbSkipRwbUsedWave === 1000) window.__mbSkipRwbUsedWave = null;
@@ -1970,7 +2135,8 @@ function generateEnemy() {
         skipBtn.style.display = Number(wave) === 1000 ? "none" : (alreadyDefeated ? "block" : "none");
     }
     
-    startBattleMusic(); renderEnemy(); updateStatusDisplay(); updateEnemyStatusDisplay(); 
+    startBattleMusic(); renderEnemy(); updateStatusDisplay(); updateEnemyStatusDisplay();
+    mbScheduleAutoSkipDefeatedBoss(wave, isUniqueBoss);
 }
 function showBossDialogue(msg) { let d = document.getElementById("bossDialogue"); if (d) { d.innerText = '«' + msg + '»'; d.style.display = "block"; } }
 function hideBossDialogue() { let d = document.getElementById("bossDialogue"); if (d) d.style.display = "none"; }
@@ -2588,6 +2754,13 @@ function doRebirth() {
     let savedStonePiece = (typeof inventory !== 'undefined' && inventory["stone_piece"]) ? inventory["stone_piece"] : 0;
     if (typeof resetInventory === 'function') resetInventory();
     if (savedStonePiece > 0 && typeof addItem === 'function') addItem("stone_piece", savedStonePiece);
+    // Ребёрт полностью очищает материалы и любое снаряжение, включая надетое.
+    if (typeof window !== 'undefined' && typeof window.clearCraftingForRebirth === 'function') {
+        window.clearCraftingForRebirth();
+    } else {
+        if (typeof window.setResourcesData === 'function') window.setResourcesData({});
+        if (typeof window.setEquipmentData === 'function') window.setEquipmentData({ weapon: null, armor: null });
+    }
     resetDailyRewards();
     passData = { currentTier: 1, passExp: 0, claimedTiers: [] };
     for (let i = 0; i < 3; i++) { let c = createCard(getRandomRarity()); if (c) myCards.push(c); } 
