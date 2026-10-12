@@ -96,8 +96,6 @@ const customCardTemplates = {
         { name: "Луффи (4 гир)", universe: "One Piece", damage: 45, hp: 75, speed: 1.8, ability: { type: "damageReduction", value: 0.15, desc: "-15% урона" }, desc: "Boundman. Уменьшает получаемый урон на 15%." },
         { name: "Наруто (Мудрец)", universe: "Naruto", damage: 52, hp: 85, speed: 2.0, statusAbility: { type: "bleed", value: 0.10, desc: "Кровотечение +10%" }, desc: "Режим Мудреца. Увеличивает урон по врагу на 10% (кровотечение)." },
         { name: "Гоку (SSJ)", universe: "DB", damage: 60, hp: 70, speed: 2.2, ability: { type: "bossDamage", value: 0.10, desc: "+10% боссам" }, desc: "Супер Сайян. +10% урона боссам." },
-        { name: "Годжо (флешбек)", universe: "JJK", damage: 66, hp: 66, speed: 2.5, statusAbility: { type: "shock", chance: 0.1, desc: "Шок 10%" }, desc: "Молодой сильнейший маг. 10% шанс шокнуть врага и сбросить его атаку." },
-        { name: "Сукуна (15 пальцев)", universe: "JJK", damage: 70, hp: 70, speed: 1.9, statusAbility: { type: "bleed", value: 0.08, desc: "Кровотечение +8%" }, desc: "Король Проклятий. +8% урона через кровотечение." },
         { name: "Эйс", universe: "One Piece", damage: 70, hp: 47, speed: 2.1, statusAbility: { type: "fire", damage: 5, duration: 5000, desc: "Огонь 5/сек" }, desc: "Огненный кулак. Поджигает врага — 5 урона каждые 2 секунды." },
         { name: "Дедушка Гарп", universe: "One Piece", damage: 55, hp: 90, speed: 1.2, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" }, desc: "Герой морпехов. +10% урона всей команде." },
         { name: "Неуязвимый (Коалиция планет)", universe: "Invincible", damage: 65, hp: 80, speed: 2.0, ability: { type: "critChance", value: 0.20, desc: "+20% крит" }, desc: "Марк Грейсон в прайме. +20% к шансу крита." },
@@ -112,6 +110,7 @@ const customCardTemplates = {
         { name: "Деку: полное покрытие (20%)", universe: "MHA", damage: 58, hp: 68, speed: 1.3, ability: { type: "spareChanceBonus", value: 0.10, desc: "+10% к пощаде" }, statusAbility: { type: "dmgTakenIncrease", value: 0.10, desc: "+10% получ. урона" }, desc: "20% One For All. +10% к пощаде, но получаемый урон увеличен на 10%." }
     ],
     "Легендарная": [
+        { name: "Сукуна (15 пальцев)", universe: "JJK", damage: 105, hp: 95, speed: 2.4, statusAbility: { type: "bleed", value: 0.08, desc: "Кровотечение +8%" }, desc: "Король Проклятий. Высокий урон и кровотечение, добавляющее 8% урона." },
         { name: "Кудзан", universe: "One Piece", damage: 85, hp: 120, speed: 1.8, statusAbility: { type: "freezeStacks", value: 2, desc: "Заморозка +2" }, desc: "Бывший адмирал Аокидзи. Замораживает врага — +2 клика до ответной атаки." },
         { name: "Йонко Шанкс", universe: "One Piece", damage: 95, hp: 90, speed: 3.0, ability: { type: "critChance", value: 0.15, desc: "+15% крит" }, desc: "Рыжеволосый император. +15% к шансу крита." },
         { name: "Хоумлендер", universe: "The Boys", damage: 115, hp: 125, speed: 2.5, ability: { type: "bossDamage", value: 0.18, desc: "+18% боссам" }, statusAbility: { type: "fire", damage: 10, duration: 3000, desc: "Лазеры 10/сек" }, desc: "Лидер Семёрки. +18% урона боссам и поджигает врага лазерами — 10 урона/2 сек." },
@@ -125,6 +124,13 @@ const customCardTemplates = {
         
     ],
     "Секретная": [
+        {
+            name: "Годжо (флешбек)", universe: "JJK", damage: 360, hp: 155, speed: 3.4, sellPrice: 2800,
+            ability: { type: "critChance", value: 0.90, desc: "90% шанс крита (урон x2)" },
+            statusAbility: { type: "gojoDodge", chance: 0.30, desc: "30% шанс полностью отменить входящий урон" },
+            desc: "Секретный Годжо: огромный урон, но здоровье ниже среднего. На 4★ обычные атаки критуют с шансом 90%; на 3★ есть 30% шанс полностью отменить входящий удар.",
+            superAbility: { name: "SUPER: БЕЗГРАНИЧНОСТЬ", desc: "Красный отталкивает пули и на уникальных боссах при попадании наносит 5% максимального HP и отбрасывает босса. Синий притягивает и закручивает блоки, а также тянет уникального босса. Бесконечность на 3 секунды уничтожает блоки вокруг игрока, но вдвое замедляет его. При 100% Проклятой энергии Красный и Синий заменяются Фиолетовым: Годжо соединяет их и выпускает луч длиной примерно в половину арены, который уничтожает блоки на пути и наносит уникальному боссу 15% максимального HP при попадании.", passive: false }
+        },
         // ★★★ ТАКАБА ★★★
         { 
             name: "Такаба", 
