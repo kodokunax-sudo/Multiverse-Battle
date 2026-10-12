@@ -1145,6 +1145,7 @@ function applyWaystarHit(dmg, textMsg) {
     }
     if (isWaystarModerActive()) { if (textMsg && typeof showFloatingText === 'function') showFloatingText(textMsg + " (∞ HP)", "#ffff00"); return; }
     if (waystarInvulnTimer > 0) return;
+    if (typeof window.gojoTryNegateIncoming === "function" && window.gojoTryNegateIncoming(dmg, "waystar")) return;
 
     if (typeof _superState !== 'undefined') {
         if (_superState.usoppInvuln) return;
