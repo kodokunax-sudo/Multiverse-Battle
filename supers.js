@@ -1582,6 +1582,10 @@ function toggleSuper() {
         updateDioPanel();
         return;
     }
+    if (mainCard.name === "Годжо (флешбек)" && typeof window.gojoUpdatePanel === "function") {
+        window.gojoUpdatePanel();
+        return;
+    }
 
     if (isUnique) {
         if (getHeroCurrentCharges(mainCard.name) === null) {
@@ -1981,6 +1985,7 @@ function updateSuperButton() {
 }
 
 function resetAllSupers() {
+    if (typeof window.gojoReset === "function") window.gojoReset();
     var ctxB = getBossContext();
     if (_activeSuperName && superAbilities[_activeSuperName] && superAbilities[_activeSuperName].onDeactivate) {
         superAbilities[_activeSuperName].onDeactivate();
@@ -2417,6 +2422,7 @@ function tickSupers() {
     updateDioAggressiveBlocks(ctxB);
     updateDioStandZone(ctxB);
     updateDioPanel();
+    if (typeof window.gojoTick === "function") window.gojoTick(dt, ctxB);
 
     // ★ БЕЛОУС: реген + активки
     tickWhitebeardRegen(dt);
@@ -2736,6 +2742,7 @@ function renderSuperVisuals() {
     renderDioVisuals(ctxB);
     if(ctxB.type!=="arena"&&typeof window.dioRenderPlayerAndStand==="function")window.dioRenderPlayerAndStand(ctxB);
     else if(typeof window.dioRenderSkillEffects==="function")window.dioRenderSkillEffects(ctxB);
+    if (typeof window.gojoRenderVisuals === "function") window.gojoRenderVisuals(ctxB);
 
     // ★ ТАКАБА: дополнительные визуалы для уникальных боссов.
     if (ctxB.type !== "arena" && _superState.takabaRandomEventTimer > 0) {
