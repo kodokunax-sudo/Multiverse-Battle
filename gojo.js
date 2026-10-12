@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-var N="Годжо (флешбек)",s={energy:0,cd:{red:0,blue:0,infinity:0},red:null,blue:0,infinity:0,restore:null,purple:0,beam:null,id:0,lastHp:null,type:null,panel:false};
+var N="Годжо",s={energy:0,cd:{red:0,blue:0,infinity:0},red:null,blue:0,infinity:0,restore:null,purple:0,beam:null,id:0,lastHp:null,type:null,panel:false};
 function card(){try{return typeof getMainCard==="function"?getMainCard():null}catch(e){return null}}
 function isAdminPlayer(){try{return !!(window.isAdmin===true||window.isModerator===true||window.currentUserIsAdmin===true||(typeof isAdmin!=="undefined"&&isAdmin===true)||(typeof isModerator!=="undefined"&&isModerator===true))}catch(e){return false}}
 function getBattleContext(){try{return typeof getBossContext==="function"?getBossContext():null}catch(e){return null}}
