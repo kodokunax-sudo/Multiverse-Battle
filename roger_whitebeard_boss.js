@@ -163,6 +163,8 @@
         comboHint: null, phase: "idle", phaseTimer: 0, recoveryTimer: 0,
         plannedTargetX: 200, plannedTargetY: 360, plannedRockXs: []
     };
+    // Scripted trap: tsunami pull -> crossfire fists -> falling rocks.
+    let wbTrapCombo = { stage: "idle", timer: 0, cooldown: 300, targetX: 200, targetY: 380, startedAt: 0 };
     let rwbPlayerStunTimer = 0;
     let wbFruitFlashTimer = 0;
     let wbFruitFlashPower = 0.72;
@@ -928,7 +930,8 @@
         rwbWinner = null; rwbRewardGiven = false; rwbDialogStage = 0;
         rwbWhitebeardDisabled = [false, false, false]; rwbWBPhase = "intro";
         rwbDialogQueue = []; rwbDialogActive = false; rwbDialogType = null; rwbDialogTimer = 0;
-        wbBrain = { bottomFrames: 0, stationaryFrames: 0, farFrames: 0, shotsInWindow: 0, shotWindowTimer: 180, adaptiveCooldown: 0, lastX: 200, lastY: 420, playerVX: 0, playerVY: 0, lastAdaptive: null, lastAttackId: -1, lastSuperAttackId: -1, comboHint: null, phase: "idle", phaseTimer: 0, recoveryTimer: 0, plannedTargetX: 200, plannedTargetY: 360, plannedRockXs: [] };
+        wbBrain = { bottomFrames: 0, stationaryFrames: 0, farFrames: 0, shotsInWindow: 180, shotWindowTimer: 180, adaptiveCooldown: 0, lastX: 200, lastY: 420, playerVX: 0, playerVY: 0, lastAdaptive: null, lastAttackId: -1, lastSuperAttackId: -1, comboHint: null, phase: "idle", phaseTimer: 0, recoveryTimer: 0, plannedTargetX: 200, plannedTargetY: 360, plannedRockXs: [] };
+        wbTrapCombo = { stage: "idle", timer: 0, cooldown: 300, targetX: 200, targetY: 380, startedAt: 0 };
         rwbPlayerStunTimer = 0; wbFruitFlashTimer = 0; wbFruitFlashPower = 0.72;
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
 
@@ -1754,17 +1757,20 @@
     // ============================================================
     // АТАКИ БЕЛОУСА
     // ============================================================
-    function spawnTsunamiAttack(isSuper) {
+    function spawnTsunamiAttack(isSuper, comboOptions) {
         let tsunamiDamage = Math.ceil(26 * BALANCE.whitebeardDamageMult);
+        comboOptions = comboOptions || null;
         if (rwbTsunamiActive) return;
         rwbTsunamiActive = true;
         playWhooshSound(0.5); playBossRoarSound(0.3); rwbShake = 25;
         rwbFloatingTexts.push({ x: 200, y: 100, text: "🌊 ЦУНАМИ! 🌊", color: "#00ccff", life: 90, maxLife: 90, vy: -0.3, vx: 0, size: 24 });
-        let wave1 = { type: "tsunami", fromRight: true, x: 130, y: -60, vy: 4.5, width: 270, height: 55, currentWidth: 270, currentHeight: 55, damage: tsunamiDamage, life: 400, waveTime: 0, hit: false, color: "#0099ff" };
+        let wave1 = { type: "tsunami", fromRight: true, x: 130, y: -60, vy: 4.5, width: 270, height: 55, currentWidth: 270, currentHeight: 55, damage: tsunamiDamage, life: 400, waveTime: 0, hit: false, color: "#0099ff",
+            comboPull: !!(comboOptions && comboOptions.comboPull), pullTargetX: comboOptions && comboOptions.pullTargetX, pullTargetY: comboOptions && comboOptions.pullTargetY };
         rwbAttacks.push(wave1);
         setTimeout(function() {
             if (!window.rwbActive) return;
-            let wave2 = { type: "tsunami", fromRight: false, x: 0, y: -60, vy: 4.5, width: 270, height: 55, currentWidth: 270, currentHeight: 55, damage: tsunamiDamage, life: 400, waveTime: 0, hit: false, color: "#00aaff" };
+            let wave2 = { type: "tsunami", fromRight: false, x: 0, y: -60, vy: 4.5, width: 270, height: 55, currentWidth: 270, currentHeight: 55, damage: tsunamiDamage, life: 400, waveTime: 0, hit: false, color: "#00aaff",
+                comboPull: !!(comboOptions && comboOptions.comboPull), pullTargetX: comboOptions && comboOptions.pullTargetX, pullTargetY: comboOptions && comboOptions.pullTargetY };
             rwbAttacks.push(wave2);
             playWhooshSound(0.5); rwbShake = 20;
             rwbFloatingTexts.push({ x: 200, y: 100, text: "🌊 ВТОРАЯ ВОЛНА! 🌊", color: "#00ddff", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
@@ -1819,7 +1825,7 @@
 
     function queueWhitebeardAttack(kind, id) {
         let boss = getWhitebeardEntity();
-        if (!boss || wbBrain.phase !== "idle") return false;
+        if (!boss || wbBrain.phase !== "idle" || wbTrapCombo.stage !== "idle") return false;
         let isSuper = kind === "super";
         let warning = isSuper ? 30 : 24 + Math.floor(Math.random() * 7);
         let tx = Math.max(22, Math.min(378, rwbPlayer.x + wbBrain.playerVX * 10));
@@ -1850,7 +1856,7 @@
     }
 
     function spawnWhitebeardAttack() {
-        if (isWhitebeardSpecialWindupActive() || wbBrain.phase !== "idle") return;
+        if (wbTrapCombo.stage !== "idle" || isWhitebeardSpecialWindupActive() || wbBrain.phase !== "idle") return;
         if (maybeSpawnWhitebeardAdaptive(false)) return;
         queueWhitebeardAttack("normal", chooseWhitebeardAttackId(false));
     }
@@ -2262,7 +2268,7 @@
     }
 
     function spawnWhitebeardSuperAttack() {
-        if (isWhitebeardSpecialWindupActive() || wbBrain.phase !== "idle") return;
+        if (wbTrapCombo.stage !== "idle" || isWhitebeardSpecialWindupActive() || wbBrain.phase !== "idle") return;
         if (maybeSpawnWhitebeardAdaptive(true)) return;
         queueWhitebeardAttack("super", chooseWhitebeardAttackId(true));
     }
@@ -2391,6 +2397,34 @@
                 // Но всё равно рисуем (рендер отдельно)
                 continue;
             }
+            if (a.type === "wb_combo_gate_warning") {
+                a.warningTimer--;
+                if (a.warningTimer <= 0) {
+                    rwbAttacks.splice(i, 1);
+                    let gateY = a.targetY;
+                    for (let row = -1; row <= 1; row += 2) {
+                        rwbAttacks.push({
+                            type: "fist", x: -34, y: gateY + row * 24,
+                            vx: 6.6 * BALANCE.projectileSpeedMult, vy: 0,
+                            size: 27, hp: 5, maxHp: 5,
+                            damage: Math.ceil(19 * BALANCE.whitebeardDamageMult),
+                            life: 115, color: "#ffffff", owner: "whitebeard",
+                            rotation: 0, rotSpeed: 0, trail: [], hasHaki: true
+                        });
+                        rwbAttacks.push({
+                            type: "fist", x: 434, y: gateY - row * 24,
+                            vx: -6.6 * BALANCE.projectileSpeedMult, vy: 0,
+                            size: 27, hp: 5, maxHp: 5,
+                            damage: Math.ceil(19 * BALANCE.whitebeardDamageMult),
+                            life: 115, color: "#ffffff", owner: "whitebeard",
+                            rotation: 0, rotSpeed: 0, trail: [], hasHaki: true
+                        });
+                    }
+                    rwbShake = 12;
+                    playImpactSound(0.42, 0.85);
+                }
+                continue;
+            }
             if (a.type === "wb_attack_telegraph") {
                 a.warningTimer--;
                 if (a.warningTimer <= 0) {
@@ -2509,7 +2543,16 @@
                 a.warningTimer--;
                 if (a.warningTimer <= 0) {
                     rwbAttacks.splice(i, 1);
-                    rwbAttacks.push({ type: "giant_rock", x: a.targetX, y: -120, vx: (Math.random() - 0.5) * 0.4, vy: 2.5, size: 40, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.04, hp: 5, maxHp: 5, damage: Math.ceil(28 * BALANCE.whitebeardDamageMult), life: 500, color: "#8B7355", hasHaki: false, textureSeed: Math.random() * 1000 });
+                    rwbAttacks.push({
+                        type: "giant_rock", x: a.targetX, y: a.combo ? -64 : -120,
+                        vx: (Math.random() - 0.5) * (a.combo ? 0.2 : 0.4),
+                        vy: a.combo ? 4.15 : 2.5,
+                        size: a.combo ? 32 : 40,
+                        rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * (a.combo ? 0.025 : 0.04),
+                        hp: a.combo ? 4 : 5, maxHp: a.combo ? 4 : 5,
+                        damage: Math.ceil((a.combo ? 23 : 28) * BALANCE.whitebeardDamageMult),
+                        life: 500, color: "#8B7355", hasHaki: false, textureSeed: Math.random() * 1000
+                    });
                     playWhooshSound(0.45);
                 }
                 continue;
@@ -2531,6 +2574,15 @@
             if (a.type === "tsunami") {
                 a.waveTime += 0.08; a.y += a.vy; a.life--;
                 a.currentHeight = a.height * (1 + Math.sin(a.waveTime) * 0.15);
+                if (a.comboPull && wbTrapCombo.stage !== "idle" && rwbPlayer) {
+                    let nearWave = Math.abs(rwbPlayer.y - a.y) < 175;
+                    if (nearWave) {
+                        let pullX = clampWhitebeard((a.pullTargetX - rwbPlayer.x) * 0.018, -1.35, 1.35);
+                        let pullY = clampWhitebeard(((a.pullTargetY || rwbPlayer.y) - rwbPlayer.y) * 0.008, -0.55, 0.55);
+                        rwbPlayer.x = clampWhitebeard(rwbPlayer.x + pullX, 16, 384);
+                        rwbPlayer.y = clampWhitebeard(rwbPlayer.y + pullY, 0, 484);
+                    }
+                }
                 a.currentWidth = a.width * (1 + Math.cos(a.waveTime * 1.5) * 0.03);
                 if (Math.random() < 0.3) rwbParticles.push({ x: a.x + Math.random() * a.currentWidth, y: a.y + (Math.random() - 0.5) * a.currentHeight, vx: (Math.random() - 0.5) * 2, vy: 2 + Math.random() * 2, life: 25, maxLife: 25, color: Math.random() > 0.5 ? "#ffffff" : "#88ddff", size: 2 });
                 if (!a.hit && rwbPlayer.invulnTimer <= 0) {
@@ -3379,6 +3431,132 @@
         ctx.restore();
     }
 
+    function clampWhitebeard(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    function moveWhitebeardSmoothly(active) {
+        if (!active || !rwbPlayer) return;
+        // Pick a flank/approach point occasionally; the model always moves toward it,
+        // never jumps to a new sin()-computed coordinate.
+        if (!Number.isFinite(active.moveTargetX) || rwbTimer >= (active.moveTargetAt || 0)) {
+            let leadX = clampWhitebeard(rwbPlayer.x + wbBrain.playerVX * 14, 35, 365);
+            let side = leadX < active.x ? 1 : -1;
+            if (Math.abs(leadX - active.x) < 85) side = Math.random() < 0.5 ? -1 : 1;
+            active.moveTargetX = clampWhitebeard(leadX + side * (85 + Math.random() * 45), 65, 335);
+            // Keep him in the upper arena: he can flank the player, not teleport to them.
+            active.moveTargetY = clampWhitebeard(115 + (rwbPlayer.y < 210 ? -12 : 22) + (Math.random() - 0.5) * 54, 78, 218);
+            active.moveTargetAt = rwbTimer + 72 + Math.floor(Math.random() * 42);
+        }
+        let dx = active.moveTargetX - active.x;
+        let dy = active.moveTargetY - active.y;
+        let dist = Math.hypot(dx, dy);
+        let maxSpeed = active.superForm ? 1.45 : 1.12;
+        let desiredVx = dist > 3 ? dx / dist * Math.min(maxSpeed, dist * 0.035) : 0;
+        let desiredVy = dist > 3 ? dy / dist * Math.min(maxSpeed * 0.72, dist * 0.025) : 0;
+        active.vx = (Number(active.vx) || 0) * 0.78 + desiredVx * 0.22;
+        active.vy = (Number(active.vy) || 0) * 0.78 + desiredVy * 0.22;
+        let speed = Math.hypot(active.vx, active.vy);
+        if (speed > maxSpeed) { active.vx = active.vx / speed * maxSpeed; active.vy = active.vy / speed * maxSpeed; }
+        active.x = clampWhitebeard(active.x + active.vx, 48, 352);
+        active.y = clampWhitebeard(active.y + active.vy, 72, 225);
+        if ((active.x <= 48 && active.vx < 0) || (active.x >= 352 && active.vx > 0)) active.vx *= -0.35;
+        if ((active.y <= 72 && active.vy < 0) || (active.y >= 225 && active.vy > 0)) active.vy *= -0.35;
+    }
+
+    function spawnWhitebeardTrapCombo() {
+        if (!rwbPlayer || rwbTsunamiActive || wbVortexActive) return false;
+        wbTrapCombo.stage = "active";
+        wbTrapCombo.timer = 0;
+        wbTrapCombo.startedAt = rwbTimer;
+        wbTrapCombo.targetX = clampWhitebeard(rwbPlayer.x + (wbBrain.playerVX || 0) * 12, 58, 342);
+        wbTrapCombo.targetY = clampWhitebeard(rwbPlayer.y + (wbBrain.playerVY || 0) * 8, 95, 440);
+        // Three landing lanes form a crossfire instead of a single blind rock.
+        wbBrain.plannedTargetX = wbTrapCombo.targetX;
+        wbBrain.plannedTargetY = wbTrapCombo.targetY;
+        wbBrain.plannedRockXs = [
+            clampWhitebeard(wbTrapCombo.targetX - 65, 35, 365),
+            clampWhitebeard(wbTrapCombo.targetX, 35, 365),
+            clampWhitebeard(wbTrapCombo.targetX + 65, 35, 365)
+        ];
+        spawnTsunamiAttack(true, {
+            comboPull: true,
+            pullTargetX: wbTrapCombo.targetX,
+            pullTargetY: wbTrapCombo.targetY
+        });
+        rwbFloatingTexts.push({ x: 200, y: 80, text: "🌊 ЦУНАМИ-КОМБО: НЕ ДАЙ СЕБЕ ЗАГНАТЬСЯ!", color: "#6feaff", life: 95, maxLife: 95, vy: -0.2, vx: 0, size: 13 });
+        playBossRoarSound(0.5);
+        wbTrapCombo.cooldown = 520 + Math.floor(Math.random() * 160);
+        return true;
+    }
+
+    function updateWhitebeardTrapCombo(active) {
+        if (!active || active.id !== "whitebeard") return false;
+        if (wbTrapCombo.stage === "idle") {
+            if (wbTrapCombo.cooldown > 0) { wbTrapCombo.cooldown--; return false; }
+            if (wbVortexActive || rwbTsunamiActive || wbBrain.phase !== "idle" || isWhitebeardSpecialWindupActive()) return false;
+            // The AI punishes camping, predictable movement and excessive distance.
+            let playerMadeMistake = wbBrain.stationaryFrames > 45 || wbBrain.bottomFrames > 70 || wbBrain.farFrames > 40;
+            if (!playerMadeMistake && Math.random() > 0.0045) return false;
+            return spawnWhitebeardTrapCombo();
+        }
+
+        wbTrapCombo.timer++;
+        let t = wbTrapCombo.timer;
+        if (t === 42) {
+            rwbAttacks.push({
+                type: "wb_combo_gate_warning",
+                targetY: wbTrapCombo.targetY,
+                warningTimer: 30, life: 31, color: "#ffffff",
+                title: "КУЛАКИ ПЕРЕКРЫВАЮТ ВЫХОД"
+            });
+            rwbFloatingTexts.push({ x: 200, y: 112, text: "👊 КУЛАКИ ПЕРЕКРЫВАЮТ ВЫХОД!", color: "#ffffff", life: 68, maxLife: 68, vy: -0.2, vx: 0, size: 14 });
+            playHakiChargeSound(0.35);
+            spawnHakiLightning(active.x, active.y, 4, true);
+        }
+        if (t === 68) {
+            for (let lane = 0; lane < wbBrain.plannedRockXs.length; lane++) {
+                let rx = wbBrain.plannedRockXs[lane];
+                rwbAttacks.push({
+                    type: "wb_giant_rock_warning", x: rx, targetX: rx, y: 470,
+                    warningTimer: 38 + lane * 5, life: 44 + lane * 5,
+                    color: "#b99a72", combo: true
+                });
+            }
+            rwbFloatingTexts.push({ x: 200, y: 95, text: "🪨 КАМНЕПАД! ВЫРЫВАЙСЯ ИЗ ТЕЧЕНИЯ!", color: "#ffe1a6", life: 82, maxLife: 82, vy: -0.2, vx: 0, size: 14 });
+            playWhooshSound(0.35);
+        }
+
+        // The after-current from the tsunami pulls a passive/camping player toward the
+        // predicted rock lane. It is intentionally weaker than player movement, so dodging works.
+        if (t >= 55 && t <= 222 && rwbPlayer && rwbPlayer.invulnTimer <= 0) {
+            let pullX = wbTrapCombo.targetX - rwbPlayer.x;
+            let pullY = (wbTrapCombo.targetY - 18) - rwbPlayer.y;
+            let pullXStep = clampWhitebeard(pullX * 0.022, -1.8, 1.8);
+            let pullYStep = clampWhitebeard(pullY * 0.012, -0.9, 0.9);
+            rwbPlayer.x = clampWhitebeard(rwbPlayer.x + pullXStep, 16, 384);
+            rwbPlayer.y = clampWhitebeard(rwbPlayer.y + pullYStep, 0, 484);
+            if (t % 4 === 0) {
+                rwbParticles.push({
+                    x: rwbPlayer.x + (Math.random() - 0.5) * 34,
+                    y: rwbPlayer.y + (Math.random() - 0.5) * 18,
+                    vx: (wbTrapCombo.targetX - rwbPlayer.x) * 0.04,
+                    vy: -0.5 - Math.random() * 1.5,
+                    life: 18, maxLife: 18,
+                    color: Math.random() < 0.5 ? "#00ccff" : "#ffffff", size: 2 + Math.random() * 2
+                });
+            }
+        }
+        if (t > 246) {
+            wbTrapCombo.stage = "idle";
+            wbTrapCombo.timer = 0;
+            wbBrain.phase = "idle";
+            wbBrain.phaseTimer = 0;
+            wbBrain.recoveryTimer = 0;
+        }
+        return true;
+    }
+
     function updateSuperBoss() {
         let active = rwbActiveBoss;
         if (!active) return;
@@ -3395,11 +3573,12 @@
         active.pulse += 0.12; active.rotation += 0.03;
         let wbWindup = active.id === "whitebeard" ? getWhitebeardWindupAttack() : null;
         if (wbWindup) {
-            active.x = wbWindup.originX; active.y = wbWindup.originY;
+            // Hold exactly where the readable telegraph began; no snap back to a stale origin.
+            active.vx = (Number(active.vx) || 0) * 0.6;
+            active.vy = (Number(active.vy) || 0) * 0.6;
+            active.moveTargetAt = Math.max(active.moveTargetAt || 0, rwbTimer + 8);
         } else if (active.id === "whitebeard") {
-            // Белоус активно перемещается по арене, а не зависает в одной точке.
-            active.x = Math.max(48, Math.min(352, 200 + Math.sin(rwbTimer / 52) * 106 + Math.sin(rwbTimer / 19) * 18));
-            active.y = Math.max(70, Math.min(205, 118 + Math.sin(rwbTimer / 68) * 31 + Math.cos(rwbTimer / 31) * 12));
+            moveWhitebeardSmoothly(active);
         } else {
             active.x = 200 + Math.sin(rwbTimer / 110) * 22;
             active.y = 100 + Math.sin(rwbTimer / 80) * 8;
@@ -3407,6 +3586,11 @@
         if (active.hitFlash > 0) active.hitFlash--;
         if (Math.random() < (active.id === "whitebeard" ? 0.27 : 0.15)) {
             spawnHakiLightning(active.x + (Math.random() - 0.5) * 50, active.y + (Math.random() - 0.5) * 50, active.id === "whitebeard" ? 2 : 1, active.id === "whitebeard");
+        }
+        let comboBusy = active.id === "whitebeard" && updateWhitebeardTrapCombo(active);
+        if (comboBusy) {
+            active.attackTimer = Math.max(active.attackTimer || 0, 12);
+            return;
         }
         active.attackTimer--;
         if (active.attackTimer <= 0) {
@@ -3504,6 +3688,24 @@
         }
     }
     function drawAttack(a) {
+        if (a.type === "wb_combo_gate_warning") {
+            ctx.save();
+            var pulse = 0.38 + Math.sin(performance.now() / 65) * 0.22;
+            ctx.globalAlpha = pulse; ctx.strokeStyle = "#000000"; ctx.lineWidth = 7;
+            ctx.setLineDash([8, 7]);
+            for (var gateOffset of [-24, 24]) {
+                ctx.beginPath(); ctx.moveTo(0, a.targetY + gateOffset); ctx.lineTo(400, a.targetY + gateOffset); ctx.stroke();
+            }
+            ctx.setLineDash([]); ctx.globalAlpha = 0.95;
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+            for (var gateOffset2 of [-24, 24]) {
+                ctx.beginPath(); ctx.moveTo(0, a.targetY + gateOffset2); ctx.lineTo(400, a.targetY + gateOffset2); ctx.stroke();
+            }
+            ctx.globalAlpha = 1; ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+            ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("КУЛАКИ ПЕРЕКРЫВАЮТ ПУТЬ — МЕНЯЙ ВЫСОТУ!", 200, a.targetY - 42);
+            ctx.fillStyle = "#ffffff"; ctx.fillText("КУЛАКИ ПЕРЕКРЫВАЮТ ПУТЬ — МЕНЯЙ ВЫСОТУ!", 200, a.targetY - 42);
+            ctx.restore(); return;
+        }
         if (a.type === "wb_attack_telegraph") {
             ctx.save();
             let pulse = 0.36 + Math.sin(performance.now() / 75) * 0.14;
