@@ -931,10 +931,11 @@ function loadGameData(d) {
     myCards.forEach(function(card) {
         if (!card || !card.name || typeof customCardTemplates === "undefined") return;
         var tpl = null;
-        if (card.name === "Годжо (флешбек)") tpl = customCardTemplates["Секретная"].find(function(t) { return t.name === card.name; });
+        if (card.name === "Годжо (флешбек)") tpl = customCardTemplates["Мифическая"].find(function(t) { return t.name === card.name; });
+        else if (card.name === "Годжо") tpl = customCardTemplates["Секретная"].find(function(t) { return t.name === card.name; });
         else if (card.name === "Сукуна (15 пальцев)") tpl = customCardTemplates["Легендарная"].find(function(t) { return t.name === card.name; });
         if (!tpl) return;
-        card.rarity = card.name === "Годжо (флешбек)" ? "Секретная" : "Легендарная";
+        card.rarity = card.name === "Годжо (флешбек)" ? "Мифическая" : (card.name === "Сукуна (15 пальцев)" ? "Легендарная" : "Секретная");
         ["damage","hp","speed","sellPrice","desc","ability","statusAbility","superAbility"].forEach(function(k) {
             if (tpl[k] !== undefined) card[k] = JSON.parse(JSON.stringify(tpl[k]));
         });
