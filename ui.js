@@ -53,8 +53,9 @@ function renderMyCards() {
         let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); 
         let skFinger = hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now() && cd.name === sukunaTarget; 
         let dmgMult = 1; 
-        if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + totalWins * cd.ability.value); 
-        if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + totalWins * cd.statusAbility.value); 
+        const winsForScale = (cd.name === "Космический Гароу" && typeof cosmicGarouRetainedWins !== "undefined") ? totalWins + cosmicGarouRetainedWins : totalWins;
+        if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + winsForScale * cd.ability.value); 
+        if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + winsForScale * cd.statusAbility.value); 
         let masteryMult = typeof getMasteryMult === 'function' ? getMasteryMult(cd) : 1;
         let dmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1) * masteryMult); 
         let hp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult); 
@@ -114,8 +115,9 @@ function renderTeam() {
         let cvHpMult = isSeven && hasCompoundV[cd.name] ? 3 : (hasCompoundV[cd.name] ? 1.3 : 1); 
         let skFinger = hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now() && cd.name === sukunaTarget; 
         let dmgMult = 1; 
-        if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + totalWins * cd.ability.value); 
-        if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + totalWins * cd.statusAbility.value); 
+        const winsForScale = (cd.name === "Космический Гароу" && typeof cosmicGarouRetainedWins !== "undefined") ? totalWins + cosmicGarouRetainedWins : totalWins;
+        if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + winsForScale * cd.ability.value); 
+        if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + winsForScale * cd.statusAbility.value); 
         let masteryMult = typeof getMasteryMult === 'function' ? getMasteryMult(cd) : 1;
         let cDmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1) * masteryMult); 
         let cHp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult); 
@@ -244,8 +246,9 @@ function renderAfkTeam() {
         let skFinger = hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now() && cd.name === sukunaTarget; 
         let dmgMult = 1; 
         if (typeof afkFarmUpgradeLevel !== 'undefined' && afkFarmUpgradeLevel >= 3) {
-            if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + totalWins * cd.ability.value);
-            if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + totalWins * cd.statusAbility.value);
+            const winsForScale = (cd.name === "Космический Гароу" && typeof cosmicGarouRetainedWins !== "undefined") ? totalWins + cosmicGarouRetainedWins : totalWins;
+            if (cd.ability?.type === 'scaleWithWins' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) dmgMult *= (1 + winsForScale * cd.ability.value);
+            if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + winsForScale * cd.statusAbility.value);
         } 
         let masteryMult = typeof getMasteryMult === 'function' ? getMasteryMult(cd) : 1; 
         let cDmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1) * masteryMult); 
