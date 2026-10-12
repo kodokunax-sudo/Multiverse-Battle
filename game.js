@@ -928,6 +928,17 @@ function renderSettings() { applyArenaSettings(); }
 
 function loadGameData(d) { 
     myCards = d.myCards || []; 
+    myCards.forEach(function(card) {
+        if (!card || !card.name || typeof customCardTemplates === "undefined") return;
+        var tpl = null;
+        if (card.name === "Годжо (флешбек)") tpl = customCardTemplates["Секретная"].find(function(t) { return t.name === card.name; });
+        else if (card.name === "Сукуна (15 пальцев)") tpl = customCardTemplates["Легендарная"].find(function(t) { return t.name === card.name; });
+        if (!tpl) return;
+        card.rarity = card.name === "Годжо (флешбек)" ? "Секретная" : "Легендарная";
+        ["damage","hp","speed","sellPrice","desc","ability","statusAbility","superAbility"].forEach(function(k) {
+            if (tpl[k] !== undefined) card[k] = JSON.parse(JSON.stringify(tpl[k]));
+        });
+    });
     team = d.team || []; 
     afkTeam = d.afkTeam || []; 
     points = d.points || 100; 
@@ -2544,6 +2555,7 @@ function handleClick() {
     let maxClicks = Math.max(1, 3 - enemyStatuses.freezeStacks + enemyStatuses.blindStacks); 
     if (clicksSinceLastCounter >= maxClicks) { 
         let takenDmg = Math.floor(currentEnemy.damage * m.takenMult);
+        if (typeof window.gojoTryNegateIncoming === "function" && window.gojoTryNegateIncoming(takenDmg, "clicker")) takenDmg = 0;
         playerHp -= takenDmg; 
         if (typeof grantMasteryExpFromFight === 'function') grantMasteryExpFromFight(0, takenDmg);
         clicksSinceLastCounter = 0; 
