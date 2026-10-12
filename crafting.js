@@ -662,17 +662,41 @@
         return true;
     }
 
+    function clearCraftingForRebirth() {
+        resources = {};
+        equipment = { weapon: null, armor: null };
+        weaponStorage = [];
+        armorStorage = [];
+        _equipmentSavedForRebirth = null;
+        try {
+            if (typeof slotData !== 'undefined' && slotData) {
+                slotData.resources = {};
+                slotData.equipment = { weapon: null, armor: null };
+                slotData.weaponStorage = [];
+                slotData.armorStorage = [];
+            }
+        } catch (e) {}
+        // Write an empty state to both the current-slot and fallback crafting save.
+        saveCraftingToLocalStorage();
+        return true;
+    }
+    window.clearCraftingForRebirth = clearCraftingForRebirth;
+
     function patchDoRebirth() {
         if (typeof window.doRebirth !== 'function') return false;
         if (window._craftRebirthPatched) return true;
         let original = window.doRebirth;
         window.doRebirth = function() {
-            saveEquipmentBeforeRebirth();
+            let rebirthBefore = (typeof rebirthCount !== 'undefined') ? (Number(rebirthCount) || 0) : 0;
             let result = original.apply(this, arguments);
-            restoreEquipmentAfterRebirth();
-            if (typeof renderInventory === 'function') renderInventory();
-            if (typeof updatePlayerStats === 'function') { try { updatePlayerStats(); } catch(e) {} }
-            saveCraftingData();
+            let rebirthAfter = (typeof rebirthCount !== 'undefined') ? (Number(rebirthCount) || 0) : rebirthBefore;
+            // doRebirth returns undefined on both success and failure; the counter tells us if it succeeded.
+            if (rebirthAfter > rebirthBefore) {
+                clearCraftingForRebirth();
+                if (typeof saveAll === 'function') { try { saveAll(); } catch (e) {} }
+                if (typeof renderInventory === 'function') renderInventory();
+                if (typeof updatePlayerStats === 'function') { try { updatePlayerStats(); } catch (e) {} }
+            }
             return result;
         };
         window._craftRebirthPatched = true;
