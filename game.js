@@ -975,7 +975,9 @@ function loadGameData(d) {
     purchasedAutoSell = d.purchasedAutoSell || {}; 
     autoRest = d.autoRest || {active:false,threshold:90,purchased:false}; 
     
-    afkFarmUpgradeLevel = Math.max(0, Math.min(5, Number(d.afkFarmUpgradeLevel) || 0)); 
+    afkFarmUpgradeLevel = Math.max(0, Math.min(5, Number(d.afkFarmUpgradeLevel) || 0));
+    cosmicGarouRetainedWins = Math.max(0, Math.floor(Number(d.cosmicGarouRetainedWins) || 0));
+    recentCosmicGarouTeam = Array.isArray(d.recentCosmicGarouTeam) ? d.recentCosmicGarouTeam.slice(-5).map(Boolean) : []; 
     if (d.evoProgress) evoProgress = d.evoProgress; 
     dekusNerfWaves = d.dekusNerfWaves || 0; 
     newcomerBonus = d.newcomerBonus || false; 
@@ -1112,6 +1114,8 @@ function initNewGame() {
     autoRest = {active:false,threshold:90,purchased:false}; 
     
     afkFarmUpgradeLevel = 0;
+    cosmicGarouRetainedWins = 0;
+    recentCosmicGarouTeam = [];
     evoProgress = {wavesSaitamaGarou:0,damageGarpKuzan:0,luffyKingUnlocked:false,sgUnlocked:false,gkUnlocked:false,sevenUnlocked:false,williamUnlocked:false,oneShotCount:0}; 
     dekusNerfWaves = 0; 
     newcomerBonus = true; 
@@ -1221,7 +1225,9 @@ function saveAll() {
     slotData.purchasedAutoSell = purchasedAutoSell; 
     slotData.autoRest = autoRest; 
     delete slotData.abilityUpgradeLevel;
-    slotData.afkFarmUpgradeLevel = afkFarmUpgradeLevel; 
+    slotData.afkFarmUpgradeLevel = afkFarmUpgradeLevel;
+    slotData.cosmicGarouRetainedWins = cosmicGarouRetainedWins;
+    slotData.recentCosmicGarouTeam = recentCosmicGarouTeam.slice(-5); 
     slotData.evoProgress = evoProgress; 
     slotData.dekusNerfWaves = dekusNerfWaves; 
     slotData.newcomerBonus = newcomerBonus; 
@@ -1404,8 +1410,11 @@ function renderAfkFarmUpgrades() {
     ];
     const level = Math.max(0, Math.min(5, Number(afkFarmUpgradeLevel) || 0));
     const unlocked = playerLevel >= 20;
-    let html = '<div style="font-size:12px;color:#aaa;margin-bottom:8px;">Уровень ' + level + '/5 · ' +
-        (unlocked ? 'Прокачка доступна' : '🔒 Откроется на 20 уровне игрока (сейчас ' + playerLevel + ')') + '</div>';
+    if (!unlocked) {
+        el.innerHTML = '<div style="padding:12px;border-radius:10px;background:rgba(0,0,0,.22);color:#aaa;font-size:12px;text-align:center;">🔒 Прокачка АФК-фарма откроется на 20 уровне игрока.</div>';
+        return;
+    }
+    let html = '<div style="font-size:12px;color:#aaa;margin-bottom:8px;">Уровень ' + level + '/5 · Прокачка доступна</div>';
     for (let i = 0; i < 5; i++) {
         const done = level > i;
         const current = level === i;
@@ -1428,6 +1437,8 @@ function renderAfkFarmUpgrades() {
     el.innerHTML = html;
 }
 window.buyAfkFarmUpgrade=buyAfkFarmUpgrade;window.renderAfkFarmUpgrades=renderAfkFarmUpgrades;window.buyAfkFarmUpgrade=buyAfkFarmUpgrade;window.renderAfkFarmUpgrades=renderAfkFarmUpgrades;
+let cosmicGarouRetainedWins = 0;
+let recentCosmicGarouTeam = [];
 let evoProgress = { wavesSaitamaGarou:0, damageGarpKuzan:0, luffyKingUnlocked:false, sgUnlocked:false, gkUnlocked:false, sevenUnlocked:false, williamUnlocked:false, oneShotCount:0 };
 let upgrades={damage:{level:0,baseCost:25,increment:2,name:"💪 Сила удара",reqLevel:1},hp:{level:0,baseCost:25,increment:5,name:"❤️ Живучесть",reqLevel:1},crit:{level:0,baseCost:8,increment:0.001,name:"⚡ Крит. шанс",reqLevel:5},fatigueResist:{level:0,baseCost:10,increment:0.001,name:"💪 Сопр. усталости",reqLevel:10}};
 
@@ -2552,7 +2563,12 @@ function handleClick() {
 // ============================================================
 function victory() { 
     let isBoss = wave % 10 === 0; 
-    if (currentEnemy && mbLastRecordedVictoryEnemy !== currentEnemy) { mbLastRecordedVictoryEnemy = currentEnemy; mbStatsRecordWaveVictory(isBoss); }
+    if (currentEnemy && mbLastRecordedVictoryEnemy !== currentEnemy) {
+        mbLastRecordedVictoryEnemy = currentEnemy;
+        mbStatsRecordWaveVictory(isBoss);
+        recentCosmicGarouTeam.push(team.some(idx => myCards[idx] && myCards[idx].name === "Космический Гароу"));
+        if (recentCosmicGarouTeam.length > 5) recentCosmicGarouTeam = recentCosmicGarouTeam.slice(-5);
+    }
     let rew = isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); 
     points += rew; 
     if (points > maxPoints) maxPoints = points; 
@@ -2654,8 +2670,16 @@ function defeat() {
     sfxDefeat(); 
     let nearestCheckpoint = Math.floor(wave / 50) * 50; 
     if (nearestCheckpoint > highestCheckpoint) { highestCheckpoint = nearestCheckpoint; saveAll(); } 
-    playerHp = window.playerMaxHp || 100; 
-    totalWins = 0; 
+    playerHp = window.playerMaxHp || 100;
+    const lastFiveHadGarou = recentCosmicGarouTeam.length >= 5 && recentCosmicGarouTeam.slice(-5).some(Boolean);
+    const lastFiveAllHadNoGarou = recentCosmicGarouTeam.length >= 5 && recentCosmicGarouTeam.slice(-5).every(present => present === false);
+    if (lastFiveAllHadNoGarou) {
+        cosmicGarouRetainedWins += Math.max(0, Number(totalWins) || 0);
+        if (typeof showFloatingText === "function") showFloatingText("🌌 Бафф Космического Гароу сохранён!", "#ba55d3");
+    } else if (lastFiveHadGarou || recentCosmicGarouTeam.length < 5) {
+        cosmicGarouRetainedWins = 0;
+    }
+    totalWins = 0;
     if (activeCheckpoint > 0 && activeCheckpoint <= highestCheckpoint) { wave = activeCheckpoint; clicksSinceLastCounter = 0; fatigue = Math.max(0, fatigue - 20); updateFatigue(); updateRestBtn(); resurrectedThisFight = false; generateEnemy(); saveAll(); renderEnemy(); renderDefeatHistory(); updatePlayerStats(); renderCheckpoints(); return; } 
     if (highestCheckpoint > 1) { 
         let useCp = confirm("💀 Вы погибли на волне " + wave + "!\n\nУ вас есть чекпоинт на волне " + highestCheckpoint + ".\n\nНачать с чекпоинта? (OK = Да, Отмена = с 1 волны)"); 
@@ -2867,6 +2891,8 @@ function doRebirth() {
         }
     }
     
+    cosmicGarouRetainedWins = 0;
+    recentCosmicGarouTeam = [];
     myCards = []; 
     team = []; 
     afkTeam = []; 
