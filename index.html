@@ -797,6 +797,8 @@
                                 <option value="default">Без сортировки</option>
                                 <option value="dmg_desc">💪 Урон ↓</option>
                                 <option value="dmg_asc">💪 Урон ↑</option>
+                                <option value="power_desc">⚔️ Общая сила ↓</option>
+                                <option value="power_asc">⚔️ Общая сила ↑</option>
                                 <option value="hp_desc">❤️ HP ↓</option>
                                 <option value="speed_desc">⚡ Скорость ↓</option>
                                 <option value="rarity_desc">🏆 Редкость ↓</option>
@@ -811,8 +813,8 @@
                         <span>Показано: <span id="shownCards">0</span> / <span id="totalCards">0</span></span>
                     </div>
                 </div>
-                <div class="card"><div class="card-title">⚔️ Отряд (6)<button id="clearTeamBtn" class="btn" style="background:#e74c3c;border-color:#c0392b;float:right;padding:4px 10px;">Очистить</button></div><div id="teamList"></div><div id="teamStats" class="buff-active">💪 Урон: <span id="totalDamage">0</span> | ❤️ HP: <span id="totalHpBonus">0</span></div><div style="margin-top:12px;padding:10px;background:rgba(0,0,0,0.3);border-radius:12px;"><div style="font-weight:800;font-size:13px;margin-bottom:8px;color:#f5af19;">💾 Пресеты отрядов</div><div id="teamPresetsList"></div></div></div>
-                <div class="card"><div class="card-title">💤 АФК (6)<button id="clearAfkTeamBtn" class="btn" style="background:#e74c3c;border-color:#c0392b;float:right;padding:4px 10px;">Очистить</button></div><div id="afkTeamList"></div><div id="afkTeamStats" class="buff-active">💪 Урон: <span id="afkTotalDamage">0</span> | ❤️ HP: <span id="afkTotalHpBonus">0</span></div></div>
+                <div class="card"><div class="card-title">⚔️ Отряд (6)<button id="autoBuildStrongTeamBtn" class="btn" onclick="autoBuildStrongTeam()" style="background:#2980b9;border:none;padding:4px 9px;font-size:11px;float:right;margin-left:5px;">⚡ Сильнейшие</button><button id="clearTeamBtn" class="btn" style="background:#e74c3c;border-color:#c0392b;float:right;padding:4px 10px;">Очистить</button></div><div id="teamList"></div><div id="teamStats" class="buff-active">💪 Урон: <span id="totalDamage">0</span> | ❤️ HP: <span id="totalHpBonus">0</span></div><div style="margin-top:12px;padding:10px;background:rgba(0,0,0,0.3);border-radius:12px;"><div style="font-weight:800;font-size:13px;margin-bottom:8px;color:#f5af19;">💾 Пресеты отрядов</div><div id="teamPresetsList"></div></div></div>
+                <div class="card"><div class="card-title">💤 АФК (6)<button id="autoBuildStrongAfkTeamBtn" class="btn" onclick="autoBuildStrongAfkTeam()" style="background:#2980b9;border:none;padding:4px 9px;font-size:11px;float:right;margin-left:5px;">⚡ Сильнейшие</button><button id="clearAfkTeamBtn" class="btn" style="background:#e74c3c;border-color:#c0392b;float:right;padding:4px 10px;">Очистить</button></div><div id="afkTeamList"></div><div id="afkTeamStats" class="buff-active">💪 Урон: <span id="afkTotalDamage">0</span> | ❤️ HP: <span id="afkTotalHpBonus">0</span></div><div style="margin-top:12px;padding:10px;background:rgba(0,0,0,0.3);border-radius:12px;"><div style="font-weight:800;font-size:13px;margin-bottom:8px;color:#2ecc71;">💾 Пресеты АФК-команды</div><div id="afkTeamPresetsList"></div></div></div>
                 <div class="card"><div class="card-title">🏆 Достижения</div><div id="achievementsList" style="display:flex;flex-wrap:wrap;gap:5px;"></div></div>
                 <button id="claimCardBtn" class="btn btn-primary" style="width:100%;margin-top:10px;font-size:16px;padding:15px;">🎴 Получить карту (2ч)</button>
                 <div id="claimTimer" class="timer-text"></div>
@@ -971,6 +973,16 @@
                                 <option value="doubletap">Двойное нажатие</option>
                                 <option value="swipeup">Свайп вверх</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <div class="shop-item">
+                        <div><strong>⏭️ Авто-пропуск побеждённых боссов</strong></div>
+                        <div>
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <input type="checkbox" id="autoSkipDefeatedBossesCheckbox" onchange="toggleAutoSkipDefeatedBosses(this.checked)">
+                                <span>Автоматически пропускать повторный бой с уникальным боссом</span>
+                            </label>
                         </div>
                     </div>
 
@@ -1372,7 +1384,7 @@
 <script src="daily.js?v=10"></script>
 <script src="pass.js?v=9"></script>
 <script src="dandy.js?v=9"></script>
-<script src="game.js?v=31"></script>
+<script src="game.js?v=32"></script>
 <script src="battle.js?v=15"></script>
 <script src="supers.js?v=35"></script>
 <script src="dio.js?v=11"></script>
@@ -1381,9 +1393,9 @@
 <script src="waystar_boss.js?v=24"></script>
 <script src="roger_whitebeard_boss.js?v=28"></script>
 <script src="inventory.js?v=9"></script>
-<script src="crafting.js?v=2"></script>
+<script src="crafting.js?v=3"></script>
 <script src="equipment_combat.js?v=15"></script>
-<script src="ui.js?v=16"></script>
+<script src="ui.js?v=17"></script>
 <script src="help.js?v=3"></script>
 <script src="evolution_unlock.js?v=1"></script>
 <script src="fix_code.js?v=1"></script>
