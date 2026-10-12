@@ -254,8 +254,8 @@ function renderAfkTeam() {
     c.innerHTML = html; 
     document.getElementById("afkTotalDamage").innerText = Math.floor(d * 0.8); 
     document.getElementById("afkTotalHpBonus").innerText = Math.floor(h * 0.8); 
-    window.afkTeamDamage = Math.floor(d * 0.8);
-    window.afkTeamHpBonus = Math.floor(h * 0.8);
+    window.afkTeamDamage = Math.floor(d * ((typeof afkFarmUpgradeLevel !== "undefined" && afkFarmUpgradeLevel >= 5) ? 1 : 0.8));
+    window.afkTeamHpBonus = Math.floor(h * ((typeof afkFarmUpgradeLevel !== "undefined" && afkFarmUpgradeLevel >= 5) ? 1 : 0.8));
     if (typeof renderAfkTeamPresets === 'function') renderAfkTeamPresets();
 }
 
@@ -624,7 +624,8 @@ function renderBulkSell() { let c = document.getElementById("bulkSellItems"); if
 
 function renderAutoRest() { let c = document.getElementById("autoRestItems"); if (rebirthCount < 3) { c.innerHTML = '<div class="shop-item"><div style="color:#888;font-weight:bold;text-align:center;width:100%;">🔒 Авто-отдых откроется после 3 ребиртха</div></div>'; return; } c.innerHTML = autoRestOptions.map(o => { let cost = getAutoRestCost(o.threshold); let pur = autoRest.purchased && autoRest.threshold === o.threshold; let act = autoRest.active && autoRest.threshold === o.threshold; let desc = !pur ? '<span style="color:var(--gold);">Купить за ' + cost + '⭐</span>' : (act ? '<span style="color:var(--green);">Активен</span>' : 'Куплен'); let btn; if (!pur) { btn = '<button class="btn btn-primary" style="padding:6px 12px;" onclick="purchaseAutoRest(' + o.threshold + ')">Купить</button>'; } else if (act) { btn = '<button class="btn" style="padding:6px 12px;border-color:var(--green);" onclick="toggleAutoRest(' + o.threshold + ')">Выкл</button>'; } else { btn = '<button class="btn" style="padding:6px 12px;" onclick="toggleAutoRest(' + o.threshold + ')">Выкл ▶</button>'; } return '<div class="shop-item ' + (act ? 'auto-active' : '') + '"><div><strong>' + o.name + ' усталости</strong><br><small>' + desc + '</small></div><div>' + btn + '</div></div>'; }).join(''); }
 
-function renderUpgrades() { 
+function renderUpgrades() {
+    if (typeof renderAfkFarmUpgrades === "function") renderAfkFarmUpgrades();
     let h = ""; 
     for (let [k, u] of Object.entries(upgrades)) { 
         let un = isUpgradeUnlocked(k), c = Math.floor(u.baseCost * (1 + u.level * 0.3)), cur = u.level * u.increment; 
