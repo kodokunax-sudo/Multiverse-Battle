@@ -3016,6 +3016,7 @@
 
         // ★ 2. Проверка локальной неуязвимости ★
         if (rwbPlayer.invulnTimer > 0) return;
+        if (typeof window.gojoTryNegateIncoming === "function" && window.gojoTryNegateIncoming(dmg, "rwb")) return;
 
         // ★ 3. Применяем множители редукции урона ★
         if (typeof _superState !== 'undefined') {
