@@ -139,6 +139,36 @@
 
     let rwbModeBtn = null;
     let rwbSuperBtn = null;
+    let rwbGraphicsBtn = null;
+
+    function detectRWBGraphicsMode() {
+        try {
+            var saved = localStorage.getItem("rwbGraphicsMode");
+            if (saved === "pc" || saved === "mobile") return saved;
+        } catch (e) {}
+        var coarsePointer = false;
+        try { coarsePointer = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches); } catch (e) {}
+        return (coarsePointer || (window.innerWidth <= 760 && ("ontouchstart" in window))) ? "mobile" : "pc";
+    }
+    let rwbGraphicsMode = detectRWBGraphicsMode();
+    window.rwbGraphicsMode = rwbGraphicsMode;
+    function isRWBMobileGraphics() { return rwbGraphicsMode === "mobile"; }
+    function setRWBGraphicsMode(nextMode) {
+        rwbGraphicsMode = nextMode === "mobile" ? "mobile" : "pc";
+        window.rwbGraphicsMode = rwbGraphicsMode;
+        try { localStorage.setItem("rwbGraphicsMode", rwbGraphicsMode); } catch (e) {}
+        if (isRWBMobileGraphics()) {
+            rwbSpeedLines.length = 0;
+            rwbHakiLightnings.length = 0;
+            rwbWhiteCracks.length = 0;
+            rwbPurpleCracks.length = 0;
+            if (rwbShockwaves.length > 5) rwbShockwaves.splice(0, rwbShockwaves.length - 5);
+            rwbShake = 0;
+            rwbScreenFlash = 0;
+        }
+        updateRWBGraphicsButton();
+    }
+    window.setRWBGraphicsMode = setRWBGraphicsMode;
 
     let rwbTsunamiActive = false;
     // Белоус: супер-скилл «Воронка» + QTE
@@ -812,6 +842,7 @@
     function rwbSound(freq, type, dur, vol) { if (typeof playArenaSound === 'function') playArenaSound(freq, type, dur, vol); }
 
     function spawnHakiLightning(x, y, count, isWhite) {
+        if (isRWBMobileGraphics()) return;
         if (rwbHakiLightnings.length > 20) return;
         if (!count) count = 1;
         count = Math.min(count, 2);
@@ -837,6 +868,7 @@
     }
 
     function spawnWhiteCracks(bossX, bossY, count) {
+        if (isRWBMobileGraphics()) return;
         if (!count) count = 3;
         count = Math.min(count, 4);
         for (let i = 0; i < count; i++) {
@@ -852,6 +884,7 @@
     }
 
     function spawnPurpleCracks(centerX, centerY, count) {
+        if (isRWBMobileGraphics()) return;
         if (!count) count = 8;
         for (let i = 0; i < count; i++) {
             let ang = (i / count) * Math.PI * 2 + Math.random() * 0.3;
@@ -1024,6 +1057,7 @@
         window.addEventListener("keyup", handleRWBKeyUp);
 
         createRWBModeButton(); showRWBModeButton();
+        createRWBGraphicsButton(); showRWBGraphicsButton();
 
         if (rwbAnimFrame) cancelAnimationFrame(rwbAnimFrame);
         rwbAnimFrame = requestAnimationFrame(rwbRenderLoop);
@@ -1043,6 +1077,21 @@
 
     function drawIslandBackground() {
         if (!islandBg) initIslandBackground();
+        // На телефоне оставляем узнаваемый закат/море/берег, но убираем
+        // движущиеся облака, птиц, блики, волны и десятки мелких деталей.
+        if (isRWBMobileGraphics()) {
+            ctx.fillStyle = "#292849"; ctx.fillRect(0, 0, 400, 320);
+            ctx.fillStyle = "#604b69"; ctx.fillRect(0, 240, 400, 80);
+            ctx.fillStyle = "#396b8a"; ctx.fillRect(0, 320, 400, 100);
+            ctx.fillStyle = "#5b4938"; ctx.fillRect(0, 420, 400, 80);
+            ctx.fillStyle = "#ffe2a2"; ctx.beginPath(); ctx.arc(300, 290, 17, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "rgba(255,255,255,0.18)"; ctx.lineWidth = 1;
+            for (var simpleWave = 0; simpleWave < 4; simpleWave++) {
+                ctx.beginPath(); ctx.moveTo(24 + simpleWave * 41, 338 + simpleWave * 15);
+                ctx.lineTo(95 + simpleWave * 39, 338 + simpleWave * 15); ctx.stroke();
+            }
+            return;
+        }
         let skyGrad = ctx.createLinearGradient(0, 0, 0, 320);
         skyGrad.addColorStop(0, "#0d1b3d"); skyGrad.addColorStop(0.3, "#2d2a5c");
         skyGrad.addColorStop(0.55, "#8b3a5c"); skyGrad.addColorStop(0.75, "#e8794a");
@@ -1137,6 +1186,55 @@
         ctx.arc(-4, -85, 3, 0, Math.PI * 2);
         ctx.arc(4, -85, 3, 0, Math.PI * 2);
         ctx.fill(); ctx.restore();
+    }
+
+    function updateRWBGraphicsButton() {
+        if (!rwbGraphicsBtn) return;
+        var mobile = isRWBMobileGraphics();
+        rwbGraphicsBtn.textContent = mobile ? "📱 ГРАФИКА: ТЕЛЕФОН" : "🖥 ГРАФИКА: ПК";
+        rwbGraphicsBtn.title = mobile
+            ? "Лёгкая графика: меньше частиц, свечения, тряски и визуальных эффектов суперспособностей"
+            : "Полная графика: все эффекты боя";
+        rwbGraphicsBtn.style.background = mobile
+            ? "linear-gradient(135deg, #168c75, #075c70)"
+            : "linear-gradient(135deg, #3157a4, #6b36a8)";
+        rwbGraphicsBtn.style.boxShadow = mobile
+            ? "0 3px 10px rgba(0, 190, 160, 0.35)"
+            : "0 3px 12px rgba(100, 100, 255, 0.45)";
+    }
+
+    function createRWBGraphicsButton() {
+        if (rwbGraphicsBtn) return;
+        rwbGraphicsBtn = document.createElement("button");
+        rwbGraphicsBtn.id = "rwbGraphicsBtn";
+        rwbGraphicsBtn.type = "button";
+        rwbGraphicsBtn.style.cssText = [
+            "position: fixed", "top: max(8px, env(safe-area-inset-top))",
+            "right: max(8px, env(safe-area-inset-right))",
+            "padding: 8px 11px", "border-radius: 18px",
+            "color: #fff", "font-weight: 900", "font-size: 12px",
+            'font-family: "Nunito", sans-serif', "border: 2px solid rgba(255,255,255,.85)",
+            "cursor: pointer", "z-index: 100001", "letter-spacing: .1px",
+            "user-select: none", "touch-action: manipulation",
+            "max-width: calc(100vw - 16px)", "white-space: nowrap"
+        ].join(";");
+        rwbGraphicsBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            setRWBGraphicsMode(isRWBMobileGraphics() ? "pc" : "mobile");
+        };
+        document.body.appendChild(rwbGraphicsBtn);
+        updateRWBGraphicsButton();
+    }
+
+    function showRWBGraphicsButton() {
+        createRWBGraphicsButton();
+        if (rwbGraphicsBtn) rwbGraphicsBtn.style.display = "block";
+        updateRWBGraphicsButton();
+    }
+
+    function hideRWBGraphicsButton() {
+        if (rwbGraphicsBtn) rwbGraphicsBtn.style.display = "none";
     }
 
     function createRWBModeButton() {
@@ -3000,7 +3098,7 @@
         window.rwbActive = false; rwbDialogActive = false;
         rwbPlayerStunTimer = 0; wbFruitFlashTimer = 0;
         wbBrain = { bottomFrames: 0, stationaryFrames: 0, farFrames: 0, shotsInWindow: 0, shotWindowTimer: 0, adaptiveCooldown: 0, lastX: 200, lastY: 420, lastAdaptive: null };
-        hideRWBModeButton(); hideRWBSuperButton(); stopRWBMusic();
+        hideRWBModeButton(); hideRWBGraphicsButton(); hideRWBSuperButton(); stopRWBMusic();
         if (typeof resetAllSupers === 'function') { try { resetAllSupers(); } catch(e) {} }
         rwbSupersInitialized = false;
         if (typeof window !== 'undefined') window._uniqueSuperBossId = null;
@@ -3045,8 +3143,10 @@
             try { tickSupers(); } catch(e) { console.error("[ROGER-WB] tickSupers error:", e); }
         }
 
-        // Общие SUPER-эффекты должны управлять и RWB-рендером.
-        if (typeof _superState !== 'undefined' && _superState.screenShakeAmount > 0) {
+        // В телефонном режиме не применяем дорогую тряску камеры.
+        if (isRWBMobileGraphics()) {
+            rwbShake = 0;
+        } else if (typeof _superState !== 'undefined' && _superState.screenShakeAmount > 0) {
             rwbShake = Math.max(rwbShake, _superState.screenShakeAmount);
         }
 
@@ -3130,6 +3230,15 @@
             if (Math.abs(rwbPlayer.vy) < 0.2) rwbPlayer.vy = 0;
         }
 
+        // Ограничиваем только декоративные эффекты; реальные атаки и хитбоксы не трогаем.
+        if (isRWBMobileGraphics()) {
+            if (rwbParticles.length > 48) rwbParticles.splice(0, rwbParticles.length - 48);
+            rwbSpeedLines.length = 0;
+            rwbHakiLightnings.length = 0;
+            rwbWhiteCracks.length = 0;
+            rwbPurpleCracks.length = 0;
+            if (rwbShockwaves.length > 5) rwbShockwaves.splice(0, rwbShockwaves.length - 5);
+        }
         for (let i = rwbParticles.length - 1; i >= 0; i--) {
             let p = rwbParticles[i];
             p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life--;
@@ -3155,12 +3264,12 @@
         if (rwbScreenFlash > 0) rwbScreenFlash--;
 
         ctx.save();
-        if (rwbShake > 0.5) ctx.translate((Math.random() - 0.5) * rwbShake, (Math.random() - 0.5) * rwbShake);
+        if (!isRWBMobileGraphics() && rwbShake > 0.5) ctx.translate((Math.random() - 0.5) * rwbShake, (Math.random() - 0.5) * rwbShake);
 
         drawIslandBackground();
 
-        if (rwbHakiAura > 0) { ctx.save(); ctx.globalAlpha = rwbHakiAura / 100; ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
-        if (rwbScreenFlash > 0) { ctx.globalAlpha = rwbScreenFlash / 30; ctx.fillStyle = rwbScreenFlashColor; ctx.fillRect(0, 0, 400, 500); ctx.globalAlpha = 1; }
+        if (!isRWBMobileGraphics() && rwbHakiAura > 0) { ctx.save(); ctx.globalAlpha = rwbHakiAura / 100; ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
+        if (!isRWBMobileGraphics() && rwbScreenFlash > 0) { ctx.globalAlpha = rwbScreenFlash / 30; ctx.fillStyle = rwbScreenFlashColor; ctx.fillRect(0, 0, 400, 500); ctx.globalAlpha = 1; }
 
         ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 3; ctx.strokeRect(2, 2, 396, 496);
 
@@ -3195,12 +3304,17 @@
 
         for (let i = 0; i < rwbPlayerBullets.length; i++) {
             let b = rwbPlayerBullets[i];
-            if (typeof window.drawEquipmentProjectile === 'function' && window.drawEquipmentProjectile(ctx, b)) continue;
+            if (!isRWBMobileGraphics() && typeof window.drawEquipmentProjectile === 'function' && window.drawEquipmentProjectile(ctx, b)) continue;
             ctx.save();
-            let grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.size * 1.5);
-            grad.addColorStop(0, "#ffffff"); grad.addColorStop(0.5, b.color); grad.addColorStop(1, "transparent");
-            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 1.5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 0.5, 0, Math.PI * 2); ctx.fill();
+            if (isRWBMobileGraphics()) {
+                ctx.fillStyle = b.color || "#ffffff";
+                ctx.beginPath(); ctx.arc(b.x, b.y, Math.max(2, b.size * 0.85), 0, Math.PI * 2); ctx.fill();
+            } else {
+                let grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.size * 1.5);
+                grad.addColorStop(0, "#ffffff"); grad.addColorStop(0.5, b.color); grad.addColorStop(1, "transparent");
+                ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 1.5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(b.x, b.y, b.size * 0.5, 0, Math.PI * 2); ctx.fill();
+            }
             ctx.restore();
         }
 
@@ -3341,12 +3455,23 @@
         if (rwbDialogActive) drawRWBDialogOverlay();
 
         if (typeof renderSuperVisuals === 'function') {
-            try { renderSuperVisuals(); } catch(e) { console.error("[ROGER-WB] renderSuperVisuals error:", e); }
+            try {
+                if (!isRWBMobileGraphics()) {
+                    renderSuperVisuals();
+                } else {
+                    // Сохраняем сам визуал ДИО и его стенд, отключая тяжёлые VFX-слои суперспособностей.
+                    var mobileSuperCtx = typeof window.getBossContext === "function" ? window.getBossContext() : null;
+                    if (mobileSuperCtx && mobileSuperCtx.type !== "arena" &&
+                        typeof window.dioRenderPlayerAndStand === "function") {
+                        window.dioRenderPlayerAndStand(mobileSuperCtx);
+                    }
+                }
+            } catch(e) { console.error("[ROGER-WB] renderSuperVisuals error:", e); }
         }
 
         // После попадания фруктового удара экран остаётся пересвеченным 3 секунды,
         // но игрок не ослеплён полностью: слабые полосы дают эффект искажения.
-        if (wbFruitFlashTimer > 0) {
+        if (!isRWBMobileGraphics() && wbFruitFlashTimer > 0) {
             ctx.save();
             ctx.fillStyle = "rgba(255,255,255," + wbFruitFlashPower + ")";
             ctx.fillRect(0, 0, 400, 500);
