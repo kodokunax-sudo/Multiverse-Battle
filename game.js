@@ -974,7 +974,7 @@ function loadGameData(d) {
     autoSellSettings = d.autoSellSettings || {}; 
     purchasedAutoSell = d.purchasedAutoSell || {}; 
     autoRest = d.autoRest || {active:false,threshold:90,purchased:false}; 
-    abilityUpgradeLevel = 0;
+    
     afkFarmUpgradeLevel = Math.max(0, Math.min(5, Number(d.afkFarmUpgradeLevel) || 0)); 
     if (d.evoProgress) evoProgress = d.evoProgress; 
     dekusNerfWaves = d.dekusNerfWaves || 0; 
@@ -1110,7 +1110,7 @@ function initNewGame() {
     autoSellSettings = {"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}; 
     purchasedAutoSell = {"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}; 
     autoRest = {active:false,threshold:90,purchased:false}; 
-    abilityUpgradeLevel = 0;
+    
     afkFarmUpgradeLevel = 0;
     evoProgress = {wavesSaitamaGarou:0,damageGarpKuzan:0,luffyKingUnlocked:false,sgUnlocked:false,gkUnlocked:false,sevenUnlocked:false,williamUnlocked:false,oneShotCount:0}; 
     dekusNerfWaves = 0; 
@@ -1220,7 +1220,7 @@ function saveAll() {
     slotData.autoSellSettings = autoSellSettings; 
     slotData.purchasedAutoSell = purchasedAutoSell; 
     slotData.autoRest = autoRest; 
-    slotData.abilityUpgradeLevel = 0;
+    delete slotData.abilityUpgradeLevel;
     slotData.afkFarmUpgradeLevel = afkFarmUpgradeLevel; 
     slotData.evoProgress = evoProgress; 
     slotData.dekusNerfWaves = dekusNerfWaves; 
@@ -1271,11 +1271,119 @@ function saveAll() {
 // ========== ИГРОВЫЕ ПЕРЕМЕННЫЕ ==========
 let myCards=[],team=[],afkTeam=[],points=100,wave=1,playerHp=100,currentEnemy=null,clicksSinceLastCounter=0,activeBuffs={},defeatHistory=[],mode="normal",shopItems=[null,null,null],shopRefreshTime=null,lastCardClaimTime=null,freeSpins=5,lastFreeSpinReset=null,fatigue=0,achievements={win10:false,win50:false,win100:false,win500:false,win1000:false,legendaryTeam:false,secretTeam:false,level20:false,level50:false,rebirth3:false,rebirth5:false,allCommon:false,allRare:false,points10k:false,points50k:false,points100k:false,totalClicks1k:false,totalClicks10k:false,bossNoDamage:false,sellCard100:false},totalWins=0,playerLevel=1,playerExp=0,resurrectedThisFight=false,firstAttackThisFight=true,hasSukunaFingers=false,sukunaTarget=null,sukunaExpireTime=0,deathNoteTarget=null,afkActive=false,afkTimer=null,afkWavesCompleted=0,afkWinsCompleted=0,afkCurrentWave=1,usedCodes=[],moderUnlocked=false,discoveredCards=[],highestCheckpoint=1;
 let highestWaveReached = 1;
-let rebirthCount=0, rebirthStats=[], activeCheckpoint=0, autoSellSettings={"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}, purchasedAutoSell={"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}, autoRest={active:false,threshold:90,purchased:false}, abilityUpgradeLevel=0;
+let rebirthCount=0, rebirthStats=[], activeCheckpoint=0, autoSellSettings={"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}, purchasedAutoSell={"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}, autoRest={active:false,threshold:90,purchased:false};
 let afkFarmUpgradeLevel=0;
 const AFK_FARM_UPGRADE_COSTS=[20000,50000,75000,100000];
-function getAfkFarmCost(){return afkFarmUpgradeLevel===4?Math.max(1000000,Math.floor(Math.max(0,Number(points)||0)*.5)):AFK_FARM_UPGRADE_COSTS[afkFarmUpgradeLevel]}
-function getAfkAbilityBonus(){let m=1;for(const i of afkTeam){const c=myCards[i],a=c&&c.ability;if(!a)continue;if(a.type==="damageAura")m+=Math.max(0,Number(a.value)||0);else if(a.type==="bossDamage")m+=Math.max(0,Number(a.value)||0)*.5;else if(a.type==="damageMultChance")m+=Math.max(0,Number(a.mult-1)||0)*Math.max(0,Math.min(1,Number(a.chance)||0));else if(a.type==="critChance")m+=Math.max(0,Number(a.value)||0)*.5;else if(a.type==="oneShot")m+=Math.max(0,Number(a.chance)||0)*.5}return Math.min(5,m)}
+function getAfkFarmCost(){const nextLevel=afkFarmUpgradeLevel+1;return nextLevel===5?Math.max(1000000,Math.floor(Math.max(0,Number(points)||0)*.5)):AFK_FARM_UPGRADE_COSTS[nextLevel-1]}
+function getAfkTeamPowerMultiplier() {
+    return afkFarmUpgradeLevel >= 5 ? 1 : 0.8;
+}
+function getAfkFarmTickIntervalMs() {
+    return afkFarmUpgradeLevel >= 2 ? 1000 : 2000;
+}
+function getAfkMaxOfflineSeconds() {
+    return afkFarmUpgradeLevel >= 1 ? 14400 : 7200;
+}
+function getAfkCardDropChance(baseChance) {
+    return Math.min(1, Math.max(0, Number(baseChance) || 0) * (afkFarmUpgradeLevel >= 4 ? 10 : 1));
+}
+function getAfkPassiveModifiers(isBoss) {
+    const defaults = { dmgMult: 1, takenMult: 1, bossBonus: 0, hpMult: 1 };
+    if (afkFarmUpgradeLevel < 3 || !Array.isArray(afkTeam) || !afkTeam.length) return defaults;
+    const oldTeam = team, oldEnemy = currentEnemy, oldFatigue = fatigue;
+    const oldBossSupport = bossSupportUsedThisFight, oldSpareBonus = spareBonusFromTeam;
+    const oldZeno = window.hasZenoInTeam;
+    try {
+        team = afkTeam;
+        currentEnemy = { isBoss: !!isBoss, hp: 1, maxHp: 1, damage: 0 };
+        // Do not spend main-game fatigue while evaluating boss-support abilities.
+        bossSupportUsedThisFight = true;
+        return getPassiveModifiers() || defaults;
+    } catch (e) {
+        return defaults;
+    } finally {
+        team = oldTeam;
+        currentEnemy = oldEnemy;
+        fatigue = oldFatigue;
+        bossSupportUsedThisFight = oldBossSupport;
+        spareBonusFromTeam = oldSpareBonus;
+        window.hasZenoInTeam = oldZeno;
+    }
+}
+function getAfkFarmHitDamage(afkWave, baseDamage, enemyHp) {
+    let damage = Math.max(1, Math.floor(Number(baseDamage) || 1));
+    if (afkFarmUpgradeLevel < 3) return damage;
+    const isBoss = Number(afkWave) % 10 === 0;
+    const modifiers = getAfkPassiveModifiers(isBoss);
+    damage = Math.max(1, Math.floor(damage * (Number(modifiers.dmgMult) || 1)));
+    if (isBoss && Number(modifiers.bossBonus) > 0) damage = Math.floor(damage * (1 + Number(modifiers.bossBonus)));
+    let oneShotChance = 0;
+    let critChance = upgrades.crit.level * upgrades.crit.increment;
+    for (const index of afkTeam) {
+        const card = myCards[index];
+        if (!card || !card.ability) continue;
+        const ability = card.ability;
+        if (typeof hasMasteryAbility === "function" && !hasMasteryAbility(card)) continue;
+        if (ability.type === "oneShot" || (ability.type === "nonBossOneShot" && !isBoss)) oneShotChance += Math.max(0, Number(ability.chance) || 0);
+        if (ability.type === "critChance") critChance += Math.max(0, Number(ability.value) || 0);
+        if (ability.type === "damageMultChance" && Math.random() < Math.min(1, Math.max(0, Number(ability.chance) || 0))) {
+            damage = Math.floor(damage * Math.max(1, Number(ability.mult) || 1));
+        }
+    }
+    if (oneShotChance > 0 && Math.random() < Math.min(1, oneShotChance)) return Math.max(1, Number(enemyHp) || damage);
+    if (critChance > 0 && Math.random() < Math.min(1, critChance)) damage *= 2;
+    let bleedBonus = 0;
+    afkTeam.forEach(index => {
+        const card = myCards[index], status = card && card.statusAbility;
+        if (!status || status.type !== "bleed") return;
+        if (typeof hasMasteryStatus === "function" && !hasMasteryStatus(card)) return;
+        bleedBonus += Math.max(0, Number(status.value) || 0);
+    });
+    if (bleedBonus > 0) damage = Math.floor(damage * (1 + Math.min(2, bleedBonus)));
+    return Math.max(1, damage);
+}
+function getAfkIncomingDamageMultiplier(afkWave) {
+    if (afkFarmUpgradeLevel < 3) return 1;
+    const modifiers = getAfkPassiveModifiers(Number(afkWave) % 10 === 0);
+    return Math.max(0.01, Number(modifiers.takenMult) || 1);
+}
+function getAfkTeamWinHealPercent() {
+    if (afkFarmUpgradeLevel < 3) return 0;
+    let heal = 0;
+    if (afkTeam.some(index => {
+        const card = myCards[index];
+        return card && card.ability && card.ability.type === "teamHealOnWave" &&
+            (typeof hasMasteryAbility !== "function" || hasMasteryAbility(card));
+    })) heal = Math.max(heal, 0.02);
+    if (afkTeam.some(index => {
+        const card = myCards[index];
+        return card && card.ability && card.ability.type === "sevenSpecial" &&
+            (typeof hasMasteryAbility !== "function" || hasMasteryAbility(card));
+    })) heal = Math.max(heal, 0.05);
+    afkTeam.forEach(index => {
+        const card = myCards[index];
+        if (!card || !card.ability || card.ability.type !== "healOnWin") return;
+        if (typeof hasMasteryAbility === "function" && !hasMasteryAbility(card)) return;
+        heal += Math.max(0, Number(card.ability.percent) || 0);
+    });
+    if (afkTeam.some(index => myCards[index] && myCards[index].name === "ДИО Over Heaven" &&
+        (typeof hasMasteryAbility !== "function" || hasMasteryAbility(myCards[index])))) heal += 0.01;
+    if (afkTeam.some(index => myCards[index] && myCards[index].name === "Белоус" &&
+        (typeof hasMasteryAbility !== "function" || hasMasteryAbility(myCards[index])))) heal += 0.01;
+    return Math.min(0.5, heal);
+}
+function afkTeamCanResurrect() {
+    if (afkFarmUpgradeLevel < 3) return false;
+    for (const index of afkTeam) {
+        const card = myCards[index];
+        if (!card) continue;
+        const mastered = typeof hasMasteryAbility !== "function" || hasMasteryAbility(card);
+        if (mastered && card.name === "Белоус" && Math.random() < 0.03) return true;
+        if (mastered && card.ability && card.ability.type === "resurrect" &&
+            Math.random() < Math.min(1, Math.max(0, Number(card.ability.chance) || 0))) return true;
+    }
+    return false;
+}
 function buyAfkFarmUpgrade(){if(playerLevel<20||afkFarmUpgradeLevel>=5)return;const cost=getAfkFarmCost();if(mode!=="moder"&&points<cost)return;if(mode!=="moder")points-=cost;afkFarmUpgradeLevel++;if(typeof renderAfkTeam==="function")renderAfkTeam();saveAll();renderAfkFarmUpgrades();renderPoints();if(typeof showFloatingText==="function")showFloatingText("АФК-фарм улучшен: "+afkFarmUpgradeLevel+"/5","#2ecc71")}
 function renderAfkFarmUpgrades(){const el=document.getElementById("afkFarmUpgradeItems");if(!el)return;const n=["⏳ Лимит 4 часа","⚡ Клик раз в секунду","✨ Способности в фарме","🎴 Шанс карт ×10","🔥 100% силы команды"],d=["Вместо 2 часов.","Вместо 2 секунд.","Пассивные бонусы способностей усиливают фарм.","Шанс карты увеличен в 10 раз.","Убирает штраф команды на 20%; стоит 50% звёзд, минимум 1 000 000."];let html="<div style=\"font-size:12px;color:#aaa\">Открывается на 20 уровне. Уровень "+afkFarmUpgradeLevel+"/5</div>";for(let i=0;i<5;i++){const done=afkFarmUpgradeLevel>i,cur=afkFarmUpgradeLevel===i,cost=cur?getAfkFarmCost():0,disabled=playerLevel<20||(mode!=="moder"&&points<cost);html+="<div class=\"upgrade-item\" style=\"margin:8px 0\"><div><b>"+(done?"✅ ":(i+1)+". ")+n[i]+"</b><br><small>"+d[i]+"</small>"+(!done?"<br><small>"+(playerLevel<20?"🔒 Нужен 20 уровень":"Стоимость: "+cost.toLocaleString("ru-RU")+"⭐")+"</small>":"")+"</div>"+(done?"Куплено":cur?"<button class=\"btn btn-primary\" onclick=\"buyAfkFarmUpgrade()\" "+(disabled?"disabled":"")+">Купить</button>":"🔒")+"</div>"}el.innerHTML=html}
 window.buyAfkFarmUpgrade=buyAfkFarmUpgrade;window.renderAfkFarmUpgrades=renderAfkFarmUpgrades;
@@ -1877,13 +1985,13 @@ function processOfflineProgress() {
     let now = Date.now(); 
     let elapsed = Math.floor((now - lastSaveTime) / 1000); 
     if (elapsed < 10) return; 
-    let maxElapsed = Math.min(elapsed, afkFarmUpgradeLevel >= 1 ? 14400 : 7200);
-    let afkIntervalSeconds = afkFarmUpgradeLevel >= 2 ? 1 : 2;
+    let maxElapsed = Math.min(elapsed, getAfkMaxOfflineSeconds());
+    let afkIntervalSeconds = getAfkFarmTickIntervalMs() / 1000;
     let wavesCompleted = Math.floor(maxElapsed / afkIntervalSeconds); 
     if (wavesCompleted <= 0) return; 
     let simWave = afkCurrentWave || wave; 
     let simHp = playerHp; 
-    let simDmg = (5 + upgrades.damage.level * upgrades.damage.increment + (window.afkTeamDamage || 0)) * (afkFarmUpgradeLevel >= 5 ? 1 : 0.8) * (afkFarmUpgradeLevel >= 3 ? getAfkAbilityBonus() : 1); 
+    let simBaseDmg = (5 + upgrades.damage.level * upgrades.damage.increment) * 0.8 + (window.afkTeamDamage || 0); 
     let simMaxHp = window.playerMaxHp || 100; 
     let earnedPoints = 0; 
     let earnedCards = 0; 
@@ -1891,19 +1999,24 @@ function processOfflineProgress() {
     for (let w = 0; w < wavesCompleted; w++) { 
         let ehp = 50 + simWave * 12; 
         let edmg = 15 + simWave * 6; 
-        if (simWave % 10 === 0) { ehp *= 4; edmg *= 3; } 
-        while (ehp > 0 && simHp > 0) { 
-            ehp -= simDmg; 
-            if (ehp <= 0) break; 
-            if (Math.random() < 0.33) { simHp -= Math.floor(edmg * 0.9); } 
+        const isAfkBossWave = simWave % 10 === 0;
+        if (isAfkBossWave) { ehp *= 4; edmg *= 3; }
+        const simDmg = getAfkFarmHitDamage(simWave, simBaseDmg, ehp);
+        while (ehp > 0 && simHp > 0) {
+            ehp -= simDmg;
+            if (ehp <= 0) break;
+            if (Math.random() < 0.33) simHp -= Math.floor(edmg * 0.9 * getAfkIncomingDamageMultiplier(simWave));
+        }
+        if (simHp <= 0) {
+            if (afkTeamCanResurrect()) simHp = Math.floor(simMaxHp);
+            else { simHp = Math.floor(simMaxHp * 0.8); simWave = Math.max(1, simWave - 5); continue; }
         } 
-        if (simHp <= 0) { simHp = Math.floor(simMaxHp * 0.8); simWave = Math.max(1, simWave - 5); continue; } 
         let rew = simWave % 10 === 0 ? Math.floor(simWave / 2 * getStarMult()) : Math.floor(simWave / 3 * getStarMult()); 
         earnedPoints += rew; 
         simWave++; 
         afkWinsCompleted = (afkWinsCompleted || 0) + 1; 
-        simHp = Math.min(simMaxHp, simHp + Math.floor(simMaxHp * 0.2)); 
-        if (simWave % 10 === 0 && Math.random() < Math.min(1,0.015*(afkFarmUpgradeLevel>=4?10:1))) {
+        simHp = Math.min(simMaxHp, simHp + Math.floor(simMaxHp * (0.2 + getAfkTeamWinHealPercent())));
+        if (simWave % 10 === 0 && Math.random() < getAfkCardDropChance(0.015)) {
             let rarity = getBossRewardRarity(simWave); 
             if (rarity !== "Босс") { let c = createCard(rarity); if (c) { myCards.push(c); earnedCards++; } } 
         } 
@@ -2523,13 +2636,14 @@ function resetGame() { wave = 1; playerHp = window.playerMaxHp || 100; clicksSin
 function checkAutoSell() { if (rebirthCount < 1) return; let anyActive = false; for (let r in autoSellSettings) { if (autoSellSettings[r]) { anyActive = true; break; } } if (!anyActive) return; for (let i = myCards.length - 1; i >= 0; i--) { let c = myCards[i]; if (!c.unsellable && autoSellSettings[c.rarity]) { points += Math.floor((c.sellPrice || 0) * getStarMult()); if (points > maxPoints) maxPoints = points; removeCard(i); } } saveAll(); renderMyCards(); renderPoints(); }
 function startAfk() { if (afkActive || !afkTeam.length) return; afkActive = true; afkCurrentWave = wave; let el = document.getElementById("afkStatus"); if (el) { el.innerText = "Активен"; el.className = "afk-active"; } el = document.getElementById("toggleAfkBtn"); if (el) el.innerText = "⏹ Остановить"; runAfkTick(); saveAll(); }
 function stopAfk() { afkActive = false; if (afkTimer) clearTimeout(afkTimer); let el = document.getElementById("afkStatus"); if (el) { el.innerText = "Неактивен"; el.className = "afk-inactive"; } el = document.getElementById("toggleAfkBtn"); if (el) el.innerText = "▶ Запустить"; saveAll(); }
-function runAfkTick() { 
-    if (!afkActive) return; 
-    let dmg = (5 + upgrades.damage.level * upgrades.damage.increment + (window.afkTeamDamage || 0)) * (afkFarmUpgradeLevel >= 5 ? 1 : 0.8) * (afkFarmUpgradeLevel >= 3 ? getAfkAbilityBonus() : 1); 
-    let ehp = 50 + afkCurrentWave * 12; 
-    let edmg = 15 + afkCurrentWave * 6; 
-    if (afkCurrentWave % 10 === 0) { ehp *= 4; edmg *= 3; } 
-    ehp -= dmg; 
+function runAfkTick() {
+    if (!afkActive) return;
+    const baseAfkDamage = (5 + upgrades.damage.level * upgrades.damage.increment) * 0.8 + (window.afkTeamDamage || 0);
+    let ehp = 50 + afkCurrentWave * 12;
+    let edmg = 15 + afkCurrentWave * 6;
+    if (afkCurrentWave % 10 === 0) { ehp *= 4; edmg *= 3; }
+    let dmg = getAfkFarmHitDamage(afkCurrentWave, baseAfkDamage, ehp);
+    ehp -= dmg;
     if (typeof grantMasteryExpFromFight === 'function') grantMasteryExpFromFight(dmg, 0);
     if (ehp <= 0) { 
         let rew = afkCurrentWave % 10 === 0 ? Math.floor(afkCurrentWave / 2 * getStarMult()) : Math.floor(afkCurrentWave / 3 * getStarMult()); 
@@ -2545,7 +2659,7 @@ function runAfkTick() {
         if (afkCurrentWave % 10 === 0) { 
             if (typeof grantMasteryPowerForBoss === 'function') grantMasteryPowerForBoss();
             updateChallengeProgress("bossKills", 1); 
-            if (Math.random() < Math.min(1,0.05*(afkFarmUpgradeLevel>=4?10:1))) {
+            if (Math.random() < getAfkCardDropChance(0.05)) {
                 let rarity = getBossRewardRarity(afkCurrentWave); 
                 if (rarity !== "Босс") { let c = createCard(rarity); if (c) myCards.push(c); } 
                 renderMyCards(); 
@@ -2559,7 +2673,9 @@ function runAfkTick() {
         if (el) el.innerText = afkCurrentWave; 
         el = document.getElementById("afkWavesCompleted"); 
         if (el) el.innerText = afkWavesCompleted; 
-        playerHp = Math.min(window.playerMaxHp, playerHp + Math.floor((50 + upgrades.hp.level * upgrades.hp.increment + (window.afkTeamHpBonus || 0)) * 0.8 * 0.2)); 
+        const baseAfkHeal = Math.floor((50 + upgrades.hp.level * upgrades.hp.increment + (window.afkTeamHpBonus || 0)) * 0.8 * 0.2);
+        const abilityAfkHeal = Math.floor((window.playerMaxHp || 100) * getAfkTeamWinHealPercent());
+        playerHp = Math.min(window.playerMaxHp, playerHp + baseAfkHeal + abilityAfkHeal); 
         increaseFatigue(); 
         renderPoints(); 
         updatePlayerStats(); 
@@ -2567,23 +2683,28 @@ function runAfkTick() {
         checkAutoSell(); 
     } else { 
         if (Math.random() < 0.33) { 
-            let takenDmg = Math.floor(edmg * 0.9);
+            let takenDmg = Math.floor(edmg * 0.9 * getAfkIncomingDamageMultiplier(afkCurrentWave));
             playerHp -= takenDmg; 
             if (typeof grantMasteryExpFromFight === 'function') grantMasteryExpFromFight(0, takenDmg);
-            if (playerHp <= 0) { 
-                afkCurrentWave = 1; 
-                playerHp = (50 + upgrades.hp.level * upgrades.hp.increment + (window.afkTeamHpBonus || 0)) * 0.8; 
-                fatigue = Math.max(0, fatigue - 20); 
+            if (playerHp <= 0) {
+                if (afkTeamCanResurrect()) {
+                    playerHp = Math.max(1, Math.floor(window.playerMaxHp || (50 + (window.afkTeamHpBonus || 0))));
+                    if (typeof showFloatingText === "function") showFloatingText("✨ АФК-команда спасла тебя!", "#2ecc71");
+                } else {
+                    afkCurrentWave = 1;
+                    playerHp = (50 + upgrades.hp.level * upgrades.hp.increment + (window.afkTeamHpBonus || 0)) * 0.8;
+                    fatigue = Math.max(0, fatigue - 20); 
                 updateFatigue(); 
                 updateRestBtn(); 
-                let el = document.getElementById("afkWave"); 
-                if (el) el.innerText = afkCurrentWave; 
-            } 
-        } 
-    } 
-    let el = document.getElementById("playerHp"); 
-    if (el) el.innerText = Math.floor(playerHp); 
-    if (afkActive) afkTimer = setTimeout(runAfkTick, afkFarmUpgradeLevel >= 2 ? 1000 : 2000); 
+                    let el = document.getElementById("afkWave");
+                    if (el) el.innerText = afkCurrentWave;
+                }
+            }
+        }
+    }
+    let el = document.getElementById("playerHp");
+    if (el) el.innerText = Math.floor(playerHp);
+    if (afkActive) afkTimer = setTimeout(runAfkTick, getAfkFarmTickIntervalMs()); 
     saveAll(); 
 }
 
