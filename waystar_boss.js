@@ -17,7 +17,6 @@ if (typeof window.waystarDefeatedThisRun === 'undefined') {
     window.waystarDefeatedThisRun = false;
 }
 
-var WAYSTAR_MODER_DAMAGE = 100000;
 var WAYSTAR_SLOWDOWN = 1.5;
 var WAYSTAR_RAGE_THRESHOLD = 0.40;
 
@@ -444,7 +443,7 @@ function updateWaystarShooting() {
             waystarShootCooldown = result.rate || waystarShootInterval;
             for (var i = 0; i < result.bullets.length; i++) {
                 var b = result.bullets[i];
-                var dmgBase = isWaystarModerActive() ? WAYSTAR_MODER_DAMAGE : Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4));
+                var dmgBase = Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4));
                 dmgBase = wsApplySuperDmgMult(dmgBase);
                 b.damage = Math.max(1, Math.floor(dmgBase * (b.damage / 2)));
                 waystarPlayerBullets.push(b);
@@ -457,9 +456,7 @@ function updateWaystarShooting() {
 
     if (!weaponUsed) {
         waystarShootCooldown = waystarShootInterval;
-        var dmgBase2;
-        if (isWaystarModerActive()) { dmgBase2 = WAYSTAR_MODER_DAMAGE; }
-        else { dmgBase2 = Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4)); }
+        var dmgBase2 = Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4));
         dmgBase2 = wsApplySuperDmgMult(dmgBase2);
         waystarPlayerBullets.push({ x: waystarPlayer.x, y: waystarPlayer.y - 12, vy: -12, vx: 0, size: 5, damage: dmgBase2, life: 80, trail: [] });
         if (!waystarIsCoopSimpleMode()) addWaystarFlash(waystarPlayer.x, waystarPlayer.y - 12, 15);
@@ -1162,7 +1159,7 @@ function applyWaystarHit(dmg, textMsg) {
     if (typeof onTakabaDamageTaken === "function") {
         try { onTakabaDamageTaken(dmg); } catch(e) {}
     }
-    waystarPlayerHp -= dmg;
+    waystarPlayerHp = Math.max(0, waystarPlayerHp - Math.max(0, Number(dmg) || 0));
     waystarInvulnTimer = 45;
     if (!waystarIsCoopSimpleMode()) {
         waystarShake = 15;
@@ -1279,8 +1276,18 @@ function grantWaystarSpareDebt() {
     }
 }
 
+function checkWaystarPlayerDefeat() {
+    if (!waystarActive || waystarFinalActive || waystarDialogActive || isWaystarModerActive()) return false;
+    if (waystarPlayerHp > 0) return false;
+    if (waystarState !== "phase1" && waystarState !== "phase2" && waystarState !== "phase3") return false;
+    waystarPlayerHp = 0;
+    waystarDefeat();
+    return true;
+}
+
 function waystarDefeat() {
-    if (isWaystarModerActive()) { waystarPlayerHp = 999999; return; }
+    if (waystarState === "defeat" || waystarFinalActive) return;
+    if (isWaystarModerActive()) { waystarPlayerHp = waystarPlayerMaxHp; updateWaystarHpBar(); return; }
     console.log("[WAYSTAR] Поражение");
     waystarState = "defeat";
     if (typeof showFloatingText === 'function') showFloatingText("ТЫ ПАЛ...", "#ff0000");
@@ -1591,6 +1598,7 @@ function waystarRenderLoop() {
     if (waystarIsCoopSimpleMode()) {
         try { renderWaystarSimpleCoopFrame(); }
         catch (error) { console.error("[MB co-op] Simple boss frame error:", error); }
+        checkWaystarPlayerDefeat();
         waystarAnimFrame = requestAnimationFrame(waystarRenderLoop);
         return;
     }
@@ -1731,6 +1739,7 @@ function waystarRenderLoop() {
             waystarDialogAutoTimer = 0;
         } else if (!waystarChoiceActive) { waystarDialogAutoTimer++; if (current && waystarDialogAutoTimer > current.time * 60) waystarProgressDialog(); }
     }
+    checkWaystarPlayerDefeat();
     if (waystarShake > 0.1) waystarShake *= 0.85;
     if (waystarScreenFlash > 0) waystarScreenFlash--;
     if (waystarBossFlash > 0) waystarBossFlash--;
