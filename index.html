@@ -407,6 +407,11 @@
         .level-progress { background: linear-gradient(135deg, rgba(44, 44, 58, 0.8), rgba(25, 25, 40, 0.8)); border-radius: 20px; padding: 15px; margin-bottom: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.05); font-weight: 800; }
         .level-bar { background: linear-gradient(90deg, #f5af19, #f12711); height: 10px; border-radius: 5px; transition: width 0.4s ease-out; box-shadow: 0 0 10px rgba(245, 175, 25, 0.5); margin-top: 8px; }
         .locked { opacity: 0.5; filter: grayscale(0.8); pointer-events: none; }
+        .book-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 8px; margin: 10px 0 8px; }
+        .book-filters input, .book-filters select { width: 100%; min-width: 0; box-sizing: border-box; padding: 10px 9px; border: 1px solid rgba(255,255,255,.15); border-radius: 10px; background: #151522; color: #fff; font: inherit; font-size: 12px; }
+        .book-filters input::placeholder { color: #aaa; }
+        .book-results-count { color: #aaa; font-size: 11px; margin-bottom: 9px; }
+        .book-results-count strong { color: var(--gold, #f5af19); } 
         .book-grid { display: flex; flex-wrap: wrap; gap: 8px; }
         .book-item { background: rgba(15, 15, 31, 0.6); border-radius: 16px; padding: 10px 6px; width: calc(33.333% - 6px); text-align: center; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; font-size: 11px; transition: 0.2s; }
         .book-item:hover { transform: translateY(-3px); background: rgba(25, 25, 45, 0.8); }
@@ -868,7 +873,30 @@
                 <div id="claimTimer" class="timer-text"></div>
             </div>
             <div id="bookSubTab" class="sub-tab-content">
-                <div class="card"><div class="card-title">📖 Бестиарий (<span id="discoveredCount">0</span>/<span id="totalTemplatesCount">0</span>)</div><div id="bookList" class="book-grid"></div></div>
+                <div class="card">
+                    <div class="card-title">📖 Бестиарий (<span id="discoveredCount">0</span>/<span id="totalTemplatesCount">0</span>)</div>
+                    <div class="book-filters">
+                        <input id="bookSearch" type="search" placeholder="🔎 Поиск по названию..." oninput="renderBook()" aria-label="Поиск карт в книге">
+                        <select id="bookUniverseFilter" onchange="renderBook()" aria-label="Фильтр по вселенной"><option value="all">🌌 Все вселенные</option></select>
+                        <select id="bookRarityFilter" onchange="renderBook()" aria-label="Фильтр по редкости"><option value="all">⭐ Все редкости</option></select>
+                        <select id="bookStatusFilter" onchange="renderBook()" aria-label="Фильтр по статусу">
+                            <option value="all">👁️ Все карты</option>
+                            <option value="obtained">✅ Полученные</option>
+                            <option value="missing">🎴 Не полученные</option>
+                            <option value="unknown">🌫️ Серые / скрытые</option>
+                        </select>
+                        <select id="bookSortSelect" onchange="renderBook()" aria-label="Сортировка карт">
+                            <option value="default">↕ По порядку игры</option>
+                            <option value="name_asc">🔤 Имя: А—Я</option>
+                            <option value="name_desc">🔤 Имя: Я—А</option>
+                            <option value="rarity_asc">⭐ Редкость: низкая → высокая</option>
+                            <option value="rarity_desc">⭐ Редкость: высокая → низкая</option>
+                            <option value="universe">🌌 Группировать по вселенной</option>
+                        </select>
+                    </div>
+                    <div class="book-results-count">Показано карт: <strong id="bookShownCount">0</strong></div>
+                    <div id="bookList" class="book-grid"></div>
+                </div>
             </div>
             <div id="passSubTab" class="sub-tab-content">
                 <div class="card"><div class="card-title" style="border-color:#ffd700;color:#ffd700;">🎫 МУЛЬТИВЕРС ПАСС</div><div id="passContent"></div></div>
