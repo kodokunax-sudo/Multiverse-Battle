@@ -914,6 +914,7 @@
         <div id="battleTab" class="tab-content">
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" data-subtab="fight">⚔️ Бой</button>
+                <button class="sub-tab-btn" data-subtab="afk">💤 АФК Фарм</button>
                 <button class="sub-tab-btn" data-subtab="checkpoint">🚩 Чекпоинты</button>
             </div>
             <div id="fightSubTab" class="sub-tab-content active">
@@ -935,6 +936,9 @@
                 </div>
                 <div class="card"><div class="card-title">💀 Поражения</div><div id="fightHistory" style="max-height:120px;overflow-y:auto;font-size:12px;font-weight:600;padding-right:5px;"></div></div>
             </div>
+            <div id="afkSubTab" class="sub-tab-content">
+                <div class="card"><div class="card-title">💤 АФК Фарм</div><div style="background:rgba(0,0,0,0.3);border-radius:16px;padding:20px;text-align:center;font-weight:800;font-size:15px;"><div>Статус: <span id="afkStatus" class="afk-inactive">Неактивен</span></div><div style="margin:10px 0;">Волна: <span id="afkWave" style="color:var(--gold);">1</span> | Прошло: <span id="afkWavesCompleted" style="color:var(--gold);">0</span></div><button id="toggleAfkBtn" class="btn btn-primary" style="margin-top:10px;width:100%;padding:12px;font-size:16px;">▶ Запустить</button></div></div>
+            </div>
             <div id="checkpointSubTab" class="sub-tab-content">
                 <div class="card"><div class="card-title">🚩 Чекпоинты</div><div id="checkpointList"></div></div>
             </div>
@@ -944,8 +948,7 @@
                 <button class="sub-tab-btn active" data-subtab="shopItems">🛍️ Товары</button>
                 <button class="sub-tab-btn" data-subtab="inventory">🎒 Инвентарь</button>
                 <button class="sub-tab-btn" data-subtab="gacha">🎰 Рулетка</button>
-                <button class="sub-tab-btn" data-subtab="afk">💤 АФК</button>
-                <button class="sub-tab-btn" data-subtab="autoRest">💤 Автосон</button>
+                <button class="sub-tab-btn" data-subtab="autoRest">💤 Авто-отдых</button>
                 <button class="sub-tab-btn" data-subtab="upgrades">📈 Прокачка</button>
                 <button class="sub-tab-btn" data-subtab="codes">🎁 Коды</button>
             </div>
@@ -972,17 +975,13 @@
                     </div>
                 </div>
             </div>
-            <div id="afkSubTab" class="sub-tab-content">
-                <div class="card"><div class="card-title">💤 АФК Фарм</div><div style="background:rgba(0,0,0,0.3);border-radius:16px;padding:20px;text-align:center;font-weight:800;font-size:15px;"><div>Статус: <span id="afkStatus" class="afk-inactive">Неактивен</span></div><div style="margin:10px 0;">Волна: <span id="afkWave" style="color:var(--gold);">1</span> | Прошло: <span id="afkWavesCompleted" style="color:var(--gold);">0</span></div><button id="toggleAfkBtn" class="btn btn-primary" style="margin-top:10px;width:100%;padding:12px;font-size:16px;">▶ Запустить</button></div></div>
-                        <div id="bulkSellPanel">
-                <div class="points">⭐ <span id="pointsAmountBulk">0</span></div>
-                <div class="card"><div class="card-title">💰 Авто-продажа</div><div id="bulkSellItems" class="shop-grid"></div></div>
-            </div>
-            <div class="card"><div class="card-title">💤 Прокачка АФК-фарма</div><div id="afkFarmUpgradeItems"></div></div>
-            </div>
             <div id="autoRestSubTab" class="sub-tab-content">
                 <div class="points">⭐ <span id="pointsAmountRest">0</span></div>
                 <div class="card"><div class="card-title">💤 Авто-отдых</div><div id="autoRestItems" class="shop-grid"></div></div>
+                <div id="bulkSellPanel">
+                <div class="points">⭐ <span id="pointsAmountBulk">0</span></div>
+                <div class="card"><div class="card-title">💰 Авто-продажа</div><div id="bulkSellItems" class="shop-grid"></div></div>
+            </div>
             </div>
             <div id="upgradesSubTab" class="sub-tab-content">
                 <div class="points" style="display:flex;justify-content:center;gap:25px;align-items:center;flex-wrap:wrap;">
@@ -994,7 +993,7 @@
                 </div>
                 <div class="level-progress"><div>📊 УРОВЕНЬ <span id="playerLevel">1</span></div><div>Опыт: <span id="playerExp">0</span> / <span id="expToNext">150</span></div><div class="level-bar" id="expBar" style="width:0%"></div></div>
                 <div class="card"><div class="card-title">📈 Улучшения</div><div id="upgradeItems" class="upgrade-grid"></div></div>
-                
+                <div class="card"><div class="card-title">💤 Прокачка АФК-фарма</div><div id="afkFarmUpgradeItems"></div></div>
             </div>
             <div id="codesSubTab" class="sub-tab-content">
                 <div class="card"><div class="card-title">🎁 Код</div><input type="text" id="codeInput" class="code-input" placeholder="Введите код..."><button id="submitCodeBtn" class="btn btn-primary" style="width:100%;padding:12px;font-size:16px;">Активировать</button><div id="codeResult" style="margin-top:15px;text-align:center;font-weight:900;font-size:20px;"></div></div>
@@ -1468,7 +1467,7 @@
 <script src="daily.js?v=10"></script>
 <script src="pass.js?v=9"></script>
 <script src="dandy.js?v=9"></script>
-<script src="game.js?v=46"></script>
+<script src="game.js?v=47"></script>
 <script src="battle.js?v=16"></script>
 <script src="supers.js?v=38"></script>
 <script src="dio.js?v=11"></script>
@@ -1480,7 +1479,7 @@
 <script src="inventory.js?v=9"></script>
 <script src="crafting.js?v=3"></script>
 <script src="equipment_combat.js?v=15"></script>
-<script src="ui.js?v=28"></script>
+<script src="ui.js?v=29"></script>
 <script src="patches.js?v=5"></script>
 <script src="help.js?v=4"></script>
 <script src="evolution_unlock.js?v=1"></script>
