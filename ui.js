@@ -644,7 +644,24 @@ function renderUpgrades() {
     document.getElementById("upgradeItems").innerHTML = h; 
 }
 
-function renderBook() { let all = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))); let ds = new Set(discoveredCards); document.getElementById("bookList").innerHTML = all.map(t => { let kn = ds.has(t.name); let s = cardStats[t.rarity]; let clickAction = (moderUnlocked && mode === 'moder') ? 'bookGet(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')' : 'bookInfoCard(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')'; let superPreview = ''; if (t.superAbility && kn) { superPreview = '<div style="font-size:8px;color:#ffd700;margin-top:2px;">' + t.superAbility.name + '</div>'; } return '<div class="book-item ' + (kn ? '' : 'unknown-card') + '" onclick="' + clickAction + '"><div class="name">' + (kn ? t.name : '???') + '</div><div class="rarity-tag ' + rarityColors[t.rarity] + '">' + t.rarity + '</div><div>💪' + (t.damage ?? s.damage) + ' ❤️' + (t.hp ?? s.hp) + ' ⚡' + (t.speed ?? s.speed ?? '?') + '</div>' + superPreview + '</div>'; }).join(''); document.getElementById("discoveredCount").innerText = discoveredCards.length; document.getElementById("totalTemplatesCount").innerText = all.length; }
+function renderBook() {
+    let all = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r })));
+    let ds = new Set(discoveredCards);
+    document.getElementById("bookList").innerHTML = all.map(t => {
+        let kn = ds.has(t.name), isPatch = !!t.patchId;
+        let patch = isPatch && window.MBPatches ? window.MBPatches.getPatch(t.patchId) : null;
+        let patchOpen = !!(patch && window.MBPatches.isUnlocked(t.patchId));
+        let showName = kn || isPatch, s = cardStats[t.rarity];
+        let clickAction = (moderUnlocked && mode === 'moder')
+            ? 'bookGet(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')'
+            : 'bookInfoCard(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')';
+        let superPreview = t.superAbility && (kn || isPatch) ? '<div style="font-size:8px;color:#ffd700;margin-top:2px;">' + t.superAbility.name + '</div>' : '';
+        let patchTag = isPatch ? '<div style="font-size:8px;font-weight:900;margin-top:3px;color:' + (patchOpen ? '#68f0a1' : '#ffd477') + ';">' + (patchOpen ? '✅ ПАТЧ ОТКРЫТ' : '🔒 ПАТЧ: ' + (patch ? patch.name : 'ЗАКРЫТ')) + '</div>' : '';
+        return '<div class="book-item ' + (kn || isPatch ? '' : 'unknown-card') + '" style="' + (isPatch ? 'border-color:' + (patchOpen ? '#68f0a1' : '#f0b84b') + ';' : '') + '" onclick="' + clickAction + '"><div class="name">' + (showName ? t.name : '???') + '</div><div class="rarity-tag ' + rarityColors[t.rarity] + '">' + t.rarity + '</div>' + patchTag + '<div>💪' + (t.damage ?? s.damage) + ' ❤️' + (t.hp ?? s.hp) + ' ⚡' + (t.speed ?? s.speed ?? '?') + '</div>' + superPreview + '</div>';
+    }).join('');
+    document.getElementById("discoveredCount").innerText = discoveredCards.length;
+    document.getElementById("totalTemplatesCount").innerText = all.length;
+}
 
 function bookInfoCard(rarity, name) { 
     let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === name && t.rarity === rarity); 
@@ -653,6 +670,8 @@ function bookInfoCard(rarity, name) {
     let info = '📄 ' + t.name + '\n\n'; 
     info += '⭐ Редкость: ' + rarity + '\n'; 
     info += '🌌 Вселенная: ' + (t.universe || 'Неизвестно') + '\n'; 
+    if (t.patchId && !(window.MBPatches && window.MBPatches.isUnlocked(t.patchId))) info += '\n🔒 Карта закрыта. Купи патч «' + ((window.MBPatches && window.MBPatches.getPatch(t.patchId) && window.MBPatches.getPatch(t.patchId).name) || 'Пацаны') + '» в разделе «Карты».\n';
+    else if (t.patchId) info += '\n✅ Патч открыт — карта может выпасть из подходящей крутки.\n';
     info += '💪 Урон: ' + (t.damage ?? s.damage) + '\n'; 
     info += '❤️ Здоровье: ' + (t.hp ?? s.hp) + '\n'; 
     info += '⚡ Скорость: ' + (t.speed ?? s.speed ?? '?') + '\n'; 
