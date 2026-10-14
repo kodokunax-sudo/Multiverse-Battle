@@ -22,6 +22,13 @@ const EASTER_CODES = {
         cardName: "DrinkTea2Win",
         displayName: "DrinkTea2Win",
         desc: "🥤 Пасхалка: карта DrinkTea2Win"
+    },
+    "ТРИЛЛИОНЫ": {
+        type: "starMultiplier",
+        buffId: "starsX10000",
+        multiplier: 10000,
+        duration: 90 * 1000,
+        desc: "🌟 Множитель звёзд x10000 на 90 секунд!"
     }
 };
 
@@ -175,6 +182,19 @@ function easterSubmitCode() {
             if (resultEl) resultEl.innerHTML = "💨 " + cd.desc;
             if (typeof showFloatingText === 'function') {
                 showFloatingText("💨 БЕСКОНЕЧНЫЕ ЗВЁЗДЫ НА 10 МИНУТ!", "#ffd700");
+            }
+            if (typeof renderActiveBuffs === 'function') renderActiveBuffs();
+        }
+        } else if (cd.type === "starMultiplier") {
+            if (typeof activeBuffs === "undefined" || !activeBuffs) {
+                if (resultEl) resultEl.innerHTML = "❌ Не удалось активировать звёздный бафф";
+                usedCodes = usedCodes.filter(function (code) { return code !== inp; });
+                return;
+            }
+            activeBuffs[cd.buffId] = Date.now() + cd.duration;
+            if (resultEl) resultEl.innerHTML = "✅ " + cd.desc;
+            if (typeof showFloatingText === 'function') {
+                showFloatingText("🌟 ЗВЁЗДЫ x10000 НА 90 СЕКУНД!", "#ffd700");
             }
             if (typeof renderActiveBuffs === 'function') renderActiveBuffs();
         }
