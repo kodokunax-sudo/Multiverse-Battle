@@ -445,10 +445,10 @@
         {
             id: "gacha",
             icon: "🎰",
-            title: "Гача (крутки)",
+            title: "Карты и патчи",
             short: "Как крутить карты и дневные лимиты",
             content: `
-<b>🎰 Гача:</b> способ получить случайную карту за звёзды.
+<b>🃏 Карты:</b> раздел для получения случайных карт и покупки доступа к новым вселенным за звёзды. Открытый патч добавляет его эксклюзивные карты в подходящие крутки.
 
 ` + demo("ТАК ВЫГЛЯДИТ КРУТКА В ЛАВКЕ",
     `<div style="background:rgba(15,15,31,0.6);border-radius:12px;padding:12px;border-left:3px solid #e74c3c;width:280px;display:flex;justify-content:space-between;align-items:center;">
