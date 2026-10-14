@@ -1346,8 +1346,14 @@ function getAfkFarmCost(){const nextLevel=afkFarmUpgradeLevel+1;return nextLevel
 function getAfkTeamPowerMultiplier() {
     return afkFarmUpgradeLevel >= 5 ? 1 : 0.8;
 }
-function getAfkFarmTickIntervalMs() {
+function getAfkFarmBaseTickIntervalMs() {
     return afkFarmUpgradeLevel >= 2 ? 1000 : 2000;
+}
+function getAfkFarmTickIntervalMs() {
+    const baseInterval = getAfkFarmBaseTickIntervalMs();
+    return activeBuffs && activeBuffs["afkWavesX100"] > Date.now()
+        ? Math.max(10, Math.floor(baseInterval / 100))
+        : baseInterval;
 }
 function getAfkMaxOfflineSeconds() {
     return afkFarmUpgradeLevel >= 1 ? 14400 : 7200;
@@ -2119,7 +2125,8 @@ function processOfflineProgress() {
     let elapsed = Math.floor((now - lastSaveTime) / 1000); 
     if (elapsed < 10) return; 
     let maxElapsed = Math.min(elapsed, getAfkMaxOfflineSeconds());
-    let afkIntervalSeconds = getAfkFarmTickIntervalMs() / 1000;
+    // Offline simulation stays on the normal interval to avoid millions of simulated ticks.
+    let afkIntervalSeconds = getAfkFarmBaseTickIntervalMs() / 1000;
     let wavesCompleted = Math.floor(maxElapsed / afkIntervalSeconds); 
     if (wavesCompleted <= 0) return; 
     let simWave = afkCurrentWave || wave; 
