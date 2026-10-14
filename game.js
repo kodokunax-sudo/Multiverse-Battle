@@ -2840,18 +2840,55 @@ function toggleAutoSell(rarity) { if (!purchasedAutoSell[rarity]) return; autoSe
 function getAutoRestCost(th) { return 100 * Math.pow(2, autoRestOptions.findIndex(o => o.threshold === th)); }
 function purchaseAutoRest(th) { if (rebirthCount < 3 || (mode !== "moder" && points < getAutoRestCost(th))) return; if (mode !== "moder") points -= getAutoRestCost(th); autoRest.purchased = true; autoRest.threshold = th; autoRest.active = true; saveAll(); renderAutoRest(); renderPoints(); }
 function toggleAutoRest(th) { if (!autoRest.purchased || autoRest.threshold !== th) return; autoRest.active = !autoRest.active; saveAll(); renderAutoRest(); }
-window.buyUpgrade = function (k) { 
-    if (!isUpgradeUnlocked(k)) return; 
-    let u = upgrades[k], c = Math.floor(u.baseCost * (1 + u.level * 0.3)); 
-    if (mode !== "moder" && points < c) return; 
-    if (mode !== "moder") points -= c; 
-    u.level++; 
-    saveAll(); 
-    renderUpgrades(); 
-    renderPoints(); 
-    updatePlayerStats(); 
-    if (typeof sfxUIBuy === 'function') sfxUIBuy(); 
+window.upgradeSpendPercent = window.upgradeSpendPercent || {};
+window.getUpgradeSpendPercent = function (k) {
+    let value = Number(window.upgradeSpendPercent[k]);
+    return [1, 5, 10, 25, 50, 75, 100].includes(value) ? value : 25;
 };
+window.setUpgradeSpendPercent = function (k, value) {
+    if (!upgrades[k]) return;
+    value = Number(value);
+    if (![1, 5, 10, 25, 50, 75, 100].includes(value)) return;
+    window.upgradeSpendPercent[k] = value;
+};
+window.buyUpgrade = function (k) {
+    if (!isUpgradeUnlocked(k)) return;
+    let u = upgrades[k];
+    let levelsBought = 0;
+    let spent = 0;
+
+    // В режиме модератора сохраняем прежнее поведение: один бесплатный уровень за нажатие.
+    if (mode === "moder") {
+        u.level++;
+        levelsBought = 1;
+    } else {
+        let percent = window.getUpgradeSpendPercent(k);
+        let budget = Math.floor(Math.max(0, points) * percent / 100);
+        while (true) {
+            // Цена пересчитывается после каждого уровня по формуле роста стоимости.
+            let cost = Math.floor(u.baseCost * (1 + u.level * 0.3));
+            if (cost <= 0 || spent + cost > budget || cost > points) break;
+            points -= cost;
+            spent += cost;
+            u.level++;
+            levelsBought++;
+        }
+        if (levelsBought === 0) {
+            if (typeof showFloatingText === "function") showFloatingText("Не хватает звёзд для выбранного процента баланса", "#ff7777");
+            return;
+        }
+    }
+
+    saveAll();
+    renderUpgrades();
+    renderPoints();
+    updatePlayerStats();
+    if (typeof sfxUIBuy === 'function') sfxUIBuy();
+    if (levelsBought > 1 && typeof showFloatingText === "function") {
+        showFloatingText("+" + levelsBought + " ур. · потрачено " + spent.toLocaleString() + "⭐", "#7fffb0");
+    }
+};
+
 function goToWave() { if (mode !== "moder" || !moderUnlocked) return; let w = parseInt(prompt("Введите номер волны:")); if (!w || w < 1) return; wave = w; playerHp = window.playerMaxHp || 100; generateEnemy(); saveAll(); renderAll(); }
 function submitCode() { let inp = document.getElementById("codeInput").value.trim(); let cd = codeList[inp]; if (!cd) { document.getElementById("codeResult").innerHTML = "❌ Неверный код"; return; } if (usedCodes.includes(inp)) { document.getElementById("codeResult").innerHTML = "⚠️ Код уже использован"; return; } usedCodes.push(inp); switch (cd.type) { case "points": points += cd.amount; if (points > maxPoints) maxPoints = points; break; case "card": let t = customCardTemplates[cd.rarity].find(t => t.name === cd.tpl); if (t) { let c = createCardFromTemplate(t, cd.rarity); if (c) myCards.push(c); if (cd.points) { points += cd.points; if (points > maxPoints) maxPoints = points; } } break; case "buff": stackBuff(cd.buffId, cd.duration); break; case "moderUnlock": moderUnlocked = true; let modeEl = document.querySelector('.toggle span[data-mode="moder"]'); if (modeEl) modeEl.style.display = ''; saveAll(); document.getElementById("codeResult").innerHTML = "✅ Модер разблокирован!"; return; } document.getElementById("codeResult").innerHTML = "✅ Успешно активировано!"; saveAll(); renderAll(); renderActiveBuffs(); updatePlayerStats(); }
 function genChallenges() { let t = [ { name: "10 боссов", target: 10, reward: Math.floor(500 * getStarMult()), type: "bossKills", progress: 0 }, { name: "1000⭐", target: 1000, reward: Math.floor(300 * getStarMult()), type: "earnPoints", progress: 0 }, { name: "50 побед", target: 50, reward: Math.floor(400 * getStarMult()), type: "wins", progress: 0 }, { name: "10к урон", target: 10000, reward: Math.floor(350 * getStarMult()), type: "bigDamage", progress: 0 }, { name: "10 ур.", target: 10, reward: Math.floor(800 * getStarMult()), type: "levelUp", progress: playerLevel }, { name: "Усталость 0", target: 1, reward: Math.floor(200 * getStarMult()), type: "fatigueZero", progress: 0 }, { name: "5 карт", target: 5, reward: Math.floor(150 * getStarMult()), type: "collectCards", progress: myCards.length }, { name: "1000 кликов", target: 1000, reward: Math.floor(200 * getStarMult()), type: "totalClicksGoal", progress: 0 } ]; challenges = []; for (let i = 0; i < 3; i++) { let tp = t[Math.floor(Math.random() * t.length)]; challenges.push({ ...tp, id: Date.now() + i, completed: false }); } lastChallengeReset = Date.now(); saveAll(); renderChallenges(); }
