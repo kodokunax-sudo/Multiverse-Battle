@@ -76,7 +76,7 @@ function ensureTakabaConfidenceDisplay() {
 
 setInterval(function() {
     try { ensureTakabaConfidenceDisplay(); } catch(e) {}
-}, 250);
+}, 1000);
 
 
 let currentSlot = -1;
@@ -85,6 +85,7 @@ let slotData = {};
 let arenaSettings = {
     volume: 0.20,
     effectsOpacity: 1.0,
+    graphics: (typeof navigator !== "undefined" && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)) ? "phone" : "pc",
     autoSuper: false,
     mobileSuper: "button",
     arenaControl: "auto",
@@ -789,6 +790,7 @@ function loadArenaSettings() {
             let s = JSON.parse(saved);
             arenaSettings.volume = s.volume ?? 0.20;
             arenaSettings.effectsOpacity = s.effectsOpacity ?? 1.0;
+            arenaSettings.graphics = (s.graphics === "phone" || s.graphics === "pc") ? s.graphics : arenaSettings.graphics;
             arenaSettings.autoSuper = s.autoSuper ?? false;
             arenaSettings.autoSkipDefeatedBosses = s.autoSkipDefeatedBosses ?? false;
             arenaSettings.mobileSuper = s.mobileSuper ?? "button";
@@ -805,6 +807,11 @@ function loadArenaSettings() {
 function saveArenaSettings() { localStorage.setItem("arenaSettings", JSON.stringify(arenaSettings)); }
 
 function applyArenaSettings() {
+    if (typeof document !== "undefined" && document.body) {
+        document.body.classList.toggle("phone-graphics", arenaSettings.graphics === "phone");
+    }
+    let graphicsSelect = document.getElementById("graphicsQualitySelect");
+    if (graphicsSelect) graphicsSelect.value = arenaSettings.graphics || "pc";
     let volSlider = document.getElementById("arenaVolumeSlider");
     let volValue = document.getElementById("arenaVolumeValue");
     if (volSlider) volSlider.value = Math.floor(arenaSettings.volume * 100);
@@ -838,6 +845,14 @@ function applyArenaSettings() {
     if (typeof window.refreshJoystickSettings === 'function') window.refreshJoystickSettings();
     if (typeof window.refreshMobileBattleControlsSettings === 'function') window.refreshMobileBattleControlsSettings();
 }
+
+function changeGraphicsQuality(val) {
+    arenaSettings.graphics = val === "phone" ? "phone" : "pc";
+    applyArenaSettings();
+    saveArenaSettings();
+    if (typeof showFloatingText === "function") showFloatingText(arenaSettings.graphics === "phone" ? "📱 Включена лёгкая графика" : "🖥️ Включена графика ПК", "#f5af19");
+}
+window.changeGraphicsQuality = changeGraphicsQuality;
 
 function changeArenaVolume(val) { arenaSettings.volume = val / 100; document.getElementById("arenaVolumeValue").innerText = val + "%"; saveArenaSettings(); }
 function changeArenaEffects(val) { arenaSettings.effectsOpacity = val / 100; document.getElementById("arenaEffectsValue").innerText = val + "%"; saveArenaSettings(); }
@@ -910,6 +925,7 @@ function resetArenaSettings() {
     arenaSettings = { 
         volume: 0.20, 
         effectsOpacity: 1.0, 
+        graphics: (typeof navigator !== "undefined" && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)) ? "phone" : "pc",
         autoSuper: false, 
         mobileSuper: "button",
         arenaControl: "auto",
@@ -2031,7 +2047,26 @@ function updatePlayerStats() {
     window.playerMaxHp = maxHp; 
 }
 
-function showFloatingText(text, color) { const area = document.getElementById('clickArea'); if (!area) return; const el = document.createElement('div'); el.className = 'floating-text'; el.textContent = text; el.style.color = color; el.style.left = Math.random() * 60 + 20 + '%'; el.style.top = '50%'; area.appendChild(el); setTimeout(() => el.remove(), 1000); }
+function showFloatingText(text, color) {
+    const area = document.getElementById('clickArea');
+    if (!area) return;
+    const phoneMode = arenaSettings && arenaSettings.graphics === "phone";
+    // On phone graphics, skip routine per-hit damage numbers; combat math remains untouched.
+    if (phoneMode && /^-\d/.test(String(text))) return;
+    const active = area.querySelectorAll('.floating-text');
+    const maxActive = phoneMode ? 4 : 14;
+    if (active.length >= maxActive) {
+        for (let i = 0; i <= active.length - maxActive; i++) active[i].remove();
+    }
+    const el = document.createElement('div');
+    el.className = 'floating-text';
+    el.textContent = text;
+    el.style.color = color;
+    el.style.left = Math.random() * 60 + 20 + '%';
+    el.style.top = '50%';
+    area.appendChild(el);
+    setTimeout(() => el.remove(), phoneMode ? 650 : 1000);
+}
 function showModal(title, content) { 
     if (typeof sfxUIModalOpen === 'function') sfxUIModalOpen(); 
     let el = document.getElementById("modalContent"); 
