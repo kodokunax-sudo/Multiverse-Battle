@@ -993,7 +993,8 @@ function loadGameData(d) {
     points = d.points || 100; 
     wave = d.wave || 1; 
     playerHp = d.playerHp || 100; 
-    activeBuffs = d.activeBuffs || {}; 
+    activeBuffs = d.activeBuffs || {};
+    if (activeBuffs && typeof activeBuffs === "object") delete activeBuffs["afkWavesX100"]; 
     const savedModerAccessVersion = Number(d.moderAccessVersion) || 0;
     const mustReenterModerCode = savedModerAccessVersion < MODER_ACCESS_CODE_VERSION;
     mode = (mustReenterModerCode && d.mode === "moder") ? "normal" : (d.mode || "normal"); 
@@ -1249,6 +1250,7 @@ function saveAll() {
     slotData.points = points; 
     slotData.wave = wave; 
     slotData.playerHp = playerHp; 
+    if (activeBuffs && typeof activeBuffs === "object") delete activeBuffs["afkWavesX100"];
     slotData.activeBuffs = activeBuffs; 
     slotData.mode = mode; 
     slotData.defeatHistory = defeatHistory; 
@@ -1350,10 +1352,7 @@ function getAfkFarmBaseTickIntervalMs() {
     return afkFarmUpgradeLevel >= 2 ? 1000 : 2000;
 }
 function getAfkFarmTickIntervalMs() {
-    const baseInterval = getAfkFarmBaseTickIntervalMs();
-    return activeBuffs && activeBuffs["afkWavesX100"] > Date.now()
-        ? Math.max(10, Math.floor(baseInterval / 100))
-        : baseInterval;
+    return getAfkFarmBaseTickIntervalMs();
 }
 function getAfkMaxOfflineSeconds() {
     return afkFarmUpgradeLevel >= 1 ? 14400 : 7200;
