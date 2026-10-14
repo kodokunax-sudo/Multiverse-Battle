@@ -94,9 +94,8 @@ const customCardTemplates = {
 ,
 { name: "А-Трейн (Возвращение)", universe: "The Boys", patchId: "the_boys", damage: 35, hp: 45, speed: 1.5, ability: { type: "damageMultChance", chance: 0.12, mult: 1.25, desc: "12% шанс нанести ×1,25 урона" }, desc: "А-Трейн после восстановления сердца: сверхскорость, ускоренное восприятие и мощный удар на разбеге." },
         { name: "Звёздочка ", universe: "The Boys", patchId: "the_boys", damage: 32, hp: 48, speed: 1.3, ability: { type: "critChance", value: 0.06, desc: "+6% шанс критического удара" }, statusAbility: { type: "shock", chance: 0.10, desc: "10% шанс электрического шока" }, desc: "Которая еще не ела детей" },
-        { name: "Мреющий (Углеродная кожа)", universe: "The Boys", patchId: "the_boys", damage: 25, hp: 55, speed: 1, desc: "Невидимость помогает проникать незамеченным, а углеродная кожа делает его стойким к обычным повреждениям. Без отдельного бонуса способности." },
-        { name: "Файркрекер (Пропагандистка)", universe: "The Boys", patchId: "the_boys", damage: 27, hp: 45, speed: 1, desc: "Умеет выпускать искры и мастерски управляет пропагандой. В прямом бою заметно уступает сильнейшим суперам." },
-        { name: "Глубина (Царь океана)", universe: "The Boys", patchId: "the_boys", damage: 30, hp: 50, speed: 1.1, desc: "Подводная физиология и связь с морскими животными дают преимущество в океане, но не делают его тяжеловесом в битве на суше." }
+        
+        { name: "Файркрекер (Пропагандистка)", universe: "The Boys", patchId: "the_boys", damage: 27, hp: 45, speed: 1, desc: "Умеет выпускать искры и мастерски управляет пропагандой. В прямом бою заметно уступает сильнейшим суперам." }
     ],
     "Мифическая": [
         { name: "Годжо (флешбек)", universe: "JJK", damage: 72, hp: 85, speed: 2.4, ability: { type: "critChance", value: 0.15, desc: "+15% шанс крита" }, desc: "Годжо из флешбека. Сильный мифический персонаж без секретных техник." },
@@ -137,10 +136,8 @@ const customCardTemplates = {
 ,
 { name: "Солдатик (Прайм)", universe: "The Boys", patchId: "the_boys", damage: 120, hp: 180, speed: 1.5, ability: { type: "damageReduction", value: 0.12, desc: "−12% получаемого урона" }, statusAbility: { type: "shock", chance: 0.10, desc: "10% шанс радиоактивного шока" }, desc: "Солдатик — крайне выносливый тяжеловес. Он способен накапливать радиоактивную энергию и высвобождать разрушительный импульс." },
         { name: "Чёрный Нуар II (Комиксный)", universe: "The Boys", patchId: "the_boys", damage: 105, hp: 155, speed: 1.7, ability: { type: "damageReduction", value: 0.10, desc: "−10% получаемого урона" }, desc: "Новый Чёрный Нуар обладает сверхсилой, стойкостью и способностью летать. Он опасен в ближнем бою, хотя характером отличается от оригинала." },
-        { name: "Королева Мэйв (Последний бой)", universe: "The Boys", patchId: "the_boys", damage: 115, hp: 160, speed: 1.6, ability: { type: "bossDamage", value: 0.08, bossReduction: 0.05, desc: "+8% урона боссам и −5% урона от боссов" }, desc: "Мэйв уступает Хоумлендеру в общей мощности, но обладает огромной физической силой, стойкостью и боевым мастерством." },
-        { name: "Тек Найт (Охотник)", universe: "The Boys", patchId: "the_boys", damage: 95, hp: 130, speed: 1.6, ability: { type: "critChance", value: 0.10, desc: "+10% шанс критического удара" }, desc: "Тек Найт — детектив с усиленными чувствами, дедукцией и боевыми навыками. Чем больше он успел изучить противника, тем опаснее." },
-        { name: "Штормфронт (Грозовой фронт)", universe: "The Boys", patchId: "the_boys", damage: 125, hp: 150, speed: 1.8, ability: { type: "damageReduction", value: 0.08, desc: "−8% получаемого урона" }, statusAbility: { type: "shock", chance: 0.12, desc: "12% шанс электрического шока" }, desc: "Штормфронт сочетает полёт, сверхсилу и управление электрическими разрядами. Её молнии способны отбросить и вывести из строя даже сильных суперов." },
-        { name: "Виктория Ньюман (Кровавый контроль)", universe: "The Boys", patchId: "the_boys", damage: 110, hp: 135, speed: 1.5, ability: { type: "bossDamage", value: 0.07, desc: "+7% урона боссам" }, statusAbility: { type: "bleed", value: 0.08, desc: "+8% урона через кровотечение" }, desc: "Ньюман управляет кровью на расстоянии и способна вызвать смертельные разрывы внутри тела. Она опасна не грубой силой, а атакой, от которой трудно защититься." }
+        
+        { name: "Тек Найт (Охотник)", universe: "The Boys", patchId: "the_boys", damage: 95, hp: 130, speed: 1.6, ability: { type: "critChance", value: 0.10, desc: "+10% шанс критического удара" }, desc: "Тек Найт — детектив с усиленными чувствами, дедукцией и боевыми навыками. Чем больше он успел изучить противника, тем опаснее." }
     ],
     "Секретная": [
         {
