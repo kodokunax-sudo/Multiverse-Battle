@@ -22,6 +22,11 @@ const EASTER_CODES = {
         cardName: "DrinkTea2Win",
         displayName: "DrinkTea2Win",
         desc: "🥤 Пасхалка: карта DrinkTea2Win"
+    },
+    "ПЕРДЕЖ БЕЗДНЫ67": {
+        type: "infiniteStars",
+        displayName: "💨 ПЕРДЕЖ БЕЗДНЫ",
+        desc: "⭐ БЕСКОНЕЧНЫЕ ЗВЁЗДЫ на 10 минут! Код одноразовый."
     }
 };
 
@@ -165,6 +170,18 @@ function easterSubmitCode() {
             } else {
                 if (resultEl) resultEl.innerHTML = "⚠️ Такая карта уже есть в коллекции";
             }
+        } else if (cd.type === "infiniteStars") {
+            if (typeof activeBuffs === "undefined" || !activeBuffs) {
+                if (resultEl) resultEl.innerHTML = "❌ Не удалось активировать звёздный бафф";
+                usedCodes = usedCodes.filter(function (code) { return code !== inp; });
+                return;
+            }
+            activeBuffs["infiniteStars"] = Date.now() + 600000;
+            if (resultEl) resultEl.innerHTML = "💨 " + cd.desc;
+            if (typeof showFloatingText === 'function') {
+                showFloatingText("💨 БЕСКОНЕЧНЫЕ ЗВЁЗДЫ НА 10 МИНУТ!", "#ffd700");
+            }
+            if (typeof renderActiveBuffs === 'function') renderActiveBuffs();
         }
 
         if (typeof saveAll === 'function') saveAll();
