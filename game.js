@@ -762,7 +762,7 @@ function finishSlotLoad(slot) {
     el = document.getElementById("playerHp"); if (el) el.innerText = Math.floor(playerHp);
     el = document.getElementById("playerDamage"); if (el) el.innerText = window.playerFinalDamage || 0;
     el = document.getElementById("playerMaxHp"); if (el) el.innerText = window.playerMaxHp || 100;
-    el = document.getElementById("clicksToCounter"); if (el) el.innerText = Math.max(1, 3 - enemyStatuses.freezeStacks + enemyStatuses.blindStacks);
+    el = document.getElementById("clicksToCounter"); if (el) el.innerText = Math.max(1, 3 + enemyStatuses.freezeStacks + enemyStatuses.blindStacks);
     el = document.getElementById("rewardPreview"); if (el && currentEnemy) { el.innerText = currentEnemy.isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); }
     startMainMusic();
     if (afkActive && afkTeam.length > 0) {
@@ -2591,7 +2591,7 @@ function handleClick() {
     if (playerHp <= 0) { defeat(); return; } 
     if (currentEnemy.hp <= 0) { victory(); return; } 
     clicksSinceLastCounter++; 
-    let maxClicks = Math.max(1, 3 - enemyStatuses.freezeStacks + enemyStatuses.blindStacks); 
+    let maxClicks = Math.max(1, 3 + enemyStatuses.freezeStacks + enemyStatuses.blindStacks); 
     if (clicksSinceLastCounter >= maxClicks) { 
         let takenDmg = Math.floor(currentEnemy.damage * m.takenMult);
         if (typeof window.gojoTryNegateIncoming === "function" && window.gojoTryNegateIncoming(takenDmg, "clicker")) takenDmg = 0;
