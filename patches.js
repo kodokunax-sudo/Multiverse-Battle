@@ -1,6 +1,6 @@
 (function () {
 "use strict";
-var catalog=[{id:"the_boys",name:"ПАЦАНЫ",displayName:"The Boys — Первый патч",universe:"The Boys",cost:25000,icon:"🩸",color:"#e23d4d",description:"Открой новые версии Пацанов и Семёрки. Эксклюзивные карты видны в книге, но не выпадают до покупки доступа.",note:"16 эксклюзивных карт · эпики, мифические, легендарные и секретные"}];
+var catalog=[{id:"the_boys",name:"ПАЦАНЫ",displayName:"The Boys — Первый патч",universe:"The Boys",cost:25000,icon:"🩸",color:"#e23d4d",description:"Открой новые версии Пацанов и Семёрки. Эксклюзивные карты видны в книге, но не выпадают до покупки доступа.",note:"18 эксклюзивных карт · эпики, мифические, легендарные и секретные"}];
 var unlocked=[];
 function validIds(ids){if(!Array.isArray(ids))return[];var known=new Set(catalog.map(function(p){return p.id;}));return Array.from(new Set(ids.filter(function(id){return typeof id==="string"&&known.has(id);})))}
 function isUnlocked(id){return !!id&&unlocked.indexOf(id)>=0}
