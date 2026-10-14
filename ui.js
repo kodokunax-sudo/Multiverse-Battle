@@ -650,7 +650,8 @@ function renderUpgrades() {
             '<br><span style="font-size:10px;color:#aaa;">Следующий уровень: ' + c.toLocaleString() + '⭐</span></div>' +
             '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">' +
             '<select aria-label="Процент баланса для ' + u.name.replace(/"/g, '&quot;') + '" onchange="setUpgradeSpendPercent(\'' + k + '\', this.value)" style="max-width:130px;padding:8px 6px;border-radius:10px;background:#1a1a2e;color:#fff;border:1px solid rgba(255,255,255,.15);font-family:Nunito,sans-serif;font-weight:800;">' + percentOptions + '</select>' +
-            '<button class="btn btn-primary" style="padding:9px 12px;" onclick="buyUpgrade(\'' + k + '\')" ' + (un ? '' : 'disabled') + '>⚡ Вложить</button>' +
+            '<button class="btn" style="padding:9px 10px;" title="Купить один следующий уровень за ' + c.toLocaleString() + ' звёзд" onclick="buyUpgradeOne(\'' + k + '\')" ' + (un ? '' : 'disabled') + '>⬆ +1 ур.</button>' +
+            '<button class="btn btn-primary" style="padding:9px 10px;" title="Потратить выбранный процент баланса" onclick="buyUpgrade(\'' + k + '\')" ' + (un ? '' : 'disabled') + '>⚡ Вложить %</button>' +
             '</div></div>';
     }
     document.getElementById("upgradeItems").innerHTML = h;
