@@ -2911,6 +2911,41 @@ window.setUpgradeSpendPercent = function (k, value) {
     if (![1, 5, 10, 25, 50, 75, 100].includes(value)) return;
     window.upgradeSpendPercent[k] = value;
 };
+function finishUpgradePurchase(k, levelsBought, spent) {
+    saveAll();
+    renderUpgrades();
+    renderPoints();
+    updatePlayerStats();
+    if (typeof sfxUIBuy === 'function') sfxUIBuy();
+    if (typeof showFloatingText === "function" && levelsBought > 0) {
+        let msg = "+" + levelsBought + " ур.";
+        if (mode === "moder" && spent === 0) msg += " · бесплатно";
+        else msg += " · потрачено " + spent.toLocaleString("ru-RU") + "⭐";
+        showFloatingText(msg, "#7fffb0");
+    }
+}
+
+// Покупает ровно один уровень за его текущую цену, независимо от выбранного процента.
+window.buyUpgradeOne = function (k) {
+    if (!isUpgradeUnlocked(k)) return;
+    let u = upgrades[k];
+    let cost = Math.floor(u.baseCost * (1 + u.level * 0.3));
+    let spent = 0;
+    if (mode !== "moder") {
+        if (points < cost) {
+            if (typeof showFloatingText === "function") {
+                showFloatingText("Для одного уровня нужно " + cost.toLocaleString("ru-RU") + "⭐", "#ff7777");
+            }
+            return;
+        }
+        points -= cost;
+        spent = cost;
+    }
+    u.level++;
+    finishUpgradePurchase(k, 1, spent);
+};
+
+// Покупает уровни на выбранный процент текущего баланса.
 window.buyUpgrade = function (k) {
     if (!isUpgradeUnlocked(k)) return;
     let u = upgrades[k];
@@ -2925,7 +2960,6 @@ window.buyUpgrade = function (k) {
         let percent = window.getUpgradeSpendPercent(k);
         let budget = Math.floor(Math.max(0, points) * percent / 100);
         while (true) {
-            // Цена пересчитывается после каждого уровня по формуле роста стоимости.
             let cost = Math.floor(u.baseCost * (1 + u.level * 0.3));
             if (cost <= 0 || spent + cost > budget || cost > points) break;
             points -= cost;
@@ -2938,15 +2972,7 @@ window.buyUpgrade = function (k) {
             return;
         }
     }
-
-    saveAll();
-    renderUpgrades();
-    renderPoints();
-    updatePlayerStats();
-    if (typeof sfxUIBuy === 'function') sfxUIBuy();
-    if (levelsBought > 1 && typeof showFloatingText === "function") {
-        showFloatingText("+" + levelsBought + " ур. · потрачено " + spent.toLocaleString() + "⭐", "#7fffb0");
-    }
+    finishUpgradePurchase(k, levelsBought, spent);
 };
 
 function goToWave() { if (mode !== "moder" || !moderUnlocked) return; let w = parseInt(prompt("Введите номер волны:")); if (!w || w < 1) return; wave = w; playerHp = window.playerMaxHp || 100; generateEnemy(); saveAll(); renderAll(); }
