@@ -662,60 +662,148 @@ function isBookCardUnlocked(name) {
         (Array.isArray(myCards) && myCards.some(function(card) { return card && card.name === name; }));
 }
 
+function bookEscapeHtml(value) {
+    return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 function renderBook() {
-    let all = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r })));
-    // Карты разломов намеренно не перечисляются по именам в книге.
-    let visible = all.filter(t => !t.patchId);
-    let ds = new Set(discoveredCards);
-    let owned = new Set((Array.isArray(myCards) ? myCards : []).filter(Boolean).map(c => c.name));
+    let all = Object.entries(customCardTemplates).flatMap(([r, arr]) =>
+        arr.map(t => ({ ...t, rarity: r }))
+    );
+    let ds = new Set(Array.isArray(discoveredCards) ? discoveredCards : []);
+    let owned = new Set((Array.isArray(myCards) ? myCards : [])
+        .filter(Boolean)
+        .map(c => c.name));
+    let patches = window.MBPatches && typeof window.MBPatches.list === "function"
+        ? window.MBPatches.list()
+        : [];
+    let isPatchOpen = function(t) {
+        return !!(t && t.patchId && window.MBPatches &&
+            typeof window.MBPatches.isUnlocked === "function" &&
+            window.MBPatches.isUnlocked(t.patchId));
+    };
+
+    // Обычные карты всегда перечислены; содержимое разлома показываем после покупки доступа.
+    let visible = all.filter(t => !t.patchId || isPatchOpen(t));
     let listHtml = visible.map(t => {
-        let kn = ds.has(t.name) || owned.has(t.name), s = cardStats[t.rarity] || {};
-        let clickAction = (moderUnlocked && mode === 'moder')
-            ? 'bookGet(this.dataset.rarity,this.dataset.cardName)'
-            : 'bookInfoCard(this.dataset.rarity,this.dataset.cardName)';
-        let superPreview = t.superAbility && kn ? '<div style="font-size:8px;color:#ffd700;margin-top:2px;">' + t.superAbility.name + '</div>' : '';
-        let nameHtml = kn ? t.name : '???';
-        let rarityHtml = kn ? '<div class="rarity-tag ' + rarityColors[t.rarity] + '">' + t.rarity + '</div>' : '<div class="rarity-tag" style="color:#888;">???</div>';
-        let statsHtml = kn
-            ? '<div>💪' + (t.damage ?? s.damage) + ' ❤️' + (t.hp ?? s.hp) + ' ⚡' + (t.speed ?? s.speed ?? '?') + '</div>'
+        let patchRevealed = isPatchOpen(t);
+        let known = ds.has(t.name) || owned.has(t.name) || patchRevealed;
+        let s = cardStats[t.rarity] || {};
+        let clickAction = (moderUnlocked && mode === "moder")
+            ? "bookGet(this.dataset.rarity,this.dataset.cardName)"
+            : "bookInfoCard(this.dataset.rarity,this.dataset.cardName)";
+        let safeName = bookEscapeHtml(t.name);
+        let superPreview = t.superAbility && known
+            ? '<div style="font-size:8px;color:#ffd700;margin-top:2px;">' + bookEscapeHtml(t.superAbility.name) + '</div>'
+            : "";
+        let nameHtml = known ? safeName : "???";
+        let rarityHtml = known
+            ? '<div class="rarity-tag ' + bookEscapeHtml(rarityColors[t.rarity] || "") + '">' + bookEscapeHtml(t.rarity) + '</div>'
+            : '<div class="rarity-tag" style="color:#888;">???</div>';
+        let statsHtml = known
+            ? '<div>💪' + bookEscapeHtml(t.damage ?? s.damage) +
+              ' ❤️' + bookEscapeHtml(t.hp ?? s.hp) +
+              ' ⚡' + bookEscapeHtml(t.speed ?? s.speed ?? "?") + '</div>'
             : '<div style="font-size:10px;color:#aaa;">🔒 Ещё не разблокирована</div>';
-        return '<div class="book-item ' + (kn ? '' : 'unknown-card') + '" data-rarity="' + t.rarity + '" data-card-name="' + t.name.replace(/"/g, '&quot;') + '" onclick="' + clickAction + '"><div class="name">' + nameHtml + '</div>' + rarityHtml + statsHtml + superPreview + '</div>';
-    }).join('');
-    let riftPlaceholder = '<div class="book-item unknown-card" aria-label="Персонаж разлома"><div class="name">Персонаж разлома</div></div>';
-    document.getElementById("bookList").innerHTML = listHtml + riftPlaceholder;
-    document.getElementById("discoveredCount").innerText = visible.filter(t => isBookCardUnlocked(t.name)).length;
-    document.getElementById("totalTemplatesCount").innerText = visible.length + 1;
+        let patchBadge = t.patchId
+            ? '<div style="font-size:9px;color:#f0bd6b;font-weight:900;margin-top:3px;">🌌 РАЗЛОМ</div>'
+            : "";
+        return '<div class="book-item ' + (known ? "" : "unknown-card") +
+            '" data-rarity="' + bookEscapeHtml(t.rarity) +
+            '" data-card-name="' + safeName +
+            '" onclick="' + clickAction + '"><div class="name">' + nameHtml +
+            '</div>' + rarityHtml + statsHtml + patchBadge + superPreview + '</div>';
+    }).join("");
+
+    // Закрытые разломы отмечаются одной плиткой, не раскрывая список карт.
+    let lockedPatches = patches.filter(patch =>
+        patch && !(window.MBPatches && window.MBPatches.isUnlocked(patch.id))
+    );
+    let lockedHtml = lockedPatches.map(patch =>
+        '<div class="book-item unknown-card" aria-label="' + bookEscapeHtml(patch.displayName || patch.name) + '">' +
+        '<div class="name">🔒 ' + bookEscapeHtml(patch.name || "Разлом") + '</div>' +
+        '<div class="rarity-tag" style="color:#888;">РАЗЛОМ ЗАКРЫТ</div>' +
+        '<div style="font-size:10px;color:#aaa;">Купи доступ, чтобы открыть все карты вселенной</div></div>'
+    ).join("");
+
+    let bookList = document.getElementById("bookList");
+    if (bookList) bookList.innerHTML = listHtml + lockedHtml;
+    let discoveredCountEl = document.getElementById("discoveredCount");
+    if (discoveredCountEl) discoveredCountEl.innerText = all.filter(t => isBookCardUnlocked(t.name)).length;
+    let totalTemplatesCountEl = document.getElementById("totalTemplatesCount");
+    if (totalTemplatesCountEl) totalTemplatesCountEl.innerText = all.length;
 }
 
 function bookInfoCard(rarity, name) {
-    let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === name && t.rarity === rarity);
+    let t = Object.entries(customCardTemplates).flatMap(([r, arr]) =>
+        arr.map(t => ({ ...t, rarity: r }))
+    ).find(t => t.name === name && t.rarity === rarity);
     if (!t) return;
-    if (t.patchId) {
-        showModal('Персонаж разлома', 'Персонаж разлома');
+    if (t.patchId && !(window.MBPatches && window.MBPatches.isUnlocked(t.patchId))) {
+        showModal("Разлом закрыт", "🔒 Купи доступ к этому разлому, чтобы просматривать его карты.");
         return;
     }
-    if (!isBookCardUnlocked(name)) {
-        showModal('Карта не разблокирована', '🔒 Получи эту карту хотя бы один раз, чтобы прочитать её описание.');
+    if (!isBookCardUnlocked(name) && !t.patchId) {
+        showModal("Карта не разблокирована", "🔒 Получи эту карту хотя бы один раз, чтобы прочитать её описание.");
         return;
     }
     let s = cardStats[rarity] || {};
-    let info = '📄 ' + t.name + '\n\n';
-    info += '⭐ Редкость: ' + rarity + '\n';
-    info += '🌌 Вселенная: ' + (t.universe || 'Неизвестно') + '\n';
-    info += '💪 Урон: ' + (t.damage ?? s.damage) + '\n';
-    info += '❤️ Здоровье: ' + (t.hp ?? s.hp) + '\n';
-    info += '⚡ Скорость: ' + (t.speed ?? s.speed ?? '?') + '\n';
-    if (t.sellPrice) info += '💰 Цена продажи: ' + t.sellPrice + '⭐\n';
-    if (t.minRebirth) info += '🔒 Мин. ребиртх: ' + t.minRebirth + '\n';
-    if (t.desc) info += '\n📝 Описание:\n' + t.desc + '\n';
-    if (t.ability) info += '\n✨ Способность (ур.4): ' + t.ability.desc + '\n';
-    if (t.statusAbility) info += '🌀 Статус-эффект (ур.3): ' + t.statusAbility.desc + '\n';
-    if (t.superAbility) info += '\n⚡ ' + t.superAbility.name + ' (ур.5)\n' + t.superAbility.desc + '\n';
-    if (t.unsellable) info += '\n🔒 Не продаётся\n';
-    showModal('📄 Информация о карте', info);
+    let info = "📄 " + t.name + "\n\n";
+    info += "⭐ Редкость: " + rarity + "\n";
+    info += "🌌 Вселенная: " + (t.universe || "Неизвестно") + "\n";
+    info += "💪 Урон: " + (t.damage ?? s.damage) + "\n";
+    info += "❤️ Здоровье: " + (t.hp ?? s.hp) + "\n";
+    info += "⚡ Скорость: " + (t.speed ?? s.speed ?? "?") + "\n";
+    if (t.sellPrice) info += "💰 Цена продажи: " + t.sellPrice + "⭐\n";
+    if (t.minRebirth) info += "🔒 Мин. ребиртх: " + t.minRebirth + "\n";
+    if (t.desc) info += "\n📝 Описание:\n" + t.desc + "\n";
+    if (t.ability) info += "\n✨ Способность (ур.4): " + t.ability.desc + "\n";
+    if (t.statusAbility) info += "🌀 Статус-эффект (ур.3): " + t.statusAbility.desc + "\n";
+    if (t.superAbility) info += "\n⚡ " + t.superAbility.name + " (ур.5)\n" + t.superAbility.desc + "\n";
+    if (t.unsellable) info += "\n🔒 Не продаётся\n";
+    showModal("📄 Информация о карте", info);
 }
 
-window.bookGet = function(r, n) { if (!moderUnlocked || mode !== 'moder') return; let t = Object.entries(customCardTemplates).flatMap(([r, arr]) => arr.map(t => ({ ...t, rarity: r }))).find(t => t.name === n && t.rarity === r); if (t) { let s = cardStats[r]; let c = { id: Date.now() + Math.random() * 10000, name: t.name, rarity: r, damage: t.damage ?? s.damage, hp: t.hp ?? s.hp, sellPrice: t.sellPrice ?? s.sellPrice, speed: t.speed ?? s.speed ?? 0.5, ability: t.ability || null, universe: t.universe || "?", unsellable: t.unsellable || false, minRebirth: t.minRebirth || 0, statusAbility: t.statusAbility || null, extraStatus: t.extraStatus || null, superAbility: t.superAbility || null, mastery: 1, masteryExp: 0 }; if (!discoveredCards.includes(t.name)) { discoveredCards.push(t.name); } myCards.push(c); saveAll(); renderMyCards(); sfxCardObtain(); alert("🎴 Получена карта: " + t.name + " (" + r + ")"); } };
+window.bookGet = function(r, n) {
+    if (!moderUnlocked || mode !== "moder") return;
+    let t = Object.entries(customCardTemplates).flatMap(([rarity, arr]) =>
+        arr.map(template => ({ ...template, rarity }))
+    ).find(t => t.name === n && t.rarity === r);
+    if (!t) return;
+    if (t.patchId && !(window.MBPatches && window.MBPatches.isUnlocked(t.patchId))) return;
+    let s = cardStats[r] || {};
+    let c = {
+        id: Date.now() + Math.random() * 10000,
+        name: t.name,
+        rarity: r,
+        damage: t.damage ?? s.damage,
+        hp: t.hp ?? s.hp,
+        sellPrice: t.sellPrice ?? s.sellPrice,
+        speed: t.speed ?? s.speed ?? 0.5,
+        ability: t.ability || null,
+        universe: t.universe || "?",
+        unsellable: t.unsellable || false,
+        patchId: t.patchId || null,
+        minRebirth: t.minRebirth || 0,
+        statusAbility: t.statusAbility || null,
+        extraStatus: t.extraStatus || null,
+        superAbility: t.superAbility || null,
+        mastery: 1,
+        masteryExp: 0
+    };
+    if (!discoveredCards.includes(t.name)) discoveredCards.push(t.name);
+    myCards.push(c);
+    saveAll();
+    renderMyCards();
+    renderBook();
+    sfxCardObtain();
+    alert("🎴 Получена карта: " + t.name + " (" + r + ")");
+};
 
 // ========== ЭВОЛЮЦИИ ==========
 function renderEvoTab() { 
