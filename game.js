@@ -1316,7 +1316,10 @@ function getAfkTeamPowerMultiplier() {
     return afkFarmUpgradeLevel >= 5 ? 1 : 0.8;
 }
 function getAfkFarmTickIntervalMs() {
-    return afkFarmUpgradeLevel >= 2 ? 1000 : 2000;
+    const baseInterval = afkFarmUpgradeLevel >= 2 ? 1000 : 2000;
+    return activeBuffs && activeBuffs["afkWavesX100"] > Date.now()
+        ? Math.max(10, Math.floor(baseInterval / 100))
+        : baseInterval;
 }
 function getAfkMaxOfflineSeconds() {
     return afkFarmUpgradeLevel >= 1 ? 14400 : 7200;
