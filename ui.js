@@ -597,6 +597,7 @@ function renderActiveBuffs() {
             else if (id === "quadDamage") name = "Урон x4";
             else if (id === "doubleStars") name = "🌟 Звёзды x2";
             else if (id === "tripleStars") name = "🌟 Звёзды x3";
+            else if (id === "starsX10000") name = "🌟 Звёзды x10000";
             else if (id === "doubleHp") name = "HP x2";
             else if (id === "tripleHp") name = "HP x3";
             else if (id === "arenaSpeedX3") name = "Скорость арены x3";
