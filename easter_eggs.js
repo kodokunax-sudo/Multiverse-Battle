@@ -220,10 +220,11 @@ function easterSubmitCode() {
         } else if (cd.type === "afkSequenceStars") {
             const sequenceCodes = ["ОРБИТА-17", "ПУЛЬС-42", "ЭХО-09", "НОВА-63", "СИНГУЛЯРНОСТЬ-88"];
             const redeemedCount = sequenceCodes.filter(function (code) {
-                return Array.isArray(usedCodes) && usedCodes.includes(code);
+                return code !== inp && Array.isArray(usedCodes) && usedCodes.includes(code);
             }).length;
             const expectedCode = sequenceCodes[redeemedCount];
             if (inp !== expectedCode) {
+                if (Array.isArray(usedCodes)) usedCodes = usedCodes.filter(function (code) { return code !== inp; });
                 if (resultEl) resultEl.innerHTML = "🔒 Код не подходит к текущему шагу последовательности";
                 return;
             }
