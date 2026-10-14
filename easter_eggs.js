@@ -29,6 +29,36 @@ const EASTER_CODES = {
         multiplier: 10000,
         duration: 90 * 1000,
         desc: "🌟 Множитель звёзд x10000 на 90 секунд!"
+    },
+    "ОРБИТА-17": {
+        type: "afkSequenceStars",
+        sequenceIndex: 1,
+        amount: 100,
+        desc: "⭐ +100 звёзд"
+    },
+    "ПУЛЬС-42": {
+        type: "afkSequenceStars",
+        sequenceIndex: 2,
+        amount: 1000,
+        desc: "⭐ +1000 звёзд"
+    },
+    "ЭХО-09": {
+        type: "afkSequenceStars",
+        sequenceIndex: 3,
+        amount: 5000,
+        desc: "⭐ +5000 звёзд"
+    },
+    "НОВА-63": {
+        type: "afkSequenceStars",
+        sequenceIndex: 4,
+        amount: 5000,
+        desc: "⭐ +5000 звёзд"
+    },
+    "СИНГУЛЯРНОСТЬ-88": {
+        type: "afkSequenceStars",
+        sequenceIndex: 5,
+        amount: 5000,
+        desc: "⭐ +5000 звёзд; финальный код последовательности"
     }
 };
 
@@ -187,6 +217,40 @@ function easterSubmitCode() {
                 showFloatingText("💨 БЕСКОНЕЧНЫЕ ЗВЁЗДЫ НА 10 МИНУТ!", "#ffd700");
             }
             if (typeof renderActiveBuffs === 'function') renderActiveBuffs();
+        } else if (cd.type === "afkSequenceStars") {
+            const sequenceCodes = ["ОРБИТА-17", "ПУЛЬС-42", "ЭХО-09", "НОВА-63", "СИНГУЛЯРНОСТЬ-88"];
+            const redeemedCount = sequenceCodes.filter(function (code) {
+                return Array.isArray(usedCodes) && usedCodes.includes(code);
+            }).length;
+            const expectedCode = sequenceCodes[redeemedCount];
+            if (inp !== expectedCode) {
+                if (resultEl) resultEl.innerHTML = "🔒 Код не подходит к текущему шагу последовательности";
+                return;
+            }
+            if (typeof points !== "number") {
+                if (resultEl) resultEl.innerHTML = "❌ Не удалось начислить звёзды";
+                return;
+            }
+            points += cd.amount;
+            if (typeof maxPoints === "number" && points > maxPoints) maxPoints = points;
+            if (resultEl) resultEl.innerHTML = "✅ +" + cd.amount + " ⭐";
+            if (typeof showFloatingText === "function") {
+                showFloatingText("⭐ +" + cd.amount, "#ffd700");
+            }
+            if (cd.sequenceIndex === sequenceCodes.length) {
+                if (typeof activeBuffs === "undefined" || !activeBuffs) {
+                    if (resultEl) resultEl.innerHTML = "❌ Не удалось активировать АФК-ускорение";
+                    points -= cd.amount;
+                    usedCodes = usedCodes.filter(function (code) { return code !== inp; });
+                    return;
+                }
+                activeBuffs["afkWavesX100"] = Date.now() + 24 * 60 * 60 * 1000;
+                if (resultEl) resultEl.innerHTML = "🎉 +" + cd.amount + " ⭐ — АФК-скорость x100 на 24 часа!";
+                if (typeof showFloatingText === "function") {
+                    showFloatingText("⚡ АФК x100 НА 24 ЧАСА!", "#ffd700");
+                }
+                if (typeof renderActiveBuffs === "function") renderActiveBuffs();
+            }
         } else if (cd.type === "starMultiplier") {
             if (typeof activeBuffs === "undefined" || !activeBuffs) {
                 if (resultEl) resultEl.innerHTML = "❌ Не удалось активировать звёздный бафф";
