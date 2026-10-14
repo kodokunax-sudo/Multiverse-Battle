@@ -1838,7 +1838,7 @@ function toggleMusic() { musicEnabled = !musicEnabled; if (musicEnabled) { if (c
 
 // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 function getRebirthMult() { return 1 + rebirthCount * 0.3; }
-function getStarMult() { if (typeof activeBuffs !== "undefined" && activeBuffs && activeBuffs["infiniteStars"] > Date.now()) return 1e12; let mult = 1 + rebirthCount * 0.3; if (newcomerBonus && Date.now() < newcomerBonusEnd) mult += 2; return mult; }
+function getStarMult() { let mult = 1 + rebirthCount * 0.3; if (newcomerBonus && Date.now() < newcomerBonusEnd) mult += 2; return mult; }
 function normalizeMainCard() { if (team.length === 0) { mainCardIndex = -1; } else { if (mainCardIndex < 0 || mainCardIndex >= team.length) { mainCardIndex = 0; } } }
 window.normalizeMainCard = normalizeMainCard;
 function setMainCard(idxInTeam) { if (idxInTeam >= 0 && idxInTeam < team.length) { mainCardIndex = idxInTeam; saveAll(); renderTeam(); showFloatingText("👑 Главный выбран!", "#f5af19"); } }
