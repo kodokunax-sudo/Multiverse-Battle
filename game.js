@@ -3136,14 +3136,13 @@ function switchTab(tabName) {
     document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active")); 
     let tab = document.getElementById(tabName + "Tab"); 
     if (tab) tab.classList.add("active"); 
-    if (tabName === "collection") { renderPass(); } 
+    if (tabName === "collection") { renderPass(); renderDailyRewards(); } 
     if (tabName === "battle") { startBattleMusic(); } 
     else if (tabName === "shop") { 
         startShopMusic(); 
         let now = Date.now(); 
         if (!shopRefreshTime || (now - shopRefreshTime) > 3600000) { refreshShop(); } else { renderShop(); } 
         if (typeof renderGachaTab === 'function') renderGachaTab(); 
-        renderDailyRewards(); 
         if (typeof renderInventory === 'function') renderInventory(); 
         setTimeout(hideFreeSpinsUI, 50); 
     } else { startMainMusic(); } 
@@ -3160,7 +3159,7 @@ function switchSubTab(subtabName, parentTabId) {
     let sub = document.getElementById(subtabName + "SubTab"); 
     if (sub) sub.classList.add("active"); 
     if (subtabName === "book") renderBook(); 
-    if (subtabName === "pass") renderPass(); 
+    if (subtabName === "pass") { renderPass(); renderDailyRewards(); } 
     if (subtabName === "evolution") renderEvoTab(); 
     if (subtabName === "shopItems") renderShop(); 
     if (subtabName === "inventory") { if (typeof renderInventory === 'function') renderInventory(); if (typeof renderPoints === 'function') renderPoints(); } 
@@ -3168,7 +3167,8 @@ function switchSubTab(subtabName, parentTabId) {
     if (subtabName === "daily") renderDailyRewards(); 
     if (subtabName === "bulkSell") renderBulkSell(); 
     if (subtabName === "autoRest") renderAutoRest(); 
-    if (subtabName === "upgrades") renderUpgrades(); 
+    if (subtabName === "upgrades") renderUpgrades();
+    if (subtabName === "afk") { renderAfkFarmUpgrades(); renderBulkSell(); } 
     if (subtabName === "challenges") renderChallenges(); 
     if (subtabName === "checkpoint") renderCheckpoints(); 
     if (subtabName === "rebirthMain") renderRebirthInfo(); 
