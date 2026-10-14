@@ -633,15 +633,26 @@ function renderAutoRest() { let c = document.getElementById("autoRestItems"); if
 
 function renderUpgrades() {
     if (typeof renderAfkFarmUpgrades === "function") renderAfkFarmUpgrades();
-    let h = ""; 
-    for (let [k, u] of Object.entries(upgrades)) { 
-        let un = isUpgradeUnlocked(k), c = Math.floor(u.baseCost * (1 + u.level * 0.3)), cur = u.level * u.increment; 
-        let extraInfo = ''; 
-        if (k === 'crit') extraInfo = '<br><span style="color:#aaa;font-size:10px;">⚡ +' + (cur * 100).toFixed(1) + '% к шансу крита</span>'; 
-        if (k === 'fatigueResist') extraInfo = '<br><span style="color:#aaa;font-size:10px;">💪 -' + (cur * 100).toFixed(1) + '% набора усталости</span>'; 
-        h += '<div class="upgrade-item ' + (un ? '' : 'locked') + '"><div><strong>' + u.name + '</strong> (+' + cur.toFixed(2) + ')' + (un ? '' : '<br><span style="color:var(--red);">🔒 Нужен ур. ' + u.reqLevel + '</span>') + extraInfo + '</div><div><span class="upgrade-price">' + c + '⭐</span><button class="btn btn-primary" style="border-radius:50%;width:36px;height:36px;font-size:20px;" onclick="buyUpgrade(\'' + k + '\')" ' + (un ? '' : 'disabled') + '>+</button></div></div>'; 
-    } 
-    document.getElementById("upgradeItems").innerHTML = h; 
+    let h = "";
+    for (let [k, u] of Object.entries(upgrades)) {
+        let un = isUpgradeUnlocked(k), c = Math.floor(u.baseCost * (1 + u.level * 0.3)), cur = u.level * u.increment;
+        let extraInfo = '';
+        if (k === 'crit') extraInfo = '<br><span style="color:#aaa;font-size:10px;">⚡ +' + (cur * 100).toFixed(1) + '% к шансу крита</span>';
+        if (k === 'fatigueResist') extraInfo = '<br><span style="color:#aaa;font-size:10px;">💪 -' + (cur * 100).toFixed(1) + '% набора усталости</span>';
+        let selectedPercent = typeof window.getUpgradeSpendPercent === 'function' ? window.getUpgradeSpendPercent(k) : 25;
+        let percentOptions = [1, 5, 10, 25, 50, 75, 100].map(function (p) {
+            return '<option value="' + p + '"' + (p === selectedPercent ? ' selected' : '') + '>' + p + '% баланса</option>';
+        }).join('');
+        h += '<div class="upgrade-item ' + (un ? '' : 'locked') + '" style="gap:10px;flex-wrap:wrap;">' +
+            '<div style="flex:1;min-width:145px;"><strong>' + u.name + '</strong> (+' + cur.toFixed(2) + ')' +
+            (un ? '' : '<br><span style="color:var(--red);">🔒 Нужен ур. ' + u.reqLevel + '</span>') + extraInfo +
+            '<br><span style="font-size:10px;color:#aaa;">Следующий уровень: ' + c.toLocaleString() + '⭐</span></div>' +
+            '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">' +
+            '<select aria-label="Процент баланса для ' + u.name.replace(/"/g, '&quot;') + '" onchange="setUpgradeSpendPercent(\'' + k + '\', this.value)" style="max-width:130px;padding:8px 6px;border-radius:10px;background:#1a1a2e;color:#fff;border:1px solid rgba(255,255,255,.15);font-family:Nunito,sans-serif;font-weight:800;">' + percentOptions + '</select>' +
+            '<button class="btn btn-primary" style="padding:9px 12px;" onclick="buyUpgrade(\'' + k + '\')" ' + (un ? '' : 'disabled') + '>⚡ Вложить</button>' +
+            '</div></div>';
+    }
+    document.getElementById("upgradeItems").innerHTML = h;
 }
 
 function renderBook() {
