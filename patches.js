@@ -1,11 +1,11 @@
 (function () {
 "use strict";
-var catalog=[{id:"the_boys",name:"ПАЦАНЫ",displayName:"Разлом: The Boys",universe:"The Boys",cost:25000,icon:"🩸",color:"#e23d4d",description:"Персонажи разлома скрыты в книге и обозначаются только надписью «Персонаж разлома».",note:"Эксклюзивные персонажи открываются после покупки доступа."},{id:"one_piece",name:"ВАН-ПИС",displayName:"Разлом: Ван-Пис",universe:"One Piece",cost:50000,icon:"🏴‍☠️",color:"#d9a441",description:"Персонажи разлома скрыты в книге и обозначаются только надписью «Персонаж разлома».",note:"Эксклюзивные персонажи открываются после покупки доступа."}];
+var catalog=[{id:"the_boys",name:"ПАЦАНЫ",displayName:"Разлом: The Boys",universe:"The Boys",cost:25000,icon:"🩸",color:"#e23d4d",description:"Открой доступ к эксклюзивным персонажам этой вселенной.",note:"После покупки доступа карты могут выпадать из соответствующей крутки."},{id:"one_piece",name:"ВАН-ПИС",displayName:"Разлом: Ван-Пис",universe:"One Piece",cost:50000,icon:"🏴‍☠️",color:"#d9a441",description:"Открой доступ к эксклюзивным персонажам этой вселенной.",note:"После покупки доступа карты могут выпадать из соответствующей крутки."}];
 var unlocked=[];
 function validIds(ids){if(!Array.isArray(ids))return[];var known=new Set(catalog.map(function(p){return p.id;}));return Array.from(new Set(ids.filter(function(id){return typeof id==="string"&&known.has(id);})))}
 function isUnlocked(id){return !!id&&unlocked.indexOf(id)>=0}
 function getPatch(id){return catalog.find(function(p){return p.id===id})||null}
-function cardsFor(id){var all=Object.values(customCardTemplates).reduce(function(out,list){return out.concat(list||[])},[]);return all.filter(function(card){return card&&card.patchId===id})}
+
 function esc(v){return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}
 function render(){
  var root=document.getElementById("patchShop");if(!root)return;
