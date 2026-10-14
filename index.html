@@ -131,6 +131,17 @@
         @keyframes stonePulse { 0%, 100% { box-shadow: 0 0 15px rgba(139, 115, 85, 0.5); } 50% { box-shadow: 0 0 35px rgba(139, 115, 85, 0.9); } }
         @keyframes waystarPulse { 0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(255, 170, 0, 0.3); } 50% { box-shadow: 0 0 35px rgba(255, 215, 0, 1), 0 0 70px rgba(255, 170, 0, 0.6); } }
         /* Phone graphics: reduce paint/compositing work without changing any combat values. */
+        body.phone-graphics *,
+        body.phone-graphics *::before,
+        body.phone-graphics *::after {
+            animation: none !important;
+            transition: none !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+            filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            backdrop-filter: none !important;
+        }
         body.phone-graphics .app,
         body.phone-graphics .card,
         body.phone-graphics .tabs,
