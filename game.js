@@ -927,6 +927,7 @@ function resetArenaSettings() {
 function renderSettings() { applyArenaSettings(); }
 
 function loadGameData(d) { 
+    if (window.MBPatches) window.MBPatches.load(Array.isArray(d.unlockedPatches) ? d.unlockedPatches : []);
     myCards = d.myCards || []; 
     myCards.forEach(function(card) {
         if (!card || !card.name || typeof customCardTemplates === "undefined") return;
@@ -1105,6 +1106,7 @@ function initNewGame() {
     playerExp = 0; 
     upgrades = {damage:{level:0,baseCost:25,increment:2,name:"💪 Сила удара",reqLevel:1},hp:{level:0,baseCost:25,increment:5,name:"❤️ Живучесть",reqLevel:1},crit:{level:0,baseCost:8,increment:0.001,name:"⚡ Крит. шанс",reqLevel:5},fatigueResist:{level:0,baseCost:10,increment:0.001,name:"💪 Сопр. усталости",reqLevel:10}}; 
     discoveredCards = []; 
+    if (window.MBPatches) window.MBPatches.load([]);
     hasSukunaFingers = false; 
     sukunaTarget = null;
     sukunaExpireTime = 0;
@@ -1194,6 +1196,7 @@ function saveAll() {
     if (mbCloudRecoveryPendingSlot === currentSlot) return;
     mbStatsObserveCurrentState();
     slotData.myCards = myCards; 
+    slotData.unlockedPatches = window.MBPatches ? window.MBPatches.getUnlocked() : (slotData.unlockedPatches || []);
     slotData.team = team; 
     slotData.afkTeam = afkTeam; 
     slotData.points = points; 
@@ -1844,7 +1847,7 @@ window.setMainCard = setMainCard;
 function createCard(r, options) {
     const isPreviewCard = !!(options && options.preview === true); 
     // Whitebeard is a boss-exclusive reward; never include him in random spins.
-    let templates = (customCardTemplates[r] || []).filter(t => t && t.name !== "Белоус"); 
+    let templates = (customCardTemplates[r] || []).filter(t => t && t.name !== "Белоус" && (!t.patchId || (window.MBPatches && window.MBPatches.isUnlocked(t.patchId)))); 
     if (r === "Босс") return null; 
     let template = null; 
     let minRebirth = (r === "Секретная") ? 1 : 0; 
@@ -1869,7 +1872,7 @@ function createCard(r, options) {
         if (points > maxPoints) maxPoints = points;
         updateChallengeProgress("collectCards", 1);
     } 
-    return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, minRebirth: template.minRebirth || minRebirth, statusAbility: template.statusAbility || null, extraStatus: template.extraStatus || null, superAbility: template.superAbility || null, mastery: 1, masteryExp: 0 }; 
+    return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, patchId: template.patchId || null, minRebirth: template.minRebirth || minRebirth, statusAbility: template.statusAbility || null, extraStatus: template.extraStatus || null, superAbility: template.superAbility || null, mastery: 1, masteryExp: 0 }; 
 }
 
 function getRandomRarity() { let t = 0; for (let k in cardWeights) t += cardWeights[k]; let r = Math.random() * t, ac = 0; for (let k in cardWeights) { ac += cardWeights[k]; if (r <= ac) return k; } return "Обычная"; }
@@ -2356,7 +2359,7 @@ function skipArenaFight() {
     if (spareBtn) spareBtn.style.display = "none"; 
     if (typeof showFloatingText === 'function') showFloatingText("⏭️ Арена пропущена!", "#ffaa00"); 
 }
-function createCardFromTemplate(tm, r) { let s = cardStats[r]; let d = tm.damage ?? s.damage, hp = tm.hp ?? s.hp, sp = tm.sellPrice ?? s.sellPrice, spd = tm.speed ?? s.speed ?? 0.5; let n = tm.name, a = tm.ability || null, u = tm.universe || "?", uns = tm.unsellable || false; if (!discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } totalCardsObtained++; if (points > maxPoints) maxPoints = points; return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, minRebirth: tm.minRebirth || 0, statusAbility: tm.statusAbility || null, extraStatus: tm.extraStatus || null, superAbility: tm.superAbility || null, mastery: 1, masteryExp: 0 }; }
+function createCardFromTemplate(tm, r) { if (tm && tm.patchId && !(window.MBPatches && window.MBPatches.isUnlocked(tm.patchId))) return null; let s = cardStats[r]; let d = tm.damage ?? s.damage, hp = tm.hp ?? s.hp, sp = tm.sellPrice ?? s.sellPrice, spd = tm.speed ?? s.speed ?? 0.5; let n = tm.name, a = tm.ability || null, u = tm.universe || "?", uns = tm.unsellable || false; if (!discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } totalCardsObtained++; if (points > maxPoints) maxPoints = points; return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, patchId: tm.patchId || null, minRebirth: tm.minRebirth || 0, statusAbility: tm.statusAbility || null, extraStatus: tm.extraStatus || null, superAbility: tm.superAbility || null, mastery: 1, masteryExp: 0 }; }
 
 // ========== ЭВОЛЮЦИИ ==========
 function checkEvolutionQuests() { 
