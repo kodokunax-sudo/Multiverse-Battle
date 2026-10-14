@@ -22,11 +22,6 @@ const EASTER_CODES = {
         cardName: "DrinkTea2Win",
         displayName: "DrinkTea2Win",
         desc: "🥤 Пасхалка: карта DrinkTea2Win"
-    },
-    "ПЕРДЕЖ БЕЗДНЫ67": {
-        type: "infiniteStars",
-        displayName: "💨 ПЕРДЕЖ БЕЗДНЫ",
-        desc: "⭐ БЕСКОНЕЧНЫЕ ЗВЁЗДЫ на 10 минут! Код одноразовый."
     }
 };
 
@@ -151,15 +146,6 @@ function easterSubmitCode() {
     if (EASTER_CODES[inp]) {
         let cd = EASTER_CODES[inp];
 
-        if (inp === "ПЕРДЕЖ БЕЗДНЫ67") {
-            try {
-                if (localStorage.getItem("mb_lifetime_promo_perdezh_bezdny67") === "used") {
-                    if (resultEl) resultEl.innerHTML = "⚠️ Этот промокод уже использован навсегда на этом устройстве";
-                    return;
-                }
-            } catch (_error) {}
-        }
-
         if (typeof usedCodes !== 'undefined' && Array.isArray(usedCodes) && usedCodes.includes(inp)) {
             if (resultEl) resultEl.innerHTML = "⚠️ Код уже использован";
             return;
@@ -186,7 +172,6 @@ function easterSubmitCode() {
                 return;
             }
             activeBuffs["infiniteStars"] = Date.now() + 600000;
-            try { localStorage.setItem("mb_lifetime_promo_perdezh_bezdny67", "used"); } catch (_error) {}
             if (resultEl) resultEl.innerHTML = "💨 " + cd.desc;
             if (typeof showFloatingText === 'function') {
                 showFloatingText("💨 БЕСКОНЕЧНЫЕ ЗВЁЗДЫ НА 10 МИНУТ!", "#ffd700");
