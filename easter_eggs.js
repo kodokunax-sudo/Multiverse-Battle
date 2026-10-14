@@ -147,7 +147,10 @@ function giveEasterCard(cardName, displayName) {
 function easterSubmitCode() {
     let inpEl = document.getElementById("codeInput");
     if (!inpEl) return;
-    let inp = inpEl.value.trim();
+    let rawInp = inpEl.value.trim();
+    let inp = rawInp.toLocaleUpperCase("ru-RU");
+    // Принимаем и короткий вариант «ТРИЛЛИОН», но расходуем один общий код.
+    if (inp === "ТРИЛЛИОН") inp = "ТРИЛЛИОНЫ";
     let resultEl = document.getElementById("codeResult");
 
     if (EASTER_CODES[inp]) {
@@ -184,7 +187,6 @@ function easterSubmitCode() {
                 showFloatingText("💨 БЕСКОНЕЧНЫЕ ЗВЁЗДЫ НА 10 МИНУТ!", "#ffd700");
             }
             if (typeof renderActiveBuffs === 'function') renderActiveBuffs();
-        }
         } else if (cd.type === "starMultiplier") {
             if (typeof activeBuffs === "undefined" || !activeBuffs) {
                 if (resultEl) resultEl.innerHTML = "❌ Не удалось активировать звёздный бафф";
