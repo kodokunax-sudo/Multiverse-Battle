@@ -3166,9 +3166,9 @@ function switchSubTab(subtabName, parentTabId) {
     if (subtabName === "gacha") renderGachaTab(); 
     if (subtabName === "daily") renderDailyRewards(); 
     if (subtabName === "bulkSell") renderBulkSell(); 
-    if (subtabName === "autoRest") renderAutoRest(); 
+    if (subtabName === "autoRest") { renderAutoRest(); renderBulkSell(); } 
     if (subtabName === "upgrades") renderUpgrades();
-    if (subtabName === "afk") { renderAfkFarmUpgrades(); renderBulkSell(); } 
+    if (subtabName === "afk") { /* AFK farm controls are now back in Battle. */ } 
     if (subtabName === "challenges") renderChallenges(); 
     if (subtabName === "checkpoint") renderCheckpoints(); 
     if (subtabName === "rebirthMain") renderRebirthInfo(); 
