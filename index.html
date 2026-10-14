@@ -130,6 +130,42 @@
         @keyframes superPulse { 0%, 100% { box-shadow: 0 0 10px rgba(245, 175, 25, 0.5); } 50% { box-shadow: 0 0 25px rgba(245, 175, 25, 1), 0 0 50px rgba(245, 175, 25, 0.5); } }
         @keyframes stonePulse { 0%, 100% { box-shadow: 0 0 15px rgba(139, 115, 85, 0.5); } 50% { box-shadow: 0 0 35px rgba(139, 115, 85, 0.9); } }
         @keyframes waystarPulse { 0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(255, 170, 0, 0.3); } 50% { box-shadow: 0 0 35px rgba(255, 215, 0, 1), 0 0 70px rgba(255, 170, 0, 0.6); } }
+        /* Phone graphics: reduce paint/compositing work without changing any combat values. */
+        body.phone-graphics .app,
+        body.phone-graphics .card,
+        body.phone-graphics .tabs,
+        body.phone-graphics .sub-tabs,
+        body.phone-graphics .btn,
+        body.phone-graphics .shop-item,
+        body.phone-graphics .enemy-card,
+        body.phone-graphics .click-area {
+            -webkit-backdrop-filter: none !important;
+            backdrop-filter: none !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+            filter: none !important;
+            animation: none !important;
+            transition: none !important;
+        }
+        body.phone-graphics .floating-text {
+            text-shadow: none !important;
+            filter: none !important;
+            animation-duration: .45s !important;
+        }
+        body.phone-graphics .legendary,
+        body.phone-graphics .secret,
+        body.phone-graphics .gift,
+        body.phone-graphics .evolutionary,
+        body.phone-graphics .boss-rarity,
+        body.phone-graphics .team-selected {
+            animation: none !important;
+            box-shadow: none !important;
+            filter: none !important;
+        }
+        @media (max-width: 700px) {
+            body { padding: 8px; align-items: flex-start; }
+            .app { padding: 12px; border-radius: 14px; }
+        }
         .mode-switch {
             background: rgba(15, 15, 31, 0.6);
             border-radius: 30px;
@@ -950,7 +986,16 @@
             </div>
             <div id="settingsSubTab" class="sub-tab-content">
                 <div class="card">
-                    <div class="card-title">⚙️ Настройки арены</div>
+                    <div class="card-title">⚙️ Настройки игры</div>
+                    <div class="shop-item">
+                        <div><strong>🎨 Графика</strong><div style="font-size:12px;color:#aaa;margin-top:4px;">Телефон — меньше визуальных эффектов в бою, сложность не меняется</div></div>
+                        <div>
+                            <select id="graphicsQualitySelect" onchange="changeGraphicsQuality(this.value)">
+                                <option value="phone">📱 Телефон (максимум производительности)</option>
+                                <option value="pc">🖥️ ПК (полные эффекты)</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="shop-item">
                         <div><strong>🔊 Громкость арены</strong></div>
                         <div><input type="range" id="arenaVolumeSlider" min="0" max="100" value="20" style="width:120px;" oninput="changeArenaVolume(this.value)"> <span id="arenaVolumeValue">20%</span></div>
@@ -1387,7 +1432,7 @@
 <script src="daily.js?v=10"></script>
 <script src="pass.js?v=9"></script>
 <script src="dandy.js?v=9"></script>
-<script src="game.js?v=39"></script>
+<script src="game.js?v=40"></script>
 <script src="battle.js?v=16"></script>
 <script src="supers.js?v=38"></script>
 <script src="dio.js?v=11"></script>
@@ -1399,7 +1444,7 @@
 <script src="inventory.js?v=9"></script>
 <script src="crafting.js?v=3"></script>
 <script src="equipment_combat.js?v=15"></script>
-<script src="ui.js?v=22"></script>
+<script src="ui.js?v=23"></script>
 <script src="patches.js?v=2"></script>
 <script src="help.js?v=4"></script>
 <script src="evolution_unlock.js?v=1"></script>
