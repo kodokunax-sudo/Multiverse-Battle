@@ -124,6 +124,79 @@ function canUpgradeToLevel7(card) {
     return { ok: true, reason: "" };
 }
 
+// Рассчитывает, сколько уровней подряд можно купить прямо сейчас.
+function getMasteryMaxUpgradePlan(card) {
+    if (!card) return { levels: 0, stars: 0, power: 0, exp: 0, targetLevel: card && card.mastery || 1 };
+    let level = Math.max(1, Math.min(7, Number(card.mastery) || 1));
+    let exp = Math.max(0, Number(card.masteryExp) || 0);
+    let starsLeft = Math.max(0, Number(points) || 0);
+    let powerLeft = Math.max(0, Number(powerPoints) || 0);
+    let levels = 0, stars = 0, power = 0, expSpent = 0;
+    while (level < 7) {
+        let target = level + 1;
+        if (target === 7) {
+            let check = canUpgradeToLevel7(card);
+            if (!check.ok) break;
+        }
+        let cost = getMasteryUpgradeCost(card, target);
+        let neededExp = getMasteryExpNeeded(card, target);
+        if (mode !== "moder") {
+            if (stars + cost.stars > starsLeft || power + cost.power > powerLeft || exp < neededExp) break;
+            stars += cost.stars;
+            power += cost.power;
+            exp -= neededExp;
+            expSpent += neededExp;
+        }
+        level = target;
+        levels++;
+    }
+    return { levels: levels, stars: stars, power: power, exp: expSpent, targetLevel: level };
+}
+
+function upgradeMasteryMax(cardIndex) {
+    let card = myCards[cardIndex];
+    if (!card) return;
+    let plan = getMasteryMaxUpgradePlan(card);
+    if (!plan.levels) {
+        if (card.mastery >= 7) showFloatingText("КАРТА УЖЕ НА МАКСИМУМЕ!", "#ff8800");
+        else {
+            let cost = getMasteryUpgradeCost(card, (card.mastery || 1) + 1);
+            let expNeeded = getMasteryExpNeeded(card, (card.mastery || 1) + 1);
+            showFloatingText("Не хватает звёзд, силы или опыта для следующего уровня", "#ff3333");
+        }
+        return;
+    }
+
+    let startLevel = Math.max(1, Number(card.mastery) || 1);
+    if (mode !== "moder") {
+        points -= plan.stars;
+        powerPoints -= plan.power;
+    }
+    card.mastery = startLevel + plan.levels;
+    card.masteryExp = Math.max(0, Math.floor((Number(card.masteryExp) || 0) - plan.exp));
+
+    if (card.mastery >= 7) {
+        window._level7CardId = card.id;
+        card._level7 = true;
+        card._level7Carry = 1;
+        setTimeout(function() {
+            alert("🏆 МАКС УРОВЕНЬ ДОСТИГНУТ!\\n\\n" + card.name + " — уровень 7!\\n\\n• +30% характеристик\\n• Карта переживёт следующий ребиртх\\n• Только одна карта может быть 7★ одновременно");
+        }, 300);
+    }
+
+    saveAll();
+    renderAll();
+    updatePlayerStats();
+    if (typeof sfxLevelUp === "function") sfxLevelUp();
+    if (typeof sfxUIMastery === "function") sfxUIMastery();
+    renderPowerPoints();
+    if (typeof renderPoints === "function") renderPoints();
+    showFloatingText("⭐ " + card.name + ": +" + plan.levels + " ур. мастерства (" + startLevel + " → " + card.mastery + ")", "#ffd700");
+    if (typeof document !== "undefined" && document.getElementById("modalOverlay") && document.getElementById("modalOverlay").style.display === "flex") {
+        setTimeout(function() { showMasteryModal(cardIndex); }, 100);
+    }
+}
+
 function upgradeMastery(cardIndex) {
     let card = myCards[cardIndex];
     if (!card) return;
@@ -302,7 +375,12 @@ function showMasteryModal(cardIndex) {
             html += '<div style="background:rgba(255,0,255,0.15);border:2px solid #ff00ff;border-radius:12px;padding:10px;margin-bottom:10px;font-size:11px;color:#ff88ff;text-align:center;">⚠️ ТОЛЬКО ОДНА карта может быть 7★!<br>Переживёт СЛЕДУЮЩИЙ ребиртх, потом потеряется</div>';
         }
 
-        html += '<button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" onclick="closeModal();upgradeMastery(' + cardIndex + ');" ' + (!canAfford ? 'disabled' : '') + '>' + (lvl + 1 === 7 ? '⭐⭐⭐ ПРОКАЧАТЬ ДО 7★ ⭐⭐⭐' : '⬆️ ПРОКАЧАТЬ') + '</button>';
+        let maxPlan = getMasteryMaxUpgradePlan(card);
+        html += '<button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" onclick="closeModal();upgradeMastery(' + cardIndex + ');" ' + (!canAfford ? 'disabled' : '') + '>' + (lvl + 1 === 7 ? '⭐⭐⭐ ПРОКАЧАТЬ ДО 7★ ⭐⭐⭐' : '⬆️ ПРОКАЧАТЬ НА 1 УРОВЕНЬ') + '</button>';
+        html += '<button class="btn" style="width:100%;padding:12px;margin-top:8px;background:linear-gradient(135deg,#8e44ad,#5b2c83);color:#fff;font-weight:900;" onclick="closeModal();upgradeMasteryMax(' + cardIndex + ');" ' + (maxPlan.levels < 1 ? 'disabled' : '') + '>⚡ ПРОКАЧАТЬ МАКСИМУМ ' + (maxPlan.levels > 0 ? '(+' + maxPlan.levels + ' ур. до ' + maxPlan.targetLevel + '★)' : '(нет ресурсов)') + '</button>';
+        if (maxPlan.levels > 1 && mode !== "moder") {
+            html += '<div style="font-size:10px;color:#aaa;text-align:center;margin-top:5px;">Потребуется: ⭐ ' + maxPlan.stars.toLocaleString() + ' · ⚡ ' + maxPlan.power.toLocaleString() + ' · 📊 ' + maxPlan.exp.toLocaleString() + ' опыта</div>';
+        }
     } else {
         html += '<div style="text-align:center;color:#ff00ff;font-size:18px;font-weight:900;padding:15px;text-shadow:0 0 15px #ff00ff;">🏆 7★ МАКСИМУМ!</div>';
         if (card._level7Carry > 0) {
@@ -357,6 +435,8 @@ window.getMasteryExpNeeded = getMasteryExpNeeded;
 window.addCardMasteryExp = addCardMasteryExp;
 window.grantMasteryExpFromFight = grantMasteryExpFromFight;
 window.upgradeMastery = upgradeMastery;
+window.upgradeMasteryMax = upgradeMasteryMax;
+window.getMasteryMaxUpgradePlan = getMasteryMaxUpgradePlan;
 window.showMasteryModal = showMasteryModal;
 window.getMasteryHTML = getMasteryHTML;
 window.getLightningSVG = getLightningSVG;
