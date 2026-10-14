@@ -36,6 +36,19 @@ const SUPER_CHARGES_PER_HERO = {
     "Деку (100%)":              3,
     "Всемогущий (прайм)":       1,
     "Белоус":                   3,
+    "А-Трейн (Возвращение)":    3,
+    "Звёздочка (Перегрузка)":   3,
+    "Билли Бутчер (V24)":       3,
+    "Райан (Лазерный взгляд)":  3,
+    "Сестра Сейдж (Гений)":     3,
+    "Кимико (Боевая регенерация)": 3,
+    "Солдатик (Радиоактивный)": 2,
+    "Чёрный Нуар II (Тень)":    2,
+    "Королева Мэйв (Последний бой)": 2,
+    "Тек Найт (Охотник)":       2,
+    "Хоумлендер (Без ограничений)": 1,
+    "Бутчер (Монстр V)":        1,
+    "Райан (Наследник)":        1,
     
 };
 
@@ -1033,6 +1046,56 @@ const superAbilities = {
         }
     }
 };
+
+/* ===== PATCH: THE BOYS — ACTIVE SUPERS ===== */
+function registerBoysSuper(cardName, cfg) {
+    superAbilities[cardName] = {
+        name: cfg.name, cooldown: cfg.cooldown, toggleable: false, duration: 0,
+        onActivate: function () {
+            var ctxB = getBossContext(); if (!ctxB) return;
+            var x = ctxB.getHeartX(), y = ctxB.getHeartY();
+            var attacks = ctxB.getAttacks ? ctxB.getAttacks() : [];
+            var blasters = ctxB.getBlasters ? ctxB.getBlasters() : [];
+            function clearSome(list, fraction) {
+                if (!Array.isArray(list) || fraction <= 0 || !list.length) return;
+                var count = Math.min(list.length, Math.ceil(list.length * Math.min(1, fraction)));
+                for (var i = 0; i < count && list.length; i++) {
+                    var index = fraction >= 1 ? list.length - 1 : Math.floor(Math.random() * list.length);
+                    var item = list[index], particles = ctxB.getParticles ? ctxB.getParticles() : null;
+                    if (item && Array.isArray(particles)) particles.push({x:Number(item.x)||x,y:Number(item.y)||y,vx:(Math.random()-.5)*4,vy:(Math.random()-.5)*4,life:14,maxLife:14,color:cfg.color,size:4});
+                    list.splice(index,1);
+                }
+            }
+            clearSome(attacks,cfg.clear||0); clearSome(blasters,cfg.clear||0);
+            var current=Math.max(0,Number(ctxB.getBossHp())||0), max=Math.max(current,Number(ctxB.getBossMaxHp())||current);
+            if(current>0&&cfg.damage>0) ctxB.setBossMaxHp(Math.max(0,current-Math.max(1,Math.floor(max*cfg.damage))));
+            if(cfg.heal>0&&ctxB.getPlayerMaxHp&&ctxB.setPlayerHp&&ctxB.getPlayerHp){
+                var maxPlayer=Math.max(1,Number(ctxB.getPlayerMaxHp())||1), curPlayer=Math.max(0,Number(ctxB.getPlayerHp())||0);
+                ctxB.setPlayerHp(Math.min(maxPlayer,curPlayer+Math.floor(maxPlayer*cfg.heal)));
+            }
+            if(ctxB.addFlash)ctxB.addFlash(8,cfg.color);
+            if(ctxB.addFlashWhite&&cfg.whiteFlash)ctxB.addFlashWhite(cfg.whiteFlash);
+            if(ctxB.addShake)ctxB.addShake(cfg.shake||12);
+            if(ctxB.addShockwave)ctxB.addShockwave(x,y,cfg.color,cfg.waveSpeed||220,.65,4);
+            if(ctxB.spawnFloatingText)ctxB.spawnFloatingText(x,y-38,cfg.callout,cfg.color);
+            notifyWaystarSuperAction(cardName+" — "+cfg.name);
+        }
+    };
+}
+registerBoysSuper("А-Трейн (Возвращение)", {name:"СВЕРХЗВУКОВОЙ РЫВОК", cooldown:18000, damage:.055, clear:.55, color:"#26d9ff", waveSpeed:280, shake:12, callout:"ЗВУКОВОЙ БУМ!"});
+registerBoysSuper("Звёздочка (Перегрузка)", {name:"ВСПЫШКА СВЕТА", cooldown:22000, damage:.035, clear:1, heal:.08, color:"#fff3b0", whiteFlash:8, waveSpeed:340, shake:16, callout:"СВЕТ ОСЛЕПЛЯЕТ!"});
+registerBoysSuper("Билли Бутчер (V24)", {name:"ГЛАЗА ПАЛАЧА", cooldown:25000, damage:.10, clear:.35, color:"#ffbf54", whiteFlash:4, waveSpeed:280, shake:18, callout:"ЛАЗЕРНЫЙ РАЗРЕЗ!"});
+registerBoysSuper("Райан (Лазерный взгляд)", {name:"НАСЛЕДНИК ХОУМЛЕНДЕРА", cooldown:28000, damage:.09, clear:.45, color:"#ff4d59", whiteFlash:5, waveSpeed:300, shake:17, callout:"ЛАЗЕРНЫЙ УДАР!"});
+registerBoysSuper("Сестра Сейдж (Гений)", {name:"ПРОСЧИТАННЫЙ ХОД", cooldown:30000, damage:.025, clear:1, heal:.15, color:"#8cb5ff", waveSpeed:190, shake:8, callout:"Я ВСЁ ПРЕДУСМОТРЕЛА."});
+registerBoysSuper("Кимико (Боевая регенерация)", {name:"НЕУБИВАЕМАЯ", cooldown:25000, damage:.025, clear:.35, heal:.28, color:"#79ff91", waveSpeed:200, shake:10, callout:"КИМИКО ВОЗВРАЩАЕТСЯ!"});
+registerBoysSuper("Солдатик (Радиоактивный)", {name:"РАДИАЦИОННЫЙ ВЫБРОС", cooldown:35000, damage:.13, clear:1, color:"#71d98c", whiteFlash:7, waveSpeed:360, shake:25, callout:"РАДИАЦИЯ!"});
+registerBoysSuper("Чёрный Нуар II (Тень)", {name:"ТИХОЕ УБИЙСТВО", cooldown:24000, damage:.075, clear:.60, heal:.04, color:"#b6b6c2", waveSpeed:230, shake:13, callout:"НИКАКОГО ЗВУКА."});
+registerBoysSuper("Королева Мэйв (Последний бой)", {name:"ПОСЛЕДНИЙ ЩИТ", cooldown:28000, damage:.11, clear:.40, heal:.12, color:"#e8bd72", waveSpeed:300, shake:19, callout:"СТОЮ ДО КОНЦА!"});
+registerBoysSuper("Тек Найт (Охотник)", {name:"ИДЕАЛЬНЫЙ АНАЛИЗ", cooldown:32000, damage:.085, clear:.70, color:"#71c8ff", waveSpeed:250, shake:13, callout:"УЯЗВИМОСТЬ НАЙДЕНА!"});
+registerBoysSuper("Хоумлендер (Без ограничений)", {name:"ЛАЗЕРНОЕ ИСПОЛНЕНИЕ", cooldown:45000, damage:.18, clear:1, color:"#ff3535", whiteFlash:12, waveSpeed:420, shake:28, callout:"ЛАЗЕРНОЕ ИСПОЛНЕНИЕ!"});
+registerBoysSuper("Бутчер (Монстр V)", {name:"СИМБИОЗ", cooldown:40000, damage:.16, clear:.80, heal:.06, color:"#a72d45", whiteFlash:8, waveSpeed:390, shake:25, callout:"МОНСТР ПРОСНУЛСЯ!"});
+registerBoysSuper("Райан (Наследник)", {name:"СОЛНЕЧНЫЙ ВЫБРОС", cooldown:35000, damage:.12, clear:.75, color:"#ff6565", whiteFlash:8, waveSpeed:360, shake:22, callout:"СОЛНЕЧНЫЙ ВЫБРОС!"});
+
 
 // ============================================================
 // ★★★ БЕЛОУС: ПАССИВКА — 10% ПОГЛОЩЕНИЕ УРОНА ★★★
