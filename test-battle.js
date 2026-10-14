@@ -13,6 +13,7 @@
     var lastTime = 0;
     var elapsed = 0;
     var score = 0;
+    var bonusPoints = 0;
     var lives = 3;
     var speed = 210;
     var spawnTimer = 0;
@@ -92,6 +93,7 @@
     function resetState() {
         elapsed = 0;
         score = 0;
+        bonusPoints = 0;
         lives = 3;
         speed = 210;
         spawnTimer = 0.75;
@@ -228,7 +230,7 @@
         lastTime = timestamp;
         elapsed += dt;
         speed = Math.min(390, 210 + elapsed * 4.5);
-        score = Math.floor(elapsed * 10);
+        score = Math.floor(elapsed * 10) + bonusPoints;
         scoreLabel.textContent = String(score);
 
         if (!grounded) {
@@ -253,7 +255,9 @@
             o.x -= speed * dt;
             if (!o.passed && o.x + o.w < PLAYER_X - PLAYER_R) {
                 o.passed = true;
-                score += 5;
+                bonusPoints += 5;
+                score = Math.floor(elapsed * 10) + bonusPoints;
+                scoreLabel.textContent = String(score);
             }
             if (hitPlayer(o)) {
                 obstacles.splice(i, 1);
