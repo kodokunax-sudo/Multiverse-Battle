@@ -668,7 +668,7 @@ function renderBook() {
             ? 'bookGet(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')'
             : 'bookInfoCard(\'' + t.rarity + '\',\'' + t.name.replace(/'/g, "\\'") + '\')';
         let superPreview = t.superAbility && (kn || isPatch) ? '<div style="font-size:8px;color:#ffd700;margin-top:2px;">' + t.superAbility.name + '</div>' : '';
-        let patchTag = isPatch ? '<div style="font-size:8px;font-weight:900;margin-top:3px;color:' + (patchOpen ? '#68f0a1' : '#ffd477') + ';">' + (patchOpen ? '✅ ПАТЧ ОТКРЫТ' : '🔒 ПАТЧ: ' + (patch ? patch.name : 'ЗАКРЫТ')) + '</div>' : '';
+        let patchTag = isPatch ? '<div style="font-size:8px;font-weight:900;margin-top:3px;color:' + (patchOpen ? '#68f0a1' : '#ffd477') + ';">' + (patchOpen ? '✅ РАЗЛОМ ОТКРЫТ' : '🔒 РАЗЛОМ: ' + (patch ? patch.name : 'ЗАКРЫТ')) + '</div>' : '';
         return '<div class="book-item ' + (kn || isPatch ? '' : 'unknown-card') + '" style="' + (isPatch ? 'border-color:' + (patchOpen ? '#68f0a1' : '#f0b84b') + ';' : '') + '" onclick="' + clickAction + '"><div class="name">' + (showName ? t.name : '???') + '</div><div class="rarity-tag ' + rarityColors[t.rarity] + '">' + t.rarity + '</div>' + patchTag + '<div>💪' + (t.damage ?? s.damage) + ' ❤️' + (t.hp ?? s.hp) + ' ⚡' + (t.speed ?? s.speed ?? '?') + '</div>' + superPreview + '</div>';
     }).join('');
     document.getElementById("discoveredCount").innerText = discoveredCards.length;
