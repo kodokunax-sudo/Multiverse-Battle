@@ -957,6 +957,37 @@ function loadGameData(d) {
             if (tpl[k] !== undefined) card[k] = JSON.parse(JSON.stringify(tpl[k]));
         });
     });
+    // Синхронизация баланса для уже полученных карт: новые шаблоны применяются
+    // к сохранённым копиям при загрузке, включая смену редкости.
+    var balanceRarityByName = {
+        "Зоро (Таймскип)": "Эпик",
+        "Донкихот Дофламинго": "Эпик",
+        "Шарлотта Катакури": "Легендарная",
+        "Марко (Феникс)": "Легендарная",
+        "Кизару (Борсалино)": "Мифическая",
+        "Шарлотта Линлин (Большая Мамочка)": "Мифическая",
+        "Луччи (Пробуждение CP0)": "Мифическая",
+        "Шарлотта Смуси": "Легендарная",
+        "Каррот (Сулонг)": "Мифическая",
+        "Арлонг": "Эпик"
+    };
+    myCards.forEach(function(card) {
+        if (!card || !card.name || !balanceRarityByName[card.name]) return;
+        var targetRarity = balanceRarityByName[card.name];
+        var templates = customCardTemplates[targetRarity] || [];
+        var template = templates.find(function(t) { return t && t.name === card.name; });
+        if (!template) return;
+        var rarityChanged = card.rarity !== targetRarity;
+        card.rarity = targetRarity;
+        ["damage", "hp", "speed", "desc", "ability"].forEach(function(k) {
+            if (template[k] !== undefined) card[k] = JSON.parse(JSON.stringify(template[k]));
+        });
+        card.statusAbility = template.statusAbility ? JSON.parse(JSON.stringify(template.statusAbility)) : null;
+        if (template.sellPrice !== undefined) card.sellPrice = template.sellPrice;
+        else if (rarityChanged && typeof cardStats !== "undefined" && cardStats[targetRarity]) {
+            card.sellPrice = cardStats[targetRarity].sellPrice;
+        }
+    });
     team = d.team || []; 
     afkTeam = d.afkTeam || []; 
     points = d.points || 100; 
