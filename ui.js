@@ -677,8 +677,6 @@ function renderBook() {
     );
     const ds = new Set(Array.isArray(discoveredCards) ? discoveredCards : []);
     const owned = (Array.isArray(myCards) ? myCards : []).filter(Boolean);
-
-    // Сохраняем в книге даже карты из старых сохранений, шаблоны которых убрали из игры.
     const templateKeys = new Set(templates.map(t => String(t.name) + "::" + String(t.rarity)));
     const ownedOnly = owned
         .filter(card => !templateKeys.has(String(card.name) + "::" + String(card.rarity)))
@@ -688,11 +686,120 @@ function renderBook() {
     const isPatchOpen = t => !!(t && t.patchId && window.MBPatches &&
         typeof window.MBPatches.isUnlocked === "function" &&
         window.MBPatches.isUnlocked(t.patchId));
+    const universeAliases = {
+        "OPM": "One Punch Man",
+        "JJK": "Jujutsu Kaisen",
+        "MHA": "My Hero Academia",
+        "AoT": "Attack on Titan",
+        "DB": "Dragon Ball",
+        "DS": "Demon Slayer",
+        "HxH": "Hunter x Hunter",
+        "Mob 100": "Mob Psycho 100",
+        "One piece": "One Piece"
+    };
+    const getUniverseName = t => {
+        const raw = String(t.universe || "Неизвестно");
+        return universeAliases[raw] || raw;
+    };
 
-    const listHtml = all.map(t => {
+    // Сохраняем введённые фильтры при каждом обновлении книги.
+    const universeSelect = document.getElementById("bookUniverseFilter");
+    const raritySelect = document.getElementById("bookRarityFilter");
+    const statusSelect = document.getElementById("bookStatusFilter");
+    const sortSelect = document.getElementById("bookSortSelect");
+    const searchInput = document.getElementById("bookSearch");
+    const selectedUniverse = universeSelect ? universeSelect.value : "all";
+    const selectedRarity = raritySelect ? raritySelect.value : "all";
+    const selectedStatus = statusSelect ? statusSelect.value : "all";
+    const selectedSort = sortSelect ? sortSelect.value : "default";
+    const searchText = searchInput ? searchInput.value.trim().toLocaleLowerCase() : "";
+
+    const entries = all.map((t, index) => {
         const isOwned = owned.some(card => card.name === t.name);
-        const known = ds.has(t.name) || isOwned || isPatchOpen(t) || t.__ownedOnly === true;
-        const patchLocked = !!(t.patchId && !isPatchOpen(t) && !isOwned && !ds.has(t.name));
+        const obtained = ds.has(t.name) || isOwned;
+        const revealed = obtained || isPatchOpen(t) || t.__ownedOnly === true;
+        return {
+            t,
+            index,
+            isOwned,
+            obtained,
+            revealed,
+            patchLocked: !!(t.patchId && !isPatchOpen(t) && !obtained),
+            universe: revealed ? getUniverseName(t) : "Неизвестно / закрыто"
+        };
+    });
+
+    const knownUniverses = [...new Set(entries.filter(entry => entry.revealed)
+        .map(entry => entry.universe))].sort((a, b) => a.localeCompare(b, "ru"));
+    const universeOptions = knownUniverses.concat("Неизвестно / закрыто");
+    if (universeSelect) {
+        universeSelect.innerHTML = '<option value="all">🌌 Все вселенные</option>' +
+            universeOptions.map(name => '<option value="' + bookEscapeHtml(name) + '">' +
+                bookEscapeHtml(name) + '</option>').join("");
+        universeSelect.value = universeOptions.includes(selectedUniverse) ? selectedUniverse : "all";
+    }
+
+    const rarityOrder = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая",
+        "Легендарная", "Секретная", "Эволюционная", "Босс", "Пасхалка"];
+    const rarities = [...new Set(all.map(t => t.rarity).filter(Boolean))]
+        .sort((a, b) => {
+            const ai = rarityOrder.indexOf(a), bi = rarityOrder.indexOf(b);
+            if (ai < 0 && bi < 0) return a.localeCompare(b, "ru");
+            if (ai < 0) return 1;
+            if (bi < 0) return -1;
+            return ai - bi;
+        });
+    if (raritySelect) {
+        raritySelect.innerHTML = '<option value="all">⭐ Все редкости</option>' +
+            rarities.map(r => '<option value="' + bookEscapeHtml(r) + '">' +
+                bookEscapeHtml(r) + '</option>').join("");
+        raritySelect.value = rarities.includes(selectedRarity) ? selectedRarity : "all";
+    }
+
+    let filtered = entries.filter(entry => {
+        const t = entry.t;
+        if (universeSelect && universeSelect.value !== "all" &&
+            entry.universe !== universeSelect.value) return false;
+        if (raritySelect && raritySelect.value !== "all" && t.rarity !== raritySelect.value) return false;
+        if (statusSelect) {
+            if (statusSelect.value === "obtained" && !entry.obtained) return false;
+            if (statusSelect.value === "missing" && entry.obtained) return false;
+            if (statusSelect.value === "unknown" && entry.revealed) return false;
+        }
+        // По скрытым картам нельзя искать по настоящему имени.
+        if (searchText && (!entry.revealed ||
+            !String(t.name || "").toLocaleLowerCase().includes(searchText))) return false;
+        return true;
+    });
+
+    const rarityRank = r => {
+        const index = rarityOrder.indexOf(r);
+        return index < 0 ? -1 : index;
+    };
+    filtered.sort((a, b) => {
+        const ta = a.t, tb = b.t;
+        switch (selectedSort) {
+            case "name_asc":
+                if (a.revealed !== b.revealed) return a.revealed ? -1 : 1;
+                return a.revealed ? String(ta.name).localeCompare(String(tb.name), "ru") : a.index - b.index;
+            case "name_desc":
+                if (a.revealed !== b.revealed) return a.revealed ? -1 : 1;
+                return a.revealed ? String(tb.name).localeCompare(String(ta.name), "ru") : a.index - b.index;
+            case "rarity_asc":
+                return rarityRank(ta.rarity) - rarityRank(tb.rarity) || a.index - b.index;
+            case "rarity_desc":
+                return rarityRank(tb.rarity) - rarityRank(ta.rarity) || a.index - b.index;
+            case "universe":
+                return a.universe.localeCompare(b.universe, "ru") ||
+                    (a.revealed && b.revealed ? String(ta.name).localeCompare(String(tb.name), "ru") : a.index - b.index);
+            default:
+                return a.index - b.index;
+        }
+    });
+
+    const listHtml = filtered.map(entry => {
+        const t = entry.t;
+        const known = entry.revealed;
         const stats = cardStats[t.rarity] || {};
         const safeName = bookEscapeHtml(t.name);
         const rarity = bookEscapeHtml(t.rarity || "Неизвестно");
@@ -708,10 +815,11 @@ function renderBook() {
               ' ❤️' + bookEscapeHtml(t.hp ?? stats.hp ?? "?") +
               ' ⚡' + bookEscapeHtml(t.speed ?? stats.speed ?? "?") + '</div>'
             : '<div style="font-size:10px;color:#aaa;">' +
-              (patchLocked ? '🔒 Разлом закрыт' : '🔒 Ещё не разблокирована') + '</div>';
+              (entry.patchLocked ? '🔒 Разлом закрыт' : '🔒 Ещё не разблокирована') + '</div>';
         const patchBadge = t.patchId
-            ? '<div style="font-size:9px;color:' + (patchLocked ? '#888' : '#f0bd6b') + ';font-weight:900;margin-top:3px;">🌌 ' +
-              (patchLocked ? 'ЗАКРЫТЫЙ РАЗЛОМ' : 'РАЗЛОМ') + '</div>'
+            ? '<div style="font-size:9px;color:' + (entry.patchLocked ? '#888' : '#f0bd6b') +
+              ';font-weight:900;margin-top:3px;">🌌 ' +
+              (entry.patchLocked ? 'ЗАКРЫТЫЙ РАЗЛОМ' : 'РАЗЛОМ') + '</div>'
             : "";
         const superPreview = t.superAbility && known
             ? '<div style="font-size:8px;color:#ffd700;margin-top:2px;">' + bookEscapeHtml(t.superAbility.name) + '</div>'
@@ -723,16 +831,16 @@ function renderBook() {
     }).join("");
 
     const bookList = document.getElementById("bookList");
-    if (bookList) bookList.innerHTML = listHtml;
+    if (bookList) bookList.innerHTML = listHtml || '<div style="width:100%;text-align:center;padding:16px;color:#aaa;">По выбранным фильтрам карт нет.</div>';
 
     const discoveredCountEl = document.getElementById("discoveredCount");
-    if (discoveredCountEl) {
-        discoveredCountEl.innerText = all.filter(t =>
-            ds.has(t.name) || owned.some(card => card.name === t.name)
-        ).length;
-    }
+    if (discoveredCountEl) discoveredCountEl.innerText = all.filter(t =>
+        ds.has(t.name) || owned.some(card => card.name === t.name)
+    ).length;
     const totalTemplatesCountEl = document.getElementById("totalTemplatesCount");
     if (totalTemplatesCountEl) totalTemplatesCountEl.innerText = all.length;
+    const shownCountEl = document.getElementById("bookShownCount");
+    if (shownCountEl) shownCountEl.innerText = filtered.length;
 }
 
 function bookInfoCard(rarity, name) {
