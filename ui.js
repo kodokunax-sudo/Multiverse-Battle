@@ -725,12 +725,13 @@ function renderBook() {
             obtained,
             revealed,
             patchLocked: !!(t.patchId && !isPatchOpen(t) && !obtained),
-            universe: revealed ? getUniverseName(t) : "Неизвестно / закрыто"
+            universe: (!t.patchId || revealed) ? getUniverseName(t) : "Неизвестно / закрыто"
         };
     });
 
-    const knownUniverses = [...new Set(entries.filter(entry => entry.revealed)
-        .map(entry => entry.universe))].sort((a, b) => a.localeCompare(b, "ru"));
+    const knownUniverses = [...new Set(entries.filter(entry => !entry.t.patchId || entry.revealed)
+        .map(entry => entry.universe))].filter(name => name !== "Неизвестно / закрыто")
+        .sort((a, b) => a.localeCompare(b, "ru"));
     const universeOptions = knownUniverses.concat("Неизвестно / закрыто");
     if (universeSelect) {
         universeSelect.innerHTML = '<option value="all">🌌 Все вселенные</option>' +
