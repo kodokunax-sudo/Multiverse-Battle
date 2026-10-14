@@ -32,31 +32,31 @@ const EASTER_CODES = {
     },
     "ОРБИТА-17": {
         type: "afkSequenceStars",
-        sequenceIndex: 1,
+        sequenceIndex: 2,
         amount: 100,
         desc: "⭐ +100 звёзд"
     },
     "ПУЛЬС-42": {
         type: "afkSequenceStars",
-        sequenceIndex: 2,
+        sequenceIndex: 4,
         amount: 1000,
         desc: "⭐ +1000 звёзд"
     },
     "ЭХО-09": {
         type: "afkSequenceStars",
-        sequenceIndex: 3,
+        sequenceIndex: 5,
         amount: 5000,
         desc: "⭐ +5000 звёзд"
     },
     "НОВА-63": {
         type: "afkSequenceStars",
-        sequenceIndex: 4,
+        sequenceIndex: 1,
         amount: 5000,
         desc: "⭐ +5000 звёзд"
     },
     "СИНГУЛЯРНОСТЬ-88": {
         type: "afkSequenceStars",
-        sequenceIndex: 5,
+        sequenceIndex: 3,
         amount: 5000,
         desc: "⭐ +5000 звёзд; финальный код последовательности"
     }
@@ -218,7 +218,7 @@ function easterSubmitCode() {
             }
             if (typeof renderActiveBuffs === 'function') renderActiveBuffs();
         } else if (cd.type === "afkSequenceStars") {
-            const sequenceCodes = ["ОРБИТА-17", "ПУЛЬС-42", "ЭХО-09", "НОВА-63", "СИНГУЛЯРНОСТЬ-88"];
+            const sequenceCodes = ["НОВА-63", "ОРБИТА-17", "СИНГУЛЯРНОСТЬ-88", "ПУЛЬС-42", "ЭХО-09"];
             const redeemedCount = sequenceCodes.filter(function (code) {
                 return code !== inp && Array.isArray(usedCodes) && usedCodes.includes(code);
             }).length;
