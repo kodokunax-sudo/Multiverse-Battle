@@ -29,6 +29,13 @@ const EASTER_CODES = {
         multiplier: 10000,
         duration: 90 * 1000,
         desc: "🌟 Множитель звёзд x10000 на 90 секунд!"
+    },
+    "АФК100": {
+        type: "afkSpeed",
+        buffId: "afkWavesX100",
+        multiplier: 100,
+        duration: 24 * 60 * 60 * 1000,
+        desc: "⚡ Скорость прохождения АФК-волн x100 на 24 часа!"
     }
 };
 
@@ -185,6 +192,18 @@ function easterSubmitCode() {
             if (resultEl) resultEl.innerHTML = "💨 " + cd.desc;
             if (typeof showFloatingText === 'function') {
                 showFloatingText("💨 БЕСКОНЕЧНЫЕ ЗВЁЗДЫ НА 10 МИНУТ!", "#ffd700");
+            }
+            if (typeof renderActiveBuffs === 'function') renderActiveBuffs();
+        } else if (cd.type === "afkSpeed") {
+            if (typeof activeBuffs === "undefined" || !activeBuffs) {
+                if (resultEl) resultEl.innerHTML = "❌ Не удалось активировать ускорение АФК";
+                usedCodes = usedCodes.filter(function (code) { return code !== inp; });
+                return;
+            }
+            activeBuffs[cd.buffId] = Date.now() + cd.duration;
+            if (resultEl) resultEl.innerHTML = "✅ " + cd.desc;
+            if (typeof showFloatingText === 'function') {
+                showFloatingText("⚡ АФК x100 НА 24 ЧАСА!", "#ffd700");
             }
             if (typeof renderActiveBuffs === 'function') renderActiveBuffs();
         } else if (cd.type === "starMultiplier") {
