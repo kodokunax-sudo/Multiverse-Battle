@@ -36,20 +36,6 @@ const SUPER_CHARGES_PER_HERO = {
     "Деку (100%)":              3,
     "Всемогущий (прайм)":       1,
     "Белоус":                   3,
-    "А-Трейн (Возвращение)":    3,
-    "Звёздочка (Перегрузка)":   3,
-    "Билли Бутчер (V24)":       3,
-    "Райан (Лазерный взгляд)":  3,
-    "Сестра Сейдж (Гений)":     3,
-    "Кимико (Боевая регенерация)": 3,
-    "Солдатик (Радиоактивный)": 2,
-    "Чёрный Нуар II (Тень)":    2,
-    "Королева Мэйв (Последний бой)": 2,
-    "Тек Найт (Охотник)":       2,
-    "Хоумлендер (Без ограничений)": 1,
-    "Бутчер (Монстр V)":        1,
-    "Райан (Наследник)":        1,
-    
 };
 
 const SUPER_CHARGES_HERO_PER_BOSS = {
@@ -1082,21 +1068,6 @@ function registerBoysSuper(cardName, cfg) {
         }
     };
 }
-registerBoysSuper("А-Трейн (Возвращение)", {name:"СВЕРХЗВУКОВОЙ РЫВОК", cooldown:18000, damage:.055, clear:.55, color:"#26d9ff", waveSpeed:280, shake:12, callout:"ЗВУКОВОЙ БУМ!"});
-registerBoysSuper("Звёздочка (Перегрузка)", {name:"ВСПЫШКА СВЕТА", cooldown:22000, damage:.035, clear:1, heal:.08, color:"#fff3b0", whiteFlash:8, waveSpeed:340, shake:16, callout:"СВЕТ ОСЛЕПЛЯЕТ!"});
-registerBoysSuper("Билли Бутчер (V24)", {name:"ГЛАЗА ПАЛАЧА", cooldown:25000, damage:.10, clear:.35, color:"#ffbf54", whiteFlash:4, waveSpeed:280, shake:18, callout:"ЛАЗЕРНЫЙ РАЗРЕЗ!"});
-registerBoysSuper("Райан (Лазерный взгляд)", {name:"НАСЛЕДНИК ХОУМЛЕНДЕРА", cooldown:28000, damage:.09, clear:.45, color:"#ff4d59", whiteFlash:5, waveSpeed:300, shake:17, callout:"ЛАЗЕРНЫЙ УДАР!"});
-registerBoysSuper("Сестра Сейдж (Гений)", {name:"ПРОСЧИТАННЫЙ ХОД", cooldown:30000, damage:.025, clear:1, heal:.15, color:"#8cb5ff", waveSpeed:190, shake:8, callout:"Я ВСЁ ПРЕДУСМОТРЕЛА."});
-registerBoysSuper("Кимико (Боевая регенерация)", {name:"НЕУБИВАЕМАЯ", cooldown:25000, damage:.025, clear:.35, heal:.28, color:"#79ff91", waveSpeed:200, shake:10, callout:"КИМИКО ВОЗВРАЩАЕТСЯ!"});
-registerBoysSuper("Солдатик (Радиоактивный)", {name:"РАДИАЦИОННЫЙ ВЫБРОС", cooldown:35000, damage:.13, clear:1, color:"#71d98c", whiteFlash:7, waveSpeed:360, shake:25, callout:"РАДИАЦИЯ!"});
-registerBoysSuper("Чёрный Нуар II (Тень)", {name:"ТИХОЕ УБИЙСТВО", cooldown:24000, damage:.075, clear:.60, heal:.04, color:"#b6b6c2", waveSpeed:230, shake:13, callout:"НИКАКОГО ЗВУКА."});
-registerBoysSuper("Королева Мэйв (Последний бой)", {name:"ПОСЛЕДНИЙ ЩИТ", cooldown:28000, damage:.11, clear:.40, heal:.12, color:"#e8bd72", waveSpeed:300, shake:19, callout:"СТОЮ ДО КОНЦА!"});
-registerBoysSuper("Тек Найт (Охотник)", {name:"ИДЕАЛЬНЫЙ АНАЛИЗ", cooldown:32000, damage:.085, clear:.70, color:"#71c8ff", waveSpeed:250, shake:13, callout:"УЯЗВИМОСТЬ НАЙДЕНА!"});
-registerBoysSuper("Штормфронт (Грозовой фронт)", {name:"ШТОРМОВОЙ РАЗРЯД", cooldown:34000, damage:.12, clear:.75, color:"#c56bff", whiteFlash:7, waveSpeed:350, shake:21, callout:"ЭЛЕКТРИЧЕСКИЙ ШТОРМ!"});
-registerBoysSuper("Виктория Ньюман (Кровавый контроль)", {name:"КРОВАВЫЙ ПРИГОВОР", cooldown:36000, damage:.15, clear:.25, color:"#ed234d", whiteFlash:5, waveSpeed:310, shake:23, callout:"КРОВЬ ВЫДАЁТ ПРИГОВОР!"});
-registerBoysSuper("Хоумлендер (Без ограничений)", {name:"ЛАЗЕРНОЕ ИСПОЛНЕНИЕ", cooldown:45000, damage:.18, clear:1, color:"#ff3535", whiteFlash:12, waveSpeed:420, shake:28, callout:"ЛАЗЕРНОЕ ИСПОЛНЕНИЕ!"});
-registerBoysSuper("Бутчер (Монстр V)", {name:"СИМБИОЗ", cooldown:40000, damage:.16, clear:.80, heal:.06, color:"#a72d45", whiteFlash:8, waveSpeed:390, shake:25, callout:"МОНСТР ПРОСНУЛСЯ!"});
-registerBoysSuper("Райан (Наследник)", {name:"СОЛНЕЧНЫЙ ВЫБРОС", cooldown:35000, damage:.12, clear:.75, color:"#ff6565", whiteFlash:8, waveSpeed:360, shake:22, callout:"СОЛНЕЧНЫЙ ВЫБРОС!"});
 
 
 // ============================================================
