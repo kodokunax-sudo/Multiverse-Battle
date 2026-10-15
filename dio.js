@@ -303,7 +303,7 @@ function dioRenderSkillEffects(ctxB){
  if(_superState.dioMudaActive&&_superState.dioMudaMode==="melee"){var t=now-(Number(_superState.dioMudaLastHitAt)||0);if(_superState.dioMudaLastHitAt>0&&t>=0&&t<170){var p=dioGetStandPosition(ctxB);if(p){ctx.save();ctx.globalAlpha=1-t/170;ctx.strokeStyle="#fff4a4";ctx.shadowColor="#ffdf73";ctx.shadowBlur=9;ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,10+(170-t)*.06,now/70,now/70+1.55);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x-10,p.y-9);ctx.lineTo(p.x+9,p.y+8);ctx.moveTo(p.x+10,p.y-8);ctx.lineTo(p.x-8,p.y+9);ctx.stroke();ctx.restore();}}}
 }
 window.dioRenderSkillEffects=dioRenderSkillEffects;
-function dioRenderPlayerAndStand(ctxB){if(!ctx||!ctxB||!isDioOverHeavenMain())return;drawDioPlayerVisual(ctx,ctxB.getHeartX(),ctxB.getHeartY(),ctxB.getHeartSize?ctxB.getHeartSize():12);var p=dioGetStandPosition(ctxB);if(p)drawDioStandVisual(ctx,p.x,p.y,10);dioRenderSkillEffects(ctxB);}
+function dioRenderPlayerAndStand(ctxB){if(!ctx||!ctxB||!isDioOverHeavenMain())return;drawDioPlayerVisual(ctx,ctxB.getHeartX(),ctxB.getHeartY(),ctxB.getHeartSize?ctxB.getHeartSize():12);dioRenderSkillEffects(ctxB);}
 window.dioRenderPlayerAndStand=dioRenderPlayerAndStand;
 function dioGetUniqueBossTarget(ctxB,preferredId){
  ctxB=ctxB||((typeof getBossContext==="function")?getBossContext():null);if(!ctxB||!["waystar","stone","rwb"].includes(ctxB.type))return null;
@@ -409,8 +409,8 @@ function dioApplyStandDamageProfile(a){
 function dioStandHitResult(hit,a){if(hit)dioApplyStandDamageProfile(a);return !!hit;}
 function dioAttackTouchesStand(ctxB,a){
  var genericStand=typeof window.isStandUserStandActive==="function"&&window.isStandUserStandActive();
- if(!a||(!isDioOverHeavenMain()&&!genericStand)||a.dioAggroNoPlayer||a.dioStandHitOnce)return false;
- var p=genericStand&&typeof window.getStandUserHitboxPosition==="function"?window.getStandUserHitboxPosition(ctxB):dioGetStandPosition(ctxB);
+ if(!a||!genericStand||a.dioAggroNoPlayer||a.dioStandHitOnce)return false;
+ var p=typeof window.getStandUserHitboxPosition==="function"?window.getStandUserHitboxPosition(ctxB):null;
  if(!p)return false;var x=p.x,y=p.y,h=p.radius||7,type=ctxB?ctxB.type:null,sz=Number(a.size||a.radius||a.width||14)||14;
  if(type==="arena"){if(a.type==="bomb"){if(a.timer>=0)return false;return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||a.maxRadius||20)+h),a);}if(["circle","rainbow","healCircle"].includes(a.type))return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||10)+h),a);if(a.type==="sword")return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.size||10)+h),a);var s=Number(a.size)||20,cx=(Number(a.x)||0)+s/2,cy=(Number(a.y)||0)+s/2;return dioStandHitResult((Math.abs(x-cx)<s/2+h&&Math.abs(y-cy)<s/2+h),a);}
  if(type==="waystar"){if(a.type==="laser")return dioStandHitResult((a.state==="active"&&Math.abs(x-(Number(a.x)||0))<Number(a.width||40)/2+h),a);if(a.type==="giant_laser"){if(a.state!=="active")return false;var dx=x-(Number(a.x)||0),dy=y-(Number(a.y)||0),ang=Number(a.angle)||0;return dioStandHitResult((Math.abs(dx*Math.sin(ang)-dy*Math.cos(ang))<Number(a.width||20)/2+h),a);}if(a.type==="bomb"){if(!a.exploded)return false;return dioStandHitResult((Math.hypot(x-a.x,y-a.y)<Number(a.radius||20)+h),a);}return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<sz+h),a);}
