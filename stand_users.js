@@ -227,6 +227,12 @@
     window.getStandUserDamageFactor = function () {
         return isActiveForCurrentCard() && state.info ? state.info.damageFactor : 0.4;
     };
+    window.scaleStandBlockedDamage = function (baseDamage) {
+        var base = Math.max(0, Number(baseDamage) || 0);
+        var factor = typeof window.getStandUserDamageFactor === "function" ? Number(window.getStandUserDamageFactor()) : 0.4;
+        factor = Math.max(0.15, Math.min(0.4, Number.isFinite(factor) ? factor : 0.4));
+        return Math.max(1, Math.floor(base * factor));
+    };
     window.toggleStandUser = toggleStand;
     window.renderStandUser = renderStand;
     window.resetStandUser = deactivateStand;
