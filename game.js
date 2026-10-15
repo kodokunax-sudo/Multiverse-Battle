@@ -2015,7 +2015,7 @@ function getPassiveModifiers() {
             if (a.type === 'bossDamage' && a.damageReduction && !currentEnemy?.isBoss) tm -= a.damageReduction * ab * mult; 
             if (a.type === 'damageAura' && a.damageTakenMod) tm += a.damageTakenMod * ab * mult; 
             if (a.type === 'dmgTakenIncrease') tm += a.value * ab * mult; 
-            if (a.type === 'spareChanceBonus') { sb += a.value * ab; } 
+            if (a.type === 'desperateStrike' && playerHp <= (window.playerMaxHp || 100) * (a.threshold || 0.30)) dm += a.value * ab * mult; 
             if (a.type === 'zenoCheckpoint') { window.hasZenoInTeam = true; } 
             if (a.type === 'whitebeardSpecial') { /* обрабатывается в defeat() */ } 
             if (a.type === 'takabaConfidence') { /* обрабатывается в supers.js */ } 
