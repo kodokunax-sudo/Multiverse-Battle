@@ -395,8 +395,22 @@ function dioActivateMudaSkill(){
  return true;
 }
 window.dioActivateMudaSkill=dioActivateMudaSkill;
+
+function dioApplyStandDamageProfile(a){
+ if(!a||a._mbStandDamageAdjusted||typeof window.isStandUserStandActive!=="function"||!window.isStandUserStandActive())return;
+ var factor=typeof window.getStandUserDamageFactor==="function"?Number(window.getStandUserDamageFactor()):.4;
+ factor=Math.max(.15,Math.min(.4,isFinite(factor)?factor:.4));
+ if(Math.abs(factor-.4)<.001)return;
+ var base=Number(a.damage);
+ if(!(base>0))base=30;
+ a.damage=Math.max(1,Math.floor(base*(factor/.4)));
+ a._mbStandDamageAdjusted=true;
+}
 function dioAttackTouchesStand(ctxB,a){
- if(!a||!isDioOverHeavenMain()||a.dioAggroNoPlayer||a.dioStandHitOnce)return false;var p=dioGetStandPosition(ctxB);if(!p)return false;var x=p.x,y=p.y,h=p.radius||7,type=ctxB?ctxB.type:null,sz=Number(a.size||a.radius||a.width||14)||14;
+ var genericStand=typeof window.isStandUserStandActive==="function"&&window.isStandUserStandActive();
+ if(!a||(!isDioOverHeavenMain()&&!genericStand)||a.dioAggroNoPlayer||a.dioStandHitOnce)return false;
+ var p=genericStand&&typeof window.getStandUserHitboxPosition==="function"?window.getStandUserHitboxPosition(ctxB):dioGetStandPosition(ctxB);
+ if(!p)return false;var x=p.x,y=p.y,h=p.radius||7,type=ctxB?ctxB.type:null,sz=Number(a.size||a.radius||a.width||14)||14;
  if(type==="arena"){if(a.type==="bomb"){if(a.timer>=0)return false;return Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||a.maxRadius||20)+h;}if(["circle","rainbow","healCircle"].includes(a.type))return Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||10)+h;if(a.type==="sword")return Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.size||10)+h;var s=Number(a.size)||20,cx=(Number(a.x)||0)+s/2,cy=(Number(a.y)||0)+s/2;return Math.abs(x-cx)<s/2+h&&Math.abs(y-cy)<s/2+h;}
  if(type==="waystar"){if(a.type==="laser")return a.state==="active"&&Math.abs(x-(Number(a.x)||0))<Number(a.width||40)/2+h;if(a.type==="giant_laser"){if(a.state!=="active")return false;var dx=x-(Number(a.x)||0),dy=y-(Number(a.y)||0),ang=Number(a.angle)||0;return Math.abs(dx*Math.sin(ang)-dy*Math.cos(ang))<Number(a.width||20)/2+h;}if(a.type==="bomb"){if(!a.exploded)return false;return Math.hypot(x-a.x,y-a.y)<Number(a.radius||20)+h;}return Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<sz+h;}
  if(type==="stone"){if(a.type==="laser")return(a.timer||0)<=0&&Math.abs(x-(Number(a.x)||0))<Number(a.width||40)/2+h;if(a.type==="ring")return Math.abs(Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))-Number(a.radius||0))<Number(a.thickness||18)/2+h;if(a.type==="spike")return(a.warningTimer||0)<=0&&(a.height||0)>10&&Math.abs(x-a.x)<30+h&&y>500-a.height;if(a.type==="gravity_well")return false;return Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<sz+h;}
