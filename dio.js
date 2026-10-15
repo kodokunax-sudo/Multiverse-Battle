@@ -947,8 +947,32 @@ function updateDioHistory(ctxB) {
 }
 
 // Старый случайный радиусный щит заменён одним управляемым хитбоксом стенда.
+// Возвращена старая пассивная защита The World.
 function updateDioStandZone(ctxB) {
-    return;
+    if (!ctxB || !isDioOverHeavenMain()) return;
+    var atk = ctxB.getAttacks();
+    if (!atk || !atk.length) return;
+    var hx = ctxB.getHeartX(), hy = ctxB.getHeartY(), radius = 52;
+    var stand = dioGetStandPosition(ctxB);
+    for (var i = atk.length - 1; i >= 0; i--) {
+        var a = atk[i];
+        if (!a || a.dioAggroNoPlayer) continue;
+        var ar = Number(a.size || a.radius || 10) * 0.5;
+        var ax = (Number(a.x) || 0) + ar, ay = (Number(a.y) || 0) + ar;
+        var insideMain = Math.hypot(ax-hx,ay-hy)<=radius+ar;
+        var insideStand = stand && Math.hypot(ax-stand.x,ay-stand.y)<=radius+ar;
+        var inside = insideMain || insideStand;
+        if (!inside) { a.dioStandInside = false; continue; }
+        if (a.dioStandInside) continue;
+        a.dioStandInside = true;
+        if (Math.random() < 0.05) {
+            atk.splice(i,1);var sx=insideStand&&stand?stand.x:hx,sy=insideStand&&stand?stand.y:hy;
+            _superState.dioStandFlash=Math.max(_superState.dioStandFlash||0,.3);_superState.dioStandAttackUntil=performance.now()+220;
+            _superState.dioStandAttackSourceX=sx;_superState.dioStandAttackSourceY=sy;_superState.dioStandAttackX=ax;_superState.dioStandAttackY=ay;
+            if(typeof ctxB.spawnFloatingText==="function")ctxB.spawnFloatingText(sx,sy-28,"THE WORLD!","#fff0a0");
+            if(typeof ctxB.addShockwave==="function")ctxB.addShockwave(sx,sy,"#e5c8ff",120,.25,3);
+        }
+    }
 }
 
 function updateDioAggressiveBlocks(ctxB) {
