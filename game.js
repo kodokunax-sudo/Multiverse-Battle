@@ -1352,7 +1352,7 @@ function getAfkPassiveModifiers(isBoss) {
     const defaults = { dmgMult: 1, takenMult: 1, bossBonus: 0, hpMult: 1 };
     if (afkFarmUpgradeLevel < 3 || !Array.isArray(afkTeam) || !afkTeam.length) return defaults;
     const oldTeam = team, oldEnemy = currentEnemy, oldFatigue = fatigue;
-    const oldBossSupport = bossSupportUsedThisFight, oldSpareBonus = spareBonusFromTeam;
+    const oldBossSupport = bossSupportUsedThisFight;
     const oldZeno = window.hasZenoInTeam;
     try {
         team = afkTeam;
@@ -1367,7 +1367,7 @@ function getAfkPassiveModifiers(isBoss) {
         currentEnemy = oldEnemy;
         fatigue = oldFatigue;
         bossSupportUsedThisFight = oldBossSupport;
-        spareBonusFromTeam = oldSpareBonus;
+
         window.hasZenoInTeam = oldZeno;
     }
 }
@@ -1512,7 +1512,6 @@ let comboCount = 0, lastClickTime = 0, comboMultiplier = 1;
 let musicEnabled = false;
 let newcomerBonus = false, newcomerBonusEnd = 0, newcomerDamageBonusEnd = 0;
 let fireInterval = null;
-let spareBonusFromTeam = 0;
 let totalClicks = 0, totalCardsObtained = 0, maxPoints = 100;
 
 /* Expanded per-rebirth and lifetime stats. defeatHistory remains a capped battle-log, not a death counter. */
@@ -1991,7 +1990,7 @@ function applyStatusEffects() { let eff = getStatusEffects(); enemyStatuses.blee
 
 // ========== ПАССИВНЫЕ МОДИФИКАТОРЫ ==========
 function getPassiveModifiers() { 
-    let dm = 1.0, tm = 1.0, bb = 0, hm = 1.0, sb = 0; 
+    let dm = 1.0, tm = 1.0, bb = 0, hm = 1.0; 
     let ab = 1; 
     let dupes = countTeamDuplicates(); 
     let dupMult = {}; 
@@ -2026,7 +2025,7 @@ function getPassiveModifiers() {
     if (dekusNerfWaves > 0) dm -= 0.30; 
     if (hasSukunaFingers && sukunaTarget && sukunaExpireTime > Date.now()) dm += 0.5; 
     dm *= getRebirthMult(); 
-    spareBonusFromTeam = sb; 
+
     return { dmgMult: dm, takenMult: Math.max(0.01, tm), bossBonus: bb, hpMult: hm }; 
 }
 
@@ -2239,7 +2238,6 @@ function generateEnemy() {
     bossSupportUsedThisFight = false; 
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; } 
     if (fireInterval) { clearInterval(fireInterval); fireInterval = null; } 
-    let el = document.getElementById("spareBtn"); if (el) el.style.display = "none"; 
     el = document.getElementById("dialogBox"); if (el) el.style.display = "none"; 
     currentDialog = null; 
     let world = getCurrentWorld(); 
@@ -2391,7 +2389,6 @@ function generateEnemy() {
 }
 function showBossDialogue(msg) { let d = document.getElementById("bossDialogue"); if (d) { d.innerText = '«' + msg + '»'; d.style.display = "block"; } }
 function hideBossDialogue() { let d = document.getElementById("bossDialogue"); if (d) d.style.display = "none"; }
-function spareBoss() { if (!currentEnemy || !currentEnemy.isBoss || currentEnemy.hp <= 0) return; let isUniqueBoss = (typeof bossTemplates !== 'undefined' && bossTemplates[wave] !== undefined); if (!isUniqueBoss) { alert("⚠️ Обычного босса нельзя пощадить!"); return; } if (currentEnemy.hp > currentEnemy.maxHp * 0.3) { alert("⚠️ Здоровье босса должно быть ниже 30% чтобы пощадить!"); return; } let spareChance = 0.30 + spareBonusFromTeam; if (Math.random() < spareChance) { let bt = bossTemplates[wave]; if (bt && bt.spareReward) { let template = customCardTemplates["Босс"].find(t => t.name === bt.spareReward); if (template) { let rewardCard = createCardFromTemplate(template, "Босс"); myCards.push(rewardCard); sfxCardObtain(); alert("🎉 Босс присоединился! Получена карта: " + bt.spareReward + " (шанс был " + Math.floor(spareChance*100) + "%)"); saveAll(); } } currentEnemy.hp = 0; victory(); } else { let extraDmg = Math.floor(currentEnemy.damage * 3); playerHp -= extraDmg; alert("💢 Босс отказался! Он наносит тройной урон: " + extraDmg + "!"); let el = document.getElementById("spareBtn"); if (el) el.style.display = "none"; if (playerHp <= 0) defeat(); else { renderEnemy(); updatePlayerStats(); } } }
 function skipArenaFight() { 
     if (!currentEnemy || !currentEnemy.isBoss) return; 
     let isUniqueBoss = (typeof bossTemplates !== 'undefined' && bossTemplates[wave] !== undefined); 
@@ -2415,8 +2412,6 @@ function skipArenaFight() {
     if (rwbBtn) rwbBtn.style.display = "none"; 
     let skipBtn = document.getElementById("skipArenaBtn"); 
     if (skipBtn) skipBtn.style.display = "none"; 
-    let spareBtn = document.getElementById("spareBtn"); 
-    if (spareBtn) spareBtn.style.display = "none"; 
     if (typeof showFloatingText === 'function') showFloatingText("⏭️ Арена пропущена!", "#ffaa00"); 
 }
 function createCardFromTemplate(tm, r) { if (tm && tm.patchId && !(window.MBPatches && window.MBPatches.isUnlocked(tm.patchId))) return null; let s = cardStats[r]; let d = tm.damage ?? s.damage, hp = tm.hp ?? s.hp, sp = tm.sellPrice ?? s.sellPrice, spd = tm.speed ?? s.speed ?? 0.5; let n = tm.name, a = tm.ability || null, u = tm.universe || "?", uns = tm.unsellable || false; if (!discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } totalCardsObtained++; if (points > maxPoints) maxPoints = points; return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, patchId: tm.patchId || null, minRebirth: tm.minRebirth || 0, statusAbility: tm.statusAbility || null, extraStatus: tm.extraStatus || null, superAbility: tm.superAbility || null, mastery: 1, masteryExp: 0 }; }
