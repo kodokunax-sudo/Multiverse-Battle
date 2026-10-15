@@ -278,6 +278,9 @@ function dioGetStandPosition(ctxB){
  ctxB=ctxB||((typeof getBossContext==="function")?getBossContext():null);if(!ctxB||typeof ctxB.getHeartX!=="function"||typeof ctxB.getHeartY!=="function")return null;
  var px=Number(ctxB.getHeartX())||0,py=Number(ctxB.getHeartY())||0;
  if(typeof _superState!=="undefined"&&_superState.dioMudaActive&&_superState.dioMudaMode==="melee"&&isFinite(Number(_superState.dioMudaStandX))&&isFinite(Number(_superState.dioMudaStandY)))return{x:Number(_superState.dioMudaStandX),y:Number(_superState.dioMudaStandY),radius:7};
+ if(typeof window.isStandUserStandActive==="function"&&window.isStandUserStandActive()&&typeof window.getStandUserHitboxPosition==="function"){
+  var genericStand=window.getStandUserHitboxPosition(ctxB);if(genericStand)return genericStand;
+ }
  return{x:px+(px>300?-20:20),y:py-8,radius:7};
 }
 window.getDioStandPosition=dioGetStandPosition;
