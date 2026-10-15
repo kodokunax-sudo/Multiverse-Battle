@@ -2537,7 +2537,23 @@
 
             var dioRWBCtx=(typeof getBossContext==="function")?getBossContext():null;
             if(rwbPlayer.invulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioRWBCtx&&window.dioAttackTouchesStand(dioRWBCtx,a)){
-                a.dioStandHitOnce=true;hitPlayer(Math.max(1,Math.floor((Number(a.damage)||8)*.4)));rwbAttacks.splice(i,1);continue;
+
+                a.dioStandHitOnce=true;
+
+                var hpBeforeStandHit = rwbPlayer.hp;
+
+                hitPlayer(Math.max(1,Math.floor((Number(a.damage)||8)*.4)));
+
+                if (rwbPlayer.hp < hpBeforeStandHit && typeof dioRWBCtx.spawnFloatingText === "function") {
+
+                    dioRWBCtx.spawnFloatingText(rwbPlayer.x, rwbPlayer.y - 25, "удар по стенду. меньше урона", "#ffffff");
+
+                }
+
+                rwbAttacks.splice(i,1);
+
+                continue;
+
             }
 
             if (a.type === "wb_reflect_vortex") {
