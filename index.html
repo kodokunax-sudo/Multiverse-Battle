@@ -82,7 +82,14 @@
             box-shadow: 0 4px 15px rgba(245, 175, 25, 0.4);
             transform: translateY(-2px);
         }
-        .sub-tabs { display: flex; gap: 4px; margin-bottom: 15px; flex-wrap: wrap; position: relative; z-index: 1; }
+        .sub-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 6px; margin-bottom: 15px; position: relative; z-index: 1; align-items: stretch; }
+        .sub-tabs .sub-tab-btn { min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
+        @media (max-width: 480px) {
+            .sub-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+            .sub-tabs .sub-tab-btn { padding: 9px 6px; font-size: 11px; border-radius: 12px; }
+            .tabs { gap: 4px; padding: 5px; border-radius: 16px; }
+            .tab-btn { padding: 10px 4px; font-size: 11px; border-radius: 11px; }
+        }
         .sub-tab-btn {
             flex: 1;
             padding: 8px 10px;
@@ -946,8 +953,8 @@
         <div id="shopTab" class="tab-content">
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" data-subtab="shopItems">🛍️ Товары</button>
-                <button class="sub-tab-btn" data-subtab="inventory">🎒 Инвентарь</button>
                 <button class="sub-tab-btn" data-subtab="gacha">🎰 Рулетка</button>
+                <button class="sub-tab-btn" data-subtab="inventory">🎒 Инвентарь</button>
                 <button class="sub-tab-btn" data-subtab="autoRest">💤 Авто-отдых</button>
                 <button class="sub-tab-btn" data-subtab="upgrades">📈 Прокачка</button>
                 <button class="sub-tab-btn" data-subtab="codes">🎁 Коды</button>
@@ -967,8 +974,10 @@
                 <div class="points">⭐ <span id="pointsAmountGacha">0</span></div>
                 <div class="card">
                     <div class="card-title">🎰 Рулетка</div>
-                    <div id="patchShop" style="margin-bottom:14px;"></div>
                     <div id="gachaItems" class="shop-grid"></div>
+                    <div id="patchShop" style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.12);">
+                        <div class="card-title" style="margin-bottom:10px;">🌌 Разломы</div>
+                    </div>
                     <div style="font-size:11px;color:#aaa;margin-top:10px;text-align:center;font-weight:600;">
                         💡 Побеждайте <b>новых боссов</b> (каждые 50 волн) для получения легендарных и секретных круток!<br>
                         <span style="color:#ffd700;">После исчерпания первого лимита запускается таймер на 12 часов.</span>
