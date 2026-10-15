@@ -1656,7 +1656,11 @@ function checkLivingStoneCollisions() {
 
         if(dioStandHit){
             a.dioStandHitOnce=true;
+            var hpBeforeStandHit = livingStonePlayerHp;
             damageLivingStonePlayer(Math.max(1,Math.floor((Number(a.damage)||5)*.4)));
+            if (livingStonePlayerHp < hpBeforeStandHit && typeof spawnLivingStoneText === "function") {
+                spawnLivingStoneText(livingStonePlayer.x, livingStonePlayer.y - 25, "удар по стенду. меньше урона", "#ffffff", 60);
+            }
             if(a.type!=="ring"&&a.type!=="laser"&&a.type!=="gravity_well"){spawnLivingStoneParticles(a.x||px,a.y||py,8,"#fff",5);livingStoneAttacks.splice(i,1);}
             return;
         }
