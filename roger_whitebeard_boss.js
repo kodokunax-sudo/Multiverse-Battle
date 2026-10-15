@@ -2856,7 +2856,7 @@
             }
             if(!stopAll&&!sw.hit&&rwbPlayer.invulnTimer<=0&&typeof window.getDioStandPosition==="function"&&typeof window.isStandUserStandActive==="function"&&window.isStandUserStandActive()){
                 let sd=window.getDioStandPosition((typeof getBossContext==="function")?getBossContext():null);
-                if(sd&&Math.abs(Math.hypot(sd.x-sw.x,sd.y-sw.y)-sw.radius)<sw.width*.7+(sd.radius||7)){sw.hit=true;hitPlayer(Math.max(1,Math.floor((Number(sw.damage)||8)*.4)));}
+                if(sd&&Math.abs(Math.hypot(sd.x-sw.x,sd.y-sw.y)-sw.radius)<sw.width*.7+(sd.radius||7)){sw.hit=true;hitPlayer(typeof window.scaleStandBlockedDamage==="function"?window.scaleStandBlockedDamage(Number(sw.damage)||8):Math.max(1,Math.floor((Number(sw.damage)||8)*.4)));}
             }
             if (!stopAll && sw.canDestroy && !sw.hit && rwbPlayer.invulnTimer <= 0 && (rwbState === "fight1" || rwbState === "fight2")) {
                 let dx = rwbPlayer.x - sw.x, dy = rwbPlayer.y - sw.y;
