@@ -219,9 +219,10 @@
         var p = getHitboxPosition();
         if (!p) return;
         var pulse = 1 + Math.sin(Date.now() / 115) * 0.08;
+        var modelScale = Math.max(0.65, Number(p.radius || 10) / 10);
         ctx.save();
         ctx.translate(p.x, p.y);
-        ctx.scale(pulse, pulse);
+        ctx.scale(pulse * modelScale, pulse * modelScale);
         ctx.globalAlpha = 0.92;
         ctx.shadowColor = p.color;
         ctx.shadowBlur = 12;
