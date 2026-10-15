@@ -82,14 +82,7 @@
             box-shadow: 0 4px 15px rgba(245, 175, 25, 0.4);
             transform: translateY(-2px);
         }
-        .sub-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 6px; margin-bottom: 15px; position: relative; z-index: 1; align-items: stretch; }
-        .sub-tabs .sub-tab-btn { min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
-        @media (max-width: 480px) {
-            .sub-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
-            .sub-tabs .sub-tab-btn { padding: 9px 6px; font-size: 11px; border-radius: 12px; }
-            .tabs { gap: 4px; padding: 5px; border-radius: 16px; }
-            .tab-btn { padding: 10px 4px; font-size: 11px; border-radius: 11px; }
-        }
+        .sub-tabs { display: flex; gap: 4px; margin-bottom: 15px; flex-wrap: wrap; position: relative; z-index: 1; }
         .sub-tab-btn {
             flex: 1;
             padding: 8px 10px;
@@ -105,6 +98,11 @@
             font-size: 11px;
             touch-action: manipulation;
         }
+        .auto-progress-tab .auto-progress-list { display: flex; flex-direction: column; gap: 8px; }
+        .auto-progress-tab .auto-progress-list .shop-item { width: 100%; box-sizing: border-box; }
+        .auto-progress-hint { margin: -4px 0 12px; color: #aaa; font-size: 12px; line-height: 1.5; }
+        .auto-progress-section { margin-top: 14px; }
+        .auto-progress-tab .auto-progress-card { margin-bottom: 12px; }
         .sub-tab-btn.active {
             background: #f5af19;
             color: #1a1a2e;
@@ -953,9 +951,9 @@
         <div id="shopTab" class="tab-content">
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" data-subtab="shopItems">🛍️ Товары</button>
-                <button class="sub-tab-btn" data-subtab="gacha">🎰 Рулетка</button>
                 <button class="sub-tab-btn" data-subtab="inventory">🎒 Инвентарь</button>
-                <button class="sub-tab-btn" data-subtab="autoRest">💤 Авто-отдых</button>
+                <button class="sub-tab-btn" data-subtab="gacha">🎰 Рулетка</button>
+                <button class="sub-tab-btn" data-subtab="autoRest">⚙️ Авто-прогресс</button>
                 <button class="sub-tab-btn" data-subtab="upgrades">📈 Прокачка</button>
                 <button class="sub-tab-btn" data-subtab="codes">🎁 Коды</button>
             </div>
@@ -984,12 +982,12 @@
                     </div>
                 </div>
             </div>
-            <div id="autoRestSubTab" class="sub-tab-content">
+            <div id="autoRestSubTab" class="sub-tab-content auto-progress-tab">
                 <div class="points">⭐ <span id="pointsAmountRest">0</span></div>
-                <div class="card"><div class="card-title">💤 Авто-отдых</div><div id="autoRestItems" class="shop-grid"></div></div>
-                <div id="bulkSellPanel">
+                <div class="card auto-progress-card"><div class="card-title">💤 Авто-отдых</div><p class="auto-progress-hint">Автоматически снижает усталость во время игры. Выбери порог срабатывания и включи подходящий уровень.</p><div id="autoRestItems" class="shop-grid auto-progress-list"></div></div>
+                <div id="bulkSellPanel" class="auto-progress-section">
                 <div class="points">⭐ <span id="pointsAmountBulk">0</span></div>
-                <div class="card"><div class="card-title">💰 Авто-продажа</div><div id="bulkSellItems" class="shop-grid"></div></div>
+                <div class="card auto-progress-card"><div class="card-title">💰 Авто-продажа</div><p class="auto-progress-hint">Настрой автоматическую продажу ненужных карт по редкости. Купленные настройки можно включать и выключать.</p><div id="bulkSellItems" class="shop-grid auto-progress-list"></div></div>
             </div>
             </div>
             <div id="upgradesSubTab" class="sub-tab-content">
