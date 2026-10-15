@@ -51,7 +51,7 @@ const customCardTemplates = {
         { name: "Дональд", universe: "Invincible", damage: 3, hp: 9, speed: 0.4, desc: "К счастью это не Дональд Трамп...." },
         {
             "name": "Поко",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 2,
             "hp": 7,
             "speed": 0.4,
@@ -59,7 +59,7 @@ const customCardTemplates = {
         },
         {
             "name": "Дэнни (пёс Джонатана)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 3,
             "hp": 9,
             "speed": 0.45,
@@ -67,7 +67,7 @@ const customCardTemplates = {
         },
         {
             "name": "Эрина Пендлтон (юность)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 2,
             "hp": 10,
             "speed": 0.4,
@@ -97,7 +97,7 @@ const customCardTemplates = {
         { name: "Кинг (без шрама)", universe: "OPM", patchId: "one_punch_man", damage: 4, hp: 18, speed: 0.45, ability: { type: "desperateStrike", value: 0.05, threshold: 0.30, desc: "+5% урона при HP ниже 30%" }, desc: "Его легендарная аура усиливает урон команды, когда здоровье падает ниже 30%." },
         {
             "name": "Роберт Э. О. Спидвагон",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 8,
             "hp": 17,
             "speed": 0.7,
@@ -105,7 +105,7 @@ const customCardTemplates = {
         },
         {
             "name": "Игги (The Fool)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 11,
             "hp": 16,
             "speed": 1.2,
@@ -119,7 +119,7 @@ const customCardTemplates = {
         },
         {
             "name": "Бруфорд",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 10,
             "hp": 22,
             "speed": 0.65,
@@ -132,7 +132,7 @@ const customCardTemplates = {
         },
         {
             "name": "Таркус",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 12,
             "hp": 25,
             "speed": 0.6,
@@ -140,7 +140,7 @@ const customCardTemplates = {
         },
         {
             "name": "Маунтин Тим",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 12,
             "hp": 20,
             "speed": 0.9,
@@ -153,7 +153,7 @@ const customCardTemplates = {
         },
         {
             "name": "Шигекиё Янгу (Шигечи)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 10,
             "hp": 23,
             "speed": 0.65,
@@ -196,7 +196,7 @@ const customCardTemplates = {
         { name: "Узник Пури-Пури", universe: "OPM", patchId: "one_punch_man", damage: 20, hp: 40, speed: 0.8, ability: { type: "damageReduction", value: 0.03, desc: "−3% получаемого урона" }, desc: "Герой S-класса с огромной физической силой и стойкостью. Хорошо держит удар, но не относится к верхушке рейтинга." },
         {
             "name": "Уилл Антонио Цеппели",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 19,
             "hp": 31,
             "speed": 1,
@@ -209,7 +209,7 @@ const customCardTemplates = {
         },
         {
             "name": "Рудол фон Штрохайм (киборг)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 22,
             "hp": 34,
             "speed": 0.8,
@@ -222,7 +222,7 @@ const customCardTemplates = {
         },
         {
             "name": "Хол Хорс (Emperor)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 21,
             "hp": 28,
             "speed": 1.1,
@@ -235,7 +235,7 @@ const customCardTemplates = {
         },
         {
             "name": "Н'Дул (Geb)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 22,
             "hp": 29,
             "speed": 0.85,
@@ -249,7 +249,7 @@ const customCardTemplates = {
         },
         {
             "name": "Коити Хиросэ (Echoes Act 1)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 20,
             "hp": 32,
             "speed": 0.95,
@@ -262,7 +262,7 @@ const customCardTemplates = {
         },
         {
             "name": "Пески (Beach Boy)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 19,
             "hp": 33,
             "speed": 0.85,
@@ -276,7 +276,7 @@ const customCardTemplates = {
         },
         {
             "name": "Векапипо (Wrecking Ball)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 24,
             "hp": 31,
             "speed": 1,
@@ -289,7 +289,7 @@ const customCardTemplates = {
         },
         {
             "name": "Сантана",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 24,
             "hp": 38,
             "speed": 0.85,
@@ -302,7 +302,7 @@ const customCardTemplates = {
         },
         {
             "name": "Кейчо Нидзимура (Bad Company)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 22,
             "hp": 32,
             "speed": 0.95,
@@ -316,7 +316,7 @@ const customCardTemplates = {
         },
         {
             "name": "Акира Отоиси (Red Hot Chili Pepper)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 24,
             "hp": 30,
             "speed": 1.2,
@@ -371,7 +371,7 @@ const customCardTemplates = {
         { name: "Сторожевой пёс", universe: "OPM", patchId: "one_punch_man", damage: 38, hp: 58, speed: 1.65, desc: "Загадочный герой S-класса, сражающийся резкими и непредсказуемыми движениями. Сильный боец без чрезмерных бонусов." },
         {
             "name": "Джонатан Джостар (Хамон)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 36,
             "hp": 58,
             "speed": 1.1,
@@ -384,7 +384,7 @@ const customCardTemplates = {
         },
         {
             "name": "Дио Брандо (часть 1)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 44,
             "hp": 56,
             "speed": 1.25,
@@ -397,7 +397,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джозеф Джостар (часть 2)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 41,
             "hp": 54,
             "speed": 1.4,
@@ -410,7 +410,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джозеф Джостар (часть 3: Hermit Purple)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 44,
             "hp": 61,
             "speed": 1.25,
@@ -423,7 +423,7 @@ const customCardTemplates = {
         },
         {
             "name": "Цезарь Антонио Цеппели",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 39,
             "hp": 49,
             "speed": 1.3,
@@ -436,7 +436,7 @@ const customCardTemplates = {
         },
         {
             "name": "Лиза Лиза",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 38,
             "hp": 60,
             "speed": 1.05,
@@ -449,7 +449,7 @@ const customCardTemplates = {
         },
         {
             "name": "Страйдзо (вампир)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 48,
             "hp": 59,
             "speed": 1.3,
@@ -462,7 +462,7 @@ const customCardTemplates = {
         },
         {
             "name": "Нориаки Какёин (Hierophant Green)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 44,
             "hp": 49,
             "speed": 1.25,
@@ -475,7 +475,7 @@ const customCardTemplates = {
         },
         {
             "name": "Жан-Пьер Польнарефф (Silver Chariot)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 49,
             "hp": 47,
             "speed": 1.5,
@@ -488,7 +488,7 @@ const customCardTemplates = {
         },
         {
             "name": "Мухаммед Абдул (Magician's Red)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 46,
             "hp": 56,
             "speed": 1.05,
@@ -502,7 +502,7 @@ const customCardTemplates = {
         },
         {
             "name": "Пет Шоп (Horus)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 42,
             "hp": 51,
             "speed": 1.2,
@@ -515,7 +515,7 @@ const customCardTemplates = {
         },
         {
             "name": "Окуясу Нидзимура (The Hand)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 47,
             "hp": 63,
             "speed": 0.95,
@@ -529,7 +529,7 @@ const customCardTemplates = {
         },
         {
             "name": "Коити Хиросэ (Echoes Act 3)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 48,
             "hp": 62,
             "speed": 1,
@@ -542,7 +542,7 @@ const customCardTemplates = {
         },
         {
             "name": "Юкако Ямагиси (Love Deluxe)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 43,
             "hp": 63,
             "speed": 1.1,
@@ -556,7 +556,7 @@ const customCardTemplates = {
         },
         {
             "name": "Гвидо Миста (Sex Pistols)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 43,
             "hp": 47,
             "speed": 1.5,
@@ -569,7 +569,7 @@ const customCardTemplates = {
         },
         {
             "name": "Наранча Гирга (Aerosmith)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 43,
             "hp": 49,
             "speed": 1.35,
@@ -583,7 +583,7 @@ const customCardTemplates = {
         },
         {
             "name": "Триш Уна (Spice Girl)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 45,
             "hp": 61,
             "speed": 1.15,
@@ -596,7 +596,7 @@ const customCardTemplates = {
         },
         {
             "name": "Просчутто (The Grateful Dead)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 50,
             "hp": 58,
             "speed": 1.1,
@@ -609,7 +609,7 @@ const customCardTemplates = {
         },
         {
             "name": "Гьяччо (White Album)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 49,
             "hp": 66,
             "speed": 1.1,
@@ -622,7 +622,7 @@ const customCardTemplates = {
         },
         {
             "name": "Эрмес Костелло (Kiss)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 46,
             "hp": 63,
             "speed": 1.2,
@@ -636,7 +636,7 @@ const customCardTemplates = {
         },
         {
             "name": "Foo Fighters (F.F.)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 40,
             "hp": 61,
             "speed": 1.2,
@@ -649,7 +649,7 @@ const customCardTemplates = {
         },
         {
             "name": "Эмпорио Алниньо",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 39,
             "hp": 56,
             "speed": 1,
@@ -662,7 +662,7 @@ const customCardTemplates = {
         },
         {
             "name": "Хот Пэнтс",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 47,
             "hp": 60,
             "speed": 1.2,
@@ -675,7 +675,7 @@ const customCardTemplates = {
         },
         {
             "name": "Сэндмен (In a Silent Way)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 46,
             "hp": 45,
             "speed": 1.65,
@@ -688,7 +688,7 @@ const customCardTemplates = {
         },
         {
             "name": "Ясухо Хиросэ (Paisley Park)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 39,
             "hp": 57,
             "speed": 1.1,
@@ -701,7 +701,7 @@ const customCardTemplates = {
         },
         {
             "name": "Драгона Джостар",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 43,
             "hp": 59,
             "speed": 1.25,
@@ -715,7 +715,7 @@ const customCardTemplates = {
         },
         {
             "name": "Усаги Алохаоэ",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 41,
             "hp": 51,
             "speed": 1.3,
@@ -728,7 +728,7 @@ const customCardTemplates = {
         },
         {
             "name": "Ринго Роудэгейн (Mandom)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 52,
             "hp": 61,
             "speed": 1.15,
@@ -784,7 +784,7 @@ const customCardTemplates = {
         { name: "Психос", universe: "OPM", patchId: "one_punch_man", damage: 58, hp: 80, speed: 1.5, ability: { type: "damageAura", value: 0.04, desc: "+4% урона всей команде" }, desc: "Могущественная экстрасенс и стратег Ассоциации монстров. Её психическая поддержка усиливает урон отряда." },
         {
             "name": "Вамуу",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 72,
             "hp": 108,
             "speed": 1.35,
@@ -797,7 +797,7 @@ const customCardTemplates = {
         },
         {
             "name": "Эйсидиси",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 66,
             "hp": 102,
             "speed": 1.2,
@@ -811,7 +811,7 @@ const customCardTemplates = {
         },
         {
             "name": "Карс (обычная форма)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 86,
             "hp": 124,
             "speed": 1.45,
@@ -824,7 +824,7 @@ const customCardTemplates = {
         },
         {
             "name": "Ванилла Айс (Cream)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 91,
             "hp": 112,
             "speed": 1.45,
@@ -837,7 +837,7 @@ const customCardTemplates = {
         },
         {
             "name": "Рохан Кишибэ (Heaven's Door)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 77,
             "hp": 101,
             "speed": 1.2,
@@ -850,7 +850,7 @@ const customCardTemplates = {
         },
         {
             "name": "Бруно Буччеллати (Sticky Fingers)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 84,
             "hp": 112,
             "speed": 1.45,
@@ -864,7 +864,7 @@ const customCardTemplates = {
         },
         {
             "name": "Леоне Аббаккио (Moody Blues)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 68,
             "hp": 96,
             "speed": 1.05,
@@ -877,7 +877,7 @@ const customCardTemplates = {
         },
         {
             "name": "Ризотто Неро (Metallica)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 90,
             "hp": 107,
             "speed": 1.3,
@@ -890,7 +890,7 @@ const customCardTemplates = {
         },
         {
             "name": "Нарцисо Анасуй (Diver Down)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 84,
             "hp": 110,
             "speed": 1.25,
@@ -903,7 +903,7 @@ const customCardTemplates = {
         },
         {
             "name": "Диего Брандо (Scary Monsters)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 92,
             "hp": 109,
             "speed": 1.6,
@@ -916,7 +916,7 @@ const customCardTemplates = {
         },
         {
             "name": "Винегар Доппио",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 81,
             "hp": 106,
             "speed": 1.25,
@@ -930,7 +930,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джонни Джостар (Tusk Act 2)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 94,
             "hp": 113,
             "speed": 1.4,
@@ -943,7 +943,7 @@ const customCardTemplates = {
         },
         {
             "name": "Рай Маме́дзуку (Doggy Style)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 82,
             "hp": 112,
             "speed": 1.3,
@@ -956,7 +956,7 @@ const customCardTemplates = {
         },
         {
             "name": "Пако Лабурентес (The Hustle)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 70,
             "hp": 97,
             "speed": 1.35,
@@ -969,7 +969,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джодио Джостар (November Rain)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 94,
             "hp": 117,
             "speed": 1.35,
@@ -982,7 +982,7 @@ const customCardTemplates = {
         },
         {
             "name": "Йошикаге Кира (JoJolion)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 86,
             "hp": 104,
             "speed": 1.45,
@@ -996,7 +996,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джошу Хигашиката (Nut King Call)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 68,
             "hp": 94,
             "speed": 1.05,
@@ -1053,7 +1053,7 @@ const customCardTemplates = {
         { name: "Бласт", universe: "OPM", patchId: "one_punch_man", damage: 118, hp: 140, speed: 2.6, ability: { type: "damageReduction", value: 0.08, desc: "−8% получаемого урона" }, statusAbility: { type: "freezeStacks", value: 1, desc: "Пространственные порталы: +1 клик до контратаки" }, desc: "Герой №1 S-класса использует пространственные порталы и силу, связанную с измерениями. Сильнейшая карта разлома, но ниже космических и божественных форм." },
         {
             "name": "Джотаро Куджо (часть 3: Star Platinum)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 142,
             "hp": 220,
             "speed": 2,
@@ -1072,7 +1072,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джотаро Куджо (часть 4)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 126,
             "hp": 211,
             "speed": 1.9,
@@ -1087,7 +1087,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джоске Хигашиката (часть 4: Crazy Diamond)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 123,
             "hp": 222,
             "speed": 1.85,
@@ -1101,7 +1101,7 @@ const customCardTemplates = {
         },
         {
             "name": "Йошикаге Кира (часть 4: Killer Queen)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 136,
             "hp": 199,
             "speed": 1.8,
@@ -1122,7 +1122,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джорно Джованна (Gold Experience)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 137,
             "hp": 218,
             "speed": 2.1,
@@ -1136,7 +1136,7 @@ const customCardTemplates = {
         },
         {
             "name": "Дьяволо (King Crimson)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 148,
             "hp": 211,
             "speed": 2.2,
@@ -1151,7 +1151,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джолин Куджо (Stone Free)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 128,
             "hp": 228,
             "speed": 2,
@@ -1165,7 +1165,7 @@ const customCardTemplates = {
         },
         {
             "name": "Уэзер Репорт (часть 6)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 132,
             "hp": 214,
             "speed": 1.85,
@@ -1184,7 +1184,7 @@ const customCardTemplates = {
         },
         {
             "name": "Энрико Пуччи (Whitesnake)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 132,
             "hp": 203,
             "speed": 2,
@@ -1198,7 +1198,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джироламо Джеппели (Gyro Zeppeli)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 134,
             "hp": 207,
             "speed": 1.9,
@@ -1212,7 +1212,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джонни Джостар (Tusk Act 3)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 151,
             "hp": 213,
             "speed": 2,
@@ -1226,7 +1226,7 @@ const customCardTemplates = {
         },
         {
             "name": "Фанни Валентайн (D4C)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 156,
             "hp": 224,
             "speed": 1.9,
@@ -1240,7 +1240,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джоске Хигашиката (JoJolion: Soft & Wet)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 146,
             "hp": 218,
             "speed": 2.1,
@@ -1255,7 +1255,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джобин Хигашиката (Speed King)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 133,
             "hp": 198,
             "speed": 1.9,
@@ -1275,7 +1275,7 @@ const customCardTemplates = {
         },
         {
             "name": "Диего Брандо (The World)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 153,
             "hp": 205,
             "speed": 2.35,
@@ -1289,7 +1289,7 @@ const customCardTemplates = {
         },
         {
             "name": "Энрико Пуччи (C-Moon)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 146,
             "hp": 213,
             "speed": 2.25,
@@ -1303,7 +1303,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джонни Джостар (Tusk Act 1)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 118,
             "hp": 188,
             "speed": 1.8,
@@ -1434,7 +1434,7 @@ const customCardTemplates = {
             superAbility: { name: "SUPER: СИМВОЛ МИРА", desc: "Хитбокс x2, урон x3 на 15 секунд! Но потом теряешь 50% HP и НАВСЕГДА замедляешься в 3 раза. ПЛЮЮЮС УЛЬТРААААА!", passive: false }
         },
         { 
-            name: "ДИО Over Heaven", universe: "JoJo", damage: 280, hp: 420, speed: 3.1, sellPrice: 3500, minRebirth: 4,
+            name: "ДИО Over Heaven", universe: "JoJo", patchId: "jojo", damage: 280, hp: 420, speed: 3.1, sellPrice: 3500, minRebirth: 4,
             ability: { type: "oneShot", chance: 0.03, desc: "3% шанс мгновенно уничтожить врага, даже босса" },
             statusAbility: { type: "shock", chance: 0.15, desc: "15% шанс шока" },
             extraStatus: [],
@@ -1457,7 +1457,7 @@ const customCardTemplates = {
         {"name":"Гол Д. Роджер (Камусари)","universe":"One Piece","patchId":"one_piece","damage":265,"hp":275,"speed":3.1,"ability":{"type":"bossDamage","value":0.3,"desc":"+30% урона боссам"},"statusAbility":{"type":"bleed","value":0.08,"desc":"+8% урона через хаки"},"desc":"Роджер выпускает Камусари — стремительный удар хаки, прославивший Короля пиратов."},
         {
             "name": "ДИО (The World, часть 3)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 255,
             "hp": 365,
             "speed": 2.8,
@@ -1477,7 +1477,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джорно Джованна (Gold Experience Requiem)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 320,
             "hp": 460,
             "speed": 2.7,
@@ -1496,7 +1496,7 @@ const customCardTemplates = {
         },
         {
             "name": "Энрико Пуччи (Made in Heaven)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 300,
             "hp": 390,
             "speed": 3.2,
@@ -1510,7 +1510,7 @@ const customCardTemplates = {
         },
         {
             "name": "Джонни Джостар (Tusk Act 4)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 345,
             "hp": 420,
             "speed": 2.8,
@@ -1524,7 +1524,7 @@ const customCardTemplates = {
         },
         {
             "name": "Карс (Высшее существо)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 310,
             "hp": 490,
             "speed": 2.65,
@@ -1538,7 +1538,7 @@ const customCardTemplates = {
         },
         {
             "name": "Тору (Wonder of U)",
-            "universe": "JoJo",
+            "universe": "JoJo", "patchId": "jojo",
             "damage": 295,
             "hp": 435,
             "speed": 2.7,
