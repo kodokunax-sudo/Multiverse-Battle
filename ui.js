@@ -273,10 +273,13 @@ function renderEnemy() {
     document.getElementById("enemyContainer").innerHTML = '<div style="font-size:22px;font-weight:900;margin-bottom:8px;">' + currentEnemy.name + '</div><div style="font-size:14px;margin-bottom:5px;">❤️ ' + Math.floor(currentEnemy.hp) + ' / ' + currentEnemy.maxHp + '</div><div style="background:rgba(0,0,0,0.5);border-radius:10px;margin-bottom:8px;"><div style="width:' + p + '%;background:linear-gradient(90deg, #e74c3c, #f5af19);height:12px;border-radius:10px;"></div></div><div style="font-size:14px;color:#aaa;">⚔️ Урон: ' + currentEnemy.damage + '</div>'; 
     document.getElementById("waveNumber").innerText = wave; 
     document.getElementById("rewardPreview").innerText = rew; 
-    if (currentEnemy.isBoss && currentEnemy.hp <= currentEnemy.maxHp * 0.3 && currentEnemy.hp > 0) { 
-        document.getElementById("spareBtn").style.display = "block"; 
-    } else { 
-        document.getElementById("spareBtn").style.display = "none"; 
+    // Кнопка spareBtn удалена из HTML; если её вернут позже, обновляем только существующий элемент.
+    const spareBtn = document.getElementById("spareBtn");
+    if (spareBtn) {
+        spareBtn.style.display = currentEnemy.isBoss &&
+            currentEnemy.hp <= currentEnemy.maxHp * 0.3 && currentEnemy.hp > 0
+            ? "block"
+            : "none";
     } 
     if (currentDialog && wave === 10000 && currentEnemy.hp <= currentEnemy.maxHp * 0.5 && currentEnemy.hp > 0) { 
         renderDialog(); 
