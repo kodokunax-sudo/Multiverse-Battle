@@ -291,7 +291,8 @@
             var card = mainCard();
             var combat = inCombat();
             var btn = document.getElementById("superBtn");
-            if (!btn || !isStandUser(card) || !combat.active) return result;
+            var buffStatus = document.getElementById("standBuffStatus");
+            if (!btn || !isStandUser(card) || !combat.active) { if (buffStatus) buffStatus.style.display = "none"; return result; }
 
             var standInfo = getStandInfo(card);
             var hasMastery = combat.unique
