@@ -246,7 +246,7 @@ function renderPass() {
     html += '<div style="font-size:12px;color:#aaa;">💡 Опыт начисляется за клики, победы и убийства боссов</div>';
     html += '</div>';
     
-    html += '<div style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;padding-right:5px;" id="passTiersList">';
+    html += '<div style="display:flex;flex-direction:column;gap:8px;padding-right:2px;" id="passTiersList">';
     for (let i = 0; i < passRewards.length; i++) {
         let tier = i + 1;
         let reward = passRewards[i];
@@ -258,10 +258,11 @@ function renderPass() {
         let borderColor = claimed ? '#2ecc71' : (unlocked ? (isCurrent ? '#f5af19' : 'rgba(255,255,255,0.15)') : 'rgba(255,255,255,0.05)');
         let opacity = unlocked ? '1' : '0.4';
         
-        html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:' + bgColor + ';border:2px solid ' + borderColor + ';border-radius:14px;opacity:' + opacity + ';transition:all 0.2s;min-height:50px;">';
-        html += '<div style="font-size:20px;min-width:30px;text-align:center;">' + reward.icon + '</div>';
-        html += '<div style="flex:1;">';
-        html += '<div style="font-weight:800;font-size:12px;">Этап ' + tier + ': ' + reward.name + '</div>';
+        html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:' + bgColor + ';border:2px solid ' + borderColor + ';border-radius:14px;opacity:' + opacity + ';transition:all 0.2s;min-height:58px;box-sizing:border-box;">';
+        html += '<div style="font-size:28px;min-width:34px;text-align:center;">' + reward.icon + '</div>';
+        html += '<div style="flex:1;min-width:0;">';
+        html += '<div style="font-weight:800;font-size:13px;">Этап ' + tier + ': ' + reward.name + '</div>';
+        html += '<div style="font-size:11px;color:#aaa;margin-top:3px;">' + (claimed ? 'Награда получена' : (unlocked ? 'Награда доступна' : 'Откроется по мере прокачки пасса')) + '</div>';
         html += '</div>';
         if (claimed) {
             html += '<div style="font-size:16px;color:#2ecc71;">✅</div>';
