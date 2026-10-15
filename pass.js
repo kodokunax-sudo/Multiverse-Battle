@@ -227,7 +227,7 @@ function renderPass() {
     
     // ★ СОХРАНЯЕМ ПОЗИЦИЮ СКРОЛЛА ДО ПЕРЕРИСОВКИ ★
     let oldTiersList = document.getElementById("passTiersList");
-    let savedScroll = oldTiersList ? oldTiersList.scrollTop : _passScrollPosition;
+    let savedScroll = oldTiersList ? oldTiersList.scrollLeft : _passScrollPosition;
     _passScrollPosition = savedScroll;
     
     let html = '';
@@ -246,7 +246,7 @@ function renderPass() {
     html += '<div style="font-size:12px;color:#aaa;">💡 Опыт начисляется за клики, победы и убийства боссов</div>';
     html += '</div>';
     
-    html += '<div style="display:flex;flex-direction:column;gap:8px;padding-right:2px;" id="passTiersList">';
+    html += '<div style="display:flex;flex-direction:row;gap:10px;padding:4px 2px 12px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;" id="passTiersList">';
     for (let i = 0; i < passRewards.length; i++) {
         let tier = i + 1;
         let reward = passRewards[i];
@@ -258,9 +258,9 @@ function renderPass() {
         let borderColor = claimed ? '#2ecc71' : (unlocked ? (isCurrent ? '#f5af19' : 'rgba(255,255,255,0.15)') : 'rgba(255,255,255,0.05)');
         let opacity = unlocked ? '1' : '0.4';
         
-        html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:' + bgColor + ';border:2px solid ' + borderColor + ';border-radius:14px;opacity:' + opacity + ';transition:all 0.2s;min-height:58px;box-sizing:border-box;">';
-        html += '<div style="font-size:28px;min-width:34px;text-align:center;">' + reward.icon + '</div>';
-        html += '<div style="flex:1;min-width:0;">';
+        html += '<div style="display:flex;flex:0 0 260px;flex-direction:column;align-items:stretch;justify-content:space-between;gap:10px;padding:14px;background:' + bgColor + ';border:2px solid ' + borderColor + ';border-radius:14px;opacity:' + opacity + ';transition:all 0.2s;min-height:170px;box-sizing:border-box;scroll-snap-align:start;">';
+        html += '<div style="font-size:30px;min-height:38px;text-align:center;">' + reward.icon + '</div>';
+        html += '<div style="flex:1;min-width:0;text-align:center;">';
         html += '<div style="font-weight:800;font-size:13px;">Этап ' + tier + ': ' + reward.name + '</div>';
         html += '<div style="font-size:11px;color:#aaa;margin-top:3px;">' + (claimed ? 'Награда получена' : (unlocked ? 'Награда доступна' : 'Откроется по мере прокачки пасса')) + '</div>';
         html += '</div>';
@@ -280,10 +280,10 @@ function renderPass() {
     // ★ ВОССТАНАВЛИВАЕМ СКРОЛЛ ПОСЛЕ ВСТАВКИ HTML ★
     let newTiersList = document.getElementById("passTiersList");
     if (newTiersList) {
-        newTiersList.scrollTop = savedScroll;
+        newTiersList.scrollLeft = savedScroll;
         // Запоминаем позицию при скролле пользователем
         newTiersList.addEventListener('scroll', function() {
-            _passScrollPosition = newTiersList.scrollTop;
+            _passScrollPosition = newTiersList.scrollLeft;
         });
     }
 }
