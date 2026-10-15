@@ -260,7 +260,7 @@
 <span class="rarity-tag legendary">🟡 Легендарная</span> — топовые<br>
 <span class="rarity-tag secret">💎 Секретная</span> — имба, с СУПЕР<br>
 <span class="rarity-tag evolutionary">🧬 Эволюционная</span> — только крафт<br>
-<span class="rarity-tag boss-rarity">👑 Босс</span> — с пощады боссов<br>
+<span class="rarity-tag boss-rarity">👑 Босс</span> — особые карты боссов<br>
 <span class="rarity-tag easter">🥚 Пасхалка</span> — секретные
 </div>
 
