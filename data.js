@@ -48,7 +48,36 @@ const customCardTemplates = {
         { name: "Аста", universe: "Black Clover", damage: 3, hp: 8, speed: 0.6, desc: "Маг без магии с анти-мечом." },
         { name: "Хьюи (слабый)", universe: "The Boys", damage: 2, hp: 10, speed: 0.4, desc: "Парень, чью девушку сбил А Train." },
         { name: "Френчи", universe: "The Boys", damage: 4, hp: 6, speed: 0.5, desc: "Оружейник и спецназовец." },
-        { name: "Дональд", universe: "Invincible", damage: 3, hp: 9, speed: 0.4, desc: "К счастью это не Дональд Трамп...." }
+        { name: "Дональд", universe: "Invincible", damage: 3, hp: 9, speed: 0.4, desc: "К счастью это не Дональд Трамп...." },
+        {
+            "name": "Поко",
+            "universe": "JoJo",
+            "damage": 2,
+            "hp": 7,
+            "speed": 0.4,
+            "desc": "Мальчик из первой части, который помогает Джонатану найти дорогу и преодолеть страх."
+        },
+        {
+            "name": "Дэнни (пёс Джонатана)",
+            "universe": "JoJo",
+            "damage": 3,
+            "hp": 9,
+            "speed": 0.45,
+            "desc": "Преданный пёс Джонатана. Одна из самых запоминающихся частей его детства."
+        },
+        {
+            "name": "Эрина Пендлтон (юность)",
+            "universe": "JoJo",
+            "damage": 2,
+            "hp": 10,
+            "speed": 0.4,
+            "ability": {
+                "type": "healOnWin",
+                "percent": 0.01,
+                "desc": "+1% HP после победы"
+            },
+            "desc": "Подруга детства Джонатана. Не боец, но её поддержка помогает пережить следующий бой."
+        }
     ],
     "Редкая": [
         { name: "Брук", universe: "One Piece", damage: 7, hp: 12, speed: 0.9, desc: "Скелет-музыкант. Йохохо!" },
@@ -65,7 +94,77 @@ const customCardTemplates = {
         {"name":"Гальдино (Мистер 3)","universe":"One Piece","patchId":"one_piece","damage":9,"hp":22,"speed":0.55,"ability":{"type":"damageReduction","value":0.03,"desc":"−3% получаемого урона"},"desc":"Хитрый мастер воска. Создаёт защитные конструкции и ловушки."},
         {"name":"Фокси","universe":"One Piece","patchId":"one_piece","damage":6,"hp":15,"speed":0.55,"statusAbility":{"type":"freezeStacks","value":1,"desc":"Замедление: +1 клик до контратаки"},"desc":"Капитан Пиратов Фокси использует силу замедляющего фрукта, чтобы сбивать темп противника."},
         { name: "Мумен Райдер", universe: "OPM", patchId: "one_punch_man", damage: 6, hp: 22, speed: 0.6, ability: { type: "desperateStrike", value: 0.06, threshold: 0.30, desc: "+6% урона при HP ниже 30%" }, desc: "Герой класса C, который не отступает даже перед заведомо более сильным врагом. Когда здоровье команды падает ниже 30%, его решимость усиливает общий урон." },
-        { name: "Кинг (без шрама)", universe: "OPM", patchId: "one_punch_man", damage: 4, hp: 18, speed: 0.45, ability: { type: "desperateStrike", value: 0.05, threshold: 0.30, desc: "+5% урона при HP ниже 30%" }, desc: "Его легендарная аура усиливает урон команды, когда здоровье падает ниже 30%." }
+        { name: "Кинг (без шрама)", universe: "OPM", patchId: "one_punch_man", damage: 4, hp: 18, speed: 0.45, ability: { type: "desperateStrike", value: 0.05, threshold: 0.30, desc: "+5% урона при HP ниже 30%" }, desc: "Его легендарная аура усиливает урон команды, когда здоровье падает ниже 30%." },
+        {
+            "name": "Роберт Э. О. Спидвагон",
+            "universe": "JoJo",
+            "damage": 8,
+            "hp": 17,
+            "speed": 0.7,
+            "desc": "Бывший уличный боец, ставший верным союзником Джонатана и основателем фонда Спидвагонов."
+        },
+        {
+            "name": "Игги (The Fool)",
+            "universe": "JoJo",
+            "damage": 11,
+            "hp": 16,
+            "speed": 1.2,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.08,
+                "mult": 1.25,
+                "desc": "8% шанс нанести ×1,25 урона"
+            },
+            "desc": "Упрямый пёс-стенд-юзер. The Fool позволяет ему создавать конструкции из песка."
+        },
+        {
+            "name": "Бруфорд",
+            "universe": "JoJo",
+            "damage": 10,
+            "hp": 22,
+            "speed": 0.65,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.03,
+                "desc": "−3% получаемого урона"
+            },
+            "desc": "Рыцарь-зомби с длинными волосами, которыми он может связывать противников."
+        },
+        {
+            "name": "Таркус",
+            "universe": "JoJo",
+            "damage": 12,
+            "hp": 25,
+            "speed": 0.6,
+            "desc": "Могучий рыцарь, превращённый в жестокого зомби."
+        },
+        {
+            "name": "Маунтин Тим",
+            "universe": "JoJo",
+            "damage": 12,
+            "hp": 20,
+            "speed": 0.9,
+            "ability": {
+                "type": "critChance",
+                "value": 0.05,
+                "desc": "+5% шанс критического удара"
+            },
+            "desc": "Охотник за головами из Steel Ball Run, использующий верёвку для атак и передвижения."
+        },
+        {
+            "name": "Шигекиё Янгу (Шигечи)",
+            "universe": "JoJo",
+            "damage": 10,
+            "hp": 23,
+            "speed": 0.65,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.08,
+                "mult": 1.2,
+                "desc": "8% шанс нанести ×1,2 урона"
+            },
+            "desc": "Школьник со стендом Harvest, который действует сразу множеством крошечных помощников."
+        }
     ],
     "Сверх редкая": [
         { name: "Луффи (2 гир)", universe: "One Piece", damage: 16, hp: 25, speed: 1.5, desc: "Ускоренный кровоток. Быстрее и сильнее." },
@@ -94,7 +193,140 @@ const customCardTemplates = {
         {"name":"Арлонг","universe":"One Piece","patchId":"one_piece","damage":32,"hp":45,"speed":1.1,"ability":{"type":"damageReduction","value":0.06,"desc":"−6% получаемого урона"},"desc":"Жестокий рыбочеловек с огромной физической силой и мощной челюстью."},
         { name: "Фубуки", universe: "OPM", patchId: "one_punch_man", damage: 18, hp: 34, speed: 0.95, ability: { type: "damageAura", value: 0.03, desc: "+3% урона всей команде" }, desc: "Лидер группы Blizzard. Её телекинез и умение руководить союзниками дают небольшой бонус всему отряду." },
         { name: "Император Дитя", universe: "OPM", patchId: "one_punch_man", damage: 19, hp: 30, speed: 1.0, ability: { type: "critChance", value: 0.04, desc: "+4% к шансу критического удара" }, desc: "Юный S-класс герой, полагающийся на интеллект, гаджеты и точечные удары по слабым местам." },
-        { name: "Узник Пури-Пури", universe: "OPM", patchId: "one_punch_man", damage: 20, hp: 40, speed: 0.8, ability: { type: "damageReduction", value: 0.03, desc: "−3% получаемого урона" }, desc: "Герой S-класса с огромной физической силой и стойкостью. Хорошо держит удар, но не относится к верхушке рейтинга." }
+        { name: "Узник Пури-Пури", universe: "OPM", patchId: "one_punch_man", damage: 20, hp: 40, speed: 0.8, ability: { type: "damageReduction", value: 0.03, desc: "−3% получаемого урона" }, desc: "Герой S-класса с огромной физической силой и стойкостью. Хорошо держит удар, но не относится к верхушке рейтинга." },
+        {
+            "name": "Уилл Антонио Цеппели",
+            "universe": "JoJo",
+            "damage": 19,
+            "hp": 31,
+            "speed": 1,
+            "ability": {
+                "type": "damageAura",
+                "value": 0.03,
+                "desc": "+3% урона команде"
+            },
+            "desc": "Наставник Джонатана, обучающий его Хамону."
+        },
+        {
+            "name": "Рудол фон Штрохайм (киборг)",
+            "universe": "JoJo",
+            "damage": 22,
+            "hp": 34,
+            "speed": 0.8,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.04,
+                "desc": "−4% получаемого урона"
+            },
+            "desc": "Немецкий офицер, усиленный механическими имплантами и мощным оружием."
+        },
+        {
+            "name": "Хол Хорс (Emperor)",
+            "universe": "JoJo",
+            "damage": 21,
+            "hp": 28,
+            "speed": 1.1,
+            "ability": {
+                "type": "critChance",
+                "value": 0.08,
+                "desc": "+8% шанс критического удара"
+            },
+            "desc": "Стрелок, чей стенд Emperor создаёт управляемые пули."
+        },
+        {
+            "name": "Н'Дул (Geb)",
+            "universe": "JoJo",
+            "damage": 22,
+            "hp": 29,
+            "speed": 0.85,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.1,
+                "mult": 1.3,
+                "desc": "10% шанс нанести ×1,3 урона"
+            },
+            "desc": "Слепой пользователь Geb, управляющий водой с опасной точностью."
+        },
+        {
+            "name": "Коити Хиросэ (Echoes Act 1)",
+            "universe": "JoJo",
+            "damage": 20,
+            "hp": 32,
+            "speed": 0.95,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.03,
+                "desc": "−3% получаемого урона"
+            },
+            "desc": "Начальная форма Echoes, способная создавать звуковые эффекты и слова."
+        },
+        {
+            "name": "Пески (Beach Boy)",
+            "universe": "JoJo",
+            "damage": 19,
+            "hp": 33,
+            "speed": 0.85,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.09,
+                "mult": 1.25,
+                "desc": "9% шанс нанести ×1,25 урона"
+            },
+            "desc": "Молодой член команды Bucciarati, использующий стенд-удочку для атак сквозь препятствия."
+        },
+        {
+            "name": "Векапипо (Wrecking Ball)",
+            "universe": "JoJo",
+            "damage": 24,
+            "hp": 31,
+            "speed": 1,
+            "ability": {
+                "type": "critChance",
+                "value": 0.08,
+                "desc": "+8% шанс критического удара"
+            },
+            "desc": "Боец Steel Ball Run, применяющий вращение и особые стальные сферы."
+        },
+        {
+            "name": "Сантана",
+            "universe": "JoJo",
+            "damage": 24,
+            "hp": 38,
+            "speed": 0.85,
+            "ability": {
+                "type": "healOnWin",
+                "percent": 0.02,
+                "desc": "+2% HP после победы"
+            },
+            "desc": "Пробудившийся Человек из колонны. Способен изменять тело и поглощать противников."
+        },
+        {
+            "name": "Кейчо Нидзимура (Bad Company)",
+            "universe": "JoJo",
+            "damage": 22,
+            "hp": 32,
+            "speed": 0.95,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.1,
+                "mult": 1.25,
+                "desc": "10% шанс нанести ×1,25 урона"
+            },
+            "desc": "Старший брат Окуясу, командующий армией миниатюрных солдат и техники."
+        },
+        {
+            "name": "Акира Отоиси (Red Hot Chili Pepper)",
+            "universe": "JoJo",
+            "damage": 24,
+            "hp": 30,
+            "speed": 1.2,
+            "ability": {
+                "type": "critChance",
+                "value": 0.1,
+                "desc": "+10% шанс критического удара"
+            },
+            "desc": "Гитарист, чей стенд питается электричеством и становится сильнее от энергии."
+        }
     ],
     "Эпик": [
         { name: "Луффи (Таймскип)", universe: "One Piece", damage: 28, hp: 45, speed: 1.6, ability: { type: "damageMultChance", chance: 0.35, mult: 1.3, desc: "35% урон x1.3" }, desc: "После двух лет тренировок. Шанс 35% нанести в 1.3 раза больше урона." },
@@ -136,7 +368,377 @@ const customCardTemplates = {
         { name: "Соник (Скорость звука)", universe: "OPM", patchId: "one_punch_man", damage: 35, hp: 43, speed: 1.9, ability: { type: "critChance", value: 0.05, desc: "+5% к шансу критического удара" }, desc: "Ниндзя-убийца, делающий ставку на скорость и точность. Быстрые атаки чаще попадают в уязвимые места." },
         { name: "Металлическая Бита", universe: "OPM", patchId: "one_punch_man", damage: 36, hp: 60, speed: 1.3, ability: { type: "damageMultChance", chance: 0.15, mult: 1.25, desc: "15% шанс нанести ×1,25 урона" }, desc: "Чем дольше продолжается схватка, тем яростнее он сражается. Иногда наносит особенно мощный удар." },
         { name: "Девушка-комар", universe: "OPM", patchId: "one_punch_man", damage: 35, hp: 45, speed: 1.7, ability: { type: "healOnWin", percent: 0.025, desc: "+2,5% HP после победы" }, desc: "Монстр с высокой скоростью и способностью восстанавливать силы за счёт крови. Её регенерация помогает после боя." },
-        { name: "Сторожевой пёс", universe: "OPM", patchId: "one_punch_man", damage: 38, hp: 58, speed: 1.65, desc: "Загадочный герой S-класса, сражающийся резкими и непредсказуемыми движениями. Сильный боец без чрезмерных бонусов." }
+        { name: "Сторожевой пёс", universe: "OPM", patchId: "one_punch_man", damage: 38, hp: 58, speed: 1.65, desc: "Загадочный герой S-класса, сражающийся резкими и непредсказуемыми движениями. Сильный боец без чрезмерных бонусов." },
+        {
+            "name": "Джонатан Джостар (Хамон)",
+            "universe": "JoJo",
+            "damage": 36,
+            "hp": 58,
+            "speed": 1.1,
+            "ability": {
+                "type": "damageAura",
+                "value": 0.04,
+                "desc": "+4% урона команде"
+            },
+            "desc": "Первый Джостар: честный и невероятно сильный боец, освоивший Хамон."
+        },
+        {
+            "name": "Дио Брандо (часть 1)",
+            "universe": "JoJo",
+            "damage": 44,
+            "hp": 56,
+            "speed": 1.25,
+            "ability": {
+                "type": "healOnWin",
+                "percent": 0.025,
+                "desc": "+2,5% HP после победы"
+            },
+            "desc": "Дио после превращения в вампира. Регенерация делает его опасным противником."
+        },
+        {
+            "name": "Джозеф Джостар (часть 2)",
+            "universe": "JoJo",
+            "damage": 41,
+            "hp": 54,
+            "speed": 1.4,
+            "ability": {
+                "type": "critChance",
+                "value": 0.1,
+                "desc": "+10% шанс критического удара"
+            },
+            "desc": "Изобретательный Джозеф сочетает Хамон, ловушки и психологические уловки."
+        },
+        {
+            "name": "Джозеф Джостар (часть 3: Hermit Purple)",
+            "universe": "JoJo",
+            "damage": 44,
+            "hp": 61,
+            "speed": 1.25,
+            "ability": {
+                "type": "damageAura",
+                "value": 0.04,
+                "desc": "+4% урона команде"
+            },
+            "desc": "Постаревший Джозеф использует Хамон и стенд Hermit Purple для разведки и контроля."
+        },
+        {
+            "name": "Цезарь Антонио Цеппели",
+            "universe": "JoJo",
+            "damage": 39,
+            "hp": 49,
+            "speed": 1.3,
+            "ability": {
+                "type": "bossDamage",
+                "value": 0.05,
+                "desc": "+5% урона боссам"
+            },
+            "desc": "Мастер Хамона, сражающийся с помощью пузырей, наполненных солнечной энергией."
+        },
+        {
+            "name": "Лиза Лиза",
+            "universe": "JoJo",
+            "damage": 38,
+            "hp": 60,
+            "speed": 1.05,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.06,
+                "desc": "−6% получаемого урона"
+            },
+            "desc": "Опытная наставница Хамона, сочетающая дисциплину и точные удары."
+        },
+        {
+            "name": "Страйдзо (вампир)",
+            "universe": "JoJo",
+            "damage": 48,
+            "hp": 59,
+            "speed": 1.3,
+            "ability": {
+                "type": "healOnWin",
+                "percent": 0.03,
+                "desc": "+3% HP после победы"
+            },
+            "desc": "Бывший пользователь Хамона, который обратился в вампира ради вечной молодости."
+        },
+        {
+            "name": "Нориаки Какёин (Hierophant Green)",
+            "universe": "JoJo",
+            "damage": 44,
+            "hp": 49,
+            "speed": 1.25,
+            "statusAbility": {
+                "type": "shock",
+                "chance": 0.08,
+                "desc": "8% шанс шока"
+            },
+            "desc": "Стенд Какёина атакует на расстоянии и может опутывать цели изумрудными нитями."
+        },
+        {
+            "name": "Жан-Пьер Польнарефф (Silver Chariot)",
+            "universe": "JoJo",
+            "damage": 49,
+            "hp": 47,
+            "speed": 1.5,
+            "ability": {
+                "type": "critChance",
+                "value": 0.11,
+                "desc": "+11% шанс критического удара"
+            },
+            "desc": "Фехтовальщик с молниеносным стендом Silver Chariot."
+        },
+        {
+            "name": "Мухаммед Абдул (Magician's Red)",
+            "universe": "JoJo",
+            "damage": 46,
+            "hp": 56,
+            "speed": 1.05,
+            "statusAbility": {
+                "type": "fire",
+                "damage": 5,
+                "duration": 3000,
+                "desc": "Пламя наносит 5 урона за тик"
+            },
+            "desc": "Пользователь огненного стенда Magician's Red."
+        },
+        {
+            "name": "Пет Шоп (Horus)",
+            "universe": "JoJo",
+            "damage": 42,
+            "hp": 51,
+            "speed": 1.2,
+            "statusAbility": {
+                "type": "freezeStacks",
+                "value": 1,
+                "desc": "Замедление противника"
+            },
+            "desc": "Сокол, использующий ледяной стенд Horus и атакующий с воздуха."
+        },
+        {
+            "name": "Окуясу Нидзимура (The Hand)",
+            "universe": "JoJo",
+            "damage": 47,
+            "hp": 63,
+            "speed": 0.95,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.1,
+                "mult": 1.4,
+                "desc": "10% шанс нанести ×1,4 урона"
+            },
+            "desc": "Стенд Окуясу стирает пространство правой рукой, но его владелец действует импульсивно."
+        },
+        {
+            "name": "Коити Хиросэ (Echoes Act 3)",
+            "universe": "JoJo",
+            "damage": 48,
+            "hp": 62,
+            "speed": 1,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.05,
+                "desc": "−5% получаемого урона"
+            },
+            "desc": "Третья форма Echoes способна резко увеличивать вес выбранной цели."
+        },
+        {
+            "name": "Юкако Ямагиси (Love Deluxe)",
+            "universe": "JoJo",
+            "damage": 43,
+            "hp": 63,
+            "speed": 1.1,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.1,
+                "mult": 1.3,
+                "desc": "10% шанс нанести ×1,3 урона"
+            },
+            "desc": "Опасная пользовательница стенда, управляющего её волосами."
+        },
+        {
+            "name": "Гвидо Миста (Sex Pistols)",
+            "universe": "JoJo",
+            "damage": 43,
+            "hp": 47,
+            "speed": 1.5,
+            "ability": {
+                "type": "critChance",
+                "value": 0.12,
+                "desc": "+12% шанс критического удара"
+            },
+            "desc": "Меткий стрелок, чьи маленькие стенды перенаправляют пули."
+        },
+        {
+            "name": "Наранча Гирга (Aerosmith)",
+            "universe": "JoJo",
+            "damage": 43,
+            "hp": 49,
+            "speed": 1.35,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.12,
+                "mult": 1.3,
+                "desc": "12% шанс нанести ×1,3 урона"
+            },
+            "desc": "Пилот миниатюрного самолёта Aerosmith, отслеживающего дыхание и атакующего пулемётами."
+        },
+        {
+            "name": "Триш Уна (Spice Girl)",
+            "universe": "JoJo",
+            "damage": 45,
+            "hp": 61,
+            "speed": 1.15,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.06,
+                "desc": "−6% получаемого урона"
+            },
+            "desc": "Пробуждённый стенд Trish смягчает любые материалы, помогая ей защищаться и атаковать."
+        },
+        {
+            "name": "Просчутто (The Grateful Dead)",
+            "universe": "JoJo",
+            "damage": 50,
+            "hp": 58,
+            "speed": 1.1,
+            "statusAbility": {
+                "type": "bleed",
+                "value": 0.05,
+                "desc": "+5% урона через кровотечение"
+            },
+            "desc": "Безжалостный член команды убийц, чья способность ускоряет старение целей."
+        },
+        {
+            "name": "Гьяччо (White Album)",
+            "universe": "JoJo",
+            "damage": 49,
+            "hp": 66,
+            "speed": 1.1,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.07,
+                "desc": "−7% получаемого урона"
+            },
+            "desc": "Создаёт ледяную броню и замораживает окружающее пространство."
+        },
+        {
+            "name": "Эрмес Костелло (Kiss)",
+            "universe": "JoJo",
+            "damage": 46,
+            "hp": 63,
+            "speed": 1.2,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.1,
+                "mult": 1.35,
+                "desc": "10% шанс нанести ×1,35 урона"
+            },
+            "desc": "Использует наклейки Kiss, чтобы создавать копии объектов и затем резко соединять их."
+        },
+        {
+            "name": "Foo Fighters (F.F.)",
+            "universe": "JoJo",
+            "damage": 40,
+            "hp": 61,
+            "speed": 1.2,
+            "ability": {
+                "type": "healOnWin",
+                "percent": 0.03,
+                "desc": "+3% HP после победы"
+            },
+            "desc": "Разумная колония планктонов, которая может восстанавливать собственное тело."
+        },
+        {
+            "name": "Эмпорио Алниньо",
+            "universe": "JoJo",
+            "damage": 39,
+            "hp": 56,
+            "speed": 1,
+            "ability": {
+                "type": "damageAura",
+                "value": 0.03,
+                "desc": "+3% урона команде"
+            },
+            "desc": "Юный союзник Джолин, умеющий использовать призрачные комнаты и найденные предметы."
+        },
+        {
+            "name": "Хот Пэнтс",
+            "universe": "JoJo",
+            "damage": 47,
+            "hp": 60,
+            "speed": 1.2,
+            "ability": {
+                "type": "healOnWin",
+                "percent": 0.025,
+                "desc": "+2,5% HP после победы"
+            },
+            "desc": "Участница гонки Steel Ball Run, использующая стенд Cream Starter для лечения и маскировки."
+        },
+        {
+            "name": "Сэндмен (In a Silent Way)",
+            "universe": "JoJo",
+            "damage": 46,
+            "hp": 45,
+            "speed": 1.65,
+            "ability": {
+                "type": "critChance",
+                "value": 0.11,
+                "desc": "+11% шанс критического удара"
+            },
+            "desc": "Быстрый боец Steel Ball Run, превращающий звук и движение в разрушительные атаки."
+        },
+        {
+            "name": "Ясухо Хиросэ (Paisley Park)",
+            "universe": "JoJo",
+            "damage": 39,
+            "hp": 57,
+            "speed": 1.1,
+            "ability": {
+                "type": "damageAura",
+                "value": 0.04,
+                "desc": "+4% урона команде"
+            },
+            "desc": "Помогает союзникам с помощью поискового и навигационного стенда Paisley Park."
+        },
+        {
+            "name": "Драгона Джостар",
+            "universe": "JoJo",
+            "damage": 43,
+            "hp": 59,
+            "speed": 1.25,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.1,
+                "mult": 1.3,
+                "desc": "10% шанс нанести ×1,3 урона"
+            },
+            "desc": "Союзник Джодио, способный изменять положение и размер частей тела с помощью Smooth Operators."
+        },
+        {
+            "name": "Усаги Алохаоэ",
+            "universe": "JoJo",
+            "damage": 41,
+            "hp": 51,
+            "speed": 1.3,
+            "ability": {
+                "type": "critChance",
+                "value": 0.08,
+                "desc": "+8% шанс критического удара"
+            },
+            "desc": "Член команды Джодио, использующий стенд The Matte Kudasai для исполнения просьб."
+        },
+        {
+            "name": "Ринго Роудэгейн (Mandom)",
+            "universe": "JoJo",
+            "damage": 52,
+            "hp": 61,
+            "speed": 1.15,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.07,
+                "desc": "−7% получаемого урона"
+            },
+            "desc": "Стрелок Steel Ball Run, способный отматывать время на несколько секунд."
+        }
     ],
     "Мифическая": [
         { name: "Годжо (флешбек)", universe: "JJK", damage: 72, hp: 85, speed: 2.4, ability: { type: "critChance", value: 0.15, desc: "+15% шанс крита" }, desc: "Годжо из флешбека. Сильный мифический персонаж без секретных техник." },
@@ -179,7 +781,233 @@ const customCardTemplates = {
         { name: "Зомби-мэн", universe: "OPM", patchId: "one_punch_man", damage: 55, hp: 125, speed: 1.4, ability: { type: "healOnWin", percent: 0.04, desc: "+4% HP после победы" }, desc: "Герой S-класса с чудовищной регенерацией. Его слабее выраженная атака компенсируется способностью восстановиться после боя." },
         { name: "Тёмное Сияние", universe: "OPM", patchId: "one_punch_man", damage: 65, hp: 150, speed: 1.35, ability: { type: "damageReduction", value: 0.08, desc: "−8% получаемого урона" }, desc: "Мастер бодибилдинга с огромной физической мощью и чрезвычайно прочным телом. Одна из самых выносливых карт мифического уровня." },
         { name: "Кабуто (Режим резни)", universe: "OPM", patchId: "one_punch_man", damage: 74, hp: 108, speed: 1.8, ability: { type: "damageMultChance", chance: 0.12, mult: 1.25, desc: "12% шанс нанести ×1,25 урона" }, desc: "Carnage Mode резко увеличивает агрессию и физическую мощь монстра, но не поднимает его до космического уровня." },
-        { name: "Психос", universe: "OPM", patchId: "one_punch_man", damage: 58, hp: 80, speed: 1.5, ability: { type: "damageAura", value: 0.04, desc: "+4% урона всей команде" }, desc: "Могущественная экстрасенс и стратег Ассоциации монстров. Её психическая поддержка усиливает урон отряда." }
+        { name: "Психос", universe: "OPM", patchId: "one_punch_man", damage: 58, hp: 80, speed: 1.5, ability: { type: "damageAura", value: 0.04, desc: "+4% урона всей команде" }, desc: "Могущественная экстрасенс и стратег Ассоциации монстров. Её психическая поддержка усиливает урон отряда." },
+        {
+            "name": "Вамуу",
+            "universe": "JoJo",
+            "damage": 72,
+            "hp": 108,
+            "speed": 1.35,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.09,
+                "desc": "−9% получаемого урона"
+            },
+            "desc": "Воин людей из колонны, управляющий ветром и воздушными потоками."
+        },
+        {
+            "name": "Эйсидиси",
+            "universe": "JoJo",
+            "damage": 66,
+            "hp": 102,
+            "speed": 1.2,
+            "statusAbility": {
+                "type": "fire",
+                "damage": 9,
+                "duration": 3500,
+                "desc": "Пламя наносит 9 урона за тик"
+            },
+            "desc": "Человек из колонны, использующий собственную перегретую кровь как оружие."
+        },
+        {
+            "name": "Карс (обычная форма)",
+            "universe": "JoJo",
+            "damage": 86,
+            "hp": 124,
+            "speed": 1.45,
+            "ability": {
+                "type": "healOnWin",
+                "percent": 0.04,
+                "desc": "+4% HP после победы"
+            },
+            "desc": "Глава людей из колонны, мастер клинков света и биологической эволюции."
+        },
+        {
+            "name": "Ванилла Айс (Cream)",
+            "universe": "JoJo",
+            "damage": 91,
+            "hp": 112,
+            "speed": 1.45,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.1,
+                "desc": "−10% получаемого урона"
+            },
+            "desc": "Преданный Дио пользователь Cream, способного стирать материю в пустоте."
+        },
+        {
+            "name": "Рохан Кишибэ (Heaven's Door)",
+            "universe": "JoJo",
+            "damage": 77,
+            "hp": 101,
+            "speed": 1.2,
+            "ability": {
+                "type": "critChance",
+                "value": 0.14,
+                "desc": "+14% шанс критического удара"
+            },
+            "desc": "Мангака, чей стенд превращает людей в книги и позволяет читать или менять их содержимое."
+        },
+        {
+            "name": "Бруно Буччеллати (Sticky Fingers)",
+            "universe": "JoJo",
+            "damage": 84,
+            "hp": 112,
+            "speed": 1.45,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.12,
+                "mult": 1.45,
+                "desc": "12% шанс нанести ×1,45 урона"
+            },
+            "desc": "Лидер отряда, создающий молнии-замки на поверхностях и противниках."
+        },
+        {
+            "name": "Леоне Аббаккио (Moody Blues)",
+            "universe": "JoJo",
+            "damage": 68,
+            "hp": 96,
+            "speed": 1.05,
+            "ability": {
+                "type": "damageAura",
+                "value": 0.06,
+                "desc": "+6% урона команде"
+            },
+            "desc": "Стенд Аббаккио воспроизводит события прошлого, помогая отряду находить уязвимости."
+        },
+        {
+            "name": "Ризотто Неро (Metallica)",
+            "universe": "JoJo",
+            "damage": 90,
+            "hp": 107,
+            "speed": 1.3,
+            "statusAbility": {
+                "type": "bleed",
+                "value": 0.1,
+                "desc": "+10% урона через кровотечение"
+            },
+            "desc": "Лидер команды убийц, управляющий железом в крови противника."
+        },
+        {
+            "name": "Нарцисо Анасуй (Diver Down)",
+            "universe": "JoJo",
+            "damage": 84,
+            "hp": 110,
+            "speed": 1.25,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.08,
+                "desc": "−8% получаемого урона"
+            },
+            "desc": "Стенд Diver Down проникает внутрь объектов и перестраивает их изнутри."
+        },
+        {
+            "name": "Диего Брандо (Scary Monsters)",
+            "universe": "JoJo",
+            "damage": 92,
+            "hp": 109,
+            "speed": 1.6,
+            "ability": {
+                "type": "critChance",
+                "value": 0.13,
+                "desc": "+13% шанс критического удара"
+            },
+            "desc": "Альтернативный Диего из Steel Ball Run, способный превращать себя и других в динозавров."
+        },
+        {
+            "name": "Винегар Доппио",
+            "universe": "JoJo",
+            "damage": 81,
+            "hp": 106,
+            "speed": 1.25,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.12,
+                "mult": 1.4,
+                "desc": "12% шанс нанести ×1,4 урона"
+            },
+            "desc": "Вторая личность босса мафии. Его звонки и резкие выпады делают его опасным даже без полного контроля над King Crimson."
+        },
+        {
+            "name": "Джонни Джостар (Tusk Act 2)",
+            "universe": "JoJo",
+            "damage": 94,
+            "hp": 113,
+            "speed": 1.4,
+            "ability": {
+                "type": "bossDamage",
+                "value": 0.1,
+                "desc": "+10% урона боссам"
+            },
+            "desc": "Вторая форма Tusk использует вращение, оставляя движущиеся отверстия и пробивая защиту."
+        },
+        {
+            "name": "Рай Маме́дзуку (Doggy Style)",
+            "universe": "JoJo",
+            "damage": 82,
+            "hp": 112,
+            "speed": 1.3,
+            "ability": {
+                "type": "damageAura",
+                "value": 0.06,
+                "desc": "+6% урона команде"
+            },
+            "desc": "Опытный проводник и союзник Джоске из JoJolion. Его стенд разделяет тело на нити."
+        },
+        {
+            "name": "Пако Лабурентес (The Hustle)",
+            "universe": "JoJo",
+            "damage": 70,
+            "hp": 97,
+            "speed": 1.35,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.06,
+                "desc": "−6% получаемого урона"
+            },
+            "desc": "Боец команды Джодио, способный контролировать мышцы и крепко цепляться за поверхности."
+        },
+        {
+            "name": "Джодио Джостар (November Rain)",
+            "universe": "JoJo",
+            "damage": 94,
+            "hp": 117,
+            "speed": 1.35,
+            "ability": {
+                "type": "bossDamage",
+                "value": 0.08,
+                "desc": "+8% урона боссам"
+            },
+            "desc": "Главный герой The JOJOLands. Его стенд создаёт тяжёлые капли дождя, которые бьют по выбранной области."
+        },
+        {
+            "name": "Йошикаге Кира (JoJolion)",
+            "universe": "JoJo",
+            "damage": 86,
+            "hp": 104,
+            "speed": 1.45,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.12,
+                "mult": 1.4,
+                "desc": "12% шанс нанести ×1,4 урона"
+            },
+            "desc": "Другая версия Киры из JoJolion, врач и пользователь Killer Queen в альтернативной вселенной."
+        },
+        {
+            "name": "Джошу Хигашиката (Nut King Call)",
+            "universe": "JoJo",
+            "damage": 68,
+            "hp": 94,
+            "speed": 1.05,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.08,
+                "mult": 1.3,
+                "desc": "8% шанс нанести ×1,3 урона"
+            },
+            "desc": "Член семьи Хигашиката, чей стенд умеет разбирать объекты на части при помощи болтов и гаек."
+        }
     ],
     "Легендарная": [
         { name: "Сукуна (15 пальцев)", universe: "JJK", damage: 105, hp: 95, speed: 2.4, statusAbility: { type: "bleed", value: 0.08, desc: "Кровотечение +8%" }, desc: "Король Проклятий. Высокий урон и кровотечение, добавляющее 8% урона." },
@@ -222,7 +1050,272 @@ const customCardTemplates = {
         { name: "Старшая Многоножка", universe: "OPM", patchId: "one_punch_man", damage: 100, hp: 190, speed: 1.35, ability: { type: "damageReduction", value: 0.09, desc: "−9% получаемого урона" }, desc: "Гигантский драконий монстр с несколькими прочными панцирями. Его специализация — выдерживать тяжёлые атаки." },
         { name: "Орочи (Король монстров)", universe: "OPM", patchId: "one_punch_man", damage: 120, hp: 170, speed: 1.85, statusAbility: { type: "fire", damage: 6, duration: 3000, desc: "Поток энергии: 6 урона в секунду" }, desc: "Король монстров обладает огромной мощью и энергетическими атаками. Сильная легендарная карта, но без божественной формы." },
         { name: "Платиновый Сперм", universe: "OPM", patchId: "one_punch_man", damage: 118, hp: 145, speed: 2.8, ability: { type: "critChance", value: 0.08, desc: "+8% к шансу критического удара" }, desc: "Слияние огромного числа клеток создаёт невероятно быстрого монстра драконьего уровня. Его скорость повышает вероятность критических ударов." },
-        { name: "Бласт", universe: "OPM", patchId: "one_punch_man", damage: 118, hp: 140, speed: 2.6, ability: { type: "damageReduction", value: 0.08, desc: "−8% получаемого урона" }, statusAbility: { type: "freezeStacks", value: 1, desc: "Пространственные порталы: +1 клик до контратаки" }, desc: "Герой №1 S-класса использует пространственные порталы и силу, связанную с измерениями. Сильнейшая карта разлома, но ниже космических и божественных форм." }
+        { name: "Бласт", universe: "OPM", patchId: "one_punch_man", damage: 118, hp: 140, speed: 2.6, ability: { type: "damageReduction", value: 0.08, desc: "−8% получаемого урона" }, statusAbility: { type: "freezeStacks", value: 1, desc: "Пространственные порталы: +1 клик до контратаки" }, desc: "Герой №1 S-класса использует пространственные порталы и силу, связанную с измерениями. Сильнейшая карта разлома, но ниже космических и божественных форм." },
+        {
+            "name": "Джотаро Куджо (часть 3: Star Platinum)",
+            "universe": "JoJo",
+            "damage": 142,
+            "hp": 220,
+            "speed": 2,
+            "ability": {
+                "type": "critChance",
+                "value": 0.16,
+                "desc": "+16% шанс критического удара"
+            },
+            "statusAbility": {
+                "type": "shock",
+                "chance": 0.1,
+                "desc": "10% шанс шока"
+            },
+            "minRebirth": 1,
+            "desc": "Пик Джотаро во время путешествия к Дио. Star Platinum невероятно силён, точен и быстр."
+        },
+        {
+            "name": "Джотаро Куджо (часть 4)",
+            "universe": "JoJo",
+            "damage": 126,
+            "hp": 211,
+            "speed": 1.9,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.14,
+                "mult": 1.45,
+                "desc": "14% шанс нанести ×1,45 урона"
+            },
+            "minRebirth": 1,
+            "desc": "Джотаро спустя годы после битвы с Дио: опытный стенд-юзер, помогающий команде в Морио."
+        },
+        {
+            "name": "Джоске Хигашиката (часть 4: Crazy Diamond)",
+            "universe": "JoJo",
+            "damage": 123,
+            "hp": 222,
+            "speed": 1.85,
+            "ability": {
+                "type": "healOnWin",
+                "percent": 0.05,
+                "desc": "+5% HP после победы"
+            },
+            "minRebirth": 1,
+            "desc": "Главный герой Diamond is Unbreakable. Crazy Diamond восстанавливает повреждённые предметы и тела."
+        },
+        {
+            "name": "Йошикаге Кира (часть 4: Killer Queen)",
+            "universe": "JoJo",
+            "damage": 136,
+            "hp": 199,
+            "speed": 1.8,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.15,
+                "mult": 1.5,
+                "desc": "15% шанс нанести ×1,5 урона"
+            },
+            "statusAbility": {
+                "type": "fire",
+                "damage": 10,
+                "duration": 3000,
+                "desc": "Взрыв наносит 10 урона за тик"
+            },
+            "minRebirth": 2,
+            "desc": "Серийный убийца Морио, превращающий прикоснувшиеся объекты в бомбы с помощью Killer Queen."
+        },
+        {
+            "name": "Джорно Джованна (Gold Experience)",
+            "universe": "JoJo",
+            "damage": 137,
+            "hp": 218,
+            "speed": 2.1,
+            "ability": {
+                "type": "healOnWin",
+                "percent": 0.05,
+                "desc": "+5% HP после победы"
+            },
+            "minRebirth": 2,
+            "desc": "Джорно создаёт живые организмы с Gold Experience и стремится стать боссом, защищающим невинных."
+        },
+        {
+            "name": "Дьяволо (King Crimson)",
+            "universe": "JoJo",
+            "damage": 148,
+            "hp": 211,
+            "speed": 2.2,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.16,
+                "mult": 1.5,
+                "desc": "16% шанс нанести ×1,5 урона"
+            },
+            "minRebirth": 2,
+            "desc": "Босс Passione, который видит будущее и стирает короткие промежутки времени."
+        },
+        {
+            "name": "Джолин Куджо (Stone Free)",
+            "universe": "JoJo",
+            "damage": 128,
+            "hp": 228,
+            "speed": 2,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.1,
+                "desc": "−10% получаемого урона"
+            },
+            "minRebirth": 2,
+            "desc": "Джолин использует Stone Free, превращая своё тело в нити для защиты, ловушек и дальних ударов."
+        },
+        {
+            "name": "Уэзер Репорт (часть 6)",
+            "universe": "JoJo",
+            "damage": 132,
+            "hp": 214,
+            "speed": 1.85,
+            "ability": {
+                "type": "critChance",
+                "value": 0.15,
+                "desc": "+15% шанс критического удара"
+            },
+            "statusAbility": {
+                "type": "shock",
+                "chance": 0.14,
+                "desc": "14% шанс шока"
+            },
+            "minRebirth": 2,
+            "desc": "Мастер погоды, управляющий атмосферными явлениями и опасными погодными эффектами."
+        },
+        {
+            "name": "Энрико Пуччи (Whitesnake)",
+            "universe": "JoJo",
+            "damage": 132,
+            "hp": 203,
+            "speed": 2,
+            "ability": {
+                "type": "bossDamage",
+                "value": 0.15,
+                "desc": "+15% урона боссам"
+            },
+            "minRebirth": 2,
+            "desc": "Священник и главный антагонист Stone Ocean на раннем этапе своего плана. Whitesnake извлекает диски памяти и стендов."
+        },
+        {
+            "name": "Джироламо Джеппели (Gyro Zeppeli)",
+            "universe": "JoJo",
+            "damage": 134,
+            "hp": 207,
+            "speed": 1.9,
+            "ability": {
+                "type": "critChance",
+                "value": 0.16,
+                "desc": "+16% шанс критического удара"
+            },
+            "minRebirth": 2,
+            "desc": "Мастер вращения и стальных сфер, участвующий в гонке Steel Ball Run."
+        },
+        {
+            "name": "Джонни Джостар (Tusk Act 3)",
+            "universe": "JoJo",
+            "damage": 151,
+            "hp": 213,
+            "speed": 2,
+            "ability": {
+                "type": "bossDamage",
+                "value": 0.15,
+                "desc": "+15% урона боссам"
+            },
+            "minRebirth": 3,
+            "desc": "Продвинутая форма Tusk открывает вращающиеся порталы и позволяет атаковать через пространственные отверстия."
+        },
+        {
+            "name": "Фанни Валентайн (D4C)",
+            "universe": "JoJo",
+            "damage": 156,
+            "hp": 224,
+            "speed": 1.9,
+            "ability": {
+                "type": "resurrect",
+                "chance": 0.05,
+                "desc": "5% шанс воскреснуть"
+            },
+            "minRebirth": 3,
+            "desc": "Президент США и владелец Dirty Deeds Done Dirt Cheap, перемещающийся между параллельными мирами."
+        },
+        {
+            "name": "Джоске Хигашиката (JoJolion: Soft & Wet)",
+            "universe": "JoJo",
+            "damage": 146,
+            "hp": 218,
+            "speed": 2.1,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.15,
+                "mult": 1.45,
+                "desc": "15% шанс нанести ×1,45 урона"
+            },
+            "minRebirth": 3,
+            "desc": "Герой JoJolion, использующий пузыри Soft & Wet для кражи свойств у объектов."
+        },
+        {
+            "name": "Джобин Хигашиката (Speed King)",
+            "universe": "JoJo",
+            "damage": 133,
+            "hp": 198,
+            "speed": 1.9,
+            "ability": {
+                "type": "bossDamage",
+                "value": 0.12,
+                "desc": "+12% урона боссам"
+            },
+            "statusAbility": {
+                "type": "fire",
+                "damage": 12,
+                "duration": 3000,
+                "desc": "Нагрев наносит 12 урона за тик"
+            },
+            "minRebirth": 3,
+            "desc": "Амбициозный член семьи Хигашиката, способный накапливать тепло в предметах и людях."
+        },
+        {
+            "name": "Диего Брандо (The World)",
+            "universe": "JoJo",
+            "damage": 153,
+            "hp": 205,
+            "speed": 2.35,
+            "ability": {
+                "type": "critChance",
+                "value": 0.18,
+                "desc": "+18% шанс критического удара"
+            },
+            "minRebirth": 3,
+            "desc": "Альтернативный Диего из Steel Ball Run, получивший стенд The World в финальной гонке."
+        },
+        {
+            "name": "Энрико Пуччи (C-Moon)",
+            "universe": "JoJo",
+            "damage": 146,
+            "hp": 213,
+            "speed": 2.25,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.1,
+                "desc": "−10% получаемого урона"
+            },
+            "minRebirth": 3,
+            "desc": "Промежуточная эволюция стенда Пуччи, создающая гравитационные аномалии и выворачивающая цели наизнанку."
+        },
+        {
+            "name": "Джонни Джостар (Tusk Act 1)",
+            "universe": "JoJo",
+            "damage": 118,
+            "hp": 188,
+            "speed": 1.8,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.12,
+                "mult": 1.4,
+                "desc": "12% шанс нанести ×1,4 урона"
+            },
+            "minRebirth": 2,
+            "desc": "Начальная форма Tusk, пробуждённая через вращение и силу Святых останков."
+        }
     ],
     "Секретная": [
         {
@@ -362,6 +1455,106 @@ const customCardTemplates = {
         {"name":"Зоро (Вано: Король ада)","universe":"One Piece","patchId":"one_piece","damage":230,"hp":250,"speed":3,"ability":{"type":"bossDamage","value":0.25,"desc":"+25% урона боссам"},"statusAbility":{"type":"bleed","value":0.12,"desc":"+12% урона через кровотечение"},"desc":"Пиковая версия Зоро с продвинутым хаки короля и клинками, покрытыми чёрным пламенем."},
         {"name":"Чёрная Борода (Два дьявольских плода)","universe":"One Piece","patchId":"one_piece","damage":280,"hp":310,"speed":2.5,"ability":{"type":"damageAura","value":0.12,"desc":"+12% урона команде"},"statusAbility":{"type":"shock","chance":0.12,"desc":"12% шанс сотрясающего шока"},"desc":"Тич сочетает тьму Ями-Ями и разрушительную силу Гура-Гура. Отдельная версия после получения второго плода."},
         {"name":"Гол Д. Роджер (Камусари)","universe":"One Piece","patchId":"one_piece","damage":265,"hp":275,"speed":3.1,"ability":{"type":"bossDamage","value":0.3,"desc":"+30% урона боссам"},"statusAbility":{"type":"bleed","value":0.08,"desc":"+8% урона через хаки"},"desc":"Роджер выпускает Камусари — стремительный удар хаки, прославивший Короля пиратов."},
+        {
+            "name": "ДИО (The World, часть 3)",
+            "universe": "JoJo",
+            "damage": 255,
+            "hp": 365,
+            "speed": 2.8,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.18,
+                "mult": 1.7,
+                "desc": "18% шанс нанести ×1,7 урона"
+            },
+            "statusAbility": {
+                "type": "shock",
+                "chance": 0.15,
+                "desc": "15% шанс шока"
+            },
+            "minRebirth": 3,
+            "desc": "Дио в финальной битве Stardust Crusaders. The World способен останавливать время."
+        },
+        {
+            "name": "Джорно Джованна (Gold Experience Requiem)",
+            "universe": "JoJo",
+            "damage": 320,
+            "hp": 460,
+            "speed": 2.7,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.22,
+                "desc": "−22% получаемого урона"
+            },
+            "statusAbility": {
+                "type": "shock",
+                "chance": 0.12,
+                "desc": "12% шанс шока"
+            },
+            "minRebirth": 4,
+            "desc": "Requiem-форма Gold Experience, способная возвращать действия и волю противника к нулю."
+        },
+        {
+            "name": "Энрико Пуччи (Made in Heaven)",
+            "universe": "JoJo",
+            "damage": 300,
+            "hp": 390,
+            "speed": 3.2,
+            "ability": {
+                "type": "critChance",
+                "value": 0.2,
+                "desc": "+20% шанс критического удара"
+            },
+            "minRebirth": 4,
+            "desc": "Финальная эволюция стенда Пуччи, ускоряющая время и движение всего мира."
+        },
+        {
+            "name": "Джонни Джостар (Tusk Act 4)",
+            "universe": "JoJo",
+            "damage": 345,
+            "hp": 420,
+            "speed": 2.8,
+            "ability": {
+                "type": "bossDamage",
+                "value": 0.22,
+                "desc": "+22% урона боссам"
+            },
+            "minRebirth": 4,
+            "desc": "Высшая форма Tusk, использующая бесконечное вращение для пробивания почти любой защиты."
+        },
+        {
+            "name": "Карс (Высшее существо)",
+            "universe": "JoJo",
+            "damage": 310,
+            "hp": 490,
+            "speed": 2.65,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.22,
+                "desc": "−22% получаемого урона"
+            },
+            "minRebirth": 4,
+            "desc": "Карс достигает совершенной формы, сочетая силу и способности практически всех живых существ."
+        },
+        {
+            "name": "Тору (Wonder of U)",
+            "universe": "JoJo",
+            "damage": 295,
+            "hp": 435,
+            "speed": 2.7,
+            "ability": {
+                "type": "damageReduction",
+                "value": 0.2,
+                "desc": "−20% получаемого урона"
+            },
+            "statusAbility": {
+                "type": "bleed",
+                "value": 0.12,
+                "desc": "+12% урона через кровотечение"
+            },
+            "minRebirth": 4,
+            "desc": "Пользователь Wonder of U, чья сила направляет бедствия на тех, кто преследует его или стенд."
+        }
     ],
     "Эволюционная": [
         { name: "Луффи : Король пиратов", universe: "One Piece", damage: 1200, hp: 2000, speed: 4.5, minRebirth: 5, ability: { type: "bossDamage", value: 0.50, desc: "+50% боссам", bossReduction: 0.40 }, unsellable: true, desc: "Король пиратов. +50% урона боссам и -40% получаемого урона при битве с боссом. Чтобы получить: соберите 5 разных Луффи в команду (ровно 5 карт) и победите босса 500 волны." },
