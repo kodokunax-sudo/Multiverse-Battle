@@ -1158,6 +1158,26 @@ const customCardTemplates = {
                 "desc": "+11% шанс критического удара"
             },
             "desc": "Могущественный демон, призванный Алто. Обладает разрушительной магией и высокой физической силой."
+        },
+        {
+            "name": "ДИО (The World, часть 3)",
+            "universe": "JoJo", "patchId": "jojo",
+            "damage": 255,
+            "hp": 365,
+            "speed": 2.8,
+            "ability": {
+                "type": "damageMultChance",
+                "chance": 0.18,
+                "mult": 1.7,
+                "desc": "18% шанс нанести ×1,7 урона"
+            },
+            "statusAbility": {
+                "type": "shock",
+                "chance": 0.15,
+                "desc": "15% шанс шока"
+            },
+            "minRebirth": 3,
+            "desc": "Дио в финальной битве Stardust Crusaders. The World способен останавливать время."
         }
     ],
     "Легендарная": [
@@ -1629,33 +1649,10 @@ const customCardTemplates = {
             desc: "Эдвард Ньюгейт. Сильнейший человек в мире. Нельзя получить через гачу — только победив супер-Белоуса."
         }
 ,
-{ name: "Хоумлендер (Без ограничений)", universe: "The Boys", patchId: "the_boys", damage: 190, hp: 260, speed: 2.1, ability: { type: "bossDamage", value: 0.15, desc: "+15% урона боссам" }, statusAbility: { type: "fire", damage: 12, duration: 4500, desc: "Лазеры: 12 урона/сек" }, desc: "Самая сильная карта патча: полёт, сверхсила, скорость, сверхчувствительный слух, прочность и разрушительное тепловое зрение." },
-        { name: "Бутчер (Монстр V)", universe: "The Boys", patchId: "the_boys", damage: 175, hp: 230, speed: 1.9, ability: { type: "bossDamage", value: 0.13, desc: "+13% урона боссам" }, statusAbility: { type: "bleed", value: 0.10, desc: "+10% урона через кровотечение" }, desc: "Бутчер с развитой силой V24, щупальцами и тепловым зрением — крайне опасный боец, но нестабилен из-за цены препарата." },
-        { name: "Райан (Наследник)", universe: "The Boys", patchId: "the_boys", damage: 160, hp: 210, speed: 2, ability: { type: "bossDamage", value: 0.11, desc: "+11% урона боссам" }, statusAbility: { type: "fire", damage: 11, duration: 3500, desc: "Лазерное зрение: 11 урона/сек" }, desc: "Райан унаследовал почти весь набор сил Хоумлендера, а его потенциал огромен, но опыта всё ещё меньше." },
-        {"name":"Зоро (Вано: Король ада)","universe":"One Piece","patchId":"one_piece","damage":230,"hp":250,"speed":3,"ability":{"type":"bossDamage","value":0.25,"desc":"+25% урона боссам"},"statusAbility":{"type":"bleed","value":0.12,"desc":"+12% урона через кровотечение"},"desc":"Пиковая версия Зоро с продвинутым хаки короля и клинками, покрытыми чёрным пламенем."},
+                        {"name":"Зоро (Вано: Король ада)","universe":"One Piece","patchId":"one_piece","damage":230,"hp":250,"speed":3,"ability":{"type":"bossDamage","value":0.25,"desc":"+25% урона боссам"},"statusAbility":{"type":"bleed","value":0.12,"desc":"+12% урона через кровотечение"},"desc":"Пиковая версия Зоро с продвинутым хаки короля и клинками, покрытыми чёрным пламенем."},
         {"name":"Чёрная Борода (Два дьявольских плода)","universe":"One Piece","patchId":"one_piece","damage":280,"hp":310,"speed":2.5,"ability":{"type":"damageAura","value":0.12,"desc":"+12% урона команде"},"statusAbility":{"type":"shock","chance":0.12,"desc":"12% шанс сотрясающего шока"},"desc":"Тич сочетает тьму Ями-Ями и разрушительную силу Гура-Гура. Отдельная версия после получения второго плода."},
         {"name":"Гол Д. Роджер (Камусари)","universe":"One Piece","patchId":"one_piece","damage":265,"hp":275,"speed":3.1,"ability":{"type":"bossDamage","value":0.3,"desc":"+30% урона боссам"},"statusAbility":{"type":"bleed","value":0.08,"desc":"+8% урона через хаки"},"desc":"Роджер выпускает Камусари — стремительный удар хаки, прославивший Короля пиратов."},
-        {
-            "name": "ДИО (The World, часть 3)",
-            "universe": "JoJo", "patchId": "jojo",
-            "damage": 255,
-            "hp": 365,
-            "speed": 2.8,
-            "ability": {
-                "type": "damageMultChance",
-                "chance": 0.18,
-                "mult": 1.7,
-                "desc": "18% шанс нанести ×1,7 урона"
-            },
-            "statusAbility": {
-                "type": "shock",
-                "chance": 0.15,
-                "desc": "15% шанс шока"
-            },
-            "minRebirth": 3,
-            "desc": "Дио в финальной битве Stardust Crusaders. The World способен останавливать время."
-        },
-        {
+                {
             "name": "Джорно Джованна (Gold Experience Requiem)",
             "universe": "JoJo", "patchId": "jojo",
             "damage": 320,
