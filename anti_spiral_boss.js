@@ -463,7 +463,7 @@
         else if(t>=11.0&&t<12.05) asDrawSpeech(c,"СЕРДЦЕ","Я не позволю тебе решать за всех!",72,"#ff5268",now);
         else if(t>=12.05&&t<13.55) asDrawSpeech(c,"СЕРДЦЕ","Тогда попробуй остановить меня!",72,"#ff5268",now);
         else if(t>=13.55&&t<14.75) asDrawSpeech(c,"АНТИ-СПИРАЛЬ","Бесполезно.",72,"#d4c4ff",now);
-        else if(t>=15.0&&t<16.6) asDrawSpeech(c,"АНТИ-СПИРАЛЬ","Тебе конец.",72,"#d4c4ff",now);
+        else if(t>=16.65&&t<18.15) asDrawSpeech(c,"АНТИ-СПИРАЛЬ","Тебе конец.",72,"#d4c4ff",now);
         if(t>=10.7&&t<14.6){
             // Muzzle flare on the red soul before each outgoing projectile.
             c.save();c.globalAlpha=.65+.25*Math.sin(now/28);c.fillStyle="#ff223f";c.shadowColor="#ff173d";c.shadowBlur=20;
