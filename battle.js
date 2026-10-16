@@ -68,6 +68,51 @@ let wallSpeedMult = 1.0;
 let wallCountMult = 1.0;
 let wallWarningTimer = null;
 
+// Anti-Spiral: blue soul, downward gravity, shifting arena dimensions.
+let antiSpiralMusic = null;
+let antiSpiralGravityVelocity = 0;
+let antiSpiralArenaWidth = 396;
+let antiSpiralArenaHeight = 496;
+let antiSpiralArenaTargetWidth = 396;
+let antiSpiralArenaTargetHeight = 496;
+let antiSpiralArenaLastShift = 0;
+let antiSpiralArenaWidePhase = true;
+
+function startAntiSpiralMusic() {
+    if (typeof musicEnabled !== "undefined" && !musicEnabled) return;
+    try {
+        if (!antiSpiralMusic) {
+            antiSpiralMusic = new Audio("music/анти спираль.mp3");
+            antiSpiralMusic.loop = true;
+            antiSpiralMusic.volume = 0.28;
+        }
+        if (typeof currentMusic !== "undefined" && currentMusic) currentMusic.pause();
+        antiSpiralMusic.currentTime = 0;
+        antiSpiralMusic.play().catch(function() {});
+    } catch (e) {}
+}
+
+function stopAntiSpiralMusic() {
+    if (!antiSpiralMusic) return;
+    try { antiSpiralMusic.pause(); antiSpiralMusic.currentTime = 0; } catch (e) {}
+}
+
+function updateAntiSpiralArena(now) {
+    if (arenaCurrentWave !== 1500) return;
+    if (!antiSpiralArenaLastShift) antiSpiralArenaLastShift = now;
+    if (now - antiSpiralArenaLastShift >= 4200) {
+        antiSpiralArenaLastShift = now;
+        antiSpiralArenaWidePhase = !antiSpiralArenaWidePhase;
+        antiSpiralArenaTargetWidth = antiSpiralArenaWidePhase ? 396 : 252;
+        antiSpiralArenaTargetHeight = antiSpiralArenaWidePhase ? 300 : 438;
+        playArenaSound(antiSpiralArenaWidePhase ? 90 : 150, "sawtooth", 0.35, 0.08);
+        spawnFloatingText(200, 90, antiSpiralArenaWidePhase ? "ПРОСТРАНСТВО РАСШИРЯЕТСЯ" : "ПРОСТРАНСТВО СЖИМАЕТСЯ", "#55c8ff");
+    }
+    antiSpiralArenaWidth += (antiSpiralArenaTargetWidth - antiSpiralArenaWidth) * 0.045;
+    antiSpiralArenaHeight += (antiSpiralArenaTargetHeight - antiSpiralArenaHeight) * 0.045;
+}
+
+
 // ★ Регенерация Белоуса ★
 let whitebeardRegenTimer = 0;
 
@@ -232,6 +277,15 @@ function initArena() {
 }
 
 function clampHeart() {
+    if (arenaCurrentWave === 1500) {
+        var left = (400 - antiSpiralArenaWidth) / 2 + heart.size;
+        var right = (400 + antiSpiralArenaWidth) / 2 - heart.size;
+        var top = 55 + (445 - antiSpiralArenaHeight) / 2 + heart.size;
+        var bottom = 500 - (445 - antiSpiralArenaHeight) / 2 - heart.size;
+        heart.x = Math.max(left, Math.min(right, heart.x));
+        heart.y = Math.max(top, Math.min(bottom, heart.y));
+        return;
+    }
     heart.x = Math.max(heart.size, Math.min(400 - heart.size, heart.x));
     heart.y = Math.max(heart.size, Math.min(500 - heart.size, heart.y));
 }
@@ -326,6 +380,12 @@ function moveHeart() {
         if (Math.abs(heart.vy) < 0.1) heart.vy = 0;
     }
 
+    if (arenaCurrentWave === 1500) {
+        antiSpiralGravityVelocity = Math.min(4.5, antiSpiralGravityVelocity + 0.22);
+        heart.y += antiSpiralGravityVelocity;
+    } else {
+        antiSpiralGravityVelocity = 0;
+    }
     clampHeart();
 
     if (Math.random() > 0.3) {
@@ -423,6 +483,15 @@ function startArena(bossWave) {
 
     arenaBossDefeatedBefore = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossWave));
     arenaActive = true; arenaCurrentWave = bossWave; calculateArenaHP();
+    antiSpiralGravityVelocity = 0;
+    antiSpiralArenaWidth = 396;
+    antiSpiralArenaHeight = bossWave === 1500 ? 438 : 496;
+    antiSpiralArenaTargetWidth = 396;
+    antiSpiralArenaTargetHeight = antiSpiralArenaHeight;
+    antiSpiralArenaLastShift = Date.now();
+    antiSpiralArenaWidePhase = false;
+    if (bossWave === 1500) startAntiSpiralMusic();
+    else stopAntiSpiralMusic();
     arenaKarma = 0; screenFlash = 0; arenaVignette = 0; arenaGlobalSpeedMod = 1.0; arenaDodgeTimer = 0;
     whitebeardRegenTimer = 0;
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
@@ -720,7 +789,7 @@ function stopArena() {
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
     if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
     if (typeof resetAllSupers === 'function') resetAllSupers();
-    arenaActive = false; stopArenaAmbient(); if (arenaAttackInterval) clearInterval(arenaAttackInterval); if (animFrameId) cancelAnimationFrame(animFrameId);
+    arenaActive = false; stopArenaAmbient(); stopAntiSpiralMusic(); if (arenaAttackInterval) clearInterval(arenaAttackInterval); if (animFrameId) cancelAnimationFrame(animFrameId);
     arenaAttackInterval = null; animFrameId = null;
     attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = []; arenaBlasters = []; arenaShockwaves = [];
     window._armorSpeedApplied = false;
@@ -980,6 +1049,7 @@ function renderArena() {
         }
     }
     var now = Date.now();
+    updateAntiSpiralArena(now);
     // ★ ФИКС: Такаба замораживает всех ★
     var takabaFreeze = (typeof _superState !== 'undefined' && _superState.takabaTimeStop);
     
@@ -1030,7 +1100,25 @@ function renderArena() {
     ctx.save(); for (var bpi = 0; bpi < arenaBgParticles.length; bpi++) { var bp = arenaBgParticles[bpi]; bp.y += bp.spd; if (bp.y > 500) { bp.y = 0; bp.x = Math.random() * 400; } ctx.fillStyle = "#ffffff"; ctx.globalAlpha = bp.alpha; ctx.fillRect(bp.x, bp.y, bp.sz, bp.sz); } ctx.restore();
     var bc = arenaPhase === "attack" ? "#ffdd00" : (["#fff", "#4499ff", "#ffdd00", "#ff3333", "#ff69b4", "#44ff44", "rainbow", "#ffaa00", "#ff3333", "#ff3333", "#fff"][arenaAttackType] || "#fff");
     if (bc === "rainbow" || arenaAttackType === 6) bc = "hsl(" + ((now / 5) % 360) + ",100%,50%)"; if (arenaHitFlash > 0) bc = "#ff3333";
-    ctx.save(); ctx.strokeStyle = bc; ctx.lineWidth = 3; ctx.shadowColor = bc; ctx.shadowBlur = arenaHitFlash > 0 ? 18 : 8; ctx.strokeRect(2, 2, 396, 496); ctx.restore();
+    ctx.save();
+    ctx.strokeStyle = bc; ctx.lineWidth = 3; ctx.shadowColor = bc; ctx.shadowBlur = arenaHitFlash > 0 ? 18 : 8;
+    if (arenaCurrentWave === 1500) {
+        var boxW = antiSpiralArenaWidth;
+        var boxH = antiSpiralArenaHeight;
+        var boxX = (400 - boxW) / 2;
+        var boxY = 55 + (445 - boxH) / 2;
+        ctx.fillStyle = "rgba(0,0,0,0.94)";
+        ctx.fillRect(0, 50, boxX, 450);
+        ctx.fillRect(boxX + boxW, 50, 400 - (boxX + boxW), 450);
+        ctx.fillRect(boxX, 50, boxW, Math.max(0, boxY - 50));
+        ctx.fillRect(boxX, boxY + boxH, boxW, Math.max(0, 500 - (boxY + boxH)));
+        ctx.strokeStyle = "#3ebdff";
+        ctx.shadowColor = "#168bff";
+        ctx.strokeRect(boxX, boxY, boxW, boxH);
+    } else {
+        ctx.strokeRect(2, 2, 396, 496);
+    }
+    ctx.restore();
     if (arenaAttackType === 4 && arenaPhase === "dodge") { ctx.save(); var spikeGlow = Math.sin(now / 200) * 0.3 + 0.7; ctx.fillStyle = "#ff3333"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 10 * spikeGlow; for (var x = 0; x < 400; x += 15) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 7, 18); ctx.lineTo(x + 15, 0); ctx.fill(); } for (var x = 0; x < 400; x += 15) { ctx.beginPath(); ctx.moveTo(x, 500); ctx.lineTo(x + 7, 482); ctx.lineTo(x + 15, 500); ctx.fill(); } for (var y = 0; y < 500; y += 15) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(18, y + 7); ctx.lineTo(0, y + 15); ctx.fill(); } for (var y = 0; y < 500; y += 15) { ctx.beginPath(); ctx.moveTo(400, y); ctx.lineTo(382, y + 7); ctx.lineTo(400, y + 15); ctx.fill(); } ctx.restore(); }
     ctx.fillStyle = "rgba(10,10,20,0.9)"; ctx.fillRect(8, 6, 384, 22);
     var totalWidth = 372 * Math.max(0, arenaHP / arenaMaxHP), yellowWidth = 372 * Math.max(0, arenaKarma / arenaMaxHP);
@@ -1266,6 +1354,21 @@ function renderArena() {
                 var dioStandHere = (typeof window.getDioStandPosition === "function") ? window.getDioStandPosition(dioCtxForStand) : null;
                 if (dioStandHere && typeof window.drawDioStandVisual === "function") window.drawDioStandVisual(ctx, dioStandHere.x - heart.x, dioStandHere.y - (heart.y - 2), Math.max(8, heart.size * 0.72));
             }
+        } else if (arenaCurrentWave === 1500) {
+            var antiSpiralHeartGrad = ctx.createLinearGradient(-8, -10, 8, 8);
+            antiSpiralHeartGrad.addColorStop(0, "#b9f3ff");
+            antiSpiralHeartGrad.addColorStop(0.45, "#20b8ff");
+            antiSpiralHeartGrad.addColorStop(1, "#0645d8");
+            ctx.shadowColor = "#26bfff"; ctx.shadowBlur = 16;
+            ctx.fillStyle = antiSpiralHeartGrad;
+            ctx.beginPath();
+            ctx.moveTo(0, 7);
+            ctx.bezierCurveTo(-3, 4, -10, -1, -9, -6);
+            ctx.bezierCurveTo(-8, -12, -2, -12, 0, -7);
+            ctx.bezierCurveTo(3, -12, 9, -11, 9, -5);
+            ctx.bezierCurveTo(9, -1, 3, 4, 0, 7);
+            ctx.closePath(); ctx.fill();
+            ctx.shadowBlur = 0; ctx.strokeStyle = "#d9f8ff"; ctx.lineWidth = 1.2; ctx.stroke();
         } else if (!drawSecretHeartTexture(ctx, 0, 0, heart.size, getSecretHeartMainCardName(), {rotation: 0})) {
             var heartGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 8);
             heartGrad.addColorStop(0, '#ff4444'); heartGrad.addColorStop(1, '#990000');
