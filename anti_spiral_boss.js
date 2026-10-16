@@ -101,6 +101,7 @@
         if (!asActive || asPlayer.invuln > 0 || asState === "intro" || asState === "victory" || asDefeatPending) return;
         const amount = Math.max(1, Math.floor(Number(damage) || 1));
         asPlayerHp = Math.max(0, asPlayerHp - amount);
+        const hpEl=document.getElementById("arenaHP"); if(hpEl)hpEl.innerText=Math.ceil(asPlayerHp);
         asPlayer.invuln = 42;
         asShake = Math.max(asShake, 10);
         asFlash = 10; asFlashColor = "#1f7bff";
@@ -171,7 +172,7 @@
         if (["arrowleft","arrowright","arrowup","arrowdown"," ","w","a","s","d","enter"].includes(k)) ev.preventDefault();
         asKeys[k] = true;
         if ((k==="enter" || k===" ") && asState==="intro") asBegin();
-        else if (k==="escape" && asState==="intro") asStop();
+        else if (k==="escape" && asState==="intro") { asStop(); asRestoreStartButton(); }
     }
     function asKeyUp(ev) { asKeys[ev.key.toLowerCase()] = false; }
     function asPointerDown(ev) {
@@ -256,7 +257,17 @@
         asText(200,245,"ТЫ НЕ УСТОЯЛ ПЕРЕД СПИРАЛЬЮ","#ff5f75",110);
         asFlash=28; asFlashColor="#ff213f"; asShake=20;
         asSound(80,"sawtooth",0.7,0.18);
-        setTimeout(function(){ asStop(); if(typeof defeat==="function") defeat(); },1500);
+        setTimeout(function(){
+            asStop();
+            if(typeof defeat==="function") defeat();
+            if(typeof playerHp!=="undefined" && playerHp>0) asRestoreStartButton();
+        },1500);
+    }
+    function asRestoreStartButton() {
+        if (Number(typeof wave!=="undefined"?wave:0)!==1500 || !currentEnemy || currentEnemy.hp<=0) return;
+        if (typeof defeatedBosses!=="undefined" && Array.isArray(defeatedBosses) && defeatedBosses.includes(1500)) return;
+        const btn=document.getElementById("startAntiSpiralBossBtn");
+        if(btn)btn.style.display="block";
     }
     function asStop() {
         asActive=false; window.antiSpiralBossActive=false;
@@ -429,7 +440,7 @@
     window.getAntiSpiralBossMaxHp = function(){return asBossMaxHp;};
     window.setAntiSpiralBossHp = function(v){asBossHp=Math.max(0,Math.min(asBossHp,Number(v)||0));if(asBossHp<=0)asWin();};
     window.getAntiSpiralPlayerHp = function(){return asPlayerHp;};
-    window.setAntiSpiralPlayerHp = function(v){asPlayerHp=Math.max(0,Math.min(asPlayerMaxHp,Number(v)||0));if(asPlayerHp<=0)asLose();};
+    window.setAntiSpiralPlayerHp = function(v){asPlayerHp=Math.max(0,Math.min(asPlayerMaxHp,Number(v)||0));const hpEl=document.getElementById("arenaHP");if(hpEl)hpEl.innerText=Math.ceil(asPlayerHp);if(asPlayerHp<=0)asLose();};
     window.getAntiSpiralPlayerMaxHp = function(){return asPlayerMaxHp;};
     window.antiSpiralAddShake = function(v){asShake=Math.max(asShake||0,Number(v)||0);};
     window.antiSpiralAddFlash = function(v,color){asFlash=Math.max(asFlash||0,Number(v)||0);if(color)asFlashColor=color;};
