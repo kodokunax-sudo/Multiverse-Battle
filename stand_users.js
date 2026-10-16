@@ -71,7 +71,6 @@
     STAND_PROFILES["Энрико Пуччи (Made in Heaven)"] = { stand: "Made in Heaven", color: "#d7f2ff", speed: 1.3, damageFactor: 0.34, arenaDamageMult: 0.97, radius: 10, trait: "Ускорение: максимальная скорость" };
     STAND_PROFILES["Джонни Джостар (Tusk Act 4)"] = { stand: "Tusk ACT 4", color: "#8ea8ff", speed: 1.21, damageFactor: 0.17, arenaDamageMult: 0.9, radius: 13, trait: "Бесконечное вращение: высокий блок урона" };
     STAND_PROFILES["Тору (Wonder of U)"] = { stand: "Wonder of U", color: "#c8b2e6", speed: 1.07, damageFactor: 0.17, arenaDamageMult: 0.9, radius: 14, trait: "Катастрофа: защита и максимальный радиус" };
-    STAND_PROFILES["ДИО Over Heaven"] = { stand: "The World Over Heaven", color: "#fff7d1", speed: 1.2, damageFactor: 0.15, arenaDamageMult: 0.9, radius: 14, trait: "Перезапись реальности: максимальный защитный контур" };
 
     var state = window.__mbStandUserState || {
         active: false,
