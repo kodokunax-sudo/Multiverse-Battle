@@ -74,7 +74,8 @@
                 (typeof arenaActive !== 'undefined' && arenaActive) ||
                 (typeof livingStoneActive !== 'undefined' && livingStoneActive) ||
                 (typeof waystarActive !== 'undefined' && waystarActive) ||
-                (window.rwbActive === true)
+                (window.rwbActive === true) ||
+                (typeof window.getAntiSpiralBossActive === 'function' && window.getAntiSpiralBossActive())
             );
         } catch(err) {}
         
@@ -111,7 +112,8 @@
                 (typeof arenaActive !== 'undefined' && arenaActive) ||
                 (typeof livingStoneActive !== 'undefined' && livingStoneActive) ||
                 (typeof waystarActive !== 'undefined' && waystarActive) ||
-                (window.rwbActive === true)
+                (window.rwbActive === true) ||
+                (typeof window.getAntiSpiralBossActive === 'function' && window.getAntiSpiralBossActive())
             );
         } catch(err) {}
         
@@ -204,6 +206,9 @@
             if (typeof window.getRWBActive === 'function' && window.getRWBActive() === true) {
                 return { type: 'rwb', canvas: document.getElementById("arenaCanvas"), phase: (typeof window.getRWBState === 'function') ? window.getRWBState() : "fight1" };
             }
+            if (typeof window.getAntiSpiralBossActive === 'function' && window.getAntiSpiralBossActive() === true) {
+                return { type: 'antispiral', canvas: document.getElementById("arenaCanvas"), phase: (typeof window.getAntiSpiralBossState === 'function') ? window.getAntiSpiralBossState() : "intro" };
+            }
             if (window.arenaActive === true) return { type: 'arena', canvas: document.getElementById("arenaCanvas"), phase: window.arenaPhase || "dodge" };
             if (window.livingStoneActive === true) return { type: 'stone', canvas: document.getElementById("arenaCanvas"), phase: window.livingStoneState || "phase1" };
             if (window.waystarActive === true) return { type: 'waystar', canvas: document.getElementById("arenaCanvas"), phase: window.waystarState || "phase1" };
@@ -218,6 +223,7 @@
         if (arena.type === 'stone') return arena.phase === "phase1" || arena.phase === "phase2";
         if (arena.type === 'waystar') return arena.phase === "phase1" || arena.phase === "phase2" || arena.phase === "phase3";
         if (arena.type === 'rwb') return arena.phase === "fight1" || arena.phase === "fight2";
+        if (arena.type === 'antispiral') return arena.phase === "fight";
         return false;
     }
 
