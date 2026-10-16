@@ -2283,6 +2283,8 @@ function generateEnemy() {
     let waystarBtn = document.getElementById("startWaystarBtn");
     let skipBtn = document.getElementById("skipArenaBtn");
     let rwbBtn = document.getElementById("startRogerWB");
+    let antiSpiralButtonReset = document.getElementById("startAntiSpiralBossBtn");
+    if (antiSpiralButtonReset) antiSpiralButtonReset.style.display = "none";
     
     if (wave === 200 && isUniqueBoss) {
         let alreadyDefeatedStone = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200);
