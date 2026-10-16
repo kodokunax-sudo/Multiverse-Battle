@@ -89,9 +89,12 @@
 
     function isStandUser(card) {
         if (!card) return false;
-        // DIO Over Heaven keeps his original custom SUPER/stand behavior.
-        // Do not turn his SUPER button into the generic summon toggle.
-        if (card.name === "ДИО Over Heaven" || card.dioGiftVariant === true) return false;
+        // DIO Over Heaven uses the original custom SUPER skills and its own
+        // THE WORLD visuals; it must never receive the generic stand-summon button.
+        var dioName = String(card.name || "").toLowerCase().replace(/[^a-zа-яё0-9]/gi, "");
+        if ((typeof window.isDioOverHeavenCard === "function" && window.isDioOverHeavenCard(card)) ||
+            (dioName.indexOf("overheaven") !== -1 && (dioName.indexOf("dio") !== -1 || dioName.indexOf("дио") !== -1)) ||
+            card.dioGiftVariant === true) return false;
         var isJoJo = String(card.universe || "").toLowerCase() === "jojo" ||
             String(card.patchId || "").toLowerCase() === "jojo";
         return isJoJo && !!STAND_PROFILES[String(card.name || "")];
