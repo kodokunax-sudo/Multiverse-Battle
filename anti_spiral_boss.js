@@ -182,22 +182,15 @@
         const y=(ev.clientY-rect.top)*500/rect.height;
         if (asState==="intro") { asBegin(); return; }
         if (asState!=="fight") return;
+        if (asState === "intro") { asBegin(); return; }
         if (Math.hypot(x-asBoss.x,y-asBoss.y) < asBoss.size*1.9) {
             asBossHit(Math.max(25, Math.floor((Number(window.playerFinalDamage)||80)*0.20)), "ПОПАДАНИЕ");
             return;
         }
-        // On-screen controls for touch. Holding ◀/▶ moves, ▲ jumps, ATTACK fires rapidly.
-        if (y > 430 && x < 74) {
-            asPointer.down=true; asPointer.id=ev.pointerId; asPointer.x=x; asPointer.y=y; asPointer.direction=-1;
-            return;
-        }
-        if (y > 430 && x >= 80 && x < 132) {
-            asPointer.down=true; asPointer.id=ev.pointerId; asPointer.x=x; asPointer.y=y; asPointer.direction=1;
-            return;
-        }
-        // Tap/click in the lower center zone to jump; dragging left/right steers the soul.
+        // Touch below the boss can trigger a jump; a held drag steers the soul.
         if (y>430 && x>150 && x<250 && asPlayer.grounded) {
-            asPlayer.vy=-8.4; asPlayer.grounded=false; asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
+            asPlayer.vy=-8.4; asPlayer.grounded=false; asPlayer.vy=Math.min(asPlayer.vy,-8.4);
+            asPlayer.grounded=false; asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
             return;
         }
         asPointer.down=true; asPointer.id=ev.pointerId; asPointer.x=x; asPointer.y=y; asPointer.direction=0;
@@ -357,12 +350,6 @@
                 if(p.life<=0)asParticles.splice(i,1);
             }
             c.globalAlpha=1;asDrawHeart(c);
-            // Simple mobile controls are painted directly into the unique encounter canvas.
-            c.globalAlpha=.72;c.fillStyle="rgba(13,36,70,.8)";c.strokeStyle="#55cfff";c.lineWidth=1.5;
-            [[48,458,"◀"],[104,458,"▶"],[200,458,"▲"],[310,458,"ATTACK"]].forEach(function(v){
-                c.beginPath();c.roundRect(v[0]-24,v[1]-17,v[0]===310?72:48,34,8);c.fill();c.stroke();
-                c.fillStyle="#d9f8ff";c.font=v[0]===310?"bold 9px monospace":"bold 18px monospace";c.textAlign="center";c.fillText(v[2],v[0],v[1]+5);c.fillStyle="rgba(13,36,70,.8)";
-            });
             c.globalAlpha=1;
         }
         // Floating text, effects, and existing character super visuals.
@@ -393,7 +380,7 @@
             if(asPatternTimer>155){asPatternTimer=0;asPattern=(asPattern+1)%4;asAttacks=[];asText(200,100,patterns[asPattern],"#b8a2ff",46);asSound(260+asPattern*75,"sine",.18,.06);}
             if((asFrame%Math.max(22,48-asPhase*5))===0)asSpawnPattern(now);
             if(asPlayer.invuln>0)asPlayer.invuln--;
-            if(asPointer.down && asPointer.x>260 && asPointer.y>400 && now-asLastShot>180){asLastShot=now;asBossHit(Math.max(18,Math.floor((Number(window.playerFinalDamage)||80)*.12)));}
+
         }
         asAnimFrame=requestAnimationFrame(asRender);
     }
