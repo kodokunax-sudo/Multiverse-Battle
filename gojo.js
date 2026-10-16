@@ -4,7 +4,7 @@ var N="Годжо",s={energy:0,cd:{red:0,blue:0,infinity:0},red:null,blue:0,infi
 function card(){try{return typeof getMainCard==="function"?getMainCard():null}catch(e){return null}}
 function isAdminPlayer(){try{return typeof mode!=="undefined"&&mode==="moder"}catch(e){return false}}
 function getBattleContext(){try{return typeof getBossContext==="function"?getBossContext():null}catch(e){return null}}
-function unique(c){return !!c&&["stone","waystar","rwb"].indexOf(c.type)>=0}
+function unique(c){return !!c&&["stone","waystar","rwb","antispiral"].indexOf(c.type)>=0}
 function active(c){var x=card();return !!(x&&x.name===N&&c&&(c.type==="arena"||unique(c)))}
 function unlocked(x,c){return c&&x&&(c.type==="arena"?(typeof hasMasterySuper!=="function"||hasMasterySuper(x)):(typeof hasMasteryUniqueSuper!=="function"||hasMasteryUniqueSuper(x)))}
 function passive(){try{var x=card();return !!(x&&x.name===N&&(typeof hasMasteryStatus!=="function"||hasMasteryStatus(x)))}catch(e){return false}}
@@ -18,6 +18,7 @@ function particle(c,x,y,col){try{var a=c.getParticles();if(Array.isArray(a))a.pu
 function target(c){
  if(!unique(c))return null;
  if(c.type==="stone")return typeof livingStoneBoss!=="undefined"?livingStoneBoss:null;
+ if(c.type==="antispiral")return typeof window.getAntiSpiralBossTarget==="function"?window.getAntiSpiralBossTarget():null;
  if(c.type==="waystar"){
   if(typeof waystarState!=="undefined"&&waystarState==="phase3"&&typeof waystarSmallBoss!=="undefined")return waystarSmallBoss;
   if(typeof waystarState!=="undefined"&&waystarState==="phase2"&&Array.isArray(window.waystarPieces)){var a=window.waystarPieces.filter(function(p){return p&&p.alive});if(!a.length)return null;var x=c.getHeartX(),y=c.getHeartY(),b=a[0],d=Infinity;a.forEach(function(p){var q=Math.hypot((p.x||0)-x,(p.y||0)-y);if(q<d){b=p;d=q}});return b}
