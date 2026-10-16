@@ -439,5 +439,7 @@
         for(let i=0;i<16;i++){const a=i*Math.PI/8;asParticles.push({x:x,y:y,vx:Math.cos(a)*(speed||3),vy:Math.sin(a)*(speed||3),life:life||24,maxLife:life||24,color:color||"#55cfff",size:Math.max(1,width||2)});}
     };
     window.damageAntiSpiralBoss = asBossHit;
+    window.antiSpiralSpawnText = asText;
+    window.antiSpiralPlaySound = asSound;
     console.log("[ANTI-SPIRAL] Уникальный бой 1500-й волны загружен.");
 })();
