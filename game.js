@@ -2371,7 +2371,24 @@ function generateEnemy() {
             skipRwbBtn.style.display = "none";
         }
     }
+    else if (wave === 1500 && isUniqueBoss) {
+        let alreadyDefeatedAntiSpiral = typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(1500);
+        let antiSpiralBtn = document.getElementById("startAntiSpiralBossBtn");
+        if (btn) btn.style.display = "none";
+        if (livingBtn) livingBtn.style.display = "none";
+        if (waystarBtn) waystarBtn.style.display = "none";
+        if (rwbBtn) rwbBtn.style.display = "none";
+        if (antiSpiralBtn) antiSpiralBtn.style.display = alreadyDefeatedAntiSpiral ? "none" : "block";
+        if (alreadyDefeatedAntiSpiral) {
+            currentEnemy.hp = Math.max(1, Math.floor(currentEnemy.hp * 0.2));
+            currentEnemy.maxHp = currentEnemy.hp;
+            currentEnemy.isWeakenedAntiSpiral = true;
+            currentEnemy.name = "♾️ Анти-Спираль (ослабленная)";
+        }
+    }
     else {
+        let antiSpiralBtn = document.getElementById("startAntiSpiralBossBtn");
+        if (antiSpiralBtn) antiSpiralBtn.style.display = "none";
         if (livingBtn) livingBtn.style.display = "none";
         if (waystarBtn) waystarBtn.style.display = "none";
         if (rwbBtn) rwbBtn.style.display = "none";
@@ -2410,6 +2427,8 @@ function skipArenaFight() {
     if (waystarBtn) waystarBtn.style.display = "none"; 
     let rwbBtn = document.getElementById("startRogerWB"); 
     if (rwbBtn) rwbBtn.style.display = "none"; 
+    let antiSpiralBtn = document.getElementById("startAntiSpiralBossBtn");
+    if (antiSpiralBtn) antiSpiralBtn.style.display = "none";
     let skipBtn = document.getElementById("skipArenaBtn"); 
     if (skipBtn) skipBtn.style.display = "none"; 
     if (typeof showFloatingText === 'function') showFloatingText("⏭️ Арена пропущена!", "#ffaa00"); 
@@ -2527,6 +2546,7 @@ function handleClick() {
     if (typeof livingStoneActive !== 'undefined' && livingStoneActive) return;
     if (typeof waystarActive !== 'undefined' && waystarActive) return;
     if (typeof rwbActive !== 'undefined' && rwbActive) return;
+    if (typeof window !== 'undefined' && window.antiSpiralBossActive === true) return;
     if (playerHp <= 0) { resetGame(); return; } 
     if (!currentEnemy || currentEnemy.hp <= 0) return; 
     if (deathNoteTarget && wave === deathNoteTarget && !skipUsed) { currentEnemy.hp = 0; skipUsed = true; deathNoteTarget = null; victory(); return; } 
