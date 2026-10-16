@@ -789,7 +789,12 @@ function stopArena() {
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
     if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
     if (typeof resetAllSupers === 'function') resetAllSupers();
-    arenaActive = false; stopArenaAmbient(); stopAntiSpiralMusic(); if (arenaAttackInterval) clearInterval(arenaAttackInterval); if (animFrameId) cancelAnimationFrame(animFrameId);
+    arenaActive = false; stopArenaAmbient(); stopAntiSpiralMusic();
+    if (arenaCurrentWave === 1500 && typeof currentMusic !== "undefined") {
+        currentMusic = null;
+        if (typeof musicEnabled !== "undefined" && musicEnabled && typeof startBattleMusic === "function") startBattleMusic();
+    }
+    if (arenaAttackInterval) clearInterval(arenaAttackInterval); if (animFrameId) cancelAnimationFrame(animFrameId);
     arenaAttackInterval = null; animFrameId = null;
     attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = []; arenaBlasters = []; arenaShockwaves = [];
     window._armorSpeedApplied = false;
