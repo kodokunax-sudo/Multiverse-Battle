@@ -18,15 +18,21 @@
     // ★ СПИСОК МУЗЫКИ ★
     // ============================================================
     const MUSIC_FILES = {
-        "main":         "music/main.mp3",
-        "battle":       "music/battle.mp3",
-        "shop":         "music/shop.mp3",
-        "waystar":      "music/Звезда.mp3",
-        "qte":          "music/стендзи хер ай реалзайз.mp3",
-        "rwb":          "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3",
-        "dioTimeStop": "music/za-warudo-time-stop-louder.mp3",
-        "dioTeleport": "music/dios-time-stop-teleportation-sound-effect-1.mp3",
-        "dioTimeResume": "music/time-resumes.mp3"
+        "main":          "music/main.mp3",
+        "battle":        "music/battle.mp3",
+        "shop":           "music/shop.mp3",
+        "waystar":        "music/Звезда.mp3",
+        "qte":             "music/стендзи хер ай реалзайз.mp3",
+        "qteFallback1":    "music/standing_here_i_realize.mp3",
+        "qteFallback2":    "music/standing_here.mp3",
+        "qteFallback3":    "music/qte.mp3",
+        "rwb":             "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3",
+        "antispiral":      "music/анти спираль.mp3",
+        "dioTimeStop":     "music/za-warudo-time-stop-louder.mp3",
+        "dioTeleport":     "music/dios-time-stop-teleportation-sound-effect-1.mp3",
+        "dioTimeResume":   "music/time-resumes.mp3",
+        "dioMuda":         "music/dio_muda_muda_muda.mp3",
+        "dioMudaVoice":    "music/Voicy_Dio Brando muda muda.mp3"
     };
 
     // Пути берутся из images.js — единого реестра игровых изображений.
