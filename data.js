@@ -1847,7 +1847,7 @@ const bossTemplates = {
     1200: { name: "Хранитель Бездны", hpMult: 32, dmgMult: 2.7, dialogue: "Бездна смотрит в тебя... и улыбается.", enemyStatus: { type: "freezeStacks", value: 4 }, arenaTypes: [0,1,2,3,8] },
     1300: { name: "Небесный Страж", hpMult: 28, dmgMult: 3.4, dialogue: "Небеса не простят твоих грехов.", enemyStatus: { type: "blind", value: 4 }, arenaTypes: [4,6,7,10] },
     1400: { name: "Князь Тьмы", hpMult: 34.7, dmgMult: 3.2, dialogue: "Тьма — это не отсутствие света. Это сила.", enemyStatus: { type: "poison", damage: 10 }, arenaTypes: [2,3,6,8,9] },
-    1500: { name: "Эрен (Титан-основатель)", hpMult: 37.3, dmgMult: 3.6, dialogue: "Я уничтожу всех... ради свободы.", enemyStatus: { type: "bleed", value: 0.4 }, arenaTypes: [0,1,4,5,8] },
+    1500: { name: "Анти-Спираль", hpMult: 42.5, dmgMult: 4.2, dialogue: "Твоя воля ничего не значит перед бесконечностью. Склоняйся перед Анти-Спиралью.", enemyStatus: { type: "freezeStacks", value: 2 }, arenaTypes: [0,1,4,5,7,8,9,10] },
     1600: { name: "Гатс (Берсерк)", hpMult: 40, dmgMult: 4.0, dialogue: "Я буду бороться... до последнего вздоха.", enemyStatus: { type: "bleed", value: 0.5 }, arenaTypes: [1,3,5,7,9] },
     1700: { name: "Драконий Император", hpMult: 38.7, dmgMult: 3.8, dialogue: "Моя чешуя крепче любой брони.", enemyStatus: { type: "fire", damage: 20, duration: 2000 }, arenaTypes: [0,2,5,9,10] },
     1800: { name: "Великий Маг", hpMult: 30.7, dmgMult: 4.5, dialogue: "Магия — это искусство разрушения.", enemyStatus: { type: "shock", chance: 0.7 }, arenaTypes: [1,4,6,7,10] },
