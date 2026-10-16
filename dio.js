@@ -278,10 +278,7 @@ function dioGetStandPosition(ctxB){
  ctxB=ctxB||((typeof getBossContext==="function")?getBossContext():null);if(!ctxB||typeof ctxB.getHeartX!=="function"||typeof ctxB.getHeartY!=="function")return null;
  var px=Number(ctxB.getHeartX())||0,py=Number(ctxB.getHeartY())||0;
  if(typeof _superState!=="undefined"&&_superState.dioMudaActive&&_superState.dioMudaMode==="melee"&&isFinite(Number(_superState.dioMudaStandX))&&isFinite(Number(_superState.dioMudaStandY)))return{x:Number(_superState.dioMudaStandX),y:Number(_superState.dioMudaStandY),radius:7};
- if(typeof window.isStandUserStandActive==="function"&&window.isStandUserStandActive()&&typeof window.getStandUserHitboxPosition==="function"){
-  var genericStand=window.getStandUserHitboxPosition(ctxB);if(genericStand)return genericStand;
- }
- return{x:px+(px>300?-20:20),y:py-8,radius:7};
+  return{x:px+(px>300?-20:20),y:py-8,radius:7};
 }
 window.getDioStandPosition=dioGetStandPosition;
 function dioIsKnifeWindupActive(){return typeof _superState!=="undefined"&&!!_superState.dioMudaActive&&_superState.dioMudaMode==="knives"&&performance.now()-(_superState.dioMudaStartedAt||0)<2000;}
@@ -306,7 +303,7 @@ function dioRenderSkillEffects(ctxB){
  if(_superState.dioMudaActive&&_superState.dioMudaMode==="melee"){var t=now-(Number(_superState.dioMudaLastHitAt)||0);if(_superState.dioMudaLastHitAt>0&&t>=0&&t<170){var p=dioGetStandPosition(ctxB);if(p){ctx.save();ctx.globalAlpha=1-t/170;ctx.strokeStyle="#fff4a4";ctx.shadowColor="#ffdf73";ctx.shadowBlur=9;ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,10+(170-t)*.06,now/70,now/70+1.55);ctx.stroke();ctx.beginPath();ctx.moveTo(p.x-10,p.y-9);ctx.lineTo(p.x+9,p.y+8);ctx.moveTo(p.x+10,p.y-8);ctx.lineTo(p.x-8,p.y+9);ctx.stroke();ctx.restore();}}}
 }
 window.dioRenderSkillEffects=dioRenderSkillEffects;
-function dioRenderPlayerAndStand(ctxB){if(!ctx||!ctxB||!isDioOverHeavenMain())return;drawDioPlayerVisual(ctx,ctxB.getHeartX(),ctxB.getHeartY(),ctxB.getHeartSize?ctxB.getHeartSize():12);dioRenderSkillEffects(ctxB);}
+function dioRenderPlayerAndStand(ctxB){if(!ctx||!ctxB||!isDioOverHeavenMain())return;drawDioPlayerVisual(ctx,ctxB.getHeartX(),ctxB.getHeartY(),ctxB.getHeartSize?ctxB.getHeartSize():12);var p=dioGetStandPosition(ctxB);if(p)drawDioStandVisual(ctx,p.x,p.y,10);dioRenderSkillEffects(ctxB);}
 window.dioRenderPlayerAndStand=dioRenderPlayerAndStand;
 function dioGetUniqueBossTarget(ctxB,preferredId){
  ctxB=ctxB||((typeof getBossContext==="function")?getBossContext():null);if(!ctxB||!["waystar","stone","rwb"].includes(ctxB.type))return null;
