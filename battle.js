@@ -1307,7 +1307,7 @@ function renderArena() {
         ctx.save();
         ctx.translate(heart.x, heart.y - 2);
         ctx.rotate(heartRotation * 0.3);
-        var dioMainHeart = typeof isDioOverHeavenMain === "function" && isDioOverHeavenMain();
+        var dioMainHeart = arenaCurrentWave !== 1500 && typeof isDioOverHeavenMain === "function" && isDioOverHeavenMain();
         if (dioMainHeart) {
             // Сердце DIO: классический красный SOUL-силуэт с тёмной окантовкой и золотым бликом.
             var hs = Math.max(0.7, heart.size / 14);
