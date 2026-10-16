@@ -71,9 +71,15 @@
         try {
             if (typeof stopAllMusic === "function") stopAllMusic();
             if (!asMusic) {
-                asMusic = new Audio("music/анти спираль.mp3");
+                const loadedTrack = typeof window.getLoadedMusic === "function"
+                    ? window.getLoadedMusic("antispiral")
+                    : null;
+                asMusic = new Audio(loadedTrack && loadedTrack.url
+                    ? loadedTrack.url
+                    : "music/анти спираль.mp3");
                 asMusic.loop = true;
                 asMusic.volume = 0.42;
+                asMusic.preload = "auto";
             }
             asMusic.currentTime = 0;
             asMusic.play().catch(function(){});
