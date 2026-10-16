@@ -434,6 +434,7 @@
     window.getAntiSpiralBossActive = function(){return asActive;};
     window.getAntiSpiralBossState = function(){return asState;};
     window.getAntiSpiralBossPlayer = function(){return asPlayer;};
+    window.getAntiSpiralBossTarget = function(){return asBoss;};
     window.getAntiSpiralBossAttacks = function(){return asAttacks;};
     window.getAntiSpiralBossParticles = function(){return asParticles;};
     window.getAntiSpiralBossHp = function(){return asBossHp;};
