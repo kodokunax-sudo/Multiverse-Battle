@@ -1698,7 +1698,7 @@ const customCardTemplates = {
             superAbility: { name: "SUPER: СИМВОЛ МИРА", desc: "Хитбокс x2, урон x3 на 15 секунд! Но потом теряешь 50% HP и НАВСЕГДА замедляешься в 3 раза. ПЛЮЮЮС УЛЬТРААААА!", passive: false }
         },
         { 
-            name: "ДИО Over Heaven", universe: "JoJo", patchId: "jojo", damage: 280, hp: 420, speed: 3.1, sellPrice: 3500, minRebirth: 4,
+            name: "ДИО Over Heaven", universe: "JoJo", damage: 280, hp: 420, speed: 3.1, sellPrice: 3500, minRebirth: 4,
             ability: { type: "oneShot", chance: 0.03, desc: "3% шанс мгновенно уничтожить врага, даже босса" },
             statusAbility: { type: "shock", chance: 0.15, desc: "15% шанс шока" },
             extraStatus: [],
