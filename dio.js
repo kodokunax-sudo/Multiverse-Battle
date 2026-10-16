@@ -15,6 +15,8 @@ function dioSoundKey(path) {
     if (path === "music/dios-time-stop-teleportation-sound-effect-1.mp3") return "dioTeleport";
     if (path === "music/za-warudo-time-stop-louder.mp3") return "dioTimeStop";
     if (path === "music/time-resumes.mp3") return "dioTimeResume";
+    if (path === "music/dio_muda_muda_muda.mp3") return "dioMuda";
+    if (path === "music/Voicy_Dio Brando muda muda.mp3") return "dioMudaVoice";
     return null;
 }
 function dioResolveSoundSource(path) {
