@@ -374,9 +374,17 @@
         if(asState==="fight"){
             const left=asKeys.a||asKeys.arrowleft;const right=asKeys.d||asKeys.arrowright;
             let mx=(right?1:0)-(left?1:0);
-            if(asPointer.down){if(asPointer.direction)mx=asPointer.direction;else if(asPointer.x<asPlayer.x-7)mx=-1;else if(asPointer.x>asPlayer.x+7)mx=1;}
+            const joy=window._joystick;
+            if(joy && joy.enabled && joy.active && (joy.enabled || joy.mobileDpadActive)) {
+                mx=Number(joy.vectorX)||0;
+            } else if(asPointer.down) {
+                if(asPointer.direction)mx=asPointer.direction;
+                else if(asPointer.x<asPlayer.x-7)mx=-1;
+                else if(asPointer.x>asPlayer.x+7)mx=1;
+            }
             asPlayer.x+=mx*3.5;
-            const jump=(asKeys.w||asKeys.arrowup||asKeys[" "])&&asPlayer.grounded;
+            const joyJump=!!(joy && joy.enabled && joy.active && (Number(joy.vectorY)||0)<-0.62);
+            const jump=(asKeys.w||asKeys.arrowup||asKeys[" "]||joyJump)&&asPlayer.grounded;
             if(jump){asPlayer.vy=-8.4;asPlayer.grounded=false;asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);}
             asPlayer.vy=Math.min(6.1,asPlayer.vy+0.31+asGravityPull);
             asPlayer.y+=asPlayer.vy;
