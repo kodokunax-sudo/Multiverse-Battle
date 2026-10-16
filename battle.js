@@ -29,7 +29,7 @@ let arenaHitFlash = 0;
 let arenaComboText = "";
 let arenaComboTimer = 0;
 let arenaTrail = [];
-let keys = { w: false, a: false, s: false, d: false, up: false, left: false, down: false, right: false };
+let keys = { w: false, a: false, s: false, d: false, up: false, left: false, down: false, right: false, jump: false };
 let heartSpeed = 1.2;
 let joystickActive = false;
 let joystickX = 0;
@@ -77,6 +77,144 @@ let antiSpiralArenaTargetWidth = 396;
 let antiSpiralArenaTargetHeight = 496;
 let antiSpiralArenaLastShift = 0;
 let antiSpiralArenaWidePhase = true;
+let antiSpiralJumpCooldown = 0;
+let antiSpiralAttackStep = 0;
+let antiSpiralActivePattern = 0;
+let antiSpiralSpiralAngle = 0;
+let antiSpiralVolleyDirection = 1;
+
+function antiSpiralFloorY() {
+    return 500 - (445 - antiSpiralArenaHeight) / 2 - heart.size;
+}
+
+// Four attack scripts unique to the wave-1500 fight.
+// 0: rotating spiral; 1: ground-level wave (jump over it); 2: falling singularities;
+// 3: aimed crossfire. All attacks use the arena's existing collision/rendering system.
+function spawnAntiSpiralAttack() {
+    if (!arenaActive || arenaPhase !== "dodge" || arenaCurrentWave !== 1500) return;
+    var pattern = antiSpiralActivePattern;
+    var dmg = Math.max(1, Math.floor(arenaBaseDmg * 0.38));
+    var floorY = antiSpiralFloorY();
+
+    if (pattern === 0) {
+        var base = Math.atan2(heart.y - 70, heart.x - 200) + antiSpiralSpiralAngle;
+        for (var i = -2; i <= 2; i++) {
+            var angle = base + i * 0.22;
+            attacks.push({
+                type: "square", x: 200, y: 70, size: 17,
+                spd: Math.cos(angle) * 2.8, spdY: Math.sin(angle) * 2.8,
+                color: "#39c8ff", damage: dmg, bouncesLeft: 0
+            });
+        }
+        antiSpiralSpiralAngle += 0.27;
+    } else if (pattern === 1) {
+        // A low moving wave forces the player to jump, not just run sideways.
+        var dir = antiSpiralVolleyDirection;
+        var startX = dir > 0 ? -28 : 428;
+        var spacing = 48;
+        for (var j = 0; j < 4; j++) {
+            attacks.push({
+                type: "square", x: startX - dir * j * spacing, y: floorY - 20,
+                size: 23, spd: dir * 4.1, spdY: 0,
+                color: "#55c8ff", damage: dmg, bouncesLeft: 0
+            });
+        }
+        antiSpiralVolleyDirection *= -1;
+    } else if (pattern === 2) {
+        var left = (400 - antiSpiralArenaWidth) / 2 + 22;
+        var right = (400 + antiSpiralArenaWidth) / 2 - 22;
+        for (var k = 0; k < 5; k++) {
+            var laneX = left + (right - left) * ((k + 0.5) / 5);
+            // The lane closest to the soul is deliberately omitted to keep the volley readable.
+            if (Math.abs(laneX - heart.x) < 28) continue;
+            attacks.push({
+                type: "square", x: laneX - 10, y: 58, size: 20,
+                spd: Math.sin(antiSpiralSpiralAngle + k) * 0.25,
+                spdY: 2.7 + (k % 2) * 0.45, color: "#35aaff",
+                damage: dmg, bouncesLeft: 0
+            });
+        }
+        antiSpiralSpiralAngle += 0.35;
+    } else {
+        // A short, aimed fan from the side opposite the player.
+        var sourceX = heart.x < 200 ? 420 : -20;
+        var sourceY = 110 + Math.random() * 110;
+        var aim = Math.atan2(heart.y - sourceY, heart.x - sourceX);
+        for (var m = -1; m <= 1; m++) {
+            var a = aim + m * 0.19;
+            attacks.push({
+                type: "square", x: sourceX, y: sourceY, size: 19,
+                spd: Math.cos(a) * 3.2, spdY: Math.sin(a) * 3.2,
+                color: "#a45cff", damage: dmg, bouncesLeft: 0
+            });
+        }
+    }
+}
+
+function startAntiSpiralDodgePhase() {
+    if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
+    if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
+    if (arenaAttackInterval) { clearInterval(arenaAttackInterval); arenaAttackInterval = null; }
+    if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
+
+    arenaPhase = "dodge";
+    attacks = [];
+    arenaBlasters = [];
+    arenaClickTargets = [];
+    wallGapIndicator = null;
+    antiSpiralActivePattern = antiSpiralAttackStep % 4;
+    antiSpiralAttackStep++;
+    arenaAttackType = [1, 8, 9, 10][antiSpiralActivePattern];
+    antiSpiralSpiralAngle = 0;
+    var names = [
+        "СПИРАЛЬНЫЙ ШТОРМ",
+        "ВОЛНА ГОРИЗОНТА — ПРЫГАЙ!",
+        "ДОЖДЬ СИНГУЛЯРНОСТЕЙ",
+        "ГРАВИТАЦИОННЫЙ РАЗЛОМ"
+    ];
+    arenaDodgeTimer = 9;
+    var title = function() {
+        return "АНТИ-СПИРАЛЬ — " + names[antiSpiralActivePattern] +
+            " | ↑ / W / SPACE — ПРЫЖОК | " + arenaDodgeTimer + "с";
+    };
+    var bossNameEl = document.getElementById("arenaBossName");
+    if (bossNameEl) bossNameEl.innerText = title();
+    var timerEl = document.getElementById("arenaTimer");
+    if (timerEl) timerEl.innerText = arenaDodgeTimer + "с";
+
+    var interval = antiSpiralActivePattern === 1 ? 620 : 850;
+    arenaAttackInterval = setInterval(function() {
+        var stopped = typeof window.isDioTimeStopped === "function"
+            ? window.isDioTimeStopped()
+            : (typeof _superState !== "undefined" && (_superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0));
+        if (arenaPhase === "dodge" && arenaActive && !stopped) spawnAntiSpiralAttack();
+    }, interval);
+
+    arenaDodgeTimerInterval = setInterval(function() {
+        var stopped = typeof window.isDioTimeStopped === "function"
+            ? window.isDioTimeStopped()
+            : (typeof _superState !== "undefined" && (_superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0));
+        if (arenaPhase !== "dodge" || !arenaActive || stopped) return;
+        arenaDodgeTimer = Math.max(0, arenaDodgeTimer - 1);
+        var bossEl = document.getElementById("arenaBossName");
+        if (bossEl) bossEl.innerText = title();
+        var timer = document.getElementById("arenaTimer");
+        if (timer) timer.innerText = arenaDodgeTimer + "с";
+    }, 1000);
+
+    arenaPhaseTimeout = setTimeout(function waitForAntiSpiralTimeStop() {
+        if (arenaPhase !== "dodge" || !arenaActive) return;
+        var stopped = typeof window.isDioTimeStopped === "function"
+            ? window.isDioTimeStopped()
+            : (typeof _superState !== "undefined" && (_superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0));
+        if (stopped) {
+            arenaPhaseTimeout = setTimeout(waitForAntiSpiralTimeStop, 50);
+            return;
+        }
+        if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
+        startAttackPhase();
+    }, 9000);
+}
 
 function startAntiSpiralMusic() {
     if (typeof musicEnabled !== "undefined" && !musicEnabled) return;
@@ -195,6 +333,7 @@ function initArena() {
     var handleKey = function(ev, isDown) {
         var k = ev.key.toLowerCase();
         if (k in keys) { keys[k] = isDown; ev.preventDefault(); }
+        if (k === " ") { keys.jump = isDown; ev.preventDefault(); }
         if (k === "arrowup") { keys.up = isDown; ev.preventDefault(); }
         if (k === "arrowdown") { keys.down = isDown; ev.preventDefault(); }
         if (k === "arrowleft") { keys.left = isDown; ev.preventDefault(); }
@@ -349,8 +488,15 @@ function moveHeart() {
         if (len > 1) { mx /= len; my /= len; }
     }
 
-    if (keys.w || keys.up) my -= 1;
-    if (keys.s || keys.down) my += 1;
+    var jumpRequested = arenaCurrentWave === 1500 && my < -0.4;
+    if (arenaCurrentWave === 1500) {
+        // Blue soul: vertical input triggers a jump; it no longer fights gravity as weak upward movement.
+        my = 0;
+        if (keys.w || keys.up || keys.jump) jumpRequested = true;
+    } else {
+        if (keys.w || keys.up) my -= 1;
+        if (keys.s || keys.down) my += 1;
+    }
     if (keys.a || keys.left) mx -= 1;
     if (keys.d || keys.right) mx += 1;
 
@@ -381,10 +527,22 @@ function moveHeart() {
     }
 
     if (arenaCurrentWave === 1500) {
-        antiSpiralGravityVelocity = Math.min(4.5, antiSpiralGravityVelocity + 0.22);
+        var floorY = antiSpiralFloorY();
+        if (antiSpiralJumpCooldown > 0) antiSpiralJumpCooldown--;
+        var grounded = heart.y >= floorY - 1 && antiSpiralGravityVelocity >= 0;
+        if (jumpRequested && grounded && antiSpiralJumpCooldown <= 0) {
+            antiSpiralGravityVelocity = -7.6;
+            antiSpiralJumpCooldown = 10;
+            spawnFloatingText(heart.x, heart.y - 20, "ПРЫЖОК!", "#55c8ff");
+            playArenaSound(520, "sine", 0.12, 0.045);
+        } else {
+            antiSpiralGravityVelocity = Math.min(5.2, antiSpiralGravityVelocity + 0.28);
+        }
         heart.y += antiSpiralGravityVelocity;
+        if (heart.y >= floorY) { heart.y = floorY; antiSpiralGravityVelocity = 0; }
     } else {
         antiSpiralGravityVelocity = 0;
+        antiSpiralJumpCooldown = 0;
     }
     clampHeart();
 
@@ -484,6 +642,11 @@ function startArena(bossWave) {
     arenaBossDefeatedBefore = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossWave));
     arenaActive = true; arenaCurrentWave = bossWave; calculateArenaHP();
     antiSpiralGravityVelocity = 0;
+    antiSpiralJumpCooldown = 0;
+    antiSpiralAttackStep = 0;
+    antiSpiralActivePattern = 0;
+    antiSpiralSpiralAngle = 0;
+    antiSpiralVolleyDirection = 1;
     antiSpiralArenaWidth = 396;
     antiSpiralArenaHeight = bossWave === 1500 ? 438 : 496;
     antiSpiralArenaTargetWidth = 396;
@@ -593,6 +756,7 @@ function startArena(bossWave) {
 }
 
 function startDodgePhase() {
+    if (arenaCurrentWave === 1500) { startAntiSpiralDodgePhase(); return; }
     arenaPhase = "dodge"; attacks = []; arenaBlasters = []; wallGapIndicator = null; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0;
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
@@ -626,6 +790,13 @@ function startDodgePhase() {
 }
 
 function updateDodgeTimerDisplay() {
+    if (arenaCurrentWave === 1500 && arenaPhase === "dodge") {
+        var antiName = ["СПИРАЛЬНЫЙ ШТОРМ", "ВОЛНА ГОРИЗОНТА — ПРЫГАЙ!", "ДОЖДЬ СИНГУЛЯРНОСТЕЙ", "ГРАВИТАЦИОННЫЙ РАЗЛОМ"][antiSpiralActivePattern];
+        var antiTitle = document.getElementById("arenaBossName");
+        if (antiTitle) antiTitle.innerText = "АНТИ-СПИРАЛЬ — " + antiName + " | ↑ / W / SPACE — ПРЫЖОК | " + arenaDodgeTimer + "с";
+        var antiTimer = document.getElementById("arenaTimer"); if (antiTimer) antiTimer.innerText = arenaDodgeTimer + "с";
+        return;
+    }
     var typeNames = { 0: "⬜ СТЕНЫ", 1: "🔷 ХАОС", 2: "⚡ ЖЁЛТЫЕ", 3: "🛑 КРАСНЫЕ", 4: "💗 РОЗОВЫЕ", 5: "💚 ЗЕЛЁНЫЕ", 6: "🌈 РАДУЖНЫЕ", 7: "⚡🛑 МИКС", 8: "🟥⬜ ЗОНЫ", 9: "💣 БОМБЫ", 10: "🔫 БЛАСТЕРЫ" };
     var timerEl = document.getElementById("arenaTimer"); if (timerEl && arenaPhase === "dodge") timerEl.innerText = arenaDodgeTimer + "с";
     var bossNameEl = document.getElementById("arenaBossName"); if (bossNameEl && arenaPhase === "dodge") bossNameEl.innerText = arenaBoss + " — " + (typeNames[arenaAttackType] || "Атака") + " | ⚡" + heartSpeed.toFixed(2) + " | ⏱️" + arenaDodgeTimer + "с";
@@ -1120,6 +1291,13 @@ function renderArena() {
         ctx.strokeStyle = "#3ebdff";
         ctx.shadowColor = "#168bff";
         ctx.strokeRect(boxX, boxY, boxW, boxH);
+        ctx.save();
+        ctx.font = "bold 10px monospace";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#8edfff";
+        ctx.shadowColor = "#168bff"; ctx.shadowBlur = 8;
+        ctx.fillText("↑ / W / SPACE — ПРЫЖОК", boxX + boxW / 2, boxY + 17);
+        ctx.restore();
     } else {
         ctx.strokeRect(2, 2, 396, 496);
     }
