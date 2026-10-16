@@ -109,7 +109,7 @@
         if (asPlayerHp <= 0) asLose();
     }
     function asAddAttack(x, y, vx, vy, size, color, damage, kind) {
-        asAttacks.push({x:x,y:y,vx:vx,vy:vy,size:size||14,color:color||"#3abfff",damage:damage||12,kind:kind||"orb",life:250,phase:Math.random()*6});
+        asAttacks.push({x:x,y:y,vx:vx,vy:vy,spd:vx,spdY:vy,size:size||14,color:color||"#3abfff",damage:damage||12,kind:kind||"orb",life:250,phase:Math.random()*6});
     }
     function asSpawnPattern(now) {
         const damage = asPhase >= 3 ? 18 : (asPhase >= 2 ? 14 : 10);
@@ -186,12 +186,21 @@
             asBossHit(Math.max(25, Math.floor((Number(window.playerFinalDamage)||80)*0.20)), "ПОПАДАНИЕ");
             return;
         }
+        // On-screen controls for touch. Holding ◀/▶ moves, ▲ jumps, ATTACK fires rapidly.
+        if (y > 430 && x < 74) {
+            asPointer.down=true; asPointer.id=ev.pointerId; asPointer.x=x; asPointer.y=y; asPointer.direction=-1;
+            return;
+        }
+        if (y > 430 && x >= 80 && x < 132) {
+            asPointer.down=true; asPointer.id=ev.pointerId; asPointer.x=x; asPointer.y=y; asPointer.direction=1;
+            return;
+        }
         // Tap/click in the lower center zone to jump; dragging left/right steers the soul.
-        if (y>350 && x>120 && x<280 && asPlayer.grounded) {
+        if (y>430 && x>150 && x<250 && asPlayer.grounded) {
             asPlayer.vy=-8.4; asPlayer.grounded=false; asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
             return;
         }
-        asPointer.down=true; asPointer.id=ev.pointerId; asPointer.x=x; asPointer.y=y;
+        asPointer.down=true; asPointer.id=ev.pointerId; asPointer.x=x; asPointer.y=y; asPointer.direction=0;
         if (c.setPointerCapture) { try { c.setPointerCapture(ev.pointerId); } catch(e) {} }
     }
     function asPointerMove(ev) {
@@ -203,7 +212,7 @@
     }
     function asPointerUp(ev) {
         if (asPointer.id!==null && ev.pointerId!==undefined && ev.pointerId!==asPointer.id) return;
-        asPointer.down=false; asPointer.id=null;
+        asPointer.down=false; asPointer.id=null; asPointer.direction=0;
     }
     function asBind() {
         const c=asCanvas(); if(!c) return false;
@@ -331,6 +340,8 @@
             for(let i=0;i<5;i++){c.beginPath();c.arc(asBoss.x,asBoss.y,asBoss.size+18+i*19,0,Math.PI*2);c.stroke();}c.restore();
             for(let i=asAttacks.length-1;i>=0;i--){
                 const a=asAttacks[i];
+                if(typeof a.spd==="number")a.vx=a.spd;
+                if(typeof a.spdY==="number")a.vy=a.spdY;
                 a.x+=a.vx;a.y+=a.vy;a.life--;a.phase+=.1;
                 c.save();c.translate(a.x,a.y);c.rotate(a.phase);c.shadowColor=a.color;c.shadowBlur=12;c.fillStyle=a.color;
                 if(a.kind==="ground"){c.globalAlpha=.85;c.fillRect(-a.size,-a.size*.42,a.size*2,a.size*.84);c.strokeStyle="#e1fbff";c.strokeRect(-a.size,-a.size*.42,a.size*2,a.size*.84);}
@@ -365,7 +376,7 @@
         if(asState==="fight"){
             const left=asKeys.a||asKeys.arrowleft;const right=asKeys.d||asKeys.arrowright;
             let mx=(right?1:0)-(left?1:0);
-            if(asPointer.down){if(asPointer.x<asPlayer.x-7)mx=-1;else if(asPointer.x>asPlayer.x+7)mx=1;}
+            if(asPointer.down){if(asPointer.direction)mx=asPointer.direction;else if(asPointer.x<asPlayer.x-7)mx=-1;else if(asPointer.x>asPlayer.x+7)mx=1;}
             asPlayer.x+=mx*3.5;
             const jump=(asKeys.w||asKeys.arrowup||asKeys[" "])&&asPlayer.grounded;
             if(jump){asPlayer.vy=-8.4;asPlayer.grounded=false;asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);}
