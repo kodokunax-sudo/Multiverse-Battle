@@ -204,6 +204,7 @@ function isUniqueBossActive() {
         if (typeof waystarActive !== 'undefined' && waystarActive) return 'waystar';
         if (typeof livingStoneActive !== 'undefined' && livingStoneActive) return 'stone';
         if (typeof window.rwbActive !== 'undefined' && window.rwbActive) return 'rwb';
+        if (typeof window.getAntiSpiralBossActive === "function" && window.getAntiSpiralBossActive()) return "antispiral";
     } catch(e) {}
     return null;
 }
@@ -437,6 +438,40 @@ function getBossContext() {
             spawnFloatingText: function(x, y, text, color) { if (typeof window.spawnFloatingText === 'function') window.spawnFloatingText(x, y, text, color); },
             playSound: function(f, t, d, v) { if (typeof window.rwbSound === 'function') window.rwbSound(f, t, d, v); },
             addShockwave: function(x, y, color, speed, life, width) { if (typeof window.rwbAddShockwave === 'function') window.rwbAddShockwave(x, y, color, speed, life, width); },
+            clampHeart: function() {},
+            isDodgePhase: function() { return false; }
+        };
+    }
+
+    // ★ АНТИ-СПИРАЛЬ — УНИКАЛЬНЫЙ БОСС 1500 ★
+    if (bossType === 'antispiral') {
+        return {
+            type: 'antispiral',
+            getHeartX: function() { var p=window.getAntiSpiralBossPlayer&&window.getAntiSpiralBossPlayer(); return p?p.x:200; },
+            setHeartX: function(v) { var p=window.getAntiSpiralBossPlayer&&window.getAntiSpiralBossPlayer(); if(p)p.x=Math.max(14,Math.min(386,Number(v)||200)); },
+            getHeartY: function() { var p=window.getAntiSpiralBossPlayer&&window.getAntiSpiralBossPlayer(); return p?p.y:430; },
+            setHeartY: function(v) { var p=window.getAntiSpiralBossPlayer&&window.getAntiSpiralBossPlayer(); if(p)p.y=Math.max(65,Math.min(486,Number(v)||430)); },
+            getHeartSize: function() { var p=window.getAntiSpiralBossPlayer&&window.getAntiSpiralBossPlayer(); return p?p.size:12; },
+            setHeartSize: function(v) { var p=window.getAntiSpiralBossPlayer&&window.getAntiSpiralBossPlayer(); if(p)p.size=Math.max(5,Math.min(25,Number(v)||12)); },
+            getHeartHitbox: function() { return 6; },
+            setHeartHitbox: function(v) {},
+            getHeartSpeed: function() { return 3.5; },
+            setHeartSpeed: function(v) {},
+            getAttacks: function() { return window.getAntiSpiralBossAttacks?window.getAntiSpiralBossAttacks():[]; },
+            getBlasters: function() { return []; },
+            getParticles: function() { return window.getAntiSpiralBossParticles?window.getAntiSpiralBossParticles():[]; },
+            getBossMaxHp: function() { return window.getAntiSpiralBossMaxHp?window.getAntiSpiralBossMaxHp():1; },
+            setBossMaxHp: function(v) { if(window.setAntiSpiralBossHp)window.setAntiSpiralBossHp(v); },
+            getBossHp: function() { return window.getAntiSpiralBossHp?window.getAntiSpiralBossHp():0; },
+            getPlayerHp: function() { return window.getAntiSpiralPlayerHp?window.getAntiSpiralPlayerHp():0; },
+            setPlayerHp: function(v) { if(window.setAntiSpiralPlayerHp)window.setAntiSpiralPlayerHp(v); },
+            getPlayerMaxHp: function() { return window.getAntiSpiralPlayerMaxHp?window.getAntiSpiralPlayerMaxHp():220; },
+            addShake: function(v) { if(window.antiSpiralAddShake)window.antiSpiralAddShake(v); },
+            addFlash: function(v,color) { if(window.antiSpiralAddFlash)window.antiSpiralAddFlash(v,color); },
+            addFlashWhite: function(v) { if(window.antiSpiralAddFlash)window.antiSpiralAddFlash(v,"#ffffff"); },
+            spawnFloatingText: function(x,y,text,color) { if(window.antiSpiralSpawnText)window.antiSpiralSpawnText(x,y,text,color); },
+            playSound: function(f,t,d,v) { if(window.antiSpiralPlaySound)window.antiSpiralPlaySound(f,t,d,v); },
+            addShockwave: function(x,y,color,speed,life,width) { if(window.antiSpiralAddShockwave)window.antiSpiralAddShockwave(x,y,color,speed,life,width); },
             clampHeart: function() {},
             isDodgePhase: function() { return false; }
         };
