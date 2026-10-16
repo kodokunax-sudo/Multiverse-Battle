@@ -547,7 +547,7 @@ function moveHeart() {
     clampHeart();
 
     if (Math.random() > 0.3) {
-        arenaTrail.push({ x: heart.x, y: heart.y, life: 12, maxLife: 12, size: Math.max(1, heart.size * 0.75), color: (typeof _superState !== 'undefined' && _superState.takabaRainbowTrail) ? "hsl(" + ((performance.now()/3)%360) + ",100%,60%)" : "rgba(255, 30, 30, 0.35)" });
+        arenaTrail.push({ x: heart.x, y: heart.y, life: 12, maxLife: 12, size: Math.max(1, heart.size * 0.75), color: (typeof _superState !== 'undefined' && _superState.takabaRainbowTrail) ? "hsl(" + ((performance.now()/3)%360) + ",100%,60%)" : (arenaCurrentWave === 1500 ? "rgba(38, 191, 255, 0.45)" : "rgba(255, 30, 30, 0.35)") });
     }
 
     if (arenaAttackType === 4) {
@@ -726,6 +726,7 @@ function startArena(bossWave) {
 
     arenaClickTargets = []; arenaClicksHit = 0; arenaPhase = "dodge"; attacks = []; arenaBlasters = []; arenaParticles = []; floatingTexts = []; arenaTrail = []; arenaShockwaves = []; wallGapIndicator = null;
     arenaShake = 0; arenaHitFlash = 0; invulnTimer = 0; arenaComboText = ""; arenaComboTimer = 0; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0; heartRotation = 0; heartWasMoving = false; heartStandingTime = 0;
+    if (bossWave === 1500) heart.y = antiSpiralFloorY();
 
     arenaSpeedMult = Math.min(15.0, 1.0 + Math.floor((bossWave - 50) / 50) * 0.1); if (bossWave < 50) arenaSpeedMult = 1.0;
     wallSpeedMult = Math.min(4.0, 1.0 + Math.floor((bossWave - 50) / 100) * 0.15);
