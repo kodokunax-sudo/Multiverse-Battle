@@ -184,13 +184,13 @@
         if (asState!=="fight") return;
         if (asState === "intro") { asBegin(); return; }
         if (Math.hypot(x-asBoss.x,y-asBoss.y) < asBoss.size*1.9) {
-            asBossHit(Math.max(25, Math.floor((Number(window.playerFinalDamage)||80)*0.20)), "ПОПАДАНИЕ");
+            asBossHit(Math.max(50, Math.floor((Number(window.playerFinalDamage)||80)*1.0)), "ПОПАДАНИЕ");
             return;
         }
         // Touch below the boss can trigger a jump; a held drag steers the soul.
         if (y>430 && x>150 && x<250 && asPlayer.grounded) {
-            asPlayer.vy=-8.4; asPlayer.grounded=false; asPlayer.vy=Math.min(asPlayer.vy,-8.4);
-            asPlayer.grounded=false; asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
+            asPlayer.vy=-8.4; asPlayer.grounded=false;
+            asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
             return;
         }
         asPointer.down=true; asPointer.id=ev.pointerId; asPointer.x=x; asPointer.y=y; asPointer.direction=0;
@@ -389,7 +389,7 @@
         if(Number(typeof wave!=="undefined"?wave:0)!==1500) return;
         if(typeof currentEnemy==="undefined"||!currentEnemy||currentEnemy.hp<=0) return;
         asActive=true;window.antiSpiralBossActive=true;asState="intro";asWinPending=false;asDefeatPending=false;
-        asBossMaxHp=Math.max(80000,Math.floor((Number(window.playerFinalDamage)||80)*420));
+        asBossMaxHp=Math.max(40000,Math.floor((Number(window.playerFinalDamage)||80)*120));
         asBossHp=asBossMaxHp;asPlayerMaxHp=220;asPlayerHp=asPlayerMaxHp;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true};
         asBoss={x:200,y:135,size:48,rotation:0,pulse:0,flash:0};
