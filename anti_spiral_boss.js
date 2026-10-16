@@ -387,7 +387,10 @@
         c.restore();
     }
     function asDrawSpeech(c, speaker, text, y, color, now) {
-        const lines = text.length>42 ? [text.slice(0,Math.floor(text.length/2)),text.slice(Math.floor(text.length/2))] : [text];
+        const words=text.split(/\s+/);const lines=[];let line="";
+        words.forEach(function(word){if(line&&(line+" "+word).length>31){lines.push(line);line=word;}else line+=(line?" ":"")+word;});
+        if(line)lines.push(line);
+        if(lines.length>2){lines[1]=lines.slice(1).join(" ");lines.length=2;}
         const boxH=lines.length>1?54:39;
         const isHero=speaker==="СЕРДЦЕ";
         const x=isHero?12:100,w=isHero?250:288;
@@ -474,16 +477,19 @@
         }
         if(t>=18.15){
             asState="fight";
+            asBoss={x:200,y:100,size:48,rotation:0,pulse:0,flash:0};
+            asArenaWidth=396;asArenaHeight=438;asTargetWidth=396;asTargetHeight=438;
             asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true};
             asPattern=0;asPatternTimer=0;asLastArenaShift=now;
             asText(200,250,"ТЕБЕ КОНЕЦ!","#74e4ff",85);
             asSound(150,"sawtooth",.45,.14);
+            if(typeof updateSuperButton==="function")setTimeout(updateSuperButton,80);
         }
     }
     function asRender(now) {
         if(!asActive) return;
         const c=asCtx(); if(!c){asAnimFrame=requestAnimationFrame(asRender);return;}
-        asFrame++; asShiftArena(now);
+        asFrame++; if(asState==="fight") asShiftArena(now);
         asArenaWidth += (asTargetWidth-asArenaWidth)*.055;
         asArenaHeight += (asTargetHeight-asArenaHeight)*.055;
         asBoss.rotation+=.009; asBoss.pulse+=.04;
@@ -610,7 +616,7 @@
         try {
             if(typeof initSuperState==="function")initSuperState();
             window._uniqueSuperCharges=5;window._uniqueSuperBossId="antispiral";
-            if(typeof updateSuperButton==="function")setTimeout(updateSuperButton,80);
+            // Super controls stay hidden until the cinematic ends.
         } catch(e) {}
         const overlay=document.getElementById("arenaOverlay");if(overlay)overlay.style.display="flex";
         const name=document.getElementById("arenaBossName");if(name)name.innerText="♾️ АНТИ-СПИРАЛЬ";
