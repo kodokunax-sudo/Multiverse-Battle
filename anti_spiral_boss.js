@@ -487,6 +487,14 @@
         asFlash = 10; asFlashColor = "#1f7bff";
         asText(asPlayer.x, asPlayer.y - 22, (label || "ГРАВИТАЦИОННЫЙ УДАР") + " -" + amount, "#70d9ff", 42);
         asSound(110, "sawtooth", 0.22, 0.09);
+        // Contact hit: burst of luminous fragments and a pair of expanding rings.
+        for(let i=0;i<26;i++){
+            const angle=Math.PI*2*i/26+(Math.random()-.5)*.18, speed=1.8+Math.random()*4.6;
+            asParticles.push({x:asPlayer.x,y:asPlayer.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:18+Math.floor(Math.random()*16),maxLife:34,color:i%3===0?"#ffffff":(i%2?"#69eaff":"#bd75ff"),size:1.8+Math.random()*3.5});
+        }
+        if(typeof window.antiSpiralAddShockwave==="function"){
+            window.antiSpiralAddShockwave(asPlayer.x,asPlayer.y,"#64dbff",2,22,2);
+        }
         if (asPlayerHp <= 0) asLose();
     }
     function asAddAttack(x, y, vx, vy, size, color, damage, kind) {
@@ -583,7 +591,13 @@
             // Разлом пространства: узкие лучи и массивный лазерный барьер перекрывают путь к боссу.
             const targetX = Math.max(bounds.left + 15, Math.min(bounds.right - 15, asPlayer.x));
             asAttacks.push({ kind: "laser", orientation: "vertical", x: targetX, y: 0, warning: 48, life: 22, color: "#a978ff", damage: damage + 3, hit: false });
-            asAttacks.push({ kind: "laser", orientation: "horizontal", x: 0, y: Math.max(bounds.top + 70, Math.min(bounds.bottom - 48, asPlayer.y)), warning: 70, life: 17, color: "#55dcff", damage: damage, hit: false });
+            if(Math.random()<.68){
+                const zone=Math.random()<(asPhase>=3?.58:.42)?"lower":"upper";
+                const zoneHeight=asPhase>=3?112:92;
+                asAttacks.push({kind:"zoneLaser",zone:zone,height:zoneHeight,sweepDistance:asPhase>=3?126:94,warning:68,life:44,maxLife:44,color:zone==="lower"?"#65eaff":"#cf6bff",damage:damage+5,hit:false});
+            }else{
+                asAttacks.push({ kind: "laser", orientation: "horizontal", x: 0, y: Math.max(bounds.top + 70, Math.min(bounds.bottom - 48, asPlayer.y)), warning: 70, life: 17, color: "#55dcff", damage: damage, hit: false });
+            }
             const barrierX = Math.max(bounds.left + 58, Math.min(bounds.right - 58, (asPlayer.x + asBoss.x) * .5));
             asAttacks.push({ kind: "barrierLaser", orientation: "vertical", x: barrierX, y: 0, warning: 62, life: asPhase >= 3 ? 112 : 88, thickness: asPhase >= 3 ? 46 : 38, color: "#ff58e4", damage: damage + 7, hit: false });
             if (asPhase >= 2) {
@@ -634,7 +648,12 @@
             asText(200,105,"ЧЁРНАЯ КОРОНА — КРЕСТОВОЙ ЗАЛП","#ff8bf3",82);
             asShake=Math.max(asShake,8);asSound(82,"sawtooth",.32,.12);
             asAttacks.push({kind:"laser",orientation:"vertical",x:targetX,y:0,warning:58,life:18,color:"#f566ff",damage:damage+3,hit:false});
-            asAttacks.push({kind:"laser",orientation:"horizontal",x:0,y:targetY,warning:76,life:16,color:"#62eaff",damage:damage+4,hit:false});
+            if(Math.random()<.62){
+                const zone=Math.random()<.52?"lower":"upper";
+                asAttacks.push({kind:"zoneLaser",zone:zone,height:asPhase>=3?116:94,sweepDistance:asPhase>=3?132:100,warning:74,life:46,maxLife:46,color:zone==="lower"?"#61eaff":"#e05dff",damage:damage+5,hit:false});
+            }else{
+                asAttacks.push({kind:"laser",orientation:"horizontal",x:0,y:targetY,warning:76,life:16,color:"#62eaff",damage:damage+4,hit:false});
+            }
             for(let mark=0;mark<3;mark++){
                 const offset=(mark-1)*(asPhase>=3?74:58);
                 asAttacks.push({
@@ -657,8 +676,8 @@
             asSound(68, "sawtooth", .65, .13);
             asShake = Math.max(asShake, 7);
         }
-        if(asPattern<7 && Math.random()<(asPhase>=3?.42:.28)){
-            const remix=Math.floor(Math.random()*3);
+        if(asPattern<7 && Math.random()<(asPhase>=3?.48:.32)){
+            const remix=Math.floor(Math.random()*4);
             if(remix===0){
                 // A small pair of seeking shards joins the current move.
                 const aim=Math.atan2(asPlayer.y-(asBoss.y+36),asPlayer.x-asBoss.x);
@@ -673,6 +692,9 @@
                 [-1,1].forEach(function(side){
                     asAttacks.push({kind:"mark",x:Math.max(bounds.left+20,Math.min(bounds.right-20,markX+side*42)),y:markY,timer:48+Math.random()*10,radius:22+asPhase*2,damage:damage+1,life:0,hit:false,color:side<0?"#ff61d8":"#67eaff"});
                 });
+            }else if(remix===2){
+                const zone=Math.random()<.56?"lower":"upper";
+                asAttacks.push({kind:"zoneLaser",zone:zone,height:asPhase>=3?108:88,sweepDistance:asPhase>=3?120:92,warning:62,life:40,maxLife:40,color:zone==="lower"?"#68e9ff":"#d07aff",damage:damage+4,hit:false});
             }else{
                 // Two warning lances create a temporary corridor.
                 [-1,1].forEach(function(side){
@@ -1118,6 +1140,16 @@
             c.globalAlpha=alpha;c.fillStyle=i%5===0?"#d1b5ff":(i%3===0?"#a9f2ff":"#ffffff");
             c.fillRect(x,y,i%7===0?2:1,i%8===0?2:1);
         }
+        // Flowing rift filaments travel through the arena, adding motion even between attacks.
+        c.save();c.globalAlpha=.2;c.lineWidth=1.15;
+        for(let i=0;i<8;i++){
+            const lane=i/7,phase=(now*.035+i*61)%(height+80)-40;
+            const yy=top+phase,xx=left+width*lane;
+            c.strokeStyle=i%2?"#66eaff":"#c07aff";
+            c.shadowColor=c.strokeStyle;c.shadowBlur=8;
+            c.beginPath();c.moveTo(xx-14,yy-12);c.quadraticCurveTo(xx+Math.sin(now/390+i)*18,yy,xx+12,yy+15);c.stroke();
+        }
+        c.restore();
         c.globalAlpha=1;c.restore();
     }
     function asDrawSpeech(c, speaker, text, y, color, now) {
@@ -1838,6 +1870,59 @@
                     }
                     continue;
                 }
+                if(a.kind==="zoneLaser"){
+                    const bounds=asBounds();
+                    const height=Math.min(a.height||96,bounds.bottom-bounds.top-12);
+                    const travel=a.sweepDistance||96;
+                    const startTop=a.zone==="upper"?bounds.top+5:bounds.bottom-height-5;
+                    if(a.warning>0){
+                        a.warning--;
+                        const warnPulse=.32+Math.abs(Math.sin(asFrame*.28))*.32;
+                        c.save();
+                        c.fillStyle=a.color;c.globalAlpha=.075+warnPulse*.08;c.fillRect(bounds.left,startTop,bounds.right-bounds.left,height);
+                        c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=18;c.lineWidth=2;c.setLineDash([10,6]);
+                        c.globalAlpha=.6+warnPulse*.35;c.strokeRect(bounds.left,startTop,bounds.right-bounds.left,height);c.setLineDash([]);
+                        // Preview the zone's destination so the safe platforms are readable early.
+                        const endTop=a.zone==="upper"?Math.min(bounds.bottom-height,startTop+travel):Math.max(bounds.top,startTop-travel);
+                        c.globalAlpha=.24;c.strokeStyle="#ffffff";c.lineWidth=1.2;c.strokeRect(bounds.left,endTop,bounds.right-bounds.left,height);
+                        c.fillStyle="#ffffff";c.font="bold 10px monospace";c.textAlign="center";
+                        c.globalAlpha=.95;
+                        c.fillText(a.zone==="lower"?"НИЖНИЙ СЕКТОР: ПРЫГАЙ НА ПЛАТФОРМЫ":"ВЕРХНИЙ СЕКТОР ЗАКРЫВАЕТСЯ",200,Math.max(bounds.top+15,Math.min(bounds.bottom-6,startTop+height*.5)));
+                        c.restore();
+                    }else{
+                        a.life--;
+                        const progress=Math.max(0,Math.min(1,1-a.life/(a.maxLife||42)));
+                        const zoneTop=a.zone==="upper"
+                            ?Math.min(bounds.bottom-height-2,startTop+travel*progress)
+                            :Math.max(bounds.top+2,startTop-travel*progress);
+                        c.save();
+                        const grad=c.createLinearGradient(0,zoneTop,0,zoneTop+height);
+                        grad.addColorStop(0,"rgba(0,0,0,0)");grad.addColorStop(.18,a.color+"55");grad.addColorStop(.5,a.color+"99");grad.addColorStop(.82,a.color+"55");grad.addColorStop(1,"rgba(0,0,0,0)");
+                        c.fillStyle=grad;c.shadowColor=a.color;c.shadowBlur=28;c.fillRect(bounds.left,zoneTop,bounds.right-bounds.left,height);
+                        c.globalAlpha=.48;c.fillStyle=a.color;c.fillRect(bounds.left,zoneTop+height*.12,bounds.right-bounds.left,height*.76);
+                        // Multiple moving filaments make it read as an enormous energized wall, not a thin line.
+                        c.globalAlpha=.8;c.lineWidth=2;c.strokeStyle="#ffffff";c.shadowColor=a.color;c.shadowBlur=18;
+                        for(let stripe=0;stripe<7;stripe++){
+                            const sy=zoneTop+((asFrame*4+stripe*29)%(Math.max(1,height)));
+                            c.globalAlpha=.3+(stripe%3)*.18;c.beginPath();c.moveTo(bounds.left,sy);c.lineTo(bounds.right,sy+Math.sin(asFrame*.12+stripe)*2);c.stroke();
+                        }
+                        c.globalAlpha=.95;c.strokeStyle=a.color;c.lineWidth=3;
+                        c.beginPath();c.moveTo(bounds.left,zoneTop);c.lineTo(bounds.right,zoneTop);c.moveTo(bounds.left,zoneTop+height);c.lineTo(bounds.right,zoneTop+height);c.stroke();
+                        c.globalAlpha=.9;c.strokeStyle="#ffffff";c.lineWidth=1.4;
+                        c.beginPath();c.moveTo(bounds.left,zoneTop+2);c.lineTo(bounds.right,zoneTop+2);c.moveTo(bounds.left,zoneTop+height-2);c.lineTo(bounds.right,zoneTop+height-2);c.stroke();
+                        if(asFrame%4===0){
+                            for(let p=0;p<5;p++){
+                                const x=bounds.left+Math.random()*(bounds.right-bounds.left);
+                                asParticles.push({x:x,y:zoneTop+(p%2?height:0),vx:(Math.random()-.5)*2.2,vy:(Math.random()-.5)*2.2,life:10,maxLife:10,color:p%2?"#ffffff":a.color,size:1.5+Math.random()*2.5});
+                            }
+                        }
+                        c.restore();
+                        const overlaps=asPlayer.y+asPlayer.size>zoneTop&&asPlayer.y-asPlayer.size<zoneTop+height;
+                        if(overlaps&&!a.hit){asDamagePlayer(a.damage,a.zone==="lower"?"ВОСХОДЯЩИЙ СУПЕРЛАЗЕР":"ПАДАЮЩАЯ СТЕНА СВЕТА");a.hit=true;}
+                        if(a.life<=0)asAttacks.splice(i,1);
+                    }
+                    continue;
+                }
                 if(a.kind==="laser" || a.kind==="barrierLaser"){
                     const barrier=a.kind==="barrierLaser";
                     const beamWidth=barrier?(a.thickness||38):23;
@@ -1858,9 +1943,20 @@
                     }else{
                         a.life--;
                         c.save();c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=barrier?34:20;c.lineCap="round";
-                        c.globalAlpha=barrier ? .34 : .3;c.lineWidth=beamWidth;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
-                        c.globalAlpha=.95;c.lineWidth=barrier?Math.max(8,beamWidth*.28):7;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
-                        c.globalAlpha=1;c.strokeStyle="#ffffff";c.shadowBlur=barrier?12:5;c.lineWidth=barrier?2.5:1.5;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();c.restore();
+                        c.globalAlpha=barrier ? .3 : .27;c.lineWidth=beamWidth;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
+                        c.globalAlpha=.95;c.lineWidth=barrier?Math.max(8,beamWidth*.3):8;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
+                        c.globalAlpha=1;c.strokeStyle="#ffffff";c.shadowBlur=barrier?16:10;c.lineWidth=barrier?2.8:1.8;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
+                        // Traveling hot-spots race along each active laser for a more energetic look.
+                        c.strokeStyle="#ffffff";c.shadowColor=a.color;c.shadowBlur=24;c.lineWidth=barrier?5:3;
+                        for(let pulse=0;pulse<3;pulse++){
+                            const fraction=((asFrame*3.5+pulse*53)%100)/100;
+                            c.globalAlpha=.25+.6*Math.abs(Math.sin(asFrame*.17+pulse));
+                            c.beginPath();
+                            if(vertical){const py=lineStart+(lineEnd-lineStart)*fraction;c.moveTo(lineCoord-12,py);c.lineTo(lineCoord+12,py);}
+                            else{const px=lineStart+(lineEnd-lineStart)*fraction;c.moveTo(px,lineCoord-12);c.lineTo(px,lineCoord+12);}
+                            c.stroke();
+                        }
+                        c.restore();
                         const tolerance=beamWidth/2+asPlayer.size;
                         const hit=vertical?Math.abs(asPlayer.x-lineCoord)<tolerance&&asPlayer.y>=lineStart&&asPlayer.y<=lineEnd:Math.abs(asPlayer.y-lineCoord)<tolerance&&asPlayer.x>=lineStart&&asPlayer.x<=lineEnd;
                         if(hit&&!a.hit){asDamagePlayer(a.damage,barrier?"ЛАЗЕРНЫЙ БАРЬЕР":"РАЗРЕЗ РЕАЛЬНОСТИ");a.hit=true;}
@@ -1899,6 +1995,10 @@
                     c.beginPath();c.arc(0,0,a.size*.35,0,Math.PI*2);c.stroke();
                 }else{
                     c.beginPath();c.arc(0,0,a.size*(1+Math.sin(a.phase)*.08),0,Math.PI*2);c.fill();c.strokeStyle="#f1fdff";c.lineWidth=1;c.stroke();
+                }
+                if(a.kind==="orb"||a.homing){
+                    c.globalAlpha=.74;c.strokeStyle="#ffffff";c.lineWidth=1.1;c.shadowColor=a.color;c.shadowBlur=18;
+                    c.beginPath();c.arc(0,0,a.size*1.42+Math.sin(a.phase*1.7)*1.4,a.phase*.7,a.phase*.7+Math.PI*1.55);c.stroke();
                 }
                 c.restore();
                 const dx=asPlayer.x-a.x,dy=asPlayer.y-a.y;
