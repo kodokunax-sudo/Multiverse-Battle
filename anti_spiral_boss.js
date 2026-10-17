@@ -661,7 +661,6 @@
             return;
         }
         if (asState !== "fight") return;
-        const worldPointer = asScreenToWorld(x, y); x = worldPointer.x; y = worldPointer.y;
         // Нажатие на босса запускает выстрел накопленной мощью.
         if (Math.hypot(x - asBoss.x, y - (asBoss.y + 36)) < asBoss.size * 1.75) {
             asFireDrill();
@@ -680,7 +679,6 @@
         const rect = c.getBoundingClientRect();
         asPointer.x = (ev.clientX - rect.left) * 400 / rect.width;
         asPointer.y = (ev.clientY - rect.top) * 500 / rect.height;
-        if (asState === "fight") { const wp=asScreenToWorld(asPointer.x,asPointer.y); asPointer.x=wp.x; asPointer.y=wp.y; }
     }
     function asPointerUp(ev) {
         if (asPointer.id !== null && ev.pointerId !== undefined && ev.pointerId !== asPointer.id) return;
@@ -840,6 +838,7 @@
     }
     function asDrawHeart(c) {
         c.save();c.translate(asPlayer.x,asPlayer.y);
+        c.rotate(asGravityDirection * Math.PI / 2);
         c.shadowColor="#33c7ff";c.shadowBlur=18;
         const g=c.createLinearGradient(-8,-10,8,9);g.addColorStop(0,"#c8f7ff");g.addColorStop(.45,"#30c5ff");g.addColorStop(1,"#0647ce");c.fillStyle=g;
         c.beginPath();c.moveTo(0,7);c.bezierCurveTo(-3,4,-10,-1,-9,-6);c.bezierCurveTo(-8,-12,-2,-12,0,-7);c.bezierCurveTo(3,-12,9,-12,9,-5);c.bezierCurveTo(9,-1,3,4,0,7);c.closePath();c.fill();
@@ -912,7 +911,6 @@
         c.restore();
     }
     function asDrawBoss(c,now) {
-        // Лабиринт показывает ложные варианты цели; настоящий босс остаётся в центре.
         if (asLabyrinthTimer > 0) {
             asDrawAntiSpiralFigure(c, asBoss.x - 69, asBoss.y + 47, 0.48, now + 280, .22);
             asDrawAntiSpiralFigure(c, asBoss.x + 69, asBoss.y + 47, 0.48, now - 360, .22);
@@ -924,7 +922,11 @@
             c.beginPath(); c.ellipse(asBoss.x, asBoss.y + 37, 25 + Math.sin(asFrame * .15) * 5, 31 + Math.sin(asFrame * .15) * 5, 0, 0, Math.PI * 2); c.stroke();
             c.restore();
         }
-        asDrawAntiSpiralFigure(c,asBoss.x,asBoss.y+43,0.78*(asBoss.size/48),now,1);
+        c.save();
+        c.translate(asBoss.x, asBoss.y + 43);
+        c.rotate(asGravityDirection * Math.PI / 2);
+        asDrawAntiSpiralFigure(c, 0, 0, 0.78 * (asBoss.size / 48), now, 1);
+        c.restore();
     }
     function asDrawRedHeart(c,x,y,now,shot) {
         c.save();c.translate(x,y);c.shadowColor="#ff233f";c.shadowBlur=shot?22:13;
