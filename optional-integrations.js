@@ -37,7 +37,7 @@
     // the clan UI can still display a helpful "service unavailable" message.
     var supabaseTask = loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2", "Supabase SDK")
         .then(function (sdkLoaded) {
-            return loadScript("clans.js?v=29", "clans.js").then(function (clansLoaded) {
+            return loadScript("clans.js?v=30", "clans.js").then(function (clansLoaded) {
                 return { sdkLoaded: sdkLoaded, clansLoaded: clansLoaded };
             });
         })
@@ -59,7 +59,7 @@
             console.info("[MB boot] Optional online features skipped; single-player is ready.");
             return;
         }
-        return loadScript("online-arena.js?v=18", "online-arena.js");
+        return loadScript("online-arena.js?v=19", "online-arena.js");
     }).catch(function (error) {
         console.warn("[MB boot] Optional online initialization failed:", error);
     });
