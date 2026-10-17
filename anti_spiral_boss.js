@@ -26,6 +26,7 @@
     let asPointer = { down: false, x: 0, y: 0, id: null };
     let asPointerChargeMode = false;
     let asPlatforms = [];
+    let asSeals = [];
     let asDrillShots = [];
     let asChargeFrames = 0;
     let asCharging = false;
@@ -94,6 +95,42 @@
             { baseX: 239, y: 151, w: 76,  h: 10, move: 0, amp: 0, phase: 5.1 }
         ];
     }
+    function asInitSeals() {
+        asSeals = [
+            { x: 88,  y: 348, radius: 13, hp: 100, maxHp: 100, broken: false, phase: 0 },
+            { x: 307, y: 247, radius: 13, hp: 100, maxHp: 100, broken: false, phase: 2.1 },
+            { x: 133, y: 180, radius: 13, hp: 100, maxHp: 100, broken: false, phase: 4.2 }
+        ];
+    }
+    function asUnbrokenSealIndex() {
+        for (let i = 0; i < asSeals.length; i++) if (!asSeals[i].broken) return i;
+        return -1;
+    }
+    function asDrawSeals(c, now) {
+        for (let i = 0; i < asSeals.length; i++) {
+            const seal = asSeals[i];
+            if (seal.broken) continue;
+            seal.phase += .035;
+            const pulse = 1 + Math.sin(asFrame * .14 + seal.phase) * .12;
+            c.save(); c.translate(seal.x, seal.y);
+            c.globalAlpha = .76 + Math.sin(asFrame * .11 + seal.phase) * .18;
+            c.shadowColor = "#c576ff"; c.shadowBlur = 20;
+            c.strokeStyle = "#e5c5ff"; c.lineWidth = 1.8;
+            c.beginPath(); c.arc(0, 0, seal.radius * 1.75 * pulse, 0, Math.PI * 2); c.stroke();
+            c.rotate(now * .0015 + seal.phase);
+            c.strokeStyle = "#8ef4ff"; c.lineWidth = 2;
+            c.beginPath(); c.moveTo(0, -seal.radius * pulse); c.lineTo(seal.radius * pulse, 0);
+            c.lineTo(0, seal.radius * pulse); c.lineTo(-seal.radius * pulse, 0); c.closePath(); c.stroke();
+            c.fillStyle = "#ae62ff"; c.beginPath(); c.arc(0, 0, 4.5 * pulse, 0, Math.PI * 2); c.fill();
+            c.restore();
+            c.save();
+            c.fillStyle = "rgba(0,0,0,.76)"; c.fillRect(seal.x - 19, seal.y + 21, 38, 4);
+            c.fillStyle = "#cf8dff"; c.fillRect(seal.x - 19, seal.y + 21, 38 * Math.max(0, seal.hp / seal.maxHp), 4);
+            c.fillStyle = "#eaddff"; c.font = "bold 8px monospace"; c.textAlign = "center";
+            c.fillText("ПЕЧАТЬ " + (i + 1), seal.x, seal.y + 34);
+            c.restore();
+        }
+    }
     function asPlatformX(platform, index, now) {
         const arenaLeft = (400 - asArenaWidth) / 2;
         let center = platform.baseX;
@@ -129,8 +166,10 @@
     }
     function asShootDrill(frames) {
         const charge = Math.max(0.04, Math.min(1, frames / 150));
-        const targetX = asBoss.x;
-        const targetY = asBoss.y + 43;
+        const sealIndex = asUnbrokenSealIndex();
+        const targetSeal = sealIndex >= 0 ? asSeals[sealIndex] : null;
+        const targetX = targetSeal ? targetSeal.x : asBoss.x;
+        const targetY = targetSeal ? targetSeal.y : asBoss.y + 43;
         const dx = targetX - asPlayer.x;
         const dy = targetY - (asPlayer.y - 5);
         const distance = Math.max(1, Math.hypot(dx, dy));
@@ -142,9 +181,11 @@
             vx: dx / distance * (7 + charge * 4.5),
             vy: dy / distance * (7 + charge * 4.5),
             charge: charge, radius: 4 + charge * 16,
-            damage: baseDamage, life: 100, phase: 0, level: level
+            damage: baseDamage, sealDamage: Math.round(20 + charge * 90),
+            targetType: targetSeal ? "seal" : "boss", sealIndex: sealIndex,
+            life: 100, phase: 0, level: level
         });
-        asText(asPlayer.x, asPlayer.y - 31, level + " · " + Math.round(charge * 100) + "%", "#74f5ff", 52);
+        asText(asPlayer.x, asPlayer.y - 31, targetSeal ? level + " → ПЕЧАТЬ " + (sealIndex + 1) + "/3 · " + Math.round(charge * 100) + "%" : level + " · " + Math.round(charge * 100) + "%", "#74f5ff", 52);
         asShake = Math.max(asShake, 2 + charge * 7);
         asSound(250 + charge * 680, "sawtooth", 0.1 + charge * 0.32, 0.05 + charge * 0.08);
     }
@@ -237,7 +278,9 @@
     function asUpdateControls() {
         if (!asControls) return;
         const pct = Math.round(asChargeFrames / 150 * 100);
-        asControls.drill.textContent = asCharging ? "🌀 ЗАРЯД " + pct + "% · ОТПУСТИ" : "🌀 УДЕРЖИВАЙ БУР";
+        const sealIndex = asUnbrokenSealIndex();
+        const targetName = sealIndex >= 0 ? "ПЕЧАТЬ " + (sealIndex + 1) + "/3" : "АНТИ-СПИРАЛЬ";
+        asControls.drill.textContent = asCharging ? "🌀 " + targetName + " " + pct + "% · ОТПУСТИ" : "🌀 БУР → " + targetName;
         if (asCharging) {
             const glow = Math.min(1, pct / 100);
             asControls.drill.style.boxShadow = "0 0 " + (5 + glow * 20) + "px rgba(72,220,255," + (0.25 + glow * 0.55) + ")";
@@ -314,6 +357,11 @@
     }
     function asBossHit(damage, message) {
         if (!asActive || asWinPending || asDefeatPending || asState !== "fight" || asState === "victory") return;
+        if (asUnbrokenSealIndex() >= 0) {
+            asText(200, 120, "ЗАЩИТА АКТИВНА — РАЗРУШЬ 3 ПЕЧАТИ!", "#d5a6ff", 40);
+            asSound(120, "sawtooth", .12, .045);
+            return;
+        }
         let amount = Math.max(1, Math.floor(Number(damage) || 1));
         asBossHp = Math.max(0, asBossHp - amount);
         asBossDamageFlash = 12;
@@ -587,15 +635,39 @@
             c.strokeStyle=shot.charge>.78?"#c69aff":"#4de6ff";c.lineWidth=2;
             c.beginPath();c.ellipse(0,0,shot.radius*.95,shot.radius*.34,shot.phase,0,Math.PI*2);c.stroke();
             c.restore();
-            const dx=shot.x-asBoss.x, dy=shot.y-(asBoss.y+43);
-            if(Math.abs(dx)<36+shot.radius && Math.abs(dy)<57+shot.radius){
-                let multiplier = asBossExposed>0 ? 2.45 : .28;
-                if(asPlayer.y<270) multiplier *= 1.25;
-                const damage = Math.max(1,Math.floor(shot.damage*multiplier));
-                asBossHit(damage,asBossExposed>0?"ЯДРО ПРОБИТО!":"БУР ПРОБИЛ ЗАЩИТУ");
-                if(asBossExposed>0)asShake=Math.max(asShake,9+shot.charge*8);
-                asDrillShots.splice(i,1);
-                continue;
+                if (shot.targetType === "seal") {
+                const seal = asSeals[shot.sealIndex];
+                if (seal && !seal.broken && Math.hypot(shot.x-seal.x,shot.y-seal.y) < seal.radius + shot.radius) {
+                    seal.hp -= shot.sealDamage;
+                    asText(seal.x,seal.y-18,"-"+shot.sealDamage,"#e6c8ff",30);
+                    asShake=Math.max(asShake,3+shot.charge*5);
+                    for(let p=0;p<7;p++){
+                        const ang=Math.random()*Math.PI*2,sp=1+Math.random()*3;
+                        asParticles.push({x:seal.x,y:seal.y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:20,maxLife:20,color:"#c681ff",size:2+Math.random()*2});
+                    }
+                    if(seal.hp<=0){
+                        seal.hp=0;seal.broken=true;
+                        asText(seal.x,seal.y+15,"ПЕЧАТЬ РАЗРУШЕНА!","#8effff",55);
+                        asFlash=Math.max(asFlash,5);asFlashColor="#b98aff";
+                        if(asUnbrokenSealIndex()<0){
+                            asText(200,128,"ВСЕ 3 ПЕЧАТИ РАЗРУШЕНЫ — ЩИТ СНЯТ!","#8effff",90);
+                            asShake=Math.max(asShake,10);
+                        }
+                    }
+                    asDrillShots.splice(i,1);
+                    continue;
+                }
+            } else {
+                const dx=shot.x-asBoss.x, dy=shot.y-(asBoss.y+43);
+                if(Math.abs(dx)<36+shot.radius && Math.abs(dy)<57+shot.radius){
+                    let multiplier = asBossExposed>0 ? 2.45 : .42;
+                    if(asPlayer.y<270) multiplier *= 1.25;
+                    const damage = Math.max(1,Math.floor(shot.damage*multiplier));
+                    asBossHit(damage,asBossExposed>0?"ЯДРО ПРОБИТО!":"БУР ПРОБИЛ ЗАЩИТУ");
+                    if(asBossExposed>0)asShake=Math.max(asShake,9+shot.charge*8);
+                    asDrillShots.splice(i,1);
+                    continue;
+                }
             }
             if(shot.life<=0||shot.x<-50||shot.x>450||shot.y<-50||shot.y>550)asDrillShots.splice(i,1);
         }
@@ -872,7 +944,7 @@
             asState="fight";
             asBoss={x:200,y:100,size:48,rotation:0,pulse:0,flash:0};
             asArenaWidth=396;asArenaHeight=438;asTargetWidth=396;asTargetHeight=438;
-            asInitPlatforms();
+            asInitPlatforms();asInitSeals();
             asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
             asDrillShots=[];asChargeFrames=0;asCharging=false;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
             asPattern=0;asPatternTimer=0;asLastArenaShift=now;
@@ -922,6 +994,7 @@
             c.beginPath();c.moveTo(p[0],p[1]+p[3]*13);c.lineTo(p[0],p[1]);c.lineTo(p[0]+p[2]*13,p[1]);c.stroke();
         });
         asDrawPlatforms(c,now);
+        asDrawSeals(c,now);
         // HUD and phase title.
         c.fillStyle="rgba(0,0,0,.78)";c.fillRect(9,8,382,32);
         c.fillStyle="#bdefff";c.font="bold 11px monospace";c.textAlign="left";c.fillText("АНТИ-СПИРАЛЬ  •  ФАЗА "+asPhase,15,20);
@@ -1207,7 +1280,7 @@
         if(Number(typeof wave!=="undefined"?wave:0)!==1500) return;
         if(typeof currentEnemy==="undefined"||!currentEnemy||currentEnemy.hp<=0) return;
         asActive=true;window.antiSpiralBossActive=true;asState="cinematic";asWinPending=false;asDefeatPending=false;
-        asInitPlatforms();asDrillShots=[];asChargeFrames=0;asCharging=false;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
+        asInitPlatforms();asInitSeals();asDrillShots=[];asChargeFrames=0;asCharging=false;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
         asCinematicStart=performance.now();asCinematicRedHeart={x:-25,y:410};asCinematicArenaProgress=0;
         asBossMaxHp=Math.max(40000,Math.floor((Number(window.playerFinalDamage)||80)*120));
         asBossHp=asBossMaxHp;asPlayerMaxHp=220;asPlayerHp=asPlayerMaxHp;
