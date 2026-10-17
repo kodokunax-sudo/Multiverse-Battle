@@ -101,19 +101,6 @@
             bottom: asFloor()
         };
     }
-    function asGravityAngle() { return asGravityDirection * Math.PI / 2; }
-    function asApplyGravityTransform(c) {
-        c.translate(200, 250);
-        c.rotate(asGravityAngle());
-        if (asGravityDirection % 2) c.scale(0.78, 0.78);
-        c.translate(-200, -250);
-    }
-    function asScreenToWorld(x, y) {
-        const scale = asGravityDirection % 2 ? 0.78 : 1;
-        const dx = (x - 200) / scale, dy = (y - 250) / scale;
-        const angle = asGravityAngle(), co = Math.cos(angle), si = Math.sin(angle);
-        return { x: 200 + co * dx + si * dy, y: 250 - si * dx + co * dy };
-    }
     function asInitPlatforms() {
         asPlatforms = [
             { baseX: 88,  y: 436, w: 112, h: 10, move: 0, amp: 0, phase: 0 },
@@ -522,9 +509,9 @@
         asPlayer.grounded = false; asPlayer.platformIndex = null;
         asBoss.flash = 0;
         asAttacks = asAttacks.filter(function(a) { return a && a.kind === "gravityTell"; });
-        asAttacks.push({ kind: "gravityTell", timer: 50, color: "#ff5adf", damage: asPhase >= 3 ? 24 : 18, phase: 0 });
+        asAttacks.push({ kind: "gravityTell", timer: 90, color: "#ff5adf", damage: asPhase >= 3 ? 24 : 18, phase: 0 });
         asText(200, 112, "ГРАВИТАЦИЯ: " + asGravityLabels[asGravityDirection], "#83f4ff", 90);
-        asText(200, 135, "АРЕНА ПЕРЕВОРАЧИВАЕТСЯ!", "#ff9df0", 70);
+        asText(200, 135, "НАПРАВЛЕНИЕ СИЛЫ ТЯЖЕСТИ ИЗМЕНИЛОСЬ!", "#ff9df0", 80);
         asShake = Math.max(asShake, 17);
         asFlash = Math.max(asFlash, 7); asFlashColor = "#763aff";
         asSound(95 + asGravityDirection * 55, "sawtooth", .3, .13);
@@ -563,7 +550,7 @@
                 const laneX = left + width * (i + .5) / 6;
                 if (i === safeLane || Math.abs(laneX - asPlayer.x) < 27) continue;
                 asAddAttack(laneX, 58, (Math.random() - .5) * .35, 2.4 + Math.random() * .8, 13, "#5bc9ff", damage, "fall");
-                if (asAttacks.length) asAttacks[asAttacks.length - 1].warning = 38;
+                if (asAttacks.length) asAttacks[asAttacks.length - 1].warning = 55;
             }
             if (asPhase >= 3) {
                 asAttacks.push({ kind: "laser", orientation: "horizontal", x: 0, y: bounds.bottom - 74, warning: 45, life: 16, color: "#ff5cd6", damage: damage + 3, hit: false });
@@ -1482,6 +1469,14 @@
         c.fillStyle="#ffffff";c.font="bold 9px monospace";c.fillText("HP "+Math.ceil(asPlayerHp)+"/"+asPlayerMaxHp,17,46);
         c.fillStyle="#9df2ff";c.font="bold 10px monospace";c.textAlign="center";
         c.fillText("ГРАВИТАЦИЯ: "+asGravityLabels[asGravityDirection]+"  ·  "+Math.max(0,Math.ceil((asGravityNextShiftAt-now)/1000))+"с",200,73);
+        if(now<asGravityTransitionUntil){
+            const arrow=["↓","←","↑","→"][asGravityDirection];
+            c.save();c.globalAlpha=.96;c.fillStyle="rgba(5,2,18,.94)";c.fillRect(42,101,316,62);
+            c.strokeStyle="#ff70eb";c.lineWidth=2;c.shadowColor="#d64cff";c.shadowBlur=17;c.strokeRect(42,101,316,62);
+            c.fillStyle="#ffb5f5";c.font="bold 25px monospace";c.textAlign="left";c.fillText(arrow,58,139);
+            c.fillStyle="#ffffff";c.font="bold 13px monospace";c.textAlign="left";c.fillText("ГРАВИТАЦИЯ: "+asGravityLabels[asGravityDirection],102,125);
+            c.fillStyle="#85eaff";c.font="bold 10px monospace";c.fillText("ТЯЖЕСТЬ ДЕЙСТВУЕТ В ЭТОМ НАПРАВЛЕНИИ",102,145);c.restore();
+        }
         {
             c.fillStyle=asBossExposed>0?"#92ffff":"#d8ceff";c.textAlign="center";c.font="bold 10px monospace";
             c.fillText(asBossExposed>0?"ЯДРО ОТКРЫТО! "+Math.ceil(asBossExposed/60)+"с":patterns[asPattern],200,88);
@@ -1568,28 +1563,41 @@
                 if(a.kind==="gravityTell"){
                     if(a.timer>0){
                         a.timer--;
-                        const wb=asBounds(), wy=wb.bottom-8;
-                        c.save();c.globalAlpha=.52+Math.abs(Math.sin(asFrame*.38))*.42;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=22;c.lineWidth=3;
-                        c.setLineDash([9,6]);c.beginPath();c.moveTo(wb.left+5,wy);c.lineTo(wb.right-5,wy);c.stroke();c.setLineDash([]);
-                        for(let gx=wb.left+18;gx<wb.right-8;gx+=44){c.beginPath();c.moveTo(gx-7,wy-10);c.lineTo(gx,wy-2);c.lineTo(gx+7,wy-10);c.stroke();}
-                        c.fillStyle="#ffffff";c.font="bold 11px monospace";c.textAlign="center";c.fillText("ВНИМАНИЕ: УДАР С ЭТОЙ СТОРОНЫ!",200,wy-18);
-                        c.fillStyle=a.color;c.font="bold 10px monospace";c.fillText("ЗАПУСК ЧЕРЕЗ "+Math.max(1,Math.ceil(a.timer/60))+"...",200,wy-34);c.restore();
-                        continue;
+                        const wb=asBounds(), side=asGravityDirection, cx=(wb.left+wb.right)/2, cy=(wb.top+wb.bottom)/2;
+                        const lineX=side===1?wb.left+9:wb.right-9;
+                        const lineY=side===2?wb.top+9:wb.bottom-9;
+                        c.save();c.globalAlpha=.64+Math.abs(Math.sin(asFrame*.42))*.34;
+                        c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=25;c.lineWidth=3;
+                        c.setLineDash([10,6]);c.beginPath();
+                        if(side%2===0){c.moveTo(wb.left+5,lineY);c.lineTo(wb.right-5,lineY);}
+                        else{c.moveTo(lineX,wb.top+5);c.lineTo(lineX,wb.bottom-5);}
+                        c.stroke();c.setLineDash([]);
+                        for(let k=-2;k<=2;k++){
+                            c.beginPath();
+                            if(side===0){const x=cx+k*48;c.moveTo(x-8,wb.bottom-24);c.lineTo(x,wb.bottom-11);c.lineTo(x+8,wb.bottom-24);}
+                            else if(side===1){const y=cy+k*62;c.moveTo(wb.left+25,y-8);c.lineTo(wb.left+11,y);c.lineTo(wb.left+25,y+8);}
+                            else if(side===2){const x=cx+k*48;c.moveTo(x-8,wb.top+24);c.lineTo(x,wb.top+11);c.lineTo(x+8,wb.top+24);}
+                            else {const y=cy+k*62;c.moveTo(wb.right-25,y-8);c.lineTo(wb.right-11,y);c.lineTo(wb.right-25,y+8);}
+                            c.stroke();
+                        }
+                        c.fillStyle="#ffffff";c.font="bold 11px monospace";c.textAlign="center";
+                        const textY=side===2?wb.top+39:side===0?wb.bottom-36:cy-14;
+                        c.fillText("ВНИМАНИЕ: УДАР СО СТОРОНЫ "+asGravityLabels[side]+"!",200,textY);
+                        c.fillStyle=a.color;c.font="bold 10px monospace";
+                        c.fillText("АТАКА ЧЕРЕЗ "+Math.max(1,Math.ceil(a.timer/60))+"...",200,textY+16);
+                        c.restore();continue;
                     }
                     const wb=asBounds(), count=7;
                     for(let gi=0;gi<count;gi++){
-                        const gx=wb.left+22+(wb.right-wb.left-44)*gi/(count-1);
-                        asAddAttack(gx,wb.bottom-13,(gi-3)*.67,-3.2-Math.random()*.65,11,gi%2?"#ff60d9":"#6deaff",a.damage,"orb");
+                        const t=gi/(count-1);
+                        let x,y,vx,vy;
+                        if(asGravityDirection===0){x=wb.left+22+(wb.right-wb.left-44)*t;y=wb.bottom-13;vx=(gi-3)*.67;vy=-3.5-Math.random()*.7;}
+                        else if(asGravityDirection===1){x=wb.left+13;y=wb.top+22+(wb.bottom-wb.top-44)*t;vx=3.5+Math.random()*.7;vy=(gi-3)*.67;}
+                        else if(asGravityDirection===2){x=wb.left+22+(wb.right-wb.left-44)*t;y=wb.top+13;vx=(gi-3)*.67;vy=3.5+Math.random()*.7;}
+                        else{x=wb.right-13;y=wb.top+22+(wb.bottom-wb.top-44)*t;vx=-3.5-Math.random()*.7;vy=(gi-3)*.67;}
+                        asAddAttack(x,y,vx,vy,11,gi%2?"#ff60d9":"#6deaff",a.damage,"orb");
                     }
                     asShake=Math.max(asShake,9);asSound(105,"sawtooth",.24,.1);asAttacks.splice(i,1);continue;
-                }
-                if(a.kind==="fall" && a.warning>0){
-                    a.warning--;
-                    const wb=asBounds();
-                    c.save();c.globalAlpha=.28+Math.abs(Math.sin(asFrame*.4))*.42;c.strokeStyle="#ff74dc";c.shadowColor="#ff53d4";c.shadowBlur=13;c.lineWidth=2;c.setLineDash([5,7]);
-                    c.beginPath();c.moveTo(a.x,wb.top+8);c.lineTo(a.x,wb.bottom-8);c.stroke();c.setLineDash([]);
-                    c.fillStyle="#ffffff";c.font="bold 9px monospace";c.textAlign="center";c.fillText("!",a.x,wb.top+23);c.restore();
-                    if(a.warning>0) continue;
                 }
                 if(a.kind==="mark"){
                     if(!a.burst){
