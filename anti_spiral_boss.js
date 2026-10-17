@@ -60,6 +60,9 @@
     let asTargetWidth = 396;
     let asTargetHeight = 438;
     let asGravityPull = 0.10;
+    let asGravityDirection = 0; // 0 вниз, 1 влево, 2 вверх, 3 вправо
+    let asGravityNextShiftAt = 0;
+    const asGravityLabels = ["ВНИЗ", "ВЛЕВО", "ВВЕРХ", "ВПРАВО"];
     let asLastShot = 0;
     let asWinPending = false;
     let asDefeatPending = false;
@@ -95,6 +98,19 @@
             top: 55 + (445 - asArenaHeight) / 2 + asPlayer.size,
             bottom: asFloor()
         };
+    }
+    function asGravityAngle() { return asGravityDirection * Math.PI / 2; }
+    function asApplyGravityTransform(c) {
+        c.translate(200, 250);
+        c.rotate(asGravityAngle());
+        if (asGravityDirection % 2) c.scale(0.78, 0.78);
+        c.translate(-200, -250);
+    }
+    function asScreenToWorld(x, y) {
+        const scale = asGravityDirection % 2 ? 0.78 : 1;
+        const dx = (x - 200) / scale, dy = (y - 250) / scale;
+        const angle = asGravityAngle(), co = Math.cos(angle), si = Math.sin(angle);
+        return { x: 200 + co * dx + si * dy, y: 250 - si * dx + co * dy };
     }
     function asInitPlatforms() {
         asPlatforms = [
@@ -458,6 +474,25 @@
     function asAddAttack(x, y, vx, vy, size, color, damage, kind) {
         asAttacks.push({x:x,y:y,vx:vx,vy:vy,spd:vx,spdY:vy,size:size||14,color:color||"#3abfff",damage:damage||12,kind:kind||"orb",life:250,phase:Math.random()*6});
     }
+    function asShiftGravity(now) {
+        asGravityDirection = (asGravityDirection + 1) % 4;
+        asGravityNextShiftAt = now + 15000;
+        const bounds = asBounds();
+        asPlayer.x = 200;
+        asPlayer.y = Math.max(bounds.top + 24, bounds.bottom - 48);
+        asPlayer.vx = 0; asPlayer.vy = 2.4;
+        asPlayer.grounded = false; asPlayer.platformIndex = null;
+        asBoss.x = 200;
+        asBoss.y = Math.max(bounds.top + 45, bounds.bottom - 158);
+        asBoss.flash = 0;
+        asAttacks = asAttacks.filter(function(a) { return a && a.kind === "gravityTell"; });
+        asAttacks.push({ kind: "gravityTell", timer: 50, color: "#ff5adf", damage: asPhase >= 3 ? 24 : 18, phase: 0 });
+        asText(200, 112, "ГРАВИТАЦИЯ: " + asGravityLabels[asGravityDirection], "#83f4ff", 90);
+        asText(200, 135, "АРЕНА ПЕРЕВОРАЧИВАЕТСЯ!", "#ff9df0", 70);
+        asShake = Math.max(asShake, 17);
+        asFlash = Math.max(asFlash, 7); asFlashColor = "#763aff";
+        asSound(95 + asGravityDirection * 55, "sawtooth", .3, .13);
+    }
     function asSpawnPattern(now) {
         const damage = asPhase >= 3 ? 20 : (asPhase >= 2 ? 15 : 11);
         const floor = asFloor();
@@ -492,6 +527,7 @@
                 const laneX = left + width * (i + .5) / 6;
                 if (i === safeLane || Math.abs(laneX - asPlayer.x) < 27) continue;
                 asAddAttack(laneX, 58, (Math.random() - .5) * .35, 2.4 + Math.random() * .8, 13, "#5bc9ff", damage, "fall");
+                if (asAttacks.length) asAttacks[asAttacks.length - 1].warning = 38;
             }
             if (asPhase >= 3) {
                 asAttacks.push({ kind: "laser", orientation: "horizontal", x: 0, y: bounds.bottom - 74, warning: 45, life: 16, color: "#ff5cd6", damage: damage + 3, hit: false });
@@ -591,6 +627,7 @@
             return;
         }
         if (asState !== "fight") return;
+        const worldPointer = asScreenToWorld(x, y); x = worldPointer.x; y = worldPointer.y;
         // Нажатие на босса запускает выстрел накопленной мощью.
         if (Math.hypot(x - asBoss.x, y - (asBoss.y + 36)) < asBoss.size * 1.75) {
             asFireDrill();
@@ -609,6 +646,7 @@
         const rect = c.getBoundingClientRect();
         asPointer.x = (ev.clientX - rect.left) * 400 / rect.width;
         asPointer.y = (ev.clientY - rect.top) * 500 / rect.height;
+        if (asState === "fight") { const wp=asScreenToWorld(asPointer.x,asPointer.y); asPointer.x=wp.x; asPointer.y=wp.y; }
     }
     function asPointerUp(ev) {
         if (asPointer.id !== null && ev.pointerId !== undefined && ev.pointerId !== asPointer.id) return;
@@ -644,6 +682,7 @@
     function asBegin() {
         if(!asActive || asState==="fight") return;
         asState="fight"; asPatternTimer=0; asLastArenaShift=Date.now();
+        asGravityDirection=0; asGravityNextShiftAt=Date.now()+15000;
         asLastDamageAt=Date.now(); asNextShotAt=0; asChargeFrames=0; asCharging=false;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asText(200,250,"ПОКАЖИ СВОЮ ВОЛЮ!","#7de1ff",90);
@@ -1046,11 +1085,21 @@
         asMiniCollected = 0;
         asMiniCooldownUntil = now + 12000;
         asMiniSpirals = [
-            { x: 73, y: 145, phase: 0, collected: false },
-            { x: 326, y: 158, phase: 1.1, collected: false },
-            { x: 76, y: 348, phase: 2.2, collected: false },
-            { x: 324, y: 350, phase: 3.3, collected: false },
-            { x: 200, y: 408, phase: 4.4, collected: false }
+            { x: 62, y: 128, phase: 0, collected: false },
+            { x: 132, y: 116, phase: 0.4, collected: false },
+            { x: 220, y: 125, phase: 0.8, collected: false },
+            { x: 331, y: 137, phase: 1.2, collected: false },
+            { x: 286, y: 194, phase: 1.6, collected: false },
+            { x: 172, y: 184, phase: 2, collected: false },
+            { x: 76, y: 226, phase: 2.4, collected: false },
+            { x: 326, y: 255, phase: 2.8, collected: false },
+            { x: 203, y: 286, phase: 3.2, collected: false },
+            { x: 116, y: 310, phase: 3.6, collected: false },
+            { x: 55, y: 365, phase: 4, collected: false },
+            { x: 151, y: 391, phase: 4.4, collected: false },
+            { x: 247, y: 365, phase: 4.8, collected: false },
+            { x: 345, y: 402, phase: 5.2, collected: false },
+            { x: 205, y: 438, phase: 5.6, collected: false }
         ];
         asPlayer = { x: 200, y: 260, vx: 0, vy: 0, size: 12, invuln: 0, grounded: false, platformIndex: null };
         asKeys = Object.create(null);
@@ -1068,6 +1117,7 @@
     function asFinishBrokenReality(success, now) {
         const saved = asMiniReturnPlayer || { x: 200, y: asFloor(), grounded: true, platformIndex: -1 };
         asState = "fight";
+        asGravityNextShiftAt = now + 15000;
         asMiniCooldownUntil = now + (success ? 12000 : 15000);
         asPlayer = {
             x: Math.max(asBounds().left, Math.min(asBounds().right, saved.x)),
@@ -1122,6 +1172,7 @@
     }
     function asUpdateBrokenReality(now) {
         const elapsed = now - asMiniIntroUntil;
+        asShake = Math.max(asShake, 2.4 + Math.min(5.6, elapsed / 3500) + Math.abs(Math.sin(now * 0.017)) * 2.2);
         if (now < asMiniIntroUntil) return;
         if (now >= asMiniNextGravityAt) {
             asMiniGravityIndex = (asMiniGravityIndex + 1) % 5;
@@ -1155,7 +1206,7 @@
         asPlayer.vy = Math.max(-4.6, Math.min(4.6, (asPlayer.vy + my * 0.43 + gy) * 0.965));
         asPlayer.x += asPlayer.vx;
         asPlayer.y += asPlayer.vy;
-        const progress = Math.max(0, Math.min(1, elapsed / 15500));
+        const progress = Math.max(0, Math.min(1, elapsed / 15000));
         const bounds = {
             left: 34 + progress * 34,
             right: 366 - progress * 34,
@@ -1189,11 +1240,11 @@
                 asSound(380 + asMiniCollected * 65, "sine", 0.12, 0.07);
             }
         }
-        if (asMiniCollected >= 5) {
+        if (asMiniCollected >= 15) {
             asFinishBrokenReality(true, now);
             return;
         }
-        if (elapsed >= 15500) asFinishBrokenReality(false, now);
+        if (elapsed >= 15000) asFinishBrokenReality(false, now);
     }
     function asDrawBrokenReality(c, now) {
         const elapsed = Math.max(0, now - asMiniIntroUntil);
@@ -1203,6 +1254,7 @@
         const top = 91 + progress * 39;
         const bottom = 466 - progress * 43;
         c.save();
+        c.translate((Math.random() - 0.5) * asShake * 2.2, (Math.random() - 0.5) * asShake * 2.2);
         c.fillStyle = "rgba(2,0,12,.97)";
         c.fillRect(0, 0, 400, 500);
         const glow = c.createRadialGradient(200, 260, 5, 200, 260, 265);
@@ -1304,10 +1356,10 @@
             c.fillStyle = "#d8c4ff";
             c.fillText("ГРАВИТАЦИЯ: " + gravityLabels[asMiniGravityIndex], 200, 64);
             c.fillStyle = "#8df5ff";
-            c.fillText("СОБРАНО: " + asMiniCollected + "/5", 200, 82);
+            c.fillText("СОБРАНО: " + asMiniCollected + "/15", 200, 82);
             c.fillStyle = "#ffffff";
             c.font = "bold 11px monospace";
-            c.fillText("ОСТАЛОСЬ: " + Math.max(0, (15.5 - elapsed / 1000)).toFixed(1) + "с", 200, 98);
+            c.fillText("ОСТАЛОСЬ: " + Math.max(0, (15 - elapsed / 1000)).toFixed(1) + "с", 200, 98);
         }
         c.fillStyle = "rgba(0,0,0,.72)";
         c.fillRect(42, 473, 316, 18);
@@ -1371,6 +1423,7 @@
             return;
         }
         const b=asBounds();c.save();c.translate((Math.random()-.5)*asShake,(Math.random()-.5)*asShake);
+        c.save(); asApplyGravityTransform(c);
         const arenaLeft=(400-asArenaWidth)/2;
         c.fillStyle="rgba(0,0,0,.76)";c.fillRect(0,50,arenaLeft,450);c.fillRect(arenaLeft+asArenaWidth,50,400-(arenaLeft+asArenaWidth),450);
         const boxY=55+(445-asArenaHeight)/2;c.fillRect(arenaLeft,50,asArenaWidth,boxY-50);c.fillRect(arenaLeft,boxY+asArenaHeight,asArenaWidth,500-(boxY+asArenaHeight));
@@ -1382,17 +1435,22 @@
         [[arenaLeft+2,boxY+2,1,1],[arenaLeft+asArenaWidth-2,boxY+2,-1,1],[arenaLeft+2,boxY+asArenaHeight-2,1,-1],[arenaLeft+asArenaWidth-2,boxY+asArenaHeight-2,-1,-1]].forEach(function(p){
             c.beginPath();c.moveTo(p[0],p[1]+p[3]*13);c.lineTo(p[0],p[1]);c.lineTo(p[0]+p[2]*13,p[1]);c.stroke();
         });
-        asDrawPlatforms(c,now);
-        asDrawSeals(c,now);
+        c.restore();
+        // HUD remains upright while the arena rotates.
         // HUD and phase title.
         c.fillStyle="rgba(0,0,0,.78)";c.fillRect(9,8,382,32);
         c.fillStyle="#bdefff";c.font="bold 11px monospace";c.textAlign="left";c.fillText("АНТИ-СПИРАЛЬ  •  ФАЗА "+asPhase,15,20);
         c.fillStyle="#221a3e";c.fillRect(15,26,370,7);c.fillStyle=asBossDamageFlash?"#ffffff":"#a45cff";c.fillRect(15,26,370*Math.max(0,asBossHp/asBossMaxHp),7);
         c.fillStyle="rgba(0,0,0,.8)";c.fillRect(9,43,382,18);c.fillStyle="#101c46";c.fillRect(15,49,370,5);c.fillStyle="#35c9ff";c.fillRect(15,49,370*Math.max(0,asPlayerHp/asPlayerMaxHp),5);
         c.fillStyle="#ffffff";c.font="bold 9px monospace";c.fillText("HP "+Math.ceil(asPlayerHp)+"/"+asPlayerMaxHp,17,46);
+        c.fillStyle="#9df2ff";c.font="bold 10px monospace";c.textAlign="center";
+        c.fillText("ГРАВИТАЦИЯ: "+asGravityLabels[asGravityDirection]+"  ·  "+Math.max(0,Math.ceil((asGravityNextShiftAt-now)/1000))+"с",200,73);
         {
-            c.fillStyle=asBossExposed>0?"#92ffff":"#d8ceff";c.textAlign="center";c.font="bold 11px monospace";
-            c.fillText(asBossExposed>0?"ЯДРО ОТКРЫТО! "+Math.ceil(asBossExposed/60)+"с":patterns[asPattern],200,77);
+            c.fillStyle=asBossExposed>0?"#92ffff":"#d8ceff";c.textAlign="center";c.font="bold 10px monospace";
+            c.fillText(asBossExposed>0?"ЯДРО ОТКРЫТО! "+Math.ceil(asBossExposed/60)+"с":patterns[asPattern],200,88);
+            c.save(); asApplyGravityTransform(c);
+            asDrawPlatforms(c,now);
+            asDrawSeals(c,now);
             asDrawBoss(c,now);
             asDrawReassemblyEffect(c,now);
             // The pull is visual as well as physical.
@@ -1469,6 +1527,32 @@
                         if(a.life<=0)asAttacks.splice(i,1);
                     }
                     continue;
+                }
+                if(a.kind==="gravityTell"){
+                    if(a.timer>0){
+                        a.timer--;
+                        const wb=asBounds(), wy=wb.bottom-8;
+                        c.save();c.globalAlpha=.52+Math.abs(Math.sin(asFrame*.38))*.42;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=22;c.lineWidth=3;
+                        c.setLineDash([9,6]);c.beginPath();c.moveTo(wb.left+5,wy);c.lineTo(wb.right-5,wy);c.stroke();c.setLineDash([]);
+                        for(let gx=wb.left+18;gx<wb.right-8;gx+=44){c.beginPath();c.moveTo(gx-7,wy-10);c.lineTo(gx,wy-2);c.lineTo(gx+7,wy-10);c.stroke();}
+                        c.fillStyle="#ffffff";c.font="bold 11px monospace";c.textAlign="center";c.fillText("ВНИМАНИЕ: УДАР С ЭТОЙ СТОРОНЫ!",200,wy-18);
+                        c.fillStyle=a.color;c.font="bold 10px monospace";c.fillText("ЗАПУСК ЧЕРЕЗ "+Math.max(1,Math.ceil(a.timer/60))+"...",200,wy-34);c.restore();
+                        continue;
+                    }
+                    const wb=asBounds(), count=7;
+                    for(let gi=0;gi<count;gi++){
+                        const gx=wb.left+22+(wb.right-wb.left-44)*gi/(count-1);
+                        asAddAttack(gx,wb.bottom-13,(gi-3)*.67,-3.2-Math.random()*.65,11,gi%2?"#ff60d9":"#6deaff",a.damage,"orb");
+                    }
+                    asShake=Math.max(asShake,9);asSound(105,"sawtooth",.24,.1);asAttacks.splice(i,1);continue;
+                }
+                if(a.kind==="fall" && a.warning>0){
+                    a.warning--;
+                    const wb=asBounds();
+                    c.save();c.globalAlpha=.28+Math.abs(Math.sin(asFrame*.4))*.42;c.strokeStyle="#ff74dc";c.shadowColor="#ff53d4";c.shadowBlur=13;c.lineWidth=2;c.setLineDash([5,7]);
+                    c.beginPath();c.moveTo(a.x,wb.top+8);c.lineTo(a.x,wb.bottom-8);c.stroke();c.setLineDash([]);
+                    c.fillStyle="#ffffff";c.font="bold 9px monospace";c.textAlign="center";c.fillText("!",a.x,wb.top+23);c.restore();
+                    if(a.warning>0) continue;
                 }
                 if(a.kind==="mark"){
                     if(!a.burst){
@@ -1587,6 +1671,7 @@
             c.globalAlpha=1;asDrawHeart(c);
             asDrawChargeAura(c,now);
             c.globalAlpha=1;
+            c.restore();
         }
         // Floating text, effects, and existing character super visuals.
         for(let i=asTexts.length-1;i>=0;i--){const t=asTexts[i];t.y+=t.vy;t.life--;c.globalAlpha=Math.max(0,t.life/t.maxLife);c.fillStyle=t.color;c.shadowColor=t.color;c.shadowBlur=8;c.textAlign="center";c.font="bold 12px monospace";c.fillText(t.text,t.x,t.y);if(t.life<=0)asTexts.splice(i,1);}
@@ -1599,15 +1684,21 @@
         }
         // Physics / input are stepped here, after rendering so the click hitbox stays aligned.
         if(asState==="fight"){
+            if(asGravityNextShiftAt && now >= asGravityNextShiftAt) asShiftGravity(now);
             const left=asKeys.a||asKeys.arrowleft;const right=asKeys.d||asKeys.arrowright;
-            let mx=(right?1:0)-(left?1:0);
+            const up=asKeys.w||asKeys.arrowup;const down=asKeys.s||asKeys.arrowdown;
+            let mx=(right?1:0)-(left?1:0), my=(down?1:0)-(up?1:0);
             const joy=window._joystick;
             if(joy && joy.enabled && joy.active && (joy.enabled || joy.mobileDpadActive)) {
-                mx=Number(joy.vectorX)||0;
+                mx=Number(joy.vectorX)||0; my=Number(joy.vectorY)||0;
+                const angle=asGravityAngle(), co=Math.cos(angle), si=Math.sin(angle), sx=mx, sy=my;
+                mx=sx*co+sy*si; my=-sx*si+sy*co;
             } else if(asPointer.down && !asPointerChargeMode) {
-                if(asPointer.direction)mx=asPointer.direction;
-                else if(asPointer.x<asPlayer.x-7)mx=-1;
-                else if(asPointer.x>asPlayer.x+7)mx=1;
+                mx=Math.max(-1,Math.min(1,(asPointer.x-asPlayer.x)/52));
+                my=Math.max(-1,Math.min(1,(asPointer.y-asPlayer.y)/52));
+            } else {
+                const angle=asGravityAngle(), co=Math.cos(angle), si=Math.sin(angle), sx=mx, sy=my;
+                mx=sx*co+sy*si; my=-sx*si+sy*co;
             }
             let pullX=0,pullY=0;
             for(let wi=0;wi<asAttacks.length;wi++){
@@ -1616,17 +1707,19 @@
                 const dx=well.x-asPlayer.x,dy=well.y-asPlayer.y,dist=Math.max(1,Math.hypot(dx,dy));
                 if(dist<well.pullRadius){
                     const force=(1-dist/well.pullRadius);
-                    pullX+=dx/dist*1.15*force;
-                    pullY+=dy/dist*.62*force;
+                    pullX+=dx/dist*2.45*force;
+                    pullY+=dy/dist*1.35*force;
                 }
             }
             const previousX = asPlayer.x;
-            asPlayer.x+=mx*3.5+Math.max(-1.5,Math.min(1.5,pullX));
-            const joyJump=!!(joy && joy.enabled && joy.active && (Number(joy.vectorY)||0)<-0.62);
-            const jump=(asKeys.w||asKeys.arrowup||asKeys[" "]||joyJump)&&asPlayer.grounded;
+            const previousY = asPlayer.y;
+            asPlayer.x+=mx*3.5+Math.max(-2.8,Math.min(2.8,pullX));
+            asPlayer.y+=my*3.1;
+            const joyJump=!!(joy && joy.enabled && joy.active && my < -0.62);
+            const directionalJump=(asKeys.w||asKeys.arrowup||asKeys.a||asKeys.arrowleft||asKeys.s||asKeys.arrowdown||asKeys.d||asKeys.arrowright) && my < -0.72;
+            const jump=(asKeys[" "]||directionalJump||joyJump)&&asPlayer.grounded;
             if(jump){asPlayer.vy=-8.7;asPlayer.grounded=false;asPlayer.platformIndex=null;asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);}
-            const previousY=asPlayer.y;
-            asPlayer.vy=Math.max(-8.7,Math.min(6.1,asPlayer.vy+0.31+asGravityPull+Math.max(-.45,Math.min(.65,pullY))));
+            asPlayer.vy=Math.max(-8.7,Math.min(8.4,asPlayer.vy+0.31+asGravityPull+Math.max(-.95,Math.min(1.25,pullY))));
             asPlayer.y+=asPlayer.vy;
             const bounds=asBounds();
             asPlayer.x=Math.max(bounds.left,Math.min(bounds.right,asPlayer.x));
@@ -1663,7 +1756,7 @@
             const patternDuration = asPattern === 7 ? 250 : 178;
             if(asPatternTimer>patternDuration){
                 asPatternTimer=0;asPattern=(asPattern+1)%patterns.length;asPatternSpawned=false;
-                asAttacks=[];asText(200,100,patterns[asPattern],"#b8a2ff",52);asSound(260+asPattern*60,"sine",.18,.06);
+                asAttacks=asAttacks.filter(function(a){return a && a.kind==="gravityTell";});asText(200,100,patterns[asPattern],"#b8a2ff",52);asSound(260+asPattern*60,"sine",.18,.06);
             }
             const attackCadence=[42,70,58,78,92,82,76,178][asPattern]||58;
             if(asPattern===7){
@@ -1692,7 +1785,7 @@
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asBoss={x:285,y:180,size:48,rotation:0,pulse:0,flash:0};
         asAttacks=[];asParticles=[];asTexts=[];asFrame=0;asPattern=0;asPatternTimer=0;
-        asArenaWidth=396;asArenaHeight=438;asTargetWidth=396;asTargetHeight=438;asLastArenaShift=Date.now();
+        asArenaWidth=396;asArenaHeight=438;asTargetWidth=396;asTargetHeight=438;asLastArenaShift=Date.now();asGravityDirection=0;asGravityNextShiftAt=0;
         asShake=0;asFlash=0;asBossDamageFlash=0;asPhase=1;asLastShot=0;asGravityPull=.10;
         asKeys=Object.create(null);asPointer={down:false,x:0,y:0,id:null};
         if(typeof arenaActive!=="undefined")arenaActive=false;
