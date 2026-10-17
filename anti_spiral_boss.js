@@ -239,7 +239,9 @@
     }
     function asTryJump() {
         if (!asActive || asState !== "fight" || !asPlayer.grounded) return;
-        asPlayer.vy = -5.8;
+        const gravity = [{x:0,y:1},{x:-1,y:0},{x:0,y:-1},{x:1,y:0}][asGravityDirection];
+        asPlayer.vx = -gravity.x * 5.8;
+        asPlayer.vy = -gravity.y * 5.8;
         asPlayer.grounded = false;
         asPlayer.platformIndex = null;
         asText(asPlayer.x, asPlayer.y - 20, "ПРЫЖОК!", "#68dcff", 28);
@@ -1719,100 +1721,66 @@
         }
         // Physics / input are stepped here, after rendering so the click hitbox stays aligned.
         if(asState==="fight"){
-            if(asGravityNextShiftAt && now >= asGravityNextShiftAt) asShiftGravity(now);
-            const left=asKeys.a||asKeys.arrowleft;const right=asKeys.d||asKeys.arrowright;
-            const up=asKeys.w||asKeys.arrowup;const down=asKeys.s||asKeys.arrowdown;
-            let mx=(right?1:0)-(left?1:0), my=(down?1:0)-(up?1:0);
+            if(asGravityNextShiftAt && now>=asGravityNextShiftAt)asShiftGravity(now);
+            const left=asKeys.a||asKeys.arrowleft,right=asKeys.d||asKeys.arrowright;
+            const up=asKeys.w||asKeys.arrowup,down=asKeys.s||asKeys.arrowdown;
+            let mx=(right?1:0)-(left?1:0),my=(down?1:0)-(up?1:0);
             const joy=window._joystick;
-            if(joy && joy.enabled && joy.active && (joy.enabled || joy.mobileDpadActive)) {
-                mx=Number(joy.vectorX)||0; my=Number(joy.vectorY)||0;
-                const angle=asGravityAngle(), co=Math.cos(angle), si=Math.sin(angle), sx=mx, sy=my;
-                mx=sx*co+sy*si; my=-sx*si+sy*co;
-            } else if(asPointer.down && !asPointerChargeMode) {
-                mx=Math.max(-1,Math.min(1,(asPointer.x-asPlayer.x)/52));
-                my=Math.max(-1,Math.min(1,(asPointer.y-asPlayer.y)/52));
-            } else {
-                const angle=asGravityAngle(), co=Math.cos(angle), si=Math.sin(angle), sx=mx, sy=my;
-                mx=sx*co+sy*si; my=-sx*si+sy*co;
-            }
+            if(joy&&joy.enabled&&joy.active&&(joy.enabled||joy.mobileDpadActive)){mx=Number(joy.vectorX)||0;my=Number(joy.vectorY)||0;}
+            else if(asPointer.down&&!asPointerChargeMode){mx=Math.max(-1,Math.min(1,(asPointer.x-asPlayer.x)/52));my=Math.max(-1,Math.min(1,(asPointer.y-asPlayer.y)/52));}
+            const gravity=[{x:0,y:1},{x:-1,y:0},{x:0,y:-1},{x:1,y:0}][asGravityDirection];
             let pullX=0,pullY=0;
             for(let wi=0;wi<asAttacks.length;wi++){
-                const well=asAttacks[wi];
-                if(!well||well.kind!=="well"||well.burst||well.timer<=0)continue;
-                const dx=well.x-asPlayer.x,dy=well.y-asPlayer.y,dist=Math.max(1,Math.hypot(dx,dy));
-                if(dist<well.pullRadius){
-                    const force=(1-dist/well.pullRadius);
-                    pullX+=dx/dist*2.45*force;
-                    pullY+=dy/dist*1.35*force;
-                }
+                const w=asAttacks[wi];if(!w||w.kind!=="well"||w.burst||w.timer<=0)continue;
+                const dx=w.x-asPlayer.x,dy=w.y-asPlayer.y,dist=Math.max(1,Math.hypot(dx,dy));
+                if(dist<w.pullRadius){const f=1-dist/w.pullRadius;pullX+=dx/dist*.48*f;pullY+=dy/dist*.48*f;}
             }
-            const previousX = asPlayer.x;
-            const previousY = asPlayer.y;
-            asPlayer.x+=mx*3.5+Math.max(-2.8,Math.min(2.8,pullX));
-            asPlayer.y+=my*3.1;
-            const joyJump=!!(joy && joy.enabled && joy.active && my < -0.62);
-            const directionalJump=(asKeys.w||asKeys.arrowup||asKeys.a||asKeys.arrowleft||asKeys.s||asKeys.arrowdown||asKeys.d||asKeys.arrowright) && my < -0.72;
-            const jump=(asKeys[" "]||directionalJump||joyJump)&&asPlayer.grounded;
-            if(jump){asPlayer.vy=-5.8;asPlayer.grounded=false;asPlayer.platformIndex=null;asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);}
-            asPlayer.vy=Math.max(-5.8,Math.min(6.2,asPlayer.vy+0.31+asGravityPull+Math.max(-.95,Math.min(1.25,pullY))));
-            asPlayer.y+=asPlayer.vy;
-            const bounds=asBounds();
-            asPlayer.x=Math.max(bounds.left,Math.min(bounds.right,asPlayer.x));
-            asApplyLaserBarriers(previousX, previousY, bounds);
-            asPlayer.x=Math.max(bounds.left,Math.min(bounds.right,asPlayer.x));
-            let landedOnPlatform=false;
-            if(asPlayer.vy>=0){
-                for(let pi=0;pi<asPlatforms.length;pi++){
-                    if (!asPlatformIsVisible(pi, now) && pi !== asSafePlatformIndex()) continue;
-                    const p=asPlatforms[pi], px=asPlatformX(p,pi,now), leftEdge=px-p.w/2, rightEdge=px+p.w/2;
-                    if(previousY+asPlayer.size<=p.y+2 && asPlayer.y+asPlayer.size>=p.y &&
-                        asPlayer.x+asPlayer.size*.65>leftEdge && asPlayer.x-asPlayer.size*.65<rightEdge){
-                        asPlayer.y=p.y-asPlayer.size;asPlayer.vy=0;asPlayer.grounded=true;asPlayer.platformIndex=pi;landedOnPlatform=true;break;
-                    }
-                }
+            const jumpDot=mx*(-gravity.x)+my*(-gravity.y);
+            const joyJump=!!(joy&&joy.enabled&&joy.active&&((Number(joy.vectorX)||0)*(-gravity.x)+(Number(joy.vectorY)||0)*(-gravity.y)>.62));
+            if(asPlayer.grounded&&(asKeys[" "]||jumpDot>.58||joyJump)){
+                asPlayer.vx=-gravity.x*5.8;asPlayer.vy=-gravity.y*5.8;
+                asPlayer.grounded=false;asPlayer.platformIndex=null;
+                asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
             }
-            if(!landedOnPlatform && asPlayer.y>=bounds.bottom){
-                asPlayer.y=bounds.bottom;asPlayer.vy=0;asPlayer.grounded=true;asPlayer.platformIndex=-1;
-            }else if(!landedOnPlatform && asPlayer.vy!==0){
-                asPlayer.grounded=false;
+            // Гравитация действует по реальному вектору, а не поворотом всей сцены.
+            asPlayer.vx=Math.max(-6.2,Math.min(6.2,(asPlayer.vx+mx*.43+gravity.x*.32+pullX)*.91));
+            asPlayer.vy=Math.max(-6.2,Math.min(6.2,(asPlayer.vy+my*.43+gravity.y*.32+pullY)*.91));
+            const px=asPlayer.x,py=asPlayer.y,r=asPlayer.size;
+            asPlayer.x+=asPlayer.vx;asPlayer.y+=asPlayer.vy;
+            const bounds=asBounds();let boundaryGrounded=false;
+            if(asPlayer.x<bounds.left){asPlayer.x=bounds.left;if(asGravityDirection===1){asPlayer.vx=0;boundaryGrounded=true;}else asPlayer.vx=Math.abs(asPlayer.vx)*.28;}
+            if(asPlayer.x>bounds.right){asPlayer.x=bounds.right;if(asGravityDirection===3){asPlayer.vx=0;boundaryGrounded=true;}else asPlayer.vx=-Math.abs(asPlayer.vx)*.28;}
+            if(asPlayer.y<bounds.top){asPlayer.y=bounds.top;if(asGravityDirection===2){asPlayer.vy=0;boundaryGrounded=true;}else asPlayer.vy=Math.abs(asPlayer.vy)*.28;}
+            if(asPlayer.y>bounds.bottom){asPlayer.y=bounds.bottom;if(asGravityDirection===0){asPlayer.vy=0;boundaryGrounded=true;}else asPlayer.vy=-Math.abs(asPlayer.vy)*.28;}
+            asApplyLaserBarriers(px,py,bounds);
+            let landed=false;
+            for(let i=0;i<asPlatforms.length;i++){
+                if(!asPlatformIsVisible(i,now)&&i!==asSafePlatformIndex())continue;
+                const g=asPlatformGeometry(asPlatforms[i],i,now);
+                const ox=asPlayer.x+r>g.x&&asPlayer.x-r<g.x+g.w,oy=asPlayer.y+r>g.y&&asPlayer.y-r<g.y+g.h;
+                let hit=false;
+                if(asGravityDirection===0&&asPlayer.vy>0&&py+r<=g.y+3&&asPlayer.y+r>=g.y&&ox){asPlayer.y=g.y-r;asPlayer.vy=0;hit=true;}
+                else if(asGravityDirection===2&&asPlayer.vy<0&&py-r>=g.y+g.h-3&&asPlayer.y-r<=g.y+g.h&&ox){asPlayer.y=g.y+g.h+r;asPlayer.vy=0;hit=true;}
+                else if(asGravityDirection===1&&asPlayer.vx<0&&px-r>=g.x+g.w-3&&asPlayer.x-r<=g.x+g.w&&oy){asPlayer.x=g.x+g.w+r;asPlayer.vx=0;hit=true;}
+                else if(asGravityDirection===3&&asPlayer.vx>0&&px+r<=g.x+3&&asPlayer.x+r>=g.x&&oy){asPlayer.x=g.x-r;asPlayer.vx=0;hit=true;}
+                if(hit){asPlayer.grounded=true;asPlayer.platformIndex=i;landed=true;break;}
             }
-            if(asPlayer.y<bounds.top){asPlayer.y=bounds.top;asPlayer.vy=0;asPlayer.grounded=false;asPlayer.platformIndex=null;}
-            // Phase escalation and arena pressure.
-            const ratio=asBossHp/asBossMaxHp;
-            asPhase=ratio<=.25?4:ratio<=.5?3:ratio<=.75?2:1;
-            const chargeNow = Date.now();
-            const canAutoCharge = chargeNow >= asNextShotAt && chargeNow - asLastDamageAt >= 3000;
-            if (canAutoCharge && asChargeFrames < 150) asChargeFrames = Math.min(150, asChargeFrames + 1);
-            asCharging = canAutoCharge && asChargeFrames < 150;
-            asUpdateControls();
-            if(asBossExposed>0)asBossExposed--;
-            if(asLabyrinthTimer>0)asLabyrinthTimer--;
-            asPatternTimer++;
-            const patternDuration = asPattern === 7 ? 250 : 178;
-            if(asPatternTimer>patternDuration){
-                asPatternTimer=0;asPattern=(asPattern+1)%patterns.length;asPatternSpawned=false;
-                asAttacks=asAttacks.filter(function(a){return a && a.kind==="gravityTell";});asText(200,100,patterns[asPattern],"#b8a2ff",52);asSound(260+asPattern*60,"sine",.18,.06);
-            }
-            const attackCadence=[42,70,58,78,92,82,76,178][asPattern]||58;
-            if(asPattern===7){
-                if(!asPatternSpawned)asSpawnPattern(now);
-            }else if((asFrame%Math.max(27,attackCadence-asPhase*3))===0){
-                asSpawnPattern(now);
-            }
+            if(!landed){asPlayer.grounded=boundaryGrounded;asPlayer.platformIndex=boundaryGrounded?-1:null;}
+            const ratio=asBossHp/asBossMaxHp;asPhase=ratio<=.25?4:ratio<=.5?3:ratio<=.75?2:1;
+            const chargeNow=Date.now(),canCharge=chargeNow>=asNextShotAt&&chargeNow-asLastDamageAt>=3000;
+            if(canCharge&&asChargeFrames<150)asChargeFrames=Math.min(150,asChargeFrames+1);
+            asCharging=canCharge&&asChargeFrames<150;asUpdateControls();
+            if(asBossExposed>0)asBossExposed--;if(asLabyrinthTimer>0)asLabyrinthTimer--;
+            asPatternTimer++;const duration=asPattern===7?250:178;
+            if(asPatternTimer>duration){asPatternTimer=0;asPattern=(asPattern+1)%patterns.length;asPatternSpawned=false;asAttacks=asAttacks.filter(a=>a&&a.kind==="gravityTell");asText(200,100,patterns[asPattern],"#b8a2ff",52);asSound(260+asPattern*60,"sine",.18,.06);}
+            const cadence=[42,70,58,78,92,82,76,178][asPattern]||58;
+            if(asPattern===7){if(!asPatternSpawned)asSpawnPattern(now);}else if(asFrame%Math.max(27,cadence-asPhase*3)===0)asSpawnPattern(now);
             if(asPlayer.invuln>0)asPlayer.invuln--;
-            if (asState === "fight" && !asWinPending && !asDefeatPending) {
-                const nearBoss = Math.hypot(asPlayer.x - asBoss.x, asPlayer.y - (asBoss.y + 43)) < 52;
-                const joyNow = window._joystick;
-                const deliberateInput = !!(asKeys.a || asKeys.d || asKeys.w || asKeys.s ||
-                    asKeys.arrowleft || asKeys.arrowright || asKeys.arrowup || asKeys.arrowdown || asKeys[" "] ||
-                    (joyNow && joyNow.enabled && joyNow.active &&
-                     (Math.abs(Number(joyNow.vectorX) || 0) > .12 || Math.abs(Number(joyNow.vectorY) || 0) > .12)) ||
-                    (asPointer.down && !asPointerChargeMode));
-                if (nearBoss && deliberateInput && now >= asMiniCooldownUntil && now >= asGravityTransitionUntil) asBossApproachFrames++;
-                else asBossApproachFrames = 0;
-                if (asBossApproachFrames >= 8) asStartBrokenReality(now);
-            }
-
+            const near=Math.hypot(asPlayer.x-asBoss.x,asPlayer.y-(asBoss.y+43))<52;
+            const j=window._joystick;
+            const deliberate=!!(left||right||up||down||asKeys[" "]||(j&&j.enabled&&j.active&&(Math.abs(Number(j.vectorX)||0)>.12||Math.abs(Number(j.vectorY)||0)>.12))||(asPointer.down&&!asPointerChargeMode));
+            if(near&&deliberate&&now>=asMiniCooldownUntil&&now>=asGravityTransitionUntil)asBossApproachFrames++;else asBossApproachFrames=0;
+            if(asBossApproachFrames>=8&&!asWinPending&&!asDefeatPending)asStartBrokenReality(now);
         }
         asAnimFrame=requestAnimationFrame(asRender);
     }
