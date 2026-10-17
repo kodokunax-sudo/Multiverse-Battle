@@ -809,7 +809,7 @@
 @media(max-height:650px){.online-arena-battle-overlay{padding-top:5px}.online-arena-battle-header{margin-bottom:4px}.online-arena-battle-info{margin-bottom:4px}#onlineArenaBattleCanvas{width:min(calc(100vw - 24px),calc((100dvh - 136px)*.8));max-height:calc(100dvh - 136px)}.online-arena-battle-controls{font-size:10px;margin-top:3px}.online-arena-battle-overlay .online-arena-status{margin-top:3px}}
 
 </style>
-    <script src="anti-pull-refresh.js?v=4"></script>
+    <script src="anti-pull-refresh.js?v=4" defer></script>
 </head>
 <body>
 <div class="app" id="appContainer">
@@ -1462,48 +1462,49 @@
 </div>
 
 <!-- ★★★ FPS-FIX ПОДКЛЮЧАЕТСЯ ПЕРВЫМ ★★★ -->
-<script src="fps-fix.js"></script>
+<script src="fps-fix.js" defer></script>
     <!-- Реестр изображений подключается до загрузчика ресурсов -->
-<script src="images.js?v=14"></script>
+<script src="images.js?v=14" defer></script>
 <!-- Экран загрузки музыки и изображений -->
-<script src="music/loading_screen.js?v=7"></script>
+<script src="music/loading_screen.js?v=7" defer></script>
 
 <!-- Остальные скрипты игры -->
-<script src="data.js?v=32"></script>
-<script src="easter_eggs.js?v=7"></script>
-<script src="mastery.js?v=10"></script>
-<script src="daily.js?v=10"></script>
-<script src="pass.js?v=9"></script>
-<script src="dandy.js?v=9"></script>
-<script src="game.js?v=53"></script>
-<script src="battle.js?v=20"></script>
-<script src="supers.js?v=41"></script>
-<script src="dio.js?v=19"></script>
-<script src="gojo.js?v=6"></script>
-<script src="takaba.js?v=9"></script>
-<script src="living_stone_boss.js?v=17"></script>
-<script src="waystar_boss.js?v=29"></script>
-<script src="roger_whitebeard_boss.js?v=32"></script>
-<script src="anti_spiral_boss.js?v=26"></script>
-<script src="inventory.js?v=9"></script>
-<script src="crafting.js?v=3"></script>
-<script src="equipment_combat.js?v=15"></script>
-<script src="ui.js?v=30"></script>
-<script src="patches.js?v=7"></script>
-<script src="help.js?v=5"></script>
-<script src="evolution_unlock.js?v=1"></script>
-<script src="fix_code.js?v=3"></script>
-<script src="visuals.js"></script>
+<script src="data.js?v=32" defer></script>
+<script src="easter_eggs.js?v=7" defer></script>
+<script src="mastery.js?v=10" defer></script>
+<script src="daily.js?v=10" defer></script>
+<script src="pass.js?v=9" defer></script>
+<script src="dandy.js?v=9" defer></script>
+<script src="game.js?v=53" defer></script>
+<script src="battle.js?v=20" defer></script>
+<script src="supers.js?v=41" defer></script>
+<script src="dio.js?v=19" defer></script>
+<script src="gojo.js?v=6" defer></script>
+<script src="takaba.js?v=9" defer></script>
+<script src="living_stone_boss.js?v=17" defer></script>
+<script src="waystar_boss.js?v=29" defer></script>
+<script src="roger_whitebeard_boss.js?v=32" defer></script>
+<script src="anti_spiral_boss.js?v=26" defer></script>
+<script src="inventory.js?v=9" defer></script>
+<script src="crafting.js?v=3" defer></script>
+<script src="equipment_combat.js?v=15" defer></script>
+<script src="ui.js?v=30" defer></script>
+<script src="patches.js?v=7" defer></script>
+<script src="help.js?v=5" defer></script>
+<script src="evolution_unlock.js?v=1" defer></script>
+<script src="fix_code.js?v=3" defer></script>
+<script src="visuals.js" defer></script>
 
 <!-- ★★★ ДЖОЙСТИК — САМЫМ ПОСЛЕДНИМ ★★★ -->
-<script src="joystick.js?v=6"></script>
+<script src="joystick.js?v=6" defer></script>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=1"></script>
-<script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
-<script src="clans.js?v=29"></script>
-<script src="online-arena.js?v=18"></script>
-<script src="mobile-battle-controls.js?v=3"></script>
-<script src="stand_users.js?v=7"></script>
+
+<script src="supabase-config.js?v=1" defer></script>
+
+
+
+<script src="mobile-battle-controls.js?v=3" defer></script>
+<script src="stand_users.js?v=7" defer></script>
+    <script src="optional-integrations.js?v=1" defer></script>
 </body>
 </html>
