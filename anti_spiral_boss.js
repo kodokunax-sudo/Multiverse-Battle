@@ -194,10 +194,7 @@
             }
             if(asPhase>=2){
                 const upperY=floor-88;
-                for(let i=0;i<3;i++){
-                    const x=(bounds.left+45)+i*(Math.max(60,bounds.right-bounds.left-90)/2);
-                    asAttacks.push({kind:"laser",orientation:"horizontal",x:bounds.left,y:upperY,warning:52+i*5,life:13,y:upperY,color:"#b36cff",damage:Math.max(6,damage-3),hit:false});
-                }
+                asAttacks.push({kind:"laser",orientation:"horizontal",x:bounds.left,y:upperY,warning:55,life:13,color:"#b36cff",damage:Math.max(6,damage-3),hit:false});
             }
         } else if(asPattern===2) {
             // Meteors descend through visible lanes; a small lane near the player is kept open.
