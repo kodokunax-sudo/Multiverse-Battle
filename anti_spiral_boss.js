@@ -1769,7 +1769,13 @@
                     if(typeof a.spdY==="number")a.vy=a.spdY;
                 }
                 a.x+=a.vx;a.y+=a.vy;a.life--;a.phase+=.1;
-                c.save();c.translate(a.x,a.y);c.rotate(a.phase);c.shadowColor=a.color;c.shadowBlur=12;c.fillStyle=a.color;
+                // Bright energy trails make fast shots readable instead of tiny dots that seem to vanish.
+                c.save();c.globalAlpha=a.homing?.72:.48;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=a.homing?22:14;c.lineWidth=a.homing?4:2.5;
+                c.beginPath();c.moveTo(a.x-a.vx*(a.homing?7:4),a.y-a.vy*(a.homing?7:4));c.lineTo(a.x+a.vx*1.5,a.y+a.vy*1.5);c.stroke();c.restore();
+                if(asFrame%3===0&&(a.homing||a.kind==="fall"||a.kind==="spiral")){
+                    asParticles.push({x:a.x,y:a.y,vx:-a.vx*.18+(Math.random()-.5)*.7,vy:-a.vy*.18+(Math.random()-.5)*.7,life:12,maxLife:12,color:a.color,size:a.homing?2.8:1.8});
+                }
+                c.save();c.translate(a.x,a.y);c.rotate(a.phase);c.shadowColor=a.color;c.shadowBlur=a.homing?26:17;c.fillStyle=a.color;
                 if(a.kind==="ground"){
                     c.globalAlpha=.88;c.fillRect(-a.size,-a.size*.42,a.size*2,a.size*.84);
                     c.strokeStyle="#e1fbff";c.lineWidth=1;c.strokeRect(-a.size,-a.size*.42,a.size*2,a.size*.84);
