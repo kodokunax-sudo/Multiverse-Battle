@@ -229,8 +229,8 @@
     function asTryJump() {
         if (!asActive || asState !== "fight" || !asPlayer.grounded) return;
         const gravity = [{x:0,y:1},{x:-1,y:0},{x:0,y:-1},{x:1,y:0}][asGravityDirection];
-        asPlayer.vx = -gravity.x * 5.8;
-        asPlayer.vy = -gravity.y * 5.8;
+        asPlayer.vx = -gravity.x * 11.6;
+        asPlayer.vy = -gravity.y * 11.6;
         asPlayer.grounded = false;
         asPlayer.platformIndex = null;
         asText(asPlayer.x, asPlayer.y - 20, "ПРЫЖОК!", "#68dcff", 28);
@@ -472,7 +472,8 @@
     }
     function asDamagePlayer(damage, label) {
         if (!asActive || asPlayer.invuln > 0 || asState !== "fight" || asState === "victory" || asDefeatPending) return;
-        const amount = Math.max(1, Math.floor(Number(damage) || 1));
+        // Boss damage is reduced by 1.5x while keeping every hit at least 1 HP.
+        const amount = Math.max(1, Math.floor((Number(damage) || 1) / 1.5));
         asPlayerHp = Math.max(0, asPlayerHp - amount);
         // Полученный урон ставит заряд на паузу на 3 секунды, но накопленная мощь сохраняется.
         asLastDamageAt = Date.now();
@@ -942,6 +943,26 @@
             c.beginPath(); c.ellipse(asBoss.x, asBoss.y + 37, 25 + Math.sin(asFrame * .15) * 5, 31 + Math.sin(asFrame * .15) * 5, 0, 0, Math.PI * 2); c.stroke();
             c.restore();
         }
+        // Rotating dimensional halo and orbiting energy fragments, visible during the fight only.
+        c.save();
+        c.translate(asBoss.x, asBoss.y + 25);
+        c.globalAlpha=.68+.12*Math.sin(now/170);
+        c.shadowColor="#a04cff";c.shadowBlur=24;c.lineWidth=1.6;
+        for(let ring=0;ring<4;ring++){
+            c.save();c.rotate(now*.00035*(ring%2?-1:1)+ring*.52);
+            c.strokeStyle=ring%2?"#6cecff":"#bf76ff";
+            c.globalAlpha=.28+ring*.09;
+            c.beginPath();c.ellipse(0,0,asBoss.size+18+ring*12,11+ring*5,.22*ring,0,Math.PI*2);c.stroke();
+            c.restore();
+        }
+        for(let shard=0;shard<7;shard++){
+            const angle=now*.0011+shard*Math.PI*2/7;
+            const radius=asBoss.size+28+Math.sin(now/240+shard)*7;
+            const sx=Math.cos(angle)*radius,sy=Math.sin(angle)*radius*.62;
+            c.fillStyle=shard%2?"#7cecff":"#e0b4ff";c.globalAlpha=.62+.3*Math.sin(now/150+shard);
+            c.beginPath();c.moveTo(sx,sy-3.2);c.lineTo(sx+2.5,sy);c.lineTo(sx,sy+3.2);c.lineTo(sx-2.5,sy);c.closePath();c.fill();
+        }
+        c.restore();
         c.save();
         c.translate(asBoss.x, asBoss.y + 43);
         c.rotate(asGravityDirection * Math.PI / 2);
@@ -1848,7 +1869,7 @@
             const jumpDot=mx*(-gravity.x)+my*(-gravity.y);
             const joyJump=!!(joy&&joy.enabled&&joy.active&&((Number(joy.vectorX)||0)*(-gravity.x)+(Number(joy.vectorY)||0)*(-gravity.y)>.62));
             if(asPlayer.grounded&&(asKeys[" "]||jumpDot>.58||joyJump)){
-                asPlayer.vx=-gravity.x*5.8;asPlayer.vy=-gravity.y*5.8;
+                asPlayer.vx=-gravity.x*11.6;asPlayer.vy=-gravity.y*11.6;
                 asPlayer.grounded=false;asPlayer.platformIndex=null;
                 asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
             }
@@ -1856,8 +1877,11 @@
             // Steering only affects the surface tangent; up/down cannot provide endless thrust against gravity.
             const tangentX=-gravity.y,tangentY=gravity.x;
             const tangentInput=mx*tangentX+my*tangentY;
-            asPlayer.vx=Math.max(-6.2,Math.min(6.2,(asPlayer.vx+tangentX*tangentInput*.43+gravity.x*.32+pullX)*.91));
-            asPlayer.vy=Math.max(-6.2,Math.min(6.2,(asPlayer.vy+tangentY*tangentInput*.43+gravity.y*.32+pullY)*.91));
+            const nextVx=(asPlayer.vx+tangentX*tangentInput*.43+gravity.x*.32+pullX)*.91;
+            const nextVy=(asPlayer.vy+tangentY*tangentInput*.43+gravity.y*.32+pullY)*.91;
+            const tangentLimit=6.2, normalLimit=12.4;
+            asPlayer.vx=Math.max(gravity.x?-normalLimit:-tangentLimit,Math.min(gravity.x?normalLimit:tangentLimit,nextVx));
+            asPlayer.vy=Math.max(gravity.y?-normalLimit:-tangentLimit,Math.min(gravity.y?normalLimit:tangentLimit,nextVy));
             const px=asPlayer.x,py=asPlayer.y,r=asPlayer.size;
             asPlayer.x+=asPlayer.vx;asPlayer.y+=asPlayer.vy;
             const bounds=asBounds();let boundaryGrounded=false;
@@ -1879,7 +1903,17 @@
                 if(hit){asPlayer.grounded=true;asPlayer.platformIndex=i;landed=true;break;}
             }
             if(!landed){asPlayer.grounded=boundaryGrounded;asPlayer.platformIndex=boundaryGrounded?-1:null;}
-            const ratio=asBossHp/asBossMaxHp;asPhase=ratio<=.25?4:ratio<=.5?3:ratio<=.75?2:1;
+            const ratio=asBossHp/asBossMaxHp,previousPhase=asPhase;asPhase=ratio<=.25?4:ratio<=.5?3:ratio<=.75?2:1;
+            if(asPhase>previousPhase){
+                const phaseColor=asPhase>=4?"#ff386f":(asPhase>=3?"#d56bff":"#55eaff");
+                asShake=Math.max(asShake,16+asPhase*2);asFlash=Math.max(asFlash,12);asFlashColor=phaseColor;
+                asText(200,116,"АНТИ-СПИРАЛЬ — ФАЗА "+asPhase+"!",phaseColor,100);
+                asSound(asPhase>=4?58:(asPhase>=3?78:105),"sawtooth",.72,.18);
+                for(let burst=0;burst<42;burst++){
+                    const angle=Math.PI*2*burst/42,speed=2+Math.random()*5;
+                    asParticles.push({x:asBoss.x,y:asBoss.y+25,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:24+Math.floor(Math.random()*12),maxLife:36,color:phaseColor,size:2+Math.random()*4});
+                }
+            }
             const chargeNow=Date.now(),canCharge=chargeNow>=asNextShotAt&&chargeNow-asLastDamageAt>=3000;
             if(canCharge&&asChargeFrames<150)asChargeFrames=Math.min(150,asChargeFrames+1);
             asCharging=canCharge&&asChargeFrames<150;asUpdateControls();
