@@ -194,9 +194,13 @@
             }
             const state = window.getAntiSpiralBossState();
             if (state !== "fight") {
-                // Мини-режим сохраняет собственную быструю смену гравитации.
-                if (state === "mini") lastMiniState = true;
-                else if (state !== "cinematic") { wasFighting = false; dirIndex = -1; nextFlip = 0; }
+                // Мини-режим сохраняет собственную быструю смену гравитации;
+                // таймер внешнего гравитационного сдвига ставится на паузу.
+                if (state === "mini") {
+                    lastMiniState = true;
+                    nextFlip = Date.now() + 15000;
+                    nextVolley = Date.now() + 1700;
+                } else if (state !== "cinematic") { wasFighting = false; dirIndex = -1; nextFlip = 0; }
                 return;
             }
             const now = Date.now(), refs = playerAndBoss();
