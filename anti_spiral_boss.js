@@ -682,7 +682,7 @@
     function asBegin() {
         if(!asActive || asState==="fight") return;
         asState="fight"; asPatternTimer=0; asLastArenaShift=Date.now();
-        asGravityDirection=0; asGravityNextShiftAt=Date.now()+15000;
+        asGravityDirection=0; asGravityNextShiftAt=performance.now()+15000;
         asLastDamageAt=Date.now(); asNextShotAt=0; asChargeFrames=0; asCharging=false;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asText(200,250,"ПОКАЖИ СВОЮ ВОЛЮ!","#7de1ff",90);
@@ -1059,6 +1059,7 @@
         }
         if(t>=18.15){
             asState="fight";
+            asGravityDirection=0;asGravityNextShiftAt=now+15000;
             asBoss={x:200,y:100,size:48,rotation:0,pulse:0,flash:0};
             asArenaWidth=396;asArenaHeight=438;asTargetWidth=396;asTargetHeight=438;
             asInitPlatforms();asInitSeals();
