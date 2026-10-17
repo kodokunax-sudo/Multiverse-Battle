@@ -40,6 +40,12 @@
     let asMiniCollected = 0;
     let asMiniSpirals = [];
     let asMiniReturnPlayer = null;
+    let asMiniLasers = [];
+    let asMiniLaserHits = 0;
+    let asMiniLasersEnabled = false;
+    let asMiniNextLaserAt = 0;
+    let asPlayerScaleMode = 1; // 0.5 = tiny, 1 = normal, 2 = giant
+    let asPlayerSizeNextAt = 0;
     let asReassemblyEffectUntil = 0;
     let asBossExposed = 0;
     let asLabyrinthTimer = 0;
@@ -228,11 +234,37 @@
             }
         }
     }
+    function asUpdatePlayerSize(now) {
+        if(!asPlayerSizeNextAt){asPlayerSizeNextAt=now+10000;return;}
+        if(now<asPlayerSizeNextAt)return;
+        asPlayerSizeNextAt=now+10000;
+        const previous=asPlayerScaleMode;
+        asPlayerScaleMode=Math.random()<.30?(Math.random()<.5?.5:2):1;
+        asPlayer.size=12*asPlayerScaleMode;
+        if(asPlayerScaleMode!==previous){
+            const bounds=asBounds();
+            asPlayer.x=Math.max(bounds.left,Math.min(bounds.right,asPlayer.x));
+            asPlayer.y=Math.max(bounds.top,Math.min(bounds.bottom,asPlayer.y));
+            const color=asPlayerScaleMode===.5?"#62efff":asPlayerScaleMode===2?"#ff9e78":"#d7f6ff";
+            const message=asPlayerScaleMode===.5?"СЖАТИЕ! МАЛЕНЬКАЯ ФОРМА":asPlayerScaleMode===2?"ГИГАНТСКАЯ ФОРМА!":"РАЗМЕР ВОССТАНОВЛЕН";
+            const detail=asPlayerScaleMode===.5?"СКОРОСТЬ ↑  ПРЫЖОК ↓":asPlayerScaleMode===2?"СИЛЬНЫЙ ПРЫЖОК ↑  СКОРОСТЬ ↓":"НОРМАЛЬНАЯ ФИЗИКА";
+            asText(200,112,message,color,85);
+            asText(200,132,detail,color,72);
+            asFlash=Math.max(asFlash,6);asFlashColor=color;
+            asShake=Math.max(asShake,asPlayerScaleMode===2?10:5);
+            asSound(asPlayerScaleMode===.5?560:asPlayerScaleMode===2?95:300,asPlayerScaleMode===2?"sawtooth":"triangle",.28,.11);
+            for(let i=0;i<26;i++){
+                const angle=Math.PI*2*i/26,speed=1.3+Math.random()*3.5;
+                asParticles.push({x:asPlayer.x,y:asPlayer.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:16+Math.floor(Math.random()*10),maxLife:26,color:i%3===0?"#ffffff":color,size:1.6+Math.random()*3});
+            }
+        }
+    }
     function asTryJump() {
         if (!asActive || asState !== "fight" || !asPlayer.grounded) return;
         const gravity = [{x:0,y:1},{x:-1,y:0},{x:0,y:-1},{x:1,y:0}][asGravityDirection];
-        asPlayer.vx = -gravity.x * 23.2;
-        asPlayer.vy = -gravity.y * 23.2;
+        const jumpMultiplier=asPlayerScaleMode===.5?.65:(asPlayerScaleMode===2?1.3:1);
+        asPlayer.vx = -gravity.x * 23.2 * jumpMultiplier;
+        asPlayer.vy = -gravity.y * 23.2 * jumpMultiplier;
         asPlayer.grounded = false;
         asPlayer.platformIndex = null;
         asText(asPlayer.x, asPlayer.y - 20, "ПРЫЖОК!", "#68dcff", 28);
@@ -926,6 +958,7 @@
     function asDrawHeart(c) {
         c.save();c.translate(asPlayer.x,asPlayer.y);
         c.rotate(asGravityDirection * Math.PI / 2);
+        c.scale(asPlayer.size/12,asPlayer.size/12);
         c.shadowColor="#33c7ff";c.shadowBlur=18;
         const g=c.createLinearGradient(-8,-10,8,9);g.addColorStop(0,"#c8f7ff");g.addColorStop(.45,"#30c5ff");g.addColorStop(1,"#0647ce");c.fillStyle=g;
         c.beginPath();c.moveTo(0,7);c.bezierCurveTo(-3,4,-10,-1,-9,-6);c.bezierCurveTo(-8,-12,-2,-12,0,-7);c.bezierCurveTo(3,-12,9,-12,9,-5);c.bezierCurveTo(9,-1,3,4,0,7);c.closePath();c.fill();
@@ -1176,6 +1209,7 @@
         asBoss={x:200,y:100,size:48,rotation:0,pulse:0,flash:0};
         asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;
         asInitPlatforms();asInitSeals();
+        asPlayerScaleMode=1;asPlayerSizeNextAt=now+10000;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=Date.now();asNextShotAt=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
         asPattern=0;asPatternTimer=0;asLastArenaShift=now;
@@ -1267,8 +1301,12 @@
         if (asState !== "fight" || now < asMiniCooldownUntil) return;
         asMiniReturnPlayer = {
             x: asPlayer.x, y: asPlayer.y, vx: asPlayer.vx, vy: asPlayer.vy,
-            grounded: asPlayer.grounded, platformIndex: asPlayer.platformIndex
+            grounded: asPlayer.grounded, platformIndex: asPlayer.platformIndex,
+            size: asPlayer.size, scaleMode: asPlayerScaleMode
         };
+        asMiniLasersEnabled=asPhase>=2;
+        asMiniLaserHits=0;asMiniLasers=[];
+        asMiniNextLaserAt=asMiniLasersEnabled?now+1900:0;
         asState = "mini";
         asMiniStartedAt = now;
         asMiniIntroUntil = now + 720;
@@ -1293,7 +1331,7 @@
             { x: 345, y: 402, phase: 5.2, collected: false },
             { x: 205, y: 438, phase: 5.6, collected: false }
         ];
-        asPlayer = { x: 200, y: 260, vx: 0, vy: 0, size: 12, invuln: 0, grounded: false, platformIndex: null };
+        asPlayer = { x: 200, y: 260, vx: 0, vy: 0, size: asMiniReturnPlayer.size || 12, invuln: 0, grounded: false, platformIndex: null };
         asKeys = Object.create(null);
         asPointer = { down: false, x: 200, y: 260, id: null, direction: 0 };
         asPointerChargeMode = false;
@@ -1316,13 +1354,15 @@
             y: saved.y,
             vx: 0,
             vy: saved.grounded ? 0 : Math.max(-2, Math.min(2, saved.vy || 0)),
-            size: 12,
+            size: saved.size || 12,
             invuln: success ? 90 : 0,
             grounded: !!saved.grounded,
             platformIndex: saved.platformIndex
         };
         asMiniReturnPlayer = null;
         asMiniSpirals = [];
+        asMiniLasers = [];asMiniLasersEnabled=false;asMiniLaserHits=0;asMiniNextLaserAt=0;
+        asPlayerScaleMode=saved.scaleMode||1;
         asAttacks = [];
         asPatternTimer = 0;
         asPatternSpawned = false;
@@ -1394,8 +1434,9 @@
             gx = (200 - asPlayer.x) * 0.0016;
             gy = (260 - asPlayer.y) * 0.0016;
         }
-        asPlayer.vx = Math.max(-4.6, Math.min(4.6, (asPlayer.vx + mx * 0.43 + gx) * 0.965));
-        asPlayer.vy = Math.max(-4.6, Math.min(4.6, (asPlayer.vy + my * 0.43 + gy) * 0.965));
+        const miniSpeedMultiplier=asPlayerScaleMode===.5?1.5:(asPlayerScaleMode===2?.62:1);
+        asPlayer.vx = Math.max(-4.6*miniSpeedMultiplier, Math.min(4.6*miniSpeedMultiplier, (asPlayer.vx + mx * 0.43*miniSpeedMultiplier + gx) * 0.965));
+        asPlayer.vy = Math.max(-4.6*miniSpeedMultiplier, Math.min(4.6*miniSpeedMultiplier, (asPlayer.vy + my * 0.43*miniSpeedMultiplier + gy) * 0.965));
         asPlayer.x += asPlayer.vx;
         asPlayer.y += asPlayer.vy;
         const progress = Math.max(0, Math.min(1, elapsed / 15000));
@@ -1405,15 +1446,16 @@
             top: 91 + progress * 39,
             bottom: 466 - progress * 43
         };
-        if (asPlayer.x < bounds.left + 11) { asPlayer.x = bounds.left + 11; asPlayer.vx = Math.abs(asPlayer.vx) * 0.42; }
-        if (asPlayer.x > bounds.right - 11) { asPlayer.x = bounds.right - 11; asPlayer.vx = -Math.abs(asPlayer.vx) * 0.42; }
-        if (asPlayer.y < bounds.top + 11) { asPlayer.y = bounds.top + 11; asPlayer.vy = Math.abs(asPlayer.vy) * 0.42; }
-        if (asPlayer.y > bounds.bottom - 11) { asPlayer.y = bounds.bottom - 11; asPlayer.vy = -Math.abs(asPlayer.vy) * 0.42; }
+        const miniMargin=asPlayer.size+1;
+        if (asPlayer.x < bounds.left + miniMargin) { asPlayer.x = bounds.left + miniMargin; asPlayer.vx = Math.abs(asPlayer.vx) * 0.42; }
+        if (asPlayer.x > bounds.right - miniMargin) { asPlayer.x = bounds.right - miniMargin; asPlayer.vx = -Math.abs(asPlayer.vx) * 0.42; }
+        if (asPlayer.y < bounds.top + miniMargin) { asPlayer.y = bounds.top + miniMargin; asPlayer.vy = Math.abs(asPlayer.vy) * 0.42; }
+        if (asPlayer.y > bounds.bottom - miniMargin) { asPlayer.y = bounds.bottom - miniMargin; asPlayer.vy = -Math.abs(asPlayer.vy) * 0.42; }
         for (let i = 0; i < asMiniSpirals.length; i++) {
             const spiral = asMiniSpirals[i];
             if (spiral.collected) continue;
             spiral.phase += 0.045;
-            if (Math.hypot(asPlayer.x - spiral.x, asPlayer.y - spiral.y) < 23) {
+            if (Math.hypot(asPlayer.x - spiral.x, asPlayer.y - spiral.y) < 11 + asPlayer.size) {
                 spiral.collected = true;
                 asMiniCollected++;
                 for (let p = 0; p < 12; p++) {
@@ -2038,6 +2080,7 @@
         }
         // Physics / input are stepped here, after rendering so the click hitbox stays aligned.
         if(asState==="fight"){
+            asUpdatePlayerSize(now);
             if(asGravityNextShiftAt && now>=asGravityNextShiftAt)asShiftGravity(now);
             const left=asKeys.a||asKeys.arrowleft,right=asKeys.d||asKeys.arrowright;
             const up=asKeys.w||asKeys.arrowup,down=asKeys.s||asKeys.arrowdown;
@@ -2055,17 +2098,19 @@
             const jumpDot=mx*(-gravity.x)+my*(-gravity.y);
             const joyJump=!!(joy&&joy.enabled&&joy.active&&((Number(joy.vectorX)||0)*(-gravity.x)+(Number(joy.vectorY)||0)*(-gravity.y)>.62));
             if(asPlayer.grounded&&(asKeys[" "]||jumpDot>.58||joyJump)){
-                asPlayer.vx=-gravity.x*23.2;asPlayer.vy=-gravity.y*23.2;
+                    const jumpMultiplier=asPlayerScaleMode===.5?.65:(asPlayerScaleMode===2?1.3:1);
+                asPlayer.vx=-gravity.x*23.2*jumpMultiplier;asPlayer.vy=-gravity.y*23.2*jumpMultiplier;
                 asPlayer.grounded=false;asPlayer.platformIndex=null;
                 asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
             }
             // Гравитация действует по реальному вектору, а не поворотом всей сцены.
             // Steering only affects the surface tangent; up/down cannot provide endless thrust against gravity.
             const tangentX=-gravity.y,tangentY=gravity.x;
+            const sizeSpeedMultiplier=asPlayerScaleMode===.5?1.5:(asPlayerScaleMode===2?.62:1);
             const tangentInput=mx*tangentX+my*tangentY;
-            const nextVx=(asPlayer.vx+tangentX*tangentInput*.43+gravity.x*.32+pullX)*.91;
-            const nextVy=(asPlayer.vy+tangentY*tangentInput*.43+gravity.y*.32+pullY)*.91;
-            const tangentLimit=6.2, normalLimit=24.8;
+            const nextVx=(asPlayer.vx+tangentX*tangentInput*.43*sizeSpeedMultiplier+gravity.x*.32+pullX)*.91;
+            const nextVy=(asPlayer.vy+tangentY*tangentInput*.43*sizeSpeedMultiplier+gravity.y*.32+pullY)*.91;
+            const tangentLimit=6.2*sizeSpeedMultiplier, normalLimit=24.8*(asPlayerScaleMode===.5?.72:(asPlayerScaleMode===2?1.3:1));
             asPlayer.vx=Math.max(gravity.x?-normalLimit:-tangentLimit,Math.min(gravity.x?normalLimit:tangentLimit,nextVx));
             asPlayer.vy=Math.max(gravity.y?-normalLimit:-tangentLimit,Math.min(gravity.y?normalLimit:tangentLimit,nextVy));
             const px=asPlayer.x,py=asPlayer.y,r=asPlayer.size;
