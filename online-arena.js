@@ -1902,6 +1902,11 @@
         };
     }
 
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+    } else {
+        // Optional online arena can load after the single-player game is already running.
+        init();
+    }
     else init();
 })();
