@@ -30,6 +30,8 @@
     let asDrillShots = [];
     let asChargeFrames = 0;
     let asCharging = false;
+    let asLastDamageAt = 0;
+    let asNextShotAt = 0;
     let asBossExposed = 0;
     let asLabyrinthTimer = 0;
     let asUltimateActive = false;
@@ -150,20 +152,24 @@
         asText(asPlayer.x, asPlayer.y - 20, "ПРЫЖОК!", "#68dcff", 28);
         asSound(420, "sine", 0.12, 0.07);
     }
-    function asStartCharge() {
-        if (!asActive || asState !== "fight" || asCharging) return;
-        asCharging = true;
-        asChargeFrames = 0;
-        asSound(240, "sine", 0.08, 0.035);
-    }
-    function asReleaseCharge() {
-        if (!asCharging) return;
+    // Выстрел использует уже накопленный автоматический заряд. Удерживать кнопку не нужно.
+    function asFireDrill() {
+        if (!asActive || asState !== "fight") return;
+        const now = Date.now();
+        if (now < asNextShotAt) {
+            asUpdateControls();
+            return;
+        }
         const frames = asChargeFrames;
-        asCharging = false;
         asChargeFrames = 0;
-        if (asActive && asState === "fight") asShootDrill(Math.max(8, frames));
+        asCharging = false;
+        asNextShotAt = now + 1500;
+        asShootDrill(Math.max(8, frames));
         asUpdateControls();
     }
+    // Оставлено для совместимости с обработчиками pointer/keyboard старой версии.
+    function asStartCharge() { asFireDrill(); }
+    function asReleaseCharge() {}
     function asShootDrill(frames) {
         const charge = Math.max(0.04, Math.min(1, frames / 150));
         const sealIndex = asUnbrokenSealIndex();
@@ -252,7 +258,7 @@
         jump.type = "button"; jump.textContent = "⬆ ПРЫЖОК";
         jump.style.cssText = buttonStyle;
         const drill = document.createElement("button");
-        drill.type = "button"; drill.textContent = "🌀 УДЕРЖИВАЙ БУР";
+        drill.type = "button"; drill.textContent = "🌀 БУР 0% · ВЫСТРЕЛ";
         drill.style.cssText = buttonStyle + "border-color:#a988ff;background:linear-gradient(135deg,#133f59,#48206e);";
         jump.addEventListener("pointerdown", function(ev) {
             ev.preventDefault();
@@ -261,15 +267,10 @@
         });
         drill.addEventListener("pointerdown", function(ev) {
             ev.preventDefault();
-            try { drill.setPointerCapture(ev.pointerId); } catch(e) {}
-            asStartCharge();
+            asFireDrill();
         });
-        function releaseDrill(ev) { if (ev) ev.preventDefault(); asReleaseCharge(); }
-        drill.addEventListener("pointerup", releaseDrill);
-        drill.addEventListener("pointercancel", releaseDrill);
-        drill.addEventListener("lostpointercapture", releaseDrill);
         const hint = document.createElement("div");
-        hint.textContent = "WASD / ← → — двигаться · W / ↑ / ПРОБЕЛ — прыгать · Z — держать и отпустить для выстрела";
+        hint.textContent = "WASD / ← → — движение · W / ↑ / ПРОБЕЛ — прыжок · Z/X или кнопка — выстрел. Заряд копится сам после 3 сек. без урона";
         hint.style.cssText = "flex-basis:100%;color:#b8eaff;text-align:center;font-size:10px;line-height:1.35;";
         row.appendChild(jump); row.appendChild(drill); row.appendChild(hint);
         c.parentNode.insertBefore(row, c.nextSibling);
@@ -277,16 +278,24 @@
     }
     function asUpdateControls() {
         if (!asControls) return;
+        const now = Date.now();
         const pct = Math.round(asChargeFrames / 150 * 100);
         const sealIndex = asUnbrokenSealIndex();
         const targetName = sealIndex >= 0 ? "ПЕЧАТЬ " + (sealIndex + 1) + "/3" : "АНТИ-СПИРАЛЬ";
-        asControls.drill.textContent = asCharging ? "🌀 " + targetName + " " + pct + "% · ОТПУСТИ" : "🌀 БУР → " + targetName;
-        if (asCharging) {
-            const glow = Math.min(1, pct / 100);
-            asControls.drill.style.boxShadow = "0 0 " + (5 + glow * 20) + "px rgba(72,220,255," + (0.25 + glow * 0.55) + ")";
+        const cooldownMs = Math.max(0, asNextShotAt - now);
+        const damageDelayMs = Math.max(0, 3000 - (now - asLastDamageAt));
+        if (cooldownMs > 0) {
+            asControls.drill.textContent = "⏳ ПЕРЕЗАРЯДКА " + (cooldownMs / 1000).toFixed(1) + "с · " + pct + "%";
+        } else if (damageDelayMs > 0) {
+            asControls.drill.textContent = "🌀 " + targetName + " · " + pct + "% · заряд через " + (damageDelayMs / 1000).toFixed(1) + "с";
         } else {
-            asControls.drill.style.boxShadow = "none";
+            asControls.drill.textContent = (pct >= 100 ? "💥 МАКС. ЗАРЯД" : "🌀 ЗАРЯД " + pct + "%") + " · ВЫСТРЕЛ";
         }
+        const glow = Math.min(1, pct / 100);
+        asControls.drill.style.boxShadow = pct > 0
+            ? "0 0 " + (5 + glow * 20) + "px rgba(72,220,255," + (0.25 + glow * 0.55) + ")"
+            : "none";
+        asControls.drill.style.opacity = cooldownMs > 0 ? "0.78" : "1";
     }
     function asText(x, y, text, color, life) {
         asTexts.push({ x:x, y:y, text:text, color:color || "#ffffff", life:life || 50, maxLife:life || 50, vy:-0.7 });
@@ -382,6 +391,10 @@
         if (!asActive || asPlayer.invuln > 0 || asState !== "fight" || asState === "victory" || asDefeatPending) return;
         const amount = Math.max(1, Math.floor(Number(damage) || 1));
         asPlayerHp = Math.max(0, asPlayerHp - amount);
+        // Полученный урон ставит заряд на паузу на 3 секунды, но накопленная мощь сохраняется.
+        asLastDamageAt = Date.now();
+        asCharging = false;
+        asUpdateControls();
         const hpEl=document.getElementById("arenaHP"); if(hpEl)hpEl.innerText=Math.ceil(asPlayerHp);
         asPlayer.invuln = 42;
         asShake = Math.max(asShake, 10);
@@ -511,12 +524,9 @@
         const y = (ev.clientY - rect.top) * 500 / rect.height;
         if (asState === "intro") { asBegin(); return; }
         if (asState !== "fight") return;
-        // Удержание на модели босса заряжает бур; клик больше не снимает HP мгновенно.
+        // Нажатие на босса запускает выстрел накопленной мощью.
         if (Math.hypot(x - asBoss.x, y - (asBoss.y + 36)) < asBoss.size * 1.75) {
-            asPointerChargeMode = true;
-            asPointer.id = ev.pointerId;
-            asStartCharge();
-            if (c.setPointerCapture) { try { c.setPointerCapture(ev.pointerId); } catch(e) {} }
+            asFireDrill();
             return;
         }
         if (y > 430 && x > 150 && x < 250 && asPlayer.grounded) {
@@ -567,6 +577,7 @@
     function asBegin() {
         if(!asActive || asState==="fight") return;
         asState="fight"; asPatternTimer=0; asLastArenaShift=Date.now();
+        asLastDamageAt=Date.now(); asNextShotAt=0; asChargeFrames=0; asCharging=false;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asText(200,250,"ПОКАЖИ СВОЮ ВОЛЮ!","#7de1ff",90);
         asSound(420,"sine",0.35,0.12);
@@ -608,7 +619,7 @@
         asActive=false; window.antiSpiralBossActive=false;
         if(asAnimFrame) cancelAnimationFrame(asAnimFrame);
         asAnimFrame=null; asUnbind(); stopASMusic();
-        asCharging=false; asChargeFrames=0; asPointerChargeMode=false; asDrillShots=[];
+        asCharging=false; asChargeFrames=0; asLastDamageAt=0; asNextShotAt=0; asPointerChargeMode=false; asDrillShots=[];
         if(asControls && asControls.row && asControls.row.parentNode) asControls.row.parentNode.removeChild(asControls.row);
         asControls=null;
         if(asHintElement){asHintElement.textContent=asOriginalHint;asHintElement=null;asOriginalHint="";}
@@ -673,7 +684,7 @@
         }
     }
     function asDrawChargeAura(c,now) {
-        if(!asCharging||asChargeFrames<=0)return;
+        if(asChargeFrames<=0)return;
         const pct=Math.min(1,asChargeFrames/150);
         c.save();c.translate(asPlayer.x,asPlayer.y-2);
         c.globalAlpha=.35+pct*.55;c.strokeStyle=pct>.8?"#ffffff":"#61eaff";
@@ -946,7 +957,7 @@
             asArenaWidth=396;asArenaHeight=438;asTargetWidth=396;asTargetHeight=438;
             asInitPlatforms();asInitSeals();
             asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
-            asDrillShots=[];asChargeFrames=0;asCharging=false;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
+            asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=Date.now();asNextShotAt=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
             asPattern=0;asPatternTimer=0;asLastArenaShift=now;
             asCreateControls();
             asText(200,250,"ТЕБЕ КОНЕЦ!","#74e4ff",85);
@@ -1255,7 +1266,11 @@
             // Phase escalation and arena pressure.
             const ratio=asBossHp/asBossMaxHp;
             asPhase=ratio<=.25?4:ratio<=.5?3:ratio<=.75?2:1;
-            if(asCharging){asChargeFrames=Math.min(150,asChargeFrames+1);asUpdateControls();}
+            const chargeNow = Date.now();
+            const canAutoCharge = chargeNow >= asNextShotAt && chargeNow - asLastDamageAt >= 3000;
+            if (canAutoCharge && asChargeFrames < 150) asChargeFrames = Math.min(150, asChargeFrames + 1);
+            asCharging = canAutoCharge && asChargeFrames < 150;
+            asUpdateControls();
             if(asBossExposed>0)asBossExposed--;
             if(asLabyrinthTimer>0)asLabyrinthTimer--;
             asPatternTimer++;
