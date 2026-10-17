@@ -86,7 +86,8 @@
         "МУЛЬТИВСЕЛЕНСКИЙ ЛАБИРИНТ",
         "ГРАВИТАЦИОННЫЙ КОЛЛАПС",
         "СДВИГ ВЕРОЯТНОСТИ",
-        "INFINITY BIG BANG STORM"
+        "INFINITY BIG BANG STORM",
+        "ЧЁРНАЯ КОРОНА — КРЕСТОВОЙ ЗАЛП"
     ];
 
     function asCanvas() {
@@ -229,8 +230,8 @@
     function asTryJump() {
         if (!asActive || asState !== "fight" || !asPlayer.grounded) return;
         const gravity = [{x:0,y:1},{x:-1,y:0},{x:0,y:-1},{x:1,y:0}][asGravityDirection];
-        asPlayer.vx = -gravity.x * 11.6;
-        asPlayer.vy = -gravity.y * 11.6;
+        asPlayer.vx = -gravity.x * 23.2;
+        asPlayer.vy = -gravity.y * 23.2;
         asPlayer.grounded = false;
         asPlayer.platformIndex = null;
         asText(asPlayer.x, asPlayer.y - 20, "ПРЫЖОК!", "#68dcff", 28);
@@ -625,6 +626,24 @@
                 asAttacks[asAttacks.length-1].turnRate=.055;
                 asAttacks[asAttacks.length-1].maxSpeed=4;
             }
+        } else if (asPattern === 8) {
+            // A new signature combo: cross-lasers force a dodge, then three staggered reality marks punish staying still.
+            const targetX=Math.max(bounds.left+24,Math.min(bounds.right-24,asPlayer.x));
+            const targetY=Math.max(bounds.top+55,Math.min(bounds.bottom-30,asPlayer.y));
+            asText(200,105,"ЧЁРНАЯ КОРОНА — КРЕСТОВОЙ ЗАЛП","#ff8bf3",82);
+            asShake=Math.max(asShake,8);asSound(82,"sawtooth",.32,.12);
+            asAttacks.push({kind:"laser",orientation:"vertical",x:targetX,y:0,warning:58,life:18,color:"#f566ff",damage:damage+3,hit:false});
+            asAttacks.push({kind:"laser",orientation:"horizontal",x:0,y:targetY,warning:76,life:16,color:"#62eaff",damage:damage+4,hit:false});
+            for(let mark=0;mark<3;mark++){
+                const offset=(mark-1)*(asPhase>=3?74:58);
+                asAttacks.push({
+                    kind:"mark",
+                    x:Math.max(bounds.left+22,Math.min(bounds.right-22,targetX+offset)),
+                    y:Math.max(bounds.top+40,Math.min(bounds.bottom-25,targetY+(mark===1?38:-22))),
+                    timer:54+mark*10,radius:23+asPhase*2,damage:damage+2,life:0,hit:false,
+                    color:mark===1?"#ffffff":(mark===0?"#ff67d8":"#7e79ff")
+                });
+            }
         } else {
             // Две галактики сжимаются в шар; затем следует Infinity Big Bang Storm.
             if (asUltimateActive || asPatternSpawned) return;
@@ -636,6 +655,30 @@
             asText(200, 105, "СЖАТИЕ ДВУХ ГАЛАКТИК!", "#f0caff", 76);
             asSound(68, "sawtooth", .65, .13);
             asShake = Math.max(asShake, 7);
+        }
+        if(asPattern<7 && Math.random()<(asPhase>=3?.42:.28)){
+            const remix=Math.floor(Math.random()*3);
+            if(remix===0){
+                // A small pair of seeking shards joins the current move.
+                const aim=Math.atan2(asPlayer.y-(asBoss.y+36),asPlayer.x-asBoss.x);
+                for(let h=-1;h<=1;h+=2){
+                    asAddAttack(asBoss.x,asBoss.y+36,Math.cos(aim+h*.28)*2.4,Math.sin(aim+h*.28)*2.4,10,"#f0a2ff",Math.max(6,damage-2),"orb");
+                    asAttacks[asAttacks.length-1].homing=true;asAttacks[asAttacks.length-1].turnRate=.035;asAttacks[asAttacks.length-1].maxSpeed=3.5;
+                }
+            }else if(remix===1){
+                // A delayed pair of blasts tracks where the player was, not where they end up.
+                const markX=Math.max(bounds.left+24,Math.min(bounds.right-24,asPlayer.x+asPlayer.vx*10));
+                const markY=Math.max(bounds.top+55,Math.min(bounds.bottom-28,asPlayer.y+asPlayer.vy*7));
+                [-1,1].forEach(function(side){
+                    asAttacks.push({kind:"mark",x:Math.max(bounds.left+20,Math.min(bounds.right-20,markX+side*42)),y:markY,timer:48+Math.random()*10,radius:22+asPhase*2,damage:damage+1,life:0,hit:false,color:side<0?"#ff61d8":"#67eaff"});
+                });
+            }else{
+                // Two warning lances create a temporary corridor.
+                [-1,1].forEach(function(side){
+                    const x=Math.max(bounds.left+18,Math.min(bounds.right-18,asPlayer.x+side*72));
+                    asAttacks.push({kind:"laser",orientation:"vertical",x:x,y:0,warning:48,life:14,color:side<0?"#9d79ff":"#53eaff",damage:damage+2,hit:false});
+                });
+            }
         }
         asSound(asPattern === 1 ? 180 : (asPattern === 3 ? 125 : 300), "sawtooth", asPattern === 3 ? .22 : .14, asPattern >= 3 ? .07 : .055);
     }
@@ -931,10 +974,41 @@
         for(let i=0;i<3;i++){c.beginPath();c.ellipse(x,y-6,48*scale+i*13*scale,74*scale+i*11*scale,now*.0002*(i%2?1:-1),0,Math.PI*2);c.stroke();}
         c.restore();
     }
+    function asDrawAntiSpiralHead(c,x,y,scale,now,opacity) {
+        const bob=Math.sin(now/360)*1.7;
+        c.save();c.translate(x,y+bob);c.scale(scale,scale);
+        c.globalAlpha=opacity===undefined?1:opacity;
+        // A floating, oversized head with the same spiral eyes as the cinematic character.
+        c.shadowColor="#9d50ff";c.shadowBlur=24;
+        c.strokeStyle="#c8a9ff";c.lineWidth=1.5;
+        for(let ring=0;ring<3;ring++){
+            c.save();c.rotate(now*.0003*(ring%2?-1:1)+ring*.45);
+            c.globalAlpha=(opacity===undefined?1:opacity)*(.35+ring*.12);
+            c.beginPath();c.ellipse(0,0,24+ring*7,29+ring*8,.16*ring,0,Math.PI*2);c.stroke();
+            c.restore();
+        }
+        c.globalAlpha=opacity===undefined?1:opacity;
+        c.fillStyle="#020105";c.strokeStyle="#f5f2ff";c.lineWidth=2.1;
+        c.beginPath();c.moveTo(-18,15);c.quadraticCurveTo(-24,-13,-8,-25);
+        c.quadraticCurveTo(2,-32,14,-21);c.quadraticCurveTo(24,-8,17,15);
+        c.quadraticCurveTo(1,27,-18,15);c.closePath();c.fill();c.stroke();
+        c.strokeStyle="#e9e5f2";c.lineWidth=.8;
+        c.beginPath();c.moveTo(-13,-5);c.lineTo(-7,-7);c.moveTo(7,-7);c.lineTo(13,-5);c.stroke();
+        asDrawSpiralEye(c,-8,0,5.8,now,false);asDrawSpiralEye(c,8,0,5.8,now,true);
+        c.fillStyle="#f9f7ff";c.beginPath();c.moveTo(-3,12);c.lineTo(4,12);c.lineTo(0,18);c.closePath();c.fill();
+        c.strokeStyle="#b995ef";c.globalAlpha=(opacity===undefined?1:opacity)*.75;c.lineWidth=.8;
+        c.beginPath();c.moveTo(-15,5);c.lineTo(-11,12);c.moveTo(15,5);c.lineTo(11,12);c.stroke();
+        c.restore();
+        // Compact distortion rings keep the visual anchored to the head only.
+        c.save();c.globalAlpha=.1+.045*Math.sin(now/170);c.strokeStyle="#a04dff";
+        c.lineWidth=1.3;c.shadowColor="#a04dff";c.shadowBlur=12;
+        for(let i=0;i<3;i++){c.beginPath();c.ellipse(x,y,25*scale+i*8*scale,31*scale+i*10*scale,now*.0002*(i%2?1:-1),0,Math.PI*2);c.stroke();}
+        c.restore();
+    }
     function asDrawBoss(c,now) {
         if (asLabyrinthTimer > 0) {
-            asDrawAntiSpiralFigure(c, asBoss.x - 69, asBoss.y + 47, 0.48, now + 280, .22);
-            asDrawAntiSpiralFigure(c, asBoss.x + 69, asBoss.y + 47, 0.48, now - 360, .22);
+            asDrawAntiSpiralHead(c, asBoss.x - 69, asBoss.y + 24, 0.58, now + 280, .22);
+            asDrawAntiSpiralHead(c, asBoss.x + 69, asBoss.y + 24, 0.58, now - 360, .22);
         }
         if (asBossExposed > 0) {
             c.save();
@@ -966,7 +1040,7 @@
         c.save();
         c.translate(asBoss.x, asBoss.y + 43);
         c.rotate(asGravityDirection * Math.PI / 2);
-        asDrawAntiSpiralFigure(c, 0, 0, 0.78 * (asBoss.size / 48), now, 1, true);
+        asDrawAntiSpiralHead(c, 0, -35, 1.05 * (asBoss.size / 48), now, 1);
         c.restore();
     }
     function asDrawRedHeart(c,x,y,now,shot) {
@@ -1869,7 +1943,7 @@
             const jumpDot=mx*(-gravity.x)+my*(-gravity.y);
             const joyJump=!!(joy&&joy.enabled&&joy.active&&((Number(joy.vectorX)||0)*(-gravity.x)+(Number(joy.vectorY)||0)*(-gravity.y)>.62));
             if(asPlayer.grounded&&(asKeys[" "]||jumpDot>.58||joyJump)){
-                asPlayer.vx=-gravity.x*11.6;asPlayer.vy=-gravity.y*11.6;
+                asPlayer.vx=-gravity.x*23.2;asPlayer.vy=-gravity.y*23.2;
                 asPlayer.grounded=false;asPlayer.platformIndex=null;
                 asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
             }
@@ -1879,7 +1953,7 @@
             const tangentInput=mx*tangentX+my*tangentY;
             const nextVx=(asPlayer.vx+tangentX*tangentInput*.43+gravity.x*.32+pullX)*.91;
             const nextVy=(asPlayer.vy+tangentY*tangentInput*.43+gravity.y*.32+pullY)*.91;
-            const tangentLimit=6.2, normalLimit=12.4;
+            const tangentLimit=6.2, normalLimit=24.8;
             asPlayer.vx=Math.max(gravity.x?-normalLimit:-tangentLimit,Math.min(gravity.x?normalLimit:tangentLimit,nextVx));
             asPlayer.vy=Math.max(gravity.y?-normalLimit:-tangentLimit,Math.min(gravity.y?normalLimit:tangentLimit,nextVy));
             const px=asPlayer.x,py=asPlayer.y,r=asPlayer.size;
