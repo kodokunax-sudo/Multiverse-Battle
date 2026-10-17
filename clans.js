@@ -2533,7 +2533,12 @@
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init, { once: true });
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init, { once: true });
+        } else {
+            // This module may be loaded asynchronously after the core game starts.
+            init();
+        }
     } else {
         init();
     }
