@@ -1889,6 +1889,17 @@
                         c.globalAlpha=.95;
                         c.fillText(a.zone==="lower"?"НИЖНИЙ СЕКТОР: ПРЫГАЙ НА ПЛАТФОРМЫ":"ВЕРХНИЙ СЕКТОР ЗАКРЫВАЕТСЯ",200,Math.max(bounds.top+15,Math.min(bounds.bottom-6,startTop+height*.5)));
                         c.restore();
+                        if(a.warning<=0&&!a.activated){
+                            a.activated=true;asShake=Math.max(asShake,10);asFlash=Math.max(asFlash,5);asFlashColor=a.color;
+                            asSound(a.zone==="lower"?72:96,"sawtooth",.32,.12);
+                            // The full-width wall ignites from both edges with a shower of sparks.
+                            for(let spark=0;spark<28;spark++){
+                                const x=bounds.left+(bounds.right-bounds.left)*spark/27;
+                                [startTop,startTop+height].forEach(function(y,edge){
+                                    asParticles.push({x:x,y:y,vx:(Math.random()-.5)*2.8,vy:(edge===0?-1:1)*(1+Math.random()*3),life:15,maxLife:15,color:spark%3===0?"#ffffff":a.color,size:1.5+Math.random()*3});
+                                });
+                            }
+                        }
                     }else{
                         a.life--;
                         const progress=Math.max(0,Math.min(1,1-a.life/(a.maxLife||42)));
