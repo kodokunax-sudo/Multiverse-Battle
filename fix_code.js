@@ -238,4 +238,56 @@
         }, 30);
     })();
 
+    // Обновляем мини-режим Анти-Спирали до начала боя.
+    (async function patchAntiSpiralMiniGame() {
+        if (window._antiSpiralMiniPatchStarted) return;
+        window._antiSpiralMiniPatchStarted = true;
+        try {
+            const url = new URL("anti_spiral_boss.js?v=13", document.baseURI).href;
+            const response = await fetch(url, { cache: "no-store" });
+            if (!response.ok) throw new Error("HTTP " + response.status);
+            let source = await response.text();
+            const newSpirals = [
+                [62,128,0], [132,116,0.4], [220,125,0.8], [331,137,1.2], [286,194,1.6],
+                [172,184,2.0], [76,226,2.4], [326,255,2.8], [203,286,3.2], [116,310,3.6],
+                [55,365,4.0], [151,391,4.4], [247,365,4.8], [345,402,5.2], [205,438,5.6]
+            ].map(v => "            { x: " + v[0] + ", y: " + v[1] + ", phase: " + v[2] + ", collected: false }").join(",\n");
+            const start = source.indexOf("        asMiniSpirals = [");
+            const end = source.indexOf("        ];", start);
+            if (start < 0 || end < 0) throw new Error("Не найден список спиралей");
+            source = source.slice(0, start) + "        asMiniSpirals = [\n" + newSpirals + "\n        ];" + source.slice(end + 10);
+            source = source.replaceAll("elapsed / 15500", "elapsed / 15000");
+            source = source.replaceAll("elapsed >= 15500", "elapsed >= 15000");
+            source = source.replace("(15.5 - elapsed / 1000)", "(15 - elapsed / 1000)");
+            source = source.replace("if (asMiniCollected >= 5)", "if (asMiniCollected >= 15)");
+            source = source.replace('"СОБРАНО: " + asMiniCollected + "/5"', '"СОБРАНО: " + asMiniCollected + "/15"');
+            source = source.replace(
+                "    function asUpdateBrokenReality(now) {\n        const elapsed = now - asMiniIntroUntil;",
+                "    function asUpdateBrokenReality(now) {\n        const elapsed = now - asMiniIntroUntil;\n        asShake = Math.max(asShake, 2.4 + Math.min(5.6, elapsed / 3500) + Math.abs(Math.sin(now * 0.017)) * 2.2);"
+            );
+            source = source.replace(
+                '        c.save();\n        c.fillStyle = "rgba(2,0,12,.97)";\n        c.fillRect(0, 0, 400, 500);',
+                '        c.save();\n        c.translate((Math.random() - 0.5) * asShake * 2.2, (Math.random() - 0.5) * asShake * 2.2);\n        c.fillStyle = "rgba(2,0,12,.97)";\n        c.fillRect(0, 0, 400, 500);'
+            );
+            if (!source.includes("if (asMiniCollected >= 15)") ||
+                !source.includes('asMiniCollected + "/15"') ||
+                source.includes("elapsed >= 15500") ||
+                (source.match(/collected: false/g) || []).length < 15) {
+                throw new Error("Проверка мини-режима не прошла");
+            }
+            window._antiSpiralBossLoaded = false;
+            const injected = document.createElement("script");
+            injected.textContent = "window._antiSpiralMiniPatchAppliedAt = Date.now();\n" + source;
+            (document.head || document.documentElement).appendChild(injected);
+            injected.remove();
+            if (!window._antiSpiralMiniPatchAppliedAt) {
+                window._antiSpiralBossLoaded = true;
+                throw new Error("Браузер запретил применение обновления");
+            }
+            console.log("[ANTI-SPIRAL] 15 спиралей / 15 секунд; усилена тряска камеры.");
+        } catch (err) {
+            console.error("[ANTI-SPIRAL] Не удалось обновить мини-режим:", err);
+        }
+    })();
+
 })();
