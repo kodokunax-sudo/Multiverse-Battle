@@ -128,4 +128,114 @@
     console.log("║  Ручной сброс: resetPromoCode('код')   ║");
     console.log("╚════════════════════════════════════════╝");
 
+    // ========== АНТИ-СПИРАЛЬ: ГРАВИТАЦИОННЫЙ СДВИГ ==========
+    // Меняет вектор гравитации каждые 15 секунд, перемещает босса к стороне
+    // притяжения и запускает подходящие этому направлению волны атак.
+    (function installAntiSpiralGravity() {
+        if (window._antiSpiralGravityPatch) return;
+        window._antiSpiralGravityPatch = true;
+        const dirs = [
+            { x: -1, y: 0, label: "ВЛЕВО" },
+            { x: 0, y: -1, label: "ВВЕРХ" },
+            { x: 1, y: 0, label: "ВПРАВО" },
+            { x: 0, y: 1, label: "ВНИЗ" }
+        ];
+        let dirIndex = -1, nextFlip = 0, nextVolley = 0, wasFighting = false;
+        let lastMiniState = false;
+        function playerAndBoss() {
+            if (typeof window.getAntiSpiralBossPlayer !== "function" ||
+                typeof window.getAntiSpiralBossTarget !== "function") return null;
+            return { p: window.getAntiSpiralBossPlayer(), b: window.getAntiSpiralBossTarget() };
+        }
+        function addGravityWave(d, now, big) {
+            const refs = playerAndBoss();
+            if (!refs) return;
+            const attacks = typeof window.getAntiSpiralBossAttacks === "function" ? window.getAntiSpiralBossAttacks() : null;
+            if (!Array.isArray(attacks) || attacks.length > 88) return;
+            const count = big ? 7 : 5;
+            for (let i = 0; i < count; i++) {
+                const offset = 54 + i * (big ? 62 : 78);
+                let x, y, vx, vy;
+                if (d.x < 0) { x = 390; y = offset; vx = -3.0 - (big ? .65 : 0); vy = (refs.p.y - y) * .003; }
+                else if (d.x > 0) { x = 10; y = offset; vx = 3.0 + (big ? .65 : 0); vy = (refs.p.y - y) * .003; }
+                else if (d.y < 0) { x = offset % 380 + 10; y = 490; vx = (refs.p.x - x) * .003; vy = -3.0 - (big ? .65 : 0); }
+                else { x = offset % 380 + 10; y = 58; vx = (refs.p.x - x) * .003; vy = 3.0 + (big ? .65 : 0); }
+                attacks.push({
+                    x:x, y:y, vx:vx, vy:vy, size:big ? 13 : 10,
+                    color: i % 2 ? "#ff62dc" : "#69eaff", damage:big ? 19 : 14,
+                    kind:"orb", life:155, phase:(now + i * 31) * .013
+                });
+            }
+            if (typeof window.antiSpiralAddShake === "function") window.antiSpiralAddShake(big ? 8 : 3);
+        }
+        function flipGravity(now, refs) {
+            dirIndex = (dirIndex + 1) % dirs.length;
+            const d = dirs[dirIndex], p = refs.p, b = refs.b;
+            nextFlip = now + 15000;
+            nextVolley = now + 1700;
+            // Сильный рывок: игрок летит к той же стороне, куда перемещается босс.
+            if (d.x < 0) { p.x = Math.max(38, p.x - 78); p.vx = -6.5; b.x = 55; b.y = 205; }
+            else if (d.x > 0) { p.x = Math.min(362, p.x + 78); p.vx = 6.5; b.x = 345; b.y = 205; }
+            else if (d.y < 0) { p.y = Math.max(85, p.y - 84); p.vy = -8.2; b.x = 200; b.y = 72; }
+            else { p.y = Math.min(438, p.y + 76); p.vy = 7.5; b.x = 200; b.y = 325; }
+            if (typeof window.antiSpiralSpawnText === "function") {
+                window.antiSpiralSpawnText(200, 112, "ГРАВИТАЦИЯ: " + d.label, "#83f4ff", 85);
+                window.antiSpiralSpawnText(b.x, b.y - 20, "АНТИ-СПИРАЛЬ", "#d2a1ff", 48);
+            }
+            if (typeof window.antiSpiralAddFlash === "function") window.antiSpiralAddFlash(8, "#643dff");
+            if (typeof window.antiSpiralAddShake === "function") window.antiSpiralAddShake(15);
+            if (typeof window.antiSpiralPlaySound === "function") window.antiSpiralPlaySound(90 + dirIndex * 55, "sawtooth", .28, .12);
+            addGravityWave(d, now, true);
+        }
+        setInterval(function() {
+            if (typeof window.getAntiSpiralBossState !== "function" ||
+                !window.getAntiSpiralBossActive || !window.getAntiSpiralBossActive()) {
+                wasFighting = false; dirIndex = -1; nextFlip = 0; lastMiniState = false; return;
+            }
+            const state = window.getAntiSpiralBossState();
+            if (state !== "fight") {
+                // Мини-режим сохраняет собственную быструю смену гравитации.
+                if (state === "mini") lastMiniState = true;
+                else if (state !== "cinematic") { wasFighting = false; dirIndex = -1; nextFlip = 0; }
+                return;
+            }
+            const now = Date.now(), refs = playerAndBoss();
+            if (!refs || !refs.p || !refs.b) return;
+            const p = refs.p;
+            if (!wasFighting) {
+                wasFighting = true; lastMiniState = false;
+                dirIndex = -1; nextFlip = now + 15000; nextVolley = now + 2800;
+            }
+            const d = dirs[Math.max(0, dirIndex)];
+            if (now >= nextFlip) flipGravity(now, refs);
+            const active = dirs[Math.max(0, dirIndex)];
+            // Постоянное слабое притяжение вдоль текущей оси гравитации.
+            if (dirIndex >= 0) {
+                if (active.x) p.x = Math.max(28, Math.min(372, p.x + active.x * .68));
+                if (active.y < 0) p.vy = Math.max(-7, p.vy - .16);
+                if (active.y > 0) p.vy = Math.min(7, p.vy + .19);
+            }
+            // Гравитационные волны регулярно меняют ось вместе с полем.
+            if (dirIndex >= 0 && now >= nextVolley) {
+                addGravityWave(active, now, false);
+                nextVolley = now + 2450;
+            }
+            // Чёрная дыра: существенно усиливаем тягу поверх штатного поля притяжения.
+            const attacks = typeof window.getAntiSpiralBossAttacks === "function" ? window.getAntiSpiralBossAttacks() : [];
+            for (let i = 0; i < attacks.length; i++) {
+                const w = attacks[i];
+                if (!w || w.kind !== "well" || w.burst || w.timer <= 0) continue;
+                const dx = w.x - p.x, dy = w.y - p.y, dist = Math.max(1, Math.hypot(dx, dy));
+                if (dist < (w.pullRadius || 205)) {
+                    const strength = 1 - dist / (w.pullRadius || 205);
+                    p.x += dx / dist * 2.6 * strength;
+                    p.vy += dy / dist * .11 * strength;
+                    if (typeof window.antiSpiralAddShake === "function" && strength > .72) {
+                        window.antiSpiralAddShake(1.7);
+                    }
+                }
+            }
+        }, 30);
+    })();
+
 })();
