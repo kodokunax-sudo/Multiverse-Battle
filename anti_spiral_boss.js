@@ -535,20 +535,30 @@
                 }
             }
         } else if (asPattern === 1) {
-            // Грандзебома бьёт поперёк арены несколькими руками; прыжки обходят удар.
+            // Руки Грандзебомы прочёсывают арену, а затем сам босс запускает преследующие снаряды.
             const firstY = Math.max(bounds.top + 95, Math.min(bounds.bottom - 28, asPlayer.y));
             asAttacks.push({ kind: "sweep", orientation: "horizontal", y: firstY, warning: 46, life: 17, color: "#ff67d8", damage: damage + 2, hit: false });
             if (asPhase >= 2) {
                 asAttacks.push({ kind: "sweep", orientation: "horizontal", y: Math.max(bounds.top + 80, bounds.bottom - 82), warning: 74, life: 15, color: "#a66bff", damage: damage, hit: false });
             }
+            const aimedAngle=Math.atan2(asPlayer.y-(asBoss.y+35),asPlayer.x-asBoss.x);
+            const hunterCount=asPhase>=3?5:3;
+            for(let h=0;h<hunterCount;h++){
+                const spread=(h-(hunterCount-1)/2)*.2;
+                asAddAttack(asBoss.x,asBoss.y+35,Math.cos(aimedAngle+spread)*2.35,Math.sin(aimedAngle+spread)*2.35,12,h%2?"#ff67d8":"#c18aff",damage+2,"orb");
+                asAttacks[asAttacks.length-1].homing=true;
+                asAttacks[asAttacks.length-1].turnRate=.045;
+                asAttacks[asAttacks.length-1].maxSpeed=3.6;
+            }
         } else if (asPattern === 2) {
             // Поток анти-спиральной энергии падает по дорожкам, оставляя несколько окон.
             const left = (400 - asArenaWidth) / 2 + 18;
             const width = asArenaWidth - 36;
-            const safeLane = Math.floor(Math.random() * 6);
-            for (let i = 0; i < 6; i++) {
-                const laneX = left + width * (i + .5) / 6;
-                if (i === safeLane || Math.abs(laneX - asPlayer.x) < 27) continue;
+            const laneCount = 3;
+            const safeLane = Math.floor(Math.random() * laneCount);
+            for (let i = 0; i < laneCount; i++) {
+                const laneX = left + width * (i + .5) / laneCount;
+                if (i === safeLane || Math.abs(laneX - asPlayer.x) < 35) continue;
                 asAddAttack(laneX, 58, (Math.random() - .5) * .35, 2.4 + Math.random() * .8, 13, "#5bc9ff", damage, "fall");
                 if (asAttacks.length) asAttacks[asAttacks.length - 1].warning = 55;
             }
@@ -583,9 +593,9 @@
             // Сингулярность тянет сердце к центру и затем выбрасывает энергию.
             const wellX = asPlayer.x < 200 ? bounds.left + 74 : bounds.right - 74;
             const wellY = Math.max(bounds.top + 92, Math.min(floor - 100, asPlayer.y - 45));
-            asAttacks.push({ kind: "well", x: wellX, y: wellY, warning: 78, warningMax: 78, timer: 88, pullRadius: 270, radius: 88, color: "#bb67ff", damage: damage + 4, life: 0, burst: false, hit: false });
+            asAttacks.push({ kind: "well", x: wellX, y: wellY, warning: 78, warningMax: 78, timer: 112, pullRadius: 320, radius: 100, color: "#bb67ff", damage: damage + 4, life: 0, burst: false, hit: false });
             if (asPhase >= 3) {
-                asAttacks.push({ kind: "well", x: bounds.left + (bounds.right - bounds.left) * .5, y: wellY - 28, warning: 96, warningMax: 96, timer: 100, pullRadius: 225, radius: 72, color: "#46d7ff", damage: damage + 2, life: 0, burst: false, hit: false });
+                asAttacks.push({ kind: "well", x: bounds.left + (bounds.right - bounds.left) * .5, y: wellY - 28, warning: 96, warningMax: 96, timer: 120, pullRadius: 280, radius: 84, color: "#46d7ff", damage: damage + 2, life: 0, burst: false, hit: false });
             }
         } else if (asPattern === 6) {
             // Сдвиг вероятности: будущие позиции помечаются до того, как пространство взорвётся.
@@ -594,6 +604,14 @@
             for (let i = 0; i < count; i++) {
                 const x = Math.max(bounds.left + 20, Math.min(bounds.right - 20, asPlayer.x + offsets[i]));
                 asAttacks.push({ kind: "mark", x: x, y: Math.max(bounds.top + 75, Math.min(bounds.bottom - 15, asPlayer.y)), timer: 52 + i * 9, radius: 25 + asPhase * 2, damage: damage + 2, life: 0, hit: false, color: i % 2 ? "#ff66c7" : "#b46cff" });
+            }
+            // Персонажный приём: босс отмечает сердце и выпускает короткую веерную охоту.
+            const aim=Math.atan2(asPlayer.y-(asBoss.y+38),asPlayer.x-asBoss.x);
+            for(let h=-1;h<=1;h++){
+                asAddAttack(asBoss.x,asBoss.y+38,Math.cos(aim+h*.24)*2.7,Math.sin(aim+h*.24)*2.7,13,h===0?"#ffffff":"#ff66c7",damage+3,"orb");
+                asAttacks[asAttacks.length-1].homing=true;
+                asAttacks[asAttacks.length-1].turnRate=.055;
+                asAttacks[asAttacks.length-1].maxSpeed=4;
             }
         } else {
             // Две галактики сжимаются в шар; затем следует Infinity Big Bang Storm.
@@ -626,6 +644,7 @@
         if (["arrowleft","arrowright","arrowup","arrowdown"," ","w","a","s","d","enter","z","x"].includes(k)) ev.preventDefault();
         if ((k === "z" || k === "x") && !asKeys[k]) asStartCharge();
         asKeys[k] = true;
+        if ((k === "escape" || k === "enter") && asState === "cinematic") { ev.preventDefault(); asFinishCinematic(true); return; }
         if (k === "escape" && asState === "intro") { asStop(); asRestoreStartButton(); }
     }
     function asKeyUp(ev) {
@@ -640,6 +659,7 @@
         const x = (ev.clientX - rect.left) * 400 / rect.width;
         const y = (ev.clientY - rect.top) * 500 / rect.height;
         if (asState === "intro") { asBegin(); return; }
+        if (asState === "cinematic") { asFinishCinematic(true); return; }
         if (asState === "mini") {
             asPointer.down = true;
             asPointer.id = ev.pointerId;
@@ -1009,6 +1029,24 @@
         else c.fillText(lines[0],x+10,y+27);
         c.restore();
     }
+    function asFinishCinematic(skipped) {
+        if(!asActive||asState!=="cinematic")return;
+        asState="fight";
+        const now=performance.now();
+        asGravityDirection=0;asGravityNextShiftAt=now+15000;asGravityTransitionUntil=0;asBossApproachFrames=0;
+        asBoss={x:200,y:100,size:48,rotation:0,pulse:0,flash:0};
+        asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;
+        asInitPlatforms();asInitSeals();
+        asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
+        asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=Date.now();asNextShotAt=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
+        asPattern=0;asPatternTimer=0;asLastArenaShift=now;
+        asCreateControls();
+        asText(200,250,skipped?"КАТСЦЕНА ПРОПУЩЕНА — БОЙ!":"ТЕБЕ КОНЕЦ!","#74e4ff",85);
+        if(skipped){startASMusic();}
+        else{setTimeout(function(){if(asActive&&asState==="fight")startASMusic();},2000);}
+        asSound(150,"sawtooth",.45,.14);
+        if(typeof updateSuperButton==="function")setTimeout(updateSuperButton,80);
+    }
     function asRenderCinematic(c,now) {
         const t=Math.max(0,(now-asCinematicStart)/1000);
         asDrawGalaxyBackdrop(c,now);
@@ -1082,20 +1120,7 @@
             c.save();c.globalAlpha=Math.min(1,(t-15.45)*2);c.fillStyle="#e7d9ff";c.font="bold 10px monospace";c.textAlign="center";c.fillText("АНТИ-СПИРАЛЬ СОЗДАЛ КАРМАННУЮ ВСЕЛЕННУЮ",200,93);c.restore();
             asDrawAntiSpiralFigure(c,285,196,1.15,now,.95);
         }
-        if(t>=18.15){
-            asState="fight";
-            asGravityDirection=0;asGravityNextShiftAt=now+15000;asGravityTransitionUntil=0;asBossApproachFrames=0;
-            asBoss={x:200,y:100,size:48,rotation:0,pulse:0,flash:0};
-            asArenaWidth=396;asArenaHeight=438;asTargetWidth=396;asTargetHeight=438;
-            asInitPlatforms();asInitSeals();
-            asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
-            asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=Date.now();asNextShotAt=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
-            asPattern=0;asPatternTimer=0;asLastArenaShift=now;
-            asCreateControls();
-            asText(200,250,"ТЕБЕ КОНЕЦ!","#74e4ff",85);
-            asSound(150,"sawtooth",.45,.14);
-            if(typeof updateSuperButton==="function")setTimeout(updateSuperButton,80);
-        }
+        if(t>=18.15) asFinishCinematic(false);
     }
     function asStartBrokenReality(now) {
         if (asState !== "fight" || now < asMiniCooldownUntil) return;
@@ -1666,7 +1691,11 @@
                             c.fillText("⚠ ЧЁРНАЯ ДЫРА ЗАРЯЖАЕТСЯ",200,warningBounds.top+26);
                             c.fillStyle=a.color;c.font="bold 10px monospace";
                             c.fillText("ДО ВКЛЮЧЕНИЯ: "+Math.max(1,Math.ceil(a.warning/60))+"...",200,warningBounds.top+39);c.restore();
-                            if(a.warning<=0){asShake=Math.max(asShake,4);asFlash=Math.max(asFlash,4);asFlashColor=a.color;asSound(75,"sawtooth",.3,.09);}
+                            if(a.warning<=0){
+                                asShake=Math.max(asShake,13);asFlash=Math.max(asFlash,9);asFlashColor=a.color;asSound(55,"sawtooth",.48,.16);
+                                for(let q=0;q<34;q++){const ang=Math.PI*2*q/34,sp=1.5+Math.random()*5;asParticles.push({x:a.x,y:a.y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:28+Math.floor(Math.random()*22),maxLife:50,color:q%3===0?"#ffffff":a.color,size:2+Math.random()*3});}
+                                if(typeof window.antiSpiralAddShockwave==="function")window.antiSpiralAddShockwave(a.x,a.y,a.color,4,30,3);
+                            }
                             continue;
                         }
                         a.timer=Math.max(0,a.timer-1);
@@ -1730,8 +1759,15 @@
                     }
                     continue;
                 }
-                if(typeof a.spd==="number")a.vx=a.spd;
-                if(typeof a.spdY==="number")a.vy=a.spdY;
+                if(a.homing){
+                    const dx=asPlayer.x-a.x,dy=asPlayer.y-a.y,dist=Math.max(1,Math.hypot(dx,dy));
+                    const speed=Math.min(a.maxSpeed||3.6,Math.hypot(a.vx,a.vy)+.025);
+                    const targetX=dx/dist*speed,targetY=dy/dist*speed,turn=a.turnRate||.045;
+                    a.vx+=(targetX-a.vx)*turn;a.vy+=(targetY-a.vy)*turn;
+                }else{
+                    if(typeof a.spd==="number")a.vx=a.spd;
+                    if(typeof a.spdY==="number")a.vy=a.spdY;
+                }
                 a.x+=a.vx;a.y+=a.vy;a.life--;a.phase+=.1;
                 c.save();c.translate(a.x,a.y);c.rotate(a.phase);c.shadowColor=a.color;c.shadowBlur=12;c.fillStyle=a.color;
                 if(a.kind==="ground"){
@@ -1788,7 +1824,7 @@
             for(let wi=0;wi<asAttacks.length;wi++){
                 const w=asAttacks[wi];if(!w||w.kind!=="well"||w.burst||w.timer<=0||(w.warning||0)>0)continue;
                 const dx=w.x-asPlayer.x,dy=w.y-asPlayer.y,dist=Math.max(1,Math.hypot(dx,dy));
-                if(dist<w.pullRadius){const f=1-dist/w.pullRadius;pullX+=dx/dist*.72*f;pullY+=dy/dist*.72*f;}
+                if(dist<w.pullRadius){const f=1-dist/w.pullRadius;const pull=(.95+f*1.35);pullX+=dx/dist*pull*f;pullY+=dy/dist*pull*f;}
             }
             const jumpDot=mx*(-gravity.x)+my*(-gravity.y);
             const joyJump=!!(joy&&joy.enabled&&joy.active&&((Number(joy.vectorX)||0)*(-gravity.x)+(Number(joy.vectorY)||0)*(-gravity.y)>.62));
@@ -1860,7 +1896,6 @@
         window.rwbActive=false;
         ["superBtn","superBtn2","superBtnDeactivate","startArenaBtn","startLivingStoneBtn","startWaystarBtn","startRogerWB","startAntiSpiralBossBtn","skipBossBtn","spareBtn"].forEach(function(id){const el=document.getElementById(id);if(el)el.style.display="none";});
         if(typeof stopAllMusic==="function")stopAllMusic();
-        startASMusic();
         try {
             if(typeof initSuperState==="function")initSuperState();
             window._uniqueSuperCharges=5;window._uniqueSuperBossId="antispiral";
