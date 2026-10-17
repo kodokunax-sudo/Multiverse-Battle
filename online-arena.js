@@ -1908,5 +1908,4 @@
         // Optional online arena can load after the single-player game is already running.
         init();
     }
-    else init();
 })();
