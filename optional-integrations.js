@@ -33,6 +33,9 @@
         });
     }
 
+    function startOptionalIntegrations() {
+    // Start optional network requests only after the game's own DOMContentLoaded
+    // handlers have initialized the playable single-player screen.
     // Load the clan/profile module after the SDK attempt. If the CDN is down,
     // the clan UI can still display a helpful "service unavailable" message.
     var supabaseTask = loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2", "Supabase SDK")
@@ -63,4 +66,11 @@
     }).catch(function (error) {
         console.warn("[MB boot] Optional online initialization failed:", error);
     });
+    }
+
+    if (document.readyState === "loading" || document.readyState === "interactive") {
+        document.addEventListener("DOMContentLoaded", startOptionalIntegrations, { once: true });
+    } else {
+        startOptionalIntegrations();
+    }
 })();
