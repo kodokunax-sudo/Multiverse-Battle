@@ -32,6 +32,15 @@
     let asCharging = false;
     let asLastDamageAt = 0;
     let asNextShotAt = 0;
+    let asMiniCooldownUntil = 0;
+    let asMiniStartedAt = 0;
+    let asMiniIntroUntil = 0;
+    let asMiniNextGravityAt = 0;
+    let asMiniGravityIndex = 0;
+    let asMiniCollected = 0;
+    let asMiniSpirals = [];
+    let asMiniReturnPlayer = null;
+    let asReassemblyEffectUntil = 0;
     let asBossExposed = 0;
     let asLabyrinthTimer = 0;
     let asUltimateActive = false;
@@ -144,6 +153,54 @@
         const max = arenaLeft + asArenaWidth - 8 - platform.w / 2;
         return Math.max(min, Math.min(max, center));
     }
+    function asSafePlatformIndex() {
+        for (let i = 0; i < asAttacks.length; i++) {
+            if (asAttacks[i] && asAttacks[i].kind === "bigbang") return asAttacks[i].safePlatformIndex;
+        }
+        return -1;
+    }
+    function asPlatformIsVisible(index, now) {
+        if (asState === "mini") return false;
+        const t = asPatternTimer;
+        const safeIndex = asSafePlatformIndex();
+        if (asPattern === 7) {
+            if (safeIndex === index) return true;
+            if (t >= 26 && t <= 105) return false;
+            return (index + Math.floor(t / 22)) % 4 !== 0;
+        }
+        if (asPattern === 3 && asPhase >= 2 && t >= 48 && t <= 104) return false;
+        if (asPattern === 2) {
+            if (asPhase >= 2 && t >= 62 && t <= 96) return false;
+            if (t >= 25 && t <= 120 && (index + Math.floor(t / 17)) % 3 === 0) return false;
+        }
+        if (asPattern === 4) {
+            if (asPhase >= 3 && t >= 68 && t <= 94) return false;
+            if ((index + Math.floor(t / 27)) % 3 === 0) return false;
+        }
+        if (asPattern === 5) {
+            if (asPhase >= 2 && t >= 48 && t <= 78) return false;
+            if (t >= 24 && t <= 112 && (index + Math.floor(t / 23)) % 2 === 0) return false;
+        }
+        return true;
+    }
+    function asApplyLaserBarriers(previousX, previousY, bounds) {
+        for (let i = 0; i < asAttacks.length; i++) {
+            const a = asAttacks[i];
+            if (!a || a.kind !== "barrierLaser" || a.warning > 0 || a.life <= 0) continue;
+            const half = (a.thickness || 38) / 2 + asPlayer.size;
+            if (a.orientation === "vertical" && asPlayer.y >= bounds.top && asPlayer.y <= bounds.bottom &&
+                Math.abs(asPlayer.x - a.x) < half) {
+                const side = previousX < a.x || (previousX === a.x && asBoss.x > a.x) ? -1 : 1;
+                asPlayer.x = a.x + side * (half + 1);
+                asPlayer.vx = 0;
+            } else if (a.orientation === "horizontal" && asPlayer.x >= bounds.left && asPlayer.x <= bounds.right &&
+                Math.abs(asPlayer.y - a.y) < half) {
+                const side = previousY < a.y ? -1 : 1;
+                asPlayer.y = a.y + side * (half + 1);
+                asPlayer.vy = 0;
+            }
+        }
+    }
     function asTryJump() {
         if (!asActive || asState !== "fight" || !asPlayer.grounded) return;
         asPlayer.vy = -8.7;
@@ -197,15 +254,10 @@
     }
     function asDrawPlatforms(c, now) {
         if (!asPlatforms.length) asInitPlatforms();
-        let safeIndex = -1;
-        for (let i = 0; i < asAttacks.length; i++) {
-            if (asAttacks[i] && asAttacks[i].kind === "bigbang") {
-                safeIndex = asAttacks[i].safePlatformIndex;
-                break;
-            }
-        }
+        const safeIndex = asSafePlatformIndex();
         for (let i = 0; i < asPlatforms.length; i++) {
             const p = asPlatforms[i];
+            if (!asPlatformIsVisible(i, now) && i !== safeIndex) continue;
             const cx = asPlatformX(p, i, now);
             const x = cx - p.w / 2;
             const safe = i === safeIndex;
@@ -445,10 +497,15 @@
                 asAttacks.push({ kind: "laser", orientation: "horizontal", x: 0, y: bounds.bottom - 74, warning: 45, life: 16, color: "#ff5cd6", damage: damage + 3, hit: false });
             }
         } else if (asPattern === 3) {
-            // Разлом пространства: лазеры сначала отмечают линии удара.
+            // Разлом пространства: узкие лучи и массивный лазерный барьер перекрывают путь к боссу.
             const targetX = Math.max(bounds.left + 15, Math.min(bounds.right - 15, asPlayer.x));
             asAttacks.push({ kind: "laser", orientation: "vertical", x: targetX, y: 0, warning: 48, life: 22, color: "#a978ff", damage: damage + 3, hit: false });
             asAttacks.push({ kind: "laser", orientation: "horizontal", x: 0, y: Math.max(bounds.top + 70, Math.min(bounds.bottom - 48, asPlayer.y)), warning: 70, life: 17, color: "#55dcff", damage: damage, hit: false });
+            const barrierX = Math.max(bounds.left + 58, Math.min(bounds.right - 58, (asPlayer.x + asBoss.x) * .5));
+            asAttacks.push({ kind: "barrierLaser", orientation: "vertical", x: barrierX, y: 0, warning: 62, life: asPhase >= 3 ? 112 : 88, thickness: asPhase >= 3 ? 46 : 38, color: "#ff58e4", damage: damage + 7, hit: false });
+            if (asPhase >= 2) {
+                asAttacks.push({ kind: "barrierLaser", orientation: "horizontal", x: 0, y: Math.max(bounds.top + 95, Math.min(bounds.bottom - 75, asPlayer.y - 42)), warning: 82, life: 72, thickness: 32, color: "#65eaff", damage: damage + 4, hit: false });
+            }
         } else if (asPattern === 4) {
             // Мультивселенский лабиринт: платформы дрожат и оставляют призрачные копии.
             if (asLabyrinthTimer <= 0) {
@@ -484,7 +541,8 @@
             if (asUltimateActive || asPatternSpawned) return;
             asUltimateActive = true;
             asPatternSpawned = true;
-            const safeIndex = asPlayer.platformIndex !== null && asPlayer.platformIndex >= 0 ? asPlayer.platformIndex : 0;
+            const playerPlatform = asPlayer.platformIndex;
+            const safeIndex = playerPlatform !== null && playerPlatform >= 0 && asPlatformIsVisible(playerPlatform, now) ? playerPlatform : 0;
             asAttacks.push({ kind: "bigbang", phase: "charge", timer: 94, life: 0, color: "#d5a0ff", damage: 40 + asPhase * 5, safePlatformIndex: safeIndex, hit: false });
             asText(200, 105, "СЖАТИЕ ДВУХ ГАЛАКТИК!", "#f0caff", 76);
             asSound(68, "sawtooth", .65, .13);
@@ -1145,7 +1203,9 @@
                     }
                     continue;
                 }
-                if(a.kind==="laser"){
+                if(a.kind==="laser" || a.kind==="barrierLaser"){
+                    const barrier=a.kind==="barrierLaser";
+                    const beamWidth=barrier?(a.thickness||38):23;
                     const bounds=asBounds();
                     const vertical=a.orientation==="vertical";
                     const lineStart=vertical?bounds.top+5:bounds.left;
@@ -1153,21 +1213,22 @@
                     const lineCoord=vertical?a.x:a.y;
                     if(a.warning>0){
                         a.warning--;
-                        c.save();c.globalAlpha=.35+Math.abs(Math.sin(asFrame*.25))*.25;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=11;c.lineWidth=2;
+                        c.save();c.globalAlpha=(barrier ? .45 : .35)+Math.abs(Math.sin(asFrame*.25))*.25;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=barrier?22:11;c.lineWidth=barrier?4:2;
                         c.setLineDash([7,6]);c.beginPath();
                         if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}
                         else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}
                         c.stroke();c.setLineDash([]);
                         c.globalAlpha=.85;c.fillStyle="#ffffff";c.font="bold 10px monospace";c.textAlign="center";
-                        c.fillText("!",vertical?lineCoord:(bounds.left+bounds.right)/2,vertical?lineStart+10:lineCoord-7);c.restore();
+                        c.fillText(barrier?"БАРЬЕР — НЕ ПРИБЛИЖАЙСЯ":"!",vertical?lineCoord:(bounds.left+bounds.right)/2,vertical?lineStart+10:lineCoord-7);c.restore();
                     }else{
                         a.life--;
-                        c.save();c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=20;c.lineCap="round";
-                        c.globalAlpha=.3;c.lineWidth=23;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
-                        c.globalAlpha=.95;c.lineWidth=7;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
-                        c.globalAlpha=1;c.strokeStyle="#ffffff";c.shadowBlur=5;c.lineWidth=1.5;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();c.restore();
-                        const hit=vertical?Math.abs(asPlayer.x-lineCoord)<13&&asPlayer.y>=lineStart&&asPlayer.y<=lineEnd:Math.abs(asPlayer.y-lineCoord)<13&&asPlayer.x>=lineStart&&asPlayer.x<=lineEnd;
-                        if(hit&&!a.hit){asDamagePlayer(a.damage,"РАЗРЕЗ РЕАЛЬНОСТИ");a.hit=true;}
+                        c.save();c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=barrier?34:20;c.lineCap="round";
+                        c.globalAlpha=barrier ? .34 : .3;c.lineWidth=beamWidth;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
+                        c.globalAlpha=.95;c.lineWidth=barrier?Math.max(8,beamWidth*.28):7;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
+                        c.globalAlpha=1;c.strokeStyle="#ffffff";c.shadowBlur=barrier?12:5;c.lineWidth=barrier?2.5:1.5;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();c.restore();
+                        const tolerance=beamWidth/2+asPlayer.size;
+                        const hit=vertical?Math.abs(asPlayer.x-lineCoord)<tolerance&&asPlayer.y>=lineStart&&asPlayer.y<=lineEnd:Math.abs(asPlayer.y-lineCoord)<tolerance&&asPlayer.x>=lineStart&&asPlayer.x<=lineEnd;
+                        if(hit&&!a.hit){asDamagePlayer(a.damage,barrier?"ЛАЗЕРНЫЙ БАРЬЕР":"РАЗРЕЗ РЕАЛЬНОСТИ");a.hit=true;}
                         if(a.life<=0)asAttacks.splice(i,1);
                     }
                     continue;
