@@ -1344,7 +1344,7 @@
         asShake = 3;
         asSound(82, "sawtooth", 0.42, 0.12);
     }
-    function asFinishBrokenReality(success, now) {
+    function asFinishBrokenReality(success, now, laserFailure) {
         const saved = asMiniReturnPlayer || { x: 200, y: asFloor(), grounded: true, platformIndex: -1 };
         asState = "fight";
         asGravityNextShiftAt = now + 15000;
@@ -1396,7 +1396,8 @@
             asFlash = 12;
             asFlashColor = "#4d76ff";
             const penalty = Math.max(1, Math.floor(asPlayerMaxHp * 0.10));
-            asText(200, 110, "ПРОВАЛ! -" + penalty + " HP", "#ff668e", 100);
+            asText(200, 110, laserFailure ? "3 ПОПАДАНИЯ ЛАЗЕРОВ! -" + penalty + " HP" : "ПРОВАЛ! -" + penalty + " HP", "#ff668e", 100);
+            if(laserFailure)asText(200,132,"КАРМАННОЕ ИЗМЕРЕНИЕ ОТБРОСИЛО ТЕБЯ","#ff8cb1",90);
             asDamagePlayer(penalty, "ПРОВАЛ СЛОМАННОЙ РЕАЛЬНОСТИ");
             asSound(170, "sine", 0.35, 0.1);
         }
@@ -1406,6 +1407,48 @@
         const elapsed = now - asMiniIntroUntil;
         asShake = Math.max(asShake, 2.4 + Math.min(5.6, elapsed / 3500) + Math.abs(Math.sin(now * 0.017)) * 2.2);
         if (now < asMiniIntroUntil) return;
+        // Phase 2+ fires periodic targeting lasers inside the pocket dimension.
+        if(asMiniLasersEnabled && now>=asMiniNextLaserAt){
+            const progress=Math.max(0,Math.min(1,elapsed/15000));
+            const left=34+progress*34,right=366-progress*34,top=91+progress*39,bottom=466-progress*43;
+            const vertical=Math.random()<.68;
+            asMiniLasers.push({
+                orientation:vertical?"vertical":"horizontal",
+                x:Math.max(left+asPlayer.size+8,Math.min(right-asPlayer.size-8,asPlayer.x)),
+                y:Math.max(top+asPlayer.size+8,Math.min(bottom-asPlayer.size-8,asPlayer.y)),
+                warning:48,life:30,thickness:13,hit:false,
+                color:asMiniLaserHits>=2?"#ff477f":(vertical?"#ff63d5":"#62eaff")
+            });
+            asMiniNextLaserAt=now+(asPhase>=3?1800:2250);
+            asSound(vertical?210:145,"sawtooth",.18,.07);
+        }
+        const laserProgress=Math.max(0,Math.min(1,elapsed/15000));
+        const laserBounds={left:34+laserProgress*34,right:366-laserProgress*34,top:91+laserProgress*39,bottom:466-laserProgress*43};
+        for(let i=asMiniLasers.length-1;i>=0;i--){
+            const laser=asMiniLasers[i];
+            if(laser.warning>0){laser.warning--;continue;}
+            if(laser.life>0){
+                laser.life--;
+                const half=(laser.thickness||13)/2+asPlayer.size;
+                const hit=laser.orientation==="vertical"
+                    ?Math.abs(asPlayer.x-laser.x)<half&&asPlayer.y+asPlayer.size>laserBounds.top&&asPlayer.y-asPlayer.size<laserBounds.bottom
+                    :Math.abs(asPlayer.y-laser.y)<half&&asPlayer.x+asPlayer.size>laserBounds.left&&asPlayer.x-asPlayer.size<laserBounds.right;
+                if(hit&&!laser.hit){
+                    laser.hit=true;asMiniLaserHits++;
+                    asShake=Math.max(asShake,7);asFlash=Math.max(asFlash,5);asFlashColor="#ff477f";
+                    asSound(105,"sawtooth",.24,.1);
+                    for(let p=0;p<20;p++){
+                        const angle=Math.PI*2*p/20,speed=1.4+Math.random()*3.5;
+                        asParticles.push({x:asPlayer.x,y:asPlayer.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:16,maxLife:16,color:p%3===0?"#ffffff":"#ff609b",size:1.8+Math.random()*3});
+                    }
+                    if(asMiniLaserHits>=3){
+                        asFinishBrokenReality(false,now,true);
+                        return;
+                    }
+                }
+            }
+            if(laser.life<=0)asMiniLasers.splice(i,1);
+        }
         if (now >= asMiniNextGravityAt) {
             asMiniGravityIndex = (asMiniGravityIndex + 1) % 5;
             asMiniNextGravityAt = now + 1350;
@@ -1518,6 +1561,28 @@
         c.lineWidth = 1.2;
         c.strokeRect(left + 6, top + 6, right - left - 12, bottom - top - 12);
         c.shadowBlur = 0;
+        // Pocket lasers: clear warning lines first, then thick active beams with moving highlights.
+        for(let i=0;i<asMiniLasers.length;i++){
+            const laser=asMiniLasers[i],vertical=laser.orientation==="vertical";
+            const start=vertical?top:left,end=vertical?bottom:right,coord=vertical?laser.x:laser.y;
+            c.save();c.lineCap="round";c.strokeStyle=laser.color;c.shadowColor=laser.color;
+            if(laser.warning>0){
+                c.globalAlpha=.45+Math.abs(Math.sin(now*.025))*.38;c.shadowBlur=16;c.lineWidth=2.2;c.setLineDash([8,6]);
+                c.beginPath();if(vertical){c.moveTo(coord,start);c.lineTo(coord,end);}else{c.moveTo(start,coord);c.lineTo(end,coord);}c.stroke();c.setLineDash([]);
+                c.globalAlpha=.85;c.lineWidth=1.2;
+                const tx=vertical?laser.x:asPlayer.x,ty=vertical?asPlayer.y:laser.y;
+                c.beginPath();c.arc(tx,ty,14+Math.sin(now*.03)*3,0,Math.PI*2);c.stroke();
+                c.beginPath();c.moveTo(tx-20,ty);c.lineTo(tx-8,ty);c.moveTo(tx+8,ty);c.lineTo(tx+20,ty);c.moveTo(tx,ty-20);c.lineTo(tx,ty-8);c.moveTo(tx,ty+8);c.lineTo(tx,ty+20);c.stroke();
+            }else{
+                c.globalAlpha=.27;c.shadowBlur=28;c.lineWidth=23;c.beginPath();if(vertical){c.moveTo(coord,start);c.lineTo(coord,end);}else{c.moveTo(start,coord);c.lineTo(end,coord);}c.stroke();
+                c.globalAlpha=.92;c.shadowBlur=17;c.lineWidth=9;c.beginPath();if(vertical){c.moveTo(coord,start);c.lineTo(coord,end);}else{c.moveTo(start,coord);c.lineTo(end,coord);}c.stroke();
+                c.globalAlpha=1;c.strokeStyle="#ffffff";c.lineWidth=1.8;c.beginPath();if(vertical){c.moveTo(coord,start);c.lineTo(coord,end);}else{c.moveTo(start,coord);c.lineTo(end,coord);}c.stroke();
+                c.globalAlpha=.95;c.lineWidth=4;c.strokeStyle="#ffffff";
+                const fraction=((now*.28)%100)/100;
+                c.beginPath();if(vertical){const y=start+(end-start)*fraction;c.moveTo(coord-10,y);c.lineTo(coord+10,y);}else{const x=start+(end-start)*fraction;c.moveTo(x,coord-10);c.lineTo(x,coord+10);}c.stroke();
+            }
+            c.restore();
+        }
         for (let i = 0; i < asMiniSpirals.length; i++) {
             const spiral = asMiniSpirals[i];
             if (spiral.collected) continue;
@@ -1551,6 +1616,7 @@
         c.globalAlpha = 1;
         c.save();
         c.translate(asPlayer.x, asPlayer.y);
+        c.scale(asPlayer.size/12,asPlayer.size/12);
         c.shadowColor = "#31dcff";
         c.shadowBlur = 25;
         c.fillStyle = "#36dfff";
@@ -1572,7 +1638,8 @@
         c.shadowBlur = 25;
         c.lineWidth = 2.3;
         c.beginPath();
-        c.ellipse(asPlayer.x, asPlayer.y, 22 + Math.sin(now * 0.009) * 4, 17 + Math.sin(now * 0.008) * 3, now * 0.001, 0, Math.PI * 2);
+        const miniVisualScale=asPlayer.size/12;
+        c.ellipse(asPlayer.x, asPlayer.y, (22 + Math.sin(now * 0.009) * 4)*miniVisualScale, (17 + Math.sin(now * 0.008) * 3)*miniVisualScale, now * 0.001, 0, Math.PI * 2);
         c.stroke();
         c.restore();
         c.shadowBlur = 0;
@@ -1591,6 +1658,7 @@
             c.fillText("ГРАВИТАЦИЯ: " + gravityLabels[asMiniGravityIndex], 200, 64);
             c.fillStyle = "#8df5ff";
             c.fillText("СОБРАНО: " + asMiniCollected + "/15", 200, 82);
+            if(asMiniLasersEnabled){c.fillStyle=asMiniLaserHits>=2?"#ff477f":"#ffb1ea";c.textAlign="right";c.font="bold 10px monospace";c.fillText("ЛАЗЕРЫ "+asMiniLaserHits+"/3",right-8,top-15);}
             c.fillStyle = "#ffffff";
             c.font = "bold 11px monospace";
             c.fillText("ОСТАЛОСЬ: " + Math.max(0, (15 - elapsed / 1000)).toFixed(1) + "с", 200, 98);
