@@ -24,6 +24,16 @@
     let asTexts = [];
     let asKeys = Object.create(null);
     let asPointer = { down: false, x: 0, y: 0, id: null };
+    let asPointerChargeMode = false;
+    let asPlatforms = [];
+    let asDrillShots = [];
+    let asChargeFrames = 0;
+    let asCharging = false;
+    let asBossExposed = 0;
+    let asLabyrinthTimer = 0;
+    let asUltimateActive = false;
+    let asPatternSpawned = false;
+    let asControls = null;
     let asShake = 0;
     let asFlash = 0;
     let asFlashColor = "#ffffff";
@@ -45,13 +55,17 @@
     let asCinematicRedHeart = { x: -25, y: 410 };
     let asCinematicArenaProgress = 0;
 
+    // Приёмы из ТВ-финала: лабиринт, манипуляции пространством/вероятностью,
+    // рукопашные атаки Грандзебомы и её финальный залп.
     const patterns = [
-        "СПИРАЛЬНЫЙ ШТОРМ",
-        "ВОЛНА ГОРИЗОНТА",
-        "ДОЖДЬ СИНГУЛЯРНОСТЕЙ",
-        "РАЗРЕЗ РЕАЛЬНОСТИ",
-        "КОЛЛАПС ВЕРОЯТНОСТИ",
-        "ГОРИЗОНТ СОБЫТИЙ"
+        "ЗАЛП АНТИ-СПИРАЛИ",
+        "МНОГОКРАТНЫЙ УДАР ГРАНДЗЕБОМОЙ",
+        "АНТИ-СПИРАЛЬНЫЙ ШТОРМ",
+        "РАЗРЕЗ ПРОСТРАНСТВА",
+        "МУЛЬТИВСЕЛЕНСКИЙ ЛАБИРИНТ",
+        "ГРАВИТАЦИОННЫЙ КОЛЛАПС",
+        "СДВИГ ВЕРОЯТНОСТИ",
+        "INFINITY BIG BANG STORM"
     ];
 
     function asCanvas() {
@@ -67,6 +81,154 @@
             top: 55 + (445 - asArenaHeight) / 2 + asPlayer.size,
             bottom: asFloor()
         };
+    }
+    function asInitPlatforms() {
+        asPlatforms = [
+            { baseX: 88,  y: 436, w: 112, h: 10, move: 0, amp: 0, phase: 0 },
+            { baseX: 279, y: 379, w: 94,  h: 10, move: 1, amp: 19, phase: 1.4 },
+            { baseX: 118, y: 322, w: 88,  h: 10, move: 0, amp: 0, phase: 2.2 },
+            { baseX: 276, y: 265, w: 86,  h: 10, move: 1, amp: 25, phase: 3.1 },
+            { baseX: 132, y: 208, w: 82,  h: 10, move: 1, amp: 17, phase: 4.4 },
+            { baseX: 239, y: 151, w: 76,  h: 10, move: 0, amp: 0, phase: 5.1 }
+        ];
+    }
+    function asPlatformX(platform, index, now) {
+        const arenaLeft = (400 - asArenaWidth) / 2;
+        let center = platform.baseX;
+        if (platform.move) center += Math.sin(now * 0.0012 + platform.phase) * platform.amp;
+        if (asLabyrinthTimer > 0 && index > 0 && index < 5) {
+            center += Math.sin((asFrame + index * 17) * 0.14) * 14;
+        }
+        const min = arenaLeft + 8 + platform.w / 2;
+        const max = arenaLeft + asArenaWidth - 8 - platform.w / 2;
+        return Math.max(min, Math.min(max, center));
+    }
+    function asTryJump() {
+        if (!asActive || asState !== "fight" || !asPlayer.grounded) return;
+        asPlayer.vy = -8.7;
+        asPlayer.grounded = false;
+        asPlayer.platformIndex = null;
+        asText(asPlayer.x, asPlayer.y - 20, "ПРЫЖОК!", "#68dcff", 28);
+        asSound(420, "sine", 0.12, 0.07);
+    }
+    function asStartCharge() {
+        if (!asActive || asState !== "fight" || asCharging) return;
+        asCharging = true;
+        asChargeFrames = 0;
+        asSound(240, "sine", 0.08, 0.035);
+    }
+    function asReleaseCharge() {
+        if (!asCharging) return;
+        const frames = asChargeFrames;
+        asCharging = false;
+        asChargeFrames = 0;
+        if (asActive && asState === "fight" && frames >= 5) asShootDrill(frames);
+    }
+    function asShootDrill(frames) {
+        const charge = Math.max(0.04, Math.min(1, frames / 150));
+        const targetX = asBoss.x;
+        const targetY = asBoss.y + 43;
+        const dx = targetX - asPlayer.x;
+        const dy = targetY - (asPlayer.y - 5);
+        const distance = Math.max(1, Math.hypot(dx, dy));
+        const heightBonus = asPlayer.y < 270 ? 1.25 : (asPlayer.y < 350 ? 1.1 : 1);
+        const baseDamage = Math.max(1, Math.floor(asBossMaxHp * (0.025 + 0.105 * charge * charge) * heightBonus));
+        const level = charge >= 0.8 ? "МАКСИМАЛЬНЫЙ БУР" : charge >= 0.48 ? "МОЩНЫЙ БУР" : charge >= 0.18 ? "СПИРАЛЬНЫЙ БУР" : "СЛАБЫЙ БУР";
+        asDrillShots.push({
+            x: asPlayer.x, y: asPlayer.y - 5,
+            vx: dx / distance * (7 + charge * 4.5),
+            vy: dy / distance * (7 + charge * 4.5),
+            charge: charge, radius: 4 + charge * 16,
+            damage: baseDamage, life: 100, phase: 0, level: level
+        });
+        asText(asPlayer.x, asPlayer.y - 31, level + " · " + Math.round(charge * 100) + "%", "#74f5ff", 52);
+        asShake = Math.max(asShake, 2 + charge * 7);
+        asSound(250 + charge * 680, "sawtooth", 0.1 + charge * 0.32, 0.05 + charge * 0.08);
+    }
+    function asDrawPlatforms(c, now) {
+        if (!asPlatforms.length) asInitPlatforms();
+        let safeIndex = -1;
+        for (let i = 0; i < asAttacks.length; i++) {
+            if (asAttacks[i] && asAttacks[i].kind === "bigbang") {
+                safeIndex = asAttacks[i].safePlatformIndex;
+                break;
+            }
+        }
+        for (let i = 0; i < asPlatforms.length; i++) {
+            const p = asPlatforms[i];
+            const cx = asPlatformX(p, i, now);
+            const x = cx - p.w / 2;
+            const safe = i === safeIndex;
+            const current = asPlayer.platformIndex === i;
+            if (asLabyrinthTimer > 0 && i > 0 && i < 5) {
+                c.save();
+                c.globalAlpha = 0.16 + Math.abs(Math.sin(asFrame * 0.16 + i)) * 0.12;
+                c.strokeStyle = "#d5a8ff"; c.lineWidth = 1.5; c.setLineDash([4, 5]);
+                c.strokeRect(x + (i % 2 ? -21 : 21), p.y - 5, p.w, p.h);
+                c.setLineDash([]);
+                c.restore();
+            }
+            c.save();
+            c.shadowColor = safe ? "#76ffff" : current ? "#5adfff" : "#a65dff";
+            c.shadowBlur = safe ? 24 : current ? 16 : 10;
+            c.fillStyle = safe ? "rgba(104,255,255,.46)" : current ? "rgba(56,190,255,.42)" : "rgba(104,72,170,.48)";
+            c.strokeStyle = safe ? "#e8ffff" : current ? "#8ef4ff" : "#bda5ff";
+            c.lineWidth = safe ? 2.5 : 1.4;
+            c.beginPath();
+            c.moveTo(x + 8, p.y); c.lineTo(x + p.w - 8, p.y);
+            c.lineTo(x + p.w, p.y + p.h); c.lineTo(x, p.y + p.h); c.closePath();
+            c.fill(); c.stroke();
+            c.strokeStyle = "rgba(225,248,255,.46)"; c.lineWidth = 1;
+            c.beginPath(); c.moveTo(x + 12, p.y + p.h - 2); c.lineTo(x + p.w - 12, p.y + p.h - 2); c.stroke();
+            c.restore();
+        }
+    }
+    function asCreateControls() {
+        const c = asCanvas();
+        if (!c || !c.parentNode) return;
+        const old = document.getElementById("antiSpiralControls");
+        if (old) old.remove();
+        const row = document.createElement("div");
+        row.id = "antiSpiralControls";
+        row.style.cssText = "display:flex;gap:9px;justify-content:center;align-items:stretch;flex-wrap:wrap;width:min(400px,calc(100vw - 24px));margin:7px auto 4px;z-index:5;font-family:Arial,sans-serif;";
+        const buttonStyle = "flex:1;min-width:125px;min-height:43px;padding:9px 12px;border:1px solid #5bdcff;border-radius:10px;background:linear-gradient(135deg,#102b51,#241445);color:#fff;font-weight:900;font-size:12px;touch-action:none;user-select:none;-webkit-user-select:none;";
+        const jump = document.createElement("button");
+        jump.type = "button"; jump.textContent = "⬆ ПРЫЖОК";
+        jump.style.cssText = buttonStyle;
+        const drill = document.createElement("button");
+        drill.type = "button"; drill.textContent = "🌀 УДЕРЖИВАЙ БУР";
+        drill.style.cssText = buttonStyle + "border-color:#a988ff;background:linear-gradient(135deg,#133f59,#48206e);";
+        jump.addEventListener("pointerdown", function(ev) {
+            ev.preventDefault();
+            try { jump.setPointerCapture(ev.pointerId); } catch(e) {}
+            asTryJump();
+        });
+        drill.addEventListener("pointerdown", function(ev) {
+            ev.preventDefault();
+            try { drill.setPointerCapture(ev.pointerId); } catch(e) {}
+            asStartCharge();
+        });
+        function releaseDrill(ev) { if (ev) ev.preventDefault(); asReleaseCharge(); }
+        drill.addEventListener("pointerup", releaseDrill);
+        drill.addEventListener("pointercancel", releaseDrill);
+        drill.addEventListener("lostpointercapture", releaseDrill);
+        const hint = document.createElement("div");
+        hint.textContent = "WASD / ← → — двигаться · W / ↑ / ПРОБЕЛ — прыгать · Z — держать и отпустить для выстрела";
+        hint.style.cssText = "flex-basis:100%;color:#b8eaff;text-align:center;font-size:10px;line-height:1.35;";
+        row.appendChild(jump); row.appendChild(drill); row.appendChild(hint);
+        c.parentNode.insertBefore(row, c.nextSibling);
+        asControls = { row: row, jump: jump, drill: drill };
+    }
+    function asUpdateControls() {
+        if (!asControls) return;
+        const pct = Math.round(asChargeFrames / 150 * 100);
+        asControls.drill.textContent = asCharging ? "🌀 ЗАРЯД " + pct + "% · ОТПУСТИ" : "🌀 УДЕРЖИВАЙ БУР";
+        if (asCharging) {
+            const glow = Math.min(1, pct / 100);
+            asControls.drill.style.boxShadow = "0 0 " + (5 + glow * 20) + "px rgba(72,220,255," + (0.25 + glow * 0.55) + ")";
+        } else {
+            asControls.drill.style.boxShadow = "none";
+        }
     }
     function asText(x, y, text, color, life) {
         asTexts.push({ x:x, y:y, text:text, color:color || "#ffffff", life:life || 50, maxLife:life || 50, vy:-0.7 });
@@ -169,74 +331,90 @@
         asAttacks.push({x:x,y:y,vx:vx,vy:vy,spd:vx,spdY:vy,size:size||14,color:color||"#3abfff",damage:damage||12,kind:kind||"orb",life:250,phase:Math.random()*6});
     }
     function asSpawnPattern(now) {
-        const damage = asPhase >= 3 ? 18 : (asPhase >= 2 ? 14 : 10);
+        const damage = asPhase >= 3 ? 20 : (asPhase >= 2 ? 15 : 11);
         const floor = asFloor();
         const bounds = asBounds();
         if (asPattern === 0) {
-            // Two counter-rotating spirals leave moving gaps instead of a solid wall of bullets.
-            const base = Math.atan2(asPlayer.y-asBoss.y,asPlayer.x-asBoss.x)+now*.0018;
-            const count = asPhase>=3?10:8;
-            for(let i=0;i<count;i++){
-                const a=base+i*Math.PI*2/count;
-                asAddAttack(asBoss.x,asBoss.y,Math.cos(a)*(2.15+asPhase*.32),Math.sin(a)*(2.15+asPhase*.32),12,i%2?"#4fcaff":"#a95bff",damage,"spiral");
+            // Спиральный энергетический залп: между встречными потоками есть проходы.
+            const base = Math.atan2(asPlayer.y - (asBoss.y + 35), asPlayer.x - asBoss.x) + now * .0018;
+            const count = asPhase >= 3 ? 12 : 9;
+            for (let i = 0; i < count; i++) {
+                const a = base + i * Math.PI * 2 / count;
+                asAddAttack(asBoss.x, asBoss.y + 35, Math.cos(a) * (2.25 + asPhase * .3), Math.sin(a) * (2.25 + asPhase * .3), 11 + (i % 3), i % 2 ? "#55d8ff" : "#bb6bff", damage, "spiral");
             }
-            if(asPhase>=2){
-                for(let i=0;i<5;i++){
-                    const a=base+Math.PI/5+i*Math.PI*2/5;
-                    asAddAttack(asBoss.x,asBoss.y,Math.cos(a)*2.1,Math.sin(a)*2.1,8,"#a9f5ff",Math.max(6,damage-4),"spiral");
+            if (asPhase >= 2) {
+                for (let i = 0; i < 4; i++) {
+                    const a = base + Math.PI / 7 + i * Math.PI * 2 / 4;
+                    asAddAttack(asBoss.x, asBoss.y + 35, Math.cos(a) * 2.6, Math.sin(a) * 2.6, 7, "#e4fdff", Math.max(6, damage - 4), "spiral");
                 }
             }
-        } else if(asPattern===1) {
-            // A double ground wave: jump the first row, then land only after the second passes.
-            const dir=Math.random()>.5?1:-1;
-            const start=dir>0?-28:428;
-            for(let i=0;i<5;i++){
-                asAddAttack(start-dir*i*43,floor-11-(i%2)*3,dir*(3.1+asPhase*.38),0,24,"#38c8ff",damage,"ground");
+        } else if (asPattern === 1) {
+            // Грандзебома бьёт поперёк арены несколькими руками; прыжки обходят удар.
+            const firstY = Math.max(bounds.top + 95, Math.min(bounds.bottom - 28, asPlayer.y));
+            asAttacks.push({ kind: "sweep", orientation: "horizontal", y: firstY, warning: 46, life: 17, color: "#ff67d8", damage: damage + 2, hit: false });
+            if (asPhase >= 2) {
+                asAttacks.push({ kind: "sweep", orientation: "horizontal", y: Math.max(bounds.top + 80, bounds.bottom - 82), warning: 74, life: 15, color: "#a66bff", damage: damage, hit: false });
             }
-            if(asPhase>=2){
-                const upperY=floor-88;
-                asAttacks.push({kind:"laser",orientation:"horizontal",x:bounds.left,y:upperY,warning:55,life:13,color:"#b36cff",damage:Math.max(6,damage-3),hit:false});
+        } else if (asPattern === 2) {
+            // Поток анти-спиральной энергии падает по дорожкам, оставляя несколько окон.
+            const left = (400 - asArenaWidth) / 2 + 18;
+            const width = asArenaWidth - 36;
+            const safeLane = Math.floor(Math.random() * 6);
+            for (let i = 0; i < 6; i++) {
+                const laneX = left + width * (i + .5) / 6;
+                if (i === safeLane || Math.abs(laneX - asPlayer.x) < 27) continue;
+                asAddAttack(laneX, 58, (Math.random() - .5) * .35, 2.4 + Math.random() * .8, 13, "#5bc9ff", damage, "fall");
             }
-        } else if(asPattern===2) {
-            // Meteors descend through visible lanes; a small lane near the player is kept open.
-            const left=(400-asArenaWidth)/2+18;
-            const width=asArenaWidth-36;
-            const lane=Math.floor(Math.random()*6);
-            for(let i=0;i<6;i++){
-                const laneX=left+width*(i+.5)/6;
-                if(i===lane||Math.abs(laneX-asPlayer.x)<26)continue;
-                asAddAttack(laneX,58,(Math.random()-.5)*.28,2.15+Math.random()*.75,15,"#54bfff",damage,"fall");
+            if (asPhase >= 3) {
+                asAttacks.push({ kind: "laser", orientation: "horizontal", x: 0, y: bounds.bottom - 74, warning: 45, life: 16, color: "#ff5cd6", damage: damage + 3, hit: false });
             }
-            if(asPhase>=3){
-                for(let i=0;i<2;i++){
-                    const x=left+width*(i?0.78:0.22);
-                    asAttacks.push({kind:"mark",x:x,y:floor-8,timer:54+i*12,radius:28,damage:damage,color:"#ff66c7",life:0,hit:false});
-                }
+        } else if (asPattern === 3) {
+            // Разлом пространства: лазеры сначала отмечают линии удара.
+            const targetX = Math.max(bounds.left + 15, Math.min(bounds.right - 15, asPlayer.x));
+            asAttacks.push({ kind: "laser", orientation: "vertical", x: targetX, y: 0, warning: 48, life: 22, color: "#a978ff", damage: damage + 3, hit: false });
+            asAttacks.push({ kind: "laser", orientation: "horizontal", x: 0, y: Math.max(bounds.top + 70, Math.min(bounds.bottom - 48, asPlayer.y)), warning: 70, life: 17, color: "#55dcff", damage: damage, hit: false });
+        } else if (asPattern === 4) {
+            // Мультивселенский лабиринт: платформы дрожат и оставляют призрачные копии.
+            if (asLabyrinthTimer <= 0) {
+                asLabyrinthTimer = asPhase >= 3 ? 205 : 175;
+                asText(200, 105, "МУЛЬТИВСЕЛЕНСКИЙ ЛАБИРИНТ!", "#d9b5ff", 72);
+                asFlash = Math.max(asFlash, 5); asFlashColor = "#8d64ff";
+                asSound(120, "sawtooth", .28, .08);
             }
-        } else if(asPattern===3) {
-            // The boss draws the attack on the arena first: move out of the vertical cut,
-            // then jump the delayed horizontal cut if your lane is trapped.
-            const targetX=Math.max(bounds.left+14,Math.min(bounds.right-14,asPlayer.x));
-            asAttacks.push({kind:"laser",orientation:"vertical",x:targetX,y:0,warning:44,life:22,color:"#8c70ff",damage:damage+2,hit:false});
-            asAttacks.push({kind:"laser",orientation:"horizontal",x:0,y:floor-60,warning:66,life:18,color:"#58dcff",damage:damage,hit:false});
-        } else if(asPattern===4) {
-            // Probability-collapse marks punish standing still, but the rings give time to escape.
-            const count=asPhase>=3?3:2;
-            const offsets=count===3?[-84,0,84]:[-52,52];
-            for(let i=0;i<count;i++){
-                const x=Math.max(bounds.left+20,Math.min(bounds.right-20,asPlayer.x+offsets[i]));
-                asAttacks.push({kind:"mark",x:x,y:floor-7,timer:58+i*7,radius:27+asPhase*2,damage:damage+2,color:i%2?"#ff66c7":"#b46cff",life:0,hit:false});
+            if (asPhase >= 3) {
+                [-64, 64].forEach(function(offset, i) {
+                    const x = Math.max(bounds.left + 24, Math.min(bounds.right - 24, asPlayer.x + offset));
+                    asAttacks.push({ kind: "mark", x: x, y: Math.max(bounds.top + 75, asPlayer.y), timer: 54 + i * 12, radius: 26, damage: damage, color: i ? "#55e4ff" : "#c17aff", life: 0, hit: false });
+                });
+            }
+        } else if (asPattern === 5) {
+            // Сингулярность тянет сердце к центру и затем выбрасывает энергию.
+            const wellX = asPlayer.x < 200 ? bounds.left + 74 : bounds.right - 74;
+            const wellY = Math.max(bounds.top + 92, Math.min(floor - 100, asPlayer.y - 45));
+            asAttacks.push({ kind: "well", x: wellX, y: wellY, timer: 78, pullRadius: 205, radius: 76, color: "#bb67ff", damage: damage + 4, life: 0, burst: false, hit: false });
+            if (asPhase >= 3) {
+                asAttacks.push({ kind: "well", x: bounds.left + (bounds.right - bounds.left) * .5, y: wellY - 28, timer: 105, pullRadius: 150, radius: 62, color: "#46d7ff", damage: damage + 2, life: 0, burst: false, hit: false });
+            }
+        } else if (asPattern === 6) {
+            // Сдвиг вероятности: будущие позиции помечаются до того, как пространство взорвётся.
+            const count = asPhase >= 3 ? 3 : 2;
+            const offsets = count === 3 ? [-75, 0, 75] : [-48, 48];
+            for (let i = 0; i < count; i++) {
+                const x = Math.max(bounds.left + 20, Math.min(bounds.right - 20, asPlayer.x + offsets[i]));
+                asAttacks.push({ kind: "mark", x: x, y: Math.max(bounds.top + 75, Math.min(bounds.bottom - 15, asPlayer.y)), timer: 52 + i * 9, radius: 25 + asPhase * 2, damage: damage + 2, life: 0, hit: false, color: i % 2 ? "#ff66c7" : "#b46cff" });
             }
         } else {
-            // An event horizon pulls the soul sideways and upward, then erupts into a radial burst.
-            const wellX=asPlayer.x<200?bounds.left+74:bounds.right-74;
-            const wellY=Math.max(bounds.top+92,floor-142);
-            asAttacks.push({kind:"well",x:wellX,y:wellY,timer:78,pullRadius:205,radius:76,color:"#bb67ff",damage:damage+3,life:0,burst:false,hit:false});
-            if(asPhase>=3){
-                asAttacks.push({kind:"well",x:bounds.left+(bounds.right-bounds.left)*.5,y:wellY-34,timer:105,pullRadius:150,radius:62,color:"#46d7ff",damage:damage+1,life:0,burst:false,hit:false});
-            }
+            // Две галактики сжимаются в шар; затем следует Infinity Big Bang Storm.
+            if (asUltimateActive || asPatternSpawned) return;
+            asUltimateActive = true;
+            asPatternSpawned = true;
+            const safeIndex = asPlayer.platformIndex !== null && asPlayer.platformIndex >= 0 ? asPlayer.platformIndex : 0;
+            asAttacks.push({ kind: "bigbang", phase: "charge", timer: 94, life: 0, color: "#d5a0ff", damage: 40 + asPhase * 5, safePlatformIndex: safeIndex, hit: false });
+            asText(200, 105, "СЖАТИЕ ДВУХ ГАЛАКТИК!", "#f0caff", 76);
+            asSound(68, "sawtooth", .65, .13);
+            asShake = Math.max(asShake, 7);
         }
-        asSound(asPattern===1?180:(asPattern===3?125:300),"sawtooth",asPattern===3?.22:.14,asPattern>=3?.07:.055);
+        asSound(asPattern === 1 ? 180 : (asPattern === 3 ? 125 : 300), "sawtooth", asPattern === 3 ? .22 : .14, asPattern >= 3 ? .07 : .055);
     }
     function asShiftArena(now) {
         if (!asLastArenaShift) asLastArenaShift = now;
@@ -252,43 +430,53 @@
     function asKeyDown(ev) {
         if (!asActive) return;
         const k = ev.key.toLowerCase();
-        if (["arrowleft","arrowright","arrowup","arrowdown"," ","w","a","s","d","enter"].includes(k)) ev.preventDefault();
+        if (["arrowleft","arrowright","arrowup","arrowdown"," ","w","a","s","d","enter","z","x"].includes(k)) ev.preventDefault();
+        if ((k === "z" || k === "x") && !asKeys[k]) asStartCharge();
         asKeys[k] = true;
-        if (k==="escape" && asState==="intro") { asStop(); asRestoreStartButton(); }
+        if (k === "escape" && asState === "intro") { asStop(); asRestoreStartButton(); }
     }
-    function asKeyUp(ev) { asKeys[ev.key.toLowerCase()] = false; }
+    function asKeyUp(ev) {
+        const k = ev.key.toLowerCase();
+        asKeys[k] = false;
+        if (k === "z" || k === "x") asReleaseCharge();
+    }
     function asPointerDown(ev) {
         if (!asActive) return;
-        const c=asCanvas(); if(!c) return;
-        const rect=c.getBoundingClientRect();
-        const x=(ev.clientX-rect.left)*400/rect.width;
-        const y=(ev.clientY-rect.top)*500/rect.height;
-        if (asState==="intro") { asBegin(); return; }
-        if (asState!=="fight") return;
+        const c = asCanvas(); if (!c) return;
+        const rect = c.getBoundingClientRect();
+        const x = (ev.clientX - rect.left) * 400 / rect.width;
+        const y = (ev.clientY - rect.top) * 500 / rect.height;
         if (asState === "intro") { asBegin(); return; }
-        if (Math.hypot(x-asBoss.x,y-asBoss.y) < asBoss.size*1.9) {
-            asBossHit(Math.max(50, Math.floor((Number(window.playerFinalDamage)||80)*1.0)), "ПОПАДАНИЕ");
+        if (asState !== "fight") return;
+        // Удержание на модели босса заряжает бур; клик больше не снимает HP мгновенно.
+        if (Math.hypot(x - asBoss.x, y - (asBoss.y + 36)) < asBoss.size * 1.75) {
+            asPointerChargeMode = true;
+            asPointer.id = ev.pointerId;
+            asStartCharge();
+            if (c.setPointerCapture) { try { c.setPointerCapture(ev.pointerId); } catch(e) {} }
             return;
         }
-        // Touch below the boss can trigger a jump; a held drag steers the soul.
-        if (y>430 && x>150 && x<250 && asPlayer.grounded) {
-            asPlayer.vy=-8.4; asPlayer.grounded=false;
-            asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
+        if (y > 430 && x > 150 && x < 250 && asPlayer.grounded) {
+            asTryJump();
             return;
         }
-        asPointer.down=true; asPointer.id=ev.pointerId; asPointer.x=x; asPointer.y=y; asPointer.direction=0;
+        asPointer.down = true; asPointer.id = ev.pointerId; asPointer.x = x; asPointer.y = y; asPointer.direction = 0;
         if (c.setPointerCapture) { try { c.setPointerCapture(ev.pointerId); } catch(e) {} }
     }
     function asPointerMove(ev) {
-        if (!asActive || !asPointer.down) return;
-        const c=asCanvas(); if(!c) return;
-        const rect=c.getBoundingClientRect();
-        asPointer.x=(ev.clientX-rect.left)*400/rect.width;
-        asPointer.y=(ev.clientY-rect.top)*500/rect.height;
+        if (!asActive || !asPointer.down || asPointerChargeMode) return;
+        const c = asCanvas(); if (!c) return;
+        const rect = c.getBoundingClientRect();
+        asPointer.x = (ev.clientX - rect.left) * 400 / rect.width;
+        asPointer.y = (ev.clientY - rect.top) * 500 / rect.height;
     }
     function asPointerUp(ev) {
-        if (asPointer.id!==null && ev.pointerId!==undefined && ev.pointerId!==asPointer.id) return;
-        asPointer.down=false; asPointer.id=null; asPointer.direction=0;
+        if (asPointer.id !== null && ev.pointerId !== undefined && ev.pointerId !== asPointer.id) return;
+        if (asPointerChargeMode) {
+            asPointerChargeMode = false;
+            asReleaseCharge();
+        }
+        asPointer.down = false; asPointer.id = null; asPointer.direction = 0;
     }
     function asBind() {
         const c=asCanvas(); if(!c) return false;
@@ -311,6 +499,7 @@
         window.removeEventListener("keydown",asKeyDown);
         window.removeEventListener("keyup",asKeyUp);
         asKeys=Object.create(null); asPointer.down=false; asPointer.id=null;
+        asPointerChargeMode=false; asCharging=false; asChargeFrames=0;
     }
     function asBegin() {
         if(!asActive || asState==="fight") return;
@@ -356,6 +545,9 @@
         asActive=false; window.antiSpiralBossActive=false;
         if(asAnimFrame) cancelAnimationFrame(asAnimFrame);
         asAnimFrame=null; asUnbind(); stopASMusic();
+        asCharging=false; asChargeFrames=0; asPointerChargeMode=false; asDrillShots=[];
+        if(asControls && asControls.row && asControls.row.parentNode) asControls.row.parentNode.removeChild(asControls.row);
+        asControls=null;
         if(typeof resetAllSupers==="function"){try{resetAllSupers();}catch(e){}}
         window._uniqueSuperBossId=null;
         const overlay=document.getElementById("arenaOverlay");
@@ -365,6 +557,47 @@
         }
         ["superBtn","superBtn2","superBtnDeactivate","startArenaBtn","startLivingStoneBtn","startWaystarBtn","startRogerWB","startAntiSpiralBossBtn","skipBossBtn","spareBtn"].forEach(function(id){const el=document.getElementById(id);if(el)el.style.display="none";});
         if(typeof musicEnabled!=="undefined" && musicEnabled && typeof startBattleMusic==="function") startBattleMusic();
+    }
+    function asDrawDrillShots(c,now) {
+        for (let i = asDrillShots.length - 1; i >= 0; i--) {
+            const shot = asDrillShots[i];
+            shot.x += shot.vx; shot.y += shot.vy; shot.life--; shot.phase += .28;
+            c.save(); c.translate(shot.x,shot.y); c.rotate(Math.atan2(shot.vy,shot.vx) + Math.PI/2);
+            c.shadowColor="#55eaff";c.shadowBlur=14+shot.charge*24;
+            c.fillStyle=shot.charge>.78?"#ffffff":"#7bf5ff";
+            c.beginPath();c.moveTo(0,-shot.radius*1.8);c.lineTo(shot.radius*.7,shot.radius*.45);
+            c.lineTo(0,shot.radius*.95);c.lineTo(-shot.radius*.7,shot.radius*.45);c.closePath();c.fill();
+            c.strokeStyle="#ffffff";c.lineWidth=1.2;c.stroke();
+            c.strokeStyle=shot.charge>.78?"#c69aff":"#4de6ff";c.lineWidth=2;
+            c.beginPath();c.ellipse(0,0,shot.radius*.95,shot.radius*.34,shot.phase,0,Math.PI*2);c.stroke();
+            c.restore();
+            const dx=shot.x-asBoss.x, dy=shot.y-(asBoss.y+43);
+            if(Math.abs(dx)<36+shot.radius && Math.abs(dy)<57+shot.radius){
+                let multiplier = asBossExposed>0 ? 2.45 : .28;
+                if(asPlayer.y<270) multiplier *= 1.25;
+                const damage = Math.max(1,Math.floor(shot.damage*multiplier));
+                asBossHit(damage,asBossExposed>0?"ЯДРО ПРОБИТО!":"БУР ПРОБИЛ ЗАЩИТУ");
+                if(asBossExposed>0)asShake=Math.max(asShake,9+shot.charge*8);
+                asDrillShots.splice(i,1);
+                continue;
+            }
+            if(shot.life<=0||shot.x<-50||shot.x>450||shot.y<-50||shot.y>550)asDrillShots.splice(i,1);
+        }
+    }
+    function asDrawChargeAura(c,now) {
+        if(!asCharging||asChargeFrames<=0)return;
+        const pct=Math.min(1,asChargeFrames/150);
+        c.save();c.translate(asPlayer.x,asPlayer.y-2);
+        c.globalAlpha=.35+pct*.55;c.strokeStyle=pct>.8?"#ffffff":"#61eaff";
+        c.shadowColor=pct>.8?"#c08bff":"#39d9ff";c.shadowBlur=8+pct*24;c.lineWidth=1.5+pct*2;
+        for(let i=0;i<3;i++){
+            c.beginPath();c.ellipse(0,0,14+i*5,7+i*2,now*.006*(i%2?1:-1),0,Math.PI*1.7);c.stroke();
+        }
+        c.restore();
+        c.save();const x=asPlayer.x-23,y=asPlayer.y-30,w=46;
+        c.fillStyle="rgba(0,0,0,.8)";c.fillRect(x,y,w,5);
+        c.fillStyle=pct>.8?"#e8caff":"#6ef4ff";c.fillRect(x,y,w*pct,5);
+        c.strokeStyle="#ffffff";c.lineWidth=.7;c.strokeRect(x,y,w,5);c.restore();
     }
     function asDrawHeart(c) {
         c.save();c.translate(asPlayer.x,asPlayer.y);
@@ -440,7 +673,18 @@
         c.restore();
     }
     function asDrawBoss(c,now) {
-        // Keep the boss near the top of the arena; the model remains humanoid even during combat.
+        // Лабиринт показывает ложные варианты цели; настоящий босс остаётся в центре.
+        if (asLabyrinthTimer > 0) {
+            asDrawAntiSpiralFigure(c, asBoss.x - 69, asBoss.y + 47, 0.48, now + 280, .22);
+            asDrawAntiSpiralFigure(c, asBoss.x + 69, asBoss.y + 47, 0.48, now - 360, .22);
+        }
+        if (asBossExposed > 0) {
+            c.save();
+            c.globalAlpha = .42 + Math.sin(asFrame * .32) * .18;
+            c.strokeStyle = "#8effff"; c.shadowColor = "#6ffaff"; c.shadowBlur = 24; c.lineWidth = 2.5;
+            c.beginPath(); c.ellipse(asBoss.x, asBoss.y + 37, 25 + Math.sin(asFrame * .15) * 5, 31 + Math.sin(asFrame * .15) * 5, 0, 0, Math.PI * 2); c.stroke();
+            c.restore();
+        }
         asDrawAntiSpiralFigure(c,asBoss.x,asBoss.y+43,0.78*(asBoss.size/48),now,1);
     }
     function asDrawRedHeart(c,x,y,now,shot) {
@@ -612,8 +856,11 @@
             asState="fight";
             asBoss={x:200,y:100,size:48,rotation:0,pulse:0,flash:0};
             asArenaWidth=396;asArenaHeight=438;asTargetWidth=396;asTargetHeight=438;
-            asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true};
+            asInitPlatforms();
+            asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
+            asDrillShots=[];asChargeFrames=0;asCharging=false;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
             asPattern=0;asPatternTimer=0;asLastArenaShift=now;
+            asCreateControls();
             asText(200,250,"ТЕБЕ КОНЕЦ!","#74e4ff",85);
             asSound(150,"sawtooth",.45,.14);
             if(typeof updateSuperButton==="function")setTimeout(updateSuperButton,80);
@@ -658,6 +905,7 @@
         [[arenaLeft+2,boxY+2,1,1],[arenaLeft+asArenaWidth-2,boxY+2,-1,1],[arenaLeft+2,boxY+asArenaHeight-2,1,-1],[arenaLeft+asArenaWidth-2,boxY+asArenaHeight-2,-1,-1]].forEach(function(p){
             c.beginPath();c.moveTo(p[0],p[1]+p[3]*13);c.lineTo(p[0],p[1]);c.lineTo(p[0]+p[2]*13,p[1]);c.stroke();
         });
+        asDrawPlatforms(c,now);
         // HUD and phase title.
         c.fillStyle="rgba(0,0,0,.78)";c.fillRect(9,8,382,32);
         c.fillStyle="#bdefff";c.font="bold 11px monospace";c.textAlign="left";c.fillText("АНТИ-СПИРАЛЬ  •  ФАЗА "+asPhase,15,20);
@@ -665,13 +913,84 @@
         c.fillStyle="rgba(0,0,0,.8)";c.fillRect(9,43,382,18);c.fillStyle="#101c46";c.fillRect(15,49,370,5);c.fillStyle="#35c9ff";c.fillRect(15,49,370*Math.max(0,asPlayerHp/asPlayerMaxHp),5);
         c.fillStyle="#ffffff";c.font="bold 9px monospace";c.fillText("HP "+Math.ceil(asPlayerHp)+"/"+asPlayerMaxHp,17,46);
         {
-            c.fillStyle="#d8ceff";c.textAlign="center";c.font="bold 11px monospace";c.fillText(patterns[asPattern],200,77);
+            c.fillStyle=asBossExposed>0?"#92ffff":"#d8ceff";c.textAlign="center";c.font="bold 11px monospace";
+            c.fillText(asBossExposed>0?"ЯДРО ОТКРЫТО! "+Math.ceil(asBossExposed/60)+"с":patterns[asPattern],200,77);
             asDrawBoss(c,now);
             // The pull is visual as well as physical.
             c.save();c.globalAlpha=.12+.05*Math.sin(now/180);c.strokeStyle="#50cfff";c.lineWidth=1;
             for(let i=0;i<5;i++){c.beginPath();c.arc(asBoss.x,asBoss.y,asBoss.size+18+i*19,0,Math.PI*2);c.stroke();}c.restore();
             for(let i=asAttacks.length-1;i>=0;i--){
                 const a=asAttacks[i];
+                if(a.kind==="bigbang"){
+                    if(a.phase==="charge"){
+                        a.timer--;
+                        const t=Math.max(0,1-a.timer/94), cx=asBoss.x, cy=asBoss.y+38;
+                        c.save(); c.globalAlpha=.9; c.shadowColor="#bf78ff"; c.shadowBlur=22; c.strokeStyle="#e4ccff"; c.lineWidth=1.6;
+                        for(let g=0;g<2;g++){
+                            const gx=cx+(g===0?-1:1)*(84-t*62);
+                            const gy=cy+Math.sin(asFrame*.11+g)*7;
+                            c.save(); c.translate(gx,gy); c.rotate((g===0?-1:1)*asFrame*.055);
+                            c.strokeStyle=g===0?"#a678ff":"#6ce8ff";
+                            for(let ring=0;ring<4;ring++){c.globalAlpha=.35+ring*.12;c.beginPath();c.ellipse(0,0,13+ring*4,5+ring*2,.35*ring,0,Math.PI*1.8);c.stroke();}
+                            c.restore();
+                        }
+                        c.globalAlpha=.88;
+                        const orbR=7+t*21;
+                        const orb=c.createRadialGradient(cx,cy,1,cx,cy,orbR*1.6);
+                        orb.addColorStop(0,"#ffffff");orb.addColorStop(.25,"#ffc8ff");orb.addColorStop(.7,"#a64cff");orb.addColorStop(1,"rgba(80,35,180,0)");
+                        c.fillStyle=orb;c.beginPath();c.arc(cx,cy,orbR*1.6,0,Math.PI*2);c.fill();
+                        c.strokeStyle="#ffffff";c.lineWidth=1.4;c.beginPath();c.arc(cx,cy,orbR,0,Math.PI*2);c.stroke();
+                        c.restore();
+                        if(a.timer<=0){
+                            a.phase="blast";a.life=52;a.hit=false;
+                            asText(200,110,"INFINITY BIG BANG STORM — УКРОЙСЯ НА ГОЛУБОЙ ПЛАТФОРМЕ!","#8efaff",78);
+                            asFlash=Math.max(asFlash,7);asFlashColor="#b27cff";asShake=Math.max(asShake,12);
+                            asSound(55,"sawtooth",.7,.18);
+                        }
+                    }else{
+                        a.life--;
+                        const progress=1-a.life/52;
+                        const b=asBounds();
+                        c.save();
+                        c.globalAlpha=.18+Math.abs(Math.sin(asFrame*.42))*.12;
+                        c.fillStyle="#a64cff";c.fillRect(b.left,b.top,asArenaWidth,b.bottom-b.top);
+                        c.globalAlpha=.8;c.strokeStyle="#d9b4ff";c.shadowColor="#bf7aff";c.shadowBlur=28;c.lineWidth=24+progress*18;
+                        c.beginPath();c.ellipse(asBoss.x,asBoss.y+38,28+progress*250,16+progress*195,asFrame*.01,0,Math.PI*2);c.stroke();
+                        c.globalAlpha=.94;c.strokeStyle="#f5eaff";c.lineWidth=3;
+                        c.beginPath();c.ellipse(asBoss.x,asBoss.y+38,28+progress*245,14+progress*190,asFrame*.01,0,Math.PI*2);c.stroke();
+                        c.restore();
+                        if(!a.hit && a.life<=44){
+                            a.hit=true;
+                            const sheltered = asPlayer.grounded && asPlayer.platformIndex === a.safePlatformIndex;
+                            if(!sheltered) asDamagePlayer(a.damage,"INFINITY BIG BANG STORM");
+                            else asText(asPlayer.x,asPlayer.y-26,"УКРЫТИЕ УДЕРЖАНО!","#9bffff",48);
+                            asFlash=Math.max(asFlash,12);asFlashColor="#b58aff";asShake=Math.max(asShake,16);
+                        }
+                        if(a.life<=0){
+                            asBossExposed=220;
+                            asUltimateActive=false;
+                            asText(asBoss.x,asBoss.y+87,"ЯДРО ОТКРЫТО — ЗАРЯДИ БУР!","#8effff",86);
+                            asAttacks.splice(i,1);
+                        }
+                    }
+                    continue;
+                }
+                if(a.kind==="sweep"){
+                    if(a.warning>0){
+                        a.warning--;
+                        c.save();c.globalAlpha=.35+Math.abs(Math.sin(asFrame*.3))*.38;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=15;c.lineWidth=2;
+                        c.setLineDash([9,6]);c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();c.setLineDash([]);
+                        c.fillStyle="#ffffff";c.font="bold 10px monospace";c.textAlign="center";c.fillText("УДАР РУКОЙ — ПРЫГАЙ!",200,a.y-7);c.restore();
+                    }else{
+                        a.life--;
+                        c.save();c.globalAlpha=.28;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=25;c.lineWidth=30;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();
+                        c.globalAlpha=.95;c.lineWidth=8;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();
+                        c.globalAlpha=1;c.strokeStyle="#ffffff";c.lineWidth=1.5;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();c.restore();
+                        if(!a.hit && Math.abs(asPlayer.y-a.y)<20){asDamagePlayer(a.damage,"УДАР ГРАНДЗЕБОМОЙ");a.hit=true;}
+                        if(a.life<=0)asAttacks.splice(i,1);
+                    }
+                    continue;
+                }
                 if(a.kind==="mark"){
                     if(!a.burst){
                         a.timer=Math.max(0,a.timer-1);
@@ -782,7 +1101,9 @@
                 c.globalAlpha=Math.max(0,p.life/p.maxLife);c.fillStyle=p.color;c.beginPath();c.arc(p.x,p.y,Math.max(.1,p.size*p.life/p.maxLife),0,Math.PI*2);c.fill();
                 if(p.life<=0)asParticles.splice(i,1);
             }
+            asDrawDrillShots(c,now);
             c.globalAlpha=1;asDrawHeart(c);
+            asDrawChargeAura(c,now);
             c.globalAlpha=1;
         }
         // Floating text, effects, and existing character super visuals.
@@ -801,7 +1122,7 @@
             const joy=window._joystick;
             if(joy && joy.enabled && joy.active && (joy.enabled || joy.mobileDpadActive)) {
                 mx=Number(joy.vectorX)||0;
-            } else if(asPointer.down) {
+            } else if(asPointer.down && !asPointerChargeMode) {
                 if(asPointer.direction)mx=asPointer.direction;
                 else if(asPointer.x<asPlayer.x-7)mx=-1;
                 else if(asPointer.x>asPlayer.x+7)mx=1;
@@ -820,20 +1141,46 @@
             asPlayer.x+=mx*3.5+Math.max(-1.5,Math.min(1.5,pullX));
             const joyJump=!!(joy && joy.enabled && joy.active && (Number(joy.vectorY)||0)<-0.62);
             const jump=(asKeys.w||asKeys.arrowup||asKeys[" "]||joyJump)&&asPlayer.grounded;
-            if(jump){asPlayer.vy=-8.4;asPlayer.grounded=false;asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);}
+            if(jump){asPlayer.vy=-8.7;asPlayer.grounded=false;asPlayer.platformIndex=null;asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);}
+            const previousY=asPlayer.y;
             asPlayer.vy=Math.max(-8.7,Math.min(6.1,asPlayer.vy+0.31+asGravityPull+Math.max(-.45,Math.min(.65,pullY))));
             asPlayer.y+=asPlayer.vy;
             const bounds=asBounds();
             asPlayer.x=Math.max(bounds.left,Math.min(bounds.right,asPlayer.x));
-            if(asPlayer.y>=bounds.bottom){asPlayer.y=bounds.bottom;asPlayer.vy=0;asPlayer.grounded=true;}
-            if(asPlayer.y<bounds.top){asPlayer.y=bounds.top;asPlayer.vy=0;}
+            let landedOnPlatform=false;
+            if(asPlayer.vy>=0){
+                for(let pi=0;pi<asPlatforms.length;pi++){
+                    const p=asPlatforms[pi], px=asPlatformX(p,pi,now), leftEdge=px-p.w/2, rightEdge=px+p.w/2;
+                    if(previousY+asPlayer.size<=p.y+2 && asPlayer.y+asPlayer.size>=p.y &&
+                        asPlayer.x+asPlayer.size*.65>leftEdge && asPlayer.x-asPlayer.size*.65<rightEdge){
+                        asPlayer.y=p.y-asPlayer.size;asPlayer.vy=0;asPlayer.grounded=true;asPlayer.platformIndex=pi;landedOnPlatform=true;break;
+                    }
+                }
+            }
+            if(!landedOnPlatform && asPlayer.y>=bounds.bottom){
+                asPlayer.y=bounds.bottom;asPlayer.vy=0;asPlayer.grounded=true;asPlayer.platformIndex=-1;
+            }else if(!landedOnPlatform && asPlayer.vy!==0){
+                asPlayer.grounded=false;
+            }
+            if(asPlayer.y<bounds.top){asPlayer.y=bounds.top;asPlayer.vy=0;asPlayer.grounded=false;asPlayer.platformIndex=null;}
             // Phase escalation and arena pressure.
             const ratio=asBossHp/asBossMaxHp;
             asPhase=ratio<=.25?4:ratio<=.5?3:ratio<=.75?2:1;
+            if(asCharging){asChargeFrames=Math.min(150,asChargeFrames+1);asUpdateControls();}
+            if(asBossExposed>0)asBossExposed--;
+            if(asLabyrinthTimer>0)asLabyrinthTimer--;
             asPatternTimer++;
-            if(asPatternTimer>178){asPatternTimer=0;asPattern=(asPattern+1)%patterns.length;asAttacks=[];asText(200,100,patterns[asPattern],"#b8a2ff",46);asSound(260+asPattern*60,"sine",.18,.06);}
-            const attackCadence=[42,48,58,78,82,96][asPattern]||58;
-            if((asFrame%Math.max(27,attackCadence-asPhase*3))===0)asSpawnPattern(now);
+            const patternDuration = asPattern === 7 ? 250 : 178;
+            if(asPatternTimer>patternDuration){
+                asPatternTimer=0;asPattern=(asPattern+1)%patterns.length;asPatternSpawned=false;
+                asAttacks=[];asText(200,100,patterns[asPattern],"#b8a2ff",52);asSound(260+asPattern*60,"sine",.18,.06);
+            }
+            const attackCadence=[42,70,58,78,92,82,76,178][asPattern]||58;
+            if(asPattern===7){
+                if(!asPatternSpawned && (asFrame%Math.max(30,attackCadence-asPhase*2))===0)asSpawnPattern(now);
+            }else if((asFrame%Math.max(27,attackCadence-asPhase*3))===0){
+                asSpawnPattern(now);
+            }
             if(asPlayer.invuln>0)asPlayer.invuln--;
 
         }
@@ -844,10 +1191,11 @@
         if(Number(typeof wave!=="undefined"?wave:0)!==1500) return;
         if(typeof currentEnemy==="undefined"||!currentEnemy||currentEnemy.hp<=0) return;
         asActive=true;window.antiSpiralBossActive=true;asState="cinematic";asWinPending=false;asDefeatPending=false;
+        asInitPlatforms();asDrillShots=[];asChargeFrames=0;asCharging=false;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
         asCinematicStart=performance.now();asCinematicRedHeart={x:-25,y:410};asCinematicArenaProgress=0;
         asBossMaxHp=Math.max(40000,Math.floor((Number(window.playerFinalDamage)||80)*120));
         asBossHp=asBossMaxHp;asPlayerMaxHp=220;asPlayerHp=asPlayerMaxHp;
-        asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true};
+        asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asBoss={x:285,y:180,size:48,rotation:0,pulse:0,flash:0};
         asAttacks=[];asParticles=[];asTexts=[];asFrame=0;asPattern=0;asPatternTimer=0;
         asArenaWidth=396;asArenaHeight=438;asTargetWidth=396;asTargetHeight=438;asLastArenaShift=Date.now();
