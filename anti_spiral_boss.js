@@ -54,6 +54,7 @@
     let asFrame = 0;
     let asPattern = 0;
     let asPatternTimer = 0;
+    let asPatternDraining = false;
     let asLastArenaShift = 0;
     let asArenaWidth = 400;
     let asArenaHeight = 470;
@@ -521,7 +522,7 @@
         asPlayer.vx += g.x * 2.0; asPlayer.vy += g.y * 2.0;
         asPlayer.grounded = false; asPlayer.platformIndex = null;
         asBoss.flash = 0;
-        asAttacks = asAttacks.filter(function(a) { return a && a.kind === "gravityTell"; });
+        // Preserve current projectiles and beams when gravity changes; let each move finish naturally.
         asAttacks.push({ kind: "gravityTell", timer: 90, color: "#ff5adf", damage: asPhase >= 3 ? 24 : 18, phase: 0 });
         asText(200, 112, "ГРАВИТАЦИЯ: " + asGravityLabels[asGravityDirection], "#83f4ff", 90);
         asText(200, 135, "НАПРАВЛЕНИЕ СИЛЫ ТЯЖЕСТИ ИЗМЕНИЛОСЬ!", "#ff9df0", 80);
@@ -1992,10 +1993,25 @@
             if(canCharge&&asChargeFrames<150)asChargeFrames=Math.min(150,asChargeFrames+1);
             asCharging=canCharge&&asChargeFrames<150;asUpdateControls();
             if(asBossExposed>0)asBossExposed--;if(asLabyrinthTimer>0)asLabyrinthTimer--;
-            asPatternTimer++;const duration=asPattern===7?250:178;
-            if(asPatternTimer>duration){asPatternTimer=0;asPattern=(asPattern+1)%patterns.length;asPatternSpawned=false;asAttacks=asAttacks.filter(a=>a&&a.kind==="gravityTell");asText(200,100,patterns[asPattern],"#b8a2ff",52);asSound(260+asPattern*60,"sine",.18,.06);}
-            const cadence=[42,70,58,78,92,82,76,178][asPattern]||58;
-            if(asPattern===7){if(!asPatternSpawned)asSpawnPattern(now);}else if(asFrame%Math.max(27,cadence-asPhase*3)===0)asSpawnPattern(now);
+            // A pattern may stop spawning after its showcase window, but its attacks are never
+            // cleared just because a timer elapsed. Wait for beams, marks, wells and projectiles to finish.
+            if(!asPatternDraining){
+                asPatternTimer++;
+                const duration=asPattern===7?250:178;
+                if(asPatternTimer>duration)asPatternDraining=true;
+            }
+            if(asPatternDraining){
+                const attacksStillRunning=asAttacks.some(function(a){return !!a;});
+                if(!attacksStillRunning&&asLabyrinthTimer<=0&&!asUltimateActive){
+                    asPatternDraining=false;asPatternTimer=0;asPattern=(asPattern+1)%patterns.length;asPatternSpawned=false;
+                    asText(200,100,patterns[asPattern],"#b8a2ff",52);
+                    asSound(260+asPattern*60,"sine",.18,.06);
+                }
+            }else{
+                const cadence=[42,70,58,78,92,82,76,178,64][asPattern]||58;
+                if(asPattern===7){if(!asPatternSpawned)asSpawnPattern(now);}
+                else if(asFrame%Math.max(27,cadence-asPhase*3)===0)asSpawnPattern(now);
+            }
             if(asPlayer.invuln>0)asPlayer.invuln--;
             const near=Math.hypot(asPlayer.x-asBoss.x,asPlayer.y-(asBoss.y+43))<52;
             const j=window._joystick;
@@ -2016,7 +2032,7 @@
         asBossHp=asBossMaxHp;asPlayerMaxHp=220;asPlayerHp=asPlayerMaxHp;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asBoss={x:285,y:180,size:48,rotation:0,pulse:0,flash:0};
-        asAttacks=[];asParticles=[];asTexts=[];asFrame=0;asPattern=0;asPatternTimer=0;
+        asAttacks=[];asParticles=[];asTexts=[];asFrame=0;asPattern=0;asPatternTimer=0;asPatternDraining=false;
         asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;asLastArenaShift=Date.now();asGravityDirection=0;asGravityNextShiftAt=0;
         asShake=0;asFlash=0;asBossDamageFlash=0;asPhase=1;asLastShot=0;asGravityPull=.10;
         asKeys=Object.create(null);asPointer={down:false,x:0,y:0,id:null};
