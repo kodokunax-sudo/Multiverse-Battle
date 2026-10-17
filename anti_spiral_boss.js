@@ -122,7 +122,8 @@
         const frames = asChargeFrames;
         asCharging = false;
         asChargeFrames = 0;
-        if (asActive && asState === "fight" && frames >= 5) asShootDrill(frames);
+        if (asActive && asState === "fight") asShootDrill(Math.max(8, frames));
+        asUpdateControls();
     }
     function asShootDrill(frames) {
         const charge = Math.max(0.04, Math.min(1, frames / 150));
@@ -504,7 +505,7 @@
     function asBegin() {
         if(!asActive || asState==="fight") return;
         asState="fight"; asPatternTimer=0; asLastArenaShift=Date.now();
-        asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true};
+        asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asText(200,250,"ПОКАЖИ СВОЮ ВОЛЮ!","#7de1ff",90);
         asSound(420,"sine",0.35,0.12);
     }
