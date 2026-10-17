@@ -40,6 +40,24 @@
 
     const FETCH_TIMEOUT = 30000; // 30 секунд на ресурс
 
+    // On phones, keep only the tracks needed for normal play and Anti-Spiral
+    // as in-memory Blob URLs. Cache the remaining tracks on disk without keeping
+    // every full MP3/GIF decoded or referenced in JavaScript memory.
+    const LOW_MEMORY_MODE = (function() {
+        try {
+            var memory = Number(navigator.deviceMemory) || 0;
+            var mobileUA = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
+            var coarsePointer = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+            var smallScreen = Math.min(Number(screen.width) || 9999, Number(screen.height) || 9999) <= 900;
+            return (memory > 0 && memory <= 4) || mobileUA || (coarsePointer && smallScreen);
+        } catch (e) { return true; }
+    })();
+
+    function keepTrackInMemory(key) {
+        return !LOW_MEMORY_MODE || key === "main" || key === "battle" ||
+            key === "shop" || key === "antispiral";
+    }
+
     window.__loadedMusic = {};
     window.__loadedImages = {};
     window.__imageLoadFailed = {};
@@ -416,14 +434,20 @@
         // 1. Проверка кэша
         let cachedBlob = await getFromCache(path);
         if (cachedBlob) {
-            window.__loadedMusic[key] = {
-                blob: cachedBlob,
-                url: URL.createObjectURL(cachedBlob),
+            let keepInMemory = keepTrackInMemory(key);
+            let loadedEntry = {
                 path: path,
                 size: cachedBlob.size,
-                fromCache: true
+                fromCache: true,
+                cachedOnly: !keepInMemory
             };
-            addLog("✅ " + key + " (из кэша, " + Math.round(cachedBlob.size/1024) + " КБ)", "ok");
+            if (keepInMemory) {
+                loadedEntry.blob = cachedBlob;
+                loadedEntry.url = URL.createObjectURL(cachedBlob);
+            }
+            window.__loadedMusic[key] = loadedEntry;
+            addLog("✅ " + key + " (из кэша, " + Math.round(cachedBlob.size/1024) + " КБ" +
+                (keepInMemory ? "" : ", без хранения в памяти") + ")", "ok");
             return { key, success: true, fromCache: true };
         }
 
@@ -436,16 +460,22 @@
                 }
             });
 
-            window.__loadedMusic[key] = {
-                blob: blob,
-                url: URL.createObjectURL(blob),
+            await saveToCache(path, blob);
+            let keepInMemory = keepTrackInMemory(key);
+            let loadedEntry = {
                 path: path,
                 size: blob.size,
-                fromCache: false
+                fromCache: false,
+                cachedOnly: !keepInMemory
             };
+            if (keepInMemory) {
+                loadedEntry.blob = blob;
+                loadedEntry.url = URL.createObjectURL(blob);
+            }
+            window.__loadedMusic[key] = loadedEntry;
 
-            addLog("✅ " + key + " (" + Math.round(blob.size/1024) + " КБ)", "ok");
-            await saveToCache(path, blob);
+            addLog("✅ " + key + " (" + Math.round(blob.size/1024) + " КБ" +
+                (keepInMemory ? "" : ", сохранено без хранения в памяти") + ")", "ok");
             return { key, success: true, fromCache: false };
         } catch(e) {
             addLog("❌ " + key + " — " + e.message, "err");
@@ -474,6 +504,20 @@
         }
 
         try {
+            if (LOW_MEMORY_MODE) {
+                if (!fromCache) await saveToCache(path, blob);
+                window.__loadedImages[key] = {
+                    path: path,
+                    size: blob.size,
+                    fromCache: fromCache,
+                    cachedOnly: true,
+                    image: null,
+                    url: null
+                };
+                addLog("✅ " + key + " (" + Math.round(blob.size / 1024) + " КБ, кэш без декодирования)", "ok");
+                return { key: key, success: true, fromCache: fromCache };
+            }
+
             let objectUrl = URL.createObjectURL(blob);
             let image = new Image();
             await new Promise(function(resolve, reject) {
