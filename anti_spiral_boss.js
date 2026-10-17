@@ -1086,7 +1086,7 @@
         asPatternSpawned = false;
         asUltimateActive = false;
         asLastArenaShift = now;
-        asLastDamageAt = now;
+        asLastDamageAt = Date.now();
         if (success) {
             const bonusDamage = Math.max(1, Math.floor(asBossMaxHp * 0.10));
             asBossHp = Math.max(0, asBossHp - bonusDamage);
@@ -1670,9 +1670,9 @@
                 asSpawnPattern(now);
             }
             if(asPlayer.invuln>0)asPlayer.invuln--;
-            if (asState === "fight" && !asWinPending && !asDefeatPending && Date.now() >= asMiniCooldownUntil) {
+            if (asState === "fight" && !asWinPending && !asDefeatPending && now >= asMiniCooldownUntil) {
                 const nearBoss = Math.hypot(asPlayer.x - asBoss.x, asPlayer.y - (asBoss.y + 43)) < 74;
-                if (nearBoss) asStartBrokenReality(Date.now());
+                if (nearBoss) asStartBrokenReality(now);
             }
 
         }
