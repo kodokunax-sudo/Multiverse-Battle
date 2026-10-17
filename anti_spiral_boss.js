@@ -62,6 +62,8 @@
     let asGravityPull = 0.10;
     let asGravityDirection = 0; // 0 вниз, 1 влево, 2 вверх, 3 вправо
     let asGravityNextShiftAt = 0;
+    let asGravityTransitionUntil = 0;
+    let asBossApproachFrames = 0;
     const asGravityLabels = ["ВНИЗ", "ВЛЕВО", "ВВЕРХ", "ВПРАВО"];
     let asLastShot = 0;
     let asWinPending = false;
@@ -219,7 +221,7 @@
     }
     function asTryJump() {
         if (!asActive || asState !== "fight" || !asPlayer.grounded) return;
-        asPlayer.vy = -8.7;
+        asPlayer.vy = -5.8;
         asPlayer.grounded = false;
         asPlayer.platformIndex = null;
         asText(asPlayer.x, asPlayer.y - 20, "ПРЫЖОК!", "#68dcff", 28);
@@ -477,13 +479,23 @@
     function asShiftGravity(now) {
         asGravityDirection = (asGravityDirection + 1) % 4;
         asGravityNextShiftAt = now + 15000;
+        asGravityTransitionUntil = now + 1900;
+        asMiniCooldownUntil = Math.max(asMiniCooldownUntil, now + 3500);
+        asBossApproachFrames = 0;
         const bounds = asBounds();
-        asPlayer.x = 200;
-        asPlayer.y = Math.max(bounds.top + 24, bounds.bottom - 48);
-        asPlayer.vx = 0; asPlayer.vy = 2.4;
+        // Не телепортируем игрока: сила тяжести действительно меняет направление.
+        if (asGravityDirection === 0) {
+            asBoss.x = (bounds.left + bounds.right) / 2; asBoss.y = bounds.top + 32;
+        } else if (asGravityDirection === 1) {
+            asBoss.x = bounds.right - 28; asBoss.y = (bounds.top + bounds.bottom) / 2 - 43;
+        } else if (asGravityDirection === 2) {
+            asBoss.x = (bounds.left + bounds.right) / 2; asBoss.y = bounds.bottom - 125;
+        } else {
+            asBoss.x = bounds.left + 28; asBoss.y = (bounds.top + bounds.bottom) / 2 - 43;
+        }
+        const g = [{x:0,y:1},{x:-1,y:0},{x:0,y:-1},{x:1,y:0}][asGravityDirection];
+        asPlayer.vx += g.x * 2.0; asPlayer.vy += g.y * 2.0;
         asPlayer.grounded = false; asPlayer.platformIndex = null;
-        asBoss.x = 200;
-        asBoss.y = Math.max(bounds.top + 45, bounds.bottom - 158);
         asBoss.flash = 0;
         asAttacks = asAttacks.filter(function(a) { return a && a.kind === "gravityTell"; });
         asAttacks.push({ kind: "gravityTell", timer: 50, color: "#ff5adf", damage: asPhase >= 3 ? 24 : 18, phase: 0 });
@@ -1059,7 +1071,7 @@
         }
         if(t>=18.15){
             asState="fight";
-            asGravityDirection=0;asGravityNextShiftAt=now+15000;
+            asGravityDirection=0;asGravityNextShiftAt=now+15000;asGravityTransitionUntil=0;asBossApproachFrames=0;
             asBoss={x:200,y:100,size:48,rotation:0,pulse:0,flash:0};
             asArenaWidth=396;asArenaHeight=438;asTargetWidth=396;asTargetHeight=438;
             asInitPlatforms();asInitSeals();
@@ -1719,8 +1731,8 @@
             const joyJump=!!(joy && joy.enabled && joy.active && my < -0.62);
             const directionalJump=(asKeys.w||asKeys.arrowup||asKeys.a||asKeys.arrowleft||asKeys.s||asKeys.arrowdown||asKeys.d||asKeys.arrowright) && my < -0.72;
             const jump=(asKeys[" "]||directionalJump||joyJump)&&asPlayer.grounded;
-            if(jump){asPlayer.vy=-8.7;asPlayer.grounded=false;asPlayer.platformIndex=null;asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);}
-            asPlayer.vy=Math.max(-8.7,Math.min(8.4,asPlayer.vy+0.31+asGravityPull+Math.max(-.95,Math.min(1.25,pullY))));
+            if(jump){asPlayer.vy=-5.8;asPlayer.grounded=false;asPlayer.platformIndex=null;asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);}
+            asPlayer.vy=Math.max(-5.8,Math.min(6.2,asPlayer.vy+0.31+asGravityPull+Math.max(-.95,Math.min(1.25,pullY))));
             asPlayer.y+=asPlayer.vy;
             const bounds=asBounds();
             asPlayer.x=Math.max(bounds.left,Math.min(bounds.right,asPlayer.x));
@@ -1766,9 +1778,17 @@
                 asSpawnPattern(now);
             }
             if(asPlayer.invuln>0)asPlayer.invuln--;
-            if (asState === "fight" && !asWinPending && !asDefeatPending && now >= asMiniCooldownUntil) {
-                const nearBoss = Math.hypot(asPlayer.x - asBoss.x, asPlayer.y - (asBoss.y + 43)) < 74;
-                if (nearBoss) asStartBrokenReality(now);
+            if (asState === "fight" && !asWinPending && !asDefeatPending) {
+                const nearBoss = Math.hypot(asPlayer.x - asBoss.x, asPlayer.y - (asBoss.y + 43)) < 52;
+                const joyNow = window._joystick;
+                const deliberateInput = !!(asKeys.a || asKeys.d || asKeys.w || asKeys.s ||
+                    asKeys.arrowleft || asKeys.arrowright || asKeys.arrowup || asKeys.arrowdown || asKeys[" "] ||
+                    (joyNow && joyNow.enabled && joyNow.active &&
+                     (Math.abs(Number(joyNow.vectorX) || 0) > .12 || Math.abs(Number(joyNow.vectorY) || 0) > .12)) ||
+                    (asPointer.down && !asPointerChargeMode));
+                if (nearBoss && deliberateInput && now >= asMiniCooldownUntil && now >= asGravityTransitionUntil) asBossApproachFrames++;
+                else asBossApproachFrames = 0;
+                if (asBossApproachFrames >= 8) asStartBrokenReality(now);
             }
 
         }
