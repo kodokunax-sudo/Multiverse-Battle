@@ -581,6 +581,15 @@
         const x = (ev.clientX - rect.left) * 400 / rect.width;
         const y = (ev.clientY - rect.top) * 500 / rect.height;
         if (asState === "intro") { asBegin(); return; }
+        if (asState === "mini") {
+            asPointer.down = true;
+            asPointer.id = ev.pointerId;
+            asPointer.x = x;
+            asPointer.y = y;
+            asPointer.direction = 0;
+            if (c.setPointerCapture) { try { c.setPointerCapture(ev.pointerId); } catch(e) {} }
+            return;
+        }
         if (asState !== "fight") return;
         // Нажатие на босса запускает выстрел накопленной мощью.
         if (Math.hypot(x - asBoss.x, y - (asBoss.y + 36)) < asBoss.size * 1.75) {
@@ -1023,6 +1032,308 @@
             if(typeof updateSuperButton==="function")setTimeout(updateSuperButton,80);
         }
     }
+    function asStartBrokenReality(now) {
+        if (asState !== "fight" || now < asMiniCooldownUntil) return;
+        asMiniReturnPlayer = {
+            x: asPlayer.x, y: asPlayer.y, vx: asPlayer.vx, vy: asPlayer.vy,
+            grounded: asPlayer.grounded, platformIndex: asPlayer.platformIndex
+        };
+        asState = "mini";
+        asMiniStartedAt = now;
+        asMiniIntroUntil = now + 720;
+        asMiniNextGravityAt = now + 2050;
+        asMiniGravityIndex = 0;
+        asMiniCollected = 0;
+        asMiniCooldownUntil = now + 12000;
+        asMiniSpirals = [
+            { x: 73, y: 145, phase: 0, collected: false },
+            { x: 326, y: 158, phase: 1.1, collected: false },
+            { x: 76, y: 348, phase: 2.2, collected: false },
+            { x: 324, y: 350, phase: 3.3, collected: false },
+            { x: 200, y: 408, phase: 4.4, collected: false }
+        ];
+        asPlayer = { x: 200, y: 260, vx: 0, vy: 0, size: 12, invuln: 0, grounded: false, platformIndex: null };
+        asKeys = Object.create(null);
+        asPointer = { down: false, x: 200, y: 260, id: null, direction: 0 };
+        asPointerChargeMode = false;
+        asAttacks = [];
+        asParticles = [];
+        asUltimateActive = false;
+        asPatternSpawned = false;
+        asFlash = 25;
+        asFlashColor = "#09000f";
+        asShake = 3;
+        asSound(82, "sawtooth", 0.42, 0.12);
+    }
+    function asFinishBrokenReality(success, now) {
+        const saved = asMiniReturnPlayer || { x: 200, y: asFloor(), grounded: true, platformIndex: -1 };
+        asState = "fight";
+        asMiniCooldownUntil = now + (success ? 12000 : 15000);
+        asPlayer = {
+            x: Math.max(asBounds().left, Math.min(asBounds().right, saved.x)),
+            y: saved.y,
+            vx: 0,
+            vy: saved.grounded ? 0 : Math.max(-2, Math.min(2, saved.vy || 0)),
+            size: 12,
+            invuln: success ? 90 : 180,
+            grounded: !!saved.grounded,
+            platformIndex: saved.platformIndex
+        };
+        asMiniReturnPlayer = null;
+        asMiniSpirals = [];
+        asAttacks = [];
+        asPatternTimer = 0;
+        asPatternSpawned = false;
+        asUltimateActive = false;
+        asLastArenaShift = now;
+        asLastDamageAt = now;
+        if (success) {
+            const bonusDamage = Math.max(1, Math.floor(asBossMaxHp * 0.10));
+            asBossHp = Math.max(0, asBossHp - bonusDamage);
+            asBossDamageFlash = 28;
+            asReassemblyEffectUntil = now + 1200;
+            asFlash = 22;
+            asFlashColor = "#53eaff";
+            asShake = 15;
+            asText(200, 110, "ОБРАТНЫЙ УДАР! -" + bonusDamage + " HP", "#86ffff", 100);
+            asText(asBoss.x, asBoss.y + 88, "РЕАЛЬНОСТЬ РАЗОРВАНА", "#dfb9ff", 82);
+            asSound(690, "triangle", 0.55, 0.15);
+            for (let i = 0; i < 42; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const sp = 2 + Math.random() * 5;
+                asParticles.push({
+                    x: asBoss.x, y: asBoss.y + 40,
+                    vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    life: 38, maxLife: 38,
+                    color: i % 2 ? "#5cecff" : "#c47cff",
+                    size: 2 + Math.random() * 4
+                });
+            }
+            if (asBossHp <= 0) asWin();
+        } else {
+            asFlash = 12;
+            asFlashColor = "#4d76ff";
+            asText(200, 110, "РАЗЛОМ ЗАКРЫЛСЯ — ЗАЩИТА 3 СЕК.", "#83eaff", 100);
+            asSound(170, "sine", 0.35, 0.1);
+        }
+        asUpdateControls();
+    }
+    function asUpdateBrokenReality(now) {
+        const elapsed = now - asMiniIntroUntil;
+        if (now < asMiniIntroUntil) return;
+        if (now >= asMiniNextGravityAt) {
+            asMiniGravityIndex = (asMiniGravityIndex + 1) % 5;
+            asMiniNextGravityAt = now + 1350;
+            asSound(180 + asMiniGravityIndex * 55, "sine", 0.16, 0.055);
+        }
+        const leftKey = asKeys.a || asKeys.arrowleft;
+        const rightKey = asKeys.d || asKeys.arrowright;
+        const upKey = asKeys.w || asKeys.arrowup;
+        const downKey = asKeys.s || asKeys.arrowdown;
+        let mx = (rightKey ? 1 : 0) - (leftKey ? 1 : 0);
+        let my = (downKey ? 1 : 0) - (upKey ? 1 : 0);
+        const joy = window._joystick;
+        if (joy && joy.enabled && joy.active) {
+            mx = Number(joy.vectorX) || 0;
+            my = Number(joy.vectorY) || 0;
+        } else if (asPointer.down && !asPointerChargeMode) {
+            mx = Math.max(-1, Math.min(1, (asPointer.x - asPlayer.x) / 52));
+            my = Math.max(-1, Math.min(1, (asPointer.y - asPlayer.y) / 52));
+        }
+        let gx = 0, gy = 0;
+        if (asMiniGravityIndex === 0) gy = 0.23;
+        else if (asMiniGravityIndex === 1) gy = -0.23;
+        else if (asMiniGravityIndex === 2) gx = -0.23;
+        else if (asMiniGravityIndex === 3) gx = 0.23;
+        else {
+            gx = (200 - asPlayer.x) * 0.0016;
+            gy = (260 - asPlayer.y) * 0.0016;
+        }
+        asPlayer.vx = Math.max(-4.6, Math.min(4.6, (asPlayer.vx + mx * 0.43 + gx) * 0.965));
+        asPlayer.vy = Math.max(-4.6, Math.min(4.6, (asPlayer.vy + my * 0.43 + gy) * 0.965));
+        asPlayer.x += asPlayer.vx;
+        asPlayer.y += asPlayer.vy;
+        const progress = Math.max(0, Math.min(1, elapsed / 15500));
+        const bounds = {
+            left: 34 + progress * 34,
+            right: 366 - progress * 34,
+            top: 91 + progress * 39,
+            bottom: 466 - progress * 43
+        };
+        if (asPlayer.x < bounds.left + 11) { asPlayer.x = bounds.left + 11; asPlayer.vx = Math.abs(asPlayer.vx) * 0.42; }
+        if (asPlayer.x > bounds.right - 11) { asPlayer.x = bounds.right - 11; asPlayer.vx = -Math.abs(asPlayer.vx) * 0.42; }
+        if (asPlayer.y < bounds.top + 11) { asPlayer.y = bounds.top + 11; asPlayer.vy = Math.abs(asPlayer.vy) * 0.42; }
+        if (asPlayer.y > bounds.bottom - 11) { asPlayer.y = bounds.bottom - 11; asPlayer.vy = -Math.abs(asPlayer.vy) * 0.42; }
+        for (let i = 0; i < asMiniSpirals.length; i++) {
+            const spiral = asMiniSpirals[i];
+            if (spiral.collected) continue;
+            spiral.phase += 0.045;
+            if (Math.hypot(asPlayer.x - spiral.x, asPlayer.y - spiral.y) < 23) {
+                spiral.collected = true;
+                asMiniCollected++;
+                for (let p = 0; p < 12; p++) {
+                    const a = p * Math.PI / 6;
+                    asParticles.push({
+                        x: spiral.x, y: spiral.y,
+                        vx: Math.cos(a) * (1.5 + Math.random() * 2.3),
+                        vy: Math.sin(a) * (1.5 + Math.random() * 2.3),
+                        life: 22, maxLife: 22,
+                        color: p % 2 ? "#5deaff" : "#d6a0ff",
+                        size: 2 + Math.random() * 2
+                    });
+                }
+                asFlash = 3;
+                asFlashColor = "#62eaff";
+                asSound(380 + asMiniCollected * 65, "sine", 0.12, 0.07);
+            }
+        }
+        if (asMiniCollected >= 5) {
+            asFinishBrokenReality(true, now);
+            return;
+        }
+        if (elapsed >= 15500) asFinishBrokenReality(false, now);
+    }
+    function asDrawBrokenReality(c, now) {
+        const elapsed = Math.max(0, now - asMiniIntroUntil);
+        const progress = Math.max(0, Math.min(1, elapsed / 15500));
+        const left = 34 + progress * 34;
+        const right = 366 - progress * 34;
+        const top = 91 + progress * 39;
+        const bottom = 466 - progress * 43;
+        c.save();
+        c.fillStyle = "rgba(2,0,12,.97)";
+        c.fillRect(0, 0, 400, 500);
+        const glow = c.createRadialGradient(200, 260, 5, 200, 260, 265);
+        glow.addColorStop(0, "rgba(82,35,145,.58)");
+        glow.addColorStop(0.6, "rgba(28,12,55,.62)");
+        glow.addColorStop(1, "rgba(0,0,0,.98)");
+        c.fillStyle = glow;
+        c.fillRect(0, 0, 400, 500);
+        for (let i = 0; i < 34; i++) {
+            const a = i * Math.PI * 2 / 34 + now * 0.00035;
+            const r = 35 + ((i * 37 + now * 0.026) % 210);
+            c.globalAlpha = 0.25 + Math.abs(Math.sin(now * 0.002 + i)) * 0.35;
+            c.strokeStyle = i % 2 ? "#af69ff" : "#4beaff";
+            c.lineWidth = i % 5 === 0 ? 1.8 : 0.8;
+            c.beginPath();
+            c.moveTo(200 + Math.cos(a) * r, 260 + Math.sin(a) * r);
+            c.lineTo(200 + Math.cos(a) * (r + 8), 260 + Math.sin(a) * (r + 8));
+            c.stroke();
+        }
+        c.globalAlpha = 1;
+        c.strokeStyle = "#d9a5ff";
+        c.shadowColor = "#994cff";
+        c.shadowBlur = 24;
+        c.lineWidth = 4;
+        c.strokeRect(left, top, right - left, bottom - top);
+        c.strokeStyle = "rgba(93,237,255,.75)";
+        c.lineWidth = 1.2;
+        c.strokeRect(left + 6, top + 6, right - left - 12, bottom - top - 12);
+        c.shadowBlur = 0;
+        for (let i = 0; i < asMiniSpirals.length; i++) {
+            const spiral = asMiniSpirals[i];
+            if (spiral.collected) continue;
+            const pulse = 1 + Math.sin(now * 0.006 + spiral.phase) * 0.13;
+            c.save();
+            c.translate(spiral.x, spiral.y);
+            c.rotate(now * 0.0015 + spiral.phase);
+            c.globalAlpha = 0.8 + Math.sin(now * 0.008 + spiral.phase) * 0.18;
+            c.strokeStyle = "#9af8ff";
+            c.shadowColor = "#61eaff";
+            c.shadowBlur = 17;
+            c.lineWidth = 2.5;
+            c.beginPath();
+            c.arc(0, 0, 12 * pulse, 0, Math.PI * 1.72);
+            c.stroke();
+            c.strokeStyle = "#d0a2ff";
+            c.beginPath();
+            c.arc(0, 0, 19 * pulse, Math.PI * 0.3, Math.PI * 1.82);
+            c.stroke();
+            c.restore();
+        }
+        for (let i = asParticles.length - 1; i >= 0; i--) {
+            const p = asParticles[i];
+            p.x += p.vx; p.y += p.vy;
+            p.vx *= 0.96; p.vy *= 0.96; p.life--;
+            c.globalAlpha = Math.max(0, p.life / p.maxLife);
+            c.fillStyle = p.color;
+            c.fillRect(p.x, p.y, Math.max(1, p.size * p.life / p.maxLife), Math.max(1, p.size * p.life / p.maxLife));
+            if (p.life <= 0) asParticles.splice(i, 1);
+        }
+        c.globalAlpha = 1;
+        c.save();
+        c.translate(asPlayer.x, asPlayer.y);
+        c.shadowColor = "#31dcff";
+        c.shadowBlur = 25;
+        c.fillStyle = "#36dfff";
+        c.beginPath();
+        c.moveTo(0, 7);
+        c.bezierCurveTo(-4, 4, -12, -3, -10, -9);
+        c.bezierCurveTo(-8, -16, -2, -14, 0, -7);
+        c.bezierCurveTo(3, -15, 11, -15, 11, -7);
+        c.bezierCurveTo(11, -2, 4, 4, 0, 7);
+        c.fill();
+        c.strokeStyle = "#e8ffff";
+        c.lineWidth = 1;
+        c.stroke();
+        c.restore();
+        c.save();
+        c.globalAlpha = 0.48 + Math.sin(now * 0.012) * 0.22;
+        c.strokeStyle = "#c58aff";
+        c.shadowColor = "#a54dff";
+        c.shadowBlur = 25;
+        c.lineWidth = 2.3;
+        c.beginPath();
+        c.ellipse(asPlayer.x, asPlayer.y, 22 + Math.sin(now * 0.009) * 4, 17 + Math.sin(now * 0.008) * 3, now * 0.001, 0, Math.PI * 2);
+        c.stroke();
+        c.restore();
+        c.shadowBlur = 0;
+        c.globalAlpha = 1;
+        c.fillStyle = "#f5eaff";
+        c.textAlign = "center";
+        c.font = "bold 17px monospace";
+        c.fillText("СЛОМАННАЯ РЕАЛЬНОСТЬ", 200, 35);
+        c.font = "bold 12px monospace";
+        if (now < asMiniIntroUntil) {
+            c.fillStyle = "#75eaff";
+            c.fillText("ВРЕМЯ ОСТАНОВИЛОСЬ...", 200, 65);
+        } else {
+            const gravityLabels = ["ВНИЗ", "ВВЕРХ", "ВЛЕВО", "ВПРАВО", "К ЦЕНТРУ"];
+            c.fillStyle = "#d8c4ff";
+            c.fillText("ГРАВИТАЦИЯ: " + gravityLabels[asMiniGravityIndex], 200, 64);
+            c.fillStyle = "#8df5ff";
+            c.fillText("СОБРАНО: " + asMiniCollected + "/5", 200, 82);
+            c.fillStyle = "#ffffff";
+            c.font = "bold 11px monospace";
+            c.fillText("ОСТАЛОСЬ: " + Math.max(0, (15.5 - elapsed / 1000)).toFixed(1) + "с", 200, 98);
+        }
+        c.fillStyle = "rgba(0,0,0,.72)";
+        c.fillRect(42, 473, 316, 18);
+        c.fillStyle = "#b9eaff";
+        c.font = "10px monospace";
+        c.fillText("WASD / СТРЕЛКИ / ДЖОЙСТИК — ДВИЖЕНИЕ", 200, 485);
+        c.restore();
+    }
+    function asDrawReassemblyEffect(c, now) {
+        if (now >= asReassemblyEffectUntil) return;
+        const progress = 1 - Math.max(0, asReassemblyEffectUntil - now) / 1200;
+        c.save();
+        c.globalAlpha = Math.max(0, 1 - progress * 0.65);
+        for (let i = 0; i < 34; i++) {
+            const angle = i * Math.PI * 2 / 34 + i * 0.37;
+            const radius = 18 + (i % 6) * 7;
+            const sx = asBoss.x + Math.cos(angle) * radius;
+            const sy = asBoss.y + 43 + Math.sin(angle) * radius;
+            const x = sx + (asPlayer.x - sx) * progress;
+            const y = sy + (asPlayer.y - sy) * progress;
+            c.fillStyle = i % 3 === 0 ? "#d8a4ff" : i % 3 === 1 ? "#5deaff" : "#ffffff";
+            c.shadowColor = c.fillStyle;
+            c.shadowBlur = 9;
+            const size = 2 + (i % 4);
+            c.fillRect(x, y, size, size);
+        }
+        c.restore();
+    }
     function asRender(now) {
         if(!asActive) return;
         const c=asCtx(); if(!c){asAnimFrame=requestAnimationFrame(asRender);return;}
@@ -1050,6 +1361,13 @@
             asAnimFrame=requestAnimationFrame(asRender);
             return;
         }
+        if (asState === "mini") {
+            asDrawBrokenReality(c, now);
+            c.restore();
+            asUpdateBrokenReality(now);
+            asAnimFrame = requestAnimationFrame(asRender);
+            return;
+        }
         const b=asBounds();c.save();c.translate((Math.random()-.5)*asShake,(Math.random()-.5)*asShake);
         const arenaLeft=(400-asArenaWidth)/2;
         c.fillStyle="rgba(0,0,0,.76)";c.fillRect(0,50,arenaLeft,450);c.fillRect(arenaLeft+asArenaWidth,50,400-(arenaLeft+asArenaWidth),450);
@@ -1074,6 +1392,7 @@
             c.fillStyle=asBossExposed>0?"#92ffff":"#d8ceff";c.textAlign="center";c.font="bold 11px monospace";
             c.fillText(asBossExposed>0?"ЯДРО ОТКРЫТО! "+Math.ceil(asBossExposed/60)+"с":patterns[asPattern],200,77);
             asDrawBoss(c,now);
+            asDrawReassemblyEffect(c,now);
             // The pull is visual as well as physical.
             c.save();c.globalAlpha=.12+.05*Math.sin(now/180);c.strokeStyle="#50cfff";c.lineWidth=1;
             for(let i=0;i<5;i++){c.beginPath();c.arc(asBoss.x,asBoss.y,asBoss.size+18+i*19,0,Math.PI*2);c.stroke();}c.restore();
@@ -1299,6 +1618,7 @@
                     pullY+=dy/dist*.62*force;
                 }
             }
+            const previousX = asPlayer.x;
             asPlayer.x+=mx*3.5+Math.max(-1.5,Math.min(1.5,pullX));
             const joyJump=!!(joy && joy.enabled && joy.active && (Number(joy.vectorY)||0)<-0.62);
             const jump=(asKeys.w||asKeys.arrowup||asKeys[" "]||joyJump)&&asPlayer.grounded;
@@ -1308,9 +1628,12 @@
             asPlayer.y+=asPlayer.vy;
             const bounds=asBounds();
             asPlayer.x=Math.max(bounds.left,Math.min(bounds.right,asPlayer.x));
+            asApplyLaserBarriers(previousX, previousY, bounds);
+            asPlayer.x=Math.max(bounds.left,Math.min(bounds.right,asPlayer.x));
             let landedOnPlatform=false;
             if(asPlayer.vy>=0){
                 for(let pi=0;pi<asPlatforms.length;pi++){
+                    if (!asPlatformIsVisible(pi, now) && pi !== asSafePlatformIndex()) continue;
                     const p=asPlatforms[pi], px=asPlatformX(p,pi,now), leftEdge=px-p.w/2, rightEdge=px+p.w/2;
                     if(previousY+asPlayer.size<=p.y+2 && asPlayer.y+asPlayer.size>=p.y &&
                         asPlayer.x+asPlayer.size*.65>leftEdge && asPlayer.x-asPlayer.size*.65<rightEdge){
@@ -1347,6 +1670,10 @@
                 asSpawnPattern(now);
             }
             if(asPlayer.invuln>0)asPlayer.invuln--;
+            if (asState === "fight" && !asWinPending && !asDefeatPending && Date.now() >= asMiniCooldownUntil) {
+                const nearBoss = Math.hypot(asPlayer.x - asBoss.x, asPlayer.y - (asBoss.y + 43)) < 74;
+                if (nearBoss) asStartBrokenReality(Date.now());
+            }
 
         }
         asAnimFrame=requestAnimationFrame(asRender);
@@ -1356,7 +1683,7 @@
         if(Number(typeof wave!=="undefined"?wave:0)!==1500) return;
         if(typeof currentEnemy==="undefined"||!currentEnemy||currentEnemy.hp<=0) return;
         asActive=true;window.antiSpiralBossActive=true;asState="cinematic";asWinPending=false;asDefeatPending=false;
-        asInitPlatforms();asInitSeals();asDrillShots=[];asChargeFrames=0;asCharging=false;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
+        asInitPlatforms();asInitSeals();asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=Date.now();asNextShotAt=0;asMiniCooldownUntil=0;asMiniReturnPlayer=null;asMiniSpirals=[];asReassemblyEffectUntil=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
         asCinematicStart=performance.now();asCinematicRedHeart={x:-25,y:410};asCinematicArenaProgress=0;
         asBossMaxHp=Math.max(40000,Math.floor((Number(window.playerFinalDamage)||80)*120));
         asBossHp=asBossMaxHp;asPlayerMaxHp=220;asPlayerHp=asPlayerMaxHp;
