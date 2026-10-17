@@ -34,6 +34,8 @@
     let asUltimateActive = false;
     let asPatternSpawned = false;
     let asControls = null;
+    let asHintElement = null;
+    let asOriginalHint = "";
     let asShake = 0;
     let asFlash = 0;
     let asFlashColor = "#ffffff";
@@ -189,6 +191,18 @@
         if (!c || !c.parentNode) return;
         const old = document.getElementById("antiSpiralControls");
         if (old) old.remove();
+        const overlay = document.getElementById("arenaOverlay");
+        if (overlay) {
+            const hintNodes = overlay.querySelectorAll("div");
+            for (let hi = 0; hi < hintNodes.length; hi++) {
+                if (hintNodes[hi].children.length === 0 && hintNodes[hi].textContent.indexOf("WASD — уклоняться") >= 0) {
+                    asHintElement = hintNodes[hi];
+                    asOriginalHint = hintNodes[hi].textContent;
+                    asHintElement.textContent = "⌨️ WASD / ← → — движение · Z — заряд спирального бура";
+                    break;
+                }
+            }
+        }
         const row = document.createElement("div");
         row.id = "antiSpiralControls";
         row.style.cssText = "display:flex;gap:9px;justify-content:center;align-items:stretch;flex-wrap:wrap;width:min(400px,calc(100vw - 24px));margin:7px auto 4px;z-index:5;font-family:Arial,sans-serif;";
@@ -549,6 +563,7 @@
         asCharging=false; asChargeFrames=0; asPointerChargeMode=false; asDrillShots=[];
         if(asControls && asControls.row && asControls.row.parentNode) asControls.row.parentNode.removeChild(asControls.row);
         asControls=null;
+        if(asHintElement){asHintElement.textContent=asOriginalHint;asHintElement=null;asOriginalHint="";}
         if(typeof resetAllSupers==="function"){try{resetAllSupers();}catch(e){}}
         window._uniqueSuperBossId=null;
         const overlay=document.getElementById("arenaOverlay");
@@ -1178,7 +1193,7 @@
             }
             const attackCadence=[42,70,58,78,92,82,76,178][asPattern]||58;
             if(asPattern===7){
-                if(!asPatternSpawned && (asFrame%Math.max(30,attackCadence-asPhase*2))===0)asSpawnPattern(now);
+                if(!asPatternSpawned)asSpawnPattern(now);
             }else if((asFrame%Math.max(27,attackCadence-asPhase*3))===0){
                 asSpawnPattern(now);
             }
