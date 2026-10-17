@@ -66,6 +66,8 @@
     let asBossApproachFrames = 0;
     const asGravityLabels = ["ВНИЗ", "ВЛЕВО", "ВВЕРХ", "ВПРАВО"];
     let asLastShot = 0;
+    let asLastAttackSoundAt = 0;
+    let asCinematicMusicTimer = null;
     let asWinPending = false;
     let asDefeatPending = false;
     let asBossDamageFlash = 0;
@@ -486,6 +488,15 @@
     }
     function asAddAttack(x, y, vx, vy, size, color, damage, kind) {
         asAttacks.push({x:x,y:y,vx:vx,vy:vy,spd:vx,spdY:vy,size:size||14,color:color||"#3abfff",damage:damage||12,kind:kind||"orb",life:250,phase:Math.random()*6});
+        // Short, distinct launch sounds; throttle volleys so simultaneous spheres do not become deafening.
+        const soundNow=Date.now();
+        if(soundNow-asLastAttackSoundAt>85){
+            asLastAttackSoundAt=soundNow;
+            if(kind==="spiral")asSound(330+Math.random()*100,"triangle",.11,.035);
+            else if(kind==="fall")asSound(175,"sawtooth",.16,.045);
+            else if(kind==="orb")asSound(470+Math.random()*100,"sine",.10,.035);
+            else asSound(260,"triangle",.11,.035);
+        }
     }
     function asShiftGravity(now) {
         asGravityDirection = (asGravityDirection + 1) % 4;
@@ -870,12 +881,12 @@
         c.stroke();
         c.restore();
     }
-    function asDrawAntiSpiralFigure(c, x, y, scale, now, opacity) {
+    function asDrawAntiSpiralFigure(c, x, y, scale, now, opacity, enhancedFightBody) {
         const bob=Math.sin(now/360)*2.2;
         c.save(); c.translate(x,y+bob); c.scale(scale,scale); c.globalAlpha=opacity===undefined?1:opacity;
-        c.shadowColor="#a855ff"; c.shadowBlur=16;
-        // Long, unnaturally thin limbs and a narrow torso form one black silhouette.
-        c.fillStyle="#030207"; c.strokeStyle="#eeeaff"; c.lineWidth=1.6;
+        c.shadowColor=enhancedFightBody?"#873bff":"#a855ff"; c.shadowBlur=enhancedFightBody?28:16;
+        // Fight-only outline makes the complete silhouette visible without altering the cinematic rendering.
+        c.fillStyle=enhancedFightBody?"#0b071b":"#030207"; c.strokeStyle=enhancedFightBody?"#c9adff":"#eeeaff"; c.lineWidth=enhancedFightBody?2.5:1.6;
         c.lineJoin="round"; c.lineCap="round";
         // Back tendril / cape shadow.
         c.beginPath(); c.moveTo(-13,-25);c.lineTo(-31,-3);c.lineTo(-40,29);c.lineTo(-29,18);c.lineTo(-22,4);c.lineTo(-16,23);c.closePath();c.fill();
@@ -934,7 +945,7 @@
         c.save();
         c.translate(asBoss.x, asBoss.y + 43);
         c.rotate(asGravityDirection * Math.PI / 2);
-        asDrawAntiSpiralFigure(c, 0, 0, 0.78 * (asBoss.size / 48), now, 1);
+        asDrawAntiSpiralFigure(c, 0, 0, 0.78 * (asBoss.size / 48), now, 1, true);
         c.restore();
     }
     function asDrawRedHeart(c,x,y,now,shot) {
@@ -1042,8 +1053,10 @@
         asPattern=0;asPatternTimer=0;asLastArenaShift=now;
         asCreateControls();
         asText(200,250,skipped?"КАТСЦЕНА ПРОПУЩЕНА — БОЙ!":"ТЕБЕ КОНЕЦ!","#74e4ff",85);
-        if(skipped){startASMusic();}
-        else{setTimeout(function(){if(asActive&&asState==="fight")startASMusic();},2000);}
+        if(skipped){
+            if(asCinematicMusicTimer!==null){clearTimeout(asCinematicMusicTimer);asCinematicMusicTimer=null;}
+            startASMusic();
+        }
         asSound(150,"sawtooth",.45,.14);
         if(typeof updateSuperButton==="function")setTimeout(updateSuperButton,80);
     }
@@ -1612,14 +1625,14 @@
                         c.fillText("АТАКА ЧЕРЕЗ "+Math.max(1,Math.ceil(a.timer/60))+"...",200,textY+16);
                         c.restore();continue;
                     }
-                    const wb=asBounds(), count=7;
+                    const wb=asBounds(), count=4;
                     for(let gi=0;gi<count;gi++){
                         const t=gi/(count-1);
                         let x,y,vx,vy;
-                        if(asGravityDirection===0){x=wb.left+22+(wb.right-wb.left-44)*t;y=wb.bottom-13;vx=(gi-3)*.67;vy=-3.5-Math.random()*.7;}
-                        else if(asGravityDirection===1){x=wb.left+13;y=wb.top+22+(wb.bottom-wb.top-44)*t;vx=3.5+Math.random()*.7;vy=(gi-3)*.67;}
-                        else if(asGravityDirection===2){x=wb.left+22+(wb.right-wb.left-44)*t;y=wb.top+13;vx=(gi-3)*.67;vy=3.5+Math.random()*.7;}
-                        else{x=wb.right-13;y=wb.top+22+(wb.bottom-wb.top-44)*t;vx=-3.5-Math.random()*.7;vy=(gi-3)*.67;}
+                        if(asGravityDirection===0){x=wb.left+22+(wb.right-wb.left-44)*t;y=wb.bottom-13;vx=(gi-(count-1)/2)*1.05;vy=-3.5-Math.random()*.7;}
+                        else if(asGravityDirection===1){x=wb.left+13;y=wb.top+22+(wb.bottom-wb.top-44)*t;vx=3.5+Math.random()*.7;vy=(gi-(count-1)/2)*1.05;}
+                        else if(asGravityDirection===2){x=wb.left+22+(wb.right-wb.left-44)*t;y=wb.top+13;vx=(gi-(count-1)/2)*1.05;vy=3.5+Math.random()*.7;}
+                        else{x=wb.right-13;y=wb.top+22+(wb.bottom-wb.top-44)*t;vx=-3.5-Math.random()*.7;vy=(gi-(count-1)/2)*1.05;}
                         asAddAttack(x,y,vx,vy,11,gi%2?"#ff60d9":"#6deaff",a.damage,"orb");
                     }
                     asShake=Math.max(asShake,9);asSound(105,"sawtooth",.24,.1);asAttacks.splice(i,1);continue;
@@ -1840,8 +1853,11 @@
                 asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
             }
             // Гравитация действует по реальному вектору, а не поворотом всей сцены.
-            asPlayer.vx=Math.max(-6.2,Math.min(6.2,(asPlayer.vx+mx*.43+gravity.x*.32+pullX)*.91));
-            asPlayer.vy=Math.max(-6.2,Math.min(6.2,(asPlayer.vy+my*.43+gravity.y*.32+pullY)*.91));
+            // Steering only affects the surface tangent; up/down cannot provide endless thrust against gravity.
+            const tangentX=-gravity.y,tangentY=gravity.x;
+            const tangentInput=mx*tangentX+my*tangentY;
+            asPlayer.vx=Math.max(-6.2,Math.min(6.2,(asPlayer.vx+tangentX*tangentInput*.43+gravity.x*.32+pullX)*.91));
+            asPlayer.vy=Math.max(-6.2,Math.min(6.2,(asPlayer.vy+tangentY*tangentInput*.43+gravity.y*.32+pullY)*.91));
             const px=asPlayer.x,py=asPlayer.y,r=asPlayer.size;
             asPlayer.x+=asPlayer.vx;asPlayer.y+=asPlayer.vy;
             const bounds=asBounds();let boundaryGrounded=false;
@@ -1901,7 +1917,13 @@
         if(typeof waystarActive!=="undefined")waystarActive=false;
         window.rwbActive=false;
         ["superBtn","superBtn2","superBtnDeactivate","startArenaBtn","startLivingStoneBtn","startWaystarBtn","startRogerWB","startAntiSpiralBossBtn","skipBossBtn","spareBtn"].forEach(function(id){const el=document.getElementById(id);if(el)el.style.display="none";});
+        if(asCinematicMusicTimer!==null){clearTimeout(asCinematicMusicTimer);asCinematicMusicTimer=null;}
+        stopASMusic();
         if(typeof stopAllMusic==="function")stopAllMusic();
+        asCinematicMusicTimer=setTimeout(function(){
+            asCinematicMusicTimer=null;
+            if(asActive&&asState==="cinematic")startASMusic();
+        },2000);
         try {
             if(typeof initSuperState==="function")initSuperState();
             window._uniqueSuperCharges=5;window._uniqueSuperBossId="antispiral";
