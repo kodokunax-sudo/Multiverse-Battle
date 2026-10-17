@@ -1248,7 +1248,7 @@
     }
     function asDrawBrokenReality(c, now) {
         const elapsed = Math.max(0, now - asMiniIntroUntil);
-        const progress = Math.max(0, Math.min(1, elapsed / 15500));
+        const progress = Math.max(0, Math.min(1, elapsed / 15000));
         const left = 34 + progress * 34;
         const right = 366 - progress * 34;
         const top = 91 + progress * 39;
