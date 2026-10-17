@@ -55,10 +55,10 @@
     let asPattern = 0;
     let asPatternTimer = 0;
     let asLastArenaShift = 0;
-    let asArenaWidth = 396;
-    let asArenaHeight = 438;
-    let asTargetWidth = 396;
-    let asTargetHeight = 438;
+    let asArenaWidth = 400;
+    let asArenaHeight = 470;
+    let asTargetWidth = 400;
+    let asTargetHeight = 470;
     let asGravityPull = 0.10;
     let asGravityDirection = 0; // 0 вниз, 1 влево, 2 вверх, 3 вправо
     let asGravityNextShiftAt = 0;
@@ -583,9 +583,9 @@
             // Сингулярность тянет сердце к центру и затем выбрасывает энергию.
             const wellX = asPlayer.x < 200 ? bounds.left + 74 : bounds.right - 74;
             const wellY = Math.max(bounds.top + 92, Math.min(floor - 100, asPlayer.y - 45));
-            asAttacks.push({ kind: "well", x: wellX, y: wellY, timer: 78, pullRadius: 205, radius: 76, color: "#bb67ff", damage: damage + 4, life: 0, burst: false, hit: false });
+            asAttacks.push({ kind: "well", x: wellX, y: wellY, warning: 78, warningMax: 78, timer: 88, pullRadius: 270, radius: 88, color: "#bb67ff", damage: damage + 4, life: 0, burst: false, hit: false });
             if (asPhase >= 3) {
-                asAttacks.push({ kind: "well", x: bounds.left + (bounds.right - bounds.left) * .5, y: wellY - 28, timer: 105, pullRadius: 150, radius: 62, color: "#46d7ff", damage: damage + 2, life: 0, burst: false, hit: false });
+                asAttacks.push({ kind: "well", x: bounds.left + (bounds.right - bounds.left) * .5, y: wellY - 28, warning: 96, warningMax: 96, timer: 100, pullRadius: 225, radius: 72, color: "#46d7ff", damage: damage + 2, life: 0, burst: false, hit: false });
             }
         } else if (asPattern === 6) {
             // Сдвиг вероятности: будущие позиции помечаются до того, как пространство взорвётся.
@@ -613,9 +613,9 @@
         if (!asLastArenaShift) asLastArenaShift = now;
         if (now - asLastArenaShift < 6200) return;
         asLastArenaShift = now;
-        const wide = asArenaWidth < 320;
-        asTargetWidth = wide ? 396 : 286;
-        asTargetHeight = wide ? 390 : 438;
+        const wide = asArenaWidth < 350;
+        asTargetWidth = wide ? 400 : 340;
+        asTargetHeight = wide ? 470 : 420;
         asText(200, 85, wide ? "ПРОСТРАНСТВО РАСШИРЯЕТСЯ" : "ГРАВИТАЦИЯ СЖИМАЕТ АРЕНУ", "#67d8ff", 70);
         asShake = 5;
         asSound(wide ? 100 : 160, "sawtooth", 0.3, 0.07);
@@ -1640,15 +1640,51 @@
                 }
                 if(a.kind==="well"){
                     if(!a.burst){
+                        if((a.warning||0)>0){
+                            a.warning--;
+                            const charge=1-a.warning/(a.warningMax||78);
+                            const pulse=1+Math.sin(asFrame*.32)*.12;
+                            c.save();c.translate(a.x,a.y);
+                            c.globalAlpha=.5+Math.abs(Math.sin(asFrame*.24))*.42;
+                            c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=24;c.lineWidth=2.2;
+                            for(let ring=0;ring<4;ring++){
+                                const radius=(a.radius*.48+ring*13+charge*17)*pulse;
+                                c.beginPath();c.ellipse(0,0,radius,radius*.56,asFrame*.025*(ring%2?1:-1),0,Math.PI*2);c.stroke();
+                            }
+                            c.setLineDash([5,5]);c.beginPath();c.arc(0,0,a.pullRadius*(.22+charge*.12),0,Math.PI*2);c.stroke();c.setLineDash([]);
+                            c.fillStyle="#05030c";c.beginPath();c.arc(0,0,8+charge*9,0,Math.PI*2);c.fill();
+                            for(let p=0;p<10;p++){
+                                const ang=p*Math.PI*2/10+asFrame*.04;
+                                const rr=a.radius*.72+Math.sin(asFrame*.13+p)*5;
+                                c.fillStyle=p%2?a.color:"#ffffff";c.beginPath();c.arc(Math.cos(ang)*rr,Math.sin(ang)*rr*.55,1.5+charge,0,Math.PI*2);c.fill();
+                            }
+                            c.restore();
+                            const warningBounds=asBounds();
+                            c.save();c.fillStyle="rgba(4,2,16,.88)";c.fillRect(62,warningBounds.top+12,276,34);
+                            c.strokeStyle=a.color;c.lineWidth=1.5;c.shadowColor=a.color;c.shadowBlur=12;c.strokeRect(62,warningBounds.top+12,276,34);
+                            c.fillStyle="#ffffff";c.font="bold 11px monospace";c.textAlign="center";
+                            c.fillText("⚠ ЧЁРНАЯ ДЫРА ЗАРЯЖАЕТСЯ",200,warningBounds.top+26);
+                            c.fillStyle=a.color;c.font="bold 10px monospace";
+                            c.fillText("ДО ВКЛЮЧЕНИЯ: "+Math.max(1,Math.ceil(a.warning/60))+"...",200,warningBounds.top+39);c.restore();
+                            if(a.warning<=0){asShake=Math.max(asShake,4);asFlash=Math.max(asFlash,4);asFlashColor=a.color;asSound(75,"sawtooth",.3,.09);}
+                            continue;
+                        }
                         a.timer=Math.max(0,a.timer-1);
                         const pulse=1+Math.sin(asFrame*.16)*.1;
-                        c.save();c.translate(a.x,a.y);c.globalAlpha=.78;c.shadowColor=a.color;c.shadowBlur=20;
+                        c.save();c.translate(a.x,a.y);
+                        const distortion=c.createRadialGradient(0,0,2,0,0,a.pullRadius*.56);
+                        distortion.addColorStop(0,"rgba(0,0,0,.98)");distortion.addColorStop(.32,"rgba(4,2,18,.8)");distortion.addColorStop(.68,a.color+"22");distortion.addColorStop(1,"rgba(0,0,0,0)");
+                        c.globalAlpha=.7;c.fillStyle=distortion;c.beginPath();c.arc(0,0,a.pullRadius*.56,0,Math.PI*2);c.fill();
+                        c.globalAlpha=.92;c.shadowColor=a.color;c.shadowBlur=32;
                         const glow=c.createRadialGradient(0,0,2,0,0,a.radius*1.4);
                         glow.addColorStop(0,"rgba(5,4,20,.96)");glow.addColorStop(.42,a.color);glow.addColorStop(1,"rgba(5,4,20,0)");
                         c.fillStyle=glow;c.beginPath();c.arc(0,0,a.radius*1.4,0,Math.PI*2);c.fill();
                         c.strokeStyle=a.color;c.lineWidth=1.5;
-                        for(let ring=0;ring<4;ring++){c.globalAlpha=.3+ring*.12;c.beginPath();c.ellipse(0,0,a.radius*pulse+ring*9,a.radius*.38+ring*4,asFrame*.012*(ring%2?1:-1),0,Math.PI*2);c.stroke();}
-                        c.globalAlpha=.9;c.strokeStyle="#e9e1ff";c.beginPath();c.arc(0,0,10+Math.sin(asFrame*.2)*3,0,Math.PI*2);c.stroke();
+                        for(let ring=0;ring<7;ring++){c.globalAlpha=.24+ring*.075;c.lineWidth=ring<2?2.4:1.3;c.beginPath();c.ellipse(0,0,a.radius*pulse+ring*10,a.radius*.38+ring*5,asFrame*.012*(ring%2?1:-1),0,Math.PI*2);c.stroke();}
+                        c.globalAlpha=.95;c.strokeStyle="#e9e1ff";c.lineWidth=2.4;c.beginPath();c.arc(0,0,12+Math.sin(asFrame*.2)*4,0,Math.PI*2);c.stroke();
+                        c.fillStyle="#000000";c.beginPath();c.arc(0,0,a.radius*.38,0,Math.PI*2);c.fill();
+                        c.strokeStyle="#ffffff";c.globalAlpha=.7;c.lineWidth=1;c.beginPath();c.arc(0,0,a.radius*.38+3,0,Math.PI*2);c.stroke();
+                        for(let p=0;p<18;p++){const ang=asFrame*.035+p*Math.PI*2/18,rr=a.radius*.55+Math.sin(asFrame*.08+p)*8;c.globalAlpha=.55+Math.abs(Math.sin(asFrame*.1+p))*.4;c.fillStyle=p%3===0?"#ffffff":a.color;c.beginPath();c.arc(Math.cos(ang)*rr,Math.sin(ang)*rr*.48,1.4+(p%3)*.45,0,Math.PI*2);c.fill();}
                         c.restore();
                         if(a.timer<=0){
                             a.burst=true;a.life=28;asShake=Math.max(asShake,8);
@@ -1750,9 +1786,9 @@
             const gravity=[{x:0,y:1},{x:-1,y:0},{x:0,y:-1},{x:1,y:0}][asGravityDirection];
             let pullX=0,pullY=0;
             for(let wi=0;wi<asAttacks.length;wi++){
-                const w=asAttacks[wi];if(!w||w.kind!=="well"||w.burst||w.timer<=0)continue;
+                const w=asAttacks[wi];if(!w||w.kind!=="well"||w.burst||w.timer<=0||(w.warning||0)>0)continue;
                 const dx=w.x-asPlayer.x,dy=w.y-asPlayer.y,dist=Math.max(1,Math.hypot(dx,dy));
-                if(dist<w.pullRadius){const f=1-dist/w.pullRadius;pullX+=dx/dist*.48*f;pullY+=dy/dist*.48*f;}
+                if(dist<w.pullRadius){const f=1-dist/w.pullRadius;pullX+=dx/dist*.72*f;pullY+=dy/dist*.72*f;}
             }
             const jumpDot=mx*(-gravity.x)+my*(-gravity.y);
             const joyJump=!!(joy&&joy.enabled&&joy.active&&((Number(joy.vectorX)||0)*(-gravity.x)+(Number(joy.vectorY)||0)*(-gravity.y)>.62));
@@ -1815,7 +1851,7 @@
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asBoss={x:285,y:180,size:48,rotation:0,pulse:0,flash:0};
         asAttacks=[];asParticles=[];asTexts=[];asFrame=0;asPattern=0;asPatternTimer=0;
-        asArenaWidth=396;asArenaHeight=438;asTargetWidth=396;asTargetHeight=438;asLastArenaShift=Date.now();asGravityDirection=0;asGravityNextShiftAt=0;
+        asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;asLastArenaShift=Date.now();asGravityDirection=0;asGravityNextShiftAt=0;
         asShake=0;asFlash=0;asBossDamageFlash=0;asPhase=1;asLastShot=0;asGravityPull=.10;
         asKeys=Object.create(null);asPointer={down:false,x:0,y:0,id:null};
         if(typeof arenaActive!=="undefined")arenaActive=false;
