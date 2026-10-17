@@ -10,6 +10,7 @@
     let asState = "idle";
     let asAnimFrame = null;
     let asMusic = null;
+    let asMusicSource = null;
     let asMusicFallbackTried = false;
     let asMusicFallbackSource = null;
     let asBossHp = 0;
@@ -95,40 +96,40 @@
         }
     }
     function startASMusic() {
-        if (typeof musicEnabled !== "undefined" && !musicEnabled) return;
+        // Как у остальных уникальных боссов: музыка босса запускается при нажатии
+        // кнопки боя независимо от musicEnabled (по умолчанию этот флаг false).
         try {
             if (typeof stopAllMusic === "function") stopAllMusic();
-            const loadedTrack = typeof window.getLoadedMusic === "function"
-                ? window.getLoadedMusic("antispiral")
-                : null;
-            // Use the regular asset path first, like the other unique bosses. If it
-            // fails to load/decode, retry the preloaded Blob URL from the music loader.
-            asMusicFallbackSource = loadedTrack && loadedTrack.url ? loadedTrack.url : null;
-            if (!asMusic) {
-                asMusicFallbackTried = false;
-                asMusic = new Audio("music/анти спираль.mp3");
+
+            let source = "music/анти спираль.mp3";
+            if (typeof window.getLoadedMusic === "function") {
+                const loaded = window.getLoadedMusic("antispiral");
+                if (loaded && loaded.url) source = loaded.url;
+            }
+
+            if (!asMusic || asMusicSource !== source) {
+                try { if (asMusic) { asMusic.pause(); asMusic.src = ""; } } catch (e) {}
+                asMusic = new Audio(source);
+                asMusicSource = source;
                 asMusic.loop = true;
-                asMusic.volume = 0.42;
+                asMusic.volume = 0.45;
                 asMusic.preload = "auto";
                 asMusic.onerror = function() {
-                    if (!asFallbackMusicSource()) {
-                        console.warn("[ANTI-SPIRAL] Не удалось загрузить music/анти спираль.mp3.");
-                    }
+                    console.warn("[ANTI-SPIRAL] Не удалось загрузить музыку:", source);
                 };
             }
+
             asMusic.muted = false;
-            asMusic.volume = 0.42;
+            asMusic.volume = 0.45;
             asMusic.currentTime = 0;
-            const playRequest = asMusic.play();
-            if (playRequest && typeof playRequest.catch === "function") {
-                playRequest.catch(function(err) {
-                    if (!asFallbackMusicSource() && err && err.name !== "NotAllowedError") {
-                        console.warn("[ANTI-SPIRAL] Не удалось воспроизвести музыку босса.", err);
-                    }
+            const request = asMusic.play();
+            if (request && typeof request.catch === "function") {
+                request.catch(function(err) {
+                    console.warn("[ANTI-SPIRAL] Браузер не запустил музыку:", err);
                 });
             }
-        } catch(e) {
-            console.warn("[ANTI-SPIRAL] Не удалось запустить музыку босса.", e);
+        } catch (err) {
+            console.warn("[ANTI-SPIRAL] Ошибка запуска музыки:", err);
         }
     }
     function stopASMusic() {
