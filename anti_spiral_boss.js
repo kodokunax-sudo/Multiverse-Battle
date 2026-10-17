@@ -1599,6 +1599,17 @@
                     }
                     asShake=Math.max(asShake,9);asSound(105,"sawtooth",.24,.1);asAttacks.splice(i,1);continue;
                 }
+                if(a.kind==="fall" && typeof a.warning==="number" && a.warning>0){
+                    a.warning--;
+                    const wb=asBounds();
+                    c.save();c.globalAlpha=.42+Math.abs(Math.sin(asFrame*.42))*.48;
+                    c.strokeStyle="#ff68d9";c.shadowColor="#ff46c8";c.shadowBlur=16;c.lineWidth=2;
+                    c.setLineDash([6,6]);c.beginPath();c.moveTo(a.x,wb.top+7);c.lineTo(a.x,wb.bottom-7);c.stroke();c.setLineDash([]);
+                    c.fillStyle="#ffffff";c.font="bold 9px monospace";c.textAlign="center";
+                    c.fillText("ОПАСНОСТЬ",a.x,wb.top+21);
+                    c.fillStyle="#ff9de9";c.fillText("УДАР ЧЕРЕЗ "+Math.max(1,Math.ceil(a.warning/60))+"...",a.x,wb.top+33);
+                    c.restore();continue;
+                }
                 if(a.kind==="mark"){
                     if(!a.burst){
                         a.timer=Math.max(0,a.timer-1);
