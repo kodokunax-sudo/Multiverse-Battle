@@ -164,12 +164,30 @@
         const arenaLeft = (400 - asArenaWidth) / 2;
         let center = platform.baseX;
         if (platform.move) center += Math.sin(now * 0.0012 + platform.phase) * platform.amp;
-        if (asLabyrinthTimer > 0 && index > 0 && index < 5) {
-            center += Math.sin((asFrame + index * 17) * 0.14) * 14;
-        }
+        if (asLabyrinthTimer > 0 && index > 0 && index < 5) center += Math.sin((asFrame + index * 17) * 0.14) * 14;
         const min = arenaLeft + 8 + platform.w / 2;
         const max = arenaLeft + asArenaWidth - 8 - platform.w / 2;
         return Math.max(min, Math.min(max, center));
+    }
+    function asPlatformGeometry(platform, index, now) {
+        const left = (400 - asArenaWidth) / 2, right = left + asArenaWidth;
+        const top = 55 + (445 - asArenaHeight) / 2, height = asArenaHeight, bottom = top + height;
+        if (asGravityDirection === 0 || asGravityDirection === 2) {
+            const cx = asPlatformX(platform, index, now);
+            let y = platform.y;
+            if (asGravityDirection === 2) y = top + height - (platform.y - top) - platform.h;
+            y = Math.max(top + 12, Math.min(bottom - platform.h - 12, y));
+            return { x: cx - platform.w / 2, y: y, w: platform.w, h: platform.h };
+        }
+        const slot = (index + 1) / (asPlatforms.length + 1);
+        const cx = asGravityDirection === 1
+            ? left + 24 + slot * (asArenaWidth - 48)
+            : right - 24 - slot * (asArenaWidth - 48);
+        let cy = top + 30 + ((436 - platform.y) / 285) * (height - 60);
+        if (platform.move) cy += Math.sin(now * 0.0012 + platform.phase) * platform.amp;
+        if (asLabyrinthTimer > 0 && index > 0 && index < 5) cy += Math.sin((asFrame + index * 17) * 0.14) * 14;
+        cy = Math.max(top + platform.w / 2 + 8, Math.min(bottom - platform.w / 2 - 8, cy));
+        return { x: cx - platform.h / 2, y: cy - platform.w / 2, w: platform.h, h: platform.w };
     }
     function asSafePlatformIndex() {
         for (let i = 0; i < asAttacks.length; i++) {
@@ -274,33 +292,37 @@
         if (!asPlatforms.length) asInitPlatforms();
         const safeIndex = asSafePlatformIndex();
         for (let i = 0; i < asPlatforms.length; i++) {
-            const p = asPlatforms[i];
             if (!asPlatformIsVisible(i, now) && i !== safeIndex) continue;
-            const cx = asPlatformX(p, i, now);
-            const x = cx - p.w / 2;
-            const safe = i === safeIndex;
-            const current = asPlayer.platformIndex === i;
-            if (asLabyrinthTimer > 0 && i > 0 && i < 5) {
-                c.save();
-                c.globalAlpha = 0.16 + Math.abs(Math.sin(asFrame * 0.16 + i)) * 0.12;
-                c.strokeStyle = "#d5a8ff"; c.lineWidth = 1.5; c.setLineDash([4, 5]);
-                c.strokeRect(x + (i % 2 ? -21 : 21), p.y - 5, p.w, p.h);
-                c.setLineDash([]);
-                c.restore();
-            }
+            const g = asPlatformGeometry(asPlatforms[i], i, now);
+            const safe = i === safeIndex, current = asPlayer.platformIndex === i;
             c.save();
+            if (asLabyrinthTimer > 0 && i > 0 && i < 5) {
+                c.globalAlpha = 0.18 + Math.abs(Math.sin(asFrame * 0.16 + i)) * 0.12;
+                c.strokeStyle = "#d5a8ff"; c.lineWidth = 1.5; c.setLineDash([4, 5]);
+                c.strokeRect(g.x - 4, g.y - 4, g.w + 8, g.h + 8); c.setLineDash([]);
+            }
             c.shadowColor = safe ? "#76ffff" : current ? "#5adfff" : "#a65dff";
             c.shadowBlur = safe ? 24 : current ? 16 : 10;
             c.fillStyle = safe ? "rgba(104,255,255,.46)" : current ? "rgba(56,190,255,.42)" : "rgba(104,72,170,.48)";
             c.strokeStyle = safe ? "#e8ffff" : current ? "#8ef4ff" : "#bda5ff";
             c.lineWidth = safe ? 2.5 : 1.4;
             c.beginPath();
-            c.moveTo(x + 8, p.y); c.lineTo(x + p.w - 8, p.y);
-            c.lineTo(x + p.w, p.y + p.h); c.lineTo(x, p.y + p.h); c.closePath();
-            c.fill(); c.stroke();
+            if (asGravityDirection % 2 === 0) {
+                c.moveTo(g.x + 8, g.y); c.lineTo(g.x + g.w - 8, g.y);
+                c.lineTo(g.x + g.w, g.y + g.h); c.lineTo(g.x, g.y + g.h);
+            } else {
+                c.moveTo(g.x, g.y + 8); c.lineTo(g.x + g.w, g.y);
+                c.lineTo(g.x + g.w, g.y + g.h - 8); c.lineTo(g.x, g.y + g.h);
+            }
+            c.closePath(); c.fill(); c.stroke();
             c.strokeStyle = "rgba(225,248,255,.46)"; c.lineWidth = 1;
-            c.beginPath(); c.moveTo(x + 12, p.y + p.h - 2); c.lineTo(x + p.w - 12, p.y + p.h - 2); c.stroke();
-            c.restore();
+            c.beginPath();
+            if (asGravityDirection % 2 === 0) {
+                c.moveTo(g.x + 12, g.y + g.h - 2); c.lineTo(g.x + g.w - 12, g.y + g.h - 2);
+            } else {
+                c.moveTo(g.x + 2, g.y + 12); c.lineTo(g.x + g.w - 2, g.y + g.h - 12);
+            }
+            c.stroke(); c.restore();
         }
     }
     function asCreateControls() {
@@ -1436,7 +1458,6 @@
             return;
         }
         const b=asBounds();c.save();c.translate((Math.random()-.5)*asShake,(Math.random()-.5)*asShake);
-        c.save(); asApplyGravityTransform(c);
         const arenaLeft=(400-asArenaWidth)/2;
         c.fillStyle="rgba(0,0,0,.76)";c.fillRect(0,50,arenaLeft,450);c.fillRect(arenaLeft+asArenaWidth,50,400-(arenaLeft+asArenaWidth),450);
         const boxY=55+(445-asArenaHeight)/2;c.fillRect(arenaLeft,50,asArenaWidth,boxY-50);c.fillRect(arenaLeft,boxY+asArenaHeight,asArenaWidth,500-(boxY+asArenaHeight));
@@ -1448,8 +1469,7 @@
         [[arenaLeft+2,boxY+2,1,1],[arenaLeft+asArenaWidth-2,boxY+2,-1,1],[arenaLeft+2,boxY+asArenaHeight-2,1,-1],[arenaLeft+asArenaWidth-2,boxY+asArenaHeight-2,-1,-1]].forEach(function(p){
             c.beginPath();c.moveTo(p[0],p[1]+p[3]*13);c.lineTo(p[0],p[1]);c.lineTo(p[0]+p[2]*13,p[1]);c.stroke();
         });
-        c.restore();
-        // HUD remains upright while the arena rotates.
+        // HUD remains upright; only models and platforms reorient.
         // HUD and phase title.
         c.fillStyle="rgba(0,0,0,.78)";c.fillRect(9,8,382,32);
         c.fillStyle="#bdefff";c.font="bold 11px monospace";c.textAlign="left";c.fillText("АНТИ-СПИРАЛЬ  •  ФАЗА "+asPhase,15,20);
@@ -1461,7 +1481,7 @@
         {
             c.fillStyle=asBossExposed>0?"#92ffff":"#d8ceff";c.textAlign="center";c.font="bold 10px monospace";
             c.fillText(asBossExposed>0?"ЯДРО ОТКРЫТО! "+Math.ceil(asBossExposed/60)+"с":patterns[asPattern],200,88);
-            c.save(); asApplyGravityTransform(c);
+            c.save();
             asDrawPlatforms(c,now);
             asDrawSeals(c,now);
             asDrawBoss(c,now);
