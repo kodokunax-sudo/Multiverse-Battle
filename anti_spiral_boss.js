@@ -1075,7 +1075,7 @@
             vx: 0,
             vy: saved.grounded ? 0 : Math.max(-2, Math.min(2, saved.vy || 0)),
             size: 12,
-            invuln: success ? 90 : 180,
+            invuln: success ? 90 : 0,
             grounded: !!saved.grounded,
             platformIndex: saved.platformIndex
         };
@@ -1113,7 +1113,9 @@
         } else {
             asFlash = 12;
             asFlashColor = "#4d76ff";
-            asText(200, 110, "РАЗЛОМ ЗАКРЫЛСЯ — ЗАЩИТА 3 СЕК.", "#83eaff", 100);
+            const penalty = Math.max(1, Math.floor(asPlayerMaxHp * 0.10));
+            asText(200, 110, "ПРОВАЛ! -" + penalty + " HP", "#ff668e", 100);
+            asDamagePlayer(penalty, "ПРОВАЛ СЛОМАННОЙ РЕАЛЬНОСТИ");
             asSound(170, "sine", 0.35, 0.1);
         }
         asUpdateControls();
