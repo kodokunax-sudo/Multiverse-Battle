@@ -4318,8 +4318,13 @@
             if (!sw || !sw.canDestroy || !Number.isFinite(Number(sw.hp)) || sw.hp <= 0) continue;
             const alongDistance = ((sw.x - oden.x) * dx + (sw.y - oden.y) * dy) / Math.sqrt(length2);
             if (alongDistance < 20 || alongDistance > Math.sqrt(length2) - 20) continue;
+            const waveRadius = Number(sw.radius) || 0;
+            const waveBand = (Number(sw.width) || 8) + 18;
             const distToLane = rwbOdenSegmentDistance(sw.x, sw.y, oden.x, oden.y, target.x, target.y);
-            if (Math.abs(distToLane - (Number(sw.radius) || 0)) < (Number(sw.width) || 8) + 18) return true;
+            const endpointMax = Math.max(Math.hypot(sw.x - oden.x, sw.y - oden.y),
+                Math.hypot(sw.x - target.x, sw.y - target.y));
+            if (distToLane <= waveRadius + waveBand &&
+                endpointMax >= Math.max(0, waveRadius - waveBand)) return true;
         }
         return false;
     }
@@ -4438,8 +4443,10 @@
             const sw = rwbShockwaves[i];
             if (!sw || !sw.canDestroy || !Number.isFinite(Number(sw.hp)) || sw.hp <= 0) continue;
             const radius = (Number(sw.width) || 5) * 0.7 + (Number(slash.size) || 12) * 0.6;
+            const waveRadius = Number(sw.radius) || 0;
             const closest = rwbOdenSegmentDistance(sw.x, sw.y, x1, y1, x2, y2);
-            if (Math.abs(closest - (Number(sw.radius) || 0)) >= radius) continue;
+            const endpointMax = Math.max(Math.hypot(sw.x - x1, sw.y - y1), Math.hypot(sw.x - x2, sw.y - y2));
+            if (closest > waveRadius + radius || endpointMax < Math.max(0, waveRadius - radius)) continue;
             sw.hp -= damage;
             spawnHitParticles(sw.x, sw.y, "#43e7ff", 6);
             if (sw.hp <= 0) {
