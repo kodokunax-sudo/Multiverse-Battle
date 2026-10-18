@@ -2048,10 +2048,13 @@
     function asRender(now) {
         if(!asActive) return;
         const reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        const mediumGraphics = !!(window.MBIsMediumGraphics && window.MBIsMediumGraphics());
         if (reduceBossEffects) {
             asFlash = 0; asShake = 0; asBossDamageFlash = 0;
             // Only cap decorative particles. Keep attack/hazard arrays intact so difficulty and hit detection do not change.
             if (asParticles.length > 18) asParticles.splice(0, asParticles.length - 18);
+        } else if (mediumGraphics && asParticles.length > 75) {
+            asParticles.splice(0, asParticles.length - 75);
         }
 
         const rafNow = Number(now) || performance.now();
