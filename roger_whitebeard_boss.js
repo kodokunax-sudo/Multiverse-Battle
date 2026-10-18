@@ -95,13 +95,14 @@
     ];
 
     var RWB_WB_RESPONSE_1 = [
-        { speaker: "👤 ИГРОК", text: "Мне нужно найти блок сервера где находится мое сохранение. Рик все испортил...." },
-        { speaker: "❄️ БЕЛОУС", text: "А, у меня на корабле есть какой то кусок металла с проводами},
-        { speaker: "👤 ИГРОК", text: "Стоп, серьезно? Очуметь!!!}
+        { speaker: "👤 ИГРОК", text: "Мне нужно найти блок сервера, где находится моё сохранение. Рик всё испортил..." },
+        { speaker: "❄️ БЕЛОУС", text: "А, у меня на корабле есть какой-то кусок металла с проводами. Может, это то, что ты ищешь?" },
+        { speaker: "👤 ИГРОК", text: "Стоп, серьёзно? Очуметь!" }
     ];
     var RWB_WB_RESPONSE_2 = [
         { speaker: "👤 ИГРОК", text: "Я не ищу подчинённого. Семья — это те, кто прикрывает друг другу спину." },
-        { speaker: "❄️ БЕЛОУС", text: "Гурарара... Ты зовёшь меня не в команду, а в семью. Это большая ответственность." },
+        { speaker: "❄️ БЕЛОУС", text: "Гурарара... Кстати, на моём корабле есть какой-то кусок металла с проводами. Не знаю, то ли это, что ты ищешь, но можешь забрать его после разговора." },
+        { speaker: "❄️ БЕЛОУС", text: "А насчёт семьи — ты зовёшь меня не в команду, а в семью. Это большая ответственность." },
         { speaker: "👤 ИГРОК", text: "Я не прошу клясться мне. Я прошу идти рядом и не оставлять друг друга в беде." },
         { speaker: "❄️ БЕЛОУС", text: "Тогда я принимаю твоё приглашение. Запомни: назвал людей семьёй — стой за них до конца. Отныне я буду рядом." }
     ];
@@ -871,7 +872,14 @@
         if (rwbDialogQueue.length > 0) {
             rwbDialogQueue.shift(); playWhooshSound(0.1);
             if (rwbDialogQueue.length === 0) {
-                if (rwbWBPhase === "choice_response_1") { rwbWhitebeardDisabled[0] = true; rwbWBPhase = "choice"; }
+                if (rwbWBPhase === "choice_response_1") {
+                    if (!rwbWhitebeardDisabled[0]) {
+                        rwbWhitebeardDisabled[0] = true;
+                        if (typeof window.addItem === "function") window.addItem("server_block", 1);
+                        if (typeof showFloatingText === "function") showFloatingText("🧱 Блок сервера получен!", "#7deaff");
+                    }
+                    rwbWBPhase = "choice";
+                }
                 else if (rwbWBPhase === "choice_response_2") {
                     try { localStorage.setItem("rwbWhitebeardFamilyAccepted", "yes"); } catch (e) {}
                     window.rwbWhitebeardFamilyAccepted = true;
@@ -879,7 +887,10 @@
                     rwbFinalCleanup();
                 }
                 else if (rwbWBPhase === "choice_response_3_a") { rwbWBPhase = "choice_response_3_b"; rwbDialogQueue = RWB_WB_RESPONSE_3_B.slice(); }
-                else if (rwbWBPhase === "choice_response_3_b") { rwbWBPhase = "choice"; }
+                else if (rwbWBPhase === "choice_response_3_b") {
+                    rwbWhitebeardDisabled[2] = true;
+                    rwbWBPhase = "choice";
+                }
                 else if (rwbWBPhase === "intro") { rwbWBPhase = "choice"; }
             }
             return;
