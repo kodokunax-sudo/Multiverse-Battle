@@ -1073,9 +1073,9 @@ function updateExtendedArenaAttack(now) {
     // 11. Three pendulums swing at different rhythms. Only their heavy heads deal damage.
     if (st.type === 11) {
         for (var p = 0; p < 3; p++) {
-            var px = 68 + p * 132, py = 62;
-            var angle = Math.sin(sec * (1.18 + p * 0.13) + p * 2.05) * (0.9 + p * 0.035);
-            var length = 112 + (p % 2) * 16;
+            var px = 68 + p * 132, py = 58;
+            var angle = Math.sin(sec * (1.18 + p * 0.13) + p * 2.05) * (1.12 + p * 0.025);
+            var length = 312 + (p % 2) * 18;
             var bx = px + Math.sin(angle) * length, by = py + Math.cos(angle) * length;
             arenaExtDrawSegment(px, py, bx, by, 7, "#8f9aa8", t < 650 ? 0.4 : 0.9, false);
             ctx.save(); ctx.fillStyle = "#aab6c5"; ctx.strokeStyle = "#f2f6fa"; ctx.lineWidth = 2; ctx.shadowColor = "#d6e2f0"; ctx.shadowBlur = 7;
@@ -1234,8 +1234,10 @@ function updateExtendedArenaAttack(now) {
             if (ageT < 520) tent.angle = Math.atan2(heart.y - tent.y, heart.x - tent.x);
             var progressT = ageT < 650 ? 0 : Math.min(1, (ageT - 650) / 420);
             var lengthT = 245 * progressT;
+            var drawLengthT = ageT < 650 ? 245 : lengthT;
             var tx = tent.x + Math.cos(tent.angle) * lengthT, ty = tent.y + Math.sin(tent.angle) * lengthT;
-            arenaExtDrawSegment(tent.x, tent.y, tx, ty, 18, "#b56b48", ageT < 650 ? 0.45 : 0.95, ageT < 650);
+            var warnX = tent.x + Math.cos(tent.angle) * drawLengthT, warnY = tent.y + Math.sin(tent.angle) * drawLengthT;
+            arenaExtDrawSegment(tent.x, tent.y, ageT < 650 ? warnX : tx, ageT < 650 ? warnY : ty, 18, "#b56b48", ageT < 650 ? 0.45 : 0.95, ageT < 650);
             ctx.save(); ctx.fillStyle = "#e7a37d"; ctx.strokeStyle = "#fff0df"; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(tx, ty, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             for (var spike = -1; spike <= 1; spike++) {
