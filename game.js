@@ -86,6 +86,7 @@ let arenaSettings = {
     volume: 0.20,
     effectsOpacity: 1.0,
     graphics: (typeof navigator !== "undefined" && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)) ? "phone" : "pc",
+    phoneGraphicsQuality: "high",
     autoSuper: false,
     mobileSuper: "button",
     arenaControl: "auto",
@@ -101,11 +102,15 @@ let arenaSettings = {
 var MB_REDUCED_BOSS_EFFECTS_KEY = "mbReducedBossEffectsByUser";
 window.__mbBossGraphicsModeForFight = null;
 
+window.MBGetGraphicsQuality = function() {
+    if (!arenaSettings || arenaSettings.graphics !== "phone") return "pc";
+    return ["low", "medium", "high"].indexOf(arenaSettings.phoneGraphicsQuality) !== -1 ? arenaSettings.phoneGraphicsQuality : "high";
+};
+window.MBIsMediumGraphics = function() { return window.MBGetGraphicsQuality() === "medium"; };
 window.MBShouldReduceBossEffects = function() {
-    // A manually enabled accessibility preference always wins over the per-fight preset.
     try {
-        if (localStorage.getItem(MB_REDUCED_BOSS_EFFECTS_KEY) === "1") return true;
-    } catch (e) {}
+        if (window.MBGetGraphicsQuality() === "low" || localStorage.getItem(MB_REDUCED_BOSS_EFFECTS_KEY) === "1") return true;
+    } catch (e) { if (window.MBGetGraphicsQuality() === "low") return true; }
     return window.__mbBossGraphicsModeForFight === "light";
 };
 
@@ -892,6 +897,7 @@ function loadArenaSettings() {
             arenaSettings.volume = s.volume ?? 0.20;
             arenaSettings.effectsOpacity = s.effectsOpacity ?? 1.0;
             arenaSettings.graphics = (s.graphics === "phone" || s.graphics === "pc") ? s.graphics : arenaSettings.graphics;
+            arenaSettings.phoneGraphicsQuality = ["low", "medium", "high"].indexOf(s.phoneGraphicsQuality) !== -1 ? s.phoneGraphicsQuality : "high";
             arenaSettings.autoSuper = s.autoSuper ?? false;
             arenaSettings.autoSkipDefeatedBosses = s.autoSkipDefeatedBosses ?? false;
             arenaSettings.mobileSuper = s.mobileSuper ?? "button";
@@ -910,9 +916,15 @@ function saveArenaSettings() { localStorage.setItem("arenaSettings", JSON.string
 function applyArenaSettings() {
     if (typeof document !== "undefined" && document.body) {
         document.body.classList.toggle("phone-graphics", arenaSettings.graphics === "phone");
+        document.body.classList.toggle("phone-graphics-low", arenaSettings.graphics === "phone" && arenaSettings.phoneGraphicsQuality === "low");
+        document.body.classList.toggle("phone-graphics-medium", arenaSettings.graphics === "phone" && arenaSettings.phoneGraphicsQuality === "medium");
     }
     let graphicsSelect = document.getElementById("graphicsQualitySelect");
     if (graphicsSelect) graphicsSelect.value = arenaSettings.graphics || "pc";
+    let phoneQualitySelect = document.getElementById("phoneGraphicsQualitySelect");
+    let phoneQualityRow = document.getElementById("phoneGraphicsQualityRow");
+    if (phoneQualitySelect) phoneQualitySelect.value = arenaSettings.phoneGraphicsQuality || "high";
+    if (phoneQualityRow) phoneQualityRow.style.display = arenaSettings.graphics === "phone" ? "flex" : "none";
     let volSlider = document.getElementById("arenaVolumeSlider");
     let volValue = document.getElementById("arenaVolumeValue");
     if (volSlider) volSlider.value = Math.floor(arenaSettings.volume * 100);
@@ -956,6 +968,16 @@ function changeGraphicsQuality(val) {
     if (typeof showFloatingText === "function") showFloatingText(arenaSettings.graphics === "phone" ? "📱 Включена лёгкая графика" : "🖥️ Включена графика ПК", "#f5af19");
 }
 window.changeGraphicsQuality = changeGraphicsQuality;
+function changePhoneGraphicsQuality(val) {
+    arenaSettings.phoneGraphicsQuality = ["low", "medium", "high"].indexOf(val) !== -1 ? val : "high";
+    applyArenaSettings();
+    saveArenaSettings();
+    if (typeof showFloatingText === "function") {
+        var labels = { low: "Низкая графика", medium: "Средняя графика", high: "Высокая графика" };
+        showFloatingText("📱 " + labels[arenaSettings.phoneGraphicsQuality], "#f5af19");
+    }
+}
+window.changePhoneGraphicsQuality = changePhoneGraphicsQuality;
 
 function changeArenaVolume(val) { arenaSettings.volume = val / 100; document.getElementById("arenaVolumeValue").innerText = val + "%"; saveArenaSettings(); }
 function changeArenaEffects(val) { arenaSettings.effectsOpacity = val / 100; document.getElementById("arenaEffectsValue").innerText = val + "%"; saveArenaSettings(); }
