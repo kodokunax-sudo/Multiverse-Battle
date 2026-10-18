@@ -27,9 +27,11 @@
     let asPointerChargeMode = false;
     let asAimMode = false;
     let asAimCursor = { x: 200, y: 260 };
+    let asSlowUntilReal = 0;
+    let asTimeScale = 1;
+    let asPreviousTimeScale = 1;
     let asGameClock = 0;
     let asLastRafTimestamp = null;
-    let asSlowFrameCounter = 0;
     let asClockReady = false;
     let asPlatforms = [];
     let asSeals = [];
@@ -147,7 +149,7 @@
         for (let i = 0; i < asSeals.length; i++) {
             const seal = asSeals[i];
             if (seal.broken) continue;
-            seal.phase += .035;
+            seal.phase += .035 * asTimeScale;
             const pulse = 1 + Math.sin(asFrame * .14 + seal.phase) * .12;
             c.save(); c.translate(seal.x, seal.y);
             c.globalAlpha = .76 + Math.sin(asFrame * .11 + seal.phase) * .18;
@@ -293,8 +295,9 @@
             ? { x: asSeals[sealIndex].x, y: asSeals[sealIndex].y }
             : { x: asBoss.x, y: asBoss.y + 43 };
         asAimMode = true;
-        asSlowFrameCounter = 0;
-        asText(200, 110, "ВРЕМЯ ×0,125 — ВЫБЕРИ ТОЧКУ ВЫСТРЕЛА", "#7ef3ff", 90);
+        asSlowUntilReal = performance.now() + 1500;
+        asTimeScale = .5;
+        asText(200, 110, "ЗАМЕДЛЕНИЕ ×2 · 1,5 СЕКУНДЫ", "#7ef3ff", 90);
         asSound(620, "sine", .16, .06);
         asUpdateControls();
     }
@@ -312,7 +315,7 @@
         asCharging = false;
         asNextShotAt = now + 1500;
         asAimMode = false;
-        asSlowFrameCounter = 0;
+        
         asShootDrill(Math.max(8, frames), targetX, targetY);
         asUpdateControls();
     }
@@ -419,7 +422,7 @@
             asBeginAimMode();
         });
         const hint = document.createElement("div");
-        hint.textContent = "WASD / ← → — движение · W / ↑ / ПРОБЕЛ — прыжок · Z/X или кнопка БУР — замедлить время ×8; затем нажми на арену, чтобы выбрать направление. Заряд растёт после 3 сек. без урона";
+        hint.textContent = "WASD / ← → — движение · W / ↑ / ПРОБЕЛ — прыжок · Z/X или кнопка БУР — замедлить время в 2 раза на 1,5 сек. реального времени; затем нажми на арену. Заряд растёт после 3 сек. без урона";
         hint.style.cssText = "flex-basis:100%;color:#b8eaff;text-align:center;font-size:10px;line-height:1.35;";
         row.appendChild(jump); row.appendChild(drill); row.appendChild(hint);
         c.parentNode.insertBefore(row, c.nextSibling);
@@ -792,7 +795,7 @@
         if ((k === "z" || k === "x") && !asKeys[k]) asStartCharge();
         asKeys[k] = true;
         if (k === "escape" && asState === "fight" && asAimMode) {
-            asAimMode = false; asSlowFrameCounter = 0;
+            asAimMode = false; 
             asText(200, 110, "ПРИЦЕЛ ОТМЕНЁН", "#bbaaff", 42);
             asUpdateControls(); return;
         }
@@ -924,7 +927,7 @@
         if(btn)btn.style.display="block";
     }
     function asStop() {
-        asActive=false; asAimMode=false; asSlowFrameCounter=0; window.antiSpiralBossActive=false;
+        asActive=false; asAimMode=false; asSlowUntilReal=0; asTimeScale=1; asPreviousTimeScale=1; window.antiSpiralBossActive=false;
         if(asAnimFrame) cancelAnimationFrame(asAnimFrame);
         asAnimFrame=null; asUnbind(); stopASMusic();
         asCharging=false; asChargeFrames=0; asLastDamageAt=0; asNextShotAt=0; asPointerChargeMode=false; asDrillShots=[];
@@ -946,9 +949,9 @@
             const shot = asDrillShots[i];
             const speed = Math.max(.01, Math.hypot(shot.vx, shot.vy));
             const remaining = Math.max(0, (shot.distanceMax || 0) - (shot.travelled || 0));
-            const step = Math.min(speed, remaining);
+            const step = Math.min(speed * asTimeScale, remaining);
             shot.x += shot.vx / speed * step; shot.y += shot.vy / speed * step;
-            shot.travelled = (shot.travelled || 0) + step; shot.life--; shot.phase += .28;
+            shot.travelled = (shot.travelled || 0) + step; shot.life-=asTimeScale; shot.phase += .28*asTimeScale;
             c.save(); c.translate(shot.x,shot.y); c.rotate(Math.atan2(shot.vy,shot.vx) + Math.PI/2);
             c.shadowColor="#55eaff";c.shadowBlur=14+shot.charge*24;
             c.fillStyle=shot.charge>.78?"#ffffff":"#7bf5ff";
@@ -1091,102 +1094,66 @@
         c.restore();
     }
     function asDrawAntiSpiralHead(c,x,y,scale,now,opacity) {
-        const alpha = opacity===undefined ? 1 : opacity;
-        const bob = Math.sin(now/310)*1.25;
-        c.save(); c.translate(x,y+bob); c.scale(scale,scale); c.globalAlpha=alpha;
-        // Broken crown and long temple fins make the silhouette readable at gameplay size.
-        c.shadowColor="#a34bff"; c.shadowBlur=22; c.lineJoin="round"; c.lineCap="round";
-        const crest=c.createLinearGradient(0,-54,0,-20);
-        crest.addColorStop(0,"#e6faff"); crest.addColorStop(.22,"#a76cff"); crest.addColorStop(1,"#160d2b");
-        c.fillStyle=crest; c.strokeStyle="#e7d8ff"; c.lineWidth=1.5;
-        c.beginPath();c.moveTo(-17,-21);c.lineTo(-29,-39);c.lineTo(-27,-19);c.lineTo(-15,-8);
-        c.lineTo(-8,-29);c.lineTo(0,-48);c.lineTo(7,-28);c.lineTo(16,-42);c.lineTo(16,-18);
-        c.lineTo(28,-34);c.lineTo(25,-10);c.lineTo(14,-3);c.closePath();c.fill();c.stroke();
-        // Fine halo arcs sit behind the face rather than crossing the eyes.
-        c.globalAlpha=alpha*.52;c.strokeStyle="#9c6dff";c.lineWidth=1.35;c.shadowBlur=13;
+        const bob=Math.sin(now/360)*1.7;
+        c.save();c.translate(x,y+bob);c.scale(scale,scale);
+        c.globalAlpha=opacity===undefined?1:opacity;
+        // A floating, oversized head with the same spiral eyes as the cinematic character.
+        c.shadowColor="#9d50ff";c.shadowBlur=24;
+        c.strokeStyle="#c8a9ff";c.lineWidth=1.5;
         for(let ring=0;ring<3;ring++){
-            c.save();c.rotate(now*.00026*(ring%2?-1:1)+ring*.42);
-            c.beginPath();c.ellipse(0,1,27+ring*7,32+ring*7,.15*ring,0,Math.PI*2);c.stroke();c.restore();
+            c.save();c.rotate(now*.0003*(ring%2?-1:1)+ring*.45);
+            c.globalAlpha=(opacity===undefined?1:opacity)*(.35+ring*.12);
+            c.beginPath();c.ellipse(0,0,24+ring*7,29+ring*8,.16*ring,0,Math.PI*2);c.stroke();
+            c.restore();
         }
-        c.globalAlpha=alpha;
-        const shell=c.createRadialGradient(-7,-17,2,1,1,38);
-        shell.addColorStop(0,"#38304f");shell.addColorStop(.35,"#100c1c");shell.addColorStop(.76,"#03030a");shell.addColorStop(1,"#000005");
-        c.fillStyle=shell;c.strokeStyle="#f1edff";c.lineWidth=2.1;
-        c.beginPath();c.moveTo(-19,12);c.quadraticCurveTo(-25,-5,-18,-23);
-        c.lineTo(-10,-31);c.lineTo(-4,-27);c.lineTo(0,-32);c.lineTo(7,-27);
-        c.lineTo(15,-29);c.quadraticCurveTo(25,-8,18,12);
-        c.quadraticCurveTo(13,25,0,28);c.quadraticCurveTo(-14,24,-19,12);c.closePath();c.fill();c.stroke();
-        // Angular cheek plates and a bright central ridge give the face depth.
-        c.fillStyle="#181127";c.strokeStyle="#9a79d4";c.lineWidth=1;
-        c.beginPath();c.moveTo(-17,0);c.lineTo(-9,6);c.lineTo(-12,19);c.lineTo(-19,10);c.closePath();c.fill();c.stroke();
-        c.beginPath();c.moveTo(17,0);c.lineTo(9,6);c.lineTo(12,19);c.lineTo(19,10);c.closePath();c.fill();c.stroke();
-        c.strokeStyle="#d8c9ff";c.lineWidth=1.2;c.shadowColor="#a95cff";c.shadowBlur=7;
-        c.beginPath();c.moveTo(0,-25);c.lineTo(-2,-13);c.lineTo(0,-7);c.lineTo(2,-13);c.stroke();
-        // Glowing spiral sockets are framed by cyan-violet eyelids and hard brows.
-        c.fillStyle="#030611";c.shadowColor="#8b5cff";c.shadowBlur=12;
-        c.beginPath();c.ellipse(-8,0,8,7.4,-.12,0,Math.PI*2);c.ellipse(8,0,8,7.4,.12,0,Math.PI*2);c.fill();
-        c.strokeStyle="#7beaff";c.lineWidth=1.3;c.shadowColor="#5eeaff";c.shadowBlur=12;
-        c.beginPath();c.ellipse(-8,0,7.3,6.8,-.12,0,Math.PI*2);c.ellipse(8,0,7.3,6.8,.12,0,Math.PI*2);c.stroke();
-        c.strokeStyle="#f4efff";c.lineWidth=2.1;c.shadowColor="#bb79ff";c.shadowBlur=9;
-        c.beginPath();c.moveTo(-17,-8);c.lineTo(-10,-11);c.lineTo(-4,-7);
-        c.moveTo(17,-8);c.lineTo(10,-11);c.lineTo(4,-7);c.stroke();
-        asDrawSpiralEye(c,-8,0,5.7,now,false);asDrawSpiralEye(c,8,0,5.7,now,true);
-        // Split jaw: a sharp white sigil instead of a floating, disconnected tooth.
-        c.globalAlpha=alpha*.9;c.strokeStyle="#e8efff";c.lineWidth=1.35;c.shadowBlur=7;
-        c.beginPath();c.moveTo(-11,13);c.lineTo(-6,19);c.lineTo(0,22);c.lineTo(6,19);c.lineTo(11,13);
-        c.moveTo(-4,14);c.lineTo(0,18);c.lineTo(4,14);c.stroke();
-        c.fillStyle="#7beaff";c.shadowColor="#6ceaff";c.shadowBlur=10;
-        c.beginPath();c.moveTo(-2,-19);c.lineTo(0,-23);c.lineTo(2,-19);c.closePath();c.fill();
-        c.globalAlpha=alpha*.72;c.strokeStyle="#b28dff";c.lineWidth=.8;c.shadowBlur=0;
-        c.beginPath();c.moveTo(-21,3);c.lineTo(-15,8);c.moveTo(21,3);c.lineTo(15,8);
-        c.moveTo(-12,-22);c.lineTo(-8,-18);c.moveTo(12,-22);c.lineTo(8,-18);c.stroke();
+        c.globalAlpha=opacity===undefined?1:opacity;
+        c.fillStyle="#020105";c.strokeStyle="#f5f2ff";c.lineWidth=2.1;
+        c.beginPath();c.moveTo(-18,15);c.quadraticCurveTo(-24,-13,-8,-25);
+        c.quadraticCurveTo(2,-32,14,-21);c.quadraticCurveTo(24,-8,17,15);
+        c.quadraticCurveTo(1,27,-18,15);c.closePath();c.fill();c.stroke();
+        c.strokeStyle="#e9e5f2";c.lineWidth=.8;
+        c.beginPath();c.moveTo(-13,-5);c.lineTo(-7,-7);c.moveTo(7,-7);c.lineTo(13,-5);c.stroke();
+        asDrawSpiralEye(c,-8,0,5.8,now,false);asDrawSpiralEye(c,8,0,5.8,now,true);
+        c.fillStyle="#f9f7ff";c.beginPath();c.moveTo(-3,12);c.lineTo(4,12);c.lineTo(0,18);c.closePath();c.fill();
+        c.strokeStyle="#b995ef";c.globalAlpha=(opacity===undefined?1:opacity)*.75;c.lineWidth=.8;
+        c.beginPath();c.moveTo(-15,5);c.lineTo(-11,12);c.moveTo(15,5);c.lineTo(11,12);c.stroke();
         c.restore();
-        // Detached distortion rings remain behind the head, not over its expression.
-        c.save();c.globalAlpha=alpha*(.10+.035*Math.sin(now/170));c.strokeStyle="#a04dff";
-        c.lineWidth=1.25;c.shadowColor="#a04dff";c.shadowBlur=12;
-        for(let i=0;i<3;i++){c.beginPath();c.ellipse(x,y+bob,25*scale+i*8*scale,31*scale+i*10*scale,now*.0002*(i%2?1:-1),0,Math.PI*2);c.stroke();}
+        // Compact distortion rings keep the visual anchored to the head only.
+        c.save();c.globalAlpha=.1+.045*Math.sin(now/170);c.strokeStyle="#a04dff";
+        c.lineWidth=1.3;c.shadowColor="#a04dff";c.shadowBlur=12;
+        for(let i=0;i<3;i++){c.beginPath();c.ellipse(x,y,25*scale+i*8*scale,31*scale+i*10*scale,now*.0002*(i%2?1:-1),0,Math.PI*2);c.stroke();}
         c.restore();
     }
     function asDrawBoss(c,now) {
-        // Echo heads in the labyrinth preserve the attack's multi-reality illusion.
         if (asLabyrinthTimer > 0) {
             asDrawAntiSpiralHead(c, asBoss.x - 69, asBoss.y + 24, 0.58, now + 280, .22);
             asDrawAntiSpiralHead(c, asBoss.x + 69, asBoss.y + 24, 0.58, now - 360, .22);
         }
-        // The exposed core visibly pulses around the main head.
         if (asBossExposed > 0) {
             c.save();
             c.globalAlpha = .42 + Math.sin(asFrame * .32) * .18;
             c.strokeStyle = "#8effff"; c.shadowColor = "#6ffaff"; c.shadowBlur = 24; c.lineWidth = 2.5;
-            c.beginPath();
-            c.ellipse(asBoss.x, asBoss.y + 37, 25 + Math.sin(asFrame * .15) * 5, 31 + Math.sin(asFrame * .15) * 5, 0, 0, Math.PI * 2);
-            c.stroke();
+            c.beginPath(); c.ellipse(asBoss.x, asBoss.y + 37, 25 + Math.sin(asFrame * .15) * 5, 31 + Math.sin(asFrame * .15) * 5, 0, 0, Math.PI * 2); c.stroke();
             c.restore();
         }
-        // Rotating dimensional halo and orbiting energy fragments frame the improved head.
+        // Rotating dimensional halo and orbiting energy fragments, visible during the fight only.
         c.save();
         c.translate(asBoss.x, asBoss.y + 25);
-        c.globalAlpha = .68 + .12 * Math.sin(now / 170);
-        c.shadowColor = "#a04cff"; c.shadowBlur = 24; c.lineWidth = 1.6;
-        for (let ring = 0; ring < 4; ring++) {
-            c.save();
-            c.rotate(now * .00035 * (ring % 2 ? -1 : 1) + ring * .52);
-            c.strokeStyle = ring % 2 ? "#6cecff" : "#bf76ff";
-            c.globalAlpha = .28 + ring * .09;
-            c.beginPath();
-            c.ellipse(0, 0, asBoss.size + 18 + ring * 12, 11 + ring * 5, .22 * ring, 0, Math.PI * 2);
-            c.stroke();
+        c.globalAlpha=.68+.12*Math.sin(now/170);
+        c.shadowColor="#a04cff";c.shadowBlur=24;c.lineWidth=1.6;
+        for(let ring=0;ring<4;ring++){
+            c.save();c.rotate(now*.00035*(ring%2?-1:1)+ring*.52);
+            c.strokeStyle=ring%2?"#6cecff":"#bf76ff";
+            c.globalAlpha=.28+ring*.09;
+            c.beginPath();c.ellipse(0,0,asBoss.size+18+ring*12,11+ring*5,.22*ring,0,Math.PI*2);c.stroke();
             c.restore();
         }
-        for (let shard = 0; shard < 7; shard++) {
-            const angle = now * .0011 + shard * Math.PI * 2 / 7;
-            const radius = asBoss.size + 28 + Math.sin(now / 240 + shard) * 7;
-            const sx = Math.cos(angle) * radius, sy = Math.sin(angle) * radius * .62;
-            c.fillStyle = shard % 2 ? "#7cecff" : "#e0b4ff";
-            c.globalAlpha = .62 + .3 * Math.sin(now / 150 + shard);
-            c.beginPath();
-            c.moveTo(sx, sy - 3.2); c.lineTo(sx + 2.5, sy);
-            c.lineTo(sx, sy + 3.2); c.lineTo(sx - 2.5, sy); c.closePath(); c.fill();
+        for(let shard=0;shard<7;shard++){
+            const angle=now*.0011+shard*Math.PI*2/7;
+            const radius=asBoss.size+28+Math.sin(now/240+shard)*7;
+            const sx=Math.cos(angle)*radius,sy=Math.sin(angle)*radius*.62;
+            c.fillStyle=shard%2?"#7cecff":"#e0b4ff";c.globalAlpha=.62+.3*Math.sin(now/150+shard);
+            c.beginPath();c.moveTo(sx,sy-3.2);c.lineTo(sx+2.5,sy);c.lineTo(sx,sy+3.2);c.lineTo(sx-2.5,sy);c.closePath();c.fill();
         }
         c.restore();
         c.save();
@@ -1795,31 +1762,27 @@
         const rafNow = Number(now) || performance.now();
         if (!asClockReady || asLastRafTimestamp === null) {
             asClockReady = true; asGameClock = rafNow; asLastRafTimestamp = rafNow;
-        } else {
-            const elapsed = Math.max(0, rafNow - asLastRafTimestamp);
-            asLastRafTimestamp = rafNow;
-            asGameClock += elapsed * (asAimMode ? 0.125 : 1);
         }
-        if (asAimMode) {
-            asSlowFrameCounter++;
-            if (asSlowFrameCounter < 8) {
-                asAnimFrame = requestAnimationFrame(asRender);
-                return;
-            }
-            asSlowFrameCounter = 0;
-        } else {
-            asSlowFrameCounter = 0;
+        const elapsed = Math.max(0, rafNow - asLastRafTimestamp);
+        asLastRafTimestamp = rafNow;
+        asTimeScale = rafNow < asSlowUntilReal ? .5 : 1;
+        if (asAimMode && asTimeScale === 1) {
+            asAimMode = false;
+            asUpdateControls();
         }
+        if (asPreviousTimeScale < 1 && asTimeScale === 1) asFrame = Math.round(asFrame);
+        asPreviousTimeScale = asTimeScale;
+        asGameClock += elapsed * asTimeScale;
         now = asGameClock;
         const c=asCtx(); if(!c){asAnimFrame=requestAnimationFrame(asRender);return;}
-        asFrame++; if(asState==="fight") asShiftArena(now);
-        asArenaWidth += (asTargetWidth-asArenaWidth)*.055;
-        asArenaHeight += (asTargetHeight-asArenaHeight)*.055;
-        asBoss.rotation+=.009; asBoss.pulse+=.04;
-        if(asBoss.flash>0)asBoss.flash--;
-        if(asBossDamageFlash>0)asBossDamageFlash--;
-        if(asShake>0.2)asShake*=.86;else asShake=0;
-        if(asFlash>0)asFlash--;
+        asFrame += asTimeScale; if(asState==="fight") asShiftArena(now);
+        asArenaWidth += (asTargetWidth-asArenaWidth)*.055*asTimeScale;
+        asArenaHeight += (asTargetHeight-asArenaHeight)*.055*asTimeScale;
+        asBoss.rotation+=.009*asTimeScale; asBoss.pulse+=.04*asTimeScale;
+        if(asBoss.flash>0)asBoss.flash-=asTimeScale;
+        if(asBossDamageFlash>0)asBossDamageFlash-=asTimeScale;
+        if(asShake>0.2)asShake*=Math.pow(.86,asTimeScale);else asShake=0;
+        if(asFlash>0)asFlash-=asTimeScale;
         c.save();c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,400,500);
         c.fillStyle="#03030d";c.fillRect(0,0,400,500);
         // Cosmic star field unique to this encounter.
@@ -1889,7 +1852,7 @@
                     const path=a.path||[];
                     if(a.phase==="record"){
                         path.push({x:asPlayer.x,y:asPlayer.y});
-                        a.timer--;
+                        a.timer-=asTimeScale;
                         c.save();
                         if(path.length>1){
                             c.globalAlpha=.34;c.strokeStyle="#a76dff";c.lineWidth=2;
@@ -1912,7 +1875,7 @@
                             asSound(180,"sawtooth",.3,.1);asShake=Math.max(asShake,5);
                         }
                     }else if(a.phase==="rewind"){
-                        a.timer--;
+                        a.timer-=asTimeScale;
                         const progress=Math.max(0,Math.min(1,1-a.timer/a.rewindDuration));
                         const index=Math.max(0,Math.min(path.length-1,Math.floor((1-progress)*(path.length-1))));
                         const segment=Math.max(0,Math.min(path.length-2,index));
@@ -1960,7 +1923,7 @@
                             asSound(720,"sine",.25,.09);asFlash=Math.max(asFlash,5);asFlashColor="#62eaff";
                         }
                     }else if(a.phase==="node"){
-                        a.timer--;
+                        a.timer-=asTimeScale;
                         c.save();
                         c.globalAlpha=.18;c.strokeStyle="#ad6cff";c.lineWidth=2;c.setLineDash([4,7]);c.beginPath();
                         c.moveTo(path[0].x,path[0].y);for(let p=1;p<path.length;p++)c.lineTo(path[p].x,path[p].y);c.stroke();c.setLineDash([]);
@@ -2005,7 +1968,7 @@
                 }
                 if(a.kind==="bigbang"){
                     if(a.phase==="charge"){
-                        a.timer--;
+                        a.timer-=asTimeScale;
                         const t=Math.max(0,1-a.timer/94), cx=asBoss.x, cy=asBoss.y+38;
                         c.save(); c.globalAlpha=.9; c.shadowColor="#bf78ff"; c.shadowBlur=22; c.strokeStyle="#e4ccff"; c.lineWidth=1.6;
                         for(let g=0;g<2;g++){
@@ -2030,7 +1993,7 @@
                             asSound(55,"sawtooth",.7,.18);
                         }
                     }else{
-                        a.life--;
+                        a.life-=asTimeScale;
                         const progress=1-a.life/52;
                         const b=asBounds();
                         c.save();
@@ -2059,12 +2022,12 @@
                 }
                 if(a.kind==="sweep"){
                     if(a.warning>0){
-                        a.warning--;
+                        a.warning-=asTimeScale;
                         c.save();c.globalAlpha=.35+Math.abs(Math.sin(asFrame*.3))*.38;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=15;c.lineWidth=2;
                         c.setLineDash([9,6]);c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();c.setLineDash([]);
                         c.fillStyle="#ffffff";c.font="bold 10px monospace";c.textAlign="center";c.fillText("УДАР РУКОЙ — ПРЫГАЙ!",200,a.y-7);c.restore();
                     }else{
-                        a.life--;
+                        a.life-=asTimeScale;
                         c.save();c.globalAlpha=.28;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=25;c.lineWidth=30;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();
                         c.globalAlpha=.95;c.lineWidth=8;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();
                         c.globalAlpha=1;c.strokeStyle="#ffffff";c.lineWidth=1.5;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();c.restore();
@@ -2075,7 +2038,7 @@
                 }
                 if(a.kind==="gravityTell"){
                     if(a.timer>0){
-                        a.timer--;
+                        a.timer-=asTimeScale;
                         const wb=asBounds(), side=asGravityDirection, cx=(wb.left+wb.right)/2, cy=(wb.top+wb.bottom)/2;
                         const lineX=side===1?wb.left+9:wb.right-9;
                         const lineY=side===2?wb.top+9:wb.bottom-9;
@@ -2113,7 +2076,7 @@
                     asShake=Math.max(asShake,9);asSound(105,"sawtooth",.24,.1);asAttacks.splice(i,1);continue;
                 }
                 if(a.kind==="fall" && typeof a.warning==="number" && a.warning>0){
-                    a.warning--;
+                    a.warning-=asTimeScale;
                     const wb=asBounds();
                     c.save();c.globalAlpha=.42+Math.abs(Math.sin(asFrame*.42))*.48;
                     c.strokeStyle="#ff68d9";c.shadowColor="#ff46c8";c.shadowBlur=16;c.lineWidth=2;
@@ -2125,7 +2088,7 @@
                 }
                 if(a.kind==="mark"){
                     if(!a.burst){
-                        a.timer=Math.max(0,a.timer-1);
+                        a.timer=Math.max(0,a.timer-asTimeScale);
                         const pulse=1+Math.sin(asFrame*.22)*.12;
                         c.save();c.globalAlpha=.45+Math.abs(Math.sin(asFrame*.17))*.35;c.translate(a.x,a.y);
                         c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=14;c.lineWidth=1.8;
@@ -2147,14 +2110,14 @@
                         c.beginPath();c.arc(a.x,a.y,radius,0,Math.PI*2);c.stroke();
                         c.globalAlpha=Math.max(.04,a.life/18)*.28;c.beginPath();c.arc(a.x,a.y,radius*.72,0,Math.PI*2);c.fill();c.restore();
                         if(!a.hit&&Math.hypot(asPlayer.x-a.x,asPlayer.y-a.y)<a.radius+asPlayer.size){asDamagePlayer(a.damage,"КОЛЛАПС ВЕРОЯТНОСТИ");a.hit=true;}
-                        a.life--;if(a.life<=0)asAttacks.splice(i,1);
+                        a.life-=asTimeScale;if(a.life<=0)asAttacks.splice(i,1);
                     }
                     continue;
                 }
                 if(a.kind==="well"){
                     if(!a.burst){
                         if((a.warning||0)>0){
-                            a.warning--;
+                            a.warning-=asTimeScale;
                             const charge=1-a.warning/(a.warningMax||78);
                             const pulse=1+Math.sin(asFrame*.32)*.12;
                             c.save();c.translate(a.x,a.y);
@@ -2186,7 +2149,7 @@
                             }
                             continue;
                         }
-                        a.timer=Math.max(0,a.timer-1);
+                        a.timer=Math.max(0,a.timer-asTimeScale);
                         const pulse=1+Math.sin(asFrame*.16)*.1;
                         c.save();c.translate(a.x,a.y);
                         const distortion=c.createRadialGradient(0,0,2,0,0,a.pullRadius*.56);
@@ -2213,7 +2176,7 @@
                         const t=1-a.life/28;
                         c.save();c.globalAlpha=Math.max(0,a.life/28);c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=18;c.lineWidth=2;
                         c.beginPath();c.arc(a.x,a.y,12+t*a.radius,0,Math.PI*2);c.stroke();
-                        c.restore();a.life--;if(a.life<=0)asAttacks.splice(i,1);
+                        c.restore();a.life-=asTimeScale;if(a.life<=0)asAttacks.splice(i,1);
                     }
                     continue;
                 }
@@ -2223,7 +2186,7 @@
                     const travel=a.sweepDistance||96;
                     const startTop=a.zone==="upper"?bounds.top+5:bounds.bottom-height-5;
                     if(a.warning>0){
-                        a.warning--;
+                        a.warning-=asTimeScale;
                         const warnPulse=.32+Math.abs(Math.sin(asFrame*.28))*.32;
                         c.save();
                         c.fillStyle=a.color;c.globalAlpha=.075+warnPulse*.08;c.fillRect(bounds.left,startTop,bounds.right-bounds.left,height);
@@ -2248,7 +2211,7 @@
                             }
                         }
                     }else{
-                        a.life--;
+                        a.life-=asTimeScale;
                         const progress=Math.max(0,Math.min(1,1-a.life/(a.maxLife||42)));
                         const zoneTop=a.zone==="upper"
                             ?Math.min(bounds.bottom-height-2,startTop+travel*progress)
@@ -2290,7 +2253,7 @@
                     const lineEnd=vertical?bounds.bottom-2:bounds.right;
                     const lineCoord=vertical?a.x:a.y;
                     if(a.warning>0){
-                        a.warning--;
+                        a.warning-=asTimeScale;
                         c.save();c.globalAlpha=(barrier ? .45 : .35)+Math.abs(Math.sin(asFrame*.25))*.25;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=barrier?22:11;c.lineWidth=barrier?4:2;
                         c.setLineDash([7,6]);c.beginPath();
                         if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}
@@ -2299,7 +2262,7 @@
                         c.globalAlpha=.85;c.fillStyle="#ffffff";c.font="bold 10px monospace";c.textAlign="center";
                         c.fillText(barrier?"БАРЬЕР — НЕ ПРИБЛИЖАЙСЯ":"!",vertical?lineCoord:(bounds.left+bounds.right)/2,vertical?lineStart+10:lineCoord-7);c.restore();
                     }else{
-                        a.life--;
+                        a.life-=asTimeScale;
                         c.save();c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=barrier?34:20;c.lineCap="round";
                         c.globalAlpha=barrier ? .3 : .27;c.lineWidth=beamWidth;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
                         c.globalAlpha=.95;c.lineWidth=barrier?Math.max(8,beamWidth*.3):8;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
@@ -2326,12 +2289,12 @@
                     const dx=asPlayer.x-a.x,dy=asPlayer.y-a.y,dist=Math.max(1,Math.hypot(dx,dy));
                     const speed=Math.min(a.maxSpeed||3.6,Math.hypot(a.vx,a.vy)+.025);
                     const targetX=dx/dist*speed,targetY=dy/dist*speed,turn=a.turnRate||.045;
-                    a.vx+=(targetX-a.vx)*turn;a.vy+=(targetY-a.vy)*turn;
+                    a.vx+=(targetX-a.vx)*turn*asTimeScale;a.vy+=(targetY-a.vy)*turn*asTimeScale;
                 }else{
                     if(typeof a.spd==="number")a.vx=a.spd;
                     if(typeof a.spdY==="number")a.vy=a.spdY;
                 }
-                a.x+=a.vx;a.y+=a.vy;a.life--;a.phase+=.1;
+                a.x+=a.vx*asTimeScale;a.y+=a.vy*asTimeScale;a.life-=asTimeScale;a.phase+=.1*asTimeScale;
                 // Bright energy trails make fast shots readable instead of tiny dots that seem to vanish.
                 c.save();c.globalAlpha=a.homing?.72:.48;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=a.homing?22:14;c.lineWidth=a.homing?4:2.5;
                 c.beginPath();c.moveTo(a.x-a.vx*(a.homing?7:4),a.y-a.vy*(a.homing?7:4));c.lineTo(a.x+a.vx*1.5,a.y+a.vy*1.5);c.stroke();c.restore();
@@ -2364,7 +2327,7 @@
                 if(a.life<=0||a.x<-80||a.x>480||a.y<-80||a.y>580)asAttacks.splice(i,1);
             }
             for(let i=asParticles.length-1;i>=0;i--){
-                const p=asParticles[i];p.x+=p.vx;p.y+=p.vy;p.vx*=.97;p.vy*=.97;p.life--;
+                const p=asParticles[i];p.x+=p.vx*asTimeScale;p.y+=p.vy*asTimeScale;p.vx*=Math.pow(.97,asTimeScale);p.vy*=Math.pow(.97,asTimeScale);p.life-=asTimeScale;
                 c.globalAlpha=Math.max(0,p.life/p.maxLife);c.fillStyle=p.color;c.beginPath();c.arc(p.x,p.y,Math.max(.1,p.size*p.life/p.maxLife),0,Math.PI*2);c.fill();
                 if(p.life<=0)asParticles.splice(i,1);
             }
@@ -2375,7 +2338,7 @@
             c.restore();
         }
         // Floating text, effects, and existing character super visuals.
-        for(let i=asTexts.length-1;i>=0;i--){const t=asTexts[i];t.y+=t.vy;t.life--;c.globalAlpha=Math.max(0,t.life/t.maxLife);c.fillStyle=t.color;c.shadowColor=t.color;c.shadowBlur=8;c.textAlign="center";c.font="bold 12px monospace";c.fillText(t.text,t.x,t.y);if(t.life<=0)asTexts.splice(i,1);}
+        for(let i=asTexts.length-1;i>=0;i--){const t=asTexts[i];t.y+=t.vy*asTimeScale;t.life-=asTimeScale;c.globalAlpha=Math.max(0,t.life/t.maxLife);c.fillStyle=t.color;c.shadowColor=t.color;c.shadowBlur=8;c.textAlign="center";c.font="bold 12px monospace";c.fillText(t.text,t.x,t.y);if(t.life<=0)asTexts.splice(i,1);}
         c.globalAlpha=1;c.restore();
         if(asFlash>0){c.save();c.globalAlpha=asFlash/35;c.fillStyle=asFlashColor;c.fillRect(0,0,400,500);c.restore();}
         if(asState==="fight"){
@@ -2396,7 +2359,7 @@
             c.fillStyle = "rgba(1,8,20,.9)"; c.fillRect(92,78,216,19);
             c.strokeStyle = "#76f4ff"; c.strokeRect(92,78,216,19);
             c.fillStyle = "#c4fbff"; c.font = "bold 10px monospace"; c.textAlign = "center";
-            c.fillText("ВРЕМЯ ×0,125 · НАЖМИ ДЛЯ ВЫСТРЕЛА",200,91);
+            c.fillText("ВРЕМЯ ×0,5 · КАСАНИЕ ДЛЯ ВЫСТРЕЛА",200,91);
             c.restore();
         }
         // Physics / input are stepped here, after rendering so the click hitbox stays aligned.
@@ -2429,13 +2392,13 @@
             const tangentX=-gravity.y,tangentY=gravity.x;
             const sizeSpeedMultiplier=asPlayerScaleMode===.5?1.5:(asPlayerScaleMode===2?.62:1);
             const tangentInput=mx*tangentX+my*tangentY;
-            const nextVx=(asPlayer.vx+tangentX*tangentInput*.43*sizeSpeedMultiplier+gravity.x*.32+pullX)*.91;
-            const nextVy=(asPlayer.vy+tangentY*tangentInput*.43*sizeSpeedMultiplier+gravity.y*.32+pullY)*.91;
+            const nextVx=(asPlayer.vx+(tangentX*tangentInput*.43*sizeSpeedMultiplier+gravity.x*.32+pullX)*asTimeScale)*Math.pow(.91,asTimeScale);
+            const nextVy=(asPlayer.vy+(tangentY*tangentInput*.43*sizeSpeedMultiplier+gravity.y*.32+pullY)*asTimeScale)*Math.pow(.91,asTimeScale);
             const tangentLimit=6.2*sizeSpeedMultiplier, normalLimit=24.8*(asPlayerScaleMode===.5?.72:(asPlayerScaleMode===2?1.3:1));
             asPlayer.vx=Math.max(gravity.x?-normalLimit:-tangentLimit,Math.min(gravity.x?normalLimit:tangentLimit,nextVx));
             asPlayer.vy=Math.max(gravity.y?-normalLimit:-tangentLimit,Math.min(gravity.y?normalLimit:tangentLimit,nextVy));
             const px=asPlayer.x,py=asPlayer.y,r=asPlayer.size;
-            asPlayer.x+=asPlayer.vx;asPlayer.y+=asPlayer.vy;
+            asPlayer.x+=asPlayer.vx*asTimeScale;asPlayer.y+=asPlayer.vy*asTimeScale;
             const bounds=asBounds();let boundaryGrounded=false;
             if(asPlayer.x<bounds.left){asPlayer.x=bounds.left;if(asGravityDirection===1){asPlayer.vx=0;boundaryGrounded=true;}else asPlayer.vx=Math.abs(asPlayer.vx)*.28;}
             if(asPlayer.x>bounds.right){asPlayer.x=bounds.right;if(asGravityDirection===3){asPlayer.vx=0;boundaryGrounded=true;}else asPlayer.vx=-Math.abs(asPlayer.vx)*.28;}
@@ -2467,13 +2430,13 @@
                 }
             }
             const chargeNow=asClockNow(),canCharge=chargeNow>=asNextShotAt&&chargeNow-asLastDamageAt>=3000;
-            if(canCharge&&asChargeFrames<150)asChargeFrames=Math.min(150,asChargeFrames+1);
+            if(canCharge&&asChargeFrames<150)asChargeFrames=Math.min(150,asChargeFrames+asTimeScale);
             asCharging=canCharge&&asChargeFrames<150;asUpdateControls();
-            if(asBossExposed>0)asBossExposed--;if(asLabyrinthTimer>0)asLabyrinthTimer--;
+            if(asBossExposed>0)asBossExposed-=asTimeScale;if(asLabyrinthTimer>0)asLabyrinthTimer-=asTimeScale;
             // A pattern may stop spawning after its showcase window, but its attacks are never
             // cleared just because a timer elapsed. Wait for beams, marks, wells and projectiles to finish.
             if(!asPatternDraining){
-                asPatternTimer++;
+                asPatternTimer+=asTimeScale;
                 const duration=asPattern===7?250:(asPattern===9?450:178);
                 if(asPatternTimer>duration)asPatternDraining=true;
             }
@@ -2493,11 +2456,11 @@
                     asSpawnPattern(now);asPatternVolleyCount++;
                 }
             }
-            if(asPlayer.invuln>0)asPlayer.invuln--;
+            if(asPlayer.invuln>0)asPlayer.invuln-=asTimeScale;
             const near=Math.hypot(asPlayer.x-asBoss.x,asPlayer.y-(asBoss.y+43))<52;
             const j=window._joystick;
             const deliberate=!!(left||right||up||down||asKeys[" "]||(j&&j.enabled&&j.active&&(Math.abs(Number(j.vectorX)||0)>.12||Math.abs(Number(j.vectorY)||0)>.12))||(asPointer.down&&!asPointerChargeMode));
-            if(near&&deliberate&&now>=asMiniCooldownUntil&&now>=asGravityTransitionUntil)asBossApproachFrames++;else asBossApproachFrames=0;
+            if(near&&deliberate&&now>=asMiniCooldownUntil&&now>=asGravityTransitionUntil)asBossApproachFrames+=asTimeScale;else asBossApproachFrames=0;
             if(asBossApproachFrames>=8&&!asWinPending&&!asDefeatPending)asStartBrokenReality(now);
         }
         asAnimFrame=requestAnimationFrame(asRender);
@@ -2508,8 +2471,8 @@
         asGameClock = performance.now();
         asLastRafTimestamp = asGameClock;
         asClockReady = true;
-        asSlowFrameCounter = 0;
         asAimMode = false;
+        asSlowUntilReal = 0; asTimeScale = 1; asPreviousTimeScale = 1;
         if(typeof currentEnemy==="undefined"||!currentEnemy||currentEnemy.hp<=0) return;
         asActive=true;window.antiSpiralBossActive=true;asState="cinematic";asWinPending=false;asDefeatPending=false;
         asInitPlatforms();asInitSeals();asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=asClockNow();asNextShotAt=0;asMiniCooldownUntil=0;asMiniReturnPlayer=null;asMiniSpirals=[];asReassemblyEffectUntil=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
