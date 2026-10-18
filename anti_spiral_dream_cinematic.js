@@ -58,29 +58,20 @@
     ].join("");
 
     function readEvolutionTemplates() {
-        let values = [];
         try {
             if (typeof customCardTemplates !== "undefined" &&
-                customCardTemplates && Array.isArray(customCardTemplates["Эволюционная"])) {
-                values = customCardTemplates["Эволюционная"].slice();
+                customCardTemplates &&
+                Array.isArray(customCardTemplates["Эволюционная"])) {
+                // The template catalog is the source of truth. Never fall back to myCards:
+                // myCards only contains this player's already acquired cards.
+                return customCardTemplates["Эволюционная"]
+                    .filter(function (card) { return card && typeof card === "object" && String(card.name || "").trim(); })
+                    .map(function (card) {
+                        return Object.assign({}, card, { rarity: "Эволюционная" });
+                    });
             }
         } catch (e) {}
-        if (!values.length) {
-            try {
-                if (typeof myCards !== "undefined" && Array.isArray(myCards)) {
-                    values = myCards.filter(function (card) {
-                        return card && card.rarity === "Эволюционная";
-                    });
-                }
-            } catch (e) {}
-        }
-        const seen = Object.create(null);
-        return values.filter(function (card) {
-            const name = String(card && card.name || "").trim();
-            if (!name || seen[name]) return false;
-            seen[name] = true;
-            return true;
-        });
+        return [];
     }
 
     function makeElement(tag, className, text) {
@@ -155,9 +146,58 @@
         ctx.restore();
     }
 
+    function makeEvolutionTemplateCard(template, index) {
+        const card = makeElement("div", "card-item");
+        const name = String(template.name || "Без названия");
+        card.setAttribute("aria-label", name + ", Эволюционная");
+        card.style.cursor = "default";
+        card.style.pointerEvents = "none";
+        card.style.animationDelay = Math.min(index * 28, 560) + "ms";
+
+        let imagePath = null;
+        try {
+            if (typeof getCardImage === "function") imagePath = getCardImage(name);
+        } catch (e) {}
+        if (imagePath) {
+            const image = document.createElement("img");
+            image.className = "card-image";
+            image.src = imagePath;
+            image.alt = name;
+            image.loading = "lazy";
+            image.draggable = false;
+            card.appendChild(image);
+        }
+
+        card.appendChild(makeElement("div", "card-name", name));
+        card.appendChild(makeElement("div", "rarity-tag evolutionary", "Эволюционная"));
+
+        const damage = Number.isFinite(Number(template.damage)) ? Number(template.damage) : 0;
+        const hp = Number.isFinite(Number(template.hp)) ? Number(template.hp) : 0;
+        const speed = Number.isFinite(Number(template.speed)) ? Number(template.speed) : 0.5;
+        card.appendChild(makeElement("div", "card-stats", "💪" + damage + " ❤️" + hp + " ⚡" + speed.toFixed(1)));
+
+        if (template.superAbility && template.superAbility.name) {
+            const superName = makeElement("div", "", template.superAbility.name);
+            superName.style.cssText = "font-size:9px;color:#ffd700;font-weight:bold;margin-top:3px;text-align:center;line-height:1.2;background:rgba(0,0,0,.3);border-radius:8px;padding:2px 4px;overflow-wrap:anywhere";
+            card.appendChild(superName);
+        }
+        if (template.ability && template.ability.desc) {
+            const ability = makeElement("div", "", "✨ " + template.ability.desc);
+            ability.style.cssText = "font-size:10px;color:#f5af19;font-weight:bold;margin-top:3px;line-height:1.25;overflow-wrap:anywhere";
+            card.appendChild(ability);
+        }
+        if (template.statusAbility && template.statusAbility.desc) {
+            const status = makeElement("div", "", template.statusAbility.desc);
+            status.style.cssText = "font-size:9px;color:#f5af19;margin-top:3px;line-height:1.25;overflow-wrap:anywhere";
+            card.appendChild(status);
+        }
+        return card;
+    }
+
     function renderRealEvolutionFrame(parent) {
         const source = document.getElementById("collectionGrid");
         const originalCard = source ? source.closest(".card") : null;
+        const templates = readEvolutionTemplates();
         const shot = makeElement("div", "asdc-game-shot");
         shot.style.inset = "4% 3% 4%";
         shot.style.overflow = "hidden";
@@ -166,52 +206,55 @@
         shot.style.display = "flex";
         shot.style.alignItems = "stretch";
         shot.style.justifyContent = "stretch";
-        if (originalCard && source) {
-            // Reuse the game's real collection DOM and CSS. No hand-drawn cards or substitute UI.
-            const original = originalCard.cloneNode(true);
-            original.style.cssText += ";width:100%;height:100%;min-height:0;margin:0;padding:10px;overflow:hidden;box-sizing:border-box;display:flex;flex-direction:column;pointer-events:none;transform:none";
-            const grid = original.querySelector("#collectionGrid");
-            if (grid) {
-                grid.removeAttribute("id");
-                grid.style.cssText += ";overflow:auto;min-height:0;flex:1";
-                const cards = Array.from(grid.querySelectorAll(".card-item"));
-                cards.forEach(function(card) {
-                    const rarity = card.querySelector(".rarity-tag");
-                    if (!rarity || rarity.textContent.trim() !== "Эволюционная") {
-                        card.remove();
-                        return;
-                    }
-                    card.removeAttribute("onclick");
-                    card.querySelectorAll("[onclick]").forEach(function(node) { node.removeAttribute("onclick"); });
-                    card.style.pointerEvents = "none";
-                });
-                const count = grid.querySelectorAll(".card-item").length;
-                const shown = original.querySelector("#shownCards");
-                const total = original.querySelector("#totalCards");
-                if (shown) shown.textContent = String(count);
-                if (total) total.textContent = String(count);
-                if (!count) {
-                    const note = makeElement("div", "", "В текущей коллекции ещё нет отрисованных эволюционных карт.");
-                    note.style.cssText = "padding:18px;text-align:center;color:#f6d98b;font-weight:800";
-                    grid.appendChild(note);
-                }
+
+        // Keep the actual game's collection-card/grid CSS, but populate it from the
+        // complete evolution template catalog, not the player's inventory DOM.
+        const original = originalCard ? originalCard.cloneNode(true) : makeElement("div", "card");
+        original.style.cssText += ";width:100%;height:100%;min-height:0;margin:0;padding:10px;overflow:hidden;box-sizing:border-box;display:flex;flex-direction:column;pointer-events:none;transform:none";
+
+        const heading = original.querySelector(".card-title");
+        if (heading) heading.textContent = "🧬 Все эволюционные карты";
+
+        const search = original.querySelector("#cardSearchInput");
+        if (search && search.parentElement) search.parentElement.remove();
+
+        const grid = original.querySelector("#collectionGrid") || makeElement("div", "cards-grid");
+        grid.removeAttribute("id");
+        grid.innerHTML = "";
+        grid.style.cssText += ";overflow:auto;min-height:0;flex:1;grid-auto-rows:min-content;padding:4px";
+        if (!grid.parentNode) original.appendChild(grid);
+
+        templates.forEach(function (template, index) {
+            grid.appendChild(makeEvolutionTemplateCard(template, index));
+        });
+
+        const count = templates.length;
+        const shown = original.querySelector("#shownCards");
+        const total = original.querySelector("#totalCards");
+        if (shown) { shown.textContent = String(count); shown.removeAttribute("id"); }
+        if (total) { total.textContent = String(count); total.removeAttribute("id"); }
+        original.querySelectorAll("[id]").forEach(function (node) {
+            if (node.id === "cardSearchInput" || node.id === "cardRarityFilter" || node.id === "cardSortFilter") {
+                node.removeAttribute("id");
             }
-            original.querySelectorAll("button,input,select").forEach(function(control) {
-                control.disabled = true;
-                control.removeAttribute("onclick");
-                control.removeAttribute("onchange");
-                control.style.pointerEvents = "none";
-            });
-            original.querySelectorAll("[onclick],[onchange]").forEach(function(node) {
-                node.removeAttribute("onclick");
-                node.removeAttribute("onchange");
-            });
-            shot.appendChild(original);
-        } else {
-            const note = makeElement("div", "", "Коллекция игры пока не отрисована. Этот кадр появится после загрузки настоящих карточек.");
-            note.style.cssText = "color:#f6d98b;padding:20px;text-align:center;font-weight:800";
-            shot.appendChild(note);
+        });
+        original.querySelectorAll("button,input,select").forEach(function (control) {
+            control.disabled = true;
+            control.removeAttribute("onclick");
+            control.removeAttribute("onchange");
+            control.style.pointerEvents = "none";
+        });
+        original.querySelectorAll("[onclick],[onchange]").forEach(function (node) {
+            node.removeAttribute("onclick");
+            node.removeAttribute("onchange");
+        });
+
+        if (!count) {
+            const note = makeElement("div", "", "Каталог эволюционных карт не найден. Проверь загрузку customCardTemplates.");
+            note.style.cssText = "padding:18px;text-align:center;color:#f6d98b;font-weight:800";
+            grid.appendChild(note);
         }
+        shot.appendChild(original);
         parent.appendChild(shot);
     }
 
