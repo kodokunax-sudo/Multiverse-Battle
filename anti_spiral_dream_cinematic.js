@@ -53,7 +53,11 @@
         "#antiSpiralDreamEnding .asdc-next{border:1px solid #6edfff9c;background:linear-gradient(135deg,#134e6c,#24234f);color:#e8fbff;box-shadow:0 0 18px #59dfff19}",
         "#antiSpiralDreamEnding .asdc-skip{border:1px solid #63708b;background:#10182a;color:#b6c2d8}",
         "#antiSpiralDreamEnding .asdc-button:hover{filter:brightness(1.18);transform:translateY(-1px)}",
-        "#antiSpiralDreamEnding .asdc-footer{margin-top:8px;text-align:center;color:#53627e;font:800 8px monospace;letter-spacing:1px}",\n        "#antiSpiralDreamEnding .asdc-real-game-grid .card-item{min-width:0;max-width:none;padding:6px;border-radius:8px}",\n        "#antiSpiralDreamEnding .asdc-real-game-grid .card-image{max-height:74px;object-fit:contain}",\n        "#antiSpiralDreamEnding .asdc-real-game-grid .card-name{font-size:10px}",\n        "#antiSpiralDreamEnding .asdc-real-game-grid .card-stats{font-size:8px}",
+        "#antiSpiralDreamEnding .asdc-footer{margin-top:8px;text-align:center;color:#53627e;font:800 8px monospace;letter-spacing:1px}",
+        "#antiSpiralDreamEnding .asdc-real-game-grid .card-item{min-width:0;max-width:none;padding:6px;border-radius:8px}",
+        "#antiSpiralDreamEnding .asdc-real-game-grid .card-image{max-height:74px;object-fit:contain}",
+        "#antiSpiralDreamEnding .asdc-real-game-grid .card-name{font-size:10px}",
+        "#antiSpiralDreamEnding .asdc-real-game-grid .card-stats{font-size:8px}",
         "@keyframes asdcShotIn{from{opacity:0;transform:translateY(12px) scale(.985);filter:blur(5px)}to{opacity:1;transform:none;filter:blur(0)}}",
         "@keyframes asdcCardReveal{from{opacity:0;transform:translateY(9px) scale(.97)}to{opacity:1;transform:none}}",
         "@keyframes asdcGlitch{0%,90%,100%{transform:translateX(0)}91%{transform:translateX(-5px)}93%{transform:translateX(4px)}96%{transform:translateX(-2px)}}",
@@ -241,16 +245,18 @@
             copy.textContent = scene.text;
             hudLeft.textContent = scene.hud;
             hudRight.textContent = index === 4 ? "REAL GAME CARDS" : "FRAME 0" + (index + 1);
-            hudRight.className = index === 4 ? "asdc-warning" : "";
+            hudRight.className = "";
             anomaly.textContent = index === 4 ? "LIVE GAME UI" : "SURVIVAL SAVE // " + (index < 3 ? "ACTIVE" : "VERIFIED");
-            anomaly.style.color = index === 4 ? "#ff879f" : "";
+            anomaly.style.color = index === 4 ? "#ffe1a3" : "";
             count.textContent = "КАДР 0" + (index + 1) + " / 05  ·  ИСТОРИЯ ИГРОКА";
             next.textContent = index === scenes.length - 1 ? "ЗАКРЫТЬ КАДРЫ →" : "СЛЕДУЮЩИЙ КАДР →";
-            stage.style.borderColor = index === 4 ? "rgba(255,106,148,.78)" : "rgba(140,184,255,.4)";
-            stage.style.animation = index === 4 ? "asdcGlitch 4.5s steps(1) infinite" : "none";
-            if (collectionShot) { collectionShot.remove(); collectionShot = null; }\n            const oldShot = stage.querySelector(".asdc-game-shot"); if (oldShot) oldShot.remove();
-            if (index === 0) {
-                renderCollectionScreenshot(stage);
+            stage.style.borderColor = index === 4 ? "rgba(255,211,106,.78)" : "rgba(140,184,255,.4)";
+            stage.style.animation = "none";
+            if (collectionShot) { collectionShot.remove(); collectionShot = null; }
+            const oldShot = stage.querySelector(".asdc-game-shot");
+            if (oldShot) oldShot.remove();
+            if (index === 4) {
+                renderRealEvolutionFrame(stage);
                 collectionShot = stage.querySelector(".asdc-game-shot");
             }
             sceneStart = performance.now();
