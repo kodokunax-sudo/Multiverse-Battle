@@ -1658,7 +1658,7 @@ function renderArena() {
     // ★ ФИКС: Такаба замораживает всех ★
     var takabaFreeze = (typeof _superState !== 'undefined' && _superState.takabaTimeStop);
     
-    if (arenaPhase === "dodge" && !takabaFreeze) { moveHeart(); if (arenaExtendedState && arenaAttackType >= 11 && arenaCurrentWave !== 1500) updateExtendedArenaAttack(now); if (arenaAllowedTypes.includes(10) && !heartWasMoving) { var bw = arenaCurrentWave; var ct = bw >= 700 ? 70 : (bw >= 350 ? 90 : 110); if (heartStandingTime > ct) { spawnBlaster(bw); heartStandingTime = 0; } } }
+    if (arenaPhase === "dodge" && !takabaFreeze) { moveHeart(); if (arenaAllowedTypes.includes(10) && !heartWasMoving) { var bw = arenaCurrentWave; var ct = bw >= 700 ? 70 : (bw >= 350 ? 90 : 110); if (heartStandingTime > ct) { spawnBlaster(bw); heartStandingTime = 0; } } }
     if (arenaKarma > 0) { var drain = Math.max(0.15, arenaKarma * 0.05); if (arenaKarma < drain) drain = arenaKarma; arenaKarma -= drain; if (arenaHP > 1) { arenaHP -= drain; if (arenaHP < 1) arenaHP = 1; } document.getElementById("arenaHP").innerText = Math.max(0, Math.ceil(arenaHP)); }
     if (ghostBossHP > arenaBossMaxHP) { ghostBossHP -= (ghostBossHP - arenaBossMaxHP) * 0.08; if (ghostBossHP - arenaBossMaxHP < 1) ghostBossHP = arenaBossMaxHP; }
     if (ghostBossHP < arenaBossMaxHP) ghostBossHP = arenaBossMaxHP;
@@ -1852,6 +1852,9 @@ function renderArena() {
 
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (var i = arenaTrail.length - 1; i >= 0; i--) { var t = arenaTrail[i]; t.life--; var ratio = Math.max(0, t.life / t.maxLife); var trailRadius = Math.max(0.1, t.size * ratio); ctx.fillStyle = t.color; ctx.globalAlpha = ratio * 0.7; ctx.beginPath(); ctx.arc(t.x, t.y - 2, trailRadius, 0, Math.PI * 2); ctx.fill(); if (t.life <= 0) arenaTrail.splice(i, 1); } ctx.restore();
+
+    // Draw/advance extended patterns after clearing the canvas; drawing earlier erased every frame.
+    if (arenaPhase === "dodge" && !takabaFreeze && arenaExtendedState && arenaAttackType >= 11 && arenaAttackType <= 20 && arenaCurrentWave !== 1500) updateExtendedArenaAttack(now);
 
     if (arenaPhase === "dodge" && !takabaFreeze) {
         var frozen = (typeof _superState !== 'undefined' && _superState.antispiralFrozen), speedMod = arenaGlobalSpeedMod * (typeof _superState !== 'undefined' && _superState.antispiralSpeedBoost ? 1.5 : 1.0) * (typeof _superState !== 'undefined' ? (_superState.takabaArenaSpeedMult || 1) : 1), timeStopped = (typeof _superState !== 'undefined' && (_superState.garouTimeStop || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0));
