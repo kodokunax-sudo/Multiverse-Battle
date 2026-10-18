@@ -1637,6 +1637,11 @@ function renderArena() {
         if (arenaShockwaves.length > 5) arenaShockwaves.splice(0, arenaShockwaves.length - 5);
         if (arenaTrail.length > 8) arenaTrail.splice(0, arenaTrail.length - 8);
         if (floatingTexts.length > 8) floatingTexts.splice(0, floatingTexts.length - 8);
+    } else if (window.MBIsMediumGraphics && window.MBIsMediumGraphics()) {
+        if (arenaParticles.length > 90) arenaParticles.splice(0, arenaParticles.length - 90);
+        if (arenaShockwaves.length > 24) arenaShockwaves.splice(0, arenaShockwaves.length - 24);
+        if (arenaTrail.length > 30) arenaTrail.splice(0, arenaTrail.length - 30);
+        if (floatingTexts.length > 24) floatingTexts.splice(0, floatingTexts.length - 24);
     }
 
     if (typeof tickSupers === 'function') tickSupers();
