@@ -371,7 +371,7 @@
             drawPlayer(ctx, 340 + Math.sin(t * 1.5) * 2, 455, 1.2, "look", t);
             drawAntiSpiral(ctx, 770, 280, 1.12, t, true);
             ctx.save(); ctx.strokeStyle = "rgba(255,82,132,.75)"; ctx.lineWidth = 2; ctx.setLineDash([8,6]);
-            ctx.beginPath(); ctx.roundRect(450, 140, 145, 205, 10); ctx.stroke(); ctx.setLineDash([]);
+            roundedRect(ctx, 450, 140, 145, 205, 10); ctx.stroke(); ctx.setLineDash([]);
             ctx.fillStyle = "rgba(255,66,117,.12)"; ctx.fill();
             ctx.fillStyle = "#ff8ca8"; ctx.font = "1000 64px Arial"; ctx.textAlign = "center"; ctx.fillText("?", 522, 240);
             ctx.font = "900 10px monospace"; ctx.fillText("RICK: NOT FOUND", 522, 273);
