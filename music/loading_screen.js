@@ -39,7 +39,10 @@
         // Модели для боя с Роджером и Белоусом заранее загружаются на экране загрузки.
         "whitebeardBossModel": "Model/белоус.png",
         "rogerBossModel": "Model/роджер.png",
-        "odenBossModel": "Model/оден.png"
+        "odenBossModel": "Model/оден.png",
+        "rogerBossModelFlash": "Model/роджер белый.png",
+        "whitebeardBossModelFlash": "Model/белоус белый.png",
+        "odenBossModelFlash": "Model/оден белый.png"
     };
 
     const FETCH_TIMEOUT = 30000; // 30 секунд на ресурс
