@@ -4323,7 +4323,7 @@
         }
 
         const incoming = rwbOdenFindIncoming(oden);
-        if (incoming && oden.dodgeCooldown <= 0 && !tsunamiEscape) {
+        if (incoming && oden.dodgeCooldown <= 0 && !tsunamiEscape && !tsunamiPull) {
             const risk = incoming.risk;
             let dx, dy;
             if (Number.isFinite(risk.safeX) || Number.isFinite(risk.safeY)) {
