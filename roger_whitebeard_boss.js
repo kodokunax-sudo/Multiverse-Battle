@@ -3716,6 +3716,7 @@
             for (var ob = 0; ob < offerButtons.length; ob++) {
                 var opt = offerButtons[ob];
                 ctx.fillStyle = opt.fill; ctx.strokeStyle = opt.stroke; ctx.lineWidth = 2;
+                ctx.beginPath();
                 if (ctx.roundRect) ctx.roundRect(20, opt.y, 360, 54, 12);
                 else ctx.rect(20, opt.y, 360, 54);
                 ctx.fill(); ctx.stroke();
