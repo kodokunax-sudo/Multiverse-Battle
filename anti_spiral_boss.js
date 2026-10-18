@@ -15,6 +15,8 @@
     let asMusicFallbackSource = null;
     let asBossHp = 0;
     let asBossMaxHp = 0;
+    // Keep damage based on the previous HP scale, so the +35% HP is a real durability increase.
+    let asBossDamageScaleHp = 0;
     let asPlayerHp = 220;
     let asPlayerMaxHp = 220;
     let asPlayer = { x: 200, y: 430, vx: 0, vy: 0, size: 12, invuln: 0, grounded: true };
@@ -348,7 +350,7 @@
         const dy = targetY - (asPlayer.y - 5);
         const distance = Math.max(1, Math.hypot(dx, dy));
         const heightBonus = asPlayer.y < 270 ? 1.25 : (asPlayer.y < 350 ? 1.1 : 1);
-        const baseDamage = Math.max(1, Math.floor(asBossMaxHp * (0.025 + 0.105 * charge * charge) * heightBonus));
+        const baseDamage = Math.max(1, Math.floor(asBossDamageScaleHp * (0.025 + 0.105 * charge * charge) * heightBonus));
         const level = charge >= 0.8 ? "МАКСИМАЛЬНЫЙ БУР" : charge >= 0.48 ? "МОЩНЫЙ БУР" : charge >= 0.18 ? "СПИРАЛЬНЫЙ БУР" : "СЛАБЫЙ БУР";
         asDrillShots.push({
             x: asPlayer.x, y: asPlayer.y - 5,
@@ -2089,7 +2091,7 @@
         asLastArenaShift = now;
         asLastDamageAt = asClockNow();
         if (success) {
-            const bonusDamage = Math.max(1, Math.floor(asBossMaxHp * 0.10));
+            const bonusDamage = Math.max(1, Math.floor(asBossDamageScaleHp * 0.10));
             if (asUnbrokenSealIndex() < 0) {
                 asBossHp = Math.max(0, asBossHp - bonusDamage);
                 asText(200, 110, "ОБРАТНЫЙ УДАР! -" + bonusDamage + " HP", "#86ffff", 100);
@@ -2615,7 +2617,7 @@
                             asPlayer.invuln=Math.max(asPlayer.invuln||0,90);
                             asText(200,109,"ПАРАДОКСАЛЬНЫЙ КОНТРУДАР!","#86ffff",88);
                             asText(200,130,"ТЕЛЕПОРТ · НЕУЯЗВИМОСТЬ 1,5 СЕКУНДЫ","#b8faff",86);
-                            const counterDamage=Math.max(1,Math.floor(asBossMaxHp*.05));
+                            const counterDamage=Math.max(1,Math.floor(asBossDamageScaleHp*.05));
                             asBossHit(counterDamage,"ПАРАДОКСАЛЬНЫЙ КОНТРУДАР");
                             asReassemblyEffectUntil=now+900;asBossDamageFlash=Math.max(asBossDamageFlash,24);
                             asFlash=Math.max(asFlash,13);asFlashColor="#53eaff";asShake=Math.max(asShake,12);
@@ -3145,7 +3147,8 @@
         asActive=true;window.antiSpiralBossActive=true;asState="cinematic";asWinPending=false;asDefeatPending=false;
         asInitPlatforms();asInitSeals();if(typeof mode!=="undefined"&&mode==="moder"){asSeals.forEach(function(seal){seal.hp=0;seal.broken=true;});}asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=asClockNow();asNextShotAt=0;asMiniCooldownUntil=0;asMiniReturnPlayer=null;asMiniSpirals=[];asReassemblyEffectUntil=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
         asCinematicStart=performance.now();asCinematicRedHeart={x:-25,y:410};asCinematicArenaProgress=0;
-        asBossMaxHp=Math.floor(Math.max(40000,Math.floor((Number(window.playerFinalDamage)||80)*120))*1.30);
+        asBossDamageScaleHp=Math.floor(Math.max(40000,Math.floor((Number(window.playerFinalDamage)||80)*120))*1.30);
+        asBossMaxHp=Math.floor(asBossDamageScaleHp*1.35);
         asBossHp=asBossMaxHp;asPlayerMaxHp=220;asPlayerHp=asPlayerMaxHp;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asBoss={x:285,y:180,size:48,rotation:0,pulse:0,flash:0};
