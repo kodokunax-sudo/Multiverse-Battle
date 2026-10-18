@@ -2637,7 +2637,7 @@
         // Floating text, effects, and existing character super visuals.
         for(let i=asTexts.length-1;i>=0;i--){const t=asTexts[i];t.y+=t.vy*asTimeScale;t.life-=asTimeScale;c.globalAlpha=Math.max(0,t.life/t.maxLife);c.fillStyle=t.color;c.shadowColor=t.color;c.shadowBlur=8;c.textAlign="center";c.font="bold 12px monospace";c.fillText(t.text,t.x,t.y);if(t.life<=0)asTexts.splice(i,1);}
         c.globalAlpha=1;c.restore();
-        if(asFlash>0){c.save();c.globalAlpha=asFlash/35;c.fillStyle=asFlashColor;c.fillRect(0,0,400,500);c.restore();}
+        if(!reduceBossEffects && asFlash>0){c.save();c.globalAlpha=asFlash/35;c.fillStyle=asFlashColor;c.fillRect(0,0,400,500);c.restore();}
         if(asState==="fight"){
             if(typeof tickSupers==="function") {try{tickSupers();}catch(e){}}
             if(typeof renderSuperVisuals==="function") {try{c.save();renderSuperVisuals();c.restore();}catch(e){}}
