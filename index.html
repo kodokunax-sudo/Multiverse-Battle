@@ -1059,6 +1059,18 @@
                         </div>
                     </div>
                     <div class="shop-item">
+                        <div>
+                            <strong>⚠️ Сниженные вспышки и тряска</strong>
+                            <div style="font-size:12px;color:#aaa;margin-top:4px;">Режим для фоточувствительности. По умолчанию выключен, включается только вручную здесь.</div>
+                        </div>
+                        <div>
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <input type="checkbox" id="reducedBossEffectsCheckbox" onchange="toggleReducedBossEffects(this.checked)">
+                                <span>Уменьшить визуальные эффекты</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="shop-item">
                         <div><strong>🔊 Громкость арены</strong></div>
                         <div><input type="range" id="arenaVolumeSlider" min="0" max="100" value="20" style="width:120px;" oninput="changeArenaVolume(this.value)"> <span id="arenaVolumeValue">20%</span></div>
                     </div>
@@ -1536,30 +1548,25 @@
             <li>Снижение эффектов уменьшает вспышки, но не гарантирует устранение всех рисков.</li>
         </ul>
         <p class="mb-warning-note">Продолжая игру, ты подтверждаешь, что прочитал это предупреждение.</p>
-        <label><input id="mbReducedFlashesCheck" type="checkbox" checked> <span>Снизить вспышки, тряску, частицы и другие декоративные эффекты (рекомендуется)</span></label>
         <button id="mbEpilepsyContinue" type="button">Я прочитал предупреждение, продолжить</button>
     </div>
 </div>
 <script>
 (function () {
     var overlay = document.getElementById("mbEpilepsyWarning");
-    var checkbox = document.getElementById("mbReducedFlashesCheck");
     var button = document.getElementById("mbEpilepsyContinue");
+    if (!overlay || !button) return;
     var seen = false;
     try {
         seen = localStorage.getItem("mbEpilepsyWarningSeen") === "1";
-        checkbox.checked = localStorage.getItem("mbReducedFlashes") !== "0";
     } catch (e) {}
     if (seen) overlay.style.display = "none";
     button.addEventListener("click", function () {
         try {
             localStorage.setItem("mbEpilepsyWarningSeen", "1");
-            localStorage.setItem("mbReducedFlashes", checkbox.checked ? "1" : "0");
         } catch (e) {}
-        window.__mbReducedFlashes = checkbox.checked;
         overlay.style.display = "none";
     });
-    try { window.__mbReducedFlashes = localStorage.getItem("mbReducedFlashes") !== "0"; } catch (e) { window.__mbReducedFlashes = true; }
 })();
 </script>
 
