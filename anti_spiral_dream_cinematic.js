@@ -26,9 +26,6 @@
         "#antiSpiralDreamEnding .asdc-stage-hud{position:absolute;z-index:5;top:9px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;font:900 clamp(7px,.9vw,10px)/1.3 monospace;letter-spacing:1px;color:#e2eeff;text-shadow:0 2px 6px #000}",
         "#antiSpiralDreamEnding .asdc-stage-hud .asdc-warning{color:#ff879f}",
         "#antiSpiralDreamEnding .asdc-game-shot{position:absolute;z-index:3;inset:7% 5% 6%;padding:clamp(7px,1.4vw,14px);overflow:hidden;border:1px solid rgba(146,177,225,.55);border-radius:9px;background:linear-gradient(145deg,rgba(18,27,48,.97),rgba(7,12,25,.98));box-shadow:0 10px 34px #000a,0 0 26px #91a8ff16;animation:asdcShotIn .75s cubic-bezier(.2,.8,.2,1) both}",
-        "#antiSpiralDreamEnding .asdc-game-header{display:flex;justify-content:space-between;align-items:center;gap:6px;border-bottom:1px solid #8ba0c629;padding-bottom:7px;color:#e6f3ff;font-weight:1000;font-size:clamp(9px,1.25vw,14px)}",
-        "#antiSpiralDreamEnding .asdc-game-header small{display:block;margin-top:3px;color:#8297ba;font:800 7px monospace;letter-spacing:1px}",
-        "#antiSpiralDreamEnding .asdc-stars{padding:5px 8px;border:1px solid #f7cc6350;border-radius:7px;background:#e7b95112;color:#ffe4a1;font-size:clamp(8px,1vw,11px);white-space:nowrap}",
         "#antiSpiralDreamEnding .asdc-tabs{display:flex;gap:5px;margin:8px 0;overflow:hidden}",
         "#antiSpiralDreamEnding .asdc-tab{flex:1;min-width:0;padding:6px 3px;text-align:center;border:1px solid #788bab28;border-radius:6px;background:#131d32;color:#7f92b2;font-size:clamp(7px,.9vw,10px);font-weight:900;white-space:nowrap}",
         "#antiSpiralDreamEnding .asdc-tab.active{border-color:#61dfff99;background:linear-gradient(135deg,#15466a,#20304c);color:#c8f5ff;box-shadow:0 0 12px #61dfff19}",
@@ -54,10 +51,6 @@
         "#antiSpiralDreamEnding .asdc-skip{border:1px solid #63708b;background:#10182a;color:#b6c2d8}",
         "#antiSpiralDreamEnding .asdc-button:hover{filter:brightness(1.18);transform:translateY(-1px)}",
         "#antiSpiralDreamEnding .asdc-footer{margin-top:8px;text-align:center;color:#53627e;font:800 8px monospace;letter-spacing:1px}",
-        "#antiSpiralDreamEnding .asdc-real-game-grid .card-item{min-width:0;max-width:none;padding:6px;border-radius:8px}",
-        "#antiSpiralDreamEnding .asdc-real-game-grid .card-image{max-height:74px;object-fit:contain}",
-        "#antiSpiralDreamEnding .asdc-real-game-grid .card-name{font-size:10px}",
-        "#antiSpiralDreamEnding .asdc-real-game-grid .card-stats{font-size:8px}",
         "@keyframes asdcShotIn{from{opacity:0;transform:translateY(12px) scale(.985);filter:blur(5px)}to{opacity:1;transform:none;filter:blur(0)}}",
         "@keyframes asdcCardReveal{from{opacity:0;transform:translateY(9px) scale(.97)}to{opacity:1;transform:none}}",
         "@keyframes asdcGlitch{0%,90%,100%{transform:translateX(0)}91%{transform:translateX(-5px)}93%{transform:translateX(4px)}96%{transform:translateX(-2px)}}",
@@ -180,7 +173,7 @@
             const grid = original.querySelector("#collectionGrid");
             if (grid) {
                 grid.removeAttribute("id");
-                grid.style.cssText += ";display:grid;grid-template-columns:repeat(auto-fill,minmax(95px,1fr));gap:7px;margin-top:7px;overflow:auto;min-height:0;flex:1";
+                grid.style.cssText += ";overflow:auto;min-height:0;flex:1";
                 const cards = Array.from(grid.querySelectorAll(".card-item"));
                 cards.forEach(function(card) {
                     const rarity = card.querySelector(".rarity-tag");
