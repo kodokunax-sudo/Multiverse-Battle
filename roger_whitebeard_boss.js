@@ -85,27 +85,38 @@
     ];
 
     var RWB_WHITEBEARD_DIALOG_INITIAL = [
-        { speaker: "❄️ БЕЛОУС", text: "Я настолько слабак, что меня победил какой-то чел, который любит играть в какие-то игры..." }
+        { speaker: "❄️ БЕЛОУС", text: "Ты победил меня в честном бою. Я уважаю силу, но ещё больше — волю человека. Скажи, чего ты хочешь?" }
     ];
 
     var RWB_WB_CHOICES = [
-        { id: 0, text: "Проблемы с навыками. Играть не умеешь" },
-        { id: 1, text: "Вступи в мою команду и стань сильнее" },
-        { id: 2, text: "КАКОЙ СЛАБАК!!???? Я МИЛЛИАРД РАЗ СДОХ ИЗ ЗА ВАС" }
+        { id: 0, text: "Я пришёл не унизить тебя, а понять." },
+        { id: 1, text: "Белоус, стань частью моей семьи." },
+        { id: 2, text: "Решение за тобой. Я не стану принуждать." }
     ];
 
     var RWB_WB_RESPONSE_1 = [
-        { speaker: "❄️ БЕЛОУС", text: "Может ты и прав... Но откуда мне знать кто ты? А вдруг ты читер?" }
+        { speaker: "👤 ИГРОК", text: "Я не считаю поражение позором. Даже сильнейшим нужна причина продолжать путь." },
+        { speaker: "❄️ БЕЛОУС", text: "Редко победитель говорит с побеждённым без высокомерия. Но одного уважения мало, чтобы стать близкими." }
     ];
     var RWB_WB_RESPONSE_2 = [
-        { speaker: "❄️ БЕЛОУС", text: "Хорошо, надеюсь это правда" }
+        { speaker: "👤 ИГРОК", text: "Я не ищу подчинённого. Семья — это те, кто прикрывает друг другу спину." },
+        { speaker: "❄️ БЕЛОУС", text: "Гурарара... Ты зовёшь меня не в команду, а в семью. Это большая ответственность." },
+        { speaker: "👤 ИГРОК", text: "Я не прошу клясться мне. Я прошу идти рядом и не оставлять друг друга в беде." },
+        { speaker: "❄️ БЕЛОУС", text: "Тогда я принимаю твоё приглашение. Запомни: назвал людей семьёй — стой за них до конца. Отныне я буду рядом." }
     ];
     var RWB_WB_RESPONSE_3_A = [
-        { speaker: "❄️ БЕЛОУС", text: "Ты о чем?" }
+        { speaker: "❄️ БЕЛОУС", text: "Хорошо. Я не стану принимать такое решение под давлением. Семью выбирают по собственной воле." }
     ];
     var RWB_WB_RESPONSE_3_B = [
-        { speaker: "👤 ИГРОК", text: "Временная шкатулка... Она наполняется прогрессом и можно путешествовать по времени. Это как снимать фильм" }
+        { speaker: "👤 ИГРОК", text: "Дверь открыта, Белоус. Если решишь встать рядом с нами — место для тебя найдётся." }
     ];
+
+    // This flag is intentionally separate from the boss reward: future companion features can read it.
+    try {
+        window.rwbWhitebeardFamilyAccepted = localStorage.getItem("rwbWhitebeardFamilyAccepted") === "yes";
+    } catch (e) {
+        window.rwbWhitebeardFamilyAccepted = false;
+    }
 
     let roger = null;
     let whitebeard = null;
@@ -860,7 +871,12 @@
             rwbDialogQueue.shift(); playWhooshSound(0.1);
             if (rwbDialogQueue.length === 0) {
                 if (rwbWBPhase === "choice_response_1") { rwbWhitebeardDisabled[0] = true; rwbWBPhase = "choice"; }
-                else if (rwbWBPhase === "choice_response_2") { rwbDialogActive = false; rwbFinalCleanup(); }
+                else if (rwbWBPhase === "choice_response_2") {
+                    try { localStorage.setItem("rwbWhitebeardFamilyAccepted", "yes"); } catch (e) {}
+                    window.rwbWhitebeardFamilyAccepted = true;
+                    rwbDialogActive = false;
+                    rwbFinalCleanup();
+                }
                 else if (rwbWBPhase === "choice_response_3_a") { rwbWBPhase = "choice_response_3_b"; rwbDialogQueue = RWB_WB_RESPONSE_3_B.slice(); }
                 else if (rwbWBPhase === "choice_response_3_b") { rwbWBPhase = "choice"; }
                 else if (rwbWBPhase === "intro") { rwbWBPhase = "choice"; }
