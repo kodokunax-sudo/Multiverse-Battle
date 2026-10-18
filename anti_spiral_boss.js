@@ -95,7 +95,8 @@
         "ГРАВИТАЦИОННЫЙ КОЛЛАПС",
         "СДВИГ ВЕРОЯТНОСТИ",
         "INFINITY BIG BANG STORM",
-        "ЧЁРНАЯ КОРОНА — КРЕСТОВОЙ ЗАЛП"
+        "ЧЁРНАЯ КОРОНА — КРЕСТОВОЙ ЗАЛП",
+        "ЗАПИСЬ СУДЬБЫ — ОТМЕНА РЕАЛЬНОСТИ"
     ];
 
     function asCanvas() {
@@ -698,6 +699,14 @@
                     });
                 }
             }
+        } else if (asPattern === 9) {
+            // Записываем 2,5 секунды движения игрока, затем возвращаем призрачный след назад.
+            // После обратного прохода остаётся узел: касание даёт телепорт, неуязвимость и контрудар.
+            asAttacks.push({
+                kind: "fateTrace", phase: "record", timer: 150,
+                path: [], damage: damage + 2, life: 0
+            });
+            asText(200, 108, "ЗАПИСЬ СУДЬБЫ — НЕ ПОВТОРЯЙ СВОЙ ПУТЬ!", "#83edff", 92);
         } else {
             // Две галактики сжимаются в шар; затем следует Infinity Big Bang Storm.
             if (asUltimateActive || asPatternSpawned) return;
@@ -1759,6 +1768,124 @@
             for(let i=0;i<5;i++){c.beginPath();c.arc(asBoss.x,asBoss.y,asBoss.size+18+i*19,0,Math.PI*2);c.stroke();}c.restore();
             for(let i=asAttacks.length-1;i>=0;i--){
                 const a=asAttacks[i];
+                if(a.kind==="fateTrace"){
+                    const path=a.path||[];
+                    if(a.phase==="record"){
+                        path.push({x:asPlayer.x,y:asPlayer.y});
+                        a.timer--;
+                        c.save();
+                        if(path.length>1){
+                            c.globalAlpha=.34;c.strokeStyle="#a76dff";c.lineWidth=2;
+                            c.shadowColor="#8b5dff";c.shadowBlur=9;c.beginPath();
+                            c.moveTo(path[0].x,path[0].y);
+                            for(let p=1;p<path.length;p++)c.lineTo(path[p].x,path[p].y);
+                            c.stroke();
+                            c.globalAlpha=.76;c.fillStyle="#66eaff";c.shadowColor="#57dfff";c.shadowBlur=12;
+                            const tail=path[path.length-1];c.beginPath();c.arc(tail.x,tail.y,3.5,0,Math.PI*2);c.fill();
+                        }
+                        c.restore();
+                        c.save();c.fillStyle="rgba(3,5,18,.88)";c.fillRect(56,98,288,22);
+                        c.strokeStyle="#7eeaff";c.lineWidth=1;c.strokeRect(56,98,288,22);
+                        c.fillStyle="#aaf6ff";c.font="bold 10px monospace";c.textAlign="center";
+                        c.fillText("ЗАПИСЬ СУДЬБЫ · "+Math.max(0,(a.timer/60)).toFixed(1)+"с",200,112);c.restore();
+                        if(a.timer<=0&&path.length>2){
+                            a.phase="rewind";a.rewindDuration=108;a.timer=a.rewindDuration;
+                            a.hotUntil=Object.create(null);a.lastHitAt=0;a.lastHotIndex=-1;
+                            asText(200,132,"ОТМЕНА РЕАЛЬНОСТИ!","#da9bff",64);
+                            asSound(180,"sawtooth",.3,.1);asShake=Math.max(asShake,5);
+                        }
+                    }else if(a.phase==="rewind"){
+                        a.timer--;
+                        const progress=Math.max(0,Math.min(1,1-a.timer/a.rewindDuration));
+                        const index=Math.max(0,Math.min(path.length-1,Math.floor((1-progress)*(path.length-1))));
+                        const segment=Math.max(0,Math.min(path.length-2,index));
+                        if(path.length>1){
+                            a.hotUntil[segment]=asFrame+38;
+                            if(segment<path.length-2)a.hotUntil[segment+1]=asFrame+30;
+                        }
+                        c.save();
+                        c.globalAlpha=.20;c.strokeStyle="#a46bff";c.lineWidth=2;c.beginPath();
+                        c.moveTo(path[0].x,path[0].y);for(let p=1;p<path.length;p++)c.lineTo(path[p].x,path[p].y);c.stroke();
+                        c.lineCap="round";c.lineJoin="round";c.shadowColor="#ba62ff";c.shadowBlur=17;
+                        for(let seg=0;seg<path.length-1;seg++){
+                            if((a.hotUntil[seg]||0)<=asFrame)continue;
+                            const p1=path[seg],p2=path[seg+1];
+                            c.globalAlpha=.32;c.strokeStyle="#d34cff";c.lineWidth=13;
+                            c.beginPath();c.moveTo(p1.x,p1.y);c.lineTo(p2.x,p2.y);c.stroke();
+                            c.globalAlpha=.95;c.strokeStyle="#f5b7ff";c.lineWidth=2.4;
+                            c.beginPath();c.moveTo(p1.x,p1.y);c.lineTo(p2.x,p2.y);c.stroke();
+                            const dx=p2.x-p1.x,dy=p2.y-p1.y,len2=dx*dx+dy*dy;
+                            const t=len2>0?Math.max(0,Math.min(1,((asPlayer.x-p1.x)*dx+(asPlayer.y-p1.y)*dy)/len2)):0;
+                            const dist=Math.hypot(asPlayer.x-(p1.x+t*dx),asPlayer.y-(p1.y+t*dy));
+                            if(dist<asPlayer.size+7&&asFrame>=(a.lastHitAt||0)){
+                                asDamagePlayer(a.damage||12,"СЛЕД ОТМЕНЁННОЙ СУДЬБЫ");
+                                a.lastHitAt=asFrame+35;
+                            }
+                        }
+                        const ghost=path[index]||path[0];
+                        c.globalAlpha=.95;c.shadowColor="#63edff";c.shadowBlur=25;c.fillStyle="#73f3ff";
+                        c.beginPath();c.moveTo(ghost.x,ghost.y+8);
+                        c.bezierCurveTo(ghost.x-15,ghost.y-1,ghost.x-12,ghost.y-13,ghost.x-5,ghost.y-13);
+                        c.bezierCurveTo(ghost.x-1,ghost.y-13,ghost.x,ghost.y-9,ghost.x,ghost.y-7);
+                        c.bezierCurveTo(ghost.x+5,ghost.y-17,ghost.x+15,ghost.y-10,ghost.x+12,ghost.y-3);
+                        c.bezierCurveTo(ghost.x+10,ghost.y+2,ghost.x+4,ghost.y+6,ghost.x,ghost.y+8);c.fill();
+                        c.strokeStyle="#ffffff";c.lineWidth=1.5;c.stroke();c.restore();
+                        c.save();c.fillStyle="rgba(3,5,18,.88)";c.fillRect(54,98,292,22);
+                        c.strokeStyle="#d68aff";c.strokeRect(54,98,292,22);
+                        c.fillStyle="#f0d5ff";c.font="bold 10px monospace";c.textAlign="center";
+                        c.fillText("ОТМЕНА РЕАЛЬНОСТИ · УЙДИ СО СЛЕДА",200,112);c.restore();
+                        if(a.timer<=0){
+                            a.phase="node";a.timer=180;
+                            a.node={x:path[0].x,y:path[0].y};
+                            a.safePoint=path[Math.max(0,Math.min(path.length-1,Math.floor(path.length*.46)))]||path[0];
+                            a.hotUntil=Object.create(null);
+                            asText(200,132,"УЗЕЛ ПАРАДОКСА — ДОБЕРИСЬ ДО НЕГО!","#7ff6ff",100);
+                            asSound(720,"sine",.25,.09);asFlash=Math.max(asFlash,5);asFlashColor="#62eaff";
+                        }
+                    }else if(a.phase==="node"){
+                        a.timer--;
+                        c.save();
+                        c.globalAlpha=.18;c.strokeStyle="#ad6cff";c.lineWidth=2;c.setLineDash([4,7]);c.beginPath();
+                        c.moveTo(path[0].x,path[0].y);for(let p=1;p<path.length;p++)c.lineTo(path[p].x,path[p].y);c.stroke();c.setLineDash([]);
+                        const node=a.node||path[0],pulse=1+Math.sin(asFrame*.24)*.18;
+                        c.globalAlpha=.9;c.shadowColor="#5fefff";c.shadowBlur=30;c.strokeStyle="#d7fcff";c.lineWidth=2.2;
+                        c.beginPath();c.arc(node.x,node.y,12*pulse,0,Math.PI*2);c.stroke();
+                        c.globalAlpha=.34;c.fillStyle="#4be7ff";c.beginPath();c.arc(node.x,node.y,10*pulse,0,Math.PI*2);c.fill();
+                        c.globalAlpha=1;c.strokeStyle="#ffffff";c.lineWidth=2;
+                        c.beginPath();c.moveTo(node.x-18,node.y);c.lineTo(node.x-5,node.y);c.moveTo(node.x+5,node.y);c.lineTo(node.x+18,node.y);
+                        c.moveTo(node.x,node.y-18);c.lineTo(node.x,node.y-5);c.moveTo(node.x,node.y+5);c.lineTo(node.x,node.y+18);c.stroke();c.restore();
+                        c.save();c.fillStyle="rgba(3,5,18,.9)";c.fillRect(48,98,304,22);
+                        c.strokeStyle="#67edff";c.strokeRect(48,98,304,22);
+                        c.fillStyle="#c5fbff";c.font="bold 10px monospace";c.textAlign="center";
+                        c.fillText("УЗЕЛ ПАРАДОКСА · "+Math.max(0,Math.ceil(a.timer/60))+"с",200,112);c.restore();
+                        if(Math.hypot(asPlayer.x-node.x,asPlayer.y-node.y)<asPlayer.size+15){
+                            const safe=a.safePoint||path[Math.floor(path.length*.46)]||{x:200,y:asFloor()};
+                            const limits=asBounds();
+                            asPlayer.x=Math.max(limits.left,Math.min(limits.right,safe.x));
+                            asPlayer.y=Math.max(limits.top,Math.min(limits.bottom,safe.y));
+                            asPlayer.vx=0;asPlayer.vy=0;asPlayer.grounded=false;asPlayer.platformIndex=null;
+                            asPlayer.invuln=Math.max(asPlayer.invuln||0,90);
+                            asText(200,109,"ПАРАДОКСАЛЬНЫЙ КОНТРУДАР!","#86ffff",88);
+                            asText(200,130,"ТЕЛЕПОРТ · НЕУЯЗВИМОСТЬ 1,5 СЕКУНДЫ","#b8faff",86);
+                            const counterDamage=Math.max(1,Math.floor(asBossMaxHp*.05));
+                            asBossHit(counterDamage,"ПАРАДОКСАЛЬНЫЙ КОНТРУДАР");
+                            asReassemblyEffectUntil=now+900;asBossDamageFlash=Math.max(asBossDamageFlash,24);
+                            asFlash=Math.max(asFlash,13);asFlashColor="#53eaff";asShake=Math.max(asShake,12);
+                            for(let q=0;q<30;q++){
+                                const ang=Math.PI*2*q/30,sp=1.5+Math.random()*4;
+                                asParticles.push({x:safe.x,y:safe.y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:30,maxLife:30,color:q%2?"#64edff":"#c17aff",size:2+Math.random()*3});
+                            }
+                            asSound(760,"triangle",.48,.14);
+                            asAttacks.splice(i,1);
+                            continue;
+                        }
+                        if(a.timer<=0){
+                            asText(200,120,"УЗЕЛ ИСЧЕЗ — ПАРАДОКС УПУЩЕН","#ad8bff",52);
+                            asAttacks.splice(i,1);
+                        }
+                    }
+                    continue;
+                }
                 if(a.kind==="bigbang"){
                     if(a.phase==="charge"){
                         a.timer--;
@@ -2214,7 +2341,7 @@
             // cleared just because a timer elapsed. Wait for beams, marks, wells and projectiles to finish.
             if(!asPatternDraining){
                 asPatternTimer++;
-                const duration=asPattern===7?250:178;
+                const duration=asPattern===7?250:(asPattern===9?450:178);
                 if(asPatternTimer>duration)asPatternDraining=true;
             }
             if(asPatternDraining){
@@ -2225,9 +2352,9 @@
                     asSound(260+asPattern*60,"sine",.18,.06);
                 }
             }else{
-                const cadence=[42,70,58,78,92,82,76,178,64][asPattern]||58;
-                const volleyLimit=[3,1,2,1,1,1,1,1,1][asPattern]||1;
-                if(asPattern===7){
+                const cadence=[42,70,58,78,92,82,76,178,64,60][asPattern]||58;
+                const volleyLimit=[3,1,2,1,1,1,1,1,1,1][asPattern]||1;
+                if(asPattern===7||asPattern===9){
                     if(!asPatternSpawned&&asPatternVolleyCount<volleyLimit){asSpawnPattern(now);asPatternSpawned=true;asPatternVolleyCount++;}
                 }else if(asFrame%Math.max(27,cadence-asPhase*3)===0&&asPatternVolleyCount<volleyLimit){
                     asSpawnPattern(now);asPatternVolleyCount++;
