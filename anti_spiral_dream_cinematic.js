@@ -12,7 +12,8 @@
         { title: "ГРИНД НЕ ЗАКАНЧИВАЕТСЯ", text: "Рубит дерево, добывает руду, чинит кирку, возвращается домой и снова уходит в шахту. На экране растут цифры, сундуки заполняются. Сердечко довольно подпрыгивает на стуле.", hud: "WOOD +248 / ORE +63 / XP +1200" },
         { title: "ТОЛЬКО НЕ ПОТЕРЯТЬ СОХРАНЕНИЕ", text: "В игре одна жизнь. Одна ошибка может стереть сотни часов гринда. Сердечко проверяет сохранение ещё раз, прежде чем продолжить.", hud: "HARDCORE WORLD // 1 LIFE" },
         { title: "МОЖНО ПРОСТО ИГРАТЬ", text: "Он мечтает не о бесконечной силе. Он хочет спокойно вернуться в свой мир, добывать ресурсы, строить базу и продолжать старый забег, не боясь, что однажды всё пропадёт.", hud: "SAVE FILE // BACKUP VERIFIED" },
-        { title: "КОМАНДА, КОТОРУЮ ОН СОБРАЛ", text: "А в Multiverse-Battle перед тем как все закончилось у него была самая сильная команда, чтобы.... Но.... Как он к этому пришел?", hud: "MULTIVERSE BATTLE // EVOLUTION TEAM" }
+        { title: "КОМАНДА, КОТОРУЮ ОН СОБРАЛ", text: "Перед тем как всё пошло наперекосяк, в Multiverse-Battle у него была команда сильнейших эволюционных карт. Он почти добрался до того, ради чего играл... и вдруг вся история начинает рассыпаться.", hud: "MULTIVERSE BATTLE // EVOLUTION TEAM" },
+        { title: "А КАК ЖЕ РИК?", text: "Рик. Тот самый, который якобы всё испортил. Но как он вообще сюда попал? Что именно сделал? Почему все обвиняют его, хотя никто не может вспомнить ни одной настоящей встречи? В этой истории слишком много разговоров о Рике и ни одного доказательства, что он вообще был здесь.", hud: "RICK // CAUSE OF COLLAPSE?" }
     ];
 
     const css = [
@@ -218,6 +219,13 @@
                     tone(988, 988, "sine", 0.22, 0.05, 0.12);
                     tone(1175, 1175, "sine", 0.26, 0.055, 0.24);
                     tone(1568, 1760, "sine", 0.42, 0.045, 0.38);
+                    break;
+                case "rick":
+                    // Прерывистый глитч: образ Рика появляется, будто из повреждённой записи.
+                    noise(0.24, 0.075, "bandpass", 620, 0);
+                    tone(360, 95, "sawtooth", 0.42, 0.07, 0.04);
+                    tone(980, 210, "square", 0.11, 0.025, 0.16);
+                    noise(0.16, 0.045, "highpass", 1900, 0.31);
                     break;
                 case "truth":
                     // Резкий звуковой обрыв иллюзии: цифровой треск и тяжёлый низкий удар.
@@ -435,12 +443,100 @@
         parent.appendChild(shot);
     }
 
+    function drawRickMystery(ctx, t, w, h) {
+        const px = 690, py = 286;
+        ctx.save();
+
+        const halo = ctx.createRadialGradient(px, py, 8, px, py, 210);
+        halo.addColorStop(0, "rgba(65,255,146,.24)");
+        halo.addColorStop(.48, "rgba(65,255,146,.09)");
+        halo.addColorStop(1, "rgba(65,255,146,0)");
+        ctx.fillStyle = halo;
+        ctx.fillRect(430, 55, 510, 455);
+
+        // Портал, который не может удержать форму.
+        for (let i = 0; i < 5; i++) {
+            ctx.save();
+            ctx.globalAlpha = .38 + .23 * Math.sin(t * 5 + i * 1.4);
+            ctx.strokeStyle = i % 2 ? "#64ff9d" : "#b4ffd0";
+            ctx.lineWidth = i === 0 ? 3 : 1.5;
+            ctx.beginPath();
+            ctx.ellipse(px, py, 64 + i * 13, 105 + i * 11, Math.sin(t * .7 + i) * .16, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Длинный халат и тонкая фигура: лицо и детали постоянно теряются в цифровом шуме.
+        ctx.save();
+        ctx.translate(px, py + Math.sin(t * 3) * 3);
+        ctx.globalAlpha = .73 + .12 * Math.sin(t * 13);
+        ctx.fillStyle = "#253447";
+        ctx.beginPath();
+        ctx.moveTo(-17, 53); ctx.lineTo(-27, 112); ctx.lineTo(-8, 114);
+        ctx.lineTo(0, 76); ctx.lineTo(9, 114); ctx.lineTo(28, 112);
+        ctx.lineTo(17, 53); ctx.closePath(); ctx.fill();
+
+        ctx.fillStyle = "#d8e4df";
+        ctx.beginPath();
+        ctx.moveTo(-22, -24); ctx.lineTo(-43, -10); ctx.lineTo(-61, 45);
+        ctx.lineTo(-43, 54); ctx.lineTo(-25, 19); ctx.lineTo(-23, 76);
+        ctx.lineTo(23, 76); ctx.lineTo(25, 19); ctx.lineTo(43, 54);
+        ctx.lineTo(61, 45); ctx.lineTo(43, -10); ctx.lineTo(22, -24);
+        ctx.closePath(); ctx.fill();
+
+        ctx.fillStyle = "#48cbbf";
+        ctx.fillRect(-13, -15, 26, 69);
+        ctx.strokeStyle = "#a9ffdf"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(0, 50); ctx.stroke();
+
+        ctx.fillStyle = "#dfbea5";
+        ctx.beginPath(); ctx.ellipse(0, -48, 20, 25, 0, 0, Math.PI * 2); ctx.fill();
+
+        ctx.fillStyle = "#78dff0";
+        ctx.beginPath();
+        ctx.moveTo(-20, -51); ctx.lineTo(-31, -69); ctx.lineTo(-17, -64);
+        ctx.lineTo(-18, -82); ctx.lineTo(-4, -66); ctx.lineTo(2, -88);
+        ctx.lineTo(10, -66); ctx.lineTo(23, -78); ctx.lineTo(20, -60);
+        ctx.lineTo(32, -65); ctx.lineTo(22, -43); ctx.lineTo(-19, -42);
+        ctx.closePath(); ctx.fill();
+
+        ctx.strokeStyle = "#3d5262"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-9, -46); ctx.lineTo(-5, -45); ctx.moveTo(6, -45); ctx.lineTo(10, -46); ctx.stroke();
+        ctx.strokeStyle = "#725242"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(-4, -34); ctx.lineTo(5, -34); ctx.stroke();
+        ctx.restore();
+
+        // Полосы помех проходят прямо через силуэт, как будто кадр не может подтвердить его существование.
+        for (let i = 0; i < 9; i++) {
+            const y = 130 + ((i * 43 + Math.floor(t * 52) * (i % 2 ? 1 : 2)) % 315);
+            ctx.globalAlpha = .12 + .18 * Math.abs(Math.sin(t * 17 + i));
+            ctx.fillStyle = i % 2 ? "#91ffbd" : "#ff6f91";
+            ctx.fillRect(590 + (i % 3) * 17, y, 115 + ((i * 29) % 90), 2 + (i % 3));
+        }
+        ctx.globalAlpha = 1;
+
+        ctx.fillStyle = "rgba(4,12,13,.9)";
+        roundedRect(ctx, 500, 422, 420, 66, 8); ctx.fill();
+        ctx.strokeStyle = "rgba(104,255,164,.75)"; ctx.lineWidth = 1.5;
+        roundedRect(ctx, 500, 422, 420, 66, 8); ctx.stroke();
+        ctx.fillStyle = "#aaffc9"; ctx.font = "1000 13px monospace";
+        ctx.fillText("RICK // PERSON RECORD", 518, 445);
+        ctx.fillStyle = "#ff91a6"; ctx.font = "900 11px monospace";
+        ctx.fillText("ENTRY: NOT FOUND  ·  MEMORY: CORRUPTED", 518, 466);
+
+        drawSpeech(ctx, 22, 22, 355, "СЮЖЕТНЫЙ ПРОВАЛ",
+            "Рик виноват. Наверное. Но почему в памяти нет ни одной сцены, где он действительно присутствовал?",
+            "#ff8b9d");
+        ctx.restore();
+    }
+
     function drawCinematicActors(ctx, sceneIndex, t, w, h) {
         if(sceneIndex===0){drawPlayer(ctx,195,448,1.45,"look",t);drawSurvivalMonitor(ctx,t,0);drawSpeech(ctx,24,22,305,"ИГРОК","Ещё один забег. Сегодня точно закончу шахту.","#ff7896");}
         else if(sceneIndex===1){drawPlayer(ctx,190+Math.sin(t*2)*5,448,1.45,"run",t);drawSurvivalMonitor(ctx,t,1);drawSpeech(ctx,24,22,310,"ИГРОК","Древесина есть. Руда есть. Ещё чуть-чуть опыта!","#ff7896");for(let i=0;i<7;i++){ctx.fillStyle=i%2?"#b3e8a1":"#f1d78a";ctx.globalAlpha=.55+Math.sin(t*5+i)*.35;ctx.fillRect(420+i*45,420-(t*25+i*17)%90,5,5);}ctx.globalAlpha=1;}
         else if(sceneIndex===2){drawPlayer(ctx,190,448,1.5,"look",t);drawSurvivalMonitor(ctx,t,0);ctx.fillStyle="rgba(5,10,15,.88)";roundedRect(ctx,470,150,390,110,10);ctx.fill();ctx.strokeStyle="#ffca7a";ctx.lineWidth=2;roundedRect(ctx,470,150,390,110,10);ctx.stroke();ctx.fillStyle="#ffe5ae";ctx.font="1000 17px monospace";ctx.fillText("SAVE FILE: 100%",493,183);ctx.fillStyle="#eaf3e8";ctx.font="900 12px Arial";ctx.fillText("WORLD BACKUP VERIFIED",493,211);ctx.fillText("ONE LIFE REMAINING",493,234);drawSpeech(ctx,24,22,330,"ИГРОК","Только бы сохранение не сломалось…","#ff7896");}
         else if(sceneIndex===3){drawPlayer(ctx,480,445,1.65,"look",t);drawSurvivalMonitor(ctx,t,1);drawSpeech(ctx,24,22,350,"ИГРОК","Я просто хочу вернуться завтра и продолжить.","#ff7896");ctx.fillStyle="rgba(10,18,23,.8)";roundedRect(ctx,70,340,245,70,9);ctx.fill();ctx.strokeStyle="#83d6a4";roundedRect(ctx,70,340,245,70,9);ctx.stroke();ctx.fillStyle="#c6f7d2";ctx.font="900 12px monospace";ctx.fillText("BACKUP COMPLETE",87,368);ctx.fillText("SAFE TO CONTINUE",87,390);}
-        else {drawPlayer(ctx,110,455,1.15,"look",t);drawSpeech(ctx,22,22,300,"ИГРОК","А теперь посмотри, что я собрал.","#ff7896");}
+        else if(sceneIndex===4){drawPlayer(ctx,110,455,1.15,"look",t);drawSpeech(ctx,22,22,300,"ИГРОК","А теперь посмотри, что я собрал.","#ff7896");}
+        else {drawRickMystery(ctx,t,w,h);}
     }
 
     function drawScene(ctx, sceneIndex, elapsed, width, height) {
@@ -484,7 +580,7 @@
         root.appendChild(caption);
 
         const controls = makeElement("div", "asdc-controls");
-        const count = makeElement("div", "asdc-count", "КАДР 01 / 05  ·  ОЖИДАНИЕ ТВОЕГО РЕШЕНИЯ");
+        const count = makeElement("div", "asdc-count", "КАДР 01 / 06  ·  ОЖИДАНИЕ ТВОЕГО РЕШЕНИЯ");
         const actions = makeElement("div", "asdc-actions");
         const skip = makeElement("button", "asdc-button asdc-skip", "ПРОПУСТИТЬ КОНЦОВКУ ↗");
         skip.type = "button";
@@ -507,11 +603,11 @@
             hudLeft.textContent = scene.hud;
             hudRight.textContent = index === 4 ? "REAL GAME CARDS" : "FRAME 0" + (index + 1);
             hudRight.className = "";
-            anomaly.textContent = index === 4 ? "LIVE GAME UI" : "SURVIVAL SAVE // " + (index < 3 ? "ACTIVE" : "VERIFIED");
-            anomaly.style.color = index === 4 ? "#ffe1a3" : "";
-            count.textContent = "КАДР 0" + (index + 1) + " / 05  ·  ИСТОРИЯ ИГРОКА";
+            anomaly.textContent = index === 4 ? "LIVE GAME UI" : index === 5 ? "RICK // RECORD NOT FOUND" : "SURVIVAL SAVE // " + (index < 3 ? "ACTIVE" : "VERIFIED");
+            anomaly.style.color = index === 4 ? "#ffe1a3" : index === 5 ? "#ff879f" : "";
+            count.textContent = "КАДР 0" + (index + 1) + " / 06  ·  ИСТОРИЯ ИГРОКА";
             next.textContent = index === scenes.length - 1 ? "ЗАКРЫТЬ КАДРЫ →" : "СЛЕДУЮЩИЙ КАДР →";
-            stage.style.borderColor = index === 4 ? "rgba(255,211,106,.78)" : "rgba(140,184,255,.4)";
+            stage.style.borderColor = index === 4 ? "rgba(255,211,106,.78)" : index === 5 ? "rgba(255,105,143,.78)" : "rgba(140,184,255,.4)";
             stage.style.animation = "none";
             if (collectionShot) { collectionShot.remove(); collectionShot = null; }
             const oldShot = stage.querySelector(".asdc-game-shot");
@@ -521,7 +617,7 @@
                 collectionShot = stage.querySelector(".asdc-game-shot");
             }
             sceneStart = performance.now();
-            playStorySfx(["intro", "mining", "danger", "success", "cards"][index] || "transition");
+            playStorySfx(["intro", "mining", "danger", "success", "cards", "rick"][index] || "transition");
         }
 
         function finish() {
