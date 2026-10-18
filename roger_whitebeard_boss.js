@@ -4830,6 +4830,8 @@
                     oden.healTimer = 0;
                     oden.healRemaining = 0;
                     oden.healTotal = 0;
+                    // Cooldown starts again after the heal finishes, not during it.
+                    oden.healCooldownUntil = odenNow + 40000;
                     oden.companionMode = "guard";
                     oden.companionModeTimer = 105;
                     rwbFloatingTexts.push({
