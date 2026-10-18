@@ -267,6 +267,46 @@
             color: #fff;
             background: rgba(255,255,255,0.15);
         }
+        #musicChoice {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin: 0 0 18px;
+            width: 100%;
+            max-width: 340px;
+        }
+        #musicChoiceTitle {
+            color: #fff;
+            font-size: 15px;
+            font-weight: 900;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+        .musicChoiceBtn {
+            width: 100%;
+            padding: 13px 16px;
+            border-radius: 24px;
+            font: 900 14px 'Nunito', sans-serif;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        #loadMusicBtn {
+            color: #1a1a2e;
+            background: linear-gradient(135deg, #f5af19, #f12711);
+            border: 2px solid #fff;
+        }
+        #noMusicBtn {
+            color: #fff;
+            background: rgba(255,255,255,0.09);
+            border: 1px solid rgba(255,255,255,0.22);
+        }
+        #musicChoice button:disabled {
+            opacity: 0.55;
+            cursor: wait;
+        }
+        #continueBtn { margin-top: 8px; }
+        #skipMusicBtn { display: none; }
         
         #loadingHint {
             margin-top: 15px;
@@ -302,11 +342,16 @@
                 <div id="loadingBar"></div>
             </div>
             <div id="loadingPercent">0%</div>
-            <div id="loadingStatus">Проверка музыки...</div>
+            <div id="loadingStatus">Выбери, загружать ли музыку. Без музыки загрузка может быть быстрее.</div>
+            <div id="musicChoice">
+                <div id="musicChoiceTitle">🎵 Загружать музыку?</div>
+                <button id="loadMusicBtn" class="musicChoiceBtn">🎵 Да, загружать музыку</button>
+                <button id="noMusicBtn" class="musicChoiceBtn">⚡ Нет, без музыки</button>
+            </div>
             <div id="loadingLog"></div>
-            <button id="continueBtn">▶ ПРОДОЛЖИТЬ ИГРУ</button>
+            <button id="continueBtn">▶ ИГРАТЬ СРАЗУ</button>
             <button id="skipMusicBtn">Пропустить загрузку музыки</button>
-            <div id="loadingHint">💡 Кнопка "Продолжить" работает всегда — музыка докачается в фоне</div>
+            <div id="loadingHint">💡 Можно выбрать «Без музыки», чтобы не скачивать музыкальные файлы при запуске.</div>
         `;
 
         if (document.body) document.body.insertBefore(screenElement, document.body.firstChild);
@@ -316,17 +361,21 @@
 
         function dismissLoadingScreen(reason) {
             console.log("[LOADING] " + reason);
-            // Только флаг загрузчика. Сохранения игры (cgV20/cgV19/слоты и т.д.) не трогаем.
             window.__musicSkipped = true;
-            try { localStorage.setItem('music_loaded_once', '1'); } catch (e) {}
             hideScreen();
         }
 
+        document.getElementById('loadMusicBtn').addEventListener('click', function() {
+            startLoading(true, false);
+        });
+        document.getElementById('noMusicBtn').addEventListener('click', function() {
+            startLoading(false, false);
+        });
         document.getElementById('continueBtn').addEventListener('click', function() {
-            dismissLoadingScreen("Игрок нажал 'Продолжить'");
+            startLoading(false, true);
         });
         document.getElementById('skipMusicBtn').addEventListener('click', function() {
-            dismissLoadingScreen("Игрок пропустил загрузку музыки");
+            startLoading(false, true);
         });
 
     }
@@ -554,10 +603,14 @@
     // ============================================================
     // ★ ГЛАВНАЯ ФУНКЦИЯ ★
     // ============================================================
-    async function loadAllMusic() {
-        let musicKeys = Object.keys(MUSIC_FILES);
+    async function loadAllMusic(includeMusic) {
+        let musicKeys = includeMusic ? Object.keys(MUSIC_FILES) : [];
         let imageKeys = Object.keys(IMAGE_FILES).filter(function(key) { return !!IMAGE_FILES[key]; });
         let total = musicKeys.length + imageKeys.length;
+        window.__musicLoadProgress.total = musicKeys.length;
+        if (!includeMusic) {
+            addLog("Музыка пропущена по выбору игрока — загружаю только изображения.", "ok");
+        }
         let loaded = 0;
         let success = 0;
         let failed = 0;
@@ -627,6 +680,34 @@
         } else {
             setStatus("❌ Ресурсы не загрузились. Нажми «Продолжить», чтобы войти в игру.");
         }
+    }
+
+    let loadingStarted = false;
+
+    function startLoading(includeMusic, dismissImmediately) {
+        if (loadingStarted) return;
+        loadingStarted = true;
+        window.__disableGameMusic = !includeMusic;
+        window.__musicSkipped = false;
+
+        let choice = document.getElementById('musicChoice');
+        let continueButton = document.getElementById('continueBtn');
+        if (choice) choice.style.display = 'none';
+        if (continueButton) continueButton.style.display = dismissImmediately ? 'none' : 'inline-block';
+        setStatus(includeMusic ? 'Загружаю музыку и изображения...' : 'Загружаю изображения без музыки...');
+
+        if (dismissImmediately) {
+            window.__musicSkipped = true;
+            hideScreen();
+        }
+
+        setTimeout(function() {
+            loadAllMusic(includeMusic).catch(function(err) {
+                console.error("[LOADING] Критическая ошибка:", err);
+                addLog("💥 Критическая ошибка: " + err.message, "err");
+                setStatus("Ошибка загрузки. Нажми «Играть сразу», чтобы войти в игру.");
+            });
+        }, 0);
     }
 
     // ============================================================
@@ -711,19 +792,11 @@
         patchAudio();
         patchFetch();
 
-        // ★ Поведение как раньше: после первого решения загрузчик больше не блокирует игру.
-        // Музыка продолжает подгружаться в фоне. Игровые сохранения вообще не читаются и не изменяются.
-        try {
-            if (localStorage.getItem('music_loaded_once') === '1') {
-                window.__musicSkipped = true;
-                setTimeout(hideScreen, 80);
-            }
-        } catch (e) {}
-
-        // Escape = мгновенно пропустить загрузку, как кнопка "Продолжить".
+        // Выбор музыки показывается при каждом запуске; сохранения игры не затрагиваются.
+        // Escape позволяет начать загрузку изображений без музыки и сразу войти в игру.
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && document.getElementById('loadingScreen')) {
-                dismissLoadingScreen("Игрок нажал Escape");
+                startLoading(false, true);
             }
         });
 
@@ -735,13 +808,8 @@
             addLog("✅ Cache API доступен", "ok");
         }
 
-        setTimeout(function() {
-            loadAllMusic().catch(function(err) {
-                console.error("[LOADING] Критическая ошибка:", err);
-                addLog("💥 Критическая ошибка: " + err.message, "err");
-                setStatus("Ошибка загрузки. Нажми 'Продолжить' для игры.");
-            });
-        }, 300);
+        // Не начинаем скачивание ресурсов до выбора игрока.
+    }
     }
 
     if (document.readyState === 'loading') {
