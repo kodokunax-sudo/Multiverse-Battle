@@ -285,7 +285,7 @@ function startLivingStoneFight(graphicsModeChoice) {
     }
     // Heavy decorative effects scale down only when the player picks the lightweight profile.
     lsMobileMode = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
-    lsPerfMult = lsMobileMode ? 0.12 : 1.0;
+    lsPerfMult = window.MBGetBossEffectsScale ? window.MBGetBossEffectsScale() : (lsMobileMode ? 0.12 : 1.0);
     _startLivingStoneFightInternal();
 }
 
@@ -465,7 +465,8 @@ function spawnCinematicText(x, y, text, color, life, size) {
 }
 function spawnLivingStoneParticles(x, y, count, color, speed) {
     var reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
-    var n = Math.max(0, Math.floor(count * (reduced ? 0.10 : lsPerfMult)));
+    var scale = window.MBGetBossEffectsScale ? window.MBGetBossEffectsScale() : (reduced ? 0.10 : lsPerfMult);
+    var n = Math.max(0, Math.floor(count * scale));
     if (reduced && livingStoneParticles.length > 16) return;
     for (var i = 0; i < n; i++) {
         var angle = Math.random() * Math.PI * 2, spd = speed * (0.5 + Math.random());
@@ -1888,6 +1889,11 @@ function livingStoneRenderLoop() {
         if (qteLightningBolts.length > 0) qteLightningBolts.length = 0;
         if (qteFlashBursts.length > 0) qteFlashBursts.length = 0;
         if (qteSparks.length > 8) qteSparks.splice(0, qteSparks.length - 8);
+    } else if (window.MBIsMediumGraphics && window.MBIsMediumGraphics()) {
+        if (livingStoneParticles.length > 90) livingStoneParticles.splice(0, livingStoneParticles.length - 90);
+        if (livingStoneBgParticles.length > 70) livingStoneBgParticles.splice(0, livingStoneBgParticles.length - 70);
+        if (qteShockwaves.length > 24) qteShockwaves.splice(0, qteShockwaves.length - 24);
+        if (qteSparks.length > 45) qteSparks.splice(0, qteSparks.length - 45);
     }
 
     if (typeof ctx === 'undefined' || !ctx) return;
