@@ -597,7 +597,7 @@
     function asShiftGravity(now) {
         asGravityDirection = (asGravityDirection + 1) % 4;
         // The more damage Anti-Spiral takes, the sooner gravity shifts again.
-        asGravityNextShiftAt = now + Math.round(15000 - asBossDesperation() * 10000);
+        asGravityNextShiftAt = now + 15000;
         asGravityTransitionUntil = now + 1900;
         asMiniCooldownUntil = Math.max(asMiniCooldownUntil, now + 3500);
         asBossApproachFrames = 0;
