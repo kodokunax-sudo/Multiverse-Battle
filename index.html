@@ -139,9 +139,9 @@
         @keyframes stonePulse { 0%, 100% { box-shadow: 0 0 15px rgba(139, 115, 85, 0.5); } 50% { box-shadow: 0 0 35px rgba(139, 115, 85, 0.9); } }
         @keyframes waystarPulse { 0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(255, 170, 0, 0.3); } 50% { box-shadow: 0 0 35px rgba(255, 215, 0, 1), 0 0 70px rgba(255, 170, 0, 0.6); } }
         /* Phone graphics: reduce paint/compositing work without changing any combat values. */
-        body.phone-graphics *,
-        body.phone-graphics *::before,
-        body.phone-graphics *::after {
+        body.phone-graphics-low *,
+        body.phone-graphics-low *::before,
+        body.phone-graphics-low *::after {
             animation: none !important;
             transition: none !important;
             box-shadow: none !important;
@@ -150,14 +150,14 @@
             -webkit-backdrop-filter: none !important;
             backdrop-filter: none !important;
         }
-        body.phone-graphics .app,
-        body.phone-graphics .card,
-        body.phone-graphics .tabs,
-        body.phone-graphics .sub-tabs,
-        body.phone-graphics .btn,
-        body.phone-graphics .shop-item,
-        body.phone-graphics .enemy-card,
-        body.phone-graphics .click-area {
+        body.phone-graphics-low .app,
+        body.phone-graphics-low .card,
+        body.phone-graphics-low .tabs,
+        body.phone-graphics-low .sub-tabs,
+        body.phone-graphics-low .btn,
+        body.phone-graphics-low .shop-item,
+        body.phone-graphics-low .enemy-card,
+        body.phone-graphics-low .click-area {
             -webkit-backdrop-filter: none !important;
             backdrop-filter: none !important;
             box-shadow: none !important;
@@ -166,17 +166,17 @@
             animation: none !important;
             transition: none !important;
         }
-        body.phone-graphics .floating-text {
+        body.phone-graphics-low .floating-text {
             text-shadow: none !important;
             filter: none !important;
             animation-duration: .45s !important;
         }
-        body.phone-graphics .legendary,
-        body.phone-graphics .secret,
-        body.phone-graphics .gift,
-        body.phone-graphics .evolutionary,
-        body.phone-graphics .boss-rarity,
-        body.phone-graphics .team-selected {
+        body.phone-graphics-low .legendary,
+        body.phone-graphics-low .secret,
+        body.phone-graphics-low .gift,
+        body.phone-graphics-low .evolutionary,
+        body.phone-graphics-low .boss-rarity,
+        body.phone-graphics-low .team-selected {
             animation: none !important;
             box-shadow: none !important;
             filter: none !important;
