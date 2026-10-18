@@ -3135,7 +3135,6 @@
                     let dx = b.x - boss.x, dy = b.y - boss.y;
                     if (Math.sqrt(dx * dx + dy * dy) < boss.size * 0.75 + b.size) {
                         let dmg = b.damage;
-                        if (isModerActive()) dmg = boss.maxHp + 999999;
                         if (typeof window.applyArmorToBossDamage === 'function' && !isModerActive()) {
                             let result = window.applyArmorToBossDamage(dmg);
                             if (result.blocked) { spawnHitParticles(b.x, b.y, "#9b59b6", 6); playImpactSound(0.15, 1.5); destroyed = true; break; }
