@@ -372,7 +372,12 @@
             startLoading(false, false);
         });
         document.getElementById('continueBtn').addEventListener('click', function() {
-            startLoading(false, true);
+            if (loadingStarted) {
+                window.__musicSkipped = true;
+                hideScreen();
+            } else {
+                startLoading(false, true);
+            }
         });
         document.getElementById('skipMusicBtn').addEventListener('click', function() {
             startLoading(false, true);
@@ -662,7 +667,8 @@
         }
 
         if (failed === 0) {
-            setStatus("✅ Музыка и изображения загружены!" + (fromCache > 0 ? " (из кэша: " + fromCache + ")" : ""));
+            setStatus((musicKeys.length ? "✅ Музыка и изображения загружены!" : "✅ Изображения загружены, музыка пропущена.") +
+                (fromCache > 0 ? " (из кэша: " + fromCache + ")" : ""));
         } else if (success > 0) {
             setStatus("⚠️ Загружено " + success + "/" + total + " ресурсов, ошибок: " + failed);
         } else {
