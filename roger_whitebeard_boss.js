@@ -114,6 +114,7 @@
     let rwbOden = null;
     let rwbOdenSlashes = [];
     let rwbOdenLastTargetId = null;
+    let rwbPlayerFocusTargetId = null;
 
     let rwbAttacks = [];
     let rwbPlayerBullets = [];
@@ -1001,11 +1002,15 @@
         };
         rwbOden = {
             x: 166, y: 372, size: 15, phase: 0,
+            hp: 160, maxHp: 160, alive: true, invulnTimer: 0,
+            vx: 0, vy: 0, moveTargetX: 255, moveTargetY: 205,
+            wanderTimer: 42, dodgeCooldown: 0, dodgeFlashTimer: 0,
             attackCooldown: 38, windup: 0, swingTimer: 0,
             swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0
         };
         rwbOdenSlashes = [];
         rwbOdenLastTargetId = null;
+        rwbPlayerFocusTargetId = null;
 
         rwbAttacks = []; rwbPlayerBullets = []; rwbParticles = []; rwbShockwaves = [];
         wbBrain.phase = "idle"; wbBrain.phaseTimer = 0; wbBrain.recoveryTimer = 0;
@@ -2995,6 +3000,7 @@
                             dmg = result.dmg;
                         }
                         boss.hp = Math.max(0, boss.hp - dmg);
+                        if (rwbState === "fight1") rwbPlayerFocusTargetId = boss.id;
                         // During the two-boss opening phase there is no single active boss HP
                         // for the common tracker, so charge directly from real, unblocked hits.
                         // Once fight2 selects a boss, dioTrackBossDamage handles its health bar.
@@ -3862,37 +3868,291 @@
         return null;
     }
 
+    function getRWBOdenAttackTarget(targets) {
+        if (!targets || !targets.length) return null;
+        if (rwbState === "fight1") {
+            const focused = targets.find(function(boss) {
+                return boss && boss.hp > 0 && boss.id === rwbPlayerFocusTargetId;
+            });
+            if (focused) return focused;
+            // Before the first confirmed player hit, favour the boss closest to the player's firing lane.
+            return targets.slice().sort(function(a, b) {
+                return Math.abs(a.x - rwbPlayer.x) - Math.abs(b.x - rwbPlayer.x);
+            })[0] || targets[0];
+        }
+        // Phase two: Oden is free to roam; attack the currently active opponent.
+        if (rwbState === "fight2" && rwbActiveBoss && rwbActiveBoss.hp > 0) return rwbActiveBoss;
+        return targets[0];
+    }
+
+    function rwbOdenSegmentDistance(px, py, x1, y1, x2, y2) {
+        const dx = x2 - x1, dy = y2 - y1, len2 = dx * dx + dy * dy;
+        const t = len2 > 0 ? Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / len2)) : 0;
+        return Math.hypot(px - (x1 + dx * t), py - (y1 + dy * t));
+    }
+
+    // Returns a threat descriptor when an attack is close to Oden now or on its projected path.
+    // "alert" adds a safety margin for dodging; actual damage uses the tighter collision bounds.
+    function rwbOdenAttackThreat(a, ox, oy, frames, alert) {
+        const oden = rwbOden;
+        if (!oden || !oden.alive || !a || a.odenHit) return null;
+        if (a.type === "wb_attack_telegraph" || a.type === "wb_giant_rock_warning" ||
+            a.type === "wb_combo_gate_warning") return null;
+        if (a.state === "warning" || a.state === "windup" || a.state === "done") return null;
+
+        const pad = alert ? 38 : 0;
+        const body = oden.size * 0.72;
+        const fx = Number(ox), fy = Number(oy);
+        const t = Math.max(0, Number(frames) || 0);
+
+        if (a.type === "roger_slash") {
+            if (a.state !== "active") return null;
+            const thick = (a.width || 80) * 0.35 + body + pad;
+            if (a.direction === "horizontal" && Math.abs(fy - a.y) < thick) {
+                return { x: fx, y: a.y, axis: "horizontal", distance: Math.abs(fy - a.y) };
+            }
+            if (a.direction !== "horizontal" && Math.abs(fx - a.x) < thick) {
+                return { x: a.x, y: fy, axis: "vertical", distance: Math.abs(fx - a.x) };
+            }
+            return null;
+        }
+        if (a.type === "roger_cross") {
+            if (a.state !== "active") return null;
+            const thick = (a.width || 78) * 0.35 + body + pad;
+            if (a.dir === "vertical" && Math.abs(fx - a.x) < thick) {
+                return { x: a.x, y: fy, axis: "vertical", distance: Math.abs(fx - a.x) };
+            }
+            if (a.dir !== "vertical" && Math.abs(fy - a.y) < thick) {
+                return { x: fx, y: a.y, axis: "horizontal", distance: Math.abs(fy - a.y) };
+            }
+            return null;
+        }
+        if (a.type === "wb_crescent_slash") {
+            if (a.state !== "flying") return null;
+            const travel = Math.min(1, ((a.travelElapsed || 0) + t) / (a.travelTime || 90));
+            const laneY = a.startY + (a.targetY - a.startY) * travel;
+            const thick = (a.width || 92) * 0.5 + body + pad;
+            if (fx >= -10 && fx <= 410 && Math.abs(fy - laneY) < thick) {
+                return { x: fx, y: laneY, axis: "horizontal", distance: Math.abs(fy - laneY) };
+            }
+            return null;
+        }
+        if (a.type === "wb_fruit_punch") {
+            if (a.state !== "active") return null;
+            const d = rwbOdenSegmentDistance(fx, fy, a.originX, a.originY, a.endX, a.endY);
+            const limit = (a.width || 38) * 0.5 + body + pad;
+            return d < limit ? { x: (a.originX + a.endX) * 0.5, y: (a.originY + a.endY) * 0.5, axis: "point", distance: d } : null;
+        }
+        if (a.type === "wb_center_wave") {
+            if (a.state !== "active") return null;
+            const waveY = a.y - (a.speed || 3.4) * t;
+            const halfWidth = (a.width || 400) * 0.5 + body;
+            const halfHeight = (a.height || 92) * 0.5 + body + pad;
+            if (Math.abs(fx - 200) < halfWidth && Math.abs(fy - waveY) < halfHeight) {
+                return { x: fx, y: waveY, axis: "horizontal", distance: Math.abs(fy - waveY) };
+            }
+            return null;
+        }
+        if (a.type === "tsunami") {
+            const waveY = a.y + (a.vy || 0) * t;
+            const halfHeight = ((a.currentHeight || a.height || 150) * 0.5) + body + pad;
+            const inWave = a.fromRight ? (fx >= (a.x || 0) && fx <= 400) : (fx >= 0 && fx <= (a.width || 0));
+            if (inWave && Math.abs(fy - waveY) < halfHeight) {
+                return { x: fx, y: waveY, axis: "horizontal", distance: Math.abs(fy - waveY) };
+            }
+            return null;
+        }
+        if (a.type === "gura_crack") {
+            if (a.state !== "active") return null;
+            const progress = 1 - Math.max(0, (a.activeTimer || 0) - t) / Math.max(1, a.maxActive || 30);
+            const radius = (a.maxRadius || a.radius || 35) * Math.max(0, Math.min(1, progress));
+            const d = Math.hypot(fx - a.x, fy - a.y);
+            const limit = radius * 0.85 + body + pad;
+            return d < limit ? { x: a.x, y: a.y, axis: "point", distance: d } : null;
+        }
+        if (a.type === "hell_fire" && a.state === "exploding") {
+            const d = Math.hypot(fx - a.x, fy - a.y);
+            const limit = (a.explosionRadius || 48) + body + pad;
+            return d < limit ? { x: a.x, y: a.y, axis: "point", distance: d } : null;
+        }
+        if (a.type === "wb_reflect_vortex" || a.type === "wb_reflected_bullet") {
+            if (a.type === "wb_reflect_vortex") return null;
+        }
+
+        let vx = Number(a.vx) || 0, vy = Number(a.vy) || 0;
+        if (a.type === "hell_fire" && a.state === "flying") {
+            const dx = (a.targetX || a.x) - a.x, dy = (a.targetY || a.y) - a.y;
+            const dist = Math.hypot(dx, dy) || 1;
+            vx = dx / dist * (a.speed || 3.8);
+            vy = dy / dist * (a.speed || 3.8);
+        }
+        const ax = a.x + vx * t, ay = a.y + vy * t;
+        const d = Math.hypot(fx - ax, fy - ay);
+        const limit = body + (a.size || a.radius || 12) * 0.68 + pad;
+        return d < limit ? { x: ax, y: ay, axis: "point", distance: d } : null;
+    }
+
+    function rwbOdenShockwaveThreat(sw, ox, oy, frames, alert) {
+        if (!sw || sw.odenHit || !(Number(sw.damage) > 0)) return null;
+        const radius = (Number(sw.radius) || 0) + (Number(sw.speed) || 0) * Math.max(0, frames || 0);
+        const d = Math.hypot(ox - sw.x, oy - sw.y);
+        const limit = (Number(sw.width) || 5) * 0.7 + (rwbOden ? rwbOden.size : 12) * 0.72 + (alert ? 34 : 0);
+        return Math.abs(d - radius) < limit ? { x: sw.x, y: sw.y, axis: "point", distance: Math.abs(d - radius) } : null;
+    }
+
+    function rwbOdenApplyCurrentHits(oden) {
+        if (!oden || !oden.alive) return;
+        for (let i = rwbAttacks.length - 1; i >= 0; i--) {
+            const a = rwbAttacks[i];
+            const risk = rwbOdenAttackThreat(a, oden.x, oden.y, 0, false);
+            if (!risk) continue;
+            a.odenHit = true;
+            const projectile = ["fist", "rock", "giant_rock", "fire_piece", "haki_wave", "wb_reflected_bullet"].includes(a.type) ||
+                (a.type === "hell_fire" && a.state === "flying");
+            if (oden.invulnTimer <= 0) {
+                const damage = Math.max(6, Math.min(34, Math.ceil(Number(a.damage) || 12)));
+                oden.hp = Math.max(0, oden.hp - damage);
+                oden.invulnTimer = 48;
+                oden.hitFlash = 12;
+                oden.dodgeCooldown = Math.max(oden.dodgeCooldown || 0, 12);
+                oden.vx += (oden.x - risk.x) / (Math.hypot(oden.x - risk.x, oden.y - risk.y) || 1) * 3.5;
+                oden.vy += (oden.y - risk.y) / (Math.hypot(oden.x - risk.x, oden.y - risk.y) || 1) * 3.5;
+                rwbFloatingTexts.push({
+                    x: oden.x, y: oden.y - 25, text: "ОДЭН −" + damage,
+                    color: "#ffe98a", life: 48, maxLife: 48, vy: -0.7, vx: 0, size: 13
+                });
+                spawnHitParticles(oden.x, oden.y, "#ffd44f", 12);
+                playImpactSound(0.16, 1.0);
+                if (oden.hp <= 0) {
+                    oden.alive = false; oden.windup = 0; oden.swingTimer = 0;
+                    rwbOdenSlashes = [];
+                    rwbFloatingTexts.push({
+                        x: oden.x, y: oden.y - 36, text: "ОДЭН ВЫБЫЛ!",
+                        color: "#d0a4ff", life: 100, maxLife: 100, vy: -0.45, vx: 0, size: 17
+                    });
+                    spawnHitParticles(oden.x, oden.y, "#b77aff", 24);
+                    rwbShake = Math.max(rwbShake, 7);
+                }
+            }
+            if (projectile) rwbAttacks.splice(i, 1);
+        }
+        if (!oden.alive) return;
+        for (let i = rwbShockwaves.length - 1; i >= 0; i--) {
+            const sw = rwbShockwaves[i];
+            if (!rwbOdenShockwaveThreat(sw, oden.x, oden.y, 0, false)) continue;
+            sw.odenHit = true;
+            if (oden.invulnTimer > 0) continue;
+            const damage = Math.max(6, Math.min(30, Math.ceil(Number(sw.damage) || 10)));
+            oden.hp = Math.max(0, oden.hp - damage);
+            oden.invulnTimer = 48; oden.hitFlash = 12;
+            rwbFloatingTexts.push({x:oden.x,y:oden.y-25,text:"ОДЭН −"+damage,color:"#ffe98a",life:48,maxLife:48,vy:-0.7,vx:0,size:13});
+            spawnHitParticles(oden.x, oden.y, "#ffd44f", 12);
+            if (oden.hp <= 0) {
+                oden.alive = false; oden.windup = 0; oden.swingTimer = 0; rwbOdenSlashes = [];
+                rwbFloatingTexts.push({x:oden.x,y:oden.y-36,text:"ОДЭН ВЫБЫЛ!",color:"#d0a4ff",life:100,maxLife:100,vy:-0.45,vx:0,size:17});
+                spawnHitParticles(oden.x, oden.y, "#b77aff", 24);
+                rwbShake = Math.max(rwbShake, 7);
+                return;
+            }
+        }
+    }
+
+    function rwbOdenFindIncoming(oden) {
+        let closest = null, bestT = Infinity;
+        for (let i = rwbAttacks.length - 1; i >= 0; i--) {
+            const a = rwbAttacks[i];
+            for (const t of [4, 8, 12, 16]) {
+                const px = oden.x + oden.vx * t;
+                const py = oden.y + oden.vy * t;
+                const risk = rwbOdenAttackThreat(a, px, py, t, true);
+                if (risk && t < bestT) {
+                    bestT = t; closest = { risk: risk, time: t };
+                    break;
+                }
+            }
+        }
+        for (let i = rwbShockwaves.length - 1; i >= 0; i--) {
+            const sw = rwbShockwaves[i];
+            for (const t of [4, 8, 12, 16]) {
+                const risk = rwbOdenShockwaveThreat(sw, oden.x + oden.vx * t, oden.y + oden.vy * t, t, true);
+                if (risk && t < bestT) {
+                    bestT = t; closest = { risk: risk, time: t };
+                    break;
+                }
+            }
+        }
+        return closest;
+    }
+
     function updateRWBOdenSupport() {
-        if (!rwbOden || !rwbPlayer) return;
+        if (!rwbOden || !rwbPlayer || !rwbOden.alive) return;
         const oden = rwbOden;
         oden.phase += 0.11;
         if (oden.hitFlash > 0) oden.hitFlash--;
+        if (oden.invulnTimer > 0) oden.invulnTimer--;
+        if (oden.dodgeCooldown > 0) oden.dodgeCooldown--;
+        if (oden.dodgeFlashTimer > 0) oden.dodgeFlashTimer--;
 
-        // Oden floats a little above and to the side of the player, keeping clear of the heart.
-        const followX = Math.max(27, Math.min(373, rwbPlayer.x - 34));
-        const followY = Math.max(42, Math.min(456, rwbPlayer.y - 45));
-        oden.x += (followX - oden.x) * 0.12;
-        oden.y += (followY - oden.y) * 0.12;
+        // If a hit is unavoidable at the current position, Oden takes damage and becomes briefly invulnerable.
+        rwbOdenApplyCurrentHits(oden);
+        if (!oden.alive) return;
+
+        // Oden roams the arena on his own instead of hovering next to the player.
+        oden.wanderTimer--;
+        if (oden.wanderTimer <= 0 ||
+            Math.hypot(oden.moveTargetX - oden.x, oden.moveTargetY - oden.y) < 18) {
+            oden.moveTargetX = 38 + Math.random() * 324;
+            oden.moveTargetY = 100 + Math.random() * 340;
+            oden.wanderTimer = 42 + Math.floor(Math.random() * 54);
+        }
+
+        const incoming = rwbOdenFindIncoming(oden);
+        if (incoming && oden.dodgeCooldown <= 0) {
+            const risk = incoming.risk;
+            let dx, dy;
+            if (risk.axis === "horizontal") {
+                dx = (Math.random() - 0.5) * 60;
+                dy = (Math.random() < 0.5 ? -1 : 1) * (92 + Math.random() * 42);
+            } else if (risk.axis === "vertical") {
+                dx = (Math.random() < 0.5 ? -1 : 1) * (100 + Math.random() * 42);
+                dy = (Math.random() - 0.5) * 54;
+            } else {
+                dx = oden.x - risk.x; dy = oden.y - risk.y;
+                const len = Math.hypot(dx, dy) || 1;
+                dx = dx / len * (96 + Math.random() * 44) + (Math.random() - 0.5) * 32;
+                dy = dy / len * (82 + Math.random() * 38) + (Math.random() - 0.5) * 28;
+            }
+            oden.moveTargetX = Math.max(34, Math.min(366, oden.x + dx));
+            oden.moveTargetY = Math.max(92, Math.min(455, oden.y + dy));
+            oden.wanderTimer = 34;
+            oden.dodgeCooldown = 30;
+            oden.dodgeFlashTimer = 12;
+            oden.vx += Math.sign(dx) * 1.6;
+            oden.vy += Math.sign(dy) * 1.4;
+            spawnHitParticles(oden.x, oden.y, "#d9a7ff", 3);
+        }
+
+        const toX = oden.moveTargetX - oden.x, toY = oden.moveTargetY - oden.y;
+        const dist = Math.hypot(toX, toY) || 1;
+        const speed = oden.dodgeCooldown > 12 ? 4.5 : 2.25;
+        oden.vx = oden.vx * 0.62 + (toX / dist * speed) * 0.38;
+        oden.vy = oden.vy * 0.62 + (toY / dist * speed) * 0.38;
+        oden.x = Math.max(30, Math.min(370, oden.x + oden.vx));
+        oden.y = Math.max(88, Math.min(460, oden.y + oden.vy));
 
         const targets = getRWBOdenTargets();
+        const focus = getRWBOdenAttackTarget(targets);
         for (let i = rwbOdenSlashes.length - 1; i >= 0; i--) {
             const slash = rwbOdenSlashes[i];
             const target = getRWBOdenTargetById(slash.targetId);
             if (!target) {
-                slash.life = 0;
                 rwbOdenSlashes.splice(i, 1);
                 continue;
             }
-            const desired = Math.atan2(target.y - slash.y, target.x - slash.x);
-            const current = Math.atan2(slash.vy, slash.vx);
-            let turn = Math.atan2(Math.sin(desired - current), Math.cos(desired - current));
-            turn = Math.max(-0.085, Math.min(0.085, turn));
-            const angle = current + turn;
-            slash.vx = Math.cos(angle) * slash.speed;
-            slash.vy = Math.sin(angle) * slash.speed;
-            slash.angle = angle;
+            // A sword wave flies on a fixed trajectory; it does not home in after launch.
             slash.x += slash.vx;
             slash.y += slash.vy;
+            slash.angle = Math.atan2(slash.vy, slash.vx);
             slash.life--;
 
             if (Math.hypot(slash.x - target.x, slash.y - target.y) <= (target.size || 28) * 0.78 + slash.size) {
@@ -3926,12 +4186,12 @@
         if (oden.swingTimer > 0) oden.swingTimer--;
         if (oden.windup > 0) {
             oden.windup--;
-            let target = getRWBOdenTargetById(oden.targetId);
+            let target = getRWBOdenAttackTarget(targets);
             if (!target && targets.length) {
                 target = targets[0];
-                oden.targetId = target.id;
             }
             if (target) {
+                oden.targetId = target.id;
                 oden.swordAngle = Math.atan2(target.y - oden.y, target.x - oden.x);
                 if (oden.windup <= 0) {
                     const aimX = target.x + (target.vx || 0) * 8;
@@ -3955,21 +4215,27 @@
             }
         } else if (oden.attackCooldown > 0) {
             oden.attackCooldown--;
-        } else if (targets.length) {
-            // During the opening duel Oden alternates between both opponents instead of focusing only one.
-            let target = targets.find(function(boss) { return boss.id !== rwbOdenLastTargetId; }) || targets[0];
-            oden.targetId = target.id;
-            rwbOdenLastTargetId = target.id;
+        } else if (focus) {
+            oden.targetId = focus.id;
             oden.windup = 13;
             oden.swingTimer = 16;
             oden.attackCooldown = 72;
-            oden.swordAngle = Math.atan2(target.y - oden.y, target.x - oden.x);
+            oden.swordAngle = Math.atan2(focus.y - oden.y, focus.x - oden.x);
         }
     }
 
     function drawRWBOdenSupport() {
         if (!rwbOden) return;
         const oden = rwbOden;
+        if (!oden.alive) {
+            ctx.save();
+            ctx.globalAlpha = 0.86; ctx.textAlign = "center";
+            ctx.font = "bold 10px monospace"; ctx.fillStyle = "#c7a0ff";
+            ctx.shadowColor = "#a85cff"; ctx.shadowBlur = 10;
+            ctx.fillText("ОДЭН ВЫБЫЛ", oden.x, oden.y - 21);
+            ctx.restore();
+            return;
+        }
         const bobY = Math.sin(oden.phase) * 2.2;
         const cx = oden.x, cy = oden.y + bobY, size = oden.size;
         const attacking = oden.swingTimer > 0 || oden.windup > 0;
@@ -4074,6 +4340,18 @@
         ctx.textAlign = "center"; ctx.font = "bold 9px monospace";
         ctx.lineWidth = 3; ctx.strokeStyle = "rgba(38,8,58,.9)"; ctx.strokeText("ОДЭН", cx, cy + size + 14);
         ctx.fillStyle = "#ffe99a"; ctx.fillText("ОДЭН", cx, cy + size + 14);
+        ctx.restore();
+
+        // Oden has a separate visible health bar. Flashing pale means a recent hit/dodge.
+        const barW = 42, barX = cx - barW / 2, barY = cy + size + 7;
+        ctx.save();
+        ctx.globalAlpha = oden.invulnTimer > 0 && oden.invulnTimer % 6 < 3 ? 0.48 : 0.94;
+        ctx.fillStyle = "rgba(7,4,18,.92)"; ctx.fillRect(barX - 2, barY - 2, barW + 4, 13);
+        ctx.fillStyle = "#39244e"; ctx.fillRect(barX, barY, barW, 4);
+        ctx.fillStyle = oden.hp / oden.maxHp > .45 ? "#a9f78d" : "#ff708e";
+        ctx.fillRect(barX, barY, barW * Math.max(0, oden.hp / oden.maxHp), 4);
+        ctx.font = "bold 7px monospace"; ctx.textAlign = "center";
+        ctx.fillStyle = "#f4e8ff"; ctx.fillText("ОДЭН " + Math.ceil(oden.hp) + "/" + oden.maxHp, cx, barY + 11);
         ctx.restore();
     }
 
