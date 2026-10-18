@@ -3314,6 +3314,9 @@
             if (rwbHakiLightnings.length > 0) rwbHakiLightnings.length = 0;
             if (rwbWhiteCracks.length > 0) rwbWhiteCracks.length = 0;
             if (rwbPurpleCracks.length > 0) rwbPurpleCracks.length = 0;
+        } else if (window.MBIsMediumGraphics && window.MBIsMediumGraphics()) {
+            if (rwbParticles.length > 90) rwbParticles.splice(0, rwbParticles.length - 90);
+            if (rwbShockwaves.length > 24) rwbShockwaves.splice(0, rwbShockwaves.length - 24);
         }
 
         // The boss path is calculated from rwbTimer. Do not advance that clock while
