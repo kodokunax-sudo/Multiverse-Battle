@@ -1147,6 +1147,54 @@
         for(let i=0;i<3;i++){c.beginPath();c.ellipse(x,y+bob,25*scale+i*8*scale,31*scale+i*10*scale,now*.0002*(i%2?1:-1),0,Math.PI*2);c.stroke();}
         c.restore();
     }
+    function asDrawBoss(c,now) {
+        // Echo heads in the labyrinth preserve the attack's multi-reality illusion.
+        if (asLabyrinthTimer > 0) {
+            asDrawAntiSpiralHead(c, asBoss.x - 69, asBoss.y + 24, 0.58, now + 280, .22);
+            asDrawAntiSpiralHead(c, asBoss.x + 69, asBoss.y + 24, 0.58, now - 360, .22);
+        }
+        // The exposed core visibly pulses around the main head.
+        if (asBossExposed > 0) {
+            c.save();
+            c.globalAlpha = .42 + Math.sin(asFrame * .32) * .18;
+            c.strokeStyle = "#8effff"; c.shadowColor = "#6ffaff"; c.shadowBlur = 24; c.lineWidth = 2.5;
+            c.beginPath();
+            c.ellipse(asBoss.x, asBoss.y + 37, 25 + Math.sin(asFrame * .15) * 5, 31 + Math.sin(asFrame * .15) * 5, 0, 0, Math.PI * 2);
+            c.stroke();
+            c.restore();
+        }
+        // Rotating dimensional halo and orbiting energy fragments frame the improved head.
+        c.save();
+        c.translate(asBoss.x, asBoss.y + 25);
+        c.globalAlpha = .68 + .12 * Math.sin(now / 170);
+        c.shadowColor = "#a04cff"; c.shadowBlur = 24; c.lineWidth = 1.6;
+        for (let ring = 0; ring < 4; ring++) {
+            c.save();
+            c.rotate(now * .00035 * (ring % 2 ? -1 : 1) + ring * .52);
+            c.strokeStyle = ring % 2 ? "#6cecff" : "#bf76ff";
+            c.globalAlpha = .28 + ring * .09;
+            c.beginPath();
+            c.ellipse(0, 0, asBoss.size + 18 + ring * 12, 11 + ring * 5, .22 * ring, 0, Math.PI * 2);
+            c.stroke();
+            c.restore();
+        }
+        for (let shard = 0; shard < 7; shard++) {
+            const angle = now * .0011 + shard * Math.PI * 2 / 7;
+            const radius = asBoss.size + 28 + Math.sin(now / 240 + shard) * 7;
+            const sx = Math.cos(angle) * radius, sy = Math.sin(angle) * radius * .62;
+            c.fillStyle = shard % 2 ? "#7cecff" : "#e0b4ff";
+            c.globalAlpha = .62 + .3 * Math.sin(now / 150 + shard);
+            c.beginPath();
+            c.moveTo(sx, sy - 3.2); c.lineTo(sx + 2.5, sy);
+            c.lineTo(sx, sy + 3.2); c.lineTo(sx - 2.5, sy); c.closePath(); c.fill();
+        }
+        c.restore();
+        c.save();
+        c.translate(asBoss.x, asBoss.y + 43);
+        c.rotate(asGravityDirection * Math.PI / 2);
+        asDrawAntiSpiralHead(c, 0, -35, 1.05 * (asBoss.size / 48), now, 1);
+        c.restore();
+    }
     function asDrawRedHeart(c,x,y,now,shot) {
         c.save();c.translate(x,y);c.shadowColor="#ff233f";c.shadowBlur=shot?22:13;
         c.rotate(Math.sin(now/130)*.12);
