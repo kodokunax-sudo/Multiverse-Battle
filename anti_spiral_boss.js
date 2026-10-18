@@ -82,6 +82,8 @@
     let asClones = [];
     let asCloneUntil = 0;
     let asCloneNextShuffleAt = 0;
+    let asClonePhase = "idle";
+    let asCloneStageUntil = 0;
     let asGravityPull = 0.10;
     let asGravityDirection = 0; // 0 вниз, 1 влево, 2 вверх, 3 вправо
     let asGravityNextShiftAt = 0;
@@ -805,7 +807,7 @@
     }
     function asShuffleCloneTargets(now) {
         const live = asClones.filter(function(clone) { return clone.alive; });
-        if (live.length < 2) return;
+        if (live.length < 2 || asClonePhase !== "shuffle") return;
         const slots = asCloneSlots();
         for (let i = slots.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -815,32 +817,75 @@
             const target = slots[i];
             clone.fromX = clone.x; clone.fromY = clone.y;
             clone.toX = target.x; clone.toY = target.y;
-            clone.moveStart = now; clone.moveDuration = 245;
+            clone.moveStart = now; clone.moveDuration = 310;
         });
-        asCloneNextShuffleAt = now + 525 + Math.random() * 105;
+        asCloneNextShuffleAt = now + 720 + Math.random() * 170;
         asSound(330 + Math.random() * 120, "triangle", .09, .035);
     }
-    function asStartCloneHunt(now) {
+    function asMoveClonesToSlots(now) {
+        const live = asClones.filter(function(clone) { return clone.alive; });
         const slots = asCloneSlots();
+        for (let i = slots.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const temp = slots[i]; slots[i] = slots[j]; slots[j] = temp;
+        }
+        live.forEach(function(clone, i) {
+            const target = slots[i];
+            clone.fromX = clone.x; clone.fromY = clone.y;
+            clone.toX = target.x; clone.toY = target.y;
+            clone.moveStart = now; clone.moveDuration = 570;
+        });
+        asClonePhase = "scatter";
+        asCloneStageUntil = now + 570;
+        asCloneNextShuffleAt = asCloneStageUntil + 350;
+        asText(200, 125, "ЛИКИ РАСХОДЯТСЯ — СЛЕДИ ЗА ОРИГИНАЛОМ!", "#83eaff", 76);
+        asSound(260, "sine", .18, .055);
+    }
+    function asStartCloneHunt(now) {
+        const bounds = asBounds();
+        const centerX = (bounds.left + bounds.right) / 2;
+        const centerY = (bounds.top + bounds.bottom) / 2;
         const originalIndex = Math.floor(Math.random() * 4);
-        asCloneMode = true; asCloneUntil = now + 8500; asCloneNextShuffleAt = now + 850;
-        asClones = slots.map(function(pos, i) {
+        // All four likenesses appear around the true boss, then converge into a tight cluster
+        // in the center before spreading to their first shuffled positions.
+        const startOffsets = [
+            {x:-45,y:-24},{x:45,y:-24},{x:-45,y:24},{x:45,y:24}
+        ];
+        const centerOffsets = [
+            {x:-23,y:-20},{x:23,y:-20},{x:-23,y:20},{x:23,y:20}
+        ];
+        asCloneMode = true;
+        asCloneUntil = Infinity;
+        asClonePhase = "gather";
+        asCloneStageUntil = now + 620;
+        asCloneNextShuffleAt = Infinity;
+        asClones = startOffsets.map(function(offset, i) {
+            const x = asBoss.x + offset.x;
+            const y = asBoss.y + 8 + offset.y;
+            const target = centerOffsets[i];
             return {
-                x: pos.x, y: pos.y, fromX: pos.x, fromY: pos.y, toX: pos.x, toY: pos.y,
-                moveStart: now, moveDuration: 1, phase: Math.random() * Math.PI * 2,
-                alive: true, isOriginal: i === originalIndex, identity: i
+                x:x,y:y,fromX:x,fromY:y,
+                toX:centerX+target.x,toY:centerY+target.y,
+                moveStart:now,moveDuration:620,phase:Math.random()*Math.PI*2,
+                alive:true,isOriginal:i===originalIndex,identity:i
             };
         });
         asTriggerArenaWarp(now, "toggle", "ЧЕТЫРЕ ЛИКА");
         asShake = Math.max(asShake, 7);
         asFlash = Math.max(asFlash, 5); asFlashColor = "#6bcbff";
+        asText(200, 108, "ОРИГИНАЛ СОЗДАЁТ ТРИХ ЛОЖНЫХ ЛИКОВ!", "#c4a5ff", 90);
+        asText(200, 128, "ОНИ СХОДЯТСЯ В ЦЕНТР...", "#7feeff", 86);
         asSound(145, "sawtooth", .32, .1);
     }
     function asUpdateCloneHunt(now) {
         if (!asCloneMode) return;
-        if (now >= asCloneUntil) {
-            asCloneMode = false; asClones = []; asCloneNextShuffleAt = 0;
-            asText(200, 124, "ОРИГИНАЛ СКРЫЛСЯ В ИСКАЖЕНИИ!", "#c2abff", 64);
+        const live = asClones.filter(function(clone) { return clone.alive; });
+        // When only the original remains, the guessing phase resolves without giving free damage.
+        if (live.length <= 1 && live.length === 1 && live[0].isOriginal) {
+            asCloneMode = false; asClones = []; asCloneUntil = 0;
+            asCloneNextShuffleAt = 0; asClonePhase = "idle"; asCloneStageUntil = 0;
+            asText(200, 124, "ОСТАЛСЯ ТОЛЬКО ОРИГИНАЛ — КЛОНЫ РАЗБИТЫ!", "#8ff8ff", 82);
+            asSound(640, "triangle", .24, .08);
             return;
         }
         asClones.forEach(function(clone) {
@@ -850,7 +895,21 @@
             clone.x = clone.fromX + (clone.toX - clone.fromX) * eased;
             clone.y = clone.fromY + (clone.toY - clone.fromY) * eased;
         });
-        if (now >= asCloneNextShuffleAt) asShuffleCloneTargets(now);
+        if (asAimMode) return;
+        // If the 1.5-second aiming window ended without a shot, resume shuffling.
+        if (asClonePhase === "shuffle" && asCloneNextShuffleAt === Infinity) {
+            asCloneNextShuffleAt = now + 250;
+        }
+        if (asClonePhase === "gather" && now >= asCloneStageUntil) {
+            asMoveClonesToSlots(now);
+            return;
+        }
+        if (asClonePhase === "scatter" && now >= asCloneStageUntil) {
+            asClonePhase = "shuffle";
+            asCloneNextShuffleAt = now + 220;
+            return;
+        }
+        if (asClonePhase === "shuffle" && now >= asCloneNextShuffleAt) asShuffleCloneTargets(now);
     }
     function asDrawCloneHunt(c, now) {
         asClones.forEach(function(clone) {
@@ -867,14 +926,15 @@
             c.fillText("?", clone.x, clone.y + 51);
             c.restore();
         });
+        const liveCount = asClones.filter(function(clone) { return clone.alive; }).length;
         c.save();
         c.fillStyle = "rgba(2,4,18,.92)"; c.fillRect(43, 98, 314, 23);
         c.strokeStyle = "#70eaff"; c.lineWidth = 1.2; c.strokeRect(43, 98, 314, 23);
         c.fillStyle = "#d2fbff"; c.font = "bold 10px monospace"; c.textAlign = "center";
-        c.fillText("4 КОПИИ · ПОПАДИ В НАСТОЯЩЕГО", 200, 113);
+        c.fillText(liveCount + " ЛИКА · НАЙДИ НАСТОЯЩЕГО", 200, 113);
         c.restore();
     }
-    function asTriggerArenaWarp(now, mode, name) {
+        function asTriggerArenaWarp(now, mode, name) {
         if (now < asArenaLockUntil) return;
         const compact = mode === "collapse" ? true : mode === "expand" ? false : !asLastArenaWarpCompact;
         asLastArenaWarpCompact = compact;
@@ -1057,7 +1117,7 @@
         if(btn)btn.style.display="block";
     }
     function asStop() {
-        asActive=false; asAimMode=false; asSlowUntilReal=0; asTimeScale=1; asPreviousTimeScale=1; asCloneMode=false;asClones=[];asCloneUntil=0;asCloneNextShuffleAt=0;asArenaLockUntil=0;asArenaWarpUntil=0; window.antiSpiralBossActive=false;
+        asActive=false; asAimMode=false; asSlowUntilReal=0; asTimeScale=1; asPreviousTimeScale=1; asCloneMode=false;asClones=[];asCloneUntil=0;asCloneNextShuffleAt=0;asClonePhase="idle";asCloneStageUntil=0;asArenaLockUntil=0;asArenaWarpUntil=0; window.antiSpiralBossActive=false;
         if(asAnimFrame) cancelAnimationFrame(asAnimFrame);
         asAnimFrame=null; asUnbind(); stopASMusic();
         asCharging=false; asChargeFrames=0; asLastDamageAt=0; asNextShotAt=0; asPointerChargeMode=false; asDrillShots=[];
@@ -1101,7 +1161,7 @@
                 }
                 if (hitClone) {
                     if (hitClone.isOriginal) {
-                        asCloneMode = false; asCloneUntil = 0; asCloneNextShuffleAt = 0; asClones = [];
+                        asCloneMode = false; asCloneUntil = 0; asCloneNextShuffleAt = 0; asClonePhase = "idle"; asCloneStageUntil = 0; asClones = [];
                         let cloneMultiplier = asBossExposed > 0 ? 2.45 : .42;
                         if (asPlayer.y < 270) cloneMultiplier *= 1.25;
                         asBossHit(Math.max(1, Math.floor(shot.damage * cloneMultiplier)), "ОРИГИНАЛ НАЙДЕН — УДАР ПО АНТИ-СПИРАЛИ!");
@@ -1120,7 +1180,16 @@
                             const ang = Math.PI * 2 * q / 12, speed = 1 + Math.random() * 3;
                             asParticles.push({x:hitClone.x,y:hitClone.y,vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed,life:18,maxLife:18,color:"#9e73ff",size:2+Math.random()*2});
                         }
-                        asCloneNextShuffleAt = asGameClock + 560;
+                        const remainingClones = asClones.filter(function(clone) { return clone.alive; });
+                        if (remainingClones.length === 1 && remainingClones[0].isOriginal) {
+                            asCloneMode = false; asClones = []; asCloneUntil = 0;
+                            asCloneNextShuffleAt = 0; asClonePhase = "idle"; asCloneStageUntil = 0;
+                            asText(200, 124, "ОСТАЛСЯ ТОЛЬКО ОРИГИНАЛ — КЛОНЫ РАЗБИТЫ!", "#8ff8ff", 82);
+                            asSound(640, "triangle", .24, .08);
+                        } else {
+                            asClonePhase = "shuffle";
+                            asCloneNextShuffleAt = asGameClock + 420;
+                        }
                         asSound(145, "sawtooth", .18, .06);
                     }
                     asDrillShots.splice(i, 1);
@@ -2653,7 +2722,7 @@
         asBossHp=asBossMaxHp;asPlayerMaxHp=220;asPlayerHp=asPlayerMaxHp;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asBoss={x:285,y:180,size:48,rotation:0,pulse:0,flash:0};
-        asAttacks=[];asParticles=[];asTexts=[];asClones=[];asCloneMode=false;asCloneUntil=0;asCloneNextShuffleAt=0;asArenaLockUntil=0;asArenaWarpUntil=0;asLastArenaWarpCompact=false;asFrame=0;asPattern=0;asPatternTimer=0;asPatternDraining=false;asPatternVolleyCount=0;
+        asAttacks=[];asParticles=[];asTexts=[];asClones=[];asCloneMode=false;asCloneUntil=0;asCloneNextShuffleAt=0;asClonePhase="idle";asCloneStageUntil=0;asArenaLockUntil=0;asArenaWarpUntil=0;asLastArenaWarpCompact=false;asFrame=0;asPattern=0;asPatternTimer=0;asPatternDraining=false;asPatternVolleyCount=0;
         asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;asLastArenaShift=asGameClock;asArenaLockUntil=0;asArenaWarpUntil=0;asLastArenaWarpCompact=false;asGravityDirection=0;asGravityNextShiftAt=0;
         asShake=0;asFlash=0;asBossDamageFlash=0;asPhase=1;asLastShot=0;asGravityPull=.10;
         asKeys=Object.create(null);asPointer={down:false,x:0,y:0,id:null};
