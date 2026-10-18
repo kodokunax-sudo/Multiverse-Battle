@@ -61,6 +61,7 @@
     let asPattern = 0;
     let asPatternTimer = 0;
     let asPatternDraining = false;
+    let asPatternVolleyCount = 0;
     let asLastArenaShift = 0;
     let asArenaWidth = 400;
     let asArenaHeight = 470;
@@ -250,6 +251,8 @@
             const detail=asPlayerScaleMode===.5?"СКОРОСТЬ ↑  ПРЫЖОК ↓":asPlayerScaleMode===2?"СИЛЬНЫЙ ПРЫЖОК ↑  СКОРОСТЬ ↓":"НОРМАЛЬНАЯ ФИЗИКА";
             asText(200,112,message,color,85);
             asText(200,132,detail,color,72);
+            // Give the player a brief reaction window if a size roll changes the hitbox mid-attack.
+            asPlayer.invuln=Math.max(asPlayer.invuln||0,48);
             asFlash=Math.max(asFlash,6);asFlashColor=color;
             asShake=Math.max(asShake,asPlayerScaleMode===2?10:5);
             asSound(asPlayerScaleMode===.5?560:asPlayerScaleMode===2?95:300,asPlayerScaleMode===2?"sawtooth":"triangle",.28,.11);
@@ -591,9 +594,9 @@
         } else if (asPattern === 1) {
             // Руки Грандзебомы прочёсывают арену, а затем сам босс запускает преследующие снаряды.
             const firstY = Math.max(bounds.top + 95, Math.min(bounds.bottom - 28, asPlayer.y));
-            asAttacks.push({ kind: "sweep", orientation: "horizontal", y: firstY, warning: 46, life: 17, color: "#ff67d8", damage: damage + 2, hit: false });
+            asAttacks.push({ kind: "sweep", orientation: "horizontal", y: firstY, warning: 64, life: 15, color: "#ff67d8", damage: damage + 2, hit: false });
             if (asPhase >= 2) {
-                asAttacks.push({ kind: "sweep", orientation: "horizontal", y: Math.max(bounds.top + 80, bounds.bottom - 82), warning: 74, life: 15, color: "#a66bff", damage: damage, hit: false });
+                asAttacks.push({ kind: "sweep", orientation: "horizontal", y: Math.max(bounds.top + 80, bounds.bottom - 82), warning: 88, life: 13, color: "#a66bff", damage: damage, hit: false });
             }
             const aimedAngle=Math.atan2(asPlayer.y-(asBoss.y+35),asPlayer.x-asBoss.x);
             const hunterCount=asPhase>=3?5:3;
@@ -620,20 +623,18 @@
                 asAttacks.push({ kind: "laser", orientation: "horizontal", x: 0, y: bounds.bottom - 74, warning: 45, life: 16, color: "#ff5cd6", damage: damage + 3, hit: false });
             }
         } else if (asPattern === 3) {
-            // Разлом пространства: узкие лучи и массивный лазерный барьер перекрывают путь к боссу.
-            const targetX = Math.max(bounds.left + 15, Math.min(bounds.right - 15, asPlayer.x));
-            asAttacks.push({ kind: "laser", orientation: "vertical", x: targetX, y: 0, warning: 48, life: 22, color: "#a978ff", damage: damage + 3, hit: false });
-            if(Math.random()<.68){
-                const zone=Math.random()<(asPhase>=3?.58:.42)?"lower":"upper";
-                const zoneHeight=asPhase>=3?112:92;
-                asAttacks.push({kind:"zoneLaser",zone:zone,height:zoneHeight,sweepDistance:asPhase>=3?126:94,warning:68,life:44,maxLife:44,color:zone==="lower"?"#65eaff":"#cf6bff",damage:damage+5,hit:false});
+            // One clearly marked cross-cut, plus ONE secondary hazard (a sector wall OR a line).
+            // Avoid stacking two barriers on top of a sweeping wall, which could close every escape route.
+            const targetX=Math.max(bounds.left+22,Math.min(bounds.right-22,asPlayer.x));
+            const targetY=Math.max(bounds.top+70,Math.min(bounds.bottom-55,asPlayer.y));
+            asText(200,105,"РАЗРЕЗ ПРОСТРАНСТВА — УКЛОНИСЬ!","#bba0ff",72);
+            asAttacks.push({kind:"laser",orientation:"vertical",x:targetX,y:0,warning:76,life:18,color:"#a978ff",damage:damage+2,hit:false});
+            if(Math.random()<.58){
+                const zone=Math.random()<.5?"lower":"upper";
+                const zoneHeight=asPhase>=3?92:76;
+                asAttacks.push({kind:"zoneLaser",zone:zone,height:zoneHeight,sweepDistance:asPhase>=3?96:76,warning:96,life:34,maxLife:34,color:zone==="lower"?"#65eaff":"#cf6bff",damage:damage+3,hit:false});
             }else{
-                asAttacks.push({ kind: "laser", orientation: "horizontal", x: 0, y: Math.max(bounds.top + 70, Math.min(bounds.bottom - 48, asPlayer.y)), warning: 70, life: 17, color: "#55dcff", damage: damage, hit: false });
-            }
-            const barrierX = Math.max(bounds.left + 58, Math.min(bounds.right - 58, (asPlayer.x + asBoss.x) * .5));
-            asAttacks.push({ kind: "barrierLaser", orientation: "vertical", x: barrierX, y: 0, warning: 62, life: asPhase >= 3 ? 112 : 88, thickness: asPhase >= 3 ? 46 : 38, color: "#ff58e4", damage: damage + 7, hit: false });
-            if (asPhase >= 2) {
-                asAttacks.push({ kind: "barrierLaser", orientation: "horizontal", x: 0, y: Math.max(bounds.top + 95, Math.min(bounds.bottom - 75, asPlayer.y - 42)), warning: 82, life: 72, thickness: 32, color: "#65eaff", damage: damage + 4, hit: false });
+                asAttacks.push({kind:"barrierLaser",orientation:"horizontal",x:0,y:targetY,warning:92,life:18,thickness:asPhase>=3?30:24,color:"#55dcff",damage:damage+3,hit:false});
             }
         } else if (asPattern === 4) {
             // Мультивселенский лабиринт: платформы дрожат и оставляют призрачные копии.
@@ -674,27 +675,28 @@
                 asAttacks[asAttacks.length-1].maxSpeed=4;
             }
         } else if (asPattern === 8) {
-            // A new signature combo: cross-lasers force a dodge, then three staggered reality marks punish staying still.
+            // The Black Crown gives a long warning, then chooses either a broad sector wall
+            // OR a horizontal cross-laser with two separated markers—never all of them at once.
             const targetX=Math.max(bounds.left+24,Math.min(bounds.right-24,asPlayer.x));
             const targetY=Math.max(bounds.top+55,Math.min(bounds.bottom-30,asPlayer.y));
-            asText(200,105,"ЧЁРНАЯ КОРОНА — КРЕСТОВОЙ ЗАЛП","#ff8bf3",82);
-            asShake=Math.max(asShake,8);asSound(82,"sawtooth",.32,.12);
-            asAttacks.push({kind:"laser",orientation:"vertical",x:targetX,y:0,warning:58,life:18,color:"#f566ff",damage:damage+3,hit:false});
-            if(Math.random()<.62){
-                const zone=Math.random()<.52?"lower":"upper";
-                asAttacks.push({kind:"zoneLaser",zone:zone,height:asPhase>=3?116:94,sweepDistance:asPhase>=3?132:100,warning:74,life:46,maxLife:46,color:zone==="lower"?"#61eaff":"#e05dff",damage:damage+5,hit:false});
+            asText(200,105,"ЧЁРНАЯ КОРОНА — НАЙДИ ПРОХОД!","#ff8bf3",82);
+            asShake=Math.max(asShake,6);asSound(82,"sawtooth",.28,.1);
+            asAttacks.push({kind:"laser",orientation:"vertical",x:targetX,y:0,warning:82,life:16,color:"#f566ff",damage:damage+2,hit:false});
+            if(Math.random()<.5){
+                const zone=Math.random()<.5?"lower":"upper";
+                asAttacks.push({kind:"zoneLaser",zone:zone,height:asPhase>=3?100:82,sweepDistance:asPhase>=3?98:80,warning:100,life:36,maxLife:36,color:zone==="lower"?"#61eaff":"#e05dff",damage:damage+3,hit:false});
             }else{
-                asAttacks.push({kind:"laser",orientation:"horizontal",x:0,y:targetY,warning:76,life:16,color:"#62eaff",damage:damage+4,hit:false});
-            }
-            for(let mark=0;mark<3;mark++){
-                const offset=(mark-1)*(asPhase>=3?74:58);
-                asAttacks.push({
-                    kind:"mark",
-                    x:Math.max(bounds.left+22,Math.min(bounds.right-22,targetX+offset)),
-                    y:Math.max(bounds.top+40,Math.min(bounds.bottom-25,targetY+(mark===1?38:-22))),
-                    timer:54+mark*10,radius:23+asPhase*2,damage:damage+2,life:0,hit:false,
-                    color:mark===1?"#ffffff":(mark===0?"#ff67d8":"#7e79ff")
-                });
+                asAttacks.push({kind:"laser",orientation:"horizontal",x:0,y:targetY,warning:94,life:16,color:"#62eaff",damage:damage+3,hit:false});
+                for(let mark=0;mark<2;mark++){
+                    const side=mark===0?-1:1;
+                    asAttacks.push({
+                        kind:"mark",
+                        x:Math.max(bounds.left+asPlayer.size+16,Math.min(bounds.right-asPlayer.size-16,targetX+side*(asPhase>=3?72:62))),
+                        y:Math.max(bounds.top+asPlayer.size+18,Math.min(bounds.bottom-asPlayer.size-18,targetY+(mark===0?-34:34))),
+                        timer:88+mark*16,radius:20+asPhase,damage:damage+1,life:0,hit:false,
+                        color:mark===0?"#ff67d8":"#7e79ff"
+                    });
+                }
             }
         } else {
             // Две галактики сжимаются в шар; затем следует Infinity Big Bang Storm.
@@ -708,31 +710,22 @@
             asSound(68, "sawtooth", .65, .13);
             asShake = Math.max(asShake, 7);
         }
-        if(asPattern<7 && Math.random()<(asPhase>=3?.48:.32)){
-            const remix=Math.floor(Math.random()*4);
+        if((asPattern===0||asPattern===2)&&Math.random()<(asPhase>=3?.22:.13)){
+            const remix=Math.floor(Math.random()*2);
             if(remix===0){
-                // A small pair of seeking shards joins the current move.
+                // A pair of moderately slow homing shards: dangerous but escapable.
                 const aim=Math.atan2(asPlayer.y-(asBoss.y+36),asPlayer.x-asBoss.x);
                 for(let h=-1;h<=1;h+=2){
-                    asAddAttack(asBoss.x,asBoss.y+36,Math.cos(aim+h*.28)*2.4,Math.sin(aim+h*.28)*2.4,10,"#f0a2ff",Math.max(6,damage-2),"orb");
-                    asAttacks[asAttacks.length-1].homing=true;asAttacks[asAttacks.length-1].turnRate=.035;asAttacks[asAttacks.length-1].maxSpeed=3.5;
+                    asAddAttack(asBoss.x,asBoss.y+36,Math.cos(aim+h*.32)*2.2,Math.sin(aim+h*.32)*2.2,9,"#f0a2ff",Math.max(5,damage-3),"orb");
+                    asAttacks[asAttacks.length-1].homing=true;
+                    asAttacks[asAttacks.length-1].turnRate=.026;
+                    asAttacks[asAttacks.length-1].maxSpeed=3.0;
                 }
-            }else if(remix===1){
-                // A delayed pair of blasts tracks where the player was, not where they end up.
-                const markX=Math.max(bounds.left+24,Math.min(bounds.right-24,asPlayer.x+asPlayer.vx*10));
-                const markY=Math.max(bounds.top+55,Math.min(bounds.bottom-28,asPlayer.y+asPlayer.vy*7));
-                [-1,1].forEach(function(side){
-                    asAttacks.push({kind:"mark",x:Math.max(bounds.left+20,Math.min(bounds.right-20,markX+side*42)),y:markY,timer:48+Math.random()*10,radius:22+asPhase*2,damage:damage+1,life:0,hit:false,color:side<0?"#ff61d8":"#67eaff"});
-                });
-            }else if(remix===2){
-                const zone=Math.random()<.56?"lower":"upper";
-                asAttacks.push({kind:"zoneLaser",zone:zone,height:asPhase>=3?108:88,sweepDistance:asPhase>=3?120:92,warning:62,life:40,maxLife:40,color:zone==="lower"?"#68e9ff":"#d07aff",damage:damage+4,hit:false});
             }else{
-                // Two warning lances create a temporary corridor.
-                [-1,1].forEach(function(side){
-                    const x=Math.max(bounds.left+18,Math.min(bounds.right-18,asPlayer.x+side*72));
-                    asAttacks.push({kind:"laser",orientation:"vertical",x:x,y:0,warning:48,life:14,color:side<0?"#9d79ff":"#53eaff",damage:damage+2,hit:false});
-                });
+                // A single delayed marker, not a second full laser wall.
+                const markX=Math.max(bounds.left+asPlayer.size+18,Math.min(bounds.right-asPlayer.size-18,asPlayer.x+asPlayer.vx*8));
+                const markY=Math.max(bounds.top+asPlayer.size+18,Math.min(bounds.bottom-asPlayer.size-18,asPlayer.y+asPlayer.vy*6));
+                asAttacks.push({kind:"mark",x:markX,y:markY,timer:76,radius:20+asPhase,damage:damage,life:0,hit:false,color:"#68eaff"});
             }
         }
         asSound(asPattern === 1 ? 180 : (asPattern === 3 ? 125 : 300), "sawtooth", asPattern === 3 ? .22 : .14, asPattern >= 3 ? .07 : .055);
@@ -2227,14 +2220,18 @@
             if(asPatternDraining){
                 const attacksStillRunning=asAttacks.some(function(a){return !!a;});
                 if(!attacksStillRunning&&asLabyrinthTimer<=0&&!asUltimateActive){
-                    asPatternDraining=false;asPatternTimer=0;asPattern=(asPattern+1)%patterns.length;asPatternSpawned=false;
+                    asPatternDraining=false;asPatternTimer=0;asPattern=(asPattern+1)%patterns.length;asPatternSpawned=false;asPatternVolleyCount=0;
                     asText(200,100,patterns[asPattern],"#b8a2ff",52);
                     asSound(260+asPattern*60,"sine",.18,.06);
                 }
             }else{
                 const cadence=[42,70,58,78,92,82,76,178,64][asPattern]||58;
-                if(asPattern===7){if(!asPatternSpawned)asSpawnPattern(now);}
-                else if(asFrame%Math.max(27,cadence-asPhase*3)===0)asSpawnPattern(now);
+                const volleyLimit=[3,1,2,1,1,1,1,1,1][asPattern]||1;
+                if(asPattern===7){
+                    if(!asPatternSpawned&&asPatternVolleyCount<volleyLimit){asSpawnPattern(now);asPatternSpawned=true;asPatternVolleyCount++;}
+                }else if(asFrame%Math.max(27,cadence-asPhase*3)===0&&asPatternVolleyCount<volleyLimit){
+                    asSpawnPattern(now);asPatternVolleyCount++;
+                }
             }
             if(asPlayer.invuln>0)asPlayer.invuln--;
             const near=Math.hypot(asPlayer.x-asBoss.x,asPlayer.y-(asBoss.y+43))<52;
@@ -2256,7 +2253,7 @@
         asBossHp=asBossMaxHp;asPlayerMaxHp=220;asPlayerHp=asPlayerMaxHp;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asBoss={x:285,y:180,size:48,rotation:0,pulse:0,flash:0};
-        asAttacks=[];asParticles=[];asTexts=[];asFrame=0;asPattern=0;asPatternTimer=0;asPatternDraining=false;
+        asAttacks=[];asParticles=[];asTexts=[];asFrame=0;asPattern=0;asPatternTimer=0;asPatternDraining=false;asPatternVolleyCount=0;
         asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;asLastArenaShift=Date.now();asGravityDirection=0;asGravityNextShiftAt=0;
         asShake=0;asFlash=0;asBossDamageFlash=0;asPhase=1;asLastShot=0;asGravityPull=.10;
         asKeys=Object.create(null);asPointer={down:false,x:0,y:0,id:null};
