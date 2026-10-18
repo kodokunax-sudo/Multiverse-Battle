@@ -246,34 +246,12 @@
     let rwbSuperBtn = null;
     let rwbGraphicsBtn = null;
 
-    function detectRWBGraphicsMode() {
-        try {
-            var saved = localStorage.getItem("rwbGraphicsMode");
-            if (saved === "pc" || saved === "mobile") return saved;
-        } catch (e) {}
-        var coarsePointer = false;
-        try { coarsePointer = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches); } catch (e) {}
-        return (coarsePointer || (window.innerWidth <= 760 && ("ontouchstart" in window))) ? "mobile" : "pc";
+    // Use the same per-fight graphics choice as the other unique bosses.
+    // Do not auto-select mobile mode based on touch input or viewport size.
+    window.rwbGraphicsMode = "shared";
+    function isRWBMobileGraphics() {
+        return !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
     }
-    let rwbGraphicsMode = detectRWBGraphicsMode();
-    window.rwbGraphicsMode = rwbGraphicsMode;
-    function isRWBMobileGraphics() { return rwbGraphicsMode === "mobile" || !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()); }
-    function setRWBGraphicsMode(nextMode) {
-        rwbGraphicsMode = nextMode === "mobile" ? "mobile" : "pc";
-        window.rwbGraphicsMode = rwbGraphicsMode;
-        try { localStorage.setItem("rwbGraphicsMode", rwbGraphicsMode); } catch (e) {}
-        if (isRWBMobileGraphics()) {
-            rwbSpeedLines.length = 0;
-            rwbHakiLightnings.length = 0;
-            rwbWhiteCracks.length = 0;
-            rwbPurpleCracks.length = 0;
-            if (rwbShockwaves.length > 5) rwbShockwaves.splice(0, rwbShockwaves.length - 5);
-            rwbShake = 0;
-            rwbScreenFlash = 0;
-        }
-        updateRWBGraphicsButton();
-    }
-    window.setRWBGraphicsMode = setRWBGraphicsMode;
 
     let rwbTsunamiActive = false;
     // Белоус: супер-скилл «Воронка» + QTE
@@ -1119,11 +1097,23 @@
     // ============================================================
     // СТАРТ БОЯ
     // ============================================================
-    function startRogerWhitebeardFight() {
+    function startRogerWhitebeardFight(graphicsModeChoice) {
         if (window.rwbActive) return;
         if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(1000)) {
             if (typeof showFloatingText === 'function') showFloatingText("⏭️ Босс уже побеждён!", "#ffaa00");
             return;
+        }
+        hideRWBGraphicsButton();
+        if (graphicsModeChoice !== "full" && graphicsModeChoice !== "light" &&
+            typeof window.MBChooseBossGraphicsMode === "function") {
+            window.MBChooseBossGraphicsMode("Роджер vs Белоус", function(mode) {
+                startRogerWhitebeardFight(mode);
+            });
+            return;
+        }
+        if ((graphicsModeChoice === "full" || graphicsModeChoice === "light") &&
+            typeof window.MBSetBossGraphicsModeForFight === "function") {
+            window.MBSetBossGraphicsModeForFight(graphicsModeChoice);
         }
         console.log("[ROGER-WB] Старт боя v19.0!");
 
@@ -1251,7 +1241,7 @@
         window.addEventListener("keyup", handleRWBKeyUp);
 
         createRWBModeButton(); showRWBModeButton();
-        createRWBGraphicsButton(); showRWBGraphicsButton();
+        hideRWBGraphicsButton();
 
         if (rwbAnimFrame) cancelAnimationFrame(rwbAnimFrame);
         rwbAnimFrame = requestAnimationFrame(rwbRenderLoop);
@@ -1382,53 +1372,11 @@
         ctx.fill(); ctx.restore();
     }
 
-    function updateRWBGraphicsButton() {
-        if (!rwbGraphicsBtn) return;
-        var mobile = isRWBMobileGraphics();
-        rwbGraphicsBtn.textContent = mobile ? "📱 ГРАФИКА: ТЕЛЕФОН" : "🖥 ГРАФИКА: ПК";
-        rwbGraphicsBtn.title = mobile
-            ? "Лёгкая графика: меньше частиц, свечения, тряски и визуальных эффектов суперспособностей"
-            : "Полная графика: все эффекты боя";
-        rwbGraphicsBtn.style.background = mobile
-            ? "linear-gradient(135deg, #168c75, #075c70)"
-            : "linear-gradient(135deg, #3157a4, #6b36a8)";
-        rwbGraphicsBtn.style.boxShadow = mobile
-            ? "0 3px 10px rgba(0, 190, 160, 0.35)"
-            : "0 3px 12px rgba(100, 100, 255, 0.45)";
-    }
-
-    function createRWBGraphicsButton() {
-        if (rwbGraphicsBtn) return;
-        rwbGraphicsBtn = document.createElement("button");
-        rwbGraphicsBtn.id = "rwbGraphicsBtn";
-        rwbGraphicsBtn.type = "button";
-        rwbGraphicsBtn.style.cssText = [
-            "position: fixed", "top: max(8px, env(safe-area-inset-top))",
-            "right: max(8px, env(safe-area-inset-right))",
-            "padding: 8px 11px", "border-radius: 18px",
-            "color: #fff", "font-weight: 900", "font-size: 12px",
-            'font-family: "Nunito", sans-serif', "border: 2px solid rgba(255,255,255,.85)",
-            "cursor: pointer", "z-index: 100001", "letter-spacing: .1px",
-            "user-select: none", "touch-action: manipulation",
-            "max-width: calc(100vw - 16px)", "white-space: nowrap"
-        ].join(";");
-        rwbGraphicsBtn.onclick = function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            setRWBGraphicsMode(isRWBMobileGraphics() ? "pc" : "mobile");
-        };
-        document.body.appendChild(rwbGraphicsBtn);
-        updateRWBGraphicsButton();
-    }
-
-    function showRWBGraphicsButton() {
-        createRWBGraphicsButton();
-        if (rwbGraphicsBtn) rwbGraphicsBtn.style.display = "block";
-        updateRWBGraphicsButton();
-    }
-
     function hideRWBGraphicsButton() {
-        if (rwbGraphicsBtn) rwbGraphicsBtn.style.display = "none";
+        if (rwbGraphicsBtn && rwbGraphicsBtn.parentNode) rwbGraphicsBtn.parentNode.removeChild(rwbGraphicsBtn);
+        rwbGraphicsBtn = null;
+        var staleButton = document.getElementById("rwbGraphicsBtn");
+        if (staleButton) staleButton.remove();
     }
 
     function createRWBModeButton() {
@@ -3322,6 +3270,7 @@
     }
 
     function stopRogerWhitebeardFight() {
+        if (typeof window.MBEndBossGraphicsModeForFight === "function") window.MBEndBossGraphicsModeForFight();
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
         window.rwbActive = false; rwbDialogActive = false;
         rwbPlayerStunTimer = 0; wbFruitFlashTimer = 0;
@@ -3355,7 +3304,7 @@
     // ============================================================
     function rwbRenderLoop() {
         if (!window.rwbActive || !ctx || !canvas) return;
-        var reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) || isRWBMobileGraphics();
+        var reduceBossEffects = isRWBMobileGraphics();
         if (reduceBossEffects) {
             rwbShake = 0; rwbScreenFlash = 0;
             if (typeof _superState !== "undefined") { _superState.screenFlashWhite = 0; _superState.screenShakeAmount = 0; }
