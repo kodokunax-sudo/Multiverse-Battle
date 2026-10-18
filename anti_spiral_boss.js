@@ -1167,7 +1167,7 @@
             "#antiSpiralDreamEnding .as-dream-card{min-width:0;padding:9px 7px;border:1px solid rgba(179,153,255,.34);border-radius:10px;background:linear-gradient(145deg,rgba(32,30,62,.94),rgba(9,13,32,.97));text-align:center}" +
             "#antiSpiralDreamEnding .as-dream-card-name{font-size:11px;font-weight:900;line-height:1.35;overflow-wrap:anywhere;color:#f3edff}" +
             "#antiSpiralDreamEnding .as-dream-level{font-size:9px;font-weight:900;color:#f0ceff;margin-top:6px;letter-spacing:.35px}" +
-            "@media(min-width:620px){#antiSpiralDreamEnding .as-dream-grid{grid-template-columns:repeat(3,minmax(0,1fr))}";
+            "@media(min-width:620px){#antiSpiralDreamEnding .as-dream-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}";
         overlay.appendChild(style);
         document.body.appendChild(overlay);
         asDreamOverlay = overlay;
