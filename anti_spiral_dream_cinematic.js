@@ -163,15 +163,63 @@
     }
 
     function renderRealEvolutionFrame(parent) {
-        const shot=makeElement("div","asdc-game-shot"); shot.style.inset="5% 4% 5%"; shot.style.overflow="auto"; shot.style.background="#171727"; shot.style.padding="10px";
-        const header=makeElement("div","asdc-game-header"); header.appendChild(makeElement("div","","MULTIVERSE BATTLE · РЕАЛЬНЫЕ КАРТЫ")); header.appendChild(makeElement("div","asdc-stars","🧬 ЭВОЛЮЦИОННАЯ КОМАНДА")); shot.appendChild(header);
-        const source=document.getElementById("collectionGrid");
-        const cards=source?Array.from(source.querySelectorAll(".card-item")).filter(c=>{const r=c.querySelector(".rarity-tag");return r&&r.textContent.trim()==="Эволюционная";}):[];
-        cards.sort((a,b)=>{const p=c=>{const text=c.textContent;const pos=text.indexOf("Общая сила:");if(pos<0)return 0;const token=text.slice(pos+12).trim().split(" ")[0];return Number(token.replace(/,/g,""))||0;};return p(b)-p(a);});
-        const grid=makeElement("div","asdc-real-game-grid");grid.style.cssText="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-content:start;padding-top:9px";
-        cards.slice(0,6).forEach(c=>{const clone=c.cloneNode(true);clone.removeAttribute("onclick");clone.querySelectorAll("[onclick]").forEach(e=>e.removeAttribute("onclick"));clone.style.cssText+=";min-width:0;max-width:none;max-height:235px;overflow:hidden;pointer-events:none;animation:none";grid.appendChild(clone);});
-        if(!cards.length){const note=makeElement("div","","В текущей сессии не найдены отрисованные эволюционные карты. Поддельные карты не подставлены: открой коллекцию и дождись её загрузки.");note.style.cssText="color:#f6d98b;padding:20px;text-align:center;grid-column:1/-1;font-weight:800";grid.appendChild(note);}
-        shot.appendChild(grid);parent.appendChild(shot);
+        const source = document.getElementById("collectionGrid");
+        const originalCard = source ? source.closest(".card") : null;
+        const shot = makeElement("div", "asdc-game-shot");
+        shot.style.inset = "4% 3% 4%";
+        shot.style.overflow = "hidden";
+        shot.style.background = "transparent";
+        shot.style.padding = "0";
+        shot.style.display = "flex";
+        shot.style.alignItems = "stretch";
+        shot.style.justifyContent = "stretch";
+        if (originalCard && source) {
+            // Reuse the game's real collection DOM and CSS. No hand-drawn cards or substitute UI.
+            const original = originalCard.cloneNode(true);
+            original.style.cssText += ";width:100%;height:100%;min-height:0;margin:0;padding:10px;overflow:hidden;box-sizing:border-box;display:flex;flex-direction:column;pointer-events:none;transform:none";
+            const grid = original.querySelector("#collectionGrid");
+            if (grid) {
+                grid.removeAttribute("id");
+                grid.style.cssText += ";display:grid;grid-template-columns:repeat(auto-fill,minmax(95px,1fr));gap:7px;margin-top:7px;overflow:auto;min-height:0;flex:1";
+                const cards = Array.from(grid.querySelectorAll(".card-item"));
+                cards.forEach(function(card) {
+                    const rarity = card.querySelector(".rarity-tag");
+                    if (!rarity || rarity.textContent.trim() !== "Эволюционная") {
+                        card.remove();
+                        return;
+                    }
+                    card.removeAttribute("onclick");
+                    card.querySelectorAll("[onclick]").forEach(function(node) { node.removeAttribute("onclick"); });
+                    card.style.pointerEvents = "none";
+                });
+                const count = grid.querySelectorAll(".card-item").length;
+                const shown = original.querySelector("#shownCards");
+                const total = original.querySelector("#totalCards");
+                if (shown) shown.textContent = String(count);
+                if (total) total.textContent = String(count);
+                if (!count) {
+                    const note = makeElement("div", "", "В текущей коллекции ещё нет отрисованных эволюционных карт.");
+                    note.style.cssText = "padding:18px;text-align:center;color:#f6d98b;font-weight:800";
+                    grid.appendChild(note);
+                }
+            }
+            original.querySelectorAll("button,input,select").forEach(function(control) {
+                control.disabled = true;
+                control.removeAttribute("onclick");
+                control.removeAttribute("onchange");
+                control.style.pointerEvents = "none";
+            });
+            original.querySelectorAll("[onclick],[onchange]").forEach(function(node) {
+                node.removeAttribute("onclick");
+                node.removeAttribute("onchange");
+            });
+            shot.appendChild(original);
+        } else {
+            const note = makeElement("div", "", "Коллекция игры пока не отрисована. Этот кадр появится после загрузки настоящих карточек.");
+            note.style.cssText = "color:#f6d98b;padding:20px;text-align:center;font-weight:800";
+            shot.appendChild(note);
+        }
+        parent.appendChild(shot);
     }
 
     function drawCinematicActors(ctx, sceneIndex, t, w, h) {
