@@ -122,6 +122,13 @@ window.MBShouldReduceBossEffects = function() {
     return window.__mbBossGraphicsModeForFight === "light";
 };
 
+// Lightweight graphics should remove expensive visual layers without removing camera shake.
+// Only the explicit accessibility preference suppresses shaking as well.
+window.MBShouldSuppressBossShake = function() {
+    try { return localStorage.getItem(MB_REDUCED_BOSS_EFFECTS_KEY) === "1"; }
+    catch (e) { return false; }
+};
+
 window.MBSetBossGraphicsModeForFight = function(mode) {
     window.__mbBossGraphicsModeForFight = mode === "light" ? "light" : (mode === "full" ? "full" : null);
 };
