@@ -178,7 +178,10 @@ function addWaystarSlash(x, y, angle, length, width) { if (window.MBShouldReduce
 function addWaystarFlash(x, y, size) { if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) return; waystarFlashBursts.push({ x: x, y: y, size: size || 40, life: 15, maxLife: 15 }); }
 function spawnWaystarParticles(x, y, count, color, speed) {
     var reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
-    if (reduced) { count = Math.floor(count * 0.10); if (waystarParticles.length > 24) return; }
+    var qualityScale = reduced ? 0.10 : (window.MBIsMediumGraphics && window.MBIsMediumGraphics() ? 0.68 : 1);
+    count = Math.floor(count * qualityScale);
+    if (reduced && waystarParticles.length > 24) return;
+    if (!reduced && window.MBIsMediumGraphics && window.MBIsMediumGraphics() && waystarParticles.length > 90) return;
     for (var i = 0; i < count; i++) { var a = Math.random() * Math.PI * 2, s = speed * (0.3 + Math.random()); waystarParticles.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 20 + Math.random() * 15, maxLife: 35, color: color, size: 1.5 + Math.random() * 2.5 }); }
 }
 function updateWaystarMegaEffects() {
@@ -210,8 +213,8 @@ function updateWaystarAmbient() {
         if (waystarPhase3Embers.length > 10) waystarPhase3Embers.splice(0, waystarPhase3Embers.length - 10);
         return;
     }
-    if (waystarAmbientTimer % 6 === 0) { waystarPhase3Rings.push({ x: waystarSmallBoss.x, y: waystarSmallBoss.y, radius: 30, maxRadius: 90 + waystarEscalationLevel * 12, angle: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.2, life: 30, maxLife: 30, color: Math.random() > 0.5 ? "#ff00ff" : "#ffffff" }); }
-    if (waystarAmbientTimer % Math.max(3, Math.floor(5 / escMult)) === 0) { waystarPhase3Embers.push({ x: Math.random() * 400, y: 500 + Math.random() * 40, vx: (Math.random() - 0.5) * 1.0, vy: -(1.2 + Math.random() * 1.5) * escMult, size: 1 + Math.random() * 2, life: 60 + Math.random() * 30, color: Math.random() > 0.5 ? "#ff00ff" : "#ffaa00" }); }
+    if (waystarAmbientTimer % (window.MBIsMediumGraphics && window.MBIsMediumGraphics() ? 8 : 6) === 0) { waystarPhase3Rings.push({ x: waystarSmallBoss.x, y: waystarSmallBoss.y, radius: 30, maxRadius: 90 + waystarEscalationLevel * 12, angle: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.2, life: 30, maxLife: 30, color: Math.random() > 0.5 ? "#ff00ff" : "#ffffff" }); }
+    if (waystarAmbientTimer % Math.max(4, Math.floor((window.MBIsMediumGraphics && window.MBIsMediumGraphics() ? 7 : 5) / escMult)) === 0) { waystarPhase3Embers.push({ x: Math.random() * 400, y: 500 + Math.random() * 40, vx: (Math.random() - 0.5) * 1.0, vy: -(1.2 + Math.random() * 1.5) * escMult, size: 1 + Math.random() * 2, life: 60 + Math.random() * 30, color: Math.random() > 0.5 ? "#ff00ff" : "#ffaa00" }); }
     if (waystarAmbientTimer % Math.max(15, Math.floor(40 / escMult)) === 0) { var ang = Math.random() * Math.PI * 2; addWaystarLightning(waystarSmallBoss.x, waystarSmallBoss.y, waystarSmallBoss.x + Math.cos(ang) * (100 + Math.random() * 60), waystarSmallBoss.y + Math.sin(ang) * (100 + Math.random() * 60), Math.random() > 0.5 ? "#ff00ff" : "#ffffff", 0.8, 2); }
     if (waystarAmbientTimer % Math.max(10, Math.floor(25 / escMult)) === 0) { addWaystarSlash(30 + Math.random() * 340, 60 + Math.random() * 380, Math.random() * Math.PI * 2, 30 + Math.random() * 50, 2.5); }
     if (waystarAmbientTimer % Math.max(12, Math.floor(30 / escMult)) === 0) { addWaystarFlash(waystarSmallBoss.x + (Math.random() - 0.5) * 80, waystarSmallBoss.y + (Math.random() - 0.5) * 80, 25 + Math.random() * 30); }
@@ -1635,6 +1638,12 @@ function waystarRenderLoop() {
         if (waystarSlashMarks.length > 0) waystarSlashMarks.length = 0;
         if (waystarFlashBursts.length > 0) waystarFlashBursts.length = 0;
         if (waystarNebulas.length > 8) waystarNebulas.splice(0, waystarNebulas.length - 8);
+    } else if (window.MBIsMediumGraphics && window.MBIsMediumGraphics()) {
+        if (waystarParticles.length > 90) waystarParticles.splice(0, waystarParticles.length - 90);
+        if (waystarShockwaves.length > 24) waystarShockwaves.splice(0, waystarShockwaves.length - 24);
+        if (waystarNebulas.length > 36) waystarNebulas.splice(0, waystarNebulas.length - 36);
+        if (waystarPhase3Rings.length > 24) waystarPhase3Rings.splice(0, waystarPhase3Rings.length - 24);
+        if (waystarPhase3Embers.length > 55) waystarPhase3Embers.splice(0, waystarPhase3Embers.length - 55);
     }
 
 
