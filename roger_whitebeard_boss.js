@@ -1002,7 +1002,7 @@
         };
         rwbOden = {
             x: 166, y: 372, size: 15, phase: 0,
-            hp: 300, maxHp: 300, alive: true, invulnTimer: 0,
+            hp: 180, maxHp: 180, alive: true, invulnTimer: 0,
             vx: 0, vy: 0, moveTargetX: 255, moveTargetY: 205,
             wanderTimer: 42, dodgeCooldown: 0, dodgeFlashTimer: 0,
             aiSkill: 0.14, tsunamiEvading: false,
@@ -3894,18 +3894,143 @@
 
     // Returns a threat descriptor when an attack is close to Oden now or on its projected path.
     // "alert" adds a safety margin for dodging; actual damage uses the tighter collision bounds.
+    function rwbOdenLaneRisk(axis, line, ox, oy, limit) {
+        if (!Number.isFinite(line)) return null;
+        if (axis === "vertical") {
+            const distance = Math.abs(ox - line);
+            if (distance >= limit) return null;
+            const leftSafe = Math.max(18, line - limit - 24);
+            const rightSafe = Math.min(382, line + limit + 24);
+            const safeX = Math.abs(ox - leftSafe) <= Math.abs(ox - rightSafe) ? leftSafe : rightSafe;
+            return { x: line, y: oy, axis: axis, distance: distance, safeX: safeX };
+        }
+        const distance = Math.abs(oy - line);
+        if (distance >= limit) return null;
+        const upperSafe = Math.max(10, line - limit - 24);
+        const lowerSafe = Math.min(480, line + limit + 24);
+        const safeY = Math.abs(oy - upperSafe) <= Math.abs(oy - lowerSafe) ? upperSafe : lowerSafe;
+        return { x: ox, y: line, axis: axis, distance: distance, safeY: safeY };
+    }
+
+    function rwbOdenPointRisk(cx, cy, ox, oy, limit) {
+        const dx = ox - cx, dy = oy - cy, distance = Math.hypot(dx, dy);
+        if (distance >= limit) return null;
+        const length = distance || 1;
+        const ux = distance > 0 ? dx / length : 1;
+        const uy = distance > 0 ? dy / length : 0;
+        const safeDistance = limit + 24;
+        return {
+            x: cx, y: cy, axis: "point", distance: distance,
+            safeX: Math.max(18, Math.min(382, cx + ux * safeDistance)),
+            safeY: Math.max(10, Math.min(480, cy + uy * safeDistance))
+        };
+    }
+
     function rwbOdenAttackThreat(a, ox, oy, frames, alert) {
         const oden = rwbOden;
-        if (!oden || !oden.alive || !a || a.odenHit) return null;
-        if (a.type === "wb_attack_telegraph" || a.type === "wb_giant_rock_warning" ||
-            a.type === "wb_combo_gate_warning") return null;
-        if (a.state === "warning" || a.state === "windup" || a.state === "done") return null;
-
+        if (!oden || !oden.alive || !a || a.odenHit || a.state === "done") return null;
         const pad = alert ? 38 : 0;
         const body = oden.size * 0.72;
         const fx = Number(ox), fy = Number(oy);
         const t = Math.max(0, Number(frames) || 0);
+        const isTelegraph = a.state === "warning" || a.state === "windup" ||
+            a.type === "wb_attack_telegraph" || a.type === "wb_giant_rock_warning" ||
+            a.type === "wb_combo_gate_warning";
 
+        // Warnings steer Oden away, but must never count as real hits.
+        if (isTelegraph) {
+            if (!alert) return null;
+            const laneWidth = body + pad + 24;
+            if (a.type === "roger_slash" && a.state === "warning") {
+                return rwbOdenLaneRisk(a.direction === "horizontal" ? "horizontal" : "vertical",
+                    a.direction === "horizontal" ? Number(a.y) : Number(a.x), fx, fy,
+                    (Number(a.width) || 58) * 0.5 + body + pad + 18);
+            }
+            if (a.type === "roger_cross" && a.state === "warning") {
+                return rwbOdenLaneRisk(a.dir === "vertical" ? "vertical" : "horizontal",
+                    a.dir === "vertical" ? Number(a.x) : Number(a.y), fx, fy,
+                    (Number(a.width) || 35) * 0.5 + body + pad + 18);
+            }
+            if (a.type === "wb_giant_rock_warning") {
+                return rwbOdenLaneRisk("vertical", Number(a.targetX !== undefined ? a.targetX : a.x), fx, fy,
+                    22 + body + pad);
+            }
+            if (a.type === "wb_combo_gate_warning") {
+                for (const gateY of [Number(a.targetY) - 24, Number(a.targetY) + 24]) {
+                    const risk = rwbOdenLaneRisk("horizontal", gateY, fx, fy, 15 + body + pad);
+                    if (risk) return risk;
+                }
+                return null;
+            }
+            if (a.type === "wb_attack_telegraph") {
+                const id = Number(a.attackId), kind = a.attackKind || "normal";
+                const columns = Array.isArray(a.columns) ? a.columns : [];
+                if ((kind === "normal" && (id === 0 || id === 5)) || (kind === "super" && id === 0)) {
+                    let closest = null, nearest = Infinity;
+                    for (const columnX of columns) {
+                        const risk = rwbOdenLaneRisk("vertical", Number(columnX), fx, fy, 20 + body + pad);
+                        if (risk && risk.distance < nearest) { closest = risk; nearest = risk.distance; }
+                    }
+                    return closest;
+                }
+                if (kind === "normal" && [2, 3, 7].includes(id)) {
+                    return rwbOdenLaneRisk("horizontal", Number(a.targetY), fx, fy, 18 + body + pad);
+                }
+                if ((kind === "normal" && id === 4) || (kind === "super" && id === 4)) {
+                    return rwbOdenLaneRisk("horizontal", 30, fx, fy, 30 + body + pad);
+                }
+                if (kind === "normal" && id === 1) {
+                    return rwbOdenPointRisk(Number(a.originX) || a.x || 320, Number(a.originY) || a.y || 120, fx, fy, 76 + body + pad);
+                }
+                if (kind === "normal" && id === 6) {
+                    return rwbOdenPointRisk(Number(a.targetX), Number(a.targetY), fx, fy, 26 + body + pad);
+                }
+                if (kind === "super" && (id === 1 || id === 3)) {
+                    return rwbOdenPointRisk(Number(a.targetX), Number(a.targetY), fx, fy, (id === 1 ? 58 : 46) + body + pad);
+                }
+                if (kind === "super" && id === 2) {
+                    const lineRisk = rwbOdenLaneRisk("vertical", Number(a.targetX), fx, fy, 30 + body + pad);
+                    if (lineRisk) return lineRisk;
+                    const groundRisk = rwbOdenLaneRisk("horizontal", 360, fx, fy, 18 + body + pad);
+                    if (groundRisk && Math.abs(fx - Number(a.targetX)) < 62 + body + pad) return groundRisk;
+                    return null;
+                }
+                return rwbOdenPointRisk(Number(a.targetX), Number(a.targetY), fx, fy, laneWidth + 18);
+            }
+            if (a.type === "wb_center_wave" && a.state === "warning") {
+                const targetY = Number(a.targetY) || 250;
+                const dangerTop = targetY - (Number(a.height) || 92) * 0.5 - body - pad;
+                if (fy > dangerTop) {
+                    return { x: 200, y: targetY, axis: "horizontal", distance: Math.abs(fy - targetY),
+                        safeY: Math.max(10, dangerTop - 48) };
+                }
+                return null;
+            }
+            if (a.type === "wb_fruit_punch" && a.state === "warning") {
+                const d = rwbOdenSegmentDistance(fx, fy, a.originX, a.originY, a.endX, a.endY);
+                const limit = (Number(a.width) || 38) * 0.5 + body + pad + 16;
+                if (d < limit) {
+                    const cx = (a.originX + a.endX) * 0.5, cy = (a.originY + a.endY) * 0.5;
+                    return rwbOdenPointRisk(cx, cy, fx, fy, limit + 10);
+                }
+                return null;
+            }
+            if (a.type === "wb_crescent_slash" && a.state === "windup") {
+                const low = Math.min(Number(a.startY) || a.y, Number(a.targetY) || a.y);
+                const high = Math.max(Number(a.startY) || a.y, Number(a.targetY) || a.y);
+                const limit = (Number(a.width) || 92) * 0.5 + body + pad + 14;
+                if (fy >= low - limit && fy <= high + limit) {
+                    const upper = Math.max(10, low - limit - 24);
+                    const lower = Math.min(480, high + limit + 24);
+                    return { x: fx, y: Math.max(low, Math.min(high, fy)), axis: "horizontal",
+                        distance: 0, safeY: Math.abs(fy - upper) <= Math.abs(fy - lower) ? upper : lower };
+                }
+                return null;
+            }
+            return null;
+        }
+
+        if (a.state === "warning" || a.state === "windup") return null;
         if (a.type === "roger_slash") {
             if (a.state !== "active") return null;
             const thick = (a.width || 80) * 0.35 + body + pad;
@@ -4061,13 +4186,13 @@
     function rwbOdenFindIncoming(oden) {
         if (!oden || !oden.alive) return null;
         const skill = Math.max(0.14, Math.min(1, Number(oden.aiSkill) || 0.14));
-        const horizon = Math.round(34 + skill * 72);
-        const step = skill >= 0.72 ? 4 : 6;
+        const horizon = Math.round(104 + skill * 56);
+        const step = skill >= 0.72 ? 3 : 5;
         let closest = null, bestT = Infinity;
         // Predict a longer section of Oden's current trajectory instead of reacting only at the last moment.
         for (let i = rwbAttacks.length - 1; i >= 0; i--) {
             const a = rwbAttacks[i];
-            for (let t = 4; t <= horizon; t += step) {
+            for (let t = 0; t <= horizon; t += step) {
                 const px = oden.x + oden.vx * t;
                 const py = oden.y + oden.vy * t;
                 const risk = rwbOdenAttackThreat(a, px, py, t, true);
@@ -4079,7 +4204,7 @@
         }
         for (let i = rwbShockwaves.length - 1; i >= 0; i--) {
             const sw = rwbShockwaves[i];
-            for (let t = 4; t <= horizon; t += step) {
+            for (let t = 0; t <= horizon; t += step) {
                 const risk = rwbOdenShockwaveThreat(sw, oden.x + oden.vx * t, oden.y + oden.vy * t, t, true);
                 if (risk && t < bestT) {
                     bestT = t; closest = { risk: risk, time: t, attackType: "shockwave", attack: sw };
@@ -4093,7 +4218,7 @@
     // Predict the next tsunami crossing and rush to the uncovered side of the arena.
     function rwbOdenFindTsunamiEscape(oden, skill) {
         if (!oden || !oden.alive) return null;
-        const horizon = 58 + Math.max(0, Math.min(1, skill || 0)) * 52;
+        const horizon = 112 + Math.max(0, Math.min(1, skill || 0)) * 46;
         const body = oden.size * 0.72;
         let best = null;
         for (let i = 0; i < rwbAttacks.length; i++) {
@@ -4118,7 +4243,7 @@
         if (!rwbOden || !rwbPlayer || !rwbOden.alive) return;
         const oden = rwbOden;
         oden.phase += 0.11;
-        oden.aiSkill = Math.min(1, (Number(oden.aiSkill) || 0.14) + (rwbState === "fight2" ? 0.0014 : 0.00022));
+        oden.aiSkill = Math.min(1, (Number(oden.aiSkill) || 0.14) + (rwbState === "fight2" ? 0.0018 : 0.00022));
         if (rwbState === "fight2") oden.aiSkill = Math.max(0.82, oden.aiSkill);
         const aiSkill = Math.max(0.14, Math.min(1, oden.aiSkill));
         if (oden.hitFlash > 0) oden.hitFlash--;
@@ -4152,40 +4277,58 @@
         if (incoming && oden.dodgeCooldown <= 0 && !tsunamiEscape) {
             const risk = incoming.risk;
             let dx, dy;
-            const dodgeRange = 96 + aiSkill * 78;
-            if (risk.axis === "horizontal") {
-                dx = (Math.random() - 0.5) * 36;
-                dy = (Math.random() < 0.5 ? -1 : 1) * (84 + aiSkill * 62 + Math.random() * 26);
-            } else if (risk.axis === "vertical") {
-                dx = (Math.random() < 0.5 ? -1 : 1) * (dodgeRange + Math.random() * 28);
-                dy = (Math.random() - 0.5) * 34;
+            if (Number.isFinite(risk.safeX) || Number.isFinite(risk.safeY)) {
+                dx = Number.isFinite(risk.safeX) ? risk.safeX - oden.x : (Math.random() - 0.5) * 14;
+                dy = Number.isFinite(risk.safeY) ? risk.safeY - oden.y : (Math.random() - 0.5) * 14;
             } else {
-                dx = oden.x - risk.x; dy = oden.y - risk.y;
-                const len = Math.hypot(dx, dy) || 1;
-                dx = dx / len * (dodgeRange + Math.random() * 32) + (Math.random() - 0.5) * 20;
-                dy = dy / len * (78 + aiSkill * 50) + (Math.random() - 0.5) * 20;
+                const dodgeRange = 90 + aiSkill * 54;
+                if (risk.axis === "horizontal") {
+                    dx = (Math.random() - 0.5) * 22;
+                    dy = (Math.random() < 0.5 ? -1 : 1) * dodgeRange;
+                } else if (risk.axis === "vertical") {
+                    dx = (Math.random() < 0.5 ? -1 : 1) * dodgeRange;
+                    dy = (Math.random() - 0.5) * 22;
+                } else {
+                    dx = oden.x - risk.x; dy = oden.y - risk.y;
+                    const len = Math.hypot(dx, dy) || 1;
+                    dx = dx / len * dodgeRange;
+                    dy = dy / len * dodgeRange * 0.78;
+                }
             }
-            oden.moveTargetX = Math.max(30, Math.min(370, oden.x + dx));
-            oden.moveTargetY = Math.max(92, Math.min(455, oden.y + dy));
-            oden.wanderTimer = 30;
-            oden.dodgeCooldown = Math.max(9, Math.round(34 - aiSkill * 24));
-            oden.dodgeFlashTimer = 12;
-            oden.vx += Math.sign(dx) * (1.6 + aiSkill * 2.2);
-            oden.vy += Math.sign(dy) * (1.4 + aiSkill * 2.0);
+            oden.moveTargetX = Math.max(22, Math.min(378, oden.x + dx));
+            oden.moveTargetY = Math.max(14, Math.min(478, oden.y + dy));
+            oden.wanderTimer = 34;
+            oden.dodgeCooldown = Math.max(6, Math.round(21 - aiSkill * 14));
+            oden.dodgeFlashTimer = 16;
             spawnHitParticles(oden.x, oden.y, "#d9a7ff", 3);
         }
 
+        // Same top movement speed as the player, but with eased acceleration/braking.
+        // No teleporting impulses: even a dodge follows a smooth, readable trajectory.
         const toX = oden.moveTargetX - oden.x, toY = oden.moveTargetY - oden.y;
         const dist = Math.hypot(toX, toY) || 1;
-        const speed = oden.tsunamiEvading
-            ? 5.8 + aiSkill * 1.6
-            : (oden.dodgeCooldown > 12 ? 4.1 + aiSkill * 2.1 : 2.1 + aiSkill * 1.05);
-        const steering = oden.tsunamiEvading ? 0.58 : (0.38 + aiSkill * 0.12);
-        const inertia = oden.tsunamiEvading ? 0.42 : 0.62 - aiSkill * 0.1;
-        oden.vx = oden.vx * inertia + (toX / dist * speed) * steering;
-        oden.vy = oden.vy * inertia + (toY / dist * speed) * steering;
-        oden.x = Math.max(30, Math.min(370, oden.x + oden.vx));
-        oden.y = Math.max(88, Math.min(460, oden.y + oden.vy));
+        let playerSpeed = (Number(rwbBaseSpeed) || 4.5) * (Number(rwbSpeedMult) || 1);
+        if (typeof getTakabaCombatModifiers === "function") {
+            try { playerSpeed *= getTakabaCombatModifiers().speedMult; } catch (e) {}
+        }
+        const maxSpeed = Math.max(2.4, playerSpeed);
+        const desiredSpeed = dist < 2 ? 0 : Math.min(maxSpeed, Math.max(0.45, dist * 0.22));
+        const desiredVx = dist > 0 ? toX / dist * desiredSpeed : 0;
+        const desiredVy = dist > 0 ? toY / dist * desiredSpeed : 0;
+        const steering = oden.tsunamiEvading ? 0.28 : (0.17 + aiSkill * 0.13);
+        oden.vx += (desiredVx - oden.vx) * steering;
+        oden.vy += (desiredVy - oden.vy) * steering;
+        const currentSpeed = Math.hypot(oden.vx, oden.vy);
+        if (currentSpeed > maxSpeed) {
+            oden.vx = oden.vx / currentSpeed * maxSpeed;
+            oden.vy = oden.vy / currentSpeed * maxSpeed;
+        }
+        const nextX = oden.x + oden.vx;
+        const nextY = oden.y + oden.vy;
+        oden.x = Math.max(18, Math.min(382, nextX));
+        oden.y = Math.max(8, Math.min(482, nextY));
+        if (oden.x !== nextX) oden.vx *= -0.18;
+        if (oden.y !== nextY) oden.vy *= -0.18;
 
         const targets = getRWBOdenTargets();
         const focus = getRWBOdenAttackTarget(targets);
@@ -4312,6 +4455,27 @@
         ctx.strokeStyle = "#a65cff"; ctx.lineWidth = 1.3; ctx.shadowColor = "#9f55ff"; ctx.shadowBlur = 10;
         ctx.beginPath(); ctx.ellipse(0, 0, size * 1.55, size * 1.05, oden.phase * 0.15, 0, Math.PI * 2); ctx.stroke();
         ctx.restore();
+
+        if (oden.dodgeFlashTimer > 0 || oden.tsunamiEvading) {
+            ctx.save();
+            ctx.globalAlpha = oden.tsunamiEvading ? 0.88 : Math.min(0.9, 0.35 + oden.dodgeFlashTimer * 0.035);
+            ctx.strokeStyle = oden.tsunamiEvading ? "#61f0ff" : "#d9b0ff";
+            ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 2;
+            ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 12;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath(); ctx.moveTo(cx, cy);
+            ctx.lineTo(oden.moveTargetX, oden.moveTargetY); ctx.stroke();
+            ctx.setLineDash([]);
+            const arrowAngle = Math.atan2(oden.moveTargetY - cy, oden.moveTargetX - cx);
+            ctx.beginPath();
+            ctx.moveTo(oden.moveTargetX, oden.moveTargetY);
+            ctx.lineTo(oden.moveTargetX - Math.cos(arrowAngle - 0.5) * 9, oden.moveTargetY - Math.sin(arrowAngle - 0.5) * 9);
+            ctx.lineTo(oden.moveTargetX - Math.cos(arrowAngle + 0.5) * 9, oden.moveTargetY - Math.sin(arrowAngle + 0.5) * 9);
+            ctx.closePath(); ctx.fill();
+            ctx.font = "bold 8px monospace"; ctx.textAlign = "center";
+            ctx.fillText(oden.tsunamiEvading ? "ЦУНАМИ! УХОД" : "УКЛОНЕНИЕ", cx, cy - size * 1.35);
+            ctx.restore();
+        }
 
         ctx.save();
         ctx.translate(cx, cy);
