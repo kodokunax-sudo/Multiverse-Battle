@@ -2047,6 +2047,14 @@
     }
     function asRender(now) {
         if(!asActive) return;
+        const reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        if (reduceBossEffects) {
+            asFlash = 0; asShake = 0; asBossDamageFlash = 0;
+            if (asParticles.length > 18) asParticles.splice(0, asParticles.length - 18);
+            if (asMiniSpirals.length > 8) asMiniSpirals.splice(0, asMiniSpirals.length - 8);
+            if (asMiniLasers.length > 4) asMiniLasers.splice(0, asMiniLasers.length - 4);
+        }
+
         const rafNow = Number(now) || performance.now();
         if (!asClockReady || asLastRafTimestamp === null) {
             asClockReady = true; asGameClock = rafNow; asLastRafTimestamp = rafNow;
@@ -2071,8 +2079,8 @@
         asBoss.rotation+=.009*asTimeScale; asBoss.pulse+=.04*asTimeScale;
         if(asBoss.flash>0)asBoss.flash-=asTimeScale;
         if(asBossDamageFlash>0)asBossDamageFlash-=asTimeScale;
-        if(asShake>0.2)asShake*=Math.pow(.86,asTimeScale);else asShake=0;
-        if(asFlash>0)asFlash-=asTimeScale;
+        if(!reduceBossEffects && asShake>0.2)asShake*=Math.pow(.86,asTimeScale);else asShake=0;
+        if(!reduceBossEffects && asFlash>0)asFlash-=asTimeScale;
         c.save();c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,400,500);
         c.fillStyle="#03030d";c.fillRect(0,0,400,500);
         // Cosmic star field unique to this encounter.
