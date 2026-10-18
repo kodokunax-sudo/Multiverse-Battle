@@ -8,31 +8,11 @@
     if (window.ASDreamCinematic) return;
 
     const scenes = [
-        {
-            title: "СИЛЬНЕЙШАЯ КОМАНДА СОБРАНА",
-            text: "Ты открываешь коллекцию. Все эволюции собраны. Ни одна карточка больше не скрыта, а команда, о которой ты мечтал, наконец стала реальностью.",
-            hud: "COLLECTION // ALL EVOLUTIONS FOUND"
-        },
-        {
-            title: "РАЗЛОМ ЗАПЕЧАТАН",
-            text: "Последний разрыв между мирами закрывается. Шум стихают, потерянные вселенные возвращаются на свои места. Больше не осталось ни одного незавершённого разлома.",
-            hud: "RIFT NETWORK // SEALED"
-        },
-        {
-            title: "СОХРАНЕНИЕ ВОЗВРАЩЕНО",
-            text: "Все фрагменты блока сервера на месте. Сохранение восстановлено. Ты больше не потеряешь свой прогресс из-за одной-единственной ошибки.",
-            hud: "SERVER BLOCK // SAVE RESTORED"
-        },
-        {
-            title: "ТВОЯ ЛЮБИМАЯ ИГРА. НАВСЕГДА.",
-            text: "В его собственном мире это всего лишь любимая гриндилка: собирать карты, усиливать команду, фармить волны. Но жизнь там одна. Потерять сохранение значит потерять всё, поэтому он мечтал просто играть спокойно, не боясь нового сброса.",
-            hud: "ONE LIFE MODE // NO MORE RESETS"
-        },
-        {
-            title: "СТОП. А ГДЕ РИК?",
-            text: "Любимая игра не связана с Multiverse-Battle. Это его собственный мир, его гриндилка и единственная жизнь, которую он боится потерять. Но даже после закрытия Разлома Рик так и не найден. Почему Анти-Спираль знает это имя?",
-            hud: "ROSTER SCAN // RICK: NOT FOUND"
-        }
+        { title: "ЕЩЁ ОДИН ЗАБЕГ", text: "Красное сердечко снова садится за компьютер. В любимой survival-игре ночь почти закончилась, но шахта ещё не вычищена. «Ещё немного фарма, и хватит…»", hud: "SURVIVAL // NIGHT 184" },
+        { title: "ГРИНД НЕ ЗАКАНЧИВАЕТСЯ", text: "Рубит дерево, добывает руду, чинит кирку, возвращается домой и снова уходит в шахту. На экране растут цифры, сундуки заполняются. Сердечко довольно подпрыгивает на стуле.", hud: "WOOD +248 / ORE +63 / XP +1200" },
+        { title: "ТОЛЬКО НЕ ПОТЕРЯТЬ СОХРАНЕНИЕ", text: "В игре одна жизнь. Одна ошибка может стереть сотни часов гринда. Сердечко проверяет сохранение ещё раз, прежде чем продолжить.", hud: "HARDCORE WORLD // 1 LIFE" },
+        { title: "МОЖНО ПРОСТО ИГРАТЬ", text: "Он мечтает не о бесконечной силе. Он хочет спокойно вернуться в свой мир, добывать ресурсы, строить базу и продолжать старый забег, не боясь, что однажды всё пропадёт.", hud: "SAVE FILE // BACKUP VERIFIED" },
+        { title: "КОМАНДА, КОТОРУЮ ОН СОБРАЛ", text: "А в Multiverse-Battle у него уже другая история: настоящая эволюционная команда, собранная из сильнейших карт. Здесь показаны реальные карточки из интерфейса игры, а не нарисованная подделка.", hud: "MULTIVERSE BATTLE // EVOLUTION TEAM" }
     ];
 
     const css = [
@@ -73,7 +53,7 @@
         "#antiSpiralDreamEnding .asdc-next{border:1px solid #6edfff9c;background:linear-gradient(135deg,#134e6c,#24234f);color:#e8fbff;box-shadow:0 0 18px #59dfff19}",
         "#antiSpiralDreamEnding .asdc-skip{border:1px solid #63708b;background:#10182a;color:#b6c2d8}",
         "#antiSpiralDreamEnding .asdc-button:hover{filter:brightness(1.18);transform:translateY(-1px)}",
-        "#antiSpiralDreamEnding .asdc-footer{margin-top:8px;text-align:center;color:#53627e;font:800 8px monospace;letter-spacing:1px}",
+        "#antiSpiralDreamEnding .asdc-footer{margin-top:8px;text-align:center;color:#53627e;font:800 8px monospace;letter-spacing:1px}",\n        "#antiSpiralDreamEnding .asdc-real-game-grid .card-item{min-width:0;max-width:none;padding:6px;border-radius:8px}",\n        "#antiSpiralDreamEnding .asdc-real-game-grid .card-image{max-height:74px;object-fit:contain}",\n        "#antiSpiralDreamEnding .asdc-real-game-grid .card-name{font-size:10px}",\n        "#antiSpiralDreamEnding .asdc-real-game-grid .card-stats{font-size:8px}",
         "@keyframes asdcShotIn{from{opacity:0;transform:translateY(12px) scale(.985);filter:blur(5px)}to{opacity:1;transform:none;filter:blur(0)}}",
         "@keyframes asdcCardReveal{from{opacity:0;transform:translateY(9px) scale(.97)}to{opacity:1;transform:none}}",
         "@keyframes asdcGlitch{0%,90%,100%{transform:translateX(0)}91%{transform:translateX(-5px)}93%{transform:translateX(4px)}96%{transform:translateX(-2px)}}",
@@ -113,78 +93,6 @@
         return el;
     }
 
-    function renderCollectionScreenshot(parent) {
-        const shot = makeElement("div", "asdc-game-shot");
-        const header = makeElement("div", "asdc-game-header");
-        const brand = makeElement("div");
-        brand.appendChild(makeElement("div", "", "MULTIVERSE BATTLE"));
-        brand.appendChild(makeElement("small", "", "PLAYER ARCHIVE  /  COLLECTION"));
-        header.appendChild(brand);
-        header.appendChild(makeElement("div", "asdc-stars", "⭐ ВСЕ КАРТЫ"));
-        shot.appendChild(header);
-
-        const tabs = makeElement("div", "asdc-tabs");
-        [
-            ["⚔ БОЙ", false], ["🎴 КОЛЛЕКЦИЯ", true],
-            ["📖 БЕСТИАРИЙ", false], ["🧬 ЭВОЛЮЦИИ", false]
-        ].forEach(function (entry) {
-            tabs.appendChild(makeElement("div", "asdc-tab" + (entry[1] ? " active" : ""), entry[0]));
-        });
-        shot.appendChild(tabs);
-
-        const cards = readEvolutionTemplates();
-        shot.appendChild(makeElement("div", "asdc-collection-meta", "КОЛЛЕКЦИЯ  /  ЭВОЛЮЦИОННЫЕ"));
-        const summary = makeElement("div", "asdc-collection-meta");
-        summary.appendChild(makeElement("span", "", "🧬 " + cards.length + " ЭВОЛЮЦИОННЫХ КАРТ"));
-        summary.appendChild(makeElement("span", "asdc-evolution-label", "ПОЛНЫЙ НАБОР · МАСТЕРСТВО 7"));
-        shot.appendChild(summary);
-
-        const grid = makeElement("div", "asdc-card-grid");
-        const colors = ["#ffb8ff", "#8fefff", "#ffdc89", "#b8a1ff", "#a2ffcf"];
-        const stats = (function () {
-            try { return typeof cardStats !== "undefined" && cardStats["Эволюционная"] ? cardStats["Эволюционная"] : {}; }
-            catch (e) { return {}; }
-        })();
-
-        cards.forEach(function (card, index) {
-            const tile = makeElement("div", "asdc-card");
-            tile.style.animationDelay = Math.min(index * 55, 500) + "ms";
-            tile.style.borderColor = colors[index % colors.length] + "70";
-            const art = makeElement("div", "asdc-card-art");
-            const imagePath = typeof window.getCardImage === "function" ? window.getCardImage(card.name) : null;
-            if (imagePath) {
-                const img = document.createElement("img");
-                img.alt = card.name;
-                img.src = imagePath;
-                img.addEventListener("error", function () {
-                    img.remove();
-                    art.textContent = "🧬";
-                }, { once: true });
-                art.appendChild(img);
-            } else {
-                art.textContent = "🧬";
-            }
-            tile.appendChild(art);
-            tile.appendChild(makeElement("div", "asdc-card-name", card.name));
-            tile.appendChild(makeElement("div", "asdc-card-rarity", "✦ ЭВОЛЮЦИОННАЯ"));
-            const damage = card.damage != null ? card.damage : (stats.damage != null ? stats.damage : "?");
-            const hp = card.hp != null ? card.hp : (stats.hp != null ? stats.hp : "?");
-            const speed = card.speed != null ? card.speed : (stats.speed != null ? stats.speed : "?");
-            tile.appendChild(makeElement("div", "asdc-card-stats", "💪 " + damage + "  ❤️ " + hp + "  ⚡ " + speed));
-            tile.appendChild(makeElement("div", "asdc-card-mastery", "★★★★★★★ 7/7"));
-            grid.appendChild(tile);
-        });
-        if (!cards.length) {
-            const fallback = makeElement("div", "asdc-card");
-            fallback.style.gridColumn = "1 / -1";
-            fallback.appendChild(makeElement("div", "asdc-card-name", "ЭВОЛЮЦИОННЫЕ КАРТЫ"));
-            fallback.appendChild(makeElement("div", "asdc-card-mastery", "МАСТЕРСТВО 7"));
-            grid.appendChild(fallback);
-        }
-        shot.appendChild(grid);
-        parent.appendChild(shot);
-    }
-
     function roundedRect(ctx, x, y, w, h, r) {
         const rr = Math.min(r, w / 2, h / 2);
         ctx.beginPath();
@@ -196,70 +104,31 @@
         ctx.closePath();
     }
 
-    const antiSpiralPortrait = new Image();
-    antiSpiralPortrait.src = "images/IMG_20260607_143139_149.png";
-
     function drawPlayer(ctx, x, y, scale, pose, t) {
-        ctx.save();
-        ctx.translate(x, y + Math.sin(t * 4) * 2);
-        ctx.scale(scale, scale);
-        const arm = Math.sin(t * 5) * 7;
-        const lean = pose === "run" ? Math.sin(t * 9) * 9 : pose === "look" ? -5 : 0;
-        ctx.rotate(lean * Math.PI / 180);
-        // shadow and body
-        ctx.fillStyle = "rgba(0,0,0,.42)";
-        ctx.beginPath(); ctx.ellipse(0, 3, 26, 7, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#b7d6ff"; ctx.lineWidth = 7; ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(-6, -33); ctx.lineTo(-11 + arm * .35, -13); ctx.lineTo(-16 + arm, 0);
-        ctx.moveTo(7, -33); ctx.lineTo(13 - arm * .25, -15); ctx.lineTo(18 - arm, -2);
-        ctx.stroke();
-        ctx.strokeStyle = "#334a6d"; ctx.lineWidth = 9;
-        ctx.beginPath();
-        ctx.moveTo(-5, -12); ctx.lineTo(-9 + Math.sin(t * 7) * 4, 0);
-        ctx.moveTo(5, -12); ctx.lineTo(10 - Math.sin(t * 7) * 4, 0);
-        ctx.stroke();
-        const body = ctx.createLinearGradient(-13, -48, 14, -16);
-        body.addColorStop(0, "#80d9ff"); body.addColorStop(1, "#3760a4");
-        ctx.fillStyle = body;
-        roundedRect(ctx, -12, -47, 24, 34, 6); ctx.fill();
-        ctx.fillStyle = "#f0c7a4";
-        ctx.beginPath(); ctx.arc(0, -57, 12, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#27364d";
-        ctx.beginPath(); ctx.arc(0, -61, 12, Math.PI, Math.PI * 2); ctx.lineTo(11, -56); ctx.lineTo(-10, -57); ctx.fill();
-        ctx.fillStyle = "#152033";
-        ctx.beginPath(); ctx.arc(4, -56, 1.3, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#6ceaff"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(-8, -39); ctx.lineTo(8, -39); ctx.stroke();
-        ctx.restore();
+        ctx.save(); ctx.translate(x, y + Math.sin(t * 3.5) * 2); ctx.scale(scale, scale);
+        const bob = pose === "run" ? Math.sin(t * 11) * 5 : 0;
+        ctx.fillStyle = "rgba(0,0,0,.4)"; ctx.beginPath(); ctx.ellipse(0,4,31,8,0,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle = "#f5a2b1"; ctx.lineWidth = 5; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(-18,-22+bob); ctx.lineTo(-31,-11+Math.sin(t*5)*4); ctx.moveTo(18,-22+bob); ctx.lineTo(31,-12-Math.sin(t*5)*4); ctx.stroke();
+        ctx.strokeStyle = "#6c263b"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(-9,bob); ctx.lineTo(-14,12+bob); ctx.moveTo(9,bob); ctx.lineTo(14,12+bob); ctx.stroke();
+        ctx.save(); ctx.translate(0,-20+bob); ctx.fillStyle="#ff315b"; ctx.strokeStyle="#ff9bad"; ctx.lineWidth=2; ctx.shadowColor="#ff315b"; ctx.shadowBlur=17;
+        ctx.beginPath(); ctx.moveTo(0,15); ctx.bezierCurveTo(-8,8,-29,-5,-25,-20); ctx.bezierCurveTo(-22,-34,-5,-34,0,-21); ctx.bezierCurveTo(7,-35,24,-32,27,-19); ctx.bezierCurveTo(31,-5,9,9,0,15); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.shadowBlur=0;
+        ctx.fillStyle="#fff4f6"; ctx.beginPath(); ctx.ellipse(-8,-16,3.2,4.5,-.15,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(8,-16,3.2,4.5,.15,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle="#591b30"; ctx.beginPath(); ctx.arc(-7,-16,1.5,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(9,-16,1.5,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle="#7a1735"; ctx.lineWidth=1.8; ctx.beginPath(); ctx.arc(1,-10,5,.15,Math.PI-.15); ctx.stroke(); ctx.restore(); ctx.restore();
     }
 
-    function drawAntiSpiral(ctx, x, y, scale, t, visible) {
-        ctx.save();
-        ctx.translate(x, y + Math.sin(t * 2.4) * 7);
-        ctx.scale(scale, scale);
-        // The actual in-game Anti-Spiral portrait is used as a moving apparition.
-        if (antiSpiralPortrait.complete && antiSpiralPortrait.naturalWidth > 0) {
-            ctx.save();
-            ctx.globalAlpha = visible ? .96 : .28;
-            ctx.shadowColor = "#bc67ff"; ctx.shadowBlur = 32;
-            const ratio = Math.min(170 / antiSpiralPortrait.naturalWidth, 250 / antiSpiralPortrait.naturalHeight);
-            const iw = antiSpiralPortrait.naturalWidth * ratio;
-            const ih = antiSpiralPortrait.naturalHeight * ratio;
-            ctx.drawImage(antiSpiralPortrait, -iw / 2, -ih / 2, iw, ih);
-            ctx.restore();
-        } else {
-            ctx.shadowColor = "#bb65ff"; ctx.shadowBlur = 28;
-            ctx.strokeStyle = "#d6b5ff"; ctx.lineWidth = 2;
-            for (let i = 0; i < 4; i++) {
-                ctx.beginPath(); ctx.ellipse(0, -50, 26 + i * 9, 39 + i * 10, t * (i % 2 ? -.3 : .3), 0, Math.PI * 2); ctx.stroke();
-            }
-            ctx.fillStyle = "#151026";
-            ctx.beginPath(); ctx.moveTo(0, -95); ctx.lineTo(32, -53); ctx.lineTo(20, 8); ctx.lineTo(0, 25); ctx.lineTo(-20, 8); ctx.lineTo(-32, -53); ctx.closePath(); ctx.fill();
-            ctx.fillStyle = "#f0e1ff"; ctx.fillRect(-13, -58, 8, 3); ctx.fillRect(5, -58, 8, 3);
-            ctx.shadowBlur = 0;
-        }
-        ctx.restore();
+    function drawSurvivalMonitor(ctx, t, sceneIndex) {
+        const x=350,y=76,w=555,h=330; ctx.save(); ctx.shadowColor="#6de6b4"; ctx.shadowBlur=22; ctx.fillStyle="#111820"; ctx.strokeStyle="#647d7b"; ctx.lineWidth=4; roundedRect(ctx,x,y,w,h,12); ctx.fill(); ctx.stroke(); ctx.shadowBlur=0;
+        ctx.fillStyle="#1d342d"; roundedRect(ctx,x+10,y+10,w-20,h-20,5); ctx.fill();
+        const sx=x+18,sy=y+18,sw=w-36,sh=h-56; const sky=ctx.createLinearGradient(0,sy,0,sy+sh); sky.addColorStop(0,"#183f52"); sky.addColorStop(.56,"#4c7966"); sky.addColorStop(1,"#1b342c"); ctx.fillStyle=sky; ctx.fillRect(sx,sy,sw,sh);
+        ctx.fillStyle="#d6f1b4"; ctx.beginPath(); ctx.arc(sx+sw*.78,sy+42,19,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle="#274d43"; ctx.beginPath(); ctx.moveTo(sx,sy+sh*.67); ctx.lineTo(sx+95,sy+90); ctx.lineTo(sx+190,sy+sh*.67); ctx.fill(); ctx.beginPath(); ctx.moveTo(sx+120,sy+sh*.7); ctx.lineTo(sx+270,sy+70); ctx.lineTo(sx+410,sy+sh*.7); ctx.fill();
+        for(let i=0;i<11;i++){const tx=sx+((i*53+t*(sceneIndex===1?9:2))%(sw+30)),ty=sy+sh*(.53+(i%3)*.07);ctx.fillStyle=i%2?"#163a2d":"#244d35";ctx.fillRect(tx,ty,12,35);ctx.fillRect(tx-9,ty-13,30,20);}
+        const px=sx+sw*.47+Math.sin(t*2)*8,py=sy+sh*.65;ctx.fillStyle="#e2bc85";ctx.fillRect(px-7,py-22,14,15);ctx.fillStyle="#427fc1";ctx.fillRect(px-8,py-7,16,19);ctx.fillStyle="#6c8a9d";ctx.fillRect(px-11,py+12,7,10);ctx.fillRect(px+4,py+12,7,10);ctx.strokeStyle="#dce7dd";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(px+7,py-4);ctx.lineTo(px+21,py-20+Math.sin(t*9)*4);ctx.stroke();
+        ctx.fillStyle="#91c4a0";ctx.font="900 9px monospace";ctx.fillText(sceneIndex===0?"NIGHT 184 // HARDCORE":"MINING... +ORE +XP",sx+10,sy+14);ctx.fillStyle="#e35d68";roundedRect(ctx,sx+10,sy+23,105,8,3);ctx.fill();ctx.fillStyle="#e6c86f";roundedRect(ctx,sx+10,sy+36,78,6,3);ctx.fill();
+        const slotY=sy+sh-28;for(let i=0;i<9;i++){ctx.fillStyle=i===4?"#b9d5a0":"rgba(7,16,14,.83)";ctx.fillRect(sx+55+i*42,slotY,36,25);ctx.strokeStyle=i===4?"#e8f7c4":"#8aa99a";ctx.lineWidth=1;ctx.strokeRect(sx+55+i*42,slotY,36,25);ctx.fillStyle=["#986b45","#7b8587","#b8a5a0","#6d9d6e"][i%4];ctx.fillRect(sx+65+i*42,slotY+6,14,13);}
+        ctx.fillStyle="#101820";ctx.fillRect(x+w*.43,y+h,w*.14,18);ctx.fillStyle="#263a39";ctx.fillRect(x+w*.28,y+h+16,w*.44,10);ctx.restore();
     }
 
     function drawSpeech(ctx, x, y, width, speaker, text, accent) {
@@ -289,250 +158,44 @@
         ctx.restore();
     }
 
-    function drawCollectionMonitor(ctx, t) {
-        const x = 365, y = 112, w = 490, h = 300;
-        ctx.save();
-        ctx.shadowColor = "#58dfff"; ctx.shadowBlur = 24;
-        ctx.fillStyle = "#0b1020"; ctx.strokeStyle = "#7293c7"; ctx.lineWidth = 3;
-        roundedRect(ctx, x, y, w, h, 11); ctx.fill(); ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = "#17223a"; roundedRect(ctx, x + 9, y + 9, w - 18, h - 18, 6); ctx.fill();
-        ctx.fillStyle = "#eaf5ff"; ctx.font = "1000 16px Arial"; ctx.fillText("MULTIVERSE BATTLE", x + 22, y + 31);
-        ctx.fillStyle = "#7c93ba"; ctx.font = "900 8px monospace"; ctx.fillText("PLAYER ARCHIVE  /  COLLECTION", x + 22, y + 46);
-        const tabs = ["БОЙ", "КОЛЛЕКЦИЯ", "БЕСТИАРИЙ", "ЭВОЛЮЦИИ"];
-        tabs.forEach(function(tab, i) {
-            const tx = x + 16 + i * 115;
-            ctx.fillStyle = i === 1 ? "#174d69" : "#10192c";
-            roundedRect(ctx, tx, y + 57, 108, 24, 4); ctx.fill();
-            ctx.strokeStyle = i === 1 ? "#63e5ff" : "#33415c"; ctx.lineWidth = 1; ctx.stroke();
-            ctx.fillStyle = i === 1 ? "#d6faff" : "#91a2c1";
-            ctx.font = "900 9px Arial"; ctx.fillText(tab, tx + 10, y + 72);
-        });
-        ctx.fillStyle = "#9fb3d3"; ctx.font = "900 9px monospace";
-        ctx.fillText("ЭВОЛЮЦИОННЫЕ КАРТЫ · ПОЛНЫЙ НАБОР", x + 18, y + 99);
-        const cards = readEvolutionTemplates();
-        const showCards = cards.length ? cards.slice(0, 8) : [{name:"ЛУФФИ : КОРОЛЬ ПИРАТОВ"},{name:"САЙТАМА / ГАРОУ"},{name:"ГАРП / КУДЗАН"},{name:"СЕМЁРКА"}];
-        showCards.forEach(function(card, i) {
-            const cols = 4, cw = 105, ch = 78;
-            const cx = x + 17 + (i % cols) * 115, cy = y + 112 + Math.floor(i / cols) * 88;
-            ctx.fillStyle = "rgba(74,42,110,.85)"; ctx.strokeStyle = ["#d59cff","#7cecff","#ffd58a","#a8ffc9"][i % 4];
-            roundedRect(ctx, cx, cy, cw, ch, 5); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = ["#f0c4ff","#9beeff","#ffe1a3","#baffd8"][i % 4];
-            ctx.font = "1000 17px Arial"; ctx.fillText("✦", cx + 44, cy + 25);
-            ctx.fillStyle = "#f2edff"; ctx.font = "900 8px Arial";
-            const name = String(card.name || "Эволюция").toUpperCase();
-            ctx.fillText(name.length > 20 ? name.slice(0, 18) + "…" : name, cx + 6, cy + 42);
-            ctx.fillStyle = "#ffbdff"; ctx.font = "900 7px Arial"; ctx.fillText("МАСТЕРСТВО 7", cx + 6, cy + 58);
-            ctx.fillStyle = "#b9cbe7"; ctx.fillText("УРОН ↑   HP ↑", cx + 6, cy + 69);
-        });
-        ctx.fillStyle = "#26324a"; ctx.fillRect(x + 208, y + h - 2, 74, 12);
-        ctx.fillStyle = "#111a2c"; ctx.fillRect(x + 178, y + h + 8, 134, 8);
-        ctx.restore();
+    function renderRealEvolutionFrame(parent) {
+        const shot=makeElement("div","asdc-game-shot"); shot.style.inset="5% 4% 5%"; shot.style.overflow="auto"; shot.style.background="#171727"; shot.style.padding="10px";
+        const header=makeElement("div","asdc-game-header"); header.appendChild(makeElement("div","","MULTIVERSE BATTLE · РЕАЛЬНЫЕ КАРТЫ")); header.appendChild(makeElement("div","asdc-stars","🧬 ЭВОЛЮЦИОННАЯ КОМАНДА")); shot.appendChild(header);
+        const source=document.getElementById("collectionGrid");
+        const cards=source?Array.from(source.querySelectorAll(".card-item")).filter(c=>{const r=c.querySelector(".rarity-tag");return r&&r.textContent.trim()==="Эволюционная";}):[];
+        cards.sort((a,b)=>{const p=c=>{const m=c.textContent.match(/Общая сила:\\s*([\\d,.]+)/i);return m?Number(m[1].replace(/,/g,"")):0;};return p(b)-p(a);});
+        const grid=makeElement("div","asdc-real-game-grid");grid.style.cssText="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-content:start;padding-top:9px";
+        cards.slice(0,6).forEach(c=>{const clone=c.cloneNode(true);clone.removeAttribute("onclick");clone.querySelectorAll("[onclick]").forEach(e=>e.removeAttribute("onclick"));clone.style.cssText+=";min-width:0;max-width:none;max-height:235px;overflow:hidden;pointer-events:none;animation:none";grid.appendChild(clone);});
+        if(!cards.length){const note=makeElement("div","","В текущей сессии не найдены отрисованные эволюционные карты. Поддельные карты не подставлены: открой коллекцию и дождись её загрузки.");note.style.cssText="color:#f6d98b;padding:20px;text-align:center;grid-column:1/-1;font-weight:800";grid.appendChild(note);}
+        shot.appendChild(grid);parent.appendChild(shot);
     }
 
     function drawCinematicActors(ctx, sceneIndex, t, w, h) {
-        if (sceneIndex === 0) {
-            drawPlayer(ctx, 180 + Math.sin(t * 1.7) * 8, 440, 1.15, "look", t);
-            drawCollectionMonitor(ctx, t);
-            drawSpeech(ctx, 25, 22, 300, "ИГРОК", "Все эволюции… Я правда собрал их все.", "#82eaff");
-        } else if (sceneIndex === 1) {
-            drawPlayer(ctx, 260 + Math.sin(t * 2) * 24, 450, 1.2, "run", t);
-            drawAntiSpiral(ctx, 710, 270, 1.15, t, true);
-            ctx.save(); ctx.strokeStyle = "#c27cff"; ctx.lineWidth = 5;
-            ctx.shadowColor = "#9d58ff"; ctx.shadowBlur = 28;
-            ctx.beginPath(); ctx.moveTo(490, 110); ctx.bezierCurveTo(390, 190, 570, 270, 465, 370); ctx.stroke();
-            ctx.restore();
-            drawSpeech(ctx, 26, 22, 315, "АНТИ-СПИРАЛЬ", "Ты больше ничего не должен этому миру.", "#d7a7ff");
-            drawSpeech(ctx, 635, 20, 300, "ИГРОК", "Значит… всё действительно закончилось?", "#82eaff");
-        } else if (sceneIndex === 2) {
-            drawPlayer(ctx, 260, 450, 1.15, "look", t);
-            drawAntiSpiral(ctx, 730, 280, .92, t, false);
-            const pulse = .7 + Math.sin(t * 4) * .18;
-            ctx.save(); ctx.translate(485, 250); ctx.rotate(Math.sin(t * .6) * .08);
-            ctx.shadowColor = "#6cecff"; ctx.shadowBlur = 30;
-            ctx.fillStyle = "rgba(77,223,255,.18)"; ctx.strokeStyle = "#9cf5ff"; ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.moveTo(0,-74); ctx.lineTo(62,-38); ctx.lineTo(62,35); ctx.lineTo(0,72); ctx.lineTo(-62,35); ctx.lineTo(-62,-38); ctx.closePath(); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = "#e7fdff"; ctx.font = "1000 18px monospace"; ctx.textAlign = "center"; ctx.fillText("SAVE",0,6);
-            ctx.globalAlpha = pulse; ctx.beginPath(); ctx.arc(0,0,89 + Math.sin(t * 3) * 8,0,Math.PI*2); ctx.stroke();
-            ctx.restore();
-            drawSpeech(ctx, 25, 22, 320, "ИГРОК", "Моё сохранение… оно цело. Я ничего не потерял.", "#82eaff");
-        } else if (sceneIndex === 3) {
-            drawPlayer(ctx, 480, 454, 1.35, "look", t);
-            for (let i = 0; i < 7; i++) {
-                ctx.save(); ctx.translate(170 + i * 105, 170 + Math.sin(t * 1.4 + i) * 15); ctx.rotate(Math.sin(t + i) * .08);
-                ctx.fillStyle = "rgba(78,107,163,.85)"; ctx.strokeStyle = i % 2 ? "#89eaff" : "#d7b0ff";
-                roundedRect(ctx,-25,-38,50,75,6); ctx.fill(); ctx.stroke();
-                ctx.fillStyle = i % 2 ? "#9ceeff" : "#e3bdff"; ctx.font = "1000 21px Arial"; ctx.textAlign = "center"; ctx.fillText("✦",0,2);
-                ctx.restore();
-            }
-            drawSpeech(ctx, 24, 20, 335, "ИГРОК", "Теперь я могу играть сколько захочу. Я больше не потеряю эту жизнь.", "#82eaff");
-            drawSpeech(ctx, 615, 20, 320, "АНТИ-СПИРАЛЬ", "Останься. Здесь ты можешь получить всё.", "#d7a7ff");
-        } else if (sceneIndex === 4) {
-            drawPlayer(ctx, 340 + Math.sin(t * 1.5) * 2, 455, 1.2, "look", t);
-            drawAntiSpiral(ctx, 770, 280, 1.12, t, true);
-            ctx.save(); ctx.strokeStyle = "rgba(255,82,132,.75)"; ctx.lineWidth = 2; ctx.setLineDash([8,6]);
-            roundedRect(ctx, 450, 140, 145, 205, 10); ctx.stroke(); ctx.setLineDash([]);
-            ctx.fillStyle = "rgba(255,66,117,.12)"; ctx.fill();
-            ctx.fillStyle = "#ff8ca8"; ctx.font = "1000 64px Arial"; ctx.textAlign = "center"; ctx.fillText("?", 522, 240);
-            ctx.font = "900 10px monospace"; ctx.fillText("RICK: NOT FOUND", 522, 273);
-            ctx.restore();
-            drawSpeech(ctx, 22, 20, 340, "ИГРОК", "Погоди. Я закрыл Разлом… но я ведь так и не нашёл Рика.", "#82eaff");
-            drawSpeech(ctx, 615, 20, 320, "АНТИ-СПИРАЛЬ", "Зачем искать того, кого здесь нет?", "#ff8ca8");
-        }
+        if(sceneIndex===0){drawPlayer(ctx,195,448,1.45,"look",t);drawSurvivalMonitor(ctx,t,0);drawSpeech(ctx,24,22,305,"ИГРОК","Ещё один забег. Сегодня точно закончу шахту.","#ff7896");}
+        else if(sceneIndex===1){drawPlayer(ctx,190+Math.sin(t*2)*5,448,1.45,"run",t);drawSurvivalMonitor(ctx,t,1);drawSpeech(ctx,24,22,310,"ИГРОК","Древесина есть. Руда есть. Ещё чуть-чуть опыта!","#ff7896");for(let i=0;i<7;i++){ctx.fillStyle=i%2?"#b3e8a1":"#f1d78a";ctx.globalAlpha=.55+Math.sin(t*5+i)*.35;ctx.fillRect(420+i*45,420-(t*25+i*17)%90,5,5);}ctx.globalAlpha=1;}
+        else if(sceneIndex===2){drawPlayer(ctx,190,448,1.5,"look",t);drawSurvivalMonitor(ctx,t,0);ctx.fillStyle="rgba(5,10,15,.88)";roundedRect(ctx,470,150,390,110,10);ctx.fill();ctx.strokeStyle="#ffca7a";ctx.lineWidth=2;roundedRect(ctx,470,150,390,110,10);ctx.stroke();ctx.fillStyle="#ffe5ae";ctx.font="1000 17px monospace";ctx.fillText("SAVE FILE: 100%",493,183);ctx.fillStyle="#eaf3e8";ctx.font="900 12px Arial";ctx.fillText("WORLD BACKUP VERIFIED",493,211);ctx.fillText("ONE LIFE REMAINING",493,234);drawSpeech(ctx,24,22,330,"ИГРОК","Только бы сохранение не сломалось…","#ff7896");}
+        else if(sceneIndex===3){drawPlayer(ctx,480,445,1.65,"look",t);drawSurvivalMonitor(ctx,t,1);drawSpeech(ctx,24,22,350,"ИГРОК","Я просто хочу вернуться завтра и продолжить.","#ff7896");ctx.fillStyle="rgba(10,18,23,.8)";roundedRect(ctx,70,340,245,70,9);ctx.fill();ctx.strokeStyle="#83d6a4";roundedRect(ctx,70,340,245,70,9);ctx.stroke();ctx.fillStyle="#c6f7d2";ctx.font="900 12px monospace";ctx.fillText("BACKUP COMPLETE",87,368);ctx.fillText("SAFE TO CONTINUE",87,390);}
+        else {drawPlayer(ctx,110,455,1.15,"look",t);drawSpeech(ctx,22,22,300,"ИГРОК","А теперь посмотри, что я собрал.","#ff7896");}
     }
 
     function drawScene(ctx, sceneIndex, elapsed, width, height) {
-        const w = width, h = height, t = elapsed * 0.001;
-        const isRift = sceneIndex === 1;
-        const isSave = sceneIndex === 2;
-        const isGame = sceneIndex === 3;
-        const isRick = sceneIndex === 4;
-        const bg = ctx.createLinearGradient(0, 0, w, h);
-        bg.addColorStop(0, isRick ? "#160d24" : isRift ? "#130d31" : isSave ? "#0c2135" : isGame ? "#071e2c" : "#0b1830");
-        bg.addColorStop(0.55, "#080d1c");
-        bg.addColorStop(1, "#03050b");
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, w, h);
-
-        for (let i = 0; i < 125; i++) {
-            const x = (i * 173.7 + t * (isRick ? 24 : 8) * ((i % 3) + 1)) % (w + 10);
-            const y = (i * 71.3 + Math.sin(t + i) * 6) % h;
-            const alpha = 0.15 + (Math.sin(t * 1.4 + i) + 1) * 0.22;
-            ctx.fillStyle = isRick && i % 7 === 0 ? "rgba(255,87,131," + alpha + ")" : "rgba(174,211,255," + alpha + ")";
-            ctx.fillRect(x, y, i % 8 === 0 ? 2.4 : 1.2, i % 8 === 0 ? 2.4 : 1.2);
-        }
-
-        ctx.save();
-        ctx.strokeStyle = isRick ? "rgba(255,92,141,.13)" : "rgba(106,181,255,.12)";
-        ctx.lineWidth = 1;
-        const horizon = h * .66;
-        for (let i = 0; i < 18; i++) {
-            const y = horizon + i * i * 0.38 + (t * 14 % 14);
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-        }
-        for (let i = -10; i <= 10; i++) {
-            ctx.beginPath(); ctx.moveTo(w / 2 + i * 3, horizon); ctx.lineTo(w / 2 + i * 38, h); ctx.stroke();
-        }
-        ctx.restore();
-
-        if (sceneIndex === 0) {
-            const pulse = 0.5 + Math.sin(t * 1.5) * .12;
-            const glow = ctx.createRadialGradient(w / 2, h / 2, 20, w / 2, h / 2, w * .48);
-            glow.addColorStop(0, "rgba(137,103,255," + pulse * .22 + ")");
-            glow.addColorStop(1, "rgba(42,70,145,0)");
-            ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h);
-        } else if (isRift) {
-            const cx = w * .5, cy = h * .48;
-            for (let ring = 0; ring < 7; ring++) {
-                const radius = 28 + ring * 22 + Math.sin(t * 1.7 + ring) * 7;
-                ctx.save();
-                ctx.translate(cx, cy);
-                ctx.rotate(t * (ring % 2 ? -.25 : .38) + ring);
-                ctx.strokeStyle = ring % 2 ? "rgba(173,112,255,.65)" : "rgba(98,230,255,.64)";
-                ctx.lineWidth = ring % 2 ? 2 : 1.3;
-                ctx.beginPath();
-                ctx.ellipse(0, 0, radius * (1.2 + Math.sin(t * 1.3) * .08), radius * .52, 0, .25, Math.PI * 1.85);
-                ctx.stroke();
-                ctx.restore();
-            }
-            ctx.fillStyle = "#e2c8ff";
-            ctx.shadowColor = "#b87aff"; ctx.shadowBlur = 28;
-            ctx.beginPath(); ctx.arc(cx, cy, 5 + Math.sin(t * 4) * 2, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
-            for (let i = 0; i < 40; i++) {
-                const a = i * 2.399 + t * .5;
-                const rr = 40 + ((i * 23 + t * 32) % 170);
-                ctx.fillStyle = i % 2 ? "#71eaff" : "#cc8dff";
-                ctx.globalAlpha = .2 + ((Math.sin(t * 3 + i) + 1) * .28);
-                ctx.fillRect(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * .6, 2, 2);
-            }
-            ctx.globalAlpha = 1;
-            ctx.font = "900 12px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ccecff";
-            ctx.fillText("RIFT SEAL IN PROGRESS", cx, h * .83);
-        } else if (isSave) {
-            const cx = w * .5, cy = h * .43, bob = Math.sin(t * 1.8) * 9;
-            ctx.save(); ctx.translate(cx, cy + bob);
-            ctx.shadowColor = "#57eaff"; ctx.shadowBlur = 35;
-            ctx.fillStyle = "rgba(82,218,255,.16)";
-            ctx.strokeStyle = "#9df3ff"; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(0, -78); ctx.lineTo(68, -35); ctx.lineTo(68, 42); ctx.lineTo(0, 80); ctx.lineTo(-68, 42); ctx.lineTo(-68, -35); ctx.closePath(); ctx.fill(); ctx.stroke();
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = "#e2fbff"; ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.moveTo(0, -78); ctx.lineTo(0, 1); ctx.lineTo(68, -35); ctx.moveTo(0, 1); ctx.lineTo(-68, -35); ctx.moveTo(0, 1); ctx.lineTo(0, 80); ctx.stroke();
-            ctx.fillStyle = "#efffff"; ctx.font = "900 15px monospace"; ctx.textAlign = "center";
-            ctx.fillText("SAVE", 0, 8);
-            ctx.restore();
-            for (let i = 0; i < 18; i++) {
-                const x = (i * 91 + t * 45) % w, y = h * (.13 + ((i * 19) % 50) / 100);
-                ctx.fillStyle = i % 2 ? "#82efff" : "#c09dff";
-                ctx.globalAlpha = .45 + Math.sin(t * 3 + i) * .3;
-                ctx.fillRect(x, y, 2 + i % 3, 2 + i % 3);
-            }
-            ctx.globalAlpha = 1;
-            ctx.font = "900 12px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#a9f5ff";
-            ctx.fillText("CHECKSUM OK  //  SAVE FILE RESTORED", w / 2, h * .83);
-        } else if (isGame) {
-            const cx = w * .5, cy = h * .4;
-            for (let i = 0; i < 6; i++) {
-                ctx.save(); ctx.translate(cx + Math.cos(t * .4 + i) * 145, cy + Math.sin(t * .55 + i * 1.6) * 52);
-                ctx.rotate(Math.sin(t + i) * .08);
-                roundedRect(ctx, -28, -38, 56, 76, 6);
-                ctx.fillStyle = "rgba(64,96,146,.45)"; ctx.fill();
-                ctx.strokeStyle = i % 2 ? "#89e8ff" : "#d1acff"; ctx.lineWidth = 1.5; ctx.stroke();
-                ctx.fillStyle = i % 2 ? "#85eaff" : "#d6adff"; ctx.font = "900 19px Arial"; ctx.textAlign = "center";
-                ctx.fillText(i % 2 ? "✦" : "★", 0, 4);
-                ctx.restore();
-            }
-            ctx.font = "1000 21px Arial"; ctx.textAlign = "center"; ctx.fillStyle = "#f3f7ff";
-            ctx.shadowColor = "#75cfff"; ctx.shadowBlur = 18;
-            ctx.fillText("∞", cx, cy + 12); ctx.shadowBlur = 0;
-            ctx.font = "900 11px monospace"; ctx.fillStyle = "#9bdfff";
-            ctx.fillText("ONE LIFE  /  INFINITE TIME", cx, h * .82);
-            roundedRect(ctx, w * .24, h * .88, w * .52, 6, 3);
-            ctx.fillStyle = "#18233d"; ctx.fill();
-            ctx.fillStyle = "#70eaff"; ctx.fillRect(w * .24, h * .88, w * .52, 6);
-        } else if (isRick) {
-            const x = w * .5, y = h * .45;
-            ctx.save(); ctx.translate(x, y);
-            ctx.rotate(Math.sin(t * .6) * .025);
-            ctx.setLineDash([9, 7]);
-            ctx.strokeStyle = "rgba(255,110,151,.8)"; ctx.lineWidth = 2;
-            roundedRect(ctx, -92, -112, 184, 224, 12); ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.fillStyle = "rgba(255,76,122,.06)"; ctx.fill();
-            ctx.font = "1000 68px Arial"; ctx.textAlign = "center"; ctx.fillStyle = "rgba(255,114,151,.22)";
-            ctx.fillText("?", 0, 22);
-            ctx.font = "900 11px monospace"; ctx.fillStyle = "#ff9cb4";
-            ctx.fillText("EMPTY ROSTER SLOT", 0, 83);
-            ctx.restore();
-            for (let i = 0; i < 5; i++) {
-                const yBand = (t * 70 + i * 83) % h;
-                ctx.fillStyle = "rgba(255,55,113,.12)";
-                ctx.fillRect(0, yBand, w, 4);
-            }
-            ctx.fillStyle = "#ff89a4"; ctx.font = "1000 19px monospace"; ctx.textAlign = "center";
-            ctx.shadowColor = "#ff376c"; ctx.shadowBlur = 22;
-            ctx.fillText("RICK // CONNECTION UNKNOWN", w / 2, h * .85);
-            ctx.shadowBlur = 0;
-            if (Math.sin(t * 7) > .86) {
-                ctx.fillStyle = "rgba(255,67,130,.15)";
-                ctx.fillRect(Math.sin(t * 17) * 100, h * .32, w * .75, 9);
-            }
-        }
-        drawCinematicActors(ctx, sceneIndex, t, w, h);
+        const w=width,h=height,t=elapsed*.001,survival=sceneIndex<4;
+        const bg=ctx.createLinearGradient(0,0,w,h);bg.addColorStop(0,survival?"#15252a":"#101326");bg.addColorStop(.55,survival?"#26352f":"#17172d");bg.addColorStop(1,"#080b10");ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+        if(survival){ctx.fillStyle="#0b141a";ctx.fillRect(0,0,w,h*.57);ctx.fillStyle="#142a30";roundedRect(ctx,35,55,235,180,5);ctx.fill();ctx.strokeStyle="#536b69";ctx.lineWidth=4;ctx.stroke();ctx.fillStyle="#0a1218";ctx.fillRect(45,65,215,160);for(let i=0;i<24;i++){ctx.fillStyle="rgba(210,230,215,"+(.25+(i%4)*.12)+")";ctx.fillRect((i*47+11)%220+42,(i*31+7)%145+68,2,2);}ctx.fillStyle="#3b2e2a";ctx.fillRect(0,h*.76,w,h*.24);ctx.fillStyle="#5a4438";ctx.fillRect(0,h*.76,w,10);ctx.fillStyle="rgba(100,225,180,.09)";ctx.fillRect(325,65,590,370);}else{for(let i=0;i<90;i++){const x=(i*173.7+t*4)%w,y=(i*71.3)%h;ctx.fillStyle="rgba(190,205,255,"+(.15+(i%4)*.12)+")";ctx.fillRect(x,y,1.4,1.4);}}
+        drawCinematicActors(ctx,sceneIndex,t,w,h);
     }
 
     function start(overlay, onDone) {
         if (!overlay || !overlay.parentNode || typeof onDone !== "function") return;
         const root = makeElement("section", "asdc-root");
-        root.setAttribute("aria-label", "Кинематографическая концовка Анти-Спирали");
+        root.setAttribute("aria-label", "Кинематографическая история игрока");
         const style = document.createElement("style");
         style.textContent = css;
         root.appendChild(style);
 
         const topbar = makeElement("div", "asdc-topbar");
-        topbar.appendChild(makeElement("strong", "", "MULTIVERSE BATTLE  /  DREAM SEQUENCE"));
-        const anomaly = makeElement("span", "", "REALITY CHECK // PENDING");
+        topbar.appendChild(makeElement("strong", "", "PLAYER STORY  /  TWO DIFFERENT WORLDS"));
+        const anomaly = makeElement("span", "", "SURVIVAL SAVE // CHECKING");
         topbar.appendChild(anomaly);
         root.appendChild(topbar);
 
@@ -565,7 +228,7 @@
         actions.appendChild(skip); actions.appendChild(next);
         controls.appendChild(count); controls.appendChild(actions);
         root.appendChild(controls);
-        root.appendChild(makeElement("div", "asdc-footer", "ТЕКСТ НЕ ИСЧЕЗНЕТ. КАДР СМЕНИТСЯ ТОЛЬКО ПО ТВОЕМУ НАЖАТИЮ."));
+        root.appendChild(makeElement("div", "asdc-footer", "КАДРЫ СМЕНЯЮТСЯ ПО НАЖАТИЮ. SURVIVAL-ИГРА НЕ СВЯЗАНА С MULTIVERSE BATTLE."));
         overlay.appendChild(root);
 
         const ctx = canvas.getContext("2d");
@@ -577,15 +240,15 @@
             title.textContent = scene.title;
             copy.textContent = scene.text;
             hudLeft.textContent = scene.hud;
-            hudRight.textContent = index === 4 ? "ANOMALY DETECTED" : "FRAME 0" + (index + 1);
+            hudRight.textContent = index === 4 ? "REAL GAME CARDS" : "FRAME 0" + (index + 1);
             hudRight.className = index === 4 ? "asdc-warning" : "";
-            anomaly.textContent = index === 4 ? "RICK // UNKNOWN SIGNAL" : "REALITY CHECK // " + (index < 3 ? "STABLE" : "SUSPICIOUS");
+            anomaly.textContent = index === 4 ? "LIVE GAME UI" : "SURVIVAL SAVE // " + (index < 3 ? "ACTIVE" : "VERIFIED");
             anomaly.style.color = index === 4 ? "#ff879f" : "";
-            count.textContent = "КАДР 0" + (index + 1) + " / 05  ·  ОЖИДАНИЕ ТВОЕГО РЕШЕНИЯ";
+            count.textContent = "КАДР 0" + (index + 1) + " / 05  ·  ИСТОРИЯ ИГРОКА";
             next.textContent = index === scenes.length - 1 ? "ЗАКРЫТЬ КАДРЫ →" : "СЛЕДУЮЩИЙ КАДР →";
             stage.style.borderColor = index === 4 ? "rgba(255,106,148,.78)" : "rgba(140,184,255,.4)";
             stage.style.animation = index === 4 ? "asdcGlitch 4.5s steps(1) infinite" : "none";
-            if (collectionShot) { collectionShot.remove(); collectionShot = null; }
+            if (collectionShot) { collectionShot.remove(); collectionShot = null; }\n            const oldShot = stage.querySelector(".asdc-game-shot"); if (oldShot) oldShot.remove();
             if (index === 0) {
                 renderCollectionScreenshot(stage);
                 collectionShot = stage.querySelector(".asdc-game-shot");
