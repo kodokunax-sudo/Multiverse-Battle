@@ -248,7 +248,7 @@
 
     // Use the same per-fight graphics choice as the other unique bosses.
     // Do not auto-select mobile mode based on touch input or viewport size.
-    window.rwbGraphicsMode = "shared";
+    window.rwbGraphicsMode = "pc";
     function isRWBMobileGraphics() {
         return !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
     }
