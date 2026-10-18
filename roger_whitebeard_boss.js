@@ -111,6 +111,9 @@
     let whitebeard = null;
     let duel = null;
     let rwbPlayer = null;
+    let rwbOden = null;
+    let rwbOdenSlashes = [];
+    let rwbOdenLastTargetId = null;
 
     let rwbAttacks = [];
     let rwbPlayerBullets = [];
@@ -996,6 +999,13 @@
             attackTimer: 0, shootRate: 10,
             vx: 0, vy: 0
         };
+        rwbOden = {
+            x: 166, y: 372, size: 15, phase: 0,
+            attackCooldown: 38, windup: 0, swingTimer: 0,
+            swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0
+        };
+        rwbOdenSlashes = [];
+        rwbOdenLastTargetId = null;
 
         rwbAttacks = []; rwbPlayerBullets = []; rwbParticles = []; rwbShockwaves = [];
         wbBrain.phase = "idle"; wbBrain.phaseTimer = 0; wbBrain.recoveryTimer = 0;
@@ -3236,6 +3246,13 @@
         // Delayed attack callbacks may still fire during the vortex; keep the arena clear until it ends.
         if (wbVortexActive) clearWhitebeardVortexAttacks();
 
+        // Oden is a default ally in both combat rounds. Time-stop effects freeze his sword
+        // and projectiles together with the battlefield, without throttling the render loop.
+        if (!rwbWorldStopped && !rwbDialogActive &&
+            (rwbState === "fight1" || rwbState === "fight2")) {
+            updateRWBOdenSupport();
+        }
+
         if (Math.abs(rwbPlayer.vx) > 0.1 || Math.abs(rwbPlayer.vy) > 0.1) {
             rwbPlayer.x += rwbPlayer.vx;
             rwbPlayer.y += rwbPlayer.vy;
@@ -3336,6 +3353,9 @@
         }
 
         if (rwbState === "fight1" || rwbState === "fight2") drawRWBPlayer();
+        if (rwbOden && (rwbState === "fight1" || rwbState === "fight2" || rwbState === "transition")) {
+            drawRWBOdenSupport();
+        }
 
         for (let i = 0; i < rwbParticles.length; i++) {
             let p = rwbParticles[i];
@@ -3820,6 +3840,241 @@
         let flash = whitebeard.hitFlash > 0;
         drawWhitebeardHakiAura(whitebeard.x, whitebeard.y, size);
         drawWhitebeardModel(whitebeard.x, whitebeard.y, size, flash, Math.sin(whitebeard.rotation) * 0.1);
+    }
+
+    function getRWBOdenTargets() {
+        if (rwbState === "fight1") {
+            return [roger, whitebeard].filter(function(boss) {
+                return !!boss && boss.hp > 0;
+            });
+        }
+        if (rwbState === "fight2" && rwbActiveBoss && rwbActiveBoss.hp > 0) {
+            return [rwbActiveBoss];
+        }
+        return [];
+    }
+
+    function getRWBOdenTargetById(id) {
+        const targets = getRWBOdenTargets();
+        for (let i = 0; i < targets.length; i++) {
+            if (targets[i].id === id) return targets[i];
+        }
+        return null;
+    }
+
+    function updateRWBOdenSupport() {
+        if (!rwbOden || !rwbPlayer) return;
+        const oden = rwbOden;
+        oden.phase += 0.11;
+        if (oden.hitFlash > 0) oden.hitFlash--;
+
+        // Oden floats a little above and to the side of the player, keeping clear of the heart.
+        const followX = Math.max(27, Math.min(373, rwbPlayer.x - 34));
+        const followY = Math.max(42, Math.min(456, rwbPlayer.y - 45));
+        oden.x += (followX - oden.x) * 0.12;
+        oden.y += (followY - oden.y) * 0.12;
+
+        const targets = getRWBOdenTargets();
+        for (let i = rwbOdenSlashes.length - 1; i >= 0; i--) {
+            const slash = rwbOdenSlashes[i];
+            const target = getRWBOdenTargetById(slash.targetId);
+            if (!target) {
+                slash.life = 0;
+                rwbOdenSlashes.splice(i, 1);
+                continue;
+            }
+            const desired = Math.atan2(target.y - slash.y, target.x - slash.x);
+            const current = Math.atan2(slash.vy, slash.vx);
+            let turn = Math.atan2(Math.sin(desired - current), Math.cos(desired - current));
+            turn = Math.max(-0.085, Math.min(0.085, turn));
+            const angle = current + turn;
+            slash.vx = Math.cos(angle) * slash.speed;
+            slash.vy = Math.sin(angle) * slash.speed;
+            slash.angle = angle;
+            slash.x += slash.vx;
+            slash.y += slash.vy;
+            slash.life--;
+
+            if (Math.hypot(slash.x - target.x, slash.y - target.y) <= (target.size || 28) * 0.78 + slash.size) {
+                const damage = slash.damage;
+                target.hp = Math.max(0, target.hp - damage);
+                target.hitFlash = Math.max(target.hitFlash || 0, 8);
+                rwbOden.hitFlash = 5;
+                rwbShockwaves.push({
+                    x: target.x, y: target.y, radius: 7, maxRadius: 62,
+                    speed: 6, color: "#b97aff", life: 16, maxLife: 16, width: 3
+                });
+                rwbFloatingTexts.push({
+                    x: target.x, y: target.y - (target.size || 28) - 8,
+                    text: "ОДЭН −" + damage, color: "#e8c9ff",
+                    life: 44, maxLife: 44, vy: -0.75, vx: 0, size: 13
+                });
+                spawnHitParticles(target.x, target.y, "#bb7aff", 8);
+                playBladeSound(0.22);
+                if (target.hp <= 0) {
+                    rwbScreenFlash = Math.max(rwbScreenFlash, 5);
+                    rwbScreenFlashColor = "#c898ff";
+                }
+                rwbOdenSlashes.splice(i, 1);
+                continue;
+            }
+            if (slash.life <= 0 || slash.x < -25 || slash.x > 425 || slash.y < -25 || slash.y > 525) {
+                rwbOdenSlashes.splice(i, 1);
+            }
+        }
+
+        if (oden.swingTimer > 0) oden.swingTimer--;
+        if (oden.windup > 0) {
+            oden.windup--;
+            let target = getRWBOdenTargetById(oden.targetId);
+            if (!target && targets.length) {
+                target = targets[0];
+                oden.targetId = target.id;
+            }
+            if (target) {
+                oden.swordAngle = Math.atan2(target.y - oden.y, target.x - oden.x);
+                if (oden.windup <= 0) {
+                    const aimX = target.x + (target.vx || 0) * 8;
+                    const aimY = target.y + (target.vy || 0) * 8;
+                    const angle = Math.atan2(aimY - oden.y, aimX - oden.x);
+                    const damage = target.superForm ? 24 : 16;
+                    rwbOdenSlashes.push({
+                        x: oden.x + Math.cos(angle) * 17,
+                        y: oden.y + Math.sin(angle) * 17,
+                        vx: Math.cos(angle) * 8.4,
+                        vy: Math.sin(angle) * 8.4,
+                        speed: 8.4, angle: angle, size: 12,
+                        damage: damage, targetId: target.id, life: 66,
+                        phase: Math.random() * Math.PI * 2
+                    });
+                    spawnHakiLightning(oden.x, oden.y, 1, false);
+                    playBladeSound(0.32);
+                }
+            } else {
+                oden.windup = 0;
+            }
+        } else if (oden.attackCooldown > 0) {
+            oden.attackCooldown--;
+        } else if (targets.length) {
+            // During the opening duel Oden alternates between both opponents instead of focusing only one.
+            let target = targets.find(function(boss) { return boss.id !== rwbOdenLastTargetId; }) || targets[0];
+            oden.targetId = target.id;
+            rwbOdenLastTargetId = target.id;
+            oden.windup = 13;
+            oden.swingTimer = 16;
+            oden.attackCooldown = 72;
+            oden.swordAngle = Math.atan2(target.y - oden.y, target.x - oden.x);
+        }
+    }
+
+    function drawRWBOdenSupport() {
+        if (!rwbOden) return;
+        const oden = rwbOden;
+        const bobY = Math.sin(oden.phase) * 2.2;
+        const cx = oden.x, cy = oden.y + bobY, size = oden.size;
+        const attacking = oden.swingTimer > 0 || oden.windup > 0;
+
+        // Flying purple ribbons curl around Oden's golden heart.
+        ctx.save();
+        ctx.globalAlpha = 0.72;
+        ctx.strokeStyle = "#54218e"; ctx.lineWidth = 4.5; ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(cx - size * 0.45, cy - size * 0.45);
+        ctx.bezierCurveTo(cx - size * 1.9, cy - size * 1.0, cx - size * 1.8, cy + size * 0.6, cx - size * 0.8, cy + size * 0.38);
+        ctx.moveTo(cx + size * 0.4, cy + size * 0.15);
+        ctx.bezierCurveTo(cx + size * 1.7, cy + size * 1.1, cx + size * 1.85, cy - size * 0.7, cx + size * 0.8, cy - size * 0.75);
+        ctx.stroke();
+        ctx.strokeStyle = "#c98cff"; ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(cx - size * 0.45, cy - size * 0.45);
+        ctx.bezierCurveTo(cx - size * 1.9, cy - size * 1.0, cx - size * 1.8, cy + size * 0.6, cx - size * 0.8, cy + size * 0.38);
+        ctx.moveTo(cx + size * 0.4, cy + size * 0.15);
+        ctx.bezierCurveTo(cx + size * 1.7, cy + size * 1.1, cx + size * 1.85, cy - size * 0.7, cx + size * 0.8, cy - size * 0.75);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.globalAlpha = 0.25;
+        ctx.strokeStyle = "#a65cff"; ctx.lineWidth = 1.3; ctx.shadowColor = "#9f55ff"; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.ellipse(0, 0, size * 1.55, size * 1.05, oden.phase * 0.15, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.shadowColor = oden.hitFlash > 0 ? "#ffffff" : "#ffd44f";
+        ctx.shadowBlur = oden.hitFlash > 0 ? 24 : 13;
+        const heartGradient = ctx.createLinearGradient(0, -size * 1.1, 0, size * 0.85);
+        heartGradient.addColorStop(0, oden.hitFlash > 0 ? "#ffffff" : "#fff6a0");
+        heartGradient.addColorStop(0.42, oden.hitFlash > 0 ? "#fff3c6" : "#ffd52f");
+        heartGradient.addColorStop(1, oden.hitFlash > 0 ? "#ffffff" : "#ff9e00");
+        ctx.fillStyle = heartGradient;
+        ctx.strokeStyle = "#5a3500"; ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(0, size * 0.72);
+        ctx.bezierCurveTo(-size * 1.35, -size * 0.15, -size * 0.7, -size * 1.08, 0, -size * 0.4);
+        ctx.bezierCurveTo(size * 0.7, -size * 1.08, size * 1.35, -size * 0.15, 0, size * 0.72);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+
+        // Purple cloth is clipped to the heart, so the bands look wrapped around the body.
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(0, size * 0.72);
+        ctx.bezierCurveTo(-size * 1.35, -size * 0.15, -size * 0.7, -size * 1.08, 0, -size * 0.4);
+        ctx.bezierCurveTo(size * 0.7, -size * 1.08, size * 1.35, -size * 0.15, 0, size * 0.72);
+        ctx.closePath(); ctx.clip();
+        ctx.lineCap = "round";
+        for (let band = -1; band <= 1; band++) {
+            ctx.strokeStyle = "#6421a4"; ctx.lineWidth = size * 0.32;
+            ctx.beginPath(); ctx.moveTo(-size * 1.55, band * size * 0.62 - size * 0.4);
+            ctx.lineTo(size * 1.25, band * size * 0.62 + size * 0.55); ctx.stroke();
+            ctx.strokeStyle = "#d9a7ff"; ctx.lineWidth = 1.3;
+            ctx.beginPath(); ctx.moveTo(-size * 1.5, band * size * 0.62 - size * 0.4);
+            ctx.lineTo(size * 1.2, band * size * 0.62 + size * 0.55); ctx.stroke();
+        }
+        ctx.restore();
+        ctx.strokeStyle = "rgba(255,255,220,0.8)"; ctx.lineWidth = 1.1;
+        ctx.beginPath(); ctx.arc(-size * 0.3, -size * 0.42, size * 0.18, 0, Math.PI * 2); ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.fill(); ctx.stroke();
+        ctx.restore();
+
+        // Oden's katana stays in his hand and sweeps toward the opponent before each shot.
+        const baseAngle = Number.isFinite(oden.swordAngle) ? oden.swordAngle : -Math.PI / 3;
+        const swingOffset = attacking ? Math.sin((13 - Math.min(13, oden.windup)) * 0.22) * 0.72 : -0.38;
+        ctx.save();
+        ctx.translate(cx + size * 0.45, cy - size * 0.05);
+        ctx.rotate(baseAngle + swingOffset);
+        ctx.shadowColor = "#d8b5ff"; ctx.shadowBlur = 10;
+        const blade = ctx.createLinearGradient(0, -3, 31, 3);
+        blade.addColorStop(0, "#fff8cf"); blade.addColorStop(0.55, "#ffffff"); blade.addColorStop(1, "#a8caff");
+        ctx.fillStyle = blade; ctx.strokeStyle = "#30203f"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(2, -2.8); ctx.lineTo(28, -1.8); ctx.lineTo(35, 0); ctx.lineTo(28, 1.8); ctx.lineTo(2, 2.8); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "#e3b958"; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(3, -6); ctx.lineTo(3, 6); ctx.stroke();
+        ctx.strokeStyle = "#4d207d"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(2, 0); ctx.stroke();
+        ctx.strokeStyle = "#c8a4ff"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-6, -1); ctx.lineTo(1, 1); ctx.stroke();
+        ctx.fillStyle = "#ffdb62"; ctx.beginPath(); ctx.arc(-8, 0, 2.1, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+
+        // Curved violet-white sword waves travel toward Roger and Whitebeard.
+        for (let i = 0; i < rwbOdenSlashes.length; i++) {
+            const slash = rwbOdenSlashes[i];
+            ctx.save(); ctx.translate(slash.x, slash.y); ctx.rotate(slash.angle);
+            ctx.globalAlpha = Math.min(1, slash.life / 16);
+            ctx.shadowColor = "#a95cff"; ctx.shadowBlur = 16;
+            ctx.strokeStyle = "#5d238c"; ctx.lineWidth = 9; ctx.lineCap = "round";
+            ctx.beginPath(); ctx.arc(0, 0, slash.size * 1.25, -0.78, 0.78); ctx.stroke();
+            ctx.strokeStyle = "#f6e9ff"; ctx.lineWidth = 3.1;
+            ctx.beginPath(); ctx.arc(0, 0, slash.size * 1.2, -0.78, 0.78); ctx.stroke();
+            ctx.strokeStyle = "#ffe98a"; ctx.lineWidth = 1.2;
+            ctx.beginPath(); ctx.arc(0, 0, slash.size * 1.05, -0.58, 0.58); ctx.stroke();
+            ctx.restore();
+        }
+
+        ctx.save();
+        ctx.textAlign = "center"; ctx.font = "bold 9px monospace";
+        ctx.lineWidth = 3; ctx.strokeStyle = "rgba(38,8,58,.9)"; ctx.strokeText("ОДЭН", cx, cy + size + 14);
+        ctx.fillStyle = "#ffe99a"; ctx.fillText("ОДЭН", cx, cy + size + 14);
+        ctx.restore();
     }
 
     function drawRWBPlayer() {
