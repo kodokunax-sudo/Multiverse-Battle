@@ -74,6 +74,183 @@
         return [];
     }
 
+    // Сюжетная музыка и синтезированные SFX. Эффекты генерируются Web Audio,
+    // чтобы не зависеть от дополнительных файлов и не затрагивать звуки обычных боёв.
+    let storyMusic = null;
+    let storyAudioCtx = null;
+    let storyMusicSilenced = false;
+
+    function startStoryMusic() {
+        try {
+            if (typeof window.stopAllMusic === "function") window.stopAllMusic();
+            storyMusicSilenced = false;
+            if (!storyMusic) {
+                storyMusic = new Audio("music/main.mp3");
+                storyMusic.loop = true;
+                storyMusic.volume = 0.24;
+                storyMusic.preload = "auto";
+                storyMusic.setAttribute("aria-hidden", "true");
+                storyMusic.onerror = function () {
+                    console.warn("[ANTI-SPIRAL STORY] Не удалось загрузить music/main.mp3");
+                };
+            }
+            storyMusic.currentTime = 0;
+            const request = storyMusic.play();
+            if (request && typeof request.catch === "function") {
+                request.catch(function () {
+                    // Автовоспроизведение может быть запрещено браузером.
+                    // Повторная попытка будет сделана при первом нажатии кнопки истории.
+                });
+            }
+        } catch (e) {
+            console.warn("[ANTI-SPIRAL STORY] Не удалось запустить фоновую музыку", e);
+        }
+    }
+
+    function getStoryAudioContext() {
+        if (storyAudioCtx) return storyAudioCtx;
+        try {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (AudioContextClass) storyAudioCtx = new AudioContextClass();
+        } catch (e) {}
+        return storyAudioCtx;
+    }
+
+    function resumeStoryAudio() {
+        const ctx = getStoryAudioContext();
+        if (ctx && ctx.state === "suspended") {
+            try { ctx.resume().catch(function () {}); } catch (e) {}
+        }
+        if (!storyMusicSilenced && storyMusic && storyMusic.paused) {
+            try {
+                const request = storyMusic.play();
+                if (request && typeof request.catch === "function") request.catch(function () {});
+            } catch (e) {}
+        }
+    }
+
+    function playStorySfx(kind) {
+        const ctx = getStoryAudioContext();
+        if (!ctx) return;
+
+        function schedule() {
+            if (!storyAudioCtx || storyAudioCtx.state === "closed") return;
+            const now = ctx.currentTime + 0.025;
+
+            function tone(freq, endFreq, type, duration, volume, delay) {
+                const start = now + (delay || 0);
+                try {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = type || "sine";
+                    osc.frequency.setValueAtTime(Math.max(20, freq), start);
+                    if (endFreq) osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), start + duration);
+                    gain.gain.setValueAtTime(0.0001, start);
+                    gain.gain.linearRampToValueAtTime(Math.max(0.0002, volume), start + Math.min(0.018, duration * 0.25));
+                    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(start);
+                    osc.stop(start + duration + 0.015);
+                } catch (e) {}
+            }
+
+            function noise(duration, volume, filterType, frequency, delay) {
+                try {
+                    const start = now + (delay || 0);
+                    const length = Math.max(1, Math.floor(ctx.sampleRate * duration));
+                    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < length; i++) {
+                        const envelope = Math.pow(1 - i / length, 1.35);
+                        data[i] = (Math.random() * 2 - 1) * envelope;
+                    }
+                    const source = ctx.createBufferSource();
+                    const filter = ctx.createBiquadFilter();
+                    const gain = ctx.createGain();
+                    source.buffer = buffer;
+                    filter.type = filterType || "highpass";
+                    filter.frequency.setValueAtTime(frequency || 900, start);
+                    gain.gain.setValueAtTime(Math.max(0.0001, volume), start);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+                    source.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(ctx.destination);
+                    source.start(start);
+                } catch (e) {}
+            }
+
+            switch (kind) {
+                case "intro":
+                    tone(523, 523, "triangle", 0.18, 0.055, 0);
+                    tone(659, 659, "triangle", 0.19, 0.055, 0.12);
+                    tone(784, 988, "sine", 0.32, 0.06, 0.24);
+                    break;
+                case "click":
+                    tone(1250, 850, "square", 0.045, 0.018, 0);
+                    break;
+                case "transition":
+                    noise(0.2, 0.035, "highpass", 1000, 0);
+                    tone(420, 760, "triangle", 0.2, 0.035, 0.015);
+                    break;
+                case "mining":
+                    noise(0.07, 0.07, "highpass", 1400, 0);
+                    tone(190, 130, "triangle", 0.12, 0.085, 0.02);
+                    tone(360, 210, "square", 0.075, 0.035, 0.18);
+                    noise(0.055, 0.055, "highpass", 1600, 0.34);
+                    tone(240, 175, "triangle", 0.11, 0.06, 0.36);
+                    tone(920, 1220, "sine", 0.18, 0.035, 0.54);
+                    break;
+                case "danger":
+                    tone(310, 210, "sawtooth", 0.32, 0.075, 0);
+                    tone(250, 165, "sawtooth", 0.34, 0.07, 0.36);
+                    tone(580, 450, "sine", 0.12, 0.025, 0.78);
+                    break;
+                case "success":
+                    tone(523, 523, "triangle", 0.2, 0.055, 0);
+                    tone(659, 659, "triangle", 0.2, 0.055, 0.13);
+                    tone(784, 784, "triangle", 0.2, 0.055, 0.26);
+                    tone(1047, 1047, "sine", 0.42, 0.065, 0.39);
+                    break;
+                case "cards":
+                    noise(0.34, 0.025, "highpass", 2600, 0);
+                    tone(784, 784, "sine", 0.22, 0.05, 0);
+                    tone(988, 988, "sine", 0.22, 0.05, 0.12);
+                    tone(1175, 1175, "sine", 0.26, 0.055, 0.24);
+                    tone(1568, 1760, "sine", 0.42, 0.045, 0.38);
+                    break;
+                case "truth":
+                    // Резкий звуковой обрыв иллюзии: цифровой треск и тяжёлый низкий удар.
+                    noise(0.62, 0.16, "bandpass", 720, 0);
+                    noise(0.25, 0.105, "highpass", 2100, 0.28);
+                    tone(110, 48, "sawtooth", 0.72, 0.21, 0);
+                    tone(1450, 1450, "square", 0.055, 0.045, 0.04);
+                    tone(780, 160, "sawtooth", 0.48, 0.065, 0.12);
+                    break;
+            }
+        }
+
+        if (ctx.state === "suspended") {
+            try { ctx.resume().then(schedule).catch(function () {}); } catch (e) {}
+        } else {
+            schedule();
+        }
+    }
+
+    function revealTruthAndSilence() {
+        if (!storyMusicSilenced) {
+            storyMusicSilenced = true;
+            try {
+                if (storyMusic) {
+                    storyMusic.pause();
+                    storyMusic.currentTime = 0;
+                    storyMusic.volume = 0;
+                }
+            } catch (e) {}
+        }
+        playStorySfx("truth");
+    }
+
     function makeElement(tag, className, text) {
         const el = document.createElement(tag);
         if (className) el.className = className;
@@ -344,14 +521,15 @@
                 collectionShot = stage.querySelector(".asdc-game-shot");
             }
             sceneStart = performance.now();
+            playStorySfx(["intro", "mining", "danger", "success", "cards"][index] || "transition");
         }
 
         function finish() {
             if (done) return;
             done = true;
             if (raf) cancelAnimationFrame(raf);
-            next.removeEventListener("click", goNext);
-            skip.removeEventListener("click", finish);
+            next.removeEventListener("click", handleNextClick);
+            skip.removeEventListener("click", handleSkipClick);
             if (root.parentNode) root.remove();
             onDone();
         }
@@ -369,11 +547,23 @@
             raf = requestAnimationFrame(draw);
         }
 
-        next.addEventListener("click", goNext);
-        skip.addEventListener("click", finish);
+        function handleNextClick() {
+            resumeStoryAudio();
+            playStorySfx("click");
+            if (index < scenes.length - 1) playStorySfx("transition");
+            goNext();
+        }
+        function handleSkipClick() {
+            resumeStoryAudio();
+            playStorySfx("click");
+            finish();
+        }
+        next.addEventListener("click", handleNextClick);
+        skip.addEventListener("click", handleSkipClick);
+        startStoryMusic();
         updateScene();
         raf = requestAnimationFrame(draw);
     }
 
-    window.ASDreamCinematic = { start: start };
+    window.ASDreamCinematic = { start: start, revealTruth: revealTruthAndSilence, stopMusic: function () { storyMusicSilenced = true; try { if (storyMusic) { storyMusic.pause(); storyMusic.currentTime = 0; } } catch (e) {} }, playSfx: playStorySfx };
 })();
