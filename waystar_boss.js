@@ -195,6 +195,21 @@ function updateWaystarAmbient() {
     if (waystarState !== "phase3") return;
     waystarAmbientTimer++; waystarPhase3AuraPulse += 0.1;
     var escMult = 1 + waystarEscalationLevel * 0.15;
+    var reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+    if (reduced) {
+        // Keep phase progression and attacks unchanged, but throttle decorative ambience.
+        if (waystarAmbientTimer % 30 === 0 && waystarPhase3Rings.length < 4) {
+            waystarPhase3Rings.push({ x: waystarSmallBoss.x, y: waystarSmallBoss.y, radius: 30, maxRadius: 90 + waystarEscalationLevel * 12, angle: 0, rotSpeed: 0, life: 24, maxLife: 24, color: "#ff00ff" });
+        }
+        if (waystarAmbientTimer % 12 === 0 && waystarPhase3Embers.length < 10) {
+            waystarPhase3Embers.push({ x: Math.random() * 400, y: 500 + Math.random() * 40, vx: 0, vy: -1.2, size: 1, life: 45, color: "#ff00ff" });
+        }
+        waystarSmallBoss.trail.push({ x: waystarSmallBoss.x, y: waystarSmallBoss.y, life: 8, maxLife: 8 });
+        if (waystarSmallBoss.trail.length > 2) waystarSmallBoss.trail.shift();
+        if (waystarPhase3Rings.length > 4) waystarPhase3Rings.splice(0, waystarPhase3Rings.length - 4);
+        if (waystarPhase3Embers.length > 10) waystarPhase3Embers.splice(0, waystarPhase3Embers.length - 10);
+        return;
+    }
     if (waystarAmbientTimer % 6 === 0) { waystarPhase3Rings.push({ x: waystarSmallBoss.x, y: waystarSmallBoss.y, radius: 30, maxRadius: 90 + waystarEscalationLevel * 12, angle: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.2, life: 30, maxLife: 30, color: Math.random() > 0.5 ? "#ff00ff" : "#ffffff" }); }
     if (waystarAmbientTimer % Math.max(3, Math.floor(5 / escMult)) === 0) { waystarPhase3Embers.push({ x: Math.random() * 400, y: 500 + Math.random() * 40, vx: (Math.random() - 0.5) * 1.0, vy: -(1.2 + Math.random() * 1.5) * escMult, size: 1 + Math.random() * 2, life: 60 + Math.random() * 30, color: Math.random() > 0.5 ? "#ff00ff" : "#ffaa00" }); }
     if (waystarAmbientTimer % Math.max(15, Math.floor(40 / escMult)) === 0) { var ang = Math.random() * Math.PI * 2; addWaystarLightning(waystarSmallBoss.x, waystarSmallBoss.y, waystarSmallBoss.x + Math.cos(ang) * (100 + Math.random() * 60), waystarSmallBoss.y + Math.sin(ang) * (100 + Math.random() * 60), Math.random() > 0.5 ? "#ff00ff" : "#ffffff", 0.8, 2); }
@@ -236,10 +251,22 @@ function initWaystarSupers() {
     }
 }
 
-function startWaystarFight() {
-    if (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true && !(window.MBOnlineWaystar && window.MBOnlineWaystar.active)) {
+function startWaystarFight(graphicsModeChoice) {
+    var waystarOnlineMode = !!(window.MBOnlineWaystar && window.MBOnlineWaystar.active);
+    if (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true && !waystarOnlineMode) {
         if (typeof showFloatingText === 'function') showFloatingText("⏭️ Путеводная Звезда уже побеждена в этой жизни!", "#ffaa00");
         return;
+    }
+    if (!waystarOnlineMode && graphicsModeChoice !== "full" && graphicsModeChoice !== "light" &&
+        typeof window.MBChooseBossGraphicsMode === "function") {
+        window.MBChooseBossGraphicsMode("Путеводная Звезда", function(mode) {
+            startWaystarFight(mode);
+        });
+        return;
+    }
+    if (!waystarOnlineMode && (graphicsModeChoice === "full" || graphicsModeChoice === "light") &&
+        typeof window.MBSetBossGraphicsModeForFight === "function") {
+        window.MBSetBossGraphicsModeForFight(graphicsModeChoice);
     }
     console.log("[WAYSTAR] Старт боя v14.0. Модер:", isWaystarModerActive());
     waystarActive = true;
@@ -346,6 +373,7 @@ function startWaystarFight() {
 }
 
 function stopWaystarFight() {
+    if (typeof window.MBEndBossGraphicsModeForFight === "function") window.MBEndBossGraphicsModeForFight();
     console.log("[WAYSTAR] Стоп боя");
     waystarActive = false;
     waystarFinalActive = false;
@@ -377,9 +405,12 @@ function stopWaystarFight() {
 
 function initWaystarBgStars() {
     waystarBgStars = []; waystarNebulas = [];
-    for (var i = 0; i < 80; i++) { waystarBgStars.push({ x: Math.random() * 400, y: Math.random() * 500, size: 0.5 + Math.random() * 2, speed: 0.1 + Math.random() * 0.3, alpha: 0.2 + Math.random() * 0.7, twinkle: Math.random() * Math.PI * 2 }); }
+    var reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+    var starCount = reduced ? 28 : 80;
+    var nebulaCount = reduced ? 1 : 3;
+    for (var i = 0; i < starCount; i++) { waystarBgStars.push({ x: Math.random() * 400, y: Math.random() * 500, size: 0.5 + Math.random() * 2, speed: 0.1 + Math.random() * 0.3, alpha: 0.2 + Math.random() * 0.7, twinkle: Math.random() * Math.PI * 2 }); }
     var colors = ["#1a0a2e", "#0a1a3a", "#2a0a2a", "#0a1a2a"];
-    for(var j=0; j<3; j++) { waystarNebulas.push({ x: Math.random() * 400, y: Math.random() * 500, radius: 100 + Math.random() * 150, color: colors[Math.floor(Math.random() * colors.length)], speed: 0.2 + Math.random() * 0.3, angle: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.01 }); }
+    for(var j=0; j<nebulaCount; j++) { waystarNebulas.push({ x: Math.random() * 400, y: Math.random() * 500, radius: 100 + Math.random() * 150, color: colors[Math.floor(Math.random() * colors.length)], speed: 0.2 + Math.random() * 0.3, angle: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.01 }); }
 }
 
 function startWaystarDialog() {
