@@ -1006,8 +1006,11 @@
             vx: 0, vy: 0, moveTargetX: 255, moveTargetY: 205,
             wanderTimer: 42, dodgeCooldown: 0, dodgeFlashTimer: 0,
             aiSkill: 0.14, tsunamiEvading: false, tsunamiPulled: false, stunTimer: 0, attackAngle: -Math.PI / 3,
-            attackCooldown: 38, windup: 0, swingTimer: 0,
-            swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0
+            attackCooldown: 24, windup: 0, swingTimer: 0,
+            swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0,
+            healState: "idle", healTimer: 0, healCooldown: 0, healSide: 1,
+            companionMode: "guard", companionModeTimer: 115, companionSide: -1,
+            blueModeTimer: 0, blueModeCooldown: 0, blueModeFlashTimer: 0
         };
         rwbOdenSlashes = [];
         rwbOdenLastTargetId = null;
@@ -4138,7 +4141,9 @@
             if (oden.invulnTimer <= 0) {
                 const damage = Math.max(4, Math.min(18, Math.ceil((Number(a.damage) || 12) * 0.45)));
                 oden.hp = Math.max(0, oden.hp - damage);
-                const stunDuration = Number(a.stunDuration) || (a.type === "wb_fruit_punch" && a.state === "active" ? 38 : 0);
+                const stunDuration = Number(a.stunDuration) ||
+                    (a.type === "wb_fruit_punch" && a.state === "active" ? 38 :
+                    (a.type === "tsunami" && a.comboPull ? 18 : 0));
                 if (stunDuration > 0) {
                     oden.stunTimer = Math.max(Number(oden.stunTimer) || 0, stunDuration);
                     oden.windup = 0;
@@ -4267,7 +4272,52 @@
         return best;
     }
 
-        function updateRWBOdenSupport() {
+        function rwbOdenHasNoEscape(oden) {
+        if (!oden || !oden.alive) return false;
+        const directions = 12, distances = [82, 122];
+        const left = 22, right = 378, top = 14, bottom = 478;
+        for (const distance of distances) {
+            for (let i = 0; i < directions; i++) {
+                const angle = i * Math.PI * 2 / directions;
+                const x = oden.x + Math.cos(angle) * distance;
+                const y = oden.y + Math.sin(angle) * distance;
+                if (x < left || x > right || y < top || y > bottom) continue;
+                let safe = true;
+                for (let j = rwbAttacks.length - 1; j >= 0; j--) {
+                    if (rwbOdenAttackThreat(rwbAttacks[j], x, y, 8, true)) { safe = false; break; }
+                }
+                if (!safe) continue;
+                for (let j = rwbShockwaves.length - 1; j >= 0; j--) {
+                    if (rwbOdenShockwaveThreat(rwbShockwaves[j], x, y, 8, true)) { safe = false; break; }
+                }
+                if (safe) return false;
+            }
+        }
+        return true;
+    }
+
+    function rwbOdenActivateBlueMode(oden) {
+        if (!oden || oden.blueModeTimer > 0 || oden.blueModeCooldown > 0) return;
+        oden.blueModeTimer = 180;
+        oden.blueModeCooldown = 720;
+        oden.blueModeFlashTimer = 42;
+        oden.dodgeCooldown = 0;
+        rwbFloatingTexts.push({
+            x: oden.x, y: oden.y - 35, text: "ОДЭН: СИНИЙ РЕЖИМ!",
+            color: "#66eaff", life: 82, maxLife: 82, vy: -0.55, vx: 0, size: 14
+        });
+        spawnHitParticles(oden.x, oden.y, "#36d9ff", 22);
+        rwbShockwaves.push({
+            x: oden.x, y: oden.y, radius: 8, maxRadius: 100, speed: 7,
+            color: "#48e9ff", life: 20, maxLife: 20, width: 4, damage: 0, hit: true
+        });
+        rwbScreenFlash = Math.max(rwbScreenFlash, 5);
+        rwbScreenFlashColor = "#50deff";
+        rwbShake = Math.max(rwbShake, 6);
+        playImpactSound(0.22, 1.1);
+    }
+
+    function updateRWBOdenSupport() {
         if (!rwbOden || !rwbPlayer || !rwbOden.alive) return;
         const oden = rwbOden;
         oden.phase += 0.11;
@@ -4278,6 +4328,26 @@
         if (oden.invulnTimer > 0) oden.invulnTimer--;
         if (oden.dodgeCooldown > 0) oden.dodgeCooldown--;
         if (oden.dodgeFlashTimer > 0) oden.dodgeFlashTimer--;
+        if (oden.blueModeTimer > 0) oden.blueModeTimer--;
+        if (oden.blueModeCooldown > 0) oden.blueModeCooldown--;
+        if (oden.blueModeFlashTimer > 0) oden.blueModeFlashTimer--;
+        if (oden.healCooldown > 0) oden.healCooldown--;
+
+        const playerMaxHp = Math.max(1, Number(rwbPlayer.maxHp) || 1);
+        if (oden.healState === "idle" && oden.healCooldown <= 0 &&
+            Number(rwbPlayer.hp) <= playerMaxHp * 0.35 && (Number(oden.stunTimer) || 0) <= 0) {
+            oden.healState = "approach";
+            oden.healTimer = 0;
+            oden.healSide = oden.x <= rwbPlayer.x ? -1 : 1;
+            oden.healCooldown = 900;
+            oden.windup = 0;
+            oden.swingTimer = 0;
+            rwbOdenSlashes = [];
+            rwbFloatingTexts.push({
+                x: oden.x, y: oden.y - 30, text: "ОДЭН: Я ТЕБЯ ПРИКРОЮ!",
+                color: "#8dffc6", life: 72, maxLife: 72, vy: -0.55, vx: 0, size: 12
+            });
+        }
 
         // If a hit is unavoidable at the current position, Oden takes damage and becomes briefly invulnerable.
         rwbOdenApplyCurrentHits(oden);
@@ -4312,17 +4382,42 @@
             oden.wanderTimer = Math.max(oden.wanderTimer, 18);
             oden.dodgeCooldown = Math.max(oden.dodgeCooldown, 16);
             oden.dodgeFlashTimer = Math.max(oden.dodgeFlashTimer, 7);
+        } else if (oden.healState !== "idle") {
+            // Healing mode keeps Oden on the player's flank; he never attacks during this support action.
+            const side = Number(oden.healSide) || 1;
+            oden.moveTargetX = Math.max(30, Math.min(370, rwbPlayer.x + side * 43));
+            oden.moveTargetY = Math.max(28, Math.min(456, rwbPlayer.y - 7));
+            oden.wanderTimer = Math.max(oden.wanderTimer, 8);
         } else {
-            oden.wanderTimer--;
-            if (oden.wanderTimer <= 0 ||
-                Math.hypot(oden.moveTargetX - oden.x, oden.moveTargetY - oden.y) < 18) {
-                oden.moveTargetX = 38 + Math.random() * 324;
-                oden.moveTargetY = 100 + Math.random() * 340;
-                oden.wanderTimer = 42 + Math.floor(Math.random() * 54);
+            oden.companionModeTimer = Math.max(0, (Number(oden.companionModeTimer) || 0) - 1);
+            if (oden.companionModeTimer <= 0) {
+                oden.companionMode = Math.random() < 0.52 ? "guard" : "roam";
+                oden.companionSide = Math.random() < 0.5 ? -1 : 1;
+                oden.companionModeTimer = oden.companionMode === "guard"
+                    ? 95 + Math.floor(Math.random() * 85)
+                    : 125 + Math.floor(Math.random() * 125);
+            }
+            if (oden.companionMode === "guard") {
+                // Guard near the player for a short stretch, then resume independent movement.
+                oden.moveTargetX = Math.max(32, Math.min(368, rwbPlayer.x + oden.companionSide * 50));
+                oden.moveTargetY = Math.max(28, Math.min(456, rwbPlayer.y - 12));
+                oden.wanderTimer = Math.max(oden.wanderTimer, 8);
+            } else {
+                oden.wanderTimer--;
+                if (oden.wanderTimer <= 0 ||
+                    Math.hypot(oden.moveTargetX - oden.x, oden.moveTargetY - oden.y) < 18) {
+                    oden.moveTargetX = 38 + Math.random() * 324;
+                    oden.moveTargetY = 100 + Math.random() * 340;
+                    oden.wanderTimer = 42 + Math.floor(Math.random() * 54);
+                }
             }
         }
 
         const incoming = rwbOdenFindIncoming(oden);
+        if (incoming && incoming.time <= 30 && oden.blueModeCooldown <= 0 &&
+            oden.blueModeTimer <= 0 && rwbOdenHasNoEscape(oden)) {
+            rwbOdenActivateBlueMode(oden);
+        }
         if (incoming && oden.dodgeCooldown <= 0 && !tsunamiEscape && !tsunamiPull) {
             const risk = incoming.risk;
             let dx, dy;
@@ -4385,8 +4480,42 @@
             oden.y = Math.max(8, Math.min(482, oden.y + oden.vy));
         }
 
+        if (oden.healState === "approach" &&
+            Math.hypot(oden.x - rwbPlayer.x, oden.y - rwbPlayer.y) <= 58) {
+            oden.healState = "channel";
+            oden.healTimer = 300;
+            oden.windup = 0;
+            oden.swingTimer = 0;
+            rwbOdenSlashes = [];
+            rwbFloatingTexts.push({
+                x: oden.x, y: oden.y - 28, text: "ЛЕЧЕНИЕ · 5 СЕКУНД",
+                color: "#8dffc6", life: 64, maxLife: 64, vy: -0.5, vx: 0, size: 11
+            });
+        }
+        if (oden.healState === "channel") {
+            const closeToPlayer = Math.hypot(oden.x - rwbPlayer.x, oden.y - rwbPlayer.y) <= 82;
+            if (!closeToPlayer) {
+                oden.healState = "approach";
+                oden.healTimer = 0;
+            } else if (!stunned) {
+                const maximum = Math.max(1, Number(rwbPlayer.maxHp) || 1);
+                rwbPlayer.hp = Math.min(maximum, (Number(rwbPlayer.hp) || 0) + maximum * 0.10 / 300);
+                oden.healTimer = Math.max(0, oden.healTimer - 1);
+                if (oden.healTimer <= 0) {
+                    oden.healState = "idle";
+                    oden.companionMode = "guard";
+                    oden.companionModeTimer = 105;
+                    rwbFloatingTexts.push({
+                        x: rwbPlayer.x, y: rwbPlayer.y - 30, text: "ОДЭН: ДЕРЖИСЬ!",
+                        color: "#9affcf", life: 66, maxLife: 66, vy: -0.55, vx: 0, size: 12
+                    });
+                }
+            }
+        }
+
         const targets = getRWBOdenTargets();
         const focus = getRWBOdenAttackTarget(targets);
+        const odenAttackRate = oden.blueModeTimer > 0 ? 2 : 1;
         for (let i = rwbOdenSlashes.length - 1; i >= 0; i--) {
             const slash = rwbOdenSlashes[i];
             const target = getRWBOdenTargetById(slash.targetId);
@@ -4396,10 +4525,10 @@
             }
             // A sword wave flies on a fixed trajectory; collision checks the actual travelled segment.
             const previousX = slash.x, previousY = slash.y;
-            slash.x += slash.vx;
-            slash.y += slash.vy;
+            slash.x += slash.vx * odenAttackRate;
+            slash.y += slash.vy * odenAttackRate;
             slash.angle = Math.atan2(slash.vy, slash.vx);
-            slash.life--;
+            slash.life -= odenAttackRate;
 
             const actualPathDistance = rwbOdenSegmentDistance(target.x, target.y, previousX, previousY, slash.x, slash.y);
             if (actualPathDistance <= (target.size || 28) * 0.72 + slash.size * 0.5) {
@@ -4430,21 +4559,26 @@
             }
         }
 
-        if (stunned) {
+        if (oden.healState !== "idle") {
+            // No attacking while approaching the player or channeling the heal.
+            oden.windup = 0;
+            oden.swingTimer = 0;
+            rwbOdenSlashes = [];
+        } else if (stunned) {
             oden.windup = 0;
             oden.swingTimer = 0;
         } else if (oden.swingTimer > 0) {
-            oden.swingTimer--;
+            oden.swingTimer = Math.max(0, oden.swingTimer - odenAttackRate);
         }
-        if (!stunned && oden.windup > 0) {
-            oden.windup--;
+        if (oden.healState === "idle" && !stunned && oden.windup > 0) {
+            oden.windup = Math.max(0, oden.windup - odenAttackRate);
             // attackAngle is locked at the start of the wind-up; never follow the target during it.
             const angle = Number.isFinite(oden.attackAngle) ? oden.attackAngle : oden.swordAngle;
             oden.swordAngle = angle;
             if (oden.windup <= 0) {
                 const target = getRWBOdenTargetById(oden.targetId);
                 if (target) {
-                    const damage = target.superForm ? 13 : 9;
+                    const damage = target.superForm ? 7 : 5;
                     rwbOdenSlashes.push({
                         x: oden.x + Math.cos(angle) * 17,
                         y: oden.y + Math.sin(angle) * 17,
@@ -4458,15 +4592,15 @@
                     playBladeSound(0.32);
                 }
             }
-        } else if (!stunned && oden.attackCooldown > 0) {
-            oden.attackCooldown--;
-        } else if (!stunned && focus) {
+        } else if (oden.healState === "idle" && !stunned && oden.attackCooldown > 0) {
+            oden.attackCooldown = Math.max(0, oden.attackCooldown - odenAttackRate);
+        } else if (oden.healState === "idle" && !stunned && focus) {
             oden.targetId = focus.id;
             oden.attackAngle = Math.atan2(focus.y - oden.y, focus.x - oden.x);
             oden.swordAngle = oden.attackAngle;
-            oden.windup = 9;
-            oden.swingTimer = 14;
-            oden.attackCooldown = 42;
+            oden.windup = 7;
+            oden.swingTimer = 11;
+            oden.attackCooldown = 25;
         }
     }
 
@@ -4485,6 +4619,24 @@
         const bobY = Math.sin(oden.phase) * 2.2;
         const cx = oden.x, cy = oden.y + bobY, size = oden.size;
         const attacking = oden.swingTimer > 0 || oden.windup > 0;
+        const blueMode = oden.blueModeTimer > 0;
+        if (blueMode || oden.healState === "channel") {
+            ctx.save();
+            const healing = oden.healState === "channel";
+            ctx.globalAlpha = .35 + Math.abs(Math.sin(oden.phase * 1.8)) * .25;
+            ctx.strokeStyle = healing ? "#83ffc0" : "#4bdfff";
+            ctx.lineWidth = healing ? 2.4 : 2.8;
+            ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 20;
+            ctx.beginPath(); ctx.ellipse(cx, cy, size * (1.9 + Math.sin(oden.phase) * .15),
+                size * (1.45 + Math.cos(oden.phase) * .12), oden.phase * .18, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+            ctx.save();
+            ctx.font = "bold 8px monospace"; ctx.textAlign = "center";
+            ctx.fillStyle = healing ? "#9affc8" : "#73efff";
+            ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10;
+            ctx.fillText(healing ? "ЛЕЧИТ ИГРОКА" : "СИНИЙ РЕЖИМ", cx, cy - size - 13);
+            ctx.restore();
+        }
         if (oden.stunTimer > 0) {
             ctx.save();
             ctx.fillStyle = "#d6bdff"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5;
@@ -4552,9 +4704,9 @@
         ctx.shadowColor = oden.hitFlash > 0 ? "#ffffff" : "#ffd44f";
         ctx.shadowBlur = oden.hitFlash > 0 ? 24 : 13;
         const heartGradient = ctx.createLinearGradient(0, -size * 1.1, 0, size * 0.85);
-        heartGradient.addColorStop(0, oden.hitFlash > 0 ? "#ffffff" : "#fff6a0");
-        heartGradient.addColorStop(0.42, oden.hitFlash > 0 ? "#fff3c6" : "#ffd52f");
-        heartGradient.addColorStop(1, oden.hitFlash > 0 ? "#ffffff" : "#ff9e00");
+        heartGradient.addColorStop(0, oden.hitFlash > 0 ? "#ffffff" : (blueMode ? "#e9ffff" : "#fff6a0"));
+        heartGradient.addColorStop(0.42, oden.hitFlash > 0 ? "#fff3c6" : (blueMode ? "#51dfff" : "#ffd52f"));
+        heartGradient.addColorStop(1, oden.hitFlash > 0 ? "#ffffff" : (blueMode ? "#087cda" : "#ff9e00"));
         ctx.fillStyle = heartGradient;
         ctx.strokeStyle = "#5a3500"; ctx.lineWidth = 1.6;
         ctx.beginPath();
@@ -4608,11 +4760,11 @@
             ctx.save(); ctx.translate(slash.x, slash.y); ctx.rotate(slash.angle);
             ctx.globalAlpha = Math.min(1, slash.life / 16);
             ctx.shadowColor = "#a95cff"; ctx.shadowBlur = 16;
-            ctx.strokeStyle = "#5d238c"; ctx.lineWidth = 9; ctx.lineCap = "round";
+            ctx.strokeStyle = oden.blueModeTimer > 0 ? "#087cda" : "#5d238c"; ctx.lineWidth = 9; ctx.lineCap = "round";
             ctx.beginPath(); ctx.arc(0, 0, slash.size * 1.25, -0.78, 0.78); ctx.stroke();
-            ctx.strokeStyle = "#f6e9ff"; ctx.lineWidth = 3.1;
+            ctx.strokeStyle = oden.blueModeTimer > 0 ? "#69f2ff" : "#f6e9ff"; ctx.lineWidth = 3.1;
             ctx.beginPath(); ctx.arc(0, 0, slash.size * 1.2, -0.78, 0.78); ctx.stroke();
-            ctx.strokeStyle = "#ffe98a"; ctx.lineWidth = 1.2;
+            ctx.strokeStyle = oden.blueModeTimer > 0 ? "#eaffff" : "#ffe98a"; ctx.lineWidth = 1.2;
             ctx.beginPath(); ctx.arc(0, 0, slash.size * 1.05, -0.58, 0.58); ctx.stroke();
             ctx.restore();
         }
