@@ -107,6 +107,10 @@ window.MBGetGraphicsQuality = function() {
     return ["low", "medium", "high"].indexOf(arenaSettings.phoneGraphicsQuality) !== -1 ? arenaSettings.phoneGraphicsQuality : "high";
 };
 window.MBIsMediumGraphics = function() { return window.MBGetGraphicsQuality() === "medium"; };
+window.MBGetBossEffectsScale = function() {
+    if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) return 0.10;
+    return window.MBIsMediumGraphics && window.MBIsMediumGraphics() ? 0.68 : 1;
+};
 window.MBShouldReduceBossEffects = function() {
     try {
         if (window.MBGetGraphicsQuality() === "low" || localStorage.getItem(MB_REDUCED_BOSS_EFFECTS_KEY) === "1") return true;
