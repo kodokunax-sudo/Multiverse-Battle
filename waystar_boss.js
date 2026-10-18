@@ -178,11 +178,14 @@ function addWaystarSlash(x, y, angle, length, width) { if (window.MBShouldReduce
 function addWaystarFlash(x, y, size) { if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) return; waystarFlashBursts.push({ x: x, y: y, size: size || 40, life: 15, maxLife: 15 }); }
 function spawnWaystarParticles(x, y, count, color, speed) {
     var reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
-    var qualityScale = reduced ? 0.10 : (window.MBIsMediumGraphics && window.MBIsMediumGraphics() ? 0.68 : 1);
+    var medium = !!(window.MBIsMediumGraphics && window.MBIsMediumGraphics());
+    // Lightweight mode skips ambient single-particle allocations and shrinks large bursts.
+    var qualityScale = reduced ? 0.025 : (medium ? 0.68 : 1);
+    var maxParticles = reduced ? 12 : (medium ? 90 : 320);
     count = Math.floor(count * qualityScale);
-    if (reduced && waystarParticles.length > 24) return;
-    if (!reduced && window.MBIsMediumGraphics && window.MBIsMediumGraphics() && waystarParticles.length > 90) return;
-    for (var i = 0; i < count; i++) { var a = Math.random() * Math.PI * 2, s = speed * (0.3 + Math.random()); waystarParticles.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 20 + Math.random() * 15, maxLife: 35, color: color, size: 1.5 + Math.random() * 2.5 }); }
+    if (count <= 0 || waystarParticles.length >= maxParticles) return;
+    count = Math.min(count, maxParticles - waystarParticles.length);
+    for (var i = 0; i < count; i++) { var a = Math.random() * Math.PI * 2, s = speed * (0.3 + Math.random()); waystarParticles.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: reduced ? 10 : 20 + Math.random() * 15, maxLife: reduced ? 10 : 35, color: color, size: reduced ? 1 : 1.5 + Math.random() * 2.5 }); }
 }
 function updateWaystarMegaEffects() {
     for (var i = waystarShockwaves.length - 1; i >= 0; i--) { var sw = waystarShockwaves[i]; sw.radius += (sw.maxRadius - sw.radius) * 0.15; sw.life--; if (sw.life <= 0) waystarShockwaves.splice(i, 1); }
@@ -200,17 +203,11 @@ function updateWaystarAmbient() {
     var escMult = 1 + waystarEscalationLevel * 0.15;
     var reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
     if (reduced) {
-        // Keep phase progression and attacks unchanged, but throttle decorative ambience.
-        if (waystarAmbientTimer % 30 === 0 && waystarPhase3Rings.length < 4) {
-            waystarPhase3Rings.push({ x: waystarSmallBoss.x, y: waystarSmallBoss.y, radius: 30, maxRadius: 90 + waystarEscalationLevel * 12, angle: 0, rotSpeed: 0, life: 24, maxLife: 24, color: "#ff00ff" });
-        }
-        if (waystarAmbientTimer % 12 === 0 && waystarPhase3Embers.length < 10) {
-            waystarPhase3Embers.push({ x: Math.random() * 400, y: 500 + Math.random() * 40, vx: 0, vy: -1.2, size: 1, life: 45, color: "#ff00ff" });
-        }
-        waystarSmallBoss.trail.push({ x: waystarSmallBoss.x, y: waystarSmallBoss.y, life: 8, maxLife: 8 });
+        // Remove phase-three decorative rings and embers on phones; keep a short boss trail.
+        waystarPhase3Rings.length = 0;
+        waystarPhase3Embers.length = 0;
+        waystarSmallBoss.trail.push({ x: waystarSmallBoss.x, y: waystarSmallBoss.y, life: 6, maxLife: 6 });
         if (waystarSmallBoss.trail.length > 2) waystarSmallBoss.trail.shift();
-        if (waystarPhase3Rings.length > 4) waystarPhase3Rings.splice(0, waystarPhase3Rings.length - 4);
-        if (waystarPhase3Embers.length > 10) waystarPhase3Embers.splice(0, waystarPhase3Embers.length - 10);
         return;
     }
     if (waystarAmbientTimer % (window.MBIsMediumGraphics && window.MBIsMediumGraphics() ? 8 : 6) === 0) { waystarPhase3Rings.push({ x: waystarSmallBoss.x, y: waystarSmallBoss.y, radius: 30, maxRadius: 90 + waystarEscalationLevel * 12, angle: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.2, life: 30, maxLife: 30, color: Math.random() > 0.5 ? "#ff00ff" : "#ffffff" }); }
@@ -881,9 +878,12 @@ function waystarStartPhase3() {
     waystarBombs = []; waystarBombQueue = []; waystarBombSpawnTimer = 0;
     wsPlaySound(200, 'sawtooth', 1.0, 0.3); setTimeout(function() { wsPlaySound(400, 'square', 0.5, 0.25); }, 300); setTimeout(function() { wsPlaySound(800, 'sawtooth', 0.8, 0.3); }, 600);
     waystarShake = 40; waystarScreenFlash = 30; waystarScreenFlashColor = "#ff00ff"; waystarScreenDistort = 35;
-    for (var i = 0; i < 6; i++) { setTimeout(function(idx) { addWaystarShockwave(200, 100, ["#ff00ff", "#ffd700", "#ffffff", "#ff00ff"][idx%4], 350, 30, 6); }, i * 150); }
-    for (var i = 0; i < 30; i++) { var ang = (i / 30) * Math.PI * 2; addWaystarLightning(200, 100, 200 + Math.cos(ang) * 250, 100 + Math.sin(ang) * 250, i % 2 === 0 ? "#ff00ff" : "#ffffff", 1.0, 3); }
-    for (var i = 0; i < 200; i++) spawnWaystarParticles(200, 100, 1, ["#ff00ff", "#ffffff", "#ffd700", "#ff4400"][Math.floor(Math.random() * 4)], 18);
+    var lightGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+    if (!lightGraphics) {
+        for (var i = 0; i < 6; i++) { setTimeout(function(idx) { addWaystarShockwave(200, 100, ["#ff00ff", "#ffd700", "#ffffff", "#ff00ff"][idx%4], 350, 30, 6); }, i * 150); }
+        for (var i = 0; i < 30; i++) { var ang = (i / 30) * Math.PI * 2; addWaystarLightning(200, 100, 200 + Math.cos(ang) * 250, 100 + Math.sin(ang) * 250, i % 2 === 0 ? "#ff00ff" : "#ffffff", 1.0, 3); }
+        for (var i = 0; i < 200; i++) spawnWaystarParticles(200, 100, 1, ["#ff00ff", "#ffffff", "#ffd700", "#ff4400"][Math.floor(Math.random() * 4)], 18);
+    }
     if (typeof showFloatingText === 'function') showFloatingText("💥 ФИНАЛЬНАЯ ФАЗА! 💥", "#ff00ff");
 }
 
@@ -927,7 +927,7 @@ function waystarSpawnPhase3Attack() {
         var bombCount = 1 + Math.floor(waystarEscalationLevel / 2); if (waystarRageMode) bombCount += 1;
         for (var k = 0; k < bombCount; k++) {
             var nearPlayer = Math.random() < 0.5;
-            waystarBombQueue.push({ isSmall: false, nearPlayer: nearPlayer, delay: k * 40 });
+            waystarBombQueue.push({ isSmall: false, nearPlayer: nearPlayer, delay: k * 55 });
         }
         wsPlaySound(500, 'sine', 0.3, 0.15);
     } else if (type === 2) {
@@ -948,22 +948,25 @@ function waystarSpawnPhase3Attack() {
         var mineCount = 3 + Math.floor(waystarEscalationLevel / 2); if (waystarRageMode) mineCount += 1;
         for (var i = 0; i < mineCount; i++) {
             var nearPlayer = Math.random() < 0.5;
-            waystarBombQueue.push({ isSmall: true, nearPlayer: nearPlayer, delay: i * 30 });
+            waystarBombQueue.push({ isSmall: true, nearPlayer: nearPlayer, delay: i * 42 });
         }
         wsPlaySound(450, 'sine', 0.2, 0.12);
     }
 }
 
 function updateWaystarBombQueue() {
-    if (waystarBombQueue.length === 0) return;
-    if (wsIsTimeStopped()) return;
-    waystarBombSpawnTimer++;
+    if (waystarBombQueue.length === 0 || wsIsTimeStopped()) return;
+    // Use each bomb's own countdown. The old shared fight timer caused later volleys
+    // to bypass their delays and spawn every queued bomb in one frame.
     for (var i = waystarBombQueue.length - 1; i >= 0; i--) {
         var q = waystarBombQueue[i];
-        if (waystarBombSpawnTimer >= q.delay) {
-            spawnSingleWaystarBomb(q.isSmall, q.nearPlayer);
-            waystarBombQueue.splice(i, 1);
+        if (typeof q.remainingDelay !== "number") q.remainingDelay = Math.max(0, Number(q.delay) || 0);
+        if (q.remainingDelay > 0) {
+            q.remainingDelay--;
+            continue;
         }
+        spawnSingleWaystarBomb(q.isSmall, q.nearPlayer);
+        waystarBombQueue.splice(i, 1);
     }
 }
 
@@ -1108,7 +1111,9 @@ function updateWaystarAttacks() {
         if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioWsCtx&&window.dioAttackTouchesStand(dioWsCtx,a)){a.dioStandHitOnce=true;if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(a);applyWaystarHit(Math.max(1,Math.floor((Number(a.damage)||8)*.4)),"удар по стенду. меньше урона");waystarAttacks.splice(i,1);continue;}
 
         if (a.type === "meteor" || a.type === "spiral" || a.type === "star_rain" || a.type === "shotgun_bullet") {
-            a.trail.push({ x: a.x, y: a.y, life: 10 }); if (a.trail.length > 6) a.trail.shift();
+            var lightTrailLimit = (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) ? 2 : 6;
+            a.trail.push({ x: a.x, y: a.y, life: 10 });
+            if (a.trail.length > lightTrailLimit) a.trail.shift();
             a.x += a.vx; a.y += a.vy; a.rotation += (a.rotSpeed||0); a.life--;
             if (a.y > 520 || a.x < -30 || a.x > 430 || a.life <= 0) { if (a.y > 500 && a.type === "meteor") { addWaystarShockwave(a.x, 500, "#ff8800", 50, 12, 3); spawnWaystarParticles(a.x, 500, 10, "#ff8800", 5); } waystarAttacks.splice(i, 1); continue; }
             if (waystarInvulnTimer <= 0 && Math.sqrt(Math.pow(waystarPlayer.x - a.x, 2) + Math.pow(waystarPlayer.y - a.y, 2)) < a.size + 8) { var msg = a.type === "meteor" ? "МЕТЕОР!" : (a.type === "spiral" ? "ВИХРЬ!" : (a.type === "shotgun_bullet" ? "ДРОБЬ!" : "ЗВЕЗДА!")); if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(a); applyWaystarHit(a.damage, msg); waystarAttacks.splice(i, 1); }
@@ -1139,12 +1144,15 @@ function updateWaystarAttacks() {
             if (bomb.phaseTimer % 8 === 0) { spawnWaystarParticles(bomb.x + (Math.random() - 0.5) * 50 * bomb.sunScale, bomb.y + (Math.random() - 0.5) * 50 * bomb.sunScale, 1, bomb.sunColor, 2.5); }
             if (bomb.timer <= 0) {
                 bomb.exploded = true; bomb.explosionTimer = 20;
-                addWaystarShockwave(bomb.x, bomb.y, "#00aaff", bomb.radius * 1.8, 25, 6);
-                addWaystarShockwave(bomb.x, bomb.y, "#ffffff", bomb.radius * 1.3, 18, 4);
-                addWaystarFlash(bomb.x, bomb.y, bomb.radius * 1.5);
-                spawnWaystarParticles(bomb.x, bomb.y, 40, "#0088ff", 10);
-                spawnWaystarParticles(bomb.x, bomb.y, 25, "#ffffff", 7);
-                for (var lb = 0; lb < 5; lb++) { var lang = Math.random() * Math.PI * 2; addWaystarLightning(bomb.x, bomb.y, bomb.x + Math.cos(lang) * (bomb.radius * 1.3), bomb.y + Math.sin(lang) * (bomb.radius * 1.3), Math.random() > 0.5 ? "#00aaff" : "#ffffff", 0.85, 2.5); }
+                var lightGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+                if (!lightGraphics) {
+                    addWaystarShockwave(bomb.x, bomb.y, "#00aaff", bomb.radius * 1.8, 25, 6);
+                    addWaystarShockwave(bomb.x, bomb.y, "#ffffff", bomb.radius * 1.3, 18, 4);
+                    addWaystarFlash(bomb.x, bomb.y, bomb.radius * 1.5);
+                    spawnWaystarParticles(bomb.x, bomb.y, 40, "#0088ff", 10);
+                    spawnWaystarParticles(bomb.x, bomb.y, 25, "#ffffff", 7);
+                    for (var lb = 0; lb < 5; lb++) { var lang = Math.random() * Math.PI * 2; addWaystarLightning(bomb.x, bomb.y, bomb.x + Math.cos(lang) * (bomb.radius * 1.3), bomb.y + Math.sin(lang) * (bomb.radius * 1.3), Math.random() > 0.5 ? "#00aaff" : "#ffffff", 0.85, 2.5); }
+                }
                 wsPlaySound(60, 'sawtooth', 1.2, 0.5);
                 waystarShake = 30; waystarScreenFlash = 12; waystarScreenFlashColor = "#00aaff";
                 var dx = waystarPlayer.x - bomb.x, dy = waystarPlayer.y - bomb.y;
@@ -1629,9 +1637,14 @@ function renderWaystarSimpleCoopFrame() {
 function waystarRenderLoop() {
     if (!waystarActive || !ctx || !canvas) return;
     var reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+    var suppressShake = !!(window.MBShouldSuppressBossShake && window.MBShouldSuppressBossShake());
     if (reduceBossEffects) {
-        waystarShake = 0; waystarScreenFlash = 0; waystarVignette = 0; waystarScreenDistort = 0; waystarBlindFlash = 0;
-        if (typeof _superState !== "undefined") { _superState.screenFlashWhite = 0; _superState.screenShakeAmount = 0; }
+        if (suppressShake) {
+            waystarShake = 0;
+            if (typeof _superState !== "undefined") _superState.screenShakeAmount = 0;
+        }
+        waystarScreenFlash = 0; waystarVignette = 0; waystarScreenDistort = 0; waystarBlindFlash = 0;
+        if (typeof _superState !== "undefined") _superState.screenFlashWhite = 0;
         if (waystarParticles.length > 24) waystarParticles.splice(0, waystarParticles.length - 24);
         if (waystarShockwaves.length > 4) waystarShockwaves.splice(0, waystarShockwaves.length - 4);
         if (waystarLightningBolts.length > 0) waystarLightningBolts.length = 0;
@@ -1803,7 +1816,7 @@ function waystarRenderLoop() {
     for (var i = waystarParticles.length - 1; i >= 0; i--) { var p = waystarParticles[i]; if (p.isSplitPiece && p.targetX !== undefined) { p.vx += (p.targetX - p.x) * 0.008; p.vy += (p.targetY - p.y) * 0.008; } p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life--; if (p.life <= 0) waystarParticles.splice(i, 1); }
     for (var i = waystarTexts.length - 1; i >= 0; i--) { var t = waystarTexts[i]; t.y += t.vy; t.life--; if (t.life <= 0) waystarTexts.splice(i, 1); }
     ctx.save();
-    if (!reduceBossEffects && waystarShake > 0.5) ctx.translate((Math.random() - 0.5) * waystarShake, (Math.random() - 0.5) * waystarShake);
+    if (!suppressShake && waystarShake > 0.5) ctx.translate((Math.random() - 0.5) * waystarShake, (Math.random() - 0.5) * waystarShake);
     if (!reduceBossEffects && waystarScreenDistort > 0.5) { ctx.translate((Math.random() - 0.5) * waystarScreenDistort, (Math.random() - 0.5) * waystarScreenDistort); ctx.scale(1 + waystarScreenDistort / 500, 1 + waystarScreenDistort / 500); }
     var bg = ctx.createLinearGradient(0, 0, 0, 500);
     if (waystarState === "phase3" && waystarRageMode) { bg.addColorStop(0, "#1a0000"); bg.addColorStop(0.5, "#200015"); bg.addColorStop(1, "#000000"); }
@@ -1854,13 +1867,15 @@ function waystarRenderLoop() {
 function renderWaystarFinalScene() {
     try {
         var reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        var suppressShake = !!(window.MBShouldSuppressBossShake && window.MBShouldSuppressBossShake());
         if (reduceBossEffects) {
-            waystarShake = 0; waystarScreenFlash = 0; waystarVignette = 0;
-            if (waystarParticles.length > 24) waystarParticles.splice(0, waystarParticles.length - 24);
+            if (suppressShake) waystarShake = 0;
+            waystarScreenFlash = 0; waystarVignette = 0;
+            if (waystarParticles.length > 12) waystarParticles.splice(0, waystarParticles.length - 12);
             waystarLightningBolts.length = 0; waystarShockwaves.length = 0; waystarFlashBursts.length = 0;
         }
         ctx.save();
-        if (!reduceBossEffects && waystarShake > 0.5) ctx.translate((Math.random() - 0.5) * waystarShake, (Math.random() - 0.5) * waystarShake);
+        if (!suppressShake && waystarShake > 0.5) ctx.translate((Math.random() - 0.5) * waystarShake, (Math.random() - 0.5) * waystarShake);
         var bg = ctx.createLinearGradient(0, 0, 0, 500);
         if (waystarFinalPhase === "spare_dialog" || waystarFinalPhase === "spare_blessing" || waystarFinalPhase === "spare_farewell") { bg.addColorStop(0, "#15100a"); bg.addColorStop(0.5, "#1a1530"); bg.addColorStop(1, "#000000"); }
         else { bg.addColorStop(0, "#0a0015"); bg.addColorStop(0.5, "#1a0025"); bg.addColorStop(1, "#000000"); }
@@ -2015,10 +2030,29 @@ function drawWaystarPhase1Attacks() {
 }
 
 function drawWaystarBombs() {
+    var lightGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
     for (var i = 0; i < waystarBombs.length; i++) {
         var b = waystarBombs[i]; ctx.save();
         if (!b.exploded) {
             var baseSize = b.small ? 25 : 45; var size = baseSize * (b.sunScale || 1.0); var sunColor = b.sunColor || "#ffdd00";
+            if (lightGraphics) {
+                // Flat telegraph: no radial gradients, bloom or animated spirals.
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = sunColor;
+                ctx.beginPath(); ctx.arc(b.x, b.y, Math.max(4, size), 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#ffffff";
+                ctx.beginPath(); ctx.arc(b.x, b.y, Math.max(2, size * 0.28), 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = b.sunPhase === "blue" ? "#55bbff" : "#fff2a8";
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.stroke();
+                if (b.sunPhase === "flash") {
+                    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(b.x - size * 0.7, b.y); ctx.lineTo(b.x + size * 0.7, b.y);
+                    ctx.moveTo(b.x, b.y - size * 0.7); ctx.lineTo(b.x, b.y + size * 0.7); ctx.stroke();
+                }
+                ctx.restore();
+                continue;
+            }
             var auraSize = size * 3.5;
             var auraGrad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, auraSize);
             if (b.sunPhase === "big") { auraGrad.addColorStop(0, "rgba(255, 255, 200, 0.9)"); auraGrad.addColorStop(0.3, "rgba(255, 200, 50, 0.6)"); auraGrad.addColorStop(0.6, "rgba(255, 100, 0, 0.3)"); auraGrad.addColorStop(1, "transparent"); }
@@ -2036,6 +2070,18 @@ function drawWaystarBombs() {
             ctx.restore();
         } else {
             var explProgress = 1 - b.explosionTimer / 20; var explAlpha = 1 - explProgress;
+            if (lightGraphics) {
+                // One outline and a small core replace several full-screen-costly bloom gradients.
+                var simpleRingR = Math.max(1, b.radius * explProgress * 1.25);
+                ctx.globalAlpha = Math.max(0.15, explAlpha);
+                ctx.strokeStyle = "#55bbff"; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.arc(b.x, b.y, simpleRingR, 0, Math.PI * 2); ctx.stroke();
+                ctx.globalAlpha = Math.max(0.1, explAlpha * 0.45);
+                ctx.fillStyle = "#aaddff";
+                ctx.beginPath(); ctx.arc(b.x, b.y, Math.max(1, simpleRingR * 0.28), 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+                continue;
+            }
             ctx.globalAlpha = explAlpha; var ringR = b.radius * explProgress * 1.3;
             var ringGrad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, ringR);
             ringGrad.addColorStop(0, "rgba(255, 255, 255, 0.9)"); ringGrad.addColorStop(0.3, "rgba(100, 200, 255, 0.7)"); ringGrad.addColorStop(0.6, "rgba(0, 100, 255, 0.4)"); ringGrad.addColorStop(1, "transparent");
