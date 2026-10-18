@@ -1748,7 +1748,7 @@
         if (!asClockReady || asLastRafTimestamp === null) {
             asClockReady = true; asGameClock = rafNow; asLastRafTimestamp = rafNow;
         } else {
-            const elapsed = Math.max(0, Math.min(100, rafNow - asLastRafTimestamp));
+            const elapsed = Math.max(0, rafNow - asLastRafTimestamp);
             asLastRafTimestamp = rafNow;
             asGameClock += elapsed * (asAimMode ? 0.125 : 1);
         }
