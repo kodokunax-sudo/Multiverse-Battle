@@ -88,6 +88,10 @@
     let asGravityDirection = 0; // 0 вниз, 1 влево, 2 вверх, 3 вправо
     let asGravityNextShiftAt = 0;
     let asGravityIntervalBand = -1;
+    let asDreamOverlay = null;
+    let asDreamWakeCount = 0;
+    let asDreamEndingChoice = "";
+    const AS_DREAM_WAKE_TAPS_REQUIRED = 15;
     let asGravityTransitionUntil = 0;
     let asBossApproachFrames = 0;
     const asGravityLabels = ["ВНИЗ", "ВЛЕВО", "ВВЕРХ", "ВПРАВО"];
@@ -1110,6 +1114,236 @@
         asText(200,250,"ПОКАЖИ СВОЮ ВОЛЮ!","#7de1ff",90);
         asSound(420,"sine",0.35,0.12);
     }
+    function asDreamElement(parent, tag, text, css) {
+        const el = document.createElement(tag);
+        if (text !== undefined && text !== null) el.textContent = String(text);
+        if (css) {
+            if (/^[a-z0-9_-]+$/i.test(css)) el.className = css;
+            else el.style.cssText = css;
+        }
+        parent.appendChild(el);
+        return el;
+    }
+    function asDreamButton(parent, label, accent, action, fogged) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.style.cssText =
+            "display:block;width:100%;min-height:52px;padding:12px 14px;margin:7px 0;" +
+            "border:1px solid " + accent + ";border-radius:12px;" +
+            "background:linear-gradient(145deg,rgba(39,37,67,.96),rgba(9,11,27,.98));" +
+            "color:#fff;font:900 12px/1.4 Arial,sans-serif;letter-spacing:.55px;" +
+            "cursor:pointer;touch-action:manipulation;opacity:" + (fogged ? ".8" : "1") + ";" +
+            "filter:" + (fogged ? "blur(1.5px)" : "none") + ";" +
+            "box-shadow:0 0 17px " + accent + "20;";
+        button.addEventListener("click", action);
+        parent.appendChild(button);
+        return button;
+    }
+    function asCreateDreamOverlay() {
+        if (asDreamOverlay && asDreamOverlay.parentNode) asDreamOverlay.remove();
+        const overlay = document.createElement("div");
+        overlay.id = "antiSpiralDreamEnding";
+        overlay.setAttribute("role", "dialog");
+        overlay.setAttribute("aria-modal", "true");
+        overlay.setAttribute("aria-label", "Концовка Анти-Спирали");
+        overlay.style.cssText =
+            "position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;" +
+            "justify-content:center;padding:14px;overflow:auto;box-sizing:border-box;" +
+            "background:radial-gradient(ellipse at 50% 10%,rgba(91,86,155,.35),transparent 55%),rgba(2,3,12,.96);" +
+            "backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-family:Arial,sans-serif;color:#fff;";
+        const style = document.createElement("style");
+        style.textContent =
+            "#antiSpiralDreamEnding *{box-sizing:border-box}" +
+            "#antiSpiralDreamEnding .as-dream-panel{width:min(780px,100%);max-height:calc(100dvh - 28px);overflow:auto;" +
+            "padding:clamp(15px,3.5vw,29px);border:1px solid rgba(181,157,255,.42);border-radius:19px;" +
+            "background:radial-gradient(ellipse at top,rgba(80,68,135,.34),transparent 58%),linear-gradient(145deg,rgba(11,12,29,.99),rgba(3,5,16,.995));" +
+            "box-shadow:0 25px 90px rgba(0,0,0,.7),inset 0 0 36px rgba(114,83,200,.09);color:#fff}" +
+            "#antiSpiralDreamEnding .as-dream-title{font-size:clamp(22px,4.7vw,34px);font-weight:1000;line-height:1.16;letter-spacing:1px;text-align:center;margin:0 0 12px;color:#e6dcff;text-shadow:0 0 23px rgba(155,117,255,.36)}" +
+            "#antiSpiralDreamEnding .as-dream-copy{font-size:13px;line-height:1.7;color:#d8d7e8;margin:10px 0}" +
+            "#antiSpiralDreamEnding .as-dream-status{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin:15px 0}" +
+            "#antiSpiralDreamEnding .as-dream-status span{border:1px solid rgba(165,151,236,.34);border-radius:9px;padding:8px 10px;background:rgba(22,23,48,.72);font-size:10px;font-weight:900;color:#eee6ff}" +
+            "#antiSpiralDreamEnding .as-dream-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:10px 0 16px}" +
+            "#antiSpiralDreamEnding .as-dream-card{min-width:0;padding:9px 7px;border:1px solid rgba(179,153,255,.34);border-radius:10px;background:linear-gradient(145deg,rgba(32,30,62,.94),rgba(9,13,32,.97));text-align:center}" +
+            "#antiSpiralDreamEnding .as-dream-card-name{font-size:11px;font-weight:900;line-height:1.35;overflow-wrap:anywhere;color:#f3edff}" +
+            "#antiSpiralDreamEnding .as-dream-level{font-size:9px;font-weight:900;color:#f0ceff;margin-top:6px;letter-spacing:.35px}" +
+            "@media(min-width:620px){#antiSpiralDreamEnding .as-dream-grid{grid-template-columns:repeat(3,minmax(0,1fr))}";
+        overlay.appendChild(style);
+        document.body.appendChild(overlay);
+        asDreamOverlay = overlay;
+        return overlay;
+    }
+    function asReplaceDreamPanel(overlay) {
+        const oldPanels = overlay.querySelectorAll(".as-dream-panel");
+        oldPanels.forEach(function(oldPanel) { oldPanel.remove(); });
+        const panel = document.createElement("div");
+        panel.className = "as-dream-panel";
+        overlay.appendChild(panel);
+        return panel;
+    }
+    function asRenderDreamOutcome(kind) {
+        const overlay = asDreamOverlay || document.getElementById("antiSpiralDreamEnding");
+        if (!overlay) return;
+        const panel = asReplaceDreamPanel(overlay);
+        const waking = kind === "wake";
+        asDreamElement(panel, "div",
+            waking ? "СБОЙ ИЛЛЮЗИИ · РЕАЛЬНОСТЬ" : "КОНЦОВКА · ПОРАЖЕНИЕ",
+            "font-size:10px;font-weight:900;letter-spacing:1.8px;text-align:center;color:" +
+            (waking ? "#7eeaff" : "#ff8199") + ";margin:0 0 10px;");
+        asDreamElement(panel, "h1", waking ? "ТЫ ПРОСНУЛСЯ" : "ТЫ ОСТАЛСЯ ВО СНЕ",
+            "font-size:clamp(24px,5vw,36px);line-height:1.14;text-align:center;margin:0 0 18px;font-weight:1000;color:" +
+            (waking ? "#dcfaff" : "#ffc4d0") + ";");
+        if (waking) {
+            asDreamElement(panel, "p",
+                "Анти-Спираль обманул тебя. Все эволюционные карты 7-го уровня, собранные блоки сервера и возвращённое сохранение были частью идеальной вселенной мечты. Ты мог бесконечно фармить любимую игру, где у тебя только одна жизнь, но всё это было ненастоящим.",
+                "font-size:14px;line-height:1.7;color:#e8e8f5;margin:0 0 12px;");
+            asDreamElement(panel, "p",
+                "Но Анти-Спирали уже нет. Перед исчезновением он узнал твою историю, и ему стало невероятно грустно. Поэтому он сам нашёл и оставил тебе второй кусок блока сервера. Этот фрагмент настоящий: он останется у тебя после возвращения.",
+                "font-size:14px;line-height:1.7;color:#c9f8ff;margin:0 0 20px;");
+            asDreamButton(panel, "ЗАБРАТЬ ФРАГМЕНТ И ВЕРНУТЬСЯ В ИГРУ", "#69e9ff", function() {
+                if (asDreamEndingChoice !== "wake-reveal") return;
+                asDreamEndingChoice = "wake-finish";
+                try {
+                    if (typeof defeatedBosses !== "undefined" && Array.isArray(defeatedBosses) && !defeatedBosses.includes(1500)) {
+                        defeatedBosses.push(1500);
+                    }
+                    const alreadyAwarded = typeof slotData !== "undefined" && slotData &&
+                        slotData.antiSpiralServerPieceAwarded === true;
+                    if (!alreadyAwarded) {
+                        if (typeof slotData !== "undefined" && slotData) {
+                            // Flag first: addItem() saves automatically.
+                            slotData.antiSpiralServerPieceAwarded = true;
+                        }
+                        if (typeof addItem === "function") {
+                            addItem("server_block", 1);
+                        } else if (typeof inventory !== "undefined" && inventory) {
+                            inventory.server_block = Math.min(2, (Number(inventory.server_block) || 0) + 1);
+                        }
+                    }
+                    if (typeof currentEnemy !== "undefined" && currentEnemy) currentEnemy.hp = 0;
+                    if (typeof saveAll === "function") saveAll();
+                } catch (e) {
+                    console.error("[ANTI-SPIRAL] Не удалось сохранить истинную концовку:", e);
+                }
+                if (asDreamOverlay && asDreamOverlay.parentNode) asDreamOverlay.remove();
+                asDreamOverlay = null;
+                try {
+                    if (typeof victory === "function") victory();
+                } catch (e) {
+                    console.error("[ANTI-SPIRAL] Ошибка перехода к победе:", e);
+                }
+            }, false);
+        } else {
+            asDreamElement(panel, "p",
+                "Ты решил остаться в мире, который Анти-Спираль собрал специально под твою мечту. Он обманул тебя, бросив во вселенную, где всё идеально, и победил не силой, а тем, что ты сам отказался просыпаться.",
+                "font-size:14px;line-height:1.7;color:#f1dfe6;margin:0 0 12px;");
+            asDreamElement(panel, "p",
+                "Эта концовка засчитывается как поражение. Настоящее сохранение не возвращено, а Анти-Спираль остаётся победителем.",
+                "font-size:13px;line-height:1.7;color:#ff9eaf;margin:0 0 20px;font-weight:800;");
+            asDreamButton(panel, "ЗАКРЫТЬ КОНЦОВКУ", "#ff7994", function() {
+                if (asDreamEndingChoice !== "stay") return;
+                if (asDreamOverlay && asDreamOverlay.parentNode) asDreamOverlay.remove();
+                asDreamOverlay = null;
+                asRestoreStartButton();
+            }, false);
+        }
+    }
+    function asShowDreamEnding() {
+        const overlay = asCreateDreamOverlay();
+        asDreamWakeCount = 0;
+        asDreamEndingChoice = "dream";
+        const panel = asReplaceDreamPanel(overlay);
+        asDreamElement(panel, "div", "АНТИ-СПИРАЛЬ · ПОСЛЕДНЯЯ ИЛЛЮЗИЯ",
+            "font-size:10px;font-weight:900;letter-spacing:2px;text-align:center;color:#bcb0ff;margin:0 0 10px;");
+        asDreamElement(panel, "h1", "ТВОЯ ИДЕАЛЬНАЯ ВСЕЛЕННАЯ", "as-dream-title");
+        asDreamElement(panel, "p",
+            "Ты победил. Наконец-то всё получилось: каждый кусок блока сервера найден, сохранение возвращено, и теперь можно снова проводить целые сутки в любимой гринд-игре, где у тебя всего одна жизнь.",
+            "text-align:center;");
+        panel.lastElementChild.className = "as-dream-copy";
+        const badges = document.createElement("div");
+        badges.className = "as-dream-status";
+        asDreamElement(badges, "span", "▣ ВСЕ БЛОКИ СЕРВЕРА СОБРАНЫ");
+        asDreamElement(badges, "span", "✓ СОХРАНЕНИЕ ВОЗВРАЩЕНО");
+        asDreamElement(badges, "span", "∞ ОДНА ЖИЗНЬ · БЕСКОНЕЧНЫЙ ФАРМ");
+        panel.appendChild(badges);
+        asDreamElement(panel, "div", "ЭВОЛЮЦИОННЫЕ КАРТЫ · МАСТЕРСТВО 7",
+            "font-size:11px;font-weight:1000;letter-spacing:.8px;text-align:center;color:#e8b8ff;margin:16px 0 8px;");
+        const grid = document.createElement("div");
+        grid.className = "as-dream-grid";
+        let evoTemplates = [];
+        try {
+            if (typeof customCardTemplates !== "undefined" && customCardTemplates &&
+                Array.isArray(customCardTemplates["Эволюционная"])) {
+                evoTemplates = customCardTemplates["Эволюционная"];
+            }
+        } catch (e) {}
+        if (!evoTemplates.length) {
+            try {
+                if (typeof myCards !== "undefined" && Array.isArray(myCards)) {
+                    evoTemplates = myCards.filter(function(card) { return card && card.rarity === "Эволюционная"; });
+                }
+            } catch (e) {}
+        }
+        const seenNames = Object.create(null);
+        evoTemplates.forEach(function(card) {
+            const name = String(card && card.name || "").trim();
+            if (!name || seenNames[name]) return;
+            seenNames[name] = true;
+            const tile = document.createElement("div");
+            tile.className = "as-dream-card";
+            asDreamElement(tile, "div", name, "as-dream-card-name");
+            asDreamElement(tile, "div", "★ МАСТЕРСТВО 7", "as-dream-level");
+            grid.appendChild(tile);
+        });
+        if (!grid.children.length) {
+            asDreamElement(grid, "div", "Все эволюционные карты", "as-dream-card-name");
+        }
+        panel.appendChild(grid);
+        const copy = asDreamElement(panel, "p",
+            "Странно только одно: в идеальном мире даже воздух кажется затуманенным. Ты можешь попытаться проснуться. Или остаться здесь навсегда.",
+            "text-align:center;");
+        copy.className = "as-dream-copy";
+        const hint = asDreamElement(panel, "p", "СОН СЛИШКОМ ИДЕАЛЕН",
+            "font-size:10px;letter-spacing:2px;text-align:center;color:#9da0bf;margin:12px 0 6px;");
+        const buttons = document.createElement("div");
+        buttons.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px;margin-top:8px;";
+        panel.appendChild(buttons);
+        const wakeButton = asDreamButton(buttons, "🌫️ ПРОСНУТЬСЯ · 0/" + AS_DREAM_WAKE_TAPS_REQUIRED, "#74dfff", function() {
+            if (asDreamEndingChoice !== "dream") return;
+            asDreamWakeCount++;
+            wakeButton.textContent = "🌫️ ПРОСНУТЬСЯ · " +
+                Math.min(asDreamWakeCount, AS_DREAM_WAKE_TAPS_REQUIRED) + "/" + AS_DREAM_WAKE_TAPS_REQUIRED;
+            wakeButton.style.filter = "blur(" + Math.max(.12, 1.5 - asDreamWakeCount * .085) + "px)";
+            if (asDreamWakeCount < 4) hint.textContent = "ТУМАН НЕ РАССЕИВАЕТСЯ...";
+            else if (asDreamWakeCount < 9) hint.textContent = "ТЫ УЖЕ ПЫТАЛСЯ ПРОСНУТЬСЯ. ЭТО НЕ СХОДИТСЯ.";
+            else if (asDreamWakeCount < AS_DREAM_WAKE_TAPS_REQUIRED) {
+                hint.textContent = "РЕАЛЬНОСТЬ ТРЕЩИТ. НАЖМИ ЕЩЁ " +
+                    (AS_DREAM_WAKE_TAPS_REQUIRED - asDreamWakeCount) + " РАЗ.";
+            }
+            if (asDreamWakeCount >= AS_DREAM_WAKE_TAPS_REQUIRED) {
+                asDreamEndingChoice = "wake-reveal";
+                asRenderDreamOutcome("wake");
+            }
+        }, true);
+        const stayButton = asDreamButton(buttons, "🌫️ ОСТАТЬСЯ", "#b49cff", function() {
+            if (asDreamEndingChoice !== "dream") return;
+            asDreamEndingChoice = "stay";
+            asStop();
+            asRenderDreamOutcome("stay");
+            setTimeout(function() {
+                try {
+                    // Prevent revive passives from turning this ending into a victory.
+                    if (typeof resurrectedThisFight !== "undefined") resurrectedThisFight = true;
+                    if (typeof playerHp !== "undefined") playerHp = 0;
+                    if (typeof defeat === "function") defeat();
+                } catch (e) {
+                    console.error("[ANTI-SPIRAL] Ошибка фиксации концовки-поражения:", e);
+                }
+            }, 80);
+        }, true);
+        wakeButton.setAttribute("aria-label", "Нажми " + AS_DREAM_WAKE_TAPS_REQUIRED + " раз, чтобы проснуться");
+        stayButton.setAttribute("aria-label", "Остаться во сне и завершить бой поражением");
+    }
     function asWin() {
         if(asWinPending) return;
         asWinPending=true; asState="victory"; asAttacks=[];
@@ -1118,11 +1352,8 @@
         for(let i=0;i<70;i++){const a=Math.random()*Math.PI*2,s=1+Math.random()*7;asParticles.push({x:asBoss.x,y:asBoss.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:45,maxLife:45,color:i%2?"#54d6ff":"#b45bff",size:2+Math.random()*5});}
         asSound(740,"sine",0.75,0.16);
         setTimeout(function(){
-            if(typeof defeatedBosses!=="undefined" && Array.isArray(defeatedBosses) && !defeatedBosses.includes(1500)) defeatedBosses.push(1500);
-            try { if(typeof saveAll==="function") saveAll(); } catch(e){}
             asStop();
-            if(typeof currentEnemy!=="undefined" && currentEnemy) currentEnemy.hp=0;
-            if(typeof victory==="function") victory();
+            asShowDreamEnding();
         },1800);
     }
     function asLose() {
