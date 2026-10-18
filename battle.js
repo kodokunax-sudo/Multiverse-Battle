@@ -17,6 +17,7 @@ let arenaAttackTimeLeft = 2;
 let heart = { x: 200, y: 400, size: 14, hitbox: 4, vx: 0, vy: 0 };
 let attacks = [];
 let arenaBlasters = [];
+let arenaExtendedState = null;
 let arenaAllowedTypes = [];
 let canvas = null;
 let ctx = null;
@@ -604,9 +605,30 @@ function calculateArenaHP() {
 }
 
 function getAttackTypes(bossWave) {
-    if (typeof bossTemplates !== 'undefined' && bossTemplates[bossWave] && bossTemplates[bossWave].arenaTypes) return bossTemplates[bossWave].arenaTypes;
-    if (bossWave < 100) return [0, 1]; if (bossWave < 400) return [0, 1, 2, 3]; if (bossWave < 1000) return [0, 1, 2, 3, 4, 5]; if (bossWave < 2000) return [0, 1, 2, 3, 4, 5, 7, 8];
-    return [0, 1, 2, 3, 4, 5, 7, 8, 9, 10];
+    var types;
+    if (typeof bossTemplates !== 'undefined' && bossTemplates[bossWave] && Array.isArray(bossTemplates[bossWave].arenaTypes)) {
+        types = bossTemplates[bossWave].arenaTypes.slice();
+    } else if (bossWave < 100) {
+        types = [0, 1];
+    } else if (bossWave < 400) {
+        types = [0, 1, 2, 3];
+    } else if (bossWave < 1000) {
+        types = [0, 1, 2, 3, 4, 5];
+    } else if (bossWave < 2000) {
+        types = [0, 1, 2, 3, 4, 5, 7, 8];
+    } else {
+        types = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10];
+    }
+
+    // Ten new ordinary-boss patterns unlock gradually from wave 1100 to 2100.
+    // Wave 1500 is reserved for the unique Anti-Spiral encounter and receives none.
+    if (bossWave !== 1500) {
+        var extendedUnlockWaves = [1100, 1200, 1300, 1400, 1600, 1700, 1800, 1900, 2000, 2100];
+        for (var e = 0; e < extendedUnlockWaves.length; e++) {
+            if (bossWave >= extendedUnlockWaves[e] && types.indexOf(11 + e) === -1) types.push(11 + e);
+        }
+    }
+    return types;
 }
 
 function skipDefeatedBoss() { stopArena(); if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0; if (typeof victory === 'function') victory(); }
@@ -653,7 +675,7 @@ function startArena(bossWave) {
     var superBtnDeact = document.getElementById("superBtnDeactivate"); if (superBtnDeact) superBtnDeact.style.display = "none";
 
     arenaBossDefeatedBefore = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossWave));
-    arenaActive = true; arenaCurrentWave = bossWave; calculateArenaHP();
+    arenaActive = true; arenaCurrentWave = bossWave; arenaExtendedState = null; calculateArenaHP();
     antiSpiralGravityVelocity = 0;
     antiSpiralJumpCooldown = 0;
     antiSpiralAttackStep = 0;
@@ -776,6 +798,10 @@ function startDodgePhase() {
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
     if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
     arenaAttackType = arenaAllowedTypes[Math.floor(Math.random() * arenaAllowedTypes.length)];
+    arenaExtendedState = null;
+    if (arenaAttackType >= 11 && arenaAttackType <= 20 && arenaCurrentWave !== 1500) {
+        arenaExtendedState = { type: arenaAttackType, elapsed: 0, lastNow: Date.now(), hazards: [], nextSpawnAt: 0, gustIndex: -1, sequence: 0 };
+    }
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     var baseInterval = 2400;
     if (arenaAttackType === 0) baseInterval = 3400; if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 2200; if (arenaAttackType === 6) baseInterval = 4000; if (arenaAttackType === 7) baseInterval = 2400; if (arenaAttackType === 8) baseInterval = 2800; if (arenaAttackType === 9) baseInterval = 3400; if (arenaAttackType === 10) baseInterval = 2400;
@@ -811,7 +837,13 @@ function updateDodgeTimerDisplay() {
         var antiTimer = document.getElementById("arenaTimer"); if (antiTimer) antiTimer.innerText = arenaDodgeTimer + "с";
         return;
     }
-    var typeNames = { 0: "⬜ СТЕНЫ", 1: "🔷 ХАОС", 2: "⚡ ЖЁЛТЫЕ", 3: "🛑 КРАСНЫЕ", 4: "💗 РОЗОВЫЕ", 5: "💚 ЗЕЛЁНЫЕ", 6: "🌈 РАДУЖНЫЕ", 7: "⚡🛑 МИКС", 8: "🟥⬜ ЗОНЫ", 9: "💣 БОМБЫ", 10: "🔫 БЛАСТЕРЫ" };
+    var typeNames = {
+        0: "⬜ СТЕНЫ", 1: "🔷 ХАОС", 2: "⚡ ЖЁЛТЫЕ", 3: "🛑 КРАСНЫЕ", 4: "💗 РОЗОВЫЕ",
+        5: "💚 ЗЕЛЁНЫЕ", 6: "🌈 РАДУЖНЫЕ", 7: "⚡🛑 МИКС", 8: "🟥⬜ ЗОНЫ", 9: "💣 БОМБЫ", 10: "🔫 БЛАСТЕРЫ",
+        11: "⚙️ МАЯТНИКИ", 12: "⛓️ ЖИВЫЕ ТРОСЫ", 13: "☣️ КИСЛОТНАЯ КАРТА",
+        14: "🌪️ ШТОРМОВОЙ КОРИДОР", 15: "🪃 БУМЕРАНГИ", 16: "🌋 РАСКОЛОТАЯ ЗЕМЛЯ",
+        17: "🐙 ОХОТА ЩУПАЛЕЦ", 18: "⚙️ ШЕСТЕРЁНЧАТАЯ ПОГОНЯ", 19: "🌿 САД ШИПОВ", 20: "🦾 КЛЕШНИ-ПЕРЕХВАТЧИКИ"
+    };
     var timerEl = document.getElementById("arenaTimer"); if (timerEl && arenaPhase === "dodge") timerEl.innerText = arenaDodgeTimer + "с";
     var bossNameEl = document.getElementById("arenaBossName"); if (bossNameEl && arenaPhase === "dodge") bossNameEl.innerText = arenaBoss + " — " + (typeNames[arenaAttackType] || "Атака") + " | ⚡" + heartSpeed.toFixed(2) + " | ⏱️" + arenaDodgeTimer + "с";
 }
@@ -951,7 +983,357 @@ function spawnWallAttack(isEarly, dmg, shouldShrink) {
     }, 1000);
 }
 
+
+function arenaExtLineDistance(px, py, x1, y1, x2, y2) {
+    var dx = x2 - x1, dy = y2 - y1;
+    var lenSq = dx * dx + dy * dy;
+    if (lenSq <= 0.001) return Math.hypot(px - x1, py - y1);
+    var u = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
+    return Math.hypot(px - (x1 + u * dx), py - (y1 + u * dy));
+}
+
+function arenaExtDrawSegment(x1, y1, x2, y2, width, color, alpha, dashed) {
+    ctx.save();
+    ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = "round";
+    ctx.shadowColor = color;
+    ctx.shadowBlur = width > 9 ? 9 : 4;
+    if (dashed) ctx.setLineDash([8, 7]);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+}
+
+function arenaExtHitSegment(x1, y1, x2, y2, width, damage, label) {
+    if (invulnTimer > 0) return;
+    if (arenaExtLineDistance(heart.x, heart.y, x1, y1, x2, y2) < width / 2 + heart.hitbox) {
+        applyHit(damage, label);
+    }
+}
+
+function arenaExtDrawGear(x, y, radius, rotation, color, alpha) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rotation); ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+    ctx.fillStyle = color; ctx.strokeStyle = "#fff0cf"; ctx.lineWidth = 2; ctx.shadowColor = color; ctx.shadowBlur = 10;
+    ctx.beginPath();
+    for (var i = 0; i < 16; i++) {
+        var a = i * Math.PI / 8;
+        var r = i % 2 === 0 ? radius : radius * 0.78;
+        var px = Math.cos(a) * r, py = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.fillStyle = "#31251c"; ctx.beginPath(); ctx.arc(0, 0, radius * 0.46, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#fff0cf"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-radius * 0.3, 0); ctx.lineTo(radius * 0.3, 0); ctx.moveTo(0, -radius * 0.3); ctx.lineTo(0, radius * 0.3); ctx.stroke();
+    ctx.restore();
+}
+
+function arenaExtNewEdge(side, inset) {
+    var pad = inset || 8;
+    if (side === 0) return { x: pad, y: 65 + Math.random() * 365 };
+    if (side === 1) return { x: 400 - pad, y: 65 + Math.random() * 365 };
+    if (side === 2) return { x: 35 + Math.random() * 330, y: 55 + pad };
+    return { x: 35 + Math.random() * 330, y: 500 - pad };
+}
+
+function updateExtendedArenaAttack(now) {
+    var st = arenaExtendedState;
+    if (!st || st.type < 11 || st.type > 20 || !arenaActive || arenaPhase !== "dodge" || arenaCurrentWave === 1500) return;
+
+    var delta = Math.max(0, Math.min(50, now - (st.lastNow || now)));
+    st.lastNow = now;
+    var frozen = typeof _superState !== "undefined" && (
+        _superState.takabaTimeStop || _superState.garouTimeStop ||
+        _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0
+    );
+    if (!frozen) st.elapsed += delta;
+    var t = st.elapsed;
+    var sec = t / 1000;
+    var dmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 1.15));
+    var strongDmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 1.4));
+
+    // 11. Three pendulums swing at different rhythms. Only their heavy heads deal damage.
+    if (st.type === 11) {
+        for (var p = 0; p < 3; p++) {
+            var px = 68 + p * 132, py = 62;
+            var angle = Math.sin(sec * (1.18 + p * 0.13) + p * 2.05) * (0.9 + p * 0.035);
+            var length = 112 + (p % 2) * 16;
+            var bx = px + Math.sin(angle) * length, by = py + Math.cos(angle) * length;
+            arenaExtDrawSegment(px, py, bx, by, 7, "#8f9aa8", t < 650 ? 0.4 : 0.9, false);
+            ctx.save(); ctx.fillStyle = "#aab6c5"; ctx.strokeStyle = "#f2f6fa"; ctx.lineWidth = 2; ctx.shadowColor = "#d6e2f0"; ctx.shadowBlur = 7;
+            for (var link = 1; link < 7; link++) {
+                var u = link / 7;
+                ctx.beginPath(); ctx.arc(px + (bx - px) * u, py + (by - py) * u, 2.2, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#5f6a79"; ctx.beginPath(); ctx.arc(bx, by, 17, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#ecf1f7"; ctx.beginPath(); ctx.arc(bx, by, 6, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            if (t > 650 && Math.hypot(heart.x - bx, heart.y - by) < 17 + heart.hitbox) applyHit(strongDmg, "МАЯТНИК!");
+        }
+        if (t < 650) { ctx.fillStyle = "rgba(210,225,245,0.85)"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("МАЯТНИКИ ЗАПУСКАЮТСЯ", 200, 82); }
+    }
+
+    // 12. Physical chain cables sweep across the room on offset paths.
+    if (st.type === 12) {
+        for (var c = 0; c < 2; c++) {
+            var y1 = (c === 0 ? 105 : 405) + Math.sin(sec * 0.92 + c) * 58;
+            var y2 = (c === 0 ? 385 : 125) + Math.sin(sec * 0.77 + c * 1.7) * 52;
+            arenaExtDrawSegment(0, y1, 400, y2, 10, "#b7c1cc", t < 650 ? 0.4 : 0.9, false);
+            for (var q = 0; q <= 20; q++) {
+                var u = q / 20, xx = u * 400, yy = y1 + (y2 - y1) * u;
+                ctx.fillStyle = q % 2 ? "#596878" : "#e5edf5";
+                ctx.beginPath(); ctx.arc(xx, yy, 2.1, 0, Math.PI * 2); ctx.fill();
+            }
+            if (t > 650) arenaExtHitSegment(0, y1, 400, y2, 11, dmg, "ТРОС!");
+        }
+        if (t < 650) { ctx.fillStyle = "#d8e5f5"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("ТРОСЫ НАТЯГИВАЮТСЯ", 200, 82); }
+    }
+
+    // 13. Acid pools leave the player a changing route instead of exploding instantly.
+    if (st.type === 13) {
+        if (t >= st.nextSpawnAt && st.hazards.length < 5) {
+            var ax = 35 + Math.random() * 330, ay = 95 + Math.random() * 340;
+            var attempts = 0;
+            while (Math.hypot(ax - heart.x, ay - heart.y) < 70 && attempts++ < 8) { ax = 35 + Math.random() * 330; ay = 95 + Math.random() * 340; }
+            st.hazards.push({ x: ax, y: ay, born: t });
+            st.nextSpawnAt = t + 1120;
+        }
+        for (var ai = st.hazards.length - 1; ai >= 0; ai--) {
+            var pool = st.hazards[ai], age = t - pool.born;
+            if (age > 4200) { st.hazards.splice(ai, 1); continue; }
+            var warning = age < 720, activeAge = Math.max(0, age - 720);
+            var radius = warning ? 28 : Math.min(39, 7 + activeAge * 0.055);
+            ctx.save(); ctx.globalAlpha = warning ? 0.45 + Math.sin(sec * 12) * 0.12 : 0.85;
+            ctx.fillStyle = "#83f36a"; ctx.strokeStyle = warning ? "#d5ff9e" : "#b0ff5a"; ctx.lineWidth = 2; ctx.shadowColor = "#8aff45"; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.arc(pool.x, pool.y, radius, 0, Math.PI * 2); ctx.fill(); ctx.setLineDash(warning ? [5, 5] : []); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = "#dfffaa"; ctx.beginPath(); ctx.arc(pool.x - radius * 0.25, pool.y - radius * 0.2, radius * 0.18, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            if (!warning && Math.hypot(heart.x - pool.x, heart.y - pool.y) < radius + heart.hitbox) applyHit(dmg, "КИСЛОТА!");
+        }
+    }
+
+    // 14. A gust pushes gently while wind-borne debris crosses the arena.
+    if (st.type === 14) {
+        var dirs = [{x:1,y:0.25},{x:0.2,y:1},{x:-1,y:0.15},{x:-0.25,y:-1}];
+        var di = Math.floor(t / 2350) % dirs.length, dir = dirs[di];
+        if (st.gustIndex !== di) { st.gustIndex = di; st.nextSpawnAt = Math.min(st.nextSpawnAt, t); }
+        if (!frozen) { heart.vx += dir.x * 0.014; heart.vy += dir.y * 0.014; }
+        if (t >= st.nextSpawnAt) {
+            var side, hx, hy;
+            if (Math.abs(dir.x) > Math.abs(dir.y)) { side = dir.x > 0 ? 0 : 1; hx = side === 0 ? -15 : 415; hy = 75 + Math.random() * 355; }
+            else { side = dir.y > 0 ? 2 : 3; hx = 35 + Math.random() * 330; hy = side === 2 ? -15 : 515; }
+            var sp = 2.2 + Math.random() * 1.1;
+            st.hazards.push({ x:hx, y:hy, vx:dir.x*sp, vy:dir.y*sp, size:7+Math.random()*5, born:t, rot:Math.random()*6 });
+            st.nextSpawnAt = t + 450;
+        }
+        ctx.save(); ctx.strokeStyle = "rgba(150,220,255,0.45)"; ctx.lineWidth = 2;
+        for (var wi = 0; wi < 8; wi++) {
+            var wx = 25 + (wi * 49), wy = 100 + ((wi * 57 + Math.floor(sec * 18)) % 300);
+            ctx.beginPath(); ctx.moveTo(wx - dir.x * 18, wy - dir.y * 18); ctx.lineTo(wx + dir.x * 18, wy + dir.y * 18); ctx.stroke();
+        }
+        ctx.restore();
+        for (var hi = st.hazards.length - 1; hi >= 0; hi--) {
+            var leaf = st.hazards[hi];
+            if (!frozen) { leaf.x += leaf.vx; leaf.y += leaf.vy; leaf.rot += 0.12; }
+            ctx.save(); ctx.translate(leaf.x, leaf.y); ctx.rotate(leaf.rot); ctx.fillStyle = "#b6d6df"; ctx.strokeStyle = "#f3ffff"; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(-leaf.size, 0); ctx.quadraticCurveTo(0, -leaf.size * 0.85, leaf.size, 0); ctx.quadraticCurveTo(0, leaf.size * 0.85, -leaf.size, 0); ctx.fill(); ctx.stroke(); ctx.restore();
+            if (Math.hypot(heart.x - leaf.x, heart.y - leaf.y) < leaf.size + heart.hitbox) applyHit(dmg, "ШТОРМОВОЙ ОСКОЛОК!");
+            if (leaf.x < -30 || leaf.x > 430 || leaf.y < -30 || leaf.y > 530) st.hazards.splice(hi, 1);
+        }
+    }
+
+    // 15. Boomerangs go out first, then curve back toward their launch edge.
+    if (st.type === 15) {
+        if (t >= st.nextSpawnAt) {
+            var sideB = Math.floor(Math.random() * 4), origin = arenaExtNewEdge(sideB, 10);
+            var targetX = 70 + Math.random() * 260, targetY = 115 + Math.random() * 265;
+            var ba = Math.atan2(targetY - origin.y, targetX - origin.x);
+            st.hazards.push({ x:origin.x, y:origin.y, ox:origin.x, oy:origin.y, vx:Math.cos(ba)*2.8, vy:Math.sin(ba)*2.8, age:0, born:t, rot:ba, side:sideB });
+            st.nextSpawnAt = t + 1450;
+        }
+        for (var bi = st.hazards.length - 1; bi >= 0; bi--) {
+            var boom = st.hazards[bi];
+            if (!frozen) {
+                boom.age += delta;
+                if (boom.age < 900) {
+                    var curve = Math.sin(boom.age / 155) * 0.8;
+                    boom.x += boom.vx - boom.vy * curve * 0.12;
+                    boom.y += boom.vy + boom.vx * curve * 0.12;
+                    boom.rot = Math.atan2(boom.vy, boom.vx);
+                } else {
+                    var backA = Math.atan2(boom.oy - boom.y, boom.ox - boom.x);
+                    boom.x += Math.cos(backA) * 3.1; boom.y += Math.sin(backA) * 3.1; boom.rot = backA;
+                }
+            }
+            ctx.save(); ctx.translate(boom.x, boom.y); ctx.rotate(boom.rot); ctx.fillStyle = "#f5d88a"; ctx.strokeStyle = "#fff7d9"; ctx.lineWidth = 2; ctx.shadowColor = "#e7b95b"; ctx.shadowBlur = 7;
+            ctx.beginPath(); ctx.moveTo(-17,-7); ctx.lineTo(2,-7); ctx.lineTo(14,-15); ctx.lineTo(8,-1); ctx.lineTo(17,7); ctx.lineTo(-2,7); ctx.lineTo(-14,15); ctx.lineTo(-8,1); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+            if (Math.hypot(heart.x - boom.x, heart.y - boom.y) < 15 + heart.hitbox) applyHit(strongDmg, "ВОЗВРАТНОЕ ЛЕЗВИЕ!");
+            if (boom.age > 2600 || boom.x < -50 || boom.x > 450 || boom.y < -50 || boom.y > 550) st.hazards.splice(bi, 1);
+        }
+    }
+
+    // 16. Cracks branch through short marked paths; they are not a circular shockwave.
+    if (st.type === 16) {
+        if (t >= st.nextSpawnAt) {
+            var rx = 70 + Math.random() * 260, ry = 105 + Math.random() * 290, branches = [];
+            for (var br = 0; br < 3; br++) {
+                var a0 = Math.random() * Math.PI * 2 + br * 2.1, len1 = 55 + Math.random() * 30, len2 = 55 + Math.random() * 35;
+                var mx = Math.max(15, Math.min(385, rx + Math.cos(a0) * len1));
+                var my = Math.max(55, Math.min(485, ry + Math.sin(a0) * len1));
+                var a1 = a0 + (Math.random() - 0.5) * 0.85;
+                var ex = Math.max(10, Math.min(390, mx + Math.cos(a1) * len2));
+                var ey = Math.max(55, Math.min(490, my + Math.sin(a1) * len2));
+                branches.push([{x:rx,y:ry},{x:mx,y:my},{x:ex,y:ey}]);
+            }
+            st.hazards.push({ born:t, branches:branches });
+            st.nextSpawnAt = t + 1650;
+        }
+        for (var ri = st.hazards.length - 1; ri >= 0; ri--) {
+            var crack = st.hazards[ri], age = t - crack.born;
+            if (age > 1500) { st.hazards.splice(ri, 1); continue; }
+            var warningC = age < 620;
+            for (var cj = 0; cj < crack.branches.length; cj++) {
+                var points = crack.branches[cj];
+                arenaExtDrawSegment(points[0].x, points[0].y, points[1].x, points[1].y, warningC ? 3 : 10, warningC ? "#ffca7b" : "#ff5b32", warningC ? 0.55 : 0.95, warningC);
+                arenaExtDrawSegment(points[1].x, points[1].y, points[2].x, points[2].y, warningC ? 3 : 10, warningC ? "#ffca7b" : "#ff5b32", warningC ? 0.55 : 0.95, warningC);
+                if (!warningC && age < 1350) {
+                    arenaExtHitSegment(points[0].x, points[0].y, points[1].x, points[1].y, 10, dmg, "РАСКОЛ!");
+                    arenaExtHitSegment(points[1].x, points[1].y, points[2].x, points[2].y, 10, dmg, "РАСКОЛ!");
+                }
+            }
+        }
+    }
+
+    // 17. Tentacles track briefly, lock their aim, then lunge.
+    if (st.type === 17) {
+        if (t >= st.nextSpawnAt) {
+            var sideT = Math.floor(Math.random() * 4), org = arenaExtNewEdge(sideT, 5);
+            st.hazards.push({ x:org.x, y:org.y, side:sideT, born:t, angle:0 });
+            st.nextSpawnAt = t + 1400;
+        }
+        for (var ti = st.hazards.length - 1; ti >= 0; ti--) {
+            var tent = st.hazards[ti], ageT = t - tent.born;
+            if (ageT > 1800) { st.hazards.splice(ti, 1); continue; }
+            if (ageT < 520) tent.angle = Math.atan2(heart.y - tent.y, heart.x - tent.x);
+            var progressT = ageT < 650 ? 0 : Math.min(1, (ageT - 650) / 420);
+            var lengthT = 245 * progressT;
+            var tx = tent.x + Math.cos(tent.angle) * lengthT, ty = tent.y + Math.sin(tent.angle) * lengthT;
+            arenaExtDrawSegment(tent.x, tent.y, tx, ty, 18, "#b56b48", ageT < 650 ? 0.45 : 0.95, ageT < 650);
+            ctx.save(); ctx.fillStyle = "#e7a37d"; ctx.strokeStyle = "#fff0df"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(tx, ty, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            for (var spike = -1; spike <= 1; spike++) {
+                var sa = tent.angle + Math.PI + spike * 0.55;
+                ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx + Math.cos(sa) * 13, ty + Math.sin(sa) * 13); ctx.stroke();
+            }
+            ctx.restore();
+            if (ageT > 650 && ageT < 1400 && progressT > 0.1) arenaExtHitSegment(tent.x, tent.y, tx, ty, 18, strongDmg, "ЩУПАЛЬЦЕ!");
+        }
+    }
+
+    // 18. Heavy gears roll through lanes and telegraph a late lane change.
+    if (st.type === 18) {
+        if (t >= st.nextSpawnAt) {
+            var sideG = Math.random() > 0.5 ? 0 : 1, laneY = 100 + Math.random() * 300;
+            st.hazards.push({ x:sideG === 0 ? -32 : 432, y:laneY, side:sideG, vx:(sideG === 0 ? 1 : -1) * (1.7 + Math.random()*0.5), r:18+Math.random()*8, born:t, age:0, targetY:Math.max(80,Math.min(440,laneY+(Math.random()>0.5?100:-100))), shifted:false, rot:0 });
+            st.nextSpawnAt = t + 1550;
+        }
+        for (var gi = st.hazards.length - 1; gi >= 0; gi--) {
+            var gear = st.hazards[gi];
+            if (!frozen) {
+                gear.age += delta; gear.rot += gear.vx / Math.max(10, gear.r);
+                if (gear.age < 1000) { gear.x += gear.vx; gear.y += Math.sin(gear.age / 180) * 0.8; }
+                else if (gear.age < 1280) { gear.x += gear.vx * 0.65; }
+                else { gear.x += gear.vx * 0.65; gear.y += Math.sign(gear.targetY - gear.y) * 1.4; gear.shifted = true; }
+            }
+            if (gear.age >= 1000 && gear.age < 1280) {
+                ctx.save(); ctx.strokeStyle = "rgba(255,224,170,0.8)"; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(gear.x, gear.targetY); ctx.lineTo(Math.max(12,Math.min(388,gear.x+gear.vx*15)), gear.targetY); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+            }
+            arenaExtDrawGear(gear.x, gear.y, gear.r, gear.rot, "#a77c49", 0.98);
+            if (Math.hypot(heart.x - gear.x, heart.y - gear.y) < gear.r + heart.hitbox) applyHit(strongDmg, "ШЕСТЕРНЯ!");
+            if (gear.x < -70 || gear.x > 470 || gear.age > 3500) st.hazards.splice(gi, 1);
+        }
+    }
+
+    // 19. Vines grow segment by segment from marked seeds and slowly close old paths.
+    if (st.type === 19) {
+        if (t >= st.nextSpawnAt) {
+            var sideV = Math.floor(Math.random() * 4), root = arenaExtNewEdge(sideV, 14);
+            var pointsV = [{x:root.x,y:root.y}], angleV = sideV === 0 ? 0 : sideV === 1 ? Math.PI : sideV === 2 ? Math.PI/2 : -Math.PI/2;
+            for (var vi = 0; vi < 3; vi++) {
+                angleV += (Math.random() - 0.5) * 1.25;
+                var vx = Math.max(12, Math.min(388, pointsV[pointsV.length-1].x + Math.cos(angleV) * (67 + Math.random()*25)));
+                var vy = Math.max(55, Math.min(490, pointsV[pointsV.length-1].y + Math.sin(angleV) * (67 + Math.random()*25)));
+                pointsV.push({x:vx,y:vy});
+            }
+            st.hazards.push({ born:t, points:pointsV });
+            st.nextSpawnAt = t + 1450;
+        }
+        for (var vi2 = st.hazards.length - 1; vi2 >= 0; vi2--) {
+            var vine = st.hazards[vi2], ageV = t - vine.born;
+            if (ageV > 3000) { st.hazards.splice(vi2, 1); continue; }
+            var warningV = ageV < 520;
+            for (var vs = 0; vs < vine.points.length - 1; vs++) {
+                var segmentAge = ageV - 520 - vs * 280;
+                if (segmentAge <= 0) {
+                    arenaExtDrawSegment(vine.points[vs].x, vine.points[vs].y, vine.points[vs+1].x, vine.points[vs+1].y, 3, "#b9e88a", 0.45, true);
+                    continue;
+                }
+                var ratioV = Math.max(0, Math.min(1, segmentAge / 280));
+                var exV = vine.points[vs].x + (vine.points[vs+1].x - vine.points[vs].x) * ratioV;
+                var eyV = vine.points[vs].y + (vine.points[vs+1].y - vine.points[vs].y) * ratioV;
+                arenaExtDrawSegment(vine.points[vs].x, vine.points[vs].y, exV, eyV, 13, ageV > 1400 ? "#7d9e4c" : "#b0dc69", 0.95, false);
+                if (ageV > 780 && ratioV > 0.5 && ageV < 2600) arenaExtHitSegment(vine.points[vs].x, vine.points[vs].y, exV, eyV, 13, dmg, "ШИПЫ!");
+            }
+            ctx.save(); ctx.fillStyle = warningV ? "#eaffbd" : "#7d9e4c"; ctx.beginPath(); ctx.arc(vine.points[0].x, vine.points[0].y, warningV ? 7 : 5, 0, Math.PI*2); ctx.fill(); ctx.restore();
+        }
+    }
+
+    // 20. Mechanical claws lunge from an edge, hold briefly, then retract.
+    if (st.type === 20) {
+        if (t >= st.nextSpawnAt) {
+            var sideC = Math.floor(Math.random() * 4), lane = sideC < 2 ? 100 + Math.random() * 310 : 80 + Math.random() * 300;
+            st.hazards.push({ side:sideC, lane:lane, born:t, w:58, h:48 });
+            st.nextSpawnAt = t + 1250;
+        }
+        for (var ci = st.hazards.length - 1; ci >= 0; ci--) {
+            var claw = st.hazards[ci], ageC = t - claw.born;
+            if (ageC > 2200) { st.hazards.splice(ci, 1); continue; }
+            var progressC;
+            if (ageC < 520) progressC = 0;
+            else if (ageC < 1000) progressC = (ageC - 520) / 480;
+            else if (ageC < 1300) progressC = 1;
+            else progressC = Math.max(0, 1 - (ageC - 1300) / 900);
+            var cx, cy;
+            if (claw.side === 0) { cx = -32 + progressC * 215; cy = claw.lane; }
+            else if (claw.side === 1) { cx = 432 - progressC * 215; cy = claw.lane; }
+            else if (claw.side === 2) { cx = claw.lane; cy = -32 + progressC * 275; }
+            else { cx = claw.lane; cy = 532 - progressC * 275; }
+            if (ageC < 520) {
+                ctx.save(); ctx.strokeStyle = "#ffd38e"; ctx.lineWidth = 2; ctx.setLineDash([6,5]);
+                if (claw.side < 2) { ctx.beginPath(); ctx.moveTo(12, claw.lane); ctx.lineTo(388, claw.lane); ctx.stroke(); }
+                else { ctx.beginPath(); ctx.moveTo(claw.lane, 55); ctx.lineTo(claw.lane, 490); ctx.stroke(); }
+                ctx.setLineDash([]); ctx.restore();
+            }
+            ctx.save(); ctx.translate(cx, cy); ctx.fillStyle = ageC < 520 ? "#9c9c9c" : "#c5c9ce"; ctx.strokeStyle = "#f7f0df"; ctx.lineWidth = 2; ctx.shadowColor = "#e8bd79"; ctx.shadowBlur = 8;
+            ctx.fillRect(-claw.w/2, -claw.h/2, claw.w, claw.h); ctx.strokeRect(-claw.w/2, -claw.h/2, claw.w, claw.h);
+            ctx.fillStyle = "#525b64";
+            for (var pr = -1; pr <= 1; pr++) {
+                ctx.beginPath();
+                if (claw.side === 0) { ctx.moveTo(claw.w/2-8, pr*13-5); ctx.lineTo(claw.w/2+10, pr*13); ctx.lineTo(claw.w/2-8, pr*13+5); }
+                else if (claw.side === 1) { ctx.moveTo(-claw.w/2+8, pr*13-5); ctx.lineTo(-claw.w/2-10, pr*13); ctx.lineTo(-claw.w/2+8, pr*13+5); }
+                else if (claw.side === 2) { ctx.moveTo(pr*13-5, claw.h/2-8); ctx.lineTo(pr*13, claw.h/2+10); ctx.lineTo(pr*13+5, claw.h/2-8); }
+                else { ctx.moveTo(pr*13-5, -claw.h/2+8); ctx.lineTo(pr*13, -claw.h/2-10); ctx.lineTo(pr*13+5, -claw.h/2+8); }
+                ctx.closePath(); ctx.fill();
+            }
+            ctx.restore();
+            if (ageC >= 520 && progressC > 0.12 && Math.abs(heart.x - cx) < claw.w/2 + heart.hitbox && Math.abs(heart.y - cy) < claw.h/2 + heart.hitbox) applyHit(strongDmg, "КЛЕШНЯ!");
+        }
+    }
+}
+
 function spawnAttack() {
+    if (arenaAttackType >= 11 && arenaAttackType <= 20) return;
     var s = arenaSpeedMult; var bw = arenaCurrentWave; var isEarly = bw < 100; var dmg = arenaBaseDmg;
     var shouldShrink = (typeof _superState !== 'undefined' && _superState.antispiralShrinkAttacks);
     switch (arenaAttackType) {
@@ -974,7 +1356,7 @@ function stopArena() {
     if (arenaPhaseTimeout) { clearTimeout(arenaPhaseTimeout); arenaPhaseTimeout = null; }
     if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
     if (typeof resetAllSupers === 'function') resetAllSupers();
-    arenaActive = false; stopArenaAmbient(); stopAntiSpiralMusic();
+    arenaActive = false; arenaExtendedState = null; stopArenaAmbient(); stopAntiSpiralMusic();
     if (arenaCurrentWave === 1500 && typeof currentMusic !== "undefined") {
         currentMusic = null;
         if (typeof musicEnabled !== "undefined" && musicEnabled && typeof startBattleMusic === "function") startBattleMusic();
@@ -1253,7 +1635,7 @@ function renderArena() {
     // ★ ФИКС: Такаба замораживает всех ★
     var takabaFreeze = (typeof _superState !== 'undefined' && _superState.takabaTimeStop);
     
-    if (arenaPhase === "dodge" && !takabaFreeze) { moveHeart(); if (arenaAllowedTypes.includes(10) && !heartWasMoving) { var bw = arenaCurrentWave; var ct = bw >= 700 ? 70 : (bw >= 350 ? 90 : 110); if (heartStandingTime > ct) { spawnBlaster(bw); heartStandingTime = 0; } } }
+    if (arenaPhase === "dodge" && !takabaFreeze) { moveHeart(); if (arenaExtendedState && arenaAttackType >= 11 && arenaCurrentWave !== 1500) updateExtendedArenaAttack(now); if (arenaAllowedTypes.includes(10) && !heartWasMoving) { var bw = arenaCurrentWave; var ct = bw >= 700 ? 70 : (bw >= 350 ? 90 : 110); if (heartStandingTime > ct) { spawnBlaster(bw); heartStandingTime = 0; } } }
     if (arenaKarma > 0) { var drain = Math.max(0.15, arenaKarma * 0.05); if (arenaKarma < drain) drain = arenaKarma; arenaKarma -= drain; if (arenaHP > 1) { arenaHP -= drain; if (arenaHP < 1) arenaHP = 1; } document.getElementById("arenaHP").innerText = Math.max(0, Math.ceil(arenaHP)); }
     if (ghostBossHP > arenaBossMaxHP) { ghostBossHP -= (ghostBossHP - arenaBossMaxHP) * 0.08; if (ghostBossHP - arenaBossMaxHP < 1) ghostBossHP = arenaBossMaxHP; }
     if (ghostBossHP < arenaBossMaxHP) ghostBossHP = arenaBossMaxHP;
@@ -1298,7 +1680,7 @@ function renderArena() {
     for (var y = 0; y <= 500; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(400, y); ctx.stroke(); } ctx.restore();
     var bgCap = 25; if (arenaBgParticles.length < bgCap) { arenaBgParticles.push({ x: Math.random() * 400, y: Math.random() * 500, spd: 0.1 + Math.random() * 0.3, sz: 1 + Math.random() * 2, alpha: 0.08 + Math.random() * 0.2 }); }
     ctx.save(); for (var bpi = 0; bpi < arenaBgParticles.length; bpi++) { var bp = arenaBgParticles[bpi]; bp.y += bp.spd; if (bp.y > 500) { bp.y = 0; bp.x = Math.random() * 400; } ctx.fillStyle = "#ffffff"; ctx.globalAlpha = bp.alpha; ctx.fillRect(bp.x, bp.y, bp.sz, bp.sz); } ctx.restore();
-    var bc = arenaPhase === "attack" ? "#ffdd00" : (["#fff", "#4499ff", "#ffdd00", "#ff3333", "#ff69b4", "#44ff44", "rainbow", "#ffaa00", "#ff3333", "#ff3333", "#fff"][arenaAttackType] || "#fff");
+    var bc = arenaPhase === "attack" ? "#ffdd00" : (["#fff", "#4499ff", "#ffdd00", "#ff3333", "#ff69b4", "#44ff44", "rainbow", "#ffaa00", "#ff3333", "#ff3333", "#fff", "#b4c3d5", "#cad7e4", "#92ef64", "#8edcff", "#f0d18a", "#ff7047", "#bc7959", "#c49a60", "#9fce63", "#d6dbe0"][arenaAttackType] || "#fff");
     if (bc === "rainbow" || arenaAttackType === 6) bc = "hsl(" + ((now / 5) % 360) + ",100%,50%)"; if (arenaHitFlash > 0) bc = "#ff3333";
     ctx.save();
     ctx.strokeStyle = bc; ctx.lineWidth = 3; ctx.shadowColor = bc; ctx.shadowBlur = arenaHitFlash > 0 ? 18 : 8;
