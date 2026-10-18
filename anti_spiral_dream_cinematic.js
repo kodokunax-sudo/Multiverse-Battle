@@ -167,7 +167,7 @@
         const header=makeElement("div","asdc-game-header"); header.appendChild(makeElement("div","","MULTIVERSE BATTLE · РЕАЛЬНЫЕ КАРТЫ")); header.appendChild(makeElement("div","asdc-stars","🧬 ЭВОЛЮЦИОННАЯ КОМАНДА")); shot.appendChild(header);
         const source=document.getElementById("collectionGrid");
         const cards=source?Array.from(source.querySelectorAll(".card-item")).filter(c=>{const r=c.querySelector(".rarity-tag");return r&&r.textContent.trim()==="Эволюционная";}):[];
-        cards.sort((a,b)=>{const p=c=>{const m=c.textContent.match(/Общая сила:\\s*([\\d,.]+)/i);return m?Number(m[1].replace(/,/g,"")):0;};return p(b)-p(a);});
+        cards.sort((a,b)=>{const p=c=>{const text=c.textContent;const pos=text.indexOf("Общая сила:");if(pos<0)return 0;const token=text.slice(pos+12).trim().split(" ")[0];return Number(token.replace(/,/g,""))||0;};return p(b)-p(a);});
         const grid=makeElement("div","asdc-real-game-grid");grid.style.cssText="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-content:start;padding-top:9px";
         cards.slice(0,6).forEach(c=>{const clone=c.cloneNode(true);clone.removeAttribute("onclick");clone.querySelectorAll("[onclick]").forEach(e=>e.removeAttribute("onclick"));clone.style.cssText+=";min-width:0;max-width:none;max-height:235px;overflow:hidden;pointer-events:none;animation:none";grid.appendChild(clone);});
         if(!cards.length){const note=makeElement("div","","В текущей сессии не найдены отрисованные эволюционные карты. Поддельные карты не подставлены: открой коллекцию и дождись её загрузки.");note.style.cssText="color:#f6d98b;padding:20px;text-align:center;grid-column:1/-1;font-weight:800";grid.appendChild(note);}
