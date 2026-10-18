@@ -435,6 +435,7 @@
             asControls.drill.style.borderColor = "#77f7ff";
             return;
         }
+        asControls.drill.style.borderColor = "#a988ff";
         const sealIndex = asUnbrokenSealIndex();
         const targetName = sealIndex >= 0 ? "ПЕЧАТЬ " + (sealIndex + 1) + "/3" : "АНТИ-СПИРАЛЬ";
         const cooldownMs = Math.max(0, asNextShotAt - now);
@@ -945,7 +946,7 @@
             const shot = asDrillShots[i];
             const speed = Math.max(.01, Math.hypot(shot.vx, shot.vy));
             const remaining = Math.max(0, (shot.distanceMax || 0) - (shot.travelled || 0));
-            const step = Math.min(speed, remaining || speed);
+            const step = Math.min(speed, remaining);
             shot.x += shot.vx / speed * step; shot.y += shot.vy / speed * step;
             shot.travelled = (shot.travelled || 0) + step; shot.life--; shot.phase += .28;
             c.save(); c.translate(shot.x,shot.y); c.rotate(Math.atan2(shot.vy,shot.vx) + Math.PI/2);
@@ -2417,7 +2418,7 @@
                     asParticles.push({x:asBoss.x,y:asBoss.y+25,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:24+Math.floor(Math.random()*12),maxLife:36,color:phaseColor,size:2+Math.random()*4});
                 }
             }
-            const chargeNow=Date.now(),canCharge=chargeNow>=asNextShotAt&&chargeNow-asLastDamageAt>=3000;
+            const chargeNow=asClockNow(),canCharge=chargeNow>=asNextShotAt&&chargeNow-asLastDamageAt>=3000;
             if(canCharge&&asChargeFrames<150)asChargeFrames=Math.min(150,asChargeFrames+1);
             asCharging=canCharge&&asChargeFrames<150;asUpdateControls();
             if(asBossExposed>0)asBossExposed--;if(asLabyrinthTimer>0)asLabyrinthTimer--;
