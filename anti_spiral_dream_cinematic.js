@@ -25,12 +25,12 @@
         },
         {
             title: "ТВОЯ ЛЮБИМАЯ ИГРА. НАВСЕГДА.",
-            text: "Теперь можно просто играть. Собирать карты, усиливать команду, фармить волны. Одна жизнь, бесконечное время и наконец никакой гонки.",
+            text: "В его собственном мире это всего лишь любимая гриндилка: собирать карты, усиливать команду, фармить волны. Но жизнь там одна. Потерять сохранение значит потерять всё, поэтому он мечтал просто играть спокойно, не боясь нового сброса.",
             hud: "ONE LIFE MODE // NO MORE RESETS"
         },
         {
             title: "СТОП. А ГДЕ РИК?",
-            text: "Ты закрыл Разлом и собрал вообще всё. Но Рик так и не найден. Ни в коллекции, ни среди эволюций, ни в журнале событий. Почему его имя появляется в повреждённых данных?",
+            text: "Любимая игра не связана с Multiverse-Battle. Это его собственный мир, его гриндилка и единственная жизнь, которую он боится потерять. Но даже после закрытия Разлома Рик так и не найден. Почему Анти-Спираль знает это имя?",
             hud: "ROSTER SCAN // RICK: NOT FOUND"
         }
     ];
@@ -196,6 +196,191 @@
         ctx.closePath();
     }
 
+    const antiSpiralPortrait = new Image();
+    antiSpiralPortrait.src = "images/IMG_20260607_143139_149.png";
+
+    function drawPlayer(ctx, x, y, scale, pose, t) {
+        ctx.save();
+        ctx.translate(x, y + Math.sin(t * 4) * 2);
+        ctx.scale(scale, scale);
+        const arm = Math.sin(t * 5) * 7;
+        const lean = pose === "run" ? Math.sin(t * 9) * 9 : pose === "look" ? -5 : 0;
+        ctx.rotate(lean * Math.PI / 180);
+        // shadow and body
+        ctx.fillStyle = "rgba(0,0,0,.42)";
+        ctx.beginPath(); ctx.ellipse(0, 3, 26, 7, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#b7d6ff"; ctx.lineWidth = 7; ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(-6, -33); ctx.lineTo(-11 + arm * .35, -13); ctx.lineTo(-16 + arm, 0);
+        ctx.moveTo(7, -33); ctx.lineTo(13 - arm * .25, -15); ctx.lineTo(18 - arm, -2);
+        ctx.stroke();
+        ctx.strokeStyle = "#334a6d"; ctx.lineWidth = 9;
+        ctx.beginPath();
+        ctx.moveTo(-5, -12); ctx.lineTo(-9 + Math.sin(t * 7) * 4, 0);
+        ctx.moveTo(5, -12); ctx.lineTo(10 - Math.sin(t * 7) * 4, 0);
+        ctx.stroke();
+        const body = ctx.createLinearGradient(-13, -48, 14, -16);
+        body.addColorStop(0, "#80d9ff"); body.addColorStop(1, "#3760a4");
+        ctx.fillStyle = body;
+        roundedRect(ctx, -12, -47, 24, 34, 6); ctx.fill();
+        ctx.fillStyle = "#f0c7a4";
+        ctx.beginPath(); ctx.arc(0, -57, 12, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#27364d";
+        ctx.beginPath(); ctx.arc(0, -61, 12, Math.PI, Math.PI * 2); ctx.lineTo(11, -56); ctx.lineTo(-10, -57); ctx.fill();
+        ctx.fillStyle = "#152033";
+        ctx.beginPath(); ctx.arc(4, -56, 1.3, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#6ceaff"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-8, -39); ctx.lineTo(8, -39); ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawAntiSpiral(ctx, x, y, scale, t, visible) {
+        ctx.save();
+        ctx.translate(x, y + Math.sin(t * 2.4) * 7);
+        ctx.scale(scale, scale);
+        // The actual in-game Anti-Spiral portrait is used as a moving apparition.
+        if (antiSpiralPortrait.complete && antiSpiralPortrait.naturalWidth > 0) {
+            ctx.save();
+            ctx.globalAlpha = visible ? .96 : .28;
+            ctx.shadowColor = "#bc67ff"; ctx.shadowBlur = 32;
+            const ratio = Math.min(170 / antiSpiralPortrait.naturalWidth, 250 / antiSpiralPortrait.naturalHeight);
+            const iw = antiSpiralPortrait.naturalWidth * ratio;
+            const ih = antiSpiralPortrait.naturalHeight * ratio;
+            ctx.drawImage(antiSpiralPortrait, -iw / 2, -ih / 2, iw, ih);
+            ctx.restore();
+        } else {
+            ctx.shadowColor = "#bb65ff"; ctx.shadowBlur = 28;
+            ctx.strokeStyle = "#d6b5ff"; ctx.lineWidth = 2;
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath(); ctx.ellipse(0, -50, 26 + i * 9, 39 + i * 10, t * (i % 2 ? -.3 : .3), 0, Math.PI * 2); ctx.stroke();
+            }
+            ctx.fillStyle = "#151026";
+            ctx.beginPath(); ctx.moveTo(0, -95); ctx.lineTo(32, -53); ctx.lineTo(20, 8); ctx.lineTo(0, 25); ctx.lineTo(-20, 8); ctx.lineTo(-32, -53); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = "#f0e1ff"; ctx.fillRect(-13, -58, 8, 3); ctx.fillRect(5, -58, 8, 3);
+            ctx.shadowBlur = 0;
+        }
+        ctx.restore();
+    }
+
+    function drawSpeech(ctx, x, y, width, speaker, text, accent) {
+        ctx.save();
+        ctx.font = "900 11px Arial";
+        const maxWidth = width - 24;
+        const words = String(text).split(/\\s+/);
+        const lines = [];
+        let line = "";
+        words.forEach(function(word) {
+            const test = line ? line + " " + word : word;
+            if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = word; }
+            else line = test;
+        });
+        if (line) lines.push(line);
+        const lineHeight = 15;
+        const h = 29 + lines.length * lineHeight;
+        const bx = Math.max(8, Math.min(960 - width - 8, x));
+        const by = Math.max(8, y);
+        ctx.fillStyle = "rgba(5,9,22,.94)";
+        ctx.strokeStyle = accent || "#8edfff"; ctx.lineWidth = 1.5;
+        roundedRect(ctx, bx, by, width, h, 9); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = accent || "#8edfff";
+        ctx.font = "1000 9px monospace"; ctx.fillText(speaker.toUpperCase(), bx + 12, by + 15);
+        ctx.fillStyle = "#edf5ff"; ctx.font = "900 11px Arial";
+        lines.forEach(function(row, i) { ctx.fillText(row, bx + 12, by + 31 + i * lineHeight); });
+        ctx.restore();
+    }
+
+    function drawCollectionMonitor(ctx, t) {
+        const x = 365, y = 112, w = 490, h = 300;
+        ctx.save();
+        ctx.shadowColor = "#58dfff"; ctx.shadowBlur = 24;
+        ctx.fillStyle = "#0b1020"; ctx.strokeStyle = "#7293c7"; ctx.lineWidth = 3;
+        roundedRect(ctx, x, y, w, h, 11); ctx.fill(); ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#17223a"; roundedRect(ctx, x + 9, y + 9, w - 18, h - 18, 6); ctx.fill();
+        ctx.fillStyle = "#eaf5ff"; ctx.font = "1000 16px Arial"; ctx.fillText("MULTIVERSE BATTLE", x + 22, y + 31);
+        ctx.fillStyle = "#7c93ba"; ctx.font = "900 8px monospace"; ctx.fillText("PLAYER ARCHIVE  /  COLLECTION", x + 22, y + 46);
+        const tabs = ["БОЙ", "КОЛЛЕКЦИЯ", "БЕСТИАРИЙ", "ЭВОЛЮЦИИ"];
+        tabs.forEach(function(tab, i) {
+            const tx = x + 16 + i * 115;
+            ctx.fillStyle = i === 1 ? "#174d69" : "#10192c";
+            roundedRect(ctx, tx, y + 57, 108, 24, 4); ctx.fill();
+            ctx.strokeStyle = i === 1 ? "#63e5ff" : "#33415c"; ctx.lineWidth = 1; ctx.stroke();
+            ctx.fillStyle = i === 1 ? "#d6faff" : "#91a2c1";
+            ctx.font = "900 9px Arial"; ctx.fillText(tab, tx + 10, y + 72);
+        });
+        ctx.fillStyle = "#9fb3d3"; ctx.font = "900 9px monospace";
+        ctx.fillText("ЭВОЛЮЦИОННЫЕ КАРТЫ · ПОЛНЫЙ НАБОР", x + 18, y + 99);
+        const cards = readEvolutionTemplates();
+        const showCards = cards.length ? cards.slice(0, 8) : [{name:"ЛУФФИ : КОРОЛЬ ПИРАТОВ"},{name:"САЙТАМА / ГАРОУ"},{name:"ГАРП / КУДЗАН"},{name:"СЕМЁРКА"}];
+        showCards.forEach(function(card, i) {
+            const cols = 4, cw = 105, ch = 78;
+            const cx = x + 17 + (i % cols) * 115, cy = y + 112 + Math.floor(i / cols) * 88;
+            ctx.fillStyle = "rgba(74,42,110,.85)"; ctx.strokeStyle = ["#d59cff","#7cecff","#ffd58a","#a8ffc9"][i % 4];
+            roundedRect(ctx, cx, cy, cw, ch, 5); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = ["#f0c4ff","#9beeff","#ffe1a3","#baffd8"][i % 4];
+            ctx.font = "1000 17px Arial"; ctx.fillText("✦", cx + 44, cy + 25);
+            ctx.fillStyle = "#f2edff"; ctx.font = "900 8px Arial";
+            const name = String(card.name || "Эволюция").toUpperCase();
+            ctx.fillText(name.length > 20 ? name.slice(0, 18) + "…" : name, cx + 6, cy + 42);
+            ctx.fillStyle = "#ffbdff"; ctx.font = "900 7px Arial"; ctx.fillText("МАСТЕРСТВО 7", cx + 6, cy + 58);
+            ctx.fillStyle = "#b9cbe7"; ctx.fillText("УРОН ↑   HP ↑", cx + 6, cy + 69);
+        });
+        ctx.fillStyle = "#26324a"; ctx.fillRect(x + 208, y + h - 2, 74, 12);
+        ctx.fillStyle = "#111a2c"; ctx.fillRect(x + 178, y + h + 8, 134, 8);
+        ctx.restore();
+    }
+
+    function drawCinematicActors(ctx, sceneIndex, t, w, h) {
+        if (sceneIndex === 0) {
+            drawPlayer(ctx, 180 + Math.sin(t * 1.7) * 8, 440, 1.15, "look", t);
+            drawCollectionMonitor(ctx, t);
+            drawSpeech(ctx, 25, 22, 300, "ИГРОК", "Все эволюции… Я правда собрал их все.", "#82eaff");
+        } else if (sceneIndex === 1) {
+            drawPlayer(ctx, 260 + Math.sin(t * 2) * 24, 450, 1.2, "run", t);
+            drawAntiSpiral(ctx, 710, 270, 1.15, t, true);
+            ctx.save(); ctx.strokeStyle = "#c27cff"; ctx.lineWidth = 5;
+            ctx.shadowColor = "#9d58ff"; ctx.shadowBlur = 28;
+            ctx.beginPath(); ctx.moveTo(490, 110); ctx.bezierCurveTo(390, 190, 570, 270, 465, 370); ctx.stroke();
+            ctx.restore();
+            drawSpeech(ctx, 26, 22, 315, "АНТИ-СПИРАЛЬ", "Ты больше ничего не должен этому миру.", "#d7a7ff");
+            drawSpeech(ctx, 635, 20, 300, "ИГРОК", "Значит… всё действительно закончилось?", "#82eaff");
+        } else if (sceneIndex === 2) {
+            drawPlayer(ctx, 260, 450, 1.15, "look", t);
+            drawAntiSpiral(ctx, 730, 280, .92, t, false);
+            const pulse = .7 + Math.sin(t * 4) * .18;
+            ctx.save(); ctx.translate(485, 250); ctx.rotate(Math.sin(t * .6) * .08);
+            ctx.shadowColor = "#6cecff"; ctx.shadowBlur = 30;
+            ctx.fillStyle = "rgba(77,223,255,.18)"; ctx.strokeStyle = "#9cf5ff"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(0,-74); ctx.lineTo(62,-38); ctx.lineTo(62,35); ctx.lineTo(0,72); ctx.lineTo(-62,35); ctx.lineTo(-62,-38); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#e7fdff"; ctx.font = "1000 18px monospace"; ctx.textAlign = "center"; ctx.fillText("SAVE",0,6);
+            ctx.globalAlpha = pulse; ctx.beginPath(); ctx.arc(0,0,89 + Math.sin(t * 3) * 8,0,Math.PI*2); ctx.stroke();
+            ctx.restore();
+            drawSpeech(ctx, 25, 22, 320, "ИГРОК", "Моё сохранение… оно цело. Я ничего не потерял.", "#82eaff");
+        } else if (sceneIndex === 3) {
+            drawPlayer(ctx, 480, 454, 1.35, "look", t);
+            for (let i = 0; i < 7; i++) {
+                ctx.save(); ctx.translate(170 + i * 105, 170 + Math.sin(t * 1.4 + i) * 15); ctx.rotate(Math.sin(t + i) * .08);
+                ctx.fillStyle = "rgba(78,107,163,.85)"; ctx.strokeStyle = i % 2 ? "#89eaff" : "#d7b0ff";
+                roundedRect(ctx,-25,-38,50,75,6); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = i % 2 ? "#9ceeff" : "#e3bdff"; ctx.font = "1000 21px Arial"; ctx.textAlign = "center"; ctx.fillText("✦",0,2);
+                ctx.restore();
+            }
+            drawSpeech(ctx, 24, 20, 335, "ИГРОК", "Теперь я могу играть сколько захочу. Я больше не потеряю эту жизнь.", "#82eaff");
+            drawSpeech(ctx, 615, 20, 320, "АНТИ-СПИРАЛЬ", "Останься. Здесь ты можешь получить всё.", "#d7a7ff");
+        } else if (sceneIndex === 4) {
+            drawPlayer(ctx, 340 + Math.sin(t * 1.5) * 2, 455, 1.2, "look", t);
+            drawAntiSpiral(ctx, 770, 280, 1.12, t, true);
+            ctx.save(); ctx.strokeStyle = "rgba(255,82,132,.75)"; ctx.lineWidth = 2; ctx.setLineDash([8,6]);
+            ctx.beginPath(); ctx.roundRect(450, 140, 145, 205, 10); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = "rgba(255,66,117,.12)"; ctx.fill();
+            ctx.fillStyle = "#ff8ca8"; ctx.font = "1000 64px Arial"; ctx.textAlign = "center"; ctx.fillText("?", 522, 240);
+            ctx.font = "900 10px monospace"; ctx.fillText("RICK: NOT FOUND", 522, 273);
+            ctx.restore();
+            drawSpeech(ctx, 22, 20, 340, "ИГРОК", "Погоди. Я закрыл Разлом… но я ведь так и не нашёл Рика.", "#82eaff");
+            drawSpeech(ctx, 615, 20, 320, "АНТИ-СПИРАЛЬ", "Зачем искать того, кого здесь нет?", "#ff8ca8");
+        }
+    }
+
     function drawScene(ctx, sceneIndex, elapsed, width, height) {
         const w = width, h = height, t = elapsed * 0.001;
         const isRift = sceneIndex === 1;
@@ -334,6 +519,7 @@
                 ctx.fillRect(Math.sin(t * 17) * 100, h * .32, w * .75, 9);
             }
         }
+        drawCinematicActors(ctx, sceneIndex, t, w, h);
     }
 
     function start(overlay, onDone) {
