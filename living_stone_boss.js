@@ -265,14 +265,25 @@ function lsApplySuperDmgMult(baseDmg) {
 }
 
 // ========== СТАРТ ==========
-function startLivingStoneFight() {
+function startLivingStoneFight(graphicsModeChoice) {
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(200)) {
         if (typeof showFloatingText === 'function') {
             showFloatingText("⏭️ Живой Камень уже побеждён! Бей его кликами.", "#ffaa00");
         }
         return;
     }
-    // Follow global phone/accessibility settings without interrupting every boss start.
+    if (graphicsModeChoice !== "full" && graphicsModeChoice !== "light" &&
+        typeof window.MBChooseBossGraphicsMode === "function") {
+        window.MBChooseBossGraphicsMode("Живой Камень", function(mode) {
+            startLivingStoneFight(mode);
+        });
+        return;
+    }
+    if ((graphicsModeChoice === "full" || graphicsModeChoice === "light") &&
+        typeof window.MBSetBossGraphicsModeForFight === "function") {
+        window.MBSetBossGraphicsModeForFight(graphicsModeChoice);
+    }
+    // Heavy decorative effects scale down only when the player picks the lightweight profile.
     lsMobileMode = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
     lsPerfMult = lsMobileMode ? 0.12 : 1.0;
     _startLivingStoneFightInternal();
@@ -357,6 +368,7 @@ function _startLivingStoneFightInternal() {
 }
 
 function stopLivingStoneFight() {
+    if (typeof window.MBEndBossGraphicsModeForFight === "function") window.MBEndBossGraphicsModeForFight();
     livingStoneActive = false;
     
     if (typeof resetAllSupers === 'function') {
