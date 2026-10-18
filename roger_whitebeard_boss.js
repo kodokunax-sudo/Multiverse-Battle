@@ -1062,7 +1062,8 @@
             hp: 125, maxHp: 125, alive: odenAvailable, invulnTimer: 0,
             vx: 0, vy: 0, moveTargetX: 255, moveTargetY: 205,
             wanderTimer: 42, dodgeCooldown: 0, dodgeFlashTimer: 0,
-            aiSkill: 0.30, tsunamiEvading: false, tsunamiPulled: false, stunTimer: 0, attackAngle: -Math.PI / 3,
+            aiSkill: 0.30, tsunamiEvading: false, tsunamiPulled: false, stunTimer: 0,
+            dodgePlanTimer: 0, lastThreatAttack: null, attackAngle: -Math.PI / 3,
             attackCooldown: 8, windup: 0, swingTimer: 0,
             swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0,
             healState: "idle", healTimer: 0, healCooldown: 0, healCooldownUntil: 0,
@@ -4336,31 +4337,98 @@
         }
     }
 
+    // Oden's speed is tied to the player's current movement modifiers, not his AI skill.
+    function rwbOdenGetMovementSpeed() {
+        let speed = (Number(rwbBaseSpeed) || 4.5) * (Number(rwbSpeedMult) || 1);
+        if (typeof getTakabaCombatModifiers === "function") {
+            try {
+                const modifiers = getTakabaCombatModifiers();
+                if (modifiers && Number.isFinite(Number(modifiers.speedMult))) speed *= Number(modifiers.speedMult);
+            } catch (e) {}
+        }
+        return Math.max(0.5, Math.min(12, Number.isFinite(speed) ? speed : 4.5));
+    }
+
+    // Predict Oden's actual eased route, including acceleration, braking and arena boundaries.
+    // The same predictor is used for incoming hazards and candidate dodge routes.
+    function rwbOdenPredictRoute(oden, targetX, targetY, futureTimes) {
+        const maxTime = Math.max(0, ...futureTimes);
+        const wantedTimes = new Set(futureTimes);
+        const path = [];
+        const maxSpeed = rwbOdenGetMovementSpeed();
+        const skill = Math.max(0.14, Math.min(1, Number(oden.aiSkill) || 0.3));
+        const steering = oden.tsunamiEvading ? 0.28 : 0.17 + skill * 0.13;
+        let x = Number(oden.x) || 0, y = Number(oden.y) || 0;
+        let vx = Number(oden.vx) || 0, vy = Number(oden.vy) || 0;
+
+        for (let frame = 0; frame <= maxTime; frame++) {
+            if (wantedTimes.has(frame)) path.push({ time: frame, x: x, y: y });
+            if (frame === maxTime) break;
+
+            const dx = targetX - x, dy = targetY - y;
+            const dist = Math.hypot(dx, dy);
+            const desiredSpeed = dist < 3 ? 0 : Math.min(maxSpeed, Math.max(0.45, dist * 0.22));
+            const desiredVx = dist > 0 ? dx / dist * desiredSpeed : 0;
+            const desiredVy = dist > 0 ? dy / dist * desiredSpeed : 0;
+            vx += (desiredVx - vx) * steering;
+            vy += (desiredVy - vy) * steering;
+
+            const currentSpeed = Math.hypot(vx, vy);
+            if (currentSpeed > maxSpeed) {
+                vx = vx / currentSpeed * maxSpeed;
+                vy = vy / currentSpeed * maxSpeed;
+            }
+
+            const nextX = x + vx, nextY = y + vy;
+            x = Math.max(18, Math.min(382, nextX));
+            y = Math.max(8, Math.min(482, nextY));
+            if (x !== nextX) vx *= -0.18;
+            if (y !== nextY) vy *= -0.18;
+        }
+        return path;
+    }
+
     function rwbOdenFindIncoming(oden) {
         if (!oden || !oden.alive) return null;
         const skill = Math.max(0.14, Math.min(1, Number(oden.aiSkill) || 0.14));
+        // Higher skill looks farther ahead, but the path always respects Oden's real top speed.
         const horizon = Math.round(150 + skill * 56);
-        const step = skill >= 0.72 ? 4 : 6;
+        const sampleTimes = [0];
+        for (let t = 4; t < horizon; t += 4) sampleTimes.push(t);
+        if (sampleTimes[sampleTimes.length - 1] !== horizon) sampleTimes.push(horizon);
+
+        const targetX = Number.isFinite(Number(oden.moveTargetX)) ? Number(oden.moveTargetX) : oden.x;
+        const targetY = Number.isFinite(Number(oden.moveTargetY)) ? Number(oden.moveTargetY) : oden.y;
+        const path = rwbOdenPredictRoute(oden, targetX, targetY, sampleTimes);
         let closest = null, bestT = Infinity;
-        // Predict a longer section of Oden's current trajectory instead of reacting only at the last moment.
+
+        // Every visible warning and live projectile is checked against the predicted trajectory.
         for (let i = rwbAttacks.length - 1; i >= 0; i--) {
-            const a = rwbAttacks[i];
-            for (let t = 0; t <= horizon; t += step) {
-                const px = oden.x + oden.vx * t;
-                const py = oden.y + oden.vy * t;
-                const risk = rwbOdenAttackThreat(a, px, py, t, true);
-                if (risk && t < bestT) {
-                    bestT = t; closest = { risk: risk, time: t, attackType: a.type, attack: a };
+            const attack = rwbAttacks[i];
+            for (let p = 0; p < path.length; p++) {
+                const point = path[p];
+                const risk = rwbOdenAttackThreat(attack, point.x, point.y, point.time, true);
+                if (risk && point.time < bestT) {
+                    bestT = point.time;
+                    closest = {
+                        risk: risk, time: point.time, attackType: attack.type,
+                        attack: attack, predictedX: point.x, predictedY: point.y
+                    };
                     break;
                 }
             }
         }
         for (let i = rwbShockwaves.length - 1; i >= 0; i--) {
-            const sw = rwbShockwaves[i];
-            for (let t = 0; t <= horizon; t += step) {
-                const risk = rwbOdenShockwaveThreat(sw, oden.x + oden.vx * t, oden.y + oden.vy * t, t, true);
-                if (risk && t < bestT) {
-                    bestT = t; closest = { risk: risk, time: t, attackType: "shockwave", attack: sw };
+            const wave = rwbShockwaves[i];
+            for (let p = 0; p < path.length; p++) {
+                const point = path[p];
+                const risk = rwbOdenShockwaveThreat(wave, point.x, point.y, point.time, true);
+                if (risk && point.time < bestT) {
+                    bestT = point.time;
+                    closest = {
+                        risk: risk, time: point.time, attackType: "shockwave",
+                        attack: wave, predictedX: point.x, predictedY: point.y
+                    };
                     break;
                 }
             }
@@ -4373,39 +4441,51 @@
         const angles = 16, distances = [88, 128, 164];
         const futureTimes = [4, 8, 13, 19, 27, 37, 49];
         const targets = getRWBOdenTargets().filter(function(boss) { return boss && boss.hp > 0; });
-        const playerSpeed = Math.max(3.2, (Number(rwbBaseSpeed) || 4.5) * (Number(rwbSpeedMult) || 1));
+        const playerSpeed = rwbOdenGetMovementSpeed();
         let best = null, bestScore = -Infinity;
+        const currentSpeed = Math.hypot(Number(oden.vx) || 0, Number(oden.vy) || 0);
+
         for (let d = 0; d < distances.length; d++) {
             for (let k = 0; k < angles; k++) {
                 const angle = k * Math.PI * 2 / angles;
                 const tx = Math.max(left, Math.min(right, oden.x + Math.cos(angle) * distances[d]));
                 const ty = Math.max(top, Math.min(bottom, oden.y + Math.sin(angle) * distances[d]));
-                const totalDistance = Math.max(1, Math.hypot(tx - oden.x, ty - oden.y));
+                const route = rwbOdenPredictRoute(oden, tx, ty, futureTimes);
                 let score = 0, collisions = 0;
-                for (let ti = 0; ti < futureTimes.length; ti++) {
-                    const t = futureTimes[ti];
-                    // Oden accelerates and turns; instant full-speed prediction made risky routes look safe.
-                    const progress = Math.min(1, playerSpeed * Math.max(0, t - 4) * 0.72 / totalDistance);
-                    const px = oden.x + (tx - oden.x) * progress;
-                    const py = oden.y + (ty - oden.y) * progress;
+
+                for (let ti = 0; ti < route.length; ti++) {
+                    const point = route[ti];
                     for (let ai = rwbAttacks.length - 1; ai >= 0; ai--) {
-                        if (rwbOdenAttackThreat(rwbAttacks[ai], px, py, t, true)) {
+                        if (rwbOdenAttackThreat(rwbAttacks[ai], point.x, point.y, point.time, true)) {
+                            collisions++;
+                            score -= ti < 2 ? 38 : 27;
+                        }
+                    }
+                    for (let wi = rwbShockwaves.length - 1; wi >= 0; wi--) {
+                        if (rwbOdenShockwaveThreat(rwbShockwaves[wi], point.x, point.y, point.time, true)) {
                             collisions++;
                             score -= ti < 2 ? 34 : 24;
                         }
                     }
-                    for (let wi = rwbShockwaves.length - 1; wi >= 0; wi--) {
-                        if (rwbOdenShockwaveThreat(rwbShockwaves[wi], px, py, t, true)) {
-                            collisions++;
-                            score -= ti < 2 ? 30 : 21;
-                        }
-                    }
                 }
-                if (collisions === 0) score += 165;
+                if (collisions === 0) score += 180;
                 if (incoming && incoming.risk) {
-                    score += Math.min(180, Math.hypot(tx - incoming.risk.x, ty - incoming.risk.y)) * 0.12;
+                    score += Math.min(180, Math.hypot(tx - incoming.risk.x, ty - incoming.risk.y)) * 0.14;
                 }
-                if (Number.isFinite(preferredX)) score -= Math.abs(tx - preferredX) * 0.18;
+                if (Number.isFinite(preferredX)) score -= Math.abs(tx - preferredX) * 0.26;
+
+                // Prefer a smooth change of direction over a robotic instant reversal.
+                if (currentSpeed > 0.8) {
+                    const routeDX = tx - oden.x, routeDY = ty - oden.y;
+                    const routeLength = Math.hypot(routeDX, routeDY) || 1;
+                    const movementAlignment = ((Number(oden.vx) || 0) * routeDX + (Number(oden.vy) || 0) * routeDY) /
+                        Math.max(1, currentSpeed * routeLength);
+                    score += movementAlignment * 12;
+                }
+                const continuity = Math.hypot(tx - (Number(oden.moveTargetX) || oden.x),
+                    ty - (Number(oden.moveTargetY) || oden.y));
+                score -= Math.min(80, continuity) * 0.035;
+
                 const margin = Math.min(tx - left, right - tx, ty - top, bottom - ty);
                 score += Math.min(28, Math.max(0, margin)) * 0.55;
                 let nearestBoss = Infinity;
@@ -4414,14 +4494,19 @@
                 }
                 if (nearestBoss < 132) score -= (132 - nearestBoss) * 2.25;
                 else if (nearestBoss < Infinity) score += Math.min(70, nearestBoss - 132) * 0.12;
-                score += Math.random() * 0.2;
+
+                // A little controlled variation makes choices feel less like a repeated script.
+                score += Math.random() * 1.5;
                 if (score > bestScore) {
                     bestScore = score;
                     best = { x: tx, y: ty, safe: collisions === 0 };
                 }
             }
         }
-        return best || { x: Math.max(left, Math.min(right, oden.x + (oden.x < 200 ? 100 : -100))), y: Math.max(top, Math.min(bottom, oden.y - 55)), safe: false };
+        return best || {
+            x: Math.max(left, Math.min(right, oden.x + (oden.x < 200 ? 100 : -100))),
+            y: Math.max(top, Math.min(bottom, oden.y - 55)), safe: false
+        };
     }
 
     function rwbOdenIsBreakableBlock(a) {
@@ -4632,6 +4717,7 @@
         if (oden.hitFlash > 0) oden.hitFlash--;
         if (oden.invulnTimer > 0) oden.invulnTimer--;
         if (oden.dodgeCooldown > 0) oden.dodgeCooldown--;
+        if (oden.dodgePlanTimer > 0) oden.dodgePlanTimer--;
         if (oden.dodgeFlashTimer > 0) oden.dodgeFlashTimer--;
         if (oden.blueModeTimer > 0) oden.blueModeTimer--;
         if (oden.blueModeCooldown > 0) oden.blueModeCooldown--;
@@ -4745,33 +4831,37 @@
             const noSafeRoute = aiSkill >= 0.42 && rwbOdenHasNoEscape(oden);
             if (laneBlocked || noSafeRoute) rwbOdenActivateBlueMode(oden);
         }
+        const urgentThreat = !!incoming && incoming.time <= 8;
+        const newThreat = !!incoming && incoming.attack !== oden.lastThreatAttack;
         if (incoming && incoming.time <= Math.round(96 + aiSkill * 34) &&
-            (oden.dodgeCooldown <= 0 || incoming.time <= 16)) {
+            (oden.dodgeCooldown <= 0 || urgentThreat) &&
+            (oden.dodgePlanTimer <= 0 || urgentThreat || (newThreat && incoming.time <= 22))) {
             const escapeX = tsunamiEscape && Number.isFinite(tsunamiEscape.safeX) ? tsunamiEscape.safeX : undefined;
             const safeTarget = rwbOdenChooseDodgeTarget(oden, incoming, escapeX);
             oden.moveTargetX = safeTarget.x;
             oden.moveTargetY = safeTarget.y;
-            oden.wanderTimer = 34;
+            oden.wanderTimer = 28 + Math.floor((1 - aiSkill) * 12);
+            oden.dodgePlanTimer = Math.max(8, Math.round(19 - aiSkill * 7));
+            oden.lastThreatAttack = incoming.attack || null;
             oden.dodgeCooldown = incoming.time <= 12
-                ? Math.max(2, Math.round(6 - aiSkill * 3))
-                : Math.max(3, Math.round(10 - aiSkill * 5));
+                ? Math.max(3, Math.round(8 - aiSkill * 3))
+                : Math.max(6, Math.round(14 - aiSkill * 5));
             oden.dodgeFlashTimer = 13;
             spawnHitParticles(oden.x, oden.y, "#d9a7ff", 4);
+        } else if (!incoming && oden.dodgePlanTimer <= 0) {
+            oden.lastThreatAttack = null;
         }
 
         // Same top movement speed as the player, but with eased acceleration/braking.
         // No teleporting impulses: even a dodge follows a smooth, readable trajectory.
         const toX = oden.moveTargetX - oden.x, toY = oden.moveTargetY - oden.y;
         const dist = Math.hypot(toX, toY) || 1;
-        let playerSpeed = (Number(rwbBaseSpeed) || 4.5) * (Number(rwbSpeedMult) || 1);
-        if (typeof getTakabaCombatModifiers === "function") {
-            try { playerSpeed *= getTakabaCombatModifiers().speedMult; } catch (e) {}
-        }
-        const maxSpeed = Math.max(0.5, playerSpeed);
+        const maxSpeed = rwbOdenGetMovementSpeed();
         const desiredSpeed = dist < 2 ? 0 : Math.min(maxSpeed, Math.max(0.45, dist * 0.22));
         const desiredVx = dist > 0 ? toX / dist * desiredSpeed : 0;
         const desiredVy = dist > 0 ? toY / dist * desiredSpeed : 0;
-        const steering = oden.tsunamiPulled ? 0.24 : (oden.tsunamiEvading ? 0.28 : (0.17 + aiSkill * 0.13));
+        const steering = oden.tsunamiPulled ? 0.24 :
+            (oden.tsunamiEvading ? 0.28 : (0.17 + aiSkill * 0.13));
         oden.vx += (desiredVx - oden.vx) * steering;
         oden.vy += (desiredVy - oden.vy) * steering;
         const currentSpeed = Math.hypot(oden.vx, oden.vy);
