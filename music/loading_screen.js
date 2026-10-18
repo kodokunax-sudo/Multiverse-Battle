@@ -809,13 +809,12 @@
         // Проверка Cache API
         if (!('caches' in window)) {
             addLog("⚠️ Cache API недоступен (file:// или старый браузер)", "err");
-            addLog("Кэш работать не будет, но музыка загрузится", "err");
+            addLog("Кэш работать не будет; загрузка зависит от выбранного режима", "err");
         } else {
             addLog("✅ Cache API доступен", "ok");
         }
 
         // Не начинаем скачивание ресурсов до выбора игрока.
-    }
     }
 
     if (document.readyState === 'loading') {
@@ -831,7 +830,7 @@
         reload: function() {
             window.__loadedMusic = {};
             window.__musicLoaded = false;
-            loadAllMusic();
+            loadAllMusic(window.__disableGameMusic !== true);
         },
         clearCache: async function() {
             if ('caches' in window) {
