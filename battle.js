@@ -806,7 +806,20 @@ function startDodgePhase() {
     var baseInterval = 2400;
     if (arenaAttackType === 0) baseInterval = 3400; if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 2200; if (arenaAttackType === 6) baseInterval = 4000; if (arenaAttackType === 7) baseInterval = 2400; if (arenaAttackType === 8) baseInterval = 2800; if (arenaAttackType === 9) baseInterval = 3400; if (arenaAttackType === 10) baseInterval = 2400;
     switch (arenaAttackType) { case 0: sfxWhiteWalls(); break; case 1: sfxBlueChaos(); break; case 2: sfxYellowSwords(); break; case 3: sfxRedTriangles(); break; case 4: sfxPinkKnockback(); break; case 5: sfxGreenHealSpawn(); break; case 6: sfxRainbowDeathSpawn(); break; case 7: sfxMixAttack(); break; case 8: sfxZoneAttack(); break; case 9: sfxBombTick(); break; case 10: sfxBlasterCharge(); break; default: sfxArenaAttackSpawn(); }
-    arenaAttackInterval = setInterval(function() { if (arenaPhase === "dodge" && arenaActive && !(typeof _superState !== 'undefined' && (_superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0))) { spawnAttack(); switch (arenaAttackType) { case 9: sfxBombTick(); break; case 10: sfxBlasterCharge(); break; default: sfxWhoosh(); } } }, Math.max(800, baseInterval / arenaSpeedMult));
+    if (arenaAttackType < 11 || arenaAttackType > 20) {
+        arenaAttackInterval = setInterval(function() {
+            if (arenaPhase === "dodge" && arenaActive && !(typeof _superState !== 'undefined' && (_superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0))) {
+                spawnAttack();
+                switch (arenaAttackType) {
+                    case 9: sfxBombTick(); break;
+                    case 10: sfxBlasterCharge(); break;
+                    default: sfxWhoosh(); break;
+                }
+            }
+        }, Math.max(800, baseInterval / arenaSpeedMult));
+    } else {
+        arenaAttackInterval = null;
+    }
     var dodgeTime = Math.floor(10000 + Math.random() * 6000); arenaDodgeTimer = Math.floor(dodgeTime / 1000);
     arenaDodgeTimerInterval = setInterval(function() { if (arenaPhase === "dodge" && arenaActive && !(typeof _superState !== 'undefined' && (_superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0))) { arenaDodgeTimer--; if (arenaDodgeTimer <= 0) arenaDodgeTimer = 0; updateDodgeTimerDisplay(); } }, 1000);
     updateDodgeTimerDisplay();
@@ -851,7 +864,7 @@ function updateDodgeTimerDisplay() {
 function startAttackPhase() {
     if (arenaDodgeTimerInterval) { clearInterval(arenaDodgeTimerInterval); arenaDodgeTimerInterval = null; }
     if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
-    arenaPhase = "attack"; attacks = []; arenaBlasters = []; wallGapIndicator = null; arenaClickTargets = []; arenaClicksHit = 0;
+    arenaPhase = "attack"; arenaExtendedState = null; attacks = []; arenaBlasters = []; wallGapIndicator = null; arenaClickTargets = []; arenaClicksHit = 0;
     arenaTotalTargets = 4 + Math.floor(arenaSpeedMult * 0.8);
     if (typeof _superState !== 'undefined' && _superState.dandyDoubleTargets) { arenaTotalTargets *= 2; _superState.dandyDoubleTargets = false; }
     arenaAttackTimeLeft = 2;
