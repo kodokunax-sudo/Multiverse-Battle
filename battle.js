@@ -350,7 +350,7 @@ function initArena() {
                 ev.preventDefault();
                 var rectA = canvas.getBoundingClientRect();
                 for (var i = 0; i < ev.touches.length; i++) {
-                    checkClickTarget(ev.touches[i].clientX - rectA.left, ev.touches[i].clientY - rectA.top);
+                    checkClickTarget(getArenaCanvasPoint(ev.touches[i].clientX, ev.touches[i].clientY).x, getArenaCanvasPoint(ev.touches[i].clientX, ev.touches[i].clientY).y);
                 }
             }
             return;
@@ -360,7 +360,7 @@ function initArena() {
         var rect = canvas.getBoundingClientRect();
         if (arenaPhase === "attack") {
             for (var i = 0; i < ev.touches.length; i++) {
-                checkClickTarget(ev.touches[i].clientX - rect.left, ev.touches[i].clientY - rect.top);
+                checkClickTarget(getArenaCanvasPoint(ev.touches[i].clientX, ev.touches[i].clientY).x, getArenaCanvasPoint(ev.touches[i].clientX, ev.touches[i].clientY).y);
             }
             return;
         }
@@ -411,7 +411,8 @@ function initArena() {
     canvas.addEventListener("click", function(ev) {
         if (!arenaActive || arenaPhase !== "attack") return;
         var rect = canvas.getBoundingClientRect();
-        checkClickTarget(ev.clientX - rect.left, ev.clientY - rect.top);
+        var point = getArenaCanvasPoint(ev.clientX, ev.clientY);
+        checkClickTarget(point.x, point.y);
     });
 }
 
@@ -562,10 +563,22 @@ function moveHeart() {
 
 function spawnFloatingText(x, y, text, color) { floatingTexts.push({ x: x, y: y, text: text, color: color, life: 50, vy: -1.8, vx: (Math.random() - 0.5) * 1.5 }); }
 
+// Преобразует координаты экрана в реальные координаты canvas.
+function getArenaCanvasPoint(clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return { x: 0, y: 0 };
+    return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
+}
+
 function checkClickTarget(mx, my) {
     for (var i = arenaClickTargets.length - 1; i >= 0; i--) {
         var t = arenaClickTargets[i];
-        if (Math.sqrt((mx - t.x) * (mx - t.x) + (my - t.y) * (my - t.y)) < t.radius + 15 && !t.hit) {
+        // Большая зона попадания делает жёлтые цели надёжнее на сенсорных экранах.
+        var hitRadius = t.radius + 24;
+        if ((mx - t.x) * (mx - t.x) + (my - t.y) * (my - t.y) <= hitRadius * hitRadius && !t.hit) {
             t.hit = true; arenaClicksHit++; arenaShake = 8;
             arenaShockwaves.push({ x: t.x, y: t.y, r: 8, v: 6, life: 16, maxLife: 16, color: "#ffdd00" });
             sfxArenaTargetHit();
