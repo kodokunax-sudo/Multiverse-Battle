@@ -1002,9 +1002,10 @@
         };
         rwbOden = {
             x: 166, y: 372, size: 15, phase: 0,
-            hp: 160, maxHp: 160, alive: true, invulnTimer: 0,
+            hp: 300, maxHp: 300, alive: true, invulnTimer: 0,
             vx: 0, vy: 0, moveTargetX: 255, moveTargetY: 205,
             wanderTimer: 42, dodgeCooldown: 0, dodgeFlashTimer: 0,
+            aiSkill: 0.14, tsunamiEvading: false,
             attackCooldown: 38, windup: 0, swingTimer: 0,
             swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0
         };
@@ -4010,9 +4011,9 @@
             const projectile = ["fist", "rock", "giant_rock", "fire_piece", "haki_wave", "wb_reflected_bullet"].includes(a.type) ||
                 (a.type === "hell_fire" && a.state === "flying");
             if (oden.invulnTimer <= 0) {
-                const damage = Math.max(6, Math.min(34, Math.ceil(Number(a.damage) || 12)));
+                const damage = Math.max(4, Math.min(18, Math.ceil((Number(a.damage) || 12) * 0.45)));
                 oden.hp = Math.max(0, oden.hp - damage);
-                oden.invulnTimer = 48;
+                oden.invulnTimer = 64;
                 oden.hitFlash = 12;
                 oden.dodgeCooldown = Math.max(oden.dodgeCooldown || 0, 12);
                 oden.vx += (oden.x - risk.x) / (Math.hypot(oden.x - risk.x, oden.y - risk.y) || 1) * 3.5;
@@ -4042,9 +4043,9 @@
             if (!rwbOdenShockwaveThreat(sw, oden.x, oden.y, 0, false)) continue;
             sw.odenHit = true;
             if (oden.invulnTimer > 0) continue;
-            const damage = Math.max(6, Math.min(30, Math.ceil(Number(sw.damage) || 10)));
+            const damage = Math.max(4, Math.min(15, Math.ceil((Number(sw.damage) || 10) * 0.45)));
             oden.hp = Math.max(0, oden.hp - damage);
-            oden.invulnTimer = 48; oden.hitFlash = 12;
+            oden.invulnTimer = 64; oden.hitFlash = 12;
             rwbFloatingTexts.push({x:oden.x,y:oden.y-25,text:"ОДЭН −"+damage,color:"#ffe98a",life:48,maxLife:48,vy:-0.7,vx:0,size:13});
             spawnHitParticles(oden.x, oden.y, "#ffd44f", 12);
             if (oden.hp <= 0) {
@@ -4058,25 +4059,30 @@
     }
 
     function rwbOdenFindIncoming(oden) {
+        if (!oden || !oden.alive) return null;
+        const skill = Math.max(0.14, Math.min(1, Number(oden.aiSkill) || 0.14));
+        const horizon = Math.round(34 + skill * 72);
+        const step = skill >= 0.72 ? 4 : 6;
         let closest = null, bestT = Infinity;
+        // Predict a longer section of Oden's current trajectory instead of reacting only at the last moment.
         for (let i = rwbAttacks.length - 1; i >= 0; i--) {
             const a = rwbAttacks[i];
-            for (const t of [4, 8, 12, 16]) {
+            for (let t = 4; t <= horizon; t += step) {
                 const px = oden.x + oden.vx * t;
                 const py = oden.y + oden.vy * t;
                 const risk = rwbOdenAttackThreat(a, px, py, t, true);
                 if (risk && t < bestT) {
-                    bestT = t; closest = { risk: risk, time: t };
+                    bestT = t; closest = { risk: risk, time: t, attackType: a.type, attack: a };
                     break;
                 }
             }
         }
         for (let i = rwbShockwaves.length - 1; i >= 0; i--) {
             const sw = rwbShockwaves[i];
-            for (const t of [4, 8, 12, 16]) {
+            for (let t = 4; t <= horizon; t += step) {
                 const risk = rwbOdenShockwaveThreat(sw, oden.x + oden.vx * t, oden.y + oden.vy * t, t, true);
                 if (risk && t < bestT) {
-                    bestT = t; closest = { risk: risk, time: t };
+                    bestT = t; closest = { risk: risk, time: t, attackType: "shockwave", attack: sw };
                     break;
                 }
             }
@@ -4084,10 +4090,37 @@
         return closest;
     }
 
-    function updateRWBOdenSupport() {
+    // Predict the next tsunami crossing and rush to the uncovered side of the arena.
+    function rwbOdenFindTsunamiEscape(oden, skill) {
+        if (!oden || !oden.alive) return null;
+        const horizon = 58 + Math.max(0, Math.min(1, skill || 0)) * 52;
+        const body = oden.size * 0.72;
+        let best = null;
+        for (let i = 0; i < rwbAttacks.length; i++) {
+            const wave = rwbAttacks[i];
+            if (!wave || wave.type !== "tsunami") continue;
+            const vy = Number(wave.vy) || 0;
+            if (vy <= 0) continue;
+            const halfBand = (Number(wave.currentHeight) || Number(wave.height) || 55) * 0.5 + body + 12;
+            const framesToReach = (oden.y - wave.y) / vy;
+            if (framesToReach < -halfBand / vy || framesToReach > horizon) continue;
+            const safeX = wave.fromRight
+                ? Math.max(26, Math.min(112, (Number(wave.x) || 130) - 48))
+                : Math.max(288, Math.min(376, (Number(wave.width) || 270) + 48));
+            if (!best || framesToReach < best.framesToReach) {
+                best = { safeX: safeX, framesToReach: framesToReach, side: wave.fromRight ? "left" : "right", wave: wave };
+            }
+        }
+        return best;
+    }
+
+        function updateRWBOdenSupport() {
         if (!rwbOden || !rwbPlayer || !rwbOden.alive) return;
         const oden = rwbOden;
         oden.phase += 0.11;
+        oden.aiSkill = Math.min(1, (Number(oden.aiSkill) || 0.14) + (rwbState === "fight2" ? 0.0014 : 0.00022));
+        if (rwbState === "fight2") oden.aiSkill = Math.max(0.82, oden.aiSkill);
+        const aiSkill = Math.max(0.14, Math.min(1, oden.aiSkill));
         if (oden.hitFlash > 0) oden.hitFlash--;
         if (oden.invulnTimer > 0) oden.invulnTimer--;
         if (oden.dodgeCooldown > 0) oden.dodgeCooldown--;
@@ -4097,46 +4130,60 @@
         rwbOdenApplyCurrentHits(oden);
         if (!oden.alive) return;
 
-        // Oden roams the arena on his own instead of hovering next to the player.
-        oden.wanderTimer--;
-        if (oden.wanderTimer <= 0 ||
-            Math.hypot(oden.moveTargetX - oden.x, oden.moveTargetY - oden.y) < 18) {
-            oden.moveTargetX = 38 + Math.random() * 324;
-            oden.moveTargetY = 100 + Math.random() * 340;
-            oden.wanderTimer = 42 + Math.floor(Math.random() * 54);
+        // Predict tsunami lanes first: Oden deliberately rushes to the uncovered side.
+        const tsunamiEscape = rwbOdenFindTsunamiEscape(oden, aiSkill);
+        oden.tsunamiEvading = !!tsunamiEscape;
+        if (tsunamiEscape) {
+            oden.moveTargetX = tsunamiEscape.safeX;
+            oden.wanderTimer = Math.max(oden.wanderTimer, 18);
+            oden.dodgeCooldown = Math.max(oden.dodgeCooldown, 16);
+            oden.dodgeFlashTimer = Math.max(oden.dodgeFlashTimer, 7);
+        } else {
+            oden.wanderTimer--;
+            if (oden.wanderTimer <= 0 ||
+                Math.hypot(oden.moveTargetX - oden.x, oden.moveTargetY - oden.y) < 18) {
+                oden.moveTargetX = 38 + Math.random() * 324;
+                oden.moveTargetY = 100 + Math.random() * 340;
+                oden.wanderTimer = 42 + Math.floor(Math.random() * 54);
+            }
         }
 
         const incoming = rwbOdenFindIncoming(oden);
-        if (incoming && oden.dodgeCooldown <= 0) {
+        if (incoming && oden.dodgeCooldown <= 0 && !tsunamiEscape) {
             const risk = incoming.risk;
             let dx, dy;
+            const dodgeRange = 96 + aiSkill * 78;
             if (risk.axis === "horizontal") {
-                dx = (Math.random() - 0.5) * 60;
-                dy = (Math.random() < 0.5 ? -1 : 1) * (92 + Math.random() * 42);
+                dx = (Math.random() - 0.5) * 36;
+                dy = (Math.random() < 0.5 ? -1 : 1) * (84 + aiSkill * 62 + Math.random() * 26);
             } else if (risk.axis === "vertical") {
-                dx = (Math.random() < 0.5 ? -1 : 1) * (100 + Math.random() * 42);
-                dy = (Math.random() - 0.5) * 54;
+                dx = (Math.random() < 0.5 ? -1 : 1) * (dodgeRange + Math.random() * 28);
+                dy = (Math.random() - 0.5) * 34;
             } else {
                 dx = oden.x - risk.x; dy = oden.y - risk.y;
                 const len = Math.hypot(dx, dy) || 1;
-                dx = dx / len * (96 + Math.random() * 44) + (Math.random() - 0.5) * 32;
-                dy = dy / len * (82 + Math.random() * 38) + (Math.random() - 0.5) * 28;
+                dx = dx / len * (dodgeRange + Math.random() * 32) + (Math.random() - 0.5) * 20;
+                dy = dy / len * (78 + aiSkill * 50) + (Math.random() - 0.5) * 20;
             }
-            oden.moveTargetX = Math.max(34, Math.min(366, oden.x + dx));
+            oden.moveTargetX = Math.max(30, Math.min(370, oden.x + dx));
             oden.moveTargetY = Math.max(92, Math.min(455, oden.y + dy));
-            oden.wanderTimer = 34;
-            oden.dodgeCooldown = 30;
+            oden.wanderTimer = 30;
+            oden.dodgeCooldown = Math.max(9, Math.round(34 - aiSkill * 24));
             oden.dodgeFlashTimer = 12;
-            oden.vx += Math.sign(dx) * 1.6;
-            oden.vy += Math.sign(dy) * 1.4;
+            oden.vx += Math.sign(dx) * (1.6 + aiSkill * 2.2);
+            oden.vy += Math.sign(dy) * (1.4 + aiSkill * 2.0);
             spawnHitParticles(oden.x, oden.y, "#d9a7ff", 3);
         }
 
         const toX = oden.moveTargetX - oden.x, toY = oden.moveTargetY - oden.y;
         const dist = Math.hypot(toX, toY) || 1;
-        const speed = oden.dodgeCooldown > 12 ? 4.5 : 2.25;
-        oden.vx = oden.vx * 0.62 + (toX / dist * speed) * 0.38;
-        oden.vy = oden.vy * 0.62 + (toY / dist * speed) * 0.38;
+        const speed = oden.tsunamiEvading
+            ? 5.8 + aiSkill * 1.6
+            : (oden.dodgeCooldown > 12 ? 4.1 + aiSkill * 2.1 : 2.1 + aiSkill * 1.05);
+        const steering = oden.tsunamiEvading ? 0.58 : (0.38 + aiSkill * 0.12);
+        const inertia = oden.tsunamiEvading ? 0.42 : 0.62 - aiSkill * 0.1;
+        oden.vx = oden.vx * inertia + (toX / dist * speed) * steering;
+        oden.vy = oden.vy * inertia + (toY / dist * speed) * steering;
         oden.x = Math.max(30, Math.min(370, oden.x + oden.vx));
         oden.y = Math.max(88, Math.min(460, oden.y + oden.vy));
 
