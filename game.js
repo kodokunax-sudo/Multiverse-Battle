@@ -96,15 +96,89 @@ let arenaSettings = {
     autoSkipDefeatedBosses: false
 };
 
-// Reduced boss effects are an explicit accessibility option in Settings.
-// Never infer this mode from the startup warning, device type, or OS motion preference.
+// Accessibility mode remains a persistent, explicit Settings choice.
+// The per-fight "full/light graphics" prompt is a separate temporary performance profile.
 var MB_REDUCED_BOSS_EFFECTS_KEY = "mbReducedBossEffectsByUser";
+window.__mbBossGraphicsModeForFight = null;
+
 window.MBShouldReduceBossEffects = function() {
+    // A manually enabled accessibility preference always wins over the per-fight preset.
     try {
-        return localStorage.getItem(MB_REDUCED_BOSS_EFFECTS_KEY) === "1";
-    } catch (e) {
-        return false;
+        if (localStorage.getItem(MB_REDUCED_BOSS_EFFECTS_KEY) === "1") return true;
+    } catch (e) {}
+    return window.__mbBossGraphicsModeForFight === "light";
+};
+
+window.MBSetBossGraphicsModeForFight = function(mode) {
+    window.__mbBossGraphicsModeForFight = mode === "light" ? "light" : (mode === "full" ? "full" : null);
+};
+
+window.MBEndBossGraphicsModeForFight = function() {
+    window.__mbBossGraphicsModeForFight = null;
+    var existing = document.getElementById("mbBossGraphicsChoiceOverlay");
+    if (existing) existing.remove();
+};
+
+window.MBChooseBossGraphicsMode = function(bossName, onChoose) {
+    if (typeof onChoose !== "function" || typeof document === "undefined" || !document.body) return;
+    var existing = document.getElementById("mbBossGraphicsChoiceOverlay");
+    if (existing) existing.remove();
+
+    var overlay = document.createElement("div");
+    overlay.id = "mbBossGraphicsChoiceOverlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Выбор графики для боя");
+    overlay.style.cssText = [
+        "position:fixed", "inset:0", "z-index:100200", "display:flex",
+        "align-items:center", "justify-content:center", "padding:18px",
+        "box-sizing:border-box", "background:rgba(3,4,12,.94)",
+        "font-family:Arial,sans-serif", "color:#f5f5f7"
+    ].join(";");
+
+    var card = document.createElement("div");
+    card.style.cssText = [
+        "width:min(480px,100%)", "padding:22px", "box-sizing:border-box",
+        "border:1px solid rgba(246,181,27,.45)", "border-radius:18px",
+        "background:linear-gradient(145deg,#191a2b,#0b0c14)",
+        "box-shadow:0 18px 55px rgba(0,0,0,.65)"
+    ].join(";");
+
+    var title = document.createElement("h2");
+    title.textContent = "🎨 Выбор графики";
+    title.style.cssText = "margin:0 0 8px;font-size:22px;color:#ffda79;";
+    var boss = document.createElement("p");
+    boss.textContent = "Босс: " + String(bossName || "Уникальный босс");
+    boss.style.cssText = "margin:0 0 12px;font-weight:800;font-size:14px;";
+    var desc = document.createElement("p");
+    desc.textContent = "Выбери профиль для этого боя. Лёгкая графика уменьшает тяжёлые частицы, свечение и декоративные эффекты ради FPS. Механики и урон не меняются.";
+    desc.style.cssText = "margin:0 0 18px;color:#c6c3d4;font-size:13px;line-height:1.55;";
+
+    function makeChoiceButton(label, mode, background, borderColor) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = label;
+        btn.style.cssText = [
+            "display:block", "width:100%", "min-height:48px", "margin-top:10px",
+            "padding:12px 14px", "border-radius:12px", "border:1px solid " + borderColor,
+            "background:" + background, "color:#fff", "font-size:14px",
+            "font-weight:900", "cursor:pointer", "touch-action:manipulation"
+        ].join(";");
+        btn.addEventListener("click", function() {
+            window.MBSetBossGraphicsModeForFight(mode);
+            overlay.remove();
+            onChoose(mode);
+        });
+        return btn;
     }
+
+    card.appendChild(title);
+    card.appendChild(boss);
+    card.appendChild(desc);
+    card.appendChild(makeChoiceButton("💻 Полные эффекты · ПК / ноутбук", "full", "linear-gradient(135deg,#3157a4,#6339a7)", "rgba(150,170,255,.65)"));
+    card.appendChild(makeChoiceButton("📱 Лёгкая графика · телефон / выше FPS", "light", "linear-gradient(135deg,#168c75,#075c70)", "rgba(80,230,200,.55)"));
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
 };
 
 function toggleReducedBossEffects(enabled) {
