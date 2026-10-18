@@ -1192,11 +1192,84 @@
         overlay.appendChild(panel);
         return panel;
     }
+    function asAnimateDreamOutcome(panel, waking) {
+        const wrap = document.createElement("div");
+        wrap.className = "as-dream-outcome-animation";
+        wrap.style.cssText = "position:relative;width:100%;max-width:720px;height:clamp(150px,27vw,230px);margin:0 auto 16px;overflow:hidden;border-radius:14px;border:1px solid " + (waking ? "rgba(116,223,255,.55)" : "rgba(180,156,255,.45)") + ";background:linear-gradient(145deg,#07121b,#11132a 55%,#090914);box-shadow:inset 0 0 32px " + (waking ? "rgba(67,216,255,.12)" : "rgba(160,112,255,.14)") + ";";
+        const canvas = document.createElement("canvas");
+        canvas.width = 720; canvas.height = 230;
+        canvas.style.cssText = "display:block;width:100%;height:100%;";
+        wrap.appendChild(canvas);
+        panel.appendChild(wrap);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        let raf = 0;
+        const started = performance.now();
+        function heart(x, y, scale, alpha) {
+            ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale); ctx.globalAlpha = alpha;
+            ctx.fillStyle = "#ff315b"; ctx.shadowColor = "#ff315b"; ctx.shadowBlur = 18;
+            ctx.beginPath(); ctx.moveTo(0, 18); ctx.bezierCurveTo(-9, 10, -30, -4, -26, -20);
+            ctx.bezierCurveTo(-23, -34, -7, -34, 0, -21); ctx.bezierCurveTo(8, -35, 25, -32, 28, -19);
+            ctx.bezierCurveTo(31, -4, 9, 10, 0, 18); ctx.closePath(); ctx.fill();
+            ctx.shadowBlur = 0; ctx.fillStyle = "#fff4f7";
+            ctx.beginPath(); ctx.ellipse(-8,-16,3,4.5,-.1,0,Math.PI*2); ctx.ellipse(8,-16,3,4.5,.1,0,Math.PI*2); ctx.fill();
+            ctx.restore();
+        }
+        function frame(now) {
+            if (!wrap.isConnected) { cancelAnimationFrame(raf); return; }
+            const t = (now - started) / 1000;
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0,0,w,h);
+            const glow = ctx.createRadialGradient(w*.5,h*.45,8,w*.5,h*.45,300);
+            glow.addColorStop(0,waking?"rgba(62,219,255,.2)":"rgba(159,106,255,.18)");
+            glow.addColorStop(1,"rgba(0,0,0,0)");
+            ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
+            for(let i=0;i<36;i++){
+                const x=(i*137.5+t*(waking?58:13))%w, y=(i*53.7+Math.sin(t*1.4+i)*9)%h;
+                ctx.fillStyle=waking?"rgba(133,239,255,.65)":"rgba(204,179,255,.52)";
+                ctx.fillRect(x,y,1.5+(i%3),1.5+(i%3));
+            }
+            // Monitor and desk are kept in both endings to connect the dream to the player's survival-game obsession.
+            ctx.fillStyle="#1b2530";ctx.strokeStyle=waking?"#78e7ff":"#9f8ad9";ctx.lineWidth=3;
+            ctx.beginPath();ctx.roundRect(350,24,310,154,10);ctx.fill();ctx.stroke();
+            ctx.fillStyle=waking?"#19333d":"#20233a";ctx.fillRect(361,35,288,132);
+            if(waking){
+                const crack = Math.min(1,t/2.2);
+                ctx.strokeStyle="rgba(187,248,255,"+(.4+.6*Math.abs(Math.sin(t*5)))+")";ctx.lineWidth=1.5+crack*1.8;
+                for(let i=0;i<9;i++){const x=370+i*32;ctx.beginPath();ctx.moveTo(505,91);ctx.lineTo(x,40+(i%4)*25);ctx.lineTo(x+(i%2?19:-14),163);ctx.stroke();}
+                ctx.fillStyle="#c9faff";ctx.font="900 13px monospace";ctx.fillText("DREAM ERROR",405,104);
+                ctx.fillStyle="#65dfff";ctx.fillText("SAVE NOT FOUND",397,126);
+                const shards=22;
+                for(let i=0;i<shards;i++){const a=i*2.399,dist=(t*37+i*13)%100;ctx.fillStyle="rgba(125,234,255,"+Math.max(.1,1-dist/110)+")";ctx.beginPath();ctx.moveTo(505+Math.cos(a)*dist,91+Math.sin(a)*dist);ctx.lineTo(505+Math.cos(a+.24)*(dist+8),91+Math.sin(a+.24)*(dist+8));ctx.lineTo(505+Math.cos(a-.18)*(dist+13),91+Math.sin(a-.18)*(dist+13));ctx.closePath();ctx.fill();}
+                heart(175,119,1.65,.85+Math.sin(t*9)*.15);
+                ctx.fillStyle="#d7fbff";ctx.font="900 13px monospace";ctx.fillText("WAKE UP",110,194);
+                ctx.strokeStyle="rgba(116,223,255,.8)";ctx.beginPath();ctx.moveTo(210,122);ctx.lineTo(326,122);ctx.stroke();
+                ctx.fillStyle="#75e7ff";ctx.beginPath();ctx.arc(326,122,3+Math.sin(t*8)*2,0,Math.PI*2);ctx.fill();
+            }else{
+                ctx.fillStyle="#9a8bff";ctx.font="900 13px monospace";ctx.fillText("PERFECT WORLD",425,87);
+                ctx.fillStyle="#b8f7ce";ctx.font="900 11px monospace";ctx.fillText("SAVE: FOREVER",435,111);
+                ctx.fillStyle="rgba(158,123,255,.14)";ctx.fillRect(361,35,288,132);
+                heart(205,116,1.8,.7+Math.sin(t*1.8)*.2);
+                // The dream gently pulls the heart toward the monitor and dims the room.
+                const drift=Math.sin(t*1.3)*8;
+                heart(265+drift,123,1.05,.3);
+                ctx.fillStyle="rgba(6,7,20,"+(.08+.13*(.5+.5*Math.sin(t*1.1))+Math.min(.38,t*.025))+")";ctx.fillRect(0,0,w,h);
+                ctx.fillStyle="#d6caff";ctx.font="900 12px monospace";ctx.fillText("STAY IN THE DREAM",85,194);
+                ctx.strokeStyle="rgba(180,156,255,.7)";ctx.beginPath();ctx.moveTo(245,121);ctx.lineTo(328,121);ctx.stroke();
+            }
+            ctx.fillStyle="rgba(255,255,255,.8)";ctx.font="800 9px monospace";ctx.fillText(waking?"REALITY RESTORED":"DREAM LOOP ACTIVE",18,18);
+            raf=requestAnimationFrame(frame);
+        }
+        raf=requestAnimationFrame(frame);
+        wrap._stopDreamAnimation=function(){cancelAnimationFrame(raf);};
+    }
+
     function asRenderDreamOutcome(kind) {
         const overlay = asDreamOverlay || document.getElementById("antiSpiralDreamEnding");
         if (!overlay) return;
         const panel = asReplaceDreamPanel(overlay);
         const waking = kind === "wake";
+        asAnimateDreamOutcome(panel, waking);
         asDreamElement(panel, "div",
             waking ? "СБОЙ ИЛЛЮЗИИ · РЕАЛЬНОСТЬ" : "КОНЦОВКА · ПОРАЖЕНИЕ",
             "font-size:10px;font-weight:900;letter-spacing:1.8px;text-align:center;color:" +
