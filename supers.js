@@ -2803,6 +2803,8 @@ function updateSuperLogic(dt) {
 }
 
 function renderSuperVisuals() {
+    // Super mechanics still update; only their decorative render layer is skipped in reduced-effects mode.
+    if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) return;
     if (!ctx) return;
     var ctxB = getBossContext();
     if (!ctxB) return;
