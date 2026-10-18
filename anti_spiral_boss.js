@@ -1269,6 +1269,11 @@
         if (!overlay) return;
         const panel = asReplaceDreamPanel(overlay);
         const waking = kind === "wake";
+        // Stop the cheerful soundtrack exactly when the dream is exposed as a lie.
+        if (waking && window.ASDreamCinematic &&
+            typeof window.ASDreamCinematic.revealTruth === "function") {
+            window.ASDreamCinematic.revealTruth();
+        }
         asAnimateDreamOutcome(panel, waking);
         asDreamElement(panel, "div",
             waking ? "СБОЙ ИЛЛЮЗИИ · РЕАЛЬНОСТЬ" : "КОНЦОВКА · ПОРАЖЕНИЕ",
@@ -1326,6 +1331,9 @@
                 "font-size:13px;line-height:1.7;color:#ff9eaf;margin:0 0 20px;font-weight:800;");
             asDreamButton(panel, "ЗАКРЫТЬ КОНЦОВКУ", "#ff7994", function() {
                 if (asDreamEndingChoice !== "stay") return;
+                if (window.ASDreamCinematic && typeof window.ASDreamCinematic.stopMusic === "function") {
+                    window.ASDreamCinematic.stopMusic();
+                }
                 if (asDreamOverlay && asDreamOverlay.parentNode) asDreamOverlay.remove();
                 asDreamOverlay = null;
                 asRestoreStartButton();
