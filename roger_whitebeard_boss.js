@@ -1087,7 +1087,7 @@
         rwbEndTimer = 180;
         rwbFloatingTexts.push({
             x: 200, y: 185,
-            text: accept ? "ОДЭН: В СЛЕДУЮЩИЙ РАЗ Я БУДУ РЯДОМ!" : "ОДЭН: Я СПРОШУ ЕЩЁ РАЗ ПОТОМ.",
+            text: accept ? "ОДЭН: ДОГОВОРИЛИСЬ. В СЛЕДУЮЩЕМ БОЮ Я ПРИКРОЮ ТЕБЯ!" : "ОДЭН: Я СПРОШУ ЕЩЁ РАЗ ПОТОМ.",
             color: accept ? "#ffe26a" : "#c79cff",
             life: 64, maxLife: 64, vy: -0.35, vx: 0, size: 11
         });
@@ -3814,12 +3814,12 @@
             ctx.fillText("ОДЭН", 200, 190);
             ctx.shadowBlur = 0; ctx.fillStyle = "#ffffff";
             ctx.font = "bold 13px Nunito, sans-serif";
-            var odenOfferLines = wrapText("Я хочу сражаться рядом с тобой в следующий раз. Позволишь мне стать твоим постоянным союзником?", 348, ctx);
+            var odenOfferLines = wrapText("Эй, твой путь ещё не окончен. В следующий раз позволь мне сражаться рядом с тобой — я прикрою тебе спину. Что скажешь?", 348, ctx);
             for (var odenLine = 0; odenLine < odenOfferLines.length; odenLine++) {
                 ctx.fillText(odenOfferLines[odenLine], 200, 220 + odenLine * 22);
             }
             var offerButtons = [
-                { y: 320, text: "ДА — СРАЖАЙСЯ СО МНОЙ", fill: "rgba(62, 101, 64, .96)", stroke: "#8dffc6" },
+                { y: 320, text: "ДА — ПОМОГИ МНЕ В СЛЕДУЮЩЕМ БОЮ", fill: "rgba(62, 101, 64, .96)", stroke: "#8dffc6" },
                 { y: 390, text: "НЕТ — Я СПРАВЛЮСЬ САМ", fill: "rgba(56, 42, 79, .96)", stroke: "#c79cff" }
             ];
             for (var ob = 0; ob < offerButtons.length; ob++) {
