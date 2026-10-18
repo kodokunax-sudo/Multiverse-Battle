@@ -4208,8 +4208,8 @@
     function rwbOdenFindIncoming(oden) {
         if (!oden || !oden.alive) return null;
         const skill = Math.max(0.14, Math.min(1, Number(oden.aiSkill) || 0.14));
-        const horizon = Math.round(104 + skill * 56);
-        const step = skill >= 0.72 ? 3 : 5;
+        const horizon = Math.round(150 + skill * 56);
+        const step = skill >= 0.72 ? 4 : 6;
         let closest = null, bestT = Infinity;
         // Predict a longer section of Oden's current trajectory instead of reacting only at the last moment.
         for (let i = rwbAttacks.length - 1; i >= 0; i--) {
@@ -4239,8 +4239,8 @@
 
     function rwbOdenChooseDodgeTarget(oden, incoming, preferredX) {
         const left = 24, right = 376, top = 18, bottom = 474;
-        const angles = 12, distances = [82, 126, 164];
-        const futureTimes = [6, 12, 19, 26, 33];
+        const angles = 16, distances = [88, 128, 164];
+        const futureTimes = [4, 8, 13, 19, 27, 37, 49];
         const targets = getRWBOdenTargets().filter(function(boss) { return boss && boss.hp > 0; });
         const playerSpeed = Math.max(3.2, (Number(rwbBaseSpeed) || 4.5) * (Number(rwbSpeedMult) || 1));
         let best = null, bestScore = -Infinity;
@@ -4253,7 +4253,8 @@
                 let score = 0, collisions = 0;
                 for (let ti = 0; ti < futureTimes.length; ti++) {
                     const t = futureTimes[ti];
-                    const progress = Math.min(1, playerSpeed * t / totalDistance);
+                    // Oden accelerates and turns; instant full-speed prediction made risky routes look safe.
+                    const progress = Math.min(1, playerSpeed * Math.max(0, t - 4) * 0.72 / totalDistance);
                     const px = oden.x + (tx - oden.x) * progress;
                     const py = oden.y + (ty - oden.y) * progress;
                     for (let ai = rwbAttacks.length - 1; ai >= 0; ai--) {
@@ -4280,8 +4281,8 @@
                 for (let bi = 0; bi < targets.length; bi++) {
                     nearestBoss = Math.min(nearestBoss, Math.hypot(tx - targets[bi].x, ty - targets[bi].y));
                 }
-                if (nearestBoss < 84) score -= (84 - nearestBoss) * 1.75;
-                else if (nearestBoss < Infinity) score += Math.min(110, nearestBoss - 84) * 0.09;
+                if (nearestBoss < 132) score -= (132 - nearestBoss) * 2.25;
+                else if (nearestBoss < Infinity) score += Math.min(70, nearestBoss - 132) * 0.12;
                 score += Math.random() * 0.2;
                 if (score > bestScore) {
                     bestScore = score;
@@ -4290,6 +4291,12 @@
             }
         }
         return best || { x: Math.max(left, Math.min(right, oden.x + (oden.x < 200 ? 100 : -100))), y: Math.max(top, Math.min(bottom, oden.y - 55)), safe: false };
+    }
+
+    function rwbOdenIsBreakableBlock(a) {
+        if (!a || !Number.isFinite(Number(a.hp)) || Number(a.hp) <= 0) return false;
+        return ["blade", "big_blade", "rock", "giant_rock", "fist", "haki_wave",
+            "hell_fire", "fire_piece", "wb_reflected_bullet"].includes(a.type);
     }
 
     // Blue mode activates when a destructible hazard blocks the straight sword lane to Oden's target.
@@ -4302,9 +4309,7 @@
         if (length2 < 95 * 95) return false;
         for (let i = rwbAttacks.length - 1; i >= 0; i--) {
             const a = rwbAttacks[i];
-            if (!a || !Number.isFinite(Number(a.hp)) || Number(a.hp) <= 0 ||
-                ["wb_attack_telegraph", "wb_giant_rock_warning", "wb_combo_gate_warning",
-                 "wb_reflect_vortex", "wb_center_wave", "wb_fruit_punch", "tsunami"].includes(a.type) ||
+            if (!rwbOdenIsBreakableBlock(a) ||
                 a.state === "warning" || a.state === "windup" || a.state === "done") continue;
             const ax = Number(a.x), ay = Number(a.y);
             if (!Number.isFinite(ax) || !Number.isFinite(ay)) continue;
@@ -4419,9 +4424,7 @@
         const damage = Math.max(1, Number(slash.blockDamage) || 2);
         for (let i = rwbAttacks.length - 1; i >= 0; i--) {
             const a = rwbAttacks[i];
-            if (!a || !Number.isFinite(Number(a.hp)) || Number(a.hp) <= 0 ||
-                ["wb_attack_telegraph", "wb_giant_rock_warning", "wb_combo_gate_warning",
-                 "wb_reflect_vortex", "wb_center_wave", "wb_fruit_punch", "tsunami"].includes(a.type) ||
+            if (!rwbOdenIsBreakableBlock(a) ||
                 a.state === "warning" || a.state === "windup" || a.state === "done") continue;
             const ax = Number(a.x), ay = Number(a.y);
             if (!Number.isFinite(ax) || !Number.isFinite(ay)) continue;
@@ -4463,8 +4466,8 @@
         if (!rwbOden || !rwbPlayer || !rwbOden.alive) return;
         const oden = rwbOden;
         oden.phase += 0.11;
-        oden.aiSkill = Math.min(1, (Number(oden.aiSkill) || 0.30) + (rwbState === "fight2" ? 0.0025 : 0.00036));
-        if (rwbState === "fight2") oden.aiSkill = Math.max(0.88, oden.aiSkill);
+        oden.aiSkill = Math.min(1, (Number(oden.aiSkill) || 0.30) + (rwbState === "fight2" ? 0.0025 : 0.00055));
+        if (rwbState === "fight2") oden.aiSkill = Math.max(0.92, oden.aiSkill);
         const aiSkill = Math.max(0.30, Math.min(1, oden.aiSkill));
         if (oden.hitFlash > 0) oden.hitFlash--;
         if (oden.invulnTimer > 0) oden.invulnTimer--;
@@ -4491,10 +4494,8 @@
             });
         }
 
-        // If a hit is unavoidable at the current position, Oden takes damage and becomes briefly invulnerable.
-        rwbOdenApplyCurrentHits(oden);
-        if (!oden.alive) return;
-        const stunned = (Number(oden.stunTimer) || 0) > 0;
+        // Predict and dodge first; actual hits/stuns are resolved after this frame's movement.
+        let stunned = (Number(oden.stunTimer) || 0) > 0;
         if (stunned) {
             oden.stunTimer = Math.max(0, oden.stunTimer - 1);
             oden.windup = 0;
@@ -4556,18 +4557,37 @@
             }
         }
 
+        // When the player is close to a boss, Oden stays on a safer flank instead of joining melee.
+        if (oden.healState === "idle" && !tsunamiPull && !tsunamiEscape) {
+            const bosses = getRWBOdenTargets().filter(function(boss) { return boss && boss.hp > 0; });
+            const targetTooClose = bosses.some(function(boss) {
+                return Math.hypot(oden.moveTargetX - boss.x, oden.moveTargetY - boss.y) < 132;
+            });
+            if (targetTooClose) {
+                const safeFlank = rwbOdenChooseDodgeTarget(oden, null, undefined);
+                if (safeFlank) {
+                    oden.moveTargetX = safeFlank.x;
+                    oden.moveTargetY = safeFlank.y;
+                    oden.wanderTimer = Math.max(oden.wanderTimer, 24);
+                }
+            }
+        }
+
         const incoming = rwbOdenFindIncoming(oden);
-        if (oden.blueModeCooldown <= 0 && oden.blueModeTimer <= 0 &&
+        if (oden.healState === "idle" && oden.blueModeCooldown <= 0 && oden.blueModeTimer <= 0 &&
             rwbOdenHasBreakableBlockOnAttackLane(oden)) {
             rwbOdenActivateBlueMode(oden);
         }
-        if (incoming && incoming.time <= Math.round(58 + aiSkill * 18) && oden.dodgeCooldown <= 0) {
+        if (incoming && incoming.time <= Math.round(78 + aiSkill * 28) &&
+            (oden.dodgeCooldown <= 0 || incoming.time <= 12)) {
             const escapeX = tsunamiEscape && Number.isFinite(tsunamiEscape.safeX) ? tsunamiEscape.safeX : undefined;
             const safeTarget = rwbOdenChooseDodgeTarget(oden, incoming, escapeX);
             oden.moveTargetX = safeTarget.x;
             oden.moveTargetY = safeTarget.y;
-            oden.wanderTimer = 30;
-            oden.dodgeCooldown = Math.max(4, Math.round(14 - aiSkill * 8));
+            oden.wanderTimer = 34;
+            oden.dodgeCooldown = incoming.time <= 12
+                ? Math.max(2, Math.round(6 - aiSkill * 3))
+                : Math.max(3, Math.round(10 - aiSkill * 5));
             oden.dodgeFlashTimer = 13;
             spawnHitParticles(oden.x, oden.y, "#d9a7ff", 4);
         }
@@ -4605,6 +4625,14 @@
             oden.y = Math.max(8, Math.min(482, oden.y + oden.vy));
         }
 
+        rwbOdenApplyCurrentHits(oden);
+        if (!oden.alive) return;
+        if ((Number(oden.stunTimer) || 0) > 0) {
+            stunned = true;
+            oden.windup = 0;
+            oden.swingTimer = 0;
+        }
+
         if (oden.healState === "approach" &&
             Math.hypot(oden.x - rwbPlayer.x, oden.y - rwbPlayer.y) <= 58) {
             oden.healState = "channel";
@@ -4640,7 +4668,7 @@
 
         const targets = getRWBOdenTargets();
         const focus = getRWBOdenAttackTarget(targets);
-        const odenAttackRate = oden.blueModeTimer > 0 ? 2 : 1;
+        const odenAttackRate = 1; // Blue mode is for breaking obstacles, not speeding up normal attacks.
         for (let i = rwbOdenSlashes.length - 1; i >= 0; i--) {
             const slash = rwbOdenSlashes[i];
             const target = getRWBOdenTargetById(slash.targetId);
@@ -4715,7 +4743,7 @@
                         vy: Math.sin(angle) * 8.4,
                         speed: 8.4, angle: angle, size: 12,
                         damage: damage, targetId: target.id, life: 66,
-                        isBlue: oden.blueModeTimer > 0, blockDamage: oden.blueModeTimer > 0 ? 2 : 0,
+                        isBlue: oden.blueModeTimer > 0, blockDamage: oden.blueModeTimer > 0 ? 3 : 0,
                         phase: Math.random() * Math.PI * 2
                     });
                     spawnHakiLightning(oden.x, oden.y, 1, false);
