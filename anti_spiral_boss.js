@@ -87,6 +87,7 @@
     let asGravityPull = 0.10;
     let asGravityDirection = 0; // 0 вниз, 1 влево, 2 вверх, 3 вправо
     let asGravityNextShiftAt = 0;
+    let asGravityIntervalBand = -1;
     let asGravityTransitionUntil = 0;
     let asBossApproachFrames = 0;
     const asGravityLabels = ["ВНИЗ", "ВЛЕВО", "ВВЕРХ", "ВПРАВО"];
@@ -594,10 +595,35 @@
             else asSound(260,"triangle",.11,.035);
         }
     }
+    function asGravityBandForRatio(ratio) {
+        if (ratio <= 0.20) return 4;
+        if (ratio <= 0.25) return 3;
+        if (ratio <= 0.50) return 2;
+        if (ratio <= 0.75) return 1;
+        return 0;
+    }
+    function asGravityIntervalForBand(band) {
+        return [15000, 12000, 9000, 6000, 3000][Math.max(0, Math.min(4, band))];
+    }
+    function asUpdateGravityCadence(now, ratio) {
+        const band = asGravityBandForRatio(ratio);
+        if (band === asGravityIntervalBand) return;
+        asGravityIntervalBand = band;
+        asGravityNextShiftAt = now + asGravityIntervalForBand(band);
+        if (band === 4) {
+            asText(200, 96, "ФИНАЛЬНАЯ ГРАВИТАЦИЯ: КАЖДЫЕ 3 СЕКУНДЫ", "#ff568e", 130);
+            asSound(68, "sawtooth", .55, .17);
+        }
+    }
+    function asResetGravityCadence(now) {
+        asGravityIntervalBand = asGravityBandForRatio(asBossMaxHp > 0 ? asBossHp / asBossMaxHp : 1);
+        asGravityNextShiftAt = now + asGravityIntervalForBand(asGravityIntervalBand);
+    }
     function asShiftGravity(now) {
         asGravityDirection = (asGravityDirection + 1) % 4;
-        // The more damage Anti-Spiral takes, the sooner gravity shifts again.
-        asGravityNextShiftAt = now + 15000;
+        // Gravity accelerates as the boss loses HP: 15s, 12s, 9s, 6s, then 3s below 20%.
+        asGravityIntervalBand = asGravityBandForRatio(asBossMaxHp > 0 ? asBossHp / asBossMaxHp : 1);
+        asGravityNextShiftAt = now + asGravityIntervalForBand(asGravityIntervalBand);
         asGravityTransitionUntil = now + 1900;
         asMiniCooldownUntil = Math.max(asMiniCooldownUntil, now + 3500);
         asBossApproachFrames = 0;
@@ -1078,7 +1104,7 @@
     function asBegin() {
         if(!asActive || asState==="fight") return;
         asState="fight"; asPatternTimer=0; asLastArenaShift=asGameClock;
-        asGravityDirection=0; asGravityNextShiftAt=asGameClock+15000;
+        asGravityDirection=0; asResetGravityCadence(asGameClock);
         asLastDamageAt=asClockNow(); asNextShotAt=0; asChargeFrames=0; asCharging=false;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asText(200,250,"ПОКАЖИ СВОЮ ВОЛЮ!","#7de1ff",90);
@@ -1556,7 +1582,7 @@
         if(!asActive||asState!=="cinematic")return;
         asState="fight";
         const now=performance.now();
-        asGravityDirection=0;asGravityNextShiftAt=now+15000;asGravityTransitionUntil=0;asBossApproachFrames=0;
+        asGravityDirection=0;asResetGravityCadence(asGameClock);asGravityTransitionUntil=0;asBossApproachFrames=0;
         asBoss={x:200,y:100,size:48,rotation:0,pulse:0,flash:0};
         asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;
         asInitPlatforms();asInitSeals();
@@ -1698,7 +1724,7 @@
     function asFinishBrokenReality(success, now, laserFailure) {
         const saved = asMiniReturnPlayer || { x: 200, y: asFloor(), grounded: true, platformIndex: -1 };
         asState = "fight";
-        asGravityNextShiftAt = now + 15000;
+        asResetGravityCadence(now);
         asMiniCooldownUntil = now + (success ? 12000 : 15000);
         asPlayer = {
             x: Math.max(asBounds().left, Math.min(asBounds().right, saved.x)),
@@ -2718,6 +2744,7 @@
             }
             if(!landed){asPlayer.grounded=boundaryGrounded;asPlayer.platformIndex=boundaryGrounded?-1:null;}
             const ratio=asBossHp/asBossMaxHp,previousPhase=asPhase;asPhase=ratio<=.25?4:ratio<=.5?3:ratio<=.75?2:1;
+            asUpdateGravityCadence(now, ratio);
             if(asPhase>previousPhase){
                 const phaseColor=asPhase>=4?"#ff386f":(asPhase>=3?"#d56bff":"#55eaff");
                 asShake=Math.max(asShake,16+asPhase*2);asFlash=Math.max(asFlash,12);asFlashColor=phaseColor;
@@ -2781,7 +2808,7 @@
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asBoss={x:285,y:180,size:48,rotation:0,pulse:0,flash:0};
         asAttacks=[];asParticles=[];asTexts=[];asClones=[];asCloneMode=false;asCloneUntil=0;asCloneNextShuffleAt=0;asClonePhase="idle";asCloneStageUntil=0;asArenaLockUntil=0;asArenaWarpUntil=0;asLastArenaWarpCompact=false;asFrame=0;asPattern=0;asPatternTimer=0;asPatternDraining=false;asPatternVolleyCount=0;
-        asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;asLastArenaShift=asGameClock;asArenaLockUntil=0;asArenaWarpUntil=0;asLastArenaWarpCompact=false;asGravityDirection=0;asGravityNextShiftAt=0;
+        asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;asLastArenaShift=asGameClock;asArenaLockUntil=0;asArenaWarpUntil=0;asLastArenaWarpCompact=false;asGravityDirection=0;asGravityNextShiftAt=0;asGravityIntervalBand=-1;
         asShake=0;asFlash=0;asBossDamageFlash=0;asPhase=1;asLastShot=0;asGravityPull=.10;
         asKeys=Object.create(null);asPointer={down:false,x:0,y:0,id:null};
         if(typeof arenaActive!=="undefined")arenaActive=false;
