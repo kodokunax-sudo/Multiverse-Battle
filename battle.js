@@ -1007,7 +1007,10 @@ function arenaExtDrawSegment(x1, y1, x2, y2, width, color, alpha, dashed) {
 }
 
 function arenaExtHitSegment(x1, y1, x2, y2, width, damage, label) {
-    if (invulnTimer > 0) return;
+    if (invulnTimer > 0 || (typeof _superState !== "undefined" && (
+        _superState.takabaTimeStop || _superState.garouTimeStop ||
+        _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0
+    ))) return;
     if (arenaExtLineDistance(heart.x, heart.y, x1, y1, x2, y2) < width / 2 + heart.hitbox) {
         applyHit(damage, label);
     }
@@ -1070,7 +1073,7 @@ function updateExtendedArenaAttack(now) {
             ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             ctx.fillStyle = "#5f6a79"; ctx.beginPath(); ctx.arc(bx, by, 17, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             ctx.fillStyle = "#ecf1f7"; ctx.beginPath(); ctx.arc(bx, by, 6, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-            if (t > 650 && Math.hypot(heart.x - bx, heart.y - by) < 17 + heart.hitbox) applyHit(strongDmg, "МАЯТНИК!");
+            if (!frozen && t > 650 && Math.hypot(heart.x - bx, heart.y - by) < 17 + heart.hitbox) applyHit(strongDmg, "МАЯТНИК!");
         }
         if (t < 650) { ctx.fillStyle = "rgba(210,225,245,0.85)"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("МАЯТНИКИ ЗАПУСКАЮТСЯ", 200, 82); }
     }
@@ -1109,7 +1112,7 @@ function updateExtendedArenaAttack(now) {
             ctx.fillStyle = "#83f36a"; ctx.strokeStyle = warning ? "#d5ff9e" : "#b0ff5a"; ctx.lineWidth = 2; ctx.shadowColor = "#8aff45"; ctx.shadowBlur = 10;
             ctx.beginPath(); ctx.arc(pool.x, pool.y, radius, 0, Math.PI * 2); ctx.fill(); ctx.setLineDash(warning ? [5, 5] : []); ctx.stroke(); ctx.setLineDash([]);
             ctx.fillStyle = "#dfffaa"; ctx.beginPath(); ctx.arc(pool.x - radius * 0.25, pool.y - radius * 0.2, radius * 0.18, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-            if (!warning && Math.hypot(heart.x - pool.x, heart.y - pool.y) < radius + heart.hitbox) applyHit(dmg, "КИСЛОТА!");
+            if (!frozen && !warning && Math.hypot(heart.x - pool.x, heart.y - pool.y) < radius + heart.hitbox) applyHit(dmg, "КИСЛОТА!");
         }
     }
 
@@ -1138,7 +1141,7 @@ function updateExtendedArenaAttack(now) {
             if (!frozen) { leaf.x += leaf.vx; leaf.y += leaf.vy; leaf.rot += 0.12; }
             ctx.save(); ctx.translate(leaf.x, leaf.y); ctx.rotate(leaf.rot); ctx.fillStyle = "#b6d6df"; ctx.strokeStyle = "#f3ffff"; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(-leaf.size, 0); ctx.quadraticCurveTo(0, -leaf.size * 0.85, leaf.size, 0); ctx.quadraticCurveTo(0, leaf.size * 0.85, -leaf.size, 0); ctx.fill(); ctx.stroke(); ctx.restore();
-            if (Math.hypot(heart.x - leaf.x, heart.y - leaf.y) < leaf.size + heart.hitbox) applyHit(dmg, "ШТОРМОВОЙ ОСКОЛОК!");
+            if (!frozen && Math.hypot(heart.x - leaf.x, heart.y - leaf.y) < leaf.size + heart.hitbox) applyHit(dmg, "ШТОРМОВОЙ ОСКОЛОК!");
             if (leaf.x < -30 || leaf.x > 430 || leaf.y < -30 || leaf.y > 530) st.hazards.splice(hi, 1);
         }
     }
@@ -1168,7 +1171,7 @@ function updateExtendedArenaAttack(now) {
             }
             ctx.save(); ctx.translate(boom.x, boom.y); ctx.rotate(boom.rot); ctx.fillStyle = "#f5d88a"; ctx.strokeStyle = "#fff7d9"; ctx.lineWidth = 2; ctx.shadowColor = "#e7b95b"; ctx.shadowBlur = 7;
             ctx.beginPath(); ctx.moveTo(-17,-7); ctx.lineTo(2,-7); ctx.lineTo(14,-15); ctx.lineTo(8,-1); ctx.lineTo(17,7); ctx.lineTo(-2,7); ctx.lineTo(-14,15); ctx.lineTo(-8,1); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
-            if (Math.hypot(heart.x - boom.x, heart.y - boom.y) < 15 + heart.hitbox) applyHit(strongDmg, "ВОЗВРАТНОЕ ЛЕЗВИЕ!");
+            if (!frozen && Math.hypot(heart.x - boom.x, heart.y - boom.y) < 15 + heart.hitbox) applyHit(strongDmg, "ВОЗВРАТНОЕ ЛЕЗВИЕ!");
             if (boom.age > 2600 || boom.x < -50 || boom.x > 450 || boom.y < -50 || boom.y > 550) st.hazards.splice(bi, 1);
         }
     }
@@ -1250,7 +1253,7 @@ function updateExtendedArenaAttack(now) {
                 ctx.save(); ctx.strokeStyle = "rgba(255,224,170,0.8)"; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(gear.x, gear.targetY); ctx.lineTo(Math.max(12,Math.min(388,gear.x+gear.vx*15)), gear.targetY); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
             }
             arenaExtDrawGear(gear.x, gear.y, gear.r, gear.rot, "#a77c49", 0.98);
-            if (Math.hypot(heart.x - gear.x, heart.y - gear.y) < gear.r + heart.hitbox) applyHit(strongDmg, "ШЕСТЕРНЯ!");
+            if (!frozen && Math.hypot(heart.x - gear.x, heart.y - gear.y) < gear.r + heart.hitbox) applyHit(strongDmg, "ШЕСТЕРНЯ!");
             if (gear.x < -70 || gear.x > 470 || gear.age > 3500) st.hazards.splice(gi, 1);
         }
     }
@@ -1327,7 +1330,7 @@ function updateExtendedArenaAttack(now) {
                 ctx.closePath(); ctx.fill();
             }
             ctx.restore();
-            if (ageC >= 520 && progressC > 0.12 && Math.abs(heart.x - cx) < claw.w/2 + heart.hitbox && Math.abs(heart.y - cy) < claw.h/2 + heart.hitbox) applyHit(strongDmg, "КЛЕШНЯ!");
+            if (!frozen && ageC >= 520 && progressC > 0.12 && Math.abs(heart.x - cx) < claw.w/2 + heart.hitbox && Math.abs(heart.y - cy) < claw.h/2 + heart.hitbox) applyHit(strongDmg, "КЛЕШНЯ!");
         }
     }
 }
