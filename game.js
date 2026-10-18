@@ -96,17 +96,32 @@ let arenaSettings = {
     autoSkipDefeatedBosses: false
 };
 
-// Shared accessibility/performance switch used by all boss renderers.
+// Reduced boss effects are an explicit accessibility option in Settings.
+// Never infer this mode from the startup warning, device type, or OS motion preference.
+var MB_REDUCED_BOSS_EFFECTS_KEY = "mbReducedBossEffectsByUser";
 window.MBShouldReduceBossEffects = function() {
     try {
-        var settings = window.arenaSettings || arenaSettings;
-        var saved = localStorage.getItem("mbReducedFlashes") === "1";
-        var prefersReducedMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-        return !!((settings && settings.graphics === "phone") || saved || prefersReducedMotion);
+        return localStorage.getItem(MB_REDUCED_BOSS_EFFECTS_KEY) === "1";
     } catch (e) {
-        return !!(window.arenaSettings && window.arenaSettings.graphics === "phone");
+        return false;
     }
 };
+
+function toggleReducedBossEffects(enabled) {
+    var isEnabled = !!enabled;
+    try {
+        localStorage.setItem(MB_REDUCED_BOSS_EFFECTS_KEY, isEnabled ? "1" : "0");
+    } catch (e) {}
+    var checkbox = document.getElementById("reducedBossEffectsCheckbox");
+    if (checkbox) checkbox.checked = isEnabled;
+    if (typeof showFloatingText === "function") {
+        showFloatingText(isEnabled
+            ? "♿ Сниженные вспышки и тряска включены"
+            : "✨ Полные визуальные эффекты восстановлены",
+            isEnabled ? "#f5af19" : "#2ecc71");
+    }
+}
+window.toggleReducedBossEffects = toggleReducedBossEffects;
 
 // ★★★ НАСТРОЙКА БОНУСА НОВИЧКА ★★★
 const NEWCOMER_BONUS_MINUTES = 20;
@@ -853,6 +868,8 @@ function applyArenaSettings() {
     if (layoutSelect) layoutSelect.value = arenaSettings.mobileControlStyle || "dpad8";
     let positionSelect = document.getElementById("mobileControlPositionSelect");
     if (positionSelect) positionSelect.value = arenaSettings.mobileControlPosition || "left";
+    let reducedEffectsCheck = document.getElementById("reducedBossEffectsCheckbox");
+    if (reducedEffectsCheck) reducedEffectsCheck.checked = window.MBShouldReduceBossEffects();
 
     if (typeof window.refreshJoystickSettings === 'function') window.refreshJoystickSettings();
     if (typeof window.refreshMobileBattleControlsSettings === 'function') window.refreshMobileBattleControlsSettings();
