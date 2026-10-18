@@ -541,12 +541,23 @@
     }
     function asBossHit(damage, message) {
         if (!asActive || asWinPending || asDefeatPending || asState !== "fight" || asState === "victory") return;
-        if (asUnbrokenSealIndex() >= 0) {
+        const isModerator = typeof mode !== "undefined" && mode === "moder";
+        if (asUnbrokenSealIndex() >= 0 && !isModerator) {
             asText(200, 120, "ЗАЩИТА АКТИВНА — РАЗРУШЬ 3 ПЕЧАТИ!", "#d5a6ff", 40);
             asSound(120, "sawtooth", .12, .045);
             return;
         }
         let amount = Math.max(1, Math.floor(Number(damage) || 1));
+        if (isModerator) {
+            // Only the Anti-Spiral fight gets a moderator one-hit kill.
+            amount = Math.max(1, Math.floor(Number(asBossHp) || Number(asBossMaxHp) || 1));
+            asSeals.forEach(function (seal) {
+                if (!seal) return;
+                seal.hp = 0;
+                seal.broken = true;
+            });
+            message = "ВАНШОТ МОДЕРА!";
+        }
         asBossHp = Math.max(0, asBossHp - amount);
         asBossDamageFlash = 12;
         asShake = Math.max(asShake, 5);
@@ -3044,7 +3055,7 @@
         asSlowUntilReal = 0; asTimeScale = 1; asPreviousTimeScale = 1;
         if(typeof currentEnemy==="undefined"||!currentEnemy||currentEnemy.hp<=0) return;
         asActive=true;window.antiSpiralBossActive=true;asState="cinematic";asWinPending=false;asDefeatPending=false;
-        asInitPlatforms();asInitSeals();asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=asClockNow();asNextShotAt=0;asMiniCooldownUntil=0;asMiniReturnPlayer=null;asMiniSpirals=[];asReassemblyEffectUntil=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
+        asInitPlatforms();asInitSeals();if(typeof mode!=="undefined"&&mode==="moder"){asSeals.forEach(function(seal){seal.hp=0;seal.broken=true;});}asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=asClockNow();asNextShotAt=0;asMiniCooldownUntil=0;asMiniReturnPlayer=null;asMiniSpirals=[];asReassemblyEffectUntil=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
         asCinematicStart=performance.now();asCinematicRedHeart={x:-25,y:410};asCinematicArenaProgress=0;
         asBossMaxHp=Math.floor(Math.max(40000,Math.floor((Number(window.playerFinalDamage)||80)*120))*1.30);
         asBossHp=asBossMaxHp;asPlayerMaxHp=220;asPlayerHp=asPlayerMaxHp;
