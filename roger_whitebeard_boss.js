@@ -1067,7 +1067,7 @@
             swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0,
             healState: "idle", healTimer: 0, healCooldown: 0, healSide: 1,
             companionMode: "guard", companionModeTimer: 115, companionSide: -1,
-            blueModeTimer: 0, blueModeCooldown: 0, blueModeFlashTimer: 0
+            blueModeTimer: 0, blueModeCooldown: 0, blueModeFlashTimer: 0, blueModeCheckTimer: 0
         };
         rwbOdenSlashes = [];
         rwbOdenLastTargetId = null;
@@ -4426,7 +4426,36 @@
     function rwbOdenIsBreakableBlock(a) {
         if (!a || !Number.isFinite(Number(a.hp)) || Number(a.hp) <= 0) return false;
         return ["blade", "big_blade", "rock", "giant_rock", "fist", "haki_wave",
-            "hell_fire", "fire_piece", "wb_reflected_bullet"].includes(a.type);
+            "hell_fire", "fire_piece", "wb_reflected_bullet"].includes(a.type) ||
+            (a.type === "wb_crescent_slash" && a.state === "flying");
+    }
+
+    // Blue shots track destructible attacks and breakable shockwave fronts only.
+    // This target set deliberately excludes Roger and Whitebeard.
+    function rwbOdenGetNearestBlueBlock(fromX, fromY) {
+        const ox = Number(fromX), oy = Number(fromY);
+        if (!Number.isFinite(ox) || !Number.isFinite(oy)) return null;
+        let best = null, bestDist = Infinity;
+        for (let i = rwbAttacks.length - 1; i >= 0; i--) {
+            const a = rwbAttacks[i];
+            if (!rwbOdenIsBreakableBlock(a) ||
+                a.state === "warning" || a.state === "windup" || a.state === "done") continue;
+            const x = Number(a.x), y = Number(a.y);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+            const d = Math.hypot(x - ox, y - oy);
+            if (d < bestDist) { bestDist = d; best = { kind: "attack", object: a, x: x, y: y, dist: d }; }
+        }
+        for (let i = rwbShockwaves.length - 1; i >= 0; i--) {
+            const sw = rwbShockwaves[i];
+            if (!sw || !sw.canDestroy || !Number.isFinite(Number(sw.hp)) || sw.hp <= 0) continue;
+            const cx = Number(sw.x), cy = Number(sw.y), radius = Math.max(0, Number(sw.radius) || 0);
+            if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue;
+            const dx = ox - cx, dy = oy - cy, dist = Math.hypot(dx, dy) || 1;
+            const tx = cx + dx / dist * radius, ty = cy + dy / dist * radius;
+            const d = Math.hypot(tx - ox, ty - oy);
+            if (d < bestDist) { bestDist = d; best = { kind: "shockwave", object: sw, x: tx, y: ty, dist: d }; }
+        }
+        return best;
     }
 
     // Blue mode activates when a destructible hazard blocks the straight sword lane to Oden's target.
@@ -4606,6 +4635,7 @@
         if (oden.blueModeTimer > 0) oden.blueModeTimer--;
         if (oden.blueModeCooldown > 0) oden.blueModeCooldown--;
         if (oden.blueModeFlashTimer > 0) oden.blueModeFlashTimer--;
+        if (oden.blueModeCheckTimer > 0) oden.blueModeCheckTimer--;
         if (oden.healCooldown > 0) oden.healCooldown--;
 
         const playerMaxHp = Math.max(1, Number(rwbPlayer.maxHp) || 1);
@@ -4705,8 +4735,11 @@
 
         const incoming = rwbOdenFindIncoming(oden);
         if (oden.healState === "idle" && oden.blueModeCooldown <= 0 && oden.blueModeTimer <= 0 &&
-            rwbOdenHasBreakableBlockOnAttackLane(oden)) {
-            rwbOdenActivateBlueMode(oden);
+            oden.blueModeCheckTimer <= 0) {
+            oden.blueModeCheckTimer = 12;
+            const laneBlocked = rwbOdenHasBreakableBlockOnAttackLane(oden);
+            const noSafeRoute = aiSkill >= 0.42 && rwbOdenHasNoEscape(oden);
+            if (laneBlocked || noSafeRoute) rwbOdenActivateBlueMode(oden);
         }
         if (incoming && incoming.time <= Math.round(96 + aiSkill * 34) &&
             (oden.dodgeCooldown <= 0 || incoming.time <= 16)) {
@@ -4801,19 +4834,38 @@
         const odenAttackRate = oden.blueModeTimer > 0 ? 3 : 1; // Triple attack cadence in blue mode.
         for (let i = rwbOdenSlashes.length - 1; i >= 0; i--) {
             const slash = rwbOdenSlashes[i];
+            const previousX = slash.x, previousY = slash.y;
+            if (slash.isBlue) {
+                // Retarget dynamically to the nearest breakable attack. There is intentionally
+                // no boss-target lookup or boss-hit path for blue-mode projectiles.
+                const blockTarget = rwbOdenGetNearestBlueBlock(slash.x, slash.y);
+                if (!blockTarget) {
+                    rwbOdenSlashes.splice(i, 1);
+                    continue;
+                }
+                const dx = blockTarget.x - slash.x, dy = blockTarget.y - slash.y;
+                const dist = Math.max(1, Math.hypot(dx, dy));
+                const speed = Math.max(10, Number(slash.speed) || 12);
+                slash.vx = dx / dist * speed;
+                slash.vy = dy / dist * speed;
+                slash.x += slash.vx;
+                slash.y += slash.vy;
+                slash.angle = Math.atan2(slash.vy, slash.vx);
+                slash.life -= 1;
+                if (rwbOdenBlueSlashBreaksBlock(slash, previousX, previousY, slash.x, slash.y)) {
+                    rwbOdenSlashes.splice(i, 1);
+                    continue;
+                }
+                if (slash.life <= 0 || slash.x < -25 || slash.x > 425 || slash.y < -25 || slash.y > 525) {
+                    rwbOdenSlashes.splice(i, 1);
+                }
+                // Critical: blue projectiles are block-only and cannot damage either boss.
+                continue;
+            }
             const target = getRWBOdenTargetById(slash.targetId);
             if (!target) {
                 rwbOdenSlashes.splice(i, 1);
                 continue;
-            }
-            // Ordinary sword waves keep their launch angle; blue waves home in on their target.
-            const previousX = slash.x, previousY = slash.y;
-            if (slash.isBlue && target) {
-                const dx = target.x - slash.x, dy = target.y - slash.y;
-                const dist = Math.max(1, Math.hypot(dx, dy));
-                const speed = Math.max(9, Number(slash.speed) || 9);
-                slash.vx = dx / dist * speed;
-                slash.vy = dy / dist * speed;
             }
             slash.x += slash.vx;
             slash.y += slash.vy;
@@ -4870,28 +4922,61 @@
             const angle = Number.isFinite(oden.attackAngle) ? oden.attackAngle : oden.swordAngle;
             oden.swordAngle = angle;
             if (oden.windup <= 0) {
-                const target = getRWBOdenTargetById(oden.targetId);
-                if (target) {
-                    const damage = target.superForm ? 3 : 2;
-                    // Lock the firing angle at release. The projectile never adjusts toward the target after launch.
-                    const lockedAngle = angle;
-                    rwbOdenSlashes.push({
-                        x: oden.x + Math.cos(lockedAngle) * 17,
-                        y: oden.y + Math.sin(lockedAngle) * 17,
-                        vx: Math.cos(lockedAngle) * 9,
-                        vy: Math.sin(lockedAngle) * 9,
-                        speed: 9, angle: lockedAngle, size: 12,
-                        damage: damage, targetId: target.id, life: 60, homing: false,
-                        aimX: target.x, aimY: target.y,
-                        isBlue: oden.blueModeTimer > 0, blockDamage: oden.blueModeTimer > 0 ? 3 : 0,
-                        phase: Math.random() * Math.PI * 2
-                    });
-                    spawnHakiLightning(oden.x, oden.y, 1, false);
-                    playBladeSound(0.32);
+                if (oden.blueModeTimer > 0) {
+                    const blockTarget = rwbOdenGetNearestBlueBlock(oden.x, oden.y);
+                    if (blockTarget) {
+                        const dx = blockTarget.x - oden.x, dy = blockTarget.y - oden.y;
+                        const dist = Math.max(1, Math.hypot(dx, dy));
+                        const lockedAngle = Math.atan2(dy, dx);
+                        rwbOdenSlashes.push({
+                            x: oden.x + Math.cos(lockedAngle) * 17,
+                            y: oden.y + Math.sin(lockedAngle) * 17,
+                            vx: dx / dist * 12, vy: dy / dist * 12,
+                            speed: 12, angle: lockedAngle, size: 13,
+                            damage: 0, targetId: null, life: 60, homing: true,
+                            isBlue: true, blockDamage: 3, phase: Math.random() * Math.PI * 2
+                        });
+                        spawnHakiLightning(oden.x, oden.y, 1, false);
+                        playBladeSound(0.28);
+                    }
+                } else {
+                    const target = getRWBOdenTargetById(oden.targetId);
+                    if (target) {
+                        const damage = target.superForm ? 3 : 2;
+                        // Normal sword waves keep the launch angle; they are deliberately not homing.
+                        const lockedAngle = angle;
+                        rwbOdenSlashes.push({
+                            x: oden.x + Math.cos(lockedAngle) * 17,
+                            y: oden.y + Math.sin(lockedAngle) * 17,
+                            vx: Math.cos(lockedAngle) * 9,
+                            vy: Math.sin(lockedAngle) * 9,
+                            speed: 9, angle: lockedAngle, size: 12,
+                            damage: damage, targetId: target.id, life: 60, homing: false,
+                            aimX: target.x, aimY: target.y,
+                            isBlue: false, blockDamage: 0,
+                            phase: Math.random() * Math.PI * 2
+                        });
+                        spawnHakiLightning(oden.x, oden.y, 1, false);
+                        playBladeSound(0.32);
+                    }
                 }
             }
         } else if (oden.healState === "idle" && !stunned && oden.attackCooldown > 0) {
             oden.attackCooldown = Math.max(0, oden.attackCooldown - odenAttackRate);
+        } else if (oden.healState === "idle" && !stunned && oden.blueModeTimer > 0) {
+            const blockTarget = rwbOdenGetNearestBlueBlock(oden.x, oden.y);
+            if (blockTarget) {
+                oden.targetId = null;
+                oden.attackAngle = Math.atan2(blockTarget.y - oden.y, blockTarget.x - oden.x);
+                oden.swordAngle = oden.attackAngle;
+                oden.windup = 1;
+                oden.swingTimer = 2;
+                oden.attackCooldown = 8;
+            } else {
+                oden.windup = 0;
+                oden.swingTimer = 0;
+                oden.attackCooldown = Math.min(Number(oden.attackCooldown) || 0, 3);
+            }
         } else if (oden.healState === "idle" && !stunned && focus) {
             oden.targetId = focus.id;
             oden.attackAngle = Math.atan2(focus.y - oden.y, focus.x - oden.x);
