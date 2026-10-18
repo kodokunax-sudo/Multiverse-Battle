@@ -257,7 +257,7 @@
     }
     let rwbGraphicsMode = detectRWBGraphicsMode();
     window.rwbGraphicsMode = rwbGraphicsMode;
-    function isRWBMobileGraphics() { return rwbGraphicsMode === "mobile"; }
+    function isRWBMobileGraphics() { return rwbGraphicsMode === "mobile" || !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()); }
     function setRWBGraphicsMode(nextMode) {
         rwbGraphicsMode = nextMode === "mobile" ? "mobile" : "pc";
         window.rwbGraphicsMode = rwbGraphicsMode;
@@ -3355,6 +3355,18 @@
     // ============================================================
     function rwbRenderLoop() {
         if (!window.rwbActive || !ctx || !canvas) return;
+        var reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) || isRWBMobileGraphics();
+        if (reduceBossEffects) {
+            rwbShake = 0; rwbScreenFlash = 0;
+            if (typeof _superState !== "undefined") { _superState.screenFlashWhite = 0; _superState.screenShakeAmount = 0; }
+            if (rwbParticles.length > 24) rwbParticles.splice(0, rwbParticles.length - 24);
+            if (rwbShockwaves.length > 4) rwbShockwaves.splice(0, rwbShockwaves.length - 4);
+            if (rwbSpeedLines.length > 0) rwbSpeedLines.length = 0;
+            if (rwbHakiLightnings.length > 0) rwbHakiLightnings.length = 0;
+            if (rwbWhiteCracks.length > 0) rwbWhiteCracks.length = 0;
+            if (rwbPurpleCracks.length > 0) rwbPurpleCracks.length = 0;
+        }
+
         // The boss path is calculated from rwbTimer. Do not advance that clock while
         // time is stopped (or during the vortex), otherwise the boss jumps on resume.
         var rwbWorldStopped = wbVortexActive;
