@@ -1269,10 +1269,14 @@
         if (!overlay) return;
         const panel = asReplaceDreamPanel(overlay);
         const waking = kind === "wake";
-        // Stop the cheerful soundtrack exactly when the dream is exposed as a lie.
-        if (waking && window.ASDreamCinematic &&
-            typeof window.ASDreamCinematic.revealTruth === "function") {
-            window.ASDreamCinematic.revealTruth();
+        // The soundtrack ends for either ending. Waking exposes the lie with a glitch hit;
+        // staying in the dream cuts the music immediately, without the truth-reveal sound.
+        if (window.ASDreamCinematic) {
+            if (waking && typeof window.ASDreamCinematic.revealTruth === "function") {
+                window.ASDreamCinematic.revealTruth();
+            } else if (!waking && typeof window.ASDreamCinematic.stopMusic === "function") {
+                window.ASDreamCinematic.stopMusic();
+            }
         }
         asAnimateDreamOutcome(panel, waking);
         asDreamElement(panel, "div",
@@ -1286,6 +1290,9 @@
             asDreamElement(panel, "p",
                 "Анти-Спираль обманул тебя. Все эволюционные карты 7-го уровня, собранные блоки сервера и возвращённое сохранение были частью идеальной вселенной мечты. Ты мог бесконечно фармить любимую игру, где у тебя только одна жизнь, но всё это было ненастоящим.",
                 "font-size:14px;line-height:1.7;color:#e8e8f5;margin:0 0 12px;");
+            asDreamElement(panel, "p",
+                "И Рика никогда не существовало. Не было человека, который всё испортил, не было его поступка и не было ответа на вопрос, как он сюда попал. Сон придумал виноватого, чтобы скрыть собственные дыры в истории.",
+                "font-size:14px;line-height:1.7;color:#ffb2c0;margin:0 0 12px;");
             asDreamElement(panel, "p",
                 "Но Анти-Спирали уже нет. Перед исчезновением он узнал твою историю, и ему стало невероятно грустно. Поэтому он сам нашёл и оставил тебе второй кусок блока сервера. Этот фрагмент настоящий: он останется у тебя после возвращения.",
                 "font-size:14px;line-height:1.7;color:#c9f8ff;margin:0 0 20px;");
