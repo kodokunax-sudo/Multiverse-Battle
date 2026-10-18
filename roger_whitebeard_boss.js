@@ -134,6 +134,57 @@
     let rwbWhitebeardPortraitImage = null;
     let rwbWhitebeardPortraitImageFailed = false;
 
+    const rwbCombatSpriteBank = {
+        roger: { path: "Model/роджер.png", image: null, loading: false, failed: false },
+        whitebeard: { path: "Model/белоус.png", image: null, loading: false, failed: false },
+        oden: { path: "Model/оден.png", image: null, loading: false, failed: false }
+    };
+
+    function getRWBCombatSprite(key) {
+        const entry = rwbCombatSpriteBank[key];
+        if (!entry || entry.failed) return null;
+        if (!entry.image && !entry.loading) {
+            entry.loading = true;
+            try {
+                const img = new Image();
+                img.onload = function() { entry.image = img; entry.loading = false; };
+                img.onerror = function() {
+                    entry.failed = true; entry.loading = false; entry.image = null;
+                    console.warn("[ROGER-WB] Не удалось загрузить боевую модель:", entry.path);
+                };
+                img.src = encodeURI(entry.path);
+            } catch (e) {
+                entry.failed = true; entry.loading = false;
+            }
+        }
+        return entry.image && entry.image.complete && entry.image.naturalWidth > 0
+            ? entry.image : null;
+    }
+
+    function drawRWBCombatSprite(key, cx, cy, size, flash, rotation, widthFactor, heightFactor) {
+        const img = getRWBCombatSprite(key);
+        if (!img) return false;
+        const maxW = Math.max(16, size * (widthFactor || 2.65));
+        const maxH = Math.max(24, size * (heightFactor || 3.2));
+        const fit = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+        const w = img.naturalWidth * fit, h = img.naturalHeight * fit;
+        const glow = key === "whitebeard" ? "#9eeaff" : (key === "oden" ? "#ffd84d" : "#ff974f");
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(Number(rotation) || 0);
+        ctx.shadowColor = flash ? "#ffffff" : glow;
+        ctx.shadowBlur = flash ? 23 : (key === "oden" ? 7 : 11);
+        ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        if (flash) {
+            ctx.globalCompositeOperation = "source-atop";
+            ctx.globalAlpha = 0.52;
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(-w / 2, -h / 2, w, h);
+        }
+        ctx.restore();
+        return true;
+    }
+
     let rwbWhiteCracks = [];
     let rwbPurpleCracks = [];
 
@@ -569,6 +620,7 @@
     // МОДЕЛИ ДЛЯ БОЯ
     // ============================================================
     function drawRogerModel(cx, cy, size, flash, rotation) {
+        if (drawRWBCombatSprite("roger", cx, cy - size * 0.10, size, flash, rotation, 2.65, 3.2)) return;
         ctx.save();
         ctx.translate(cx, cy); ctx.rotate(rotation);
         ctx.save();
@@ -617,7 +669,8 @@
     }
 
     function drawWhitebeardModel(cx, cy, size, flash, rotation) {
-        // Возвращаем оригинальную модель-сердце Белоуса вместо PNG-спрайта.
+        if (drawRWBCombatSprite("whitebeard", cx, cy - size * 0.12, size, flash, rotation, 2.65, 3.2)) return;
+        // Fallback: the original heart model remains available if the sprite fails to load.
         ctx.save();
         ctx.translate(cx, cy); ctx.rotate(rotation);
         ctx.save();
@@ -5185,42 +5238,46 @@
             ctx.restore();
         }
 
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.shadowColor = oden.hitFlash > 0 ? "#ffffff" : "#ffd44f";
-        ctx.shadowBlur = oden.hitFlash > 0 ? 24 : 13;
-        const heartGradient = ctx.createLinearGradient(0, -size * 1.1, 0, size * 0.85);
-        heartGradient.addColorStop(0, oden.hitFlash > 0 ? "#ffffff" : (blueMode ? "#e9ffff" : "#fff6a0"));
-        heartGradient.addColorStop(0.42, oden.hitFlash > 0 ? "#fff3c6" : (blueMode ? "#51dfff" : "#ffd52f"));
-        heartGradient.addColorStop(1, oden.hitFlash > 0 ? "#ffffff" : (blueMode ? "#087cda" : "#ff9e00"));
-        ctx.fillStyle = heartGradient;
-        ctx.strokeStyle = "#5a3500"; ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.moveTo(0, size * 0.72);
-        ctx.bezierCurveTo(-size * 1.35, -size * 0.15, -size * 0.7, -size * 1.08, 0, -size * 0.4);
-        ctx.bezierCurveTo(size * 0.7, -size * 1.08, size * 1.35, -size * 0.15, 0, size * 0.72);
-        ctx.closePath(); ctx.fill(); ctx.stroke();
-
-        // Purple cloth is clipped to the heart, so the bands look wrapped around the body.
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(0, size * 0.72);
-        ctx.bezierCurveTo(-size * 1.35, -size * 0.15, -size * 0.7, -size * 1.08, 0, -size * 0.4);
-        ctx.bezierCurveTo(size * 0.7, -size * 1.08, size * 1.35, -size * 0.15, 0, size * 0.72);
-        ctx.closePath(); ctx.clip();
-        ctx.lineCap = "round";
-        for (let band = -1; band <= 1; band++) {
-            ctx.strokeStyle = "#6421a4"; ctx.lineWidth = size * 0.32;
-            ctx.beginPath(); ctx.moveTo(-size * 1.55, band * size * 0.62 - size * 0.4);
-            ctx.lineTo(size * 1.25, band * size * 0.62 + size * 0.55); ctx.stroke();
-            ctx.strokeStyle = "#d9a7ff"; ctx.lineWidth = 1.3;
-            ctx.beginPath(); ctx.moveTo(-size * 1.5, band * size * 0.62 - size * 0.4);
-            ctx.lineTo(size * 1.2, band * size * 0.62 + size * 0.55); ctx.stroke();
-        }
-        ctx.restore();
-        ctx.strokeStyle = "rgba(255,255,220,0.8)"; ctx.lineWidth = 1.1;
-        ctx.beginPath(); ctx.arc(-size * 0.3, -size * 0.42, size * 0.18, 0, Math.PI * 2); ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.fill(); ctx.stroke();
-        ctx.restore();
+        if (!drawRWBCombatSprite("oden", cx, cy - size * 0.24, size, oden.hitFlash > 0,
+            Math.sin(oden.phase) * 0.018, 2.55, 2.8)) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.shadowColor = oden.hitFlash > 0 ? "#ffffff" : "#ffd44f";
+            ctx.shadowBlur = oden.hitFlash > 0 ? 24 : 13;
+            const heartGradient = ctx.createLinearGradient(0, -size * 1.1, 0, size * 0.85);
+            heartGradient.addColorStop(0, oden.hitFlash > 0 ? "#ffffff" : (blueMode ? "#e9ffff" : "#fff6a0"));
+            heartGradient.addColorStop(0.42, oden.hitFlash > 0 ? "#fff3c6" : (blueMode ? "#51dfff" : "#ffd52f"));
+            heartGradient.addColorStop(1, oden.hitFlash > 0 ? "#ffffff" : (blueMode ? "#087cda" : "#ff9e00"));
+            ctx.fillStyle = heartGradient;
+            ctx.strokeStyle = "#5a3500"; ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(0, size * 0.72);
+            ctx.bezierCurveTo(-size * 1.35, -size * 0.15, -size * 0.7, -size * 1.08, 0, -size * 0.4);
+            ctx.bezierCurveTo(size * 0.7, -size * 1.08, size * 1.35, -size * 0.15, 0, size * 0.72);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+    
+            // Purple cloth is clipped to the heart, so the bands look wrapped around the body.
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(0, size * 0.72);
+            ctx.bezierCurveTo(-size * 1.35, -size * 0.15, -size * 0.7, -size * 1.08, 0, -size * 0.4);
+            ctx.bezierCurveTo(size * 0.7, -size * 1.08, size * 1.35, -size * 0.15, 0, size * 0.72);
+            ctx.closePath(); ctx.clip();
+            ctx.lineCap = "round";
+            for (let band = -1; band <= 1; band++) {
+                ctx.strokeStyle = "#6421a4"; ctx.lineWidth = size * 0.32;
+                ctx.beginPath(); ctx.moveTo(-size * 1.55, band * size * 0.62 - size * 0.4);
+                ctx.lineTo(size * 1.25, band * size * 0.62 + size * 0.55); ctx.stroke();
+                ctx.strokeStyle = "#d9a7ff"; ctx.lineWidth = 1.3;
+                ctx.beginPath(); ctx.moveTo(-size * 1.5, band * size * 0.62 - size * 0.4);
+                ctx.lineTo(size * 1.2, band * size * 0.62 + size * 0.55); ctx.stroke();
+            }
+            ctx.restore();
+            ctx.strokeStyle = "rgba(255,255,220,0.8)"; ctx.lineWidth = 1.1;
+            ctx.beginPath(); ctx.arc(-size * 0.3, -size * 0.42, size * 0.18, 0, Math.PI * 2); ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.fill(); ctx.stroke();
+            ctx.restore();
+    
+            }
 
         // Oden's katana stays in his hand and sweeps toward the opponent before each shot.
         const baseAngle = Number.isFinite(oden.swordAngle) ? oden.swordAngle : -Math.PI / 3;
@@ -5262,7 +5319,8 @@
         ctx.restore();
 
         // Oden has a separate visible health bar. Flashing pale means a recent hit/dodge.
-        const barW = 42, barX = cx - barW / 2, barY = cy + size + 7;
+        const hasOdenSprite = !!getRWBCombatSprite("oden");
+        const barW = 42, barX = cx - barW / 2, barY = cy + size + (hasOdenSprite ? 8 : 7);
         ctx.save();
         ctx.globalAlpha = oden.invulnTimer > 0 && oden.invulnTimer % 6 < 3 ? 0.48 : 0.94;
         ctx.fillStyle = "rgba(7,4,18,.92)"; ctx.fillRect(barX - 2, barY - 2, barW + 4, 13);
