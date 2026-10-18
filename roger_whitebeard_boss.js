@@ -135,9 +135,12 @@
     let rwbWhitebeardPortraitImageFailed = false;
 
     const rwbCombatSpriteBank = {
-        roger: { path: "Model/роджер.png", image: null, loading: false, failed: false },
-        whitebeard: { path: "Model/белоус.png", image: null, loading: false, failed: false },
-        oden: { path: "Model/оден.png", image: null, loading: false, failed: false }
+        roger: { path: "Model/роджер.png", preloadKey: "rogerBossModel", image: null, loading: false, failed: false },
+        whitebeard: { path: "Model/белоус.png", preloadKey: "whitebeardBossModel", image: null, loading: false, failed: false },
+        oden: { path: "Model/оден.png", preloadKey: "odenBossModel", image: null, loading: false, failed: false },
+        rogerFlash: { path: "Model/роджер белый.png", preloadKey: "rogerBossModelFlash", image: null, loading: false, failed: false },
+        whitebeardFlash: { path: "Model/белоус белый.png", preloadKey: "whitebeardBossModelFlash", image: null, loading: false, failed: false },
+        odenFlash: { path: "Model/оден белый.png", preloadKey: "odenBossModelFlash", image: null, loading: false, failed: false }
     };
 
     function getRWBCombatSprite(key) {
@@ -146,15 +149,36 @@
         if (!entry.image && !entry.loading) {
             entry.loading = true;
             try {
-                const img = new Image();
-                img.onload = function() { entry.image = img; entry.loading = false; };
-                img.onerror = function() {
+                const preloaded = typeof window.getPreloadedImage === "function"
+                    ? window.getPreloadedImage(entry.preloadKey, encodeURI(entry.path)) : null;
+                const img = preloaded || new Image();
+                entry.image = img;
+                const onLoaded = function() {
+                    entry.image = img;
+                    entry.loading = false;
+                    if (!img.naturalWidth) {
+                        entry.failed = true;
+                        entry.image = null;
+                        console.warn("[ROGER-WB] Не удалось загрузить боевую модель:", entry.path);
+                    }
+                };
+                const onFailed = function() {
                     entry.failed = true; entry.loading = false; entry.image = null;
                     console.warn("[ROGER-WB] Не удалось загрузить боевую модель:", entry.path);
                 };
-                img.src = encodeURI(entry.path);
+                if (!preloaded) {
+                    img.onload = onLoaded;
+                    img.onerror = onFailed;
+                    img.src = encodeURI(entry.path);
+                } else if (img.complete) {
+                    entry.loading = false;
+                    if (!img.naturalWidth) { entry.failed = true; entry.image = null; }
+                } else {
+                    img.addEventListener("load", onLoaded, { once: true });
+                    img.addEventListener("error", onFailed, { once: true });
+                }
             } catch (e) {
-                entry.failed = true; entry.loading = false;
+                entry.failed = true; entry.loading = false; entry.image = null;
             }
         }
         return entry.image && entry.image.complete && entry.image.naturalWidth > 0
@@ -162,8 +186,11 @@
     }
 
     function drawRWBCombatSprite(key, cx, cy, size, flash, rotation, widthFactor, heightFactor) {
-        const img = getRWBCombatSprite(key);
-        if (!img) return false;
+        const baseImage = getRWBCombatSprite(key);
+        if (!baseImage) return false;
+        const flashImage = flash ? getRWBCombatSprite(key + "Flash") : null;
+        const usingDamageSprite = !!flashImage;
+        const img = flashImage || baseImage;
         const maxW = Math.max(16, size * (widthFactor || 2.65));
         const maxH = Math.max(24, size * (heightFactor || 3.2));
         const fit = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
@@ -175,7 +202,8 @@
         ctx.shadowColor = flash ? "#ffffff" : glow;
         ctx.shadowBlur = flash ? 23 : (key === "oden" ? 7 : 11);
         ctx.drawImage(img, -w / 2, -h / 2, w, h);
-        if (flash) {
+        // Use the provided white hit sprite directly; tint the normal sprite only as fallback.
+        if (flash && !usingDamageSprite) {
             ctx.globalCompositeOperation = "source-atop";
             ctx.globalAlpha = 0.52;
             ctx.fillStyle = "#ffffff";
@@ -184,6 +212,13 @@
         ctx.restore();
         return true;
     }
+
+    function preloadRWBCombatSprites() {
+        Object.keys(rwbCombatSpriteBank).forEach(function(key) {
+            getRWBCombatSprite(key);
+        });
+    }
+    preloadRWBCombatSprites();
 
     let rwbWhiteCracks = [];
     let rwbPurpleCracks = [];
@@ -5037,7 +5072,6 @@
                 const damage = slash.damage;
                 target.hp = Math.max(0, target.hp - damage);
                 target.hitFlash = Math.max(target.hitFlash || 0, 8);
-                rwbOden.hitFlash = 5;
                 rwbShockwaves.push({
                     x: target.x, y: target.y, radius: 7, maxRadius: 62,
                     speed: 6, color: "#b97aff", life: 16, maxLife: 16, width: 3
@@ -5279,23 +5313,46 @@
     
             }
 
-        // Oden's katana stays in his hand and sweeps toward the opponent before each shot.
+        // Oden carries two katanas, one in each hand. During attacks they sweep in alternating arcs.
         const baseAngle = Number.isFinite(oden.swordAngle) ? oden.swordAngle : -Math.PI / 3;
-        const swingOffset = attacking ? Math.sin((13 - Math.min(13, oden.windup)) * 0.22) * 0.72 : -0.38;
-        ctx.save();
-        ctx.translate(cx + size * 0.45, cy - size * 0.05);
-        ctx.rotate(baseAngle + swingOffset);
-        ctx.shadowColor = "#d8b5ff"; ctx.shadowBlur = 10;
-        const blade = ctx.createLinearGradient(0, -3, 31, 3);
-        blade.addColorStop(0, "#fff8cf"); blade.addColorStop(0.55, "#ffffff"); blade.addColorStop(1, "#a8caff");
-        ctx.fillStyle = blade; ctx.strokeStyle = "#30203f"; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(2, -2.8); ctx.lineTo(28, -1.8); ctx.lineTo(35, 0); ctx.lineTo(28, 1.8); ctx.lineTo(2, 2.8); ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = "#e3b958"; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(3, -6); ctx.lineTo(3, 6); ctx.stroke();
-        ctx.strokeStyle = "#4d207d"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(2, 0); ctx.stroke();
-        ctx.strokeStyle = "#c8a4ff"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-6, -1); ctx.lineTo(1, 1); ctx.stroke();
-        ctx.fillStyle = "#ffdb62"; ctx.beginPath(); ctx.arc(-8, 0, 2.1, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
+        const swordAttackActive = attacking && oden.healState === "idle" && oden.stunTimer <= 0;
+        const swordClock = oden.phase * 3.05 + Math.max(0, 5 - (Number(oden.swingTimer) || 0)) * 0.42;
+        const leftSwing = swordAttackActive ? Math.sin(swordClock) * 1.08 : -0.36 + Math.sin(oden.phase * 0.7) * 0.07;
+        const rightSwing = swordAttackActive ? Math.sin(swordClock + Math.PI) * 1.08 : 0.36 - Math.sin(oden.phase * 0.7) * 0.07;
+        function drawOdenKatana(handX, handY, angle, side) {
+            ctx.save();
+            ctx.translate(handX, handY);
+            ctx.rotate(angle);
+            ctx.shadowColor = blueMode ? "#50eaff" : "#d8b5ff";
+            ctx.shadowBlur = swordAttackActive ? 17 : 9;
+            const blade = ctx.createLinearGradient(0, -3, 35, 3);
+            blade.addColorStop(0, blueMode ? "#8ff6ff" : "#fff0a8");
+            blade.addColorStop(0.45, "#ffffff");
+            blade.addColorStop(1, blueMode ? "#19b9ff" : "#a8caff");
+            ctx.fillStyle = blade; ctx.strokeStyle = "#30203f"; ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(2, -2.8); ctx.lineTo(28, -1.8); ctx.lineTo(35, 0);
+            ctx.lineTo(28, 1.8); ctx.lineTo(2, 2.8); ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            // Distinct guard, wrapped grip and pommel on each sword.
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = side === "left" ? "#e3b958" : "#b98cff";
+            ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(3, -6); ctx.lineTo(3, 6); ctx.stroke();
+            ctx.strokeStyle = "#4d207d"; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(2, 0); ctx.stroke();
+            ctx.strokeStyle = "#c8a4ff"; ctx.lineWidth = 1.2;
+            ctx.beginPath(); ctx.moveTo(-6, -1); ctx.lineTo(1, 1); ctx.stroke();
+            ctx.fillStyle = "#ffdb62"; ctx.beginPath(); ctx.arc(-8, 0, 2.1, 0, Math.PI * 2); ctx.fill();
+            if (swordAttackActive) {
+                ctx.globalAlpha = 0.34;
+                ctx.strokeStyle = side === "left" ? "#ffeaa0" : "#a7f7ff";
+                ctx.lineWidth = 2.2;
+                ctx.beginPath(); ctx.arc(5, 0, 29, -0.42, 0.42); ctx.stroke();
+            }
+            ctx.restore();
+        }
+        drawOdenKatana(cx - size * 0.49, cy - size * 0.08, baseAngle + leftSwing, "left");
+        drawOdenKatana(cx + size * 0.49, cy - size * 0.02, baseAngle + rightSwing, "right");
 
         // Curved violet-white sword waves travel toward Roger and Whitebeard.
         for (let i = 0; i < rwbOdenSlashes.length; i++) {
