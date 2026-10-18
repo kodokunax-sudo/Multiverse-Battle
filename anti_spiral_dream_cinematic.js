@@ -467,183 +467,88 @@
     }
 
     function drawRickMystery(ctx, t, w, h) {
-        const px = 704, py = 307;
+        const px = 704, py = 318;
         ctx.save();
 
-        // Rick's portal is a layered green tear in space, rather than a few bare outlines.
-        const halo = ctx.createRadialGradient(px, py, 12, px, py, 245);
-        halo.addColorStop(0, "rgba(88,255,136,.31)");
-        halo.addColorStop(.42, "rgba(43,220,111,.14)");
-        halo.addColorStop(1, "rgba(12,70,45,0)");
+        // A restrained green portal; Rick himself is only a black silhouette.
+        const halo = ctx.createRadialGradient(px, py, 8, px, py, 220);
+        halo.addColorStop(0, "rgba(72,255,133,.2)");
+        halo.addColorStop(.48, "rgba(32,180,83,.08)");
+        halo.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = halo;
-        ctx.fillRect(410, 28, 535, 488);
+        ctx.fillRect(440, 70, 490, 420);
 
         ctx.save();
         ctx.translate(px, py);
-        for (let i = 0; i < 7; i++) {
-            ctx.save();
-            ctx.globalAlpha = .24 + .12 * Math.sin(t * 4.2 + i * 1.1);
-            ctx.strokeStyle = i % 2 ? "#62ff9b" : "#c4ffd5";
-            ctx.lineWidth = i === 0 ? 4 : 1.3;
+        for (let i = 0; i < 4; i++) {
+            ctx.globalAlpha = .25 + .12 * Math.sin(t * 4 + i);
+            ctx.strokeStyle = i % 2 ? "#56ed8c" : "#b2ffcb";
+            ctx.lineWidth = i === 0 ? 2.5 : 1.2;
             ctx.beginPath();
-            ctx.ellipse(Math.sin(t * .6 + i) * 6, 0,
-                65 + i * 12, 117 + i * 7,
-                Math.sin(t * .45 + i) * .12, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, 68 + i * 13, 112 + i * 9,
+                Math.sin(t * .5 + i) * .08, 0, Math.PI * 2);
             ctx.stroke();
-            ctx.restore();
-        }
-        // Bright fragments make the portal look unstable without obscuring the character.
-        for (let i = 0; i < 18; i++) {
-            const a = i * 2.399 + t * .25;
-            const r = 65 + (i % 6) * 14;
-            const x = Math.cos(a) * r;
-            const y = Math.sin(a) * (100 + (i % 4) * 9);
-            ctx.globalAlpha = .28 + .3 * Math.abs(Math.sin(t * 5 + i));
-            ctx.fillStyle = i % 3 ? "#75ffab" : "#e4ffed";
-            ctx.fillRect(x, y, 2 + (i % 3), 8 + (i % 4) * 2);
         }
         ctx.restore();
 
-        // A full, deliberately stylized Rick silhouette: lab coat, turquoise shirt,
-        // tan face, angular blue-grey spikes, stubble and a knowing crooked expression.
+        // Solid black human silhouette with Rick's distinctive spiky hair.
         ctx.save();
-        ctx.translate(px, py + Math.sin(t * 2.6) * 2);
-        ctx.scale(1.12, 1.12);
+        ctx.translate(px, py + Math.sin(t * 2.3) * 2);
+        ctx.fillStyle = "#030507";
+        ctx.shadowColor = "rgba(0,0,0,.65)";
+        ctx.shadowBlur = 20;
 
-        ctx.fillStyle = "rgba(0,0,0,.42)";
-        ctx.beginPath(); ctx.ellipse(0, 119, 56, 11, 0, 0, Math.PI * 2); ctx.fill();
-
-        // Trousers and shoes.
-        const trouser = ctx.createLinearGradient(-24, 52, 25, 119);
-        trouser.addColorStop(0, "#665f68"); trouser.addColorStop(1, "#343644");
-        ctx.fillStyle = trouser;
+        // Legs and shoes.
         ctx.beginPath();
-        ctx.moveTo(-23, 48); ctx.lineTo(-18, 91); ctx.lineTo(-23, 115);
-        ctx.lineTo(-4, 117); ctx.lineTo(2, 80); ctx.lineTo(10, 116);
-        ctx.lineTo(30, 115); ctx.lineTo(22, 76); ctx.lineTo(21, 48);
+        ctx.moveTo(-23, 43); ctx.lineTo(-20, 92); ctx.lineTo(-27, 119);
+        ctx.lineTo(-5, 119); ctx.lineTo(1, 81); ctx.lineTo(11, 119);
+        ctx.lineTo(31, 119); ctx.lineTo(23, 75); ctx.lineTo(22, 43);
         ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#252b34";
-        ctx.beginPath(); ctx.moveTo(-24, 109); ctx.lineTo(-4, 111); ctx.lineTo(-1, 121);
-        ctx.lineTo(-33, 121); ctx.closePath(); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(10, 109); ctx.lineTo(29, 109); ctx.lineTo(39, 121);
-        ctx.lineTo(8, 121); ctx.closePath(); ctx.fill();
 
-        // Neck and coat body.
-        ctx.fillStyle = "#d9a98d";
-        ctx.fillRect(-9, -27, 18, 27);
-        const coat = ctx.createLinearGradient(-48, -20, 46, 89);
-        coat.addColorStop(0, "#ffffff"); coat.addColorStop(.55, "#e5edf0"); coat.addColorStop(1, "#aabac5");
-        ctx.fillStyle = coat;
+        // Lab-coat outline and hanging arms, all in one dark shape.
         ctx.beginPath();
-        ctx.moveTo(-20, -23); ctx.lineTo(-39, -13); ctx.lineTo(-52, 37);
-        ctx.lineTo(-38, 44); ctx.lineTo(-28, 17); ctx.lineTo(-30, 83);
-        ctx.quadraticCurveTo(0, 92, 30, 83);
-        ctx.lineTo(28, 17); ctx.lineTo(39, 44); ctx.lineTo(52, 37);
-        ctx.lineTo(39, -13); ctx.lineTo(20, -23); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#7e909b"; ctx.lineWidth = 1.7;
-        ctx.beginPath(); ctx.moveTo(-30, 82); ctx.quadraticCurveTo(0, 88, 30, 82); ctx.stroke();
+        ctx.moveTo(-18, -26);
+        ctx.lineTo(-40, -14); ctx.lineTo(-55, 35); ctx.lineTo(-43, 42);
+        ctx.lineTo(-29, 14); ctx.lineTo(-31, 79);
+        ctx.lineTo(-24, 87); ctx.lineTo(24, 87); ctx.lineTo(31, 79);
+        ctx.lineTo(29, 14); ctx.lineTo(43, 42); ctx.lineTo(55, 35);
+        ctx.lineTo(40, -14); ctx.lineTo(18, -26);
+        ctx.closePath(); ctx.fill();
 
-        // Shirt and collar.
-        ctx.fillStyle = "#55c8bd";
-        ctx.beginPath(); ctx.moveTo(-12, -22); ctx.lineTo(0, -9); ctx.lineTo(12, -22);
-        ctx.lineTo(14, 55); ctx.lineTo(-14, 55); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = "#f8fbfb";
-        ctx.beginPath(); ctx.moveTo(-20, -23); ctx.lineTo(-5, -14); ctx.lineTo(-12, 7);
-        ctx.lineTo(-24, -7); ctx.closePath(); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(20, -23); ctx.lineTo(5, -14); ctx.lineTo(12, 7);
-        ctx.lineTo(24, -7); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = "#9baab3"; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.moveTo(-5, -14); ctx.lineTo(0, 1); ctx.lineTo(5, -14); ctx.stroke();
+        // Neck, face, and Rick's famous uneven spiky hair remain one silhouette.
+        ctx.fillRect(-9, -37, 18, 22);
+        ctx.beginPath();
+        ctx.moveTo(-21, -78);
+        ctx.lineTo(-36, -100); ctx.lineTo(-23, -96);
+        ctx.lineTo(-30, -120); ctx.lineTo(-12, -105);
+        ctx.lineTo(-7, -139); ctx.lineTo(4, -113);
+        ctx.lineTo(21, -132); ctx.lineTo(18, -106);
+        ctx.lineTo(37, -113); ctx.lineTo(27, -91);
+        ctx.lineTo(22, -73);
+        ctx.quadraticCurveTo(0, -83, -21, -78);
+        ctx.closePath(); ctx.fill();
 
-        // Hands hang stiffly at his sides. This is a confrontation, not a friendly greeting.
-        ctx.strokeStyle = "#d9ad92"; ctx.lineWidth = 9; ctx.lineCap = "round";
-        ctx.beginPath(); ctx.moveTo(-42, 5); ctx.lineTo(-49, 34); ctx.lineTo(-42, 47);
-        ctx.moveTo(42, 5); ctx.lineTo(49, 34); ctx.lineTo(42, 47); ctx.stroke();
-        ctx.fillStyle = "#c9947a";
-        ctx.beginPath(); ctx.ellipse(-42, 49, 6, 8, -.18, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(42, 49, 6, 8, .18, 0, Math.PI * 2); ctx.fill();
-
-        // Face turned slightly toward the player on the left.
-        ctx.save();
-        ctx.rotate(-.045);
-        const skin = ctx.createLinearGradient(-28, -82, 28, -20);
-        skin.addColorStop(0, "#f2d0ad"); skin.addColorStop(1, "#c99179");
-        ctx.fillStyle = skin; ctx.strokeStyle = "#8e655b"; ctx.lineWidth = 1.4;
-        ctx.beginPath(); ctx.moveTo(-23, -76); ctx.quadraticCurveTo(-28, -59, -23, -39);
-        ctx.lineTo(-12, -23); ctx.lineTo(8, -21); ctx.quadraticCurveTo(27, -32, 25, -61);
-        ctx.lineTo(19, -79); ctx.closePath(); ctx.fill(); ctx.stroke();
-
-        // Nose points left, toward the hero.
-        ctx.fillStyle = "#d6a187";
-        ctx.beginPath(); ctx.moveTo(-15, -55); ctx.lineTo(-30, -45); ctx.lineTo(-14, -42); ctx.closePath(); ctx.fill();
-
-        // Heavy brows, tired eyes and dark pupils looking straight at the hero.
-        ctx.strokeStyle = "#51453f"; ctx.lineWidth = 4; ctx.lineCap = "round";
-        ctx.beginPath(); ctx.moveTo(-21, -64); ctx.lineTo(-9, -66);
-        ctx.moveTo(1, -65); ctx.lineTo(13, -62); ctx.stroke();
-        ctx.fillStyle = "#f8f4e7";
-        ctx.beginPath(); ctx.ellipse(-15, -57, 6, 3.4, -.12, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(7, -56, 6, 3.4, .12, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#477d72";
-        ctx.beginPath(); ctx.arc(-17, -56.5, 2.4, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(5, -55.5, 2.4, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#182b2a";
-        ctx.beginPath(); ctx.arc(-17, -56.5, 1.1, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(5, -55.5, 1.1, 0, Math.PI * 2); ctx.fill();
-
-        // A crooked, smug mouth and the unmistakable stubble dots.
-        ctx.strokeStyle = "#784d49"; ctx.lineWidth = 2.1;
-        ctx.beginPath(); ctx.moveTo(-16, -34); ctx.quadraticCurveTo(-5, -29, 9, -35); ctx.stroke();
-        ctx.fillStyle = "rgba(75,83,90,.58)";
-        for (let i = 0; i < 13; i++) {
-            const sx = -15 + (i % 5) * 6 + (Math.floor(i / 5) % 2) * 2;
-            const sy = -29 + Math.floor(i / 5) * 3;
-            ctx.beginPath(); ctx.arc(sx, sy, 1.05, 0, Math.PI * 2); ctx.fill();
-        }
         ctx.restore();
 
-        // Rick's jagged, icy blue-grey hair, with individual spikes and shaded tips.
-        const hair = ctx.createLinearGradient(-33, -142, 29, -83);
-        hair.addColorStop(0, "#e1f0ed"); hair.addColorStop(.52, "#9ec5cc"); hair.addColorStop(1, "#7199a8");
-        ctx.fillStyle = hair; ctx.strokeStyle = "#4f7c8c"; ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.moveTo(-25, -71); ctx.lineTo(-39, -94); ctx.lineTo(-25, -91);
-        ctx.lineTo(-30, -116); ctx.lineTo(-12, -101); ctx.lineTo(-8, -132);
-        ctx.lineTo(4, -108); ctx.lineTo(20, -126); ctx.lineTo(18, -101);
-        ctx.lineTo(35, -108); ctx.lineTo(27, -85); ctx.lineTo(22, -74);
-        ctx.quadraticCurveTo(0, -84, -25, -71); ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.strokeStyle = "rgba(255,255,255,.8)"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(-26, -96); ctx.lineTo(-19, -88);
-        ctx.moveTo(-7, -119); ctx.lineTo(-1, -106);
-        ctx.moveTo(20, -115); ctx.lineTo(17, -99); ctx.stroke();
-
-        // Lab-coat seams and a tiny pocket badge give the figure a finished silhouette.
-        ctx.strokeStyle = "rgba(100,125,137,.78)"; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.moveTo(-30, 22); ctx.lineTo(-28, 48);
-        ctx.moveTo(29, 22); ctx.lineTo(28, 48); ctx.stroke();
-        ctx.fillStyle = "#73d9bd"; ctx.fillRect(18, 24, 6, 9);
-        ctx.fillStyle = "#416d62"; ctx.fillRect(19, 25, 4, 2);
-        ctx.restore();
-
-        // Sparse distortion flickers at the edges. The face and silhouette remain readable.
-        for (let i = 0; i < 7; i++) {
-            const y = 137 + ((i * 47 + Math.floor(t * 38) * (i % 2 ? 1 : 2)) % 275);
-            ctx.globalAlpha = .09 + .12 * Math.abs(Math.sin(t * 15 + i));
-            ctx.fillStyle = i % 2 ? "#91ffbd" : "#ff6f91";
-            ctx.fillRect(620 + (i % 3) * 19, y, 80 + ((i * 23) % 85), 2 + (i % 2));
+        // A few subtle glitches around the silhouette, not across its shape.
+        for (let i = 0; i < 5; i++) {
+            const y = 160 + ((i * 59 + Math.floor(t * 30)) % 235);
+            ctx.globalAlpha = .08 + .1 * Math.abs(Math.sin(t * 11 + i));
+            ctx.fillStyle = i % 2 ? "#77ffac" : "#ff6f91";
+            ctx.fillRect(635 + (i % 2) * 25, y, 70, 2);
         }
         ctx.globalAlpha = 1;
 
         ctx.fillStyle = "rgba(4,12,13,.92)";
         roundedRect(ctx, 500, 422, 420, 66, 8); ctx.fill();
-        ctx.strokeStyle = "rgba(104,255,164,.75)"; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "rgba(104,255,164,.65)"; ctx.lineWidth = 1.5;
         roundedRect(ctx, 500, 422, 420, 66, 8); ctx.stroke();
         ctx.fillStyle = "#aaffc9"; ctx.font = "1000 13px monospace";
         ctx.fillText("RICK SANCHEZ // INCIDENT CONFIRMED", 518, 445);
         ctx.fillStyle = "#ff91a6"; ctx.font = "900 11px monospace";
         ctx.fillText("CAUSE: RICK  ·  CONSEQUENCES: UNRESOLVED", 518, 466);
 
-        // The hero is startled: eyes widen, pupils track Rick, arms lift, and the smile disappears.
+        // Keep the hero visibly startled, with the smile replaced by shock.
         drawPlayer(ctx, 155, 455, 1.2, "shock", t);
         drawSpeech(ctx, 22, 22, 385, "ВОСПОМИНАНИЕ",
             "Точно... Рик всё испортил. Но я ведь даже ничего с ним не сделал! Почему тогда я получил всё, чего хотел?",
