@@ -1763,8 +1763,8 @@ function waystarRenderLoop() {
     for (var i = waystarParticles.length - 1; i >= 0; i--) { var p = waystarParticles[i]; if (p.isSplitPiece && p.targetX !== undefined) { p.vx += (p.targetX - p.x) * 0.008; p.vy += (p.targetY - p.y) * 0.008; } p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life--; if (p.life <= 0) waystarParticles.splice(i, 1); }
     for (var i = waystarTexts.length - 1; i >= 0; i--) { var t = waystarTexts[i]; t.y += t.vy; t.life--; if (t.life <= 0) waystarTexts.splice(i, 1); }
     ctx.save();
-    if (waystarShake > 0.5) ctx.translate((Math.random() - 0.5) * waystarShake, (Math.random() - 0.5) * waystarShake);
-    if (waystarScreenDistort > 0.5) { ctx.translate((Math.random() - 0.5) * waystarScreenDistort, (Math.random() - 0.5) * waystarScreenDistort); ctx.scale(1 + waystarScreenDistort / 500, 1 + waystarScreenDistort / 500); }
+    if (!reduceBossEffects && waystarShake > 0.5) ctx.translate((Math.random() - 0.5) * waystarShake, (Math.random() - 0.5) * waystarShake);
+    if (!reduceBossEffects && waystarScreenDistort > 0.5) { ctx.translate((Math.random() - 0.5) * waystarScreenDistort, (Math.random() - 0.5) * waystarScreenDistort); ctx.scale(1 + waystarScreenDistort / 500, 1 + waystarScreenDistort / 500); }
     var bg = ctx.createLinearGradient(0, 0, 0, 500);
     if (waystarState === "phase3" && waystarRageMode) { bg.addColorStop(0, "#1a0000"); bg.addColorStop(0.5, "#200015"); bg.addColorStop(1, "#000000"); }
     else if (waystarState === "phase3") { bg.addColorStop(0, "#150015"); bg.addColorStop(0.5, "#200030"); bg.addColorStop(1, "#000000"); }
@@ -1779,7 +1779,7 @@ function waystarRenderLoop() {
         for (var i = 0; i < waystarPhase3Rings.length; i++) { var r = waystarPhase3Rings[i]; ctx.save(); ctx.globalAlpha = Math.max(0, r.life / r.maxLife) * 0.5; ctx.translate(r.x, r.y); ctx.rotate(r.angle); ctx.strokeStyle = r.color; ctx.lineWidth = 2; ctx.shadowColor = r.color; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(0, 0, r.radius, 0, Math.PI * 1.7); ctx.stroke(); ctx.restore(); }
     }
     if (!reduceBossEffects && waystarScreenFlash > 0) { ctx.globalAlpha = waystarScreenFlash / 40; ctx.fillStyle = waystarScreenFlashColor; ctx.fillRect(0, 0, 400, 500); ctx.globalAlpha = 1; }
-    if (waystarVignette > 0) { var vg = ctx.createRadialGradient(200, 250, 100, 200, 250, 400); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(255,0,0," + (waystarVignette / 30) + ")"); ctx.fillStyle = vg; ctx.fillRect(0, 0, 400, 500); }
+    if (!reduceBossEffects && waystarVignette > 0) { var vg = ctx.createRadialGradient(200, 250, 100, 200, 250, 400); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(255,0,0," + (waystarVignette / 30) + ")"); ctx.fillStyle = vg; ctx.fillRect(0, 0, 400, 500); }
     ctx.strokeStyle = waystarState === "phase3" ? (waystarRageMode ? "#ff0000" : "#ff00ff") : "#ffd700"; ctx.lineWidth = 3; ctx.strokeRect(2, 2, 396, 496);
     for (var i = 0; i < waystarShockwaves.length; i++) { var sw = waystarShockwaves[i]; var progress = 1 - sw.life / sw.maxLife; ctx.save(); ctx.globalAlpha = (1 - progress) * 0.8; ctx.strokeStyle = sw.color; ctx.lineWidth = sw.width * (1 - progress); ctx.beginPath(); ctx.arc(sw.x, sw.y, Math.max(0.1, sw.radius), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
     for (var i = 0; i < waystarLightningBolts.length; i++) { var lb = waystarLightningBolts[i]; ctx.save(); ctx.globalAlpha = (lb.life / lb.maxLife) * 0.9; ctx.strokeStyle = lb.color; ctx.lineWidth = lb.width; ctx.beginPath(); ctx.moveTo(lb.x1, lb.y1); for (var p = 0; p < lb.pts.length; p++) ctx.lineTo(lb.pts[p].x, lb.pts[p].y); ctx.lineTo(lb.x2, lb.y2); ctx.stroke(); ctx.restore(); }
@@ -1796,7 +1796,7 @@ function waystarRenderLoop() {
     if (!waystarDialogActive) drawWaystarHpBars();
     if (waystarDialogActive) drawWaystarDialog();
 
-    drawWaystarBlind();
+    if (!reduceBossEffects) drawWaystarBlind();
 
     if (typeof renderSuperVisuals === 'function') {
         try { renderSuperVisuals(); } catch(e) { console.error("[WAYSTAR] renderSuperVisuals error:", e); }
@@ -1813,8 +1813,14 @@ function waystarRenderLoop() {
 
 function renderWaystarFinalScene() {
     try {
+        var reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        if (reduceBossEffects) {
+            waystarShake = 0; waystarScreenFlash = 0; waystarVignette = 0;
+            if (waystarParticles.length > 24) waystarParticles.splice(0, waystarParticles.length - 24);
+            waystarLightningBolts.length = 0; waystarShockwaves.length = 0; waystarFlashBursts.length = 0;
+        }
         ctx.save();
-        if (waystarShake > 0.5) ctx.translate((Math.random() - 0.5) * waystarShake, (Math.random() - 0.5) * waystarShake);
+        if (!reduceBossEffects && waystarShake > 0.5) ctx.translate((Math.random() - 0.5) * waystarShake, (Math.random() - 0.5) * waystarShake);
         var bg = ctx.createLinearGradient(0, 0, 0, 500);
         if (waystarFinalPhase === "spare_dialog" || waystarFinalPhase === "spare_blessing" || waystarFinalPhase === "spare_farewell") { bg.addColorStop(0, "#15100a"); bg.addColorStop(0.5, "#1a1530"); bg.addColorStop(1, "#000000"); }
         else { bg.addColorStop(0, "#0a0015"); bg.addColorStop(0.5, "#1a0025"); bg.addColorStop(1, "#000000"); }
@@ -1834,8 +1840,8 @@ function renderWaystarFinalScene() {
         if (waystarFinalPhase === "spare_farewell" && waystarFinalTimer > 40) { ctx.save(); ctx.font = "italic bold 14px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd700"; ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 12; var fadeAlpha = Math.min(1, (waystarFinalTimer - 40) / 50); ctx.globalAlpha = fadeAlpha * 0.9; ctx.fillText("«Прощай...»", 200, 400); ctx.restore(); }
         if (waystarBlackoutAlpha > 0) { ctx.save(); ctx.globalAlpha = waystarBlackoutAlpha; ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
         if (waystarWakeText && waystarWakeAlpha > 0) { ctx.save(); ctx.globalAlpha = waystarWakeAlpha; ctx.font = "bold 17px monospace"; ctx.textAlign = "center"; ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#aaaaaa"; ctx.shadowBlur = 10; var lines = waystarWakeText.split("\n"); for (var i = 0; i < lines.length; i++) { ctx.fillText(lines[i], 200, 180 + i * 26); } ctx.restore(); }
-        if (waystarVignette > 0) { var vg = ctx.createRadialGradient(200, 250, 100, 200, 250, 400); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(255,0,0," + (waystarVignette / 30) + ")"); ctx.fillStyle = vg; ctx.fillRect(0, 0, 400, 500); }
-        if (waystarScreenFlash > 0) { ctx.globalAlpha = waystarScreenFlash / 40; ctx.fillStyle = waystarScreenFlashColor; ctx.fillRect(0, 0, 400, 500); ctx.globalAlpha = 1; }
+        if (!reduceBossEffects && waystarVignette > 0) { var vg = ctx.createRadialGradient(200, 250, 100, 200, 250, 400); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(255,0,0," + (waystarVignette / 30) + ")"); ctx.fillStyle = vg; ctx.fillRect(0, 0, 400, 500); }
+        if (!reduceBossEffects && waystarScreenFlash > 0) { ctx.globalAlpha = waystarScreenFlash / 40; ctx.fillStyle = waystarScreenFlashColor; ctx.fillRect(0, 0, 400, 500); ctx.globalAlpha = 1; }
         ctx.restore();
     } catch(e) { console.error("[WAYSTAR] ОШИБКА в renderWaystarFinalScene:", e); }
 }
