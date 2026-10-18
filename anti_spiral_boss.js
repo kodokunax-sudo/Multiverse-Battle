@@ -75,6 +75,13 @@
     let asArenaHeight = 470;
     let asTargetWidth = 400;
     let asTargetHeight = 470;
+    let asArenaLockUntil = 0;
+    let asArenaWarpUntil = 0;
+    let asLastArenaWarpCompact = false;
+    let asCloneMode = false;
+    let asClones = [];
+    let asCloneUntil = 0;
+    let asCloneNextShuffleAt = 0;
     let asGravityPull = 0.10;
     let asGravityDirection = 0; // 0 вниз, 1 влево, 2 вверх, 3 вправо
     let asGravityNextShiftAt = 0;
@@ -104,7 +111,8 @@
         "СДВИГ ВЕРОЯТНОСТИ",
         "INFINITY BIG BANG STORM",
         "ЧЁРНАЯ КОРОНА — КРЕСТОВОЙ ЗАЛП",
-        "ЗАПИСЬ СУДЬБЫ — ОТМЕНА РЕАЛЬНОСТИ"
+        "ЗАПИСЬ СУДЬБЫ — ОТМЕНА РЕАЛЬНОСТИ",
+        "ЧЕТЫРЕ ЛИКА — НАЙДИ ОРИГИНАЛ"
     ];
 
     function asCanvas() {
@@ -297,6 +305,7 @@
         asAimMode = true;
         asSlowUntilReal = performance.now() + 1500;
         asTimeScale = .5;
+        if (asCloneMode) asCloneNextShuffleAt = Infinity;
         asText(200, 110, "ЗАМЕДЛЕНИЕ ×2 · 1,5 СЕКУНДЫ", "#7ef3ff", 90);
         asSound(620, "sine", .16, .06);
         asUpdateControls();
@@ -315,8 +324,8 @@
         asCharging = false;
         asNextShotAt = now + 1500;
         asAimMode = false;
-        
         asShootDrill(Math.max(8, frames), targetX, targetY);
+        if (asCloneMode) asCloneNextShuffleAt = asGameClock + 950;
         asUpdateControls();
     }
     function asStartCharge() { asBeginAimMode(); }
@@ -662,6 +671,7 @@
                 asAttacks.push({ kind: "laser", orientation: "horizontal", x: 0, y: bounds.bottom - 74, warning: 45, life: 16, color: "#ff5cd6", damage: damage + 3, hit: false });
             }
         } else if (asPattern === 3) {
+            asTriggerArenaWarp(now, "toggle", "РАЗРЕЗ ПРОСТРАНСТВА");
             // One clearly marked cross-cut, plus ONE secondary hazard (a sector wall OR a line).
             // Avoid stacking two barriers on top of a sweeping wall, which could close every escape route.
             const targetX=Math.max(bounds.left+22,Math.min(bounds.right-22,asPlayer.x));
@@ -690,6 +700,7 @@
                 });
             }
         } else if (asPattern === 5) {
+            asTriggerArenaWarp(now, "collapse", "ГРАВИТАЦИОННЫЙ КОЛЛАПС");
             // Сингулярность тянет сердце к центру и затем выбрасывает энергию.
             const wellX = asPlayer.x < 200 ? bounds.left + 74 : bounds.right - 74;
             const wellY = Math.max(bounds.top + 92, Math.min(floor - 100, asPlayer.y - 45));
@@ -698,6 +709,7 @@
                 asAttacks.push({ kind: "well", x: bounds.left + (bounds.right - bounds.left) * .5, y: wellY - 28, warning: 96, warningMax: 96, timer: 120, pullRadius: 280, radius: 84, color: "#46d7ff", damage: damage + 2, life: 0, burst: false, hit: false });
             }
         } else if (asPattern === 6) {
+            asTriggerArenaWarp(now, "toggle", "СДВИГ ВЕРОЯТНОСТИ");
             // Сдвиг вероятности: будущие позиции помечаются до того, как пространство взорвётся.
             const count = asPhase >= 3 ? 3 : 2;
             const offsets = count === 3 ? [-75, 0, 75] : [-48, 48];
@@ -714,6 +726,7 @@
                 asAttacks[asAttacks.length-1].maxSpeed=4;
             }
         } else if (asPattern === 8) {
+            asTriggerArenaWarp(now, "toggle", "ЧЁРНАЯ КОРОНА");
             // The Black Crown gives a long warning, then chooses either a broad sector wall
             // OR a horizontal cross-laser with two separated markers—never all of them at once.
             const targetX=Math.max(bounds.left+24,Math.min(bounds.right-24,asPlayer.x));
@@ -738,13 +751,16 @@
                 }
             }
         } else if (asPattern === 9) {
-            // Записываем 2,5 секунды движения игрока, затем возвращаем призрачный след назад.
-            // После обратного прохода остаётся узел: касание даёт телепорт, неуязвимость и контрудар.
+            // Записываем 2,5 секунды, затем призрачное сердце повторяет путь в исходном направлении.
             asAttacks.push({
                 kind: "fateTrace", phase: "record", timer: 150,
                 path: [], damage: damage + 2, life: 0
             });
+            asTriggerArenaWarp(now, "toggle", "ЗАПИСЬ СУДЬБЫ");
             asText(200, 108, "ЗАПИСЬ СУДЬБЫ — НЕ ПОВТОРЯЙ СВОЙ ПУТЬ!", "#83edff", 92);
+        } else if (asPattern === 10) {
+            asStartCloneHunt(now);
+            asText(200, 108, "ЧЕТЫРЕ ЛИКА — УГАДАЙ ОРИГИНАЛ!", "#83edff", 105);
         } else {
             // Две галактики сжимаются в шар; затем следует Infinity Big Bang Storm.
             if (asUltimateActive || asPatternSpawned) return;
@@ -777,16 +793,120 @@
         }
         asSound(asPattern === 1 ? 180 : (asPattern === 3 ? 125 : 300), "sawtooth", asPattern === 3 ? .22 : .14, asPattern >= 3 ? .07 : .055);
     }
+    function asCloneSlots() {
+        const b = asBounds();
+        const w = b.right - b.left, h = b.bottom - b.top;
+        return [
+            { x: b.left + w * .20, y: b.top + h * .27 },
+            { x: b.left + w * .80, y: b.top + h * .27 },
+            { x: b.left + w * .22, y: b.top + h * .65 },
+            { x: b.left + w * .78, y: b.top + h * .65 }
+        ];
+    }
+    function asShuffleCloneTargets(now) {
+        const live = asClones.filter(function(clone) { return clone.alive; });
+        if (live.length < 2) return;
+        const slots = asCloneSlots();
+        for (let i = slots.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const temp = slots[i]; slots[i] = slots[j]; slots[j] = temp;
+        }
+        live.forEach(function(clone, i) {
+            const target = slots[i];
+            clone.fromX = clone.x; clone.fromY = clone.y;
+            clone.toX = target.x; clone.toY = target.y;
+            clone.moveStart = now; clone.moveDuration = 245;
+        });
+        asCloneNextShuffleAt = now + 525 + Math.random() * 105;
+        asSound(330 + Math.random() * 120, "triangle", .09, .035);
+    }
+    function asStartCloneHunt(now) {
+        const slots = asCloneSlots();
+        const originalIndex = Math.floor(Math.random() * 4);
+        asCloneMode = true; asCloneUntil = now + 8500; asCloneNextShuffleAt = now + 850;
+        asClones = slots.map(function(pos, i) {
+            return {
+                x: pos.x, y: pos.y, fromX: pos.x, fromY: pos.y, toX: pos.x, toY: pos.y,
+                moveStart: now, moveDuration: 1, phase: Math.random() * Math.PI * 2,
+                alive: true, isOriginal: i === originalIndex, identity: i
+            };
+        });
+        asTriggerArenaWarp(now, "toggle", "ЧЕТЫРЕ ЛИКА");
+        asShake = Math.max(asShake, 7);
+        asFlash = Math.max(asFlash, 5); asFlashColor = "#6bcbff";
+        asSound(145, "sawtooth", .32, .1);
+    }
+    function asUpdateCloneHunt(now) {
+        if (!asCloneMode) return;
+        if (now >= asCloneUntil) {
+            asCloneMode = false; asClones = []; asCloneNextShuffleAt = 0;
+            asText(200, 124, "ОРИГИНАЛ СКРЫЛСЯ В ИСКАЖЕНИИ!", "#c2abff", 64);
+            return;
+        }
+        asClones.forEach(function(clone) {
+            if (!clone.alive) return;
+            const t = Math.max(0, Math.min(1, (now - clone.moveStart) / Math.max(1, clone.moveDuration)));
+            const eased = t * t * (3 - 2 * t);
+            clone.x = clone.fromX + (clone.toX - clone.fromX) * eased;
+            clone.y = clone.fromY + (clone.toY - clone.fromY) * eased;
+        });
+        if (now >= asCloneNextShuffleAt) asShuffleCloneTargets(now);
+    }
+    function asDrawCloneHunt(c, now) {
+        asClones.forEach(function(clone) {
+            if (!clone.alive) return;
+            c.save();
+            c.globalAlpha = .22 + Math.abs(Math.sin(now / 130 + clone.phase)) * .14;
+            c.strokeStyle = "#8e67ff"; c.lineWidth = 1.4;
+            c.shadowColor = "#a968ff"; c.shadowBlur = 14;
+            c.beginPath(); c.ellipse(clone.x, clone.y, 30, 38, Math.sin(now / 700 + clone.phase) * .12, 0, Math.PI * 2); c.stroke();
+            c.restore();
+            asDrawAntiSpiralHead(c, clone.x, clone.y, .86, now + clone.phase * 120, 1);
+            c.save();
+            c.globalAlpha = .74; c.fillStyle = "#bdf5ff"; c.textAlign = "center"; c.font = "bold 9px monospace";
+            c.fillText("?", clone.x, clone.y + 51);
+            c.restore();
+        });
+        c.save();
+        c.fillStyle = "rgba(2,4,18,.92)"; c.fillRect(43, 98, 314, 23);
+        c.strokeStyle = "#70eaff"; c.lineWidth = 1.2; c.strokeRect(43, 98, 314, 23);
+        c.fillStyle = "#d2fbff"; c.font = "bold 10px monospace"; c.textAlign = "center";
+        c.fillText("4 КОПИИ · ПОПАДИ В НАСТОЯЩЕГО", 200, 113);
+        c.restore();
+    }
+    function asTriggerArenaWarp(now, mode, name) {
+        if (now < asArenaLockUntil) return;
+        const compact = mode === "collapse" ? true : mode === "expand" ? false : !asLastArenaWarpCompact;
+        asLastArenaWarpCompact = compact;
+        asTargetWidth = compact ? 264 : 400;
+        asTargetHeight = compact ? 342 : 470;
+        asArenaWarpUntil = now + 1480;
+        asArenaLockUntil = now + 3650;
+        asLastArenaShift = now;
+        asText(200, 128, compact ? "ПРОСТРАНСТВО СЖИМАЕТСЯ!" : "ПРОСТРАНСТВО РАСКРЫВАЕТСЯ!", compact ? "#ff8ef2" : "#79efff", 76);
+        if (name) asText(200, 146, name, "#ddc7ff", 56);
+        asShake = Math.max(asShake, compact ? 9 : 6);
+        asFlash = Math.max(asFlash, 5); asFlashColor = compact ? "#cf69ff" : "#53dfff";
+        asSound(compact ? 78 : 190, "sawtooth", .26, .09);
+    }
+    function asUpdateArenaWarp(now) {
+        if (!asArenaWarpUntil || now < asArenaWarpUntil) return;
+        asArenaWarpUntil = 0;
+        asTargetWidth = 400; asTargetHeight = 470;
+        asArenaLockUntil = now + 2200;
+        asText(200, 150, "ГРАНИЦЫ РЕАЛЬНОСТИ ВОССТАНОВЛЕНЫ", "#83eaff", 48);
+    }
     function asShiftArena(now) {
         if (!asLastArenaShift) asLastArenaShift = now;
-        if (now - asLastArenaShift < 6200) return;
+        if (now < asArenaLockUntil || now - asLastArenaShift < 6200) return;
         asLastArenaShift = now;
-        const wide = asArenaWidth < 350;
-        asTargetWidth = wide ? 400 : 340;
-        asTargetHeight = wide ? 470 : 420;
-        asText(200, 85, wide ? "ПРОСТРАНСТВО РАСШИРЯЕТСЯ" : "ГРАВИТАЦИЯ СЖИМАЕТ АРЕНУ", "#67d8ff", 70);
-        asShake = 5;
-        asSound(wide ? 100 : 160, "sawtooth", 0.3, 0.07);
+        const wide = asArenaWidth < 340;
+        asTargetWidth = wide ? 400 : 264;
+        asTargetHeight = wide ? 470 : 342;
+        asLastArenaWarpCompact = !wide;
+        asText(200, 85, wide ? "ПРОСТРАНСТВО РАСКРЫВАЕТСЯ" : "ПРОСТРАНСТВО РЕЗКО СЖИМАЕТСЯ", "#67d8ff", 70);
+        asShake = 7;
+        asSound(wide ? 100 : 125, "sawtooth", 0.3, 0.07);
     }
     function asKeyDown(ev) {
         if (!asActive) return;
@@ -795,7 +915,8 @@
         if ((k === "z" || k === "x") && !asKeys[k]) asStartCharge();
         asKeys[k] = true;
         if (k === "escape" && asState === "fight" && asAimMode) {
-            asAimMode = false; 
+            asAimMode = false;
+            if (asCloneMode) asCloneNextShuffleAt = asGameClock + 250;
             asText(200, 110, "ПРИЦЕЛ ОТМЕНЁН", "#bbaaff", 42);
             asUpdateControls(); return;
         }
@@ -829,6 +950,15 @@
             asAimCursor = { x: x, y: y };
             asFireDrill(x, y);
             return;
+        }
+        if (asCloneMode) {
+            for (let ci = 0; ci < asClones.length; ci++) {
+                const clone = asClones[ci];
+                if (clone.alive && Math.hypot(x - clone.x, y - clone.y) < 34) {
+                    asFireDrill(x, y);
+                    return;
+                }
+            }
         }
         // Прямое нажатие на босса тоже направляет выстрел точно в точку касания.
         if (Math.hypot(x - asBoss.x, y - (asBoss.y + 36)) < asBoss.size * 1.75) {
@@ -927,7 +1057,7 @@
         if(btn)btn.style.display="block";
     }
     function asStop() {
-        asActive=false; asAimMode=false; asSlowUntilReal=0; asTimeScale=1; asPreviousTimeScale=1; window.antiSpiralBossActive=false;
+        asActive=false; asAimMode=false; asSlowUntilReal=0; asTimeScale=1; asPreviousTimeScale=1; asCloneMode=false;asClones=[];asCloneUntil=0;asCloneNextShuffleAt=0;asArenaLockUntil=0;asArenaWarpUntil=0; window.antiSpiralBossActive=false;
         if(asAnimFrame) cancelAnimationFrame(asAnimFrame);
         asAnimFrame=null; asUnbind(); stopASMusic();
         asCharging=false; asChargeFrames=0; asLastDamageAt=0; asNextShotAt=0; asPointerChargeMode=false; asDrillShots=[];
@@ -961,6 +1091,42 @@
             c.strokeStyle=shot.charge>.78?"#c69aff":"#4de6ff";c.lineWidth=2;
             c.beginPath();c.ellipse(0,0,shot.radius*.95,shot.radius*.34,shot.phase,0,Math.PI*2);c.stroke();
             c.restore();
+            if (asCloneMode) {
+                let hitClone = null;
+                for (let ci = 0; ci < asClones.length; ci++) {
+                    const candidate = asClones[ci];
+                    if (candidate.alive && Math.hypot(shot.x - candidate.x, shot.y - candidate.y) < 34 + shot.radius) {
+                        hitClone = candidate; break;
+                    }
+                }
+                if (hitClone) {
+                    if (hitClone.isOriginal) {
+                        asCloneMode = false; asCloneUntil = 0; asCloneNextShuffleAt = 0; asClones = [];
+                        let cloneMultiplier = asBossExposed > 0 ? 2.45 : .42;
+                        if (asPlayer.y < 270) cloneMultiplier *= 1.25;
+                        asBossHit(Math.max(1, Math.floor(shot.damage * cloneMultiplier)), "ОРИГИНАЛ НАЙДЕН — УДАР ПО АНТИ-СПИРАЛИ!");
+                        asBossDamageFlash = Math.max(asBossDamageFlash, 24);
+                        asFlash = Math.max(asFlash, 10); asFlashColor = "#6deaff"; asShake = Math.max(asShake, 13);
+                        asText(200, 132, "ВСЕ ФАЛЬШИВКИ РАССЫПАЛИСЬ!", "#8ff8ff", 76);
+                        for (let q = 0; q < 28; q++) {
+                            const ang = Math.PI * 2 * q / 28, speed = 1.5 + Math.random() * 4;
+                            asParticles.push({x:shot.x,y:shot.y,vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed,life:24,maxLife:24,color:q%2?"#6deaff":"#bd82ff",size:2+Math.random()*3});
+                        }
+                        asSound(780, "triangle", .4, .13);
+                    } else {
+                        hitClone.alive = false;
+                        asText(hitClone.x, hitClone.y + 48, "ФАЛЬШИВКА!", "#c4a5ff", 48);
+                        for (let q = 0; q < 12; q++) {
+                            const ang = Math.PI * 2 * q / 12, speed = 1 + Math.random() * 3;
+                            asParticles.push({x:hitClone.x,y:hitClone.y,vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed,life:18,maxLife:18,color:"#9e73ff",size:2+Math.random()*2});
+                        }
+                        asCloneNextShuffleAt = asGameClock + 560;
+                        asSound(145, "sawtooth", .18, .06);
+                    }
+                    asDrillShots.splice(i, 1);
+                    continue;
+                }
+            }
             let sealHit = false;
             for (let si = 0; si < asSeals.length; si++) {
                 const seal = asSeals[si];
@@ -1125,6 +1291,10 @@
         c.restore();
     }
     function asDrawBoss(c,now) {
+        if (asCloneMode && asClones.some(function(clone) { return clone.alive; })) {
+            asDrawCloneHunt(c, now);
+            return;
+        }
         if (asLabyrinthTimer > 0) {
             asDrawAntiSpiralHead(c, asBoss.x - 69, asBoss.y + 24, 0.58, now + 280, .22);
             asDrawAntiSpiralHead(c, asBoss.x + 69, asBoss.y + 24, 0.58, now - 360, .22);
@@ -1775,9 +1945,11 @@
         asGameClock += elapsed * asTimeScale;
         now = asGameClock;
         const c=asCtx(); if(!c){asAnimFrame=requestAnimationFrame(asRender);return;}
-        asFrame += asTimeScale; if(asState==="fight") asShiftArena(now);
+        asFrame += asTimeScale;
+        if (asState === "fight") { asShiftArena(now); asUpdateArenaWarp(now); }
         asArenaWidth += (asTargetWidth-asArenaWidth)*.055*asTimeScale;
         asArenaHeight += (asTargetHeight-asArenaHeight)*.055*asTimeScale;
+        if (asState === "fight") asUpdateCloneHunt(now);
         asBoss.rotation+=.009*asTimeScale; asBoss.pulse+=.04*asTimeScale;
         if(asBoss.flash>0)asBoss.flash-=asTimeScale;
         if(asBossDamageFlash>0)asBossDamageFlash-=asTimeScale;
@@ -1877,7 +2049,7 @@
                     }else if(a.phase==="rewind"){
                         a.timer-=asTimeScale;
                         const progress=Math.max(0,Math.min(1,1-a.timer/a.rewindDuration));
-                        const index=Math.max(0,Math.min(path.length-1,Math.floor((1-progress)*(path.length-1))));
+                        const index=Math.max(0,Math.min(path.length-1,Math.floor(progress*(path.length-1))));
                         const segment=Math.max(0,Math.min(path.length-2,index));
                         if(path.length>1){
                             a.hotUntil[segment]=asFrame+38;
@@ -1913,10 +2085,10 @@
                         c.save();c.fillStyle="rgba(3,5,18,.88)";c.fillRect(54,98,292,22);
                         c.strokeStyle="#d68aff";c.strokeRect(54,98,292,22);
                         c.fillStyle="#f0d5ff";c.font="bold 10px monospace";c.textAlign="center";
-                        c.fillText("ОТМЕНА РЕАЛЬНОСТИ · УЙДИ СО СЛЕДА",200,112);c.restore();
+                        c.fillText("ПОВТОР ТВОЕГО ПУТИ · УЙДИ СО СЛЕДА",200,112);c.restore();
                         if(a.timer<=0){
                             a.phase="node";a.timer=180;
-                            a.node={x:path[0].x,y:path[0].y};
+                            a.node={x:path[path.length-1].x,y:path[path.length-1].y};
                             a.safePoint=path[Math.max(0,Math.min(path.length-1,Math.floor(path.length*.46)))]||path[0];
                             a.hotUntil=Object.create(null);
                             asText(200,132,"УЗЕЛ ПАРАДОКСА — ДОБЕРИСЬ ДО НЕГО!","#7ff6ff",100);
@@ -2437,20 +2609,20 @@
             // cleared just because a timer elapsed. Wait for beams, marks, wells and projectiles to finish.
             if(!asPatternDraining){
                 asPatternTimer+=asTimeScale;
-                const duration=asPattern===7?250:(asPattern===9?450:178);
+                const duration=asPattern===7?250:(asPattern===9?450:(asPattern===10?165:178));
                 if(asPatternTimer>duration)asPatternDraining=true;
             }
             if(asPatternDraining){
                 const attacksStillRunning=asAttacks.some(function(a){return !!a;});
-                if(!attacksStillRunning&&asLabyrinthTimer<=0&&!asUltimateActive){
+                if(!attacksStillRunning&&asLabyrinthTimer<=0&&!asUltimateActive&&!asCloneMode){
                     asPatternDraining=false;asPatternTimer=0;asPattern=(asPattern+1)%patterns.length;asPatternSpawned=false;asPatternVolleyCount=0;
                     asText(200,100,patterns[asPattern],"#b8a2ff",52);
                     asSound(260+asPattern*60,"sine",.18,.06);
                 }
             }else{
-                const cadence=[42,70,58,78,92,82,76,178,64,60][asPattern]||58;
-                const volleyLimit=[3,1,2,1,1,1,1,1,1,1][asPattern]||1;
-                if(asPattern===7||asPattern===9){
+                const cadence=[42,70,58,78,92,82,76,178,64,60,60][asPattern]||58;
+                const volleyLimit=[3,1,2,1,1,1,1,1,1,1,1][asPattern]||1;
+                if(asPattern===7||asPattern===9||asPattern===10){
                     if(!asPatternSpawned&&asPatternVolleyCount<volleyLimit){asSpawnPattern(now);asPatternSpawned=true;asPatternVolleyCount++;}
                 }else if(asFrame%Math.max(27,cadence-asPhase*3)===0&&asPatternVolleyCount<volleyLimit){
                     asSpawnPattern(now);asPatternVolleyCount++;
@@ -2481,8 +2653,8 @@
         asBossHp=asBossMaxHp;asPlayerMaxHp=220;asPlayerHp=asPlayerMaxHp;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asBoss={x:285,y:180,size:48,rotation:0,pulse:0,flash:0};
-        asAttacks=[];asParticles=[];asTexts=[];asFrame=0;asPattern=0;asPatternTimer=0;asPatternDraining=false;asPatternVolleyCount=0;
-        asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;asLastArenaShift=asGameClock;asGravityDirection=0;asGravityNextShiftAt=0;
+        asAttacks=[];asParticles=[];asTexts=[];asClones=[];asCloneMode=false;asCloneUntil=0;asCloneNextShuffleAt=0;asArenaLockUntil=0;asArenaWarpUntil=0;asLastArenaWarpCompact=false;asFrame=0;asPattern=0;asPatternTimer=0;asPatternDraining=false;asPatternVolleyCount=0;
+        asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;asLastArenaShift=asGameClock;asArenaLockUntil=0;asArenaWarpUntil=0;asLastArenaWarpCompact=false;asGravityDirection=0;asGravityNextShiftAt=0;
         asShake=0;asFlash=0;asBossDamageFlash=0;asPhase=1;asLastShot=0;asGravityPull=.10;
         asKeys=Object.create(null);asPointer={down:false,x:0,y:0,id:null};
         if(typeof arenaActive!=="undefined")arenaActive=false;
