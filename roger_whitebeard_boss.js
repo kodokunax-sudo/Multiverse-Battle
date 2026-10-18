@@ -721,7 +721,7 @@
         ctx.translate(cx, cy); ctx.rotate(rotation);
         ctx.save();
         let heartSize = size * 1.0;
-        ctx.fillStyle = flash ? "#ffffff" : "#ffffff";
+        ctx.fillStyle = flash ? "#ffffff" : "#dce8ed";
         ctx.shadowColor = "#88ddff"; ctx.shadowBlur = flash ? 30 : 15;
         ctx.beginPath();
         ctx.moveTo(0, heartSize * 0.7);
@@ -1146,7 +1146,7 @@
             id: "whitebeard", x: 320, y: 120, size: 32,
             hp: BALANCE.whitebeardHp, maxHp: BALANCE.whitebeardHp, superForm: false,
             vx: -1.0, vy: 0.6, pulse: 0, rotation: 0,
-            attackTimer: 40, hitFlash: 0, meleeTimer: 0,
+            attackTimer: 40, hitFlash: 0, damageFlashTimer: 0, meleeTimer: 0,
             name: "БЕЛОУС", color: "#ffffff", homeX: 320, homeY: 120
         };
 
@@ -1814,6 +1814,7 @@
         roger.pulse += 0.08; whitebeard.pulse += 0.07;
         if (roger.hitFlash > 0) roger.hitFlash--;
         if (whitebeard.hitFlash > 0) whitebeard.hitFlash--;
+        if (whitebeard.damageFlashTimer > 0) whitebeard.damageFlashTimer--;
 
         if (Math.random() < 0.08) spawnHakiLightning(roger.x + (Math.random() - 0.5) * 40, roger.y + (Math.random() - 0.5) * 40, 1, false);
         if (Math.random() < 0.16) spawnHakiLightning(whitebeard.x + (Math.random() - 0.5) * 46, whitebeard.y + (Math.random() - 0.5) * 46, 1, true);
@@ -1871,7 +1872,7 @@
         let dmg = 12 + Math.random() * 8;
         roger.hp = Math.max(0, roger.hp - dmg);
         whitebeard.hp = Math.max(0, whitebeard.hp - dmg);
-        roger.hitFlash = 10; whitebeard.hitFlash = 10;
+        roger.hitFlash = 10; whitebeard.hitFlash = 10; whitebeard.damageFlashTimer = 10;
         rwbShake = 25; rwbScreenFlash = 20; rwbScreenFlashColor = "#000000"; rwbHakiAura = 20;
         playImpactSound(0.6, 1.2); playBladeSound(0.4);
         setTimeout(function() { playImpactSound(0.4, 0.8); }, 80);
@@ -3191,6 +3192,7 @@
                             window.dioAddEnergy((dmg / bossMaxHpForDio) * 35);
                         }
                         boss.hitFlash = 4;
+                        if (boss.id === "whitebeard") boss.damageFlashTimer = Math.max(Number(boss.damageFlashTimer) || 0, 8);
                         spawnHitParticles(b.x, b.y, b.color, 4);
                         playImpactSound(0.15, 1.2 + Math.random() * 0.3);
                         destroyed = true; break;
@@ -4083,7 +4085,7 @@
         if (!whitebeard) return;
         let pulse = 1 + Math.sin(whitebeard.pulse) * 0.06;
         let size = whitebeard.size * pulse;
-        let flash = whitebeard.hitFlash > 0;
+        let flash = (Number(whitebeard.damageFlashTimer) || 0) > 0;
         drawWhitebeardHakiAura(whitebeard.x, whitebeard.y, size);
         drawWhitebeardModel(whitebeard.x, whitebeard.y, size, flash, Math.sin(whitebeard.rotation) * 0.1);
     }
@@ -5088,6 +5090,7 @@
                 const damage = slash.damage;
                 target.hp = Math.max(0, target.hp - damage);
                 target.hitFlash = Math.max(target.hitFlash || 0, 8);
+                if (target.id === "whitebeard") target.damageFlashTimer = Math.max(Number(target.damageFlashTimer) || 0, 8);
                 rwbShockwaves.push({
                     x: target.x, y: target.y, radius: 7, maxRadius: 62,
                     speed: 6, color: "#b97aff", life: 16, maxLife: 16, width: 3
@@ -5934,6 +5937,7 @@
         let target=(rwbActiveBoss&&rwbActiveBoss.id===bossId)?rwbActiveBoss:[roger,whitebeard].find(function(b){return b&&b.id===bossId;});
         if(!target)return false;
         target.hp=Math.max(0,target.hp-Math.max(1,Math.floor(Number(amount)||1)));target.hitFlash=10;
+        if(target.id==="whitebeard")target.damageFlashTimer=10;
         rwbShockwaves.push({x:target.x,y:target.y,radius:10,maxRadius:100,speed:9,color:"#fff0a0",damage:0,hit:true,life:18,maxLife:18,width:4});
         rwbFloatingTexts.push({x:target.x,y:target.y-35,text:"DIO −"+Math.max(1,Math.floor(Number(amount)||1)),color:"#fff0a0",life:55,maxLife:55,vy:-.6,vx:0,size:14});
         return true;
