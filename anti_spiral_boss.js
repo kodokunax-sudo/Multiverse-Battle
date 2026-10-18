@@ -353,7 +353,7 @@
             damage: baseDamage, sealDamage: Math.round(20 + charge * 90),
             targetType: hasAimPoint ? "aim" : (targetSeal ? "seal" : "boss"), sealIndex: sealIndex,
             targetX: targetX, targetY: targetY, distanceMax: distance, travelled: 0,
-            life: Math.max(3, Math.ceil(distance / (7 + charge * 4.5)) + 2), phase: 0, level: level
+            trail: [], life: Math.max(3, Math.ceil(distance / (7 + charge * 4.5)) + 2), phase: 0, level: level
         });
         asText(asPlayer.x, asPlayer.y - 31, targetSeal ? level + " → ПЕЧАТЬ " + (sealIndex + 1) + "/3 · " + Math.round(charge * 100) + "%" : level + " · " + Math.round(charge * 100) + "%", "#74f5ff", 52);
         asShake = Math.max(asShake, 2 + charge * 7);
@@ -583,16 +583,7 @@
         if (asPlayerHp <= 0) asLose();
     }
     function asAddAttack(x, y, vx, vy, size, color, damage, kind) {
-        const attackKind = kind || "orb";
-        const desperation = asBossDesperation();
-        const speedBoost = 1 + desperation * .48;
-        vx *= speedBoost; vy *= speedBoost;
-        const attack = {x:x,y:y,vx:vx,vy:vy,spd:vx,spdY:vy,size:size||14,color:color||"#3abfff",damage:damage||12,kind:attackKind,life:250,phase:Math.random()*6};
-        if (attackKind === "spiral") {
-            attack.turnRate = (Math.random() < .5 ? -1 : 1) * (.0065 + desperation * .0045);
-            attack.baseSize = attack.size;
-        }
-        asAttacks.push(attack);
+        asAttacks.push({x:x,y:y,vx:vx,vy:vy,spd:vx,spdY:vy,size:size||14,color:color||"#3abfff",damage:damage||12,kind:kind||"orb",life:250,phase:Math.random()*6});
         // Short, distinct launch sounds; throttle volleys so simultaneous spheres do not become deafening.
         const soundNow=Date.now();
         if(soundNow-asLastAttackSoundAt>85){
@@ -602,10 +593,6 @@
             else if(kind==="orb")asSound(470+Math.random()*100,"sine",.10,.035);
             else asSound(260,"triangle",.11,.035);
         }
-    }
-    function asBossDesperation() {
-        const hp = Math.max(0, Math.min(1, asBossHp / Math.max(1, asBossMaxHp)));
-        return 1 - hp;
     }
     function asShiftGravity(now) {
         asGravityDirection = (asGravityDirection + 1) % 4;
@@ -642,35 +629,18 @@
         const floor = asFloor();
         const bounds = asBounds();
         if (asPattern === 0) {
-            // A readable, glowing multi-ring spiral fan with gaps between the streams.
+            // Спиральный энергетический залп: между встречными потоками есть проходы.
             const base = Math.atan2(asPlayer.y - (asBoss.y + 35), asPlayer.x - asBoss.x) + now * .0018;
-            const desperation = asBossDesperation();
-            const count = asPhase >= 3 ? 16 : (asPhase >= 2 ? 14 : 12);
-            asText(200, 108, "АНТИ-СПИРАЛЬНЫЙ ШТОРМ — ВИХРЬ!", "#a9eeff", 66);
-            asShake = Math.max(asShake, 5 + desperation * 4);
+            const count = asPhase >= 3 ? 12 : 9;
             for (let i = 0; i < count; i++) {
-                const angle = base + i * Math.PI * 2 / count;
-                const speed = 2.45 + asPhase * .28;
-                asAddAttack(asBoss.x, asBoss.y + 35, Math.cos(angle) * speed, Math.sin(angle) * speed,
-                    14 + (i % 3) * 1.5, i % 2 ? "#55d8ff" : "#bb6bff", damage, "spiral");
+                const a = base + i * Math.PI * 2 / count;
+                asAddAttack(asBoss.x, asBoss.y + 35, Math.cos(a) * (2.25 + asPhase * .3), Math.sin(a) * (2.25 + asPhase * .3), 11 + (i % 3), i % 2 ? "#55d8ff" : "#bb6bff", damage, "spiral");
             }
             if (asPhase >= 2) {
-                const innerCount = asPhase >= 3 ? 6 : 4;
-                for (let i = 0; i < innerCount; i++) {
-                    const angle = base + Math.PI / innerCount + i * Math.PI * 2 / innerCount;
-                    asAddAttack(asBoss.x, asBoss.y + 35, Math.cos(angle) * 2.75, Math.sin(angle) * 2.75,
-                        9.5, "#e4fdff", Math.max(6, damage - 4), "spiral");
+                for (let i = 0; i < 4; i++) {
+                    const a = base + Math.PI / 7 + i * Math.PI * 2 / 4;
+                    asAddAttack(asBoss.x, asBoss.y + 35, Math.cos(a) * 2.6, Math.sin(a) * 2.6, 7, "#e4fdff", Math.max(6, damage - 4), "spiral");
                 }
-            }
-            for (let spark = 0; spark < 20; spark++) {
-                const angle = Math.PI * 2 * spark / 20 + now * .001;
-                const speed = .7 + Math.random() * 2.2;
-                asParticles.push({
-                    x: asBoss.x + Math.cos(angle) * 20, y: asBoss.y + 35 + Math.sin(angle) * 20,
-                    vx: Math.cos(angle + Math.PI / 2) * speed, vy: Math.sin(angle + Math.PI / 2) * speed,
-                    life: 18 + Math.random() * 12, maxLife: 30,
-                    color: spark % 2 ? "#6ceaff" : "#c78bff", size: 1.8 + Math.random() * 2.7
-                });
             }
         } else if (asPattern === 1) {
             // Руки Грандзебомы прочёсывают арену, а затем сам босс запускает преследующие снаряды.
@@ -1165,6 +1135,25 @@
         ["superBtn","superBtn2","superBtnDeactivate","startArenaBtn","startLivingStoneBtn","startWaystarBtn","startRogerWB","startAntiSpiralBossBtn","skipBossBtn","spareBtn"].forEach(function(id){const el=document.getElementById(id);if(el)el.style.display="none";});
         if(typeof musicEnabled!=="undefined" && musicEnabled && typeof startBattleMusic==="function") startBattleMusic();
     }
+    function asDrillImpact(x, y, charge, tint) {
+        const power = Math.max(.08, Math.min(1, Number(charge) || 0));
+        const color = tint || "#66efff";
+        const amount = 15 + Math.floor(power * 17);
+        for (let q = 0; q < amount; q++) {
+            const angle = Math.PI * 2 * q / amount + Math.random() * .16;
+            const speed = 1.5 + Math.random() * (2.5 + power * 4);
+            asParticles.push({
+                x:x, y:y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed,
+                life:16 + Math.random()*10, maxLife:26,
+                color:q%3===0?"#ffffff":(q%2?color:"#bca0ff"),
+                size:1.8 + Math.random()*(1.5+power*2.2)
+            });
+        }
+        asFlash = Math.max(asFlash, 2 + power * 2.5);
+        asFlashColor = color;
+        asShake = Math.max(asShake, 2 + power * 5);
+        asSound(410 + power * 410, "triangle", .16 + power * .12, .06 + power * .03);
+    }
     function asDrawDrillShots(c,now) {
         for (let i = asDrillShots.length - 1; i >= 0; i--) {
             const shot = asDrillShots[i];
@@ -1173,14 +1162,40 @@
             const step = Math.min(speed * asTimeScale, remaining);
             shot.x += shot.vx / speed * step; shot.y += shot.vy / speed * step;
             shot.travelled = (shot.travelled || 0) + step; shot.life-=asTimeScale; shot.phase += .28*asTimeScale;
+            shot.trail = shot.trail || [];
+            shot.trail.push({x:shot.x,y:shot.y});
+            if (shot.trail.length > 11) shot.trail.shift();
+            // This after-image belongs to the player's drill, not the boss's projectiles.
+            c.save(); c.lineCap="round"; c.lineJoin="round";
+            for (let t=1;t<shot.trail.length;t++) {
+                const p0=shot.trail[t-1],p1=shot.trail[t],f=t/shot.trail.length;
+                c.globalAlpha=(.14+.62*f)*(.65+shot.charge*.45);
+                c.strokeStyle=t%3===0?"#d3a4ff":"#65f5ff";
+                c.shadowColor=c.strokeStyle;c.shadowBlur=7+shot.charge*17;
+                c.lineWidth=(1.2+shot.charge*4.8)*f;
+                c.beginPath();c.moveTo(p0.x,p0.y);c.lineTo(p1.x,p1.y);c.stroke();
+            }
+            c.restore();
             c.save(); c.translate(shot.x,shot.y); c.rotate(Math.atan2(shot.vy,shot.vx) + Math.PI/2);
-            c.shadowColor="#55eaff";c.shadowBlur=14+shot.charge*24;
-            c.fillStyle=shot.charge>.78?"#ffffff":"#7bf5ff";
-            c.beginPath();c.moveTo(0,-shot.radius*1.8);c.lineTo(shot.radius*.7,shot.radius*.45);
-            c.lineTo(0,shot.radius*.95);c.lineTo(-shot.radius*.7,shot.radius*.45);c.closePath();c.fill();
-            c.strokeStyle="#ffffff";c.lineWidth=1.2;c.stroke();
-            c.strokeStyle=shot.charge>.78?"#c69aff":"#4de6ff";c.lineWidth=2;
-            c.beginPath();c.ellipse(0,0,shot.radius*.95,shot.radius*.34,shot.phase,0,Math.PI*2);c.stroke();
+            const pulse=1+Math.sin(shot.phase*1.5)*.1;
+            const radius=shot.radius*(.94+shot.charge*.18)*pulse;
+            c.globalAlpha=.32;c.fillStyle="#62edff";c.shadowColor="#5eeeff";c.shadowBlur=32;
+            c.beginPath();c.arc(0,0,radius*1.65,0,Math.PI*2);c.fill();
+            c.globalAlpha=1;c.shadowColor=shot.charge>.78?"#d19aff":"#55eaff";c.shadowBlur=26+shot.charge*30;
+            const core=c.createLinearGradient(0,-radius*2.1,0,radius*1.1);
+            core.addColorStop(0,"#ffffff");core.addColorStop(.28,shot.charge>.78?"#f4eaff":"#c8fbff");
+            core.addColorStop(.62,"#57ecff");core.addColorStop(1,shot.charge>.78?"#a56bff":"#1687ff");
+            c.fillStyle=core;
+            c.beginPath();c.moveTo(0,-radius*2.05);c.lineTo(radius*.76,-radius*.16);
+            c.lineTo(radius*.48,radius*.75);c.lineTo(0,radius*1.12);
+            c.lineTo(-radius*.48,radius*.75);c.lineTo(-radius*.76,-radius*.16);c.closePath();c.fill();
+            c.strokeStyle="#ffffff";c.lineWidth=1.7;c.stroke();
+            c.strokeStyle=shot.charge>.78?"#e4baff":"#bdfcff";c.lineWidth=1.6;c.shadowBlur=18;
+            c.beginPath();c.ellipse(0,0,radius*1.28,radius*.43,shot.phase,0,Math.PI*2);c.stroke();
+            c.beginPath();c.ellipse(0,0,radius*.84,radius*.28,-shot.phase*1.35,0,Math.PI*2);c.stroke();
+            c.globalAlpha=.95;c.lineWidth=1.4;
+            c.beginPath();c.moveTo(-radius*1.28,0);c.lineTo(radius*1.28,0);
+            c.moveTo(0,-radius*1.4);c.lineTo(0,radius*1.4);c.stroke();
             c.restore();
             if (asCloneMode) {
                 let hitClone = null;
@@ -1191,6 +1206,7 @@
                     }
                 }
                 if (hitClone) {
+                    asDrillImpact(shot.x, shot.y, shot.charge, hitClone.isOriginal ? "#65efff" : "#bd83ff");
                     if (hitClone.isOriginal) {
                         asCloneMode = false; asCloneUntil = 0; asCloneNextShuffleAt = 0; asClonePhase = "idle"; asCloneStageUntil = 0; asClones = [];
                         let cloneMultiplier = asBossExposed > 0 ? 2.45 : .42;
@@ -1231,6 +1247,7 @@
             for (let si = 0; si < asSeals.length; si++) {
                 const seal = asSeals[si];
                 if (!seal || seal.broken || Math.hypot(shot.x-seal.x,shot.y-seal.y) >= seal.radius + shot.radius) continue;
+                asDrillImpact(shot.x, shot.y, shot.charge, "#a98bff");
                 seal.hp -= shot.sealDamage;
                 asText(seal.x,seal.y-18,"-"+shot.sealDamage,"#e6c8ff",30);
                 asShake=Math.max(asShake,3+shot.charge*5);
@@ -1254,6 +1271,7 @@
             if (sealHit) continue;
             const dx=shot.x-asBoss.x, dy=shot.y-(asBoss.y+43);
             if(Math.abs(dx)<36+shot.radius && Math.abs(dy)<57+shot.radius){
+                asDrillImpact(shot.x, shot.y, shot.charge, "#65efff");
                 if(asUnbrokenSealIndex()>=0){
                     asBossHit(shot.damage,"ЩИТ ПЕЧАТЕЙ БЛОКИРУЕТ УРОН");
                 }else{
@@ -1390,38 +1408,7 @@
         for(let i=0;i<3;i++){c.beginPath();c.ellipse(x,y,25*scale+i*8*scale,31*scale+i*10*scale,now*.0002*(i%2?1:-1),0,Math.PI*2);c.stroke();}
         c.restore();
     }
-    function asDrawSpiralStormAura(c, now) {
-        const desperation = asBossDesperation();
-        const pulse = 1 + Math.sin(now * .012) * .07;
-        c.save();
-        c.translate(asBoss.x, asBoss.y + 35);
-        c.globalAlpha = .5 + desperation * .22;
-        c.shadowColor = "#9d5cff"; c.shadowBlur = 28;
-        for (let ring = 0; ring < 5; ring++) {
-            c.save();
-            const direction = ring % 2 ? -1 : 1;
-            c.rotate(now * .0018 * direction + ring * .53);
-            c.strokeStyle = ring % 2 ? "#65eaff" : "#bb72ff";
-            c.lineWidth = ring === 0 ? 3 : 1.5;
-            c.globalAlpha = .24 + ring * .085 + desperation * .10;
-            c.beginPath();
-            c.ellipse(0, 0, (27 + ring * 9) * pulse, (10 + ring * 3.5) * pulse, ring * .12,
-                -.35 + ring * .2, Math.PI * 1.48 + ring * .15);
-            c.stroke();
-            c.restore();
-        }
-        for (let spark = 0; spark < 12; spark++) {
-            const angle = now * .0032 + spark * Math.PI * 2 / 12;
-            const radius = 24 + (spark % 4) * 8;
-            const x = Math.cos(angle) * radius, y = Math.sin(angle) * radius * .48;
-            c.globalAlpha = .55 + Math.abs(Math.sin(now * .01 + spark)) * .4;
-            c.fillStyle = spark % 2 ? "#8ff5ff" : "#e5b6ff";
-            c.beginPath(); c.arc(x, y, 1.6 + (spark % 3) * .6, 0, Math.PI * 2); c.fill();
-        }
-        c.restore();
-    }
     function asDrawBoss(c,now) {
-        if (asState === "fight" && asPattern === 0) asDrawSpiralStormAura(c, now);
         if (asCloneMode && asClones.some(function(clone) { return clone.alive; })) {
             asDrawCloneHunt(c, now);
             return;
@@ -2593,29 +2580,13 @@
                     const speed=Math.min(a.maxSpeed||3.6,Math.hypot(a.vx,a.vy)+.025);
                     const targetX=dx/dist*speed,targetY=dy/dist*speed,turn=a.turnRate||.045;
                     a.vx+=(targetX-a.vx)*turn*asTimeScale;a.vy+=(targetY-a.vy)*turn*asTimeScale;
-                }else if(a.kind==="spiral"&&a.turnRate){
-                    const turn=a.turnRate*asTimeScale,cosTurn=Math.cos(turn),sinTurn=Math.sin(turn);
-                    const nextVx=a.vx*cosTurn-a.vy*sinTurn,nextVy=a.vx*sinTurn+a.vy*cosTurn;
-                    a.vx=nextVx;a.vy=nextVy;
                 }else{
                     if(typeof a.spd==="number")a.vx=a.spd;
                     if(typeof a.spdY==="number")a.vy=a.spdY;
                 }
                 a.x+=a.vx*asTimeScale;a.y+=a.vy*asTimeScale;a.life-=asTimeScale;a.phase+=.1*asTimeScale;
-                // Bright energy trails make fast shots readable instead of tiny dots that seem to vanish.
-                c.save();
-                const isSpiralShot = a.kind === "spiral";
-                c.globalAlpha = isSpiralShot ? .9 : (a.homing ? .72 : .48);
-                c.strokeStyle = a.color; c.shadowColor = a.color;
-                c.shadowBlur = isSpiralShot ? 30 : (a.homing ? 22 : 14);
-                c.lineWidth = isSpiralShot ? Math.max(3.5, a.size * .36) : (a.homing ? 4 : 2.5);
-                const trail = isSpiralShot ? 10 : (a.homing ? 7 : 4);
-                c.beginPath(); c.moveTo(a.x-a.vx*trail,a.y-a.vy*trail); c.lineTo(a.x+a.vx*1.5,a.y+a.vy*1.5); c.stroke();
-                if (isSpiralShot) {
-                    c.globalAlpha = .7; c.strokeStyle = "#e7fbff"; c.lineWidth = 1.25; c.shadowBlur = 12;
-                    c.beginPath(); c.moveTo(a.x-a.vx*trail*.72,a.y-a.vy*trail*.72); c.lineTo(a.x+a.vx,a.y+a.vy); c.stroke();
-                }
-                c.restore();
+                c.save();c.globalAlpha=a.homing?.72:.48;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=a.homing?22:14;c.lineWidth=a.homing?4:2.5;
+                c.beginPath();c.moveTo(a.x-a.vx*(a.homing?7:4),a.y-a.vy*(a.homing?7:4));c.lineTo(a.x+a.vx*1.5,a.y+a.vy*1.5);c.stroke();c.restore();
                 if(asFrame%3===0&&(a.homing||a.kind==="fall"||a.kind==="spiral")){
                     asParticles.push({x:a.x,y:a.y,vx:-a.vx*.18+(Math.random()-.5)*.7,vy:-a.vy*.18+(Math.random()-.5)*.7,life:12,maxLife:12,color:a.color,size:a.homing?2.8:1.8});
                 }
@@ -2629,20 +2600,9 @@
                     c.globalAlpha=1;c.beginPath();c.arc(0,0,a.size*(1+Math.sin(a.phase)*.08),0,Math.PI*2);c.fill();
                     c.strokeStyle="#f1fdff";c.lineWidth=1;c.stroke();
                 }else if(a.kind==="spiral"){
-                    const pulse=1+Math.sin(a.phase*1.8)*.16;
-                    c.globalAlpha=.24;c.beginPath();c.arc(0,0,a.size*1.62*pulse,0,Math.PI*2);c.fill();
-                    c.globalAlpha=.82;c.strokeStyle=a.color;c.lineWidth=2;c.shadowBlur=28;
-                    c.beginPath();c.ellipse(0,0,a.size*1.55*pulse,a.size*.72,a.phase*.65,a.phase*.4,a.phase*.4+Math.PI*1.7);c.stroke();
-                    c.beginPath();c.ellipse(0,0,a.size*1.12,a.size*.46,-a.phase*.8,-a.phase*.5,-a.phase*.5+Math.PI*1.65);c.stroke();
-                    c.globalAlpha=1;
-                    const core=c.createLinearGradient(0,-a.size,0,a.size);
-                    core.addColorStop(0,"#ffffff");core.addColorStop(.35,a.color);core.addColorStop(1,"#28134f");
-                    c.fillStyle=core;c.shadowBlur=32;
-                    c.beginPath();c.moveTo(0,-a.size*1.18*pulse);c.lineTo(a.size*.7,0);
-                    c.lineTo(0,a.size*1.18*pulse);c.lineTo(-a.size*.7,0);c.closePath();c.fill();
-                    c.strokeStyle="#ffffff";c.lineWidth=1.7;c.stroke();
-                    c.globalAlpha=.95;c.strokeStyle="#f5fdff";c.lineWidth=1.2;
-                    c.beginPath();c.arc(0,0,a.size*.4,0,Math.PI*2);c.stroke();
+                    c.beginPath();c.moveTo(0,-a.size);c.lineTo(a.size*.56,0);c.lineTo(0,a.size);c.lineTo(-a.size*.56,0);c.closePath();c.fill();
+                    c.strokeStyle="#effcff";c.lineWidth=1;c.stroke();
+                    c.beginPath();c.arc(0,0,a.size*.35,0,Math.PI*2);c.stroke();
                 }else{
                     c.beginPath();c.arc(0,0,a.size*(1+Math.sin(a.phase)*.08),0,Math.PI*2);c.fill();c.strokeStyle="#f1fdff";c.lineWidth=1;c.stroke();
                 }
@@ -2764,13 +2724,9 @@
             if(asBossExposed>0)asBossExposed-=asTimeScale;if(asLabyrinthTimer>0)asLabyrinthTimer-=asTimeScale;
             // A pattern may stop spawning after its showcase window, but its attacks are never
             // cleared just because a timer elapsed. Wait for beams, marks, wells and projectiles to finish.
-            const desperation=asBossDesperation();
-            const attackTempo=1+desperation*.72;
             if(!asPatternDraining){
-                asPatternTimer+=asTimeScale*attackTempo;
-                const baseDuration=asPattern===7?250:(asPattern===9?450:(asPattern===10?165:178));
-                const minimumDuration=asPattern===7?132:(asPattern===9?238:(asPattern===10?88:92));
-                const duration=Math.max(minimumDuration,baseDuration);
+                asPatternTimer+=asTimeScale;
+                const duration=asPattern===7?250:(asPattern===9?450:(asPattern===10?165:178));
                 if(asPatternTimer>duration)asPatternDraining=true;
             }
             if(asPatternDraining){
@@ -2783,10 +2739,9 @@
             }else{
                 const cadence=[42,70,58,78,92,82,76,178,64,60,60][asPattern]||58;
                 const volleyLimit=[3,1,2,1,1,1,1,1,1,1,1][asPattern]||1;
-                const nextVolleyFrames=Math.max(18,Math.round(Math.max(27,cadence-asPhase*3)/(1+desperation*.78)));
                 if(asPattern===7||asPattern===9||asPattern===10){
                     if(!asPatternSpawned&&asPatternVolleyCount<volleyLimit){asSpawnPattern(now);asPatternSpawned=true;asPatternVolleyCount++;}
-                }else if(asFrame%nextVolleyFrames===0&&asPatternVolleyCount<volleyLimit){
+                }else if(asFrame%Math.max(27,cadence-asPhase*3)===0&&asPatternVolleyCount<volleyLimit){
                     asSpawnPattern(now);asPatternVolleyCount++;
                 }
             }
