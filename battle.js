@@ -627,6 +627,12 @@ function getAttackTypes(bossWave) {
         for (var e = 0; e < extendedUnlockWaves.length; e++) {
             if (bossWave >= extendedUnlockWaves[e] && types.indexOf(11 + e) === -1) types.push(11 + e);
         }
+
+        // From wave 1100 onward ordinary bosses use only the new extended patterns.
+        // Preserve the unique Anti-Spiral fight at wave 1500 unchanged.
+        if (bossWave >= 1100) {
+            types = types.filter(function(type) { return type >= 11 && type <= 20; });
+        }
     }
     return types;
 }
