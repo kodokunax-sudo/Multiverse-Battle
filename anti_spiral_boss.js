@@ -2050,9 +2050,8 @@
         const reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
         if (reduceBossEffects) {
             asFlash = 0; asShake = 0; asBossDamageFlash = 0;
+            // Only cap decorative particles. Keep attack/hazard arrays intact so difficulty and hit detection do not change.
             if (asParticles.length > 18) asParticles.splice(0, asParticles.length - 18);
-            if (asMiniSpirals.length > 8) asMiniSpirals.splice(0, asMiniSpirals.length - 8);
-            if (asMiniLasers.length > 4) asMiniLasers.splice(0, asMiniLasers.length - 4);
         }
 
         const rafNow = Number(now) || performance.now();
