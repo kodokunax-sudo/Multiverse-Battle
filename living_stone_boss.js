@@ -272,15 +272,9 @@ function startLivingStoneFight() {
         }
         return;
     }
-    var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    var isPhone;
-    if (isMobile) {
-        isPhone = confirm("ОБНАРУЖЕН ТЕЛЕФОН\n\nВключить режим производительности?\n\nOK = Телефон (без теней, быстрее)\nОтмена = ПК (полные эффекты)");
-    } else {
-        isPhone = confirm("Ты на телефоне?\n\nOK = Телефон (LITE MODE, без теней)\nОтмена = ПК (полные эффекты)");
-    }
-    lsMobileMode = isPhone;
-    lsPerfMult = isPhone ? 0.35 : 1.0;
+    // Follow global phone/accessibility settings without interrupting every boss start.
+    lsMobileMode = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+    lsPerfMult = lsMobileMode ? 0.12 : 1.0;
     _startLivingStoneFightInternal();
 }
 
@@ -458,7 +452,9 @@ function spawnCinematicText(x, y, text, color, life, size) {
     qteCinematicTexts.push({ x: x, y: y, text: text, color: color, life: life || 60, maxLife: life || 60, size: size || 24, vy: -0.2 });
 }
 function spawnLivingStoneParticles(x, y, count, color, speed) {
-    var n = Math.max(1, Math.floor(count * lsPerfMult));
+    var reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+    var n = Math.max(0, Math.floor(count * (reduced ? 0.10 : lsPerfMult)));
+    if (reduced && livingStoneParticles.length > 16) return;
     for (var i = 0; i < n; i++) {
         var angle = Math.random() * Math.PI * 2, spd = speed * (0.5 + Math.random());
         livingStoneParticles.push({
@@ -1868,6 +1864,20 @@ function updateMegaEffects() {
 // ============================================================
 function livingStoneRenderLoop() {
     if (!livingStoneActive) return;
+    var reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+    if (reduceBossEffects) {
+        lsMobileMode = true; lsPerfMult = 0.12;
+        livingStoneShake = 0; livingStoneScreenFlash = 0; qteScreenDistort = 0;
+        qteCinematicShake = 0; qteBossShake = 0;
+        if (typeof _superState !== "undefined") { _superState.screenFlashWhite = 0; _superState.screenShakeAmount = 0; }
+        if (livingStoneParticles.length > 16) livingStoneParticles.splice(0, livingStoneParticles.length - 16);
+        if (livingStoneBgParticles.length > 12) livingStoneBgParticles.splice(0, livingStoneBgParticles.length - 12);
+        if (qteShockwaves.length > 4) qteShockwaves.splice(0, qteShockwaves.length - 4);
+        if (qteLightningBolts.length > 0) qteLightningBolts.length = 0;
+        if (qteFlashBursts.length > 0) qteFlashBursts.length = 0;
+        if (qteSparks.length > 8) qteSparks.splice(0, qteSparks.length - 8);
+    }
+
     if (typeof ctx === 'undefined' || !ctx) return;
     if (typeof canvas === 'undefined' || !canvas) return;
     
@@ -1995,7 +2005,7 @@ function livingStoneRenderLoop() {
     }
     ctx.globalAlpha = 1;
     
-    if (livingStoneScreenFlash > 0) {
+    if (!reduceBossEffects && livingStoneScreenFlash > 0) {
         ctx.globalAlpha = livingStoneScreenFlash / 30;
         ctx.fillStyle = livingStoneScreenFlashColor;
         ctx.fillRect(0, 0, 400, 500);
