@@ -35,7 +35,11 @@
     // Пути берутся из images.js — единого реестра игровых изображений.
     const IMAGE_FILES = {
         "dio": window.getCharacterImage ? window.getCharacterImage("dio") : null,
-        "whitebeard": window.getCharacterImage ? window.getCharacterImage("whitebeard") : null
+        "whitebeard": window.getCharacterImage ? window.getCharacterImage("whitebeard") : null,
+        // Модели для боя с Роджером и Белоусом заранее загружаются на экране загрузки.
+        "whitebeardBossModel": "Model/белоус.png",
+        "rogerBossModel": "Model/роджер.png",
+        "odenBossModel": "Model/оден.png"
     };
 
     const FETCH_TIMEOUT = 30000; // 30 секунд на ресурс
