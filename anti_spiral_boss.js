@@ -25,6 +25,12 @@
     let asKeys = Object.create(null);
     let asPointer = { down: false, x: 0, y: 0, id: null };
     let asPointerChargeMode = false;
+    let asAimMode = false;
+    let asAimCursor = { x: 200, y: 260 };
+    let asGameClock = 0;
+    let asLastRafTimestamp = null;
+    let asSlowFrameCounter = 0;
+    let asClockReady = false;
     let asPlatforms = [];
     let asSeals = [];
     let asDrillShots = [];
@@ -104,6 +110,9 @@
         return typeof canvas !== "undefined" ? canvas : document.getElementById("arenaCanvas");
     }
     function asCtx() { return typeof ctx !== "undefined" ? ctx : (asCanvas() && asCanvas().getContext("2d")); }
+    function asClockNow() {
+        return Date.now() + (asClockReady ? asGameClock - performance.now() : 0);
+    }
     function asFloor() { return 500 - (445 - asArenaHeight) / 2 - asPlayer.size; }
     function asBounds() {
         return {
@@ -267,18 +276,34 @@
         if (!asActive || asState !== "fight" || !asPlayer.grounded) return;
         const gravity = [{x:0,y:1},{x:-1,y:0},{x:0,y:-1},{x:1,y:0}][asGravityDirection];
         const jumpMultiplier=asPlayerScaleMode===.5?.65:(asPlayerScaleMode===2?1.3:1);
-        asPlayer.vx = -gravity.x * 23.2 * jumpMultiplier;
-        asPlayer.vy = -gravity.y * 23.2 * jumpMultiplier;
+        asPlayer.vx = -gravity.x * (23.2 / 1.5) * jumpMultiplier;
+        asPlayer.vy = -gravity.y * (23.2 / 1.5) * jumpMultiplier;
         asPlayer.grounded = false;
         asPlayer.platformIndex = null;
         asText(asPlayer.x, asPlayer.y - 20, "ПРЫЖОК!", "#68dcff", 28);
         asSound(420, "sine", 0.12, 0.07);
     }
-    // Выстрел использует уже накопленный автоматический заряд. Удерживать кнопку не нужно.
-    function asFireDrill() {
+    // Кнопка выстрела включает замедленный прицел; следующий тап по арене задаёт направление бура.
+    function asBeginAimMode() {
         if (!asActive || asState !== "fight") return;
-        const now = Date.now();
+        const now = asClockNow();
+        if (now < asNextShotAt) { asUpdateControls(); return; }
+        const sealIndex = asUnbrokenSealIndex();
+        asAimCursor = sealIndex >= 0
+            ? { x: asSeals[sealIndex].x, y: asSeals[sealIndex].y }
+            : { x: asBoss.x, y: asBoss.y + 43 };
+        asAimMode = true;
+        asSlowFrameCounter = 0;
+        asText(200, 110, "ВРЕМЯ ×0,125 — ВЫБЕРИ ТОЧКУ ВЫСТРЕЛА", "#7ef3ff", 90);
+        asSound(620, "sine", .16, .06);
+        asUpdateControls();
+    }
+    // Направление задаётся точкой нажатия. Из режима прицеливания выходим при выстреле.
+    function asFireDrill(targetX, targetY) {
+        if (!asActive || asState !== "fight") return;
+        const now = asClockNow();
         if (now < asNextShotAt) {
+            asAimMode = false;
             asUpdateControls();
             return;
         }
@@ -286,18 +311,20 @@
         asChargeFrames = 0;
         asCharging = false;
         asNextShotAt = now + 1500;
-        asShootDrill(Math.max(8, frames));
+        asAimMode = false;
+        asSlowFrameCounter = 0;
+        asShootDrill(Math.max(8, frames), targetX, targetY);
         asUpdateControls();
     }
-    // Оставлено для совместимости с обработчиками pointer/keyboard старой версии.
-    function asStartCharge() { asFireDrill(); }
+    function asStartCharge() { asBeginAimMode(); }
     function asReleaseCharge() {}
-    function asShootDrill(frames) {
+    function asShootDrill(frames, aimX, aimY) {
         const charge = Math.max(0.04, Math.min(1, frames / 150));
         const sealIndex = asUnbrokenSealIndex();
-        const targetSeal = sealIndex >= 0 ? asSeals[sealIndex] : null;
-        const targetX = targetSeal ? targetSeal.x : asBoss.x;
-        const targetY = targetSeal ? targetSeal.y : asBoss.y + 43;
+        const hasAimPoint = Number.isFinite(aimX) && Number.isFinite(aimY);
+        const targetSeal = !hasAimPoint && sealIndex >= 0 ? asSeals[sealIndex] : null;
+        const targetX = hasAimPoint ? Math.max(0, Math.min(400, aimX)) : (targetSeal ? targetSeal.x : asBoss.x);
+        const targetY = hasAimPoint ? Math.max(45, Math.min(500, aimY)) : (targetSeal ? targetSeal.y : asBoss.y + 43);
         const dx = targetX - asPlayer.x;
         const dy = targetY - (asPlayer.y - 5);
         const distance = Math.max(1, Math.hypot(dx, dy));
@@ -310,8 +337,9 @@
             vy: dy / distance * (7 + charge * 4.5),
             charge: charge, radius: 4 + charge * 16,
             damage: baseDamage, sealDamage: Math.round(20 + charge * 90),
-            targetType: targetSeal ? "seal" : "boss", sealIndex: sealIndex,
-            life: 100, phase: 0, level: level
+            targetType: hasAimPoint ? "aim" : (targetSeal ? "seal" : "boss"), sealIndex: sealIndex,
+            targetX: targetX, targetY: targetY, distanceMax: distance, travelled: 0,
+            life: Math.max(3, Math.ceil(distance / (7 + charge * 4.5)) + 2), phase: 0, level: level
         });
         asText(asPlayer.x, asPlayer.y - 31, targetSeal ? level + " → ПЕЧАТЬ " + (sealIndex + 1) + "/3 · " + Math.round(charge * 100) + "%" : level + " · " + Math.round(charge * 100) + "%", "#74f5ff", 52);
         asShake = Math.max(asShake, 2 + charge * 7);
@@ -366,7 +394,7 @@
                 if (hintNodes[hi].children.length === 0 && hintNodes[hi].textContent.indexOf("WASD — уклоняться") >= 0) {
                     asHintElement = hintNodes[hi];
                     asOriginalHint = hintNodes[hi].textContent;
-                    asHintElement.textContent = "⌨️ WASD / ← → — движение · Z — заряд спирального бура";
+                    asHintElement.textContent = "⌨️ WASD / ← → — движение · Z — прицел с замедлением · нажми на арену, чтобы выстрелить";
                     break;
                 }
             }
@@ -388,10 +416,10 @@
         });
         drill.addEventListener("pointerdown", function(ev) {
             ev.preventDefault();
-            asFireDrill();
+            asBeginAimMode();
         });
         const hint = document.createElement("div");
-        hint.textContent = "WASD / ← → — движение · W / ↑ / ПРОБЕЛ — прыжок · Z/X или кнопка — выстрел. Заряд копится сам после 3 сек. без урона";
+        hint.textContent = "WASD / ← → — движение · W / ↑ / ПРОБЕЛ — прыжок · Z/X или кнопка БУР — замедлить время ×8; затем нажми на арену, чтобы выбрать направление. Заряд растёт после 3 сек. без урона";
         hint.style.cssText = "flex-basis:100%;color:#b8eaff;text-align:center;font-size:10px;line-height:1.35;";
         row.appendChild(jump); row.appendChild(drill); row.appendChild(hint);
         c.parentNode.insertBefore(row, c.nextSibling);
@@ -399,8 +427,14 @@
     }
     function asUpdateControls() {
         if (!asControls) return;
-        const now = Date.now();
+        const now = asClockNow();
         const pct = Math.round(asChargeFrames / 150 * 100);
+        if (asAimMode) {
+            asControls.drill.textContent = "🎯 ПРИЦЕЛ · НАЖМИ НА ТОЧКУ";
+            asControls.drill.style.boxShadow = "0 0 22px rgba(83,238,255,.9)";
+            asControls.drill.style.borderColor = "#77f7ff";
+            return;
+        }
         const sealIndex = asUnbrokenSealIndex();
         const targetName = sealIndex >= 0 ? "ПЕЧАТЬ " + (sealIndex + 1) + "/3" : "АНТИ-СПИРАЛЬ";
         const cooldownMs = Math.max(0, asNextShotAt - now);
@@ -514,7 +548,7 @@
         const amount = Math.max(1, Math.floor((Number(damage) || 1) / 1.5));
         asPlayerHp = Math.max(0, asPlayerHp - amount);
         // Полученный урон ставит заряд на паузу на 3 секунды, но накопленная мощь сохраняется.
-        asLastDamageAt = Date.now();
+        asLastDamageAt = asClockNow();
         asCharging = false;
         asUpdateControls();
         const hpEl=document.getElementById("arenaHP"); if(hpEl)hpEl.innerText=Math.ceil(asPlayerHp);
@@ -756,6 +790,11 @@
         if (["arrowleft","arrowright","arrowup","arrowdown"," ","w","a","s","d","enter","z","x"].includes(k)) ev.preventDefault();
         if ((k === "z" || k === "x") && !asKeys[k]) asStartCharge();
         asKeys[k] = true;
+        if (k === "escape" && asState === "fight" && asAimMode) {
+            asAimMode = false; asSlowFrameCounter = 0;
+            asText(200, 110, "ПРИЦЕЛ ОТМЕНЁН", "#bbaaff", 42);
+            asUpdateControls(); return;
+        }
         if ((k === "escape" || k === "enter") && asState === "cinematic") { ev.preventDefault(); asFinishCinematic(true); return; }
         if (k === "escape" && asState === "intro") { asStop(); asRestoreStartButton(); }
     }
@@ -782,9 +821,14 @@
             return;
         }
         if (asState !== "fight") return;
-        // Нажатие на босса запускает выстрел накопленной мощью.
+        if (asAimMode) {
+            asAimCursor = { x: x, y: y };
+            asFireDrill(x, y);
+            return;
+        }
+        // Прямое нажатие на босса тоже направляет выстрел точно в точку касания.
         if (Math.hypot(x - asBoss.x, y - (asBoss.y + 36)) < asBoss.size * 1.75) {
-            asFireDrill();
+            asFireDrill(x, y);
             return;
         }
         if (y > 430 && x > 150 && x < 250 && asPlayer.grounded) {
@@ -795,11 +839,15 @@
         if (c.setPointerCapture) { try { c.setPointerCapture(ev.pointerId); } catch(e) {} }
     }
     function asPointerMove(ev) {
-        if (!asActive || !asPointer.down || asPointerChargeMode) return;
+        if (!asActive) return;
         const c = asCanvas(); if (!c) return;
         const rect = c.getBoundingClientRect();
-        asPointer.x = (ev.clientX - rect.left) * 400 / rect.width;
-        asPointer.y = (ev.clientY - rect.top) * 500 / rect.height;
+        const x = (ev.clientX - rect.left) * 400 / rect.width;
+        const y = (ev.clientY - rect.top) * 500 / rect.height;
+        if (asAimMode) { asAimCursor = { x: x, y: y }; return; }
+        if (!asPointer.down || asPointerChargeMode) return;
+        asPointer.x = x;
+        asPointer.y = y;
     }
     function asPointerUp(ev) {
         if (asPointer.id !== null && ev.pointerId !== undefined && ev.pointerId !== asPointer.id) return;
@@ -834,9 +882,9 @@
     }
     function asBegin() {
         if(!asActive || asState==="fight") return;
-        asState="fight"; asPatternTimer=0; asLastArenaShift=Date.now();
-        asGravityDirection=0; asGravityNextShiftAt=performance.now()+15000;
-        asLastDamageAt=Date.now(); asNextShotAt=0; asChargeFrames=0; asCharging=false;
+        asState="fight"; asPatternTimer=0; asLastArenaShift=asGameClock;
+        asGravityDirection=0; asGravityNextShiftAt=asGameClock+15000;
+        asLastDamageAt=asClockNow(); asNextShotAt=0; asChargeFrames=0; asCharging=false;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asText(200,250,"ПОКАЖИ СВОЮ ВОЛЮ!","#7de1ff",90);
         asSound(420,"sine",0.35,0.12);
@@ -875,7 +923,7 @@
         if(btn)btn.style.display="block";
     }
     function asStop() {
-        asActive=false; window.antiSpiralBossActive=false;
+        asActive=false; asAimMode=false; asSlowFrameCounter=0; window.antiSpiralBossActive=false;
         if(asAnimFrame) cancelAnimationFrame(asAnimFrame);
         asAnimFrame=null; asUnbind(); stopASMusic();
         asCharging=false; asChargeFrames=0; asLastDamageAt=0; asNextShotAt=0; asPointerChargeMode=false; asDrillShots=[];
@@ -895,7 +943,11 @@
     function asDrawDrillShots(c,now) {
         for (let i = asDrillShots.length - 1; i >= 0; i--) {
             const shot = asDrillShots[i];
-            shot.x += shot.vx; shot.y += shot.vy; shot.life--; shot.phase += .28;
+            const speed = Math.max(.01, Math.hypot(shot.vx, shot.vy));
+            const remaining = Math.max(0, (shot.distanceMax || 0) - (shot.travelled || 0));
+            const step = Math.min(speed, remaining || speed);
+            shot.x += shot.vx / speed * step; shot.y += shot.vy / speed * step;
+            shot.travelled = (shot.travelled || 0) + step; shot.life--; shot.phase += .28;
             c.save(); c.translate(shot.x,shot.y); c.rotate(Math.atan2(shot.vy,shot.vx) + Math.PI/2);
             c.shadowColor="#55eaff";c.shadowBlur=14+shot.charge*24;
             c.fillStyle=shot.charge>.78?"#ffffff":"#7bf5ff";
@@ -905,41 +957,46 @@
             c.strokeStyle=shot.charge>.78?"#c69aff":"#4de6ff";c.lineWidth=2;
             c.beginPath();c.ellipse(0,0,shot.radius*.95,shot.radius*.34,shot.phase,0,Math.PI*2);c.stroke();
             c.restore();
-                if (shot.targetType === "seal") {
-                const seal = asSeals[shot.sealIndex];
-                if (seal && !seal.broken && Math.hypot(shot.x-seal.x,shot.y-seal.y) < seal.radius + shot.radius) {
-                    seal.hp -= shot.sealDamage;
-                    asText(seal.x,seal.y-18,"-"+shot.sealDamage,"#e6c8ff",30);
-                    asShake=Math.max(asShake,3+shot.charge*5);
-                    for(let p=0;p<7;p++){
-                        const ang=Math.random()*Math.PI*2,sp=1+Math.random()*3;
-                        asParticles.push({x:seal.x,y:seal.y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:20,maxLife:20,color:"#c681ff",size:2+Math.random()*2});
-                    }
-                    if(seal.hp<=0){
-                        seal.hp=0;seal.broken=true;
-                        asText(seal.x,seal.y+15,"ПЕЧАТЬ РАЗРУШЕНА!","#8effff",55);
-                        asFlash=Math.max(asFlash,5);asFlashColor="#b98aff";
-                        if(asUnbrokenSealIndex()<0){
-                            asText(200,128,"ВСЕ 3 ПЕЧАТИ РАЗРУШЕНЫ — ЩИТ СНЯТ!","#8effff",90);
-                            asShake=Math.max(asShake,10);
-                        }
-                    }
-                    asDrillShots.splice(i,1);
-                    continue;
+            let sealHit = false;
+            for (let si = 0; si < asSeals.length; si++) {
+                const seal = asSeals[si];
+                if (!seal || seal.broken || Math.hypot(shot.x-seal.x,shot.y-seal.y) >= seal.radius + shot.radius) continue;
+                seal.hp -= shot.sealDamage;
+                asText(seal.x,seal.y-18,"-"+shot.sealDamage,"#e6c8ff",30);
+                asShake=Math.max(asShake,3+shot.charge*5);
+                for(let p=0;p<7;p++){
+                    const ang=Math.random()*Math.PI*2,sp=1+Math.random()*3;
+                    asParticles.push({x:seal.x,y:seal.y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:20,maxLife:20,color:"#c681ff",size:2+Math.random()*2});
                 }
-            } else {
-                const dx=shot.x-asBoss.x, dy=shot.y-(asBoss.y+43);
-                if(Math.abs(dx)<36+shot.radius && Math.abs(dy)<57+shot.radius){
+                if(seal.hp<=0){
+                    seal.hp=0;seal.broken=true;
+                    asText(seal.x,seal.y+15,"ПЕЧАТЬ РАЗРУШЕНА!","#8effff",55);
+                    asFlash=Math.max(asFlash,5);asFlashColor="#b98aff";
+                    if(asUnbrokenSealIndex()<0){
+                        asText(200,128,"ВСЕ 3 ПЕЧАТИ РАЗРУШЕНЫ — ЩИТ СНЯТ!","#8effff",90);
+                        asShake=Math.max(asShake,10);
+                    }
+                }
+                sealHit = true;
+                asDrillShots.splice(i,1);
+                break;
+            }
+            if (sealHit) continue;
+            const dx=shot.x-asBoss.x, dy=shot.y-(asBoss.y+43);
+            if(Math.abs(dx)<36+shot.radius && Math.abs(dy)<57+shot.radius){
+                if(asUnbrokenSealIndex()>=0){
+                    asBossHit(shot.damage,"ЩИТ ПЕЧАТЕЙ БЛОКИРУЕТ УРОН");
+                }else{
                     let multiplier = asBossExposed>0 ? 2.45 : .42;
                     if(asPlayer.y<270) multiplier *= 1.25;
                     const damage = Math.max(1,Math.floor(shot.damage*multiplier));
                     asBossHit(damage,asBossExposed>0?"ЯДРО ПРОБИТО!":"БУР ПРОБИЛ ЗАЩИТУ");
                     if(asBossExposed>0)asShake=Math.max(asShake,9+shot.charge*8);
-                    asDrillShots.splice(i,1);
-                    continue;
                 }
+                asDrillShots.splice(i,1);
+                continue;
             }
-            if(shot.life<=0||shot.x<-50||shot.x>450||shot.y<-50||shot.y>550)asDrillShots.splice(i,1);
+            if(shot.travelled >= (shot.distanceMax || Infinity) || shot.life<=0 || shot.x<-50 || shot.x>450 || shot.y<-50 || shot.y>550)asDrillShots.splice(i,1);
         }
     }
     function asDrawChargeAura(c,now) {
@@ -1033,72 +1090,60 @@
         c.restore();
     }
     function asDrawAntiSpiralHead(c,x,y,scale,now,opacity) {
-        const bob=Math.sin(now/360)*1.7;
-        c.save();c.translate(x,y+bob);c.scale(scale,scale);
-        c.globalAlpha=opacity===undefined?1:opacity;
-        // A floating, oversized head with the same spiral eyes as the cinematic character.
-        c.shadowColor="#9d50ff";c.shadowBlur=24;
-        c.strokeStyle="#c8a9ff";c.lineWidth=1.5;
+        const alpha = opacity===undefined ? 1 : opacity;
+        const bob = Math.sin(now/310)*1.25;
+        c.save(); c.translate(x,y+bob); c.scale(scale,scale); c.globalAlpha=alpha;
+        // Broken crown and long temple fins make the silhouette readable at gameplay size.
+        c.shadowColor="#a34bff"; c.shadowBlur=22; c.lineJoin="round"; c.lineCap="round";
+        const crest=c.createLinearGradient(0,-54,0,-20);
+        crest.addColorStop(0,"#e6faff"); crest.addColorStop(.22,"#a76cff"); crest.addColorStop(1,"#160d2b");
+        c.fillStyle=crest; c.strokeStyle="#e7d8ff"; c.lineWidth=1.5;
+        c.beginPath();c.moveTo(-17,-21);c.lineTo(-29,-39);c.lineTo(-27,-19);c.lineTo(-15,-8);
+        c.lineTo(-8,-29);c.lineTo(0,-48);c.lineTo(7,-28);c.lineTo(16,-42);c.lineTo(16,-18);
+        c.lineTo(28,-34);c.lineTo(25,-10);c.lineTo(14,-3);c.closePath();c.fill();c.stroke();
+        // Fine halo arcs sit behind the face rather than crossing the eyes.
+        c.globalAlpha=alpha*.52;c.strokeStyle="#9c6dff";c.lineWidth=1.35;c.shadowBlur=13;
         for(let ring=0;ring<3;ring++){
-            c.save();c.rotate(now*.0003*(ring%2?-1:1)+ring*.45);
-            c.globalAlpha=(opacity===undefined?1:opacity)*(.35+ring*.12);
-            c.beginPath();c.ellipse(0,0,24+ring*7,29+ring*8,.16*ring,0,Math.PI*2);c.stroke();
-            c.restore();
+            c.save();c.rotate(now*.00026*(ring%2?-1:1)+ring*.42);
+            c.beginPath();c.ellipse(0,1,27+ring*7,32+ring*7,.15*ring,0,Math.PI*2);c.stroke();c.restore();
         }
-        c.globalAlpha=opacity===undefined?1:opacity;
-        c.fillStyle="#020105";c.strokeStyle="#f5f2ff";c.lineWidth=2.1;
-        c.beginPath();c.moveTo(-18,15);c.quadraticCurveTo(-24,-13,-8,-25);
-        c.quadraticCurveTo(2,-32,14,-21);c.quadraticCurveTo(24,-8,17,15);
-        c.quadraticCurveTo(1,27,-18,15);c.closePath();c.fill();c.stroke();
-        c.strokeStyle="#e9e5f2";c.lineWidth=.8;
-        c.beginPath();c.moveTo(-13,-5);c.lineTo(-7,-7);c.moveTo(7,-7);c.lineTo(13,-5);c.stroke();
-        asDrawSpiralEye(c,-8,0,5.8,now,false);asDrawSpiralEye(c,8,0,5.8,now,true);
-        c.fillStyle="#f9f7ff";c.beginPath();c.moveTo(-3,12);c.lineTo(4,12);c.lineTo(0,18);c.closePath();c.fill();
-        c.strokeStyle="#b995ef";c.globalAlpha=(opacity===undefined?1:opacity)*.75;c.lineWidth=.8;
-        c.beginPath();c.moveTo(-15,5);c.lineTo(-11,12);c.moveTo(15,5);c.lineTo(11,12);c.stroke();
+        c.globalAlpha=alpha;
+        const shell=c.createRadialGradient(-7,-17,2,1,1,38);
+        shell.addColorStop(0,"#38304f");shell.addColorStop(.35,"#100c1c");shell.addColorStop(.76,"#03030a");shell.addColorStop(1,"#000005");
+        c.fillStyle=shell;c.strokeStyle="#f1edff";c.lineWidth=2.1;
+        c.beginPath();c.moveTo(-19,12);c.quadraticCurveTo(-25,-5,-18,-23);
+        c.lineTo(-10,-31);c.lineTo(-4,-27);c.lineTo(0,-32);c.lineTo(7,-27);
+        c.lineTo(15,-29);c.quadraticCurveTo(25,-8,18,12);
+        c.quadraticCurveTo(13,25,0,28);c.quadraticCurveTo(-14,24,-19,12);c.closePath();c.fill();c.stroke();
+        // Angular cheek plates and a bright central ridge give the face depth.
+        c.fillStyle="#181127";c.strokeStyle="#9a79d4";c.lineWidth=1;
+        c.beginPath();c.moveTo(-17,0);c.lineTo(-9,6);c.lineTo(-12,19);c.lineTo(-19,10);c.closePath();c.fill();c.stroke();
+        c.beginPath();c.moveTo(17,0);c.lineTo(9,6);c.lineTo(12,19);c.lineTo(19,10);c.closePath();c.fill();c.stroke();
+        c.strokeStyle="#d8c9ff";c.lineWidth=1.2;c.shadowColor="#a95cff";c.shadowBlur=7;
+        c.beginPath();c.moveTo(0,-25);c.lineTo(-2,-13);c.lineTo(0,-7);c.lineTo(2,-13);c.stroke();
+        // Glowing spiral sockets are framed by cyan-violet eyelids and hard brows.
+        c.fillStyle="#030611";c.shadowColor="#8b5cff";c.shadowBlur=12;
+        c.beginPath();c.ellipse(-8,0,8,7.4,-.12,0,Math.PI*2);c.ellipse(8,0,8,7.4,.12,0,Math.PI*2);c.fill();
+        c.strokeStyle="#7beaff";c.lineWidth=1.3;c.shadowColor="#5eeaff";c.shadowBlur=12;
+        c.beginPath();c.ellipse(-8,0,7.3,6.8,-.12,0,Math.PI*2);c.ellipse(8,0,7.3,6.8,.12,0,Math.PI*2);c.stroke();
+        c.strokeStyle="#f4efff";c.lineWidth=2.1;c.shadowColor="#bb79ff";c.shadowBlur=9;
+        c.beginPath();c.moveTo(-17,-8);c.lineTo(-10,-11);c.lineTo(-4,-7);
+        c.moveTo(17,-8);c.lineTo(10,-11);c.lineTo(4,-7);c.stroke();
+        asDrawSpiralEye(c,-8,0,5.7,now,false);asDrawSpiralEye(c,8,0,5.7,now,true);
+        // Split jaw: a sharp white sigil instead of a floating, disconnected tooth.
+        c.globalAlpha=alpha*.9;c.strokeStyle="#e8efff";c.lineWidth=1.35;c.shadowBlur=7;
+        c.beginPath();c.moveTo(-11,13);c.lineTo(-6,19);c.lineTo(0,22);c.lineTo(6,19);c.lineTo(11,13);
+        c.moveTo(-4,14);c.lineTo(0,18);c.lineTo(4,14);c.stroke();
+        c.fillStyle="#7beaff";c.shadowColor="#6ceaff";c.shadowBlur=10;
+        c.beginPath();c.moveTo(-2,-19);c.lineTo(0,-23);c.lineTo(2,-19);c.closePath();c.fill();
+        c.globalAlpha=alpha*.72;c.strokeStyle="#b28dff";c.lineWidth=.8;c.shadowBlur=0;
+        c.beginPath();c.moveTo(-21,3);c.lineTo(-15,8);c.moveTo(21,3);c.lineTo(15,8);
+        c.moveTo(-12,-22);c.lineTo(-8,-18);c.moveTo(12,-22);c.lineTo(8,-18);c.stroke();
         c.restore();
-        // Compact distortion rings keep the visual anchored to the head only.
-        c.save();c.globalAlpha=.1+.045*Math.sin(now/170);c.strokeStyle="#a04dff";
-        c.lineWidth=1.3;c.shadowColor="#a04dff";c.shadowBlur=12;
-        for(let i=0;i<3;i++){c.beginPath();c.ellipse(x,y,25*scale+i*8*scale,31*scale+i*10*scale,now*.0002*(i%2?1:-1),0,Math.PI*2);c.stroke();}
-        c.restore();
-    }
-    function asDrawBoss(c,now) {
-        if (asLabyrinthTimer > 0) {
-            asDrawAntiSpiralHead(c, asBoss.x - 69, asBoss.y + 24, 0.58, now + 280, .22);
-            asDrawAntiSpiralHead(c, asBoss.x + 69, asBoss.y + 24, 0.58, now - 360, .22);
-        }
-        if (asBossExposed > 0) {
-            c.save();
-            c.globalAlpha = .42 + Math.sin(asFrame * .32) * .18;
-            c.strokeStyle = "#8effff"; c.shadowColor = "#6ffaff"; c.shadowBlur = 24; c.lineWidth = 2.5;
-            c.beginPath(); c.ellipse(asBoss.x, asBoss.y + 37, 25 + Math.sin(asFrame * .15) * 5, 31 + Math.sin(asFrame * .15) * 5, 0, 0, Math.PI * 2); c.stroke();
-            c.restore();
-        }
-        // Rotating dimensional halo and orbiting energy fragments, visible during the fight only.
-        c.save();
-        c.translate(asBoss.x, asBoss.y + 25);
-        c.globalAlpha=.68+.12*Math.sin(now/170);
-        c.shadowColor="#a04cff";c.shadowBlur=24;c.lineWidth=1.6;
-        for(let ring=0;ring<4;ring++){
-            c.save();c.rotate(now*.00035*(ring%2?-1:1)+ring*.52);
-            c.strokeStyle=ring%2?"#6cecff":"#bf76ff";
-            c.globalAlpha=.28+ring*.09;
-            c.beginPath();c.ellipse(0,0,asBoss.size+18+ring*12,11+ring*5,.22*ring,0,Math.PI*2);c.stroke();
-            c.restore();
-        }
-        for(let shard=0;shard<7;shard++){
-            const angle=now*.0011+shard*Math.PI*2/7;
-            const radius=asBoss.size+28+Math.sin(now/240+shard)*7;
-            const sx=Math.cos(angle)*radius,sy=Math.sin(angle)*radius*.62;
-            c.fillStyle=shard%2?"#7cecff":"#e0b4ff";c.globalAlpha=.62+.3*Math.sin(now/150+shard);
-            c.beginPath();c.moveTo(sx,sy-3.2);c.lineTo(sx+2.5,sy);c.lineTo(sx,sy+3.2);c.lineTo(sx-2.5,sy);c.closePath();c.fill();
-        }
-        c.restore();
-        c.save();
-        c.translate(asBoss.x, asBoss.y + 43);
-        c.rotate(asGravityDirection * Math.PI / 2);
-        asDrawAntiSpiralHead(c, 0, -35, 1.05 * (asBoss.size / 48), now, 1);
+        // Detached distortion rings remain behind the head, not over its expression.
+        c.save();c.globalAlpha=alpha*(.10+.035*Math.sin(now/170));c.strokeStyle="#a04dff";
+        c.lineWidth=1.25;c.shadowColor="#a04dff";c.shadowBlur=12;
+        for(let i=0;i<3;i++){c.beginPath();c.ellipse(x,y+bob,25*scale+i*8*scale,31*scale+i*10*scale,now*.0002*(i%2?1:-1),0,Math.PI*2);c.stroke();}
         c.restore();
     }
     function asDrawRedHeart(c,x,y,now,shot) {
@@ -1213,7 +1258,7 @@
         asInitPlatforms();asInitSeals();
         asPlayerScaleMode=1;asPlayerSizeNextAt=now+10000;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
-        asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=Date.now();asNextShotAt=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
+        asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=asClockNow();asNextShotAt=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
         asPattern=0;asPatternTimer=0;asLastArenaShift=now;
         asCreateControls();
         asText(200,250,skipped?"КАТСЦЕНА ПРОПУЩЕНА — БОЙ!":"ТЕБЕ КОНЕЦ!","#74e4ff",85);
@@ -1370,16 +1415,20 @@
         asPatternSpawned = false;
         asUltimateActive = false;
         asLastArenaShift = now;
-        asLastDamageAt = Date.now();
+        asLastDamageAt = asClockNow();
         if (success) {
             const bonusDamage = Math.max(1, Math.floor(asBossMaxHp * 0.10));
-            asBossHp = Math.max(0, asBossHp - bonusDamage);
+            if (asUnbrokenSealIndex() < 0) {
+                asBossHp = Math.max(0, asBossHp - bonusDamage);
+                asText(200, 110, "ОБРАТНЫЙ УДАР! -" + bonusDamage + " HP", "#86ffff", 100);
+            } else {
+                asText(200, 110, "ЩИТ ПЕЧАТЕЙ ОТБИЛ КОНТРУДАР!", "#cba9ff", 100);
+            }
             asBossDamageFlash = 28;
             asReassemblyEffectUntil = now + 1200;
             asFlash = 22;
             asFlashColor = "#53eaff";
             asShake = 15;
-            asText(200, 110, "ОБРАТНЫЙ УДАР! -" + bonusDamage + " HP", "#86ffff", 100);
             asText(asBoss.x, asBoss.y + 88, "РЕАЛЬНОСТЬ РАЗОРВАНА", "#dfb9ff", 82);
             asSound(690, "triangle", 0.55, 0.15);
             for (let i = 0; i < 42; i++) {
@@ -1694,6 +1743,25 @@
     }
     function asRender(now) {
         if(!asActive) return;
+        const rafNow = Number(now) || performance.now();
+        if (!asClockReady || asLastRafTimestamp === null) {
+            asClockReady = true; asGameClock = rafNow; asLastRafTimestamp = rafNow;
+        } else {
+            const elapsed = Math.max(0, Math.min(100, rafNow - asLastRafTimestamp));
+            asLastRafTimestamp = rafNow;
+            asGameClock += elapsed * (asAimMode ? 0.125 : 1);
+        }
+        if (asAimMode) {
+            asSlowFrameCounter++;
+            if (asSlowFrameCounter < 8) {
+                asAnimFrame = requestAnimationFrame(asRender);
+                return;
+            }
+            asSlowFrameCounter = 0;
+        } else {
+            asSlowFrameCounter = 0;
+        }
+        now = asGameClock;
         const c=asCtx(); if(!c){asAnimFrame=requestAnimationFrame(asRender);return;}
         asFrame++; if(asState==="fight") asShiftArena(now);
         asArenaWidth += (asTargetWidth-asArenaWidth)*.055;
@@ -2266,6 +2334,22 @@
             if(typeof renderSuperVisuals==="function") {try{c.save();renderSuperVisuals();c.restore();}catch(e){}}
             if(typeof window.drawJoystick==="function"){try{window.drawJoystick();}catch(e){}}
         }
+        if (asAimMode) {
+            c.save(); c.setTransform(1,0,0,1,0,0);
+            const ax = Math.max(0, Math.min(400, asAimCursor.x));
+            const ay = Math.max(45, Math.min(500, asAimCursor.y));
+            c.globalAlpha = .9; c.strokeStyle = "#76f4ff"; c.lineWidth = 1.6;
+            c.shadowColor = "#53edff"; c.shadowBlur = 14;
+            c.setLineDash([5,5]); c.beginPath(); c.moveTo(asPlayer.x, asPlayer.y-5); c.lineTo(ax,ay); c.stroke(); c.setLineDash([]);
+            c.beginPath(); c.arc(ax,ay,10+Math.sin(asFrame*.22)*1.5,0,Math.PI*2); c.stroke();
+            c.beginPath(); c.moveTo(ax-17,ay); c.lineTo(ax-5,ay); c.moveTo(ax+5,ay); c.lineTo(ax+17,ay);
+            c.moveTo(ax,ay-17); c.lineTo(ax,ay-5); c.moveTo(ax,ay+5); c.lineTo(ax,ay+17); c.stroke();
+            c.fillStyle = "rgba(1,8,20,.9)"; c.fillRect(92,78,216,19);
+            c.strokeStyle = "#76f4ff"; c.strokeRect(92,78,216,19);
+            c.fillStyle = "#c4fbff"; c.font = "bold 10px monospace"; c.textAlign = "center";
+            c.fillText("ВРЕМЯ ×0,125 · НАЖМИ ДЛЯ ВЫСТРЕЛА",200,91);
+            c.restore();
+        }
         // Physics / input are stepped here, after rendering so the click hitbox stays aligned.
         if(asState==="fight"){
             asUpdatePlayerSize(now);
@@ -2287,7 +2371,7 @@
             const joyJump=!!(joy&&joy.enabled&&joy.active&&((Number(joy.vectorX)||0)*(-gravity.x)+(Number(joy.vectorY)||0)*(-gravity.y)>.62));
             if(asPlayer.grounded&&(asKeys[" "]||jumpDot>.58||joyJump)){
                     const jumpMultiplier=asPlayerScaleMode===.5?.65:(asPlayerScaleMode===2?1.3:1);
-                asPlayer.vx=-gravity.x*23.2*jumpMultiplier;asPlayer.vy=-gravity.y*23.2*jumpMultiplier;
+                asPlayer.vx=-gravity.x*(23.2/1.5)*jumpMultiplier;asPlayer.vy=-gravity.y*(23.2/1.5)*jumpMultiplier;
                 asPlayer.grounded=false;asPlayer.platformIndex=null;
                 asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
             }
@@ -2372,16 +2456,21 @@
     function startAntiSpiralBossFight() {
         if(asActive) return;
         if(Number(typeof wave!=="undefined"?wave:0)!==1500) return;
+        asGameClock = performance.now();
+        asLastRafTimestamp = asGameClock;
+        asClockReady = true;
+        asSlowFrameCounter = 0;
+        asAimMode = false;
         if(typeof currentEnemy==="undefined"||!currentEnemy||currentEnemy.hp<=0) return;
         asActive=true;window.antiSpiralBossActive=true;asState="cinematic";asWinPending=false;asDefeatPending=false;
-        asInitPlatforms();asInitSeals();asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=Date.now();asNextShotAt=0;asMiniCooldownUntil=0;asMiniReturnPlayer=null;asMiniSpirals=[];asReassemblyEffectUntil=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
+        asInitPlatforms();asInitSeals();asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=asClockNow();asNextShotAt=0;asMiniCooldownUntil=0;asMiniReturnPlayer=null;asMiniSpirals=[];asReassemblyEffectUntil=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
         asCinematicStart=performance.now();asCinematicRedHeart={x:-25,y:410};asCinematicArenaProgress=0;
-        asBossMaxHp=Math.max(40000,Math.floor((Number(window.playerFinalDamage)||80)*120));
+        asBossMaxHp=Math.floor(Math.max(40000,Math.floor((Number(window.playerFinalDamage)||80)*120))*1.30);
         asBossHp=asBossMaxHp;asPlayerMaxHp=220;asPlayerHp=asPlayerMaxHp;
         asPlayer={x:200,y:asFloor(),vx:0,vy:0,size:12,invuln:0,grounded:true,platformIndex:-1};
         asBoss={x:285,y:180,size:48,rotation:0,pulse:0,flash:0};
         asAttacks=[];asParticles=[];asTexts=[];asFrame=0;asPattern=0;asPatternTimer=0;asPatternDraining=false;asPatternVolleyCount=0;
-        asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;asLastArenaShift=Date.now();asGravityDirection=0;asGravityNextShiftAt=0;
+        asArenaWidth=400;asArenaHeight=470;asTargetWidth=400;asTargetHeight=470;asLastArenaShift=asGameClock;asGravityDirection=0;asGravityNextShiftAt=0;
         asShake=0;asFlash=0;asBossDamageFlash=0;asPhase=1;asLastShot=0;asGravityPull=.10;
         asKeys=Object.create(null);asPointer={down:false,x:0,y:0,id:null};
         if(typeof arenaActive!=="undefined")arenaActive=false;
@@ -2422,7 +2511,13 @@
     window.getAntiSpiralBossParticles = function(){return asParticles;};
     window.getAntiSpiralBossHp = function(){return asBossHp;};
     window.getAntiSpiralBossMaxHp = function(){return asBossMaxHp;};
-    window.setAntiSpiralBossHp = function(v){asBossHp=Math.max(0,Math.min(asBossHp,Number(v)||0));if(asBossHp<=0)asWin();};
+    window.setAntiSpiralBossHp = function(v){
+        if(asActive && asState==="fight" && asUnbrokenSealIndex()>=0){
+            asText(200,120,"ЩИТ ПЕЧАТЕЙ БЛОКИРУЕТ УРОН!","#cba9ff",40);
+            return;
+        }
+        asBossHp=Math.max(0,Math.min(asBossHp,Number(v)||0));if(asBossHp<=0)asWin();
+    };
     window.getAntiSpiralPlayerHp = function(){return asPlayerHp;};
     window.setAntiSpiralPlayerHp = function(v){asPlayerHp=Math.max(0,Math.min(asPlayerMaxHp,Number(v)||0));const hpEl=document.getElementById("arenaHP");if(hpEl)hpEl.innerText=Math.ceil(asPlayerHp);if(asPlayerHp<=0)asLose();};
     window.getAntiSpiralPlayerMaxHp = function(){return asPlayerMaxHp;};
