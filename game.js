@@ -111,6 +111,10 @@ window.MBGetBossEffectsScale = function() {
     if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) return 0.10;
     return window.MBIsMediumGraphics && window.MBIsMediumGraphics() ? 0.68 : 1;
 };
+window.MBGetBossEffectsScale = function() {
+    if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) return 0.10;
+    return window.MBIsMediumGraphics && window.MBIsMediumGraphics() ? 0.68 : 1;
+};
 window.MBShouldReduceBossEffects = function() {
     try {
         if (window.MBGetGraphicsQuality() === "low" || localStorage.getItem(MB_REDUCED_BOSS_EFFECTS_KEY) === "1") return true;
