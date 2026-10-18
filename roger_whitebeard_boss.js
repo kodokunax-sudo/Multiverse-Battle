@@ -1055,17 +1055,18 @@
             vx: 0, vy: 0
         };
         var odenConsent = getRWBOdenConsent();
-        var odenAvailable = odenConsent !== "no";
+        var odenAvailable = odenConsent === "yes";
         rwbOden = {
             available: odenAvailable,
             x: 166, y: 372, size: 15, phase: 0,
-            hp: 180, maxHp: 180, alive: odenAvailable, invulnTimer: 0,
+            hp: 125, maxHp: 125, alive: odenAvailable, invulnTimer: 0,
             vx: 0, vy: 0, moveTargetX: 255, moveTargetY: 205,
             wanderTimer: 42, dodgeCooldown: 0, dodgeFlashTimer: 0,
             aiSkill: 0.30, tsunamiEvading: false, tsunamiPulled: false, stunTimer: 0, attackAngle: -Math.PI / 3,
             attackCooldown: 8, windup: 0, swingTimer: 0,
             swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0,
-            healState: "idle", healTimer: 0, healCooldown: 0, healSide: 1,
+            healState: "idle", healTimer: 0, healCooldown: 0, healCooldownUntil: 0,
+            healTotal: 0, healRemaining: 0, healSide: 1,
             companionMode: "guard", companionModeTimer: 115, companionSide: -1,
             blueModeTimer: 0, blueModeCooldown: 0, blueModeFlashTimer: 0, blueModeCheckTimer: 0
         };
@@ -3334,8 +3335,8 @@
         // Delayed attack callbacks may still fire during the vortex; keep the arena clear until it ends.
         if (wbVortexActive) clearWhitebeardVortexAttacks();
 
-        // Oden is a default ally in both combat rounds. Time-stop effects freeze his sword
-        // and projectiles together with the battlefield, without throttling the render loop.
+        // Oden only joins combat after the player accepts his offer following a defeat.
+        // Time-stop effects freeze his sword and projectiles with the battlefield.
         if (!rwbWorldStopped && !rwbDialogActive &&
             (rwbState === "fight1" || rwbState === "fight2")) {
             updateRWBOdenSupport();
@@ -4425,7 +4426,7 @@
 
     function rwbOdenIsBreakableBlock(a) {
         if (!a || !Number.isFinite(Number(a.hp)) || Number(a.hp) <= 0) return false;
-        return ["blade", "big_blade", "rock", "giant_rock", "fist", "haki_wave",
+        return ["blade", "big_blade", "rock", "giant_rock", "fist",
             "hell_fire", "fire_piece", "wb_reflected_bullet"].includes(a.type) ||
             (a.type === "wb_crescent_slash" && a.state === "flying");
     }
@@ -4636,15 +4637,18 @@
         if (oden.blueModeCooldown > 0) oden.blueModeCooldown--;
         if (oden.blueModeFlashTimer > 0) oden.blueModeFlashTimer--;
         if (oden.blueModeCheckTimer > 0) oden.blueModeCheckTimer--;
-        if (oden.healCooldown > 0) oden.healCooldown--;
-
+        const odenNow = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
         const playerMaxHp = Math.max(1, Number(rwbPlayer.maxHp) || 1);
-        if (oden.healState === "idle" && oden.healCooldown <= 0 &&
-            Number(rwbPlayer.hp) <= playerMaxHp * 0.35 && (Number(oden.stunTimer) || 0) <= 0) {
+        if (oden.healState === "idle" &&
+            odenNow >= (Number(oden.healCooldownUntil) || 0) &&
+            Number(rwbPlayer.hp) < playerMaxHp * 0.35 &&
+            (Number(oden.stunTimer) || 0) <= 0) {
             oden.healState = "approach";
-            oden.healTimer = 0;
+            oden.healTimer = 300;
+            oden.healTotal = playerMaxHp * 0.15;
+            oden.healRemaining = oden.healTotal;
             oden.healSide = oden.x <= rwbPlayer.x ? -1 : 1;
-            oden.healCooldown = 2400;
+            oden.healCooldownUntil = odenNow + 40000;
             oden.windup = 0;
             oden.swingTimer = 0;
             rwbOdenSlashes = [];
@@ -4799,7 +4803,6 @@
         if (oden.healState === "approach" &&
             Math.hypot(oden.x - rwbPlayer.x, oden.y - rwbPlayer.y) <= 58) {
             oden.healState = "channel";
-            oden.healTimer = 300;
             oden.windup = 0;
             oden.swingTimer = 0;
             rwbOdenSlashes = [];
@@ -4811,14 +4814,22 @@
         if (oden.healState === "channel") {
             const closeToPlayer = Math.hypot(oden.x - rwbPlayer.x, oden.y - rwbPlayer.y) <= 82;
             if (!closeToPlayer) {
+                // Keep the remaining healing budget and timer if the player moves away.
                 oden.healState = "approach";
-                oden.healTimer = 0;
             } else if (!stunned) {
                 const maximum = Math.max(1, Number(rwbPlayer.maxHp) || 1);
-                rwbPlayer.hp = Math.min(maximum, (Number(rwbPlayer.hp) || 0) + maximum * 0.15 / 300);
+                const hpBefore = Math.max(0, Number(rwbPlayer.hp) || 0);
+                const healStep = Math.min(Math.max(0, Number(oden.healRemaining) || 0),
+                    Math.max(0, Number(oden.healTotal) || maximum * 0.15) / 300);
+                rwbPlayer.hp = Math.min(maximum, hpBefore + healStep);
+                const actuallyHealed = Math.max(0, rwbPlayer.hp - hpBefore);
+                oden.healRemaining = Math.max(0, (Number(oden.healRemaining) || 0) - actuallyHealed);
                 oden.healTimer = Math.max(0, oden.healTimer - 1);
-                if (oden.healTimer <= 0) {
+                if (oden.healTimer <= 0 || oden.healRemaining <= 0.001) {
                     oden.healState = "idle";
+                    oden.healTimer = 0;
+                    oden.healRemaining = 0;
+                    oden.healTotal = 0;
                     oden.companionMode = "guard";
                     oden.companionModeTimer = 105;
                     rwbFloatingTexts.push({
@@ -4988,7 +4999,7 @@
     }
 
     function drawRWBOdenSupport() {
-        if (!rwbOden) return;
+        if (!rwbOden || !rwbOden.available) return;
         const oden = rwbOden;
         if (!oden.alive) {
             ctx.save();
