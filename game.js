@@ -955,7 +955,7 @@ function applyArenaSettings() {
     let positionSelect = document.getElementById("mobileControlPositionSelect");
     if (positionSelect) positionSelect.value = arenaSettings.mobileControlPosition || "left";
     let reducedEffectsCheck = document.getElementById("reducedBossEffectsCheckbox");
-    if (reducedEffectsCheck) reducedEffectsCheck.checked = window.MBShouldReduceBossEffects();
+    if (reducedEffectsCheck) { try { reducedEffectsCheck.checked = localStorage.getItem(MB_REDUCED_BOSS_EFFECTS_KEY) === "1"; } catch (e) { reducedEffectsCheck.checked = false; } }
 
     if (typeof window.refreshJoystickSettings === 'function') window.refreshJoystickSettings();
     if (typeof window.refreshMobileBattleControlsSettings === 'function') window.refreshMobileBattleControlsSettings();
