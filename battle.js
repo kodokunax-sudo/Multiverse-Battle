@@ -1229,6 +1229,16 @@ function drawTakabaJoke() {
 
 function renderArena() {
     if (!arenaActive || !ctx) return;
+    var reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+    if (reduceBossEffects) {
+        arenaShake = 0; screenFlash = 0; arenaVignette = 0;
+        if (typeof _superState !== "undefined") { _superState.screenFlashWhite = 0; _superState.screenShakeAmount = 0; }
+        if (arenaParticles.length > 18) arenaParticles.splice(0, arenaParticles.length - 18);
+        if (arenaShockwaves.length > 5) arenaShockwaves.splice(0, arenaShockwaves.length - 5);
+        if (arenaTrail.length > 8) arenaTrail.splice(0, arenaTrail.length - 8);
+        if (floatingTexts.length > 8) floatingTexts.splice(0, floatingTexts.length - 8);
+    }
+
     if (typeof tickSupers === 'function') tickSupers();
     if (typeof arenaSettings !== 'undefined' && arenaSettings.autoSuper) {
         var mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
@@ -1249,10 +1259,10 @@ function renderArena() {
     if (ghostBossHP < arenaBossMaxHP) ghostBossHP = arenaBossMaxHP;
     
     var superShakeX = 0, superShakeY = 0;
-    if (typeof _superState !== 'undefined' && _superState.screenShakeAmount > 0) { superShakeX = (Math.random() - 0.5) * _superState.screenShakeAmount; superShakeY = (Math.random() - 0.5) * _superState.screenShakeAmount; }
+    if (!reduceBossEffects && typeof _superState !== 'undefined' && _superState.screenShakeAmount > 0) { superShakeX = (Math.random() - 0.5) * _superState.screenShakeAmount; superShakeY = (Math.random() - 0.5) * _superState.screenShakeAmount; }
 
     var sx = 0, sy = 0;
-    if (arenaShake > 0.1) {
+    if (!reduceBossEffects && arenaShake > 0.1) {
         arenaShake *= 0.88;
         if (arenaShake < 0.15) arenaShake = 0;
         sx = (Math.random() - 0.5) * arenaShake + superShakeX;
@@ -1279,9 +1289,9 @@ function renderArena() {
         ctx.restore();
     }
     
-    if (typeof _superState !== 'undefined' && _superState.screenFlashWhite > 0) { ctx.save(); ctx.fillStyle = "#ffffff"; ctx.globalAlpha = Math.min(1, _superState.screenFlashWhite / 20); ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
-    if (screenFlash > 0) { ctx.save(); ctx.fillStyle = screenFlashColor; ctx.globalAlpha = screenFlash / 25; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
-    if (arenaVignette > 0) { ctx.save(); var vignetteGrad = ctx.createRadialGradient(200, 250, 150, 200, 250, 350); vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)'); vignetteGrad.addColorStop(1, 'rgba(255,0,0,' + (arenaVignette / 30) + ')'); ctx.fillStyle = vignetteGrad; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
+    if (!reduceBossEffects && typeof _superState !== 'undefined' && _superState.screenFlashWhite > 0) { ctx.save(); ctx.fillStyle = "#ffffff"; ctx.globalAlpha = Math.min(1, _superState.screenFlashWhite / 20); ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
+    if (!reduceBossEffects && screenFlash > 0) { ctx.save(); ctx.fillStyle = screenFlashColor; ctx.globalAlpha = screenFlash / 25; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
+    if (!reduceBossEffects && arenaVignette > 0) { ctx.save(); var vignetteGrad = ctx.createRadialGradient(200, 250, 150, 200, 250, 350); vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)'); vignetteGrad.addColorStop(1, 'rgba(255,0,0,' + (arenaVignette / 30) + ')'); ctx.fillStyle = vignetteGrad; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
     if (typeof _superState !== 'undefined' && _superState.dandyDarkness > 0) { ctx.save(); ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(0, 0, 400, 500); ctx.restore(); }
     ctx.save(); ctx.strokeStyle = "rgba(255,255,255,0.02)"; ctx.lineWidth = 1; var step = 25;
     for (var x = 0; x <= 400; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 500); ctx.stroke(); }
