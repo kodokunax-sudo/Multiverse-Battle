@@ -114,6 +114,8 @@
     let rwbOden = null;
     let rwbOdenSlashes = [];
     let rwbOdenLastTargetId = null;
+    let rwbOdenOfferShown = false;
+    let rwbOdenConsentMemory = Object.create(null);
     let rwbPlayerFocusTargetId = null;
 
     let rwbAttacks = [];
@@ -947,6 +949,57 @@
         }
     }
 
+    function getRWBOdenConsentKey() {
+        var slot = "default";
+        try {
+            var savedSlot = localStorage.getItem("cgV20_lastSlot");
+            if (savedSlot && String(savedSlot).length <= 64) slot = String(savedSlot);
+        } catch (e) {}
+        return "rwb_oden_ally_decision_v1_" + slot;
+    }
+
+    function getRWBOdenConsent() {
+        var key = getRWBOdenConsentKey();
+        try {
+            var saved = localStorage.getItem(key);
+            if (saved === "yes" || saved === "no") return saved;
+        } catch (e) {}
+        return rwbOdenConsentMemory[key] || "";
+    }
+
+    function setRWBOdenConsent(value) {
+        var key = getRWBOdenConsentKey();
+        rwbOdenConsentMemory[key] = value === "yes" ? "yes" : "no";
+        try { localStorage.setItem(key, rwbOdenConsentMemory[key]); } catch (e) {}
+    }
+
+    function resolveRWBOdenOffer(accept) {
+        if (!rwbDialogActive || rwbDialogType !== "oden_offer") return;
+        setRWBOdenConsent(accept ? "yes" : "no");
+        rwbOdenOfferShown = true;
+        rwbDialogActive = false;
+        rwbDialogType = null;
+        rwbDialogQueue = [];
+        rwbEndTimer = 180;
+        rwbFloatingTexts.push({
+            x: 200, y: 185,
+            text: accept ? "ОДЭН: В СЛЕДУЮЩИЙ РАЗ Я БУДУ РЯДОМ!" : "ОДЭН: Я СПРОШУ ЕЩЁ РАЗ ПОТОМ.",
+            color: accept ? "#ffe26a" : "#c79cff",
+            life: 64, maxLife: 64, vy: -0.35, vx: 0, size: 11
+        });
+        playWhooshSound(0.12);
+    }
+
+    function handleRWBOdenOfferClick(ev) {
+        if (!canvas || !ev) return;
+        var rect = canvas.getBoundingClientRect();
+        var mx = (ev.clientX - rect.left) * 400 / Math.max(1, rect.width);
+        var my = (ev.clientY - rect.top) * 500 / Math.max(1, rect.height);
+        if (mx < 18 || mx > 382) return;
+        if (my >= 320 && my <= 382) resolveRWBOdenOffer(true);
+        else if (my >= 390 && my <= 454) resolveRWBOdenOffer(false);
+    }
+
     // ============================================================
     // СТАРТ БОЯ
     // ============================================================
@@ -967,6 +1020,7 @@
         rwbWinner = null; rwbRewardGiven = false; rwbDialogStage = 0;
         rwbWhitebeardDisabled = [false, false, false]; rwbWBPhase = "intro";
         rwbDialogQueue = []; rwbDialogActive = false; rwbDialogType = null; rwbDialogTimer = 0;
+        rwbOdenOfferShown = false;
         wbBrain = { bottomFrames: 0, stationaryFrames: 0, farFrames: 0, shotsInWindow: 0, shotWindowTimer: 180, adaptiveCooldown: 0, lastX: 200, lastY: 420, playerVX: 0, playerVY: 0, lastAdaptive: null, lastAttackId: -1, lastSuperAttackId: -1, comboHint: null, phase: "idle", phaseTimer: 0, recoveryTimer: 0, plannedTargetX: 200, plannedTargetY: 360, plannedRockXs: [] };
         wbTrapCombo = { stage: "idle", timer: 0, cooldown: 300, targetX: 200, targetY: 380, startedAt: 0 };
         rwbPlayerStunTimer = 0; wbFruitFlashTimer = 0; wbFruitFlashPower = 0.72;
@@ -1000,13 +1054,16 @@
             attackTimer: 0, shootRate: 10,
             vx: 0, vy: 0
         };
+        var odenConsent = getRWBOdenConsent();
+        var odenAvailable = odenConsent !== "no";
         rwbOden = {
+            available: odenAvailable,
             x: 166, y: 372, size: 15, phase: 0,
-            hp: 180, maxHp: 180, alive: true, invulnTimer: 0,
+            hp: 180, maxHp: 180, alive: odenAvailable, invulnTimer: 0,
             vx: 0, vy: 0, moveTargetX: 255, moveTargetY: 205,
             wanderTimer: 42, dodgeCooldown: 0, dodgeFlashTimer: 0,
             aiSkill: 0.30, tsunamiEvading: false, tsunamiPulled: false, stunTimer: 0, attackAngle: -Math.PI / 3,
-            attackCooldown: 24, windup: 0, swingTimer: 0,
+            attackCooldown: 8, windup: 0, swingTimer: 0,
             swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0,
             healState: "idle", healTimer: 0, healCooldown: 0, healSide: 1,
             companionMode: "guard", companionModeTimer: 115, companionSide: -1,
@@ -1399,7 +1456,16 @@
     function showRWBModeButton() { if (rwbModeBtn) rwbModeBtn.style.display = 'block'; }
     function hideRWBModeButton() { if (rwbModeBtn) rwbModeBtn.style.display = 'none'; }
 
-    function handleRWBKeyDown(ev) { if (!window.rwbActive) return; rwbKeys[ev.key.toLowerCase()] = true; }
+    function handleRWBKeyDown(ev) {
+        if (!window.rwbActive) return;
+        var key = String(ev.key || "").toLowerCase();
+        if (rwbDialogActive && rwbDialogType === "oden_offer") {
+            if (key === "enter" || key === "y") { ev.preventDefault(); resolveRWBOdenOffer(true); }
+            else if (key === "escape" || key === "n") { ev.preventDefault(); resolveRWBOdenOffer(false); }
+            return;
+        }
+        rwbKeys[key] = true;
+    }
     function handleRWBKeyUp(ev) { if (!window.rwbActive) return; rwbKeys[ev.key.toLowerCase()] = false; }
 
     function handleRWBTouchStart(ev) {
@@ -1415,6 +1481,7 @@
                 var fakeEvent = { clientX: ev.touches[0].clientX, clientY: ev.touches[0].clientY };
                 if (rwbDialogType === "roger") handleRogersDialogClick();
                 else if (rwbDialogType === "whitebeard") handleWhitebeardDialogClick(fakeEvent);
+                else if (rwbDialogType === "oden_offer") handleRWBOdenOfferClick(fakeEvent);
             }
             return;
         }
@@ -1457,6 +1524,7 @@
         if (wbVortexActive) { handleWhitebeardVortexClick(ev.clientX, ev.clientY); return; }
         if (rwbDialogActive && rwbDialogType === "roger") { handleRogersDialogClick(); return; }
         if (rwbDialogActive && rwbDialogType === "whitebeard") { handleWhitebeardDialogClick(ev); return; }
+        if (rwbDialogActive && rwbDialogType === "oden_offer") { handleRWBOdenOfferClick(ev); return; }
     }
 
     // ============================================================
@@ -3243,12 +3311,19 @@
             } else if (rwbState === "victory") {
                 rwbEndTimer++;
             } else if (rwbState === "defeat") {
-                rwbEndTimer++;
-                if (rwbEndTimer > 180) {
-                    stopRogerWhitebeardFight();
-                    if (typeof playerHp !== 'undefined') playerHp = 0;
-                    if (typeof defeat === 'function') defeat();
-                    return;
+                if (rwbEndTimer > 120 && !rwbOdenOfferShown && getRWBOdenConsent() !== "yes") {
+                    rwbOdenOfferShown = true;
+                    rwbDialogActive = true;
+                    rwbDialogType = "oden_offer";
+                    rwbDialogTimer = 0;
+                } else {
+                    rwbEndTimer++;
+                    if (rwbEndTimer > 180) {
+                        stopRogerWhitebeardFight();
+                        if (typeof playerHp !== 'undefined') playerHp = 0;
+                        if (typeof defeat === 'function') defeat();
+                        return;
+                    }
                 }
             } else if (rwbState === "done") { return; }
         }
@@ -3363,7 +3438,8 @@
         }
 
         if (rwbState === "fight1" || rwbState === "fight2") drawRWBPlayer();
-        if (rwbOden && (rwbState === "fight1" || rwbState === "fight2" || rwbState === "transition")) {
+        if (rwbOden && rwbOden.available !== false &&
+            (rwbState === "fight1" || rwbState === "fight2" || rwbState === "transition")) {
             drawRWBOdenSupport();
         }
 
@@ -3599,6 +3675,56 @@
                     if (disabled) { ctx.font = "bold 10px monospace"; ctx.fillStyle = "#555555"; ctx.textAlign = "right"; ctx.fillText("✕", btnX + btnW - 12, by + btnH - 10); }
                 }
             }
+        } else if (rwbDialogType === "oden_offer") {
+            ctx.save();
+            ctx.translate(200, 118);
+            ctx.shadowColor = "#ffd94e"; ctx.shadowBlur = 20;
+            ctx.fillStyle = "#ffd94e"; ctx.strokeStyle = "#fff1a8"; ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, 34);
+            ctx.bezierCurveTo(-42, 5, -39, -22, -18, -25);
+            ctx.bezierCurveTo(-7, -27, 0, -17, 0, -10);
+            ctx.bezierCurveTo(0, -17, 7, -27, 18, -25);
+            ctx.bezierCurveTo(39, -22, 42, 5, 0, 34);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.shadowBlur = 0; ctx.lineCap = "round"; ctx.lineWidth = 4;
+            ctx.strokeStyle = "#54218e";
+            ctx.beginPath();
+            ctx.moveTo(-18, -17); ctx.bezierCurveTo(-55, -20, -43, 27, -12, 15);
+            ctx.moveTo(17, 7); ctx.bezierCurveTo(51, 29, 50, -28, 15, -18);
+            ctx.stroke();
+            ctx.strokeStyle = "#c98cff"; ctx.lineWidth = 1.7;
+            ctx.beginPath();
+            ctx.moveTo(-18, -17); ctx.bezierCurveTo(-55, -20, -43, 27, -12, 15);
+            ctx.moveTo(17, 7); ctx.bezierCurveTo(51, 29, 50, -28, 15, -18);
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.font = "bold 18px Nunito, sans-serif"; ctx.textAlign = "center";
+            ctx.fillStyle = "#ffd94e"; ctx.shadowColor = "#ffd94e"; ctx.shadowBlur = 12;
+            ctx.fillText("ОДЭН", 200, 190);
+            ctx.shadowBlur = 0; ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 13px Nunito, sans-serif";
+            var odenOfferLines = wrapText("Я хочу сражаться рядом с тобой в следующий раз. Позволишь мне стать твоим постоянным союзником?", 348, ctx);
+            for (var odenLine = 0; odenLine < odenOfferLines.length; odenLine++) {
+                ctx.fillText(odenOfferLines[odenLine], 200, 220 + odenLine * 22);
+            }
+            var offerButtons = [
+                { y: 320, text: "ДА — СРАЖАЙСЯ СО МНОЙ", fill: "rgba(62, 101, 64, .96)", stroke: "#8dffc6" },
+                { y: 390, text: "НЕТ — Я СПРАВЛЮСЬ САМ", fill: "rgba(56, 42, 79, .96)", stroke: "#c79cff" }
+            ];
+            for (var ob = 0; ob < offerButtons.length; ob++) {
+                var opt = offerButtons[ob];
+                ctx.fillStyle = opt.fill; ctx.strokeStyle = opt.stroke; ctx.lineWidth = 2;
+                if (ctx.roundRect) ctx.roundRect(20, opt.y, 360, 54, 12);
+                else ctx.rect(20, opt.y, 360, 54);
+                ctx.fill(); ctx.stroke();
+                ctx.font = "bold 13px Nunito, sans-serif"; ctx.textAlign = "center";
+                ctx.fillStyle = "#ffffff"; ctx.shadowColor = opt.stroke; ctx.shadowBlur = 7;
+                ctx.fillText(opt.text, 200, opt.y + 32); ctx.shadowBlur = 0;
+            }
+            ctx.font = "11px monospace"; ctx.fillStyle = "#aaaaaa"; ctx.textAlign = "center";
+            ctx.fillText("ENTER / Y — ДА     ESC / N — НЕТ", 200, 472);
         }
         ctx.restore();
     }
@@ -4141,9 +4267,9 @@
             if (oden.invulnTimer <= 0) {
                 const damage = Math.max(4, Math.min(18, Math.ceil((Number(a.damage) || 12) * 0.45)));
                 oden.hp = Math.max(0, oden.hp - damage);
-                const stunDuration = Number(a.stunDuration) ||
+                const stunDuration = Number(a.stunDuration || a.stunFrames) ||
                     (a.type === "wb_fruit_punch" && a.state === "active" ? 38 :
-                    (a.type === "tsunami" && a.comboPull ? 18 : 0));
+                    (a.type === "tsunami" ? (a.comboPull ? 18 : 10) : 0));
                 if (stunDuration > 0) {
                     oden.stunTimer = Math.max(Number(oden.stunTimer) || 0, stunDuration);
                     oden.windup = 0;
@@ -4484,7 +4610,7 @@
             oden.healState = "approach";
             oden.healTimer = 0;
             oden.healSide = oden.x <= rwbPlayer.x ? -1 : 1;
-            oden.healCooldown = 900;
+            oden.healCooldown = 2400;
             oden.windup = 0;
             oden.swingTimer = 0;
             rwbOdenSlashes = [];
@@ -4578,8 +4704,8 @@
             rwbOdenHasBreakableBlockOnAttackLane(oden)) {
             rwbOdenActivateBlueMode(oden);
         }
-        if (incoming && incoming.time <= Math.round(78 + aiSkill * 28) &&
-            (oden.dodgeCooldown <= 0 || incoming.time <= 12)) {
+        if (incoming && incoming.time <= Math.round(96 + aiSkill * 34) &&
+            (oden.dodgeCooldown <= 0 || incoming.time <= 16)) {
             const escapeX = tsunamiEscape && Number.isFinite(tsunamiEscape.safeX) ? tsunamiEscape.safeX : undefined;
             const safeTarget = rwbOdenChooseDodgeTarget(oden, incoming, escapeX);
             oden.moveTargetX = safeTarget.x;
@@ -4652,7 +4778,7 @@
                 oden.healTimer = 0;
             } else if (!stunned) {
                 const maximum = Math.max(1, Number(rwbPlayer.maxHp) || 1);
-                rwbPlayer.hp = Math.min(maximum, (Number(rwbPlayer.hp) || 0) + maximum * 0.10 / 300);
+                rwbPlayer.hp = Math.min(maximum, (Number(rwbPlayer.hp) || 0) + maximum * 0.15 / 300);
                 oden.healTimer = Math.max(0, oden.healTimer - 1);
                 if (oden.healTimer <= 0) {
                     oden.healState = "idle";
@@ -4668,7 +4794,7 @@
 
         const targets = getRWBOdenTargets();
         const focus = getRWBOdenAttackTarget(targets);
-        const odenAttackRate = 1; // Blue mode is for breaking obstacles, not speeding up normal attacks.
+        const odenAttackRate = 1; // Blue mode is only for breaking obstacles; ordinary sword waves stay fixed-direction.
         for (let i = rwbOdenSlashes.length - 1; i >= 0; i--) {
             const slash = rwbOdenSlashes[i];
             const target = getRWBOdenTargetById(slash.targetId);
@@ -4680,6 +4806,7 @@
             const previousX = slash.x, previousY = slash.y;
             slash.x += slash.vx * odenAttackRate;
             slash.y += slash.vy * odenAttackRate;
+            // No target tracking here: once fired, this slash continues along its locked vector.
             slash.angle = Math.atan2(slash.vy, slash.vx);
             slash.life -= odenAttackRate;
 
@@ -4735,14 +4862,17 @@
             if (oden.windup <= 0) {
                 const target = getRWBOdenTargetById(oden.targetId);
                 if (target) {
-                    const damage = target.superForm ? 4 : 3;
+                    const damage = target.superForm ? 3 : 2;
+                    // Lock the firing angle at release. The projectile never adjusts toward the target after launch.
+                    const lockedAngle = angle;
                     rwbOdenSlashes.push({
-                        x: oden.x + Math.cos(angle) * 17,
-                        y: oden.y + Math.sin(angle) * 17,
-                        vx: Math.cos(angle) * 8.4,
-                        vy: Math.sin(angle) * 8.4,
-                        speed: 8.4, angle: angle, size: 12,
-                        damage: damage, targetId: target.id, life: 66,
+                        x: oden.x + Math.cos(lockedAngle) * 17,
+                        y: oden.y + Math.sin(lockedAngle) * 17,
+                        vx: Math.cos(lockedAngle) * 9,
+                        vy: Math.sin(lockedAngle) * 9,
+                        speed: 9, angle: lockedAngle, size: 12,
+                        damage: damage, targetId: target.id, life: 60, homing: false,
+                        aimX: target.x, aimY: target.y,
                         isBlue: oden.blueModeTimer > 0, blockDamage: oden.blueModeTimer > 0 ? 3 : 0,
                         phase: Math.random() * Math.PI * 2
                     });
@@ -4756,9 +4886,9 @@
             oden.targetId = focus.id;
             oden.attackAngle = Math.atan2(focus.y - oden.y, focus.x - oden.x);
             oden.swordAngle = oden.attackAngle;
-            oden.windup = 4;
-            oden.swingTimer = 7;
-            oden.attackCooldown = 13;
+            oden.windup = 3;
+            oden.swingTimer = 5;
+            oden.attackCooldown = 8;
         }
     }
 
