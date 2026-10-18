@@ -96,6 +96,18 @@ let arenaSettings = {
     autoSkipDefeatedBosses: false
 };
 
+// Shared accessibility/performance switch used by all boss renderers.
+window.MBShouldReduceBossEffects = function() {
+    try {
+        var settings = window.arenaSettings || arenaSettings;
+        var saved = localStorage.getItem("mbReducedFlashes") === "1";
+        var prefersReducedMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+        return !!((settings && settings.graphics === "phone") || saved || prefersReducedMotion);
+    } catch (e) {
+        return !!(window.arenaSettings && window.arenaSettings.graphics === "phone");
+    }
+};
+
 // ★★★ НАСТРОЙКА БОНУСА НОВИЧКА ★★★
 const NEWCOMER_BONUS_MINUTES = 20;
 const MODER_ACCESS_CODE_VERSION = 2;
