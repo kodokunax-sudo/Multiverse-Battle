@@ -162,19 +162,23 @@ function wsApplySuperDmgMult(baseDmg) {
 }
 
 function addWaystarShockwave(x, y, color, maxRadius, life, width) {
+    if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) return;
     if (width === undefined) width = 4;
     waystarShockwaves.push({ x: x, y: y, radius: 10, maxRadius: maxRadius, life: life, maxLife: life, color: color, width: width });
 }
 function addWaystarLightning(x1, y1, x2, y2, color, alpha, width) {
+    if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) return;
     if (width === undefined) width = 2;
     var pts = [];
     var steps = 4 + Math.floor(Math.random() * 3);
     for (var i = 1; i < steps; i++) { var t = i / steps; pts.push({ x: x1 + (x2 - x1) * t + (Math.random() - 0.5) * 20, y: y1 + (y2 - y1) * t + (Math.random() - 0.5) * 20 }); }
     waystarLightningBolts.push({ x1: x1, y1: y1, x2: x2, y2: y2, pts: pts, color: color, alpha: alpha, life: 12, maxLife: 12, width: width });
 }
-function addWaystarSlash(x, y, angle, length, width) { waystarSlashMarks.push({ x: x, y: y, angle: angle, length: length, width: width || 4, life: 20, maxLife: 20 }); }
-function addWaystarFlash(x, y, size) { waystarFlashBursts.push({ x: x, y: y, size: size || 40, life: 15, maxLife: 15 }); }
+function addWaystarSlash(x, y, angle, length, width) { if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) return; waystarSlashMarks.push({ x: x, y: y, angle: angle, length: length, width: width || 4, life: 20, maxLife: 20 }); }
+function addWaystarFlash(x, y, size) { if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) return; waystarFlashBursts.push({ x: x, y: y, size: size || 40, life: 15, maxLife: 15 }); }
 function spawnWaystarParticles(x, y, count, color, speed) {
+    var reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+    if (reduced) { count = Math.floor(count * 0.10); if (waystarParticles.length > 24) return; }
     for (var i = 0; i < count; i++) { var a = Math.random() * Math.PI * 2, s = speed * (0.3 + Math.random()); waystarParticles.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 20 + Math.random() * 15, maxLife: 35, color: color, size: 1.5 + Math.random() * 2.5 }); }
 }
 function updateWaystarMegaEffects() {
@@ -1590,6 +1594,18 @@ function renderWaystarSimpleCoopFrame() {
 
 function waystarRenderLoop() {
     if (!waystarActive || !ctx || !canvas) return;
+    var reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+    if (reduceBossEffects) {
+        waystarShake = 0; waystarScreenFlash = 0; waystarVignette = 0; waystarScreenDistort = 0; waystarBlindFlash = 0;
+        if (typeof _superState !== "undefined") { _superState.screenFlashWhite = 0; _superState.screenShakeAmount = 0; }
+        if (waystarParticles.length > 24) waystarParticles.splice(0, waystarParticles.length - 24);
+        if (waystarShockwaves.length > 4) waystarShockwaves.splice(0, waystarShockwaves.length - 4);
+        if (waystarLightningBolts.length > 0) waystarLightningBolts.length = 0;
+        if (waystarSlashMarks.length > 0) waystarSlashMarks.length = 0;
+        if (waystarFlashBursts.length > 0) waystarFlashBursts.length = 0;
+        if (waystarNebulas.length > 8) waystarNebulas.splice(0, waystarNebulas.length - 8);
+    }
+
 
     if (typeof tickSupers === 'function') {
         try { tickSupers(); } catch(e) { console.error("[WAYSTAR] tickSupers error:", e); }
@@ -1762,7 +1778,7 @@ function waystarRenderLoop() {
         for (var i = 0; i < waystarPhase3Embers.length; i++) { var e = waystarPhase3Embers[i]; ctx.save(); ctx.globalAlpha = Math.max(0, e.life / 100); ctx.fillStyle = e.color; ctx.shadowColor = e.color; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
         for (var i = 0; i < waystarPhase3Rings.length; i++) { var r = waystarPhase3Rings[i]; ctx.save(); ctx.globalAlpha = Math.max(0, r.life / r.maxLife) * 0.5; ctx.translate(r.x, r.y); ctx.rotate(r.angle); ctx.strokeStyle = r.color; ctx.lineWidth = 2; ctx.shadowColor = r.color; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(0, 0, r.radius, 0, Math.PI * 1.7); ctx.stroke(); ctx.restore(); }
     }
-    if (waystarScreenFlash > 0) { ctx.globalAlpha = waystarScreenFlash / 40; ctx.fillStyle = waystarScreenFlashColor; ctx.fillRect(0, 0, 400, 500); ctx.globalAlpha = 1; }
+    if (!reduceBossEffects && waystarScreenFlash > 0) { ctx.globalAlpha = waystarScreenFlash / 40; ctx.fillStyle = waystarScreenFlashColor; ctx.fillRect(0, 0, 400, 500); ctx.globalAlpha = 1; }
     if (waystarVignette > 0) { var vg = ctx.createRadialGradient(200, 250, 100, 200, 250, 400); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(255,0,0," + (waystarVignette / 30) + ")"); ctx.fillStyle = vg; ctx.fillRect(0, 0, 400, 500); }
     ctx.strokeStyle = waystarState === "phase3" ? (waystarRageMode ? "#ff0000" : "#ff00ff") : "#ffd700"; ctx.lineWidth = 3; ctx.strokeRect(2, 2, 396, 496);
     for (var i = 0; i < waystarShockwaves.length; i++) { var sw = waystarShockwaves[i]; var progress = 1 - sw.life / sw.maxLife; ctx.save(); ctx.globalAlpha = (1 - progress) * 0.8; ctx.strokeStyle = sw.color; ctx.lineWidth = sw.width * (1 - progress); ctx.beginPath(); ctx.arc(sw.x, sw.y, Math.max(0.1, sw.radius), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
