@@ -1005,7 +1005,7 @@
             hp: 180, maxHp: 180, alive: true, invulnTimer: 0,
             vx: 0, vy: 0, moveTargetX: 255, moveTargetY: 205,
             wanderTimer: 42, dodgeCooldown: 0, dodgeFlashTimer: 0,
-            aiSkill: 0.14, tsunamiEvading: false, tsunamiPulled: false, stunTimer: 0, attackAngle: -Math.PI / 3,
+            aiSkill: 0.30, tsunamiEvading: false, tsunamiPulled: false, stunTimer: 0, attackAngle: -Math.PI / 3,
             attackCooldown: 24, windup: 0, swingTimer: 0,
             swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0,
             healState: "idle", healTimer: 0, healCooldown: 0, healSide: 1,
@@ -4152,8 +4152,13 @@
                 oden.invulnTimer = 64;
                 oden.hitFlash = 12;
                 oden.dodgeCooldown = Math.max(oden.dodgeCooldown || 0, 12);
-                oden.vx += (oden.x - risk.x) / (Math.hypot(oden.x - risk.x, oden.y - risk.y) || 1) * 3.5;
-                oden.vy += (oden.y - risk.y) / (Math.hypot(oden.x - risk.x, oden.y - risk.y) || 1) * 3.5;
+                let knockX = oden.x - risk.x, knockY = oden.y - risk.y;
+                let knockLen = Math.hypot(knockX, knockY);
+                if (knockLen < 0.01 && risk.axis === "horizontal") { knockX = 0; knockY = oden.y < risk.y ? -1 : 1; knockLen = 1; }
+                else if (knockLen < 0.01 && risk.axis === "vertical") { knockX = oden.x < risk.x ? -1 : 1; knockY = 0; knockLen = 1; }
+                else if (knockLen < 0.01) { const fallbackAngle = Math.random() * Math.PI * 2; knockX = Math.cos(fallbackAngle); knockY = Math.sin(fallbackAngle); knockLen = 1; }
+                oden.vx += knockX / knockLen * 3.8;
+                oden.vy += knockY / knockLen * 3.8;
                 rwbFloatingTexts.push({
                     x: oden.x, y: oden.y - 25, text: "ОДЭН −" + damage,
                     color: "#ffe98a", life: 48, maxLife: 48, vy: -0.7, vx: 0, size: 13
@@ -4230,6 +4235,93 @@
             }
         }
         return closest;
+    }
+
+    function rwbOdenChooseDodgeTarget(oden, incoming, preferredX) {
+        const left = 24, right = 376, top = 18, bottom = 474;
+        const angles = 12, distances = [82, 126, 164];
+        const futureTimes = [6, 12, 19, 26, 33];
+        const targets = getRWBOdenTargets().filter(function(boss) { return boss && boss.hp > 0; });
+        const playerSpeed = Math.max(3.2, (Number(rwbBaseSpeed) || 4.5) * (Number(rwbSpeedMult) || 1));
+        let best = null, bestScore = -Infinity;
+        for (let d = 0; d < distances.length; d++) {
+            for (let k = 0; k < angles; k++) {
+                const angle = k * Math.PI * 2 / angles;
+                const tx = Math.max(left, Math.min(right, oden.x + Math.cos(angle) * distances[d]));
+                const ty = Math.max(top, Math.min(bottom, oden.y + Math.sin(angle) * distances[d]));
+                const totalDistance = Math.max(1, Math.hypot(tx - oden.x, ty - oden.y));
+                let score = 0, collisions = 0;
+                for (let ti = 0; ti < futureTimes.length; ti++) {
+                    const t = futureTimes[ti];
+                    const progress = Math.min(1, playerSpeed * t / totalDistance);
+                    const px = oden.x + (tx - oden.x) * progress;
+                    const py = oden.y + (ty - oden.y) * progress;
+                    for (let ai = rwbAttacks.length - 1; ai >= 0; ai--) {
+                        if (rwbOdenAttackThreat(rwbAttacks[ai], px, py, t, true)) {
+                            collisions++;
+                            score -= ti < 2 ? 34 : 24;
+                        }
+                    }
+                    for (let wi = rwbShockwaves.length - 1; wi >= 0; wi--) {
+                        if (rwbOdenShockwaveThreat(rwbShockwaves[wi], px, py, t, true)) {
+                            collisions++;
+                            score -= ti < 2 ? 30 : 21;
+                        }
+                    }
+                }
+                if (collisions === 0) score += 165;
+                if (incoming && incoming.risk) {
+                    score += Math.min(180, Math.hypot(tx - incoming.risk.x, ty - incoming.risk.y)) * 0.12;
+                }
+                if (Number.isFinite(preferredX)) score -= Math.abs(tx - preferredX) * 0.18;
+                const margin = Math.min(tx - left, right - tx, ty - top, bottom - ty);
+                score += Math.min(28, Math.max(0, margin)) * 0.55;
+                let nearestBoss = Infinity;
+                for (let bi = 0; bi < targets.length; bi++) {
+                    nearestBoss = Math.min(nearestBoss, Math.hypot(tx - targets[bi].x, ty - targets[bi].y));
+                }
+                if (nearestBoss < 84) score -= (84 - nearestBoss) * 1.75;
+                else if (nearestBoss < Infinity) score += Math.min(110, nearestBoss - 84) * 0.09;
+                score += Math.random() * 0.2;
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = { x: tx, y: ty, safe: collisions === 0 };
+                }
+            }
+        }
+        return best || { x: Math.max(left, Math.min(right, oden.x + (oden.x < 200 ? 100 : -100))), y: Math.max(top, Math.min(bottom, oden.y - 55)), safe: false };
+    }
+
+    // Blue mode activates when a destructible hazard blocks the straight sword lane to Oden's target.
+    function rwbOdenHasBreakableBlockOnAttackLane(oden) {
+        if (!oden) return false;
+        const target = getRWBOdenAttackTarget(getRWBOdenTargets());
+        if (!target) return false;
+        const dx = target.x - oden.x, dy = target.y - oden.y;
+        const length2 = dx * dx + dy * dy;
+        if (length2 < 95 * 95) return false;
+        for (let i = rwbAttacks.length - 1; i >= 0; i--) {
+            const a = rwbAttacks[i];
+            if (!a || !Number.isFinite(Number(a.hp)) || Number(a.hp) <= 0 ||
+                ["wb_attack_telegraph", "wb_giant_rock_warning", "wb_combo_gate_warning",
+                 "wb_reflect_vortex", "wb_center_wave", "wb_fruit_punch", "tsunami"].includes(a.type) ||
+                a.state === "warning" || a.state === "windup" || a.state === "done") continue;
+            const ax = Number(a.x), ay = Number(a.y);
+            if (!Number.isFinite(ax) || !Number.isFinite(ay)) continue;
+            const along = ((ax - oden.x) * dx + (ay - oden.y) * dy) / length2;
+            if (along < 0.10 || along > 0.90) continue;
+            const radius = (Number(a.size) || Number(a.radius) || 18) * 0.72 + 15;
+            if (rwbOdenSegmentDistance(ax, ay, oden.x, oden.y, target.x, target.y) < radius) return true;
+        }
+        for (let i = rwbShockwaves.length - 1; i >= 0; i--) {
+            const sw = rwbShockwaves[i];
+            if (!sw || !sw.canDestroy || !Number.isFinite(Number(sw.hp)) || sw.hp <= 0) continue;
+            const alongDistance = ((sw.x - oden.x) * dx + (sw.y - oden.y) * dy) / Math.sqrt(length2);
+            if (alongDistance < 20 || alongDistance > Math.sqrt(length2) - 20) continue;
+            const distToLane = rwbOdenSegmentDistance(sw.x, sw.y, oden.x, oden.y, target.x, target.y);
+            if (Math.abs(distToLane - (Number(sw.radius) || 0)) < (Number(sw.width) || 8) + 18) return true;
+        }
+        return false;
     }
 
     // The combo's attraction field pulls allies as well as the player; Oden cannot simply ignore it.
@@ -4317,13 +4409,56 @@
         playImpactSound(0.22, 1.1);
     }
 
+    function rwbOdenBlueSlashBreaksBlock(slash, x1, y1, x2, y2) {
+        if (!slash || !slash.isBlue) return false;
+        const damage = Math.max(1, Number(slash.blockDamage) || 2);
+        for (let i = rwbAttacks.length - 1; i >= 0; i--) {
+            const a = rwbAttacks[i];
+            if (!a || !Number.isFinite(Number(a.hp)) || Number(a.hp) <= 0 ||
+                ["wb_attack_telegraph", "wb_giant_rock_warning", "wb_combo_gate_warning",
+                 "wb_reflect_vortex", "wb_center_wave", "wb_fruit_punch", "tsunami"].includes(a.type) ||
+                a.state === "warning" || a.state === "windup" || a.state === "done") continue;
+            const ax = Number(a.x), ay = Number(a.y);
+            if (!Number.isFinite(ax) || !Number.isFinite(ay)) continue;
+            const radius = (Number(a.size) || Number(a.radius) || 18) * 0.72 + (Number(slash.size) || 12) * 0.55;
+            if (rwbOdenSegmentDistance(ax, ay, x1, y1, x2, y2) >= radius) continue;
+            a.hp -= damage;
+            spawnHitParticles(ax, ay, "#43e7ff", 7);
+            rwbFloatingTexts.push({x:ax,y:ay-15,text:"ОДЭН: ПРОЛОМ!",color:"#7ceeff",life:32,maxLife:32,vy:-0.7,vx:0,size:10});
+            if (a.hp <= 0) {
+                spawnDestroyParticles(ax, ay, a.color || "#55ddff");
+                rwbAttacks.splice(i, 1);
+                playImpactSound(0.22, 1.25);
+            } else {
+                playWhooshSound(0.09);
+            }
+            return true;
+        }
+        for (let i = rwbShockwaves.length - 1; i >= 0; i--) {
+            const sw = rwbShockwaves[i];
+            if (!sw || !sw.canDestroy || !Number.isFinite(Number(sw.hp)) || sw.hp <= 0) continue;
+            const radius = (Number(sw.width) || 5) * 0.7 + (Number(slash.size) || 12) * 0.6;
+            const closest = rwbOdenSegmentDistance(sw.x, sw.y, x1, y1, x2, y2);
+            if (Math.abs(closest - (Number(sw.radius) || 0)) >= radius) continue;
+            sw.hp -= damage;
+            spawnHitParticles(sw.x, sw.y, "#43e7ff", 6);
+            if (sw.hp <= 0) {
+                spawnDestroyParticles(sw.x, sw.y, sw.color || "#52e6ff");
+                rwbShockwaves.splice(i, 1);
+                playImpactSound(0.22, 1.25);
+            }
+            return true;
+        }
+        return false;
+    }
+
     function updateRWBOdenSupport() {
         if (!rwbOden || !rwbPlayer || !rwbOden.alive) return;
         const oden = rwbOden;
         oden.phase += 0.11;
-        oden.aiSkill = Math.min(1, (Number(oden.aiSkill) || 0.14) + (rwbState === "fight2" ? 0.0018 : 0.00022));
-        if (rwbState === "fight2") oden.aiSkill = Math.max(0.82, oden.aiSkill);
-        const aiSkill = Math.max(0.14, Math.min(1, oden.aiSkill));
+        oden.aiSkill = Math.min(1, (Number(oden.aiSkill) || 0.30) + (rwbState === "fight2" ? 0.0025 : 0.00036));
+        if (rwbState === "fight2") oden.aiSkill = Math.max(0.88, oden.aiSkill);
+        const aiSkill = Math.max(0.30, Math.min(1, oden.aiSkill));
         if (oden.hitFlash > 0) oden.hitFlash--;
         if (oden.invulnTimer > 0) oden.invulnTimer--;
         if (oden.dodgeCooldown > 0) oden.dodgeCooldown--;
@@ -4372,8 +4507,9 @@
         oden.tsunamiPulled = !!tsunamiPull;
         oden.tsunamiEvading = !tsunamiPull && !!tsunamiEscape;
         if (tsunamiPull) {
-            oden.moveTargetX = tsunamiPull.targetX;
-            oden.moveTargetY = tsunamiPull.targetY;
+            // The combo really pulls Oden, but it no longer overrides his danger awareness.
+            oden.moveTargetX = oden.x + clampWhitebeard((tsunamiPull.targetX - oden.x) * 0.28, -82, 82);
+            oden.moveTargetY = oden.y + clampWhitebeard((tsunamiPull.targetY - oden.y) * 0.22, -64, 64);
             oden.vx += clampWhitebeard((tsunamiPull.targetX - oden.x) * 0.018, -1.35, 1.35) * 0.65;
             oden.vy += clampWhitebeard((tsunamiPull.targetY - oden.y) * 0.008, -0.55, 0.55) * 0.65;
             oden.wanderTimer = Math.max(oden.wanderTimer, 16);
@@ -4414,37 +4550,19 @@
         }
 
         const incoming = rwbOdenFindIncoming(oden);
-        if (incoming && incoming.time <= 30 && oden.blueModeCooldown <= 0 &&
-            oden.blueModeTimer <= 0 && rwbOdenHasNoEscape(oden)) {
+        if (oden.blueModeCooldown <= 0 && oden.blueModeTimer <= 0 &&
+            rwbOdenHasBreakableBlockOnAttackLane(oden)) {
             rwbOdenActivateBlueMode(oden);
         }
-        if (incoming && oden.dodgeCooldown <= 0 && !tsunamiEscape && !tsunamiPull) {
-            const risk = incoming.risk;
-            let dx, dy;
-            if (Number.isFinite(risk.safeX) || Number.isFinite(risk.safeY)) {
-                dx = Number.isFinite(risk.safeX) ? risk.safeX - oden.x : (Math.random() - 0.5) * 14;
-                dy = Number.isFinite(risk.safeY) ? risk.safeY - oden.y : (Math.random() - 0.5) * 14;
-            } else {
-                const dodgeRange = 90 + aiSkill * 54;
-                if (risk.axis === "horizontal") {
-                    dx = (Math.random() - 0.5) * 22;
-                    dy = (Math.random() < 0.5 ? -1 : 1) * dodgeRange;
-                } else if (risk.axis === "vertical") {
-                    dx = (Math.random() < 0.5 ? -1 : 1) * dodgeRange;
-                    dy = (Math.random() - 0.5) * 22;
-                } else {
-                    dx = oden.x - risk.x; dy = oden.y - risk.y;
-                    const len = Math.hypot(dx, dy) || 1;
-                    dx = dx / len * dodgeRange;
-                    dy = dy / len * dodgeRange * 0.78;
-                }
-            }
-            oden.moveTargetX = Math.max(22, Math.min(378, oden.x + dx));
-            oden.moveTargetY = Math.max(14, Math.min(478, oden.y + dy));
-            oden.wanderTimer = 34;
-            oden.dodgeCooldown = Math.max(6, Math.round(21 - aiSkill * 14));
-            oden.dodgeFlashTimer = 16;
-            spawnHitParticles(oden.x, oden.y, "#d9a7ff", 3);
+        if (incoming && incoming.time <= Math.round(58 + aiSkill * 18) && oden.dodgeCooldown <= 0) {
+            const escapeX = tsunamiEscape && Number.isFinite(tsunamiEscape.safeX) ? tsunamiEscape.safeX : undefined;
+            const safeTarget = rwbOdenChooseDodgeTarget(oden, incoming, escapeX);
+            oden.moveTargetX = safeTarget.x;
+            oden.moveTargetY = safeTarget.y;
+            oden.wanderTimer = 30;
+            oden.dodgeCooldown = Math.max(4, Math.round(14 - aiSkill * 8));
+            oden.dodgeFlashTimer = 13;
+            spawnHitParticles(oden.x, oden.y, "#d9a7ff", 4);
         }
 
         // Same top movement speed as the player, but with eased acceleration/braking.
@@ -4530,6 +4648,10 @@
             slash.angle = Math.atan2(slash.vy, slash.vx);
             slash.life -= odenAttackRate;
 
+            if (rwbOdenBlueSlashBreaksBlock(slash, previousX, previousY, slash.x, slash.y)) {
+                rwbOdenSlashes.splice(i, 1);
+                continue;
+            }
             const actualPathDistance = rwbOdenSegmentDistance(target.x, target.y, previousX, previousY, slash.x, slash.y);
             if (actualPathDistance <= (target.size || 28) * 0.72 + slash.size * 0.5) {
                 const damage = slash.damage;
@@ -4578,7 +4700,7 @@
             if (oden.windup <= 0) {
                 const target = getRWBOdenTargetById(oden.targetId);
                 if (target) {
-                    const damage = target.superForm ? 7 : 5;
+                    const damage = target.superForm ? 4 : 3;
                     rwbOdenSlashes.push({
                         x: oden.x + Math.cos(angle) * 17,
                         y: oden.y + Math.sin(angle) * 17,
@@ -4586,6 +4708,7 @@
                         vy: Math.sin(angle) * 8.4,
                         speed: 8.4, angle: angle, size: 12,
                         damage: damage, targetId: target.id, life: 66,
+                        isBlue: oden.blueModeTimer > 0, blockDamage: oden.blueModeTimer > 0 ? 2 : 0,
                         phase: Math.random() * Math.PI * 2
                     });
                     spawnHakiLightning(oden.x, oden.y, 1, false);
@@ -4598,9 +4721,9 @@
             oden.targetId = focus.id;
             oden.attackAngle = Math.atan2(focus.y - oden.y, focus.x - oden.x);
             oden.swordAngle = oden.attackAngle;
-            oden.windup = 7;
-            oden.swingTimer = 11;
-            oden.attackCooldown = 25;
+            oden.windup = 4;
+            oden.swingTimer = 7;
+            oden.attackCooldown = 13;
         }
     }
 
@@ -4634,7 +4757,7 @@
             ctx.font = "bold 8px monospace"; ctx.textAlign = "center";
             ctx.fillStyle = healing ? "#9affc8" : "#73efff";
             ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10;
-            ctx.fillText(healing ? "ЛЕЧИТ ИГРОКА" : "СИНИЙ РЕЖИМ", cx, cy - size - 13);
+            ctx.fillText(healing ? "ЛЕЧИТ ИГРОКА" : "ЛОМАЕТ БЛОКИ", cx, cy - size - 13);
             ctx.restore();
         }
         if (oden.stunTimer > 0) {
