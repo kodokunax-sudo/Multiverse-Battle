@@ -4311,7 +4311,7 @@
         if (typeof getTakabaCombatModifiers === "function") {
             try { playerSpeed *= getTakabaCombatModifiers().speedMult; } catch (e) {}
         }
-        const maxSpeed = Math.max(2.4, playerSpeed);
+        const maxSpeed = Math.max(0.5, playerSpeed);
         const desiredSpeed = dist < 2 ? 0 : Math.min(maxSpeed, Math.max(0.45, dist * 0.22));
         const desiredVx = dist > 0 ? toX / dist * desiredSpeed : 0;
         const desiredVy = dist > 0 ? toY / dist * desiredSpeed : 0;
