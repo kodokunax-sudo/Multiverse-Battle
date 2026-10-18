@@ -1332,6 +1332,9 @@
             e.preventDefault(); e.stopPropagation();
             rwbPlayer.attackMode = (rwbPlayer.attackMode === "normal") ? "blue" : "normal";
             if (rwbPlayer.attackMode === "blue") {
+                if (rwbOden && rwbOden.alive && rwbOden.available && rwbState.indexOf("fight") === 0) {
+                    rwbOdenActivateBlueMode(rwbOden, true);
+                }
                 rwbModeBtn.innerHTML = '🔵 АВТО-ПРИЦЕЛ';
                 rwbModeBtn.style.background = 'linear-gradient(135deg, #00aaff, #0044cc)';
                 rwbModeBtn.style.color = '#fff';
@@ -4525,8 +4528,8 @@
         return true;
     }
 
-    function rwbOdenActivateBlueMode(oden) {
-        if (!oden || oden.blueModeTimer > 0 || oden.blueModeCooldown > 0) return;
+    function rwbOdenActivateBlueMode(oden, force) {
+        if (!oden || oden.blueModeTimer > 0 || (!force && oden.blueModeCooldown > 0)) return;
         oden.blueModeTimer = 180;
         oden.blueModeCooldown = 720;
         oden.blueModeFlashTimer = 42;
@@ -4795,7 +4798,7 @@
 
         const targets = getRWBOdenTargets();
         const focus = getRWBOdenAttackTarget(targets);
-        const odenAttackRate = 1; // Blue mode is only for breaking obstacles; ordinary sword waves stay fixed-direction.
+        const odenAttackRate = oden.blueModeTimer > 0 ? 3 : 1; // Triple attack cadence in blue mode.
         for (let i = rwbOdenSlashes.length - 1; i >= 0; i--) {
             const slash = rwbOdenSlashes[i];
             const target = getRWBOdenTargetById(slash.targetId);
@@ -4803,13 +4806,19 @@
                 rwbOdenSlashes.splice(i, 1);
                 continue;
             }
-            // A sword wave flies on a fixed trajectory; collision checks the actual travelled segment.
+            // Ordinary sword waves keep their launch angle; blue waves home in on their target.
             const previousX = slash.x, previousY = slash.y;
-            slash.x += slash.vx * odenAttackRate;
-            slash.y += slash.vy * odenAttackRate;
-            // No target tracking here: once fired, this slash continues along its locked vector.
+            if (slash.isBlue && target) {
+                const dx = target.x - slash.x, dy = target.y - slash.y;
+                const dist = Math.max(1, Math.hypot(dx, dy));
+                const speed = Math.max(9, Number(slash.speed) || 9);
+                slash.vx = dx / dist * speed;
+                slash.vy = dy / dist * speed;
+            }
+            slash.x += slash.vx;
+            slash.y += slash.vy;
             slash.angle = Math.atan2(slash.vy, slash.vx);
-            slash.life -= odenAttackRate;
+            slash.life -= 1;
 
             if (rwbOdenBlueSlashBreaksBlock(slash, previousX, previousY, slash.x, slash.y)) {
                 rwbOdenSlashes.splice(i, 1);
