@@ -94,6 +94,7 @@
     let asDreamWakeCount = 0;
     let asDreamEndingChoice = "";
     let asDreamChoiceSilenceMusic = false;
+    let asDreamClickAudioContext = null;
     const AS_DREAM_WAKE_TAPS_REQUIRED = 15;
     let asGravityTransitionUntil = 0;
     let asBossApproachFrames = 0;
@@ -1377,6 +1378,123 @@
         } catch (e) {}
     }
 
+    function asPlayDreamWakeClickSound(clickCount) {
+        const step = Math.max(1, Math.min(AS_DREAM_WAKE_TAPS_REQUIRED, Number(clickCount) || 1));
+        const intensity = step / AS_DREAM_WAKE_TAPS_REQUIRED;
+        let audioContext = asDreamClickAudioContext;
+        try {
+            if (!audioContext) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) {
+                    asSound(760 - step * 31, step < 5 ? "triangle" : step < 10 ? "square" : "sawtooth",
+                        .09 + intensity * .08, .035 + intensity * .035);
+                    return;
+                }
+                audioContext = new AudioContextClass();
+                asDreamClickAudioContext = audioContext;
+            }
+
+            function playLayers() {
+                if (!audioContext || audioContext.state === "closed") return;
+                const now = audioContext.currentTime + .012;
+                const baseFrequency = Math.max(42, 760 - step * 39 + Math.sin(step * 2.1) * step * 11);
+                const waveform = step < 4 ? "triangle" : step < 7 ? "square" : step < 11 ? "sawtooth" : "square";
+                const layerCount = Math.min(6, 1 + Math.floor((step - 1) / 2));
+
+                // Early clicks are tidy little bleeps. Later ones split into detuned,
+                // descending, overlapping tones with increasingly unreasonable intervals.
+                for (let i = 0; i < layerCount; i++) {
+                    const oscillator = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    const filter = audioContext.createBiquadFilter();
+                    const delay = i * (step >= 8 ? .012 : .018);
+                    const start = now + delay;
+                    const oddRatio = step < 4
+                        ? 1 + i * .18
+                        : 0.35 + Math.abs(Math.sin(step * 1.73 + i * 2.4)) * (2.2 + step * .23);
+                    const startFrequency = Math.max(35, baseFrequency * oddRatio);
+                    const endFrequency = Math.max(28,
+                        startFrequency * (step < 4 ? .72 : (Math.sin(step * 1.9 + i) < 0 ? .22 : 2.8 + intensity * 5)));
+
+                    oscillator.type = waveform;
+                    oscillator.frequency.setValueAtTime(startFrequency, start);
+                    oscillator.frequency.exponentialRampToValueAtTime(endFrequency, start + .11 + intensity * .16);
+                    oscillator.detune.setValueAtTime(Math.sin(step * 2.2 + i * 4.1) * step * 5, start);
+
+                    filter.type = step < 5 ? "lowpass" : step < 10 ? "bandpass" : "highpass";
+                    filter.frequency.setValueAtTime(Math.max(120, 1800 - step * 90 + i * 240), start);
+                    filter.Q.setValueAtTime(1.2 + intensity * 8, start);
+
+                    const peak = Math.min(.105, .034 + intensity * .055) / (1 + i * .65);
+                    gain.gain.setValueAtTime(.0001, start);
+                    gain.gain.exponentialRampToValueAtTime(peak, start + .008);
+                    gain.gain.exponentialRampToValueAtTime(.0001, start + .14 + intensity * .28);
+
+                    oscillator.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioContext.destination);
+                    oscillator.start(start);
+                    oscillator.stop(start + .16 + intensity * .3);
+                }
+
+                // Add more static as the dream becomes less coherent.
+                if (step >= 3) {
+                    const duration = .035 + intensity * .12;
+                    const length = Math.max(1, Math.floor(audioContext.sampleRate * duration));
+                    const buffer = audioContext.createBuffer(1, length, audioContext.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < length; i++) {
+                        const fade = Math.pow(1 - i / length, .8);
+                        data[i] = (Math.random() * 2 - 1) * fade;
+                    }
+                    const noise = audioContext.createBufferSource();
+                    const filter = audioContext.createBiquadFilter();
+                    const gain = audioContext.createGain();
+                    noise.buffer = buffer;
+                    filter.type = step < 7 ? "highpass" : step < 11 ? "bandpass" : "peaking";
+                    filter.frequency.setValueAtTime(600 + ((step * 419) % 4200), now);
+                    filter.Q.setValueAtTime(1 + intensity * 12, now);
+                    gain.gain.setValueAtTime(.0001, now);
+                    gain.gain.exponentialRampToValueAtTime(Math.min(.085, .018 + intensity * .067), now + .006);
+                    gain.gain.exponentialRampToValueAtTime(.0001, now + duration);
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioContext.destination);
+                    noise.start(now);
+                }
+
+                // The last presses get a short, deliberately dissonant alarm stinger.
+                if (step >= 11) {
+                    const stinger = audioContext.createOscillator();
+                    const stingerGain = audioContext.createGain();
+                    stinger.type = step >= 14 ? "sawtooth" : "square";
+                    stinger.frequency.setValueAtTime(step >= 15 ? 47 : 130 + (step % 3) * 83, now);
+                    stinger.frequency.exponentialRampToValueAtTime(step >= 15 ? 1700 : 39, now + .19);
+                    stingerGain.gain.setValueAtTime(.0001, now);
+                    stingerGain.gain.exponentialRampToValueAtTime(step >= 15 ? .09 : .045, now + .012);
+                    stingerGain.gain.exponentialRampToValueAtTime(.0001, now + .24);
+                    stinger.connect(stingerGain);
+                    stingerGain.connect(audioContext.destination);
+                    stinger.start(now);
+                    stinger.stop(now + .26);
+                }
+            }
+
+            if (audioContext.state === "suspended") {
+                audioContext.resume().then(playLayers).catch(function () {
+                    asSound(760 - step * 31, step < 5 ? "triangle" : "sawtooth",
+                        .1 + intensity * .08, .04 + intensity * .04);
+                });
+            } else {
+                playLayers();
+            }
+        } catch (e) {
+            // Keep the interaction usable even in browsers without Web Audio support.
+            asSound(760 - step * 31, step < 5 ? "triangle" : "sawtooth",
+                .1 + intensity * .08, .04 + intensity * .04);
+        }
+    }
+
     function asShowDreamChoices(overlay) {
         const panel = asReplaceDreamPanel(overlay);
 
@@ -1479,6 +1597,7 @@
             if (asDreamEndingChoice !== "dream") return;
             asSilenceDreamChoiceMusic();
             asDreamWakeCount++;
+            asPlayDreamWakeClickSound(asDreamWakeCount);
             animateChoiceButton(wakeButton, asDreamWakeCount, 1);
             animateChoiceButton(stayButton, Math.min(AS_DREAM_WAKE_TAPS_REQUIRED, asDreamWakeCount), 3);
 
