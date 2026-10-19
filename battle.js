@@ -1136,7 +1136,7 @@ function updateExtendedArenaAttack(now) {
             arenaExtDrawSegment(0, y1, gapStart * 400, gy1, 10, "#b7c1cc", t < 650 ? 0.4 : 0.9, false);
             arenaExtDrawSegment(gapEnd * 400, gy2, 400, y2, 10, "#b7c1cc", t < 650 ? 0.4 : 0.9, false);
             ctx.save(); ctx.strokeStyle = "rgba(120,235,255," + (0.3 + pulse * 0.45) + ")"; ctx.lineWidth = 3; ctx.shadowColor = "#66eaff"; ctx.shadowBlur = 12;
-            ctx.beginPath(); ctx.moveTo(gapStart * 400, gy1); ctx.lineTo(gapEnd * 400, gy2); ctx.stroke(); ctx.restore();
+            ctx.beginPath(); ctx.arc(gapStart * 400, gy1, 6 + pulse * 2, 0, Math.PI * 2); ctx.arc(gapEnd * 400, gy2, 6 + pulse * 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
             for (var q = 0; q <= 20; q++) {
                 var u = q / 20;
                 if (u > gapStart && u < gapEnd) continue;
