@@ -1673,6 +1673,9 @@
             return;
         }
         if(asDefeatPending) return;
+        if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") {
+            window.MBPreserveGarouChargesForUniqueBossRetry("antispiral");
+        }
         asDefeatPending=true; asState="defeat"; asAttacks=[];
         asText(200,245,"ТЫ НЕ УСТОЯЛ ПЕРЕД СПИРАЛЬЮ","#ff5f75",110);
         asFlash=28; asFlashColor="#ff213f"; asShake=20;
