@@ -1367,7 +1367,7 @@
     function asShowDreamChoices(overlay) {
         const panel = asReplaceDreamPanel(overlay);
 
-        // После кинематографа остаётся только чёрный экран и две кнопки выбора.
+        // Остаётся только чёрный экран и две кнопки.
         overlay.style.background = "#000";
         overlay.style.backdropFilter = "none";
         overlay.style.webkitBackdropFilter = "none";
@@ -1393,9 +1393,10 @@
                 "border:1px solid #eee;border-radius:0;background:#000;color:#fff;" +
                 "box-shadow:none;text-shadow:none;filter:none;" +
                 "font:700 14px/1.3 Arial,sans-serif;letter-spacing:.4px;" +
-                "cursor:pointer;touch-action:manipulation;";
+                "cursor:pointer;touch-action:manipulation;transform-origin:50% 50%;" +
+                "will-change:transform,filter;";
             button.addEventListener("mouseenter", function () {
-                button.style.background = "#171717";
+                if (!button._endingAnimation) button.style.background = "#171717";
             });
             button.addEventListener("mouseleave", function () {
                 button.style.background = "#000";
@@ -1404,37 +1405,97 @@
             return button;
         }
 
-        // The original wake-up mechanic is preserved: 15 presses expose the truth.
-        const wakeButton = makePlainEndingButton("ПРОСНУТЬСЯ · 0/" + AS_DREAM_WAKE_TAPS_REQUIRED);
-        wakeButton.setAttribute("aria-label", "Нажми " + AS_DREAM_WAKE_TAPS_REQUIRED + " раз, чтобы проснуться");
+        // Each click shakes both choices. The wake button grows increasingly unstable.
+        function animateChoiceButton(button, intensity, seed) {
+            if (!button || typeof button.animate !== "function") return;
+            if (button._endingAnimation) {
+                button._endingAnimation.cancel();
+                button._endingAnimation = null;
+            }
+
+            const level = Math.max(1, Math.min(AS_DREAM_WAKE_TAPS_REQUIRED, intensity));
+            const x = Math.round(Math.sin(level * 2.17 + seed) * (3 + level * 1.8));
+            const y = Math.round(Math.cos(level * 1.63 + seed) * (2 + level * 1.2));
+            const rotation = Math.round(Math.sin(level * 1.31 + seed) * (1.5 + level * 0.9) * 10) / 10;
+            const skew = Math.round(Math.cos(level * 1.77 + seed) * level * 1.05 * 10) / 10;
+            const scale = 1 + Math.sin(level * 1.91 + seed) * Math.min(.13, level * .009);
+            const hue = (level * 47 + seed * 31) % 360;
+            const blur = level >= 10 ? Math.min(1.4, (level - 9) * .2) : 0;
+
+            const base = { transform: "translate(0,0) rotate(0deg) skewX(0deg) scale(1)", filter: "none" };
+            const first = {
+                transform: "translate(" + (x * .35) + "px," + (y * -.45) + "px) rotate(" + (rotation * 1.7) +
+                    "deg) skewX(" + (-skew) + "deg) scale(" + (1 - (scale - 1) * .45) + ")",
+                filter: "hue-rotate(" + hue + "deg) blur(" + (blur * .25) + "px)"
+            };
+            const glitch = {
+                transform: "translate(" + (-x * 1.2) + "px," + (y * 1.4) + "px) rotate(" + (-rotation * 1.3) +
+                    "deg) skewX(" + (skew * 1.4) + "deg) scale(" + (2 - scale) + ")",
+                filter: "hue-rotate(" + (hue * 1.7) + "deg) blur(" + blur + "px)"
+            };
+            const finish = {
+                transform: "translate(" + x + "px," + y + "px) rotate(" + rotation + "deg) skewX(" + skew +
+                    "deg) scale(" + scale + ")",
+                filter: "hue-rotate(" + hue + "deg) blur(" + blur + "px) saturate(" + (1 + level * .12) + ")"
+            };
+            const frames = level < 4 ? [base, first, finish] : [base, first, glitch, first, finish];
+            const animation = button.animate(frames, {
+                duration: 260 + level * 17,
+                easing: level >= 7 ? "steps(5, end)" : "ease-out",
+                fill: "forwards"
+            });
+            button._endingAnimation = animation;
+            animation.onfinish = function () {
+                if (button._endingAnimation !== animation) return;
+                button.style.transform = finish.transform;
+                button.style.filter = finish.filter;
+                button.style.letterSpacing = (0.4 + level * .09) + "px";
+                if (level >= 8) button.style.textShadow = "2px 0 #ff335f,-2px 0 #41eaff";
+                animation.cancel();
+                button._endingAnimation = null;
+            };
+        }
+
+        // Progress is intentionally invisible: no numeric counter on the button.
+        const wakeButton = makePlainEndingButton("ПРОСНУТЬСЯ");
+        wakeButton.setAttribute("aria-label", "Нажми несколько раз, чтобы проснуться");
+        const stayButton = makePlainEndingButton("ОСТАТЬСЯ");
+        stayButton.setAttribute("aria-label", "Остаться во сне и завершить бой поражением");
+
         wakeButton.addEventListener("click", function () {
             if (asDreamEndingChoice !== "dream") return;
             asDreamWakeCount++;
-            wakeButton.textContent = "ПРОСНУТЬСЯ · " +
-                Math.min(asDreamWakeCount, AS_DREAM_WAKE_TAPS_REQUIRED) + "/" + AS_DREAM_WAKE_TAPS_REQUIRED;
+            animateChoiceButton(wakeButton, asDreamWakeCount, 1);
+            animateChoiceButton(stayButton, Math.min(AS_DREAM_WAKE_TAPS_REQUIRED, asDreamWakeCount), 3);
+
             if (asDreamWakeCount >= AS_DREAM_WAKE_TAPS_REQUIRED) {
                 asDreamEndingChoice = "wake-reveal";
                 asRenderDreamOutcome("wake");
             }
         });
 
-        const stayButton = makePlainEndingButton("ОСТАТЬСЯ");
-        stayButton.setAttribute("aria-label", "Остаться во сне и завершить бой поражением");
         stayButton.addEventListener("click", function () {
             if (asDreamEndingChoice !== "dream") return;
-            asDreamEndingChoice = "stay";
-            asStop();
-            asRenderDreamOutcome("stay");
+            asDreamEndingChoice = "stay-pending";
+            animateChoiceButton(stayButton, Math.max(3, asDreamWakeCount + 1), 5);
+            animateChoiceButton(wakeButton, Math.max(2, asDreamWakeCount + 1), 2);
+            // Let the last movement register before swapping to the ending result.
             setTimeout(function () {
-                try {
-                    // Prevent revive passives from turning this ending into a victory.
-                    if (typeof resurrectedThisFight !== "undefined") resurrectedThisFight = true;
-                    if (typeof playerHp !== "undefined") playerHp = 0;
-                    if (typeof defeat === "function") defeat();
-                } catch (e) {
-                    console.error("[ANTI-SPIRAL] Ошибка фиксации концовки-поражения:", e);
-                }
-            }, 80);
+                if (asDreamEndingChoice !== "stay-pending") return;
+                asDreamEndingChoice = "stay";
+                asStop();
+                asRenderDreamOutcome("stay");
+                setTimeout(function () {
+                    try {
+                        // Prevent revive passives from turning this ending into a victory.
+                        if (typeof resurrectedThisFight !== "undefined") resurrectedThisFight = true;
+                        if (typeof playerHp !== "undefined") playerHp = 0;
+                        if (typeof defeat === "function") defeat();
+                    } catch (e) {
+                        console.error("[ANTI-SPIRAL] Ошибка фиксации концовки-поражения:", e);
+                    }
+                }, 80);
+            }, 260);
         });
     }
     function asWin() {
