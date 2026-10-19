@@ -1168,13 +1168,14 @@
             hp: 125, maxHp: 125, alive: odenAvailable, invulnTimer: 0,
             vx: 0, vy: 0, moveTargetX: 255, moveTargetY: 205,
             wanderTimer: 42, dodgeCooldown: 0, dodgeFlashTimer: 0,
-            aiSkill: 0.30, tsunamiEvading: false, tsunamiPulled: false, stunTimer: 0,
+            aiSkill: 0.62, tsunamiEvading: false, tsunamiPulled: false, stunTimer: 0,
             dodgePlanTimer: 0, lastThreatAttack: null, attackAngle: -Math.PI / 3,
             attackCooldown: 8, windup: 0, swingTimer: 0,
             swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0,
             healState: "idle", healTimer: 0, healCooldown: 0, healCooldownUntil: 0,
             healTotal: 0, healRemaining: 0, healSide: 1,
             companionMode: "guard", companionModeTimer: 115, companionSide: -1,
+            companionOffsetX: 0, companionOffsetY: 0, footworkPhase: Math.random() * Math.PI * 2,
             blueModeTimer: 0, blueModeCooldown: 0, blueModeFlashTimer: 0, blueModeCheckTimer: 0
         };
         rwbOdenSlashes = [];
@@ -4790,8 +4791,9 @@
         if (!rwbOden || !rwbPlayer || !rwbOden.alive) return;
         const oden = rwbOden;
         oden.phase += 0.11;
-        oden.aiSkill = Math.min(1, (Number(oden.aiSkill) || 0.30) + (rwbState === "fight2" ? 0.0025 : 0.00055));
-        if (rwbState === "fight2") oden.aiSkill = Math.max(0.92, oden.aiSkill);
+        // IQ improves during the fight, but never reaches perfect, inhuman prediction.
+        oden.aiSkill = Math.min(0.99, (Number(oden.aiSkill) || 0.62) + (rwbState === "fight2" ? 0.0018 : 0.00045));
+        if (rwbState === "fight2") oden.aiSkill = Math.max(0.96, oden.aiSkill);
         const aiSkill = Math.max(0.30, Math.min(1, oden.aiSkill));
         if (oden.hitFlash > 0) oden.hitFlash--;
         if (oden.invulnTimer > 0) oden.invulnTimer--;
@@ -4838,6 +4840,7 @@
         }
 
         let odenAvoidingFruitPunch = false;
+        let odenDodgingForThreat = false;
         if (!stunned) {
         // Combo attraction takes priority over evasive pathing; this is an attack effect, not a visual hint.
         const tsunamiPull = rwbOdenFindTsunamiPull(oden);
@@ -4865,16 +4868,22 @@
         } else {
             oden.companionModeTimer = Math.max(0, (Number(oden.companionModeTimer) || 0) - 1);
             if (oden.companionModeTimer <= 0) {
-                oden.companionMode = Math.random() < 0.52 ? "guard" : "roam";
+                const playerHpRatio = (Number(rwbPlayer.hp) || 0) / Math.max(1, Number(rwbPlayer.maxHp) || 1);
+                // When the player is hurt, Oden naturally spends more time guarding than roaming.
+                oden.companionMode = playerHpRatio < 0.45
+                    ? (Math.random() < 0.78 ? "guard" : "roam")
+                    : (Math.random() < 0.52 ? "guard" : "roam");
                 oden.companionSide = Math.random() < 0.5 ? -1 : 1;
+                oden.companionOffsetX = (Math.random() - 0.5) * 24;
+                oden.companionOffsetY = (Math.random() - 0.5) * 18;
                 oden.companionModeTimer = oden.companionMode === "guard"
                     ? 95 + Math.floor(Math.random() * 85)
                     : 125 + Math.floor(Math.random() * 125);
             }
             if (oden.companionMode === "guard") {
                 // Guard near the player for a short stretch, then resume independent movement.
-                oden.moveTargetX = Math.max(32, Math.min(368, rwbPlayer.x + oden.companionSide * 50));
-                oden.moveTargetY = Math.max(28, Math.min(456, rwbPlayer.y - 12));
+                oden.moveTargetX = Math.max(32, Math.min(368, rwbPlayer.x + oden.companionSide * 50 + (Number(oden.companionOffsetX) || 0)));
+                oden.moveTargetY = Math.max(28, Math.min(456, rwbPlayer.y - 12 + (Number(oden.companionOffsetY) || 0)));
                 oden.wanderTimer = Math.max(oden.wanderTimer, 8);
             } else {
                 oden.wanderTimer--;
@@ -4937,10 +4946,11 @@
         const urgentThreat = !!incoming && incoming.time <= 8;
         const newThreat = !!incoming && incoming.attack !== oden.lastThreatAttack;
         if (incoming && incoming.time <= Math.round(96 + aiSkill * 34) &&
-            (oden.dodgeCooldown <= 0 || urgentThreat) &&
-            (oden.dodgePlanTimer <= 0 || urgentThreat || (newThreat && incoming.time <= 22))) {
+            (oden.dodgeCooldown <= 0 || urgentThreat || oden.healState !== "idle") &&
+            (oden.dodgePlanTimer <= 0 || urgentThreat || oden.healState !== "idle" || (newThreat && incoming.time <= 22))) {
             const escapeX = tsunamiEscape && Number.isFinite(tsunamiEscape.safeX) ? tsunamiEscape.safeX : undefined;
             const safeTarget = rwbOdenChooseDodgeTarget(oden, incoming, escapeX);
+            odenDodgingForThreat = true;
             oden.moveTargetX = safeTarget.x;
             oden.moveTargetY = safeTarget.y;
             oden.wanderTimer = 28 + Math.floor((1 - aiSkill) * 12);
@@ -4957,14 +4967,18 @@
 
         // Same top movement speed as the player, but with eased acceleration/braking.
         // No teleporting impulses: even a dodge follows a smooth, readable trajectory.
-        const toX = oden.moveTargetX - oden.x, toY = oden.moveTargetY - oden.y;
+        // Calm movement gets tiny, slow footwork; during danger the AI drops this drift and commits to the dodge.
+        const calmFootwork = !incoming && oden.healState === "idle" && !oden.tsunamiPulled && !oden.tsunamiEvading;
+        const driftX = calmFootwork ? Math.sin(oden.phase * 0.42 + (Number(oden.footworkPhase) || 0)) * 4.2 : 0;
+        const driftY = calmFootwork ? Math.cos(oden.phase * 0.31 + (Number(oden.footworkPhase) || 0)) * 3.0 : 0;
+        const toX = oden.moveTargetX + driftX - oden.x, toY = oden.moveTargetY + driftY - oden.y;
         const dist = Math.hypot(toX, toY) || 1;
         const maxSpeed = rwbOdenGetMovementSpeed();
-        const desiredSpeed = dist < 2 ? 0 : Math.min(maxSpeed, Math.max(0.45, dist * 0.22));
+        const desiredSpeed = dist < (calmFootwork ? 7 : 2) ? 0 : Math.min(maxSpeed, Math.max(0.45, dist * 0.22));
         const desiredVx = dist > 0 ? toX / dist * desiredSpeed : 0;
         const desiredVy = dist > 0 ? toY / dist * desiredSpeed : 0;
-        const steering = oden.tsunamiPulled ? 0.24 :
-            (oden.tsunamiEvading ? 0.28 : (0.17 + aiSkill * 0.13));
+        const steering = oden.tsunamiPulled ? 0.23 : (oden.tsunamiEvading ? 0.28 :
+            (urgentThreat ? 0.33 : (0.14 + aiSkill * 0.12)));
         oden.vx += (desiredVx - oden.vx) * steering;
         oden.vy += (desiredVy - oden.vy) * steering;
         const currentSpeed = Math.hypot(oden.vx, oden.vy);
@@ -5009,8 +5023,8 @@
             if (!closeToPlayer) {
                 // Keep the remaining healing budget and timer if the player moves away.
                 oden.healState = "approach";
-            } else if (!stunned && !odenAvoidingFruitPunch) {
-                // Pause healing while dodging the fruit punch; the remaining heal is preserved.
+            } else if (!stunned && !odenAvoidingFruitPunch && !odenDodgingForThreat) {
+                // Pause healing while Oden makes an evasive move; the remaining heal is preserved.
                 const maximum = Math.max(1, Number(rwbPlayer.maxHp) || 1);
                 const hpBefore = Math.max(0, Number(rwbPlayer.hp) || 0);
                 const healStep = Math.min(Math.max(0, Number(oden.healRemaining) || 0),
@@ -5186,7 +5200,15 @@
             }
         } else if (oden.healState === "idle" && !stunned && focus) {
             oden.targetId = focus.id;
-            oden.attackAngle = Math.atan2(focus.y - oden.y, focus.x - oden.x);
+            // Lead moving bosses a little based on projectile travel time, with a small human-sized aim error.
+            const targetDx = focus.x - oden.x, targetDy = focus.y - oden.y;
+            const targetDistance = Math.hypot(targetDx, targetDy);
+            const travelFrames = Math.min(18, Math.max(2, targetDistance / 9));
+            const leadFactor = 0.34 + aiSkill * 0.36;
+            const leadX = Math.max(-2.2, Math.min(2.2, Number(focus.vx) || 0)) * travelFrames * leadFactor;
+            const leadY = Math.max(-1.8, Math.min(1.8, Number(focus.vy) || 0)) * travelFrames * leadFactor;
+            const aimError = (Math.random() - 0.5) * (0.085 + (1 - aiSkill) * 0.22);
+            oden.attackAngle = Math.atan2(targetDy + leadY, targetDx + leadX) + aimError;
             oden.swordAngle = oden.attackAngle;
             oden.windup = 3;
             oden.swingTimer = 5;
