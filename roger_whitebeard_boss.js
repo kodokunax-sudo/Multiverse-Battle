@@ -2906,8 +2906,8 @@
                     if (nearWave) {
                         let pullTargetX = Number.isFinite(Number(a.pullTargetX)) ? Number(a.pullTargetX) : wbTrapCombo.pullTargetX;
                         let pullTargetY = Number.isFinite(Number(a.pullTargetY)) ? Number(a.pullTargetY) : wbTrapCombo.pullTargetY;
-                        let pullX = clampWhitebeard((pullTargetX - rwbPlayer.x) * 0.032, -2.7, 2.7);
-                        let pullY = clampWhitebeard((pullTargetY - rwbPlayer.y) * 0.020, -1.4, 1.4);
+                        let pullX = clampWhitebeard((pullTargetX - rwbPlayer.x) * 0.025, -1.6, 1.6);
+                        let pullY = clampWhitebeard((pullTargetY - rwbPlayer.y) * 0.014, -0.9, 0.9);
                         rwbPlayer.x = clampWhitebeard(rwbPlayer.x + pullX, 16, 384);
                         rwbPlayer.y = clampWhitebeard(rwbPlayer.y + pullY, 0, 484);
                     }
@@ -4069,7 +4069,7 @@
         });
         rwbFloatingTexts.push({ x: 200, y: 80, text: "🌊 ЦУНАМИ-КОМБО: НЕ ДАЙ СЕБЕ ЗАГНАТЬСЯ!", color: "#6feaff", life: 95, maxLife: 95, vy: -0.2, vx: 0, size: 13 });
         playBossRoarSound(0.5);
-        wbTrapCombo.cooldown = 520 + Math.floor(Math.random() * 160);
+        wbTrapCombo.cooldown = 440 + Math.floor(Math.random() * 120);
         return true;
     }
 
@@ -4080,7 +4080,7 @@
             if (wbVortexActive || rwbTsunamiActive || wbBrain.phase !== "idle" || isWhitebeardSpecialWindupActive()) return false;
             // The AI punishes camping, predictable movement and excessive distance.
             let playerMadeMistake = wbBrain.stationaryFrames > 45 || wbBrain.bottomFrames > 70 || wbBrain.farFrames > 40;
-            if (!playerMadeMistake && Math.random() > 0.0045) return false;
+            if (!playerMadeMistake && Math.random() > 0.007) return false;
             return spawnWhitebeardTrapCombo();
         }
 
@@ -4115,8 +4115,8 @@
         if (t >= 35 && t <= 222 && rwbPlayer) {
             let pullX = wbTrapCombo.pullTargetX - rwbPlayer.x;
             let pullY = wbTrapCombo.pullTargetY - rwbPlayer.y;
-            let pullXStep = clampWhitebeard(pullX * 0.035, -3.0, 3.0);
-            let pullYStep = clampWhitebeard(pullY * 0.024, -1.7, 1.7);
+            let pullXStep = clampWhitebeard(pullX * 0.030, -2.2, 2.2);
+            let pullYStep = clampWhitebeard(pullY * 0.020, -1.2, 1.2);
             rwbPlayer.x = clampWhitebeard(rwbPlayer.x + pullXStep, 16, 384);
             rwbPlayer.y = clampWhitebeard(rwbPlayer.y + pullYStep, 0, 484);
             if (t % 4 === 0) {
