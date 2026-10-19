@@ -270,6 +270,8 @@
     let wbVortexNextPoint = 0;
     let wbVortexFailed = false;
     let wbVortexPullStrength = 0;
+    // Кэшированный спрайт воронки: тяжёлые дуги рисуются один раз, дальше вращается готовая текстура.
+    let wbVortexSprite = null;
     const WB_VORTEX_INTERVAL_MS = 20000; // ровно 20 секунд реального времени
     const WB_VORTEX_CHANCE = 0.35;
     const WB_VORTEX_QTE_DURATION = 180; // ровно 3 секунды на семь целей
@@ -3650,18 +3652,45 @@
             ctx.fillRect(0, 0, 400, 500);
             let boss = rwbActiveBoss || whitebeard;
             if (boss) {
-                let pulse = 1 + Math.sin(performance.now() / 100) * 0.08;
-                ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 20;
-                // Белая воронка, каждый яркий сегмент обведён чёрным.
-                for (let rr = 28; rr <= 105; rr += 22) {
-                    let start = performance.now() / 350 + rr * 0.01;
-                    let end = performance.now() / 350 + Math.PI * 1.5;
-                    ctx.strokeStyle = "#000000"; ctx.lineWidth = 10;
-                    ctx.beginPath(); ctx.arc(boss.x, boss.y, rr * pulse, start, end); ctx.stroke();
-                    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 5;
-                    ctx.beginPath(); ctx.arc(boss.x, boss.y, rr * pulse, start, end); ctx.stroke();
+                // Воронка заранее рисуется в отдельный canvas. В бою остаётся один drawImage,
+                // вместо восьми дуг с дорогим размытием теней каждый кадр.
+                const vortexNow = performance.now();
+                const pulse = 1 + Math.sin(vortexNow / 100) * 0.08;
+                if (!wbVortexSprite) {
+                    try {
+                        const sprite = document.createElement("canvas");
+                        sprite.width = sprite.height = 240;
+                        const vortexCtx = sprite.getContext("2d");
+                        if (vortexCtx) {
+                            for (let rr = 28; rr <= 105; rr += 22) {
+                                const start = rr * 0.01;
+                                const end = Math.PI * 1.5;
+                                vortexCtx.strokeStyle = "#000000"; vortexCtx.lineWidth = 10;
+                                vortexCtx.beginPath(); vortexCtx.arc(120, 120, rr, start, end); vortexCtx.stroke();
+                                vortexCtx.strokeStyle = "#ffffff"; vortexCtx.lineWidth = 5;
+                                vortexCtx.beginPath(); vortexCtx.arc(120, 120, rr, start, end); vortexCtx.stroke();
+                            }
+                            wbVortexSprite = sprite;
+                        }
+                    } catch (e) {}
                 }
-                ctx.shadowBlur = 0;
+                if (wbVortexSprite) {
+                    ctx.save();
+                    ctx.translate(boss.x, boss.y);
+                    ctx.rotate(vortexNow / 350);
+                    ctx.scale(pulse, pulse);
+                    ctx.drawImage(wbVortexSprite, -120, -120);
+                    ctx.restore();
+                } else {
+                    // Лёгкий запасной вариант, если canvas-текстуру создать не удалось.
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.lineWidth = 4;
+                    for (let rr = 35; rr <= 95; rr += 30) {
+                        ctx.beginPath();
+                        ctx.arc(boss.x, boss.y, rr * pulse, vortexNow / 350 + rr * 0.01, vortexNow / 350 + Math.PI * 1.5);
+                        ctx.stroke();
+                    }
+                }
                 ctx.fillStyle = "#ffffff"; ctx.font = "bold 13px monospace"; ctx.textAlign = "center";
                 ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("🌀 ВОРОНКА", boss.x, boss.y - 48);
                 ctx.fillText("🌀 ВОРОНКА", boss.x, boss.y - 48);
@@ -3677,8 +3706,7 @@
                 if (p.hit) continue;
                 ctx.save();
                 ctx.globalAlpha = active ? 1 : 0.55;
-                ctx.shadowColor = "#ffffff"; ctx.shadowBlur = active ? 18 : 8;
-                // Только белые маркеры: чёрный край делает их видимыми на любом фоне.
+                // Без размытой тени на каждом маркере: контраст сохраняет чёрная обводка.
                 ctx.fillStyle = "#ffffff";
                 ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = "#000000"; ctx.lineWidth = 5; ctx.stroke();
