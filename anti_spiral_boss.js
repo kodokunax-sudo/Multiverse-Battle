@@ -1366,84 +1366,66 @@
     }
     function asShowDreamChoices(overlay) {
         const panel = asReplaceDreamPanel(overlay);
-        asDreamElement(panel, "div", "АНТИ-СПИРАЛЬ · ПОСЛЕДНЯЯ ИЛЛЮЗИЯ",
-            "font-size:10px;font-weight:900;letter-spacing:2px;text-align:center;color:#bcb0ff;margin:0 0 10px;");
-        asDreamElement(panel, "h1", "ТВОЯ ИДЕАЛЬНАЯ ВСЕЛЕННАЯ", "as-dream-title");
-        asDreamElement(panel, "p",
-            "Ты победил. Все части серверного блока найдены, а значит, сохранение твоей любимой игры восстановлено. Теперь ты можешь вернуться к своему прогрессу и снова играть сколько захочешь. Больше ничего искать не нужно.",
-            "text-align:center;");
-        panel.lastElementChild.className = "as-dream-copy";
-        const badges = document.createElement("div");
-        badges.className = "as-dream-status";
-        asDreamElement(badges, "span", "▣ ВСЕ БЛОКИ СЕРВЕРА СОБРАНЫ");
-        asDreamElement(badges, "span", "✓ СОХРАНЕНИЕ ВОЗВРАЩЕНО");
-        asDreamElement(badges, "span", "∞ ОДНА ЖИЗНЬ · БЕСКОНЕЧНЫЙ ФАРМ");
-        panel.appendChild(badges);
-        asDreamElement(panel, "div", "ЭВОЛЮЦИОННЫЕ КАРТЫ · МАСТЕРСТВО 7",
-            "font-size:11px;font-weight:1000;letter-spacing:.8px;text-align:center;color:#e8b8ff;margin:16px 0 8px;");
-        const grid = document.createElement("div");
-        grid.className = "as-dream-grid";
-        let evoTemplates = [];
-        try {
-            if (typeof customCardTemplates !== "undefined" && customCardTemplates &&
-                Array.isArray(customCardTemplates["Эволюционная"])) {
-                evoTemplates = customCardTemplates["Эволюционная"];
-            }
-        } catch (e) {}
-        if (!evoTemplates.length) {
-            try {
-                if (typeof myCards !== "undefined" && Array.isArray(myCards)) {
-                    evoTemplates = myCards.filter(function(card) { return card && card.rarity === "Эволюционная"; });
-                }
-            } catch (e) {}
-        }
-        const seenNames = Object.create(null);
-        evoTemplates.forEach(function(card) {
-            const name = String(card && card.name || "").trim();
-            if (!name || seenNames[name]) return;
-            seenNames[name] = true;
-            const tile = document.createElement("div");
-            tile.className = "as-dream-card";
-            asDreamElement(tile, "div", name, "as-dream-card-name");
-            asDreamElement(tile, "div", "★ МАСТЕРСТВО 7", "as-dream-level");
-            grid.appendChild(tile);
-        });
-        if (!grid.children.length) {
-            asDreamElement(grid, "div", "Все эволюционные карты", "as-dream-card-name");
-        }
-        panel.appendChild(grid);
-        const copy = asDreamElement(panel, "p",
-            "Странно только одно: в идеальном мире даже воздух кажется затуманенным. Ты можешь попытаться проснуться. Или остаться здесь навсегда.",
-            "text-align:center;");
-        copy.className = "as-dream-copy";
-        const hint = asDreamElement(panel, "p", "СОН СЛИШКОМ ИДЕАЛЕН",
-            "font-size:10px;letter-spacing:2px;text-align:center;color:#9da0bf;margin:12px 0 6px;");
+
+        // После кинематографа остаётся только чёрный экран и две кнопки выбора.
+        overlay.style.background = "#000";
+        overlay.style.backdropFilter = "none";
+        overlay.style.webkitBackdropFilter = "none";
+        overlay.style.padding = "18px";
+        panel.style.cssText =
+            "width:100%;max-width:520px;max-height:none;overflow:visible;" +
+            "margin:0;padding:0;border:0;border-radius:0;background:transparent;" +
+            "box-shadow:none;color:#fff;";
+
         const buttons = document.createElement("div");
-        buttons.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px;margin-top:8px;";
+        buttons.style.cssText =
+            "display:flex;justify-content:center;align-items:center;gap:12px;" +
+            "width:100%;flex-wrap:wrap;margin:0;padding:0;";
         panel.appendChild(buttons);
-        const wakeButton = asDreamButton(buttons, "🌫️ ПРОСНУТЬСЯ · 0/" + AS_DREAM_WAKE_TAPS_REQUIRED, "#74dfff", function() {
+
+        function makePlainEndingButton(label) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = label;
+            button.style.cssText =
+                "display:block;flex:1 1 190px;min-width:0;max-width:250px;" +
+                "min-height:58px;padding:14px 18px;margin:0;" +
+                "border:1px solid #eee;border-radius:0;background:#000;color:#fff;" +
+                "box-shadow:none;text-shadow:none;filter:none;" +
+                "font:700 14px/1.3 Arial,sans-serif;letter-spacing:.4px;" +
+                "cursor:pointer;touch-action:manipulation;";
+            button.addEventListener("mouseenter", function () {
+                button.style.background = "#171717";
+            });
+            button.addEventListener("mouseleave", function () {
+                button.style.background = "#000";
+            });
+            buttons.appendChild(button);
+            return button;
+        }
+
+        // The original wake-up mechanic is preserved: 15 presses expose the truth.
+        const wakeButton = makePlainEndingButton("ПРОСНУТЬСЯ · 0/" + AS_DREAM_WAKE_TAPS_REQUIRED);
+        wakeButton.setAttribute("aria-label", "Нажми " + AS_DREAM_WAKE_TAPS_REQUIRED + " раз, чтобы проснуться");
+        wakeButton.addEventListener("click", function () {
             if (asDreamEndingChoice !== "dream") return;
             asDreamWakeCount++;
-            wakeButton.textContent = "🌫️ ПРОСНУТЬСЯ · " +
+            wakeButton.textContent = "ПРОСНУТЬСЯ · " +
                 Math.min(asDreamWakeCount, AS_DREAM_WAKE_TAPS_REQUIRED) + "/" + AS_DREAM_WAKE_TAPS_REQUIRED;
-            wakeButton.style.filter = "blur(" + Math.max(.12, 1.5 - asDreamWakeCount * .085) + "px)";
-            if (asDreamWakeCount < 4) hint.textContent = "ТУМАН НЕ РАССЕИВАЕТСЯ...";
-            else if (asDreamWakeCount < 9) hint.textContent = "ТЫ УЖЕ ПЫТАЛСЯ ПРОСНУТЬСЯ. ЭТО НЕ СХОДИТСЯ.";
-            else if (asDreamWakeCount < AS_DREAM_WAKE_TAPS_REQUIRED) {
-                hint.textContent = "РЕАЛЬНОСТЬ ТРЕЩИТ. НАЖМИ ЕЩЁ " +
-                    (AS_DREAM_WAKE_TAPS_REQUIRED - asDreamWakeCount) + " РАЗ.";
-            }
             if (asDreamWakeCount >= AS_DREAM_WAKE_TAPS_REQUIRED) {
                 asDreamEndingChoice = "wake-reveal";
                 asRenderDreamOutcome("wake");
             }
-        }, true);
-        const stayButton = asDreamButton(buttons, "🌫️ ОСТАТЬСЯ", "#b49cff", function() {
+        });
+
+        const stayButton = makePlainEndingButton("ОСТАТЬСЯ");
+        stayButton.setAttribute("aria-label", "Остаться во сне и завершить бой поражением");
+        stayButton.addEventListener("click", function () {
             if (asDreamEndingChoice !== "dream") return;
             asDreamEndingChoice = "stay";
             asStop();
             asRenderDreamOutcome("stay");
-            setTimeout(function() {
+            setTimeout(function () {
                 try {
                     // Prevent revive passives from turning this ending into a victory.
                     if (typeof resurrectedThisFight !== "undefined") resurrectedThisFight = true;
@@ -1453,9 +1435,7 @@
                     console.error("[ANTI-SPIRAL] Ошибка фиксации концовки-поражения:", e);
                 }
             }, 80);
-        }, true);
-        wakeButton.setAttribute("aria-label", "Нажми " + AS_DREAM_WAKE_TAPS_REQUIRED + " раз, чтобы проснуться");
-        stayButton.setAttribute("aria-label", "Остаться во сне и завершить бой поражением");
+        });
     }
     function asWin() {
         if(asWinPending) return;
