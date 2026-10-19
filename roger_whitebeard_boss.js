@@ -272,6 +272,8 @@
     let wbVortexPullStrength = 0;
     // Кэшированный спрайт воронки: тяжёлые дуги рисуются один раз, дальше вращается готовая текстура.
     let wbVortexSprite = null;
+    // Лёгкая заранее отрисованная модель вихря, отражающего пули.
+    let wbReflectVortexSprite = null;
     const WB_VORTEX_INTERVAL_MS = 20000; // ровно 20 секунд реального времени
     const WB_VORTEX_CHANCE = 0.35;
     const WB_VORTEX_QTE_DURATION = 180; // ровно 3 секунды на семь целей
@@ -5926,47 +5928,95 @@
         }
 
         if (a.type === "wb_reflect_vortex") {
+            // Рисуем сложную геометрию только при первом появлении; в бою используем один drawImage.
+            if (!wbReflectVortexSprite) {
+                try {
+                    var vortexSprite = document.createElement("canvas");
+                    vortexSprite.width = vortexSprite.height = 192;
+                    var vortexCtx = vortexSprite.getContext("2d");
+                    if (vortexCtx) {
+                        var vortexBody = vortexCtx.createRadialGradient(96, 96, 3, 96, 96, 86);
+                        vortexBody.addColorStop(0, "rgba(3,2,12,0.99)");
+                        vortexBody.addColorStop(0.19, "rgba(23,8,49,0.98)");
+                        vortexBody.addColorStop(0.43, "rgba(71,24,126,0.92)");
+                        vortexBody.addColorStop(0.72, "rgba(119,57,194,0.55)");
+                        vortexBody.addColorStop(1, "rgba(165,105,255,0)");
+                        vortexCtx.fillStyle = vortexBody;
+                        vortexCtx.beginPath();
+                        vortexCtx.ellipse(96, 96, 86, 68, 0, 0, Math.PI * 2);
+                        vortexCtx.fill();
+
+                        // Внешняя воронка и сужающиеся концентрические края.
+                        vortexCtx.lineCap = "round";
+                        vortexCtx.strokeStyle = "rgba(22,5,43,0.95)";
+                        vortexCtx.lineWidth = 9;
+                        vortexCtx.beginPath(); vortexCtx.ellipse(96, 96, 80, 62, 0, 0, Math.PI * 2); vortexCtx.stroke();
+                        vortexCtx.strokeStyle = "rgba(201,157,255,0.88)";
+                        vortexCtx.lineWidth = 3;
+                        vortexCtx.beginPath(); vortexCtx.ellipse(96, 96, 80, 62, 0, 0, Math.PI * 2); vortexCtx.stroke();
+
+                        for (var spiral = 0; spiral < 5; spiral++) {
+                            vortexCtx.beginPath();
+                            for (var step = 0; step <= 56; step++) {
+                                var t = step / 56;
+                                var angle = spiral * Math.PI * 2 / 5 + t * Math.PI * 4.4;
+                                var radius = 77 - t * 65;
+                                var sx = 96 + Math.cos(angle) * radius;
+                                var sy = 96 + Math.sin(angle) * radius * 0.76;
+                                if (step === 0) vortexCtx.moveTo(sx, sy);
+                                else vortexCtx.lineTo(sx, sy);
+                            }
+                            vortexCtx.strokeStyle = "rgba(10,3,20,0.96)";
+                            vortexCtx.lineWidth = 8;
+                            vortexCtx.stroke();
+                            vortexCtx.strokeStyle = spiral % 2 ? "rgba(230,208,255,0.95)" : "rgba(163,102,255,0.98)";
+                            vortexCtx.lineWidth = 3;
+                            vortexCtx.stroke();
+                        }
+
+                        // Тёмное горло воронки, которое визуально собирает спирали в одну точку.
+                        var vortexCore = vortexCtx.createRadialGradient(96, 96, 2, 96, 96, 25);
+                        vortexCore.addColorStop(0, "rgba(0,0,0,1)");
+                        vortexCore.addColorStop(0.52, "rgba(9,3,18,0.99)");
+                        vortexCore.addColorStop(0.82, "rgba(59,22,99,0.98)");
+                        vortexCore.addColorStop(1, "rgba(220,192,255,0.92)");
+                        vortexCtx.fillStyle = vortexCore;
+                        vortexCtx.beginPath(); vortexCtx.ellipse(96, 96, 24, 19, 0, 0, Math.PI * 2); vortexCtx.fill();
+                        vortexCtx.strokeStyle = "rgba(255,255,255,0.94)";
+                        vortexCtx.lineWidth = 2;
+                        vortexCtx.beginPath(); vortexCtx.ellipse(96, 96, 24, 19, 0, 0, Math.PI * 2); vortexCtx.stroke();
+
+                        wbReflectVortexSprite = vortexSprite;
+                    }
+                } catch (e) {}
+            }
+
+            var vortexNow = performance.now();
+            var pulse = 1 + Math.sin(vortexNow / 390) * 0.025;
+            var vortexSize = (a.radius || 62) * 2.42 * pulse;
             ctx.save();
-            let pulse = 1 + Math.sin(performance.now() / 75) * 0.12;
             ctx.translate(a.x, a.y);
             ctx.rotate(a.rotation || 0);
-            ctx.shadowColor = "#ffffff";
-            ctx.shadowBlur = 28;
-            ctx.globalAlpha = 0.28;
-            ctx.fillStyle = "#ffffff";
-            ctx.beginPath(); ctx.arc(0, 0, a.radius * 1.18 * pulse, 0, Math.PI * 2); ctx.fill();
-            for (let ring = 0; ring < 4; ring++) {
-                let rx = a.radius * pulse * (0.52 + ring * 0.19);
-                let ry = a.radius * (0.34 + ring * 0.15);
-                let rotation = ring * 0.42;
-                let start = 0.15 + performance.now() / (ring % 2 ? 220 : 320);
-                let end = Math.PI * 1.7 + performance.now() / (ring % 2 ? 220 : 320);
-                ctx.globalAlpha = 0.96 - ring * 0.13;
-                ctx.strokeStyle = "#000000"; ctx.lineWidth = ring === 0 ? 8 : 6;
-                ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, rotation, start, end); ctx.stroke();
-                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = ring === 0 ? 4 : 2.8;
-                ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, rotation, start, end); ctx.stroke();
+            if (wbReflectVortexSprite) {
+                ctx.globalAlpha = 0.96;
+                ctx.drawImage(wbReflectVortexSprite, -vortexSize / 2, -vortexSize / 2, vortexSize, vortexSize);
+            } else {
+                // Самый лёгкий запасной вариант: никаких размытия и циклов частиц.
+                ctx.globalAlpha = 0.9;
+                ctx.strokeStyle = "#b989ff";
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.ellipse(0, 0, a.radius * pulse, a.radius * 0.72 * pulse, 0, 0, Math.PI * 2); ctx.stroke();
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.ellipse(0, 0, a.radius * 0.45, a.radius * 0.32, 0, 0, Math.PI * 2); ctx.stroke();
+                ctx.fillStyle = "#080310";
+                ctx.beginPath(); ctx.ellipse(0, 0, a.radius * 0.2, a.radius * 0.15, 0, 0, Math.PI * 2); ctx.fill();
             }
-            // Белая сердцевина разлома с чётким чёрным контуром и тёмной трещиной.
-            ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff";
-            ctx.beginPath(); ctx.ellipse(0, 0, a.radius * 0.32, a.radius * 0.45, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = "#000000"; ctx.lineWidth = 5; ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(-a.radius * 0.08, -a.radius * 0.37);
-            ctx.lineTo(a.radius * 0.04, -a.radius * 0.13); ctx.lineTo(-a.radius * 0.06, a.radius * 0.02);
-            ctx.lineTo(a.radius * 0.09, a.radius * 0.19); ctx.lineTo(-a.radius * 0.01, a.radius * 0.38);
-            ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.stroke();
-            for (let shard = 0; shard < 8; shard++) {
-                let ang = shard * Math.PI / 4 + performance.now() / 600;
-                ctx.fillStyle = "#ffffff"; ctx.strokeStyle = "#000000"; ctx.lineWidth = 2.5;
-                ctx.beginPath();
-                ctx.moveTo(Math.cos(ang) * a.radius * 0.74, Math.sin(ang) * a.radius * 0.74);
-                ctx.lineTo(Math.cos(ang + 0.14) * a.radius * 1.08, Math.sin(ang + 0.14) * a.radius * 1.08);
-                ctx.lineTo(Math.cos(ang + 0.28) * a.radius * 0.74, Math.sin(ang + 0.28) * a.radius * 0.74);
-                ctx.closePath(); ctx.fill(); ctx.stroke();
-            }
-            ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
-            ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("覇気 / ОТРАЖЕНИЕ", 0, a.radius + 26);
-            ctx.fillText("覇気 / ОТРАЖЕНИЕ", 0, a.radius + 26);
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+            ctx.strokeStyle = "#000000"; ctx.lineWidth = 4;
+            ctx.strokeText("覇気 / ОТРАЖЕНИЕ", 0, (a.radius || 62) + 26);
+            ctx.fillText("覇気 / ОТРАЖЕНИЕ", 0, (a.radius || 62) + 26);
             ctx.restore(); return;
         }
 
