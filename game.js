@@ -2420,6 +2420,8 @@ function generateEnemy() {
     
     let btn = document.getElementById("startArenaBtn");
     let livingBtn = document.getElementById("startLivingStoneBtn");
+    let livingSuperBtn = document.getElementById("startLivingStoneSuperBtn");
+    if (livingSuperBtn && Number(wave) !== 2000) livingSuperBtn.style.display = "none";
     let waystarBtn = document.getElementById("startWaystarBtn");
     let skipBtn = document.getElementById("skipArenaBtn");
     let rwbBtn = document.getElementById("startRogerWB");
@@ -2528,9 +2530,25 @@ function generateEnemy() {
             currentEnemy.name = "♾️ Анти-Спираль (ослабленная)";
         }
     }
+    else if (wave === 2000 && isUniqueBoss) {
+        let alreadyDefeatedSuperStone = typeof defeatedBosses !== "undefined" &&
+            Array.isArray(defeatedBosses) && defeatedBosses.includes(2000);
+        if (btn) btn.style.display = "none";
+        if (livingBtn) livingBtn.style.display = "none";
+        if (waystarBtn) waystarBtn.style.display = "none";
+        if (rwbBtn) rwbBtn.style.display = "none";
+        if (livingSuperBtn) livingSuperBtn.style.display = alreadyDefeatedSuperStone ? "none" : "block";
+        if (alreadyDefeatedSuperStone) {
+            currentEnemy.hp = Math.max(1, Math.floor(currentEnemy.hp * 0.2));
+            currentEnemy.maxHp = currentEnemy.hp;
+            currentEnemy.isWeakenedSuperStone = true;
+            currentEnemy.name = "🪨 Живой Камень: Супер-версия (ослабленный)";
+        }
+    }
     else {
         let antiSpiralBtn = document.getElementById("startAntiSpiralBossBtn");
         if (antiSpiralBtn) antiSpiralBtn.style.display = "none";
+        if (livingSuperBtn) livingSuperBtn.style.display = "none";
         if (livingBtn) livingBtn.style.display = "none";
         if (waystarBtn) waystarBtn.style.display = "none";
         if (rwbBtn) rwbBtn.style.display = "none";
@@ -2684,6 +2702,7 @@ function checkEvolutionQuests() {
 // ============================================================
 function handleClick() { 
     initAudio(); 
+    if (typeof window !== "undefined" && window.livingStoneSuperActive === true) return;
     if (typeof arenaActive !== 'undefined' && arenaActive) return; 
     if (typeof livingStoneActive !== 'undefined' && livingStoneActive) return;
     if (typeof waystarActive !== 'undefined' && waystarActive) return;
