@@ -84,6 +84,12 @@
         { speaker: "🔥 РОДЖЕР", text: "Неужели я вот так погибну не найдя ван пис? Эх... Жаль..." }
     ];
 
+    var RWB_ODEN_DEATH_DIALOG = [
+        { speaker: "⚔️ ОДЭН", text: "Ха... Похоже, мой путь здесь заканчивается. Но я не жалею, что сражался рядом с тобой." },
+        { speaker: "⚔️ ОДЭН", text: "Я верю в тебя. Ты сильнее, чем думаешь, и уже зашёл слишком далеко, чтобы отступить." },
+        { speaker: "⚔️ ОДЭН", text: "Закончи то, что мы начали. Найди серверный блок и верни своё сохранение... Я доверяю это тебе." }
+    ];
+
     var RWB_WHITEBEARD_DIALOG_INITIAL = [
         { speaker: "❄️ БЕЛОУС", text: "Ты победил меня в честном бою. Я уважаю силу, но ещё больше — волю человека. И зачем ты тут?" }
     ];
@@ -128,6 +134,7 @@
     let rwbOdenSlashes = [];
     let rwbOdenLastTargetId = null;
     let rwbOdenOfferShown = false;
+    let rwbOdenDeathDialogShown = false;
     let rwbOdenConsentMemory = Object.create(null);
     let rwbPlayerFocusTargetId = null;
 
@@ -846,6 +853,17 @@
         if (rwbDialogStage >= RWB_ROGER_DIALOG.length) { rwbDialogActive = false; rwbFinalCleanup(); }
     }
 
+    function handleOdenDeathDialogClick() {
+        if (!rwbDialogActive || rwbDialogType !== "oden_death") return;
+        rwbDialogStage++;
+        playWhooshSound(0.12);
+        if (rwbDialogStage >= RWB_ODEN_DEATH_DIALOG.length) {
+            rwbDialogActive = false;
+            rwbDialogType = null;
+            rwbDialogTimer = 0;
+        }
+    }
+
     function handleWhitebeardDialogClick(ev) {
         if (rwbDialogQueue.length > 0) {
             rwbDialogQueue.shift(); playWhooshSound(0.1);
@@ -1127,6 +1145,7 @@
         rwbWhitebeardDisabled = [false, false, false]; rwbWBPhase = "intro";
         rwbDialogQueue = []; rwbDialogActive = false; rwbDialogType = null; rwbDialogTimer = 0;
         rwbOdenOfferShown = false;
+        rwbOdenDeathDialogShown = false;
         wbBrain = { bottomFrames: 0, stationaryFrames: 0, farFrames: 0, shotsInWindow: 0, shotWindowTimer: 180, adaptiveCooldown: 0, lastX: 200, lastY: 420, playerVX: 0, playerVY: 0, lastAdaptive: null, lastAttackId: -1, lastSuperAttackId: -1, comboHint: null, phase: "idle", phaseTimer: 0, recoveryTimer: 0, plannedTargetX: 200, plannedTargetY: 360, plannedRockXs: [] };
         wbTrapCombo = { stage: "idle", timer: 0, cooldown: 300, targetX: 200, targetY: 380, startedAt: 0 };
         rwbPlayerStunTimer = 0; wbFruitFlashTimer = 0; wbFruitFlashPower = 0.72;
@@ -1168,7 +1187,8 @@
             hp: 125, maxHp: 125, alive: odenAvailable, invulnTimer: 0,
             vx: 0, vy: 0, moveTargetX: 255, moveTargetY: 205,
             wanderTimer: 42, dodgeCooldown: 0, dodgeFlashTimer: 0,
-            aiSkill: 0.62, tsunamiEvading: false, tsunamiPulled: false, stunTimer: 0,
+            aiSkill: 0.62, hakiAwakened: true, lastBreath: false,
+            tsunamiEvading: false, tsunamiPulled: false, stunTimer: 0,
             dodgePlanTimer: 0, lastThreatAttack: null, attackAngle: -Math.PI / 3,
             attackCooldown: 8, windup: 0, swingTimer: 0,
             swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0,
@@ -1534,6 +1554,12 @@
             else if (key === "escape" || key === "n") { ev.preventDefault(); resolveRWBOdenOffer(false); }
             return;
         }
+        if (rwbDialogActive && rwbDialogType === "oden_death") {
+            if (key === "enter" || key === " " || key === "spacebar") {
+                ev.preventDefault(); handleOdenDeathDialogClick();
+            }
+            return;
+        }
         rwbKeys[key] = true;
     }
     function handleRWBKeyUp(ev) { if (!window.rwbActive) return; rwbKeys[ev.key.toLowerCase()] = false; }
@@ -1552,6 +1578,7 @@
                 if (rwbDialogType === "roger") handleRogersDialogClick();
                 else if (rwbDialogType === "whitebeard") handleWhitebeardDialogClick(fakeEvent);
                 else if (rwbDialogType === "oden_offer") handleRWBOdenOfferClick(fakeEvent);
+                else if (rwbDialogType === "oden_death") handleOdenDeathDialogClick();
             }
             return;
         }
@@ -1595,6 +1622,7 @@
         if (rwbDialogActive && rwbDialogType === "roger") { handleRogersDialogClick(); return; }
         if (rwbDialogActive && rwbDialogType === "whitebeard") { handleWhitebeardDialogClick(ev); return; }
         if (rwbDialogActive && rwbDialogType === "oden_offer") { handleRWBOdenOfferClick(ev); return; }
+        if (rwbDialogActive && rwbDialogType === "oden_death") { handleOdenDeathDialogClick(); return; }
     }
 
     // ============================================================
@@ -3811,6 +3839,38 @@
             }
             ctx.font = "11px monospace"; ctx.fillStyle = "#aaaaaa"; ctx.textAlign = "center";
             ctx.fillText("ENTER / Y — ДА     ESC / N — НЕТ", 200, 472);
+        } else if (rwbDialogType === "oden_death") {
+            ctx.save();
+            ctx.translate(200, 117);
+            ctx.shadowColor = "#ff122b"; ctx.shadowBlur = 22;
+            ctx.strokeStyle = "#070307"; ctx.lineWidth = 7; ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(-45, -30); ctx.lineTo(45, 30);
+            ctx.moveTo(45, -30); ctx.lineTo(-45, 30);
+            ctx.stroke();
+            ctx.strokeStyle = "#ff253b"; ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(-45, -30); ctx.lineTo(45, 30);
+            ctx.moveTo(45, -30); ctx.lineTo(-45, 30);
+            ctx.stroke();
+            ctx.restore();
+
+            var deathLine = RWB_ODEN_DEATH_DIALOG[rwbDialogStage];
+            if (deathLine) {
+                ctx.font = "bold 17px Nunito, sans-serif"; ctx.textAlign = "center";
+                ctx.fillStyle = "#ff3448"; ctx.shadowColor = "#ff1028"; ctx.shadowBlur = 13;
+                ctx.fillText(deathLine.speaker, 200, 215);
+                ctx.shadowBlur = 0; ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 14px Nunito, sans-serif";
+                var deathLines = wrapText(deathLine.text, 340, ctx);
+                for (var deathLineIndex = 0; deathLineIndex < deathLines.length; deathLineIndex++) {
+                    ctx.fillText(deathLines[deathLineIndex], 200, 258 + deathLineIndex * 25);
+                }
+            }
+            if (Math.floor(performance.now() / 500) % 2 === 0) {
+                ctx.font = "12px monospace"; ctx.fillStyle = "#aaaaaa"; ctx.textAlign = "center";
+                ctx.fillText(">> Кликните или нажмите ENTER, чтобы продолжить <<", 200, 470);
+            }
         }
         ctx.restore();
     }
@@ -4341,6 +4401,61 @@
         return Math.abs(d - radius) < limit ? { x: sw.x, y: sw.y, axis: "point", distance: Math.abs(d - radius) } : null;
     }
 
+    function rwbOdenEnterLastBreath(oden) {
+        if (!oden || !oden.alive || oden.lastBreath) return;
+        oden.lastBreath = true;
+        oden.hakiAwakened = true;
+        oden.healState = "idle";
+        oden.healTimer = 0;
+        oden.healRemaining = 0;
+        oden.healTotal = 0;
+        oden.healCooldownUntil = Number.MAX_SAFE_INTEGER;
+        oden.companionMode = "last_breath";
+        oden.companionModeTimer = 999999;
+        oden.windup = 1;
+        oden.swingTimer = 2;
+        oden.attackCooldown = 0;
+        oden.dodgeCooldown = 0;
+        oden.dodgePlanTimer = 0;
+        oden.invulnTimer = Math.min(Number(oden.invulnTimer) || 0, 12);
+        // Old normal slashes are cleared so every new non-blue slash shows the Haki awakening.
+        rwbOdenSlashes = rwbOdenSlashes.filter(function(slash) { return slash && slash.isBlue; });
+        rwbFloatingTexts.push({
+            x: oden.x, y: oden.y - 36, text: "ПОСЛЕДНИЙ ВЗДОХ",
+            color: "#ff1b2d", life: 120, maxLife: 120, vy: -0.65, vx: 0, size: 15
+        });
+        spawnHitParticles(oden.x, oden.y, "#f21d35", 22);
+        spawnHakiLightning(oden.x, oden.y, 2, false);
+        rwbScreenFlash = Math.max(rwbScreenFlash, 7);
+        rwbScreenFlashColor = "#790014";
+        rwbShake = Math.max(rwbShake, 8);
+        playImpactSound(0.42, 0.72);
+    }
+
+    function rwbOdenDie(oden) {
+        if (!oden || !oden.alive) return;
+        oden.alive = false;
+        oden.windup = 0;
+        oden.swingTimer = 0;
+        oden.healState = "idle";
+        rwbOdenSlashes = [];
+        rwbFloatingTexts.push({
+            x: oden.x, y: oden.y - 36, text: "ОДЭН ПАЛ!",
+            color: "#ff263b", life: 120, maxLife: 120, vy: -0.45, vx: 0, size: 17
+        });
+        spawnHitParticles(oden.x, oden.y, oden.lastBreath ? "#ff2038" : "#b77aff", 28);
+        spawnHakiLightning(oden.x, oden.y, 2, false);
+        rwbShake = Math.max(rwbShake, 8);
+        if (oden.available && !rwbOdenDeathDialogShown &&
+            (rwbState === "fight1" || rwbState === "fight2")) {
+            rwbOdenDeathDialogShown = true;
+            rwbDialogActive = true;
+            rwbDialogType = "oden_death";
+            rwbDialogStage = 0;
+            rwbDialogTimer = 0;
+        }
+    }
+
     function rwbOdenApplyCurrentHits(oden) {
         if (!oden || !oden.alive) return;
         for (let i = rwbAttacks.length - 1; i >= 0; i--) {
@@ -4351,8 +4466,13 @@
             const projectile = ["fist", "rock", "giant_rock", "fire_piece", "haki_wave", "wb_reflected_bullet"].includes(a.type) ||
                 (a.type === "hell_fire" && a.state === "flying");
             if (oden.invulnTimer <= 0) {
-                const damage = Math.max(4, Math.min(18, Math.ceil((Number(a.damage) || 12) * 0.45)));
+                const rawDamage = Math.max(4, Math.min(18, Math.ceil((Number(a.damage) || 12) * 0.45)));
+                const damage = rawDamage * (oden.lastBreath ? 0.2 : 1);
                 oden.hp = Math.max(0, oden.hp - damage);
+                if (oden.hp > 0 && !oden.lastBreath &&
+                    oden.hp <= Math.max(1, Number(oden.maxHp) || 125) * 0.25) {
+                    rwbOdenEnterLastBreath(oden);
+                }
                 const stunDuration = Number(a.stunDuration || a.stunFrames) ||
                     (a.type === "wb_fruit_punch" && a.state === "active" ? 38 :
                     (a.type === "tsunami" ? (a.comboPull ? 18 : 10) : 0));
@@ -4361,7 +4481,7 @@
                     oden.windup = 0;
                     oden.swingTimer = 0;
                 }
-                oden.invulnTimer = 64;
+                oden.invulnTimer = oden.lastBreath ? 24 : 64;
                 oden.hitFlash = 12;
                 oden.dodgeCooldown = Math.max(oden.dodgeCooldown || 0, 12);
                 let knockX = oden.x - risk.x, knockY = oden.y - risk.y;
@@ -4383,16 +4503,7 @@
                 }
                 spawnHitParticles(oden.x, oden.y, "#ffd44f", 12);
                 playImpactSound(0.16, 1.0);
-                if (oden.hp <= 0) {
-                    oden.alive = false; oden.windup = 0; oden.swingTimer = 0;
-                    rwbOdenSlashes = [];
-                    rwbFloatingTexts.push({
-                        x: oden.x, y: oden.y - 36, text: "ОДЭН ВЫБЫЛ!",
-                        color: "#d0a4ff", life: 100, maxLife: 100, vy: -0.45, vx: 0, size: 17
-                    });
-                    spawnHitParticles(oden.x, oden.y, "#b77aff", 24);
-                    rwbShake = Math.max(rwbShake, 7);
-                }
+                if (oden.hp <= 0) rwbOdenDie(oden);
             }
             if (projectile) rwbAttacks.splice(i, 1);
         }
@@ -4402,16 +4513,18 @@
             if (!rwbOdenShockwaveThreat(sw, oden.x, oden.y, 0, false)) continue;
             sw.odenHit = true;
             if (oden.invulnTimer > 0) continue;
-            const damage = Math.max(4, Math.min(15, Math.ceil((Number(sw.damage) || 10) * 0.45)));
+            const rawDamage = Math.max(4, Math.min(15, Math.ceil((Number(sw.damage) || 10) * 0.45)));
+            const damage = rawDamage * (oden.lastBreath ? 0.2 : 1);
             oden.hp = Math.max(0, oden.hp - damage);
-            oden.invulnTimer = 64; oden.hitFlash = 12;
-            rwbFloatingTexts.push({x:oden.x,y:oden.y-25,text:"ОДЭН −"+damage,color:"#ffe98a",life:48,maxLife:48,vy:-0.7,vx:0,size:13});
-            spawnHitParticles(oden.x, oden.y, "#ffd44f", 12);
+            if (oden.hp > 0 && !oden.lastBreath &&
+                oden.hp <= Math.max(1, Number(oden.maxHp) || 125) * 0.25) {
+                rwbOdenEnterLastBreath(oden);
+            }
+            oden.invulnTimer = oden.lastBreath ? 24 : 64; oden.hitFlash = 12;
+            rwbFloatingTexts.push({x:oden.x,y:oden.y-25,text:"ОДЭН −"+damage.toFixed(1).replace(/\.0$/,""),color:oden.lastBreath ? "#ff263b" : "#ffe98a",life:48,maxLife:48,vy:-0.7,vx:0,size:13});
+            spawnHitParticles(oden.x, oden.y, oden.lastBreath ? "#ff263b" : "#ffd44f", 12);
             if (oden.hp <= 0) {
-                oden.alive = false; oden.windup = 0; oden.swingTimer = 0; rwbOdenSlashes = [];
-                rwbFloatingTexts.push({x:oden.x,y:oden.y-36,text:"ОДЭН ВЫБЫЛ!",color:"#d0a4ff",life:100,maxLife:100,vy:-0.45,vx:0,size:17});
-                spawnHitParticles(oden.x, oden.y, "#b77aff", 24);
-                rwbShake = Math.max(rwbShake, 7);
+                rwbOdenDie(oden);
                 return;
             }
         }
@@ -4420,6 +4533,7 @@
     // Oden's speed is tied to the player's current movement modifiers, not his AI skill.
     function rwbOdenGetMovementSpeed() {
         let speed = (Number(rwbBaseSpeed) || 4.5) * (Number(rwbSpeedMult) || 1);
+        if (rwbOden && rwbOden.lastBreath) speed *= 1.35;
         if (typeof getTakabaCombatModifiers === "function") {
             try {
                 const modifiers = getTakabaCombatModifiers();
@@ -4791,6 +4905,10 @@
         if (!rwbOden || !rwbPlayer || !rwbOden.alive) return;
         const oden = rwbOden;
         oden.phase += 0.11;
+        if (!oden.lastBreath && oden.hp > 0 &&
+            oden.hp <= Math.max(1, Number(oden.maxHp) || 125) * 0.25) {
+            rwbOdenEnterLastBreath(oden);
+        }
         // IQ improves during the fight, but never reaches perfect, inhuman prediction.
         oden.aiSkill = Math.min(0.99, (Number(oden.aiSkill) || 0.62) + (rwbState === "fight2" ? 0.0018 : 0.00045));
         if (rwbState === "fight2") oden.aiSkill = Math.max(0.96, oden.aiSkill);
@@ -4806,7 +4924,7 @@
         if (oden.blueModeCheckTimer > 0) oden.blueModeCheckTimer--;
         const odenNow = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
         const playerMaxHp = Math.max(1, Number(rwbPlayer.maxHp) || 1);
-        if (oden.healState === "idle" &&
+        if (!oden.lastBreath && oden.healState === "idle" &&
             odenNow >= (Number(oden.healCooldownUntil) || 0) &&
             Number(rwbPlayer.hp) < playerMaxHp * 0.35 &&
             (Number(oden.stunTimer) || 0) <= 0) {
@@ -4936,7 +5054,7 @@
                 };
             }
         }
-        if (oden.healState === "idle" && oden.blueModeCooldown <= 0 && oden.blueModeTimer <= 0 &&
+        if (!oden.lastBreath && oden.healState === "idle" && oden.blueModeCooldown <= 0 && oden.blueModeTimer <= 0 &&
             oden.blueModeCheckTimer <= 0) {
             oden.blueModeCheckTimer = 12;
             const laneBlocked = rwbOdenHasBreakableBlockOnAttackLane(oden);
@@ -4945,7 +5063,7 @@
         }
         const urgentThreat = !!incoming && incoming.time <= 8;
         const newThreat = !!incoming && incoming.attack !== oden.lastThreatAttack;
-        if (incoming && incoming.time <= Math.round(96 + aiSkill * 34) &&
+        if (!oden.lastBreath && incoming && incoming.time <= Math.round(96 + aiSkill * 34) &&
             (oden.dodgeCooldown <= 0 || urgentThreat || oden.healState !== "idle") &&
             (oden.dodgePlanTimer <= 0 || urgentThreat || oden.healState !== "idle" || (newThreat && incoming.time <= 22))) {
             const escapeX = tsunamiEscape && Number.isFinite(tsunamiEscape.safeX) ? tsunamiEscape.safeX : undefined;
@@ -4963,6 +5081,17 @@
             spawnHitParticles(oden.x, oden.y, "#d9a7ff", 4);
         } else if (!incoming && oden.dodgePlanTimer <= 0) {
             oden.lastThreatAttack = null;
+        }
+
+        if (oden.lastBreath) {
+            const rushTarget = getRWBOdenAttackTarget(getRWBOdenTargets());
+            if (rushTarget) {
+                const awayX = oden.x - rushTarget.x, awayY = oden.y - rushTarget.y;
+                const awayLength = Math.max(1, Math.hypot(awayX, awayY));
+                oden.moveTargetX = clampWhitebeard(rushTarget.x + awayX / awayLength * 42, 18, 382);
+                oden.moveTargetY = clampWhitebeard(rushTarget.y + awayY / awayLength * 42, 8, 482);
+                oden.wanderTimer = 0;
+            }
         }
 
         // Same top movement speed as the player, but with eased acceleration/braking.
@@ -5052,7 +5181,7 @@
 
         const targets = getRWBOdenTargets();
         const focus = getRWBOdenAttackTarget(targets);
-        const odenAttackRate = oden.blueModeTimer > 0 ? 3 : 1; // Triple attack cadence in blue mode.
+        const odenAttackRate = oden.blueModeTimer > 0 ? 3 : (oden.lastBreath ? 1.65 : 1); // Blue mode unchanged; last breath attacks faster.
         for (let i = rwbOdenSlashes.length - 1; i >= 0; i--) {
             const slash = rwbOdenSlashes[i];
             const previousX = slash.x, previousY = slash.y;
@@ -5087,6 +5216,20 @@
             if (!target) {
                 rwbOdenSlashes.splice(i, 1);
                 continue;
+            }
+            // Ordinary Haki slashes receive only a small course correction. Blue mode
+            // took the separate block-only branch above and keeps its full lock-on.
+            if (!slash.isBlue && Number(slash.homingStrength) > 0) {
+                const currentSpeed = Math.max(1, Math.hypot(slash.vx, slash.vy));
+                const currentAngle = Math.atan2(slash.vy, slash.vx);
+                const targetAngle = Math.atan2(target.y - slash.y, target.x - slash.x);
+                const angleDelta = Math.atan2(
+                    Math.sin(targetAngle - currentAngle),
+                    Math.cos(targetAngle - currentAngle)
+                );
+                const correctedAngle = currentAngle + angleDelta * Math.min(0.02, Number(slash.homingStrength) || 0.012);
+                slash.vx = Math.cos(correctedAngle) * currentSpeed;
+                slash.vy = Math.sin(correctedAngle) * currentSpeed;
             }
             slash.x += slash.vx;
             slash.y += slash.vy;
@@ -5163,8 +5306,9 @@
                 } else {
                     const target = getRWBOdenTargetById(oden.targetId);
                     if (target) {
-                        const damage = target.superForm ? 3 : 2;
-                        // Normal sword waves keep the launch angle; they are deliberately not homing.
+                        const baseDamage = target.superForm ? 3 : 2;
+                        const damage = baseDamage * (oden.lastBreath ? 1.6 : 1);
+                        // Haki coats ordinary slashes; homing is deliberately subtle, never full tracking.
                         const lockedAngle = angle;
                         rwbOdenSlashes.push({
                             x: oden.x + Math.cos(lockedAngle) * 17,
@@ -5172,7 +5316,8 @@
                             vx: Math.cos(lockedAngle) * 9,
                             vy: Math.sin(lockedAngle) * 9,
                             speed: 9, angle: lockedAngle, size: 12,
-                            damage: damage, targetId: target.id, life: 60, homing: false,
+                            damage: damage, targetId: target.id, life: 60, homing: true,
+                            homingStrength: 0.012, hasHaki: true, lastBreath: !!oden.lastBreath,
                             aimX: target.x, aimY: target.y,
                             isBlue: false, blockDamage: 0,
                             phase: Math.random() * Math.PI * 2
@@ -5232,6 +5377,39 @@
         const cx = oden.x, cy = oden.y + bobY, size = oden.size;
         const attacking = oden.swingTimer > 0 || oden.windup > 0;
         const blueMode = oden.blueModeTimer > 0;
+        if (oden.hakiAwakened) {
+            ctx.save();
+            const hakiPulse = 0.22 + Math.abs(Math.sin(oden.phase * 1.55)) * 0.22;
+            ctx.globalAlpha = oden.lastBreath ? Math.min(0.85, hakiPulse + 0.3) : hakiPulse;
+            ctx.strokeStyle = oden.lastBreath ? "#f21c35" : "#241020";
+            ctx.shadowColor = oden.lastBreath ? "#ff0c2a" : "#10030f";
+            ctx.shadowBlur = oden.lastBreath ? 18 : 10;
+            ctx.lineWidth = oden.lastBreath ? 3.2 : 2;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, size * (1.55 + Math.sin(oden.phase) * 0.08),
+                size * (1.95 + Math.cos(oden.phase * 0.8) * 0.08), oden.phase * 0.12, 0, Math.PI * 2);
+            ctx.stroke();
+            if (oden.lastBreath) {
+                ctx.globalAlpha = 0.7;
+                ctx.strokeStyle = "#050505"; ctx.lineWidth = 4.5; ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.moveTo(cx - size * 1.7, cy - size * 0.9);
+                ctx.lineTo(cx - size * 0.9, cy - size * 0.2);
+                ctx.lineTo(cx - size * 1.25, cy + size * 0.35);
+                ctx.moveTo(cx + size * 1.65, cy - size * 0.7);
+                ctx.lineTo(cx + size * 0.85, cy + size * 0.1);
+                ctx.lineTo(cx + size * 1.3, cy + size * 0.65);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+        if (oden.lastBreath) {
+            ctx.save();
+            ctx.textAlign = "center"; ctx.font = "bold 8px monospace";
+            ctx.fillStyle = "#ff263b"; ctx.shadowColor = "#ff001e"; ctx.shadowBlur = 10;
+            ctx.fillText("ПОСЛЕДНИЙ ВЗДОХ", cx, cy - size - 23);
+            ctx.restore();
+        }
         if (blueMode || oden.healState === "channel") {
             ctx.save();
             const healing = oden.healState === "channel";
@@ -5362,12 +5540,13 @@
             ctx.save();
             ctx.translate(handX, handY);
             ctx.rotate(angle);
-            ctx.shadowColor = blueMode ? "#50eaff" : "#d8b5ff";
-            ctx.shadowBlur = swordAttackActive ? 17 : 9;
+            const lastBreathSword = !!oden.lastBreath && !blueMode;
+            ctx.shadowColor = blueMode ? "#50eaff" : (lastBreathSword ? "#ff102b" : "#10040e");
+            ctx.shadowBlur = swordAttackActive ? (lastBreathSword ? 24 : 17) : 9;
             const blade = ctx.createLinearGradient(0, -3, 35, 3);
-            blade.addColorStop(0, blueMode ? "#8ff6ff" : "#fff0a8");
-            blade.addColorStop(0.45, "#ffffff");
-            blade.addColorStop(1, blueMode ? "#19b9ff" : "#a8caff");
+            blade.addColorStop(0, blueMode ? "#8ff6ff" : (lastBreathSword ? "#050505" : "#fff0a8"));
+            blade.addColorStop(0.45, lastBreathSword ? "#d71932" : "#ffffff");
+            blade.addColorStop(1, blueMode ? "#19b9ff" : (lastBreathSword ? "#170006" : "#a8caff"));
             ctx.fillStyle = blade; ctx.strokeStyle = "#30203f"; ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(2, -2.8); ctx.lineTo(28, -1.8); ctx.lineTo(35, 0);
@@ -5393,18 +5572,30 @@
         drawOdenKatana(cx - size * 0.49, cy - size * 0.08, baseAngle + leftSwing, "left");
         drawOdenKatana(cx + size * 0.49, cy - size * 0.02, baseAngle + rightSwing, "right");
 
-        // Curved violet-white sword waves travel toward Roger and Whitebeard.
+        // Haki-coated sword waves; blue-mode shots keep their cyan lock-on look.
         for (let i = 0; i < rwbOdenSlashes.length; i++) {
             const slash = rwbOdenSlashes[i];
+            const blueSlash = !!slash.isBlue;
+            const lastBreathSlash = !!slash.lastBreath && !blueSlash;
             ctx.save(); ctx.translate(slash.x, slash.y); ctx.rotate(slash.angle);
             ctx.globalAlpha = Math.min(1, slash.life / 16);
-            ctx.shadowColor = "#a95cff"; ctx.shadowBlur = 16;
-            ctx.strokeStyle = oden.blueModeTimer > 0 ? "#087cda" : "#5d238c"; ctx.lineWidth = 9; ctx.lineCap = "round";
+            ctx.shadowColor = blueSlash ? "#087cda" : (lastBreathSlash ? "#ff102b" : "#080309");
+            ctx.shadowBlur = lastBreathSlash ? 23 : 16;
+            ctx.strokeStyle = blueSlash ? "#087cda" : (lastBreathSlash ? "#030303" : "#21101f");
+            ctx.lineWidth = 9; ctx.lineCap = "round";
             ctx.beginPath(); ctx.arc(0, 0, slash.size * 1.25, -0.78, 0.78); ctx.stroke();
-            ctx.strokeStyle = oden.blueModeTimer > 0 ? "#69f2ff" : "#f6e9ff"; ctx.lineWidth = 3.1;
+            ctx.strokeStyle = blueSlash ? "#69f2ff" : (lastBreathSlash ? "#fa1a32" : "#6e1f35");
+            ctx.lineWidth = 3.1;
             ctx.beginPath(); ctx.arc(0, 0, slash.size * 1.2, -0.78, 0.78); ctx.stroke();
-            ctx.strokeStyle = oden.blueModeTimer > 0 ? "#eaffff" : "#ffe98a"; ctx.lineWidth = 1.2;
+            ctx.strokeStyle = blueSlash ? "#eaffff" : (lastBreathSlash ? "#090909" : "#c84a63");
+            ctx.lineWidth = 1.2;
             ctx.beginPath(); ctx.arc(0, 0, slash.size * 1.05, -0.58, 0.58); ctx.stroke();
+            if (lastBreathSlash) {
+                ctx.strokeStyle = "#ff2138"; ctx.lineWidth = 1.1; ctx.globalAlpha *= 0.7;
+                ctx.beginPath(); ctx.moveTo(-slash.size * 1.1, -slash.size * 0.6);
+                ctx.lineTo(-slash.size * 0.2, slash.size * 0.25);
+                ctx.lineTo(slash.size * 0.7, -slash.size * 0.45); ctx.stroke();
+            }
             ctx.restore();
         }
 
@@ -5421,7 +5612,7 @@
         ctx.globalAlpha = oden.invulnTimer > 0 && oden.invulnTimer % 6 < 3 ? 0.48 : 0.94;
         ctx.fillStyle = "rgba(7,4,18,.92)"; ctx.fillRect(barX - 2, barY - 2, barW + 4, 13);
         ctx.fillStyle = "#39244e"; ctx.fillRect(barX, barY, barW, 4);
-        ctx.fillStyle = oden.hp / oden.maxHp > .45 ? "#a9f78d" : "#ff708e";
+        ctx.fillStyle = oden.lastBreath ? "#ff1b32" : (oden.hp / oden.maxHp > .45 ? "#a9f78d" : "#ff708e");
         ctx.fillRect(barX, barY, barW * Math.max(0, oden.hp / oden.maxHp), 4);
         ctx.font = "bold 7px monospace"; ctx.textAlign = "center";
         ctx.fillStyle = "#f4e8ff"; ctx.fillText("ОДЭН " + Math.ceil(oden.hp) + "/" + oden.maxHp, cx, barY + 11);
