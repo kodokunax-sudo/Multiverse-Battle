@@ -551,6 +551,7 @@
         try { if (asMusic) { asMusic.pause(); asMusic.currentTime = 0; } } catch(e) {}
     }
     function asBossHit(damage, message) {
+        if(typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") damage=window.MBBossTestModifyOutgoingDamage(damage,1);
         if (!asActive || asWinPending || asDefeatPending || asState !== "fight" || asState === "victory") return;
         const isModerator = typeof mode !== "undefined" && mode === "moder";
         if (asUnbrokenSealIndex() >= 0 && !isModerator) {
@@ -585,6 +586,10 @@
         if (asBossHp <= 0) asWin();
     }
     function asDamagePlayer(damage, label) {
+        if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyIncomingDamage==="function") {
+            damage=window.MBBossTestModifyIncomingDamage(damage,"antispiral");
+            if(damage<=0)return;
+        }
         if (!asActive || asPlayer.invuln > 0 || asState !== "fight" || asState === "victory" || asDefeatPending) return;
         // Boss damage is reduced by 1.5x while keeping every hit at least 1 HP.
         const amount = Math.max(1, Math.floor((Number(damage) || 1) / 1.5));
@@ -1645,6 +1650,11 @@
         });
     }
     function asWin() {
+        if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===1500) {
+            asStop();
+            if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("win",true);
+            return;
+        }
         if(asWinPending) return;
         asWinPending=true; asState="victory"; asAttacks=[];
         asText(200,245,"НЕВОЗМОЖНО...","#ffffff",120);
@@ -1657,6 +1667,11 @@
         },1800);
     }
     function asLose() {
+        if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===1500) {
+            asStop();
+            if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("loss",true);
+            return;
+        }
         if(asDefeatPending) return;
         asDefeatPending=true; asState="defeat"; asAttacks=[];
         asText(200,245,"ТЫ НЕ УСТОЯЛ ПЕРЕД СПИРАЛЬЮ","#ff5f75",110);
