@@ -1469,8 +1469,13 @@
             animateChoiceButton(stayButton, Math.min(AS_DREAM_WAKE_TAPS_REQUIRED, asDreamWakeCount), 3);
 
             if (asDreamWakeCount >= AS_DREAM_WAKE_TAPS_REQUIRED) {
-                asDreamEndingChoice = "wake-reveal";
-                asRenderDreamOutcome("wake");
+                // Show the final, strongest distortion before revealing the truth.
+                asDreamEndingChoice = "wake-reveal-pending";
+                setTimeout(function () {
+                    if (asDreamEndingChoice !== "wake-reveal-pending") return;
+                    asDreamEndingChoice = "wake-reveal";
+                    asRenderDreamOutcome("wake");
+                }, 540);
             }
         });
 
