@@ -2279,10 +2279,10 @@
     }
 
     function spawnWBCenterPullWave(isSuper) {
-        wbBrain.phase = "windup"; wbBrain.phaseTimer = 34;
+        wbBrain.phase = "windup"; wbBrain.phaseTimer = 120;
         let boss = getWhitebeardEntity();
-        rwbAttacks.push({ type: "wb_center_wave", x: 200, y: 480, originX: boss ? boss.x : 320, originY: boss ? boss.y : 120, targetY: 250, speed: isSuper ? 4.6 : 4.0, state: "warning", warningTimer: 34, life: 100, color: "#9beaff", damage: 0, isSuper: !!isSuper });
-        rwbFloatingTexts.push({ x: 200, y: 90, text: "🌊 ХВАТИТ ПРЯТАТЬСЯ!", color: "#9beaff", life: 65, maxLife: 65, vy: -0.25, vx: 0, size: 16 });
+        rwbAttacks.push({ type: "wb_center_wave", x: 200, y: 480, originX: boss ? boss.x : 320, originY: boss ? boss.y : 120, targetY: 250, speed: isSuper ? 4.6 : 4.0, state: "warning", warningTimer: 120, life: 130, color: "#9beaff", damage: 0, isSuper: !!isSuper });
+        rwbFloatingTexts.push({ x: 200, y: 90, text: "🌊 ХВАТИТ ПРЯТАТЬСЯ!", color: "#9beaff", life: 125, maxLife: 125, vy: -0.25, vx: 0, size: 16 });
         playHakiChargeSound(0.3);
         return true;
     }
@@ -2290,15 +2290,15 @@
     function spawnWBFruitPunch(isSuper) {
         let boss = getWhitebeardEntity();
         if (!boss) return false;
-        wbBrain.phase = "windup"; wbBrain.phaseTimer = 105;
+        wbBrain.phase = "windup"; wbBrain.phaseTimer = 120;
         let end = whitebeardRayEndpoint(boss.x, boss.y, rwbPlayer.x, rwbPlayer.y);
         rwbAttacks.push({
             type: "wb_fruit_punch", x: boss.x, y: boss.y, originX: boss.x, originY: boss.y,
             targetX: rwbPlayer.x, targetY: rwbPlayer.y, endX: end.x, endY: end.y,
-            state: "warning", warningTimer: 105, activeTimer: 0, hit: false,
-            width: isSuper ? 33 : 29, damage: 20, life: 140, color: "#f7fbff", isSuper: !!isSuper
+            state: "warning", warningTimer: 120, activeTimer: 0, hit: false,
+            width: isSuper ? 33 : 29, damage: 20, life: 160, color: "#f7fbff", isSuper: !!isSuper
         });
-        rwbFloatingTexts.push({ x: 200, y: 82, text: "⚠ РАЗЛОМ МИРА ⚠", color: "#ffffff", life: 90, maxLife: 90, vy: -0.2, vx: 0, size: 17 });
+        rwbFloatingTexts.push({ x: 200, y: 82, text: "⚠ РАЗЛОМ МИРА ⚠", color: "#ffffff", life: 125, maxLife: 125, vy: -0.2, vx: 0, size: 17 });
         playHakiChargeSound(0.45); spawnHakiLightning(boss.x, boss.y, 3, false);
         return true;
     }
@@ -2736,10 +2736,8 @@
                 } else {
                     a.y -= a.speed; a.life--;
                     if (rwbPlayer.y > a.targetY) {
-                        rwbPlayer.x += Math.max(-4, Math.min(4, (200 - rwbPlayer.x) * 0.09));
-                        rwbPlayer.y = Math.max(a.targetY, rwbPlayer.y - 3.4);
-                        rwbPlayer.x = Math.max(16, Math.min(384, rwbPlayer.x));
-                        rwbPlayer.vx *= 0.5; rwbPlayer.vy = Math.min(0, rwbPlayer.vy);
+                        // Волна больше не гасит скорость и не перехватывает управление игроком.
+                        // Игрок свободно двигается во время подъёма волны снизу.
                     }
                     if (Math.random() < 0.65) rwbParticles.push({ x: Math.random() * 400, y: a.y + (Math.random() - 0.5) * 14, vx: (Math.random() - 0.5) * 1.5, vy: -1.5 - Math.random() * 2, life: 18, maxLife: 18, color: "#9beaff", size: 2 + Math.random() * 2 });
                     if (a.y <= a.targetY || a.life <= 0) { spawnHitParticles(200, a.targetY, "#9beaff", 14); rwbAttacks.splice(i, 1); }
@@ -2763,7 +2761,7 @@
                     a.activeTimer--;
                     let d = pointToSegmentDistance(rwbPlayer.x, rwbPlayer.y, a.originX, a.originY, a.endX, a.endY);
                     if (!a.hit && rwbPlayer.invulnTimer <= 0 && d < a.width / 2 + 7) {
-                        a.hit = true; hitPlayer(20); rwbPlayerStunTimer = 30; wbFruitFlashTimer = 180; wbFruitFlashPower = 0.72;
+                        a.hit = true; hitPlayer(20); wbFruitFlashTimer = 180; wbFruitFlashPower = 0.72;
                     }
                     if (a.activeTimer <= 0) rwbAttacks.splice(i, 1);
                 } else { rwbAttacks.splice(i, 1); }
