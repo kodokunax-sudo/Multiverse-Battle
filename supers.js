@@ -201,6 +201,7 @@ function resetHeroCharges(bossId) {
 // ============================================================
 function isUniqueBossActive() {
     try {
+        if (typeof window !== "undefined" && window.livingStoneSuperActive) return "stoneSuper";
         if (typeof waystarActive !== 'undefined' && waystarActive) return 'waystar';
         if (typeof livingStoneActive !== 'undefined' && livingStoneActive) return 'stone';
         if (typeof window.rwbActive !== 'undefined' && window.rwbActive) return 'rwb';
@@ -214,6 +215,30 @@ function isUniqueBossActive() {
 // ============================================================
 function getBossContext() {
     var bossType = isUniqueBossActive();
+
+    if (bossType === "stoneSuper" && typeof window !== "undefined" && window.__mbBossTestMode &&
+        window.__mbBossTestMode.kind === "unique" && typeof window.getLivingStoneSuperHeart === "function") {
+        return {
+            type: "stoneSuper", getHeartX: function(){return 200;}, setHeartX: function(v){},
+            getHeartY: function(){return 366;}, setHeartY: function(v){},
+            getHeartSize: function(){return 13;}, setHeartSize: function(v){},
+            getHeartHitbox: function(){return 13;}, setHeartHitbox: function(v){},
+            getHeartSpeed: function(){return 0;}, setHeartSpeed: function(v){},
+            getAttacks: function(){return window.getLivingStoneSuperAttacks ? window.getLivingStoneSuperAttacks() : [];},
+            getBlasters: function(){return [];},
+            getParticles: function(){return window.getLivingStoneSuperParticles ? window.getLivingStoneSuperParticles() : [];},
+            getBossMaxHp: function(){return window.getLivingStoneSuperBossMaxHp ? window.getLivingStoneSuperBossMaxHp() : 1;},
+            setBossMaxHp: function(v){if(window.setLivingStoneSuperBossHp)window.setLivingStoneSuperBossHp(v);},
+            getBossHp: function(){return window.getLivingStoneSuperBossHp ? window.getLivingStoneSuperBossHp() : 1;},
+            getPlayerHp: function(){return window.getLivingStoneSuperHeart().hp;},
+            setPlayerHp: function(v){if(window.setLivingStoneSuperPlayerHp)window.setLivingStoneSuperPlayerHp(v);},
+            getPlayerMaxHp: function(){return window.getLivingStoneSuperHeart().maxHp;},
+            addShake: function(v){}, addFlash: function(v,color){}, addFlashWhite: function(v){},
+            spawnFloatingText: function(x,y,text,color){if(typeof showFloatingText==="function")showFloatingText(text,color||"#fff");},
+            playSound: function(f,t,d,v){if(typeof playArenaSound==="function")playArenaSound(f,t,d,v);},
+            addShockwave: function(x,y,color,speed,life,width){}, clampHeart: function(){}, isDodgePhase: function(){return false;}
+        };
+    }
 
     // ★ UNDERTALE ARENA ★
     if (!bossType) {
@@ -1361,6 +1386,7 @@ function activateAllmightHurricane() {
 
 
 function getMainCard() {
+    if (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMainCard) return window.__mbBossTestMainCard;
     if (typeof team !== 'undefined' && typeof mainCardIndex !== 'undefined' && team.length > 0) {
         var idx = team[mainCardIndex];
         if (typeof myCards !== 'undefined' && idx >= 0 && idx < myCards.length) return myCards[idx];
@@ -1616,6 +1642,10 @@ function notifyWaystarSuperAction(superName) {
 }
 
 function toggleSuper() {
+    if (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestAbilityMode === "passive") {
+        if (typeof showFloatingText === "function") showFloatingText("В тесте выбрана пассивка, а не SUPER.", "#ffaa00");
+        return;
+    }
     var bossType = isUniqueBossActive();
     var isUnique = bossType !== null;
     var isArena = (typeof arenaActive !== 'undefined' && arenaActive);
@@ -1638,12 +1668,13 @@ function toggleSuper() {
         return;
     }
 
-    if (isUnique) {
+    if (isUnique && !(typeof window !== "undefined" && window.__mbBossTestMode)) {
         if (typeof hasMasteryUniqueSuper === 'function' && !hasMasteryUniqueSuper(mainCard)) {
             if (typeof showFloatingText === 'function') showFloatingText("Нужно мастерство 6★ для уникального босса!", "#ff3333");
             return;
         }
-    } else if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
+    } else if (!(typeof window !== "undefined" && window.__mbBossTestMode) &&
+        typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
         if (typeof showFloatingText === 'function') showFloatingText("Нужно мастерство 5★!", "#ff3333");
         return;
     }
@@ -1797,6 +1828,12 @@ function resetAllCooldowns() {
 
 function updateSuperButton() {
     updateWhitebeardSkillButton();
+    if (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestAbilityMode === "passive") {
+        ["superBtn","superBtn2","superBtnDeactivate","whitebeardSkillBtn"].forEach(function(id){
+            var hiddenBtn=document.getElementById(id); if(hiddenBtn)hiddenBtn.style.display="none";
+        });
+        return;
+    }
     var btn = document.getElementById("superBtn");
     var btn2 = document.getElementById("superBtn2");
     var btnDeact = document.getElementById("superBtnDeactivate");
@@ -1880,14 +1917,15 @@ function updateSuperButton() {
         return;
     }
 
-    if (isUnique) {
+    if (isUnique && !(typeof window !== "undefined" && window.__mbBossTestMode)) {
         if (typeof hasMasteryUniqueSuper === 'function' && !hasMasteryUniqueSuper(mainCard)) {
             btn.style.display = "none";
             if (btn2) btn2.style.display = "none";
             if (btnDeact) btnDeact.style.display = "none";
             return;
         }
-    } else if (typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
+    } else if (!(typeof window !== "undefined" && window.__mbBossTestMode) &&
+        typeof hasMasterySuper === 'function' && !hasMasterySuper(mainCard)) {
         btn.style.display = "none";
         if (btn2) btn2.style.display = "none";
         if (btnDeact) btnDeact.style.display = "none";
