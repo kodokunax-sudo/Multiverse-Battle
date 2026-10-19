@@ -1101,6 +1101,8 @@ function updateExtendedArenaAttack(now) {
     );
     if (!frozen) st.elapsed += delta;
     var t = st.elapsed;
+    var wasMultiHit = !!st._multiHitActive;
+    st._multiHitActive = false;
     var sec = t / 1000;
     var dmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 1.78));
     var strongDmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 2.35));
@@ -1170,7 +1172,7 @@ function updateExtendedArenaAttack(now) {
             ctx.fillStyle="#5eea3f";ctx.strokeStyle="#c8ff86";ctx.lineWidth=2;ctx.shadowColor="#73ff39";ctx.shadowBlur=11;ctx.beginPath();
             for(var lq=0;lq<=28;lq++){var la=lq/28*Math.PI*2,wob=1+Math.sin(la*3+sec*2.5)*.045+Math.sin(la*7-sec*3)*.025,lx=pool.x+Math.cos(la)*pool.r*wob,ly=pool.y+Math.sin(la)*pool.r*wob;if(!lq)ctx.moveTo(lx,ly);else ctx.lineTo(lx,ly);}ctx.closePath();ctx.fill();ctx.stroke();
             ctx.globalAlpha*=.75;ctx.strokeStyle="#dfff9e";ctx.lineWidth=1.5;for(var rip=0;rip<2;rip++){var rr=pool.r*(.25+rip*.34)+((sec*14+rip*17)%Math.max(10,pool.r*.4));ctx.beginPath();ctx.ellipse(pool.x+Math.sin(sec*2+rip)*pool.r*.1,pool.y,Math.min(pool.r,rr),Math.min(pool.r*.42,rr*.42),Math.sin(sec+rip)*.12,0,Math.PI*2);ctx.stroke();}ctx.restore();
-            if(!frozen&&!pouring&&pool.r>10&&Math.hypot(heart.x-pool.x,heart.y-pool.y)<pool.r+heart.hitbox&&arenaExtTouchCooldown(st,"acid_"+pool.born,now,105))applyHit(1,"КИСЛОТА: РАЗЪЕДАЕТ!",false,true);
+            if(!frozen&&!pouring&&pool.r>10&&Math.hypot(heart.x-pool.x,heart.y-pool.y)<pool.r+heart.hitbox){st._multiHitActive=true;if(arenaExtTouchCooldown(st,"acid_"+pool.born,now,105))applyHit(1,"КИСЛОТА: РАЗЪЕДАЕТ!",false,true);}
         }
     }
 
@@ -1398,6 +1400,7 @@ function updateExtendedArenaAttack(now) {
             ctx.strokeStyle = "rgba(255,242,201,0.7)"; ctx.lineWidth = 1.5;
             ctx.beginPath(); ctx.arc(0, 0, gear.r * 0.61, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
             if (!frozen && Math.hypot(heart.x - gear.x, heart.y - gear.y) < gear.r + heart.hitbox + 2) {
+                st._multiHitActive = true;
                 st.gearSlowUntil = now + 40;
                 if (now >= Number(gear.nextContactHitAt || 0)) {
                     gear.nextContactHitAt = now + 105; arenaShake = Math.max(arenaShake, 10);
@@ -1463,6 +1466,8 @@ function updateExtendedArenaAttack(now) {
             if(pair.phase==="approach"){ctx.save();ctx.strokeStyle="rgba(255,205,125,0.7)";ctx.setLineDash([5,5]);ctx.lineWidth=2;if(horizontalC){ctx.beginPath();ctx.moveTo(15,center);ctx.lineTo(385,center);ctx.stroke();}else{ctx.beginPath();ctx.moveTo(center,65);ctx.lineTo(center,490);ctx.stroke();}ctx.restore();}
         }
     }
+    // Multi-hit bypasses shields during contact; ordinary invulnerability returns after leaving it.
+    if (wasMultiHit && !st._multiHitActive) invulnTimer = Math.max(Number(invulnTimer || 0), 45);
 }
 
 function spawnAttack() {
