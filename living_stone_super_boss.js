@@ -394,10 +394,10 @@
         if (ls2WarningTimer <= 0) return;
         var box=LS2_BOX;
         var p=[
-            {x:200,y:box.y+15,tx:200,ty:box.y+35,angle:Math.PI/2},
-            {x:box.x+box.w-15,y:LS2_HEART_Y,tx:box.x+box.w-35,ty:LS2_HEART_Y,angle:Math.PI},
-            {x:200,y:box.y+box.h-15,tx:200,ty:box.y+box.h-35,angle:-Math.PI/2},
-            {x:box.x+15,y:LS2_HEART_Y,tx:box.x+35,ty:LS2_HEART_Y,angle:0}
+            {x:200,y:box.y+15,tx:200,ty:box.y+35,angle:0},
+            {x:box.x+box.w-15,y:LS2_HEART_Y,tx:box.x+box.w-35,ty:LS2_HEART_Y,angle:Math.PI/2},
+            {x:200,y:box.y+box.h-15,tx:200,ty:box.y+box.h-35,angle:Math.PI},
+            {x:box.x+15,y:LS2_HEART_Y,tx:box.x+35,ty:LS2_HEART_Y,angle:-Math.PI/2}
         ][ls2NextAttackDir];
         c.save(); c.globalAlpha=.55+Math.abs(Math.sin(ls2Elapsed*.35))*.4;
         c.strokeStyle="#ff6853"; c.fillStyle="#ffb19f"; c.lineWidth=2.8;
@@ -511,6 +511,12 @@
         ls2Bullets=[]; ls2Sparks=[]; ls2Elapsed=0; ls2AttackTimer=54;
         ls2WarningTimer=0; ls2NextAttackDir=0; ls2AttackCount=0;
         ls2FloatingText="ПОВЕРНИ ЩИТ К СТОРОНЕ АТАКИ"; ls2FloatingTimer=100; ls2LastTime=0;
+        if (typeof hpDecayInterval !== "undefined" && hpDecayInterval) {
+            clearInterval(hpDecayInterval); hpDecayInterval = null;
+        }
+        if (typeof fireInterval !== "undefined" && fireInterval) {
+            clearInterval(fireInterval); fireInterval = null;
+        }
         if (typeof stopAllMusic==="function") { try { stopAllMusic(); } catch(e) {} }
         if (typeof initArena==="function") { try { initArena(); } catch(e) {} }
         if (typeof canvas==="undefined" || !canvas) {
