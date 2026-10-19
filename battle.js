@@ -513,7 +513,7 @@ function moveHeart() {
         var len2 = Math.sqrt(mx * mx + my * my);
         if (len2 > 1) { mx /= len2; my /= len2; }
         var activeHeartSpeed = heartSpeed;
-        if (arenaExtendedState && arenaExtendedState.type === 18 && performance.now() < Number(arenaExtendedState.gearSlowUntil || 0)) activeHeartSpeed *= 0.48;
+        if (arenaExtendedState && arenaExtendedState.type === 18 && performance.now() < Number(arenaExtendedState.gearSlowUntil || 0)) activeHeartSpeed *= 0.30;
         heart.x += mx * activeHeartSpeed;
         heart.y += my * activeHeartSpeed;
     } else {
@@ -1086,6 +1086,9 @@ function arenaExtNewEdge(side, inset) {
     return { x: 35 + Math.random() * 330, y: 500 - pad };
 }
 
+function arenaExtTouchCooldown(st,key,now,interval){if(!st._touchTimes)st._touchTimes={};if(now<Number(st._touchTimes[key]||0))return false;st._touchTimes[key]=now+interval;return true;}
+function arenaExtPushHeart(x,y,power,lift){var dx=heart.x-x,dy=heart.y-y,len=Math.max(1,Math.hypot(dx,dy));heart.vx=(heart.vx||0)+dx/len*power;heart.vy=(heart.vy||0)+dy/len*power-(lift||0);}
+function arenaExtLineTouchesHeart(x1,y1,x2,y2,width){var dx=x2-x1,dy=y2-y1,den=dx*dx+dy*dy,u=den?Math.max(0,Math.min(1,((heart.x-x1)*dx+(heart.y-y1)*dy)/den)):0;return Math.hypot(heart.x-(x1+u*dx),heart.y-(y1+u*dy))<width+heart.hitbox;}
 function updateExtendedArenaAttack(now) {
     var st = arenaExtendedState;
     if (!st || st.type < 11 || st.type > 20 || !arenaActive || arenaPhase !== "dodge" || arenaCurrentWave === 1500) return;
@@ -1122,7 +1125,7 @@ function updateExtendedArenaAttack(now) {
             ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             ctx.fillStyle = "#5f6a79"; ctx.beginPath(); ctx.arc(bx, by, 17, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             ctx.fillStyle = "#ecf1f7"; ctx.beginPath(); ctx.arc(bx, by, 6, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-            if (!frozen && t > 520 && Math.hypot(heart.x - bx, heart.y - by) < 22 + heart.hitbox) applyHit(strongDmg, "МАЯТНИК!");
+            if(!frozen&&t>520&&Math.hypot(heart.x-bx,heart.y-by)<22+heart.hitbox&&arenaExtTouchCooldown(st,"pendulum_"+p,now,420)){arenaExtPushHeart(bx,by,5.5,2.2);heart.vx*=1.12;heart.vy*=1.12;spawnFloatingText(heart.x,heart.y-18,"ОТБРОШЕН!","#ffe2a3");}
         }
         if (t < 650) { ctx.fillStyle = "rgba(210,225,245,0.85)"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("МАЯТНИКИ ЗАПУСКАЮТСЯ", 200, 82); }
     }
@@ -1147,35 +1150,27 @@ function updateExtendedArenaAttack(now) {
                 ctx.beginPath(); ctx.arc(xx, yy, 2.1, 0, Math.PI * 2); ctx.fill();
             }
             if (t > 520) {
-                arenaExtHitSegment(0, y1, gapStart * 400, gy1, 13, strongDmg, "ТРОС!");
-                arenaExtHitSegment(gapEnd * 400, gy2, 400, y2, 13, strongDmg, "ТРОС!");
+                if(arenaExtLineTouchesHeart(0,y1,gapStart*400,gy1,13)&&arenaExtTouchCooldown(st,"cableA_"+c,now,500)){arenaExtPushHeart(gapStart*400,gy1,3.6,.8);spawnFloatingText(heart.x,heart.y-18,"ТРОС ТЯНЕТ!","#91f2ff");}
+                if(arenaExtLineTouchesHeart(gapEnd*400,gy2,400,y2,13)&&arenaExtTouchCooldown(st,"cableB_"+c,now,500)){arenaExtPushHeart(gapEnd*400,gy2,3.6,.8);spawnFloatingText(heart.x,heart.y-18,"ТРОС ТЯНЕТ!","#91f2ff");}
             }
         }
         if (t < 650) { ctx.fillStyle = "#d8e5f5"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("ТРОСЫ НАТЯГИВАЮТСЯ", 200, 82); }
     }
 
-    // 13. Acid pools leave the player a changing route instead of exploding instantly.
-    if (st.type === 13) {
-        if (t >= st.nextSpawnAt && st.hazards.length < 7) {
-            var ax = 35 + Math.random() * 330, ay = 95 + Math.random() * 340;
-            var attempts = 0;
-            while (Math.hypot(ax - heart.x, ay - heart.y) < 48 && attempts++ < 6) { ax = 35 + Math.random() * 330; ay = 95 + Math.random() * 340; }
-            st.hazards.push({ x: ax, y: ay, born: t });
-            st.nextSpawnAt = t + 760;
-        }
-        for (var ai = st.hazards.length - 1; ai >= 0; ai--) {
-            var pool = st.hazards[ai], age = t - pool.born;
-            if (age > 5200) { st.hazards.splice(ai, 1); continue; }
-            var warning = age < 610, activeAge = Math.max(0, age - 610);
-            var radius = warning ? 27 : Math.min(49, 8 + activeAge * 0.072);
-            ctx.save(); ctx.globalAlpha = warning ? 0.45 + Math.sin(sec * 12) * 0.12 : 0.85;
-            ctx.fillStyle = "#83f36a"; ctx.strokeStyle = warning ? "#d5ff9e" : "#b0ff5a"; ctx.lineWidth = 2; ctx.shadowColor = "#8aff45"; ctx.shadowBlur = 10;
-            ctx.beginPath(); ctx.arc(pool.x, pool.y, radius, 0, Math.PI * 2); ctx.fill(); ctx.setLineDash(warning ? [5, 5] : []); ctx.stroke(); ctx.setLineDash([]);
-            ctx.beginPath(); ctx.arc(pool.x, pool.y, Math.max(3, radius * (0.66 + pulse * 0.12)), 0, Math.PI * 2); ctx.strokeStyle = warning ? "rgba(230,255,185,0.55)" : "rgba(234,255,130,0.8)"; ctx.lineWidth = 1.5; ctx.stroke();
-            ctx.fillStyle = "#dfffaa"; ctx.beginPath(); ctx.arc(pool.x - radius * 0.25, pool.y - radius * 0.2, radius * 0.18, 0, Math.PI * 2); ctx.fill();
-            for (var bubble = 0; bubble < 4; bubble++) { var ba = sec * 2.2 + bubble * Math.PI / 2, br = radius * (0.28 + 0.48 * ((bubble % 2) ? 1 : pulse)); ctx.globalAlpha = warning ? 0.35 : 0.75; ctx.beginPath(); ctx.arc(pool.x + Math.cos(ba) * br, pool.y + Math.sin(ba) * br, 1.7 + (bubble % 2), 0, Math.PI * 2); ctx.fill(); }
-            ctx.restore();
-            if (!frozen && !warning && Math.hypot(heart.x - pool.x, heart.y - pool.y) < radius + heart.hitbox) applyHit(dmg, "КИСЛОТА!");
+    // 13. Flowing acid: pour, spread, merge with nearby puddles, then evaporate.
+    if(st.type===13){
+        if(t>=st.nextSpawnAt&&st.hazards.length<9){var edge=Math.floor(Math.random()*4),sx,sy;if(edge===0){sx=20+Math.random()*360;sy=65;}else if(edge===1){sx=20+Math.random()*360;sy=490;}else if(edge===2){sx=8;sy=85+Math.random()*390;}else{sx=392;sy=85+Math.random()*390;}
+            st.hazards.push({x:35+Math.random()*330,y:105+Math.random()*340,sourceX:sx,sourceY:sy,born:t,r:3,targetR:29+Math.random()*13,nextHitAt:0});st.nextSpawnAt=t+790;}
+        for(var ai=st.hazards.length-1;ai>=0;ai--){var pool=st.hazards[ai],age=t-pool.born;if(age>7600){st.hazards.splice(ai,1);continue;}
+            var pouring=age<520,spreading=age>=520&&age<1150,fading=age>6100;
+            if(!frozen){if(pouring)pool.r=Math.min(pool.targetR*.72,pool.r+delta*.045);else if(spreading)pool.r=Math.min(pool.targetR,pool.r+delta*.035);else if(fading)pool.r=Math.max(0,pool.r-delta*.014);}
+            if(!frozen)for(var aj=ai-1;aj>=0;aj--){var other=st.hazards[aj];if(Math.hypot(pool.x-other.x,pool.y-other.y)<pool.r+other.r-2){var areaR=Math.sqrt(pool.r*pool.r+other.r*other.r),total=Math.max(1,pool.r+other.r);pool.x=(pool.x*pool.r+other.x*other.r)/total;pool.y=(pool.y*pool.r+other.y*other.r)/total;pool.r=Math.min(102,areaR);pool.targetR=Math.min(102,Math.max(pool.targetR,other.targetR,pool.r));pool.born=Math.min(pool.born,other.born);st.hazards.splice(aj,1);ai--;}}
+            ctx.save();ctx.globalAlpha=fading?Math.max(.12,(7600-age)/1500):pouring?.7:.9;
+            if(pouring){ctx.strokeStyle="#a5ff55";ctx.lineWidth=5+Math.sin(sec*16)*1.5;ctx.lineCap="round";ctx.shadowColor="#80ff35";ctx.shadowBlur=9;ctx.beginPath();ctx.moveTo(pool.sourceX,pool.sourceY);ctx.quadraticCurveTo((pool.sourceX+pool.x)/2+Math.sin(sec*9)*12,(pool.sourceY+pool.y)/2,pool.x,pool.y);ctx.stroke();}
+            ctx.fillStyle="#5eea3f";ctx.strokeStyle="#c8ff86";ctx.lineWidth=2;ctx.shadowColor="#73ff39";ctx.shadowBlur=11;ctx.beginPath();
+            for(var lq=0;lq<=28;lq++){var la=lq/28*Math.PI*2,wob=1+Math.sin(la*3+sec*2.5)*.045+Math.sin(la*7-sec*3)*.025,lx=pool.x+Math.cos(la)*pool.r*wob,ly=pool.y+Math.sin(la)*pool.r*wob;if(!lq)ctx.moveTo(lx,ly);else ctx.lineTo(lx,ly);}ctx.closePath();ctx.fill();ctx.stroke();
+            ctx.globalAlpha*=.75;ctx.strokeStyle="#dfff9e";ctx.lineWidth=1.5;for(var rip=0;rip<2;rip++){var rr=pool.r*(.25+rip*.34)+((sec*14+rip*17)%Math.max(10,pool.r*.4));ctx.beginPath();ctx.ellipse(pool.x+Math.sin(sec*2+rip)*pool.r*.1,pool.y,Math.min(pool.r,rr),Math.min(pool.r*.42,rr*.42),Math.sin(sec+rip)*.12,0,Math.PI*2);ctx.stroke();}ctx.restore();
+            if(!frozen&&!pouring&&pool.r>10&&Math.hypot(heart.x-pool.x,heart.y-pool.y)<pool.r+heart.hitbox&&arenaExtTouchCooldown(st,"acid_"+pool.born,now,105))applyHit(1,"КИСЛОТА: РАЗЪЕДАЕТ!",false,true);
         }
     }
 
@@ -1208,7 +1203,7 @@ function updateExtendedArenaAttack(now) {
             if (!frozen) { leaf.x += leaf.vx; leaf.y += leaf.vy; leaf.rot += 0.12; }
             ctx.save(); ctx.translate(leaf.x, leaf.y); ctx.rotate(leaf.rot); ctx.fillStyle = "#b6d6df"; ctx.strokeStyle = "#f3ffff"; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(-leaf.size, 0); ctx.quadraticCurveTo(0, -leaf.size * 0.85, leaf.size, 0); ctx.quadraticCurveTo(0, leaf.size * 0.85, -leaf.size, 0); ctx.fill(); ctx.stroke(); ctx.restore();
-            if (!frozen && Math.hypot(heart.x - leaf.x, heart.y - leaf.y) < leaf.size + heart.hitbox) applyHit(dmg, "ШТОРМОВОЙ ОСКОЛОК!");
+            if(!frozen&&Math.hypot(heart.x-leaf.x,heart.y-leaf.y)<leaf.size+heart.hitbox&&arenaExtTouchCooldown(st,"wind_"+hi,now,360)){heart.vx+=leaf.vx*1.9;heart.vy+=leaf.vy*1.9;spawnFloatingText(heart.x,heart.y-18,"СБИТО ВЕТРОМ!","#a8edff");}
             if (leaf.x < -30 || leaf.x > 430 || leaf.y < -30 || leaf.y > 530) st.hazards.splice(hi, 1);
         }
     }
@@ -1241,7 +1236,7 @@ function updateExtendedArenaAttack(now) {
             for (var bt2 = boom.trail.length - 1; bt2 > 0; bt2--) { ctx.save(); ctx.globalAlpha = (1 - bt2 / boom.trail.length) * 0.36; ctx.strokeStyle = "#ffd879"; ctx.lineWidth = Math.max(1, 6 - bt2 * 0.6); ctx.beginPath(); ctx.moveTo(boom.trail[bt2].x, boom.trail[bt2].y); ctx.lineTo(boom.trail[bt2-1].x, boom.trail[bt2-1].y); ctx.stroke(); ctx.restore(); }
             ctx.save(); ctx.translate(boom.x, boom.y); ctx.rotate(boom.rot); ctx.fillStyle = "#f5d88a"; ctx.strokeStyle = "#fff7d9"; ctx.lineWidth = 2; ctx.shadowColor = "#e7b95b"; ctx.shadowBlur = 12;
             ctx.beginPath(); ctx.moveTo(-17,-7); ctx.lineTo(2,-7); ctx.lineTo(14,-15); ctx.lineTo(8,-1); ctx.lineTo(17,7); ctx.lineTo(-2,7); ctx.lineTo(-14,15); ctx.lineTo(-8,1); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
-            if (!frozen && Math.hypot(heart.x - boom.x, heart.y - boom.y) < 15 + heart.hitbox) applyHit(strongDmg, "ВОЗВРАТНОЕ ЛЕЗВИЕ!");
+            if(!frozen&&Math.hypot(heart.x-boom.x,heart.y-boom.y)<15+heart.hitbox&&arenaExtTouchCooldown(st,"boom_"+bi,now,450)){arenaExtPushHeart(boom.x,boom.y,5.2,1.2);boom.vx*=-1.25;boom.vy*=-1.25;boom.age=Math.max(boom.age,760);spawnFloatingText(heart.x,heart.y-18,"СБИТО С ТРАЕКТОРИИ!","#ffe7a4");}
             if (boom.age > 2600 || boom.x < -50 || boom.x > 450 || boom.y < -50 || boom.y > 550) st.hazards.splice(bi, 1);
         }
     }
@@ -1269,15 +1264,15 @@ function updateExtendedArenaAttack(now) {
             if (age >= 490 && age < 1220) {
                 var shockR = (age - 490) * 0.31;
                 ctx.save(); ctx.globalAlpha = Math.max(0.15, 0.75 - (age - 620) / 900); ctx.strokeStyle = "#ff9b55"; ctx.lineWidth = 3 + pulse * 2; ctx.shadowColor = "#ff542e"; ctx.shadowBlur = 16; ctx.beginPath(); ctx.arc(crack.branches[0][0].x, crack.branches[0][0].y, shockR, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-                if (!frozen && Math.abs(Math.hypot(heart.x - crack.branches[0][0].x, heart.y - crack.branches[0][0].y) - shockR) < 9 + heart.hitbox) applyHit(dmg, "УДАРНАЯ ВОЛНА!");
+                if(!frozen&&Math.abs(Math.hypot(heart.x-crack.branches[0][0].x,heart.y-crack.branches[0][0].y)-shockR)<9+heart.hitbox&&arenaExtTouchCooldown(st,"shock_"+ri,now,500)){var sa=Math.atan2(heart.y-crack.branches[0][0].y,heart.x-crack.branches[0][0].x);heart.vx+=Math.cos(sa)*5.8;heart.vy+=Math.sin(sa)*5.8;spawnFloatingText(heart.x,heart.y-18,"ВОЛНА ОТБРОСИЛА!","#ffad70");}
             }
             for (var cj = 0; cj < crack.branches.length; cj++) {
                 var points = crack.branches[cj];
                 arenaExtDrawSegment(points[0].x, points[0].y, points[1].x, points[1].y, warningC ? 3 : 10, warningC ? "#ffca7b" : "#ff5b32", warningC ? 0.55 : 0.95, warningC);
                 arenaExtDrawSegment(points[1].x, points[1].y, points[2].x, points[2].y, warningC ? 3 : 10, warningC ? "#ffca7b" : "#ff5b32", warningC ? 0.55 : 0.95, warningC);
                 if (!warningC && age < 1540) {
-                    arenaExtHitSegment(points[0].x, points[0].y, points[1].x, points[1].y, 10, dmg, "РАСКОЛ!");
-                    arenaExtHitSegment(points[1].x, points[1].y, points[2].x, points[2].y, 10, dmg, "РАСКОЛ!");
+                    if(arenaExtLineTouchesHeart(points[0].x,points[0].y,points[1].x,points[1].y,10)&&arenaExtTouchCooldown(st,"crackA_"+ri+"_"+cj,now,500)){arenaExtPushHeart(points[0].x,points[0].y,4.5,2.8);spawnFloatingText(heart.x,heart.y-18,"ТРЕЩИНА ПОДБРОСИЛА!","#ffb071");}
+                    if(arenaExtLineTouchesHeart(points[1].x,points[1].y,points[2].x,points[2].y,10)&&arenaExtTouchCooldown(st,"crackB_"+ri+"_"+cj,now,500)){arenaExtPushHeart(points[1].x,points[1].y,4.5,2.8);spawnFloatingText(heart.x,heart.y-18,"ТРЕЩИНА ПОДБРОСИЛА!","#ffb071");}
                 }
             }
         }
@@ -1312,7 +1307,7 @@ function updateExtendedArenaAttack(now) {
                 ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx + Math.cos(sa) * 13, ty + Math.sin(sa) * 13); ctx.stroke();
             }
             ctx.restore();
-            if (ageT > 500 && ageT < 1500 && progressT > 0.1) { arenaExtHitSegment(tent.x, tent.y, midX, midY, 18, strongDmg, "ЩУПАЛЬЦЕ!"); arenaExtHitSegment(midX, midY, tx, ty, 15, strongDmg, "ЩУПАЛЬЦЕ!"); }
+            if(!frozen&&ageT>500&&ageT<1500&&progressT>.1&&arenaExtLineTouchesHeart(tent.x,tent.y,tx,ty,16)&&arenaExtTouchCooldown(st,"tentacle_"+ti,now,220)){var ta=Math.atan2(ty-tent.y,tx-tent.x);heart.vx+=Math.cos(ta)*2.5;heart.vy+=Math.sin(ta)*2.5;heart.vx+=(tent.x-heart.x)*.025;heart.vy+=(tent.y-heart.y)*.025;spawnFloatingText(heart.x,heart.y-18,"ЩУПАЛЬЦЕ ТЯНЕТ!","#e5b08d");}
         }
     }
 
@@ -1338,9 +1333,11 @@ function updateExtendedArenaAttack(now) {
             if (!movingGear.trail) movingGear.trail = [];
             if (!frozen) {
                 movingGear.age += delta;
-                movingGear.x += movingGear.vx * frameScaleG;
-                movingGear.y += movingGear.vy * frameScaleG;
-                movingGear.rot += (movingGear.vx - movingGear.vy) / Math.max(11, movingGear.r) * frameScaleG;
+                var gearTouchingPlayer = Math.hypot(heart.x-movingGear.x,heart.y-movingGear.y)<movingGear.r+heart.hitbox+2;
+                var gearMotionScale = gearTouchingPlayer ? 0.30 : 1;
+                movingGear.x += movingGear.vx*frameScaleG*gearMotionScale;
+                movingGear.y += movingGear.vy*frameScaleG*gearMotionScale;
+                movingGear.rot += (movingGear.vx-movingGear.vy)/Math.max(11,movingGear.r)*frameScaleG*gearMotionScale;
                 movingGear.roll += 0.09 * frameScaleG;
                 movingGear.trail.unshift({x:movingGear.x,y:movingGear.y});
                 if (movingGear.trail.length > 9) movingGear.trail.pop();
@@ -1401,9 +1398,9 @@ function updateExtendedArenaAttack(now) {
             ctx.strokeStyle = "rgba(255,242,201,0.7)"; ctx.lineWidth = 1.5;
             ctx.beginPath(); ctx.arc(0, 0, gear.r * 0.61, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
             if (!frozen && Math.hypot(heart.x - gear.x, heart.y - gear.y) < gear.r + heart.hitbox + 2) {
-                st.gearSlowUntil = now + 320;
+                st.gearSlowUntil = now + 40;
                 if (now >= Number(gear.nextContactHitAt || 0)) {
-                    gear.nextContactHitAt = now + 290; arenaShake = Math.max(arenaShake, 10);
+                    gear.nextContactHitAt = now + 105; arenaShake = Math.max(arenaShake, 10);
                     for (var hpG = 0; hpG < 9; hpG++) arenaParticles.push({x:heart.x,y:heart.y,vx:(Math.random()-0.5)*9,vy:(Math.random()-0.5)*9,life:19,maxLife:19,color:hpG%2?"#ff9b32":"#fff2c6",size:2.2+Math.random()*3});
                     applyHit(strongDmg, "ШЕСТЕРНЯ: МУЛЬТИ-УДАР!", false, true);
                 }
@@ -1441,53 +1438,29 @@ function updateExtendedArenaAttack(now) {
                 arenaExtDrawSegment(vine.points[vs].x, vine.points[vs].y, exV, eyV, 13, ageV > 1400 ? "#7d9e4c" : "#b0dc69", 0.95, false);
                 var dxV = exV - vine.points[vs].x, dyV = eyV - vine.points[vs].y, lenV = Math.max(1, Math.hypot(dxV,dyV)), nxV = -dyV / lenV, nyV = dxV / lenV;
                 for (var th = 0; th < 3; th++) { var tu = 0.24 + th * 0.25; if (tu > ratioV) continue; var txV = vine.points[vs].x + dxV * tu, tyV = vine.points[vs].y + dyV * tu; ctx.save(); ctx.fillStyle = "#e7ff9d"; ctx.strokeStyle = "#547c35"; ctx.lineWidth = 1; ctx.shadowColor = "#caff6f"; ctx.shadowBlur = 7; ctx.beginPath(); ctx.moveTo(txV + nxV * 2, tyV + nyV * 2); ctx.lineTo(txV + nxV * 12 - dxV / lenV * 3, tyV + nyV * 12 - dyV / lenV * 3); ctx.lineTo(txV - nxV * 4, tyV - nyV * 4); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
-                if (ageV > 610 && ratioV > 0.4 && ageV < 3250) arenaExtHitSegment(vine.points[vs].x, vine.points[vs].y, exV, eyV, 13, dmg, "ШИПЫ!");
+                if(ageV>610&&ratioV>.4&&ageV<3250&&arenaExtLineTouchesHeart(vine.points[vs].x,vine.points[vs].y,exV,eyV,13)){heart.vx*=.72;heart.vy*=.72;if(arenaExtTouchCooldown(st,"vine_"+vi2+"_"+vs,now,260))spawnFloatingText(heart.x,heart.y-18,"ШИПЫ ЗАДЕРЖИВАЮТ!","#d7f3a5");}
             }
             ctx.save(); ctx.fillStyle = warningV ? "#eaffbd" : "#7d9e4c"; ctx.beginPath(); ctx.arc(vine.points[0].x, vine.points[0].y, warningV ? 7 : 5, 0, Math.PI*2); ctx.fill(); ctx.restore();
         }
     }
 
-    // 20. Mechanical claws lunge from an edge, hold briefly, then retract.
-    if (st.type === 20) {
-        if (t >= st.nextSpawnAt) {
-            var sideC = Math.floor(Math.random() * 4), lane = sideC < 2 ? 85 + Math.random() * 330 : 70 + Math.random() * 350;
-            st.hazards.push({ side:sideC, lane:lane, born:t, w:58, h:48 });
-            if (Math.random() < 0.58) { var sideC2 = sideC % 2 === 0 ? sideC + 1 : sideC - 1; var lane2 = Math.max(65, Math.min(465, lane + (Math.random() < 0.5 ? -1 : 1) * (52 + Math.random() * 78))); st.hazards.push({ side:sideC2, lane:lane2, born:t + 90, w:54, h:46 }); }
-            st.nextSpawnAt = t + 840;
-        }
-        for (var ci = st.hazards.length - 1; ci >= 0; ci--) {
-            var claw = st.hazards[ci], ageC = t - claw.born;
-            if (ageC > 2000) { st.hazards.splice(ci, 1); continue; }
-            var progressC;
-            if (ageC < 430) progressC = 0;
-            else if (ageC < 790) progressC = (ageC - 430) / 360;
-            else if (ageC < 1120) progressC = 1;
-            else progressC = Math.max(0, 1 - (ageC - 1120) / 780);
-            var cx, cy;
-            if (claw.side === 0) { cx = -32 + progressC * 215; cy = claw.lane; }
-            else if (claw.side === 1) { cx = 432 - progressC * 215; cy = claw.lane; }
-            else if (claw.side === 2) { cx = claw.lane; cy = -32 + progressC * 275; }
-            else { cx = claw.lane; cy = 532 - progressC * 275; }
-            if (ageC < 430) {
-                ctx.save(); ctx.strokeStyle = "#ffd38e"; ctx.lineWidth = 2; ctx.setLineDash([6,5]);
-                if (claw.side < 2) { ctx.beginPath(); ctx.moveTo(12, claw.lane); ctx.lineTo(388, claw.lane); ctx.stroke(); }
-                else { ctx.beginPath(); ctx.moveTo(claw.lane, 55); ctx.lineTo(claw.lane, 490); ctx.stroke(); }
-                ctx.setLineDash([]); ctx.restore();
-            }
-            ctx.save(); ctx.translate(cx, cy); ctx.fillStyle = ageC < 520 ? "#9c9c9c" : "#c5c9ce"; ctx.strokeStyle = "#f7f0df"; ctx.lineWidth = 2; ctx.shadowColor = "#e8bd79"; ctx.shadowBlur = 10 + pulse * 6;
-            ctx.strokeStyle = "rgba(255,205,125," + (0.25 + pulse * 0.6) + ")"; ctx.beginPath(); ctx.arc(0, 0, 33 + pulse * 7, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = "#f7f0df";
-            ctx.fillRect(-claw.w/2, -claw.h/2, claw.w, claw.h); ctx.strokeRect(-claw.w/2, -claw.h/2, claw.w, claw.h);
-            ctx.fillStyle = "#525b64";
-            for (var pr = -1; pr <= 1; pr++) {
-                ctx.beginPath();
-                if (claw.side === 0) { ctx.moveTo(claw.w/2-8, pr*13-5); ctx.lineTo(claw.w/2+10, pr*13); ctx.lineTo(claw.w/2-8, pr*13+5); }
-                else if (claw.side === 1) { ctx.moveTo(-claw.w/2+8, pr*13-5); ctx.lineTo(-claw.w/2-10, pr*13); ctx.lineTo(-claw.w/2+8, pr*13+5); }
-                else if (claw.side === 2) { ctx.moveTo(pr*13-5, claw.h/2-8); ctx.lineTo(pr*13, claw.h/2+10); ctx.lineTo(pr*13+5, claw.h/2-8); }
-                else { ctx.moveTo(pr*13-5, -claw.h/2+8); ctx.lineTo(pr*13, -claw.h/2-10); ctx.lineTo(pr*13+5, -claw.h/2+8); }
-                ctx.closePath(); ctx.fill();
-            }
-            ctx.restore();
-            if (!frozen && ageC >= 430 && progressC > 0.12 && Math.abs(heart.x - cx) < claw.w/2 + heart.hitbox && Math.abs(heart.y - cy) < claw.h/2 + heart.hitbox) applyHit(strongDmg, "КЛЕШНЯ!");
+    // 20. Twin interceptor fists: catch the heart between them, carry it, then slam it.
+    if(st.type===20){
+        if(!st.clawPair&&t>=st.nextSpawnAt){var horizontal=Math.random()<.5,lane=horizontal?95+Math.random()*310:90+Math.random()*320;st.clawPair={born:t,horizontal:horizontal,lane:lane,phase:"approach",x1:horizontal?-35:lane,y1:horizontal?lane:-35,x2:horizontal?435:lane,y2:horizontal?lane:535,holdUntil:0,slamAt:0};st.nextSpawnAt=t+1700;}
+        var pair=st.clawPair;
+        if(pair){var horizontalC=pair.horizontal,center=pair.lane,leftX=horizontalC?pair.x1:center,leftY=horizontalC?center:pair.y1,rightX=horizontalC?pair.x2:center,rightY=horizontalC?center:pair.y2;
+            if(pair.phase==="approach"){var close=Math.min(1,delta*.00048);if(horizontalC){pair.x1+=(center-20-pair.x1)*close;pair.x2+=(center+20-pair.x2)*close;}else{pair.y1+=(center-20-pair.y1)*close;pair.y2+=(center+20-pair.y2)*close;}
+                leftX=horizontalC?pair.x1:center;leftY=horizontalC?center:pair.y1;rightX=horizontalC?pair.x2:center;rightY=horizontalC?center:pair.y2;
+                var betweenC=horizontalC?(heart.x>Math.min(leftX,rightX)-heart.hitbox&&heart.x<Math.max(leftX,rightX)+heart.hitbox&&Math.abs(heart.y-center)<36):(heart.y>Math.min(leftY,rightY)-heart.hitbox&&heart.y<Math.max(leftY,rightY)+heart.hitbox&&Math.abs(heart.x-center)<36);
+                if(betweenC){pair.phase="caught";pair.holdUntil=t+360;arenaShake=Math.max(arenaShake,5);}
+                if((horizontalC?Math.abs(pair.x2-pair.x1):Math.abs(pair.y2-pair.y1))<22){pair.phase="slam";pair.slamAt=t;}
+            }else if(pair.phase==="caught"){if(horizontalC){pair.x1=center-18;pair.x2=center+18;heart.x+=(center-heart.x)*Math.min(.22,delta*.00045);heart.y+=(center-heart.y)*Math.min(.18,delta*.00035);}else{pair.y1=center-18;pair.y2=center+18;heart.y+=(center-heart.y)*Math.min(.22,delta*.00045);heart.x+=(center-heart.x)*Math.min(.18,delta*.00035);}if(t>=pair.holdUntil){pair.phase="slam";pair.slamAt=t;}}
+            else if(pair.phase==="slam"){if(!pair.didSlam){pair.didSlam=true;arenaShake=Math.max(arenaShake,15);screenFlash=Math.max(screenFlash,4);playArenaSound(90,"sawtooth",.2,.08);if(Math.abs(heart.x-center)<76&&Math.abs(heart.y-center)<76){if(horizontalC){heart.vx=heart.x<center?-7:7;heart.vy=(heart.y-center)*.12;}else{heart.vy=heart.y<center?-7:7;heart.vx=(heart.x-center)*.12;}applyHit(1,"ЗАЖАЛО МЕЖДУ КУЛАКАМИ!",false,true);}for(var spC=0;spC<22;spC++)arenaParticles.push({x:center+(Math.random()-.5)*45,y:center+(Math.random()-.5)*45,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*10,life:22,maxLife:22,color:spC%2?"#ffc36c":"#fff1d4",size:2+Math.random()*3});}if(t-pair.slamAt>270){pair.phase="retract";pair.retractAt=t;}}
+            else if(pair.phase==="retract"){var retract=Math.min(1,delta*.003);if(horizontalC){pair.x1+=(-35-pair.x1)*retract;pair.x2+=(435-pair.x2)*retract;}else{pair.y1+=(-35-pair.y1)*retract;pair.y2+=(535-pair.y2)*retract;}if(t-pair.retractAt>400)st.clawPair=null;}
+            leftX=horizontalC?pair.x1:center;leftY=horizontalC?center:pair.y1;rightX=horizontalC?pair.x2:center;rightY=horizontalC?center:pair.y2;
+            function drawClaw(cx,cy,flip){ctx.save();ctx.translate(cx,cy);ctx.fillStyle="#b8c2cc";ctx.strokeStyle="#fff0d4";ctx.lineWidth=2;ctx.shadowColor="#ffc66f";ctx.shadowBlur=12;ctx.fillRect(-25,-22,50,44);ctx.strokeRect(-25,-22,50,44);ctx.fillStyle="#4c5966";for(var qC=-1;qC<=1;qC++){ctx.beginPath();if(horizontalC){ctx.moveTo(flip?-24:24,qC*12-5);ctx.lineTo(flip?-38:38,qC*12);ctx.lineTo(flip?-24:24,qC*12+5);}else{ctx.moveTo(qC*12-5,flip?-24:24);ctx.lineTo(qC*12,flip?-38:38);ctx.lineTo(qC*12+5,flip?-24:24);}ctx.closePath();ctx.fill();}ctx.restore();}
+            drawClaw(leftX,leftY,false);drawClaw(rightX,rightY,true);
+            if(pair.phase==="approach"){ctx.save();ctx.strokeStyle="rgba(255,205,125,0.7)";ctx.setLineDash([5,5]);ctx.lineWidth=2;if(horizontalC){ctx.beginPath();ctx.moveTo(15,center);ctx.lineTo(385,center);ctx.stroke();}else{ctx.beginPath();ctx.moveTo(center,65);ctx.lineTo(center,490);ctx.stroke();}ctx.restore();}
         }
     }
 }
