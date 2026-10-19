@@ -477,7 +477,13 @@
         asControls.drill.style.opacity = cooldownMs > 0 ? "0.78" : "1";
     }
     function asText(x, y, text, color, life) {
-        asTexts.push({ x:x, y:y, text:text, color:color || "#ffffff", life:life || 50, maxLife:life || 50, vy:-0.7 });
+        const message = String(text == null ? "" : text);
+        // Длинные реплики остаются на экране дольше. «Ты серьезно?» (~13 символов)
+        // держится около 2 секунд при обычных 60 FPS.
+        const readableLife = Math.max(1, message.length * 9);
+        const requestedLife = Number.isFinite(Number(life)) && Number(life) > 0 ? Number(life) : 50;
+        const duration = Math.max(requestedLife, readableLife);
+        asTexts.push({ x:x, y:y, text:message, color:color || "#ffffff", life:duration, maxLife:duration, vy:-0.7 });
     }
     function asSound(freq, type, duration, volume) {
         try {
