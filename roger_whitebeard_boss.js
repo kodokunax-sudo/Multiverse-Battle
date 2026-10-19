@@ -1188,7 +1188,7 @@
             vx: 0, vy: 0, moveTargetX: 255, moveTargetY: 205,
             wanderTimer: 42, dodgeCooldown: 0, dodgeFlashTimer: 0,
             aiSkill: 0.62, hakiAwakened: true, lastBreath: false,
-            tsunamiEvading: false, tsunamiPulled: false, stunTimer: 0,
+            tsunamiEvading: false, tsunamiPulled: false, tsunamiExitBlock: null, stunTimer: 0,
             dodgePlanTimer: 0, lastThreatAttack: null, attackAngle: -Math.PI / 3,
             attackCooldown: 8, windup: 0, swingTimer: 0,
             swordAngle: -Math.PI / 3, targetId: null, hitFlash: 0,
@@ -4715,6 +4715,26 @@
     function rwbOdenGetNearestBlueBlock(fromX, fromY) {
         const ox = Number(fromX), oy = Number(fromY);
         if (!Number.isFinite(ox) || !Number.isFinite(oy)) return null;
+        const exitPriority = rwbOden && rwbOden.tsunamiExitBlock;
+        if (exitPriority && exitPriority.kind === "attack" &&
+            rwbAttacks.includes(exitPriority.object) &&
+            rwbOdenIsBreakableBlock(exitPriority.object) &&
+            exitPriority.object.state !== "warning" &&
+            exitPriority.object.state !== "windup" &&
+            exitPriority.object.state !== "done") {
+            const object = exitPriority.object;
+            return { kind: "attack", object: object, x: Number(object.x), y: Number(object.y),
+                dist: Math.hypot(Number(object.x) - ox, Number(object.y) - oy) };
+        }
+        if (exitPriority && exitPriority.kind === "shockwave" &&
+            rwbShockwaves.includes(exitPriority.object) &&
+            exitPriority.object.canDestroy && Number(exitPriority.object.hp) > 0) {
+            const sw = exitPriority.object;
+            const cx = Number(sw.x), cy = Number(sw.y), radius = Math.max(0, Number(sw.radius) || 0);
+            const dx = ox - cx, dy = oy - cy, dist = Math.hypot(dx, dy) || 1;
+            const x = cx + dx / dist * radius, y = cy + dy / dist * radius;
+            return { kind: "shockwave", object: sw, x: x, y: y, dist: Math.hypot(x - ox, y - oy) };
+        }
         let best = null, bestDist = Infinity;
         for (let i = rwbAttacks.length - 1; i >= 0; i--) {
             const a = rwbAttacks[i];
@@ -4813,7 +4833,54 @@
         return best;
     }
 
-        function rwbOdenHasNoEscape(oden) {
+    // Check whether a destructible object or a falling boulder blocks the predicted tsunami exit.
+    function rwbOdenFindTsunamiExitBlock(oden, escape) {
+        if (!oden || !oden.alive || !escape) return null;
+        const exitX = Math.max(22, Math.min(378, Number(escape.safeX) || 200));
+        const exitY = Math.max(365, Math.min(466, Number(oden.y) || 420));
+        let best = null, bestScore = Infinity;
+        function consider(kind, object, x, y, radius, canShoot) {
+            if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+            const routeDistance = rwbOdenSegmentDistance(x, y, oden.x, oden.y, exitX, exitY);
+            const nearExit = Math.abs(x - exitX) <= radius + 28 && y >= 260 && y <= 505;
+            if (routeDistance > radius + 24 && !nearExit) return;
+            const score = Math.min(routeDistance, Math.hypot(x - exitX, y - exitY) + 10);
+            if (score < bestScore) {
+                bestScore = score;
+                best = { kind: kind, object: object, x: x, y: y,
+                    dist: Math.hypot(x - oden.x, y - oden.y), canShoot: canShoot };
+            }
+        }
+        for (let i = 0; i < rwbAttacks.length; i++) {
+            const a = rwbAttacks[i];
+            if (!a) continue;
+            const warning = a.type === "wb_giant_rock_warning" && Number(a.warningTimer) > 0;
+            const breakable = rwbOdenIsBreakableBlock(a) &&
+                a.state !== "warning" && a.state !== "windup" && a.state !== "done";
+            if (!warning && !breakable) continue;
+            const x = warning ? (Number(a.targetX) || Number(a.x)) : Number(a.x);
+            const y = Number(a.y);
+            const radius = warning ? 58 : (Number(a.size) || Number(a.radius) || 18) * 0.72 + 18;
+            consider(warning ? "warning" : "attack", a, x, y, radius, breakable);
+        }
+        for (let i = 0; i < rwbShockwaves.length; i++) {
+            const sw = rwbShockwaves[i];
+            if (!sw || !sw.canDestroy || !(Number(sw.hp) > 0)) continue;
+            const cx = Number(sw.x), cy = Number(sw.y), radius = Math.max(0, Number(sw.radius) || 0);
+            if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue;
+            const routeDx = exitX - oden.x, routeDy = exitY - oden.y;
+            const len2 = routeDx * routeDx + routeDy * routeDy;
+            const t = len2 > 0 ? Math.max(0, Math.min(1,
+                ((cx - oden.x) * routeDx + (cy - oden.y) * routeDy) / len2)) : 0;
+            const nearestX = oden.x + routeDx * t, nearestY = oden.y + routeDy * t;
+            const dx = nearestX - cx, dy = nearestY - cy, dist = Math.hypot(dx, dy) || 1;
+            consider("shockwave", sw, cx + dx / dist * radius, cy + dy / dist * radius,
+                (Number(sw.width) || 8) + 18, true);
+        }
+        return best;
+    }
+
+    function rwbOdenHasNoEscape(oden) {
         if (!oden || !oden.alive) return false;
         const directions = 12, distances = [82, 122];
         const left = 22, right = 378, top = 14, bottom = 478;
@@ -4960,13 +5027,24 @@
         let odenAvoidingFruitPunch = false;
         let odenDodgingForThreat = false;
         if (!stunned) {
-        // Combo attraction takes priority over evasive pathing; this is an attack effect, not a visual hint.
+        // If the safe side is barricaded, prioritize reaching it and break the blocker with Blue Mode,
+        // even when Whitebeard's combo pull is active.
         const tsunamiPull = rwbOdenFindTsunamiPull(oden);
-        const tsunamiEscape = tsunamiPull ? null : rwbOdenFindTsunamiEscape(oden, aiSkill);
-        oden.tsunamiPulled = !!tsunamiPull;
-        oden.tsunamiEvading = !tsunamiPull && !!tsunamiEscape;
-        if (tsunamiPull) {
-            // The combo really pulls Oden, but it no longer overrides his danger awareness.
+        const tsunamiEscape = rwbOdenFindTsunamiEscape(oden, aiSkill);
+        const tsunamiExitBlock = tsunamiEscape ? rwbOdenFindTsunamiExitBlock(oden, tsunamiEscape) : null;
+        const forceTsunamiExit = !!(tsunamiEscape && tsunamiExitBlock);
+        oden.tsunamiExitBlock = tsunamiExitBlock && tsunamiExitBlock.canShoot ? tsunamiExitBlock : null;
+        if (forceTsunamiExit && oden.blueModeTimer <= 0) rwbOdenActivateBlueMode(oden, true);
+        oden.tsunamiPulled = !!tsunamiPull && !forceTsunamiExit;
+        oden.tsunamiEvading = !!tsunamiEscape && (!tsunamiPull || forceTsunamiExit);
+        if (forceTsunamiExit) {
+            oden.moveTargetX = tsunamiEscape.safeX;
+            oden.moveTargetY = Math.max(380, Math.min(455, Number(oden.y) || 420));
+            oden.wanderTimer = Math.max(oden.wanderTimer, 30);
+            oden.dodgeCooldown = Math.max(oden.dodgeCooldown, 16);
+            oden.dodgeFlashTimer = Math.max(oden.dodgeFlashTimer, 7);
+        } else if (tsunamiPull) {
+            // The combo really pulls Oden, unless the predicted escape route is blocked.
             oden.moveTargetX = oden.x + clampWhitebeard((tsunamiPull.targetX - oden.x) * 0.28, -82, 82);
             oden.moveTargetY = oden.y + clampWhitebeard((tsunamiPull.targetY - oden.y) * 0.22, -64, 64);
             oden.vx += clampWhitebeard((tsunamiPull.targetX - oden.x) * 0.018, -1.35, 1.35) * 0.65;
@@ -4974,7 +5052,8 @@
             oden.wanderTimer = Math.max(oden.wanderTimer, 16);
         } else if (tsunamiEscape) {
             oden.moveTargetX = tsunamiEscape.safeX;
-            oden.wanderTimer = Math.max(oden.wanderTimer, 18);
+            oden.moveTargetY = Math.max(380, Math.min(455, Number(oden.y) || 420));
+            oden.wanderTimer = Math.max(oden.wanderTimer, 24);
             oden.dodgeCooldown = Math.max(oden.dodgeCooldown, 16);
             oden.dodgeFlashTimer = Math.max(oden.dodgeFlashTimer, 7);
         } else if (oden.healState !== "idle") {
@@ -5014,8 +5093,20 @@
             }
         }
 
-        // When the player is close to a boss, Oden stays on a safer flank instead of joining melee.
-        if (oden.healState === "idle" && !tsunamiPull && !tsunamiEscape) {
+        // Usually hold the lower lane and shadow the target's horizontal movement, looking up at the boss.
+        if (oden.healState === "idle" && !tsunamiPull && !tsunamiEscape && !oden.lastBreath) {
+            const bottomBoss = getRWBOdenAttackTarget(getRWBOdenTargets());
+            if (bottomBoss) {
+                const bossLeadX = Math.max(-24, Math.min(24, (Number(bottomBoss.vx) || 0) * 5));
+                oden.moveTargetX = Math.max(28, Math.min(372, Number(bottomBoss.x) + bossLeadX));
+                oden.moveTargetY = 422;
+                oden.wanderTimer = Math.max(oden.wanderTimer, 12);
+            }
+        }
+
+        // Keep the lower-lane formation unless a support/emergency state overrides it.
+        if (oden.healState === "idle" && !tsunamiPull && !tsunamiEscape &&
+            Math.abs((Number(oden.moveTargetY) || 0) - 422) > 38) {
             const bosses = getRWBOdenTargets().filter(function(boss) { return boss && boss.hp > 0; });
             const targetTooClose = bosses.some(function(boss) {
                 return Math.hypot(oden.moveTargetX - boss.x, oden.moveTargetY - boss.y) < 132;
