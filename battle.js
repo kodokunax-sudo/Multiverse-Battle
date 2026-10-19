@@ -640,6 +640,11 @@ function getAttackTypes(bossWave) {
 function skipDefeatedBoss() { stopArena(); if (typeof currentEnemy !== 'undefined' && currentEnemy) currentEnemy.hp = 0; if (typeof victory === 'function') victory(); }
 
 function getMainCardSpeedForArena() {
+    if (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMainCard) {
+        var testMain = window.__mbBossTestMainCard;
+        return { speed: Math.max(0.4, Math.min(6, Number(testMain.speed) || 1.2)), cardName: testMain.name || "Тестовый персонаж",
+            cardRarity: testMain.rarity || "Тест", source: "bossTest", details: ["Выбрано во вкладке теста босса"] };
+    }
     var result = { speed: 1.2, cardName: "Нет карты", cardRarity: "—", source: "базовая", details: [] };
     if (typeof team === 'undefined' || !Array.isArray(team) || team.length === 0) { result.details.push("Отряд пуст"); return result; }
     if (typeof myCards === 'undefined' || !Array.isArray(myCards) || myCards.length === 0) { result.details.push("myCards пуст"); return result; }
@@ -674,14 +679,17 @@ function getMainCardSpeedForArena() {
 
 function startArena(bossWave) {
     initArenaAudio();
+    var bossTestMode = (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind === "arena") ? window.__mbBossTestMode : null;
+    var bossIdentityWave = bossTestMode ? Number(bossTestMode.bossWave || bossWave) : bossWave;
+    var bossStrengthWave = bossTestMode ? Math.max(50, Math.min(10000, Number(bossTestMode.attackWave) || bossWave)) : bossWave;
     var btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = "none";
     var spareBtn = document.getElementById("spareBtn"); if (spareBtn) spareBtn.style.display = "none";
     var skipBtn = document.getElementById("skipArenaBtn"); if (skipBtn) skipBtn.style.display = "none";
     var superBtn2 = document.getElementById("superBtn2"); if (superBtn2) superBtn2.style.display = "none";
     var superBtnDeact = document.getElementById("superBtnDeactivate"); if (superBtnDeact) superBtnDeact.style.display = "none";
 
-    arenaBossDefeatedBefore = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossWave));
-    arenaActive = true; arenaCurrentWave = bossWave; arenaExtendedState = null; calculateArenaHP();
+    arenaBossDefeatedBefore = !bossTestMode && (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossIdentityWave));
+    arenaActive = true; arenaCurrentWave = bossIdentityWave; arenaExtendedState = null; calculateArenaHP();
     antiSpiralGravityVelocity = 0;
     antiSpiralJumpCooldown = 0;
     antiSpiralAttackStep = 0;
@@ -689,12 +697,12 @@ function startArena(bossWave) {
     antiSpiralSpiralAngle = 0;
     antiSpiralVolleyDirection = 1;
     antiSpiralArenaWidth = 396;
-    antiSpiralArenaHeight = bossWave === 1500 ? 438 : 496;
+    antiSpiralArenaHeight = (!bossTestMode && bossIdentityWave === 1500) ? 438 : 496;
     antiSpiralArenaTargetWidth = 396;
     antiSpiralArenaTargetHeight = antiSpiralArenaHeight;
     antiSpiralArenaLastShift = Date.now();
     antiSpiralArenaWidePhase = false;
-    if (bossWave === 1500) startAntiSpiralMusic();
+    if (!bossTestMode && bossIdentityWave === 1500) startAntiSpiralMusic();
     else stopAntiSpiralMusic();
     arenaKarma = 0; screenFlash = 0; arenaVignette = 0; arenaGlobalSpeedMod = 1.0; arenaDodgeTimer = 0;
     whitebeardRegenTimer = 0;
@@ -767,26 +775,39 @@ function startArena(bossWave) {
 
     arenaClickTargets = []; arenaClicksHit = 0; arenaPhase = "dodge"; attacks = []; arenaBlasters = []; arenaParticles = []; floatingTexts = []; arenaTrail = []; arenaShockwaves = []; wallGapIndicator = null;
     arenaShake = 0; arenaHitFlash = 0; invulnTimer = 0; arenaComboText = ""; arenaComboTimer = 0; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0; heartRotation = 0; heartWasMoving = false; heartStandingTime = 0;
-    if (bossWave === 1500) heart.y = antiSpiralFloorY();
+    if (!bossTestMode && bossIdentityWave === 1500) heart.y = antiSpiralFloorY();
 
-    arenaSpeedMult = Math.min(15.0, 1.0 + Math.floor((bossWave - 50) / 50) * 0.1); if (bossWave < 50) arenaSpeedMult = 1.0;
-    wallSpeedMult = Math.min(4.0, 1.0 + Math.floor((bossWave - 50) / 100) * 0.15);
-    if (bossWave < 50) wallSpeedMult = 1.0;
-    wallCountMult = Math.min(2.0, 1.0 + Math.floor((bossWave - 50) / 200) * 0.15);
-    if (bossWave < 50) wallCountMult = 1.0;
+    arenaSpeedMult = Math.min(15.0, 1.0 + Math.floor((bossStrengthWave - 50) / 50) * 0.1); if (bossStrengthWave < 50) arenaSpeedMult = 1.0;
+    wallSpeedMult = Math.min(4.0, 1.0 + Math.floor((bossStrengthWave - 50) / 100) * 0.15);
+    if (bossStrengthWave < 50) wallSpeedMult = 1.0;
+    wallCountMult = Math.min(2.0, 1.0 + Math.floor((bossStrengthWave - 50) / 200) * 0.15);
+    if (bossStrengthWave < 50) wallCountMult = 1.0;
 
-    arenaAllowedTypes = getAttackTypes(bossWave);
-    var bt = typeof bossTemplates !== 'undefined' ? bossTemplates[bossWave] : null;
-    arenaBoss = bt ? bt.name : "БОСС ВРАТ"; arenaBossMaxHP = bt ? Math.floor((50 + bossWave * 12) * bt.hpMult) : 1000 + bossWave * 10; ghostBossHP = arenaBossMaxHP;
-    if (bt && bt.dmgMult) arenaBossDmgMult = bt.dmgMult; else arenaBossDmgMult = 1.0 + (bossWave - 50) / 100 * 0.5;
-    arenaBaseDmg = Math.max(2, Math.floor((5 + bossWave * 1.5) * arenaBossDmgMult / 3));
+    arenaAllowedTypes = getAttackTypes(bossStrengthWave);
+    if (bossTestMode && Array.isArray(bossTestMode.attackTypes) && bossTestMode.attackTypes.length) {
+        arenaAllowedTypes = bossTestMode.attackTypes.filter(function(type) { return Number.isInteger(type) && type >= 0 && type <= 20; });
+        if (!arenaAllowedTypes.length) arenaAllowedTypes = [0];
+    }
+    var bt = typeof bossTemplates !== 'undefined' ? bossTemplates[bossIdentityWave] : null;
+    arenaBoss = bossTestMode ? (bossTestMode.bossName || (bt ? bt.name : "ОБЫЧНЫЙ БОСС")) : (bt ? bt.name : "БОСС ВРАТ");
+    var strengthFactor = Math.max(0.5, 1.0 + (bossStrengthWave - 50) / 100 * 0.5);
+    var identityFactor = Math.max(0.5, 1.0 + (bossIdentityWave - 50) / 100 * 0.5);
+    arenaBossDmgMult = (bt && bt.dmgMult) ? bt.dmgMult * strengthFactor / identityFactor : strengthFactor;
+    arenaBaseDmg = Math.max(2, Math.floor((5 + bossStrengthWave * 1.5) * arenaBossDmgMult / 3));
+    if (bossTestMode) {
+        var idealTestDamage = Math.max(1, Math.floor((Number(window.playerFinalDamage) || 20) * 2.5));
+        arenaBossMaxHP = Math.max(5, idealTestDamage * 5);
+    } else {
+        arenaBossMaxHP = bt ? Math.floor((50 + bossIdentityWave * 12) * bt.hpMult) : 1000 + bossIdentityWave * 10;
+    }
+    ghostBossHP = arenaBossMaxHP;
 
     document.getElementById("arenaOverlay").style.display = "flex";
     document.getElementById("arenaBossName").innerText = arenaBoss;
     document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
     document.getElementById("arenaTimer").innerText = "∞";
     var skipBossBtn = document.getElementById("skipBossBtn");
-    if (skipBossBtn) skipBossBtn.style.display = arenaBossDefeatedBefore ? "block" : "none";
+    if (skipBossBtn) skipBossBtn.style.display = bossTestMode ? "none" : (arenaBossDefeatedBefore ? "block" : "none");
     if (typeof initSuperState === 'function') initSuperState();
     updateTakabaConfidenceDisplay();
     if (typeof updateWhitebeardSkillButton === 'function') updateWhitebeardSkillButton();
@@ -916,6 +937,9 @@ function applyArenaDamage() {
         if (_superState.markBuffActive && _superState.markDmgBonus > 1) finalDmg = Math.floor(finalDmg * _superState.markDmgBonus);
         if(typeof getTakabaCombatModifiers==="function"){try{finalDmg=Math.floor(finalDmg*getTakabaCombatModifiers().dmgMult);}catch(e){}}
         if (_superState.takabaDmgMult && _superState.takabaDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.takabaDmgMult);
+    }
+    if (typeof window !== "undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage === "function") {
+        try { finalDmg = window.MBBossTestModifyOutgoingDamage(finalDmg, ratio); } catch(e) {}
     }
     // DIO OVER HEAVEN: quality hits add a modest amount; global rolling cap prevents instant charge.
     // Normal hit ~= 1.6 energy; perfect x2.5 hit = 4 energy.
@@ -1399,6 +1423,11 @@ function stopArena() {
 }
 
 function winArena() {
+    if (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind === "arena") {
+        stopArena();
+        if (typeof window.MBBossTestFinish === "function") window.MBBossTestFinish("win", true);
+        return;
+    }
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) { if (!defeatedBosses.includes(arenaCurrentWave)) defeatedBosses.push(arenaCurrentWave); }
     if (typeof grantBossGachaReward === 'function') grantBossGachaReward(arenaCurrentWave);
     if (typeof resetAllCooldowns === 'function') resetAllCooldowns();
@@ -1407,6 +1436,11 @@ function winArena() {
 }
 
 function loseArena() {
+    if (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind === "arena") {
+        stopArena();
+        if (typeof window.MBBossTestFinish === "function") window.MBBossTestFinish("loss", true);
+        return;
+    }
     if (typeof _superState !== 'undefined' && _superState.dandyAutoRevive) {
         _superState.dandyAutoRevive = false;
         arenaHP = Math.ceil(arenaMaxHP * 0.5);
@@ -1432,6 +1466,10 @@ function loseArena() {
 
 // ★★★ ФИКС: Белоус 10% поглощение + Такаба ★★★
 function applyHit(dmg, textMsg, isTrueOneshot) {
+    if (typeof window !== "undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyIncomingDamage === "function") {
+        try { dmg = window.MBBossTestModifyIncomingDamage(dmg, "arena"); } catch(e) {}
+        if (dmg <= 0) return;
+    }
     // ★ БЕЛОУС + ТАКАБА: поглощение урона ★
     if (typeof applyWhitebeardPassiveReduction === 'function') {
         dmg = applyWhitebeardPassiveReduction(dmg);
