@@ -357,22 +357,135 @@
         var title = titleById(id);
         return title ? title.icon + ' ' + title.label : '';
     }
+    function titleRequirements(title) {
+        var match = title.id.match(/^(wave|bosses|wins|cards|rebirth|clicks)_(\d+)$/);
+        var simple = {
+            wave: { key: 'highest_wave', label: 'Максимальная волна' },
+            bosses: { key: 'bosses_defeated', label: 'Побеждённые боссы' },
+            wins: { key: 'total_wins', label: 'Победы' },
+            cards: { key: 'cards_collected', label: 'Полученные карты' },
+            rebirth: { key: 'rebirth_count', label: 'Перерождения' },
+            clicks: { key: 'total_clicks', label: 'Клики' }
+        };
+        if (match && simple[match[1]]) {
+            return [{ key: simple[match[1]].key, label: simple[match[1]].label, target: Number(match[2]) }];
+        }
+        var combined = {
+            boss_hunter: [{ key: 'bosses_defeated', label: 'Побеждённые боссы', target: 10 }],
+            collector: [{ key: 'cards_collected', label: 'Полученные карты', target: 50 }],
+            champion: [{ key: 'total_wins', label: 'Победы', target: 25 }],
+            reborn: [{ key: 'rebirth_count', label: 'Перерождения', target: 5 }],
+            multiverse_legend: [
+                { key: 'highest_wave', label: 'Максимальная волна', target: 1000 },
+                { key: 'bosses_defeated', label: 'Побеждённые боссы', target: 15 }
+            ],
+            multiverse_parasite: [
+                { key: 'highest_wave', label: 'Максимальная волна', target: 1500 },
+                { key: 'bosses_defeated', label: 'Побеждённые боссы', target: 50 }
+            ],
+            overqualified: [
+                { key: 'total_wins', label: 'Победы', target: 500 },
+                { key: 'cards_collected', label: 'Полученные карты', target: 250 }
+            ],
+            rebirth_loop: [
+                { key: 'rebirth_count', label: 'Перерождения', target: 25 },
+                { key: 'total_wins', label: 'Победы', target: 100 }
+            ],
+            card_singularity: [
+                { key: 'cards_collected', label: 'Полученные карты', target: 1000 },
+                { key: 'total_clicks', label: 'Клики', target: 100000 }
+            ],
+            final_chairman: [
+                { key: 'highest_wave', label: 'Максимальная волна', target: 10000 },
+                { key: 'bosses_defeated', label: 'Побеждённые боссы', target: 500 }
+            ]
+        };
+        return combined[title.id] || [];
+    }
+
+    function showAchievementTitleDetails(detail, title, stats) {
+        var currentStats = stats || {};
+        var unlocked = title.unlocked(currentStats);
+        detail.replaceChildren();
+
+        var heading = node('div', 'achievement-title-detail-heading', title.icon + ' ' + title.label);
+        heading.style.cssText = 'font-size:13px;font-weight:950;color:#ffe29a;margin-bottom:5px;';
+        detail.appendChild(heading);
+
+        var status = node('div', 'achievement-title-detail-status',
+            unlocked ? '✅ Титул уже открыт' : '🔒 Титул заблокирован');
+        status.style.cssText = 'display:inline-block;margin:0 0 7px;padding:3px 7px;border-radius:7px;font-size:10px;font-weight:900;color:' +
+            (unlocked ? '#9ff0b0;background:rgba(55,190,95,.12);' : '#d0c6e3;background:rgba(255,255,255,.06);');
+        detail.appendChild(status);
+
+        var instruction = node('p', 'achievement-title-detail-instruction',
+            'Как получить: ' + title.description + '.');
+        instruction.style.cssText = 'margin:0 0 7px;color:#e9e3f5;';
+        detail.appendChild(instruction);
+
+        var requirements = titleRequirements(title);
+        if (requirements.length) {
+            var progressText = requirements.map(function (requirement) {
+                return requirement.label + ': ' + safeCount(currentStats[requirement.key]) + ' / ' + requirement.target;
+            }).join(' · ');
+            var progress = node('p', 'achievement-title-detail-progress', 'Текущий прогресс: ' + progressText);
+            progress.style.cssText = 'margin:0 0 7px;color:#c9bdf0;';
+            detail.appendChild(progress);
+        }
+
+        var nextStep = node('p', 'achievement-title-detail-next',
+            unlocked
+                ? 'Его можно выбрать в списке «Титул над именем» выше.'
+                : 'Выполни условие выше, чтобы открыть титул и выбрать его в списке.');
+        nextStep.style.cssText = 'margin:0;color:#b8b0c9;';
+        detail.appendChild(nextStep);
+    }
+
     function renderAchievementBadges(containerId, stats, includeLocked) {
         var container = byId(containerId);
         if (!container) return;
+        var currentStats = stats || {};
         container.replaceChildren();
         var unlockedCount = 0;
+        var visibleCount = 0;
+        var detail = node('div', 'achievement-title-detail');
+        detail.style.cssText = 'display:block;flex:0 0 100%;box-sizing:border-box;padding:12px 14px;border:1px solid rgba(155,121,255,.28);border-radius:12px;background:linear-gradient(135deg,rgba(155,121,255,.09),rgba(246,181,27,.06));color:#e9e3f5;font-size:12px;line-height:1.5;margin-top:4px;';
+        var prompt = node('div', 'achievement-title-detail-prompt', 'Нажми на любой титул, чтобы узнать условие получения и текущий прогресс.');
+        prompt.style.cssText = 'color:#c9bdf0;';
+        detail.appendChild(prompt);
+        var selectedBadge = null;
+
         ACHIEVEMENT_TITLES.forEach(function (title) {
-            var unlocked = title.unlocked(stats || {});
+            var unlocked = title.unlocked(currentStats);
             if (unlocked) unlockedCount++;
             if (!unlocked && !includeLocked) return;
-            var badge = node('div', 'achievement-badge' + (unlocked ? '' : ' locked'));
-            badge.title = unlocked ? title.description : 'Условие: ' + title.description;
+            visibleCount++;
+            var badge = node('button', 'achievement-badge' + (unlocked ? '' : ' locked'));
+            badge.type = 'button';
+            badge.title = 'Нажми, чтобы узнать: ' + title.description;
+            badge.setAttribute('aria-pressed', 'false');
+            badge.style.cssText = 'cursor:pointer;text-align:left;appearance:none;-webkit-appearance:none;font-family:inherit;transition:filter .15s,border-color .15s,outline .15s;';
             badge.appendChild(node('span', '', unlocked ? title.icon : '🔒'));
             badge.appendChild(node('span', '', unlocked ? title.label : title.label + ' · закрыто'));
+            badge.addEventListener('click', function () {
+                if (selectedBadge) {
+                    selectedBadge.setAttribute('aria-pressed', 'false');
+                    selectedBadge.style.outline = 'none';
+                    selectedBadge.style.filter = '';
+                }
+                selectedBadge = badge;
+                badge.setAttribute('aria-pressed', 'true');
+                badge.style.outline = '2px solid rgba(246,181,27,.75)';
+                badge.style.filter = 'brightness(1.18)';
+                showAchievementTitleDetails(detail, title, currentStats);
+            });
             container.appendChild(badge);
         });
-        if (!unlockedCount && !includeLocked) container.appendChild(node('p', 'clan-muted', 'Значки пока не открыты — выполняй испытания, чтобы получить первый.'));
+
+        if (!unlockedCount && !includeLocked) {
+            container.appendChild(node('p', 'clan-muted', 'Значки пока не открыты — выполняй испытания, чтобы получить первый.'));
+        }
+        if (visibleCount) container.appendChild(detail);
     }
     function renderTitlePicker(stats, selectedId) {
         var select = byId('clanProfileTitle');
