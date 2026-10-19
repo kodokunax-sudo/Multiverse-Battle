@@ -1177,6 +1177,10 @@ function updateWaystarAttacks() {
 }
 
 function applyWaystarHit(dmg, textMsg) {
+    if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyIncomingDamage==="function") {
+        dmg=window.MBBossTestModifyIncomingDamage(dmg,"waystar");
+        if(dmg<=0)return;
+    }
     // ★ БЕЛОУС: 10% поглощение урона ★
     if (typeof applyWhitebeardPassiveReduction === 'function') {
         dmg = applyWhitebeardPassiveReduction(dmg);
@@ -1288,6 +1292,7 @@ function waystarVictory() {
 }
 
 function grantWaystarReward() {
+    if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===500) return;
     console.log("[WAYSTAR] Выдача награды (убийство)");
     if (typeof window !== 'undefined') window.waystarDefeatedThisRun = true;
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(500)) { defeatedBosses.push(500); }
@@ -1303,6 +1308,7 @@ function grantWaystarReward() {
 }
 
 function grantWaystarSpareDebt() {
+    if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===500) return;
     console.log("[WAYSTAR] Пощада: долг записан");
     if (typeof window !== 'undefined') window.waystarDefeatedThisRun = true;
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(500)) { defeatedBosses.push(500); }
@@ -1332,6 +1338,11 @@ function checkWaystarPlayerDefeat() {
 }
 
 function waystarDefeat() {
+    if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===500) {
+        stopWaystarFight();
+        if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("loss",true);
+        return;
+    }
     if (waystarState === "defeat" || waystarFinalActive) return;
     if (isWaystarModerActive()) { waystarPlayerHp = waystarPlayerMaxHp; updateWaystarHpBar(); return; }
     console.log("[WAYSTAR] Поражение");
@@ -1444,6 +1455,13 @@ function updateWaystarFinalScene() {
             if (waystarFinalTimer > 400) { waystarFinalPhase = "done"; waystarFinalTimer = 0; }
         }
         else if (waystarFinalPhase === "done") {
+            if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===500) {
+                if (!waystarFinalDone) {
+                    waystarFinalDone=true; waystarFinalActive=false; stopWaystarFight();
+                    if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("win",true);
+                }
+                return;
+            }
             if (!waystarFinalDone) {
                 waystarFinalDone = true;
                 console.log("[WAYSTAR] Финал: завершение");
@@ -1530,6 +1548,7 @@ function renderWaystarSimpleCoopFrame() {
             var by = bullet.y - waystarBoss.y;
             if (Math.sqrt(bx * bx + by * by) < waystarBoss.size + Math.max(2, Number(bullet.size) || 4)) {
                 var hitDamage = Math.max(1, Math.floor(Number(bullet.damage) || 1));
+                if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") hitDamage=window.MBBossTestModifyOutgoingDamage(hitDamage,1);
                 waystarBossHp = Math.max(0, waystarBossHp - hitDamage);
                 waystarBossFlash = 5;
                 api.onBossDamage(hitDamage, "phase1");
