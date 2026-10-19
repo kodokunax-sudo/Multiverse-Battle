@@ -1345,6 +1345,9 @@ function waystarDefeat() {
     }
     if (waystarState === "defeat" || waystarFinalActive) return;
     if (isWaystarModerActive()) { waystarPlayerHp = waystarPlayerMaxHp; updateWaystarHpBar(); return; }
+    if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") {
+        window.MBPreserveGarouChargesForUniqueBossRetry("waystar");
+    }
     console.log("[WAYSTAR] Поражение");
     waystarState = "defeat";
     if (typeof showFloatingText === 'function') showFloatingText("ТЫ ПАЛ...", "#ff0000");
