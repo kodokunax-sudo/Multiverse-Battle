@@ -61,7 +61,11 @@
             "color:#fff", "font:900 12px Arial,sans-serif", "touch-action:manipulation"
         ].join(";");
         ls2ExitButton.addEventListener("pointerdown", function (ev) {
-            ev.preventDefault(); ev.stopPropagation(); ls2Stop(true);
+            ev.preventDefault(); ev.stopPropagation();
+            if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===2000) {
+                ls2Stop(false);
+                if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("exit",true);
+            } else ls2Stop(true);
         });
         document.body.appendChild(ls2ExitButton);
 
@@ -163,7 +167,12 @@
     }
     function ls2HandleHit() {
         if (ls2Invulnerable > 0) return;
-        ls2PlayerHp = Math.max(0, ls2PlayerHp - 16);
+        var incoming=16;
+        if(typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyIncomingDamage==="function") {
+            incoming=window.MBBossTestModifyIncomingDamage(incoming,"stoneSuper");
+            if(incoming<=0){ls2SetMessage("ПАССИВКА ЗАЩИТИЛА СЕРДЦЕ",35);return;}
+        }
+        ls2PlayerHp = Math.max(0, ls2PlayerHp - incoming);
         ls2Invulnerable = 52; ls2HitFlash = 12;
         ls2SetMessage("ЩИТ НЕ С ТОЙ СТОРОНЫ!", 48);
         ls2SpawnSparks(LS2_HEART_X, LS2_HEART_Y, "#ff4545", 10);
@@ -171,6 +180,11 @@
         var hpEl = document.getElementById("arenaHP");
         if (hpEl) hpEl.textContent = ls2PlayerHp;
         if (ls2PlayerHp <= 0) {
+            if(typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===2000) {
+                ls2Stop(false);
+                if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("loss",true);
+                return;
+            }
             ls2Stop(false);
             if (typeof playerHp !== "undefined") playerHp = 0;
             if (typeof defeat === "function") defeat();
@@ -435,6 +449,7 @@
         var dt=ls2LastTime?Math.min(2.2,Math.max(.35,(now-ls2LastTime)/(1000/60))):1;
         ls2LastTime=now; ls2Update(dt);
         if (!ls2Active || !ls2Ctx) return;
+        if(typeof tickSupers==="function"){try{tickSupers();}catch(e){}}
         var c=ls2Ctx; c.save(); c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,400,500);
         ls2DrawBackground(c,now);
         ls2DrawStoneMonster(c,now);
@@ -457,6 +472,7 @@
             c.beginPath(); c.arc(p.x,p.y,p.r,0,Math.PI*2); c.fill(); c.restore();
         }
         ls2DrawShield(c); ls2DrawHeart(c,now); c.restore();
+        if(typeof renderSuperVisuals==="function"){try{renderSuperVisuals();}catch(e){}}
         ls2Frame=requestAnimationFrame(ls2Render);
     }
 
@@ -550,6 +566,11 @@
             ev.preventDefault(); ev.stopPropagation(); ls2ChooseFromPointer(ev);
         };
         ls2Canvas.addEventListener("pointerdown",ls2PointerHandler,{passive:false});
+        if(typeof initSuperState==="function"){try{initSuperState();}catch(e){}}
+        if(typeof updateSuperButton==="function"){try{updateSuperButton();}catch(e){}}
+        if(typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestAbilityMode==="ultimate") {
+            var testSuperButton=document.getElementById("superBtn"); if(testSuperButton)testSuperButton.style.display="block";
+        }
         ls2Render(performance.now());
     }
 
@@ -558,6 +579,15 @@
         if (!ls2Active || !(Number(amount)>0)) return false;
         ls2BossHp=Math.max(0,ls2BossHp-Number(amount));
         if (ls2BossHp<=0) {
+            if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===2000) {
+                ls2Stop(false);
+                if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("win",true);
+                return true;
+            }
+            if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") {
+                amount=window.MBBossTestModifyOutgoingDamage(amount,1);
+                ls2BossHp=Math.max(0,ls2BossHp+Number(amount));
+            }
             if (typeof defeatedBosses!=="undefined" && Array.isArray(defeatedBosses) &&
                 !defeatedBosses.includes(2000)) {
                 defeatedBosses.push(2000);
@@ -571,10 +601,14 @@
     }
 
     window.startLivingStoneSuperFight=startLivingStoneSuperFight;
-    window.stopLivingStoneSuperFight=function(){ls2Stop(true);};
+    window.stopLivingStoneSuperFight=function(){ls2Stop(!(window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===2000));};
     window.damageLivingStoneSuperBoss=ls2DamageBoss;
-    window.getLivingStoneSuperHeart=function(){
-        return {x:LS2_HEART_X,y:LS2_HEART_Y,shieldDir:ls2ShieldDir,hp:ls2PlayerHp,maxHp:ls2PlayerMaxHp};
-    };
+    window.getLivingStoneSuperHeart=function(){return {x:LS2_HEART_X,y:LS2_HEART_Y,shieldDir:ls2ShieldDir,hp:ls2PlayerHp,maxHp:ls2PlayerMaxHp};};
+    window.getLivingStoneSuperBossHp=function(){return ls2BossHp;};
+    window.getLivingStoneSuperBossMaxHp=function(){return ls2BossMaxHp;};
+    window.setLivingStoneSuperBossHp=function(v){ls2BossHp=Math.max(1,Math.min(ls2BossHp,Number(v)||1));};
+    window.setLivingStoneSuperPlayerHp=function(v){ls2PlayerHp=Math.max(1,Math.min(ls2PlayerMaxHp,Number(v)||1));};
+    window.getLivingStoneSuperAttacks=function(){return ls2Bullets;};
+    window.getLivingStoneSuperParticles=function(){return ls2Sparks;};
     window.isLivingStoneSuperActive=function(){return ls2Active;};
 })();
