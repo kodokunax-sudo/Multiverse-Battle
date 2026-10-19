@@ -1097,8 +1097,9 @@ function updateExtendedArenaAttack(now) {
     if (!frozen) st.elapsed += delta;
     var t = st.elapsed;
     var sec = t / 1000;
-    var dmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 1.15));
-    var strongDmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 1.4));
+    var dmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 1.28));
+    var strongDmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 1.62));
+    var pulse = 0.5 + 0.5 * Math.sin(sec * 8);
 
     // 11. Three pendulums swing at different rhythms. Only their heavy heads deal damage.
     if (st.type === 11) {
@@ -1107,6 +1108,9 @@ function updateExtendedArenaAttack(now) {
             var angle = Math.sin(sec * (1.18 + p * 0.13) + p * 2.05) * (1.12 + p * 0.025);
             var length = 312 + (p % 2) * 18;
             var bx = px + Math.sin(angle) * length, by = py + Math.cos(angle) * length;
+            var prevAngle = Math.sin((sec - 0.14) * (1.18 + p * 0.13) + p * 2.05) * (1.12 + p * 0.025);
+            var prevBx = px + Math.sin(prevAngle) * length, prevBy = py + Math.cos(prevAngle) * length;
+            arenaExtDrawSegment(prevBx, prevBy, bx, by, 15, "rgba(255,190,95,0.5)", t < 650 ? 0.12 : 0.38, false);
             arenaExtDrawSegment(px, py, bx, by, 7, "#8f9aa8", t < 650 ? 0.4 : 0.9, false);
             ctx.save(); ctx.fillStyle = "#aab6c5"; ctx.strokeStyle = "#f2f6fa"; ctx.lineWidth = 2; ctx.shadowColor = "#d6e2f0"; ctx.shadowBlur = 7;
             for (var link = 1; link < 7; link++) {
@@ -1126,13 +1130,24 @@ function updateExtendedArenaAttack(now) {
         for (var c = 0; c < 2; c++) {
             var y1 = (c === 0 ? 105 : 405) + Math.sin(sec * 0.92 + c) * 58;
             var y2 = (c === 0 ? 385 : 125) + Math.sin(sec * 0.77 + c * 1.7) * 52;
-            arenaExtDrawSegment(0, y1, 400, y2, 10, "#b7c1cc", t < 650 ? 0.4 : 0.9, false);
+            var gapU = 0.5 + Math.sin(sec * (1.1 + c * 0.16) + c * 2.1) * 0.28;
+            var gapHalf = 0.085, gapStart = Math.max(0.08, gapU - gapHalf), gapEnd = Math.min(0.92, gapU + gapHalf);
+            var gy1 = y1 + (y2 - y1) * gapStart, gy2 = y1 + (y2 - y1) * gapEnd;
+            arenaExtDrawSegment(0, y1, gapStart * 400, gy1, 10, "#b7c1cc", t < 650 ? 0.4 : 0.9, false);
+            arenaExtDrawSegment(gapEnd * 400, gy2, 400, y2, 10, "#b7c1cc", t < 650 ? 0.4 : 0.9, false);
+            ctx.save(); ctx.strokeStyle = "rgba(120,235,255," + (0.3 + pulse * 0.45) + ")"; ctx.lineWidth = 3; ctx.shadowColor = "#66eaff"; ctx.shadowBlur = 12;
+            ctx.beginPath(); ctx.moveTo(gapStart * 400, gy1); ctx.lineTo(gapEnd * 400, gy2); ctx.stroke(); ctx.restore();
             for (var q = 0; q <= 20; q++) {
-                var u = q / 20, xx = u * 400, yy = y1 + (y2 - y1) * u;
+                var u = q / 20;
+                if (u > gapStart && u < gapEnd) continue;
+                var xx = u * 400, yy = y1 + (y2 - y1) * u;
                 ctx.fillStyle = q % 2 ? "#596878" : "#e5edf5";
                 ctx.beginPath(); ctx.arc(xx, yy, 2.1, 0, Math.PI * 2); ctx.fill();
             }
-            if (t > 650) arenaExtHitSegment(0, y1, 400, y2, 11, dmg, "ТРОС!");
+            if (t > 650) {
+                arenaExtHitSegment(0, y1, gapStart * 400, gy1, 11, dmg, "ТРОС!");
+                arenaExtHitSegment(gapEnd * 400, gy2, 400, y2, 11, dmg, "ТРОС!");
+            }
         }
         if (t < 650) { ctx.fillStyle = "#d8e5f5"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("ТРОСЫ НАТЯГИВАЮТСЯ", 200, 82); }
     }
@@ -1154,7 +1169,10 @@ function updateExtendedArenaAttack(now) {
             ctx.save(); ctx.globalAlpha = warning ? 0.45 + Math.sin(sec * 12) * 0.12 : 0.85;
             ctx.fillStyle = "#83f36a"; ctx.strokeStyle = warning ? "#d5ff9e" : "#b0ff5a"; ctx.lineWidth = 2; ctx.shadowColor = "#8aff45"; ctx.shadowBlur = 10;
             ctx.beginPath(); ctx.arc(pool.x, pool.y, radius, 0, Math.PI * 2); ctx.fill(); ctx.setLineDash(warning ? [5, 5] : []); ctx.stroke(); ctx.setLineDash([]);
-            ctx.fillStyle = "#dfffaa"; ctx.beginPath(); ctx.arc(pool.x - radius * 0.25, pool.y - radius * 0.2, radius * 0.18, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            ctx.beginPath(); ctx.arc(pool.x, pool.y, Math.max(3, radius * (0.66 + pulse * 0.12)), 0, Math.PI * 2); ctx.strokeStyle = warning ? "rgba(230,255,185,0.55)" : "rgba(234,255,130,0.8)"; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.fillStyle = "#dfffaa"; ctx.beginPath(); ctx.arc(pool.x - radius * 0.25, pool.y - radius * 0.2, radius * 0.18, 0, Math.PI * 2); ctx.fill();
+            for (var bubble = 0; bubble < 4; bubble++) { var ba = sec * 2.2 + bubble * Math.PI / 2, br = radius * (0.28 + 0.48 * ((bubble % 2) ? 1 : pulse)); ctx.globalAlpha = warning ? 0.35 : 0.75; ctx.beginPath(); ctx.arc(pool.x + Math.cos(ba) * br, pool.y + Math.sin(ba) * br, 1.7 + (bubble % 2), 0, Math.PI * 2); ctx.fill(); }
+            ctx.restore();
             if (!frozen && !warning && Math.hypot(heart.x - pool.x, heart.y - pool.y) < radius + heart.hitbox) applyHit(dmg, "КИСЛОТА!");
         }
     }
@@ -1164,7 +1182,8 @@ function updateExtendedArenaAttack(now) {
         var dirs = [{x:1,y:0.25},{x:0.2,y:1},{x:-1,y:0.15},{x:-0.25,y:-1}];
         var di = Math.floor(t / 2350) % dirs.length, dir = dirs[di];
         if (st.gustIndex !== di) { st.gustIndex = di; st.nextSpawnAt = Math.min(st.nextSpawnAt, t); }
-        if (!frozen) { heart.vx += dir.x * 0.014; heart.vy += dir.y * 0.014; }
+        var gustPulse = Math.sin(sec * 3.2) > 0.62 ? 0.032 : 0.012;
+        if (!frozen) { heart.vx += dir.x * gustPulse; heart.vy += dir.y * gustPulse; }
         if (t >= st.nextSpawnAt) {
             var side, hx, hy;
             if (Math.abs(dir.x) > Math.abs(dir.y)) { side = dir.x > 0 ? 0 : 1; hx = side === 0 ? -15 : 415; hy = 75 + Math.random() * 355; }
@@ -1178,6 +1197,9 @@ function updateExtendedArenaAttack(now) {
             var wx = 25 + (wi * 49), wy = 100 + ((wi * 57 + Math.floor(sec * 18)) % 300);
             ctx.beginPath(); ctx.moveTo(wx - dir.x * 18, wy - dir.y * 18); ctx.lineTo(wx + dir.x * 18, wy + dir.y * 18); ctx.stroke();
         }
+        ctx.restore();
+        ctx.save(); ctx.strokeStyle = "rgba(115,215,255," + (0.18 + pulse * 0.28) + ")"; ctx.lineWidth = 2; ctx.shadowColor = "#64caff"; ctx.shadowBlur = 8;
+        for (var swirl = 0; swirl < 3; swirl++) { var sx = 200 + Math.cos(sec * 1.6 + swirl * 2.1) * (74 + swirl * 26), sy = 270 + Math.sin(sec * 1.6 + swirl * 2.1) * (52 + swirl * 15); ctx.beginPath(); ctx.ellipse(sx, sy, 28 + swirl * 4, 10 + swirl * 2, sec * 1.8 + swirl, 0, Math.PI * 1.55); ctx.stroke(); }
         ctx.restore();
         for (var hi = st.hazards.length - 1; hi >= 0; hi--) {
             var leaf = st.hazards[hi];
@@ -1195,8 +1217,9 @@ function updateExtendedArenaAttack(now) {
             var sideB = Math.floor(Math.random() * 4), origin = arenaExtNewEdge(sideB, 10);
             var targetX = 70 + Math.random() * 260, targetY = 115 + Math.random() * 265;
             var ba = Math.atan2(targetY - origin.y, targetX - origin.x);
-            st.hazards.push({ x:origin.x, y:origin.y, ox:origin.x, oy:origin.y, vx:Math.cos(ba)*2.8, vy:Math.sin(ba)*2.8, age:0, born:t, rot:ba, side:sideB });
-            st.nextSpawnAt = t + 1450;
+            st.hazards.push({ x:origin.x, y:origin.y, ox:origin.x, oy:origin.y, vx:Math.cos(ba)*2.8, vy:Math.sin(ba)*2.8, age:0, born:t, rot:ba, side:sideB, trail:[] });
+            if (Math.random() < 0.42) { var origin2 = arenaExtNewEdge((sideB + 2) % 4, 12); var ta2 = Math.atan2(heart.y - origin2.y, heart.x - origin2.x); st.hazards.push({ x:origin2.x, y:origin2.y, ox:origin2.x, oy:origin2.y, vx:Math.cos(ta2)*2.55, vy:Math.sin(ta2)*2.55, age:0, born:t, rot:ta2, side:(sideB+2)%4, trail:[] }); }
+            st.nextSpawnAt = t + 1250;
         }
         for (var bi = st.hazards.length - 1; bi >= 0; bi--) {
             var boom = st.hazards[bi];
@@ -1212,7 +1235,9 @@ function updateExtendedArenaAttack(now) {
                     boom.x += Math.cos(backA) * 3.1; boom.y += Math.sin(backA) * 3.1; boom.rot = backA;
                 }
             }
-            ctx.save(); ctx.translate(boom.x, boom.y); ctx.rotate(boom.rot); ctx.fillStyle = "#f5d88a"; ctx.strokeStyle = "#fff7d9"; ctx.lineWidth = 2; ctx.shadowColor = "#e7b95b"; ctx.shadowBlur = 7;
+            if (!boom.trail) boom.trail = []; if (!frozen) { boom.trail.unshift({x:boom.x,y:boom.y}); if (boom.trail.length > 8) boom.trail.pop(); }
+            for (var bt2 = boom.trail.length - 1; bt2 > 0; bt2--) { ctx.save(); ctx.globalAlpha = (1 - bt2 / boom.trail.length) * 0.36; ctx.strokeStyle = "#ffd879"; ctx.lineWidth = Math.max(1, 6 - bt2 * 0.6); ctx.beginPath(); ctx.moveTo(boom.trail[bt2].x, boom.trail[bt2].y); ctx.lineTo(boom.trail[bt2-1].x, boom.trail[bt2-1].y); ctx.stroke(); ctx.restore(); }
+            ctx.save(); ctx.translate(boom.x, boom.y); ctx.rotate(boom.rot); ctx.fillStyle = "#f5d88a"; ctx.strokeStyle = "#fff7d9"; ctx.lineWidth = 2; ctx.shadowColor = "#e7b95b"; ctx.shadowBlur = 12;
             ctx.beginPath(); ctx.moveTo(-17,-7); ctx.lineTo(2,-7); ctx.lineTo(14,-15); ctx.lineTo(8,-1); ctx.lineTo(17,7); ctx.lineTo(-2,7); ctx.lineTo(-14,15); ctx.lineTo(-8,1); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
             if (!frozen && Math.hypot(heart.x - boom.x, heart.y - boom.y) < 15 + heart.hitbox) applyHit(strongDmg, "ВОЗВРАТНОЕ ЛЕЗВИЕ!");
             if (boom.age > 2600 || boom.x < -50 || boom.x > 450 || boom.y < -50 || boom.y > 550) st.hazards.splice(bi, 1);
@@ -1239,6 +1264,11 @@ function updateExtendedArenaAttack(now) {
             var crack = st.hazards[ri], age = t - crack.born;
             if (age > 1500) { st.hazards.splice(ri, 1); continue; }
             var warningC = age < 620;
+            if (age >= 620 && age < 1120) {
+                var shockR = (age - 620) * 0.26;
+                ctx.save(); ctx.globalAlpha = Math.max(0.15, 0.75 - (age - 620) / 900); ctx.strokeStyle = "#ff9b55"; ctx.lineWidth = 3 + pulse * 2; ctx.shadowColor = "#ff542e"; ctx.shadowBlur = 16; ctx.beginPath(); ctx.arc(crack.branches[0][0].x, crack.branches[0][0].y, shockR, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+                if (!frozen && Math.abs(Math.hypot(heart.x - crack.branches[0][0].x, heart.y - crack.branches[0][0].y) - shockR) < 9 + heart.hitbox) applyHit(dmg, "УДАРНАЯ ВОЛНА!");
+            }
             for (var cj = 0; cj < crack.branches.length; cj++) {
                 var points = crack.branches[cj];
                 arenaExtDrawSegment(points[0].x, points[0].y, points[1].x, points[1].y, warningC ? 3 : 10, warningC ? "#ffca7b" : "#ff5b32", warningC ? 0.55 : 0.95, warningC);
@@ -1267,7 +1297,12 @@ function updateExtendedArenaAttack(now) {
             var drawLengthT = ageT < 650 ? 245 : lengthT;
             var tx = tent.x + Math.cos(tent.angle) * lengthT, ty = tent.y + Math.sin(tent.angle) * lengthT;
             var warnX = tent.x + Math.cos(tent.angle) * drawLengthT, warnY = tent.y + Math.sin(tent.angle) * drawLengthT;
-            arenaExtDrawSegment(tent.x, tent.y, ageT < 650 ? warnX : tx, ageT < 650 ? warnY : ty, 18, "#b56b48", ageT < 650 ? 0.45 : 0.95, ageT < 650);
+            var curveOffset = Math.sin(sec * 7 + ti * 1.9) * 19;
+            var midX = tent.x + Math.cos(tent.angle) * lengthT * 0.52 - Math.sin(tent.angle) * curveOffset;
+            var midY = tent.y + Math.sin(tent.angle) * lengthT * 0.52 + Math.cos(tent.angle) * curveOffset;
+            arenaExtDrawSegment(tent.x, tent.y, ageT < 650 ? warnX : midX, ageT < 650 ? warnY : midY, 18, "#b56b48", ageT < 650 ? 0.45 : 0.95, ageT < 650);
+            if (ageT >= 650) arenaExtDrawSegment(midX, midY, tx, ty, 15, "#d68659", 0.95, false);
+            if (ageT < 650) { ctx.save(); ctx.strokeStyle = "rgba(255,203,150," + (0.25 + pulse * 0.55) + ")"; ctx.lineWidth = 2; ctx.setLineDash([4,5]); ctx.beginPath(); ctx.moveTo(tent.x, tent.y); ctx.lineTo(tent.x + Math.cos(tent.angle - 0.14) * 245, tent.y + Math.sin(tent.angle - 0.14) * 245); ctx.moveTo(tent.x, tent.y); ctx.lineTo(tent.x + Math.cos(tent.angle + 0.14) * 245, tent.y + Math.sin(tent.angle + 0.14) * 245); ctx.stroke(); ctx.setLineDash([]); ctx.restore(); }
             ctx.save(); ctx.fillStyle = "#e7a37d"; ctx.strokeStyle = "#fff0df"; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(tx, ty, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             for (var spike = -1; spike <= 1; spike++) {
@@ -1275,7 +1310,7 @@ function updateExtendedArenaAttack(now) {
                 ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx + Math.cos(sa) * 13, ty + Math.sin(sa) * 13); ctx.stroke();
             }
             ctx.restore();
-            if (ageT > 650 && ageT < 1400 && progressT > 0.1) arenaExtHitSegment(tent.x, tent.y, tx, ty, 18, strongDmg, "ЩУПАЛЬЦЕ!");
+            if (ageT > 650 && ageT < 1400 && progressT > 0.1) { arenaExtHitSegment(tent.x, tent.y, midX, midY, 18, strongDmg, "ЩУПАЛЬЦЕ!"); arenaExtHitSegment(midX, midY, tx, ty, 15, strongDmg, "ЩУПАЛЬЦЕ!"); }
         }
     }
 
@@ -1297,7 +1332,9 @@ function updateExtendedArenaAttack(now) {
             if (gear.age >= 1000 && gear.age < 1280) {
                 ctx.save(); ctx.strokeStyle = "rgba(255,224,170,0.8)"; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(gear.x, gear.targetY); ctx.lineTo(Math.max(12,Math.min(388,gear.x+gear.vx*15)), gear.targetY); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
             }
-            arenaExtDrawGear(gear.x, gear.y, gear.r, gear.rot, "#a77c49", 0.98);
+            ctx.save(); ctx.globalAlpha = 0.24 + pulse * 0.3; ctx.strokeStyle = "#ffc875"; ctx.lineWidth = 2; ctx.shadowColor = "#ffb347"; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(gear.x, gear.y, gear.r + 8 + pulse * 5, gear.rot, gear.rot + Math.PI * 1.2); ctx.stroke(); ctx.restore();
+            for (var gs = 0; gs < 4; gs++) { var ga = gear.rot + gs * Math.PI / 2; ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = "#ffe6a7"; ctx.beginPath(); ctx.moveTo(gear.x + Math.cos(ga) * (gear.r + 3), gear.y + Math.sin(ga) * (gear.r + 3)); ctx.lineTo(gear.x + Math.cos(ga) * (gear.r + 10 + pulse * 5), gear.y + Math.sin(ga) * (gear.r + 10 + pulse * 5)); ctx.stroke(); ctx.restore(); }
+            arenaExtDrawGear(gear.x, gear.y, gear.r, gear.rot, "#b78a53", 0.99);
             if (!frozen && Math.hypot(heart.x - gear.x, heart.y - gear.y) < gear.r + heart.hitbox) applyHit(strongDmg, "ШЕСТЕРНЯ!");
             if (gear.x < -70 || gear.x > 470 || gear.age > 3500) st.hazards.splice(gi, 1);
         }
@@ -1331,6 +1368,8 @@ function updateExtendedArenaAttack(now) {
                 var exV = vine.points[vs].x + (vine.points[vs+1].x - vine.points[vs].x) * ratioV;
                 var eyV = vine.points[vs].y + (vine.points[vs+1].y - vine.points[vs].y) * ratioV;
                 arenaExtDrawSegment(vine.points[vs].x, vine.points[vs].y, exV, eyV, 13, ageV > 1400 ? "#7d9e4c" : "#b0dc69", 0.95, false);
+                var dxV = exV - vine.points[vs].x, dyV = eyV - vine.points[vs].y, lenV = Math.max(1, Math.hypot(dxV,dyV)), nxV = -dyV / lenV, nyV = dxV / lenV;
+                for (var th = 0; th < 3; th++) { var tu = 0.24 + th * 0.25; if (tu > ratioV) continue; var txV = vine.points[vs].x + dxV * tu, tyV = vine.points[vs].y + dyV * tu; ctx.save(); ctx.fillStyle = "#e7ff9d"; ctx.strokeStyle = "#547c35"; ctx.lineWidth = 1; ctx.shadowColor = "#caff6f"; ctx.shadowBlur = 7; ctx.beginPath(); ctx.moveTo(txV + nxV * 2, tyV + nyV * 2); ctx.lineTo(txV + nxV * 12 - dxV / lenV * 3, tyV + nyV * 12 - dyV / lenV * 3); ctx.lineTo(txV - nxV * 4, tyV - nyV * 4); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
                 if (ageV > 780 && ratioV > 0.5 && ageV < 2600) arenaExtHitSegment(vine.points[vs].x, vine.points[vs].y, exV, eyV, 13, dmg, "ШИПЫ!");
             }
             ctx.save(); ctx.fillStyle = warningV ? "#eaffbd" : "#7d9e4c"; ctx.beginPath(); ctx.arc(vine.points[0].x, vine.points[0].y, warningV ? 7 : 5, 0, Math.PI*2); ctx.fill(); ctx.restore();
@@ -1342,7 +1381,8 @@ function updateExtendedArenaAttack(now) {
         if (t >= st.nextSpawnAt) {
             var sideC = Math.floor(Math.random() * 4), lane = sideC < 2 ? 100 + Math.random() * 310 : 80 + Math.random() * 300;
             st.hazards.push({ side:sideC, lane:lane, born:t, w:58, h:48 });
-            st.nextSpawnAt = t + 1250;
+            if (Math.random() < 0.34) { var sideC2 = sideC % 2 === 0 ? sideC + 1 : sideC - 1; var lane2 = Math.max(75, Math.min(455, lane + (Math.random() < 0.5 ? -1 : 1) * (65 + Math.random() * 65))); st.hazards.push({ side:sideC2, lane:lane2, born:t + 90, w:54, h:46 }); }
+            st.nextSpawnAt = t + 1150;
         }
         for (var ci = st.hazards.length - 1; ci >= 0; ci--) {
             var claw = st.hazards[ci], ageC = t - claw.born;
@@ -1363,7 +1403,8 @@ function updateExtendedArenaAttack(now) {
                 else { ctx.beginPath(); ctx.moveTo(claw.lane, 55); ctx.lineTo(claw.lane, 490); ctx.stroke(); }
                 ctx.setLineDash([]); ctx.restore();
             }
-            ctx.save(); ctx.translate(cx, cy); ctx.fillStyle = ageC < 520 ? "#9c9c9c" : "#c5c9ce"; ctx.strokeStyle = "#f7f0df"; ctx.lineWidth = 2; ctx.shadowColor = "#e8bd79"; ctx.shadowBlur = 8;
+            ctx.save(); ctx.translate(cx, cy); ctx.fillStyle = ageC < 520 ? "#9c9c9c" : "#c5c9ce"; ctx.strokeStyle = "#f7f0df"; ctx.lineWidth = 2; ctx.shadowColor = "#e8bd79"; ctx.shadowBlur = 10 + pulse * 6;
+            ctx.strokeStyle = "rgba(255,205,125," + (0.25 + pulse * 0.6) + ")"; ctx.beginPath(); ctx.arc(0, 0, 33 + pulse * 7, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = "#f7f0df";
             ctx.fillRect(-claw.w/2, -claw.h/2, claw.w, claw.h); ctx.strokeRect(-claw.w/2, -claw.h/2, claw.w, claw.h);
             ctx.fillStyle = "#525b64";
             for (var pr = -1; pr <= 1; pr++) {
