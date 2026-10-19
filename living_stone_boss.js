@@ -1386,6 +1386,9 @@ function livingStoneDefeat() {
         if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("loss",true);
         return;
     }
+    if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") {
+        window.MBPreserveGarouChargesForUniqueBossRetry("stone");
+    }
     livingStoneState = "defeat";
     spawnLivingStoneText(200, 250, "КАМЕНЬ НЕПОБЕДИМ", "#ff0000", 180);
     livingStoneScreenFlash = 40; livingStoneScreenFlashColor = "#ff0000";
