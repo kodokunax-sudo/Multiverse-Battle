@@ -7,6 +7,7 @@
     window._antiSpiralBossLoaded = true;
 
     let asActive = false;
+    let asGraphicsChoicePending = false;
     let asState = "idle";
     let asAnimFrame = null;
     let asMusic = null;
@@ -1674,6 +1675,8 @@
         if(btn)btn.style.display="block";
     }
     function asStop() {
+        asGraphicsChoicePending = false;
+        if (typeof window.MBEndBossGraphicsModeForFight === "function") window.MBEndBossGraphicsModeForFight();
         asActive=false; asAimMode=false; asSlowUntilReal=0; asTimeScale=1; asPreviousTimeScale=1; asCloneMode=false;asClones=[];asCloneUntil=0;asCloneNextShuffleAt=0;asClonePhase="idle";asCloneStageUntil=0;asArenaLockUntil=0;asArenaWarpUntil=0; window.antiSpiralBossActive=false;
         if(asAnimFrame) cancelAnimationFrame(asAnimFrame);
         asAnimFrame=null; asUnbind(); stopASMusic();
@@ -2055,6 +2058,12 @@
     function asDrawArenaAtmosphere(c, now, left, top, width, height) {
         c.save();
         c.beginPath();c.rect(left,top,width,height);c.clip();
+        if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) {
+            c.fillStyle = "#050510";
+            c.fillRect(left, top, width, height);
+            c.restore();
+            return;
+        }
         const bg=c.createLinearGradient(left,top,left+width,top+height);
         bg.addColorStop(0,"#070719");bg.addColorStop(.5,"#0b0b29");bg.addColorStop(1,"#030712");
         c.fillStyle=bg;c.fillRect(left,top,width,height);
@@ -2606,9 +2615,10 @@
         const reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
         const mediumGraphics = !!(window.MBIsMediumGraphics && window.MBIsMediumGraphics());
         if (reduceBossEffects) {
-            asFlash = 0; asShake = 0; asBossDamageFlash = 0;
-            // Only cap decorative particles. Keep attack/hazard arrays intact so difficulty and hit detection do not change.
-            if (asParticles.length > 18) asParticles.splice(0, asParticles.length - 18);
+            // Light mode keeps camera shake and all character models. Remove screen flashes
+            // and limit only decorative particles; gameplay attacks/hazards remain untouched.
+            asFlash = 0; asBossDamageFlash = 0;
+            if (asParticles.length > 8) asParticles.splice(0, asParticles.length - 8);
         } else if (mediumGraphics && asParticles.length > 75) {
             asParticles.splice(0, asParticles.length - 75);
         }
@@ -2637,18 +2647,20 @@
         asBoss.rotation+=.009*asTimeScale; asBoss.pulse+=.04*asTimeScale;
         if(asBoss.flash>0)asBoss.flash-=asTimeScale;
         if(asBossDamageFlash>0)asBossDamageFlash-=asTimeScale;
-        if(!reduceBossEffects && asShake>0.2)asShake*=Math.pow(.86,asTimeScale);else asShake=0;
+        if(asShake>0.2)asShake*=Math.pow(.86,asTimeScale);else asShake=0;
         if(!reduceBossEffects && asFlash>0)asFlash-=asTimeScale;
         c.save();c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,400,500);
         c.fillStyle="#03030d";c.fillRect(0,0,400,500);
-        // Cosmic star field unique to this encounter.
-        for(let i=0;i<55;i++){
-            const x=(i*79+Math.sin(now/1800+i)*18)%400;
-            const y=(i*137+now*(.018+(i%3)*.008))%500;
-            c.globalAlpha=.25+Math.abs(Math.sin(now/650+i))*.6;c.fillStyle=i%4===0?"#bb80ff":"#66dfff";
-            c.fillRect(x,y,1+(i%3),1+(i%3));
+        // The phone profile uses a plain dark backdrop instead of the animated star field.
+        if (!reduceBossEffects) {
+            for(let i=0;i<55;i++){
+                const x=(i*79+Math.sin(now/1800+i)*18)%400;
+                const y=(i*137+now*(.018+(i%3)*.008))%500;
+                c.globalAlpha=.25+Math.abs(Math.sin(now/650+i))*.6;c.fillStyle=i%4===0?"#bb80ff":"#66dfff";
+                c.fillRect(x,y,1+(i%3),1+(i%3));
+            }
+            c.globalAlpha=1;
         }
-        c.globalAlpha=1;
         if(asState==="cinematic"){
             asRenderCinematic(c,now);
             c.restore();
@@ -3321,9 +3333,25 @@
         }
         asAnimFrame=requestAnimationFrame(asRender);
     }
-    function startAntiSpiralBossFight() {
+    function startAntiSpiralBossFight(graphicsModeChoice) {
         if(asActive) return;
         if(Number(typeof wave!=="undefined"?wave:0)!==1500) return;
+        if(typeof currentEnemy==="undefined"||!currentEnemy||currentEnemy.hp<=0) return;
+        if (graphicsModeChoice !== "full" && graphicsModeChoice !== "light" &&
+            typeof window.MBChooseBossGraphicsMode === "function") {
+            if (asGraphicsChoicePending) return;
+            asGraphicsChoicePending = true;
+            window.MBChooseBossGraphicsMode("Анти-Спираль", function(mode) {
+                asGraphicsChoicePending = false;
+                startAntiSpiralBossFight(mode);
+            });
+            return;
+        }
+        asGraphicsChoicePending = false;
+        if ((graphicsModeChoice === "full" || graphicsModeChoice === "light") &&
+            typeof window.MBSetBossGraphicsModeForFight === "function") {
+            window.MBSetBossGraphicsModeForFight(graphicsModeChoice);
+        }
         asGameClock = performance.now();
         asLastRafTimestamp = asGameClock;
         asClockReady = true;
