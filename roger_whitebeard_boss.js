@@ -1282,21 +1282,7 @@
 
     function drawIslandBackground() {
         if (!islandBg) initIslandBackground();
-        // На телефоне оставляем узнаваемый закат/море/берег, но убираем
-        // движущиеся облака, птиц, блики, волны и десятки мелких деталей.
-        if (isRWBMobileGraphics()) {
-            ctx.fillStyle = "#292849"; ctx.fillRect(0, 0, 400, 320);
-            ctx.fillStyle = "#604b69"; ctx.fillRect(0, 240, 400, 80);
-            ctx.fillStyle = "#396b8a"; ctx.fillRect(0, 320, 400, 100);
-            ctx.fillStyle = "#5b4938"; ctx.fillRect(0, 420, 400, 80);
-            ctx.fillStyle = "#ffe2a2"; ctx.beginPath(); ctx.arc(300, 290, 17, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = "rgba(255,255,255,0.18)"; ctx.lineWidth = 1;
-            for (var simpleWave = 0; simpleWave < 4; simpleWave++) {
-                ctx.beginPath(); ctx.moveTo(24 + simpleWave * 41, 338 + simpleWave * 15);
-                ctx.lineTo(95 + simpleWave * 39, 338 + simpleWave * 15); ctx.stroke();
-            }
-            return;
-        }
+        // На телефоне фон остаётся полноценным, но без анимированных мелких деталей.
         let skyGrad = ctx.createLinearGradient(0, 0, 0, 320);
         skyGrad.addColorStop(0, "#0d1b3d"); skyGrad.addColorStop(0.3, "#2d2a5c");
         skyGrad.addColorStop(0.55, "#8b3a5c"); skyGrad.addColorStop(0.75, "#e8794a");
@@ -1310,7 +1296,7 @@
         ctx.fillStyle = sunGrad; ctx.beginPath(); ctx.arc(sunX, sunY, 50, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#fff8dc"; ctx.beginPath(); ctx.arc(sunX, sunY, 18, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
-        if (islandBg) {
+        if (islandBg && !isRWBMobileGraphics()) {
             for (let cloud of islandBg.clouds) {
                 cloud.x += cloud.speed;
                 if (cloud.x > 450) cloud.x = -50;
@@ -1323,7 +1309,7 @@
                 ctx.fill(); ctx.restore();
             }
         }
-        if (islandBg) {
+        if (islandBg && !isRWBMobileGraphics()) {
             for (let bird of islandBg.birds) {
                 bird.x += bird.speed; bird.wingPhase += 0.15;
                 if (bird.x > 450) bird.x = -50;
@@ -1344,7 +1330,7 @@
         reflGrad.addColorStop(0, "rgba(255, 240, 200, 0.8)"); reflGrad.addColorStop(1, "rgba(255, 200, 100, 0)");
         ctx.fillStyle = reflGrad; ctx.beginPath(); ctx.ellipse(sunX, 340, 40, 15, 0, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
-        if (islandBg) {
+        if (islandBg && !isRWBMobileGraphics()) {
             ctx.save();
             for (let wave of islandBg.waveLines) {
                 wave.offset += wave.speed;
