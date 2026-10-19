@@ -302,7 +302,7 @@
         { id: 'collector', icon: '🎴', label: 'Коллекционер', description: 'Получить 50 карт', unlocked: function (s) { return safeCount(s.cards_collected) >= 50; } },
         { id: 'champion', icon: '🏆', label: 'Чемпион', description: 'Одержать 25 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 25; } },
         { id: 'reborn', icon: '♻️', label: 'Перерождённый', description: 'Совершить 5 перерождений', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 5; } },
-        { id: 'multiverse_legend', icon: '🌌', label: 'Легенда мультивселенной', description: 'Достичь 1000-й волны и победить 15 боссов', unlocked: function (s) { return safeCount(s.highest_wave) >= 1000 && safeCount(s.bosses_defeated) >= 15; } }
+        { id: 'multiverse_legend', icon: '🌌', label: 'Легенда мультивселенной', description: 'Достичь 1000-й волны и победить 15 боссов', unlocked: function (s) { return safeCount(s.highest_wave) >= 1000 && safeCount(s.bosses_defeated) >= 15; } },
         { id: 'wave_200', icon: '🌊', label: 'Морской налоговик', description: 'Достичь 200-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 200; } },
         { id: 'wave_300', icon: '🏄', label: 'Сёрфер апокалипсиса', description: 'Достичь 300-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 300; } },
         { id: 'wave_500', icon: '🌊', label: 'Волны мне должны', description: 'Достичь 500-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 500; } },
