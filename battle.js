@@ -1449,7 +1449,7 @@ function updateExtendedArenaAttack(now) {
         if(!st.clawPair&&t>=st.nextSpawnAt){var horizontal=Math.random()<.5,lane=horizontal?95+Math.random()*310:90+Math.random()*320;st.clawPair={born:t,horizontal:horizontal,lane:lane,phase:"approach",x1:horizontal?-35:lane,y1:horizontal?lane:-35,x2:horizontal?435:lane,y2:horizontal?lane:535,holdUntil:0,slamAt:0};st.nextSpawnAt=t+1700;}
         var pair=st.clawPair;
         if(pair){var horizontalC=pair.horizontal,center=pair.lane,leftX=horizontalC?pair.x1:center,leftY=horizontalC?center:pair.y1,rightX=horizontalC?pair.x2:center,rightY=horizontalC?center:pair.y2;
-            if(pair.phase==="approach"){var close=Math.min(1,delta*.00048);if(horizontalC){pair.x1+=(center-20-pair.x1)*close;pair.x2+=(center+20-pair.x2)*close;}else{pair.y1+=(center-20-pair.y1)*close;pair.y2+=(center+20-pair.y2)*close;}
+            if(pair.phase==="approach"){var close=Math.min(1,delta*.00048);if(horizontalC){pair.x1+=(center+20-pair.x1)*close;pair.x2+=(center-20-pair.x2)*close;}else{pair.y1+=(center+20-pair.y1)*close;pair.y2+=(center-20-pair.y2)*close;}
                 leftX=horizontalC?pair.x1:center;leftY=horizontalC?center:pair.y1;rightX=horizontalC?pair.x2:center;rightY=horizontalC?center:pair.y2;
                 var betweenC=horizontalC?(heart.x>Math.min(leftX,rightX)-heart.hitbox&&heart.x<Math.max(leftX,rightX)+heart.hitbox&&Math.abs(heart.y-center)<36):(heart.y>Math.min(leftY,rightY)-heart.hitbox&&heart.y<Math.max(leftY,rightY)+heart.hitbox&&Math.abs(heart.x-center)<36);
                 if(betweenC){pair.phase="caught";pair.holdUntil=t+360;arenaShake=Math.max(arenaShake,5);}
