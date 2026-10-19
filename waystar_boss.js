@@ -1734,8 +1734,10 @@ function waystarRenderLoop() {
                     b.trail.push({ x: b.x, y: b.y, life: 10 }); if (b.trail.length > 5) b.trail.shift();
                     var dx = b.x - waystarBoss.x, dy = b.y - waystarBoss.y;
                     if (Math.sqrt(dx * dx + dy * dy) < waystarBoss.size + b.size) {
-                        waystarBossHp -= b.damage; waystarBossFlash = 6;
-                        if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onBossDamage(b.damage, waystarState);
+                        var testBossDamage = b.damage;
+                        if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") testBossDamage=window.MBBossTestModifyOutgoingDamage(testBossDamage,1);
+                        waystarBossHp -= testBossDamage; waystarBossFlash = 6;
+                        if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onBossDamage(testBossDamage, waystarState);
                         spawnWaystarParticles(b.x, b.y, 6, "#ffd700", 4); addWaystarFlash(b.x, b.y, 12);
                         if (Math.random() < 0.3) addWaystarLightning(b.x, b.y, b.x+(Math.random()-0.5)*50, b.y+(Math.random()-0.5)*50, "#ffffff", 0.6, 2);
                         wsPlaySound(1400, 'square', 0.08, 0.08);
@@ -1765,8 +1767,10 @@ function waystarRenderLoop() {
                 b.trail.push({ x: b.x, y: b.y, life: 10 }); if (b.trail.length > 5) b.trail.shift();
                 var dx = b.x - waystarSmallBoss.x, dy = b.y - waystarSmallBoss.y;
                 if (Math.sqrt(dx * dx + dy * dy) < waystarSmallBoss.size + b.size) {
-                    waystarBossHp -= b.damage; waystarBossFlash = 6;
-                    if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onBossDamage(b.damage, waystarState);
+                    var testBossDamage = b.damage;
+                    if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") testBossDamage=window.MBBossTestModifyOutgoingDamage(testBossDamage,1);
+                    waystarBossHp -= testBossDamage; waystarBossFlash = 6;
+                    if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onBossDamage(testBossDamage, waystarState);
                     spawnWaystarParticles(b.x, b.y, 8, "#ff00ff", 4); addWaystarFlash(b.x, b.y, 18);
                     addWaystarShockwave(b.x, b.y, "#ff00ff", 40, 10, 2);
                     if (Math.random() < 0.4) addWaystarLightning(b.x, b.y, b.x+(Math.random()-0.5)*60, b.y+(Math.random()-0.5)*60, "#ff00ff", 0.7, 2);
