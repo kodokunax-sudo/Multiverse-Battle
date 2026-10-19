@@ -286,7 +286,7 @@
         plannedTargetX: 200, plannedTargetY: 360, plannedRockXs: []
     };
     // Scripted trap: tsunami pull -> crossfire fists -> falling rocks.
-    let wbTrapCombo = { stage: "idle", timer: 0, cooldown: 300, targetX: 200, targetY: 380, startedAt: 0 };
+    let wbTrapCombo = { stage: "idle", timer: 0, cooldown: 300, targetX: 200, targetY: 380, pullTargetX: 200, pullTargetY: 300, startedAt: 0 };
     let rwbPlayerStunTimer = 0;
     let wbFruitFlashTimer = 0;
     let wbFruitFlashPower = 0.72;
@@ -1155,7 +1155,7 @@
         rwbOdenOfferShown = false;
         rwbOdenDeathDialogShown = false;
         wbBrain = { bottomFrames: 0, stationaryFrames: 0, farFrames: 0, shotsInWindow: 0, shotWindowTimer: 180, adaptiveCooldown: 0, lastX: 200, lastY: 420, playerVX: 0, playerVY: 0, lastAdaptive: null, lastAttackId: -1, lastSuperAttackId: -1, comboHint: null, phase: "idle", phaseTimer: 0, recoveryTimer: 0, plannedTargetX: 200, plannedTargetY: 360, plannedRockXs: [] };
-        wbTrapCombo = { stage: "idle", timer: 0, cooldown: 300, targetX: 200, targetY: 380, startedAt: 0 };
+        wbTrapCombo = { stage: "idle", timer: 0, cooldown: 300, targetX: 200, targetY: 380, pullTargetX: 200, pullTargetY: 300, startedAt: 0 };
         rwbPlayerStunTimer = 0; wbFruitFlashTimer = 0; wbFruitFlashPower = 0.72;
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
 
@@ -1394,41 +1394,62 @@
         if (staleButton) staleButton.remove();
     }
 
+    function updateRWBModeButton() {
+        if (!rwbModeBtn) return;
+        var blueMode = !!(rwbPlayer && rwbPlayer.attackMode === "blue");
+        rwbModeBtn.textContent = blueMode ? "🔵 СИНИЙ: АВТО-ПРИЦЕЛ" : "🟡 ЖЁЛТЫЙ: ОБЫЧНЫЙ";
+        rwbModeBtn.style.background = blueMode
+            ? "linear-gradient(135deg, #00aaff, #0044cc)"
+            : "linear-gradient(135deg, #ffdd00, #ff8800)";
+        rwbModeBtn.style.color = blueMode ? "#ffffff" : "#1a1a2e";
+        rwbModeBtn.style.borderColor = blueMode ? "#b8f3ff" : "#fff3a0";
+        rwbModeBtn.style.boxShadow = blueMode
+            ? "0 3px 10px rgba(0,170,255,.45)"
+            : "0 3px 10px rgba(255,136,0,.4)";
+        rwbModeBtn.setAttribute("aria-pressed", blueMode ? "true" : "false");
+    }
+
     function createRWBModeButton() {
-        if (rwbModeBtn) return;
-        rwbModeBtn = document.createElement('button');
-        rwbModeBtn.id = 'rwbModeBtn';
-        rwbModeBtn.style.cssText = [
-            'position: fixed', 'bottom: 70px', 'left: 50%', 'transform: translateX(-50%)',
-            'padding: 10px 22px', 'border-radius: 30px',
-            'background: linear-gradient(135deg, #ffdd00, #ff8800)',
-            'color: #1a1a2e', 'font-weight: 900', 'font-size: 14px',
-            'font-family: "Nunito", sans-serif', 'border: 3px solid #fff',
-            'box-shadow: 0 4px 15px rgba(255, 136, 0, 0.6)',
-            'cursor: pointer', 'z-index: 99999', 'letter-spacing: 0.5px',
-            'user-select: none', 'touch-action: manipulation', 'transition: all 0.2s'
-        ].join(';');
-        rwbModeBtn.innerHTML = '🟡 ОБЫЧНЫЙ';
-        rwbModeBtn.onclick = function(e) {
-            e.preventDefault(); e.stopPropagation();
-            rwbPlayer.attackMode = (rwbPlayer.attackMode === "normal") ? "blue" : "normal";
-            if (rwbPlayer.attackMode === "blue") {
-                if (rwbOden && rwbOden.alive && rwbOden.available && rwbState.indexOf("fight") === 0) {
+        if (!rwbModeBtn) {
+            rwbModeBtn = document.createElement("button");
+            rwbModeBtn.id = "rwbModeBtn";
+            // This is a normal item in the arena's wrapping button row, not an overlay
+            // with fixed coordinates. It therefore cannot cover SUPER on small screens.
+            rwbModeBtn.style.cssText = [
+                "position:relative", "display:inline-flex", "align-items:center",
+                "justify-content:center", "flex:0 1 auto", "max-width:100%",
+                "min-width:0", "min-height:40px", "box-sizing:border-box",
+                "margin:0", "padding:8px 14px", "border-radius:14px",
+                "background:linear-gradient(135deg,#ffdd00,#ff8800)",
+                "color:#1a1a2e", "font-weight:900", "font-size:13px",
+                "font-family:\"Nunito\",sans-serif", "border:2px solid #fff",
+                "cursor:pointer", "letter-spacing:.2px", "white-space:nowrap",
+                "user-select:none", "touch-action:manipulation"
+            ].join(";");
+            rwbModeBtn.onclick = function(e) {
+                e.preventDefault(); e.stopPropagation();
+                if (!rwbPlayer) return;
+                rwbPlayer.attackMode = rwbPlayer.attackMode === "normal" ? "blue" : "normal";
+                if (rwbPlayer.attackMode === "blue" &&
+                    rwbOden && rwbOden.alive && rwbOden.available &&
+                    rwbState.indexOf("fight") === 0) {
                     rwbOdenActivateBlueMode(rwbOden, true);
                 }
-                rwbModeBtn.innerHTML = '🔵 АВТО-ПРИЦЕЛ';
-                rwbModeBtn.style.background = 'linear-gradient(135deg, #00aaff, #0044cc)';
-                rwbModeBtn.style.color = '#fff';
-                rwbModeBtn.style.boxShadow = '0 4px 15px rgba(0, 170, 255, 0.7)';
-            } else {
-                rwbModeBtn.innerHTML = '🟡 ОБЫЧНЫЙ';
-                rwbModeBtn.style.background = 'linear-gradient(135deg, #ffdd00, #ff8800)';
-                rwbModeBtn.style.color = '#1a1a2e';
-                rwbModeBtn.style.boxShadow = '0 4px 15px rgba(255, 136, 0, 0.6)';
-            }
-            playWhooshSound(0.15);
-        };
-        document.body.appendChild(rwbModeBtn);
+                updateRWBModeButton();
+                playWhooshSound(0.15);
+            };
+        }
+
+        // Put the mode toggle beside SUPER. The arena's existing flex row wraps
+        // naturally on phones, so neither control can overlap the other.
+        var superButton = document.getElementById("superBtn");
+        var controlsRow = superButton && superButton.parentElement;
+        if (controlsRow && rwbModeBtn.parentElement !== controlsRow) {
+            controlsRow.insertBefore(rwbModeBtn, superButton);
+        } else if (!controlsRow && !rwbModeBtn.parentNode) {
+            document.body.appendChild(rwbModeBtn);
+        }
+        updateRWBModeButton();
     }
 
     function getRWBMainCard() {
@@ -2043,15 +2064,24 @@
         comboOptions = comboOptions || null;
         if (rwbTsunamiActive) return;
         rwbTsunamiActive = true;
+        const comboPull = !!(comboOptions && comboOptions.comboPull);
+        // A pull-combo wave starts behind the player's current position and advances
+        // toward them. The regular tsunami keeps its original top-of-screen spawn.
+        const behindPlayerY = function(distanceBehind) {
+            if (!comboPull || !rwbPlayer) return -60;
+            return clampWhitebeard(rwbPlayer.y - distanceBehind, -60, 280);
+        };
+        const waveSpeed = comboPull ? 3.9 : 4.5;
         playWhooshSound(0.5); playBossRoarSound(0.3); rwbShake = 25;
         rwbFloatingTexts.push({ x: 200, y: 100, text: "🌊 ЦУНАМИ! 🌊", color: "#00ccff", life: 90, maxLife: 90, vy: -0.3, vx: 0, size: 24 });
-        let wave1 = { type: "tsunami", fromRight: true, x: 130, y: -60, vy: 4.5, width: 270, height: 55, currentWidth: 270, currentHeight: 55, damage: tsunamiDamage, life: 400, waveTime: 0, hit: false, color: "#0099ff",
-            comboPull: !!(comboOptions && comboOptions.comboPull), pullTargetX: comboOptions && comboOptions.pullTargetX, pullTargetY: comboOptions && comboOptions.pullTargetY };
+        let wave1 = { type: "tsunami", fromRight: true, x: 130, y: behindPlayerY(145), vy: waveSpeed, width: 270, height: 55, currentWidth: 270, currentHeight: 55, damage: tsunamiDamage, life: 400, waveTime: 0, hit: false, color: "#0099ff",
+            comboPull: comboPull, pullTargetX: comboOptions && comboOptions.pullTargetX, pullTargetY: comboOptions && comboOptions.pullTargetY };
         rwbAttacks.push(wave1);
         setTimeout(function() {
             if (!window.rwbActive) return;
-            let wave2 = { type: "tsunami", fromRight: false, x: 0, y: -60, vy: 4.5, width: 270, height: 55, currentWidth: 270, currentHeight: 55, damage: tsunamiDamage, life: 400, waveTime: 0, hit: false, color: "#00aaff",
-                comboPull: !!(comboOptions && comboOptions.comboPull), pullTargetX: comboOptions && comboOptions.pullTargetX, pullTargetY: comboOptions && comboOptions.pullTargetY };
+            // The second pull wave spawns behind the player's updated position as well.
+            let wave2 = { type: "tsunami", fromRight: false, x: 0, y: behindPlayerY(125), vy: waveSpeed, width: 270, height: 55, currentWidth: 270, currentHeight: 55, damage: tsunamiDamage, life: 400, waveTime: 0, hit: false, color: "#00aaff",
+                comboPull: comboPull, pullTargetX: comboOptions && comboOptions.pullTargetX, pullTargetY: comboOptions && comboOptions.pullTargetY };
             rwbAttacks.push(wave2);
             playWhooshSound(0.5); rwbShake = 20;
             rwbFloatingTexts.push({ x: 200, y: 100, text: "🌊 ВТОРАЯ ВОЛНА! 🌊", color: "#00ddff", life: 70, maxLife: 70, vy: -0.3, vx: 0, size: 20 });
@@ -2870,10 +2900,14 @@
                 a.waveTime += 0.08; a.y += a.vy; a.life--;
                 a.currentHeight = a.height * (1 + Math.sin(a.waveTime) * 0.15);
                 if (a.comboPull && wbTrapCombo.stage !== "idle" && rwbPlayer) {
-                    let nearWave = Math.abs(rwbPlayer.y - a.y) < 175;
+                    // The current pulls even during temporary invulnerability; it is movement control,
+                    // not damage. Keep the pull limited so active dodging can still resist it.
+                    let nearWave = Math.abs(rwbPlayer.y - a.y) < 195;
                     if (nearWave) {
-                        let pullX = clampWhitebeard((a.pullTargetX - rwbPlayer.x) * 0.018, -1.35, 1.35);
-                        let pullY = clampWhitebeard(((a.pullTargetY || rwbPlayer.y) - rwbPlayer.y) * 0.008, -0.55, 0.55);
+                        let pullTargetX = Number.isFinite(Number(a.pullTargetX)) ? Number(a.pullTargetX) : wbTrapCombo.pullTargetX;
+                        let pullTargetY = Number.isFinite(Number(a.pullTargetY)) ? Number(a.pullTargetY) : wbTrapCombo.pullTargetY;
+                        let pullX = clampWhitebeard((pullTargetX - rwbPlayer.x) * 0.032, -2.7, 2.7);
+                        let pullY = clampWhitebeard((pullTargetY - rwbPlayer.y) * 0.020, -1.4, 1.4);
                         rwbPlayer.x = clampWhitebeard(rwbPlayer.x + pullX, 16, 384);
                         rwbPlayer.y = clampWhitebeard(rwbPlayer.y + pullY, 0, 484);
                     }
@@ -4014,6 +4048,12 @@
         wbTrapCombo.startedAt = rwbTimer;
         wbTrapCombo.targetX = clampWhitebeard(rwbPlayer.x + (wbBrain.playerVX || 0) * 12, 58, 342);
         wbTrapCombo.targetY = clampWhitebeard(rwbPlayer.y + (wbBrain.playerVY || 0) * 8, 95, 440);
+        // Pull toward a point between the player and Whitebeard, slightly behind the player.
+        // Rock lanes still target the player's predicted landing zone.
+        const pullSource = getWhitebeardEntity();
+        const pullSourceX = pullSource ? Number(pullSource.x) || 200 : 200;
+        wbTrapCombo.pullTargetX = clampWhitebeard(rwbPlayer.x + (pullSourceX - rwbPlayer.x) * 0.55, 58, 342);
+        wbTrapCombo.pullTargetY = clampWhitebeard(rwbPlayer.y - 105, 95, 420);
         // Three landing lanes form a crossfire instead of a single blind rock.
         wbBrain.plannedTargetX = wbTrapCombo.targetX;
         wbBrain.plannedTargetY = wbTrapCombo.targetY;
@@ -4024,8 +4064,8 @@
         ];
         spawnTsunamiAttack(true, {
             comboPull: true,
-            pullTargetX: wbTrapCombo.targetX,
-            pullTargetY: wbTrapCombo.targetY
+            pullTargetX: wbTrapCombo.pullTargetX,
+            pullTargetY: wbTrapCombo.pullTargetY
         });
         rwbFloatingTexts.push({ x: 200, y: 80, text: "🌊 ЦУНАМИ-КОМБО: НЕ ДАЙ СЕБЕ ЗАГНАТЬСЯ!", color: "#6feaff", life: 95, maxLife: 95, vy: -0.2, vx: 0, size: 13 });
         playBossRoarSound(0.5);
@@ -4070,13 +4110,13 @@
             playWhooshSound(0.35);
         }
 
-        // The after-current from the tsunami pulls a passive/camping player toward the
-        // predicted rock lane. It is intentionally weaker than player movement, so dodging works.
-        if (t >= 55 && t <= 222 && rwbPlayer && rwbPlayer.invulnTimer <= 0) {
-            let pullX = wbTrapCombo.targetX - rwbPlayer.x;
-            let pullY = (wbTrapCombo.targetY - 18) - rwbPlayer.y;
-            let pullXStep = clampWhitebeard(pullX * 0.022, -1.8, 1.8);
-            let pullYStep = clampWhitebeard(pullY * 0.012, -0.9, 0.9);
+        // The after-current remains active through invulnerability and visibly pulls
+        // the player behind the advancing tsunami, without disabling their controls.
+        if (t >= 35 && t <= 222 && rwbPlayer) {
+            let pullX = wbTrapCombo.pullTargetX - rwbPlayer.x;
+            let pullY = wbTrapCombo.pullTargetY - rwbPlayer.y;
+            let pullXStep = clampWhitebeard(pullX * 0.035, -3.0, 3.0);
+            let pullYStep = clampWhitebeard(pullY * 0.024, -1.7, 1.7);
             rwbPlayer.x = clampWhitebeard(rwbPlayer.x + pullXStep, 16, 384);
             rwbPlayer.y = clampWhitebeard(rwbPlayer.y + pullYStep, 0, 484);
             if (t % 4 === 0) {
