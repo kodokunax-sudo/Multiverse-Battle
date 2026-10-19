@@ -812,6 +812,12 @@
     }
 
     function rwbFinalCleanup() {
+        if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===1000) {
+            if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
+            try { stopRogerWhitebeardFight(); } catch(e) {}
+            if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("win",true);
+            return;
+        }
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
         try {
             if (!rwbRewardGiven && rwbWinner) {
@@ -1487,7 +1493,10 @@
         document.body.appendChild(rwbSuperBtn);
     }
 
-    function showRWBSuperButton() { if (rwbSuperBtn) rwbSuperBtn.style.display = 'block'; }
+    function showRWBSuperButton() {
+        if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestAbilityMode==="passive") { if(rwbSuperBtn)rwbSuperBtn.style.display="none"; return; }
+        if (rwbSuperBtn) rwbSuperBtn.style.display = 'block';
+    }
     function hideRWBSuperButton() { if (rwbSuperBtn) rwbSuperBtn.style.display = 'none'; }
 
     function activateRWBPlayerSuper() {
@@ -3153,6 +3162,7 @@
                             if (result.blocked) { spawnHitParticles(b.x, b.y, "#9b59b6", 6); playImpactSound(0.15, 1.5); destroyed = true; break; }
                             dmg = result.dmg;
                         }
+                        if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") dmg=window.MBBossTestModifyOutgoingDamage(dmg,1);
                         boss.hp = Math.max(0, boss.hp - dmg);
                         if (rwbState === "fight1") rwbPlayerFocusTargetId = boss.id;
                         // During the two-boss opening phase there is no single active boss HP
@@ -3190,6 +3200,10 @@
     }
 
     function hitPlayer(dmg) {
+        if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyIncomingDamage==="function") {
+            dmg=window.MBBossTestModifyIncomingDamage(dmg,"rwb");
+            if(dmg<=0)return;
+        }
         if (isModerActive()) return;
 
         // ★ 1. Проверка неуязвимости (ДО всего остального) ★
@@ -3273,6 +3287,11 @@
     }
 
     function rwbDefeat() {
+        if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===1000) {
+            stopRogerWhitebeardFight();
+            if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("loss",true);
+            return;
+        }
         if (isModerActive()) return;
         if (rwbState === "defeat") return;
         rwbState = "defeat"; rwbEndTimer = 0;
