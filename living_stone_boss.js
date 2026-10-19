@@ -946,6 +946,7 @@ function updateLivingStoneBullets() {
 function damageLivingStone(dmg) {
     if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
     if (livingStoneState === "phase2" && livingStoneBossHp <= 0) return;
+    if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") dmg=window.MBBossTestModifyOutgoingDamage(dmg,1);
     livingStoneBossHp -= dmg;
     livingStoneBossFlash = 5;
     if (livingStoneBossHp <= livingStoneBossMaxHp * 0.05 && livingStoneRestoreCount === 0) { triggerRestoreScene(); return; }
@@ -1346,6 +1347,12 @@ function triggerPhase2() {
 
 // ========== ПОБЕДА / ПОРАЖЕНИЕ ==========
 function livingStoneVictory() {
+    if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===200) {
+        livingStoneState="victory";
+        spawnLivingStoneText(200,200,"ТЕСТ: ПОБЕДА","#aaffbf",90);
+        setTimeout(function(){if(livingStoneActive)stopLivingStoneFight();if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("win",true);},700);
+        return;
+    }
     livingStoneState = "victory";
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
         if (!defeatedBosses.includes(200)) {
@@ -1374,6 +1381,11 @@ function livingStoneVictory() {
 }
 
 function livingStoneDefeat() {
+    if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===200) {
+        stopLivingStoneFight();
+        if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("loss",true);
+        return;
+    }
     livingStoneState = "defeat";
     spawnLivingStoneText(200, 250, "КАМЕНЬ НЕПОБЕДИМ", "#ff0000", 180);
     livingStoneScreenFlash = 40; livingStoneScreenFlashColor = "#ff0000";
@@ -1732,6 +1744,10 @@ function triggerChainExplosion(x, y, damage) {
 }
 
 function damageLivingStonePlayer(dmg) {
+    if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyIncomingDamage==="function") {
+        dmg=window.MBBossTestModifyIncomingDamage(dmg,"stone");
+        if(dmg<=0)return;
+    }
     if (livingStoneInvulnTimer > 0) return;
     if (typeof window.gojoTryNegateIncoming === "function" && window.gojoTryNegateIncoming(dmg, "stone")) return;
     
