@@ -1162,15 +1162,22 @@ function updateExtendedArenaAttack(now) {
     // 13. Flowing acid: pour, spread, merge with nearby puddles, then evaporate.
     if(st.type===13){
         if(t>=st.nextSpawnAt&&st.hazards.length<9){var edge=Math.floor(Math.random()*4),sx,sy;if(edge===0){sx=20+Math.random()*360;sy=65;}else if(edge===1){sx=20+Math.random()*360;sy=490;}else if(edge===2){sx=8;sy=85+Math.random()*390;}else{sx=392;sy=85+Math.random()*390;}
-            st.hazards.push({x:35+Math.random()*330,y:105+Math.random()*340,sourceX:sx,sourceY:sy,born:t,r:3,targetR:29+Math.random()*13,nextHitAt:0});st.nextSpawnAt=t+790;}
+            var acidX=35+Math.random()*330,acidY=105+Math.random()*340;
+            st.hazards.push({x:acidX,y:acidY,sourceX:sx,sourceY:sy,born:t,r:3,targetR:29+Math.random()*13,flowAngle:Math.atan2(acidY-sy,acidX-sx),elongation:0.06,nextHitAt:0});st.nextSpawnAt=t+790;}
         for(var ai=st.hazards.length-1;ai>=0;ai--){var pool=st.hazards[ai],age=t-pool.born;if(age>7600){st.hazards.splice(ai,1);continue;}
             var pouring=age<520,spreading=age>=520&&age<1150,fading=age>6100;
             if(!frozen){if(pouring)pool.r=Math.min(pool.targetR*.72,pool.r+delta*.045);else if(spreading)pool.r=Math.min(pool.targetR,pool.r+delta*.035);else if(fading)pool.r=Math.max(0,pool.r-delta*.014);}
-            if(!frozen)for(var aj=ai-1;aj>=0;aj--){var other=st.hazards[aj];if(Math.hypot(pool.x-other.x,pool.y-other.y)<pool.r+other.r-2){var areaR=Math.sqrt(pool.r*pool.r+other.r*other.r),total=Math.max(1,pool.r+other.r);pool.x=(pool.x*pool.r+other.x*other.r)/total;pool.y=(pool.y*pool.r+other.y*other.r)/total;pool.r=Math.min(102,areaR);pool.targetR=Math.min(102,Math.max(pool.targetR,other.targetR,pool.r));pool.born=Math.min(pool.born,other.born);st.hazards.splice(aj,1);ai--;}}
+            if(!frozen)for(var aj=ai-1;aj>=0;aj--){var other=st.hazards[aj];if(Math.hypot(pool.x-other.x,pool.y-other.y)<pool.r+other.r-2){var mergeDX=other.x-pool.x,mergeDY=other.y-pool.y,mergeAngle=Math.atan2(mergeDY,mergeDX);
+                    var areaR=Math.sqrt(pool.r*pool.r+other.r*other.r),total=Math.max(1,pool.r+other.r);
+                    pool.x=(pool.x*pool.r+other.x*other.r)/total;pool.y=(pool.y*pool.r+other.y*other.r)/total;
+                    pool.r=Math.min(102,areaR);pool.targetR=Math.min(102,Math.max(pool.targetR,other.targetR,pool.r));
+                    pool.flowAngle=mergeAngle;pool.elongation=Math.min(0.42,Math.max(pool.elongation||0,other.elongation||0)+0.16);
+                    pool.born=Math.min(pool.born,other.born);st.hazards.splice(aj,1);ai--;}}
             ctx.save();ctx.globalAlpha=fading?Math.max(.12,(7600-age)/1500):pouring?.7:.9;
-            if(pouring){ctx.strokeStyle="#a5ff55";ctx.lineWidth=5+Math.sin(sec*16)*1.5;ctx.lineCap="round";ctx.shadowColor="#80ff35";ctx.shadowBlur=9;ctx.beginPath();ctx.moveTo(pool.sourceX,pool.sourceY);ctx.quadraticCurveTo((pool.sourceX+pool.x)/2+Math.sin(sec*9)*12,(pool.sourceY+pool.y)/2,pool.x,pool.y);ctx.stroke();}
+            if(pouring){ctx.strokeStyle="#a5ff55";ctx.lineWidth=5+Math.sin(sec*16)*1.5;ctx.lineCap="round";ctx.shadowColor="#80ff35";ctx.shadowBlur=9;ctx.beginPath();ctx.moveTo(pool.sourceX,pool.sourceY);ctx.quadraticCurveTo((pool.sourceX+pool.x)/2+Math.sin(sec*9)*12,(pool.sourceY+pool.y)/2,pool.x,pool.y);ctx.stroke();
+                for(var dropA=0;dropA<5;dropA++){var dq=(sec*0.9+dropA*0.19)%1,ddx=pool.sourceX+(pool.x-pool.sourceX)*dq,ddy=pool.sourceY+(pool.y-pool.sourceY)*dq;ctx.beginPath();ctx.arc(ddx+Math.sin(sec*8+dropA)*3,ddy,1.8+(dropA%3),0,Math.PI*2);ctx.fillStyle="#d8ff92";ctx.fill();}}
             ctx.fillStyle="#5eea3f";ctx.strokeStyle="#c8ff86";ctx.lineWidth=2;ctx.shadowColor="#73ff39";ctx.shadowBlur=11;ctx.beginPath();
-            for(var lq=0;lq<=28;lq++){var la=lq/28*Math.PI*2,wob=1+Math.sin(la*3+sec*2.5)*.045+Math.sin(la*7-sec*3)*.025,lx=pool.x+Math.cos(la)*pool.r*wob,ly=pool.y+Math.sin(la)*pool.r*wob;if(!lq)ctx.moveTo(lx,ly);else ctx.lineTo(lx,ly);}ctx.closePath();ctx.fill();ctx.stroke();
+            for(var lq=0;lq<=28;lq++){var la=lq/28*Math.PI*2,wob=1+Math.sin(la*3+sec*2.5)*.045+Math.sin(la*7-sec*3)*.025+Math.cos(la-(pool.flowAngle||0))*(pool.elongation||0),lx=pool.x+Math.cos(la)*pool.r*wob,ly=pool.y+Math.sin(la)*pool.r*wob;if(!lq)ctx.moveTo(lx,ly);else ctx.lineTo(lx,ly);}ctx.closePath();ctx.fill();ctx.stroke();
             ctx.globalAlpha*=.75;ctx.strokeStyle="#dfff9e";ctx.lineWidth=1.5;for(var rip=0;rip<2;rip++){var rr=pool.r*(.25+rip*.34)+((sec*14+rip*17)%Math.max(10,pool.r*.4));ctx.beginPath();ctx.ellipse(pool.x+Math.sin(sec*2+rip)*pool.r*.1,pool.y,Math.min(pool.r,rr),Math.min(pool.r*.42,rr*.42),Math.sin(sec+rip)*.12,0,Math.PI*2);ctx.stroke();}ctx.restore();
             if(!frozen&&!pouring&&pool.r>10&&Math.hypot(heart.x-pool.x,heart.y-pool.y)<pool.r+heart.hitbox){st._multiHitActive=true;if(arenaExtTouchCooldown(st,"acid_"+pool.born,now,105))applyHit(1,"КИСЛОТА: РАЗЪЕДАЕТ!",false,true);}
         }
@@ -1405,7 +1412,7 @@ function updateExtendedArenaAttack(now) {
                 if (now >= Number(gear.nextContactHitAt || 0)) {
                     gear.nextContactHitAt = now + 105; arenaShake = Math.max(arenaShake, 10);
                     for (var hpG = 0; hpG < 9; hpG++) arenaParticles.push({x:heart.x,y:heart.y,vx:(Math.random()-0.5)*9,vy:(Math.random()-0.5)*9,life:19,maxLife:19,color:hpG%2?"#ff9b32":"#fff2c6",size:2.2+Math.random()*3});
-                    applyHit(strongDmg, "ШЕСТЕРНЯ: МУЛЬТИ-УДАР!", false, true);
+                    applyHit(1, "ШЕСТЕРНЯ: МУЛЬТИ-УДАР!", false, true);
                 }
             }
         }
@@ -1447,23 +1454,177 @@ function updateExtendedArenaAttack(now) {
         }
     }
 
-    // 20. Twin interceptor fists: catch the heart between them, carry it, then slam it.
-    if(st.type===20){
-        if(!st.clawPair&&t>=st.nextSpawnAt){var horizontal=Math.random()<.5,lane=horizontal?95+Math.random()*310:90+Math.random()*320;st.clawPair={born:t,horizontal:horizontal,lane:lane,phase:"approach",x1:horizontal?-35:lane,y1:horizontal?lane:-35,x2:horizontal?435:lane,y2:horizontal?lane:535,holdUntil:0,slamAt:0};st.nextSpawnAt=t+1700;}
-        var pair=st.clawPair;
-        if(pair){var horizontalC=pair.horizontal,center=pair.lane,leftX=horizontalC?pair.x1:center,leftY=horizontalC?center:pair.y1,rightX=horizontalC?pair.x2:center,rightY=horizontalC?center:pair.y2;
-            if(pair.phase==="approach"){var close=Math.min(1,delta*.00048);if(horizontalC){pair.x1+=(center+20-pair.x1)*close;pair.x2+=(center-20-pair.x2)*close;}else{pair.y1+=(center+20-pair.y1)*close;pair.y2+=(center-20-pair.y2)*close;}
-                leftX=horizontalC?pair.x1:center;leftY=horizontalC?center:pair.y1;rightX=horizontalC?pair.x2:center;rightY=horizontalC?center:pair.y2;
-                var betweenC=horizontalC?(heart.x>Math.min(leftX,rightX)-heart.hitbox&&heart.x<Math.max(leftX,rightX)+heart.hitbox&&Math.abs(heart.y-center)<36):(heart.y>Math.min(leftY,rightY)-heart.hitbox&&heart.y<Math.max(leftY,rightY)+heart.hitbox&&Math.abs(heart.x-center)<36);
-                if(betweenC){pair.phase="caught";pair.holdUntil=t+360;arenaShake=Math.max(arenaShake,5);}
-                if((horizontalC?Math.abs(pair.x2-pair.x1):Math.abs(pair.y2-pair.y1))<22){pair.phase="slam";pair.slamAt=t;}
-            }else if(pair.phase==="caught"){if(horizontalC){pair.x1=center-18;pair.x2=center+18;heart.x+=(center-heart.x)*Math.min(.22,delta*.00045);heart.y+=(center-heart.y)*Math.min(.18,delta*.00035);}else{pair.y1=center-18;pair.y2=center+18;heart.y+=(center-heart.y)*Math.min(.22,delta*.00045);heart.x+=(center-heart.x)*Math.min(.18,delta*.00035);}if(t>=pair.holdUntil){pair.phase="slam";pair.slamAt=t;}}
-            else if(pair.phase==="slam"){if(!pair.didSlam){pair.didSlam=true;arenaShake=Math.max(arenaShake,15);screenFlash=Math.max(screenFlash,4);playArenaSound(90,"sawtooth",.2,.08);if(Math.abs(heart.x-center)<76&&Math.abs(heart.y-center)<76){if(horizontalC){heart.vx=heart.x<center?-7:7;heart.vy=(heart.y-center)*.12;}else{heart.vy=heart.y<center?-7:7;heart.vx=(heart.x-center)*.12;}spawnFloatingText(heart.x,heart.y-18,"УДАР ОБ КУЛАК!","#ffc36c");}for(var spC=0;spC<22;spC++)arenaParticles.push({x:center+(Math.random()-.5)*45,y:center+(Math.random()-.5)*45,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*10,life:22,maxLife:22,color:spC%2?"#ffc36c":"#fff1d4",size:2+Math.random()*3});}if(t-pair.slamAt>270){pair.phase="retract";pair.retractAt=t;}}
-            else if(pair.phase==="retract"){var retract=Math.min(1,delta*.003);if(horizontalC){pair.x1+=(-35-pair.x1)*retract;pair.x2+=(435-pair.x2)*retract;}else{pair.y1+=(-35-pair.y1)*retract;pair.y2+=(535-pair.y2)*retract;}if(t-pair.retractAt>400)st.clawPair=null;}
-            leftX=horizontalC?pair.x1:center;leftY=horizontalC?center:pair.y1;rightX=horizontalC?pair.x2:center;rightY=horizontalC?center:pair.y2;
-            function drawClaw(cx,cy,flip){ctx.save();ctx.translate(cx,cy);ctx.fillStyle="#b8c2cc";ctx.strokeStyle="#fff0d4";ctx.lineWidth=2;ctx.shadowColor="#ffc66f";ctx.shadowBlur=12;ctx.fillRect(-25,-22,50,44);ctx.strokeRect(-25,-22,50,44);ctx.fillStyle="#4c5966";for(var qC=-1;qC<=1;qC++){ctx.beginPath();if(horizontalC){ctx.moveTo(flip?-24:24,qC*12-5);ctx.lineTo(flip?-38:38,qC*12);ctx.lineTo(flip?-24:24,qC*12+5);}else{ctx.moveTo(qC*12-5,flip?-24:24);ctx.lineTo(qC*12,flip?-38:38);ctx.lineTo(qC*12+5,flip?-24:24);}ctx.closePath();ctx.fill();}ctx.restore();}
-            drawClaw(leftX,leftY,false);drawClaw(rightX,rightY,true);
-            if(pair.phase==="approach"){ctx.save();ctx.strokeStyle="rgba(255,205,125,0.7)";ctx.setLineDash([5,5]);ctx.lineWidth=2;if(horizontalC){ctx.beginPath();ctx.moveTo(15,center);ctx.lineTo(385,center);ctx.stroke();}else{ctx.beginPath();ctx.moveTo(center,65);ctx.lineTo(center,490);ctx.stroke();}ctx.restore();}
+    // 20. Twin interceptor fists: a hand can grab the player mid-flight and drag them into its partner.
+    if (st.type === 20) {
+        if (!st.clawPair && t >= st.nextSpawnAt) {
+            var horizontal = Math.random() < 0.5;
+            var lane = horizontal ? 95 + Math.random() * 310 : 90 + Math.random() * 320;
+            st.clawPair = {
+                born: t, horizontal: horizontal, lane: lane,
+                meet: horizontal ? 200 : 270,
+                phase: "approach",
+                x1: horizontal ? -38 : lane, y1: horizontal ? lane : -38,
+                x2: horizontal ? 438 : lane, y2: horizontal ? lane : 538,
+                holdUntil: 0, didSlam: false
+            };
+            st.nextSpawnAt = t + 1700;
+        }
+        var pair = st.clawPair;
+        if (pair) {
+            var horizontalC = pair.horizontal;
+            var laneC = pair.lane;
+            var meetC = pair.meet;
+            var leftX = horizontalC ? pair.x1 : laneC;
+            var leftY = horizontalC ? laneC : pair.y1;
+            var rightX = horizontalC ? pair.x2 : laneC;
+            var rightY = horizontalC ? laneC : pair.y2;
+            var stepC = Math.min(18, Math.max(0, delta) * 0.42);
+            if (pair.phase === "approach") {
+                // Two fists rush in from opposite edges and collide at the center.
+                if (horizontalC) {
+                    pair.x1 = Math.min(meetC - 12, pair.x1 + stepC);
+                    pair.x2 = Math.max(meetC + 12, pair.x2 - stepC);
+                } else {
+                    pair.y1 = Math.min(meetC - 12, pair.y1 + stepC);
+                    pair.y2 = Math.max(meetC + 12, pair.y2 - stepC);
+                }
+                leftX = horizontalC ? pair.x1 : laneC;
+                leftY = horizontalC ? laneC : pair.y1;
+                rightX = horizontalC ? pair.x2 : laneC;
+                rightY = horizontalC ? laneC : pair.y2;
+                var nearFirst = horizontalC
+                    ? Math.abs(heart.y - laneC) < 35 && Math.abs(heart.x - leftX) < 35
+                    : Math.abs(heart.x - laneC) < 35 && Math.abs(heart.y - leftY) < 35;
+                var nearSecond = horizontalC
+                    ? Math.abs(heart.y - laneC) < 35 && Math.abs(heart.x - rightX) < 35
+                    : Math.abs(heart.x - laneC) < 35 && Math.abs(heart.y - rightY) < 35;
+                if (nearFirst || nearSecond) {
+                    pair.phase = "caught";
+                    pair.grabSide = nearFirst ? "first" : "second";
+                    pair.caughtAt = t;
+                    pair.holdUntil = t + 420;
+                    pair.caughtX = heart.x;
+                    pair.caughtY = heart.y;
+                    arenaShake = Math.max(arenaShake, 5);
+                    spawnFloatingText(heart.x, heart.y - 20, "СХВАТИЛИ!", "#ffd18b");
+                } else {
+                    var gapC = horizontalC ? pair.x2 - pair.x1 : pair.y2 - pair.y1;
+                    if (gapC <= 25) {
+                        pair.phase = "slam";
+                        pair.slamAt = t;
+                    }
+                }
+            } else if (pair.phase === "caught") {
+                // Both fists drag the captured heart toward their collision point.
+                var pullC = Math.min(0.24, Math.max(0, delta) * 0.00055);
+                if (horizontalC) {
+                    pair.x1 = Math.min(meetC - 18, pair.x1 + stepC * 0.72);
+                    pair.x2 = Math.max(meetC + 18, pair.x2 - stepC * 0.72);
+                    heart.x += (meetC - heart.x) * pullC;
+                    heart.y += (laneC - heart.y) * Math.min(0.2, Math.max(0, delta) * 0.00045);
+                } else {
+                    pair.y1 = Math.min(meetC - 18, pair.y1 + stepC * 0.72);
+                    pair.y2 = Math.max(meetC + 18, pair.y2 - stepC * 0.72);
+                    heart.y += (meetC - heart.y) * pullC;
+                    heart.x += (laneC - heart.x) * Math.min(0.2, Math.max(0, delta) * 0.00045);
+                }
+                if (t >= pair.holdUntil) {
+                    pair.phase = "slam";
+                    pair.slamAt = t;
+                }
+            } else if (pair.phase === "slam") {
+                if (!pair.didSlam) {
+                    pair.didSlam = true;
+                    arenaShake = Math.max(arenaShake, 15);
+                    screenFlash = Math.max(screenFlash, 4);
+                    playArenaSound(90, "sawtooth", 0.2, 0.08);
+                    var nearMeeting = horizontalC
+                        ? Math.abs(heart.x - meetC) < 82 && Math.abs(heart.y - laneC) < 82
+                        : Math.abs(heart.x - laneC) < 82 && Math.abs(heart.y - meetC) < 82;
+                    if (nearMeeting) {
+                        // Rebound away from the fist that delivered the slam.
+                        var awaySign = pair.grabSide === "first" ? -1 : 1;
+                        if (horizontalC) {
+                            heart.vx = awaySign * 8.2;
+                            heart.vy += (heart.y - laneC) * 0.13;
+                        } else {
+                            heart.vy = awaySign * 8.2;
+                            heart.vx += (heart.x - laneC) * 0.13;
+                        }
+                        spawnFloatingText(heart.x, heart.y - 18, "УДАР ОБ КУЛАК!", "#ffc36c");
+                    }
+                    for (var spC = 0; spC < 22; spC++) {
+                        arenaParticles.push({
+                            x: horizontalC ? meetC : laneC,
+                            y: horizontalC ? laneC : meetC,
+                            vx: (Math.random() - 0.5) * 10,
+                            vy: (Math.random() - 0.5) * 10,
+                            life: 22, maxLife: 22,
+                            color: spC % 2 ? "#ffc36c" : "#fff1d4",
+                            size: 2 + Math.random() * 3
+                        });
+                    }
+                }
+                if (t - pair.slamAt > 270) {
+                    pair.phase = "retract";
+                    pair.retractAt = t;
+                }
+            } else if (pair.phase === "retract") {
+                var retractC = Math.min(1, Math.max(0, delta) * 0.003);
+                if (horizontalC) {
+                    pair.x1 += (-38 - pair.x1) * retractC;
+                    pair.x2 += (438 - pair.x2) * retractC;
+                } else {
+                    pair.y1 += (-38 - pair.y1) * retractC;
+                    pair.y2 += (538 - pair.y2) * retractC;
+                }
+                if (t - pair.retractAt > 400) st.clawPair = null;
+            }
+            leftX = horizontalC ? pair.x1 : laneC;
+            leftY = horizontalC ? laneC : pair.y1;
+            rightX = horizontalC ? pair.x2 : laneC;
+            rightY = horizontalC ? laneC : pair.y2;
+            function drawClaw(cx, cy, flip) {
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.fillStyle = "#b8c2cc";
+                ctx.strokeStyle = "#fff0d4";
+                ctx.lineWidth = 2;
+                ctx.shadowColor = "#ffc66f";
+                ctx.shadowBlur = 12;
+                ctx.fillRect(-25, -22, 50, 44);
+                ctx.strokeRect(-25, -22, 50, 44);
+                ctx.fillStyle = "#4c5966";
+                for (var qC = -1; qC <= 1; qC++) {
+                    ctx.beginPath();
+                    if (horizontalC) {
+                        ctx.moveTo(flip ? -24 : 24, qC * 12 - 5);
+                        ctx.lineTo(flip ? -38 : 38, qC * 12);
+                        ctx.lineTo(flip ? -24 : 24, qC * 12 + 5);
+                    } else {
+                        ctx.moveTo(qC * 12 - 5, flip ? -24 : 24);
+                        ctx.lineTo(qC * 12, flip ? -38 : 38);
+                        ctx.lineTo(qC * 12 + 5, flip ? -24 : 24);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+            drawClaw(leftX, leftY, false);
+            drawClaw(rightX, rightY, true);
+            if (pair.phase === "approach") {
+                ctx.save();
+                ctx.strokeStyle = "rgba(255,205,125,0.7)";
+                ctx.setLineDash([5, 5]);
+                ctx.lineWidth = 2;
+                if (horizontalC) {
+                    ctx.beginPath(); ctx.moveTo(15, laneC); ctx.lineTo(385, laneC); ctx.stroke();
+                } else {
+                    ctx.beginPath(); ctx.moveTo(laneC, 65); ctx.lineTo(laneC, 490); ctx.stroke();
+                }
+                ctx.restore();
+            }
         }
     }
     // Multi-hit bypasses shields during contact; ordinary invulnerability returns after leaving it.
