@@ -478,9 +478,9 @@
     }
     function asText(x, y, text, color, life) {
         const message = String(text == null ? "" : text);
-        // Длинные реплики остаются на экране дольше. «Ты серьезно?» (~13 символов)
-        // держится около 2 секунд при обычных 60 FPS.
-        const readableLife = Math.max(1, message.length * 9);
+        // На каждый символ даём 0,3 секунды: 18 кадров при 60 FPS.
+        // «Ты серьезно?» (13 символов) держится около 3,9 секунды.
+        const readableLife = Math.max(1, message.length * 18);
         const requestedLife = Number.isFinite(Number(life)) && Number(life) > 0 ? Number(life) : 50;
         const duration = Math.max(requestedLife, readableLife);
         asTexts.push({ x:x, y:y, text:message, color:color || "#ffffff", life:duration, maxLife:duration, vy:-0.7 });
