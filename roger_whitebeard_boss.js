@@ -3296,6 +3296,9 @@
         }
         if (isModerActive()) return;
         if (rwbState === "defeat") return;
+        if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") {
+            window.MBPreserveGarouChargesForUniqueBossRetry("rwb");
+        }
         rwbState = "defeat"; rwbEndTimer = 0;
         hideRWBModeButton(); hideRWBSuperButton();
         playBossRoarSound(0.5); playExplosionSound(0.4);
@@ -3540,6 +3543,69 @@
         }
 
         for (let i = 0; i < rwbAttacks.length; i++) drawAttack(rwbAttacks[i]);
+
+        // Видимое цунами активки Белоуса для отдельного canvas боя Роджера и Белоуса.
+        // Раньше эффект рисовался только в renderArena() и здесь полностью пропадал.
+        if (typeof _superState !== "undefined" && _superState.whitebeardSkillTsunamiActive) {
+            var wbSkillWaveY = Number(_superState.whitebeardSkillTsunamiY);
+            if (!isFinite(wbSkillWaveY)) wbSkillWaveY = 540;
+            var wbSkillWaveNow = performance.now();
+            var wbSkillWavePulse = 0.82 + Math.sin(wbSkillWaveNow / 90) * 0.18;
+            var wbSkillWaveStep = reduceBossEffects ? 12 : 8;
+            function wbSkillWaveLine(wx, offset) {
+                return wbSkillWaveY + Math.sin(wx / 28 + wbSkillWaveNow / 110) * 18 +
+                    Math.sin(wx / 11 + wbSkillWaveNow / 70) * 5 + (offset || 0);
+            }
+            ctx.save();
+            ctx.globalCompositeOperation = "lighter";
+
+            // Полупрозрачная водяная масса, чтобы волна читалась и без свечения на телефоне.
+            ctx.beginPath();
+            ctx.moveTo(-40, wbSkillWaveY);
+            for (var wbwx = -40; wbwx <= 440; wbwx += wbSkillWaveStep) {
+                ctx.lineTo(wbwx, wbSkillWaveLine(wbwx, 0));
+            }
+            ctx.lineTo(440, wbSkillWaveY + 58);
+            ctx.lineTo(-40, wbSkillWaveY + 58);
+            ctx.closePath();
+            ctx.fillStyle = "rgba(80,220,255,0.32)";
+            ctx.fill();
+
+            ctx.strokeStyle = "rgba(0,220,255," + wbSkillWavePulse + ")";
+            ctx.lineWidth = reduceBossEffects ? 12 : 18;
+            ctx.shadowColor = "#00ccff";
+            ctx.shadowBlur = reduceBossEffects ? 0 : 18;
+            ctx.beginPath();
+            for (var wbwx2 = -40; wbwx2 <= 440; wbwx2 += wbSkillWaveStep) {
+                if (wbwx2 === -40) ctx.moveTo(wbwx2, wbSkillWaveLine(wbwx2, 0));
+                else ctx.lineTo(wbwx2, wbSkillWaveLine(wbwx2, 0));
+            }
+            ctx.stroke();
+
+            ctx.shadowBlur = reduceBossEffects ? 0 : 8;
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = reduceBossEffects ? 3 : 5;
+            ctx.beginPath();
+            for (var wbwx3 = -40; wbwx3 <= 440; wbwx3 += wbSkillWaveStep) {
+                if (wbwx3 === -40) ctx.moveTo(wbwx3, wbSkillWaveLine(wbwx3, -3));
+                else ctx.lineTo(wbwx3, wbSkillWaveLine(wbwx3, -3));
+            }
+            ctx.stroke();
+
+            if (!reduceBossEffects) {
+                for (var wbFoam = 0; wbFoam < 16; wbFoam++) {
+                    var wbFoamX = (wbFoam * 31 + wbSkillWaveNow * 0.12) % 440 - 20;
+                    var wbFoamY = wbSkillWaveLine(wbFoamX, -8 - Math.sin(wbFoam * 1.7 + wbSkillWaveNow / 120) * 5);
+                    ctx.globalAlpha = 0.65 + Math.sin(wbSkillWaveNow / 80 + wbFoam) * 0.25;
+                    ctx.fillStyle = "#ffffff";
+                    ctx.beginPath();
+                    ctx.arc(wbFoamX, wbFoamY, 2 + (wbFoam % 3), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            ctx.globalAlpha = 1;
+            ctx.restore();
+        }
 
         for (let i = 0; i < rwbPlayerBullets.length; i++) {
             let b = rwbPlayerBullets[i];
