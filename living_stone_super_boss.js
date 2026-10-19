@@ -185,6 +185,9 @@
                 if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("loss",true);
                 return;
             }
+            if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") {
+                window.MBPreserveGarouChargesForUniqueBossRetry("stoneSuper");
+            }
             ls2Stop(false);
             if (typeof playerHp !== "undefined") playerHp = 0;
             if (typeof defeat === "function") defeat();
