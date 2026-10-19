@@ -1316,29 +1316,98 @@ function updateExtendedArenaAttack(now) {
         }
     }
 
-    // 18. Heavy gears roll through lanes and telegraph a late lane change.
+    // 18. Infinite pinball gears: bounce off arena boundaries and collide with one another.
     if (st.type === 18) {
-        if (t >= st.nextSpawnAt) {
-            var sideG = Math.random() > 0.5 ? 0 : 1, laneY = 100 + Math.random() * 300;
-            st.hazards.push({ x:sideG === 0 ? -32 : 432, y:laneY, side:sideG, vx:(sideG === 0 ? 1 : -1) * (1.7 + Math.random()*0.5), r:18+Math.random()*8, born:t, age:0, targetY:Math.max(80,Math.min(440,laneY+(Math.random()>0.5?100:-100))), shifted:false, rot:0 });
-            st.nextSpawnAt = t + 1550;
+        if (t >= st.nextSpawnAt && st.hazards.length < 7) {
+            var spawnCountG = st.hazards.length < 2 ? 2 - st.hazards.length : 1;
+            for (var gs0 = 0; gs0 < spawnCountG && st.hazards.length < 7; gs0++) {
+                var sideG = Math.floor(Math.random() * 4), rG = 19 + Math.random() * 9;
+                var speedG = 2.65 + Math.random() * 1.1, alongG = (Math.random() - 0.5) * 2.8;
+                var gx, gy, gvx, gvy;
+                if (sideG === 0) { gx = rG + 8; gy = 82 + Math.random() * 390; gvx = speedG; gvy = alongG; }
+                else if (sideG === 1) { gx = 400 - rG - 8; gy = 82 + Math.random() * 390; gvx = -speedG; gvy = alongG; }
+                else if (sideG === 2) { gx = 30 + Math.random() * 340; gy = 62 + rG; gvx = alongG; gvy = speedG; }
+                else { gx = 30 + Math.random() * 340; gy = 492 - rG; gvx = alongG; gvy = -speedG; }
+                st.hazards.push({ x:gx, y:gy, vx:gvx, vy:gvy, r:rG, born:t, age:0, rot:Math.random()*Math.PI*2, trail:[], nextContactHitAt:0, lastClankAt:0, lastWallBounceAt:0, roll:Math.random()*Math.PI*2 });
+            }
+            st.nextSpawnAt = t + (st.hazards.length < 5 ? 1050 : 1450);
         }
-        for (var gi = st.hazards.length - 1; gi >= 0; gi--) {
-            var gear = st.hazards[gi];
+        var frameScaleG = Math.max(0, Math.min(3, delta / 16.667));
+        for (var gm = 0; gm < st.hazards.length; gm++) {
+            var movingGear = st.hazards[gm];
+            if (!movingGear.trail) movingGear.trail = [];
             if (!frozen) {
-                gear.age += delta; gear.rot += gear.vx / Math.max(10, gear.r);
-                if (gear.age < 1000) { gear.x += gear.vx; gear.y += Math.sin(gear.age / 180) * 0.8; }
-                else if (gear.age < 1280) { gear.x += gear.vx * 0.65; }
-                else { gear.x += gear.vx * 0.65; gear.y += Math.sign(gear.targetY - gear.y) * 1.4; gear.shifted = true; }
+                movingGear.age += delta;
+                movingGear.x += movingGear.vx * frameScaleG;
+                movingGear.y += movingGear.vy * frameScaleG;
+                movingGear.rot += (movingGear.vx - movingGear.vy) / Math.max(11, movingGear.r) * frameScaleG;
+                movingGear.roll += 0.09 * frameScaleG;
+                movingGear.trail.unshift({x:movingGear.x,y:movingGear.y});
+                if (movingGear.trail.length > 9) movingGear.trail.pop();
             }
-            if (gear.age >= 1000 && gear.age < 1280) {
-                ctx.save(); ctx.strokeStyle = "rgba(255,224,170,0.8)"; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(gear.x, gear.targetY); ctx.lineTo(Math.max(12,Math.min(388,gear.x+gear.vx*15)), gear.targetY); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+            var minGX = movingGear.r + 5, maxGX = 400 - movingGear.r - 5;
+            var minGY = 62 + movingGear.r, maxGY = 494 - movingGear.r;
+            var wallBouncedG = false;
+            if (movingGear.x < minGX) { movingGear.x = minGX; movingGear.vx = Math.abs(movingGear.vx); wallBouncedG = true; }
+            else if (movingGear.x > maxGX) { movingGear.x = maxGX; movingGear.vx = -Math.abs(movingGear.vx); wallBouncedG = true; }
+            if (movingGear.y < minGY) { movingGear.y = minGY; movingGear.vy = Math.abs(movingGear.vy); wallBouncedG = true; }
+            else if (movingGear.y > maxGY) { movingGear.y = maxGY; movingGear.vy = -Math.abs(movingGear.vy); wallBouncedG = true; }
+            if (wallBouncedG && !frozen && t - Number(movingGear.lastWallBounceAt || -1000) > 120) {
+                movingGear.lastWallBounceAt = t; arenaShake = Math.max(arenaShake, 4);
+                for (var wpG = 0; wpG < 5; wpG++) arenaParticles.push({x:movingGear.x,y:movingGear.y,vx:(Math.random()-0.5)*5,vy:(Math.random()-0.5)*5,life:14,maxLife:14,color:wpG%2?"#ffba54":"#fff0b6",size:1.8+Math.random()*2.2});
+                arenaShockwaves.push({x:movingGear.x,y:movingGear.y,r:movingGear.r*0.35,v:2.4,life:11,maxLife:11,color:"rgba(255,178,72,0.72)"});
+                playArenaSound(125 + Math.random()*50, "square", 0.07, 0.045);
             }
-            ctx.save(); ctx.globalAlpha = 0.24 + pulse * 0.3; ctx.strokeStyle = "#ffc875"; ctx.lineWidth = 2; ctx.shadowColor = "#ffb347"; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(gear.x, gear.y, gear.r + 8 + pulse * 5, gear.rot, gear.rot + Math.PI * 1.2); ctx.stroke(); ctx.restore();
-            for (var gs = 0; gs < 4; gs++) { var ga = gear.rot + gs * Math.PI / 2; ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = "#ffe6a7"; ctx.beginPath(); ctx.moveTo(gear.x + Math.cos(ga) * (gear.r + 3), gear.y + Math.sin(ga) * (gear.r + 3)); ctx.lineTo(gear.x + Math.cos(ga) * (gear.r + 10 + pulse * 5), gear.y + Math.sin(ga) * (gear.r + 10 + pulse * 5)); ctx.stroke(); ctx.restore(); }
+        }
+        if (!frozen) {
+            for (var ga0 = 0; ga0 < st.hazards.length; ga0++) {
+                for (var gb0 = ga0 + 1; gb0 < st.hazards.length; gb0++) {
+                    var gearA = st.hazards[ga0], gearB = st.hazards[gb0];
+                    var dxG = gearB.x - gearA.x, dyG = gearB.y - gearA.y;
+                    var distG = Math.hypot(dxG, dyG), minDistG = gearA.r + gearB.r;
+                    if (distG >= minDistG) continue;
+                    if (distG < 0.001) { dxG = 1; dyG = 0; distG = 1; }
+                    var nxG = dxG / distG, nyG = dyG / distG, overlapG = minDistG - distG + 0.7;
+                    gearA.x -= nxG * overlapG * 0.5; gearA.y -= nyG * overlapG * 0.5;
+                    gearB.x += nxG * overlapG * 0.5; gearB.y += nyG * overlapG * 0.5;
+                    var rvG = (gearB.vx - gearA.vx) * nxG + (gearB.vy - gearA.vy) * nyG;
+                    if (rvG < 0) {
+                        gearA.vx += rvG * nxG; gearA.vy += rvG * nyG;
+                        gearB.vx -= rvG * nxG; gearB.vy -= rvG * nyG;
+                    }
+                    var clankAtG = Math.max(Number(gearA.lastClankAt || 0), Number(gearB.lastClankAt || 0));
+                    if (t - clankAtG > 150) {
+                        gearA.lastClankAt = t; gearB.lastClankAt = t; arenaShake = Math.max(arenaShake, 5);
+                        for (var cpG = 0; cpG < 7; cpG++) arenaParticles.push({x:(gearA.x+gearB.x)*0.5,y:(gearA.y+gearB.y)*0.5,vx:(Math.random()-0.5)*7,vy:(Math.random()-0.5)*7,life:17,maxLife:17,color:cpG%3?"#ffc15e":"#fff4c4",size:2+Math.random()*2.7});
+                        arenaShockwaves.push({x:(gearA.x+gearB.x)*0.5,y:(gearA.y+gearB.y)*0.5,r:4,v:3,life:13,maxLife:13,color:"rgba(255,190,80,0.85)"});
+                        playArenaSound(180 + Math.random()*70, "sawtooth", 0.08, 0.05);
+                    }
+                }
+            }
+        }
+        for (var gd = 0; gd < st.hazards.length; gd++) {
+            var gear = st.hazards[gd];
+            for (var gt = gear.trail.length - 1; gt > 0; gt--) {
+                ctx.save(); ctx.globalAlpha = (1 - gt / gear.trail.length) * 0.32;
+                ctx.strokeStyle = "#ffb84e"; ctx.lineWidth = Math.max(1, 7 - gt * 0.62);
+                ctx.shadowColor = "#ff9928"; ctx.shadowBlur = 9;
+                ctx.beginPath(); ctx.moveTo(gear.trail[gt].x, gear.trail[gt].y); ctx.lineTo(gear.trail[gt-1].x, gear.trail[gt-1].y); ctx.stroke(); ctx.restore();
+            }
+            ctx.save(); ctx.globalAlpha = 0.26 + pulse * 0.27; ctx.strokeStyle = "#ffc875"; ctx.lineWidth = 2.5;
+            ctx.shadowColor = "#ff9b26"; ctx.shadowBlur = 13;
+            ctx.beginPath(); ctx.arc(gear.x, gear.y, gear.r + 8 + pulse * 4, gear.rot, gear.rot + Math.PI * 1.55); ctx.stroke(); ctx.restore();
             arenaExtDrawGear(gear.x, gear.y, gear.r, gear.rot, "#b78a53", 0.99);
-            if (!frozen && Math.hypot(heart.x - gear.x, heart.y - gear.y) < gear.r + heart.hitbox) applyHit(strongDmg, "ШЕСТЕРНЯ!");
-            if (gear.x < -70 || gear.x > 470 || gear.age > 3500) st.hazards.splice(gi, 1);
+            ctx.save(); ctx.translate(gear.x, gear.y); ctx.rotate(gear.roll);
+            ctx.strokeStyle = "rgba(255,242,201,0.7)"; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.arc(0, 0, gear.r * 0.61, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+            if (!frozen && Math.hypot(heart.x - gear.x, heart.y - gear.y) < gear.r + heart.hitbox + 2) {
+                st.gearSlowUntil = now + 320;
+                if (now >= Number(gear.nextContactHitAt || 0)) {
+                    gear.nextContactHitAt = now + 290; arenaShake = Math.max(arenaShake, 10);
+                    for (var hpG = 0; hpG < 9; hpG++) arenaParticles.push({x:heart.x,y:heart.y,vx:(Math.random()-0.5)*9,vy:(Math.random()-0.5)*9,life:19,maxLife:19,color:hpG%2?"#ff9b32":"#fff2c6",size:2.2+Math.random()*3});
+                    applyHit(strongDmg, "ШЕСТЕРНЯ: МУЛЬТИ-УДАР!", false, true);
+                }
+            }
         }
     }
 
