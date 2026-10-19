@@ -93,6 +93,7 @@
     let asDreamOverlay = null;
     let asDreamWakeCount = 0;
     let asDreamEndingChoice = "";
+    let asDreamChoiceSilenceMusic = false;
     const AS_DREAM_WAKE_TAPS_REQUIRED = 15;
     let asGravityTransitionUntil = 0;
     let asBossApproachFrames = 0;
@@ -1364,6 +1365,18 @@
             finishCinematic();
         }
     }
+    function asSilenceDreamChoiceMusic() {
+        asDreamChoiceSilenceMusic = true;
+        try {
+            if (window.ASDreamCinematic && typeof window.ASDreamCinematic.stopMusic === "function") {
+                window.ASDreamCinematic.stopMusic();
+            }
+        } catch (e) {}
+        try {
+            if (typeof window.stopAllMusic === "function") window.stopAllMusic();
+        } catch (e) {}
+    }
+
     function asShowDreamChoices(overlay) {
         const panel = asReplaceDreamPanel(overlay);
 
@@ -1464,6 +1477,7 @@
 
         wakeButton.addEventListener("click", function () {
             if (asDreamEndingChoice !== "dream") return;
+            asSilenceDreamChoiceMusic();
             asDreamWakeCount++;
             animateChoiceButton(wakeButton, asDreamWakeCount, 1);
             animateChoiceButton(stayButton, Math.min(AS_DREAM_WAKE_TAPS_REQUIRED, asDreamWakeCount), 3);
@@ -1481,6 +1495,7 @@
 
         stayButton.addEventListener("click", function () {
             if (asDreamEndingChoice !== "dream") return;
+            asSilenceDreamChoiceMusic();
             asDreamEndingChoice = "stay-pending";
             animateChoiceButton(stayButton, Math.max(3, asDreamWakeCount + 1), 5);
             animateChoiceButton(wakeButton, Math.max(2, asDreamWakeCount + 1), 2);
@@ -1549,7 +1564,7 @@
             overlay.style.display="none";
         }
         ["superBtn","superBtn2","superBtnDeactivate","startArenaBtn","startLivingStoneBtn","startWaystarBtn","startRogerWB","startAntiSpiralBossBtn","skipBossBtn","spareBtn"].forEach(function(id){const el=document.getElementById(id);if(el)el.style.display="none";});
-        if(typeof musicEnabled!=="undefined" && musicEnabled && typeof startBattleMusic==="function") startBattleMusic();
+        if(typeof musicEnabled!=="undefined" && musicEnabled && typeof startBattleMusic==="function" && !asDreamChoiceSilenceMusic) startBattleMusic();
     }
     function asDrillImpact(x, y, charge, tint) {
         const power = Math.max(.08, Math.min(1, Number(charge) || 0));
@@ -3190,6 +3205,7 @@
         asAimMode = false;
         asSlowUntilReal = 0; asTimeScale = 1; asPreviousTimeScale = 1;
         if(typeof currentEnemy==="undefined"||!currentEnemy||currentEnemy.hp<=0) return;
+        asDreamChoiceSilenceMusic = false;
         asActive=true;window.antiSpiralBossActive=true;asState="cinematic";asWinPending=false;asDefeatPending=false;
         asInitPlatforms();asInitSeals();if(typeof mode!=="undefined"&&mode==="moder"){asSeals.forEach(function(seal){seal.hp=0;seal.broken=true;});}asDrillShots=[];asChargeFrames=0;asCharging=false;asLastDamageAt=asClockNow();asNextShotAt=0;asMiniCooldownUntil=0;asMiniReturnPlayer=null;asMiniSpirals=[];asReassemblyEffectUntil=0;asBossExposed=0;asLabyrinthTimer=0;asUltimateActive=false;asPatternSpawned=false;
         asCinematicStart=performance.now();asCinematicRedHeart={x:-25,y:410};asCinematicArenaProgress=0;
