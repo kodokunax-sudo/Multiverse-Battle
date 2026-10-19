@@ -514,6 +514,7 @@ function moveHeart() {
         if (len2 > 1) { mx /= len2; my /= len2; }
         var activeHeartSpeed = heartSpeed;
         if (arenaExtendedState && arenaExtendedState.type === 18 && performance.now() < Number(arenaExtendedState.gearSlowUntil || 0)) activeHeartSpeed *= 0.30;
+        if (arenaExtendedState && arenaExtendedState.type === 19 && performance.now() < Number(arenaExtendedState.vineSlowUntil || 0)) activeHeartSpeed *= 0.58;
         heart.x += mx * activeHeartSpeed;
         heart.y += my * activeHeartSpeed;
     } else {
@@ -1152,8 +1153,8 @@ function updateExtendedArenaAttack(now) {
                 ctx.beginPath(); ctx.arc(xx, yy, 2.1, 0, Math.PI * 2); ctx.fill();
             }
             if (t > 520) {
-                if(arenaExtLineTouchesHeart(0,y1,gapStart*400,gy1,13)&&arenaExtTouchCooldown(st,"cableA_"+c,now,500)){arenaExtPushHeart(gapStart*400,gy1,3.6,.8);spawnFloatingText(heart.x,heart.y-18,"ТРОС ТЯНЕТ!","#91f2ff");}
-                if(arenaExtLineTouchesHeart(gapEnd*400,gy2,400,y2,13)&&arenaExtTouchCooldown(st,"cableB_"+c,now,500)){arenaExtPushHeart(gapEnd*400,gy2,3.6,.8);spawnFloatingText(heart.x,heart.y-18,"ТРОС ТЯНЕТ!","#91f2ff");}
+                if(arenaExtLineTouchesHeart(0,y1,gapStart*400,gy1,13)&&arenaExtTouchCooldown(st,"cableA_"+c,now,500)){heart.vx+=(gapU*400-heart.x)*.035;heart.vy+=(((gy1+gy2)*.5)-heart.y)*.025;spawnFloatingText(heart.x,heart.y-18,"ТРОС ТАЩИТ К ПРОХОДУ!","#91f2ff");}
+                if(arenaExtLineTouchesHeart(gapEnd*400,gy2,400,y2,13)&&arenaExtTouchCooldown(st,"cableB_"+c,now,500)){heart.vx+=(gapU*400-heart.x)*.035;heart.vy+=(((gy1+gy2)*.5)-heart.y)*.025;spawnFloatingText(heart.x,heart.y-18,"ТРОС ТАЩИТ К ПРОХОДУ!","#91f2ff");}
             }
         }
         if (t < 650) { ctx.fillStyle = "#d8e5f5"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("ТРОСЫ НАТЯГИВАЮТСЯ", 200, 82); }
@@ -1168,8 +1169,8 @@ function updateExtendedArenaAttack(now) {
             var pouring=age<520,spreading=age>=520&&age<1150,fading=age>6100;
             if(!frozen){if(pouring)pool.r=Math.min(pool.targetR*.72,pool.r+delta*.045);else if(spreading)pool.r=Math.min(pool.targetR,pool.r+delta*.035);else if(fading)pool.r=Math.max(0,pool.r-delta*.014);}
             if(!frozen)for(var aj=ai-1;aj>=0;aj--){var other=st.hazards[aj];if(Math.hypot(pool.x-other.x,pool.y-other.y)<pool.r+other.r-2){var mergeDX=other.x-pool.x,mergeDY=other.y-pool.y,mergeAngle=Math.atan2(mergeDY,mergeDX);
-                    var areaR=Math.sqrt(pool.r*pool.r+other.r*other.r),total=Math.max(1,pool.r+other.r);
-                    pool.x=(pool.x*pool.r+other.x*other.r)/total;pool.y=(pool.y*pool.r+other.y*other.r)/total;
+                    var areaA=pool.r*pool.r,areaB=other.r*other.r,areaTotal=Math.max(1,areaA+areaB),areaR=Math.sqrt(areaTotal);
+                    pool.x=(pool.x*areaA+other.x*areaB)/areaTotal;pool.y=(pool.y*areaA+other.y*areaB)/areaTotal;
                     pool.r=Math.min(102,areaR);pool.targetR=Math.min(102,Math.max(pool.targetR,other.targetR,pool.r));
                     pool.flowAngle=mergeAngle;pool.elongation=Math.min(0.42,Math.max(pool.elongation||0,other.elongation||0)+0.16);
                     pool.born=Math.min(pool.born,other.born);st.hazards.splice(aj,1);ai--;}}
@@ -1418,8 +1419,13 @@ function updateExtendedArenaAttack(now) {
         }
     }
 
-    // 19. Vines grow segment by segment from marked seeds and slowly close old paths.
+    // 19. Vines grow through the arena. Touching a thorn calls the roots to pull you back.
     if (st.type === 19) {
+        if (!frozen && st.vineSnare && now < st.vineSnare.until) {
+            var rootDX=st.vineSnare.x-heart.x,rootDY=st.vineSnare.y-heart.y,rootDist=Math.max(1,Math.hypot(rootDX,rootDY));
+            heart.vx += rootDX/rootDist*0.36;
+            heart.vy += rootDY/rootDist*0.36;
+        }
         if (t >= st.nextSpawnAt) {
             var sideV = Math.floor(Math.random() * 4), root = arenaExtNewEdge(sideV, 14);
             var pointsV = [{x:root.x,y:root.y}], angleV = sideV === 0 ? 0 : sideV === 1 ? Math.PI : sideV === 2 ? Math.PI/2 : -Math.PI/2;
@@ -1448,7 +1454,7 @@ function updateExtendedArenaAttack(now) {
                 arenaExtDrawSegment(vine.points[vs].x, vine.points[vs].y, exV, eyV, 13, ageV > 1400 ? "#7d9e4c" : "#b0dc69", 0.95, false);
                 var dxV = exV - vine.points[vs].x, dyV = eyV - vine.points[vs].y, lenV = Math.max(1, Math.hypot(dxV,dyV)), nxV = -dyV / lenV, nyV = dxV / lenV;
                 for (var th = 0; th < 3; th++) { var tu = 0.24 + th * 0.25; if (tu > ratioV) continue; var txV = vine.points[vs].x + dxV * tu, tyV = vine.points[vs].y + dyV * tu; ctx.save(); ctx.fillStyle = "#e7ff9d"; ctx.strokeStyle = "#547c35"; ctx.lineWidth = 1; ctx.shadowColor = "#caff6f"; ctx.shadowBlur = 7; ctx.beginPath(); ctx.moveTo(txV + nxV * 2, tyV + nyV * 2); ctx.lineTo(txV + nxV * 12 - dxV / lenV * 3, tyV + nyV * 12 - dyV / lenV * 3); ctx.lineTo(txV - nxV * 4, tyV - nyV * 4); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
-                if(ageV>610&&ratioV>.4&&ageV<3250&&arenaExtLineTouchesHeart(vine.points[vs].x,vine.points[vs].y,exV,eyV,13)){heart.vx*=.72;heart.vy*=.72;if(arenaExtTouchCooldown(st,"vine_"+vi2+"_"+vs,now,260))spawnFloatingText(heart.x,heart.y-18,"ШИПЫ ЗАДЕРЖИВАЮТ!","#d7f3a5");}
+                if(ageV>610&&ratioV>.4&&ageV<3250&&arenaExtLineTouchesHeart(vine.points[vs].x,vine.points[vs].y,exV,eyV,13)){st.vineSlowUntil=now+460;st.vineSnare={x:vine.points[0].x,y:vine.points[0].y,until:now+680};heart.vx*=.78;heart.vy*=.78;if(arenaExtTouchCooldown(st,"vine_"+vi2+"_"+vs,now,260))spawnFloatingText(heart.x,heart.y-18,"КОРНИ СХВАТИЛИ!","#d7f3a5");}
             }
             ctx.save(); ctx.fillStyle = warningV ? "#eaffbd" : "#7d9e4c"; ctx.beginPath(); ctx.arc(vine.points[0].x, vine.points[0].y, warningV ? 7 : 5, 0, Math.PI*2); ctx.fill(); ctx.restore();
         }
