@@ -2841,8 +2841,8 @@ function updateSuperLogic(dt) {
 }
 
 function renderSuperVisuals() {
-    // Super mechanics still update; only their decorative render layer is skipped in reduced-effects mode.
-    if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) return;
+    // Не отключаем весь слой супер-эффектов на телефоне: ключевые визуалы способностей должны оставаться видимыми.
+    // Более тяжёлые декоративные слои ограничиваются отдельно в рендерерах соответствующих боссов.
     if (!ctx) return;
     var ctxB = getBossContext();
     if (!ctxB) return;
