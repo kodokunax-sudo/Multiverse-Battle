@@ -1522,17 +1522,17 @@ function updateExtendedArenaAttack(now) {
                 }
             } else if (pair.phase === "caught") {
                 // Both fists drag the captured heart toward their collision point.
-                var pullC = Math.min(0.24, Math.max(0, delta) * 0.00055);
+                var playerCarryStep = Math.min(12, Math.max(0, delta) * 0.42 * 0.9);
                 if (horizontalC) {
                     pair.x1 = Math.min(meetC - 18, pair.x1 + stepC * 0.72);
                     pair.x2 = Math.max(meetC + 18, pair.x2 - stepC * 0.72);
-                    heart.x += (meetC - heart.x) * pullC;
-                    heart.y += (laneC - heart.y) * Math.min(0.2, Math.max(0, delta) * 0.00045);
+                    heart.x += Math.sign(meetC - heart.x) * Math.min(Math.abs(meetC - heart.x), playerCarryStep);
+                    heart.y += (laneC - heart.y) * Math.min(0.25, Math.max(0, delta) * 0.002);
                 } else {
                     pair.y1 = Math.min(meetC - 18, pair.y1 + stepC * 0.72);
                     pair.y2 = Math.max(meetC + 18, pair.y2 - stepC * 0.72);
-                    heart.y += (meetC - heart.y) * pullC;
-                    heart.x += (laneC - heart.x) * Math.min(0.2, Math.max(0, delta) * 0.00045);
+                    heart.y += Math.sign(meetC - heart.y) * Math.min(Math.abs(meetC - heart.y), playerCarryStep);
+                    heart.x += (laneC - heart.x) * Math.min(0.25, Math.max(0, delta) * 0.002);
                 }
                 if (t >= pair.holdUntil) {
                     pair.phase = "slam";
@@ -1634,7 +1634,8 @@ function updateExtendedArenaAttack(now) {
         }
     }
     // Multi-hit bypasses shields during contact; ordinary invulnerability returns after leaving it.
-    if (wasMultiHit && !st._multiHitActive) invulnTimer = Math.max(Number(invulnTimer || 0), 45);
+    if (st._multiHitActive) invulnTimer = 0;
+    else if (wasMultiHit) invulnTimer = Math.max(Number(invulnTimer || 0), 45);
 }
 
 function spawnAttack() {
