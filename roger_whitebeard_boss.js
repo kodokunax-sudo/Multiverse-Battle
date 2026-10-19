@@ -2296,7 +2296,7 @@
             type: "wb_fruit_punch", x: boss.x, y: boss.y, originX: boss.x, originY: boss.y,
             targetX: rwbPlayer.x, targetY: rwbPlayer.y, endX: end.x, endY: end.y,
             state: "warning", warningTimer: 120, activeTimer: 0, hit: false,
-            width: isSuper ? 33 : 29, damage: 20, life: 160, color: "#f7fbff", isSuper: !!isSuper
+            width: isSuper ? 66 : 58, damage: 20, life: 160, color: "#f7fbff", isSuper: !!isSuper
         });
         rwbFloatingTexts.push({ x: 200, y: 82, text: "⚠ РАЗЛОМ МИРА ⚠", color: "#ffffff", life: 125, maxLife: 125, vy: -0.2, vx: 0, size: 17 });
         playHakiChargeSound(0.45); spawnHakiLightning(boss.x, boss.y, 3, false);
@@ -2761,7 +2761,7 @@
                     a.activeTimer--;
                     let d = pointToSegmentDistance(rwbPlayer.x, rwbPlayer.y, a.originX, a.originY, a.endX, a.endY);
                     if (!a.hit && rwbPlayer.invulnTimer <= 0 && d < a.width / 2 + 7) {
-                        a.hit = true; hitPlayer(20); wbFruitFlashTimer = 180; wbFruitFlashPower = 0.72;
+                        a.hit = true; hitPlayer(20); rwbPlayerStunTimer = 120; wbFruitFlashTimer = 180; wbFruitFlashPower = 0.72;
                     }
                     if (a.activeTimer <= 0) rwbAttacks.splice(i, 1);
                 } else { rwbAttacks.splice(i, 1); }
@@ -4902,7 +4902,31 @@
             }
         }
 
-        const incoming = rwbOdenFindIncoming(oden);
+        let incoming = rwbOdenFindIncoming(oden);
+        let odenAvoidingFruitPunch = false;
+        // Oden treats Whitebeard's fruit punch as a priority threat, even during healing.
+        const fruitPunchThreat = rwbAttacks.find(function(a) {
+            return a && a.type === "wb_fruit_punch" && (a.state === "warning" || a.state === "active");
+        });
+        if (fruitPunchThreat) {
+            const currentRisk = rwbOdenAttackThreat(fruitPunchThreat, oden.x, oden.y, 0, true);
+            const plannedRisk = rwbOdenAttackThreat(fruitPunchThreat, oden.moveTargetX, oden.moveTargetY, 0, true);
+            const nearTarget = Math.hypot(oden.x - (Number(fruitPunchThreat.targetX) || 0),
+                oden.y - (Number(fruitPunchThreat.targetY) || 0)) < 160;
+            const routeRisk = incoming && incoming.attack === fruitPunchThreat ? incoming.risk : null;
+            if (currentRisk || plannedRisk || nearTarget || routeRisk) {
+                odenAvoidingFruitPunch = true;
+                incoming = {
+                    risk: currentRisk || plannedRisk || routeRisk || {
+                        x: Number(fruitPunchThreat.targetX) || 200,
+                        y: Number(fruitPunchThreat.targetY) || 250,
+                        axis: "point", distance: 0
+                    },
+                    time: 0, attackType: "wb_fruit_punch", attack: fruitPunchThreat,
+                    predictedX: oden.x, predictedY: oden.y
+                };
+            }
+        }
         if (oden.healState === "idle" && oden.blueModeCooldown <= 0 && oden.blueModeTimer <= 0 &&
             oden.blueModeCheckTimer <= 0) {
             oden.blueModeCheckTimer = 12;
@@ -4985,7 +5009,8 @@
             if (!closeToPlayer) {
                 // Keep the remaining healing budget and timer if the player moves away.
                 oden.healState = "approach";
-            } else if (!stunned) {
+            } else if (!stunned && !odenAvoidingFruitPunch) {
+                // Pause healing while dodging the fruit punch; the remaining heal is preserved.
                 const maximum = Math.max(1, Number(rwbPlayer.maxHp) || 1);
                 const hpBefore = Math.max(0, Number(rwbPlayer.hp) || 0);
                 const healStep = Math.min(Math.max(0, Number(oden.healRemaining) || 0),
