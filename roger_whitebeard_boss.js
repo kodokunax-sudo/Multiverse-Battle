@@ -4837,6 +4837,7 @@
             oden.tsunamiPulled = false;
         }
 
+        let odenAvoidingFruitPunch = false;
         if (!stunned) {
         // Combo attraction takes priority over evasive pathing; this is an attack effect, not a visual hint.
         const tsunamiPull = rwbOdenFindTsunamiPull(oden);
@@ -4903,7 +4904,6 @@
         }
 
         let incoming = rwbOdenFindIncoming(oden);
-        let odenAvoidingFruitPunch = false;
         // Oden treats Whitebeard's fruit punch as a priority threat, even during healing.
         const fruitPunchThreat = rwbAttacks.find(function(a) {
             return a && a.type === "wb_fruit_punch" && (a.state === "warning" || a.state === "active");
