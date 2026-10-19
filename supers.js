@@ -126,6 +126,7 @@ if (typeof window._uniqueSuperMaxCharges === 'undefined') window._uniqueSuperMax
 if (typeof window._uniqueSuperBossId === 'undefined') window._uniqueSuperBossId = null;
 
 window._heroSuperCharges = window._heroSuperCharges || {};
+window.__mbGarouChargesAfterUniqueDeath = window.__mbGarouChargesAfterUniqueDeath || null;
 
 // ============================================================
 // ФУНКЦИИ ПОЛУЧЕНИЯ ЛИМИТОВ
@@ -193,8 +194,49 @@ function resetHeroCharges(bossId) {
         window._heroSuperCharges[heroName] = limit;
     }
 
+    // После смерти в уникальном боссе сохраняем только оставшиеся заряды Гароу
+    // для повторной попытки против того же босса. Временные эффекты всё равно очищаются.
+    var garouCarry = window.__mbGarouChargesAfterUniqueDeath;
+    if (garouCarry && garouCarry.bossId === String(bossId)) {
+        var garouName = "Космический Гароу";
+        var garouLimit = getEffectiveHeroChargeLimit(garouName, bossId);
+        var savedCharges = Number(garouCarry.charges);
+        if (isFinite(savedCharges)) {
+            window._heroSuperCharges[garouName] = Math.min(garouLimit, Math.max(0, Math.floor(savedCharges)));
+        }
+        window.__mbGarouChargesAfterUniqueDeath = null;
+    }
+
     console.log("[SUPER] Сброс зарядов для босса " + bossId + " (лимит босса: " + bossLimit + ")");
 }
+
+window.MBPreserveGarouChargesForUniqueBossRetry = function(bossId) {
+    try {
+        var garouName = "Космический Гароу";
+        var activeMainCard = null;
+        if (window.rwbActive && typeof window.getRWBMainCard === "function") {
+            try { activeMainCard = window.getRWBMainCard(); } catch (e) {}
+        }
+        if (!activeMainCard && typeof getMainCard === "function") {
+            try { activeMainCard = getMainCard(); } catch (e) {}
+        }
+        // Не переносим заряд Гароу, если в этом бою главным персонажем был кто-то другой.
+        if (!activeMainCard || activeMainCard.name !== garouName) return false;
+
+        var charges = window._heroSuperCharges && window._heroSuperCharges[garouName];
+        if (typeof charges !== "number" || !isFinite(charges)) return false;
+        var resolvedBossId = String(bossId || window._uniqueSuperBossId || "");
+        if (!resolvedBossId) return false;
+
+        window.__mbGarouChargesAfterUniqueDeath = {
+            bossId: resolvedBossId,
+            charges: Math.max(0, Math.floor(charges))
+        };
+        return true;
+    } catch (e) {
+        return false;
+    }
+};
 
 // ============================================================
 // ОПРЕДЕЛЕНИЕ АКТИВНОГО УНИКАЛЬНОГО БОССА
