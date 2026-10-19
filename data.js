@@ -1852,7 +1852,7 @@ const bossTemplates = {
     1700: { name: "Драконий Император", hpMult: 38.7, dmgMult: 3.8, dialogue: "Моя чешуя крепче любой брони.", enemyStatus: { type: "fire", damage: 20, duration: 2000 }, arenaTypes: [0,2,5,9,10] },
     1800: { name: "Великий Маг", hpMult: 30.7, dmgMult: 4.5, dialogue: "Магия — это искусство разрушения.", enemyStatus: { type: "shock", chance: 0.7 }, arenaTypes: [1,4,6,7,10] },
     1900: { name: "Луффи (Гир 5)", hpMult: 42.7, dmgMult: 4.2, dialogue: "Я стану Королём Пиратов!", enemyStatus: { type: "blind", value: 3 }, arenaTypes: [0,3,5,8,9] },
-    2000: { name: "Омни-Мэн (Пробуждённый)", hpMult: 46.7, dmgMult: 4.6, dialogue: "Подумай, сын! Ты сражаешься на неправильной стороне!", enemyStatus: { type: "bleed", value: 0.5 }, arenaTypes: [4,6,8,9,10] },
+    2000: { name: "Живой Камень: Супер-версия", hpMult: 54.7, dmgMult: 5.2, dialogue: "Ты пережил две тысячи волн. Теперь попробуй выстоять передо мной.", enemyStatus: { type: "shock", chance: 0.65 }, arenaTypes: [0,1,2,3,4,5,6,7,8,9,10], isSpecial: true },
     2100: { name: "Сайтама (Серьёзный)", hpMult: 80, dmgMult: 7.0, dialogue: "Ну... я просто честно тренировался.", enemyStatus: { type: "shock", chance: 0.5 }, arenaTypes: [0,2,4,6,8,10] },
     2200: { name: "Король Проклятий (Полный)", hpMult: 50.7, dmgMult: 5.0, dialogue: "Ты даже не достоин быть моей закуской.", enemyStatus: { type: "poison", damage: 12 }, arenaTypes: [1,3,5,7,9,10] },
     2300: { name: "Бог Гароу", hpMult: 54.7, dmgMult: 5.4, dialogue: "Я — абсолютное зло. И я уничтожу всё.", enemyStatus: { type: "fire", damage: 25, duration: 1500 }, arenaTypes: [2,4,6,8,9,10] },
