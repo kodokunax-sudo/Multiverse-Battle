@@ -1109,7 +1109,7 @@ function updateExtendedArenaAttack(now) {
     var strongDmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 2.35));
     var pulse = 0.5 + 0.5 * Math.sin(sec * 8);
 
-    // 11. Three pendulums swing at different rhythms. Only their heavy heads deal damage.
+    // 11. Three pendulums swing at different rhythms. Their heavy heads launch the player on contact.
     if (st.type === 11) {
         for (var p = 0; p < 3; p++) {
             var px = 68 + p * 132, py = 58;
@@ -1323,6 +1323,8 @@ function updateExtendedArenaAttack(now) {
 
     // 18. Infinite pinball gears: bounce off arena boundaries and collide with one another.
     if (st.type === 18) {
+        // Clear the slow immediately after the player leaves every gear hitbox.
+        st.gearSlowUntil = 0;
         if (t >= st.nextSpawnAt && st.hazards.length < 7) {
             var spawnCountG = st.hazards.length < 2 ? 2 - st.hazards.length : 1;
             for (var gs0 = 0; gs0 < spawnCountG && st.hazards.length < 7; gs0++) {
