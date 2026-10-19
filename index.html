@@ -940,6 +940,7 @@
         <div id="battleTab" class="tab-content">
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" data-subtab="fight">⚔️ Бой</button>
+                <button class="sub-tab-btn" data-subtab="bossTest">🧪 Тест боя с боссом</button>
                 <button class="sub-tab-btn" data-subtab="afk">💤 АФК Фарм</button>
                 <button class="sub-tab-btn" data-subtab="checkpoint">🚩 Чекпоинты</button>
             </div>
@@ -969,7 +970,41 @@
             <div id="checkpointSubTab" class="sub-tab-content">
                 <div class="card"><div class="card-title">🚩 Чекпоинты</div><div id="checkpointList"></div></div>
             </div>
-        </div>
+        
+            <div id="bossTestSubTab" class="sub-tab-content">
+                <div class="card" style="border:1px solid rgba(83,210,255,.36);background:linear-gradient(145deg,rgba(8,22,34,.96),rgba(20,13,35,.96));">
+                    <div class="card-title" style="font-size:22px;">🧪 Тест боя с боссом</div>
+                    <div style="padding:12px 14px;margin:8px 0 16px;border-radius:12px;background:rgba(245,175,25,.09);border:1px solid rgba(245,175,25,.28);color:#f7e5b6;line-height:1.5;font-size:13px;">Тренировочный режим без наград, продвижения волны и сохранения победы. У обычных боссов можно выбрать любые атаки и настроить силу как на любой волне. Уникальные боссы запускаются со своими механиками без редактора атак.</div>
+                    <label for="bossTestBossSelect" style="display:block;margin:10px 0 6px;font-weight:800;">Босс</label>
+                    <select id="bossTestBossSelect" style="width:100%;min-width:0;padding:11px;border-radius:10px;" onchange="renderBossTestOptions()"></select>
+                    <div id="bossTestUniqueNotice" style="display:none;margin-top:10px;padding:11px;border-radius:10px;background:rgba(255,100,70,.09);border:1px solid rgba(255,100,70,.28);color:#ffd0c5;font-size:13px;line-height:1.45;">Уникальный босс. Его собственные атаки и механики останутся без изменений.</div>
+                    <div id="bossTestRegularSettings">
+                        <label for="bossTestAttackWave" style="display:block;margin:16px 0 6px;font-weight:800;">Сила атак: как на волне</label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input id="bossTestAttackWave" type="number" min="50" max="10000" step="50" value="50" style="width:130px;max-width:40%;padding:10px;border-radius:10px;" onchange="syncBossTestWave()">
+                            <input id="bossTestAttackWaveRange" type="range" min="50" max="10000" step="50" value="50" style="flex:1;min-width:0;" oninput="syncBossTestWave(this.value)">
+                        </div>
+                        <div style="margin:5px 0 14px;font-size:12px;color:#a9b5c9;">Увеличивает скорость, силу и интенсивность атак. Глобальная волна прохождения не меняется.</div>
+                        <div style="font-weight:900;margin:12px 0 6px;">Атаки босса</div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px;">
+                            <button type="button" class="btn" style="padding:7px 11px;font-size:12px;" onclick="setBossTestAttacks(true)">☑️ Все атаки</button>
+                            <button type="button" class="btn" style="padding:7px 11px;font-size:12px;" onclick="setBossTestAttacks(false)">⬜ Снять все</button>
+                        </div>
+                        <div id="bossTestAttackList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px;"></div>
+                    </div>
+                    <div style="height:1px;background:rgba(255,255,255,.1);margin:20px 0;"></div>
+                    <div style="font-weight:900;font-size:17px;margin-bottom:5px;">Главный персонаж</div>
+                    <div style="font-size:12px;color:#aeb8c8;margin-bottom:12px;">Выбери пассивку или SUPER любого персонажа независимо от состава команды и мастерства.</div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;">
+                        <div><label for="bossTestAbilityMode" style="display:block;margin:0 0 6px;font-weight:800;">Способность</label><select id="bossTestAbilityMode" style="width:100%;min-width:0;padding:10px;border-radius:10px;" onchange="renderBossTestMainCards()"><option value="passive">Пассивка</option><option value="ultimate">Ульта / SUPER</option></select></div>
+                        <div><label for="bossTestMainCard" style="display:block;margin:0 0 6px;font-weight:800;">Персонаж</label><select id="bossTestMainCard" style="width:100%;min-width:0;padding:10px;border-radius:10px;" onchange="showBossTestAbilityDescription()"></select></div>
+                    </div>
+                    <div id="bossTestAbilityDescription" style="margin-top:10px;padding:11px;border-radius:10px;background:rgba(0,0,0,.22);color:#c9d8e8;font-size:12px;line-height:1.5;"></div>
+                    <button id="bossTestStartBtn" type="button" class="btn btn-primary" style="width:100%;margin-top:18px;padding:14px;font-size:16px;font-weight:900;background:linear-gradient(120deg,#087f8c,#4156c5);" onclick="startBossTestSelected()">⚔️ НАЧАТЬ ТЕСТОВЫЙ БОЙ</button>
+                    <div id="bossTestResult" role="status" aria-live="polite" style="margin-top:12px;min-height:20px;color:#9fe6ff;font-size:13px;"></div>
+                </div>
+            </div>
+</div>
         <div id="shopTab" class="tab-content">
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" data-subtab="shopItems">🛍️ Товары</button>
@@ -1520,8 +1555,8 @@
 <script src="pass.js?v=9" defer></script>
 <script src="dandy.js?v=9" defer></script>
 <script src="game.js?v=60" defer></script>
-<script src="battle.js?v=26" defer></script>
-<script src="supers.js?v=43" defer></script>
+<script src="battle.js?v=27" defer></script>
+<script src="supers.js?v=44" defer></script>
 <script src="dio.js?v=19" defer></script>
 <script src="gojo.js?v=6" defer></script>
 <script src="takaba.js?v=9" defer></script>
@@ -1551,6 +1586,7 @@
 
 <script src="mobile-battle-controls.js?v=3" defer></script>
 <script src="stand_users.js?v=7" defer></script>
+<script src="boss_test_mode.js?v=1" defer></script>
     <script src="optional-integrations.js?v=2" defer></script>
 <div id="mbEpilepsyWarning" role="dialog" aria-modal="true" aria-labelledby="mbEpilepsyTitle">
     <div class="mb-warning-card">
