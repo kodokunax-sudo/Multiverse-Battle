@@ -577,16 +577,15 @@
     // Exported now so the next stage's player-bullet system can damage this boss.
     function ls2DamageBoss(amount) {
         if (!ls2Active || !(Number(amount)>0)) return false;
+        if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") {
+            amount=window.MBBossTestModifyOutgoingDamage(amount,1);
+        }
         ls2BossHp=Math.max(0,ls2BossHp-Number(amount));
         if (ls2BossHp<=0) {
             if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===2000) {
                 ls2Stop(false);
                 if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("win",true);
                 return true;
-            }
-            if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") {
-                amount=window.MBBossTestModifyOutgoingDamage(amount,1);
-                ls2BossHp=Math.max(0,ls2BossHp+Number(amount));
             }
             if (typeof defeatedBosses!=="undefined" && Array.isArray(defeatedBosses) &&
                 !defeatedBosses.includes(2000)) {
