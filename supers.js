@@ -1463,7 +1463,7 @@ function clearWhitebeardSkillState() {
 
 function whitebeardSkillStrike() {
     if ((!arenaActive && !isUniqueBossActive()) || !isWhitebeardMainActive()) return;
-    if (typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
+    if (typeof arenaPhase !== "undefined" && arenaPhase === "attack" && !(window.__mbBossTestMode && window.__mbBossTestAbilityMode === "ultimate")) {
         if (typeof showFloatingText === "function") showFloatingText("⚔️ СНАЧАЛА ЗАКОНЧИ АТАКУ!", "#ffdd00");
         return;
     }
@@ -1516,7 +1516,7 @@ function whitebeardSkillStrike() {
 
 function whitebeardSkillTsunami() {
     if ((!arenaActive && !isUniqueBossActive()) || !isWhitebeardMainActive()) return;
-    if (typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
+    if (typeof arenaPhase !== "undefined" && arenaPhase === "attack" && !(window.__mbBossTestMode && window.__mbBossTestAbilityMode === "ultimate")) {
         if (typeof showFloatingText === "function") showFloatingText("⚔️ СНАЧАЛА ЗАКОНЧИ АТАКУ!", "#ffdd00");
         return;
     }
@@ -1531,7 +1531,7 @@ function whitebeardSkillTsunami() {
 
 function useWhitebeardSkill() {
     if ((!arenaActive && !isUniqueBossActive()) || !isWhitebeardMainActive()) return;
-    if (typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
+    if (typeof arenaPhase !== "undefined" && arenaPhase === "attack" && !(window.__mbBossTestMode && window.__mbBossTestAbilityMode === "ultimate")) {
         if (typeof showFloatingText === "function") showFloatingText("⚔️ СНАЧАЛА ЗАКОНЧИ АТАКУ!", "#ffdd00");
         return;
     }
@@ -1631,7 +1631,7 @@ function updateWhitebeardSkillButton() {
     btn.style.fontSize = "14px";
     btn.style.whiteSpace = "nowrap";
 
-    if (typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
+    if (typeof arenaPhase !== "undefined" && arenaPhase === "attack" && !(window.__mbBossTestMode && window.__mbBossTestAbilityMode === "ultimate")) {
         btn.disabled = true;
         btn.textContent = "⚔️ ЗАКОНЧИ АТАКУ";
         btn.style.background = "#555";
@@ -1700,7 +1700,7 @@ function toggleSuper() {
 
     if (!isUnique && !isArena) return;
     // В фазе атаки нельзя нажимать SUPER: игрок должен закончить серию кликов.
-    if (isArena && typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
+    if (isArena && typeof arenaPhase !== "undefined" && arenaPhase === "attack" && !isBossTestUltimate) {
         if (typeof showFloatingText === "function") showFloatingText("⚔️ СНАЧАЛА ЗАКОНЧИ АТАКУ!", "#ffdd00");
         return;
     }
@@ -1904,7 +1904,7 @@ function updateSuperButton() {
         if (btnDeact) btnDeact.style.display = "none";
         var testWbExtra = document.getElementById("whitebeardSkillBtn");
         if (testWbExtra) testWbExtra.style.display = "none";
-        if (isArena && typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
+        if (isArena && typeof arenaPhase !== "undefined" && arenaPhase === "attack" && !isBossTestUltimate) {
             btn.disabled = true; btn.textContent = "⚔️ ЗАКОНЧИ АТАКУ"; btn.style.background = "#555"; btn.style.animation = "none";
         } else if (testWb.whitebeardTsunamiPending > 0) {
             btn.disabled = true; btn.textContent = "⏳ ЦУНАМИ (" + testWb.whitebeardTsunamiPending.toFixed(1) + "с)"; btn.style.background = "#555"; btn.style.animation = "none";
