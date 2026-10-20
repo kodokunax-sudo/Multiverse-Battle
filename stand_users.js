@@ -160,14 +160,17 @@
             return;
         }
 
-        if (combat.unique) {
-            if (typeof window.hasMasteryUniqueSuper === "function" && !window.hasMasteryUniqueSuper(card)) {
-                if (typeof window.showFloatingText === "function") window.showFloatingText("Нужно мастерство 6★ для уникального босса!", "#ff3333");
+        var bossTestUltimate = !!(window.__mbBossTestMode && window.__mbBossTestAbilityMode === "ultimate");
+        if (!bossTestUltimate) {
+            if (combat.unique) {
+                if (typeof window.hasMasteryUniqueSuper === "function" && !window.hasMasteryUniqueSuper(card)) {
+                    if (typeof window.showFloatingText === "function") window.showFloatingText("Нужно мастерство 6★ для уникального босса!", "#ff3333");
+                    return;
+                }
+            } else if (typeof window.hasMasterySuper === "function" && !window.hasMasterySuper(card)) {
+                if (typeof window.showFloatingText === "function") window.showFloatingText("Нужно мастерство 5★!", "#ff3333");
                 return;
             }
-        } else if (typeof window.hasMasterySuper === "function" && !window.hasMasterySuper(card)) {
-            if (typeof window.showFloatingText === "function") window.showFloatingText("Нужно мастерство 5★!", "#ff3333");
-            return;
         }
 
         if (isActiveForCurrentCard()) {
@@ -275,11 +278,17 @@
     window.toggleStandUser = toggleStand;
     window.renderStandUser = renderStand;
     window.resetStandUser = deactivateStand;
+    window.MBIsStandUserCard = isStandUser;
+    window.MBGetStandUserInfo = getStandInfo;
 
     // Для стенд-юзеров кнопка SUPER превращается в обычный переключатель призыва.
     var originalToggleSuper = window.toggleSuper;
     if (typeof originalToggleSuper === "function") {
         window.toggleSuper = function () {
+            // The test harness owns the selected character. In passive mode, never turn its SUPER button into a stand summon.
+            if (window.__mbBossTestMode && window.__mbBossTestAbilityMode === "passive") {
+                return originalToggleSuper.apply(this, arguments);
+            }
             var card = mainCard();
             if (isStandUser(card)) {
                 toggleStand();
@@ -292,6 +301,9 @@
     var originalUpdateSuperButton = window.updateSuperButton;
     if (typeof originalUpdateSuperButton === "function") {
         window.updateSuperButton = function () {
+            if (window.__mbBossTestMode && window.__mbBossTestAbilityMode === "passive") {
+                return originalUpdateSuperButton.apply(this, arguments);
+            }
             if (state.active && !isActiveForCurrentCard()) deactivateStand();
             var result = originalUpdateSuperButton.apply(this, arguments);
             var card = mainCard();
@@ -301,9 +313,10 @@
             if (!btn || !isStandUser(card) || !combat.active) { if (buffStatus) buffStatus.style.display = "none"; return result; }
 
             var standInfo = getStandInfo(card);
-            var hasMastery = combat.unique
+            var testUltimate = !!(window.__mbBossTestMode && window.__mbBossTestAbilityMode === "ultimate");
+            var hasMastery = testUltimate || (combat.unique
                 ? (typeof window.hasMasteryUniqueSuper !== "function" || window.hasMasteryUniqueSuper(card))
-                : (typeof window.hasMasterySuper !== "function" || window.hasMasterySuper(card));
+                : (typeof window.hasMasterySuper !== "function" || window.hasMasterySuper(card)));
             if (!hasMastery) {
                 btn.style.display = "none";
                 if (buffStatus) buffStatus.style.display = "none";
