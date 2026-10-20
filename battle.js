@@ -1114,28 +1114,45 @@ function updateExtendedArenaAttack(now) {
 
     // 11. Three pendulums swing at different rhythms. Their heavy heads launch the player on contact.
     if (st.type === 11) {
-        for (var p = 0; p < 3; p++) {
-            var px = 68 + p * 132, py = 58;
-            var angle = Math.sin(sec * (1.95 + p * 0.22) * extWaveDanger + p * 2.05) * (1.28 + p * 0.05);
-            var length = 322 + (p % 2) * 24;
+        // Seven overlapping pendulums: the chains cover the upper edge too, so hiding at the ceiling is no longer safe.
+        for (var p = 0; p < 7; p++) {
+            var px = 20 + p * 60, py = 58;
+            var pendulumRate = (1.72 + (p % 3) * 0.13) * extWaveDanger;
+            var angle = Math.sin(sec * pendulumRate + p * 1.83) * 1.35;
+            var length = 330 + (p % 3) * 18;
             var bx = px + Math.sin(angle) * length, by = py + Math.cos(angle) * length;
-            var prevAngle = Math.sin((sec - 0.14) * (1.62 + p * 0.17) + p * 2.05) * (1.28 + p * 0.05);
+            var prevAngle = Math.sin((sec - 0.14) * pendulumRate + p * 1.83) * 1.35;
             var prevBx = px + Math.sin(prevAngle) * length, prevBy = py + Math.cos(prevAngle) * length;
-            arenaExtDrawSegment(prevBx, prevBy, bx, by, 25, "rgba(255,190,95,0.5)", t < 650 ? 0.12 : 0.38, false);
-            arenaExtDrawSegment(px, py, bx, by, 7, "#8f9aa8", t < 650 ? 0.4 : 0.9, false);
-            ctx.save(); ctx.fillStyle = "#aab6c5"; ctx.strokeStyle = "#f2f6fa"; ctx.lineWidth = 2; ctx.shadowColor = "#d6e2f0"; ctx.shadowBlur = 7;
-            for (var link = 1; link < 7; link++) {
-                var u = link / 7;
-                ctx.beginPath(); ctx.arc(px + (bx - px) * u, py + (by - py) * u, 2.2, 0, Math.PI * 2); ctx.fill();
+            arenaExtDrawSegment(prevBx, prevBy, bx, by, 16, "rgba(255,190,95,0.48)", t < 650 ? 0.1 : 0.32, false);
+            arenaExtDrawSegment(px, py, bx, by, 7, "#8f9aa8", t < 650 ? 0.4 : 0.95, false);
+            ctx.save();
+            ctx.fillStyle = "#aab6c5"; ctx.strokeStyle = "#f2f6fa"; ctx.lineWidth = 2;
+            ctx.shadowColor = "#d6e2f0"; ctx.shadowBlur = 7;
+            for (var link = 1; link < 8; link++) {
+                var u = link / 8;
+                ctx.beginPath(); ctx.arc(px + (bx - px) * u, py + (by - py) * u, 2.1, 0, Math.PI * 2); ctx.fill();
             }
             ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = "#5f6a79"; ctx.beginPath(); ctx.arc(bx, by, 17, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = "#ecf1f7"; ctx.beginPath(); ctx.arc(bx, by, 6, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-            if(!frozen&&t>420&&arenaExtLineTouchesHeart(px,py,bx,by,20)&&arenaExtTouchCooldown(st,"pendulum_"+p,now,220)){arenaExtPushHeart(bx,by,8.2*extWaveDanger,3.1);heart.vx*=1.18;heart.vy*=1.18;st._multiHitActive=true;applyHit(extImpactDamage,"МАЯТНИК: ТЯЖЁЛЫЙ УДАР!",false,true);spawnFloatingText(heart.x,heart.y-18,"ОТБРОШЕН!","#ffe2a3");}
+            ctx.fillStyle = "#5f6a79";
+            ctx.beginPath(); ctx.arc(bx, by, 17, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#ecf1f7"; ctx.beginPath(); ctx.arc(bx, by, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+            // The chain itself is dangerous; overlapping anchors close the old safe strip at the top.
+            if (!frozen && t > 420 && arenaExtLineTouchesHeart(px, py, bx, by, 24) &&
+                arenaExtTouchCooldown(st, "pendulum_" + p, now, 260)) {
+                arenaExtPushHeart(bx, by, 8.2 * extWaveDanger, 3.1);
+                heart.vx *= 1.18; heart.vy *= 1.18;
+                st._multiHitActive = true;
+                applyHit(extImpactDamage, "МАЯТНИК: ТЯЖЁЛЫЙ УДАР!", false, true);
+                spawnFloatingText(heart.x, heart.y - 18, "ОТБРОШЕН!", "#ffe2a3");
+            }
         }
-        if (t < 650) { ctx.fillStyle = "rgba(210,225,245,0.85)"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("МАЯТНИКИ ЗАПУСКАЮТСЯ", 200, 82); }
+        if (t < 650) {
+            ctx.fillStyle = "rgba(210,225,245,0.85)";
+            ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+            ctx.fillText("МАЯТНИКИ ЗАПУСКАЮТСЯ", 200, 82);
+        }
     }
-
     // 12. Physical chain cables sweep across the room on offset paths.
     if (st.type === 12) {
         for (var c = 0; c < 2; c++) {
@@ -1224,37 +1241,101 @@ function updateExtendedArenaAttack(now) {
 
     // 15. Boomerangs go out first, then curve back toward their launch edge.
     if (st.type === 15) {
-        if (t >= st.nextSpawnAt) {
+        if (t >= st.nextSpawnAt && st.hazards.length < 7) {
             var sideB = Math.floor(Math.random() * 4), origin = arenaExtNewEdge(sideB, 10);
             var targetX = 70 + Math.random() * 260, targetY = 115 + Math.random() * 265;
             var ba = Math.atan2(targetY - origin.y, targetX - origin.x);
-            st.hazards.push({ x:origin.x, y:origin.y, ox:origin.x, oy:origin.y, vx:Math.cos(ba)*4.8*extWaveDanger, vy:Math.sin(ba)*4.8*extWaveDanger, age:0, born:t, rot:ba, side:sideB, trail:[] });
-            if (Math.random() < 0.62) { var origin2 = arenaExtNewEdge((sideB + 2) % 4, 12); var ta2 = Math.atan2(heart.y - origin2.y, heart.x - origin2.x); st.hazards.push({ x:origin2.x, y:origin2.y, ox:origin2.x, oy:origin2.y, vx:Math.cos(ta2)*4.3*extWaveDanger, vy:Math.sin(ta2)*4.3*extWaveDanger, age:0, born:t, rot:ta2, side:(sideB+2)%4, trail:[] }); }
+            var speedB = 5.1 * extWaveDanger;
+            st.hazards.push({
+                x: origin.x, y: origin.y, ox: origin.x, oy: origin.y,
+                vx: Math.cos(ba) * speedB, vy: Math.sin(ba) * speedB,
+                baseSpeed: speedB, startAngle: ba, flightAngle: ba,
+                turnDir: Math.random() < 0.5 ? -1 : 1,
+                spin: (Math.random() < 0.5 ? -1 : 1) * (0.28 + Math.random() * 0.1),
+                age: 0, born: t, rot: Math.random() * Math.PI * 2, side: sideB, trail: []
+            });
+            if (Math.random() < 0.62 && st.hazards.length < 7) {
+                var origin2 = arenaExtNewEdge((sideB + 2) % 4, 12);
+                var ta2 = Math.atan2(heart.y - origin2.y, heart.x - origin2.x);
+                var speedB2 = 4.6 * extWaveDanger;
+                st.hazards.push({
+                    x: origin2.x, y: origin2.y, ox: origin2.x, oy: origin2.y,
+                    vx: Math.cos(ta2) * speedB2, vy: Math.sin(ta2) * speedB2,
+                    baseSpeed: speedB2, startAngle: ta2, flightAngle: ta2,
+                    turnDir: Math.random() < 0.5 ? -1 : 1,
+                    spin: (Math.random() < 0.5 ? -1 : 1) * (0.3 + Math.random() * 0.1),
+                    age: 0, born: t, rot: Math.random() * Math.PI * 2, side: (sideB + 2) % 4, trail: []
+                });
+            }
             st.nextSpawnAt = t + Math.max(340, 820 / extWaveDanger);
         }
         for (var bi = st.hazards.length - 1; bi >= 0; bi--) {
             var boom = st.hazards[bi];
             if (!frozen) {
+                var frameScaleB = Math.max(0, Math.min(3, delta / 16.667));
                 boom.age += delta;
-                if (boom.age < 740) {
-                    var curve = Math.sin(boom.age / 155) * 0.8;
-                    boom.x += boom.vx - boom.vy * curve * 0.12;
-                    boom.y += boom.vy + boom.vx * curve * 0.12;
-                    boom.rot = Math.atan2(boom.vy, boom.vx);
+                var baseAngleB = Number.isFinite(boom.startAngle) ? boom.startAngle : Math.atan2(boom.vy, boom.vx);
+                var baseSpeedB = Number(boom.baseSpeed) || Math.max(1, Math.hypot(boom.vx, boom.vy));
+                if (boom.age < 620) {
+                    // Fast, almost perfectly straight flight after release.
+                    boom.flightAngle = baseAngleB;
+                    var outSpeedB = baseSpeedB * (0.9 + 0.1 * Math.min(1, boom.age / 180));
+                    boom.vx = Math.cos(boom.flightAngle) * outSpeedB;
+                    boom.vy = Math.sin(boom.flightAngle) * outSpeedB;
+                } else if (boom.age < 1330) {
+                    // A broad, non-circular U-turn. The boomerang slows at the apex, then gains speed.
+                    var turnT = Math.max(0, Math.min(1, (boom.age - 620) / 710));
+                    var easedTurn = turnT * turnT * (3 - 2 * turnT);
+                    var turnDirection = Number(boom.turnDir) || 1;
+                    boom.flightAngle = baseAngleB + turnDirection * Math.PI * 0.9 * easedTurn;
+                    var turnSpeed = baseSpeedB * (0.92 - 0.64 * Math.sin(Math.PI * turnT));
+                    boom.vx = Math.cos(boom.flightAngle) * turnSpeed;
+                    boom.vy = Math.sin(boom.flightAngle) * turnSpeed;
                 } else {
+                    // After the turn, steer back to the release point instead of tracing a perfect circle.
                     var backA = Math.atan2(boom.oy - boom.y, boom.ox - boom.x);
-                    boom.x += Math.cos(backA) * 5.2 * extWaveDanger; boom.y += Math.sin(backA) * 5.2 * extWaveDanger; boom.rot = backA;
+                    if (!Number.isFinite(boom.flightAngle)) boom.flightAngle = baseAngleB + (Number(boom.turnDir) || 1) * Math.PI * 0.9;
+                    var angleDiffB = Math.atan2(Math.sin(backA - boom.flightAngle), Math.cos(backA - boom.flightAngle));
+                    boom.flightAngle += Math.max(-0.065 * frameScaleB, Math.min(0.065 * frameScaleB, angleDiffB));
+                    var returnProgressB = Math.min(1, (boom.age - 1330) / 700);
+                    var returnSpeedB = baseSpeedB * (0.55 + 0.45 * returnProgressB);
+                    boom.vx = Math.cos(boom.flightAngle) * returnSpeedB;
+                    boom.vy = Math.sin(boom.flightAngle) * returnSpeedB;
                 }
+                boom.x += boom.vx * frameScaleB;
+                boom.y += boom.vy * frameScaleB;
+                // Spin is independent of the travel direction, so the boomerang visibly rotates in flight.
+                boom.rot += boom.spin * frameScaleB;
             }
-            if (!boom.trail) boom.trail = []; if (!frozen) { boom.trail.unshift({x:boom.x,y:boom.y}); if (boom.trail.length > 8) boom.trail.pop(); }
-            for (var bt2 = boom.trail.length - 1; bt2 > 0; bt2--) { ctx.save(); ctx.globalAlpha = (1 - bt2 / boom.trail.length) * 0.36; ctx.strokeStyle = "#ffd879"; ctx.lineWidth = Math.max(1, 6 - bt2 * 0.6); ctx.beginPath(); ctx.moveTo(boom.trail[bt2].x, boom.trail[bt2].y); ctx.lineTo(boom.trail[bt2-1].x, boom.trail[bt2-1].y); ctx.stroke(); ctx.restore(); }
-            ctx.save(); ctx.translate(boom.x, boom.y); ctx.rotate(boom.rot); ctx.scale(1.35,1.35); ctx.fillStyle = "#f5d88a"; ctx.strokeStyle = "#fff7d9"; ctx.lineWidth = 2; ctx.shadowColor = "#e7b95b"; ctx.shadowBlur = 12;
-            ctx.beginPath(); ctx.moveTo(-17,-7); ctx.lineTo(2,-7); ctx.lineTo(14,-15); ctx.lineTo(8,-1); ctx.lineTo(17,7); ctx.lineTo(-2,7); ctx.lineTo(-14,15); ctx.lineTo(-8,1); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
-            if(!frozen&&Math.hypot(heart.x-boom.x,heart.y-boom.y)<22+heart.hitbox&&arenaExtTouchCooldown(st,"boom_"+bi,now,240)){st._multiHitActive=true;applyHit(extImpactDamage,"БУМЕРАНГ: РАССЕКАЮЩИЙ УДАР!",false,true);arenaExtPushHeart(boom.x,boom.y,7.0*extWaveDanger,1.8);boom.vx*=-1.35;boom.vy*=-1.35;boom.age=Math.max(boom.age,760);spawnFloatingText(heart.x,heart.y-18,"СБИТО С ТРАЕКТОРИИ!","#ffe7a4");}
-            if (boom.age > 2600 || boom.x < -50 || boom.x > 450 || boom.y < -50 || boom.y > 550) st.hazards.splice(bi, 1);
+            if (!boom.trail) boom.trail = [];
+            if (!frozen) { boom.trail.unshift({x: boom.x, y: boom.y}); if (boom.trail.length > 12) boom.trail.pop(); }
+            for (var bt2 = boom.trail.length - 1; bt2 > 0; bt2--) {
+                ctx.save(); ctx.globalAlpha = (1 - bt2 / boom.trail.length) * 0.36;
+                ctx.strokeStyle = "#ffd879"; ctx.lineWidth = Math.max(1, 7 - bt2 * 0.5);
+                ctx.beginPath(); ctx.moveTo(boom.trail[bt2].x, boom.trail[bt2].y);
+                ctx.lineTo(boom.trail[bt2-1].x, boom.trail[bt2-1].y); ctx.stroke(); ctx.restore();
+            }
+            ctx.save(); ctx.translate(boom.x, boom.y); ctx.rotate(boom.rot); ctx.scale(1.35, 1.35);
+            ctx.fillStyle = "#f5d88a"; ctx.strokeStyle = "#fff7d9"; ctx.lineWidth = 2;
+            ctx.shadowColor = "#e7b95b"; ctx.shadowBlur = 12;
+            ctx.beginPath(); ctx.moveTo(-17,-7); ctx.lineTo(2,-7); ctx.lineTo(14,-15);
+            ctx.lineTo(8,-1); ctx.lineTo(17,7); ctx.lineTo(-2,7); ctx.lineTo(-14,15);
+            ctx.lineTo(-8,1); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+            if (!frozen && Math.hypot(heart.x-boom.x, heart.y-boom.y) < 22+heart.hitbox &&
+                arenaExtTouchCooldown(st, "boom_"+bi, now, 240)) {
+                st._multiHitActive = true;
+                applyHit(extImpactDamage, "БУМЕРАНГ: РАССЕКАЮЩИЙ УДАР!", false, true);
+                arenaExtPushHeart(boom.x, boom.y, 7.0 * extWaveDanger, 1.8);
+                // A hit sends it into its return leg instead of producing an unnatural instant reversal.
+                boom.age = Math.max(boom.age, 1330);
+                spawnFloatingText(heart.x, heart.y-18, "СБИТО С ТРАЕКТОРИИ!", "#ffe7a4");
+            }
+            if ((boom.age > 3000 && Math.hypot(boom.ox-boom.x, boom.oy-boom.y) < 28) ||
+                boom.age > 3900 || boom.x < -50 || boom.x > 450 || boom.y < -50 || boom.y > 550) {
+                st.hazards.splice(bi, 1);
+            }
         }
     }
-
     // 16. Cracks branch through short marked paths; they are not a circular shockwave.
     if (st.type === 16) {
         if (t >= st.nextSpawnAt) {
