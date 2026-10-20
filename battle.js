@@ -1501,7 +1501,7 @@ function updateExtendedArenaAttack(now) {
                 ctx.save(); ctx.globalAlpha = Math.max(0.18, 0.78 - (lavaAge - 470) / 1050);
                 ctx.strokeStyle = "#ff7a28"; ctx.lineWidth = 4 + pulse * 3; ctx.shadowColor = "#ff3b0d"; ctx.shadowBlur = 20;
                 ctx.beginPath(); ctx.arc(lavaCrack.x, lavaCrack.y, lavaShockR, 0, Math.PI * 2); ctx.stroke();
-                ctx.strokeStyle = "rgba(255,225,108,0.85)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(lavaCrack.x, lavaCrack.y, lavaShockR - 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+                ctx.strokeStyle = "rgba(255,225,108,0.85)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(lavaCrack.x, lavaCrack.y, Math.max(0, lavaShockR - 6), 0, Math.PI * 2); ctx.stroke(); ctx.restore();
                 if (!frozen && Math.abs(Math.hypot(heart.x-lavaCrack.x, heart.y-lavaCrack.y) - lavaShockR) < 11 + heart.hitbox &&
                     arenaExtTouchCooldown(st, "lavaWave_" + lavaRi, now, 360)) {
                     var lavaPushA = Math.atan2(heart.y-lavaCrack.y, heart.x-lavaCrack.x);
