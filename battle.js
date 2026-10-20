@@ -1181,29 +1181,130 @@ function updateExtendedArenaAttack(now) {
     }
 
     // 13. Flowing acid: pour, spread, merge with nearby puddles, then evaporate.
-    if(st.type===13){
-        if(t>=st.nextSpawnAt&&st.hazards.length<12){var edge=Math.floor(Math.random()*4),sx,sy;if(edge===0){sx=20+Math.random()*360;sy=65;}else if(edge===1){sx=20+Math.random()*360;sy=490;}else if(edge===2){sx=8;sy=85+Math.random()*390;}else{sx=392;sy=85+Math.random()*390;}
-            var acidX=35+Math.random()*330,acidY=105+Math.random()*340;
-            st.hazards.push({x:acidX,y:acidY,sourceX:sx,sourceY:sy,born:t,r:3,targetR:38+Math.random()*20,flowAngle:Math.atan2(acidY-sy,acidX-sx),elongation:0.06,nextHitAt:0});st.nextSpawnAt=t+Math.max(260,790/extWaveDanger);}
-        for(var ai=st.hazards.length-1;ai>=0;ai--){var pool=st.hazards[ai],age=t-pool.born;if(age>7600){st.hazards.splice(ai,1);continue;}
-            var pouring=age<520,spreading=age>=520&&age<1150,fading=age>6100;
-            if(!frozen){if(pouring)pool.r=Math.min(pool.targetR*.72,pool.r+delta*.045);else if(spreading)pool.r=Math.min(pool.targetR,pool.r+delta*.035);else if(fading)pool.r=Math.max(0,pool.r-delta*.014);}
-            if(!frozen)for(var aj=ai-1;aj>=0;aj--){var other=st.hazards[aj];if(Math.hypot(pool.x-other.x,pool.y-other.y)<pool.r+other.r-2){var mergeDX=other.x-pool.x,mergeDY=other.y-pool.y,mergeAngle=Math.atan2(mergeDY,mergeDX);
-                    var areaA=pool.r*pool.r,areaB=other.r*other.r,areaTotal=Math.max(1,areaA+areaB),areaR=Math.sqrt(areaTotal);
-                    pool.x=(pool.x*areaA+other.x*areaB)/areaTotal;pool.y=(pool.y*areaA+other.y*areaB)/areaTotal;
-                    pool.r=Math.min(130,areaR);pool.targetR=Math.min(130,Math.max(pool.targetR,other.targetR,pool.r));
-                    pool.flowAngle=mergeAngle;pool.elongation=Math.min(0.42,Math.max(pool.elongation||0,other.elongation||0)+0.16);
-                    pool.born=Math.min(pool.born,other.born);st.hazards.splice(aj,1);ai--;}}
-            ctx.save();ctx.globalAlpha=fading?Math.max(.12,(7600-age)/1500):pouring?.7:.9;
-            if(pouring){ctx.strokeStyle="#a5ff55";ctx.lineWidth=5+Math.sin(sec*16)*1.5;ctx.lineCap="round";ctx.shadowColor="#80ff35";ctx.shadowBlur=9;ctx.beginPath();ctx.moveTo(pool.sourceX,pool.sourceY);ctx.quadraticCurveTo((pool.sourceX+pool.x)/2+Math.sin(sec*9)*12,(pool.sourceY+pool.y)/2,pool.x,pool.y);ctx.stroke();
-                for(var dropA=0;dropA<5;dropA++){var dq=(sec*0.9+dropA*0.19)%1,ddx=pool.sourceX+(pool.x-pool.sourceX)*dq,ddy=pool.sourceY+(pool.y-pool.sourceY)*dq;ctx.beginPath();ctx.arc(ddx+Math.sin(sec*8+dropA)*3,ddy,1.8+(dropA%3),0,Math.PI*2);ctx.fillStyle="#d8ff92";ctx.fill();}}
-            ctx.fillStyle="#5eea3f";ctx.strokeStyle="#c8ff86";ctx.lineWidth=2;ctx.shadowColor="#73ff39";ctx.shadowBlur=11;ctx.beginPath();
-            for(var lq=0;lq<=28;lq++){var la=lq/28*Math.PI*2,wob=1+Math.sin(la*3+sec*2.5)*.045+Math.sin(la*7-sec*3)*.025+Math.cos(la-(pool.flowAngle||0))*(pool.elongation||0),lx=pool.x+Math.cos(la)*pool.r*wob,ly=pool.y+Math.sin(la)*pool.r*wob;if(!lq)ctx.moveTo(lx,ly);else ctx.lineTo(lx,ly);}ctx.closePath();ctx.fill();ctx.stroke();
-            ctx.globalAlpha*=.75;ctx.strokeStyle="#dfff9e";ctx.lineWidth=1.5;for(var rip=0;rip<2;rip++){var rr=pool.r*(.25+rip*.34)+((sec*14+rip*17)%Math.max(10,pool.r*.4));ctx.beginPath();ctx.ellipse(pool.x+Math.sin(sec*2+rip)*pool.r*.1,pool.y,Math.min(pool.r,rr),Math.min(pool.r*.42,rr*.42),Math.sin(sec+rip)*.12,0,Math.PI*2);ctx.stroke();}ctx.restore();
-            if(!frozen&&!pouring&&pool.r>10&&Math.hypot(heart.x-pool.x,heart.y-pool.y)<pool.r+heart.hitbox){st._multiHitActive=true;if(arenaExtTouchCooldown(st,"acid_"+pool.born,now,85))applyHit(extImpactDamage,"КИСЛОТА: РАЗЪЕДАЕТ!",false,true);}
+    if (st.type === 13) {
+        if (t >= st.nextSpawnAt && st.hazards.length < 10) {
+            var acidEdge = Math.floor(Math.random() * 4), acidSX, acidSY;
+            if (acidEdge === 0) { acidSX = 20 + Math.random() * 360; acidSY = 65; }
+            else if (acidEdge === 1) { acidSX = 20 + Math.random() * 360; acidSY = 490; }
+            else if (acidEdge === 2) { acidSX = 8; acidSY = 85 + Math.random() * 390; }
+            else { acidSX = 392; acidSY = 85 + Math.random() * 390; }
+            var acidTX = 35 + Math.random() * 330, acidTY = 105 + Math.random() * 340;
+            st.hazards.push({
+                x: acidTX, y: acidTY, sourceX: acidSX, sourceY: acidSY, born: t,
+                r: 3, targetR: 38 + Math.random() * 20,
+                flowAngle: Math.atan2(acidTY - acidSY, acidTX - acidSX),
+                elongation: 0.08, phase: Math.random() * Math.PI * 2
+            });
+            st.nextSpawnAt = t + Math.max(340, 850 / extWaveDanger);
+        }
+        for (var ai = st.hazards.length - 1; ai >= 0; ai--) {
+            var pool = st.hazards[ai], age = t - pool.born;
+            if (age > 7600) { st.hazards.splice(ai, 1); continue; }
+            var pouring = age < 760, spreading = age >= 760 && age < 1600, fading = age > 6100;
+            if (!frozen) {
+                if (pouring) pool.r = Math.min(pool.targetR * 0.62, pool.r + delta * 0.052);
+                else if (spreading) pool.r = Math.min(pool.targetR, pool.r + delta * 0.025);
+                else if (fading) pool.r = Math.max(0, pool.r - delta * 0.014);
+                if (!fading && age > 900 && age < 5200) {
+                    pool.x += Math.cos(pool.flowAngle || 0) * delta * 0.0022;
+                    pool.y += Math.sin(pool.flowAngle || 0) * delta * 0.0018;
+                }
+            }
+            if (!frozen) for (var aj = ai - 1; aj >= 0; aj--) {
+                var other = st.hazards[aj];
+                if (Math.hypot(pool.x - other.x, pool.y - other.y) < pool.r + other.r - 2) {
+                    var mergeDX = other.x - pool.x, mergeDY = other.y - pool.y;
+                    var areaA = pool.r * pool.r, areaB = other.r * other.r, areaTotal = Math.max(1, areaA + areaB);
+                    var mergedRadius = Math.sqrt(areaTotal);
+                    pool.x = (pool.x * areaA + other.x * areaB) / areaTotal;
+                    pool.y = (pool.y * areaA + other.y * areaB) / areaTotal;
+                    pool.r = Math.min(130, mergedRadius);
+                    pool.targetR = Math.min(130, Math.max(pool.targetR, other.targetR, pool.r));
+                    pool.flowAngle = Math.atan2(mergeDY, mergeDX);
+                    pool.elongation = Math.min(0.48, Math.max(pool.elongation || 0, other.elongation || 0) + 0.12);
+                    pool.born = Math.min(pool.born, other.born);
+                    st.hazards.splice(aj, 1); ai--;
+                }
+            }
+            ctx.save();
+            ctx.globalAlpha = fading ? Math.max(0.08, (7600 - age) / 1500) : (pouring ? 0.72 : 0.94);
+            if (pouring) {
+                var streamMidX = (pool.sourceX + pool.x) * 0.5 + Math.sin(sec * 3.1 + pool.phase) * 15;
+                var streamMidY = (pool.sourceY + pool.y) * 0.5 + Math.cos(sec * 2.7 + pool.phase) * 12;
+                ctx.lineCap = "round";
+                ctx.beginPath(); ctx.moveTo(pool.sourceX, pool.sourceY); ctx.quadraticCurveTo(streamMidX, streamMidY, pool.x, pool.y);
+                ctx.strokeStyle = "#194617"; ctx.lineWidth = 11; ctx.shadowColor = "#65ff35"; ctx.shadowBlur = 12; ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(pool.sourceX, pool.sourceY); ctx.quadraticCurveTo(streamMidX, streamMidY, pool.x, pool.y);
+                ctx.strokeStyle = "#72dc32"; ctx.lineWidth = 6; ctx.shadowBlur = 4; ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(pool.sourceX, pool.sourceY); ctx.quadraticCurveTo(streamMidX, streamMidY, pool.x, pool.y);
+                ctx.strokeStyle = "rgba(224,255,150,0.8)"; ctx.lineWidth = 1.7; ctx.shadowBlur = 0; ctx.stroke();
+                for (var dropA = 0; dropA < 7; dropA++) {
+                    var dropU = (age * 0.00125 + dropA * 0.143) % 1;
+                    var dropV = 1 - dropU;
+                    var dropX = dropV * dropV * pool.sourceX + 2 * dropV * dropU * streamMidX + dropU * dropU * pool.x;
+                    var dropY = dropV * dropV * pool.sourceY + 2 * dropV * dropU * streamMidY + dropU * dropU * pool.y;
+                    ctx.beginPath(); ctx.ellipse(dropX + Math.sin(sec * 7 + dropA) * 2, dropY, 1.5 + (dropA % 3) * 0.7, 2.2 + (dropA % 2), sec + dropA, 0, Math.PI * 2);
+                    ctx.fillStyle = dropA % 2 ? "#a8ff55" : "#e4ff9b"; ctx.fill();
+                }
+            }
+            // Irregular pool edge and translucent, layered green chemistry rather than a flat circle.
+            ctx.beginPath();
+            for (var aq = 0; aq <= 48; aq++) {
+                var acidA = aq / 48 * Math.PI * 2;
+                var acidWobble = 1
+                    + Math.sin(acidA * 3 + sec * 1.15 + pool.phase) * 0.065
+                    + Math.sin(acidA * 7 - sec * 1.8 + pool.phase) * 0.038
+                    + Math.sin(acidA * 11 + pool.phase) * 0.018
+                    + Math.cos(acidA - (pool.flowAngle || 0)) * (pool.elongation || 0);
+                var acidPX = pool.x + Math.cos(acidA) * pool.r * acidWobble;
+                var acidPY = pool.y + Math.sin(acidA) * pool.r * acidWobble * 0.78;
+                if (!aq) ctx.moveTo(acidPX, acidPY); else ctx.lineTo(acidPX, acidPY);
+            }
+            ctx.closePath();
+            var acidGradient = ctx.createRadialGradient(pool.x - pool.r * 0.24, pool.y - pool.r * 0.23, Math.max(1, pool.r * 0.04), pool.x, pool.y, pool.r * 1.2);
+            acidGradient.addColorStop(0, "#c8ff78");
+            acidGradient.addColorStop(0.24, "#79df36");
+            acidGradient.addColorStop(0.62, "#419e25");
+            acidGradient.addColorStop(0.88, "#255b1b");
+            acidGradient.addColorStop(1, "#183a12");
+            ctx.fillStyle = acidGradient; ctx.strokeStyle = "#9af34d"; ctx.lineWidth = 2;
+            ctx.shadowColor = "#70ff2b"; ctx.shadowBlur = 9; ctx.fill(); ctx.stroke();
+            ctx.shadowBlur = 0; ctx.globalAlpha *= 0.55;
+            for (var ripple = 0; ripple < 3; ripple++) {
+                var rippleR = pool.r * (0.18 + ripple * 0.21) + ((sec * (9 + ripple * 2) + ripple * 13 + pool.phase) % Math.max(8, pool.r * 0.16));
+                ctx.beginPath();
+                ctx.ellipse(pool.x + Math.sin(sec * 1.2 + ripple + pool.phase) * pool.r * 0.08,
+                    pool.y + Math.cos(sec * 1.4 + ripple) * pool.r * 0.04,
+                    Math.min(pool.r * 0.88, rippleR), Math.min(pool.r * 0.48, rippleR * 0.36),
+                    (pool.flowAngle || 0) + Math.sin(sec + ripple) * 0.13, 0, Math.PI * 2);
+                ctx.strokeStyle = ripple === 2 ? "#d8ff85" : "#326c1d"; ctx.lineWidth = ripple === 2 ? 1.5 : 2.5; ctx.stroke();
+            }
+            ctx.globalAlpha *= 1.6;
+            for (var bubbleA = 0; bubbleA < 7; bubbleA++) {
+                var bubbleAngle = sec * (0.55 + bubbleA * 0.035) + pool.phase + bubbleA * 2.399;
+                var bubbleDist = pool.r * (0.17 + (bubbleA % 3) * 0.16);
+                var bubbleX = pool.x + Math.cos(bubbleAngle) * bubbleDist;
+                var bubbleY = pool.y + Math.sin(bubbleAngle * 1.13) * bubbleDist * 0.5;
+                var bubbleRadius = 2 + (bubbleA % 3) * 0.85 + (0.5 + 0.5 * Math.sin(sec * 3 + bubbleA + pool.phase)) * 1.3;
+                ctx.beginPath(); ctx.arc(bubbleX, bubbleY, bubbleRadius, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(24,65,12,0.78)"; ctx.fill();
+                ctx.beginPath(); ctx.arc(bubbleX - bubbleRadius * 0.28, bubbleY - bubbleRadius * 0.32, Math.max(0.7, bubbleRadius * 0.27), 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(226,255,163,0.9)"; ctx.fill();
+            }
+            for (var foamA = 0; foamA < 9; foamA++) {
+                var foamAngle = foamA / 9 * Math.PI * 2 + sec * 0.18 + pool.phase;
+                var foamW = 1 + Math.sin(sec * 2 + foamA) * 0.025;
+                ctx.beginPath(); ctx.arc(pool.x + Math.cos(foamAngle) * pool.r * foamW, pool.y + Math.sin(foamAngle) * pool.r * 0.78 * foamW,
+                    1.4 + (foamA % 3) * 0.35, 0, Math.PI * 2);
+                ctx.fillStyle = "#d8ff8b"; ctx.fill();
+            }
+            ctx.restore();
+            if (!frozen && !pouring && pool.r > 10 && Math.hypot(heart.x - pool.x, heart.y - pool.y) < pool.r + heart.hitbox) {
+                st._multiHitActive = true;
+                if (arenaExtTouchCooldown(st, "acid_" + pool.born, now, 240)) applyHit(extImpactDamage, "КИСЛОТА: РАЗЪЕДАЕТ!", false, true);
+            }
         }
     }
-
     // 14. A gust pushes gently while wind-borne debris crosses the arena.
     if (st.type === 14) {
         var dirs = [{x:1,y:0.22},{x:-1,y:-0.18}];
@@ -1247,132 +1348,242 @@ function updateExtendedArenaAttack(now) {
             var ba = Math.atan2(targetY - origin.y, targetX - origin.x);
             var speedB = 5.1 * extWaveDanger;
             st.hazards.push({
-                x: origin.x, y: origin.y, ox: origin.x, oy: origin.y,
-                vx: Math.cos(ba) * speedB, vy: Math.sin(ba) * speedB,
-                baseSpeed: speedB, startAngle: ba, flightAngle: ba,
-                turnDir: Math.random() < 0.5 ? -1 : 1,
-                spin: (Math.random() < 0.5 ? -1 : 1) * (0.28 + Math.random() * 0.1),
-                age: 0, born: t, rot: Math.random() * Math.PI * 2, side: sideB, trail: []
+                x:origin.x, y:origin.y, ox:origin.x, oy:origin.y,
+                vx:Math.cos(ba)*speedB, vy:Math.sin(ba)*speedB,
+                baseSpeed:speedB, startAngle:ba, flightAngle:ba,
+                turnDir:Math.random()<0.5?-1:1,
+                spin:(Math.random()<0.5?-1:1)*(0.30+Math.random()*0.08),
+                age:0, born:t, rot:Math.random()*Math.PI*2, side:sideB, trail:[]
             });
-            if (Math.random() < 0.62 && st.hazards.length < 7) {
-                var origin2 = arenaExtNewEdge((sideB + 2) % 4, 12);
-                var ta2 = Math.atan2(heart.y - origin2.y, heart.x - origin2.x);
-                var speedB2 = 4.6 * extWaveDanger;
+            if (Math.random()<0.62 && st.hazards.length<7) {
+                var origin2 = arenaExtNewEdge((sideB+2)%4,12);
+                var ta2 = Math.atan2(heart.y-origin2.y,heart.x-origin2.x);
+                var speedB2 = 4.6*extWaveDanger;
                 st.hazards.push({
-                    x: origin2.x, y: origin2.y, ox: origin2.x, oy: origin2.y,
-                    vx: Math.cos(ta2) * speedB2, vy: Math.sin(ta2) * speedB2,
-                    baseSpeed: speedB2, startAngle: ta2, flightAngle: ta2,
-                    turnDir: Math.random() < 0.5 ? -1 : 1,
-                    spin: (Math.random() < 0.5 ? -1 : 1) * (0.3 + Math.random() * 0.1),
-                    age: 0, born: t, rot: Math.random() * Math.PI * 2, side: (sideB + 2) % 4, trail: []
+                    x:origin2.x,y:origin2.y,ox:origin2.x,oy:origin2.y,
+                    vx:Math.cos(ta2)*speedB2,vy:Math.sin(ta2)*speedB2,
+                    baseSpeed:speedB2,startAngle:ta2,flightAngle:ta2,
+                    turnDir:Math.random()<0.5?-1:1,
+                    spin:(Math.random()<0.5?-1:1)*(0.31+Math.random()*0.08),
+                    age:0,born:t,rot:Math.random()*Math.PI*2,side:(sideB+2)%4,trail:[]
                 });
             }
-            st.nextSpawnAt = t + Math.max(340, 820 / extWaveDanger);
+            st.nextSpawnAt = t + Math.max(340,820/extWaveDanger);
         }
-        for (var bi = st.hazards.length - 1; bi >= 0; bi--) {
+        for (var bi = st.hazards.length-1; bi >= 0; bi--) {
             var boom = st.hazards[bi];
             if (!frozen) {
-                var frameScaleB = Math.max(0, Math.min(3, delta / 16.667));
+                var frameScaleB = Math.max(0,Math.min(3,delta/16.667));
                 boom.age += delta;
-                var baseAngleB = Number.isFinite(boom.startAngle) ? boom.startAngle : Math.atan2(boom.vy, boom.vx);
-                var baseSpeedB = Number(boom.baseSpeed) || Math.max(1, Math.hypot(boom.vx, boom.vy));
-                if (boom.age < 620) {
-                    // Fast, almost perfectly straight flight after release.
+                var baseAngleB = Number.isFinite(boom.startAngle) ? boom.startAngle : Math.atan2(boom.vy,boom.vx);
+                var baseSpeedB = Number(boom.baseSpeed) || Math.max(1,Math.hypot(boom.vx,boom.vy));
+                if (boom.age < 650) {
+                    // Release: nearly straight flight.
                     boom.flightAngle = baseAngleB;
-                    var outSpeedB = baseSpeedB * (0.9 + 0.1 * Math.min(1, boom.age / 180));
-                    boom.vx = Math.cos(boom.flightAngle) * outSpeedB;
-                    boom.vy = Math.sin(boom.flightAngle) * outSpeedB;
-                } else if (boom.age < 1330) {
-                    // A broad, non-circular U-turn. The boomerang slows at the apex, then gains speed.
-                    var turnT = Math.max(0, Math.min(1, (boom.age - 620) / 710));
-                    var easedTurn = turnT * turnT * (3 - 2 * turnT);
-                    var turnDirection = Number(boom.turnDir) || 1;
-                    boom.flightAngle = baseAngleB + turnDirection * Math.PI * 0.9 * easedTurn;
-                    var turnSpeed = baseSpeedB * (0.92 - 0.64 * Math.sin(Math.PI * turnT));
-                    boom.vx = Math.cos(boom.flightAngle) * turnSpeed;
-                    boom.vy = Math.sin(boom.flightAngle) * turnSpeed;
+                    var outSpeedB = baseSpeedB*(0.92+0.08*Math.min(1,boom.age/170));
+                    boom.vx = Math.cos(boom.flightAngle)*outSpeedB;
+                    boom.vy = Math.sin(boom.flightAngle)*outSpeedB;
+                } else if (boom.age < 1430) {
+                    // One wide U-turn, with a slow apex rather than an orbit.
+                    var turnT = Math.max(0,Math.min(1,(boom.age-650)/780));
+                    var easedTurn = turnT*turnT*(3-2*turnT);
+                    boom.flightAngle = baseAngleB+(Number(boom.turnDir)||1)*Math.PI*0.88*easedTurn;
+                    var turnSpeed = baseSpeedB*(0.96-0.70*Math.sin(Math.PI*turnT));
+                    boom.vx = Math.cos(boom.flightAngle)*turnSpeed;
+                    boom.vy = Math.sin(boom.flightAngle)*turnSpeed;
                 } else {
-                    // After the turn, steer back to the release point instead of tracing a perfect circle.
-                    var backA = Math.atan2(boom.oy - boom.y, boom.ox - boom.x);
-                    if (!Number.isFinite(boom.flightAngle)) boom.flightAngle = baseAngleB + (Number(boom.turnDir) || 1) * Math.PI * 0.9;
-                    var angleDiffB = Math.atan2(Math.sin(backA - boom.flightAngle), Math.cos(backA - boom.flightAngle));
-                    boom.flightAngle += Math.max(-0.065 * frameScaleB, Math.min(0.065 * frameScaleB, angleDiffB));
-                    var returnProgressB = Math.min(1, (boom.age - 1330) / 700);
-                    var returnSpeedB = baseSpeedB * (0.55 + 0.45 * returnProgressB);
-                    boom.vx = Math.cos(boom.flightAngle) * returnSpeedB;
-                    boom.vy = Math.sin(boom.flightAngle) * returnSpeedB;
+                    // Bend the return leg toward its own launch point.
+                    var backA = Math.atan2(boom.oy-boom.y,boom.ox-boom.x);
+                    if (!Number.isFinite(boom.flightAngle)) boom.flightAngle = baseAngleB;
+                    var angleDiffB = Math.atan2(Math.sin(backA-boom.flightAngle),Math.cos(backA-boom.flightAngle));
+                    boom.flightAngle += Math.max(-0.075*frameScaleB,Math.min(0.075*frameScaleB,angleDiffB));
+                    var returnProgressB = Math.min(1,(boom.age-1430)/650);
+                    var returnSpeedB = baseSpeedB*(0.48+0.52*returnProgressB);
+                    boom.vx = Math.cos(boom.flightAngle)*returnSpeedB;
+                    boom.vy = Math.sin(boom.flightAngle)*returnSpeedB;
                 }
-                boom.x += boom.vx * frameScaleB;
-                boom.y += boom.vy * frameScaleB;
-                // Spin is independent of the travel direction, so the boomerang visibly rotates in flight.
-                boom.rot += boom.spin * frameScaleB;
+                boom.x += boom.vx*frameScaleB;
+                boom.y += boom.vy*frameScaleB;
+                boom.rot += boom.spin*frameScaleB;
             }
             if (!boom.trail) boom.trail = [];
-            if (!frozen) { boom.trail.unshift({x: boom.x, y: boom.y}); if (boom.trail.length > 12) boom.trail.pop(); }
-            for (var bt2 = boom.trail.length - 1; bt2 > 0; bt2--) {
-                ctx.save(); ctx.globalAlpha = (1 - bt2 / boom.trail.length) * 0.36;
-                ctx.strokeStyle = "#ffd879"; ctx.lineWidth = Math.max(1, 7 - bt2 * 0.5);
-                ctx.beginPath(); ctx.moveTo(boom.trail[bt2].x, boom.trail[bt2].y);
-                ctx.lineTo(boom.trail[bt2-1].x, boom.trail[bt2-1].y); ctx.stroke(); ctx.restore();
+            if (!frozen) { boom.trail.unshift({x:boom.x,y:boom.y}); if (boom.trail.length>12) boom.trail.pop(); }
+            for (var bt2=boom.trail.length-1; bt2>0; bt2--) {
+                ctx.save(); ctx.globalAlpha=(1-bt2/boom.trail.length)*0.38; ctx.strokeStyle="#ffd879";
+                ctx.lineWidth=Math.max(1,7-bt2*0.5); ctx.beginPath();
+                ctx.moveTo(boom.trail[bt2].x,boom.trail[bt2].y); ctx.lineTo(boom.trail[bt2-1].x,boom.trail[bt2-1].y);
+                ctx.stroke(); ctx.restore();
             }
-            ctx.save(); ctx.translate(boom.x, boom.y); ctx.rotate(boom.rot); ctx.scale(1.35, 1.35);
-            ctx.fillStyle = "#f5d88a"; ctx.strokeStyle = "#fff7d9"; ctx.lineWidth = 2;
-            ctx.shadowColor = "#e7b95b"; ctx.shadowBlur = 12;
-            ctx.beginPath(); ctx.moveTo(-17,-7); ctx.lineTo(2,-7); ctx.lineTo(14,-15);
-            ctx.lineTo(8,-1); ctx.lineTo(17,7); ctx.lineTo(-2,7); ctx.lineTo(-14,15);
-            ctx.lineTo(-8,1); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
-            if (!frozen && Math.hypot(heart.x-boom.x, heart.y-boom.y) < 22+heart.hitbox &&
-                arenaExtTouchCooldown(st, "boom_"+bi, now, 240)) {
-                st._multiHitActive = true;
-                applyHit(extImpactDamage, "БУМЕРАНГ: РАССЕКАЮЩИЙ УДАР!", false, true);
-                arenaExtPushHeart(boom.x, boom.y, 7.0 * extWaveDanger, 1.8);
-                // A hit sends it into its return leg instead of producing an unnatural instant reversal.
-                boom.age = Math.max(boom.age, 1330);
-                spawnFloatingText(heart.x, heart.y-18, "СБИТО С ТРАЕКТОРИИ!", "#ffe7a4");
+            // Carved, swept V-shaped boomerang with a wooden core, dark rim and pale aerodynamic edges.
+            ctx.save(); ctx.translate(boom.x,boom.y); ctx.rotate(boom.rot); ctx.scale(1.28,1.28);
+            ctx.shadowColor="#ff8d25"; ctx.shadowBlur=12;
+            ctx.beginPath();
+            ctx.moveTo(-28,-19);
+            ctx.quadraticCurveTo(-27,-26,-20,-23);
+            ctx.quadraticCurveTo(-11,-19,-1,-5);
+            ctx.quadraticCurveTo(2,-1,7,-5);
+            ctx.lineTo(20,-19);
+            ctx.quadraticCurveTo(27,-26,31,-18);
+            ctx.quadraticCurveTo(33,-13,27,-6);
+            ctx.lineTo(13,10);
+            ctx.quadraticCurveTo(6,18,-2,10);
+            ctx.lineTo(-23,-7);
+            ctx.quadraticCurveTo(-29,-12,-28,-19);
+            ctx.closePath();
+            ctx.fillStyle="#5c3519"; ctx.strokeStyle="#2f2014"; ctx.lineWidth=4; ctx.fill(); ctx.stroke();
+            var boomWoodGrad=ctx.createLinearGradient(-24,-20,25,11);
+            boomWoodGrad.addColorStop(0,"#e7b86d"); boomWoodGrad.addColorStop(0.28,"#9b5f2d");
+            boomWoodGrad.addColorStop(0.57,"#f2d08b"); boomWoodGrad.addColorStop(1,"#70411e");
+            ctx.fillStyle=boomWoodGrad; ctx.strokeStyle="#f9dfa2"; ctx.lineWidth=1.5; ctx.fill(); ctx.stroke();
+            ctx.shadowBlur=0; ctx.lineCap="round"; ctx.lineJoin="round";
+            ctx.strokeStyle="rgba(255,244,198,0.9)"; ctx.lineWidth=2;
+            ctx.beginPath(); ctx.moveTo(-24,-20); ctx.quadraticCurveTo(-12,-15,-1,-3); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(8,-4); ctx.quadraticCurveTo(20,-17,27,-19); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-19,-7); ctx.quadraticCurveTo(-8,2,0,9); ctx.stroke();
+            ctx.restore();
+            if (!frozen && Math.hypot(heart.x-boom.x,heart.y-boom.y)<22+heart.hitbox &&
+                arenaExtTouchCooldown(st,"boom_"+bi,now,240)) {
+                st._multiHitActive=true;
+                applyHit(extImpactDamage,"БУМЕРАНГ: РАССЕКАЮЩИЙ УДАР!",false,true);
+                arenaExtPushHeart(boom.x,boom.y,7*extWaveDanger,1.8);
+                boom.age=Math.max(boom.age,1430);
+                spawnFloatingText(heart.x,heart.y-18,"СБИТО С ТРАЕКТОРИИ!","#ffe7a4");
             }
-            if ((boom.age > 3000 && Math.hypot(boom.ox-boom.x, boom.oy-boom.y) < 28) ||
-                boom.age > 3900 || boom.x < -50 || boom.x > 450 || boom.y < -50 || boom.y > 550) {
-                st.hazards.splice(bi, 1);
-            }
+            if ((boom.age>3000 && Math.hypot(boom.ox-boom.x,boom.oy-boom.y)<28) ||
+                boom.age>3900 || boom.x<-50 || boom.x>450 || boom.y<-50 || boom.y>550) st.hazards.splice(bi,1);
         }
     }
     // 16. Cracks branch through short marked paths; they are not a circular shockwave.
     if (st.type === 16) {
-        if (t >= st.nextSpawnAt) {
-            var rx = 70 + Math.random() * 260, ry = 105 + Math.random() * 290, branches = [];
-            for (var br = 0; br < Math.min(7, 4 + Math.floor((extWaveDanger-1)*2)); br++) {
-                var a0 = Math.random() * Math.PI * 2 + br * 2.1, len1 = 55 + Math.random() * 30, len2 = 55 + Math.random() * 35;
-                var mx = Math.max(15, Math.min(385, rx + Math.cos(a0) * len1));
-                var my = Math.max(55, Math.min(485, ry + Math.sin(a0) * len1));
-                var a1 = a0 + (Math.random() - 0.5) * 0.85;
-                var ex = Math.max(10, Math.min(390, mx + Math.cos(a1) * len2));
-                var ey = Math.max(55, Math.min(490, my + Math.sin(a1) * len2));
-                branches.push([{x:rx,y:ry},{x:mx,y:my},{x:ex,y:ey}]);
+        if (t >= st.nextSpawnAt && st.hazards.length < 4) {
+            var lavaX = 70 + Math.random() * 260, lavaY = 105 + Math.random() * 290, lavaBranches = [];
+            var lavaBranchCount = Math.min(7, 4 + Math.floor(Math.max(0, extWaveDanger - 1) * 2));
+            for (var lavaB = 0; lavaB < lavaBranchCount; lavaB++) {
+                var lavaAngle = Math.random() * Math.PI * 2 + lavaB * Math.PI * 2 / lavaBranchCount;
+                var lavaLen1 = 62 + Math.random() * 42, lavaLen2 = 66 + Math.random() * 44;
+                var lavaMX = Math.max(12, Math.min(388, lavaX + Math.cos(lavaAngle) * lavaLen1));
+                var lavaMY = Math.max(55, Math.min(490, lavaY + Math.sin(lavaAngle) * lavaLen1));
+                var lavaAngle2 = lavaAngle + (Math.random() - 0.5) * 0.9;
+                var lavaEX = Math.max(10, Math.min(390, lavaMX + Math.cos(lavaAngle2) * lavaLen2));
+                var lavaEY = Math.max(55, Math.min(490, lavaMY + Math.sin(lavaAngle2) * lavaLen2));
+                lavaBranches.push([{x:lavaX,y:lavaY},{x:lavaMX,y:lavaMY},{x:lavaEX,y:lavaEY}]);
             }
-            st.hazards.push({ born:t, branches:branches });
-            st.nextSpawnAt = t + Math.max(350, 930 / extWaveDanger);
+            st.hazards.push({ born:t, x:lavaX, y:lavaY, branches:lavaBranches, phase:Math.random()*Math.PI*2, erupted:false });
+            st.nextSpawnAt = t + Math.max(620, 1120 / extWaveDanger);
         }
-        for (var ri = st.hazards.length - 1; ri >= 0; ri--) {
-            var crack = st.hazards[ri], age = t - crack.born;
-            if (age > 1500) { st.hazards.splice(ri, 1); continue; }
-            var warningC = age < 490;
-            if (age >= 490 && age < 1220) {
-                var shockR = (age - 490) * 0.43 * extWaveDanger;
-                ctx.save(); ctx.globalAlpha = Math.max(0.15, 0.75 - (age - 620) / 900); ctx.strokeStyle = "#ff9b55"; ctx.lineWidth = 3 + pulse * 2; ctx.shadowColor = "#ff542e"; ctx.shadowBlur = 16; ctx.beginPath(); ctx.arc(crack.branches[0][0].x, crack.branches[0][0].y, shockR, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-                if(!frozen&&Math.abs(Math.hypot(heart.x-crack.branches[0][0].x,heart.y-crack.branches[0][0].y)-shockR)<9+heart.hitbox&&arenaExtTouchCooldown(st,"shock_"+ri,now,280)){var sa=Math.atan2(heart.y-crack.branches[0][0].y,heart.x-crack.branches[0][0].x);heart.vx+=Math.cos(sa)*7.5*extWaveDanger;heart.vy+=Math.sin(sa)*7.5*extWaveDanger;st._multiHitActive=true;applyHit(extImpactDamage,"РАСКОЛ: УДАРНАЯ ВОЛНА!",false,true);spawnFloatingText(heart.x,heart.y-18,"ВОЛНА ОТБРОСИЛА!","#ffad70");}
+        for (var lavaRi = st.hazards.length - 1; lavaRi >= 0; lavaRi--) {
+            var lavaCrack = st.hazards[lavaRi], lavaAge = t - lavaCrack.born;
+            if (lavaAge > 2250) { st.hazards.splice(lavaRi, 1); continue; }
+            var lavaWarning = lavaAge < 470;
+            if (lavaAge >= 455 && !lavaCrack.erupted) {
+                lavaCrack.erupted = true;
+                arenaShake = Math.max(arenaShake, 13);
+                screenFlash = Math.max(screenFlash, 3);
+                playArenaSound(82, "sawtooth", 0.16, 0.065);
+                for (var lavaSpark = 0; lavaSpark < lavaCrack.branches.length * 4; lavaSpark++) {
+                    var lavaSparkBranch = lavaCrack.branches[lavaSpark % lavaCrack.branches.length];
+                    var lavaSparkPoint = lavaSparkBranch[(lavaSpark % 2) + 1];
+                    var lavaSparkA = Math.random() * Math.PI * 2;
+                    arenaParticles.push({
+                        x:lavaSparkPoint.x, y:lavaSparkPoint.y,
+                        vx:Math.cos(lavaSparkA) * (1.5 + Math.random() * 5.5),
+                        vy:-2 - Math.random() * 7,
+                        life:18 + Math.random() * 18, maxLife:36,
+                        color:lavaSpark % 3 === 0 ? "#fff0a3" : (lavaSpark % 2 ? "#ff4315" : "#ff9d28"),
+                        size:2 + Math.random() * 4
+                    });
+                }
+                arenaShockwaves.push({x:lavaCrack.x,y:lavaCrack.y,r:12,v:4.4,life:24,maxLife:24,color:"rgba(255,78,18,0.92)"});
             }
-            for (var cj = 0; cj < crack.branches.length; cj++) {
-                var points = crack.branches[cj];
-                arenaExtDrawSegment(points[0].x, points[0].y, points[1].x, points[1].y, warningC ? 4 : 15, warningC ? "#ffca7b" : "#ff5b32", warningC ? 0.55 : 0.95, warningC);
-                arenaExtDrawSegment(points[1].x, points[1].y, points[2].x, points[2].y, warningC ? 4 : 15, warningC ? "#ffca7b" : "#ff5b32", warningC ? 0.55 : 0.95, warningC);
-                if (!warningC && age < 1540) {
-                    if(arenaExtLineTouchesHeart(points[0].x,points[0].y,points[1].x,points[1].y,16)&&arenaExtTouchCooldown(st,"crackA_"+ri+"_"+cj,now,260)){st._multiHitActive=true;applyHit(extImpactDamage,"РАСКОЛОТАЯ ЗЕМЛЯ: РАЗЛОМ!",false,true);arenaExtPushHeart(points[0].x,points[0].y,7.0*extWaveDanger,3.4);spawnFloatingText(heart.x,heart.y-18,"ТРЕЩИНА ПОДБРОСИЛА!","#ffb071");}
-                    if(arenaExtLineTouchesHeart(points[1].x,points[1].y,points[2].x,points[2].y,16)&&arenaExtTouchCooldown(st,"crackB_"+ri+"_"+cj,now,260)){st._multiHitActive=true;applyHit(extImpactDamage,"РАСКОЛОТАЯ ЗЕМЛЯ: РАЗЛОМ!",false,true);arenaExtPushHeart(points[1].x,points[1].y,7.0*extWaveDanger,3.4);spawnFloatingText(heart.x,heart.y-18,"ТРЕЩИНА ПОДБРОСИЛА!","#ffb071");}
+            // A ring of pressure races ahead of the molten fissures.
+            if (lavaAge >= 470 && lavaAge < 1150) {
+                var lavaShockR = (lavaAge - 470) * 0.34 * Math.min(1.45, extWaveDanger);
+                ctx.save(); ctx.globalAlpha = Math.max(0.18, 0.78 - (lavaAge - 470) / 1050);
+                ctx.strokeStyle = "#ff7a28"; ctx.lineWidth = 4 + pulse * 3; ctx.shadowColor = "#ff3b0d"; ctx.shadowBlur = 20;
+                ctx.beginPath(); ctx.arc(lavaCrack.x, lavaCrack.y, lavaShockR, 0, Math.PI * 2); ctx.stroke();
+                ctx.strokeStyle = "rgba(255,225,108,0.85)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(lavaCrack.x, lavaCrack.y, lavaShockR - 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+                if (!frozen && Math.abs(Math.hypot(heart.x-lavaCrack.x, heart.y-lavaCrack.y) - lavaShockR) < 11 + heart.hitbox &&
+                    arenaExtTouchCooldown(st, "lavaWave_" + lavaRi, now, 360)) {
+                    var lavaPushA = Math.atan2(heart.y-lavaCrack.y, heart.x-lavaCrack.x);
+                    heart.vx += Math.cos(lavaPushA) * 7.0 * extWaveDanger;
+                    heart.vy += Math.sin(lavaPushA) * 7.0 * extWaveDanger;
+                    st._multiHitActive = true; applyHit(extImpactDamage, "ЛАВА: УДАРНАЯ ВОЛНА!", false, true);
                 }
             }
+            // First show dark fissure telegraphs, then let the eruption travel out from the center.
+            for (var lavaBi = 0; lavaBi < lavaCrack.branches.length; lavaBi++) {
+                var lavaPath = lavaCrack.branches[lavaBi];
+                for (var lavaSi = 0; lavaSi < lavaPath.length - 1; lavaSi++) {
+                    var lavaP0 = lavaPath[lavaSi], lavaP1 = lavaPath[lavaSi+1];
+                    var lavaStart = 455 + lavaBi * 38 + lavaSi * 145;
+                    var lavaSegmentAge = lavaAge - lavaStart;
+                    var lavaGrowth = Math.max(0, Math.min(1, lavaSegmentAge / 190));
+                    var lavaTipX = lavaP0.x + (lavaP1.x-lavaP0.x) * lavaGrowth;
+                    var lavaTipY = lavaP0.y + (lavaP1.y-lavaP0.y) * lavaGrowth;
+                    arenaExtDrawSegment(lavaP0.x,lavaP0.y,lavaP1.x,lavaP1.y, lavaWarning ? 4 : 13,
+                        lavaWarning ? "#e9a267" : "#31110b", lavaWarning ? 0.82 : 0.9, lavaWarning);
+                    if (!lavaWarning && lavaGrowth > 0) {
+                        arenaExtDrawSegment(lavaP0.x,lavaP0.y,lavaTipX,lavaTipY,18,"#4b160a",0.98,false);
+                        arenaExtDrawSegment(lavaP0.x,lavaP0.y,lavaTipX,lavaTipY,12,"#c82d0b",0.98,false);
+                        arenaExtDrawSegment(lavaP0.x,lavaP0.y,lavaTipX,lavaTipY,7,"#ff5816",0.99,false);
+                        arenaExtDrawSegment(lavaP0.x,lavaP0.y,lavaTipX,lavaTipY,2.8,"#ffe17b",0.98,false);
+                        var lavaActiveSeg = lavaSegmentAge > 55 && lavaSegmentAge < 720;
+                        if (!frozen && lavaActiveSeg && lavaGrowth > 0.45 &&
+                            arenaExtLineTouchesHeart(lavaP0.x,lavaP0.y,lavaTipX,lavaTipY,12) &&
+                            arenaExtTouchCooldown(st,"lavaBurn_"+lavaRi,now,330)) {
+                            st._multiHitActive = true; applyHit(extImpactDamage,"ЛАВА: ОЖОГ!",false,true);
+                            arenaExtPushHeart(lavaTipX,lavaTipY,5.2*extWaveDanger,2.0);
+                            spawnFloatingText(heart.x,heart.y-18,"ОЖОГ!","#ff9a3c");
+                        }
+                    }
+                }
+                // Individual lava fountains erupt from the branching tips with a slight delay.
+                for (var lavaPi = 1; lavaPi < lavaPath.length; lavaPi++) {
+                    var lavaPoint = lavaPath[lavaPi];
+                    var lavaFountainStart = 500 + lavaBi * 42 + (lavaPi - 1) * 210;
+                    var lavaFountainT = (lavaAge - lavaFountainStart) / 360;
+                    if (lavaFountainT >= 0 && lavaFountainT <= 1) {
+                        var lavaJetHeight = Math.sin(lavaFountainT * Math.PI) * (34 + 10 * Math.min(1.4, extWaveDanger));
+                        var lavaJetDrift = Math.sin(sec * 6 + lavaBi * 1.7 + lavaPi) * 13;
+                        var lavaJetX = lavaPoint.x + lavaJetDrift, lavaJetY = lavaPoint.y - lavaJetHeight;
+                        ctx.save(); ctx.lineCap = "round"; ctx.shadowColor = "#ff3c0c"; ctx.shadowBlur = 17;
+                        ctx.strokeStyle = "#b6200b"; ctx.lineWidth = 12;
+                        ctx.beginPath(); ctx.moveTo(lavaPoint.x,lavaPoint.y); ctx.quadraticCurveTo(lavaPoint.x+lavaJetDrift*0.35,lavaPoint.y-lavaJetHeight*0.65,lavaJetX,lavaJetY); ctx.stroke();
+                        ctx.strokeStyle = "#ff5515"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(lavaPoint.x,lavaPoint.y); ctx.quadraticCurveTo(lavaPoint.x+lavaJetDrift*0.35,lavaPoint.y-lavaJetHeight*0.65,lavaJetX,lavaJetY); ctx.stroke();
+                        ctx.strokeStyle = "#ffec8b"; ctx.lineWidth = 2.3; ctx.beginPath(); ctx.moveTo(lavaPoint.x,lavaPoint.y); ctx.quadraticCurveTo(lavaPoint.x+lavaJetDrift*0.35,lavaPoint.y-lavaJetHeight*0.65,lavaJetX,lavaJetY); ctx.stroke();
+                        for (var lavaDrop = 0; lavaDrop < 3; lavaDrop++) {
+                            var lavaDropT = (lavaDrop + 1) / 4;
+                            var lavaDropY = lavaPoint.y - lavaJetHeight * lavaDropT + Math.sin(sec*9 + lavaDrop + lavaBi)*3;
+                            ctx.beginPath(); ctx.arc(lavaPoint.x + lavaJetDrift*lavaDropT,lavaDropY,2.5 + (lavaDrop%2)*1.5,0,Math.PI*2);
+                            ctx.fillStyle = lavaDrop%2 ? "#ff761d" : "#fff0a0"; ctx.fill();
+                        }
+                        ctx.restore();
+                        if (!frozen && lavaFountainT > 0.12 && lavaFountainT < 0.92 &&
+                            arenaExtLineTouchesHeart(lavaPoint.x,lavaPoint.y,lavaJetX,lavaJetY,9) &&
+                            arenaExtTouchCooldown(st,"lavaBurn_"+lavaRi,now,330)) {
+                            st._multiHitActive = true; applyHit(extImpactDamage,"ЛАВА: ГЕЙЗЕР!",false,true);
+                            arenaExtPushHeart(lavaJetX,lavaJetY,5.5*extWaveDanger,2.2);
+                        }
+                    }
+                    // Cooling spots keep a red glow for a moment after the jet collapses.
+                    if (lavaAge > lavaFountainStart + 150 && lavaAge < 2050) {
+                        var lavaGlow = Math.max(0.12, 0.72 - Math.max(0,lavaAge-lavaFountainStart-400)/1900);
+                        ctx.save(); ctx.globalAlpha = lavaGlow; ctx.shadowColor = "#ff3109"; ctx.shadowBlur = 15;
+                        ctx.fillStyle = "#ff4e13"; ctx.beginPath(); ctx.ellipse(lavaPoint.x,lavaPoint.y,9+Math.sin(sec*8+lavaPi)*2,5+Math.cos(sec*7+lavaBi)*1.5,sec*0.25+lavaPi,0,Math.PI*2); ctx.fill();
+                        ctx.fillStyle = "#ffd76d"; ctx.beginPath(); ctx.ellipse(lavaPoint.x,lavaPoint.y,4,2.5,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+                        if (!frozen && lavaAge < 1900 && Math.hypot(heart.x-lavaPoint.x,heart.y-lavaPoint.y) < 12+heart.hitbox &&
+                            arenaExtTouchCooldown(st,"lavaBurn_"+lavaRi,now,330)) {
+                            st._multiHitActive = true; applyHit(extImpactDamage,"ЛАВА: РАСПЛАВ!",false,true);
+                        }
+                    }
+                }
+            }
+            ctx.save(); ctx.globalAlpha = Math.max(0, 1 - lavaAge / 1800);
+            ctx.shadowColor = "#ff3e0b"; ctx.shadowBlur = 18;
+            ctx.fillStyle = "#e7350c"; ctx.beginPath(); ctx.arc(lavaCrack.x,lavaCrack.y,15+pulse*5,0,Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#ffd86d"; ctx.beginPath(); ctx.arc(lavaCrack.x,lavaCrack.y,6+pulse*2,0,Math.PI*2); ctx.fill(); ctx.restore();
         }
     }
-
     // 17. Tentacles track briefly, lock their aim, then lunge.
     if (st.type === 17) {
         if (t >= st.nextSpawnAt && st.hazards.length < 4) {
