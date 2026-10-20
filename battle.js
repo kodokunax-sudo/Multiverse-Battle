@@ -1128,7 +1128,7 @@ function updateExtendedArenaAttack(now) {
             ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             ctx.fillStyle = "#5f6a79"; ctx.beginPath(); ctx.arc(bx, by, 17, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             ctx.fillStyle = "#ecf1f7"; ctx.beginPath(); ctx.arc(bx, by, 6, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-            if(!frozen&&t>520&&Math.hypot(heart.x-bx,heart.y-by)<22+heart.hitbox&&arenaExtTouchCooldown(st,"pendulum_"+p,now,420)){arenaExtPushHeart(bx,by,5.5,2.2);heart.vx*=1.12;heart.vy*=1.12;spawnFloatingText(heart.x,heart.y-18,"ОТБРОШЕН!","#ffe2a3");}
+            if(!frozen&&t>520&&arenaExtLineTouchesHeart(px,py,bx,by,7)&&arenaExtTouchCooldown(st,"pendulum_"+p,now,360)){arenaExtPushHeart(bx,by,5.5,2.2);heart.vx*=1.12;heart.vy*=1.12;st._multiHitActive=true;applyHit(1,"МАЯТНИК: УДАР!",false,true);spawnFloatingText(heart.x,heart.y-18,"ОТБРОШЕН!","#ffe2a3");}
         }
         if (t < 650) { ctx.fillStyle = "rgba(210,225,245,0.85)"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("МАЯТНИКИ ЗАПУСКАЮТСЯ", 200, 82); }
     }
@@ -1153,8 +1153,8 @@ function updateExtendedArenaAttack(now) {
                 ctx.beginPath(); ctx.arc(xx, yy, 2.1, 0, Math.PI * 2); ctx.fill();
             }
             if (t > 520) {
-                if(arenaExtLineTouchesHeart(0,y1,gapStart*400,gy1,13)&&arenaExtTouchCooldown(st,"cableA_"+c,now,500)){heart.vx+=(gapU*400-heart.x)*.035;heart.vy+=(((gy1+gy2)*.5)-heart.y)*.025;spawnFloatingText(heart.x,heart.y-18,"ТРОС ТАЩИТ К ПРОХОДУ!","#91f2ff");}
-                if(arenaExtLineTouchesHeart(gapEnd*400,gy2,400,y2,13)&&arenaExtTouchCooldown(st,"cableB_"+c,now,500)){heart.vx+=(gapU*400-heart.x)*.035;heart.vy+=(((gy1+gy2)*.5)-heart.y)*.025;spawnFloatingText(heart.x,heart.y-18,"ТРОС ТАЩИТ К ПРОХОДУ!","#91f2ff");}
+                if(arenaExtLineTouchesHeart(0,y1,gapStart*400,gy1,13)&&arenaExtTouchCooldown(st,"cableA_"+c,now,360)){st._multiHitActive=true;applyHit(1,"ЖИВОЙ ТРОС: УДАР!",false,true);arenaExtPushHeart(gapStart*400,gy1,4.2,1.2);spawnFloatingText(heart.x,heart.y-18,"ТРОС УДАРИЛ!","#91f2ff");}
+                if(arenaExtLineTouchesHeart(gapEnd*400,gy2,400,y2,13)&&arenaExtTouchCooldown(st,"cableB_"+c,now,360)){st._multiHitActive=true;applyHit(1,"ЖИВОЙ ТРОС: УДАР!",false,true);arenaExtPushHeart(gapEnd*400,gy2,4.2,1.2);spawnFloatingText(heart.x,heart.y-18,"ТРОС УДАРИЛ!","#91f2ff");}
             }
         }
         if (t < 650) { ctx.fillStyle = "#d8e5f5"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("ТРОСЫ НАТЯГИВАЮТСЯ", 200, 82); }
@@ -1186,20 +1186,21 @@ function updateExtendedArenaAttack(now) {
 
     // 14. A gust pushes gently while wind-borne debris crosses the arena.
     if (st.type === 14) {
-        var dirs = [{x:1,y:0.25},{x:0.2,y:1},{x:-1,y:0.15},{x:-0.25,y:-1}];
-        var di = Math.floor(t / 1880) % dirs.length, dir = dirs[di];
+        var dirs = [{x:1,y:0.22},{x:-1,y:-0.18}];
+        var windStage = Math.min(2,Math.floor(t/3000));
+        var di = Math.floor(t / Math.max(760,1320-windStage*210)) % dirs.length, dir = dirs[di];
         if (st.gustIndex !== di) { st.gustIndex = di; st.nextSpawnAt = Math.min(st.nextSpawnAt, t); }
-        var gustPulse = Math.sin(sec * 3.8) > 0.48 ? 0.046 : 0.018;
-        if (!frozen) { heart.vx += dir.x * gustPulse; heart.vy += dir.y * gustPulse; }
+        var gustPulse = (windStage===0?0.055:windStage===1?0.105:0.16) * (Math.sin(sec * (4.2+windStage*1.2)) > 0.35 ? 1.35 : 0.72);
+        if (!frozen) { heart.vx += dir.x * gustPulse; heart.vy += dir.y * gustPulse; heart.vx=Math.max(-8,Math.min(8,heart.vx)); heart.vy=Math.max(-8,Math.min(8,heart.vy)); }
         if (t >= st.nextSpawnAt) {
             var side, hx, hy;
             if (Math.abs(dir.x) > Math.abs(dir.y)) { side = dir.x > 0 ? 0 : 1; hx = side === 0 ? -15 : 415; hy = 75 + Math.random() * 355; }
             else { side = dir.y > 0 ? 2 : 3; hx = 35 + Math.random() * 330; hy = side === 2 ? -15 : 515; }
-            var sp = 3.0 + Math.random() * 1.55;
+            var sp = 3.0 + Math.random() * 1.55 + windStage*1.45;
             st.hazards.push({ x:hx, y:hy, vx:dir.x*sp, vy:dir.y*sp, size:7+Math.random()*5, born:t, rot:Math.random()*6 });
-            st.nextSpawnAt = t + 315;
+            st.nextSpawnAt = t + Math.max(105,315-windStage*78);
         }
-        ctx.save(); ctx.strokeStyle = "rgba(150,220,255,0.45)"; ctx.lineWidth = 2;
+        ctx.save(); ctx.fillStyle="#d7f6ff";ctx.font="bold 10px monospace";ctx.textAlign="center";ctx.fillText("ВЕТЕР: "+(windStage+1)+"/3",200,82);ctx.strokeStyle = "rgba(150,220,255,0.45)"; ctx.lineWidth = 2;
         for (var wi = 0; wi < 12; wi++) {
             var wx = 25 + (wi * 49), wy = 100 + ((wi * 57 + Math.floor(sec * 18)) % 300);
             ctx.beginPath(); ctx.moveTo(wx - dir.x * 18, wy - dir.y * 18); ctx.lineTo(wx + dir.x * 18, wy + dir.y * 18); ctx.stroke();
@@ -1213,7 +1214,7 @@ function updateExtendedArenaAttack(now) {
             if (!frozen) { leaf.x += leaf.vx; leaf.y += leaf.vy; leaf.rot += 0.12; }
             ctx.save(); ctx.translate(leaf.x, leaf.y); ctx.rotate(leaf.rot); ctx.fillStyle = "#b6d6df"; ctx.strokeStyle = "#f3ffff"; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(-leaf.size, 0); ctx.quadraticCurveTo(0, -leaf.size * 0.85, leaf.size, 0); ctx.quadraticCurveTo(0, leaf.size * 0.85, -leaf.size, 0); ctx.fill(); ctx.stroke(); ctx.restore();
-            if(!frozen&&Math.hypot(heart.x-leaf.x,heart.y-leaf.y)<leaf.size+heart.hitbox&&arenaExtTouchCooldown(st,"wind_"+hi,now,360)){heart.vx+=leaf.vx*1.9;heart.vy+=leaf.vy*1.9;spawnFloatingText(heart.x,heart.y-18,"СБИТО ВЕТРОМ!","#a8edff");}
+            if(!frozen&&Math.hypot(heart.x-leaf.x,heart.y-leaf.y)<leaf.size+heart.hitbox&&arenaExtTouchCooldown(st,"wind_"+hi,now,260)){heart.vx+=leaf.vx*1.9;heart.vy+=leaf.vy*1.9;st._multiHitActive=true;applyHit(1,"ШТОРМОВОЙ ОБЛОМОК!",false,true);spawnFloatingText(heart.x,heart.y-18,"СБИТО ВЕТРОМ!","#a8edff");}
             if (leaf.x < -30 || leaf.x > 430 || leaf.y < -30 || leaf.y > 530) st.hazards.splice(hi, 1);
         }
     }
@@ -1292,7 +1293,7 @@ function updateExtendedArenaAttack(now) {
     if (st.type === 17) {
         if (t >= st.nextSpawnAt) {
             var sideT = Math.floor(Math.random() * 4), org = arenaExtNewEdge(sideT, 5);
-            st.hazards.push({ x:org.x, y:org.y, side:sideT, born:t, angle:0 });
+            st.hazards.push({ x:org.x, y:org.y, side:sideT, born:t, angle:0, originX:org.x, originY:org.y, caught:false, clawHitAt:0 });
             st.nextSpawnAt = t + 1030;
         }
         for (var ti = st.hazards.length - 1; ti >= 0; ti--) {
@@ -1317,7 +1318,8 @@ function updateExtendedArenaAttack(now) {
                 ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx + Math.cos(sa) * 13, ty + Math.sin(sa) * 13); ctx.stroke();
             }
             ctx.restore();
-            if(!frozen&&ageT>500&&ageT<1500&&progressT>.1&&arenaExtLineTouchesHeart(tent.x,tent.y,tx,ty,16)&&arenaExtTouchCooldown(st,"tentacle_"+ti,now,220)){var ta=Math.atan2(ty-tent.y,tx-tent.x);heart.vx+=Math.cos(ta)*2.5;heart.vy+=Math.sin(ta)*2.5;heart.vx+=(tent.x-heart.x)*.025;heart.vy+=(tent.y-heart.y)*.025;spawnFloatingText(heart.x,heart.y-18,"ЩУПАЛЬЦЕ ТЯНЕТ!","#e5b08d");}
+            if(!frozen&&tent.caught&&ageT<1850){var pullDX=tent.originX-heart.x,pullDY=tent.originY-heart.y,pullLen=Math.max(1,Math.hypot(pullDX,pullDY));heart.vx=pullDX/pullLen*5.2;heart.vy=pullDY/pullLen*5.2;heart.x+=heart.vx;heart.y+=heart.vy;heart.x=Math.max(heart.hitbox,Math.min(400-heart.hitbox,heart.x));heart.y=Math.max(55+heart.hitbox,Math.min(500-heart.hitbox,heart.y));if(pullLen<64&&now-Number(tent.clawHitAt||0)>320){tent.clawHitAt=now;st._multiHitActive=true;applyHit(2,"КЛЕШНИ: ЗАХВАТ!",false,true);heart.vx=(heart.x-tent.originX)*.045;heart.vy=(heart.y-tent.originY)*.045;spawnFloatingText(heart.x,heart.y-20,"КЛЕШНИ СЖАЛИСЬ!","#ff9b8f");}}
+            if(!frozen&&ageT>500&&ageT<1500&&progressT>.1&&!tent.caught&&arenaExtLineTouchesHeart(tent.x,tent.y,tx,ty,16)&&arenaExtTouchCooldown(st,"tentacle_"+ti,now,900)){tent.caught=true;tent.caughtAt=t;tent.clawHitAt=0;heart.vx=0;heart.vy=0;spawnFloatingText(heart.x,heart.y-18,"ЩУПАЛЬЦЕ СХВАТИЛО!","#e5b08d");}
         }
     }
 
