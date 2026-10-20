@@ -4,7 +4,7 @@ var N="Годжо",s={energy:0,cd:{red:0,blue:0,infinity:0},red:null,blue:0,infi
 function card(){try{return typeof getMainCard==="function"?getMainCard():null}catch(e){return null}}
 function isAdminPlayer(){try{return typeof mode!=="undefined"&&mode==="moder"}catch(e){return false}}
 function getBattleContext(){try{return typeof getBossContext==="function"?getBossContext():null}catch(e){return null}}
-function unique(c){return !!c&&["stone","waystar","rwb","antispiral"].indexOf(c.type)>=0}
+function unique(c){return !!c&&["stone","stoneSuper","waystar","rwb","antispiral"].indexOf(c.type)>=0}
 function active(c){var x=card();return !!(x&&(x.name===N||x.name==="Годжо (флешбек)")&&c&&(c.type==="arena"||unique(c)))}
 function unlocked(x,c){if(window.__mbBossTestMode&&window.__mbBossTestAbilityMode==="ultimate"&&x&&(x.name===N||x.name==="Годжо (флешбек)"))return true;return c&&x&&(c.type==="arena"?(typeof hasMasterySuper!=="function"||hasMasterySuper(x)):(typeof hasMasteryUniqueSuper!=="function"||hasMasteryUniqueSuper(x)))}
 function passive(){try{var x=card();return !!(x&&x.name===N&&(typeof hasMasteryStatus!=="function"||hasMasteryStatus(x)))}catch(e){return false}}
