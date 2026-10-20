@@ -1411,11 +1411,12 @@ function updateExtendedArenaAttack(now) {
     if (st.type === 18) {
         // Clear the slow immediately after the player leaves every gear hitbox.
         st.gearSlowUntil = 0;
-        if (t >= st.nextSpawnAt && st.hazards.length < 9) {
-            var spawnCountG = st.hazards.length < 3 ? 3 - st.hazards.length : (Math.random()<0.42?2:1);
-            for (var gs0 = 0; gs0 < spawnCountG && st.hazards.length < 9; gs0++) {
-                var sideG = Math.floor(Math.random() * 4), rG = (23 + Math.random() * 11) * Math.min(1.35,extWaveDanger);
-                var speedG = (3.8 + Math.random() * 1.5) * extWaveDanger, alongG = (Math.random() - 0.5) * 3.8 * extWaveDanger;
+        if (t >= st.nextSpawnAt && st.hazards.length < 5) {
+            var spawnCountG = st.hazards.length < 2 ? 2 - st.hazards.length : 1;
+            for (var gs0 = 0; gs0 < spawnCountG && st.hazards.length < 5; gs0++) {
+                var sideG = Math.floor(Math.random() * 4), rG = (19 + Math.random() * 6) * Math.min(1.18,extWaveDanger);
+                var gearWaveScale = Math.min(1.35, 1 + Math.max(0, extWaveDanger - 1) * 0.28);
+                var speedG = (2.35 + Math.random() * 0.75) * gearWaveScale, alongG = (Math.random() - 0.5) * 2.5 * gearWaveScale;
                 var gx, gy, gvx, gvy;
                 if (sideG === 0) { gx = rG + 8; gy = 82 + Math.random() * 390; gvx = speedG; gvy = alongG; }
                 else if (sideG === 1) { gx = 400 - rG - 8; gy = 82 + Math.random() * 390; gvx = -speedG; gvy = alongG; }
@@ -1423,7 +1424,7 @@ function updateExtendedArenaAttack(now) {
                 else { gx = 30 + Math.random() * 340; gy = 492 - rG; gvx = alongG; gvy = -speedG; }
                 st.hazards.push({ x:gx, y:gy, vx:gvx, vy:gvy, r:rG, born:t, age:0, rot:Math.random()*Math.PI*2, trail:[], nextContactHitAt:0, lastClankAt:0, lastWallBounceAt:0, roll:Math.random()*Math.PI*2 });
             }
-            st.nextSpawnAt = t + Math.max(260, (st.hazards.length < 6 ? 760 : 1050) / extWaveDanger);
+            st.nextSpawnAt = t + Math.max(1050, (st.hazards.length < 3 ? 1550 : 2050) / Math.min(1.25, extWaveDanger));
         }
         var frameScaleG = Math.max(0, Math.min(3, delta / 16.667));
         for (var gm = 0; gm < st.hazards.length; gm++) {
@@ -1438,7 +1439,7 @@ function updateExtendedArenaAttack(now) {
                 movingGear.rot += (movingGear.vx-movingGear.vy)/Math.max(11,movingGear.r)*frameScaleG*gearMotionScale;
                 movingGear.roll += 0.09 * frameScaleG;
                 movingGear.trail.unshift({x:movingGear.x,y:movingGear.y});
-                if (movingGear.trail.length > 9) movingGear.trail.pop();
+                if (movingGear.trail.length > 6) movingGear.trail.pop();
             }
             var minGX = movingGear.r + 5, maxGX = 400 - movingGear.r - 5;
             var minGY = 62 + movingGear.r, maxGY = 494 - movingGear.r;
@@ -1499,9 +1500,9 @@ function updateExtendedArenaAttack(now) {
                 st._multiHitActive = true;
                 st.gearSlowUntil = now + 40;
                 if (now >= Number(gear.nextContactHitAt || 0)) {
-                    gear.nextContactHitAt = now + 145; arenaShake = Math.max(arenaShake, 10);
+                    gear.nextContactHitAt = now + 320; arenaShake = Math.max(arenaShake, 10);
                     for (var hpG = 0; hpG < 9; hpG++) arenaParticles.push({x:heart.x,y:heart.y,vx:(Math.random()-0.5)*9,vy:(Math.random()-0.5)*9,life:19,maxLife:19,color:hpG%2?"#ff9b32":"#fff2c6",size:2.2+Math.random()*3});
-                    applyHit(extImpactDamage, "ШЕСТЕРНЯ: МУЛЬТИ-УДАР!", false, true);
+                    applyHit(Math.min(2, 1 + Math.floor(Math.max(0, extWave - 1) / 100)), "ШЕСТЕРНЯ: МУЛЬТИ-УДАР!", false, true);
                 }
             }
         }
