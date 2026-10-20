@@ -2853,49 +2853,98 @@
                     continue;
                 }
                 if(a.kind==="bigbang"){
+                    const bounds=asBounds();
+                    const cx=asBoss.x,cy=asBoss.y+38;
+                    const beamPoints=function(angle){
+                        const dx=Math.cos(angle),dy=Math.sin(angle);
+                        let distance=Infinity;
+                        if(dx>0)distance=Math.min(distance,(bounds.right-cx)/dx);
+                        else if(dx<0)distance=Math.min(distance,(bounds.left-cx)/dx);
+                        if(dy>0)distance=Math.min(distance,(bounds.bottom-cy)/dy);
+                        else if(dy<0)distance=Math.min(distance,(bounds.top-cy)/dy);
+                        if(!Number.isFinite(distance)||distance<0)distance=360;
+                        distance=Math.max(60,distance);
+                        return {x1:cx,y1:cy,x2:cx+dx*distance,y2:cy+dy*distance};
+                    };
                     if(a.phase==="charge"){
                         a.timer-=asTimeScale;
-                        const t=Math.max(0,1-a.timer/94), cx=asBoss.x, cy=asBoss.y+38;
-                        c.save(); c.globalAlpha=.9; c.shadowColor="#bf78ff"; c.shadowBlur=22; c.strokeStyle="#e4ccff"; c.lineWidth=1.6;
+                        const t=Math.max(0,1-a.timer/94);
+                        c.save();
+                        // Две галактики сжимаются в ядро; эффекты остаются на boss-арене, не наносят урон.
                         for(let g=0;g<2;g++){
                             const gx=cx+(g===0?-1:1)*(84-t*62);
                             const gy=cy+Math.sin(asFrame*.11+g)*7;
-                            c.save(); c.translate(gx,gy); c.rotate((g===0?-1:1)*asFrame*.055);
-                            c.strokeStyle=g===0?"#a678ff":"#6ce8ff";
-                            for(let ring=0;ring<4;ring++){c.globalAlpha=.35+ring*.12;c.beginPath();c.ellipse(0,0,13+ring*4,5+ring*2,.35*ring,0,Math.PI*1.8);c.stroke();}
+                            c.save();c.translate(gx,gy);c.rotate((g===0?-1:1)*asFrame*.055);
+                            c.globalAlpha=.7;c.strokeStyle=g===0?"#d8ccff":"#b9f7ff";c.lineWidth=1.8;
+                            for(let ring=0;ring<3;ring++){c.globalAlpha=.25+ring*.13;c.beginPath();c.ellipse(0,0,13+ring*4,5+ring*2,.35*ring,0,Math.PI*1.8);c.stroke();}
                             c.restore();
                         }
                         c.globalAlpha=.88;
                         const orbR=7+t*21;
                         const orb=c.createRadialGradient(cx,cy,1,cx,cy,orbR*1.6);
-                        orb.addColorStop(0,"#ffffff");orb.addColorStop(.25,"#ffc8ff");orb.addColorStop(.7,"#a64cff");orb.addColorStop(1,"rgba(80,35,180,0)");
+                        orb.addColorStop(0,"#ffffff");orb.addColorStop(.25,"#f7eaff");orb.addColorStop(.7,"#a64cff");orb.addColorStop(1,"rgba(80,35,180,0)");
                         c.fillStyle=orb;c.beginPath();c.arc(cx,cy,orbR*1.6,0,Math.PI*2);c.fill();
                         c.strokeStyle="#ffffff";c.lineWidth=1.4;c.beginPath();c.arc(cx,cy,orbR,0,Math.PI*2);c.stroke();
                         c.restore();
                         if(a.timer<=0){
-                            a.phase="blast";a.life=52;a.hit=false;
-                            asText(200,110,"INFINITY BIG BANG STORM — УКРОЙСЯ НА ГОЛУБОЙ ПЛАТФОРМЕ!","#8efaff",78);
-                            asFlash=Math.max(asFlash,7);asFlashColor="#b27cff";asShake=Math.max(asShake,12);
-                            asSound(55,"sawtooth",.7,.18);
+                            a.phase="aim";a.timer=42;a.angle=Math.atan2(asPlayer.y-cy,asPlayer.x-cx);a.locked=false;
+                            asText(200,110,"INFINITY BIG BANG STORM — ЛАЗЕР СЛЕДИТ ЗА ТОБОЙ!","#a7f7ff",88);
+                            asFlash=Math.max(asFlash,4);asFlashColor="#b27cff";
+                            asSound(130,"sawtooth",.42,.12);
+                        }
+                    }else if(a.phase==="aim"){
+                        a.timer-=asTimeScale;
+                        // Первую часть прицеливания луч следует за игроком. Последние 20 кадров направление зафиксировано.
+                        if(a.timer>20||!a.locked){
+                            a.angle=Math.atan2(asPlayer.y-cy,asPlayer.x-cx);
+                            if(a.timer<=20&&!a.locked){
+                                a.locked=true;
+                                asText(200,132,"ЛУЧ ЗАФИКСИРОВАН — УХОДИ С ЛИНИИ!","#ffffff",56);
+                                asSound(520,"triangle",.3,.08);
+                            }
+                        }
+                        const line=beamPoints(a.angle||0);
+                        c.save();c.lineCap="round";
+                        c.globalAlpha=a.locked?.34:.2;c.strokeStyle="#a66bff";c.lineWidth=66;
+                        c.setLineDash(a.locked?[15,8]:[8,10]);
+                        c.beginPath();c.moveTo(line.x1,line.y1);c.lineTo(line.x2,line.y2);c.stroke();
+                        c.globalAlpha=a.locked?.9:.6;c.strokeStyle="#e9e0ff";c.lineWidth=3;
+                        c.beginPath();c.moveTo(line.x1,line.y1);c.lineTo(line.x2,line.y2);c.stroke();
+                        c.setLineDash([]);
+                        c.globalAlpha=.95;c.fillStyle="#ffffff";c.font="bold 10px monospace";c.textAlign="center";
+                        c.fillText(a.locked?"НАВЕДЕНИЕ ЗАФИКСИРОВАНО":"ЛАЗЕР НАВОДИТСЯ",200,Math.max(62,cy-24));
+                        c.restore();
+                        if(a.timer<=0){
+                            a.phase="blast";a.life=20;a.hit=false;
+                            asText(200,110,"INFINITY BIG BANG STORM!","#ffffff",60);
+                            asFlash=Math.max(asFlash,5);asFlashColor="#d8c6ff";asShake=Math.max(asShake,10);
+                            asSound(58,"sawtooth",.62,.16);
                         }
                     }else{
                         a.life-=asTimeScale;
-                        const progress=1-a.life/52;
-                        const b=asBounds();
-                        c.save();
-                        c.globalAlpha=.18+Math.abs(Math.sin(asFrame*.42))*.12;
-                        c.fillStyle="#a64cff";c.fillRect(b.left,b.top,asArenaWidth,b.bottom-b.top);
-                        c.globalAlpha=.8;c.strokeStyle="#d9b4ff";c.shadowColor="#bf7aff";c.shadowBlur=28;c.lineWidth=24+progress*18;
-                        c.beginPath();c.ellipse(asBoss.x,asBoss.y+38,28+progress*250,16+progress*195,asFrame*.01,0,Math.PI*2);c.stroke();
-                        c.globalAlpha=.94;c.strokeStyle="#f5eaff";c.lineWidth=3;
-                        c.beginPath();c.ellipse(asBoss.x,asBoss.y+38,28+progress*245,14+progress*190,asFrame*.01,0,Math.PI*2);c.stroke();
+                        const line=beamPoints(a.angle||0);
+                        const beamWidth=62;
+                        c.save();c.lineCap="round";
+                        c.globalAlpha=.26;c.strokeStyle="#a15cff";c.lineWidth=beamWidth+28;
+                        c.beginPath();c.moveTo(line.x1,line.y1);c.lineTo(line.x2,line.y2);c.stroke();
+                        c.globalAlpha=.68;c.strokeStyle="#bf92ff";c.lineWidth=beamWidth;
+                        c.beginPath();c.moveTo(line.x1,line.y1);c.lineTo(line.x2,line.y2);c.stroke();
+                        c.globalAlpha=.98;c.strokeStyle="#ffffff";c.lineWidth=15;
+                        c.beginPath();c.moveTo(line.x1,line.y1);c.lineTo(line.x2,line.y2);c.stroke();
+                        c.globalAlpha=1;c.strokeStyle="#ffffff";c.lineWidth=2;
+                        c.beginPath();c.moveTo(line.x1,line.y1);c.lineTo(line.x2,line.y2);c.stroke();
                         c.restore();
-                        if(!a.hit && a.life<=44){
-                            a.hit=true;
-                            const sheltered = asPlayer.grounded && asPlayer.platformIndex === a.safePlatformIndex;
-                            if(!sheltered) asDamagePlayer(a.damage,"INFINITY BIG BANG STORM");
-                            else asText(asPlayer.x,asPlayer.y-26,"УКРЫТИЕ УДЕРЖАНО!","#9bffff",48);
-                            asFlash=Math.max(asFlash,12);asFlashColor="#b58aff";asShake=Math.max(asShake,16);
+
+                        // Урон только при фактическом пересечении широкой линии. Никакого урона по всей арене.
+                        if(!a.hit){
+                            const vx=line.x2-line.x1,vy=line.y2-line.y1;
+                            const lenSq=vx*vx+vy*vy||1;
+                            const t=Math.max(0,Math.min(1,((asPlayer.x-line.x1)*vx+(asPlayer.y-line.y1)*vy)/lenSq));
+                            const nearX=line.x1+vx*t,nearY=line.y1+vy*t;
+                            if(Math.hypot(asPlayer.x-nearX,asPlayer.y-nearY)<=beamWidth/2+asPlayer.size*.72){
+                                asDamagePlayer(a.damage,"INFINITY BIG BANG STORM");
+                                a.hit=true;
+                            }
                         }
                         if(a.life<=0){
                             asBossExposed=220;
