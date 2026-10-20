@@ -1107,18 +1107,21 @@ function updateExtendedArenaAttack(now) {
     var sec = t / 1000;
     var dmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 1.78));
     var strongDmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 2.35));
+    var extWave = Math.max(1, Number(arenaCurrentWave) || 1);
+    var extWaveDanger = 1 + Math.min(1.25, Math.max(0, extWave - 1) * 0.0125);
+    var extImpactDamage = Math.min(5, 2 + Math.floor(Math.max(0, extWave - 1) / 20));
     var pulse = 0.5 + 0.5 * Math.sin(sec * 8);
 
     // 11. Three pendulums swing at different rhythms. Their heavy heads launch the player on contact.
     if (st.type === 11) {
         for (var p = 0; p < 3; p++) {
             var px = 68 + p * 132, py = 58;
-            var angle = Math.sin(sec * (1.62 + p * 0.17) + p * 2.05) * (1.22 + p * 0.035);
+            var angle = Math.sin(sec * (1.95 + p * 0.22) * extWaveDanger + p * 2.05) * (1.28 + p * 0.05);
             var length = 322 + (p % 2) * 24;
             var bx = px + Math.sin(angle) * length, by = py + Math.cos(angle) * length;
-            var prevAngle = Math.sin((sec - 0.14) * (1.62 + p * 0.17) + p * 2.05) * (1.22 + p * 0.035);
+            var prevAngle = Math.sin((sec - 0.14) * (1.62 + p * 0.17) + p * 2.05) * (1.28 + p * 0.05);
             var prevBx = px + Math.sin(prevAngle) * length, prevBy = py + Math.cos(prevAngle) * length;
-            arenaExtDrawSegment(prevBx, prevBy, bx, by, 15, "rgba(255,190,95,0.5)", t < 650 ? 0.12 : 0.38, false);
+            arenaExtDrawSegment(prevBx, prevBy, bx, by, 25, "rgba(255,190,95,0.5)", t < 650 ? 0.12 : 0.38, false);
             arenaExtDrawSegment(px, py, bx, by, 7, "#8f9aa8", t < 650 ? 0.4 : 0.9, false);
             ctx.save(); ctx.fillStyle = "#aab6c5"; ctx.strokeStyle = "#f2f6fa"; ctx.lineWidth = 2; ctx.shadowColor = "#d6e2f0"; ctx.shadowBlur = 7;
             for (var link = 1; link < 7; link++) {
@@ -1128,7 +1131,7 @@ function updateExtendedArenaAttack(now) {
             ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             ctx.fillStyle = "#5f6a79"; ctx.beginPath(); ctx.arc(bx, by, 17, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             ctx.fillStyle = "#ecf1f7"; ctx.beginPath(); ctx.arc(bx, by, 6, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-            if(!frozen&&t>520&&arenaExtLineTouchesHeart(px,py,bx,by,7)&&arenaExtTouchCooldown(st,"pendulum_"+p,now,360)){arenaExtPushHeart(bx,by,5.5,2.2);heart.vx*=1.12;heart.vy*=1.12;st._multiHitActive=true;applyHit(1,"МАЯТНИК: УДАР!",false,true);spawnFloatingText(heart.x,heart.y-18,"ОТБРОШЕН!","#ffe2a3");}
+            if(!frozen&&t>420&&arenaExtLineTouchesHeart(px,py,bx,by,20)&&arenaExtTouchCooldown(st,"pendulum_"+p,now,220)){arenaExtPushHeart(bx,by,8.2*extWaveDanger,3.1);heart.vx*=1.18;heart.vy*=1.18;st._multiHitActive=true;applyHit(extImpactDamage,"МАЯТНИК: ТЯЖЁЛЫЙ УДАР!",false,true);spawnFloatingText(heart.x,heart.y-18,"ОТБРОШЕН!","#ffe2a3");}
         }
         if (t < 650) { ctx.fillStyle = "rgba(210,225,245,0.85)"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("МАЯТНИКИ ЗАПУСКАЮТСЯ", 200, 82); }
     }
@@ -1138,11 +1141,11 @@ function updateExtendedArenaAttack(now) {
         for (var c = 0; c < 2; c++) {
             var y1 = (c === 0 ? 105 : 405) + Math.sin(sec * 1.24 + c) * 70;
             var y2 = (c === 0 ? 385 : 125) + Math.sin(sec * 1.08 + c * 1.7) * 64;
-            var gapU = 0.5 + Math.sin(sec * (1.1 + c * 0.16) + c * 2.1) * 0.28;
-            var gapHalf = 0.052, gapStart = Math.max(0.08, gapU - gapHalf), gapEnd = Math.min(0.92, gapU + gapHalf);
+            var gapU = 0.5 + Math.sin(sec * (1.35 + c * 0.2) * extWaveDanger + c * 2.1) * 0.28;
+            var gapHalf = Math.max(0.018, 0.052 / extWaveDanger), gapStart = Math.max(0.08, gapU - gapHalf), gapEnd = Math.min(0.92, gapU + gapHalf);
             var gy1 = y1 + (y2 - y1) * gapStart, gy2 = y1 + (y2 - y1) * gapEnd;
-            arenaExtDrawSegment(0, y1, gapStart * 400, gy1, 10, "#b7c1cc", t < 650 ? 0.4 : 0.9, false);
-            arenaExtDrawSegment(gapEnd * 400, gy2, 400, y2, 10, "#b7c1cc", t < 650 ? 0.4 : 0.9, false);
+            arenaExtDrawSegment(0, y1, gapStart * 400, gy1, 16, "#b7c1cc", t < 650 ? 0.4 : 0.9, false);
+            arenaExtDrawSegment(gapEnd * 400, gy2, 400, y2, 16, "#b7c1cc", t < 650 ? 0.4 : 0.9, false);
             ctx.save(); ctx.strokeStyle = "rgba(120,235,255," + (0.3 + pulse * 0.45) + ")"; ctx.lineWidth = 3; ctx.shadowColor = "#66eaff"; ctx.shadowBlur = 12;
             ctx.beginPath(); ctx.arc(gapStart * 400, gy1, 6 + pulse * 2, 0, Math.PI * 2); ctx.arc(gapEnd * 400, gy2, 6 + pulse * 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
             for (var q = 0; q <= 20; q++) {
@@ -1153,8 +1156,8 @@ function updateExtendedArenaAttack(now) {
                 ctx.beginPath(); ctx.arc(xx, yy, 2.1, 0, Math.PI * 2); ctx.fill();
             }
             if (t > 520) {
-                if(arenaExtLineTouchesHeart(0,y1,gapStart*400,gy1,13)&&arenaExtTouchCooldown(st,"cableA_"+c,now,360)){st._multiHitActive=true;applyHit(1,"ЖИВОЙ ТРОС: УДАР!",false,true);arenaExtPushHeart(gapStart*400,gy1,4.2,1.2);spawnFloatingText(heart.x,heart.y-18,"ТРОС УДАРИЛ!","#91f2ff");}
-                if(arenaExtLineTouchesHeart(gapEnd*400,gy2,400,y2,13)&&arenaExtTouchCooldown(st,"cableB_"+c,now,360)){st._multiHitActive=true;applyHit(1,"ЖИВОЙ ТРОС: УДАР!",false,true);arenaExtPushHeart(gapEnd*400,gy2,4.2,1.2);spawnFloatingText(heart.x,heart.y-18,"ТРОС УДАРИЛ!","#91f2ff");}
+                if(arenaExtLineTouchesHeart(0,y1,gapStart*400,gy1,20)&&arenaExtTouchCooldown(st,"cableA_"+c,now,230)){st._multiHitActive=true;applyHit(extImpactDamage,"ЖИВОЙ ТРОС: РАЗРЫВАЮЩИЙ УДАР!",false,true);arenaExtPushHeart(gapStart*400,gy1,6.5*extWaveDanger,2.0);spawnFloatingText(heart.x,heart.y-18,"ТРОС УДАРИЛ!","#91f2ff");}
+                if(arenaExtLineTouchesHeart(gapEnd*400,gy2,400,y2,20)&&arenaExtTouchCooldown(st,"cableB_"+c,now,230)){st._multiHitActive=true;applyHit(extImpactDamage,"ЖИВОЙ ТРОС: РАЗРЫВАЮЩИЙ УДАР!",false,true);arenaExtPushHeart(gapEnd*400,gy2,6.5*extWaveDanger,2.0);spawnFloatingText(heart.x,heart.y-18,"ТРОС УДАРИЛ!","#91f2ff");}
             }
         }
         if (t < 650) { ctx.fillStyle = "#d8e5f5"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("ТРОСЫ НАТЯГИВАЮТСЯ", 200, 82); }
@@ -1162,16 +1165,16 @@ function updateExtendedArenaAttack(now) {
 
     // 13. Flowing acid: pour, spread, merge with nearby puddles, then evaporate.
     if(st.type===13){
-        if(t>=st.nextSpawnAt&&st.hazards.length<9){var edge=Math.floor(Math.random()*4),sx,sy;if(edge===0){sx=20+Math.random()*360;sy=65;}else if(edge===1){sx=20+Math.random()*360;sy=490;}else if(edge===2){sx=8;sy=85+Math.random()*390;}else{sx=392;sy=85+Math.random()*390;}
+        if(t>=st.nextSpawnAt&&st.hazards.length<12){var edge=Math.floor(Math.random()*4),sx,sy;if(edge===0){sx=20+Math.random()*360;sy=65;}else if(edge===1){sx=20+Math.random()*360;sy=490;}else if(edge===2){sx=8;sy=85+Math.random()*390;}else{sx=392;sy=85+Math.random()*390;}
             var acidX=35+Math.random()*330,acidY=105+Math.random()*340;
-            st.hazards.push({x:acidX,y:acidY,sourceX:sx,sourceY:sy,born:t,r:3,targetR:29+Math.random()*13,flowAngle:Math.atan2(acidY-sy,acidX-sx),elongation:0.06,nextHitAt:0});st.nextSpawnAt=t+790;}
+            st.hazards.push({x:acidX,y:acidY,sourceX:sx,sourceY:sy,born:t,r:3,targetR:38+Math.random()*20,flowAngle:Math.atan2(acidY-sy,acidX-sx),elongation:0.06,nextHitAt:0});st.nextSpawnAt=t+Math.max(260,790/extWaveDanger);}
         for(var ai=st.hazards.length-1;ai>=0;ai--){var pool=st.hazards[ai],age=t-pool.born;if(age>7600){st.hazards.splice(ai,1);continue;}
             var pouring=age<520,spreading=age>=520&&age<1150,fading=age>6100;
             if(!frozen){if(pouring)pool.r=Math.min(pool.targetR*.72,pool.r+delta*.045);else if(spreading)pool.r=Math.min(pool.targetR,pool.r+delta*.035);else if(fading)pool.r=Math.max(0,pool.r-delta*.014);}
             if(!frozen)for(var aj=ai-1;aj>=0;aj--){var other=st.hazards[aj];if(Math.hypot(pool.x-other.x,pool.y-other.y)<pool.r+other.r-2){var mergeDX=other.x-pool.x,mergeDY=other.y-pool.y,mergeAngle=Math.atan2(mergeDY,mergeDX);
                     var areaA=pool.r*pool.r,areaB=other.r*other.r,areaTotal=Math.max(1,areaA+areaB),areaR=Math.sqrt(areaTotal);
                     pool.x=(pool.x*areaA+other.x*areaB)/areaTotal;pool.y=(pool.y*areaA+other.y*areaB)/areaTotal;
-                    pool.r=Math.min(102,areaR);pool.targetR=Math.min(102,Math.max(pool.targetR,other.targetR,pool.r));
+                    pool.r=Math.min(130,areaR);pool.targetR=Math.min(130,Math.max(pool.targetR,other.targetR,pool.r));
                     pool.flowAngle=mergeAngle;pool.elongation=Math.min(0.42,Math.max(pool.elongation||0,other.elongation||0)+0.16);
                     pool.born=Math.min(pool.born,other.born);st.hazards.splice(aj,1);ai--;}}
             ctx.save();ctx.globalAlpha=fading?Math.max(.12,(7600-age)/1500):pouring?.7:.9;
@@ -1180,7 +1183,7 @@ function updateExtendedArenaAttack(now) {
             ctx.fillStyle="#5eea3f";ctx.strokeStyle="#c8ff86";ctx.lineWidth=2;ctx.shadowColor="#73ff39";ctx.shadowBlur=11;ctx.beginPath();
             for(var lq=0;lq<=28;lq++){var la=lq/28*Math.PI*2,wob=1+Math.sin(la*3+sec*2.5)*.045+Math.sin(la*7-sec*3)*.025+Math.cos(la-(pool.flowAngle||0))*(pool.elongation||0),lx=pool.x+Math.cos(la)*pool.r*wob,ly=pool.y+Math.sin(la)*pool.r*wob;if(!lq)ctx.moveTo(lx,ly);else ctx.lineTo(lx,ly);}ctx.closePath();ctx.fill();ctx.stroke();
             ctx.globalAlpha*=.75;ctx.strokeStyle="#dfff9e";ctx.lineWidth=1.5;for(var rip=0;rip<2;rip++){var rr=pool.r*(.25+rip*.34)+((sec*14+rip*17)%Math.max(10,pool.r*.4));ctx.beginPath();ctx.ellipse(pool.x+Math.sin(sec*2+rip)*pool.r*.1,pool.y,Math.min(pool.r,rr),Math.min(pool.r*.42,rr*.42),Math.sin(sec+rip)*.12,0,Math.PI*2);ctx.stroke();}ctx.restore();
-            if(!frozen&&!pouring&&pool.r>10&&Math.hypot(heart.x-pool.x,heart.y-pool.y)<pool.r+heart.hitbox){st._multiHitActive=true;if(arenaExtTouchCooldown(st,"acid_"+pool.born,now,105))applyHit(1,"КИСЛОТА: РАЗЪЕДАЕТ!",false,true);}
+            if(!frozen&&!pouring&&pool.r>10&&Math.hypot(heart.x-pool.x,heart.y-pool.y)<pool.r+heart.hitbox){st._multiHitActive=true;if(arenaExtTouchCooldown(st,"acid_"+pool.born,now,85))applyHit(extImpactDamage,"КИСЛОТА: РАЗЪЕДАЕТ!",false,true);}
         }
     }
 
@@ -1188,17 +1191,17 @@ function updateExtendedArenaAttack(now) {
     if (st.type === 14) {
         var dirs = [{x:1,y:0.22},{x:-1,y:-0.18}];
         var windStage = Math.min(2,Math.floor(t/3000));
-        var di = Math.floor(t / Math.max(760,1320-windStage*210)) % dirs.length, dir = dirs[di];
+        var di = Math.floor(t / Math.max(420,980-windStage*170)/extWaveDanger) % dirs.length, dir = dirs[di];
         if (st.gustIndex !== di) { st.gustIndex = di; st.nextSpawnAt = Math.min(st.nextSpawnAt, t); }
-        var gustPulse = (windStage===0?0.055:windStage===1?0.105:0.16) * (Math.sin(sec * (4.2+windStage*1.2)) > 0.35 ? 1.35 : 0.72);
+        var gustPulse = (windStage===0?0.095:windStage===1?0.17:0.25) * extWaveDanger * (Math.sin(sec * (5.5+windStage*1.6)*extWaveDanger) > 0.18 ? 1.55 : 0.65);
         if (!frozen) { heart.vx += dir.x * gustPulse; heart.vy += dir.y * gustPulse; heart.vx=Math.max(-8,Math.min(8,heart.vx)); heart.vy=Math.max(-8,Math.min(8,heart.vy)); }
         if (t >= st.nextSpawnAt) {
             var side, hx, hy;
             if (Math.abs(dir.x) > Math.abs(dir.y)) { side = dir.x > 0 ? 0 : 1; hx = side === 0 ? -15 : 415; hy = 75 + Math.random() * 355; }
             else { side = dir.y > 0 ? 2 : 3; hx = 35 + Math.random() * 330; hy = side === 2 ? -15 : 515; }
-            var sp = 3.0 + Math.random() * 1.55 + windStage*1.45;
-            st.hazards.push({ x:hx, y:hy, vx:dir.x*sp, vy:dir.y*sp, size:7+Math.random()*5, born:t, rot:Math.random()*6 });
-            st.nextSpawnAt = t + Math.max(105,315-windStage*78);
+            var sp = (4.0 + Math.random() * 2.0 + windStage*1.9) * extWaveDanger;
+            st.hazards.push({ x:hx, y:hy, vx:dir.x*sp, vy:dir.y*sp, size:(9+Math.random()*6)*Math.min(1.6,extWaveDanger), born:t, rot:Math.random()*6 });
+            st.nextSpawnAt = t + Math.max(75,240-windStage*55)/extWaveDanger;
         }
         ctx.save(); ctx.fillStyle="#d7f6ff";ctx.font="bold 10px monospace";ctx.textAlign="center";ctx.fillText("ВЕТЕР: "+(windStage+1)+"/3",200,82);ctx.strokeStyle = "rgba(150,220,255,0.45)"; ctx.lineWidth = 2;
         for (var wi = 0; wi < 12; wi++) {
@@ -1214,7 +1217,7 @@ function updateExtendedArenaAttack(now) {
             if (!frozen) { leaf.x += leaf.vx; leaf.y += leaf.vy; leaf.rot += 0.12; }
             ctx.save(); ctx.translate(leaf.x, leaf.y); ctx.rotate(leaf.rot); ctx.fillStyle = "#b6d6df"; ctx.strokeStyle = "#f3ffff"; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(-leaf.size, 0); ctx.quadraticCurveTo(0, -leaf.size * 0.85, leaf.size, 0); ctx.quadraticCurveTo(0, leaf.size * 0.85, -leaf.size, 0); ctx.fill(); ctx.stroke(); ctx.restore();
-            if(!frozen&&Math.hypot(heart.x-leaf.x,heart.y-leaf.y)<leaf.size+heart.hitbox&&arenaExtTouchCooldown(st,"wind_"+hi,now,260)){heart.vx+=leaf.vx*1.9;heart.vy+=leaf.vy*1.9;st._multiHitActive=true;applyHit(1,"ШТОРМОВОЙ ОБЛОМОК!",false,true);spawnFloatingText(heart.x,heart.y-18,"СБИТО ВЕТРОМ!","#a8edff");}
+            if(!frozen&&Math.hypot(heart.x-leaf.x,heart.y-leaf.y)<leaf.size+heart.hitbox&&arenaExtTouchCooldown(st,"wind_"+hi,now,160)){heart.vx+=leaf.vx*2.4;heart.vy+=leaf.vy*2.4;st._multiHitActive=true;applyHit(extImpactDamage,"ШТОРМОВОЙ ОБЛОМОК!",false,true);spawnFloatingText(heart.x,heart.y-18,"СБИТО ВЕТРОМ!","#a8edff");}
             if (leaf.x < -30 || leaf.x > 430 || leaf.y < -30 || leaf.y > 530) st.hazards.splice(hi, 1);
         }
     }
@@ -1225,9 +1228,9 @@ function updateExtendedArenaAttack(now) {
             var sideB = Math.floor(Math.random() * 4), origin = arenaExtNewEdge(sideB, 10);
             var targetX = 70 + Math.random() * 260, targetY = 115 + Math.random() * 265;
             var ba = Math.atan2(targetY - origin.y, targetX - origin.x);
-            st.hazards.push({ x:origin.x, y:origin.y, ox:origin.x, oy:origin.y, vx:Math.cos(ba)*3.5, vy:Math.sin(ba)*3.5, age:0, born:t, rot:ba, side:sideB, trail:[] });
-            if (Math.random() < 0.62) { var origin2 = arenaExtNewEdge((sideB + 2) % 4, 12); var ta2 = Math.atan2(heart.y - origin2.y, heart.x - origin2.x); st.hazards.push({ x:origin2.x, y:origin2.y, ox:origin2.x, oy:origin2.y, vx:Math.cos(ta2)*3.15, vy:Math.sin(ta2)*3.15, age:0, born:t, rot:ta2, side:(sideB+2)%4, trail:[] }); }
-            st.nextSpawnAt = t + 900;
+            st.hazards.push({ x:origin.x, y:origin.y, ox:origin.x, oy:origin.y, vx:Math.cos(ba)*4.8*extWaveDanger, vy:Math.sin(ba)*4.8*extWaveDanger, age:0, born:t, rot:ba, side:sideB, trail:[] });
+            if (Math.random() < 0.62) { var origin2 = arenaExtNewEdge((sideB + 2) % 4, 12); var ta2 = Math.atan2(heart.y - origin2.y, heart.x - origin2.x); st.hazards.push({ x:origin2.x, y:origin2.y, ox:origin2.x, oy:origin2.y, vx:Math.cos(ta2)*4.3*extWaveDanger, vy:Math.sin(ta2)*4.3*extWaveDanger, age:0, born:t, rot:ta2, side:(sideB+2)%4, trail:[] }); }
+            st.nextSpawnAt = t + Math.max(340, 820 / extWaveDanger);
         }
         for (var bi = st.hazards.length - 1; bi >= 0; bi--) {
             var boom = st.hazards[bi];
@@ -1240,14 +1243,14 @@ function updateExtendedArenaAttack(now) {
                     boom.rot = Math.atan2(boom.vy, boom.vx);
                 } else {
                     var backA = Math.atan2(boom.oy - boom.y, boom.ox - boom.x);
-                    boom.x += Math.cos(backA) * 3.9; boom.y += Math.sin(backA) * 3.9; boom.rot = backA;
+                    boom.x += Math.cos(backA) * 5.2 * extWaveDanger; boom.y += Math.sin(backA) * 5.2 * extWaveDanger; boom.rot = backA;
                 }
             }
             if (!boom.trail) boom.trail = []; if (!frozen) { boom.trail.unshift({x:boom.x,y:boom.y}); if (boom.trail.length > 8) boom.trail.pop(); }
             for (var bt2 = boom.trail.length - 1; bt2 > 0; bt2--) { ctx.save(); ctx.globalAlpha = (1 - bt2 / boom.trail.length) * 0.36; ctx.strokeStyle = "#ffd879"; ctx.lineWidth = Math.max(1, 6 - bt2 * 0.6); ctx.beginPath(); ctx.moveTo(boom.trail[bt2].x, boom.trail[bt2].y); ctx.lineTo(boom.trail[bt2-1].x, boom.trail[bt2-1].y); ctx.stroke(); ctx.restore(); }
-            ctx.save(); ctx.translate(boom.x, boom.y); ctx.rotate(boom.rot); ctx.fillStyle = "#f5d88a"; ctx.strokeStyle = "#fff7d9"; ctx.lineWidth = 2; ctx.shadowColor = "#e7b95b"; ctx.shadowBlur = 12;
+            ctx.save(); ctx.translate(boom.x, boom.y); ctx.rotate(boom.rot); ctx.scale(1.35,1.35); ctx.fillStyle = "#f5d88a"; ctx.strokeStyle = "#fff7d9"; ctx.lineWidth = 2; ctx.shadowColor = "#e7b95b"; ctx.shadowBlur = 12;
             ctx.beginPath(); ctx.moveTo(-17,-7); ctx.lineTo(2,-7); ctx.lineTo(14,-15); ctx.lineTo(8,-1); ctx.lineTo(17,7); ctx.lineTo(-2,7); ctx.lineTo(-14,15); ctx.lineTo(-8,1); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
-            if(!frozen&&Math.hypot(heart.x-boom.x,heart.y-boom.y)<15+heart.hitbox&&arenaExtTouchCooldown(st,"boom_"+bi,now,450)){arenaExtPushHeart(boom.x,boom.y,5.2,1.2);boom.vx*=-1.25;boom.vy*=-1.25;boom.age=Math.max(boom.age,760);spawnFloatingText(heart.x,heart.y-18,"СБИТО С ТРАЕКТОРИИ!","#ffe7a4");}
+            if(!frozen&&Math.hypot(heart.x-boom.x,heart.y-boom.y)<22+heart.hitbox&&arenaExtTouchCooldown(st,"boom_"+bi,now,240)){st._multiHitActive=true;applyHit(extImpactDamage,"БУМЕРАНГ: РАССЕКАЮЩИЙ УДАР!",false,true);arenaExtPushHeart(boom.x,boom.y,7.0*extWaveDanger,1.8);boom.vx*=-1.35;boom.vy*=-1.35;boom.age=Math.max(boom.age,760);spawnFloatingText(heart.x,heart.y-18,"СБИТО С ТРАЕКТОРИИ!","#ffe7a4");}
             if (boom.age > 2600 || boom.x < -50 || boom.x > 450 || boom.y < -50 || boom.y > 550) st.hazards.splice(bi, 1);
         }
     }
@@ -1256,7 +1259,7 @@ function updateExtendedArenaAttack(now) {
     if (st.type === 16) {
         if (t >= st.nextSpawnAt) {
             var rx = 70 + Math.random() * 260, ry = 105 + Math.random() * 290, branches = [];
-            for (var br = 0; br < 4; br++) {
+            for (var br = 0; br < Math.min(7, 4 + Math.floor((extWaveDanger-1)*2)); br++) {
                 var a0 = Math.random() * Math.PI * 2 + br * 2.1, len1 = 55 + Math.random() * 30, len2 = 55 + Math.random() * 35;
                 var mx = Math.max(15, Math.min(385, rx + Math.cos(a0) * len1));
                 var my = Math.max(55, Math.min(485, ry + Math.sin(a0) * len1));
@@ -1266,24 +1269,24 @@ function updateExtendedArenaAttack(now) {
                 branches.push([{x:rx,y:ry},{x:mx,y:my},{x:ex,y:ey}]);
             }
             st.hazards.push({ born:t, branches:branches });
-            st.nextSpawnAt = t + 1080;
+            st.nextSpawnAt = t + Math.max(350, 930 / extWaveDanger);
         }
         for (var ri = st.hazards.length - 1; ri >= 0; ri--) {
             var crack = st.hazards[ri], age = t - crack.born;
             if (age > 1500) { st.hazards.splice(ri, 1); continue; }
             var warningC = age < 490;
             if (age >= 490 && age < 1220) {
-                var shockR = (age - 490) * 0.31;
+                var shockR = (age - 490) * 0.43 * extWaveDanger;
                 ctx.save(); ctx.globalAlpha = Math.max(0.15, 0.75 - (age - 620) / 900); ctx.strokeStyle = "#ff9b55"; ctx.lineWidth = 3 + pulse * 2; ctx.shadowColor = "#ff542e"; ctx.shadowBlur = 16; ctx.beginPath(); ctx.arc(crack.branches[0][0].x, crack.branches[0][0].y, shockR, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-                if(!frozen&&Math.abs(Math.hypot(heart.x-crack.branches[0][0].x,heart.y-crack.branches[0][0].y)-shockR)<9+heart.hitbox&&arenaExtTouchCooldown(st,"shock_"+ri,now,500)){var sa=Math.atan2(heart.y-crack.branches[0][0].y,heart.x-crack.branches[0][0].x);heart.vx+=Math.cos(sa)*5.8;heart.vy+=Math.sin(sa)*5.8;spawnFloatingText(heart.x,heart.y-18,"ВОЛНА ОТБРОСИЛА!","#ffad70");}
+                if(!frozen&&Math.abs(Math.hypot(heart.x-crack.branches[0][0].x,heart.y-crack.branches[0][0].y)-shockR)<9+heart.hitbox&&arenaExtTouchCooldown(st,"shock_"+ri,now,280)){var sa=Math.atan2(heart.y-crack.branches[0][0].y,heart.x-crack.branches[0][0].x);heart.vx+=Math.cos(sa)*7.5*extWaveDanger;heart.vy+=Math.sin(sa)*7.5*extWaveDanger;st._multiHitActive=true;applyHit(extImpactDamage,"РАСКОЛ: УДАРНАЯ ВОЛНА!",false,true);spawnFloatingText(heart.x,heart.y-18,"ВОЛНА ОТБРОСИЛА!","#ffad70");}
             }
             for (var cj = 0; cj < crack.branches.length; cj++) {
                 var points = crack.branches[cj];
-                arenaExtDrawSegment(points[0].x, points[0].y, points[1].x, points[1].y, warningC ? 3 : 10, warningC ? "#ffca7b" : "#ff5b32", warningC ? 0.55 : 0.95, warningC);
-                arenaExtDrawSegment(points[1].x, points[1].y, points[2].x, points[2].y, warningC ? 3 : 10, warningC ? "#ffca7b" : "#ff5b32", warningC ? 0.55 : 0.95, warningC);
+                arenaExtDrawSegment(points[0].x, points[0].y, points[1].x, points[1].y, warningC ? 4 : 15, warningC ? "#ffca7b" : "#ff5b32", warningC ? 0.55 : 0.95, warningC);
+                arenaExtDrawSegment(points[1].x, points[1].y, points[2].x, points[2].y, warningC ? 4 : 15, warningC ? "#ffca7b" : "#ff5b32", warningC ? 0.55 : 0.95, warningC);
                 if (!warningC && age < 1540) {
-                    if(arenaExtLineTouchesHeart(points[0].x,points[0].y,points[1].x,points[1].y,10)&&arenaExtTouchCooldown(st,"crackA_"+ri+"_"+cj,now,500)){arenaExtPushHeart(points[0].x,points[0].y,4.5,2.8);spawnFloatingText(heart.x,heart.y-18,"ТРЕЩИНА ПОДБРОСИЛА!","#ffb071");}
-                    if(arenaExtLineTouchesHeart(points[1].x,points[1].y,points[2].x,points[2].y,10)&&arenaExtTouchCooldown(st,"crackB_"+ri+"_"+cj,now,500)){arenaExtPushHeart(points[1].x,points[1].y,4.5,2.8);spawnFloatingText(heart.x,heart.y-18,"ТРЕЩИНА ПОДБРОСИЛА!","#ffb071");}
+                    if(arenaExtLineTouchesHeart(points[0].x,points[0].y,points[1].x,points[1].y,16)&&arenaExtTouchCooldown(st,"crackA_"+ri+"_"+cj,now,260)){st._multiHitActive=true;applyHit(extImpactDamage,"РАСКОЛОТАЯ ЗЕМЛЯ: РАЗЛОМ!",false,true);arenaExtPushHeart(points[0].x,points[0].y,7.0*extWaveDanger,3.4);spawnFloatingText(heart.x,heart.y-18,"ТРЕЩИНА ПОДБРОСИЛА!","#ffb071");}
+                    if(arenaExtLineTouchesHeart(points[1].x,points[1].y,points[2].x,points[2].y,16)&&arenaExtTouchCooldown(st,"crackB_"+ri+"_"+cj,now,260)){st._multiHitActive=true;applyHit(extImpactDamage,"РАСКОЛОТАЯ ЗЕМЛЯ: РАЗЛОМ!",false,true);arenaExtPushHeart(points[1].x,points[1].y,7.0*extWaveDanger,3.4);spawnFloatingText(heart.x,heart.y-18,"ТРЕЩИНА ПОДБРОСИЛА!","#ffb071");}
                 }
             }
         }
@@ -1291,25 +1294,25 @@ function updateExtendedArenaAttack(now) {
 
     // 17. Tentacles track briefly, lock their aim, then lunge.
     if (st.type === 17) {
-        if (t >= st.nextSpawnAt) {
+        if (t >= st.nextSpawnAt && st.hazards.length < 4) {
             var sideT = Math.floor(Math.random() * 4), org = arenaExtNewEdge(sideT, 5);
             st.hazards.push({ x:org.x, y:org.y, side:sideT, born:t, angle:0, originX:org.x, originY:org.y, caught:false, clawHitAt:0 });
-            st.nextSpawnAt = t + 1030;
+            st.nextSpawnAt = t + Math.max(300, 880 / extWaveDanger);
         }
         for (var ti = st.hazards.length - 1; ti >= 0; ti--) {
             var tent = st.hazards[ti], ageT = t - tent.born;
             if (ageT > 1900) { st.hazards.splice(ti, 1); continue; }
             if (ageT < 430) tent.angle = Math.atan2(heart.y - tent.y, heart.x - tent.x);
             var progressT = ageT < 500 ? 0 : Math.min(1, (ageT - 500) / 350);
-            var lengthT = 275 * progressT;
+            var lengthT = Math.min(390, 310 * extWaveDanger) * progressT;
             var drawLengthT = ageT < 500 ? 275 : lengthT;
             var tx = tent.x + Math.cos(tent.angle) * lengthT, ty = tent.y + Math.sin(tent.angle) * lengthT;
             var warnX = tent.x + Math.cos(tent.angle) * drawLengthT, warnY = tent.y + Math.sin(tent.angle) * drawLengthT;
             var curveOffset = Math.sin(sec * 7 + ti * 1.9) * 19;
             var midX = tent.x + Math.cos(tent.angle) * lengthT * 0.52 - Math.sin(tent.angle) * curveOffset;
             var midY = tent.y + Math.sin(tent.angle) * lengthT * 0.52 + Math.cos(tent.angle) * curveOffset;
-            arenaExtDrawSegment(tent.x, tent.y, ageT < 650 ? warnX : midX, ageT < 650 ? warnY : midY, 18, "#b56b48", ageT < 650 ? 0.45 : 0.95, ageT < 650);
-            if (ageT >= 650) arenaExtDrawSegment(midX, midY, tx, ty, 15, "#d68659", 0.95, false);
+            arenaExtDrawSegment(tent.x, tent.y, ageT < 650 ? warnX : midX, ageT < 650 ? warnY : midY, 27, "#b56b48", ageT < 650 ? 0.45 : 0.95, ageT < 650);
+            if (ageT >= 650) arenaExtDrawSegment(midX, midY, tx, ty, 23, "#d68659", 0.95, false);
             if (ageT < 500) { ctx.save(); ctx.strokeStyle = "rgba(255,203,150," + (0.25 + pulse * 0.55) + ")"; ctx.lineWidth = 2; ctx.setLineDash([4,5]); ctx.beginPath(); ctx.moveTo(tent.x, tent.y); ctx.lineTo(tent.x + Math.cos(tent.angle - 0.14) * 245, tent.y + Math.sin(tent.angle - 0.14) * 245); ctx.moveTo(tent.x, tent.y); ctx.lineTo(tent.x + Math.cos(tent.angle + 0.14) * 245, tent.y + Math.sin(tent.angle + 0.14) * 245); ctx.stroke(); ctx.setLineDash([]); ctx.restore(); }
             ctx.save(); ctx.fillStyle = "#e7a37d"; ctx.strokeStyle = "#fff0df"; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(tx, ty, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -1318,8 +1321,8 @@ function updateExtendedArenaAttack(now) {
                 ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx + Math.cos(sa) * 13, ty + Math.sin(sa) * 13); ctx.stroke();
             }
             ctx.restore();
-            if(tent.caught&&ageT<1850){var pullDX=tent.originX-heart.x,pullDY=tent.originY-heart.y,pullLen=Math.max(1,Math.hypot(pullDX,pullDY));if(!frozen){heart.vx=pullDX/pullLen*5.2;heart.vy=pullDY/pullLen*5.2;heart.x+=heart.vx;heart.y+=heart.vy;heart.x=Math.max(heart.hitbox,Math.min(400-heart.hitbox,heart.x));heart.y=Math.max(55+heart.hitbox,Math.min(500-heart.hitbox,heart.y));if(pullLen<64&&now-Number(tent.clawHitAt||0)>320){tent.clawHitAt=now;st._multiHitActive=true;applyHit(2,"КЛЕШНИ: ЗАХВАТ!",false,true);heart.vx=(heart.x-tent.originX)*.045;heart.vy=(heart.y-tent.originY)*.045;spawnFloatingText(heart.x,heart.y-20,"КЛЕШНИ СЖАЛИСЬ!","#ff9b8f");}}ctx.save();ctx.translate(tent.originX,tent.originY);ctx.rotate(tent.angle+Math.PI);ctx.fillStyle="#c3ccd5";ctx.strokeStyle="#fff0d4";ctx.lineWidth=2;ctx.fillRect(-24,-20,48,40);ctx.strokeRect(-24,-20,48,40);ctx.fillStyle="#4c5966";for(var clawFinger=-1;clawFinger<=1;clawFinger++){ctx.beginPath();ctx.moveTo(-22,clawFinger*11-4);ctx.lineTo(-38,clawFinger*11);ctx.lineTo(-22,clawFinger*11+4);ctx.closePath();ctx.fill();ctx.beginPath();ctx.moveTo(22,clawFinger*11-4);ctx.lineTo(38,clawFinger*11);ctx.lineTo(22,clawFinger*11+4);ctx.closePath();ctx.fill();}ctx.restore();}
-            if(!frozen&&ageT>500&&ageT<1500&&progressT>.1&&!tent.caught&&arenaExtLineTouchesHeart(tent.x,tent.y,tx,ty,16)&&arenaExtTouchCooldown(st,"tentacle_"+ti,now,900)){tent.caught=true;tent.caughtAt=t;tent.clawHitAt=0;heart.vx=0;heart.vy=0;spawnFloatingText(heart.x,heart.y-18,"ЩУПАЛЬЦЕ СХВАТИЛО!","#e5b08d");}
+            if(tent.caught&&ageT<1850){var pullDX=tent.originX-heart.x,pullDY=tent.originY-heart.y,pullLen=Math.max(1,Math.hypot(pullDX,pullDY));if(!frozen){heart.vx=pullDX/pullLen*Math.min(12,7.0*extWaveDanger);heart.vy=pullDY/pullLen*Math.min(12,7.0*extWaveDanger);heart.x+=heart.vx;heart.y+=heart.vy;heart.x=Math.max(heart.hitbox,Math.min(400-heart.hitbox,heart.x));heart.y=Math.max(55+heart.hitbox,Math.min(500-heart.hitbox,heart.y));if(pullLen<96&&now-Number(tent.clawHitAt||0)>240){tent.clawHitAt=now;st._multiHitActive=true;applyHit(extImpactDamage,"КЛЕШНИ: ЗАХВАТ!",false,true);heart.vx=(heart.x-tent.originX)*.045;heart.vy=(heart.y-tent.originY)*.045;spawnFloatingText(heart.x,heart.y-20,"КЛЕШНИ СЖАЛИСЬ!","#ff9b8f");}}ctx.save();ctx.translate(tent.originX,tent.originY);ctx.rotate(tent.angle+Math.PI);ctx.fillStyle="#c3ccd5";ctx.strokeStyle="#fff0d4";ctx.lineWidth=2;ctx.fillRect(-24,-20,48,40);ctx.strokeRect(-24,-20,48,40);ctx.fillStyle="#4c5966";for(var clawFinger=-1;clawFinger<=1;clawFinger++){ctx.beginPath();ctx.moveTo(-22,clawFinger*11-4);ctx.lineTo(-38,clawFinger*11);ctx.lineTo(-22,clawFinger*11+4);ctx.closePath();ctx.fill();ctx.beginPath();ctx.moveTo(22,clawFinger*11-4);ctx.lineTo(38,clawFinger*11);ctx.lineTo(22,clawFinger*11+4);ctx.closePath();ctx.fill();}ctx.restore();}
+            if(!frozen&&ageT>500&&ageT<1500&&progressT>.1&&!tent.caught&&arenaExtLineTouchesHeart(tent.x,tent.y,tx,ty,27)&&arenaExtTouchCooldown(st,"tentacle_"+ti,now,650)){tent.caught=true;tent.caughtAt=t;tent.clawHitAt=0;heart.vx=0;heart.vy=0;st._multiHitActive=true;applyHit(extImpactDamage,"ЩУПАЛЬЦЕ: ХВАТКА!",false,true);spawnFloatingText(heart.x,heart.y-18,"ЩУПАЛЬЦЕ СХВАТИЛО!","#e5b08d");}
         }
     }
 
@@ -1327,11 +1330,11 @@ function updateExtendedArenaAttack(now) {
     if (st.type === 18) {
         // Clear the slow immediately after the player leaves every gear hitbox.
         st.gearSlowUntil = 0;
-        if (t >= st.nextSpawnAt && st.hazards.length < 7) {
-            var spawnCountG = st.hazards.length < 2 ? 2 - st.hazards.length : 1;
-            for (var gs0 = 0; gs0 < spawnCountG && st.hazards.length < 7; gs0++) {
-                var sideG = Math.floor(Math.random() * 4), rG = 19 + Math.random() * 9;
-                var speedG = 2.65 + Math.random() * 1.1, alongG = (Math.random() - 0.5) * 2.8;
+        if (t >= st.nextSpawnAt && st.hazards.length < 9) {
+            var spawnCountG = st.hazards.length < 3 ? 3 - st.hazards.length : (Math.random()<0.42?2:1);
+            for (var gs0 = 0; gs0 < spawnCountG && st.hazards.length < 9; gs0++) {
+                var sideG = Math.floor(Math.random() * 4), rG = (23 + Math.random() * 11) * Math.min(1.35,extWaveDanger);
+                var speedG = (3.8 + Math.random() * 1.5) * extWaveDanger, alongG = (Math.random() - 0.5) * 3.8 * extWaveDanger;
                 var gx, gy, gvx, gvy;
                 if (sideG === 0) { gx = rG + 8; gy = 82 + Math.random() * 390; gvx = speedG; gvy = alongG; }
                 else if (sideG === 1) { gx = 400 - rG - 8; gy = 82 + Math.random() * 390; gvx = -speedG; gvy = alongG; }
@@ -1339,7 +1342,7 @@ function updateExtendedArenaAttack(now) {
                 else { gx = 30 + Math.random() * 340; gy = 492 - rG; gvx = alongG; gvy = -speedG; }
                 st.hazards.push({ x:gx, y:gy, vx:gvx, vy:gvy, r:rG, born:t, age:0, rot:Math.random()*Math.PI*2, trail:[], nextContactHitAt:0, lastClankAt:0, lastWallBounceAt:0, roll:Math.random()*Math.PI*2 });
             }
-            st.nextSpawnAt = t + (st.hazards.length < 5 ? 1050 : 1450);
+            st.nextSpawnAt = t + Math.max(260, (st.hazards.length < 6 ? 760 : 1050) / extWaveDanger);
         }
         var frameScaleG = Math.max(0, Math.min(3, delta / 16.667));
         for (var gm = 0; gm < st.hazards.length; gm++) {
@@ -1415,9 +1418,9 @@ function updateExtendedArenaAttack(now) {
                 st._multiHitActive = true;
                 st.gearSlowUntil = now + 40;
                 if (now >= Number(gear.nextContactHitAt || 0)) {
-                    gear.nextContactHitAt = now + 105; arenaShake = Math.max(arenaShake, 10);
+                    gear.nextContactHitAt = now + 145; arenaShake = Math.max(arenaShake, 10);
                     for (var hpG = 0; hpG < 9; hpG++) arenaParticles.push({x:heart.x,y:heart.y,vx:(Math.random()-0.5)*9,vy:(Math.random()-0.5)*9,life:19,maxLife:19,color:hpG%2?"#ff9b32":"#fff2c6",size:2.2+Math.random()*3});
-                    applyHit(1, "ШЕСТЕРНЯ: МУЛЬТИ-УДАР!", false, true);
+                    applyHit(extImpactDamage, "ШЕСТЕРНЯ: МУЛЬТИ-УДАР!", false, true);
                 }
             }
         }
@@ -1427,14 +1430,14 @@ function updateExtendedArenaAttack(now) {
     if (st.type === 19) {
         if (!frozen && st.vineSnare && now < st.vineSnare.until) {
             var rootDX=st.vineSnare.x-heart.x,rootDY=st.vineSnare.y-heart.y,rootDist=Math.max(1,Math.hypot(rootDX,rootDY));
-            heart.vx += rootDX/rootDist*0.36;
-            heart.vy += rootDY/rootDist*0.36;
+            heart.vx += rootDX/rootDist*0.62*extWaveDanger;
+            heart.vy += rootDY/rootDist*0.62*extWaveDanger;
         }
         if (t >= st.nextSpawnAt) {
             var gardenWave = Number(st.gardenWave || 0);
             st.gardenWave = gardenWave + 1;
-            var gardenCount = Math.min(5, 1 + Math.floor(gardenWave * 0.5));
-            for (var gardenSpawn = 0; gardenSpawn < gardenCount && st.hazards.length < 14; gardenSpawn++) {
+            var gardenCount = Math.min(7, 2 + Math.floor(gardenWave * 0.7));
+            for (var gardenSpawn = 0; gardenSpawn < gardenCount && st.hazards.length < 18; gardenSpawn++) {
                 var sideV = Math.floor(Math.random() * 4), root = arenaExtNewEdge(sideV, 14);
                 var pointsV = [{x:root.x,y:root.y}], angleV = sideV === 0 ? 0 : sideV === 1 ? Math.PI : sideV === 2 ? Math.PI/2 : -Math.PI/2;
                 for (var vi = 0; vi < 4; vi++) {
@@ -1445,7 +1448,7 @@ function updateExtendedArenaAttack(now) {
                 }
                 st.hazards.push({ born:t, points:pointsV, gardenWave:gardenWave, duration:3500*(1+gardenWave*0.5) });
             }
-            st.nextSpawnAt = t + Math.max(300, 1020/(1+gardenWave*0.5));
+            st.nextSpawnAt = t + Math.max(180, 820/(1+gardenWave*0.5)/extWaveDanger);
         }
         for (var vi2 = st.hazards.length - 1; vi2 >= 0; vi2--) {
             var vine = st.hazards[vi2], ageV = t - vine.born, vineDuration = vine.duration || 3500;
@@ -1460,10 +1463,10 @@ function updateExtendedArenaAttack(now) {
                 var ratioV = Math.max(0, Math.min(1, segmentAge / 280));
                 var exV = vine.points[vs].x + (vine.points[vs+1].x - vine.points[vs].x) * ratioV;
                 var eyV = vine.points[vs].y + (vine.points[vs+1].y - vine.points[vs].y) * ratioV;
-                arenaExtDrawSegment(vine.points[vs].x, vine.points[vs].y, exV, eyV, 13, ageV > 1400 ? "#7d9e4c" : "#b0dc69", 0.95, false);
+                arenaExtDrawSegment(vine.points[vs].x, vine.points[vs].y, exV, eyV, 19, ageV > 1400 ? "#7d9e4c" : "#b0dc69", 0.95, false);
                 var dxV = exV - vine.points[vs].x, dyV = eyV - vine.points[vs].y, lenV = Math.max(1, Math.hypot(dxV,dyV)), nxV = -dyV / lenV, nyV = dxV / lenV;
                 for (var th = 0; th < 3; th++) { var tu = 0.24 + th * 0.25; if (tu > ratioV) continue; var txV = vine.points[vs].x + dxV * tu, tyV = vine.points[vs].y + dyV * tu; ctx.save(); ctx.fillStyle = "#e7ff9d"; ctx.strokeStyle = "#547c35"; ctx.lineWidth = 1; ctx.shadowColor = "#caff6f"; ctx.shadowBlur = 7; ctx.beginPath(); ctx.moveTo(txV + nxV * 2, tyV + nyV * 2); ctx.lineTo(txV + nxV * 12 - dxV / lenV * 3, tyV + nyV * 12 - dyV / lenV * 3); ctx.lineTo(txV - nxV * 4, tyV - nyV * 4); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
-                if(ageV>610&&ratioV>.4&&ageV<vineDuration-250&&arenaExtLineTouchesHeart(vine.points[vs].x,vine.points[vs].y,exV,eyV,13)){st.vineSlowUntil=now+460;st.vineSnare={x:vine.points[0].x,y:vine.points[0].y,until:now+680};heart.vx*=.78;heart.vy*=.78;if(arenaExtTouchCooldown(st,"vine_"+vi2+"_"+vs,now,260)){st._multiHitActive=true;applyHit(1,"САД ШИПОВ: УКОЛ!",false,true);spawnFloatingText(heart.x,heart.y-18,"КОРНИ СХВАТИЛИ!","#d7f3a5");}}
+                if(ageV>610&&ratioV>.4&&ageV<vineDuration-180&&arenaExtLineTouchesHeart(vine.points[vs].x,vine.points[vs].y,exV,eyV,19)){st.vineSlowUntil=now+460;st.vineSnare={x:vine.points[0].x,y:vine.points[0].y,until:now+680};heart.vx*=.78;heart.vy*=.78;if(arenaExtTouchCooldown(st,"vine_"+vi2+"_"+vs,now,180)){st._multiHitActive=true;applyHit(extImpactDamage,"САД ШИПОВ: ПРОКОЛ!",false,true);spawnFloatingText(heart.x,heart.y-18,"КОРНИ СХВАТИЛИ!","#d7f3a5");}}
             }
             ctx.save(); ctx.fillStyle = warningV ? "#eaffbd" : "#7d9e4c"; ctx.beginPath(); ctx.arc(vine.points[0].x, vine.points[0].y, warningV ? 7 : 5, 0, Math.PI*2); ctx.fill(); ctx.restore();
         }
@@ -1482,7 +1485,7 @@ function updateExtendedArenaAttack(now) {
                 x2: horizontal ? 438 : lane, y2: horizontal ? lane : 538,
                 holdUntil: 0, didSlam: false
             };
-            st.nextSpawnAt = t + 1700;
+            st.nextSpawnAt = t + Math.max(360, 1180 / extWaveDanger);
         }
         var pair = st.clawPair;
         if (pair) {
@@ -1493,7 +1496,7 @@ function updateExtendedArenaAttack(now) {
             var leftY = horizontalC ? laneC : pair.y1;
             var rightX = horizontalC ? pair.x2 : laneC;
             var rightY = horizontalC ? laneC : pair.y2;
-            var stepC = Math.min(18, Math.max(0, delta) * 0.42);
+            var stepC = Math.min(25, Math.max(0, delta) * 0.56 * extWaveDanger);
             if (pair.phase === "approach") {
                 // Two fists rush in from opposite edges and collide at the center.
                 if (horizontalC) {
@@ -1508,17 +1511,17 @@ function updateExtendedArenaAttack(now) {
                 rightX = horizontalC ? pair.x2 : laneC;
                 rightY = horizontalC ? laneC : pair.y2;
                 var nearFirst = horizontalC
-                    ? Math.abs(heart.y - laneC) < 35 && Math.abs(heart.x - leftX) < 35
-                    : Math.abs(heart.x - laneC) < 35 && Math.abs(heart.y - leftY) < 35;
+                    ? Math.abs(heart.y - laneC) < 54 && Math.abs(heart.x - leftX) < 52
+                    : Math.abs(heart.x - laneC) < 52 && Math.abs(heart.y - leftY) < 54;
                 var nearSecond = horizontalC
-                    ? Math.abs(heart.y - laneC) < 35 && Math.abs(heart.x - rightX) < 35
-                    : Math.abs(heart.x - laneC) < 35 && Math.abs(heart.y - rightY) < 35;
+                    ? Math.abs(heart.y - laneC) < 54 && Math.abs(heart.x - rightX) < 52
+                    : Math.abs(heart.x - laneC) < 52 && Math.abs(heart.y - rightY) < 54;
                 if (nearFirst || nearSecond) {
-                    st._multiHitActive=true;applyHit(1,"КЛЕШНЯ: ЗАХВАТ!",false,true);
+                    st._multiHitActive=true;applyHit(extImpactDamage,"КЛЕШНЯ: ЗАХВАТ!",false,true);
                     pair.phase = "caught";
                     pair.grabSide = nearFirst ? "first" : "second";
                     pair.caughtAt = t;
-                    pair.holdUntil = t + 420;
+                    pair.holdUntil = t + 560;
                     pair.caughtX = heart.x;
                     pair.caughtY = heart.y;
                     arenaShake = Math.max(arenaShake, 5);
@@ -1532,7 +1535,7 @@ function updateExtendedArenaAttack(now) {
                 }
             } else if (pair.phase === "caught") {
                 // Both fists drag the captured heart toward their collision point.
-                var playerCarryStep = Math.min(12, Math.max(0, delta) * 0.42 * 0.9);
+                var playerCarryStep = Math.min(16, Math.max(0, delta) * 0.52 * extWaveDanger);
                 if (horizontalC) {
                     pair.x1 = Math.min(meetC - 18, pair.x1 + stepC * 0.72);
                     pair.x2 = Math.max(meetC + 18, pair.x2 - stepC * 0.72);
@@ -1555,10 +1558,10 @@ function updateExtendedArenaAttack(now) {
                     screenFlash = Math.max(screenFlash, 4);
                     playArenaSound(90, "sawtooth", 0.2, 0.08);
                     var nearMeeting = horizontalC
-                        ? Math.abs(heart.x - meetC) < 82 && Math.abs(heart.y - laneC) < 82
-                        : Math.abs(heart.x - laneC) < 82 && Math.abs(heart.y - meetC) < 82;
+                        ? Math.abs(heart.x - meetC) < 108 && Math.abs(heart.y - laneC) < 100
+                        : Math.abs(heart.x - laneC) < 100 && Math.abs(heart.y - meetC) < 108;
                     if (nearMeeting) {
-                        st._multiHitActive=true;applyHit(2,"КЛЕШНИ: СТАЛКИВАЮТСЯ!",false,true);
+                        st._multiHitActive=true;applyHit(extImpactDamage,"КЛЕШНИ: РАЗДАВИЛИ!",false,true);
                         // Rebound away from the fist that delivered the slam.
                         var awaySign = pair.grabSide === "first" ? -1 : 1;
                         if (horizontalC) {
@@ -1609,19 +1612,19 @@ function updateExtendedArenaAttack(now) {
                 ctx.lineWidth = 2;
                 ctx.shadowColor = "#ffc66f";
                 ctx.shadowBlur = 12;
-                ctx.fillRect(-25, -22, 50, 44);
-                ctx.strokeRect(-25, -22, 50, 44);
+                ctx.fillRect(-38, -30, 76, 60);
+                ctx.strokeRect(-38, -30, 76, 60);
                 ctx.fillStyle = "#4c5966";
                 for (var qC = -1; qC <= 1; qC++) {
                     ctx.beginPath();
                     if (horizontalC) {
-                        ctx.moveTo(flip ? -24 : 24, qC * 12 - 5);
-                        ctx.lineTo(flip ? -38 : 38, qC * 12);
-                        ctx.lineTo(flip ? -24 : 24, qC * 12 + 5);
+                        ctx.moveTo(flip ? -37 : 37, qC * 15 - 7);
+                        ctx.lineTo(flip ? -58 : 58, qC * 15);
+                        ctx.lineTo(flip ? -37 : 37, qC * 15 + 7);
                     } else {
-                        ctx.moveTo(qC * 12 - 5, flip ? -24 : 24);
-                        ctx.lineTo(qC * 12, flip ? -38 : 38);
-                        ctx.lineTo(qC * 12 + 5, flip ? -24 : 24);
+                        ctx.moveTo(qC * 15 - 7, flip ? -37 : 37);
+                        ctx.lineTo(qC * 15, flip ? -58 : 58);
+                        ctx.lineTo(qC * 15 + 7, flip ? -37 : 37);
                     }
                     ctx.closePath();
                     ctx.fill();
