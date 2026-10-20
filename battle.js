@@ -1429,23 +1429,28 @@ function updateExtendedArenaAttack(now) {
             heart.vy += rootDY/rootDist*0.36;
         }
         if (t >= st.nextSpawnAt) {
-            var sideV = Math.floor(Math.random() * 4), root = arenaExtNewEdge(sideV, 14);
-            var pointsV = [{x:root.x,y:root.y}], angleV = sideV === 0 ? 0 : sideV === 1 ? Math.PI : sideV === 2 ? Math.PI/2 : -Math.PI/2;
-            for (var vi = 0; vi < 4; vi++) {
-                angleV += (Math.random() - 0.5) * 1.25;
-                var vx = Math.max(12, Math.min(388, pointsV[pointsV.length-1].x + Math.cos(angleV) * (73 + Math.random()*27)));
-                var vy = Math.max(55, Math.min(490, pointsV[pointsV.length-1].y + Math.sin(angleV) * (73 + Math.random()*27)));
-                pointsV.push({x:vx,y:vy});
+            var gardenWave = Number(st.gardenWave || 0);
+            st.gardenWave = gardenWave + 1;
+            var gardenCount = Math.min(5, 1 + Math.floor(gardenWave * 0.5));
+            for (var gardenSpawn = 0; gardenSpawn < gardenCount && st.hazards.length < 14; gardenSpawn++) {
+                var sideV = Math.floor(Math.random() * 4), root = arenaExtNewEdge(sideV, 14);
+                var pointsV = [{x:root.x,y:root.y}], angleV = sideV === 0 ? 0 : sideV === 1 ? Math.PI : sideV === 2 ? Math.PI/2 : -Math.PI/2;
+                for (var vi = 0; vi < 4; vi++) {
+                    angleV += (Math.random() - 0.5) * 1.25;
+                    var vx = Math.max(12, Math.min(388, pointsV[pointsV.length-1].x + Math.cos(angleV) * (73 + Math.random()*27)));
+                    var vy = Math.max(55, Math.min(490, pointsV[pointsV.length-1].y + Math.sin(angleV) * (73 + Math.random()*27)));
+                    pointsV.push({x:vx,y:vy});
+                }
+                st.hazards.push({ born:t, points:pointsV, gardenWave:gardenWave, duration:3500*(1+gardenWave*0.5) });
             }
-            st.hazards.push({ born:t, points:pointsV });
-            st.nextSpawnAt = t + 1020;
+            st.nextSpawnAt = t + Math.max(300, 1020/(1+gardenWave*0.5));
         }
         for (var vi2 = st.hazards.length - 1; vi2 >= 0; vi2--) {
-            var vine = st.hazards[vi2], ageV = t - vine.born;
-            if (ageV > 3500) { st.hazards.splice(vi2, 1); continue; }
-            var warningV = ageV < 440;
+            var vine = st.hazards[vi2], ageV = t - vine.born, vineDuration = vine.duration || 3500;
+            if (ageV > vineDuration) { st.hazards.splice(vi2, 1); continue; }
+            var warningV = ageV < Math.min(660,440*(1+(vine.gardenWave||0)*0.5));
             for (var vs = 0; vs < vine.points.length - 1; vs++) {
-                var segmentAge = ageV - 440 - vs * 220;
+                var segmentAge = ageV - Math.min(660,440*(1+(vine.gardenWave||0)*0.5)) - vs * Math.max(110,220/(1+(vine.gardenWave||0)*0.5));
                 if (segmentAge <= 0) {
                     arenaExtDrawSegment(vine.points[vs].x, vine.points[vs].y, vine.points[vs+1].x, vine.points[vs+1].y, 3, "#b9e88a", 0.45, true);
                     continue;
@@ -1456,7 +1461,7 @@ function updateExtendedArenaAttack(now) {
                 arenaExtDrawSegment(vine.points[vs].x, vine.points[vs].y, exV, eyV, 13, ageV > 1400 ? "#7d9e4c" : "#b0dc69", 0.95, false);
                 var dxV = exV - vine.points[vs].x, dyV = eyV - vine.points[vs].y, lenV = Math.max(1, Math.hypot(dxV,dyV)), nxV = -dyV / lenV, nyV = dxV / lenV;
                 for (var th = 0; th < 3; th++) { var tu = 0.24 + th * 0.25; if (tu > ratioV) continue; var txV = vine.points[vs].x + dxV * tu, tyV = vine.points[vs].y + dyV * tu; ctx.save(); ctx.fillStyle = "#e7ff9d"; ctx.strokeStyle = "#547c35"; ctx.lineWidth = 1; ctx.shadowColor = "#caff6f"; ctx.shadowBlur = 7; ctx.beginPath(); ctx.moveTo(txV + nxV * 2, tyV + nyV * 2); ctx.lineTo(txV + nxV * 12 - dxV / lenV * 3, tyV + nyV * 12 - dyV / lenV * 3); ctx.lineTo(txV - nxV * 4, tyV - nyV * 4); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
-                if(ageV>610&&ratioV>.4&&ageV<3250&&arenaExtLineTouchesHeart(vine.points[vs].x,vine.points[vs].y,exV,eyV,13)){st.vineSlowUntil=now+460;st.vineSnare={x:vine.points[0].x,y:vine.points[0].y,until:now+680};heart.vx*=.78;heart.vy*=.78;if(arenaExtTouchCooldown(st,"vine_"+vi2+"_"+vs,now,260))spawnFloatingText(heart.x,heart.y-18,"КОРНИ СХВАТИЛИ!","#d7f3a5");}
+                if(ageV>610&&ratioV>.4&&ageV<vineDuration-250&&arenaExtLineTouchesHeart(vine.points[vs].x,vine.points[vs].y,exV,eyV,13)){st.vineSlowUntil=now+460;st.vineSnare={x:vine.points[0].x,y:vine.points[0].y,until:now+680};heart.vx*=.78;heart.vy*=.78;if(arenaExtTouchCooldown(st,"vine_"+vi2+"_"+vs,now,260)){st._multiHitActive=true;applyHit(1,"САД ШИПОВ: УКОЛ!",false,true);spawnFloatingText(heart.x,heart.y-18,"КОРНИ СХВАТИЛИ!","#d7f3a5");}}
             }
             ctx.save(); ctx.fillStyle = warningV ? "#eaffbd" : "#7d9e4c"; ctx.beginPath(); ctx.arc(vine.points[0].x, vine.points[0].y, warningV ? 7 : 5, 0, Math.PI*2); ctx.fill(); ctx.restore();
         }
@@ -1507,6 +1512,7 @@ function updateExtendedArenaAttack(now) {
                     ? Math.abs(heart.y - laneC) < 35 && Math.abs(heart.x - rightX) < 35
                     : Math.abs(heart.x - laneC) < 35 && Math.abs(heart.y - rightY) < 35;
                 if (nearFirst || nearSecond) {
+                    st._multiHitActive=true;applyHit(1,"КЛЕШНЯ: ЗАХВАТ!",false,true);
                     pair.phase = "caught";
                     pair.grabSide = nearFirst ? "first" : "second";
                     pair.caughtAt = t;
@@ -1550,6 +1556,7 @@ function updateExtendedArenaAttack(now) {
                         ? Math.abs(heart.x - meetC) < 82 && Math.abs(heart.y - laneC) < 82
                         : Math.abs(heart.x - laneC) < 82 && Math.abs(heart.y - meetC) < 82;
                     if (nearMeeting) {
+                        st._multiHitActive=true;applyHit(2,"КЛЕШНИ: СТАЛКИВАЮТСЯ!",false,true);
                         // Rebound away from the fist that delivered the slam.
                         var awaySign = pair.grabSide === "first" ? -1 : 1;
                         if (horizontalC) {
