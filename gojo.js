@@ -5,8 +5,8 @@ function card(){try{return typeof getMainCard==="function"?getMainCard():null}ca
 function isAdminPlayer(){try{return typeof mode!=="undefined"&&mode==="moder"}catch(e){return false}}
 function getBattleContext(){try{return typeof getBossContext==="function"?getBossContext():null}catch(e){return null}}
 function unique(c){return !!c&&["stone","waystar","rwb","antispiral"].indexOf(c.type)>=0}
-function active(c){var x=card();return !!(x&&x.name===N&&c&&(c.type==="arena"||unique(c)))}
-function unlocked(x,c){return c&&x&&(c.type==="arena"?(typeof hasMasterySuper!=="function"||hasMasterySuper(x)):(typeof hasMasteryUniqueSuper!=="function"||hasMasteryUniqueSuper(x)))}
+function active(c){var x=card();return !!(x&&(x.name===N||x.name==="Годжо (флешбек)")&&c&&(c.type==="arena"||unique(c)))}
+function unlocked(x,c){if(window.__mbBossTestMode&&window.__mbBossTestAbilityMode==="ultimate"&&x&&(x.name===N||x.name==="Годжо (флешбек)"))return true;return c&&x&&(c.type==="arena"?(typeof hasMasterySuper!=="function"||hasMasterySuper(x)):(typeof hasMasteryUniqueSuper!=="function"||hasMasteryUniqueSuper(x)))}
 function passive(){try{var x=card();return !!(x&&x.name===N&&(typeof hasMasteryStatus!=="function"||hasMasteryStatus(x)))}catch(e){return false}}
 window.gojoTryNegateIncoming=function(){if(!passive()||Math.random()>=.3)return false;var c=getBattleContext();if(c&&c.spawnFloatingText)c.spawnFloatingText(c.getHeartX(),c.getHeartY()-22,"♾️ ГОДЖО ОТМЕНИЛ УРОН!","#9ceaff");else if(typeof showFloatingText==="function")showFloatingText("♾️ ГОДЖО ОТМЕНИЛ УРОН!","#9ceaff");if(c&&c.addFlash)c.addFlash(4,"#80dfff");return true};
 function lists(c){var r=[];try{var a=c.getAttacks();if(Array.isArray(a))r.push(a)}catch(e){}try{var b=c.getBlasters();if(Array.isArray(b)&&r.indexOf(b)<0)r.push(b)}catch(e){}return r}
