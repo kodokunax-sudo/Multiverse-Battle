@@ -2,6 +2,62 @@
 "use strict";
 var attackNames=["⬜ Стены","🔷 Хаос","⚡ Жёлтые мечи","🔺 Красные треугольники","💗 Розовый удар","💚 Зелёное лечение","🌈 Радужная смерть","⚡🛑 Микс атак","🟥⬜ Опасные зоны","💣 Бомбы","🔫 Бластеры","⚙️ Маятники","⛓️ Живые тросы","☣️ Кислотная карта","🌪️ Штормовой коридор","🪃 Бумеранги","🌋 Расколотая земля","🐙 Охота щупалец","⚙️ Шестерёнчатая погоня","🌿 Сад шипов","🦾 Клешни"];
 var uniqueWaves=[200,500,1000,1500,2000], cards=[];
+var TEST_SETTINGS_KEY="mb_boss_test_settings_v1", restoringTestSettings=false;
+function loadBossTestSettings(){
+    try {
+        var saved=JSON.parse(localStorage.getItem(TEST_SETTINGS_KEY)||"null");
+        return saved&&typeof saved==="object"&&!Array.isArray(saved)?saved:null;
+    } catch(e){return null;}
+}
+function saveBossTestSettings(){
+    if(restoringTestSettings)return;
+    try {
+        var boss=E("bossTestBossSelect"),waveInput=E("bossTestAttackWave"),ability=E("bossTestAbilityMode"),main=E("bossTestMainCard");
+        var card=main?cards[Number(main.value)]||null:null;
+        var checked=Array.from(document.querySelectorAll("#bossTestAttackList input[data-boss-test-attack]:checked"))
+            .map(function(i){return Number(i.dataset.bossTestAttack);});
+        localStorage.setItem(TEST_SETTINGS_KEY,JSON.stringify({
+            bossWave:boss?String(boss.value):"0",
+            attackWave:waveInput?clampNumber(waveInput.value,50,50,10000):50,
+            attackTypes:checked,
+            abilityMode:ability&&ability.value==="ultimate"?"ultimate":"passive",
+            mainCardName:card?String(card.name||""):"",
+            mainCardUniverse:card?String(card.universe||""):"",
+            mainCardRarity:card?String(card.rarity||""):""
+        }));
+    } catch(e){}
+}
+function restoreBossTestSettings(saved){
+    if(!saved)return false;
+    restoringTestSettings=true;
+    try {
+        var boss=E("bossTestBossSelect"),ability=E("bossTestAbilityMode");
+        if(boss&&saved.bossWave!==undefined&&Array.from(boss.options).some(function(o){return o.value===String(saved.bossWave);}))boss.value=String(saved.bossWave);
+        if(ability&&(saved.abilityMode==="passive"||saved.abilityMode==="ultimate"))ability.value=saved.abilityMode;
+        if(Array.isArray(saved.attackTypes)){
+            var selected=new Set(saved.attackTypes.map(Number));
+            document.querySelectorAll("#bossTestAttackList input[data-boss-test-attack]").forEach(function(input){
+                input.checked=selected.has(Number(input.dataset.bossTestAttack));
+            });
+        }
+        window.renderBossTestOptions();
+        if(saved.attackWave!==undefined)window.syncBossTestWave(saved.attackWave);
+        window.renderBossTestMainCards();
+        var main=E("bossTestMainCard");
+        if(main&&saved.mainCardName){
+            var wanted=Array.from(main.options).find(function(o){
+                var c=cards[Number(o.value)];
+                return !!c&&c.name===saved.mainCardName&&
+                    (!saved.mainCardUniverse||String(c.universe||"")===saved.mainCardUniverse)&&
+                    (!saved.mainCardRarity||String(c.rarity||"")===saved.mainCardRarity);
+            });
+            if(wanted)main.value=wanted.value;
+        }
+        window.showBossTestAbilityDescription();
+    } finally {restoringTestSettings=false;}
+    saveBossTestSettings();
+    return true;
+}
 function E(id){return document.getElementById(id);}
 function isModerator(){try{return typeof mode!=="undefined"&&mode==="moder"&&typeof moderUnlocked!=="undefined"&&moderUnlocked===true;}catch(e){return false;}}
 function clampNumber(value,fallback,min,max){var n=Number(value);if(!Number.isFinite(n))n=Number(fallback);if(!Number.isFinite(n))n=min;return Math.max(min,Math.min(max,n));}
@@ -40,15 +96,44 @@ window.MBBossTestModifyOutgoingDamage=function(d,ratio){var m=window.__mbBossTes
 window.MBBossTestModifyIncomingDamage=function(d,source){var m=window.__mbBossTestMode;if(!m||m.abilityMode!=="passive"||!m.passive)return d;var a=m.passive,t=a.type,v=Number(a.value)||0,n=Math.max(0,Number(d)||0);if(t==="damageReduction"||t==="absoluteFreeze")n*=1-Math.max(0,Math.min(.95,v));else if(t==="dmgTakenIncrease")n*=1+Math.max(0,v);else if(t==="takabaConfidence")n*=.6;else if(t==="gojoDodge"&&Math.random()<Math.max(0,Math.min(1,Number(a.chance)||0)))return 0;else if(t==="resurrect"&&!m.passiveRevived){var hp=null,max=null;if(source==="arena"&&typeof arenaHP!=="undefined"){hp=arenaHP;max=arenaMaxHP;}else if(source==="stone"&&typeof livingStonePlayerHp!=="undefined"){hp=livingStonePlayerHp;max=livingStonePlayerMaxHp;}else if(source==="waystar"&&typeof waystarPlayerHp!=="undefined"){hp=waystarPlayerHp;max=waystarPlayerMaxHp;}else if(source==="rwb"&&window.getRWBPlayer){var p=window.getRWBPlayer();if(p){hp=p.hp;max=p.maxHp;}}else if(source==="antispiral"&&window.getAntiSpiralPlayerHp){hp=window.getAntiSpiralPlayerHp();max=window.getAntiSpiralPlayerMaxHp();}else if(source==="stoneSuper"&&window.getLivingStoneSuperHeart){var soul=window.getLivingStoneSuperHeart();hp=soul.hp;max=soul.maxHp;}if(hp!==null&&hp-n<=0&&Math.random()<Math.max(0,Math.min(1,Number(a.chance)||0))){m.passiveRevived=true;var rev=Math.max(1,Math.floor((Number(max)||100)*.25));if(source==="arena")arenaHP=rev;else if(source==="stone")livingStonePlayerHp=rev;else if(source==="waystar")waystarPlayerHp=rev;else if(source==="rwb"&&window.getRWBPlayer){var rp=window.getRWBPlayer();if(rp)rp.hp=rev;}else if(source==="antispiral"&&window.setAntiSpiralPlayerHp)window.setAntiSpiralPlayerHp(rev);else if(source==="stoneSuper"&&window.setLivingStoneSuperPlayerHp)window.setLivingStoneSuperPlayerHp(rev);var hpEl=E("arenaHP");if(hpEl)hpEl.textContent=rev;return 0;}}return Math.max(0,Math.floor(n));};
 function testBossHpRemaining(m){if(m.kind==="arena")return Math.max(1,Number(typeof arenaBossMaxHP!=="undefined"?arenaBossMaxHP:1)||1);if(m.bossWave===200)return Math.max(1,Number(typeof livingStoneBossHp!=="undefined"?livingStoneBossHp:1)||1);if(m.bossWave===500)return Math.max(1,Number(typeof waystarBossHp!=="undefined"?waystarBossHp:1)||1);if(m.bossWave===1000&&window.getRWBActiveBoss){var b=window.getRWBActiveBoss();if(b)return Math.max(1,Number(b.hp)||1);}if(m.bossWave===1500&&window.getAntiSpiralBossHp)return Math.max(1,Number(window.getAntiSpiralBossHp())||1);if(m.bossWave===2000&&window.getLivingStoneSuperBossHp)return Math.max(1,Number(window.getLivingStoneSuperBossHp())||1);return 1;}
 function getSupport(c){return c&&(c.ability||c.statusAbility);}
-function hasUltimate(c){return !!(c&&c.superAbility&&typeof superAbilities!=="undefined"&&superAbilities[c.name]);}
-window.renderBossTestOptions=function(){var s=E("bossTestBossSelect");if(!s)return;var w=Number(s.value),u=isUnique(w);if(E("bossTestRegularSettings"))E("bossTestRegularSettings").style.display=u?"none":"block";if(E("bossTestUniqueNotice"))E("bossTestUniqueNotice").style.display=u?"block":"none";if(E("bossTestStartBtn"))E("bossTestStartBtn").textContent=u?"⚔️ НАЧАТЬ УНИКАЛЬНЫЙ БОЙ":"⚔️ НАЧАТЬ ТЕСТОВЫЙ БОЙ";if(!u)window.syncBossTestWave(w);};
-window.syncBossTestWave=function(v){var i=E("bossTestAttackWave"),r=E("bossTestAttackWaveRange"),w=Math.round(clampNumber(v!==undefined?v:(i?i.value:50),50,50,10000)/50)*50;if(i)i.value=w;if(r)r.value=w;};
-window.setBossTestAttacks=function(v){document.querySelectorAll("#bossTestAttackList input[data-boss-test-attack]").forEach(function(b){b.checked=!!v;});};
+function hasUltimate(c){
+    if(!c)return false;
+    if(c.superAbility&&typeof superAbilities!=="undefined"&&superAbilities[c.name])return true;
+    // These SUPER controls are implemented by dedicated systems instead of superAbilities.
+    if(c.name==="ДИО Over Heaven"&&c.superAbility&&typeof window.isDioOverHeavenCard==="function")return true;
+    if(c.name==="Годжо (флешбек)"&&typeof window.gojoUpdatePanel==="function")return true;
+    if(c.name==="Белоус"&&c.ability&&c.ability.type==="whitebeardSpecial"&&typeof window.useWhitebeardSkill==="function")return true;
+    if(typeof window.MBIsStandUserCard==="function"&&window.MBIsStandUserCard(c))return true;
+    return false;
+}
+window.renderBossTestOptions=function(){var s=E("bossTestBossSelect");if(!s)return;var w=Number(s.value),u=isUnique(w);if(E("bossTestRegularSettings"))E("bossTestRegularSettings").style.display=u?"none":"block";if(E("bossTestUniqueNotice"))E("bossTestUniqueNotice").style.display=u?"block":"none";if(E("bossTestStartBtn"))E("bossTestStartBtn").textContent=u?"⚔️ НАЧАТЬ УНИКАЛЬНЫЙ БОЙ":"⚔️ НАЧАТЬ ТЕСТОВЫЙ БОЙ";if(!u)window.syncBossTestWave(w);saveBossTestSettings();};
+window.syncBossTestWave=function(v){var i=E("bossTestAttackWave"),r=E("bossTestAttackWaveRange"),w=Math.round(clampNumber(v!==undefined?v:(i?i.value:50),50,50,10000)/50)*50;if(i)i.value=w;if(r)r.value=w;saveBossTestSettings();};
+window.setBossTestAttacks=function(v){document.querySelectorAll("#bossTestAttackList input[data-boss-test-attack]").forEach(function(b){b.checked=!!v;});saveBossTestSettings();};
 function drawAttackChecks(){var container=E("bossTestAttackList");if(!container)return;container.textContent="";attackNames.forEach(function(name,type){var l=document.createElement("label");l.style.cssText="display:flex;gap:8px;align-items:center;padding:9px 10px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.09);border-radius:10px;font-size:12px;line-height:1.3;";var i=document.createElement("input");i.type="checkbox";i.checked=true;i.dataset.bossTestAttack=String(type);i.style.cssText="accent-color:#32c6dd;flex-shrink:0;width:16px;height:16px;";var s=document.createElement("span");s.textContent=name;l.appendChild(i);l.appendChild(s);container.appendChild(l);});}
-window.renderBossTestMainCards=function(){var s=E("bossTestMainCard");if(!s)return;var mode=E("bossTestAbilityMode")?E("bossTestAbilityMode").value:"passive",old=s.value;s.textContent="";cards.forEach(function(c,i){if(mode==="ultimate"?!hasUltimate(c):!getSupport(c))return;var o=document.createElement("option");o.value=String(i);o.textContent=(c.rarity||"")+" · "+c.name;s.appendChild(o);});if(Array.from(s.options).some(function(o){return o.value===old;}))s.value=old;window.showBossTestAbilityDescription();};
-window.showBossTestAbilityDescription=function(){var box=E("bossTestAbilityDescription"),s=E("bossTestMainCard"),mode=E("bossTestAbilityMode")?E("bossTestAbilityMode").value:"passive";if(!box||!s)return;var c=cards[Number(s.value)];if(!c){box.textContent="Нет персонажа с такой реализованной способностью.";return;}if(mode==="ultimate"){var a=typeof superAbilities!=="undefined"?superAbilities[c.name]:null;box.textContent=a?(a.name+" · "+((c.superAbility&&c.superAbility.desc)||"")):"SUPER не зарегистрирован";}else{var p=getSupport(c);box.textContent=p&&p.desc?p.desc:(c.superAbility&&c.superAbility.desc)||"Пассивная способность."; }};
+window.renderBossTestMainCards=function(){var s=E("bossTestMainCard");if(!s)return;var mode=E("bossTestAbilityMode")?E("bossTestAbilityMode").value:"passive",old=s.value;s.textContent="";cards.forEach(function(c,i){if(mode==="ultimate"?!hasUltimate(c):!getSupport(c))return;var o=document.createElement("option");o.value=String(i);o.textContent=(c.rarity||"")+" · "+c.name;s.appendChild(o);});if(Array.from(s.options).some(function(o){return o.value===old;}))s.value=old;window.showBossTestAbilityDescription();saveBossTestSettings();};
+window.showBossTestAbilityDescription=function(){
+    var box=E("bossTestAbilityDescription"),select=E("bossTestMainCard"),mode=E("bossTestAbilityMode")?E("bossTestAbilityMode").value:"passive";
+    if(!box||!select)return;
+    var c=cards[Number(select.value)];
+    if(!c){box.textContent="Нет персонажа с такой реализованной способностью.";saveBossTestSettings();return;}
+    if(mode==="ultimate"){
+        var ability=typeof superAbilities!=="undefined"?superAbilities[c.name]:null;
+        if(ability)box.textContent=ability.name+" · "+((c.superAbility&&c.superAbility.desc)||"");
+        else if(c.name==="ДИО Over Heaven")box.textContent=(c.superAbility&&c.superAbility.name||"THE WORLD OVER HEAVEN")+" · "+((c.superAbility&&c.superAbility.desc)||"Отдельные навыки управляются собственной панелью ДИО.");
+        else if(c.name==="Годжо (флешбек)")box.textContent="ГОДЖО · Красный, Синий, Безграничность и Пурпурный. Панель навыков использует проклятую энергию.";
+        else if(c.name==="Белоус")box.textContent=(c.ability&&c.ability.desc)||"ГУРА-ГУРА · Удар и окно запуска цунами.";
+        else if(typeof window.MBGetStandUserInfo==="function"&&window.MBIsStandUserCard&&window.MBIsStandUserCard(c)){
+            var info=window.MBGetStandUserInfo(c);
+            box.textContent=info?(info.stand+" · "+info.trait+" · вызов стенда и его особые эффекты"):"Вызов стенда";
+        } else box.textContent=(c.superAbility&&c.superAbility.desc)||"SUPER.";
+    } else {
+        var p=getSupport(c);
+        box.textContent=p&&p.desc?p.desc:(c.superAbility&&c.superAbility.desc)||"Пассивная способность.";
+    }
+    saveBossTestSettings();
+};
 function renderBossSelect(){var s=E("bossTestBossSelect");if(!s||typeof bossTemplates==="undefined")return;s.textContent="";var generic=document.createElement("option");generic.value="0";generic.textContent="👑 Обычный босс · классическая арена";s.appendChild(generic);var keys=Object.keys(bossTemplates).map(Number).sort(function(a,b){return a-b;});keys.forEach(function(w){var t=template(w);if(!t)return;var o=document.createElement("option");o.value=String(w);o.textContent=(isUnique(w)?"🔒 ":"")+w+" волна · "+t.name;s.appendChild(o);});s.value="0";}
-function buildMode(){var w=Number(E("bossTestBossSelect")&&E("bossTestBossSelect").value),t=template(w),c=cards[Number(E("bossTestMainCard")&&E("bossTestMainCard").value)];if(!t||!c){setResult("Не удалось выбрать босса или персонажа.","#ffb0a0");return null;}var u=isUnique(w),abmode=E("bossTestAbilityMode").value,types=[];if(!u)document.querySelectorAll("#bossTestAttackList input[data-boss-test-attack]:checked").forEach(function(i){types.push(Number(i.dataset.bossTestAttack));});if(!u&&!types.length){setResult("Отметь хотя бы одну атаку.","#ffb0a0");return null;}var main={name:c.name,universe:c.universe||"",rarity:c.rarity||"",damage:Number(c.damage)||20,hp:Number(c.hp)||100,speed:Number(c.speed)||1.2,ability:c.ability?Object.assign({},c.ability):null,statusAbility:c.statusAbility?Object.assign({},c.statusAbility):null,superAbility:c.superAbility?Object.assign({},c.superAbility):null,desc:c.desc||"",__bossTestAbilityMode:abmode};return {kind:u?"unique":"arena",bossWave:w,bossName:t.name,attackWave:u?w:clampNumber(E("bossTestAttackWave")?E("bossTestAttackWave").value:50,50,50,10000),attackTypes:types,abilityMode:abmode,mainCard:main,passive:abmode==="passive"?getSupport(c):null,finishing:false,passiveRevived:false,snapshot:snap()};}
+function buildMode(){saveBossTestSettings();var w=Number(E("bossTestBossSelect")&&E("bossTestBossSelect").value),t=template(w),c=cards[Number(E("bossTestMainCard")&&E("bossTestMainCard").value)];if(!t||!c){setResult("Не удалось выбрать босса или персонажа.","#ffb0a0");return null;}var u=isUnique(w),abmode=E("bossTestAbilityMode").value,types=[];if(!u)document.querySelectorAll("#bossTestAttackList input[data-boss-test-attack]:checked").forEach(function(i){types.push(Number(i.dataset.bossTestAttack));});if(!u&&!types.length){setResult("Отметь хотя бы одну атаку.","#ffb0a0");return null;}var main={name:c.name,universe:c.universe||"",rarity:c.rarity||"",damage:Number(c.damage)||20,hp:Number(c.hp)||100,speed:Number(c.speed)||1.2,ability:c.ability?Object.assign({},c.ability):null,statusAbility:c.statusAbility?Object.assign({},c.statusAbility):null,superAbility:c.superAbility?Object.assign({},c.superAbility):null,desc:c.desc||"",__bossTestAbilityMode:abmode};return {kind:u?"unique":"arena",bossWave:w,bossName:t.name,attackWave:u?w:clampNumber(E("bossTestAttackWave")?E("bossTestAttackWave").value:50,50,50,10000),attackTypes:types,abilityMode:abmode,mainCard:main,passive:abmode==="passive"?getSupport(c):null,finishing:false,passiveRevived:false,snapshot:snap()};}
 function unlockUniqueForTest(m){if(typeof defeatedBosses!=="undefined"&&Array.isArray(defeatedBosses))for(var i=defeatedBosses.length-1;i>=0;i--)if(Number(defeatedBosses[i])===m.bossWave)defeatedBosses.splice(i,1);if(m.bossWave===500)window.waystarDefeatedThisRun=false;}
 window.startBossTestSelected=function(){if(!isModerator()){updateModeratorAccess();setResult("🔒 Тест боя с боссом доступен только модераторам.","#ffb0a0");return;}if(window.__mbBossTestMode){setResult("Сначала заверши текущий тестовый бой.","#ffb0a0");return;}var m=buildMode();if(!m)return;window.__mbBossTestMode=m;window.__mbBossTestMainCard=m.mainCard;window.__mbBossTestAbilityMode=m.abilityMode;window.__mbBossTestPassive=m.passive;window.__mbBossTestSuperHitUsed=false;if(m.kind==="arena"){setResult("HP босса рассчитано на 5 идеальных ударов. Наград нет.","#9dffc0");exitControl(m);try{startArena(m.bossWave);if(typeof updateSuperButton==="function")updateSuperButton();}catch(e){console.error("[BossTest] start arena",e);window.MBBossTestFinish("error",false);}return;}unlockUniqueForTest(m);if(typeof wave!=="undefined")wave=m.bossWave;if(typeof currentEnemy!=="undefined"){var t=template(m.bossWave),hp=Math.max(1000,Math.floor((50+m.bossWave*12)*(Number(t.hpMult)||10)));currentEnemy={name:t.name,hp:hp,maxHp:hp,damage:Math.floor((15+m.bossWave*6)*(Number(t.dmgMult)||1)/2),isBoss:true};}exitControl(m);setResult("Запущен уникальный бой со своими механиками. Наград и записи победы не будет.","#9dffc0");try{if(m.bossWave===200)startLivingStoneFight();else if(m.bossWave===500)startWaystarFight();else if(m.bossWave===1000)startRogerWhitebeardFight();else if(m.bossWave===1500)window.startAntiSpiralBossFight();else if(m.bossWave===2000)window.startLivingStoneSuperFight();if(typeof updateSuperButton==="function")updateSuperButton();}catch(e){console.error("[BossTest] start unique",e);window.MBBossTestFinish("error",false);}};
 function initialize(){
@@ -60,7 +145,18 @@ function initialize(){
         window.saveAll=function(){if(window.__mbBossTestMode)return;return originalSaveAll.apply(this,arguments);};
         window.__mbBossTestSaveWrapped=true;
     }
-    makeCards();renderBossSelect();drawAttackChecks();window.renderBossTestMainCards();window.renderBossTestOptions();updateModeratorAccess();
+    makeCards();renderBossSelect();drawAttackChecks();
+    var savedTestSettings=loadBossTestSettings();
+    if(!restoreBossTestSettings(savedTestSettings)){
+        window.renderBossTestMainCards();window.renderBossTestOptions();saveBossTestSettings();
+    }
+    var settingsPanel=E("bossTestSubTab");
+    if(settingsPanel&&!settingsPanel._bossTestSettingsBound){
+        settingsPanel.addEventListener("change",saveBossTestSettings);
+        settingsPanel.addEventListener("input",function(ev){if(ev.target&&ev.target.id==="bossTestAttackWaveRange")saveBossTestSettings();});
+        settingsPanel._bossTestSettingsBound=true;
+    }
+    updateModeratorAccess();
     if(!window.__mbBossTestAccessTimer)window.__mbBossTestAccessTimer=window.setInterval(updateModeratorAccess,1000);
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initialize);else initialize();
