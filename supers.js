@@ -644,8 +644,10 @@ function isDioOverHeavenCard(card) {
 function isDioOverHeavenMain() {
     try {
         var c = getMainCard();
+        var testUltimate = typeof window !== "undefined" && window.__mbBossTestMode &&
+            window.__mbBossTestAbilityMode === "ultimate";
         return !!(isDioOverHeavenCard(c) &&
-            (typeof hasMasteryAbility !== "function" || hasMasteryAbility(c)));
+            (testUltimate || typeof hasMasteryAbility !== "function" || hasMasteryAbility(c)));
     } catch(e) { return false; }
 }
 window.isDioOverHeavenCard = isDioOverHeavenCard;
@@ -1440,8 +1442,10 @@ function isWhitebeardMainActive() {
     try {
         if (typeof getMainCard !== "function") return false;
         var card = getMainCard();
+        var testUltimate = typeof window !== "undefined" && window.__mbBossTestMode &&
+            window.__mbBossTestAbilityMode === "ultimate";
         return !!(card && card.name === "Белоус" &&
-            (typeof hasMasteryAbility !== "function" || hasMasteryAbility(card)));
+            (testUltimate || typeof hasMasteryAbility !== "function" || hasMasteryAbility(card)));
     } catch(e) {}
     return false;
 }
@@ -1684,6 +1688,8 @@ function notifyWaystarSuperAction(superName) {
 }
 
 function toggleSuper() {
+    var isBossTestUltimate = typeof window !== "undefined" && !!window.__mbBossTestMode &&
+        window.__mbBossTestAbilityMode === "ultimate";
     if (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestAbilityMode === "passive") {
         if (typeof showFloatingText === "function") showFloatingText("В тесте выбрана пассивка, а не SUPER.", "#ffaa00");
         return;
@@ -1700,7 +1706,8 @@ function toggleSuper() {
     }
 
     var mainCard = getMainCard();
-    if (isUnique && bossType === "rwb" && mainCard && mainCard.name === "Белоус") {
+    if (mainCard && mainCard.name === "Белоус" &&
+        ((isUnique && bossType === "rwb") || isBossTestUltimate)) {
         try { useWhitebeardSkill(); } catch(e) {}
         updateSuperButton();
         return;
@@ -1731,7 +1738,7 @@ function toggleSuper() {
         return;
     }
 
-    if (isUnique) {
+    if (isUnique && !isBossTestUltimate) {
         if (getHeroCurrentCharges(mainCard.name) === null) {
             var limit = getEffectiveHeroChargeLimit(mainCard.name, bossType);
             setHeroCurrentCharges(mainCard.name, limit);
@@ -1755,7 +1762,7 @@ function toggleSuper() {
             if (typeof showFloatingText === 'function') showFloatingText("⏳ Ураган: " + Math.ceil(_allmightHurricaneCooldown) + "с", "#ffaa00");
             return;
         }
-        if (isUnique) {
+        if (isUnique && !isBossTestUltimate) {
             consumeHeroCharge(mainCard.name, bossType);
             window._uniqueSuperCharges--;
         }
@@ -1766,7 +1773,7 @@ function toggleSuper() {
 
     if (mainCard.name === "Деку (100%)") {
         if (!_superState.dekusActive) {
-            if (isUnique) {
+            if (isUnique && !isBossTestUltimate) {
                 consumeHeroCharge(mainCard.name, bossType);
                 window._uniqueSuperCharges--;
             }
@@ -1798,7 +1805,7 @@ function toggleSuper() {
         return;
     }
 
-    if (isUnique) {
+    if (isUnique && !isBossTestUltimate) {
         consumeHeroCharge(mainCard.name, bossType);
         window._uniqueSuperCharges--;
     }
@@ -1885,6 +1892,33 @@ function updateSuperButton() {
     var bossType = isUniqueBossActive();
     var isUnique = bossType !== null;
     var isArena = (typeof arenaActive !== 'undefined' && arenaActive);
+    var isBossTestUltimate = typeof window !== "undefined" && !!window.__mbBossTestMode &&
+        window.__mbBossTestAbilityMode === "ultimate";
+
+    // Whitebeard's SUPER is a dedicated two-stage attack, not a superAbilities registry entry.
+    if (isBossTestUltimate && mainCard && mainCard.name === "Белоус") {
+        var testWb = _superState;
+        btn.style.display = "block";
+        btn.disabled = false;
+        if (btn2) btn2.style.display = "none";
+        if (btnDeact) btnDeact.style.display = "none";
+        var testWbExtra = document.getElementById("whitebeardSkillBtn");
+        if (testWbExtra) testWbExtra.style.display = "none";
+        if (isArena && typeof arenaPhase !== "undefined" && arenaPhase === "attack") {
+            btn.disabled = true; btn.textContent = "⚔️ ЗАКОНЧИ АТАКУ"; btn.style.background = "#555"; btn.style.animation = "none";
+        } else if (testWb.whitebeardTsunamiPending > 0) {
+            btn.disabled = true; btn.textContent = "⏳ ЦУНАМИ (" + testWb.whitebeardTsunamiPending.toFixed(1) + "с)"; btn.style.background = "#555"; btn.style.animation = "none";
+        } else if (testWb.whitebeardSkillWindow > 0 && testWb.whitebeardSkillMode === "tsunami") {
+            btn.disabled = !!testWb.whitebeardTsunamiUsed || !!testWb.whitebeardSkillTsunamiActive;
+            btn.textContent = testWb.whitebeardTsunamiUsed ? "✅ ЦУНАМИ ЗАПУЩЕНО" : "🌊 SUPER: ЦУНАМИ (" + Math.ceil(testWb.whitebeardSkillWindow) + "с)";
+            btn.style.background = "linear-gradient(135deg,#00ccff,#0066aa)"; btn.style.animation = btn.disabled ? "none" : "superPulse 2s infinite";
+        } else if (testWb.whitebeardSkillCooldown > 0) {
+            btn.disabled = true; btn.textContent = "⏳ SUPER: БЕЛОУС (" + Math.ceil(testWb.whitebeardSkillCooldown) + "с)"; btn.style.background = "#555"; btn.style.animation = "none";
+        } else {
+            btn.textContent = "⚡ SUPER: БЕЛОУС · УДАР"; btn.style.background = "linear-gradient(135deg,#00ccff,#0066aa)"; btn.style.animation = "superPulse 2s infinite";
+        }
+        return;
+    }
 
     if (!isUnique && !isArena) {
         btn.style.display = "none";
@@ -1949,6 +1983,15 @@ function updateSuperButton() {
         return;
     }
 
+    if (isBossTestUltimate && mainCard && mainCard.name === "Годжо (флешбек)" && typeof window.gojoUpdatePanel === "function") {
+        btn.style.display = "none";
+        if (btn2) btn2.style.display = "none";
+        if (btnDeact) btnDeact.style.display = "none";
+        var testWbSkill = document.getElementById("whitebeardSkillBtn"); if (testWbSkill) testWbSkill.style.display = "none";
+        window.gojoUpdatePanel();
+        return;
+    }
+
     if (isDioOverHeavenCard(mainCard)) {
         btn.style.display = "none";
         if (btn2) btn2.style.display = "none";
@@ -1977,14 +2020,14 @@ function updateSuperButton() {
         if (btn2) btn2.style.display = "none";
         if (btnDeact) btnDeact.style.display = "none";
 
-        var heroLimit = getEffectiveHeroChargeLimit(mainCard.name, bossType);
-        var heroCurrent = getHeroCurrentCharges(mainCard.name);
-        if (heroCurrent === null) {
+        var heroLimit = isBossTestUltimate ? 999 : getEffectiveHeroChargeLimit(mainCard.name, bossType);
+        var heroCurrent = isBossTestUltimate ? 999 : getHeroCurrentCharges(mainCard.name);
+        if (!isBossTestUltimate && heroCurrent === null) {
             setHeroCurrentCharges(mainCard.name, heroLimit);
             heroCurrent = heroLimit;
         }
 
-        var chargesText = "[" + heroCurrent + "/" + heroLimit + "]";
+        var chargesText = isBossTestUltimate ? "[ТЕСТ]" : "[" + heroCurrent + "/" + heroLimit + "]";
 
         if (mainCard.name === "Деку (100%)") {
             if (!_superState.dekusActive) {
