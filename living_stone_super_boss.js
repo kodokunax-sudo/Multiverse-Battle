@@ -572,7 +572,7 @@
         } else if (isGreen) {
             c.fillText("ЩИТ: "+LS2_DIR_NAMES[ls2ShieldDir],200,235);
         } else {
-            c.fillText("ДВИЖЕНИЕ: WASD / СТРЕЛКИ",200,235);
+            c.fillText("WASD / СТРЕЛКИ · БОЙ "+Math.max(0,Math.ceil((ls2NormalDuration-ls2PhaseTimer)/60))+" СЕК.",200,235);
         }
         c.fillStyle="rgba(0,0,0,.70)"; c.fillRect(35,466,330,22);
         c.fillStyle="#e4ffeb"; c.font="bold 9px Arial,sans-serif";
@@ -616,7 +616,6 @@
         var c=ls2Ctx; c.save(); c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,400,500);
         ls2DrawBackground(c,now);
         ls2DrawStoneMonster(c,now);
-        ls2DrawUI(c);
         if (ls2Phase === "intro") {
             ls2DrawHeart(c,now);
         } else if (ls2Phase === "gravity") {
@@ -643,6 +642,7 @@
             if (ls2Phase === "green") ls2DrawShield(c);
             ls2DrawHeart(c,now);
         }
+        ls2DrawUI(c);
         c.restore();
         if(typeof renderSuperVisuals==="function"){try{renderSuperVisuals();}catch(e){}}
         ls2Frame=requestAnimationFrame(ls2Render);
