@@ -18,7 +18,11 @@
     var ls2ExitButton = null, ls2Pad = null, ls2PreviousArenaActive = false;
     var ls2KeyHandler = null, ls2PointerHandler = null, ls2ReduceEffects = false;
 
-    var LS2_HEART_X = 200, LS2_HEART_Y = 366;
+    var LS2_CENTER_X = 200, LS2_CENTER_Y = 366;
+    var LS2_HEART_X = LS2_CENTER_X, LS2_HEART_Y = LS2_CENTER_Y;
+    var ls2Phase = "intro", ls2PhaseTimer = 0, ls2NormalDuration = 1200, ls2GreenCount = 0;
+    var ls2GravityDuration = 150, ls2GravityStartX = LS2_CENTER_X, ls2GravityStartY = LS2_CENTER_Y;
+    var ls2PlayerAttackCooldown = 0, ls2BossStrikeFlash = 0, ls2HeldKeys = {}, ls2KeyUpHandler = null;
     var LS2_BOX = { x: 38, y: 242, w: 324, h: 222 };
     var LS2_DIR_NAMES = ["↑ ВВЕРХ", "→ ВПРАВО", "↓ ВНИЗ", "← ВЛЕВО"];
     var LS2_DIR_KEYS = {
@@ -29,7 +33,19 @@
 
     function ls2SetShield(direction) {
         if (!ls2Active) return;
-        ls2ShieldDir = ((direction % 4) + 4) % 4;
+        direction = ((direction % 4) + 4) % 4;
+        if (ls2Phase === "normal") {
+            var step = 28;
+            if (direction === 0) LS2_HEART_Y -= step;
+            else if (direction === 1) LS2_HEART_X += step;
+            else if (direction === 2) LS2_HEART_Y += step;
+            else LS2_HEART_X -= step;
+            LS2_HEART_X = Math.max(LS2_BOX.x + 18, Math.min(LS2_BOX.x + LS2_BOX.w - 18, LS2_HEART_X));
+            LS2_HEART_Y = Math.max(LS2_BOX.y + 18, Math.min(LS2_BOX.y + LS2_BOX.h - 18, LS2_HEART_Y));
+            return;
+        }
+        if (ls2Phase !== "green") return;
+        ls2ShieldDir = direction;
         ls2ShieldFlash = 8;
     }
     function ls2SetMessage(message, frames) {
@@ -105,15 +121,34 @@
         ls2ExitButton = null; ls2Pad = null;
     }
     function ls2ChooseFromPointer(ev) {
-        if (!ls2Active || !ls2Canvas) return;
+        if (!ls2Active || !ls2Canvas || ls2Phase === "intro" || ls2Phase === "gravity") return;
         var rect = ls2Canvas.getBoundingClientRect();
         if (!rect.width || !rect.height) return;
         var x = (ev.clientX - rect.left) * 400 / rect.width;
         var y = (ev.clientY - rect.top) * 500 / rect.height;
+        if (ls2Phase === "normal") {
+            if (y < 230 && x > 72 && x < 328) {
+                if (ls2PlayerAttackCooldown <= 0) {
+                    var rawDamage = Number(typeof window !== "undefined" ? window.playerFinalDamage : 1) || 1;
+                    var attackDamage = Math.max(1, Math.min(25000, Math.floor(rawDamage)));
+                    ls2PlayerAttackCooldown = 17;
+                    ls2BossStrikeFlash = 17;
+                    ls2SpawnSparks(Math.max(95, Math.min(305, x)), Math.max(72, Math.min(205, y)), "#ff6b4f", 12);
+                    ls2PlayTone(145, "sawtooth", 0.11, 0.055);
+                    ls2SetMessage("УДАР ПО ЖИВОМУ КАМНЮ  -" + attackDamage, 36);
+                    ls2DamageBoss(attackDamage);
+                }
+                return;
+            }
+            LS2_HEART_X = Math.max(LS2_BOX.x + 18, Math.min(LS2_BOX.x + LS2_BOX.w - 18, x));
+            LS2_HEART_Y = Math.max(LS2_BOX.y + 18, Math.min(LS2_BOX.y + LS2_BOX.h - 18, y));
+            return;
+        }
         var dx = x - LS2_HEART_X, dy = y - LS2_HEART_Y;
         if (Math.abs(dx) > Math.abs(dy)) ls2SetShield(dx >= 0 ? 1 : 3);
         else ls2SetShield(dy >= 0 ? 2 : 0);
     }
+
     function ls2OnKeyDown(ev) {
         if (!ls2Active) return;
         var key = ev.key || "";
@@ -122,11 +157,48 @@
             if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
             ls2Stop(true); return;
         }
-        if (Object.prototype.hasOwnProperty.call(LS2_DIR_KEYS, key)) {
+        var direction = Object.prototype.hasOwnProperty.call(LS2_DIR_KEYS, key) ? LS2_DIR_KEYS[key] : null;
+        if (direction !== null) {
             ev.preventDefault(); ev.stopPropagation();
             if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
-            ls2SetShield(LS2_DIR_KEYS[key]);
+            if (ls2Phase === "green") ls2SetShield(direction);
+            else if (ls2Phase === "normal") ls2HeldKeys[key] = true;
         }
+    }
+    function ls2OnKeyUp(ev) {
+        var key = ev && ev.key || "";
+        if (Object.prototype.hasOwnProperty.call(ls2HeldKeys, key)) delete ls2HeldKeys[key];
+    }
+    function ls2SetControlVisibility() {
+        if (ls2Pad) ls2Pad.style.display = (ls2Phase === "normal" || ls2Phase === "green") ? "grid" : "none";
+    }
+    function ls2EnterNormal(afterGreen) {
+        ls2Phase = "normal"; ls2PhaseTimer = 0;
+        ls2NormalDuration = afterGreen ? 900 : 1200;
+        LS2_HEART_X = LS2_CENTER_X; LS2_HEART_Y = LS2_CENTER_Y;
+        ls2Bullets = []; ls2WarningTimer = 0; ls2AttackTimer = 44;
+        ls2FloatingText = afterGreen ? "КРАСНАЯ ДУША ВЕРНУЛАСЬ: УВОРАЧИВАЙСЯ И БЕЙ" : "ДВИГАЙСЯ И АТАКУЙ: ЖМИ НА КАМЕНЬ";
+        ls2FloatingTimer = 100;
+        ls2SetControlVisibility();
+    }
+    function ls2BeginGravity() {
+        ls2Phase = "gravity"; ls2PhaseTimer = 0;
+        ls2GravityDuration = ls2GreenCount === 0 ? 150 : 82;
+        ls2GravityStartX = LS2_HEART_X; ls2GravityStartY = LS2_HEART_Y;
+        ls2Bullets = []; ls2WarningTimer = 0; ls2Sparks = [];
+        ls2SetMessage("ТЕПЕРЬ ТЫ НЕ СДВИНЕШЬСЯ С МЕСТА", 110);
+        ls2PlayTone(58, "sawtooth", 0.28, 0.06);
+        ls2SetControlVisibility();
+    }
+    function ls2EnterGreen() {
+        ls2Phase = "green"; ls2PhaseTimer = 0; ls2GreenCount++;
+        LS2_HEART_X = LS2_CENTER_X; LS2_HEART_Y = LS2_CENTER_Y;
+        ls2ShieldDir = (ls2GreenCount % 4);
+        ls2Invulnerable = Math.max(ls2Invulnerable, 35);
+        ls2Bullets = []; ls2WarningTimer = 0; ls2AttackTimer = 34;
+        ls2SetMessage("ЗЕЛЁНАЯ ДУША! ЩИТ ДОЛЖЕН СМОТРЕТЬ НА АТАКУ", 115);
+        ls2PlayTone(410, "triangle", 0.18, 0.05);
+        ls2SetControlVisibility();
     }
 
     function ls2SpawnAttackWave(side) {
@@ -206,17 +278,54 @@
         if (ls2HitFlash > 0) ls2HitFlash = Math.max(0, ls2HitFlash - dt);
         if (ls2ShieldFlash > 0) ls2ShieldFlash = Math.max(0, ls2ShieldFlash - dt);
         if (ls2FloatingTimer > 0) ls2FloatingTimer = Math.max(0, ls2FloatingTimer - dt);
+        if (ls2PlayerAttackCooldown > 0) ls2PlayerAttackCooldown = Math.max(0, ls2PlayerAttackCooldown - dt);
+        if (ls2BossStrikeFlash > 0) ls2BossStrikeFlash = Math.max(0, ls2BossStrikeFlash - dt);
+        ls2PhaseTimer += dt;
+        if (ls2Phase === "intro") {
+            var approach = Math.min(1, ls2PhaseTimer / 108);
+            LS2_HEART_X = LS2_CENTER_X;
+            LS2_HEART_Y = 446 - 80 * (1 - Math.pow(1 - approach, 3));
+            if (ls2PhaseTimer >= 270) ls2EnterNormal(false);
+            return;
+        }
+        if (ls2Phase === "gravity") {
+            var gp = Math.min(1, ls2PhaseTimer / Math.max(1, ls2GravityDuration));
+            var ease = gp * gp * (3 - 2 * gp);
+            LS2_HEART_X = ls2GravityStartX + (LS2_CENTER_X - ls2GravityStartX) * ease;
+            LS2_HEART_Y = ls2GravityStartY + (446 - ls2GravityStartY) * ease;
+            if (Math.random() < (ls2ReduceEffects ? 0.05 : 0.18)) {
+                ls2SpawnSparks(LS2_HEART_X + (Math.random() - .5) * 80, 425 + Math.random() * 35, "#c8ffd5", 2);
+            }
+            if (ls2PhaseTimer >= ls2GravityDuration) ls2EnterGreen();
+            return;
+        }
+        if (ls2Phase === "normal") {
+            var mx = 0, my = 0;
+            if (ls2HeldKeys.ArrowLeft || ls2HeldKeys.a || ls2HeldKeys.A) mx--;
+            if (ls2HeldKeys.ArrowRight || ls2HeldKeys.d || ls2HeldKeys.D) mx++;
+            if (ls2HeldKeys.ArrowUp || ls2HeldKeys.w || ls2HeldKeys.W) my--;
+            if (ls2HeldKeys.ArrowDown || ls2HeldKeys.s || ls2HeldKeys.S) my++;
+            if (mx && my) { mx *= 0.7071; my *= 0.7071; }
+            LS2_HEART_X += mx * 3.3 * dt;
+            LS2_HEART_Y += my * 3.3 * dt;
+            LS2_HEART_X = Math.max(LS2_BOX.x + 18, Math.min(LS2_BOX.x + LS2_BOX.w - 18, LS2_HEART_X));
+            LS2_HEART_Y = Math.max(LS2_BOX.y + 18, Math.min(LS2_BOX.y + LS2_BOX.h - 18, LS2_HEART_Y));
+            if (ls2PhaseTimer >= ls2NormalDuration) { ls2BeginGravity(); return; }
+        } else if (ls2Phase === "green" && ls2PhaseTimer >= 420) {
+            ls2EnterNormal(true); return;
+        }
         if (ls2WarningTimer > 0) {
             ls2WarningTimer -= dt;
             if (ls2WarningTimer <= 0) {
                 ls2SpawnAttackWave(ls2NextAttackDir);
-                ls2AttackTimer = Math.max(42, 82 - Math.min(34, ls2AttackCount * 2.2));
+                if (ls2Phase === "green") ls2AttackTimer = Math.max(42, 82 - Math.min(34, ls2AttackCount * 2.2));
+                else ls2AttackTimer = Math.max(52, 102 - Math.min(28, ls2AttackCount * 0.65));
             }
         } else {
             ls2AttackTimer -= dt;
             if (ls2AttackTimer <= 0) {
                 ls2NextAttackDir = LS2_ATTACK_SEQUENCE[ls2AttackCount % LS2_ATTACK_SEQUENCE.length];
-                ls2WarningTimer = 25;
+                ls2WarningTimer = ls2Phase === "green" ? 25 : 20;
             }
         }
         for (var i = ls2Bullets.length - 1; i >= 0; i--) {
@@ -224,13 +333,12 @@
             b.x += b.vx * dt; b.y += b.vy * dt; b.spin += 0.07 * dt; b.life -= dt;
             var dx = b.x - LS2_HEART_X, dy = b.y - LS2_HEART_Y;
             var distance = Math.sqrt(dx * dx + dy * dy);
-            // The shield intercepts only attacks from the direction it faces.
-            if (distance <= 27 && b.side === ls2ShieldDir) {
+            if (ls2Phase === "green" && distance <= 27 && b.side === ls2ShieldDir) {
                 ls2SpawnSparks(b.x, b.y, "#73ff9b", 7);
                 ls2ShieldFlash = 12; ls2PlayTone(520, "triangle", 0.045, 0.025);
                 ls2Bullets.splice(i, 1); continue;
             }
-            if (distance <= 13) {
+            if (distance <= (ls2Phase === "green" ? 13 : 16)) {
                 ls2Bullets.splice(i, 1); ls2HandleHit();
                 if (!ls2Active) return;
                 continue;
@@ -281,8 +389,8 @@
         c.moveTo(0,476); c.lineTo(70,469); c.lineTo(120,486);
         c.moveTo(236,478); c.lineTo(301,469); c.lineTo(400,483); c.stroke();
     }
-    function ls2DrawJaggedSpikes(c, now) {
-        c.save(); c.translate(200, 128);
+    function ls2DrawJaggedSpikes(c, now, bossY) {
+        c.save(); c.translate(200, typeof bossY === "number" ? bossY : 128);
         if (!ls2ReduceEffects) { c.shadowColor = "#fa2d22"; c.shadowBlur = 22; }
         var count = ls2ReduceEffects ? 10 : 14;
         for (var i = 0; i < count; i++) {
@@ -303,8 +411,8 @@
         }
         c.restore();
     }
-    function ls2DrawStoneFallback(c) {
-        c.save(); c.translate(200, 128);
+    function ls2DrawStoneFallback(c, bossY) {
+        c.save(); c.translate(200, typeof bossY === "number" ? bossY : 128);
         var g = c.createRadialGradient(-18, -20, 3, 0, 0, 65);
         g.addColorStop(0, "#c09070"); g.addColorStop(0.45, "#7a3a28"); g.addColorStop(1, "#27100d");
         c.fillStyle = g; c.beginPath();
@@ -322,7 +430,11 @@
         c.restore();
     }
     function ls2DrawStoneMonster(c, now) {
-        ls2DrawJaggedSpikes(c, now);
+        var approach = ls2Phase === "intro" ? Math.min(1, ls2PhaseTimer / 108) : 1;
+        var stoneY = 128;
+        if (ls2Phase === "intro") stoneY = -34 + 162 * (approach * approach * (3 - 2 * approach));
+        else if (ls2Phase === "gravity") stoneY = 120 + Math.sin(ls2PhaseTimer * 0.55) * 3;
+        ls2DrawJaggedSpikes(c, now, stoneY);
         if (typeof drawLivingStoneBoss === "function" && typeof livingStoneBoss !== "undefined" &&
             typeof livingStoneState !== "undefined") {
             var oldBoss = livingStoneBoss, oldState = livingStoneState, oldFlash = livingStoneBossFlash;
@@ -330,24 +442,23 @@
             var oldCracks = finalCracksLevel, oldTimer = finalSceneTimer, oldLaugh = finalLaughOffset;
             var oldQteShake = qteBossShake, oldQteDamage = qteBossDamageLevel;
             try {
-                livingStoneBoss = { x: 200, y: 128, size: 59, vx: 0, rotation: Math.sin(now / 900) * 0.055 };
+                livingStoneBoss = { x: 200, y: stoneY, size: ls2Phase === "intro" ? 56 + approach * 3 : 59, vx: 0, rotation: Math.sin(now / 900) * 0.055 };
                 livingStoneState = "phase2"; livingStoneBossFlash = 0;
                 finalSceneActive = true; finalScenePhase = "laugh";
                 finalCracksLevel = ls2ReduceEffects ? 0.3 : 0.95;
                 finalSceneTimer = now / 16; finalLaughOffset = Math.sin(now / 120) * 1.6;
-                qteBossShake = 0; qteBossDamageLevel = 0;
+                qteBossShake = ls2Phase === "gravity" ? 4 : 0; qteBossDamageLevel = 0;
                 drawLivingStoneBoss();
             } catch (e) {
-                ls2DrawStoneFallback(c);
+                ls2DrawStoneFallback(c, stoneY);
             } finally {
                 livingStoneBoss = oldBoss; livingStoneState = oldState; livingStoneBossFlash = oldFlash;
                 finalSceneActive = oldFinalActive; finalScenePhase = oldFinalPhase;
                 finalCracksLevel = oldCracks; finalSceneTimer = oldTimer; finalLaughOffset = oldLaugh;
                 qteBossShake = oldQteShake; qteBossDamageLevel = oldQteDamage;
             }
-        } else ls2DrawStoneFallback(c);
-
-        c.save(); c.translate(200, 128); c.lineCap = "round"; c.lineJoin = "round";
+        } else ls2DrawStoneFallback(c, stoneY);
+        c.save(); c.translate(200, stoneY); c.lineCap = "round"; c.lineJoin = "round";
         c.strokeStyle = "#ff3929"; c.lineWidth = ls2ReduceEffects ? 1.8 : 2.6;
         if (!ls2ReduceEffects) { c.shadowColor = "#ff261c"; c.shadowBlur = 12; }
         [
@@ -359,8 +470,13 @@
             for (var i=1;i<path.length;i++) c.lineTo(path[i][0],path[i][1]);
             c.stroke();
         });
+        if (ls2BossStrikeFlash > 0) {
+            c.globalAlpha = Math.min(0.9, ls2BossStrikeFlash / 17);
+            c.fillStyle = "#fff6dd"; c.beginPath(); c.arc(0, 0, 88 + (17 - ls2BossStrikeFlash) * 2, 0, Math.PI * 2); c.fill();
+        }
         c.restore();
     }
+
     function ls2DrawBullet(c, b) {
         c.save(); c.translate(b.x,b.y); c.rotate(b.spin);
         if (!ls2ReduceEffects) { c.shadowColor = "#ff4936"; c.shadowBlur = 8; }
@@ -387,19 +503,24 @@
     }
     function ls2DrawHeart(c, now) {
         if (ls2Invulnerable > 0 && Math.floor(now / 60) % 2 === 0) return;
-        c.save(); c.translate(LS2_HEART_X,LS2_HEART_Y);
+        var greenSoul = ls2Phase === "green" || (ls2Phase === "gravity" && ls2PhaseTimer > ls2GravityDuration * 0.55);
+        c.save(); c.translate(LS2_HEART_X, LS2_HEART_Y);
+        if (ls2Phase === "gravity") {
+            c.translate(0, Math.sin(ls2PhaseTimer * 0.8) * 1.5);
+            c.scale(1 + Math.min(0.18, ls2PhaseTimer / ls2GravityDuration * 0.18), 0.72);
+        }
         if (!ls2ReduceEffects) {
             var glow=c.createRadialGradient(0,0,2,0,0,30);
-            glow.addColorStop(0,ls2HitFlash>0?"rgba(255,50,50,.65)":"rgba(65,255,125,.42)");
+            glow.addColorStop(0,ls2HitFlash>0?"rgba(255,50,50,.65)":(greenSoul?"rgba(65,255,125,.42)":"rgba(255,55,55,.42)"));
             glow.addColorStop(1,"rgba(0,0,0,0)");
             c.fillStyle=glow; c.beginPath(); c.arc(0,0,30,0,Math.PI*2); c.fill();
         }
         var hg=c.createLinearGradient(-11,-13,11,13);
-        hg.addColorStop(0,ls2HitFlash>0?"#ff8b87":"#d6ffdc");
-        hg.addColorStop(.42,ls2HitFlash>0?"#ff2828":"#45ff78");
-        hg.addColorStop(1,ls2HitFlash>0?"#9e0000":"#07943a");
-        c.fillStyle=hg; c.strokeStyle=ls2HitFlash>0?"#ffb5b5":"#e3ffe9"; c.lineWidth=1.4;
-        if (!ls2ReduceEffects) { c.shadowColor=ls2HitFlash>0?"#ff2222":"#46ff82"; c.shadowBlur=14; }
+        hg.addColorStop(0,ls2HitFlash>0?"#ff8b87":(greenSoul?"#d6ffdc":"#ffd1d1"));
+        hg.addColorStop(.42,ls2HitFlash>0?"#ff2828":(greenSoul?"#45ff78":"#ff4545"));
+        hg.addColorStop(1,ls2HitFlash>0?"#9e0000":(greenSoul?"#07943a":"#9e0000"));
+        c.fillStyle=hg; c.strokeStyle=greenSoul?"#e3ffe9":"#ffe0e0"; c.lineWidth=1.4;
+        if (!ls2ReduceEffects) { c.shadowColor=ls2HitFlash>0?"#ff2222":(greenSoul?"#46ff82":"#ff2828"); c.shadowBlur=14; }
         c.beginPath(); c.moveTo(0,13); c.bezierCurveTo(-3,10,-15,1,-13,-7);
         c.bezierCurveTo(-12,-16,-3,-17,0,-9); c.bezierCurveTo(4,-17,13,-15,13,-7);
         c.bezierCurveTo(15,1,4,10,0,13); c.closePath(); c.fill(); c.stroke();
@@ -407,6 +528,7 @@
         c.beginPath(); c.ellipse(-5,-8,2.2,3.3,-.35,0,Math.PI*2); c.fill();
         c.restore();
     }
+
     function ls2DrawWarnings(c) {
         if (ls2WarningTimer <= 0) return;
         var box=LS2_BOX;
@@ -434,19 +556,57 @@
         hpG.addColorStop(0,"#7a110e"); hpG.addColorStop(.55,"#e12b20"); hpG.addColorStop(1,"#ff7660");
         c.fillStyle=hpG; c.fillRect(48,30,304*ratio,7);
         c.strokeStyle="rgba(255,110,85,.75)"; c.lineWidth=1; c.strokeRect(48,30,304,7);
-        c.fillStyle="#d7ffe1"; c.font="bold 10px Arial,sans-serif";
-        c.fillText("ЗЕЛЁНАЯ ДУША · HP "+Math.ceil(ls2PlayerHp)+"/"+ls2PlayerMaxHp,200,222);
-        c.fillStyle="#9affb5"; c.font="bold 11px Arial,sans-serif";
-        c.fillText("ЩИТ: "+LS2_DIR_NAMES[ls2ShieldDir],200,235);
-        c.fillStyle="rgba(0,0,0,.70)"; c.fillRect(45,466,310,22);
+        var isGreen = ls2Phase === "green";
+        c.fillStyle=isGreen?"#d7ffe1":"#ffdada"; c.font="bold 10px Arial,sans-serif";
+        c.fillText((isGreen ? "ЗЕЛЁНАЯ ДУША" : "КРАСНАЯ ДУША")+" · HP "+Math.ceil(ls2PlayerHp)+"/"+ls2PlayerMaxHp,200,222);
+        c.fillStyle=isGreen?"#9affb5":"#ffb5b5"; c.font="bold 11px Arial,sans-serif";
+        if (ls2Phase === "intro") {
+            var line = ls2PhaseTimer < 90 ? "ТЫ СНОВА ВЕРНУЛСЯ..." : (ls2PhaseTimer < 180 ? "Я ПОМНЮ НАШУ ПРОШЛУЮ ВСТРЕЧУ." : "ПОКАЖИ, ЧТО В ЭТОТ РАЗ ТЫ СИЛЬНЕЕ.");
+            c.fillStyle="#fff0e9"; c.font="900 13px Arial,sans-serif";
+            c.fillText(line,200,405);
+            c.fillStyle="#ffb8a7"; c.font="bold 10px Arial,sans-serif";
+            c.fillText(ls2PhaseTimer < 150 ? "ЖИВОЙ КАМЕНЬ" : "ПЕРВАЯ ФАЗА · 20 СЕКУНД",200,425);
+        } else if (ls2Phase === "gravity") {
+            c.fillStyle="#e4ffe9"; c.font="900 12px Arial,sans-serif";
+            c.fillText(ls2PhaseTimer < ls2GravityDuration * .55 ? "ГРАВИТАЦИЯ ПРИДАВЛИВАЕТ ТЕБЯ К ЗЕМЛЕ" : "ТВОЯ ДУША МЕНЯЕТ ЦВЕТ...",200,405);
+        } else if (isGreen) {
+            c.fillText("ЩИТ: "+LS2_DIR_NAMES[ls2ShieldDir],200,235);
+        } else {
+            c.fillText("ДВИЖЕНИЕ: WASD / СТРЕЛКИ",200,235);
+        }
+        c.fillStyle="rgba(0,0,0,.70)"; c.fillRect(35,466,330,22);
         c.fillStyle="#e4ffeb"; c.font="bold 9px Arial,sans-serif";
-        c.fillText("СЕРДЦЕ НЕ ДВИГАЕТСЯ · ПОВОРАЧИВАЙ ЩИТ",200,480);
-        if (ls2FloatingTimer>0) {
+        if (ls2Phase === "intro") c.fillText("ОН СНОВА ПЕРЕД ТОБОЙ",200,480);
+        else if (ls2Phase === "gravity") c.fillText("СОПРОТИВЛЕНИЕ БЕСПОЛЕЗНО...",200,480);
+        else if (isGreen) c.fillText("ПОВЕРНИ ЩИТ К СТОРОНЕ АТАКИ",200,480);
+        else c.fillText("КЛИКНИ ПО КАМНЮ, ЧТОБЫ АТАКОВАТЬ · УКЛОНЯЙСЯ ОТ СНАРЯДОВ",200,480);
+        if (ls2FloatingTimer>0 && ls2Phase !== "intro") {
             c.fillStyle=ls2HitFlash>0?"#ff8d82":"#caffd5"; c.font="900 11px Arial,sans-serif";
             c.fillText(ls2FloatingText,200,210);
         }
         c.restore();
     }
+    function ls2DrawGravityCinematic(c, now) {
+        var progress = Math.min(1, ls2PhaseTimer / Math.max(1, ls2GravityDuration));
+        c.save();
+        c.fillStyle="rgba(0,0,0," + (0.12 + progress * 0.38) + ")"; c.fillRect(0,0,400,500);
+        var count = ls2ReduceEffects ? 7 : 18;
+        c.strokeStyle="rgba(167,255,192,.50)"; c.lineWidth=ls2ReduceEffects?1:1.6;
+        for (var i=0;i<count;i++) {
+            var x=(i*47+Math.sin(now/160+i)*11)%400;
+            var len=20+(i%4)*13;
+            c.beginPath(); c.moveTo(x, (now*.32+i*57)%480); c.lineTo(x+Math.sin(now/240+i)*4, (now*.32+i*57)%480+len); c.stroke();
+        }
+        c.fillStyle="#080b08"; c.fillRect(0,445,400,55);
+        c.strokeStyle="#a0ffb1"; c.lineWidth=2; c.beginPath();
+        c.moveTo(0,446); c.lineTo(78,443); c.lineTo(112,450); c.lineTo(160,445); c.lineTo(200,448); c.lineTo(245,442); c.lineTo(304,450); c.lineTo(350,444); c.lineTo(400,447); c.stroke();
+        if (!ls2ReduceEffects) {
+            c.strokeStyle="rgba(202,255,213,"+(0.25+progress*.55)+")"; c.lineWidth=3;
+            for (var k=0;k<5;k++) { c.beginPath(); c.moveTo(55+k*72,85); c.lineTo(200+(k-2)*12,430); c.stroke(); }
+        }
+        c.restore();
+    }
+
     function ls2Render(now) {
         if (!ls2Active || !ls2Ctx) return;
         var dt=ls2LastTime?Math.min(2.2,Math.max(.35,(now-ls2LastTime)/(1000/60))):1;
@@ -457,24 +617,33 @@
         ls2DrawBackground(c,now);
         ls2DrawStoneMonster(c,now);
         ls2DrawUI(c);
-        var box=LS2_BOX;
-        c.fillStyle="rgba(0,7,5,.80)"; c.fillRect(box.x,box.y,box.w,box.h);
-        if (!ls2ReduceEffects) {
-            var fieldGlow=c.createRadialGradient(200,366,8,200,366,185);
-            fieldGlow.addColorStop(0,"rgba(17,122,61,.10)"); fieldGlow.addColorStop(1,"rgba(0,0,0,0)");
-            c.fillStyle=fieldGlow; c.fillRect(box.x,box.y,box.w,box.h);
+        if (ls2Phase === "intro") {
+            ls2DrawHeart(c,now);
+        } else if (ls2Phase === "gravity") {
+            ls2DrawGravityCinematic(c,now);
+            ls2DrawHeart(c,now);
+        } else {
+            var box=LS2_BOX;
+            c.fillStyle=ls2Phase==="green"?"rgba(0,7,5,.80)":"rgba(12,3,4,.78)"; c.fillRect(box.x,box.y,box.w,box.h);
+            if (!ls2ReduceEffects) {
+                var fieldGlow=c.createRadialGradient(LS2_HEART_X,LS2_HEART_Y,8,LS2_HEART_X,LS2_HEART_Y,185);
+                fieldGlow.addColorStop(0,ls2Phase==="green"?"rgba(17,122,61,.10)":"rgba(150,20,20,.10)"); fieldGlow.addColorStop(1,"rgba(0,0,0,0)");
+                c.fillStyle=fieldGlow; c.fillRect(box.x,box.y,box.w,box.h);
+            }
+            c.strokeStyle=ls2Phase==="green"?"#2f9d56":"#a93c42"; c.lineWidth=5; c.strokeRect(box.x,box.y,box.w,box.h);
+            c.strokeStyle=ls2Phase==="green"?"rgba(174,255,192,.75)":"rgba(255,180,180,.62)"; c.lineWidth=1.2;
+            c.strokeRect(box.x+5,box.y+5,box.w-10,box.h-10);
+            ls2DrawWarnings(c);
+            for (var i=0;i<ls2Bullets.length;i++) ls2DrawBullet(c,ls2Bullets[i]);
+            for (var j=0;j<ls2Sparks.length;j++) {
+                var p=ls2Sparks[j]; c.save(); c.globalAlpha=Math.max(0,p.life/p.maxLife);
+                c.fillStyle=p.color; if (!ls2ReduceEffects) { c.shadowColor=p.color; c.shadowBlur=7; }
+                c.beginPath(); c.arc(p.x,p.y,p.r,0,Math.PI*2); c.fill(); c.restore();
+            }
+            if (ls2Phase === "green") ls2DrawShield(c);
+            ls2DrawHeart(c,now);
         }
-        c.strokeStyle="#2f9d56"; c.lineWidth=5; c.strokeRect(box.x,box.y,box.w,box.h);
-        c.strokeStyle="rgba(174,255,192,.75)"; c.lineWidth=1.2;
-        c.strokeRect(box.x+5,box.y+5,box.w-10,box.h-10);
-        ls2DrawWarnings(c);
-        for (var i=0;i<ls2Bullets.length;i++) ls2DrawBullet(c,ls2Bullets[i]);
-        for (var j=0;j<ls2Sparks.length;j++) {
-            var p=ls2Sparks[j]; c.save(); c.globalAlpha=Math.max(0,p.life/p.maxLife);
-            c.fillStyle=p.color; if (!ls2ReduceEffects) { c.shadowColor=p.color; c.shadowBlur=7; }
-            c.beginPath(); c.arc(p.x,p.y,p.r,0,Math.PI*2); c.fill(); c.restore();
-        }
-        ls2DrawShield(c); ls2DrawHeart(c,now); c.restore();
+        c.restore();
         if(typeof renderSuperVisuals==="function"){try{renderSuperVisuals();}catch(e){}}
         ls2Frame=requestAnimationFrame(ls2Render);
     }
@@ -487,7 +656,8 @@
         if (ls2Canvas && ls2PointerHandler) ls2Canvas.removeEventListener("pointerdown",ls2PointerHandler);
         ls2PointerHandler=null;
         if (ls2KeyHandler) window.removeEventListener("keydown",ls2KeyHandler,true);
-        ls2KeyHandler=null; ls2RemoveControls();
+        if (ls2KeyUpHandler) window.removeEventListener("keyup",ls2KeyUpHandler,true);
+        ls2KeyHandler=null; ls2KeyUpHandler=null; ls2HeldKeys={}; ls2RemoveControls();
         var overlay=document.getElementById("arenaOverlay");
         if (overlay) { overlay.classList.remove("living-stone-super-arena"); overlay.style.display="none"; }
         if (typeof arenaActive!=="undefined") arenaActive=ls2PreviousArenaActive;
@@ -529,7 +699,11 @@
         ls2Invulnerable=0; ls2HitFlash=0; ls2ShieldFlash=0; ls2ShieldDir=0;
         ls2Bullets=[]; ls2Sparks=[]; ls2Elapsed=0; ls2AttackTimer=54;
         ls2WarningTimer=0; ls2NextAttackDir=0; ls2AttackCount=0;
-        ls2FloatingText="ПОВЕРНИ ЩИТ К СТОРОНЕ АТАКИ"; ls2FloatingTimer=100; ls2LastTime=0;
+        ls2Phase="intro"; ls2PhaseTimer=0; ls2NormalDuration=1200; ls2GreenCount=0;
+        ls2GravityDuration=150; ls2GravityStartX=LS2_CENTER_X; ls2GravityStartY=LS2_CENTER_Y;
+        ls2PlayerAttackCooldown=0; ls2BossStrikeFlash=0; ls2HeldKeys={};
+        LS2_HEART_X=LS2_CENTER_X; LS2_HEART_Y=446;
+        ls2FloatingText="ТЫ СНОВА ВЕРНУЛСЯ..."; ls2FloatingTimer=100; ls2LastTime=0;
         if (typeof hpDecayInterval !== "undefined" && hpDecayInterval) {
             clearInterval(hpDecayInterval); hpDecayInterval = null;
         }
@@ -564,6 +738,8 @@
         var timerEl=document.getElementById("arenaTimer"); if (timerEl) timerEl.textContent="∞";
         ls2CreateControls();
         ls2KeyHandler=ls2OnKeyDown; window.addEventListener("keydown",ls2KeyHandler,true);
+        ls2KeyUpHandler=ls2OnKeyUp; window.addEventListener("keyup",ls2KeyUpHandler,true);
+        ls2SetControlVisibility();
         ls2PointerHandler=function(ev) {
             if (!ls2Active) return;
             ev.preventDefault(); ev.stopPropagation(); ls2ChooseFromPointer(ev);
