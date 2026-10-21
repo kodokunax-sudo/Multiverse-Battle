@@ -130,7 +130,7 @@
             if (y < 230 && x > 72 && x < 328) {
                 if (ls2PlayerAttackCooldown <= 0) {
                     var rawDamage = Number(typeof window !== "undefined" ? window.playerFinalDamage : 1) || 1;
-                    var attackDamage = Math.max(1, Math.min(25000, Math.floor(rawDamage)));
+                    var attackDamage = Math.max(1, Math.min(9000, Math.floor(rawDamage)));
                     ls2PlayerAttackCooldown = 17;
                     ls2BossStrikeFlash = 17;
                     ls2SpawnSparks(Math.max(95, Math.min(305, x)), Math.max(72, Math.min(205, y)), "#ff6b4f", 12);
@@ -246,7 +246,7 @@
         }
         ls2PlayerHp = Math.max(0, ls2PlayerHp - incoming);
         ls2Invulnerable = 52; ls2HitFlash = 12;
-        ls2SetMessage("ЩИТ НЕ С ТОЙ СТОРОНЫ!", 48);
+        ls2SetMessage(ls2Phase === "green" ? "ЩИТ НЕ С ТОЙ СТОРОНЫ!" : "СНАРЯД ПОПАЛ! УВОРАЧИВАЙСЯ", 48);
         ls2SpawnSparks(LS2_HEART_X, LS2_HEART_Y, "#ff4545", 10);
         ls2PlayTone(90, "sawtooth", 0.18, 0.075);
         var hpEl = document.getElementById("arenaHP");
