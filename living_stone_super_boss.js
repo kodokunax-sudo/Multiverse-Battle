@@ -177,6 +177,23 @@
         var key = ev && ev.key || "";
         if (Object.prototype.hasOwnProperty.call(ls2HeldKeys, key)) delete ls2HeldKeys[key];
     }
+    function ls2OnNativeKeyDown(ev) {
+        if (!ls2NativeMode || !window.livingStoneSuperActive) return;
+        var key = ev.key || "";
+        if (key === "Escape") {
+            ev.preventDefault(); ev.stopPropagation();
+            if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+            ls2Stop(true); return;
+        }
+        if (window.__mbLS2GreenPhase !== "green") return;
+        var map = { ArrowUp:0, w:0, W:0, ArrowRight:1, d:1, D:1,
+            ArrowDown:2, s:2, S:2, ArrowLeft:3, a:3, A:3 };
+        if (!Object.prototype.hasOwnProperty.call(map,key)) return;
+        ev.preventDefault(); ev.stopPropagation();
+        if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+        window.__mbLS2ShieldDir = map[key];
+        ls2SetShield(map[key]);
+    }
     function ls2SetControlVisibility() {
         if (!ls2Pad) return;
         if (ls2NativeMode) ls2Pad.style.display = window.__mbLS2GreenPhase === "green" ? "grid" : "none";
@@ -668,6 +685,8 @@
         if (ls2KeyUpHandler) window.removeEventListener("keyup",ls2KeyUpHandler,true);
         ls2KeyHandler = null; ls2KeyUpHandler = null; ls2HeldKeys = {};
         ls2NativeMode = true;
+        ls2KeyHandler = ls2OnNativeKeyDown;
+        window.addEventListener("keydown", ls2KeyHandler, true);
         ls2Phase = "native";
         window.livingStoneSuperActive = true;
         window.__mbLS2GreenPhase = "normal";
@@ -735,6 +754,7 @@
         if (typeof livingStoneRenderLoop === "function") livingStoneAnimFrame = requestAnimationFrame(livingStoneRenderLoop);
     }
 
+    window.MBLivingStoneSuperDamage = function(amount) { return ls2DamageBoss(amount); };
     window.MBUpdateLivingStoneSuperPhase = function() {
         if (!window.livingStoneSuperActive || !ls2NativeMode) return;
         var phase = window.__mbLS2GreenPhase || "normal";
@@ -959,6 +979,19 @@
     // Exported now so the next stage's player-bullet system can damage this boss.
     function ls2DamageBoss(amount) {
         if (!ls2Active || !(Number(amount)>0)) return false;
+        if (ls2NativeMode) {
+            amount = Number(amount);
+            if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") {
+                amount = window.MBBossTestModifyOutgoingDamage(amount, 1);
+            }
+            if (!(amount > 0)) return true;
+            if (typeof livingStoneBossHp !== "undefined") livingStoneBossHp = Math.max(0, livingStoneBossHp - amount);
+            ls2BossHp = typeof livingStoneBossHp !== "undefined" ? livingStoneBossHp : Math.max(0, ls2BossHp - amount);
+            if (typeof livingStoneBossFlash !== "undefined") livingStoneBossFlash = 7;
+            if (typeof currentEnemy !== "undefined" && currentEnemy) currentEnemy.hp = ls2BossHp;
+            if (ls2BossHp <= 0 && typeof window.MBLivingStoneSuperNativeVictory === "function") window.MBLivingStoneSuperNativeVictory();
+            return true;
+        }
         if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") {
             amount=window.MBBossTestModifyOutgoingDamage(amount,1);
         }
@@ -985,9 +1018,12 @@
     window.stopLivingStoneSuperFight=function(){ls2Stop(!(window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===2000));};
     window.damageLivingStoneSuperBoss=ls2DamageBoss;
     window.getLivingStoneSuperHeart=function(){return {x:LS2_HEART_X,y:LS2_HEART_Y,shieldDir:ls2ShieldDir,hp:ls2PlayerHp,maxHp:ls2PlayerMaxHp};};
-    window.getLivingStoneSuperBossHp=function(){return ls2BossHp;};
-    window.getLivingStoneSuperBossMaxHp=function(){return ls2BossMaxHp;};
-    window.setLivingStoneSuperBossHp=function(v){ls2BossHp=Math.max(1,Math.min(ls2BossHp,Number(v)||1));};
+    window.getLivingStoneSuperBossHp=function(){return ls2NativeMode && typeof livingStoneBossHp!=="undefined" ? livingStoneBossHp : ls2BossHp;};
+    window.getLivingStoneSuperBossMaxHp=function(){return ls2NativeMode && typeof livingStoneBossMaxHp!=="undefined" ? livingStoneBossMaxHp : ls2BossMaxHp;};
+    window.setLivingStoneSuperBossHp=function(v){
+        ls2BossHp=Math.max(1,Math.min(ls2BossMaxHp,Number(v)||1));
+        if(ls2NativeMode && typeof livingStoneBossHp!=="undefined") livingStoneBossHp=ls2BossHp;
+    };
     window.setLivingStoneSuperPlayerHp=function(v){ls2PlayerHp=Math.max(1,Math.min(ls2PlayerMaxHp,Number(v)||1));};
     window.getLivingStoneSuperAttacks=function(){return ls2Bullets;};
     window.getLivingStoneSuperParticles=function(){return ls2Sparks;};
