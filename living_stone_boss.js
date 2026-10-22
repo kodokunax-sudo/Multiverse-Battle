@@ -907,6 +907,10 @@ function updateLivingStoneBoss() {
     // ★ ФИКС: гароу-стоп ★
     if (lsIsTimeStopped()) return;
     if (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(livingStoneBoss)) return;
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        typeof window.MBUpdateLivingStoneSuperBossMovement === "function") {
+        try { if (window.MBUpdateLivingStoneSuperBossMovement()) return; } catch(e) {}
+    }
     var speedMult = ((livingStoneState === "phase2") ? 1.8 : 1.0) * lsSpeedMult;
     livingStoneBoss.x += livingStoneBoss.vx * speedMult;
     if (livingStoneBoss.x < 80 || livingStoneBoss.x > 320) livingStoneBoss.vx *= -1;
@@ -947,8 +951,21 @@ function updateLivingStoneBullets() {
                 function() { spawnLivingStoneParticles(b.x, b.y, 2, "#36ff9a", 2); });
 
         }
+        if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+            typeof window.MBLivingStoneSuperTryDodgeBullet === "function") {
+            try {
+                if (window.MBLivingStoneSuperTryDodgeBullet(b)) {
+                    livingStoneBullets.splice(i, 1);
+                    continue;
+                }
+            } catch(e) {}
+        }
         var dx = b.x - livingStoneBoss.x, dy = b.y - livingStoneBoss.y;
         if (Math.sqrt(dx * dx + dy * dy) < livingStoneBoss.size + b.size) {
+            if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+                typeof window.MBLivingStoneSuperOnBossHit === "function") {
+                try { window.MBLivingStoneSuperOnBossHit(b); } catch(e) {}
+            }
             var dmg = b.damage;
             // ★ ФИКС: супер-множители урона ★
             dmg = lsApplySuperDmgMult(dmg);
@@ -2024,6 +2041,10 @@ function livingStoneRenderLoop() {
     updateLivingStoneBullets();
     updateLivingStoneAttacks();
     if (!finalSceneActive) checkLivingStoneCollisions();
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        typeof window.MBUpdateLivingStoneSuperAttacks === "function") {
+        try { window.MBUpdateLivingStoneSuperAttacks(); } catch(e) {}
+    }
     updateQTEBullets();
     
     for (var i = qtePunches.length - 1; i >= 0; i--) { qtePunches[i].life--; if (qtePunches[i].life <= 0) qtePunches.splice(i, 1); }
@@ -2471,6 +2492,10 @@ function livingStoneRenderLoop() {
         ctx.restore();
     }
     
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        typeof window.MBDrawLivingStoneSuperAttacks === "function") {
+        try { window.MBDrawLivingStoneSuperAttacks(ctx); } catch(e) {}
+    }
     if (!isQTE || livingStoneState === "qte_punch" || livingStoneState === "qte_finish" || 
         livingStoneState === "qte_cinematic" || livingStoneState === "qte_intro" || finalSceneActive) {
         drawLivingStoneBoss();
