@@ -920,12 +920,13 @@
             if (ls2KeyUpHandler) window.removeEventListener("keyup", ls2KeyUpHandler, true);
             ls2KeyHandler = null; ls2KeyUpHandler = null; ls2HeldKeys = {};
             ls2RemoveControls();
+            var didNativeStop = false;
             if (typeof livingStoneActive !== "undefined" && livingStoneActive && typeof stopLivingStoneFight === "function") {
-                try { stopLivingStoneFight(); } catch (e) { livingStoneActive = false; }
+                try { stopLivingStoneFight(); didNativeStop = true; } catch (e) { livingStoneActive = false; }
             }
             var nativeOverlay = document.getElementById("arenaOverlay");
             if (nativeOverlay) { nativeOverlay.classList.remove("living-stone-super-arena"); nativeOverlay.style.display = "none"; }
-            if (typeof window.MBEndBossGraphicsModeForFight === "function") {
+            if (!didNativeStop && typeof window.MBEndBossGraphicsModeForFight === "function") {
                 try { window.MBEndBossGraphicsModeForFight(); } catch(e) {}
             }
             ls2Canvas = null; ls2Ctx = null; ls2Bullets = []; ls2Sparks = [];
@@ -956,6 +957,10 @@
 
     function startLivingStoneSuperFight(graphicsModeChoice) {
         if (ls2Active || ls2ChoicePending) return;
+        ls2NativeMode = false;
+        window.__mbLS2GreenPhase = "normal";
+        window.__mbLS2PhaseFrames = 0;
+        window.__mbLS2ShieldDir = 0;
         if (Number(typeof wave!=="undefined"?wave:0)!==2000) return;
         if (typeof currentEnemy==="undefined" || !currentEnemy || currentEnemy.hp<=0) return;
         if (typeof defeatedBosses!=="undefined" && Array.isArray(defeatedBosses) && defeatedBosses.includes(2000)) {
