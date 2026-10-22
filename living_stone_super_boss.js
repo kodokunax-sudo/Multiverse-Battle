@@ -735,6 +735,7 @@
         if (typeof lsShotgunSkip !== "undefined") lsShotgunSkip = 0;
         if (typeof initLivingStoneBgParticles === "function") initLivingStoneBgParticles();
         if (typeof initLSSupers === "function") { try { initLSSupers(); } catch(e) {} }
+        if (typeof window !== "undefined") window._uniqueSuperBossId = "stoneSuper";
         if (typeof canvas !== "undefined" && canvas) {
             if (typeof handleQTEClick === "function") canvas.addEventListener("click", handleQTEClick);
             if (typeof handleLSTouchStart === "function") {
@@ -798,6 +799,36 @@
     };
     window.MBPlayLivingStoneSuperShieldSound = function() {
         if (typeof playArenaSound === "function") playArenaSound(520, "triangle", 0.04, 0.035);
+    };
+    window.MBDrawLivingStoneSuperPhaseHud = function(c) {
+        if (!window.livingStoneSuperActive || !c) return;
+        var phase = window.__mbLS2GreenPhase || "normal";
+        var frames = Number(window.__mbLS2PhaseFrames) || 0;
+        var label = "СУПЕР-ЖИВОЙ КАМЕНЬ";
+        var color = "#ffd5c9";
+        if (phase === "normal") {
+            label = "ГРАВИТАЦИЯ: шанс 50% через " + Math.ceil(Math.max(0,1200-frames)/60) + " сек.";
+        } else if (phase === "gravity") {
+            label = "ГРАВИТАЦИЯ СЖИМАЕТ ТЕБЯ...";
+            color = "#a5ffc0";
+        } else {
+            var dirs = ["↑ ВВЕРХ","→ ВПРАВО","↓ ВНИЗ","← ВЛЕВО"];
+            label = "ЗЕЛЁНАЯ ДУША · ЩИТ " + dirs[((Number(window.__mbLS2ShieldDir)||0)%4+4)%4] +
+                " · " + Math.ceil(Math.max(0,480-frames)/60) + "с";
+            color = "#86ffac";
+        }
+        c.save();
+        c.fillStyle = "rgba(0,0,0,.72)";
+        c.fillRect(66,35,268,22);
+        c.strokeStyle = phase === "green" ? "rgba(111,255,155,.8)" : "rgba(255,120,95,.55)";
+        c.lineWidth = 1.2; c.strokeRect(66,35,268,22);
+        c.fillStyle = color; c.font = "bold 10px Arial,sans-serif"; c.textAlign = "center";
+        c.fillText(label,200,49);
+        if (phase === "gravity") {
+            c.fillStyle = "rgba(70,255,130,.18)"; c.fillRect(70,59,260,3);
+            c.fillStyle = "#62ff91"; c.fillRect(70,59,260*Math.min(1,frames/95),3);
+        }
+        c.restore();
     };
     window.MBDrawLivingStoneSuperShield = function(c) {
         if (!window.livingStoneSuperActive || window.__mbLS2GreenPhase !== "green" || !c ||
