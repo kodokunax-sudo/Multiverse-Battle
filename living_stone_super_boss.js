@@ -852,7 +852,8 @@
         c.restore();
     };
     window.MBLivingStoneSuperShieldBlocks = function(a, px, py) {
-        if (!window.livingStoneSuperActive || window.__mbLS2GreenPhase !== "green" || !a) return false;
+        if (!window.livingStoneSuperActive || window.__mbLS2GreenPhase !== "green" || !a ||
+            a.type === "gravity_well" || a.type === "laser_warning") return false;
         var ax = Number(a.x), ay = Number(a.y);
         if (!Number.isFinite(ax)) ax = px;
         if (!Number.isFinite(ay)) ay = py;
