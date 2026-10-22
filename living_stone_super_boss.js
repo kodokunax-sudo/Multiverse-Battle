@@ -1073,7 +1073,10 @@
                             ls2CombatText("РУКА ЗАСТРЯЛА! БОСС УЯЗВИМ!", "#fff1ae", 100);
                         }
                     } else if (livingStoneInvulnTimer<=0) {
+                        ls2GreenBlockStreak = 0;
                         damageLivingStonePlayer(a.damage||10);
+                    } else {
+                        ls2GreenBlockStreak = 0;
                     }
                     a.life=0;
                 }
@@ -1181,7 +1184,8 @@
                 frame = 0;
                 if (Math.random() < 0.5) {
                     window.__mbLS2GreenPhase = "gravity";
-                    ls2UniqueAttacks = [];
+                    ls2UniqueAttacks = []; ls2UniqueCracks = []; ls2UniqueDecoys = [];
+                    ls2ShellBreak = null; ls2BossDash = null;
                     ls2GreenBlockStreak = 0;
                     ls2GreenStrikeTimer = 24;
                     window.__mbLS2GravityFromX = typeof livingStonePlayer !== "undefined" ? livingStonePlayer.x : 200;
