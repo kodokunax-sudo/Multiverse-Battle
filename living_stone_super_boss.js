@@ -904,6 +904,35 @@
 
     function ls2Stop(restoreMainScreen) {
         if (!ls2Active && !ls2ChoicePending) return;
+        if (ls2NativeMode) {
+            ls2NativeMode = false;
+            ls2Active = false; ls2ChoicePending = false;
+            window.livingStoneSuperActive = false;
+            window.__mbLS2GreenPhase = "normal";
+            window.__mbLS2PhaseFrames = 0;
+            window.__mbLS2ShieldDir = 0;
+            if (ls2Frame) cancelAnimationFrame(ls2Frame);
+            ls2Frame = 0;
+            if (ls2Canvas && ls2PointerHandler) ls2Canvas.removeEventListener("pointerdown", ls2PointerHandler);
+            ls2PointerHandler = null;
+            if (ls2KeyHandler) window.removeEventListener("keydown", ls2KeyHandler, true);
+            if (ls2KeyUpHandler) window.removeEventListener("keyup", ls2KeyUpHandler, true);
+            ls2KeyHandler = null; ls2KeyUpHandler = null; ls2HeldKeys = {};
+            ls2RemoveControls();
+            if (typeof livingStoneActive !== "undefined" && livingStoneActive && typeof stopLivingStoneFight === "function") {
+                try { stopLivingStoneFight(); } catch (e) { livingStoneActive = false; }
+            }
+            var nativeOverlay = document.getElementById("arenaOverlay");
+            if (nativeOverlay) { nativeOverlay.classList.remove("living-stone-super-arena"); nativeOverlay.style.display = "none"; }
+            if (typeof window.MBEndBossGraphicsModeForFight === "function") {
+                try { window.MBEndBossGraphicsModeForFight(); } catch(e) {}
+            }
+            ls2Canvas = null; ls2Ctx = null; ls2Bullets = []; ls2Sparks = [];
+            if (restoreMainScreen && Number(typeof wave!=="undefined"?wave:0)===2000 &&
+                typeof currentEnemy!=="undefined" && currentEnemy && currentEnemy.hp>0 &&
+                typeof generateEnemy==="function") generateEnemy();
+            return;
+        }
         ls2Active=false; ls2ChoicePending=false; window.livingStoneSuperActive=false;
         if (ls2Frame) cancelAnimationFrame(ls2Frame);
         ls2Frame=0;
@@ -1048,15 +1077,24 @@
     window.startLivingStoneSuperFight=startLivingStoneSuperFight;
     window.stopLivingStoneSuperFight=function(){ls2Stop(!(window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===2000));};
     window.damageLivingStoneSuperBoss=ls2DamageBoss;
-    window.getLivingStoneSuperHeart=function(){return {x:LS2_HEART_X,y:LS2_HEART_Y,shieldDir:ls2ShieldDir,hp:ls2PlayerHp,maxHp:ls2PlayerMaxHp};};
+    window.getLivingStoneSuperHeart=function(){
+        if(ls2NativeMode && typeof livingStonePlayer!=="undefined") {
+            return {x:livingStonePlayer.x,y:livingStonePlayer.y,shieldDir:Number(window.__mbLS2ShieldDir)||0,
+                hp:livingStonePlayerHp,maxHp:livingStonePlayerMaxHp,phase:window.__mbLS2GreenPhase||"normal"};
+        }
+        return {x:LS2_HEART_X,y:LS2_HEART_Y,shieldDir:ls2ShieldDir,hp:ls2PlayerHp,maxHp:ls2PlayerMaxHp};
+    };
     window.getLivingStoneSuperBossHp=function(){return ls2NativeMode && typeof livingStoneBossHp!=="undefined" ? livingStoneBossHp : ls2BossHp;};
     window.getLivingStoneSuperBossMaxHp=function(){return ls2NativeMode && typeof livingStoneBossMaxHp!=="undefined" ? livingStoneBossMaxHp : ls2BossMaxHp;};
     window.setLivingStoneSuperBossHp=function(v){
         ls2BossHp=Math.max(1,Math.min(ls2BossMaxHp,Number(v)||1));
         if(ls2NativeMode && typeof livingStoneBossHp!=="undefined") livingStoneBossHp=ls2BossHp;
     };
-    window.setLivingStoneSuperPlayerHp=function(v){ls2PlayerHp=Math.max(1,Math.min(ls2PlayerMaxHp,Number(v)||1));};
-    window.getLivingStoneSuperAttacks=function(){return ls2Bullets;};
-    window.getLivingStoneSuperParticles=function(){return ls2Sparks;};
+    window.setLivingStoneSuperPlayerHp=function(v){
+        ls2PlayerHp=Math.max(1,Math.min(ls2PlayerMaxHp,Number(v)||1));
+        if(ls2NativeMode && typeof livingStonePlayerHp!=="undefined") livingStonePlayerHp=ls2PlayerHp;
+    };
+    window.getLivingStoneSuperAttacks=function(){return ls2NativeMode && typeof livingStoneAttacks!=="undefined" ? livingStoneAttacks : ls2Bullets;};
+    window.getLivingStoneSuperParticles=function(){return ls2NativeMode && typeof livingStoneParticles!=="undefined" ? livingStoneParticles : ls2Sparks;};
     window.isLivingStoneSuperActive=function(){return ls2Active;};
 })();
