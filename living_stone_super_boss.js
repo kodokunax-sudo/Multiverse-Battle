@@ -691,6 +691,7 @@
         window.livingStoneSuperActive = true;
         window.__mbLS2GreenPhase = "normal";
         window.__mbLS2PhaseFrames = 0;
+        window.__mbLS2LastPhaseTime = typeof performance !== "undefined" ? performance.now() : Date.now();
         window.__mbLS2ShieldDir = 0;
         window.__mbLS2GravityFromX = 200;
         window.__mbLS2GravityFromY = 400;
@@ -760,8 +761,12 @@
         if (!window.livingStoneSuperActive || !ls2NativeMode) return;
         var phase = window.__mbLS2GreenPhase || "normal";
         var frame = Number(window.__mbLS2PhaseFrames) || 0;
+        var now = typeof performance !== "undefined" ? performance.now() : Date.now();
+        var last = Number(window.__mbLS2LastPhaseTime) || now;
+        var frameStep = Math.max(0.2, Math.min(4, (now - last) / (1000 / 60)));
+        window.__mbLS2LastPhaseTime = now;
         if (phase === "normal") {
-            frame++;
+            frame += frameStep;
             if (frame >= 1200) {
                 frame = 0;
                 if (Math.random() < 0.5) {
@@ -775,7 +780,7 @@
                 }
             }
         } else if (phase === "gravity") {
-            frame++;
+            frame += frameStep;
             if (frame >= 95) {
                 frame = 0; window.__mbLS2GreenPhase = "green";
                 if (typeof livingStonePlayer !== "undefined") { livingStonePlayer.x = 200; livingStonePlayer.y = 420; }
@@ -783,7 +788,7 @@
                 if (typeof playArenaSound === "function") playArenaSound(430, "triangle", 0.2, 0.08);
             }
         } else if (phase === "green") {
-            frame++;
+            frame += frameStep;
             if (frame >= 480) {
                 frame = 0; window.__mbLS2GreenPhase = "normal";
                 if (typeof spawnLivingStoneText === "function") spawnLivingStoneText(200, 350, "ГРАВИТАЦИЯ ОТПУСТИЛА ТЕБЯ", "#ffb1b1", 80);
@@ -960,6 +965,7 @@
         ls2NativeMode = false;
         window.__mbLS2GreenPhase = "normal";
         window.__mbLS2PhaseFrames = 0;
+        window.__mbLS2LastPhaseTime = 0;
         window.__mbLS2ShieldDir = 0;
         if (Number(typeof wave!=="undefined"?wave:0)!==2000) return;
         if (typeof currentEnemy==="undefined" || !currentEnemy || currentEnemy.hp<=0) return;
