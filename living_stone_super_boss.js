@@ -469,7 +469,7 @@
             var oldCracks = finalCracksLevel, oldTimer = finalSceneTimer, oldLaugh = finalLaughOffset;
             var oldQteShake = qteBossShake, oldQteDamage = qteBossDamageLevel;
             try {
-                livingStoneBoss = { x: 200, y: stoneY, size: ls2Phase === "intro" ? 56 + approach * 3 : 59, vx: 0, rotation: Math.sin(now / 900) * 0.055 };
+                livingStoneBoss = { x: 200, y: stoneY, size: ls2Phase === "intro" ? 43 + approach * 2 : 45, vx: 0, rotation: Math.sin(now / 900) * 0.035 };
                 livingStoneState = "phase2"; livingStoneBossFlash = 0;
                 finalSceneActive = true; finalScenePhase = "laugh";
                 finalCracksLevel = ls2ReduceEffects ? 0.3 : 0.95;
@@ -709,7 +709,7 @@
         if (typeof livingStoneState !== "undefined") livingStoneState = "phase2";
         if (typeof livingStoneBossMaxHp !== "undefined") livingStoneBossMaxHp = ls2BossMaxHp;
         if (typeof livingStoneBossHp !== "undefined") livingStoneBossHp = ls2BossHp;
-        if (typeof livingStoneBoss !== "undefined") livingStoneBoss = { x: 200, y: 112, size: 60, vx: 1.15, rotation: 0 };
+        if (typeof livingStoneBoss !== "undefined") livingStoneBoss = { x: 200, y: 112, size: 44, vx: 1.15, rotation: 0 };
         if (typeof livingStonePlayer !== "undefined") livingStonePlayer = { x: 200, y: 400 };
         if (typeof livingStonePlayerMaxHp !== "undefined") livingStonePlayerMaxHp = ls2PlayerMaxHp;
         if (typeof livingStonePlayerHp !== "undefined") livingStonePlayerHp = ls2PlayerHp;
@@ -859,7 +859,7 @@
             ls2CombatText("Я НЕ ПРОМАХИВАЮСЬ ДВАЖДЫ", "#fff0b1", 90);
         } else if (name === "Ты промахнулся") {
             ls2BossDash = {type:"evasive",step:0,timer:0,fromX:b.x,fromY:b.y,
-                targets:[{x:ls2Clamp(b.x+(px<b.x?85:-85),42,358),y:ls2Clamp(b.y+(py<b.y?35:-35),75,235)}]};
+                targets:[{x:ls2Clamp(b.x+(px<b.x?64:-64),48,352),y:ls2Clamp(b.y+(py<b.y?22:-22),75,235)}]};
         }
         if (typeof playArenaSound === "function") playArenaSound(180 + Math.random()*90,"sawtooth",0.13,0.07);
     }
@@ -904,11 +904,11 @@
         if (ls2BossDash) {
             var d=ls2BossDash; d.timer++;
             var target=d.targets[d.step];
-            var duration=d.type==="evasive"?10:(d.type==="hunt"?19:24);
+            var duration=d.type==="evasive"?21:(d.type==="hunt"?23:27);
             var t=ls2Clamp(d.timer/duration,0,1), ease=t*t*(3-2*t);
             b.x=d.fromX+(target.x-d.fromX)*ease;
             b.y=d.fromY+(target.y-d.fromY)*ease;
-            b.rotation += .06;
+            b.rotation += d.type==="evasive" ? .018 : .035;
             if (t>=1) {
                 if (d.type==="blade") {
                     ls2SpawnCrack(b.x,470,120);
@@ -975,12 +975,12 @@
         var relLen = Math.sqrt(relVx * relVx + relVy * relVy) || 1;
         var perpX = -relVy / relLen, perpY = relVx / relLen;
         var candidates = [
-            {x: fromX + perpX * 100, y: fromY + perpY * 100},
-            {x: fromX - perpX * 100, y: fromY - perpY * 100},
-            {x: fromX - 88, y: fromY}, {x: fromX + 88, y: fromY},
-            {x: fromX, y: fromY - 58}, {x: fromX, y: fromY + 58},
-            {x: fromX + perpX * 75 - perpY * 42, y: fromY + perpY * 75 + perpX * 42},
-            {x: fromX - perpX * 75 - perpY * 42, y: fromY - perpY * 75 + perpX * 42}
+            {x: fromX + perpX * 66, y: fromY + perpY * 66},
+            {x: fromX - perpX * 66, y: fromY - perpY * 66},
+            {x: fromX - 58, y: fromY}, {x: fromX + 58, y: fromY},
+            {x: fromX, y: fromY - 42}, {x: fromX, y: fromY + 42},
+            {x: fromX + perpX * 52 - perpY * 27, y: fromY + perpY * 52 + perpX * 27},
+            {x: fromX - perpX * 52 - perpY * 27, y: fromY - perpY * 52 + perpX * 27}
         ];
         var shots = typeof livingStoneBullets !== "undefined" && Array.isArray(livingStoneBullets)
             ? livingStoneBullets.slice(-24) : [];
@@ -1016,7 +1016,7 @@
                 best = {x: tx, y: ty};
             }
         }
-        return best || {x: ls2Clamp(fromX + (fromX < 200 ? 82 : -82), 48, 352), y: ls2Clamp(fromY - 28, 72, 235)};
+        return best || {x: ls2Clamp(fromX + (fromX < 200 ? 56 : -56), 48, 352), y: ls2Clamp(fromY - 20, 72, 235)};
     }
 
     window.MBLivingStoneSuperTryDodgeBullet = function(bullet) {
@@ -1071,12 +1071,12 @@
 
         var danger = 1 - missDistance / hitRadius;
         var urgency = 1 - closestTime / 10.5;
-        var dodgeChance = 0.28 + danger * 0.36 + urgency * 0.22;
-        if (bullet.homing) dodgeChance += 0.06;
-        if (hpRatio < 0.22) dodgeChance += 0.07;
-        if (ls2DodgeStreak === 1) dodgeChance -= 0.09;
-        if (ls2DodgeStreak >= 2) dodgeChance -= 0.17;
-        dodgeChance = ls2Clamp(dodgeChance, 0.18, 0.82);
+        var dodgeChance = 0.20 + danger * 0.34 + urgency * 0.16;
+        if (bullet.homing) dodgeChance += 0.05;
+        if (hpRatio < 0.22) dodgeChance += 0.06;
+        if (ls2DodgeStreak === 1) dodgeChance -= 0.08;
+        if (ls2DodgeStreak >= 2) dodgeChance -= 0.15;
+        dodgeChance = ls2Clamp(dodgeChance, 0.12, 0.64);
         if (Math.random() > dodgeChance) return false;
 
         var fromX = b.x, fromY = b.y;
