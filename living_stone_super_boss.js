@@ -820,7 +820,7 @@
             for (var ci=0; ci<cloneCount; ci++) {
                 var cx = ls2Clamp(b.x + (ci ? -95 : 95), 50, 350);
                 var cy = ls2Clamp(b.y + (ci ? 35 : -15), 85, 220);
-                ls2UniqueDecoys.push({x:cx,y:cy,timer:230,kind:"shell",hits:0,core:ci===0?1:0,flash:0});
+                ls2UniqueDecoys.push({x:cx,y:cy,timer:230,kind:"shell",hits:0,core:0,flash:0});
             }
             b.x = ls2Clamp(400-b.x,65,335);
             b.vx = b.x < 200 ? 1.8 : -1.8;
@@ -1123,9 +1123,9 @@
             c.fillStyle="#57432f";c.strokeStyle="#b08d66";c.lineWidth=3;
             c.shadowColor=dec.kind==="shell"?"#73ff98":"#c7a77e";c.shadowBlur=dec.kind==="shell"?12:7;
             c.beginPath();c.moveTo(-35,11);c.lineTo(-30,-18);c.lineTo(-12,-36);c.lineTo(16,-33);c.lineTo(35,-12);c.lineTo(31,19);c.lineTo(8,32);c.lineTo(-22,27);c.closePath();c.fill();c.stroke();
-            c.shadowBlur=0;c.fillStyle=dec.kind==="shell"?"#91ffad":"#bda182";
+            c.shadowBlur=0;c.fillStyle=dec.kind==="shell"?"#544b3c":"#bda182";
             c.beginPath();c.arc(0,0,dec.core?8:4,0,Math.PI*2);c.fill();
-            if(dec.kind==="shell"){c.strokeStyle="#7cff99";c.lineWidth=1.5;c.beginPath();c.moveTo(-16,-18);c.lineTo(-4,-4);c.lineTo(12,-17);c.stroke();}
+            if(dec.kind==="shell"){c.strokeStyle="#8d826f";c.lineWidth=1.5;c.beginPath();c.moveTo(-16,-18);c.lineTo(-4,-4);c.lineTo(12,-17);c.stroke();}
             c.restore();
         }
         for (var j=0;j<ls2UniqueAttacks.length;j++) {
@@ -1254,6 +1254,21 @@
             c.fillStyle = "rgba(70,255,130,.18)"; c.fillRect(70,59,260,3);
             c.fillStyle = "#62ff91"; c.fillRect(70,59,260*Math.min(1,frames/95),3);
         }
+        c.restore();
+    };
+    window.MBDrawLivingStoneSuperBossCore = function(c) {
+        if (!ls2Live() || !c || !ls2UniqueDecoys.some(function(d){return d.kind==="shell";})) return;
+        var b=livingStoneBoss, pulse=1+Math.sin(performance.now()/75)*.16;
+        c.save();
+        var glow=c.createRadialGradient(b.x,b.y,2,b.x,b.y,30*pulse);
+        glow.addColorStop(0,"rgba(103,255,151,.95)");
+        glow.addColorStop(.35,"rgba(62,255,121,.38)");
+        glow.addColorStop(1,"rgba(62,255,121,0)");
+        c.fillStyle=glow;c.beginPath();c.arc(b.x,b.y,30*pulse,0,Math.PI*2);c.fill();
+        c.fillStyle="#b6ffca";c.strokeStyle="#effff2";c.lineWidth=1.5;
+        c.shadowColor="#55ff8b";c.shadowBlur=13;
+        c.beginPath();c.arc(b.x,b.y,8*pulse,0,Math.PI*2);c.fill();c.stroke();
+        c.shadowBlur=0;c.fillStyle="#ffffff";c.beginPath();c.arc(b.x-2,b.y-2,2.4,0,Math.PI*2);c.fill();
         c.restore();
     };
     window.MBDrawLivingStoneSuperShield = function(c) {
