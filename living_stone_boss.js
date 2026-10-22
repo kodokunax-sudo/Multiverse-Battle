@@ -844,6 +844,25 @@ function updateLivingStonePlayer() {
     if (livingStoneState === "restore" || livingStoneState === "qte_intro" || 
         livingStoneState === "qte_cinematic" || livingStoneState === "qte_punch" || 
         livingStoneState === "qte_finish" || finalSceneActive) return;
+    if (typeof window !== "undefined" && window.livingStoneSuperActive) {
+        var superPhase = window.__mbLS2GreenPhase || "normal";
+        if (superPhase === "gravity") {
+            var fromX = Number(window.__mbLS2GravityFromX);
+            var fromY = Number(window.__mbLS2GravityFromY);
+            if (!Number.isFinite(fromX)) fromX = livingStonePlayer.x;
+            if (!Number.isFinite(fromY)) fromY = livingStonePlayer.y;
+            var t = Math.max(0, Math.min(1, (Number(window.__mbLS2PhaseFrames)||0) / 95));
+            var ease = t * t * (3 - 2 * t);
+            livingStonePlayer.x = fromX + (200 - fromX) * ease;
+            livingStonePlayer.y = fromY + (420 - fromY) * ease;
+            return;
+        }
+        if (superPhase === "green") {
+            livingStonePlayer.x = 200;
+            livingStonePlayer.y = 420;
+            return;
+        }
+    }
     if (typeof keys === 'undefined') return;
 
     // ★ ФИКС: гароу-стоп и оглушение ★
@@ -944,6 +963,11 @@ function updateLivingStoneBullets() {
 }
 
 function damageLivingStone(dmg) {
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        typeof window.MBLivingStoneSuperDamage === "function") {
+        window.MBLivingStoneSuperDamage(dmg);
+        return;
+    }
     if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
     if (livingStoneState === "phase2" && livingStoneBossHp <= 0) return;
     if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") dmg=window.MBBossTestModifyOutgoingDamage(dmg,1);
@@ -1347,6 +1371,11 @@ function triggerPhase2() {
 
 // ========== ПОБЕДА / ПОРАЖЕНИЕ ==========
 function livingStoneVictory() {
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        typeof window.MBLivingStoneSuperNativeVictory === "function") {
+        window.MBLivingStoneSuperNativeVictory();
+        return;
+    }
     if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===200) {
         livingStoneState="victory";
         spawnLivingStoneText(200,200,"ТЕСТ: ПОБЕДА","#aaffbf",90);
@@ -1381,6 +1410,11 @@ function livingStoneVictory() {
 }
 
 function livingStoneDefeat() {
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        typeof window.MBLivingStoneSuperNativeDefeat === "function") {
+        window.MBLivingStoneSuperNativeDefeat();
+        return;
+    }
     if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===200) {
         stopLivingStoneFight();
         if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("loss",true);
@@ -1678,6 +1712,18 @@ function checkLivingStoneCollisions() {
             if (Math.sqrt(dx * dx + dy * dy) < a.size + ph) hit = true;
         }
 
+        if (hit && typeof window !== "undefined" && window.livingStoneSuperActive &&
+            window.__mbLS2GreenPhase === "green" &&
+            typeof window.MBLivingStoneSuperShieldBlocks === "function" &&
+            window.MBLivingStoneSuperShieldBlocks(a, px, py)) {
+            if (typeof spawnLivingStoneParticles === "function") spawnLivingStoneParticles(a.x || px, a.y || py, 10, "#65ff99", 4);
+            if (a.type !== "ring" && a.type !== "laser" && a.type !== "gravity_well") {
+                livingStoneAttacks.splice(i, 1); i--;
+            }
+            if (typeof window.MBPlayLivingStoneSuperShieldSound === "function") window.MBPlayLivingStoneSuperShieldSound();
+            continue;
+        }
+
         if(dioStandHit){
             a.dioStandHitOnce=true;
             var hpBeforeStandHit = livingStonePlayerHp;
@@ -1748,7 +1794,7 @@ function triggerChainExplosion(x, y, damage) {
 
 function damageLivingStonePlayer(dmg) {
     if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyIncomingDamage==="function") {
-        dmg=window.MBBossTestModifyIncomingDamage(dmg,"stone");
+        dmg=window.MBBossTestModifyIncomingDamage(dmg, window.livingStoneSuperActive ? "stoneSuper" : "stone");
         if(dmg<=0)return;
     }
     if (livingStoneInvulnTimer > 0) return;
@@ -1896,6 +1942,10 @@ function updateMegaEffects() {
 // ============================================================
 function livingStoneRenderLoop() {
     if (!livingStoneActive) return;
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        typeof window.MBUpdateLivingStoneSuperPhase === "function") {
+        try { window.MBUpdateLivingStoneSuperPhase(); } catch(e) {}
+    }
     var reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
     if (reduceBossEffects) {
         lsMobileMode = true; lsPerfMult = 0.12;
@@ -1936,7 +1986,9 @@ function livingStoneRenderLoop() {
 
     if (!finalSceneActive && (livingStoneState === "phase1" || livingStoneState === "phase2")) {
         // ★ ФИКС: не стреляем при гароу-стопе ★
-        var stopShooting = lsIsPlayerFrozen();
+        var stopShooting = lsIsPlayerFrozen() ||
+            (typeof window !== "undefined" && window.livingStoneSuperActive &&
+             window.__mbLS2GreenPhase && window.__mbLS2GreenPhase !== "normal");
         if (!stopShooting) {
             livingStoneShootTimer++;
             var shootRate = Math.max(2, Math.floor(6 / lsSpeedMult));
@@ -2427,6 +2479,10 @@ function livingStoneRenderLoop() {
     if (finalHeartVisible && (!isQTE || livingStoneState === "qte_punch" || livingStoneState === "qte_finish" || 
         livingStoneState === "qte_cinematic" || finalSceneActive)) {
         drawLivingStonePlayer();
+        if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+            window.__mbLS2GreenPhase === "green" && typeof window.MBDrawLivingStoneSuperShield === "function") {
+            try { window.MBDrawLivingStoneSuperShield(ctx); } catch(e) {}
+        }
     }
     
     if (lsActiveMod && lsActiveMod.type === 4 && (livingStoneState === "phase1" || livingStoneState === "phase2") && !finalSceneActive) {
@@ -2701,6 +2757,10 @@ function livingStoneRenderLoop() {
     }
     if (!isQTE && !finalSceneActive) drawLivingStoneHpBars();
     drawLSActiveModUI();
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        typeof window.MBDrawLivingStoneSuperPhaseHud === "function") {
+        try { window.MBDrawLivingStoneSuperPhaseHud(ctx); } catch(e) {}
+    }
     
     if (typeof renderSuperVisuals === 'function') {
         try { renderSuperVisuals(); } catch(e) { console.error("[LS] renderSuperVisuals error:", e); }
@@ -2982,48 +3042,64 @@ function drawLivingStonePlayer() {
     if (livingStoneInvulnTimer > 0 && Math.floor(livingStoneInvulnTimer / 4) % 2 === 0) return;
     ctx.save();
     ctx.translate(p.x, p.y);
-    if (qtePlayerAngry && qteCinematicPhase === "angry") {
-        var pa = 1.0 + Math.sin(performance.now() / 80) * 0.3;
-        var ag = ctx.createRadialGradient(0, 0, 5, 0, 0, 40 * pa);
-        ag.addColorStop(0, "rgba(255,50,50,0.8)");
-        ag.addColorStop(0.5, "rgba(255,0,0,0.4)");
-        ag.addColorStop(1, "rgba(255,0,0,0)");
-        ctx.fillStyle = ag;
-        ctx.beginPath();
-        ctx.arc(0, 0, 40 * pa, 0, Math.PI * 2);
-        ctx.fill();
-        for (var i = 0; i < 4; i++) {
-            var ang = Math.random() * Math.PI * 2;
-            ctx.strokeStyle = "#ff2222";
-            ctx.lineWidth = 3;
-            ctx.shadowColor = "#ff0000";
-            ctx.shadowBlur = 15;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            var lx = 0, ly = 0;
-            for (var k = 0; k < 4; k++) {
-                ang += (Math.random() - 0.5) * 1.5;
-                lx += Math.cos(ang) * 8;
-                ly += Math.sin(ang) * 8;
-                ctx.lineTo(lx, ly);
+    var superGreen = typeof window !== "undefined" && window.livingStoneSuperActive &&
+        window.__mbLS2GreenPhase === "green";
+    if (superGreen) {
+        var pulse = 1 + Math.sin(performance.now()/90)*0.12;
+        var glow = ctx.createRadialGradient(0,0,2,0,0,32*pulse);
+        glow.addColorStop(0,"rgba(105,255,151,.72)");
+        glow.addColorStop(.55,"rgba(30,255,101,.27)");
+        glow.addColorStop(1,"rgba(0,255,80,0)");
+        ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(0,0,32*pulse,0,Math.PI*2); ctx.fill();
+        var heartGrad=ctx.createLinearGradient(-12,-13,12,13);
+        heartGrad.addColorStop(0,"#e6ffed"); heartGrad.addColorStop(.38,"#62ff91"); heartGrad.addColorStop(1,"#087b36");
+        ctx.fillStyle=heartGrad; ctx.strokeStyle="#e8fff0"; ctx.lineWidth=1.5;
+        ctx.shadowColor="#3aff80"; ctx.shadowBlur=18;
+        ctx.beginPath(); ctx.moveTo(0,13);
+        ctx.bezierCurveTo(-3,10,-15,1,-13,-7);
+        ctx.bezierCurveTo(-12,-16,-3,-17,0,-9);
+        ctx.bezierCurveTo(4,-17,13,-15,13,-7);
+        ctx.bezierCurveTo(15,1,4,10,0,13);
+        ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.shadowBlur=0;
+        ctx.fillStyle="rgba(255,255,255,.92)";
+        ctx.beginPath(); ctx.ellipse(-5,-8,2.2,3.3,-.35,0,Math.PI*2); ctx.fill();
+    } else {
+        if (qtePlayerAngry && qteCinematicPhase === "angry") {
+            var pa = 1.0 + Math.sin(performance.now() / 80) * 0.3;
+            var ag = ctx.createRadialGradient(0, 0, 5, 0, 0, 40 * pa);
+            ag.addColorStop(0, "rgba(255,50,50,0.8)");
+            ag.addColorStop(0.5, "rgba(255,0,0,0.4)");
+            ag.addColorStop(1, "rgba(255,0,0,0)");
+            ctx.fillStyle = ag; ctx.beginPath(); ctx.arc(0, 0, 40 * pa, 0, Math.PI * 2); ctx.fill();
+            for (var i = 0; i < 4; i++) {
+                var ang = Math.random() * Math.PI * 2;
+                ctx.strokeStyle = "#ff2222"; ctx.lineWidth = 3;
+                ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 15;
+                ctx.beginPath(); ctx.moveTo(0, 0);
+                var lx = 0, ly = 0;
+                for (var k = 0; k < 4; k++) {
+                    ang += (Math.random() - 0.5) * 1.5;
+                    lx += Math.cos(ang) * 8; ly += Math.sin(ang) * 8; ctx.lineTo(lx, ly);
+                }
+                ctx.stroke();
             }
-            ctx.stroke();
         }
+        var finalScale = 1;
+        if (finalSceneActive && finalScenePhase === "pull_heart") finalScale = Math.max(0.2, 1 - finalSceneTimer / 240);
+        ctx.scale(finalScale, finalScale);
+        var secretName = (typeof getSecretHeartMainCardName === "function") ? getSecretHeartMainCardName() : "";
+        if (!drawSecretHeartTexture(ctx, 0, 0, 11, secretName, {rotation:0})) {
+            var gg = ctx.createRadialGradient(0, 0, 1, 0, 0, 22);
+            gg.addColorStop(0, "rgba(255,100,100,0.6)"); gg.addColorStop(1, "rgba(255,0,0,0)");
+            ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#ff2222"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 10;
+            var hs=11; ctx.beginPath(); ctx.moveTo(0,hs*.7);
+            ctx.bezierCurveTo(-hs*1.3,-hs*.2,-hs*.7,-hs,0,-hs*.3);
+            ctx.bezierCurveTo(hs*.7,-hs,hs*1.3,-hs*.2,0,hs*.7);
+            ctx.closePath(); ctx.fill(); ctx.shadowBlur=0;
+        }
+        ctx.fill();
     }
-    var finalScale = 1;
-    if (finalSceneActive && finalScenePhase === "pull_heart") {
-        finalScale = Math.max(0.2, 1 - finalSceneTimer / 240);
-    }
-    ctx.scale(finalScale, finalScale);
-    var secretName = (typeof getSecretHeartMainCardName === "function") ? getSecretHeartMainCardName() : "";
-    if (!drawSecretHeartTexture(ctx, 0, 0, 11, secretName, {rotation:0})) {
-        var gg = ctx.createRadialGradient(0, 0, 1, 0, 0, 22);
-        gg.addColorStop(0, "rgba(255,100,100,0.6)"); gg.addColorStop(1, "rgba(255,0,0,0)");
-        ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#ff2222"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 10;
-        var hs=11; ctx.beginPath(); ctx.moveTo(0,hs*.7); ctx.bezierCurveTo(-hs*1.3,-hs*.2,-hs*.7,-hs,0,-hs*.3); ctx.bezierCurveTo(hs*.7,-hs,hs*1.3,-hs*.2,0,hs*.7); ctx.closePath(); ctx.fill(); ctx.shadowBlur=0;
-    }
-    ctx.fill();
     ctx.restore();
 }
 
