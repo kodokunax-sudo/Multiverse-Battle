@@ -703,6 +703,8 @@
         ls2GreenStrikeTimer = 24; ls2GreenStrikeIndex = 0; ls2GreenBlockStreak = 0;
         ls2OpenWindowPending = false; ls2LastAttackName = "Ты промахнулся";
         ls2LastPlayerX = 200; ls2LastPlayerY = 400;
+        ls2PlayerVx = 0; ls2PlayerVy = 0; ls2PlayerStillFrames = 0;
+        ls2PlayerLane = 1; ls2PlayerLaneFrames = 0; ls2AttackRepeatCount = 0;
         if (typeof livingStoneActive !== "undefined") livingStoneActive = true;
         if (typeof livingStoneState !== "undefined") livingStoneState = "phase2";
         if (typeof livingStoneBossMaxHp !== "undefined") livingStoneBossMaxHp = ls2BossMaxHp;
@@ -770,6 +772,8 @@
     var ls2GreenStrikeTimer = 25, ls2GreenStrikeIndex = 0, ls2GreenBlockStreak = 0;
     var ls2OpenWindowPending = false;
     var ls2LastPlayerX = 200, ls2LastPlayerY = 400, ls2LastAttackName = "Ты промахнулся";
+    var ls2PlayerVx = 0, ls2PlayerVy = 0, ls2PlayerStillFrames = 0;
+    var ls2PlayerLane = 1, ls2PlayerLaneFrames = 0, ls2AttackRepeatCount = 0;
     var ls2BossWobble = 0;
 
     function ls2Clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -799,14 +803,18 @@
         if (!ls2Live()) return;
         var b = livingStoneBoss, p = livingStonePlayer;
         var px = p.x, py = p.y;
+        if (name === ls2LastAttackName) ls2AttackRepeatCount++;
+        else ls2AttackRepeatCount = 0;
         ls2LastAttackName = name;
         if (name === "Бег по лезвию") {
             ls2BossDash = {type:"blade", step:0, timer:0, fromX:b.x, fromY:b.y,
                 targets:[{x:75,y:145},{x:328,y:185},{x:145,y:108}]};
             ls2CombatText("БЕГ ПО ЛЕЗВИЮ", "#91ffb0", 95);
         } else if (name === "Я уже знаю, куда ты побежишь") {
-            var vx = px - ls2LastPlayerX, vy = py - ls2LastPlayerY;
-            var tx = ls2Clamp(px + vx * 10, 38, 362), ty = ls2Clamp(py + vy * 10, 255, 460);
+            var vx = ls2Clamp(ls2PlayerVx, -6, 6), vy = ls2Clamp(ls2PlayerVy, -6, 6);
+            var playerSpeed = Math.sqrt(vx * vx + vy * vy);
+            var leadFrames = playerSpeed < 0.7 ? 3 : 8 + Math.min(5, playerSpeed);
+            var tx = ls2Clamp(px + vx * leadFrames, 38, 362), ty = ls2Clamp(py + vy * leadFrames, 255, 460);
             ls2UniqueAttacks.push({type:"predict",x:tx,y:ty,radius:27,timer:0,life:76,sourceDir:0,damage:15,active:false});
             ls2CombatText("Я УЖЕ ЗНАЮ, КУДА ТЫ ПОБЕЖИШЬ", "#ffbd78", 100);
         } else if (name === "Поймай меня, если сможешь") {
@@ -854,6 +862,38 @@
                 targets:[{x:ls2Clamp(b.x+(px<b.x?85:-85),42,358),y:ls2Clamp(b.y+(py<b.y?35:-35),75,235)}]};
         }
         if (typeof playArenaSound === "function") playArenaSound(180 + Math.random()*90,"sawtooth",0.13,0.07);
+    }
+
+    // Босс запоминает темп, направление и привычную полосу игрока, чтобы выбирать контр-атаки.
+    function ls2ChooseSmartAttack(hpRatio) {
+        var p = livingStonePlayer, b = livingStoneBoss;
+        var speed = Math.sqrt(ls2PlayerVx * ls2PlayerVx + ls2PlayerVy * ls2PlayerVy);
+        var movesSideways = Math.abs(ls2PlayerVx) > Math.abs(ls2PlayerVy) * 1.15;
+        var campsOnEdge = p.x < 88 || p.x > 312;
+        var staysStill = ls2PlayerStillFrames > 38;
+        var campsInLane = ls2PlayerLaneFrames > 70;
+        var choices = [
+            { name: "Бег по лезвию", w: 0.72 + (staysStill ? 0.45 : 0) + (campsOnEdge ? 0.45 : 0) },
+            { name: "Я уже знаю, куда ты побежишь", w: 0.88 + Math.min(1.2, speed * 0.38) + (movesSideways ? 0.35 : 0) },
+            { name: "Поймай меня, если сможешь", w: 0.82 + (campsOnEdge ? 0.55 : 0) + (Math.abs(p.x - b.x) > 145 ? 0.25 : 0) },
+            { name: "Пустая оболочка", w: 0.68 + (ls2BossHitCount > 8 ? 0.52 : 0) + (ls2DodgeStreak > 0 ? 0.25 : 0) },
+            { name: "Рикошетное уклонение", w: 0.82 + (staysStill ? 0.62 : 0) + (movesSideways ? 0.22 : 0) },
+            { name: "Гравитационный бумеранг", w: 0.86 + (speed < 0.8 ? 0.5 : 0) + (campsInLane ? 0.3 : 0) },
+            { name: "Ты гонишься за мной", w: (hpRatio < 0.22 ? 2.15 : 0.52) + (speed > 2.4 ? 0.3 : 0) }
+        ];
+        choices.forEach(function (choice) {
+            if (choice.name === ls2LastAttackName) {
+                choice.w *= ls2AttackRepeatCount > 0 ? 0.07 : 0.16;
+            }
+        });
+        var total = 0;
+        choices.forEach(function (choice) { total += choice.w; });
+        var roll = Math.random() * total;
+        for (var i = 0; i < choices.length; i++) {
+            roll -= choices[i].w;
+            if (roll <= 0) return choices[i].name;
+        }
+        return choices[choices.length - 1].name;
     }
 
     window.MBUpdateLivingStoneSuperBossMovement = function() {
@@ -912,18 +952,12 @@
         }
         var hpRatio = typeof livingStoneBossHp==="number" && typeof livingStoneBossMaxHp==="number" && livingStoneBossMaxHp>0
             ? livingStoneBossHp/livingStoneBossMaxHp : 1;
-        if (hpRatio < .22 && ls2UniqueAttackTimer > 135) {
-            ls2UniqueAttackTimer = 135;
-            ls2CombatText("ТЫ МЕНЯ НЕ ПОЙМАЕШЬ!", "#ff795f", 70);
-        }
         ls2UniqueAttackTimer--;
         if (ls2UniqueAttackTimer <= 0) {
-            ls2UniqueAttackTimer = hpRatio < .22 ? 145 : (270+Math.floor(Math.random()*100));
-            var options=["Бег по лезвию","Я уже знаю, куда ты побежишь","Поймай меня, если сможешь",
-                "Пустая оболочка","Рикошетное уклонение","Гравитационный бумеранг","Ты гонишься за мной"];
-            var choice = options[Math.floor(Math.random()*options.length)];
-            if (hpRatio < .22 && Math.random()<.6) choice="Ты гонишься за мной";
-            ls2SpawnSpecial(choice);
+            ls2UniqueAttackTimer = hpRatio < 0.22
+                ? 125 + Math.floor(Math.random() * 32)
+                : 260 + Math.floor(Math.random() * 101);
+            ls2SpawnSpecial(ls2ChooseSmartAttack(hpRatio));
         }
         if (ls2UniqueFrame % 12 < 6) b.vx += Math.sin(ls2UniqueFrame*.075)*.04;
         b.x += b.vx * (hpRatio<.22?2.0:1.35);
@@ -934,36 +968,127 @@
         return true;
     };
 
+    function ls2ChooseDodgeTarget(bullet, boss, bossVx, bossVy) {
+        var fromX = boss.x, fromY = boss.y;
+        var shotVx = Number(bullet.vx) || 0, shotVy = Number(bullet.vy) || 0;
+        var relVx = shotVx - bossVx, relVy = shotVy - bossVy;
+        var relLen = Math.sqrt(relVx * relVx + relVy * relVy) || 1;
+        var perpX = -relVy / relLen, perpY = relVx / relLen;
+        var candidates = [
+            {x: fromX + perpX * 100, y: fromY + perpY * 100},
+            {x: fromX - perpX * 100, y: fromY - perpY * 100},
+            {x: fromX - 88, y: fromY}, {x: fromX + 88, y: fromY},
+            {x: fromX, y: fromY - 58}, {x: fromX, y: fromY + 58},
+            {x: fromX + perpX * 75 - perpY * 42, y: fromY + perpY * 75 + perpX * 42},
+            {x: fromX - perpX * 75 - perpY * 42, y: fromY - perpY * 75 + perpX * 42}
+        ];
+        var shots = typeof livingStoneBullets !== "undefined" && Array.isArray(livingStoneBullets)
+            ? livingStoneBullets.slice(-24) : [];
+        if (shots.indexOf(bullet) < 0) shots.push(bullet);
+        var times = [2, 4, 6, 8, 10, 13];
+        var playerForecastX = ls2Clamp(livingStonePlayer.x + ls2PlayerVx * 10, 30, 370);
+        var best = null, bestScore = -Infinity;
+        for (var i = 0; i < candidates.length; i++) {
+            var tx = ls2Clamp(candidates[i].x, 48, 352);
+            var ty = ls2Clamp(candidates[i].y, 72, 235);
+            if (Math.hypot(tx - fromX, ty - fromY) < 38) continue;
+            var minClearance = Infinity;
+            for (var j = 0; j < shots.length; j++) {
+                var shot = shots[j];
+                var svx = Number(shot.vx) || 0, svy = Number(shot.vy) || 0;
+                var shotRadius = (boss.size || 55) + (shot.size || 4) + 3;
+                for (var k = 0; k < times.length; k++) {
+                    var t = times[k], progress = Math.min(1, t / 10);
+                    progress = progress * progress * (3 - 2 * progress);
+                    var bossX = fromX + (tx - fromX) * progress;
+                    var bossY = fromY + (ty - fromY) * progress;
+                    var dx = bossX - (shot.x + svx * t);
+                    var dy = bossY - (shot.y + svy * t);
+                    var clearance = Math.sqrt(dx * dx + dy * dy) - shotRadius;
+                    if (clearance < minClearance) minClearance = clearance;
+                }
+            }
+            var edgeRoom = Math.min(tx - 48, 352 - tx) * 0.08 + Math.min(ty - 72, 235 - ty) * 0.08;
+            var leaveAimLane = Math.min(150, Math.abs(tx - playerForecastX)) * 0.12;
+            var score = minClearance + edgeRoom + leaveAimLane;
+            if (score > bestScore) {
+                bestScore = score;
+                best = {x: tx, y: ty};
+            }
+        }
+        return best || {x: ls2Clamp(fromX + (fromX < 200 ? 82 : -82), 48, 352), y: ls2Clamp(fromY - 28, 72, 235)};
+    }
+
     window.MBLivingStoneSuperTryDodgeBullet = function(bullet) {
         if (!ls2Live() || !bullet) return false;
-        var b=livingStoneBoss;
-        for (var i=ls2UniqueDecoys.length-1;i>=0;i--) {
-            var decoy=ls2UniqueDecoys[i];
-            var dx=bullet.x-decoy.x,dy=bullet.y-decoy.y;
-            if (dx*dx+dy*dy < Math.pow((bullet.size||4)+28,2)) {
-                decoy.flash=12;
-                if (typeof livingStoneAttacks!=="undefined") ls2SpawnOrbBurst(decoy.x,decoy.y,10,3.2,"#8dffb1",8);
-                if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(decoy.x,decoy.y,18,"#8dffb1",5);
-                ls2UniqueDecoys.splice(i,1);
-                ls2CombatText("ЛОЖНАЯ ОБОЛОЧКА!", "#93ffba", 52);
+        var b = livingStoneBoss;
+        for (var i = ls2UniqueDecoys.length - 1; i >= 0; i--) {
+            var decoy = ls2UniqueDecoys[i];
+            var dx = bullet.x - decoy.x, dy = bullet.y - decoy.y;
+            if (dx * dx + dy * dy < Math.pow((bullet.size || 4) + 28, 2)) {
+                decoy.flash = 12;
+                var impactColor = decoy.kind === "afterimage" ? "#bca487" : "#8dffb1";
+                if (typeof livingStoneAttacks !== "undefined") {
+                    ls2SpawnOrbBurst(decoy.x, decoy.y, decoy.kind === "afterimage" ? 6 : 10,
+                        decoy.kind === "afterimage" ? 2.7 : 3.2, impactColor, decoy.kind === "afterimage" ? 4 : 8);
+                }
+                if (typeof spawnLivingStoneParticles === "function") spawnLivingStoneParticles(decoy.x, decoy.y, 18, impactColor, 5);
+                ls2UniqueDecoys.splice(i, 1);
+                ls2CombatText(decoy.kind === "afterimage" ? "КАМЕННЫЙ ФАНТОМ!" : "ЛОЖНАЯ ОБОЛОЧКА!",
+                    decoy.kind === "afterimage" ? "#c4ad8e" : "#93ffba", 52);
                 return true;
             }
         }
-        var dxB=bullet.x-b.x,dyB=bullet.y-b.y;
-        if (dxB*dxB+dyB*dyB > Math.pow((b.size||55)+(bullet.size||4)+17,2)) return false;
-        if (ls2BossStun>0 || ls2DodgeCooldown>0 || (window.__mbLS2GreenPhase||"normal")!=="normal") return false;
-        if (Math.random()>.68) return false;
-        var fromX=b.x,fromY=b.y,side=(bullet.x<=b.x?1:-1);
-        var toX=ls2Clamp(fromX+side*(88+Math.random()*30),48,352);
-        if (Math.abs(toX-fromX)<28) toX=ls2Clamp(fromX-side*100,48,352);
-        var toY=ls2Clamp(fromY+(Math.random()-.5)*66,72,235);
-        ls2UniqueDecoys.push({x:fromX,y:fromY,timer:24,kind:"afterimage",hits:0,core:1,flash:0});
-        ls2BossDash={type:"evasive",step:0,timer:0,fromX:fromX,fromY:fromY,
-            targets:[{x:toX,y:toY}]};
-        ls2DodgeCooldown=56; ls2DodgeStreak++;
-        ls2CombatText("ТЫ ПРОМАХНУЛСЯ!", "#aaffc5", 45);
-        if (ls2DodgeStreak>=3) {
-            ls2DodgeStreak=0; ls2BossStun=82;
+
+        var dxB = bullet.x - b.x, dyB = bullet.y - b.y;
+        var broadRadius = (b.size || 55) + (bullet.size || 4) + 14;
+        if (dxB * dxB + dyB * dyB > broadRadius * broadRadius + 3600) {
+            var routeDistance = Math.sqrt(dxB * dxB + dyB * dyB);
+            if (routeDistance > 260) return false;
+        }
+        if (ls2BossStun > 0 || ls2DodgeCooldown > 0 || ls2BossDash ||
+            (window.__mbLS2GreenPhase || "normal") !== "normal") return false;
+
+        var hpRatio = typeof livingStoneBossHp === "number" && typeof livingStoneBossMaxHp === "number" && livingStoneBossMaxHp > 0
+            ? livingStoneBossHp / livingStoneBossMaxHp : 1;
+        var predictedBossVx = (Number(b.vx) || 0) * (hpRatio < 0.22 ? 2.0 : 1.35);
+        if ((b.x < 58 && predictedBossVx < 0) || (b.x > 342 && predictedBossVx > 0)) predictedBossVx = 0;
+        var nextBossY = 105 + Math.sin((ls2UniqueFrame + 1) * 0.025) * 32 +
+            (hpRatio < 0.22 ? Math.sin((ls2UniqueFrame + 1) * 0.14) * 12 : 0);
+        var predictedBossVy = nextBossY - b.y;
+        var relX = bullet.x - b.x, relY = bullet.y - b.y;
+        var relVx = (Number(bullet.vx) || 0) - predictedBossVx;
+        var relVy = (Number(bullet.vy) || 0) - predictedBossVy;
+        var relSpeedSq = relVx * relVx + relVy * relVy;
+        if (relSpeedSq < 0.2) return false;
+        var closestTime = -((relX * relVx) + (relY * relVy)) / relSpeedSq;
+        if (closestTime < 0.15 || closestTime > 10.5) return false;
+        var closestX = relX + relVx * closestTime;
+        var closestY = relY + relVy * closestTime;
+        var missDistance = Math.sqrt(closestX * closestX + closestY * closestY);
+        var hitRadius = Math.max(18, (b.size || 55) + (bullet.size || 4) - 3);
+        if (missDistance >= hitRadius) return false;
+
+        var danger = 1 - missDistance / hitRadius;
+        var urgency = 1 - closestTime / 10.5;
+        var dodgeChance = 0.28 + danger * 0.36 + urgency * 0.22;
+        if (bullet.homing) dodgeChance += 0.06;
+        if (hpRatio < 0.22) dodgeChance += 0.07;
+        if (ls2DodgeStreak === 1) dodgeChance -= 0.09;
+        if (ls2DodgeStreak >= 2) dodgeChance -= 0.17;
+        dodgeChance = ls2Clamp(dodgeChance, 0.18, 0.82);
+        if (Math.random() > dodgeChance) return false;
+
+        var fromX = b.x, fromY = b.y;
+        var target = ls2ChooseDodgeTarget(bullet, b, predictedBossVx, predictedBossVy);
+        ls2UniqueDecoys.push({x: fromX, y: fromY, timer: 24, kind: "afterimage", hits: 0, core: 0, flash: 0});
+        ls2BossDash = {type: "evasive", step: 0, timer: 0, fromX: fromX, fromY: fromY, targets: [target]};
+        ls2DodgeCooldown = hpRatio < 0.22 ? 66 : 82;
+        ls2DodgeStreak++;
+        ls2CombatText("ТЫ ПРОМАХНУЛСЯ!", "#c4ad8e", 45);
+        if (ls2DodgeStreak >= 3) {
+            ls2DodgeStreak = 0;
+            ls2BossStun = 82;
             ls2CombatText("ПОТЕРЯЛ РАВНОВЕСИЕ! АТАКУЙ!", "#fff0a8", 90);
         }
         return true;
@@ -983,6 +1108,20 @@
     window.MBUpdateLivingStoneSuperAttacks = function() {
         if (!ls2Live()) return;
         var p=livingStonePlayer, b=livingStoneBoss, phase=window.__mbLS2GreenPhase||"normal";
+        if (phase === "normal") {
+            var frameDx = ls2Clamp(p.x - ls2LastPlayerX, -8, 8);
+            var frameDy = ls2Clamp(p.y - ls2LastPlayerY, -8, 8);
+            ls2PlayerVx = ls2PlayerVx * 0.55 + frameDx * 0.45;
+            ls2PlayerVy = ls2PlayerVy * 0.55 + frameDy * 0.45;
+            if (Math.abs(frameDx) + Math.abs(frameDy) < 0.45) ls2PlayerStillFrames++;
+            else ls2PlayerStillFrames = 0;
+            var currentLane = p.x < 135 ? 0 : (p.x > 265 ? 2 : 1);
+            if (currentLane === ls2PlayerLane) ls2PlayerLaneFrames++;
+            else { ls2PlayerLane = currentLane; ls2PlayerLaneFrames = 0; }
+        } else {
+            ls2PlayerVx *= 0.65; ls2PlayerVy *= 0.65;
+            ls2PlayerStillFrames = 0; ls2PlayerLaneFrames = 0;
+        }
         ls2LastPlayerX = p.x; ls2LastPlayerY = p.y;
         if (ls2ShellBreak) {
             ls2ShellBreak.timer--;
@@ -996,8 +1135,8 @@
             var d=ls2UniqueDecoys[i];
             d.timer--; if (d.flash>0) d.flash--;
             if (d.kind==="afterimage" && d.timer<=0) {
-                ls2SpawnOrbBurst(d.x,d.y,9,2.8,"#75ff9d",7);
-                if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(d.x,d.y,10,"#95ffba",4);
+                ls2SpawnOrbBurst(d.x,d.y,6,2.4,"#bca487",4);
+                if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(d.x,d.y,10,"#c5ad8c",4);
                 ls2UniqueDecoys.splice(i,1); continue;
             }
             if (d.timer<=0) { ls2UniqueDecoys.splice(i,1); }
