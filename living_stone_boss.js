@@ -1712,7 +1712,7 @@ function checkLivingStoneCollisions() {
             if (Math.sqrt(dx * dx + dy * dy) < a.size + ph) hit = true;
         }
 
-        if (hit && typeof window !== "undefined" && window.livingStoneSuperActive &&
+        if (typeof window !== "undefined" && window.livingStoneSuperActive &&
             window.__mbLS2GreenPhase === "green" &&
             typeof window.MBLivingStoneSuperShieldBlocks === "function" &&
             window.MBLivingStoneSuperShieldBlocks(a, px, py)) {
