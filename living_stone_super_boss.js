@@ -21,6 +21,7 @@
     var LS2_CENTER_X = 200, LS2_CENTER_Y = 366;
     var LS2_HEART_X = LS2_CENTER_X, LS2_HEART_Y = LS2_CENTER_Y;
     var ls2Phase = "intro", ls2PhaseTimer = 0, ls2NormalDuration = 1200, ls2GreenCount = 0;
+    var ls2NativeMode = false;
     var ls2GravityDuration = 150, ls2GravityStartX = LS2_CENTER_X, ls2GravityStartY = LS2_CENTER_Y;
     var ls2PlayerAttackCooldown = 0, ls2BossStrikeFlash = 0, ls2HeldKeys = {}, ls2KeyUpHandler = null;
     var LS2_BOX = { x: 38, y: 242, w: 324, h: 222 };
@@ -34,6 +35,13 @@
     function ls2SetShield(direction) {
         if (!ls2Active) return;
         direction = ((direction % 4) + 4) % 4;
+        if (ls2NativeMode) {
+            if (window.__mbLS2GreenPhase === "green") {
+                window.__mbLS2ShieldDir = direction;
+                if (typeof window.MBPlayLivingStoneSuperShieldSound === "function") window.MBPlayLivingStoneSuperShieldSound();
+            }
+            return;
+        }
         if (ls2Phase === "normal") {
             var step = 28;
             if (direction === 0) LS2_HEART_Y -= step;
@@ -170,7 +178,9 @@
         if (Object.prototype.hasOwnProperty.call(ls2HeldKeys, key)) delete ls2HeldKeys[key];
     }
     function ls2SetControlVisibility() {
-        if (ls2Pad) ls2Pad.style.display = (ls2Phase === "normal" || ls2Phase === "green") ? "grid" : "none";
+        if (!ls2Pad) return;
+        if (ls2NativeMode) ls2Pad.style.display = window.__mbLS2GreenPhase === "green" ? "grid" : "none";
+        else ls2Pad.style.display = (ls2Phase === "normal" || ls2Phase === "green") ? "grid" : "none";
     }
     function ls2EnterNormal(afterGreen) {
         ls2Phase = "normal"; ls2PhaseTimer = 0;
@@ -285,7 +295,7 @@
             var approach = Math.min(1, ls2PhaseTimer / 108);
             LS2_HEART_X = LS2_CENTER_X;
             LS2_HEART_Y = 446 - 80 * (1 - Math.pow(1 - approach, 3));
-            if (ls2PhaseTimer >= 270) ls2EnterNormal(false);
+            if (ls2PhaseTimer >= 270) ls2StartNativeGameplay();
             return;
         }
         if (ls2Phase === "gravity") {
@@ -611,7 +621,7 @@
         if (!ls2Active || !ls2Ctx) return;
         var dt=ls2LastTime?Math.min(2.2,Math.max(.35,(now-ls2LastTime)/(1000/60))):1;
         ls2LastTime=now; ls2Update(dt);
-        if (!ls2Active || !ls2Ctx) return;
+        if (!ls2Active || !ls2Ctx || ls2NativeMode) return;
         if(typeof tickSupers==="function"){try{tickSupers();}catch(e){}}
         var c=ls2Ctx; c.save(); c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,400,500);
         ls2DrawBackground(c,now);
@@ -647,6 +657,199 @@
         if(typeof renderSuperVisuals==="function"){try{renderSuperVisuals();}catch(e){}}
         ls2Frame=requestAnimationFrame(ls2Render);
     }
+
+    function ls2StartNativeGameplay() {
+        if (!ls2Active || ls2NativeMode) return;
+        if (ls2Frame) cancelAnimationFrame(ls2Frame);
+        ls2Frame = 0;
+        if (ls2Canvas && ls2PointerHandler) ls2Canvas.removeEventListener("pointerdown",ls2PointerHandler);
+        ls2PointerHandler = null;
+        if (ls2KeyHandler) window.removeEventListener("keydown",ls2KeyHandler,true);
+        if (ls2KeyUpHandler) window.removeEventListener("keyup",ls2KeyUpHandler,true);
+        ls2KeyHandler = null; ls2KeyUpHandler = null; ls2HeldKeys = {};
+        ls2NativeMode = true;
+        ls2Phase = "native";
+        window.livingStoneSuperActive = true;
+        window.__mbLS2GreenPhase = "normal";
+        window.__mbLS2PhaseFrames = 0;
+        window.__mbLS2ShieldDir = 0;
+        window.__mbLS2GravityFromX = 200;
+        window.__mbLS2GravityFromY = 400;
+        window.__mbLS2GreenEventCount = 0;
+        if (typeof livingStoneActive !== "undefined") livingStoneActive = true;
+        if (typeof livingStoneState !== "undefined") livingStoneState = "phase2";
+        if (typeof livingStoneBossMaxHp !== "undefined") livingStoneBossMaxHp = ls2BossMaxHp;
+        if (typeof livingStoneBossHp !== "undefined") livingStoneBossHp = ls2BossHp;
+        if (typeof livingStoneBoss !== "undefined") livingStoneBoss = { x: 200, y: 112, size: 60, vx: 1.15, rotation: 0 };
+        if (typeof livingStonePlayer !== "undefined") livingStonePlayer = { x: 200, y: 400 };
+        if (typeof livingStonePlayerMaxHp !== "undefined") livingStonePlayerMaxHp = ls2PlayerMaxHp;
+        if (typeof livingStonePlayerHp !== "undefined") livingStonePlayerHp = ls2PlayerHp;
+        if (typeof livingStoneAttacks !== "undefined") livingStoneAttacks = [];
+        if (typeof livingStoneBullets !== "undefined") livingStoneBullets = [];
+        if (typeof livingStoneParticles !== "undefined") livingStoneParticles = [];
+        if (typeof livingStoneTexts !== "undefined") livingStoneTexts = [];
+        if (typeof livingStoneAttackTimer !== "undefined") livingStoneAttackTimer = 0;
+        if (typeof livingStoneAttackType !== "undefined") livingStoneAttackType = 0;
+        if (typeof livingStoneTypeTimer !== "undefined") livingStoneTypeTimer = 160;
+        if (typeof livingStoneShootTimer !== "undefined") livingStoneShootTimer = 0;
+        if (typeof livingStoneInvulnTimer !== "undefined") livingStoneInvulnTimer = 0;
+        if (typeof livingStoneBossFlash !== "undefined") livingStoneBossFlash = 0;
+        if (typeof livingStoneRestoreCount !== "undefined") livingStoneRestoreCount = 1;
+        if (typeof livingStoneRestoring !== "undefined") livingStoneRestoring = false;
+        if (typeof finalSceneActive !== "undefined") finalSceneActive = false;
+        if (typeof finalScenePhase !== "undefined") finalScenePhase = "idle";
+        if (typeof finalSceneTimer !== "undefined") finalSceneTimer = 0;
+        if (typeof finalBlackHole !== "undefined") finalBlackHole = null;
+        if (typeof finalHeartVisible !== "undefined") finalHeartVisible = true;
+        if (typeof qteCinematicActive !== "undefined") qteCinematicActive = false;
+        if (typeof qteActive !== "undefined") qteActive = false;
+        if (typeof lsMobileMode !== "undefined") lsMobileMode = !!ls2ReduceEffects;
+        if (typeof lsPerfMult !== "undefined") lsPerfMult = ls2ReduceEffects ? 0.12 : 1;
+        if (typeof lsSpeedMult !== "undefined") lsSpeedMult = 0.5;
+        if (typeof activeGravityWell !== "undefined") activeGravityWell = false;
+        if (typeof lsModCapsules !== "undefined") lsModCapsules = [];
+        if (typeof lsModSpawnTimer !== "undefined") lsModSpawnTimer = 0;
+        if (typeof lsActiveMod !== "undefined") lsActiveMod = null;
+        if (typeof lsModSpawnInterval !== "undefined") lsModSpawnInterval = 1500;
+        if (typeof lsModDuration !== "undefined") lsModDuration = 600;
+        if (typeof lsPlayerVelocity !== "undefined") lsPlayerVelocity = { x: 0, y: 0 };
+        if (typeof lsShotgunSkip !== "undefined") lsShotgunSkip = 0;
+        if (typeof initLivingStoneBgParticles === "function") initLivingStoneBgParticles();
+        if (typeof initLSSupers === "function") { try { initLSSupers(); } catch(e) {} }
+        if (typeof canvas !== "undefined" && canvas) {
+            if (typeof handleQTEClick === "function") canvas.addEventListener("click", handleQTEClick);
+            if (typeof handleLSTouchStart === "function") {
+                canvas.addEventListener("touchstart", handleLSTouchStart, { passive:false });
+                canvas.addEventListener("touchmove", handleLSTouchMove, { passive:false });
+                canvas.addEventListener("touchend", handleLSTouchEnd);
+                canvas.addEventListener("touchcancel", handleLSTouchEnd);
+            }
+        }
+        if (typeof document !== "undefined") {
+            var hpEl = document.getElementById("arenaHP");
+            if (hpEl) hpEl.textContent = String(livingStonePlayerHp);
+            var bossName = document.getElementById("arenaBossName");
+            if (bossName) bossName.textContent = "🪨 СУПЕР-ЖИВОЙ КАМЕНЬ";
+        }
+        ls2SetControlVisibility();
+        if (typeof livingStoneRenderLoop === "function") livingStoneAnimFrame = requestAnimationFrame(livingStoneRenderLoop);
+    }
+
+    window.MBUpdateLivingStoneSuperPhase = function() {
+        if (!window.livingStoneSuperActive || !ls2NativeMode) return;
+        var phase = window.__mbLS2GreenPhase || "normal";
+        var frame = Number(window.__mbLS2PhaseFrames) || 0;
+        if (phase === "normal") {
+            frame++;
+            if (frame >= 1200) {
+                frame = 0;
+                if (Math.random() < 0.5) {
+                    window.__mbLS2GreenPhase = "gravity";
+                    window.__mbLS2GravityFromX = typeof livingStonePlayer !== "undefined" ? livingStonePlayer.x : 200;
+                    window.__mbLS2GravityFromY = typeof livingStonePlayer !== "undefined" ? livingStonePlayer.y : 400;
+                    window.__mbLS2GreenEventCount = (Number(window.__mbLS2GreenEventCount) || 0) + 1;
+                    if (typeof spawnLivingStoneText === "function") spawnLivingStoneText(200, 255, "ГРАВИТАЦИЯ! ТЕБЯ ПРИЖИМАЕТ К ЗЕМЛЕ", "#8dffb1", 100);
+                    if (typeof livingStoneScreenFlash !== "undefined") { livingStoneScreenFlash = 12; livingStoneScreenFlashColor = "#76ff9a"; }
+                    if (typeof playArenaSound === "function") playArenaSound(62, "sawtooth", 0.55, 0.15);
+                }
+            }
+        } else if (phase === "gravity") {
+            frame++;
+            if (frame >= 95) {
+                frame = 0; window.__mbLS2GreenPhase = "green";
+                if (typeof livingStonePlayer !== "undefined") { livingStonePlayer.x = 200; livingStonePlayer.y = 420; }
+                if (typeof spawnLivingStoneText === "function") spawnLivingStoneText(200, 350, "ЗЕЛЁНАЯ ДУША! ЗАЩИЩАЙСЯ ЩИТОМ", "#63ff91", 125);
+                if (typeof playArenaSound === "function") playArenaSound(430, "triangle", 0.2, 0.08);
+            }
+        } else if (phase === "green") {
+            frame++;
+            if (frame >= 480) {
+                frame = 0; window.__mbLS2GreenPhase = "normal";
+                if (typeof spawnLivingStoneText === "function") spawnLivingStoneText(200, 350, "ГРАВИТАЦИЯ ОТПУСТИЛА ТЕБЯ", "#ffb1b1", 80);
+                if (typeof playArenaSound === "function") playArenaSound(240, "triangle", 0.16, 0.05);
+            }
+        }
+        window.__mbLS2PhaseFrames = frame;
+        ls2SetControlVisibility();
+    };
+    window.MBGetLivingStoneSuperPhase = function() {
+        return { phase: window.__mbLS2GreenPhase || "normal", frames: Number(window.__mbLS2PhaseFrames)||0,
+            shieldDir: Number(window.__mbLS2ShieldDir)||0 };
+    };
+    window.MBPlayLivingStoneSuperShieldSound = function() {
+        if (typeof playArenaSound === "function") playArenaSound(520, "triangle", 0.04, 0.035);
+    };
+    window.MBDrawLivingStoneSuperShield = function(c) {
+        if (!window.livingStoneSuperActive || window.__mbLS2GreenPhase !== "green" || !c ||
+            typeof livingStonePlayer === "undefined") return;
+        var dirs = [{x:0,y:-1,a:0},{x:1,y:0,a:Math.PI/2},{x:0,y:1,a:Math.PI},{x:-1,y:0,a:-Math.PI/2}];
+        var dir = dirs[((Number(window.__mbLS2ShieldDir)||0)%4+4)%4];
+        var p = livingStonePlayer;
+        var pulse = 1 + Math.sin(performance.now()/95)*0.045;
+        c.save();
+        c.translate(p.x + dir.x*19, p.y + dir.y*19);
+        c.rotate(dir.a);
+        c.scale(pulse,pulse);
+        var grad = c.createLinearGradient(-13,-10,13,12);
+        grad.addColorStop(0,"#f2fff5"); grad.addColorStop(.35,"#69ff9a"); grad.addColorStop(1,"#087b36");
+        c.shadowColor = "#3dff82"; c.shadowBlur = 18;
+        c.fillStyle = grad; c.strokeStyle = "#d6ffe2"; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(0,-17); c.lineTo(12,-10); c.lineTo(11,5); c.lineTo(0,14); c.lineTo(-11,5); c.lineTo(-12,-10); c.closePath();
+        c.fill(); c.stroke();
+        c.shadowBlur = 0; c.strokeStyle="rgba(255,255,255,.82)"; c.lineWidth=1.3;
+        c.beginPath(); c.moveTo(-5,-7); c.lineTo(0,-10); c.lineTo(5,-7); c.stroke();
+        c.restore();
+    };
+    window.MBLivingStoneSuperShieldBlocks = function(a, px, py) {
+        if (!window.livingStoneSuperActive || window.__mbLS2GreenPhase !== "green" || !a) return false;
+        var ax = Number(a.x), ay = Number(a.y);
+        if (!Number.isFinite(ax)) ax = px;
+        if (!Number.isFinite(ay)) ay = py;
+        var sourceX=ax, sourceY=ay, maxReach=36+(Number(a.size)||Number(a.radius)||0);
+        if (a.type === "laser" || a.type === "laser_warning") { sourceY = py - 80; maxReach = 38; }
+        if (a.type === "spike") { sourceY = py + 40; sourceX = Number(a.x)||px; maxReach = 44; }
+        var dx=sourceX-px, dy=sourceY-py;
+        var distance=Math.sqrt(dx*dx+dy*dy);
+        if (a.type === "ring") {
+            if (Math.abs(distance-(Number(a.radius)||0)) > (Number(a.thickness)||18)/2+24) return false;
+        } else if (a.type === "laser" || a.type === "laser_warning") {
+            if (Math.abs(px-ax) > (Number(a.width)||40)/2+18 || a.type !== "laser") return false;
+        } else if (a.type === "spike") {
+            if (a.warningTimer > 0 || a.height < 5 || Math.abs(px-ax)>42 || py < 500-(Number(a.height)||0)-12) return false;
+        } else {
+            if (distance > maxReach) return false;
+        }
+        var dir;
+        if (Math.abs(dx)>Math.abs(dy)) dir=dx>=0?1:3;
+        else dir=dy>=0?2:0;
+        return dir === ((Number(window.__mbLS2ShieldDir)||0)%4);
+    };
+
+    window.MBLivingStoneSuperNativeVictory = function() {
+        if (!window.livingStoneSuperActive) return;
+        if (window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===2000) {
+            ls2Stop(false);
+            if (typeof window.MBBossTestFinish==="function") window.MBBossTestFinish("win",true);
+            return;
+        }
+        if (typeof currentEnemy !== "undefined" && currentEnemy) currentEnemy.hp = 0;
+        if (typeof defeatedBosses !== "undefined" && Array.isArray(defeatedBosses) && !defeatedBosses.includes(2000)) defeatedBosses.push(2000);
+        if (typeof saveAll === "function") saveAll();
+        ls2Stop(false);
+        if (typeof victory === "function") victory();
+    };
+    window.MBLivingStoneSuperNativeDefeat = function() {
+        if (!window.livingStoneSuperActive) return;
+        if (window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===2000) {
+            ls2Stop(false);
+            if (typeof window.MBBossTestFinish==="function") window.MBBossTestFinish("loss",true);
+            return;
+        }
+        if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") window.MBPreserveGarouChargesForUniqueBossRetry("stoneSuper");
+        ls2Stop(false);
+        if (typeof playerHp !== "undefined") playerHp = 0;
+        if (typeof defeat === "function") defeat();
+    };
 
     function ls2Stop(restoreMainScreen) {
         if (!ls2Active && !ls2ChoicePending) return;
