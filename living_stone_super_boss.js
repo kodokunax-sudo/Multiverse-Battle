@@ -696,6 +696,13 @@
         window.__mbLS2GravityFromX = 200;
         window.__mbLS2GravityFromY = 400;
         window.__mbLS2GreenEventCount = 0;
+        ls2UniqueFrame = 0; ls2UniqueAttackTimer = 260;
+        ls2UniqueAttacks = []; ls2UniqueDecoys = []; ls2UniqueCracks = [];
+        ls2BossDash = null; ls2BossStun = 0; ls2DodgeCooldown = 0;
+        ls2DodgeStreak = 0; ls2BossHitCount = 0; ls2ShellBreak = null;
+        ls2GreenStrikeTimer = 24; ls2GreenStrikeIndex = 0; ls2GreenBlockStreak = 0;
+        ls2OpenWindowPending = false; ls2LastAttackName = "Ты промахнулся";
+        ls2LastPlayerX = 200; ls2LastPlayerY = 400;
         if (typeof livingStoneActive !== "undefined") livingStoneActive = true;
         if (typeof livingStoneState !== "undefined") livingStoneState = "phase2";
         if (typeof livingStoneBossMaxHp !== "undefined") livingStoneBossMaxHp = ls2BossMaxHp;
@@ -761,6 +768,7 @@
     var ls2BossDash = null, ls2BossStun = 0, ls2DodgeCooldown = 0;
     var ls2DodgeStreak = 0, ls2BossHitCount = 0, ls2ShellBreak = null;
     var ls2GreenStrikeTimer = 25, ls2GreenStrikeIndex = 0, ls2GreenBlockStreak = 0;
+    var ls2OpenWindowPending = false;
     var ls2LastPlayerX = 200, ls2LastPlayerY = 400, ls2LastAttackName = "Ты промахнулся";
     var ls2BossWobble = 0;
 
@@ -785,7 +793,7 @@
         }
     }
     function ls2SpawnCrack(x, y, delay) {
-        ls2UniqueCracks.push({x:ls2Clamp(x,28,372),y:ls2Clamp(y,100,480),timer:delay||52,life:(delay||52)+75});
+        ls2UniqueCracks.push({x:ls2Clamp(x,28,372),y:ls2Clamp(y,430,485),timer:delay||52,life:(delay||52)+75});
     }
     function ls2SpawnSpecial(name) {
         if (!ls2Live()) return;
@@ -799,13 +807,13 @@
         } else if (name === "Я уже знаю, куда ты побежишь") {
             var vx = px - ls2LastPlayerX, vy = py - ls2LastPlayerY;
             var tx = ls2Clamp(px + vx * 10, 38, 362), ty = ls2Clamp(py + vy * 10, 255, 460);
-            ls2UniqueAttacks.push({type:"predict",x:tx,y:ty,radius:27,timer:58,life:76,sourceDir:0,damage:15,active:false});
+            ls2UniqueAttacks.push({type:"predict",x:tx,y:ty,radius:27,timer:0,life:76,sourceDir:0,damage:15,active:false});
             ls2CombatText("Я УЖЕ ЗНАЮ, КУДА ТЫ ПОБЕЖИШЬ", "#ffbd78", 100);
         } else if (name === "Поймай меня, если сможешь") {
             ls2BossDash = {type:"chase",step:0,timer:0,fromX:b.x,fromY:b.y,
                 targets:[{x:px<200?350:50,y:110+Math.random()*100}],playerX:px,playerY:py};
             ls2UniqueAttacks.push({type:"boulder",x:b.x,y:b.y,vx:(px-b.x)/45,vy:(py-b.y)/45,
-                timer:20,life:240,bounces:0,size:17,damage:14,sourceDir:2,trail:[]});
+                timer:0,delay:20,life:240,bounces:0,size:17,damage:14,sourceDir:2,trail:[]});
             ls2CombatText("ПОЙМАЙ МЕНЯ, ЕСЛИ СМОЖЕШЬ", "#ffc0a0", 100);
         } else if (name === "Пустая оболочка") {
             var cloneCount = ls2BossHitCount > 10 ? 2 : 1;
@@ -869,19 +877,14 @@
             b.rotation += .06;
             if (t>=1) {
                 if (d.type==="blade") {
-                    ls2SpawnCrack(b.x,b.y+Math.random()*28,55);
+                    ls2SpawnCrack(b.x,470,55);
                     if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(b.x,b.y,7,"#63ff91",4);
                 }
                 d.step++;
                 if (d.step>=d.targets.length) {
                     ls2BossDash=null;
                     if (d.type==="blade") {
-                        if (typeof livingStoneAttacks!=="undefined") {
-                            ls2UniqueCracks.slice(-3).forEach(function(cr) {
-                                livingStoneAttacks.push({type:"spike",x:cr.x,y:500,height:0,maxHeight:74,
-                                    warningTimer:14,damage:13,color:"#5aff8a",superStoneAttack:true});
-                            });
-                        }
+                        ls2UniqueCracks.slice(-3).forEach(function(cr) { cr.timer = Math.min(cr.timer, 15); });
                         ls2CombatText("ТРЕЩИНЫ РАСКРЫВАЮТСЯ!", "#70ff9a", 65);
                     } else if (d.type==="chase") {
                         ls2UniqueAttacks.push({type:"boulder",x:d.fromX,y:d.fromY,vx:(d.playerX-d.fromX)/34,
@@ -897,6 +900,14 @@
                     d.fromX=b.x; d.fromY=b.y; d.timer=0;
                 }
             }
+            return true;
+        }
+        if ((window.__mbLS2GreenPhase||"normal") !== "normal") {
+            b.x += b.vx * 0.45;
+            if (b.x < 55) { b.x=55; b.vx=Math.abs(b.vx); }
+            if (b.x > 345) { b.x=345; b.vx=-Math.abs(b.vx); }
+            b.y = 112 + Math.sin(ls2UniqueFrame*.035)*25;
+            b.rotation += .01;
             return true;
         }
         var hpRatio = typeof livingStoneBossHp==="number" && typeof livingStoneBossMaxHp==="number" && livingStoneBossMaxHp>0
@@ -999,6 +1010,10 @@
             }
             if (cr.life<=0) ls2UniqueCracks.splice(ci,1);
         }
+        if (phase==="gravity") {
+            ls2UniqueAttacks = [];
+            return;
+        }
         if (phase==="green") {
             ls2GreenStrikeTimer--;
             if (ls2GreenStrikeTimer<=0) {
@@ -1038,11 +1053,14 @@
                     if(a.y<75||a.y>475){a.vy*=-1;a.y=ls2Clamp(a.y,75,475);a.bounces++;}
                     if(a.bounces>=3){ls2SpawnOrbBurst(a.x,a.y,6,2.6,"#afffce",6);a.life=0;}
                 } else if (a.type==="boulder") {
-                    if(a.x<15||a.x>385){a.vx*=-1;a.x=ls2Clamp(a.x,15,385);a.bounces++;}
-                    if(a.y<70||a.y>478){a.vy*=-1;a.y=ls2Clamp(a.y,70,478);a.bounces++;}
-                    if(a.bounces>=2){ls2SpawnOrbBurst(a.x,a.y,8,2.9,"#b3ffcb",8);a.life=0;}
+                    if (a.delay > 0) a.delay--;
+                    else {
+                        if(a.x<15||a.x>385){a.vx*=-1;a.x=ls2Clamp(a.x,15,385);a.bounces++;}
+                        if(a.y<70||a.y>478){a.vy*=-1;a.y=ls2Clamp(a.y,70,478);a.bounces++;}
+                        if(a.bounces>=2){ls2SpawnOrbBurst(a.x,a.y,8,2.9,"#b3ffcb",8);a.life=0;}
+                    }
                 }
-                if (a.life>0 && Math.hypot(p.x-a.x,p.y-a.y)<(a.size||12)+9) {
+                if (a.life>0 && (!a.delay || a.delay<=0) && Math.hypot(p.x-a.x,p.y-a.y)<(a.size||12)+9) {
                     var blocked=phase==="green" && a.type==="greenStrike" &&
                         ((Number(window.__mbLS2ShieldDir)||0)===a.sourceDir);
                     if (blocked) {
@@ -1051,6 +1069,7 @@
                         ls2CombatText("ЩИТ ПОПАЛ В ТОЧКУ!", "#9affb7", 40);
                         if(ls2GreenBlockStreak>=3) {
                             ls2GreenBlockStreak=0; ls2BossStun=Math.max(ls2BossStun,95);
+                            ls2OpenWindowPending=true;
                             ls2CombatText("РУКА ЗАСТРЯЛА! БОСС УЯЗВИМ!", "#fff1ae", 100);
                         }
                     } else if (livingStoneInvulnTimer<=0) {
@@ -1162,6 +1181,9 @@
                 frame = 0;
                 if (Math.random() < 0.5) {
                     window.__mbLS2GreenPhase = "gravity";
+                    ls2UniqueAttacks = [];
+                    ls2GreenBlockStreak = 0;
+                    ls2GreenStrikeTimer = 24;
                     window.__mbLS2GravityFromX = typeof livingStonePlayer !== "undefined" ? livingStonePlayer.x : 200;
                     window.__mbLS2GravityFromY = typeof livingStonePlayer !== "undefined" ? livingStonePlayer.y : 400;
                     window.__mbLS2GreenEventCount = (Number(window.__mbLS2GreenEventCount) || 0) + 1;
@@ -1174,6 +1196,8 @@
             frame += frameStep;
             if (frame >= 95) {
                 frame = 0; window.__mbLS2GreenPhase = "green";
+                ls2UniqueAttacks = [];
+                ls2GreenStrikeTimer = 20; ls2GreenStrikeIndex = 0; ls2GreenBlockStreak = 0;
                 if (typeof livingStonePlayer !== "undefined") { livingStonePlayer.x = 200; livingStonePlayer.y = 420; }
                 if (typeof spawnLivingStoneText === "function") spawnLivingStoneText(200, 350, "ЗЕЛЁНАЯ ДУША! ЗАЩИЩАЙСЯ ЩИТОМ", "#63ff91", 125);
                 if (typeof playArenaSound === "function") playArenaSound(430, "triangle", 0.2, 0.08);
@@ -1182,6 +1206,12 @@
             frame += frameStep;
             if (frame >= 480) {
                 frame = 0; window.__mbLS2GreenPhase = "normal";
+                ls2UniqueAttacks = [];
+                if (ls2OpenWindowPending) {
+                    ls2BossStun = Math.max(ls2BossStun, 95);
+                    ls2OpenWindowPending = false;
+                    ls2CombatText("ТЫ СЛОМАЛ ЕГО ЗАЩИТУ! БЕЙ!", "#fff0a8", 95);
+                }
                 if (typeof spawnLivingStoneText === "function") spawnLivingStoneText(200, 350, "ГРАВИТАЦИЯ ОТПУСТИЛА ТЕБЯ", "#ffb1b1", 80);
                 if (typeof playArenaSound === "function") playArenaSound(240, "triangle", 0.16, 0.05);
             }
