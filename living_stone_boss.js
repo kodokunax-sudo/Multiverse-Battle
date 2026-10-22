@@ -2499,6 +2499,10 @@ function livingStoneRenderLoop() {
     if (!isQTE || livingStoneState === "qte_punch" || livingStoneState === "qte_finish" || 
         livingStoneState === "qte_cinematic" || livingStoneState === "qte_intro" || finalSceneActive) {
         drawLivingStoneBoss();
+        if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+            typeof window.MBDrawLivingStoneSuperBossCore === "function") {
+            try { window.MBDrawLivingStoneSuperBossCore(ctx); } catch(e) {}
+        }
     }
     if (qteBossArm && qteCinematicPhase === "grabbed") drawBossArm();
     if (finalHeartVisible && (!isQTE || livingStoneState === "qte_punch" || livingStoneState === "qte_finish" || 
