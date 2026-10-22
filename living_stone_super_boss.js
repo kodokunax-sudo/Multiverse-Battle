@@ -861,12 +861,6 @@
         var b = livingStoneBoss, p = livingStonePlayer;
         ls2UniqueFrame++;
         if (ls2DodgeCooldown > 0) ls2DodgeCooldown--;
-        if (ls2BossStun > 0) {
-            ls2BossStun--;
-            b.rotation += Math.sin(ls2UniqueFrame*.55)*.04;
-            b.x += Math.sin(ls2UniqueFrame*.3)*.15;
-            return true;
-        }
         if (ls2BossDash) {
             var d=ls2BossDash; d.timer++;
             var target=d.targets[d.step];
@@ -877,7 +871,7 @@
             b.rotation += .06;
             if (t>=1) {
                 if (d.type==="blade") {
-                    ls2SpawnCrack(b.x,470,55);
+                    ls2SpawnCrack(b.x,470,120);
                     if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(b.x,b.y,7,"#63ff91",4);
                 }
                 d.step++;
@@ -900,6 +894,12 @@
                     d.fromX=b.x; d.fromY=b.y; d.timer=0;
                 }
             }
+            return true;
+        }
+        if (ls2BossStun > 0) {
+            ls2BossStun--;
+            b.rotation += Math.sin(ls2UniqueFrame*.55)*.04;
+            b.x += Math.sin(ls2UniqueFrame*.3)*.15;
             return true;
         }
         if ((window.__mbLS2GreenPhase||"normal") !== "normal") {
