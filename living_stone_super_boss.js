@@ -685,6 +685,7 @@
         if (ls2KeyUpHandler) window.removeEventListener("keyup",ls2KeyUpHandler,true);
         ls2KeyHandler = null; ls2KeyUpHandler = null; ls2HeldKeys = {};
         ls2NativeMode = true;
+        if (typeof window.MBUniqueBossFightStart === "function") window.MBUniqueBossFightStart("living_stone_super");
         ls2KeyHandler = ls2OnNativeKeyDown;
         window.addEventListener("keydown", ls2KeyHandler, true);
         ls2Phase = "native";
@@ -1468,6 +1469,7 @@
             if (typeof window.MBBossTestFinish==="function") window.MBBossTestFinish("win",true);
             return;
         }
+        if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("living_stone_super", "win");
         if (typeof currentEnemy !== "undefined" && currentEnemy) currentEnemy.hp = 0;
         if (typeof defeatedBosses !== "undefined" && Array.isArray(defeatedBosses) && !defeatedBosses.includes(2000)) defeatedBosses.push(2000);
         if (typeof saveAll === "function") saveAll();
@@ -1481,6 +1483,7 @@
             if (typeof window.MBBossTestFinish==="function") window.MBBossTestFinish("loss",true);
             return;
         }
+        if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("living_stone_super", "death");
         if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") window.MBPreserveGarouChargesForUniqueBossRetry("stoneSuper");
         ls2Stop(false);
         if (typeof playerHp !== "undefined") playerHp = 0;
@@ -1489,6 +1492,7 @@
 
     function ls2Stop(restoreMainScreen) {
         if (!ls2Active && !ls2ChoicePending) return;
+        if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("living_stone_super", "abandoned");
         if (ls2NativeMode) {
             ls2NativeMode = false;
             ls2Active = false; ls2ChoicePending = false;
