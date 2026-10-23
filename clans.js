@@ -909,6 +909,56 @@
         });
         container.appendChild(metricGrid);
 
+        var measuredSeconds = safeCount(player.measured_play_seconds, 315360000);
+        var estimatedSeconds = safeCount(player.estimated_prior_seconds, 315360000);
+        var timingNote = node('p', 'clan-muted',
+            'Учтено игровыми сессиями: ' + formatPlayDuration(measuredSeconds) + '. ' +
+            (estimatedSeconds > 0
+                ? 'До запуска аналитики: ориентировочно ≈ ' + formatPlayDuration(estimatedSeconds) +
+                  ' по коротким промежуткам между облачными сохранениями.'
+                : 'Для старого периода не удалось сформировать надёжную оценку по облачным сохранениям.') +
+            ' Историческая оценка не является точным временем; посещения этапов считаются с момента включения аналитики.');
+        timingNote.style.cssText = 'margin:-4px 0 13px;color:#aaa1bd;font-size:10px;line-height:1.5;';
+        container.appendChild(timingNote);
+
+        var progress = player.progress && typeof player.progress === 'object' ? player.progress : {};
+        var lifetime = progress.lifetime_stats && typeof progress.lifetime_stats === 'object' ? progress.lifetime_stats : {};
+        var currentRebirth = progress.current_rebirth_stats && typeof progress.current_rebirth_stats === 'object' ? progress.current_rebirth_stats : {};
+        var progressSection = node('section', 'mb-game-analytics-lifetime-progress');
+        progressSection.style.cssText = 'margin:8px 0 14px;padding-top:11px;border-top:1px solid rgba(255,255,255,.08);';
+        var progressHeading = node('strong', '', '📈 Прогресс за всё время');
+        progressHeading.style.cssText = 'display:block;margin-bottom:8px;font-size:12px;color:#e5d9ff;';
+        progressSection.appendChild(progressHeading);
+        var progressGrid = node('div', 'mb-game-analytics-progress-grid');
+        progressGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:7px;';
+        var progressMetrics = [
+            {label:'Победы за всё время', value:formatCount(safeCount(progress.total_wins))},
+            {label:'Рекорд волны', value:formatCount(safeCount(progress.highest_wave))},
+            {label:'Ребёрны', value:formatCount(safeCount(progress.rebirth_count, 1000000))},
+            {label:'Собрано карт', value:formatCount(safeCount(progress.cards_collected))},
+            {label:'Побеждено боссов', value:formatCount(safeCount(progress.bosses_defeated))},
+            {label:'Всего кликов', value:formatCount(safeCount(progress.total_clicks))},
+            {label:lifetime.deathsApproximate === true ? 'Смерти (оценка)' : 'Смерти', value:(lifetime.deathsApproximate === true ? '≈ ' : '') + formatCount(safeCount(lifetime.deaths))},
+            {label:'Макс. чекпоинт', value:formatCount(safeCount(lifetime.highestCheckpoint))},
+            {label:'Уникальных карт', value:formatCount(safeCount(lifetime.uniqueCardsOwned, 1000000000))},
+            {label:'Макс. очки', value:formatCount(safeCount(lifetime.maxPoints, 9007199254740991))},
+            {label:'Уровень сейчас', value:formatCount(safeCount(currentRebirth.currentLevel || 1))},
+            {label:'Волна сейчас', value:formatCount(safeCount(currentRebirth.currentWave || 1))}
+        ];
+        progressMetrics.forEach(function (metric) {
+            var card = node('div', 'mb-game-analytics-progress-metric');
+            card.style.cssText = 'min-width:0;padding:9px;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:rgba(255,255,255,.025);';
+            var value = node('strong', '', metric.value);
+            value.style.cssText = 'display:block;color:#f1d58c;font-size:15px;line-height:1.25;overflow-wrap:anywhere;';
+            var label = node('span', '', metric.label);
+            label.style.cssText = 'display:block;margin-top:4px;color:#b9b0cc;font-size:10px;line-height:1.35;';
+            card.appendChild(value);
+            card.appendChild(label);
+            progressGrid.appendChild(card);
+        });
+        progressSection.appendChild(progressGrid);
+        container.appendChild(progressSection);
+
         var playerStages = Array.isArray(data.player_top_stages) ? data.player_top_stages : [];
         var playerStageSection = node('section', 'mb-game-analytics-player-stages');
         playerStageSection.style.cssText = 'margin-top:8px;';
@@ -916,7 +966,7 @@
         playerStageHeading.style.cssText = 'display:block;margin-bottom:7px;font-size:12px;color:#e5d9ff;';
         playerStageSection.appendChild(playerStageHeading);
         if (!safeCount(player.total_sessions)) {
-            playerStageSection.appendChild(node('p', 'clan-muted', 'Учёт начинается с этого обновления. Проведи в игре хотя бы минуту, и здесь появятся время игры, сессии и этапы.'));
+            playerStageSection.appendChild(node('p', 'clan-muted', 'Сессии и посещения этапов накапливаются после включения аналитики. Историческое время показано отдельно только как ориентировочная оценка.'));
         } else if (!playerStages.length) {
             playerStageSection.appendChild(node('p', 'clan-muted', 'Этапы появятся после первых игровых минут.'));
         } else {
@@ -943,7 +993,7 @@
         var playersHeading = node('strong', '', '🏆 Кто провёл больше всего времени в игре');
         playersHeading.style.cssText = 'display:block;margin-bottom:7px;font-size:12px;color:#e5d9ff;';
         playersSection.appendChild(playersHeading);
-        playersSection.appendChild(node('p', 'clan-muted', 'Рейтинг накопленного времени с момента включения учёта. Новые игроки появятся после первой сессии.'));
+        playersSection.appendChild(node('p', 'clan-muted', 'Рейтинг всех профилей: учтённое время сессий плюс приблизительная оценка старого периода по облачным сохранениям. Посещения этапов считаются только после включения аналитики.'));
         if (!topPlayers.length) {
             playersSection.appendChild(node('p', 'clan-muted', 'Рейтинг пока пуст. Первая игровая сессия запустит статистику.'));
         } else {
@@ -955,12 +1005,20 @@
                 var name = node('strong', '', (index + 1) + '. ' + (player.display_name || 'Игрок'));
                 name.style.cssText = 'display:block;overflow-wrap:anywhere;font-size:11px;color:#eee6ff;';
                 var detail = node('span', '', '♻️ ' + safeCount(player.rebirth, 1000000) + '-й ребёрн · 🌊 волна ' +
-                    formatCount(safeCount(player.highest_wave, 1000000000)) + ' · ' +
+                    formatCount(safeCount(player.highest_wave, 1000000000)) + ' · 🏆 ' +
+                    formatCount(safeCount(player.total_wins)) + ' побед · 👹 ' +
+                    formatCount(safeCount(player.bosses_defeated)) + ' боссов · ' +
                     formatCount(safeCount(player.total_sessions)) + ' сесс.');
-                detail.style.cssText = 'display:block;margin-top:3px;color:#aca2c2;font-size:10px;';
+                detail.style.cssText = 'display:block;margin-top:3px;color:#aca2c2;font-size:10px;line-height:1.5;';
+                var detailProgress = node('span', '', '🎴 ' + formatCount(safeCount(player.cards_collected)) + ' карт · 👆 ' +
+                    formatCount(safeCount(player.total_clicks)) + ' кликов · учтено ' +
+                    formatPlayDuration(player.measured_play_seconds) + ' · до учёта ≈ ' +
+                    formatPlayDuration(player.estimated_prior_seconds));
+                detailProgress.style.cssText = 'display:block;margin-top:3px;color:#8f87a4;font-size:9px;line-height:1.5;';
                 identity.appendChild(name);
                 identity.appendChild(detail);
-                var duration = node('strong', '', formatPlayDuration(player.play_seconds));
+                identity.appendChild(detailProgress);
+                var duration = node('strong', '', (safeCount(player.estimated_prior_seconds) > 0 ? '≈ ' : '') + formatPlayDuration(player.play_seconds));
                 duration.style.cssText = 'max-width:42%;font-size:11px;color:#ffda72;text-align:right;overflow-wrap:anywhere;';
                 row.appendChild(identity);
                 row.appendChild(duration);
@@ -996,8 +1054,10 @@
         }
         container.appendChild(globalSection);
 
-        var foot = node('p', 'clan-muted', 'На сервере: ' + formatCount(safeCount(server.total_sessions)) + ' сессий · ' + formatPlayDuration(server.play_seconds) +
-            ' учтённого времени · ' + formatCount(safeCount(server.online_now)) + ' сейчас в игре.');
+        var foot = node('p', 'clan-muted', 'На сервере: ' + formatCount(safeCount(server.total_sessions)) + ' сессий · ' +
+            formatPlayDuration(server.play_seconds) + ' всего (' + formatPlayDuration(server.measured_play_seconds) +
+            ' учтено + ≈ ' + formatPlayDuration(server.estimated_prior_seconds) + ' оценка старого периода) · ' +
+            formatCount(safeCount(server.online_now)) + ' сейчас в игре.');
         foot.style.cssText = 'margin:12px 0 0;color:#88819d;font-size:9px;line-height:1.5;';
         container.appendChild(foot);
     }
