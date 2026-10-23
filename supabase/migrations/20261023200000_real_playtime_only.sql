@@ -213,7 +213,7 @@ begin
 
     return v_result;
 end;
-$function$
+$function$;
 
 revoke all on function public.mb_get_game_activity_stats(uuid) from public, anon;
 grant execute on function public.mb_get_game_activity_stats(uuid) to authenticated;
