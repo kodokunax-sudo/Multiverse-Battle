@@ -36,6 +36,9 @@
     var publicStatsData = null;
     var ownStatsMode = 'rebirth';
     var publicStatsMode = 'rebirth';
+    var populationStatsData = null;
+    var populationStatsFetchedAt = 0;
+    var populationStatsPromise = null;
     var NEW_ACCOUNT_SLOT_TRANSFER_KEY = 'mb_new_account_slot_transfer_user_v1';
 
     function isPendingNewAccountTransfer(userId) {
@@ -868,6 +871,159 @@
         } catch (error) { setNotice(friendlyError(error), 'error'); }
     }
 
+    function renderPopulationStats(containerId, stats) {
+        var container = byId(containerId);
+        if (!container) return;
+        container.replaceChildren();
+        container.style.cssText = 'display:block;margin:12px 0 16px;padding:14px;border:1px solid rgba(155,121,255,.22);border-radius:14px;background:linear-gradient(145deg,rgba(28,25,45,.92),rgba(12,13,22,.96));color:#eee7fa;';
+
+        var header = node('div', 'mb-population-header');
+        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;';
+        var heading = node('strong', '', '🌐 Серверная статистика');
+        heading.style.cssText = 'font-size:13px;color:#ffe29a;';
+        header.appendChild(heading);
+        var refresh = node('button', 'btn mb-population-refresh', '↻ Обновить');
+        refresh.type = 'button';
+        refresh.style.cssText = 'padding:6px 9px;font-size:10px;';
+        refresh.addEventListener('click', function () { refreshPopulationStats(true); });
+        header.appendChild(refresh);
+        container.appendChild(header);
+
+        if (!stats) {
+            container.appendChild(node('p', 'clan-muted', 'Не удалось загрузить статистику. Нажми «Обновить», чтобы попробовать ещё раз.'));
+            return;
+        }
+
+        var metrics = [
+            { label: 'Всего профилей', value: stats.total_players },
+            { label: 'Онлайн · 2 мин', value: stats.online_players },
+            { label: 'Активны за 24 часа', value: stats.active_24h },
+            { label: 'Активны за 7 дней', value: stats.active_7d }
+        ];
+        var metricGrid = node('div', 'mb-population-metrics');
+        metricGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:7px;margin-bottom:14px;';
+        metrics.forEach(function (metric) {
+            var card = node('div', 'mb-population-metric');
+            card.style.cssText = 'min-width:0;padding:10px 9px;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:rgba(255,255,255,.025);';
+            var value = node('strong', '', formatCount(safeCount(metric.value, 1000000000)));
+            value.style.cssText = 'display:block;color:#ffda72;font-size:21px;line-height:1.2;overflow-wrap:anywhere;';
+            var label = node('span', '', metric.label);
+            label.style.cssText = 'display:block;margin-top:5px;color:#b9b0cc;font-size:10px;line-height:1.35;';
+            card.appendChild(value);
+            card.appendChild(label);
+            metricGrid.appendChild(card);
+        });
+        container.appendChild(metricGrid);
+
+        var distribution = Array.isArray(stats.rebirth_distribution) ? stats.rebirth_distribution : [];
+        var rebirthSection = node('section', 'mb-population-rebirths');
+        rebirthSection.style.cssText = 'margin-top:8px;';
+        var rebirthHeading = node('strong', '', '♻️ Сколько игроков на каждом ребёрне');
+        rebirthHeading.style.cssText = 'display:block;margin-bottom:9px;font-size:12px;color:#e5d9ff;';
+        rebirthSection.appendChild(rebirthHeading);
+        if (!distribution.length) {
+            rebirthSection.appendChild(node('p', 'clan-muted', 'Пока нет статистики ребёрнов.'));
+        } else {
+            var maxPlayers = distribution.reduce(function (max, item) {
+                return Math.max(max, safeCount(item && item.players));
+            }, 1);
+            distribution.forEach(function (item) {
+                var count = safeCount(item && item.players);
+                var line = node('div', 'mb-population-rebirth-row');
+                line.style.cssText = 'display:grid;grid-template-columns:minmax(88px,1fr) minmax(70px,2fr) auto;align-items:center;gap:8px;margin:8px 0;';
+                var name = node('span', '', safeCount(item && item.rebirth, 1000000) + '-й ребёрн');
+                name.style.cssText = 'font-size:11px;color:#d4c7ed;';
+                var track = node('div', 'mb-population-track');
+                track.style.cssText = 'height:7px;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.07);';
+                var fill = node('div', 'mb-population-track-fill');
+                fill.style.cssText = 'height:100%;width:' + Math.max(0, Math.min(100, count / maxPlayers * 100)) + '%;border-radius:99px;background:linear-gradient(90deg,#8168d9,#e8bd63);';
+                track.appendChild(fill);
+                var number = node('strong', '', formatCount(count) + (count === 1 ? ' игрок' : count < 5 ? ' игрока' : ' игроков'));
+                number.style.cssText = 'font-size:10px;color:#f0e7ff;text-align:right;white-space:nowrap;';
+                line.appendChild(name);
+                line.appendChild(track);
+                line.appendChild(number);
+                rebirthSection.appendChild(line);
+            });
+            if (stats.most_popular_rebirth) {
+                rebirthSection.appendChild(node('p', 'clan-muted',
+                    'Самый населённый: ' + safeCount(stats.most_popular_rebirth.rebirth, 1000000) +
+                    '-й ребёрн · ' + formatCount(safeCount(stats.most_popular_rebirth.players)) +
+                    (safeCount(stats.most_popular_rebirth.players) === 1 ? ' игрок.' : ' игрока.')));
+            }
+        }
+        container.appendChild(rebirthSection);
+
+        var recent = Array.isArray(stats.recent_players) ? stats.recent_players : [];
+        var recentSection = node('section', 'mb-population-recent');
+        recentSection.style.cssText = 'margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);';
+        var recentHeading = node('strong', '', '🕒 Последние замеченные игроки');
+        recentHeading.style.cssText = 'display:block;margin-bottom:8px;font-size:12px;color:#e5d9ff;';
+        recentSection.appendChild(recentHeading);
+        recentSection.appendChild(node('p', 'clan-muted', 'Показывается последнее зафиксированное присутствие, а не время, проведённое в игре.'));
+        if (!recent.length) {
+            recentSection.appendChild(node('p', 'clan-muted', 'Пока нет записей о посещениях.'));
+        } else {
+            recent.forEach(function (player) {
+                var row = node('div', 'mb-population-recent-player');
+                row.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.04);';
+                var identity = node('div', 'mb-population-recent-identity');
+                identity.style.cssText = 'min-width:0;flex:1;';
+                var playerName = node('strong', '', player.display_name || 'Игрок');
+                playerName.style.cssText = 'display:block;overflow-wrap:anywhere;color:#f2eaff;font-size:11px;';
+                var detail = node('span', '', '♻️ ' + safeCount(player.rebirth, 1000000) + '-й ребёрн · 🌊 волна ' + formatCount(safeCount(player.highest_wave, 1000000000)));
+                detail.style.cssText = 'display:block;margin-top:3px;color:#afa5c4;font-size:10px;';
+                identity.appendChild(playerName);
+                identity.appendChild(detail);
+                var seen = node('time', '', formatActivityDate(player.last_seen_at) || 'Время неизвестно');
+                seen.style.cssText = 'max-width:48%;color:#9d94b1;font-size:9px;text-align:right;overflow-wrap:anywhere;';
+                row.appendChild(identity);
+                row.appendChild(seen);
+                recentSection.appendChild(row);
+            });
+        }
+        var checked = node('p', 'clan-muted', 'Статистика обновлена: ' + new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
+        checked.style.cssText = 'margin:10px 0 0;color:#88819d;font-size:9px;';
+        recentSection.appendChild(checked);
+        container.appendChild(recentSection);
+    }
+
+    async function refreshPopulationStats(force) {
+        if (!db || !currentUser) return null;
+        if (!force && populationStatsData && Date.now() - populationStatsFetchedAt < 60000) {
+            renderPopulationStats('clanProfilePopulationStats', populationStatsData);
+            renderPopulationStats('clanPublicPopulationStats', populationStatsData);
+            return populationStatsData;
+        }
+        if (populationStatsPromise) return populationStatsPromise;
+
+        var client = db;
+        var userId = currentUser.id;
+        populationStatsPromise = (async function () {
+            try {
+                var result = await client.rpc('mb_get_population_stats');
+                if (result.error) throw result.error;
+                if (client !== db || !currentUser || currentUser.id !== userId) return null;
+                var data = Array.isArray(result.data) ? result.data[0] : result.data;
+                if (data && data.stats) data = data.stats;
+                if (!data || typeof data !== 'object') throw new Error('population_stats_invalid');
+                populationStatsData = data;
+                populationStatsFetchedAt = Date.now();
+                renderPopulationStats('clanProfilePopulationStats', data);
+                renderPopulationStats('clanPublicPopulationStats', data);
+                return data;
+            } catch (error) {
+                console.warn('[MB online] Не удалось загрузить статистику сервера:', error && (error.message || error));
+                renderPopulationStats('clanProfilePopulationStats', null);
+                renderPopulationStats('clanPublicPopulationStats', null);
+                return null;
+            } finally {
+                populationStatsPromise = null;
+            }
+        })();
+        return populationStatsPromise;
+    }
+
     function statsShownValue(value, minimum) {
         if (value === undefined || value === null || value === '') return '—';
         var numeric = Number(value);
@@ -1003,9 +1159,11 @@
         if (scope === 'own') {
             ownStatsMode = mode;
             renderExpandedStats('own', ownStatsData, ownStatsMode);
+        refreshPopulationStats(false);
         } else {
             publicStatsMode = mode;
             renderExpandedStats('public', publicStatsData, publicStatsMode);
+            refreshPopulationStats(false);
         }
     }
 
