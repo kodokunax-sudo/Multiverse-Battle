@@ -837,6 +837,7 @@
         } catch(e) {}
         try { if (typeof saveAll === 'function') saveAll(); } catch(e) {}
         rwbState = "done";
+        if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("roger_whitebeard", "win");
         rwbDialogActive = false;
         if (typeof resetAllSupers === 'function') { try { resetAllSupers(); } catch(e) {} }
         rwbSupersInitialized = false;
@@ -1146,6 +1147,7 @@
         console.log("[ROGER-WB] Старт боя v19.0!");
 
         window.rwbActive = true;
+        if (typeof window.MBUniqueBossFightStart === "function") window.MBUniqueBossFightStart("roger_whitebeard");
         rwbState = "intro"; rwbTimer = 0; rwbIntroTimer = 0;
         rwbTransitionTimer = 0; rwbEndTimer = 0; rwbSurvivalTimer2 = 0;
         rwbTitanFistTimer = 0; rwbTitanRockTimer = 0;
@@ -3332,6 +3334,7 @@
         }
         if (isModerActive()) return;
         if (rwbState === "defeat") return;
+        if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("roger_whitebeard", "death");
         if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") {
             window.MBPreserveGarouChargesForUniqueBossRetry("rwb");
         }
@@ -3342,6 +3345,7 @@
     }
 
     function stopRogerWhitebeardFight() {
+        if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("roger_whitebeard", "abandoned");
         if (typeof window.MBEndBossGraphicsModeForFight === "function") window.MBEndBossGraphicsModeForFight();
         if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
         window.rwbActive = false; rwbDialogActive = false;
