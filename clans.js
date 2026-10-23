@@ -893,7 +893,7 @@
         metricGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:7px;margin-bottom:13px;';
         [
             {label:'Игровых сессий', value:formatCount(safeCount(player.total_sessions))},
-            {label:'Всего в игре', value:formatPlayDuration(player.play_seconds)},
+            {label:'Всего в игре', value:(safeCount(player.play_seconds) === 0 && safeCount(player.total_sessions) === 0 && safeCount(player.estimated_prior_seconds) === 0 ? 'Нет данных' : formatPlayDuration(player.play_seconds))},
             {label:'Средняя сессия', value:formatPlayDuration(player.average_session_seconds)},
             {label:'Сессий за 7 дней', value:formatCount(safeCount(player.sessions_7d))}
         ].forEach(function (metric) {
@@ -917,6 +917,7 @@
                 ? 'До запуска аналитики: ориентировочно ≈ ' + formatPlayDuration(estimatedSeconds) +
                   ' по коротким промежуткам между облачными сохранениями.'
                 : 'Для старого периода не удалось сформировать надёжную оценку по облачным сохранениям.') +
+            (player.last_session_at ? ' Последняя измеренная сессия: ' + formatActivityDate(player.last_session_at) + '.' : '') +
             ' Историческая оценка не является точным временем; посещения этапов считаются с момента включения аналитики.');
         timingNote.style.cssText = 'margin:-4px 0 13px;color:#aaa1bd;font-size:10px;line-height:1.5;';
         container.appendChild(timingNote);
@@ -1018,7 +1019,10 @@
                 identity.appendChild(name);
                 identity.appendChild(detail);
                 identity.appendChild(detailProgress);
-                var duration = node('strong', '', (safeCount(player.estimated_prior_seconds) > 0 ? '≈ ' : '') + formatPlayDuration(player.play_seconds));
+                var durationText = safeCount(player.play_seconds) === 0 && safeCount(player.total_sessions) === 0 && safeCount(player.estimated_prior_seconds) === 0
+                    ? 'Нет данных'
+                    : (safeCount(player.estimated_prior_seconds) > 0 ? '≈ ' : '') + formatPlayDuration(player.play_seconds);
+                var duration = node('strong', '', durationText);
                 duration.style.cssText = 'max-width:42%;font-size:11px;color:#ffda72;text-align:right;overflow-wrap:anywhere;';
                 row.appendChild(identity);
                 row.appendChild(duration);
