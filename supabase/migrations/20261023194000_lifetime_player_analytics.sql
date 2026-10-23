@@ -92,7 +92,7 @@ begin
         'player', (
             select jsonb_build_object(
                 'total_sessions', a.total_sessions,
-                'play_seconds', a.measured_play_seconds + a.estimated_prior_seconds,
+                'play_seconds', a.measured_play_seconds,
                 'measured_play_seconds', a.measured_play_seconds,
                 'estimated_prior_seconds', a.estimated_prior_seconds,
                 'average_session_seconds', a.average_session_seconds,
@@ -195,9 +195,6 @@ begin
                 ),
                 'play_seconds', (
                     select coalesce(sum(s.total_seconds), 0)::bigint from public.mb_game_sessions s
-                ) + (
-                    select coalesce(sum(b.estimated_prior_seconds), 0)::bigint
-                    from public.mb_game_time_baselines b
                 )
             )
         ),
@@ -238,15 +235,14 @@ begin
                         count(s.id)::integer as total_sessions,
                         coalesce(sum(s.total_seconds), 0)::bigint as measured_play_seconds,
                         coalesce(max(b.estimated_prior_seconds), 0)::bigint as estimated_prior_seconds,
-                        coalesce(sum(s.total_seconds), 0)::bigint
-                            + coalesce(max(b.estimated_prior_seconds), 0)::bigint as play_seconds,
+                        coalesce(sum(s.total_seconds), 0)::bigint as play_seconds,
                         max(coalesce(s.ended_at, s.last_heartbeat_at, s.started_at)) as last_session_at
                     from public.profiles p
                     left join public.mb_game_sessions s on s.user_id = p.id
                     left join public.mb_game_time_baselines b on b.user_id = p.id
                     group by p.id
                     order by
-                        coalesce(sum(s.total_seconds), 0) + coalesce(max(b.estimated_prior_seconds), 0) desc,
+                        coalesce(sum(s.total_seconds), 0) desc,
                         count(s.id) desc
                     limit 50
                 ) a
