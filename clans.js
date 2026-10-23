@@ -39,6 +39,10 @@
     var populationStatsData = null;
     var populationStatsFetchedAt = 0;
     var populationStatsPromise = null;
+    var gameAnalyticsSessionId = null;
+    var gameAnalyticsUserId = null;
+    var gameActivityStatsCache = Object.create(null);
+    var GAME_ANALYTICS_IDLE_LIMIT_MS = 5 * 60 * 1000;
     var NEW_ACCOUNT_SLOT_TRANSFER_KEY = 'mb_new_account_slot_transfer_user_v1';
 
     function isPendingNewAccountTransfer(userId) {
@@ -765,6 +769,228 @@
             row.appendChild(buttons); container.appendChild(row);
         });
     }
+    function getGameAnalyticsSnapshot() {
+        try {
+            if (typeof window.MBGetAnalyticsSnapshot !== 'function') return null;
+            var snapshot = window.MBGetAnalyticsSnapshot();
+            if (!snapshot || typeof snapshot !== 'object') return null;
+            var stageKey = String(snapshot.stage_key || '');
+            var stageLabel = String(snapshot.stage_label || '');
+            if (!/^[a-z0-9_:-]{1,80}$/.test(stageKey) || !stageLabel.trim()) return null;
+            return {
+                stage_key: stageKey,
+                stage_label: stageLabel.slice(0, 100),
+                wave: Math.max(1, safeCount(snapshot.wave, 1000000000)),
+                rebirth: safeCount(snapshot.rebirth, 1000000)
+            };
+        } catch (_error) { return null; }
+    }
+
+    async function trackGameAnalytics(pause) {
+        if (!db || !currentUser) return null;
+        if (!pause && document.visibilityState === 'hidden') return null;
+        var snapshot = getGameAnalyticsSnapshot();
+        if (!snapshot) return null;
+
+        var userId = currentUser.id;
+        if (gameAnalyticsUserId && gameAnalyticsUserId !== userId) {
+            gameAnalyticsSessionId = null;
+            gameAnalyticsUserId = null;
+        }
+
+        if (!gameAnalyticsSessionId) {
+            if (pause) return null;
+            var started = await db.rpc('mb_start_game_session', {
+                p_stage_key: snapshot.stage_key,
+                p_stage_label: snapshot.stage_label,
+                p_wave: snapshot.wave,
+                p_rebirth: snapshot.rebirth
+            });
+            if (started.error) {
+                console.warn('[MB analytics] Не удалось начать игровую сессию:', started.error.message);
+                return null;
+            }
+            gameAnalyticsSessionId = Array.isArray(started.data) ? started.data[0] : started.data;
+            if (gameAnalyticsSessionId && typeof gameAnalyticsSessionId === 'object') {
+                gameAnalyticsSessionId = gameAnalyticsSessionId.id || gameAnalyticsSessionId.mb_start_game_session || null;
+            }
+            gameAnalyticsUserId = gameAnalyticsSessionId ? userId : null;
+            return gameAnalyticsSessionId;
+        }
+
+        var result = await db.rpc('mb_track_game_session', {
+            p_session_id: gameAnalyticsSessionId,
+            p_stage_key: snapshot.stage_key,
+            p_stage_label: snapshot.stage_label,
+            p_wave: snapshot.wave,
+            p_rebirth: snapshot.rebirth,
+            p_pause: pause === true
+        });
+        if (result.error) {
+            console.warn('[MB analytics] Не удалось обновить игровую сессию:', result.error.message);
+            if (/game_session_not_found|game_session_invalid/i.test(String(result.error.message || ''))) {
+                gameAnalyticsSessionId = null;
+                gameAnalyticsUserId = null;
+                if (!pause) return trackGameAnalytics(false);
+            }
+            return null;
+        }
+
+        var status = result.data && result.data.status;
+        if (status === 'closed' || status === 'expired') {
+            gameAnalyticsSessionId = null;
+            gameAnalyticsUserId = null;
+            if (!pause) return trackGameAnalytics(false);
+        }
+        return result.data;
+    }
+
+    function formatPlayDuration(value) {
+        var seconds = Math.max(0, Math.floor(Number(value) || 0));
+        var days = Math.floor(seconds / 86400);
+        var hours = Math.floor((seconds % 86400) / 3600);
+        var minutes = Math.floor((seconds % 3600) / 60);
+        var rest = seconds % 60;
+        if (days) return days + ' д ' + hours + ' ч';
+        if (hours) return hours + ' ч ' + minutes + ' мин';
+        if (minutes) return minutes + ' мин ' + rest + ' с';
+        return rest + ' с';
+    }
+
+    function renderGameActivityStats(containerId, data, scope, userId) {
+        var container = byId(containerId);
+        if (!container) return;
+        container.replaceChildren();
+        container.style.cssText = 'display:block;margin:12px 0 16px;padding:14px;border:1px solid rgba(155,121,255,.22);border-radius:14px;background:linear-gradient(145deg,rgba(28,25,45,.92),rgba(12,13,22,.96));color:#eee7fa;';
+
+        var header = node('div', 'mb-game-analytics-header');
+        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;';
+        var heading = node('strong', '', '⏱️ Игровая активность');
+        heading.style.cssText = 'font-size:13px;color:#ffe29a;';
+        header.appendChild(heading);
+        var refresh = node('button', 'btn mb-game-analytics-refresh', '↻ Обновить');
+        refresh.type = 'button';
+        refresh.style.cssText = 'padding:6px 9px;font-size:10px;';
+        refresh.addEventListener('click', function () { loadGameActivityStats(userId, scope, true); });
+        header.appendChild(refresh);
+        container.appendChild(header);
+
+        if (!data) {
+            container.appendChild(node('p', 'clan-muted', 'Не удалось загрузить игровую статистику. Нажми «Обновить», чтобы попробовать ещё раз.'));
+            return;
+        }
+
+        var player = data.player || {};
+        var server = data.server || {};
+        var metricGrid = node('div', 'mb-game-analytics-metrics');
+        metricGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:7px;margin-bottom:13px;';
+        [
+            {label:'Игровых сессий', value:formatCount(safeCount(player.total_sessions))},
+            {label:'Всего в игре', value:formatPlayDuration(player.play_seconds)},
+            {label:'Средняя сессия', value:formatPlayDuration(player.average_session_seconds)},
+            {label:'Сессий за 7 дней', value:formatCount(safeCount(player.sessions_7d))}
+        ].forEach(function (metric) {
+            var card = node('div', 'mb-game-analytics-metric');
+            card.style.cssText = 'min-width:0;padding:10px 9px;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:rgba(255,255,255,.025);';
+            var value = node('strong', '', metric.value);
+            value.style.cssText = 'display:block;color:#ffda72;font-size:17px;line-height:1.25;overflow-wrap:anywhere;';
+            var label = node('span', '', metric.label);
+            label.style.cssText = 'display:block;margin-top:5px;color:#b9b0cc;font-size:10px;line-height:1.35;';
+            card.appendChild(value);
+            card.appendChild(label);
+            metricGrid.appendChild(card);
+        });
+        container.appendChild(metricGrid);
+
+        var playerStages = Array.isArray(data.player_top_stages) ? data.player_top_stages : [];
+        var playerStageSection = node('section', 'mb-game-analytics-player-stages');
+        playerStageSection.style.cssText = 'margin-top:8px;';
+        var playerStageHeading = node('strong', '', '🎮 Твои самые посещаемые этапы');
+        playerStageHeading.style.cssText = 'display:block;margin-bottom:7px;font-size:12px;color:#e5d9ff;';
+        playerStageSection.appendChild(playerStageHeading);
+        if (!safeCount(player.total_sessions)) {
+            playerStageSection.appendChild(node('p', 'clan-muted', 'Учёт начинается с этого обновления. Проведи в игре хотя бы минуту, и здесь появятся время игры, сессии и этапы.'));
+        } else if (!playerStages.length) {
+            playerStageSection.appendChild(node('p', 'clan-muted', 'Этапы появятся после первых игровых минут.'));
+        } else {
+            playerStages.forEach(function (stage) {
+                var row = node('div', 'mb-game-analytics-stage-row');
+                row.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.045);';
+                var name = node('strong', '', stage.stage_label || stage.stage_key || 'Этап');
+                name.style.cssText = 'font-size:11px;color:#eee6ff;';
+                var detail = node('span', '', formatCount(safeCount(stage.visits)) + ' посещ. · ' + formatCount(safeCount(stage.sessions)) + ' сесс. · ' + formatPlayDuration(stage.play_seconds));
+                detail.style.cssText = 'display:block;margin-top:3px;color:#aca2c2;font-size:10px;';
+                var left = node('div', 'mb-game-analytics-stage-name');
+                left.style.cssText = 'min-width:0;flex:1;';
+                left.appendChild(name);
+                left.appendChild(detail);
+                row.appendChild(left);
+                playerStageSection.appendChild(row);
+            });
+        }
+        container.appendChild(playerStageSection);
+
+        var globalStages = Array.isArray(data.server_top_stages) ? data.server_top_stages : [];
+        var globalSection = node('section', 'mb-game-analytics-global-stages');
+        globalSection.style.cssText = 'margin-top:12px;padding-top:11px;border-top:1px solid rgba(255,255,255,.08);';
+        var globalHeading = node('strong', '', '🌐 Самые посещаемые этапы всего сервера');
+        globalHeading.style.cssText = 'display:block;margin-bottom:7px;font-size:12px;color:#e5d9ff;';
+        globalSection.appendChild(globalHeading);
+        globalSection.appendChild(node('p', 'clan-muted', 'Топ строится по числу входов на этап. Данные накапливаются с момента обновления.'));
+        if (!globalStages.length) {
+            globalSection.appendChild(node('p', 'clan-muted', 'Пока нет накопленных посещений этапов.'));
+        } else {
+            globalStages.forEach(function (stage, index) {
+                var row = node('div', 'mb-game-analytics-stage-row');
+                row.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.045);';
+                var name = node('strong', '', (index + 1) + '. ' + (stage.stage_label || stage.stage_key || 'Этап'));
+                name.style.cssText = 'font-size:11px;color:#eee6ff;';
+                var detail = node('span', '', formatCount(safeCount(stage.players)) + ' игрок. · ' + formatCount(safeCount(stage.visits)) + ' посещ. · ' + formatPlayDuration(stage.play_seconds));
+                detail.style.cssText = 'display:block;margin-top:3px;color:#aca2c2;font-size:10px;';
+                var left = node('div', 'mb-game-analytics-stage-name');
+                left.style.cssText = 'min-width:0;flex:1;';
+                left.appendChild(name);
+                left.appendChild(detail);
+                row.appendChild(left);
+                globalSection.appendChild(row);
+            });
+        }
+        container.appendChild(globalSection);
+
+        var foot = node('p', 'clan-muted', 'На сервере: ' + formatCount(safeCount(server.total_sessions)) + ' сессий · ' + formatPlayDuration(server.play_seconds) +
+            ' учтённого времени · ' + formatCount(safeCount(server.online_now)) + ' сейчас в игре.');
+        foot.style.cssText = 'margin:12px 0 0;color:#88819d;font-size:9px;line-height:1.5;';
+        container.appendChild(foot);
+    }
+
+    async function loadGameActivityStats(userId, scope, force) {
+        if (!db || !currentUser || !userId) return null;
+        var containerId = scope === 'own' ? 'clanProfileGameActivity' : 'clanPublicGameActivity';
+        var client = db;
+        var callerId = currentUser.id;
+        var cached = gameActivityStatsCache[userId];
+        if (!force && cached && Date.now() - cached.fetchedAt < 60000) {
+            renderGameActivityStats(containerId, cached.data, scope, userId);
+            return cached.data;
+        }
+        var container = byId(containerId);
+        if (container) container.textContent = 'Загружаем игровую статистику…';
+        try {
+            var result = await client.rpc('mb_get_game_activity_stats', { p_user_id: userId });
+            if (result.error) throw result.error;
+            if (client !== db || !currentUser || currentUser.id !== callerId) return null;
+            var data = Array.isArray(result.data) ? result.data[0] : result.data;
+            if (!data || typeof data !== 'object') throw new Error('game_activity_stats_invalid');
+            gameActivityStatsCache[userId] = { data: data, fetchedAt: Date.now() };
+            renderGameActivityStats(containerId, data, scope, userId);
+            return data;
+        } catch (error) {
+            console.warn('[MB analytics] Не удалось загрузить игровую статистику:', error && (error.message || error));
+            renderGameActivityStats(containerId, null, scope, userId);
+            return null;
+        }
+    }
+
     function touchCurrentPresence() {
         if (!db || !currentUser) return Promise.resolve(null);
         var client = db;
@@ -1356,6 +1582,7 @@
         var mergedStats = Object.assign({}, result.data, readLocalGameStats() || {});
         ownStatsData = mergedStats;
         renderExpandedStats('own', ownStatsData, ownStatsMode);
+        loadGameActivityStats(currentUser.id, 'own', false);
         refreshPopulationStats(false);
         profileShowcaseSavedCards = Array.isArray(result.data.showcase_cards) ? result.data.showcase_cards.slice(0, 3) : [];
         profileShowcaseSelection = profileShowcaseSavedCards.map(function (card) { return card && card.uid !== undefined ? String(card.uid) : ''; }).filter(Boolean);
@@ -1454,6 +1681,7 @@
             publicStatsData = result.data;
             renderExpandedStats('public', publicStatsData, publicStatsMode);
             renderAchievementBadges('clanPublicBadges', result.data, false);
+            loadGameActivityStats(userId, 'public', false);
             refreshPopulationStats(false);
             updatePublicFriendAction();
         } catch (error) {
@@ -2437,6 +2665,8 @@
             publicProfileUserId = null;
             hidePublicProfile();
         }
+        if (!currentUser) { gameAnalyticsSessionId = null; gameAnalyticsUserId = null; }
+        if (db && currentUser) trackGameAnalytics(false);
         if (db && currentUser) db.rpc('mb_touch_presence').then(function (result) {
             if (result.error) console.warn('[MB friends] Presence update:', result.error.message);
         }).catch(function () {});
@@ -2839,9 +3069,19 @@
                 } else {
                     touchCurrentPresence();
                 }
+                if (document.visibilityState === 'visible') trackGameAnalytics(false);
             }, 45000);
         }
     }
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') trackGameAnalytics(true);
+        else {
+            touchCurrentPresence();
+            trackGameAnalytics(false);
+        }
+    });
+    window.addEventListener('pagehide', function () { trackGameAnalytics(true); });
 
     if (document.readyState === 'loading') {
         if (document.readyState === 'loading') {
