@@ -270,6 +270,7 @@ function startWaystarFight(graphicsModeChoice) {
     }
     console.log("[WAYSTAR] Старт боя v14.0. Модер:", isWaystarModerActive());
     waystarActive = true;
+    if (typeof window.MBUniqueBossFightStart === "function") window.MBUniqueBossFightStart("waystar");
     waystarState = "dialogue";
     waystarRageMode = false;
     waystarEscalationLevel = 0;
@@ -373,6 +374,7 @@ function startWaystarFight(graphicsModeChoice) {
 }
 
 function stopWaystarFight() {
+    if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("waystar", "abandoned");
     if (typeof window.MBEndBossGraphicsModeForFight === "function") window.MBEndBossGraphicsModeForFight();
     console.log("[WAYSTAR] Стоп боя");
     waystarActive = false;
@@ -1262,6 +1264,7 @@ function waystarVictory() {
         !(typeof coopApi.isApplyingRemote === 'function' && coopApi.isApplyingRemote())) return;
     if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onVictory();
     waystarRewardGiven = true;
+    if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("waystar", "win");
     console.log("[WAYSTAR] ПОБЕДА! Запуск финальной сцены");
     waystarAttacks = [];
     waystarPlayerBullets = [];
@@ -1350,6 +1353,7 @@ function waystarDefeat() {
     }
     console.log("[WAYSTAR] Поражение");
     waystarState = "defeat";
+    if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("waystar", "death");
     if (typeof showFloatingText === 'function') showFloatingText("ТЫ ПАЛ...", "#ff0000");
     wsPlaySound(40, 'sawtooth', 2.0, 0.4);
     waystarScreenFlash = 60; waystarScreenFlashColor = "#ff0000";
