@@ -1147,7 +1147,7 @@
             { label: 'Победы', value: profile.wins },
             { label: 'Смерти на боссах', value: profile.deaths },
             { label: 'Процент побед', value: (Number(profile.win_rate) || 0) + '%' },
-            { label: 'Поражений не закрыто', value: profile.in_progress },
+            { label: 'Бои в процессе', value: profile.in_progress },
             { label: 'Всего побед на сервере', value: server.wins }
         ];
         var metricGrid = node('div', 'mb-unique-boss-metrics');
@@ -1219,7 +1219,7 @@
                 row.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.04);';
                 var left = node('div', 'mb-unique-boss-result-left');
                 left.style.cssText = 'min-width:0;flex:1;';
-                var bossName = node('strong', '', meta.label + ' · ' + labels[item.outcome] || meta.label);
+                var bossName = node('strong', '', meta.label + ' · волна ' + formatCount(meta.wave));
                 bossName.style.cssText = 'display:block;overflow-wrap:anywhere;color:#f2e4f0;font-size:10px;';
                 var details = node('span', '', 'Ребёрн ' + safeCount(item.rebirth_count, 1000000) + ' · ' +
                     formatActivityDate(item.started_at) + (item.outcome === 'in_progress' ? '' : ' · ' + formatBossDuration(item.duration_seconds)));
@@ -1235,7 +1235,6 @@
                 recentSection.appendChild(row);
             });
         }
-        var totalMinutes = Math.floor(safeCount(profile.total_battle_seconds, 1000000000) / 60);
         recentSection.appendChild(node('p', 'clan-muted', 'Учтено длительности боёв: ' + formatBossDuration(profile.total_battle_seconds) +
             ' · средний завершённый бой: ' + formatBossDuration(profile.average_battle_seconds) +
             '. Исторические бои до установки учёта восстановить нельзя.'));
