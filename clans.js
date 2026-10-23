@@ -936,7 +936,7 @@
             {label:'Победы за всё время', value:formatCount(safeCount(progress.total_wins))},
             {label:'Рекорд волны', value:formatCount(safeCount(progress.highest_wave))},
             {label:'Ребёрны', value:formatCount(safeCount(progress.rebirth_count, 1000000))},
-            {label:'Собрано карт', value:formatCount(safeCount(progress.cards_collected))},
+            {label:'Получено карт', value:formatCount(safeCount(progress.cards_collected))},
             {label:'Побеждено боссов', value:formatCount(safeCount(progress.bosses_defeated))},
             {label:'Всего кликов', value:formatCount(safeCount(progress.total_clicks))},
             {label:lifetime.deathsApproximate === true ? 'Смерти (оценка)' : 'Смерти', value:(lifetime.deathsApproximate === true ? '≈ ' : '') + formatCount(safeCount(lifetime.deaths))},
@@ -994,7 +994,7 @@
         var playersHeading = node('strong', '', '🏆 Кто провёл больше всего времени в игре');
         playersHeading.style.cssText = 'display:block;margin-bottom:7px;font-size:12px;color:#e5d9ff;';
         playersSection.appendChild(playersHeading);
-        playersSection.appendChild(node('p', 'clan-muted', 'Рейтинг всех профилей: учтённое время сессий плюс приблизительная оценка старого периода по облачным сохранениям. Посещения этапов считаются только после включения аналитики.'));
+        playersSection.appendChild(node('p', 'clan-muted', 'Рейтинг по суммарному времени: учтённые сессии плюс приблизительная оценка старого периода по облачным сохранениям. Показываются до 50 профилей; посещения этапов считаются с момента включения аналитики.'));
         if (!topPlayers.length) {
             playersSection.appendChild(node('p', 'clan-muted', 'Рейтинг пока пуст. Первая игровая сессия запустит статистику.'));
         } else {
