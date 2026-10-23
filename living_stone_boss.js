@@ -290,6 +290,7 @@ function startLivingStoneFight(graphicsModeChoice) {
 }
 
 function _startLivingStoneFightInternal() {
+    if (typeof window.MBUniqueBossFightStart === "function") window.MBUniqueBossFightStart("living_stone");
     livingStoneActive = true;
     livingStoneState = "phase1";
     livingStoneBossMaxHp = 78400;
@@ -368,6 +369,7 @@ function _startLivingStoneFightInternal() {
 }
 
 function stopLivingStoneFight() {
+    if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("living_stone", "abandoned");
     if (typeof window.MBEndBossGraphicsModeForFight === "function") window.MBEndBossGraphicsModeForFight();
     livingStoneActive = false;
     
@@ -1400,6 +1402,7 @@ function livingStoneVictory() {
         return;
     }
     livingStoneState = "victory";
+    if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("living_stone", "win");
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) {
         if (!defeatedBosses.includes(200)) {
             defeatedBosses.push(200);
@@ -1441,6 +1444,7 @@ function livingStoneDefeat() {
         window.MBPreserveGarouChargesForUniqueBossRetry("stone");
     }
     livingStoneState = "defeat";
+    if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("living_stone", "death");
     spawnLivingStoneText(200, 250, "КАМЕНЬ НЕПОБЕДИМ", "#ff0000", 180);
     livingStoneScreenFlash = 40; livingStoneScreenFlashColor = "#ff0000";
     if (typeof playArenaSound === 'function') playArenaSound(40, 'sawtooth', 2.5, 0.3);
