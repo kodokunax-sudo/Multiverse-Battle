@@ -787,62 +787,67 @@
     }
 
     async function trackGameAnalytics(pause) {
-        if (!db || !currentUser) return null;
-        if (!pause && document.visibilityState === 'hidden') return null;
-        var snapshot = getGameAnalyticsSnapshot();
-        if (!snapshot) return null;
+        try {
+            if (!db || !currentUser) return null;
+            if (!pause && document.visibilityState === 'hidden') return null;
+            var snapshot = getGameAnalyticsSnapshot();
+            if (!snapshot) return null;
 
-        var userId = currentUser.id;
-        if (gameAnalyticsUserId && gameAnalyticsUserId !== userId) {
-            gameAnalyticsSessionId = null;
-            gameAnalyticsUserId = null;
-        }
+            var userId = currentUser.id;
+            if (gameAnalyticsUserId && gameAnalyticsUserId !== userId) {
+                gameAnalyticsSessionId = null;
+                gameAnalyticsUserId = null;
+            }
 
-        if (!gameAnalyticsSessionId) {
-            if (pause) return null;
-            var started = await db.rpc('mb_start_game_session', {
+            if (!gameAnalyticsSessionId) {
+                if (pause) return null;
+                var started = await db.rpc('mb_start_game_session', {
+                    p_stage_key: snapshot.stage_key,
+                    p_stage_label: snapshot.stage_label,
+                    p_wave: snapshot.wave,
+                    p_rebirth: snapshot.rebirth
+                });
+                if (started.error) {
+                    console.warn('[MB analytics] Не удалось начать игровую сессию:', started.error.message);
+                    return null;
+                }
+                gameAnalyticsSessionId = Array.isArray(started.data) ? started.data[0] : started.data;
+                if (gameAnalyticsSessionId && typeof gameAnalyticsSessionId === 'object') {
+                    gameAnalyticsSessionId = gameAnalyticsSessionId.id || gameAnalyticsSessionId.mb_start_game_session || null;
+                }
+                gameAnalyticsUserId = gameAnalyticsSessionId ? userId : null;
+                return gameAnalyticsSessionId;
+            }
+
+            var result = await db.rpc('mb_track_game_session', {
+                p_session_id: gameAnalyticsSessionId,
                 p_stage_key: snapshot.stage_key,
                 p_stage_label: snapshot.stage_label,
                 p_wave: snapshot.wave,
-                p_rebirth: snapshot.rebirth
+                p_rebirth: snapshot.rebirth,
+                p_pause: pause === true
             });
-            if (started.error) {
-                console.warn('[MB analytics] Не удалось начать игровую сессию:', started.error.message);
+            if (result.error) {
+                console.warn('[MB analytics] Не удалось обновить игровую сессию:', result.error.message);
+                if (/game_session_not_found|game_session_invalid/i.test(String(result.error.message || ''))) {
+                    gameAnalyticsSessionId = null;
+                    gameAnalyticsUserId = null;
+                    if (!pause) return await trackGameAnalytics(false);
+                }
                 return null;
             }
-            gameAnalyticsSessionId = Array.isArray(started.data) ? started.data[0] : started.data;
-            if (gameAnalyticsSessionId && typeof gameAnalyticsSessionId === 'object') {
-                gameAnalyticsSessionId = gameAnalyticsSessionId.id || gameAnalyticsSessionId.mb_start_game_session || null;
-            }
-            gameAnalyticsUserId = gameAnalyticsSessionId ? userId : null;
-            return gameAnalyticsSessionId;
-        }
 
-        var result = await db.rpc('mb_track_game_session', {
-            p_session_id: gameAnalyticsSessionId,
-            p_stage_key: snapshot.stage_key,
-            p_stage_label: snapshot.stage_label,
-            p_wave: snapshot.wave,
-            p_rebirth: snapshot.rebirth,
-            p_pause: pause === true
-        });
-        if (result.error) {
-            console.warn('[MB analytics] Не удалось обновить игровую сессию:', result.error.message);
-            if (/game_session_not_found|game_session_invalid/i.test(String(result.error.message || ''))) {
+            var status = result.data && result.data.status;
+            if (status === 'closed' || status === 'expired') {
                 gameAnalyticsSessionId = null;
                 gameAnalyticsUserId = null;
-                if (!pause) return trackGameAnalytics(false);
+                if (!pause) return await trackGameAnalytics(false);
             }
+            return result.data;
+        } catch (error) {
+            console.warn('[MB analytics] Ошибка записи игровой активности:', error && (error.message || error));
             return null;
         }
-
-        var status = result.data && result.data.status;
-        if (status === 'closed' || status === 'expired') {
-            gameAnalyticsSessionId = null;
-            gameAnalyticsUserId = null;
-            if (!pause) return trackGameAnalytics(false);
-        }
-        return result.data;
     }
 
     function formatPlayDuration(value) {
