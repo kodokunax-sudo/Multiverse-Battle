@@ -935,6 +935,38 @@
         }
         container.appendChild(playerStageSection);
 
+        var topPlayers = Array.isArray(data.server_top_players) ? data.server_top_players : [];
+        var playersSection = node('section', 'mb-game-analytics-top-players');
+        playersSection.style.cssText = 'margin-top:13px;padding-top:11px;border-top:1px solid rgba(255,255,255,.08);';
+        var playersHeading = node('strong', '', '🏆 Кто провёл больше всего времени в игре');
+        playersHeading.style.cssText = 'display:block;margin-bottom:7px;font-size:12px;color:#e5d9ff;';
+        playersSection.appendChild(playersHeading);
+        playersSection.appendChild(node('p', 'clan-muted', 'Рейтинг накопленного времени с момента включения учёта. Новые игроки появятся после первой сессии.'));
+        if (!topPlayers.length) {
+            playersSection.appendChild(node('p', 'clan-muted', 'Рейтинг пока пуст. Первая игровая сессия запустит статистику.'));
+        } else {
+            topPlayers.forEach(function (player, index) {
+                var row = node('div', 'mb-game-analytics-stage-row');
+                row.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.045);';
+                var identity = node('div', 'mb-game-analytics-stage-name');
+                identity.style.cssText = 'min-width:0;flex:1;';
+                var name = node('strong', '', (index + 1) + '. ' + (player.display_name || 'Игрок'));
+                name.style.cssText = 'display:block;overflow-wrap:anywhere;font-size:11px;color:#eee6ff;';
+                var detail = node('span', '', '♻️ ' + safeCount(player.rebirth, 1000000) + '-й ребёрн · 🌊 волна ' +
+                    formatCount(safeCount(player.highest_wave, 1000000000)) + ' · ' +
+                    formatCount(safeCount(player.total_sessions)) + ' сесс.');
+                detail.style.cssText = 'display:block;margin-top:3px;color:#aca2c2;font-size:10px;';
+                identity.appendChild(name);
+                identity.appendChild(detail);
+                var duration = node('strong', '', formatPlayDuration(player.play_seconds));
+                duration.style.cssText = 'max-width:42%;font-size:11px;color:#ffda72;text-align:right;overflow-wrap:anywhere;';
+                row.appendChild(identity);
+                row.appendChild(duration);
+                playersSection.appendChild(row);
+            });
+        }
+        container.appendChild(playersSection);
+
         var globalStages = Array.isArray(data.server_top_stages) ? data.server_top_stages : [];
         var globalSection = node('section', 'mb-game-analytics-global-stages');
         globalSection.style.cssText = 'margin-top:12px;padding-top:11px;border-top:1px solid rgba(255,255,255,.08);';
