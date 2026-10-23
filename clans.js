@@ -43,6 +43,8 @@
     var gameAnalyticsUserId = null;
     var gameActivityStatsCache = Object.create(null);
     var GAME_ANALYTICS_IDLE_LIMIT_MS = 5 * 60 * 1000;
+    var activeUniqueBossAttempt = null;
+    var uniqueBossStatsCache = Object.create(null);
     var NEW_ACCOUNT_SLOT_TRANSFER_KEY = 'mb_new_account_slot_transfer_user_v1';
 
     function isPendingNewAccountTransfer(userId) {
@@ -1028,6 +1030,247 @@
         }
     }
 
+    var UNIQUE_BOSS_CATALOG = {
+        living_stone: { label: 'Живой Камень', wave: 200 },
+        waystar: { label: 'Путеводная Звезда', wave: 500 },
+        roger_whitebeard: { label: 'Роджер и Белоус', wave: 1000 },
+        anti_spiral: { label: 'Анти-Спираль', wave: 1500 },
+        living_stone_super: { label: 'Супер-Живой Камень', wave: 2000 }
+    };
+
+    function startUniqueBossFightAnalytics(bossKey) {
+        if (!db || !currentUser || !UNIQUE_BOSS_CATALOG[bossKey] || window.__mbBossTestMode) return Promise.resolve(null);
+        if (activeUniqueBossAttempt && activeUniqueBossAttempt.userId === currentUser.id &&
+            activeUniqueBossAttempt.bossKey === bossKey && !activeUniqueBossAttempt.finished) {
+            return activeUniqueBossAttempt.startPromise || Promise.resolve(activeUniqueBossAttempt.id);
+        }
+        var previous = activeUniqueBossAttempt && !activeUniqueBossAttempt.finished
+            ? finishUniqueBossFightAnalytics(activeUniqueBossAttempt.bossKey, 'abandoned')
+            : Promise.resolve();
+        return Promise.resolve(previous).catch(function () {}).then(function () {
+            if (!db || !currentUser || window.__mbBossTestMode) return null;
+            var client = db;
+            var userId = currentUser.id;
+            var attempt = {
+                bossKey: bossKey, userId: userId, client: client, id: null,
+                finished: false, finishPromise: null, startPromise: null
+            };
+            activeUniqueBossAttempt = attempt;
+            attempt.startPromise = (async function () {
+                try {
+                    var result = await client.rpc('mb_start_unique_boss_attempt', { p_boss_key: bossKey });
+                    if (result.error) throw result.error;
+                    var id = Array.isArray(result.data) ? result.data[0] : result.data;
+                    if (id && typeof id === 'object') id = id.id || id.mb_start_unique_boss_attempt || null;
+                    if (activeUniqueBossAttempt !== attempt || !id) return null;
+                    attempt.id = id;
+                    return id;
+                } catch (error) {
+                    console.warn('[MB unique boss stats] Не удалось зарегистрировать начало боя:', error && (error.message || error));
+                    if (activeUniqueBossAttempt === attempt) activeUniqueBossAttempt = null;
+                    return null;
+                }
+            })();
+            return attempt.startPromise;
+        });
+    }
+
+    function finishUniqueBossFightAnalytics(bossKey, outcome) {
+        var attempt = activeUniqueBossAttempt;
+        if (!attempt || attempt.bossKey !== bossKey) return Promise.resolve(null);
+        if (attempt.finished) return attempt.finishPromise || Promise.resolve(null);
+        attempt.finished = true;
+        attempt.finishPromise = (async function () {
+            try {
+                var id = attempt.id || await attempt.startPromise;
+                if (!id) return null;
+                var result = await attempt.client.rpc('mb_finish_unique_boss_attempt', {
+                    p_attempt_id: id,
+                    p_outcome: outcome
+                });
+                if (result.error) throw result.error;
+                return result.data;
+            } catch (error) {
+                console.warn('[MB unique boss stats] Не удалось сохранить результат боя:', error && (error.message || error));
+                return null;
+            } finally {
+                if (activeUniqueBossAttempt === attempt) activeUniqueBossAttempt = null;
+                delete uniqueBossStatsCache[attempt.userId];
+                if (currentUser && currentUser.id === attempt.userId) {
+                    loadUniqueBossFightStats(attempt.userId, 'own', true);
+                    if (publicProfileUserId) loadUniqueBossFightStats(publicProfileUserId, 'public', true);
+                }
+            }
+        })();
+        return attempt.finishPromise;
+    }
+
+    window.MBUniqueBossFightStart = startUniqueBossFightAnalytics;
+    window.MBUniqueBossFightFinish = finishUniqueBossFightAnalytics;
+
+    function formatBossDuration(value) {
+        var seconds = Math.max(0, Math.floor(Number(value) || 0));
+        var minutes = Math.floor(seconds / 60);
+        var rest = seconds % 60;
+        if (minutes >= 60) return Math.floor(minutes / 60) + ' ч ' + (minutes % 60) + ' мин';
+        if (minutes) return minutes + ' мин ' + rest + ' с';
+        return rest + ' с';
+    }
+
+    function renderUniqueBossFightStats(containerId, data, scope, userId) {
+        var container = byId(containerId);
+        if (!container) return;
+        container.replaceChildren();
+        container.style.cssText = 'display:block;margin:12px 0 16px;padding:14px;border:1px solid rgba(255,105,135,.22);border-radius:14px;background:linear-gradient(145deg,rgba(35,19,34,.94),rgba(12,13,22,.97));color:#eee7fa;';
+
+        var header = node('div', 'mb-unique-boss-header');
+        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;';
+        var heading = node('strong', '', '☠️ Уникальные боссы · статистика боёв');
+        heading.style.cssText = 'font-size:13px;color:#ffc1cf;';
+        header.appendChild(heading);
+        var refresh = node('button', 'btn mb-unique-boss-refresh', '↻ Обновить');
+        refresh.type = 'button';
+        refresh.style.cssText = 'padding:6px 9px;font-size:10px;';
+        refresh.addEventListener('click', function () { loadUniqueBossFightStats(userId, scope, true); });
+        header.appendChild(refresh);
+        container.appendChild(header);
+
+        if (!data) {
+            container.appendChild(node('p', 'clan-muted', 'Не удалось загрузить аналитику. Нажми «Обновить», чтобы попробовать ещё раз.'));
+            return;
+        }
+
+        var profile = data.player_summary || {};
+        var server = data.server_summary || {};
+        var metrics = [
+            { label: scope === 'own' ? 'Твои попытки' : 'Попытки игрока', value: profile.attempts },
+            { label: 'Победы', value: profile.wins },
+            { label: 'Смерти на боссах', value: profile.deaths },
+            { label: 'Процент побед', value: (Number(profile.win_rate) || 0) + '%' },
+            { label: 'Поражений не закрыто', value: profile.in_progress },
+            { label: 'Всего побед на сервере', value: server.wins }
+        ];
+        var metricGrid = node('div', 'mb-unique-boss-metrics');
+        metricGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:7px;margin-bottom:14px;';
+        metrics.forEach(function (metric) {
+            var card = node('div', 'mb-unique-boss-metric');
+            card.style.cssText = 'min-width:0;padding:10px 9px;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:rgba(255,255,255,.025);';
+            var value = node('strong', '', typeof metric.value === 'string' ? metric.value : formatCount(safeCount(metric.value, 1000000000)));
+            value.style.cssText = 'display:block;color:#ffb5c6;font-size:19px;line-height:1.25;overflow-wrap:anywhere;';
+            var label = node('span', '', metric.label);
+            label.style.cssText = 'display:block;margin-top:5px;color:#b9b0cc;font-size:10px;line-height:1.35;';
+            card.appendChild(value);
+            card.appendChild(label);
+            metricGrid.appendChild(card);
+        });
+        container.appendChild(metricGrid);
+
+        var playerRows = Array.isArray(data.player_by_boss) ? data.player_by_boss : [];
+        var serverRows = Array.isArray(data.server_by_boss) ? data.server_by_boss : [];
+        var playerByKey = Object.create(null);
+        playerRows.forEach(function (item) { playerByKey[item.boss_key] = item; });
+        var serverSection = node('section', 'mb-unique-boss-server-rows');
+        var serverHeading = node('strong', '', '🌐 Каждый уникальный босс на всём сервере');
+        serverHeading.style.cssText = 'display:block;margin-bottom:7px;font-size:12px;color:#ffdae2;';
+        serverSection.appendChild(serverHeading);
+        serverSection.appendChild(node('p', 'clan-muted', 'Смерть засчитывается за каждый проигранный бой. Отступления и незавершённые бои считаются отдельно.'));
+        serverRows.forEach(function (item) {
+            var player = playerByKey[item.boss_key] || {};
+            var meta = UNIQUE_BOSS_CATALOG[item.boss_key] || { label: item.boss_key, wave: item.boss_wave };
+            var row = node('div', 'mb-unique-boss-row');
+            row.style.cssText = 'padding:10px 0;border-top:1px solid rgba(255,255,255,.05);';
+            var title = node('strong', '', meta.label + ' · волна ' + formatCount(meta.wave));
+            title.style.cssText = 'display:block;color:#f7eaf0;font-size:11px;';
+            row.appendChild(title);
+            var serverDetail = node('div', 'mb-unique-boss-server-detail',
+                'Сервер: ' + formatCount(safeCount(item.players)) + ' игроков · ' +
+                formatCount(safeCount(item.attempts)) + ' попыток · ' +
+                formatCount(safeCount(item.wins)) + ' побед · ' +
+                formatCount(safeCount(item.deaths)) + ' смертей · ' +
+                formatCount(safeCount(item.abandoned)) + ' отступлений · ' +
+                (Number(item.win_rate) || 0) + '% побед');
+            serverDetail.style.cssText = 'margin-top:4px;color:#c9b8c8;font-size:10px;line-height:1.45;';
+            row.appendChild(serverDetail);
+            var personalDetail = node('div', 'mb-unique-boss-player-detail',
+                (scope === 'own' ? 'Ты' : 'Игрок') + ': ' + formatCount(safeCount(player.attempts)) + ' попыток · ' +
+                formatCount(safeCount(player.wins)) + ' побед · ' +
+                formatCount(safeCount(player.deaths)) + ' смертей · ' +
+                formatCount(safeCount(player.abandoned)) + ' отступлений' +
+                (safeCount(player.attempts) ? ' · средний бой ' + formatBossDuration(player.average_battle_seconds) : ''));
+            personalDetail.style.cssText = 'margin-top:4px;color:#e8bdd0;font-size:10px;line-height:1.45;';
+            row.appendChild(personalDetail);
+            serverSection.appendChild(row);
+        });
+        container.appendChild(serverSection);
+
+        var recent = Array.isArray(data.recent_results) ? data.recent_results : [];
+        var recentSection = node('section', 'mb-unique-boss-recent');
+        recentSection.style.cssText = 'margin-top:13px;padding-top:11px;border-top:1px solid rgba(255,255,255,.08);';
+        var recentHeading = node('strong', '', scope === 'own' ? '📜 Твои последние бои' : '📜 Последние бои этого игрока');
+        recentHeading.style.cssText = 'display:block;margin-bottom:7px;font-size:12px;color:#ffdae2;';
+        recentSection.appendChild(recentHeading);
+        if (!recent.length) {
+            recentSection.appendChild(node('p', 'clan-muted', 'Пока нет записей. После следующего боя уникального босса здесь появится результат. Учёт начинается с этого обновления.'));
+        } else {
+            recent.forEach(function (item) {
+                var meta = UNIQUE_BOSS_CATALOG[item.boss_key] || { label: item.boss_key, wave: item.boss_wave };
+                var labels = { win: '✅ Победа', death: '💀 Смерть / поражение', abandoned: '↩️ Отступление', in_progress: '⚔️ В процессе' };
+                var row = node('div', 'mb-unique-boss-result');
+                row.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.04);';
+                var left = node('div', 'mb-unique-boss-result-left');
+                left.style.cssText = 'min-width:0;flex:1;';
+                var bossName = node('strong', '', meta.label + ' · ' + labels[item.outcome] || meta.label);
+                bossName.style.cssText = 'display:block;overflow-wrap:anywhere;color:#f2e4f0;font-size:10px;';
+                var details = node('span', '', 'Ребёрн ' + safeCount(item.rebirth_count, 1000000) + ' · ' +
+                    formatActivityDate(item.started_at) + (item.outcome === 'in_progress' ? '' : ' · ' + formatBossDuration(item.duration_seconds)));
+                details.style.cssText = 'display:block;margin-top:3px;color:#aaa0b3;font-size:9px;line-height:1.45;';
+                left.appendChild(bossName);
+                left.appendChild(details);
+                var outcome = node('span', '', labels[item.outcome] || item.outcome);
+                outcome.style.cssText = 'max-width:44%;font-size:10px;color:' +
+                    (item.outcome === 'win' ? '#9ff0b0' : item.outcome === 'death' ? '#ff9aaf' : '#c8bbd5') +
+                    ';text-align:right;overflow-wrap:anywhere;';
+                row.appendChild(left);
+                row.appendChild(outcome);
+                recentSection.appendChild(row);
+            });
+        }
+        var totalMinutes = Math.floor(safeCount(profile.total_battle_seconds, 1000000000) / 60);
+        recentSection.appendChild(node('p', 'clan-muted', 'Учтено длительности боёв: ' + formatBossDuration(profile.total_battle_seconds) +
+            ' · средний завершённый бой: ' + formatBossDuration(profile.average_battle_seconds) +
+            '. Исторические бои до установки учёта восстановить нельзя.'));
+        container.appendChild(recentSection);
+    }
+
+    async function loadUniqueBossFightStats(userId, scope, force) {
+        if (!db || !currentUser || !userId) return null;
+        var containerId = scope === 'own' ? 'clanProfileUniqueBossStats' : 'clanPublicUniqueBossStats';
+        var client = db;
+        var callerId = currentUser.id;
+        var cacheKey = userId;
+        var cached = uniqueBossStatsCache[cacheKey];
+        if (!force && cached && Date.now() - cached.fetchedAt < 45000) {
+            renderUniqueBossFightStats(containerId, cached.data, scope, userId);
+            return cached.data;
+        }
+        var container = byId(containerId);
+        if (container) container.textContent = 'Загружаем статистику уникальных боссов…';
+        try {
+            var result = await client.rpc('mb_get_unique_boss_fight_stats', { p_user_id: userId });
+            if (result.error) throw result.error;
+            if (client !== db || !currentUser || currentUser.id !== callerId) return null;
+            var data = Array.isArray(result.data) ? result.data[0] : result.data;
+            if (!data || typeof data !== 'object') throw new Error('unique_boss_stats_invalid');
+            uniqueBossStatsCache[cacheKey] = { data: data, fetchedAt: Date.now() };
+            renderUniqueBossFightStats(containerId, data, scope, userId);
+            return data;
+        } catch (error) {
+            console.warn('[MB unique boss stats] Не удалось загрузить аналитику:', error && (error.message || error));
+            renderUniqueBossFightStats(containerId, null, scope, userId);
+            return null;
+        }
+    }
+
     function touchCurrentPresence() {
         if (!db || !currentUser) return Promise.resolve(null);
         var client = db;
@@ -1620,6 +1863,7 @@
         ownStatsData = mergedStats;
         renderExpandedStats('own', ownStatsData, ownStatsMode);
         loadGameActivityStats(currentUser.id, 'own', false);
+        loadUniqueBossFightStats(currentUser.id, 'own', false);
         refreshPopulationStats(false);
         profileShowcaseSavedCards = Array.isArray(result.data.showcase_cards) ? result.data.showcase_cards.slice(0, 3) : [];
         profileShowcaseSelection = profileShowcaseSavedCards.map(function (card) { return card && card.uid !== undefined ? String(card.uid) : ''; }).filter(Boolean);
@@ -1719,6 +1963,7 @@
             renderExpandedStats('public', publicStatsData, publicStatsMode);
             renderAchievementBadges('clanPublicBadges', result.data, false);
             loadGameActivityStats(userId, 'public', false);
+            loadUniqueBossFightStats(userId, 'public', false);
             refreshPopulationStats(false);
             updatePublicFriendAction();
         } catch (error) {
