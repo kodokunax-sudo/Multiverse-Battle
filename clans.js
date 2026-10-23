@@ -42,6 +42,7 @@
     var gameAnalyticsSessionId = null;
     var gameAnalyticsUserId = null;
     var gameActivityStatsCache = Object.create(null);
+    var gameAnalyticsLastActivityAt = Date.now();
     var GAME_ANALYTICS_IDLE_LIMIT_MS = 5 * 60 * 1000;
     var activeUniqueBossAttempt = null;
     var uniqueBossStatsCache = Object.create(null);
@@ -771,6 +772,16 @@
             row.appendChild(buttons); container.appendChild(row);
         });
     }
+    function noteGameAnalyticsActivity() {
+        var now = Date.now();
+        var wasInactive = now - gameAnalyticsLastActivityAt >= GAME_ANALYTICS_IDLE_LIMIT_MS;
+        gameAnalyticsLastActivityAt = now;
+        if (wasInactive && db && currentUser && document.visibilityState === 'visible' &&
+            gameAnalyticsSessionId && gameAnalyticsUserId === currentUser.id) {
+            trackGameAnalytics(false);
+        }
+    }
+
     function getGameAnalyticsSnapshot() {
         try {
             if (typeof window.MBGetAnalyticsSnapshot !== 'function') return null;
@@ -893,7 +904,7 @@
         metricGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:7px;margin-bottom:13px;';
         [
             {label:'Игровых сессий', value:formatCount(safeCount(player.total_sessions))},
-            {label:'Всего в игре', value:(safeCount(player.play_seconds) === 0 && safeCount(player.total_sessions) === 0 && safeCount(player.estimated_prior_seconds) === 0 ? 'Нет данных' : formatPlayDuration(player.play_seconds))},
+            {label:'Реально сыграно', value:(safeCount(player.total_sessions) === 0 ? 'Нет измерений' : formatPlayDuration(player.measured_play_seconds !== undefined ? player.measured_play_seconds : player.play_seconds))},
             {label:'Средняя сессия', value:formatPlayDuration(player.average_session_seconds)},
             {label:'Сессий за 7 дней', value:formatCount(safeCount(player.sessions_7d))}
         ].forEach(function (metric) {
@@ -912,13 +923,13 @@
         var measuredSeconds = safeCount(player.measured_play_seconds, 315360000);
         var estimatedSeconds = safeCount(player.estimated_prior_seconds, 315360000);
         var timingNote = node('p', 'clan-muted',
-            'Учтено игровыми сессиями: ' + formatPlayDuration(measuredSeconds) + '. ' +
+            'Реально учтено активными сессиями: ' + formatPlayDuration(measuredSeconds) + '. ' +
             (estimatedSeconds > 0
-                ? 'До запуска аналитики: ориентировочно ≈ ' + formatPlayDuration(estimatedSeconds) +
-                  ' по коротким промежуткам между облачными сохранениями.'
-                : 'Для старого периода не удалось сформировать надёжную оценку по облачным сохранениям.') +
+                ? 'До запуска аналитики есть только приблизительная оценка ≈ ' + formatPlayDuration(estimatedSeconds) +
+                  ' по облачным сохранениям.'
+                : 'Для старого периода нет надёжной оценки по облачным сохранениям.') +
             (player.last_session_at ? ' Последняя измеренная сессия: ' + formatActivityDate(player.last_session_at) + '.' : '') +
-            ' Историческая оценка не является точным временем; посещения этапов считаются с момента включения аналитики.');
+            ' Старая оценка не включена в реальное время и рейтинг. После 5 минут бездействия или при скрытой вкладке счётчик ставится на паузу; этапы считаются с включения аналитики.');
         timingNote.style.cssText = 'margin:-4px 0 13px;color:#aaa1bd;font-size:10px;line-height:1.5;';
         container.appendChild(timingNote);
 
@@ -1011,17 +1022,20 @@
                     formatCount(safeCount(player.bosses_defeated)) + ' боссов · ' +
                     formatCount(safeCount(player.total_sessions)) + ' сесс.');
                 detail.style.cssText = 'display:block;margin-top:3px;color:#aca2c2;font-size:10px;line-height:1.5;';
+                var playerMeasuredSeconds = safeCount(player.measured_play_seconds, 315360000);
+                var playerEstimateSeconds = safeCount(player.estimated_prior_seconds, 315360000);
+                var estimateSuffix = playerEstimateSeconds > 0
+                    ? ' · старая оценка ≈ ' + formatPlayDuration(playerEstimateSeconds) + ' (не учитывается)' : '';
                 var detailProgress = node('span', '', '🎴 ' + formatCount(safeCount(player.cards_collected)) + ' карт · 👆 ' +
-                    formatCount(safeCount(player.total_clicks)) + ' кликов · учтено ' +
-                    formatPlayDuration(player.measured_play_seconds) + ' · до учёта ≈ ' +
-                    formatPlayDuration(player.estimated_prior_seconds));
+                    formatCount(safeCount(player.total_clicks)) + ' кликов · 🎮 реально ' +
+                    formatPlayDuration(playerMeasuredSeconds) + estimateSuffix);
                 detailProgress.style.cssText = 'display:block;margin-top:3px;color:#8f87a4;font-size:9px;line-height:1.5;';
                 identity.appendChild(name);
                 identity.appendChild(detail);
                 identity.appendChild(detailProgress);
-                var durationText = safeCount(player.play_seconds) === 0 && safeCount(player.total_sessions) === 0 && safeCount(player.estimated_prior_seconds) === 0
-                    ? 'Нет данных'
-                    : (safeCount(player.estimated_prior_seconds) > 0 ? '≈ ' : '') + formatPlayDuration(player.play_seconds);
+                var durationText = safeCount(player.total_sessions) === 0
+                    ? 'Нет измерений'
+                    : formatPlayDuration(playerMeasuredSeconds);
                 var duration = node('strong', '', durationText);
                 duration.style.cssText = 'max-width:42%;font-size:11px;color:#ffda72;text-align:right;overflow-wrap:anywhere;';
                 row.appendChild(identity);
@@ -1058,9 +1072,12 @@
         }
         container.appendChild(globalSection);
 
+        var serverMeasuredSeconds = safeCount(server.measured_play_seconds !== undefined ? server.measured_play_seconds : server.play_seconds, 315360000);
+        var serverEstimateSeconds = safeCount(server.estimated_prior_seconds, 315360000);
+        var serverEstimateText = serverEstimateSeconds > 0
+            ? ' · старая оценка ≈ ' + formatPlayDuration(serverEstimateSeconds) + ' (не входит в итог)' : '';
         var foot = node('p', 'clan-muted', 'На сервере: ' + formatCount(safeCount(server.total_sessions)) + ' сессий · ' +
-            formatPlayDuration(server.play_seconds) + ' всего (' + formatPlayDuration(server.measured_play_seconds) +
-            ' учтено + ≈ ' + formatPlayDuration(server.estimated_prior_seconds) + ' оценка старого периода) · ' +
+            formatPlayDuration(serverMeasuredSeconds) + ' реально учтено' + serverEstimateText + ' · ' +
             formatCount(safeCount(server.online_now)) + ' сейчас в игре.');
         foot.style.cssText = 'margin:12px 0 0;color:#88819d;font-size:9px;line-height:1.5;';
         container.appendChild(foot);
@@ -3416,14 +3433,21 @@
                 } else {
                     touchCurrentPresence();
                 }
-                if (document.visibilityState === 'visible') trackGameAnalytics(false);
+                if (document.visibilityState === 'visible') {
+                    var analyticsIdle = Date.now() - gameAnalyticsLastActivityAt >= GAME_ANALYTICS_IDLE_LIMIT_MS;
+                    trackGameAnalytics(analyticsIdle);
+                }
             }, 45000);
         }
     }
 
+    ['pointerdown', 'keydown', 'touchstart', 'wheel', 'mousemove'].forEach(function (eventName) {
+        window.addEventListener(eventName, noteGameAnalyticsActivity, { passive: true, capture: true });
+    });
     document.addEventListener('visibilitychange', function () {
         if (document.visibilityState === 'hidden') trackGameAnalytics(true);
         else {
+            gameAnalyticsLastActivityAt = Date.now();
             touchCurrentPresence();
             trackGameAnalytics(false);
         }
