@@ -1159,11 +1159,9 @@
         if (scope === 'own') {
             ownStatsMode = mode;
             renderExpandedStats('own', ownStatsData, ownStatsMode);
-        refreshPopulationStats(false);
         } else {
             publicStatsMode = mode;
             renderExpandedStats('public', publicStatsData, publicStatsMode);
-            refreshPopulationStats(false);
         }
     }
 
@@ -1358,6 +1356,7 @@
         var mergedStats = Object.assign({}, result.data, readLocalGameStats() || {});
         ownStatsData = mergedStats;
         renderExpandedStats('own', ownStatsData, ownStatsMode);
+        refreshPopulationStats(false);
         profileShowcaseSavedCards = Array.isArray(result.data.showcase_cards) ? result.data.showcase_cards.slice(0, 3) : [];
         profileShowcaseSelection = profileShowcaseSavedCards.map(function (card) { return card && card.uid !== undefined ? String(card.uid) : ''; }).filter(Boolean);
         renderShowcasePicker();
@@ -1455,6 +1454,7 @@
             publicStatsData = result.data;
             renderExpandedStats('public', publicStatsData, publicStatsMode);
             renderAchievementBadges('clanPublicBadges', result.data, false);
+            refreshPopulationStats(false);
             updatePublicFriendAction();
         } catch (error) {
             byId('clanPublicName').textContent = 'Не удалось открыть профиль';
