@@ -3636,3 +3636,25 @@ document.addEventListener("DOMContentLoaded", function () {
         } 
     }, 1000);
 });
+
+
+// Session analytics API. Stages are grouped into 50-wave progression bands.
+window.MBGetAnalyticsSnapshot = function () {
+    try {
+        var currentWave = Math.max(1, Math.min(1000000000, Math.floor(Number(typeof wave !== "undefined" ? wave : 1) || 1)));
+        var startWave = currentWave < 50 ? 1 : 50 + Math.floor((currentWave - 50) / 50) * 50;
+        var endWave = currentWave < 50 ? 49 : startWave + 49;
+        var rebirths = Math.max(0, Math.min(1000000, Math.floor(Number(typeof rebirthCount !== "undefined" ? rebirthCount : 0) || 0)));
+        function labelNumber(number) {
+            try { return number.toLocaleString("ru-RU"); } catch (_error) { return String(number); }
+        }
+        return {
+            stage_key: "waves_" + startWave + "_" + endWave,
+            stage_label: "Волны " + labelNumber(startWave) + "–" + labelNumber(endWave),
+            wave: currentWave,
+            rebirth: rebirths
+        };
+    } catch (_error) {
+        return { stage_key: "waves_1_49", stage_label: "Волны 1–49", wave: 1, rebirth: 0 };
+    }
+};
