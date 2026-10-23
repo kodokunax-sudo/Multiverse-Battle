@@ -104,7 +104,7 @@ begin
                 select
                     s.total_sessions,
                     s.measured_play_seconds,
-                    b.estimated_prior_seconds,
+                    coalesce(b.estimated_prior_seconds, 0)::bigint as estimated_prior_seconds,
                     s.average_session_seconds,
                     s.sessions_7d,
                     s.last_session_at,
