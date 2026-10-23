@@ -1044,8 +1044,10 @@
             activeUniqueBossAttempt.bossKey === bossKey && !activeUniqueBossAttempt.finished) {
             return activeUniqueBossAttempt.startPromise || Promise.resolve(activeUniqueBossAttempt.id);
         }
-        var previous = activeUniqueBossAttempt && !activeUniqueBossAttempt.finished
-            ? finishUniqueBossFightAnalytics(activeUniqueBossAttempt.bossKey, 'abandoned')
+        var previous = activeUniqueBossAttempt
+            ? (activeUniqueBossAttempt.finished
+                ? (activeUniqueBossAttempt.finishPromise || Promise.resolve())
+                : finishUniqueBossFightAnalytics(activeUniqueBossAttempt.bossKey, 'abandoned'))
             : Promise.resolve();
         return Promise.resolve(previous).catch(function () {}).then(function () {
             if (!db || !currentUser || window.__mbBossTestMode) return null;
