@@ -1656,6 +1656,7 @@
             return;
         }
         if(asWinPending) return;
+        if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("anti_spiral", "win");
         asWinPending=true; asState="victory"; asAttacks=[];
         asText(200,245,"НЕВОЗМОЖНО...","#ffffff",120);
         asFlash=28; asFlashColor="#ffffff"; asShake=22;
@@ -1673,6 +1674,7 @@
             return;
         }
         if(asDefeatPending) return;
+        if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("anti_spiral", "death");
         if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") {
             window.MBPreserveGarouChargesForUniqueBossRetry("antispiral");
         }
@@ -1693,6 +1695,7 @@
         if(btn)btn.style.display="block";
     }
     function asStop() {
+        if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("anti_spiral", "abandoned");
         asGraphicsChoicePending = false;
         if (typeof window.MBEndBossGraphicsModeForFight === "function") window.MBEndBossGraphicsModeForFight();
         asActive=false; asAimMode=false; asSlowUntilReal=0; asTimeScale=1; asPreviousTimeScale=1; asCloneMode=false;asClones=[];asCloneUntil=0;asCloneNextShuffleAt=0;asClonePhase="idle";asCloneStageUntil=0;asArenaLockUntil=0;asArenaWarpUntil=0; window.antiSpiralBossActive=false;
@@ -2138,6 +2141,7 @@
     function asFinishCinematic(skipped) {
         if(!asActive||asState!=="cinematic")return;
         asState="fight";
+        if (typeof window.MBUniqueBossFightStart === "function") window.MBUniqueBossFightStart("anti_spiral");
         const now=performance.now();
         asGravityDirection=0;asResetGravityCadence(asGameClock);asGravityTransitionUntil=0;asBossApproachFrames=0;
         asBoss={x:200,y:100,size:48,rotation:0,pulse:0,flash:0};
