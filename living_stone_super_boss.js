@@ -702,6 +702,7 @@
         ls2BossDash = null; ls2BossStun = 0; ls2DodgeCooldown = 0;
         ls2DodgeStreak = 0; ls2BossHitCount = 0; ls2ShellBreak = null;
         ls2GreenStrikeTimer = 24; ls2GreenStrikeIndex = 0; ls2GreenBlockStreak = 0;
+        ls2GreenWaveIndex = 0; ls2GreenCurrentPattern = 0; ls2GreenBurstCount = 0; ls2GreenBurstTimer = 0;
         ls2OpenWindowPending = false; ls2LastAttackName = "Ты промахнулся";
         ls2LastPlayerX = 200; ls2LastPlayerY = 400;
         ls2PlayerVx = 0; ls2PlayerVy = 0; ls2PlayerStillFrames = 0;
@@ -771,6 +772,8 @@
     var ls2BossDash = null, ls2BossStun = 0, ls2DodgeCooldown = 0;
     var ls2DodgeStreak = 0, ls2BossHitCount = 0, ls2ShellBreak = null;
     var ls2GreenStrikeTimer = 25, ls2GreenStrikeIndex = 0, ls2GreenBlockStreak = 0;
+    var ls2GreenWaveIndex = 0, ls2GreenCurrentPattern = 0, ls2GreenBurstCount = 0, ls2GreenBurstTimer = 0;
+    var LS2_GREEN_ARENA = { x: 112, y: 325, w: 176, h: 145 };
     var ls2OpenWindowPending = false;
     var ls2LastPlayerX = 200, ls2LastPlayerY = 400, ls2LastAttackName = "Ты промахнулся";
     var ls2PlayerVx = 0, ls2PlayerVy = 0, ls2PlayerStillFrames = 0;
@@ -1155,19 +1158,75 @@
             return;
         }
         if (phase==="green") {
+            // Паттерны циклом: медленный веер, быстрые копья, медленный дождь, серия резких выпадов.
             ls2GreenStrikeTimer--;
+            ls2GreenBurstTimer--;
             if (ls2GreenStrikeTimer<=0) {
-                ls2GreenStrikeTimer=62;
-                var sides=[{x:12,y:420,vx:3.5,vy:0,sourceDir:3},
-                    {x:388,y:420,vx:-3.5,vy:0,sourceDir:1},
-                    {x:200,y:255,vx:0,vy:3.3,sourceDir:0}];
-                var s=sides[ls2GreenStrikeIndex%3];
-                ls2UniqueAttacks.push({type:"greenStrike",x:s.x,y:s.y,vx:s.vx,vy:s.vy,
-                    timer:0,life:145,size:12,damage:12,sourceDir:s.sourceDir});
-                ls2GreenStrikeIndex++;
+                ls2GreenCurrentPattern = ls2GreenWaveIndex % 4;
+                ls2GreenWaveIndex++;
+                ls2GreenStrikeTimer = 104;
+                ls2GreenBurstCount = 0;
+                ls2GreenBurstTimer = 0;
+
+                if (ls2GreenCurrentPattern === 0) {
+                    // Много медленных камней сходятся веером слева. Щит держать влево.
+                    for (var fan=0;fan<5;fan++) {
+                        var fy=LS2_GREEN_ARENA.y+18+fan*27;
+                        ls2UniqueAttacks.push({type:"greenStrike",greenStyle:"slow",
+                            x:LS2_GREEN_ARENA.x+3,y:fy,vx:2.05,
+                            vy:(398-fy)/54,timer:0,life:165,size:10,damage:10,sourceDir:3});
+                    }
+                } else if (ls2GreenCurrentPattern === 1) {
+                    // Четыре быстрых копья: игрок должен вовремя менять сторону щита.
+                    ls2GreenBurstCount=4;
+                    ls2GreenBurstTimer=1;
+                } else if (ls2GreenCurrentPattern === 2) {
+                    // Медленный плотный дождь сверху, все снаряды блокируются верхним щитом.
+                    for (var rain=0;rain<5;rain++) {
+                        var rx=LS2_GREEN_ARENA.x+18+rain*35;
+                        ls2UniqueAttacks.push({type:"greenStrike",greenStyle:"slow",
+                            x:rx,y:LS2_GREEN_ARENA.y+3,vx:(200-rx)/48,vy:1.72,
+                            timer:0,life:165,size:10,damage:10,sourceDir:0});
+                    }
+                } else {
+                    // Короткая серия быстрых выпадов слева, справа и сверху.
+                    ls2GreenBurstCount=6;
+                    ls2GreenBurstTimer=1;
+                }
+            }
+            if (ls2GreenBurstCount>0 && ls2GreenBurstTimer<=0) {
+                var shotIndex = ls2GreenStrikeIndex++;
+                var side, sx, sy, svx, svy, sdir;
+                if (ls2GreenCurrentPattern===1) {
+                    side = shotIndex % 2;
+                    sdir = side===0 ? 3 : 1;
+                    sx = side===0 ? LS2_GREEN_ARENA.x+2 : LS2_GREEN_ARENA.x+LS2_GREEN_ARENA.w-2;
+                    sy = 398 + ((shotIndex % 4)-1.5)*13;
+                    svx = side===0 ? 5.3 : -5.3;
+                    svy = (398-sy)/19;
+                    ls2GreenBurstTimer=23;
+                } else {
+                    var kind = shotIndex % 3;
+                    if (kind===2) {
+                        sdir=0; sx=200 + ((shotIndex%2)===0 ? -24 : 24);
+                        sy=LS2_GREEN_ARENA.y+2; svx=(200-sx)/14; svy=5.1;
+                    } else {
+                        var fromLeft = kind===0;
+                        sdir=fromLeft ? 3 : 1;
+                        sx=fromLeft ? LS2_GREEN_ARENA.x+2 : LS2_GREEN_ARENA.x+LS2_GREEN_ARENA.w-2;
+                        sy=398 + (shotIndex%2===0 ? -19 : 19);
+                        svx=fromLeft ? 4.7 : -4.7;
+                        svy=(398-sy)/18;
+                    }
+                    ls2GreenBurstTimer=15;
+                }
+                ls2UniqueAttacks.push({type:"greenStrike",greenStyle:"fast",
+                    x:sx,y:sy,vx:svx,vy:svy,timer:0,life:105,size:9,damage:12,sourceDir:sdir});
+                ls2GreenBurstCount--;
             }
         } else {
-            ls2GreenStrikeTimer=22; ls2GreenStrikeIndex=0;
+            ls2GreenStrikeTimer=22; ls2GreenStrikeIndex=0; ls2GreenWaveIndex=0;
+            ls2GreenCurrentPattern=0; ls2GreenBurstCount=0; ls2GreenBurstTimer=0;
         }
         for (var ai=ls2UniqueAttacks.length-1;ai>=0;ai--) {
             var a=ls2UniqueAttacks[ai];
@@ -1287,8 +1346,16 @@
                 c.fillStyle="#ffdfb5";c.font="bold 10px Arial";c.textAlign="center";c.fillText("ПРЕДСКАЗАНИЕ",a.x,a.y-a.radius-7);
             } else if(a.type==="greenStrike"){
                 c.translate(a.x,a.y);c.rotate(Math.atan2(a.vy,a.vx));
-                c.fillStyle="#76ffa0";c.strokeStyle="#e4ffeb";c.lineWidth=1.8;c.shadowColor="#5dff8f";c.shadowBlur=15;
-                c.beginPath();c.moveTo(-16,-5);c.lineTo(4,-9);c.lineTo(16,0);c.lineTo(4,9);c.lineTo(-16,5);c.closePath();c.fill();c.stroke();
+                c.fillStyle=a.greenStyle==="slow"?"#63d982":"#76ffa0";
+                c.strokeStyle="#e4ffeb";c.lineWidth=a.greenStyle==="slow"?1.4:1.8;
+                c.shadowColor=a.greenStyle==="slow"?"#55df7e":"#5dff8f";c.shadowBlur=a.greenStyle==="slow"?7:13;
+                if(a.greenStyle==="slow"){
+                    c.beginPath();c.arc(0,0,a.size||10,0,Math.PI*2);c.fill();c.stroke();
+                    c.strokeStyle="rgba(235,255,240,.75)";c.lineWidth=1;
+                    c.beginPath();c.arc(0,0,(a.size||10)*.52,0,Math.PI*2);c.stroke();
+                } else {
+                    c.beginPath();c.moveTo(-16,-5);c.lineTo(4,-9);c.lineTo(16,0);c.lineTo(4,9);c.lineTo(-16,5);c.closePath();c.fill();c.stroke();
+                }
             } else if(a.type==="plate"){
                 c.translate(a.x,a.y);c.rotate(a.angle||0);c.fillStyle="#a9ffca";c.strokeStyle="#edfff3";c.lineWidth=1.2;c.shadowColor="#5dff8f";c.shadowBlur=10;
                 c.beginPath();c.moveTo(-15,0);c.lineTo(-2,-7);c.lineTo(15,0);c.lineTo(-2,7);c.closePath();c.fill();c.stroke();
@@ -1326,8 +1393,12 @@
                     window.__mbLS2GreenPhase = "gravity";
                     ls2UniqueAttacks = []; ls2UniqueCracks = []; ls2UniqueDecoys = [];
                     ls2ShellBreak = null; ls2BossDash = null;
-                    ls2GreenBlockStreak = 0;
+                    ls2GreenBlockStreak = 0; ls2GreenWaveIndex = 0;
+                    ls2GreenCurrentPattern = 0; ls2GreenBurstCount = 0; ls2GreenBurstTimer = 0;
                     ls2GreenStrikeTimer = 24;
+                    if (typeof livingStoneAttacks !== "undefined") livingStoneAttacks.length = 0;
+                    if (typeof livingStoneBullets !== "undefined") livingStoneBullets.length = 0;
+                    if (typeof livingStoneParticles !== "undefined") livingStoneParticles.length = 0;
                     window.__mbLS2GravityFromX = typeof livingStonePlayer !== "undefined" ? livingStonePlayer.x : 200;
                     window.__mbLS2GravityFromY = typeof livingStonePlayer !== "undefined" ? livingStonePlayer.y : 400;
                     window.__mbLS2GreenEventCount = (Number(window.__mbLS2GreenEventCount) || 0) + 1;
@@ -1342,7 +1413,11 @@
                 frame = 0; window.__mbLS2GreenPhase = "green";
                 ls2UniqueAttacks = [];
                 ls2GreenStrikeTimer = 20; ls2GreenStrikeIndex = 0; ls2GreenBlockStreak = 0;
-                if (typeof livingStonePlayer !== "undefined") { livingStonePlayer.x = 200; livingStonePlayer.y = 420; }
+                ls2GreenWaveIndex = 0; ls2GreenCurrentPattern = 0; ls2GreenBurstCount = 0; ls2GreenBurstTimer = 0;
+                if (typeof livingStoneAttacks !== "undefined") livingStoneAttacks.length = 0;
+                if (typeof livingStoneBullets !== "undefined") livingStoneBullets.length = 0;
+                if (typeof livingStoneParticles !== "undefined") livingStoneParticles.length = 0;
+                if (typeof livingStonePlayer !== "undefined") { livingStonePlayer.x = 200; livingStonePlayer.y = 398; }
                 if (typeof spawnLivingStoneText === "function") spawnLivingStoneText(200, 350, "ЗЕЛЁНАЯ ДУША! ЗАЩИЩАЙСЯ ЩИТОМ", "#63ff91", 125);
                 if (typeof playArenaSound === "function") playArenaSound(430, "triangle", 0.2, 0.08);
             }
@@ -1351,6 +1426,9 @@
             if (frame >= 480) {
                 frame = 0; window.__mbLS2GreenPhase = "normal";
                 ls2UniqueAttacks = [];
+                ls2GreenBurstCount = 0; ls2GreenBurstTimer = 0; ls2GreenWaveIndex = 0;
+                if (typeof livingStoneAttacks !== "undefined") livingStoneAttacks.length = 0;
+                if (typeof livingStoneBullets !== "undefined") livingStoneBullets.length = 0;
                 if (ls2OpenWindowPending) {
                     ls2BossStun = Math.max(ls2BossStun, 95);
                     ls2OpenWindowPending = false;
@@ -1397,6 +1475,38 @@
         if (phase === "gravity") {
             c.fillStyle = "rgba(70,255,130,.18)"; c.fillRect(70,59,260,3);
             c.fillStyle = "#62ff91"; c.fillRect(70,59,260*Math.min(1,frames/95),3);
+        }
+        c.restore();
+    };
+    window.MBDrawLivingStoneSuperArena = function(c) {
+        if (!window.livingStoneSuperActive || !c) return;
+        var phase = window.__mbLS2GreenPhase || "normal";
+        if (phase !== "gravity" && phase !== "green") return;
+        var progress = phase === "green" ? 1 : ls2Clamp((Number(window.__mbLS2PhaseFrames)||0) / 95, 0, 1);
+        progress = progress * progress * (3 - 2 * progress);
+        var outer = {x:28,y:232,w:344,h:246}, inner = LS2_GREEN_ARENA;
+        var box = {
+            x: outer.x + (inner.x-outer.x)*progress,
+            y: outer.y + (inner.y-outer.y)*progress,
+            w: outer.w + (inner.w-outer.w)*progress,
+            h: outer.h + (inner.h-outer.h)*progress
+        };
+        c.save();
+        c.fillStyle = phase === "green" ? "rgba(0,0,0,.72)" : "rgba(0,0,0,.58)";
+        c.fillRect(0,78,400,Math.max(0,box.y-78));
+        c.fillRect(0,box.y,Math.max(0,box.x),box.h);
+        c.fillRect(box.x+box.w,box.y,Math.max(0,400-box.x-box.w),box.h);
+        c.fillRect(0,box.y+box.h,400,Math.max(0,500-box.y-box.h));
+        c.fillStyle = "rgba(24,58,35,.16)";
+        c.fillRect(box.x+1,box.y+1,Math.max(0,box.w-2),Math.max(0,box.h-2));
+        c.strokeStyle = phase === "green" ? "rgba(178,255,196,.98)" : "rgba(114,255,157,.75)";
+        c.lineWidth = phase === "green" ? 3 : 2;
+        c.shadowColor = "#4dff89"; c.shadowBlur = phase === "green" ? 10 : 5;
+        c.strokeRect(box.x+1.5,box.y+1.5,box.w-3,box.h-3);
+        c.shadowBlur = 0;
+        if (phase === "green") {
+            c.strokeStyle = "rgba(105,255,148,.28)"; c.lineWidth = 1;
+            c.strokeRect(box.x+7,box.y+7,box.w-14,box.h-14);
         }
         c.restore();
     };
@@ -1572,8 +1682,9 @@
         ls2PreviousArenaActive=typeof arenaActive!=="undefined"?arenaActive:false;
         ls2ReduceEffects=!!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
         ls2Active=true; window.livingStoneSuperActive=true;
-        ls2BossMaxHp=Math.max(1000000,Number(currentEnemy.maxHp)||1250000);
+        ls2BossMaxHp=Math.max(500000,Math.floor((Number(currentEnemy.maxHp)||1250000)*0.45));
         ls2BossHp=ls2BossMaxHp; ls2PlayerMaxHp=180; ls2PlayerHp=ls2PlayerMaxHp;
+        currentEnemy.maxHp=ls2BossMaxHp; currentEnemy.hp=ls2BossHp;
         ls2Invulnerable=0; ls2HitFlash=0; ls2ShieldFlash=0; ls2ShieldDir=0;
         ls2Bullets=[]; ls2Sparks=[]; ls2Elapsed=0; ls2AttackTimer=54;
         ls2WarningTimer=0; ls2NextAttackDir=0; ls2AttackCount=0;
