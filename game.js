@@ -639,6 +639,21 @@ async function mbSyncCloudSave(action) {
             return;
         }
 
+        // First login on this device has no trustworthy sync marker. The account's
+        // cloud copy is authoritative; preserve this device's divergent local save
+        // as a recovery backup, then restore the account copy automatically.
+        if (action === 'auto' && (!marker || marker.userId !== userId)) {
+            if (localFingerprint === cloudFingerprint) {
+                if (mbWriteCloudMarker(targetSlot, userId, localSave, cloudRow)) {
+                    mbCloudSyncReadyForUser = targetSlot === currentSlot ? userId : null;
+                    mbCloudStatus('☁️ Аккаунт синхронизирован с облаком.', 'success');
+                }
+                return;
+            }
+            mbPutCloudSaveInLocalSlot(cloudRow.save_data, userId, cloudRow, targetSlot);
+            return;
+        }
+
         // A missing local save can be recreated as a starter save by old code. Never let that
         // starter state overwrite a clearly richer cloud save during automatic sync.
         if (action === 'auto' && mbCloudClearlyHasMoreProgress(cloudRow.save_data, localSave)) {
@@ -694,6 +709,32 @@ function mbScheduleCloudSave() {
         }
     }, 2200);
 }
+
+async function mbFlushCloudSave() {
+    if (currentSlot >= 0 && currentSlot <= 2 && typeof saveAll === 'function') saveAll();
+    if (mbCloudSaveTimer) { clearTimeout(mbCloudSaveTimer); mbCloudSaveTimer = null; }
+    var waitStarted = Date.now();
+    while (mbCloudSyncBusy && Date.now() - waitStarted < 7000) {
+        await new Promise(function (resolve) { window.setTimeout(resolve, 100); });
+    }
+    if (mbCloudSyncBusy) return false;
+    if (!mbCurrentCloudUserId() || currentSlot < 0 || currentSlot > 2) return true;
+    await mbSyncCloudSave('auto');
+    waitStarted = Date.now();
+    while (mbCloudSyncBusy && Date.now() - waitStarted < 7000) {
+        await new Promise(function (resolve) { window.setTimeout(resolve, 100); });
+    }
+    return !mbCloudSyncBusy && mbCloudSyncReadyForUser === mbCurrentCloudUserId();
+}
+window.mbFlushCloudSave = mbFlushCloudSave;
+
+document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'hidden') return;
+    if (currentSlot >= 0 && currentSlot <= 2 && typeof saveAll === 'function') saveAll();
+    mbFlushCloudSave().catch(function (error) {
+        console.warn('[MB cloud] Sync on background failed:', error && error.message ? error.message : error);
+    });
+});
 function mbUnbindCurrentCloudSlot() {
     if (mbCloudSyncBusy) {
         mbCloudStatus('Синхронизация уже выполняется. Попробуй отвязать слот через пару секунд.', 'warning');
