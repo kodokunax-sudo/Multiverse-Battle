@@ -20,6 +20,13 @@
     var lastStatsSyncAt = 0;
     var pendingStatsSyncTimer = null;
     var activeAuthSlot = null;
+    var activeAccountSessionId = null;
+    var activeAccountAuthSessionId = null;
+    var activeAccountSessionUserId = null;
+    var activeAccountSessionHeartbeatTimer = null;
+    var clientTabSessionId = null;
+    var accountSessionBlocked = false;
+    var accountSessionLockOverlay = null;
     var authStateSubscription = null;
     var authSwitchChain = Promise.resolve();
     var profileShowcaseSelection = [];
@@ -95,6 +102,7 @@
         var message = String((error && (error.message || error.error_description)) || error || '');
         var map = {
             auth_required: 'Сначала войди в аккаунт.',
+            active_session_required: 'Эта игровая сессия больше не активна. Повтори вход, чтобы проверить аккаунт.',
             invalid_clan_name: 'Название клана должно содержать от 3 до 24 символов.',
             invalid_clan_tag: 'Тег клана должен содержать от 2 до 5 английских букв или цифр.',
             description_too_long: 'Описание клана не должно превышать 160 символов.',
@@ -2938,6 +2946,16 @@
         if (!db) return;
         setBusy(true);
         try {
+            var logoutUserId = currentUser && currentUser.id;
+            if (typeof window.mbFlushCloudSave === 'function') {
+                try {
+                    var flushed = await window.mbFlushCloudSave();
+                    if (flushed === false) console.warn('[MB cloud] Final sync did not finish before logout.');
+                } catch (syncError) {
+                    console.warn('[MB cloud] Final sync failed before logout:', syncError && syncError.message ? syncError.message : syncError);
+                }
+            }
+            if (logoutUserId) await releaseActiveAccountSession(logoutUserId);
             var result = await db.auth.signOut();
             if (result.error) throw result.error;
             currentUser = null;
@@ -3068,20 +3086,21 @@
 
     async function getCloudSave() {
         if (!db || !currentUser) throw new Error('auth_required');
-        var result = await db.from('player_cloud_saves')
-            .select('save_data, updated_at, revision')
-            .eq('user_id', currentUser.id)
-            .maybeSingle();
+        if (accountSessionBlocked || activeAccountSessionUserId !== currentUser.id || !activeAccountSessionId) throw new Error('active_session_required');
+        var result = await db.rpc('read_player_cloud_save', { p_session_id: activeAccountSessionId });
         if (result.error) throw result.error;
-        return result.data || null;
+        var row = Array.isArray(result.data) ? result.data[0] : result.data;
+        return row || null;
     }
 
     async function writeCloudSave(saveData, expectedUpdatedAt) {
         if (!db || !currentUser) throw new Error('auth_required');
+        if (accountSessionBlocked || activeAccountSessionUserId !== currentUser.id || !activeAccountSessionId) throw new Error('active_session_required');
         if (!saveData || typeof saveData !== 'object' || Array.isArray(saveData)) throw new Error('cloud_save_invalid');
         var result = await db.rpc('write_player_cloud_save', {
             p_save_data: saveData,
-            p_expected_updated_at: expectedUpdatedAt || null
+            p_expected_updated_at: expectedUpdatedAt || null,
+            p_session_id: activeAccountSessionId
         });
         if (result.error) throw result.error;
         var row = Array.isArray(result.data) ? result.data[0] : result.data;
@@ -3266,6 +3285,201 @@
         return id;
     }
 
+    function makeClientSessionUuid() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (ch) {
+            var r = Math.random() * 16 | 0;
+            return (ch === 'x' ? r : (r & 3 | 8)).toString(16);
+        });
+    }
+
+    function getActiveAccountClientSessionId() {
+        if (clientTabSessionId) return clientTabSessionId;
+        var key = 'mb_active_account_client_session_id_v1';
+        var id = null;
+        try { id = window.sessionStorage.getItem(key); } catch (_error) {}
+        if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+            id = makeClientSessionUuid();
+            try { window.sessionStorage.setItem(key, id); } catch (_error) {}
+        }
+        clientTabSessionId = id;
+        return id;
+    }
+
+    async function getAuthSessionId(client) {
+        client = client || db;
+        if (!client) return null;
+        var result = await client.auth.getSession();
+        if (result.error) throw result.error;
+        var session = result.data && result.data.session;
+        var token = session && session.access_token;
+        if (!token) return null;
+        try {
+            var payload = token.split('.')[1];
+            if (!payload) return null;
+            payload = payload.replace(/-/g, '+').replace(/_/g, '/');
+            while (payload.length % 4) payload += '=';
+            var claims = JSON.parse(window.atob(payload));
+            var id = claims && claims.session_id;
+            return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : null;
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    function stopActiveAccountSessionHeartbeat() {
+        if (activeAccountSessionHeartbeatTimer !== null) {
+            window.clearInterval(activeAccountSessionHeartbeatTimer);
+            activeAccountSessionHeartbeatTimer = null;
+        }
+    }
+
+    function clearAccountSessionLock() {
+        accountSessionBlocked = false;
+        var overlay = byId('mbAccountSessionLock');
+        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        accountSessionLockOverlay = null;
+    }
+
+    function showAccountSessionLock(message) {
+        accountSessionBlocked = true;
+        var overlay = byId('mbAccountSessionLock');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'mbAccountSessionLock';
+            overlay.setAttribute('role', 'alertdialog');
+            overlay.setAttribute('aria-modal', 'true');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(5,6,16,.97);font-family:Nunito,Arial,sans-serif;';
+            var card = document.createElement('div');
+            card.style.cssText = 'width:100%;max-width:520px;padding:26px;border:1px solid rgba(245,175,25,.75);border-radius:20px;background:#171729;color:#f5f5ff;box-shadow:0 20px 80px rgba(0,0,0,.65);text-align:center;';
+            var heading = document.createElement('h2');
+            heading.textContent = '🔒 Аккаунт уже используется';
+            heading.style.cssText = 'font-size:23px;margin:0 0 14px;font-weight:900;';
+            var paragraph = document.createElement('p');
+            paragraph.id = 'mbAccountSessionLockMessage';
+            paragraph.style.cssText = 'font-size:15px;line-height:1.6;color:#d9d9e6;margin:0 0 22px;';
+            var retry = document.createElement('button');
+            retry.type = 'button';
+            retry.textContent = 'Проверить снова';
+            retry.style.cssText = 'padding:12px 22px;border:0;border-radius:30px;background:linear-gradient(135deg,#f5af19,#f12711);color:white;font-weight:900;font-size:15px;cursor:pointer;';
+            retry.addEventListener('click', async function () {
+                retry.disabled = true;
+                retry.textContent = 'Проверяем…';
+                try { await queueAuthForCurrentSlot(getCurrentGameSlot()); }
+                catch (_error) {}
+                retry.disabled = false;
+                retry.textContent = 'Проверить снова';
+            });
+            card.appendChild(heading);
+            card.appendChild(paragraph);
+            card.appendChild(retry);
+            overlay.appendChild(card);
+            document.body.appendChild(overlay);
+            accountSessionLockOverlay = overlay;
+        }
+        var messageNode = byId('mbAccountSessionLockMessage');
+        if (messageNode) messageNode.textContent = message || 'Этот аккаунт уже активен в другой игре. Закрой прежнюю сессию и повтори проверку.';
+        try {
+            window.dispatchEvent(new CustomEvent('mb:account-session-blocked', { detail: { message: message || '' } }));
+        } catch (_error) {}
+    }
+
+    async function releaseActiveAccountSession(userId) {
+        if (!userId || activeAccountSessionUserId !== userId || !activeAccountSessionId || !activeAccountAuthSessionId || !db) return false;
+        var client = db;
+        var sessionId = activeAccountSessionId;
+        stopActiveAccountSessionHeartbeat();
+        try {
+            var result = await client.rpc('mb_release_active_account_session', { p_session_id: sessionId });
+            if (result.error) console.warn('[MB account session] Release failed:', result.error.message);
+            return !result.error && result.data === true;
+        } catch (error) {
+            console.warn('[MB account session] Release failed:', error && error.message ? error.message : error);
+            return false;
+        } finally {
+            if (activeAccountSessionUserId === userId && activeAccountSessionId === sessionId) {
+                activeAccountSessionUserId = null;
+                activeAccountSessionId = null;
+                activeAccountAuthSessionId = null;
+            }
+        }
+    }
+
+    function startActiveAccountSessionHeartbeat(userId, clientSessionId, authSessionId) {
+        stopActiveAccountSessionHeartbeat();
+        activeAccountSessionHeartbeatTimer = window.setInterval(async function () {
+            if (!db || !currentUser || currentUser.id !== userId || activeAccountSessionUserId !== userId || accountSessionBlocked) return;
+            var client = db;
+            try {
+                var result = await client.rpc('mb_heartbeat_active_account_session', { p_session_id: clientSessionId });
+                if (db !== client || !currentUser || currentUser.id !== userId) return;
+                if (result.error) {
+                    console.warn('[MB account session] Heartbeat failed:', result.error.message);
+                    return;
+                }
+                if (!result.data || result.data.ok !== true) {
+                    stopActiveAccountSessionHeartbeat();
+                    activeAccountSessionUserId = null;
+                    activeAccountSessionId = null;
+                    activeAccountAuthSessionId = null;
+                    currentUser = null;
+                    currentClan = null;
+                    currentProfile = null;
+                    showAuthState();
+                    showAccountSessionLock('Эта сессия аккаунта больше не активна. Возможно, аккаунт открыт в другой игре. Закрой другую сессию и нажми «Проверить снова».');
+                    notifyCloudSaveAuthChanged();
+                }
+            } catch (error) {
+                console.warn('[MB account session] Heartbeat error:', error && error.message ? error.message : error);
+            }
+        }, 20000);
+    }
+
+    async function claimActiveAccountSession(user) {
+        var client = db;
+        if (!client || !user || !user.id) return 'Не удалось проверить активную сессию аккаунта.';
+        var clientSessionId = getActiveAccountClientSessionId();
+        var authSessionId;
+        try { authSessionId = await getAuthSessionId(client); }
+        catch (error) {
+            console.warn('[MB account session] Cannot read auth session:', error && error.message ? error.message : error);
+            return 'Не удалось проверить сессию аккаунта. Проверь интернет и повтори вход.';
+        }
+        if (db !== client) return 'Слот изменился во время проверки аккаунта. Повтори вход.';
+        if (!authSessionId) return 'Не удалось получить идентификатор сессии аккаунта. Перезайди в игру.';
+        var result;
+        try {
+            result = await client.rpc('mb_claim_active_account_session', {
+                p_session_id: clientSessionId,
+                p_auth_session_id: authSessionId,
+                p_device_id: getDeviceBindingId()
+            });
+        } catch (error) {
+            console.warn('[MB account session] Claim failed:', error && error.message ? error.message : error);
+            return 'Не удалось проверить активную сессию аккаунта. Проверь интернет и повтори вход.';
+        }
+        if (db !== client) return 'Слот изменился во время проверки аккаунта. Повтори вход.';
+        if (result.error) {
+            console.warn('[MB account session] Claim RPC failed:', result.error.message);
+            return 'Не удалось проверить активную сессию аккаунта. Проверь миграцию Supabase и повтори вход.';
+        }
+        var verdict = result.data;
+        if (!verdict || verdict.ok !== true) {
+            var message = verdict && verdict.message ? verdict.message : 'Этот аккаунт нельзя использовать в текущей сессии.';
+            if (verdict && verdict.code === 'active_session_in_use') {
+                accountSessionBlocked = true;
+                showAccountSessionLock(message);
+            }
+            return message;
+        }
+        activeAccountSessionId = clientSessionId;
+        activeAccountAuthSessionId = authSessionId;
+        activeAccountSessionUserId = user.id;
+        clearAccountSessionLock();
+        startActiveAccountSessionHeartbeat(user.id, clientSessionId, authSessionId);
+        return null;
+    }
+
     async function accountSlotBindingError(user, slot) {
         if (!user || !user.id) return null;
         var transferNewAccount = isPendingNewAccountTransfer(user.id);
@@ -3290,6 +3504,8 @@
             if (!verdict || verdict.ok !== true) {
                 return verdict && verdict.message ? verdict.message : 'Этот аккаунт нельзя использовать в выбранном слоте.';
             }
+            var activeSessionError = await claimActiveAccountSession(user);
+            if (activeSessionError) return activeSessionError;
             if (transferNewAccount && typeof window.mbPrepareNewAccountSlotTransfer === 'function') {
                 var prepared = window.mbPrepareNewAccountSlotTransfer(user.id, slot);
                 if (prepared !== true) {
@@ -3304,13 +3520,22 @@
     }
 
     async function rejectAccountForSlot(client, slot, message) {
+        var rejectedUserId = currentUser && currentUser.id;
+        if (rejectedUserId && !accountSessionBlocked && activeAccountSessionUserId === rejectedUserId) {
+            await releaseActiveAccountSession(rejectedUserId);
+        }
         currentUser = null;
         currentClan = null;
         currentProfile = null;
         showAuthState();
         setNotice(message, 'warning');
         notifyCloudSaveAuthChanged();
-        try { await client.auth.signOut(); } catch (_error) {}
+        // Preserve the stored auth session when another live game owns the account.
+        // The full-screen lock blocks gameplay; retry can claim the account after the
+        // other session is closed. Other binding failures still sign out normally.
+        if (!accountSessionBlocked) {
+            try { await client.auth.signOut(); } catch (_error) {}
+        }
     }
 
     function queueAuthForCurrentSlot(slot) {
@@ -3433,6 +3658,13 @@
         }
         migrateLegacyAuthSession();
         window.addEventListener('mb:slot-changing', function () {
+            var previousUserId = currentUser && currentUser.id;
+            if (previousUserId) {
+                var finalSync = typeof window.mbFlushCloudSave === 'function' ? window.mbFlushCloudSave() : Promise.resolve(true);
+                Promise.resolve(finalSync).catch(function (error) {
+                    console.warn('[MB cloud] Sync before slot switch failed:', error && error.message ? error.message : error);
+                }).finally(function () { releaseActiveAccountSession(previousUserId); });
+            }
             currentUser = null;
             currentClan = null;
             currentProfile = null;
@@ -3475,7 +3707,15 @@
             trackGameAnalytics(false);
         }
     });
-    window.addEventListener('pagehide', function () { trackGameAnalytics(true); });
+    window.addEventListener('pagehide', function () {
+        trackGameAnalytics(true);
+        var closingUserId = currentUser && currentUser.id;
+        if (!closingUserId) return;
+        var finalSync = typeof window.mbFlushCloudSave === 'function' ? window.mbFlushCloudSave() : Promise.resolve(true);
+        Promise.resolve(finalSync).catch(function (error) {
+            console.warn('[MB cloud] Final sync on exit failed:', error && error.message ? error.message : error);
+        }).finally(function () { releaseActiveAccountSession(closingUserId); });
+    });
 
     if (document.readyState === 'loading') {
         if (document.readyState === 'loading') {
