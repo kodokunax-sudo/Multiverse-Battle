@@ -1119,6 +1119,25 @@
         living_stone_super: { label: 'Супер-Живой Камень', wave: 2000 }
     };
 
+    function canViewUniqueBossFightAnalytics() {
+        var email = currentUser && typeof currentUser.email === 'string' ? currentUser.email.trim().toLowerCase() : '';
+        return email.indexOf('kodoku') === 0;
+    }
+
+    function updateUniqueBossFightAnalyticsVisibility() {
+        var visible = canViewUniqueBossFightAnalytics();
+        [
+            { panelId: 'mbUniqueBossAnalyticsOwnPanel', containerId: 'clanProfileUniqueBossStats' },
+            { panelId: 'mbUniqueBossAnalyticsPublicPanel', containerId: 'clanPublicUniqueBossStats' }
+        ].forEach(function (item) {
+            var panel = byId(item.panelId);
+            if (panel) panel.style.display = visible ? '' : 'none';
+            var container = byId(item.containerId);
+            if (container) container.style.display = visible ? 'block' : 'none';
+        });
+        return visible;
+    }
+
     function startUniqueBossFightAnalytics(bossKey) {
         if (!db || !currentUser || !UNIQUE_BOSS_CATALOG[bossKey] || window.__mbBossTestMode) return Promise.resolve(null);
         if (activeUniqueBossAttempt && activeUniqueBossAttempt.userId === currentUser.id &&
@@ -1201,6 +1220,7 @@
     }
 
     function renderUniqueBossFightStats(containerId, data, scope, userId) {
+        if (!updateUniqueBossFightAnalyticsVisibility()) return;
         var container = byId(containerId);
         if (!container) return;
         container.replaceChildren();
@@ -1325,6 +1345,7 @@
     }
 
     async function loadUniqueBossFightStats(userId, scope, force) {
+        if (!updateUniqueBossFightAnalyticsVisibility()) return null;
         if (!db || !currentUser || !userId) return null;
         var containerId = scope === 'own' ? 'clanProfileUniqueBossStats' : 'clanPublicUniqueBossStats';
         var client = db;
@@ -3343,6 +3364,7 @@
             if (requestedSlot !== getCurrentGameSlot() || db !== client) return;
             if (sessionResult.error) throw sessionResult.error;
             currentUser = sessionResult.data.session ? sessionResult.data.session.user : null;
+            updateUniqueBossFightAnalyticsVisibility();
             var restoredBindingError = await accountSlotBindingError(currentUser, requestedSlot);
             if (restoredBindingError) {
                 await rejectAccountForSlot(client, requestedSlot, restoredBindingError);
@@ -3356,6 +3378,7 @@
             var subscriptionResult = client.auth.onAuthStateChange(function (_event, session) {
                 if (db !== client || activeAuthSlot !== requestedSlot || requestedSlot !== getCurrentGameSlot()) return;
                 currentUser = session ? session.user : null;
+                updateUniqueBossFightAnalyticsVisibility();
                 var eventUser = currentUser;
                 window.setTimeout(async function () {
                     if (db !== client || activeAuthSlot !== requestedSlot || requestedSlot !== getCurrentGameSlot()) return;
