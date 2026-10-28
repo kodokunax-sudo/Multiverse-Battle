@@ -3711,10 +3711,56 @@
         trackGameAnalytics(true);
         var closingUserId = currentUser && currentUser.id;
         if (!closingUserId) return;
-        var finalSync = typeof window.mbFlushCloudSave === 'function' ? window.mbFlushCloudSave() : Promise.resolve(true);
-        Promise.resolve(finalSync).catch(function (error) {
-            console.warn('[MB cloud] Final sync on exit failed:', error && error.message ? error.message : error);
-        }).finally(function () { releaseActiveAccountSession(closingUserId); });
+
+        // Start final cloud sync, but releasing the account lock must not wait
+        // for a request to finish after this document has been closed.
+        if (typeof window.mbFlushCloudSave === 'function') {
+            window.mbFlushCloudSave().catch(function (error) {
+                console.warn('[MB cloud] Final sync on exit failed:', error && error.message ? error.message : error);
+            });
+        }
+
+        if (activeAccountSessionUserId !== closingUserId ||
+            !activeAccountSessionId || !activeAccountAuthSessionId) return;
+
+        var sessionId = activeAccountSessionId;
+        var config = window.MB_SUPABASE_CONFIG || {};
+        var storedSession = null;
+        try {
+            storedSession = JSON.parse(localStorage.getItem(authStorageKeyForSlot(getCurrentGameSlot())) || 'null');
+        } catch (_error) {}
+        var accessToken = storedSession && storedSession.access_token;
+        var url = typeof config.url === 'string' ? config.url.replace(/\/+$/, '') : '';
+        if (!url || !config.anonKey || !accessToken || typeof window.fetch !== 'function') {
+            releaseActiveAccountSession(closingUserId);
+            return;
+        }
+
+        var releaseRequest;
+        try {
+            releaseRequest = window.fetch(url + '/rest/v1/rpc/mb_release_active_account_session', {
+                method: 'POST',
+                keepalive: true,
+                headers: {
+                    'apikey': config.anonKey,
+                    'Authorization': 'Bearer ' + accessToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ p_session_id: sessionId })
+            });
+        } catch (error) {
+            console.warn('[MB account session] Unload release could not start:', error && error.message ? error.message : error);
+            releaseActiveAccountSession(closingUserId);
+            return;
+        }
+
+        stopActiveAccountSessionHeartbeat();
+        activeAccountSessionUserId = null;
+        activeAccountSessionId = null;
+        activeAccountAuthSessionId = null;
+        Promise.resolve(releaseRequest).catch(function (error) {
+            console.warn('[MB account session] Unload release failed; server lease will expire:', error && error.message ? error.message : error);
+        });
     });
 
     if (document.readyState === 'loading') {
