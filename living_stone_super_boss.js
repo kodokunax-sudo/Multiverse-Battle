@@ -781,6 +781,19 @@
     var ls2BossWobble = 0;
 
     function ls2Clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function ls2RegisterGreenBlock(a) {
+        ls2GreenBlockStreak++;
+        if (typeof spawnLivingStoneParticles === "function")
+            spawnLivingStoneParticles(a.x, a.y, 8, "#73ff9b", 3);
+        if (ls2GreenBlockStreak === 1)
+            ls2CombatText("ЩИТ ПОГЛОТИЛ УДАР", "#9affb7", 30);
+        if (ls2GreenBlockStreak >= 3) {
+            ls2GreenBlockStreak = 0;
+            ls2BossStun = Math.max(ls2BossStun, 95);
+            ls2OpenWindowPending = true;
+            ls2CombatText("ЩИТ СЛОМАЛ ЕГО РИТМ! БЕЙ!", "#fff1ae", 90);
+        }
+    }
     function ls2Live() {
         return ls2NativeMode && !!window.livingStoneSuperActive &&
             typeof livingStoneBoss !== "undefined" && typeof livingStonePlayer !== "undefined";
@@ -908,7 +921,7 @@
         if (ls2BossDash) {
             var d=ls2BossDash; d.timer++;
             var target=d.targets[d.step];
-            var duration=d.type==="evasive"?21:(d.type==="hunt"?23:27);
+            var duration=d.type==="evasive"?24:(d.type==="hunt"?23:27);
             var t=ls2Clamp(d.timer/duration,0,1), ease=t*t*(3-2*t);
             b.x=d.fromX+(target.x-d.fromX)*ease;
             b.y=d.fromY+(target.y-d.fromY)*ease;
@@ -974,53 +987,39 @@
 
     function ls2ChooseDodgeTarget(bullet, boss, bossVx, bossVy) {
         var fromX = boss.x, fromY = boss.y;
-        var shotVx = Number(bullet.vx) || 0, shotVy = Number(bullet.vy) || 0;
-        var relVx = shotVx - bossVx, relVy = shotVy - bossVy;
-        var relLen = Math.sqrt(relVx * relVx + relVy * relVy) || 1;
-        var perpX = -relVy / relLen, perpY = relVx / relLen;
-        var candidates = [
-            {x: fromX + perpX * 66, y: fromY + perpY * 66},
-            {x: fromX - perpX * 66, y: fromY - perpY * 66},
-            {x: fromX - 58, y: fromY}, {x: fromX + 58, y: fromY},
-            {x: fromX, y: fromY - 42}, {x: fromX, y: fromY + 42},
-            {x: fromX + perpX * 52 - perpY * 27, y: fromY + perpY * 52 + perpX * 27},
-            {x: fromX - perpX * 52 - perpY * 27, y: fromY - perpY * 52 + perpX * 27}
-        ];
         var shots = typeof livingStoneBullets !== "undefined" && Array.isArray(livingStoneBullets)
-            ? livingStoneBullets.slice(-24) : [];
+            ? livingStoneBullets.slice(-18) : [];
         if (shots.indexOf(bullet) < 0) shots.push(bullet);
-        var times = [2, 4, 6, 8, 10, 13];
-        var playerForecastX = ls2Clamp(livingStonePlayer.x + ls2PlayerVx * 10, 30, 370);
+        // The boss sidesteps instead of pinballing around the entire arena.
+        var candidates = [
+            {x:fromX-48,y:fromY-7},{x:fromX+48,y:fromY-7},
+            {x:fromX-38,y:fromY+20},{x:fromX+38,y:fromY+20},
+            {x:fromX-38,y:fromY-20},{x:fromX+38,y:fromY-20},
+            {x:fromX,y:fromY-30},{x:fromX,y:fromY+30}
+        ];
+        var times = [2,5,8,11,14,17,20,23], duration = 24;
         var best = null, bestScore = -Infinity;
-        for (var i = 0; i < candidates.length; i++) {
-            var tx = ls2Clamp(candidates[i].x, 48, 352);
-            var ty = ls2Clamp(candidates[i].y, 72, 235);
-            if (Math.hypot(tx - fromX, ty - fromY) < 38) continue;
-            var minClearance = Infinity;
-            for (var j = 0; j < shots.length; j++) {
-                var shot = shots[j];
-                var svx = Number(shot.vx) || 0, svy = Number(shot.vy) || 0;
-                var shotRadius = (boss.size || 55) + (shot.size || 4) + 3;
-                for (var k = 0; k < times.length; k++) {
-                    var t = times[k], progress = Math.min(1, t / 10);
-                    progress = progress * progress * (3 - 2 * progress);
-                    var bossX = fromX + (tx - fromX) * progress;
-                    var bossY = fromY + (ty - fromY) * progress;
-                    var dx = bossX - (shot.x + svx * t);
-                    var dy = bossY - (shot.y + svy * t);
-                    var clearance = Math.sqrt(dx * dx + dy * dy) - shotRadius;
-                    if (clearance < minClearance) minClearance = clearance;
+        for (var i=0;i<candidates.length;i++) {
+            var tx=ls2Clamp(candidates[i].x,48,352), ty=ls2Clamp(candidates[i].y,72,235);
+            if (Math.hypot(tx-fromX,ty-fromY)<24) continue;
+            var minClearance=Infinity;
+            for (var j=0;j<shots.length;j++) {
+                var shot=shots[j], svx=Number(shot.vx)||0, svy=Number(shot.vy)||0;
+                var radius=(boss.size||44)+(shot.size||4)+2;
+                for (var k=0;k<times.length;k++) {
+                    var t=times[k], progress=ls2Clamp(t/duration,0,1);
+                    progress=progress*progress*(3-2*progress);
+                    var bx=fromX+(tx-fromX)*progress, by=fromY+(ty-fromY)*progress;
+                    var clearance=Math.hypot(bx-(shot.x+svx*t),by-(shot.y+svy*t))-radius;
+                    if (clearance<minClearance) minClearance=clearance;
                 }
             }
-            var edgeRoom = Math.min(tx - 48, 352 - tx) * 0.08 + Math.min(ty - 72, 235 - ty) * 0.08;
-            var leaveAimLane = Math.min(150, Math.abs(tx - playerForecastX)) * 0.12;
-            var score = minClearance + edgeRoom + leaveAimLane;
-            if (score > bestScore) {
-                bestScore = score;
-                best = {x: tx, y: ty};
-            }
+            var edgeRoom=Math.min(tx-48,352-tx)*0.07+Math.min(ty-72,235-ty)*0.04;
+            var centerBias=Math.max(0,95-Math.abs(tx-200))*0.05;
+            var score=minClearance+edgeRoom+centerBias;
+            if(score>bestScore){bestScore=score;best={x:tx,y:ty};}
         }
-        return best || {x: ls2Clamp(fromX + (fromX < 200 ? 56 : -56), 48, 352), y: ls2Clamp(fromY - 20, 72, 235)};
+        return best||{x:ls2Clamp(fromX+(fromX<200?42:-42),48,352),y:ls2Clamp(fromY,72,235)};
     }
 
     window.MBLivingStoneSuperTryDodgeBullet = function(bullet) {
@@ -1032,11 +1031,13 @@
             if (dx * dx + dy * dy < Math.pow((bullet.size || 4) + 28, 2)) {
                 decoy.flash = 12;
                 var impactColor = decoy.kind === "afterimage" ? "#bca487" : "#8dffb1";
-                if (typeof livingStoneAttacks !== "undefined") {
-                    ls2SpawnOrbBurst(decoy.x, decoy.y, decoy.kind === "afterimage" ? 6 : 10,
-                        decoy.kind === "afterimage" ? 2.7 : 3.2, impactColor, decoy.kind === "afterimage" ? 4 : 8);
+                // Only a real shell can counterattack. A dodge afterimage must not flood the arena.
+                if (decoy.kind === "shell" && typeof livingStoneAttacks !== "undefined") {
+                    ls2SpawnOrbBurst(decoy.x, decoy.y, 4, 2.5, impactColor, 5);
                 }
-                if (typeof spawnLivingStoneParticles === "function") spawnLivingStoneParticles(decoy.x, decoy.y, 18, impactColor, 5);
+                if (typeof spawnLivingStoneParticles === "function") {
+                    spawnLivingStoneParticles(decoy.x, decoy.y, decoy.kind === "shell" ? 9 : 5, impactColor, 3);
+                }
                 ls2UniqueDecoys.splice(i, 1);
                 ls2CombatText(decoy.kind === "afterimage" ? "КАМЕННЫЙ ФАНТОМ!" : "ЛОЖНАЯ ОБОЛОЧКА!",
                     decoy.kind === "afterimage" ? "#c4ad8e" : "#93ffba", 52);
@@ -1066,30 +1067,33 @@
         var relSpeedSq = relVx * relVx + relVy * relVy;
         if (relSpeedSq < 0.2) return false;
         var closestTime = -((relX * relVx) + (relY * relVy)) / relSpeedSq;
-        if (closestTime < 0.15 || closestTime > 10.5) return false;
+        if (closestTime < 0.15 || closestTime > 12.5) return false;
         var closestX = relX + relVx * closestTime;
         var closestY = relY + relVy * closestTime;
         var missDistance = Math.sqrt(closestX * closestX + closestY * closestY);
-        var hitRadius = Math.max(18, (b.size || 55) + (bullet.size || 4) - 3);
+        var hitRadius = Math.max(18, (b.size || 44) * 0.78 + (bullet.size || 4));
         if (missDistance >= hitRadius) return false;
 
         var danger = 1 - missDistance / hitRadius;
-        var urgency = 1 - closestTime / 10.5;
-        var dodgeChance = 0.20 + danger * 0.34 + urgency * 0.16;
+        var urgency = 1 - closestTime / 12.5;
+        var dodgeChance = 0.28 + danger * 0.34 + urgency * 0.18;
         if (bullet.homing) dodgeChance += 0.05;
         if (hpRatio < 0.22) dodgeChance += 0.06;
         if (ls2DodgeStreak === 1) dodgeChance -= 0.08;
         if (ls2DodgeStreak >= 2) dodgeChance -= 0.15;
-        dodgeChance = ls2Clamp(dodgeChance, 0.12, 0.64);
+        dodgeChance = ls2Clamp(dodgeChance, 0.22, 0.78);
         if (Math.random() > dodgeChance) return false;
 
         var fromX = b.x, fromY = b.y;
         var target = ls2ChooseDodgeTarget(bullet, b, predictedBossVx, predictedBossVy);
-        ls2UniqueDecoys.push({x: fromX, y: fromY, timer: 24, kind: "afterimage", hits: 0, core: 0, flash: 0});
+        for (var di=ls2UniqueDecoys.length-1;di>=0;di--) {
+            if (ls2UniqueDecoys[di].kind === "afterimage") ls2UniqueDecoys.splice(di,1);
+        }
+        ls2UniqueDecoys.push({x: fromX, y: fromY, timer: 18, kind: "afterimage", hits: 0, core: 0, flash: 0});
         ls2BossDash = {type: "evasive", step: 0, timer: 0, fromX: fromX, fromY: fromY, targets: [target]};
-        ls2DodgeCooldown = hpRatio < 0.22 ? 66 : 82;
+        ls2DodgeCooldown = hpRatio < 0.22 ? 100 : 112;
         ls2DodgeStreak++;
-        ls2CombatText("ТЫ ПРОМАХНУЛСЯ!", "#c4ad8e", 45);
+        ls2CombatText("УХОД В СТОРОНУ", "#c4ad8e", 32);
         if (ls2DodgeStreak >= 3) {
             ls2DodgeStreak = 0;
             ls2BossStun = 82;
@@ -1139,8 +1143,7 @@
             var d=ls2UniqueDecoys[i];
             d.timer--; if (d.flash>0) d.flash--;
             if (d.kind==="afterimage" && d.timer<=0) {
-                ls2SpawnOrbBurst(d.x,d.y,6,2.4,"#bca487",4);
-                if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(d.x,d.y,10,"#c5ad8c",4);
+                if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(d.x,d.y,3,"#c5ad8c",2);
                 ls2UniqueDecoys.splice(i,1); continue;
             }
             if (d.timer<=0) { ls2UniqueDecoys.splice(i,1); }
@@ -1158,39 +1161,39 @@
             return;
         }
         if (phase==="green") {
-            // Паттерны циклом: медленный веер, быстрые копья, медленный дождь, серия резких выпадов.
+            // Четыре читаемых паттерна: предупреждение, короткий залп и пауза.
             ls2GreenStrikeTimer--;
             ls2GreenBurstTimer--;
             if (ls2GreenStrikeTimer<=0) {
                 ls2GreenCurrentPattern = ls2GreenWaveIndex % 4;
                 ls2GreenWaveIndex++;
-                ls2GreenStrikeTimer = 104;
+                ls2GreenStrikeTimer = 136;
                 ls2GreenBurstCount = 0;
                 ls2GreenBurstTimer = 0;
 
                 if (ls2GreenCurrentPattern === 0) {
                     // Много медленных камней сходятся веером слева. Щит держать влево.
-                    for (var fan=0;fan<5;fan++) {
-                        var fy=LS2_GREEN_ARENA.y+18+fan*27;
+                    for (var fan=0;fan<3;fan++) {
+                        var fy=LS2_GREEN_ARENA.y+24+fan*48;
                         ls2UniqueAttacks.push({type:"greenStrike",greenStyle:"slow",
-                            x:LS2_GREEN_ARENA.x+3,y:fy,vx:2.05,
-                            vy:(398-fy)/54,timer:0,life:165,size:10,damage:10,sourceDir:3});
+                            x:LS2_GREEN_ARENA.x+3,y:fy,vx:2.55,
+                            vy:(398-fy)/40,delay:20,timer:0,life:100,size:10,damage:10,sourceDir:3});
                     }
                 } else if (ls2GreenCurrentPattern === 1) {
                     // Четыре быстрых копья: игрок должен вовремя менять сторону щита.
-                    ls2GreenBurstCount=4;
+                    ls2GreenBurstCount=3;
                     ls2GreenBurstTimer=1;
                 } else if (ls2GreenCurrentPattern === 2) {
                     // Медленный плотный дождь сверху, все снаряды блокируются верхним щитом.
-                    for (var rain=0;rain<5;rain++) {
-                        var rx=LS2_GREEN_ARENA.x+18+rain*35;
+                    for (var rain=0;rain<3;rain++) {
+                        var rx=LS2_GREEN_ARENA.x+18+rain*70;
                         ls2UniqueAttacks.push({type:"greenStrike",greenStyle:"slow",
-                            x:rx,y:LS2_GREEN_ARENA.y+3,vx:(200-rx)/48,vy:1.72,
-                            timer:0,life:165,size:10,damage:10,sourceDir:0});
+                            x:rx,y:LS2_GREEN_ARENA.y+3,vx:(200-rx)/32,vy:2.3,
+                            delay:20,timer:0,life:94,size:10,damage:10,sourceDir:0});
                     }
                 } else {
                     // Короткая серия быстрых выпадов слева, справа и сверху.
-                    ls2GreenBurstCount=6;
+                    ls2GreenBurstCount=4;
                     ls2GreenBurstTimer=1;
                 }
             }
@@ -1204,7 +1207,7 @@
                     sy = 398 + ((shotIndex % 4)-1.5)*13;
                     svx = side===0 ? 5.3 : -5.3;
                     svy = (398-sy)/19;
-                    ls2GreenBurstTimer=23;
+                    ls2GreenBurstTimer=28;
                 } else {
                     var kind = shotIndex % 3;
                     if (kind===2) {
@@ -1218,10 +1221,10 @@
                         svx=fromLeft ? 4.7 : -4.7;
                         svy=(398-sy)/18;
                     }
-                    ls2GreenBurstTimer=15;
+                    ls2GreenBurstTimer=22;
                 }
                 ls2UniqueAttacks.push({type:"greenStrike",greenStyle:"fast",
-                    x:sx,y:sy,vx:svx,vy:svy,timer:0,life:105,size:9,damage:12,sourceDir:sdir});
+                    x:sx,y:sy,vx:svx,vy:svy,delay:18,timer:0,life:92,size:9,damage:12,sourceDir:sdir});
                 ls2GreenBurstCount--;
             }
         } else {
@@ -1241,8 +1244,8 @@
                     a.life=0;
                 }
             } else if (a.type==="plate" || a.type==="greenStrike" || a.type==="boulder") {
-                if (a.type==="boulder" && a.timer<=20) {
-                    a.x += a.vx; a.y += a.vy;
+                if (a.type==="greenStrike" && a.delay>0) {
+                    a.delay--;
                 } else {
                     a.x += a.vx; a.y += a.vy;
                 }
@@ -1259,25 +1262,30 @@
                         if(a.bounces>=2){ls2SpawnOrbBurst(a.x,a.y,8,2.9,"#b3ffcb",8);a.life=0;}
                     }
                 }
-                if (a.life>0 && (!a.delay || a.delay<=0) && Math.hypot(p.x-a.x,p.y-a.y)<(a.size||12)+9) {
-                    var blocked=phase==="green" && a.type==="greenStrike" &&
-                        ((Number(window.__mbLS2ShieldDir)||0)===a.sourceDir);
-                    if (blocked) {
-                        ls2GreenBlockStreak++;
-                        if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(a.x,a.y,10,"#73ff9b",4);
-                        ls2CombatText("ЩИТ ПОПАЛ В ТОЧКУ!", "#9affb7", 40);
-                        if(ls2GreenBlockStreak>=3) {
-                            ls2GreenBlockStreak=0; ls2BossStun=Math.max(ls2BossStun,95);
-                            ls2OpenWindowPending=true;
-                            ls2CombatText("РУКА ЗАСТРЯЛА! БОСС УЯЗВИМ!", "#fff1ae", 100);
+                if (a.life>0 && (!a.delay || a.delay<=0)) {
+                    var shieldDirs = [{x:0,y:-1},{x:1,y:0},{x:0,y:1},{x:-1,y:0}];
+                    var shieldDirNow = ((Number(window.__mbLS2ShieldDir)||0)%4+4)%4;
+                    var shieldVec = shieldDirs[shieldDirNow];
+                    var shieldX = p.x + shieldVec.x*19, shieldY = p.y + shieldVec.y*19;
+                    var shieldTouch = phase==="green" && a.type==="greenStrike" &&
+                        a.sourceDir===shieldDirNow &&
+                        Math.hypot(shieldX-a.x,shieldY-a.y) <= (a.size||9)+12;
+                    if (shieldTouch) {
+                        ls2RegisterGreenBlock(a);
+                        a.life=0;
+                    } else if (Math.hypot(p.x-a.x,p.y-a.y)<(a.size||12)+9) {
+                        // Fallback handles a fast projectile that crosses the shield between frames.
+                        var blocked=phase==="green" && a.type==="greenStrike" && shieldDirNow===a.sourceDir;
+                        if (blocked) {
+                            ls2RegisterGreenBlock(a);
+                        } else if (livingStoneInvulnTimer<=0) {
+                            ls2GreenBlockStreak=0;
+                            damageLivingStonePlayer(a.damage||10);
+                        } else {
+                            ls2GreenBlockStreak=0;
                         }
-                    } else if (livingStoneInvulnTimer<=0) {
-                        ls2GreenBlockStreak = 0;
-                        damageLivingStonePlayer(a.damage||10);
-                    } else {
-                        ls2GreenBlockStreak = 0;
+                        a.life=0;
                     }
-                    a.life=0;
                 }
             } else if (a.type==="boomerang") {
                 if (a.trail) { a.trail.push({x:a.x,y:a.y}); if(a.trail.length>12)a.trail.shift(); }
@@ -1346,15 +1354,23 @@
                 c.fillStyle="#ffdfb5";c.font="bold 10px Arial";c.textAlign="center";c.fillText("ПРЕДСКАЗАНИЕ",a.x,a.y-a.radius-7);
             } else if(a.type==="greenStrike"){
                 c.translate(a.x,a.y);c.rotate(Math.atan2(a.vy,a.vx));
-                c.fillStyle=a.greenStyle==="slow"?"#63d982":"#76ffa0";
-                c.strokeStyle="#e4ffeb";c.lineWidth=a.greenStyle==="slow"?1.4:1.8;
-                c.shadowColor=a.greenStyle==="slow"?"#55df7e":"#5dff8f";c.shadowBlur=a.greenStyle==="slow"?7:13;
-                if(a.greenStyle==="slow"){
-                    c.beginPath();c.arc(0,0,a.size||10,0,Math.PI*2);c.fill();c.stroke();
-                    c.strokeStyle="rgba(235,255,240,.75)";c.lineWidth=1;
-                    c.beginPath();c.arc(0,0,(a.size||10)*.52,0,Math.PI*2);c.stroke();
+                if(a.delay>0){
+                    c.globalAlpha=0.55+Math.sin(now/65)*0.30;
+                    c.strokeStyle="#fff1a6";c.fillStyle="#fff1a6";c.lineWidth=2;
+                    c.setLineDash([4,3]);c.beginPath();c.moveTo(-23,0);c.lineTo(8,0);c.stroke();c.setLineDash([]);
+                    c.beginPath();c.moveTo(3,-5);c.lineTo(10,0);c.lineTo(3,5);c.stroke();
+                    c.beginPath();c.arc(-23,0,3,0,Math.PI*2);c.fill();
                 } else {
-                    c.beginPath();c.moveTo(-16,-5);c.lineTo(4,-9);c.lineTo(16,0);c.lineTo(4,9);c.lineTo(-16,5);c.closePath();c.fill();c.stroke();
+                    c.fillStyle=a.greenStyle==="slow"?"#63d982":"#76ffa0";
+                    c.strokeStyle="#e4ffeb";c.lineWidth=a.greenStyle==="slow"?1.4:1.8;
+                    c.shadowColor=a.greenStyle==="slow"?"#55df7e":"#5dff8f";c.shadowBlur=a.greenStyle==="slow"?7:13;
+                    if(a.greenStyle==="slow"){
+                        c.beginPath();c.arc(0,0,a.size||10,0,Math.PI*2);c.fill();c.stroke();
+                        c.strokeStyle="rgba(235,255,240,.75)";c.lineWidth=1;
+                        c.beginPath();c.arc(0,0,(a.size||10)*.52,0,Math.PI*2);c.stroke();
+                    } else {
+                        c.beginPath();c.moveTo(-16,-5);c.lineTo(4,-9);c.lineTo(16,0);c.lineTo(4,9);c.lineTo(-16,5);c.closePath();c.fill();c.stroke();
+                    }
                 }
             } else if(a.type==="plate"){
                 c.translate(a.x,a.y);c.rotate(a.angle||0);c.fillStyle="#a9ffca";c.strokeStyle="#edfff3";c.lineWidth=1.2;c.shadowColor="#5dff8f";c.shadowBlur=10;
@@ -1462,7 +1478,7 @@
         } else {
             var dirs = ["↑ ВВЕРХ","→ ВПРАВО","↓ ВНИЗ","← ВЛЕВО"];
             label = "ЗЕЛЁНАЯ ДУША · ЩИТ " + dirs[((Number(window.__mbLS2ShieldDir)||0)%4+4)%4] +
-                " · " + Math.ceil(Math.max(0,480-frames)/60) + "с";
+                " · БЛОКИ " + ls2GreenBlockStreak + "/3 · " + Math.ceil(Math.max(0,480-frames)/60) + "с";
             color = "#86ffac";
         }
         c.save();
@@ -1475,6 +1491,10 @@
         if (phase === "gravity") {
             c.fillStyle = "rgba(70,255,130,.18)"; c.fillRect(70,59,260,3);
             c.fillStyle = "#62ff91"; c.fillRect(70,59,260*Math.min(1,frames/95),3);
+        } else if (phase === "green") {
+            var greenGuides = ["ВЕЕР: ЩИТ ←", "КОПЬЯ: СМОТРИ НА КРАЯ", "ДОЖДЬ: ЩИТ ↑", "ЗАЛП: ГОТОВЬСЯ МЕНЯТЬ ЩИТ"];
+            c.fillStyle = "#fff0b1"; c.font = "bold 10px Arial,sans-serif"; c.textAlign = "center";
+            c.fillText(greenGuides[((ls2GreenCurrentPattern%4)+4)%4], 200, 70);
         }
         c.restore();
     };
