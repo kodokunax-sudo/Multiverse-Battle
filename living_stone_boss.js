@@ -856,12 +856,12 @@ function updateLivingStonePlayer() {
             var t = Math.max(0, Math.min(1, (Number(window.__mbLS2PhaseFrames)||0) / 95));
             var ease = t * t * (3 - 2 * t);
             livingStonePlayer.x = fromX + (200 - fromX) * ease;
-            livingStonePlayer.y = fromY + (420 - fromY) * ease;
+            livingStonePlayer.y = fromY + (398 - fromY) * ease;
             return;
         }
         if (superPhase === "green") {
             livingStonePlayer.x = 200;
-            livingStonePlayer.y = 420;
+            livingStonePlayer.y = 398;
             return;
         }
     }
@@ -920,6 +920,12 @@ function updateLivingStoneBoss() {
 }
 
 function updateLivingStoneBullets() {
+    // В супер-зелёной фазе арена очищается полностью: никаких старых пуль.
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        (window.__mbLS2GreenPhase === "gravity" || window.__mbLS2GreenPhase === "green")) {
+        livingStoneBullets.length = 0;
+        return;
+    }
     // ★ ФИКС: гароу-стоп замораживает пули ★
     var stopAll = lsIsTimeStopped();
 
@@ -1584,6 +1590,12 @@ function updateFinalScene() {
 
 // ========== ОБНОВЛЕНИЕ АТАК ==========
 function updateLivingStoneAttacks() {
+    // В супер-зелёной фазе старые атаки исчезают и обычные атаки не обновляются.
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        (window.__mbLS2GreenPhase === "gravity" || window.__mbLS2GreenPhase === "green")) {
+        livingStoneAttacks.length = 0;
+        return;
+    }
     // ★★★ ФИКС: гароу-стоп замораживает все атаки ★★★
     var stopAll = lsIsTimeStopped();
 
@@ -2499,6 +2511,10 @@ function livingStoneRenderLoop() {
     if (typeof window !== "undefined" && window.livingStoneSuperActive &&
         typeof window.MBDrawLivingStoneSuperAttacks === "function") {
         try { window.MBDrawLivingStoneSuperAttacks(ctx); } catch(e) {}
+    }
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        typeof window.MBDrawLivingStoneSuperArena === "function") {
+        try { window.MBDrawLivingStoneSuperArena(ctx); } catch(e) {}
     }
     if (!isQTE || livingStoneState === "qte_punch" || livingStoneState === "qte_finish" || 
         livingStoneState === "qte_cinematic" || livingStoneState === "qte_intro" || finalSceneActive) {
