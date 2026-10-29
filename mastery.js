@@ -72,6 +72,38 @@ function hasMasterySuper(card) { return card && (card.mastery || 1) >= 5; }
 function hasMasteryUniqueSuper(card) { return card && (card.mastery || 1) >= 6; } // ★ ур.6+
 function hasMastery7(card) { return card && (card.mastery || 1) >= 7; } // ★ ур.7
 
+function registerCharacterMasteryTitle(card, notify) {
+    if (!card || Math.max(1, Number(card.mastery) || 1) < 6 ||
+        typeof window.MBGetMasteryTitleForCard !== "function" ||
+        typeof slotData === "undefined" || !slotData ||
+        (typeof currentSlot !== "undefined" && currentSlot < 0)) return false;
+    var title = window.MBGetMasteryTitleForCard(card);
+    if (!title || !title.id) return false;
+    var unlocked = Array.isArray(slotData.achievementTitleUnlocks)
+        ? slotData.achievementTitleUnlocks.slice() : [];
+    if (unlocked.indexOf(title.id) !== -1) return false;
+    unlocked.push(title.id);
+    slotData.achievementTitleUnlocks = unlocked;
+    if (notify && typeof showFloatingText === "function") {
+        showFloatingText("✦ ПОЛУЧЕН ТИТУЛ: " + title.label, "#82eaff");
+        if (typeof sfxUINotification === "function") sfxUINotification();
+    }
+    return true;
+}
+
+window.MBSyncMasteryTitleUnlocks = function () {
+    if (typeof myCards === "undefined" || !Array.isArray(myCards) ||
+        typeof slotData === "undefined" || !slotData ||
+        (typeof currentSlot !== "undefined" && currentSlot < 0)) return false;
+    var changed = false;
+    myCards.forEach(function (card) {
+        if (card && Math.max(1, Number(card.mastery) || 1) >= 6) {
+            if (registerCharacterMasteryTitle(card, false)) changed = true;
+        }
+    });
+    return changed;
+};
+
 function getMasteryUpgradeCost(card, targetLevel) {
     if (!card) return { stars: 999999, power: 99999 };
     let rarMult = MASTERY_RARITY_MULT[card.rarity] || 1;
@@ -174,6 +206,7 @@ function upgradeMasteryMax(cardIndex) {
     }
     card.mastery = startLevel + plan.levels;
     card.masteryExp = Math.max(0, Math.floor((Number(card.masteryExp) || 0) - plan.exp));
+    if (card.mastery >= 6) registerCharacterMasteryTitle(card, true);
 
     if (card.mastery >= 7) {
         window._level7CardId = card.id;
@@ -230,6 +263,7 @@ function upgradeMastery(cardIndex) {
 
     card.mastery = targetLevel;
     card.masteryExp = leftoverExp;
+    if (targetLevel >= 6) registerCharacterMasteryTitle(card, true);
 
     // ★ УСТАНАВЛИВАЕМ ФЛАГИ УРОВНЯ 7 ★
     if (targetLevel === 7) {
