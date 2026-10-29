@@ -40,7 +40,7 @@
     // the clan UI can still display a helpful "service unavailable" message.
     var supabaseTask = loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2", "Supabase SDK")
         .then(function (sdkLoaded) {
-            return loadScript("clans.js?v=45", "clans.js").then(function (clansLoaded) {
+            return loadScript("clans.js?v=46", "clans.js").then(function (clansLoaded) {
                 return { sdkLoaded: sdkLoaded, clansLoaded: clansLoaded };
             });
         })
