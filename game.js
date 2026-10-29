@@ -1417,6 +1417,7 @@ function saveAll() {
     slotData.team = team; 
     slotData.afkTeam = afkTeam; 
     slotData.points = points; 
+    slotData.titleRewardLedger = Array.isArray(slotData.titleRewardLedger) ? slotData.titleRewardLedger : [];
     slotData.wave = wave; 
     slotData.playerHp = playerHp; 
     if (activeBuffs && typeof activeBuffs === "object") delete activeBuffs["afkWavesX100"];
@@ -1506,6 +1507,48 @@ function saveAll() {
     }
     if (typeof mbScheduleCloudSave === 'function') mbScheduleCloudSave();
 }
+
+// Idempotent client-side delivery for server-claimed title rewards.
+// The reward ledger is part of the save so retries cannot add the same reward twice.
+window.MBCanReceiveTitleRewardPoints = function () {
+    try {
+        return typeof currentSlot !== 'undefined' && currentSlot >= 0 && currentSlot <= 2 &&
+            typeof slotData !== 'undefined' && !!slotData &&
+            typeof points !== 'undefined' && typeof saveAll === 'function' &&
+            !(typeof mbCloudRecoveryPendingSlot !== 'undefined' && mbCloudRecoveryPendingSlot === currentSlot);
+    } catch (_error) {
+        return false;
+    }
+};
+window.MBGrantTitleRewardPoints = function (amount, titleId) {
+    var allowedRewards = {
+        wave_500: 200,
+        bosses_100: 350,
+        wins_250: 400,
+        cards_500: 500,
+        rebirth_25: 750,
+        clicks_100000: 300,
+        multiverse_legend: 1000,
+        multiverse_parasite: 2000,
+        overqualified: 1000,
+        rebirth_loop: 1200,
+        card_singularity: 1500,
+        final_chairman: 5000
+    };
+    amount = Number(amount);
+    titleId = String(titleId || '');
+    if (!window.MBCanReceiveTitleRewardPoints() || !Object.prototype.hasOwnProperty.call(allowedRewards, titleId) ||
+        amount !== allowedRewards[titleId]) return false;
+    var ledger = Array.isArray(slotData.titleRewardLedger) ? slotData.titleRewardLedger.slice() : [];
+    if (ledger.indexOf(titleId) !== -1) return true;
+    points = Math.max(0, Number(points) || 0) + amount;
+    if (typeof maxPoints !== 'undefined') maxPoints = Math.max(Number(maxPoints) || 0, points);
+    ledger.push(titleId);
+    slotData.titleRewardLedger = ledger;
+    saveAll();
+    if (typeof renderPoints === 'function') renderPoints();
+    return true;
+};
 
 // ========== ИГРОВЫЕ ПЕРЕМЕННЫЕ ==========
 let myCards=[],team=[],afkTeam=[],points=100,wave=1,playerHp=100,currentEnemy=null,clicksSinceLastCounter=0,activeBuffs={},defeatHistory=[],mode="normal",shopItems=[null,null,null],shopRefreshTime=null,lastCardClaimTime=null,freeSpins=5,lastFreeSpinReset=null,fatigue=0,achievements={win10:false,win50:false,win100:false,win500:false,win1000:false,legendaryTeam:false,secretTeam:false,level20:false,level50:false,rebirth3:false,rebirth5:false,allCommon:false,allRare:false,points10k:false,points50k:false,points100k:false,totalClicks1k:false,totalClicks10k:false,bossNoDamage:false,sellCard100:false},totalWins=0,playerLevel=1,playerExp=0,resurrectedThisFight=false,firstAttackThisFight=true,hasSukunaFingers=false,sukunaTarget=null,sukunaExpireTime=0,deathNoteTarget=null,afkActive=false,afkTimer=null,afkWavesCompleted=0,afkWinsCompleted=0,afkCurrentWave=1,usedCodes=[],moderUnlocked=false,discoveredCards=[],highestCheckpoint=1;
