@@ -258,30 +258,6 @@ function isUniqueBossActive() {
 function getBossContext() {
     var bossType = isUniqueBossActive();
 
-    if (bossType === "stoneSuper" && typeof window !== "undefined" && window.__mbBossTestMode &&
-        window.__mbBossTestMode.kind === "unique" && typeof window.getLivingStoneSuperHeart === "function") {
-        return {
-            type: "stoneSuper", getHeartX: function(){return 200;}, setHeartX: function(v){},
-            getHeartY: function(){return 366;}, setHeartY: function(v){},
-            getHeartSize: function(){return 13;}, setHeartSize: function(v){},
-            getHeartHitbox: function(){return 13;}, setHeartHitbox: function(v){},
-            getHeartSpeed: function(){return 0;}, setHeartSpeed: function(v){},
-            getAttacks: function(){return window.getLivingStoneSuperAttacks ? window.getLivingStoneSuperAttacks() : [];},
-            getBlasters: function(){return [];},
-            getParticles: function(){return window.getLivingStoneSuperParticles ? window.getLivingStoneSuperParticles() : [];},
-            getBossMaxHp: function(){return window.getLivingStoneSuperBossMaxHp ? window.getLivingStoneSuperBossMaxHp() : 1;},
-            setBossMaxHp: function(v){if(window.setLivingStoneSuperBossHp)window.setLivingStoneSuperBossHp(v);},
-            getBossHp: function(){return window.getLivingStoneSuperBossHp ? window.getLivingStoneSuperBossHp() : 1;},
-            getPlayerHp: function(){return window.getLivingStoneSuperHeart().hp;},
-            setPlayerHp: function(v){if(window.setLivingStoneSuperPlayerHp)window.setLivingStoneSuperPlayerHp(v);},
-            getPlayerMaxHp: function(){return window.getLivingStoneSuperHeart().maxHp;},
-            addShake: function(v){}, addFlash: function(v,color){}, addFlashWhite: function(v){},
-            spawnFloatingText: function(x,y,text,color){if(typeof showFloatingText==="function")showFloatingText(text,color||"#fff");},
-            playSound: function(f,t,d,v){if(typeof playArenaSound==="function")playArenaSound(f,t,d,v);},
-            addShockwave: function(x,y,color,speed,life,width){}, clampHeart: function(){}, isDodgePhase: function(){return false;}
-        };
-    }
-
     // ★ SUPER-ЖИВОЙ КАМЕНЬ: контекст должен работать и вне тестового режима ★
     if (bossType === "stoneSuper") {
         return {
@@ -734,6 +710,179 @@ function healBossInContext(ctxB, rawHeal) {
 }
 window.MBHealBoss = healBossInContext;
 
+// Космический Дэнди использует адаптеры контекста на уникальных аренах,
+// чтобы эффекты из его рулетки не обращались к отсутствующим arena-only globals.
+function runDandyBossEffect(ctxB, eff, category) {
+    var name = String(eff && eff.name || "КОСМИЧЕСКАЯ УДАЧА");
+    var cx = Number(ctxB.getHeartX()) || 200, cy = Number(ctxB.getHeartY()) || 250;
+    var color = category === "good" ? "#55ff9b" : category === "bad" ? "#ff5b72" : "#ffd66b";
+    function text(msg, col) { try { ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY()-30, msg || name, col || color); } catch(e) {} }
+    function flash(power, col) { try { if(ctxB.addFlash)ctxB.addFlash(power||5,col||color); if(ctxB.addFlashWhite)ctxB.addFlashWhite(Math.max(1,Math.floor((power||5)*.55))); } catch(e) {} }
+    function shake(power) { try { if(ctxB.addShake)ctxB.addShake(power||10); } catch(e) {} }
+    function wave(col, amount) { try { if(ctxB.addShockwave)ctxB.addShockwave(ctxB.getHeartX(),ctxB.getHeartY(),col||color,220,0.7,Math.max(2,amount||5)); } catch(e) {} }
+    function maxBossHp() { try { return Math.max(1,Number(ctxB.getBossMaxHp())||1); } catch(e) { return 1; } }
+    function maxPlayerHp() { try { return Math.max(1,Number(ctxB.getPlayerMaxHp())||1); } catch(e) { return 1; } }
+    function playerHp() { try { return Math.max(0,Number(ctxB.getPlayerHp())||0); } catch(e) { return 0; } }
+    function setPlayerHp(v) { try { if(ctxB.setPlayerHp)ctxB.setPlayerHp(Math.max(0,Math.min(maxPlayerHp(),Number(v)||0))); } catch(e) {} }
+    function damageBoss(fraction, source) {
+        var amount=Math.max(1,Math.floor(maxBossHp()*fraction));
+        return typeof window.MBApplyBossDamage==="function" ? window.MBApplyBossDamage(ctxB,amount,source||("Дэнди: "+name)) : 0;
+    }
+    function healBoss(fraction) {
+        return typeof window.MBHealBoss==="function" ? window.MBHealBoss(ctxB,Math.max(1,Math.floor(maxBossHp()*fraction))) : 0;
+    }
+    function attacks() {
+        var result=[];
+        try { var a=ctxB.getAttacks(); if(Array.isArray(a))result.push(a); } catch(e) {}
+        try { var b=ctxB.getBlasters?ctxB.getBlasters():[]; if(Array.isArray(b)&&result.indexOf(b)<0)result.push(b); } catch(e) {}
+        return result;
+    }
+    function clearAttacks(keepBombs) {
+        attacks().forEach(function(list) {
+            for(var i=list.length-1;i>=0;i--) {
+                var a=list[i]||{};
+                var isBomb=a.type==="bomb"||a.kind==="bomb"||/bomb/i.test(String(a.type||a.kind||""));
+                if(keepBombs&&isBomb)continue;
+                list.splice(i,1);
+            }
+        });
+    }
+    function withSpeed(mult, duration) {
+        var old;
+        try { old=Number(ctxB.getHeartSpeed())||1; ctxB.setHeartSpeed(Math.max(.05,old*mult)); } catch(e) { old=1; }
+        flash(3,color);
+        setTimeout(function() {
+            var now=(typeof getBossContext==="function")?getBossContext():null;
+            if(!now||now.type!==ctxB.type)return;
+            try { ctxB.setHeartSpeed(old); } catch(e) {}
+        },duration);
+    }
+    function withHeartScale(sizeMult, hitboxMult, duration) {
+        var oldSize=13, oldHit=6;
+        try { oldSize=Number(ctxB.getHeartSize())||13; ctxB.setHeartSize(oldSize*sizeMult); } catch(e) {}
+        try { oldHit=Number(ctxB.getHeartHitbox())||6; ctxB.setHeartHitbox(oldHit*hitboxMult); } catch(e) {}
+        flash(4,color);
+        setTimeout(function() {
+            var now=(typeof getBossContext==="function")?getBossContext():null;
+            if(!now||now.type!==ctxB.type)return;
+            try { ctxB.setHeartSize(oldSize); } catch(e) {}
+            try { ctxB.setHeartHitbox(oldHit); } catch(e) {}
+        },duration);
+    }
+    function healPlayer(fraction) { var before=playerHp();setPlayerHp(before+Math.floor(maxPlayerHp()*fraction));return playerHp()-before; }
+    function damagePlayer(fraction) { var before=playerHp();setPlayerHp(before-Math.max(1,Math.floor(maxPlayerHp()*fraction)));return before-playerHp(); }
+    function scaleAttacks(mult,duration) {
+        var snapshots=[];
+        attacks().forEach(function(list){list.forEach(function(a){
+            if(!a||typeof a!=="object")return;
+            var snap={obj:a};
+            ["vx","vy","spd","spdY","velocityX","velocityY"].forEach(function(k){if(typeof a[k]==="number"){snap[k]=a[k];a[k]*=mult;}});
+            if(Object.keys(snap).length>1)snapshots.push(snap);
+        });});
+        flash(4,color);
+        if(duration>0)setTimeout(function(){
+            var now=(typeof getBossContext==="function")?getBossContext():null;
+            if(!now||now.type!==ctxB.type)return;
+            snapshots.forEach(function(snap){Object.keys(snap).forEach(function(k){if(k!=="obj")snap.obj[k]=snap[k];});});
+        },duration);
+    }
+    function pullOrPush(power, direction) {
+        attacks().forEach(function(list){list.forEach(function(a){
+            if(!a||typeof a!=="object"||!isFinite(Number(a.x))||!isFinite(Number(a.y)))return;
+            var dx=ctxB.getHeartX()-a.x,dy=ctxB.getHeartY()-a.y,d=Math.hypot(dx,dy)||1;
+            var sign=direction==="push"?-1:1;
+            a.vx=(Number(a.vx)||Number(a.spd)||0)+sign*dx/d*power;
+            a.vy=(Number(a.vy)||Number(a.spdY)||0)+sign*dy/d*power;
+            if(typeof a.spd==="number")a.spd=a.vx;
+            if(typeof a.spdY==="number")a.spdY=a.vy;
+        });});
+    }
+
+    // Direct damage/healing outcomes are routed through the boss-specific handlers.
+    if (name === "-25% HP БОССА") { damageBoss(.25); wave("#ffdd00",9); flash(8,color); return; }
+    if (name === "РЫВОК ДЕКУ") { damageBoss(.06); clearAttacks(false); wave("#44ff44",8); shake(12); return; }
+    if (name === "РАЗЛОМ ДЕКУ") { for(var di=0;di<4;di++)damageBoss(.02);clearAttacks(false);wave("#44ff44",10);shake(16);return; }
+    if (name === "ГАЛАКТИЧЕСКИЙ УДАР") { damageBoss(.08);clearAttacks(false);wave("#8844ff",12);shake(24);return; }
+    if (name === "СТИРАНИЕ ЗЕНО") { damageBoss(.10);clearAttacks(false);flash(18,"#ff00ff");wave("#ff00ff",10);return; }
+    if (name === "+30% HP БОССА") { var bh=healBoss(.30);text("БОСС ВОССТАНОВИЛ "+bh+" HP","#ff6878");flash(6,"#ff4455");return; }
+
+    if (name === "ПОЛНОЕ ИСЦЕЛЕНИЕ") { setPlayerHp(maxPlayerHp());clearAttacks(false);flash(9,"#44ff44");wave("#44ff44",8);return; }
+    if (name === "СВЯТОЕ БЛАГОСЛОВЕНИЕ") { healPlayer(.50);flash(9,"#ffffcc");wave("#ffffcc",8);return; }
+    if (name === "ПОТЕРЯ 25% HP") { damagePlayer(.25);flash(12,"#ff0000");shake(15);return; }
+    if (name === "РЕГЕНЕРАЦИЯ (5с)" || name === "РЕГЕН БОРОСА (5с)") {
+        var regenMs=name==="РЕГЕН БОРОСА (5с)"?1000:500, regenAmount=name==="РЕГЕН БОРОСА (5с")?.06:.03, ticks=Math.floor(5000/regenMs), done=0;
+        var timer=setInterval(function(){var now=(typeof getBossContext==="function")?getBossContext():null;if(!now||now.type!==ctxB.type||done>=ticks){clearInterval(timer);return;}healPlayer(regenAmount);done++;},regenMs);
+        flash(6,"#66ff66");return;
+    }
+    if (name === "ВАМПИРИЗМ (6с)") {
+        var vampDone=0, vampTimer=setInterval(function(){var now=(typeof getBossContext==="function")?getBossContext():null;if(!now||now.type!==ctxB.type||vampDone>=12){clearInterval(vampTimer);return;}healPlayer(.015);vampDone++;},500);
+        _superState.vampirism=6;flash(7,"#ff0044");return;
+    }
+    if (name === "ЯРОСТЬ КАЙДО (8с)") {
+        var oldBonus=Number(_superState.kaidoDmgBonus)||1;
+        _superState.kaidoBuffActive=true;_superState.kaidoDmgReduction=true;_superState.kaidoDmgBonus=1.8;
+        healPlayer(.08);withSpeed(1.5,8000);flash(10,"#ff4500");
+        setTimeout(function(){var now=(typeof getBossContext==="function")?getBossContext():null;if(!now||now.type!==ctxB.type)return;_superState.kaidoBuffActive=false;_superState.kaidoDmgReduction=false;_superState.kaidoDmgBonus=oldBonus;},8000);return;
+    }
+    if (name === "ТРОЙНОЙ УРОН (4с)") { _superState.dandyVulnerable={mult:3,timer:4};flash(6,"#ff2222");return; }
+    if (name === "НЕУЯЗВИМОСТЬ (4с)" || name === "УЛЬТРА-ИНСТИНКТ (3с)" || name === "НЕУЯЗВИМОСТЬ УСОППА (3с)") {
+        _superState.dandyInvuln=true;_superState.usoppInvuln=true;var invMs=name==="НЕУЯЗВИМОСТЬ УСОППА (3с)"?3000:name==="УЛЬТРА-ИНСТИНКТ (3с)"?3000:4000;
+        withSpeed(name==="УЛЬТРА-ИНСТИНКТ (3с)"?3:1,invMs);flash(9,"#ffff00");
+        setTimeout(function(){var now=(typeof getBossContext==="function")?getBossContext():null;if(!now||now.type!==ctxB.type)return;_superState.dandyInvuln=false;_superState.usoppInvuln=false;},invMs);return;
+    }
+
+    if (name === "ОЧИСТКА АТАК" || name === "ГЛОБАЛЬНЫЙ ЩИТ") { clearAttacks(false);flash(8,"#00ffcc");wave("#00ffcc",12);return; }
+    if (name === "ВЗРЫВ ВСЕХ БОМБ") {
+        attacks().forEach(function(list){list.forEach(function(a){if(a&&(a.type==="bomb"||a.kind==="bomb")){a.timer=0;a.life=0;}});});
+        flash(7,"#ff8800");wave("#ff8800",8);return;
+    }
+    if (name === "УДВОЕНИЕ АТАК") {
+        attacks().forEach(function(list){var count=list.length;for(var i=0;i<count&&list.length<120;i++){var a=list[i];if(a&&(a.type!=="bomb"&&a.kind!=="bomb")){var clone={};Object.keys(a).forEach(function(k){clone[k]=a[k];});clone.x=(Number(a.x)||0)+(Math.random()-.5)*22;clone.y=(Number(a.y)||0)+(Math.random()-.5)*22;clone.hit=false;list.push(clone);}}});
+        flash(7,"#ff8800");wave("#ff8800",8);return;
+    }
+    if (name === "ЧЕРНАЯ ДЫРА" || name === "МАГНИТ АТАК") { pullOrPush(6,"pull");flash(8,"#7755ff");wave("#111111",14);return; }
+    if (name === "УРАГАН ВСЕМОГУЩЕГО") { pullOrPush(7,"push");flash(7,"#00ffff");wave("#00ffff",12);return; }
+    if (name === "ЗАМЕДЛЕНИЕ АТАК (6с)") { scaleAttacks(.3,6000);flash(6,"#aaaaff");return; }
+    if (name === "ЗАМОРОЗКА АТАК") { scaleAttacks(.2,3000);flash(8,"#88ccff");return; }
+    if (name === "ОСТАНОВКА ВРЕМЕНИ (2с)") { scaleAttacks(.01,2000);flash(14,"#ffffff");return; }
+    if (name === "УСКОРЕНИЕ АТАК x2 (8с)") { scaleAttacks(2,8000);flash(6,"#ff8800");return; }
+    if (name === "СКОРОСТЬ x2 (6с)") { withSpeed(2,6000);return; }
+    if (name === "СКОРОСТЬ x0.3 (8с)") { withSpeed(.3,8000);return; }
+    if (name === "ПРОКЛЯТИЕ СКОРОСТИ") { withSpeed(.6,8000);return; }
+    if (name === "МИНИ-СЕРДЦЕ (5с)" || name === "НЕВИДИМОСТЬ (3с)") { withHeartScale(.45,.45,name==="МИНИ-СЕРДЦЕ (5с)"?5000:3000);return; }
+    if (name === "ХИТБОКС x3 (6с)") { withHeartScale(1,3,6000);return; }
+    if (name === "ВСЕМОГУЩИЙ (10с)") { withHeartScale(2,2,10000);_superState.allmightDmgMult=3;setTimeout(function(){var now=(typeof getBossContext==="function")?getBossContext():null;if(now&&now.type===ctxB.type)_superState.allmightDmgMult=1;},10000);flash(10,"#ffd700");return; }
+    if (name === "НИКА (6с)") { withHeartScale(2,2,6000);_superState.nikaActive=true;_superState.nikaDmgMult=1.5;withSpeed(1.3,6000);setTimeout(function(){var now=(typeof getBossContext==="function")?getBossContext():null;if(now&&now.type===ctxB.type){_superState.nikaActive=false;_superState.nikaDmgMult=1;}},6000);return; }
+    if (name === "ПУЛЬС") {
+        var pulseCount=0,baseSize=Number(ctxB.getHeartSize())||13,pulseTimer=setInterval(function(){var now=(typeof getBossContext==="function")?getBossContext():null;if(!now||now.type!==ctxB.type||pulseCount>=10){clearInterval(pulseTimer);try{ctxB.setHeartSize(baseSize);}catch(e){}return;}try{ctxB.setHeartSize(pulseCount%2?baseSize:baseSize*1.4);}catch(e){}pulseCount++;},200);
+        flash(4,color);return;
+    }
+    if (name === "ТЕЛЕПОРТ В ЦЕНТР" || name === "СЛУЧАЙНЫЙ ТЕЛЕПОРТ" || name === "ТЕЛЕПОРТ ГАРОУ") {
+        var tx=name==="ТЕЛЕПОРТ В ЦЕНТР"?200:(name==="ТЕЛЕПОРТ ГАРОУ"&&_superState.positionHistory&&_superState.positionHistory.length?_superState.positionHistory[0].x:40+Math.random()*320);
+        var ty=name==="ТЕЛЕПОРТ В ЦЕНТР"?330:(name==="ТЕЛЕПОРТ ГАРОУ"&&_superState.positionHistory&&_superState.positionHistory.length?_superState.positionHistory[0].y:100+Math.random()*320);
+        try{ctxB.setHeartX(tx);ctxB.setHeartY(ty);if(ctxB.clampHeart)ctxB.clampHeart();}catch(e){}
+        flash(8,"#00ffff");wave("#00ffff",8);return;
+    }
+    if (name === "ГРАВИТАЦИЯ (4с)") {
+        var oldY=Number(ctxB.getHeartY())||300;try{ctxB.setHeartY(465);if(ctxB.clampHeart)ctxB.clampHeart();}catch(e){}
+        setTimeout(function(){var now=(typeof getBossContext==="function")?getBossContext():null;if(!now||now.type!==ctxB.type)return;try{ctxB.setHeartY(oldY);if(ctxB.clampHeart)ctxB.clampHeart();}catch(e){}},4000);
+        flash(6,"#8888ff");return;
+    }
+    if (name === "ТЕНЕВОЕ ПРАВЛЕНИЕ (6с)" || name === "СЖАТИЕ АНТИ-СПИРАЛИ (6с)") {
+        _superState.imAuraActive=name==="ТЕНЕВОЕ ПРАВЛЕНИЕ (6с)";
+        if(name==="СЖАТИЕ АНТИ-СПИРАЛИ (6с)"){_superState.antispiralActive=true;withHeartScale(.7,.7,6000);withSpeed(.7,6000);scaleAttacks(.7,6000);}
+        setTimeout(function(){var now=(typeof getBossContext==="function")?getBossContext():null;if(!now||now.type!==ctxB.type)return;_superState.imAuraActive=false;_superState.antispiralActive=false;_superState.antispiralShrinkAttacks=false;},6000);
+        flash(8,"#aaddff");return;
+    }
+    if (name === "100% ДЕКУ (8с)") { _superState.dekusActive=true;_superState.dekusDmgMult=2;withSpeed(3,8000);setTimeout(function(){var now=(typeof getBossContext==="function")?getBossContext():null;if(!now||now.type!==ctxB.type)return;_superState.dekusActive=false;_superState.dekusDmgMult=1;},8000);flash(8,"#44ff44");return; }
+
+    // Effects that are visual or only meaningful on the ordinary arena still get a
+    // useful, non-crashing boss equivalent rather than writing arena-only variables.
+    if (category === "good") { healPlayer(.05);clearAttacks(false);withSpeed(1.15,4000);wave("#44ff99",8); }
+    else if (category === "bad") { if(Math.random()<.5)damagePlayer(.05);else healBoss(.05);scaleAttacks(1.3,3500);shake(12); }
+    else { flash(6,color);if(Math.random()<.35){try{ctxB.setHeartX(40+Math.random()*320);ctxB.setHeartY(100+Math.random()*320);if(ctxB.clampHeart)ctxB.clampHeart();}catch(e){}}wave(color,6); }
+}
+ 
 // ====== ВСПОМОГАТЕЛЬНЫЕ ======
 function drawHakiLightning(x, y, maxDist, alpha, widthMod, customColor) {
     if (widthMod === undefined) widthMod = 1;
@@ -1097,9 +1246,9 @@ const superAbilities = {
         setTimeout(function() {
             _superState.dandyRoulette.result = { name: "???" };
             var roll = Math.random();
-            if (roll < 0.40) { var eff = DANDY_GOOD[Math.floor(Math.random() * DANDY_GOOD.length)]; eff.apply(); _superState.dandyRoulette.result = { name: eff.name, good: true }; ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, eff.name + "!", "#44ff44"); }
-            else if (roll < 0.60) { var eff = DANDY_NEUTRAL[Math.floor(Math.random() * DANDY_NEUTRAL.length)]; eff.apply(); _superState.dandyRoulette.result = { name: eff.name, good: null }; ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, eff.name + "!", "#ffd700"); }
-            else { var eff = DANDY_BAD[Math.floor(Math.random() * DANDY_BAD.length)]; eff.apply(); _superState.dandyRoulette.result = { name: eff.name, good: false }; _superState.screenShakeAmount = 8; ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, eff.name + "!", "#ff4444"); }
+            if (roll < 0.40) { var eff = DANDY_GOOD[Math.floor(Math.random() * DANDY_GOOD.length)]; if(ctxB.type==="arena")eff.apply();else runDandyBossEffect(ctxB,eff,"good"); _superState.dandyRoulette.result = { name: eff.name, good: true }; ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, eff.name + "!", "#44ff44"); }
+            else if (roll < 0.60) { var eff = DANDY_NEUTRAL[Math.floor(Math.random() * DANDY_NEUTRAL.length)]; if(ctxB.type==="arena")eff.apply();else runDandyBossEffect(ctxB,eff,"neutral"); _superState.dandyRoulette.result = { name: eff.name, good: null }; ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, eff.name + "!", "#ffd700"); }
+            else { var eff = DANDY_BAD[Math.floor(Math.random() * DANDY_BAD.length)]; if(ctxB.type==="arena")eff.apply();else runDandyBossEffect(ctxB,eff,"bad"); _superState.dandyRoulette.result = { name: eff.name, good: false }; _superState.screenShakeAmount = 8; ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, eff.name + "!", "#ff4444"); }
             setTimeout(function() { _superState.dandyRoulette = null; }, 1000);
         }, 1500);
     }, onTick() {} },
