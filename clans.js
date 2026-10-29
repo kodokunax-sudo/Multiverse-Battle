@@ -234,7 +234,13 @@
                 total_clicks: safeCount(clicks)
             };
             result.current_wave = Math.max(1, safeCount(typeof wave !== 'undefined' ? wave : 1));
-            result.highest_checkpoint = Math.max(1, safeCount(typeof highestCheckpoint !== 'undefined' ? highestCheckpoint : 1));
+            var highestRecordedCheckpoint = typeof highestCheckpoint !== 'undefined' ? highestCheckpoint : 1;
+            if (typeof rebirthStats !== 'undefined' && Array.isArray(rebirthStats)) {
+                rebirthStats.forEach(function (entry) {
+                    highestRecordedCheckpoint = Math.max(highestRecordedCheckpoint, safeCount(entry && entry.highestCheckpoint));
+                });
+            }
+            result.highest_checkpoint = Math.max(1, safeCount(highestRecordedCheckpoint));
             result.achievement_title_unlocks = (typeof slotData !== 'undefined' && slotData && Array.isArray(slotData.achievementTitleUnlocks))
                 ? slotData.achievementTitleUnlocks.slice() : [];
             if (window.MBGameStats && typeof window.MBGameStats.getSnapshot === 'function') {
@@ -360,7 +366,7 @@
         { id: 'clicks_50000', icon: '⚡', label: 'Пальцы в эндгейме', description: 'Сделать 100000 кликов', reward: {"stars":1500000,"powerPoints":5000,"freeSpins":10,"legendarySpins":0,"secretSpins":0}, unlocked: function (s) { return safeCount(s.total_clicks) >= 100000; } },
         { id: 'clicks_100000', icon: '⌨️', label: 'Эргономика? Не слышал', description: 'Сделать 250000 кликов', reward: {"stars":5000000,"powerPoints":25000,"freeSpins":0,"legendarySpins":5,"secretSpins":0}, unlocked: function (s) { return safeCount(s.total_clicks) >= 250000; } },
         { id: 'clicks_1000000', icon: '🦖', label: 'Почётный кликозавр', description: 'Сделать 2500000 кликов', reward: {"stars":50000000,"powerPoints":250000,"freeSpins":0,"legendarySpins":10,"secretSpins":3}, unlocked: function (s) { return safeCount(s.total_clicks) >= 2500000; } },
-        { id: 'multiverse_parasite', icon: '🌀', label: 'Мое темное прошлое', description: 'Достичь 1500-й волны', reward: {"stars":10000000,"powerPoints":100000,"freeSpins":20,"legendarySpins":10,"secretSpins":2}, unlocked: function (s) { return safeCount(s.highest_wave) >= 1500; } },
+        { id: 'multiverse_parasite', icon: '🌀', label: 'Мое темное прошлое', description: 'Победить 1500-ю волну', reward: {"stars":10000000,"powerPoints":100000,"freeSpins":20,"legendarySpins":10,"secretSpins":2}, unlocked: function (s) { return safeCount(s.highest_wave) >= 1501; } },
         { id: 'overqualified', icon: '🎓', label: 'Слишком квалифицирован для туториала', description: 'Одержать 1000 побед и собрать 500 карт', reward: {"stars":15000000,"powerPoints":150000,"freeSpins":15,"legendarySpins":5,"secretSpins":1}, unlocked: function (s) { return safeCount(s.total_wins) >= 1000 && safeCount(s.cards_collected) >= 500; } },
         { id: 'rebirth_loop', icon: '🔄', label: 'Я опять здесь?!', description: 'Иметь чекпойнт минимум на 2000-й волне и вернуться на 1-ю волну', reward: {"stars":50000000,"powerPoints":500000,"freeSpins":20,"legendarySpins":10,"secretSpins":5}, unlocked: function (s) { return (safeCount(s.highest_checkpoint) >= 2000 && safeCount(s.current_wave, 1000000000) === 1) || (Array.isArray(s.achievement_title_unlocks) && s.achievement_title_unlocks.indexOf('rebirth_loop') !== -1); } },
         { id: 'card_singularity', icon: '🕳️', label: 'Картонная сингулярность', description: 'Собрать 2000 карт и сделать 250000 кликов', reward: {"stars":50000000,"powerPoints":500000,"freeSpins":25,"legendarySpins":10,"secretSpins":5}, unlocked: function (s) { return safeCount(s.cards_collected) >= 2000 && safeCount(s.total_clicks) >= 250000; } },
@@ -443,7 +449,19 @@
             var stats=readLocalGameStats()||{};stats.achievement_title_unlocks=owned.slice();
             var eligible=ACHIEVEMENT_TITLES.filter(function(title){return title.unlocked(stats);});
             if(!initialized){
-                eligible.forEach(function(title){if(owned.indexOf(title.id)===-1)owned.push(title.id);if(seen.indexOf(title.id)===-1)seen.push(title.id);});
+                eligible.forEach(function(title){
+                    if(owned.indexOf(title.id)===-1)owned.push(title.id);
+                    if(seen.indexOf(title.id)===-1){
+                        seen.push(title.id);
+                        var wasUnlockedBeforeUpdate=true;
+                        if(title.id==='multiverse_parasite'){
+                            wasUnlockedBeforeUpdate=safeCount(stats.highest_wave)>=3000&&safeCount(stats.bosses_defeated)>=150;
+                        }else if(title.id==='rebirth_loop'){
+                            wasUnlockedBeforeUpdate=safeCount(stats.rebirth_count,1000000)>=50&&safeCount(stats.total_wins)>=250;
+                        }
+                        if(!wasUnlockedBeforeUpdate)queueAchievementTitleToast(title);
+                    }
+                });
                 slotData.achievementTitleUnlocks=owned;slotData.achievementTitleNotificationLedger=seen;return;
             }
             eligible.forEach(function(title){
@@ -479,7 +497,7 @@
                 { key: 'bosses_defeated', label: 'Побеждённые боссы', target: 50 }
             ],
             multiverse_parasite: [
-                { key: 'highest_wave', label: 'Максимальная волна', target: 1500 }
+                { key: 'highest_wave', label: 'Победить 1500-ю волну', target: 1500, checkTarget: 1501, offset: 1 }
             ],
             overqualified: [
                 { key: 'total_wins', label: 'Победы', target: 1000 },
@@ -537,10 +555,12 @@
                 var line = node('div', '');
                 line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;';
                 line.appendChild(node('span', '', requirement.label));
-                var meetsRequirement = requirement.exact ? current === requirement.target : current >= requirement.target;
+                var comparisonTarget = requirement.checkTarget || requirement.target;
+                var displayCurrent = requirement.offset ? Math.max(0, current - requirement.offset) : current;
+                var meetsRequirement = requirement.exact ? current === requirement.target : current >= comparisonTarget;
                 var valueText = requirement.exact
                     ? (meetsRequirement ? '✅ ' + formatCount(current) : formatCount(current) + ' / нужно ' + formatCount(requirement.target))
-                    : formatCount(current) + ' / ' + formatCount(requirement.target);
+                    : formatCount(displayCurrent) + ' / ' + formatCount(requirement.target);
                 var value = node('strong', '', valueText);
                 value.style.cssText = 'color:' + (meetsRequirement ? '#9ff0b0' : '#d1c5f4') + ';white-space:nowrap;';
                 line.appendChild(value);
