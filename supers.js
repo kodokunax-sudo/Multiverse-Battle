@@ -944,8 +944,8 @@ const superAbilities = {
         for (var i = atk.length - 1; i >= 0; i--) atk.splice(i, 1);
         var bl = ctxB.getBlasters();
         for (var i = bl.length - 1; i >= 0; i--) bl.splice(i, 1);
-        var maxHp = ctxB.getBossMaxHp();
-        ctxB.setBossMaxHp(Math.floor(maxHp * 0.9));
+        var maxHp = Math.max(0, Number(ctxB.getBossMaxHp()) || 0);
+        applyBossDamageToContext(ctxB, Math.max(1, Math.floor(maxHp * 0.10)), "Зено: СТИРАНИЕ");
         _superState.realityCracks = [];
         for (var i = 0; i < 8; i++) { _superState.realityCracks.push({ x1: Math.random() * 400, y1: Math.random() * 500, x2: Math.random() * 400, y2: Math.random() * 500, life: 1.5 }); }
         if (typeof sfxArenaVictory === 'function') sfxArenaVictory();
@@ -1181,9 +1181,9 @@ const superAbilities = {
                     });
                 }
                 
-                var bossMaxHp = ctxB2.getBossMaxHp();
-                var dmg1 = Math.floor(bossMaxHp * 0.12);
-                ctxB2.setBossMaxHp(bossMaxHp - dmg1);
+                var bossMaxHp = Math.max(0, Number(ctxB2.getBossMaxHp()) || 0);
+                var dmg1 = Math.max(1, Math.floor(bossMaxHp * 0.12));
+                applyBossDamageToContext(ctxB2, dmg1, "Белоус: Гура-Гура");
                 
                 var atk = ctxB2.getAttacks();
                 for (var ai = 0; ai < atk.length; ai++) {
@@ -1232,9 +1232,9 @@ const superAbilities = {
                     _superState.whitebeardTsunamiY = 520;
                     _superState.whitebeardTsunamiTimer = 0;
                     
-                    var bossMaxHp3 = ctxB3.getBossMaxHp();
-                    var dmg2 = Math.floor(bossMaxHp3 * 0.03);
-                    ctxB3.setBossMaxHp(bossMaxHp3 - dmg2);
+                    var bossMaxHp3 = Math.max(0, Number(ctxB3.getBossMaxHp()) || 0);
+                    var dmg2 = Math.max(1, Math.floor(bossMaxHp3 * 0.03));
+                    applyBossDamageToContext(ctxB3, dmg2, "Белоус: Цунами");
                     
                     ctxB3.spawnFloatingText(hx, hy - 30, "-" + dmg2 + " HP (ВОЛНА)!", "#00ccff");
                     
@@ -1279,7 +1279,7 @@ function registerBoysSuper(cardName, cfg) {
             }
             clearSome(attacks,cfg.clear||0); clearSome(blasters,cfg.clear||0);
             var current=Math.max(0,Number(ctxB.getBossHp())||0), max=Math.max(current,Number(ctxB.getBossMaxHp())||current);
-            if(current>0&&cfg.damage>0) ctxB.setBossMaxHp(Math.max(0,current-Math.max(1,Math.floor(max*cfg.damage))));
+            if(current>0&&cfg.damage>0) applyBossDamageToContext(ctxB, Math.max(1,Math.floor(max*cfg.damage)), cardName+" — "+cfg.name);
             if(cfg.heal>0&&ctxB.getPlayerMaxHp&&ctxB.setPlayerHp&&ctxB.getPlayerHp){
                 var maxPlayer=Math.max(1,Number(ctxB.getPlayerMaxHp())||1), curPlayer=Math.max(0,Number(ctxB.getPlayerHp())||0);
                 ctxB.setPlayerHp(Math.min(maxPlayer,curPlayer+Math.floor(maxPlayer*cfg.heal)));
@@ -1459,8 +1459,8 @@ function activateDekuEarthShatter() {
     _superState.dekuEarthShatterReady = false;
     _superState.dekuEarthShatterCooldown = 25;
     triggerDekuSmash();
-    var dmg = Math.floor(ctxB.getBossMaxHp() * 0.12);
-    ctxB.setBossMaxHp(ctxB.getBossMaxHp() - dmg);
+    var dmg = Math.max(1, Math.floor(ctxB.getBossMaxHp() * 0.12));
+    applyBossDamageToContext(ctxB, dmg, "Деку: Разлом");
     ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "РАЗЛОМ ДЕКУ!", "#44ff44");
     notifyWaystarSuperAction("Деку (100%) — РАЗЛОМ");
 }
@@ -1482,8 +1482,8 @@ function activateDekuDashSmash() {
     if (dx === 0 && dy === 0) { var ang = Math.random() * Math.PI * 2; dx = Math.cos(ang); dy = Math.sin(ang); }
     var len = Math.sqrt(dx*dx + dy*dy) || 1; dx /= len; dy /= len;
     _superState.dekuDash = { startX: ctxB.getHeartX(), startY: ctxB.getHeartY(), dirX: dx, dirY: dy, distance: 200, traveled: 0, trail: [], life: 0.4 };
-    var dmg = Math.floor(ctxB.getBossMaxHp() * 0.08);
-    ctxB.setBossMaxHp(ctxB.getBossMaxHp() - dmg);
+    var dmg = Math.max(1, Math.floor(ctxB.getBossMaxHp() * 0.08));
+    applyBossDamageToContext(ctxB, dmg, "Деку: Рывок-сокрушение");
     var dashWidth = 60;
     var atk = ctxB.getAttacks();
     for (var i = atk.length - 1; i >= 0; i--) {
@@ -2873,8 +2873,8 @@ function updateSuperLogic(dt) {
             _superState.garpImpactRadius = 0;
             _superState.garpImpactX = ctxB.getHeartX();
             _superState.garpImpactY = ctxB.getHeartY();
-            var bossMaxHp = ctxB.getBossMaxHp();
-            ctxB.setBossMaxHp(Math.floor(bossMaxHp * 0.90));
+            var bossMaxHp = Math.max(0, Number(ctxB.getBossMaxHp()) || 0);
+            applyBossDamageToContext(ctxB, Math.max(1, Math.floor(bossMaxHp * 0.10)), "Молодой Гарп: Галактический удар");
             _superState.screenShakeAmount = 45;
             _superState.screenFlashWhite = 15;
             ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 40, "ГАЛАКТИЧЕСКИЙ УДАР!!!", "#8844ff");
@@ -3004,9 +3004,9 @@ function updateSuperLogic(dt) {
                 if (typeof sfxBounce === 'function') sfxBounce();
             }
         }
-        if (f.willOneshot && !f.oneshotChecked && ctxB.getBossMaxHp() > 0) {
+        if (f.willOneshot && !f.oneshotChecked && ctxB.getBossHp() > 0) {
             f.oneshotChecked = true;
-            ctxB.setBossMaxHp(0);
+            applyBossDamageToContext(ctxB, Math.max(1, Number(ctxB.getBossHp()) || 1), "Сайтама: обычный удар (редкий ваншот)");
             _superState.screenFlashWhite = 20;
             _superState.screenShakeAmount = 50;
             for (var p = 0; p < 100; p++) ctxB.getParticles().push({ x: f.x, y: f.y, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 30, life: 40, maxLife: 40, color: "#ffffff", size: 3 + Math.random() * 8 });
