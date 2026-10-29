@@ -848,6 +848,13 @@ function updateLivingStonePlayer() {
         livingStoneState === "qte_finish" || finalSceneActive) return;
     if (typeof window !== "undefined" && window.livingStoneSuperActive) {
         var superPhase = window.__mbLS2GreenPhase || "normal";
+        if (superPhase === "chase") {
+            var chaseLane = Math.max(0,Math.min(2,Number(window.__mbLS2ChaseLane)||0));
+            livingStonePlayer.x = [70,200,330][chaseLane];
+            var jumpTimer = Math.max(0,Number(window.__mbLS2ChaseJumpTimer)||0);
+            livingStonePlayer.y = 410 - (jumpTimer>0 ? Math.sin((1-jumpTimer/28)*Math.PI)*25 : 0);
+            return;
+        }
         if (superPhase === "gravity") {
             var fromX = Number(window.__mbLS2GravityFromX);
             var fromY = Number(window.__mbLS2GravityFromY);
@@ -922,7 +929,7 @@ function updateLivingStoneBoss() {
 function updateLivingStoneBullets() {
     // В супер-зелёной фазе арена очищается полностью: никаких старых пуль.
     if (typeof window !== "undefined" && window.livingStoneSuperActive &&
-        (window.__mbLS2GreenPhase === "gravity" || window.__mbLS2GreenPhase === "green")) {
+        (window.__mbLS2GreenPhase === "gravity" || window.__mbLS2GreenPhase === "green" || window.__mbLS2GreenPhase === "chase")) {
         livingStoneBullets.length = 0;
         return;
     }
@@ -1592,7 +1599,7 @@ function updateFinalScene() {
 function updateLivingStoneAttacks() {
     // В супер-зелёной фазе старые атаки исчезают и обычные атаки не обновляются.
     if (typeof window !== "undefined" && window.livingStoneSuperActive &&
-        (window.__mbLS2GreenPhase === "gravity" || window.__mbLS2GreenPhase === "green")) {
+        (window.__mbLS2GreenPhase === "gravity" || window.__mbLS2GreenPhase === "green" || window.__mbLS2GreenPhase === "chase")) {
         livingStoneAttacks.length = 0;
         return;
     }
@@ -2813,6 +2820,14 @@ function livingStoneRenderLoop() {
     
     if (typeof renderSuperVisuals === 'function') {
         try { renderSuperVisuals(); } catch(e) { console.error("[LS] renderSuperVisuals error:", e); }
+    }
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        typeof window.MBDrawLivingStoneSuperChase === "function") {
+        try { window.MBDrawLivingStoneSuperChase(ctx); } catch(e) {}
+    }
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        typeof window.MBDrawLivingStoneSuperStarAid === "function") {
+        try { window.MBDrawLivingStoneSuperStarAid(ctx); } catch(e) {}
     }
     
     if (lsMobileMode) {
