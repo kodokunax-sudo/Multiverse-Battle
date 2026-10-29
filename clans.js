@@ -3076,7 +3076,7 @@
         try {
             window.dispatchEvent(new CustomEvent('mb:auth-changed', {
                 detail: {
-                    userId: currentUser ? currentUser.id : null,
+                    userId: currentUser && !accountSessionBlocked && activeAccountSessionUserId === currentUser.id ? currentUser.id : null,
                     email: currentUser ? currentUser.email : null,
                     isNewAccount: isPendingNewAccountTransfer(currentUser ? currentUser.id : null)
                 }
@@ -3768,7 +3768,10 @@
         syncCardInventory: processClanCardInbox,
         refreshCardExchange: refreshClanCardExchange,
         isConnected: function () { return !!db; },
-        getCurrentUserId: function () { return currentUser ? currentUser.id : null; },
+        getCurrentUserId: function () {
+            return currentUser && !accountSessionBlocked && activeAccountSessionUserId === currentUser.id
+                ? currentUser.id : null;
+        },
         getArenaContext: function () {
             return {
                 client: db,
