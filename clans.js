@@ -3069,8 +3069,8 @@
             hidePublicProfile();
         }
         if (!currentUser) { gameAnalyticsSessionId = null; gameAnalyticsUserId = null; }
-        if (db && currentUser) trackGameAnalytics(false);
-        if (db && currentUser) db.rpc('mb_touch_presence').then(function (result) {
+        if (db && currentUser && !accountSessionBlocked && activeAccountSessionUserId === currentUser.id) trackGameAnalytics(false);
+        if (db && currentUser && !accountSessionBlocked && activeAccountSessionUserId === currentUser.id) db.rpc('mb_touch_presence').then(function (result) {
             if (result.error) console.warn('[MB friends] Presence update:', result.error.message);
         }).catch(function () {});
         try {
