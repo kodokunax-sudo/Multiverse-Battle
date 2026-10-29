@@ -36,9 +36,15 @@
         if (!ls2Active) return;
         direction = ((direction % 4) + 4) % 4;
         if (ls2NativeMode) {
-            if (window.__mbLS2GreenPhase === "green") {
-                window.__mbLS2ShieldDir = direction;
-                if (typeof window.MBPlayLivingStoneSuperShieldSound === "function") window.MBPlayLivingStoneSuperShieldSound();
+            var phaseNow=window.__mbLS2GreenPhase||"normal";
+            if (phaseNow==="green") {
+                window.__mbLS2ShieldDir=direction;
+                if (typeof window.MBPlayLivingStoneSuperShieldSound==="function") window.MBPlayLivingStoneSuperShieldSound();
+            } else if (phaseNow==="chase") {
+                if (direction===3) ls2MoveChaseLane(-1);
+                else if (direction===1) ls2MoveChaseLane(1);
+                else if (direction===0) { ls2ChaseJumpTimer=Math.max(ls2ChaseJumpTimer,28); window.__mbLS2ChaseJumpTimer=ls2ChaseJumpTimer; }
+                else if (direction===2) { ls2ChaseSlideTimer=Math.max(ls2ChaseSlideTimer,28); window.__mbLS2ChaseSlideTimer=ls2ChaseSlideTimer; }
             }
             return;
         }
@@ -185,18 +191,22 @@
             if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
             ls2Stop(true); return;
         }
-        if (window.__mbLS2GreenPhase !== "green") return;
+        var nativePhase=window.__mbLS2GreenPhase||"normal";
+        if (nativePhase!=="green" && nativePhase!=="chase") return;
         var map = { ArrowUp:0, w:0, W:0, ArrowRight:1, d:1, D:1,
             ArrowDown:2, s:2, S:2, ArrowLeft:3, a:3, A:3 };
         if (!Object.prototype.hasOwnProperty.call(map,key)) return;
         ev.preventDefault(); ev.stopPropagation();
         if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
-        window.__mbLS2ShieldDir = map[key];
-        ls2SetShield(map[key]);
+        if (nativePhase==="green") { window.__mbLS2ShieldDir=map[key]; ls2SetShield(map[key]); }
+        else if (map[key]===3) ls2MoveChaseLane(-1);
+        else if (map[key]===1) ls2MoveChaseLane(1);
+        else if (map[key]===0) { ls2ChaseJumpTimer=Math.max(ls2ChaseJumpTimer,28); window.__mbLS2ChaseJumpTimer=ls2ChaseJumpTimer; }
+        else { ls2ChaseSlideTimer=Math.max(ls2ChaseSlideTimer,28); window.__mbLS2ChaseSlideTimer=ls2ChaseSlideTimer; }
     }
     function ls2SetControlVisibility() {
         if (!ls2Pad) return;
-        if (ls2NativeMode) ls2Pad.style.display = window.__mbLS2GreenPhase === "green" ? "grid" : "none";
+        if (ls2NativeMode) ls2Pad.style.display = (window.__mbLS2GreenPhase === "green" || window.__mbLS2GreenPhase === "chase") ? "grid" : "none";
         else ls2Pad.style.display = (ls2Phase === "normal" || ls2Phase === "green") ? "grid" : "none";
     }
     function ls2EnterNormal(afterGreen) {
@@ -774,6 +784,12 @@
     var ls2GreenStrikeTimer = 25, ls2GreenStrikeIndex = 0, ls2GreenBlockStreak = 0;
     var ls2GreenWaveIndex = 0, ls2GreenCurrentPattern = 0, ls2GreenBurstCount = 0, ls2GreenBurstTimer = 0;
     var LS2_GREEN_ARENA = { x: 112, y: 325, w: 176, h: 145 };
+    var ls2ChaseTriggered=false, ls2ChaseFrames=0, ls2ChaseDuration=840;
+    var ls2ChaseLane=1, ls2ChaseObstacles=[], ls2ChaseSpawnTimer=28;
+    var ls2ChaseStarAid=false, ls2ChaseGuard=0, ls2ChaseGuardTimer=0;
+    var ls2ChaseJumpTimer=0, ls2ChaseSlideTimer=0, ls2ChaseMusic=null;
+    var ls2StarAssistActive=false, ls2StarAssistCooldown=480, ls2StarAssistFlash=0;
+    var LS2_CHASE_LANES=[70,200,330];
     var ls2OpenWindowPending = false;
     var ls2LastPlayerX = 200, ls2LastPlayerY = 400, ls2LastAttackName = "Ты промахнулся";
     var ls2PlayerVx = 0, ls2PlayerVy = 0, ls2PlayerStillFrames = 0;
@@ -781,6 +797,140 @@
     var ls2BossWobble = 0;
 
     function ls2Clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function ls2HasWaystarAid() {
+        return typeof window!=="undefined" &&
+            (window.waystarOwesDebt===true ||
+             (typeof slotData!=="undefined" && !!slotData && slotData.waystarOwesDebt===true));
+    }
+    function ls2StopChaseMusic() {
+        if (!ls2ChaseMusic) return;
+        try { ls2ChaseMusic.pause(); ls2ChaseMusic.currentTime=0; } catch(e) {}
+        ls2ChaseMusic=null;
+    }
+    function ls2StartChaseMusic() {
+        ls2StopChaseMusic();
+        if (!ls2ChaseStarAid || typeof Audio==="undefined") return;
+        try {
+            ls2ChaseMusic=new Audio("music/помощь звезды.mp3");
+            ls2ChaseMusic.volume=0.78; ls2ChaseMusic.loop=true;
+            var p=ls2ChaseMusic.play();
+            if (p && typeof p.catch==="function") p.catch(function(){});
+        } catch(e) { ls2ChaseMusic=null; }
+    }
+    function ls2MoveChaseLane(delta) {
+        if ((window.__mbLS2GreenPhase||"normal")!=="chase") return;
+        ls2ChaseLane=ls2Clamp(ls2ChaseLane+delta,0,2);
+        window.__mbLS2ChaseLane=ls2ChaseLane;
+        if (typeof playArenaSound==="function") playArenaSound(360,"triangle",0.035,0.025);
+    }
+    function ls2BeginChase() {
+        if (!ls2Live() || ls2ChaseTriggered) return;
+        ls2ChaseTriggered=true; ls2ChaseStarAid=ls2HasWaystarAid();
+        ls2StarAssistActive=ls2ChaseStarAid;
+        ls2ChaseFrames=0; ls2ChaseDuration=ls2ChaseStarAid?720:840;
+        ls2ChaseLane=1; ls2ChaseObstacles=[]; ls2ChaseSpawnTimer=28;
+        ls2ChaseGuard=ls2ChaseStarAid?1:0; ls2ChaseGuardTimer=240;
+        ls2ChaseJumpTimer=0; ls2ChaseSlideTimer=0;
+        ls2StarAssistCooldown=480; ls2StarAssistFlash=0;
+        window.__mbLS2GreenPhase="chase"; window.__mbLS2PhaseFrames=0;
+        window.__mbLS2ChaseLane=1; window.__mbLS2ChaseStarAid=ls2ChaseStarAid;
+        window.__mbLS2ChaseJumpTimer=0; window.__mbLS2ChaseSlideTimer=0;
+        ls2UniqueAttacks=[]; ls2UniqueCracks=[]; ls2UniqueDecoys=[]; ls2BossDash=null; ls2ShellBreak=null;
+        if (typeof livingStoneAttacks!=="undefined") livingStoneAttacks.length=0;
+        if (typeof livingStoneBullets!=="undefined") livingStoneBullets.length=0;
+        if (typeof livingStoneParticles!=="undefined") livingStoneParticles.length=0;
+        if (typeof livingStonePlayer!=="undefined") { livingStonePlayer.x=200; livingStonePlayer.y=410; }
+        if (typeof livingStoneBoss!=="undefined") { livingStoneBoss.x=200; livingStoneBoss.y=95; livingStoneBoss.vx=0; }
+        ls2BossStun=0;
+        if (ls2ChaseStarAid) {
+            ls2StartChaseMusic();
+            if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,320,"ЗВЕЗДА: ДЕРЖИСЬ! Я ПОМОГУ ТЕБЕ!","#aeeaff",120);
+        } else {
+            ls2StopChaseMusic();
+            if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,320,"НЕ ДОГОНИШЬ МЕНЯ!","#ff967d",100);
+        }
+        if (typeof livingStoneScreenFlash!=="undefined") {
+            livingStoneScreenFlash=14; livingStoneScreenFlashColor=ls2ChaseStarAid?"#9deaff":"#ff4c37";
+        }
+        if (typeof playArenaSound==="function") playArenaSound(64,"sawtooth",0.55,0.16);
+    }
+    function ls2SpawnChaseObstacle() {
+        if (ls2ChaseObstacles.length>=4) return;
+        ls2ChaseObstacles.push({lane:Math.floor(Math.random()*3),
+            kind:Math.random()<0.62?"rubble":"overhang",y:90,warning:27,
+            speed:(ls2ChaseStarAid?4.15:4.55)+Math.min(1,ls2ChaseFrames/950),
+            spin:Math.random()*Math.PI*2,done:false});
+    }
+    function ls2UpdateChase(step) {
+        ls2ChaseFrames+=step; ls2ChaseSpawnTimer-=step;
+        ls2ChaseJumpTimer=Math.max(0,ls2ChaseJumpTimer-step);
+        ls2ChaseSlideTimer=Math.max(0,ls2ChaseSlideTimer-step);
+        window.__mbLS2ChaseJumpTimer=ls2ChaseJumpTimer;
+        window.__mbLS2ChaseSlideTimer=ls2ChaseSlideTimer;
+        if (ls2ChaseGuardTimer>0) ls2ChaseGuardTimer-=step;
+        if (ls2ChaseStarAid && ls2ChaseGuard<=0 && ls2ChaseGuardTimer<=0) {
+            ls2ChaseGuard=1; ls2ChaseGuardTimer=240;
+            if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,370,"ЗВЕЗДА СНОВА ПРИКРЫВАЕТ ТЕБЯ","#aeeaff",55);
+        } else if (ls2ChaseGuardTimer<=0) ls2ChaseGuardTimer=240;
+        if (ls2ChaseSpawnTimer<=0) {
+            ls2SpawnChaseObstacle(); ls2ChaseSpawnTimer=(ls2ChaseStarAid?58:49)+Math.random()*13;
+        }
+        var hitY=405;
+        for (var i=ls2ChaseObstacles.length-1;i>=0;i--) {
+            var o=ls2ChaseObstacles[i];
+            if (o.warning>0) o.warning=Math.max(0,o.warning-step);
+            else {
+                var oldY=o.y; o.y+=o.speed*step; o.spin+=0.07*step;
+                if (!o.done && o.lane===ls2ChaseLane && oldY<hitY && o.y>=hitY) {
+                    o.done=true;
+                    var avoided=(o.kind==="rubble" && ls2ChaseJumpTimer>0)||(o.kind==="overhang" && ls2ChaseSlideTimer>0);
+                    if (avoided) {
+                        if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(LS2_CHASE_LANES[o.lane],hitY,7,"#b7f4ff",3);
+                    } else if (ls2ChaseStarAid && ls2ChaseGuard>0) {
+                        ls2ChaseGuard=0; ls2ChaseGuardTimer=240;
+                        if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(LS2_CHASE_LANES[o.lane],hitY,14,"#9deaff",4);
+                        if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,365,"ЗВЕЗДА ЗАКРЫЛА ТЕБЯ СОБОЙ!","#aeeaff",65);
+                    } else if (typeof damageLivingStonePlayer==="function") damageLivingStonePlayer(ls2ChaseStarAid?10:13);
+                }
+            }
+            if (o.y>535) ls2ChaseObstacles.splice(i,1);
+        }
+    }
+    function ls2EndChase() {
+        ls2StopChaseMusic(); ls2ChaseObstacles=[];
+        ls2ChaseJumpTimer=0; ls2ChaseSlideTimer=0;
+        window.__mbLS2ChaseJumpTimer=0; window.__mbLS2ChaseSlideTimer=0;
+        window.__mbLS2GreenPhase="normal"; window.__mbLS2PhaseFrames=0;
+        window.__mbLS2LastPhaseTime=typeof performance!=="undefined"?performance.now():Date.now();
+        if (typeof livingStoneAttacks!=="undefined") livingStoneAttacks.length=0;
+        if (typeof livingStoneBullets!=="undefined") livingStoneBullets.length=0;
+        ls2UniqueAttacks=[]; ls2UniqueCracks=[]; ls2UniqueDecoys=[]; ls2BossDash=null;
+        ls2UniqueAttackTimer=190; ls2DodgeCooldown=120; ls2DodgeStreak=0;
+        ls2BossStun=ls2ChaseStarAid?175:85;
+        if (typeof livingStoneBoss!=="undefined") {
+            livingStoneBoss.x=200; livingStoneBoss.y=108; livingStoneBoss.vx=ls2ChaseStarAid?-1.25:1.15;
+        }
+        if (ls2ChaseStarAid) {
+            ls2StarAssistActive=true; ls2StarAssistCooldown=300; ls2StarAssistFlash=40;
+            if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(200,108,24,"#9deaff",5);
+            if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,310,"ЗВЕЗДА: ТЕПЕРЬ ОН НЕ УЙДЁТ!","#aeeaff",110);
+        } else if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,310,"ТЫ ЗАГНАЛ МЕНЯ В УГОЛ!","#ff967d",100);
+        ls2CombatText(ls2ChaseStarAid?"ЗВЕЗДА РАСКОЛОЛА ЕГО БРОНЮ!":"ТЕПЕРЬ ТЕБЕ НЕ СБЕЖАТЬ!",ls2ChaseStarAid?"#aeeaff":"#ffb39d",100);
+    }
+    function ls2DoStarAssistStrike() {
+        if (!ls2Active || !ls2NativeMode || !ls2StarAssistActive ||
+            (window.__mbLS2GreenPhase||"normal")!=="normal") return;
+        var dmg=Math.max(1,Math.floor(ls2BossMaxHp*0.012));
+        dmg=Math.min(dmg,Math.max(0,ls2BossHp-1));
+        ls2BossHp=Math.max(1,ls2BossHp-dmg);
+        if (typeof livingStoneBossHp!=="undefined") livingStoneBossHp=ls2BossHp;
+        if (typeof currentEnemy!=="undefined" && currentEnemy) currentEnemy.hp=ls2BossHp;
+        ls2BossStun=Math.max(ls2BossStun,55); ls2StarAssistFlash=36;
+        if (typeof livingStoneBoss!=="undefined" && typeof spawnLivingStoneParticles==="function")
+            spawnLivingStoneParticles(livingStoneBoss.x,livingStoneBoss.y,18,"#9deaff",4);
+        if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,78,"ЗВЁЗДНЫЙ УДАР!","#aeeaff",48);
+        if (typeof playArenaSound==="function") playArenaSound(980,"sine",0.18,0.065);
+    }
     function ls2RegisterGreenBlock(a) {
         ls2GreenBlockStreak++;
         if (typeof spawnLivingStoneParticles === "function")
@@ -918,6 +1068,10 @@
         var b = livingStoneBoss, p = livingStonePlayer;
         ls2UniqueFrame++;
         if (ls2DodgeCooldown > 0) ls2DodgeCooldown--;
+        if ((window.__mbLS2GreenPhase||"normal")==="chase") {
+            b.x=200; b.y=95-Math.min(28,ls2ChaseFrames*0.035); b.rotation+=0.025; b.vx=0;
+            return true;
+        }
         if (ls2BossDash) {
             var d=ls2BossDash; d.timer++;
             var target=d.targets[d.step];
@@ -1131,6 +1285,7 @@
             ls2PlayerStillFrames = 0; ls2PlayerLaneFrames = 0;
         }
         ls2LastPlayerX = p.x; ls2LastPlayerY = p.y;
+        if (phase==="chase") { ls2UniqueAttacks=[]; ls2UniqueCracks=[]; ls2UniqueDecoys=[]; ls2ShellBreak=null; return; }
         if (ls2ShellBreak) {
             ls2ShellBreak.timer--;
             if (ls2ShellBreak.timer<=0) {
@@ -1401,8 +1556,17 @@
         var last = Number(window.__mbLS2LastPhaseTime) || now;
         var frameStep = Math.max(0.2, Math.min(4, (now - last) / (1000 / 60)));
         window.__mbLS2LastPhaseTime = now;
-        if (phase === "normal") {
+        if (phase === "chase") {
             frame += frameStep;
+            ls2UpdateChase(frameStep);
+            if (ls2ChaseFrames>=ls2ChaseDuration) { ls2EndChase(); frame=0; }
+        } else if (phase === "normal") {
+            frame += frameStep;
+            if (ls2StarAssistActive) {
+                ls2StarAssistCooldown-=frameStep;
+                if (ls2StarAssistCooldown<=0) { ls2StarAssistCooldown=480; ls2DoStarAssistStrike(); }
+            }
+            if (ls2StarAssistFlash>0) ls2StarAssistFlash=Math.max(0,ls2StarAssistFlash-frameStep);
             if (frame >= 1200) {
                 frame = 0;
                 if (Math.random() < 0.5) {
@@ -1498,6 +1662,58 @@
         }
         c.restore();
     };
+    function ls2DrawChaseStar(c,x,y,r) {
+        c.save(); c.translate(x,y); c.rotate(Math.sin(ls2ChaseFrames*0.035)*0.08);
+        c.shadowColor="#9deaff"; c.shadowBlur=ls2ReduceEffects?0:16;
+        var g=c.createLinearGradient(-r,-r,r,r); g.addColorStop(0,"#fff"); g.addColorStop(.5,"#aeeeff"); g.addColorStop(1,"#4b9dff");
+        c.fillStyle=g; c.strokeStyle="#e7fcff"; c.lineWidth=2; c.beginPath();
+        for(var i=0;i<10;i++){var a=-Math.PI/2+i*Math.PI/5,rr=i%2===0?r:r*.46,px=Math.cos(a)*rr,py=Math.sin(a)*rr;if(i===0)c.moveTo(px,py);else c.lineTo(px,py);}
+        c.closePath(); c.fill(); c.stroke(); c.shadowBlur=0; c.fillStyle="#143b5d";
+        c.beginPath(); c.arc(-r*.2,-r*.05,Math.max(1.5,r*.075),0,Math.PI*2); c.fill();
+        c.beginPath(); c.arc(r*.2,-r*.05,Math.max(1.5,r*.075),0,Math.PI*2); c.fill();
+        c.strokeStyle="#143b5d"; c.lineWidth=Math.max(1.3,r*.065); c.beginPath(); c.arc(0,r*.04,r*.2,.22,Math.PI-.22); c.stroke(); c.restore();
+    }
+    function ls2DrawChaseHeart(c,x,y,sc) {
+        c.save(); c.translate(x,y); c.scale(sc,sc); c.shadowColor="#ff3d36"; c.shadowBlur=ls2ReduceEffects?0:10;
+        c.fillStyle="#ed292d"; c.strokeStyle="#ffe6e6"; c.lineWidth=1.4; c.beginPath();
+        c.moveTo(0,11); c.bezierCurveTo(-4,7,-13,1,-12,-6); c.bezierCurveTo(-11,-14,-3,-14,0,-7);
+        c.bezierCurveTo(4,-14,12,-13,12,-6); c.bezierCurveTo(13,1,4,8,0,11); c.closePath(); c.fill(); c.stroke(); c.restore();
+    }
+    window.MBDrawLivingStoneSuperChase=function(c) {
+        if(!window.livingStoneSuperActive || (window.__mbLS2GreenPhase||"normal")!=="chase" || !c) return;
+        var progress=ls2Clamp(ls2ChaseFrames/Math.max(1,ls2ChaseDuration),0,1), now=performance.now();
+        c.save(); c.fillStyle="#050914"; c.fillRect(0,0,400,500);
+        var sky=c.createLinearGradient(0,0,0,250); sky.addColorStop(0,"#030710"); sky.addColorStop(1,ls2ChaseStarAid?"#18324f":"#321610"); c.fillStyle=sky;c.fillRect(0,0,400,250);
+        for(var si=0;si<(ls2ReduceEffects?8:18);si++){var sx=(si*71+Math.sin(now/420+si)*14)%400,sy=(si*43+now*.055*(1+si%3))%260;c.globalAlpha=.25+(si%4)*.14;c.strokeStyle=ls2ChaseStarAid?"#b9e9ff":"#ffb7a1";c.beginPath();c.moveTo(sx,sy);c.lineTo(sx,sy+12+(si%3)*5);c.stroke();}
+        c.globalAlpha=1;c.fillStyle="#111722";c.beginPath();c.moveTo(146,92);c.lineTo(254,92);c.lineTo(430,500);c.lineTo(-30,500);c.closePath();c.fill();
+        c.strokeStyle=ls2ChaseStarAid?"rgba(144,220,255,.6)":"rgba(255,123,91,.55)";c.lineWidth=3;c.beginPath();c.moveTo(146,92);c.lineTo(-30,500);c.moveTo(254,92);c.lineTo(430,500);c.stroke();
+        c.setLineDash([18,15]);c.strokeStyle="rgba(225,235,255,.42)";c.lineWidth=2;c.beginPath();c.moveTo(186,92);c.lineTo(120,500);c.moveTo(214,92);c.lineTo(280,500);c.stroke();c.setLineDash([]);
+        var rs=1-progress*.23;c.save();c.translate(200,128-progress*11);c.scale(rs,rs);c.fillStyle="#51483f";c.strokeStyle="#b5a18a";c.lineWidth=2;c.beginPath();
+        c.moveTo(-42,16);c.lineTo(-48,-12);c.lineTo(-28,-34);c.lineTo(-8,-29);c.lineTo(7,-42);c.lineTo(31,-28);c.lineTo(45,-6);c.lineTo(37,23);c.lineTo(12,35);c.lineTo(-15,31);c.closePath();c.fill();c.stroke();
+        c.strokeStyle="#ff4938";c.beginPath();c.moveTo(-26,-16);c.lineTo(-10,-2);c.lineTo(-17,13);c.moveTo(17,-17);c.lineTo(8,-2);c.lineTo(21,12);c.stroke();
+        c.fillStyle="#ff2d24";c.beginPath();c.ellipse(-16,-5,5,3,0,0,Math.PI*2);c.fill();c.beginPath();c.ellipse(17,-5,5,3,0,0,Math.PI*2);c.fill();c.restore();
+        for(var oi=0;oi<ls2ChaseObstacles.length;oi++){var o=ls2ChaseObstacles[oi],x=LS2_CHASE_LANES[o.lane],y=o.y;
+            if(o.warning>0){c.globalAlpha=.4+Math.abs(Math.sin(now/65))*.45;c.strokeStyle=o.kind==="rubble"?"#ffe79c":"#ffb5a0";c.lineWidth=2.5;c.setLineDash([6,6]);c.beginPath();c.moveTo(x,150);c.lineTo(x,438);c.stroke();c.setLineDash([]);c.fillStyle="#fff0b0";c.font="bold 10px Arial,sans-serif";c.textAlign="center";c.fillText(o.kind==="rubble"?"ПРЫГАЙ ИЛИ УХОДИ":"ПРИГНИСЬ ИЛИ УХОДИ",x,Math.max(185,y-20));c.globalAlpha=1;}
+            else if(o.kind==="rubble"){var sz=15+Math.max(0,y-160)*.035;c.save();c.translate(x,y);c.rotate(o.spin);c.fillStyle="#665b50";c.strokeStyle="#c1b5a7";c.lineWidth=2;c.beginPath();c.moveTo(-sz,-sz*.35);c.lineTo(-sz*.4,-sz);c.lineTo(sz*.5,-sz*.75);c.lineTo(sz,sz*.1);c.lineTo(sz*.35,sz);c.lineTo(-sz*.7,sz*.7);c.closePath();c.fill();c.stroke();c.restore();}
+            else {var wide=32+Math.max(0,y-160)*.045;c.fillStyle="#6d3b32";c.strokeStyle="#ff9e7e";c.lineWidth=2;c.fillRect(x-wide,y-8,wide*2,16);c.strokeRect(x-wide,y-8,wide*2,16);}}
+        var lx=LS2_CHASE_LANES[ls2ChaseLane],jump=ls2ChaseJumpTimer>0?Math.sin((1-ls2ChaseJumpTimer/28)*Math.PI)*25:0,py=414-jump;
+        if(ls2ChaseStarAid){ls2DrawChaseStar(c,lx,py+24,26);ls2DrawChaseHeart(c,lx,py-9,.72);if(ls2ChaseGuard>0){c.strokeStyle="rgba(184,242,255,.75)";c.lineWidth=2;c.beginPath();c.arc(lx,py+20,39+Math.sin(now/80)*3,0,Math.PI*2);c.stroke();}}
+        else ls2DrawChaseHeart(c,lx,py,1.05);
+        c.fillStyle="rgba(0,0,0,.8)";c.fillRect(22,16,356,48);c.strokeStyle=ls2ChaseStarAid?"#96e1ff":"#ff9170";c.strokeRect(22,16,356,48);
+        c.fillStyle=ls2ChaseStarAid?"#c9f1ff":"#ffd1c3";c.font="900 14px Arial,sans-serif";c.textAlign="center";c.fillText(ls2ChaseStarAid?"ПОГОНЯ СО ЗВЕЗДОЙ":"ПОГОНЯ ЗА ЖИВЫМ КАМНЕМ",200,35);
+        c.fillStyle="#d8e0eb";c.font="bold 10px Arial,sans-serif";c.fillText("Дистанция: "+Math.floor(progress*100)+"%  ·  HP: "+Math.max(0,Math.ceil(livingStonePlayerHp)),200,52);
+        c.fillStyle="rgba(255,255,255,.16)";c.fillRect(35,72,330,4);c.fillStyle=ls2ChaseStarAid?"#9deaff":"#ff8c70";c.fillRect(35,72,330*progress,4);
+        if(ls2ChaseStarAid){c.fillStyle="#aeeaff";c.font="bold 10px Arial,sans-serif";c.fillText(ls2ChaseGuard>0?"ЗВЕЗДА ГОТОВА ЗАЩИТИТЬ ТЕБЯ":"ЗВЕЗДА ВОССТАНАВЛИВАЕТ ЗАЩИТУ",200,447);}
+        c.fillStyle="rgba(0,0,0,.82)";c.fillRect(12,462,376,28);c.fillStyle="#f3f6ff";c.font="bold 10px Arial,sans-serif";c.fillText("A/D ИЛИ ←/→: ПОЛОСА   ·   W/↑: ПРЫЖОК   ·   S/↓: ПРИГНУТЬСЯ",200,479);
+        c.restore();
+    };
+    window.MBDrawLivingStoneSuperStarAid=function(c) {
+        if(!window.livingStoneSuperActive || !ls2StarAssistActive || (window.__mbLS2GreenPhase||"normal")==="chase" || !c) return;
+        if(!ls2StarAssistFlash && (window.__mbLS2GreenPhase||"normal")!=="normal") return;
+        var x=356,y=118+(Math.sin(performance.now()/240)*5);
+        if(ls2StarAssistFlash>0){c.save();c.strokeStyle="rgba(158,234,255,.85)";c.lineWidth=3;c.beginPath();c.moveTo(x-12,y+12);c.lineTo(livingStoneBoss.x,livingStoneBoss.y);c.stroke();c.restore();}
+        ls2DrawChaseStar(c,x,y,13);
+    }
     window.MBDrawLivingStoneSuperArena = function(c) {
         if (!window.livingStoneSuperActive || !c) return;
         var phase = window.__mbLS2GreenPhase || "normal";
@@ -1622,6 +1838,7 @@
 
     function ls2Stop(restoreMainScreen) {
         if (!ls2Active && !ls2ChoicePending) return;
+        ls2StopChaseMusic();
         if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("living_stone_super", "abandoned");
         if (ls2NativeMode) {
             ls2NativeMode = false;
@@ -1699,10 +1916,17 @@
             typeof window.MBSetBossGraphicsModeForFight==="function") {
             window.MBSetBossGraphicsModeForFight(graphicsModeChoice);
         }
+        ls2StopChaseMusic();
+        ls2ChaseTriggered=false; ls2ChaseFrames=0; ls2ChaseDuration=840; ls2ChaseLane=1;
+        ls2ChaseObstacles=[]; ls2ChaseSpawnTimer=28; ls2ChaseStarAid=false;
+        ls2ChaseGuard=0; ls2ChaseGuardTimer=0; ls2ChaseJumpTimer=0; ls2ChaseSlideTimer=0;
+        ls2StarAssistActive=false; ls2StarAssistCooldown=480; ls2StarAssistFlash=0;
+        window.__mbLS2ChaseLane=1; window.__mbLS2ChaseStarAid=false;
+        window.__mbLS2ChaseJumpTimer=0; window.__mbLS2ChaseSlideTimer=0;
         ls2PreviousArenaActive=typeof arenaActive!=="undefined"?arenaActive:false;
         ls2ReduceEffects=!!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
         ls2Active=true; window.livingStoneSuperActive=true;
-        ls2BossMaxHp=Math.max(500000,Math.floor((Number(currentEnemy.maxHp)||1250000)*0.45));
+        ls2BossMaxHp=Math.max(250000,Math.floor((Number(currentEnemy.maxHp)||1250000)*0.225));
         ls2BossHp=ls2BossMaxHp; ls2PlayerMaxHp=180; ls2PlayerHp=ls2PlayerMaxHp;
         currentEnemy.maxHp=ls2BossMaxHp; currentEnemy.hp=ls2BossHp;
         ls2Invulnerable=0; ls2HitFlash=0; ls2ShieldFlash=0; ls2ShieldDir=0;
