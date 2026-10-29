@@ -3294,16 +3294,10 @@
     }
 
     function getActiveAccountClientSessionId() {
-        if (clientTabSessionId) return clientTabSessionId;
-        var key = 'mb_active_account_client_session_id_v1';
-        var id = null;
-        try { id = window.sessionStorage.getItem(key); } catch (_error) {}
-        if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-            id = makeClientSessionUuid();
-            try { window.sessionStorage.setItem(key, id); } catch (_error) {}
-        }
-        clientTabSessionId = id;
-        return id;
+        // Keep a unique ID per loaded document. Browsers can clone sessionStorage
+        // when duplicating tabs; a shared ID lets one tab release another tab's lock.
+        if (!clientTabSessionId) clientTabSessionId = makeClientSessionUuid();
+        return clientTabSessionId;
     }
 
     async function getAuthSessionId(client) {
