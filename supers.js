@@ -668,6 +668,72 @@ function applyBossDamageToContext(ctxB, rawDamage, source) {
 }
 window.MBApplyBossDamage = applyBossDamageToContext;
 
+function healBossInContext(ctxB, rawHeal) {
+    if (!ctxB) return 0;
+    var amount = Math.max(0, Math.floor(Number(rawHeal) || 0));
+    if (!amount) return 0;
+    if (ctxB.type === "arena") {
+        var oldArena = Math.max(0, Number(arenaBossMaxHP) || 0);
+        var maxArena = Math.max(oldArena, Number(arenaBossOriginalMaxHP) || oldArena);
+        arenaBossMaxHP = Math.min(maxArena, oldArena + amount);
+        return arenaBossMaxHP - oldArena;
+    }
+    if (ctxB.type === "waystar") {
+        if (typeof waystarState !== "undefined" && waystarState === "phase2" && Array.isArray(window.waystarPieces)) {
+            var remaining = amount, healed = 0;
+            window.waystarPieces.forEach(function(piece) {
+                if (!piece || !piece.alive || remaining <= 0) return;
+                var old = Math.max(0, Number(piece.hp) || 0);
+                var max = Math.max(old, Number(piece.maxHp) || old);
+                var add = Math.min(remaining, Math.max(0, max - old));
+                piece.hp = old + add; remaining -= add; healed += add;
+            });
+            return healed;
+        }
+        var beforeWaystar = Math.max(0, Number(waystarBossHp) || 0);
+        var maxWaystar = Math.max(beforeWaystar, Number(waystarBossMaxHp) || beforeWaystar);
+        waystarBossHp = Math.min(maxWaystar, beforeWaystar + amount);
+        return waystarBossHp - beforeWaystar;
+    }
+    if (ctxB.type === "stone") {
+        var beforeStone = Math.max(0, Number(livingStoneBossHp) || 0);
+        var maxStone = Math.max(beforeStone, Number(livingStoneBossMaxHp) || beforeStone);
+        livingStoneBossHp = Math.min(maxStone, beforeStone + amount);
+        return livingStoneBossHp - beforeStone;
+    }
+    if (ctxB.type === "stoneSuper") {
+        var beforeSuper = Math.max(0, Number(ctxB.getBossHp()) || 0);
+        var maxSuper = Math.max(beforeSuper, Number(ctxB.getBossMaxHp()) || beforeSuper);
+        if (typeof window.setLivingStoneSuperBossHp !== "function") return 0;
+        window.setLivingStoneSuperBossHp(Math.min(maxSuper, beforeSuper + amount));
+        return Math.max(0, Number(ctxB.getBossHp()) || 0) - beforeSuper;
+    }
+    if (ctxB.type === "rwb") {
+        var activeRwb = typeof window.getRWBActiveBoss === "function" ? window.getRWBActiveBoss() : null;
+        if (!activeRwb && typeof window.getRWBTargets === "function") {
+            var rwbTargets = (window.getRWBTargets() || []).filter(function(b) { return b && Number(b.hp) > 0; });
+            var rwbPlayer = typeof window.getRWBPlayer === "function" ? window.getRWBPlayer() : null;
+            rwbTargets.sort(function(a,b) {
+                return (rwbPlayer ? Math.hypot((a.x||0)-rwbPlayer.x,(a.y||0)-rwbPlayer.y) : 0) -
+                       (rwbPlayer ? Math.hypot((b.x||0)-rwbPlayer.x,(b.y||0)-rwbPlayer.y) : 0);
+            });
+            activeRwb = rwbTargets[0] || null;
+        }
+        if (!activeRwb) return 0;
+        var beforeRwb = Math.max(0, Number(activeRwb.hp) || 0);
+        var maxRwb = Math.max(beforeRwb, Number(activeRwb.maxHp) || beforeRwb);
+        activeRwb.hp = Math.min(maxRwb, beforeRwb + amount);
+        if (typeof window.rwbAddFlash === "function") window.rwbAddFlash(3, "#77ffbb");
+        return activeRwb.hp - beforeRwb;
+    }
+    if (ctxB.type === "antispiral" && typeof window.healAntiSpiralBoss === "function") {
+        return window.healAntiSpiralBoss(amount);
+    }
+    if (typeof ctxB.healBoss === "function") return ctxB.healBoss(amount) || 0;
+    return 0;
+}
+window.MBHealBoss = healBossInContext;
+
 // ====== ВСПОМОГАТЕЛЬНЫЕ ======
 function drawHakiLightning(x, y, maxDist, alpha, widthMod, customColor) {
     if (widthMod === undefined) widthMod = 1;
