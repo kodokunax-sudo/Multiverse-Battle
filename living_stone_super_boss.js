@@ -2034,6 +2034,27 @@
     window.startLivingStoneSuperFight=startLivingStoneSuperFight;
     window.stopLivingStoneSuperFight=function(){ls2Stop(!(window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===2000));};
     window.damageLivingStoneSuperBoss=ls2DamageBoss;
+    window.setLivingStoneSuperHeartPosition=function(x,y){
+        x=Number(x); y=Number(y);
+        if(!isFinite(x))x=LS2_CENTER_X;
+        if(!isFinite(y))y=LS2_CENTER_Y;
+        if(ls2NativeMode && typeof livingStonePlayer!=="undefined" && livingStonePlayer){
+            livingStonePlayer.x=Math.max(20,Math.min(380,x));
+            livingStonePlayer.y=Math.max(35,Math.min(480,y));
+        } else {
+            LS2_HEART_X=Math.max(LS2_BOX.x+18,Math.min(LS2_BOX.x+LS2_BOX.w-18,x));
+            LS2_HEART_Y=Math.max(LS2_BOX.y+18,Math.min(LS2_BOX.y+LS2_BOX.h-18,y));
+        }
+    };
+    window.getLivingStoneSuperBossTarget=function(){
+        var b=(ls2NativeMode && typeof livingStoneBoss!=="undefined" && livingStoneBoss)?livingStoneBoss:null;
+        return {type:"stoneSuper",id:"stoneSuper",
+            x:b&&isFinite(Number(b.x))?Number(b.x):200,
+            y:b&&isFinite(Number(b.y))?Number(b.y):112,
+            size:b&&Number(b.size)>0?Number(b.size):54,
+            hp:window.getLivingStoneSuperBossHp(),
+            maxHp:window.getLivingStoneSuperBossMaxHp(),ref:b};
+    };
     window.getLivingStoneSuperHeart=function(){
         if(ls2NativeMode && typeof livingStonePlayer!=="undefined") {
             return {x:livingStonePlayer.x,y:livingStonePlayer.y,shieldDir:Number(window.__mbLS2ShieldDir)||0,
@@ -2051,7 +2072,7 @@
         ls2PlayerHp=Math.max(1,Math.min(ls2PlayerMaxHp,Number(v)||1));
         if(ls2NativeMode && typeof livingStonePlayerHp!=="undefined") livingStonePlayerHp=ls2PlayerHp;
     };
-    window.getLivingStoneSuperAttacks=function(){return ls2NativeMode && typeof livingStoneAttacks!=="undefined" ? livingStoneAttacks : ls2Bullets;};
+    window.getLivingStoneSuperAttacks=function(){return ls2NativeMode && typeof ls2UniqueAttacks!=="undefined" ? ls2UniqueAttacks : ls2Bullets;};
     window.getLivingStoneSuperParticles=function(){return ls2NativeMode && typeof livingStoneParticles!=="undefined" ? livingStoneParticles : ls2Sparks;};
     window.isLivingStoneSuperActive=function(){return ls2Active;};
 })();
