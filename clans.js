@@ -3416,11 +3416,12 @@
                     activeAccountSessionUserId = null;
                     activeAccountSessionId = null;
                     activeAccountAuthSessionId = null;
-                    currentUser = null;
+                    // Keep the authenticated user. A lost game-session lease is not
+                    // a sign-out; show the lock and let the player retry the check.
                     currentClan = null;
                     currentProfile = null;
                     showAuthState();
-                    showAccountSessionLock('Эта сессия аккаунта больше не активна. Возможно, аккаунт открыт в другой игре. Закрой другую сессию и нажми «Проверить снова».');
+                    showAccountSessionLock('Игровая сессия потеряла блокировку. Аккаунт остаётся подключённым. Нажми «Проверить снова», чтобы восстановить сессию.');
                     notifyCloudSaveAuthChanged();
                 }
             } catch (error) {
