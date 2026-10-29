@@ -315,52 +315,52 @@
     }
 
     var ACHIEVEMENT_TITLES = [
-        { id: 'wave_100', icon: '🌊', label: 'Покоритель волн', description: 'Достичь 100-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 100; } },
-        { id: 'boss_hunter', icon: '👹', label: 'Убийца боссов', description: 'Победить 10 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 10; } },
-        { id: 'collector', icon: '🎴', label: 'Коллекционер', description: 'Получить 50 карт', unlocked: function (s) { return safeCount(s.cards_collected) >= 50; } },
-        { id: 'champion', icon: '🏆', label: 'Чемпион', description: 'Одержать 25 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 25; } },
-        { id: 'reborn', icon: '♻️', label: 'Перерождённый', description: 'Совершить 5 перерождений', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 5; } },
-        { id: 'multiverse_legend', icon: '🌌', label: 'Легенда мультивселенной', description: 'Достичь 1000-й волны и победить 15 боссов', unlocked: function (s) { return safeCount(s.highest_wave) >= 1000 && safeCount(s.bosses_defeated) >= 15; } },
-        { id: 'wave_200', icon: '🌊', label: 'Морской налоговик', description: 'Достичь 200-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 200; } },
-        { id: 'wave_300', icon: '🏄', label: 'Сёрфер апокалипсиса', description: 'Достичь 300-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 300; } },
-        { id: 'wave_500', icon: '🌊', label: 'Волны мне должны', description: 'Достичь 500-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 500; } },
-        { id: 'wave_750', icon: '🧭', label: 'Уже виден берег?', description: 'Достичь 750-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 750; } },
-        { id: 'wave_1500', icon: '🌀', label: 'Анти-Спираль на минималках', description: 'Достичь 1500-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 1500; } },
-        { id: 'wave_2000', icon: '🌌', label: 'Сменщик океана', description: 'Достичь 2000-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 2000; } },
-        { id: 'wave_5000', icon: '🛟', label: 'Море закончилось, где продолжение?', description: 'Достичь 5000-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 5000; } },
-        { id: 'wave_10000', icon: '♾️', label: 'Тут вообще есть финал?', description: 'Достичь 10000-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 10000; } },
-        { id: 'bosses_1', icon: '🎯', label: 'Разминка закончилась', description: 'Победить 1 босса', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 1; } },
-        { id: 'bosses_5', icon: '📋', label: 'Начальник отдела боссов', description: 'Победить 5 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 5; } },
-        { id: 'bosses_25', icon: '🪓', label: 'Сокращатель боссов', description: 'Победить 25 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 25; } },
-        { id: 'bosses_50', icon: '🧾', label: 'Боссам не платят за переработку', description: 'Победить 50 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 50; } },
-        { id: 'bosses_100', icon: '⚖️', label: 'Директор по ликвидации', description: 'Победить 100 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 100; } },
-        { id: 'bosses_250', icon: '📊', label: 'Боссовый бухгалтер', description: 'Победить 250 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 250; } },
-        { id: 'bosses_500', icon: '🌠', label: 'Увольнение всей вселенной', description: 'Победить 500 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 500; } },
-        { id: 'wins_1', icon: '🥇', label: 'Так и было задумано', description: 'Одержать 1 победу', unlocked: function (s) { return safeCount(s.total_wins) >= 1; } },
-        { id: 'wins_50', icon: '🎮', label: 'Победа? Какая неожиданность', description: 'Одержать 50 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 50; } },
-        { id: 'wins_100', icon: '🛡️', label: 'Я не проигрываю, я тестирую', description: 'Одержать 100 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 100; } },
-        { id: 'wins_250', icon: '🔨', label: 'Кнопка победы запала', description: 'Одержать 250 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 250; } },
-        { id: 'wins_500', icon: '🏅', label: 'Профессиональный победитель', description: 'Одержать 500 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 500; } },
-        { id: 'wins_1000', icon: '👑', label: 'Судья сказал: хватит', description: 'Одержать 1000 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 1000; } },
-        { id: 'cards_100', icon: '🃏', label: 'Картонный коллекционер', description: 'Получить 100 карт', unlocked: function (s) { return safeCount(s.cards_collected) >= 100; } },
-        { id: 'cards_250', icon: '💼', label: 'Карточный барон', description: 'Получить 250 карт', unlocked: function (s) { return safeCount(s.cards_collected) >= 250; } },
-        { id: 'cards_500', icon: '📦', label: 'Хранитель склада', description: 'Получить 500 карт', unlocked: function (s) { return safeCount(s.cards_collected) >= 500; } },
-        { id: 'cards_1000', icon: '🕳️', label: 'Карточная чёрная дыра', description: 'Получить 1000 карт', unlocked: function (s) { return safeCount(s.cards_collected) >= 1000; } },
-        { id: 'rebirth_1', icon: '🔁', label: 'Обновление личности', description: 'Совершить 1 перерождение', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 1; } },
-        { id: 'rebirth_10', icon: '♻️', label: 'Перезагрузился и вернулся', description: 'Совершить 10 перерождений', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 10; } },
-        { id: 'rebirth_25', icon: '🔥', label: 'Феникс с подпиской', description: 'Совершить 25 перерождений', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 25; } },
-        { id: 'rebirth_50', icon: '💀', label: 'Смерть, отмена', description: 'Совершить 50 перерождений', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 50; } },
-        { id: 'rebirth_100', icon: '🧬', label: 'Бессмертие по договору', description: 'Совершить 100 перерождений', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 100; } },
-        { id: 'clicks_1000', icon: '🖱️', label: 'Мышь просит отпуск', description: 'Сделать 1000 кликов', unlocked: function (s) { return safeCount(s.total_clicks) >= 1000; } },
-        { id: 'clicks_10000', icon: '👆', label: 'Кликательный аппарат', description: 'Сделать 10000 кликов', unlocked: function (s) { return safeCount(s.total_clicks) >= 10000; } },
-        { id: 'clicks_50000', icon: '⚡', label: 'Пальцы в эндгейме', description: 'Сделать 50000 кликов', unlocked: function (s) { return safeCount(s.total_clicks) >= 50000; } },
-        { id: 'clicks_100000', icon: '⌨️', label: 'Эргономика? Не слышал', description: 'Сделать 100000 кликов', unlocked: function (s) { return safeCount(s.total_clicks) >= 100000; } },
-        { id: 'clicks_1000000', icon: '🦖', label: 'Почётный кликозавр', description: 'Сделать 1000000 кликов', unlocked: function (s) { return safeCount(s.total_clicks) >= 1000000; } },
-        { id: 'multiverse_parasite', icon: '🌀', label: 'Сдал комнату Анти-Спирали', description: 'Достичь 1500-й волны и победить 50 боссов', unlocked: function (s) { return safeCount(s.highest_wave) >= 1500 && safeCount(s.bosses_defeated) >= 50; } },
-        { id: 'overqualified', icon: '🎓', label: 'Слишком квалифицирован для туториала', description: 'Одержать 500 побед и получить 250 карт', unlocked: function (s) { return safeCount(s.total_wins) >= 500 && safeCount(s.cards_collected) >= 250; } },
-        { id: 'rebirth_loop', icon: '🔄', label: 'Я опять здесь?!', description: 'Совершить 25 перерождений и одержать 100 побед', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 25 && safeCount(s.total_wins) >= 100; } },
-        { id: 'card_singularity', icon: '🕳️', label: 'Картонная сингулярность', description: 'Получить 1000 карт и сделать 100000 кликов', unlocked: function (s) { return safeCount(s.cards_collected) >= 1000 && safeCount(s.total_clicks) >= 100000; } },
-        { id: 'final_chairman', icon: '🌌', label: 'Последний админ реальности', description: 'Достичь 10000-й волны и победить 500 боссов', unlocked: function (s) { return safeCount(s.highest_wave) >= 10000 && safeCount(s.bosses_defeated) >= 500; } },
+        { id: 'wave_100', icon: '🌊', label: 'Покоритель волн', description: 'Достичь 250-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 250; } },
+        { id: 'boss_hunter', icon: '👹', label: 'Убийца боссов', description: 'Победить 50 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 50; } },
+        { id: 'collector', icon: '🎴', label: 'Коллекционер', description: 'Собрать 150 карт', unlocked: function (s) { return safeCount(s.cards_collected) >= 150; } },
+        { id: 'champion', icon: '🏆', label: 'Чемпион', description: 'Одержать 100 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 100; } },
+        { id: 'reborn', icon: '♻️', label: 'Перерождённый', description: 'Совершить 15 перерождений', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 15; } },
+        { id: 'multiverse_legend', icon: '🌌', label: 'Легенда мультивселенной', description: 'Достичь 1500-й волны и победить 50 боссов', rewardPoints: 1000, unlocked: function (s) { return safeCount(s.highest_wave) >= 1500 && safeCount(s.bosses_defeated) >= 50; } },
+        { id: 'wave_200', icon: '🌊', label: 'Морской налоговик', description: 'Достичь 400-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 400; } },
+        { id: 'wave_300', icon: '🏄', label: 'Сёрфер апокалипсиса', description: 'Достичь 600-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 600; } },
+        { id: 'wave_500', icon: '🌊', label: 'Волны мне должны', description: 'Достичь 900-й волны', rewardPoints: 200, unlocked: function (s) { return safeCount(s.highest_wave) >= 900; } },
+        { id: 'wave_750', icon: '🧭', label: 'Уже виден берег?', description: 'Достичь 1200-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 1200; } },
+        { id: 'wave_1500', icon: '🌀', label: 'Анти-Спираль на минималках', description: 'Достичь 2500-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 2500; } },
+        { id: 'wave_2000', icon: '🌌', label: 'Сменщик океана', description: 'Достичь 3000-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 3000; } },
+        { id: 'wave_5000', icon: '🛟', label: 'Море закончилось, где продолжение?', description: 'Достичь 7500-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 7500; } },
+        { id: 'wave_10000', icon: '♾️', label: 'Тут вообще есть финал?', description: 'Достичь 15000-й волны', unlocked: function (s) { return safeCount(s.highest_wave) >= 15000; } },
+        { id: 'bosses_1', icon: '🎯', label: 'Разминка закончилась', description: 'Победить 3 босса', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 3; } },
+        { id: 'bosses_5', icon: '📋', label: 'Начальник отдела боссов', description: 'Победить 15 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 15; } },
+        { id: 'bosses_25', icon: '🪓', label: 'Сокращатель боссов', description: 'Победить 60 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 60; } },
+        { id: 'bosses_50', icon: '🧾', label: 'Боссам не платят за переработку', description: 'Победить 125 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 125; } },
+        { id: 'bosses_100', icon: '⚖️', label: 'Директор по ликвидации', description: 'Победить 250 боссов', rewardPoints: 350, unlocked: function (s) { return safeCount(s.bosses_defeated) >= 250; } },
+        { id: 'bosses_250', icon: '📊', label: 'Боссовый бухгалтер', description: 'Победить 600 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 600; } },
+        { id: 'bosses_500', icon: '🌠', label: 'Увольнение всей вселенной', description: 'Победить 1200 боссов', unlocked: function (s) { return safeCount(s.bosses_defeated) >= 1200; } },
+        { id: 'wins_1', icon: '🥇', label: 'Так и было задумано', description: 'Одержать 5 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 5; } },
+        { id: 'wins_50', icon: '🎮', label: 'Победа? Какая неожиданность', description: 'Одержать 100 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 100; } },
+        { id: 'wins_100', icon: '🛡️', label: 'Я не проигрываю, я тестирую', description: 'Одержать 250 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 250; } },
+        { id: 'wins_250', icon: '🔨', label: 'Кнопка победы запала', description: 'Одержать 500 побед', rewardPoints: 400, unlocked: function (s) { return safeCount(s.total_wins) >= 500; } },
+        { id: 'wins_500', icon: '🏅', label: 'Профессиональный победитель', description: 'Одержать 1200 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 1200; } },
+        { id: 'wins_1000', icon: '👑', label: 'Судья сказал: хватит', description: 'Одержать 2500 побед', unlocked: function (s) { return safeCount(s.total_wins) >= 2500; } },
+        { id: 'cards_100', icon: '🃏', label: 'Картонный коллекционер', description: 'Собрать 150 карт', unlocked: function (s) { return safeCount(s.cards_collected) >= 150; } },
+        { id: 'cards_250', icon: '💼', label: 'Карточный барон', description: 'Собрать 400 карт', unlocked: function (s) { return safeCount(s.cards_collected) >= 400; } },
+        { id: 'cards_500', icon: '📦', label: 'Хранитель склада', description: 'Собрать 900 карт', rewardPoints: 500, unlocked: function (s) { return safeCount(s.cards_collected) >= 900; } },
+        { id: 'cards_1000', icon: '🕳️', label: 'Карточная чёрная дыра', description: 'Собрать 2000 карт', unlocked: function (s) { return safeCount(s.cards_collected) >= 2000; } },
+        { id: 'rebirth_1', icon: '🔁', label: 'Обновление личности', description: 'Совершить 3 перерождений', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 3; } },
+        { id: 'rebirth_10', icon: '♻️', label: 'Перезагрузился и вернулся', description: 'Совершить 20 перерождений', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 20; } },
+        { id: 'rebirth_25', icon: '🔥', label: 'Феникс с подпиской', description: 'Совершить 50 перерождений', rewardPoints: 750, unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 50; } },
+        { id: 'rebirth_50', icon: '💀', label: 'Смерть, отмена', description: 'Совершить 100 перерождений', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 100; } },
+        { id: 'rebirth_100', icon: '🧬', label: 'Бессмертие по договору', description: 'Совершить 200 перерождений', unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 200; } },
+        { id: 'clicks_1000', icon: '🖱️', label: 'Мышь просит отпуск', description: 'Сделать 5000 кликов', unlocked: function (s) { return safeCount(s.total_clicks) >= 5000; } },
+        { id: 'clicks_10000', icon: '👆', label: 'Кликательный аппарат', description: 'Сделать 25000 кликов', unlocked: function (s) { return safeCount(s.total_clicks) >= 25000; } },
+        { id: 'clicks_50000', icon: '⚡', label: 'Пальцы в эндгейме', description: 'Сделать 100000 кликов', unlocked: function (s) { return safeCount(s.total_clicks) >= 100000; } },
+        { id: 'clicks_100000', icon: '⌨️', label: 'Эргономика? Не слышал', description: 'Сделать 250000 кликов', rewardPoints: 300, unlocked: function (s) { return safeCount(s.total_clicks) >= 250000; } },
+        { id: 'clicks_1000000', icon: '🦖', label: 'Почётный кликозавр', description: 'Сделать 2500000 кликов', unlocked: function (s) { return safeCount(s.total_clicks) >= 2500000; } },
+        { id: 'multiverse_parasite', icon: '🌀', label: 'Сдал комнату Анти-Спирали', description: 'Достичь 3000-й волны и победить 150 боссов', rewardPoints: 2000, unlocked: function (s) { return safeCount(s.highest_wave) >= 3000 && safeCount(s.bosses_defeated) >= 150; } },
+        { id: 'overqualified', icon: '🎓', label: 'Слишком квалифицирован для туториала', description: 'Одержать 1000 побед и собрать 500 карт', rewardPoints: 1000, unlocked: function (s) { return safeCount(s.total_wins) >= 1000 && safeCount(s.cards_collected) >= 500; } },
+        { id: 'rebirth_loop', icon: '🔄', label: 'Я опять здесь?!', description: 'Совершить 50 перерождений и одержать 250 побед', rewardPoints: 1200, unlocked: function (s) { return safeCount(s.rebirth_count, 1000000) >= 50 && safeCount(s.total_wins) >= 250; } },
+        { id: 'card_singularity', icon: '🕳️', label: 'Картонная сингулярность', description: 'Собрать 2000 карт и сделать 250000 кликов', rewardPoints: 1500, unlocked: function (s) { return safeCount(s.cards_collected) >= 2000 && safeCount(s.total_clicks) >= 250000; } },
+        { id: 'final_chairman', icon: '🌌', label: 'Последний админ реальности', description: 'Достичь 15000-й волны и победить 1200 боссов', rewardPoints: 5000, unlocked: function (s) { return safeCount(s.highest_wave) >= 15000 && safeCount(s.bosses_defeated) >= 1200; } },
     ];
 
     function titleById(id) {
@@ -376,6 +376,7 @@
         return title ? title.icon + ' ' + title.label : '';
     }
     function titleRequirements(title) {
+        var overrides = {"wave_100":250,"wave_200":400,"wave_300":600,"wave_500":900,"wave_750":1200,"wave_1500":2500,"wave_2000":3000,"wave_5000":7500,"wave_10000":15000,"bosses_1":3,"bosses_5":15,"bosses_25":60,"bosses_50":125,"bosses_100":250,"bosses_250":600,"bosses_500":1200,"wins_1":5,"wins_50":100,"wins_100":250,"wins_250":500,"wins_500":1200,"wins_1000":2500,"cards_100":150,"cards_250":400,"cards_500":900,"cards_1000":2000,"rebirth_1":3,"rebirth_10":20,"rebirth_25":50,"rebirth_50":100,"rebirth_100":200,"clicks_1000":5000,"clicks_10000":25000,"clicks_50000":100000,"clicks_100000":250000,"clicks_1000000":2500000};
         var match = title.id.match(/^(wave|bosses|wins|cards|rebirth|clicks)_(\d+)$/);
         var simple = {
             wave: { key: 'highest_wave', label: 'Максимальная волна' },
@@ -386,78 +387,219 @@
             clicks: { key: 'total_clicks', label: 'Клики' }
         };
         if (match && simple[match[1]]) {
-            return [{ key: simple[match[1]].key, label: simple[match[1]].label, target: Number(match[2]) }];
+            return [{ key: simple[match[1]].key, label: simple[match[1]].label, target: overrides[title.id] || Number(match[2]) }];
         }
         var combined = {
-            boss_hunter: [{ key: 'bosses_defeated', label: 'Побеждённые боссы', target: 10 }],
-            collector: [{ key: 'cards_collected', label: 'Полученные карты', target: 50 }],
-            champion: [{ key: 'total_wins', label: 'Победы', target: 25 }],
-            reborn: [{ key: 'rebirth_count', label: 'Перерождения', target: 5 }],
+            boss_hunter: [{ key: 'bosses_defeated', label: 'Побеждённые боссы', target: 50 }],
+            collector: [{ key: 'cards_collected', label: 'Полученные карты', target: 150 }],
+            champion: [{ key: 'total_wins', label: 'Победы', target: 100 }],
+            reborn: [{ key: 'rebirth_count', label: 'Перерождения', target: 15 }],
             multiverse_legend: [
-                { key: 'highest_wave', label: 'Максимальная волна', target: 1000 },
-                { key: 'bosses_defeated', label: 'Побеждённые боссы', target: 15 }
-            ],
-            multiverse_parasite: [
                 { key: 'highest_wave', label: 'Максимальная волна', target: 1500 },
                 { key: 'bosses_defeated', label: 'Побеждённые боссы', target: 50 }
             ],
+            multiverse_parasite: [
+                { key: 'highest_wave', label: 'Максимальная волна', target: 3000 },
+                { key: 'bosses_defeated', label: 'Побеждённые боссы', target: 150 }
+            ],
             overqualified: [
-                { key: 'total_wins', label: 'Победы', target: 500 },
-                { key: 'cards_collected', label: 'Полученные карты', target: 250 }
+                { key: 'total_wins', label: 'Победы', target: 1000 },
+                { key: 'cards_collected', label: 'Полученные карты', target: 500 }
             ],
             rebirth_loop: [
-                { key: 'rebirth_count', label: 'Перерождения', target: 25 },
-                { key: 'total_wins', label: 'Победы', target: 100 }
+                { key: 'rebirth_count', label: 'Перерождения', target: 50 },
+                { key: 'total_wins', label: 'Победы', target: 250 }
             ],
             card_singularity: [
-                { key: 'cards_collected', label: 'Полученные карты', target: 1000 },
-                { key: 'total_clicks', label: 'Клики', target: 100000 }
+                { key: 'cards_collected', label: 'Полученные карты', target: 2000 },
+                { key: 'total_clicks', label: 'Клики', target: 250000 }
             ],
             final_chairman: [
-                { key: 'highest_wave', label: 'Максимальная волна', target: 10000 },
-                { key: 'bosses_defeated', label: 'Побеждённые боссы', target: 500 }
+                { key: 'highest_wave', label: 'Максимальная волна', target: 15000 },
+                { key: 'bosses_defeated', label: 'Побеждённые боссы', target: 1200 }
             ]
         };
         return combined[title.id] || [];
     }
 
-    function showAchievementTitleDetails(detail, title, stats) {
+    function showAchievementTitleDetails(_detail, title, stats, allowRewardClaim) {
         var currentStats = stats || {};
         var unlocked = title.unlocked(currentStats);
-        detail.replaceChildren();
+        var overlay = byId('modalOverlay');
+        var content = byId('modalContent');
+        if (!overlay || !content) {
+            if (typeof window.showModal === 'function') window.showModal(title.icon + ' ' + title.label, title.description);
+            return;
+        }
+        if (typeof window.sfxUIModalOpen === 'function') window.sfxUIModalOpen();
+        content.replaceChildren();
 
-        var heading = node('div', 'achievement-title-detail-heading', title.icon + ' ' + title.label);
-        heading.style.cssText = 'font-size:13px;font-weight:950;color:#ffe29a;margin-bottom:5px;';
-        detail.appendChild(heading);
+        var heading = node('h2', 'achievement-title-modal-heading', title.icon + ' ' + title.label);
+        heading.style.cssText = 'margin:0 0 14px;color:#ffe29a;font-size:21px;font-weight:950;';
+        content.appendChild(heading);
 
-        var status = node('div', 'achievement-title-detail-status',
-            unlocked ? '✅ Титул уже открыт' : '🔒 Титул заблокирован');
-        status.style.cssText = 'display:inline-block;margin:0 0 7px;padding:3px 7px;border-radius:7px;font-size:10px;font-weight:900;color:' +
-            (unlocked ? '#9ff0b0;background:rgba(55,190,95,.12);' : '#d0c6e3;background:rgba(255,255,255,.06);');
-        detail.appendChild(status);
+        var body = node('div', 'achievement-title-modal-body');
+        body.style.cssText = 'display:flex;flex-direction:column;gap:10px;color:#e9e3f5;font-size:13px;line-height:1.6;';
+        var status = node('div', 'achievement-title-detail-status', unlocked ? '✅ Титул уже открыт' : '🔒 Титул ещё не получен');
+        status.style.cssText = 'align-self:flex-start;padding:5px 9px;border-radius:8px;font-size:11px;font-weight:900;color:' +
+            (unlocked ? '#9ff0b0;background:rgba(55,190,95,.12);' : '#c8c8cf;background:rgba(255,255,255,.07);');
+        body.appendChild(status);
 
-        var instruction = node('p', 'achievement-title-detail-instruction',
-            'Как получить: ' + title.description + '.');
-        instruction.style.cssText = 'margin:0 0 7px;color:#e9e3f5;';
-        detail.appendChild(instruction);
+        var instruction = node('p', 'achievement-title-detail-instruction', 'Как получить: ' + title.description + '.');
+        instruction.style.cssText = 'margin:0;color:#f1edf9;';
+        body.appendChild(instruction);
 
         var requirements = titleRequirements(title);
         if (requirements.length) {
-            var progressText = requirements.map(function (requirement) {
-                return requirement.label + ': ' + safeCount(currentStats[requirement.key]) + ' / ' + requirement.target;
-            }).join(' · ');
-            var progress = node('p', 'achievement-title-detail-progress', 'Текущий прогресс: ' + progressText);
-            progress.style.cssText = 'margin:0 0 7px;color:#c9bdf0;';
-            detail.appendChild(progress);
+            var progress = node('div', 'achievement-title-modal-progress');
+            progress.style.cssText = 'display:flex;flex-direction:column;gap:7px;padding:11px 12px;border:1px solid rgba(155,121,255,.2);border-radius:12px;background:rgba(155,121,255,.06);';
+            requirements.forEach(function (requirement) {
+                var current = safeCount(currentStats[requirement.key]);
+                var line = node('div', '');
+                line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;';
+                line.appendChild(node('span', '', requirement.label));
+                var value = node('strong', '', formatCount(current) + ' / ' + formatCount(requirement.target));
+                value.style.cssText = 'color:' + (current >= requirement.target ? '#9ff0b0' : '#d1c5f4') + ';white-space:nowrap;';
+                line.appendChild(value);
+                progress.appendChild(line);
+            });
+            body.appendChild(progress);
         }
 
-        var nextStep = node('p', 'achievement-title-detail-next',
-            unlocked
-                ? 'Его можно выбрать в списке «Титул над именем» выше.'
-                : 'Выполни условие выше, чтобы открыть титул и выбрать его в списке.');
-        nextStep.style.cssText = 'margin:0;color:#b8b0c9;';
-        detail.appendChild(nextStep);
+        if (title.rewardPoints) {
+            var rewardBox = node('div', 'achievement-title-modal-reward');
+            rewardBox.style.cssText = 'padding:12px;border:1px solid rgba(246,181,27,.26);border-radius:12px;background:linear-gradient(120deg,rgba(246,181,27,.09),rgba(155,121,255,.07));';
+            rewardBox.appendChild(node('strong', '', '🎁 Награда за титул: +' + formatCount(title.rewardPoints) + ' ⭐'));
+            var rewardHint = node('p', '', unlocked ? 'Награда выдаётся один раз.' : 'Награду можно забрать после получения титула.');
+            rewardHint.style.cssText = 'margin:4px 0 0;color:#c7bfd7;font-size:11px;';
+            rewardBox.appendChild(rewardHint);
+
+            if (allowRewardClaim && unlocked && currentUser) {
+                var canReceive = typeof window.MBCanReceiveTitleRewardPoints === 'function' && window.MBCanReceiveTitleRewardPoints();
+                var buttonLabel = canReceive ? 'Забрать награду · +' + formatCount(title.rewardPoints) + ' ⭐' : 'Открой сохранение для получения награды';
+                var claimButton = actionButton(buttonLabel, 'btn btn-primary', function () {
+                    claimAchievementTitleReward(title.id, claimButton);
+                });
+                claimButton.disabled = !canReceive;
+                claimButton.style.cssText = 'width:100%;margin-top:10px;padding:11px;font-size:12px;';
+                claimButton.setAttribute('data-title-reward-button', title.id);
+                rewardBox.appendChild(claimButton);
+
+                db.from('mb_title_reward_claims').select('title_id, granted_at, reward_points')
+                    .eq('user_id', currentUser.id).eq('title_id', title.id).maybeSingle()
+                    .then(function (result) {
+                        if (!claimButton.isConnected || result.error || !result.data) return;
+                        if (result.data.granted_at) {
+                            claimButton.textContent = '✓ Награда уже получена';
+                            claimButton.disabled = true;
+                        } else {
+                            claimButton.textContent = canReceive
+                                ? 'Продолжить получение · +' + formatCount(result.data.reward_points) + ' ⭐'
+                                : 'Открой сохранение для продолжения';
+                            claimButton.disabled = !canReceive;
+                        }
+                    }).catch(function (error) {
+                        console.warn('[MB titles] Reward status check failed:', error && error.message ? error.message : error);
+                    });
+            } else if (allowRewardClaim && unlocked && !currentUser) {
+                rewardBox.appendChild(node('p', 'clan-muted', 'Войди в аккаунт, чтобы забрать награду.'));
+            } else if (!allowRewardClaim && unlocked) {
+                rewardBox.appendChild(node('p', 'clan-muted', 'Награду можно забрать из собственной коллекции титулов.'));
+            }
+            body.appendChild(rewardBox);
+        }
+
+        var footerHint = node('p', 'achievement-title-detail-next',
+            unlocked ? 'Титул можно выбрать в поле «Титул над именем» в профиле.'
+                : 'Выполни все условия, чтобы открыть титул.');
+        footerHint.style.cssText = 'margin:0;color:#b8b0c9;';
+        body.appendChild(footerHint);
+        content.appendChild(body);
+
+        var close = actionButton('Закрыть', 'btn btn-primary', function () {
+            if (typeof window.closeModal === 'function') window.closeModal();
+            else overlay.style.display = 'none';
+        });
+        close.style.cssText = 'width:100%;padding:12px;margin-top:17px;';
+        content.appendChild(close);
+        overlay.style.display = 'flex';
+        overlay.setAttribute('aria-hidden', 'false');
     }
+
+    async function claimAchievementTitleReward(titleId, button) {
+        var title = titleById(titleId);
+        if (!title || !title.rewardPoints || !currentUser || !db) return;
+        if (!title.unlocked(Object.assign({}, currentProfile || {}, readLocalGameStats() || {}))) {
+            setNotice('Сначала выполни условия этого титула.', 'warning');
+            return;
+        }
+        if (typeof window.MBCanReceiveTitleRewardPoints !== 'function' || !window.MBCanReceiveTitleRewardPoints()) {
+            setNotice('Сначала открой сохранение игры и дождись подключения облака, чтобы награду можно было сохранить.', 'warning');
+            return;
+        }
+        if (button) {
+            button.disabled = true;
+            button.textContent = 'Проверяем награду…';
+        }
+        var userId = currentUser.id;
+        var client = db;
+        try {
+            var currentStats = readLocalGameStats();
+            if (currentStats) {
+                var syncResult = await client.from('profiles').update(currentStats).eq('id', userId);
+                if (syncResult.error) throw syncResult.error;
+            }
+
+            var claim = await client.rpc('mb_claim_achievement_title_reward', { p_title_id: titleId });
+            if (claim.error) throw claim.error;
+            var reward = claim.data;
+            if (!reward || reward.ok !== true) {
+                if (reward && reward.code === 'title_locked') throw new Error('title_locked');
+                if (reward && reward.code === 'title_has_no_reward') throw new Error('title_has_no_reward');
+                throw new Error((reward && reward.code) || 'title_reward_failed');
+            }
+            if (reward.already_claimed) {
+                if (button) {
+                    button.textContent = '✓ Награда уже получена';
+                    button.disabled = true;
+                }
+                return;
+            }
+
+            var amount = safeCount(reward.reward_points, 5000);
+            if (!amount || typeof window.MBGrantTitleRewardPoints !== 'function' || !window.MBGrantTitleRewardPoints(amount, titleId)) {
+                throw new Error('title_reward_apply_failed');
+            }
+
+            if (typeof window.mbFlushCloudSave === 'function') {
+                var flushed = await window.mbFlushCloudSave();
+                if (flushed === false) throw new Error('title_reward_sync_pending');
+            }
+
+            var completed = await client.rpc('mb_complete_achievement_title_reward', { p_title_id: titleId });
+            if (completed.error) throw completed.error;
+            if (!completed.data || completed.data.ok !== true) throw new Error('title_reward_complete_failed');
+
+            if (button) {
+                button.textContent = '✓ Награда получена: +' + formatCount(amount) + ' ⭐';
+                button.disabled = true;
+            }
+            setNotice('Награда за титул «' + title.label + '» получена: +' + formatCount(amount) + ' ⭐.', 'success');
+        } catch (error) {
+            console.warn('[MB titles] Reward claim did not fully finish:', error && error.message ? error.message : error);
+            if (button) {
+                button.disabled = false;
+                button.textContent = 'Повторить получение · +' + formatCount(title.rewardPoints) + ' ⭐';
+            }
+            var message = String(error && error.message || '');
+            if (message === 'title_locked') setNotice('На сервере ещё не подтверждено условие титула. Попробуй после синхронизации статистики.', 'warning');
+            else if (message === 'title_reward_sync_pending') setNotice('Награда добавлена в сохранение, но облако ещё не подтвердило синхронизацию. Нажми «Повторить получение»: повторной выплаты не будет.', 'warning');
+            else if (message === 'title_reward_apply_failed') setNotice('Награда ожидает выдачи. Открой игровой слот и повтори получение.', 'warning');
+            else setNotice('Не удалось завершить выдачу награды: ' + friendlyError(error), 'error');
+        }
+    }
+
+    window.MBClaimAchievementTitleReward = claimAchievementTitleReward;
 
     function renderAchievementBadges(containerId, stats, includeLocked) {
         var container = byId(containerId);
@@ -466,13 +608,6 @@
         container.replaceChildren();
         var unlockedCount = 0;
         var visibleCount = 0;
-        var detail = node('div', 'achievement-title-detail');
-        detail.style.cssText = 'display:block;flex:0 0 100%;box-sizing:border-box;padding:12px 14px;border:1px solid rgba(155,121,255,.28);border-radius:12px;background:linear-gradient(135deg,rgba(155,121,255,.09),rgba(246,181,27,.06));color:#e9e3f5;font-size:12px;line-height:1.5;margin-top:4px;';
-        var prompt = node('div', 'achievement-title-detail-prompt', 'Нажми на любой титул, чтобы узнать условие получения и текущий прогресс.');
-        prompt.style.cssText = 'color:#c9bdf0;';
-        detail.appendChild(prompt);
-        var selectedBadge = null;
-
         ACHIEVEMENT_TITLES.forEach(function (title) {
             var unlocked = title.unlocked(currentStats);
             if (unlocked) unlockedCount++;
@@ -481,30 +616,21 @@
             var badge = node('button', 'achievement-badge' + (unlocked ? '' : ' locked'));
             badge.type = 'button';
             badge.title = 'Нажми, чтобы узнать: ' + title.description;
+            badge.setAttribute('aria-label', (unlocked ? 'Получен: ' : 'Не получен: ') + title.label + '. ' + title.description);
             badge.setAttribute('aria-pressed', 'false');
             badge.style.cssText = 'cursor:pointer;text-align:left;appearance:none;-webkit-appearance:none;font-family:inherit;transition:filter .15s,border-color .15s,outline .15s;';
-            badge.appendChild(node('span', '', unlocked ? title.icon : '🔒'));
-            badge.appendChild(node('span', '', unlocked ? title.label : title.label + ' · закрыто'));
+            badge.appendChild(node('span', 'achievement-badge-icon', title.icon));
+            badge.appendChild(node('span', 'achievement-badge-label', title.label + (unlocked ? '' : ' · закрыто')));
             badge.addEventListener('click', function () {
-                if (selectedBadge) {
-                    selectedBadge.setAttribute('aria-pressed', 'false');
-                    selectedBadge.style.outline = 'none';
-                    selectedBadge.style.filter = '';
-                }
-                selectedBadge = badge;
-                badge.setAttribute('aria-pressed', 'true');
-                badge.style.outline = '2px solid rgba(246,181,27,.75)';
-                badge.style.filter = 'brightness(1.18)';
-                showAchievementTitleDetails(detail, title, currentStats);
+                showAchievementTitleDetails(null, title, currentStats, containerId === 'clanProfileBadges');
             });
             container.appendChild(badge);
         });
-
-        if (!unlockedCount && !includeLocked) {
-            container.appendChild(node('p', 'clan-muted', 'Значки пока не открыты — выполняй испытания, чтобы получить первый.'));
+        if (!visibleCount) {
+            container.appendChild(node('p', 'clan-muted', 'Титулы пока не открыты — выполняй испытания, чтобы получить первый.'));
         }
-        if (visibleCount) container.appendChild(detail);
     }
+
     function renderTitlePicker(stats, selectedId) {
         var select = byId('clanProfileTitle');
         if (select) {
