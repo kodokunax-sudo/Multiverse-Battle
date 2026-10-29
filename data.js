@@ -38,29 +38,29 @@ function getWorldForWave(w) { for (let world of worlds) { if (w >= world.minWave
 const customCardTemplates = {
     "Обычная": [
         { name: "Луффи", universe: "One Piece", damage: 4, hp: 8, speed: 0.6, desc: "Базовый Луффи. Никаких способностей, просто бьёт.",
-            masteryTitle: "Пробуждённый: Луффи", masteryTitleId: "mastery_character_d0f6ddc9", masteryTitleIcon: "✦" },
+            masteryTitle: "Наследник воли Джой Боя", masteryTitleId: "mastery_character_d0f6ddc9", masteryTitleIcon: "✦" },
         { name: "Усопп", universe: "One Piece", damage: 3, hp: 6, speed: 0.4, desc: "Трусливый снайпер. Без способностей.",
-            masteryTitle: "Пробуждённый: Усопп", masteryTitleId: "mastery_character_9e346493", masteryTitleIcon: "✦" },
+            masteryTitle: "Снайпер, которому поверило море", masteryTitleId: "mastery_character_9e346493", masteryTitleIcon: "✦" },
         { name: "Нами", universe: "One Piece", damage: 2, hp: 8, speed: 0.5, desc: "Навигатор. Без способностей.",
-            masteryTitle: "Пробуждённый: Нами", masteryTitleId: "mastery_character_9808410c", masteryTitleIcon: "✦" },
+            masteryTitle: "Картограф Гранд-Лайна", masteryTitleId: "mastery_character_9808410c", masteryTitleIcon: "✦" },
         { name: "Ездок", universe: "OPM", damage: 1, hp: 11, speed: 0.3, desc: "Герой класса С. Много HP.",
-            masteryTitle: "Пробуждённый: Ездок", masteryTitleId: "mastery_character_de506a67", masteryTitleIcon: "✦" },
+            masteryTitle: "Рыцарь справедливого велосипеда", masteryTitleId: "mastery_character_de506a67", masteryTitleIcon: "✦" },
         { name: "Деку (безпричудный)", universe: "MHA", damage: 2, hp: 12, speed: 0.5, ability: { type: "desperateStrike", value: 0.05, threshold: 0.30, desc: "+5% урона при HP ниже 30%" }, desc: "Без причуды, но мечтающий стать героем. Разве не глупо? В критический момент помогает команде наносить больше урона.",
-            masteryTitle: "Пробуждённый: Деку (безпричудный)", masteryTitleId: "mastery_character_96f4c2ef", masteryTitleIcon: "✦" },
+            masteryTitle: "Герой без дара, но не без воли", masteryTitleId: "mastery_character_96f4c2ef", masteryTitleIcon: "✦" },
         { name: "Консперон (обычный)", universe: "Dandadan", damage: 4, hp: 5, speed: 0.7, desc: "ИНОПЛОНЕТЯНЫ СУЩЕСТВУЮТ!!!!!",
-            masteryTitle: "Пробуждённый: Консперон (обычный)", masteryTitleId: "mastery_character_a0558461", masteryTitleIcon: "✦" },
+            masteryTitle: "Посланник зелёных человечков", masteryTitleId: "mastery_character_a0558461", masteryTitleIcon: "✦" },
         { name: "Танджиро", universe: "DS", damage: 3, hp: 10, speed: 0.5, desc: "Охотник на демонов.",
-            masteryTitle: "Пробуждённый: Танджиро", masteryTitleId: "mastery_character_d9e8e302", masteryTitleIcon: "✦" },
+            masteryTitle: "Клинок милосердия", masteryTitleId: "mastery_character_d9e8e302", masteryTitleIcon: "✦" },
         { name: "Уборщик Коби", universe: "One piece", damage: 1, hp: 1, speed: 0.1, desc: "Самый слабый персонаж. С него всё начиналось.",
-            masteryTitle: "Пробуждённый: Уборщик Коби", masteryTitleId: "mastery_character_319d7b5d", masteryTitleIcon: "✦" },
+            masteryTitle: "Младший мечник флота", masteryTitleId: "mastery_character_319d7b5d", masteryTitleIcon: "✦" },
         { name: "Аста", universe: "Black Clover", damage: 3, hp: 8, speed: 0.6, desc: "Маг без магии с анти-мечом.",
-            masteryTitle: "Пробуждённый: Аста", masteryTitleId: "mastery_character_8e145eb8", masteryTitleIcon: "✦" },
+            masteryTitle: "Король антимагии", masteryTitleId: "mastery_character_8e145eb8", masteryTitleIcon: "✦" },
         { name: "Хьюи (слабый)", universe: "The Boys", damage: 2, hp: 10, speed: 0.4, desc: "Парень, чью девушку сбил А Train.",
-            masteryTitle: "Пробуждённый: Хьюи (слабый)", masteryTitleId: "mastery_character_f41f6e34", masteryTitleIcon: "✦" },
+            masteryTitle: "Парень, который не отступил", masteryTitleId: "mastery_character_f41f6e34", masteryTitleIcon: "✦" },
         { name: "Френчи", universe: "The Boys", damage: 4, hp: 6, speed: 0.5, desc: "Оружейник и спецназовец.",
-            masteryTitle: "Пробуждённый: Френчи", masteryTitleId: "mastery_character_54ffd2b4", masteryTitleIcon: "✦" },
+            masteryTitle: "Мастер невозможных устройств", masteryTitleId: "mastery_character_54ffd2b4", masteryTitleIcon: "✦" },
         { name: "Дональд", universe: "Invincible", damage: 3, hp: 9, speed: 0.4, desc: "К счастью это не Дональд Трамп....",
-            masteryTitle: "Пробуждённый: Дональд", masteryTitleId: "mastery_character_9c41001b", masteryTitleIcon: "✦" },
+            masteryTitle: "Агент, которого не сломать", masteryTitleId: "mastery_character_9c41001b", masteryTitleIcon: "✦" },
         {
             "name": "Поко",
             "universe": "JoJo", "patchId": "jojo",
@@ -68,7 +68,7 @@ const customCardTemplates = {
             "hp": 7,
             "speed": 0.4,
             "desc": "Мальчик из первой части, который помогает Джонатану найти дорогу и преодолеть страх.",
-            masteryTitle: "Пробуждённый: Поко", masteryTitleId: "mastery_character_9183d180", masteryTitleIcon: "✦"
+            masteryTitle: "Маленький союзник Джонатана", masteryTitleId: "mastery_character_9183d180", masteryTitleIcon: "✦"
         },
         {
             "name": "Дэнни (пёс Джонатана)",
@@ -77,7 +77,7 @@ const customCardTemplates = {
             "hp": 9,
             "speed": 0.45,
             "desc": "Преданный пёс Джонатана. Одна из самых запоминающихся частей его детства.",
-            masteryTitle: "Пробуждённый: Дэнни (пёс Джонатана)", masteryTitleId: "mastery_character_00b89ba0", masteryTitleIcon: "✦"
+            masteryTitle: "Самый верный пёс Джостаров", masteryTitleId: "mastery_character_00b89ba0", masteryTitleIcon: "✦"
         },
         {
             "name": "Эрина Пендлтон (юность)",
@@ -91,40 +91,40 @@ const customCardTemplates = {
                 "desc": "+1% HP после победы"
             },
             "desc": "Подруга детства Джонатана. Не боец, но её поддержка помогает пережить следующий бой.",
-            masteryTitle: "Пробуждённый: Эрина Пендлтон (юность)", masteryTitleId: "mastery_character_b093031f", masteryTitleIcon: "✦"
+            masteryTitle: "Свет рода Пендлтон", masteryTitleId: "mastery_character_b093031f", masteryTitleIcon: "✦"
         }
     ],
     "Редкая": [
         { name: "Брук", universe: "One Piece", damage: 7, hp: 12, speed: 0.9, desc: "Скелет-музыкант. Йохохо!",
-            masteryTitle: "Пробуждённый: Брук", masteryTitleId: "mastery_character_b841843d", masteryTitleIcon: "✦" },
+            masteryTitle: "Музыкант холодного ада", masteryTitleId: "mastery_character_b841843d", masteryTitleIcon: "✦" },
         { name: "Иноске", universe: "DS", damage: 9, hp: 15, speed: 1.0, desc: "Человек-кабан с двумя мечами.",
-            masteryTitle: "Пробуждённый: Иноске", masteryTitleId: "mastery_character_846e91ea", masteryTitleIcon: "✦" },
+            masteryTitle: "Клыки горного кабана", masteryTitleId: "mastery_character_846e91ea", masteryTitleIcon: "✦" },
         { name: "Киллуа", universe: "HxH", damage: 10, hp: 13, speed: 1.3, desc: "Молниеносный ассасин семьи Золдик.",
-            masteryTitle: "Пробуждённый: Киллуа", masteryTitleId: "mastery_character_160eb926", masteryTitleIcon: "✦" },
+            masteryTitle: "Молния дома Золдик", masteryTitleId: "mastery_character_160eb926", masteryTitleIcon: "✦" },
         { name: "Рейген", universe: "Mob 100", damage: 4, hp: 25, speed: 0.5, desc: "Великий экстрасенс XXI века (нет).",
-            masteryTitle: "Пробуждённый: Рейген", masteryTitleId: "mastery_character_911d15b8", masteryTitleIcon: "✦" },
+            masteryTitle: "Величайший экстрасенс (по собственному мнению)", masteryTitleId: "mastery_character_911d15b8", masteryTitleIcon: "✦" },
         { name: "Марк (начало)", universe: "Invincible", damage: 8, hp: 18, speed: 0.8, desc: "Сын Омни-Мэна. Только получил силы.",
-            masteryTitle: "Пробуждённый: Марк (начало)", masteryTitleId: "mastery_character_008cb5e3", masteryTitleIcon: "✦" },
+            masteryTitle: "Наследник Вилтрума", masteryTitleId: "mastery_character_008cb5e3", masteryTitleIcon: "✦" },
         { name: "ММ (Марвин)", universe: "The Boys", damage: 7, hp: 20, speed: 0.6, desc: "Лидер команды Пацаны. Тактик.",
-            masteryTitle: "Пробуждённый: ММ (Марвин)", masteryTitleId: "mastery_character_45f129f7", masteryTitleIcon: "✦" },
+            masteryTitle: "Тактик команды «Пацаны»", masteryTitleId: "mastery_character_45f129f7", masteryTitleIcon: "✦" },
         { name: "Кимико (начало)", universe: "The Boys", damage: 9, hp: 14, speed: 0.9, desc: "Немая убийца с супер-регенерацией.",
-            masteryTitle: "Пробуждённый: Кимико (начало)", masteryTitleId: "mastery_character_001d3777", masteryTitleIcon: "✦" },
+            masteryTitle: "Неукротимое исцеление", masteryTitleId: "mastery_character_001d3777", masteryTitleIcon: "✦" },
         { name: "Ева Уилкинс", universe: "Invincible", damage: 6, hp: 22, speed: 0.7, desc: "Девушка-герой с левитацией.",
-            masteryTitle: "Пробуждённый: Ева Уилкинс", masteryTitleId: "mastery_character_126af18a", masteryTitleIcon: "✦" },
+            masteryTitle: "Архитектор розового света", masteryTitleId: "mastery_character_126af18a", masteryTitleIcon: "✦" },
         {"name":"Тони Тони Чоппер","universe":"One Piece","patchId":"one_piece","damage":8,"hp":20,"speed":0.7,"ability":{"type":"healOnWin","percent":0.02,"desc":"+2% HP после победы"},"desc":"Доктор команды Мугивар. Его медицинские знания помогают отряду восстановиться после боя.",
-            masteryTitle: "Пробуждённый: Тони Тони Чоппер", masteryTitleId: "mastery_character_33b1cf91", masteryTitleIcon: "✦"},
+            masteryTitle: "Доктор с синим носом", masteryTitleId: "mastery_character_33b1cf91", masteryTitleIcon: "✦"},
         {"name":"Нефертари Виви","universe":"One Piece","patchId":"one_piece","damage":7,"hp":18,"speed":0.7,"ability":{"type":"damageAura","value":0.03,"desc":"+3% урона команде"},"desc":"Принцесса Алабасты и союзница пиратов. Поддерживает команду храбростью и тактикой.",
-            masteryTitle: "Пробуждённый: Нефертари Виви", masteryTitleId: "mastery_character_169c2312", masteryTitleIcon: "✦"},
+            masteryTitle: "Принцесса Алабасты", masteryTitleId: "mastery_character_169c2312", masteryTitleIcon: "✦"},
         {"name":"Бон Клей (Мистер 2)","universe":"One Piece","patchId":"one_piece","damage":12,"hp":15,"speed":1,"ability":{"type":"damageMultChance","chance":0.12,"mult":1.2,"desc":"12% шанс нанести ×1,2 урона"},"desc":"Мастер маскировки и стремительных ударов, который всегда сражается за друзей.",
-            masteryTitle: "Пробуждённый: Бон Клей (Мистер 2)", masteryTitleId: "mastery_character_121b1a35", masteryTitleIcon: "✦"},
+            masteryTitle: "Король дружбы и маскировки", masteryTitleId: "mastery_character_121b1a35", masteryTitleIcon: "✦"},
         {"name":"Гальдино (Мистер 3)","universe":"One Piece","patchId":"one_piece","damage":9,"hp":22,"speed":0.55,"ability":{"type":"damageReduction","value":0.03,"desc":"−3% получаемого урона"},"desc":"Хитрый мастер воска. Создаёт защитные конструкции и ловушки.",
-            masteryTitle: "Пробуждённый: Гальдино (Мистер 3)", masteryTitleId: "mastery_character_eb729048", masteryTitleIcon: "✦"},
+            masteryTitle: "Архитектор восковых ловушек", masteryTitleId: "mastery_character_eb729048", masteryTitleIcon: "✦"},
         {"name":"Фокси","universe":"One Piece","patchId":"one_piece","damage":6,"hp":15,"speed":0.55,"statusAbility":{"type":"freezeStacks","value":1,"desc":"Замедление: +1 клик до контратаки"},"desc":"Капитан Пиратов Фокси использует силу замедляющего фрукта, чтобы сбивать темп противника.",
-            masteryTitle: "Пробуждённый: Фокси", masteryTitleId: "mastery_character_4795ce8e", masteryTitleIcon: "✦"},
+            masteryTitle: "Властелин замедляющего луча", masteryTitleId: "mastery_character_4795ce8e", masteryTitleIcon: "✦"},
         { name: "Мумен Райдер", universe: "OPM", patchId: "one_punch_man", damage: 6, hp: 22, speed: 0.6, ability: { type: "desperateStrike", value: 0.06, threshold: 0.30, desc: "+6% урона при HP ниже 30%" }, desc: "Герой класса C, который не отступает даже перед заведомо более сильным врагом. Когда здоровье команды падает ниже 30%, его решимость усиливает общий урон.",
-            masteryTitle: "Пробуждённый: Мумен Райдер", masteryTitleId: "mastery_character_f3231cde", masteryTitleIcon: "✦" },
+            masteryTitle: "Последний герой на велосипеде", masteryTitleId: "mastery_character_f3231cde", masteryTitleIcon: "✦" },
         { name: "Кинг (без шрама)", universe: "OPM", patchId: "one_punch_man", damage: 4, hp: 18, speed: 0.45, ability: { type: "desperateStrike", value: 0.05, threshold: 0.30, desc: "+5% урона при HP ниже 30%" }, desc: "Его легендарная аура усиливает урон команды, когда здоровье падает ниже 30%.",
-            masteryTitle: "Пробуждённый: Кинг (без шрама)", masteryTitleId: "mastery_character_a5268849", masteryTitleIcon: "✦" },
+            masteryTitle: "Герой, которого боятся чудовища", masteryTitleId: "mastery_character_a5268849", masteryTitleIcon: "✦" },
         {
             "name": "Роберт Э. О. Спидвагон",
             "universe": "JoJo", "patchId": "jojo",
@@ -132,7 +132,7 @@ const customCardTemplates = {
             "hp": 17,
             "speed": 0.7,
             "desc": "Бывший уличный боец, ставший верным союзником Джонатана и основателем фонда Спидвагонов.",
-            masteryTitle: "Пробуждённый: Роберт Э. О. Спидвагон", masteryTitleId: "mastery_character_d3a97fac", masteryTitleIcon: "✦"
+            masteryTitle: "Покровитель рода Джостаров", masteryTitleId: "mastery_character_d3a97fac", masteryTitleIcon: "✦"
         },
         {
             "name": "Игги (The Fool)",
@@ -149,7 +149,7 @@ const customCardTemplates = {
             "desc": "Упрямый пёс-стенд-юзер. The Fool позволяет ему создавать конструкции из песка. Стенд: The Fool. Способность стенда: Песчаный щит: большой запас защиты. Бафф при призыве: скорость +8%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 72% урона; на обычной арене получаемый урон снижен на 6% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — The Fool", desc: "Нажми SUPER, чтобы призвать The Fool как отдельное хитбокс-сердечко. Песчаный щит: большой запас защиты. Бафф: скорость +8%; хитбокс радиусом 12 принимает на себя 72% урона при столкновении; на обычной арене получаемый урон снижается на 6%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Игги (The Fool)", masteryTitleId: "mastery_character_e8b4eabd", masteryTitleIcon: "✦"},
+            masteryTitle: "Песчаный фараон Каира", masteryTitleId: "mastery_character_e8b4eabd", masteryTitleIcon: "✦"},
         {
             "name": "Бруфорд",
             "universe": "JoJo", "patchId": "jojo",
@@ -162,7 +162,7 @@ const customCardTemplates = {
                 "desc": "−3% получаемого урона"
             },
             "desc": "Рыцарь-зомби с длинными волосами, которыми он может связывать противников.",
-            masteryTitle: "Пробуждённый: Бруфорд", masteryTitleId: "mastery_character_7f9aa2a3", masteryTitleIcon: "✦"
+            masteryTitle: "Рыцарь чёрных вод", masteryTitleId: "mastery_character_7f9aa2a3", masteryTitleIcon: "✦"
         },
         {
             "name": "Таркус",
@@ -171,7 +171,7 @@ const customCardTemplates = {
             "hp": 25,
             "speed": 0.6,
             "desc": "Могучий рыцарь, превращённый в жестокого зомби.",
-            masteryTitle: "Пробуждённый: Таркус", masteryTitleId: "mastery_character_60d012a9", masteryTitleIcon: "✦"
+            masteryTitle: "Гигант проклятого замка", masteryTitleId: "mastery_character_60d012a9", masteryTitleIcon: "✦"
         },
         {
             "name": "Маунтин Тим",
@@ -187,7 +187,7 @@ const customCardTemplates = {
             "desc": "Охотник за головами из Steel Ball Run, использующий верёвку для атак и передвижения. Стенд: Oh! Lonesome Me. Способность стенда: Лассо: средний радиус перехвата. Бафф при призыве: скорость +13%; хитбокс-сердечко радиусом 10 перехватывает атаки и принимает на себя 66% урона; на обычной арене получаемый урон снижен на 4% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Oh! Lonesome Me", desc: "Нажми SUPER, чтобы призвать Oh! Lonesome Me как отдельное хитбокс-сердечко. Лассо: средний радиус перехвата. Бафф: скорость +13%; хитбокс радиусом 10 принимает на себя 66% урона при столкновении; на обычной арене получаемый урон снижается на 4%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Маунтин Тим", masteryTitleId: "mastery_character_e1404698", masteryTitleIcon: "✦"},
+            masteryTitle: "Ковбой с лассо бесконечности", masteryTitleId: "mastery_character_e1404698", masteryTitleIcon: "✦"},
         {
             "name": "Шигекиё Янгу (Шигечи)",
             "universe": "JoJo", "patchId": "jojo",
@@ -203,7 +203,7 @@ const customCardTemplates = {
             "desc": "Школьник со стендом Harvest, который действует сразу множеством крошечных помощников. Стенд: Harvest. Способность стенда: Рой Harvest: самый широкий хитбокс. Бафф при призыве: скорость +6%; хитбокс-сердечко радиусом 14 перехватывает атаки и принимает на себя 69% урона; на обычной арене получаемый урон снижен на 7% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Harvest", desc: "Нажми SUPER, чтобы призвать Harvest как отдельное хитбокс-сердечко. Рой Harvest: самый широкий хитбокс. Бафф: скорость +6%; хитбокс радиусом 14 принимает на себя 69% урона при столкновении; на обычной арене получаемый урон снижается на 7%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Шигекиё Янгу (Шигечи)", masteryTitleId: "mastery_character_62247556", masteryTitleIcon: "✦"},
+            masteryTitle: "Хранитель карманных сокровищ", masteryTitleId: "mastery_character_62247556", masteryTitleIcon: "✦"},
         {
             "name": "Димпл (слабая форма)",
             "universe": "Mob 100",
@@ -211,7 +211,7 @@ const customCardTemplates = {
             "hp": 13,
             "speed": 0.75,
             "desc": "Дух Димпл в ранней форме. Может летать и влиять на людей, но в прямом бою слаб.",
-            masteryTitle: "Пробуждённый: Димпл (слабая форма)", masteryTitleId: "mastery_character_b4b90010", masteryTitleIcon: "✦"
+            masteryTitle: "Дух с планом мирового захвата", masteryTitleId: "mastery_character_b4b90010", masteryTitleIcon: "✦"
         },
         {
             "name": "Рицу Кагеяма",
@@ -220,7 +220,7 @@ const customCardTemplates = {
             "hp": 15,
             "speed": 0.8,
             "desc": "Младший брат Моба. Его экстрасенсорные способности пробуждаются постепенно.",
-            masteryTitle: "Пробуждённый: Рицу Кагеяма", masteryTitleId: "mastery_character_11fc9715", masteryTitleIcon: "✦"
+            masteryTitle: "Брат экстрасенса", masteryTitleId: "mastery_character_11fc9715", masteryTitleIcon: "✦"
         },
         {
             "name": "Соломон (Vermeil in Gold)",
@@ -229,64 +229,64 @@ const customCardTemplates = {
             "hp": 16,
             "speed": 0.75,
             "desc": "Ученик академии магии, который полагается на заклинания и знания, а не на грубую силу.",
-            masteryTitle: "Пробуждённый: Соломон (Vermeil in Gold)", masteryTitleId: "mastery_character_eeb7360c", masteryTitleIcon: "✦"
+            masteryTitle: "Ученик, связавший судьбу с демоном", masteryTitleId: "mastery_character_eeb7360c", masteryTitleIcon: "✦"
         }
     ],
     "Сверх редкая": [
         { name: "Луффи (2 гир)", universe: "One Piece", damage: 16, hp: 25, speed: 1.5, desc: "Ускоренный кровоток. Быстрее и сильнее.",
-            masteryTitle: "Пробуждённый: Луффи (2 гир)", masteryTitleId: "mastery_character_c3146213", masteryTitleIcon: "✦" },
+            masteryTitle: "Пылающий второй ритм", masteryTitleId: "mastery_character_c3146213", masteryTitleIcon: "✦" },
         { name: "Зоро (до таймскипа)", universe: "One Piece", damage: 18, hp: 22, speed: 1.1, desc: "Зоро, чтоб не заблудиться,\nК нитке вздумал прицепиться.\nНить порвалась — он улетел\nИ в кастрюлю к Санджи прилетел.",
-            masteryTitle: "Пробуждённый: Зоро (до таймскипа)", masteryTitleId: "mastery_character_7f036b9e", masteryTitleIcon: "✦" },
+            masteryTitle: "Охотник трёх клинков", masteryTitleId: "mastery_character_7f036b9e", masteryTitleIcon: "✦" },
         { name: "Санджи (до таймскипа)", universe: "One Piece", damage: 16, hp: 20, speed: 1.3, desc: "Чёрная нога. Шеф-повар.",
-            masteryTitle: "Пробуждённый: Санджи (до таймскипа)", masteryTitleId: "mastery_character_e1106341", masteryTitleIcon: "✦" },
+            masteryTitle: "Чёрная нога Барати", masteryTitleId: "mastery_character_e1106341", masteryTitleIcon: "✦" },
         { name: "Гаара", universe: "Naruto", damage: 17, hp: 28, speed: 0.9, desc: "Джинчурики с песчаной бронёй.",
-            masteryTitle: "Пробуждённый: Гаара", masteryTitleId: "mastery_character_ad620a92", masteryTitleIcon: "✦" },
+            masteryTitle: "Песчаный гроб Казекаге", masteryTitleId: "mastery_character_ad620a92", masteryTitleIcon: "✦" },
         { name: "Эмир", universe: "AoT", damage: 25, hp: 10, speed: 1.4, desc: "Солдат разведкорпуса.",
-            masteryTitle: "Пробуждённый: Эмир", masteryTitleId: "mastery_character_9eea8654", masteryTitleIcon: "✦" },
+            masteryTitle: "Странник между стенами", masteryTitleId: "mastery_character_9eea8654", masteryTitleIcon: "✦" },
         { name: "Эрен (Кадет)", universe: "AoT", damage: 27, hp: 10, speed: 1.2, desc: "Кадет с жаждой мести титанам.",
-            masteryTitle: "Пробуждённый: Эрен (Кадет)", masteryTitleId: "mastery_character_3959a942", masteryTitleIcon: "✦" },
+            masteryTitle: "Клятва истребить титанов", masteryTitleId: "mastery_character_3959a942", masteryTitleIcon: "✦" },
         { name: "Коби (Солдат)", universe: "One Piece", damage: 15, hp: 30, speed: 0.8, desc: "Доказывает, что слабый может стать сильным.",
-            masteryTitle: "Пробуждённый: Коби (Солдат)", masteryTitleId: "mastery_character_fc4a78a5", masteryTitleIcon: "✦" },
+            masteryTitle: "Будущий адмирал справедливости", masteryTitleId: "mastery_character_fc4a78a5", masteryTitleIcon: "✦" },
         { name: "Ренджи", universe: "Bleach", damage: 15, hp: 25, speed: 1.0, desc: "Шинигами с мечом-хлыстом.",
-            masteryTitle: "Пробуждённый: Ренджи", masteryTitleId: "mastery_character_ba4e4d31", masteryTitleIcon: "✦" },
+            masteryTitle: "Забимару, пожиратель небес", masteryTitleId: "mastery_character_ba4e4d31", masteryTitleIcon: "✦" },
         { name: "Киришима", universe: "MHA", damage: 13, hp: 35, speed: 0.7, desc: "Красный бунтарь. Твердеет кожей.",
-            masteryTitle: "Пробуждённый: Киришима", masteryTitleId: "mastery_character_914d2833", masteryTitleIcon: "✦" },
+            masteryTitle: "Непробиваемый красный щит", masteryTitleId: "mastery_character_914d2833", masteryTitleIcon: "✦" },
         { name: "Райан (Ребенок)", universe: "The Boys", damage: 20, hp: 25, speed: 1.1, desc: "Сын Хоумлендера. Ещё учится.",
-            masteryTitle: "Пробуждённый: Райан (Ребенок)", masteryTitleId: "mastery_character_0098ea54", masteryTitleIcon: "✦" },
+            masteryTitle: "Наследник лазерного взгляда", masteryTitleId: "mastery_character_0098ea54", masteryTitleIcon: "✦" },
         { name: "Рекс Слоан", universe: "Invincible", damage: 18, hp: 28, speed: 1.0, desc: "Взрывной герой-подросток.",
-            masteryTitle: "Пробуждённый: Рекс Слоан", masteryTitleId: "mastery_character_06629fda", masteryTitleIcon: "✦" },
+            masteryTitle: "Подрывник без тормозов", masteryTitleId: "mastery_character_06629fda", masteryTitleIcon: "✦" },
         { name: "Дупли-Кейт", universe: "Invincible", damage: 15, hp: 20, speed: 1.2, desc: "Множится на клонов.",
-            masteryTitle: "Пробуждённый: Дупли-Кейт", masteryTitleId: "mastery_character_0139f65f", masteryTitleIcon: "✦" },
+            masteryTitle: "Армия одной героини", masteryTitleId: "mastery_character_0139f65f", masteryTitleIcon: "✦" },
         { name: "Пучино", universe: "The Boys", damage: 17, hp: 26, speed: 0.8, desc: "Подводный герой. Любит рыбу.",
-            masteryTitle: "Пробуждённый: Пучино", masteryTitleId: "mastery_character_849d64d3", masteryTitleIcon: "✦" },
+            masteryTitle: "Защитник семи морей", masteryTitleId: "mastery_character_849d64d3", masteryTitleIcon: "✦" },
         { name: "Мреющий", universe: "The Boys", damage: 9, hp: 40, speed: 0.6, desc: "Невидимый шпион Семёрки.",
-            masteryTitle: "Пробуждённый: Мреющий", masteryTitleId: "mastery_character_bb9464e2", masteryTitleIcon: "✦" },
+            masteryTitle: "Невидимый агент Семёрки", masteryTitleId: "mastery_character_bb9464e2", masteryTitleIcon: "✦" },
         {"name":"Фрэнки","universe":"One Piece","patchId":"one_piece","damage":20,"hp":32,"speed":1,"ability":{"type":"bossDamage","value":0.05,"desc":"+5% урона боссам"},"desc":"Киборг-кораблестроитель. Мощные механические руки и оружие особенно эффективны против крупных врагов.",
-            masteryTitle: "Пробуждённый: Фрэнки", masteryTitleId: "mastery_character_f76286d9", masteryTitleIcon: "✦"},
+            masteryTitle: "Киборг, построивший мечту", masteryTitleId: "mastery_character_f76286d9", masteryTitleIcon: "✦"},
         {"name":"Нико Робин","universe":"One Piece","patchId":"one_piece","damage":20,"hp":31,"speed":1,"ability":{"type":"damageMultChance","chance":0.12,"mult":1.25,"desc":"12% шанс нанести ×1,25 урона"},"desc":"Археолог с силой цветочного фрукта: может создавать руки и конечности прямо на противнике.",
-            masteryTitle: "Пробуждённый: Нико Робин", masteryTitleId: "mastery_character_a798e3c2", masteryTitleIcon: "✦"},
+            masteryTitle: "Археолог потерянного века", masteryTitleId: "mastery_character_a798e3c2", masteryTitleIcon: "✦"},
         {"name":"Джимбей (Флешбек)","universe":"One Piece","patchId":"one_piece","damage":20,"hp":38,"speed":0.8,"ability":{"type":"damageReduction","value":0.07,"desc":"−7% получаемого урона"},"desc":"Мастер рыбочеловеческого каратэ. Выдерживает тяжёлые удары и уверенно держит оборону.",
-            masteryTitle: "Пробуждённый: Джимбей (Флешбек)", masteryTitleId: "mastery_character_f1ac999b", masteryTitleIcon: "✦"},
+            masteryTitle: "Рыцарь морских глубин", masteryTitleId: "mastery_character_f1ac999b", masteryTitleIcon: "✦"},
         {"name":"Смокер","universe":"One Piece","patchId":"one_piece","damage":22,"hp":30,"speed":1.15,"statusAbility":{"type":"freezeStacks","value":1,"desc":"Дымовая ловушка: +1 клик до контратаки"},"desc":"Морской дозорный с дымовым логиа-фруктом. Связывает противника клубами дыма.",
-            masteryTitle: "Пробуждённый: Смокер", masteryTitleId: "mastery_character_0753502d", masteryTitleIcon: "✦"},
+            masteryTitle: "Белый охотник дыма", masteryTitleId: "mastery_character_0753502d", masteryTitleIcon: "✦"},
         {"name":"Ташиги","universe":"One Piece","patchId":"one_piece","damage":17,"hp":25,"speed":1.15,"ability":{"type":"critChance","value":0.05,"desc":"+5% шанс критического удара"},"desc":"Офицер морского дозора и искусный фехтовальщик. Находит слабые места противника.",
-            masteryTitle: "Пробуждённый: Ташиги", masteryTitleId: "mastery_character_b24f5fac", masteryTitleIcon: "✦"},
+            masteryTitle: "Мечница правосудия", masteryTitleId: "mastery_character_b24f5fac", masteryTitleIcon: "✦"},
         {"name":"Бартоломео","universe":"One Piece","patchId":"one_piece","damage":15,"hp":42,"speed":0.7,"ability":{"type":"damageReduction","value":0.1,"desc":"−10% получаемого урона"},"desc":"Преданный фанат Луффи. Барьерный фрукт позволяет ему выдерживать сильные атаки.",
-            masteryTitle: "Пробуждённый: Бартоломео", masteryTitleId: "mastery_character_1c9b60b8", masteryTitleIcon: "✦"},
+            masteryTitle: "Стена для своих", masteryTitleId: "mastery_character_1c9b60b8", masteryTitleIcon: "✦"},
         {"name":"Кавендиш","universe":"One Piece","patchId":"one_piece","damage":23,"hp":25,"speed":1.35,"ability":{"type":"critChance","value":0.08,"desc":"+8% шанс критического удара"},"desc":"Быстрый и эффектный фехтовальщик. В атаке полагается на скорость и точность.",
-            masteryTitle: "Пробуждённый: Кавендиш", masteryTitleId: "mastery_character_e0836c1f", masteryTitleIcon: "✦"},
+            masteryTitle: "Прекрасный фехтовальщик", masteryTitleId: "mastery_character_e0836c1f", masteryTitleIcon: "✦"},
         {"name":"Бепо","universe":"One Piece","patchId":"one_piece","damage":18,"hp":34,"speed":1.05,"ability":{"type":"damageReduction","value":0.06,"desc":"−6% получаемого урона"},"desc":"Навигатор Сердечных пиратов и сильный боец-минк, особенно опасный в ближнем бою.",
-            masteryTitle: "Пробуждённый: Бепо", masteryTitleId: "mastery_character_c5b2d466", masteryTitleIcon: "✦"},
+            masteryTitle: "Полярный медведь команды Сердца", masteryTitleId: "mastery_character_c5b2d466", masteryTitleIcon: "✦"},
         {"name":"Кинъэмон","universe":"One Piece","patchId":"one_piece","damage":21,"hp":33,"speed":1,"statusAbility":{"type":"fire","damage":4,"duration":2500,"desc":"Стиль лисьего огня: 4 урона в секунду"},"desc":"Самурай Вано, владеющий стилем лисьего огня и умеющий рассекать пламя.",
-            masteryTitle: "Пробуждённый: Кинъэмон", masteryTitleId: "mastery_character_33b91d74", masteryTitleIcon: "✦"},
+            masteryTitle: "Лисье пламя Вано", masteryTitleId: "mastery_character_33b91d74", masteryTitleIcon: "✦"},
         {"name":"Арлонг","universe":"One Piece","patchId":"one_piece","damage":32,"hp":45,"speed":1.1,"ability":{"type":"damageReduction","value":0.06,"desc":"−6% получаемого урона"},"desc":"Жестокий рыбочеловек с огромной физической силой и мощной челюстью.",
-            masteryTitle: "Пробуждённый: Арлонг", masteryTitleId: "mastery_character_e0e2bb18", masteryTitleIcon: "✦"},
+            masteryTitle: "Зубастый тиран Арлонг-парка", masteryTitleId: "mastery_character_e0e2bb18", masteryTitleIcon: "✦"},
         { name: "Фубуки", universe: "OPM", patchId: "one_punch_man", damage: 18, hp: 34, speed: 0.95, ability: { type: "damageAura", value: 0.03, desc: "+3% урона всей команде" }, desc: "Лидер группы Blizzard. Её телекинез и умение руководить союзниками дают небольшой бонус всему отряду.",
-            masteryTitle: "Пробуждённый: Фубуки", masteryTitleId: "mastery_character_3a30f492", masteryTitleIcon: "✦" },
+            masteryTitle: "Королева адского вихря", masteryTitleId: "mastery_character_3a30f492", masteryTitleIcon: "✦" },
         { name: "Император Дитя", universe: "OPM", patchId: "one_punch_man", damage: 19, hp: 30, speed: 1.0, ability: { type: "critChance", value: 0.04, desc: "+4% к шансу критического удара" }, desc: "Юный S-класс герой, полагающийся на интеллект, гаджеты и точечные удары по слабым местам.",
-            masteryTitle: "Пробуждённый: Император Дитя", masteryTitleId: "mastery_character_2681d666", masteryTitleIcon: "✦" },
+            masteryTitle: "Гений детского S-класса", masteryTitleId: "mastery_character_2681d666", masteryTitleIcon: "✦" },
         { name: "Узник Пури-Пури", universe: "OPM", patchId: "one_punch_man", damage: 20, hp: 40, speed: 0.8, ability: { type: "damageReduction", value: 0.03, desc: "−3% получаемого урона" }, desc: "Герой S-класса с огромной физической силой и стойкостью. Хорошо держит удар, но не относится к верхушке рейтинга.",
-            masteryTitle: "Пробуждённый: Узник Пури-Пури", masteryTitleId: "mastery_character_6131399f", masteryTitleIcon: "✦" },
+            masteryTitle: "Ангел тюрьмы", masteryTitleId: "mastery_character_6131399f", masteryTitleIcon: "✦" },
         {
             "name": "Уилл Антонио Цеппели",
             "universe": "JoJo", "patchId": "jojo",
@@ -299,7 +299,7 @@ const customCardTemplates = {
                 "desc": "+3% урона команде"
             },
             "desc": "Наставник Джонатана, обучающий его Хамону.",
-            masteryTitle: "Пробуждённый: Уилл Антонио Цеппели", masteryTitleId: "mastery_character_5e8e6ae5", masteryTitleIcon: "✦"
+            masteryTitle: "Наставник хамона", masteryTitleId: "mastery_character_5e8e6ae5", masteryTitleIcon: "✦"
         },
         {
             "name": "Рудол фон Штрохайм (киборг)",
@@ -313,7 +313,7 @@ const customCardTemplates = {
                 "desc": "−4% получаемого урона"
             },
             "desc": "Немецкий офицер, усиленный механическими имплантами и мощным оружием.",
-            masteryTitle: "Пробуждённый: Рудол фон Штрохайм (киборг)", masteryTitleId: "mastery_character_4823c9d1", masteryTitleIcon: "✦"
+            masteryTitle: "Немецкая стальная мощь", masteryTitleId: "mastery_character_4823c9d1", masteryTitleIcon: "✦"
         },
         {
             "name": "Хол Хорс (Emperor)",
@@ -329,7 +329,7 @@ const customCardTemplates = {
             "desc": "Стрелок, чей стенд Emperor создаёт управляемые пули. Стенд: Emperor. Способность стенда: Точная стрельба: упор на скорость. Бафф при призыве: скорость +17%; хитбокс-сердечко радиусом 10 перехватывает атаки и принимает на себя 64% урона; на обычной арене получаемый урон снижен на 3% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Emperor", desc: "Нажми SUPER, чтобы призвать Emperor как отдельное хитбокс-сердечко. Точная стрельба: упор на скорость. Бафф: скорость +17%; хитбокс радиусом 10 принимает на себя 64% урона при столкновении; на обычной арене получаемый урон снижается на 3%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Хол Хорс (Emperor)", masteryTitleId: "mastery_character_6110e4e2", masteryTitleIcon: "✦"},
+            masteryTitle: "Император, который всегда стреляет", masteryTitleId: "mastery_character_6110e4e2", masteryTitleIcon: "✦"},
         {
             "name": "Н'Дул (Geb)",
             "universe": "JoJo", "patchId": "jojo",
@@ -345,7 +345,7 @@ const customCardTemplates = {
             "desc": "Слепой пользователь Geb, управляющий водой с опасной точностью. Стенд: Geb. Способность стенда: Водяной щит: сильное поглощение урона. Бафф при призыве: скорость +4%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 78% урона; на обычной арене получаемый урон снижен на 9% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Geb", desc: "Нажми SUPER, чтобы призвать Geb как отдельное хитбокс-сердечко. Водяной щит: сильное поглощение урона. Бафф: скорость +4%; хитбокс радиусом 13 принимает на себя 78% урона при столкновении; на обычной арене получаемый урон снижается на 9%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Н'Дул (Geb)", masteryTitleId: "mastery_character_c2030c0c", masteryTitleIcon: "✦"},
+            masteryTitle: "Слух песка и воды", masteryTitleId: "mastery_character_c2030c0c", masteryTitleIcon: "✦"},
         {
             "name": "Коити Хиросэ (Echoes Act 1)",
             "universe": "JoJo", "patchId": "jojo",
@@ -360,7 +360,7 @@ const customCardTemplates = {
             "desc": "Начальная форма Echoes, способная создавать звуковые эффекты и слова. Стенд: Echoes ACT 1. Способность стенда: Звуковая волна: лёгкий разгон. Бафф при призыве: скорость +9%; хитбокс-сердечко радиусом 11 перехватывает атаки и принимает на себя 63% урона; на обычной арене получаемый урон снижен на 4% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Echoes ACT 1", desc: "Нажми SUPER, чтобы призвать Echoes ACT 1 как отдельное хитбокс-сердечко. Звуковая волна: лёгкий разгон. Бафф: скорость +9%; хитбокс радиусом 11 принимает на себя 63% урона при столкновении; на обычной арене получаемый урон снижается на 4%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Коити Хиросэ (Echoes Act 1)", masteryTitleId: "mastery_character_72cb3013", masteryTitleIcon: "✦"},
+            masteryTitle: "Шёпот Эхо", masteryTitleId: "mastery_character_72cb3013", masteryTitleIcon: "✦"},
         {
             "name": "Пески (Beach Boy)",
             "universe": "JoJo", "patchId": "jojo",
@@ -376,7 +376,7 @@ const customCardTemplates = {
             "desc": "Молодой член команды Bucciarati, использующий стенд-удочку для атак сквозь препятствия. Стенд: Beach Boy. Способность стенда: Леска: расширенная зона перехвата. Бафф при призыве: скорость +11%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 74% урона; на обычной арене получаемый урон снижен на 5% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Beach Boy", desc: "Нажми SUPER, чтобы призвать Beach Boy как отдельное хитбокс-сердечко. Леска: расширенная зона перехвата. Бафф: скорость +11%; хитбокс радиусом 13 принимает на себя 74% урона при столкновении; на обычной арене получаемый урон снижается на 5%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Пески (Beach Boy)", masteryTitleId: "mastery_character_e4b58d7a", masteryTitleIcon: "✦"},
+            masteryTitle: "Леска, что не знает промаха", masteryTitleId: "mastery_character_e4b58d7a", masteryTitleIcon: "✦"},
         {
             "name": "Векапипо (Wrecking Ball)",
             "universe": "JoJo", "patchId": "jojo",
@@ -391,7 +391,7 @@ const customCardTemplates = {
             "desc": "Боец Steel Ball Run, применяющий вращение и особые стальные сферы. Стенд: Wrecking Ball. Способность стенда: Стальные шары: плотная защита. Бафф при призыве: скорость +3%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 76% урона; на обычной арене получаемый урон снижен на 2% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Wrecking Ball", desc: "Нажми SUPER, чтобы призвать Wrecking Ball как отдельное хитбокс-сердечко. Стальные шары: плотная защита. Бафф: скорость +3%; хитбокс радиусом 12 принимает на себя 76% урона при столкновении; на обычной арене получаемый урон снижается на 2%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Векапипо (Wrecking Ball)", masteryTitleId: "mastery_character_c713fd6a", masteryTitleIcon: "✦"},
+            masteryTitle: "Стальной шар правосудия", masteryTitleId: "mastery_character_c713fd6a", masteryTitleIcon: "✦"},
         {
             "name": "Сантана",
             "universe": "JoJo", "patchId": "jojo",
@@ -404,7 +404,7 @@ const customCardTemplates = {
                 "desc": "+2% HP после победы"
             },
             "desc": "Пробудившийся Человек из колонны. Способен изменять тело и поглощать противников.",
-            masteryTitle: "Пробуждённый: Сантана", masteryTitleId: "mastery_character_f94a198c", masteryTitleIcon: "✦"
+            masteryTitle: "Пробуждение древнего столпа", masteryTitleId: "mastery_character_f94a198c", masteryTitleIcon: "✦"
         },
         {
             "name": "Кейчо Нидзимура (Bad Company)",
@@ -421,7 +421,7 @@ const customCardTemplates = {
             "desc": "Старший брат Окуясу, командующий армией миниатюрных солдат и техники. Стенд: Bad Company. Способность стенда: Армия мини-солдаты: большой радиус. Бафф при призыве: скорость +7%; хитбокс-сердечко радиусом 14 перехватывает атаки и принимает на себя 81% урона; на обычной арене получаемый урон снижен на 8% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Bad Company", desc: "Нажми SUPER, чтобы призвать Bad Company как отдельное хитбокс-сердечко. Армия мини-солдаты: большой радиус. Бафф: скорость +7%; хитбокс радиусом 14 принимает на себя 81% урона при столкновении; на обычной арене получаемый урон снижается на 8%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Кейчо Нидзимура (Bad Company)", masteryTitleId: "mastery_character_4fc6aa54", masteryTitleIcon: "✦"},
+            masteryTitle: "Командир карманной армии", masteryTitleId: "mastery_character_4fc6aa54", masteryTitleIcon: "✦"},
         {
             "name": "Акира Отоиси (Red Hot Chili Pepper)",
             "universe": "JoJo", "patchId": "jojo",
@@ -436,7 +436,7 @@ const customCardTemplates = {
             "desc": "Гитарист, чей стенд питается электричеством и становится сильнее от энергии. Стенд: Red Hot Chili Pepper. Способность стенда: Электрический разряд: максимальная скорость. Бафф при призыве: скорость +24%; хитбокс-сердечко радиусом 9 перехватывает атаки и принимает на себя 63% урона; на обычной арене получаемый урон снижен на 2% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Red Hot Chili Pepper", desc: "Нажми SUPER, чтобы призвать Red Hot Chili Pepper как отдельное хитбокс-сердечко. Электрический разряд: максимальная скорость. Бафф: скорость +24%; хитбокс радиусом 9 принимает на себя 63% урона при столкновении; на обычной арене получаемый урон снижается на 2%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Акира Отоиси (Red Hot Chili Pepper)", masteryTitleId: "mastery_character_e739a6da", masteryTitleIcon: "✦"},
+            masteryTitle: "Рок-звезда электрического ада", masteryTitleId: "mastery_character_e739a6da", masteryTitleIcon: "✦"},
         {
             "name": "Тэруки Ханадзава",
             "universe": "Mob 100",
@@ -449,7 +449,7 @@ const customCardTemplates = {
                 "desc": "+6% шанс критического удара"
             },
             "desc": "Сильный экстрасенс, который сначала высокомерен, но затем становится союзником Моба.",
-            masteryTitle: "Пробуждённый: Тэруки Ханадзава", masteryTitleId: "mastery_character_274f22ea", masteryTitleIcon: "✦"
+            masteryTitle: "Вершина экстрасенсорной гордыни", masteryTitleId: "mastery_character_274f22ea", masteryTitleIcon: "✦"
         },
         {
             "name": "Сё Судзуки",
@@ -464,7 +464,7 @@ const customCardTemplates = {
                 "desc": "8% шанс нанести ×1,25 урона"
             },
             "desc": "Экстрасенс с большим потенциалом и сын лидера организации Claw.",
-            masteryTitle: "Пробуждённый: Сё Судзуки", masteryTitleId: "mastery_character_aaa556df", masteryTitleIcon: "✦"
+            masteryTitle: "Наследник психической войны", masteryTitleId: "mastery_character_aaa556df", masteryTitleIcon: "✦"
         },
         {
             "name": "Элиза (Vermeil in Gold)",
@@ -473,88 +473,88 @@ const customCardTemplates = {
             "hp": 31,
             "speed": 0.95,
             "desc": "Магическая ученица, умеющая использовать боевые заклинания, но не на уровне сильнейших магов.",
-            masteryTitle: "Пробуждённый: Элиза (Vermeil in Gold)", masteryTitleId: "mastery_character_f298817c", masteryTitleIcon: "✦"
+            masteryTitle: "Арканистка серебряного пламени", masteryTitleId: "mastery_character_f298817c", masteryTitleIcon: "✦"
         }
     ],
     "Эпик": [
         { name: "Луффи (Таймскип)", universe: "One Piece", damage: 28, hp: 45, speed: 1.6, ability: { type: "damageMultChance", chance: 0.35, mult: 1.3, desc: "35% урон x1.3" }, desc: "После двух лет тренировок. Шанс 35% нанести в 1.3 раза больше урона.",
-            masteryTitle: "Пробуждённый: Луффи (Таймскип)", masteryTitleId: "mastery_character_fd813dab", masteryTitleIcon: "✦" },
+            masteryTitle: "Пират, покоривший Новый Свет", masteryTitleId: "mastery_character_fd813dab", masteryTitleIcon: "✦" },
         { name: "Ло", universe: "One Piece", damage: 25, hp: 40, speed: 1.2, ability: { type: "damageAura", value: 0.05, desc: "+5% урона" }, desc: "Хирург смерти. Увеличивает урон всей команды на 5%.",
-            masteryTitle: "Пробуждённый: Ло", masteryTitleId: "mastery_character_87d0df0c", masteryTitleIcon: "✦" },
+            masteryTitle: "Хирург смерти", masteryTitleId: "mastery_character_87d0df0c", masteryTitleIcon: "✦" },
         { name: "Итачи", universe: "Naruto", damage: 30, hp: 38, speed: 1.5, desc: "Гений клана Учиха. Без активных способностей.",
-            masteryTitle: "Пробуждённый: Итачи", masteryTitleId: "mastery_character_884e7b22", masteryTitleIcon: "✦" },
+            masteryTitle: "Ворон, несущий правду", masteryTitleId: "mastery_character_884e7b22", masteryTitleIcon: "✦" },
         { name: "Эрен", universe: "AoT", damage: 35, hp: 50, speed: 1.3, ability: { type: "teamHealOnWave", value: 0.02, desc: "Хил 2% за волну" }, desc: "После каждой победы лечит команду на 2%.",
-            masteryTitle: "Пробуждённый: Эрен", masteryTitleId: "mastery_character_3fe8502e", masteryTitleIcon: "✦" },
+            masteryTitle: "Координатор Гула Земли", masteryTitleId: "mastery_character_3fe8502e", masteryTitleIcon: "✦" },
         { name: "Гатс", universe: "Berserk", damage: 40, hp: 55, speed: 1.0, ability: { type: "damageAura", value: 0.05, desc: "+5% урона" }, desc: "Чёрный мечник. +5% урона команде.",
-            masteryTitle: "Пробуждённый: Гатс", masteryTitleId: "mastery_character_0595f447", masteryTitleIcon: "✦" },
+            masteryTitle: "Чёрный мечник, переживший Затмение", masteryTitleId: "mastery_character_0595f447", masteryTitleIcon: "✦" },
         { name: "Кид", universe: "One Piece", damage: 28, hp: 35, speed: 1.1, ability: { type: "critChance", value: 0.05, desc: "+5% крит" }, desc: "Магнитный пират. +5% к шансу крита.",
-            masteryTitle: "Пробуждённый: Кид", masteryTitleId: "mastery_character_f9985a41", masteryTitleIcon: "✦" },
+            masteryTitle: "Магнитный бунтарь", masteryTitleId: "mastery_character_f9985a41", masteryTitleIcon: "✦" },
         { name: "Какаши", universe: "Naruto", damage: 26, hp: 42, speed: 1.4, desc: "Копирующий ниндзя. Без активных способностей.",
-            masteryTitle: "Пробуждённый: Какаши", masteryTitleId: "mastery_character_57c5680d", masteryTitleIcon: "✦" },
+            masteryTitle: "Копирующий ниндзя Шарингана", masteryTitleId: "mastery_character_57c5680d", masteryTitleIcon: "✦" },
         { name: "Коби (Honestly impact)", universe: "One Piece", damage: 32, hp: 45, speed: 1.2, ability: { type: "critChance", value: 0.05, desc: "+5% крит" }, desc: "Честный удар. +5% к шансу крита.",
-            masteryTitle: "Пробуждённый: Коби (Honestly impact)", masteryTitleId: "mastery_character_5cd75e1d", masteryTitleIcon: "✦" },
+            masteryTitle: "Кулак новой эпохи", masteryTitleId: "mastery_character_5cd75e1d", masteryTitleIcon: "✦" },
         { name: "Луччи (Сп-9)", universe: "One Piece", damage: 38, hp: 45, speed: 1.5, desc: "Агент Леопард. Без активных способностей.",
-            masteryTitle: "Пробуждённый: Луччи (Сп-9)", masteryTitleId: "mastery_character_e7d15638", masteryTitleIcon: "✦" },
+            masteryTitle: "Леопард правительства", masteryTitleId: "mastery_character_e7d15638", masteryTitleIcon: "✦" },
         { name: "Робот (Руди)", universe: "Invincible", damage: 30, hp: 48, speed: 0.9, desc: "Киборг-подросток.",
-            masteryTitle: "Пробуждённый: Робот (Руди)", masteryTitleId: "mastery_character_a7398bea", masteryTitleIcon: "✦" },
+            masteryTitle: "Стратег в стальном теле", masteryTitleId: "mastery_character_a7398bea", masteryTitleIcon: "✦" },
         { name: "Чёрный Нуар", universe: "The Boys", damage: 35, hp: 52, speed: 1.6, ability: { type: "damageReduction", value: 0.07, desc: "-7% урона" }, desc: "Молчаливый ниндзя Семёрки. Уменьшает получаемый урон на 7%.",
-            masteryTitle: "Пробуждённый: Чёрный Нуар", masteryTitleId: "mastery_character_a9a02fbe", masteryTitleIcon: "✦" },
+            masteryTitle: "Тень Семёрки", masteryTitleId: "mastery_character_a9a02fbe", masteryTitleIcon: "✦" },
         { name: "Кимико", universe: "The Boys", damage: 32, hp: 48, speed: 1.4, ability: { type: "teamHealOnWave", value: 0.02, desc: "Хил 2% за волну" }, desc: "Девушка с супер-регенерацией. Лечит команду на 2% за волну.",
-            masteryTitle: "Пробуждённый: Кимико", masteryTitleId: "mastery_character_3de97d9f", masteryTitleIcon: "✦" },
+            masteryTitle: "Плоть, которую не сломать", masteryTitleId: "mastery_character_3de97d9f", masteryTitleIcon: "✦" },
         { name: "Ракета (а-трейн)", universe: "The Boys", damage: 38, hp: 40, speed: 1.8, ability: { type: "nonBossOneShot", chance: 0.03, desc: "3% ваншот (не босс)" }, desc: "К вам летит РАКЕТААААААА!!!! 3% шанс мгновенно убить врага (кроме боссов).",
-            masteryTitle: "Пробуждённый: Ракета (а-трейн)", masteryTitleId: "mastery_character_f1d58cc7", masteryTitleIcon: "✦" },
+            masteryTitle: "Самый быстрый на американском шоссе", masteryTitleId: "mastery_character_f1d58cc7", masteryTitleIcon: "✦" },
         { name: "Деку (5%)", universe: "MHA", damage: 29, hp: 70, speed: 0.6, ability: { type: "desperateStrike", value: 0.10, threshold: 0.30, desc: "+10% урона при HP ниже 30%" }, statusAbility: { type: "clickDmgSelf", value: 0.02, desc: "-2% HP за клик" }, desc: "Слабый сосуд, мощная сила. Каждый клик отнимает 2% HP команды, зато в критический момент урон возрастает на 10%.",
-            masteryTitle: "Пробуждённый: Деку (5%)", masteryTitleId: "mastery_character_69dd0c46", masteryTitleIcon: "✦" }
+            masteryTitle: "Наследник силы в пяти процентах", masteryTitleId: "mastery_character_69dd0c46", masteryTitleIcon: "✦" }
 ,
 { name: "Зверь", universe: "The Boys", patchId: "the_boys", damage: 35, hp: 45, speed: 1.5, ability: { type: "damageMultChance", chance: 0.12, mult: 1.25, desc: "12% шанс нанести ×1,25 урона" }, desc: "Человек-паук в стиле Пацанов. Ах ты сволочь, Человек-паук! ",
-            masteryTitle: "Пробуждённый: Зверь", masteryTitleId: "mastery_character_4c3852b7", masteryTitleIcon: "✦" },
+            masteryTitle: "Зверь, выпущенный на волю", masteryTitleId: "mastery_character_4c3852b7", masteryTitleIcon: "✦" },
         { name: "Звёздочка ", universe: "The Boys", patchId: "the_boys", damage: 32, hp: 48, speed: 1.3, ability: { type: "critChance", value: 0.06, desc: "+6% шанс критического удара" }, statusAbility: { type: "shock", chance: 0.10, desc: "10% шанс электрического шока" }, desc: "Которая еще не ела детей",
-            masteryTitle: "Пробуждённый: Звёздочка ", masteryTitleId: "mastery_character_5cf64f63", masteryTitleIcon: "✦" },
+            masteryTitle: "Свет, разоблачающий героев", masteryTitleId: "mastery_character_5cf64f63", masteryTitleIcon: "✦" },
         
         { name: "Файркрекер (Пропагандистка)", universe: "The Boys", patchId: "the_boys", damage: 27, hp: 45, speed: 1, desc: "Умеет выпускать искры и мастерски управляет пропагандой. В прямом бою заметно уступает сильнейшим суперам.",
-            masteryTitle: "Пробуждённый: Файркрекер (Пропагандистка)", masteryTitleId: "mastery_character_783e252e", masteryTitleIcon: "✦" },
+            masteryTitle: "Голос пропаганды", masteryTitleId: "mastery_character_783e252e", masteryTitleIcon: "✦" },
         {"name":"Санджи (Таймскип)","universe":"One Piece","patchId":"one_piece","damage":32,"hp":45,"speed":1.6,"ability":{"type":"damageMultChance","chance":0.15,"mult":1.25,"desc":"15% шанс нанести ×1,25 урона"},"desc":"Чёрная нога после таймскипа. Усиленные удары ногами и высокая скорость дают преимущество в темпе.",
-            masteryTitle: "Пробуждённый: Санджи (Таймскип)", masteryTitleId: "mastery_character_6eaf6dcd", masteryTitleIcon: "✦"},
+            masteryTitle: "Чёрная нога синего огня", masteryTitleId: "mastery_character_6eaf6dcd", masteryTitleIcon: "✦"},
         {"name":"Нами (Зевс)","universe":"One Piece","patchId":"one_piece","damage":28,"hp":44,"speed":1.5,"statusAbility":{"type":"shock","chance":0.12,"desc":"12% шанс электрического шока"},"desc":"Навигатор использует Зевса, чтобы усиливать климатические атаки молниями.",
-            masteryTitle: "Пробуждённый: Нами (Зевс)", masteryTitleId: "mastery_character_80fc3500", masteryTitleIcon: "✦"},
+            masteryTitle: "Гроза в ладонях", masteryTitleId: "mastery_character_80fc3500", masteryTitleIcon: "✦"},
         {"name":"Боа Хэнкок","universe":"One Piece","patchId":"one_piece","damage":42,"hp":55,"speed":1.4,"statusAbility":{"type":"blind","value":1,"desc":"Взгляд ослепляет: +1 клик до контратаки"},"desc":"Императрица Амазон Лили. Её красота и сила Меро-фрукта дезориентируют противников.",
-            masteryTitle: "Пробуждённый: Боа Хэнкок", masteryTitleId: "mastery_character_97686caf", masteryTitleIcon: "✦"},
+            masteryTitle: "Императрица окаменяющего взгляда", masteryTitleId: "mastery_character_97686caf", masteryTitleIcon: "✦"},
         {"name":"Крокодайл","universe":"One Piece","patchId":"one_piece","damage":40,"hp":60,"speed":1.2,"ability":{"type":"damageReduction","value":0.06,"desc":"−6% получаемого урона"},"desc":"Бывший сичибукай и хозяин песчаного фрукта. Песчаная броня помогает переживать удары.",
-            masteryTitle: "Пробуждённый: Крокодайл", masteryTitleId: "mastery_character_acb88227", masteryTitleIcon: "✦"},
+            masteryTitle: "Песчаный король Алабасты", masteryTitleId: "mastery_character_acb88227", masteryTitleIcon: "✦"},
         {"name":"Сабо (без фрукта)","universe":"One Piece","patchId":"one_piece","damage":43,"hp":52,"speed":1.7,"statusAbility":{"type":"fire","damage":5,"duration":3000,"desc":"Пламя: 5 урона в секунду"},"desc":"Начальник штаба Революционной армии. Настолько горячий парень, что прожигает врагов своей крутостью.",
-            masteryTitle: "Пробуждённый: Сабо (без фрукта)", masteryTitleId: "mastery_character_f355b7a0", masteryTitleIcon: "✦"},
+            masteryTitle: "Революционер без огненного дара", masteryTitleId: "mastery_character_f355b7a0", masteryTitleIcon: "✦"},
         {"name":"Перона","universe":"One Piece","patchId":"one_piece","damage":27,"hp":42,"speed":1.2,"statusAbility":{"type":"blind","value":2,"desc":"Призраки: +2 клика до контратаки"},"desc":"Королева призраков. Её негативные полые призраки подавляют боевой дух врагов.",
-            masteryTitle: "Пробуждённый: Перона", masteryTitleId: "mastery_character_345a146a", masteryTitleIcon: "✦"},
+            masteryTitle: "Принцесса негативных призраков", masteryTitleId: "mastery_character_345a146a", masteryTitleIcon: "✦"},
         {"name":"Джевелри Бонни","universe":"One Piece","patchId":"one_piece","damage":35,"hp":50,"speed":1.4,"ability":{"type":"healOnWin","percent":0.025,"desc":"+2,5% HP после победы"},"desc":"Пиратка с силой изменения возраста. Использует обманчивую внешность и нестандартные приёмы.",
-            masteryTitle: "Пробуждённый: Джевелри Бонни", masteryTitleId: "mastery_character_3e66a6f3", masteryTitleIcon: "✦"},
+            masteryTitle: "Пожирательница лет", masteryTitleId: "mastery_character_3e66a6f3", masteryTitleIcon: "✦"},
         {"name":"Икс Дрейк","universe":"One Piece","patchId":"one_piece","damage":38,"hp":55,"speed":1.25,"ability":{"type":"damageReduction","value":0.08,"desc":"−8% получаемого урона"},"desc":"Бывший морской офицер, умеющий превращаться в древнего динозавра.",
-            masteryTitle: "Пробуждённый: Икс Дрейк", masteryTitleId: "mastery_character_82b6908a", masteryTitleIcon: "✦"},
+            masteryTitle: "Древний хищник флота", masteryTitleId: "mastery_character_82b6908a", masteryTitleIcon: "✦"},
         {"name":"Капоне Беге","universe":"One Piece","patchId":"one_piece","damage":30,"hp":70,"speed":0.9,"ability":{"type":"damageReduction","value":0.1,"desc":"−10% получаемого урона"},"desc":"Капитан с крепостным фруктом: его тело превращается в вооружённую крепость.",
-            masteryTitle: "Пробуждённый: Капоне Беге", masteryTitleId: "mastery_character_f699e2fa", masteryTitleIcon: "✦"},
+            masteryTitle: "Крепость на двух ногах", masteryTitleId: "mastery_character_f699e2fa", masteryTitleIcon: "✦"},
         {"name":"Бэзил Хокинс","universe":"One Piece","patchId":"one_piece","damage":34,"hp":55,"speed":1.1,"ability":{"type":"damageMultChance","chance":0.12,"mult":1.3,"desc":"12% шанс нанести ×1,3 урона"},"desc":"Маг-пират, читающий карты таро и использующий соломенные куклы для защиты и ответных атак.",
-            masteryTitle: "Пробуждённый: Бэзил Хокинс", masteryTitleId: "mastery_character_a19986c4", masteryTitleIcon: "✦"},
+            masteryTitle: "Гадатель смерти", masteryTitleId: "mastery_character_a19986c4", masteryTitleIcon: "✦"},
         {"name":"Скрэтчмен Апу","universe":"One Piece","patchId":"one_piece","damage":32,"hp":45,"speed":1.6,"statusAbility":{"type":"shock","chance":0.1,"desc":"10% шанс звукового шока"},"desc":"Музыкальный пират превращает звук и ритм в разрушительные атаки.",
-            masteryTitle: "Пробуждённый: Скрэтчмен Апу", masteryTitleId: "mastery_character_4945fc42", masteryTitleIcon: "✦"},
+            masteryTitle: "Диджей разрушения", masteryTitleId: "mastery_character_4945fc42", masteryTitleIcon: "✦"},
         {"name":"Эмпорио Иванков","universe":"One Piece","patchId":"one_piece","damage":29,"hp":47,"speed":1.2,"ability":{"type":"healOnWin","percent":0.035,"desc":"+3,5% HP после победы"},"desc":"Командир Революционной армии. Гормональные техники помогают союзникам переживать тяжёлые бои.",
-            masteryTitle: "Пробуждённый: Эмпорио Иванков", masteryTitleId: "mastery_character_f5f52020", masteryTitleIcon: "✦"},
+            masteryTitle: "Король и королева революции", masteryTitleId: "mastery_character_f5f52020", masteryTitleIcon: "✦"},
         {"name":"Пероспреро","universe":"One Piece","patchId":"one_piece","damage":34,"hp":52,"speed":1.05,"statusAbility":{"type":"freezeStacks","value":1,"desc":"Конфетные путы: +1 клик до контратаки"},"desc":"Старший сын Большой Мамочки управляет липкими конфетами и сковывает противников.",
-            masteryTitle: "Пробуждённый: Пероспреро", masteryTitleId: "mastery_character_fd22706a", masteryTitleIcon: "✦"},
+            masteryTitle: "Кондитер из конфетного ада", masteryTitleId: "mastery_character_fd22706a", masteryTitleIcon: "✦"},
         {"name":"Шарлотта Пудинг","universe":"One Piece","patchId":"one_piece","damage":28,"hp":44,"speed":1.1,"ability":{"type":"damageAura","value":0.03,"desc":"+3% урона команде"},"desc":"Дочь Большой Мамочки с силой памяти. Поддерживает союзников хитростью и тонким расчётом.",
-            masteryTitle: "Пробуждённый: Шарлотта Пудинг", masteryTitleId: "mastery_character_96962174", masteryTitleIcon: "✦"},
+            masteryTitle: "Третий глаз шоколадной принцессы", masteryTitleId: "mastery_character_96962174", masteryTitleIcon: "✦"},
         {"name":"Педро","universe":"One Piece","patchId":"one_piece","damage":36,"hp":47,"speed":1.3,"statusAbility":{"type":"shock","chance":0.08,"desc":"8% шанс электрического шока"},"desc":"Мускетёр минков, готовый рискнуть собой ради команды Луффи.",
-            masteryTitle: "Пробуждённый: Педро", masteryTitleId: "mastery_character_65eb2e79", masteryTitleIcon: "✦"},
+            masteryTitle: "Страж рассвета", masteryTitleId: "mastery_character_65eb2e79", masteryTitleIcon: "✦"},
         {"name":"Каррот (Сулонг)","universe":"One Piece","patchId":"one_piece","damage":65,"hp":78,"speed":2.5,"ability":{"type":"damageMultChance","chance":0.2,"mult":1.3,"desc":"20% шанс нанести ×1,3 урона"},"statusAbility":{"type":"shock","chance":0.08,"desc":"8% шанс электрического шока"},"desc":"Каррот под полной луной входит в форму Сулонг: скорость и электрические атаки резко возрастают.",
-            masteryTitle: "Пробуждённый: Каррот (Сулонг)", masteryTitleId: "mastery_character_b3c6b2dd", masteryTitleIcon: "✦"},
+            masteryTitle: "Белая луна Минков", masteryTitleId: "mastery_character_b3c6b2dd", masteryTitleIcon: "✦"},
         { name: "Генос", universe: "OPM", patchId: "one_punch_man", damage: 36, hp: 47, speed: 1.6, statusAbility: { type: "fire", damage: 4, duration: 2500, desc: "Взрывные руки: 4 урона в секунду" }, desc: "Демон-киборг постоянно модернизирует тело. Его энергетические выстрелы наносят дополнительный огненный урон.",
-            masteryTitle: "Пробуждённый: Генос", masteryTitleId: "mastery_character_1adb6e29", masteryTitleIcon: "✦" },
+            masteryTitle: "Демон-киборг", masteryTitleId: "mastery_character_1adb6e29", masteryTitleIcon: "✦" },
         { name: "Соник (Скорость звука)", universe: "OPM", patchId: "one_punch_man", damage: 35, hp: 43, speed: 1.9, ability: { type: "critChance", value: 0.05, desc: "+5% к шансу критического удара" }, desc: "Ниндзя-убийца, делающий ставку на скорость и точность. Быстрые атаки чаще попадают в уязвимые места.",
-            masteryTitle: "Пробуждённый: Соник (Скорость звука)", masteryTitleId: "mastery_character_1e32e5b8", masteryTitleIcon: "✦" },
+            masteryTitle: "Ниндзя скорости звука", masteryTitleId: "mastery_character_1e32e5b8", masteryTitleIcon: "✦" },
         { name: "Металлическая Бита", universe: "OPM", patchId: "one_punch_man", damage: 36, hp: 60, speed: 1.3, ability: { type: "damageMultChance", chance: 0.15, mult: 1.25, desc: "15% шанс нанести ×1,25 урона" }, desc: "Чем дольше продолжается схватка, тем яростнее он сражается. Иногда наносит особенно мощный удар.",
-            masteryTitle: "Пробуждённый: Металлическая Бита", masteryTitleId: "mastery_character_68e71433", masteryTitleIcon: "✦" },
+            masteryTitle: "Бита, что сильнее ярости", masteryTitleId: "mastery_character_68e71433", masteryTitleIcon: "✦" },
         { name: "Девушка-комар", universe: "OPM", patchId: "one_punch_man", damage: 35, hp: 45, speed: 1.7, ability: { type: "healOnWin", percent: 0.025, desc: "+2,5% HP после победы" }, desc: "Монстр с высокой скоростью и способностью восстанавливать силы за счёт крови. Её регенерация помогает после боя.",
-            masteryTitle: "Пробуждённый: Девушка-комар", masteryTitleId: "mastery_character_e0522a00", masteryTitleIcon: "✦" },
+            masteryTitle: "Кровавая королева роя", masteryTitleId: "mastery_character_e0522a00", masteryTitleIcon: "✦" },
         { name: "Сторожевой пёс", universe: "OPM", patchId: "one_punch_man", damage: 38, hp: 58, speed: 1.65, desc: "Загадочный герой S-класса, сражающийся резкими и непредсказуемыми движениями. Сильный боец без чрезмерных бонусов.",
-            masteryTitle: "Пробуждённый: Сторожевой пёс", masteryTitleId: "mastery_character_f1d1b931", masteryTitleIcon: "✦" },
+            masteryTitle: "Страж Q-сити", masteryTitleId: "mastery_character_f1d1b931", masteryTitleIcon: "✦" },
         {
             "name": "Джонатан Джостар (Хамон)",
             "universe": "JoJo", "patchId": "jojo",
@@ -567,7 +567,7 @@ const customCardTemplates = {
                 "desc": "+4% урона команде"
             },
             "desc": "Первый Джостар: честный и невероятно сильный боец, освоивший Хамон.",
-            masteryTitle: "Пробуждённый: Джонатан Джостар (Хамон)", masteryTitleId: "mastery_character_9724cc7d", masteryTitleIcon: "✦"
+            masteryTitle: "Солнечный хамон Джостаров", masteryTitleId: "mastery_character_9724cc7d", masteryTitleIcon: "✦"
         },
         {
             "name": "Дио Брандо (часть 1)",
@@ -581,7 +581,7 @@ const customCardTemplates = {
                 "desc": "+2,5% HP после победы"
             },
             "desc": "Дио после превращения в вампира. Регенерация делает его опасным противником.",
-            masteryTitle: "Пробуждённый: Дио Брандо (часть 1)", masteryTitleId: "mastery_character_347f5789", masteryTitleIcon: "✦"
+            masteryTitle: "Вампир, похитивший тело", masteryTitleId: "mastery_character_347f5789", masteryTitleIcon: "✦"
         },
         {
             "name": "Джозеф Джостар (часть 2)",
@@ -595,7 +595,7 @@ const customCardTemplates = {
                 "desc": "+10% шанс критического удара"
             },
             "desc": "Изобретательный Джозеф сочетает Хамон, ловушки и психологические уловки.",
-            masteryTitle: "Пробуждённый: Джозеф Джостар (часть 2)", masteryTitleId: "mastery_character_03bdecfb", masteryTitleIcon: "✦"
+            masteryTitle: "Авантюрист хамона", masteryTitleId: "mastery_character_03bdecfb", masteryTitleIcon: "✦"
         },
         {
             "name": "Джозеф Джостар (часть 3: Hermit Purple)",
@@ -611,7 +611,7 @@ const customCardTemplates = {
             "desc": "Постаревший Джозеф использует Хамон и стенд Hermit Purple для разведки и контроля. Стенд: Hermit Purple. Способность стенда: Лозы: широкая защита. Бафф при призыве: скорость +12%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 75% урона; на обычной арене получаемый урон снижен на 5% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Hermit Purple", desc: "Нажми SUPER, чтобы призвать Hermit Purple как отдельное хитбокс-сердечко. Лозы: широкая защита. Бафф: скорость +12%; хитбокс радиусом 13 принимает на себя 75% урона при столкновении; на обычной арене получаемый урон снижается на 5%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джозеф Джостар (часть 3: Hermit Purple)", masteryTitleId: "mastery_character_987544e7", masteryTitleIcon: "✦"},
+            masteryTitle: "Старый мастер обмана", masteryTitleId: "mastery_character_987544e7", masteryTitleIcon: "✦"},
         {
             "name": "Цезарь Антонио Цеппели",
             "universe": "JoJo", "patchId": "jojo",
@@ -624,7 +624,7 @@ const customCardTemplates = {
                 "desc": "+5% урона боссам"
             },
             "desc": "Мастер Хамона, сражающийся с помощью пузырей, наполненных солнечной энергией.",
-            masteryTitle: "Пробуждённый: Цезарь Антонио Цеппели", masteryTitleId: "mastery_character_9d9822c6", masteryTitleIcon: "✦"
+            masteryTitle: "Пузырь хамона", masteryTitleId: "mastery_character_9d9822c6", masteryTitleIcon: "✦"
         },
         {
             "name": "Лиза Лиза",
@@ -638,7 +638,7 @@ const customCardTemplates = {
                 "desc": "−6% получаемого урона"
             },
             "desc": "Опытная наставница Хамона, сочетающая дисциплину и точные удары.",
-            masteryTitle: "Пробуждённый: Лиза Лиза", masteryTitleId: "mastery_character_8aeaf477", masteryTitleIcon: "✦"
+            masteryTitle: "Мастер дыхания солнца", masteryTitleId: "mastery_character_8aeaf477", masteryTitleIcon: "✦"
         },
         {
             "name": "Страйдзо (вампир)",
@@ -652,7 +652,7 @@ const customCardTemplates = {
                 "desc": "+3% HP после победы"
             },
             "desc": "Бывший пользователь Хамона, который обратился в вампира ради вечной молодости.",
-            masteryTitle: "Пробуждённый: Страйдзо (вампир)", masteryTitleId: "mastery_character_0b195748", masteryTitleIcon: "✦"
+            masteryTitle: "Предатель хамона", masteryTitleId: "mastery_character_0b195748", masteryTitleIcon: "✦"
         },
         {
             "name": "Нориаки Какёин (Hierophant Green)",
@@ -668,7 +668,7 @@ const customCardTemplates = {
             "desc": "Стенд Какёина атакует на расстоянии и может опутывать цели изумрудными нитями. Стенд: Hierophant Green. Способность стенда: Изумрудный барьер: сбалансированный щит. Бафф при призыве: скорость +10%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 71% урона; на обычной арене получаемый урон снижен на 7% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Hierophant Green", desc: "Нажми SUPER, чтобы призвать Hierophant Green как отдельное хитбокс-сердечко. Изумрудный барьер: сбалансированный щит. Бафф: скорость +10%; хитбокс радиусом 12 принимает на себя 71% урона при столкновении; на обычной арене получаемый урон снижается на 7%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Нориаки Какёин (Hierophant Green)", masteryTitleId: "mastery_character_0029b894", masteryTitleIcon: "✦"},
+            masteryTitle: "Зелёный суд Эмеральда", masteryTitleId: "mastery_character_0029b894", masteryTitleIcon: "✦"},
         {
             "name": "Жан-Пьер Польнарефф (Silver Chariot)",
             "universe": "JoJo", "patchId": "jojo",
@@ -683,7 +683,7 @@ const customCardTemplates = {
             "desc": "Фехтовальщик с молниеносным стендом Silver Chariot. Стенд: Silver Chariot. Способность стенда: Рапира: быстрый стенд и узкий хитбокс. Бафф при призыве: скорость +27%; хитбокс-сердечко радиусом 9 перехватывает атаки и принимает на себя 62% урона; на обычной арене получаемый урон снижен на 2% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Silver Chariot", desc: "Нажми SUPER, чтобы призвать Silver Chariot как отдельное хитбокс-сердечко. Рапира: быстрый стенд и узкий хитбокс. Бафф: скорость +27%; хитбокс радиусом 9 принимает на себя 62% урона при столкновении; на обычной арене получаемый урон снижается на 2%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Жан-Пьер Польнарефф (Silver Chariot)", masteryTitleId: "mastery_character_4a94c347", masteryTitleIcon: "✦"},
+            masteryTitle: "Серебряный клинок Франции", masteryTitleId: "mastery_character_4a94c347", masteryTitleIcon: "✦"},
         {
             "name": "Мухаммед Абдул (Magician's Red)",
             "universe": "JoJo", "patchId": "jojo",
@@ -699,7 +699,7 @@ const customCardTemplates = {
             "desc": "Пользователь огненного стенда Magician's Red. Стенд: Magician's Red. Способность стенда: Пламя: усиленное поглощение урона. Бафф при призыве: скорость +8%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 77% урона; на обычной арене получаемый урон снижен на 8% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Magician's Red", desc: "Нажми SUPER, чтобы призвать Magician's Red как отдельное хитбокс-сердечко. Пламя: усиленное поглощение урона. Бафф: скорость +8%; хитбокс радиусом 12 принимает на себя 77% урона при столкновении; на обычной арене получаемый урон снижается на 8%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Мухаммед Абдул (Magician's Red)", masteryTitleId: "mastery_character_c098eec6", masteryTitleIcon: "✦"},
+            masteryTitle: "Красный маг огня", masteryTitleId: "mastery_character_c098eec6", masteryTitleIcon: "✦"},
         {
             "name": "Пет Шоп (Horus)",
             "universe": "JoJo", "patchId": "jojo",
@@ -714,7 +714,7 @@ const customCardTemplates = {
             "desc": "Сокол, использующий ледяной стенд Horus и атакующий с воздуха. Стенд: Horus. Способность стенда: Ледяной панцирь: крепкая защита. Бафф при призыве: скорость +16%; хитбокс-сердечко радиусом 11 перехватывает атаки и принимает на себя 79% урона; на обычной арене получаемый урон снижен на 6% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Horus", desc: "Нажми SUPER, чтобы призвать Horus как отдельное хитбокс-сердечко. Ледяной панцирь: крепкая защита. Бафф: скорость +16%; хитбокс радиусом 11 принимает на себя 79% урона при столкновении; на обычной арене получаемый урон снижается на 6%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Пет Шоп (Horus)", masteryTitleId: "mastery_character_f8602e22", masteryTitleIcon: "✦"},
+            masteryTitle: "Сокол ледяного ада", masteryTitleId: "mastery_character_f8602e22", masteryTitleIcon: "✦"},
         {
             "name": "Окуясу Нидзимура (The Hand)",
             "universe": "JoJo", "patchId": "jojo",
@@ -730,7 +730,7 @@ const customCardTemplates = {
             "desc": "Стенд Окуясу стирает пространство правой рукой, но его владелец действует импульсивно. Стенд: The Hand. Способность стенда: Стирание пространства: блокирует много урона. Бафф при призыве: скорость +5%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 82% урона; на обычной арене получаемый урон снижен на 9% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — The Hand", desc: "Нажми SUPER, чтобы призвать The Hand как отдельное хитбокс-сердечко. Стирание пространства: блокирует много урона. Бафф: скорость +5%; хитбокс радиусом 13 принимает на себя 82% урона при столкновении; на обычной арене получаемый урон снижается на 9%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Окуясу Нидзимура (The Hand)", masteryTitleId: "mastery_character_f10aab01", masteryTitleIcon: "✦"},
+            masteryTitle: "Рука, стирающая пространство", masteryTitleId: "mastery_character_f10aab01", masteryTitleIcon: "✦"},
         {
             "name": "Коити Хиросэ (Echoes Act 3)",
             "universe": "JoJo", "patchId": "jojo",
@@ -745,7 +745,7 @@ const customCardTemplates = {
             "desc": "Третья форма Echoes способна резко увеличивать вес выбранной цели. Стенд: Echoes ACT 3. Способность стенда: 3 FREEZE: тяжёлый защитный стенд. Бафф при призыве: скорость +7%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 80% урона; на обычной арене получаемый урон снижен на 8% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Echoes ACT 3", desc: "Нажми SUPER, чтобы призвать Echoes ACT 3 как отдельное хитбокс-сердечко. 3 FREEZE: тяжёлый защитный стенд. Бафф: скорость +7%; хитбокс радиусом 12 принимает на себя 80% урона при столкновении; на обычной арене получаемый урон снижается на 8%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Коити Хиросэ (Echoes Act 3)", masteryTitleId: "mastery_character_fed089a5", masteryTitleIcon: "✦"},
+            masteryTitle: "Тяжесть трёх слов", masteryTitleId: "mastery_character_fed089a5", masteryTitleIcon: "✦"},
         {
             "name": "Юкако Ямагиси (Love Deluxe)",
             "universe": "JoJo", "patchId": "jojo",
@@ -761,7 +761,7 @@ const customCardTemplates = {
             "desc": "Опасная пользовательница стенда, управляющего её волосами. Стенд: Love Deluxe. Способность стенда: Волосы: увеличенная зона стенда. Бафф при призыве: скорость +14%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 70% урона; на обычной арене получаемый урон снижен на 4% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Love Deluxe", desc: "Нажми SUPER, чтобы призвать Love Deluxe как отдельное хитбокс-сердечко. Волосы: увеличенная зона стенда. Бафф: скорость +14%; хитбокс радиусом 13 принимает на себя 70% урона при столкновении; на обычной арене получаемый урон снижается на 4%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Юкако Ямагиси (Love Deluxe)", masteryTitleId: "mastery_character_74cd20a2", masteryTitleIcon: "✦"},
+            masteryTitle: "Любовь, ставшая ловушкой", masteryTitleId: "mastery_character_74cd20a2", masteryTitleIcon: "✦"},
         {
             "name": "Гвидо Миста (Sex Pistols)",
             "universe": "JoJo", "patchId": "jojo",
@@ -776,7 +776,7 @@ const customCardTemplates = {
             "desc": "Меткий стрелок, чьи маленькие стенды перенаправляют пули. Стенд: Sex Pistols. Способность стенда: Пули: скорость и точное прикрытие. Бафф при призыве: скорость +22%; хитбокс-сердечко радиусом 10 перехватывает атаки и принимает на себя 65% урона; на обычной арене получаемый урон снижен на 3% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Sex Pistols", desc: "Нажми SUPER, чтобы призвать Sex Pistols как отдельное хитбокс-сердечко. Пули: скорость и точное прикрытие. Бафф: скорость +22%; хитбокс радиусом 10 принимает на себя 65% урона при столкновении; на обычной арене получаемый урон снижается на 3%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Гвидо Миста (Sex Pistols)", masteryTitleId: "mastery_character_f2c11e44", masteryTitleIcon: "✦"},
+            masteryTitle: "Шестая пуля в барабане", masteryTitleId: "mastery_character_f2c11e44", masteryTitleIcon: "✦"},
         {
             "name": "Наранча Гирга (Aerosmith)",
             "universe": "JoJo", "patchId": "jojo",
@@ -792,7 +792,7 @@ const customCardTemplates = {
             "desc": "Пилот миниатюрного самолёта Aerosmith, отслеживающего дыхание и атакующего пулемётами. Стенд: Aerosmith. Способность стенда: Радар: скорость для уклонения. Бафф при призыве: скорость +20%; хитбокс-сердечко радиусом 11 перехватывает атаки и принимает на себя 68% урона; на обычной арене получаемый урон снижен на 4% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Aerosmith", desc: "Нажми SUPER, чтобы призвать Aerosmith как отдельное хитбокс-сердечко. Радар: скорость для уклонения. Бафф: скорость +20%; хитбокс радиусом 11 принимает на себя 68% урона при столкновении; на обычной арене получаемый урон снижается на 4%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Наранча Гирга (Aerosmith)", masteryTitleId: "mastery_character_8dc04869", masteryTitleIcon: "✦"},
+            masteryTitle: "Самолёт в кармане", masteryTitleId: "mastery_character_8dc04869", masteryTitleIcon: "✦"},
         {
             "name": "Триш Уна (Spice Girl)",
             "universe": "JoJo", "patchId": "jojo",
@@ -807,7 +807,7 @@ const customCardTemplates = {
             "desc": "Пробуждённый стенд Trish смягчает любые материалы, помогая ей защищаться и атаковать. Стенд: Spice Girl. Способность стенда: Упругость: прочная защита. Бафф при призыве: скорость +12%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 78% урона; на обычной арене получаемый урон снижен на 7% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Spice Girl", desc: "Нажми SUPER, чтобы призвать Spice Girl как отдельное хитбокс-сердечко. Упругость: прочная защита. Бафф: скорость +12%; хитбокс радиусом 12 принимает на себя 78% урона при столкновении; на обычной арене получаемый урон снижается на 7%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Триш Уна (Spice Girl)", masteryTitleId: "mastery_character_66b08272", masteryTitleIcon: "✦"},
+            masteryTitle: "Дочь босса, обретшая силу", masteryTitleId: "mastery_character_66b08272", masteryTitleIcon: "✦"},
         {
             "name": "Просчутто (The Grateful Dead)",
             "universe": "JoJo", "patchId": "jojo",
@@ -822,7 +822,7 @@ const customCardTemplates = {
             "desc": "Безжалостный член команды убийц, чья способность ускоряет старение целей. Стенд: The Grateful Dead. Способность стенда: Старение: максимально плотный щит. Бафф при призыве: скорость +5%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 83% урона; на обычной арене получаемый урон снижен на 10% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — The Grateful Dead", desc: "Нажми SUPER, чтобы призвать The Grateful Dead как отдельное хитбокс-сердечко. Старение: максимально плотный щит. Бафф: скорость +5%; хитбокс радиусом 12 принимает на себя 83% урона при столкновении; на обычной арене получаемый урон снижается на 10%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Просчутто (The Grateful Dead)", masteryTitleId: "mastery_character_ddd37f8b", masteryTitleIcon: "✦"},
+            masteryTitle: "Стареющая смерть", masteryTitleId: "mastery_character_ddd37f8b", masteryTitleIcon: "✦"},
         {
             "name": "Гьяччо (White Album)",
             "universe": "JoJo", "patchId": "jojo",
@@ -837,7 +837,7 @@ const customCardTemplates = {
             "desc": "Создаёт ледяную броню и замораживает окружающее пространство. Стенд: White Album. Способность стенда: Ледяная броня: один из лучших блоков урона. Бафф при призыве: скорость +8%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 84% урона; на обычной арене получаемый урон снижен на 10% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — White Album", desc: "Нажми SUPER, чтобы призвать White Album как отдельное хитбокс-сердечко. Ледяная броня: один из лучших блоков урона. Бафф: скорость +8%; хитбокс радиусом 13 принимает на себя 84% урона при столкновении; на обычной арене получаемый урон снижается на 10%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Гьяччо (White Album)", masteryTitleId: "mastery_character_781ea80c", masteryTitleIcon: "✦"},
+            masteryTitle: "Белый альбом вечной зимы", masteryTitleId: "mastery_character_781ea80c", masteryTitleIcon: "✦"},
         {
             "name": "Эрмес Костелло (Kiss)",
             "universe": "JoJo", "patchId": "jojo",
@@ -853,7 +853,7 @@ const customCardTemplates = {
             "desc": "Использует наклейки Kiss, чтобы создавать копии объектов и затем резко соединять их. Стенд: Kiss. Способность стенда: Дубликаты: широкий защитный хитбокс. Бафф при призыве: скорость +15%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 73% урона; на обычной арене получаемый урон снижен на 6% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Kiss", desc: "Нажми SUPER, чтобы призвать Kiss как отдельное хитбокс-сердечко. Дубликаты: широкий защитный хитбокс. Бафф: скорость +15%; хитбокс радиусом 12 принимает на себя 73% урона при столкновении; на обычной арене получаемый урон снижается на 6%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Эрмес Костелло (Kiss)", masteryTitleId: "mastery_character_14153f71", masteryTitleIcon: "✦"},
+            masteryTitle: "Поцелуй, размножающий реальность", masteryTitleId: "mastery_character_14153f71", masteryTitleIcon: "✦"},
         {
             "name": "Foo Fighters (F.F.)",
             "universe": "JoJo", "patchId": "jojo",
@@ -868,7 +868,7 @@ const customCardTemplates = {
             "desc": "Разумная колония планктонов, которая может восстанавливать собственное тело. Стенд: Foo Fighters. Способность стенда: Планктон: устойчивость и скорость. Бафф при призыве: скорость +13%; хитбокс-сердечко радиусом 11 перехватывает атаки и принимает на себя 75% урона; на обычной арене получаемый урон снижен на 8% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Foo Fighters", desc: "Нажми SUPER, чтобы призвать Foo Fighters как отдельное хитбокс-сердечко. Планктон: устойчивость и скорость. Бафф: скорость +13%; хитбокс радиусом 11 принимает на себя 75% урона при столкновении; на обычной арене получаемый урон снижается на 8%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Foo Fighters (F.F.)", masteryTitleId: "mastery_character_58a71bee", masteryTitleIcon: "✦"},
+            masteryTitle: "Планктон с человеческой волей", masteryTitleId: "mastery_character_58a71bee", masteryTitleIcon: "✦"},
         {
             "name": "Эмпорио Алниньо",
             "universe": "JoJo", "patchId": "jojo",
@@ -883,7 +883,7 @@ const customCardTemplates = {
             "desc": "Юный союзник Джолин, умеющий использовать призрачные комнаты и найденные предметы. Стенд: Burning Down the House. Способность стенда: Призрачная комната: быстрый отклик. Бафф при призыве: скорость +10%; хитбокс-сердечко радиусом 10 перехватывает атаки и принимает на себя 67% урона; на обычной арене получаемый урон снижен на 5% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Burning Down the House", desc: "Нажми SUPER, чтобы призвать Burning Down the House как отдельное хитбокс-сердечко. Призрачная комната: быстрый отклик. Бафф: скорость +10%; хитбокс радиусом 10 принимает на себя 67% урона при столкновении; на обычной арене получаемый урон снижается на 5%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Эмпорио Алниньо", masteryTitleId: "mastery_character_568c167c", masteryTitleIcon: "✦"},
+            masteryTitle: "Последний ребёнок Грин Долфин", masteryTitleId: "mastery_character_568c167c", masteryTitleIcon: "✦"},
         {
             "name": "Хот Пэнтс",
             "universe": "JoJo", "patchId": "jojo",
@@ -898,7 +898,7 @@ const customCardTemplates = {
             "desc": "Участница гонки Steel Ball Run, использующая стенд Cream Starter для лечения и маскировки. Стенд: Cream Starter. Способность стенда: Лечебный спрей: усиленная зона защиты. Бафф при призыве: скорость +16%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 72% урона; на обычной арене получаемый урон снижен на 6% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Cream Starter", desc: "Нажми SUPER, чтобы призвать Cream Starter как отдельное хитбокс-сердечко. Лечебный спрей: усиленная зона защиты. Бафф: скорость +16%; хитбокс радиусом 12 принимает на себя 72% урона при столкновении; на обычной арене получаемый урон снижается на 6%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Хот Пэнтс", masteryTitleId: "mastery_character_3a7271f2", masteryTitleIcon: "✦"},
+            masteryTitle: "Охотница, лечащая плотью", masteryTitleId: "mastery_character_3a7271f2", masteryTitleIcon: "✦"},
         {
             "name": "Сэндмен (In a Silent Way)",
             "universe": "JoJo", "patchId": "jojo",
@@ -913,7 +913,7 @@ const customCardTemplates = {
             "desc": "Быстрый боец Steel Ball Run, превращающий звук и движение в разрушительные атаки. Стенд: In a Silent Way. Способность стенда: Звуковая скорость: быстрое движение. Бафф при призыве: скорость +26%; хитбокс-сердечко радиусом 9 перехватывает атаки и принимает на себя 63% урона; на обычной арене получаемый урон снижен на 2% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — In a Silent Way", desc: "Нажми SUPER, чтобы призвать In a Silent Way как отдельное хитбокс-сердечко. Звуковая скорость: быстрое движение. Бафф: скорость +26%; хитбокс радиусом 9 принимает на себя 63% урона при столкновении; на обычной арене получаемый урон снижается на 2%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Сэндмен (In a Silent Way)", masteryTitleId: "mastery_character_2e62dddd", masteryTitleIcon: "✦"},
+            masteryTitle: "Шаг в безмолвии", masteryTitleId: "mastery_character_2e62dddd", masteryTitleIcon: "✦"},
         {
             "name": "Ясухо Хиросэ (Paisley Park)",
             "universe": "JoJo", "patchId": "jojo",
@@ -928,7 +928,7 @@ const customCardTemplates = {
             "desc": "Помогает союзникам с помощью поискового и навигационного стенда Paisley Park. Стенд: Paisley Park. Способность стенда: Навигация: скорость и средняя защита. Бафф при призыве: скорость +18%; хитбокс-сердечко радиусом 11 перехватывает атаки и принимает на себя 69% урона; на обычной арене получаемый урон снижен на 5% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Paisley Park", desc: "Нажми SUPER, чтобы призвать Paisley Park как отдельное хитбокс-сердечко. Навигация: скорость и средняя защита. Бафф: скорость +18%; хитбокс радиусом 11 принимает на себя 69% урона при столкновении; на обычной арене получаемый урон снижается на 5%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Ясухо Хиросэ (Paisley Park)", masteryTitleId: "mastery_character_4d59144e", masteryTitleIcon: "✦"},
+            masteryTitle: "Проводник Пэйсли-Парк", masteryTitleId: "mastery_character_4d59144e", masteryTitleIcon: "✦"},
         {
             "name": "Драгона Джостар",
             "universe": "JoJo", "patchId": "jojo",
@@ -944,7 +944,7 @@ const customCardTemplates = {
             "desc": "Союзник Джодио, способный изменять положение и размер частей тела с помощью Smooth Operators. Стенд: Smooth Operators. Способность стенда: Коррекция тела: прочный стенд. Бафф при призыве: скорость +19%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 76% урона; на обычной арене получаемый урон снижен на 7% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Smooth Operators", desc: "Нажми SUPER, чтобы призвать Smooth Operators как отдельное хитбокс-сердечко. Коррекция тела: прочный стенд. Бафф: скорость +19%; хитбокс радиусом 12 принимает на себя 76% урона при столкновении; на обычной арене получаемый урон снижается на 7%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Драгона Джостар", masteryTitleId: "mastery_character_90ca657c", masteryTitleIcon: "✦"},
+            masteryTitle: "Грациозное искажение", masteryTitleId: "mastery_character_90ca657c", masteryTitleIcon: "✦"},
         {
             "name": "Усаги Алохаоэ",
             "universe": "JoJo", "patchId": "jojo",
@@ -959,7 +959,7 @@ const customCardTemplates = {
             "desc": "Член команды Джодио, использующий стенд The Matte Kudasai для исполнения просьб. Стенд: The Matte Kudasai. Способность стенда: Копирование: лёгкое и быстрое прикрытие. Бафф при призыве: скорость +11%; хитбокс-сердечко радиусом 10 перехватывает атаки и принимает на себя 66% урона; на обычной арене получаемый урон снижен на 4% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — The Matte Kudasai", desc: "Нажми SUPER, чтобы призвать The Matte Kudasai как отдельное хитбокс-сердечко. Копирование: лёгкое и быстрое прикрытие. Бафф: скорость +11%; хитбокс радиусом 10 принимает на себя 66% урона при столкновении; на обычной арене получаемый урон снижается на 4%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Усаги Алохаоэ", masteryTitleId: "mastery_character_c969a3fd", masteryTitleIcon: "✦"},
+            masteryTitle: "Удача лунного зайца", masteryTitleId: "mastery_character_c969a3fd", masteryTitleIcon: "✦"},
         {
             "name": "Ринго Роудэгейн (Mandom)",
             "universe": "JoJo", "patchId": "jojo",
@@ -974,7 +974,7 @@ const customCardTemplates = {
             "desc": "Стрелок Steel Ball Run, способный отматывать время на несколько секунд. Стенд: Mandom. Способность стенда: Возврат времени: сильнее снижает урон. Бафф при призыве: скорость +14%; хитбокс-сердечко радиусом 11 перехватывает атаки и принимает на себя 77% урона; на обычной арене получаемый урон снижен на 7% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Mandom", desc: "Нажми SUPER, чтобы призвать Mandom как отдельное хитбокс-сердечко. Возврат времени: сильнее снижает урон. Бафф: скорость +14%; хитбокс радиусом 11 принимает на себя 77% урона при столкновении; на обычной арене получаемый урон снижается на 7%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Ринго Роудэгейн (Mandom)", masteryTitleId: "mastery_character_6bdd3f12", masteryTitleIcon: "✦"},
+            masteryTitle: "Пистолет времени Мандом", masteryTitleId: "mastery_character_6bdd3f12", masteryTitleIcon: "✦"},
         {
             "name": "Аратака Рейген (серьёзный бой)",
             "universe": "Mob 100",
@@ -987,7 +987,7 @@ const customCardTemplates = {
                 "desc": "+3% урона команде"
             },
             "desc": "Обычный человек без собственных экстрасенсорных сил, который компенсирует это хитростью и уверенностью.",
-            masteryTitle: "Пробуждённый: Аратака Рейген (серьёзный бой)", masteryTitleId: "mastery_character_c93a5092", masteryTitleIcon: "✦"
+            masteryTitle: "Мастер экстрасенсорной скидки", masteryTitleId: "mastery_character_c93a5092", masteryTitleIcon: "✦"
         },
         {
             "name": "Димпл (божественная форма)",
@@ -1001,7 +1001,7 @@ const customCardTemplates = {
                 "desc": "+2,5% HP после победы"
             },
             "desc": "Димпл, усилившийся благодаря поклонникам. Значительно опаснее своей слабой формы.",
-            masteryTitle: "Пробуждённый: Димпл (божественная форма)", masteryTitleId: "mastery_character_7322910b", masteryTitleIcon: "✦"
+            masteryTitle: "Бог с улыбкой-приманкой", masteryTitleId: "mastery_character_7322910b", masteryTitleIcon: "✦"
         },
         {
             "name": "Моб (обычный экстрасенс)",
@@ -1015,7 +1015,7 @@ const customCardTemplates = {
                 "desc": "−5% получаемого урона"
             },
             "desc": "Сигэо Кагеяма обычно подавляет эмоции и силу, стараясь не причинять вреда другим.",
-            masteryTitle: "Пробуждённый: Моб (обычный экстрасенс)", masteryTitleId: "mastery_character_a86008cb", masteryTitleIcon: "✦"
+            masteryTitle: "Сто процентов сдержанности", masteryTitleId: "mastery_character_a86008cb", masteryTitleIcon: "✦"
         },
         {
             "name": "Алто Голдфилд",
@@ -1029,91 +1029,91 @@ const customCardTemplates = {
                 "desc": "+6% шанс критического удара"
             },
             "desc": "Ученик магической академии, чья сила заметно растёт благодаря контракту с Вермейль.",
-            masteryTitle: "Пробуждённый: Алто Голдфилд", masteryTitleId: "mastery_character_1b00853d", masteryTitleIcon: "✦"
+            masteryTitle: "Ученик, бросивший вызов демонам", masteryTitleId: "mastery_character_1b00853d", masteryTitleIcon: "✦"
         }
     ],
     "Мифическая": [
         { name: "Годжо (флешбек)", universe: "JJK", damage: 72, hp: 85, speed: 2.4, ability: { type: "critChance", value: 0.15, desc: "+15% шанс крита" }, desc: "Годжо из флешбека. Сильный мифический персонаж без секретных техник.",
-            masteryTitle: "Пробуждённый: Годжо (флешбек)", masteryTitleId: "mastery_character_01fc069f", masteryTitleIcon: "✦" },
+            masteryTitle: "Шесть глаз юности", masteryTitleId: "mastery_character_01fc069f", masteryTitleIcon: "✦" },
         { name: "Луффи (4 гир: боусман)", universe: "One Piece", damage: 45, hp: 75, speed: 1.8, ability: { type: "damageReduction", value: 0.15, desc: "-15% урона" }, desc: "Boundman. Уменьшает получаемый урон на 15%.",
-            masteryTitle: "Пробуждённый: Луффи (4 гир: боусман)", masteryTitleId: "mastery_character_793ac819", masteryTitleIcon: "✦" },
+            masteryTitle: "Прыгающий король хаки", masteryTitleId: "mastery_character_793ac819", masteryTitleIcon: "✦" },
         { name: "Наруто (Мудрец)", universe: "Naruto", damage: 52, hp: 85, speed: 2.0, statusAbility: { type: "bleed", value: 0.10, desc: "Кровотечение +10%" }, desc: "Режим Мудреца. Увеличивает урон по врагу на 10% (кровотечение).",
-            masteryTitle: "Пробуждённый: Наруто (Мудрец)", masteryTitleId: "mastery_character_1f64ba4a", masteryTitleIcon: "✦" },
+            masteryTitle: "Мудрец шести путей", masteryTitleId: "mastery_character_1f64ba4a", masteryTitleIcon: "✦" },
         { name: "Гоку (SSJ)", universe: "DB", damage: 60, hp: 70, speed: 2.2, ability: { type: "bossDamage", value: 0.10, desc: "+10% боссам" }, desc: "Супер Сайян. +10% урона боссам.",
-            masteryTitle: "Пробуждённый: Гоку (SSJ)", masteryTitleId: "mastery_character_19876178", masteryTitleIcon: "✦" },
+            masteryTitle: "Золотой воин с планеты Вегета", masteryTitleId: "mastery_character_19876178", masteryTitleIcon: "✦" },
         { name: "Эйс", universe: "One Piece", damage: 70, hp: 47, speed: 2.1, statusAbility: { type: "fire", damage: 5, duration: 5000, desc: "Огонь 5/сек" }, desc: "Огненный кулак. Поджигает врага — 5 урона каждые 2 секунды.",
-            masteryTitle: "Пробуждённый: Эйс", masteryTitleId: "mastery_character_67c9bd96", masteryTitleIcon: "✦" },
+            masteryTitle: "Пламенный брат", masteryTitleId: "mastery_character_67c9bd96", masteryTitleIcon: "✦" },
         { name: "Дедушка Гарп", universe: "One Piece", damage: 55, hp: 90, speed: 1.2, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" }, desc: "Герой морпехов. +10% урона всей команде.",
-            masteryTitle: "Пробуждённый: Дедушка Гарп", masteryTitleId: "mastery_character_0c506253", masteryTitleIcon: "✦" },
+            masteryTitle: "Кулак героя морпехов", masteryTitleId: "mastery_character_0c506253", masteryTitleIcon: "✦" },
         { name: "Неуязвимый (Коалиция планет)", universe: "Invincible", damage: 65, hp: 80, speed: 2.0, ability: { type: "critChance", value: 0.20, desc: "+20% крит" }, desc: "Марк Грейсон в прайме. +20% к шансу крита.",
-            masteryTitle: "Пробуждённый: Неуязвимый (Коалиция планет)", masteryTitleId: "mastery_character_48e22fbf", masteryTitleIcon: "✦" },
+            masteryTitle: "Чемпион коалиции планет", masteryTitleId: "mastery_character_48e22fbf", masteryTitleIcon: "✦" },
         { name: "Бог Скайпии Энель", universe: "One Piece", damage: 68, hp: 72, speed: 2.8, statusAbility: { type: "shock", chance: 0.12, desc: "Шок 12%" }, desc: "Бог молний. 12% шанс шокнуть врага.",
-            masteryTitle: "Пробуждённый: Бог Скайпии Энель", masteryTitleId: "mastery_character_b344b258", masteryTitleIcon: "✦" },
+            masteryTitle: "Бог молний Скайпии", masteryTitleId: "mastery_character_b344b258", masteryTitleIcon: "✦" },
         { name: "Альбер (Кинг)", universe: "One Piece", damage: 72, hp: 68, speed: 2.3, statusAbility: { type: "fire", damage: 8, duration: 4000, desc: "Огонь 8/сек" }, desc: "Правая рука Кайдо. Поджигает врага — 8 урона каждые 2 секунды.",
-            masteryTitle: "Пробуждённый: Альбер (Кинг)", masteryTitleId: "mastery_character_766bbf4b", masteryTitleIcon: "✦" },
+            masteryTitle: "Лунарианец, рождённый в огне", masteryTitleId: "mastery_character_766bbf4b", masteryTitleIcon: "✦" },
         { name: "Виктория Ньюман", universe: "The Boys", damage: 65, hp: 85, speed: 1.6, statusAbility: { type: "bleed", value: 0.20, desc: "Кровотечение +20%" }, desc: "Глава секретного отдела. +20% урона через кровотечение (взрыв головы).",
-            masteryTitle: "Пробуждённый: Виктория Ньюман", masteryTitleId: "mastery_character_ed7a6a00", masteryTitleIcon: "✦" },
+            masteryTitle: "Судья одним взглядом", masteryTitleId: "mastery_character_ed7a6a00", masteryTitleIcon: "✦" },
         { name: "Королева Мэйв", universe: "The Boys", damage: 70, hp: 88, speed: 1.8, ability: { type: "damageReduction", value: 0.15, desc: "-15% меньше урона" }, desc: "Самая сильная женщина. Уменьшает получаемый урон на 15%.",
-            masteryTitle: "Пробуждённый: Королева Мэйв", masteryTitleId: "mastery_character_85be46cb", masteryTitleIcon: "✦" },
+            masteryTitle: "Последний щит Семёрки", masteryTitleId: "mastery_character_85be46cb", masteryTitleIcon: "✦" },
         { name: "Солдатик (флешбек)", universe: "The Boys", damage: 72, hp: 82, speed: 1.7, ability: { type: "bossDamage", value: 0.12, desc: "+12% боссам" }, desc: "Первый супергерой. +12% урона боссам.",
-            masteryTitle: "Пробуждённый: Солдатик (флешбек)", masteryTitleId: "mastery_character_f4175002", masteryTitleIcon: "✦" },
+            masteryTitle: "Первый суперсолдат", masteryTitleId: "mastery_character_f4175002", masteryTitleIcon: "✦" },
         { name: "Штормфронт", universe: "The Boys", damage: 68, hp: 78, speed: 2.4, statusAbility: { type: "shock", chance: 0.15, desc: "Электричество 15%" }, desc: "Нацистка с молниями. 15% шанс шокнуть врага.",
-            masteryTitle: "Пробуждённый: Штормфронт", masteryTitleId: "mastery_character_9260ac74", masteryTitleIcon: "✦" },
+            masteryTitle: "Гроза нацистской эпохи", masteryTitleId: "mastery_character_9260ac74", masteryTitleIcon: "✦" },
         { name: "Ален (перерождённый)", universe: "Invincible", damage: 70, hp: 70, speed: 2.2, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" }, desc: "Инопланетянин-герой. +10% урона команде.",
-            masteryTitle: "Пробуждённый: Ален (перерождённый)", masteryTitleId: "mastery_character_3d48aea9", masteryTitleIcon: "✦" },
+            masteryTitle: "Ветеран Таласкрийцев", masteryTitleId: "mastery_character_3d48aea9", masteryTitleIcon: "✦" },
         { name: "Звёздочка (прайм)", universe: "The Boys", damage: 65, hp: 80, speed: 1.9, statusAbility: { type: "blind", value: 2, desc: "Ослепление +2" }, desc: "Световая героиня. Ослепляет врага — +2 клика до ответной атаки. Которая ест детей",
-            masteryTitle: "Пробуждённый: Звёздочка (прайм)", masteryTitleId: "mastery_character_3b515e52", masteryTitleIcon: "✦" },
+            masteryTitle: "Звезда, не склоняющаяся перед Семёркой", masteryTitleId: "mastery_character_3b515e52", masteryTitleIcon: "✦" },
         { name: "Деку: полное покрытие (20%)", universe: "MHA", damage: 58, hp: 68, speed: 1.3, ability: { type: "desperateStrike", value: 0.15, threshold: 0.30, desc: "+15% урона при HP ниже 30%" }, statusAbility: { type: "dmgTakenIncrease", value: 0.10, desc: "+10% получ. урона" }, desc: "20% One For All. Получаемый урон увеличен на 10%, зато при критически низком HP атаки становятся сильнее.",
-            masteryTitle: "Пробуждённый: Деку: полное покрытие (20%)", masteryTitleId: "mastery_character_ccba91c0", masteryTitleIcon: "✦" }
+            masteryTitle: "Наследник, окутанный силой", masteryTitleId: "mastery_character_ccba91c0", masteryTitleIcon: "✦" }
 ,
 { name: "Билли Бутчер (V24)", universe: "The Boys", patchId: "the_boys", damage: 70, hp: 85, speed: 1.5, ability: { type: "bossDamage", value: 0.08, desc: "+8% урона боссам" }, statusAbility: { type: "fire", damage: 7, duration: 3500, desc: "Тепловое зрение: 7 урона/сек" }, desc: "Бутчер под временным V24 получает силу, выносливость, тепловое зрение и щупальца симбионта. Препарат крайне опасен для его здоровья.",
-            masteryTitle: "Пробуждённый: Билли Бутчер (V24)", masteryTitleId: "mastery_character_c23e88c3", masteryTitleIcon: "✦" },
+            masteryTitle: "Мясник с временной силой", masteryTitleId: "mastery_character_c23e88c3", masteryTitleIcon: "✦" },
         { name: "Райан (Лазерный взгляд)", universe: "The Boys", patchId: "the_boys", damage: 65, hp: 80, speed: 1.8, ability: { type: "critChance", value: 0.09, desc: "+9% шанс критического удара" }, statusAbility: { type: "fire", damage: 8, duration: 3000, desc: "Тепловое зрение: 8 урона/сек" }, desc: "Райан унаследовал полёт, сверхсилу, прочность и тепловое зрение, но ещё уступает Хоумлендеру в опыте и контроле.",
-            masteryTitle: "Пробуждённый: Райан (Лазерный взгляд)", masteryTitleId: "mastery_character_1c7733ba", masteryTitleIcon: "✦" },
+            masteryTitle: "Наследник красного луча", masteryTitleId: "mastery_character_1c7733ba", masteryTitleIcon: "✦" },
         { name: "Сестра Сейдж (Гений)", universe: "The Boys", patchId: "the_boys", damage: 45, hp: 80, speed: 1.1, ability: { type: "damageAura", value: 0.06, desc: "+6% урона всей команде" }, desc: "Самый умный человек в мире. Её главная сила — гиперинтеллект, анализ, наука и манипуляция, а не грубая физическая мощь.",
-            masteryTitle: "Пробуждённый: Сестра Сейдж (Гений)", masteryTitleId: "mastery_character_bf8b6f04", masteryTitleIcon: "✦" },
+            masteryTitle: "Самый умный разум планеты", masteryTitleId: "mastery_character_bf8b6f04", masteryTitleIcon: "✦" },
         { name: "Кимико (Боевая регенерация)", universe: "The Boys", patchId: "the_boys", damage: 55, hp: 105, speed: 1.2, ability: { type: "damageReduction", value: 0.10, desc: "−10% получаемого урона" }, desc: "Кимико обладает сверхсилой, боевыми рефлексами и чрезвычайной регенерацией, благодаря которой переживает ранения, смертельные для обычного человека.",
-            masteryTitle: "Пробуждённый: Кимико (Боевая регенерация)", masteryTitleId: "mastery_character_a74c3cd9", masteryTitleIcon: "✦" },
+            masteryTitle: "Неумирающий кулак", masteryTitleId: "mastery_character_a74c3cd9", masteryTitleIcon: "✦" },
         {"name":"Кинг (Пламя угасло)","universe":"One Piece","patchId":"one_piece","damage":68,"hp":80,"speed":2.6,"ability":{"type":"damageMultChance","chance":0.18,"mult":1.3,"desc":"18% шанс нанести ×1,3 урона"},"desc":"Кинг гасит пламя на спине, жертвуя частью защиты ради взрывного роста скорости и силы атак.",
-            masteryTitle: "Пробуждённый: Кинг (Пламя угасло)", masteryTitleId: "mastery_character_b2621cc1", masteryTitleIcon: "✦"},
+            masteryTitle: "Лунарианец без огненной маски", masteryTitleId: "mastery_character_b2621cc1", masteryTitleIcon: "✦"},
         {"name":"Санджи (Ифрит Джамбе)","universe":"One Piece","patchId":"one_piece","damage":70,"hp":72,"speed":2.2,"statusAbility":{"type":"fire","damage":8,"duration":3000,"desc":"Пылающие удары: 8 урона в секунду"},"desc":"Продвинутая техника Чёрной ноги: раскалённые удары становятся ещё быстрее и мощнее.",
-            masteryTitle: "Пробуждённый: Санджи (Ифрит Джамбе)", masteryTitleId: "mastery_character_e0b71638", masteryTitleIcon: "✦"},
+            masteryTitle: "Дьявольская нога Ифрит", masteryTitleId: "mastery_character_e0b71638", masteryTitleIcon: "✦"},
         {"name":"Луффи (Гир 4: Снейкмен)","universe":"One Piece","patchId":"one_piece","damage":72,"hp":85,"speed":2.4,"ability":{"type":"damageMultChance","chance":0.28,"mult":1.35,"desc":"28% шанс нанести ×1,35 урона"},"desc":"Отдельная форма Четвёртого Гира: Снейкмен делает резиновые удары непредсказуемыми и быстрыми.",
-            masteryTitle: "Пробуждённый: Луффи (Гир 4: Снейкмен)", masteryTitleId: "mastery_character_40b84fe3", masteryTitleIcon: "✦"},
+            masteryTitle: "Змеиный кулак будущего", masteryTitleId: "mastery_character_40b84fe3", masteryTitleIcon: "✦"},
         {"name":"Ямато","universe":"One Piece","patchId":"one_piece","damage":68,"hp":100,"speed":1.9,"ability":{"type":"damageReduction","value":0.12,"desc":"−12% получаемого урона"},"desc":"Воин Вано, владеющий тяжёлой дубиной и мощной гибридной формой мифического зоана.",
-            masteryTitle: "Пробуждённый: Ямато", masteryTitleId: "mastery_character_488d981a", masteryTitleIcon: "✦"},
+            masteryTitle: "Наследник Одэна", masteryTitleId: "mastery_character_488d981a", masteryTitleIcon: "✦"},
         {"name":"Дракуль Михок","universe":"One Piece","patchId":"one_piece","damage":82,"hp":80,"speed":2,"ability":{"type":"critChance","value":0.16,"desc":"+16% шанс критического удара"},"desc":"Сильнейший фехтовальщик мира. Один точный удар способен решить исход боя.",
-            masteryTitle: "Пробуждённый: Дракуль Михок", masteryTitleId: "mastery_character_fcc6c95c", masteryTitleIcon: "✦"},
+            masteryTitle: "Сильнейший мечник мира", masteryTitleId: "mastery_character_fcc6c95c", masteryTitleIcon: "✦"},
         {"name":"Фудзитора (Иссё)","universe":"One Piece","patchId":"one_piece","damage":74,"hp":95,"speed":1.7,"statusAbility":{"type":"freezeStacks","value":2,"desc":"Гравитация: +2 клика до контратаки"},"desc":"Адмирал гравитации утяжеляет противника и сбивает ритм его атак.",
-            masteryTitle: "Пробуждённый: Фудзитора (Иссё)", masteryTitleId: "mastery_character_91ccf189", masteryTitleIcon: "✦"},
+            masteryTitle: "Гравитация слепого адмирала", masteryTitleId: "mastery_character_91ccf189", masteryTitleIcon: "✦"},
         {"name":"Магеллан (Начальник Импел Дауна)","universe":"One Piece","patchId":"one_piece","damage":74,"hp":85,"speed":1.5,"statusAbility":{"type":"poison","damage":7,"desc":"Яд: 7 урона за тик"},"desc":"Начальник Импел Дауна. Его ядовитые атаки крайне опасны даже для сильных противников.",
-            masteryTitle: "Пробуждённый: Магеллан (Начальник Импел Дауна)", masteryTitleId: "mastery_character_4513b2f2", masteryTitleIcon: "✦"},
+            masteryTitle: "Ядовитый тюремщик Импел Дауна", masteryTitleId: "mastery_character_4513b2f2", masteryTitleIcon: "✦"},
         {"name":"Чоппер (Монстр-пойнт)","universe":"One Piece","patchId":"one_piece","damage":66,"hp":95,"speed":1.5,"ability":{"type":"damageReduction","value":0.08,"desc":"−8% получаемого урона"},"desc":"Чоппер принимает гигантскую боевую форму, жертвуя тонким контролем ради грубой силы.",
-            masteryTitle: "Пробуждённый: Чоппер (Монстр-пойнт)", masteryTitleId: "mastery_character_d3043a52", masteryTitleIcon: "✦"},
+            masteryTitle: "Монстр-пойнт врача", masteryTitleId: "mastery_character_d3043a52", masteryTitleIcon: "✦"},
         {"name":"Куин (Чума)","universe":"One Piece","patchId":"one_piece","damage":76,"hp":88,"speed":1.4,"statusAbility":{"type":"poison","damage":6,"desc":"Биооружие: 6 урона за тик"},"desc":"Один из трёх бедствий Кайдо: кибернетическое оружие и вирусные атаки.",
-            masteryTitle: "Пробуждённый: Куин (Чума)", masteryTitleId: "mastery_character_d1f0d43a", masteryTitleIcon: "✦"},
+            masteryTitle: "Киберчумной учёный", masteryTitleId: "mastery_character_d1f0d43a", masteryTitleIcon: "✦"},
         {"name":"Джек (Засуха)","universe":"One Piece","patchId":"one_piece","damage":72,"hp":110,"speed":1.35,"ability":{"type":"damageReduction","value":0.13,"desc":"−13% получаемого урона"},"desc":"Неутомимый тяжеловес команды Кайдо, выдерживающий огромный объём повреждений.",
-            masteryTitle: "Пробуждённый: Джек (Засуха)", masteryTitleId: "mastery_character_db0b1c11", masteryTitleIcon: "✦"},
+            masteryTitle: "Засуха Зверей", masteryTitleId: "mastery_character_db0b1c11", masteryTitleIcon: "✦"},
         {"name":"Ульти","universe":"One Piece","patchId":"one_piece","damage":62,"hp":78,"speed":1.9,"ability":{"type":"critChance","value":0.1,"desc":"+10% шанс критического удара"},"desc":"Древний зоан и яростный боец Пиратов Зверей, полагающийся на резкие лобовые атаки.",
-            masteryTitle: "Пробуждённый: Ульти", masteryTitleId: "mastery_character_65e1f707", masteryTitleIcon: "✦"},
+            masteryTitle: "Голова, что не склоняется", masteryTitleId: "mastery_character_65e1f707", masteryTitleIcon: "✦"},
         {"name":"Генирал фрэнки","universe":"One Piece","patchId":"one_piece","damage":35,"hp":50,"speed":1.4,"ability":{"type":"critChance","value":0.08,"desc":"+8% шанс критического удара"},"desc":"Это типо как халкбастер.",
-            masteryTitle: "Пробуждённый: Генирал фрэнки", masteryTitleId: "mastery_character_e6efac2b", masteryTitleIcon: "✦"},
+            masteryTitle: "Генерал-супероружие", masteryTitleId: "mastery_character_e6efac2b", masteryTitleIcon: "✦"},
         {"name":"Донкихот Дофламинго","universe":"One Piece","patchId":"one_piece","damage":45,"hp":48,"speed":1.5,"ability":{"type":"damageMultChance","chance":0.18,"mult":1.3,"desc":"18% шанс нанести ×1,3 урона"},"statusAbility":{"type":"bleed","value":0.05,"desc":"+5% урона через кровотечение"},"desc":"Тиран Дресс Розы управляет режущими нитями и способен атаковать сразу с нескольких направлений.",
-            masteryTitle: "Пробуждённый: Донкихот Дофламинго", masteryTitleId: "mastery_character_57d15408", masteryTitleIcon: "✦"},
+            masteryTitle: "Небесный демон на нитях", masteryTitleId: "mastery_character_57d15408", masteryTitleIcon: "✦"},
         {"name":"Шарлотта Смуси","universe":"One Piece","patchId":"one_piece","damage":108,"hp":130,"speed":1.8,"ability":{"type":"damageAura","value":0.1,"desc":"+10% урона команде"},"desc":"Одна из трёх сладких командиров Пиратов Большой Мамочки. Сила выжимания жидкости и огромный меч делают её опасным бойцом.",
-            masteryTitle: "Пробуждённый: Шарлотта Смуси", masteryTitleId: "mastery_character_44dbb11d", masteryTitleIcon: "✦"},
+            masteryTitle: "Собирательница жизненных соков", masteryTitleId: "mastery_character_44dbb11d", masteryTitleIcon: "✦"},
         { name: "Атомный Самурай", universe: "OPM", patchId: "one_punch_man", damage: 78, hp: 80, speed: 2.2, statusAbility: { type: "bleed", value: 0.12, desc: "+12% урона через кровотечение" }, desc: "Мастер меча S-класса. Его стремительные разрезы оставляют глубокие раны и усиливают общий урон отряда.",
-            masteryTitle: "Пробуждённый: Атомный Самурай", masteryTitleId: "mastery_character_b87abd37", masteryTitleIcon: "✦" },
+            masteryTitle: "Мастер тысячи разрезов", masteryTitleId: "mastery_character_b87abd37", masteryTitleIcon: "✦" },
         { name: "Серебряный Клык (Бэнг)", universe: "OPM", patchId: "one_punch_man", damage: 66, hp: 102, speed: 1.8, ability: { type: "damageReduction", value: 0.06, desc: "−6% получаемого урона" }, desc: "Легендарный мастер боевых искусств, превращающий оборону и контратаки в преимущество.",
-            masteryTitle: "Пробуждённый: Серебряный Клык (Бэнг)", masteryTitleId: "mastery_character_64626056", masteryTitleIcon: "✦" },
+            masteryTitle: "Кулак водяной скалы", masteryTitleId: "mastery_character_64626056", masteryTitleIcon: "✦" },
         { name: "Зомби-мэн", universe: "OPM", patchId: "one_punch_man", damage: 55, hp: 125, speed: 1.4, ability: { type: "healOnWin", percent: 0.04, desc: "+4% HP после победы" }, desc: "Герой S-класса с чудовищной регенерацией. Его слабее выраженная атака компенсируется способностью восстановиться после боя.",
-            masteryTitle: "Пробуждённый: Зомби-мэн", masteryTitleId: "mastery_character_d16f5af2", masteryTitleIcon: "✦" },
+            masteryTitle: "Охотник, который не умирает", masteryTitleId: "mastery_character_d16f5af2", masteryTitleIcon: "✦" },
         { name: "Тёмное Сияние", universe: "OPM", patchId: "one_punch_man", damage: 65, hp: 150, speed: 1.35, ability: { type: "damageReduction", value: 0.08, desc: "−8% получаемого урона" }, desc: "Мастер бодибилдинга с огромной физической мощью и чрезвычайно прочным телом. Одна из самых выносливых карт мифического уровня.",
-            masteryTitle: "Пробуждённый: Тёмное Сияние", masteryTitleId: "mastery_character_447ffe28", masteryTitleIcon: "✦" },
+            masteryTitle: "Блестящая стена мышц", masteryTitleId: "mastery_character_447ffe28", masteryTitleIcon: "✦" },
         { name: "Кабуто (Режим резни)", universe: "OPM", patchId: "one_punch_man", damage: 74, hp: 108, speed: 1.8, ability: { type: "damageMultChance", chance: 0.12, mult: 1.25, desc: "12% шанс нанести ×1,25 урона" }, desc: "Carnage Mode резко увеличивает агрессию и физическую мощь монстра, но не поднимает его до космического уровня.",
-            masteryTitle: "Пробуждённый: Кабуто (Режим резни)", masteryTitleId: "mastery_character_a4e8b6ca", masteryTitleIcon: "✦" },
+            masteryTitle: "Режим кровавого жука", masteryTitleId: "mastery_character_a4e8b6ca", masteryTitleIcon: "✦" },
         { name: "Психос", universe: "OPM", patchId: "one_punch_man", damage: 58, hp: 80, speed: 1.5, ability: { type: "damageAura", value: 0.04, desc: "+4% урона всей команде" }, desc: "Могущественная экстрасенс и стратег Ассоциации монстров. Её психическая поддержка усиливает урон отряда.",
-            masteryTitle: "Пробуждённый: Психос", masteryTitleId: "mastery_character_5728d523", masteryTitleIcon: "✦" },
+            masteryTitle: "Мозг за катастрофой", masteryTitleId: "mastery_character_5728d523", masteryTitleIcon: "✦" },
         {
             "name": "Вамуу",
             "universe": "JoJo", "patchId": "jojo",
@@ -1126,7 +1126,7 @@ const customCardTemplates = {
                 "desc": "−9% получаемого урона"
             },
             "desc": "Воин людей из колонны, управляющий ветром и воздушными потоками.",
-            masteryTitle: "Пробуждённый: Вамуу", masteryTitleId: "mastery_character_03bf2997", masteryTitleIcon: "✦"
+            masteryTitle: "Вихрь ветрового боя", masteryTitleId: "mastery_character_03bf2997", masteryTitleIcon: "✦"
         },
         {
             "name": "Эйсидиси",
@@ -1141,7 +1141,7 @@ const customCardTemplates = {
                 "desc": "Пламя наносит 9 урона за тик"
             },
             "desc": "Человек из колонны, использующий собственную перегретую кровь как оружие.",
-            masteryTitle: "Пробуждённый: Эйсидиси", masteryTitleId: "mastery_character_8ca9d7e7", masteryTitleIcon: "✦"
+            masteryTitle: "Пылающая ярость столпа", masteryTitleId: "mastery_character_8ca9d7e7", masteryTitleIcon: "✦"
         },
         {
             "name": "Карс (обычная форма)",
@@ -1155,7 +1155,7 @@ const customCardTemplates = {
                 "desc": "+4% HP после победы"
             },
             "desc": "Глава людей из колонны, мастер клинков света и биологической эволюции.",
-            masteryTitle: "Пробуждённый: Карс (обычная форма)", masteryTitleId: "mastery_character_81219658", masteryTitleIcon: "✦"
+            masteryTitle: "Совершенный разум столпов", masteryTitleId: "mastery_character_81219658", masteryTitleIcon: "✦"
         },
         {
             "name": "Ванилла Айс (Cream)",
@@ -1171,7 +1171,7 @@ const customCardTemplates = {
             "desc": "Преданный Дио пользователь Cream, способного стирать материю в пустоте. Стенд: Cream. Способность стенда: Пустота: большой щит с сильным блоком. Бафф при призыве: скорость +8%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 81% урона; на обычной арене получаемый урон снижен на 9% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Cream", desc: "Нажми SUPER, чтобы призвать Cream как отдельное хитбокс-сердечко. Пустота: большой щит с сильным блоком. Бафф: скорость +8%; хитбокс радиусом 13 принимает на себя 81% урона при столкновении; на обычной арене получаемый урон снижается на 9%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Ванилла Айс (Cream)", masteryTitleId: "mastery_character_aebdf35b", masteryTitleIcon: "✦"},
+            masteryTitle: "Чёрная дыра Cream", masteryTitleId: "mastery_character_aebdf35b", masteryTitleIcon: "✦"},
         {
             "name": "Рохан Кишибэ (Heaven's Door)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1186,7 +1186,7 @@ const customCardTemplates = {
             "desc": "Мангака, чей стенд превращает людей в книги и позволяет читать или менять их содержимое. Стенд: Heaven's Door. Способность стенда: Запись: ускоренная реакция. Бафф при призыве: скорость +13%; хитбокс-сердечко радиусом 10 перехватывает атаки и принимает на себя 71% урона; на обычной арене получаемый урон снижен на 5% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Heaven's Door", desc: "Нажми SUPER, чтобы призвать Heaven's Door как отдельное хитбокс-сердечко. Запись: ускоренная реакция. Бафф: скорость +13%; хитбокс радиусом 10 принимает на себя 71% урона при столкновении; на обычной арене получаемый урон снижается на 5%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Рохан Кишибэ (Heaven's Door)", masteryTitleId: "mastery_character_133c6fe1", masteryTitleIcon: "✦"},
+            masteryTitle: "Писатель, открывающий души", masteryTitleId: "mastery_character_133c6fe1", masteryTitleIcon: "✦"},
         {
             "name": "Бруно Буччеллати (Sticky Fingers)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1202,7 +1202,7 @@ const customCardTemplates = {
             "desc": "Лидер отряда, создающий молнии-замки на поверхностях и противниках. Стенд: Sticky Fingers. Способность стенда: Молнии-застёжки: расширенная защита. Бафф при призыве: скорость +17%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 74% урона; на обычной арене получаемый урон снижен на 6% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Sticky Fingers", desc: "Нажми SUPER, чтобы призвать Sticky Fingers как отдельное хитбокс-сердечко. Молнии-застёжки: расширенная защита. Бафф: скорость +17%; хитбокс радиусом 12 принимает на себя 74% урона при столкновении; на обычной арене получаемый урон снижается на 6%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Бруно Буччеллати (Sticky Fingers)", masteryTitleId: "mastery_character_522ce19f", masteryTitleIcon: "✦"},
+            masteryTitle: "Золотой замок молнии", masteryTitleId: "mastery_character_522ce19f", masteryTitleIcon: "✦"},
         {
             "name": "Леоне Аббаккио (Moody Blues)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1217,7 +1217,7 @@ const customCardTemplates = {
             "desc": "Стенд Аббаккио воспроизводит события прошлого, помогая отряду находить уязвимости. Стенд: Moody Blues. Способность стенда: Повторение: равномерная защита. Бафф при призыве: скорость +5%; хитбокс-сердечко радиусом 11 перехватывает атаки и принимает на себя 68% урона; на обычной арене получаемый урон снижен на 4% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Moody Blues", desc: "Нажми SUPER, чтобы призвать Moody Blues как отдельное хитбокс-сердечко. Повторение: равномерная защита. Бафф: скорость +5%; хитбокс радиусом 11 принимает на себя 68% урона при столкновении; на обычной арене получаемый урон снижается на 4%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Леоне Аббаккио (Moody Blues)", masteryTitleId: "mastery_character_2300a2c7", masteryTitleIcon: "✦"},
+            masteryTitle: "Память Moody Blues", masteryTitleId: "mastery_character_2300a2c7", masteryTitleIcon: "✦"},
         {
             "name": "Ризотто Неро (Metallica)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1232,7 +1232,7 @@ const customCardTemplates = {
             "desc": "Лидер команды убийц, управляющий железом в крови противника. Стенд: Metallica. Способность стенда: Железо: мощное поглощение урона. Бафф при призыве: скорость +9%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 82% урона; на обычной арене получаемый урон снижен на 9% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Metallica", desc: "Нажми SUPER, чтобы призвать Metallica как отдельное хитбокс-сердечко. Железо: мощное поглощение урона. Бафф: скорость +9%; хитбокс радиусом 13 принимает на себя 82% урона при столкновении; на обычной арене получаемый урон снижается на 9%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Ризотто Неро (Metallica)", masteryTitleId: "mastery_character_8204a5ad", masteryTitleIcon: "✦"},
+            masteryTitle: "Хозяин металлической крови", masteryTitleId: "mastery_character_8204a5ad", masteryTitleIcon: "✦"},
         {
             "name": "Нарцисо Анасуй (Diver Down)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1247,7 +1247,7 @@ const customCardTemplates = {
             "desc": "Стенд Diver Down проникает внутрь объектов и перестраивает их изнутри. Стенд: Diver Down. Способность стенда: Внутренний удар: плотный защитный контур. Бафф при призыве: скорость +16%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 79% урона; на обычной арене получаемый урон снижен на 8% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Diver Down", desc: "Нажми SUPER, чтобы призвать Diver Down как отдельное хитбокс-сердечко. Внутренний удар: плотный защитный контур. Бафф: скорость +16%; хитбокс радиусом 12 принимает на себя 79% урона при столкновении; на обычной арене получаемый урон снижается на 8%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Нарцисо Анасуй (Diver Down)", masteryTitleId: "mastery_character_5242dc76", masteryTitleIcon: "✦"},
+            masteryTitle: "Мастер внутреннего разрушения", masteryTitleId: "mastery_character_5242dc76", masteryTitleIcon: "✦"},
         {
             "name": "Диего Брандо (Scary Monsters)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1262,7 +1262,7 @@ const customCardTemplates = {
             "desc": "Альтернативный Диего из Steel Ball Run, способный превращать себя и других в динозавров. Стенд: Scary Monsters. Способность стенда: Динозавр: высокая скорость. Бафф при призыве: скорость +23%; хитбокс-сердечко радиусом 11 перехватывает атаки и принимает на себя 70% урона; на обычной арене получаемый урон снижен на 5% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Scary Monsters", desc: "Нажми SUPER, чтобы призвать Scary Monsters как отдельное хитбокс-сердечко. Динозавр: высокая скорость. Бафф: скорость +23%; хитбокс радиусом 11 принимает на себя 70% урона при столкновении; на обычной арене получаемый урон снижается на 5%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Диего Брандо (Scary Monsters)", masteryTitleId: "mastery_character_0a9f8e17", masteryTitleIcon: "✦"},
+            masteryTitle: "Король динозавров", masteryTitleId: "mastery_character_0a9f8e17", masteryTitleIcon: "✦"},
         {
             "name": "Винегар Доппио",
             "universe": "JoJo", "patchId": "jojo",
@@ -1278,7 +1278,7 @@ const customCardTemplates = {
             "desc": "Вторая личность босса мафии. Его звонки и резкие выпады делают его опасным даже без полного контроля над King Crimson. Стенд: Epitaph. Способность стенда: Предвидение: снижает получаемый урон. Бафф при призыве: скорость +12%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 80% урона; на обычной арене получаемый урон снижен на 8% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Epitaph", desc: "Нажми SUPER, чтобы призвать Epitaph как отдельное хитбокс-сердечко. Предвидение: снижает получаемый урон. Бафф: скорость +12%; хитбокс радиусом 12 принимает на себя 80% урона при столкновении; на обычной арене получаемый урон снижается на 8%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Винегар Доппио", masteryTitleId: "mastery_character_a20f31c8", masteryTitleIcon: "✦"},
+            masteryTitle: "Двойная личность босса", masteryTitleId: "mastery_character_a20f31c8", masteryTitleIcon: "✦"},
         {
             "name": "Джонни Джостар (Tusk Act 2)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1293,7 +1293,7 @@ const customCardTemplates = {
             "desc": "Вторая форма Tusk использует вращение, оставляя движущиеся отверстия и пробивая защиту. Стенд: Tusk ACT 2. Способность стенда: Спираль: быстрый и плотный хитбокс. Бафф при призыве: скорость +14%; хитбокс-сердечко радиусом 11 перехватывает атаки и принимает на себя 76% урона; на обычной арене получаемый урон снижен на 6% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Tusk ACT 2", desc: "Нажми SUPER, чтобы призвать Tusk ACT 2 как отдельное хитбокс-сердечко. Спираль: быстрый и плотный хитбокс. Бафф: скорость +14%; хитбокс радиусом 11 принимает на себя 76% урона при столкновении; на обычной арене получаемый урон снижается на 6%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джонни Джостар (Tusk Act 2)", masteryTitleId: "mastery_character_e519e45a", masteryTitleIcon: "✦"},
+            masteryTitle: "Снаряд ногтя", masteryTitleId: "mastery_character_e519e45a", masteryTitleIcon: "✦"},
         {
             "name": "Рай Маме́дзуку (Doggy Style)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1308,7 +1308,7 @@ const customCardTemplates = {
             "desc": "Опытный проводник и союзник Джоске из JoJolion. Его стенд разделяет тело на нити. Стенд: Doggy Style. Способность стенда: Разделение тела: широкий защитный контур. Бафф при призыве: скорость +9%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 73% урона; на обычной арене получаемый урон снижен на 5% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Doggy Style", desc: "Нажми SUPER, чтобы призвать Doggy Style как отдельное хитбокс-сердечко. Разделение тела: широкий защитный контур. Бафф: скорость +9%; хитбокс радиусом 13 принимает на себя 73% урона при столкновении; на обычной арене получаемый урон снижается на 5%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Рай Маме́дзуку (Doggy Style)", masteryTitleId: "mastery_character_2e454a41", masteryTitleIcon: "✦"},
+            masteryTitle: "Садовник-следопыт", masteryTitleId: "mastery_character_2e454a41", masteryTitleIcon: "✦"},
         {
             "name": "Пако Лабурентес (The Hustle)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1323,7 +1323,7 @@ const customCardTemplates = {
             "desc": "Боец команды Джодио, способный контролировать мышцы и крепко цепляться за поверхности. Стенд: The Hustle. Способность стенда: Мышечная броня: стенд хорошо гасит удары. Бафф при призыве: скорость +12%; хитбокс-сердечко радиусом 11 перехватывает атаки и принимает на себя 78% урона; на обычной арене получаемый урон снижен на 7% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — The Hustle", desc: "Нажми SUPER, чтобы призвать The Hustle как отдельное хитбокс-сердечко. Мышечная броня: стенд хорошо гасит удары. Бафф: скорость +12%; хитбокс радиусом 11 принимает на себя 78% урона при столкновении; на обычной арене получаемый урон снижается на 7%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Пако Лабурентес (The Hustle)", masteryTitleId: "mastery_character_80b694d4", masteryTitleIcon: "✦"},
+            masteryTitle: "Мышцы, что держат удар", masteryTitleId: "mastery_character_80b694d4", masteryTitleIcon: "✦"},
         {
             "name": "Джодио Джостар (November Rain)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1338,7 +1338,7 @@ const customCardTemplates = {
             "desc": "Главный герой The JOJOLands. Его стенд создаёт тяжёлые капли дождя, которые бьют по выбранной области. Стенд: November Rain. Способность стенда: Тяжёлые капли: большая зона перехвата. Бафф при призыве: скорость +18%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 75% урона; на обычной арене получаемый урон снижен на 6% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — November Rain", desc: "Нажми SUPER, чтобы призвать November Rain как отдельное хитбокс-сердечко. Тяжёлые капли: большая зона перехвата. Бафф: скорость +18%; хитбокс радиусом 12 принимает на себя 75% урона при столкновении; на обычной арене получаемый урон снижается на 6%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джодио Джостар (November Rain)", masteryTitleId: "mastery_character_eea8b56b", masteryTitleIcon: "✦"},
+            masteryTitle: "Чёрный дождь Гавайев", masteryTitleId: "mastery_character_eea8b56b", masteryTitleIcon: "✦"},
         {
             "name": "Йошикаге Кира (JoJolion)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1354,7 +1354,7 @@ const customCardTemplates = {
             "desc": "Другая версия Киры из JoJolion, врач и пользователь Killer Queen в альтернативной вселенной. Стенд: Killer Queen (JoJolion). Способность стенда: Взрывной щит: сильная защита. Бафф при призыве: скорость +10%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 81% урона; на обычной арене получаемый урон снижен на 9% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Killer Queen (JoJolion)", desc: "Нажми SUPER, чтобы призвать Killer Queen (JoJolion) как отдельное хитбокс-сердечко. Взрывной щит: сильная защита. Бафф: скорость +10%; хитбокс радиусом 12 принимает на себя 81% урона при столкновении; на обычной арене получаемый урон снижается на 9%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Йошикаге Кира (JoJolion)", masteryTitleId: "mastery_character_47798593", masteryTitleIcon: "✦"},
+            masteryTitle: "Тихая бомба Морио", masteryTitleId: "mastery_character_47798593", masteryTitleIcon: "✦"},
         {
             "name": "Джошу Хигашиката (Nut King Call)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1370,7 +1370,7 @@ const customCardTemplates = {
             "desc": "Член семьи Хигашиката, чей стенд умеет разбирать объекты на части при помощи болтов и гаек. Стенд: Nut King Call. Способность стенда: Болты: стойкий хитбокс. Бафф при призыве: скорость +6%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 72% урона; на обычной арене получаемый урон снижен на 5% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Nut King Call", desc: "Нажми SUPER, чтобы призвать Nut King Call как отдельное хитбокс-сердечко. Болты: стойкий хитбокс. Бафф: скорость +6%; хитбокс радиусом 12 принимает на себя 72% урона при столкновении; на обычной арене получаемый урон снижается на 5%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джошу Хигашиката (Nut King Call)", masteryTitleId: "mastery_character_33823f15", masteryTitleIcon: "✦"},
+            masteryTitle: "Мастер гаек", masteryTitleId: "mastery_character_33823f15", masteryTitleIcon: "✦"},
         {
             "name": "Моб (100%: ярость)",
             "universe": "Mob 100",
@@ -1384,7 +1384,7 @@ const customCardTemplates = {
                 "desc": "12% шанс нанести ×1,35 урона"
             },
             "desc": "Моб достигает предела одной из своих эмоций, высвобождая огромную психическую силу.",
-            masteryTitle: "Пробуждённый: Моб (100%: ярость)", masteryTitleId: "mastery_character_420e8829", masteryTitleIcon: "✦"
+            masteryTitle: "Ярость, сорвавшая печать", masteryTitleId: "mastery_character_420e8829", masteryTitleIcon: "✦"
         },
         {
             "name": "Тодзиро Сэки (Босс Claw)",
@@ -1398,7 +1398,7 @@ const customCardTemplates = {
                 "desc": "−8% получаемого урона"
             },
             "desc": "Опытный боец организации Claw, опасный благодаря силе и боевому опыту.",
-            masteryTitle: "Пробуждённый: Тодзиро Сэки (Босс Claw)", masteryTitleId: "mastery_character_7e233aa9", masteryTitleIcon: "✦"
+            masteryTitle: "Лидер организации Claw", masteryTitleId: "mastery_character_7e233aa9", masteryTitleIcon: "✦"
         },
         {
             "name": "Вермейль (обычная демоническая форма)",
@@ -1412,7 +1412,7 @@ const customCardTemplates = {
                 "desc": "+11% шанс критического удара"
             },
             "desc": "Могущественный демон, призванный Алто. Обладает разрушительной магией и высокой физической силой.",
-            masteryTitle: "Пробуждённый: Вермейль (обычная демоническая форма)", masteryTitleId: "mastery_character_2547f1c7", masteryTitleIcon: "✦"
+            masteryTitle: "Демонесса золотой печати", masteryTitleId: "mastery_character_2547f1c7", masteryTitleIcon: "✦"
         },
         {
             "name": "ДИО (The World, часть 3)",
@@ -1435,88 +1435,88 @@ const customCardTemplates = {
             "desc": "Дио в финальной битве Stardust Crusaders. The World способен останавливать время. Стенд: The World. Способность стенда: Остановка: крепкий защитный стенд. Бафф при призыве: скорость +16%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 80% урона; на обычной арене получаемый урон снижен на 8% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — The World", desc: "Нажми SUPER, чтобы призвать The World как отдельное хитбокс-сердечко. Остановка: крепкий защитный стенд. Бафф: скорость +16%; хитбокс радиусом 12 принимает на себя 80% урона при столкновении; на обычной арене получаемый урон снижается на 8%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: ДИО (The World, часть 3)", masteryTitleId: "mastery_character_ae3d0958", masteryTitleIcon: "✦"}
+            masteryTitle: "Остановивший время", masteryTitleId: "mastery_character_ae3d0958", masteryTitleIcon: "✦"}
     ],
     "Легендарная": [
         { name: "Сукуна (15 пальцев)", universe: "JJK", damage: 105, hp: 95, speed: 2.4, statusAbility: { type: "bleed", value: 0.08, desc: "Кровотечение +8%" }, desc: "Король Проклятий. Высокий урон и кровотечение, добавляющее 8% урона.",
-            masteryTitle: "Пробуждённый: Сукуна (15 пальцев)", masteryTitleId: "mastery_character_f9ba75bb", masteryTitleIcon: "✦" },
+            masteryTitle: "Проклятый владыка пятнадцати пальцев", masteryTitleId: "mastery_character_f9ba75bb", masteryTitleIcon: "✦" },
         { name: "Кудзан", universe: "One Piece", damage: 85, hp: 120, speed: 1.8, statusAbility: { type: "freezeStacks", value: 2, desc: "Заморозка +2" }, desc: "Бывший адмирал Аокидзи. Замораживает врага — +2 клика до ответной атаки.",
-            masteryTitle: "Пробуждённый: Кудзан", masteryTitleId: "mastery_character_4781ff88", masteryTitleIcon: "✦" },
+            masteryTitle: "Ледяной адмирал", masteryTitleId: "mastery_character_4781ff88", masteryTitleIcon: "✦" },
         { name: "Йонко Шанкс", universe: "One Piece", damage: 95, hp: 90, speed: 3.0, ability: { type: "critChance", value: 0.15, desc: "+15% крит" }, desc: "Рыжеволосый император. +15% к шансу крита.",
-            masteryTitle: "Пробуждённый: Йонко Шанкс", masteryTitleId: "mastery_character_7169cf8f", masteryTitleIcon: "✦" },
+            masteryTitle: "Рыжий, чьё хаки глушит море", masteryTitleId: "mastery_character_7169cf8f", masteryTitleIcon: "✦" },
         { name: "Хоумлендер", universe: "The Boys", damage: 115, hp: 125, speed: 2.5, ability: { type: "bossDamage", value: 0.18, desc: "+18% боссам" }, statusAbility: { type: "fire", damage: 10, duration: 3000, desc: "Лазеры 10/сек" }, desc: "Лидер Семёрки. +18% урона боссам и поджигает врага лазерами — 10 урона/2 сек.",
-            masteryTitle: "Пробуждённый: Хоумлендер", masteryTitleId: "mastery_character_ec0b8151", masteryTitleIcon: "✦" },
+            masteryTitle: "Бог, созданный лабораторией", masteryTitleId: "mastery_character_ec0b8151", masteryTitleIcon: "✦" },
         { name: "Наруто (Барион)", universe: "Naruto", damage: 100, hp: 120, speed: 2.8, ability: { type: "damageAura", value: 0.10, desc: "+10% урона" }, statusAbility: { type: "bleed", value: 0.1, desc: "Кровотечение +10%" }, desc: "Режим Бариона. +10% урона команде и +10% урона через кровотечение.",
-            masteryTitle: "Пробуждённый: Наруто (Барион)", masteryTitleId: "mastery_character_b787d3c8", masteryTitleIcon: "✦" },
+            masteryTitle: "Барионный огонь лиса", masteryTitleId: "mastery_character_b787d3c8", masteryTitleIcon: "✦" },
         { name: "Гоку (UI)", universe: "DB", damage: 110, hp: 110, speed: 3.5, ability: { type: "damageAura", value: 0.13, desc: "+13% урона" }, desc: "Ультра Инстинкт. +13% урона всей команде.",
-            masteryTitle: "Пробуждённый: Гоку (UI)", masteryTitleId: "mastery_character_12730a30", masteryTitleIcon: "✦" },
+            masteryTitle: "Непостижимый инстинкт", masteryTitleId: "mastery_character_12730a30", masteryTitleIcon: "✦" },
         { name: "Вегета (UE)", universe: "DB", damage: 115, hp: 105, speed: 3.2, ability: { type: "damageAura", value: 0.20, desc: "+20% урона, +10% враг", damageTakenMod: 0.10 }, desc: "Ультра Эго. +20% урона команде, но враг бьёт на 10% сильнее.",
-            masteryTitle: "Пробуждённый: Вегета (UE)", masteryTitleId: "mastery_character_49bb0faf", masteryTitleIcon: "✦" },
+            masteryTitle: "Разрушитель, питающийся гордостью", masteryTitleId: "mastery_character_49bb0faf", masteryTitleIcon: "✦" },
         { name: "Мадара", universe: "Naruto", damage: 120, hp: 100, speed: 2.2, ability: { type: "damageReduction", value: 0.05, desc: "-5% урона" }, statusAbility: { type: "freezeStacks", value: 1, desc: "Заморозка +1" }, desc: "Призрак Учиха. -5% получаемого урона и заморозка +1.",
-            masteryTitle: "Пробуждённый: Мадара", masteryTitleId: "mastery_character_c99d8ed5", masteryTitleIcon: "✦" },
+            masteryTitle: "Призрак Учиха", masteryTitleId: "mastery_character_c99d8ed5", masteryTitleIcon: "✦" },
         { name: "Гарп (Galaxy impact)", universe: "One Piece", damage: 105, hp: 140, speed: 2.0, ability: { type: "damageAura", value: 0.20, desc: "+20% урона" }, desc: "Кулак галактики. +20% урона всей команде.",
-            masteryTitle: "Пробуждённый: Гарп (Galaxy impact)", masteryTitleId: "mastery_character_aa8e9ffa", masteryTitleIcon: "✦" },
+            masteryTitle: "Удар галактического героя", masteryTitleId: "mastery_character_aa8e9ffa", masteryTitleIcon: "✦" },
         { name: "Омни-Мэн", universe: "Invincible", damage: 120, hp: 130, speed: 2.6, ability: { type: "damageAura", value: 0.12, desc: "+12% урона" }, statusAbility: { type: "bleed", value: 0.15, desc: "Кровотечение +15%" }, desc: "Нолан Грейсон. +12% урона команде и +15% урона через кровотечение.",
-            masteryTitle: "Пробуждённый: Омни-Мэн", masteryTitleId: "mastery_character_cb333525", masteryTitleIcon: "✦" },
+            masteryTitle: "Палач Вилтрума", masteryTitleId: "mastery_character_cb333525", masteryTitleIcon: "✦" },
         { name: "Ло (Пробужденный)", universe: "One Piece", damage: 105, hp: 145, speed: 2.4, ability: { type: "healOnWin", percent: 0.03, desc: "+3% HP" }, statusAbility: { type: "shock", chance: 0.10, desc: "Электричество 10%" }, desc: "Пробуждённый фрукт. Лечит 3% HP при победе и 10% шанс шока.",
-            masteryTitle: "Пробуждённый: Ло (Пробужденный)", masteryTitleId: "mastery_character_5f4efb55", masteryTitleIcon: "✦" },
+            masteryTitle: "Операционный купол пробуждения", masteryTitleId: "mastery_character_5f4efb55", masteryTitleIcon: "✦" },
         
 ,
 { name: "Солдатик (Прайм)", universe: "The Boys", patchId: "the_boys", damage: 120, hp: 180, speed: 1.5, ability: { type: "damageReduction", value: 0.12, desc: "−12% получаемого урона" }, statusAbility: { type: "shock", chance: 0.10, desc: "10% шанс радиоактивного шока" }, desc: "Солдатик — крайне выносливый тяжеловес. Он способен накапливать радиоактивную энергию и высвобождать разрушительный импульс.",
-            masteryTitle: "Пробуждённый: Солдатик (Прайм)", masteryTitleId: "mastery_character_4f98567a", masteryTitleIcon: "✦" },
+            masteryTitle: "Щит, переживший эпоху", masteryTitleId: "mastery_character_4f98567a", masteryTitleIcon: "✦" },
         { name: "Чёрный Нуар II (Комиксный)", universe: "The Boys", patchId: "the_boys", damage: 105, hp: 155, speed: 1.7, ability: { type: "damageReduction", value: 0.10, desc: "−10% получаемого урона" }, desc: "Новый Чёрный Нуар обладает сверхсилой, стойкостью и способностью летать. Он опасен в ближнем бою, хотя характером отличается от оригинала.",
-            masteryTitle: "Пробуждённый: Чёрный Нуар II (Комиксный)", masteryTitleId: "mastery_character_667d0e47", masteryTitleIcon: "✦" },
+            masteryTitle: "Новая тень Семёрки", masteryTitleId: "mastery_character_667d0e47", masteryTitleIcon: "✦" },
         
         { name: "Тек Найт (Охотник)", universe: "The Boys", patchId: "the_boys", damage: 95, hp: 130, speed: 1.6, ability: { type: "critChance", value: 0.10, desc: "+10% шанс критического удара" }, desc: "Тек Найт — детектив с усиленными чувствами, дедукцией и боевыми навыками. Чем больше он успел изучить противника, тем опаснее.",
-            masteryTitle: "Пробуждённый: Тек Найт (Охотник)", masteryTitleId: "mastery_character_eda56fd1", masteryTitleIcon: "✦" },
+            masteryTitle: "Детектив, видящий каждую улику", masteryTitleId: "mastery_character_eda56fd1", masteryTitleIcon: "✦" },
         {"name":"Зоро (Тайм скип)","universe":"One Piece","patchId":"one_piece","damage":118,"hp":130,"speed":2.2,"ability":{"type":"critChance","value":0.2,"desc":"+20% шанс критического удара"},"statusAbility":{"type":"bleed","value":0.1,"desc":"+10% урона через кровотечение"},"desc":"Зоро после таймскипа хоть как то развивался не считая Вано?.",
-            masteryTitle: "Пробуждённый: Зоро (Тайм скип)", masteryTitleId: "mastery_character_bdab4cac", masteryTitleIcon: "✦"},
+            masteryTitle: "Охотник трёх мечей Нового Света", masteryTitleId: "mastery_character_bdab4cac", masteryTitleIcon: "✦"},
         {"name":"Санджи (Вано)","universe":"One Piece","patchId":"one_piece","damage":104,"hp":116,"speed":2.7,"ability":{"type":"damageReduction","value":0.1,"desc":"−10% получаемого урона"},"desc":"Санджи в рейд-костюме получает маскировку, повышенную скорость и усиленную защиту.",
-            masteryTitle: "Пробуждённый: Санджи (Вано)", masteryTitleId: "mastery_character_7ca2ea05", masteryTitleIcon: "✦"},
+            masteryTitle: "Адская нога Вано", masteryTitleId: "mastery_character_7ca2ea05", masteryTitleIcon: "✦"},
         {"name":"Согекинг (0.000000000001%)","universe":"One Piece","patchId":"one_piece","damage":125,"hp":120,"speed":2.6,"ability":{"type":"bossDamage","value":0.18,"desc":"+18% урона боссам"},"desc":"Друг бога Усоппа.",
-            masteryTitle: "Пробуждённый: Согекинг (0.000000000001%)", masteryTitleId: "mastery_character_b4d41abb", masteryTitleIcon: "✦"},
+            masteryTitle: "Герой острова снайперов", masteryTitleId: "mastery_character_b4d41abb", masteryTitleIcon: "✦"},
         {"name":"Старичок Рэйли","universe":"One Piece","patchId":"one_piece","damage":112,"hp":115,"speed":2.5,"ability":{"type":"damageAura","value":0.12,"desc":"+12% урона команде"},"desc":"Тёмный король, правая рука Роджера. Опыт и хаки усиливают весь отряд.",
-            masteryTitle: "Пробуждённый: Старичок Рэйли", masteryTitleId: "mastery_character_3d8859fe", masteryTitleIcon: "✦"},
+            masteryTitle: "Тёмный король", masteryTitleId: "mastery_character_3d8859fe", masteryTitleIcon: "✦"},
         {"name":"Козуки Одэн","universe":"One Piece","patchId":"one_piece","damage":115,"hp":132,"speed":2.2,"ability":{"type":"bossDamage","value":0.2,"desc":"+20% урона боссам"},"desc":"Легендарный самурай Вано, чьи два меча оставили шрамы даже на Кайдо.",
-            masteryTitle: "Пробуждённый: Козуки Одэн", masteryTitleId: "mastery_character_ef427ea3", masteryTitleIcon: "✦"},
+            masteryTitle: "Самурай, открывший границы Вано", masteryTitleId: "mastery_character_ef427ea3", masteryTitleIcon: "✦"},
         {"name":"Монки Д. Драгон","universe":"One Piece","patchId":"one_piece","damage":104,"hp":136,"speed":2,"ability":{"type":"damageAura","value":0.15,"desc":"+15% урона команде"},"desc":"Загадочный лидер Революционной армии и отец Луффи. Его роль — менять ход мировой истории.",
-            masteryTitle: "Пробуждённый: Монки Д. Драгон", masteryTitleId: "mastery_character_7fcde9da", masteryTitleIcon: "✦"},
+            masteryTitle: "Тайфун революции", masteryTitleId: "mastery_character_7fcde9da", masteryTitleIcon: "✦"},
         {"name":"Сенгоку (Будда)","universe":"One Piece","patchId":"one_piece","damage":115,"hp":145,"speed":1.8,"ability":{"type":"damageReduction","value":0.17,"desc":"−17% получаемого урона"},"desc":"Бывший адмирал флота. Мифический зоан Будды даёт огромную силу и стойкость.",
-            masteryTitle: "Пробуждённый: Сенгоку (Будда)", masteryTitleId: "mastery_character_b0dec777", masteryTitleIcon: "✦"},
+            masteryTitle: "Золотой Будда флота", masteryTitleId: "mastery_character_b0dec777", masteryTitleIcon: "✦"},
         {"name":"Бартоломью Кума ","universe":"One Piece","patchId":"one_piece","damage":102,"hp":155,"speed":1.7,"ability":{"type":"damageReduction","value":0.15,"desc":"−15% получаемого урона"},"desc":"Кума использует лапы отталкивания, отражая атаки и выдерживая тяжёлые столкновения.",
-            masteryTitle: "Пробуждённый: Бартоломью Кума ", masteryTitleId: "mastery_character_76e47590", masteryTitleIcon: "✦"},
+            masteryTitle: "Тиран с сердцем спасителя", masteryTitleId: "mastery_character_76e47590", masteryTitleIcon: "✦"},
         {"name":"Катакури","universe":"One Piece","patchId":"one_piece","damage":112,"hp":120,"speed":2.2,"ability":{"type":"damageReduction","value":0.12,"desc":"−12% получаемого урона"},"statusAbility":{"type":"freezeStacks","value":1,"desc":"Моти связывает врага: +1 клик до контратаки"},"desc":"Катакури пробуждает силу моти и превращает окружение в продолжение собственных атак.",
-            masteryTitle: "Пробуждённый: Катакури", masteryTitleId: "mastery_character_0d1d7e0a", masteryTitleIcon: "✦"},
+            masteryTitle: "Непобедимое будущее", masteryTitleId: "mastery_character_0d1d7e0a", masteryTitleIcon: "✦"},
         {"name":"Кид (Пробуждение: Дамнед Панк)","universe":"One Piece","patchId":"one_piece","damage":108,"hp":145,"speed":2.4,"ability":{"type":"damageMultChance","chance":0.24,"mult":1.35,"desc":"24% шанс нанести ×1,35 урона"},"desc":"Пробуждённый Кид собирает металл магнитными силами и выпускает разрушительный Дамнед Панк.",
-            masteryTitle: "Пробуждённый: Кид (Пробуждение: Дамнед Панк)", masteryTitleId: "mastery_character_4be47764", masteryTitleIcon: "✦"},
+            masteryTitle: "Магнитный панк, пробивший будущее", masteryTitleId: "mastery_character_4be47764", masteryTitleIcon: "✦"},
         {"name":"Рёкугю (Арамаки)","universe":"One Piece","patchId":"one_piece","damage":100,"hp":140,"speed":2,"ability":{"type":"healOnWin","percent":0.04,"desc":"+4% HP после победы"},"desc":"Адмирал леса управляет растительной жизнью и восстанавливается, поглощая жизненную силу.",
-            masteryTitle: "Пробуждённый: Рёкугю (Арамаки)", masteryTitleId: "mastery_character_c508349d", masteryTitleIcon: "✦"},
+            masteryTitle: "Лесной адмирал", masteryTitleId: "mastery_character_c508349d", masteryTitleIcon: "✦"},
         {"name":" Серафима S-Хок","universe":"One Piece","patchId":"one_piece","damage":85,"hp":55,"speed":1.6,"ability":{"type":"damageReduction","value":0.1,"desc":"−10% получаемого урона"},"desc":"Вроде мелкий, а вроде мелкий.",
-            masteryTitle: "Пробуждённый:  Серафима S-Хок", masteryTitleId: "mastery_character_26be2662", masteryTitleIcon: "✦"},
+            masteryTitle: "Лунарианский клон клинка", masteryTitleId: "mastery_character_26be2662", masteryTitleIcon: "✦"},
         {"name":"Марко (Феникс)","universe":"One Piece","patchId":"one_piece","damage":35,"hp":62,"speed":1.7,"ability":{"type":"healOnWin","percent":0.03,"desc":"+3% HP после победы"},"desc":"Командир первой дивизии Белоуса. Феникс-форма даёт ему регенерацию и воздушную мобильность.",
-            masteryTitle: "Пробуждённый: Марко (Феникс)", masteryTitleId: "mastery_character_96b6d57b", masteryTitleIcon: "✦"},
+            masteryTitle: "Феникс Белоуса", masteryTitleId: "mastery_character_96b6d57b", masteryTitleIcon: "✦"},
         {"name":"Кизару ","universe":"One Piece","patchId":"one_piece","damage":76,"hp":75,"speed":2.6,"ability":{"type":"damageMultChance","chance":0.25,"mult":1.35,"desc":"25% шанс нанести ×1,35 урона"},"desc":"Адмирал света. Мгновенные перемещения и лазерные удары обеспечивают высокую скорость.",
-            masteryTitle: "Пробуждённый: Кизару ", masteryTitleId: "mastery_character_4f758f13", masteryTitleIcon: "✦"},
+            masteryTitle: "Свет, который нельзя догнать", masteryTitleId: "mastery_character_4f758f13", masteryTitleIcon: "✦"},
         {"name":"Шарлотта Линлин (Большая Мамочка)","universe":"One Piece","patchId":"one_piece","damage":82,"hp":95,"speed":1.8,"ability":{"type":"damageAura","value":0.08,"desc":"+8% урона всей команде"},"desc":"Императрица моря усиливает отряд своим присутствием и атакует силами души и хоумисов.",
-            masteryTitle: "Пробуждённый: Шарлотта Линлин (Большая Мамочка)", masteryTitleId: "mastery_character_d02f7d11", masteryTitleIcon: "✦"},
+            masteryTitle: "Императрица душ", masteryTitleId: "mastery_character_d02f7d11", masteryTitleIcon: "✦"},
         {"name":"Луччи (Пробуждение CP0)","universe":"One Piece","patchId":"one_piece","damage":80,"hp":87,"speed":2.3,"ability":{"type":"critChance","value":0.14,"desc":"+14% шанс критического удара"},"statusAbility":{"type":"bleed","value":0.06,"desc":"+6% урона через кровотечение"},"desc":"Пробуждённый зоан Роб Луччи после таймскипа. Более быстрая и опасная версия агента CP9.",
-            masteryTitle: "Пробуждённый: Луччи (Пробуждение CP0)", masteryTitleId: "mastery_character_d4409747", masteryTitleIcon: "✦"},
+            masteryTitle: "Король хищников CP0", masteryTitleId: "mastery_character_d4409747", masteryTitleIcon: "✦"},
         { name: "Татсумаки (Торнадо ужаса)", universe: "OPM", patchId: "one_punch_man", damage: 115, hp: 125, speed: 2.5, ability: { type: "damageAura", value: 0.07, desc: "+7% урона всей команде" }, desc: "Одна из сильнейших героинь S-класса. Её телекинез позволяет подавлять множество противников и усиливает давление всей команды.",
-            masteryTitle: "Пробуждённый: Татсумаки (Торнадо ужаса)", masteryTitleId: "mastery_character_3d44e195", masteryTitleIcon: "✦" },
+            masteryTitle: "Торнадо, крушащий города", masteryTitleId: "mastery_character_3d44e195", masteryTitleIcon: "✦" },
         { name: "Флэши Флэш", universe: "OPM", patchId: "one_punch_man", damage: 104, hp: 100, speed: 3.0, ability: { type: "critChance", value: 0.08, desc: "+8% к шансу критического удара" }, desc: "Невероятно быстрый ниндзя S-класса, побеждающий за счёт скорости, точности и серии смертельных ударов.",
-            masteryTitle: "Пробуждённый: Флэши Флэш", masteryTitleId: "mastery_character_89133ba5", masteryTitleIcon: "✦" },
+            masteryTitle: "Ниндзя светового клинка", masteryTitleId: "mastery_character_89133ba5", masteryTitleIcon: "✦" },
         { name: "Гароу (Чудовищная форма)", universe: "OPM", patchId: "one_punch_man", damage: 120, hp: 135, speed: 2.6, ability: { type: "damageMultChance", chance: 0.18, mult: 1.25, desc: "18% шанс нанести ×1,25 урона" }, desc: "Гароу после серьёзного превращения в монстра. Это его не-космическая форма: опасный мастер адаптации, но не божественный противник.",
-            masteryTitle: "Пробуждённый: Гароу (Чудовищная форма)", masteryTitleId: "mastery_character_119f04ad", masteryTitleIcon: "✦" },
+            masteryTitle: "Зло, обучающееся быстрее героев", masteryTitleId: "mastery_character_119f04ad", masteryTitleIcon: "✦" },
         { name: "Гокецу", universe: "OPM", patchId: "one_punch_man", damage: 112, hp: 155, speed: 2.0, ability: { type: "bossDamage", value: 0.10, desc: "+10% урона боссам" }, desc: "Боец Ассоциации монстров с чудовищной физической мощью и мастерством единоборств. Особенно эффективен в схватках с боссами.",
-            masteryTitle: "Пробуждённый: Гокецу", masteryTitleId: "mastery_character_edc471d6", masteryTitleIcon: "✦" },
+            masteryTitle: "Чемпион чудовищного турнира", masteryTitleId: "mastery_character_edc471d6", masteryTitleIcon: "✦" },
         { name: "Старшая Многоножка", universe: "OPM", patchId: "one_punch_man", damage: 100, hp: 190, speed: 1.35, ability: { type: "damageReduction", value: 0.09, desc: "−9% получаемого урона" }, desc: "Гигантский драконий монстр с несколькими прочными панцирями. Его специализация — выдерживать тяжёлые атаки.",
-            masteryTitle: "Пробуждённый: Старшая Многоножка", masteryTitleId: "mastery_character_dccfdb22", masteryTitleIcon: "✦" },
+            masteryTitle: "Древний панцирь катастрофы", masteryTitleId: "mastery_character_dccfdb22", masteryTitleIcon: "✦" },
         { name: "Орочи (Король монстров)", universe: "OPM", patchId: "one_punch_man", damage: 120, hp: 170, speed: 1.85, statusAbility: { type: "fire", damage: 6, duration: 3000, desc: "Поток энергии: 6 урона в секунду" }, desc: "Король монстров обладает огромной мощью и энергетическими атаками. Сильная легендарная карта, но без божественной формы.",
-            masteryTitle: "Пробуждённый: Орочи (Король монстров)", masteryTitleId: "mastery_character_4215e144", masteryTitleIcon: "✦" },
+            masteryTitle: "Король монстров, питающийся энергией", masteryTitleId: "mastery_character_4215e144", masteryTitleIcon: "✦" },
         { name: "Платиновый Сперм", universe: "OPM", patchId: "one_punch_man", damage: 118, hp: 145, speed: 2.8, ability: { type: "critChance", value: 0.08, desc: "+8% к шансу критического удара" }, desc: "Слияние огромного числа клеток создаёт невероятно быстрого монстра драконьего уровня. Его скорость повышает вероятность критических ударов.",
-            masteryTitle: "Пробуждённый: Платиновый Сперм", masteryTitleId: "mastery_character_164d49cd", masteryTitleIcon: "✦" },
+            masteryTitle: "Превосходство тысяч тел", masteryTitleId: "mastery_character_164d49cd", masteryTitleIcon: "✦" },
         { name: "Бласт", universe: "OPM", patchId: "one_punch_man", damage: 118, hp: 140, speed: 2.6, ability: { type: "damageReduction", value: 0.08, desc: "−8% получаемого урона" }, statusAbility: { type: "freezeStacks", value: 1, desc: "Пространственные порталы: +1 клик до контратаки" }, desc: "Герой №1 S-класса использует пространственные порталы и силу, связанную с измерениями. Сильнейшая карта разлома, но ниже космических и божественных форм.",
-            masteryTitle: "Пробуждённый: Бласт", masteryTitleId: "mastery_character_37e2d378", masteryTitleIcon: "✦" },
+            masteryTitle: "Герой, охраняющий разломы", masteryTitleId: "mastery_character_37e2d378", masteryTitleIcon: "✦" },
         {
             "name": "Джотаро Куджо (часть 3: Star Platinum)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1537,7 +1537,7 @@ const customCardTemplates = {
             "desc": "Пик Джотаро во время путешествия к Дио. Star Platinum невероятно силён, точен и быстр. Стенд: Star Platinum. Способность стенда: Точный удар: сильное поглощение урона. Бафф при призыве: скорость +15%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 83% урона; на обычной арене получаемый урон снижен на 10% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Star Platinum", desc: "Нажми SUPER, чтобы призвать Star Platinum как отдельное хитбокс-сердечко. Точный удар: сильное поглощение урона. Бафф: скорость +15%; хитбокс радиусом 13 принимает на себя 83% урона при столкновении; на обычной арене получаемый урон снижается на 10%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джотаро Куджо (часть 3: Star Platinum)", masteryTitleId: "mastery_character_7743715e", masteryTitleIcon: "✦"},
+            masteryTitle: "Звёздный платиновый кулак", masteryTitleId: "mastery_character_7743715e", masteryTitleIcon: "✦"},
         {
             "name": "Джотаро Куджо (часть 4)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1554,7 +1554,7 @@ const customCardTemplates = {
             "desc": "Джотаро спустя годы после битвы с Дио: опытный стенд-юзер, помогающий команде в Морио. Стенд: Star Platinum: The World. Способность стенда: Остановка времени: скорость и защита. Бафф при призыве: скорость +19%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 79% урона; на обычной арене получаемый урон снижен на 8% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Star Platinum: The World", desc: "Нажми SUPER, чтобы призвать Star Platinum: The World как отдельное хитбокс-сердечко. Остановка времени: скорость и защита. Бафф: скорость +19%; хитбокс радиусом 12 принимает на себя 79% урона при столкновении; на обычной арене получаемый урон снижается на 8%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джотаро Куджо (часть 4)", masteryTitleId: "mastery_character_11577279", masteryTitleIcon: "✦"},
+            masteryTitle: "Спокойствие, скрывающее остановку времени", masteryTitleId: "mastery_character_11577279", masteryTitleIcon: "✦"},
         {
             "name": "Джоске Хигашиката (часть 4: Crazy Diamond)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1570,7 +1570,7 @@ const customCardTemplates = {
             "desc": "Главный герой Diamond is Unbreakable. Crazy Diamond восстанавливает повреждённые предметы и тела. Стенд: Crazy Diamond. Способность стенда: Восстановление: широкий защитный контур. Бафф при призыве: скорость +12%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 77% урона; на обычной арене получаемый урон снижен на 7% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Crazy Diamond", desc: "Нажми SUPER, чтобы призвать Crazy Diamond как отдельное хитбокс-сердечко. Восстановление: широкий защитный контур. Бафф: скорость +12%; хитбокс радиусом 13 принимает на себя 77% урона при столкновении; на обычной арене получаемый урон снижается на 7%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джоске Хигашиката (часть 4: Crazy Diamond)", masteryTitleId: "mastery_character_34494f1b", masteryTitleIcon: "✦"},
+            masteryTitle: "Алмаз, что чинит всё кроме себя", masteryTitleId: "mastery_character_34494f1b", masteryTitleIcon: "✦"},
         {
             "name": "Йошикаге Кира (часть 4: Killer Queen)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1593,7 +1593,7 @@ const customCardTemplates = {
             "desc": "Серийный убийца Морио, превращающий прикоснувшиеся объекты в бомбы с помощью Killer Queen. Стенд: Killer Queen. Способность стенда: Первая бомба: очень сильный блок урона. Бафф при призыве: скорость +13%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 82% урона; на обычной арене получаемый урон снижен на 9% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Killer Queen", desc: "Нажми SUPER, чтобы призвать Killer Queen как отдельное хитбокс-сердечко. Первая бомба: очень сильный блок урона. Бафф: скорость +13%; хитбокс радиусом 12 принимает на себя 82% урона при столкновении; на обычной арене получаемый урон снижается на 9%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Йошикаге Кира (часть 4: Killer Queen)", masteryTitleId: "mastery_character_59b5710c", masteryTitleIcon: "✦"},
+            masteryTitle: "Тихая жизнь серийного убийцы", masteryTitleId: "mastery_character_59b5710c", masteryTitleIcon: "✦"},
         {
             "name": "Джорно Джованна (Gold Experience)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1609,7 +1609,7 @@ const customCardTemplates = {
             "desc": "Джорно создаёт живые организмы с Gold Experience и стремится стать боссом, защищающим невинных. Стенд: Gold Experience. Способность стенда: Жизненная энергия: сбалансированный щит. Бафф при призыве: скорость +16%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 76% урона; на обычной арене получаемый урон снижен на 6% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Gold Experience", desc: "Нажми SUPER, чтобы призвать Gold Experience как отдельное хитбокс-сердечко. Жизненная энергия: сбалансированный щит. Бафф: скорость +16%; хитбокс радиусом 12 принимает на себя 76% урона при столкновении; на обычной арене получаемый урон снижается на 6%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джорно Джованна (Gold Experience)", masteryTitleId: "mastery_character_6a702823", masteryTitleIcon: "✦"},
+            masteryTitle: "Золотая воля жизни", masteryTitleId: "mastery_character_6a702823", masteryTitleIcon: "✦"},
         {
             "name": "Дьяволо (King Crimson)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1626,7 +1626,7 @@ const customCardTemplates = {
             "desc": "Босс Passione, который видит будущее и стирает короткие промежутки времени. Стенд: King Crimson. Способность стенда: Стирание времени: быстрый уход от атак. Бафф при призыве: скорость +21%; хитбокс-сердечко радиусом 11 перехватывает атаки и принимает на себя 80% урона; на обычной арене получаемый урон снижен на 9% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — King Crimson", desc: "Нажми SUPER, чтобы призвать King Crimson как отдельное хитбокс-сердечко. Стирание времени: быстрый уход от атак. Бафф: скорость +21%; хитбокс радиусом 11 принимает на себя 80% урона при столкновении; на обычной арене получаемый урон снижается на 9%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Дьяволо (King Crimson)", masteryTitleId: "mastery_character_a7ea4a04", masteryTitleIcon: "✦"},
+            masteryTitle: "Император стёртого времени", masteryTitleId: "mastery_character_a7ea4a04", masteryTitleIcon: "✦"},
         {
             "name": "Джолин Куджо (Stone Free)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1642,7 +1642,7 @@ const customCardTemplates = {
             "desc": "Джолин использует Stone Free, превращая своё тело в нити для защиты, ловушек и дальних ударов. Стенд: Stone Free. Способность стенда: Нити: широкий контур защиты. Бафф при призыве: скорость +17%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 77% урона; на обычной арене получаемый урон снижен на 7% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Stone Free", desc: "Нажми SUPER, чтобы призвать Stone Free как отдельное хитбокс-сердечко. Нити: широкий контур защиты. Бафф: скорость +17%; хитбокс радиусом 12 принимает на себя 77% урона при столкновении; на обычной арене получаемый урон снижается на 7%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джолин Куджо (Stone Free)", masteryTitleId: "mastery_character_1f16c3f2", masteryTitleIcon: "✦"},
+            masteryTitle: "Свободная нить Стоун-Оушен", masteryTitleId: "mastery_character_1f16c3f2", masteryTitleIcon: "✦"},
         {
             "name": "Уэзер Репорт (часть 6)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1663,7 +1663,7 @@ const customCardTemplates = {
             "desc": "Мастер погоды, управляющий атмосферными явлениями и опасными погодными эффектами. Стенд: Weather Report. Способность стенда: Погода: расширенная область перехвата. Бафф при призыве: скорость +13%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 78% урона; на обычной арене получаемый урон снижен на 7% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Weather Report", desc: "Нажми SUPER, чтобы призвать Weather Report как отдельное хитбокс-сердечко. Погода: расширенная область перехвата. Бафф: скорость +13%; хитбокс радиусом 13 принимает на себя 78% урона при столкновении; на обычной арене получаемый урон снижается на 7%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Уэзер Репорт (часть 6)", masteryTitleId: "mastery_character_0af8d254", masteryTitleIcon: "✦"},
+            masteryTitle: "Погода, ставшая оружием", masteryTitleId: "mastery_character_0af8d254", masteryTitleIcon: "✦"},
         {
             "name": "Энрико Пуччи (Whitesnake)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1679,7 +1679,7 @@ const customCardTemplates = {
             "desc": "Священник и главный антагонист Stone Ocean на раннем этапе своего плана. Whitesnake извлекает диски памяти и стендов. Стенд: Whitesnake. Способность стенда: Извлечение дисков: сильная защита. Бафф при призыве: скорость +10%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 81% урона; на обычной арене получаемый урон снижен на 9% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Whitesnake", desc: "Нажми SUPER, чтобы призвать Whitesnake как отдельное хитбокс-сердечко. Извлечение дисков: сильная защита. Бафф: скорость +10%; хитбокс радиусом 12 принимает на себя 81% урона при столкновении; на обычной арене получаемый урон снижается на 9%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Энрико Пуччи (Whitesnake)", masteryTitleId: "mastery_character_11fd79ff", masteryTitleIcon: "✦"},
+            masteryTitle: "Священник белой змеи", masteryTitleId: "mastery_character_11fd79ff", masteryTitleIcon: "✦"},
         {
             "name": "Джироламо Джеппели (Gyro Zeppeli)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1695,7 +1695,7 @@ const customCardTemplates = {
             "desc": "Мастер вращения и стальных сфер, участвующий в гонке Steel Ball Run. Стенд: Ball Breaker. Способность стенда: Золотое вращение: высокая скорость. Бафф при призыве: скорость +20%; хитбокс-сердечко радиусом 10 перехватывает атаки и принимает на себя 71% урона; на обычной арене получаемый урон снижен на 5% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Ball Breaker", desc: "Нажми SUPER, чтобы призвать Ball Breaker как отдельное хитбокс-сердечко. Золотое вращение: высокая скорость. Бафф: скорость +20%; хитбокс радиусом 10 принимает на себя 71% урона при столкновении; на обычной арене получаемый урон снижается на 5%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джироламо Джеппели (Gyro Zeppeli)", masteryTitleId: "mastery_character_3040c412", masteryTitleIcon: "✦"},
+            masteryTitle: "Стальной шар мастера вращения", masteryTitleId: "mastery_character_3040c412", masteryTitleIcon: "✦"},
         {
             "name": "Джонни Джостар (Tusk Act 3)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1711,7 +1711,7 @@ const customCardTemplates = {
             "desc": "Продвинутая форма Tusk открывает вращающиеся порталы и позволяет атаковать через пространственные отверстия. Стенд: Tusk ACT 3. Способность стенда: Пространственные отверстия: защита + скорость. Бафф при призыве: скорость +18%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 78% урона; на обычной арене получаемый урон снижен на 8% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Tusk ACT 3", desc: "Нажми SUPER, чтобы призвать Tusk ACT 3 как отдельное хитбокс-сердечко. Пространственные отверстия: защита + скорость. Бафф: скорость +18%; хитбокс радиусом 12 принимает на себя 78% урона при столкновении; на обычной арене получаемый урон снижается на 8%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джонни Джостар (Tusk Act 3)", masteryTitleId: "mastery_character_c1176d17", masteryTitleIcon: "✦"},
+            masteryTitle: "Золотой гвоздь вращения", masteryTitleId: "mastery_character_c1176d17", masteryTitleIcon: "✦"},
         {
             "name": "Фанни Валентайн (D4C)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1727,7 +1727,7 @@ const customCardTemplates = {
             "desc": "Президент США и владелец Dirty Deeds Done Dirt Cheap, перемещающийся между параллельными мирами. Стенд: Dirty Deeds Done Dirt Cheap. Способность стенда: Параллельные миры: очень крепкий стенд. Бафф при призыве: скорость +13%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 82% урона; на обычной арене получаемый урон снижен на 9% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Dirty Deeds Done Dirt Cheap", desc: "Нажми SUPER, чтобы призвать Dirty Deeds Done Dirt Cheap как отдельное хитбокс-сердечко. Параллельные миры: очень крепкий стенд. Бафф: скорость +13%; хитбокс радиусом 13 принимает на себя 82% урона при столкновении; на обычной арене получаемый урон снижается на 9%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Фанни Валентайн (D4C)", masteryTitleId: "mastery_character_f343ec18", masteryTitleIcon: "✦"},
+            masteryTitle: "Президент между измерениями", masteryTitleId: "mastery_character_f343ec18", masteryTitleIcon: "✦"},
         {
             "name": "Джоске Хигашиката (JoJolion: Soft & Wet)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1744,7 +1744,7 @@ const customCardTemplates = {
             "desc": "Герой JoJolion, использующий пузыри Soft & Wet для кражи свойств у объектов. Стенд: Soft & Wet. Способность стенда: Пузырьки: снижение урона и разгон. Бафф при призыве: скорость +17%; хитбокс-сердечко радиусом 12 перехватывает атаки и принимает на себя 79% урона; на обычной арене получаемый урон снижен на 8% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Soft & Wet", desc: "Нажми SUPER, чтобы призвать Soft & Wet как отдельное хитбокс-сердечко. Пузырьки: снижение урона и разгон. Бафф: скорость +17%; хитбокс радиусом 12 принимает на себя 79% урона при столкновении; на обычной арене получаемый урон снижается на 8%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джоске Хигашиката (JoJolion: Soft & Wet)", masteryTitleId: "mastery_character_bae03c40", masteryTitleIcon: "✦"},
+            masteryTitle: "Мягкая вода невозможного", masteryTitleId: "mastery_character_bae03c40", masteryTitleIcon: "✦"},
         {
             "name": "Джобин Хигашиката (Speed King)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1766,7 +1766,7 @@ const customCardTemplates = {
             "desc": "Амбициозный член семьи Хигашиката, способный накапливать тепло в предметах и людях. Стенд: Speed King. Способность стенда: Тепло: скоростной стенд. Бафф при призыве: скорость +22%; хитбокс-сердечко радиусом 10 перехватывает атаки и принимает на себя 73% урона; на обычной арене получаемый урон снижен на 6% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Speed King", desc: "Нажми SUPER, чтобы призвать Speed King как отдельное хитбокс-сердечко. Тепло: скоростной стенд. Бафф: скорость +22%; хитбокс радиусом 10 принимает на себя 73% урона при столкновении; на обычной арене получаемый урон снижается на 6%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джобин Хигашиката (Speed King)", masteryTitleId: "mastery_character_77443046", masteryTitleIcon: "✦"},
+            masteryTitle: "Король перегретого времени", masteryTitleId: "mastery_character_77443046", masteryTitleIcon: "✦"},
         {
             "name": "Диего Брандо (The World)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1782,7 +1782,7 @@ const customCardTemplates = {
             "desc": "Альтернативный Диего из Steel Ball Run, получивший стенд The World в финальной гонке. Стенд: The World (Diego). Способность стенда: Альтернативная остановка: высокий разгон. Бафф при призыве: скорость +25%; хитбокс-сердечко радиусом 11 перехватывает атаки и принимает на себя 77% урона; на обычной арене получаемый урон снижен на 8% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — The World (Diego)", desc: "Нажми SUPER, чтобы призвать The World (Diego) как отдельное хитбокс-сердечко. Альтернативная остановка: высокий разгон. Бафф: скорость +25%; хитбокс радиусом 11 принимает на себя 77% урона при столкновении; на обычной арене получаемый урон снижается на 8%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Диего Брандо (The World)", masteryTitleId: "mastery_character_21303ebd", masteryTitleIcon: "✦"},
+            masteryTitle: "Дино-император остановленного времени", masteryTitleId: "mastery_character_21303ebd", masteryTitleIcon: "✦"},
         {
             "name": "Энрико Пуччи (C-Moon)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1798,7 +1798,7 @@ const customCardTemplates = {
             "desc": "Промежуточная эволюция стенда Пуччи, создающая гравитационные аномалии и выворачивающая цели наизнанку. Стенд: C-Moon. Способность стенда: Гравитация: широкая зона и мощный блок. Бафф при призыве: скорость +17%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 81% урона; на обычной арене получаемый урон снижен на 9% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — C-Moon", desc: "Нажми SUPER, чтобы призвать C-Moon как отдельное хитбокс-сердечко. Гравитация: широкая зона и мощный блок. Бафф: скорость +17%; хитбокс радиусом 13 принимает на себя 81% урона при столкновении; на обычной арене получаемый урон снижается на 9%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Энрико Пуччи (C-Moon)", masteryTitleId: "mastery_character_f7e4b0cd", masteryTitleIcon: "✦"},
+            masteryTitle: "Гравитация святого", masteryTitleId: "mastery_character_f7e4b0cd", masteryTitleIcon: "✦"},
         {
             "name": "Джонни Джостар (Tusk Act 1)",
             "universe": "JoJo", "patchId": "jojo",
@@ -1815,7 +1815,7 @@ const customCardTemplates = {
             "desc": "Начальная форма Tusk, пробуждённая через вращение и силу Святых останков. Стенд: Tusk ACT 1. Способность стенда: Спираль I: лёгкое ускорение. Бафф при призыве: скорость +8%; хитбокс-сердечко радиусом 10 перехватывает атаки и принимает на себя 69% урона; на обычной арене получаемый урон снижен на 4% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Tusk ACT 1", desc: "Нажми SUPER, чтобы призвать Tusk ACT 1 как отдельное хитбокс-сердечко. Спираль I: лёгкое ускорение. Бафф: скорость +8%; хитбокс радиусом 10 принимает на себя 69% урона при столкновении; на обычной арене получаемый урон снижается на 4%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джонни Джостар (Tusk Act 1)", masteryTitleId: "mastery_character_bd1be3f9", masteryTitleIcon: "✦"},
+            masteryTitle: "Первая вращающаяся пуля", masteryTitleId: "mastery_character_bd1be3f9", masteryTitleIcon: "✦"},
         {
             "name": "Моб (???%: потеря контроля)",
             "universe": "Mob 100",
@@ -1829,7 +1829,7 @@ const customCardTemplates = {
             },
             "minRebirth": 1,
             "desc": "Состояние, в котором подавленные силы Моба выходят наружу и действуют почти независимо от его сознания.",
-            masteryTitle: "Пробуждённый: Моб (???%: потеря контроля)", masteryTitleId: "mastery_character_b0b6fbdd", masteryTitleIcon: "✦"
+            masteryTitle: "Потеря контроля над вселенной", masteryTitleId: "mastery_character_b0b6fbdd", masteryTitleIcon: "✦"
         },
         {
             "name": "Вермейль (полная сила демона)",
@@ -1845,7 +1845,7 @@ const customCardTemplates = {
             },
             "minRebirth": 1,
             "desc": "Вермейль раскрывает больше своей демонической мощи, становясь одной из наиболее опасных участниц магических сражений.",
-            masteryTitle: "Пробуждённый: Вермейль (полная сила демона)", masteryTitleId: "mastery_character_97115f1a", masteryTitleIcon: "✦"
+            masteryTitle: "Золотая демонесса истинной силы", masteryTitleId: "mastery_character_97115f1a", masteryTitleIcon: "✦"
         }
     ],
     "Секретная": [
@@ -1855,7 +1855,7 @@ const customCardTemplates = {
             statusAbility: { type: "gojoDodge", chance: 0.30, desc: "30% шанс полностью отменить входящий урон" },
             desc: "Секретный Сатору Годжо: огромный урон, но здоровье ниже среднего. На 4★ обычные атаки критуют с шансом 90%; на 3★ есть 30% шанс полностью отменить входящий удар.",
             superAbility: { name: "SUPER: БЕЗГРАНИЧНОСТЬ", desc: "Красный создаёт красную сферу и запускает её вверх, отталкивая пули; при попадании по уникальному боссу наносит 5% максимального HP и отбрасывает его. Синий создаёт синюю сферу, которая притягивает блоки и уникального босса. Бесконечность на 3 секунды уничтожает блоки вокруг игрока, но вдвое замедляет его. При 100% Проклятой энергии Красный и Синий заменяются Фиолетовым: Годжо соединяет их и выпускает луч длиной примерно в половину арены, уничтожающий блоки на пути и наносящий уникальному боссу 15% максимального HP.", passive: false },
-            masteryTitle: "Пробуждённый: Годжо", masteryTitleId: "mastery_character_d5ce1394", masteryTitleIcon: "✦"
+            masteryTitle: "Сильнейший, которому тесно в небе", masteryTitleId: "mastery_character_d5ce1394", masteryTitleIcon: "✦"
         },
         // ★★★ ТАКАБА ★★★
         { 
@@ -1876,42 +1876,42 @@ const customCardTemplates = {
                 desc: "Такаба рассказывает тупую шутку: арена замирает на 4 секунды, после чего Такаба получает +30% уверенности. Кулдаун: 20 сек.",
                 passive: false 
             },
-            masteryTitle: "Пробуждённый: Такаба", masteryTitleId: "mastery_character_bbc2c00c", masteryTitleIcon: "✦"
+            masteryTitle: "Комик, переписывающий реальность", masteryTitleId: "mastery_character_bbc2c00c", masteryTitleIcon: "✦"
         },
         { 
             name: "Луффи: Ника, Бог Солнца", universe: "One Piece", damage: 150, hp: 200, speed: 3.8, sellPrice: 1500, minRebirth: 2, 
             ability: { type: "bossDamage", value: 0.30, desc: "+30% боссам", damageReduction: 0.10 }, 
             desc: "Пробуждение дьявольского фрукта. +30% урона боссам и -10% получаемого урона.",
             superAbility: { name: "SUPER: ОСВОБОЖДЕНИЕ", desc: "Сердце становится огромным и быстрым. Получаешь больше урона, но бьёшь больнее. «Я и так уже смеюсь!»", passive: false },
-            masteryTitle: "Пробуждённый: Луффи: Ника, Бог Солнца", masteryTitleId: "mastery_character_8612be69", masteryTitleIcon: "✦"
+            masteryTitle: "Бог Солнца, освободивший мир", masteryTitleId: "mastery_character_8612be69", masteryTitleIcon: "✦"
         },
         { 
             name: "Космический Гароу", universe: "OPM", damage: 250, hp: 400, speed: 3.5, sellPrice: 2800, minRebirth: 4, 
             ability: { type: "scaleWithWins", value: 0.01, desc: "+1% силы/волна" }, 
             desc: "Урон растёт на 1% за каждую победу. После смерти накопленный бонус сохраняется, только если в последних 5 победах команда ни разу не содержала Космического Гароу; если он участвовал хотя бы в одной из этих побед, бонус сбрасывается. После ребёрна бонус сбрасывается.",
             superAbility: { name: "SUPER: ПОТОК ВСЕЛЕННОЙ", desc: "Отматывает время на 2 секунды назад. Телепорт с неуязвимостью. Круто же, да?", passive: false },
-            masteryTitle: "Пробуждённый: Космический Гароу", masteryTitleId: "mastery_character_819e38ce", masteryTitleIcon: "✦"
+            masteryTitle: "Копия космоса", masteryTitleId: "mastery_character_819e38ce", masteryTitleIcon: "✦"
         },
         { 
             name: "Сайтама", universe: "OPM", damage: 200, hp: 300, speed: 4.0, sellPrice: 1500, minRebirth: 3, 
             ability: { type: "oneShot", chance: 0.05, desc: "5% ваншот" }, 
             desc: "Лысый плащ. 5% шанс убить врага с одного удара.",
             superAbility: { name: "SUPER: ОБЫЧНЫЙ УДАР", desc: "Огромный красный кулак летит вверх, сметая все атаки. Шанс 1% ваншотнуть босса с SUPER атаки.", passive: false },
-            masteryTitle: "Пробуждённый: Сайтама", masteryTitleId: "mastery_character_dc8f9149", masteryTitleIcon: "✦"
+            masteryTitle: "Кулак без потолка", masteryTitleId: "mastery_character_dc8f9149", masteryTitleIcon: "✦"
         },
         { 
             name: "Борос", universe: "OPM", damage: 180, hp: 350, speed: 3.2, sellPrice: 1400, minRebirth: 2, 
             ability: { type: "healOnWin", percent: 0.05, desc: "+5% HP" }, 
             desc: "Владыка вселенной. Лечит 5% HP при победе.",
             superAbility: { name: "SUPER: РЕГЕНЕРАЦИЯ", desc: "Медленно восстанавливает HP, но замедляет персонажа. А вот жалкие людишки так не могут! Хе-хе-хе", passive: false },
-            masteryTitle: "Пробуждённый: Борос", masteryTitleId: "mastery_character_078ba4df", masteryTitleIcon: "✦"
+            masteryTitle: "Завоеватель звёзд", masteryTitleId: "mastery_character_078ba4df", masteryTitleIcon: "✦"
         },
         { 
             name: "Бог Усопп", universe: "One Piece", damage: 250, hp: 400, speed: 2.5, sellPrice: 2000, minRebirth: 3, 
             ability: { type: "resurrect", chance: 0.05, desc: "5% воскрес" }, 
             desc: "Великий воин морей. 5% шанс воскреснуть при смерти.",
             superAbility: { name: "SUPER: ЛОЖЬ СТАНОВИТСЯ ПРАВДОЙ", desc: "Полная неуязвимость на 3 секунды, но потом 2 секунды оглушения. А вы ему верите?", passive: false },
-            masteryTitle: "Пробуждённый: Бог Усопп", masteryTitleId: "mastery_character_f4b6b32b", masteryTitleIcon: "✦"
+            masteryTitle: "Ложь, ставшая божеством", masteryTitleId: "mastery_character_f4b6b32b", masteryTitleIcon: "✦"
         },
         { 
             name: "Зено", universe: "DB", damage: 300, hp: 500, speed: 3.0, sellPrice: 3000, minRebirth: 4, 
@@ -1919,28 +1919,28 @@ const customCardTemplates = {
             statusAbility: { type: "fatigueResist", value: 0.30, desc: "-30% усталости" }, 
             desc: "Царь всего. 10% шанс открыть следующий чекпоинт и -30% усталости.",
             superAbility: { name: "SUPER: СТИРАНИЕ", desc: "Уничтожает ВСЕ атаки на экране и наносит 10% урона боссу. Скучно -_-", passive: false },
-            masteryTitle: "Пробуждённый: Зено", masteryTitleId: "mastery_character_d5c14556", masteryTitleIcon: "✦"
+            masteryTitle: "Император стирания вселенных", masteryTitleId: "mastery_character_d5c14556", masteryTitleIcon: "✦"
         },
         { 
             name: "Анти-спираль", universe: "GL", damage: 280, hp: 450, speed: 2.8, sellPrice: 2500, minRebirth: 2, 
             ability: { type: "damageReduction", value: 0.30, desc: "-30% урона" }, 
             desc: "Враг всего живого. Уменьшает получаемый урон на 30%.",
             superAbility: { name: "SUPER: СЖАТИЕ ПРОСТРАНСТВА", desc: "Увеличивает арену на 30%! Ну вроде :/", passive: false },
-            masteryTitle: "Пробуждённый: Анти-спираль", masteryTitleId: "mastery_character_c9faaee6", masteryTitleIcon: "✦"
+            masteryTitle: "Тюремщик спиральной эволюции", masteryTitleId: "mastery_character_c9faaee6", masteryTitleIcon: "✦"
         },
         { 
             name: "Молодой Гарп", universe: "One Piece", damage: 260, hp: 380, speed: 3.3, sellPrice: 2500, minRebirth: 3, 
             ability: { type: "damageAura", value: 0.25, desc: "+25% урона" }, 
             desc: "Гарп в расцвете сил. +25% урона всей команде.",
             superAbility: { name: "SUPER: ГАЛАКТИЧЕСКИЙ УДАР", desc: "Заряжает Хаки 1.2 секунды, затем БА-БАХ! АоЕ взрыв, очистка атак и 5% урона боссу. После удара — бафф Хаки на 6 секунд. Правда, после этого у босса всего лишь шишка. А атака была такой зрелищной....", passive: false },
-            masteryTitle: "Пробуждённый: Молодой Гарп", masteryTitleId: "mastery_character_245ef0f3", masteryTitleIcon: "✦"
+            masteryTitle: "Молодой кулак флота", masteryTitleId: "mastery_character_245ef0f3", masteryTitleIcon: "✦"
         },
         { 
             name: "Им (Правитель)", universe: "One Piece", damage: 290, hp: 450, speed: 2.2, sellPrice: 3000, minRebirth: 5, 
             ability: { type: "bossDamage", value: 0.20, desc: "+20% боссам" }, 
             desc: "Тайный правитель мира. +20% урона боссам.",
             superAbility: { name: "SUPER: ТЕНЕВОЕ ПРАВЛЕНИЕ", desc: "Тёмная аура вокруг сердца. Атаки, касающиеся ауры, имеют 50% шанс быть уничтоженными. Но сердце замедлено на 30%. Это для тех, кто не умеет уварачиваться. Для тебя, хех!", passive: false },
-            masteryTitle: "Пробуждённый: Им (Правитель)", masteryTitleId: "mastery_character_8ce0b805", masteryTitleIcon: "✦"
+            masteryTitle: "Тень пустого трона", masteryTitleId: "mastery_character_8ce0b805", masteryTitleIcon: "✦"
         },
         { 
             name: "Космический Дэнди", universe: "Space Dandy", damage: 200, hp: 650, speed: 2.7, sellPrice: 2200, minRebirth: 3, 
@@ -1948,14 +1948,14 @@ const customCardTemplates = {
             statusAbility: { type: "shock", chance: 0.20, desc: "Шок 20%" }, 
             desc: "Постоянный клиент космического фансервис-кафе «Груди»",
             superAbility: { name: "SUPER: КОСМИЧЕСКАЯ УДАЧА", desc: "Рулетка! 80% шанс получить крутой бафф (лечение, урон x2, очистка, скорость, щит и т.д.) и 20% шанс получить смешной дебафф. «Повезёт? Не повезёт? Дэнди знает!»", passive: false },
-            masteryTitle: "Пробуждённый: Космический Дэнди", masteryTitleId: "mastery_character_b3fbd772", masteryTitleIcon: "✦"
+            masteryTitle: "Космический денди галактического масштаба", masteryTitleId: "mastery_character_b3fbd772", masteryTitleIcon: "✦"
         },
         { 
             name: "Кайдо", universe: "One Piece", damage: 300, hp: 500, speed: 2.4, sellPrice: 3000, minRebirth: 4, 
             ability: { type: "bossDouble", desc: "x2 урон (босс)" }, 
             desc: "Сильнейший в мире. При битве с боссом наносит удвоенный урон.",
             superAbility: { name: "SUPER: ДЫХАНИЕ РАЗРУШЕНИЯ", desc: "Пьёт пиво 2 секунды, затем впадает в ЯРОСТЬ на 10 секунд: хил 10%, поглощение 30% урона, +80% урона, скорость x1.5. Но управление ИНВЕРТИРУЕТСЯ! После — похмелье (замедление). Как можно во время боя пить?", passive: false },
-            masteryTitle: "Пробуждённый: Кайдо", masteryTitleId: "mastery_character_65a99bbc", masteryTitleIcon: "✦"
+            masteryTitle: "Сильнейшее существо среди живых", masteryTitleId: "mastery_character_65a99bbc", masteryTitleIcon: "✦"
         },
         { 
             name: "Император Марк", universe: "Invincible", damage: 310, hp: 500, speed: 3.1, sellPrice: 3000, minRebirth: 5, 
@@ -1963,14 +1963,14 @@ const customCardTemplates = {
             statusAbility: { type: "bleed", value: 0.12, desc: "Кровотечение +12%" }, 
             desc: "Марк спустя 500 лет. +15% урона команде при битве с боссом, +12% урона через кровотечение.",
             superAbility: { name: "ПАССИВКА: НЕПОБЕДИМАЯ ВОЛЯ", desc: "Два анти-ваншота за арену! При смерти воскресает с 25% HP. Ну проще говоря - сюжетная броня!", passive: true },
-            masteryTitle: "Пробуждённый: Император Марк", masteryTitleId: "mastery_character_f98dde87", masteryTitleIcon: "✦"
+            masteryTitle: "Император Вилтрума", masteryTitleId: "mastery_character_f98dde87", masteryTitleIcon: "✦"
         },
         { 
             name: "Деку (100%)", universe: "MHA", damage: 280, hp: 450, speed: 3.6, sellPrice: 2800, minRebirth: 4, 
             ability: { type: "bossDoubleSelf", desc: "x2 урон (босс), -30% на 10 волн" }, 
             desc: "Полная сила One For All. Удваивает урон при битве с боссом, но ослабляет на 30% на следующие 10 волн.",
             superAbility: { name: "SUPER: ПОЛНОЕ 100% ПОКРЫТИЕ", desc: "Скорость x3, урон x2! Но каждую секунду теряешь 2% HP. Зелёные молнии повсюду! А без Эри ты бы включил 100%?", passive: false },
-            masteryTitle: "Пробуждённый: Деку (100%)", masteryTitleId: "mastery_character_75294802", masteryTitleIcon: "✦"
+            masteryTitle: "Стопроцентный наследник «Один за всех»", masteryTitleId: "mastery_character_75294802", masteryTitleIcon: "✦"
         },
         { 
             name: "Всемогущий (прайм)", universe: "MHA", damage: 300, hp: 480, speed: 3.4, sellPrice: 3000, minRebirth: 4, 
@@ -1978,7 +1978,7 @@ const customCardTemplates = {
             statusAbility: { type: "bossDamageAura", value: 0.10, desc: "+25% (босс)" }, 
             desc: "Символ мира в прайме. +15% урона команде и +25% при битве с боссом.",
             superAbility: { name: "SUPER: СИМВОЛ МИРА", desc: "Хитбокс x2, урон x3 на 15 секунд! Но потом теряешь 50% HP и НАВСЕГДА замедляешься в 3 раза. ПЛЮЮЮС УЛЬТРААААА!", passive: false },
-            masteryTitle: "Пробуждённый: Всемогущий (прайм)", masteryTitleId: "mastery_character_7334dc86", masteryTitleIcon: "✦"
+            masteryTitle: "Символ мира в расцвете", masteryTitleId: "mastery_character_7334dc86", masteryTitleIcon: "✦"
         },
         { 
             name: "ДИО Over Heaven", universe: "JoJo", damage: 280, hp: 420, speed: 3.1, sellPrice: 3500, minRebirth: 4,
@@ -1988,22 +1988,22 @@ const customCardTemplates = {
             waveRegen: 0.01,
             desc: "Heaven Ascension DIO. Слабее по голой силе, зато The World Over Heaven даёт 4 дорогих тактических навыка: остановка времени, хил, возврат на позицию 1 секунду назад и агрессивные снаряды.",
             superAbility: { name: "SUPER: THE WORLD OVER HEAVEN", desc: "4 отдельных навыка с общей шкалой ЭНЕРГИИ 0–100. Энергия набирается от нанесённого урона. TIME STOP — 2.5с, HEAL — 10%, TELEPORT — 1с назад + 0.5с стопа, AGGRESSIVE — снаряды уничтожают друг друга.", passive: false },
-            masteryTitle: "Пробуждённый: ДИО Over Heaven", masteryTitleId: "mastery_character_293d5a88", masteryTitleIcon: "✦"
+            masteryTitle: "Небеса под властью ДИО", masteryTitleId: "mastery_character_293d5a88", masteryTitleIcon: "✦"
         },
         { 
             name: "Белоус", universe: "One Piece", damage: 400, hp: 250, speed: 2.0, sellPrice: 800, minRebirth: 0,
             unsellable: true,
             ability: { type: "whitebeardSpecial", desc: "Пассивно: 10% поглощения урона, 3% шанс воскреснуть, +1% HP за волну и бонус комбо 2% за серию из 5 ударов. При 4★+: регенерация 2% HP каждые 5 с. УДАР: перезарядка 30 с → ЦУНАМИ: окно 20 с, запуск с задержкой 1,5 с." },
             desc: "Эдвард Ньюгейт. Сильнейший человек в мире. Нельзя получить через гачу — только победив супер-Белоуса.",
-            masteryTitle: "Пробуждённый: Белоус", masteryTitleId: "mastery_character_e4d9361e", masteryTitleIcon: "✦"
+            masteryTitle: "Сильнейший человек морей", masteryTitleId: "mastery_character_e4d9361e", masteryTitleIcon: "✦"
         }
 ,
                         {"name":"Зоро (Вано: Король ада)","universe":"One Piece","patchId":"one_piece","damage":230,"hp":250,"speed":3,"ability":{"type":"bossDamage","value":0.25,"desc":"+25% урона боссам"},"statusAbility":{"type":"bleed","value":0.12,"desc":"+12% урона через кровотечение"},"desc":"Пиковая версия Зоро с продвинутым хаки короля и клинками, покрытыми чёрным пламенем.",
-            masteryTitle: "Пробуждённый: Зоро (Вано: Король ада)", masteryTitleId: "mastery_character_9c5fbdcb", masteryTitleIcon: "✦"},
+            masteryTitle: "Король ада трёх клинков", masteryTitleId: "mastery_character_9c5fbdcb", masteryTitleIcon: "✦"},
         {"name":"Чёрная Борода (Два дьявольских плода)","universe":"One Piece","patchId":"one_piece","damage":280,"hp":310,"speed":2.5,"ability":{"type":"damageAura","value":0.12,"desc":"+12% урона команде"},"statusAbility":{"type":"shock","chance":0.12,"desc":"12% шанс сотрясающего шока"},"desc":"Тич сочетает тьму Ями-Ями и разрушительную силу Гура-Гура. Отдельная версия после получения второго плода.",
-            masteryTitle: "Пробуждённый: Чёрная Борода (Два дьявольских плода)", masteryTitleId: "mastery_character_7f0673ab", masteryTitleIcon: "✦"},
+            masteryTitle: "Два плода, одна бездна", masteryTitleId: "mastery_character_7f0673ab", masteryTitleIcon: "✦"},
         {"name":"Гол Д. Роджер (Камусари)","universe":"One Piece","patchId":"one_piece","damage":265,"hp":275,"speed":3.1,"ability":{"type":"bossDamage","value":0.3,"desc":"+30% урона боссам"},"statusAbility":{"type":"bleed","value":0.08,"desc":"+8% урона через хаки"},"desc":"Роджер выпускает Камусари — стремительный удар хаки, прославивший Короля пиратов.",
-            masteryTitle: "Пробуждённый: Гол Д. Роджер (Камусари)", masteryTitleId: "mastery_character_8062e6f3", masteryTitleIcon: "✦"},
+            masteryTitle: "Король пиратов, расколовший небеса", masteryTitleId: "mastery_character_8062e6f3", masteryTitleIcon: "✦"},
                 {
             "name": "Джорно Джованна (Gold Experience Requiem)",
             "universe": "JoJo", "patchId": "jojo",
@@ -2024,7 +2024,7 @@ const customCardTemplates = {
             "desc": "Requiem-форма Gold Experience, способная возвращать действия и волю противника к нулю. Стенд: Gold Experience Requiem. Способность стенда: Возврат к нулю: максимальная защита и радиус. Бафф при призыве: скорость +14%; хитбокс-сердечко радиусом 14 перехватывает атаки и принимает на себя 84% урона; на обычной арене получаемый урон снижен на 10% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Gold Experience Requiem", desc: "Нажми SUPER, чтобы призвать Gold Experience Requiem как отдельное хитбокс-сердечко. Возврат к нулю: максимальная защита и радиус. Бафф: скорость +14%; хитбокс радиусом 14 принимает на себя 84% урона при столкновении; на обычной арене получаемый урон снижается на 10%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джорно Джованна (Gold Experience Requiem)", masteryTitleId: "mastery_character_96ba4ab3", masteryTitleIcon: "✦"},
+            masteryTitle: "Нулевой приговор причинности", masteryTitleId: "mastery_character_96ba4ab3", masteryTitleIcon: "✦"},
         {
             "name": "Энрико Пуччи (Made in Heaven)",
             "universe": "JoJo", "patchId": "jojo",
@@ -2040,7 +2040,7 @@ const customCardTemplates = {
             "desc": "Финальная эволюция стенда Пуччи, ускоряющая время и движение всего мира. Стенд: Made in Heaven. Способность стенда: Ускорение: максимальная скорость. Бафф при призыве: скорость +30%; хитбокс-сердечко радиусом 10 перехватывает атаки и принимает на себя 66% урона; на обычной арене получаемый урон снижен на 3% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Made in Heaven", desc: "Нажми SUPER, чтобы призвать Made in Heaven как отдельное хитбокс-сердечко. Ускорение: максимальная скорость. Бафф: скорость +30%; хитбокс радиусом 10 принимает на себя 66% урона при столкновении; на обычной арене получаемый урон снижается на 3%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Энрико Пуччи (Made in Heaven)", masteryTitleId: "mastery_character_c36af983", masteryTitleIcon: "✦"},
+            masteryTitle: "Священник ускоренного рая", masteryTitleId: "mastery_character_c36af983", masteryTitleIcon: "✦"},
         {
             "name": "Джонни Джостар (Tusk Act 4)",
             "universe": "JoJo", "patchId": "jojo",
@@ -2056,7 +2056,7 @@ const customCardTemplates = {
             "desc": "Высшая форма Tusk, использующая бесконечное вращение для пробивания почти любой защиты. Стенд: Tusk ACT 4. Способность стенда: Бесконечное вращение: высокий блок урона. Бафф при призыве: скорость +21%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 83% урона; на обычной арене получаемый урон снижен на 10% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Tusk ACT 4", desc: "Нажми SUPER, чтобы призвать Tusk ACT 4 как отдельное хитбокс-сердечко. Бесконечное вращение: высокий блок урона. Бафф: скорость +21%; хитбокс радиусом 13 принимает на себя 83% урона при столкновении; на обычной арене получаемый урон снижается на 10%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Джонни Джостар (Tusk Act 4)", masteryTitleId: "mastery_character_59148ac8", masteryTitleIcon: "✦"},
+            masteryTitle: "Бесконечное вращение", masteryTitleId: "mastery_character_59148ac8", masteryTitleIcon: "✦"},
         {
             "name": "Карс (Высшее существо)",
             "universe": "JoJo", "patchId": "jojo",
@@ -2070,7 +2070,7 @@ const customCardTemplates = {
             },
             "minRebirth": 4,
             "desc": "Карс достигает совершенной формы, сочетая силу и способности практически всех живых существ.",
-            masteryTitle: "Пробуждённый: Карс (Высшее существо)", masteryTitleId: "mastery_character_b9b093cc", masteryTitleIcon: "✦"
+            masteryTitle: "Совершенство жизни", masteryTitleId: "mastery_character_b9b093cc", masteryTitleIcon: "✦"
         },
         {
             "name": "Тору (Wonder of U)",
@@ -2092,37 +2092,37 @@ const customCardTemplates = {
             "desc": "Пользователь Wonder of U, чья сила направляет бедствия на тех, кто преследует его или стенд. Стенд: Wonder of U. Способность стенда: Катастрофа: защита и максимальный радиус. Бафф при призыве: скорость +7%; хитбокс-сердечко радиусом 14 перехватывает атаки и принимает на себя 83% урона; на обычной арене получаемый урон снижен на 10% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Wonder of U", desc: "Нажми SUPER, чтобы призвать Wonder of U как отдельное хитбокс-сердечко. Катастрофа: защита и максимальный радиус. Бафф: скорость +7%; хитбокс радиусом 14 принимает на себя 83% урона при столкновении; на обычной арене получаемый урон снижается на 10%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Пробуждённый: Тору (Wonder of U)", masteryTitleId: "mastery_character_c797933e", masteryTitleIcon: "✦"}
+            masteryTitle: "Катастрофа, которую нельзя преследовать", masteryTitleId: "mastery_character_c797933e", masteryTitleIcon: "✦"}
     ],
     "Эволюционная": [
         { name: "Луффи : Король пиратов", universe: "One Piece", damage: 1200, hp: 2000, speed: 4.5, minRebirth: 5, ability: { type: "bossDamage", value: 0.50, desc: "+50% боссам", bossReduction: 0.40 }, unsellable: true, desc: "Король пиратов. +50% урона боссам и -40% получаемого урона при битве с боссом. Чтобы получить: соберите 5 разных Луффи в команду (ровно 5 карт) и победите босса 500 волны.",
-            masteryTitle: "Пробуждённый: Луффи : Король пиратов", masteryTitleId: "mastery_character_04b0528f", masteryTitleIcon: "✦" },
+            masteryTitle: "Пиратский король грядущей эпохи", masteryTitleId: "mastery_character_04b0528f", masteryTitleIcon: "✦" },
         { name: "Сайтама/Гароу", universe: "Эволюция", damage: 1500, hp: 2500, speed: 5.0, minRebirth: 5, ability: { type: "oneShot", chance: 0.15, desc: "15% ваншот" }, statusAbility: { type: "scaleWithWins", value: 0.03, desc: "+3% силы/волна" }, unsellable: true, desc: "Слияние сильнейших. 15% шанс ваншота и +3% силы за каждую волну. Чтобы получить: ваншотните 2000 врагов способностью Сайтамы (Сайтама + Космический Гароу в команде).",
-            masteryTitle: "Пробуждённый: Сайтама/Гароу", masteryTitleId: "mastery_character_73126a34", masteryTitleIcon: "✦" },
+            masteryTitle: "Слияние безграничной силы", masteryTitleId: "mastery_character_73126a34", masteryTitleIcon: "✦" },
         { name: "Гарп/Кудзан", universe: "Эволюция", damage: 1400, hp: 2200, speed: 3.5, minRebirth: 5, ability: { type: "damageAura", value: 0.40, desc: "+40% урона" }, statusAbility: { type: "absoluteFreeze", value: 0.5, desc: "-50% урона" }, unsellable: true, desc: "Учитель и ученик. +40% урона команде и -50% получаемого урона. Чтобы получить: накопите 1 000 000 000 урона (Молодой Гарп + Кудзан в команде).",
-            masteryTitle: "Пробуждённый: Гарп/Кудзан", masteryTitleId: "mastery_character_a219f9e1", masteryTitleIcon: "✦" },
+            masteryTitle: "Кулак и лёд одной эпохи", masteryTitleId: "mastery_character_a219f9e1", masteryTitleIcon: "✦" },
         { name: "Семёрка", universe: "The Boys", damage: 1600, hp: 2600, speed: 4.0, minRebirth: 5, ability: { type: "sevenSpecial", desc: "V x3, хил 5%/волна", healOnWave: 0.05, damageReduction: 0.10 }, statusAbility: { type: "blind", value: 2, desc: "Ослепление +2" }, extraStatus: [{ type: "fire", damage: 10, duration: 3000 }, { type: "shock", chance: 0.15 }], unsellable: true, desc: "Вся Семёрка вместе. Препарат V утраивает баффы, хил 5% за волну, ослепление, лазеры и электричество. Чтобы получить: Хоумлендер, Звёздочка, Мреющий, Чёрный Нуар, Пучино, Королева Мэйв с V и 20 ур.",
-            masteryTitle: "Пробуждённый: Семёрка", masteryTitleId: "mastery_character_451350ae", masteryTitleIcon: "✦" },
+            masteryTitle: "Семь лиц одной легенды", masteryTitleId: "mastery_character_451350ae", masteryTitleIcon: "✦" },
         { name: "Уильям Фрэнсис", universe: "Invincible", damage: 800, hp: 1200, speed: 3.0, minRebirth: 5, ability: { type: "copyEnemyChance", chance: 0.15, desc: "15% копирует врага" }, unsellable: true, desc: "Копирует характеристики врага с шансом 15%. Чтобы получить: победите босса 2000 волны только с обычными картами (6 шт).",
-            masteryTitle: "Пробуждённый: Уильям Фрэнсис", masteryTitleId: "mastery_character_2d8fe918", masteryTitleIcon: "✦" }
+            masteryTitle: "Человек, подражающий чудовищам", masteryTitleId: "mastery_character_2d8fe918", masteryTitleIcon: "✦" }
     ],
     "Босс": [
         { name: "Охотник за головами", universe: "Боссы", damage: 150, hp: 300, speed: 2.0, sellPrice: 1000, minRebirth: 0, ability: { type: "bossDamage", value: 0.10, desc: "+10% боссам" }, desc: "Особая карта босса финальной волны. +10% урона боссам.",
-            masteryTitle: "Пробуждённый: Охотник за головами", masteryTitleId: "mastery_character_db327e2e", masteryTitleIcon: "✦" },
+            masteryTitle: "Охотник за сильнейшими", masteryTitleId: "mastery_character_db327e2e", masteryTitleIcon: "✦" },
         { name: "Король Демонов", universe: "Боссы", damage: 200, hp: 400, speed: 1.5, sellPrice: 2000, minRebirth: 1, ability: { type: "damageAura", value: 0.05, desc: "+5% урона" }, desc: "Особая карта босса 100-й волны. +5% урона команде.",
-            masteryTitle: "Пробуждённый: Король Демонов", masteryTitleId: "mastery_character_4d1aca24", masteryTitleIcon: "✦" },
+            masteryTitle: "Владыка последнего круга", masteryTitleId: "mastery_character_4d1aca24", masteryTitleIcon: "✦" },
         { name: "Маджин Буу", universe: "Боссы", damage: 250, hp: 500, speed: 1.8, sellPrice: 3000, minRebirth: 2, statusAbility: { type: "bleed", value: 0.10, desc: "Кровотечение +10%" }, desc: "Особая карта босса 200-й волны. +10% урона через кровотечение.",
-            masteryTitle: "Пробуждённый: Маджин Буу", masteryTitleId: "mastery_character_df581c55", masteryTitleIcon: "✦" },
+            masteryTitle: "Розовое бедствие вселенной", masteryTitleId: "mastery_character_df581c55", masteryTitleIcon: "✦" },
         { name: "Король Пиратов", universe: "Боссы", damage: 400, hp: 800, speed: 2.2, sellPrice: 5000, minRebirth: 3, ability: { type: "bossDamage", value: 0.20, desc: "+20% боссам" }, desc: "Особая карта, связанная с Путеводной Звездой. +20% урона боссам.",
-            masteryTitle: "Пробуждённый: Король Пиратов", masteryTitleId: "mastery_character_61472353", masteryTitleIcon: "✦" }
+            masteryTitle: "Претендент на пустой трон морей", masteryTitleId: "mastery_character_61472353", masteryTitleIcon: "✦" }
     ],
     "Пасхалка": [
         { name: "Пельмешка", universe: "Кухня", damage: 35, hp: 60, speed: 1.0, unsellable: true, ability: { type: "luckAura", value: 0.50, desc: "+50% удачи" }, desc: "Вкусный пельмень. +50% к удаче.",
-            masteryTitle: "Пробуждённый: Пельмешка", masteryTitleId: "mastery_character_fb275189", masteryTitleIcon: "✦" },
+            masteryTitle: "Картофельный император удачи", masteryTitleId: "mastery_character_fb275189", masteryTitleIcon: "✦" },
         { name: "Попугай Соня", universe: "Зоопарк", damage: 3, hp: 5, speed: 0.8, unsellable: true, ability: { type: "deathBonus", value: 0.30, desc: "+30% звёзд" }, desc: "После смерти даёт +30% к накопленным звёздам.",
-            masteryTitle: "Пробуждённый: Попугай Соня", masteryTitleId: "mastery_character_a14c37eb", masteryTitleIcon: "✦" },
+            masteryTitle: "Пернатый оракул зоопарка", masteryTitleId: "mastery_character_a14c37eb", masteryTitleIcon: "✦" },
         { name: "DrinkTea2Win", universe: "Кухня", damage: 20, hp: 550, speed: 6, unsellable: true, ability: { type: "fatigueResist", value: 0.50, desc: "-50% усталости" }, desc: "Бодрящий напиток. Победа... в чашке? Снижает набор усталости на 50%.",
-            masteryTitle: "Пробуждённый: DrinkTea2Win", masteryTitleId: "mastery_character_5c2c21e1", masteryTitleIcon: "✦" }
+            masteryTitle: "Повелитель чайной паузы", masteryTitleId: "mastery_character_5c2c21e1", masteryTitleIcon: "✦" }
     ]
 };
 
