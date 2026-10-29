@@ -1413,6 +1413,7 @@ function saveAll() {
     if (mbCloudRecoveryPendingSlot === currentSlot) return;
     mbStatsObserveCurrentState();
     slotData.myCards = myCards; 
+    if (typeof window.MBSyncMasteryTitleUnlocks === 'function') window.MBSyncMasteryTitleUnlocks();
     slotData.unlockedPatches = window.MBPatches ? window.MBPatches.getUnlocked() : (slotData.unlockedPatches || []);
     slotData.team = team; 
     slotData.afkTeam = afkTeam; 
