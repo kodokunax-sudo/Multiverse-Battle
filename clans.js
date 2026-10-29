@@ -219,6 +219,7 @@
     function readLocalGameStats() {
         if (typeof currentSlot !== 'undefined' && Number(currentSlot) < 0) return null;
         try {
+            if (typeof window.MBSyncMasteryTitleUnlocks === 'function') window.MBSyncMasteryTitleUnlocks();
             var wins = typeof totalWins !== 'undefined' ? totalWins : 0;
             var bestWave = typeof highestWaveReached !== 'undefined' ? highestWaveReached : (typeof wave !== 'undefined' ? wave : 1);
             var rebirths = typeof rebirthCount !== 'undefined' ? rebirthCount : 0;
@@ -374,7 +375,12 @@
     ];
 
     function titleById(id) {
-        return ACHIEVEMENT_TITLES.find(function (title) { return title.id === id; }) || null;
+        var achievement = ACHIEVEMENT_TITLES.find(function (title) { return title.id === id; });
+        if (achievement) return achievement;
+        if (typeof window.MBGetMasteryTitleCatalog === 'function') {
+            return window.MBGetMasteryTitleCatalog().find(function (title) { return title.id === id; }) || null;
+        }
+        return null;
     }
     function titleIsUnlocked(title, stats) {
         var current = stats || {};
@@ -663,12 +669,18 @@
         container.replaceChildren();
         var unlockedCount = 0;
         var visibleCount = 0;
-        ACHIEVEMENT_TITLES.forEach(function (title) {
+        var titlesToRender = ACHIEVEMENT_TITLES.slice();
+        if (typeof window.MBGetMasteryTitleCatalog === 'function') {
+            window.MBGetMasteryTitleCatalog().forEach(function (title) {
+                if (titleIsUnlocked(title, currentStats)) titlesToRender.push(title);
+            });
+        }
+        titlesToRender.forEach(function (title) {
             var unlocked = titleIsUnlocked(title, currentStats);
             if (unlocked) unlockedCount++;
             if (!unlocked && !includeLocked) return;
             visibleCount++;
-            var badge = node('button', 'achievement-badge' + (unlocked ? '' : ' locked'));
+            var badge = node('button', 'achievement-badge' + (unlocked ? '' : ' locked') + (title.isMasteryTitle ? ' mastery-character-badge' : ''));
             badge.type = 'button';
             badge.title = 'Нажми, чтобы узнать: ' + title.description;
             badge.setAttribute('aria-label', (unlocked ? 'Получен: ' : 'Не получен: ') + title.label + '. ' + title.description);
@@ -694,6 +706,11 @@
             ACHIEVEMENT_TITLES.forEach(function (title) {
                 if (titleIsUnlocked(title, stats || {})) select.appendChild(new Option(title.icon + ' ' + title.label, title.id));
             });
+            if (typeof window.MBGetMasteryTitleCatalog === 'function') {
+                window.MBGetMasteryTitleCatalog().forEach(function (title) {
+                    if (titleIsUnlocked(title, stats || {})) select.appendChild(new Option(title.icon + ' ' + title.label, title.id));
+                });
+            }
             select.value = isTitleUnlocked(selectedId, stats || {}) ? (selectedId || '') : '';
         }
         renderAchievementBadges('clanProfileBadges', stats, true);
@@ -845,6 +862,8 @@
         var stats = Object.assign({}, profile || {});
         var title = isTitleUnlocked(profile && profile.active_title, stats) ? titleById(profile.active_title) : null;
         el.style.display = title ? 'block' : 'none';
+        el.classList.toggle('mastery-character-title', !!title && title.isMasteryTitle);
+        el.classList.toggle('achievement-profile-title', !!title && !title.isMasteryTitle);
         el.textContent = title ? title.icon + ' ' + title.label : '';
     }
     function copyText(textValue) {
@@ -2072,7 +2091,7 @@
             var allowedSorts = ['highest_wave', 'total_wins', 'rebirth_count', 'cards_collected', 'bosses_defeated', 'total_clicks'];
             if (allowedSorts.indexOf(sortKey) === -1) sortKey = 'highest_wave';
             var result = await db.from('profiles')
-                .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, current_rebirth_stats, lifetime_stats, rebirth_history, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                .select('id, display_name, friend_code, avatar_name, description, active_title, achievement_title_unlocks, showcase_cards, current_rebirth_stats, lifetime_stats, rebirth_history, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
                 // Hide this account from the public ranking only; keep its profile and save intact.
                 .neq('id', '41f620ed-4196-4203-bfbd-a34954e23d84')
                 .order(sortKey, { ascending: false })
@@ -2140,7 +2159,7 @@
         if (!db || !currentUser) return;
         await syncGameStats();
         var result = await db.from('profiles')
-            .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, current_rebirth_stats, lifetime_stats, rebirth_history, created_at, updated_at, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+            .select('id, display_name, friend_code, avatar_name, description, active_title, achievement_title_unlocks, showcase_cards, current_rebirth_stats, lifetime_stats, rebirth_history, created_at, updated_at, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
             .eq('id', currentUser.id)
             .maybeSingle();
         if (result.error) throw result.error;
@@ -2225,7 +2244,7 @@
         if (closeButton) closeButton.focus();
         try {
             var result = await db.from('profiles')
-                .select('id, display_name, friend_code, avatar_name, description, active_title, showcase_cards, current_rebirth_stats, lifetime_stats, rebirth_history, created_at, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
+                .select('id, display_name, friend_code, avatar_name, description, active_title, achievement_title_unlocks, showcase_cards, current_rebirth_stats, lifetime_stats, rebirth_history, created_at, total_wins, highest_wave, rebirth_count, cards_collected, bosses_defeated, total_clicks')
                 .eq('id', userId).maybeSingle();
             if (result.error) throw result.error;
             if (!result.data) throw new Error('profile_not_found');
