@@ -282,6 +282,50 @@ function getBossContext() {
         };
     }
 
+    // ★ SUPER-ЖИВОЙ КАМЕНЬ: контекст должен работать и вне тестового режима ★
+    if (bossType === "stoneSuper") {
+        return {
+            type: "stoneSuper",
+            getHeartX: function() { var h=window.getLivingStoneSuperHeart?window.getLivingStoneSuperHeart():null; return h?Number(h.x)||200:200; },
+            setHeartX: function(v) { var h=window.getLivingStoneSuperHeart?window.getLivingStoneSuperHeart():null; if(window.setLivingStoneSuperHeartPosition)window.setLivingStoneSuperHeartPosition(v,h?Number(h.y)||366:366); },
+            getHeartY: function() { var h=window.getLivingStoneSuperHeart?window.getLivingStoneSuperHeart():null; return h?Number(h.y)||366:366; },
+            setHeartY: function(v) { var h=window.getLivingStoneSuperHeart?window.getLivingStoneSuperHeart():null; if(window.setLivingStoneSuperHeartPosition)window.setLivingStoneSuperHeartPosition(h?Number(h.x)||200:200,v); },
+            getHeartSize: function() { return Math.max(5, Number(_superState.stoneSuperHeartSize)||13); },
+            setHeartSize: function(v) { _superState.stoneSuperHeartSize=Math.max(5,Math.min(32,Number(v)||13)); },
+            getHeartHitbox: function() { return Math.max(2, Number(_superState.stoneSuperHeartHitbox)||6); },
+            setHeartHitbox: function(v) { _superState.stoneSuperHeartHitbox=Math.max(2,Math.min(30,Number(v)||6)); },
+            getHeartSpeed: function() {
+                var base=(typeof livingStoneState!=="undefined"&&livingStoneState==="phase2")?4.5:3;
+                return (typeof lsSpeedMult!=="undefined"?lsSpeedMult:0.5)*base*2;
+            },
+            setHeartSpeed: function(v) {
+                var base=(typeof livingStoneState!=="undefined"&&livingStoneState==="phase2")?4.5:3;
+                if(typeof lsSpeedMult!=="undefined"&&base>0)lsSpeedMult=Math.max(0.1,Math.min(4,(Number(v)||base)/(base*2)));
+            },
+            getAttacks: function() { return window.getLivingStoneSuperAttacks?window.getLivingStoneSuperAttacks():[]; },
+            getBlasters: function() { return []; },
+            getParticles: function() { return window.getLivingStoneSuperParticles?window.getLivingStoneSuperParticles():[]; },
+            getBossMaxHp: function() { return window.getLivingStoneSuperBossMaxHp?window.getLivingStoneSuperBossMaxHp():1; },
+            setBossMaxHp: function(v) {
+                if(!window.setLivingStoneSuperBossHp)return;
+                var current=window.getLivingStoneSuperBossHp?Number(window.getLivingStoneSuperBossHp())||0:0;
+                window.setLivingStoneSuperBossHp(Math.min(current,Math.max(1,Number(v)||1)));
+            },
+            getBossHp: function() { return window.getLivingStoneSuperBossHp?window.getLivingStoneSuperBossHp():0; },
+            getPlayerHp: function() { var h=window.getLivingStoneSuperHeart?window.getLivingStoneSuperHeart():null; return h?Number(h.hp)||0:0; },
+            setPlayerHp: function(v) { if(window.setLivingStoneSuperPlayerHp)window.setLivingStoneSuperPlayerHp(v); },
+            getPlayerMaxHp: function() { var h=window.getLivingStoneSuperHeart?window.getLivingStoneSuperHeart():null; return h?Number(h.maxHp)||180:180; },
+            addShake: function(v) { _superState.screenShakeAmount=Math.max(Number(_superState.screenShakeAmount)||0,Number(v)||0); },
+            addFlash: function(v,color) { if(color)_superState.screenFlashColor=color; _superState.screenFlashWhite=Math.max(Number(_superState.screenFlashWhite)||0,Number(v)||0); },
+            addFlashWhite: function(v) { _superState.screenFlashWhite=Math.max(Number(_superState.screenFlashWhite)||0,Number(v)||0); },
+            spawnFloatingText: function(x,y,text,color) { if(typeof showFloatingText==="function")showFloatingText(text,color||"#fff"); },
+            playSound: function(f,t,d,v) { if(typeof playArenaSound==="function")playArenaSound(f,t,d,v); },
+            addShockwave: function(x,y,color,speed,life,width) { if(typeof addShockwaveRing==="function")addShockwaveRing(x,y,color,speed,life,width); },
+            clampHeart: function() {},
+            isDodgePhase: function() { return false; }
+        };
+    }
+
     // ★ UNDERTALE ARENA ★
     if (!bossType) {
         if (typeof arenaActive !== 'undefined' && arenaActive) {
@@ -300,7 +344,7 @@ function getBossContext() {
                 getAttacks: function() { return attacks; },
                 getBlasters: function() { return arenaBlasters; },
                 getParticles: function() { return arenaParticles; },
-                getBossMaxHp: function() { return arenaBossMaxHP; },
+                getBossMaxHp: function() { return (typeof arenaBossOriginalMaxHP !== "undefined" && arenaBossOriginalMaxHP > 0) ? arenaBossOriginalMaxHP : arenaBossMaxHP; },
                 setBossMaxHp: function(v) { arenaBossMaxHP = v; },
                 getBossHp: function() { return arenaBossMaxHP; },
                 getPlayerHp: function() { return arenaHP; },
@@ -546,6 +590,83 @@ function getBossContext() {
 
     return null;
 }
+
+// Единая точка урона для способностей: уважает нативную логику фаз каждого босса.
+function applyBossDamageToContext(ctxB, rawDamage, source) {
+    if (!ctxB || typeof ctxB.getBossHp !== "function") return 0;
+    var damage = Math.max(0, Math.floor(Number(rawDamage) || 0));
+    if (!damage) return 0;
+    var before = Math.max(0, Number(ctxB.getBossHp()) || 0);
+    if (before <= 0) return 0;
+    var testMode = typeof window !== "undefined" && window.__mbBossTestMode;
+    function modifyTestDamage(value) {
+        if (testMode && typeof window.MBBossTestModifyOutgoingDamage === "function") {
+            try { return Math.max(0, Number(window.MBBossTestModifyOutgoingDamage(value, 1)) || 0); } catch (e) {}
+        }
+        return value;
+    }
+
+    if (ctxB.type === "arena") {
+        damage = modifyTestDamage(damage);
+        if (!damage) return 0;
+        arenaBossMaxHP = Math.max(0, (Number(arenaBossMaxHP) || 0) - damage);
+        var dealtArena = Math.max(0, before - arenaBossMaxHP);
+        if (arenaBossMaxHP <= 0 && typeof winArena === "function") winArena();
+        return dealtArena;
+    }
+    if (ctxB.type === "waystar") {
+        damage = modifyTestDamage(damage);
+        if (!damage) return 0;
+        ctxB.setBossMaxHp(Math.max(0, before - damage));
+        return Math.max(0, before - (Number(ctxB.getBossHp()) || 0));
+    }
+    if (ctxB.type === "stone") {
+        if (typeof damageLivingStone !== "function") return 0;
+        damageLivingStone(damage);
+        return Math.max(0, before - (Number(ctxB.getBossHp()) || 0));
+    }
+    if (ctxB.type === "stoneSuper") {
+        if (typeof window.damageLivingStoneSuperBoss !== "function") return 0;
+        window.damageLivingStoneSuperBoss(damage);
+        return Math.max(0, before - (Number(ctxB.getBossHp()) || 0));
+    }
+    if (ctxB.type === "rwb") {
+        var activeRwb = typeof window.getRWBActiveBoss === "function" ? window.getRWBActiveBoss() : null;
+        if (!activeRwb && typeof window.getRWBTargets === "function") {
+            var targets = (window.getRWBTargets() || []).filter(function(b) { return b && Number(b.hp) > 0; });
+            var player = typeof window.getRWBPlayer === "function" ? window.getRWBPlayer() : null;
+            targets.sort(function(a, b) {
+                var da = player ? Math.hypot((a.x || 0) - player.x, (a.y || 0) - player.y) : 0;
+                var db = player ? Math.hypot((b.x || 0) - player.x, (b.y || 0) - player.y) : 0;
+                return da - db;
+            });
+            activeRwb = targets[0] || null;
+        }
+        if (!activeRwb) return 0;
+        damage = modifyTestDamage(damage);
+        if (!damage) return 0;
+        var beforeRwb = Math.max(0, Number(activeRwb.hp) || 0);
+        activeRwb.hp = Math.max(0, beforeRwb - damage);
+        activeRwb.hitFlash = 10;
+        if (activeRwb.id === "whitebeard") activeRwb.damageFlashTimer = 10;
+        if (typeof window.rwbAddShockwave === "function") window.rwbAddShockwave(activeRwb.x, activeRwb.y, "#ffffff", 7, 24, 4);
+        if (typeof window.rwbAddFlashWhite === "function") window.rwbAddFlashWhite(3);
+        return Math.max(0, beforeRwb - activeRwb.hp);
+    }
+    if (ctxB.type === "antispiral") {
+        if (typeof window.damageAntiSpiralBoss !== "function") return 0;
+        window.damageAntiSpiralBoss(damage, source || "SUPER");
+        return Math.max(0, before - (Number(ctxB.getBossHp()) || 0));
+    }
+
+    damage = modifyTestDamage(damage);
+    if (damage && typeof ctxB.setBossMaxHp === "function") {
+        ctxB.setBossMaxHp(Math.max(0, before - damage));
+        return Math.max(0, before - (Number(ctxB.getBossHp()) || 0));
+    }
+    return 0;
+}
+window.MBApplyBossDamage = applyBossDamageToContext;
 
 // ====== ВСПОМОГАТЕЛЬНЫЕ ======
 function drawHakiLightning(x, y, maxDist, alpha, widthMod, customColor) {
