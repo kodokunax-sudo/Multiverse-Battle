@@ -1512,7 +1512,10 @@ function saveAll() {
 // The reward ledger is part of the save so retries cannot add the same reward twice.
 window.MBCanReceiveTitleRewardPoints = function () {
     try {
-        return typeof currentSlot !== 'undefined' && currentSlot >= 0 && currentSlot <= 2 &&
+        var onlineUserId = window.MBClans && typeof window.MBClans.getCurrentUserId === 'function'
+            ? window.MBClans.getCurrentUserId() : null;
+        return !!onlineUserId &&
+            typeof currentSlot !== 'undefined' && currentSlot >= 0 && currentSlot <= 2 &&
             typeof slotData !== 'undefined' && !!slotData &&
             typeof points !== 'undefined' && typeof saveAll === 'function' &&
             !(typeof mbCloudRecoveryPendingSlot !== 'undefined' && mbCloudRecoveryPendingSlot === currentSlot);
