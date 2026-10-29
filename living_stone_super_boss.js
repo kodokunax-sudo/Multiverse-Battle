@@ -1999,6 +1999,13 @@
             ls2BossHp = typeof livingStoneBossHp !== "undefined" ? livingStoneBossHp : Math.max(0, ls2BossHp - amount);
             if (typeof livingStoneBossFlash !== "undefined") livingStoneBossFlash = 7;
             if (typeof currentEnemy !== "undefined" && currentEnemy) currentEnemy.hp = ls2BossHp;
+            if (!ls2ChaseTriggered && ls2BossHp <= ls2BossMaxHp * 0.12) {
+                ls2BossHp=Math.max(1,Math.floor(ls2BossMaxHp*0.12));
+                if (typeof livingStoneBossHp!=="undefined") livingStoneBossHp=ls2BossHp;
+                if (typeof currentEnemy!=="undefined" && currentEnemy) currentEnemy.hp=ls2BossHp;
+                ls2BeginChase();
+                return true;
+            }
             if (ls2BossHp <= 0 && typeof window.MBLivingStoneSuperNativeVictory === "function") window.MBLivingStoneSuperNativeVictory();
             return true;
         }
