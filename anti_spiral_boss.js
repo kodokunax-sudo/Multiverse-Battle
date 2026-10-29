@@ -3487,6 +3487,16 @@
         }
         asBossHp=Math.max(0,Math.min(asBossHp,Number(v)||0));if(asBossHp<=0)asWin();
     };
+    window.healAntiSpiralBoss = function(amount){
+        if(!asActive || asState!=="fight") return 0;
+        var before=Math.max(0,Number(asBossHp)||0);
+        var heal=Math.max(0,Math.floor(Number(amount)||0));
+        if(!heal || before<=0) return 0;
+        asBossHp=Math.min(Math.max(before,Number(asBossMaxHp)||before),before+heal);
+        if(asBoss) asBoss.flash=Math.max(Number(asBoss.flash)||0,4);
+        asText(asBoss.x,asBoss.y- asBoss.size-18,"+"+(asBossHp-before)+" HP","#78ffce",40);
+        return asBossHp-before;
+    };
     window.getAntiSpiralPlayerHp = function(){return asPlayerHp;};
     window.setAntiSpiralPlayerHp = function(v){asPlayerHp=Math.max(0,Math.min(asPlayerMaxHp,Number(v)||0));const hpEl=document.getElementById("arenaHP");if(hpEl)hpEl.innerText=Math.ceil(asPlayerHp);if(asPlayerHp<=0)asLose();};
     window.getAntiSpiralPlayerMaxHp = function(){return asPlayerMaxHp;};
