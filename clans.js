@@ -3514,21 +3514,14 @@
     }
 
     async function rejectAccountForSlot(client, slot, message) {
-        var rejectedUserId = currentUser && currentUser.id;
-        if (rejectedUserId && !accountSessionBlocked && activeAccountSessionUserId === rejectedUserId) {
-            await releaseActiveAccountSession(rejectedUserId);
-        }
-        currentUser = null;
+        // A failed account/lease check is not proof that the credentials are invalid.
+        // Keep Supabase signed in; transient RPC errors must never force a logout.
         currentClan = null;
         currentProfile = null;
         showAuthState();
-        setNotice(message, 'warning');
-        notifyCloudSaveAuthChanged();
-        // Preserve the stored auth session when another live game owns the account.
-        // The full-screen lock blocks gameplay; retry can claim the account after the
-        // other session is closed. Other binding failures still sign out normally.
-        if (!accountSessionBlocked) {
-            try { await client.auth.signOut(); } catch (_error) {}
+        setNotice(message + ' Аккаунт не отключён. Проверь соединение и повтори проверку.', 'warning');
+        if (accountSessionBlocked) {
+            showAccountSessionLock(message);
         }
     }
 
