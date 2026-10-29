@@ -153,7 +153,7 @@ function triggerTakabaComedy(){
     case "explode": for(i=0;i<a.length;i++){x=a[i].x;y=a[i].y;manyParticles(5,function(){particle(x,y,(Math.random()-.5)*5,(Math.random()-.5)*5,"#ff8800",3,35);});}label="💥 ВСЁ ВЗОРВАЛОСЬ, НО НЕ УМЕРЛО.";break;
     case "pacifist": for(i=0;i<a.length;i++)a[i].damage=0;label="☮️ АТАКИ СТАЛИ ПАЦИФИСТАМИ.";break;
     case "chaosDamage": for(i=0;i<a.length;i++)a[i].damage=Math.floor(Math.random()*80);label="🎰 УРОН: РУЛЕТКА.";break;
-    case "bossHeal": {var bHp=c.getBossHp(),bMax=Math.max(bHp,c.getBossMaxHp());c.setBossHp(Math.min(bMax,bHp+Math.floor(bMax*.05)));label="💀 БОСС ТОЖЕ ХОЧЕТ ЖИТЬ.";break;}
+    case "bossHeal": {var bHp=Math.max(0,Number(c.getBossHp())||0),bMax=Math.max(bHp,Number(c.getBossMaxHp())||bHp);var healed=typeof window.MBHealBoss==="function"?window.MBHealBoss(c,Math.max(1,Math.floor(bMax*.05))):0;label=healed>0?"💀 БОСС ТОЖЕ ХОЧЕТ ЖИТЬ. (+"+healed+" HP)":"💀 БОСС ХОЧЕТ ЖИТЬ, НО ЕМУ НЕ ДАЛИ.";break;}
     case "hpLottery": {var maxP=c.getPlayerMaxHp();c.setPlayerHp(Math.max(1,Math.random()*maxP));label="🎰 HP ЛОТЕРЕЯ.";break;}
     case "confidenceLottery": confidence(Math.random()*40-20,true);label="🎲 УВЕРЕННОСТЬ: РУЛЕТКА.";break;
     case "disco": _superState.takabaBgColor=randColor();_superState.takabaRandomColors=true;label="🪩 ДИСКОТЕКА.";break;
