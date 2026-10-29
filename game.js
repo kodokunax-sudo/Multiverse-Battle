@@ -1500,6 +1500,9 @@ function saveAll() {
     if (typeof window.getResourcesData === 'function') slotData.resources = window.getResourcesData();
     if (typeof window.getEquipmentData === 'function') slotData.equipment = window.getEquipmentData();
     
+    if (typeof window.MBCheckAchievementTitleUnlocks === 'function') {
+        window.MBCheckAchievementTitleUnlocks();
+    }
     saveGameToSlot(currentSlot); 
     window._needSave = false;
     if (window.MBClans && typeof window.MBClans.syncGameStats === "function") {
@@ -1508,49 +1511,43 @@ function saveAll() {
     if (typeof mbScheduleCloudSave === 'function') mbScheduleCloudSave();
 }
 
-// Idempotent client-side delivery for server-claimed title rewards.
-// The reward ledger is part of the save so retries cannot add the same reward twice.
+// Idempotent delivery of one-time achievement-title rewards.
 window.MBCanReceiveTitleRewardPoints = function () {
     try {
-        var onlineUserId = window.MBClans && typeof window.MBClans.getCurrentUserId === 'function'
-            ? window.MBClans.getCurrentUserId() : null;
-        return !!onlineUserId &&
-            typeof currentSlot !== 'undefined' && currentSlot >= 0 && currentSlot <= 2 &&
-            typeof slotData !== 'undefined' && !!slotData &&
-            typeof points !== 'undefined' && typeof saveAll === 'function' &&
-            !(typeof mbCloudRecoveryPendingSlot !== 'undefined' && mbCloudRecoveryPendingSlot === currentSlot);
-    } catch (_error) {
-        return false;
-    }
+        var onlineUserId=window.MBClans&&typeof window.MBClans.getCurrentUserId==='function'?window.MBClans.getCurrentUserId():null;
+        return !!onlineUserId&&typeof currentSlot!=='undefined'&&currentSlot>=0&&currentSlot<=2&&typeof slotData!=='undefined'&&!!slotData&&typeof points!=='undefined'&&typeof saveAll==='function'&&!(typeof mbCloudRecoveryPendingSlot!=='undefined'&&mbCloudRecoveryPendingSlot===currentSlot);
+    } catch (_error) { return false; }
 };
-window.MBGrantTitleRewardPoints = function (amount, titleId) {
-    var allowedRewards = {
-        wave_500: 200,
-        bosses_100: 350,
-        wins_250: 400,
-        cards_500: 500,
-        rebirth_25: 750,
-        clicks_100000: 300,
-        multiverse_legend: 1000,
-        multiverse_parasite: 2000,
-        overqualified: 1000,
-        rebirth_loop: 1200,
-        card_singularity: 1500,
-        final_chairman: 5000
-    };
-    amount = Number(amount);
-    titleId = String(titleId || '');
-    if (!window.MBCanReceiveTitleRewardPoints() || !Object.prototype.hasOwnProperty.call(allowedRewards, titleId) ||
-        amount !== allowedRewards[titleId]) return false;
-    var ledger = Array.isArray(slotData.titleRewardLedger) ? slotData.titleRewardLedger.slice() : [];
-    if (ledger.indexOf(titleId) !== -1) return true;
-    points = Math.max(0, Number(points) || 0) + amount;
-    if (typeof maxPoints !== 'undefined') maxPoints = Math.max(Number(maxPoints) || 0, points);
-    ledger.push(titleId);
-    slotData.titleRewardLedger = ledger;
+window.MBGrantAchievementTitleRewards = function (reward,titleId) {
+    var allowedRewards={"wave_100":{"stars":100000,"powerPoints":500,"freeSpins":0,"legendarySpins":0,"secretSpins":0},"boss_hunter":{"stars":750000,"powerPoints":10000,"freeSpins":10,"legendarySpins":1,"secretSpins":0},"collector":{"stars":1000000,"powerPoints":25000,"freeSpins":15,"legendarySpins":0,"secretSpins":0},"champion":{"stars":1500000,"powerPoints":30000,"freeSpins":10,"legendarySpins":3,"secretSpins":0},"reborn":{"stars":1000000,"powerPoints":20000,"freeSpins":10,"legendarySpins":0,"secretSpins":0},"multiverse_legend":{"stars":10000000,"powerPoints":100000,"freeSpins":25,"legendarySpins":10,"secretSpins":2},"wave_200":{"stars":300000,"powerPoints":1000,"freeSpins":0,"legendarySpins":0,"secretSpins":0},"wave_300":{"stars":500000,"powerPoints":2500,"freeSpins":5,"legendarySpins":0,"secretSpins":0},"wave_500":{"stars":1000000,"powerPoints":5000,"freeSpins":0,"legendarySpins":1,"secretSpins":0},"wave_750":{"stars":1500000,"powerPoints":10000,"freeSpins":10,"legendarySpins":0,"secretSpins":0},"wave_1500":{"stars":5000000,"powerPoints":50000,"freeSpins":0,"legendarySpins":5,"secretSpins":0},"wave_2000":{"stars":7500000,"powerPoints":75000,"freeSpins":20,"legendarySpins":5,"secretSpins":0},"wave_5000":{"stars":25000000,"powerPoints":250000,"freeSpins":0,"legendarySpins":10,"secretSpins":2},"wave_10000":{"stars":100000000,"powerPoints":1000000,"freeSpins":50,"legendarySpins":20,"secretSpins":5},"bosses_1":{"stars":100000,"powerPoints":500,"freeSpins":0,"legendarySpins":0,"secretSpins":0},"bosses_5":{"stars":250000,"powerPoints":1000,"freeSpins":3,"legendarySpins":0,"secretSpins":0},"bosses_25":{"stars":500000,"powerPoints":5000,"freeSpins":5,"legendarySpins":1,"secretSpins":0},"bosses_50":{"stars":1000000,"powerPoints":10000,"freeSpins":0,"legendarySpins":2,"secretSpins":0},"bosses_100":{"stars":2500000,"powerPoints":25000,"freeSpins":0,"legendarySpins":3,"secretSpins":0},"bosses_250":{"stars":10000000,"powerPoints":100000,"freeSpins":0,"legendarySpins":10,"secretSpins":2},"bosses_500":{"stars":100000000,"powerPoints":1000000,"freeSpins":0,"legendarySpins":20,"secretSpins":10},"wins_1":{"stars":100000,"powerPoints":500,"freeSpins":0,"legendarySpins":0,"secretSpins":0},"wins_50":{"stars":500000,"powerPoints":5000,"freeSpins":5,"legendarySpins":0,"secretSpins":0},"wins_100":{"stars":1500000,"powerPoints":15000,"freeSpins":0,"legendarySpins":2,"secretSpins":0},"wins_250":{"stars":3000000,"powerPoints":30000,"freeSpins":10,"legendarySpins":3,"secretSpins":0},"wins_500":{"stars":15000000,"powerPoints":150000,"freeSpins":0,"legendarySpins":10,"secretSpins":0},"wins_1000":{"stars":50000000,"powerPoints":500000,"freeSpins":0,"legendarySpins":15,"secretSpins":5},"cards_100":{"stars":250000,"powerPoints":2000,"freeSpins":5,"legendarySpins":0,"secretSpins":0},"cards_250":{"stars":500000,"powerPoints":5000,"freeSpins":5,"legendarySpins":0,"secretSpins":0},"cards_500":{"stars":2500000,"powerPoints":25000,"freeSpins":10,"legendarySpins":2,"secretSpins":0},"cards_1000":{"stars":25000000,"powerPoints":250000,"freeSpins":25,"legendarySpins":10,"secretSpins":2},"rebirth_1":{"stars":500000,"powerPoints":5000,"freeSpins":0,"legendarySpins":0,"secretSpins":0},"rebirth_10":{"stars":1500000,"powerPoints":15000,"freeSpins":10,"legendarySpins":0,"secretSpins":0},"rebirth_25":{"stars":5000000,"powerPoints":50000,"freeSpins":0,"legendarySpins":2,"secretSpins":0},"rebirth_50":{"stars":15000000,"powerPoints":150000,"freeSpins":20,"legendarySpins":5,"secretSpins":0},"rebirth_100":{"stars":50000000,"powerPoints":500000,"freeSpins":0,"legendarySpins":20,"secretSpins":5},"clicks_1000":{"stars":100000,"powerPoints":500,"freeSpins":0,"legendarySpins":0,"secretSpins":0},"clicks_10000":{"stars":500000,"powerPoints":2000,"freeSpins":5,"legendarySpins":0,"secretSpins":0},"clicks_50000":{"stars":1500000,"powerPoints":5000,"freeSpins":10,"legendarySpins":0,"secretSpins":0},"clicks_100000":{"stars":5000000,"powerPoints":25000,"freeSpins":0,"legendarySpins":5,"secretSpins":0},"clicks_1000000":{"stars":50000000,"powerPoints":250000,"freeSpins":0,"legendarySpins":10,"secretSpins":3},"multiverse_parasite":{"stars":10000000,"powerPoints":100000,"freeSpins":20,"legendarySpins":10,"secretSpins":2},"overqualified":{"stars":15000000,"powerPoints":150000,"freeSpins":15,"legendarySpins":5,"secretSpins":1},"rebirth_loop":{"stars":50000000,"powerPoints":500000,"freeSpins":20,"legendarySpins":10,"secretSpins":5},"card_singularity":{"stars":50000000,"powerPoints":500000,"freeSpins":25,"legendarySpins":10,"secretSpins":5},"final_chairman":{"stars":250000000,"powerPoints":2500000,"freeSpins":50,"legendarySpins":25,"secretSpins":10}};
+    var legacyRewards={"wave_500":200,"bosses_100":350,"wins_250":400,"cards_500":500,"rebirth_25":750,"clicks_100000":300,"multiverse_legend":1000,"multiverse_parasite":2000,"overqualified":1000,"rebirth_loop":1200,"card_singularity":1500,"final_chairman":5000};
+    titleId=String(titleId||'');
+    if(!window.MBCanReceiveTitleRewardPoints()||!Object.prototype.hasOwnProperty.call(allowedRewards,titleId))return false;
+    var ledger=Array.isArray(slotData.titleRewardLedger)?slotData.titleRewardLedger.slice():[];
+    if(ledger.indexOf(titleId)!==-1)return true;
+    reward=reward&&typeof reward==='object'?reward:{};
+    var received={stars:Math.floor(Number(reward.stars)||0),powerPoints:Math.floor(Number(reward.powerPoints)||0),freeSpins:Math.floor(Number(reward.freeSpins)||0),legendarySpins:Math.floor(Number(reward.legendarySpins)||0),secretSpins:Math.floor(Number(reward.secretSpins)||0)};
+    var expected=allowedRewards[titleId];
+    var matchesNew=Object.keys(expected).every(function(key){return received[key]===expected[key];});
+    var matchesLegacy=legacyRewards[titleId]===received.stars&&received.powerPoints===0&&received.freeSpins===0&&received.legendarySpins===0&&received.secretSpins===0;
+    if(!matchesNew&&!matchesLegacy)return false;
+    if(received.powerPoints>0&&(typeof window.getPowerPoints!=='function'||typeof window.setPowerPoints!=='function'))return false;
+    points=Math.max(0,Number(points)||0)+received.stars;
+    if(typeof maxPoints!=='undefined')maxPoints=Math.max(Number(maxPoints)||0,points);
+    if(received.powerPoints>0)window.setPowerPoints(Math.max(0,Number(window.getPowerPoints())||0)+received.powerPoints);
+    freeSpins=Math.max(0,Number(freeSpins)||0)+received.freeSpins;
+    legendaryGachaTokens=Math.max(0,Number(legendaryGachaTokens)||0)+received.legendarySpins;
+    secretGachaTokens=Math.max(0,Number(secretGachaTokens)||0)+received.secretSpins;
+    ledger.push(titleId);slotData.titleRewardLedger=ledger;
     saveAll();
-    if (typeof renderPoints === 'function') renderPoints();
+    if(typeof renderPoints==='function')renderPoints();
+    if(typeof renderPowerPoints==='function')renderPowerPoints();
+    if(typeof renderGachaTab==='function')renderGachaTab();
+    if(typeof showFloatingText==='function')showFloatingText('🎁 Титул: +'+received.stars.toLocaleString()+' ⭐ и ресурсы!','#ffd700');
     return true;
+};
+window.MBGrantTitleRewardPoints = function (amount,titleId) {
+    return window.MBGrantAchievementTitleRewards({stars:Number(amount)||0,powerPoints:0,freeSpins:0,legendarySpins:0,secretSpins:0},titleId);
 };
 
 // ========== ИГРОВЫЕ ПЕРЕМЕННЫЕ ==========
