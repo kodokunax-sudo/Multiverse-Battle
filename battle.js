@@ -9,6 +9,7 @@ let arenaBoss = null;
 let arenaHP = 70;
 let arenaMaxHP = 70;
 let arenaBossMaxHP = 1000;
+let arenaBossOriginalMaxHP = 1000;
 let arenaAttackType = 0;
 let arenaClickTargets = [];
 let arenaClicksHit = 0;
@@ -803,6 +804,7 @@ function startArena(bossWave) {
     } else {
         arenaBossMaxHP = bt ? Math.floor((50 + bossIdentityWave * 12) * bt.hpMult) : 1000 + bossIdentityWave * 10;
     }
+    arenaBossOriginalMaxHP = arenaBossMaxHP;
     ghostBossHP = arenaBossMaxHP;
 
     document.getElementById("arenaOverlay").style.display = "flex";
