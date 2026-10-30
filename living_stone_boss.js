@@ -988,9 +988,18 @@ function updateLivingStoneBullets() {
                 try { window.MBLivingStoneSuperOnBossHit(b); } catch(e) {}
             }
             var dmg = b.damage;
-            // ★ ФИКС: супер-множители урона ★
-            dmg = lsApplySuperDmgMult(dmg);
-            if (lsActiveMod && lsActiveMod.type === 5) dmg = Math.floor(dmg * 1.25);
+            var moderatorBulletDamage = window.MBGetModeratorBulletDamage(
+                window.livingStoneSuperActive && typeof window.getLivingStoneSuperBossMaxHp === "function"
+                    ? window.getLivingStoneSuperBossMaxHp()
+                    : livingStoneBossMaxHp
+            );
+            if (moderatorBulletDamage !== null) {
+                dmg = moderatorBulletDamage;
+            } else {
+                // ★ ФИКС: супер-множители урона ★
+                dmg = lsApplySuperDmgMult(dmg);
+                if (lsActiveMod && lsActiveMod.type === 5) dmg = Math.floor(dmg * 1.25);
+            }
             damageLivingStone(dmg);
             spawnLivingStoneParticles(b.x, b.y, 6, "#ffdd00", 3);
             livingStoneBullets.splice(i, 1);
@@ -1004,17 +1013,6 @@ function damageLivingStone(dmg) {
     if (typeof window !== "undefined" && window.livingStoneSuperActive &&
         typeof window.MBLivingStoneSuperDamage === "function") {
         window.MBLivingStoneSuperDamage(dmg);
-        return;
-    }
-    // Модератор с разблокированным доступом мгновенно завершает бой с Камнем,
-    // не попадая в сюжетное восстановление на 5% HP.
-    if (!window.__mbBossTestMode && typeof mode !== "undefined" && mode === "moder" &&
-        typeof moderUnlocked !== "undefined" && moderUnlocked === true) {
-        if (livingStoneState === "phase1" || livingStoneState === "phase2") {
-            livingStoneBossHp = 0;
-            livingStoneBossFlash = 20;
-            livingStoneVictory();
-        }
         return;
     }
     if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
