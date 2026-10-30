@@ -234,7 +234,7 @@
             if (!ob.resolved && ob.z >= 0.88 && ob.z <= 0.99) {
                 var sameLane = Math.abs(laneVisual - ob.lane) < 0.48;
                 if (sameLane) {
-                    var cleared = (ob.type === "barrier" || ob.type === "gap") ?
+                    var cleared = (ob.type === "barrier" || ob.type === "gap" || ob.type === "crate") ?
                         jumpLeft > 0.10 : (ob.type === "beam" ? slideLeft > 0.10 : false);
                     if (!cleared) {
                         ob.hit = true;
