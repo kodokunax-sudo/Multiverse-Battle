@@ -854,7 +854,7 @@
         ls2ChaseTriggered=true; ls2ChaseStarAid=ls2HasWaystarAid();
         ls2StarAssistActive=ls2ChaseStarAid;
         ls2ChaseFrames=0; ls2ChaseDuration=6960;
-        ls2ChaseLane=1; ls2ChaseObstacles=[]; ls2ChaseSpawnTimer=28;
+        ls2ChaseLane=1; ls2ChaseObstacles=[]; ls2ChaseSpawnTimer=90;
         ls2ChaseGuard=ls2ChaseStarAid?1:0; ls2ChaseGuardTimer=240;
         ls2ChaseLives=3; ls2ChaseFailed=false; ls2ChaseFailTimer=0;
         ls2ChaseJumpTimer=0; ls2ChaseSlideTimer=0;
