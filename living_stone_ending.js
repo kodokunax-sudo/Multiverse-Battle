@@ -1,4 +1,4 @@
-/* Living Stone chase: Subway-Surfers-style 3-lane endless runner, 40 seconds. */
+/* Living Stone chase: a full three-lane runner with trains, roof routes and power-ups. */
 (function () {
     "use strict";
 
@@ -332,6 +332,9 @@
             livingStonePlayer.y = 270 + Math.sin(elapsed * 0.009) * 12;
         } else if (trainRideLeft > 0) {
             livingStonePlayer.y = 350 - jumpHeight;
+        } else if (trainDropLeft > 0) {
+            var dropProgress = 1 - trainDropLeft / 0.42;
+            livingStonePlayer.y = 350 + dropProgress * 72 - jumpHeight;
         } else {
             var slideOffset = slideLeft > 0 ? 15 : 0;
             livingStonePlayer.y = 422 - jumpHeight + slideOffset - Math.abs(Math.sin(elapsed * 0.023)) * 2.2;
@@ -859,7 +862,7 @@
             c.shadowColor = "#72dcff"; c.shadowBlur = reduced ? 0 : 12;
             for (var side = -1; side <= 1; side += 2) {
                 c.beginPath(); c.moveTo(x + side * 8, y + 12);
-                c.lineTo(x + side * 10 + Math.sin(now / 40 + side) * 3, y + 45 + Math.random() * 8);
+                c.lineTo(x + side * 10 + Math.sin(now / 40 + side) * 3, y + 45 + Math.abs(Math.sin(now / 31 + side * 2)) * 8);
                 c.stroke();
             }
             c.restore();
@@ -1041,7 +1044,7 @@
         c.font = "bold 17px sans-serif"; c.fillStyle = "#ff6262";
         c.fillText("♥".repeat(chaseLives) + "♡".repeat(3 - chaseLives), 226, 73);
         c.textAlign = "left"; c.textBaseline = "alphabetic"; c.font = "bold 11px monospace"; c.fillStyle = "#ffe7b0";
-        c.fillText("✦ " + coinCount + "   SCORE " + score, 14, 27);
+        c.fillText("✦ " + coinCount + "   SCORE " + Math.floor(score), 14, 27);
         c.textAlign = "right"; c.fillStyle = "#e5d8cc";
         var activeLabels = [];
         if (magnetLeft > 0) activeLabels.push("MAGNET " + Math.ceil(magnetLeft));
