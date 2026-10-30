@@ -641,7 +641,7 @@ function renderUpgrades() {
     if (typeof renderAfkFarmUpgrades === "function") renderAfkFarmUpgrades();
     let h = "";
     for (let [k, u] of Object.entries(upgrades)) {
-        let un = isUpgradeUnlocked(k), c = Math.floor(u.baseCost * (1 + u.level * 0.3)), cur = u.level * u.increment;
+        let un = isUpgradeUnlocked(k), c = Math.floor(u.baseCost * (1 + u.level * 0.3)), cur = typeof window.getUpgradeTotalValue === 'function' ? window.getUpgradeTotalValue(k) : u.level * u.increment;
         let extraInfo = '';
         if (k === 'crit') extraInfo = '<br><span style="color:#aaa;font-size:10px;">⚡ +' + (cur * 100).toFixed(1) + '% к шансу крита</span>';
         if (k === 'fatigueResist') extraInfo = '<br><span style="color:#aaa;font-size:10px;">💪 -' + (cur * 100).toFixed(1) + '% набора усталости</span>';
