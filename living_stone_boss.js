@@ -1621,6 +1621,17 @@ function livingStoneDefeat() {
 
 // ========== ФИНАЛЬНАЯ СЦЕНА ==========
 function startFinalScene() {
+    // Новая отдельная интерактивная погоня заменяет старый статичный финал с чёрной дырой.
+    if (typeof window !== "undefined" && typeof window.MBStartLivingStoneEnding === "function") {
+        var endingStarted = window.MBStartLivingStoneEnding({
+            kind: "normal",
+            onComplete: function () {
+                if (typeof currentEnemy !== "undefined" && currentEnemy) currentEnemy.hp = 0;
+                if (typeof victory === "function") victory();
+            }
+        });
+        if (endingStarted !== false) return;
+    }
     finalSceneActive = true;
     finalScenePhase = "cracks";
     finalSceneTimer = 0;
