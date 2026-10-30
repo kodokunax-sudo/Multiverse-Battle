@@ -6,156 +6,156 @@ const ITEMS = {
     star: {
         name: "Звезда", icon: "⭐",
         desc: "Твоя основная валюта. Тратится на крутки, товары, прокачку и готовку. Зарабатывается за победы над врагами и боссами. Чем выше волна — тем больше звёзд. Говорят, звезды дают силу",
-        stack: 999999, canSell: false, isVirtual: true
+        stack: 9999999, canSell: false, isVirtual: true
     },
     bone: {
         name: "Кость", icon: "🦴",
         desc: "Белесая кость. Продай — получишь звёзды. Ну а зачем они еще нужны?",
-        sellPrice: 1, stack: 999, canSell: true
+        sellPrice: 1, stack: 9999, canSell: true
     },
     raw_meat: {
         name: "Сырое мясо", icon: "🥩",
         desc: "Мясо, но есть сырым — плохая идея. Почти. Мгновенно +15% HP, но накладывает отравление на 60 секунд (-2% HP/сек). Повторное поедание УСКОРЯЕТ смерть (-10 сек). 10 очков антидота снимают отравление.",
-        stack: 99, canSell: false, canCook: true,
+        stack: 999, canSell: false, canCook: true,
         actionFunction: "eatRawMeat"
     },
     cooked_meat: {
         name: "Жареное мясо", icon: "🍖",
         desc: "Сочное жареное мясо. Восстанавливает 25% HP и убирает 30% голода. Но добавляет +2 очка ожирения.",
-        stack: 99, canSell: false,
+        stack: 999, canSell: false,
         actionFunction: "eatCookedMeat"
     },
     mushroom: {
         name: "Гриб", icon: "🍄",
         desc: "Странный гриб. Мгновенно +15% HP. 50% шанс что это ядовитый гриб (накладывает короткое отравление на 15 сек). 50% шанс что волшебный (даёт +10 очков антидота и -1 ожирение). Это мой гриб!",
-        cost: 300, stack: 99, canEat: true,
+        cost: 300, stack: 999, canEat: true,
         actionFunction: "eatMushroom"
     },
     honey: {
         name: "Мёд", icon: "🍯",
         desc: "Сладкий мёд. Восстанавливает +3% HP в секунду в течение 10 секунд. Всего +30% HP. Не вызывает ожирение. Это буквально отходы пчел...",
-        cost: 800, stack: 99, canEat: true,
+        cost: 800, stack: 999, canEat: true,
         actionFunction: "eatHoney"
     },
     pepper: {
         name: "Перец", icon: "🌶️",
         desc: "Жгучий перец! Даёт +30% скорости сердечка на 30 секунд. НО пока эффект активен — теряешь 1% HP каждую секунду (жжёт!).",
-        cost: 400, stack: 99, canEat: true,
+        cost: 400, stack: 999, canEat: true,
         actionFunction: "eatPepper"
     },
     ice: {
         name: "Лёд", icon: "🧊",
         desc: "Кусок вечного льда. Замораживает текущего врага на 5 дополнительных кликов (враг не отвечает ударом).",
-        cost: 600, stack: 99, canEat: true,
+        cost: 600, stack: 999, canEat: true,
         actionFunction: "eatIce"
     },
     egg: {
         name: "Яйцо", icon: "🥚",
         desc: "Загадочное яйцо. Что внутри — неизвестно! При съедании мгновенно даёт случайную награду: звёзды, карту, или... ничего.",
-        cost: 1000, stack: 99, canEat: true,
+        cost: 1000, stack: 999, canEat: true,
         actionFunction: "eatEgg"
     },
     bread: {
         name: "Хлеб", icon: "🍞",
         desc: "Свежий хлеб. Убирает 40% голода. Но добавляет +1 очко ожирения. Приставьте жизнь без хлеба. Жуть....",
-        cost: 250, stack: 99, canEat: true,
+        cost: 250, stack: 999, canEat: true,
         actionFunction: "eatBread"
     },
     antidote_potion: {
         name: "Мини-зелье", icon: "🧪",
         desc: "Маленькое зелье. Мгновенно снимает отравление и обнуляет счётчик антидота.",
-        cost: 700, stack: 99, canEat: true,
+        cost: 700, stack: 999, canEat: true,
         actionFunction: "drinkAntidote"
     },
     apple: {
         name: "Яблоко", icon: "🍏",
         desc: "+5% HP, -10% голода, -1 ожирение, +1 антидот. Люблю яблоко",
-        cost: 200, stack: 99, canEat: true,
+        cost: 200, stack: 999, canEat: true,
         hp: 5, hunger: 10, obesity: 1, antidote: 1,
         actionFunction: "eatFruit"
     },
     orange: {
         name: "Апельсин", icon: "🍊",
         desc: "+8% HP, -15% голода, -1 ожирение, +2 антидот. Я считаю, что мандарин лучше апельсина. А ты что думаешь?",
-        cost: 350, stack: 99, canEat: true,
+        cost: 350, stack: 999, canEat: true,
         hp: 8, hunger: 15, obesity: 1, antidote: 2,
         actionFunction: "eatFruit"
     },
     banana: {
         name: "Банан", icon: "🍌",
         desc: "+10% HP, -20% голода, -2 ожирение, +2 антидот. Ммм.....бананчики....",
-        cost: 500, stack: 99, canEat: true,
+        cost: 500, stack: 999, canEat: true,
         hp: 10, hunger: 20, obesity: 2, antidote: 2,
         actionFunction: "eatFruit"
     },
     cherry: {
         name: "Вишня", icon: "🍒",
         desc: "+7% HP, -12% голода, -3 ожирение, +5 антидот. Просто вишня",
-        cost: 800, stack: 99, canEat: true,
+        cost: 800, stack: 999, canEat: true,
         hp: 7, hunger: 12, obesity: 3, antidote: 5,
         actionFunction: "eatFruit"
     },
     lemon: {
         name: "Лимон", icon: "🍋",
         desc: "+3% HP, -5% голода, -8 ожирение, +6 антидот. Обожаю!!!",
-        cost: 1200, stack: 99, canEat: true,
+        cost: 1200, stack: 999, canEat: true,
         hp: 3, hunger: 5, obesity: 8, antidote: 6,
         actionFunction: "eatFruit"
     },
     grapes: {
         name: "Виноград", icon: "🍇",
         desc: "+15% HP, -35% голода, -4 ожирение, +4 антидот. В Таджикистане их море",
-        cost: 1500, stack: 99, canEat: true,
+        cost: 1500, stack: 999, canEat: true,
         hp: 15, hunger: 35, obesity: 4, antidote: 4,
         actionFunction: "eatFruit"
     },
     watermelon: {
         name: "Арбуз", icon: "🍉",
         desc: "+20% HP, -50% голода, -6 ожирение, +3 антидот. Арбуз арбуз привет...",
-        cost: 2500, stack: 99, canEat: true,
+        cost: 2500, stack: 999, canEat: true,
         hp: 20, hunger: 50, obesity: 6, antidote: 3,
         actionFunction: "eatFruit"
     },
     mango: {
         name: "Манго", icon: "🥭",
         desc: "+18% HP, -45% голода, -7 ожирение, +8 антидот. Давай в этот раз без эдитов. Да?",
-        cost: 3500, stack: 99, canEat: true,
+        cost: 3500, stack: 999, canEat: true,
         hp: 18, hunger: 45, obesity: 7, antidote: 8,
         actionFunction: "eatFruit"
     },
     pineapple: {
         name: "Ананас", icon: "🍍",
         desc: "+25% HP, -60% голода, -10 ожирение, +10 антидот. А я знаю другое применение ананаса...",
-        cost: 5000, stack: 99, canEat: true,
+        cost: 5000, stack: 999, canEat: true,
         hp: 25, hunger: 60, obesity: 10, antidote: 10,
         actionFunction: "eatFruit"
     },
     coin: {
         name: "Монета", icon: "🪙",
         desc: "Блестит. Наверное, что-то значит. Но ты не знаешь что.",
-        stack: 999, canSell: false
+        stack: 9999, canSell: false
     },
     server_block: {
         name: "Блок сервера", icon: "📔",
         desc: "Фрагмент блока сервера, который нужен, чтобы вернуть украденное сохранение любимой игры. Похоже, существует ещё одна часть.",
-        stack: 2, canSell: false, unsellable: true
+        stack: 20, canSell: false, unsellable: true
     },
     key: {
         name: "Ключ Живого Камня", icon: "🔑",
         desc: "Странный ключ. Открывает тайные товары в Лавке. Пропадёт при ребиртхе.",
-        stack: 1, canSell: false,
+        stack: 10, canSell: false,
         actionFunction: "useKey"
     },
     stone_piece: {
         name: "Кусок камня", icon: "🪨",
         desc: "Напоминание о проигрыше против камня. Надеюсь я его больше не встречу. Хотя, кто знает...",
-        stack: 999999, canSell: false, unsellable: true
+        stack: 9999999, canSell: false, unsellable: true
     },
     // ★ НОВЫЙ ПРЕДМЕТ: ПУТЕВОДНАЯ ЗВЕЗДА ★
     waystar: {
         name: "Путеводная Звезда", icon: "🌟",
         desc: "Кусок Путеводной звезды, что освещала путь в бескрайней тьме. Предмет космической силы, которое при активации даёт 25 000 ⭐. Но стоило ли это того?",
-        stack: 99, canSell: false, unsellable: true,
+        stack: 999, canSell: false, unsellable: true,
         actionFunction: "useWaystar"
     }
 };
@@ -176,7 +176,7 @@ function addItem(id, count) {
     if (ITEMS[id].isVirtual) return;
     if (!inventory[id]) inventory[id] = 0;
     inventory[id] += count;
-    let maxStack = ITEMS[id].stack || 999;
+    let maxStack = ITEMS[id].stack || 9999;
     if (inventory[id] > maxStack) inventory[id] = maxStack;
     if (typeof saveAll === 'function') saveAll();
     if (typeof renderInventory === 'function') renderInventory();
@@ -202,23 +202,23 @@ function getItemCount(id) {
 function tryDropLoot(isBoss) {
     if (isBoss) {
         addItem("bone", 10);
-        if (Math.random() < 0.3) {
+        if (Math.random() < 0.03) {
             let fruits = ["apple", "orange", "banana", "cherry", "lemon", "grapes", "watermelon", "mango", "pineapple"];
             let f = fruits[Math.floor(Math.random() * fruits.length)];
             addItem(f, 1);
             if (typeof showFloatingText === 'function') showFloatingText("🍎 " + ITEMS[f].name + "!", "#2ecc71");
         }
-        if (Math.random() < 0.05) {
+        if (Math.random() < 0.005) {
             addItem("egg", 1);
             if (typeof showFloatingText === 'function') showFloatingText("🥚 Яйцо!", "#f5af19");
         }
     } else {
-        if (Math.random() < 0.3) addItem("bone", 1);
-        if (Math.random() < 0.1) addItem("raw_meat", 1);
-        if (Math.random() < 0.05) addItem("coin", 1);
-        if (Math.random() < 0.05) addItem("mushroom", 1);
-        if (Math.random() < 0.03) addItem("pepper", 1);
-        if (Math.random() < 0.08) addItem("bread", 1);
+        if (Math.random() < 0.03) addItem("bone", 1);
+        if (Math.random() < 0.01) addItem("raw_meat", 1);
+        if (Math.random() < 0.005) addItem("coin", 1);
+        if (Math.random() < 0.005) addItem("mushroom", 1);
+        if (Math.random() < 0.003) addItem("pepper", 1);
+        if (Math.random() < 0.008) addItem("bread", 1);
     }
 }
 
@@ -282,6 +282,7 @@ function eatCookedMeat() {
     hunger = Math.max(0, hunger - 30);
     obesityPoints += 2;
     if (obesityPoints > 60) obesityPoints = 60;
+    if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
     if (typeof showFloatingText === 'function') showFloatingText("🍖 +25% HP", "#2ecc71");
     if (typeof updatePlayerStats === 'function') updatePlayerStats();
     if (typeof saveAll === 'function') saveAll();
@@ -308,6 +309,7 @@ function eatMushroom() {
         antidotePoints = 0;
         if (typeof showFloatingText === 'function') showFloatingText("✅ Отравление снято!", "#2ecc71");
     }
+    if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
     if (typeof updatePlayerStats === 'function') updatePlayerStats();
     if (typeof saveAll === 'function') saveAll();
     if (typeof renderInventory === 'function') renderInventory();
@@ -399,6 +401,7 @@ function eatBread() {
     hunger = Math.max(0, hunger - 40);
     obesityPoints += 1;
     if (obesityPoints > 60) obesityPoints = 60;
+    if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
     if (typeof showFloatingText === 'function') showFloatingText("🍞 ХЛЕБ! -40% голода (+1 ожирение)", "#f5af19");
     if (typeof updatePlayerStats === 'function') updatePlayerStats();
     if (typeof saveAll === 'function') saveAll();
@@ -428,6 +431,7 @@ function eatFruit(fruitId) {
     }
     hunger = Math.max(0, hunger - item.hunger);
     obesityPoints = Math.max(0, obesityPoints - item.obesity);
+    if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
     antidotePoints += item.antidote;
     if (antidotePoints >= 10) {
         poisonTimer = 0;
@@ -617,6 +621,18 @@ function renderInventory() {
     }
     html += '</div>';
 
+    // Быстрая готовка доступна прямо из инвентаря, без открытия карточки предмета.
+    let rawMeatCount = getItemCount("raw_meat");
+    if (rawMeatCount > 0) {
+        let currentPoints = (typeof points !== 'undefined') ? points : 0;
+        let isModer = (typeof mode !== 'undefined' && mode === "moder");
+        let canCook = isModer || currentPoints >= 10;
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(112,68,22,.28),rgba(34,25,18,.92));border:1px solid rgba(245,175,25,.4);border-radius:12px;padding:10px 12px;margin-bottom:12px;">';
+        html += '<div style="font-size:12px;font-weight:900;">🥩 Кухня <span style="color:#f5af19;">· сырое мясо x' + rawMeatCount + '</span><div style="font-size:10px;color:#aaa;font-weight:600;margin-top:3px;">Стоимость приготовления: 10⭐ за штуку</div></div>';
+        html += '<button onclick="cookMeat();" style="padding:8px 13px;font-size:12px;background:' + (canCook ? 'linear-gradient(135deg,#f5af19,#f12711)' : '#555') + ';border:none;border-radius:9px;color:white;font-weight:900;cursor:' + (canCook ? 'pointer' : 'not-allowed') + ';" ' + (!canCook ? 'disabled' : '') + '>🔥 Пожарить мясо</button>';
+        html += '</div>';
+    }
+
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">';
     
     let currentStars = (typeof points !== 'undefined') ? points : 0;
@@ -644,12 +660,6 @@ function renderInventory() {
             html += '<div style="font-size:11px;font-weight:800;margin-top:4px;line-height:1.2;">' + item.name + '</div>';
             html += '<div style="font-size:12px;font-weight:900;color:#f5af19;margin-top:2px;">x' + count + '</div>';
             html += '</div>';
-            if (item.canCook && id === "raw_meat") {
-                let currentPoints = (typeof points !== 'undefined') ? points : 0;
-                let isModer = (typeof mode !== 'undefined' && mode === "moder");
-                let canCook = isModer || currentPoints >= 10;
-                html += '<button onclick="event.stopPropagation();cookMeat();" style="margin-top:6px;padding:4px 8px;font-size:10px;width:100%;background:' + (canCook ? 'linear-gradient(135deg,#f5af19,#f12711)' : '#555') + ';border:none;border-radius:8px;color:white;font-weight:800;cursor:' + (canCook ? 'pointer' : 'not-allowed') + ';" ' + (!canCook ? 'disabled' : '') + '>🔥 Жарить (10⭐)</button>';
-            }
             html += '</div>';
         }
     }
