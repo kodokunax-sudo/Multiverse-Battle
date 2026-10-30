@@ -219,12 +219,6 @@
             var secondTypes = ["train", "crate", "barrier", "beam"];
             addObstacle(secondLane, secondTypes[Math.floor(Math.random() * secondTypes.length)], 0.045);
         }
-        if (Math.random() < 0.13) {
-            var thirdLane = (firstLane + 2) % 3;
-            if (!obstacles.some(function (o) { return o.lane === thirdLane && o.z < 0.15; }))
-                addObstacle(thirdLane, "barrier", 0.08);
-        }
-
         // Coins form straight lines and gentle lane-changing arcs.
         var openLanes = [0, 1, 2].filter(function (v) {
             return !obstacles.some(function (o) { return o.z < 0.12 && o.lane === v; });
@@ -315,7 +309,7 @@
         var difficulty = elapsed / DURATION;
         var speed = starAid ? 0.31 + difficulty * 0.12 : 0.38 + difficulty * 0.16;
         distance += speed * dt;
-        score += Math.floor(speed * dt * 120);
+        score += speed * dt * 120;
         trackOffset = (trackOffset + dt * (0.55 + difficulty * 0.38)) % 1;
 
         if (magnetLeft > 0) magnetLeft = Math.max(0, magnetLeft - dt);
@@ -458,13 +452,6 @@
                     spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y - 20, 5, "#ffdc76", 2);
             }
             if (coin.z > 1.13 || coin.collected) coins.splice(ci, 1);
-        }
-
-        for (var pui = powerups.length - 1; pui >= 0; pui--) {
-            var pu = powerups[pui];
-            if (magnetLeft > 0 && pu.z > 0.65) {
-                // Magnet only pulls coins, not power-ups.
-            }
         }
 
         // The Living Stone stays on the same route and visibly gains on the runner.
@@ -670,35 +657,6 @@
         c.font = "900 12px Arial,sans-serif";
         c.textAlign = "center"; c.textBaseline = "middle";
         c.fillText(text, x, y);
-        c.restore();
-    }
-    function drawStoneRunExtras(c, x, y, now) {
-        var gait = Math.sin(now / 62);
-        c.save();
-        c.lineCap = "round";
-        c.lineWidth = 6;
-        c.strokeStyle = "#342d29";
-        c.beginPath();
-        c.moveTo(x - 14, y + 21);
-        c.lineTo(x - 21 + gait * 7, y + 34);
-        c.lineTo(x - 28 + gait * 12, y + 35);
-        c.moveTo(x + 14, y + 21);
-        c.lineTo(x + 21 - gait * 7, y + 34);
-        c.lineTo(x + 28 - gait * 12, y + 35);
-        c.stroke();
-        c.lineWidth = 4;
-        c.strokeStyle = "#8a7666";
-        c.beginPath();
-        c.moveTo(x - 35, y - 4);
-        c.lineTo(x - 45 - gait * 7, y + 9);
-        c.moveTo(x + 35, y - 4);
-        c.lineTo(x + 45 + gait * 7, y + 8);
-        c.stroke();
-        c.fillStyle = "rgba(255,115,82,.9)";
-        c.beginPath();
-        c.arc(x - 39 - gait * 8, y - 23, 3, 0, Math.PI * 2);
-        c.arc(x + 40 + gait * 8, y - 20, 2.5, 0, Math.PI * 2);
-        c.fill();
         c.restore();
     }
     function drawRunnerHeroExtras(c, x, y, now, sad) {
@@ -941,29 +899,10 @@
         for (var ci = 0; ci < coins.length; ci++) drawCoin(c, coins[ci]);
         for (var pui = 0; pui < powerups.length; pui++) drawPowerup(c, powerups[pui]);
 
-        // The Living Stone is already running away before the player starts moving.
-        var cinematicTime = introFinished ? introDuration : introElapsed;
-        var fleeProgress = clamp(cinematicTime / 1550, 0, 1);
-        fleeProgress = easeOut(fleeProgress);
-        var stoneX = 200 + Math.sin(now / 190) * (introFinished ? 4 : 9);
-        var stoneY = 145 - fleeProgress * 35 + Math.sin(now / 78) * 2;
-        if (typeof drawLivingStoneBoss === "function") {
-            try {
-                var oldStoneX = livingStoneBoss.x, oldStoneY = livingStoneBoss.y, oldStoneSize = livingStoneBoss.size;
-                livingStoneBoss.x = stoneX; livingStoneBoss.y = stoneY;
-                livingStoneBoss.size = 43 + Math.sin(now / 85) * 1.8;
-                c.save();
-                drawLivingStoneBoss();
-                c.restore();
-                livingStoneBoss.x = oldStoneX; livingStoneBoss.y = oldStoneY; livingStoneBoss.size = oldStoneSize;
-            } catch (e) {
-                c.fillStyle = "#74624f"; c.beginPath(); c.arc(stoneX, stoneY, 34, 0, Math.PI*2); c.fill();
-            }
-        } else if (typeof window.MBDrawLivingStoneSuperRunnerBoss === "function") {
-            try { window.MBDrawLivingStoneSuperRunnerBoss(c, stoneX, stoneY, 1.08); } catch (e) {}
-        } else {
-            c.fillStyle = "#74624f"; c.beginPath(); c.arc(stoneX, stoneY, 34, 0, Math.PI*2); c.fill();
-        }
+        // The base arena renderer draws the original textured Living Stone model.
+        // This runner only reads its position, so the boss is never duplicated or given limbs.
+        var stoneX = livingStoneBoss.x;
+        var stoneY = livingStoneBoss.y;
         if (!starAid && !introFinished && introElapsed < introDuration) {
             drawBubble(c, stoneX, stoneY - 62, "ПОЙМАЙ МЕНЯ!", "#ff9b79", 174);
         }
@@ -1035,25 +974,7 @@
             c.beginPath(); c.ellipse(laneX(laneVisual, 0.98), 439, 19 + (jumpLeft > 0 ? 10 : 0), 5, 0, 0, Math.PI*2); c.fill();
             c.restore();
             drawActualRunnerHeart(c, px, py, false, slideLeft > 0, jumpLeft > 0, jetpackLeft > 0);
-            if (jetpackLeft > 0) drawActivePowerupFx(c, px, py, now);
-            else drawRunnerHeroExtras(c, px, py, now, !introFinished);
-            if (slidePose > 0.05) {
-                c.save();
-                c.globalAlpha = 0.48 * slidePose;
-                c.strokeStyle = "#c9e6f3"; c.lineWidth = 2;
-                for (var sl = 0; sl < 4; sl++) {
-                    var sx = px - 30 - sl * 8;
-                    var sy = py + 8 + sl * 5;
-                    c.beginPath(); c.moveTo(sx, sy); c.lineTo(sx - 23 - sl * 4, sy + 2); c.stroke();
-                }
-                c.fillStyle = "rgba(205,224,234,.65)";
-                for (var dust = 0; dust < 5; dust++) {
-                    var dx = px - 24 - dust * 9;
-                    var dy = py + 18 + Math.sin(now / 35 + dust) * 7;
-                    c.beginPath(); c.arc(dx, dy, 2 + (dust % 2), 0, Math.PI * 2); c.fill();
-                }
-                c.restore();
-            }
+            if (jetpackLeft <= 0) drawRunnerHeroExtras(c, px, py, now, !introFinished);
             if (trainRideLeft > 0) {
                 c.save();
                 c.fillStyle = "rgba(255,225,145,.9)";
@@ -1068,6 +989,24 @@
 
         if (jetpackLeft > 0 || magnetLeft > 0 || hoverboardCharges > 0 || hoverboardLeft > 0) {
             drawActivePowerupFx(c, px, py, now);
+        }
+        // A visible low-to-ground squash, forward lean and dust trail makes the down-swipe readable.
+        if (slidePose > 0.05) {
+            c.save();
+            c.globalAlpha = 0.48 * slidePose;
+            c.strokeStyle = "#c9e6f3"; c.lineWidth = 2;
+            for (var sl = 0; sl < 4; sl++) {
+                var sx = px - 30 - sl * 8;
+                var sy = py + 8 + sl * 5;
+                c.beginPath(); c.moveTo(sx, sy); c.lineTo(sx - 23 - sl * 4, sy + 2); c.stroke();
+            }
+            c.fillStyle = "rgba(205,224,234,.65)";
+            for (var dust = 0; dust < 5; dust++) {
+                var dx = px - 24 - dust * 9;
+                var dy = py + 18 + Math.sin(now / 35 + dust) * 7;
+                c.beginPath(); c.arc(dx, dy, 2 + (dust % 2), 0, Math.PI * 2); c.fill();
+            }
+            c.restore();
         }
         if (starAid) {
             c.save();
