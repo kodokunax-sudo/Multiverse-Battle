@@ -15,12 +15,11 @@
         if (!wasSpared() || typeof livingStoneActive==="undefined" || !livingStoneActive ||
             livingStoneState!=="phase2" ||
             (typeof finalSceneActive!=="undefined" && finalSceneActive)) return false;
-        if (window.livingStoneSuperActive===true) {
-            return window.__mbLS2AfterChase===true &&
-                window.__mbLS2GreenPhase!=="chase" &&
-                window.__mbLivingStoneChaseActive!==true;
-        }
-        return window.__mbLivingStoneChaseActive!==true;
+        // This ally belongs to Living Stone Prime only. She follows the player
+        // in both combat parts, then becomes the ride during the chase itself.
+        if (window.livingStoneSuperActive!==true) return false;
+        return window.__mbLS2GreenPhase!=="chase" &&
+            window.__mbLivingStoneChaseActive!==true;
     }
     function announce(message,color,life) {
         if (typeof spawnLivingStoneText==="function")
