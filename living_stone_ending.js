@@ -285,7 +285,7 @@
             livingStoneBoss.x = 200 + Math.sin(introElapsed / 210) * (starAid ? 7 : 12);
             livingStoneBoss.y = 145 - easeOut(introElapsed / 1550) * 35 + Math.sin(introElapsed / 90) * 2;
             livingStoneBoss.rotation += dt * 1.2;
-            livingStoneBoss.size = 34 + Math.min(5, introElapsed / 900);
+            livingStoneBoss.size = 42 + Math.min(2, introElapsed / 1200);
             if (introElapsed >= introDuration) {
                 introFinished = true;
                 startedAt = now;
@@ -417,7 +417,7 @@
                     damageRunner(laneX(trainRideLane, 0.96), livingStonePlayer.y);
                     roof.hit = true;
                 }
-                if (roof.type === "roofCoin" || roofCleared) roof.resolved = true;
+                roof.resolved = true;
             }
             if (roof.z > 1.12) roofObstacles.splice(ri, 1);
         }
@@ -457,10 +457,10 @@
         // The Living Stone stays on the same route and visibly gains on the runner.
         var fleeProgress = clamp(elapsed / 1550, 0, 1);
         fleeProgress = fleeProgress * fleeProgress * (3 - 2 * fleeProgress);
-        livingStoneBoss.x = 200 + Math.sin(elapsed * 0.0017) * 23;
-        livingStoneBoss.y = 160 - fleeProgress * 42 + Math.sin(elapsed * 0.0031) * 7;
-        livingStoneBoss.size = 33 + Math.min(10, difficulty * 10);
-        livingStoneBoss.rotation += dt * (0.55 + difficulty);
+        livingStoneBoss.x = 200 + Math.sin(elapsed * 0.0017) * 18;
+        livingStoneBoss.y = 151 - fleeProgress * 32 + Math.sin(elapsed * 0.0031) * 5;
+        livingStoneBoss.size = 43 + Math.sin(elapsed * 0.009) * 1.4;
+        livingStoneBoss.rotation += dt * (0.28 + difficulty * 0.35);
         if (superMode) window.__mbLS2PhaseFrames = elapsed / (1000 / 60);
         if (starAid && elapsed >= nextStrike) {
             nextStrike += 7600;
@@ -975,13 +975,6 @@
             c.restore();
             drawActualRunnerHeart(c, px, py, false, slideLeft > 0, jumpLeft > 0, jetpackLeft > 0);
             if (jetpackLeft <= 0) drawRunnerHeroExtras(c, px, py, now, !introFinished);
-            if (trainRideLeft > 0) {
-                c.save();
-                c.fillStyle = "rgba(255,225,145,.9)";
-                c.font = "900 10px Arial"; c.textAlign = "center";
-                c.fillText("НА КРЫШЕ ПОЕЗДА!", px, py - 34);
-                c.restore();
-            }
             if (!introFinished && introElapsed > 450) {
                 drawBubble(c, 200, 325, "ЛАДНО... ДОГОНЮ САМ.", "#ffb7a2", 214);
             }
@@ -989,6 +982,13 @@
 
         if (jetpackLeft > 0 || magnetLeft > 0 || hoverboardCharges > 0 || hoverboardLeft > 0) {
             drawActivePowerupFx(c, px, py, now);
+        }
+        if (trainRideLeft > 0) {
+            c.save();
+            c.fillStyle = "rgba(255,225,145,.9)";
+            c.font = "900 10px Arial"; c.textAlign = "center";
+            c.fillText("НА КРЫШЕ ПОЕЗДА!", px, py - 34);
+            c.restore();
         }
         // A visible low-to-ground squash, forward lean and dust trail makes the down-swipe readable.
         if (slidePose > 0.05) {
