@@ -33,6 +33,8 @@ create table if not exists public.mb_banned_devices (
 alter table public.mb_banned_devices enable row level security;
 revoke all on table public.mb_banned_devices from public, anon, authenticated;
 
+drop function if exists public.mb_claim_active_account_session(uuid, uuid, uuid);
+
 create or replace function public.mb_claim_active_account_session(
     p_session_id uuid,
     p_auth_session_id uuid,
