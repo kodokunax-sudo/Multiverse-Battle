@@ -3073,7 +3073,12 @@
             var result = await db.auth.signUp({
                 email: email,
                 password: password,
-                options: { data: { display_name: displayName.slice(0, 24) } }
+                options: {
+                    data: { display_name: displayName.slice(0, 24) },
+                    // Supabase's dashboard Site URL may still be localhost. Always
+                    // return confirmation links to the page where registration began.
+                    emailRedirectTo: window.location.origin + window.location.pathname
+                }
             });
             if (result.error) throw result.error;
             var createdUser = result.data && result.data.user;
