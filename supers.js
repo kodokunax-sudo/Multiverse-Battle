@@ -621,6 +621,7 @@ function applyBossDamageToContext(ctxB, rawDamage, source) {
         if (!activeRwb) return 0;
         damage = modifyTestDamage(damage);
         if (!damage) return 0;
+        if(typeof window.rwbApplySuperDamage==="function") return window.rwbApplySuperDamage(damage,source||"SUPER");
         var beforeRwb = Math.max(0, Number(activeRwb.hp) || 0);
         activeRwb.hp = Math.max(0, beforeRwb - damage);
         activeRwb.hitFlash = 10;
