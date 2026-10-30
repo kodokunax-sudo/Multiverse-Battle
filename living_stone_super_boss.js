@@ -1989,15 +1989,6 @@
     // Exported now so the next stage's player-bullet system can damage this boss.
     function ls2DamageBoss(amount) {
         if (!ls2Active || !(Number(amount)>0)) return false;
-        // В режиме модератора супер-версия тоже умирает сразу, включая погоню.
-        if (!window.__mbBossTestMode && typeof mode !== "undefined" && mode === "moder" &&
-            typeof moderUnlocked !== "undefined" && moderUnlocked === true) {
-            ls2BossHp = 0;
-            if (typeof livingStoneBossHp !== "undefined") livingStoneBossHp = 0;
-            if (typeof currentEnemy !== "undefined" && currentEnemy) currentEnemy.hp = 0;
-            if (typeof window.MBLivingStoneSuperNativeVictory === "function") window.MBLivingStoneSuperNativeVictory();
-            return true;
-        }
         if (ls2NativeMode) {
             amount = Number(amount);
             if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") {
