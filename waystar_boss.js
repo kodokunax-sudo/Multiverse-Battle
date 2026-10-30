@@ -1555,7 +1555,9 @@ function renderWaystarSimpleCoopFrame() {
             var by = bullet.y - waystarBoss.y;
             if (Math.sqrt(bx * bx + by * by) < waystarBoss.size + Math.max(2, Number(bullet.size) || 4)) {
                 var hitDamage = Math.max(1, Math.floor(Number(bullet.damage) || 1));
-                if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") hitDamage=window.MBBossTestModifyOutgoingDamage(hitDamage,1);
+                var moderatorBulletDamage = window.MBGetModeratorBulletDamage(waystarBossMaxHp);
+                if (moderatorBulletDamage !== null) hitDamage = moderatorBulletDamage;
+                else if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") hitDamage=window.MBBossTestModifyOutgoingDamage(hitDamage,1);
                 waystarBossHp = Math.max(0, waystarBossHp - hitDamage);
                 waystarBossFlash = 5;
                 api.onBossDamage(hitDamage, "phase1");
