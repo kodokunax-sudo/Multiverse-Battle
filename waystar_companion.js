@@ -166,8 +166,10 @@
             var hpRatio = currentBossHp() / maxBossHp();
             if (hpRatio <= 0.12 && !finalLockTriggered) beginFinalLock();
         } else {
-            // In green-heart mode ordinary attacks and protection pause.
-            // The companion stays visible so the player's successful blocks can charge her constellation.
+            // In green-heart mode ordinary attacks, protection and old route predictions pause.
+            // The companion stays visible so successful blocks can charge her constellation.
+            route = null;
+            routeTimer = 0;
             if (constellationFlash > 0) {
                 constellationFlash--;
                 if (constellationFlash <= 0) blockStars = 0;
