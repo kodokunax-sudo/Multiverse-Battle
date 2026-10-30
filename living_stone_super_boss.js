@@ -1632,7 +1632,7 @@
         if (!window.livingStoneSuperActive || !c) return;
         var phase = window.__mbLS2GreenPhase || "normal";
         var frames = Number(window.__mbLS2PhaseFrames) || 0;
-        var label = "СУПЕР-ЖИВОЙ КАМЕНЬ";
+        var label = "ЖИВОЙ КАМЕНЬ ПРАЙМ";
         var color = "#ffd5c9";
         if (phase === "normal") {
             label = "ГРАВИТАЦИЯ: шанс 50% через " + Math.ceil(Math.max(0,1200-frames)/60) + " сек.";
