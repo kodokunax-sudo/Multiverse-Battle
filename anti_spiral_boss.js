@@ -21,6 +21,7 @@
     let asPlayerHp = 220;
     let asPlayerMaxHp = 220;
     let asPlayer = { x: 200, y: 430, vx: 0, vy: 0, size: 12, invuln: 0, grounded: true };
+    let asSuperSpeedMult = 1;
     let asBoss = { x: 200, y: 135, size: 48, rotation: 0, pulse: 0, flash: 0 };
     let asAttacks = [];
     let asParticles = [];
@@ -297,7 +298,7 @@
     function asTryJump() {
         if (!asActive || asState !== "fight" || !asPlayer.grounded) return;
         const gravity = [{x:0,y:1},{x:-1,y:0},{x:0,y:-1},{x:1,y:0}][asGravityDirection];
-        const jumpMultiplier=asPlayerScaleMode===.5?.65:(asPlayerScaleMode===2?1.3:1);
+        const jumpMultiplier=(asPlayerScaleMode===.5?.65:(asPlayerScaleMode===2?1.3:1))*asSuperSpeedMult;
         asPlayer.vx = -gravity.x * (23.2 / 1.5) * jumpMultiplier;
         asPlayer.vy = -gravity.y * (23.2 / 1.5) * jumpMultiplier;
         asPlayer.grounded = false;
@@ -2419,7 +2420,7 @@
             gx = (200 - asPlayer.x) * 0.0016;
             gy = (260 - asPlayer.y) * 0.0016;
         }
-        const miniSpeedMultiplier=asPlayerScaleMode===.5?1.5:(asPlayerScaleMode===2?.62:1);
+        const miniSpeedMultiplier=(asPlayerScaleMode===.5?1.5:(asPlayerScaleMode===2?.62:1))*asSuperSpeedMult;
         asPlayer.vx = Math.max(-4.6*miniSpeedMultiplier, Math.min(4.6*miniSpeedMultiplier, (asPlayer.vx + mx * 0.43*miniSpeedMultiplier + gx) * 0.965));
         asPlayer.vy = Math.max(-4.6*miniSpeedMultiplier, Math.min(4.6*miniSpeedMultiplier, (asPlayer.vy + my * 0.43*miniSpeedMultiplier + gy) * 0.965));
         asPlayer.x += asPlayer.vx;
@@ -3320,7 +3321,7 @@
             const jumpDot=mx*(-gravity.x)+my*(-gravity.y);
             const joyJump=!!(joy&&joy.enabled&&joy.active&&((Number(joy.vectorX)||0)*(-gravity.x)+(Number(joy.vectorY)||0)*(-gravity.y)>.62));
             if(asPlayer.grounded&&(asKeys[" "]||jumpDot>.58||joyJump)){
-                    const jumpMultiplier=asPlayerScaleMode===.5?.65:(asPlayerScaleMode===2?1.3:1);
+                    const jumpMultiplier=(asPlayerScaleMode===.5?.65:(asPlayerScaleMode===2?1.3:1))*asSuperSpeedMult;
                 asPlayer.vx=-gravity.x*(23.2/1.5)*jumpMultiplier;asPlayer.vy=-gravity.y*(23.2/1.5)*jumpMultiplier;
                 asPlayer.grounded=false;asPlayer.platformIndex=null;
                 asText(asPlayer.x,asPlayer.y-20,"ПРЫЖОК!","#68dcff",28);
@@ -3328,7 +3329,7 @@
             // Гравитация действует по реальному вектору, а не поворотом всей сцены.
             // Steering only affects the surface tangent; up/down cannot provide endless thrust against gravity.
             const tangentX=-gravity.y,tangentY=gravity.x;
-            const sizeSpeedMultiplier=asPlayerScaleMode===.5?1.5:(asPlayerScaleMode===2?.62:1);
+            const sizeSpeedMultiplier=(asPlayerScaleMode===.5?1.5:(asPlayerScaleMode===2?.62:1))*asSuperSpeedMult;
             const tangentInput=mx*tangentX+my*tangentY;
             const nextVx=(asPlayer.vx+(tangentX*tangentInput*.43*sizeSpeedMultiplier+gravity.x*.32+pullX)*asTimeScale)*Math.pow(.91,asTimeScale);
             const nextVy=(asPlayer.vy+(tangentY*tangentInput*.43*sizeSpeedMultiplier+gravity.y*.32+pullY)*asTimeScale)*Math.pow(.91,asTimeScale);
@@ -3497,6 +3498,8 @@
         asText(asBoss.x,asBoss.y- asBoss.size-18,"+"+(asBossHp-before)+" HP","#78ffce",40);
         return asBossHp-before;
     };
+    window.getAntiSpiralBossSpeedMult = function(){return asSuperSpeedMult;};
+    window.setAntiSpiralBossSpeedMult = function(v){asSuperSpeedMult=Math.max(.15,Math.min(3,Number(v)||1));};
     window.getAntiSpiralPlayerHp = function(){return asPlayerHp;};
     window.setAntiSpiralPlayerHp = function(v){asPlayerHp=Math.max(0,Math.min(asPlayerMaxHp,Number(v)||0));const hpEl=document.getElementById("arenaHP");if(hpEl)hpEl.innerText=Math.ceil(asPlayerHp);if(asPlayerHp<=0)asLose();};
     window.getAntiSpiralPlayerMaxHp = function(){return asPlayerMaxHp;};
