@@ -2067,6 +2067,11 @@ function damageLivingStonePlayer(dmg) {
     
     if (lsActiveMod && lsActiveMod.type === 3) dmg = Math.floor(dmg * 0.5);
     if (lsActiveMod && lsActiveMod.type === 5) dmg = Math.floor(dmg * 0.8);
+    if (typeof window !== "undefined" && window.livingStoneSuperActive &&
+        window.__mbLS2GreenPhase === "green" &&
+        typeof window.MBLivingStoneSuperResetGreenBlocks === "function") {
+        window.MBLivingStoneSuperResetGreenBlocks();
+    }
     if (typeof onTakabaDamageTaken === "function") {
         try { onTakabaDamageTaken(dmg); } catch(e) {}
     }
