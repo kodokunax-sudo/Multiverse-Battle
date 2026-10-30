@@ -4,10 +4,13 @@
 
     var active = false, superMode = false, startedAt = 0, lastAt = 0, elapsed = 0;
     var lane = 1, laneVisual = 1, jumpLeft = 0, slideLeft = 0;
-    var obstacles = [], coins = [], particles = [];
-    var spawnClock = 0, trackOffset = 0, distance = 0, coinCount = 0;
+    var obstacles = [], coins = [], particles = [], powerups = [], roofObstacles = [];
+    var spawnClock = 0, powerupClock = 0, roofSpawnClock = 0, trackOffset = 0, distance = 0, coinCount = 0, score = 0;
+    var trainRideLeft = 0, trainRideLane = 1, trainDropLeft = 0, trainRideTotal = 4.6;
+    var jumpTotal = 0.78, jumpBaseHeight = 78, slideTotal = 0.72, slidePose = 0;
+    var magnetLeft = 0, superJumpLeft = 0, jetpackLeft = 0, hoverboardCharges = 0, hoverboardLeft = 0;
     var starAid = false, starGuard = false, nextGuard = 0, nextStrike = 0;
-    var chaseLives = 3, chaseFailed = false, chaseFailTimer = 0;
+    var chaseLives = 3, chaseFailed = false, chaseFailTimer = 0, combo = 0;
     var starFlash = 0, damageFlash = 0, callback = null, music = null;
     var musicKeepAlive = false;
     var retryBound = false, reduced = false, lastHud = -1;
@@ -95,6 +98,8 @@
         obstacles.length = 0;
         coins.length = 0;
         particles.length = 0;
+        powerups.length = 0;
+        roofObstacles.length = 0;
     }
 
     function bindControls() {
@@ -150,13 +155,50 @@
     function onPointerCancel() { pointerStart = null; }
 
     function moveLane(dir) {
-        lane = clamp(lane + dir, 0, LANE_COUNT - 1);
+        var nextLane = clamp(lane + dir, 0, LANE_COUNT - 1);
+        if (nextLane === lane) return;
+        lane = nextLane;
+        if (trainRideLeft > 0) {
+            trainRideLeft = 0;
+            trainDropLeft = 0.48;
+            if (typeof playArenaSound === "function") playArenaSound(180, "triangle", 0.08, 0.04);
+        }
     }
     function jump() {
-        if (jumpLeft <= 0 && slideLeft <= 0) jumpLeft = 0.78;
+        if (jetpackLeft > 0) return;
+        if (jumpLeft <= 0 && slideLeft <= 0) {
+            jumpTotal = superJumpLeft > 0 ? 1.08 : 0.78;
+            jumpBaseHeight = superJumpLeft > 0 ? 118 : 78;
+            jumpLeft = jumpTotal;
+            if (typeof playArenaSound === "function") playArenaSound(420, "triangle", 0.06, 0.03);
+        }
     }
     function slide() {
-        if (slideLeft <= 0 && jumpLeft <= 0.08) slideLeft = 0.68;
+        if (jetpackLeft > 0 || slideLeft > 0 || jumpLeft > 0.08) return;
+        slideLeft = slideTotal;
+        if (typeof playArenaSound === "function") playArenaSound(160, "triangle", 0.06, 0.035);
+    }
+    function addPowerup(whichLane, type, z) {
+        powerups.push({ lane: whichLane, type: type, z: z || 0, spin: Math.random() * 6, collected: false });
+    }
+    function collectPowerup(item) {
+        item.collected = true;
+        if (item.type === "magnet") {
+            magnetLeft = Math.max(magnetLeft, 9);
+            message("ЗВЁЗДНЫЙ МАГНИТ! МОНЕТЫ ЛЕТЯТ К ТЕБЕ", "#ffe58a");
+        } else if (item.type === "boots") {
+            superJumpLeft = Math.max(superJumpLeft, 10);
+            message("ПРЫЖКОВЫЕ БОТИНКИ! ВЫШЕ И ДАЛЬШЕ!", "#9dffce");
+        } else if (item.type === "jetpack") {
+            jetpackLeft = Math.max(jetpackLeft, 6.5);
+            message("ЗВЁЗДНЫЙ РЕАКТИВНЫЙ РАНЕЦ!", "#bcefff");
+        } else if (item.type === "board") {
+            hoverboardCharges = Math.min(2, hoverboardCharges + 1);
+            message("ЗВЁЗДНАЯ ДОСКА: +1 ЗАЩИТА", "#bcefff");
+        }
+        if (typeof playArenaSound === "function") playArenaSound(1160, "sine", 0.15, 0.07);
+        if (typeof spawnLivingStoneParticles === "function")
+            spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y, 16, "#ffe58a", 4);
     }
 
     function addObstacle(whichLane, type, z) {
@@ -167,32 +209,48 @@
     }
     function spawnPattern() {
         var firstLane = Math.floor(Math.random() * 3);
-        var types = ["train", "barrier", "beam", "crate", "gap"];
+        var types = ["train", "barrier", "beam", "crate", "gap", "sign"];
         var pick = types[Math.floor(Math.random() * types.length)];
         addObstacle(firstLane, pick, 0);
 
-        // Two blocked lanes occasionally create a quick lane-switch challenge.
-        if (Math.random() < 0.29) {
+        // Multi-lane patterns leave at least one readable escape route.
+        if (Math.random() < 0.38) {
             var secondLane = (firstLane + 1 + Math.floor(Math.random() * 2)) % 3;
-            var secondTypes = ["train", "crate", "barrier"];
-            addObstacle(secondLane, secondTypes[Math.floor(Math.random() * secondTypes.length)], 0.035);
+            var secondTypes = ["train", "crate", "barrier", "beam"];
+            addObstacle(secondLane, secondTypes[Math.floor(Math.random() * secondTypes.length)], 0.045);
+        }
+        if (Math.random() < 0.13) {
+            var thirdLane = (firstLane + 2) % 3;
+            if (!obstacles.some(function (o) { return o.lane === thirdLane && o.z < 0.15; }))
+                addObstacle(thirdLane, "barrier", 0.08);
         }
 
-        // A coin trail rewards taking the open line through the obstacle pattern.
+        // Coins form straight lines and gentle lane-changing arcs.
         var openLanes = [0, 1, 2].filter(function (v) {
             return !obstacles.some(function (o) { return o.z < 0.12 && o.lane === v; });
         });
-        if (openLanes.length && Math.random() < 0.82) {
+        if (openLanes.length && Math.random() < 0.9) {
             var coinLane = openLanes[Math.floor(Math.random() * openLanes.length)];
-            for (var i = 0; i < 5; i++) {
-                coins.push({ lane: coinLane, z: -0.22 - i * 0.105, spin: Math.random() * 6, collected: false });
+            for (var i = 0; i < 6; i++) {
+                var coinLineLane = coinLane;
+                if (i >= 3 && Math.random() < 0.25) coinLineLane = clamp(coinLane + (Math.random() < 0.5 ? -1 : 1), 0, 2);
+                coins.push({ lane: coinLineLane, z: -0.2 - i * 0.105, spin: Math.random() * 6, collected: false, height: i % 3 === 1 ? 34 : 0 });
             }
         }
     }
     function damageRunner(x, y) {
         if (!active || chaseFailed) return;
-        chaseLives = Math.max(0, chaseLives - 1);
         damageFlash = 24;
+        if (hoverboardCharges > 0) {
+            hoverboardCharges--;
+            hoverboardLeft = 0.55;
+            if (typeof spawnLivingStoneParticles === "function")
+                spawnLivingStoneParticles(x, y, 30, "#9deaff", 6);
+            message("ДОСКА РАЗБИЛАСЬ! ТЫ УЦЕЛЕЛ!", "#bcefff");
+            if (typeof playArenaSound === "function") playArenaSound(260, "sawtooth", 0.18, 0.08);
+            return;
+        }
+        chaseLives = Math.max(0, chaseLives - 1);
         if (starAid && starGuard) {
             starGuard = false;
             starFlash = 34;
@@ -208,6 +266,7 @@
             message("СТОЛКНОВЕНИЕ! ОСТАЛОСЬ ЖИЗНЕЙ: " + chaseLives, "#ff967d");
             if (typeof playArenaSound === "function") playArenaSound(110, "sawtooth", 0.22, 0.1);
         }
+        combo = 0;
         if (chaseLives <= 0) {
             chaseFailed = true;
             chaseFailTimer = 0.72;
@@ -256,15 +315,33 @@
         var difficulty = elapsed / DURATION;
         var speed = starAid ? 0.31 + difficulty * 0.12 : 0.38 + difficulty * 0.16;
         distance += speed * dt;
+        score += Math.floor(speed * dt * 120);
         trackOffset = (trackOffset + dt * (0.55 + difficulty * 0.38)) % 1;
 
+        if (magnetLeft > 0) magnetLeft = Math.max(0, magnetLeft - dt);
+        if (superJumpLeft > 0) superJumpLeft = Math.max(0, superJumpLeft - dt);
+        if (jetpackLeft > 0) jetpackLeft = Math.max(0, jetpackLeft - dt);
+        if (hoverboardLeft > 0) hoverboardLeft = Math.max(0, hoverboardLeft - dt);
+        if (trainRideLeft > 0) {
+            trainRideLeft = Math.max(0, trainRideLeft - dt);
+            if (trainRideLeft <= 0) trainDropLeft = 0.42;
+        }
+        if (trainDropLeft > 0) trainDropLeft = Math.max(0, trainDropLeft - dt);
         laneVisual += (lane - laneVisual) * Math.min(1, dt * 13);
         if (jumpLeft > 0) jumpLeft = Math.max(0, jumpLeft - dt);
         if (slideLeft > 0) slideLeft = Math.max(0, slideLeft - dt);
-        var jumpProgress = jumpLeft > 0 ? 1 - jumpLeft / 0.78 : 1;
-        var jumpHeight = jumpLeft > 0 ? Math.sin(jumpProgress * Math.PI) * 78 : 0;
+        var jumpProgress = jumpLeft > 0 ? 1 - jumpLeft / Math.max(0.01, jumpTotal) : 1;
+        var jumpHeight = jumpLeft > 0 ? Math.sin(jumpProgress * Math.PI) * jumpBaseHeight : 0;
+        slidePose += ((slideLeft > 0 ? 1 : 0) - slidePose) * Math.min(1, dt * 18);
         livingStonePlayer.x = laneX(laneVisual, 0.92);
-        livingStonePlayer.y = 422 - jumpHeight - (slideLeft > 0 ? 2 : Math.abs(Math.sin(elapsed * 0.023)) * 2.2);
+        if (jetpackLeft > 0) {
+            livingStonePlayer.y = 270 + Math.sin(elapsed * 0.009) * 12;
+        } else if (trainRideLeft > 0) {
+            livingStonePlayer.y = 350 - jumpHeight;
+        } else {
+            var slideOffset = slideLeft > 0 ? 15 : 0;
+            livingStonePlayer.y = 422 - jumpHeight + slideOffset - Math.abs(Math.sin(elapsed * 0.023)) * 2.2;
+        }
 
         if (elapsed >= 1900) {
             spawnClock += dt;
@@ -273,8 +350,32 @@
                 spawnClock -= spawnInterval;
                 spawnPattern();
             }
+            powerupClock += dt;
+            if (powerupClock >= 14 && powerups.length < 2) {
+                powerupClock = 0;
+                var powerLane = Math.floor(Math.random() * 3);
+                var powerTypes = ["magnet", "boots", "jetpack", "board"];
+                addPowerup(powerLane, powerTypes[Math.floor(Math.random() * powerTypes.length)], -0.06);
+            }
         } else {
             spawnClock = 0;
+            powerupClock = 0;
+        }
+
+        // Catching a train at the top of a jump lets the player ride its roof.
+        if (trainRideLeft > 0) {
+            roofSpawnClock += dt;
+            if (roofSpawnClock >= 0.86 && roofObstacles.length < 3) {
+                roofSpawnClock = 0;
+                var roofTypes = ["roofCrate", "roofBeam", "roofGap"];
+                roofObstacles.push({ lane: trainRideLane, type: roofTypes[Math.floor(Math.random() * roofTypes.length)],
+                    z: -0.04, resolved: false, spin: Math.random() * 6 });
+                if (Math.random() < 0.24) {
+                    roofObstacles.push({ lane: trainRideLane, type: "roofCoin", z: -0.32, resolved: false, spin: Math.random() * 6 });
+                }
+            }
+        } else {
+            roofSpawnClock = 0;
         }
 
         for (var i = obstacles.length - 1; i >= 0; i--) {
@@ -282,9 +383,25 @@
             ob.z += speed * dt;
             if (!ob.resolved && ob.z >= 0.88 && ob.z <= 0.99) {
                 var sameLane = Math.abs(laneVisual - ob.lane) < 0.48;
-                if (sameLane) {
-                    var cleared = (ob.type === "barrier" || ob.type === "gap" || ob.type === "crate") ?
-                        jumpLeft > 0.10 : (ob.type === "beam" ? slideLeft > 0.10 : false);
+                if (sameLane && jetpackLeft <= 0) {
+                    var cleared = false;
+                    if (ob.type === "train") {
+                        if (jumpLeft > 0.08 && jumpHeight > 30 && trainRideLeft <= 0) {
+                            trainRideLeft = trainRideTotal;
+                            trainRideLane = ob.lane;
+                            lane = ob.lane; laneVisual = ob.lane;
+                            jumpLeft = 0; jumpTotal = 0.78;
+                            ob.mounted = true;
+                            score += 800; combo++;
+                            message("НА КРЫШУ ПОЕЗДА! +800", "#ffe7a1");
+                            if (typeof playArenaSound === "function") playArenaSound(720, "triangle", 0.18, 0.07);
+                            cleared = true;
+                        }
+                    } else if (ob.type === "barrier" || ob.type === "gap" || ob.type === "crate") {
+                        cleared = jumpLeft > 0.10;
+                    } else if (ob.type === "beam" || ob.type === "sign") {
+                        cleared = slideLeft > 0.08;
+                    }
                     if (!cleared) {
                         ob.hit = true;
                         damageRunner(laneX(ob.lane, 0.96), 416);
@@ -294,20 +411,60 @@
             }
             if (ob.z > 1.13) obstacles.splice(i, 1);
         }
+
+        for (var ri = roofObstacles.length - 1; ri >= 0; ri--) {
+            var roof = roofObstacles[ri];
+            roof.z += speed * 1.18 * dt;
+            if (!roof.resolved && roof.z >= 0.84 && roof.z <= 1.0 && trainRideLeft > 0) {
+                var roofCleared = roof.type === "roofBeam" ? slideLeft > 0.08 : jumpLeft > 0.10;
+                if (roof.type === "roofCoin") {
+                    coinCount++; score += 100; roofCleared = true;
+                } else if (!roofCleared) {
+                    damageRunner(laneX(trainRideLane, 0.96), livingStonePlayer.y);
+                    roof.hit = true;
+                }
+                if (roof.type === "roofCoin" || roofCleared) roof.resolved = true;
+            }
+            if (roof.z > 1.12) roofObstacles.splice(ri, 1);
+        }
+        if (trainRideLeft <= 0) roofObstacles.length = 0;
+
+        for (var pi = powerups.length - 1; pi >= 0; pi--) {
+            var pickup = powerups[pi];
+            pickup.z += speed * dt;
+            pickup.spin += dt * 6;
+            if (!pickup.collected && pickup.z >= 0.82 && pickup.z <= 1.02 &&
+                (Math.abs(laneVisual - pickup.lane) < 0.48 || (jetpackLeft > 0 && Math.abs(laneVisual - pickup.lane) < 1.1))) {
+                collectPowerup(pickup);
+            }
+            if (pickup.z > 1.13 || pickup.collected) powerups.splice(pi, 1);
+        }
+
         for (var ci = coins.length - 1; ci >= 0; ci--) {
             var coin = coins[ci];
             coin.z += speed * dt;
             coin.spin += dt * 8;
-            if (!coin.collected && coin.z >= 0.88 && coin.z <= 1.02 &&
-                Math.abs(laneVisual - coin.lane) < 0.48) {
+            var sameCoinLane = Math.abs(laneVisual - coin.lane) < 0.48;
+            var magnetReach = magnetLeft > 0 || jetpackLeft > 0;
+            var withinPickup = coin.z >= 0.82 && coin.z <= 1.04;
+            if (!coin.collected && withinPickup && (sameCoinLane || (magnetReach && Math.abs(laneVisual - coin.lane) <= 1.2))) {
                 coin.collected = true;
-                coinCount++;
+                var earned = 1;
+                coinCount += earned;
+                score += 100 * (magnetLeft > 0 ? 2 : 1);
+                combo++;
                 if (typeof playArenaSound === "function") playArenaSound(1250, "sine", 0.07, 0.045);
-                if (typeof spawnLivingStoneParticles === "function") {
+                if (typeof spawnLivingStoneParticles === "function")
                     spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y - 20, 5, "#ffdc76", 2);
-                }
             }
             if (coin.z > 1.13 || coin.collected) coins.splice(ci, 1);
+        }
+
+        for (var pui = powerups.length - 1; pui >= 0; pui--) {
+            var pu = powerups[pui];
+            if (magnetLeft > 0 && pu.z > 0.65) {
+                // Magnet only pulls coins, not power-ups.
+            }
         }
 
         // The Living Stone stays on the same route and visibly gains on the runner.
@@ -419,19 +576,31 @@
         c.restore();
     }
     function drawTrain(c, x, y, s) {
-        var w = 34 * s, h = 70 * s;
-        polygon(c, [[x - w * .62, y - h], [x + w * .62, y - h], [x + w, y - h * .82], [x + w, y], [x - w, y]], "#414c55", "#a6a9a5", 1.5 * s);
-        polygon(c, [[x - w * .62, y - h], [x - w * .32, y - h * 1.12], [x + w * .88, y - h * 1.02], [x + w * .62, y - h]], "#68747a", "#bac0bd", 1 * s);
-        c.fillStyle = "#17232b"; c.fillRect(x - w * .72, y - h * .77, w * 1.42, h * .28);
+        var w = 37 * s, h = 76 * s;
+        c.save();
+        c.shadowColor = "#0a1118"; c.shadowBlur = reduced ? 0 : 12 * s;
+        polygon(c, [[x - w * .78, y - h * .82], [x - w * .62, y - h],
+            [x + w * .62, y - h], [x + w * .78, y - h * .82],
+            [x + w, y], [x - w, y]], "#394957", "#bdcbd2", 2 * s);
+        polygon(c, [[x - w * .62, y - h], [x - w * .35, y - h * 1.12],
+            [x + w * .35, y - h * 1.12], [x + w * .62, y - h]],
+            "#8294a0", "#e3edf1", 1.5 * s);
+        c.fillStyle = "#172734";
+        c.fillRect(x - w * .78, y - h * .72, w * 1.56, h * .34);
         for (var i = 0; i < 3; i++) {
-            c.fillStyle = "#c2d7d3";
-            c.fillRect(x - w * .56 + i * w * .46, y - h * .72, w * .31, h * .18);
+            c.fillStyle = "#bfe8f2";
+            c.fillRect(x - w * .59 + i * w * .45, y - h * .68, w * .29, h * .19);
+            c.fillStyle = "rgba(8,22,34,.55)";
+            c.fillRect(x - w * .56 + i * w * .45, y - h * .65, w * .23, h * .13);
         }
-        c.fillStyle = "#ffcf76";
-        c.fillRect(x - w * .62, y - h * .14, w * .22, h * .08);
-        c.fillRect(x + w * .4, y - h * .14, w * .22, h * .08);
-        c.fillStyle = "#161d22";
-        c.fillRect(x - w, y - 3 * s, w * 2, 5 * s);
+        c.fillStyle = "#ffcf76"; c.shadowColor = "#ffcf76"; c.shadowBlur = reduced ? 0 : 9 * s;
+        c.beginPath(); c.arc(x - w * .48, y - h * .12, 4 * s, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(x + w * .48, y - h * .12, 4 * s, 0, Math.PI * 2); c.fill();
+        c.shadowBlur = 0;
+        c.fillStyle = "#111b22"; c.fillRect(x - w, y - 3 * s, w * 2, 6 * s);
+        c.strokeStyle = "rgba(231,244,250,.65)"; c.lineWidth = 1.2 * s;
+        c.beginPath(); c.moveTo(x - w * .8, y - h * .05); c.lineTo(x + w * .8, y - h * .05); c.stroke();
+        c.restore();
     }
     function drawObstacle(c, ob) {
         var z = clamp(ob.z, 0, 1.05), x = laneX(ob.lane, z), y = depthY(z);
@@ -444,13 +613,20 @@
             polygon(c, [[x - 26*s, y - 16*s], [x + 26*s, y - 16*s], [x + 23*s, y], [x - 23*s, y]], "#bc613d", "#ffd09b", 1.5*s);
             c.fillStyle = "#f0d0a5";
             for (var b = -1; b <= 1; b++) c.fillRect(x + b * 15*s - 3*s, y - 12*s, 6*s, 5*s);
-        } else if (ob.type === "beam") {
-            c.shadowColor = "#f4b75f"; c.shadowBlur = reduced ? 0 : 7*s;
-            c.fillStyle = "#765746"; c.fillRect(x - 27*s, y - 64*s, 54*s, 9*s);
-            c.fillStyle = "#d4a56d"; c.fillRect(x - 27*s, y - 64*s, 54*s, 3*s);
+        } else if (ob.type === "beam" || ob.type === "sign") {
+            c.shadowColor = ob.type === "sign" ? "#ff865e" : "#f4b75f";
+            c.shadowBlur = reduced ? 0 : 9*s;
+            c.fillStyle = ob.type === "sign" ? "#9e483e" : "#765746";
+            c.fillRect(x - 31*s, y - 67*s, 62*s, 11*s);
+            c.fillStyle = ob.type === "sign" ? "#ffd0ad" : "#d4a56d";
+            c.fillRect(x - 31*s, y - 67*s, 62*s, 3*s);
             c.fillStyle = "#4a3b36";
-            c.fillRect(x - 24*s, y - 58*s, 5*s, 46*s);
-            c.fillRect(x + 19*s, y - 58*s, 5*s, 46*s);
+            c.fillRect(x - 27*s, y - 58*s, 5*s, 48*s);
+            c.fillRect(x + 22*s, y - 58*s, 5*s, 48*s);
+            if (ob.type === "sign") {
+                c.fillStyle = "#fff0d4"; c.font = "bold " + Math.max(5, 8*s) + "px Arial";
+                c.textAlign = "center"; c.fillText("ПРИГНИСЬ", x, y - 59*s);
+            }
         } else if (ob.type === "gap") {
             c.shadowColor = "#ff6b41"; c.shadowBlur = reduced ? 0 : 12*s;
             c.fillStyle = "#080b10"; c.strokeStyle = "#e37c48"; c.lineWidth = 2*s;
@@ -625,16 +801,125 @@
         c.beginPath(); c.moveTo(-18, 7); c.lineTo(-20, 20); c.moveTo(18, 7); c.lineTo(20, 20); c.stroke();
         c.restore();
     }
-    function drawActualRunnerHeart(c, x, y, mounted) {
+    function drawActualRunnerHeart(c, x, y, mounted, sliding, airborne, jetpack) {
         if (typeof drawLivingStonePlayer !== "function") return;
         var oldX = livingStonePlayer.x, oldY = livingStonePlayer.y;
         var oldMounted = window.__mbLivingStoneStarMounted;
         livingStonePlayer.x = x; livingStonePlayer.y = y;
         if (mounted) window.__mbLivingStoneStarMounted = true;
+        c.save();
+        c.translate(x, y);
+        if (sliding) {
+            var slideEase = slidePose * slidePose * (3 - 2 * slidePose);
+            c.rotate(-0.13 * slideEase);
+            c.scale(1 + 0.58 * slideEase, 1 - 0.58 * slideEase);
+            c.translate(0, 5 * slideEase);
+        } else if (airborne) {
+            c.rotate(-0.12);
+            c.scale(0.94, 1.08);
+        } else if (jetpack) {
+            c.rotate(Math.sin(clock() / 110) * 0.045);
+            c.scale(1.04, 0.96);
+        }
+        c.translate(-x, -y);
         try { drawLivingStonePlayer(); }
         finally {
+            c.restore();
             livingStonePlayer.x = oldX; livingStonePlayer.y = oldY;
             window.__mbLivingStoneStarMounted = oldMounted;
+        }
+    }
+    function drawTrainRoofSurface(c, laneIndex, now) {
+        var x = laneX(laneIndex, 0.92);
+        c.save();
+        c.shadowColor = "#101820";
+        c.shadowBlur = reduced ? 0 : 12;
+        polygon(c, [[x - 34, 346], [x + 34, 346], [x + 92, 500], [x - 92, 500]],
+            "#33434f", "#a9b7be", 2);
+        c.shadowBlur = 0;
+        polygon(c, [[x - 31, 345], [x + 31, 345], [x + 82, 486], [x - 82, 486]],
+            "#526574", "#d1dbe0", 1.5);
+        for (var rib = 0; rib < 7; rib++) {
+            var t = rib / 7;
+            var yy = 354 + t * 124;
+            var half = 35 + t * 43;
+            c.strokeStyle = "rgba(18,31,41,.58)";
+            c.lineWidth = 2;
+            c.beginPath(); c.moveTo(x - half, yy); c.lineTo(x + half, yy); c.stroke();
+        }
+        c.fillStyle = "#263642";
+        c.fillRect(x - 27, 350, 54, 8);
+        c.fillStyle = "#a9e4f3";
+        c.fillRect(x - 18, 352, 36, 2);
+        c.restore();
+    }
+    function drawRoofObstacle(c, item, now) {
+        var z = clamp(item.z, 0, 1.05);
+        var x = laneX(trainRideLane, 0.55 + z * 0.37);
+        var y = 316 + z * 95;
+        var scale = 0.35 + z * 1.05;
+        c.save();
+        if (item.type === "roofBeam") {
+            c.fillStyle = "#a34f42"; c.strokeStyle = "#ffd0a0"; c.lineWidth = 2;
+            c.fillRect(x - 34 * scale, y - 25 * scale, 68 * scale, 9 * scale);
+            c.strokeRect(x - 34 * scale, y - 25 * scale, 68 * scale, 9 * scale);
+            c.fillStyle = "#fff0c4"; c.font = "bold " + Math.max(6, 9 * scale) + "px Arial";
+            c.textAlign = "center"; c.fillText("ПРИГНИСЬ", x, y - 30 * scale);
+        } else if (item.type === "roofCoin") {
+            c.translate(x, y - 12 * scale); c.rotate(item.spin);
+            c.fillStyle = "#ffd45e"; c.strokeStyle = "#fff4bd"; c.lineWidth = 2;
+            c.shadowColor = "#ffd45e"; c.shadowBlur = reduced ? 0 : 12 * scale;
+            c.beginPath(); c.arc(0, 0, 8 * scale, 0, Math.PI * 2); c.fill(); c.stroke();
+            c.restore(); return;
+        } else {
+            c.shadowColor = "#0c1118"; c.shadowBlur = reduced ? 0 : 8;
+            polygon(c, [[x - 25*scale,y], [x - 18*scale,y - 28*scale], [x + 22*scale,y - 31*scale],
+                [x + 28*scale,y]], item.type === "roofGap" ? "#101820" : "#78634e",
+                item.type === "roofGap" ? "#ffb37d" : "#e7d0b0", 2 * scale);
+        }
+        c.restore();
+    }
+    function drawPowerup(c, item) {
+        var z = clamp(item.z, 0, 1.05), x = laneX(item.lane, z), y = depthY(z) - 20 - z * 12;
+        var r = 8 + z * 8;
+        var colors = { magnet: "#ffcf65", boots: "#9dffce", jetpack: "#9deaff", board: "#d7b7ff" };
+        var letters = { magnet: "M", boots: "↑", jetpack: "✦", board: "B" };
+        var color = colors[item.type] || "#ffffff";
+        c.save(); c.translate(x, y); c.rotate(Math.sin(item.spin) * 0.12);
+        c.shadowColor = color; c.shadowBlur = reduced ? 0 : 15;
+        c.fillStyle = "rgba(6,13,22,.9)"; c.strokeStyle = color; c.lineWidth = 2;
+        c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.shadowBlur = 0; c.fillStyle = "#ffffff"; c.font = "900 " + Math.max(9, r) + "px Arial";
+        c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(letters[item.type] || "?", 0, 1);
+        c.restore();
+    }
+    function drawActivePowerupFx(c, x, y, now) {
+        if (jetpackLeft > 0) {
+            c.save();
+            c.globalAlpha = 0.75;
+            c.strokeStyle = "#9deaff"; c.lineWidth = 3;
+            c.shadowColor = "#72dcff"; c.shadowBlur = reduced ? 0 : 12;
+            for (var side = -1; side <= 1; side += 2) {
+                c.beginPath(); c.moveTo(x + side * 8, y + 12);
+                c.lineTo(x + side * 10 + Math.sin(now / 40 + side) * 3, y + 45 + Math.random() * 8);
+                c.stroke();
+            }
+            c.restore();
+        }
+        if (hoverboardCharges > 0 || hoverboardLeft > 0) {
+            c.save(); c.translate(x, y + 24);
+            c.rotate(Math.sin(now / 90) * 0.08);
+            c.fillStyle = "#3e86c7"; c.strokeStyle = "#d6f4ff"; c.lineWidth = 2;
+            c.shadowColor = "#8cddff"; c.shadowBlur = reduced ? 0 : 10;
+            c.beginPath(); c.moveTo(-26, 0); c.quadraticCurveTo(0, -9, 26, 0);
+            c.quadraticCurveTo(0, 12, -26, 0); c.fill(); c.stroke();
+            c.restore();
+        }
+        if (magnetLeft > 0) {
+            c.save(); c.globalAlpha = 0.45;
+            c.strokeStyle = "#ffd76e"; c.lineWidth = 1.5;
+            c.beginPath(); c.arc(x, y, 34 + Math.sin(now / 80) * 3, 0, Math.PI * 2); c.stroke();
+            c.restore();
         }
     }
     function draw(c) {
@@ -654,6 +939,7 @@
         var sorted = obstacles.slice().sort(function (a, b) { return a.z - b.z; });
         for (var o = 0; o < sorted.length; o++) drawObstacle(c, sorted[o]);
         for (var ci = 0; ci < coins.length; ci++) drawCoin(c, coins[ci]);
+        for (var pui = 0; pui < powerups.length; pui++) drawPowerup(c, powerups[pui]);
 
         // The Living Stone is already running away before the player starts moving.
         var cinematicTime = introFinished ? introDuration : introElapsed;
@@ -661,19 +947,32 @@
         fleeProgress = easeOut(fleeProgress);
         var stoneX = 200 + Math.sin(now / 190) * (introFinished ? 4 : 9);
         var stoneY = 145 - fleeProgress * 35 + Math.sin(now / 78) * 2;
-        if (superMode && typeof window.MBDrawLivingStoneSuperRunnerBoss === "function") {
-            try { window.MBDrawLivingStoneSuperRunnerBoss(c, stoneX, stoneY, 1 - fleeProgress * 0.12); } catch (e) {}
-        } else if (typeof drawLivingStoneBoss === "function") {
-            try { drawLivingStoneBoss(); } catch (e) {}
+        if (typeof drawLivingStoneBoss === "function") {
+            try {
+                var oldStoneX = livingStoneBoss.x, oldStoneY = livingStoneBoss.y, oldStoneSize = livingStoneBoss.size;
+                livingStoneBoss.x = stoneX; livingStoneBoss.y = stoneY;
+                livingStoneBoss.size = 43 + Math.sin(now / 85) * 1.8;
+                c.save();
+                drawLivingStoneBoss();
+                c.restore();
+                livingStoneBoss.x = oldStoneX; livingStoneBoss.y = oldStoneY; livingStoneBoss.size = oldStoneSize;
+            } catch (e) {
+                c.fillStyle = "#74624f"; c.beginPath(); c.arc(stoneX, stoneY, 34, 0, Math.PI*2); c.fill();
+            }
+        } else if (typeof window.MBDrawLivingStoneSuperRunnerBoss === "function") {
+            try { window.MBDrawLivingStoneSuperRunnerBoss(c, stoneX, stoneY, 1.08); } catch (e) {}
         } else {
-            c.fillStyle = "#8b7355"; c.beginPath(); c.arc(stoneX, stoneY, 28, 0, Math.PI*2); c.fill();
+            c.fillStyle = "#74624f"; c.beginPath(); c.arc(stoneX, stoneY, 34, 0, Math.PI*2); c.fill();
         }
-        drawStoneRunExtras(c, stoneX, stoneY, now);
         if (!starAid && !introFinished && introElapsed < introDuration) {
             drawBubble(c, stoneX, stoneY - 62, "ПОЙМАЙ МЕНЯ!", "#ff9b79", 174);
         }
 
         var px = livingStonePlayer.x, py = livingStonePlayer.y;
+        if (trainRideLeft > 0) {
+            drawTrainRoofSurface(c, trainRideLane, now);
+            for (var rhi = 0; rhi < roofObstacles.length; rhi++) drawRoofObstacle(c, roofObstacles[rhi], now);
+        }
         var introStar = !introFinished && starAid;
         var introT = introElapsed;
         if (starAid) {
@@ -716,7 +1015,7 @@
             c.fillStyle = "#05080b";
             c.beginPath(); c.ellipse(px, 441, 24, 5, 0, 0, Math.PI * 2); c.fill();
             c.restore();
-            drawActualRunnerHeart(c, px, heroY, true);
+            drawActualRunnerHeart(c, px, heroY, true, slideLeft > 0, jumpLeft > 0, jetpackLeft > 0);
             if (introStar && introT >= 3650 && introT < 5100) {
                 c.save();
                 c.globalAlpha = 0.7;
@@ -735,13 +1034,41 @@
             c.fillStyle = "#05080b";
             c.beginPath(); c.ellipse(laneX(laneVisual, 0.98), 439, 19 + (jumpLeft > 0 ? 10 : 0), 5, 0, 0, Math.PI*2); c.fill();
             c.restore();
-            drawActualRunnerHeart(c, px, py, false);
-            drawRunnerHeroExtras(c, px, py, now, !introFinished);
+            drawActualRunnerHeart(c, px, py, false, slideLeft > 0, jumpLeft > 0, jetpackLeft > 0);
+            if (jetpackLeft > 0) drawActivePowerupFx(c, px, py, now);
+            else drawRunnerHeroExtras(c, px, py, now, !introFinished);
+            if (slidePose > 0.05) {
+                c.save();
+                c.globalAlpha = 0.48 * slidePose;
+                c.strokeStyle = "#c9e6f3"; c.lineWidth = 2;
+                for (var sl = 0; sl < 4; sl++) {
+                    var sx = px - 30 - sl * 8;
+                    var sy = py + 8 + sl * 5;
+                    c.beginPath(); c.moveTo(sx, sy); c.lineTo(sx - 23 - sl * 4, sy + 2); c.stroke();
+                }
+                c.fillStyle = "rgba(205,224,234,.65)";
+                for (var dust = 0; dust < 5; dust++) {
+                    var dx = px - 24 - dust * 9;
+                    var dy = py + 18 + Math.sin(now / 35 + dust) * 7;
+                    c.beginPath(); c.arc(dx, dy, 2 + (dust % 2), 0, Math.PI * 2); c.fill();
+                }
+                c.restore();
+            }
+            if (trainRideLeft > 0) {
+                c.save();
+                c.fillStyle = "rgba(255,225,145,.9)";
+                c.font = "900 10px Arial"; c.textAlign = "center";
+                c.fillText("НА КРЫШЕ ПОЕЗДА!", px, py - 34);
+                c.restore();
+            }
             if (!introFinished && introElapsed > 450) {
                 drawBubble(c, 200, 325, "ЛАДНО... ДОГОНЮ САМ.", "#ffb7a2", 214);
             }
         }
 
+        if (jetpackLeft > 0 || magnetLeft > 0 || hoverboardCharges > 0 || hoverboardLeft > 0) {
+            drawActivePowerupFx(c, px, py, now);
+        }
         if (starAid) {
             c.save();
             c.strokeStyle = starGuard ? "rgba(255,226,143,.9)" : "rgba(255,214,115,.28)";
@@ -775,9 +1102,14 @@
         c.font = "bold 17px sans-serif"; c.fillStyle = "#ff6262";
         c.fillText("♥".repeat(chaseLives) + "♡".repeat(3 - chaseLives), 226, 73);
         c.textAlign = "left"; c.textBaseline = "alphabetic"; c.font = "bold 11px monospace"; c.fillStyle = "#ffe7b0";
-        c.fillText("✦ " + coinCount, 14, 27);
+        c.fillText("✦ " + coinCount + "   SCORE " + score, 14, 27);
         c.textAlign = "right"; c.fillStyle = "#e5d8cc";
-        c.fillText(starAid ? "ЕДЕШЬ НА ЗВЕЗДЕ" : "ЖИВОЙ КАМЕНЬ ДОГОНЯЕТ", 386, 27);
+        var activeLabels = [];
+        if (magnetLeft > 0) activeLabels.push("MAGNET " + Math.ceil(magnetLeft));
+        if (superJumpLeft > 0) activeLabels.push("БОТИНКИ " + Math.ceil(superJumpLeft));
+        if (jetpackLeft > 0) activeLabels.push("JETPACK " + Math.ceil(jetpackLeft));
+        if (hoverboardCharges > 0) activeLabels.push("ДОСКА x" + hoverboardCharges);
+        c.fillText(activeLabels.length ? activeLabels.join(" · ") : (starAid ? "ЕДЕШЬ НА ЗВЕЗДЕ" : "ЖИВОЙ КАМЕНЬ ДОГОНЯЕТ"), 386, 27);
         c.textAlign = "center"; c.font = "bold 10px monospace"; c.fillStyle = "rgba(255,255,255,.82)";
         c.fillText("СВАЙПЫ • ← → ПОЛОСА • ↑ ПРЫЖОК • ↓ ПОДКАТ", 200, 486);
         if (elapsed < 4600) {
@@ -808,6 +1140,8 @@
         if (!active) return;
         active = false;
         introFinished = false;
+        trainRideLeft = 0; trainDropLeft = 0; magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0;
+        hoverboardCharges = 0; hoverboardLeft = 0; slidePose = 0;
         unbindControls();
         resetArrays();
         if (success !== false && starAid && music && musicAllowed()) {
@@ -874,8 +1208,10 @@
         callback = typeof options.onComplete === "function" ? options.onComplete : null;
         reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
         startedAt = clock(); lastAt = startedAt; elapsed = 0;
-        lane = 1; laneVisual = 1; jumpLeft = 0; slideLeft = 0;
-        spawnClock = 0; trackOffset = 0; distance = 0; coinCount = 0; lastHud = -1;
+        lane = 1; laneVisual = 1; jumpLeft = 0; slideLeft = 0; slidePose = 0;
+        spawnClock = 0; powerupClock = 0; roofSpawnClock = 0; trackOffset = 0; distance = 0; coinCount = 0; score = 0; combo = 0; lastHud = -1;
+        trainRideLeft = 0; trainRideLane = 1; trainDropLeft = 0; jumpTotal = 0.78; jumpBaseHeight = 78;
+        magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0; hoverboardCharges = 0; hoverboardLeft = 0;
         starGuard = starAid; nextGuard = 7000; nextStrike = 4400;
         starFlash = 0; damageFlash = 0;
         introElapsed = 0;
@@ -924,6 +1260,8 @@
         active = false;
         introFinished = false;
         introElapsed = 0;
+        trainRideLeft = 0; trainDropLeft = 0; magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0;
+        hoverboardCharges = 0; hoverboardLeft = 0; slidePose = 0;
         unbindControls();
         resetArrays();
         stopMusic();
