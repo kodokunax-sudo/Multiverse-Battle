@@ -8,9 +8,10 @@
     var spawnClock = 0, trackOffset = 0, distance = 0, coinCount = 0;
     var starAid = false, starGuard = false, nextGuard = 0, nextStrike = 0;
     var starFlash = 0, damageFlash = 0, callback = null, music = null;
+    var musicKeepAlive = false;
     var retryBound = false, reduced = false, lastHud = -1;
     var pointerStart = null, oldTouchAction = "";
-    var DURATION = 40000;
+    var DURATION = 116000;
     var LANE_COUNT = 3;
 
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -37,7 +38,7 @@
         retryBound = false;
     }
     function retryMusic() {
-        if (!active || !music || !musicAllowed()) return;
+        if ((!active && !musicKeepAlive) || !music || !musicAllowed()) return;
         try {
             var p = music.play();
             if (p && p.then) p.then(removeMusicRetry).catch(function () {});
@@ -46,12 +47,16 @@
     }
     function stopMusic() {
         removeMusicRetry();
+        musicKeepAlive = false;
+        window.__mbLivingStoneChaseMusicPersistent = false;
         if (!music) return;
         try { music.pause(); music.currentTime = 0; music.removeAttribute("src"); music.load(); } catch (e) {}
         music = null;
     }
     function startMusic() {
         stopMusic();
+        musicKeepAlive = false;
+        window.__mbLivingStoneChaseMusicPersistent = false;
         if (!musicAllowed()) return;
         try {
             if (typeof stopAllMusic === "function") stopAllMusic();
@@ -449,9 +454,46 @@
             c.fillStyle = "#8b7355"; c.beginPath(); c.arc(200, 160, 28, 0, Math.PI*2); c.fill();
         }
 
-        // Runner shadow and the original heart model. The spared Waystar is drawn
-        // by the real boss renderer immediately beneath the heart, as the ride.
+        // The heart rides on the actual spared Waystar. Draw the vehicle first,
+        // then the heart, so the player visibly sits on the star instead of beside it.
         var px = livingStonePlayer.x, py = livingStonePlayer.y;
+        if (starAid && typeof window.MBDrawWaystarCompanion === "function") {
+            c.save();
+            var ridePulse = 1 + Math.sin(now / 92) * 0.08;
+            c.translate(px, py + 18);
+            c.globalAlpha = 0.78;
+            c.fillStyle = "rgba(105,205,255,.20)";
+            c.shadowColor = "#9beaff";
+            c.shadowBlur = reduced ? 0 : 22;
+            c.beginPath();
+            c.ellipse(0, 16, 45 * ridePulse, 17 * ridePulse, 0, 0, Math.PI * 2);
+            c.fill();
+            c.shadowBlur = 0;
+            for (var orbit = 0; orbit < 3; orbit++) {
+                c.save();
+                c.rotate(now / (650 + orbit * 190) + orbit * 1.9);
+                c.strokeStyle = orbit === 1 ? "rgba(255,224,139,.86)" : "rgba(135,226,255,.66)";
+                c.lineWidth = orbit === 1 ? 2 : 1.2;
+                c.beginPath();
+                c.ellipse(0, 6, 37 + orbit * 5, 10 + orbit * 2, 0, 0, Math.PI * 2);
+                c.stroke();
+                c.restore();
+            }
+            for (var trail = 0; trail < (reduced ? 4 : 9); trail++) {
+                var side = trail % 2 ? 1 : -1;
+                var offset = Math.floor(trail / 2);
+                var drift = Math.sin(now / 115 + trail * 1.7) * 8;
+                c.strokeStyle = trail % 3 === 0 ? "rgba(255,230,153,.72)" : "rgba(127,215,255,.62)";
+                c.lineWidth = 1 + (trail % 3) * 0.45;
+                c.beginPath();
+                c.moveTo(side * (13 + offset * 4), 18 + offset * 3);
+                c.quadraticCurveTo(side * (27 + offset * 7) + drift, 43 + offset * 6,
+                    side * (18 + offset * 10) + drift, 72 + offset * 8);
+                c.stroke();
+            }
+            c.restore();
+            window.MBDrawWaystarCompanion(px + Math.sin(now / 170) * 2, py + 24, 34);
+        }
         c.save();
         c.globalAlpha = jumpLeft > 0 ? 0.24 : 0.42;
         c.fillStyle = "#05080b";
@@ -465,7 +507,9 @@
                     c.scale(1.18, 0.56);
                     c.translate(-px, -py);
                 }
-                drawLivingStonePlayer();
+                if (starAid) window.__mbLivingStoneStarMounted = true;
+                try { drawLivingStonePlayer(); }
+                finally { if (starAid) window.__mbLivingStoneStarMounted = false; }
                 c.restore();
             } catch (e) { try { c.restore(); } catch (_e) {} }
         } else {
@@ -489,19 +533,21 @@
 
         // Timer, progress and small coin counter.
         var remain = Math.max(0, DURATION - elapsed);
-        var sec = Math.floor(remain / 1000), cs = Math.floor(remain % 1000 / 10);
+        var totalSec = Math.floor(remain / 1000);
+        var min = Math.floor(totalSec / 60), sec = totalSec % 60;
+        var cs = Math.floor(remain % 1000 / 10);
         c.save();
         c.fillStyle = "rgba(8,13,19,.82)"; c.fillRect(108, 12, 184, 34);
         c.strokeStyle = starAid ? "#f2cf70" : "#bd8060"; c.lineWidth = 1.5; c.strokeRect(108, 12, 184, 34);
         c.textAlign = "center"; c.textBaseline = "middle";
         c.fillStyle = "#ffe7bd"; c.font = "bold 16px monospace";
-        c.fillText(String(sec).padStart(2, "0") + ":" + String(cs).padStart(2, "0"), 200, 29);
+        c.fillText(String(min).padStart(2, "0") + ":" + String(sec).padStart(2, "0") + ":" + String(cs).padStart(2, "0"), 200, 29);
         c.fillStyle = "rgba(0,0,0,.55)"; c.fillRect(108, 51, 184, 5);
         c.fillStyle = starAid ? "#f7cf70" : "#ee8056"; c.fillRect(108, 51, 184 * (elapsed / DURATION), 5);
         c.textAlign = "left"; c.font = "bold 11px monospace"; c.fillStyle = "#ffe7b0";
         c.fillText("✦ " + coinCount, 14, 27);
         c.textAlign = "right"; c.fillStyle = "#e5d8cc";
-        c.fillText(starAid ? "ЗВЕЗДА ЗАЩИЩАЕТ" : "ЖИВОЙ КАМЕНЬ ДОГОНЯЕТ", 386, 27);
+        c.fillText(starAid ? "ЕДЕШЬ НА ЗВЕЗДЕ" : "ЖИВОЙ КАМЕНЬ ДОГОНЯЕТ", 386, 27);
         c.textAlign = "center"; c.font = "bold 10px monospace"; c.fillStyle = "rgba(255,255,255,.82)";
         c.fillText("СВАЙПЫ • ← → ПОЛОСА • ↑ ПРЫЖОК • ↓ ПОДКАТ", 200, 486);
         c.restore();
@@ -518,7 +564,12 @@
         active = false;
         unbindControls();
         resetArrays();
-        stopMusic();
+        if (starAid && music && musicAllowed()) {
+            musicKeepAlive = true;
+            window.__mbLivingStoneChaseMusicPersistent = true;
+        } else {
+            stopMusic();
+        }
         window.__mbLivingStoneChaseActive = false;
         window.__mbLivingStoneChaseStarAid = false;
         var wasSuperMode = superMode;
@@ -543,7 +594,7 @@
             try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
         }
         var done = callback; callback = null;
-        console.log("[LS CHASE] 40-second runner complete; transition to phase 2. Coins:", coinCount);
+        console.log("[LS CHASE] 116-second runner complete; transition to phase 2. Coins:", coinCount);
         if (typeof done === "function") {
             try { done(); } catch (e) { console.error("[LS CHASE] phase transition error", e); }
         }
@@ -602,13 +653,13 @@
             ? (starAid ? "ПОГОНЯ • ПРАЙМ И ЗВЕЗДА" : "ПОГОНЯ • ЖИВОЙ КАМЕНЬ ПРАЙМ")
             : (starAid ? "ПОГОНЯ • ЖИВОЙ КАМЕНЬ И ЗВЕЗДА" : "ПОГОНЯ • ЖИВОЙ КАМЕНЬ");
         var timer = document.getElementById("arenaTimer");
-        if (timer) timer.textContent = "00:40";
+        if (timer) timer.textContent = "01:56";
         active = true;
         console.log("[LS CHASE] 3-lane runner started; Waystar aid:", starAid);
         return true;
     }
     function stop() {
-        if (!active) return;
+        if (!active && !music) return;
         active = false;
         unbindControls();
         resetArrays();
