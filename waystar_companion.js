@@ -2,7 +2,7 @@
    The existing slotData.waystarOwesDebt value remains the sole mercy source. */
 (function () {
     "use strict";
-    var active=false, frame=0, strikeTimer=145, guardCooldown=0;
+    var active=false, supportRequested=false, frame=0, strikeTimer=95, guardCooldown=0;
     var guardFlash=0, strikeFlash=0, supportX=0, supportY=0;
 
     function wasSpared() {
@@ -12,15 +12,25 @@
         } catch(e) { return false; }
     }
     function eligible() {
-        if (!wasSpared() || typeof livingStoneActive==="undefined" || !livingStoneActive ||
+        if (!supportRequested || !wasSpared() ||
+            typeof livingStoneActive==="undefined" || !livingStoneActive ||
             livingStoneState!=="phase2" ||
             (typeof finalSceneActive!=="undefined" && finalSceneActive)) return false;
-        // The star appears as the chase vehicle first. This companion support
-        // activates only after the chase, during Living Stone Prime's second phase.
+        // Activation is explicitly requested by the end-of-chase transition.
+        // Only pause the companion while Prime's separate green-heart mode is active.
         if (window.livingStoneSuperActive!==true) return false;
         return window.__mbLS2AfterChase===true &&
             window.__mbLS2GreenPhase==="normal" &&
             window.__mbLivingStoneChaseActive!==true;
+    }
+    function startSupport() {
+        if (!wasSpared()) return false;
+        supportRequested=true;
+        active=false;
+        frame=0;
+        strikeTimer=95;
+        guardCooldown=0;
+        return true;
     }
     function announce(message,color,life) {
         if (typeof spawnLivingStoneText==="function")
@@ -41,7 +51,7 @@
     function strike() {
         if (!eligible() || typeof livingStoneBoss==="undefined" || !livingStoneBoss) return;
         var maxHpValue=maxBossHp();
-        var damage=Math.max(1,Math.floor(maxHpValue*(window.livingStoneSuperActive===true?0.0045:0.006)));
+        var damage=Math.max(1,Math.floor(maxHpValue*(window.livingStoneSuperActive===true?0.012:0.015)));
         if (typeof damageLivingStone==="function") damageLivingStone(damage);
         else if (typeof window.MBLivingStoneSuperDamage==="function") window.MBLivingStoneSuperDamage(damage);
         else return;
@@ -58,7 +68,7 @@
             return;
         }
         if (!active) {
-            active=true; frame=0; strikeTimer=145; guardCooldown=240;
+            active=true; frame=0; strikeTimer=95; guardCooldown=0;
             supportX=Number(livingStonePlayer.x)||200;
             supportY=Number(livingStonePlayer.y)||400;
             announce("ПУТЕВОДНАЯ ЗВЕЗДА: Я ОСТАНУСЬ И ПОМОГУ ТЕБЕ!","#bcefff",105);
@@ -75,7 +85,7 @@
             supportX+=(tx-supportX)*0.13;
             supportY+=(ty-supportY)*0.11;
         }
-        if (strikeTimer<=0) { strikeTimer=365; strike(); }
+        if (strikeTimer<=0) { strikeTimer=300; strike(); }
     }
     function tryProtect() {
         if (!eligible() || guardCooldown>0) return false;
@@ -115,10 +125,11 @@
         window.MBDrawWaystarCompanion(sx,sy,23);
     }
     function stop() {
-        active=false; frame=0; guardFlash=0; strikeFlash=0;
-        strikeTimer=145; guardCooldown=0;
+        active=false; supportRequested=false; frame=0; guardFlash=0; strikeFlash=0;
+        strikeTimer=95; guardCooldown=0;
     }
     window.MBHasWaystarCompanion=wasSpared;
+    window.MBStartWaystarCompanionSupport=startSupport;
     window.MBUpdateWaystarCompanion=update;
     window.MBDrawWaystarCompanionSupport=draw;
     window.MBWaystarTryProtect=tryProtect;
