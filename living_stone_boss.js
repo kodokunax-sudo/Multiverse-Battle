@@ -373,6 +373,12 @@ function stopLivingStoneFight() {
     if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("living_stone", "abandoned");
     if (typeof window.MBEndBossGraphicsModeForFight === "function") window.MBEndBossGraphicsModeForFight();
     livingStoneActive = false;
+    if (typeof window.MBStopWaystarCompanion === "function") {
+        try { window.MBStopWaystarCompanion(); } catch(e) {}
+    }
+    if (typeof window.MBStopLivingStoneChaseMusic === "function") {
+        try { window.MBStopLivingStoneChaseMusic(); } catch(e) {}
+    }
     
     if (typeof resetAllSupers === 'function') {
         try { resetAllSupers(); } catch(e) {}
@@ -649,6 +655,8 @@ function livingStoneShoot() {
 function livingStoneSpawnAttack() {
     var type = livingStoneAttackType;
     var isPhase2 = (livingStoneState === "phase2");
+    var isPrimeAfterChase = typeof window !== "undefined" &&
+        window.livingStoneSuperActive === true && window.__mbLS2AfterChase === true;
     var speedMult = (isPhase2 ? 1.4 : 1.0) * lsSpeedMult;
     var dmgMult = isPhase2 ? 1.3 : 1.0;
     
@@ -842,6 +850,59 @@ function livingStoneSpawnAttack() {
                 vy: (2.8 + Math.random() * 1.0) * speedMult,
                 size: 12, rotation: 0, rotSpeed: 0.08, damage: Math.floor(7 * dmgMult)
             });
+        }
+    } else if (type === 13 && isPhase2 && isPrimeAfterChase) {
+        // CROSS FRACTURE: twin stone walls with a readable safe gap.
+        var gapY = Math.max(82, Math.min(418, livingStonePlayer.y + (livingStonePlayer.y < 250 ? 28 : -28)));
+        var gapX = Math.max(75, Math.min(325, livingStonePlayer.x + (livingStonePlayer.x < 200 ? 58 : -58)));
+        for (var wy = 34; wy <= 466; wy += 43) {
+            if (Math.abs(wy - gapY) < 54) continue;
+            livingStoneAttacks.push({
+                type: "rock", x: -24, y: wy, vx: 4.0 * speedMult, vy: 0,
+                size: 16, rotation: 0, rotSpeed: 0.07, damage: Math.floor(10 * dmgMult)
+            });
+            livingStoneAttacks.push({
+                type: "rock", x: 424, y: wy, vx: -4.0 * speedMult, vy: 0,
+                size: 16, rotation: 0, rotSpeed: -0.07, damage: Math.floor(10 * dmgMult)
+            });
+        }
+        for (var wx = 28; wx <= 372; wx += 48) {
+            if (Math.abs(wx - gapX) < 61) continue;
+            livingStoneAttacks.push({
+                type: "falling_star", x: wx, y: -45 - (wx % 3) * 18,
+                vx: (gapX - wx) * 0.008, vy: 3.2 * speedMult,
+                size: 9, rotation: 0, rotSpeed: 0.06, damage: Math.floor(8 * dmgMult),
+                life: 230, trail: [], color: "#b9f6ff"
+            });
+        }
+    } else if (type === 14 && isPhase2 && isPrimeAfterChase) {
+        // METEOR HUNT: falling stars lead the player's last position.
+        var predictedX = Math.max(34, Math.min(366, livingStonePlayer.x + (livingStonePlayer.x - livingStoneBoss.x) * 0.34));
+        for (var meteor = 0; meteor < 7; meteor++) {
+            var mx = Math.max(18, Math.min(382, predictedX + (meteor - 3) * 34 + (Math.random() - 0.5) * 18));
+            livingStoneAttacks.push({
+                type: "falling_star", x: mx, y: -34 - meteor * 54,
+                vx: (livingStonePlayer.x - mx) * 0.006 + (Math.random() - 0.5) * 0.22,
+                vy: (3.8 + Math.random() * 0.55) * speedMult,
+                size: 10 + Math.random() * 3, rotation: Math.random() * Math.PI * 2,
+                rotSpeed: 0.08, damage: Math.floor(8 * dmgMult), life: 260,
+                trail: [], color: meteor % 2 ? "#9deeff" : "#ffe0a0"
+            });
+        }
+    } else if (type === 15 && isPhase2 && isPrimeAfterChase) {
+        // FAULTLINE: staggered spike rows leave one shifting corridor.
+        var firstGap = Math.max(1, Math.min(6, Math.round(livingStonePlayer.x / 52)));
+        for (var row = 0; row < 2; row++) {
+            var gap = Math.max(1, Math.min(6, firstGap + (row === 0 ? 0 : (livingStonePlayer.x < 200 ? 1 : -1))));
+            for (var spikeIndex = 0; spikeIndex < 8; spikeIndex++) {
+                if (spikeIndex === gap) continue;
+                livingStoneAttacks.push({
+                    type: "spike", x: 26 + spikeIndex * 49, y: 500, height: 0,
+                    maxHeight: 62 + Math.random() * 28,
+                    warningTimer: Math.floor(24 / lsSpeedMult) + row * 32,
+                    damage: Math.floor(11 * dmgMult), color: row === 0 ? "#5a4030" : "#9a5734"
+                });
+            }
         }
     }
 }
@@ -2009,6 +2070,7 @@ function damageLivingStonePlayer(dmg) {
     if (typeof onTakabaDamageTaken === "function") {
         try { onTakabaDamageTaken(dmg); } catch(e) {}
     }
+    if (typeof window.MBWaystarTryProtect === "function" && window.MBWaystarTryProtect(dmg)) return;
     livingStonePlayerHp -= dmg;
     livingStoneInvulnTimer = 50;
     livingStoneShake = 12; livingStoneScreenFlash = 8; livingStoneScreenFlashColor = "#ff0000";
@@ -2171,6 +2233,10 @@ function livingStoneRenderLoop() {
         try { window.MBUpdateLivingStoneChase(performance.now()); }
         catch (e) { console.error("[LS PRIME CHASE] update error:", e); }
     }
+    if (typeof window.MBUpdateWaystarCompanion === "function") {
+        try { window.MBUpdateWaystarCompanion(); }
+        catch (e) { console.error("[WAYSTAR COMPANION] update error:", e); }
+    }
     if (qteCinematicActive) updateCinematic();
     updateMegaEffects();
     updateChainExplosions();
@@ -2200,19 +2266,24 @@ function livingStoneRenderLoop() {
         // ★ ФИКС: таймеры атак не идут при гароу-стопе ★
         if (!lsIsTimeStopped()) {
             livingStoneAttackTimer++;
-            var attackRate = Math.floor(((livingStoneState === "phase2") ? 30 : 45) / lsSpeedMult);
+            var primeAfterChase = typeof window !== "undefined" &&
+                window.livingStoneSuperActive === true && window.__mbLS2AfterChase === true;
+            var attackRate = Math.floor(((livingStoneState === "phase2")
+                ? (primeAfterChase ? 22 : 30) : 45) / lsSpeedMult);
             if (livingStoneAttackTimer >= attackRate) { livingStoneAttackTimer = 0; livingStoneSpawnAttack(); }
             livingStoneTypeTimer--;
             if (livingStoneTypeTimer <= 0) {
                 if (livingStoneState === "phase2") {
                     var allowedP2 = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                    if (primeAfterChase) allowedP2.push(13, 14, 15);
                     livingStoneAttackType = allowedP2[Math.floor(Math.random() * allowedP2.length)];
-                    livingStoneTypeTimer = Math.floor((200 + Math.random() * 200) / lsSpeedMult);
+                    livingStoneTypeTimer = Math.floor(((primeAfterChase ? 145 : 200) +
+                        Math.random() * (primeAfterChase ? 115 : 200)) / lsSpeedMult);
                 } else {
                     livingStoneAttackType = Math.floor(Math.random() * 10);
                     livingStoneTypeTimer = Math.floor((250 + Math.random() * 250) / lsSpeedMult);
                 }
-                var typeNames = ["КАМНЕПАД", "КОЛЬЦО", "ОБЛОМКИ", "ГОМИНГ", "ЛАЗЕР", "ВЕЕР", "ДОЖДЬ КАМНЕЙ", "СПИРАЛЬ", "ЧЁРНАЯ ДЫРА", "НЕБЕСНЫЙ ЛИВЕНЬ", "РАЗЛОМ", "СТЕНА", "МЕГА-ЛАЗЕР"];
+                var typeNames = ["КАМНЕПАД", "КОЛЬЦО", "ОБЛОМКИ", "ГОМИНГ", "ЛАЗЕР", "ВЕЕР", "ДОЖДЬ КАМНЕЙ", "СПИРАЛЬ", "ЧЁРНАЯ ДЫРА", "НЕБЕСНЫЙ ЛИВЕНЬ", "РАЗЛОМ", "СТЕНА", "МЕГА-ЛАЗЕР", "ПЕРЕКРЁСТНЫЙ РАЗЛОМ", "МЕТЕОРНЫЙ ДОЖДЬ", "РАЗЛОМНЫЕ ШИПЫ"];
                 spawnLivingStoneText(200, 60, typeNames[livingStoneAttackType], "#888888", 60);
             }
         }
@@ -2699,6 +2770,9 @@ function livingStoneRenderLoop() {
     if (qteBossArm && qteCinematicPhase === "grabbed") drawBossArm();
     if (finalHeartVisible && (!isQTE || livingStoneState === "qte_punch" || livingStoneState === "qte_finish" || 
         livingStoneState === "qte_cinematic" || finalSceneActive)) {
+        if (livingStoneState === "phase2" && typeof window.MBDrawWaystarCompanionSupport === "function") {
+            try { window.MBDrawWaystarCompanionSupport(ctx); } catch(e) {}
+        }
         drawLivingStonePlayer();
         if (typeof window !== "undefined" && window.livingStoneSuperActive &&
             window.__mbLS2GreenPhase === "green" && typeof window.MBDrawLivingStoneSuperShield === "function") {
@@ -3274,9 +3348,10 @@ function drawLivingStoneBoss() {
 function drawLivingStonePlayer() {
     var p = livingStonePlayer;
     if (livingStoneInvulnTimer > 0 && Math.floor(livingStoneInvulnTimer / 4) % 2 === 0) return;
-    // During the shared Prime chase, keep drawing the real saved Waystar companion.
+    // During the shared Prime chase, draw the real Star only when it is not mounted as a vehicle.
     if (livingStoneState === "chase" && typeof window !== "undefined" &&
         window.__mbLivingStoneChaseStarAid === true &&
+        window.__mbLivingStoneStarMounted !== true &&
         typeof window.MBDrawWaystarCompanion === "function") {
         try {
             window.MBDrawWaystarCompanion(p.x + Math.sin(performance.now() / 170) * 3, p.y + 25, 22);
