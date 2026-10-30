@@ -676,7 +676,7 @@
         if (requestedSuperMode && !window.livingStoneSuperActive) return false;
 
         superMode = requestedSuperMode;
-        starAid = debt();
+        starAid = options.starAid === true || debt();
         chaseLives = 3; chaseFailed = false; chaseFailTimer = 0;
         callback = typeof options.onComplete === "function" ? options.onComplete : null;
         reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
