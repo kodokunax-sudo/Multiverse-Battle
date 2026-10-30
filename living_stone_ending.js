@@ -482,7 +482,13 @@
         c.strokeStyle = accent || "#d5e9ff";
         c.lineWidth = 2;
         c.beginPath();
-        c.roundRect(x - width / 2, y - h / 2, width, h, 10);
+        var left = x - width / 2, top = y - h / 2, right = x + width / 2, bottom = y + h / 2, radius = 10;
+        c.moveTo(left + radius, top);
+        c.lineTo(right - radius, top); c.quadraticCurveTo(right, top, right, top + radius);
+        c.lineTo(right, bottom - radius); c.quadraticCurveTo(right, bottom, right - radius, bottom);
+        c.lineTo(left + radius, bottom); c.quadraticCurveTo(left, bottom, left, bottom - radius);
+        c.lineTo(left, top + radius); c.quadraticCurveTo(left, top, left + radius, top);
+        c.closePath();
         c.fill(); c.stroke();
         c.fillStyle = "#ffffff";
         c.font = "900 12px Arial,sans-serif";
