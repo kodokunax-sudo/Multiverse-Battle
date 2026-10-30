@@ -65,33 +65,54 @@
         try {
             if (typeof stopAllMusic === "function") stopAllMusic();
         } catch (e) {}
-        try {
-            audio = new Audio("music/помощь звезды.mp3");
-            audio.volume = 0.82;
-            audio.loop = false;
-            var promise = audio.play();
-            if (promise && typeof promise.catch === "function") {
-                promise.catch(function () {
-                    if (audioRetryBound) return;
-                    audioRetryBound = true;
-                    var retry = function () {
-                        if (audio) {
-                            try {
-                                var p = audio.play();
-                                if (p && typeof p.catch === "function") p.catch(function () {});
-                            } catch (e) {}
-                        }
-                        window.removeEventListener("pointerdown", retry, true);
-                        window.removeEventListener("keydown", retry, true);
-                        audioRetryBound = false;
-                    };
-                    window.addEventListener("pointerdown", retry, true);
-                    window.addEventListener("keydown", retry, true);
-                });
+
+        // Старый код погони использует этот файл напрямую. Если файла нет в сборке,
+        // переключаемся на подтверждённый звёздный трек из музыкального реестра.
+        var sources = ["music/помощь звезды.mp3", "music/Звезда.mp3"];
+        var sourceIndex = 0;
+        function tryNextSource() {
+            if (sourceIndex >= sources.length) {
+                audio = null;
+                return;
             }
-        } catch (e) {
-            audio = null;
+            var candidate = null;
+            try {
+                candidate = new Audio(sources[sourceIndex++]);
+                audio = candidate;
+                candidate.volume = 0.82;
+                candidate.loop = false;
+                candidate.onerror = function () {
+                    if (audio === candidate) {
+                        audio = null;
+                        tryNextSource();
+                    }
+                };
+                var promise = candidate.play();
+                if (promise && typeof promise.catch === "function") {
+                    promise.catch(function () {
+                        if (audioRetryBound) return;
+                        audioRetryBound = true;
+                        var retry = function () {
+                            if (audio) {
+                                try {
+                                    var p = audio.play();
+                                    if (p && typeof p.catch === "function") p.catch(function () {});
+                                } catch (e) {}
+                            }
+                            window.removeEventListener("pointerdown", retry, true);
+                            window.removeEventListener("keydown", retry, true);
+                            audioRetryBound = false;
+                        };
+                        window.addEventListener("pointerdown", retry, true);
+                        window.addEventListener("keydown", retry, true);
+                    });
+                }
+            } catch (e) {
+                if (audio === candidate) audio = null;
+                tryNextSource();
+            }
         }
+        tryNextSource();
     }
 
     function moveLane(delta) {
