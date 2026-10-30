@@ -136,7 +136,7 @@
     }
     function update(now) {
         if (!active) return;
-        if (!livingStoneActive) { stop(false); return; }
+        if (!livingStoneActive || livingStoneState !== "chase") { stop(); return; }
         now = Number(now) || clock();
         elapsed = clamp(now-startedAt,0,DURATION);
         var dt = clamp((now-lastAt)/(1000/60),.25,3);
