@@ -811,7 +811,7 @@ function runDandyBossEffect(ctxB, eff, category) {
     if (name === "СВЯТОЕ БЛАГОСЛОВЕНИЕ") { healPlayer(.50);flash(9,"#ffffcc");wave("#ffffcc",8);return; }
     if (name === "ПОТЕРЯ 25% HP") { damagePlayer(.25);flash(12,"#ff0000");shake(15);return; }
     if (name === "РЕГЕНЕРАЦИЯ (5с)" || name === "РЕГЕН БОРОСА (5с)") {
-        var regenMs=name==="РЕГЕН БОРОСА (5с)"?1000:500, regenAmount=name==="РЕГЕН БОРОСА (5с)"?.06:.03, ticks=Math.floor(5000/regenMs), done=0;
+        var regenMs=name==="РЕГЕН БОРОСА (5с)"?1000:500, regenAmount=name==="РЕГЕН БОРОСА (5с)" ? 0.06 : 0.03, ticks=Math.floor(5000/regenMs), done=0;
         var timer=setInterval(function(){var now=(typeof getBossContext==="function")?getBossContext():null;if(!now||now.type!==ctxB.type||done>=ticks){clearInterval(timer);return;}healPlayer(regenAmount);done++;},regenMs);
         flash(6,"#66ff66");return;
     }
