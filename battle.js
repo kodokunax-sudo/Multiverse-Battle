@@ -482,6 +482,22 @@ function updateTakabaConfidenceDisplay() {
 }
 
 // ★★★ ФИКС: Такаба замораживает игрока ★★★
+function getDrinkTeaEmergencySpeedMultiplier() {
+    var mainCard = null;
+    if (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMainCard) {
+        mainCard = window.__mbBossTestMainCard;
+    } else if (typeof team !== "undefined" && Array.isArray(team) &&
+        typeof myCards !== "undefined" && Array.isArray(myCards) &&
+        typeof mainCardIndex === "number" && mainCardIndex >= 0 && mainCardIndex < team.length) {
+        mainCard = myCards[team[mainCardIndex]];
+    }
+    if (!mainCard || mainCard.name !== "DrinkTea2Win") return 1;
+    var hp = Number(arenaHP);
+    var maxHp = Number(arenaMaxHP);
+    if (!Number.isFinite(hp) || !Number.isFinite(maxHp) || maxHp <= 0) return 1;
+    return hp / maxHp <= 0.30 ? 1.35 : 1;
+}
+
 function moveHeart() {
     if (typeof _superState !== 'undefined' && (_superState.dioTimeStopWindupUntil || 0) > performance.now()) return;
     if (typeof _superState !== 'undefined' && _superState.takabaTimeStop) return;
@@ -523,7 +539,17 @@ function moveHeart() {
         heartRotation += 0.15;
         var len2 = Math.sqrt(mx * mx + my * my);
         if (len2 > 1) { mx /= len2; my /= len2; }
-        var activeHeartSpeed = heartSpeed;
+        var emergencySpeedMult = getDrinkTeaEmergencySpeedMultiplier();
+        var activeHeartSpeed = heartSpeed * emergencySpeedMult;
+        if (emergencySpeedMult > 1) {
+            window._drinkTeaEmergencySpeedActive = true;
+            var emergencySpeedDisplay = document.getElementById("arenaSpeedDisplay");
+            if (emergencySpeedDisplay) emergencySpeedDisplay.innerText = (heartSpeed * emergencySpeedMult).toFixed(2) + " (+35%)";
+        } else {
+            window._drinkTeaEmergencySpeedActive = false;
+            var normalSpeedDisplay = document.getElementById("arenaSpeedDisplay");
+            if (normalSpeedDisplay) normalSpeedDisplay.innerText = heartSpeed.toFixed(2);
+        }
         if (arenaExtendedState && arenaExtendedState.type === 18 && performance.now() < Number(arenaExtendedState.gearSlowUntil || 0)) activeHeartSpeed *= 0.30;
         if (arenaExtendedState && arenaExtendedState.type === 19 && performance.now() < Number(arenaExtendedState.vineSlowUntil || 0)) activeHeartSpeed *= 0.58;
         heart.x += mx * activeHeartSpeed;
