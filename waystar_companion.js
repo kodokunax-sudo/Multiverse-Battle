@@ -13,7 +13,7 @@
     }
     function eligible() {
         if (!wasSpared() || typeof livingStoneActive==="undefined" || !livingStoneActive ||
-            livingStoneState!=="phase2" ||
+            (livingStoneState!=="phase1" && livingStoneState!=="phase2") ||
             (typeof finalSceneActive!=="undefined" && finalSceneActive)) return false;
         // This ally belongs to Living Stone Prime only. She follows the player
         // in both combat parts, then becomes the ride during the chase itself.
