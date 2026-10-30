@@ -5,6 +5,8 @@
 // ============================================================
 
 let livingStoneActive = false;
+let livingStoneOpeningIntroFrame = 0;
+const LIVING_STONE_OPENING_INTRO_FRAMES = 390;
 let livingStoneState = "phase1";
 let livingStoneBoss = { x: 200, y: 100, size: 40, vx: 0.8, rotation: 0 };
 let livingStonePlayer = { x: 200, y: 400 };
@@ -292,11 +294,12 @@ function startLivingStoneFight(graphicsModeChoice) {
 function _startLivingStoneFightInternal() {
     if (typeof window.MBUniqueBossFightStart === "function") window.MBUniqueBossFightStart("living_stone");
     livingStoneActive = true;
-    livingStoneState = "phase1";
+    livingStoneState = "opening_intro";
+    livingStoneOpeningIntroFrame = 0;
     livingStoneBossMaxHp = 78400;
     livingStoneBossHp = livingStoneBossMaxHp;
-    livingStoneBoss = { x: 200, y: 100, size: 40, vx: 0.8, rotation: 0 };
-    livingStonePlayer = { x: 200, y: 400 };
+    livingStoneBoss = { x: 200, y: 490, size: 10, vx: 0, rotation: 0 };
+    livingStonePlayer = { x: 200, y: 535 };
     livingStonePlayerHp = 150;
     livingStonePlayerMaxHp = 150;
     livingStoneInvulnTimer = 0;
@@ -364,8 +367,6 @@ function _startLivingStoneFightInternal() {
         playArenaSound(60, 'sawtooth', 1.5, 0.2);
         setTimeout(function() { playArenaSound(50, 'sawtooth', 1.5, 0.15); }, 300);
     }
-    spawnLivingStoneText(200, 220, "ЖИВОЙ КАМЕНЬ", "#888888", 120);
-    spawnLivingStoneText(200, 260, "Попробуй меня пробить!", "#aaaaaa", 120);
 }
 
 function stopLivingStoneFight() {
@@ -408,6 +409,11 @@ function stopLivingStoneFight() {
 
 function handleLSTouchStart(ev) {
     if (!livingStoneActive) return;
+    if (livingStoneState === "opening_intro") {
+        ev.preventDefault();
+        finishLivingStoneOpeningIntro();
+        return;
+    }
     if (livingStoneState === "qte_punch" && qteActive) {
         ev.preventDefault();
         for (var i = 0; i < ev.touches.length; i++) handleQTEClick(ev.touches[i]);
@@ -843,7 +849,7 @@ function livingStoneSpawnAttack() {
 // ========== ОБНОВЛЕНИЯ ==========
 // ★★★ ФИКС: используем lsSpeedMult как множитель, garouTimeStop блокирует движение ★★★
 function updateLivingStonePlayer() {
-    if (livingStoneState === "restore" || livingStoneState === "qte_intro" || 
+    if (livingStoneState === "opening_intro" || livingStoneState === "restore" || livingStoneState === "qte_intro" || 
         livingStoneState === "qte_cinematic" || livingStoneState === "qte_punch" || 
         livingStoneState === "qte_finish" || finalSceneActive) return;
     if (typeof window !== "undefined" && window.livingStoneSuperActive) {
@@ -1095,6 +1101,120 @@ function updateLSActiveMod() {
     }
 }
 
+// ========== ПЕРВАЯ ВСТРЕЧА С ЖИВЫМ КАМНЕМ ==========
+function updateLivingStoneOpeningIntro() {
+    if (livingStoneState !== "opening_intro") return;
+    livingStoneOpeningIntroFrame++;
+    var frame = livingStoneOpeningIntroFrame;
+    var rise = Math.max(0, Math.min(1, frame / 112));
+    var riseEase = rise * rise * (3 - 2 * rise);
+
+    // Камень поднимается из-под земли, а затем замирает перед игроком.
+    livingStoneBoss.x = 200 + Math.sin(frame * 0.035) * (1 - riseEase) * 13;
+    livingStoneBoss.y = 490 - riseEase * 382;
+    livingStoneBoss.size = 10 + riseEase * 34;
+    livingStoneBoss.rotation = Math.sin(frame * 0.045) * (1 - riseEase) * 0.24;
+    livingStoneBoss.vx = 0;
+
+    var heartProgress = Math.max(0, Math.min(1, (frame - 105) / 95));
+    var heartEase = heartProgress * heartProgress * (3 - 2 * heartProgress);
+    livingStonePlayer.x = 200 + Math.sin(frame * 0.025) * 3;
+    livingStonePlayer.y = 535 - heartEase * 135;
+
+    if (frame === 108 && typeof playArenaSound === "function") {
+        playArenaSound(48, "sawtooth", 1.2, 0.18);
+    }
+    if (frame === 190 && typeof playArenaSound === "function") {
+        playArenaSound(76, "square", 0.65, 0.14);
+    }
+    if (frame >= LIVING_STONE_OPENING_INTRO_FRAMES) finishLivingStoneOpeningIntro();
+}
+
+function finishLivingStoneOpeningIntro() {
+    if (!livingStoneActive || livingStoneState !== "opening_intro") return;
+    livingStoneState = "phase1";
+    livingStoneOpeningIntroFrame = 0;
+    livingStoneBoss = { x: 200, y: 108, size: 40, vx: 0.8, rotation: 0 };
+    livingStonePlayer = { x: 200, y: 400 };
+    livingStoneAttackTimer = 0;
+    livingStoneShootTimer = 0;
+    livingStoneTypeTimer = 400;
+    spawnLivingStoneText(200, 225, "ЖИВОЙ КАМЕНЬ", "#dddddd", 105);
+    spawnLivingStoneText(200, 260, "ПОПРОБУЙ МЕНЯ ПРОБИТЬ!", "#ffb08a", 105);
+    if (typeof playArenaSound === "function") playArenaSound(92, "sawtooth", 0.45, 0.12);
+}
+
+function drawLivingStoneOpeningIntro() {
+    var frame = livingStoneOpeningIntroFrame;
+    var floorY = 432;
+    var rise = Math.max(0, Math.min(1, frame / 112));
+
+    // Земля и расходящиеся трещины.
+    var ground = ctx.createLinearGradient(0, floorY, 0, 500);
+    ground.addColorStop(0, "#34251a");
+    ground.addColorStop(1, "#090706");
+    ctx.fillStyle = ground;
+    ctx.fillRect(0, floorY, 400, 68);
+    ctx.strokeStyle = "rgba(170,119,75," + (0.28 + rise * 0.48) + ")";
+    ctx.lineWidth = 2;
+    for (var i = 0; i < 7; i++) {
+        var side = i % 2 === 0 ? -1 : 1;
+        var spread = 12 + i * 8 + rise * 22;
+        ctx.beginPath();
+        ctx.moveTo(200 + side * 3, floorY + 2);
+        ctx.lineTo(200 + side * spread, floorY + 9 + i * 3);
+        ctx.lineTo(200 + side * (spread + 8), floorY + 18 + i * 4);
+        ctx.stroke();
+    }
+
+    // Пыль над ареной.
+    var dustCount = lsMobileMode ? 7 : 13;
+    for (var d = 0; d < dustCount; d++) {
+        var dx = (d * 37 + Math.sin(frame * 0.025 + d) * 13 + 400) % 400;
+        var dy = (frame * (0.8 + (d % 3) * 0.22) + d * 41) % 430;
+        ctx.globalAlpha = 0.18 + (d % 4) * 0.08;
+        ctx.fillStyle = d % 3 === 0 ? "#d69b6b" : "#8b715b";
+        ctx.fillRect(dx, dy, d % 3 === 0 ? 3 : 2, d % 3 === 0 ? 3 : 2);
+    }
+    ctx.globalAlpha = 1;
+
+    // Подсветка из трещины и сам босс используют настоящую модель Камня.
+    if (frame > 60 && !lsMobileMode) {
+        var glow = ctx.createRadialGradient(200, floorY - 5, 2, 200, floorY - 5, 115 + rise * 35);
+        glow.addColorStop(0, "rgba(255,107,42," + (0.22 + Math.sin(frame * 0.08) * 0.05) + ")");
+        glow.addColorStop(1, "rgba(255,70,20,0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(65, 300, 270, 160);
+    }
+    if (frame > 8) drawLivingStoneBoss();
+    if (frame > 100) drawLivingStonePlayer();
+
+    // Кинематографические полосы и реплики.
+    ctx.fillStyle = "rgba(0,0,0,.62)";
+    ctx.fillRect(0, 0, 400, 28);
+    ctx.fillRect(0, 472, 400, 28);
+    var line = frame < 95
+        ? "ПОД НОГАМИ НАЧИНАЕТ ДРОЖАТЬ ЗЕМЛЯ..."
+        : frame < 190
+            ? "КАМЕНЬ ПРОСЫПАЕТСЯ."
+            : frame < 285
+                ? "ТЫ ВСЁ-ТАКИ ДОШЁЛ ДО МЕНЯ..."
+                : "ПОПРОБУЙ МЕНЯ ПРОБИТЬ!";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "900 12px Arial,sans-serif";
+    ctx.fillStyle = "#fff1e5";
+    ctx.shadowColor = "#d45b32";
+    ctx.shadowBlur = lsMobileMode ? 0 : 10;
+    ctx.fillText(line, 200, 452);
+    ctx.shadowBlur = 0;
+    ctx.font = "bold 9px Arial,sans-serif";
+    ctx.fillStyle = "rgba(255,225,205,.72)";
+    ctx.fillText("НАЖМИ, ЧТОБЫ ПРОПУСТИТЬ", 200, 486);
+    ctx.textAlign = "start";
+    ctx.textBaseline = "alphabetic";
+}
+
 // ========== СЦЕНА ВОССТАНОВЛЕНИЯ ==========
 function triggerRestoreScene() {
     livingStoneState = "restore";
@@ -1330,6 +1450,11 @@ function updateQTEBullets() {
 }
 
 function handleQTEClick(ev) {
+    if (livingStoneState === "opening_intro") {
+        if (ev && typeof ev.preventDefault === "function") ev.preventDefault();
+        finishLivingStoneOpeningIntro();
+        return;
+    }
     if (livingStoneState !== "qte_punch" || !qteActive) return;
     qteClicks++;
     qteBossDamageLevel = Math.min(1, qteClicks / qteClickTarget);
@@ -2023,6 +2148,7 @@ function livingStoneRenderLoop() {
         try { tickSupers(); } catch(e) { console.error("[LS] tickSupers error:", e); }
     }
     
+    if (livingStoneState === "opening_intro") updateLivingStoneOpeningIntro();
     updateLivingStonePlayer();
     updateLivingStoneBoss();
     if (qteCinematicActive) updateCinematic();
@@ -2148,6 +2274,13 @@ function livingStoneRenderLoop() {
         ctx.fillRect(bp.x, bp.y, bp.size * (bp.type === "rock" ? 2 : 1), bp.size * (bp.type === "rock" ? 2 : 1));
     }
     ctx.globalAlpha = 1;
+
+    if (livingStoneState === "opening_intro") {
+        drawLivingStoneOpeningIntro();
+        ctx.restore();
+        livingStoneAnimFrame = requestAnimationFrame(livingStoneRenderLoop);
+        return;
+    }
     
     if (!reduceBossEffects && livingStoneScreenFlash > 0) {
         ctx.globalAlpha = livingStoneScreenFlash / 30;
