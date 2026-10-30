@@ -286,6 +286,12 @@
             Number(_superState.markDmgReduction) > 1) {
             incoming = Math.max(1, Math.floor(incoming / _superState.markDmgReduction));
         }
+        if (typeof window.MBWaystarTryProtect==="function" && window.MBWaystarTryProtect(incoming)) {
+            ls2Invulnerable = 52; ls2HitFlash = 12;
+            if (typeof livingStoneInvulnTimer!=="undefined") livingStoneInvulnTimer=52;
+            ls2SetMessage("ПУТЕВОДНАЯ ЗВЕЗДА ПРИНЯЛА УДАР!", 58);
+            return;
+        }
         ls2PlayerHp = Math.max(0, ls2PlayerHp - incoming);
         ls2Invulnerable = 52; ls2HitFlash = 12;
         ls2SetMessage(ls2Phase === "green" ? "ЩИТ НЕ С ТОЙ СТОРОНЫ!" : "СНАРЯД ПОПАЛ! УВОРАЧИВАЙСЯ", 48);
@@ -981,7 +987,10 @@
             livingStoneBoss.x=200; livingStoneBoss.y=108; livingStoneBoss.vx=ls2ChaseStarAid?-1.25:1.15;
         }
         window.__mbLS2AfterChase = true;
-        // The separate Waystar companion module now owns post-chase support.
+        // Start the spared Waystar companion directly at the chase-to-phase-two transition.
+        if (ls2ChaseStarAid && typeof window.MBStartWaystarCompanionSupport==="function") {
+            window.MBStartWaystarCompanionSupport();
+        }
         ls2StarAssistActive = false;
         if (ls2ChaseStarAid) {
             ls2StarAssistActive = false; ls2StarAssistCooldown=300; ls2StarAssistFlash=40;
