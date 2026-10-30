@@ -554,7 +554,9 @@
     function asBossHit(damage, message) {
         if(typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") damage=window.MBBossTestModifyOutgoingDamage(damage,1);
         if (!asActive || asWinPending || asDefeatPending || asState !== "fight" || asState === "victory") return;
-        const isModerator = typeof mode !== "undefined" && mode === "moder";
+        const isModerator = typeof window.MBIsModeratorModeActive === "function"
+            ? window.MBIsModeratorModeActive()
+            : false;
         if (asUnbrokenSealIndex() >= 0 && !isModerator) {
             asText(200, 120, "ЗАЩИТА АКТИВНА — РАЗРУШЬ 3 ПЕЧАТИ!", "#d5a6ff", 40);
             asSound(120, "sawtooth", .12, .045);
@@ -562,14 +564,11 @@
         }
         let amount = Math.max(1, Math.floor(Number(damage) || 1));
         if (isModerator) {
-            // Only the Anti-Spiral fight gets a moderator one-hit kill.
-            amount = Math.max(1, Math.floor(Number(asBossHp) || Number(asBossMaxHp) || 1));
             asSeals.forEach(function (seal) {
                 if (!seal) return;
                 seal.hp = 0;
                 seal.broken = true;
             });
-            message = "ВАНШОТ МОДЕРА!";
         }
         asBossHp = Math.max(0, asBossHp - amount);
         asBossDamageFlash = 12;
@@ -1858,7 +1857,9 @@
                 }else{
                     let multiplier = asBossExposed>0 ? 2.45 : .42;
                     if(asPlayer.y<270) multiplier *= 1.25;
-                    const damage = Math.max(1,Math.floor(shot.damage*multiplier));
+                    const normalDamage = Math.max(1,Math.floor(shot.damage*multiplier));
+                    const moderatorBulletDamage = window.MBGetModeratorBulletDamage(asBossMaxHp);
+                    const damage = moderatorBulletDamage !== null ? moderatorBulletDamage : normalDamage;
                     asBossHit(damage,asBossExposed>0?"ЯДРО ПРОБИТО!":"БУР ПРОБИЛ ЗАЩИТУ");
                     if(asBossExposed>0)asShake=Math.max(asShake,9+shot.charge*8);
                 }
