@@ -1890,7 +1890,7 @@ const customCardTemplates = {
             ability: { type: "scaleWithWins", value: 0.01, desc: "+1% силы/волна" }, 
             desc: "Урон растёт на 1% за каждую победу. После смерти накопленный бонус сохраняется, только если в последних 5 победах команда ни разу не содержала Космического Гароу; если он участвовал хотя бы в одной из этих побед, бонус сбрасывается. После ребёрна бонус сбрасывается.",
             superAbility: { name: "SUPER: ПОТОК ВСЕЛЕННОЙ", desc: "Отматывает время на 2 секунды назад. Телепорт с неуязвимостью. Круто же, да?", passive: false },
-            masteryTitle: "Я скопирую всу", masteryTitleId: "mastery_character_819e38ce", masteryTitleIcon: "✦"
+            masteryTitle: "Я скопирую всё", masteryTitleId: "mastery_character_819e38ce", masteryTitleIcon: "✦"
         },
         { 
             name: "Сайтама", universe: "OPM", damage: 200, hp: 300, speed: 4.0, sellPrice: 1500, minRebirth: 3, 
@@ -1933,7 +1933,7 @@ const customCardTemplates = {
             ability: { type: "damageAura", value: 0.25, desc: "+25% урона" }, 
             desc: "Гарп в расцвете сил. +25% урона всей команде.",
             superAbility: { name: "SUPER: ГАЛАКТИЧЕСКИЙ УДАР", desc: "Заряжает Хаки 1.2 секунды, затем БА-БАХ! АоЕ взрыв, очистка атак и 5% урона боссу. После удара — бафф Хаки на 6 секунд. Правда, после этого у босса всего лишь шишка. А атака была такой зрелищной....", passive: false },
-            masteryTitle: "Дед до трамвы", masteryTitleId: "mastery_character_245ef0f3", masteryTitleIcon: "✦"
+            masteryTitle: "Дед до травмы", masteryTitleId: "mastery_character_245ef0f3", masteryTitleIcon: "✦"
         },
         { 
             name: "Им (Правитель)", universe: "One Piece", damage: 290, hp: 450, speed: 2.2, sellPrice: 3000, minRebirth: 5, 
@@ -1963,7 +1963,7 @@ const customCardTemplates = {
             statusAbility: { type: "bleed", value: 0.12, desc: "Кровотечение +12%" }, 
             desc: "Марк спустя 500 лет. +15% урона команде при битве с боссом, +12% урона через кровотечение.",
             superAbility: { name: "ПАССИВКА: НЕПОБЕДИМАЯ ВОЛЯ", desc: "Два анти-ваншота за арену! При смерти воскресает с 25% HP. Ну проще говоря - сюжетная броня!", passive: true },
-            masteryTitle: "Победю сильнейших, но отлетаю от бомжей", masteryTitleId: "mastery_character_f98dde87", masteryTitleIcon: "✦"
+            masteryTitle: "Побеждаю сильнейших, но отлетаю от бомжей", masteryTitleId: "mastery_character_f98dde87", masteryTitleIcon: "✦"
         },
         { 
             name: "Деку (100%)", universe: "MHA", damage: 280, hp: 450, speed: 3.6, sellPrice: 2800, minRebirth: 4, 
