@@ -8,7 +8,7 @@
     var spawnClock = 0, powerupClock = 0, roofSpawnClock = 0, trackOffset = 0, distance = 0, coinCount = 0, score = 0;
     var trainRideLeft = 0, trainRideLane = 1, trainDropLeft = 0, trainRideTotal = 4.6;
     var jumpTotal = 0.78, jumpBaseHeight = 78, slideTotal = 0.72, slidePose = 0;
-    var magnetLeft = 0, superJumpLeft = 0, jetpackLeft = 0, hoverboardCharges = 0, hoverboardLeft = 0;
+    var magnetLeft = 0, superJumpLeft = 0, jetpackLeft = 0, hoverboardCharges = 0, hoverboardLeft = 0, boardGuardLeft = 0;
     var starAid = false, starGuard = false, nextGuard = 0, nextStrike = 0;
     var chaseLives = 3, chaseFailed = false, chaseFailTimer = 0, combo = 0;
     var starFlash = 0, damageFlash = 0, callback = null, music = null;
@@ -167,8 +167,8 @@
     function jump() {
         if (jetpackLeft > 0) return;
         if (jumpLeft <= 0 && slideLeft <= 0) {
-            jumpTotal = superJumpLeft > 0 ? 1.08 : 0.78;
-            jumpBaseHeight = superJumpLeft > 0 ? 118 : 78;
+            jumpTotal = superJumpLeft > 0 ? 1.16 : 0.78;
+            jumpBaseHeight = superJumpLeft > 0 ? 132 : 78;
             jumpLeft = jumpTotal;
             if (typeof playArenaSound === "function") playArenaSound(420, "triangle", 0.06, 0.03);
         }
@@ -184,17 +184,17 @@
     function collectPowerup(item) {
         item.collected = true;
         if (item.type === "magnet") {
-            magnetLeft = Math.max(magnetLeft, 9);
-            message("ЗВЁЗДНЫЙ МАГНИТ! МОНЕТЫ ЛЕТЯТ К ТЕБЕ", "#ffe58a");
+            magnetLeft = Math.max(magnetLeft, 12);
+            message("МАГНИТ · 12 СЕК: ТЯНЕТ МОНЕТЫ СО ВСЕХ ПОЛОС, ОЧКИ ЗА МОНЕТЫ x3", "#ffe58a");
         } else if (item.type === "boots") {
-            superJumpLeft = Math.max(superJumpLeft, 10);
-            message("ПРЫЖКОВЫЕ БОТИНКИ! ВЫШЕ И ДАЛЬШЕ!", "#9dffce");
+            superJumpLeft = Math.max(superJumpLeft, 14);
+            message("БОТИНКИ · 14 СЕК: ПРЫЖОК ВЫШЕ НА 70% И ДЛИТСЯ ДОЛЬШЕ", "#9dffce");
         } else if (item.type === "jetpack") {
-            jetpackLeft = Math.max(jetpackLeft, 6.5);
-            message("ЗВЁЗДНЫЙ РЕАКТИВНЫЙ РАНЕЦ!", "#bcefff");
+            jetpackLeft = Math.max(jetpackLeft, 8);
+            message("РАНЕЦ · 8 СЕК: ЛЕТИШЬ НАД ПРЕПЯТСТВИЯМИ И СОБИРАЕШЬ МОНЕТЫ ВЕЗДЕ", "#bcefff");
         } else if (item.type === "board") {
-            hoverboardCharges = Math.min(2, hoverboardCharges + 1);
-            message("ЗВЁЗДНАЯ ДОСКА: +1 ЗАЩИТА", "#bcefff");
+            hoverboardCharges = Math.min(3, hoverboardCharges + 2);
+            message("ЩИТ · +2 ЗАРЯДА: КАЖДЫЙ ЗАРЯД ПОГЛОЩАЕТ ОДНО СТОЛКНОВЕНИЕ", "#d7b7ff");
         }
         if (typeof playArenaSound === "function") playArenaSound(1160, "sine", 0.15, 0.07);
         if (typeof spawnLivingStoneParticles === "function")
@@ -233,11 +233,12 @@
         }
     }
     function damageRunner(x, y) {
-        if (!active || chaseFailed) return;
+        if (!active || chaseFailed || boardGuardLeft > 0) return;
         damageFlash = 24;
         if (hoverboardCharges > 0) {
             hoverboardCharges--;
-            hoverboardLeft = 0.55;
+            hoverboardLeft = 0.75;
+            boardGuardLeft = 0.9;
             if (typeof spawnLivingStoneParticles === "function")
                 spawnLivingStoneParticles(x, y, 30, "#9deaff", 6);
             message("ДОСКА РАЗБИЛАСЬ! ТЫ УЦЕЛЕЛ!", "#bcefff");
@@ -316,6 +317,7 @@
         if (superJumpLeft > 0) superJumpLeft = Math.max(0, superJumpLeft - dt);
         if (jetpackLeft > 0) jetpackLeft = Math.max(0, jetpackLeft - dt);
         if (hoverboardLeft > 0) hoverboardLeft = Math.max(0, hoverboardLeft - dt);
+        if (boardGuardLeft > 0) boardGuardLeft = Math.max(0, boardGuardLeft - dt);
         if (trainRideLeft > 0) {
             trainRideLeft = Math.max(0, trainRideLeft - dt);
             if (trainRideLeft <= 0) trainDropLeft = 0.42;
@@ -348,7 +350,7 @@
                 spawnPattern();
             }
             powerupClock += dt;
-            if (powerupClock >= 14 && powerups.length < 2) {
+            if (powerupClock >= 12 && powerups.length < 2) {
                 powerupClock = 0;
                 var powerLane = Math.floor(Math.random() * 3);
                 var powerTypes = ["magnet", "boots", "jetpack", "board"];
@@ -413,7 +415,7 @@
             var roof = roofObstacles[ri];
             roof.z += speed * 1.18 * dt;
             if (!roof.resolved && roof.z >= 0.84 && roof.z <= 1.0 && trainRideLeft > 0) {
-                var roofCleared = roof.type === "roofBeam" ? slideLeft > 0.08 : jumpLeft > 0.10;
+                var roofCleared = jetpackLeft > 0 || (roof.type === "roofBeam" ? slideLeft > 0.08 : jumpLeft > 0.10);
                 if (roof.type === "roofCoin") {
                     coinCount++; score += 100; roofCleared = true;
                 } else if (!roofCleared) {
@@ -431,7 +433,7 @@
             pickup.z += speed * dt;
             pickup.spin += dt * 6;
             if (!pickup.collected && pickup.z >= 0.82 && pickup.z <= 1.02 &&
-                (Math.abs(laneVisual - pickup.lane) < 0.48 || (jetpackLeft > 0 && Math.abs(laneVisual - pickup.lane) < 1.1))) {
+                (Math.abs(laneVisual - pickup.lane) < 0.48 || (jetpackLeft > 0 && Math.abs(laneVisual - pickup.lane) <= 2.1))) {
                 collectPowerup(pickup);
             }
             if (pickup.z > 1.13 || pickup.collected) powerups.splice(pi, 1);
@@ -444,11 +446,11 @@
             var sameCoinLane = Math.abs(laneVisual - coin.lane) < 0.48;
             var magnetReach = magnetLeft > 0 || jetpackLeft > 0;
             var withinPickup = coin.z >= 0.82 && coin.z <= 1.04;
-            if (!coin.collected && withinPickup && (sameCoinLane || (magnetReach && Math.abs(laneVisual - coin.lane) <= 1.2))) {
+            if (!coin.collected && withinPickup && (sameCoinLane || (magnetReach && Math.abs(laneVisual - coin.lane) <= 2.1))) {
                 coin.collected = true;
                 var earned = 1;
                 coinCount += earned;
-                score += 100 * (magnetLeft > 0 ? 2 : 1);
+                score += 100 * (magnetLeft > 0 ? 3 : 1);
                 combo++;
                 if (typeof playArenaSound === "function") playArenaSound(1250, "sine", 0.07, 0.045);
                 if (typeof spawnLivingStoneParticles === "function")
@@ -662,39 +664,6 @@
         c.fillText(text, x, y);
         c.restore();
     }
-    function drawRunnerHeroExtras(c, x, y, now, sad) {
-        var gait = Math.sin(now / 52);
-        c.save();
-        c.lineCap = "round";
-        c.lineWidth = 2.4;
-        c.strokeStyle = "#f4d9d5";
-        c.beginPath();
-        c.moveTo(x - 5, y + 7);
-        c.lineTo(x - 10 + gait * 5, y + 17);
-        c.moveTo(x + 5, y + 7);
-        c.lineTo(x + 10 - gait * 5, y + 17);
-        c.moveTo(x - 10, y - 1);
-        c.lineTo(x - 16 - gait * 5, y + 4);
-        c.moveTo(x + 10, y - 1);
-        c.lineTo(x + 16 + gait * 5, y - 5);
-        c.stroke();
-        if (sad) {
-            c.strokeStyle = "#3d1721";
-            c.lineWidth = 1.6;
-            c.beginPath();
-            c.moveTo(x - 5, y - 4); c.lineTo(x - 2, y - 2);
-            c.moveTo(x + 2, y - 2); c.lineTo(x + 5, y - 4);
-            c.arc(x, y + 5, 3, Math.PI + 0.2, Math.PI * 2 - 0.2);
-            c.stroke();
-            c.fillStyle = "#9ce8ff";
-            c.beginPath();
-            c.moveTo(x + 15, y - 13);
-            c.quadraticCurveTo(x + 22, y - 7, x + 15, y - 2);
-            c.quadraticCurveTo(x + 9, y - 7, x + 15, y - 13);
-            c.fill();
-        }
-        c.restore();
-    }
     function drawWaystarCar(c, x, y, progress, now) {
         progress = clamp(progress, 0, 1);
         if (progress <= 0.01) return;
@@ -794,24 +763,30 @@
         var x = laneX(laneIndex, 0.92);
         c.save();
         c.shadowColor = "#101820";
-        c.shadowBlur = reduced ? 0 : 12;
-        polygon(c, [[x - 34, 346], [x + 34, 346], [x + 92, 500], [x - 92, 500]],
-            "#33434f", "#a9b7be", 2);
+        c.shadowBlur = reduced ? 0 : 9;
+        polygon(c, [[x - 32, 334], [x + 32, 334], [x + 61, 414], [x - 61, 414]],
+            "#526574", "#d1dbe0", 2);
+        polygon(c, [[x - 61, 414], [x + 61, 414], [x + 56, 438], [x - 56, 438]],
+            "#263642", "#8799a4", 1.5);
         c.shadowBlur = 0;
-        polygon(c, [[x - 31, 345], [x + 31, 345], [x + 82, 486], [x - 82, 486]],
-            "#526574", "#d1dbe0", 1.5);
-        for (var rib = 0; rib < 7; rib++) {
-            var t = rib / 7;
-            var yy = 354 + t * 124;
-            var half = 35 + t * 43;
-            c.strokeStyle = "rgba(18,31,41,.58)";
+        for (var rib = 0; rib < 5; rib++) {
+            var t = rib / 5;
+            var yy = 343 + t * 63;
+            var half = 35 + t * 20;
+            c.strokeStyle = "rgba(18,31,41,.62)";
             c.lineWidth = 2;
             c.beginPath(); c.moveTo(x - half, yy); c.lineTo(x + half, yy); c.stroke();
         }
-        c.fillStyle = "#263642";
-        c.fillRect(x - 27, 350, 54, 8);
+        c.strokeStyle = "rgba(224,240,247,.7)";
+        c.lineWidth = 1.5;
+        c.beginPath();
+        c.moveTo(x - 29, 337); c.lineTo(x - 57, 411);
+        c.moveTo(x + 29, 337); c.lineTo(x + 57, 411);
+        c.stroke();
         c.fillStyle = "#a9e4f3";
-        c.fillRect(x - 18, 352, 36, 2);
+        c.fillRect(x - 18, 338, 36, 3);
+        c.fillStyle = "#172734";
+        c.fillRect(x - 22, 418, 44, 5);
         c.restore();
     }
     function drawRoofObstacle(c, item, now) {
@@ -844,25 +819,42 @@
         var z = clamp(item.z, 0, 1.05), x = laneX(item.lane, z), y = depthY(z) - 20 - z * 12;
         var r = 8 + z * 8;
         var colors = { magnet: "#ffcf65", boots: "#9dffce", jetpack: "#9deaff", board: "#d7b7ff" };
-        var letters = { magnet: "M", boots: "↑", jetpack: "✦", board: "B" };
+        var letters = { magnet: "M", boots: "↑", jetpack: "✦", board: "◆" };
+        var labels = { magnet: "МАГНИТ", boots: "БОТИНКИ", jetpack: "РАНЕЦ", board: "ЩИТ" };
         var color = colors[item.type] || "#ffffff";
         c.save(); c.translate(x, y); c.rotate(Math.sin(item.spin) * 0.12);
         c.shadowColor = color; c.shadowBlur = reduced ? 0 : 15;
-        c.fillStyle = "rgba(6,13,22,.9)"; c.strokeStyle = color; c.lineWidth = 2;
+        c.fillStyle = "rgba(6,13,22,.94)"; c.strokeStyle = color; c.lineWidth = 2;
         c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill(); c.stroke();
         c.shadowBlur = 0; c.fillStyle = "#ffffff"; c.font = "900 " + Math.max(9, r) + "px Arial";
         c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(letters[item.type] || "?", 0, 1);
+        c.fillStyle = color; c.font = "900 " + Math.max(6, 7 + z * 2) + "px Arial";
+        c.textBaseline = "top"; c.fillText(labels[item.type] || "УСИЛЕНИЕ", 0, r + 5);
         c.restore();
     }
     function drawActivePowerupFx(c, x, y, now) {
         if (jetpackLeft > 0) {
             c.save();
-            c.globalAlpha = 0.75;
+            c.globalAlpha = 0.85;
             c.strokeStyle = "#9deaff"; c.lineWidth = 3;
             c.shadowColor = "#72dcff"; c.shadowBlur = reduced ? 0 : 12;
             for (var side = -1; side <= 1; side += 2) {
                 c.beginPath(); c.moveTo(x + side * 8, y + 12);
                 c.lineTo(x + side * 10 + Math.sin(now / 40 + side) * 3, y + 45 + Math.abs(Math.sin(now / 31 + side * 2)) * 8);
+                c.stroke();
+            }
+            c.restore();
+        }
+        if (superJumpLeft > 0) {
+            c.save();
+            c.globalAlpha = 0.75;
+            c.strokeStyle = "#a8ffc8"; c.lineWidth = 2;
+            c.shadowColor = "#70ffab"; c.shadowBlur = reduced ? 0 : 10;
+            for (var boot = -1; boot <= 1; boot += 2) {
+                c.beginPath();
+                c.moveTo(x + boot * 13, y + 13);
+                c.lineTo(x + boot * 18, y + 22 + Math.sin(now / 75) * 3);
+                c.lineTo(x + boot * 9, y + 24);
                 c.stroke();
             }
             c.restore();
@@ -923,7 +915,8 @@
             var starY = 300 + (py - 332) * arrival - Math.sin(arrival * Math.PI) * 34;
             var morph = introFinished ? 1 : easeOut((introT - 2450) / 1450);
             var carY = py + 12;
-            drawWaystarCar(c, px, carY, morph, now);
+            var trainMounted = trainRideLeft > 0 || trainDropLeft > 0;
+            if (!trainMounted) drawWaystarCar(c, px, carY, morph, now);
             if (introStar && morph < 0.98 && typeof window.MBDrawWaystarCompanion === "function") {
                 var starSize = 34 * (1 - morph * 0.5);
                 window.MBDrawWaystarCompanion(starX, starY, starSize);
@@ -950,7 +943,7 @@
             }
             var jumpProgress = introFinished ? 1 : easeOut((introT - 3650) / 1050);
             var jumpArc = introStar ? Math.sin(jumpProgress * Math.PI) * 56 : 0;
-            var heroY = py - (introStar ? jumpArc + jumpProgress * 8 : 8);
+            var heroY = trainMounted ? py : py - (introStar ? jumpArc + jumpProgress * 8 : 8);
             if (introStar && introT < 3650) heroY = py;
             c.save();
             c.globalAlpha = 0.38;
@@ -977,7 +970,7 @@
             c.beginPath(); c.ellipse(laneX(laneVisual, 0.98), 439, 19 + (jumpLeft > 0 ? 10 : 0), 5, 0, 0, Math.PI*2); c.fill();
             c.restore();
             drawActualRunnerHeart(c, px, py, false, slideLeft > 0, jumpLeft > 0, jetpackLeft > 0);
-            if (jetpackLeft <= 0) drawRunnerHeroExtras(c, px, py, now, !introFinished);
+
             if (!introFinished && introElapsed > 450) {
                 drawBubble(c, 200, 325, "ЛАДНО... ДОГОНЮ САМ.", "#ffb7a2", 214);
             }
@@ -1046,12 +1039,17 @@
         c.textAlign = "left"; c.textBaseline = "alphabetic"; c.font = "bold 11px monospace"; c.fillStyle = "#ffe7b0";
         c.fillText("✦ " + coinCount + "   SCORE " + Math.floor(score), 14, 27);
         c.textAlign = "right"; c.fillStyle = "#e5d8cc";
+        c.fillText(starAid ? "ЗВЕЗДА РЯДОМ" : "КАМЕНЬ ДОГОНЯЕТ", 386, 27);
         var activeLabels = [];
-        if (magnetLeft > 0) activeLabels.push("MAGNET " + Math.ceil(magnetLeft));
-        if (superJumpLeft > 0) activeLabels.push("БОТИНКИ " + Math.ceil(superJumpLeft));
-        if (jetpackLeft > 0) activeLabels.push("JETPACK " + Math.ceil(jetpackLeft));
-        if (hoverboardCharges > 0) activeLabels.push("ДОСКА x" + hoverboardCharges);
-        c.fillText(activeLabels.length ? activeLabels.join(" · ") : (starAid ? "ЕДЕШЬ НА ЗВЕЗДЕ" : "ЖИВОЙ КАМЕНЬ ДОГОНЯЕТ"), 386, 27);
+        if (magnetLeft > 0) activeLabels.push("МАГНИТ " + Math.ceil(magnetLeft) + "с");
+        if (superJumpLeft > 0) activeLabels.push("БОТИНКИ " + Math.ceil(superJumpLeft) + "с");
+        if (jetpackLeft > 0) activeLabels.push("РАНЕЦ " + Math.ceil(jetpackLeft) + "с");
+        if (hoverboardCharges > 0) activeLabels.push("ЩИТ x" + hoverboardCharges);
+        c.fillStyle = "rgba(5,12,22,.88)"; c.fillRect(8, 448, 384, 23);
+        c.strokeStyle = "rgba(171,211,230,.56)"; c.lineWidth = 1; c.strokeRect(8, 448, 384, 23);
+        c.textAlign = "center"; c.textBaseline = "middle"; c.font = "bold 9px Arial";
+        c.fillStyle = activeLabels.length ? "#f5f5f5" : "#b8c9d5";
+        c.fillText(activeLabels.length ? activeLabels.join("  •  ") : "УСИЛЕНИЯ: МАГНИТ · БОТИНКИ · РАНЕЦ · ЩИТ", 200, 460);
         c.textAlign = "center"; c.font = "bold 10px monospace"; c.fillStyle = "rgba(255,255,255,.82)";
         c.fillText("СВАЙПЫ • ← → ПОЛОСА • ↑ ПРЫЖОК • ↓ ПОДКАТ", 200, 486);
         if (elapsed < 4600) {
@@ -1083,7 +1081,7 @@
         active = false;
         introFinished = false;
         trainRideLeft = 0; trainDropLeft = 0; magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0;
-        hoverboardCharges = 0; hoverboardLeft = 0; slidePose = 0;
+        hoverboardCharges = 0; hoverboardLeft = 0; boardGuardLeft = 0; slidePose = 0;
         unbindControls();
         resetArrays();
         if (success !== false && starAid && music && musicAllowed()) {
@@ -1153,7 +1151,7 @@
         lane = 1; laneVisual = 1; jumpLeft = 0; slideLeft = 0; slidePose = 0;
         spawnClock = 0; powerupClock = 0; roofSpawnClock = 0; trackOffset = 0; distance = 0; coinCount = 0; score = 0; combo = 0; lastHud = -1;
         trainRideLeft = 0; trainRideLane = 1; trainDropLeft = 0; jumpTotal = 0.78; jumpBaseHeight = 78;
-        magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0; hoverboardCharges = 0; hoverboardLeft = 0;
+        magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0; hoverboardCharges = 0; hoverboardLeft = 0; boardGuardLeft = 0;
         starGuard = starAid; nextGuard = 7000; nextStrike = 4400;
         starFlash = 0; damageFlash = 0;
         introElapsed = 0;
@@ -1203,7 +1201,7 @@
         introFinished = false;
         introElapsed = 0;
         trainRideLeft = 0; trainDropLeft = 0; magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0;
-        hoverboardCharges = 0; hoverboardLeft = 0; slidePose = 0;
+        hoverboardCharges = 0; hoverboardLeft = 0; boardGuardLeft = 0; slidePose = 0;
         unbindControls();
         resetArrays();
         stopMusic();
