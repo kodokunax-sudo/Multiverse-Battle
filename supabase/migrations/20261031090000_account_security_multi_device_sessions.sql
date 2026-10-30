@@ -149,6 +149,19 @@ begin
         return jsonb_build_object('ok', false, 'code', 'active_session_lost');
     end if;
 
+    if exists (
+        select 1 from public.mb_active_account_sessions s
+         where s.user_id = v_uid
+           and s.client_session_id = p_session_id
+           and s.auth_session_id = v_token_session_id
+           and s.revoked_at is not null
+    ) or exists (
+        select 1 from public.mb_revoked_account_auth_sessions r
+         where r.user_id = v_uid and r.auth_session_id = v_token_session_id
+    ) then
+        return jsonb_build_object('ok', false, 'code', 'session_revoked');
+    end if;
+
     update public.mb_active_account_sessions
        set last_seen_at = v_now
      where user_id = v_uid
