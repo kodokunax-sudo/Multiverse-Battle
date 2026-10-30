@@ -200,6 +200,7 @@
 
         guardCooldown = 900;
         guardFlash = 64;
+        if (typeof livingStoneInvulnTimer !== "undefined") livingStoneInvulnTimer = 55;
         supportDimTimer = 240;
         attackPause = 240;
         strikeTimer = Math.max(strikeTimer, 240);
