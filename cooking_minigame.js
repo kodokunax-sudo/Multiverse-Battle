@@ -20,10 +20,10 @@
             icon: "🔥",
             instruction: "Маркер движется по шкале температуры. Нажми, когда он войдёт в золотую зону.",
             button: "🔥 Проверить температуру",
-            speed: 39,
-            duration: 10500,
-            zone: 28,
-            sweet: 8
+            speed: 34,
+            duration: 12000,
+            zone: 30,
+            sweet: 11
         },
         {
             title: "Переверни мясо",
@@ -31,10 +31,10 @@
             icon: "🍳",
             instruction: "Первая сторона схватилась. Поймай узкое окно и переверни кусок, не уронив его.",
             button: "🍳 Перевернуть",
-            speed: 51,
-            duration: 9500,
-            zone: 23,
-            sweet: 6
+            speed: 39,
+            duration: 11000,
+            zone: 27,
+            sweet: 10
         },
         {
             title: "Не передержи!",
@@ -42,10 +42,10 @@
             icon: "⏱️",
             instruction: "Последний момент: сними мясо с огня точно по таймингу. Здесь окно самое узкое.",
             button: "🥩 Снять с огня",
-            speed: 63,
-            duration: 8500,
-            zone: 19,
-            sweet: 5
+            speed: 44,
+            duration: 10000,
+            zone: 24,
+            sweet: 9
         }
     ];
 
@@ -203,7 +203,7 @@
                 '<div class="mb-cook-marker" id="mbCookMarker" style="left:' + session.position + '%"></div>' +
             '</div>' +
             '<div class="mb-cook-track-legend"><span>СЛАБО</span><span>ТОЧНОСТЬ</span><span>ПЕРЕЖАР</span></div>' +
-            '<div class="mb-cook-feedback" id="mbCookFeedback">Жди, пока маркер войдёт в золотую область. <strong>Промах не остановит попытку</strong>, можно поймать следующий проход.</div>' +
+            '<div class="mb-cook-feedback" id="mbCookFeedback">Нажми один раз в нужный момент. Промах снизит качество блюда, но не отменит всю готовку.</div>' +
             '<button class="mb-cook-primary" type="button" data-mb-cook-action="strike">' + cfg.button + '</button>' +
             costText() +
             footer();
@@ -272,7 +272,7 @@
             '<p class="mb-cook-copy">' + scoreLabel(score, timedOut) + '</p>' +
             scene(score >= 78 ? "🥩" : score >= 50 ? "🍖" : "🥓") +
             '<div class="mb-cook-feedback">Точность этапа: <strong>' + score + '/100</strong>. ' +
-                (score >= 96 ? "Так держать!" : "Впереди ещё один шанс улучшить итоговое качество.") + '</div>' +
+                (score >= 96 ? "Так держать!" : session.stage < 2 ? "Впереди ещё один этап, постарайся точнее." : "Это последний этап. Теперь результат определит качество блюда.") + '</div>' +
             '<button class="mb-cook-primary" type="button" data-mb-cook-action="next">' + nextText + '</button>' +
             costText() +
             footer();
