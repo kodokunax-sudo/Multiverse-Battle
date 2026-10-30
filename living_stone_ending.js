@@ -612,7 +612,7 @@
         c.restore();
     }
 
-    function finish() {
+    function finish(success) {
         if (!active) return;
         active = false;
         unbindControls();
