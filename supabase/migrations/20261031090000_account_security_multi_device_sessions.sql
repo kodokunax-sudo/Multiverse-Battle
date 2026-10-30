@@ -33,6 +33,38 @@ create table if not exists public.mb_banned_devices (
 alter table public.mb_banned_devices enable row level security;
 revoke all on table public.mb_banned_devices from public, anon, authenticated;
 
+-- Device bans are managed only by trusted server-side code using the service role.
+-- The claim function checks this table for every account, with no moderator/admin bypass.
+create or replace function public.mb_ban_device(p_device_id uuid, p_reason text default 'Нарушение правил игры')
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+    if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then
+        raise exception 'service_role_required' using errcode = '42501';
+    end if;
+    if p_device_id is null then
+        raise exception 'device_id_required' using errcode = '22023';
+    end if;
+
+    insert into public.mb_banned_devices(device_id, reason)
+    values (p_device_id, left(coalesce(nullif(p_reason, ''), 'Нарушение правил игры'), 300))
+    on conflict (device_id) do update
+       set reason = excluded.reason,
+           created_at = pg_catalog.clock_timestamp();
+
+    update public.mb_active_account_sessions
+       set revoked_at = pg_catalog.clock_timestamp()
+     where device_id = p_device_id and revoked_at is null;
+
+    return jsonb_build_object('ok', true, 'device_id', p_device_id);
+end;
+$function$;
+revoke all on function public.mb_ban_device(uuid, text) from public, anon, authenticated;
+grant execute on function public.mb_ban_device(uuid, text) to service_role;
+
 drop function if exists public.mb_claim_active_account_session(uuid, uuid, uuid);
 
 create or replace function public.mb_claim_active_account_session(
