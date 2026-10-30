@@ -38,6 +38,21 @@ const SUPER_CHARGES_PER_HERO = {
     "Белоус":                   3,
 };
 
+// Moderator player bullets deal a fixed 5% of the target boss's maximum HP.
+window.MBIsModeratorModeActive = function() {
+    try {
+        return !window.__mbBossTestMode &&
+            typeof mode !== "undefined" && mode === "moder" &&
+            typeof moderUnlocked !== "undefined" && moderUnlocked === true;
+    } catch (e) { return false; }
+};
+window.MBGetModeratorBulletDamage = function(maxHp) {
+    if (!window.MBIsModeratorModeActive()) return null;
+    var hp = Number(maxHp);
+    if (!isFinite(hp) || hp <= 0) return null;
+    return Math.max(1, Math.ceil(hp * 0.05));
+};
+
 const SUPER_CHARGES_HERO_PER_BOSS = {
     // 'stone': { "Сайтама": 5, "Зено": 2 },
     // 'waystar': { "Сайтама": 2 },
