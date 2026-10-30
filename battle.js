@@ -333,6 +333,16 @@ function initArena() {
     ctx = canvas.getContext("2d");
 
     var handleKey = function(ev, isDown) {
+        // Не перехватываем игровые клавиши, пока игрок печатает текст.
+        // Иначе пробел блокируется даже в поле ввода промокода.
+        var target = ev.target;
+        if (target && (
+            target.isContentEditable ||
+            /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName || "") ||
+            (typeof target.closest === "function" &&
+                target.closest('input, textarea, select, [contenteditable="true"]'))
+        )) return;
+
         var k = ev.key.toLowerCase();
         if (k in keys) { keys[k] = isDown; ev.preventDefault(); }
         if (k === " ") { keys.jump = isDown; ev.preventDefault(); }
