@@ -45,18 +45,17 @@
             else removeMusicRetry();
         } catch (e) {}
     }
-    function stopMusic() {
+    function stopMusic(preserveSession) {
         removeMusicRetry();
-        musicKeepAlive = false;
-        window.__mbLivingStoneChaseMusicPersistent = false;
+        musicKeepAlive = preserveSession === true;
+        window.__mbLivingStoneChaseMusicPersistent = preserveSession === true;
         if (!music) return;
         try { music.pause(); music.currentTime = 0; music.removeAttribute("src"); music.load(); } catch (e) {}
         music = null;
     }
     function startMusic() {
-        stopMusic();
-        musicKeepAlive = false;
-        window.__mbLivingStoneChaseMusicPersistent = false;
+        var preserveSession = window.__mbLivingStoneChaseMusicPersistent === true;
+        stopMusic(preserveSession);
         if (!musicAllowed()) return;
         try {
             if (typeof stopAllMusic === "function") stopAllMusic();
