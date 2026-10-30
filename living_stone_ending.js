@@ -19,8 +19,8 @@
     function clock() { return typeof performance !== "undefined" ? performance.now() : Date.now(); }
     function debt() {
         try {
-            return window.waystarOwesDebt === true ||
-                (typeof slotData !== "undefined" && slotData && slotData.waystarOwesDebt === true);
+            var savedValue = (typeof slotData !== "undefined" && slotData) ? slotData.waystarOwesDebt : false;
+            return window.waystarOwesDebt === true || savedValue === true || savedValue === 1 || savedValue === "true";
         } catch (e) { return false; }
     }
     function musicAllowed() {
