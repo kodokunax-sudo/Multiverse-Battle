@@ -3092,7 +3092,7 @@ function drawLivingStoneBoss() {
     var b = livingStoneBoss;
     var pulse = 1.0 + Math.sin(performance.now() / 300) * 0.05;
     var size = b.size * pulse;
-    var isPhase2 = (livingStoneState === "phase2");
+    var isPhase2 = (livingStoneState === "phase2" || livingStoneState === "chase");
     var isQTEPunch = (livingStoneState === "qte_punch");
     var isFinal = finalSceneActive;
     
