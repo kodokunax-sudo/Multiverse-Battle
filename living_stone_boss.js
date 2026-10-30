@@ -2770,7 +2770,7 @@ function livingStoneRenderLoop() {
     if (qteBossArm && qteCinematicPhase === "grabbed") drawBossArm();
     if (finalHeartVisible && (!isQTE || livingStoneState === "qte_punch" || livingStoneState === "qte_finish" || 
         livingStoneState === "qte_cinematic" || finalSceneActive)) {
-        if ((livingStoneState === "phase1" || livingStoneState === "phase2") && typeof window.MBDrawWaystarCompanionSupport === "function") {
+        if (livingStoneState === "phase2" && typeof window.MBDrawWaystarCompanionSupport === "function") {
             try { window.MBDrawWaystarCompanionSupport(ctx); } catch(e) {}
         }
         drawLivingStonePlayer();
