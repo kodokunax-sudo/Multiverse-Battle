@@ -201,7 +201,7 @@ function updateTakabaAbility(dt){
   }
   if(_superState.takabaEffectTimer>0){ _superState.takabaEffectTimer=Math.max(0,_superState.takabaEffectTimer-dt); }
   // Во время фазы атаки Такаба полностью молчит: никаких случайных событий.
-  if(typeof arenaPhase!=="undefined" && arenaPhase!=="dodge") return;
+  if(c.type==="arena" && typeof arenaPhase!=="undefined" && arenaPhase!=="dodge") return;
   _superState.takabaEventTimer+=dt;
   if(_superState.takabaRandomEventTimer>0){
     _superState.takabaRandomEventTimer-=dt;
