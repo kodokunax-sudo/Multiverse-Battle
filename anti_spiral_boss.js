@@ -1333,7 +1333,7 @@
                         if (typeof addItem === "function") {
                             addItem("server_block", 1);
                         } else if (typeof inventory !== "undefined" && inventory) {
-                            inventory.server_block = Math.min(2, (Number(inventory.server_block) || 0) + 1);
+                            inventory.server_block = Math.min(20, (Number(inventory.server_block) || 0) + 1);
                         }
                     }
                     if (typeof currentEnemy !== "undefined" && currentEnemy) currentEnemy.hp = 0;
