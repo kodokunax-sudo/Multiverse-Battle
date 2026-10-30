@@ -328,15 +328,17 @@ function updateStatusDisplay() {
         html += ' <span class="status-effect" style="color:' + hColor + ';">🍽️ Голод: ' + Math.floor(hunger) + '%</span>';
     }
     
-    // ★★★ ОЖИРЕНИЕ — ТОЛЬКО ПРИ КРИТИЧНОМ (40+) ★★★
-    if (typeof obesityPoints !== 'undefined' && obesityPoints >= 40) {
-        let obName = "Ожирение II";
-        let obColor = "#e67e22";
-        if (obesityPoints >= 60) { obName = "Ожирение III"; obColor = "#e74c3c"; }
-        
-        html += ' <span class="status-effect" style="color:' + obColor + ';border-color:' + obColor + ';font-weight:bold;">🍔 ' + obName + ' (' + obesityPoints + '/60)</span>';
+    // Ожирение отображается сразу, а пороги показывают реальный штраф к скорости.
+    if (typeof obesityPoints !== 'undefined' && obesityPoints > 0) {
+        let obStage = (typeof getObesityStageName === 'function') ? getObesityStageName() : null;
+        let obMult = (typeof getObesitySpeedMult === 'function') ? getObesitySpeedMult() : 1;
+        let speedPenalty = Math.round((1 - obMult) * 100);
+        let obName = obStage || "Набор веса";
+        let obDetail = speedPenalty > 0 ? " · скорость -" + speedPenalty + "%" : " · без штрафа скорости";
+        let obColor = speedPenalty >= 40 ? "#e74c3c" : speedPenalty > 0 ? "#e67e22" : "#d6a85a";
+        html += ' <span class="status-effect" style="color:' + obColor + ';border-color:' + obColor + ';font-weight:bold;">🍔 ' + obName + ' (' + obesityPoints + '/60)' + obDetail + '</span>';
     }
-    
+
     // ★★★ ОТРАВЛЕНИЕ ★★★
     if (typeof poisonTimer !== 'undefined' && poisonTimer > 0) {
         html += ' <span class="status-effect" style="color:#aa00aa;">☠️ Отравление: ' + Math.floor(poisonTimer) + 'с</span>';
