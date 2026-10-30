@@ -217,6 +217,8 @@
             var length = Math.sqrt(dx * dx + dy * dy) || 1;
             livingStonePlayer.x = Math.max(18, Math.min(382, livingStonePlayer.x + dx / length * 12));
             livingStonePlayer.y = Math.max(82, Math.min(482, livingStonePlayer.y + dy / length * 12));
+            supportX = livingStonePlayer.x + dx / length * 18;
+            supportY = livingStonePlayer.y + dy / length * 18;
         }
 
         burst(livingStonePlayer.x, livingStonePlayer.y, 24, "#9deaff", 5);
@@ -330,6 +332,19 @@
             c.arc(route.targetX, route.targetY, 17 + Math.sin(now / 70) * 3, 0, Math.PI * 2);
             c.stroke();
             drawStar(c, route.targetX, route.targetY, 10, now / 300, "#f0fcff");
+        }
+
+        if (constellationFlash > 65 && typeof livingStoneBoss !== "undefined" && livingStoneBoss) {
+            c.globalAlpha = Math.min(1, (constellationFlash - 65) / 20);
+            c.strokeStyle = "#e8fbff";
+            c.lineWidth = 4;
+            c.shadowColor = "#a7eaff";
+            c.shadowBlur = 16;
+            c.beginPath();
+            c.moveTo(sx, sy);
+            c.lineTo(livingStoneBoss.x, livingStoneBoss.y);
+            c.stroke();
+            c.shadowBlur = 0;
         }
 
         if (blockStars > 0 && isGreen) {
