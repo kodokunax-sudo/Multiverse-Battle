@@ -1015,17 +1015,32 @@
         if (typeof playArenaSound==="function") playArenaSound(980,"sine",0.18,0.065);
     }
     function ls2RegisterGreenBlock(a) {
+        if (a && a.__mbLS2BlockRegistered) return false;
+        if (a) a.__mbLS2BlockRegistered = true;
         ls2GreenBlockStreak++;
         if (typeof spawnLivingStoneParticles === "function")
-            spawnLivingStoneParticles(a.x, a.y, 8, "#73ff9b", 3);
+            spawnLivingStoneParticles(a && Number(a.x) || livingStonePlayer.x,
+                a && Number(a.y) || livingStonePlayer.y, 8, "#73ff9b", 3);
+        var waystarConstellationReady = false;
+        if (typeof window.MBWaystarOnGreenBlock === "function") {
+            try { waystarConstellationReady = window.MBWaystarOnGreenBlock() === true; } catch (e) {}
+        }
         if (ls2GreenBlockStreak === 1)
             ls2CombatText("ЩИТ ПОГЛОТИЛ УДАР", "#9affb7", 30);
         if (ls2GreenBlockStreak >= 3) {
             ls2GreenBlockStreak = 0;
-            ls2BossStun = Math.max(ls2BossStun, 95);
+            ls2BossStun = Math.max(ls2BossStun, waystarConstellationReady ? 145 : 95);
             ls2OpenWindowPending = true;
-            ls2CombatText("ЩИТ СЛОМАЛ ЕГО РИТМ! БЕЙ!", "#fff1ae", 90);
+            ls2CombatText(waystarConstellationReady ? "СОЗВЕЗДИЕ ЗВЕЗДЫ! БЕЙ!" : "ЩИТ СЛОМАЛ ЕГО РИТМ! БЕЙ!",
+                waystarConstellationReady ? "#d8f5ff" : "#fff1ae", 90);
+            if (waystarConstellationReady) {
+                var bonus = Math.max(1, Math.floor(ls2BossMaxHp * 0.0025));
+                ls2DamageBoss(bonus);
+                if (typeof livingStoneBoss !== "undefined" && typeof spawnLivingStoneParticles === "function")
+                    spawnLivingStoneParticles(livingStoneBoss.x, livingStoneBoss.y, 22, "#c8f3ff", 4);
+            }
         }
+        return true;
     }
     function ls2Live() {
         return ls2NativeMode && !!window.livingStoneSuperActive &&
@@ -1323,6 +1338,9 @@
 
         var fromX = b.x, fromY = b.y;
         var target = ls2ChooseDodgeTarget(bullet, b, predictedBossVx, predictedBossVy);
+        if (typeof window.MBWaystarOnDodgePrediction === "function") {
+            try { window.MBWaystarOnDodgePrediction({x:fromX,y:fromY}, target); } catch (e) {}
+        }
         for (var di=ls2UniqueDecoys.length-1;di>=0;di--) {
             if (ls2UniqueDecoys[di].kind === "afterimage") ls2UniqueDecoys.splice(di,1);
         }
@@ -1339,10 +1357,22 @@
         return true;
     };
 
-    window.MBLivingStoneSuperOnBossHit = function() {
+    window.MBLivingStoneSuperOnBossHit = function(bullet) {
         if (!ls2Live()) return;
         ls2BossHitCount++;
         ls2DodgeStreak=0;
+        var routeHit = false;
+        if (typeof window.MBWaystarTryRouteHit === "function") {
+            try { routeHit = window.MBWaystarTryRouteHit(bullet, livingStoneBoss) === true; } catch (e) {}
+        }
+        if (routeHit) {
+            ls2BossStun = Math.max(ls2BossStun, 105);
+            ls2DodgeCooldown = Math.max(ls2DodgeCooldown, 165);
+            ls2DamageBoss(Math.max(1, Math.floor(ls2BossMaxHp * 0.006)));
+            ls2CombatText("ЗВЁЗДНЫЙ МАРШРУТ! ЯДРО ОТКРЫТО!", "#d8f5ff", 78);
+            if (typeof spawnLivingStoneParticles === "function")
+                spawnLivingStoneParticles(livingStoneBoss.x, livingStoneBoss.y, 20, "#b8efff", 4);
+        }
         if (ls2BossStun>0) return;
         if (ls2BossHitCount%7===0 && (window.__mbLS2GreenPhase||"normal")==="normal") {
             ls2ShellBreak={x:livingStoneBoss.x,y:livingStoneBoss.y,timer:18,life:45};
@@ -1518,9 +1548,11 @@
                             ls2RegisterGreenBlock(a);
                         } else if (livingStoneInvulnTimer<=0) {
                             ls2GreenBlockStreak=0;
+                            if (typeof window.MBWaystarResetGreenBlocks === "function") window.MBWaystarResetGreenBlocks();
                             damageLivingStonePlayer(a.damage||10);
                         } else {
                             ls2GreenBlockStreak=0;
+                            if (typeof window.MBWaystarResetGreenBlocks === "function") window.MBWaystarResetGreenBlocks();
                         }
                         a.life=0;
                     }
@@ -1537,8 +1569,13 @@
                 if (Math.hypot(p.x-a.x,p.y-a.y)<a.size+9 && livingStoneInvulnTimer<=0) {
                     if (phase==="green" && Math.hypot(p.x-a.x,p.y-a.y)<28 &&
                         ((Math.abs(a.x-p.x)>Math.abs(a.y-p.y)) ? (a.x>p.x?1:3):(a.y>p.y?2:0)) === (Number(window.__mbLS2ShieldDir)||0)) {
-                        ls2GreenBlockStreak++; ls2CombatText("БУМЕРАНГ ОТБИТ!", "#9affb7", 42);
-                    } else damageLivingStonePlayer(a.damage||12);
+                        ls2RegisterGreenBlock(a);
+                        ls2CombatText("БУМЕРАНГ ОТБИТ!", "#9affb7", 42);
+                    } else {
+                        ls2GreenBlockStreak=0;
+                        if (typeof window.MBWaystarResetGreenBlocks === "function") window.MBWaystarResetGreenBlocks();
+                        damageLivingStonePlayer(a.damage||12);
+                    }
                     a.life=0;
                 }
                 if (Math.hypot(b.x-a.x,b.y-a.y)<b.size+10 && a.stage==="return") a.life=0;
@@ -1661,6 +1698,7 @@
                     ls2UniqueAttacks = []; ls2UniqueCracks = []; ls2UniqueDecoys = [];
                     ls2ShellBreak = null; ls2BossDash = null;
                     ls2GreenBlockStreak = 0; ls2GreenWaveIndex = 0;
+                    if (typeof window.MBWaystarResetGreenBlocks === "function") window.MBWaystarResetGreenBlocks();
                     ls2GreenCurrentPattern = 0; ls2GreenBurstCount = 0; ls2GreenBurstTimer = 0;
                     ls2GreenStrikeTimer = 24;
                     if (typeof livingStoneAttacks !== "undefined") livingStoneAttacks.length = 0;
@@ -1693,6 +1731,7 @@
             if (frame >= 480) {
                 frame = 0; window.__mbLS2GreenPhase = "normal";
                 ls2UniqueAttacks = [];
+                if (typeof window.MBWaystarResetGreenBlocks === "function") window.MBWaystarResetGreenBlocks();
                 ls2GreenBurstCount = 0; ls2GreenBurstTimer = 0; ls2GreenWaveIndex = 0;
                 if (typeof livingStoneAttacks !== "undefined") livingStoneAttacks.length = 0;
                 if (typeof livingStoneBullets !== "undefined") livingStoneBullets.length = 0;
@@ -1913,7 +1952,29 @@
         var dir;
         if (Math.abs(dx)>Math.abs(dy)) dir=dx>=0?1:3;
         else dir=dy>=0?2:0;
-        return dir === ((Number(window.__mbLS2ShieldDir)||0)%4);
+        var blocked = dir === ((Number(window.__mbLS2ShieldDir)||0)%4);
+        if (blocked && !a.__mbLS2BlockRegistered) ls2RegisterGreenBlock(a);
+        return blocked;
+    };
+
+    window.MBLivingStoneSuperWaystarFinalLock = function(frames) {
+        if (!ls2Live() || !ls2ChaseTriggered || window.__mbLS2AfterChase !== true ||
+            (window.__mbLS2GreenPhase || "normal") !== "normal") return false;
+        var duration = ls2Clamp(Number(frames) || 165, 90, 210);
+        ls2BossDash = null;
+        ls2BossStun = Math.max(ls2BossStun, duration);
+        ls2DodgeCooldown = Math.max(ls2DodgeCooldown, duration + 35);
+        ls2UniqueAttackTimer = Math.max(ls2UniqueAttackTimer, duration + 35);
+        ls2UniqueAttacks = [];
+        ls2UniqueCracks = [];
+        ls2UniqueDecoys = [];
+        ls2ShellBreak = null;
+        if (typeof livingStoneAttacks !== "undefined") livingStoneAttacks.length = 0;
+        if (typeof livingStoneBullets !== "undefined") livingStoneBullets.length = 0;
+        if (typeof livingStoneBoss !== "undefined" && typeof spawnLivingStoneParticles === "function")
+            spawnLivingStoneParticles(livingStoneBoss.x, livingStoneBoss.y, 30, "#b8efff", 5);
+        ls2CombatText("СОЗВЕЗДИЕ ЗАФИКСИРОВАЛО КАМЕНЬ!", "#d8f5ff", 100);
+        return true;
     };
 
     window.MBLivingStoneSuperNativeVictory = function() {
