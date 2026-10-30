@@ -1930,6 +1930,13 @@
         c.beginPath(); c.moveTo(-5,-7); c.lineTo(0,-10); c.lineTo(5,-7); c.stroke();
         c.restore();
     };
+    window.MBLivingStoneSuperResetGreenBlocks = function() {
+        if ((window.__mbLS2GreenPhase || "normal") !== "green") return;
+        ls2GreenBlockStreak = 0;
+        if (typeof window.MBWaystarResetGreenBlocks === "function") {
+            window.MBWaystarResetGreenBlocks();
+        }
+    };
     window.MBLivingStoneSuperShieldBlocks = function(a, px, py) {
         if (!window.livingStoneSuperActive || window.__mbLS2GreenPhase !== "green" || !a ||
             a.type === "gravity_well" || a.type === "laser_warning") return false;
