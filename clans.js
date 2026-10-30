@@ -3394,7 +3394,7 @@
             setAccountSecurityStatus('Сначала войди в аккаунт.', 'warning');
             return;
         }
-        if (currentUser.email_confirmed_at === null && currentUser.confirmed_at === null) {
+        if (!currentUser.email_confirmed_at && !currentUser.confirmed_at) {
             setAccountSecurityStatus('Сначала подтверди почту аккаунта.', 'warning');
             return;
         }
