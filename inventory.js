@@ -21,9 +21,21 @@ const ITEMS = {
     },
     cooked_meat: {
         name: "Жареное мясо", icon: "🍖",
-        desc: "Сочное жареное мясо. Восстанавливает 25% HP и убирает 30% голода. Но добавляет +2 очка ожирения.",
+        desc: "Нормально приготовленное мясо. Восстанавливает 25% HP, убирает 30% голода и добавляет +2 пищевой тяжести.",
         stack: 999, canSell: false,
         actionFunction: "eatCookedMeat"
+    },
+    perfect_cooked_meat: {
+        name: "Идеально жареное мясо", icon: "🥩✨",
+        desc: "Мясо с золотистой корочкой и сочной серединой. Восстанавливает 32% HP, убирает 40% голода и добавляет только +1 пищевую тяжесть.",
+        stack: 999, canSell: false,
+        actionFunction: "eatPerfectCookedMeat"
+    },
+    burnt_meat: {
+        name: "Подгоревшее мясо", icon: "🥓",
+        desc: "Ты немного отвлёкся у плиты. Восстанавливает 10% HP, убирает 10% голода и добавляет +3 пищевой тяжести.",
+        stack: 999, canSell: false,
+        actionFunction: "eatBurntMeat"
     },
     mushroom: {
         name: "Гриб", icon: "🍄",
@@ -273,22 +285,34 @@ function eatRawMeat() {
     if (typeof closeModal === 'function') closeModal();
 }
 
-function eatCookedMeat() {
-    if (getItemCount("cooked_meat") <= 0) return;
-    removeItem("cooked_meat", 1);
-    if (typeof playerHp !== 'undefined' && typeof window.playerMaxHp !== 'undefined') {
-        playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * 0.25);
+function eatPreparedMeat(itemId) {
+    var food = {
+        cooked_meat: { hp: 0.25, hunger: 30, obesity: 2, text: "🍖 +25% HP · -30% голода" },
+        perfect_cooked_meat: { hp: 0.32, hunger: 40, obesity: 1, text: "🥩✨ +32% HP · -40% голода" },
+        burnt_meat: { hp: 0.10, hunger: 10, obesity: 3, text: "🥓 +10% HP · -10% голода" }
+    }[itemId];
+    if (!food || getItemCount(itemId) <= 0) return false;
+
+    if (!removeItem(itemId, 1)) return false;
+    if (typeof playerHp !== 'undefined') {
+        var maxHp = Number(window.playerMaxHp) || 100;
+        playerHp = Math.min(maxHp, playerHp + maxHp * food.hp);
     }
-    hunger = Math.max(0, hunger - 30);
-    obesityPoints += 2;
-    if (obesityPoints > 60) obesityPoints = 60;
+    hunger = Math.max(0, hunger - food.hunger);
+    obesityPoints = Math.min(60, obesityPoints + food.obesity);
+
     if (typeof updateStatusDisplay === 'function') updateStatusDisplay();
-    if (typeof showFloatingText === 'function') showFloatingText("🍖 +25% HP", "#2ecc71");
     if (typeof updatePlayerStats === 'function') updatePlayerStats();
+    if (typeof showFloatingText === 'function') showFloatingText(food.text, itemId === "perfect_cooked_meat" ? "#ffd700" : "#2ecc71");
     if (typeof saveAll === 'function') saveAll();
     if (typeof renderInventory === 'function') renderInventory();
     if (typeof closeModal === 'function') closeModal();
+    return true;
 }
+
+function eatCookedMeat() { return eatPreparedMeat("cooked_meat"); }
+function eatPerfectCookedMeat() { return eatPreparedMeat("perfect_cooked_meat"); }
+function eatBurntMeat() { return eatPreparedMeat("burnt_meat"); }
 
 function eatMushroom() {
     if (getItemCount("mushroom") <= 0) return;
@@ -449,22 +473,61 @@ function eatFruit(fruitId) {
 function cookMeat() {
     if (getItemCount("raw_meat") <= 0) {
         if (typeof showFloatingText === 'function') showFloatingText("Нет сырого мяса!", "#ff3333");
-        return;
+        return false;
     }
-    let currentPoints = (typeof points !== 'undefined') ? points : 0;
-    let isModer = (typeof mode !== 'undefined' && mode === "moder");
+    var currentPoints = (typeof points !== 'undefined') ? Number(points) || 0 : 0;
+    var isModer = (typeof mode !== 'undefined' && mode === "moder");
     if (!isModer && currentPoints < 10) {
-        if (typeof showFloatingText === 'function') showFloatingText("Нужно 10⭐!", "#ff3333");
-        return;
+        if (typeof showFloatingText === 'function') showFloatingText("Для готовки нужно 10⭐!", "#ff3333");
+        return false;
     }
-    if (!isModer && typeof points !== 'undefined') points -= 10;
-    removeItem("raw_meat", 1);
-    addItem("cooked_meat", 1);
-    if (typeof showFloatingText === 'function') showFloatingText("🔥 Готово!", "#f5af19");
+    if (typeof window.startCookingMiniGame !== "function") {
+        if (typeof showFloatingText === 'function') showFloatingText("Кухня пока не загрузилась. Обнови страницу.", "#ff3333");
+        return false;
+    }
+    return window.startCookingMiniGame();
+}
+
+// Ингредиент и звёзды списываются одной операцией только после получения результата.
+function completeMeatCooking(resultId) {
+    var validResults = ["perfect_cooked_meat", "cooked_meat", "burnt_meat"];
+    if (validResults.indexOf(resultId) === -1) return false;
+    if (getItemCount("raw_meat") < 1) {
+        if (typeof showFloatingText === 'function') showFloatingText("Сырое мясо больше не найдено.", "#ff3333");
+        return false;
+    }
+
+    var isModer = (typeof mode !== 'undefined' && mode === "moder");
+    var currentPoints = (typeof points !== 'undefined') ? Number(points) || 0 : 0;
+    if (!isModer && currentPoints < 10) {
+        if (typeof showFloatingText === 'function') showFloatingText("Не хватает 10⭐ для завершения готовки.", "#ff3333");
+        return false;
+    }
+
+    var cap = Number(ITEMS[resultId].stack) || 999;
+    if ((Number(inventory[resultId]) || 0) >= cap) {
+        if (typeof showFloatingText === 'function') showFloatingText("Нет места для этого блюда. Освободи слот предмета.", "#ff3333");
+        return false;
+    }
+
+    inventory.raw_meat = (Number(inventory.raw_meat) || 0) - 1;
+    if (inventory.raw_meat <= 0) delete inventory.raw_meat;
+    if (!isModer) points = Math.max(0, currentPoints - 10);
+    inventory[resultId] = (Number(inventory[resultId]) || 0) + 1;
+
     if (typeof renderPoints === 'function') renderPoints();
     if (typeof saveAll === 'function') saveAll();
     if (typeof renderInventory === 'function') renderInventory();
-    if (typeof closeModal === 'function') closeModal();
+
+    var resultNames = {
+        perfect_cooked_meat: "🥩✨ Идеально приготовлено!",
+        cooked_meat: "🍖 Получилось жареное мясо!",
+        burnt_meat: "🥓 Мясо подгорело..."
+    };
+    if (typeof showFloatingText === 'function') {
+        showFloatingText(resultNames[resultId], resultId === "perfect_cooked_meat" ? "#ffd700" : resultId === "burnt_meat" ? "#e67e22" : "#2ecc71");
+    }
+    return true;
 }
 
 function sellBones() {
@@ -628,8 +691,8 @@ function renderInventory() {
         let isModer = (typeof mode !== 'undefined' && mode === "moder");
         let canCook = isModer || currentPoints >= 10;
         html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(112,68,22,.28),rgba(34,25,18,.92));border:1px solid rgba(245,175,25,.4);border-radius:12px;padding:10px 12px;margin-bottom:12px;">';
-        html += '<div style="font-size:12px;font-weight:900;">🥩 Кухня <span style="color:#f5af19;">· сырое мясо x' + rawMeatCount + '</span><div style="font-size:10px;color:#aaa;font-weight:600;margin-top:3px;">Стоимость приготовления: 10⭐ за штуку</div></div>';
-        html += '<button onclick="cookMeat();" style="padding:8px 13px;font-size:12px;background:' + (canCook ? 'linear-gradient(135deg,#f5af19,#f12711)' : '#555') + ';border:none;border-radius:9px;color:white;font-weight:900;cursor:' + (canCook ? 'pointer' : 'not-allowed') + ';" ' + (!canCook ? 'disabled' : '') + '>🔥 Пожарить мясо</button>';
+        html += '<div style="font-size:12px;font-weight:900;">🥩 Кухня <span style="color:#f5af19;">· сырое мясо x' + rawMeatCount + '</span><div style="font-size:10px;color:#aaa;font-weight:600;margin-top:3px;">Мини-игра · стоимость: 10⭐</div></div>';
+        html += '<button onclick="cookMeat();" style="padding:8px 13px;font-size:12px;background:' + (canCook ? 'linear-gradient(135deg,#f5af19,#f12711)' : '#555') + ';border:none;border-radius:9px;color:white;font-weight:900;cursor:' + (canCook ? 'pointer' : 'not-allowed') + ';" ' + (!canCook ? 'disabled' : '') + '>🎮 Начать готовку</button>';
         html += '</div>';
     }
 
@@ -691,9 +754,13 @@ function showItemModal(id) {
         html += '<div style="text-align:center;font-size:13px;color:#f5af19;font-weight:900;padding:10px;background:rgba(245,175,25,0.15);border-radius:10px;">⭐ Твоя валюта — тратится на всё в игре</div>';
     } else if (item.actionFunction === "eatRawMeat") {
         html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatRawMeat();">🍴 Съесть (ОПАСНО — отравишься)</button>';
-        html += '<button class="btn" style="padding:12px;background:linear-gradient(135deg,#f5af19,#f12711);color:white;font-weight:900;border:none;" onclick="cookMeat();">🔥 Пожарить (10⭐)</button>';
+        html += '<button class="btn" style="padding:12px;background:linear-gradient(135deg,#f5af19,#f12711);color:white;font-weight:900;border:none;" onclick="cookMeat();">🎮 Готовить · 10⭐</button>';
     } else if (item.actionFunction === "eatCookedMeat") {
-        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatCookedMeat();">🍴 Съесть (+25% HP, +2 ожирение)</button>';
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatCookedMeat();">🍴 Съесть (+25% HP, -30% голода)</button>';
+    } else if (item.actionFunction === "eatPerfectCookedMeat") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatPerfectCookedMeat();">🍴 Съесть (+32% HP, -40% голода)</button>';
+    } else if (item.actionFunction === "eatBurntMeat") {
+        html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatBurntMeat();">🍴 Съесть (+10% HP, -10% голода)</button>';
     } else if (item.actionFunction === "eatMushroom") {
         html += '<button class="btn btn-primary" style="padding:12px;" onclick="eatMushroom();">🍄 Съесть гриб (50/50)</button>';
     } else if (item.actionFunction === "eatHoney") {
@@ -735,6 +802,9 @@ window.tryDropLoot = tryDropLoot;
 window.dropLivingStoneLoot = dropLivingStoneLoot;
 window.eatRawMeat = eatRawMeat;
 window.eatCookedMeat = eatCookedMeat;
+window.eatPerfectCookedMeat = eatPerfectCookedMeat;
+window.eatBurntMeat = eatBurntMeat;
+window.completeMeatCooking = completeMeatCooking;
 window.eatMushroom = eatMushroom;
 window.eatHoney = eatHoney;
 window.eatPepper = eatPepper;
