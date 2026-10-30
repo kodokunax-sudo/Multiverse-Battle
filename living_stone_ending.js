@@ -70,7 +70,7 @@
             var p = music.play();
             if (p && p.catch) {
                 p.catch(function () {
-                    if (!active || retryBound) return;
+                    if ((!active && !musicKeepAlive) || retryBound) return;
                     retryBound = true;
                     window.addEventListener("pointerdown", retryMusic, true);
                     window.addEventListener("keydown", retryMusic, true);
