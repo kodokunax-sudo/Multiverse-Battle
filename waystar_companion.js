@@ -13,12 +13,13 @@
     }
     function eligible() {
         if (!wasSpared() || typeof livingStoneActive==="undefined" || !livingStoneActive ||
-            (livingStoneState!=="phase1" && livingStoneState!=="phase2") ||
+            livingStoneState!=="phase2" ||
             (typeof finalSceneActive!=="undefined" && finalSceneActive)) return false;
-        // This ally belongs to Living Stone Prime only. She follows the player
-        // in both combat parts, then becomes the ride during the chase itself.
+        // The star appears as the chase vehicle first. This companion support
+        // activates only after the chase, during Living Stone Prime's second phase.
         if (window.livingStoneSuperActive!==true) return false;
-        return window.__mbLS2GreenPhase!=="chase" &&
+        return window.__mbLS2AfterChase===true &&
+            window.__mbLS2GreenPhase==="normal" &&
             window.__mbLivingStoneChaseActive!==true;
     }
     function announce(message,color,life) {
@@ -60,7 +61,7 @@
             active=true; frame=0; strikeTimer=145; guardCooldown=240;
             supportX=Number(livingStonePlayer.x)||200;
             supportY=Number(livingStonePlayer.y)||400;
-            announce("ПУТЕВОДНАЯ ЗВЕЗДА: Я СДЕРЖУ ОБЕЩАНИЕ","#bcefff",105);
+            announce("ПУТЕВОДНАЯ ЗВЕЗДА: Я ОСТАНУСЬ И ПОМОГУ ТЕБЕ!","#bcefff",105);
         }
         frame++;
         if (guardCooldown>0) guardCooldown--;
