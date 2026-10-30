@@ -585,7 +585,7 @@
     }
     function ls2DrawUI(c) {
         c.save(); c.fillStyle="#f2fff5"; c.textAlign="center";
-        c.font="900 13px Arial,sans-serif"; c.fillText("ЖИВОЙ КАМЕНЬ · СУПЕР-ВЕРСИЯ",200,17);
+        c.font="900 13px Arial,sans-serif"; c.fillText("ЖИВОЙ КАМЕНЬ ПРАЙМ",200,17);
         c.fillStyle="rgba(0,0,0,.72)"; c.fillRect(44,27,312,13);
         c.fillStyle="#28110f"; c.fillRect(48,30,304,7);
         var ratio=ls2BossMaxHp>0?Math.max(0,ls2BossHp/ls2BossMaxHp):1;
@@ -771,7 +771,7 @@
             var hpEl = document.getElementById("arenaHP");
             if (hpEl) hpEl.textContent = String(livingStonePlayerHp);
             var bossName = document.getElementById("arenaBossName");
-            if (bossName) bossName.textContent = "🪨 СУПЕР-ЖИВОЙ КАМЕНЬ";
+            if (bossName) bossName.textContent = "🪨 ЖИВОЙ КАМЕНЬ ПРАЙМ";
         }
         ls2SetControlVisibility();
         if (typeof livingStoneRenderLoop === "function") livingStoneAnimFrame = requestAnimationFrame(livingStoneRenderLoop);
@@ -1900,13 +1900,13 @@
         if (Number(typeof wave!=="undefined"?wave:0)!==2000) return;
         if (typeof currentEnemy==="undefined" || !currentEnemy || currentEnemy.hp<=0) return;
         if (typeof defeatedBosses!=="undefined" && Array.isArray(defeatedBosses) && defeatedBosses.includes(2000)) {
-            if (typeof showFloatingText==="function") showFloatingText("⏭️ Супер-Живой Камень уже побеждён!","#ffb34d");
+            if (typeof showFloatingText==="function") showFloatingText("⏭️ Живой Камень Прайм уже побеждён!","#ffb34d");
             return;
         }
         if (graphicsModeChoice!=="full" && graphicsModeChoice!=="light" &&
             typeof window.MBChooseBossGraphicsMode==="function") {
             ls2ChoicePending=true;
-            window.MBChooseBossGraphicsMode("Живой Камень: Супер-версия",function(mode) {
+            window.MBChooseBossGraphicsMode("Живой Камень Прайм",function(mode) {
                 ls2ChoicePending=false; startLivingStoneSuperFight(mode);
             });
             return;
@@ -1966,7 +1966,7 @@
             overlay.style.display="flex";
         }
         var nameEl=document.getElementById("arenaBossName");
-        if (nameEl) nameEl.textContent="🪨 ЖИВОЙ КАМЕНЬ: СУПЕР-ВЕРСИЯ";
+        if (nameEl) nameEl.textContent="🪨 ЖИВОЙ КАМЕНЬ ПРАЙМ";
         var hpEl=document.getElementById("arenaHP"); if (hpEl) hpEl.textContent=ls2PlayerHp;
         var timerEl=document.getElementById("arenaTimer"); if (timerEl) timerEl.textContent="∞";
         ls2CreateControls();
