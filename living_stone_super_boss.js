@@ -830,9 +830,9 @@
 
     function ls2Clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
     function ls2HasWaystarAid() {
-        return typeof window!=="undefined" &&
-            (window.waystarOwesDebt===true ||
-             (typeof slotData!=="undefined" && !!slotData && slotData.waystarOwesDebt===true));
+        if (typeof window==="undefined") return false;
+        var savedValue = (typeof slotData!=="undefined" && slotData) ? slotData.waystarOwesDebt : false;
+        return window.waystarOwesDebt===true || savedValue===true || savedValue===1 || savedValue==="true";
     }
     function ls2StopChaseMusic() {
         if (!ls2ChaseMusic) return;
