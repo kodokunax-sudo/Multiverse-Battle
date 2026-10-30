@@ -1742,7 +1742,9 @@ function waystarRenderLoop() {
                     var dx = b.x - waystarBoss.x, dy = b.y - waystarBoss.y;
                     if (Math.sqrt(dx * dx + dy * dy) < waystarBoss.size + b.size) {
                         var testBossDamage = b.damage;
-                        if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") testBossDamage=window.MBBossTestModifyOutgoingDamage(testBossDamage,1);
+                        var moderatorBulletDamage = window.MBGetModeratorBulletDamage(waystarBossMaxHp);
+                        if (moderatorBulletDamage !== null) testBossDamage = moderatorBulletDamage;
+                        else if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") testBossDamage=window.MBBossTestModifyOutgoingDamage(testBossDamage,1);
                         waystarBossHp -= testBossDamage; waystarBossFlash = 6;
                         if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onBossDamage(testBossDamage, waystarState);
                         spawnWaystarParticles(b.x, b.y, 6, "#ffd700", 4); addWaystarFlash(b.x, b.y, 12);
@@ -1775,7 +1777,9 @@ function waystarRenderLoop() {
                 var dx = b.x - waystarSmallBoss.x, dy = b.y - waystarSmallBoss.y;
                 if (Math.sqrt(dx * dx + dy * dy) < waystarSmallBoss.size + b.size) {
                     var testBossDamage = b.damage;
-                    if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") testBossDamage=window.MBBossTestModifyOutgoingDamage(testBossDamage,1);
+                    var moderatorBulletDamage = window.MBGetModeratorBulletDamage(waystarBossMaxHp);
+                    if (moderatorBulletDamage !== null) testBossDamage = moderatorBulletDamage;
+                    else if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") testBossDamage=window.MBBossTestModifyOutgoingDamage(testBossDamage,1);
                     waystarBossHp -= testBossDamage; waystarBossFlash = 6;
                     if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onBossDamage(testBossDamage, waystarState);
                     spawnWaystarParticles(b.x, b.y, 8, "#ff00ff", 4); addWaystarFlash(b.x, b.y, 18);
