@@ -80,7 +80,7 @@
                 candidate = new Audio(sources[sourceIndex++]);
                 audio = candidate;
                 candidate.volume = 0.82;
-                candidate.loop = false;
+                candidate.loop = true;
                 candidate.onerror = function () {
                     if (audio === candidate) {
                         audio = null;
