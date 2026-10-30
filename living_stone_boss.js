@@ -2770,14 +2770,18 @@ function livingStoneRenderLoop() {
     if (qteBossArm && qteCinematicPhase === "grabbed") drawBossArm();
     if (finalHeartVisible && (!isQTE || livingStoneState === "qte_punch" || livingStoneState === "qte_finish" || 
         livingStoneState === "qte_cinematic" || finalSceneActive)) {
-        if (livingStoneState === "phase2" && typeof window.MBDrawWaystarCompanionSupport === "function") {
-            try { window.MBDrawWaystarCompanionSupport(ctx); } catch(e) {}
-        }
         drawLivingStonePlayer();
         if (typeof window !== "undefined" && window.livingStoneSuperActive &&
             window.__mbLS2GreenPhase === "green" && typeof window.MBDrawLivingStoneSuperShield === "function") {
             try { window.MBDrawLivingStoneSuperShield(ctx); } catch(e) {}
         }
+    }
+    // Draw the Waystar independently of finalHeartVisible: phase-two support must not
+    // disappear when the heart visibility flag is changed by a previous cinematic.
+    if (livingStoneState === "phase2" && window.livingStoneSuperActive === true &&
+        window.__mbLS2AfterChase === true &&
+        typeof window.MBDrawWaystarCompanionSupport === "function") {
+        try { window.MBDrawWaystarCompanionSupport(ctx); } catch(e) {}
     }
     
     if (lsActiveMod && lsActiveMod.type === 4 && (livingStoneState === "phase1" || livingStoneState === "phase2") && !finalSceneActive) {
