@@ -1911,7 +1911,7 @@ const customCardTemplates = {
             ability: { type: "resurrect", chance: 0.05, desc: "5% воскрес" }, 
             desc: "Великий воин морей. 5% шанс воскреснуть при смерти.",
             superAbility: { name: "SUPER: ЛОЖЬ СТАНОВИТСЯ ПРАВДОЙ", desc: "Полная неуязвимость на 3 секунды, но потом 2 секунды оглушения. А вы ему верите?", passive: false },
-            masteryTitle: "Ложь, ставшая божеством", masteryTitleId: "mastery_character_f4b6b32b", masteryTitleIcon: "✦"
+            masteryTitle: "Официальный свидетель своих подвигов", masteryTitleId: "mastery_character_f4b6b32b", masteryTitleIcon: "✦"
         },
         { 
             name: "Зено", universe: "DB", damage: 300, hp: 500, speed: 3.0, sellPrice: 3000, minRebirth: 4, 
@@ -1940,7 +1940,7 @@ const customCardTemplates = {
             ability: { type: "bossDamage", value: 0.20, desc: "+20% боссам" }, 
             desc: "Тайный правитель мира. +20% урона боссам.",
             superAbility: { name: "SUPER: ТЕНЕВОЕ ПРАВЛЕНИЕ", desc: "Тёмная аура вокруг сердца. Атаки, касающиеся ауры, имеют 50% шанс быть уничтоженными. Но сердце замедлено на 30%. Это для тех, кто не умеет уварачиваться. Для тебя, хех!", passive: false },
-            masteryTitle: "Тень пустого трона", masteryTitleId: "mastery_character_8ce0b805", masteryTitleIcon: "✦"
+            masteryTitle: "Арендодатель пустого трона", masteryTitleId: "mastery_character_8ce0b805", masteryTitleIcon: "✦"
         },
         { 
             name: "Космический Дэнди", universe: "Space Dandy", damage: 200, hp: 650, speed: 2.7, sellPrice: 2200, minRebirth: 3, 
@@ -1995,15 +1995,15 @@ const customCardTemplates = {
             unsellable: true,
             ability: { type: "whitebeardSpecial", desc: "Пассивно: 10% поглощения урона, 3% шанс воскреснуть, +1% HP за волну и бонус комбо 2% за серию из 5 ударов. При 4★+: регенерация 2% HP каждые 5 с. УДАР: перезарядка 30 с → ЦУНАМИ: окно 20 с, запуск с задержкой 1,5 с." },
             desc: "Эдвард Ньюгейт. Сильнейший человек в мире. Нельзя получить через гачу — только победив супер-Белоуса.",
-            masteryTitle: "Сильнейший человек морей", masteryTitleId: "mastery_character_e4d9361e", masteryTitleIcon: "✦"
+            masteryTitle: "Отец, которого никто не выбирал", masteryTitleId: "mastery_character_e4d9361e", masteryTitleIcon: "✦"
         }
 ,
                         {"name":"Зоро (Вано: Король ада)","universe":"One Piece","patchId":"one_piece","damage":230,"hp":250,"speed":3,"ability":{"type":"bossDamage","value":0.25,"desc":"+25% урона боссам"},"statusAbility":{"type":"bleed","value":0.12,"desc":"+12% урона через кровотечение"},"desc":"Пиковая версия Зоро с продвинутым хаки короля и клинками, покрытыми чёрным пламенем.",
-            masteryTitle: "Король ада трёх клинков", masteryTitleId: "mastery_character_9c5fbdcb", masteryTitleIcon: "✦"},
+            masteryTitle: "Заблудился даже в собственном доме", masteryTitleId: "mastery_character_9c5fbdcb", masteryTitleIcon: "✦"},
         {"name":"Чёрная Борода (Два дьявольских плода)","universe":"One Piece","patchId":"one_piece","damage":280,"hp":310,"speed":2.5,"ability":{"type":"damageAura","value":0.12,"desc":"+12% урона команде"},"statusAbility":{"type":"shock","chance":0.12,"desc":"12% шанс сотрясающего шока"},"desc":"Тич сочетает тьму Ями-Ями и разрушительную силу Гура-Гура. Отдельная версия после получения второго плода.",
-            masteryTitle: "Два плода, одна бездна", masteryTitleId: "mastery_character_7f0673ab", masteryTitleIcon: "✦"},
+            masteryTitle: "Два фрукта, ноль мозгов", masteryTitleId: "mastery_character_7f0673ab", masteryTitleIcon: "✦"},
         {"name":"Гол Д. Роджер (Камусари)","universe":"One Piece","patchId":"one_piece","damage":265,"hp":275,"speed":3.1,"ability":{"type":"bossDamage","value":0.3,"desc":"+30% урона боссам"},"statusAbility":{"type":"bleed","value":0.08,"desc":"+8% урона через хаки"},"desc":"Роджер выпускает Камусари — стремительный удар хаки, прославивший Короля пиратов.",
-            masteryTitle: "Король пиратов, расколовший небеса", masteryTitleId: "mastery_character_8062e6f3", masteryTitleIcon: "✦"},
+            masteryTitle: "Король пиратов и безработных", masteryTitleId: "mastery_character_8062e6f3", masteryTitleIcon: "✦"},
                 {
             "name": "Джорно Джованна (Gold Experience Requiem)",
             "universe": "JoJo", "patchId": "jojo",
@@ -2024,7 +2024,7 @@ const customCardTemplates = {
             "desc": "Requiem-форма Gold Experience, способная возвращать действия и волю противника к нулю. Стенд: Gold Experience Requiem. Способность стенда: Возврат к нулю: максимальная защита и радиус. Бафф при призыве: скорость +14%; хитбокс-сердечко радиусом 14 перехватывает атаки и принимает на себя 84% урона; на обычной арене получаемый урон снижен на 10% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Gold Experience Requiem", desc: "Нажми SUPER, чтобы призвать Gold Experience Requiem как отдельное хитбокс-сердечко. Возврат к нулю: максимальная защита и радиус. Бафф: скорость +14%; хитбокс радиусом 14 принимает на себя 84% урона при столкновении; на обычной арене получаемый урон снижается на 10%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Нулевой приговор причинности", masteryTitleId: "mastery_character_96ba4ab3", masteryTitleIcon: "✦"},
+            masteryTitle: "Обнулил даже свой будильник", masteryTitleId: "mastery_character_96ba4ab3", masteryTitleIcon: "✦"},
         {
             "name": "Энрико Пуччи (Made in Heaven)",
             "universe": "JoJo", "patchId": "jojo",
@@ -2056,7 +2056,7 @@ const customCardTemplates = {
             "desc": "Высшая форма Tusk, использующая бесконечное вращение для пробивания почти любой защиты. Стенд: Tusk ACT 4. Способность стенда: Бесконечное вращение: высокий блок урона. Бафф при призыве: скорость +21%; хитбокс-сердечко радиусом 13 перехватывает атаки и принимает на себя 83% урона; на обычной арене получаемый урон снижен на 10% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Tusk ACT 4", desc: "Нажми SUPER, чтобы призвать Tusk ACT 4 как отдельное хитбокс-сердечко. Бесконечное вращение: высокий блок урона. Бафф: скорость +21%; хитбокс радиусом 13 принимает на себя 83% урона при столкновении; на обычной арене получаемый урон снижается на 10%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Бесконечное вращение", masteryTitleId: "mastery_character_59148ac8", masteryTitleIcon: "✦"},
+            masteryTitle: "Крутит сильнее стиральной машины", masteryTitleId: "mastery_character_59148ac8", masteryTitleIcon: "✦"},
         {
             "name": "Карс (Высшее существо)",
             "universe": "JoJo", "patchId": "jojo",
@@ -2092,7 +2092,7 @@ const customCardTemplates = {
             "desc": "Пользователь Wonder of U, чья сила направляет бедствия на тех, кто преследует его или стенд. Стенд: Wonder of U. Способность стенда: Катастрофа: защита и максимальный радиус. Бафф при призыве: скорость +7%; хитбокс-сердечко радиусом 14 перехватывает атаки и принимает на себя 83% урона; на обычной арене получаемый урон снижен на 10% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Wonder of U", desc: "Нажми SUPER, чтобы призвать Wonder of U как отдельное хитбокс-сердечко. Катастрофа: защита и максимальный радиус. Бафф: скорость +7%; хитбокс радиусом 14 принимает на себя 83% урона при столкновении; на обычной арене получаемый урон снижается на 10%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Катастрофа, которую нельзя преследовать", masteryTitleId: "mastery_character_c797933e", masteryTitleIcon: "✦"}
+            masteryTitle: "Причина твоих проблем с интернетом", masteryTitleId: "mastery_character_c797933e", masteryTitleIcon: "✦"}
     ],
     "Эволюционная": [
         { name: "Луффи : Король пиратов", universe: "One Piece", damage: 1200, hp: 2000, speed: 4.5, minRebirth: 5, ability: { type: "bossDamage", value: 0.50, desc: "+50% боссам", bossReduction: 0.40 }, unsellable: true, desc: "Король пиратов. +50% урона боссам и -40% получаемого урона при битве с боссом. Чтобы получить: соберите 5 разных Луффи в команду (ровно 5 карт) и победите босса 500 волны.",
