@@ -852,7 +852,7 @@
         if (!ls2Live() || ls2ChaseTriggered) return;
         ls2ChaseTriggered=true; ls2ChaseStarAid=ls2HasWaystarAid();
         ls2StarAssistActive=ls2ChaseStarAid;
-        ls2ChaseFrames=0; ls2ChaseDuration=2400;
+        ls2ChaseFrames=0; ls2ChaseDuration=6960;
         ls2ChaseLane=1; ls2ChaseObstacles=[]; ls2ChaseSpawnTimer=28;
         ls2ChaseGuard=ls2ChaseStarAid?1:0; ls2ChaseGuardTimer=240;
         ls2ChaseJumpTimer=0; ls2ChaseSlideTimer=0;
@@ -950,8 +950,11 @@
         if (typeof livingStoneBoss!=="undefined") {
             livingStoneBoss.x=200; livingStoneBoss.y=108; livingStoneBoss.vx=ls2ChaseStarAid?-1.25:1.15;
         }
+        window.__mbLS2AfterChase = true;
+        // The separate Waystar companion module now owns post-chase support.
+        ls2StarAssistActive = false;
         if (ls2ChaseStarAid) {
-            ls2StarAssistActive=true; ls2StarAssistCooldown=300; ls2StarAssistFlash=40;
+            ls2StarAssistActive = false; ls2StarAssistCooldown=300; ls2StarAssistFlash=40;
             if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(200,108,24,"#9deaff",5);
             if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,310,"ЗВЕЗДА: ТЕПЕРЬ ОН НЕ УЙДЁТ!","#aeeaff",110);
         } else if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,310,"ТЫ ЗАГНАЛ МЕНЯ В УГОЛ!","#ff967d",100);
@@ -1165,9 +1168,9 @@
             ? livingStoneBossHp/livingStoneBossMaxHp : 1;
         ls2UniqueAttackTimer--;
         if (ls2UniqueAttackTimer <= 0) {
-            ls2UniqueAttackTimer = hpRatio < 0.22
-                ? 125 + Math.floor(Math.random() * 32)
-                : 260 + Math.floor(Math.random() * 101);
+            ls2UniqueAttackTimer = ls2ChaseTriggered
+                ? (hpRatio < 0.22 ? 105 + Math.floor(Math.random() * 30) : 185 + Math.floor(Math.random() * 66))
+                : (hpRatio < 0.22 ? 125 + Math.floor(Math.random() * 32) : 260 + Math.floor(Math.random() * 101));
             ls2SpawnSpecial(ls2ChooseSmartAttack(hpRatio));
         }
         if (ls2UniqueFrame % 12 < 6) b.vx += Math.sin(ls2UniqueFrame*.075)*.04;
@@ -1921,6 +1924,13 @@
         }
         window.__mbLS2RunnerActive = false;
         ls2StopChaseMusic();
+        if (typeof window.MBStopLivingStoneChaseMusic === "function") {
+            try { window.MBStopLivingStoneChaseMusic(); } catch(e) {}
+        }
+        if (typeof window.MBStopWaystarCompanion === "function") {
+            try { window.MBStopWaystarCompanion(); } catch(e) {}
+        }
+        window.__mbLS2AfterChase = false;
         if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("living_stone_super", "abandoned");
         if (ls2NativeMode) {
             ls2NativeMode = false;
@@ -2000,7 +2010,8 @@
         }
         ls2StopChaseMusic();
         window.__mbLS2RunnerActive = false;
-        ls2ChaseTriggered=false; ls2ChaseFrames=0; ls2ChaseDuration=2400; ls2ChaseLane=1;
+        ls2ChaseTriggered=false; ls2ChaseFrames=0; ls2ChaseDuration=6960; ls2ChaseLane=1;
+        window.__mbLS2AfterChase=false;
         ls2ChaseObstacles=[]; ls2ChaseSpawnTimer=28; ls2ChaseStarAid=false;
         ls2ChaseGuard=0; ls2ChaseGuardTimer=0; ls2ChaseJumpTimer=0; ls2ChaseSlideTimer=0;
         ls2StarAssistActive=false; ls2StarAssistCooldown=480; ls2StarAssistFlash=0;
@@ -2009,7 +2020,7 @@
         ls2PreviousArenaActive=typeof arenaActive!=="undefined"?arenaActive:false;
         ls2ReduceEffects=!!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
         ls2Active=true; window.livingStoneSuperActive=true;
-        ls2BossMaxHp=Math.max(250000,Math.floor((Number(currentEnemy.maxHp)||1250000)*0.225));
+        ls2BossMaxHp=Math.max(100000,Math.floor((Number(currentEnemy.maxHp)||1250000)*0.09));
         ls2BossHp=ls2BossMaxHp; ls2PlayerMaxHp=180; ls2PlayerHp=ls2PlayerMaxHp;
         currentEnemy.maxHp=ls2BossMaxHp; currentEnemy.hp=ls2BossHp;
         ls2Invulnerable=0; ls2HitFlash=0; ls2ShieldFlash=0; ls2ShieldDir=0;
