@@ -1855,7 +1855,7 @@ const customCardTemplates = {
             statusAbility: { type: "gojoDodge", chance: 0.30, desc: "30% шанс полностью отменить входящий урон" },
             desc: "Секретный Сатору Годжо: огромный урон, но здоровье ниже среднего. На 4★ обычные атаки критуют с шансом 90%; на 3★ есть 30% шанс полностью отменить входящий удар.",
             superAbility: { name: "SUPER: БЕЗГРАНИЧНОСТЬ", desc: "Красный создаёт красную сферу и запускает её вверх, отталкивая пули; при попадании по уникальному боссу наносит 5% максимального HP и отбрасывает его. Синий создаёт синюю сферу, которая притягивает блоки и уникального босса. Бесконечность на 3 секунды уничтожает блоки вокруг игрока, но вдвое замедляет его. При 100% Проклятой энергии Красный и Синий заменяются Фиолетовым: Годжо соединяет их и выпускает луч длиной примерно в половину арены, уничтожающий блоки на пути и наносящий уникальному боссу 15% максимального HP.", passive: false },
-            masteryTitle: "Сильнейший, которому тесно в небе", masteryTitleId: "mastery_character_d5ce1394", masteryTitleIcon: "✦"
+            masteryTitle: "Nah, I’d win", masteryTitleId: "mastery_character_d5ce1394", masteryTitleIcon: "✦"
         },
         // ★★★ ТАКАБА ★★★
         { 
@@ -1876,35 +1876,35 @@ const customCardTemplates = {
                 desc: "Такаба рассказывает тупую шутку: арена замирает на 4 секунды, после чего Такаба получает +30% уверенности. Кулдаун: 20 сек.",
                 passive: false 
             },
-            masteryTitle: "Комик, переписывающий реальность", masteryTitleId: "mastery_character_bbc2c00c", masteryTitleIcon: "✦"
+            masteryTitle: "Шутник", masteryTitleId: "mastery_character_bbc2c00c", masteryTitleIcon: "✦"
         },
         { 
             name: "Луффи: Ника, Бог Солнца", universe: "One Piece", damage: 150, hp: 200, speed: 3.8, sellPrice: 1500, minRebirth: 2, 
             ability: { type: "bossDamage", value: 0.30, desc: "+30% боссам", damageReduction: 0.10 }, 
             desc: "Пробуждение дьявольского фрукта. +30% урона боссам и -10% получаемого урона.",
             superAbility: { name: "SUPER: ОСВОБОЖДЕНИЕ", desc: "Сердце становится огромным и быстрым. Получаешь больше урона, но бьёшь больнее. «Я и так уже смеюсь!»", passive: false },
-            masteryTitle: "Бог Солнца, освободивший мир", masteryTitleId: "mastery_character_8612be69", masteryTitleIcon: "✦"
+            masteryTitle: "Нежданчик", masteryTitleId: "mastery_character_8612be69", masteryTitleIcon: "✦"
         },
         { 
             name: "Космический Гароу", universe: "OPM", damage: 250, hp: 400, speed: 3.5, sellPrice: 2800, minRebirth: 4, 
             ability: { type: "scaleWithWins", value: 0.01, desc: "+1% силы/волна" }, 
             desc: "Урон растёт на 1% за каждую победу. После смерти накопленный бонус сохраняется, только если в последних 5 победах команда ни разу не содержала Космического Гароу; если он участвовал хотя бы в одной из этих побед, бонус сбрасывается. После ребёрна бонус сбрасывается.",
             superAbility: { name: "SUPER: ПОТОК ВСЕЛЕННОЙ", desc: "Отматывает время на 2 секунды назад. Телепорт с неуязвимостью. Круто же, да?", passive: false },
-            masteryTitle: "Копия космоса", masteryTitleId: "mastery_character_819e38ce", masteryTitleIcon: "✦"
+            masteryTitle: "Я скопирую всу", masteryTitleId: "mastery_character_819e38ce", masteryTitleIcon: "✦"
         },
         { 
             name: "Сайтама", universe: "OPM", damage: 200, hp: 300, speed: 4.0, sellPrice: 1500, minRebirth: 3, 
             ability: { type: "oneShot", chance: 0.05, desc: "5% ваншот" }, 
             desc: "Лысый плащ. 5% шанс убить врага с одного удара.",
             superAbility: { name: "SUPER: ОБЫЧНЫЙ УДАР", desc: "Огромный красный кулак летит вверх, сметая все атаки. Шанс 1% ваншотнуть босса с SUPER атаки.", passive: false },
-            masteryTitle: "Кулак без потолка", masteryTitleId: "mastery_character_dc8f9149", masteryTitleIcon: "✦"
+            masteryTitle: "Гонять лысого", masteryTitleId: "mastery_character_dc8f9149", masteryTitleIcon: "✦"
         },
         { 
             name: "Борос", universe: "OPM", damage: 180, hp: 350, speed: 3.2, sellPrice: 1400, minRebirth: 2, 
             ability: { type: "healOnWin", percent: 0.05, desc: "+5% HP" }, 
             desc: "Владыка вселенной. Лечит 5% HP при победе.",
             superAbility: { name: "SUPER: РЕГЕНЕРАЦИЯ", desc: "Медленно восстанавливает HP, но замедляет персонажа. А вот жалкие людишки так не могут! Хе-хе-хе", passive: false },
-            masteryTitle: "Завоеватель звёзд", masteryTitleId: "mastery_character_078ba4df", masteryTitleIcon: "✦"
+            masteryTitle: "Нашел не того", masteryTitleId: "mastery_character_078ba4df", masteryTitleIcon: "✦"
         },
         { 
             name: "Бог Усопп", universe: "One Piece", damage: 250, hp: 400, speed: 2.5, sellPrice: 2000, minRebirth: 3, 
@@ -1919,21 +1919,21 @@ const customCardTemplates = {
             statusAbility: { type: "fatigueResist", value: 0.30, desc: "-30% усталости" }, 
             desc: "Царь всего. 10% шанс открыть следующий чекпоинт и -30% усталости.",
             superAbility: { name: "SUPER: СТИРАНИЕ", desc: "Уничтожает ВСЕ атаки на экране и наносит 10% урона боссу. Скучно -_-", passive: false },
-            masteryTitle: "Император стирания вселенных", masteryTitleId: "mastery_character_d5c14556", masteryTitleIcon: "✦"
+            masteryTitle: "Кнопка удаление", masteryTitleId: "mastery_character_d5c14556", masteryTitleIcon: "✦"
         },
         { 
             name: "Анти-спираль", universe: "GL", damage: 280, hp: 450, speed: 2.8, sellPrice: 2500, minRebirth: 2, 
             ability: { type: "damageReduction", value: 0.30, desc: "-30% урона" }, 
             desc: "Враг всего живого. Уменьшает получаемый урон на 30%.",
             superAbility: { name: "SUPER: СЖАТИЕ ПРОСТРАНСТВА", desc: "Увеличивает арену на 30%! Ну вроде :/", passive: false },
-            masteryTitle: "Тюремщик спиральной эволюции", masteryTitleId: "mastery_character_c9faaee6", masteryTitleIcon: "✦"
+            masteryTitle: "Сильнее всех вместе взятых", masteryTitleId: "mastery_character_c9faaee6", masteryTitleIcon: "✦"
         },
         { 
             name: "Молодой Гарп", universe: "One Piece", damage: 260, hp: 380, speed: 3.3, sellPrice: 2500, minRebirth: 3, 
             ability: { type: "damageAura", value: 0.25, desc: "+25% урона" }, 
             desc: "Гарп в расцвете сил. +25% урона всей команде.",
             superAbility: { name: "SUPER: ГАЛАКТИЧЕСКИЙ УДАР", desc: "Заряжает Хаки 1.2 секунды, затем БА-БАХ! АоЕ взрыв, очистка атак и 5% урона боссу. После удара — бафф Хаки на 6 секунд. Правда, после этого у босса всего лишь шишка. А атака была такой зрелищной....", passive: false },
-            masteryTitle: "Молодой кулак флота", masteryTitleId: "mastery_character_245ef0f3", masteryTitleIcon: "✦"
+            masteryTitle: "Дед до трамвы", masteryTitleId: "mastery_character_245ef0f3", masteryTitleIcon: "✦"
         },
         { 
             name: "Им (Правитель)", universe: "One Piece", damage: 290, hp: 450, speed: 2.2, sellPrice: 3000, minRebirth: 5, 
@@ -1948,14 +1948,14 @@ const customCardTemplates = {
             statusAbility: { type: "shock", chance: 0.20, desc: "Шок 20%" }, 
             desc: "Постоянный клиент космического фансервис-кафе «Груди»",
             superAbility: { name: "SUPER: КОСМИЧЕСКАЯ УДАЧА", desc: "Рулетка! 80% шанс получить крутой бафф (лечение, урон x2, очистка, скорость, щит и т.д.) и 20% шанс получить смешной дебафф. «Повезёт? Не повезёт? Дэнди знает!»", passive: false },
-            masteryTitle: "Космический денди галактического масштаба", masteryTitleId: "mastery_character_b3fbd772", masteryTitleIcon: "✦"
+            masteryTitle: "Постоянный клиент космического ресторана \"Груди\"", masteryTitleId: "mastery_character_b3fbd772", masteryTitleIcon: "✦"
         },
         { 
             name: "Кайдо", universe: "One Piece", damage: 300, hp: 500, speed: 2.4, sellPrice: 3000, minRebirth: 4, 
             ability: { type: "bossDouble", desc: "x2 урон (босс)" }, 
             desc: "Сильнейший в мире. При битве с боссом наносит удвоенный урон.",
             superAbility: { name: "SUPER: ДЫХАНИЕ РАЗРУШЕНИЯ", desc: "Пьёт пиво 2 секунды, затем впадает в ЯРОСТЬ на 10 секунд: хил 10%, поглощение 30% урона, +80% урона, скорость x1.5. Но управление ИНВЕРТИРУЕТСЯ! После — похмелье (замедление). Как можно во время боя пить?", passive: false },
-            masteryTitle: "Сильнейшее существо среди живых", masteryTitleId: "mastery_character_65a99bbc", masteryTitleIcon: "✦"
+            masteryTitle: "Главный дебошир", masteryTitleId: "mastery_character_65a99bbc", masteryTitleIcon: "✦"
         },
         { 
             name: "Император Марк", universe: "Invincible", damage: 310, hp: 500, speed: 3.1, sellPrice: 3000, minRebirth: 5, 
@@ -1963,14 +1963,14 @@ const customCardTemplates = {
             statusAbility: { type: "bleed", value: 0.12, desc: "Кровотечение +12%" }, 
             desc: "Марк спустя 500 лет. +15% урона команде при битве с боссом, +12% урона через кровотечение.",
             superAbility: { name: "ПАССИВКА: НЕПОБЕДИМАЯ ВОЛЯ", desc: "Два анти-ваншота за арену! При смерти воскресает с 25% HP. Ну проще говоря - сюжетная броня!", passive: true },
-            masteryTitle: "Император Вилтрума", masteryTitleId: "mastery_character_f98dde87", masteryTitleIcon: "✦"
+            masteryTitle: "Победю сильнейших, но отлетаю от бомжей", masteryTitleId: "mastery_character_f98dde87", masteryTitleIcon: "✦"
         },
         { 
             name: "Деку (100%)", universe: "MHA", damage: 280, hp: 450, speed: 3.6, sellPrice: 2800, minRebirth: 4, 
             ability: { type: "bossDoubleSelf", desc: "x2 урон (босс), -30% на 10 волн" }, 
             desc: "Полная сила One For All. Удваивает урон при битве с боссом, но ослабляет на 30% на следующие 10 волн.",
             superAbility: { name: "SUPER: ПОЛНОЕ 100% ПОКРЫТИЕ", desc: "Скорость x3, урон x2! Но каждую секунду теряешь 2% HP. Зелёные молнии повсюду! А без Эри ты бы включил 100%?", passive: false },
-            masteryTitle: "Стопроцентный наследник «Один за всех»", masteryTitleId: "mastery_character_75294802", masteryTitleIcon: "✦"
+            masteryTitle: "Спичка", masteryTitleId: "mastery_character_75294802", masteryTitleIcon: "✦"
         },
         { 
             name: "Всемогущий (прайм)", universe: "MHA", damage: 300, hp: 480, speed: 3.4, sellPrice: 3000, minRebirth: 4, 
@@ -1978,7 +1978,7 @@ const customCardTemplates = {
             statusAbility: { type: "bossDamageAura", value: 0.10, desc: "+25% (босс)" }, 
             desc: "Символ мира в прайме. +15% урона команде и +25% при битве с боссом.",
             superAbility: { name: "SUPER: СИМВОЛ МИРА", desc: "Хитбокс x2, урон x3 на 15 секунд! Но потом теряешь 50% HP и НАВСЕГДА замедляешься в 3 раза. ПЛЮЮЮС УЛЬТРААААА!", passive: false },
-            masteryTitle: "Символ мира в расцвете", masteryTitleId: "mastery_character_7334dc86", masteryTitleIcon: "✦"
+            masteryTitle: "Символ мира", masteryTitleId: "mastery_character_7334dc86", masteryTitleIcon: "✦"
         },
         { 
             name: "ДИО Over Heaven", universe: "JoJo", damage: 280, hp: 420, speed: 3.1, sellPrice: 3500, minRebirth: 4,
@@ -1988,7 +1988,7 @@ const customCardTemplates = {
             waveRegen: 0.01,
             desc: "Heaven Ascension DIO. Слабее по голой силе, зато The World Over Heaven даёт 4 дорогих тактических навыка: остановка времени, хил, возврат на позицию 1 секунду назад и агрессивные снаряды.",
             superAbility: { name: "SUPER: THE WORLD OVER HEAVEN", desc: "4 отдельных навыка с общей шкалой ЭНЕРГИИ 0–100. Энергия набирается от нанесённого урона. TIME STOP — 2.5с, HEAL — 10%, TELEPORT — 1с назад + 0.5с стопа, AGGRESSIVE — снаряды уничтожают друг друга.", passive: false },
-            masteryTitle: "Небеса под властью ДИО", masteryTitleId: "mastery_character_293d5a88", masteryTitleIcon: "✦"
+            masteryTitle: "Переписал реальность", masteryTitleId: "mastery_character_293d5a88", masteryTitleIcon: "✦"
         },
         { 
             name: "Белоус", universe: "One Piece", damage: 400, hp: 250, speed: 2.0, sellPrice: 800, minRebirth: 0,
@@ -2040,7 +2040,7 @@ const customCardTemplates = {
             "desc": "Финальная эволюция стенда Пуччи, ускоряющая время и движение всего мира. Стенд: Made in Heaven. Способность стенда: Ускорение: максимальная скорость. Бафф при призыве: скорость +30%; хитбокс-сердечко радиусом 10 перехватывает атаки и принимает на себя 66% урона; на обычной арене получаемый урон снижен на 3% пока стенд активен."
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Made in Heaven", desc: "Нажми SUPER, чтобы призвать Made in Heaven как отдельное хитбокс-сердечко. Ускорение: максимальная скорость. Бафф: скорость +30%; хитбокс радиусом 10 принимает на себя 66% урона при столкновении; на обычной арене получаемый урон снижается на 3%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
-            masteryTitle: "Священник ускоренного рая", masteryTitleId: "mastery_character_c36af983", masteryTitleIcon: "✦"},
+            masteryTitle: "В рай попадет никто", masteryTitleId: "mastery_character_c36af983", masteryTitleIcon: "✦"},
         {
             "name": "Джонни Джостар (Tusk Act 4)",
             "universe": "JoJo", "patchId": "jojo",
@@ -2070,7 +2070,7 @@ const customCardTemplates = {
             },
             "minRebirth": 4,
             "desc": "Карс достигает совершенной формы, сочетая силу и способности практически всех живых существ.",
-            masteryTitle: "Совершенство жизни", masteryTitleId: "mastery_character_b9b093cc", masteryTitleIcon: "✦"
+            masteryTitle: "Совершенное существо с 400iQ которое делает тупые ошибки", masteryTitleId: "mastery_character_b9b093cc", masteryTitleIcon: "✦"
         },
         {
             "name": "Тору (Wonder of U)",
