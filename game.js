@@ -2627,7 +2627,7 @@ function generateEnemy() {
             currentEnemy.hp = Math.max(1, Math.floor(currentEnemy.hp * 0.2));
             currentEnemy.maxHp = currentEnemy.hp;
             currentEnemy.isWeakenedSuperStone = true;
-            currentEnemy.name = "🪨 Живой Камень: Супер-версия (ослабленный)";
+            currentEnemy.name = "🪨 Живой Камень Прайм (ослабленный)";
         }
     }
     else {
@@ -3626,19 +3626,22 @@ window.MBGameCards = {
 };
 
 document.addEventListener("DOMContentLoaded", function () {
-    // Повторный бой с Анти-Спиралью после победы: отдельная кнопка не сбрасывает остальное сохранение.
-    (function installAntiSpiralRematch() {
-        let rematch = document.getElementById("antiSpiralRematchBtn");
+    // Реванш с Живым Камнем Прайм после победы: основной прогресс сохранения не сбрасывается.
+    (function installLivingStonePrimeRematch() {
+        var oldAntiSpiralRematch = document.getElementById("antiSpiralRematchBtn");
+        if (oldAntiSpiralRematch) oldAntiSpiralRematch.remove();
+
+        let rematch = document.getElementById("livingStonePrimeRematchBtn");
         if (!rematch) {
             rematch = document.createElement("button");
-            rematch.id = "antiSpiralRematchBtn";
+            rematch.id = "livingStonePrimeRematchBtn";
             rematch.type = "button";
-            rematch.textContent = "♾️ РЕВАНШ: АНТИ-СПИРАЛЬ";
-            rematch.style.cssText = "position:fixed;z-index:99999;right:16px;bottom:18px;padding:12px 16px;border:1px solid #9b7bff;border-radius:12px;background:linear-gradient(135deg,#251044,#07516b);color:#fff;font-weight:900;letter-spacing:.3px;box-shadow:0 0 22px #8955ff88;cursor:pointer;display:none";
+            rematch.textContent = "🪨 РЕВАНШ: ЖИВОЙ КАМЕНЬ ПРАЙМ";
+            rematch.style.cssText = "position:fixed;z-index:99999;right:16px;bottom:18px;padding:12px 16px;border:1px solid #ff795b;border-radius:12px;background:linear-gradient(135deg,#28120e,#6b2117);color:#fff;font-weight:900;letter-spacing:.3px;box-shadow:0 0 22px #ff684b66;cursor:pointer;display:none";
             rematch.addEventListener("click", function () {
                 if (!Array.isArray(defeatedBosses)) defeatedBosses = [];
-                defeatedBosses = defeatedBosses.filter(function (bossWave) { return Number(bossWave) !== 1500; });
-                wave = 1500;
+                defeatedBosses = defeatedBosses.filter(function (bossWave) { return Number(bossWave) !== 2000; });
+                wave = 2000;
                 playerHp = window.playerMaxHp || 100;
                 clicksSinceLastCounter = 0;
                 resurrectedThisFight = false;
@@ -3649,12 +3652,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (typeof updatePlayerStats === "function") updatePlayerStats();
                 if (typeof renderCheckpoints === "function") renderCheckpoints();
                 rematch.style.display = "none";
-                if (typeof showFloatingText === "function") showFloatingText("♾️ АНТИ-СПИРАЛЬ ВЕРНУЛСЯ!", "#c9a0ff");
+                if (typeof showFloatingText === "function") showFloatingText("🪨 ЖИВОЙ КАМЕНЬ ПРАЙМ ВЕРНУЛСЯ!", "#ff946b");
             });
             document.body.appendChild(rematch);
         }
         function syncRematchVisibility() {
-            rematch.style.display = Array.isArray(defeatedBosses) && defeatedBosses.includes(1500) ? "block" : "none";
+            rematch.style.display = Array.isArray(defeatedBosses) && defeatedBosses.some(function (bossWave) {
+                return Number(bossWave) === 2000;
+            }) ? "block" : "none";
         }
         syncRematchVisibility();
         setInterval(syncRematchVisibility, 1000);
