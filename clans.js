@@ -3753,12 +3753,18 @@
                     activeAccountSessionUserId = null;
                     activeAccountSessionId = null;
                     activeAccountAuthSessionId = null;
-                    // Keep the authenticated user. A lost game-session lease is not
-                    // a sign-out; show the lock and let the player retry the check.
                     currentClan = null;
                     currentProfile = null;
-                    showAuthState();
-                    showAccountSessionLock('Игровая сессия потеряла блокировку. Аккаунт остаётся подключённым. Нажми «Проверить снова», чтобы восстановить сессию.');
+                    if (result.data && result.data.code === 'session_revoked') {
+                        currentUser = null;
+                        showAuthState();
+                        setNotice('Эта сессия отключена владельцем аккаунта. Войди заново, если это твой аккаунт.', 'warning');
+                        client.auth.signOut({ scope: 'local' }).catch(function () {});
+                    } else {
+                        // A temporary lease timeout does not sign the player out.
+                        showAuthState();
+                        showAccountSessionLock('Игровая сессия потеряла блокировку. Аккаунт остаётся подключённым. Открой «Прочее → Безопасность» или повтори вход.');
+                    }
                     notifyCloudSaveAuthChanged();
                 }
             } catch (error) {
