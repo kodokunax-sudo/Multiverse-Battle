@@ -1592,6 +1592,18 @@ function livingStoneDefeat() {
         if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("loss",true);
         return;
     }
+    if (typeof window.MBTryMarkResurrection === "function") {
+        var markRestoredHp = window.MBTryMarkResurrection(livingStonePlayerMaxHp);
+        if (markRestoredHp > 0) {
+            livingStonePlayerHp = markRestoredHp;
+            livingStoneInvulnTimer = 90;
+            var markHpEl = document.getElementById("arenaHP");
+            if (markHpEl) markHpEl.innerText = Math.ceil(livingStonePlayerHp);
+            spawnLivingStoneText(livingStonePlayer.x, livingStonePlayer.y - 28,
+                "МАРК ВЕРНУЛ ТЕБЯ В БОЙ!", "#ffd966", 75);
+            return;
+        }
+    }
     if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") {
         window.MBPreserveGarouChargesForUniqueBossRetry("stone");
     }
@@ -3254,6 +3266,12 @@ function drawLivingStonePlayer() {
     if (livingStoneInvulnTimer > 0 && Math.floor(livingStoneInvulnTimer / 4) % 2 === 0) return;
     ctx.save();
     ctx.translate(p.x, p.y);
+    var markCardName = typeof getSecretHeartMainCardName === "function" ? getSecretHeartMainCardName() : "";
+    if (markCardName === "Император Марк" && typeof drawSecretHeartTexture === "function" &&
+        drawSecretHeartTexture(ctx, 0, 0, 12, markCardName, {rotation:0})) {
+        ctx.restore();
+        return;
+    }
     var superGreen = typeof window !== "undefined" && window.livingStoneSuperActive &&
         window.__mbLS2GreenPhase === "green";
     if (superGreen) {

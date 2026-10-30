@@ -84,6 +84,7 @@ let _superState = {
     kaidoDrinking: false, kaidoBuffActive: false, kaidoDmgReduction: false, kaidoDmgBonus: 1, kaidoSpeedBonus: 1, invertControls: false, kaidoScream: false,
     markResurrectCharges: 2,
     markBuffActive: false, markBuffTimer: 0, markDmgReduction: 1, markDmgBonus: 1, markSpeedBonus: 1,
+    markWingsActive: false, markWingAnimTime: 0,
     allmightPermaSlow: false, allmightDmgMult: 1, allmightBuffTimer: 0, allmightOrigSize: 14, allmightOrigHitbox: 4, allmightShockwave: 0,
     allmightDebuffActive: false, allmightDebuffTimer: 0, allmightDebuffDmgMult: 1,
     allmightHurricane: false, allmightHurricaneTimer: 0, allmightHurricaneAngle: 0,
@@ -2601,6 +2602,8 @@ function resetAllSupers() {
     _superState.allmightHurricaneAngle = 0;
     _superState.markBuffActive = false;
     _superState.markBuffTimer = 0;
+    _superState.markWingsActive = false;
+    _superState.markWingAnimTime = 0;
     _superState.markDmgReduction = 1;
     _superState.markDmgBonus = 1;
     _superState.markSpeedBonus = 1;
@@ -2674,6 +2677,12 @@ function initSuperState() {
    ============================================================ */
 function getSecretHeartMainCardName() {
     try {
+        if (typeof window !== "undefined" && window.rwbActive && typeof getRWBMainCard === "function") {
+            var rwbCard = getRWBMainCard();
+            if (rwbCard && rwbCard.name) return rwbCard.name;
+        }
+    } catch (e) {}
+    try {
         if (typeof getMainCard === "function") {
             var c = getMainCard();
             if (c && c.name) return c.name;
@@ -2688,6 +2697,165 @@ function getSecretHeartMainCardName() {
     return "";
 }
 window.getSecretHeartMainCardName = getSecretHeartMainCardName;
+
+// Shared Mark revive entry point. Each fight calls it from its own defeat handler.
+window.MBTryMarkResurrection = function(maxHp) {
+    try {
+        if (typeof window === "undefined" || window.__mbBossTestMode) return 0;
+        if (typeof _superState === "undefined" || Number(_superState.markResurrectCharges) <= 0) return 0;
+
+        var activeBoss = typeof isUniqueBossActive === "function" ? isUniqueBossActive() : null;
+        var selectedCard = null;
+        if (activeBoss === "rwb" && typeof getRWBMainCard === "function") {
+            try { selectedCard = getRWBMainCard(); } catch (e) {}
+        }
+        if (!selectedCard && typeof getMainCard === "function") {
+            try { selectedCard = getMainCard(); } catch (e) {}
+        }
+        if (!selectedCard && getSecretHeartMainCardName() === "Император Марк") {
+            selectedCard = { name: "Император Марк" };
+        }
+        if (!selectedCard || selectedCard.name !== "Император Марк") return 0;
+
+        var hpMax = Number(maxHp);
+        if (!Number.isFinite(hpMax) || hpMax <= 0) hpMax = 200;
+        var restoredHp = Math.max(1, Math.ceil(hpMax * 0.25));
+        _superState.markResurrectCharges = Math.max(0, Math.floor(Number(_superState.markResurrectCharges) - 1));
+
+        var bossContext = typeof getBossContext === "function" ? getBossContext() : null;
+        if (!_superState.markBuffActive && bossContext &&
+            typeof bossContext.getHeartSpeed === "function" &&
+            typeof bossContext.setHeartSpeed === "function") {
+            var speedBefore = Number(bossContext.getHeartSpeed()) || 0;
+            if (speedBefore > 0) bossContext.setHeartSpeed(speedBefore * 2);
+        }
+
+        _superState.markBuffActive = true;
+        _superState.markBuffTimer = 5;
+        _superState.markDmgReduction = 3;
+        _superState.markDmgBonus = 1.5;
+        _superState.markSpeedBonus = 2;
+        _superState.markWingsActive = true;
+        _superState.markWingAnimTime = 0;
+        _superState.screenFlashWhite = Math.max(Number(_superState.screenFlashWhite) || 0, 30);
+
+        if (bossContext && typeof bossContext.addFlashWhite === "function") {
+            try { bossContext.addFlashWhite(30); } catch (e) {}
+        }
+        if (bossContext && typeof bossContext.spawnFloatingText === "function") {
+            var hx = typeof bossContext.getHeartX === "function" ? bossContext.getHeartX() : 200;
+            var hy = typeof bossContext.getHeartY === "function" ? bossContext.getHeartY() : 400;
+            bossContext.spawnFloatingText(hx, hy - 28,
+                "МАРК: ВОСКРЕШЕНИЕ! (" + _superState.markResurrectCharges + ")", "#ffd966");
+        } else if (typeof spawnFloatingText === "function" && typeof heart !== "undefined" && heart) {
+            spawnFloatingText(heart.x, heart.y - 28,
+                "МАРК: ВОСКРЕШЕНИЕ! (" + _superState.markResurrectCharges + ")", "#ffd966");
+        }
+        console.log("[MARK] Revived in " + (activeBoss || "arena") + "; HP=" + restoredHp);
+        return restoredHp;
+    } catch (e) {
+        console.warn("[MARK] Resurrection failed safely:", e);
+        return 0;
+    }
+};
+
+// Symmetrical feathered wings, active only during the five-second revive buff.
+window.drawMarkWingsOverlay = function(targetCtx, size) {
+    try {
+        if (!targetCtx || typeof _superState === "undefined" ||
+            !_superState.markBuffActive || !_superState.markWingsActive) return false;
+        var s = Math.max(5, Number(size) || 12);
+        var now = typeof performance !== "undefined" ? performance.now() : Date.now();
+        var flap = Math.sin(now / 115) * 0.075;
+        targetCtx.save();
+        function drawWing(side) {
+            targetCtx.save();
+            targetCtx.translate(side * s * 0.48, -s * 0.08);
+            targetCtx.scale(side, 1);
+            targetCtx.rotate(flap);
+            var wingGrad = targetCtx.createLinearGradient(0, -s * 0.78, s * 1.35, s * 0.48);
+            wingGrad.addColorStop(0, "#fffef4");
+            wingGrad.addColorStop(0.52, "#ffe7a0");
+            wingGrad.addColorStop(1, "#c98b34");
+            targetCtx.fillStyle = wingGrad;
+            targetCtx.strokeStyle = "#fff5d2";
+            targetCtx.lineWidth = Math.max(0.65, s * 0.07);
+            targetCtx.shadowColor = "#ffd66b";
+            targetCtx.shadowBlur = Math.max(2, s * 0.28);
+            targetCtx.beginPath();
+            targetCtx.moveTo(0, s * 0.12);
+            targetCtx.bezierCurveTo(s * 0.18, -s * 0.36, s * 0.78, -s * 0.95, s * 1.48, -s * 0.78);
+            targetCtx.bezierCurveTo(s * 1.44, -s * 0.37, s * 1.16, s * 0.04, s * 0.83, s * 0.34);
+            targetCtx.bezierCurveTo(s * 0.48, s * 0.56, s * 0.14, s * 0.36, 0, s * 0.12);
+            targetCtx.closePath();
+            targetCtx.fill();
+            targetCtx.shadowBlur = 0;
+            targetCtx.stroke();
+            targetCtx.strokeStyle = "rgba(153,101,35,.82)";
+            targetCtx.lineWidth = Math.max(0.5, s * 0.04);
+            for (var f = 0; f < 4; f++) {
+                var t = f / 3;
+                targetCtx.beginPath();
+                targetCtx.moveTo(s * (0.12 + t * 0.12), s * (0.12 + t * 0.025));
+                targetCtx.quadraticCurveTo(s * (0.55 + t * 0.12), -s * (0.25 + t * 0.09),
+                    s * (1.17 + t * 0.06), -s * (0.61 - t * 0.06));
+                targetCtx.stroke();
+            }
+            targetCtx.restore();
+        }
+        drawWing(-1);
+        drawWing(1);
+        targetCtx.restore();
+        return true;
+    } catch (e) { return false; }
+};
+
+// Mark's heart is a dedicated pixel sprite, not a card/avatar portrait.
+window.drawMarkPixelHeart = function(targetCtx, size) {
+    if (!targetCtx) return false;
+    var s = Math.max(5, Number(size) || 12);
+    var pixels = [
+        "..DDD...DDD..",
+        ".DRRRD.DRRRD.",
+        "DRRRRRDRRRRRD",
+        "RRRRRRRRRRRRR",
+        "RRRBBBGGBBRRR",
+        ".RRBBBGBBRRR.",
+        "..RRRGGGRRR..",
+        "...RRRGGRR...",
+        "....RRRRR....",
+        ".....RRR.....",
+        "......R......"
+    ];
+    var cell = (s * 2.05) / 13;
+    var left = -cell * 6.5;
+    var top = -cell * 5.5;
+    var palette = {
+        "D": "#671a2c", "R": "#d92e42", "r": "#ff6977",
+        "B": "#2859a8", "b": "#173b78", "G": "#ffd66a", "W": "#fff4d2"
+    };
+    targetCtx.save();
+    targetCtx.shadowColor = "#e63248";
+    targetCtx.shadowBlur = Math.max(1, s * 0.42);
+    for (var y = 0; y < pixels.length; y++) {
+        for (var x = 0; x < 13; x++) {
+            var ch = pixels[y].charAt(x);
+            if (!ch || ch === ".") continue;
+            targetCtx.fillStyle = palette[ch] || "#d92e42";
+            targetCtx.fillRect(left + x * cell, top + y * cell, cell + 0.12, cell + 0.12);
+        }
+    }
+    targetCtx.shadowBlur = 0;
+    targetCtx.fillStyle = "#fff0b0";
+    targetCtx.fillRect(-cell * 0.5, -cell * 2.3, cell, cell * 1.2);
+    targetCtx.fillStyle = "#ffd66a";
+    targetCtx.fillRect(-cell * 1.5, -cell * 1.1, cell, cell * 1.1);
+    targetCtx.fillRect(cell * 0.5, -cell * 1.1, cell, cell * 1.1);
+    targetCtx.fillStyle = "rgba(255,255,255,.75)";
+    targetCtx.fillRect(-cell * 4.2, -cell * 3.1, cell * 1.3, cell * 1.3);
+    targetCtx.restore();
+    return true;
+};
 
 function drawSecretHeartTexture(targetCtx, x, y, size, cardName, options) {
     if (!targetCtx) return false;
@@ -2895,9 +3063,9 @@ function drawSecretHeartTexture(targetCtx, x, y, size, cardName, options) {
         ctx0.restore();
         ctx0.strokeStyle="#eee";ctx0.lineWidth=s*.13;ctx0.beginPath();ctx0.moveTo(-s*.52,-s*.55);ctx0.lineTo(-s*.78,-s*1.0);ctx0.moveTo(s*.52,-s*.55);ctx0.lineTo(s*.78,-s*1.0);ctx0.stroke();
     } else if (n === "Император Марк") {
-        fillHeart(ctx0, s, "#e6383b", "#4b79d8", 1.8, "#ff4c4c");
-        ctx0.save();ctx0.beginPath();heartPath(ctx0,s);ctx0.clip();ctx0.fillStyle="#173f96";ctx0.fillRect(-s*1.4,-s*.3,s*2.8,s*.65);ctx0.restore();
-        ctx0.strokeStyle="#ffffff";ctx0.lineWidth=s*.09;ctx0.beginPath();ctx0.moveTo(0,-s*.8);ctx0.lineTo(0,s*.58);ctx0.stroke();
+        if (typeof window.drawMarkWingsOverlay === "function") window.drawMarkWingsOverlay(ctx0, s);
+        if (typeof window.drawMarkPixelHeart === "function") window.drawMarkPixelHeart(ctx0, s);
+        else fillHeart(ctx0, s, "#d92e42", "#671a2c", 1.8, "#ff4c4c");
     } else if (n === "Деку (100%)") {
         /* Деку 100%: зелёное основное сердце + маленькое серое сердце
            ПОВЕРХ него. Малое = 1/1.5 от основного. */
@@ -3147,6 +3315,8 @@ function updateSuperLogic(dt) {
         _superState.markBuffTimer -= dt;
         if (_superState.markBuffTimer <= 0) {
             _superState.markBuffActive = false;
+            _superState.markWingsActive = false;
+            _superState.markWingAnimTime = 0;
             var curS = ctxB.getHeartSpeed();
             ctxB.setHeartSpeed(curS / _superState.markSpeedBonus);
             _superState.markDmgReduction = 1;

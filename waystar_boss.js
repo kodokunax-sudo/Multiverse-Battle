@@ -1348,6 +1348,15 @@ function waystarDefeat() {
     }
     if (waystarState === "defeat" || waystarFinalActive) return;
     if (isWaystarModerActive()) { waystarPlayerHp = waystarPlayerMaxHp; updateWaystarHpBar(); return; }
+    if (typeof window.MBTryMarkResurrection === "function") {
+        var markRestoredHp = window.MBTryMarkResurrection(waystarPlayerMaxHp);
+        if (markRestoredHp > 0) {
+            waystarPlayerHp = markRestoredHp;
+            waystarInvulnTimer = 90;
+            updateWaystarHpBar();
+            return;
+        }
+    }
     if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") {
         window.MBPreserveGarouChargesForUniqueBossRetry("waystar");
     }

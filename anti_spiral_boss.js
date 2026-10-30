@@ -592,6 +592,10 @@
         }
         if (!asActive || asPlayer.invuln > 0 || asState !== "fight" || asState === "victory" || asDefeatPending) return;
         // Boss damage is reduced by 1.5x while keeping every hit at least 1 HP.
+        if (typeof _superState !== "undefined" && _superState.markBuffActive &&
+            Number(_superState.markDmgReduction) > 1) {
+            damage = Math.max(1, Math.floor((Number(damage) || 1) / _superState.markDmgReduction));
+        }
         const amount = Math.max(1, Math.floor((Number(damage) || 1) / 1.5));
         asPlayerHp = Math.max(0, asPlayerHp - amount);
         // Полученный урон ставит заряд на паузу на 3 секунды, но накопленная мощь сохраняется.
@@ -1674,6 +1678,20 @@
             return;
         }
         if(asDefeatPending) return;
+        if (typeof window.MBTryMarkResurrection === "function") {
+            const markRestoredHp = window.MBTryMarkResurrection(asPlayerMaxHp);
+            if (markRestoredHp > 0) {
+                asPlayerHp = markRestoredHp;
+                asPlayer.invuln = 90;
+                asDefeatPending = false;
+                asCharging = false;
+                asUpdateControls();
+                const markHpEl = document.getElementById("arenaHP");
+                if (markHpEl) markHpEl.innerText = Math.ceil(asPlayerHp);
+                asText(asPlayer.x, asPlayer.y - 30, "МАРК НЕ ДАЛ ТЕБЕ УПАСТЬ!", "#ffd966", 80);
+                return;
+            }
+        }
         if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("anti_spiral", "death");
         if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") {
             window.MBPreserveGarouChargesForUniqueBossRetry("antispiral");
@@ -1891,6 +1909,12 @@
         c.save();c.translate(asPlayer.x,asPlayer.y);
         c.rotate(asGravityDirection * Math.PI / 2);
         c.scale(asPlayer.size/12,asPlayer.size/12);
+        const markCardName = typeof window.getSecretHeartMainCardName === "function" ? window.getSecretHeartMainCardName() : "";
+        if (markCardName === "Император Марк" && typeof window.drawSecretHeartTexture === "function" &&
+            window.drawSecretHeartTexture(c, 0, 0, 12, markCardName, {rotation:0})) {
+            c.restore();
+            return;
+        }
         c.shadowColor="#33c7ff";c.shadowBlur=18;
         const g=c.createLinearGradient(-8,-10,8,9);g.addColorStop(0,"#c8f7ff");g.addColorStop(.45,"#30c5ff");g.addColorStop(1,"#0647ce");c.fillStyle=g;
         c.beginPath();c.moveTo(0,7);c.bezierCurveTo(-3,4,-10,-1,-9,-6);c.bezierCurveTo(-8,-12,-2,-12,0,-7);c.bezierCurveTo(3,-12,9,-12,9,-5);c.bezierCurveTo(9,-1,3,4,0,7);c.closePath();c.fill();

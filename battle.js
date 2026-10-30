@@ -715,7 +715,7 @@ function startArena(bossWave) {
     if (wallWarningTimer) { clearTimeout(wallWarningTimer); wallWarningTimer = null; }
 
     if (typeof _superState !== 'undefined') {
-        _superState.markResurrectCharges = 2; _superState.markBuffActive = false; _superState.markBuffTimer = 0; _superState.markDmgReduction = 1; _superState.markDmgBonus = 1; _superState.markSpeedBonus = 1;
+        _superState.markResurrectCharges = 2; _superState.markBuffActive = false; _superState.markBuffTimer = 0; _superState.markWingsActive = false; _superState.markWingAnimTime = 0; _superState.markDmgReduction = 1; _superState.markDmgBonus = 1; _superState.markSpeedBonus = 1;
         _superState.allmightPermaSlow = false; _superState.allmightDmgMult = 1; _superState.allmightBuffTimer = 0;
         _superState.allmightDebuffActive = false; _superState.allmightDebuffTimer = 0; _superState.allmightDebuffDmgMult = 1;
         _superState.antispiralActive = false; _superState.antispiralShrinkAttacks = false; _superState.imAuraActive = false;
@@ -2015,13 +2015,14 @@ function loseArena() {
         spawnFloatingText(heart.x, heart.y - 20, "ВОСКРЕС ДЭНДИ!", "#ffcc00");
         return;
     }
-    if (typeof _superState !== 'undefined' && _superState.markResurrectCharges > 0) {
-        var mainCard = typeof getMainCard === 'function' ? getMainCard() : null;
-        if (mainCard && mainCard.name === "Император Марк") {
-            _superState.markResurrectCharges--; arenaHP = Math.ceil(arenaMaxHP * 0.25); document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
-            _superState.markBuffActive = true; _superState.markBuffTimer = 5; _superState.markDmgReduction = 3; _superState.markDmgBonus = 1.5; _superState.markSpeedBonus = 2;
-            heartSpeed *= 2; _superState.screenFlashWhite = 30;
-            spawnFloatingText(heart.x, heart.y - 20, "ВОСКРЕС! (" + _superState.markResurrectCharges + ")", "#ffd700"); return;
+    if (typeof window.MBTryMarkResurrection === "function") {
+        var markRestoredHp = window.MBTryMarkResurrection(arenaMaxHP);
+        if (markRestoredHp > 0) {
+            arenaHP = markRestoredHp;
+            var markHpEl = document.getElementById("arenaHP");
+            if (markHpEl) markHpEl.innerText = Math.ceil(arenaHP);
+            invulnTimer = Math.max(Number(invulnTimer) || 0, 90);
+            return;
         }
     }
     if (typeof resetAllCooldowns === 'function') resetAllCooldowns();

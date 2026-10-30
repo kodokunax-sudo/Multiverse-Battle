@@ -3336,6 +3336,21 @@
         }
         if (isModerActive()) return;
         if (rwbState === "defeat") return;
+        if (typeof window.MBTryMarkResurrection === "function" && rwbPlayer) {
+            let markRestoredHp = window.MBTryMarkResurrection(rwbPlayer.maxHp);
+            if (markRestoredHp > 0) {
+                rwbPlayer.hp = markRestoredHp;
+                rwbPlayer.invulnTimer = 90;
+                let markHpEl = document.getElementById("arenaHP");
+                if (markHpEl) markHpEl.innerText = Math.ceil(rwbPlayer.hp);
+                rwbFloatingTexts.push({
+                    x: rwbPlayer.x, y: rwbPlayer.y - 28,
+                    text: "МАРК ВЕРНУЛ ТЕБЯ В БОЙ!", color: "#ffd966",
+                    life: 80, maxLife: 80, vy: -0.5, vx: 0, size: 13
+                });
+                return;
+            }
+        }
         if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("roger_whitebeard", "death");
         if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") {
             window.MBPreserveGarouChargesForUniqueBossRetry("rwb");

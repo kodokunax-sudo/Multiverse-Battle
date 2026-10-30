@@ -281,6 +281,10 @@
             incoming=window.MBBossTestModifyIncomingDamage(incoming,"stoneSuper");
             if(incoming<=0){ls2SetMessage("ПАССИВКА ЗАЩИТИЛА СЕРДЦЕ",35);return;}
         }
+        if (typeof _superState !== "undefined" && _superState.markBuffActive &&
+            Number(_superState.markDmgReduction) > 1) {
+            incoming = Math.max(1, Math.floor(incoming / _superState.markDmgReduction));
+        }
         ls2PlayerHp = Math.max(0, ls2PlayerHp - incoming);
         ls2Invulnerable = 52; ls2HitFlash = 12;
         ls2SetMessage(ls2Phase === "green" ? "ЩИТ НЕ С ТОЙ СТОРОНЫ!" : "СНАРЯД ПОПАЛ! УВОРАЧИВАЙСЯ", 48);
@@ -288,6 +292,20 @@
         ls2PlayTone(90, "sawtooth", 0.18, 0.075);
         var hpEl = document.getElementById("arenaHP");
         if (hpEl) hpEl.textContent = ls2PlayerHp;
+        if (ls2PlayerHp <= 0 && typeof window.MBTryMarkResurrection === "function") {
+            var markRestoredHp = window.MBTryMarkResurrection(ls2PlayerMaxHp);
+            if (markRestoredHp > 0) {
+                ls2PlayerHp = markRestoredHp;
+                ls2Invulnerable = 90;
+                ls2HitFlash = 10;
+                ls2SetMessage("МАРК НЕ ДАЛ ТЕБЕ УПАСТЬ!", 80);
+                if (hpEl) hpEl.textContent = Math.ceil(ls2PlayerHp);
+                ls2SpawnSparks(LS2_HEART_X, LS2_HEART_Y, "#ffe08a", 24);
+                if (typeof livingStonePlayerHp !== "undefined") livingStonePlayerHp = ls2PlayerHp;
+                if (typeof livingStoneInvulnTimer !== "undefined") livingStoneInvulnTimer = 90;
+                return;
+            }
+        }
         if (ls2PlayerHp <= 0) {
             if(typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===2000) {
                 ls2Stop(false);
@@ -542,6 +560,12 @@
         if (ls2Invulnerable > 0 && Math.floor(now / 60) % 2 === 0) return;
         var greenSoul = ls2Phase === "green" || (ls2Phase === "gravity" && ls2PhaseTimer > ls2GravityDuration * 0.55);
         c.save(); c.translate(LS2_HEART_X, LS2_HEART_Y);
+        var markCardName = typeof window.getSecretHeartMainCardName === "function" ? window.getSecretHeartMainCardName() : "";
+        if (markCardName === "Император Марк" && typeof window.drawSecretHeartTexture === "function" &&
+            window.drawSecretHeartTexture(c, 0, 0, 13, markCardName, {rotation:0})) {
+            c.restore();
+            return;
+        }
         if (ls2Phase === "gravity") {
             c.translate(0, Math.sin(ls2PhaseTimer * 0.8) * 1.5);
             c.scale(1 + Math.min(0.18, ls2PhaseTimer / ls2GravityDuration * 0.18), 0.72);
@@ -1828,6 +1852,21 @@
             ls2Stop(false);
             if (typeof window.MBBossTestFinish==="function") window.MBBossTestFinish("loss",true);
             return;
+        }
+        if (typeof window.MBTryMarkResurrection === "function") {
+            var markRestoredHp = window.MBTryMarkResurrection(
+                typeof livingStonePlayerMaxHp !== "undefined" ? livingStonePlayerMaxHp : 180);
+            if (markRestoredHp > 0) {
+                if (typeof livingStonePlayerHp !== "undefined") livingStonePlayerHp = markRestoredHp;
+                if (typeof livingStoneInvulnTimer !== "undefined") livingStoneInvulnTimer = 90;
+                var markHpEl = document.getElementById("arenaHP");
+                if (markHpEl) markHpEl.textContent = Math.ceil(markRestoredHp);
+                if (typeof spawnLivingStoneText === "function") spawnLivingStoneText(
+                    typeof livingStonePlayer !== "undefined" && livingStonePlayer ? livingStonePlayer.x : 200,
+                    typeof livingStonePlayer !== "undefined" && livingStonePlayer ? livingStonePlayer.y - 28 : 390,
+                    "МАРК НЕ ДАЛ ТЕБЕ УПАСТЬ!", "#ffd966", 80);
+                return;
+            }
         }
         if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("living_stone_super", "death");
         if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") window.MBPreserveGarouChargesForUniqueBossRetry("stoneSuper");
