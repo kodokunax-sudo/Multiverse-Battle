@@ -207,7 +207,7 @@
     }
     function ls2SetControlVisibility() {
         if (!ls2Pad) return;
-        if (ls2NativeMode) ls2Pad.style.display = (window.__mbLS2GreenPhase === "green" || window.__mbLS2GreenPhase === "chase") ? "grid" : "none";
+        if (ls2NativeMode) ls2Pad.style.display = window.__mbLS2GreenPhase === "green" ? "grid" : "none";
         else ls2Pad.style.display = (ls2Phase === "normal" || ls2Phase === "green") ? "grid" : "none";
     }
     function ls2EnterNormal(afterGreen) {
