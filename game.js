@@ -2046,9 +2046,37 @@ window.renameAfkTeamPreset = renameAfkTeamPreset;
 // ========== UI ЗВУКИ ==========
 let _uiAudioCtx = null;
 function _initUIAudio() {
-    if (_uiAudioCtx) { if (_uiAudioCtx.state === 'suspended') _uiAudioCtx.resume(); return; }
-    try { _uiAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    // Never create WebAudio during page initialization: browsers require a user gesture.
+    if (!window.__mbUserHasInteracted) return;
+    if (_uiAudioCtx) {
+        if (_uiAudioCtx.state === 'suspended') {
+            try { _uiAudioCtx.resume().catch(function () {}); } catch(e) {}
+        }
+        return;
+    }
+    try {
+        _uiAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (_uiAudioCtx.state === 'suspended') _uiAudioCtx.resume().catch(function () {});
+    } catch(e) {}
 }
+function _unlockGameAudio() {
+    window.__mbUserHasInteracted = true;
+    _initUIAudio();
+    try {
+        if (typeof currentMusic !== 'undefined' && currentMusic &&
+            (typeof musicEnabled === 'undefined' || musicEnabled)) {
+            var p = currentMusic.play();
+            if (p && p.catch) p.catch(function () {});
+        }
+    } catch(e) {}
+    if (typeof window.MBRetryPendingChaseMusic === 'function') {
+        try { window.MBRetryPendingChaseMusic(); } catch(e) {}
+    }
+}
+window.MBUnlockGameAudio = _unlockGameAudio;
+window.addEventListener('pointerdown', _unlockGameAudio, true);
+window.addEventListener('keydown', _unlockGameAudio, true);
+window.addEventListener('touchstart', _unlockGameAudio, { capture: true, passive: true });
 function _playUISound(freq, type, dur, vol) {
     if (vol === undefined) vol = 0.1;
     _initUIAudio();
