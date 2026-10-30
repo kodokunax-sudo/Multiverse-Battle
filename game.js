@@ -1748,6 +1748,19 @@ let recentCosmicGarouTeam = [];
 let evoProgress = { wavesSaitamaGarou:0, damageGarpKuzan:0, luffyKingUnlocked:false, sgUnlocked:false, gkUnlocked:false, sevenUnlocked:false, williamUnlocked:false, oneShotCount:0 };
 let upgrades={damage:{level:0,baseCost:25,increment:2,name:"💪 Сила удара",reqLevel:1},hp:{level:0,baseCost:25,increment:5,name:"❤️ Живучесть",reqLevel:1},crit:{level:0,baseCost:8,increment:0.001,name:"⚡ Крит. шанс",reqLevel:5},fatigueResist:{level:0,baseCost:10,increment:0.001,name:"💪 Сопр. усталости",reqLevel:10}};
 
+// Суммарный бонус улучшения. Для силы первые 25 уровней дают +2,
+// следующие 25 — +3, затем +4 и так далее.
+function getUpgradeTotalValue(k) {
+    var upgrade = upgrades[k];
+    if (!upgrade) return 0;
+    var level = Math.max(0, Math.floor(Number(upgrade.level) || 0));
+    if (k !== "damage") return level * upgrade.increment;
+    var fullTiers = Math.floor(level / 25);
+    var remainder = level % 25;
+    return level * 2 + 25 * fullTiers * (fullTiers - 1) / 2 + remainder * fullTiers;
+}
+window.getUpgradeTotalValue = getUpgradeTotalValue;
+
 const REBIRTH_REQUIREMENTS = [
     { wave: 200,  bossName: "Живой камень" },
     { wave: 500,  bossName: "Путеводная Звезда" },
@@ -2311,7 +2324,7 @@ function getPassiveModifiers() {
 function updatePlayerStats() { 
     let m = getPassiveModifiers(); 
     let fm = 1 - fatigue / 100; 
-    let base = 5 + upgrades.damage.level * upgrades.damage.increment; 
+    let base = 5 + getUpgradeTotalValue('damage'); 
     let total = (base + (window.teamDamage || 0)) * fm; 
     let db = 1.0; 
     if (activeBuffs["doubleDamage"] && activeBuffs["doubleDamage"] > Date.now()) db = 2.0; 
@@ -2396,7 +2409,7 @@ function processOfflineProgress() {
     if (wavesCompleted <= 0) return; 
     let simWave = afkCurrentWave || wave; 
     let simHp = playerHp; 
-    let simBaseDmg = (5 + upgrades.damage.level * upgrades.damage.increment) * 0.8 + (window.afkTeamDamage || 0); 
+    let simBaseDmg = (5 + getUpgradeTotalValue('damage')) * 0.8 + (window.afkTeamDamage || 0); 
     let simMaxHp = Math.max(1, Math.floor((50 + upgrades.hp.level * upgrades.hp.increment) * 0.8 + (window.afkTeamHpBonus || 0))); 
     let earnedPoints = 0; 
     let earnedCards = 0; 
@@ -3094,7 +3107,7 @@ function startAfk() { if (afkActive || !afkTeam.length) return; afkActive = true
 function stopAfk() { afkActive = false; if (afkTimer) clearTimeout(afkTimer); let el = document.getElementById("afkStatus"); if (el) { el.innerText = "Неактивен"; el.className = "afk-inactive"; } el = document.getElementById("toggleAfkBtn"); if (el) el.innerText = "▶ Запустить"; saveAll(); }
 function runAfkTick() {
     if (!afkActive) return;
-    const baseAfkDamage = (5 + upgrades.damage.level * upgrades.damage.increment) * 0.8 + (window.afkTeamDamage || 0);
+    const baseAfkDamage = (5 + getUpgradeTotalValue('damage')) * 0.8 + (window.afkTeamDamage || 0);
     let ehp = 50 + afkCurrentWave * 12;
     let edmg = 15 + afkCurrentWave * 6;
     if (afkCurrentWave % 10 === 0) { ehp *= 4; edmg *= 3; }
