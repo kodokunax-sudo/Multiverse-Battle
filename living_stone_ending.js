@@ -1,13 +1,17 @@
-/* Living Stone: 2D chase before phase two. Runs inside the original arena. */
+/* Living Stone chase: Subway-Surfers-style 3-lane endless runner, 40 seconds. */
 (function () {
     "use strict";
-    var active = false, startedAt = 0, lastAt = 0, elapsed = 0, frame = 0;
-    var rocks = [], warnings = [], waves = [], bossTrail = [], playerTrail = [];
-    var nextVolley = 900, nextWarning = 2600, nextDebris = 1700;
-    var starAid = false, starGuard = false, nextGuard = 0, nextStrike = 4500;
-    var starFlash = 0, damageFlash = 0, callback = null, music = null, retryBound = false;
-    var reduced = false, lastX = 200, lastY = 400, lastHud = -1;
+
+    var active = false, startedAt = 0, lastAt = 0, elapsed = 0;
+    var lane = 1, laneVisual = 1, jumpLeft = 0, slideLeft = 0;
+    var obstacles = [], coins = [], particles = [];
+    var spawnClock = 0, trackOffset = 0, distance = 0, coinCount = 0;
+    var starAid = false, starGuard = false, nextGuard = 0, nextStrike = 0;
+    var starFlash = 0, damageFlash = 0, callback = null, music = null;
+    var retryBound = false, reduced = false, lastHud = -1;
+    var pointerStart = null, oldTouchAction = "";
     var DURATION = 40000;
+    var LANE_COUNT = 3;
 
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
     function clock() { return typeof performance !== "undefined" ? performance.now() : Date.now(); }
@@ -17,39 +21,509 @@
                 (typeof slotData !== "undefined" && slotData && slotData.waystarOwesDebt === true);
         } catch (e) { return false; }
     }
+    function musicAllowed() {
+        try { return typeof musicEnabled === "undefined" || musicEnabled !== false; }
+        catch (e) { return true; }
+    }
     function message(txt, color) {
         if (typeof spawnLivingStoneText === "function") spawnLivingStoneText(200, 300, txt, color, 100);
     }
+    function removeMusicRetry() {
+        if (!retryBound) return;
+        window.removeEventListener("pointerdown", retryMusic, true);
+        window.removeEventListener("keydown", retryMusic, true);
+        window.removeEventListener("touchstart", retryMusic, true);
+        retryBound = false;
+    }
+    function retryMusic() {
+        if (!active || !music || !musicAllowed()) return;
+        try {
+            var p = music.play();
+            if (p && p.then) p.then(removeMusicRetry).catch(function () {});
+            else removeMusicRetry();
+        } catch (e) {}
+    }
     function stopMusic() {
+        removeMusicRetry();
         if (!music) return;
-        try { music.pause(); music.currentTime = 0; } catch (e) {}
+        try { music.pause(); music.currentTime = 0; music.src = ""; } catch (e) {}
         music = null;
     }
     function startMusic() {
         stopMusic();
-        try { if (typeof stopAllMusic === "function") stopAllMusic(); } catch (e) {}
+        if (!musicAllowed()) return;
         try {
+            if (typeof stopAllMusic === "function") stopAllMusic();
             music = new Audio("music/помощь звезды.mp3");
+            music.preload = "auto";
             music.loop = true;
-            music.volume = 0.76;
+            music.volume = 0.78;
+            music.playsInline = true;
+            music.onerror = function () {
+                console.error("[LS CHASE] Не удалось загрузить music/помощь звезды.mp3");
+            };
             var p = music.play();
-            if (p && p.catch) p.catch(function () {
-                if (retryBound) return;
-                retryBound = true;
-                var retry = function () {
-                    if (music) { try { var r = music.play(); if (r && r.catch) r.catch(function () {}); } catch (e) {} }
-                    window.removeEventListener("pointerdown", retry, true);
-                    window.removeEventListener("keydown", retry, true);
-                    retryBound = false;
-                };
-                window.addEventListener("pointerdown", retry, true);
-                window.addEventListener("keydown", retry, true);
-            });
-        } catch (e) { music = null; }
+            if (p && p.catch) {
+                p.catch(function () {
+                    if (!active || retryBound) return;
+                    retryBound = true;
+                    window.addEventListener("pointerdown", retryMusic, true);
+                    window.addEventListener("keydown", retryMusic, true);
+                    window.addEventListener("touchstart", retryMusic, { capture: true, passive: true });
+                });
+            }
+        } catch (e) {
+            console.error("[LS CHASE] Ошибка запуска музыки:", e);
+            music = null;
+        }
+    }
+
+    function laneX(value, depth) {
+        return 200 + (value - 1) * (24 + depth * 112);
+    }
+    function depthY(depth) {
+        return 112 + Math.pow(clamp(depth, 0, 1.08), 1.68) * 330;
     }
     function resetArrays() {
-        rocks.length = 0; warnings.length = 0; waves.length = 0;
-        bossTrail.length = 0; playerTrail.length = 0;
+        obstacles.length = 0;
+        coins.length = 0;
+        particles.length = 0;
+    }
+
+    function bindControls() {
+        window.addEventListener("keydown", onKeyDown, true);
+        if (canvas && canvas.addEventListener) {
+            oldTouchAction = canvas.style.touchAction || "";
+            canvas.style.touchAction = "none";
+            canvas.addEventListener("pointerdown", onPointerDown, { passive: false });
+            canvas.addEventListener("pointerup", onPointerUp, { passive: false });
+            canvas.addEventListener("pointercancel", onPointerCancel, { passive: false });
+        }
+    }
+    function unbindControls() {
+        window.removeEventListener("keydown", onKeyDown, true);
+        if (canvas && canvas.removeEventListener) {
+            canvas.removeEventListener("pointerdown", onPointerDown);
+            canvas.removeEventListener("pointerup", onPointerUp);
+            canvas.removeEventListener("pointercancel", onPointerCancel);
+            canvas.style.touchAction = oldTouchAction;
+        }
+        pointerStart = null;
+    }
+    function onKeyDown(ev) {
+        if (!active || !ev) return;
+        var key = String(ev.key || "").toLowerCase();
+        if (key === "arrowleft" || key === "a") {
+            ev.preventDefault(); moveLane(-1);
+        } else if (key === "arrowright" || key === "d") {
+            ev.preventDefault(); moveLane(1);
+        } else if (key === "arrowup" || key === "w" || key === " " || key === "spacebar") {
+            ev.preventDefault(); if (!ev.repeat) jump();
+        } else if (key === "arrowdown" || key === "s") {
+            ev.preventDefault(); if (!ev.repeat) slide();
+        }
+    }
+    function onPointerDown(ev) {
+        if (!active || !ev) return;
+        if (ev.pointerType === "touch" || ev.pointerType === "pen") {
+            pointerStart = { x: ev.clientX, y: ev.clientY, id: ev.pointerId };
+            if (ev.cancelable) ev.preventDefault();
+        }
+    }
+    function onPointerUp(ev) {
+        if (!active || !pointerStart || !ev || ev.pointerId !== pointerStart.id) return;
+        var dx = ev.clientX - pointerStart.x, dy = ev.clientY - pointerStart.y;
+        pointerStart = null;
+        if (ev.cancelable) ev.preventDefault();
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < 22) return;
+        if (Math.abs(dx) > Math.abs(dy)) moveLane(dx < 0 ? -1 : 1);
+        else if (dy < 0) jump();
+        else slide();
+    }
+    function onPointerCancel() { pointerStart = null; }
+
+    function moveLane(dir) {
+        lane = clamp(lane + dir, 0, LANE_COUNT - 1);
+    }
+    function jump() {
+        if (jumpLeft <= 0 && slideLeft <= 0) jumpLeft = 0.78;
+    }
+    function slide() {
+        if (slideLeft <= 0 && jumpLeft <= 0.08) slideLeft = 0.68;
+    }
+
+    function addObstacle(whichLane, type, z) {
+        obstacles.push({
+            lane: whichLane, type: type, z: z || 0,
+            resolved: false, hit: false, phase: Math.random() * Math.PI * 2
+        });
+    }
+    function spawnPattern() {
+        var firstLane = Math.floor(Math.random() * 3);
+        var types = ["train", "barrier", "beam", "crate", "gap"];
+        var pick = types[Math.floor(Math.random() * types.length)];
+        addObstacle(firstLane, pick, 0);
+
+        // Two blocked lanes occasionally create a quick lane-switch challenge.
+        if (Math.random() < 0.29) {
+            var secondLane = (firstLane + 1 + Math.floor(Math.random() * 2)) % 3;
+            var secondTypes = ["train", "crate", "barrier"];
+            addObstacle(secondLane, secondTypes[Math.floor(Math.random() * secondTypes.length)], 0.035);
+        }
+
+        // A coin trail rewards taking the open line through the obstacle pattern.
+        var openLanes = [0, 1, 2].filter(function (v) {
+            return !obstacles.some(function (o) { return o.z < 0.12 && o.lane === v; });
+        });
+        if (openLanes.length && Math.random() < 0.82) {
+            var coinLane = openLanes[Math.floor(Math.random() * openLanes.length)];
+            for (var i = 0; i < 5; i++) {
+                coins.push({ lane: coinLane, z: -0.22 - i * 0.105, spin: Math.random() * 6, collected: false });
+            }
+        }
+    }
+    function damageRunner(x, y) {
+        if (starAid && starGuard) {
+            starGuard = false;
+            nextGuard = elapsed + 7000;
+            starFlash = 34;
+            if (typeof spawnLivingStoneParticles === "function") {
+                spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y, 24, "#ffd66b", 5);
+            }
+            message("ПУТЕВОДНАЯ ЗВЕЗДА ЗАЩИТИЛА ТЕБЯ!", "#ffe28a");
+            if (typeof playArenaSound === "function") playArenaSound(980, "sine", 0.18, 0.11);
+            return;
+        }
+        if (typeof damageLivingStonePlayer === "function") damageLivingStonePlayer(13);
+        damageFlash = 14;
+        if (typeof spawnLivingStoneParticles === "function") {
+            spawnLivingStoneParticles(x, y, 12, "#ff734f", 4);
+        }
+    }
+    function update(now) {
+        if (!active) return;
+        if (!livingStoneActive || livingStoneState !== "chase") { stop(); return; }
+        now = Number(now) || clock();
+        elapsed = clamp(now - startedAt, 0, DURATION);
+        var dt = clamp((now - lastAt) / 1000, 0.001, 0.05);
+        lastAt = now;
+        var difficulty = elapsed / DURATION;
+        var speed = 0.36 + difficulty * 0.15;
+        distance += speed * dt;
+        trackOffset = (trackOffset + dt * (0.55 + difficulty * 0.38)) % 1;
+
+        laneVisual += (lane - laneVisual) * Math.min(1, dt * 13);
+        if (jumpLeft > 0) jumpLeft = Math.max(0, jumpLeft - dt);
+        if (slideLeft > 0) slideLeft = Math.max(0, slideLeft - dt);
+        var jumpProgress = jumpLeft > 0 ? 1 - jumpLeft / 0.78 : 1;
+        var jumpHeight = jumpLeft > 0 ? Math.sin(jumpProgress * Math.PI) * 78 : 0;
+        livingStonePlayer.x = laneX(laneVisual, 0.92);
+        livingStonePlayer.y = 422 - jumpHeight - (slideLeft > 0 ? 5 : 0);
+
+        spawnClock += dt;
+        var spawnInterval = 1.12 - difficulty * 0.22;
+        if (spawnClock >= spawnInterval) {
+            spawnClock -= spawnInterval;
+            spawnPattern();
+        }
+
+        for (var i = obstacles.length - 1; i >= 0; i--) {
+            var ob = obstacles[i];
+            ob.z += speed * dt;
+            if (!ob.resolved && ob.z >= 0.88 && ob.z <= 0.99) {
+                var sameLane = Math.abs(laneVisual - ob.lane) < 0.48;
+                if (sameLane) {
+                    var cleared = (ob.type === "barrier" || ob.type === "gap") ?
+                        jumpLeft > 0.10 : (ob.type === "beam" ? slideLeft > 0.10 : false);
+                    if (!cleared) {
+                        ob.hit = true;
+                        damageRunner(laneX(ob.lane, 0.96), 416);
+                    }
+                }
+                ob.resolved = true;
+            }
+            if (ob.z > 1.13) obstacles.splice(i, 1);
+        }
+        for (var ci = coins.length - 1; ci >= 0; ci--) {
+            var coin = coins[ci];
+            coin.z += speed * dt;
+            coin.spin += dt * 8;
+            if (!coin.collected && coin.z >= 0.88 && coin.z <= 1.02 &&
+                Math.abs(laneVisual - coin.lane) < 0.48) {
+                coin.collected = true;
+                coinCount++;
+                if (typeof playArenaSound === "function") playArenaSound(1250, "sine", 0.07, 0.045);
+                if (typeof spawnLivingStoneParticles === "function") {
+                    spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y - 20, 5, "#ffdc76", 2);
+                }
+            }
+            if (coin.z > 1.13 || coin.collected) coins.splice(ci, 1);
+        }
+
+        // The Living Stone stays on the same route and visibly gains on the runner.
+        livingStoneBoss.x = 200 + Math.sin(elapsed * 0.0017) * 23;
+        livingStoneBoss.y = 160 + Math.sin(elapsed * 0.0031) * 7;
+        livingStoneBoss.size = 33 + Math.min(10, difficulty * 10);
+        livingStoneBoss.rotation += dt * (0.55 + difficulty);
+        if (starAid) {
+            if (elapsed >= nextGuard) { starGuard = true; nextGuard = elapsed + 7000; }
+            if (elapsed >= nextStrike) {
+                nextStrike += 7600;
+                starFlash = 28;
+                if (typeof spawnLivingStoneParticles === "function") {
+                    spawnLivingStoneParticles(livingStoneBoss.x, livingStoneBoss.y + 15, 15, "#ffd66b", 4);
+                }
+                if (typeof playArenaSound === "function") playArenaSound(1080, "sine", 0.18, 0.08);
+            }
+        }
+        if (starFlash > 0) starFlash = Math.max(0, starFlash - dt * 60);
+        if (damageFlash > 0) damageFlash = Math.max(0, damageFlash - dt * 60);
+
+        var remain = Math.max(0, Math.ceil((DURATION - elapsed) / 1000));
+        if (remain !== lastHud) {
+            lastHud = remain;
+            var timer = document.getElementById("arenaTimer");
+            if (timer) timer.textContent = "00:" + String(remain).padStart(2, "0");
+        }
+        if (elapsed >= DURATION) finish();
+    }
+
+    function polygon(c, pts, fill, stroke, width) {
+        c.beginPath();
+        c.moveTo(pts[0][0], pts[0][1]);
+        for (var i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]);
+        c.closePath();
+        if (fill) { c.fillStyle = fill; c.fill(); }
+        if (stroke) { c.strokeStyle = stroke; c.lineWidth = width || 1; c.stroke(); }
+    }
+    function drawTunnel(c, now) {
+        c.fillStyle = "#101923";
+        c.fillRect(0, 0, 400, 500);
+        var sky = c.createLinearGradient(0, 0, 0, 250);
+        sky.addColorStop(0, "#101a26"); sky.addColorStop(0.58, "#28313a"); sky.addColorStop(1, "#4b3c32");
+        c.fillStyle = sky; c.fillRect(0, 0, 400, 250);
+
+        // Tunnel walls and repeated lamps create a fast-moving subway corridor.
+        polygon(c, [[0, 82], [163, 112], [28, 500], [0, 500]], "#252b32", "#62605b", 2);
+        polygon(c, [[400, 82], [237, 112], [372, 500], [400, 500]], "#252b32", "#62605b", 2);
+        polygon(c, [[0, 0], [400, 0], [237, 112], [163, 112]], "#18212a", "#48515a", 1);
+        for (var i = 0; i < 5; i++) {
+            var z = (i * 0.24 + trackOffset * 0.78) % 1;
+            var y = 35 + Math.pow(z, 1.55) * 160;
+            var w = 8 + z * 34;
+            var xLeft = 200 - (48 + z * 125), xRight = 200 + (48 + z * 125);
+            c.fillStyle = "rgba(255,196,111," + (0.16 + z * 0.34) + ")";
+            c.fillRect(xLeft - w / 2, y, w, 3 + z * 5);
+            c.fillRect(xRight - w / 2, y, w, 3 + z * 5);
+            c.strokeStyle = "rgba(130,145,154," + (0.12 + z * 0.22) + ")";
+            c.lineWidth = 1 + z * 2;
+            c.beginPath(); c.moveTo(200 - (58 + z * 140), y + 10);
+            c.lineTo(200 + (58 + z * 140), y + 10); c.stroke();
+        }
+
+        // Track bed in strong perspective.
+        polygon(c, [[184, 112], [216, 112], [398, 500], [2, 500]], "#313238", "#8c7560", 2);
+        for (var divider = 0; divider < 2; divider++) {
+            var topX = 200 + (divider === 0 ? -1 : 1) * (12 + 8);
+            var bottomX = 200 + (divider === 0 ? -1 : 1) * 65;
+            c.strokeStyle = "rgba(178,164,145,.38)";
+            c.lineWidth = 2;
+            c.beginPath(); c.moveTo(topX, 112); c.lineTo(bottomX, 500); c.stroke();
+        }
+        for (var railLane = 0; railLane < 3; railLane++) {
+            var topCenter = 200 + (railLane - 1) * 8;
+            var bottomCenter = 200 + (railLane - 1) * 112;
+            for (var side = -1; side <= 1; side += 2) {
+                c.strokeStyle = side < 0 ? "#9e9c96" : "#625e59";
+                c.lineWidth = 2.2;
+                c.beginPath();
+                c.moveTo(topCenter + side * 4, 112);
+                c.lineTo(bottomCenter + side * 19, 500);
+                c.stroke();
+            }
+        }
+        for (var sleeper = 0; sleeper < 12; sleeper++) {
+            var z2 = (sleeper / 12 + trackOffset) % 1;
+            var y2 = 112 + Math.pow(z2, 1.68) * 388;
+            var half = 16 + z2 * 178;
+            c.strokeStyle = "rgba(168,142,112," + (0.25 + z2 * 0.45) + ")";
+            c.lineWidth = 1 + z2 * 6;
+            c.beginPath(); c.moveTo(200 - half, y2); c.lineTo(200 + half, y2); c.stroke();
+        }
+        c.strokeStyle = "rgba(255,220,166,.13)";
+        c.lineWidth = 1;
+        c.beginPath(); c.moveTo(200, 112); c.lineTo(200, 500); c.stroke();
+    }
+
+    function drawCoin(c, item) {
+        var z = clamp(item.z, 0, 1.05), x = laneX(item.lane, z), y = depthY(z) - (10 + z * 13);
+        var r = 3 + z * 9;
+        c.save();
+        c.translate(x, y); c.rotate(item.spin);
+        c.globalAlpha = 0.55 + z * 0.45;
+        c.shadowColor = "#ffd66b"; c.shadowBlur = reduced ? 0 : 10;
+        c.fillStyle = "#ffc94d"; c.strokeStyle = "#fff0a8"; c.lineWidth = 1 + z;
+        c.beginPath(); c.ellipse(0, 0, r * 0.72, r, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.shadowBlur = 0; c.fillStyle = "#fff4c4"; c.font = "bold " + Math.max(5, r) + "px sans-serif";
+        c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("✦", 0, 0.5);
+        c.restore();
+    }
+    function drawTrain(c, x, y, s) {
+        var w = 34 * s, h = 70 * s;
+        polygon(c, [[x - w * .62, y - h], [x + w * .62, y - h], [x + w, y - h * .82], [x + w, y], [x - w, y]], "#414c55", "#a6a9a5", 1.5 * s);
+        polygon(c, [[x - w * .62, y - h], [x - w * .32, y - h * 1.12], [x + w * .88, y - h * 1.02], [x + w * .62, y - h]], "#68747a", "#bac0bd", 1 * s);
+        c.fillStyle = "#17232b"; c.fillRect(x - w * .72, y - h * .77, w * 1.42, h * .28);
+        for (var i = 0; i < 3; i++) {
+            c.fillStyle = "#c2d7d3";
+            c.fillRect(x - w * .56 + i * w * .46, y - h * .72, w * .31, h * .18);
+        }
+        c.fillStyle = "#ffcf76";
+        c.fillRect(x - w * .62, y - h * .14, w * .22, h * .08);
+        c.fillRect(x + w * .4, y - h * .14, w * .22, h * .08);
+        c.fillStyle = "#161d22";
+        c.fillRect(x - w, y - 3 * s, w * 2, 5 * s);
+    }
+    function drawObstacle(c, ob) {
+        var z = clamp(ob.z, 0, 1.05), x = laneX(ob.lane, z), y = depthY(z);
+        var s = 0.18 + z * 1.36;
+        c.save();
+        if (ob.type === "train") {
+            drawTrain(c, x, y, s);
+        } else if (ob.type === "barrier") {
+            c.shadowColor = "#ff9a4e"; c.shadowBlur = reduced ? 0 : 8 * s;
+            polygon(c, [[x - 26*s, y - 16*s], [x + 26*s, y - 16*s], [x + 23*s, y], [x - 23*s, y]], "#bc613d", "#ffd09b", 1.5*s);
+            c.fillStyle = "#f0d0a5";
+            for (var b = -1; b <= 1; b++) c.fillRect(x + b * 15*s - 3*s, y - 12*s, 6*s, 5*s);
+        } else if (ob.type === "beam") {
+            c.shadowColor = "#f4b75f"; c.shadowBlur = reduced ? 0 : 7*s;
+            c.fillStyle = "#765746"; c.fillRect(x - 27*s, y - 64*s, 54*s, 9*s);
+            c.fillStyle = "#d4a56d"; c.fillRect(x - 27*s, y - 64*s, 54*s, 3*s);
+            c.fillStyle = "#4a3b36";
+            c.fillRect(x - 24*s, y - 58*s, 5*s, 46*s);
+            c.fillRect(x + 19*s, y - 58*s, 5*s, 46*s);
+        } else if (ob.type === "gap") {
+            c.shadowColor = "#ff6b41"; c.shadowBlur = reduced ? 0 : 12*s;
+            c.fillStyle = "#080b10"; c.strokeStyle = "#e37c48"; c.lineWidth = 2*s;
+            c.beginPath(); c.ellipse(x, y - 2*s, 29*s, 10*s, 0, 0, Math.PI*2); c.fill(); c.stroke();
+            c.strokeStyle = "rgba(255,194,117,.65)"; c.lineWidth = 1*s;
+            c.beginPath(); c.ellipse(x, y - 2*s, 18*s, 6*s, 0, 0, Math.PI*2); c.stroke();
+        } else {
+            c.shadowColor = "#17110e"; c.shadowBlur = reduced ? 0 : 9*s;
+            polygon(c, [[x - 22*s, y - 36*s], [x - 8*s, y - 44*s], [x + 24*s, y - 32*s],
+                [x + 22*s, y], [x - 24*s, y]], "#777067", "#c4b59f", 1.5*s);
+            polygon(c, [[x - 22*s, y - 36*s], [x - 8*s, y - 44*s], [x + 24*s, y - 32*s],
+                [x + 5*s, y - 25*s]], "#a49a8b", "#d4c2a8", 1*s);
+            c.strokeStyle = "rgba(40,30,24,.8)"; c.lineWidth = 1.4*s;
+            c.beginPath(); c.moveTo(x - 10*s, y - 28*s); c.lineTo(x - 2*s, y - 11*s);
+            c.lineTo(x + 9*s, y - 22*s); c.stroke();
+        }
+        c.restore();
+    }
+
+    function draw(c) {
+        if (!active || !c) return;
+        var now = clock();
+        c.save();
+        drawTunnel(c, now);
+
+        // Distant dust and light streaks add speed without heavy particle work.
+        for (var d = 0; d < 9; d++) {
+            var depth = (d * 0.137 + trackOffset * 0.42) % 1;
+            var y = 120 + depth * 330;
+            var x = (d * 67 + elapsed * (18 + d * 1.8)) % 430 - 15;
+            c.fillStyle = "rgba(235,192,139," + (0.08 + depth * 0.16) + ")";
+            c.fillRect(x, y, 1 + depth * 2, 2 + depth * 6);
+        }
+        var sorted = obstacles.slice().sort(function (a, b) { return a.z - b.z; });
+        for (var o = 0; o < sorted.length; o++) drawObstacle(c, sorted[o]);
+        for (var ci = 0; ci < coins.length; ci++) drawCoin(c, coins[ci]);
+
+        // Draw the actual Living Stone model as the pursuer, not a substitute shape.
+        if (typeof drawLivingStoneBoss === "function") {
+            try { drawLivingStoneBoss(); } catch (e) {}
+        } else {
+            c.fillStyle = "#8b7355"; c.beginPath(); c.arc(200, 160, 28, 0, Math.PI*2); c.fill();
+        }
+
+        // Runner shadow and the original heart model. The spared Waystar is drawn
+        // by the real boss renderer immediately beneath the heart, as the ride.
+        var px = livingStonePlayer.x, py = livingStonePlayer.y;
+        c.save();
+        c.globalAlpha = jumpLeft > 0 ? 0.24 : 0.42;
+        c.fillStyle = "#05080b";
+        c.beginPath(); c.ellipse(laneX(laneVisual, 0.98), 439, 19 + (jumpLeft > 0 ? 10 : 0), 5, 0, 0, Math.PI*2); c.fill();
+        c.restore();
+        if (typeof drawLivingStonePlayer === "function") {
+            try { drawLivingStonePlayer(); } catch (e) {}
+        } else {
+            c.fillStyle = "#ff3c50"; c.beginPath(); c.moveTo(px, py+11);
+            c.bezierCurveTo(px-25,py-5,px-10,py-19,px,py-8);
+            c.bezierCurveTo(px+10,py-19,px+25,py-5,px,py+11); c.fill();
+        }
+
+        if (starAid) {
+            c.save();
+            c.strokeStyle = starGuard ? "rgba(255,226,143,.9)" : "rgba(255,214,115,.28)";
+            c.lineWidth = 2;
+            c.beginPath(); c.arc(px, py + 3, 25 + Math.sin(now / 110) * 3, 0, Math.PI*2); c.stroke();
+            if (starFlash > 0) {
+                c.strokeStyle = "rgba(255,230,140," + Math.min(1, starFlash / 9) + ")";
+                c.lineWidth = 3; c.shadowColor = "#ffcf52"; c.shadowBlur = reduced ? 0 : 12;
+                c.beginPath(); c.moveTo(px + 20, py - 8); c.lineTo(livingStoneBoss.x, livingStoneBoss.y + 20); c.stroke();
+            }
+            c.restore();
+        }
+
+        // Timer, progress and small coin counter.
+        var remain = Math.max(0, DURATION - elapsed);
+        var sec = Math.floor(remain / 1000), cs = Math.floor(remain % 1000 / 10);
+        c.save();
+        c.fillStyle = "rgba(8,13,19,.82)"; c.fillRect(108, 12, 184, 34);
+        c.strokeStyle = starAid ? "#f2cf70" : "#bd8060"; c.lineWidth = 1.5; c.strokeRect(108, 12, 184, 34);
+        c.textAlign = "center"; c.textBaseline = "middle";
+        c.fillStyle = "#ffe7bd"; c.font = "bold 16px monospace";
+        c.fillText(String(sec).padStart(2, "0") + ":" + String(cs).padStart(2, "0"), 200, 29);
+        c.fillStyle = "rgba(0,0,0,.55)"; c.fillRect(108, 51, 184, 5);
+        c.fillStyle = starAid ? "#f7cf70" : "#ee8056"; c.fillRect(108, 51, 184 * (elapsed / DURATION), 5);
+        c.textAlign = "left"; c.font = "bold 11px monospace"; c.fillStyle = "#ffe7b0";
+        c.fillText("✦ " + coinCount, 14, 27);
+        c.textAlign = "right"; c.fillStyle = "#e5d8cc";
+        c.fillText(starAid ? "ЗВЕЗДА ЗАЩИЩАЕТ" : "ЖИВОЙ КАМЕНЬ ДОГОНЯЕТ", 386, 27);
+        c.textAlign = "center"; c.font = "bold 10px monospace"; c.fillStyle = "rgba(255,255,255,.82)";
+        c.fillText("← / → ПОЛОСА     ↑ ПРЫЖОК     ↓ ПОДКАТ", 200, 486);
+        c.restore();
+
+        if (damageFlash > 0) {
+            c.fillStyle = "rgba(255,65,45," + (damageFlash / 45) + ")";
+            c.fillRect(0, 0, 400, 500);
+        }
+        c.restore();
+    }
+
+    function finish() {
+        if (!active) return;
+        active = false;
+        unbindControls();
+        resetArrays();
+        stopMusic();
+        window.__mbLivingStoneChaseActive = false;
+        window.__mbLivingStoneChaseStarAid = false;
+        var name = document.getElementById("arenaBossName");
+        if (name) name.textContent = "ЖИВОЙ КАМЕНЬ";
+        var timer = document.getElementById("arenaTimer");
+        if (timer) timer.textContent = "∞";
+        livingStonePlayer.x = 200; livingStonePlayer.y = 398;
+        livingStoneBoss.x = 200; livingStoneBoss.y = 110; livingStoneBoss.size = 40;
+        livingStoneBoss.vx = 1.5; livingStoneBoss.rotation = 0;
+        livingStoneAttacks = []; livingStoneBullets = []; livingStoneAttackTimer = 0;
+        livingStoneTypeTimer = 180; livingStoneInvulnTimer = 30;
+        livingStoneState = "phase1";
+        try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
+        var done = callback; callback = null;
+        console.log("[LS CHASE] 40-second runner complete; transition to phase 2. Coins:", coinCount);
+        if (typeof done === "function") {
+            try { done(); } catch (e) { console.error("[LS CHASE] phase transition error", e); }
+        }
     }
     function start(options) {
         if (active) return true;
@@ -60,11 +534,11 @@
         starAid = debt();
         callback = typeof options.onComplete === "function" ? options.onComplete : null;
         reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
-        startedAt = clock(); lastAt = startedAt; elapsed = 0; frame = 0;
-        nextVolley = 900; nextWarning = 2600; nextDebris = 1700;
-        starGuard = starAid; nextGuard = 6800; nextStrike = 4500;
-        starFlash = 0; damageFlash = 0; lastHud = -1;
-        lastX = livingStonePlayer.x; lastY = livingStonePlayer.y;
+        startedAt = clock(); lastAt = startedAt; elapsed = 0;
+        lane = 1; laneVisual = 1; jumpLeft = 0; slideLeft = 0;
+        spawnClock = 0; trackOffset = 0; distance = 0; coinCount = 0; lastHud = -1;
+        starGuard = starAid; nextGuard = 7000; nextStrike = 4400;
+        starFlash = 0; damageFlash = 0;
         resetArrays();
 
         livingStoneState = "chase";
@@ -73,238 +547,43 @@
         qteBullets = []; qtePunches = []; qtePlayerTrail = [];
         livingStoneAttacks = []; livingStoneBullets = []; chainExplosionsQueue = [];
         lsModCapsules = []; lsActiveMod = null;
-        livingStonePlayer.x = clamp(livingStonePlayer.x, 35, 365);
-        livingStonePlayer.y = clamp(livingStonePlayer.y, 230, 470);
-        livingStoneBoss.x = 200; livingStoneBoss.y = 102;
-        livingStoneBoss.vx = 0; livingStoneBoss.rotation = 0;
+        livingStonePlayer.x = laneX(1, 0.92); livingStonePlayer.y = 422;
+        livingStoneBoss.x = 200; livingStoneBoss.y = 160; livingStoneBoss.size = 34;
         window.__mbLivingStoneChaseActive = true;
         window.__mbLivingStoneChaseStarAid = starAid;
+        bindControls();
 
         if (typeof stopQTEMusic === "function") { try { stopQTEMusic(); } catch (e) {} }
         if (starAid) {
             startMusic();
-            message("ПУТЕВОДНАЯ ЗВЕЗДА: ДЕРЖИСЬ! Я ПОМОГУ ТЕБЕ!", "#ffe28a");
+            message("ПУТЕВОДНАЯ ЗВЕЗДА: ДЕРЖИСЬ! Я ВЫВЕДУ ТЕБЯ!", "#ffe28a");
         } else {
             try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
-            message("ЖИВОЙ КАМЕНЬ: НЕ УЙДЁШЬ ОТ МЕНЯ!", "#ff9a72");
+            message("ЖИВОЙ КАМЕНЬ: ТЕБЕ НЕ УБЕЖАТЬ!", "#ff9a72");
         }
         var name = document.getElementById("arenaBossName");
-        if (name) name.textContent = starAid ? "ЖИВОЙ КАМЕНЬ • ПОГОНЯ СО ЗВЕЗДОЙ" : "ЖИВОЙ КАМЕНЬ • ПОГОНЯ";
+        if (name) name.textContent = starAid ? "ПОГОНЯ • ЖИВОЙ КАМЕНЬ И ЗВЕЗДА" : "ПОГОНЯ • ЖИВОЙ КАМЕНЬ";
         var timer = document.getElementById("arenaTimer");
         if (timer) timer.textContent = "00:40";
         active = true;
-        console.log("[LS CHASE] started; waystar aid:", starAid);
+        console.log("[LS CHASE] 3-lane runner started; Waystar aid:", starAid);
         return true;
-    }
-    function spawnVolley() {
-        var bx = livingStoneBoss.x, by = livingStoneBoss.y + 18;
-        var angle = Math.atan2(livingStonePlayer.y - by, livingStonePlayer.x - bx);
-        var speed = 3.0 + Math.min(1.3, elapsed / 17000);
-        for (var i = -1; i <= 1; i++) {
-            var a = angle + i * 0.23;
-            rocks.push({x:bx, y:by, vx:Math.cos(a)*speed, vy:Math.sin(a)*speed,
-                r:10+Math.random()*5, rot:Math.random()*6, spin:(Math.random()-.5)*.16,
-                life:175, damage:7});
-        }
-    }
-    function spawnWarning() {
-        warnings.push({
-            x:clamp(livingStonePlayer.x+(Math.random()-.5)*120,30,370),
-            y:clamp(livingStonePlayer.y+(Math.random()-.5)*110,165,460),
-            life:42, max:42, r:18
-        });
-    }
-    function spawnDebris() {
-        var sx = clamp(livingStonePlayer.x+(Math.random()-.5)*180,20,380);
-        var tx = clamp(livingStonePlayer.x+(Math.random()-.5)*90,20,380);
-        var flight = 38+Math.random()*18;
-        rocks.push({x:sx,y:65,vx:(tx-sx)/flight,vy:5+Math.random()*1.6,
-            r:12+Math.random()*8,rot:Math.random()*6,spin:(Math.random()-.5)*.14,
-            life:100,damage:8});
-    }
-    function hitPlayer(dmg, x, y) {
-        if (livingStoneInvulnTimer > 0) return;
-        if (starAid && starGuard) {
-            starGuard = false; nextGuard = elapsed+7000; starFlash = 30;
-            if (typeof spawnLivingStoneParticles === "function") spawnLivingStoneParticles(livingStonePlayer.x,livingStonePlayer.y,22,"#ffd66b",5);
-            message("ПУТЕВОДНАЯ ЗВЕЗДА ЗАКРЫЛА ТЕБЯ!", "#ffe28a");
-            if (typeof playArenaSound === "function") playArenaSound(900,"sine",.16,.1);
-            return;
-        }
-        if (typeof damageLivingStonePlayer === "function") damageLivingStonePlayer(dmg || 7);
-        damageFlash = 12;
-        if (typeof spawnLivingStoneParticles === "function") spawnLivingStoneParticles(x,y,8,"#ff734f",3);
-    }
-    function update(now) {
-        if (!active) return;
-        if (!livingStoneActive || livingStoneState !== "chase") { stop(); return; }
-        now = Number(now) || clock();
-        elapsed = clamp(now-startedAt,0,DURATION);
-        var dt = clamp((now-lastAt)/(1000/60),.25,3);
-        lastAt = now; frame += dt;
-
-        // Босс удирает по плоскости арены, а фон родной игры прокручивается под игроком.
-        var oldX = livingStoneBoss.x;
-        var dashCycle = elapsed % 6100;
-        var dash = dashCycle < 620;
-        livingStoneBoss.x = clamp(200+Math.sin(elapsed*.00145)*116+Math.sin(elapsed*.00047)*26+
-            (dash ? Math.sin(dashCycle/620*Math.PI*2)*38 : 0),52,348);
-        livingStoneBoss.y = 94+Math.sin(elapsed*.0021)*17-Math.min(24,elapsed/1800);
-        livingStoneBoss.vx = livingStoneBoss.x-oldX;
-        livingStoneBoss.rotation += (dash?.055:.018)*dt;
-        if (frame % 2 < dt) bossTrail.push({x:livingStoneBoss.x,y:livingStoneBoss.y,life:18,max:18});
-        for (var bt=bossTrail.length-1;bt>=0;bt--) {
-            bossTrail[bt].life -= dt;
-            if (bossTrail[bt].life<=0) bossTrail.splice(bt,1);
-        }
-
-        if (elapsed>=nextVolley) { spawnVolley(); nextVolley += 1700+Math.random()*350; }
-        if (elapsed>=nextWarning) { spawnWarning(); nextWarning += 2550+Math.random()*500; }
-        if (elapsed>=nextDebris) { spawnDebris(); nextDebris += 1200+Math.random()*450; }
-
-        for (var wi=warnings.length-1;wi>=0;wi--) {
-            var w=warnings[wi]; w.life-=dt; w.r=18+(1-w.life/w.max)*18;
-            if (w.life<=0) {
-                waves.push({x:w.x,y:w.y,r:5,old:5,speed:4.2,width:15,life:52,hit:false,damage:9});
-                warnings.splice(wi,1);
-            }
-        }
-
-        var p=livingStonePlayer;
-        if (Math.hypot(p.x-lastX,p.y-lastY)>.3) playerTrail.push({x:lastX,y:lastY,life:12,max:12});
-        lastX=p.x; lastY=p.y;
-        for (var pt=playerTrail.length-1;pt>=0;pt--) {
-            playerTrail[pt].life-=dt;
-            if (playerTrail[pt].life<=0) playerTrail.splice(pt,1);
-        }
-
-        for (var ri=rocks.length-1;ri>=0;ri--) {
-            var rock=rocks[ri];
-            rock.x+=rock.vx*dt; rock.y+=rock.vy*dt; rock.rot+=rock.spin*dt; rock.life-=dt;
-            if (rock.life>0 && Math.hypot(p.x-rock.x,p.y-rock.y)<rock.r+13) {
-                hitPlayer(rock.damage,rock.x,rock.y); rock.life=0;
-            }
-            if (rock.life<=0 || rock.x<-50 || rock.x>450 || rock.y<35 || rock.y>560) rocks.splice(ri,1);
-        }
-        for (var wi2=waves.length-1;wi2>=0;wi2--) {
-            var wave=waves[wi2]; wave.old=wave.r; wave.r+=wave.speed*dt; wave.life-=dt;
-            var dist=Math.hypot(p.x-wave.x,p.y-wave.y);
-            if (!wave.hit && dist>=wave.old-wave.width && dist<=wave.r+wave.width) {
-                wave.hit=true; hitPlayer(wave.damage,p.x,p.y);
-            }
-            if (wave.life<=0) waves.splice(wi2,1);
-        }
-
-        if (starAid) {
-            if (elapsed>=nextGuard) { starGuard=true; nextGuard=elapsed+7000; }
-            if (elapsed>=nextStrike) {
-                nextStrike+=7600; starFlash=28;
-                if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(livingStoneBoss.x,livingStoneBoss.y,16,"#ffd66b",4);
-                if (typeof playArenaSound==="function") playArenaSound(1050,"sine",.18,.08);
-            }
-        }
-        if (starFlash>0) starFlash=Math.max(0,starFlash-dt);
-        if (damageFlash>0) damageFlash=Math.max(0,damageFlash-dt);
-
-        var remain=Math.max(0,Math.ceil((DURATION-elapsed)/1000));
-        if (remain!==lastHud) {
-            lastHud=remain;
-            var timer=document.getElementById("arenaTimer");
-            if (timer) timer.textContent="00:"+String(remain).padStart(2,"0");
-        }
-        if (elapsed>=DURATION) finish();
-    }
-    function drawRock(c, r) {
-        c.save(); c.translate(r.x,r.y); c.rotate(r.rot);
-        var s=r.r;
-        c.fillStyle="#80664f"; c.strokeStyle="#c5a17c"; c.lineWidth=2;
-        c.shadowColor="#24160f"; c.shadowBlur=reduced?0:7;
-        c.beginPath(); c.moveTo(-s,-s*.35); c.lineTo(-s*.35,-s);
-        c.lineTo(s*.62,-s*.75); c.lineTo(s,s*.05);
-        c.lineTo(s*.25,s); c.lineTo(-s*.8,s*.68); c.closePath();
-        c.fill(); c.stroke(); c.restore();
-    }
-    function draw(c) {
-        if (!active || !c) return;
-        var now=clock(), p=livingStonePlayer, b=livingStoneBoss;
-        c.save();
-        c.globalAlpha=reduced?.14:.26; c.strokeStyle="#b28a64"; c.lineWidth=1;
-        for (var i=0;i<7;i++) {
-            var y=(i*83+elapsed*.42)%520, x=35+(i*47)%320;
-            c.beginPath(); c.moveTo(x,y); c.lineTo(x-12,y+32+(i%3)*8); c.stroke();
-        }
-        c.globalAlpha=1;
-        for (var bt=0;bt<bossTrail.length;bt++) {
-            var tr=bossTrail[bt]; c.globalAlpha=tr.life/tr.max*.23;
-            c.strokeStyle="#ff8757"; c.lineWidth=2;
-            c.beginPath(); c.arc(tr.x,tr.y,30*tr.life/tr.max,0,Math.PI*2); c.stroke();
-        }
-        c.globalAlpha=1;
-        for (var w=0;w<warnings.length;w++) {
-            var warn=warnings[w]; c.save();
-            c.globalAlpha=.55+Math.abs(Math.sin(now/70))*.4;
-            c.strokeStyle="#ff6549"; c.lineWidth=2; c.setLineDash([5,5]);
-            c.beginPath(); c.arc(warn.x,warn.y,warn.r,0,Math.PI*2); c.stroke();
-            c.setLineDash([]); c.restore();
-        }
-        for (var r=0;r<rocks.length;r++) drawRock(c,rocks[r]);
-        for (var wv=0;wv<waves.length;wv++) {
-            var wave=waves[wv]; c.save(); c.globalAlpha=Math.min(.8,wave.life/18);
-            c.strokeStyle="#ff9b66"; c.lineWidth=wave.width;
-            c.shadowColor="#ff543b"; c.shadowBlur=reduced?0:8;
-            c.beginPath(); c.arc(wave.x,wave.y,wave.r,0,Math.PI*2); c.stroke(); c.restore();
-        }
-        for (var pt=0;pt<playerTrail.length;pt++) {
-            var t=playerTrail[pt]; c.save(); c.globalAlpha=t.life/t.max*.3;
-            c.fillStyle="#ff5147"; c.beginPath(); c.arc(t.x,t.y,7*t.life/t.max,0,Math.PI*2); c.fill(); c.restore();
-        }
-        if (starAid) {
-            c.save(); c.strokeStyle=starGuard?"rgba(255,224,135,.82)":"rgba(255,214,115,.26)";
-            c.lineWidth=2; c.beginPath(); c.arc(p.x,p.y+9,25+Math.sin(now/110)*3,0,Math.PI*2); c.stroke();
-            if (starFlash>0) {
-                c.strokeStyle="rgba(255,230,140,"+Math.min(1,starFlash/8)+")";
-                c.lineWidth=3; c.shadowColor="#ffcf52"; c.shadowBlur=reduced?0:12;
-                c.beginPath(); c.moveTo(p.x+20,p.y-7); c.lineTo(b.x,b.y); c.stroke();
-            }
-            c.restore();
-        }
-        var remain=Math.max(0,DURATION-elapsed), sec=Math.floor(remain/1000), cs=Math.floor(remain%1000/10);
-        c.save(); c.fillStyle="rgba(12,8,5,.78)"; c.fillRect(126,16,148,28);
-        c.strokeStyle=starAid?"#f2cf70":"#c17a52"; c.lineWidth=1.5; c.strokeRect(126,16,148,28);
-        c.textAlign="center"; c.fillStyle=starAid?"#ffe5a0":"#ffd0ae"; c.font="bold 14px monospace";
-        c.fillText("ПОГОНЯ  "+String(sec).padStart(2,"0")+":"+String(cs).padStart(2,"0"),200,35);
-        c.font="bold 10px monospace"; c.fillStyle="#e7d2bd";
-        c.fillText(starAid?"ЗВЕЗДА РЯДОМ • WASD / СТРЕЛКИ":"БЕГИ И УВОРАЧИВАЙСЯ • WASD / СТРЕЛКИ",200,485);
-        c.restore();
-        if (damageFlash>0) { c.fillStyle="rgba(255,65,45,"+(damageFlash/35)+")"; c.fillRect(0,0,400,500); }
-        c.restore();
-    }
-    function finish() {
-        if (!active) return;
-        active=false; resetArrays(); stopMusic();
-        window.__mbLivingStoneChaseActive=false;
-        window.__mbLivingStoneChaseStarAid=false;
-        var name=document.getElementById("arenaBossName"); if(name) name.textContent="ЖИВОЙ КАМЕНЬ";
-        var timer=document.getElementById("arenaTimer"); if(timer) timer.textContent="∞";
-        livingStoneState="phase1"; livingStoneBoss.x=200; livingStoneBoss.y=110;
-        livingStoneBoss.vx=1.5; livingStoneBoss.rotation=0;
-        livingStoneAttacks=[]; livingStoneBullets=[]; livingStoneAttackTimer=0;
-        livingStoneTypeTimer=180; livingStoneInvulnTimer=30;
-        try { if(typeof startBattleMusic==="function") startBattleMusic(); } catch(e) {}
-        var done=callback; callback=null;
-        console.log("[LS CHASE] 40 seconds complete; transition to phase 2");
-        if(typeof done==="function") { try { done(); } catch(e) { console.error("[LS CHASE] phase transition error",e); } }
     }
     function stop() {
         if (!active) return;
-        active=false; resetArrays(); stopMusic();
-        window.__mbLivingStoneChaseActive=false; window.__mbLivingStoneChaseStarAid=false;
-        callback=null;
+        active = false;
+        unbindControls();
+        resetArrays();
+        stopMusic();
+        window.__mbLivingStoneChaseActive = false;
+        window.__mbLivingStoneChaseStarAid = false;
+        callback = null;
     }
-    window.MBStartLivingStoneChase=start;
-    window.MBUpdateLivingStoneChase=update;
-    window.MBDrawLivingStoneChase=draw;
-    window.MBStopLivingStoneChase=stop;
-    window.MBIsLivingStoneChaseActive=function(){return active;};
-    window.MBHasLivingStoneWaystarAid=debt;
+
+    window.MBStartLivingStoneChase = start;
+    window.MBUpdateLivingStoneChase = update;
+    window.MBDrawLivingStoneChase = draw;
+    window.MBStopLivingStoneChase = stop;
+    window.MBIsLivingStoneChaseActive = function () { return active; };
+    window.MBHasLivingStoneWaystarAid = debt;
 })();
