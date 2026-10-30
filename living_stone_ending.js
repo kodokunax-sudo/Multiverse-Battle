@@ -46,7 +46,7 @@
     function stopMusic() {
         removeMusicRetry();
         if (!music) return;
-        try { music.pause(); music.currentTime = 0; music.src = ""; } catch (e) {}
+        try { music.pause(); music.currentTime = 0; music.removeAttribute("src"); music.load(); } catch (e) {}
         music = null;
     }
     function startMusic() {
@@ -82,7 +82,7 @@
         return 200 + (value - 1) * (24 + depth * 112);
     }
     function depthY(depth) {
-        return 112 + Math.pow(clamp(depth, 0, 1.08), 1.68) * 330;
+        return 112 + Math.pow(clamp(depth, 0, 1.08), 1.68) * 375;
     }
     function resetArrays() {
         obstacles.length = 0;
@@ -490,7 +490,7 @@
         c.textAlign = "right"; c.fillStyle = "#e5d8cc";
         c.fillText(starAid ? "ЗВЕЗДА ЗАЩИЩАЕТ" : "ЖИВОЙ КАМЕНЬ ДОГОНЯЕТ", 386, 27);
         c.textAlign = "center"; c.font = "bold 10px monospace"; c.fillStyle = "rgba(255,255,255,.82)";
-        c.fillText("← / → ПОЛОСА     ↑ ПРЫЖОК     ↓ ПОДКАТ", 200, 486);
+        c.fillText("СВАЙПЫ • ← → ПОЛОСА • ↑ ПРЫЖОК • ↓ ПОДКАТ", 200, 486);
         c.restore();
 
         if (damageFlash > 0) {
@@ -586,4 +586,5 @@
     window.MBStopLivingStoneChase = stop;
     window.MBIsLivingStoneChaseActive = function () { return active; };
     window.MBHasLivingStoneWaystarAid = debt;
+    window.MBRetryPendingChaseMusic = retryMusic;
 })();
