@@ -2,7 +2,7 @@
 (function () {
     "use strict";
 
-    var active = false, startedAt = 0, lastAt = 0, elapsed = 0;
+    var active = false, superMode = false, startedAt = 0, lastAt = 0, elapsed = 0;
     var lane = 1, laneVisual = 1, jumpLeft = 0, slideLeft = 0;
     var obstacles = [], coins = [], particles = [];
     var spawnClock = 0, trackOffset = 0, distance = 0, coinCount = 0;
@@ -266,6 +266,7 @@
         livingStoneBoss.y = 160 + Math.sin(elapsed * 0.0031) * 7;
         livingStoneBoss.size = 33 + Math.min(10, difficulty * 10);
         livingStoneBoss.rotation += dt * (0.55 + difficulty);
+        if (superMode) window.__mbLS2PhaseFrames = elapsed / (1000 / 60);
         if (starAid) {
             if (elapsed >= nextGuard) { starGuard = true; nextGuard = elapsed + 7000; }
             if (elapsed >= nextStrike) {
@@ -440,7 +441,9 @@
         for (var ci = 0; ci < coins.length; ci++) drawCoin(c, coins[ci]);
 
         // Draw the actual Living Stone model as the pursuer, not a substitute shape.
-        if (typeof drawLivingStoneBoss === "function") {
+        if (superMode && typeof window.MBDrawLivingStoneSuperRunnerBoss === "function") {
+            try { window.MBDrawLivingStoneSuperRunnerBoss(c, 200, 146, 1); } catch (e) {}
+        } else if (typeof drawLivingStoneBoss === "function") {
             try { drawLivingStoneBoss(); } catch (e) {}
         } else {
             c.fillStyle = "#8b7355"; c.beginPath(); c.arc(200, 160, 28, 0, Math.PI*2); c.fill();
@@ -518,17 +521,27 @@
         stopMusic();
         window.__mbLivingStoneChaseActive = false;
         window.__mbLivingStoneChaseStarAid = false;
+        var wasSuperMode = superMode;
+        superMode = false;
+        if (wasSuperMode) window.__mbLS2RunnerActive = false;
         var name = document.getElementById("arenaBossName");
         if (name) name.textContent = "ЖИВОЙ КАМЕНЬ";
         var timer = document.getElementById("arenaTimer");
         if (timer) timer.textContent = "∞";
-        livingStonePlayer.x = 200; livingStonePlayer.y = 398;
-        livingStoneBoss.x = 200; livingStoneBoss.y = 110; livingStoneBoss.size = 40;
-        livingStoneBoss.vx = 1.5; livingStoneBoss.rotation = 0;
+        livingStonePlayer.x = 200; livingStonePlayer.y = superMode ? 410 : 398;
+        livingStoneBoss.x = 200; livingStoneBoss.y = superMode ? 108 : 110;
+        livingStoneBoss.size = superMode ? 44 : 40;
+        livingStoneBoss.vx = superMode ? (starAid ? -1.25 : 1.15) : 1.5;
+        livingStoneBoss.rotation = 0;
         livingStoneAttacks = []; livingStoneBullets = []; livingStoneAttackTimer = 0;
-        livingStoneTypeTimer = 180; livingStoneInvulnTimer = 30;
-        livingStoneState = "phase1";
-        try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
+        livingStoneTypeTimer = superMode ? 160 : 180; livingStoneInvulnTimer = 30;
+        livingStoneState = superMode ? "phase2" : "phase1";
+        if (superMode) {
+            window.__mbLS2RunnerActive = false;
+            window.__mbLS2PhaseFrames = 0;
+        } else {
+            try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
+        }
         var done = callback; callback = null;
         console.log("[LS CHASE] 40-second runner complete; transition to phase 2. Coins:", coinCount);
         if (typeof done === "function") {
@@ -538,9 +551,14 @@
     function start(options) {
         if (active) return true;
         options = options || {};
+        var requestedSuperMode = options.superMode === true;
         if (typeof livingStoneActive === "undefined" || !livingStoneActive ||
-            (typeof window !== "undefined" && (window.livingStoneSuperActive || window.__mbBossTestMode))) return false;
+            (typeof window !== "undefined" &&
+             ((!requestedSuperMode && window.livingStoneSuperActive) ||
+              (!requestedSuperMode && window.__mbBossTestMode)))) return false;
+        if (requestedSuperMode && !window.livingStoneSuperActive) return false;
 
+        superMode = requestedSuperMode;
         starAid = debt();
         callback = typeof options.onComplete === "function" ? options.onComplete : null;
         reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
@@ -561,6 +579,12 @@
         livingStoneBoss.x = 200; livingStoneBoss.y = 160; livingStoneBoss.size = 34;
         window.__mbLivingStoneChaseActive = true;
         window.__mbLivingStoneChaseStarAid = starAid;
+        if (superMode) {
+            window.__mbLS2RunnerActive = true;
+            window.__mbLS2GreenPhase = "chase";
+            window.__mbLS2PhaseFrames = 0;
+            window.__mbLS2ChaseStarAid = starAid;
+        }
         bindControls();
 
         if (typeof stopQTEMusic === "function") { try { stopQTEMusic(); } catch (e) {} }
@@ -568,7 +592,9 @@
             startMusic();
             message("ПУТЕВОДНАЯ ЗВЕЗДА: ДЕРЖИСЬ! Я ВЫВЕДУ ТЕБЯ!", "#ffe28a");
         } else {
-            try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
+            if (!superMode) {
+                try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
+            }
             message("ЖИВОЙ КАМЕНЬ: ТЕБЕ НЕ УБЕЖАТЬ!", "#ff9a72");
         }
         var name = document.getElementById("arenaBossName");
@@ -587,6 +613,8 @@
         stopMusic();
         window.__mbLivingStoneChaseActive = false;
         window.__mbLivingStoneChaseStarAid = false;
+        if (superMode) window.__mbLS2RunnerActive = false;
+        superMode = false;
         callback = null;
     }
 
