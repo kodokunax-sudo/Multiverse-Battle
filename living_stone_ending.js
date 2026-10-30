@@ -343,6 +343,47 @@
     }
 
     function drawStone(c, x, y, running, fallen) {
+        // Reuse the actual in-game Living Stone renderer so the ending matches
+        // the boss the player has just defeated, instead of drawing a substitute.
+        try {
+            if (typeof drawLivingStoneBoss === "function" &&
+                typeof livingStoneBoss !== "undefined" &&
+                typeof ctx !== "undefined" && ctx === c) {
+                var b = livingStoneBoss;
+                var old = {
+                    x: b.x, y: b.y, size: b.size, rotation: b.rotation, vx: b.vx,
+                    state: typeof livingStoneState !== "undefined" ? livingStoneState : "phase2",
+                    finalActive: typeof finalSceneActive !== "undefined" ? finalSceneActive : false,
+                    cracks: typeof finalCracksLevel !== "undefined" ? finalCracksLevel : 0,
+                    shake: typeof qteBossShake !== "undefined" ? qteBossShake : 0,
+                    flash: typeof livingStoneBossFlash !== "undefined" ? livingStoneBossFlash : 0
+                };
+                b.x = x;
+                b.y = y + (running ? Math.sin(sceneFrame * 0.22) * 3 : 0);
+                b.size = fallen ? 49 : 52;
+                b.rotation = fallen ? -0.16 : Math.sin(sceneFrame * 0.16) * 0.22;
+                b.vx = running ? Math.sin(sceneFrame * 0.08) * 1.5 : 0;
+                if (typeof livingStoneState !== "undefined") livingStoneState = "phase2";
+                if (typeof finalSceneActive !== "undefined") finalSceneActive = false;
+                if (typeof finalCracksLevel !== "undefined") finalCracksLevel = 0.82;
+                if (typeof qteBossShake !== "undefined") qteBossShake = 0;
+                if (typeof livingStoneBossFlash !== "undefined") livingStoneBossFlash = 0;
+                try {
+                    drawLivingStoneBoss();
+                } finally {
+                    b.x = old.x; b.y = old.y; b.size = old.size; b.rotation = old.rotation; b.vx = old.vx;
+                    if (typeof livingStoneState !== "undefined") livingStoneState = old.state;
+                    if (typeof finalSceneActive !== "undefined") finalSceneActive = old.finalActive;
+                    if (typeof finalCracksLevel !== "undefined") finalCracksLevel = old.cracks;
+                    if (typeof qteBossShake !== "undefined") qteBossShake = old.shake;
+                    if (typeof livingStoneBossFlash !== "undefined") livingStoneBossFlash = old.flash;
+                }
+                return;
+            }
+        } catch (e) {
+            console.warn("[LS ENDING] Fallback renderer used:", e);
+        }
+
         var stride = Math.sin(sceneFrame * 0.32) * 12;
         c.save();
         c.translate(x, y);
