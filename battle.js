@@ -2172,29 +2172,32 @@ function drawMarkResurrections() {
 
 function drawObesityWarning() {
     if (!ctx) return;
-    if (typeof obesityPoints === 'undefined') return;
-    if (obesityPoints < 40) return;
-    var obName = "ОЖИРЕНИЕ";
-    var obColor = "#e67e22";
-    if (obesityPoints >= 60) { obName = "ОЖИРЕНИЕ III"; obColor = "#e74c3c"; }
-    else if (obesityPoints >= 40) { obName = "ОЖИРЕНИЕ II"; obColor = "#e67e22"; }
-    var obIcon = "🍔";
-    var text = obIcon + " " + obName + " (" + obesityPoints + "/60)";
+    if (typeof obesityPoints === 'undefined' || obesityPoints <= 0) return;
+
+    var obStage = (typeof getObesityStageName === "function") ? getObesityStageName() : null;
+    var obesityMult = (typeof getObesitySpeedMult === "function") ? getObesitySpeedMult() : 1;
+    var speedPenalty = Math.round((1 - obesityMult) * 100);
+    var obName = obStage || "НАБОР ВЕСА";
+    var detail = speedPenalty > 0 ? " · СКОРОСТЬ -" + speedPenalty + "%" : "";
+    var text = "🍔 " + obName + " (" + obesityPoints + "/60)" + detail;
+    var obColor = speedPenalty >= 40 ? "#e74c3c" : speedPenalty > 0 ? "#e67e22" : "#d6a85a";
+
     ctx.save();
-    var w = 180, h = 22;
+    ctx.font = "bold 11px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    var w = Math.max(150, ctx.measureText(text).width + 18);
+    var h = 22;
     var x = 200 - w / 2;
     var y = 470;
-    var pulse = 0.7 + Math.abs(Math.sin(performance.now() / 300)) * 0.3;
-    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    var pulse = 0.78 + Math.abs(Math.sin(performance.now() / 300)) * 0.22;
+    ctx.fillStyle = "rgba(0,0,0,0.86)";
     ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
     ctx.strokeStyle = obColor;
     ctx.lineWidth = 2;
     ctx.globalAlpha = pulse;
     ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
     ctx.globalAlpha = 1;
-    ctx.font = "bold 12px monospace";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
     ctx.fillStyle = obColor;
     ctx.fillText(text, 200, y + h / 2);
     ctx.restore();
