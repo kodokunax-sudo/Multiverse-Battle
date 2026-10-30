@@ -6426,6 +6426,20 @@
     // Экспортируем реальные ссылки на текущего босса/игрока.
     window.getRWBActiveBoss = function() { return rwbActiveBoss; };
     window.getRWBTargets = function() { return [roger,whitebeard].filter(function(b){return !!b;}); };
+    window.rwbApplySuperDamage = function(amount, source) {
+        var target=rwbActiveBoss;
+        if(!window.rwbActive || !target || rwbState!=="fight2" || !(Number(target.hp)>0)) return 0;
+        var dealt=Math.min(Number(target.hp),Math.max(1,Math.floor(Number(amount)||1)));
+        target.hp=Math.max(0,target.hp-dealt);
+        target.hitFlash=12;
+        if(target.id==="whitebeard")target.damageFlashTimer=12;
+        rwbScreenFlash=Math.max(rwbScreenFlash,4);rwbScreenFlashColor="#ffffff";
+        rwbShake=Math.max(rwbShake,8);
+        rwbFloatingTexts.push({x:target.x,y:target.y-35,text:(source||"SUPER")+" −"+dealt,color:"#fff0a0",life:55,maxLife:55,vy:-.6,vx:0,size:14});
+        spawnHitParticles(target.x,target.y,"#fff0a0",12);
+        if(target.hp<=0) rwbVictory();
+        return dealt;
+    };
     window.rwbApplyDioSkillDamage = function(bossId,amount) {
         let target=(rwbActiveBoss&&rwbActiveBoss.id===bossId)?rwbActiveBoss:[roger,whitebeard].find(function(b){return b&&b.id===bossId;});
         if(!target)return false;
