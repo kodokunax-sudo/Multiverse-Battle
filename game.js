@@ -2391,9 +2391,9 @@ function processOfflineProgress() {
         if (typeof tryDropLoot === 'function') {
             let drops = Math.floor(wavesCompleted * 0.5);
             for (let i = 0; i < drops; i++) {
-                if (Math.random() < 0.3) addItem("bone", 1);
-                if (Math.random() < 0.1) addItem("raw_meat", 1);
-                if (Math.random() < 0.05) addItem("coin", 1);
+                if (Math.random() < 0.03) addItem("bone", 1);
+                if (Math.random() < 0.01) addItem("raw_meat", 1);
+                if (Math.random() < 0.005) addItem("coin", 1);
             }
         }
         if (typeof tryDropResources === 'function') {
