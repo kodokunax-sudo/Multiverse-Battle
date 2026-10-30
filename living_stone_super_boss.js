@@ -1803,6 +1803,22 @@
     window.MBDrawLivingStoneSuperRunnerBoss = function(c,x,y,scale) {
         if (!c || !window.livingStoneSuperActive) return;
         scale = Number(scale) || 1;
+        if (typeof drawLivingStoneBoss === "function" &&
+            typeof livingStoneBoss !== "undefined" && livingStoneBoss) {
+            var oldX = livingStoneBoss.x, oldY = livingStoneBoss.y, oldSize = livingStoneBoss.size;
+            livingStoneBoss.x = x;
+            livingStoneBoss.y = y;
+            livingStoneBoss.size = 43 * Math.max(0.65, scale);
+            c.save();
+            try { drawLivingStoneBoss(); }
+            finally {
+                c.restore();
+                livingStoneBoss.x = oldX;
+                livingStoneBoss.y = oldY;
+                livingStoneBoss.size = oldSize;
+            }
+            return;
+        }
         c.save(); c.translate(x,y); c.scale(scale,scale);
         c.shadowColor = "#120605"; c.shadowBlur = ls2ReduceEffects ? 0 : 18;
         c.fillStyle = "#51483f"; c.strokeStyle = "#c2ad95"; c.lineWidth = 2.5;
@@ -1834,10 +1850,8 @@
         c.globalAlpha=1;c.fillStyle="#111722";c.beginPath();c.moveTo(146,92);c.lineTo(254,92);c.lineTo(430,500);c.lineTo(-30,500);c.closePath();c.fill();
         c.strokeStyle=ls2ChaseStarAid?"rgba(144,220,255,.6)":"rgba(255,123,91,.55)";c.lineWidth=3;c.beginPath();c.moveTo(146,92);c.lineTo(-30,500);c.moveTo(254,92);c.lineTo(430,500);c.stroke();
         c.setLineDash([18,15]);c.strokeStyle="rgba(225,235,255,.42)";c.lineWidth=2;c.beginPath();c.moveTo(186,92);c.lineTo(120,500);c.moveTo(214,92);c.lineTo(280,500);c.stroke();c.setLineDash([]);
-        var rs=1-progress*.23;c.save();c.translate(200,128-progress*11);c.scale(rs,rs);c.fillStyle="#51483f";c.strokeStyle="#b5a18a";c.lineWidth=2;c.beginPath();
-        c.moveTo(-42,16);c.lineTo(-48,-12);c.lineTo(-28,-34);c.lineTo(-8,-29);c.lineTo(7,-42);c.lineTo(31,-28);c.lineTo(45,-6);c.lineTo(37,23);c.lineTo(12,35);c.lineTo(-15,31);c.closePath();c.fill();c.stroke();
-        c.strokeStyle="#ff4938";c.beginPath();c.moveTo(-26,-16);c.lineTo(-10,-2);c.lineTo(-17,13);c.moveTo(17,-17);c.lineTo(8,-2);c.lineTo(21,12);c.stroke();
-        c.fillStyle="#ff2d24";c.beginPath();c.ellipse(-16,-5,5,3,0,0,Math.PI*2);c.fill();c.beginPath();c.ellipse(17,-5,5,3,0,0,Math.PI*2);c.fill();c.restore();
+        var rs=1-progress*.23;
+        window.MBDrawLivingStoneSuperRunnerBoss(c,200,128-progress*11,rs);
         for(var oi=0;oi<ls2ChaseObstacles.length;oi++){var o=ls2ChaseObstacles[oi],x=LS2_CHASE_LANES[o.lane],y=o.y;
             if(o.warning>0){c.globalAlpha=.4+Math.abs(Math.sin(now/65))*.45;c.strokeStyle=o.kind==="rubble"?"#ffe79c":"#ffb5a0";c.lineWidth=2.5;c.setLineDash([6,6]);c.beginPath();c.moveTo(x,150);c.lineTo(x,438);c.stroke();c.setLineDash([]);c.fillStyle="#fff0b0";c.font="bold 10px Arial,sans-serif";c.textAlign="center";c.fillText(o.kind==="rubble"?"ПРЫГАЙ ИЛИ УХОДИ":"ПРИГНИСЬ ИЛИ УХОДИ",x,Math.max(185,y-20));c.globalAlpha=1;}
             else if(o.kind==="rubble"){var sz=15+Math.max(0,y-160)*.035;c.save();c.translate(x,y);c.rotate(o.spin);c.fillStyle="#665b50";c.strokeStyle="#c1b5a7";c.lineWidth=2;c.beginPath();c.moveTo(-sz,-sz*.35);c.lineTo(-sz*.4,-sz);c.lineTo(sz*.5,-sz*.75);c.lineTo(sz,sz*.1);c.lineTo(sz*.35,sz);c.lineTo(-sz*.7,sz*.7);c.closePath();c.fill();c.stroke();c.restore();}
