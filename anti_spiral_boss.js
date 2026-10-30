@@ -1791,7 +1791,10 @@
                         asCloneMode = false; asCloneUntil = 0; asCloneNextShuffleAt = 0; asClonePhase = "idle"; asCloneStageUntil = 0; asClones = [];
                         let cloneMultiplier = asBossExposed > 0 ? 2.45 : .42;
                         if (asPlayer.y < 270) cloneMultiplier *= 1.25;
-                        asBossHit(Math.max(1, Math.floor(shot.damage * cloneMultiplier)), "ОРИГИНАЛ НАЙДЕН — УДАР ПО АНТИ-СПИРАЛИ!");
+                        let cloneShotDamage = Math.max(1, Math.floor(shot.damage * cloneMultiplier));
+                        let moderatorBulletDamage = window.MBGetModeratorBulletDamage(asBossMaxHp);
+                        if (moderatorBulletDamage !== null) cloneShotDamage = moderatorBulletDamage;
+                        asBossHit(cloneShotDamage, "ОРИГИНАЛ НАЙДЕН — УДАР ПО АНТИ-СПИРАЛИ!");
                         asBossDamageFlash = Math.max(asBossDamageFlash, 24);
                         asFlash = Math.max(asFlash, 10); asFlashColor = "#6deaff"; asShake = Math.max(asShake, 13);
                         asText(200, 132, "ВСЕ ФАЛЬШИВКИ РАССЫПАЛИСЬ!", "#8ff8ff", 76);
