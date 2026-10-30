@@ -92,6 +92,7 @@
         if (name) name.textContent = starAid ? "ЖИВОЙ КАМЕНЬ • ПОГОНЯ СО ЗВЕЗДОЙ" : "ЖИВОЙ КАМЕНЬ • ПОГОНЯ";
         var timer = document.getElementById("arenaTimer");
         if (timer) timer.textContent = "00:40";
+        active = true;
         console.log("[LS CHASE] started; waystar aid:", starAid);
         return true;
     }
