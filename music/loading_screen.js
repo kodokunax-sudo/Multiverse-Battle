@@ -22,6 +22,7 @@
         "battle":        "music/battle.mp3",
         "shop":           "music/shop.mp3",
         "waystar":        "music/Звезда.mp3",
+        "waystarHelp":    "music/помощь звезды.mp3",
         "qte":             "music/стендзи хер ай реалзайз.mp3",
         "rwb":             "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3",
         "antispiral":      "music/анти спираль.mp3",
