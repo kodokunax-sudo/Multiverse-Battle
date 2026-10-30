@@ -525,18 +525,18 @@
         superMode = false;
         if (wasSuperMode) window.__mbLS2RunnerActive = false;
         var name = document.getElementById("arenaBossName");
-        if (name) name.textContent = "ЖИВОЙ КАМЕНЬ";
+        if (name) name.textContent = wasSuperMode ? "🪨 ЖИВОЙ КАМЕНЬ ПРАЙМ" : "ЖИВОЙ КАМЕНЬ";
         var timer = document.getElementById("arenaTimer");
         if (timer) timer.textContent = "∞";
-        livingStonePlayer.x = 200; livingStonePlayer.y = superMode ? 410 : 398;
-        livingStoneBoss.x = 200; livingStoneBoss.y = superMode ? 108 : 110;
-        livingStoneBoss.size = superMode ? 44 : 40;
-        livingStoneBoss.vx = superMode ? (starAid ? -1.25 : 1.15) : 1.5;
+        livingStonePlayer.x = 200; livingStonePlayer.y = wasSuperMode ? 410 : 398;
+        livingStoneBoss.x = 200; livingStoneBoss.y = wasSuperMode ? 108 : 110;
+        livingStoneBoss.size = wasSuperMode ? 44 : 40;
+        livingStoneBoss.vx = wasSuperMode ? (starAid ? -1.25 : 1.15) : 1.5;
         livingStoneBoss.rotation = 0;
         livingStoneAttacks = []; livingStoneBullets = []; livingStoneAttackTimer = 0;
-        livingStoneTypeTimer = superMode ? 160 : 180; livingStoneInvulnTimer = 30;
-        livingStoneState = superMode ? "phase2" : "phase1";
-        if (superMode) {
+        livingStoneTypeTimer = wasSuperMode ? 160 : 180; livingStoneInvulnTimer = 30;
+        livingStoneState = wasSuperMode ? "phase2" : "phase1";
+        if (wasSuperMode) {
             window.__mbLS2RunnerActive = false;
             window.__mbLS2PhaseFrames = 0;
         } else {
@@ -598,7 +598,9 @@
             message("ЖИВОЙ КАМЕНЬ: ТЕБЕ НЕ УБЕЖАТЬ!", "#ff9a72");
         }
         var name = document.getElementById("arenaBossName");
-        if (name) name.textContent = starAid ? "ПОГОНЯ • ЖИВОЙ КАМЕНЬ И ЗВЕЗДА" : "ПОГОНЯ • ЖИВОЙ КАМЕНЬ";
+        if (name) name.textContent = superMode
+            ? (starAid ? "ПОГОНЯ • ПРАЙМ И ЗВЕЗДА" : "ПОГОНЯ • ЖИВОЙ КАМЕНЬ ПРАЙМ")
+            : (starAid ? "ПОГОНЯ • ЖИВОЙ КАМЕНЬ И ЗВЕЗДА" : "ПОГОНЯ • ЖИВОЙ КАМЕНЬ");
         var timer = document.getElementById("arenaTimer");
         if (timer) timer.textContent = "00:40";
         active = true;
