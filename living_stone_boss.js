@@ -370,9 +370,6 @@ function _startLivingStoneFightInternal() {
 }
 
 function stopLivingStoneFight() {
-    if (typeof window !== "undefined" && typeof window.MBStopLivingStoneChase === "function") {
-        try { window.MBStopLivingStoneChase(); } catch (e) {}
-    }
     if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("living_stone", "abandoned");
     if (typeof window.MBEndBossGraphicsModeForFight === "function") window.MBEndBossGraphicsModeForFight();
     livingStoneActive = false;
@@ -422,7 +419,7 @@ function handleLSTouchStart(ev) {
         for (var i = 0; i < ev.touches.length; i++) handleQTEClick(ev.touches[i]);
         return;
     }
-    if ((livingStoneState === "phase1" || livingStoneState === "phase2" || livingStoneState === "chase") && !finalSceneActive) {
+    if ((livingStoneState === "phase1" || livingStoneState === "phase2") && !finalSceneActive) {
         ev.preventDefault();
         if (ev.touches.length > 0 && !lsTouchActive) {
             lsTouchActive = true; lsTouchId = ev.touches[0].identifier;
@@ -435,7 +432,7 @@ function handleLSTouchStart(ev) {
 
 function handleLSTouchMove(ev) {
     if (!livingStoneActive || !lsTouchActive) return;
-    if (livingStoneState !== "phase1" && livingStoneState !== "phase2" && livingStoneState !== "chase") return;
+    if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
     if (finalSceneActive) return;
     ev.preventDefault();
     for (var i = 0; i < ev.touches.length; i++) {
@@ -651,7 +648,7 @@ function livingStoneShoot() {
 // ========== АТАКИ БОССА ==========
 function livingStoneSpawnAttack() {
     var type = livingStoneAttackType;
-    var isPhase2 = (livingStoneState === "phase2" || livingStoneState === "chase");
+    var isPhase2 = (livingStoneState === "phase2");
     var speedMult = (isPhase2 ? 1.4 : 1.0) * lsSpeedMult;
     var dmgMult = isPhase2 ? 1.3 : 1.0;
     
@@ -890,7 +887,6 @@ function updateLivingStonePlayer() {
     var baseSpeed = (livingStoneState === "phase2") ? LS_BASE_SPEED_PHASE2 : LS_BASE_SPEED_PHASE1;
     // ★ ФИКС: скорость через lsSpeedMult (Анти-спираль меняет его) ★
     var speed = baseSpeed * lsSpeedMult * 2; // *2 потому что базовый lsSpeedMult был 0.5
-    if (livingStoneState === "chase") speed *= 1.25;
     if (lsActiveMod && lsActiveMod.type === 3) speed *= 0.85;
     if (lsActiveMod && lsActiveMod.type === 5) speed *= 1.35;
     
@@ -1519,18 +1515,7 @@ function triggerQTEFinish() {
         if (typeof playArenaSound === 'function') playArenaSound(40, 'sawtooth', 1.5, 0.4);
         spawnLivingStoneText(200, 250, "БЕСПОЛЕЗНО!", "#888888", 120);
         spawnLivingStoneText(200, 290, "ТЫ НИЧЕГО МНЕ НЕ СДЕЛАЕШЬ!", "#666666", 120);
-        setTimeout(function() {
-            if (!livingStoneActive) return;
-            var chaseStarted = false;
-            if (typeof window.MBStartLivingStoneChase === "function") {
-                chaseStarted = window.MBStartLivingStoneChase({
-                    onComplete: function () {
-                        if (livingStoneActive) triggerPhase2();
-                    }
-                }) === true;
-            }
-            if (!chaseStarted) triggerPhase2();
-        }, 2500);
+        setTimeout(function() { if (livingStoneActive) triggerPhase2(); }, 2500);
     }, 500);
 }
 
@@ -2181,8 +2166,10 @@ function livingStoneRenderLoop() {
     if (livingStoneState === "opening_intro") updateLivingStoneOpeningIntro();
     updateLivingStonePlayer();
     updateLivingStoneBoss();
+    // Shared 3-lane runner is used by Living Stone Prime only.
     if (typeof window.MBUpdateLivingStoneChase === "function") {
-        try { window.MBUpdateLivingStoneChase(performance.now()); } catch (e) { console.error("[LS CHASE] update error:", e); }
+        try { window.MBUpdateLivingStoneChase(performance.now()); }
+        catch (e) { console.error("[LS PRIME CHASE] update error:", e); }
     }
     if (qteCinematicActive) updateCinematic();
     updateMegaEffects();
@@ -2259,7 +2246,7 @@ function livingStoneRenderLoop() {
     for (var i = qtePlayerTrail.length - 1; i >= 0; i--) { qtePlayerTrail[i].life--; if (qtePlayerTrail[i].life <= 0) qtePlayerTrail.splice(i, 1); }
     for (var i = 0; i < livingStoneBgParticles.length; i++) {
         var bp = livingStoneBgParticles[i];
-        bp.y += bp.speed * lsSpeedMult * (livingStoneState === "chase" ? 5 : 1);
+        bp.y += bp.speed * lsSpeedMult;
         if (bp.y > 500) { bp.y = 0; bp.x = Math.random() * 400; }
     }
     
@@ -2323,7 +2310,7 @@ function livingStoneRenderLoop() {
     }
     
     var borderColor = "#8B7355";
-    if (livingStoneState === "phase2" || livingStoneState === "chase") borderColor = "#ff4400";
+    if (livingStoneState === "phase2") borderColor = "#ff4400";
     if (isQTE) borderColor = "#ff0000";
     if (finalSceneActive) borderColor = "#ff0000";
     ctx.strokeStyle = borderColor;
@@ -3007,8 +2994,10 @@ function livingStoneRenderLoop() {
         typeof window.MBDrawLivingStoneSuperStarAid === "function") {
         try { window.MBDrawLivingStoneSuperStarAid(ctx); } catch(e) {}
     }
+    // This renderer is only active while the Prime runner is running.
     if (typeof window.MBDrawLivingStoneChase === "function") {
-        try { window.MBDrawLivingStoneChase(ctx); } catch (e) { console.error("[LS CHASE] draw error:", e); }
+        try { window.MBDrawLivingStoneChase(ctx); }
+        catch (e) { console.error("[LS PRIME CHASE] draw error:", e); }
     }
     
     if (lsMobileMode) {
@@ -3092,7 +3081,7 @@ function drawLivingStoneBoss() {
     var b = livingStoneBoss;
     var pulse = 1.0 + Math.sin(performance.now() / 300) * 0.05;
     var size = b.size * pulse;
-    var isPhase2 = (livingStoneState === "phase2" || livingStoneState === "chase");
+    var isPhase2 = (livingStoneState === "phase2");
     var isQTEPunch = (livingStoneState === "qte_punch");
     var isFinal = finalSceneActive;
     
@@ -3285,6 +3274,7 @@ function drawLivingStoneBoss() {
 function drawLivingStonePlayer() {
     var p = livingStonePlayer;
     if (livingStoneInvulnTimer > 0 && Math.floor(livingStoneInvulnTimer / 4) % 2 === 0) return;
+    // During the shared Prime chase, keep drawing the real saved Waystar companion.
     if (livingStoneState === "chase" && typeof window !== "undefined" &&
         window.__mbLivingStoneChaseStarAid === true &&
         typeof window.MBDrawWaystarCompanion === "function") {
