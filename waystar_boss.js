@@ -2010,6 +2010,21 @@ function drawFinalButton(x, y, w, h, bgColor, borderColor, title, subtitle) {
 function spawnWaystarText(x, y, text, color, life) { waystarTexts.push({ x: x, y: y, text: text, color: color, life: life || 60, vy: -0.5 }); }
 
 function drawWaystarBoss() { var b = waystarBoss; var pulse = 1 + Math.sin(b.pulse) * 0.12; var size = b.size * pulse; ctx.save(); ctx.translate(b.x, b.y); ctx.globalAlpha = b.alpha; var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, size * 4.7); if (waystarBossFlash > 0) { glow.addColorStop(0, "rgba(255, 255, 255, 0.95)"); glow.addColorStop(0.5, "rgba(255, 200, 100, 0.6)"); glow.addColorStop(1, "transparent"); } else { glow.addColorStop(0, "rgba(255, 215, 0, 0.8)"); glow.addColorStop(0.5, "rgba(255, 150, 0, 0.4)"); glow.addColorStop(1, "transparent"); } ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, size * 4.7, 0, Math.PI * 2); ctx.fill(); ctx.rotate(b.time); ctx.strokeStyle = "rgba(255,215,0,0.5)"; ctx.lineWidth = 1.5; ctx.beginPath(); for (var i = 0; i < 6; i++) { var a = (i / 6) * Math.PI * 2; ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*size*1.6, Math.sin(a)*size*1.6); } ctx.stroke(); ctx.rotate(-b.time * 2 + b.rotation); ctx.fillStyle = waystarBossFlash > 0 ? "#ffffff" : "#ffd700"; ctx.shadowColor = "#ffaa00"; ctx.shadowBlur = 15; ctx.beginPath(); for (var i = 0; i < 16; i++) { var ang = (i / 16) * Math.PI * 2 - Math.PI / 2; var r = (i % 2 === 0) ? size : size * 0.4; var px = Math.cos(ang) * r, py = Math.sin(ang) * r; if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); } ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, size * 0.3, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+
+window.MBDrawWaystarCompanion = function (x, y, size) {
+    var previousBoss = waystarBoss;
+    var previousFlash = waystarBossFlash;
+    waystarBoss = {
+        x: Number(x) || 200, y: Number(y) || 400,
+        size: Math.max(10, Math.min(34, Number(size) || 22)),
+        vx: 0, rotation: 0, pulse: performance.now() / 320,
+        time: performance.now() / 850, alpha: 1
+    };
+    waystarBossFlash = 0;
+    try { drawWaystarBoss(); }
+    finally { waystarBoss = previousBoss; waystarBossFlash = previousFlash; }
+};
+
 function drawWaystarBoss2() { var b = waystarBoss2; var pulse = 1 + Math.sin(b.pulse) * 0.12; var size = b.size * pulse; ctx.save(); ctx.translate(b.x, b.y); ctx.globalAlpha = b.alpha; var glow = ctx.createRadialGradient(0, 0, 5, 0, 0, size * 3.75); glow.addColorStop(0, "rgba(255, 0, 255, 0.7)"); glow.addColorStop(0.5, "rgba(200, 0, 200, 0.35)"); glow.addColorStop(1, "transparent"); ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, size * 3.75, 0, Math.PI * 2); ctx.fill(); ctx.rotate(b.rotation); ctx.fillStyle = "#ff00ff"; ctx.shadowColor = "#ff00ff"; ctx.shadowBlur = 15; ctx.beginPath(); for (var i = 0; i < 16; i++) { var ang = (i / 16) * Math.PI * 2 - Math.PI / 2; var r = (i % 2 === 0) ? size : size * 0.4; if (i === 0) ctx.moveTo(Math.cos(ang)*r, Math.sin(ang)*r); else ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r); } ctx.closePath(); ctx.fill(); ctx.restore(); }
 
 function drawWaystarSmallBoss() {
