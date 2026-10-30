@@ -92,6 +92,8 @@ let arenaSettings = {
     arenaControl: "auto",
     mobileControlStyle: "dpad8",
     mobileControlPosition: "left",
+    mobileControlX: 3,
+    mobileControlY: 3,
     joystickSize: 100,
     joystickOpacity: 60,
     autoSkipDefeatedBosses: false
@@ -1098,6 +1100,28 @@ function changeMobileControlStyle(val) {
 
 function changeMobileControlPosition(val) {
     arenaSettings.mobileControlPosition = val === 'right' ? 'right' : 'left';
+    arenaSettings.mobileControlX = val === 'right' ? 62 : 3;
+    var xSlider = document.getElementById('mobileControlXSlider');
+    if (xSlider) xSlider.value = arenaSettings.mobileControlX;
+    var xValue = document.getElementById('mobileControlXValue');
+    if (xValue) xValue.innerText = arenaSettings.mobileControlX + '%';
+    saveArenaSettings();
+    if (typeof window.refreshMobileBattleControlsSettings === 'function') window.refreshMobileBattleControlsSettings();
+}
+function changeMobileControlX(val) {
+    arenaSettings.mobileControlX = Math.max(0, Math.min(85, parseInt(val, 10) || 0));
+    arenaSettings.mobileControlPosition = arenaSettings.mobileControlX >= 50 ? 'right' : 'left';
+    var pos = document.getElementById('mobileControlPositionSelect');
+    if (pos) pos.value = arenaSettings.mobileControlPosition;
+    var label = document.getElementById('mobileControlXValue');
+    if (label) label.innerText = arenaSettings.mobileControlX + '%';
+    saveArenaSettings();
+    if (typeof window.refreshMobileBattleControlsSettings === 'function') window.refreshMobileBattleControlsSettings();
+}
+function changeMobileControlY(val) {
+    arenaSettings.mobileControlY = Math.max(0, Math.min(55, parseInt(val, 10) || 0));
+    var label = document.getElementById('mobileControlYValue');
+    if (label) label.innerText = arenaSettings.mobileControlY + '%';
     saveArenaSettings();
     if (typeof window.refreshMobileBattleControlsSettings === 'function') window.refreshMobileBattleControlsSettings();
 }
@@ -1112,6 +1136,8 @@ function resetArenaSettings() {
         arenaControl: "auto",
         mobileControlStyle: "dpad8",
         mobileControlPosition: "left",
+        mobileControlX: 3,
+        mobileControlY: 3,
         joystickSize: 100,
         joystickOpacity: 60,
         autoSkipDefeatedBosses: false
