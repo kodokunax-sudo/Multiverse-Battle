@@ -7,6 +7,7 @@
     var obstacles = [], coins = [], particles = [];
     var spawnClock = 0, trackOffset = 0, distance = 0, coinCount = 0;
     var starAid = false, starGuard = false, nextGuard = 0, nextStrike = 0;
+    var chaseLives = 3, chaseFailed = false, chaseFailTimer = 0;
     var starFlash = 0, damageFlash = 0, callback = null, music = null;
     var musicKeepAlive = false;
     var retryBound = false, reduced = false, lastHud = -1;
@@ -188,22 +189,34 @@
         }
     }
     function damageRunner(x, y) {
+        if (!active || chaseFailed) return;
+        chaseLives = Math.max(0, chaseLives - 1);
+        damageFlash = 24;
         if (starAid && starGuard) {
             starGuard = false;
-            nextGuard = elapsed + 7000;
             starFlash = 34;
             if (typeof spawnLivingStoneParticles === "function") {
-                spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y, 24, "#ffd66b", 5);
+                spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y, 24, "#9deaff", 5);
             }
-            message("ПУТЕВОДНАЯ ЗВЕЗДА ЗАЩИТИЛА ТЕБЯ!", "#ffe28a");
+            message("ЗВЕЗДА ПРИКРЫЛА ТЕБЯ! ОСТАЛОСЬ ЖИЗНЕЙ: " + chaseLives, "#aeeaff");
             if (typeof playArenaSound === "function") playArenaSound(980, "sine", 0.18, 0.11);
-            return;
+        } else {
+            if (typeof spawnLivingStoneParticles === "function") {
+                spawnLivingStoneParticles(x, y, 12, "#ff734f", 4);
+            }
+            message("СТОЛКНОВЕНИЕ! ОСТАЛОСЬ ЖИЗНЕЙ: " + chaseLives, "#ff967d");
+            if (typeof playArenaSound === "function") playArenaSound(110, "sawtooth", 0.22, 0.1);
         }
-        if (typeof damageLivingStonePlayer === "function") damageLivingStonePlayer(13);
-        damageFlash = 14;
-        if (typeof spawnLivingStoneParticles === "function") {
-            spawnLivingStoneParticles(x, y, 12, "#ff734f", 4);
+        if (chaseLives <= 0) {
+            chaseFailed = true;
+            chaseFailTimer = 0.72;
+            message("ТРЕТЬЕ ПОПАДАНИЕ! ПОГОНЯ ПРОВАЛЕНА!", "#ff514b");
         }
+    }
+
+    function failChase() {
+        if (!active) return;
+        finish(false);
     }
     function update(now) {
         if (!active) return;
@@ -212,8 +225,13 @@
         elapsed = clamp(now - startedAt, 0, DURATION);
         var dt = clamp((now - lastAt) / 1000, 0.001, 0.05);
         lastAt = now;
+        if (chaseFailed) {
+            chaseFailTimer -= dt;
+            if (chaseFailTimer <= 0) failChase();
+            return;
+        }
         var difficulty = elapsed / DURATION;
-        var speed = 0.36 + difficulty * 0.15;
+        var speed = starAid ? 0.31 + difficulty * 0.12 : 0.38 + difficulty * 0.16;
         distance += speed * dt;
         trackOffset = (trackOffset + dt * (0.55 + difficulty * 0.38)) % 1;
 
@@ -225,11 +243,15 @@
         livingStonePlayer.x = laneX(laneVisual, 0.92);
         livingStonePlayer.y = 422 - jumpHeight - (slideLeft > 0 ? 2 : Math.abs(Math.sin(elapsed * 0.023)) * 2.2);
 
-        spawnClock += dt;
-        var spawnInterval = 1.12 - difficulty * 0.22;
-        if (spawnClock >= spawnInterval) {
-            spawnClock -= spawnInterval;
-            spawnPattern();
+        if (elapsed >= 1900) {
+            spawnClock += dt;
+            var spawnInterval = starAid ? 1.34 - difficulty * 0.18 : 1.02 - difficulty * 0.12;
+            if (spawnClock >= spawnInterval) {
+                spawnClock -= spawnInterval;
+                spawnPattern();
+            }
+        } else {
+            spawnClock = 0;
         }
 
         for (var i = obstacles.length - 1; i >= 0; i--) {
@@ -266,21 +288,20 @@
         }
 
         // The Living Stone stays on the same route and visibly gains on the runner.
+        var fleeProgress = clamp(elapsed / 1550, 0, 1);
+        fleeProgress = fleeProgress * fleeProgress * (3 - 2 * fleeProgress);
         livingStoneBoss.x = 200 + Math.sin(elapsed * 0.0017) * 23;
-        livingStoneBoss.y = 160 + Math.sin(elapsed * 0.0031) * 7;
+        livingStoneBoss.y = 160 - fleeProgress * 42 + Math.sin(elapsed * 0.0031) * 7;
         livingStoneBoss.size = 33 + Math.min(10, difficulty * 10);
         livingStoneBoss.rotation += dt * (0.55 + difficulty);
         if (superMode) window.__mbLS2PhaseFrames = elapsed / (1000 / 60);
-        if (starAid) {
-            if (elapsed >= nextGuard) { starGuard = true; nextGuard = elapsed + 7000; }
-            if (elapsed >= nextStrike) {
-                nextStrike += 7600;
-                starFlash = 28;
-                if (typeof spawnLivingStoneParticles === "function") {
-                    spawnLivingStoneParticles(livingStoneBoss.x, livingStoneBoss.y + 15, 15, "#ffd66b", 4);
-                }
-                if (typeof playArenaSound === "function") playArenaSound(1080, "sine", 0.18, 0.08);
+        if (starAid && elapsed >= nextStrike) {
+            nextStrike += 7600;
+            starFlash = 28;
+            if (typeof spawnLivingStoneParticles === "function") {
+                spawnLivingStoneParticles(livingStoneBoss.x, livingStoneBoss.y + 15, 15, "#9deaff", 4);
             }
+            if (typeof playArenaSound === "function") playArenaSound(1080, "sine", 0.18, 0.08);
         }
         if (starFlash > 0) starFlash = Math.max(0, starFlash - dt * 60);
         if (damageFlash > 0) damageFlash = Math.max(0, damageFlash - dt * 60);
@@ -445,8 +466,10 @@
         for (var ci = 0; ci < coins.length; ci++) drawCoin(c, coins[ci]);
 
         // Draw the actual Living Stone model as the pursuer, not a substitute shape.
+        var fleeProgress = clamp(elapsed / 1550, 0, 1);
+        fleeProgress = fleeProgress * fleeProgress * (3 - 2 * fleeProgress);
         if (superMode && typeof window.MBDrawLivingStoneSuperRunnerBoss === "function") {
-            try { window.MBDrawLivingStoneSuperRunnerBoss(c, 200, 146, 1); } catch (e) {}
+            try { window.MBDrawLivingStoneSuperRunnerBoss(c, 200, 146 - fleeProgress * 42, 1 - fleeProgress * 0.18); } catch (e) {}
         } else if (typeof drawLivingStoneBoss === "function") {
             try { drawLivingStoneBoss(); } catch (e) {}
         } else {
@@ -459,8 +482,10 @@
         if (starAid && typeof window.MBDrawWaystarCompanion === "function") {
             c.save();
             var ridePulse = 1 + Math.sin(now / 92) * 0.08;
-            c.translate(px, py + 18);
-            c.globalAlpha = 0.78;
+            var arrival = clamp(elapsed / 1850, 0, 1);
+            var starY = py + 24 - (1 - arrival) * 142;
+            c.translate(px, starY - 6);
+            c.globalAlpha = 0.78 * (0.28 + arrival * 0.72);
             c.fillStyle = "rgba(105,205,255,.20)";
             c.shadowColor = "#9beaff";
             c.shadowBlur = reduced ? 0 : 22;
@@ -491,7 +516,15 @@
                 c.stroke();
             }
             c.restore();
-            window.MBDrawWaystarCompanion(px + Math.sin(now / 170) * 2, py + 24, 34);
+            if (arrival < 1) {
+                c.save();
+                c.globalAlpha = 0.55 * (1 - arrival);
+                c.strokeStyle = "#b9efff";
+                c.lineWidth = 2;
+                c.beginPath(); c.moveTo(px, starY - 105 * (1 - arrival)); c.lineTo(px, starY - 8); c.stroke();
+                c.restore();
+            }
+            window.MBDrawWaystarCompanion(px + Math.sin(now / 170) * 2, starY, 34 * (0.76 + arrival * 0.24));
         }
         c.save();
         c.globalAlpha = jumpLeft > 0 ? 0.24 : 0.42;
@@ -543,12 +576,33 @@
         c.fillText(String(min).padStart(2, "0") + ":" + String(sec).padStart(2, "0") + ":" + String(cs).padStart(2, "0"), 200, 29);
         c.fillStyle = "rgba(0,0,0,.55)"; c.fillRect(108, 51, 184, 5);
         c.fillStyle = starAid ? "#f7cf70" : "#ee8056"; c.fillRect(108, 51, 184 * (elapsed / DURATION), 5);
-        c.textAlign = "left"; c.font = "bold 11px monospace"; c.fillStyle = "#ffe7b0";
+        c.fillStyle = "rgba(8,13,19,.86)"; c.fillRect(126, 61, 148, 25);
+        c.strokeStyle = starAid ? "#9deaff" : "#ee8056"; c.lineWidth = 1; c.strokeRect(126, 61, 148, 25);
+        c.textAlign = "center"; c.textBaseline = "middle"; c.font = "bold 10px monospace"; c.fillStyle = "#e8f1ff";
+        c.fillText("ЖИЗНИ", 163, 73);
+        c.font = "bold 17px sans-serif"; c.fillStyle = "#ff6262";
+        c.fillText("♥".repeat(chaseLives) + "♡".repeat(3 - chaseLives), 226, 73);
+        c.textAlign = "left"; c.textBaseline = "alphabetic"; c.font = "bold 11px monospace"; c.fillStyle = "#ffe7b0";
         c.fillText("✦ " + coinCount, 14, 27);
         c.textAlign = "right"; c.fillStyle = "#e5d8cc";
         c.fillText(starAid ? "ЕДЕШЬ НА ЗВЕЗДЕ" : "ЖИВОЙ КАМЕНЬ ДОГОНЯЕТ", 386, 27);
         c.textAlign = "center"; c.font = "bold 10px monospace"; c.fillStyle = "rgba(255,255,255,.82)";
         c.fillText("СВАЙПЫ • ← → ПОЛОСА • ↑ ПРЫЖОК • ↓ ПОДКАТ", 200, 486);
+        if (elapsed < 4600) {
+            var introAlpha = 1 - Math.max(0, elapsed - 2600) / 2000;
+            c.globalAlpha = clamp(introAlpha, 0, 1);
+            c.fillStyle = "rgba(4,10,18,.86)";
+            c.fillRect(42, 91, 316, 48);
+            c.strokeStyle = starAid ? "#9deaff" : "#ee8056";
+            c.lineWidth = 1.5; c.strokeRect(42, 91, 316, 48);
+            c.textAlign = "center"; c.textBaseline = "middle";
+            c.fillStyle = starAid ? "#c9f1ff" : "#ffd1c3";
+            c.font = "bold 10px monospace";
+            c.fillText(starAid ? "ПУТЕВОДНАЯ ЗВЕЗДА" : "КАМЕНЬ УБЕГАЕТ!", 200, 105);
+            c.fillStyle = "#ffffff"; c.font = "bold 13px Arial,sans-serif";
+            c.fillText(starAid ? "Я ПРИШЛА ВЕРНУТЬ ДОЛГ!" : "ТЕБЕ ПРИДЁТСЯ БЕЖАТЬ САМОМУ!", 200, 125);
+            c.textBaseline = "alphabetic";
+        }
         c.restore();
 
         if (damageFlash > 0) {
@@ -563,11 +617,11 @@
         active = false;
         unbindControls();
         resetArrays();
-        if (starAid && music && musicAllowed()) {
+        if (success !== false && starAid && music && musicAllowed()) {
             musicKeepAlive = true;
             window.__mbLivingStoneChaseMusicPersistent = true;
         } else {
-            stopMusic();
+            stopMusic(false);
         }
         window.__mbLivingStoneChaseActive = false;
         window.__mbLivingStoneChaseStarAid = false;
@@ -593,6 +647,15 @@
             try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
         }
         var done = callback; callback = null;
+        if (success === false) {
+            console.warn("[LS CHASE] Three lives lost; ending the Living Stone attempt.");
+            if (wasSuperMode && typeof window.MBLivingStoneSuperNativeDefeat === "function") {
+                window.MBLivingStoneSuperNativeDefeat();
+            } else if (typeof livingStoneDefeat === "function") {
+                livingStoneDefeat();
+            }
+            return;
+        }
         console.log("[LS CHASE] 116-second runner complete; transition to phase 2. Coins:", coinCount);
         if (typeof done === "function") {
             try { done(); } catch (e) { console.error("[LS CHASE] phase transition error", e); }
@@ -610,6 +673,7 @@
 
         superMode = requestedSuperMode;
         starAid = debt();
+        chaseLives = 3; chaseFailed = false; chaseFailTimer = 0;
         callback = typeof options.onComplete === "function" ? options.onComplete : null;
         reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
         startedAt = clock(); lastAt = startedAt; elapsed = 0;
@@ -640,12 +704,12 @@
         if (typeof stopQTEMusic === "function") { try { stopQTEMusic(); } catch (e) {} }
         if (starAid) {
             startMusic();
-            message("ПУТЕВОДНАЯ ЗВЕЗДА: ДЕРЖИСЬ! Я ВЫВЕДУ ТЕБЯ!", "#ffe28a");
+            message("ПУТЕВОДНАЯ ЗВЕЗДА: Я ПРИШЛА ВЕРНУТЬ ДОЛГ!", "#aeeaff");
         } else {
             if (!superMode) {
                 try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
             }
-            message("ЖИВОЙ КАМЕНЬ: ТЕБЕ НЕ УБЕЖАТЬ!", "#ff9a72");
+            message("ЖИВОЙ КАМЕНЬ: ТЕБЕ ПРИДЁТСЯ ДОГОНЯТЬ МЕНЯ САМОМУ!", "#ff9a72");
         }
         var name = document.getElementById("arenaBossName");
         if (name) name.textContent = superMode
