@@ -3197,6 +3197,8 @@
                     let dx = b.x - boss.x, dy = b.y - boss.y;
                     if (Math.sqrt(dx * dx + dy * dy) < boss.size * 0.75 + b.size) {
                         let dmg = b.damage;
+                        let moderatorBulletDamage = window.MBGetModeratorBulletDamage(boss.maxHp);
+                        if (moderatorBulletDamage !== null) dmg = moderatorBulletDamage;
                         if (typeof window.applyArmorToBossDamage === 'function' && !isModerActive()) {
                             let result = window.applyArmorToBossDamage(dmg);
                             if (result.blocked) { spawnHitParticles(b.x, b.y, "#9b59b6", 6); playImpactSound(0.15, 1.5); destroyed = true; break; }
