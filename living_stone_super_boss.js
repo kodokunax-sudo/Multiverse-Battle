@@ -1034,8 +1034,8 @@
             ls2CombatText(waystarConstellationReady ? "СОЗВЕЗДИЕ ЗВЕЗДЫ! БЕЙ!" : "ЩИТ СЛОМАЛ ЕГО РИТМ! БЕЙ!",
                 waystarConstellationReady ? "#d8f5ff" : "#fff1ae", 90);
             if (waystarConstellationReady) {
-                var bonus = Math.max(1, Math.floor(ls2BossMaxHp * 0.0025));
-                ls2DamageBoss(bonus);
+                var bonus = Math.min(Math.max(1, Math.floor(ls2BossMaxHp * 0.0025)), Math.max(0, ls2BossHp - 1));
+                if (bonus > 0) ls2DamageBoss(bonus);
                 if (typeof livingStoneBoss !== "undefined" && typeof spawnLivingStoneParticles === "function")
                     spawnLivingStoneParticles(livingStoneBoss.x, livingStoneBoss.y, 22, "#c8f3ff", 4);
             }
@@ -1368,7 +1368,8 @@
         if (routeHit) {
             ls2BossStun = Math.max(ls2BossStun, 105);
             ls2DodgeCooldown = Math.max(ls2DodgeCooldown, 165);
-            ls2DamageBoss(Math.max(1, Math.floor(ls2BossMaxHp * 0.006)));
+            var routeBonus = Math.min(Math.max(1, Math.floor(ls2BossMaxHp * 0.006)), Math.max(0, ls2BossHp - 1));
+            if (routeBonus > 0) ls2DamageBoss(routeBonus);
             ls2CombatText("ЗВЁЗДНЫЙ МАРШРУТ! ЯДРО ОТКРЫТО!", "#d8f5ff", 78);
             if (typeof spawnLivingStoneParticles === "function")
                 spawnLivingStoneParticles(livingStoneBoss.x, livingStoneBoss.y, 20, "#b8efff", 4);
