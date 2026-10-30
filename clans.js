@@ -3092,7 +3092,7 @@
                     var transferError = await accountSlotBindingError(currentUser, getCurrentGameSlot());
                     if (transferError) {
                         setNotice(transferError, 'warning');
-                        try { await db.auth.signOut(); } catch (_signOutError) {}
+                        try { await db.auth.signOut({ scope: 'local' }); } catch (_signOutError) {}
                         currentUser = null;
                         showAuthState();
                         notifyCloudSaveAuthChanged();
@@ -3943,7 +3943,7 @@
                         showAuthState();
                         setNotice(authBindingError, 'warning');
                         notifyCloudSaveAuthChanged();
-                        client.auth.signOut().catch(function () {});
+                        client.auth.signOut({ scope: 'local' }).catch(function () {});
                         return;
                     }
                     showAuthState();
