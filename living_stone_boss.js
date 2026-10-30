@@ -944,6 +944,11 @@ function updateLivingStoneBullets() {
 
     for (var i = livingStoneBullets.length - 1; i >= 0; i--) {
         var b = livingStoneBullets[i];
+        // Дефектные пустые элементы не должны останавливать RAF и финальную сцену победы.
+        if (!b || typeof b !== "object") {
+            livingStoneBullets.splice(i, 1);
+            continue;
+        }
         var bulletStopped = stopAll || (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(b));
         if (!bulletStopped) {
             if (b.homing && b.homingSpeed) {
@@ -2638,6 +2643,7 @@ function livingStoneRenderLoop() {
     
     for (var i = 0; i < livingStoneBullets.length; i++) {
         var b = livingStoneBullets[i];
+        if (!b || typeof b !== "object") continue;
         if (typeof window.drawEquipmentProjectile === 'function' && window.drawEquipmentProjectile(ctx, b)) continue;
         ctx.save();
         var bulletColor = "#ffffff";
