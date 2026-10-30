@@ -1000,6 +1000,17 @@ function damageLivingStone(dmg) {
         window.MBLivingStoneSuperDamage(dmg);
         return;
     }
+    // Модератор с разблокированным доступом мгновенно завершает бой с Камнем,
+    // не попадая в сюжетное восстановление на 5% HP.
+    if (!window.__mbBossTestMode && typeof mode !== "undefined" && mode === "moder" &&
+        typeof moderUnlocked !== "undefined" && moderUnlocked === true) {
+        if (livingStoneState === "phase1" || livingStoneState === "phase2") {
+            livingStoneBossHp = 0;
+            livingStoneBossFlash = 20;
+            livingStoneVictory();
+        }
+        return;
+    }
     if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
     if (livingStoneState === "phase2" && livingStoneBossHp <= 0) return;
     if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") dmg=window.MBBossTestModifyOutgoingDamage(dmg,1);
