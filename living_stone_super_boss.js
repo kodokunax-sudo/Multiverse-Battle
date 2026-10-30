@@ -881,6 +881,7 @@
         if (typeof window.MBStartLivingStoneChase === "function") {
             sharedRunnerStarted = window.MBStartLivingStoneChase({
                 superMode: true,
+                starAid: ls2ChaseStarAid,
                 onComplete: function () {
                     window.__mbLS2RunnerActive = false;
                     ls2EndChase();
