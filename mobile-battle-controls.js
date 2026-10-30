@@ -146,10 +146,12 @@
         var settings = window.arenaSettings || (typeof arenaSettings !== 'undefined' ? arenaSettings : {});
         var style = settings.mobileControlStyle || 'dpad8';
         var position = settings.mobileControlPosition === 'right' ? 'right' : 'left';
+        var x = Math.max(0, Math.min(85, Number(settings.mobileControlX != null ? settings.mobileControlX : (position === 'right' ? 62 : 3))));
+        var y = Math.max(0, Math.min(55, Number(settings.mobileControlY != null ? settings.mobileControlY : 3)));
         var size = Math.max(60, Math.min(160, Number(settings.joystickSize) || 100));
         var opacity = Math.max(20, Math.min(100, Number(settings.joystickOpacity) || 60));
         var mode = settings.arenaControl || 'auto';
-        return { style: style, position: position, size: size, opacity: opacity, mode: mode };
+        return { style: style, position: position, x: x, y: y, size: size, opacity: opacity, mode: mode };
     }
 
     function applyControlSettings() {
@@ -160,9 +162,18 @@
         controls.classList.add('mb-layout-' + (cfg.style === 'dpad4' || cfg.style === 'arcade' ? cfg.style : 'dpad8'));
         controls.style.opacity = String(cfg.opacity / 100);
         controls.style.transform = 'scale(' + (cfg.size / 100) + ')';
-        controls.style.left = cfg.position === 'left' ? 'max(10px, env(safe-area-inset-left))' : 'auto';
-        controls.style.right = cfg.position === 'right' ? 'max(10px, env(safe-area-inset-right))' : 'auto';
-        controls.style.transformOrigin = cfg.position === 'right' ? 'bottom right' : 'bottom left';
+        controls.style.left = 'calc(' + cfg.x + '% + env(safe-area-inset-left))';
+        controls.style.right = 'auto';
+        controls.style.bottom = 'calc(' + cfg.y + '% + env(safe-area-inset-bottom))';
+        controls.style.transformOrigin = 'bottom left';
+        var xSlider = document.getElementById('mobileControlXSlider');
+        var ySlider = document.getElementById('mobileControlYSlider');
+        var xValue = document.getElementById('mobileControlXValue');
+        var yValue = document.getElementById('mobileControlYValue');
+        if (xSlider) xSlider.value = String(cfg.x);
+        if (ySlider) ySlider.value = String(cfg.y);
+        if (xValue) xValue.textContent = Math.round(cfg.x) + '%';
+        if (yValue) yValue.textContent = Math.round(cfg.y) + '%';
         controls.setAttribute('data-control-style', cfg.style);
         controls.setAttribute('data-control-position', cfg.position);
         controls.setAttribute('aria-label', cfg.style === 'arcade' ? 'Аркадные кнопки движения' :
