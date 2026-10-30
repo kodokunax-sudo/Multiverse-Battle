@@ -1844,16 +1844,6 @@
         if (typeof defeatedBosses !== "undefined" && Array.isArray(defeatedBosses) && !defeatedBosses.includes(2000)) defeatedBosses.push(2000);
         if (typeof saveAll === "function") saveAll();
         ls2Stop(false);
-        if (typeof window.MBStartLivingStoneEnding === "function") {
-            window.MBStartLivingStoneEnding({
-                kind: "prime",
-                onComplete: function () {
-                    if (typeof currentEnemy !== "undefined" && currentEnemy) currentEnemy.hp = 0;
-                    if (typeof victory === "function") victory();
-                }
-            });
-            return;
-        }
         if (typeof victory === "function") victory();
     };
     window.MBLivingStoneSuperNativeDefeat = function() {
