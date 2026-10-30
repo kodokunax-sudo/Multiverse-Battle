@@ -22,8 +22,9 @@
         } catch (e) { return false; }
     }
     function musicAllowed() {
-        try { return typeof musicEnabled === "undefined" || musicEnabled !== false; }
-        catch (e) { return true; }
+        // The Waystar rescue theme is part of this story sequence. It plays even
+        // when ordinary background music defaults to muted; the music toggle can still mute it.
+        return window.__mbChaseMusicMuted !== true;
     }
     function message(txt, color) {
         if (typeof spawnLivingStoneText === "function") spawnLivingStoneText(200, 300, txt, color, 100);
@@ -218,7 +219,7 @@
         var jumpProgress = jumpLeft > 0 ? 1 - jumpLeft / 0.78 : 1;
         var jumpHeight = jumpLeft > 0 ? Math.sin(jumpProgress * Math.PI) * 78 : 0;
         livingStonePlayer.x = laneX(laneVisual, 0.92);
-        livingStonePlayer.y = 422 - jumpHeight - (slideLeft > 0 ? 5 : 0);
+        livingStonePlayer.y = 422 - jumpHeight - (slideLeft > 0 ? 2 : Math.abs(Math.sin(elapsed * 0.023)) * 2.2);
 
         spawnClock += dt;
         var spawnInterval = 1.12 - difficulty * 0.22;
@@ -454,7 +455,16 @@
         c.beginPath(); c.ellipse(laneX(laneVisual, 0.98), 439, 19 + (jumpLeft > 0 ? 10 : 0), 5, 0, 0, Math.PI*2); c.fill();
         c.restore();
         if (typeof drawLivingStonePlayer === "function") {
-            try { drawLivingStonePlayer(); } catch (e) {}
+            try {
+                c.save();
+                if (slideLeft > 0) {
+                    c.translate(px, py + 4);
+                    c.scale(1.18, 0.56);
+                    c.translate(-px, -py);
+                }
+                drawLivingStonePlayer();
+                c.restore();
+            } catch (e) { try { c.restore(); } catch (_e) {} }
         } else {
             c.fillStyle = "#ff3c50"; c.beginPath(); c.moveTo(px, py+11);
             c.bezierCurveTo(px-25,py-5,px-10,py-19,px,py-8);
@@ -587,4 +597,6 @@
     window.MBIsLivingStoneChaseActive = function () { return active; };
     window.MBHasLivingStoneWaystarAid = debt;
     window.MBRetryPendingChaseMusic = retryMusic;
+    window.MBStartLivingStoneChaseMusic = startMusic;
+    window.MBStopLivingStoneChaseMusic = stopMusic;
 })();
