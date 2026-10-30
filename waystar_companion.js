@@ -89,7 +89,8 @@
     function strike() {
         if (!normalActionsEligible() || attackPause > 0 ||
             typeof livingStoneBoss === "undefined" || !livingStoneBoss) return;
-        var damage = Math.max(1, Math.floor(maxBossHp() * 0.012));
+        var damage = Math.min(Math.max(1, Math.floor(maxBossHp() * 0.012)), Math.max(0, currentBossHp() - 1));
+        if (!(damage > 0)) return;
         if (typeof damageLivingStone === "function") damageLivingStone(damage);
         else if (typeof window.MBLivingStoneSuperDamage === "function") window.MBLivingStoneSuperDamage(damage);
         else return;
