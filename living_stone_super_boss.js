@@ -812,6 +812,7 @@
     var ls2ChaseTriggered=false, ls2ChaseFrames=0, ls2ChaseDuration=840;
     var ls2ChaseLane=1, ls2ChaseObstacles=[], ls2ChaseSpawnTimer=28;
     var ls2ChaseStarAid=false, ls2ChaseGuard=0, ls2ChaseGuardTimer=0;
+    var ls2ChaseLives=3, ls2ChaseFailed=false, ls2ChaseFailTimer=0;
     var ls2ChaseJumpTimer=0, ls2ChaseSlideTimer=0, ls2ChaseMusic=null;
     var ls2StarAssistActive=false, ls2StarAssistCooldown=480, ls2StarAssistFlash=0;
     var LS2_CHASE_LANES=[70,200,330];
@@ -855,6 +856,7 @@
         ls2ChaseFrames=0; ls2ChaseDuration=6960;
         ls2ChaseLane=1; ls2ChaseObstacles=[]; ls2ChaseSpawnTimer=28;
         ls2ChaseGuard=ls2ChaseStarAid?1:0; ls2ChaseGuardTimer=240;
+        ls2ChaseLives=3; ls2ChaseFailed=false; ls2ChaseFailTimer=0;
         ls2ChaseJumpTimer=0; ls2ChaseSlideTimer=0;
         ls2StarAssistCooldown=480; ls2StarAssistFlash=0;
         window.__mbLS2GreenPhase="chase"; window.__mbLS2PhaseFrames=0;
@@ -883,10 +885,10 @@
             window.__mbLS2RunnerActive = false;
             if (ls2ChaseStarAid) {
                 ls2StartChaseMusic();
-                if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,320,"ЗВЕЗДА: ДЕРЖИСЬ! Я ПОМОГУ ТЕБЕ!","#aeeaff",120);
+                if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,320,"ПУТЕВОДНАЯ ЗВЕЗДА: Я ПРИШЛА ВЕРНУТЬ ДОЛГ!","#aeeaff",120);
             } else {
                 ls2StopChaseMusic();
-                if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,320,"НЕ ДОГОНИШЬ МЕНЯ!","#ff967d",100);
+                if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,320,"ТЕБЕ ПРИДЁТСЯ БЕЖАТЬ САМОМУ!","#ff967d",100);
             }
         }
         if (typeof livingStoneScreenFlash!=="undefined") {
@@ -902,6 +904,15 @@
             spin:Math.random()*Math.PI*2,done:false});
     }
     function ls2UpdateChase(step) {
+        if (ls2ChaseFailed) {
+            ls2ChaseFailTimer -= step;
+            if (ls2ChaseFailTimer <= 0) {
+                ls2ChaseFailed = false;
+                if (typeof window.MBLivingStoneSuperNativeDefeat === "function")
+                    window.MBLivingStoneSuperNativeDefeat();
+            }
+            return;
+        }
         ls2ChaseFrames+=step; ls2ChaseSpawnTimer-=step;
         ls2ChaseJumpTimer=Math.max(0,ls2ChaseJumpTimer-step);
         ls2ChaseSlideTimer=Math.max(0,ls2ChaseSlideTimer-step);
@@ -926,11 +937,20 @@
                     var avoided=(o.kind==="rubble" && ls2ChaseJumpTimer>0)||(o.kind==="overhang" && ls2ChaseSlideTimer>0);
                     if (avoided) {
                         if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(LS2_CHASE_LANES[o.lane],hitY,7,"#b7f4ff",3);
-                    } else if (ls2ChaseStarAid && ls2ChaseGuard>0) {
-                        ls2ChaseGuard=0; ls2ChaseGuardTimer=240;
-                        if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(LS2_CHASE_LANES[o.lane],hitY,14,"#9deaff",4);
-                        if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,365,"ЗВЕЗДА ЗАКРЫЛА ТЕБЯ СОБОЙ!","#aeeaff",65);
-                    } else if (typeof damageLivingStonePlayer==="function") damageLivingStonePlayer(ls2ChaseStarAid?10:13);
+                    } else {
+                        ls2ChaseLives=Math.max(0,ls2ChaseLives-1);
+                        if (ls2ChaseStarAid && ls2ChaseGuard>0) {
+                            ls2ChaseGuard=0; ls2ChaseGuardTimer=240;
+                            if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(LS2_CHASE_LANES[o.lane],hitY,14,"#9deaff",4);
+                            if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,365,"ЗВЕЗДА ПРИКРЫЛА ТЕБЯ! -1 ЖИЗНЬ","#aeeaff",65);
+                        } else if (typeof spawnLivingStoneText==="function") {
+                            spawnLivingStoneText(200,365,"СТОЛКНОВЕНИЕ! ЖИЗНЕЙ: "+ls2ChaseLives,"#ff967d",65);
+                        }
+                        if (ls2ChaseLives<=0) {
+                            ls2ChaseFailed=true; ls2ChaseFailTimer=36;
+                            if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,320,"ТРЕТЬЕ ПОПАДАНИЕ! ПОГОНЯ ПРОВАЛЕНА!","#ff514b",90);
+                        }
+                    }
                 }
             }
             if (o.y>535) ls2ChaseObstacles.splice(i,1);
@@ -1773,13 +1793,15 @@
             else if(o.kind==="rubble"){var sz=15+Math.max(0,y-160)*.035;c.save();c.translate(x,y);c.rotate(o.spin);c.fillStyle="#665b50";c.strokeStyle="#c1b5a7";c.lineWidth=2;c.beginPath();c.moveTo(-sz,-sz*.35);c.lineTo(-sz*.4,-sz);c.lineTo(sz*.5,-sz*.75);c.lineTo(sz,sz*.1);c.lineTo(sz*.35,sz);c.lineTo(-sz*.7,sz*.7);c.closePath();c.fill();c.stroke();c.restore();}
             else {var wide=32+Math.max(0,y-160)*.045;c.fillStyle="#6d3b32";c.strokeStyle="#ff9e7e";c.lineWidth=2;c.fillRect(x-wide,y-8,wide*2,16);c.strokeRect(x-wide,y-8,wide*2,16);}}
         var lx=LS2_CHASE_LANES[ls2ChaseLane],jump=ls2ChaseJumpTimer>0?Math.sin((1-ls2ChaseJumpTimer/28)*Math.PI)*25:0,py=414-jump;
-        if(ls2ChaseStarAid){ls2DrawChaseStar(c,lx,py+24,26);ls2DrawChaseHeart(c,lx,py-9,.72);if(ls2ChaseGuard>0){c.strokeStyle="rgba(184,242,255,.75)";c.lineWidth=2;c.beginPath();c.arc(lx,py+20,39+Math.sin(now/80)*3,0,Math.PI*2);c.stroke();}}
+        var starArrival=ls2Clamp(ls2ChaseFrames/90,0,1);
+        if(ls2ChaseStarAid){ls2DrawChaseStar(c,lx,py+24-(1-starArrival)*128,26);ls2DrawChaseHeart(c,lx,py-9,.72);if(ls2ChaseGuard>0){c.strokeStyle="rgba(184,242,255,.75)";c.lineWidth=2;c.beginPath();c.arc(lx,py+20,39+Math.sin(now/80)*3,0,Math.PI*2);c.stroke();}}
         else ls2DrawChaseHeart(c,lx,py,1.05);
         c.fillStyle="rgba(0,0,0,.8)";c.fillRect(22,16,356,48);c.strokeStyle=ls2ChaseStarAid?"#96e1ff":"#ff9170";c.strokeRect(22,16,356,48);
         c.fillStyle=ls2ChaseStarAid?"#c9f1ff":"#ffd1c3";c.font="900 14px Arial,sans-serif";c.textAlign="center";c.fillText(ls2ChaseStarAid?"ПОГОНЯ СО ЗВЕЗДОЙ":"ПОГОНЯ ЗА ЖИВЫМ КАМНЕМ",200,35);
-        c.fillStyle="#d8e0eb";c.font="bold 10px Arial,sans-serif";c.fillText("Дистанция: "+Math.floor(progress*100)+"%  ·  HP: "+Math.max(0,Math.ceil(livingStonePlayerHp)),200,52);
+        c.fillStyle="#d8e0eb";c.font="bold 10px Arial,sans-serif";c.fillText("Дистанция: "+Math.floor(progress*100)+"%  ·  ЖИЗНИ: "+("♥".repeat(ls2ChaseLives))+("♡".repeat(3-ls2ChaseLives)),200,52);
         c.fillStyle="rgba(255,255,255,.16)";c.fillRect(35,72,330,4);c.fillStyle=ls2ChaseStarAid?"#9deaff":"#ff8c70";c.fillRect(35,72,330*progress,4);
-        if(ls2ChaseStarAid){c.fillStyle="#aeeaff";c.font="bold 10px Arial,sans-serif";c.fillText(ls2ChaseGuard>0?"ЗВЕЗДА ГОТОВА ЗАЩИТИТЬ ТЕБЯ":"ЗВЕЗДА ВОССТАНАВЛИВАЕТ ЗАЩИТУ",200,447);}
+        if(ls2ChaseFrames<260){c.save();c.fillStyle="rgba(4,10,18,.86)";c.fillRect(42,91,316,48);c.strokeStyle=ls2ChaseStarAid?"#9deaff":"#ee8056";c.lineWidth=1.5;c.strokeRect(42,91,316,48);c.fillStyle=ls2ChaseStarAid?"#c9f1ff":"#ffd1c3";c.font="bold 10px Arial,sans-serif";c.textAlign="center";c.fillText(ls2ChaseStarAid?"ПУТЕВОДНАЯ ЗВЕЗДА":"КАМЕНЬ УБЕГАЕТ!",200,105);c.fillStyle="#ffffff";c.font="bold 13px Arial,sans-serif";c.fillText(ls2ChaseStarAid?"Я ПРИШЛА ВЕРНУТЬ ДОЛГ!":"ТЕБЕ ПРИДЁТСЯ БЕЖАТЬ САМОМУ!",200,125);c.restore();}
+        if(ls2ChaseStarAid){c.fillStyle="#aeeaff";c.font="bold 10px Arial,sans-serif";c.fillText("ЗВЕЗДА ПОМОЖЕТ ВО ВТОРОЙ ФАЗЕ",200,447);}
         c.fillStyle="rgba(0,0,0,.82)";c.fillRect(12,462,376,28);c.fillStyle="#f3f6ff";c.font="bold 10px Arial,sans-serif";c.fillText("A/D ИЛИ ←/→: ПОЛОСА   ·   W/↑: ПРЫЖОК   ·   S/↓: ПРИГНУТЬСЯ",200,479);
         c.restore();
     };
