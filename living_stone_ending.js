@@ -12,6 +12,7 @@
     var musicKeepAlive = false;
     var retryBound = false, reduced = false, lastHud = -1;
     var pointerStart = null, oldTouchAction = "";
+    var introElapsed = 0, introDuration = 0, introFinished = false;
     var DURATION = 116000;
     var LANE_COUNT = 3;
 
@@ -117,7 +118,7 @@
         pointerStart = null;
     }
     function onKeyDown(ev) {
-        if (!active || !ev) return;
+        if (!active || !introFinished || !ev) return;
         var key = String(ev.key || "").toLowerCase();
         if (key === "arrowleft" || key === "a") {
             ev.preventDefault(); moveLane(-1);
@@ -130,14 +131,14 @@
         }
     }
     function onPointerDown(ev) {
-        if (!active || !ev) return;
+        if (!active || !introFinished || !ev) return;
         if (ev.pointerType === "touch" || ev.pointerType === "pen") {
             pointerStart = { x: ev.clientX, y: ev.clientY, id: ev.pointerId };
             if (ev.cancelable) ev.preventDefault();
         }
     }
     function onPointerUp(ev) {
-        if (!active || !pointerStart || !ev || ev.pointerId !== pointerStart.id) return;
+        if (!active || !introFinished || !pointerStart || !ev || ev.pointerId !== pointerStart.id) return;
         var dx = ev.clientX - pointerStart.x, dy = ev.clientY - pointerStart.y;
         pointerStart = null;
         if (ev.cancelable) ev.preventDefault();
@@ -222,9 +223,31 @@
         if (!active) return;
         if (!livingStoneActive || livingStoneState !== "chase") { stop(); return; }
         now = Number(now) || clock();
-        elapsed = clamp(now - startedAt, 0, DURATION);
         var dt = clamp((now - lastAt) / 1000, 0.001, 0.05);
         lastAt = now;
+        if (!introFinished) {
+            introElapsed = Math.min(introDuration, introElapsed + dt * 1000);
+            livingStonePlayer.x = 200;
+            livingStonePlayer.y = 422;
+            livingStoneBoss.x = 200 + Math.sin(introElapsed / 210) * (starAid ? 7 : 12);
+            livingStoneBoss.y = 145 - easeOut(introElapsed / 1550) * 35 + Math.sin(introElapsed / 90) * 2;
+            livingStoneBoss.rotation += dt * 1.2;
+            livingStoneBoss.size = 34 + Math.min(5, introElapsed / 900);
+            if (introElapsed >= introDuration) {
+                introFinished = true;
+                startedAt = now;
+                lastAt = now;
+                elapsed = 0;
+                livingStonePlayer.x = laneX(1, 0.92);
+                livingStonePlayer.y = 422;
+                livingStoneBoss.x = 200;
+                livingStoneBoss.y = 108;
+                livingStoneBoss.vx = starAid ? -1.25 : 1.15;
+                message(starAid ? "ЗВЕЗДА: ДЕРЖИСЬ КРЕПЧЕ!" : "КАМЕНЬ: ПОКА-А-А!", starAid ? "#bcefff" : "#ff9a72");
+            }
+            return;
+        }
+        elapsed = clamp(now - startedAt, 0, DURATION);
         if (chaseFailed) {
             chaseFailTimer -= dt;
             if (chaseFailTimer <= 0) failChase();
@@ -447,6 +470,167 @@
         c.restore();
     }
 
+    function easeOut(value) {
+        var t = clamp(value, 0, 1);
+        return 1 - Math.pow(1 - t, 3);
+    }
+    function drawBubble(c, x, y, text, accent, width) {
+        width = width || 250;
+        var h = 42;
+        c.save();
+        c.fillStyle = "rgba(5,12,22,.92)";
+        c.strokeStyle = accent || "#d5e9ff";
+        c.lineWidth = 2;
+        c.beginPath();
+        c.roundRect(x - width / 2, y - h / 2, width, h, 10);
+        c.fill(); c.stroke();
+        c.fillStyle = "#ffffff";
+        c.font = "900 12px Arial,sans-serif";
+        c.textAlign = "center"; c.textBaseline = "middle";
+        c.fillText(text, x, y);
+        c.restore();
+    }
+    function drawStoneRunExtras(c, x, y, now) {
+        var gait = Math.sin(now / 62);
+        c.save();
+        c.lineCap = "round";
+        c.lineWidth = 6;
+        c.strokeStyle = "#342d29";
+        c.beginPath();
+        c.moveTo(x - 14, y + 21);
+        c.lineTo(x - 21 + gait * 7, y + 34);
+        c.lineTo(x - 28 + gait * 12, y + 35);
+        c.moveTo(x + 14, y + 21);
+        c.lineTo(x + 21 - gait * 7, y + 34);
+        c.lineTo(x + 28 - gait * 12, y + 35);
+        c.stroke();
+        c.lineWidth = 4;
+        c.strokeStyle = "#8a7666";
+        c.beginPath();
+        c.moveTo(x - 35, y - 4);
+        c.lineTo(x - 45 - gait * 7, y + 9);
+        c.moveTo(x + 35, y - 4);
+        c.lineTo(x + 45 + gait * 7, y + 8);
+        c.stroke();
+        c.fillStyle = "rgba(255,115,82,.9)";
+        c.beginPath();
+        c.arc(x - 39 - gait * 8, y - 23, 3, 0, Math.PI * 2);
+        c.arc(x + 40 + gait * 8, y - 20, 2.5, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+    }
+    function drawRunnerHeroExtras(c, x, y, now, sad) {
+        var gait = Math.sin(now / 52);
+        c.save();
+        c.lineCap = "round";
+        c.lineWidth = 2.4;
+        c.strokeStyle = "#f4d9d5";
+        c.beginPath();
+        c.moveTo(x - 5, y + 7);
+        c.lineTo(x - 10 + gait * 5, y + 17);
+        c.moveTo(x + 5, y + 7);
+        c.lineTo(x + 10 - gait * 5, y + 17);
+        c.moveTo(x - 10, y - 1);
+        c.lineTo(x - 16 - gait * 5, y + 4);
+        c.moveTo(x + 10, y - 1);
+        c.lineTo(x + 16 + gait * 5, y - 5);
+        c.stroke();
+        if (sad) {
+            c.strokeStyle = "#3d1721";
+            c.lineWidth = 1.6;
+            c.beginPath();
+            c.moveTo(x - 5, y - 4); c.lineTo(x - 2, y - 2);
+            c.moveTo(x + 2, y - 2); c.lineTo(x + 5, y - 4);
+            c.arc(x, y + 5, 3, Math.PI + 0.2, Math.PI * 2 - 0.2);
+            c.stroke();
+            c.fillStyle = "#9ce8ff";
+            c.beginPath();
+            c.moveTo(x + 15, y - 13);
+            c.quadraticCurveTo(x + 22, y - 7, x + 15, y - 2);
+            c.quadraticCurveTo(x + 9, y - 7, x + 15, y - 13);
+            c.fill();
+        }
+        c.restore();
+    }
+    function drawWaystarCar(c, x, y, progress, now) {
+        progress = clamp(progress, 0, 1);
+        if (progress <= 0.01) return;
+        c.save();
+        c.globalAlpha = progress;
+        c.translate(x, y);
+        var scale = 0.45 + progress * 0.55;
+        c.scale(scale, scale);
+        var wheelTurn = now / 90;
+        c.shadowColor = "#74dfff";
+        c.shadowBlur = reduced ? 0 : 17;
+        c.fillStyle = "#101a28";
+        for (var side = -1; side <= 1; side += 2) {
+            for (var row = -1; row <= 1; row += 2) {
+                c.save();
+                c.translate(side * 30, row * 22);
+                c.rotate(wheelTurn * (row < 0 ? 1 : -1));
+                c.beginPath(); c.ellipse(0, 0, 7, 13, 0, 0, Math.PI * 2); c.fill();
+                c.strokeStyle = "#9fb6c6"; c.lineWidth = 1.5;
+                c.beginPath(); c.moveTo(0, -8); c.lineTo(0, 8); c.stroke();
+                c.restore();
+            }
+        }
+        var body = c.createLinearGradient(-28, -42, 28, 40);
+        body.addColorStop(0, "#f2fdff");
+        body.addColorStop(.28, "#79dfff");
+        body.addColorStop(.68, "#2376bc");
+        body.addColorStop(1, "#16416f");
+        c.fillStyle = body;
+        c.strokeStyle = "#e8fbff";
+        c.lineWidth = 2.5;
+        c.beginPath();
+        c.moveTo(0, -47);
+        c.quadraticCurveTo(22, -43, 25, -24);
+        c.lineTo(28, 22);
+        c.quadraticCurveTo(25, 43, 0, 46);
+        c.quadraticCurveTo(-25, 43, -28, 22);
+        c.lineTo(-25, -24);
+        c.quadraticCurveTo(-22, -43, 0, -47);
+        c.closePath(); c.fill(); c.stroke();
+        c.shadowBlur = 0;
+        c.fillStyle = "rgba(9,31,58,.88)";
+        c.strokeStyle = "rgba(230,250,255,.92)";
+        c.lineWidth = 1.5;
+        c.beginPath();
+        c.moveTo(-18, -22); c.quadraticCurveTo(-15, -36, 0, -37);
+        c.quadraticCurveTo(15, -36, 18, -22);
+        c.lineTo(16, -3); c.quadraticCurveTo(0, 3, -16, -3); c.closePath();
+        c.fill(); c.stroke();
+        c.fillStyle = "#dffaff";
+        c.fillRect(-20, 27, 9, 4); c.fillRect(11, 27, 9, 4);
+        c.fillStyle = "#ffe68a";
+        c.shadowColor = "#ffe68a"; c.shadowBlur = reduced ? 0 : 10;
+        c.beginPath();
+        for (var i = 0; i < 10; i++) {
+            var a = -Math.PI / 2 + i * Math.PI / 5;
+            var r = i % 2 === 0 ? 10 : 4.2;
+            var sx = Math.cos(a) * r, sy = 13 + Math.sin(a) * r;
+            if (i === 0) c.moveTo(sx, sy); else c.lineTo(sx, sy);
+        }
+        c.closePath(); c.fill();
+        c.shadowBlur = 0;
+        c.strokeStyle = "rgba(225,250,255,.5)";
+        c.lineWidth = 1;
+        c.beginPath(); c.moveTo(-18, 7); c.lineTo(-20, 20); c.moveTo(18, 7); c.lineTo(20, 20); c.stroke();
+        c.restore();
+    }
+    function drawActualRunnerHeart(c, x, y, mounted) {
+        if (typeof drawLivingStonePlayer !== "function") return;
+        var oldX = livingStonePlayer.x, oldY = livingStonePlayer.y;
+        var oldMounted = window.__mbLivingStoneStarMounted;
+        livingStonePlayer.x = x; livingStonePlayer.y = y;
+        if (mounted) window.__mbLivingStoneStarMounted = true;
+        try { drawLivingStonePlayer(); }
+        finally {
+            livingStonePlayer.x = oldX; livingStonePlayer.y = oldY;
+            window.__mbLivingStoneStarMounted = oldMounted;
+        }
+    }
     function draw(c) {
         if (!active || !c) return;
         var now = clock();
@@ -465,89 +649,91 @@
         for (var o = 0; o < sorted.length; o++) drawObstacle(c, sorted[o]);
         for (var ci = 0; ci < coins.length; ci++) drawCoin(c, coins[ci]);
 
-        // Draw the actual Living Stone model as the pursuer, not a substitute shape.
-        var fleeProgress = clamp(elapsed / 1550, 0, 1);
-        fleeProgress = fleeProgress * fleeProgress * (3 - 2 * fleeProgress);
+        // The Living Stone is already running away before the player starts moving.
+        var cinematicTime = introFinished ? introDuration : introElapsed;
+        var fleeProgress = clamp(cinematicTime / 1550, 0, 1);
+        fleeProgress = easeOut(fleeProgress);
+        var stoneX = 200 + Math.sin(now / 190) * (introFinished ? 4 : 9);
+        var stoneY = 145 - fleeProgress * 35 + Math.sin(now / 78) * 2;
         if (superMode && typeof window.MBDrawLivingStoneSuperRunnerBoss === "function") {
-            try { window.MBDrawLivingStoneSuperRunnerBoss(c, 200, 146 - fleeProgress * 42, 1 - fleeProgress * 0.18); } catch (e) {}
+            try { window.MBDrawLivingStoneSuperRunnerBoss(c, stoneX, stoneY, 1 - fleeProgress * 0.12); } catch (e) {}
         } else if (typeof drawLivingStoneBoss === "function") {
             try { drawLivingStoneBoss(); } catch (e) {}
         } else {
-            c.fillStyle = "#8b7355"; c.beginPath(); c.arc(200, 160, 28, 0, Math.PI*2); c.fill();
+            c.fillStyle = "#8b7355"; c.beginPath(); c.arc(stoneX, stoneY, 28, 0, Math.PI*2); c.fill();
+        }
+        drawStoneRunExtras(c, stoneX, stoneY, now);
+        if (!starAid && !introFinished && introElapsed < introDuration) {
+            drawBubble(c, stoneX, stoneY - 62, "ПОЙМАЙ МЕНЯ!", "#ff9b79", 174);
         }
 
-        // The heart rides on the actual spared Waystar. Draw the vehicle first,
-        // then the heart, so the player visibly sits on the star instead of beside it.
         var px = livingStonePlayer.x, py = livingStonePlayer.y;
-        if (starAid && typeof window.MBDrawWaystarCompanion === "function") {
-            c.save();
-            var ridePulse = 1 + Math.sin(now / 92) * 0.08;
-            var arrival = clamp(elapsed / 1850, 0, 1);
-            var starY = py + 24 - (1 - arrival) * 142;
-            c.translate(px, starY - 6);
-            c.globalAlpha = 0.78 * (0.28 + arrival * 0.72);
-            c.fillStyle = "rgba(105,205,255,.20)";
-            c.shadowColor = "#9beaff";
-            c.shadowBlur = reduced ? 0 : 22;
-            c.beginPath();
-            c.ellipse(0, 16, 45 * ridePulse, 17 * ridePulse, 0, 0, Math.PI * 2);
-            c.fill();
-            c.shadowBlur = 0;
-            for (var orbit = 0; orbit < 3; orbit++) {
-                c.save();
-                c.rotate(now / (650 + orbit * 190) + orbit * 1.9);
-                c.strokeStyle = orbit === 1 ? "rgba(255,224,139,.86)" : "rgba(135,226,255,.66)";
-                c.lineWidth = orbit === 1 ? 2 : 1.2;
-                c.beginPath();
-                c.ellipse(0, 6, 37 + orbit * 5, 10 + orbit * 2, 0, 0, Math.PI * 2);
-                c.stroke();
-                c.restore();
-            }
-            for (var trail = 0; trail < (reduced ? 4 : 9); trail++) {
-                var side = trail % 2 ? 1 : -1;
-                var offset = Math.floor(trail / 2);
-                var drift = Math.sin(now / 115 + trail * 1.7) * 8;
-                c.strokeStyle = trail % 3 === 0 ? "rgba(255,230,153,.72)" : "rgba(127,215,255,.62)";
-                c.lineWidth = 1 + (trail % 3) * 0.45;
-                c.beginPath();
-                c.moveTo(side * (13 + offset * 4), 18 + offset * 3);
-                c.quadraticCurveTo(side * (27 + offset * 7) + drift, 43 + offset * 6,
-                    side * (18 + offset * 10) + drift, 72 + offset * 8);
-                c.stroke();
-            }
-            c.restore();
-            if (arrival < 1) {
-                c.save();
-                c.globalAlpha = 0.55 * (1 - arrival);
-                c.strokeStyle = "#b9efff";
-                c.lineWidth = 2;
-                c.beginPath(); c.moveTo(px, starY - 105 * (1 - arrival)); c.lineTo(px, starY - 8); c.stroke();
-                c.restore();
-            }
-            window.MBDrawWaystarCompanion(px + Math.sin(now / 170) * 2, starY, 34 * (0.76 + arrival * 0.24));
-        }
-        c.save();
-        c.globalAlpha = jumpLeft > 0 ? 0.24 : 0.42;
-        c.fillStyle = "#05080b";
-        c.beginPath(); c.ellipse(laneX(laneVisual, 0.98), 439, 19 + (jumpLeft > 0 ? 10 : 0), 5, 0, 0, Math.PI*2); c.fill();
-        c.restore();
-        if (typeof drawLivingStonePlayer === "function") {
-            try {
-                c.save();
-                if (slideLeft > 0) {
-                    c.translate(px, py + 4);
-                    c.scale(1.18, 0.56);
-                    c.translate(-px, -py);
+        var introStar = !introFinished && starAid;
+        var introT = introElapsed;
+        if (starAid) {
+            var arrival = easeOut((introT - 380) / 1200);
+            var starX = -44 + (px + 44) * arrival;
+            var starY = 300 + (py - 332) * arrival - Math.sin(arrival * Math.PI) * 34;
+            var morph = introFinished ? 1 : easeOut((introT - 2450) / 1450);
+            var carY = py + 12;
+            drawWaystarCar(c, px, carY, morph, now);
+            if (introStar && morph < 0.98 && typeof window.MBDrawWaystarCompanion === "function") {
+                var starSize = 34 * (1 - morph * 0.5);
+                window.MBDrawWaystarCompanion(starX, starY, starSize);
+                if (introT > 1150 && introT < 3300) {
+                    drawBubble(c, clamp(starX + 100, 175, 265), starY - 70,
+                        "Я ПРИШЛА ВЕРНУТЬ ДОЛГ!", "#aeeaff", 232);
                 }
-                if (starAid) window.__mbLivingStoneStarMounted = true;
-                try { drawLivingStonePlayer(); }
-                finally { if (starAid) window.__mbLivingStoneStarMounted = false; }
+                if (introT > 2600 && introT < 3900) {
+                    c.save();
+                    c.globalAlpha = 1 - morph;
+                    c.strokeStyle = "rgba(184,242,255,.88)";
+                    c.lineWidth = 2;
+                    c.shadowColor = "#9deaff";
+                    c.shadowBlur = reduced ? 0 : 16;
+                    for (var ray = 0; ray < 8; ray++) {
+                        var ra = now / 170 + ray * Math.PI / 4;
+                        c.beginPath();
+                        c.moveTo(starX + Math.cos(ra) * 16, starY + Math.sin(ra) * 16);
+                        c.lineTo(px + Math.cos(ra) * 58, carY + Math.sin(ra) * 58);
+                        c.stroke();
+                    }
+                    c.restore();
+                }
+            }
+            var jumpProgress = introFinished ? 1 : easeOut((introT - 3650) / 1050);
+            var jumpArc = introStar ? Math.sin(jumpProgress * Math.PI) * 56 : 0;
+            var heroY = py - (introStar ? jumpArc + jumpProgress * 8 : 8);
+            if (introStar && introT < 3650) heroY = py;
+            c.save();
+            c.globalAlpha = 0.38;
+            c.fillStyle = "#05080b";
+            c.beginPath(); c.ellipse(px, 441, 24, 5, 0, 0, Math.PI * 2); c.fill();
+            c.restore();
+            drawActualRunnerHeart(c, px, heroY, true);
+            if (introStar && introT >= 3650 && introT < 5100) {
+                c.save();
+                c.globalAlpha = 0.7;
+                c.strokeStyle = "#e7fbff";
+                c.lineWidth = 2;
+                c.beginPath();
+                c.moveTo(px - 3, heroY + 5);
+                c.quadraticCurveTo(px - 28, heroY - 18, px - 14, py + 20);
+                c.stroke();
                 c.restore();
-            } catch (e) { try { c.restore(); } catch (_e) {} }
+                if (introT > 4200) drawBubble(c, px, py - 100, "ЗАПРЫГНУЛ! ПОЕХАЛИ!", "#b4ecff", 210);
+            }
         } else {
-            c.fillStyle = "#ff3c50"; c.beginPath(); c.moveTo(px, py+11);
-            c.bezierCurveTo(px-25,py-5,px-10,py-19,px,py-8);
-            c.bezierCurveTo(px+10,py-19,px+25,py-5,px,py+11); c.fill();
+            c.save();
+            c.globalAlpha = jumpLeft > 0 ? 0.24 : 0.42;
+            c.fillStyle = "#05080b";
+            c.beginPath(); c.ellipse(laneX(laneVisual, 0.98), 439, 19 + (jumpLeft > 0 ? 10 : 0), 5, 0, 0, Math.PI*2); c.fill();
+            c.restore();
+            drawActualRunnerHeart(c, px, py, false);
+            drawRunnerHeroExtras(c, px, py, now, !introFinished);
+            if (!introFinished && introElapsed > 450) {
+                drawBubble(c, 200, 325, "ЛАДНО... ДОГОНЮ САМ.", "#ffb7a2", 214);
+            }
         }
 
         if (starAid) {
@@ -615,6 +801,7 @@
     function finish(success) {
         if (!active) return;
         active = false;
+        introFinished = false;
         unbindControls();
         resetArrays();
         if (success !== false && starAid && music && musicAllowed()) {
@@ -685,6 +872,9 @@
         spawnClock = 0; trackOffset = 0; distance = 0; coinCount = 0; lastHud = -1;
         starGuard = starAid; nextGuard = 7000; nextStrike = 4400;
         starFlash = 0; damageFlash = 0;
+        introElapsed = 0;
+        introDuration = starAid ? 5450 : 2750;
+        introFinished = false;
         resetArrays();
 
         livingStoneState = "chase";
@@ -708,26 +898,26 @@
         if (typeof stopQTEMusic === "function") { try { stopQTEMusic(); } catch (e) {} }
         if (starAid) {
             startMusic();
-            message("ПУТЕВОДНАЯ ЗВЕЗДА: Я ПРИШЛА ВЕРНУТЬ ДОЛГ!", "#aeeaff");
         } else {
             if (!superMode) {
                 try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
             }
-            message("ЖИВОЙ КАМЕНЬ: ТЕБЕ ПРИДЁТСЯ ДОГОНЯТЬ МЕНЯ САМОМУ!", "#ff9a72");
         }
         var name = document.getElementById("arenaBossName");
         if (name) name.textContent = superMode
             ? (starAid ? "ПОГОНЯ • ПРАЙМ И ЗВЕЗДА" : "ПОГОНЯ • ЖИВОЙ КАМЕНЬ ПРАЙМ")
             : (starAid ? "ПОГОНЯ • ЖИВОЙ КАМЕНЬ И ЗВЕЗДА" : "ПОГОНЯ • ЖИВОЙ КАМЕНЬ");
         var timer = document.getElementById("arenaTimer");
-        if (timer) timer.textContent = "01:56";
+        if (timer) timer.textContent = starAid ? "ЗВЕЗДА В ПУТИ..." : "КАМЕНЬ УБЕГАЕТ...";
         active = true;
-        console.log("[LS CHASE] 3-lane runner started; Waystar aid:", starAid);
+        console.log("[LS CHASE] animated chase intro started; Waystar car:", starAid);
         return true;
     }
     function stop() {
         if (!active && !music) return;
         active = false;
+        introFinished = false;
+        introElapsed = 0;
         unbindControls();
         resetArrays();
         stopMusic();
