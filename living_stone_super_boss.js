@@ -8,7 +8,7 @@
 
     var ls2Active = false, ls2ChoicePending = false;
     var ls2Canvas = null, ls2Ctx = null, ls2Frame = 0, ls2LastTime = 0;
-    var ls2Elapsed = 0, ls2BossHp = 0, ls2BossMaxHp = 0;
+    var ls2Elapsed = 0, ls2BossHp = 0, ls2BossMaxHp = 0, ls2Phase2MaxHp = 0;
     var ls2PlayerHp = 180, ls2PlayerMaxHp = 180;
     var ls2Invulnerable = 0, ls2HitFlash = 0, ls2ShieldFlash = 0;
     var ls2ShieldDir = 0; // 0 вверх, 1 вправо, 2 вниз, 3 влево
@@ -946,6 +946,16 @@
         if (typeof livingStoneBullets!=="undefined") livingStoneBullets.length=0;
         ls2UniqueAttacks=[]; ls2UniqueCracks=[]; ls2UniqueDecoys=[]; ls2BossDash=null;
         ls2UniqueAttackTimer=190; ls2DodgeCooldown=120; ls2DodgeStreak=0;
+        // Phase one uses the reduced HP pool. After the chase, restore the
+        // original phase-two reserve as its own full bar, so only phase one is nerfed.
+        ls2BossMaxHp = Math.max(1, Number(ls2Phase2MaxHp) || Math.floor(ls2BossMaxHp * 0.12));
+        ls2BossHp = ls2BossMaxHp;
+        if (typeof livingStoneBossMaxHp !== "undefined") livingStoneBossMaxHp = ls2BossMaxHp;
+        if (typeof livingStoneBossHp !== "undefined") livingStoneBossHp = ls2BossHp;
+        if (typeof currentEnemy !== "undefined" && currentEnemy) {
+            currentEnemy.maxHp = ls2BossMaxHp;
+            currentEnemy.hp = ls2BossHp;
+        }
         ls2BossStun=ls2ChaseStarAid?175:85;
         if (typeof livingStoneBoss!=="undefined") {
             livingStoneBoss.x=200; livingStoneBoss.y=108; livingStoneBoss.vx=ls2ChaseStarAid?-1.25:1.15;
@@ -2020,7 +2030,10 @@
         ls2PreviousArenaActive=typeof arenaActive!=="undefined"?arenaActive:false;
         ls2ReduceEffects=!!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
         ls2Active=true; window.livingStoneSuperActive=true;
-        ls2BossMaxHp=Math.max(100000,Math.floor((Number(currentEnemy.maxHp)||1250000)*0.09));
+        var enemyMaxBeforePhaseNerf = Number(currentEnemy.maxHp) || 1250000;
+        var originalPhaseOneMaxHp = Math.max(250000, Math.floor(enemyMaxBeforePhaseNerf * 0.225));
+        ls2Phase2MaxHp = Math.max(1, Math.floor(originalPhaseOneMaxHp * 0.12));
+        ls2BossMaxHp=Math.max(100000,Math.floor(enemyMaxBeforePhaseNerf*0.09));
         ls2BossHp=ls2BossMaxHp; ls2PlayerMaxHp=180; ls2PlayerHp=ls2PlayerMaxHp;
         currentEnemy.maxHp=ls2BossMaxHp; currentEnemy.hp=ls2BossHp;
         ls2Invulnerable=0; ls2HitFlash=0; ls2ShieldFlash=0; ls2ShieldDir=0;
