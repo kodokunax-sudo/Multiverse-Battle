@@ -643,6 +643,10 @@
         if (wasSuperMode) {
             window.__mbLS2RunnerActive = false;
             window.__mbLS2PhaseFrames = 0;
+            if (success === false) {
+                window.__mbLS2GreenPhase = "normal";
+                window.__mbLS2AfterChase = false;
+            }
         } else {
             try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
         }
