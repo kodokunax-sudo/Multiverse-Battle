@@ -180,6 +180,12 @@
 
     function takeSnapshot() {
         var snapshot = {};
+        try {
+            var initialSettings = settings();
+            snapshot.arenaControl = initialSettings ? initialSettings.arenaControl : "auto";
+            snapshot.mobileControlStyle = initialSettings ? initialSettings.mobileControlStyle : "dpad8";
+            snapshot.joystickFixedPosition = initialSettings ? initialSettings.joystickFixedPosition !== false : true;
+        } catch (e) {}
         try { snapshot.wave = typeof wave !== "undefined" ? wave : null; } catch (e) {}
         try { snapshot.playerHp = typeof playerHp !== "undefined" ? playerHp : null; } catch (e) {}
         try { snapshot.points = typeof points !== "undefined" ? points : null; } catch (e) {}
@@ -220,6 +226,15 @@
             snapshot.slotIndex = typeof currentSlot !== "undefined" ? currentSlot : -1;
         } catch (e) {}
         return snapshot;
+    }
+
+    function restoreInputMode(snapshot) {
+        var s = settings();
+        if (!s || !snapshot) return;
+        s.arenaControl = snapshot.arenaControl || "auto";
+        s.mobileControlStyle = snapshot.mobileControlStyle || "dpad8";
+        s.joystickFixedPosition = snapshot.joystickFixedPosition !== false;
+        saveSettings();
     }
 
     function restoreSnapshot(snapshot) {
@@ -493,6 +508,8 @@
         } catch (error) {
             window.__mbJoystickTrainingMode = false;
             window.__mbJoystickTrainingEditing = false;
+            try { if (typeof window.stopArena === "function") window.stopArena(); } catch (stopError) {}
+            restoreInputMode(snapshot);
             restoreSnapshot(snapshot);
             console.error("[Joystick training] Не удалось запустить тренировку:", error);
             notify("⚠️ Не удалось открыть тренировочный бой", "#ffb58a");
@@ -504,6 +521,7 @@
             window.__mbJoystickTrainingMode = false;
             window.__mbJoystickTrainingEditing = false;
             try { if (typeof window.stopArena === "function") window.stopArena(); } catch (e) {}
+            restoreInputMode(snapshot);
             restoreSnapshot(snapshot);
             return false;
         }
