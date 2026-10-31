@@ -180,8 +180,10 @@
         var newDeadzone = Math.round(8 * newSizeMult);
         var newOpacity = (settings.joystickOpacity || 60) / 100;
         var newFixedPosition = settings.joystickFixedPosition !== false;
-        var newPositionX = Math.max(8, Math.min(92, Number(settings.joystickPositionX ?? 18)));
-        var newPositionY = Math.max(8, Math.min(92, Number(settings.joystickPositionY ?? 80)));
+        var minPositionX = (newMaxRadius + 8) / 400 * 100;
+        var minPositionY = (newMaxRadius + 8) / 500 * 100;
+        var newPositionX = Math.max(minPositionX, Math.min(100 - minPositionX, Number(settings.joystickPositionX ?? 24)));
+        var newPositionY = Math.max(minPositionY, Math.min(100 - minPositionY, Number(settings.joystickPositionY ?? 80)));
 
         var j = window._joystick;
         j.enabled = newEnabled;
@@ -300,9 +302,6 @@
             // Если уже активен — не переключаем
             if (j.active) return;
 
-            ev.preventDefault();
-            ev.stopPropagation();
-
             var t = ev.touches[0];
             var rect = c.getBoundingClientRect();
             var tx = ((t.clientX - rect.left) / Math.max(1, rect.width)) * c.width;
@@ -319,6 +318,8 @@
                 j.baseX = tx;
                 j.baseY = ty;
             }
+            ev.preventDefault();
+            ev.stopPropagation();
             j.knobX = tx;
             j.knobY = ty;
             j.touchId = t.identifier;
@@ -427,8 +428,6 @@
             if (!canControl(arena)) return;
             if (ev.button !== 0) return;
 
-            ev.preventDefault();
-
             var rect = c.getBoundingClientRect();
             var tx = ((ev.clientX - rect.left) / Math.max(1, rect.width)) * c.width;
             var ty = ((ev.clientY - rect.top) / Math.max(1, rect.height)) * c.height;
@@ -441,6 +440,7 @@
                 j.baseX = tx;
                 j.baseY = ty;
             }
+            ev.preventDefault();
             j.knobX = tx;
             j.knobY = ty;
             j.touchId = "mouse";
