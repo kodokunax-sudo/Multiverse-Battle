@@ -90,7 +90,7 @@
             return false;
         }
         s.joystickSize = clamp(preset.size, 60, 160);
-        s.mobileControlStyle = preset.style || s.mobileControlStyle || "dpad8";
+        s.mobileControlStyle = preset.style || "analog";
         if (isButtonLayout(s)) {
             s.mobileControlX = Number(preset.x);
             s.mobileControlY = Number(preset.y);
@@ -445,7 +445,7 @@
             event.preventDefault();
             var s = settings();
             if (drag.mode === "move") {
-                var rect = session.canvas.getBoundingClientRect();
+                var rect = (isButtonLayout(s) && session.overlay ? session.overlay : session.canvas).getBoundingClientRect();
                 var x = ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100;
                 var y = ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100;
                 if (isButtonLayout(s)) {
@@ -493,9 +493,10 @@
         if (!session || !session.canvas || !session.preview) return;
         var s = settings();
         var normalized = normalizePosition(s);
-        var rect = session.canvas.getBoundingClientRect();
         var buttonMode = normalized.buttonMode;
-        var scale = Math.min(rect.width / 400, rect.height / 500) * normalized.size / 100;
+        var rect = (buttonMode && session.overlay ? session.overlay : session.canvas).getBoundingClientRect();
+        var scale = buttonMode ? normalized.size / 100 :
+            Math.min(rect.width / 400, rect.height / 500) * normalized.size / 100;
         session.preview.classList.toggle("mbjt-dpad", buttonMode);
         session.preview.classList.toggle("mbjt-analog", !buttonMode);
         session.preview.classList.toggle("mbjt-dpad4", buttonMode && s.mobileControlStyle === "dpad4");
@@ -563,6 +564,7 @@
         activeSession = {
             snapshot: snapshot,
             canvas: canvas,
+            overlay: document.getElementById("arenaOverlay") || canvas.parentElement,
             panel: null,
             preview: null,
             editing: true,
