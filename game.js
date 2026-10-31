@@ -221,7 +221,7 @@ window.toggleReducedBossEffects = toggleReducedBossEffects;
 
 // ★★★ НАСТРОЙКА БОНУСА НОВИЧКА ★★★
 const NEWCOMER_BONUS_MINUTES = 20;
-const MODER_ACCESS_CODE_VERSION = 2;
+// Moderator access is verified from the authenticated Supabase account.
 
 // ========== СЛОТЫ СОХРАНЕНИЙ ==========
 function getSlotKey(slot) { return "cgV20_slot" + slot; }
@@ -1201,9 +1201,9 @@ function loadGameData(d) {
     playerHp = d.playerHp || 100; 
     activeBuffs = d.activeBuffs || {};
     if (activeBuffs && typeof activeBuffs === "object") delete activeBuffs["afkWavesX100"]; 
-    const savedModerAccessVersion = Number(d.moderAccessVersion) || 0;
-    const mustReenterModerCode = savedModerAccessVersion < MODER_ACCESS_CODE_VERSION;
-    mode = (mustReenterModerCode && d.mode === "moder") ? "normal" : (d.mode || "normal"); 
+    // Never restore privileged mode from a local save. It starts disabled until the server verifies the account.
+    mode = "normal";
+    moderUnlocked = false; 
     defeatHistory = d.defeatHistory || []; 
     shopItems = d.shopItems || [null, null, null]; 
     shopRefreshTime = d.shopRefreshTime || null;
@@ -1230,7 +1230,7 @@ function loadGameData(d) {
     hasFireArtifact = d.hasFireArtifact || false; 
     hasCompoundV = d.hasCompoundV || {}; 
     usedCodes = d.usedCodes || []; 
-    moderUnlocked = !mustReenterModerCode && d.moderUnlocked === true; 
+    moderUnlocked = false; 
     afkWavesCompleted = d.afkWavesCompleted || 0; 
     afkWinsCompleted = d.afkWinsCompleted || 0;
     highestCheckpoint = d.highestCheckpoint || 1; 
@@ -1370,6 +1370,7 @@ function initNewGame() {
     hasCompoundV = {}; 
     usedCodes = []; 
     moderUnlocked = false; 
+    mode = "normal";
     afkWavesCompleted = 0; 
     afkWinsCompleted = 0;
     highestCheckpoint = 1; 
@@ -1482,8 +1483,9 @@ function saveAll() {
     slotData.hasFireArtifact = hasFireArtifact; 
     slotData.hasCompoundV = hasCompoundV; 
     slotData.usedCodes = usedCodes; 
-    slotData.moderUnlocked = moderUnlocked;
-    slotData.moderAccessVersion = MODER_ACCESS_CODE_VERSION; 
+    // Do not persist moderator access in client-controlled save data.
+    delete slotData.moderUnlocked;
+    delete slotData.moderAccessVersion; 
     slotData.afkWavesCompleted = afkWavesCompleted; 
     slotData.afkWinsCompleted = afkWinsCompleted || 0;
     slotData.highestCheckpoint = highestCheckpoint; 
@@ -3323,7 +3325,7 @@ window.buyUpgrade = function (k) {
 };
 
 function goToWave() { if (mode !== "moder" || !moderUnlocked) return; let w = parseInt(prompt("Введите номер волны:")); if (!w || w < 1) return; wave = w; playerHp = window.playerMaxHp || 100; generateEnemy(); saveAll(); renderAll(); }
-function submitCode() { let inp = document.getElementById("codeInput").value.trim(); let cd = codeList[inp]; if (!cd) { document.getElementById("codeResult").innerHTML = "❌ Неверный код"; return; } if (usedCodes.includes(inp)) { document.getElementById("codeResult").innerHTML = "⚠️ Код уже использован"; return; } usedCodes.push(inp); switch (cd.type) { case "points": points += cd.amount; if (points > maxPoints) maxPoints = points; break; case "card": let t = customCardTemplates[cd.rarity].find(t => t.name === cd.tpl); if (t) { let c = createCardFromTemplate(t, cd.rarity); if (c) myCards.push(c); if (cd.points) { points += cd.points; if (points > maxPoints) maxPoints = points; } } break; case "buff": stackBuff(cd.buffId, cd.duration); break; case "moderUnlock": moderUnlocked = true; let modeEl = document.querySelector('.toggle span[data-mode="moder"]'); if (modeEl) modeEl.style.display = ''; saveAll(); document.getElementById("codeResult").innerHTML = "✅ Модер разблокирован!"; return; } document.getElementById("codeResult").innerHTML = "✅ Успешно активировано!"; saveAll(); renderAll(); renderActiveBuffs(); updatePlayerStats(); }
+function submitCode() { let inp = document.getElementById("codeInput").value.trim(); let cd = codeList[inp]; if (!cd) { document.getElementById("codeResult").innerHTML = "❌ Неверный код"; return; } if (usedCodes.includes(inp)) { document.getElementById("codeResult").innerHTML = "⚠️ Код уже использован"; return; } usedCodes.push(inp); switch (cd.type) { case "points": points += cd.amount; if (points > maxPoints) maxPoints = points; break; case "card": let t = customCardTemplates[cd.rarity].find(t => t.name === cd.tpl); if (t) { let c = createCardFromTemplate(t, cd.rarity); if (c) myCards.push(c); if (cd.points) { points += cd.points; if (points > maxPoints) maxPoints = points; } } break; case "buff": stackBuff(cd.buffId, cd.duration); break;  } document.getElementById("codeResult").innerHTML = "✅ Успешно активировано!"; saveAll(); renderAll(); renderActiveBuffs(); updatePlayerStats(); }
 function genChallenges() { let t = [ { name: "10 боссов", target: 10, reward: Math.floor(500 * getStarMult()), type: "bossKills", progress: 0 }, { name: "1000⭐", target: 1000, reward: Math.floor(300 * getStarMult()), type: "earnPoints", progress: 0 }, { name: "50 побед", target: 50, reward: Math.floor(400 * getStarMult()), type: "wins", progress: 0 }, { name: "10к урон", target: 10000, reward: Math.floor(350 * getStarMult()), type: "bigDamage", progress: 0 }, { name: "10 ур.", target: 10, reward: Math.floor(800 * getStarMult()), type: "levelUp", progress: playerLevel }, { name: "Усталость 0", target: 1, reward: Math.floor(200 * getStarMult()), type: "fatigueZero", progress: 0 }, { name: "5 карт", target: 5, reward: Math.floor(150 * getStarMult()), type: "collectCards", progress: myCards.length }, { name: "1000 кликов", target: 1000, reward: Math.floor(200 * getStarMult()), type: "totalClicksGoal", progress: 0 } ]; challenges = []; for (let i = 0; i < 3; i++) { let tp = t[Math.floor(Math.random() * t.length)]; challenges.push({ ...tp, id: Date.now() + i, completed: false }); } lastChallengeReset = Date.now(); saveAll(); renderChallenges(); }
 function updateChallengeProgress(tp, v) { if (!challenges || !challenges.length) return; let updated = false; challenges.forEach(ch => { if (!ch.completed && ch.type === tp) { ch.progress = (ch.progress || 0) + v; if (ch.type === "levelUp") ch.progress = playerLevel; if (ch.type === "collectCards") ch.progress = myCards.length; if (ch.type === "totalClicksGoal") ch.progress = totalClicks; if (ch.progress >= ch.target) { ch.completed = true; points += Math.floor(ch.reward * getStarMult()); if (points > maxPoints) maxPoints = points; addExp(Math.floor(ch.target * 2)); updated = true; showFloatingText("✅ Квест: " + ch.name + " +" + Math.floor(ch.reward * getStarMult()) + "⭐", "#2ecc71"); if (typeof sfxUINotification === 'function') sfxUINotification(); } } }); if (updated) { renderChallenges(); saveAll(); renderPoints(); } }
 
@@ -3621,7 +3623,28 @@ async function switchToSlot(slot) {
     finishSlotLoad(slot);
     renderSlotsInGame();
 }
-function setMode(m) { if (m === "moder" && !moderUnlocked) return; mode = m; saveAll(); updateClaimTimer(); renderModerControls(); renderPoints(); document.querySelectorAll(".toggle span").forEach(s => s.classList.toggle("active", s.dataset.mode === m)); }
+window.MBSetModeratorAccessFromServer = function (allowed) {
+    moderUnlocked = allowed === true;
+    if (!moderUnlocked && mode === "moder") mode = "normal";
+    var moderatorToggle = document.querySelector('.toggle span[data-mode="moder"]');
+    if (moderatorToggle) moderatorToggle.style.display = moderUnlocked ? '' : 'none';
+    document.querySelectorAll(".toggle span").forEach(function (item) {
+        item.classList.toggle("active", item.dataset.mode === mode);
+    });
+    renderModerControls();
+    renderPoints();
+    updateClaimTimer();
+    return moderUnlocked;
+};
+function setMode(m) {
+    if (m === "moder" && !moderUnlocked) return;
+    mode = m;
+    saveAll();
+    updateClaimTimer();
+    renderModerControls();
+    renderPoints();
+    document.querySelectorAll(".toggle span").forEach(s => s.classList.toggle("active", s.dataset.mode === m));
+}
 
 function mbNewOnlineCardUid() {
     if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
