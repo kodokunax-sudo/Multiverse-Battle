@@ -1,9 +1,9 @@
-/* Waystar companion: a mechanic-focused ally for Living Stone Prime.
+/* Waystar companion: returns for every eligible Living Stone phase-two encounter.
    The existing slotData.waystarOwesDebt value remains the sole mercy source. */
 (function () {
     "use strict";
 
-    var active = false, supportRequested = false, frame = 0;
+    var active = false, supportRequested = false, frame = 0, activeEncounterGeneration = -1;
     var strikeTimer = 95, guardCooldown = 0;
     var guardFlash = 0, strikeFlash = 0, supportDimTimer = 0, attackPause = 0;
     var supportX = 0, supportY = 0;
@@ -24,14 +24,16 @@
     }
 
     function encounterEligible() {
-        if (!supportRequested || !wasSpared() ||
+        if (!wasSpared() ||
             typeof livingStoneActive === "undefined" || !livingStoneActive ||
             livingStoneState !== "phase2" ||
             (typeof finalSceneActive !== "undefined" && finalSceneActive) ||
-            window.livingStoneSuperActive !== true ||
-            window.__mbLS2AfterChase !== true ||
             window.__mbLivingStoneChaseActive === true) return false;
-        return phase() === "normal" || phase() === "green";
+
+        // Regular Living Stone gets the ally in phase two. Prime gets her after the chase.
+        var isPrime = window.livingStoneSuperActive === true;
+        if (isPrime && window.__mbLS2AfterChase !== true) return false;
+        return phase() === "normal" || (isPrime && phase() === "green");
     }
 
     function normalActionsEligible() {
@@ -50,7 +52,7 @@
 
     function maxBossHp() {
         var hp = 0;
-        if (typeof window.getLivingStoneSuperBossMaxHp === "function") {
+        if (window.livingStoneSuperActive === true && typeof window.getLivingStoneSuperBossMaxHp === "function") {
             try { hp = Number(window.getLivingStoneSuperBossMaxHp()) || 0; } catch (e) {}
         }
         if (!(hp > 0) && typeof livingStoneBossMaxHp !== "undefined") hp = Number(livingStoneBossMaxHp) || 0;
@@ -125,11 +127,28 @@
             return;
         }
 
-        if (!active) {
+        var generation = typeof livingStoneEncounterGeneration !== "undefined"
+            ? Number(livingStoneEncounterGeneration) || 0 : 0;
+        if (!active || activeEncounterGeneration !== generation) {
             active = true;
+            supportRequested = true;
+            activeEncounterGeneration = generation;
             frame = 0;
             strikeTimer = 95;
             guardCooldown = 0;
+            guardFlash = 0;
+            strikeFlash = 0;
+            supportDimTimer = 0;
+            attackPause = 0;
+            route = null;
+            routeTimer = 0;
+            routeHitFlash = 0;
+            blockStars = 0;
+            constellationFlash = 0;
+            finalLockTimer = 0;
+            finalLockTriggered = false;
+            finalDialogueStage = 0;
+            lastPhase = "";
             supportX = Number(livingStonePlayer.x) || 200;
             supportY = Number(livingStonePlayer.y) || 400;
             announce("Я ОБЕЩАЛА ВЕРНУТЬСЯ. И Я ЗДЕСЬ.", "#bcefff", 95);
@@ -440,6 +459,7 @@
         finalLockTriggered = false;
         finalDialogueStage = 0;
         lastPhase = "";
+        activeEncounterGeneration = -1;
     }
 
     window.MBHasWaystarCompanion = wasSpared;
