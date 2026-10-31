@@ -492,10 +492,21 @@ function mbPutCloudSaveInLocalSlot(saveData, userId, cloudRow, targetSlot) {
     if (mbCloudRecoveryPendingSlot === targetSlot) mbCloudRecoveryPendingSlot = null;
     if (targetSlot === currentSlot) {
         localStorage.setItem('cgV20_lastSlot', String(targetSlot));
-        mbCloudSyncReadyForUser = userId;
-        mbCloudStatus('Облачное сохранение загружено. Перезапускаем игру…', 'success');
-        mbCloudReloadPending = true;
-        window.setTimeout(function () { window.location.reload(); }, 150);
+        // Apply the restored slot in-place. A full page reload here can restart
+        // cloud recovery before the player reaches the game.
+        mbCloudSyncReadyForUser = null;
+        mbCloudReloadPending = false;
+        try {
+            selectSlot(targetSlot);
+            // finishSlotLoad() emits mb:slot-ready while this sync is still busy.
+            // Mark the account ready only after the in-place slot load has finished.
+            mbCloudSyncReadyForUser = userId;
+            mbCloudStatus('Облачное сохранение загружено. Игра продолжает работу без перезапуска.', 'success');
+        } catch (error) {
+            mbCloudSyncReadyForUser = null;
+            mbCloudStatus('Облачная копия сохранена в слоте ' + (targetSlot + 1) + ', но игра не смогла сразу открыть её. Обнови страницу вручную.', 'warning');
+            console.warn('[MB cloud] Не удалось применить облачное сохранение без перезапуска:', error && error.message ? error.message : error);
+        }
     } else {
         mbCloudStatus('Облачная копия записана в слот ' + (targetSlot + 1) + '. Текущий слот не изменён.', 'success');
     }
