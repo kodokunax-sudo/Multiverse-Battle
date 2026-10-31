@@ -27,11 +27,22 @@
         s.joystickLayouts = s.joystickLayouts.slice(0, 3);
         while (s.joystickLayouts.length < 3) s.joystickLayouts.push(null);
     }
+    function normalizePosition(s) {
+        var size = clamp(s.joystickSize == null ? 100 : s.joystickSize, 60, 160);
+        var radius = 80 * size / 100;
+        var marginX = (radius + 8) / 400 * 100;
+        var marginY = (radius + 8) / 500 * 100;
+        s.joystickPositionX = clamp(s.joystickPositionX == null ? 24 : s.joystickPositionX, marginX, 100 - marginX);
+        s.joystickPositionY = clamp(s.joystickPositionY == null ? 80 : s.joystickPositionY, marginY, 100 - marginY);
+        s.joystickSize = size;
+        return { x: s.joystickPositionX, y: s.joystickPositionY, size: size, marginX: marginX, marginY: marginY };
+    }
     function currentLayout(s) {
+        var normalized = normalizePosition(s);
         return {
-            x: clamp(s.joystickPositionX == null ? 24 : s.joystickPositionX, 8, 92),
-            y: clamp(s.joystickPositionY == null ? 80 : s.joystickPositionY, 8, 92),
-            size: clamp(s.joystickSize == null ? 100 : s.joystickSize, 60, 160),
+            x: normalized.x,
+            y: normalized.y,
+            size: normalized.size,
             opacity: clamp(s.joystickOpacity == null ? 60 : s.joystickOpacity, 20, 100),
             fixed: true
         };
@@ -75,9 +86,10 @@
             setNotice(noticeElement, "Раскладка " + (index + 1) + " ещё не сохранена", "#ffd18c");
             return false;
         }
-        s.joystickPositionX = clamp(preset.x, 8, 92);
-        s.joystickPositionY = clamp(preset.y, 8, 92);
         s.joystickSize = clamp(preset.size, 60, 160);
+        s.joystickPositionX = Number(preset.x);
+        s.joystickPositionY = Number(preset.y);
+        normalizePosition(s);
         s.joystickOpacity = clamp(preset.opacity, 20, 100);
         s.joystickFixedPosition = true;
         s.mobileControlStyle = "analog";
@@ -288,6 +300,7 @@
         sizeInput.addEventListener("input", function () {
             var s = settings();
             s.joystickSize = clamp(sizeInput.value, 60, 160);
+            normalizePosition(s);
             panel.querySelector("#mbjtSizeLabel").textContent = Math.round(s.joystickSize) + "%";
             saveSettings();
             session.renderPreview();
@@ -387,10 +400,11 @@
     function positionPreview(session) {
         if (!session || !session.canvas || !session.preview) return;
         var s = settings();
+        var normalized = normalizePosition(s);
         var rect = session.canvas.getBoundingClientRect();
-        var x = rect.left + rect.width * clamp(s.joystickPositionX == null ? 24 : s.joystickPositionX, 8, 92) / 100;
-        var y = rect.top + rect.height * clamp(s.joystickPositionY == null ? 80 : s.joystickPositionY, 8, 92) / 100;
-        var radius = 80 * clamp(s.joystickSize == null ? 100 : s.joystickSize, 60, 160) / 100;
+        var x = rect.left + rect.width * normalized.x / 100;
+        var y = rect.top + rect.height * normalized.y / 100;
+        var radius = 80 * normalized.size / 100;
         var scaleX = rect.width / 400;
         var scaleY = rect.height / 500;
         session.preview.style.left = x + "px";
@@ -416,6 +430,7 @@
         var s = settings();
         if (!s) return false;
         ensurePresets(s);
+        normalizePosition(s);
         var snapshot = takeSnapshot();
         s.arenaControl = "joystick";
         s.mobileControlStyle = "analog";
@@ -456,8 +471,8 @@
             readPosition: function () {
                 var current = settings();
                 return {
-                    x: clamp(current.joystickPositionX == null ? 24 : current.joystickPositionX, 8, 92),
-                    y: clamp(current.joystickPositionY == null ? 80 : current.joystickPositionY, 8, 92)
+                    x: normalizePosition(current).x,
+                    y: normalizePosition(current).y
                 };
             },
             setEditor: function (enabled) {
