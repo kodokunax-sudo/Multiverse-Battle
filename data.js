@@ -2250,7 +2250,6 @@ const codeList = {
     "PELMESHKA": { type: "card", rarity: "Пасхалка", tpl: "Пельмешка", points: 1000 },
     "Хочу Звезды": { type: "points", amount: 5000 },
     "Сила": { type: "buff", buffId: "dmg13", duration: 86400000 },
-    "СОСИ СЛАВА": { type: "moderUnlock" },
     "DrinkTea2Win": { type: "card", rarity: "Пасхалка", tpl: "DrinkTea2Win", points: 0 }
 };
 
