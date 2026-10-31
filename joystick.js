@@ -141,7 +141,7 @@
         opacity: 0.65,
         floating: true,
         fixedPosition: true,
-        positionX: 18,
+        positionX: 24,
         positionY: 80,
         // Для плавности
         targetVectorX: 0,
