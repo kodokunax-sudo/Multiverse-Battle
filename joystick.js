@@ -140,6 +140,9 @@
         sizeMult: 1.0,
         opacity: 0.65,
         floating: true,
+        fixedPosition: true,
+        positionX: 18,
+        positionY: 80,
         // Для плавности
         targetVectorX: 0,
         targetVectorY: 0,
@@ -176,6 +179,9 @@
         var newMaxRadius = Math.round(80 * newSizeMult);
         var newDeadzone = Math.round(8 * newSizeMult);
         var newOpacity = (settings.joystickOpacity || 60) / 100;
+        var newFixedPosition = settings.joystickFixedPosition !== false;
+        var newPositionX = Math.max(8, Math.min(92, Number(settings.joystickPositionX ?? 18)));
+        var newPositionY = Math.max(8, Math.min(92, Number(settings.joystickPositionY ?? 80)));
 
         var j = window._joystick;
         j.enabled = newEnabled;
@@ -183,6 +189,9 @@
         j.maxRadius = newMaxRadius;
         j.deadzone = newDeadzone;
         j.opacity = newOpacity;
+        j.fixedPosition = newFixedPosition;
+        j.positionX = newPositionX;
+        j.positionY = newPositionY;
 
         _lastSettings.enabled = newEnabled;
         _lastSettings.size = newMaxRadius;
@@ -296,12 +305,20 @@
 
             var t = ev.touches[0];
             var rect = c.getBoundingClientRect();
-            var tx = t.clientX - rect.left;
-            var ty = t.clientY - rect.top;
+            var tx = ((t.clientX - rect.left) / Math.max(1, rect.width)) * c.width;
+            var ty = ((t.clientY - rect.top) / Math.max(1, rect.height)) * c.height;
 
-            // ★★★ ПЛАВАЮЩИЙ — база появляется где тапнул ★★★
-            j.baseX = tx;
-            j.baseY = ty;
+            // Fixed mode starts only inside the visible stick area; floating mode
+            // keeps its old "appears where touched" behaviour.
+            if (j.fixedPosition) {
+                j.baseX = c.width * j.positionX / 100;
+                j.baseY = c.height * j.positionY / 100;
+                var hitRadius = j.maxRadius * 1.7;
+                if ((tx - j.baseX) * (tx - j.baseX) + (ty - j.baseY) * (ty - j.baseY) > hitRadius * hitRadius) return;
+            } else {
+                j.baseX = tx;
+                j.baseY = ty;
+            }
             j.knobX = tx;
             j.knobY = ty;
             j.touchId = t.identifier;
@@ -341,15 +358,15 @@
                 if (t.identifier !== j.touchId) continue;
 
                 var rect = c.getBoundingClientRect();
-                var tx = t.clientX - rect.left;
-                var ty = t.clientY - rect.top;
+                var tx = ((t.clientX - rect.left) / Math.max(1, rect.width)) * c.width;
+                var ty = ((t.clientY - rect.top) / Math.max(1, rect.height)) * c.height;
 
                 var dx = tx - j.baseX;
                 var dy = ty - j.baseY;
                 var dist = Math.sqrt(dx * dx + dy * dy);
 
-                // ★ Если сильно оттянули — двигаем базу за пальцем (плавающий)
-                if (dist > j.maxRadius * 1.4) {
+                // Fixed layouts keep the base in its saved position. Floating layouts follow far drags.
+                if (!j.fixedPosition && dist > j.maxRadius * 1.4) {
                     var moveAmount = Math.min(dist - j.maxRadius * 1.4, j.maxRadius * 0.35);
                     j.baseX += (dx / dist) * moveAmount;
                     j.baseY += (dy / dist) * moveAmount;
@@ -413,11 +430,17 @@
             ev.preventDefault();
 
             var rect = c.getBoundingClientRect();
-            var tx = ev.clientX - rect.left;
-            var ty = ev.clientY - rect.top;
-
-            j.baseX = tx;
-            j.baseY = ty;
+            var tx = ((ev.clientX - rect.left) / Math.max(1, rect.width)) * c.width;
+            var ty = ((ev.clientY - rect.top) / Math.max(1, rect.height)) * c.height;
+            if (j.fixedPosition) {
+                j.baseX = c.width * j.positionX / 100;
+                j.baseY = c.height * j.positionY / 100;
+                var mouseHitRadius = j.maxRadius * 1.7;
+                if ((tx - j.baseX) * (tx - j.baseX) + (ty - j.baseY) * (ty - j.baseY) > mouseHitRadius * mouseHitRadius) return;
+            } else {
+                j.baseX = tx;
+                j.baseY = ty;
+            }
             j.knobX = tx;
             j.knobY = ty;
             j.touchId = "mouse";
@@ -441,8 +464,8 @@
             if (!canControl(arena)) return;
 
             var rect = c.getBoundingClientRect();
-            var tx = ev.clientX - rect.left;
-            var ty = ev.clientY - rect.top;
+            var tx = ((ev.clientX - rect.left) / Math.max(1, rect.width)) * c.width;
+            var ty = ((ev.clientY - rect.top) / Math.max(1, rect.height)) * c.height;
 
             var dx = tx - j.baseX;
             var dy = ty - j.baseY;
@@ -474,7 +497,16 @@
         var j = window._joystick;
         // The on-screen D-pad replaces the joystick graphic while in use.
         if (j.mobileDpadActive) return;
-        if (!j.enabled || !j.active) return;
+        if (window.__mbJoystickTrainingEditing) return;
+        if (!j.enabled || (!j.active && !j.fixedPosition)) return;
+        if (j.fixedPosition) {
+            var activeCanvas = document.getElementById("arenaCanvas");
+            if (activeCanvas) {
+                j.baseX = activeCanvas.width * j.positionX / 100;
+                j.baseY = activeCanvas.height * j.positionY / 100;
+                if (!j.active) { j.knobX = j.baseX; j.knobY = j.baseY; j.vectorX = 0; j.vectorY = 0; }
+            }
+        }
 
         var context = null;
         try { if (typeof ctx !== 'undefined' && ctx) context = ctx; } catch(e) {}
