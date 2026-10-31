@@ -1766,9 +1766,17 @@ function getUpgradeTotalValue(k) {
     if (!upgrade) return 0;
     var level = Math.max(0, Math.floor(Number(upgrade.level) || 0));
     if (k !== "damage") return level * upgrade.increment;
-    var fullTiers = Math.floor(level / 25);
-    var remainder = level % 25;
-    return level * 2 + 25 * fullTiers * (fullTiers - 1) / 2 + remainder * fullTiers;
+
+    // Сила растёт на +1 каждые 50 уровней, максимум +5 за уровень.
+    // Старые уровни также пересчитываются по новой шкале.
+    var total = 0;
+    var cappedLevel = Math.min(level, 200);
+    for (var tier = 0; tier < 4; tier++) {
+        var count = Math.max(0, Math.min(50, cappedLevel - tier * 50));
+        total += count * (2 + tier);
+    }
+    if (level > 200) total += (level - 200) * 5;
+    return total;
 }
 window.getUpgradeTotalValue = getUpgradeTotalValue;
 
