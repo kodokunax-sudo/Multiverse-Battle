@@ -79,6 +79,7 @@ setInterval(function() {
 }, 1000);
 
 
+const MB_SAVE_SLOT_COUNT = 5;
 let currentSlot = -1;
 let slotData = {};
 
@@ -96,6 +97,11 @@ let arenaSettings = {
     mobileControlY: 3,
     joystickSize: 100,
     joystickOpacity: 60,
+    joystickPositionX: 18,
+    joystickPositionY: 80,
+    joystickFixedPosition: true,
+    joystickLayouts: [null, null, null],
+    activeJoystickLayout: 0,
     autoSkipDefeatedBosses: false
 };
 
@@ -322,7 +328,7 @@ function mbStoreCloudBindings(bindings) {
     localStorage.setItem(MB_CLOUD_BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
 }
 function mbSaveLocalRecoveryBackup(slot, saveData, reason) {
-    if (!Number.isInteger(slot) || slot < 0 || slot > 2 || !mbValidateCloudSave(saveData)) return false;
+    if (!Number.isInteger(slot) || slot < 0 || slot >= MB_SAVE_SLOT_COUNT || !mbValidateCloudSave(saveData)) return false;
     try {
         var key = getSlotKey(slot) + '_recovery_backups_v1';
         var previous = JSON.parse(localStorage.getItem(key) || '[]');
@@ -347,7 +353,7 @@ function mbSaveLocalRecoveryBackup(slot, saveData, reason) {
 }
 window.mbPrepareNewAccountSlotTransfer = function (userId, slot) {
     slot = Number(slot);
-    if (!userId || !Number.isInteger(slot) || slot < 0 || slot > 2) return false;
+    if (!userId || !Number.isInteger(slot) || slot < 0 || slot >= MB_SAVE_SLOT_COUNT) return false;
     try {
         if (slot === currentSlot && typeof saveAll === 'function') saveAll();
         var currentSave = mbReadCurrentLocalSave(slot);
@@ -385,11 +391,11 @@ function mbCurrentCloudUserId() {
         : null;
 }
 function mbCloudBindingProblem(userId, slot) {
-    if (!userId || slot < 0 || slot > 2) return 'Не удалось проверить привязку аккаунта к слоту.';
+    if (!userId || slot < 0 || slot >= MB_SAVE_SLOT_COUNT) return 'Не удалось проверить привязку аккаунта к слоту.';
     var bindings = mbReadCloudBindings();
     if (Object.prototype.hasOwnProperty.call(bindings.byUser, userId)) {
         var mappedSlot = Number(bindings.byUser[userId]);
-        if (Number.isInteger(mappedSlot) && mappedSlot >= 0 && mappedSlot < 3 && mappedSlot !== slot) {
+        if (Number.isInteger(mappedSlot) && mappedSlot >= 0 && mappedSlot < MB_SAVE_SLOT_COUNT && mappedSlot !== slot) {
             return 'Этот аккаунт уже привязан к слоту ' + (mappedSlot + 1) + '. Слоты переключать можно, но один аккаунт нельзя привязать к двум слотам. Перейди в прежний слот и нажми «Отвязать этот слот», чтобы перенести аккаунт.';
         }
     }
@@ -397,7 +403,7 @@ function mbCloudBindingProblem(userId, slot) {
     if (slotOwner && slotOwner !== userId) {
         return 'Слот ' + (slot + 1) + ' уже привязан к другому аккаунту. Чтобы использовать его с новым аккаунтом, сначала отвяжи прежний аккаунт.';
     }
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < MB_SAVE_SLOT_COUNT; i++) {
         var marker = mbReadCloudMarker(i);
         if (!marker || !marker.userId) continue;
         if (marker.userId === userId && i !== slot) {
@@ -435,7 +441,7 @@ function mbWriteCloudMarker(slot, userId, saveData, cloudRow) {
 }
 function mbReadCurrentLocalSave(slot) {
     slot = Number.isInteger(slot) ? slot : currentSlot;
-    if (slot < 0 || slot > 2) return null;
+    if (slot < 0 || slot >= MB_SAVE_SLOT_COUNT) return null;
     try {
         var raw = localStorage.getItem(getSlotKey(slot));
         var data = raw ? JSON.parse(raw) : (slot === currentSlot ? slotData : null);
@@ -475,7 +481,7 @@ function mbCloudClearlyHasMoreProgress(cloudData, localData) {
 }
 function mbPutCloudSaveInLocalSlot(saveData, userId, cloudRow, targetSlot) {
     targetSlot = Number.isInteger(targetSlot) ? targetSlot : currentSlot;
-    if (!mbValidateCloudSave(saveData) || targetSlot < 0 || targetSlot > 2) {
+    if (!mbValidateCloudSave(saveData) || targetSlot < 0 || targetSlot >= MB_SAVE_SLOT_COUNT) {
         mbCloudStatus('Облачное сохранение повреждено или несовместимо. Локальный прогресс не изменён.', 'error');
         return false;
     }
@@ -559,7 +565,7 @@ async function mbSyncCloudSave(action) {
         mbCloudStatus('Войди в аккаунт Multiverse Battle, чтобы синхронизировать прогресс.', 'info');
         return;
     }
-    if (currentSlot < 0 || currentSlot > 2) {
+    if (currentSlot < 0 || currentSlot >= MB_SAVE_SLOT_COUNT) {
         mbCloudSyncReadyForUser = null;
         mbCloudStatus('Сначала открой сохранение игры — затем подключим облако.', 'info');
         return;
@@ -724,14 +730,14 @@ function mbScheduleCloudSave() {
 }
 
 async function mbFlushCloudSave() {
-    if (currentSlot >= 0 && currentSlot <= 2 && typeof saveAll === 'function') saveAll();
+    if (currentSlot >= 0 && currentSlot < MB_SAVE_SLOT_COUNT && typeof saveAll === 'function') saveAll();
     if (mbCloudSaveTimer) { clearTimeout(mbCloudSaveTimer); mbCloudSaveTimer = null; }
     var waitStarted = Date.now();
     while (mbCloudSyncBusy && Date.now() - waitStarted < 7000) {
         await new Promise(function (resolve) { window.setTimeout(resolve, 100); });
     }
     if (mbCloudSyncBusy) return false;
-    if (!mbCurrentCloudUserId() || currentSlot < 0 || currentSlot > 2) return true;
+    if (!mbCurrentCloudUserId() || currentSlot < 0 || currentSlot >= MB_SAVE_SLOT_COUNT) return true;
     await mbSyncCloudSave('auto');
     waitStarted = Date.now();
     while (mbCloudSyncBusy && Date.now() - waitStarted < 7000) {
@@ -743,7 +749,7 @@ window.mbFlushCloudSave = mbFlushCloudSave;
 
 document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'hidden') return;
-    if (currentSlot >= 0 && currentSlot <= 2 && typeof saveAll === 'function') saveAll();
+    if (currentSlot >= 0 && currentSlot < MB_SAVE_SLOT_COUNT && typeof saveAll === 'function') saveAll();
     mbFlushCloudSave().catch(function (error) {
         console.warn('[MB cloud] Sync on background failed:', error && error.message ? error.message : error);
     });
@@ -758,7 +764,7 @@ function mbUnbindCurrentCloudSlot() {
         mbCloudStatus('Сначала войди в аккаунт, который привязан к этому слоту.', 'warning');
         return;
     }
-    if (currentSlot < 0 || currentSlot > 2) {
+    if (currentSlot < 0 || currentSlot >= MB_SAVE_SLOT_COUNT) {
         mbCloudStatus('Сначала выбери слот сохранения.', 'warning');
         return;
     }
@@ -789,7 +795,7 @@ function mbUnbindCurrentCloudSlot() {
     mbCloudStatus('Слот отвязан. Локальный прогресс сохранён, облачная запись не удалена. Теперь можно открыть другой слот и привязать аккаунт там.', 'success');
 }
 function mbRestoreLatestLocalRecoveryBackup() {
-    if (currentSlot < 0 || currentSlot > 2) {
+    if (currentSlot < 0 || currentSlot >= MB_SAVE_SLOT_COUNT) {
         mbCloudStatus('Сначала выбери слот сохранения.', 'warning');
         return;
     }
@@ -856,7 +862,7 @@ window.addEventListener('mb:cloud-save-action', function (event) {
 
 function selectSlot(slot) {
     slot = Number(slot);
-    if (!Number.isInteger(slot) || slot < 0 || slot > 2) return;
+    if (!Number.isInteger(slot) || slot < 0 || slot >= MB_SAVE_SLOT_COUNT) return;
     if (currentSlot !== slot) {
         window.dispatchEvent(new CustomEvent('mb:slot-changing', { detail: { from: currentSlot, to: slot } }));
     }
@@ -975,6 +981,12 @@ function loadArenaSettings() {
             arenaSettings.mobileControlPosition = s.mobileControlPosition ?? "left";
             arenaSettings.joystickSize = s.joystickSize ?? 100;
             arenaSettings.joystickOpacity = s.joystickOpacity ?? 60;
+            arenaSettings.joystickPositionX = Math.max(8, Math.min(92, Number(s.joystickPositionX ?? 18)));
+            arenaSettings.joystickPositionY = Math.max(8, Math.min(92, Number(s.joystickPositionY ?? 80)));
+            arenaSettings.joystickFixedPosition = s.joystickFixedPosition !== false;
+            arenaSettings.joystickLayouts = Array.isArray(s.joystickLayouts) ? s.joystickLayouts.slice(0, 3) : [null, null, null];
+            while (arenaSettings.joystickLayouts.length < 3) arenaSettings.joystickLayouts.push(null);
+            arenaSettings.activeJoystickLayout = Math.max(0, Math.min(2, Number(s.activeJoystickLayout) || 0));
         } catch(e) {}
     }
     applyArenaSettings();
@@ -1151,6 +1163,11 @@ function resetArenaSettings() {
         mobileControlY: 3,
         joystickSize: 100,
         joystickOpacity: 60,
+        joystickPositionX: 18,
+        joystickPositionY: 80,
+        joystickFixedPosition: true,
+        joystickLayouts: [null, null, null],
+        activeJoystickLayout: 0,
         autoSkipDefeatedBosses: false
     }; 
     saveArenaSettings(); 
@@ -1555,7 +1572,7 @@ function saveAll() {
 window.MBCanReceiveTitleRewardPoints = function () {
     try {
         var onlineUserId=window.MBClans&&typeof window.MBClans.getCurrentUserId==='function'?window.MBClans.getCurrentUserId():null;
-        return !!onlineUserId&&typeof currentSlot!=='undefined'&&currentSlot>=0&&currentSlot<=2&&typeof slotData!=='undefined'&&!!slotData&&typeof points!=='undefined'&&typeof saveAll==='function'&&!(typeof mbCloudRecoveryPendingSlot!=='undefined'&&mbCloudRecoveryPendingSlot===currentSlot);
+        return !!onlineUserId&&typeof currentSlot!=='undefined'&&currentSlot>=0&&currentSlot<MB_SAVE_SLOT_COUNT&&typeof slotData!=='undefined'&&!!slotData&&typeof points!=='undefined'&&typeof saveAll==='function'&&!(typeof mbCloudRecoveryPendingSlot!=='undefined'&&mbCloudRecoveryPendingSlot===currentSlot);
     } catch (_error) { return false; }
 };
 window.MBGrantAchievementTitleRewards = function (reward,titleId) {
@@ -3571,12 +3588,12 @@ function renderPoints() {
     if (ppEl && typeof getPowerPoints === 'function') ppEl.innerText = getPowerPoints().toLocaleString();
 }
 function escapeHtml(s) { return s ? s.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])) : ''; }
-function showSlotSelectScreen() { let slotScreen = document.getElementById("slotSelectScreen"); let gameScreen = document.getElementById("gameScreen"); if (slotScreen) slotScreen.style.display = "block"; if (gameScreen) gameScreen.style.display = "none"; let html = ''; for (let i = 0; i < 3; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select" onclick="showNicknamePrompt(' + i + ')"><div style="font-size:20px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + '</div></div>'; } let el = document.getElementById("slotList"); if (el) el.innerHTML = html; }
+function showSlotSelectScreen() { let slotScreen = document.getElementById("slotSelectScreen"); let gameScreen = document.getElementById("gameScreen"); if (slotScreen) slotScreen.style.display = "block"; if (gameScreen) gameScreen.style.display = "none"; let html = ''; for (let i = 0; i < MB_SAVE_SLOT_COUNT; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select" onclick="showNicknamePrompt(' + i + ')"><div style="font-size:20px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + '</div></div>'; } let el = document.getElementById("slotList"); if (el) el.innerHTML = html; }
 function showNicknamePrompt(slot) { let meta = loadSlotMeta(slot); let nickname = prompt("Введите ник для слота " + (slot + 1) + ":", meta.nickname); if (nickname === null) return; if (nickname.trim() === "" && !meta.exists) return; if (nickname.trim() !== "") { meta.nickname = nickname.trim(); } saveSlotMeta(slot, meta); selectSlot(slot); }
 function renameSlot(slot) { let meta = loadSlotMeta(slot); let nickname = prompt("Новое имя для слота " + (slot + 1) + ":", meta.nickname); if (nickname === null) return; if (nickname.trim() === "") return; meta.nickname = nickname.trim(); saveSlotMeta(slot, meta); if (slot === currentSlot) { slotData.nickname = nickname.trim(); let el = document.getElementById("nicknameDisplay"); if (el) el.innerText = nickname.trim(); } renderSlotsInGame(); }
-function renderSlotsInGame() { let html = '<div style="display:flex;flex-direction:column;gap:10px;">'; for (let i = 0; i < 3; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select ' + (i === currentSlot ? 'active' : '') + '"><div style="font-size:18px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + (i === currentSlot ? ' ← Текущий' : '') + '</div><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn" style="padding:4px 12px;font-size:11px;" onclick="event.stopPropagation();switchToSlot(' + i + ')">Загрузить</button><button class="btn" style="padding:4px 12px;font-size:11px;background:#9b59b6;" onclick="event.stopPropagation();renameSlot(' + i + ')">✏️ Имя</button></div></div>'; } html += '</div>'; let el = document.getElementById("slotsListInGame"); if (el) el.innerHTML = html; }
+function renderSlotsInGame() { let html = '<div style="display:flex;flex-direction:column;gap:10px;">'; for (let i = 0; i < MB_SAVE_SLOT_COUNT; i++) { let meta = loadSlotMeta(i); html += '<div class="slot-select ' + (i === currentSlot ? 'active' : '') + '"><div style="font-size:18px;font-weight:900;">' + meta.nickname + '</div><div style="font-size:12px;color:#aaa;">' + (meta.exists ? 'Есть сохранение' : 'Пустой слот') + (i === currentSlot ? ' ← Текущий' : '') + '</div><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn" style="padding:4px 12px;font-size:11px;" onclick="event.stopPropagation();switchToSlot(' + i + ')">Загрузить</button><button class="btn" style="padding:4px 12px;font-size:11px;background:#9b59b6;" onclick="event.stopPropagation();renameSlot(' + i + ')">✏️ Имя</button></div></div>'; } html += '</div>'; let el = document.getElementById("slotsListInGame"); if (el) el.innerHTML = html; }
 async function switchToSlot(slot) {
-    if (slot === currentSlot || !Number.isInteger(Number(slot)) || Number(slot) < 0 || Number(slot) > 2) return;
+    if (slot === currentSlot || !Number.isInteger(Number(slot)) || Number(slot) < 0 || Number(slot) >= MB_SAVE_SLOT_COUNT) return;
     slot = Number(slot);
     var previousSlot = currentSlot;
     saveAll();
@@ -3778,7 +3795,7 @@ document.addEventListener("DOMContentLoaded", function () {
         setInterval(syncRematchVisibility, 1000);
     })();
     let lastSlot = parseInt(localStorage.getItem("cgV20_lastSlot") || "-1");
-    if (lastSlot >= 0 && lastSlot < 3 && loadSlotMeta(lastSlot).exists) {
+    if (lastSlot >= 0 && lastSlot < MB_SAVE_SLOT_COUNT && loadSlotMeta(lastSlot).exists) {
         currentSlot = lastSlot;
         let saved = loadGameFromSlot(lastSlot);
         let meta = loadSlotMeta(lastSlot);
