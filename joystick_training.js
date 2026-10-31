@@ -505,9 +505,9 @@
         session.preview.style.top = (buttonMode
             ? rect.bottom - rect.height * normalized.y / 100 - (166 * scale)
             : rect.top + rect.height * normalized.y / 100) + "px";
-        session.preview.style.width = buttonMode ? (150 * scale) + "px" : (160 * normalized.size / 100 * rect.width / 400) + "px";
-        session.preview.style.height = buttonMode ? (166 * scale) + "px" : (160 * normalized.size / 100 * rect.height / 500) + "px";
-        session.preview.style.transform = buttonMode ? "none" : "translate(-50%,-50%)";
+        session.preview.style.width = buttonMode ? "150px" : (160 * normalized.size / 100 * rect.width / 400) + "px";
+        session.preview.style.height = buttonMode ? "166px" : (160 * normalized.size / 100 * rect.height / 500) + "px";
+        session.preview.style.transform = buttonMode ? "scale(" + scale + ")" : "translate(-50%,-50%)";
         session.preview.style.transformOrigin = "top left";
         session.preview.style.opacity = String(clamp(s.joystickOpacity || 60, 20, 100) / 100); 
         session.preview.style.display = session.editing ? "block" : "none";
