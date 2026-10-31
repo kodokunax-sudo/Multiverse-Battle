@@ -27,24 +27,29 @@
         s.joystickLayouts = s.joystickLayouts.slice(0, 3);
         while (s.joystickLayouts.length < 3) s.joystickLayouts.push(null);
     }
+    function isButtonLayout(s) {
+        return !!s && ["dpad8", "dpad4", "arcade"].indexOf(s.mobileControlStyle || "dpad8") !== -1;
+    }
     function normalizePosition(s) {
         var size = clamp(s.joystickSize == null ? 100 : s.joystickSize, 60, 160);
-        var radius = 80 * size / 100;
-        var marginX = (radius + 8) / 400 * 100;
-        var marginY = (radius + 8) / 500 * 100;
-        s.joystickPositionX = clamp(s.joystickPositionX == null ? 24 : s.joystickPositionX, marginX, 100 - marginX);
-        s.joystickPositionY = clamp(s.joystickPositionY == null ? 80 : s.joystickPositionY, marginY, 100 - marginY);
+        var buttonMode = isButtonLayout(s);
+        var marginX = buttonMode ? 0 : (80 * size / 100 + 8) / 400 * 100;
+        var marginY = buttonMode ? 0 : (80 * size / 100 + 8) / 500 * 100;
+        var x = buttonMode ? clamp(s.mobileControlX == null ? 3 : s.mobileControlX, 0, 85) :
+            clamp(s.joystickPositionX == null ? 24 : s.joystickPositionX, marginX, 100 - marginX);
+        var y = buttonMode ? clamp(s.mobileControlY == null ? 3 : s.mobileControlY, 0, 55) :
+            clamp(s.joystickPositionY == null ? 80 : s.joystickPositionY, marginY, 100 - marginY);
+        if (buttonMode) { s.mobileControlX = x; s.mobileControlY = y; }
+        else { s.joystickPositionX = x; s.joystickPositionY = y; }
         s.joystickSize = size;
-        return { x: s.joystickPositionX, y: s.joystickPositionY, size: size, marginX: marginX, marginY: marginY };
+        return { x: x, y: y, size: size, marginX: marginX, marginY: marginY, buttonMode: buttonMode };
     }
     function currentLayout(s) {
         var normalized = normalizePosition(s);
         return {
-            x: normalized.x,
-            y: normalized.y,
-            size: normalized.size,
+            x: normalized.x, y: normalized.y, size: normalized.size,
             opacity: clamp(s.joystickOpacity == null ? 60 : s.joystickOpacity, 20, 100),
-            fixed: true
+            fixed: true, style: s.mobileControlStyle || "dpad8"
         };
     }
     function notify(message, color) {
@@ -66,8 +71,6 @@
         s.joystickFixedPosition = true;
         s.joystickLayouts[index] = currentLayout(s);
         s.activeJoystickLayout = index;
-        s.mobileControlStyle = "analog";
-        if (s.arenaControl !== "joystick") s.arenaControl = "auto";
         saveSettings();
         renderPresetSettings();
         setNotice(noticeElement, "Раскладка " + (index + 1) + " сохранена", "#8dffc2");
@@ -87,14 +90,18 @@
             return false;
         }
         s.joystickSize = clamp(preset.size, 60, 160);
-        s.joystickPositionX = Number(preset.x);
-        s.joystickPositionY = Number(preset.y);
+        s.mobileControlStyle = preset.style || s.mobileControlStyle || "dpad8";
+        if (isButtonLayout(s)) {
+            s.mobileControlX = Number(preset.x);
+            s.mobileControlY = Number(preset.y);
+        } else {
+            s.joystickPositionX = Number(preset.x);
+            s.joystickPositionY = Number(preset.y);
+        }
         normalizePosition(s);
         s.joystickOpacity = clamp(preset.opacity, 20, 100);
         s.joystickFixedPosition = true;
-        s.mobileControlStyle = "analog";
         s.activeJoystickLayout = index;
-        if (s.arenaControl !== "joystick") s.arenaControl = "auto";
         saveSettings();
         renderPresetSettings();
         if (activeSession && activeSession.renderPreview) activeSession.renderPreview();
@@ -165,10 +172,21 @@
             "#mbJoystickTrainingPanel .mbjt-primary{background:linear-gradient(135deg,#087b87,#2653a5);border-color:#6fdcf0;}",
             "#mbJoystickTrainingPanel .mbjt-exit{background:#7e2f43;border-color:#ff91a8;}",
             "#mbJoystickTrainingPanel input[type=range]{width:100%;accent-color:#65d9ee;}",
-            "#mbJoystickEditorPreview{position:fixed;z-index:100250;box-sizing:border-box;border:2px solid rgba(255,255,255,.92);border-radius:50%;background:radial-gradient(circle,rgba(35,55,80,.16),rgba(20,25,48,.68));box-shadow:0 0 0 2px rgba(80,205,255,.35),0 0 22px rgba(64,192,255,.4);transform:translate(-50%,-50%);touch-action:none;pointer-events:auto;}",
+            "#mbJoystickEditorPreview{position:fixed;z-index:100250;box-sizing:border-box;transform:translate(0,0);touch-action:none;pointer-events:auto;}",
+            "#mbJoystickEditorPreview.mbjt-analog{border:2px solid rgba(255,255,255,.92);border-radius:50%;background:radial-gradient(circle,rgba(35,55,80,.16),rgba(20,25,48,.68));box-shadow:0 0 0 2px rgba(80,205,255,.35),0 0 22px rgba(64,192,255,.4);transform:translate(-50%,-50%);}",
             "#mbJoystickEditorPreview .mbjt-knob{position:absolute;left:50%;top:50%;width:38%;height:38%;transform:translate(-50%,-50%);border:2px solid #fff;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff8b8,#ffbf31 60%,#ad5900);box-shadow:0 0 14px #ffae23;pointer-events:none;}",
             "#mbJoystickEditorPreview .mbjt-center{position:absolute;left:50%;top:50%;width:5px;height:5px;border:1px solid #fff;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;}",
-            "#mbJoystickEditorPreview .mbjt-resize{position:absolute;right:-7px;bottom:-7px;width:27px;height:27px;border:2px solid #fff;border-radius:50%;background:#147d91;color:#fff;font:900 15px Arial;display:flex;align-items:center;justify-content:center;touch-action:none;}",
+            "#mbJoystickEditorPreview.mbjt-dpad{width:150px;box-sizing:border-box;padding:3px;border:1px solid rgba(130,205,255,.55);border-radius:10px;background:rgba(8,12,28,.88);box-shadow:0 0 18px rgba(64,192,255,.28);}",
+            "#mbJoystickEditorPreview .mbjt-dpad-label{font:900 9px Arial;color:rgba(255,255,255,.76);padding:0 0 4px 3px;white-space:nowrap;}",
+            "#mbJoystickEditorPreview .mbjt-dpad-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:3px;}",
+            "#mbJoystickEditorPreview .mbjt-dir{height:46px;border:1px solid rgba(213,202,255,.8);border-radius:11px;color:#fff;background:linear-gradient(145deg,rgba(72,61,112,.94),rgba(28,25,49,.95));display:flex;align-items:center;justify-content:center;font:900 22px Arial;}",
+            "#mbJoystickEditorPreview .mbjt-dir.mbjt-diagonal{font-size:18px;color:#e4ddff;}",
+            "#mbJoystickEditorPreview .mbjt-center-cell{height:46px;border:1px solid rgba(255,255,255,.12);border-radius:11px;color:rgba(255,255,255,.35);background:rgba(8,8,18,.45);display:flex;align-items:center;justify-content:center;}",
+            "#mbJoystickEditorPreview.mbjt-dpad4 .mbjt-diagonal{visibility:hidden;}",
+            "#mbJoystickEditorPreview.mbjt-arcade .mbjt-dpad-grid{display:flex;gap:3px;}",
+            "#mbJoystickEditorPreview.mbjt-arcade .mbjt-dir{width:44px;height:44px;}",
+            "#mbJoystickEditorPreview.mbjt-arcade .mbjt-diagonal,#mbJoystickEditorPreview.mbjt-arcade .mbjt-center-cell{display:none;}",
+            "#mbJoystickEditorPreview .mbjt-resize{position:absolute;right:-9px;bottom:-9px;width:27px;height:27px;border:2px solid #fff;border-radius:50%;background:#147d91;color:#fff;font:900 15px Arial;display:flex;align-items:center;justify-content:center;touch-action:none;z-index:3;}",
             "@media(max-height:560px){#mbJoystickTrainingPanel{max-height:29vh;padding:7px}#mbJoystickTrainingPanel .mbjt-help{display:none}}"
         ].join("");
         document.head.appendChild(styleNode);
@@ -326,7 +344,13 @@
 
         var preview = document.createElement("div");
         preview.id = "mbJoystickEditorPreview";
-        preview.innerHTML = '<div class="mbjt-knob"></div><div class="mbjt-center"></div><button type="button" class="mbjt-resize" aria-label="Изменить размер">↘</button>';
+        preview.innerHTML = '<div class="mbjt-knob"></div><div class="mbjt-center"></div>' +
+            '<div class="mbjt-dpad-label">УДЕРЖИВАЙ ДЛЯ ДВИЖЕНИЯ</div>' +
+            '<div class="mbjt-dpad-grid">' +
+              '<div class="mbjt-dir mbjt-diagonal">↖</div><div class="mbjt-dir">▲</div><div class="mbjt-dir mbjt-diagonal">↗</div>' +
+              '<div class="mbjt-dir">◀</div><div class="mbjt-center-cell">✦</div><div class="mbjt-dir">▶</div>' +
+              '<div class="mbjt-dir mbjt-diagonal">↙</div><div class="mbjt-dir">▼</div><div class="mbjt-dir mbjt-diagonal">↘</div>' +
+            '</div><button type="button" class="mbjt-resize" aria-label="Изменить размер">↘</button>';
         document.body.appendChild(preview);
         session.preview = preview;
 
@@ -424,10 +448,15 @@
                 var rect = session.canvas.getBoundingClientRect();
                 var x = ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100;
                 var y = ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100;
-                var marginX = (80 * (Number(s.joystickSize) || 100) / 100 + 8) / 400 * 100;
-                var marginY = (80 * (Number(s.joystickSize) || 100) / 100 + 8) / 500 * 100;
-                s.joystickPositionX = clamp(x, marginX, 100 - marginX);
-                s.joystickPositionY = clamp(y, marginY, 100 - marginY);
+                if (isButtonLayout(s)) {
+                    s.mobileControlX = clamp(x, 0, 85);
+                    s.mobileControlY = clamp(100 - y, 0, 55);
+                } else {
+                    var marginX = (80 * (Number(s.joystickSize) || 100) / 100 + 8) / 400 * 100;
+                    var marginY = (80 * (Number(s.joystickSize) || 100) / 100 + 8) / 500 * 100;
+                    s.joystickPositionX = clamp(x, marginX, 100 - marginX);
+                    s.joystickPositionY = clamp(y, marginY, 100 - marginY);
+                }
             } else {
                 var scale = Math.min(session.canvas.getBoundingClientRect().width / 400,
                                      session.canvas.getBoundingClientRect().height / 500);
@@ -465,16 +494,21 @@
         var s = settings();
         var normalized = normalizePosition(s);
         var rect = session.canvas.getBoundingClientRect();
-        var x = rect.left + rect.width * normalized.x / 100;
-        var y = rect.top + rect.height * normalized.y / 100;
-        var radius = 80 * normalized.size / 100;
-        var scaleX = rect.width / 400;
-        var scaleY = rect.height / 500;
-        session.preview.style.left = x + "px";
-        session.preview.style.top = y + "px";
-        session.preview.style.width = (radius * 2 * scaleX) + "px";
-        session.preview.style.height = (radius * 2 * scaleY) + "px";
-        session.preview.style.opacity = String(clamp(s.joystickOpacity || 60, 20, 100) / 100);
+        var buttonMode = normalized.buttonMode;
+        var scale = Math.min(rect.width / 400, rect.height / 500) * normalized.size / 100;
+        session.preview.classList.toggle("mbjt-dpad", buttonMode);
+        session.preview.classList.toggle("mbjt-analog", !buttonMode);
+        session.preview.classList.toggle("mbjt-dpad4", buttonMode && s.mobileControlStyle === "dpad4");
+        session.preview.classList.toggle("mbjt-arcade", buttonMode && s.mobileControlStyle === "arcade");
+        session.preview.style.left = (rect.left + rect.width * normalized.x / 100) + "px";
+        session.preview.style.top = (buttonMode
+            ? rect.bottom - rect.height * normalized.y / 100 - (166 * scale)
+            : rect.top + rect.height * normalized.y / 100) + "px";
+        session.preview.style.width = buttonMode ? (150 * scale) + "px" : (160 * normalized.size / 100 * rect.width / 400) + "px";
+        session.preview.style.height = buttonMode ? (166 * scale) + "px" : (160 * normalized.size / 100 * rect.height / 500) + "px";
+        session.preview.style.transform = buttonMode ? "none" : "translate(-50%,-50%)";
+        session.preview.style.transformOrigin = "top left";
+        session.preview.style.opacity = String(clamp(s.joystickOpacity || 60, 20, 100) / 100); 
         session.preview.style.display = session.editing ? "block" : "none";
         var label = session.panel && session.panel.querySelector("#mbjtSizeLabel");
         if (label) label.textContent = Math.round(s.joystickSize || 100) + "%";
@@ -495,8 +529,8 @@
         ensurePresets(s);
         normalizePosition(s);
         var snapshot = takeSnapshot();
-        s.arenaControl = "joystick";
-        s.mobileControlStyle = "analog";
+        var buttonMode = isButtonLayout(s);
+        s.arenaControl = buttonMode ? "auto" : "joystick";
         s.joystickFixedPosition = true;
         saveSettings();
         window.__mbJoystickTrainingMode = true;
@@ -536,10 +570,8 @@
             renderPreview: function () { positionPreview(activeSession); },
             readPosition: function () {
                 var current = settings();
-                return {
-                    x: normalizePosition(current).x,
-                    y: normalizePosition(current).y
-                };
+                var p = normalizePosition(current);
+                return { x: p.x, y: p.y };
             },
             setEditor: function (enabled) {
                 activeSession.editing = !!enabled;
@@ -566,6 +598,7 @@
         bindPreviewDrag(activeSession);
         window.addEventListener("resize", activeSession.renderPreview, { passive: true });
         window.addEventListener("orientationchange", activeSession.renderPreview, { passive: true });
+        try { if (typeof window.refreshMobileBattleControlsSettings === "function") window.refreshMobileBattleControlsSettings(); } catch (e) {}
         notify("🕹️ Тренировка открыта. Бессмертный бой, способности работают.", "#8deaff");
         return true;
     }
@@ -585,8 +618,8 @@
 
         var s = settings();
         if (s) {
-            s.arenaControl = "auto";
-            s.mobileControlStyle = "analog";
+            s.arenaControl = session.snapshot.arenaControl || "auto";
+            s.mobileControlStyle = session.snapshot.mobileControlStyle || "dpad8";
             s.joystickFixedPosition = true;
             saveSettings();
         }
