@@ -2417,7 +2417,7 @@ function renderArena() {
     ctx.fillStyle = "#fff"; ctx.font = "bold 10px monospace"; ctx.shadowColor = "#000"; ctx.shadowBlur = 2; ctx.fillText("❤️ HP: " + Math.max(0, Math.ceil(arenaHP)) + " / " + arenaMaxHP, 16, 24); ctx.shadowBlur = 0;
     drawMarkResurrections();
     ctx.fillStyle = "rgba(10,10,20,0.9)"; ctx.fillRect(8, 32, 384, 14);
-    var maxHp = (typeof currentEnemy !== 'undefined' && currentEnemy) ? currentEnemy.maxHp : 1000;
+    var maxHp = isJoystickTrainingMode() ? arenaBossMaxHP : ((typeof currentEnemy !== 'undefined' && currentEnemy) ? currentEnemy.maxHp : 1000);
     ctx.fillStyle = "#202020"; ctx.fillRect(14, 37, 372, 4); ctx.fillStyle = "#ff3333"; ctx.fillRect(14, 37, 372 * Math.max(0, ghostBossHP / maxHp), 4);
     var bossGlow = Math.sin(now / 250) * 0.15 + 0.85; ctx.fillStyle = "#ffdd00"; ctx.globalAlpha = bossGlow; ctx.fillRect(14, 37, 372 * Math.max(0, arenaBossMaxHP / maxHp), 4); ctx.globalAlpha = 1;
     ctx.fillStyle = "#ccc"; ctx.font = "bold 9px monospace"; ctx.fillText("👾 " + arenaBoss, 16, 43);
