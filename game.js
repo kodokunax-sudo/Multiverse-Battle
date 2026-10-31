@@ -1769,16 +1769,20 @@ function getUpgradeTotalValue(k) {
     var level = Math.max(0, Math.floor(Number(upgrade.level) || 0));
     if (k !== "damage") return level * upgrade.increment;
 
-    // Сила растёт на +1 каждые 50 уровней, максимум +5 за уровень.
-    // Старые уровни также пересчитываются по новой шкале.
+    // Базовая прибавка: +2 за уровень. Ступенчатая надбавка
+    // постепенно затухает по мере роста базового урона и равна нулю
+    // при 1000 урона. Учитываем урон команды, чтобы порог был честным.
     var total = 0;
     var cappedLevel = Math.min(level, 200);
+    var baseDamageBeforeBonus = 5 + Math.max(0, Number(window.teamDamage) || 0) + level * 2;
+    var bonusFactor = Math.max(0, Math.min(1, 1 - baseDamageBeforeBonus / 1000));
+
     for (var tier = 0; tier < 4; tier++) {
         var count = Math.max(0, Math.min(50, cappedLevel - tier * 50));
-        total += count * (2 + tier);
+        total += count * (2 + tier * bonusFactor);
     }
-    if (level > 200) total += (level - 200) * 5;
-    return total;
+    if (level > 200) total += (level - 200) * (2 + 3 * bonusFactor);
+    return Math.floor(total);
 }
 window.getUpgradeTotalValue = getUpgradeTotalValue;
 
