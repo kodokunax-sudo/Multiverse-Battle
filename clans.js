@@ -3719,11 +3719,34 @@
         }
     }
 
+    async function refreshModeratorAccess(client) {
+        var userId = currentUser && currentUser.id;
+        var isModerator = false;
+        if (!client || !userId || accountSessionBlocked || activeAccountSessionUserId !== userId) {
+            if (typeof window.MBSetModeratorAccessFromServer === 'function') window.MBSetModeratorAccessFromServer(false);
+            return false;
+        }
+        try {
+            var result = await client.functions.invoke('moderator-access');
+            if (result.error) throw result.error;
+            isModerator = !!(result.data && result.data.isModerator === true);
+        } catch (error) {
+            console.warn('[MB moderator] Server access check failed; moderator mode remains disabled:', error && error.message ? error.message : error);
+        }
+        if (db === client && currentUser && currentUser.id === userId && activeAuthSlot === getCurrentGameSlot()) {
+            if (typeof window.MBSetModeratorAccessFromServer === 'function') {
+                window.MBSetModeratorAccessFromServer(isModerator);
+            }
+        }
+        return isModerator;
+    }
+
     async function rejectAccountForSlot(client, slot, message) {
         // A failed account/lease check is not proof that the credentials are invalid.
         // Keep Supabase signed in; transient RPC errors must never force a logout.
         currentClan = null;
         currentProfile = null;
+        if (typeof window.MBSetModeratorAccessFromServer === 'function') window.MBSetModeratorAccessFromServer(false);
         showAuthState();
         setNotice(message + ' Аккаунт не отключён. Проверь соединение и повтори проверку.', 'warning');
         if (accountSessionBlocked) {
@@ -3751,6 +3774,7 @@
                 showAuthState();
                 await refreshAll();
                 if (requestedSlot !== getCurrentGameSlot() || db !== currentClient) return;
+                await refreshModeratorAccess(currentClient);
                 await touchCurrentPresence();
                 notifyCloudSaveAuthChanged();
                 return;
@@ -3764,6 +3788,7 @@
             currentUser = null;
             currentClan = null;
             currentProfile = null;
+            if (typeof window.MBSetModeratorAccessFromServer === 'function') window.MBSetModeratorAccessFromServer(false);
             db = null;
             activeAuthSlot = requestedSlot;
             showAuthState();
@@ -3791,6 +3816,7 @@
             showAuthState();
             await refreshAll();
             if (requestedSlot !== getCurrentGameSlot() || db !== client) return;
+            await refreshModeratorAccess(client);
             await touchCurrentPresence();
             notifyCloudSaveAuthChanged();
             var subscriptionResult = client.auth.onAuthStateChange(function (_event, session) {
@@ -3814,6 +3840,7 @@
                     }
                     showAuthState();
                     await refreshAll();
+                    await refreshModeratorAccess(client);
                     await touchCurrentPresence();
                     notifyCloudSaveAuthChanged();
                 }, 0);
@@ -3862,6 +3889,7 @@
             currentUser = null;
             currentClan = null;
             currentProfile = null;
+            if (typeof window.MBSetModeratorAccessFromServer === 'function') window.MBSetModeratorAccessFromServer(false);
             ownStatsData = null;
             publicStatsData = null;
             ownStatsMode = 'rebirth';
