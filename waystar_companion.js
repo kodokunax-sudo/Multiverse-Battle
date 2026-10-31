@@ -32,8 +32,9 @@
 
         // Regular Living Stone gets the ally in phase two. Prime gets her after the chase.
         var isPrime = window.livingStoneSuperActive === true;
-        if (isPrime && window.__mbLS2AfterChase !== true) return false;
-        return phase() === "normal" || (isPrime && phase() === "green");
+        if (!isPrime) return true;
+        if (window.__mbLS2AfterChase !== true) return false;
+        return phase() === "normal" || phase() === "green";
     }
 
     function normalActionsEligible() {
