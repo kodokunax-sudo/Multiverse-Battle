@@ -2904,6 +2904,40 @@ function checkEvolutionQuests() {
 }
 
 // ============================================================
+// ЗАЩИТА БОССОВ: обычные клики не должны обходить отдельный бой.
+// Проверяем именно кнопки запуска, чтобы уже побеждённые боссы
+// с ослабленным обычным противником и кнопкой пропуска не блокировались.
+// ============================================================
+var mbBossStartHintAt = 0;
+
+function mbHasPendingBossStart() {
+    if (typeof currentEnemy === "undefined" || !currentEnemy ||
+        !currentEnemy.isBoss || currentEnemy.hp <= 0) return false;
+
+    var startButtonIds = [
+        "startArenaBtn",
+        "startLivingStoneBtn",
+        "startLivingStoneSuperBtn",
+        "startWaystarBtn",
+        "startRogerWB",
+        "startAntiSpiralBossBtn"
+    ];
+
+    for (var i = 0; i < startButtonIds.length; i++) {
+        var button = document.getElementById(startButtonIds[i]);
+        if (!button || button.disabled) continue;
+
+        var visible = !button.style || button.style.display !== "none";
+        if (visible && typeof window !== "undefined" &&
+            typeof window.getComputedStyle === "function") {
+            visible = window.getComputedStyle(button).display !== "none";
+        }
+        if (visible) return true;
+    }
+    return false;
+}
+
+// ============================================================
 // КЛИК — с добавленной механикой Такабы
 // ============================================================
 function handleClick() { 
@@ -2914,6 +2948,17 @@ function handleClick() {
     if (typeof waystarActive !== 'undefined' && waystarActive) return;
     if (typeof rwbActive !== 'undefined' && rwbActive) return;
     if (typeof window !== 'undefined' && window.antiSpiralBossActive === true) return;
+    // Не даём обычной атакой убить босса до запуска его отдельного боя.
+    if (mbHasPendingBossStart()) {
+        var hintNow = Date.now();
+        if (hintNow - mbBossStartHintAt > 900) {
+            mbBossStartHintAt = hintNow;
+            if (typeof showFloatingText === "function") {
+                showFloatingText("⚔️ Сначала начни битву с боссом!", "#ffcc66");
+            }
+        }
+        return;
+    }
     if (playerHp <= 0) { resetGame(); return; } 
     if (!currentEnemy || currentEnemy.hp <= 0) return; 
     if (deathNoteTarget && wave === deathNoteTarget && !skipUsed) { currentEnemy.hp = 0; skipUsed = true; deathNoteTarget = null; victory(); return; } 
