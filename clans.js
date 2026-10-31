@@ -29,8 +29,6 @@
     var accountSessionLockOverlay = null;
     var authStateSubscription = null;
     var authSwitchChain = Promise.resolve();
-    var securityPendingTargetSessionId = null;
-    var securityOtpClient = null;
     var profileShowcaseSelection = [];
     var profileShowcaseSavedCards = [];
     var currentFriends = [];
@@ -3097,7 +3095,7 @@
                     var transferError = await accountSlotBindingError(currentUser, getCurrentGameSlot());
                     if (transferError) {
                         setNotice(transferError, 'warning');
-                        try { await db.auth.signOut({ scope: 'local' }); } catch (_signOutError) {}
+                        try { await db.auth.signOut(); } catch (_signOutError) {}
                         currentUser = null;
                         showAuthState();
                         notifyCloudSaveAuthChanged();
@@ -3315,151 +3313,6 @@
         return { updated_at: row.updated_at, revision: row.revision };
     }
 
-    function getSecurityDeviceLabel() {
-        var ua = navigator.userAgent || '';
-        var platform = /Android/i.test(ua) ? 'Android' :
-            /iPhone|iPad|iPod/i.test(ua) ? 'iPhone/iPad' :
-            /Windows/i.test(ua) ? 'Windows' :
-            /Macintosh|Mac OS/i.test(ua) ? 'macOS' :
-            /Linux/i.test(ua) ? 'Linux' : 'Устройство';
-        var browser = /Edg\//i.test(ua) ? 'Edge' :
-            /Firefox\//i.test(ua) ? 'Firefox' :
-            /Chrome\//i.test(ua) && !/Edg\//i.test(ua) ? 'Chrome' :
-            /Safari\//i.test(ua) && !/Chrome\//i.test(ua) ? 'Safari' : 'Браузер';
-        return platform + ' · ' + browser;
-    }
-
-    function setAccountSecurityStatus(message, kind) {
-        var el = byId('accountSecurityStatus');
-        if (!el) return;
-        el.textContent = message || '';
-        el.className = 'clan-notice' + (kind ? ' clan-notice-' + kind : '');
-    }
-
-    function formatSecurityDate(value) {
-        if (!value) return 'нет данных';
-        var date = new Date(value);
-        return Number.isNaN(date.getTime()) ? 'нет данных' : date.toLocaleString('ru-RU');
-    }
-
-    async function refreshAccountSecurityDevices() {
-        var list = byId('accountSecurityDevices');
-        if (!list) return;
-        if (!db || !currentUser) {
-            list.replaceChildren(node('p', 'clan-muted', 'Войди в аккаунт, чтобы посмотреть историю устройств.'));
-            setAccountSecurityStatus('Для просмотра устройств нужен вход в аккаунт.', 'warning');
-            return;
-        }
-        list.replaceChildren(node('p', 'clan-muted', 'Загружаем устройства…'));
-        try {
-            var result = await db.rpc('mb_list_account_devices', {
-                p_current_session_id: activeAccountSessionId || null
-            });
-            if (result.error) throw result.error;
-            var rows = Array.isArray(result.data) ? result.data : [];
-            list.replaceChildren();
-            if (!rows.length) {
-                list.appendChild(node('p', 'clan-muted', 'История устройств пока пуста.'));
-            }
-            rows.forEach(function (session) {
-                var row = node('div', 'online-player-row');
-                row.style.cssText = 'display:flex;flex-direction:column;gap:7px;padding:12px;margin:8px 0;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(0,0,0,.18);';
-                var top = node('div', 'flex-between');
-                var title = node('strong', '', session.device_label || 'Неизвестное устройство');
-                var current = session.is_current === true;
-                var status = session.revoked_at ? 'Отключено владельцем' :
-                    session.ended_at ? 'Выход выполнен' :
-                    (Date.now() - new Date(session.last_seen_at).getTime() <= 120000 ? 'Активно' : 'Неактивно');
-                var statusNode = node('span', 'clan-muted', current ? 'Это устройство' : status);
-                statusNode.style.cssText = 'font-size:11px;color:' + (current ? '#7ee6a2' : '#b9b9c9') + ';';
-                top.appendChild(title);
-                top.appendChild(statusNode);
-                row.appendChild(top);
-                row.appendChild(node('div', 'clan-muted', session.user_agent || 'Информация о браузере недоступна'));
-                row.appendChild(node('div', 'clan-muted', 'Первый вход: ' + formatSecurityDate(session.started_at)));
-                row.appendChild(node('div', 'clan-muted', 'Последняя активность: ' + formatSecurityDate(session.last_seen_at)));
-                if (!current && !session.ended_at && !session.revoked_at) {
-                    var kick = actionButton('Отключить эту сессию', 'btn', function () {
-                        beginAccountSecurityOtp(session.client_session_id);
-                    });
-                    kick.style.cssText = 'align-self:flex-start;border-color:rgba(231,76,60,.45);color:#ffb3b3;';
-                    row.appendChild(kick);
-                }
-                list.appendChild(row);
-            });
-            setAccountSecurityStatus('Найдено записей: ' + rows.length + '. Активные сессии одного аккаунта могут работать одновременно.', 'success');
-        } catch (error) {
-            list.replaceChildren(node('p', 'clan-muted', friendlyError(error)));
-            setAccountSecurityStatus('Не удалось загрузить историю устройств. Проверь, что применена миграция account security.', 'error');
-        }
-    }
-
-    async function beginAccountSecurityOtp(targetSessionId) {
-        if (!db || !currentUser || !currentUser.email) {
-            setAccountSecurityStatus('Сначала войди в аккаунт.', 'warning');
-            return;
-        }
-        if (!currentUser.email_confirmed_at && !currentUser.confirmed_at) {
-            setAccountSecurityStatus('Сначала подтверди почту аккаунта.', 'warning');
-            return;
-        }
-        var config = window.MB_SUPABASE_CONFIG || {};
-        if (securityOtpClient) {
-            try { await securityOtpClient.auth.signOut({ scope: 'local' }); } catch (_error) {}
-        }
-        securityOtpClient = window.supabase.createClient(config.url, config.anonKey, {
-            auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
-        });
-        securityPendingTargetSessionId = targetSessionId;
-        var send = await securityOtpClient.auth.signInWithOtp({
-            email: currentUser.email,
-            options: { shouldCreateUser: false }
-        });
-        if (send.error) {
-            setAccountSecurityStatus(friendlyError(send.error), 'error');
-            return;
-        }
-        var card = byId('accountSecurityOtpCard');
-        if (card) card.style.display = 'block';
-        var input = byId('accountSecurityOtp');
-        if (input) { input.value = ''; input.focus(); }
-        setAccountSecurityStatus('Код отправлен на ' + currentUser.email + '. Проверь входящие и папку «Спам».', 'success');
-    }
-
-    async function confirmAccountSecurityOtp() {
-        if (!securityOtpClient || !securityPendingTargetSessionId || !currentUser || !currentUser.email) return;
-        var input = byId('accountSecurityOtp');
-        var token = input ? input.value.trim().replace(/\s+/g, '') : '';
-        if (!token) {
-            setAccountSecurityStatus('Введи код из письма.', 'warning');
-            return;
-        }
-        var verify = await securityOtpClient.auth.verifyOtp({
-            email: currentUser.email,
-            token: token,
-            type: 'email'
-        });
-        if (verify.error) {
-            setAccountSecurityStatus(friendlyError(verify.error), 'error');
-            return;
-        }
-        var revoke = await securityOtpClient.rpc('mb_revoke_account_session', {
-            p_target_client_session_id: securityPendingTargetSessionId
-        });
-        if (revoke.error) throw revoke.error;
-        if (!revoke.data || revoke.data.ok !== true) {
-            setAccountSecurityStatus(revoke.data && revoke.data.message ? revoke.data.message : 'Не удалось отключить выбранную сессию.', 'error');
-            return;
-        }
-        var card = byId('accountSecurityOtpCard');
-        if (card) card.style.display = 'none';
-        securityPendingTargetSessionId = null;
-        try { await securityOtpClient.auth.signOut({ scope: 'local' }); } catch (_error) {}
-        securityOtpClient = null;
-        setAccountSecurityStatus('Выбранная сессия отключена. Облачное сохранение не удалялось.', 'success');
-        await refreshAccountSecurityDevices();
-    }
-
     function bindEvents() {
         if (initialized) return;
         initialized = true;
@@ -3469,29 +3322,6 @@
         });
         byId('clansLoginBtn').addEventListener('click', login);
         byId('clansLogoutBtn').addEventListener('click', logout);
-        var securityRefresh = byId('accountSecurityRefresh');
-        if (securityRefresh) securityRefresh.addEventListener('click', refreshAccountSecurityDevices);
-        var securityVerify = byId('accountSecurityVerifyOtp');
-        if (securityVerify) securityVerify.addEventListener('click', function () {
-            confirmAccountSecurityOtp().catch(function (error) {
-                setAccountSecurityStatus(friendlyError(error), 'error');
-            });
-        });
-        var securityCancel = byId('accountSecurityCancelOtp');
-        if (securityCancel) securityCancel.addEventListener('click', async function () {
-            securityPendingTargetSessionId = null;
-            if (securityOtpClient) {
-                try { await securityOtpClient.auth.signOut({ scope: 'local' }); } catch (_error) {}
-            }
-            securityOtpClient = null;
-            var card = byId('accountSecurityOtpCard');
-            if (card) card.style.display = 'none';
-            setAccountSecurityStatus('Подтверждение отменено.', 'warning');
-        });
-        var securityTab = byId('securitySubTabBtn');
-        if (securityTab) securityTab.addEventListener('click', function () {
-            refreshAccountSecurityDevices();
-        });
         var cloudDownloadBtn = byId('cloudSaveDownloadBtn');
         if (cloudDownloadBtn) cloudDownloadBtn.addEventListener('click', function () {
             window.dispatchEvent(new CustomEvent('mb:cloud-save-action', { detail: { action: 'download' } }));
@@ -3711,10 +3541,43 @@
     }
 
     function showAccountSessionLock(message) {
-        // A lease conflict must never cover the whole game: account security
-        // remains reachable so the owner can inspect and revoke other sessions.
         accountSessionBlocked = true;
-        setNotice(message || 'Игровая сессия временно заблокирована. Открой «Прочее → Безопасность».', 'warning');
+        var overlay = byId('mbAccountSessionLock');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'mbAccountSessionLock';
+            overlay.setAttribute('role', 'alertdialog');
+            overlay.setAttribute('aria-modal', 'true');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(5,6,16,.97);font-family:Nunito,Arial,sans-serif;';
+            var card = document.createElement('div');
+            card.style.cssText = 'width:100%;max-width:520px;padding:26px;border:1px solid rgba(245,175,25,.75);border-radius:20px;background:#171729;color:#f5f5ff;box-shadow:0 20px 80px rgba(0,0,0,.65);text-align:center;';
+            var heading = document.createElement('h2');
+            heading.textContent = '🔒 Аккаунт уже используется';
+            heading.style.cssText = 'font-size:23px;margin:0 0 14px;font-weight:900;';
+            var paragraph = document.createElement('p');
+            paragraph.id = 'mbAccountSessionLockMessage';
+            paragraph.style.cssText = 'font-size:15px;line-height:1.6;color:#d9d9e6;margin:0 0 22px;';
+            var retry = document.createElement('button');
+            retry.type = 'button';
+            retry.textContent = 'Проверить снова';
+            retry.style.cssText = 'padding:12px 22px;border:0;border-radius:30px;background:linear-gradient(135deg,#f5af19,#f12711);color:white;font-weight:900;font-size:15px;cursor:pointer;';
+            retry.addEventListener('click', async function () {
+                retry.disabled = true;
+                retry.textContent = 'Проверяем…';
+                try { await queueAuthForCurrentSlot(getCurrentGameSlot()); }
+                catch (_error) {}
+                retry.disabled = false;
+                retry.textContent = 'Проверить снова';
+            });
+            card.appendChild(heading);
+            card.appendChild(paragraph);
+            card.appendChild(retry);
+            overlay.appendChild(card);
+            document.body.appendChild(overlay);
+            accountSessionLockOverlay = overlay;
+        }
+        var messageNode = byId('mbAccountSessionLockMessage');
+        if (messageNode) messageNode.textContent = message || 'Этот аккаунт уже активен в другой игре. Закрой прежнюю сессию и повтори проверку.';
         try {
             window.dispatchEvent(new CustomEvent('mb:account-session-blocked', { detail: { message: message || '' } }));
         } catch (_error) {}
@@ -3758,18 +3621,12 @@
                     activeAccountSessionUserId = null;
                     activeAccountSessionId = null;
                     activeAccountAuthSessionId = null;
+                    // Keep the authenticated user. A lost game-session lease is not
+                    // a sign-out; show the lock and let the player retry the check.
                     currentClan = null;
                     currentProfile = null;
-                    if (result.data && result.data.code === 'session_revoked') {
-                        currentUser = null;
-                        showAuthState();
-                        setNotice('Эта сессия отключена владельцем аккаунта. Войди заново, если это твой аккаунт.', 'warning');
-                        client.auth.signOut({ scope: 'local' }).catch(function () {});
-                    } else {
-                        // A temporary lease timeout does not sign the player out.
-                        showAuthState();
-                        showAccountSessionLock('Игровая сессия потеряла блокировку. Аккаунт остаётся подключённым. Открой «Прочее → Безопасность» или повтори вход.');
-                    }
+                    showAuthState();
+                    showAccountSessionLock('Игровая сессия потеряла блокировку. Аккаунт остаётся подключённым. Нажми «Проверить снова», чтобы восстановить сессию.');
                     notifyCloudSaveAuthChanged();
                 }
             } catch (error) {
@@ -3795,9 +3652,7 @@
             result = await client.rpc('mb_claim_active_account_session', {
                 p_session_id: clientSessionId,
                 p_auth_session_id: authSessionId,
-                p_device_id: getDeviceBindingId(),
-                p_device_label: getSecurityDeviceLabel(),
-                p_user_agent: navigator.userAgent || ''
+                p_device_id: getDeviceBindingId()
             });
         } catch (error) {
             console.warn('[MB account session] Claim failed:', error && error.message ? error.message : error);
@@ -3981,7 +3836,7 @@
                         showAuthState();
                         setNotice(authBindingError, 'warning');
                         notifyCloudSaveAuthChanged();
-                        client.auth.signOut({ scope: 'local' }).catch(function () {});
+                        client.auth.signOut().catch(function () {});
                         return;
                     }
                     showAuthState();
