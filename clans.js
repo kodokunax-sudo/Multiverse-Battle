@@ -3832,6 +3832,7 @@
                         currentUser = null;
                         currentClan = null;
                         currentProfile = null;
+                        if (typeof window.MBSetModeratorAccessFromServer === 'function') window.MBSetModeratorAccessFromServer(false);
                         showAuthState();
                         setNotice(authBindingError, 'warning');
                         notifyCloudSaveAuthChanged();
