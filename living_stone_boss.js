@@ -15,6 +15,8 @@ let livingStoneBossMaxHp = 0;
 let livingStonePlayerHp = 150;
 let livingStonePlayerMaxHp = 150;
 let livingStoneAttacks = [];
+let livingStoneEncounterGeneration = 0;
+let livingStoneAttackSequence = 0;
 let livingStoneBullets = [];
 let livingStoneParticles = [];
 let livingStoneTexts = [];
@@ -292,6 +294,8 @@ function startLivingStoneFight(graphicsModeChoice) {
 }
 
 function _startLivingStoneFightInternal() {
+    livingStoneEncounterGeneration++;
+    livingStoneAttackSequence = 0;
     if (typeof window.MBUniqueBossFightStart === "function") window.MBUniqueBossFightStart("living_stone");
     livingStoneActive = true;
     livingStoneState = "opening_intro";
@@ -370,6 +374,7 @@ function _startLivingStoneFightInternal() {
 }
 
 function stopLivingStoneFight() {
+    livingStoneEncounterGeneration++;
     if (typeof window.MBUniqueBossFightFinish === "function") window.MBUniqueBossFightFinish("living_stone", "abandoned");
     if (typeof window.MBEndBossGraphicsModeForFight === "function") window.MBEndBossGraphicsModeForFight();
     livingStoneActive = false;
@@ -472,6 +477,7 @@ function initLivingStoneBgParticles() {
 }
 
 function spawnLivingStoneText(x, y, text, color, life) {
+    if (livingStoneTexts.length >= 7) livingStoneTexts.shift();
     livingStoneTexts.push({ x: x, y: y, text: text, color: color, life: life || 60, vy: -0.3, vx: 0 });
 }
 function spawnCinematicText(x, y, text, color, life, size) {
@@ -481,7 +487,9 @@ function spawnLivingStoneParticles(x, y, count, color, speed) {
     var reduced = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
     var scale = window.MBGetBossEffectsScale ? window.MBGetBossEffectsScale() : (reduced ? 0.10 : lsPerfMult);
     var n = Math.max(0, Math.floor(count * scale));
-    if (reduced && livingStoneParticles.length > 16) return;
+    var particleCap = reduced ? 28 : 150;
+    if (livingStoneParticles.length >= particleCap) return;
+    n = Math.min(n, particleCap - livingStoneParticles.length);
     for (var i = 0; i < n; i++) {
         var angle = Math.random() * Math.PI * 2, spd = speed * (0.5 + Math.random());
         livingStoneParticles.push({
@@ -653,6 +661,9 @@ function livingStoneShoot() {
 
 // ========== АТАКИ БОССА ==========
 function livingStoneSpawnAttack() {
+    var encounterToken = livingStoneEncounterGeneration;
+    // Keep overlapping volleys readable instead of letting old waves bury the arena.
+    if (livingStoneAttacks.length > 34) livingStoneAttacks.splice(0, livingStoneAttacks.length - 26);
     var type = livingStoneAttackType;
     var isPhase2 = (livingStoneState === "phase2");
     var isPrimeAfterChase = typeof window !== "undefined" &&
@@ -726,32 +737,34 @@ function livingStoneSpawnAttack() {
     }
     
     if (type === 7) {
-        var spiralCount = isPhase2 ? 24 : 16;
+        var spiralCount = isPhase2 ? (isPrimeAfterChase ? 12 : 24) : 16;
         for (var i = 0; i < spiralCount; i++) {
             var baseAngle = (i / spiralCount) * Math.PI * 2;
             var delay = i * Math.floor(60 / lsSpeedMult);
-            (function(ang, dly) {
+            (function(ang, dly, token) {
                 setTimeout(function() {
-                    if (!livingStoneActive || (livingStoneState !== "phase1" && livingStoneState !== "phase2")) return;
+                    if (token !== livingStoneEncounterGeneration || !livingStoneActive ||
+                        (livingStoneState !== "phase1" && livingStoneState !== "phase2")) return;
                     livingStoneAttacks.push({
                         type: "orb", x: livingStoneBoss.x, y: livingStoneBoss.y,
                         vx: Math.cos(ang) * 2.0 * speedMult, vy: Math.sin(ang) * 2.0 * speedMult,
                         size: 7, damage: Math.floor(5 * dmgMult), life: 250, color: "#ff8800"
                     });
                 }, dly);
-            })(baseAngle, delay);
+            })(baseAngle, delay, encounterToken);
         }
     }
-    
+
     if (type === 8 && !activeGravityWell) {
         activeGravityWell = true;
         var wellX = 100 + Math.random() * 200, wellY = 150 + Math.random() * 200, wellDur = 300;
+        var wellId = ++livingStoneAttackSequence;
         livingStoneAttacks.push({
-            type: "gravity_well", x: wellX, y: wellY,
+            type: "gravity_well", id: wellId, x: wellX, y: wellY,
             radius: 45, maxRadius: 55, life: wellDur, maxLife: wellDur,
             pulse: 0, damage: 0, hit: false, hitCooldown: 0
         });
-        var stoneCount = isPhase2 ? 14 : 10;
+        var stoneCount = isPhase2 ? (isPrimeAfterChase ? 9 : 14) : 10;
         for (var i = 0; i < stoneCount; i++) {
             var angle = (i / stoneCount) * Math.PI * 2 + Math.random() * 0.3;
             var spawnDist = 250 + Math.random() * 80;
@@ -765,35 +778,41 @@ function livingStoneSpawnAttack() {
             });
         }
         setTimeout(function() {
-            if (!livingStoneActive) return;
+            if (encounterToken !== livingStoneEncounterGeneration || !livingStoneActive) return;
+            var wellIndex = -1, well = null;
             for (var k = livingStoneAttacks.length - 1; k >= 0; k--) {
-                if (livingStoneAttacks[k].type === "gravity_well") {
-                    var w = livingStoneAttacks[k];
-                    for (var j = 0; j < 12; j++) {
-                        var ang = (j / 12) * Math.PI * 2;
-                        livingStoneAttacks.push({
-                            type: "orb", x: w.x, y: w.y,
-                            vx: Math.cos(ang) * 3.5 * speedMult, vy: Math.sin(ang) * 3.5 * speedMult,
-                            size: 9, damage: Math.floor(9 * dmgMult), life: 200, color: "#ffcc00"
-                        });
-                    }
-                    livingStoneAttacks.splice(k, 1);
+                if (livingStoneAttacks[k].type === "gravity_well" && livingStoneAttacks[k].id === wellId) {
+                    wellIndex = k;
+                    well = livingStoneAttacks[k];
+                    break;
                 }
+            }
+            // A timeout may only detonate the exact well that created it.
+            if (wellIndex < 0 || !well) return;
+            livingStoneAttacks.splice(wellIndex, 1);
+            for (var j = 0; j < 12; j++) {
+                var ang = (j / 12) * Math.PI * 2;
+                livingStoneAttacks.push({
+                    type: "orb", x: well.x, y: well.y,
+                    vx: Math.cos(ang) * 3.5 * speedMult, vy: Math.sin(ang) * 3.5 * speedMult,
+                    size: 9, damage: Math.floor(9 * dmgMult), life: 200, color: "#ffcc00"
+                });
             }
             activeGravityWell = false;
             livingStoneShake = 15; livingStoneScreenFlash = 10; livingStoneScreenFlashColor = "#ffcc00";
             if (typeof playArenaSound === 'function') playArenaSound(80, 'square', 0.6, 0.3);
         }, Math.floor(1500 / lsSpeedMult));
     }
-    
+
     if (type === 9) {
-        var rainCount = isPhase2 ? 20 : 14;
+        var rainCount = isPhase2 ? (isPrimeAfterChase ? 9 : 20) : 14;
         for (var i = 0; i < rainCount; i++) {
             var rx = 20 + Math.random() * 360;
             var delay = i * Math.floor(80 / lsSpeedMult);
-            (function(x2, dly) {
+            (function(x2, dly, token) {
                 setTimeout(function() {
-                    if (!livingStoneActive || (livingStoneState !== "phase1" && livingStoneState !== "phase2")) return;
+                    if (token !== livingStoneEncounterGeneration || !livingStoneActive ||
+                        (livingStoneState !== "phase1" && livingStoneState !== "phase2")) return;
                     livingStoneAttacks.push({
                         type: "falling_star", x: x2, y: -30,
                         vx: (Math.random() - 0.5) * 0.5 * lsSpeedMult,
@@ -806,7 +825,7 @@ function livingStoneSpawnAttack() {
                         color: Math.random() > 0.5 ? "#ffcc00" : "#ff8800"
                     });
                 }, dly);
-            })(rx, delay);
+            })(rx, delay, encounterToken);
         }
         if (typeof playArenaSound === 'function') playArenaSound(180, 'sine', 0.8, 0.15);
     }
@@ -878,14 +897,18 @@ function livingStoneSpawnAttack() {
     } else if (type === 14 && isPhase2 && isPrimeAfterChase) {
         // METEOR HUNT: falling stars lead the player's last position.
         var predictedX = Math.max(34, Math.min(366, livingStonePlayer.x + (livingStonePlayer.x - livingStoneBoss.x) * 0.34));
-        for (var meteor = 0; meteor < 7; meteor++) {
-            var mx = Math.max(18, Math.min(382, predictedX + (meteor - 3) * 34 + (Math.random() - 0.5) * 18));
+        for (var meteor = 0; meteor < 5; meteor++) {
+            var mx = Math.max(18, Math.min(382, predictedX + (meteor - 2) * 39 + (Math.random() - 0.5) * 16));
+            var meteorY = -34 - meteor * 34;
+            var meteorVy = (3.8 + Math.random() * 0.55) * speedMult;
             livingStoneAttacks.push({
-                type: "falling_star", x: mx, y: -34 - meteor * 54,
+                type: "falling_star", x: mx, y: meteorY,
                 vx: (livingStonePlayer.x - mx) * 0.006 + (Math.random() - 0.5) * 0.22,
-                vy: (3.8 + Math.random() * 0.55) * speedMult,
+                vy: meteorVy,
                 size: 10 + Math.random() * 3, rotation: Math.random() * Math.PI * 2,
-                rotSpeed: 0.08, damage: Math.floor(8 * dmgMult), life: 260,
+                rotSpeed: 0.08, damage: Math.floor(8 * dmgMult),
+                // Every meteor gets enough lifetime to reach the arena instead of vanishing mid-air.
+                life: Math.ceil((535 - meteorY) / Math.max(0.1, meteorVy)) + 18,
                 trail: [], color: meteor % 2 ? "#9deeff" : "#ffe0a0"
             });
         }
@@ -903,6 +926,52 @@ function livingStoneSpawnAttack() {
                     damage: Math.floor(11 * dmgMult), color: row === 0 ? "#5a4030" : "#9a5734"
                 });
             }
+        }
+    } else if (type === 16 && isPhase2 && isPrimeAfterChase) {
+        // TWO OPEN LANES: two warned laser columns leave a clear route through the arena.
+        var safeLane = Math.max(0, Math.min(2, Math.round(livingStonePlayer.x / 200)));
+        var beamLanes = [66, 200, 334];
+        for (var beam = 0; beam < beamLanes.length; beam++) {
+            if (beam === safeLane) continue;
+            livingStoneAttacks.push({
+                type: "laser_warning", x: beamLanes[beam], y: 0, width: 42,
+                timer: Math.floor(42 / lsSpeedMult), damage: Math.floor(12 * dmgMult)
+            });
+        }
+    } else if (type === 17 && isPhase2 && isPrimeAfterChase) {
+        // DOUBLE PRESS: two moving rock walls with different safe vertical corridors.
+        var firstSafeY = Math.max(92, Math.min(408, livingStonePlayer.y));
+        var secondSafeY = Math.max(92, Math.min(408, firstSafeY < 250 ? firstSafeY + 112 : firstSafeY - 112));
+        var fromLeft = Math.random() > 0.5;
+        for (var wallY = 42; wallY <= 458; wallY += 54) {
+            if (Math.abs(wallY - firstSafeY) >= 62) {
+                livingStoneAttacks.push({
+                    type: "rock", x: fromLeft ? -28 : 428, y: wallY,
+                    vx: fromLeft ? 3.5 * speedMult : -3.5 * speedMult, vy: 0,
+                    size: 17, rotation: 0, rotSpeed: fromLeft ? 0.06 : -0.06,
+                    damage: Math.floor(9 * dmgMult)
+                });
+            }
+            if (Math.abs(wallY - secondSafeY) >= 62) {
+                livingStoneAttacks.push({
+                    type: "rock", x: fromLeft ? 428 : -28, y: wallY,
+                    vx: fromLeft ? -3.8 * speedMult : 3.8 * speedMult, vy: 0,
+                    size: 15, rotation: 0, rotSpeed: fromLeft ? -0.06 : 0.06,
+                    damage: Math.floor(9 * dmgMult)
+                });
+            }
+        }
+    } else if (type === 18 && isPhase2 && isPrimeAfterChase) {
+        // SHATTERED HUNT: a compact spread of shards that turns toward the player's movement.
+        var huntAngle = Math.atan2(livingStonePlayer.y - livingStoneBoss.y, livingStonePlayer.x - livingStoneBoss.x);
+        for (var shard = 0; shard < 5; shard++) {
+            var shardAngle = huntAngle + (shard - 2) * 0.19;
+            livingStoneAttacks.push({
+                type: "homing", x: livingStoneBoss.x, y: livingStoneBoss.y,
+                vx: Math.cos(shardAngle) * 1.1 * speedMult,
+                vy: Math.sin(shardAngle) * 1.1 * speedMult,
+                size: 10, damage: Math.floor(9 * dmgMult), life: 310, color: "#b7e8ef"
+            });
         }
     }
 }
@@ -2274,13 +2343,13 @@ function livingStoneRenderLoop() {
             var primeAfterChase = typeof window !== "undefined" &&
                 window.livingStoneSuperActive === true && window.__mbLS2AfterChase === true;
             var attackRate = Math.floor(((livingStoneState === "phase2")
-                ? (primeAfterChase ? 22 : 30) : 45) / lsSpeedMult);
+                ? (primeAfterChase ? 55 : 30) : 45) / lsSpeedMult);
             if (livingStoneAttackTimer >= attackRate) { livingStoneAttackTimer = 0; livingStoneSpawnAttack(); }
             livingStoneTypeTimer--;
             if (livingStoneTypeTimer <= 0) {
                 if (livingStoneState === "phase2") {
                     var allowedP2 = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-                    if (primeAfterChase) allowedP2.push(13, 14, 15);
+                    if (primeAfterChase) allowedP2.push(13, 14, 15, 16, 17, 18);
                     livingStoneAttackType = allowedP2[Math.floor(Math.random() * allowedP2.length)];
                     livingStoneTypeTimer = Math.floor(((primeAfterChase ? 145 : 200) +
                         Math.random() * (primeAfterChase ? 115 : 200)) / lsSpeedMult);
@@ -2288,7 +2357,7 @@ function livingStoneRenderLoop() {
                     livingStoneAttackType = Math.floor(Math.random() * 10);
                     livingStoneTypeTimer = Math.floor((250 + Math.random() * 250) / lsSpeedMult);
                 }
-                var typeNames = ["КАМНЕПАД", "КОЛЬЦО", "ОБЛОМКИ", "ГОМИНГ", "ЛАЗЕР", "ВЕЕР", "ДОЖДЬ КАМНЕЙ", "СПИРАЛЬ", "ЧЁРНАЯ ДЫРА", "НЕБЕСНЫЙ ЛИВЕНЬ", "РАЗЛОМ", "СТЕНА", "МЕГА-ЛАЗЕР", "ПЕРЕКРЁСТНЫЙ РАЗЛОМ", "МЕТЕОРНЫЙ ДОЖДЬ", "РАЗЛОМНЫЕ ШИПЫ"];
+                var typeNames = ["КАМНЕПАД", "КОЛЬЦО", "ОБЛОМКИ", "ГОМИНГ", "ЛАЗЕР", "ВЕЕР", "ДОЖДЬ КАМНЕЙ", "СПИРАЛЬ", "ЧЁРНАЯ ДЫРА", "НЕБЕСНЫЙ ЛИВЕНЬ", "РАЗЛОМ", "СТЕНА", "МЕГА-ЛАЗЕР", "ПЕРЕКРЁСТНЫЙ РАЗЛОМ", "МЕТЕОРНЫЙ ДОЖДЬ", "РАЗЛОМНЫЕ ШИПЫ", "ДВА ОТКРЫТЫХ КОРИДОРА", "ДВОЙНОЙ ПРЕСС", "РАЗДРОБЛЕННАЯ ОХОТА"];
                 spawnLivingStoneText(200, 60, typeNames[livingStoneAttackType], "#888888", 60);
             }
         }
