@@ -1179,7 +1179,13 @@ function resetArenaSettings() {
 
 function renderSettings() { applyArenaSettings(); }
 
-function loadGameData(d) { 
+function loadGameData(d) {
+    if (!d || typeof d !== "object" || Array.isArray(d)) d = {};
+    // Restore the complete slot payload, including persistent mercy flags used by boss encounters.
+    Object.keys(slotData).forEach(function (key) { delete slotData[key]; });
+    Object.assign(slotData, d);
+    var sparedWaystar = d.waystarOwesDebt === true || d.waystarOwesDebt === 1 || d.waystarOwesDebt === "true";
+    window.waystarOwesDebt = sparedWaystar;
     if (window.MBPatches) window.MBPatches.load(Array.isArray(d.unlockedPatches) ? d.unlockedPatches : []);
     myCards = d.myCards || []; 
     myCards.forEach(function(card) {
@@ -1350,7 +1356,10 @@ function loadGameData(d) {
     mbLoadStatsFromSave(d);
 }
 
-function initNewGame() { 
+function initNewGame() {
+    // A genuinely empty slot must not inherit another slot's saved mercy state.
+    slotData = {};
+    window.waystarOwesDebt = false;
     myCards = []; 
     team = []; 
     afkTeam = []; 
@@ -1533,6 +1542,7 @@ function saveAll() {
     slotData.defeatedBosses = defeatedBosses; 
     
     slotData.evolutionUnlocked = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500));
+    slotData.waystarOwesDebt = (typeof window !== 'undefined' && window.waystarOwesDebt === true);
     slotData.waystarDefeatedThisRun = (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true);
     slotData.level7CardId = (typeof window !== 'undefined' && window._level7CardId) || null;
     
