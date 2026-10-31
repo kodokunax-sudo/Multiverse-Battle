@@ -1326,11 +1326,13 @@ function updateLivingStoneBullets() {
                 }
             } catch(e) {}
         }
-        var moderatorBulletDamage = window.MBGetModeratorBulletDamage(
-            window.livingStoneSuperActive && typeof window.getLivingStoneSuperBossMaxHp === "function"
-                ? window.getLivingStoneSuperBossMaxHp()
-                : livingStoneBossMaxHp
-        );
+        var moderatorBulletDamage = typeof window.MBGetModeratorBulletDamage === "function"
+            ? window.MBGetModeratorBulletDamage(
+                window.livingStoneSuperActive && typeof window.getLivingStoneSuperBossMaxHp === "function"
+                    ? window.getLivingStoneSuperBossMaxHp()
+                    : livingStoneBossMaxHp
+            )
+            : null;
         // Модераторский выстрел не задерживается щитом; обычные пули ломают его плиты.
         if (moderatorBulletDamage === null && livingStoneBossShieldAbsorbBullet(b)) {
             livingStoneBullets.splice(i, 1);
