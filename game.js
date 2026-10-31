@@ -1150,6 +1150,7 @@ function changeMobileControlY(val) {
 }
 
 function resetArenaSettings() { 
+    var savedJoystickLayouts = Array.isArray(arenaSettings.joystickLayouts) ? arenaSettings.joystickLayouts.slice(0, 3) : [null, null, null];
     arenaSettings = { 
         volume: 0.20, 
         effectsOpacity: 1.0, 
@@ -1166,12 +1167,13 @@ function resetArenaSettings() {
         joystickPositionX: 24,
         joystickPositionY: 80,
         joystickFixedPosition: true,
-        joystickLayouts: [null, null, null],
+        joystickLayouts: savedJoystickLayouts,
         activeJoystickLayout: 0,
         autoSkipDefeatedBosses: false
     }; 
     saveArenaSettings(); 
     applyArenaSettings(); 
+    if (typeof window.MBRenderJoystickPresets === 'function') window.MBRenderJoystickPresets();
     if (typeof showFloatingText === 'function') showFloatingText("🔄 Настройки сброшены", "#f5af19");
 }
 
