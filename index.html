@@ -838,7 +838,7 @@
 <body>
 <div class="app" id="appContainer">
     <div id="slotSelectScreen" style="display:block;">
-        <div class="card"><div class="card-title">🎮 Выберите слот сохранения</div>
+        <div class="card"><div class="card-title">🎮 Выберите слот сохранения · 5 слотов</div>
             <div id="slotList"></div>
         </div>
     </div>
@@ -1219,6 +1219,15 @@
                             <span id="joystickOpacityValue">60%</span>
                         </div>
                     </div>
+                    <!-- Расширенная настройка аналогового джойстика -->
+                    <div class="shop-item" style="display:block;">
+                        <div><strong>🧰 Расширенная настройка джойстика</strong></div>
+                        <div style="font-size:11px;color:#b8c3d8;line-height:1.45;margin:7px 0;">
+                            Открой тренировочную арену: ты и босс будете бессмертны, способности и боевые эффекты останутся активными. Можно перетаскивать джойстик, менять его размер и сохранить три разные раскладки.
+                        </div>
+                        <div id="mbJoystickPresetSettings"></div>
+                        <button type="button" class="btn btn-primary" id="mbStartJoystickTrainingBtn" style="width:100%;margin-top:9px;padding:12px;font-weight:900;">🕹️ Открыть тренировочный бой и настройку</button>
+                    </div>
                     <!-- ★★★ КОНЕЦ БЛОКА ДЖОЙСТИКА ★★★ -->
 
                     <button class="btn" style="width:100%;margin-top:10px;" onclick="resetArenaSettings()">🔄 Сбросить настройки</button>
@@ -1595,8 +1604,8 @@
 <script src="daily.js?v=10" defer></script>
 <script src="pass.js?v=9" defer></script>
 <script src="dandy.js?v=9" defer></script>
-<script src="game.js?v=76" defer></script>
-<script src="battle.js?v=46" defer></script>
+<script src="game.js?v=77" defer></script>
+<script src="battle.js?v=47" defer></script>
 <script src="supers.js?v=52" defer></script>
 <script src="dio.js?v=20" defer></script>
 <script src="gojo.js?v=8" defer></script>
@@ -1621,7 +1630,8 @@
 <script src="visuals.js" defer></script>
 
 <!-- ★★★ ДЖОЙСТИК — САМЫМ ПОСЛЕДНИМ ★★★ -->
-<script src="joystick.js?v=6" defer></script>
+<script src="joystick.js?v=7" defer></script>
+<script src="joystick_training.js?v=1" defer></script>
 
 
 <script src="supabase-config.js?v=1" defer></script>
