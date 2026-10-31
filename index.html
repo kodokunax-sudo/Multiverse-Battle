@@ -1072,7 +1072,6 @@
                 <button class="sub-tab-btn" data-subtab="rebirthStats">📊 Статистика</button>
                 <button class="sub-tab-btn" data-subtab="slots">💾 Слоты</button>
                 <button class="sub-tab-btn" data-subtab="settings">⚙️ Настройки</button>
-                <button class="sub-tab-btn" id="securitySubTabBtn" data-subtab="security">🔐 Безопасность</button>
             </div>
             <div id="rebirthMainSubTab" class="sub-tab-content active">
                 <div class="card"><div class="card-title">🔄 Ребиртх (Престиж)</div><div id="rebirthInfo"></div><button id="doRebirthBtn" class="btn btn-primary" style="width:100%;margin-top:20px;padding:15px;font-size:16px;">🔄 Совершить Ребиртх!</button>
@@ -1231,27 +1230,6 @@
                     <!-- ★★★ КОНЕЦ БЛОКА ДЖОЙСТИКА ★★★ -->
 
                     <button class="btn" style="width:100%;margin-top:10px;" onclick="resetArenaSettings()">🔄 Сбросить настройки</button>
-                </div>
-            </div>
-            <div id="securitySubTab" class="sub-tab-content">
-                <div class="card">
-                    <div class="card-title">🔐 Безопасность аккаунта</div>
-                    <p class="clan-muted">Здесь отображаются входы в аккаунт с разных устройств. Вкладка остаётся доступной, даже если игровая сессия на этом устройстве заблокирована.</p>
-                    <div id="accountSecurityStatus" class="clan-notice" role="status" aria-live="polite">Подключаем защиту аккаунта…</div>
-                    <div id="accountSecurityDevices" class="online-player-list"><p class="clan-muted">Загружаем список устройств…</p></div>
-                    <button id="accountSecurityRefresh" type="button" class="btn" style="width:100%;margin-top:10px;">↻ Обновить список</button>
-                </div>
-                <div class="card" id="accountSecurityOtpCard" style="display:none;">
-                    <div class="card-title">✉️ Подтверждение почты</div>
-                    <p class="clan-muted">На почту аккаунта отправлен одноразовый код. Введи его, чтобы отключить выбранную сессию.</p>
-                    <label for="accountSecurityOtp" class="online-field-label">Код из письма</label>
-                    <input id="accountSecurityOtp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="Код подтверждения">
-                    <button id="accountSecurityVerifyOtp" type="button" class="btn btn-primary" style="width:100%;margin-top:10px;">Подтвердить и отключить</button>
-                    <button id="accountSecurityCancelOtp" type="button" class="btn" style="width:100%;margin-top:8px;">Отмена</button>
-                </div>
-                <div class="card">
-                    <div class="card-title">🛡️ Блокировка устройств</div>
-                    <p class="clan-muted">Сервер проверяет блокировку устройства при каждом новом входе. Браузер предоставляет игре устойчивый идентификатор установки, но не настоящий серийный номер железа.</p>
                 </div>
             </div>
         </div>
