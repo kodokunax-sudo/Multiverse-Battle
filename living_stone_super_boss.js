@@ -1383,6 +1383,9 @@
 
     window.MBUpdateLivingStoneSuperAttacks = function() {
         if (!ls2Live()) return;
+        if (ls2UniqueAttacks.length > 22) ls2UniqueAttacks.splice(0, ls2UniqueAttacks.length - 22);
+        if (ls2UniqueDecoys.length > 3) ls2UniqueDecoys.splice(0, ls2UniqueDecoys.length - 3);
+        if (ls2UniqueCracks.length > 12) ls2UniqueCracks.splice(0, ls2UniqueCracks.length - 12);
         var p=livingStonePlayer, b=livingStoneBoss, phase=window.__mbLS2GreenPhase||"normal";
         if (phase === "normal") {
             var frameDx = ls2Clamp(p.x - ls2LastPlayerX, -8, 8);
@@ -1513,7 +1516,7 @@
                     a.life=0;
                 }
             } else if (a.type==="plate" || a.type==="greenStrike" || a.type==="boulder") {
-                if (a.type==="greenStrike" && a.delay>0) {
+                if ((a.type==="greenStrike" || a.type==="boulder") && a.delay>0) {
                     a.delay--;
                 } else {
                     a.x += a.vx; a.y += a.vy;
@@ -1524,8 +1527,7 @@
                     if(a.y<75||a.y>475){a.vy*=-1;a.y=ls2Clamp(a.y,75,475);a.bounces++;}
                     if(a.bounces>=3){ls2SpawnOrbBurst(a.x,a.y,6,2.6,"#afffce",6);a.life=0;}
                 } else if (a.type==="boulder") {
-                    if (a.delay > 0) a.delay--;
-                    else {
+                    if (a.delay <= 0) {
                         if(a.x<15||a.x>385){a.vx*=-1;a.x=ls2Clamp(a.x,15,385);a.bounces++;}
                         if(a.y<70||a.y>478){a.vy*=-1;a.y=ls2Clamp(a.y,70,478);a.bounces++;}
                         if(a.bounces>=2){ls2SpawnOrbBurst(a.x,a.y,8,2.9,"#b3ffcb",8);a.life=0;}
@@ -2134,6 +2136,10 @@
             window.MBSetBossGraphicsModeForFight(graphicsModeChoice);
         }
         ls2StopChaseMusic();
+        // Re-arm the spared Star on every fresh Prime attempt. Visibility still waits for phase two after the chase.
+        if (ls2HasWaystarAid() && typeof window.MBStartWaystarCompanionSupport === "function") {
+            window.MBStartWaystarCompanionSupport();
+        }
         window.__mbLS2RunnerActive = false;
         ls2ChaseTriggered=false; ls2ChaseFrames=0; ls2ChaseDuration=6960; ls2ChaseLane=1;
         window.__mbLS2AfterChase=false;
