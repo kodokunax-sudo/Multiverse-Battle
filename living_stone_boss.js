@@ -741,7 +741,7 @@ function livingStoneSpawnAttack() {
         var spiralCount = isPhase2 ? (isPrimeAfterChase ? 12 : 24) : 16;
         for (var i = 0; i < spiralCount; i++) {
             var baseAngle = (i / spiralCount) * Math.PI * 2;
-            var delay = i * Math.max(8, Math.floor(7 / Math.max(0.25, lsSpeedMult)));
+            var delay = i * Math.max(4, Math.floor(4 / Math.max(0.25, lsSpeedMult)));
             (function(ang, dly, token) {
                 setTimeout(function() {
                     if (token !== livingStoneEncounterGeneration || !livingStoneActive ||
@@ -784,7 +784,7 @@ function livingStoneSpawnAttack() {
         var rainCount = isPhase2 ? (isPrimeAfterChase ? 9 : 20) : 14;
         for (var i = 0; i < rainCount; i++) {
             var rx = 20 + Math.random() * 360;
-            var delay = i * Math.max(12, Math.floor(14 / Math.max(0.25, lsSpeedMult)));
+            var delay = i * Math.max(4, Math.floor(4 / Math.max(0.25, lsSpeedMult)));
             (function(x2, dly, token) {
                 setTimeout(function() {
                     if (token !== livingStoneEncounterGeneration || !livingStoneActive ||
