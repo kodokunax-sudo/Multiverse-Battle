@@ -200,6 +200,25 @@
             snapshot.superState = typeof _superState !== "undefined" ? _superState : null;
             snapshot.superData = snapshot.superState ? cloneJson(snapshot.superState) : null;
         } catch (e) {}
+        try {
+            snapshot.cardsRef = typeof myCards !== "undefined" && Array.isArray(myCards) ? myCards : null;
+            snapshot.cardsData = snapshot.cardsRef ? cloneJson(snapshot.cardsRef) : null;
+        } catch (e) {}
+        try {
+            snapshot.teamRef = typeof team !== "undefined" && Array.isArray(team) ? team : null;
+            snapshot.teamData = snapshot.teamRef ? snapshot.teamRef.slice() : null;
+            snapshot.afkTeamRef = typeof afkTeam !== "undefined" && Array.isArray(afkTeam) ? afkTeam : null;
+            snapshot.afkTeamData = snapshot.afkTeamRef ? snapshot.afkTeamRef.slice() : null;
+        } catch (e) {}
+        try {
+            snapshot.activeBuffsRef = typeof activeBuffs !== "undefined" && activeBuffs ? activeBuffs : null;
+            snapshot.activeBuffsData = snapshot.activeBuffsRef ? cloneJson(snapshot.activeBuffsRef) : null;
+        } catch (e) {}
+        try {
+            snapshot.slotDataRef = typeof slotData !== "undefined" && slotData ? slotData : null;
+            snapshot.slotDataCopy = snapshot.slotDataRef ? cloneJson(snapshot.slotDataRef) : null;
+            snapshot.slotIndex = typeof currentSlot !== "undefined" ? currentSlot : -1;
+        } catch (e) {}
         return snapshot;
     }
 
@@ -236,6 +255,35 @@
                 _superState = snapshot.superState;
             }
         } catch (e) {}
+        try {
+            if (snapshot.cardsRef && snapshot.cardsData && typeof myCards !== "undefined") {
+                snapshot.cardsRef.splice.apply(snapshot.cardsRef, [0, snapshot.cardsRef.length].concat(snapshot.cardsData));
+                myCards = snapshot.cardsRef;
+            }
+            if (snapshot.teamRef && snapshot.teamData && typeof team !== "undefined") {
+                snapshot.teamRef.splice.apply(snapshot.teamRef, [0, snapshot.teamRef.length].concat(snapshot.teamData));
+                team = snapshot.teamRef;
+            }
+            if (snapshot.afkTeamRef && snapshot.afkTeamData && typeof afkTeam !== "undefined") {
+                snapshot.afkTeamRef.splice.apply(snapshot.afkTeamRef, [0, snapshot.afkTeamRef.length].concat(snapshot.afkTeamData));
+                afkTeam = snapshot.afkTeamRef;
+            }
+            if (snapshot.activeBuffsRef && snapshot.activeBuffsData && typeof activeBuffs !== "undefined") {
+                Object.keys(snapshot.activeBuffsRef).forEach(function (key) {
+                    if (!Object.prototype.hasOwnProperty.call(snapshot.activeBuffsData, key)) delete snapshot.activeBuffsRef[key];
+                });
+                Object.assign(snapshot.activeBuffsRef, snapshot.activeBuffsData);
+                activeBuffs = snapshot.activeBuffsRef;
+            }
+            if (snapshot.slotDataRef && snapshot.slotDataCopy && typeof slotData !== "undefined") {
+                Object.keys(snapshot.slotDataRef).forEach(function (key) {
+                    if (!Object.prototype.hasOwnProperty.call(snapshot.slotDataCopy, key)) delete snapshot.slotDataRef[key];
+                });
+                Object.assign(snapshot.slotDataRef, snapshot.slotDataCopy);
+                slotData = snapshot.slotDataRef;
+                if (snapshot.slotIndex >= 0 && typeof saveGameToSlot === "function") saveGameToSlot(snapshot.slotIndex);
+            }
+        } catch (e) { console.warn("[Joystick training] Не удалось полностью восстановить сохранение:", e); }
         try { if (typeof renderEnemy === "function") renderEnemy(); } catch (e) {}
         try { if (typeof updateStatusDisplay === "function") updateStatusDisplay(); } catch (e) {}
         try { if (typeof updatePlayerStats === "function") updatePlayerStats(); } catch (e) {}
