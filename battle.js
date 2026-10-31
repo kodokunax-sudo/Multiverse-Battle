@@ -4,6 +4,10 @@
 // + ПОДДЕРЖКА ПАССИВКИ БЕЛОУСА (10% поглощение)
 // + ПОДДЕРЖКА ТАКАБЫ (остановка времени / takabaTimeStop)
 
+function isJoystickTrainingMode() {
+    return typeof window !== "undefined" && window.__mbJoystickTrainingMode === true;
+}
+
 let arenaActive = false;
 let arenaBoss = null;
 let arenaHP = 70;
@@ -719,7 +723,8 @@ function getMainCardSpeedForArena() {
 
 function startArena(bossWave) {
     initArenaAudio();
-    var bossTestMode = (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind === "arena") ? window.__mbBossTestMode : null;
+    var trainingMode = isJoystickTrainingMode();
+    var bossTestMode = (!trainingMode && typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind === "arena") ? window.__mbBossTestMode : null;
     var bossIdentityWave = bossTestMode ? Number(bossTestMode.bossWave || bossWave) : bossWave;
     var bossStrengthWave = bossTestMode ? Math.max(50, Math.min(10000, Number(bossTestMode.attackWave) || bossWave)) : bossWave;
     var btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = "none";
@@ -829,12 +834,15 @@ function startArena(bossWave) {
         if (!arenaAllowedTypes.length) arenaAllowedTypes = [0];
     }
     var bt = typeof bossTemplates !== 'undefined' ? bossTemplates[bossIdentityWave] : null;
-    arenaBoss = bossTestMode ? (bossTestMode.bossName || (bt ? bt.name : "ОБЫЧНЫЙ БОСС")) : (bt ? bt.name : "БОСС ВРАТ");
+    arenaBoss = trainingMode ? "ТРЕНИРОВОЧНЫЙ БОСС · БЕССМЕРТЕН" : (bossTestMode ? (bossTestMode.bossName || (bt ? bt.name : "ОБЫЧНЫЙ БОСС")) : (bt ? bt.name : "БОСС ВРАТ"));
     var strengthFactor = Math.max(0.5, 1.0 + (bossStrengthWave - 50) / 100 * 0.5);
     var identityFactor = Math.max(0.5, 1.0 + (bossIdentityWave - 50) / 100 * 0.5);
     arenaBossDmgMult = (bt && bt.dmgMult) ? bt.dmgMult * strengthFactor / identityFactor : strengthFactor;
     arenaBaseDmg = Math.max(2, Math.floor((5 + bossStrengthWave * 1.5) * arenaBossDmgMult / 3));
-    if (bossTestMode) {
+    if (trainingMode) {
+        // A huge fixed health pool is only cosmetic; training attacks never subtract from it.
+        arenaBossMaxHP = 1000000000;
+    } else if (bossTestMode) {
         var idealTestDamage = Math.max(1, Math.floor((Number(window.playerFinalDamage) || 20) * 2.5));
         arenaBossMaxHP = Math.max(5, idealTestDamage * 5);
     } else {
@@ -992,7 +1000,8 @@ function applyArenaDamage() {
             (typeof hasTakaba !== "function" || hasTakaba())) {
             try { if (getTakabaLevel(_superState.takabaConfidence || 0) >= 1) adjustTakabaConfidence(1, false); } catch(e) {}
         }
-        arenaBossMaxHP -= finalDmg; arenaShake = 20; screenFlash = 10; screenFlashColor = "#ffdd00"; arenaShockwaves.push({ x: 200, y: 250, r: 15, v: 14, life: 22, maxLife: 22, color: "rgba(255,255,255,0.9)" }); for (var j = 0; j < 30; j++) { var angle = Math.random() * Math.PI * 2; arenaParticles.push({ x: 200, y: 250, vx: Math.cos(angle) * 10, vy: Math.sin(angle) * 10, life: 35, maxLife: 35, color: "#ffdd00", size: 2 + Math.random() * 5 }); } }
+        if (!isJoystickTrainingMode()) arenaBossMaxHP -= finalDmg;
+        arenaShake = 20; screenFlash = 10; screenFlashColor = "#ffdd00"; arenaShockwaves.push({ x: 200, y: 250, r: 15, v: 14, life: 22, maxLife: 22, color: "rgba(255,255,255,0.9)" }); for (var j = 0; j < 30; j++) { var angle = Math.random() * Math.PI * 2; arenaParticles.push({ x: 200, y: 250, vx: Math.cos(angle) * 10, vy: Math.sin(angle) * 10, life: 35, maxLife: 35, color: "#ffdd00", size: 2 + Math.random() * 5 }); } }
     setTimeout(function() { if (arenaBossMaxHP <= 0) { sfxArenaVictory(); winArena(); return; } startDodgePhase(); }, 1500);
 }
 
@@ -2026,6 +2035,7 @@ function stopArena() {
 }
 
 function winArena() {
+    if (isJoystickTrainingMode()) return;
     if (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind === "arena") {
         stopArena();
         if (typeof window.MBBossTestFinish === "function") window.MBBossTestFinish("win", true);
@@ -2039,6 +2049,14 @@ function winArena() {
 }
 
 function loseArena() {
+    if (isJoystickTrainingMode()) {
+        arenaHP = arenaMaxHP;
+        arenaKarma = 0;
+        invulnTimer = 0;
+        var trainingHp = document.getElementById("arenaHP");
+        if (trainingHp) trainingHp.innerText = Math.ceil(arenaHP);
+        return;
+    }
     if (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind === "arena") {
         stopArena();
         if (typeof window.MBBossTestFinish === "function") window.MBBossTestFinish("loss", true);
@@ -2095,9 +2113,16 @@ function applyHit(dmg, textMsg, isTrueOneshot, ignoreInvulnerability) {
     if (typeof onTakabaDamageTaken === "function") {
         try { onTakabaDamageTaken(dmg); } catch(e) {}
     }
-    if (arenaAttackType !== 10 && !ignoreInvulnerability) invulnTimer = 45;
-    if (isTrueOneshot || dmg >= arenaMaxHP) { arenaHP = 0; }
-    else { var directDmg = 1; var karmaDmg = dmg - directDmg; if (karmaDmg < 0) karmaDmg = 0; arenaHP -= directDmg; arenaKarma += karmaDmg; }
+    if (isJoystickTrainingMode()) {
+        // Preserve hit reactions and passive triggers, but never reduce training HP.
+        arenaHP = arenaMaxHP;
+        arenaKarma = 0;
+        invulnTimer = 0;
+    } else {
+        if (arenaAttackType !== 10 && !ignoreInvulnerability) invulnTimer = 45;
+        if (isTrueOneshot || dmg >= arenaMaxHP) { arenaHP = 0; }
+        else { var directDmg = 1; var karmaDmg = dmg - directDmg; if (karmaDmg < 0) karmaDmg = 0; arenaHP -= directDmg; arenaKarma += karmaDmg; }
+    }
     arenaHitFlash = 12; arenaShake = 18; sfxArenaHit(); screenFlash = 6; screenFlashColor = "#ff4444"; arenaVignette = 15;
     arenaShockwaves.push({ x: heart.x, y: heart.y, r: 5, v: 5, life: 20, maxLife: 20, color: "rgba(255,50,50,0.8)" });
     spawnFloatingText(heart.x, heart.y - 20, textMsg || "-" + dmg, "#ff3333"); document.getElementById("arenaHP").innerText = Math.max(0, Math.ceil(arenaHP));
