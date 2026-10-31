@@ -340,7 +340,7 @@ function getBossContext() {
                 setBossMaxHp: function(v) { arenaBossMaxHP = v; },
                 getBossHp: function() { return arenaBossMaxHP; },
                 getPlayerHp: function() { return arenaHP; },
-                setPlayerHp: function(v) { arenaHP = v; },
+                setPlayerHp: function(v) { arenaHP = window.__mbJoystickTrainingMode ? arenaMaxHP : v; },
                 getPlayerMaxHp: function() { return arenaMaxHP; },
                 addShake: function(v) { arenaShake = Math.max(arenaShake || 0, v); },
                 addFlash: function(v, color) { screenFlash = v; if (color) screenFlashColor = color; },
@@ -586,6 +586,7 @@ function getBossContext() {
 // Единая точка урона для способностей: уважает нативную логику фаз каждого босса.
 function applyBossDamageToContext(ctxB, rawDamage, source) {
     if (!ctxB || typeof ctxB.getBossHp !== "function") return 0;
+    if (window.__mbJoystickTrainingMode && ctxB.type === "arena") return 0;
     var damage = Math.max(0, Math.floor(Number(rawDamage) || 0));
     if (!damage) return 0;
     var before = Math.max(0, Number(ctxB.getBossHp()) || 0);
@@ -663,6 +664,7 @@ window.MBApplyBossDamage = applyBossDamageToContext;
 
 function healBossInContext(ctxB, rawHeal) {
     if (!ctxB) return 0;
+    if (window.__mbJoystickTrainingMode && ctxB.type === "arena") return 0;
     var amount = Math.max(0, Math.floor(Number(rawHeal) || 0));
     if (!amount) return 0;
     if (ctxB.type === "arena") {
