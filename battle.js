@@ -733,7 +733,7 @@ function startArena(bossWave) {
     var superBtn2 = document.getElementById("superBtn2"); if (superBtn2) superBtn2.style.display = "none";
     var superBtnDeact = document.getElementById("superBtnDeactivate"); if (superBtnDeact) superBtnDeact.style.display = "none";
 
-    arenaBossDefeatedBefore = !bossTestMode && (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossIdentityWave));
+    arenaBossDefeatedBefore = !trainingMode && !bossTestMode && (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossIdentityWave));
     arenaActive = true; arenaCurrentWave = bossIdentityWave; arenaExtendedState = null; calculateArenaHP();
     antiSpiralGravityVelocity = 0;
     antiSpiralJumpCooldown = 0;
@@ -856,7 +856,7 @@ function startArena(bossWave) {
     document.getElementById("arenaHP").innerText = Math.ceil(arenaHP);
     document.getElementById("arenaTimer").innerText = "∞";
     var skipBossBtn = document.getElementById("skipBossBtn");
-    if (skipBossBtn) skipBossBtn.style.display = bossTestMode ? "none" : (arenaBossDefeatedBefore ? "block" : "none");
+    if (skipBossBtn) skipBossBtn.style.display = (trainingMode || bossTestMode) ? "none" : (arenaBossDefeatedBefore ? "block" : "none");
     if (typeof initSuperState === 'function') initSuperState();
     updateTakabaConfidenceDisplay();
     if (typeof updateWhitebeardSkillButton === 'function') updateWhitebeardSkillButton();
