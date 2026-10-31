@@ -97,7 +97,7 @@ let arenaSettings = {
     mobileControlY: 3,
     joystickSize: 100,
     joystickOpacity: 60,
-    joystickPositionX: 18,
+    joystickPositionX: 24,
     joystickPositionY: 80,
     joystickFixedPosition: true,
     joystickLayouts: [null, null, null],
@@ -981,7 +981,7 @@ function loadArenaSettings() {
             arenaSettings.mobileControlPosition = s.mobileControlPosition ?? "left";
             arenaSettings.joystickSize = s.joystickSize ?? 100;
             arenaSettings.joystickOpacity = s.joystickOpacity ?? 60;
-            arenaSettings.joystickPositionX = Math.max(8, Math.min(92, Number(s.joystickPositionX ?? 18)));
+            arenaSettings.joystickPositionX = Math.max(8, Math.min(92, Number(s.joystickPositionX ?? 24)));
             arenaSettings.joystickPositionY = Math.max(8, Math.min(92, Number(s.joystickPositionY ?? 80)));
             arenaSettings.joystickFixedPosition = s.joystickFixedPosition !== false;
             arenaSettings.joystickLayouts = Array.isArray(s.joystickLayouts) ? s.joystickLayouts.slice(0, 3) : [null, null, null];
@@ -1163,7 +1163,7 @@ function resetArenaSettings() {
         mobileControlY: 3,
         joystickSize: 100,
         joystickOpacity: 60,
-        joystickPositionX: 18,
+        joystickPositionX: 24,
         joystickPositionY: 80,
         joystickFixedPosition: true,
         joystickLayouts: [null, null, null],
