@@ -29,7 +29,7 @@
     }
     function currentLayout(s) {
         return {
-            x: clamp(s.joystickPositionX == null ? 18 : s.joystickPositionX, 8, 92),
+            x: clamp(s.joystickPositionX == null ? 24 : s.joystickPositionX, 8, 92),
             y: clamp(s.joystickPositionY == null ? 80 : s.joystickPositionY, 8, 92),
             size: clamp(s.joystickSize == null ? 100 : s.joystickSize, 60, 160),
             opacity: clamp(s.joystickOpacity == null ? 60 : s.joystickOpacity, 20, 100),
@@ -60,6 +60,7 @@
         saveSettings();
         renderPresetSettings();
         setNotice(noticeElement, "Раскладка " + (index + 1) + " сохранена", "#8dffc2");
+        if (activeSession && activeSession.renderPresetButtons) activeSession.renderPresetButtons();
         notify("💾 Раскладка джойстика " + (index + 1) + " сохранена", "#8dffc2");
         return true;
     }
@@ -387,7 +388,7 @@
         if (!session || !session.canvas || !session.preview) return;
         var s = settings();
         var rect = session.canvas.getBoundingClientRect();
-        var x = rect.left + rect.width * clamp(s.joystickPositionX == null ? 18 : s.joystickPositionX, 8, 92) / 100;
+        var x = rect.left + rect.width * clamp(s.joystickPositionX == null ? 24 : s.joystickPositionX, 8, 92) / 100;
         var y = rect.top + rect.height * clamp(s.joystickPositionY == null ? 80 : s.joystickPositionY, 8, 92) / 100;
         var radius = 80 * clamp(s.joystickSize == null ? 100 : s.joystickSize, 60, 160) / 100;
         var scaleX = rect.width / 400;
@@ -419,6 +420,7 @@
         s.arenaControl = "joystick";
         s.mobileControlStyle = "analog";
         s.joystickFixedPosition = true;
+        saveSettings();
         window.__mbJoystickTrainingMode = true;
         window.__mbJoystickTrainingEditing = true;
         if (typeof window.refreshJoystickSettings === "function") window.refreshJoystickSettings();
@@ -454,7 +456,7 @@
             readPosition: function () {
                 var current = settings();
                 return {
-                    x: clamp(current.joystickPositionX == null ? 18 : current.joystickPositionX, 8, 92),
+                    x: clamp(current.joystickPositionX == null ? 24 : current.joystickPositionX, 8, 92),
                     y: clamp(current.joystickPositionY == null ? 80 : current.joystickPositionY, 8, 92)
                 };
             },
@@ -470,7 +472,7 @@
                         j.active = false; j.touchId = null;
                         j.vectorX = j.vectorY = j.targetVectorX = j.targetVectorY = 0;
                         if (typeof activeSession.canvas !== "undefined") {
-                            j.baseX = activeSession.canvas.width * (Number(settings().joystickPositionX) || 18) / 100;
+                            j.baseX = activeSession.canvas.width * (Number(settings().joystickPositionX) || 24) / 100;
                             j.baseY = activeSession.canvas.height * (Number(settings().joystickPositionY) || 80) / 100;
                             j.knobX = j.baseX; j.knobY = j.baseY;
                         }
