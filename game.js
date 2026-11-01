@@ -2924,11 +2924,33 @@ function handleClick() {
 // ============================================================
 function victory() { 
     let isBoss = wave % 10 === 0; 
+    let karsEvolutionChanged = false;
     if (currentEnemy && mbLastRecordedVictoryEnemy !== currentEnemy) {
         mbLastRecordedVictoryEnemy = currentEnemy;
         mbStatsRecordWaveVictory(isBoss);
         recentCosmicGarouTeam.push(team.some(idx => myCards[idx] && myCards[idx].name === "Космический Гароу"));
         if (recentCosmicGarouTeam.length > 5) recentCosmicGarouTeam = recentCosmicGarouTeam.slice(-5);
+
+        // Карс накапливает эволюцию только за уникальную победу и только пока находится в активной команде.
+        team.forEach(idx => {
+            const karsCard = myCards[idx];
+            const karsAbility = karsCard && karsCard.ability;
+            if (!karsCard || !karsAbility || karsAbility.type !== "karsEvolutionOnWave") return;
+            if (typeof hasMasteryAbility === "function" && !hasMasteryAbility(karsCard)) return;
+
+            const hpGrowth = Math.max(0, Number(karsAbility.hpGrowth) || 0);
+            const damageGrowth = Math.max(0, Number(karsAbility.damageGrowth) || 0);
+            const speedGrowth = Math.max(0, Number(karsAbility.speedGrowth) || 0);
+            const maxSpeed = Math.max(0, Number(karsAbility.maxSpeed) || 12);
+
+            if (hpGrowth > 0) karsCard.hp = Math.max(0, Number(karsCard.hp) || 0) * (1 + hpGrowth);
+            if (damageGrowth > 0) karsCard.damage = Math.max(0, Number(karsCard.damage) || 0) * (1 + damageGrowth);
+            if (speedGrowth > 0) {
+                const currentSpeed = Math.max(0, Number(karsCard.speed) || 0);
+                karsCard.speed = Math.min(maxSpeed, currentSpeed * (1 + speedGrowth));
+            }
+            karsEvolutionChanged = true;
+        });
     }
     let rew = isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); 
     points += rew; 
@@ -3000,7 +3022,8 @@ function victory() {
     generateEnemy(); 
     renderPoints(); 
     updatePlayerStats(); 
-    renderTeam(); 
+    renderTeam();
+    if (karsEvolutionChanged && typeof renderMyCards === "function") renderMyCards();
     checkAchievements(); 
     saveAll(); 
 }
