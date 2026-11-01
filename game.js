@@ -1042,19 +1042,27 @@ function loadGameData(d) {
     window.waystarOwesDebt = sparedWaystar;
     if (window.MBPatches) window.MBPatches.load(Array.isArray(d.unlockedPatches) ? d.unlockedPatches : []);
     myCards = d.myCards || [];
-    // Миграция уже сохранённых обычных Карсов со старой пассивки на эволюцию.
-    // Текущие HP, урон и скорость экземпляра сохраняются без изменений.
+    // Миграция сохранённых обычных Карсов на актуальные параметры эволюции.
+    // Накопленные HP, урон и скорость экземпляра не сбрасываются.
     myCards.forEach(function(card) {
-        if (!card || card.name !== "Карс (обычная форма)" ||
-            !card.ability || card.ability.type !== "healOnWin") return;
-        card.ability = {
-            type: "karsEvolutionOnWave",
-            hpGrowth: 0.005,
-            damageGrowth: 0.003,
-            speedGrowth: 0.001,
-            maxSpeed: 12,
-            desc: "За каждую победу: +0.5% HP, +0.3% урона и +0.1% скорости (макс. 12)"
-        };
+        if (!card || card.name !== "Карс (обычная форма)") return;
+        if (!card.ability) card.ability = {};
+        if (card.ability.type === "healOnWin") {
+            card.ability = {
+                type: "karsEvolutionOnWave",
+                hpGrowth: 0.004,
+                damageGrowth: 0.003,
+                speedGrowth: 0.001,
+                maxSpeed: 12,
+                desc: "За каждую победу: +0.4% HP, +0.3% урона и +0.1% скорости (макс. 12)"
+            };
+        } else if (card.ability.type === "karsEvolutionOnWave") {
+            card.ability.hpGrowth = 0.004;
+            card.ability.damageGrowth = 0.003;
+            card.ability.speedGrowth = 0.001;
+            card.ability.maxSpeed = 12;
+            card.ability.desc = "За каждую победу: +0.4% HP, +0.3% урона и +0.1% скорости (макс. 12)";
+        }
     }); 
     myCards.forEach(function(card) {
         if (!card || !card.name || typeof customCardTemplates === "undefined") return;
