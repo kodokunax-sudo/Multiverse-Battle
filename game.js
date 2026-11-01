@@ -270,7 +270,7 @@ function saveGameToSlot(slot) {
     }
 }
 
-// ========== ОБЛАЧНОЕ СОХРАНЕНИЕ (ОДНО НА АККАУНТ) ==========
+// ========== ОБЛАЧНОЕ СОХРАНЕНИЕ (ОТДЕЛЬНО ДЛЯ КАЖДОГО СЛОТА) ==========
 let mbCloudSyncReadyForUser = null;
 let mbCloudRecoveryPendingSlot = null;
 let mbCloudSyncBusy = false;
@@ -438,7 +438,7 @@ function mbPutCloudSaveInLocalSlot(saveData, userId, cloudRow, targetSlot) {
 }
 async function mbWriteCurrentSaveToCloud(localSave, userId, expectedUpdatedAt, targetSlot) {
     targetSlot = Number.isInteger(targetSlot) ? targetSlot : currentSlot;
-    var result = await window.MBClans.writeCloudSave(localSave, expectedUpdatedAt || null);
+    var result = await window.MBClans.writeCloudSave(localSave, expectedUpdatedAt || null, targetSlot);
     var row = { save_data: localSave, updated_at: result.updated_at, revision: result.revision };
     mbWriteCloudMarker(targetSlot, userId, localSave, row);
     mbCloudSyncReadyForUser = targetSlot === currentSlot ? userId : null;
@@ -493,7 +493,7 @@ async function mbSyncCloudSave(action) {
         }
         var localFingerprint = mbCloudFingerprint(localSave);
         var marker = mbReadCloudMarker(targetSlot);
-        var cloudRow = await api.getCloudSave();
+        var cloudRow = await api.getCloudSave(targetSlot);
         var cloudFingerprint = cloudRow && mbValidateCloudSave(cloudRow.save_data)
             ? mbCloudFingerprint(cloudRow.save_data)
             : null;
@@ -533,7 +533,7 @@ async function mbSyncCloudSave(action) {
                 return;
             }
             if (cloudRow && cloudFingerprint !== localFingerprint &&
-                !window.confirm('Заменить единственное облачное сохранение прогрессом из слота ' + (targetSlot + 1) + '?')) {
+                !window.confirm('Заменить облачное сохранение этого слота прогрессом из слота ' + (targetSlot + 1) + '?')) {
                 mbCloudStatus('Отправка отменена. Прогресс не изменён.', 'info');
                 return;
             }
