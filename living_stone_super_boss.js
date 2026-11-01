@@ -991,6 +991,10 @@
         // Start the spared Waystar companion directly at the chase-to-phase-two transition.
         if (ls2ChaseStarAid && typeof window.MBStartWaystarCompanionSupport==="function") {
             window.MBStartWaystarCompanionSupport();
+            // Activate her immediately after the runner has switched Prime to phase two.
+            if (typeof window.MBUpdateWaystarCompanion==="function") {
+                try { window.MBUpdateWaystarCompanion(); } catch(e) {}
+            }
         }
         ls2StarAssistActive = false;
         if (ls2ChaseStarAid) {
