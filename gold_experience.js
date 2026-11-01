@@ -1142,9 +1142,68 @@
         return true;
     }
 
+    function beginCompanionSealPunch(ctx, seal) {
+        if (!ctx || ctx.type !== "antispiral" || !seal || state.punch || state.combo ||
+            state.attackCooldown > 0) return false;
+        var dx = Number(seal.x) - state.x;
+        var dy = Number(seal.y) - state.y;
+        var distance = Math.hypot(dx, dy);
+        if (distance < 14 || distance > 104) return false;
+        var angle = Math.atan2(dy, dx);
+        state.punchHand = (Number(state.punchHand) || 1) * -1;
+        state.punch = {
+            targetType: "antispiral", targetId: null,
+            targetX: Number(seal.x), targetY: Number(seal.y),
+            angle: angle, side: state.punchHand,
+            startedAt: now(), duration: 235, damage: 0.5,
+            hitDone: false, antiSpiralSeal: true, sealIndex: Number(seal.index)
+        };
+        state.attackCooldown = 32;
+        state.attackUntil = now() + 235;
+        state.attackType = "sealPunch";
+        state.lastAttackType = "sealPunch";
+        state.facing = Math.cos(angle) < 0 ? -1 : 1;
+        return true;
+    }
+
     function updateCompanionPunch(ctx, current) {
         var punch = state.punch;
         if (!punch || !ctx) return;
+        if (punch.antiSpiralSeal && ctx.type === "antispiral") {
+            var sealInfo = typeof window.getAntiSpiralBossCompanionInfo === "function"
+                ? window.getAntiSpiralBossCompanionInfo() : null;
+            var activeSeals = sealInfo && Array.isArray(sealInfo.seals) ? sealInfo.seals : [];
+            var activeSeal = null;
+            for (var si = 0; si < activeSeals.length; si++) {
+                if (activeSeals[si] && activeSeals[si].index === punch.sealIndex) {
+                    activeSeal = activeSeals[si];
+                    break;
+                }
+            }
+            if (!activeSeal) {
+                state.punch = null;
+                state.attackType = null;
+                state.antiSpiralSealTargetIndex = null;
+                return;
+            }
+            punch.targetX = Number(activeSeal.x);
+            punch.targetY = Number(activeSeal.y);
+            punch.angle = Math.atan2(punch.targetY - state.y, punch.targetX - state.x);
+            state.facing = Math.cos(punch.angle) < 0 ? -1 : 1;
+            var sealElapsed = current - punch.startedAt;
+            if (!punch.hitDone && sealElapsed >= 92) {
+                if (typeof window.damageAntiSpiralSeal === "function") {
+                    window.damageAntiSpiralSeal(punch.sealIndex, 0.5);
+                }
+                punch.hitDone = true;
+                spawnPunchEffect(punch.targetX, punch.targetY, punch.angle, false);
+            }
+            if (sealElapsed >= punch.duration) {
+                state.punch = null;
+                if (state.attackType === "sealPunch") state.attackType = null;
+            }
+            return;
+        }
         if (punch.targetType !== ctx.type) {
             state.punch = null;
             return;
@@ -1228,21 +1287,85 @@
             state.antiSpiralGravityDirection = direction;
             state.antiSpiralGrounded = false;
             state.antiSpiralPlatformIndex = null;
+            state.antiSpiralRoutePlatformIndex = null;
         }
 
         // AI direction is the equivalent of a joystick vector aimed at its own combat goal.
+        // Route toward real intermediate platforms when the destination is on a higher level.
+        var destinationX = state.antiSpiralSealTargetIndex != null &&
+            Number.isFinite(Number(state.antiSpiralSealGoalX))
+            ? Number(state.antiSpiralSealGoalX) : Number(state.moveTargetX);
+        var destinationY = state.antiSpiralSealTargetIndex != null &&
+            Number.isFinite(Number(state.antiSpiralSealGoalY))
+            ? Number(state.antiSpiralSealGoalY) : Number(state.moveTargetY);
+        if (!Number.isFinite(destinationX)) destinationX = Number(info.boss && info.boss.x) || 200;
+        if (!Number.isFinite(destinationY)) destinationY = Number(info.boss && info.boss.y) || 135;
+        var normalX = -gravity.x, normalY = -gravity.y;
+        var tangentX = -gravity.y, tangentY = gravity.x;
+        var currentHeight = state.x * normalX + state.y * normalY;
+        var destinationHeight = destinationX * normalX + destinationY * normalY;
+        var destinationTangent = destinationX * tangentX + destinationY * tangentY;
+        var routeIdentity = state.antiSpiralSealTargetIndex != null
+            ? Number(state.antiSpiralSealTargetIndex) : -1;
+        if (state.antiSpiralRouteIdentity !== routeIdentity) {
+            state.antiSpiralRouteIdentity = routeIdentity;
+            state.antiSpiralRoutePlatformIndex = null;
+        }
+        if (state.antiSpiralGrounded && state.antiSpiralRoutePlatformIndex != null &&
+            state.antiSpiralPlatformIndex === state.antiSpiralRoutePlatformIndex) {
+            state.antiSpiralRoutePlatformIndex = null;
+        }
+
+        var routePlatform = null;
+        if (!state.antiSpiralGrounded && state.antiSpiralRoutePlatformIndex != null) {
+            for (var ri = 0; ri < platforms.length; ri++) {
+                if (platforms[ri] && platforms[ri].index === state.antiSpiralRoutePlatformIndex) {
+                    routePlatform = platforms[ri];
+                    break;
+                }
+            }
+            if (!routePlatform) state.antiSpiralRoutePlatformIndex = null;
+        }
+        if (state.antiSpiralGrounded && destinationHeight > currentHeight + radius * 1.6) {
+            var bestRouteScore = Infinity;
+            for (var pi = 0; pi < platforms.length; pi++) {
+                var candidate = platforms[pi];
+                if (!candidate || candidate.index === state.antiSpiralPlatformIndex) continue;
+                var centerX = Number(candidate.x) + Number(candidate.w) / 2;
+                var centerY = Number(candidate.y) + Number(candidate.h) / 2;
+                var candidateHeight = centerX * normalX + centerY * normalY;
+                var heightGain = candidateHeight - currentHeight;
+                if (heightGain < radius * 1.4 || heightGain > 250) continue;
+                if (candidateHeight > destinationHeight + 58) continue;
+                var candidateTangent = centerX * tangentX + centerY * tangentY;
+                var surfaceDistance = Math.hypot(centerX - destinationX, centerY - destinationY);
+                var score = surfaceDistance + Math.abs(destinationHeight - candidateHeight) * 0.24 +
+                    Math.abs(destinationTangent - candidateTangent) * 0.10;
+                if (score < bestRouteScore) {
+                    bestRouteScore = score;
+                    routePlatform = candidate;
+                }
+            }
+            if (routePlatform) state.antiSpiralRoutePlatformIndex = routePlatform.index;
+        }
+
         var goalX = Number(state.moveTargetX);
         var goalY = Number(state.moveTargetY);
-        if (!Number.isFinite(goalX)) goalX = Number(info.boss && info.boss.x) || 200;
-        if (!Number.isFinite(goalY)) goalY = Number(info.boss && info.boss.y) || 135;
+        if (routePlatform && destinationHeight > currentHeight + radius * 1.6) {
+            goalX = Number(routePlatform.x) + Number(routePlatform.w) / 2 + normalX * (radius + 12);
+            goalY = Number(routePlatform.y) + Number(routePlatform.h) / 2 + normalY * (radius + 12);
+        }
+        if (!Number.isFinite(goalX)) goalX = destinationX;
+        if (!Number.isFinite(goalY)) goalY = destinationY;
         var dx = goalX - state.x, dy = goalY - state.y;
         var inputLength = Math.hypot(dx, dy);
         var mx = inputLength > 1 ? dx / inputLength : 0;
         var my = inputLength > 1 ? dy / inputLength : 0;
 
-        // Same opposite-gravity jump input and impulse as the player.
-        var jumpDot = mx * (-gravity.x) + my * (-gravity.y);
-        if (state.antiSpiralGrounded && jumpDot > 0.58) {
+        // A jump is an explicit AI action, even when the next platform is sideways.
+        var jumpDot = mx * normalX + my * normalY;
+        var needsPlatformJump = destinationHeight > currentHeight + radius * 1.6;
+        if (state.antiSpiralGrounded && (needsPlatformJump || jumpDot > 0.58)) {
             var jumpMultiplier = (playerScale === 0.5 ? 0.65 : (playerScale === 2 ? 1.3 : 1)) * superSpeed;
             state.vx = -gravity.x * (23.2 / 1.5) * jumpMultiplier;
             state.vy = -gravity.y * (23.2 / 1.5) * jumpMultiplier;
@@ -1552,6 +1675,32 @@
         if (state.attackCooldown > 0) state.attackCooldown = Math.max(0, state.attackCooldown - frameScale);
         if (state.swingTimer > 0) state.swingTimer = Math.max(0, state.swingTimer - frameScale);
 
+        var sealTarget = null;
+        if (antiInfo && !cloneMode && Array.isArray(antiInfo.seals) && antiInfo.seals.length) {
+            for (var asi = 0; asi < antiInfo.seals.length; asi++) {
+                if (antiInfo.seals[asi] &&
+                    antiInfo.seals[asi].index === state.antiSpiralSealTargetIndex) {
+                    sealTarget = antiInfo.seals[asi];
+                    break;
+                }
+            }
+            if (!sealTarget) {
+                var nearestSealDistance = Infinity;
+                for (var asn = 0; asn < antiInfo.seals.length; asn++) {
+                    var possibleSeal = antiInfo.seals[asn];
+                    if (!possibleSeal) continue;
+                    var possibleDistance = Math.hypot(possibleSeal.x - state.x, possibleSeal.y - state.y);
+                    if (possibleDistance < nearestSealDistance) {
+                        nearestSealDistance = possibleDistance;
+                        sealTarget = possibleSeal;
+                    }
+                }
+                state.antiSpiralSealTargetIndex = sealTarget ? sealTarget.index : null;
+            }
+        } else {
+            state.antiSpiralSealTargetIndex = null;
+        }
+
         var goal;
         if (cloneMode) {
             var cloneGravity = antiInfo.gravity || { x: 0, y: 1 };
@@ -1562,8 +1711,20 @@
                 x: Math.max(18, Math.min(382, playerX + cloneTangentX * cloneSide * 20)),
                 y: Math.max(8, Math.min(482, playerY + cloneTangentY * cloneSide * 20))
             };
+        } else if (sealTarget) {
+            var fromSealX = state.x - Number(sealTarget.x);
+            var fromSealY = state.y - Number(sealTarget.y);
+            var fromSealLength = Math.max(1, Math.hypot(fromSealX, fromSealY));
+            goal = {
+                x: Math.max(18, Math.min(382, Number(sealTarget.x) + fromSealX / fromSealLength * 46)),
+                y: Math.max(8, Math.min(482, Number(sealTarget.y) + fromSealY / fromSealLength * 46))
+            };
+            state.antiSpiralSealGoalX = Number(sealTarget.x);
+            state.antiSpiralSealGoalY = Number(sealTarget.y);
         } else {
             goal = chooseCompanionGoal(ctx, playerX, playerY, boss, frameScale);
+            state.antiSpiralSealGoalX = null;
+            state.antiSpiralSealGoalY = null;
         }
         state.moveTargetX = goal.x;
         state.moveTargetY = goal.y;
@@ -1666,20 +1827,34 @@
 
         var currentTarget = ctx.type === "arena" ? null :
             (getUniqueBossTarget(ctx, state.targetId) || getUniqueBossTarget(ctx));
-        var activePosition = currentTarget || getBossPosition(ctx, state.x, state.y);
+        var activePosition = sealTarget || currentTarget || getBossPosition(ctx, state.x, state.y);
         var attackDistance = Math.hypot(state.x - Number(activePosition.x),
             state.y - Number(activePosition.y));
 
+        if (sealTarget && state.punch && !state.punch.antiSpiralSeal) {
+            state.punch = null;
+            state.combo = null;
+            state.specialAttack = null;
+            state.attackType = null;
+            state.attackUntil = 0;
+        }
         if (!cloneMode && state.healState === "idle" && state.stunTimer <= 0) {
-            if (state.combo) {
-                updateMudaCombo(ctx);
-            } else if (state.punch) {
+            if (state.punch) {
                 if (dodging) {
                     state.punch = null;
-                    if (state.attackType === "punch") state.attackType = null;
+                    if (state.attackType === "punch" || state.attackType === "sealPunch") state.attackType = null;
                 } else {
                     updateCompanionPunch(ctx, current);
                 }
+            } else if (sealTarget) {
+                state.combo = null;
+                state.specialAttack = null;
+                if (!dodging && state.attackCooldown <= 0 &&
+                    attackDistance >= 14 && attackDistance <= 104) {
+                    beginCompanionSealPunch(ctx, sealTarget);
+                }
+            } else if (state.combo) {
+                updateMudaCombo(ctx);
             } else if (!dodging && !state.specialAttack && (ctx.type === "arena" || currentTarget)) {
                 if (current >= (Number(state.nextMudaAt) || 0) && attackDistance >= 72 && attackDistance <= 184) {
                     beginMudaCombo(ctx, currentTarget, currentCard());
