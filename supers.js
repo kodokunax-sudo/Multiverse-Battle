@@ -93,6 +93,7 @@ let _superState = {
     karsRegenNextAt: 0,
     karsSpeedApplied: false,
     karsSpeedBossType: null,
+    karsAdaptationBossType: null,
     allmightPermaSlow: false, allmightDmgMult: 1, allmightBuffTimer: 0, allmightOrigSize: 14, allmightOrigHitbox: 4, allmightShockwave: 0,
     allmightDebuffActive: false, allmightDebuffTimer: 0, allmightDebuffDmgMult: 1,
     allmightHurricane: false, allmightHurricaneTimer: 0, allmightHurricaneAngle: 0,
@@ -1627,9 +1628,8 @@ window.tickWhitebeardRegen = tickWhitebeardRegen;
 function isKarsSupremeMainActive() {
     try {
         var card = typeof getMainCard === "function" ? getMainCard() : null;
-        if (!card && typeof getSecretHeartMainCardName === "function") {
-            return getSecretHeartMainCardName() === "Карс (Высшее существо)";
-        }
+        if (typeof getSecretHeartMainCardName === "function" &&
+            getSecretHeartMainCardName() === "Карс (Высшее существо)") return true;
         return !!(card && card.name === "Карс (Высшее существо)" &&
             card.superAbility && card.superAbility.passive === true);
     } catch (e) { return false; }
@@ -1650,6 +1650,7 @@ function clearKarsAdaptationState() {
     _superState.karsRegenNextAt = 0;
     _superState.karsSpeedApplied = false;
     _superState.karsSpeedBossType = null;
+    _superState.karsAdaptationBossType = null;
 }
 
 window.MBResetKarsAdaptation = function() {
@@ -1662,6 +1663,21 @@ window.MBResetKarsAdaptation = function() {
 function tickKarsAdaptation(ctxB) {
     if (typeof _superState === "undefined") return;
     var now = getKarsAdaptationNow();
+    var activeBossType = ctxB && ctxB.type ? String(ctxB.type) : null;
+
+    // Не переносим накопленную адаптацию из одного боя в другой.
+    if (_superState.karsAdaptationInitialized && activeBossType &&
+        _superState.karsAdaptationBossType &&
+        _superState.karsAdaptationBossType !== activeBossType) {
+        _superState.karsAdaptationInitialized = false;
+        _superState.karsAdaptationLastDamageAt = 0;
+        _superState.karsAdaptationStreakStartAt = 0;
+        _superState.karsAdaptationActive = false;
+        _superState.karsDamageBonusActive = false;
+        _superState.karsRegenNextAt = 0;
+        _superState.karsSpeedApplied = false;
+        _superState.karsSpeedBossType = null;
+    }
 
     if (!isKarsSupremeMainActive()) {
         if (_superState.karsSpeedApplied && ctxB &&
@@ -1682,7 +1698,10 @@ function tickKarsAdaptation(ctxB) {
         _superState.karsDamageBonusActive = false;
         _superState.karsRegenNextAt = 0;
         _superState.karsSpeedApplied = false;
-        _superState.karsSpeedBossType = ctxB ? ctxB.type : null;
+        _superState.karsSpeedBossType = null;
+        _superState.karsAdaptationBossType = activeBossType;
+    } else if (activeBossType && !_superState.karsAdaptationBossType) {
+        _superState.karsAdaptationBossType = activeBossType;
     }
 
     var lastHitAt = Number(_superState.karsAdaptationLastDamageAt) || now;
@@ -1723,7 +1742,7 @@ function tickKarsAdaptation(ctxB) {
         var maxHp = Math.max(1, Number(ctxB.getPlayerMaxHp()) || 1);
         var currentHp = Math.max(0, Number(ctxB.getPlayerHp()) || 0);
         var capHp = maxHp * 0.40;
-        if (currentHp < capHp) {
+        if (currentHp > 0 && currentHp < capHp) {
             if (!(Number(_superState.karsRegenNextAt) > 0)) {
                 _superState.karsRegenNextAt = now + 4000;
             } else if (now >= _superState.karsRegenNextAt) {
@@ -1786,7 +1805,7 @@ window.MBKarsProcessIncomingDamage = function(rawDamage) {
 
     var ctxB = typeof getBossContext === "function" ? getBossContext() : null;
     tickKarsAdaptation(ctxB);
-    // Условные 35% адаптации применяются дополнительно к постоянным 22%.
+    // Условное снижение адаптации применяется к каждому попаданию в активной серии.
     return _superState.karsAdaptationActive ? Math.max(1, Math.floor(damage * 0.65)) : damage;
 };
 
@@ -1797,6 +1816,26 @@ window.MBKarsApplyDamageBonus = function(rawDamage) {
     tickKarsAdaptation(ctxB);
     return _superState.karsDamageBonusActive ? Math.max(1, Math.floor(damage * 1.5)) : damage;
 };
+
+// Единый таймер обновляет адаптацию во всех типах боёв, даже когда в этот
+// момент игрок не получает урон и не стреляет: скорость спадает вовремя,
+// бонус урона включается через 8 секунд, а лечение идёт каждые 4 секунды.
+if (typeof window !== "undefined" && typeof window.setInterval === "function" &&
+    !window.__mbKarsAdaptationInterval) {
+    window.__mbKarsAdaptationInterval = window.setInterval(function() {
+        try {
+            var activeContext = typeof getBossContext === "function" ? getBossContext() : null;
+            if (activeContext) {
+                tickKarsAdaptation(activeContext);
+            } else if (typeof _superState !== "undefined" &&
+                (_superState.karsAdaptationInitialized || _superState.karsAdaptationActive ||
+                 _superState.karsDamageBonusActive || _superState.karsSpeedApplied ||
+                 Number(_superState.karsRegenNextAt) > 0)) {
+                clearKarsAdaptationState();
+            }
+        } catch (e) {}
+    }, 100);
+}
 
 function restoreArenaTimer() {
     if (typeof arenaDodgeTimerInterval !== 'undefined' && arenaDodgeTimerInterval) clearInterval(arenaDodgeTimerInterval);
