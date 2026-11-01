@@ -1750,9 +1750,27 @@ function tickKarsAdaptation(ctxB) {
 }
 window.MBKarsAdaptationTick = tickKarsAdaptation;
 
+function isKarsSupremeBaseReductionActive() {
+    try {
+        var card = typeof getMainCard === "function" ? getMainCard() : null;
+        if (card) {
+            return card.name === "Карс (Высшее существо)" &&
+                (typeof hasMasteryAbility !== "function" || hasMasteryAbility(card));
+        }
+        return typeof getSecretHeartMainCardName === "function" &&
+            getSecretHeartMainCardName() === "Карс (Высшее существо)";
+    } catch (e) { return false; }
+}
+
 window.MBKarsProcessIncomingDamage = function(rawDamage) {
     var damage = Math.max(0, Number(rawDamage) || 0);
-    if (damage <= 0 || !isKarsSupremeMainActive() || typeof _superState === "undefined") return damage;
+    if (damage <= 0 || !isKarsSupremeMainActive()) return damage;
+
+    // Постоянные −22% работают как базовая пассивка с 4-го уровня мастерства.
+    if (isKarsSupremeBaseReductionActive()) {
+        damage = Math.max(1, Math.floor(damage * 0.78));
+    }
+    if (typeof _superState === "undefined") return damage;
 
     var now = getKarsAdaptationNow();
     if (!_superState.karsAdaptationInitialized) {
@@ -1771,6 +1789,7 @@ window.MBKarsProcessIncomingDamage = function(rawDamage) {
 
     var ctxB = typeof getBossContext === "function" ? getBossContext() : null;
     tickKarsAdaptation(ctxB);
+    // Условные 35% адаптации применяются дополнительно к постоянным 22%.
     return _superState.karsAdaptationActive ? Math.max(1, Math.floor(damage * 0.65)) : damage;
 };
 
