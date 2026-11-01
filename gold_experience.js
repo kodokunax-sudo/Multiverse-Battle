@@ -10,6 +10,7 @@
     var GE_LIFE_SPEED = 1.25;
     var GE_MUDA_DURATION = 4000;
     var GE_MUDA_HITS = 30;
+    var GE_COMPANION_DAMAGE_RATE = 0.002;
     var GE_MUDA_SOUND = "music/susmanz.mp3";
     var GER_DURATION = 5000;
     var GER_CHARGES = 2;
@@ -760,6 +761,20 @@
             };
         }
 
+        if (ctx.type === "antispiral" &&
+            typeof window.getAntiSpiralBossCompanionInfo === "function") {
+            var antiInfo = window.getAntiSpiralBossCompanionInfo();
+            if (antiInfo && antiInfo.state === "fight" && antiInfo.gravity) {
+                var tangentX = -antiInfo.gravity.y;
+                var tangentY = antiInfo.gravity.x;
+                var side = Number(state.companionSide) || 1;
+                return {
+                    x: Math.max(18, Math.min(382, playerX + tangentX * side * 25)),
+                    y: Math.max(8, Math.min(482, playerY + tangentY * side * 25))
+                };
+            }
+        }
+
         var bossX = Number(boss && boss.x);
         var bossY = Number(boss && boss.y);
         if (Number.isFinite(bossX) && Number.isFinite(bossY)) {
@@ -971,7 +986,7 @@
         if (ctx.type !== "arena" && !target) return false;
         var current = now();
         var maxHp = getAttackBossMaxHp(ctx, target);
-        var damagePerHit = Math.max(1, Math.ceil(maxHp * 0.003));
+        var damagePerHit = Math.max(1, Math.ceil(maxHp * GE_COMPANION_DAMAGE_RATE));
         var total = damagePerHit * GE_MUDA_HITS;
         var comboDuration = GE_MUDA_DURATION;
         var boss = target || getBossPosition(ctx, state.x, state.y);
@@ -1030,7 +1045,7 @@
             combo.hitIndex++;
             state.attackFrame = combo.hitIndex;
             var hitDamage = Math.max(1, Number(combo.damagePerHit) ||
-                Math.ceil(getAttackBossMaxHp(ctx, target) * 0.003));
+                Math.ceil(getAttackBossMaxHp(ctx, target) * GE_COMPANION_DAMAGE_RATE));
             applyCompanionBossDamage(ctx, target, hitDamage);
             combo.nextHitAt = combo.startedAt + combo.hitIndex * hitInterval;
             state.attackUntil = current + 145;
@@ -1116,7 +1131,7 @@
             targetType: ctx.type, targetId: target ? target.id : null,
             targetX: Number(boss.x) || state.x, targetY: Number(boss.y) || state.y,
             angle: angle, side: state.punchHand, startedAt: now(), duration: 235,
-            damage: Math.max(1, Math.ceil(maxHp * 0.003)), hitDone: false
+            damage: Math.max(1, Math.ceil(maxHp * GE_COMPANION_DAMAGE_RATE)), hitDone: false
         };
         state.attackCooldown = 24 + Math.floor(Math.random() * 5);
         state.attackUntil = now() + 235;
@@ -1181,6 +1196,166 @@
         spawnHitEffect(playerX, playerY, "#9cffaa");
     }
 
+    function updateAntiSpiralCompanionPhysics(info, playerX, playerY, frameScale, current) {
+        var direction = Math.max(0, Math.min(3, Number(info.gravityDirection) || 0));
+        var gravity = info.gravity || [
+            { x: 0, y: 1 }, { x: -1, y: 0 },
+            { x: 0, y: -1 }, { x: 1, y: 0 }
+        ][direction];
+        var tangentX = -gravity.y;
+        var tangentY = gravity.x;
+        var radius = Math.max(8, Math.min(13, (Number(state.heartSize) || 15) * 0.62));
+        var baseBounds = info.bounds || { left: 12, right: 388, top: 12, bottom: 488 };
+        var edge = Math.max(0, radius - 12);
+        var bounds = {
+            left: baseBounds.left + edge,
+            right: baseBounds.right - edge,
+            top: baseBounds.top + edge,
+            bottom: baseBounds.bottom - edge
+        };
+        var timeScale = Math.max(0.25, Math.min(1, Number(info.timeScale) || 1));
+        var stepScale = frameScale * timeScale;
+        var speedMultiplier = 1;
+        var goalX = Number(state.moveTargetX);
+        var goalY = Number(state.moveTargetY);
+
+        if (!state.antiSpiralPhysicsInitialized) {
+            state.x = Math.max(bounds.left, Math.min(bounds.right, playerX + tangentX * 25));
+            state.y = Math.max(bounds.top, Math.min(bounds.bottom, playerY + tangentY * 25));
+            state.vx = 0;
+            state.vy = 0;
+            state.antiSpiralGrounded = false;
+            state.antiSpiralPlatformIndex = null;
+            state.antiSpiralJumpCooldownUntil = 0;
+            state.antiSpiralPhysicsInitialized = true;
+        }
+
+        if (!Number.isFinite(goalX)) goalX = playerX + tangentX * 25;
+        if (!Number.isFinite(goalY)) goalY = playerY + tangentY * 25;
+        var dx = goalX - state.x;
+        var dy = goalY - state.y;
+        var tangentDistance = dx * tangentX + dy * tangentY;
+        var tangentInput = Math.max(-1, Math.min(1, tangentDistance / 34));
+
+        // If the player reaches a higher platform, the companion jumps against gravity too.
+        var playerAbove = (playerX - state.x) * (-gravity.x) +
+            (playerY - state.y) * (-gravity.y);
+        if (state.antiSpiralGrounded && playerAbove > radius * 2.4 &&
+            current >= (Number(state.antiSpiralJumpCooldownUntil) || 0)) {
+            var jumpPower = (23.2 / 1.5) * Math.max(0.65, Number(info.superSpeed) || 1);
+            state.vx = -gravity.x * jumpPower;
+            state.vy = -gravity.y * jumpPower;
+            state.antiSpiralGrounded = false;
+            state.antiSpiralPlatformIndex = null;
+            state.antiSpiralJumpCooldownUntil = current + 620;
+        }
+
+        var pullX = 0;
+        var pullY = 0;
+        var pulls = Array.isArray(info.pulls) ? info.pulls : [];
+        for (var wi = 0; wi < pulls.length; wi++) {
+            var well = pulls[wi];
+            if (!well) continue;
+            var pullDx = Number(well.x) - state.x;
+            var pullDy = Number(well.y) - state.y;
+            var distance = Math.max(1, Math.hypot(pullDx, pullDy));
+            var pullRadius = Math.max(0, Number(well.radius) || 0);
+            if (pullRadius > 0 && distance < pullRadius) {
+                var force = 1 - distance / pullRadius;
+                var pull = (0.95 + force * 1.35) * force;
+                pullX += pullDx / distance * pull;
+                pullY += pullDy / distance * pull;
+            }
+        }
+
+        var nextVx = (state.vx +
+            (tangentX * tangentInput * 0.43 * speedMultiplier +
+                gravity.x * 0.32 + pullX) * timeScale) * Math.pow(0.91, timeScale);
+        var nextVy = (state.vy +
+            (tangentY * tangentInput * 0.43 * speedMultiplier +
+                gravity.y * 0.32 + pullY) * timeScale) * Math.pow(0.91, timeScale);
+        var tangentLimit = 6.2 * speedMultiplier;
+        var normalLimit = 24.8;
+        state.vx = Math.max(gravity.x ? -normalLimit : -tangentLimit,
+            Math.min(gravity.x ? normalLimit : tangentLimit, nextVx));
+        state.vy = Math.max(gravity.y ? -normalLimit : -tangentLimit,
+            Math.min(gravity.y ? normalLimit : tangentLimit, nextVy));
+
+        var previousX = state.x;
+        var previousY = state.y;
+        state.x += state.vx * stepScale;
+        state.y += state.vy * stepScale;
+
+        var boundaryGrounded = false;
+        if (state.x < bounds.left) {
+            state.x = bounds.left;
+            if (direction === 1) { state.vx = 0; boundaryGrounded = true; }
+            else state.vx = Math.abs(state.vx) * 0.28;
+        }
+        if (state.x > bounds.right) {
+            state.x = bounds.right;
+            if (direction === 3) { state.vx = 0; boundaryGrounded = true; }
+            else state.vx = -Math.abs(state.vx) * 0.28;
+        }
+        if (state.y < bounds.top) {
+            state.y = bounds.top;
+            if (direction === 2) { state.vy = 0; boundaryGrounded = true; }
+            else state.vy = Math.abs(state.vy) * 0.28;
+        }
+        if (state.y > bounds.bottom) {
+            state.y = bounds.bottom;
+            if (direction === 0) { state.vy = 0; boundaryGrounded = true; }
+            else state.vy = -Math.abs(state.vy) * 0.28;
+        }
+
+        var platforms = Array.isArray(info.platforms) ? info.platforms : [];
+        var landed = false;
+        for (var pi = 0; pi < platforms.length; pi++) {
+            var platform = platforms[pi];
+            if (!platform) continue;
+            var overlapX = state.x + radius > platform.x &&
+                state.x - radius < platform.x + platform.w;
+            var overlapY = state.y + radius > platform.y &&
+                state.y - radius < platform.y + platform.h;
+            var hit = false;
+            if (direction === 0 && state.vy > 0 &&
+                previousY + radius <= platform.y + 3 &&
+                state.y + radius >= platform.y && overlapX) {
+                state.y = platform.y - radius;
+                state.vy = 0;
+                hit = true;
+            } else if (direction === 2 && state.vy < 0 &&
+                previousY - radius >= platform.y + platform.h - 3 &&
+                state.y - radius <= platform.y + platform.h && overlapX) {
+                state.y = platform.y + platform.h + radius;
+                state.vy = 0;
+                hit = true;
+            } else if (direction === 1 && state.vx < 0 &&
+                previousX - radius >= platform.x + platform.w - 3 &&
+                state.x - radius <= platform.x + platform.w && overlapY) {
+                state.x = platform.x + platform.w + radius;
+                state.vx = 0;
+                hit = true;
+            } else if (direction === 3 && state.vx > 0 &&
+                previousX + radius <= platform.x + 3 &&
+                state.x + radius >= platform.x && overlapY) {
+                state.x = platform.x - radius;
+                state.vx = 0;
+                hit = true;
+            }
+            if (hit) {
+                state.antiSpiralGrounded = true;
+                state.antiSpiralPlatformIndex = platform.index;
+                landed = true;
+                break;
+            }
+        }
+        if (!landed) {
+            state.antiSpiralGrounded = boundaryGrounded;
+            state.antiSpiralPlatformIndex = boundaryGrounded ? -1 : null;
+        }
+    }
+
     function updateCompanion(dt) {
         if (!state.active || !isGERMain()) return;
         var current = now(), ctx = getContext();
@@ -1188,6 +1363,50 @@
         var frameScale = Math.max(0.35, Math.min(2.2, (Number(dt) || 16.667) / 16.667));
         var playerX = Number(ctx.getHeartX()) || 200;
         var playerY = Number(ctx.getHeartY()) || 400;
+        var antiInfo = ctx.type === "antispiral" &&
+            typeof window.getAntiSpiralBossCompanionInfo === "function"
+            ? window.getAntiSpiralBossCompanionInfo() : null;
+        if (antiInfo && antiInfo.hidden) {
+            state.combo = null;
+            state.punch = null;
+            state.specialAttack = null;
+            state.attackType = null;
+            state.attackUntil = 0;
+            state.punchEffects = [];
+            state.trail = [];
+            state.vx = 0;
+            state.vy = 0;
+            state.isDodging = false;
+            state.antiSpiralPhysicsInitialized = false;
+            stopMudaMusic();
+            return;
+        }
+        if (antiInfo && antiInfo.state !== "fight") {
+            var anchor = antiInfo.player || { x: playerX, y: playerY };
+            var anchorGravity = antiInfo.gravity || { x: 0, y: 1 };
+            var anchorSide = Number(state.companionSide) || 1;
+            var anchorX = -anchorGravity.y * anchorSide;
+            var anchorY = anchorGravity.x * anchorSide;
+            state.x = Math.max(8, Math.min(392, (Number(anchor.x) || 0) + anchorX * 22));
+            state.y = Math.max(8, Math.min(492, (Number(anchor.y) || 0) + anchorY * 22));
+            state.vx = 0;
+            state.vy = 0;
+            state.combo = null;
+            state.punch = null;
+            state.specialAttack = null;
+            state.attackType = null;
+            state.attackUntil = 0;
+            state.punchEffects = [];
+            state.trail = [];
+            state.isDodging = false;
+            state.antiSpiralPhysicsInitialized = false;
+            stopMudaMusic();
+            return;
+        }
+        if (antiInfo && antiInfo.player) {
+            playerX = Number(antiInfo.player.x) || playerX;
+            playerY = Number(antiInfo.player.y) || playerY;
+        }
         var playerHp = Math.max(0, Number(ctx.getPlayerHp && ctx.getPlayerHp()) || 0);
         var playerMaxHp = Math.max(1, Number(ctx.getPlayerMaxHp && ctx.getPlayerMaxHp()) || 1);
         var target = ctx.type === "arena" ? null : getUniqueBossTarget(ctx, state.targetId);
@@ -1268,12 +1487,16 @@
             state.vx = state.vx / currentSpeed * maxSpeed;
             state.vy = state.vy / currentSpeed * maxSpeed;
         }
-        var nextX = state.x + state.vx * frameScale;
-        var nextY = state.y + state.vy * frameScale;
-        state.x = Math.max(18, Math.min(382, nextX));
-        state.y = Math.max(8, Math.min(482, nextY));
-        if (state.x !== nextX) state.vx *= -0.18;
-        if (state.y !== nextY) state.vy *= -0.18;
+        if (antiInfo) {
+            updateAntiSpiralCompanionPhysics(antiInfo, playerX, playerY, frameScale, current);
+        } else {
+            var nextX = state.x + state.vx * frameScale;
+            var nextY = state.y + state.vy * frameScale;
+            state.x = Math.max(18, Math.min(382, nextX));
+            state.y = Math.max(8, Math.min(482, nextY));
+            if (state.x !== nextX) state.vx *= -0.18;
+            if (state.y !== nextY) state.vy *= -0.18;
+        }
 
         if (state.trail) {
             state.trail.push({ x: state.x, y: state.y, life: 10 });
@@ -1514,8 +1737,13 @@
     }
 
     function drawGoldExperience(c) {
-        if (!state.active || !isGERMain()) return;
+        if (!c || !state.active || !isGERMain()) return;
         var current = now(), ctx = getContext();
+        if (ctx && ctx.type === "antispiral" &&
+            typeof window.getAntiSpiralBossCompanionInfo === "function") {
+            var antiInfo = window.getAntiSpiralBossCompanionInfo();
+            if (antiInfo && antiInfo.hidden) return;
+        }
         var size = getCompanionSize(ctx);
         state.heartSize = size;
         var scale = size / 15;
@@ -1678,6 +1906,10 @@
         if (state.combo) drawMudaBarrage(c, current);
         drawPunchEffects(c, current);
     }
+
+    window.MBDrawGoldExperience = function(c) {
+        drawGoldExperience(c || ensureLoopContext());
+    };
 
     function ensureHud() {
         var hud = document.getElementById("mbGoldExperienceHUD");
@@ -2137,7 +2369,10 @@
         if (state.active && isGERMain() && getCombat().active) {
             updateCompanion(dt);
             var c = ensureLoopContext();
-            if (c) drawGoldExperience(c);
+            var activeContext = getContext();
+            if (c && (!activeContext || activeContext.type !== "antispiral")) {
+                drawGoldExperience(c);
+            }
         }
         if (state.gerUntil > current && isGERMain()) updateHUD();
         if (state.active || isGERMain() || state.lifeBurstUntil > current || state.markUntil > current) {
