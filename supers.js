@@ -1766,10 +1766,6 @@ window.MBKarsProcessIncomingDamage = function(rawDamage) {
     var damage = Math.max(0, Number(rawDamage) || 0);
     if (damage <= 0 || !isKarsSupremeMainActive()) return damage;
 
-    // Постоянные −22% работают как базовая пассивка с 4-го уровня мастерства.
-    if (isKarsSupremeBaseReductionActive()) {
-        damage = Math.max(1, Math.floor(damage * 0.78));
-    }
     if (typeof _superState === "undefined") return damage;
 
     var now = getKarsAdaptationNow();
