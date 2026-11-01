@@ -1039,17 +1039,16 @@ function loadGameData(d) {
     Object.keys(slotData).forEach(function (key) { delete slotData[key]; });
     Object.assign(slotData, d);
 
-    // Legacy saves only stored waystarDefeatedThisRun. Treat it as the old
-    // rescue-unlock marker when the newer explicit mercy field is absent.
-    // Newer saves with waystarOwesDebt=false keep that explicit choice.
-    var hasCurrentWaystarMercyField = Object.prototype.hasOwnProperty.call(d, "waystarOwesDebt");
+    // Older saves may already contain waystarOwesDebt=false from an intermediate
+    // build while the original rescue marker waystarDefeatedThisRun is true.
+    // The original marker remains a valid unlock source until rebirth resets it.
     var legacyWaystarCompleted = d.waystarDefeatedThisRun === true ||
         d.waystarDefeatedThisRun === 1 || d.waystarDefeatedThisRun === "true";
-    var sparedWaystar = d.waystarOwesDebt === true ||
+    var explicitWaystarMercy = d.waystarOwesDebt === true ||
         d.waystarOwesDebt === 1 || d.waystarOwesDebt === "true";
-    if (!hasCurrentWaystarMercyField && legacyWaystarCompleted) {
-        sparedWaystar = true;
-        slotData.waystarOwesDebt = true; // migrate once into the persistent mercy field
+    var sparedWaystar = explicitWaystarMercy || legacyWaystarCompleted;
+    if (legacyWaystarCompleted) {
+        slotData.waystarOwesDebt = true; // migrate old saves into the current mercy field
     }
     window.waystarDefeatedThisRun = legacyWaystarCompleted;
     window.waystarOwesDebt = sparedWaystar;
