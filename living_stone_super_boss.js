@@ -1097,14 +1097,8 @@
             livingStoneBoss.x=200; livingStoneBoss.y=108; livingStoneBoss.vx=ls2ChaseStarAid?-1.25:1.15;
         }
         window.__mbLS2AfterChase = true;
-        // Start the spared Waystar companion directly at the chase-to-phase-two transition.
-        if (ls2ChaseStarAid && typeof window.MBStartWaystarCompanionSupport==="function") {
-            window.MBStartWaystarCompanionSupport();
-            // Activate her immediately after the runner has switched Prime to phase two.
-            if (typeof window.MBUpdateWaystarCompanion==="function") {
-                try { window.MBUpdateWaystarCompanion(); } catch(e) {}
-            }
-        }
+        // Waystar's assistance is exclusive to the chase. Do not activate the
+        // arena companion after the runner ends.
         ls2StarAssistActive = false;
         if (ls2ChaseStarAid) {
             ls2StarAssistActive = false; ls2StarAssistCooldown=300; ls2StarAssistFlash=40;
@@ -2305,10 +2299,7 @@
             window.MBSetBossGraphicsModeForFight(graphicsModeChoice);
         }
         ls2StopChaseMusic();
-        // Re-arm the spared Star on every fresh Prime attempt. Visibility still waits for phase two after the chase.
-        if (ls2HasWaystarAid() && typeof window.MBStartWaystarCompanionSupport === "function") {
-            window.MBStartWaystarCompanionSupport();
-        }
+        // The spared Star is summoned by the chase runner only.
         window.__mbLS2RunnerActive = false;
         ls2ChaseTriggered=false; ls2ChaseFrames=0; ls2ChaseDuration=6960; ls2ChaseLane=1;
         window.__mbLS2AfterChase=false;
