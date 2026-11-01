@@ -612,6 +612,10 @@
             return;
         }
         if (typeof window.MBKarsProcessIncomingDamage === "function") amount = window.MBKarsProcessIncomingDamage(amount);
+        if (!standIntercepted && sourceAction && typeof window.MBGoldExperienceRedirectDamage === "function") {
+            var geRedirectedAmount = window.MBGoldExperienceRedirectDamage(amount, typeof getBossContext === "function" ? getBossContext() : null, sourceAction);
+            if (geRedirectedAmount !== null) amount = geRedirectedAmount;
+        }
         asPlayerHp = Math.max(0, asPlayerHp - amount);
         // Полученный урон ставит заряд на паузу на 3 секунды, но накопленная мощь сохраняется.
         asLastDamageAt = asClockNow();
