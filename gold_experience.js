@@ -18,12 +18,6 @@
         active: false,
         activeUntil: 0,
         cooldownUntil: 0,
-        heartHp: 180,
-        heartMaxHp: 180,
-        heartAlive: true,
-        heartRespawnAt: 0,
-        heartInvulnUntil: 0,
-        heartLastHitAt: 0,
         lifeBurstUntil: 0,
         lifeBurstCooldownUntil: 0,
         lifeBurstRestoreSpeed: null,
@@ -53,7 +47,6 @@
         healRemaining: 0,
         healSide: 1,
         healStartedAt: 0,
-        lastBreath: false,
         stunTimer: 0,
         hitFlash: 0,
         aiSkill: 0.62,
@@ -83,9 +76,6 @@
         lastHealAt: 0
     };
     window.__mbGoldExperienceState = state;
-    state.heartMaxHp = Math.max(1, Number(state.heartMaxHp) || 180);
-    state.heartHp = Math.max(0, Math.min(state.heartMaxHp, Number(state.heartHp) || state.heartMaxHp));
-    if (typeof state.heartAlive !== "boolean") state.heartAlive = true;
     state.lifeBurstUntil = Number(state.lifeBurstUntil) || 0;
     state.lifeBurstCooldownUntil = Number(state.lifeBurstCooldownUntil) || 0;
 
@@ -129,7 +119,7 @@
     }
 
     function isRequiemCompanionActive() {
-        return !!(isGERMain() && state.active && state.heartAlive);
+        return !!(isGERMain() && state.active);
     }
 
     function getCombat() {
@@ -199,10 +189,20 @@
     }
 
     function getAttackList(ctx) {
+        var list = [];
         try {
-            var list = ctx && typeof ctx.getAttacks === "function" ? ctx.getAttacks() : [];
-            return Array.isArray(list) ? list : [];
-        } catch (e) { return []; }
+            if (ctx && typeof ctx.getAttacks === "function") {
+                var attacks = ctx.getAttacks();
+                if (Array.isArray(attacks)) list = list.concat(attacks);
+            }
+            if (ctx && typeof ctx.getBlasters === "function") {
+                var blasters = ctx.getBlasters();
+                if (Array.isArray(blasters)) list = list.concat(blasters);
+            }
+        } catch (e) {}
+        return list.filter(function (attack, index) {
+            return attack && list.indexOf(attack) === index;
+        });
     }
 
     function getCompanionSize(ctx) {
@@ -218,8 +218,14 @@
         try {
             if (ctx && typeof ctx.getHeartSpeed === "function") speed = Number(ctx.getHeartSpeed()) || speed;
         } catch (e) {}
-        if (state.lastBreath) speed *= 1.35;
+
         return Math.max(0.5, Math.min(12, speed));
+    }
+
+    function companionSegmentDistance(px, py, x1, y1, x2, y2) {
+        var dx = x2 - x1, dy = y2 - y1, length2 = dx * dx + dy * dy;
+        var t = length2 > 0 ? Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / length2)) : 0;
+        return Math.hypot(px - (x1 + dx * t), py - (y1 + dy * t));
     }
 
     // Oden-style danger prediction, generalized for every boss context.
@@ -247,14 +253,52 @@
 
         var body = getCompanionSize(null) * 0.72;
         var padding = alert ? 34 : 5;
-        var width = Math.max(0, Number(attack.width) || 0);
+        var width = Math.max(6, Number(attack.width) || Number(attack.thickness) || 14);
         var height = Math.max(0, Number(attack.height) || 0);
+        var shiftX = !telegraph ? (Number(attack.vx) || 0) * t : 0;
+        var shiftY = !telegraph ? (Number(attack.vy) || 0) * t : 0;
+        var path = Array.isArray(attack.path) ? attack.path : null;
+        if (path && path.length > 1) {
+            for (var p = 1; p < path.length; p++) {
+                var p0 = path[p - 1], p1 = path[p];
+                if (!p0 || !p1) continue;
+                var pd = companionSegmentDistance(x, y,
+                    (Number(p0.x) || 0) + shiftX, (Number(p0.y) || 0) + shiftY,
+                    (Number(p1.x) || 0) + shiftX, (Number(p1.y) || 0) + shiftY);
+                if (pd < width * 0.5 + body + padding) {
+                    return { x: ax, y: ay, axis: "segment", distance: pd, attack: attack };
+                }
+            }
+        }
+        if ([attack.x1, attack.y1, attack.x2, attack.y2].every(function(v) {
+            return Number.isFinite(Number(v));
+        })) {
+            var segmentDistance = companionSegmentDistance(x, y,
+                Number(attack.x1) + shiftX, Number(attack.y1) + shiftY,
+                Number(attack.x2) + shiftX, Number(attack.y2) + shiftY);
+            if (segmentDistance < width * 0.5 + body + padding) {
+                return { x: ax, y: ay, axis: "segment", distance: segmentDistance, attack: attack };
+            }
+        }
         var dx = x - ax, dy = y - ay;
         var distance = Math.hypot(dx, dy);
 
-        if (type.indexOf("laser") !== -1 || type.indexOf("beam") !== -1) {
+        if (type.indexOf("laser") !== -1 || type.indexOf("beam") !== -1 ||
+            type.indexOf("slash") !== -1 || type.indexOf("blade") !== -1) {
+            var hasAngle = Number.isFinite(Number(attack.angle));
+            if (hasAngle && (attack.length || attack.range || attack.endX !== undefined || attack.endY !== undefined)) {
+                var a = Number(attack.angle), ux = Math.cos(a), uy = Math.sin(a);
+                var along = dx * ux + dy * uy, across = Math.abs(dx * uy - dy * ux);
+                var beamLength = Math.max(60, Number(attack.length) || Number(attack.range) || 420);
+                if (along >= -body - padding && along <= beamLength + body + padding &&
+                    across < Math.max(12, width * 0.5 + body + padding)) {
+                    return { x: ax, y: ay, axis: "segment", distance: across, attack: attack };
+                }
+                return null;
+            }
             var horizontal = attack.direction === "horizontal" || attack.zone === "upper" ||
-                attack.zone === "lower" || attack.horizontal === true;
+                attack.zone === "lower" || attack.horizontal === true ||
+                (hasAngle && Math.abs(Math.sin(Number(attack.angle))) < 0.25);
             var lineDistance = horizontal ? Math.abs(y - ay) : Math.abs(x - ax);
             var halfWidth = Math.max(12, (width || height || 20) * 0.5 + body + padding);
             if (lineDistance < halfWidth) {
@@ -276,7 +320,7 @@
             return null;
         }
 
-        if (type.indexOf("wall") !== -1 || type.indexOf("plate") !== -1 ||
+        if (type === "tsunami" || type.indexOf("wall") !== -1 || type.indexOf("plate") !== -1 ||
             type.indexOf("gate") !== -1) {
             var halfW = Math.max(16, (width || Number(attack.size) || 28) * 0.5 + body + padding);
             var halfH = Math.max(16, (height || Number(attack.size) || 28) * 0.5 + body + padding);
@@ -429,56 +473,49 @@
     function chooseCompanionGoal(ctx, playerX, playerY, boss, frameScale) {
         var playerHp = Math.max(0, Number(ctx.getPlayerHp && ctx.getPlayerHp()) || 0);
         var playerMaxHp = Math.max(1, Number(ctx.getPlayerMaxHp && ctx.getPlayerMaxHp()) || 1);
+        var lowHp = playerHp / playerMaxHp < 0.45;
         state.companionModeTimer = Math.max(0, (Number(state.companionModeTimer) || 0) - frameScale);
         if (state.companionModeTimer <= 0) {
-            var lowHp = playerHp / playerMaxHp < 0.45;
-            state.companionMode = lowHp
-                ? (Math.random() < 0.78 ? "guard" : "roam")
-                : (Math.random() < 0.52 ? "guard" : "roam");
+            state.companionMode = Math.random() < (lowHp ? 0.92 : 0.78) ? "guard" : "roam";
             state.companionSide = Math.random() < 0.5 ? -1 : 1;
-            state.companionOffsetX = (Math.random() - 0.5) * 24;
-            state.companionOffsetY = (Math.random() - 0.5) * 18;
+            state.companionOffsetX = (Math.random() - 0.5) * 14;
+            state.companionOffsetY = (Math.random() - 0.5) * 12;
             state.companionModeTimer = state.companionMode === "guard"
                 ? 95 + Math.floor(Math.random() * 85)
-                : 125 + Math.floor(Math.random() * 125);
+                : 80 + Math.floor(Math.random() * 60);
         }
-
         if (state.healState !== "idle") {
             var healSide = Number(state.healSide) || 1;
-            return {
-                x: Math.max(30, Math.min(370, playerX + healSide * 43)),
-                y: Math.max(28, Math.min(456, playerY - 7))
-            };
+            return { x: Math.max(30, Math.min(370, playerX + healSide * 43)),
+                y: Math.max(28, Math.min(456, playerY - 7)) };
         }
-
-        var bossX = Number(boss && boss.x);
-        var bossY = Number(boss && boss.y);
+        var bossX = Number(boss && boss.x), bossY = Number(boss && boss.y);
         var hasBoss = Number.isFinite(bossX) && Number.isFinite(bossY);
         var side = Number(state.companionSide) || 1;
-        var targetX = playerX + side * 48 + (Number(state.companionOffsetX) || 0);
-        var targetY = playerY - 12 + (Number(state.companionOffsetY) || 0);
-
+        var targetX = playerX + side * 46 + (Number(state.companionOffsetX) || 0);
+        var targetY = playerY - 13 + (Number(state.companionOffsetY) || 0);
         if (hasBoss) {
+            var leadX = Math.max(-18, Math.min(18, (Number(boss.vx) || 0) * 4));
             if (state.companionMode === "guard") {
-                targetX = targetX * 0.72 + (bossX + Math.max(-18, Math.min(18, (Number(boss.vx) || 0) * 4))) * 0.28;
+                targetX = targetX * 0.82 + (bossX + leadX) * 0.18;
+                targetY = targetY * 0.88 + (playerY - 22) * 0.12;
             } else {
                 state.wanderTimer = Math.max(0, (Number(state.wanderTimer) || 0) - frameScale);
                 if (state.wanderTimer <= 0 ||
                     Math.hypot(state.moveTargetX - state.x, state.moveTargetY - state.y) < 18) {
-                    state.companionOffsetX = (Math.random() - 0.5) * 110;
-                    state.companionOffsetY = -24 - Math.random() * 58;
+                    state.companionOffsetX = (Math.random() - 0.5) * 60;
+                    state.companionOffsetY = -12 - Math.random() * 28;
                     state.wanderTimer = 42 + Math.floor(Math.random() * 54);
                 }
-                targetX = bossX + (Number(state.companionOffsetX) || 0) * 0.55;
-                targetY = playerY - 26 + (Number(state.companionOffsetY) || 0) * 0.45;
+                var roamX = bossX + (Number(state.companionOffsetX) || 0) * 0.35;
+                targetX = playerX * 0.68 + roamX * 0.32;
+                targetY = playerY * 0.78 + (playerY - 24 + (Number(state.companionOffsetY) || 0)) * 0.22;
             }
         }
-        targetX = Math.max(28, Math.min(372, targetX));
-        targetY = Math.max(18, Math.min(476, targetY));
-        return { x: targetX, y: targetY };
+        return { x: Math.max(28, Math.min(372, targetX)), y: Math.max(18, Math.min(476, targetY)) };
     }
 
-    function spawnHitEffect(x, y, color) {
+        function spawnHitEffect(x, y, color) {
         try {
             if (typeof window.addWaystarShockwave === "function") {
                 window.addWaystarShockwave(x, y, color || "#f7d95d", 48, 10, 2);
@@ -550,46 +587,16 @@
         }
     }
 
-    function damageRequiemHeart(rawDamage, sourceAction) {
-        if (!isRequiemCompanionActive()) return false;
-        if (sourceAction && sourceAction._mbGERHeartDamageApplied) return true;
-        if (sourceAction && typeof sourceAction === "object") sourceAction._mbGERHeartDamageApplied = true;
-        var current = now();
-        if (current < state.heartInvulnUntil) return true;
-        var damage = Math.max(4, Math.min(18, Math.ceil((Number(rawDamage) || 12) * 0.45)));
-        if (state.lastBreath) damage *= 0.2;
-        state.heartHp = Math.max(0, Number(state.heartHp) - damage);
-        state.heartLastHitAt = current;
-        state.heartInvulnUntil = current + (state.lastBreath ? 400 : 1067);
-        state.hitFlash = 12;
+    function registerCompanionInterception(sourceAction) {
+        if (sourceAction && sourceAction._mbGERInterceptionRegistered) return;
+        if (sourceAction && typeof sourceAction === "object") sourceAction._mbGERInterceptionRegistered = true;
+        state.hitFlash = Math.max(Number(state.hitFlash) || 0, 8);
+        state.lastHitAt = now();
         addCharge(8);
-        spawnHitEffect(state.x, state.y, state.lastBreath ? "#ff5268" : "#ffe887");
-        if (state.heartHp > 0 && !state.lastBreath &&
-            state.heartHp <= Math.max(1, state.heartMaxHp) * 0.25) {
-            state.lastBreath = true;
-            state.healState = "idle";
-            state.healTimer = 0;
-            state.healRemaining = 0;
-            state.healTotal = 0;
-            state.dodgeCooldown = 0;
-            state.dodgePlanTimer = 0;
-            toast("GOLDEN HEART: ПОСЛЕДНИЙ ВЗДОХ!", "#ff5268");
-        }
-        if (state.heartHp <= 0) {
-            state.heartHp = 0;
-            state.heartAlive = false;
-            state.heartRespawnAt = current + 4800;
-            state.lastBreath = false;
-            finishMudaCombo();
-            state.specialAttack = null;
-            state.attackType = null;
-            toast("GOLDEN HEART ВЫБЫЛ · ВОССТАНОВЛЕНИЕ 4,8 СЕК.", "#ffbb72");
-        }
-        updateHUD();
-        return true;
+        spawnHitEffect(state.x, state.y, "#ffe887");
     }
 
-    function applyCompanionBossDamage(ctx, target, amount) {
+        function applyCompanionBossDamage(ctx, target, amount) {
         if (target && typeof window.MBDioApplyBossDamage === "function") {
             try { window.MBDioApplyBossDamage(target.type, target.id, amount); return true; }
             catch (e) { return false; }
@@ -630,8 +637,8 @@
         if (ctx.type !== "arena" && !target) return false;
         var current = now();
         var maxHp = getAttackBossMaxHp(ctx, target);
-        var total = Math.max(6, Math.floor(maxHp * 0.012 * (state.lastBreath ? 1.6 : 1)));
-        var comboDuration = state.lastBreath ? Math.round(GE_MUDA_DURATION / 1.65) : GE_MUDA_DURATION;
+        var total = Math.max(6, Math.floor(maxHp * 0.012));
+        var comboDuration = GE_MUDA_DURATION;
         var boss = target || getBossPosition(ctx, state.x, state.y);
         state.combo = {
             type: ctx.type,
@@ -646,7 +653,7 @@
             x: Number(boss.x) || state.x,
             y: Number(boss.y) || state.y
         };
-        state.comboCooldownUntil = current + comboDuration + (state.lastBreath ? 300 : 1100);
+        state.comboCooldownUntil = current + comboDuration + 1100;
         state.nextAttackAt = state.comboCooldownUntil;
         state.attackUntil = current + 150;
         state.attackFrame = 0;
@@ -706,7 +713,7 @@
         var hitCount = seeds ? 5 : 4;
         var firstHitDelay = seeds ? 340 : 300;
         var interval = seeds ? 155 : 330;
-        var attackRate = state.lastBreath ? 1.65 : 1;
+        var attackRate = 1;
         duration = Math.max(1, Math.round(duration / attackRate));
         firstHitDelay = Math.max(1, Math.round(firstHitDelay / attackRate));
         interval = Math.max(1, Math.round(interval / attackRate));
@@ -718,7 +725,7 @@
             type: type,
             targetType: ctx.type,
             targetId: target ? target.id : null,
-            total: Math.max(4, Math.floor(maxHp * damagePercent * (state.lastBreath ? 1.6 : 1))),
+            total: Math.max(4, Math.floor(maxHp * damagePercent)),
             hitIndex: 0,
             hitCount: hitCount,
             nextHitAt: current + firstHitDelay,
@@ -819,189 +826,114 @@
 
     function updateCompanion(dt) {
         if (!state.active || !isGERMain()) return;
-        var current = now();
-        if (!state.heartAlive) {
-            if (current >= state.heartRespawnAt) {
-                state.heartAlive = true;
-                state.heartHp = state.heartMaxHp;
-                state.lastBreath = false;
-                state.heartInvulnUntil = current + 900;
-                state.nextAttackAt = current + 650;
-                toast("✦ GOLD EXPERIENCE REQUIEM ВЕРНУЛСЯ!", "#ffe88a");
-            } else {
-                return;
-            }
-        }
-
-        var ctx = getContext();
+        var current = now(), ctx = getContext();
         if (!ctx || typeof ctx.getHeartX !== "function" || typeof ctx.getHeartY !== "function") return;
         var frameScale = Math.max(0.35, Math.min(2.2, (Number(dt) || 16.667) / 16.667));
-        var playerX = Number(ctx.getHeartX()) || 200;
-        var playerY = Number(ctx.getHeartY()) || 400;
+        var playerX = Number(ctx.getHeartX()) || 200, playerY = Number(ctx.getHeartY()) || 400;
         var playerHp = Math.max(0, Number(ctx.getPlayerHp && ctx.getPlayerHp()) || 0);
         var playerMaxHp = Math.max(1, Number(ctx.getPlayerMaxHp && ctx.getPlayerMaxHp()) || 1);
         var boss = getBossPosition(ctx, playerX, playerY);
-
         state.heartSize = getCompanionSize(ctx);
-        state.aiSkill = Math.min(0.99, (Number(state.aiSkill) || 0.62) + 0.00055 * frameScale);
-        if (state.heartHp > 0 && !state.lastBreath &&
-            state.heartHp <= Math.max(1, state.heartMaxHp) * 0.25) {
-            state.lastBreath = true;
-            state.healState = "idle";
-            state.healTimer = 0;
-            state.healRemaining = 0;
-            state.healTotal = 0;
-            state.dodgeCooldown = 0;
-            state.dodgePlanTimer = 0;
-            toast("GOLDEN HEART: ПОСЛЕДНИЙ ВЗДОХ!", "#ff5268");
-            spawnHitEffect(state.x, state.y, "#ff5268");
-        }
+        state.aiSkill = Math.min(0.99, Math.max(0.94, Number(state.aiSkill) || 0.94) + 0.0002 * frameScale);
 
-        // Copy Oden's support trigger, with the requested 40% player-HP threshold.
-        if (!state.lastBreath && state.healState === "idle" &&
-            current >= (Number(state.healCooldownUntil) || 0) &&
-            playerHp > 0 && playerHp < playerMaxHp * 0.40 &&
-            (Number(state.stunTimer) || 0) <= 0) {
+        if (state.healState === "idle" && current >= (Number(state.healCooldownUntil) || 0) &&
+            playerHp > 0 && playerHp < playerMaxHp * 0.40 && (Number(state.stunTimer) || 0) <= 0) {
             beginCompanionHeal(ctx, playerX, playerY, playerMaxHp, current);
         }
-
         if (state.stunTimer > 0) {
             state.stunTimer = Math.max(0, state.stunTimer - frameScale);
-            state.vx *= 0.72;
-            state.vy *= 0.72;
-            state.moveTargetX = state.x;
-            state.moveTargetY = state.y;
+            state.vx *= 0.72; state.vy *= 0.72;
+            state.moveTargetX = state.x; state.moveTargetY = state.y;
         }
-
         if (state.dodgeCooldown > 0) state.dodgeCooldown = Math.max(0, state.dodgeCooldown - frameScale);
         if (state.dodgePlanTimer > 0) state.dodgePlanTimer = Math.max(0, state.dodgePlanTimer - frameScale);
         if (state.dodgeFlashTimer > 0) state.dodgeFlashTimer = Math.max(0, state.dodgeFlashTimer - frameScale);
         if (state.hitFlash > 0) state.hitFlash = Math.max(0, state.hitFlash - frameScale);
 
         var goal = chooseCompanionGoal(ctx, playerX, playerY, boss, frameScale);
-        state.moveTargetX = goal.x;
-        state.moveTargetY = goal.y;
-        if (state.lastBreath && boss) {
-            var rushX = state.x - boss.x;
-            var rushY = state.y - boss.y;
-            var rushLength = Math.max(1, Math.hypot(rushX, rushY));
-            state.moveTargetX = Math.max(18, Math.min(382, boss.x + rushX / rushLength * 42));
-            state.moveTargetY = Math.max(8, Math.min(482, boss.y + rushY / rushLength * 42));
-        }
-
+        state.moveTargetX = goal.x; state.moveTargetY = goal.y;
         var incoming = state.stunTimer > 0 ? null : findIncomingCompanionThreat(ctx);
         var urgentThreat = !!incoming && incoming.time <= 8;
         var newThreat = !!incoming && incoming.attack !== state.lastThreatAttack;
         var dodging = false;
-
-        if (!state.lastBreath && incoming &&
-            incoming.time <= Math.round(96 + state.aiSkill * 34) &&
+        if (incoming && incoming.time <= Math.round(96 + state.aiSkill * 34) &&
             (state.dodgeCooldown <= 0 || urgentThreat || state.healState !== "idle") &&
             (state.dodgePlanTimer <= 0 || urgentThreat || state.healState !== "idle" ||
                 (newThreat && incoming.time <= 22))) {
             var safeTarget = chooseSafeCompanionDodge(ctx, incoming);
-            state.moveTargetX = safeTarget.x;
-            state.moveTargetY = safeTarget.y;
+            state.moveTargetX = safeTarget.x; state.moveTargetY = safeTarget.y;
             state.wanderTimer = 28 + Math.floor((1 - state.aiSkill) * 12);
             state.dodgePlanTimer = Math.max(8, Math.round(19 - state.aiSkill * 7));
             state.lastThreatAttack = incoming.attack || null;
             state.dodgeCooldown = incoming.time <= 12
                 ? Math.max(3, Math.round(8 - state.aiSkill * 3))
                 : Math.max(6, Math.round(14 - state.aiSkill * 5));
-            state.dodgeFlashTimer = 13;
-            dodging = true;
+            state.dodgeFlashTimer = 13; dodging = true;
             spawnHitEffect(state.x, state.y, "#8bffad");
         } else if (incoming && state.dodgePlanTimer > 0) {
             dodging = true;
         } else if (!incoming && state.dodgePlanTimer <= 0) {
             state.lastThreatAttack = null;
         }
-
         state.isDodging = dodging;
-        // Match Oden's smooth movement: accelerate into a chosen route, then brake naturally.
-        var calmFootwork = !incoming && !dodging && state.healState === "idle";
-        var driftX = calmFootwork ? Math.sin(current / 420 + (Number(state.footworkPhase) || 0)) * 4.2 : 0;
-        var driftY = calmFootwork ? Math.cos(current / 610 + (Number(state.footworkPhase) || 0)) * 3.0 : 0;
-        var toX = state.moveTargetX + driftX - state.x;
-        var toY = state.moveTargetY + driftY - state.y;
+
+        var calm = !incoming && !dodging && state.healState === "idle";
+        var driftX = calm ? Math.sin(current / 420 + (Number(state.footworkPhase) || 0)) * 3 : 0;
+        var driftY = calm ? Math.cos(current / 610 + (Number(state.footworkPhase) || 0)) * 2 : 0;
+        var toX = state.moveTargetX + driftX - state.x, toY = state.moveTargetY + driftY - state.y;
         var distance = Math.hypot(toX, toY) || 1;
         var maxSpeed = getCompanionMovementSpeed(ctx);
-        var desiredSpeed = distance < (calmFootwork ? 7 : 2)
-            ? 0 : Math.min(maxSpeed, Math.max(0.45, distance * 0.22));
-        var desiredVx = distance > 0 ? toX / distance * desiredSpeed : 0;
-        var desiredVy = distance > 0 ? toY / distance * desiredSpeed : 0;
+        var desiredSpeed = distance < (calm ? 7 : 2) ? 0 : Math.min(maxSpeed, Math.max(0.45, distance * 0.22));
+        var desiredVx = toX / distance * desiredSpeed, desiredVy = toY / distance * desiredSpeed;
         var steering = urgentThreat ? 0.33 : (0.14 + state.aiSkill * 0.12);
         state.vx += (desiredVx - state.vx) * steering;
         state.vy += (desiredVy - state.vy) * steering;
-        var currentSpeed = Math.hypot(state.vx, state.vy);
-        if (currentSpeed > maxSpeed) {
-            state.vx = state.vx / currentSpeed * maxSpeed;
-            state.vy = state.vy / currentSpeed * maxSpeed;
-        }
-        var nextX = state.x + state.vx * frameScale;
-        var nextY = state.y + state.vy * frameScale;
-        state.x = Math.max(18, Math.min(382, nextX));
-        state.y = Math.max(8, Math.min(482, nextY));
+        var speedNow = Math.hypot(state.vx, state.vy);
+        if (speedNow > maxSpeed) { state.vx = state.vx / speedNow * maxSpeed; state.vy = state.vy / speedNow * maxSpeed; }
+        var nextX = state.x + state.vx * frameScale, nextY = state.y + state.vy * frameScale;
+        state.x = Math.max(18, Math.min(382, nextX)); state.y = Math.max(8, Math.min(482, nextY));
         if (state.x !== nextX) state.vx *= -0.18;
         if (state.y !== nextY) state.vy *= -0.18;
 
-        state.trail.push({ x: state.x, y: state.y, life: 10 });
-        if (state.trail.length > 9) state.trail.shift();
-        for (var tr = state.trail.length - 1; tr >= 0; tr--) state.trail[tr].life -= frameScale;
-        while (state.trail.length && state.trail[0].life <= 0) state.trail.shift();
-
-        if (state.healState === "approach" &&
-            Math.hypot(state.x - playerX, state.y - playerY) <= 58) {
-            state.healState = "channel";
-            state.stunTimer = Math.max(0, Number(state.stunTimer) || 0);
-            toast("GOLDEN HEART: ЛЕЧЕНИЕ · 5 СЕКУНД", "#9affc8");
+        if (state.healState === "approach" && Math.hypot(state.x - playerX, state.y - playerY) <= 58) {
+            state.healState = "channel"; toast("GOLDEN HEART: ЛЕЧЕНИЕ · 5 СЕКУНД", "#9affc8");
         }
-
         if (state.healState === "channel") {
-            var closeToPlayer = Math.hypot(state.x - playerX, state.y - playerY) <= 82;
-            if (!closeToPlayer) {
-                state.healState = "approach";
-            } else if (!dodging && state.stunTimer <= 0) {
+            var close = Math.hypot(state.x - playerX, state.y - playerY) <= 82;
+            if (!close) state.healState = "approach";
+            else if (!dodging && state.stunTimer <= 0) {
                 var hpBefore = Math.max(0, Number(ctx.getPlayerHp()) || 0);
-                var healStep = Math.min(Math.max(0, Number(state.healRemaining) || 0),
+                var step = Math.min(Math.max(0, Number(state.healRemaining) || 0),
                     Math.max(0, Number(state.healTotal) || playerMaxHp * 0.15) / 300 * frameScale);
-                if (healStep > 0) setPlayerHp(ctx, hpBefore + healStep);
+                if (step > 0) setPlayerHp(ctx, hpBefore + step);
                 var healed = Math.max(0, Math.min(playerMaxHp, Number(ctx.getPlayerHp()) || 0) - hpBefore);
                 state.healRemaining = Math.max(0, state.healRemaining - healed);
                 state.healTimer = Math.max(0, state.healTimer - frameScale);
                 if (state.healTimer <= 0 || state.healRemaining <= 0.001) {
-                    state.healState = "idle";
-                    state.healTimer = 0;
-                    state.healRemaining = 0;
-                    state.healTotal = 0;
+                    state.healState = "idle"; state.healTimer = 0;
+                    state.healRemaining = 0; state.healTotal = 0;
                     state.healCooldownUntil = current + 40000;
-                    state.companionMode = "guard";
-                    state.companionModeTimer = 105;
+                    state.companionMode = "guard"; state.companionModeTimer = 105;
                     toast("GOLDEN HEART: ДЕРЖИСЬ!", "#9affcf");
                 }
             }
         }
-
         if (state.healState !== "idle" || state.stunTimer > 0) {
-            state.attackUntil = 0;
-            state.combo = null;
-            state.specialAttack = null;
-            state.attackType = null;
+            state.attackUntil = 0; state.combo = null; state.specialAttack = null; state.attackType = null;
         } else {
             if (state.combo) updateMudaCombo(ctx);
             else if (state.specialAttack) updateSpecialAttack(ctx);
             var target = getUniqueBossTarget(ctx);
             var targetX = target ? Number(target.x) : boss.x;
             var targetY = target ? Number(target.y) : boss.y;
-            var bossDistance = Math.hypot(state.x - targetX, state.y - targetY);
-            if (!state.combo && !state.specialAttack &&
-                current >= state.nextAttackAt && bossDistance <= 230) {
-                beginCompanionAttack(ctx, target, bossDistance);
+            var bossDist = Math.hypot(state.x - targetX, state.y - targetY);
+            if (!state.combo && !state.specialAttack && current >= state.nextAttackAt && bossDist <= 230) {
+                beginCompanionAttack(ctx, target, bossDist);
             }
         }
     }
 
-    function drawSpecialAttackEffects(c, current) {
+        function drawSpecialAttackEffects(c, current) {
         var attack = state.specialAttack;
         if (!attack) return;
         var elapsed = Math.max(0, current - attack.startedAt);
@@ -1074,205 +1006,85 @@
 
     function drawGoldExperience(c) {
         if (!state.active || !isGERMain()) return;
-        var current = now();
-        var ctx = getContext();
+        var current = now(), ctx = getContext();
         var size = getCompanionSize(ctx);
         state.heartSize = size;
-        var scale = size / 15;
-        var invulnerable = current < state.heartInvulnUntil;
+        var scale = size / 15, hitFlash = state.hitFlash > 0;
         var healing = state.healState !== "idle";
         var dodging = !!state.isDodging || state.dodgeFlashTimer > 0;
         var attacking = !!(state.combo || state.specialAttack || current < state.attackUntil);
-        var bob = Math.sin(current / 170) * 1.1;
-
-        function heartPath(target, radius) {
+        function heartPath(target, r) {
             target.beginPath();
-            target.moveTo(0, radius * 0.72);
-            target.bezierCurveTo(-radius * 1.35, -radius * 0.15,
-                -radius * 0.72, -radius * 1.08, 0, -radius * 0.42);
-            target.bezierCurveTo(radius * 0.72, -radius * 1.08,
-                radius * 1.35, -radius * 0.15, 0, radius * 0.72);
+            target.moveTo(0, r * 0.72);
+            target.bezierCurveTo(-r * 0.18, r * 0.45, -r * 1.40, -r * 0.08, -r * 1.38, -r * 0.62);
+            target.bezierCurveTo(-r * 1.36, -r * 1.23, -r * 0.34, -r * 1.31, 0, -r * 0.72);
+            target.bezierCurveTo(r * 0.34, -r * 1.31, r * 1.36, -r * 1.23, r * 1.38, -r * 0.62);
+            target.bezierCurveTo(r * 1.40, -r * 0.08, r * 0.18, r * 0.45, 0, r * 0.72);
             target.closePath();
         }
-
-        // The trail stays the same small scale as the player's heart.
         c.save();
-        c.globalCompositeOperation = "lighter";
-        for (var i = 0; i < state.trail.length; i++) {
-            var tr = state.trail[i];
-            var alpha = Math.max(0, tr.life / 10) * 0.17;
-            if (alpha <= 0) continue;
-            c.save();
-            c.translate(tr.x, tr.y);
-            c.scale(scale * 0.48, scale * 0.48);
-            c.globalAlpha = alpha;
-            c.fillStyle = "#ffd75a";
-            heartPath(c, 8);
-            c.fill();
-            c.restore();
-        }
-        c.restore();
-
-        if (!state.heartAlive) {
-            c.save();
-            c.globalAlpha = 0.42 + Math.sin(current / 180) * 0.12;
-            c.strokeStyle = "#e7bd57";
-            c.lineWidth = 1.5;
-            c.setLineDash([3, 3]);
-            c.beginPath();
-            c.ellipse(state.x, state.y, size * 1.25, size * 0.95, 0, 0, Math.PI * 2);
-            c.stroke();
-            c.setLineDash([]);
-            c.font = "bold 7px Arial";
-            c.textAlign = "center";
-            c.fillStyle = "#f7d97b";
-            c.fillText("ВОССТАНОВЛЕНИЕ", state.x, state.y - size - 7);
-            c.restore();
-            return;
-        }
-
-        c.save();
-        c.translate(state.x, state.y + bob);
-        c.rotate(Math.max(-0.18, Math.min(0.18, (Number(state.vx) || 0) * 0.018)));
+        c.translate(state.x, state.y + Math.sin(current / 170) * 0.75);
         c.scale(scale, scale);
-        c.globalAlpha = invulnerable ? (0.56 + Math.sin(current / 36) * 0.25) : 0.99;
-
-        var halo = c.createRadialGradient(0, 0, 2, 0, 0, 23);
-        halo.addColorStop(0, state.lastBreath ? "rgba(255,55,78,.42)" :
-            (healing ? "rgba(126,255,166,.34)" : "rgba(255,218,105,.32)"));
+        c.globalAlpha = hitFlash ? 0.8 : 1;
+        var halo = c.createRadialGradient(0, -1, 2, 0, 0, 23);
+        halo.addColorStop(0, healing ? "rgba(126,255,166,.30)" : "rgba(255,218,105,.30)");
         halo.addColorStop(1, "rgba(255,190,55,0)");
-        c.fillStyle = halo;
-        c.beginPath();
-        c.ellipse(0, 1, 23, 18, 0, 0, Math.PI * 2);
-        c.fill();
-
-        if (dodging) {
-            c.strokeStyle = "#a8ff9a";
-            c.lineWidth = 1.8;
-            c.shadowColor = "#9dff8b";
-            c.shadowBlur = 12;
-            c.globalAlpha *= 0.9;
-            c.beginPath();
-            c.ellipse(0, 0, 23 + Math.sin(current / 35) * 2, 17, 0, 0, Math.PI * 2);
-            c.stroke();
-            c.shadowBlur = 0;
-        } else if (healing) {
-            c.strokeStyle = "#8bffbd";
-            c.lineWidth = 2;
-            c.shadowColor = "#65ffac";
-            c.shadowBlur = 13;
-            c.beginPath();
-            c.ellipse(0, 0, 22 + Math.sin(current / 90) * 1.5, 17, 0, 0, Math.PI * 2);
-            c.stroke();
-            c.shadowBlur = 0;
+        c.fillStyle = halo; c.beginPath(); c.ellipse(0, 0, 23, 18, 0, 0, Math.PI * 2); c.fill();
+        if (dodging || healing) {
+            c.strokeStyle = healing ? "#8bffbd" : "#a8ff9a";
+            c.lineWidth = healing ? 1.8 : 1.5;
+            c.shadowColor = c.strokeStyle; c.shadowBlur = 11;
+            c.globalAlpha *= 0.82;
+            c.beginPath(); c.ellipse(0, 0, 22 + Math.sin(current / 50) * 1.3, 17, 0, 0, Math.PI * 2); c.stroke();
+            c.shadowBlur = 0; c.globalAlpha = hitFlash ? 0.8 : 1;
         }
-
-        var heartGradient = c.createLinearGradient(0, -16, 0, 12);
-        heartGradient.addColorStop(0, invulnerable ? "#fffbe3" : (state.lastBreath ? "#ffd5dc" : "#fff2ad"));
-        heartGradient.addColorStop(0.38, state.lastBreath ? "#ff657d" : "#ffd958");
-        heartGradient.addColorStop(0.72, state.lastBreath ? "#bd163d" : "#efa72d");
-        heartGradient.addColorStop(1, state.lastBreath ? "#4c071e" : "#b96a1a");
-        c.fillStyle = heartGradient;
-        c.strokeStyle = state.lastBreath ? "#3a0617" : "#704313";
-        c.lineWidth = 1.2;
-        c.shadowColor = "#ffd34f";
-        c.shadowBlur = attacking ? 16 : 9;
-        heartPath(c, 15);
-        c.fill();
-        c.stroke();
-        c.shadowBlur = 0;
-
-        // Living vines replace Oden's purple cloth, preserving his wrapped-heart silhouette.
+        var gradient = c.createLinearGradient(-3, -18, 5, 13);
+        gradient.addColorStop(0, hitFlash ? "#fffdf0" : "#fff2b2");
+        gradient.addColorStop(0.24, hitFlash ? "#fff4c9" : "#ffdf72");
+        gradient.addColorStop(0.58, "#f4ad35");
+        gradient.addColorStop(0.82, "#d77a1d");
+        gradient.addColorStop(1, "#8e4a14");
+        c.fillStyle = gradient; c.strokeStyle = "#65370f"; c.lineWidth = 1.35;
+        c.shadowColor = "#ffd34f"; c.shadowBlur = attacking ? 15 : 8;
+        heartPath(c, 15); c.fill(); c.stroke(); c.shadowBlur = 0;
         c.save();
-        heartPath(c, 15);
-        c.clip();
-        c.lineCap = "round";
-        for (var band = -1; band <= 1; band++) {
-            c.strokeStyle = "#3a9850";
-            c.lineWidth = 3.4;
-            c.beginPath();
-            c.moveTo(-23, band * 9 - 6);
-            c.bezierCurveTo(-10, band * 8 - 1, 5, band * 8 + 2, 22, band * 8 + 8);
-            c.stroke();
-            c.strokeStyle = "#bcf58a";
-            c.lineWidth = 1;
-            c.beginPath();
-            c.moveTo(-22, band * 9 - 6);
-            c.bezierCurveTo(-10, band * 8 - 1, 5, band * 8 + 2, 21, band * 8 + 8);
-            c.stroke();
-        }
+        heartPath(c, 14); c.clip();
+        c.strokeStyle = "rgba(255,246,190,.55)"; c.lineWidth = 1.1;
+        c.beginPath(); c.moveTo(-12, -8); c.quadraticCurveTo(-9, -17, -2, -15); c.stroke();
+        c.fillStyle = "rgba(255,255,225,.22)";
+        c.beginPath(); c.ellipse(-6.5, -9.5, 3.8, 5.2, -0.48, 0, Math.PI * 2); c.fill();
         c.restore();
-
-        // Central green life gem and tiny leaves.
         c.save();
-        c.shadowColor = "#8dff9d";
-        c.shadowBlur = 7;
-        c.fillStyle = "#58d878";
-        c.strokeStyle = "#236d39";
-        c.lineWidth = 0.9;
+        c.strokeStyle = "#27743e"; c.lineWidth = 1.1; c.lineCap = "round";
+        c.beginPath(); c.moveTo(0, -7); c.quadraticCurveTo(0, -12, 0, -14); c.stroke();
+        c.fillStyle = "#67df82"; c.strokeStyle = "#286e3d";
         c.beginPath();
-        c.moveTo(0, -5.5);
-        c.lineTo(4.1, -1.2);
-        c.lineTo(0, 3.4);
-        c.lineTo(-4.1, -1.2);
-        c.closePath();
-        c.fill();
-        c.stroke();
-        c.shadowBlur = 0;
-        c.strokeStyle = "#d9ffac";
-        c.lineWidth = 0.8;
-        c.beginPath();
-        c.moveTo(-1.5, -1.4);
-        c.lineTo(1.1, 1.1);
-        c.stroke();
+        c.ellipse(-3.3, -11.8, 3.5, 1.7, -0.45, 0, Math.PI * 2);
+        c.ellipse(3.3, -11.8, 3.5, 1.7, 0.45, 0, Math.PI * 2);
+        c.fill(); c.stroke();
+        c.shadowColor = "#8dff9d"; c.shadowBlur = 7;
+        c.fillStyle = "#58d878"; c.strokeStyle = "#236d39"; c.lineWidth = 0.9;
+        c.beginPath(); c.moveTo(0, -4.8); c.lineTo(3.8, -0.8); c.lineTo(0, 3.2); c.lineTo(-3.8, -0.8); c.closePath();
+        c.fill(); c.stroke(); c.shadowBlur = 0;
+        c.strokeStyle = "#d9ffac"; c.lineWidth = 0.8;
+        c.beginPath(); c.moveTo(-1.3, -1.2); c.lineTo(1, 1); c.stroke();
+        c.restore();
         c.restore();
 
-        c.globalAlpha *= 0.8;
-        c.strokeStyle = "rgba(255,255,220,.8)";
-        c.lineWidth = 1;
-        c.beginPath();
-        c.arc(-4, -8, 2.4, Math.PI * 1.05, Math.PI * 1.8);
-        c.stroke();
-        c.restore();
-
-        // Compact HP bar, like Oden's, without enlarging the companion.
-        var hpRatio = Math.max(0, Math.min(1, state.heartHp / Math.max(1, state.heartMaxHp)));
-        var barWidth = 30 * scale;
-        var barX = state.x - barWidth / 2;
-        var barY = state.y + size * 0.92;
-        c.save();
-        c.globalAlpha = 0.88;
-        c.fillStyle = "rgba(20,12,5,.9)";
-        c.fillRect(barX - 1, barY - 1, barWidth + 2, 5);
-        c.fillStyle = "#483719";
-        c.fillRect(barX, barY, barWidth, 3);
-        c.fillStyle = state.lastBreath ? "#ff425c" : (hpRatio > 0.45 ? "#9df28e" : "#ffc45f");
-        c.fillRect(barX, barY, barWidth * hpRatio, 3);
-        c.restore();
-
-        // Short impact marks stay on the boss; the heart itself remains compact.
         var impactAge = current - state.lastMudaImpactAt;
         if (state.combo && impactAge >= 0 && impactAge < 95) {
-            c.save();
-            c.globalCompositeOperation = "lighter";
+            c.save(); c.globalCompositeOperation = "lighter";
             c.globalAlpha = Math.max(0, 1 - impactAge / 95) * 0.78;
             c.translate(state.lastMudaImpactX, state.lastMudaImpactY);
             c.rotate((state.lastMudaImpactIndex % 2 ? 1 : -1) * 0.35);
-            c.strokeStyle = "#ffe6a0";
-            c.lineWidth = 2;
-            c.beginPath();
-            c.moveTo(-10, -5);
-            c.lineTo(7, 4);
-            c.moveTo(-7, 7);
-            c.lineTo(8, -6);
-            c.stroke();
+            c.strokeStyle = "#ffe6a0"; c.lineWidth = 2;
+            c.beginPath(); c.moveTo(-10, -5); c.lineTo(7, 4); c.moveTo(-7, 7); c.lineTo(8, -6); c.stroke();
             c.restore();
         }
-
         drawSpecialAttackEffects(c, current);
     }
 
-    function ensureHud() {
+        function ensureHud() {
         var hud = document.getElementById("mbGoldExperienceHUD");
         if (hud) return hud;
         var parent = document.getElementById("arenaOverlay") || document.body;
@@ -1321,12 +1133,9 @@
             bar.style.display = "none";
         } else {
             var activeLeft = Math.max(0, state.gerUntil - now());
-            var heartStatus = state.heartAlive
-                ? "GOLD EXPERIENCE REQUIEM " + Math.ceil(state.heartHp) + "/" + Math.ceil(state.heartMaxHp) + " HP"
-                : "СЕРДЦЕ ВОССТАНАВЛИВАЕТСЯ";
-            title.textContent = heartStatus + " · " + (activeLeft > 0
-                ? "RETURN TO ZERO " + state.gerCharges + " ЗАРЯДА · " + (activeLeft / 1000).toFixed(1) + "с"
-                : "REQUIEM · ЗАРЯД " + Math.floor(state.charge) + "%");
+            title.textContent = activeLeft > 0
+                ? "RETURN TO ZERO · " + state.gerCharges + " ЗАРЯДА · " + (activeLeft / 1000).toFixed(1) + "с"
+                : "REQUIEM · ЗАРЯД " + Math.floor(state.charge) + "%";
             bar.style.display = "block";
             fill.style.width = Math.max(0, Math.min(100, state.charge)) + "%";
         }
@@ -1376,9 +1185,8 @@
             btn.disabled = activeLeft <= 0 && state.charge < 100;
             btn.title = "При 100% заряда: 5 секунд и 2 обнуления. Пассивное Золотое Сердце постоянно следует за Джорно, уклоняется, сражается и восстанавливается после поражения.";
             if (status) {
-                status.style.display = "block";
-                status.textContent = "ПАССИВКА GOLDEN HEART: автономный жёлтый стенд-сердце с собственным HP. Уклоняется от атак, сближается с боссом, бьёт кулаками сериями, использует MUDA MUDA (30 ударов за 4 секунды), Life Seeds и Vine Bind, лечит Джорно на 8% максимального HP при HP ниже 55%. Также Requiem сохраняет Возвращение к нулю и снижает получаемый урон.";
-                status.style.borderColor = "#ffe07a";
+                status.textContent = "";
+                status.style.display = "none";
             }
         }
         var btn2 = document.getElementById("superBtn2");
@@ -1455,12 +1263,6 @@
         var current = now();
         state.active = true;
         state.activeUntil = Infinity;
-        state.heartMaxHp = 125;
-        state.heartHp = state.heartMaxHp;
-        state.heartAlive = true;
-        state.heartRespawnAt = 0;
-        state.heartInvulnUntil = current + 700;
-        state.lastBreath = false;
         state.stunTimer = 0;
         state.hitFlash = 0;
         state.aiSkill = 0.62;
@@ -1508,9 +1310,6 @@
         if (!state.active) return;
         state.active = false;
         state.activeUntil = 0;
-        state.heartAlive = true;
-        state.heartHp = state.heartMaxHp;
-        state.heartRespawnAt = 0;
         finishMudaCombo();
         state.specialAttack = null;
         state.attackType = null;
@@ -1572,10 +1371,6 @@
         state.cooldownUntil = 0;
         state.lifeBurstCooldownUntil = 0;
         stopMudaMusic();
-        state.heartAlive = true;
-        state.heartHp = state.heartMaxHp;
-        state.heartRespawnAt = 0;
-        state.lastBreath = false;
         state.healState = "idle";
         state.healTimer = 0;
         state.healCooldownUntil = 0;
