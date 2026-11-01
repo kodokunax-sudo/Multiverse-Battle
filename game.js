@@ -1798,19 +1798,17 @@ function getUpgradeTotalValue(k) {
     var level = Math.max(0, Math.floor(Number(upgrade.level) || 0));
     if (k !== "damage") return level * upgrade.increment;
 
-    // Базовая прибавка: +2 за уровень. Ступенчатая надбавка
-    // постепенно затухает по мере роста базового урона и равна нулю
-    // при 1000 урона. Учитываем урон команды, чтобы порог был честным.
+    // Каждый купленный уровень навсегда сохраняет свою прибавку.
+    // База всегда +2; ступенчатый бонус конкретного уровня плавно
+    // уменьшается и становится нулевым, когда базовый урон достигает 1000.
     var total = 0;
-    var cappedLevel = Math.min(level, 200);
-    var baseDamageBeforeBonus = 5 + Math.max(0, Number(window.teamDamage) || 0) + level * 2;
-    var bonusFactor = Math.max(0, Math.min(1, 1 - baseDamageBeforeBonus / 1000));
-
-    for (var tier = 0; tier < 4; tier++) {
-        var count = Math.max(0, Math.min(50, cappedLevel - tier * 50));
-        total += count * (2 + tier * bonusFactor);
+    var teamBonus = Math.max(0, Number(window.teamDamage) || 0);
+    for (var purchasedLevel = 1; purchasedLevel <= level; purchasedLevel++) {
+        var tier = Math.min(3, Math.floor((purchasedLevel - 1) / 50));
+        var baseDamageAtLevel = 5 + teamBonus + purchasedLevel * 2;
+        var bonusFactor = Math.max(0, Math.min(1, 1 - baseDamageAtLevel / 1000));
+        total += 2 + tier * bonusFactor;
     }
-    if (level > 200) total += (level - 200) * (2 + 3 * bonusFactor);
     return Math.floor(total);
 }
 window.getUpgradeTotalValue = getUpgradeTotalValue;
