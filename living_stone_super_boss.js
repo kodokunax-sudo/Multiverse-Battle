@@ -1862,6 +1862,16 @@
         }
         return threats;
     };
+    window.MBLivingStoneSuperCompanionStun = function(frames) {
+        if (!ls2Active || !ls2NativeMode || (window.__mbLS2GreenPhase || "normal") !== "normal") return false;
+        var duration = ls2Clamp(Number(frames) || 42, 20, 70);
+        ls2BossStun = Math.max(ls2BossStun, duration);
+        ls2BossDash = null;
+        if (typeof livingStoneBoss !== "undefined" && typeof spawnLivingStoneParticles === "function")
+            spawnLivingStoneParticles(livingStoneBoss.x, livingStoneBoss.y, 14, "#efdfff", 4);
+        ls2CombatText("ЗВЕЗДА ОСЛЕПИЛА ЕГО!", "#f4eaff", 55);
+        return true;
+    };
     window.MBUpdateLivingStoneSuperPhase = function() {
         if (!window.livingStoneSuperActive || !ls2NativeMode) return;
         var phase = window.__mbLS2GreenPhase || "normal";
