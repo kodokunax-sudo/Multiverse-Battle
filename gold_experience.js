@@ -39,6 +39,17 @@
         lastMudaImpactX: 0,
         lastMudaImpactY: 0,
         lastMudaImpactIndex: 0,
+        projectiles: [],
+        seedCooldownUntil: 0,
+        targetId: null,
+        attackCooldown: 0,
+        windup: 0,
+        swingTimer: 0,
+        attackAngle: 0,
+        nextSeedAt: 0,
+        lastSeedImpactAt: 0,
+        lastSeedImpactX: 0,
+        lastSeedImpactY: 0,
         nextHealAt: 0,
         healState: "idle",
         healTimer: 0,
@@ -205,6 +216,28 @@
         });
     }
 
+    function getCompanionShockwaves(ctx) {
+        try {
+            if (ctx && typeof ctx.getShockwaves === "function") {
+                var waves = ctx.getShockwaves();
+                return Array.isArray(waves) ? waves : [];
+            }
+        } catch (e) {}
+        return [];
+    }
+
+    function companionShockwaveThreat(wave, x, y, frames, alert) {
+        if (!wave || wave.odenHit || !(Number(wave.damage) > 0)) return null;
+        var radius = Math.max(0, Number(wave.radius) || 0) +
+            Math.max(0, Number(wave.speed) || 0) * Math.max(0, Number(frames) || 0);
+        var cx = Number(wave.x) || 0, cy = Number(wave.y) || 0;
+        var distance = Math.hypot(x - cx, y - cy);
+        var limit = (Number(wave.width) || 5) * 0.7 +
+            getCompanionSize(null) * 0.72 + (alert ? 34 : 0);
+        if (Math.abs(distance - radius) >= limit) return null;
+        return { x: cx, y: cy, axis: "point", distance: Math.abs(distance - radius), attack: wave };
+    }
+
     function getCompanionSize(ctx) {
         var size = Math.max(7, Number(state.heartSize) || 15);
         try {
@@ -228,7 +261,7 @@
         return Math.hypot(px - (x1 + dx * t), py - (y1 + dy * t));
     }
 
-    // Oden-style danger prediction, generalized for every boss context.
+    // Oden-style threat recognition, expanded for the actual attacks of every boss.
     function companionThreatAt(attack, x, y, frames, alert) {
         if (!attack || attack.dioAggroNoPlayer || attack.dioStandHitOnce ||
             attack._mbGEIgnored || attack.state === "done") return null;
@@ -240,23 +273,166 @@
         if (telegraph && !alert) return null;
 
         var t = Math.max(0, Number(frames) || 0);
+        var body = getCompanionSize(null) * 0.72;
+        var padding = alert ? 38 : 0;
         var ax = Number.isFinite(Number(attack.x)) ? Number(attack.x) : Number(attack.targetX);
         var ay = Number.isFinite(Number(attack.y)) ? Number(attack.y) : Number(attack.targetY);
-        if (!Number.isFinite(ax) || !Number.isFinite(ay)) return null;
+        if (!Number.isFinite(ax)) ax = Number(attack.originX);
+        if (!Number.isFinite(ay)) ay = Number(attack.originY);
 
+        var vx = Number(attack.vx) || 0, vy = Number(attack.vy) || 0;
         if (!telegraph) {
-            ax += (Number(attack.vx) || 0) * t;
-            ay += (Number(attack.vy) || 0) * t;
+            ax = (Number.isFinite(ax) ? ax : 0) + vx * t;
+            ay = (Number.isFinite(ay) ? ay : 0) + vy * t;
             var gravity = Number(attack.gravity) || 0;
             if (gravity) ay += gravity * t * (t + 1) * 0.5;
         }
+        if (!Number.isFinite(ax)) ax = x;
+        if (!Number.isFinite(ay)) ay = y;
 
-        var body = getCompanionSize(null) * 0.72;
-        var padding = alert ? 34 : 5;
         var width = Math.max(6, Number(attack.width) || Number(attack.thickness) || 14);
-        var height = Math.max(0, Number(attack.height) || 0);
-        var shiftX = !telegraph ? (Number(attack.vx) || 0) * t : 0;
-        var shiftY = !telegraph ? (Number(attack.vy) || 0) * t : 0;
+        var height = Math.max(0, Number(attack.height) || Number(attack.currentHeight) || 0);
+        var shiftX = !telegraph ? vx * t : 0;
+        var shiftY = !telegraph ? vy * t : 0;
+
+        // Oden's special handling for Roger and Whitebeard warnings.
+        if (type === "roger_slash") {
+            var rAxis = attack.direction === "horizontal" ? "horizontal" : "vertical";
+            var rLine = rAxis === "horizontal" ? Number(attack.y) : Number(attack.x);
+            var rLimit = (Number(attack.width) || 58) * 0.5 + body + padding + (telegraph ? 18 : 0);
+            if (Number.isFinite(rLine)) {
+                var rDist = rAxis === "horizontal" ? Math.abs(y - rLine) : Math.abs(x - rLine);
+                if (rDist < rLimit) return { x: rAxis === "horizontal" ? x : rLine,
+                    y: rAxis === "horizontal" ? rLine : y, axis: rAxis, distance: rDist, attack: attack };
+            }
+            return null;
+        }
+        if (type === "roger_cross") {
+            var cAxis = attack.dir === "vertical" ? "vertical" : "horizontal";
+            var cLine = cAxis === "vertical" ? Number(attack.x) : Number(attack.y);
+            var cLimit = (Number(attack.width) || 78) * 0.35 + body + padding + (telegraph ? 18 : 0);
+            if (Number.isFinite(cLine)) {
+                var cDist = cAxis === "vertical" ? Math.abs(x - cLine) : Math.abs(y - cLine);
+                if (cDist < cLimit) return { x: cAxis === "vertical" ? cLine : x,
+                    y: cAxis === "vertical" ? y : cLine, axis: cAxis, distance: cDist, attack: attack };
+            }
+            return null;
+        }
+        if (type === "wb_giant_rock_warning") {
+            var rockLine = Number(attack.targetX !== undefined ? attack.targetX : attack.x);
+            if (Number.isFinite(rockLine) && Math.abs(x - rockLine) < 22 + body + padding) {
+                return { x: rockLine, y: y, axis: "vertical", distance: Math.abs(x - rockLine), attack: attack };
+            }
+            return null;
+        }
+        if (type === "wb_combo_gate_warning") {
+            var gateTargetY = Number(attack.targetY);
+            for (var gi = 0; gi < 2; gi++) {
+                var gateY = gateTargetY + (gi === 0 ? -24 : 24);
+                if (Number.isFinite(gateY) && Math.abs(y - gateY) < 15 + body + padding) {
+                    return { x: x, y: gateY, axis: "horizontal", distance: Math.abs(y - gateY), attack: attack };
+                }
+            }
+            return null;
+        }
+        if (type === "wb_attack_telegraph") {
+            var attackId = Number(attack.attackId), attackKind = attack.attackKind || "normal";
+            var columns = Array.isArray(attack.columns) ? attack.columns : [];
+            if ((attackKind === "normal" && (attackId === 0 || attackId === 5)) ||
+                (attackKind === "super" && attackId === 0)) {
+                for (var col = 0; col < columns.length; col++) {
+                    if (Math.abs(x - Number(columns[col])) < 20 + body + padding) {
+                        return { x: Number(columns[col]), y: y, axis: "vertical",
+                            distance: Math.abs(x - Number(columns[col])), attack: attack };
+                    }
+                }
+            }
+            if (attackKind === "normal" && [2, 3, 7].indexOf(attackId) !== -1) {
+                var targetLane = Number(attack.targetY);
+                if (Number.isFinite(targetLane) && Math.abs(y - targetLane) < 18 + body + padding) {
+                    return { x: x, y: targetLane, axis: "horizontal", distance: Math.abs(y - targetLane), attack: attack };
+                }
+            }
+            if (attackKind === "normal" && attackId === 1) {
+                var ox = Number(attack.originX) || Number(attack.x) || 320;
+                var oy = Number(attack.originY) || Number(attack.y) || 120;
+                var od = Math.hypot(x - ox, y - oy);
+                if (od < 76 + body + padding) return { x: ox, y: oy, axis: "point", distance: od, attack: attack };
+            }
+            if (Number.isFinite(Number(attack.targetX)) &&
+                Math.abs(x - Number(attack.targetX)) < 30 + body + padding) {
+                return { x: Number(attack.targetX), y: Number(attack.targetY) || y,
+                    axis: "vertical", distance: Math.abs(x - Number(attack.targetX)), attack: attack };
+            }
+            return null;
+        }
+        if (type === "wb_center_wave") {
+            var waveY = Number(attack.y) - (Number(attack.speed) || 3.4) * t;
+            var halfH = (Number(attack.height) || 92) * 0.5 + body + padding;
+            if (Math.abs(x - 200) < (Number(attack.width) || 400) * 0.5 + body &&
+                Math.abs(y - waveY) < halfH) {
+                return { x: x, y: waveY, axis: "horizontal", distance: Math.abs(y - waveY), attack: attack };
+            }
+            if (telegraph && Number.isFinite(Number(attack.targetY)) &&
+                Math.abs(y - Number(attack.targetY)) < halfH) {
+                return { x: x, y: Number(attack.targetY), axis: "horizontal",
+                    distance: Math.abs(y - Number(attack.targetY)), attack: attack };
+            }
+            return null;
+        }
+        if (type === "wb_fruit_punch" &&
+            [attack.originX, attack.originY, attack.endX, attack.endY].every(function(v) { return Number.isFinite(Number(v)); })) {
+            var punchDistance = companionSegmentDistance(x, y,
+                Number(attack.originX), Number(attack.originY),
+                Number(attack.endX), Number(attack.endY));
+            var punchLimit = (Number(attack.width) || 38) * 0.5 + body + padding + (telegraph ? 16 : 0);
+            if (punchDistance < punchLimit) {
+                return { x: (Number(attack.originX) + Number(attack.endX)) * 0.5,
+                    y: (Number(attack.originY) + Number(attack.endY)) * 0.5,
+                    axis: "segment", distance: punchDistance, attack: attack };
+            }
+            return null;
+        }
+        if (type === "wb_crescent_slash") {
+            if (telegraph && attack.state === "windup") {
+                var low = Math.min(Number(attack.startY) || Number(attack.y) || 0,
+                    Number(attack.targetY) || Number(attack.y) || 0);
+                var high = Math.max(Number(attack.startY) || Number(attack.y) || 0,
+                    Number(attack.targetY) || Number(attack.y) || 0);
+                var warningLimit = (Number(attack.width) || 92) * 0.5 + body + padding + 14;
+                if (y >= low - warningLimit && y <= high + warningLimit) {
+                    var safeTop = Math.max(10, low - warningLimit - 24);
+                    var safeBottom = Math.min(480, high + warningLimit + 24);
+                    return { x: x, y: y, axis: "horizontal", distance: 0,
+                        safeY: Math.abs(y - safeTop) <= Math.abs(y - safeBottom) ? safeTop : safeBottom,
+                        attack: attack };
+                }
+                return null;
+            }
+            if (attack.state !== "flying") return null;
+            var travel = Math.min(1, ((Number(attack.travelElapsed) || 0) + t) /
+                Math.max(1, Number(attack.travelTime) || 90));
+            var laneY = (Number(attack.startY) || Number(attack.y) || 0) +
+                ((Number(attack.targetY) || Number(attack.y) || 0) -
+                 (Number(attack.startY) || Number(attack.y) || 0)) * travel;
+            var slashLimit = (Number(attack.width) || 92) * 0.5 + body + padding;
+            if (x >= -10 && x <= 410 && Math.abs(y - laneY) < slashLimit) {
+                return { x: x, y: laneY, axis: "horizontal", distance: Math.abs(y - laneY), attack: attack };
+            }
+            return null;
+        }
+        if (type === "tsunami") {
+            var tsunamiY = Number(attack.y) + (Number(attack.vy) || 0) * t;
+            var tsunamiHalf = (Number(attack.currentHeight) || Number(attack.height) || 150) * 0.5 + body + padding;
+            var inside = attack.fromRight
+                ? x >= (Number(attack.x) || 0) && x <= 400
+                : x >= 0 && x <= (Number(attack.width) || 0);
+            if (inside && Math.abs(y - tsunamiY) < tsunamiHalf) {
+                return { x: x, y: tsunamiY, axis: "horizontal", distance: Math.abs(y - tsunamiY), attack: attack };
+            }
+            return null;
+        }
+
         var path = Array.isArray(attack.path) ? attack.path : null;
         if (path && path.length > 1) {
             for (var p = 1; p < path.length; p++) {
@@ -280,9 +456,19 @@
                 return { x: ax, y: ay, axis: "segment", distance: segmentDistance, attack: attack };
             }
         }
+        if ([attack.originX, attack.originY, attack.endX, attack.endY].every(function(v) {
+            return Number.isFinite(Number(v));
+        })) {
+            var originSegment = companionSegmentDistance(x, y,
+                Number(attack.originX) + shiftX, Number(attack.originY) + shiftY,
+                Number(attack.endX) + shiftX, Number(attack.endY) + shiftY);
+            if (originSegment < width * 0.5 + body + padding) {
+                return { x: ax, y: ay, axis: "segment", distance: originSegment, attack: attack };
+            }
+        }
+
         var dx = x - ax, dy = y - ay;
         var distance = Math.hypot(dx, dy);
-
         if (type.indexOf("laser") !== -1 || type.indexOf("beam") !== -1 ||
             type.indexOf("slash") !== -1 || type.indexOf("blade") !== -1) {
             var hasAngle = Number.isFinite(Number(attack.angle));
@@ -300,48 +486,51 @@
                 attack.zone === "lower" || attack.horizontal === true ||
                 (hasAngle && Math.abs(Math.sin(Number(attack.angle))) < 0.25);
             var lineDistance = horizontal ? Math.abs(y - ay) : Math.abs(x - ax);
-            var halfWidth = Math.max(12, (width || height || 20) * 0.5 + body + padding);
-            if (lineDistance < halfWidth) {
+            if (lineDistance < Math.max(12, (width || height || 20) * 0.5 + body + padding)) {
                 return { x: ax, y: ay, axis: horizontal ? "horizontal" : "vertical",
                     distance: lineDistance, attack: attack };
             }
             return null;
         }
-
         if (type === "ring" || type.indexOf("shockwave") !== -1) {
             var ringRadius = Math.max(0, Number(attack.radius) || Number(attack.currentRadius) || 0);
             var ringSpeed = Number(attack.speed) || Number(attack.expansionSpeed) || 0;
             ringRadius = Math.max(0, ringRadius + ringSpeed * t);
-            var ringBand = Math.max(10, Number(attack.thickness) * 0.5 + body + padding);
-            if (Math.abs(distance - ringRadius) < ringBand) {
-                return { x: ax, y: ay, axis: "point", distance: distance,
-                    radius: ringRadius, attack: attack };
+            if (Math.abs(distance - ringRadius) < Math.max(10, Number(attack.thickness) * 0.5 + body + padding)) {
+                return { x: ax, y: ay, axis: "point", distance: distance, radius: ringRadius, attack: attack };
             }
             return null;
         }
-
-        if (type === "tsunami" || type.indexOf("wall") !== -1 || type.indexOf("plate") !== -1 ||
+        if (type.indexOf("wall") !== -1 || type.indexOf("plate") !== -1 ||
             type.indexOf("gate") !== -1) {
             var halfW = Math.max(16, (width || Number(attack.size) || 28) * 0.5 + body + padding);
             var halfH = Math.max(16, (height || Number(attack.size) || 28) * 0.5 + body + padding);
             if (Math.abs(dx) < halfW && Math.abs(dy) < halfH) {
-                return { x: ax, y: ay, axis: "rect", distance: distance,
-                    attack: attack };
+                return { x: ax, y: ay, axis: "rect", distance: distance, attack: attack };
             }
             return null;
         }
-
         var radius = Math.max(5, Number(attack.radius) || Number(attack.size) ||
             Math.max(width, height) * 0.5 || 12);
         var limit = radius + body + padding;
-        if (distance < limit) {
-            return { x: ax, y: ay, axis: "point", distance: distance,
-                limit: limit, attack: attack };
-        }
-        return null;
+        return distance < limit
+            ? { x: ax, y: ay, axis: "point", distance: distance, limit: limit, attack: attack }
+            : null;
     }
 
-    // Simulates the same eased acceleration and braking used by Oden before judging a route.
+    function companionShockwaveThreat(wave, x, y, frames, alert) {
+        if (!wave || wave.odenHit || !(Number(wave.damage) > 0)) return null;
+        var radius = Math.max(0, Number(wave.radius) || 0) +
+            Math.max(0, Number(wave.speed) || 0) * Math.max(0, Number(frames) || 0);
+        var distance = Math.hypot(x - (Number(wave.x) || 0), y - (Number(wave.y) || 0));
+        var limit = (Number(wave.width) || 5) * 0.7 + getCompanionSize(null) * 0.72 + (alert ? 34 : 0);
+        return Math.abs(distance - radius) < limit
+            ? { x: Number(wave.x) || 0, y: Number(wave.y) || 0, axis: "point",
+                distance: Math.abs(distance - radius), attack: wave }
+            : null;
+    }
+
+        // Simulates the same eased acceleration and braking used by Oden before judging a route.
     function predictCompanionRoute(ctx, targetX, targetY, futureTimes) {
         var maxTime = Math.max.apply(null, futureTimes);
         var wanted = Object.create(null);
@@ -379,29 +568,38 @@
 
     function findIncomingCompanionThreat(ctx) {
         var attacks = getAttackList(ctx);
-        if (!attacks.length) return null;
-        var skill = Math.max(0.14, Math.min(1, Number(state.aiSkill) || 0.62));
+        var waves = getCompanionShockwaves(ctx);
+        if (!attacks.length && !waves.length) return null;
+        var skill = Math.max(0.14, Math.min(1, Number(state.aiSkill) || 0.94));
         var horizon = Math.round(150 + skill * 56);
         var times = [0];
         for (var t = 4; t < horizon; t += 4) times.push(t);
         if (times[times.length - 1] !== horizon) times.push(horizon);
-
         var tx = Number.isFinite(Number(state.moveTargetX)) ? Number(state.moveTargetX) : state.x;
         var ty = Number.isFinite(Number(state.moveTargetY)) ? Number(state.moveTargetY) : state.y;
         var route = predictCompanionRoute(ctx, tx, ty, times);
         var earliest = null, bestTime = Infinity;
 
         for (var a = attacks.length - 1; a >= 0; a--) {
-            var attack = attacks[a];
             for (var p = 0; p < route.length; p++) {
                 var point = route[p];
-                var risk = companionThreatAt(attack, point.x, point.y, point.time, true);
+                var risk = companionThreatAt(attacks[a], point.x, point.y, point.time, true);
                 if (risk && point.time < bestTime) {
                     bestTime = point.time;
-                    earliest = {
-                        risk: risk, time: point.time, attack: attack,
-                        attackType: attack.type, predictedX: point.x, predictedY: point.y
-                    };
+                    earliest = { risk: risk, time: point.time, attack: attacks[a],
+                        attackType: attacks[a].type, predictedX: point.x, predictedY: point.y };
+                    break;
+                }
+            }
+        }
+        for (var w = waves.length - 1; w >= 0; w--) {
+            for (var wp = 0; wp < route.length; wp++) {
+                var wavePoint = route[wp];
+                var waveRisk = companionShockwaveThreat(waves[w], wavePoint.x, wavePoint.y, wavePoint.time, true);
+                if (waveRisk && wavePoint.time < bestTime) {
+                    bestTime = wavePoint.time;
+                    earliest = { risk: waveRisk, time: wavePoint.time, attack: waves[w],
+                        attackType: "shockwave", predictedX: wavePoint.x, predictedY: wavePoint.y };
                     break;
                 }
             }
@@ -409,16 +607,14 @@
         return earliest;
     }
 
-    function chooseSafeCompanionDodge(ctx, incoming) {
+        function chooseSafeCompanionDodge(ctx, incoming) {
         var left = 24, right = 376, top = 18, bottom = 474;
         var angles = 16, distances = [88, 128, 164];
         var futureTimes = [4, 8, 13, 19, 27, 37, 49];
-        var attacks = getAttackList(ctx);
+        var attacks = getAttackList(ctx), waves = getCompanionShockwaves(ctx);
         var boss = getBossPosition(ctx, state.x, state.y);
-        var maxSpeed = getCompanionMovementSpeed(ctx);
         var currentSpeed = Math.hypot(Number(state.vx) || 0, Number(state.vy) || 0);
         var best = null, bestScore = -Infinity;
-
         for (var d = 0; d < distances.length; d++) {
             for (var k = 0; k < angles; k++) {
                 var angle = k * Math.PI * 2 / angles;
@@ -426,17 +622,19 @@
                 var ty = Math.max(top, Math.min(bottom, state.y + Math.sin(angle) * distances[d]));
                 var route = predictCompanionRoute(ctx, tx, ty, futureTimes);
                 var score = 0, collisions = 0;
-
                 for (var p = 0; p < route.length; p++) {
                     var point = route[p];
                     for (var a = attacks.length - 1; a >= 0; a--) {
                         if (companionThreatAt(attacks[a], point.x, point.y, point.time, true)) {
-                            collisions++;
-                            score -= p < 2 ? 38 : 27;
+                            collisions++; score -= p < 2 ? 38 : 27;
+                        }
+                    }
+                    for (var w = waves.length - 1; w >= 0; w--) {
+                        if (companionShockwaveThreat(waves[w], point.x, point.y, point.time, true)) {
+                            collisions++; score -= p < 2 ? 34 : 24;
                         }
                     }
                 }
-
                 if (collisions === 0) score += 180;
                 if (incoming && incoming.risk) {
                     score += Math.min(180, Math.hypot(tx - incoming.risk.x, ty - incoming.risk.y)) * 0.14;
@@ -444,8 +642,8 @@
                 if (currentSpeed > 0.8) {
                     var routeDx = tx - state.x, routeDy = ty - state.y;
                     var routeLength = Math.hypot(routeDx, routeDy) || 1;
-                    var alignment = ((Number(state.vx) || 0) * routeDx +
-                        (Number(state.vy) || 0) * routeDy) / Math.max(1, currentSpeed * routeLength);
+                    var alignment = ((Number(state.vx) || 0) * routeDx + (Number(state.vy) || 0) * routeDy) /
+                        Math.max(1, currentSpeed * routeLength);
                     score += alignment * 12;
                 }
                 var continuity = Math.hypot(tx - (Number(state.moveTargetX) || state.x),
@@ -457,62 +655,75 @@
                 if (bossDistance < 132) score -= (132 - bossDistance) * 2.25;
                 else score += Math.min(70, bossDistance - 132) * 0.12;
                 score += Math.random() * 1.5;
-                if (score > bestScore) {
-                    bestScore = score;
-                    best = { x: tx, y: ty, safe: collisions === 0 };
-                }
+                if (score > bestScore) { bestScore = score; best = { x: tx, y: ty, safe: collisions === 0 }; }
             }
         }
         return best || {
             x: Math.max(left, Math.min(right, state.x + (state.x < 200 ? 100 : -100))),
-            y: Math.max(top, Math.min(bottom, state.y - 55)),
-            safe: false
+            y: Math.max(top, Math.min(bottom, state.y - 55)), safe: false
         };
     }
 
-    function chooseCompanionGoal(ctx, playerX, playerY, boss, frameScale) {
+        function chooseCompanionGoal(ctx, playerX, playerY, boss, frameScale) {
         var playerHp = Math.max(0, Number(ctx.getPlayerHp && ctx.getPlayerHp()) || 0);
         var playerMaxHp = Math.max(1, Number(ctx.getPlayerMaxHp && ctx.getPlayerMaxHp()) || 1);
         var lowHp = playerHp / playerMaxHp < 0.45;
         state.companionModeTimer = Math.max(0, (Number(state.companionModeTimer) || 0) - frameScale);
         if (state.companionModeTimer <= 0) {
-            state.companionMode = Math.random() < (lowHp ? 0.92 : 0.78) ? "guard" : "roam";
+            state.companionMode = lowHp
+                ? (Math.random() < 0.78 ? "guard" : "roam")
+                : (Math.random() < 0.52 ? "guard" : "roam");
             state.companionSide = Math.random() < 0.5 ? -1 : 1;
-            state.companionOffsetX = (Math.random() - 0.5) * 14;
-            state.companionOffsetY = (Math.random() - 0.5) * 12;
+            state.companionOffsetX = (Math.random() - 0.5) * 24;
+            state.companionOffsetY = (Math.random() - 0.5) * 18;
             state.companionModeTimer = state.companionMode === "guard"
                 ? 95 + Math.floor(Math.random() * 85)
-                : 80 + Math.floor(Math.random() * 60);
+                : 125 + Math.floor(Math.random() * 125);
         }
         if (state.healState !== "idle") {
-            var healSide = Number(state.healSide) || 1;
-            return { x: Math.max(30, Math.min(370, playerX + healSide * 43)),
+            var side = Number(state.healSide) || 1;
+            return { x: Math.max(30, Math.min(370, playerX + side * 43)),
                 y: Math.max(28, Math.min(456, playerY - 7)) };
         }
+
         var bossX = Number(boss && boss.x), bossY = Number(boss && boss.y);
-        var hasBoss = Number.isFinite(bossX) && Number.isFinite(bossY);
-        var side = Number(state.companionSide) || 1;
-        var targetX = playerX + side * 46 + (Number(state.companionOffsetX) || 0);
-        var targetY = playerY - 13 + (Number(state.companionOffsetY) || 0);
-        if (hasBoss) {
-            var leadX = Math.max(-18, Math.min(18, (Number(boss.vx) || 0) * 4));
-            if (state.companionMode === "guard") {
-                targetX = targetX * 0.82 + (bossX + leadX) * 0.18;
-                targetY = targetY * 0.88 + (playerY - 22) * 0.12;
-            } else {
-                state.wanderTimer = Math.max(0, (Number(state.wanderTimer) || 0) - frameScale);
-                if (state.wanderTimer <= 0 ||
-                    Math.hypot(state.moveTargetX - state.x, state.moveTargetY - state.y) < 18) {
-                    state.companionOffsetX = (Math.random() - 0.5) * 60;
-                    state.companionOffsetY = -12 - Math.random() * 28;
-                    state.wanderTimer = 42 + Math.floor(Math.random() * 54);
-                }
-                var roamX = bossX + (Number(state.companionOffsetX) || 0) * 0.35;
-                targetX = playerX * 0.68 + roamX * 0.32;
-                targetY = playerY * 0.78 + (playerY - 24 + (Number(state.companionOffsetY) || 0)) * 0.22;
+        if (Number.isFinite(bossX) && Number.isFinite(bossY)) {
+            // Oden's lower-lane formation, translated for the small Golden Heart.
+            // It tracks the opponent's horizontal movement instead of hovering beside Giorno.
+            var leadX = Math.max(-24, Math.min(24, (Number(boss.vx) || 0) * 5));
+            var targetX = Math.max(28, Math.min(372, bossX + leadX));
+            var targetY = Math.max(360, Math.min(456, playerY + 22));
+            var toBoss = Math.hypot(targetX - bossX, targetY - bossY);
+            if (toBoss < 132) {
+                var awayX = state.x - bossX, awayY = state.y - bossY;
+                var awayLength = Math.max(1, Math.hypot(awayX, awayY));
+                targetX = Math.max(24, Math.min(376, bossX + awayX / awayLength * 145));
+                targetY = Math.max(18, Math.min(474, bossY + awayY / awayLength * 145));
             }
+            // When Giorno is critically hurt, the formation shifts slightly toward him.
+            if (lowHp) targetX = targetX * 0.86 + playerX * 0.14;
+            return { x: targetX, y: targetY };
         }
-        return { x: Math.max(28, Math.min(372, targetX)), y: Math.max(18, Math.min(476, targetY)) };
+
+        // No active target yet: remain close to the player but keep independent footwork.
+        var sideFallback = Number(state.companionSide) || 1;
+        var offsetX = Number(state.companionOffsetX) || 0;
+        var offsetY = Number(state.companionOffsetY) || 0;
+        if (state.companionMode === "roam") {
+            state.wanderTimer = Math.max(0, (Number(state.wanderTimer) || 0) - frameScale);
+            if (state.wanderTimer <= 0 ||
+                Math.hypot(state.moveTargetX - state.x, state.moveTargetY - state.y) < 18) {
+                state.companionOffsetX = (Math.random() - 0.5) * 90;
+                state.companionOffsetY = (Math.random() - 0.5) * 52;
+                state.wanderTimer = 42 + Math.floor(Math.random() * 54);
+            }
+            offsetX = Number(state.companionOffsetX) || 0;
+            offsetY = Number(state.companionOffsetY) || 0;
+        }
+        return {
+            x: Math.max(28, Math.min(372, playerX + sideFallback * 48 + offsetX)),
+            y: Math.max(18, Math.min(476, playerY - 18 + offsetY))
+        };
     }
 
         function spawnHitEffect(x, y, color) {
@@ -653,7 +864,7 @@
             x: Number(boss.x) || state.x,
             y: Number(boss.y) || state.y
         };
-        state.comboCooldownUntil = current + comboDuration + 1100;
+        state.comboCooldownUntil = current + comboDuration + 700;
         state.nextAttackAt = state.comboCooldownUntil;
         state.attackUntil = current + 150;
         state.attackFrame = 0;
@@ -738,7 +949,7 @@
         };
         state.attackType = type;
         state.lastAttackType = type;
-        state.nextAttackAt = current + duration + Math.round(1350 / attackRate);
+        state.nextAttackAt = current + duration + 520;
         state.attackUntil = current + 320;
         if (seeds) {
             toast("GOLD EXPERIENCE: LIFE SEEDS!", "#8dffae");
@@ -793,19 +1004,109 @@
 
     function beginCompanionAttack(ctx, target, distance) {
         var choices = [];
-        if (distance <= 135) choices.push("muda", "muda", "muda");
-        if (distance <= 185) choices.push("vines", "vines");
-        if (distance <= 230) choices.push("seeds", "seeds");
+        if (distance <= 145) choices.push("muda", "muda", "muda");
+        if (distance <= 330) choices.push("vines", "vines");
+        if (distance <= 560) choices.push("seeds", "seeds", "seeds");
         if (!choices.length) return false;
-
-        var freshChoices = choices.filter(function (type) {
-            return type !== state.lastAttackType;
-        });
+        var freshChoices = choices.filter(function (type) { return type !== state.lastAttackType; });
         if (!freshChoices.length) freshChoices = choices;
         var selected = freshChoices[Math.floor(Math.random() * freshChoices.length)];
-
         if (selected === "muda") return beginMudaCombo(ctx, target, currentCard());
         return beginSpecialAttack(ctx, target, selected);
+    }
+
+    function beginSeedShot(ctx, target) {
+        if (!ctx || (ctx.type !== "arena" && !target) || state.windup > 0 || state.attackCooldown > 0) return false;
+        var boss = target || getBossPosition(ctx, state.x, state.y);
+        var dx = Number(boss.x) - state.x, dy = Number(boss.y) - state.y;
+        var distance = Math.max(1, Math.hypot(dx, dy));
+        var travelFrames = Math.min(18, Math.max(2, distance / 9));
+        var lead = 0.34 + Math.max(0.94, Number(state.aiSkill) || 0.94) * 0.36;
+        var leadX = Math.max(-2.2, Math.min(2.2, Number(boss.vx) || 0)) * travelFrames * lead;
+        var leadY = Math.max(-1.8, Math.min(1.8, Number(boss.vy) || 0)) * travelFrames * lead;
+        var aimError = (Math.random() - 0.5) * 0.06;
+        state.targetId = target ? target.id : null;
+        state.attackAngle = Math.atan2(dy + leadY, dx + leadX) + aimError;
+        state.windup = 3;
+        state.swingTimer = 5;
+        state.attackCooldown = 18;
+        state.facing = Math.cos(state.attackAngle) < 0 ? -1 : 1;
+        return true;
+    }
+
+    function fireSeedProjectile(ctx, target) {
+        if (!ctx) return false;
+        if (ctx.type !== "arena" && !target) return false;
+        var maxHp = getAttackBossMaxHp(ctx, target);
+        var angle = Number(state.attackAngle) || 0;
+        var damage = Math.max(1, Math.floor(maxHp * 0.0012));
+        state.projectiles.push({
+            x: state.x + Math.cos(angle) * 9,
+            y: state.y + Math.sin(angle) * 9,
+            vx: Math.cos(angle) * 9.5,
+            vy: Math.sin(angle) * 9.5,
+            speed: 9.5,
+            angle: angle,
+            life: 75,
+            damage: damage,
+            targetType: ctx.type,
+            targetId: target ? target.id : null,
+            phase: Math.random() * Math.PI * 2
+        });
+        state.lastAttackType = "life-seed";
+        state.attackUntil = now() + 110;
+        state.nextSeedAt = now() + 420;
+        return true;
+    }
+
+    function updateSeedProjectiles(ctx, frameScale) {
+        if (!Array.isArray(state.projectiles) || !state.projectiles.length) return;
+        for (var i = state.projectiles.length - 1; i >= 0; i--) {
+            var seed = state.projectiles[i];
+            if (!seed || seed.targetType !== ctx.type) {
+                state.projectiles.splice(i, 1);
+                continue;
+            }
+            var target = ctx.type === "arena" ? null : getUniqueBossTarget(ctx, seed.targetId);
+            if (ctx.type !== "arena" && !target) {
+                target = getUniqueBossTarget(ctx);
+                if (target) seed.targetId = target.id;
+            }
+            if (ctx.type !== "arena" && !target) {
+                state.projectiles.splice(i, 1);
+                continue;
+            }
+            var boss = target || getBossPosition(ctx, state.x, state.y);
+            var dx = Number(boss.x) - seed.x, dy = Number(boss.y) - seed.y;
+            var dist = Math.max(1, Math.hypot(dx, dy));
+            var desiredVx = dx / dist * seed.speed, desiredVy = dy / dist * seed.speed;
+            seed.vx += (desiredVx - seed.vx) * 0.055 * frameScale;
+            seed.vy += (desiredVy - seed.vy) * 0.055 * frameScale;
+            var speed = Math.hypot(seed.vx, seed.vy) || seed.speed;
+            if (speed > seed.speed) {
+                seed.vx = seed.vx / speed * seed.speed;
+                seed.vy = seed.vy / speed * seed.speed;
+            }
+            seed.x += seed.vx * frameScale;
+            seed.y += seed.vy * frameScale;
+            seed.angle = Math.atan2(seed.vy, seed.vx);
+            seed.phase += 0.18 * frameScale;
+            seed.life -= frameScale;
+
+            var hitRadius = target ? Math.max(12, (Number(target.size) || 28) * 0.5 + 7) : 23;
+            if (Math.hypot(Number(boss.x) - seed.x, Number(boss.y) - seed.y) <= hitRadius) {
+                applyCompanionBossDamage(ctx, target, seed.damage);
+                state.lastSeedImpactAt = now();
+                state.lastSeedImpactX = Number(boss.x) || seed.x;
+                state.lastSeedImpactY = Number(boss.y) || seed.y;
+                spawnHitEffect(state.lastSeedImpactX, state.lastSeedImpactY, "#9bffad");
+                state.projectiles.splice(i, 1);
+                continue;
+            }
+            if (seed.life <= 0 || seed.x < -40 || seed.x > 440 || seed.y < -40 || seed.y > 540) {
+                state.projectiles.splice(i, 1);
+            }
+        }
     }
 
     function beginCompanionHeal(ctx, playerX, playerY, playerMaxHp, current) {
@@ -829,17 +1130,23 @@
         var current = now(), ctx = getContext();
         if (!ctx || typeof ctx.getHeartX !== "function" || typeof ctx.getHeartY !== "function") return;
         var frameScale = Math.max(0.35, Math.min(2.2, (Number(dt) || 16.667) / 16.667));
-        var playerX = Number(ctx.getHeartX()) || 200, playerY = Number(ctx.getHeartY()) || 400;
+        var playerX = Number(ctx.getHeartX()) || 200;
+        var playerY = Number(ctx.getHeartY()) || 400;
         var playerHp = Math.max(0, Number(ctx.getPlayerHp && ctx.getPlayerHp()) || 0);
         var playerMaxHp = Math.max(1, Number(ctx.getPlayerMaxHp && ctx.getPlayerMaxHp()) || 1);
-        var boss = getBossPosition(ctx, playerX, playerY);
+        var target = ctx.type === "arena" ? null : getUniqueBossTarget(ctx, state.targetId);
+        if (ctx.type !== "arena" && !target) target = getUniqueBossTarget(ctx);
+        if (target) state.targetId = target.id;
+        var boss = target || getBossPosition(ctx, playerX, playerY);
+
         state.heartSize = getCompanionSize(ctx);
-        state.aiSkill = Math.min(0.99, Math.max(0.94, Number(state.aiSkill) || 0.94) + 0.0002 * frameScale);
+        state.aiSkill = Math.min(0.99, Math.max(0.96, Number(state.aiSkill) || 0.96) + 0.0002 * frameScale);
 
         if (state.healState === "idle" && current >= (Number(state.healCooldownUntil) || 0) &&
             playerHp > 0 && playerHp < playerMaxHp * 0.40 && (Number(state.stunTimer) || 0) <= 0) {
             beginCompanionHeal(ctx, playerX, playerY, playerMaxHp, current);
         }
+
         if (state.stunTimer > 0) {
             state.stunTimer = Math.max(0, state.stunTimer - frameScale);
             state.vx *= 0.72; state.vy *= 0.72;
@@ -849,26 +1156,32 @@
         if (state.dodgePlanTimer > 0) state.dodgePlanTimer = Math.max(0, state.dodgePlanTimer - frameScale);
         if (state.dodgeFlashTimer > 0) state.dodgeFlashTimer = Math.max(0, state.dodgeFlashTimer - frameScale);
         if (state.hitFlash > 0) state.hitFlash = Math.max(0, state.hitFlash - frameScale);
+        if (state.attackCooldown > 0) state.attackCooldown = Math.max(0, state.attackCooldown - frameScale);
+        if (state.swingTimer > 0) state.swingTimer = Math.max(0, state.swingTimer - frameScale);
 
         var goal = chooseCompanionGoal(ctx, playerX, playerY, boss, frameScale);
-        state.moveTargetX = goal.x; state.moveTargetY = goal.y;
+        state.moveTargetX = goal.x;
+        state.moveTargetY = goal.y;
         var incoming = state.stunTimer > 0 ? null : findIncomingCompanionThreat(ctx);
         var urgentThreat = !!incoming && incoming.time <= 8;
         var newThreat = !!incoming && incoming.attack !== state.lastThreatAttack;
         var dodging = false;
-        if (incoming && incoming.time <= Math.round(96 + state.aiSkill * 34) &&
+
+        if (incoming && incoming.time <= Math.round(150 + state.aiSkill * 56) &&
             (state.dodgeCooldown <= 0 || urgentThreat || state.healState !== "idle") &&
             (state.dodgePlanTimer <= 0 || urgentThreat || state.healState !== "idle" ||
                 (newThreat && incoming.time <= 22))) {
             var safeTarget = chooseSafeCompanionDodge(ctx, incoming);
-            state.moveTargetX = safeTarget.x; state.moveTargetY = safeTarget.y;
+            state.moveTargetX = safeTarget.x;
+            state.moveTargetY = safeTarget.y;
             state.wanderTimer = 28 + Math.floor((1 - state.aiSkill) * 12);
             state.dodgePlanTimer = Math.max(8, Math.round(19 - state.aiSkill * 7));
             state.lastThreatAttack = incoming.attack || null;
             state.dodgeCooldown = incoming.time <= 12
                 ? Math.max(3, Math.round(8 - state.aiSkill * 3))
                 : Math.max(6, Math.round(14 - state.aiSkill * 5));
-            state.dodgeFlashTimer = 13; dodging = true;
+            state.dodgeFlashTimer = 13;
+            dodging = true;
             spawnHitEffect(state.x, state.y, "#8bffad");
         } else if (incoming && state.dodgePlanTimer > 0) {
             dodging = true;
@@ -877,59 +1190,108 @@
         }
         state.isDodging = dodging;
 
+        // Same eased movement as Oden: accelerate towards a real combat lane and brake naturally.
         var calm = !incoming && !dodging && state.healState === "idle";
-        var driftX = calm ? Math.sin(current / 420 + (Number(state.footworkPhase) || 0)) * 3 : 0;
-        var driftY = calm ? Math.cos(current / 610 + (Number(state.footworkPhase) || 0)) * 2 : 0;
-        var toX = state.moveTargetX + driftX - state.x, toY = state.moveTargetY + driftY - state.y;
-        var distance = Math.hypot(toX, toY) || 1;
+        var driftX = calm ? Math.sin(current / 420 + (Number(state.footworkPhase) || 0)) * 4.2 : 0;
+        var driftY = calm ? Math.cos(current / 610 + (Number(state.footworkPhase) || 0)) * 3.0 : 0;
+        var toX = state.moveTargetX + driftX - state.x;
+        var toY = state.moveTargetY + driftY - state.y;
+        var distanceToGoal = Math.hypot(toX, toY) || 1;
         var maxSpeed = getCompanionMovementSpeed(ctx);
-        var desiredSpeed = distance < (calm ? 7 : 2) ? 0 : Math.min(maxSpeed, Math.max(0.45, distance * 0.22));
-        var desiredVx = toX / distance * desiredSpeed, desiredVy = toY / distance * desiredSpeed;
+        var desiredSpeed = distanceToGoal < (calm ? 7 : 2)
+            ? 0 : Math.min(maxSpeed, Math.max(0.45, distanceToGoal * 0.22));
+        var desiredVx = toX / distanceToGoal * desiredSpeed;
+        var desiredVy = toY / distanceToGoal * desiredSpeed;
         var steering = urgentThreat ? 0.33 : (0.14 + state.aiSkill * 0.12);
         state.vx += (desiredVx - state.vx) * steering;
         state.vy += (desiredVy - state.vy) * steering;
-        var speedNow = Math.hypot(state.vx, state.vy);
-        if (speedNow > maxSpeed) { state.vx = state.vx / speedNow * maxSpeed; state.vy = state.vy / speedNow * maxSpeed; }
-        var nextX = state.x + state.vx * frameScale, nextY = state.y + state.vy * frameScale;
-        state.x = Math.max(18, Math.min(382, nextX)); state.y = Math.max(8, Math.min(482, nextY));
+        var currentSpeed = Math.hypot(state.vx, state.vy);
+        if (currentSpeed > maxSpeed) {
+            state.vx = state.vx / currentSpeed * maxSpeed;
+            state.vy = state.vy / currentSpeed * maxSpeed;
+        }
+        var nextX = state.x + state.vx * frameScale;
+        var nextY = state.y + state.vy * frameScale;
+        state.x = Math.max(18, Math.min(382, nextX));
+        state.y = Math.max(8, Math.min(482, nextY));
         if (state.x !== nextX) state.vx *= -0.18;
         if (state.y !== nextY) state.vy *= -0.18;
 
-        if (state.healState === "approach" && Math.hypot(state.x - playerX, state.y - playerY) <= 58) {
-            state.healState = "channel"; toast("GOLDEN HEART: ЛЕЧЕНИЕ · 5 СЕКУНД", "#9affc8");
+        if (state.trail) {
+            state.trail.push({ x: state.x, y: state.y, life: 10 });
+            if (state.trail.length > 9) state.trail.shift();
+            for (var tr = state.trail.length - 1; tr >= 0; tr--) state.trail[tr].life -= frameScale;
+            while (state.trail.length && state.trail[0].life <= 0) state.trail.shift();
+        }
+
+        if (state.healState === "approach" &&
+            Math.hypot(state.x - playerX, state.y - playerY) <= 58) {
+            state.healState = "channel";
+            toast("GOLDEN HEART: ЛЕЧЕНИЕ · 5 СЕКУНД", "#9affc8");
         }
         if (state.healState === "channel") {
-            var close = Math.hypot(state.x - playerX, state.y - playerY) <= 82;
-            if (!close) state.healState = "approach";
-            else if (!dodging && state.stunTimer <= 0) {
+            var closeToPlayer = Math.hypot(state.x - playerX, state.y - playerY) <= 82;
+            if (!closeToPlayer) {
+                state.healState = "approach";
+            } else if (!dodging && state.stunTimer <= 0) {
                 var hpBefore = Math.max(0, Number(ctx.getPlayerHp()) || 0);
-                var step = Math.min(Math.max(0, Number(state.healRemaining) || 0),
+                var healStep = Math.min(Math.max(0, Number(state.healRemaining) || 0),
                     Math.max(0, Number(state.healTotal) || playerMaxHp * 0.15) / 300 * frameScale);
-                if (step > 0) setPlayerHp(ctx, hpBefore + step);
+                if (healStep > 0) setPlayerHp(ctx, hpBefore + healStep);
                 var healed = Math.max(0, Math.min(playerMaxHp, Number(ctx.getPlayerHp()) || 0) - hpBefore);
                 state.healRemaining = Math.max(0, state.healRemaining - healed);
                 state.healTimer = Math.max(0, state.healTimer - frameScale);
                 if (state.healTimer <= 0 || state.healRemaining <= 0.001) {
-                    state.healState = "idle"; state.healTimer = 0;
-                    state.healRemaining = 0; state.healTotal = 0;
+                    state.healState = "idle";
+                    state.healTimer = 0;
+                    state.healRemaining = 0;
+                    state.healTotal = 0;
                     state.healCooldownUntil = current + 40000;
-                    state.companionMode = "guard"; state.companionModeTimer = 105;
+                    state.companionMode = "guard";
+                    state.companionModeTimer = 105;
                     toast("GOLDEN HEART: ДЕРЖИСЬ!", "#9affcf");
                 }
             }
         }
-        if (state.healState !== "idle" || state.stunTimer > 0) {
-            state.attackUntil = 0; state.combo = null; state.specialAttack = null; state.attackType = null;
-        } else {
+
+        var bossDistance = Math.hypot(state.x - (Number(boss.x) || state.x),
+            state.y - (Number(boss.y) || state.y));
+        if (state.healState === "idle" && state.stunTimer <= 0) {
+            // Oden's short wind-up, repeated independently of the signature abilities.
+            if (state.windup > 0) {
+                state.windup = Math.max(0, state.windup - frameScale);
+                if (state.windup <= 0) {
+                    var shotTarget = ctx.type === "arena" ? null :
+                        (getUniqueBossTarget(ctx, state.targetId) || getUniqueBossTarget(ctx));
+                    fireSeedProjectile(ctx, shotTarget);
+                }
+            } else if (!dodging && !state.combo && !state.specialAttack &&
+                state.attackCooldown <= 0 && (ctx.type === "arena" || target)) {
+                beginSeedShot(ctx, target);
+            }
+
+            updateSeedProjectiles(ctx, frameScale);
+
             if (state.combo) updateMudaCombo(ctx);
             else if (state.specialAttack) updateSpecialAttack(ctx);
-            var target = getUniqueBossTarget(ctx);
-            var targetX = target ? Number(target.x) : boss.x;
-            var targetY = target ? Number(target.y) : boss.y;
-            var bossDist = Math.hypot(state.x - targetX, state.y - targetY);
-            if (!state.combo && !state.specialAttack && current >= state.nextAttackAt && bossDist <= 230) {
-                beginCompanionAttack(ctx, target, bossDist);
+
+            var currentTarget = ctx.type === "arena" ? null :
+                (getUniqueBossTarget(ctx, state.targetId) || getUniqueBossTarget(ctx));
+            var activePosition = currentTarget || getBossPosition(ctx, state.x, state.y);
+            var attackDistance = Math.hypot(state.x - Number(activePosition.x),
+                state.y - Number(activePosition.y));
+            if (!state.combo && !state.specialAttack && current >= state.nextAttackAt &&
+                (ctx.type === "arena" || currentTarget) && attackDistance <= 560) {
+                beginCompanionAttack(ctx, currentTarget, attackDistance);
             }
+        } else {
+            state.windup = 0;
+            state.swingTimer = 0;
+        }
+        if (state.healState !== "idle" || state.stunTimer > 0) {
+            state.combo = null;
+            state.specialAttack = null;
+            state.attackType = null;
         }
     }
 
@@ -1015,27 +1377,27 @@
         var attacking = !!(state.combo || state.specialAttack || current < state.attackUntil);
         function heartPath(target, r) {
             target.beginPath();
-            target.moveTo(0, r * 0.72);
-            target.bezierCurveTo(-r * 0.18, r * 0.45, -r * 1.40, -r * 0.08, -r * 1.38, -r * 0.62);
-            target.bezierCurveTo(-r * 1.36, -r * 1.23, -r * 0.34, -r * 1.31, 0, -r * 0.72);
-            target.bezierCurveTo(r * 0.34, -r * 1.31, r * 1.36, -r * 1.23, r * 1.38, -r * 0.62);
-            target.bezierCurveTo(r * 1.40, -r * 0.08, r * 0.18, r * 0.45, 0, r * 0.72);
+            target.moveTo(0, r * 0.45);
+            target.bezierCurveTo(-r * 0.13, r * 0.25, -r * 0.64, -r * 0.05, -r * 0.64, -r * 0.38);
+            target.bezierCurveTo(-r * 0.64, -r * 0.80, -r * 0.16, -r * 0.88, 0, -r * 0.58);
+            target.bezierCurveTo(r * 0.16, -r * 0.88, r * 0.64, -r * 0.80, r * 0.64, -r * 0.38);
+            target.bezierCurveTo(r * 0.64, -r * 0.05, r * 0.13, r * 0.25, 0, r * 0.45);
             target.closePath();
         }
         c.save();
         c.translate(state.x, state.y + Math.sin(current / 170) * 0.75);
         c.scale(scale, scale);
         c.globalAlpha = hitFlash ? 0.8 : 1;
-        var halo = c.createRadialGradient(0, -1, 2, 0, 0, 23);
-        halo.addColorStop(0, healing ? "rgba(126,255,166,.30)" : "rgba(255,218,105,.30)");
+        var halo = c.createRadialGradient(0, -1, 1, 0, 0, 14);
+        halo.addColorStop(0, healing ? "rgba(126,255,166,.24)" : "rgba(255,218,105,.22)");
         halo.addColorStop(1, "rgba(255,190,55,0)");
-        c.fillStyle = halo; c.beginPath(); c.ellipse(0, 0, 23, 18, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = halo; c.beginPath(); c.ellipse(0, 0, 14, 12, 0, 0, Math.PI * 2); c.fill();
         if (dodging || healing) {
             c.strokeStyle = healing ? "#8bffbd" : "#a8ff9a";
             c.lineWidth = healing ? 1.8 : 1.5;
             c.shadowColor = c.strokeStyle; c.shadowBlur = 11;
             c.globalAlpha *= 0.82;
-            c.beginPath(); c.ellipse(0, 0, 22 + Math.sin(current / 50) * 1.3, 17, 0, 0, Math.PI * 2); c.stroke();
+            c.beginPath(); c.ellipse(0, 0, 13 + Math.sin(current / 50) * 0.7, 10, 0, 0, Math.PI * 2); c.stroke();
             c.shadowBlur = 0; c.globalAlpha = hitFlash ? 0.8 : 1;
         }
         var gradient = c.createLinearGradient(-3, -18, 5, 13);
@@ -1070,6 +1432,43 @@
         c.beginPath(); c.moveTo(-1.3, -1.2); c.lineTo(1, 1); c.stroke();
         c.restore();
         c.restore();
+
+        if (Array.isArray(state.projectiles)) {
+            for (var seedIndex = 0; seedIndex < state.projectiles.length; seedIndex++) {
+                var seed = state.projectiles[seedIndex];
+                if (!seed) continue;
+                c.save();
+                c.translate(seed.x, seed.y);
+                c.rotate(Number(seed.angle) || 0);
+                c.globalCompositeOperation = "lighter";
+                c.globalAlpha = 0.9;
+                c.shadowColor = "#76ff9c";
+                c.shadowBlur = 8;
+                c.fillStyle = "#a8ffb5";
+                c.strokeStyle = "#337c42";
+                c.lineWidth = 0.8;
+                c.beginPath();
+                c.ellipse(0, 0, 4.8, 2.1, 0, 0, Math.PI * 2);
+                c.fill(); c.stroke();
+                c.strokeStyle = "rgba(205,255,210,.8)";
+                c.beginPath(); c.moveTo(-1.5, 0); c.lineTo(2.4, 0); c.stroke();
+                c.restore();
+            }
+        }
+
+        var seedImpactAge = current - state.lastSeedImpactAt;
+        if (seedImpactAge >= 0 && seedImpactAge < 130) {
+            c.save();
+            c.globalCompositeOperation = "lighter";
+            c.globalAlpha = Math.max(0, 1 - seedImpactAge / 130) * 0.72;
+            c.strokeStyle = "#b5ffc2";
+            c.lineWidth = 1.5;
+            c.beginPath();
+            c.arc(state.lastSeedImpactX, state.lastSeedImpactY,
+                4 + seedImpactAge * 0.09, 0, Math.PI * 2);
+            c.stroke();
+            c.restore();
+        }
 
         var impactAge = current - state.lastMudaImpactAt;
         if (state.combo && impactAge >= 0 && impactAge < 95) {
@@ -1291,9 +1690,16 @@
         state.healSide = 1;
         state.vx = 0;
         state.vy = 0;
-        state.nextAttackAt = current + 520;
+        state.nextAttackAt = current + 950;
         state.nextHealAt = current;
         state.healCooldownUntil = current;
+        state.projectiles = [];
+        state.targetId = null;
+        state.attackCooldown = 0;
+        state.windup = 0;
+        state.swingTimer = 0;
+        state.seedCooldownUntil = current;
+        state.nextSeedAt = current;
         state.attackUntil = 0;
         state.combo = null;
         state.specialAttack = null;
@@ -1314,6 +1720,11 @@
         state.specialAttack = null;
         state.attackType = null;
         state.trail = [];
+        state.projectiles = [];
+        state.targetId = null;
+        state.windup = 0;
+        state.swingTimer = 0;
+        state.attackCooldown = 0;
     }
 
     function activateGER() {
@@ -1387,6 +1798,11 @@
         state.lastAttackType = null;
         state.nextAttackAt = 0;
         state.nextHealAt = 0;
+        state.projectiles = [];
+        state.targetId = null;
+        state.attackCooldown = 0;
+        state.windup = 0;
+        state.swingTimer = 0;
         state.gerUntil = 0;
         state.gerCharges = 0;
         state.markUntil = 0;
