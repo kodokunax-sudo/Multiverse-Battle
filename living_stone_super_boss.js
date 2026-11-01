@@ -275,9 +275,9 @@
         }
         if (ls2Sparks.length > 70) ls2Sparks.splice(0, ls2Sparks.length - 70);
     }
-    function ls2HandleHit() {
+    function ls2HandleHit(sourceAction, damageOverride) {
         if (ls2Invulnerable > 0) return;
-        var incoming=16;
+        var incoming=Math.max(1,Math.floor(Number(damageOverride)||16));
         if(typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyIncomingDamage==="function") {
             incoming=window.MBBossTestModifyIncomingDamage(incoming,"stoneSuper");
             if(incoming<=0){ls2SetMessage("ПАССИВКА ЗАЩИТИЛА СЕРДЦЕ",35);return;}
@@ -293,6 +293,13 @@
             return;
         }
         if (typeof window.MBKarsProcessIncomingDamage === "function") incoming = window.MBKarsProcessIncomingDamage(incoming);
+        if (typeof window.MBGERTryNullifyDamage === "function" &&
+            window.MBGERTryNullifyDamage(incoming, sourceAction, "combat")) {
+            ls2Invulnerable = 52; ls2HitFlash = 8;
+            ls2SetMessage("ВОЗВРАЩЕНИЕ К НУЛЮ!", 48);
+            ls2SpawnSparks(LS2_HEART_X, LS2_HEART_Y, "#ffe27a", 14);
+            return;
+        }
         ls2PlayerHp = Math.max(0, ls2PlayerHp - incoming);
         ls2Invulnerable = 52; ls2HitFlash = 12;
         ls2SetMessage(ls2Phase === "green" ? "ЩИТ НЕ С ТОЙ СТОРОНЫ!" : "СНАРЯД ПОПАЛ! УВОРАЧИВАЙСЯ", 48);
@@ -399,13 +406,23 @@
             b.x += b.vx * dt; b.y += b.vy * dt; b.spin += 0.07 * dt; b.life -= dt;
             var dx = b.x - LS2_HEART_X, dy = b.y - LS2_HEART_Y;
             var distance = Math.sqrt(dx * dx + dy * dy);
+            var ls2StandCtx=typeof getBossContext==="function"?getBossContext():null;
+            if (typeof window.dioAttackTouchesStand==="function" && ls2StandCtx &&
+                window.dioAttackTouchesStand(ls2StandCtx,b)) {
+                b.dioStandHitOnce=true;
+                var standDamage=typeof window.scaleStandBlockedDamage==="function"?window.scaleStandBlockedDamage(16):8;
+                ls2Bullets.splice(i,1);
+                ls2HandleHit(b,standDamage);
+                if (!ls2Active) return;
+                continue;
+            }
             if (ls2Phase === "green" && distance <= 27 && b.side === ls2ShieldDir) {
                 ls2SpawnSparks(b.x, b.y, "#73ff9b", 7);
                 ls2ShieldFlash = 12; ls2PlayTone(520, "triangle", 0.045, 0.025);
                 ls2Bullets.splice(i, 1); continue;
             }
             if (distance <= (ls2Phase === "green" ? 13 : 16)) {
-                ls2Bullets.splice(i, 1); ls2HandleHit();
+                ls2Bullets.splice(i, 1); ls2HandleHit(b,16);
                 if (!ls2Active) return;
                 continue;
             }
