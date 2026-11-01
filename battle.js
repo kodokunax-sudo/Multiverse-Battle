@@ -2125,10 +2125,6 @@ function applyHit(dmg, textMsg, isTrueOneshot, ignoreInvulnerability, sourceActi
     if(typeof getTakabaCombatModifiers==="function"){try{dmg=Math.max(1,Math.floor(dmg*getTakabaCombatModifiers().damageTakenMult));}catch(e){}}
     if (invulnTimer > 0 && !ignoreInvulnerability) return;
     if (typeof window.gojoTryNegateIncoming === "function" && window.gojoTryNegateIncoming(dmg, "arena")) return;
-    if (sourceAction && typeof window.MBGoldExperienceRedirectDamage === "function") {
-        var geRedirectedDamage = window.MBGoldExperienceRedirectDamage(dmg, typeof getBossContext === "function" ? getBossContext() : null, sourceAction);
-        if (geRedirectedDamage !== null) { dmg = geRedirectedDamage; textMsg = "удар по Gold Experience. Джорно получает 50% урона"; }
-    }
     if (typeof window.MBGERTryNullifyDamage === "function" &&
         window.MBGERTryNullifyDamage(dmg, sourceAction, damageCategory || (isTrueOneshot ? "instant" : "combat"))) {
         invulnTimer = Math.max(invulnTimer || 0, 18);
@@ -2144,6 +2140,10 @@ function applyHit(dmg, textMsg, isTrueOneshot, ignoreInvulnerability, sourceActi
         invulnTimer = 0;
     } else {
         if (typeof window.MBKarsProcessIncomingDamage === "function") dmg = window.MBKarsProcessIncomingDamage(dmg);
+        if (sourceAction && typeof window.MBGoldExperienceRedirectDamage === "function") {
+            var geRedirectedDamage = window.MBGoldExperienceRedirectDamage(dmg, typeof getBossContext === "function" ? getBossContext() : null, sourceAction);
+            if (geRedirectedDamage !== null) { dmg = geRedirectedDamage; textMsg = "удар по Gold Experience. Джорно получает 50% урона"; }
+        }
         if (arenaAttackType !== 10 && !ignoreInvulnerability) invulnTimer = 45;
         if (isTrueOneshot || dmg >= arenaMaxHP) { arenaHP = 0; }
         else { var directDmg = 1; var karmaDmg = dmg - directDmg; if (karmaDmg < 0) karmaDmg = 0; arenaHP -= directDmg; arenaKarma += karmaDmg; }
