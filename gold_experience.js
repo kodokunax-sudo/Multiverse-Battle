@@ -761,20 +761,6 @@
             };
         }
 
-        if (ctx.type === "antispiral" &&
-            typeof window.getAntiSpiralBossCompanionInfo === "function") {
-            var antiInfo = window.getAntiSpiralBossCompanionInfo();
-            if (antiInfo && antiInfo.state === "fight" && antiInfo.gravity) {
-                var tangentX = -antiInfo.gravity.y;
-                var tangentY = antiInfo.gravity.x;
-                var side = Number(state.companionSide) || 1;
-                return {
-                    x: Math.max(18, Math.min(382, playerX + tangentX * side * 25)),
-                    y: Math.max(8, Math.min(482, playerY + tangentY * side * 25))
-                };
-            }
-        }
-
         var bossX = Number(boss && boss.x);
         var bossY = Number(boss && boss.y);
         if (Number.isFinite(bossX) && Number.isFinite(bossY)) {
@@ -824,7 +810,22 @@
             return { x: goalX, y: goalY };
         }
 
-        // No boss target yet: stay beside Giorno and keep light independent footwork.
+        // Anti-Spiral fallback: patrol near the boss, never follow Giorno.
+        if (ctx.type === "antispiral") {
+            var antiBoss = typeof window.getAntiSpiralBossPosition === "function"
+                ? window.getAntiSpiralBossPosition() : null;
+            var antiBossX = Number(antiBoss && antiBoss.x);
+            var antiBossY = Number(antiBoss && antiBoss.y);
+            if (Number.isFinite(antiBossX) && Number.isFinite(antiBossY)) {
+                var patrolAngle = Math.atan2(state.y - antiBossY, state.x - antiBossX) +
+                    Math.sin(now() / 680 + state.orbitPhase) * 0.28;
+                return {
+                    x: Math.max(24, Math.min(376, antiBossX + Math.cos(patrolAngle) * 122)),
+                    y: Math.max(20, Math.min(480, antiBossY + Math.sin(patrolAngle) * 122))
+                };
+            }
+        }
+        // Other bosses: stay beside Giorno only when no boss target exists.
         state.companionModeTimer = Math.max(0, (Number(state.companionModeTimer) || 0) - frameScale);
         if (state.companionModeTimer <= 0) {
             state.companionSide = Math.random() < 0.5 ? -1 : 1;
@@ -1202,26 +1203,20 @@
             { x: 0, y: 1 }, { x: -1, y: 0 },
             { x: 0, y: -1 }, { x: 1, y: 0 }
         ][direction];
-        var tangentX = -gravity.y;
-        var tangentY = gravity.x;
-        var radius = Math.max(8, Math.min(13, (Number(state.heartSize) || 15) * 0.62));
-        var baseBounds = info.bounds || { left: 12, right: 388, top: 12, bottom: 488 };
-        var edge = Math.max(0, radius - 12);
-        var bounds = {
-            left: baseBounds.left + edge,
-            right: baseBounds.right - edge,
-            top: baseBounds.top + edge,
-            bottom: baseBounds.bottom - edge
-        };
+        var player = info.player || {};
+        var playerScale = Number(player.scaleMode) || 1;
+        var superSpeed = Math.max(0.15, Number(info.superSpeed) || 1);
+        var speedMultiplier = (playerScale === 0.5 ? 1.5 : (playerScale === 2 ? 0.62 : 1)) * superSpeed;
+        var radius = Math.max(7, Math.min(24, Number(player.size) || Number(state.heartSize) || 12));
+        var bounds = info.bounds || { left: radius, right: 400 - radius, top: 55 + radius, bottom: 488 };
         var timeScale = Math.max(0.25, Math.min(1, Number(info.timeScale) || 1));
-        var stepScale = frameScale * timeScale;
-        var speedMultiplier = 1;
-        var goalX = Number(state.moveTargetX);
-        var goalY = Number(state.moveTargetY);
+        var platforms = Array.isArray(info.platforms) ? info.platforms : [];
 
         if (!state.antiSpiralPhysicsInitialized) {
-            state.x = Math.max(bounds.left, Math.min(bounds.right, playerX + tangentX * 25));
-            state.y = Math.max(bounds.top, Math.min(bounds.bottom, playerY + tangentY * 25));
+            // Spawn away from Giorno. From here the stand navigates to the boss by itself.
+            var sideX = -gravity.y, sideY = gravity.x;
+            state.x = Math.max(bounds.left, Math.min(bounds.right, playerX + sideX * 58));
+            state.y = Math.max(bounds.top, Math.min(bounds.bottom, playerY + sideY * 58));
             state.vx = 0;
             state.vy = 0;
             state.antiSpiralGrounded = false;
@@ -1229,60 +1224,44 @@
             state.antiSpiralJumpCooldownUntil = 0;
             state.antiSpiralPhysicsInitialized = true;
         }
-
         if (state.antiSpiralGravityDirection !== direction) {
             state.antiSpiralGravityDirection = direction;
             state.antiSpiralGrounded = false;
             state.antiSpiralPlatformIndex = null;
         }
-        if (!Number.isFinite(goalX)) goalX = playerX + tangentX * 25;
-        if (!Number.isFinite(goalY)) goalY = playerY + tangentY * 25;
-        var dx = goalX - state.x;
-        var dy = goalY - state.y;
-        var tangentDistance = dx * tangentX + dy * tangentY;
-        var tangentInput = Math.max(-1, Math.min(1, tangentDistance / 34));
 
-        // Treat Golden Heart as a second player: inherit the player's size/speed rules,
-        // jump when the player jumps or reaches a higher platform, then land on real geometry.
-        var playerInfo = info.player || {};
-        var playerAbove = (playerX - state.x) * (-gravity.x) +
-            (playerY - state.y) * (-gravity.y);
-        var playerJumpVelocity = -(Number(playerInfo.vx) || 0) * gravity.x -
-            (Number(playerInfo.vy) || 0) * gravity.y;
-        var playerJumping = !playerInfo.grounded && playerJumpVelocity > 4.2;
-        var playerOnDifferentPlatform = playerInfo.platformIndex != null &&
-            state.antiSpiralPlatformIndex != null &&
-            playerInfo.platformIndex !== state.antiSpiralPlatformIndex &&
-            playerAbove > radius * 1.05;
-        var playerScale = Number(playerInfo.scaleMode) || 1;
-        speedMultiplier = (playerScale === 0.5 ? 1.5 : (playerScale === 2 ? 0.62 : 1)) *
-            Math.max(0.15, Number(info.superSpeed) || 1);
-        if (state.antiSpiralGrounded &&
-            (playerAbove > radius * 1.65 || playerOnDifferentPlatform || playerJumping) &&
+        // AI direction is the equivalent of a joystick vector aimed at its own combat goal.
+        var goalX = Number(state.moveTargetX);
+        var goalY = Number(state.moveTargetY);
+        if (!Number.isFinite(goalX)) goalX = Number(info.boss && info.boss.x) || 200;
+        if (!Number.isFinite(goalY)) goalY = Number(info.boss && info.boss.y) || 135;
+        var dx = goalX - state.x, dy = goalY - state.y;
+        var inputLength = Math.hypot(dx, dy);
+        var mx = inputLength > 1 ? dx / inputLength : 0;
+        var my = inputLength > 1 ? dy / inputLength : 0;
+
+        // Same opposite-gravity jump input and impulse as the player.
+        var jumpDot = mx * (-gravity.x) + my * (-gravity.y);
+        if (state.antiSpiralGrounded && jumpDot > 0.58 &&
             current >= (Number(state.antiSpiralJumpCooldownUntil) || 0)) {
-            var jumpScale = (playerScale === 0.5 ? 0.65 : (playerScale === 2 ? 1.3 : 1)) *
-                Math.max(0.15, Number(info.superSpeed) || 1);
-            var jumpPower = (23.2 / 1.5) * jumpScale;
-            state.vx = -gravity.x * jumpPower;
-            state.vy = -gravity.y * jumpPower;
+            var jumpMultiplier = (playerScale === 0.5 ? 0.65 : (playerScale === 2 ? 1.3 : 1)) * superSpeed;
+            state.vx = -gravity.x * (23.2 / 1.5) * jumpMultiplier;
+            state.vy = -gravity.y * (23.2 / 1.5) * jumpMultiplier;
             state.antiSpiralGrounded = false;
             state.antiSpiralPlatformIndex = null;
-            state.antiSpiralJumpCooldownUntil = current + 620;
+            state.antiSpiralJumpCooldownUntil = current + 170;
         }
-        state.lastPlayerGrounded = !!playerInfo.grounded;
-        state.lastPlayerPlatformIndex = playerInfo.platformIndex;
 
-        var pullX = 0;
-        var pullY = 0;
+        // Same active singularity pull fields as the player.
+        var pullX = 0, pullY = 0;
         var pulls = Array.isArray(info.pulls) ? info.pulls : [];
         for (var wi = 0; wi < pulls.length; wi++) {
             var well = pulls[wi];
             if (!well) continue;
-            var pullDx = Number(well.x) - state.x;
-            var pullDy = Number(well.y) - state.y;
+            var pullDx = Number(well.x) - state.x, pullDy = Number(well.y) - state.y;
             var distance = Math.max(1, Math.hypot(pullDx, pullDy));
             var pullRadius = Math.max(0, Number(well.radius) || 0);
-            if (pullRadius > 0 && distance < pullRadius) {
+            if (distance < pullRadius) {
                 var force = 1 - distance / pullRadius;
                 var pull = (0.95 + force * 1.35) * force;
                 pullX += pullDx / distance * pull;
@@ -1290,24 +1269,25 @@
             }
         }
 
+        // The same gravity, acceleration, damping and speed limits used by asPlayer.
+        var tangentX = -gravity.y, tangentY = gravity.x;
+        var tangentInput = mx * tangentX + my * tangentY;
         var nextVx = (state.vx +
-            (tangentX * tangentInput * 0.43 * speedMultiplier +
-                gravity.x * 0.32 + pullX) * timeScale) * Math.pow(0.91, timeScale);
+            (tangentX * tangentInput * 0.43 * speedMultiplier + gravity.x * 0.32 + pullX) * timeScale) *
+            Math.pow(0.91, timeScale);
         var nextVy = (state.vy +
-            (tangentY * tangentInput * 0.43 * speedMultiplier +
-                gravity.y * 0.32 + pullY) * timeScale) * Math.pow(0.91, timeScale);
+            (tangentY * tangentInput * 0.43 * speedMultiplier + gravity.y * 0.32 + pullY) * timeScale) *
+            Math.pow(0.91, timeScale);
         var tangentLimit = 6.2 * speedMultiplier;
-        var normalLimit = 24.8;
+        var normalLimit = 24.8 * (playerScale === 0.5 ? 0.72 : (playerScale === 2 ? 1.3 : 1));
         state.vx = Math.max(gravity.x ? -normalLimit : -tangentLimit,
             Math.min(gravity.x ? normalLimit : tangentLimit, nextVx));
         state.vy = Math.max(gravity.y ? -normalLimit : -tangentLimit,
             Math.min(gravity.y ? normalLimit : tangentLimit, nextVy));
 
-        var previousX = state.x;
-        var previousY = state.y;
-        state.x += state.vx * stepScale;
-        state.y += state.vy * stepScale;
-
+        var previousX = state.x, previousY = state.y;
+        state.x += state.vx * timeScale;
+        state.y += state.vy * timeScale;
         var boundaryGrounded = false;
         if (state.x < bounds.left) {
             state.x = bounds.left;
@@ -1330,40 +1310,29 @@
             else state.vy = -Math.abs(state.vy) * 0.28;
         }
 
-        var platforms = Array.isArray(info.platforms) ? info.platforms : [];
+        // Same directional landing checks as the player's six real platforms.
         var landed = false;
         for (var pi = 0; pi < platforms.length; pi++) {
             var platform = platforms[pi];
             if (!platform) continue;
-            var overlapX = state.x + radius > platform.x &&
-                state.x - radius < platform.x + platform.w;
-            var overlapY = state.y + radius > platform.y &&
-                state.y - radius < platform.y + platform.h;
+            var overlapX = state.x + radius > platform.x && state.x - radius < platform.x + platform.w;
+            var overlapY = state.y + radius > platform.y && state.y - radius < platform.y + platform.h;
             var hit = false;
             if (direction === 0 && state.vy > 0 &&
-                previousY + radius <= platform.y + 3 &&
-                state.y + radius >= platform.y && overlapX) {
-                state.y = platform.y - radius;
-                state.vy = 0;
-                hit = true;
+                previousY + radius <= platform.y + 3 && state.y + radius >= platform.y && overlapX) {
+                state.y = platform.y - radius; state.vy = 0; hit = true;
             } else if (direction === 2 && state.vy < 0 &&
                 previousY - radius >= platform.y + platform.h - 3 &&
                 state.y - radius <= platform.y + platform.h && overlapX) {
-                state.y = platform.y + platform.h + radius;
-                state.vy = 0;
-                hit = true;
+                state.y = platform.y + platform.h + radius; state.vy = 0; hit = true;
             } else if (direction === 1 && state.vx < 0 &&
                 previousX - radius >= platform.x + platform.w - 3 &&
                 state.x - radius <= platform.x + platform.w && overlapY) {
-                state.x = platform.x + platform.w + radius;
-                state.vx = 0;
-                hit = true;
+                state.x = platform.x + platform.w + radius; state.vx = 0; hit = true;
             } else if (direction === 3 && state.vx > 0 &&
                 previousX + radius <= platform.x + 3 &&
                 state.x + radius >= platform.x && overlapY) {
-                state.x = platform.x - radius;
-                state.vx = 0;
-                hit = true;
+                state.x = platform.x - radius; state.vx = 0; hit = true;
             }
             if (hit) {
                 state.antiSpiralGrounded = true;
@@ -1380,9 +1349,9 @@
 
     function updateAntiSpiralMiniCompanionPhysics(info, frameScale, current) {
         var mini = info && info.mini ? info.mini : {};
-        var player = info && info.player ? info.player : { x: 200, y: 260 };
+        var player = info && info.player ? info.player : { x: 200, y: 260, size: 12 };
         var bounds = mini.bounds || { left: 34, right: 366, top: 91, bottom: 466 };
-        var radius = Math.max(8, Math.min(13, (Number(state.heartSize) || 15) * 0.62));
+        var radius = Math.max(7, Math.min(24, Number(player.size) || Number(state.heartSize) || 12));
         var margin = radius + 1;
         var left = bounds.left + margin, right = bounds.right - margin;
         var top = bounds.top + margin, bottom = bounds.bottom - margin;
@@ -1390,41 +1359,48 @@
         var stepScale = frameScale * timeScale;
         var speedMultiplier = Math.max(0.15, Math.min(3, Number(mini.speedMultiplier) || 1));
         var spheres = Array.isArray(mini.spheres) ? mini.spheres : [];
-        var target = null, bestDistance = Infinity;
+        var target = null;
 
         if (!state.antiSpiralMiniInitialized) {
-            state.x = Math.max(left, Math.min(right, (Number(player.x) || 200) + 24));
+            state.x = Math.max(left, Math.min(right, (Number(player.x) || 200) + 34));
             state.y = Math.max(top, Math.min(bottom, Number(player.y) || 260));
-            state.vx = 0;
-            state.vy = 0;
+            state.vx = 0; state.vy = 0;
             state.antiSpiralMiniInitialized = true;
+            state.antiSpiralMiniTargetIndex = null;
             state.antiSpiralPhysicsInitialized = false;
-            state.antiSpiralGrounded = false;
         }
 
+        // Lock the target until collection. This prevents aim-switching between nearby spheres.
         if (!mini.intro) {
             for (var i = 0; i < spheres.length; i++) {
-                var sphere = spheres[i];
-                if (!sphere) continue;
-                var distance = Math.hypot(Number(sphere.x) - state.x, Number(sphere.y) - state.y);
-                if (distance < bestDistance) {
-                    bestDistance = distance;
-                    target = sphere;
+                if (spheres[i] && spheres[i].index === state.antiSpiralMiniTargetIndex) {
+                    target = spheres[i];
+                    break;
                 }
+            }
+            if (!target && spheres.length) {
+                var nearestDistance = Infinity;
+                for (var si = 0; si < spheres.length; si++) {
+                    var candidate = spheres[si];
+                    if (!candidate) continue;
+                    var candidateDistance = Math.hypot(candidate.x - state.x, candidate.y - state.y);
+                    if (candidateDistance < nearestDistance) {
+                        nearestDistance = candidateDistance;
+                        target = candidate;
+                    }
+                }
+                state.antiSpiralMiniTargetIndex = target ? target.index : null;
             }
         }
 
-        var goalX = target ? Number(target.x) : Number(player.x);
-        var goalY = target ? Number(target.y) : Number(player.y);
-        if (!Number.isFinite(goalX)) goalX = 200;
-        if (!Number.isFinite(goalY)) goalY = 260;
-        if (mini.intro) {
-            goalX = (Number(player.x) || 200) + (state.x <= (Number(player.x) || 200) ? -22 : 22);
-            goalY = Number(player.y) || 260;
-        }
+        var goalX = target ? Number(target.x) : (Number(player.x) || 200);
+        var goalY = target ? Number(target.y) : (Number(player.y) || 260);
+        var dx = goalX - state.x, dy = goalY - state.y;
+        var distanceToGoal = Math.hypot(dx, dy);
+        var mx = distanceToGoal > 1 ? Math.max(-1, Math.min(1, dx / Math.max(24, distanceToGoal))) : 0;
+        var my = distanceToGoal > 1 ? Math.max(-1, Math.min(1, dy / Math.max(24, distanceToGoal))) : 0;
 
-        var mx = Math.max(-1, Math.min(1, (goalX - state.x) / 34));
-        var my = Math.max(-1, Math.min(1, (goalY - state.y) / 34));
+        // Pocket mode shares the player's exact 2D gravity cycle and movement damping.
         var gravityIndex = Math.max(0, Math.min(4, Number(mini.gravityIndex) || 0));
         var gx = 0, gy = 0;
         if (gravityIndex === 0) gy = 0.23;
@@ -1435,24 +1411,22 @@
             gx = (200 - state.x) * 0.0016;
             gy = (260 - state.y) * 0.0016;
         }
-
         state.vx = Math.max(-4.6 * speedMultiplier,
-            Math.min(4.6 * speedMultiplier,
-                (state.vx + mx * 0.43 * speedMultiplier + gx) * 0.965));
+            Math.min(4.6 * speedMultiplier, (state.vx + mx * 0.43 * speedMultiplier + gx) * 0.965));
         state.vy = Math.max(-4.6 * speedMultiplier,
-            Math.min(4.6 * speedMultiplier,
-                (state.vy + my * 0.43 * speedMultiplier + gy) * 0.965));
+            Math.min(4.6 * speedMultiplier, (state.vy + my * 0.43 * speedMultiplier + gy) * 0.965));
         state.x += state.vx * stepScale;
         state.y += state.vy * stepScale;
-
         if (state.x < left) { state.x = left; state.vx = Math.abs(state.vx) * 0.42; }
         if (state.x > right) { state.x = right; state.vx = -Math.abs(state.vx) * 0.42; }
         if (state.y < top) { state.y = top; state.vy = Math.abs(state.vy) * 0.42; }
         if (state.y > bottom) { state.y = bottom; state.vy = -Math.abs(state.vy) * 0.42; }
 
-        if (target && bestDistance <= 11 + radius &&
+        // Check collection after movement, against the updated position.
+        if (target && Math.hypot(state.x - Number(target.x), state.y - Number(target.y)) <= 11 + radius &&
             typeof window.collectAntiSpiralMiniSphere === "function") {
             window.collectAntiSpiralMiniSphere(target.index);
+            state.antiSpiralMiniTargetIndex = null;
         }
     }
 
@@ -1629,25 +1603,26 @@
         var calm = !incoming && !dodging && state.healState === "idle";
         var driftX = calm ? Math.sin(current / 420 + state.orbitPhase) * 2.6 : 0;
         var driftY = calm ? Math.cos(current / 610 + state.orbitPhase) * 2.1 : 0;
-        var toX = state.moveTargetX + driftX - state.x;
-        var toY = state.moveTargetY + driftY - state.y;
-        var distanceToGoal = Math.hypot(toX, toY) || 1;
-        var maxSpeed = getCompanionMovementSpeed(ctx);
-        var desiredSpeed = distanceToGoal < (calm ? 7 : 2)
-            ? 0 : Math.min(maxSpeed, Math.max(0.45, distanceToGoal * 0.22));
-        var desiredVx = toX / distanceToGoal * desiredSpeed;
-        var desiredVy = toY / distanceToGoal * desiredSpeed;
-        var steering = urgentThreat ? 0.33 : (0.14 + state.aiSkill * 0.12);
-        state.vx += (desiredVx - state.vx) * steering;
-        state.vy += (desiredVy - state.vy) * steering;
-        var currentSpeed = Math.hypot(state.vx, state.vy);
-        if (currentSpeed > maxSpeed) {
-            state.vx = state.vx / currentSpeed * maxSpeed;
-            state.vy = state.vy / currentSpeed * maxSpeed;
-        }
         if (antiInfo) {
+            // Never mix free-flight steering with the Anti-Spiral gravity controller.
             updateAntiSpiralCompanionPhysics(antiInfo, playerX, playerY, frameScale, current);
         } else {
+            var toX = state.moveTargetX + driftX - state.x;
+            var toY = state.moveTargetY + driftY - state.y;
+            var distanceToGoal = Math.hypot(toX, toY) || 1;
+            var maxSpeed = getCompanionMovementSpeed(ctx);
+            var desiredSpeed = distanceToGoal < (calm ? 7 : 2)
+                ? 0 : Math.min(maxSpeed, Math.max(0.45, distanceToGoal * 0.22));
+            var desiredVx = toX / distanceToGoal * desiredSpeed;
+            var desiredVy = toY / distanceToGoal * desiredSpeed;
+            var steering = urgentThreat ? 0.33 : (0.14 + state.aiSkill * 0.12);
+            state.vx += (desiredVx - state.vx) * steering;
+            state.vy += (desiredVy - state.vy) * steering;
+            var currentSpeed = Math.hypot(state.vx, state.vy);
+            if (currentSpeed > maxSpeed) {
+                state.vx = state.vx / currentSpeed * maxSpeed;
+                state.vy = state.vy / currentSpeed * maxSpeed;
+            }
             var nextX = state.x + state.vx * frameScale;
             var nextY = state.y + state.vy * frameScale;
             state.x = Math.max(18, Math.min(382, nextX));
@@ -1910,6 +1885,23 @@
         var dodging = !!state.isDodging || state.dodgeFlashTimer > 0;
         var attacking = !!(state.combo || state.punch || current < state.attackUntil);
         var bob = Math.sin(current / 170) * 0.75;
+        var companionGravityAngle = 0;
+        if (ctx && ctx.type === "antispiral" &&
+            typeof window.getAntiSpiralBossCompanionInfo === "function") {
+            var rotationInfo = window.getAntiSpiralBossCompanionInfo();
+            if (rotationInfo && rotationInfo.state === "mini" && rotationInfo.mini) {
+                companionGravityAngle = [0, Math.PI, Math.PI / 2, -Math.PI / 2, 0][
+                    Math.max(0, Math.min(4, Number(rotationInfo.mini.gravityIndex) || 0))
+                ];
+            } else if (rotationInfo) {
+                companionGravityAngle = Math.max(0, Math.min(3,
+                    Number(rotationInfo.gravityDirection) || 0)) * Math.PI / 2;
+            }
+        }
+        c.save();
+        c.translate(state.x, state.y);
+        c.rotate(companionGravityAngle);
+        c.translate(-state.x, -state.y);
 
         var idleHands = [-1, 1];
         for (var handIndex = 0; handIndex < idleHands.length; handIndex++) {
@@ -2022,6 +2014,7 @@
         c.fill();
         c.stroke();
         c.shadowBlur = 0;
+        c.restore();
         c.restore();
         c.restore();
 
