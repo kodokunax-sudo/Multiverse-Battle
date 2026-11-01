@@ -1171,7 +1171,7 @@ function updateExtendedArenaAttack(now) {
     var strongDmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 2.35));
     var extWave = Math.max(1, Number(arenaCurrentWave) || 1);
     var extWaveDanger = 1 + Math.min(1.25, Math.max(0, extWave - 1) * 0.0125);
-    var extImpactDamage = Math.min(5, 2 + Math.floor(Math.max(0, extWave - 1) / 20));
+    var extImpactDamage = Math.max(1, 2 + Math.floor(Math.max(0, extWave - 1) / 20));
     var pulse = 0.5 + 0.5 * Math.sin(sec * 8);
 
     // 11. Three pendulums swing at different rhythms. Their heavy heads launch the player on contact.
@@ -1775,7 +1775,7 @@ function updateExtendedArenaAttack(now) {
                 if (now >= Number(gear.nextContactHitAt || 0)) {
                     gear.nextContactHitAt = now + 320; arenaShake = Math.max(arenaShake, 10);
                     for (var hpG = 0; hpG < 9; hpG++) arenaParticles.push({x:heart.x,y:heart.y,vx:(Math.random()-0.5)*9,vy:(Math.random()-0.5)*9,life:19,maxLife:19,color:hpG%2?"#ff9b32":"#fff2c6",size:2.2+Math.random()*3});
-                    applyHit(Math.min(2, 1 + Math.floor(Math.max(0, extWave - 1) / 100)), "ШЕСТЕРНЯ: МУЛЬТИ-УДАР!", false, true, arenaExtDamageAction("gear:"+String(gear.born||gd),{type:"gear",x:gear.x,y:gear.y,radius:gear.r,damage:2}));
+                    applyHit(extImpactDamage, "ШЕСТЕРНЯ: МУЛЬТИ-УДАР!", false, true, arenaExtDamageAction("gear:"+String(gear.born||gd),{type:"gear",x:gear.x,y:gear.y,radius:gear.r,damage:extImpactDamage}));
                 }
             }
         }
