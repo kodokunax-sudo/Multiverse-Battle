@@ -217,7 +217,6 @@
         try { dealt = ctx.damageBoss(amount, { source: "Gold Experience", x: state.x, y: state.y }) !== false; }
         catch (e) { dealt = false; }
         if (dealt) {
-            addCharge(2);
             state.attackUntil = now() + 260;
             try {
                 if (typeof window.showFloatingText === "function") window.showFloatingText("GOLD EXPERIENCE · -" + amount, "#ffe28a");
