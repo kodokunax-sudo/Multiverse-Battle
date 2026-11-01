@@ -6468,6 +6468,25 @@
         rwbFloatingTexts.push({x:target.x,y:target.y-35,text:"DIO −"+Math.max(1,Math.floor(Number(amount)||1)),color:"#fff0a0",life:55,maxLife:55,vy:-.6,vx:0,size:14});
         return true;
     };
+    window.MBRWBCompanionTargetPosition = function() {
+        var targets=[roger,whitebeard].filter(function(b){return b&&Number(b.hp)>0;});
+        if(rwbState==="fight2"&&rwbActiveBoss&&Number(rwbActiveBoss.hp)>0) {
+            return {x:rwbActiveBoss.x,y:rwbActiveBoss.y,id:rwbActiveBoss.id};
+        }
+        if(rwbPlayerFocusTargetId) {
+            var focused=targets.find(function(b){return b.id===rwbPlayerFocusTargetId;});
+            if(focused)return {x:focused.x,y:focused.y,id:focused.id};
+        }
+        if(!targets.length)return null;
+        var px=rwbPlayer?Number(rwbPlayer.x)||200:200,py=rwbPlayer?Number(rwbPlayer.y)||400:400;
+        targets.sort(function(a,b){return Math.hypot(a.x-px,a.y-py)-Math.hypot(b.x-px,b.y-py);});
+        return {x:targets[0].x,y:targets[0].y,id:targets[0].id};
+    };
+    window.MBRWBCompanionDamageBoss = function(amount,bossId) {
+        var target=(rwbState==="fight2"&&rwbActiveBoss)?rwbActiveBoss:[roger,whitebeard].find(function(b){return b&&b.id===bossId&&Number(b.hp)>0;});
+        if(!target||!(Number(target.hp)>0))return false;
+        return window.rwbApplyDioSkillDamage(target.id,amount);
+    };
     window.getRWBState  = function() { return rwbState; };
     window.startRogerWhitebeardFight = startRogerWhitebeardFight;
     window.stopRogerWhitebeardFight = stopRogerWhitebeardFight;
