@@ -1150,9 +1150,12 @@ const customCardTemplates = {
             "hp": 124,
             "speed": 1.45,
             "ability": {
-                "type": "healOnWin",
-                "percent": 0.04,
-                "desc": "+4% HP после победы"
+                "type": "karsEvolutionOnWave",
+                "hpGrowth": 0.005,
+                "damageGrowth": 0.003,
+                "speedGrowth": 0.001,
+                "maxSpeed": 12,
+                "desc": "За каждую победу: +0.5% HP, +0.3% урона и +0.1% скорости (макс. 12)"
             },
             "desc": "Глава людей из колонны, мастер клинков света и биологической эволюции.",
             masteryTitle: "Совершенный разум столпов", masteryTitleId: "mastery_character_81219658", masteryTitleIcon: "✦"
