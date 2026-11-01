@@ -1093,7 +1093,7 @@
         ls2UniqueAttackTimer=190; ls2DodgeCooldown=120; ls2DodgeStreak=0;
         // Phase one uses the reduced HP pool. After the chase, restore the
         // original phase-two reserve as its own full bar, so only phase one is nerfed.
-        ls2BossMaxHp = Math.max(1, Number(ls2Phase2MaxHp) || Math.floor(ls2BossMaxHp * 0.12));
+        ls2BossMaxHp = Math.max(1, Number(ls2Phase2MaxHp) || Math.floor(ls2BossMaxHp * 0.24));
         ls2BossHp = ls2BossMaxHp;
         if (typeof livingStoneBossMaxHp !== "undefined") livingStoneBossMaxHp = ls2BossMaxHp;
         if (typeof livingStoneBossHp !== "undefined") livingStoneBossHp = ls2BossHp;
@@ -2353,8 +2353,8 @@
         ls2Active=true; window.livingStoneSuperActive=true;
         var enemyMaxBeforePhaseNerf = Number(currentEnemy.maxHp) || 1250000;
         var originalPhaseOneMaxHp = Math.max(250000, Math.floor(enemyMaxBeforePhaseNerf * 0.225));
-        ls2Phase2MaxHp = Math.max(1, Math.floor(originalPhaseOneMaxHp * 0.36)); // x3 phase-two HP
-        ls2BossMaxHp=Math.max(100000,Math.floor(enemyMaxBeforePhaseNerf*0.09));
+        ls2Phase2MaxHp = Math.max(1, Math.floor(originalPhaseOneMaxHp * 0.72)); // doubled phase-two HP
+        ls2BossMaxHp=Math.max(200000,Math.floor(enemyMaxBeforePhaseNerf*0.18));
         ls2BossHp=ls2BossMaxHp; ls2PlayerMaxHp=180; ls2PlayerHp=ls2PlayerMaxHp;
         currentEnemy.maxHp=ls2BossMaxHp; currentEnemy.hp=ls2BossHp;
         ls2Invulnerable=0; ls2HitFlash=0; ls2ShieldFlash=0; ls2ShieldDir=0;
