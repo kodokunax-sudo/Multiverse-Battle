@@ -7,9 +7,11 @@
     var obstacles = [], coins = [], particles = [], powerups = [], roofObstacles = [];
     var spawnClock = 0, powerupClock = 0, roofSpawnClock = 0, trackOffset = 0, distance = 0, coinCount = 0, score = 0;
     var trainRideLeft = 0, trainRideLane = 1, trainDropLeft = 0, trainRideTotal = 4.6;
-    var jumpTotal = 0.78, jumpBaseHeight = 78, slideTotal = 0.72, slidePose = 0;
+    var trainRideObstacle = null;
+    var jumpTotal = 0.78, jumpBaseHeight = 78, jumpHeightCurrent = 0, slideTotal = 0.72, slidePose = 0;
     var magnetLeft = 0, superJumpLeft = 0, jetpackLeft = 0, hoverboardCharges = 0, hoverboardLeft = 0, boardGuardLeft = 0;
     var starAid = false, starGuard = false, nextGuard = 0, nextStrike = 0;
+    var hitGraceLeft = 0, carImpactFlash = 0;
     var chaseLives = 3, chaseFailed = false, chaseFailTimer = 0, combo = 0;
     var starFlash = 0, damageFlash = 0, callback = null, music = null;
     var musicKeepAlive = false;
@@ -105,6 +107,8 @@
         particles.length = 0;
         powerups.length = 0;
         roofObstacles.length = 0;
+        trainRideObstacle = null;
+        roofSpawnClock = 0;
     }
 
     function bindControls() {
@@ -159,13 +163,23 @@
     }
     function onPointerCancel() { pointerStart = null; }
 
+    function leaveTrainRide(dropDuration) {
+        if (trainRideObstacle) {
+            trainRideObstacle.mounted = false;
+            trainRideObstacle.z = 1.14;
+            trainRideObstacle = null;
+        }
+        trainRideLeft = 0;
+        trainDropLeft = dropDuration || 0.42;
+        roofObstacles.length = 0;
+        roofSpawnClock = 0;
+    }
     function moveLane(dir) {
         var nextLane = clamp(lane + dir, 0, LANE_COUNT - 1);
         if (nextLane === lane) return;
         lane = nextLane;
         if (trainRideLeft > 0) {
-            trainRideLeft = 0;
-            trainDropLeft = 0.48;
+            leaveTrainRide(0.48);
             if (typeof playArenaSound === "function") playArenaSound(180, "triangle", 0.08, 0.04);
         }
     }
@@ -207,6 +221,8 @@
     }
 
     function addObstacle(whichLane, type, z) {
+        // "sign" was only a duplicate skin of the same low beam. Keep one canonical slide obstacle.
+        if (type === "sign") type = "beam";
         obstacles.push({
             lane: whichLane, type: type, z: z || 0,
             resolved: false, hit: false, phase: Math.random() * Math.PI * 2
@@ -214,7 +230,7 @@
     }
     function spawnPattern() {
         var firstLane = Math.floor(Math.random() * 3);
-        var types = ["train", "barrier", "beam", "crate", "gap", "sign"];
+        var types = ["train", "barrier", "beam", "crate", "gap"];
         var pick = types[Math.floor(Math.random() * types.length)];
         addObstacle(firstLane, pick, 0);
 
@@ -238,34 +254,40 @@
         }
     }
     function damageRunner(x, y) {
-        if (!active || chaseFailed || boardGuardLeft > 0) return;
+        if (!active || chaseFailed || boardGuardLeft > 0 || hitGraceLeft > 0) return;
         damageFlash = 24;
+
         if (hoverboardCharges > 0) {
             hoverboardCharges--;
             hoverboardLeft = 0.75;
             boardGuardLeft = 0.9;
+            hitGraceLeft = 0.78;
             if (typeof spawnLivingStoneParticles === "function")
                 spawnLivingStoneParticles(x, y, 30, "#9deaff", 6);
             message("ДОСКА РАЗБИЛАСЬ! ТЫ УЦЕЛЕЛ!", "#bcefff");
             if (typeof playArenaSound === "function") playArenaSound(260, "sawtooth", 0.18, 0.08);
             return;
         }
-        chaseLives = Math.max(0, chaseLives - 1);
+
+        // Waystar's guard fully absorbs the hit. It must not consume one of the player's lives.
         if (starAid && starGuard) {
             starGuard = false;
+            nextGuard = elapsed + 6800;
+            hitGraceLeft = 0.86;
             starFlash = 34;
-            if (typeof spawnLivingStoneParticles === "function") {
+            if (typeof spawnLivingStoneParticles === "function")
                 spawnLivingStoneParticles(livingStonePlayer.x, livingStonePlayer.y, 24, "#9deaff", 5);
-            }
-            message("ЗВЕЗДА ПРИКРЫЛА ТЕБЯ! ОСТАЛОСЬ ЖИЗНЕЙ: " + chaseLives, "#aeeaff");
+            message("ЗВЕЗДА ОТРАЗИЛА УДАР! ЖИЗНИ СОХРАНЕНЫ", "#aeeaff");
             if (typeof playArenaSound === "function") playArenaSound(980, "sine", 0.18, 0.11);
-        } else {
-            if (typeof spawnLivingStoneParticles === "function") {
-                spawnLivingStoneParticles(x, y, 12, "#ff734f", 4);
-            }
-            message("СТОЛКНОВЕНИЕ! ОСТАЛОСЬ ЖИЗНЕЙ: " + chaseLives, "#ff967d");
-            if (typeof playArenaSound === "function") playArenaSound(110, "sawtooth", 0.22, 0.1);
+            return;
         }
+
+        chaseLives = Math.max(0, chaseLives - 1);
+        hitGraceLeft = 0.86;
+        if (typeof spawnLivingStoneParticles === "function")
+            spawnLivingStoneParticles(x, y, 12, "#ff734f", 4);
+        message("СТОЛКНОВЕНИЕ! ОСТАЛОСЬ ЖИЗНЕЙ: " + chaseLives, "#ff967d");
+        if (typeof playArenaSound === "function") playArenaSound(110, "sawtooth", 0.22, 0.1);
         combo = 0;
         if (chaseLives <= 0) {
             chaseFailed = true;
@@ -280,7 +302,14 @@
     }
     function update(now) {
         if (!active) return;
-        if (!livingStoneActive || livingStoneState !== "chase") { stop(); return; }
+        if (!livingStoneActive) {
+            console.warn("[LS CHASE] stopped because Living Stone encounter is no longer active");
+            stop(); return;
+        }
+        if (livingStoneState !== "chase") {
+            console.warn("[LS CHASE] stopped because encounter state changed:", livingStoneState, "Star aid:", starAid);
+            stop(); return;
+        }
         now = Number(now) || clock();
         var dt = clamp((now - lastAt) / 1000, 0.001, 0.05);
         lastAt = now;
@@ -314,6 +343,13 @@
         }
         var difficulty = elapsed / DURATION;
         var speed = starAid ? 0.31 + difficulty * 0.12 : 0.38 + difficulty * 0.16;
+        if (hitGraceLeft > 0) hitGraceLeft = Math.max(0, hitGraceLeft - dt);
+        if (carImpactFlash > 0) carImpactFlash = Math.max(0, carImpactFlash - dt * 60);
+        if (starAid && !starGuard && elapsed >= nextGuard) {
+            starGuard = true;
+            nextGuard = elapsed + 8000;
+            message("ЗВЕЗДА СНОВА ГОТОВА ТЕБЯ ЗАЩИТИТЬ", "#aeeaff");
+        }
         distance += speed * dt;
         score += speed * dt * 120;
         trackOffset = (trackOffset + dt * (0.55 + difficulty * 0.38)) % 1;
@@ -325,7 +361,7 @@
         if (boardGuardLeft > 0) boardGuardLeft = Math.max(0, boardGuardLeft - dt);
         if (trainRideLeft > 0) {
             trainRideLeft = Math.max(0, trainRideLeft - dt);
-            if (trainRideLeft <= 0) trainDropLeft = 0.42;
+            if (trainRideLeft <= 0) leaveTrainRide(0.42);
         }
         if (trainDropLeft > 0) trainDropLeft = Math.max(0, trainDropLeft - dt);
         laneVisual += (lane - laneVisual) * Math.min(1, dt * 13);
@@ -333,6 +369,7 @@
         if (slideLeft > 0) slideLeft = Math.max(0, slideLeft - dt);
         var jumpProgress = jumpLeft > 0 ? 1 - jumpLeft / Math.max(0.01, jumpTotal) : 1;
         var jumpHeight = jumpLeft > 0 ? Math.sin(jumpProgress * Math.PI) * jumpBaseHeight : 0;
+        jumpHeightCurrent = jumpHeight;
         slidePose += ((slideLeft > 0 ? 1 : 0) - slidePose) * Math.min(1, dt * 18);
         livingStonePlayer.x = laneX(laneVisual, 0.92);
         if (jetpackLeft > 0) {
@@ -382,29 +419,48 @@
             roofSpawnClock = 0;
         }
 
+        var hitLineZ = 0.93;
         for (var i = obstacles.length - 1; i >= 0; i--) {
             var ob = obstacles[i];
+            if (ob.mounted) {
+                // Keep the exact train that was jumped onto under the player. Do not spawn a second roof model.
+                ob.z = hitLineZ;
+                continue;
+            }
+            var previousZ = ob.z;
             ob.z += speed * dt;
-            if (!ob.resolved && ob.z >= 0.88 && ob.z <= 0.99) {
-                var sameLane = Math.abs(laneVisual - ob.lane) < 0.48;
-                if (sameLane && jetpackLeft <= 0) {
+            var crossedPlayerLine = previousZ < hitLineZ && ob.z >= hitLineZ;
+            if (!ob.resolved && crossedPlayerLine) {
+                var sameLane = Math.abs(laneVisual - ob.lane) < 0.42;
+                if (sameLane && jetpackLeft <= 0 && trainRideLeft <= 0) {
                     var cleared = false;
-                    if (ob.type === "train") {
-                        if (jumpLeft > 0.08 && jumpHeight > 30 && trainRideLeft <= 0) {
+                    if (starAid && introFinished && ob.type === "beam") {
+                        // The transformed Waystar car smashes every low overhead beam in its lane.
+                        ob.smashed = true;
+                        carImpactFlash = 14;
+                        score += 260; combo++;
+                        if (typeof spawnLivingStoneParticles === "function")
+                            spawnLivingStoneParticles(laneX(ob.lane, 0.93), depthY(0.93) - 30, 22, "#9deaff", 5);
+                        if (typeof playArenaSound === "function") playArenaSound(220, "square", 0.11, 0.055);
+                        cleared = true;
+                    } else if (ob.type === "train") {
+                        if (jumpHeight >= 34) {
                             trainRideLeft = trainRideTotal;
                             trainRideLane = ob.lane;
                             lane = ob.lane; laneVisual = ob.lane;
-                            jumpLeft = 0; jumpTotal = 0.78;
+                            jumpLeft = 0; jumpHeightCurrent = 0; jumpTotal = 0.78;
+                            trainRideObstacle = ob;
                             ob.mounted = true;
+                            ob.z = hitLineZ;
                             score += 800; combo++;
                             message("НА КРЫШУ ПОЕЗДА! +800", "#ffe7a1");
                             if (typeof playArenaSound === "function") playArenaSound(720, "triangle", 0.18, 0.07);
                             cleared = true;
                         }
                     } else if (ob.type === "barrier" || ob.type === "gap" || ob.type === "crate") {
-                        cleared = jumpLeft > 0.10;
-                    } else if (ob.type === "beam" || ob.type === "sign") {
-                        cleared = slideLeft > 0.08;
+                        cleared = jumpHeight >= 34;
+                    } else if (ob.type === "beam") {
+                        cleared = slidePose >= 0.52;
                     }
                     if (!cleared) {
                         ob.hit = true;
@@ -413,25 +469,29 @@
                 }
                 ob.resolved = true;
             }
-            if (ob.z > 1.13) obstacles.splice(i, 1);
+            if (!ob.mounted && ob.z > 1.13) obstacles.splice(i, 1);
         }
 
         for (var ri = roofObstacles.length - 1; ri >= 0; ri--) {
             var roof = roofObstacles[ri];
+            var roofPreviousZ = roof.z;
             roof.z += speed * 1.18 * dt;
-            if (!roof.resolved && roof.z >= 0.84 && roof.z <= 1.0 && trainRideLeft > 0) {
-                var roofCleared = jetpackLeft > 0 || (roof.type === "roofBeam" ? slideLeft > 0.08 : jumpLeft > 0.10);
+            var roofCrossedPlayerLine = roofPreviousZ < hitLineZ && roof.z >= hitLineZ;
+            if (!roof.resolved && roofCrossedPlayerLine && trainRideLeft > 0) {
                 if (roof.type === "roofCoin") {
-                    coinCount++; score += 100; roofCleared = true;
-                } else if (!roofCleared) {
-                    damageRunner(laneX(trainRideLane, 0.96), livingStonePlayer.y);
-                    roof.hit = true;
+                    coinCount++; score += 100; combo++;
+                } else {
+                    var roofCleared = jetpackLeft > 0 ||
+                        (roof.type === "roofBeam" ? slidePose >= 0.52 : jumpHeight >= 32);
+                    if (!roofCleared) {
+                        damageRunner(laneX(trainRideLane, 0.96), livingStonePlayer.y);
+                        roof.hit = true;
+                    }
                 }
                 roof.resolved = true;
             }
-            if (roof.z > 1.12) roofObstacles.splice(ri, 1);
+            if (roof.z > 1.12 || trainRideLeft <= 0) roofObstacles.splice(ri, 1);
         }
-        if (trainRideLeft <= 0) roofObstacles.length = 0;
 
         for (var pi = powerups.length - 1; pi >= 0; pi--) {
             var pickup = powerups[pi];
@@ -600,6 +660,7 @@
         c.restore();
     }
     function drawObstacle(c, ob) {
+        if (ob.smashed) return;
         var z = clamp(ob.z, 0, 1.05), x = laneX(ob.lane, z), y = depthY(z);
         var s = 0.18 + z * 1.36;
         c.save();
@@ -610,20 +671,19 @@
             polygon(c, [[x - 26*s, y - 16*s], [x + 26*s, y - 16*s], [x + 23*s, y], [x - 23*s, y]], "#bc613d", "#ffd09b", 1.5*s);
             c.fillStyle = "#f0d0a5";
             for (var b = -1; b <= 1; b++) c.fillRect(x + b * 15*s - 3*s, y - 12*s, 6*s, 5*s);
-        } else if (ob.type === "beam" || ob.type === "sign") {
-            c.shadowColor = ob.type === "sign" ? "#ff865e" : "#f4b75f";
+        } else if (ob.type === "beam") {
+            c.shadowColor = "#f4b75f";
             c.shadowBlur = reduced ? 0 : 9*s;
-            c.fillStyle = ob.type === "sign" ? "#9e483e" : "#765746";
+            c.fillStyle = "#765746";
             c.fillRect(x - 31*s, y - 67*s, 62*s, 11*s);
-            c.fillStyle = ob.type === "sign" ? "#ffd0ad" : "#d4a56d";
+            c.fillStyle = "#d4a56d";
             c.fillRect(x - 31*s, y - 67*s, 62*s, 3*s);
             c.fillStyle = "#4a3b36";
             c.fillRect(x - 27*s, y - 58*s, 5*s, 48*s);
             c.fillRect(x + 22*s, y - 58*s, 5*s, 48*s);
-            if (ob.type === "sign") {
-                c.fillStyle = "#fff0d4"; c.font = "bold " + Math.max(5, 8*s) + "px Arial";
-                c.textAlign = "center"; c.fillText("ПРИГНИСЬ", x, y - 59*s);
-            }
+            c.fillStyle = "#fff0d4";
+            c.font = "bold " + Math.max(6, 9*s) + "px Arial";
+            c.textAlign = "center"; c.fillText("ПРИГНИСЬ", x, y - 73*s);
         } else if (ob.type === "gap") {
             c.shadowColor = "#ff6b41"; c.shadowBlur = reduced ? 0 : 12*s;
             c.fillStyle = "#080b10"; c.strokeStyle = "#e37c48"; c.lineWidth = 2*s;
@@ -672,26 +732,38 @@
     function drawWaystarCar(c, x, y, progress, now) {
         progress = clamp(progress, 0, 1);
         if (progress <= 0.01) return;
+        var steering = clamp(lane - laneVisual, -1, 1) * 0.075;
+        var roadBounce = Math.sin(now / 105) * 1.5;
         c.save();
         c.globalAlpha = progress;
-        c.translate(x, y);
+        c.translate(x, y + roadBounce);
+        c.rotate(steering + Math.sin(now / 165) * 0.012);
         var scale = 0.45 + progress * 0.55;
         c.scale(scale, scale);
-        var wheelTurn = now / 90;
-        c.shadowColor = "#74dfff";
-        c.shadowBlur = reduced ? 0 : 17;
-        c.fillStyle = "#101a28";
+
+        // All four tires roll in the same direction at the same road speed.
+        var wheelTurn = (now / 66) % (Math.PI * 2);
         for (var side = -1; side <= 1; side += 2) {
             for (var row = -1; row <= 1; row += 2) {
                 c.save();
                 c.translate(side * 30, row * 22);
-                c.rotate(wheelTurn * (row < 0 ? 1 : -1));
-                c.beginPath(); c.ellipse(0, 0, 7, 13, 0, 0, Math.PI * 2); c.fill();
-                c.strokeStyle = "#9fb6c6"; c.lineWidth = 1.5;
-                c.beginPath(); c.moveTo(0, -8); c.lineTo(0, 8); c.stroke();
+                c.rotate(wheelTurn);
+                c.fillStyle = "#101a28";
+                c.strokeStyle = "#9fb6c6";
+                c.lineWidth = 1.5;
+                c.beginPath(); c.ellipse(0, 0, 7, 13, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+                c.strokeStyle = "rgba(225,246,255,.85)";
+                c.lineWidth = 1.2;
+                c.beginPath();
+                c.moveTo(-4, 0); c.lineTo(4, 0);
+                c.moveTo(0, -8); c.lineTo(0, 8);
+                c.stroke();
                 c.restore();
             }
         }
+
+        c.shadowColor = "#74dfff";
+        c.shadowBlur = reduced ? 0 : 17 + carImpactFlash * 0.7;
         var body = c.createLinearGradient(-28, -42, 28, 40);
         body.addColorStop(0, "#f2fdff");
         body.addColorStop(.28, "#79dfff");
@@ -734,6 +806,11 @@
         c.strokeStyle = "rgba(225,250,255,.5)";
         c.lineWidth = 1;
         c.beginPath(); c.moveTo(-18, 7); c.lineTo(-20, 20); c.moveTo(18, 7); c.lineTo(20, 20); c.stroke();
+        if (carImpactFlash > 0) {
+            c.globalAlpha = Math.min(1, carImpactFlash / 10);
+            c.strokeStyle = "#fff7c4"; c.lineWidth = 3;
+            c.beginPath(); c.arc(0, 0, 39 + (14 - carImpactFlash) * 1.2, 0, Math.PI * 2); c.stroke();
+        }
         c.restore();
     }
     function drawActualRunnerHeart(c, x, y, mounted, sliding, airborne, jetpack) {
@@ -763,36 +840,6 @@
             livingStonePlayer.x = oldX; livingStonePlayer.y = oldY;
             window.__mbLivingStoneStarMounted = oldMounted;
         }
-    }
-    function drawTrainRoofSurface(c, laneIndex, now) {
-        var x = laneX(laneIndex, 0.92);
-        c.save();
-        c.shadowColor = "#101820";
-        c.shadowBlur = reduced ? 0 : 9;
-        polygon(c, [[x - 32, 334], [x + 32, 334], [x + 61, 414], [x - 61, 414]],
-            "#526574", "#d1dbe0", 2);
-        polygon(c, [[x - 61, 414], [x + 61, 414], [x + 56, 438], [x - 56, 438]],
-            "#263642", "#8799a4", 1.5);
-        c.shadowBlur = 0;
-        for (var rib = 0; rib < 5; rib++) {
-            var t = rib / 5;
-            var yy = 343 + t * 63;
-            var half = 35 + t * 20;
-            c.strokeStyle = "rgba(18,31,41,.62)";
-            c.lineWidth = 2;
-            c.beginPath(); c.moveTo(x - half, yy); c.lineTo(x + half, yy); c.stroke();
-        }
-        c.strokeStyle = "rgba(224,240,247,.7)";
-        c.lineWidth = 1.5;
-        c.beginPath();
-        c.moveTo(x - 29, 337); c.lineTo(x - 57, 411);
-        c.moveTo(x + 29, 337); c.lineTo(x + 57, 411);
-        c.stroke();
-        c.fillStyle = "#a9e4f3";
-        c.fillRect(x - 18, 338, 36, 3);
-        c.fillStyle = "#172734";
-        c.fillRect(x - 22, 418, 44, 5);
-        c.restore();
     }
     function drawRoofObstacle(c, item, now) {
         var z = clamp(item.z, 0, 1.05);
@@ -880,6 +927,25 @@
             c.restore();
         }
     }
+    function drawJumpCue(c, x, y, now) {
+        if (jumpLeft <= 0) return;
+        var ratio = clamp(jumpHeightCurrent / Math.max(1, jumpBaseHeight), 0, 1);
+        c.save();
+        c.globalAlpha = 0.72 + ratio * 0.2;
+        c.strokeStyle = "#aeeaff";
+        c.lineWidth = 2;
+        c.shadowColor = "#6fdcff";
+        c.shadowBlur = reduced ? 0 : 9;
+        c.beginPath();
+        c.ellipse(x, y + 16, 17 + ratio * 7, 5 + ratio * 2, 0, 0, Math.PI * 2);
+        c.stroke();
+        c.shadowBlur = 0;
+        c.fillStyle = "#e6fbff";
+        c.font = "900 9px Arial";
+        c.textAlign = "center";
+        c.fillText("↑ ПРЫЖОК", x, y - 25 - Math.sin(now / 75) * 2);
+        c.restore();
+    }
     function draw(c) {
         if (!active || !c) return;
         var now = clock();
@@ -909,7 +975,7 @@
 
         var px = livingStonePlayer.x, py = livingStonePlayer.y;
         if (trainRideLeft > 0) {
-            drawTrainRoofSurface(c, trainRideLane, now);
+            // The mounted train in "obstacles" is the actual platform beneath the runner.
             for (var rhi = 0; rhi < roofObstacles.length; rhi++) drawRoofObstacle(c, roofObstacles[rhi], now);
         }
         var introStar = !introFinished && starAid;
@@ -946,13 +1012,7 @@
                     c.restore();
                 }
             }
-            // Once the Star has transformed into the rescue vehicle, keep her visible
-            // beside the player for the entire chase instead of showing her only once.
-            if (morph >= 0.98 && typeof window.MBDrawWaystarCompanion === "function") {
-                var followX = clamp(px + (px < 330 ? 38 : -38), 22, 378);
-                var followY = py - 23 + Math.sin(now / 180) * 5;
-                window.MBDrawWaystarCompanion(followX, followY, 19);
-            }
+            // After the transformation, the car itself is Waystar. Do not draw a second floating Star model.
             var jumpProgress = introFinished ? 1 : easeOut((introT - 3650) / 1050);
             var jumpArc = introStar ? Math.sin(jumpProgress * Math.PI) * 56 : 0;
             var heroY = trainMounted ? py : py - (introStar ? jumpArc + jumpProgress * 8 : 8);
@@ -963,6 +1023,7 @@
             c.beginPath(); c.ellipse(px, 441, 24, 5, 0, 0, Math.PI * 2); c.fill();
             c.restore();
             drawActualRunnerHeart(c, px, heroY, true, slideLeft > 0, jumpLeft > 0, jetpackLeft > 0);
+            drawJumpCue(c, px, heroY, now);
             if (introStar && introT >= 3650 && introT < 5100) {
                 c.save();
                 c.globalAlpha = 0.7;
@@ -982,6 +1043,7 @@
             c.beginPath(); c.ellipse(laneX(laneVisual, 0.98), 439, 19 + (jumpLeft > 0 ? 10 : 0), 5, 0, 0, Math.PI*2); c.fill();
             c.restore();
             drawActualRunnerHeart(c, px, py, false, slideLeft > 0, jumpLeft > 0, jetpackLeft > 0);
+            drawJumpCue(c, px, py, now);
 
             if (!introFinished && introElapsed > 450) {
                 drawBubble(c, 200, 325, "ЛАДНО... ДОГОНЮ САМ.", "#ffb7a2", 214);
@@ -1063,7 +1125,7 @@
         c.fillStyle = activeLabels.length ? "#f5f5f5" : "#b8c9d5";
         c.fillText(activeLabels.length ? activeLabels.join("  •  ") : "УСИЛЕНИЯ: МАГНИТ · БОТИНКИ · РАНЕЦ · ЩИТ", 200, 460);
         c.textAlign = "center"; c.font = "bold 10px monospace"; c.fillStyle = "rgba(255,255,255,.82)";
-        c.fillText("СВАЙПЫ • ← → ПОЛОСА • ↑ ПРЫЖОК • ↓ ПОДКАТ", 200, 486);
+        c.fillText("← / → ПОЛОСА     ↑ ПРЫЖОК     ↓ ПОДКАТ     ·     A D W S", 200, 486);
         if (elapsed < 4600) {
             var introAlpha = 1 - Math.max(0, elapsed - 2600) / 2000;
             c.globalAlpha = clamp(introAlpha, 0, 1);
@@ -1092,8 +1154,8 @@
         if (!active) return;
         active = false;
         introFinished = false;
-        trainRideLeft = 0; trainDropLeft = 0; magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0;
-        hoverboardCharges = 0; hoverboardLeft = 0; boardGuardLeft = 0; slidePose = 0;
+        trainRideLeft = 0; trainRideObstacle = null; trainDropLeft = 0; magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0;
+        hoverboardCharges = 0; hoverboardLeft = 0; boardGuardLeft = 0; slidePose = 0; jumpHeightCurrent = 0; hitGraceLeft = 0; carImpactFlash = 0;
         unbindControls();
         resetArrays();
         if (success !== false && starAid && music && musicAllowed()) {
@@ -1163,8 +1225,9 @@
         startedAt = clock(); lastAt = startedAt; elapsed = 0;
         lane = 1; laneVisual = 1; jumpLeft = 0; slideLeft = 0; slidePose = 0;
         spawnClock = 0; powerupClock = 0; roofSpawnClock = 0; trackOffset = 0; distance = 0; coinCount = 0; score = 0; combo = 0; lastHud = -1;
-        trainRideLeft = 0; trainRideLane = 1; trainDropLeft = 0; jumpTotal = 0.78; jumpBaseHeight = 78;
+        trainRideLeft = 0; trainRideLane = 1; trainRideObstacle = null; trainDropLeft = 0; jumpTotal = 0.78; jumpBaseHeight = 78; jumpHeightCurrent = 0;
         magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0; hoverboardCharges = 0; hoverboardLeft = 0; boardGuardLeft = 0;
+        hitGraceLeft = 0; carImpactFlash = 0;
         starGuard = starAid; nextGuard = 7000; nextStrike = 4400;
         starFlash = 0; damageFlash = 0;
         introElapsed = 0;
@@ -1212,8 +1275,8 @@
         active = false;
         introFinished = false;
         introElapsed = 0;
-        trainRideLeft = 0; trainDropLeft = 0; magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0;
-        hoverboardCharges = 0; hoverboardLeft = 0; boardGuardLeft = 0; slidePose = 0;
+        trainRideLeft = 0; trainRideObstacle = null; trainDropLeft = 0; magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0;
+        hoverboardCharges = 0; hoverboardLeft = 0; boardGuardLeft = 0; slidePose = 0; jumpHeightCurrent = 0; hitGraceLeft = 0; carImpactFlash = 0;
         unbindControls();
         resetArrays();
         stopMusic();
