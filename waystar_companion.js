@@ -179,7 +179,7 @@
         var ty=Math.max(65,Math.min(230,boss.y+boss.vy*7));
         var base=Math.atan2(ty-ally.y,tx-ally.x);
         var escalation=Math.min(5,Math.floor(allyAttackSerial/4));
-        var pattern=ally.attackPattern++%12;
+        var pattern=ally.attackPattern++%13;
         allyAttackSerial++;ally.windup=[2,3,6,8,10].indexOf(pattern)>=0?28:12;
         var s1=1.3,s3=1.3*.7;
 
@@ -272,7 +272,7 @@
             var mines=3+Math.floor(escalation/2);
             for(var m=0;m<mines;m++)queueOriginalWaystarBomb(m*42,true);
             announce("СОЛНЕЧНЫЕ МИНЫ!","#ffce64",48);
-        }else{
+        }else if(pattern===11){
             // True 60-piece Legion: rows move as one formation and fire continuously.
             var pieces=[];
             for(var row=0;row<6;row++)for(var col=0;col<10;col++){
@@ -293,6 +293,19 @@
             }
             spawnAllyFxParticles(boss.x,boss.y,80,"#ffd700",12);
             announce("Я - ЛЕГИОН! 60 ОСКОЛКОВ!","#ffe6a0",60);
+        }else{
+            // Only three solar shards appear; each homes in and detonates on contact.
+            var shardCount=3;
+            for(var sh=0;sh<shardCount;sh++){
+                var spread=(sh-(shardCount-1)/2)*34;
+                var sx=Math.max(24,Math.min(376,ally.x+spread));
+                var sy=ally.y-12-Math.abs(spread)*.25;
+                var aim=Math.atan2(ty-sy,tx-sx);
+                allyAttacks.push({type:"solar_shard",x:sx,y:sy,vx:Math.cos(aim)*3.6,vy:Math.sin(aim)*3.6,
+                    speed:3.6,turn:.11,size:11,damage:allyDamageAmount(1),life:150,trail:[],rotation:aim,hit:false});
+            }
+            addAllyFlash(ally.x,ally.y,48);addAllyShockwave(ally.x,ally.y,"#ffd84a",100,16,4);
+            announce("СОЛНЕЧНЫЕ ОСКОЛКИ!","#ffe477",48);
         }
     }
 
@@ -500,6 +513,21 @@
         }
         for(var i=allyAttacks.length-1;i>=0;i--){
             var a=allyAttacks[i];
+            if(a.type==="solar_shard"){
+                var shardTarget=bossPoint(),desired=Math.atan2(shardTarget.y-a.y,shardTarget.x-a.x);
+                var current=Math.atan2(a.vy,a.vx),delta=Math.atan2(Math.sin(desired-current),Math.cos(desired-current));
+                var angle=current+Math.max(-a.turn,Math.min(a.turn,delta));
+                a.speed=Math.min(8.2,a.speed+.075);a.vx=Math.cos(angle)*a.speed;a.vy=Math.sin(angle)*a.speed;
+                a.rotation=angle;a.trail.push({x:a.x,y:a.y});if(a.trail.length>7)a.trail.shift();
+                a.x+=a.vx;a.y+=a.vy;a.life--;
+                if(Math.hypot(shardTarget.x-a.x,shardTarget.y-a.y)<shardTarget.size+a.size+5){
+                    hitBoss(a.damage,a.x,a.y,"#fff1a0");addAllyFlash(a.x,a.y,42);
+                    addAllyShockwave(a.x,a.y,"#ffd84a",76,17,4);addAllyLightning(a.x-24,a.y-18,a.x+24,a.y+18,"#fff7c2",.9,2.5);
+                    spawnAllyFxParticles(a.x,a.y,14,"#ffd84a",6);allyAttacks.splice(i,1);continue;
+                }
+                if(a.life<=0||a.x<-35||a.x>435||a.y<-35||a.y>535)allyAttacks.splice(i,1);
+                continue;
+            }
             if(a.type==="meteor"||a.type==="spiral"||a.type==="star_rain"||a.type==="shotgun_bullet"||a.type==="legion_shot"){
                 var limit=window.MBShouldReduceBossEffects&&window.MBShouldReduceBossEffects()?2:6;
                 a.trail.push({x:a.x,y:a.y});if(a.trail.length>limit)a.trail.shift();
@@ -670,7 +698,14 @@
         var now=typeof performance!=="undefined"?performance.now():frame*16.67;
         for(var i=0;i<allyAttacks.length;i++){
             var a=allyAttacks[i];
-            if(a.type==="meteor"||a.type==="spiral"||a.type==="star_rain"||a.type==="shotgun_bullet"||a.type==="legion_shot"){
+            if(a.type==="solar_shard"){
+                c.save();c.translate(a.x,a.y);c.rotate(a.rotation||0);
+                for(var st=0;st<a.trail.length;st++){c.globalAlpha=(st+1)/a.trail.length*.32;c.fillStyle="#ffb52e";c.beginPath();c.arc(a.trail[st].x-a.x,a.trail[st].y-a.y,7*(st+1)/a.trail.length,0,Math.PI*2);c.fill();}
+                c.globalAlpha=1;c.shadowColor="#ffcf45";c.shadowBlur=light?0:18;
+                c.fillStyle="#ffb52e";c.beginPath();c.moveTo(15,0);c.lineTo(0,-7);c.lineTo(-13,0);c.lineTo(0,7);c.closePath();c.fill();
+                c.fillStyle="#fff8bd";c.beginPath();c.moveTo(10,0);c.lineTo(0,-3);c.lineTo(-7,0);c.lineTo(0,3);c.closePath();c.fill();
+                c.shadowBlur=0;c.restore();
+            }else if(a.type==="meteor"||a.type==="spiral"||a.type==="star_rain"||a.type==="shotgun_bullet"||a.type==="legion_shot"){
                 var color=a.type==="meteor"?"#ff8800":(a.type==="spiral"?"#ff00ff":(a.type==="shotgun_bullet"?"#ff4400":(a.type==="legion_shot"?"#ff4be8":"#ffd700")));
                 for(var j=0;j<a.trail.length;j++){
                     c.globalAlpha=(1-j/a.trail.length)*.5;c.fillStyle=color;
