@@ -1039,17 +1039,21 @@ function loadGameData(d) {
     Object.keys(slotData).forEach(function (key) { delete slotData[key]; });
     Object.assign(slotData, d);
 
-    // Older saves may already contain waystarOwesDebt=false from an intermediate
-    // build while the original rescue marker waystarDefeatedThisRun is true.
-    // The original marker remains a valid unlock source until rebirth resets it.
+    // Saves without a decision-version marker predate the separate kill/spare flag.
+    // Their old completion marker remains a valid legacy unlock, even if an
+    // intermediate build wrote waystarOwesDebt=false into the slot.
     var legacyWaystarCompleted = d.waystarDefeatedThisRun === true ||
         d.waystarDefeatedThisRun === 1 || d.waystarDefeatedThisRun === "true";
+    var mercyDecisionVersion = Number(d.waystarMercyDecisionVersion) || 0;
     var explicitWaystarMercy = d.waystarOwesDebt === true ||
         d.waystarOwesDebt === 1 || d.waystarOwesDebt === "true";
-    var sparedWaystar = explicitWaystarMercy || legacyWaystarCompleted;
-    if (legacyWaystarCompleted) {
-        slotData.waystarOwesDebt = true; // migrate old saves into the current mercy field
+    var sparedWaystar = explicitWaystarMercy ||
+        (mercyDecisionVersion < 1 && legacyWaystarCompleted);
+    if (mercyDecisionVersion < 1 && legacyWaystarCompleted) {
+        slotData.waystarOwesDebt = true; // migrate ambiguous legacy saves as unlocked
     }
+    // New saves preserve the explicit choice, including "killed".
+    slotData.waystarMercyDecisionVersion = 1;
     window.waystarDefeatedThisRun = legacyWaystarCompleted;
     window.waystarOwesDebt = sparedWaystar;
     if (window.MBPatches) window.MBPatches.load(Array.isArray(d.unlockedPatches) ? d.unlockedPatches : []);
@@ -1457,6 +1461,7 @@ function saveAll() {
     slotData.evolutionUnlocked = (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(500));
     slotData.waystarOwesDebt = (typeof window !== 'undefined' && window.waystarOwesDebt === true);
     slotData.waystarDefeatedThisRun = (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true);
+    slotData.waystarMercyDecisionVersion = 1;
     slotData.level7CardId = (typeof window !== 'undefined' && window._level7CardId) || null;
     
     slotData.gachaDailyLimits = gachaDailyLimits;
@@ -3471,6 +3476,7 @@ function doRebirth() {
         slotData.evolutionUnlocked = false;
         slotData.waystarDefeatedThisRun = false;
         slotData.waystarOwesDebt = false;
+        slotData.waystarMercyDecisionVersion = 1;
     }
     if (typeof window !== 'undefined') window.waystarOwesDebt = false;
     console.log("[REBIRTH] Флаг Звезды сброшен — эволюция закрыта, бой доступен");
