@@ -481,10 +481,21 @@
 
     function wasSpared() {
         try {
-            var savedValue = (typeof slotData !== "undefined" && slotData) ? slotData.waystarOwesDebt : false;
-            var legacyValue = (typeof slotData !== "undefined" && slotData) ? slotData.waystarDefeatedThisRun : false;
-            return window.waystarOwesDebt === true || savedValue === true || savedValue === 1 || savedValue === "true" ||
-                window.waystarDefeatedThisRun === true || legacyValue === true || legacyValue === 1 || legacyValue === "true";
+            var hasSlot = typeof slotData !== "undefined" && slotData;
+            var hasExplicitMercy = hasSlot &&
+                Object.prototype.hasOwnProperty.call(slotData, "waystarOwesDebt");
+            var savedValue = hasSlot ? slotData.waystarOwesDebt : false;
+            // A current save's explicit false means she was killed. Never let the
+            // generic "encounter completed" flag override that newer decision.
+            if (hasExplicitMercy) {
+                return savedValue === true || savedValue === 1 || savedValue === "true";
+            }
+            if (window.waystarOwesDebt === true) return true;
+            // Compatibility for pre-mercy saves: game.js migrates their old
+            // completion marker into waystarOwesDebt when the explicit field is absent.
+            var legacyValue = hasSlot ? slotData.waystarDefeatedThisRun : false;
+            return window.waystarDefeatedThisRun === true || legacyValue === true ||
+                legacyValue === 1 || legacyValue === "true";
         } catch (e) { return false; }
     }
 
