@@ -85,6 +85,14 @@ let _superState = {
     markResurrectCharges: 2,
     markBuffActive: false, markBuffTimer: 0, markDmgReduction: 1, markDmgBonus: 1, markSpeedBonus: 1,
     markWingsActive: false, markWingAnimTime: 0,
+    karsAdaptationInitialized: false,
+    karsAdaptationLastDamageAt: 0,
+    karsAdaptationStreakStartAt: 0,
+    karsAdaptationActive: false,
+    karsDamageBonusActive: false,
+    karsRegenNextAt: 0,
+    karsSpeedApplied: false,
+    karsSpeedBossType: null,
     allmightPermaSlow: false, allmightDmgMult: 1, allmightBuffTimer: 0, allmightOrigSize: 14, allmightOrigHitbox: 4, allmightShockwave: 0,
     allmightDebuffActive: false, allmightDebuffTimer: 0, allmightDebuffDmgMult: 1,
     allmightHurricane: false, allmightHurricaneTimer: 0, allmightHurricaneAngle: 0,
@@ -600,6 +608,7 @@ function applyBossDamageToContext(ctxB, rawDamage, source) {
     }
 
     if (ctxB.type === "arena") {
+        if (typeof window.MBKarsApplyDamageBonus === "function") damage = window.MBKarsApplyDamageBonus(damage);
         damage = modifyTestDamage(damage);
         if (!damage) return 0;
         arenaBossMaxHP = Math.max(0, (Number(arenaBossMaxHP) || 0) - damage);
@@ -608,6 +617,7 @@ function applyBossDamageToContext(ctxB, rawDamage, source) {
         return dealtArena;
     }
     if (ctxB.type === "waystar") {
+        if (typeof window.MBKarsApplyDamageBonus === "function") damage = window.MBKarsApplyDamageBonus(damage);
         damage = modifyTestDamage(damage);
         if (!damage) return 0;
         ctxB.setBossMaxHp(Math.max(0, before - damage));
@@ -624,6 +634,7 @@ function applyBossDamageToContext(ctxB, rawDamage, source) {
         return Math.max(0, before - (Number(ctxB.getBossHp()) || 0));
     }
     if (ctxB.type === "rwb") {
+        if (typeof window.MBKarsApplyDamageBonus === "function") damage = window.MBKarsApplyDamageBonus(damage);
         var activeRwb = typeof window.getRWBActiveBoss === "function" ? window.getRWBActiveBoss() : null;
         if (!activeRwb && typeof window.getRWBTargets === "function") {
             var targets = (window.getRWBTargets() || []).filter(function(b) { return b && Number(b.hp) > 0; });
@@ -1606,6 +1617,175 @@ function tickWhitebeardRegen(dt) {
     } catch(e) {}
 }
 window.tickWhitebeardRegen = tickWhitebeardRegen;
+
+// ============================================================
+// ★ КАРС (ВЫСШЕЕ СУЩЕСТВО): АДАПТАЦИЯ В БОССОВЫХ БОЯХ ★
+// Серия попаданий 2 сек.: +35% скорости и 35% снижения входящего урона.
+// Без попаданий 8 сек.: +50% исходящего урона.
+// Ниже 40% HP: +2% максимального HP каждые 4 сек. до отметки 40%.
+// ============================================================
+function isKarsSupremeMainActive() {
+    try {
+        var card = typeof getMainCard === "function" ? getMainCard() : null;
+        if (!card && typeof getSecretHeartMainCardName === "function") {
+            return getSecretHeartMainCardName() === "Карс (Высшее существо)";
+        }
+        return !!(card && card.name === "Карс (Высшее существо)");
+    } catch (e) { return false; }
+}
+
+function getKarsAdaptationNow() {
+    return typeof performance !== "undefined" && typeof performance.now === "function"
+        ? performance.now() : Date.now();
+}
+
+function clearKarsAdaptationState() {
+    if (typeof _superState === "undefined") return;
+    _superState.karsAdaptationInitialized = false;
+    _superState.karsAdaptationLastDamageAt = 0;
+    _superState.karsAdaptationStreakStartAt = 0;
+    _superState.karsAdaptationActive = false;
+    _superState.karsDamageBonusActive = false;
+    _superState.karsRegenNextAt = 0;
+    _superState.karsSpeedApplied = false;
+    _superState.karsSpeedBossType = null;
+}
+
+window.MBResetKarsAdaptation = function() {
+    if (typeof _superState === "undefined") return;
+    var ctxB = typeof getBossContext === "function" ? getBossContext() : null;
+    if (_superState.karsSpeedApplied && ctxB &&
+        (!_superState.karsSpeedBossType || ctxB.type === _superState.karsSpeedBossType) &&
+        typeof ctxB.getHeartSpeed === "function" && typeof ctxB.setHeartSpeed === "function") {
+        var speed = Number(ctxB.getHeartSpeed()) || 0;
+        if (speed > 0) ctxB.setHeartSpeed(speed / 1.35);
+    }
+    clearKarsAdaptationState();
+};
+
+function tickKarsAdaptation(ctxB) {
+    if (typeof _superState === "undefined") return;
+    var now = getKarsAdaptationNow();
+
+    if (!isKarsSupremeMainActive()) {
+        if (_superState.karsSpeedApplied && ctxB &&
+            (!_superState.karsSpeedBossType || ctxB.type === _superState.karsSpeedBossType) &&
+            typeof ctxB.getHeartSpeed === "function" && typeof ctxB.setHeartSpeed === "function") {
+            var oldSpeed = Number(ctxB.getHeartSpeed()) || 0;
+            if (oldSpeed > 0) ctxB.setHeartSpeed(oldSpeed / 1.35);
+        }
+        clearKarsAdaptationState();
+        return;
+    }
+
+    if (!_superState.karsAdaptationInitialized) {
+        _superState.karsAdaptationInitialized = true;
+        _superState.karsAdaptationLastDamageAt = now;
+        _superState.karsAdaptationStreakStartAt = 0;
+        _superState.karsAdaptationActive = false;
+        _superState.karsDamageBonusActive = false;
+        _superState.karsRegenNextAt = 0;
+        _superState.karsSpeedApplied = false;
+        _superState.karsSpeedBossType = ctxB ? ctxB.type : null;
+    }
+
+    var lastHitAt = Number(_superState.karsAdaptationLastDamageAt) || now;
+    var streakStart = Number(_superState.karsAdaptationStreakStartAt) || 0;
+    var sinceHit = Math.max(0, now - lastHitAt);
+
+    if (streakStart > 0 && now - streakStart >= 2000 && sinceHit <= 2000) {
+        _superState.karsAdaptationActive = true;
+    } else if (sinceHit > 2000) {
+        _superState.karsAdaptationActive = false;
+        _superState.karsAdaptationStreakStartAt = 0;
+    }
+    _superState.karsDamageBonusActive = sinceHit >= 8000;
+
+    if (ctxB && typeof ctxB.getHeartSpeed === "function" &&
+        typeof ctxB.setHeartSpeed === "function") {
+        if (_superState.karsSpeedApplied && _superState.karsSpeedBossType &&
+            _superState.karsSpeedBossType !== ctxB.type) {
+            _superState.karsSpeedApplied = false;
+        }
+        if (_superState.karsAdaptationActive && !_superState.karsSpeedApplied) {
+            var currentSpeed = Number(ctxB.getHeartSpeed()) || 0;
+            if (currentSpeed > 0) {
+                ctxB.setHeartSpeed(currentSpeed * 1.35);
+                _superState.karsSpeedApplied = true;
+                _superState.karsSpeedBossType = ctxB.type;
+            }
+        } else if (!_superState.karsAdaptationActive && _superState.karsSpeedApplied) {
+            var boostedSpeed = Number(ctxB.getHeartSpeed()) || 0;
+            if (boostedSpeed > 0) ctxB.setHeartSpeed(boostedSpeed / 1.35);
+            _superState.karsSpeedApplied = false;
+            _superState.karsSpeedBossType = null;
+        }
+    }
+
+    if (ctxB && typeof ctxB.getPlayerHp === "function" &&
+        typeof ctxB.getPlayerMaxHp === "function" && typeof ctxB.setPlayerHp === "function") {
+        var maxHp = Math.max(1, Number(ctxB.getPlayerMaxHp()) || 1);
+        var currentHp = Math.max(0, Number(ctxB.getPlayerHp()) || 0);
+        var capHp = maxHp * 0.40;
+        if (currentHp < capHp) {
+            if (!(Number(_superState.karsRegenNextAt) > 0)) {
+                _superState.karsRegenNextAt = now + 4000;
+            } else if (now >= _superState.karsRegenNextAt) {
+                var healAmount = Math.max(1, Math.floor(maxHp * 0.02));
+                var healedHp = Math.min(capHp, currentHp + healAmount);
+                var actualHeal = Math.max(0, healedHp - currentHp);
+                if (actualHeal > 0) {
+                    ctxB.setPlayerHp(healedHp);
+                    var hpEl = document.getElementById("arenaHP");
+                    if (hpEl) hpEl.innerText = Math.ceil(healedHp);
+                    if (typeof ctxB.spawnFloatingText === "function") {
+                        ctxB.spawnFloatingText(
+                            typeof ctxB.getHeartX === "function" ? ctxB.getHeartX() : 200,
+                            (typeof ctxB.getHeartY === "function" ? ctxB.getHeartY() : 400) - 24,
+                            "+" + Math.ceil(actualHeal) + " HP · АДАПТАЦИЯ", "#a8ff83"
+                        );
+                    }
+                }
+                _superState.karsRegenNextAt = healedHp < capHp ? now + 4000 : 0;
+            }
+        } else {
+            _superState.karsRegenNextAt = 0;
+        }
+    }
+}
+window.MBKarsAdaptationTick = tickKarsAdaptation;
+
+window.MBKarsProcessIncomingDamage = function(rawDamage) {
+    var damage = Math.max(0, Number(rawDamage) || 0);
+    if (damage <= 0 || !isKarsSupremeMainActive() || typeof _superState === "undefined") return damage;
+
+    var now = getKarsAdaptationNow();
+    if (!_superState.karsAdaptationInitialized) {
+        _superState.karsAdaptationInitialized = true;
+        _superState.karsAdaptationLastDamageAt = now;
+    }
+
+    var previousHitAt = Number(_superState.karsAdaptationLastDamageAt) || 0;
+    if (!previousHitAt || now - previousHitAt > 2000 ||
+        !(Number(_superState.karsAdaptationStreakStartAt) > 0)) {
+        _superState.karsAdaptationStreakStartAt = now;
+        _superState.karsAdaptationActive = false;
+    }
+    _superState.karsAdaptationLastDamageAt = now;
+    _superState.karsDamageBonusActive = false;
+
+    var ctxB = typeof getBossContext === "function" ? getBossContext() : null;
+    tickKarsAdaptation(ctxB);
+    return _superState.karsAdaptationActive ? Math.max(1, Math.floor(damage * 0.65)) : damage;
+};
+
+window.MBKarsApplyDamageBonus = function(rawDamage) {
+    var damage = Math.max(0, Number(rawDamage) || 0);
+    if (damage <= 0 || !isKarsSupremeMainActive() || typeof _superState === "undefined") return damage;
+    var ctxB = typeof getBossContext === "function" ? getBossContext() : null;
+    tickKarsAdaptation(ctxB);
+    return _superState.karsDamageBonusActive ? Math.max(1, Math.floor(damage * 1.5)) : damage;
+};
 
 function restoreArenaTimer() {
     if (typeof arenaDodgeTimerInterval !== 'undefined' && arenaDodgeTimerInterval) clearInterval(arenaDodgeTimerInterval);
@@ -2661,6 +2841,7 @@ function resetAllSupers() {
 }
 
 function initSuperState() {
+    if (typeof window.MBResetKarsAdaptation === "function") window.MBResetKarsAdaptation();
     var ctxB = getBossContext();
     var savedHeartSpeed = ctxB ? ctxB.getHeartSpeed() : 1.2;
     console.log("[SUPER] initSuperState: сохраняем heartSpeed = " + savedHeartSpeed.toFixed(2));
@@ -3139,6 +3320,9 @@ window.drawSecretHeartTexture = drawSecretHeartTexture;
 function tickSupers() {
     var ctxB = getBossContext();
     if (!ctxB) return;
+    if (typeof window.MBKarsAdaptationTick === "function") {
+        try { window.MBKarsAdaptationTick(ctxB); } catch (e) {}
+    }
     if (!ctx) return;
 
     var now = performance.now();
