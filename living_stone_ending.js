@@ -146,8 +146,38 @@
             ev.preventDefault(); if (!ev.repeat) slide();
         }
     }
+    function isChaseModerator() {
+        try {
+            return superMode && typeof window.MBIsModeratorModeActive === "function" &&
+                window.MBIsModeratorModeActive() === true;
+        } catch (e) { return false; }
+    }
+    function skipForModerator() {
+        if (!active || !superMode || !isChaseModerator()) return false;
+        message("МОДЕРАТОР ПРОПУСТИЛ ПОГОНЮ", "#aeeaff");
+        // finish(true) runs the exact same callback as a completed chase,
+        // so Prime restores its phase-two HP and starts the ally normally.
+        finish(true);
+        return true;
+    }
     function onPointerDown(ev) {
-        if (!active || !introFinished || !ev) return;
+        if (!active || !ev) return;
+        // The moderator button works with mouse, pen and touch, including during the intro.
+        if (isChaseModerator() && canvas && typeof canvas.getBoundingClientRect === "function") {
+            var rect = canvas.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                var px = (ev.clientX - rect.left) * 400 / rect.width;
+                var py = (ev.clientY - rect.top) * 500 / rect.height;
+                if (px >= 300 && px <= 396 && py >= 57 && py <= 89) {
+                    if (ev.cancelable) ev.preventDefault();
+                    if (ev.stopPropagation) ev.stopPropagation();
+                    if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+                    skipForModerator();
+                    return;
+                }
+            }
+        }
+        if (!introFinished) return;
         if (ev.pointerType === "touch" || ev.pointerType === "pen") {
             pointerStart = { x: ev.clientX, y: ev.clientY, id: ev.pointerId };
             if (ev.cancelable) ev.preventDefault();
@@ -1125,6 +1155,17 @@
         c.fillText("ЖИЗНИ", 163, 73);
         c.font = "bold 17px sans-serif"; c.fillStyle = "#ff6262";
         c.fillText("♥".repeat(chaseLives) + "♡".repeat(3 - chaseLives), 226, 73);
+        if (isChaseModerator()) {
+            c.fillStyle = "rgba(6,34,48,.94)";
+            c.fillRect(300, 57, 96, 32);
+            c.strokeStyle = "#7ceaff"; c.lineWidth = 1.6;
+            c.strokeRect(300, 57, 96, 32);
+            c.fillStyle = "#baf5ff"; c.font = "900 9px Arial";
+            c.textAlign = "center"; c.textBaseline = "middle";
+            c.fillText("ПРОПУСТИТЬ", 348, 68);
+            c.fillStyle = "#e8fbff"; c.font = "bold 8px Arial";
+            c.fillText("ПОГОНЮ", 348, 79);
+        }
         c.textAlign = "left"; c.textBaseline = "alphabetic"; c.font = "bold 11px monospace"; c.fillStyle = "#ffe7b0";
         c.fillText("✦ " + coinCount + "   SCORE " + Math.floor(score), 14, 27);
         c.textAlign = "right"; c.fillStyle = "#e5d8cc";
@@ -1305,6 +1346,7 @@
     }
 
     window.MBStartLivingStoneChase = start;
+    window.MBSkipLivingStoneChase = skipForModerator;
     window.MBUpdateLivingStoneChase = update;
     window.MBDrawLivingStoneChase = draw;
     window.MBStopLivingStoneChase = stop;
