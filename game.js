@@ -2954,14 +2954,7 @@ function handleClick() {
     }
     
     let m = getPassiveModifiers(); 
-    if (currentEnemy.isBoss) dmg = Math.floor(dmg * (1 + m.bossBonus));
-    // Обычные боссы: базовый урон клика растёт вместе с волной.
-    // Уникальные боссы (с bossTemplates) и их отдельные бои не затрагиваем.
-    let isTemplateBoss = typeof bossTemplates !== "undefined" && !!bossTemplates[wave];
-    if (currentEnemy.isBoss && !isTemplateBoss) {
-        let waveClickDamage = Math.max(1, Math.floor((Number(wave) || 1) / 5));
-        dmg = Math.max(dmg, waveClickDamage);
-    } 
+    if (currentEnemy.isBoss) dmg = Math.floor(dmg * (1 + m.bossBonus)); 
     let cc = upgrades.crit.level * upgrades.crit.increment; 
     let oneShotChance = 0; 
     team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'oneShot' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { oneShotChance += cd.ability.chance * 1; } }); 
