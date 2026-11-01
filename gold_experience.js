@@ -644,6 +644,21 @@
         return window.dioAttackTouchesStand(ctx || getContext(), attack);
     };
 
+    // Shared damage gateway: only an attack that geometrically touches the NPC
+    // is redirected. Damage aimed straight at Giorno never enters this branch.
+    window.MBGoldExperienceRedirectDamage = function (rawDamage, ctx, sourceAction) {
+        if (!window.MBIsGoldExperienceNpcActive() || !sourceAction ||
+            typeof sourceAction !== "object" || sourceAction.dioStandHitOnce ||
+            typeof window.dioAttackTouchesStand !== "function") return null;
+        var hit = false;
+        try { hit = window.dioAttackTouchesStand(ctx || getContext(), sourceAction) === true; } catch (e) {}
+        if (!hit) return null;
+        sourceAction.dioStandHitOnce = true;
+        return typeof window.scaleStandBlockedDamage === "function"
+            ? window.scaleStandBlockedDamage(rawDamage)
+            : Math.max(1, Math.floor((Number(rawDamage) || 1) * 0.5));
+    };
+
     // true means the action was cancelled. Repeated hits from the same attack
     // object remain cancelled without spending an additional charge.
     window.MBGERTryNullifyDamage = function (damage, sourceAction, category) {
