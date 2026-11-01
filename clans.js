@@ -3302,10 +3302,6 @@
         if (cloudUploadBtn) cloudUploadBtn.addEventListener('click', function () {
             window.dispatchEvent(new CustomEvent('mb:cloud-save-action', { detail: { action: 'upload' } }));
         });
-        var cloudUnbindBtn = byId('cloudSaveUnbindBtn');
-        if (cloudUnbindBtn) cloudUnbindBtn.addEventListener('click', function () {
-            window.dispatchEvent(new CustomEvent('mb:cloud-save-action', { detail: { action: 'unbind' } }));
-        });
         var cloudRestoreBtn = byId('cloudSaveRestoreBackupBtn');
         if (cloudRestoreBtn) cloudRestoreBtn.addEventListener('click', function () {
             window.dispatchEvent(new CustomEvent('mb:cloud-save-action', { detail: { action: 'restore-backup' } }));
