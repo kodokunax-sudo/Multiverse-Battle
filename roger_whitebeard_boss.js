@@ -3205,6 +3205,7 @@
                             dmg = result.dmg;
                         }
                         if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") dmg=window.MBBossTestModifyOutgoingDamage(dmg,1);
+                        if (typeof window.MBKarsApplyDamageBonus === "function") dmg = window.MBKarsApplyDamageBonus(dmg);
                         boss.hp = Math.max(0, boss.hp - dmg);
                         if (rwbState === "fight1") rwbPlayerFocusTargetId = boss.id;
                         // During the two-boss opening phase there is no single active boss HP
@@ -3287,6 +3288,7 @@
         if (typeof onTakabaDamageTaken === "function") {
             try { onTakabaDamageTaken(dmg); } catch(e) {}
         }
+        if (typeof window.MBKarsProcessIncomingDamage === "function") dmg = window.MBKarsProcessIncomingDamage(dmg);
         rwbPlayer.hp -= dmg;
         rwbPlayer.invulnTimer = 50;
         rwbShake = 12; rwbScreenFlash = 8; rwbScreenFlashColor = "#ff0000";
