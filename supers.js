@@ -1630,7 +1630,8 @@ function isKarsSupremeMainActive() {
         if (!card && typeof getSecretHeartMainCardName === "function") {
             return getSecretHeartMainCardName() === "Карс (Высшее существо)";
         }
-        return !!(card && card.name === "Карс (Высшее существо)");
+        return !!(card && card.name === "Карс (Высшее существо)" &&
+            card.superAbility && card.superAbility.passive === true);
     } catch (e) { return false; }
 }
 
