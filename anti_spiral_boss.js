@@ -586,7 +586,7 @@
         asSound(440 + Math.random()*180, "triangle", 0.08, 0.035);
         if (asBossHp <= 0) asWin();
     }
-    function asDamagePlayer(damage, label) {
+    function asDamagePlayer(damage, label, sourceAction, damageCategory, standIntercepted) {
         if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyIncomingDamage==="function") {
             damage=window.MBBossTestModifyIncomingDamage(damage,"antispiral");
             if(damage<=0)return;
@@ -598,6 +598,19 @@
             damage = Math.max(1, Math.floor((Number(damage) || 1) / _superState.markDmgReduction));
         }
         let amount = Math.max(1, Math.floor((Number(damage) || 1) / 1.5));
+        if (sourceAction && sourceAction._mbGEStandHitFrame === asFrame && !standIntercepted) return;
+        if (standIntercepted) {
+            if (typeof window.MBIsGoldExperienceNpcActive === "function" && window.MBIsGoldExperienceNpcActive() &&
+                typeof window.scaleStandBlockedDamage === "function") amount = window.scaleStandBlockedDamage(amount);
+            else amount = Math.max(1, Math.floor(amount * 0.4));
+        }
+        if (typeof window.MBGERTryNullifyDamage === "function" &&
+            window.MBGERTryNullifyDamage(amount, sourceAction, damageCategory || "combat")) {
+            asPlayer.invuln = 42;
+            asText(asPlayer.x, asPlayer.y - 22, "ВОЗВРАЩЕНИЕ К НУЛЮ!", "#ffe27a", 42);
+            asSound(620, "sine", 0.12, 0.06);
+            return;
+        }
         if (typeof window.MBKarsProcessIncomingDamage === "function") amount = window.MBKarsProcessIncomingDamage(amount);
         asPlayerHp = Math.max(0, asPlayerHp - amount);
         // Полученный урон ставит заряд на паузу на 3 секунды, но накопленная мощь сохраняется.
@@ -2371,7 +2384,7 @@
             const penalty = Math.max(1, Math.floor(asPlayerMaxHp * 0.10));
             asText(200, 110, laserFailure ? "3 ПОПАДАНИЯ ЛАЗЕРОВ! -" + penalty + " HP" : "ПРОВАЛ! -" + penalty + " HP", "#ff668e", 100);
             if(laserFailure)asText(200,132,"КАРМАННОЕ ИЗМЕРЕНИЕ ОТБРОСИЛО ТЕБЯ","#ff8cb1",90);
-            asDamagePlayer(penalty, "ПРОВАЛ СЛОМАННОЙ РЕАЛЬНОСТИ");
+            asDamagePlayer(penalty, "ПРОВАЛ СЛОМАННОЙ РЕАЛЬНОСТИ", null, "qte");
             asSound(170, "sine", 0.35, 0.1);
         }
         asUpdateControls();
@@ -2769,6 +2782,15 @@
             for(let i=0;i<5;i++){c.beginPath();c.arc(asBoss.x,asBoss.y,asBoss.size+18+i*19,0,Math.PI*2);c.stroke();}c.restore();
             for(let i=asAttacks.length-1;i>=0;i--){
                 const a=asAttacks[i];
+                if (!a.dioStandHitOnce && typeof window.dioAttackTouchesStand === "function" &&
+                    typeof window.isStandUserStandActive === "function" && window.isStandUserStandActive()) {
+                    var asStandCtx=typeof getBossContext==="function"?getBossContext():null;
+                    if(asStandCtx && window.dioAttackTouchesStand(asStandCtx,a)) {
+                        a.dioStandHitOnce=true;
+                        a._mbGEStandHitFrame=asFrame;
+                        asDamagePlayer(a.damage||12,"УДАР ПО GOLD EXPERIENCE",a,"combat",true);
+                    }
+                }
                 if(a.kind==="fateTrace"){
                     const path=a.path||[];
                     if(a.phase==="record"){
@@ -2819,7 +2841,7 @@
                             const t=len2>0?Math.max(0,Math.min(1,((asPlayer.x-p1.x)*dx+(asPlayer.y-p1.y)*dy)/len2)):0;
                             const dist=Math.hypot(asPlayer.x-(p1.x+t*dx),asPlayer.y-(p1.y+t*dy));
                             if(dist<asPlayer.size+7&&asFrame>=(a.lastHitAt||0)){
-                                asDamagePlayer(a.damage||12,"СЛЕД ОТМЕНЁННОЙ СУДЬБЫ");
+                                asDamagePlayer(a.damage||12,"СЛЕД ОТМЕНЁННОЙ СУДЬБЫ",a);
                                 a.lastHitAt=asFrame+35;
                             }
                         }
@@ -2977,7 +2999,7 @@
                             const t=Math.max(0,Math.min(1,((asPlayer.x-line.x1)*vx+(asPlayer.y-line.y1)*vy)/lenSq));
                             const nearX=line.x1+vx*t,nearY=line.y1+vy*t;
                             if(Math.hypot(asPlayer.x-nearX,asPlayer.y-nearY)<=beamWidth/2+asPlayer.size*.72){
-                                asDamagePlayer(a.damage,"INFINITY BIG BANG STORM");
+                                asDamagePlayer(a.damage,"INFINITY BIG BANG STORM",a);
                                 a.hit=true;
                             }
                         }
@@ -3001,7 +3023,7 @@
                         c.save();c.globalAlpha=.28;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=25;c.lineWidth=30;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();
                         c.globalAlpha=.95;c.lineWidth=8;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();
                         c.globalAlpha=1;c.strokeStyle="#ffffff";c.lineWidth=1.5;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();c.restore();
-                        if(!a.hit && Math.abs(asPlayer.y-a.y)<20){asDamagePlayer(a.damage,"УДАР ГРАНДЗЕБОМОЙ");a.hit=true;}
+                        if(!a.hit && Math.abs(asPlayer.y-a.y)<20){asDamagePlayer(a.damage,"УДАР ГРАНДЗЕБОМОЙ",a);a.hit=true;}
                         if(a.life<=0)asAttacks.splice(i,1);
                     }
                     continue;
@@ -3079,7 +3101,7 @@
                         c.save();c.globalAlpha=Math.max(.08,a.life/18);c.strokeStyle=a.color;c.fillStyle=a.color;c.shadowColor=a.color;c.shadowBlur=20;c.lineWidth=3;
                         c.beginPath();c.arc(a.x,a.y,radius,0,Math.PI*2);c.stroke();
                         c.globalAlpha=Math.max(.04,a.life/18)*.28;c.beginPath();c.arc(a.x,a.y,radius*.72,0,Math.PI*2);c.fill();c.restore();
-                        if(!a.hit&&Math.hypot(asPlayer.x-a.x,asPlayer.y-a.y)<a.radius+asPlayer.size){asDamagePlayer(a.damage,"КОЛЛАПС ВЕРОЯТНОСТИ");a.hit=true;}
+                        if(!a.hit&&Math.hypot(asPlayer.x-a.x,asPlayer.y-a.y)<a.radius+asPlayer.size){asDamagePlayer(a.damage,"КОЛЛАПС ВЕРОЯТНОСТИ",a);a.hit=true;}
                         a.life-=asTimeScale;if(a.life<=0)asAttacks.splice(i,1);
                     }
                     continue;
@@ -3209,7 +3231,7 @@
                         }
                         c.restore();
                         const overlaps=asPlayer.y+asPlayer.size>zoneTop&&asPlayer.y-asPlayer.size<zoneTop+height;
-                        if(overlaps&&!a.hit){asDamagePlayer(a.damage,a.zone==="lower"?"ВОСХОДЯЩИЙ СУПЕРЛАЗЕР":"ПАДАЮЩАЯ СТЕНА СВЕТА");a.hit=true;}
+                        if(overlaps&&!a.hit){asDamagePlayer(a.damage,a.zone==="lower"?"ВОСХОДЯЩИЙ СУПЕРЛАЗЕР":"ПАДАЮЩАЯ СТЕНА СВЕТА",a);a.hit=true;}
                         if(a.life<=0)asAttacks.splice(i,1);
                     }
                     continue;
@@ -3250,7 +3272,7 @@
                         c.restore();
                         const tolerance=beamWidth/2+asPlayer.size;
                         const hit=vertical?Math.abs(asPlayer.x-lineCoord)<tolerance&&asPlayer.y>=lineStart&&asPlayer.y<=lineEnd:Math.abs(asPlayer.y-lineCoord)<tolerance&&asPlayer.x>=lineStart&&asPlayer.x<=lineEnd;
-                        if(hit&&!a.hit){asDamagePlayer(a.damage,barrier?"ЛАЗЕРНЫЙ БАРЬЕР":"РАЗРЕЗ РЕАЛЬНОСТИ");a.hit=true;}
+                        if(hit&&!a.hit){asDamagePlayer(a.damage,barrier?"ЛАЗЕРНЫЙ БАРЬЕР":"РАЗРЕЗ РЕАЛЬНОСТИ",a);a.hit=true;}
                         if(a.life<=0)asAttacks.splice(i,1);
                     }
                     continue;
@@ -3292,7 +3314,7 @@
                 }
                 c.restore();
                 const dx=asPlayer.x-a.x,dy=asPlayer.y-a.y;
-                if(Math.hypot(dx,dy)<a.size+asPlayer.size*.75){asDamagePlayer(a.damage,"СИНГУЛЯРНОСТЬ");asAttacks.splice(i,1);continue;}
+                if(Math.hypot(dx,dy)<a.size+asPlayer.size*.75){asDamagePlayer(a.damage,"СИНГУЛЯРНОСТЬ",a);asAttacks.splice(i,1);continue;}
                 if(a.life<=0||a.x<-80||a.x>480||a.y<-80||a.y>580)asAttacks.splice(i,1);
             }
             for(let i=asParticles.length-1;i>=0;i--){
