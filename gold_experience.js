@@ -851,6 +851,8 @@
         var total = Math.max(6, Math.floor(maxHp * 0.012));
         var comboDuration = GE_MUDA_DURATION;
         var boss = target || getBossPosition(ctx, state.x, state.y);
+        state.windup = 0;
+        state.swingTimer = 0;
         state.combo = {
             type: ctx.type,
             id: target ? target.id : null,
@@ -932,6 +934,8 @@
         var maxHp = getAttackBossMaxHp(ctx, target);
         var boss = target || getBossPosition(ctx, state.x, state.y);
 
+        state.windup = 0;
+        state.swingTimer = 0;
         state.specialAttack = {
             type: type,
             targetType: ctx.type,
