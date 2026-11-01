@@ -2353,7 +2353,7 @@
         ls2Active=true; window.livingStoneSuperActive=true;
         var enemyMaxBeforePhaseNerf = Number(currentEnemy.maxHp) || 1250000;
         var originalPhaseOneMaxHp = Math.max(250000, Math.floor(enemyMaxBeforePhaseNerf * 0.225));
-        ls2Phase2MaxHp = Math.max(1, Math.floor(originalPhaseOneMaxHp * 0.12));
+        ls2Phase2MaxHp = Math.max(1, Math.floor(originalPhaseOneMaxHp * 0.36)); // x3 phase-two HP
         ls2BossMaxHp=Math.max(100000,Math.floor(enemyMaxBeforePhaseNerf*0.09));
         ls2BossHp=ls2BossMaxHp; ls2PlayerMaxHp=180; ls2PlayerHp=ls2PlayerMaxHp;
         currentEnemy.maxHp=ls2BossMaxHp; currentEnemy.hp=ls2BossHp;
