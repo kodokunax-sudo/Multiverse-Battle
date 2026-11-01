@@ -953,7 +953,12 @@
         if (typeof Audio==="undefined" || window.__mbChaseMusicMuted === true) return;
         try {
             var chaseTrack = ls2ChaseStarAid ? "music/помощь звезды.mp3" : "music/Trap.mp3";
-            ls2ChaseMusic=new Audio(chaseTrack);
+            var trackKey = ls2ChaseStarAid ? "waystarHelp" : "trap";
+            var loadedTrack = typeof window.getLoadedMusic === "function" ? window.getLoadedMusic(trackKey) : null;
+            // On devices with sufficient memory, play the exact Blob downloaded on the loading screen.
+            // Low-memory phones keep only a disk cache and use the regular local asset path.
+            var chaseSource = loadedTrack && loadedTrack.url ? loadedTrack.url : chaseTrack;
+            ls2ChaseMusic=new Audio(chaseSource);
             ls2ChaseMusic.volume=0.78; ls2ChaseMusic.loop=true;
             var p=ls2ChaseMusic.play();
             if (p && typeof p.catch==="function") p.catch(function(){});
