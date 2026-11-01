@@ -102,7 +102,8 @@ let arenaSettings = {
     joystickFixedPosition: true,
     joystickLayouts: [null, null, null],
     activeJoystickLayout: 0,
-    autoSkipDefeatedBosses: false
+    autoSkipDefeatedBosses: false,
+    hideClickTexts: false
 };
 
 // Accessibility mode remains a persistent, explicit Settings choice.
@@ -829,6 +830,7 @@ function loadArenaSettings() {
             arenaSettings.phoneGraphicsQuality = ["low", "medium", "high"].indexOf(s.phoneGraphicsQuality) !== -1 ? s.phoneGraphicsQuality : "high";
             arenaSettings.autoSuper = s.autoSuper ?? false;
             arenaSettings.autoSkipDefeatedBosses = s.autoSkipDefeatedBosses ?? false;
+            arenaSettings.hideClickTexts = s.hideClickTexts === true;
             arenaSettings.mobileSuper = s.mobileSuper ?? "button";
             arenaSettings.arenaControl = s.arenaControl ?? "auto";
             arenaSettings.mobileControlStyle = s.mobileControlStyle ?? "dpad8";
@@ -872,6 +874,8 @@ function applyArenaSettings() {
     if (autoCheck) autoCheck.checked = arenaSettings.autoSuper;
     let autoSkipCheck = document.getElementById("autoSkipDefeatedBossesCheckbox");
     if (autoSkipCheck) autoSkipCheck.checked = !!arenaSettings.autoSkipDefeatedBosses;
+    let hideClickTextsCheck = document.getElementById("hideClickTextsCheckbox");
+    if (hideClickTextsCheck) hideClickTextsCheck.checked = !!arenaSettings.hideClickTexts;
     let mobileSelect = document.getElementById("mobileSuperSelect");
     if (mobileSelect) mobileSelect.value = arenaSettings.mobileSuper;
     
@@ -917,6 +921,12 @@ window.changePhoneGraphicsQuality = changePhoneGraphicsQuality;
 function changeArenaVolume(val) { arenaSettings.volume = val / 100; document.getElementById("arenaVolumeValue").innerText = val + "%"; saveArenaSettings(); }
 function changeArenaEffects(val) { arenaSettings.effectsOpacity = val / 100; document.getElementById("arenaEffectsValue").innerText = val + "%"; saveArenaSettings(); }
 function toggleAutoSuper(checked) { arenaSettings.autoSuper = checked; saveArenaSettings(); }
+function toggleHideClickTexts(checked) {
+    arenaSettings.hideClickTexts = !!checked;
+    saveArenaSettings();
+}
+window.toggleHideClickTexts = toggleHideClickTexts;
+
 function toggleAutoSkipDefeatedBosses(checked) {
     arenaSettings.autoSkipDefeatedBosses = !!checked;
     saveArenaSettings();
@@ -1023,7 +1033,8 @@ function resetArenaSettings() {
         joystickFixedPosition: true,
         joystickLayouts: savedJoystickLayouts,
         activeJoystickLayout: 0,
-        autoSkipDefeatedBosses: false
+        autoSkipDefeatedBosses: false,
+        hideClickTexts: false
     }; 
     saveArenaSettings(); 
     applyArenaSettings(); 
@@ -2862,6 +2873,14 @@ function mbHasPendingBossStart() {
 }
 
 // ============================================================
+// Всплывающий боевой текст обычных кликов
+// ============================================================
+function showClickCombatText(text, color) {
+    if (arenaSettings && arenaSettings.hideClickTexts) return;
+    if (typeof showFloatingText === "function") showFloatingText(text, color);
+}
+
+// ============================================================
 // КЛИК — с добавленной механикой Такабы
 // ============================================================
 function handleClick() { 
@@ -2906,9 +2925,9 @@ function handleClick() {
     if (comboCount >= 50) comboMultiplier = 5;
     else if (comboCount >= 25) comboMultiplier = 3;
     else if (comboCount >= 10) comboMultiplier = 2; 
-    if (comboCount === 10) showFloatingText("⚡ КОМБО x2!", "#ffaa00"); 
-    if (comboCount === 25) showFloatingText("⚡ КОМБО x3!", "#ff8800"); 
-    if (comboCount === 50) showFloatingText("⚡ КОМБО x5!", "#ff4400"); 
+    if (comboCount === 10) showClickCombatText("⚡ КОМБО x2!", "#ffaa00"); 
+    if (comboCount === 25) showClickCombatText("⚡ КОМБО x3!", "#ff8800"); 
+    if (comboCount === 50) showClickCombatText("⚡ КОМБО x5!", "#ff4400"); 
     let dmg = window.playerFinalDamage || 1; 
     
     // ★★★ ТАКАБА: +% урона по уровню уверенности ★★★
@@ -2949,13 +2968,13 @@ function handleClick() {
                 comboCount = 50;
                 comboMultiplier = 5;
                 if (typeof showFloatingText === 'function') {
-                    showFloatingText("🌊 БЕЛОУС: x5 КОМБО!", "#88ddff");
+                    showClickCombatText("🌊 БЕЛОУС: x5 КОМБО!", "#88ddff");
                 }
             }
         }
     });
     
-    if (oneShotChance > 0 && Math.random() < oneShotChance) { dmg = currentEnemy.hp; if (team.some(idx => myCards[idx]?.name === "Сайтама") && team.some(idx => myCards[idx]?.name === "Космический Гароу")) { evoProgress.oneShotCount++; } sfxCrit(); showFloatingText("💀 ВАНШОТ!", "#ff0000"); } else { dmg = Math.floor(dmg * comboMultiplier); if (Math.random() < cc) { dmg = Math.floor(dmg * 2); sfxCrit(); showFloatingText("💥 КРИТ! x2", "#feca57"); } else { sfxClick(); showFloatingText("-" + dmg, "#fff"); } dmg = Math.floor(dmg * enemyStatuses.bleedMult); } 
+    if (oneShotChance > 0 && Math.random() < oneShotChance) { dmg = currentEnemy.hp; if (team.some(idx => myCards[idx]?.name === "Сайтама") && team.some(idx => myCards[idx]?.name === "Космический Гароу")) { evoProgress.oneShotCount++; } sfxCrit(); showClickCombatText("💀 ВАНШОТ!", "#ff0000"); } else { dmg = Math.floor(dmg * comboMultiplier); if (Math.random() < cc) { dmg = Math.floor(dmg * 2); sfxCrit(); showClickCombatText("💥 КРИТ! x2", "#feca57"); } else { sfxClick(); showClickCombatText("-" + dmg, "#fff"); } dmg = Math.floor(dmg * enemyStatuses.bleedMult); } 
     if (enemyStatuses.fireTicks > 0 && enemyStatuses.fireDamage > 0) { startFireEffectPassive(enemyStatuses.fireDamage, enemyStatuses.fireTicks * 1000); enemyStatuses.fireTicks = 0; } 
     currentEnemy.hp -= dmg; 
     if (wave === 500 && typeof waystarActive !== 'undefined' && waystarActive && typeof waystarState !== 'undefined' && waystarState === "phase1" && typeof damageWaystarBoss === 'function') {
@@ -2963,7 +2982,7 @@ function handleClick() {
     }
     if (typeof grantMasteryExpFromFight === 'function') grantMasteryExpFromFight(dmg, 0);
     updateChallengeProgress("bigDamage", dmg); 
-    team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'clickDmgSelf' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { let hpLoss = Math.max(1, Math.floor(playerHp * cd.ability.value)); playerHp -= hpLoss; showFloatingText("💔 -" + hpLoss + " HP", "#ff4444"); } if (cd?.statusAbility?.type === 'clickDmgSelf' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) { let hpLoss = Math.max(1, Math.floor(playerHp * cd.statusAbility.value)); playerHp -= hpLoss; showFloatingText("💔 -" + hpLoss + " HP", "#ff4444"); } }); 
+    team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'clickDmgSelf' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { let hpLoss = Math.max(1, Math.floor(playerHp * cd.ability.value)); playerHp -= hpLoss; showClickCombatText("💔 -" + hpLoss + " HP", "#ff4444"); } if (cd?.statusAbility?.type === 'clickDmgSelf' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) { let hpLoss = Math.max(1, Math.floor(playerHp * cd.statusAbility.value)); playerHp -= hpLoss; showClickCombatText("💔 -" + hpLoss + " HP", "#ff4444"); } }); 
     if (playerHp <= 0) { defeat(); return; } 
     if (currentEnemy.hp <= 0) { victory(); return; } 
     clicksSinceLastCounter++; 
