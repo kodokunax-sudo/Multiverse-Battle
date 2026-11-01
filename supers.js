@@ -1788,6 +1788,11 @@ window.MBKarsProcessIncomingDamage = function(rawDamage) {
 
     if (typeof _superState === "undefined") return damage;
 
+    // Сначала синхронизируем тип текущего боя, чтобы первое попадание
+    // нового босса не терялось при сбросе адаптации между боями.
+    var ctxB = typeof getBossContext === "function" ? getBossContext() : null;
+    tickKarsAdaptation(ctxB);
+
     var now = getKarsAdaptationNow();
     if (!_superState.karsAdaptationInitialized) {
         _superState.karsAdaptationInitialized = true;
@@ -1803,7 +1808,6 @@ window.MBKarsProcessIncomingDamage = function(rawDamage) {
     _superState.karsAdaptationLastDamageAt = now;
     _superState.karsDamageBonusActive = false;
 
-    var ctxB = typeof getBossContext === "function" ? getBossContext() : null;
     tickKarsAdaptation(ctxB);
     // Условное снижение адаптации применяется к каждому попаданию в активной серии.
     return _superState.karsAdaptationActive ? Math.max(1, Math.floor(damage * 0.65)) : damage;
