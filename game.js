@@ -1038,7 +1038,20 @@ function loadGameData(d) {
     // Restore the complete slot payload, including persistent mercy flags used by boss encounters.
     Object.keys(slotData).forEach(function (key) { delete slotData[key]; });
     Object.assign(slotData, d);
-    var sparedWaystar = d.waystarOwesDebt === true || d.waystarOwesDebt === 1 || d.waystarOwesDebt === "true";
+
+    // Legacy saves only stored waystarDefeatedThisRun. Treat it as the old
+    // rescue-unlock marker when the newer explicit mercy field is absent.
+    // Newer saves with waystarOwesDebt=false keep that explicit choice.
+    var hasCurrentWaystarMercyField = Object.prototype.hasOwnProperty.call(d, "waystarOwesDebt");
+    var legacyWaystarCompleted = d.waystarDefeatedThisRun === true ||
+        d.waystarDefeatedThisRun === 1 || d.waystarDefeatedThisRun === "true";
+    var sparedWaystar = d.waystarOwesDebt === true ||
+        d.waystarOwesDebt === 1 || d.waystarOwesDebt === "true";
+    if (!hasCurrentWaystarMercyField && legacyWaystarCompleted) {
+        sparedWaystar = true;
+        slotData.waystarOwesDebt = true; // migrate once into the persistent mercy field
+    }
+    window.waystarDefeatedThisRun = legacyWaystarCompleted;
     window.waystarOwesDebt = sparedWaystar;
     if (window.MBPatches) window.MBPatches.load(Array.isArray(d.unlockedPatches) ? d.unlockedPatches : []);
     myCards = d.myCards || [];
