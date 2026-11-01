@@ -2359,11 +2359,22 @@ function shouldHideClickCombatText(text) {
     if (!hideEnabled) return false;
 
     const value = String(text == null ? "" : text).trim();
-    return /^[-−]\s*\d/.test(value) ||
+    const isCombatText =
+        /^[-−]\s*\d/.test(value) ||
         /КРИТ|ВАНШОТ|КОМБО/i.test(value) ||
         /БЕЛОУС:\s*x5/i.test(value) ||
         /💔\s*[-−]\s*\d/.test(value) ||
         /🔥\s*[-−]\s*\d/.test(value);
+
+    // Loot and item-receipt popups: fruit, eggs, unique drops, crafted resources and purchases.
+    const isItemReceipt =
+        /^(?:🍎\s*.+!|🥚\s*Яйцо!|🔑\s*Ключ получен!|🪨\s*Кусок камня!|🍎\s*Куплено!)$/i.test(value) ||
+        /^🎁\s*.+\sкуплено!$/i.test(value) ||
+        /^🥤\s*Пасхалка:/i.test(value) ||
+        /\s\+\d+$/.test(value) && !/[⭐⚡💰]/.test(value) ||
+        /готово!$/i.test(value) && !/уровень|настройки/i.test(value);
+
+    return isCombatText || isItemReceipt;
 }
 
 function showFloatingText(text, color) {
