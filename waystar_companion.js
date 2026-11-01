@@ -15,7 +15,9 @@
     function wasSpared() {
         try {
             var savedValue = (typeof slotData !== "undefined" && slotData) ? slotData.waystarOwesDebt : false;
-            return window.waystarOwesDebt === true || savedValue === true || savedValue === 1 || savedValue === "true";
+            var legacyValue = (typeof slotData !== "undefined" && slotData) ? slotData.waystarDefeatedThisRun : false;
+            return window.waystarOwesDebt === true || savedValue === true || savedValue === 1 || savedValue === "true" ||
+                window.waystarDefeatedThisRun === true || legacyValue === true || legacyValue === 1 || legacyValue === "true";
         } catch (e) { return false; }
     }
 
