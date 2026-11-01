@@ -3255,7 +3255,6 @@
                 detail: {
                     userId: currentUser && !accountSessionBlocked && activeAccountSessionUserId === currentUser.id ? currentUser.id : null,
                     email: currentUser ? currentUser.email : null,
-                    isNewAccount: false
                 }
             }));
         } catch (_error) {}
