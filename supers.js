@@ -963,24 +963,9 @@ function drawCircleMarker(x, y, color, alpha, radius) {
 function drawGarouTrail() {
     var mainCard = getMainCard();
     if (!mainCard || mainCard.name !== "Космический Гароу") return;
-    var history = _superState.positionHistory;
-    if (!ctx || !history || history.length < 2) return;
+    if (!ctx || !_superState.positionHistory || _superState.positionHistory.length < 2) return;
     ctx.save();
-    // Рисуем каждый второй сегмент простым штрихом: без градиента,
-    // размытия и случайных искр на каждом кадре.
-    ctx.lineCap = "round";
-    for (var i = 2; i < history.length; i += 2) {
-        var p1 = history[i - 2], p2 = history[i];
-        var alpha = Math.max(0, 1 - (performance.now() - p2.time) / 2200);
-        if (alpha <= 0) continue;
-        ctx.globalAlpha = alpha * 0.42;
-        ctx.strokeStyle = "#8b45ad";
-        ctx.lineWidth = Math.max(1, 4 * alpha);
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.stroke();
-    }
+    for (var i = 1; i < _superState.positionHistory.length; i++) { var p1 = _superState.positionHistory[i - 1], p2 = _superState.positionHistory[i]; var age = (performance.now() - p2.time) / 2000; var alpha = 1 - age; if (alpha <= 0) continue; ctx.globalAlpha = alpha * 0.5; var gradient = ctx.createLinearGradient(p1.x, p1.y, p2.x, p2.y); gradient.addColorStop(0, "rgba(186, 85, 211, " + alpha + ")"); gradient.addColorStop(0.5, "rgba(75, 0, 130, " + (alpha * 0.7) + ")"); gradient.addColorStop(1, "rgba(0, 0, 0, 0)"); ctx.strokeStyle = gradient; ctx.lineWidth = 8 * alpha; ctx.shadowColor = "#ba55d3"; ctx.shadowBlur = 15; ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); if (Math.random() < 0.15) { ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(p2.x + (Math.random()-0.5)*10, p2.y + (Math.random()-0.5)*10, 1 + Math.random()*1.5, 0, Math.PI*2); ctx.fill(); } }
     ctx.restore();
 }
 
@@ -1173,8 +1158,7 @@ const superAbilities = {
 
         if (target) {
             addShockwaveRing(ctxB.getHeartX(), ctxB.getHeartY(), "#ba55d3", 250, 0.6, 6);
-            // Компактный всплеск: меньше объектов частиц и короче их жизнь.
-            for(var i=0; i<5; i++) { var ang = Math.random() * Math.PI*2; var sp = 2 + Math.random()*3; ctxB.getParticles().push({ x: ctxB.getHeartX(), y: ctxB.getHeartY(), vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, life: 14, maxLife: 14, color: "#4b0082", size: 2 }); }
+            for(var i=0; i<15; i++) { var ang = Math.random() * Math.PI*2; var sp = 3 + Math.random()*5; ctxB.getParticles().push({ x: ctxB.getHeartX(), y: ctxB.getHeartY(), vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp, life: 25, maxLife: 25, color: "#4b0082", size: 4 }); }
             _superState.garouMarker = { x: target.x, y: target.y, alpha: 1.0, time: now };
             ctxB.setHeartX(target.x);
             ctxB.setHeartY(target.y);
@@ -3344,13 +3328,12 @@ function updateSuperLogic(dt) {
     }
     if (mainCard && mainCard.name === "Космический Гароу") {
         var now = performance.now();
-        // Записываем след не каждый кадр, а максимум 10 раз в секунду.
-        if (now - (_superState.garouLastHistorySample || 0) >= 100) {
+        // Записываем положение Гароу только раз в секунду.
+        if (now - (_superState.garouLastHistorySample || 0) >= 1000) {
             _superState.positionHistory.push({ time: now, x: ctxB.getHeartX(), y: ctxB.getHeartY() });
             _superState.garouLastHistorySample = now;
         }
-        // Для телепорта достаточно истории чуть длиннее двух секунд.
-        while (_superState.positionHistory.length > 0 && now - _superState.positionHistory[0].time > 2400) _superState.positionHistory.shift();
+        while (_superState.positionHistory.length > 0 && now - _superState.positionHistory[0].time > 5000) _superState.positionHistory.shift();
     }
     if (_superState.usoppStunTimer > 0) {
         _superState.usoppStunTimer -= dt;
