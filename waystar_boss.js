@@ -1211,6 +1211,7 @@ function applyWaystarHit(dmg, textMsg) {
     if (typeof onTakabaDamageTaken === "function") {
         try { onTakabaDamageTaken(dmg); } catch(e) {}
     }
+    if (typeof window.MBKarsProcessIncomingDamage === "function") dmg = window.MBKarsProcessIncomingDamage(dmg);
     waystarPlayerHp = Math.max(0, waystarPlayerHp - Math.max(0, Number(dmg) || 0));
     waystarInvulnTimer = 45;
     if (!waystarIsCoopSimpleMode()) {
@@ -1567,6 +1568,7 @@ function renderWaystarSimpleCoopFrame() {
                 var moderatorBulletDamage = window.MBGetModeratorBulletDamage(waystarBossMaxHp);
                 if (moderatorBulletDamage !== null) hitDamage = moderatorBulletDamage;
                 else if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") hitDamage=window.MBBossTestModifyOutgoingDamage(hitDamage,1);
+                if (typeof window.MBKarsApplyDamageBonus === "function") hitDamage = window.MBKarsApplyDamageBonus(hitDamage);
                 waystarBossHp = Math.max(0, waystarBossHp - hitDamage);
                 waystarBossFlash = 5;
                 api.onBossDamage(hitDamage, "phase1");
@@ -1756,6 +1758,7 @@ function waystarRenderLoop() {
                         var moderatorBulletDamage = window.MBGetModeratorBulletDamage(waystarBossMaxHp);
                         if (moderatorBulletDamage !== null) testBossDamage = moderatorBulletDamage;
                         else if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") testBossDamage=window.MBBossTestModifyOutgoingDamage(testBossDamage,1);
+                        if (typeof window.MBKarsApplyDamageBonus === "function") testBossDamage = window.MBKarsApplyDamageBonus(testBossDamage);
                         waystarBossHp -= testBossDamage; waystarBossFlash = 6;
                         if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onBossDamage(testBossDamage, waystarState);
                         spawnWaystarParticles(b.x, b.y, 6, "#ffd700", 4); addWaystarFlash(b.x, b.y, 12);
@@ -1791,6 +1794,7 @@ function waystarRenderLoop() {
                     var moderatorBulletDamage = window.MBGetModeratorBulletDamage(waystarBossMaxHp);
                     if (moderatorBulletDamage !== null) testBossDamage = moderatorBulletDamage;
                     else if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") testBossDamage=window.MBBossTestModifyOutgoingDamage(testBossDamage,1);
+                    if (typeof window.MBKarsApplyDamageBonus === "function") testBossDamage = window.MBKarsApplyDamageBonus(testBossDamage);
                     waystarBossHp -= testBossDamage; waystarBossFlash = 6;
                     if (window.MBOnlineWaystar && window.MBOnlineWaystar.active) window.MBOnlineWaystar.onBossDamage(testBossDamage, waystarState);
                     spawnWaystarParticles(b.x, b.y, 8, "#ff00ff", 4); addWaystarFlash(b.x, b.y, 18);
@@ -2214,6 +2218,7 @@ window.setupWaystarSpareDialog = setupWaystarSpareDialog;
 window.damageWaystarBoss = function(dmg) {
     if (waystarState !== "phase1") return;
     var amount = Math.max(0, Number(dmg) || 0);
+    if (typeof window.MBKarsApplyDamageBonus === "function") amount = window.MBKarsApplyDamageBonus(amount);
     waystarBossHp = Math.max(0, waystarBossHp - amount);
     if (window.MBOnlineWaystar && window.MBOnlineWaystar.active && amount > 0) {
         window.MBOnlineWaystar.onBossDamage(amount, waystarState);
