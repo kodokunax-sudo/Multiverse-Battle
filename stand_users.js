@@ -54,7 +54,7 @@
     STAND_PROFILES["Джотаро Куджо (часть 4)"] = { stand: "Star Platinum: The World", color: "#c5a2ff", speed: 1.19, damageFactor: 0.21, arenaDamageMult: 0.92, radius: 12, trait: "Остановка времени: скорость и защита" };
     STAND_PROFILES["Джоске Хигашиката (часть 4: Crazy Diamond)"] = { stand: "Crazy Diamond", color: "#f29aa9", speed: 1.12, damageFactor: 0.23, arenaDamageMult: 0.93, radius: 13, trait: "Восстановление: широкий защитный контур" };
     STAND_PROFILES["Йошикаге Кира (часть 4: Killer Queen)"] = { stand: "Killer Queen", color: "#fa95b8", speed: 1.13, damageFactor: 0.18, arenaDamageMult: 0.91, radius: 12, trait: "Первая бомба: очень сильный блок урона" };
-    STAND_PROFILES["Джорно Джованна (Gold Experience)"] = { stand: "Gold Experience", color: "#e9cb54", speed: 1.0, damageFactor: 0.4, arenaDamageMult: 1.0, radius: 15, trait: "MUDA MUDA, живые семена, лозы и лечение" };
+    STAND_PROFILES["Джорно Джованна (Gold Experience)"] = { stand: "Gold Experience", color: "#e9cb54", speed: 1.0, damageFactor: 0.4, arenaDamageMult: 1.0, radius: 15, trait: "Жизненная энергия: восстановление и ускорение" };
     STAND_PROFILES["Дьяволо (King Crimson)"] = { stand: "King Crimson", color: "#d987ad", speed: 1.21, damageFactor: 0.2, arenaDamageMult: 0.91, radius: 11, trait: "Стирание времени: быстрый уход от атак" };
     STAND_PROFILES["Джолин Куджо (Stone Free)"] = { stand: "Stone Free", color: "#83e1de", speed: 1.17, damageFactor: 0.23, arenaDamageMult: 0.93, radius: 12, trait: "Нити: широкий контур защиты" };
     STAND_PROFILES["Уэзер Репорт (часть 6)"] = { stand: "Weather Report", color: "#9de8ef", speed: 1.13, damageFactor: 0.22, arenaDamageMult: 0.93, radius: 13, trait: "Погода: расширенная область перехвата" };
@@ -67,7 +67,7 @@
     STAND_PROFILES["Диего Брандо (The World)"] = { stand: "The World (Diego)", color: "#e5edff", speed: 1.25, damageFactor: 0.23, arenaDamageMult: 0.92, radius: 11, trait: "Альтернативная остановка: высокий разгон" };
     STAND_PROFILES["Энрико Пуччи (C-Moon)"] = { stand: "C-Moon", color: "#99c9ff", speed: 1.17, damageFactor: 0.19, arenaDamageMult: 0.91, radius: 13, trait: "Гравитация: широкая зона и мощный блок" };
     STAND_PROFILES["Джонни Джостар (Tusk Act 1)"] = { stand: "Tusk ACT 1", color: "#9dbdfd", speed: 1.08, damageFactor: 0.31, arenaDamageMult: 0.96, radius: 10, trait: "Спираль I: лёгкое ускорение" };
-    STAND_PROFILES["Джорно Джованна (Gold Experience Requiem)"] = { stand: "Gold Experience Requiem", color: "#ffdf72", speed: 1.14, damageFactor: 0.16, arenaDamageMult: 0.9, radius: 14, trait: "Возврат к нулю: максимальная защита и радиус" };
+    // GER uses its own permanent Golden Heart AI in gold_experience.js, not the generic stand toggle.
     STAND_PROFILES["Энрико Пуччи (Made in Heaven)"] = { stand: "Made in Heaven", color: "#d7f2ff", speed: 1.3, damageFactor: 0.34, arenaDamageMult: 0.97, radius: 10, trait: "Ускорение: максимальная скорость" };
     STAND_PROFILES["Джонни Джостар (Tusk Act 4)"] = { stand: "Tusk ACT 4", color: "#8ea8ff", speed: 1.21, damageFactor: 0.17, arenaDamageMult: 0.9, radius: 13, trait: "Бесконечное вращение: высокий блок урона" };
     STAND_PROFILES["Тору (Wonder of U)"] = { stand: "Wonder of U", color: "#c8b2e6", speed: 1.07, damageFactor: 0.17, arenaDamageMult: 0.9, radius: 14, trait: "Катастрофа: защита и максимальный радиус" };
