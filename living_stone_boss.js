@@ -1161,6 +1161,7 @@ function damageLivingStone(dmg) {
     }
     if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
     if (livingStoneState === "phase2" && livingStoneBossHp <= 0) return;
+    if (typeof window.MBKarsApplyDamageBonus === "function") dmg = window.MBKarsApplyDamageBonus(dmg);
     if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") dmg=window.MBBossTestModifyOutgoingDamage(dmg,1);
     livingStoneBossHp -= dmg;
     livingStoneBossFlash = 5;
@@ -2155,6 +2156,7 @@ function damageLivingStonePlayer(dmg) {
         try { onTakabaDamageTaken(dmg); } catch(e) {}
     }
     if (typeof window.MBWaystarTryProtect === "function" && window.MBWaystarTryProtect(dmg)) return;
+    if (typeof window.MBKarsProcessIncomingDamage === "function") dmg = window.MBKarsProcessIncomingDamage(dmg);
     livingStonePlayerHp -= dmg;
     livingStoneInvulnTimer = 50;
     livingStoneShake = 12; livingStoneScreenFlash = 8; livingStoneScreenFlashColor = "#ff0000";
