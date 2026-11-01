@@ -840,7 +840,7 @@ function updateWaystarSpaceInvaders() {
         if (b.trail) { b.trail.push({ x: b.x, y: b.y, life: 8 }); if (b.trail.length > 4) b.trail.shift(); }
         if (b.y > 520 || b.life <= 0) { waystarEnemyBullets.splice(i, 1); continue; }
         var dioCtxBullets=(typeof getBossContext==="function")?getBossContext():null;
-        if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioCtxBullets&&window.dioAttackTouchesStand(dioCtxBullets,{type:"shotgun_bullet",x:b.x,y:b.y,size:b.size||8,damage:15})){if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(b);applyWaystarHit(typeof window.scaleStandBlockedDamage==="function"?window.scaleStandBlockedDamage(15):6,"удар по стенду. меньше урона");waystarEnemyBullets.splice(i,1);continue;}
+        if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioCtxBullets&&window.dioAttackTouchesStand(dioCtxBullets,{type:"shotgun_bullet",x:b.x,y:b.y,size:b.size||8,damage:15})){if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(b);applyWaystarHit((typeof window.MBIsGoldExperienceNpcActive==="function"&&window.MBIsGoldExperienceNpcActive()&&typeof window.scaleStandBlockedDamage==="function")?window.scaleStandBlockedDamage(15):6,"удар по стенду. Джорно получает 50% урона",b);waystarEnemyBullets.splice(i,1);continue;}
         if (waystarInvulnTimer <= 0 && Math.abs(b.x - waystarPlayer.x) < 14 && Math.abs(b.y - waystarPlayer.y) < 16) { if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(b); applyWaystarHit(15, "ОСКОЛОК!"); waystarEnemyBullets.splice(i, 1); }
     }
     for (var i = 0; i < waystarPieces.length; i++) if (waystarPieces[i].alive) waystarPieces[i].pulse += 0.15;
@@ -1110,7 +1110,7 @@ function updateWaystarAttacks() {
 
         if (stopAll || (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(a))) continue;
         var dioWsCtx=(typeof getBossContext==="function")?getBossContext():null;
-        if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioWsCtx&&window.dioAttackTouchesStand(dioWsCtx,a)){a.dioStandHitOnce=true;if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(a);applyWaystarHit(Math.max(1,Math.floor((Number(a.damage)||8)*.4)),"удар по стенду. меньше урона");waystarAttacks.splice(i,1);continue;}
+        if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioWsCtx&&window.dioAttackTouchesStand(dioWsCtx,a)){a.dioStandHitOnce=true;if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(a);applyWaystarHit((typeof window.MBIsGoldExperienceNpcActive==="function"&&window.MBIsGoldExperienceNpcActive()&&typeof window.scaleStandBlockedDamage==="function")?window.scaleStandBlockedDamage(Number(a.damage)||8):Math.max(1,Math.floor((Number(a.damage)||8)*.4)),"удар по стенду. Джорно получает 50% урона",a);waystarAttacks.splice(i,1);continue;}
 
         if (a.type === "meteor" || a.type === "spiral" || a.type === "star_rain" || a.type === "shotgun_bullet") {
             var lightTrailLimit = (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) ? 2 : 6;
@@ -1118,16 +1118,16 @@ function updateWaystarAttacks() {
             if (a.trail.length > lightTrailLimit) a.trail.shift();
             a.x += a.vx; a.y += a.vy; a.rotation += (a.rotSpeed||0); a.life--;
             if (a.y > 520 || a.x < -30 || a.x > 430 || a.life <= 0) { if (a.y > 500 && a.type === "meteor") { addWaystarShockwave(a.x, 500, "#ff8800", 50, 12, 3); spawnWaystarParticles(a.x, 500, 10, "#ff8800", 5); } waystarAttacks.splice(i, 1); continue; }
-            if (waystarInvulnTimer <= 0 && Math.sqrt(Math.pow(waystarPlayer.x - a.x, 2) + Math.pow(waystarPlayer.y - a.y, 2)) < a.size + 8) { var msg = a.type === "meteor" ? "МЕТЕОР!" : (a.type === "spiral" ? "ВИХРЬ!" : (a.type === "shotgun_bullet" ? "ДРОБЬ!" : "ЗВЕЗДА!")); if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(a); applyWaystarHit(a.damage, msg); waystarAttacks.splice(i, 1); }
+            if (waystarInvulnTimer <= 0 && Math.sqrt(Math.pow(waystarPlayer.x - a.x, 2) + Math.pow(waystarPlayer.y - a.y, 2)) < a.size + 8) { var msg = a.type === "meteor" ? "МЕТЕОР!" : (a.type === "spiral" ? "ВИХРЬ!" : (a.type === "shotgun_bullet" ? "ДРОБЬ!" : "ЗВЕЗДА!")); if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(a); applyWaystarHit(a.damage, msg, a); waystarAttacks.splice(i, 1); }
         }
         else if (a.type === "laser") {
             if (a.state === "warning") { a.warningTimer--; a.chargeParticles++; if (a.chargeParticles % 5 === 0) { spawnWaystarParticles(a.x + (Math.random() - 0.5) * a.width, 490 - Math.random() * 40, 1, "#ff3333", 3); } if (a.warningTimer <= 0) { a.state = "active"; a.activeTimer = a.maxActive; addWaystarFlash(a.x, 250, 100); addWaystarShockwave(a.x, 250, "#ff3333", 120, 18, 4); wsPlaySound(150, 'sawtooth', 0.7, 0.35); waystarShake = 15; waystarScreenFlash = 8; waystarScreenFlashColor = "#ff3333"; for (var l = 0; l < 3; l++) addWaystarLightning(a.x, 0, a.x + (Math.random() - 0.5) * 30, 500, "#ffffff", 0.8, 1.5); } }
-            else if (a.state === "active") { a.activeTimer--; if (!a.hit && waystarInvulnTimer <= 0 && Math.abs(waystarPlayer.x - a.x) < a.width / 2 + 8) { a.hit = true; applyWaystarHit(a.damage, "ЛАЗЕР!"); } if (a.activeTimer % 3 === 0) spawnWaystarParticles(a.x + (Math.random() - 0.5) * a.width, Math.random() * 500, 2, Math.random() > 0.5 ? "#ffffff" : "#ff3333", 4); if (a.activeTimer <= 0) a.state = "done"; }
+            else if (a.state === "active") { a.activeTimer--; if (!a.hit && waystarInvulnTimer <= 0 && Math.abs(waystarPlayer.x - a.x) < a.width / 2 + 8) { a.hit = true; applyWaystarHit(a.damage, "ЛАЗЕР!", a); } if (a.activeTimer % 3 === 0) spawnWaystarParticles(a.x + (Math.random() - 0.5) * a.width, Math.random() * 500, 2, Math.random() > 0.5 ? "#ffffff" : "#ff3333", 4); if (a.activeTimer <= 0) a.state = "done"; }
             else { waystarAttacks.splice(i, 1); continue; }
         }
         else if (a.type === "giant_laser") {
             if (a.state === "warning") { a.warningTimer--; if (a.trackTimer > 0) { a.trackTimer--; a.x = waystarSmallBoss.x; a.y = waystarSmallBoss.y; a.angle = Math.atan2(waystarPlayer.y - a.y, waystarPlayer.x - a.x); } if (a.warningTimer <= 0) { a.state = "active"; a.activeTimer = a.maxActive; a.x = waystarSmallBoss.x; a.y = waystarSmallBoss.y; addWaystarFlash(a.x, a.y, 150); addWaystarShockwave(a.x, a.y, "#ff00ff", 180, 22, 5); wsPlaySound(150, 'sawtooth', 0.9, 0.4); waystarShake = 20; waystarScreenFlash = 15; waystarScreenFlashColor = "#ff00ff"; for (var sIdx = 0; sIdx < 5; sIdx++) addWaystarSlash(a.x, a.y, a.angle + (Math.random()-0.5)*0.6, 70, 4); } }
-            else if (a.state === "active") { a.activeTimer--; if (!a.hit && waystarInvulnTimer <= 0) { var dx = waystarPlayer.x - a.x, dy = waystarPlayer.y - a.y; var dist = Math.sqrt(dx*dx + dy*dy); var playerAngle = Math.atan2(dy, dx); var angleDiff = Math.abs(playerAngle - a.angle); while (angleDiff > Math.PI) angleDiff = Math.abs(angleDiff - Math.PI * 2); var perpDist = Math.abs(Math.sin(angleDiff)) * dist; if (perpDist < a.width / 2 + 10) { a.hit = true; applyWaystarHit(a.damage, "ГИГА-ЛАЗЕР!"); } } if (a.activeTimer % 3 === 0) { var dist2 = Math.random() * 400; spawnWaystarParticles(a.x + Math.cos(a.angle) * dist2, a.y + Math.sin(a.angle) * dist2, 2, ["#ff00ff", "#ffffff"][Math.floor(Math.random()*2)], 5); } if (a.activeTimer <= 0) a.state = "done"; }
+            else if (a.state === "active") { a.activeTimer--; if (!a.hit && waystarInvulnTimer <= 0) { var dx = waystarPlayer.x - a.x, dy = waystarPlayer.y - a.y; var dist = Math.sqrt(dx*dx + dy*dy); var playerAngle = Math.atan2(dy, dx); var angleDiff = Math.abs(playerAngle - a.angle); while (angleDiff > Math.PI) angleDiff = Math.abs(angleDiff - Math.PI * 2); var perpDist = Math.abs(Math.sin(angleDiff)) * dist; if (perpDist < a.width / 2 + 10) { a.hit = true; applyWaystarHit(a.damage, "ГИГА-ЛАЗЕР!", a); } } if (a.activeTimer % 3 === 0) { var dist2 = Math.random() * 400; spawnWaystarParticles(a.x + Math.cos(a.angle) * dist2, a.y + Math.sin(a.angle) * dist2, 2, ["#ff00ff", "#ffffff"][Math.floor(Math.random()*2)], 5); } if (a.activeTimer <= 0) a.state = "done"; }
             else { waystarAttacks.splice(i, 1); continue; }
         }
     }
@@ -1135,7 +1135,7 @@ function updateWaystarAttacks() {
         var bomb = waystarBombs[i];
         if (wsIsTimeStopped() || (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(bomb))) continue;
         var dioBombCtx=(typeof getBossContext==="function")?getBossContext():null;
-        if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioBombCtx&&window.dioAttackTouchesStand(dioBombCtx,bomb)){bomb.dioStandHitOnce=true;if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(bomb);applyWaystarHit(Math.max(1,Math.floor((Number(bomb.damage)||10)*.4)),"удар по стенду. меньше урона");waystarBombs.splice(i,1);continue;}
+        if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioBombCtx&&window.dioAttackTouchesStand(dioBombCtx,bomb)){bomb.dioStandHitOnce=true;if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(bomb);applyWaystarHit((typeof window.MBIsGoldExperienceNpcActive==="function"&&window.MBIsGoldExperienceNpcActive()&&typeof window.scaleStandBlockedDamage==="function")?window.scaleStandBlockedDamage(Number(bomb.damage)||10):Math.max(1,Math.floor((Number(bomb.damage)||10)*.4)),"удар по стенду. Джорно получает 50% урона",bomb);waystarBombs.splice(i,1);continue;}
         if (!bomb.exploded) {
             bomb.timer--; bomb.phaseTimer++;
             var totalTime = bomb.maxTimer; var elapsed = totalTime - bomb.timer; var progress = elapsed / totalTime;
@@ -1178,7 +1178,7 @@ function updateWaystarAttacks() {
     }
 }
 
-function applyWaystarHit(dmg, textMsg) {
+function applyWaystarHit(dmg, textMsg, sourceAction, damageCategory) {
     if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyIncomingDamage==="function") {
         dmg=window.MBBossTestModifyIncomingDamage(dmg,"waystar");
         if(dmg<=0)return;
@@ -1195,6 +1195,11 @@ function applyWaystarHit(dmg, textMsg) {
     if (isWaystarModerActive()) { if (textMsg && typeof showFloatingText === 'function') showFloatingText(textMsg + " (∞ HP)", "#ffff00"); return; }
     if (waystarInvulnTimer > 0) return;
     if (typeof window.gojoTryNegateIncoming === "function" && window.gojoTryNegateIncoming(dmg, "waystar")) return;
+    if (typeof window.MBGERTryNullifyDamage === "function" &&
+        window.MBGERTryNullifyDamage(dmg, sourceAction, damageCategory || "combat")) {
+        waystarInvulnTimer = Math.max(waystarInvulnTimer || 0, 18);
+        return;
+    }
 
     if (typeof _superState !== 'undefined') {
         if (_superState.usoppInvuln) return;
