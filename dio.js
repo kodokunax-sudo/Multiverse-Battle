@@ -433,6 +433,33 @@ function dioAttackTouchesStand(ctxB,a){
  if(type==="waystar"){if(a.type==="laser")return dioStandHitResult((a.state==="active"&&Math.abs(x-(Number(a.x)||0))<Number(a.width||40)/2+h),a);if(a.type==="giant_laser"){if(a.state!=="active")return false;var dx=x-(Number(a.x)||0),dy=y-(Number(a.y)||0),ang=Number(a.angle)||0;return dioStandHitResult((Math.abs(dx*Math.sin(ang)-dy*Math.cos(ang))<Number(a.width||20)/2+h),a);}if(a.type==="bomb"){if(!a.exploded)return false;return dioStandHitResult((Math.hypot(x-a.x,y-a.y)<Number(a.radius||20)+h),a);}return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<sz+h),a);}
  if(type==="stone"){if(a.type==="laser")return(a.timer||0)<=0&&Math.abs(x-(Number(a.x)||0))<Number(a.width||40)/2+h;if(a.type==="ring")return dioStandHitResult((Math.abs(Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))-Number(a.radius||0))<Number(a.thickness||18)/2+h),a);if(a.type==="spike")return(a.warningTimer||0)<=0&&(a.height||0)>10&&Math.abs(x-a.x)<30+h&&y>500-a.height;if(a.type==="gravity_well")return false;return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<sz+h),a);}
  if(type==="rwb"){if(a.type==="roger_slash"){if(a.state!=="active")return false;return dioStandHitResult((a.direction==="horizontal"?Math.abs(y-a.y)<Number(a.width||0)*.35+h:Math.abs(x-a.x)<Number(a.width||0)*.35+h),a);}if(a.type==="roger_cross"){if(a.state!=="active")return false;return dioStandHitResult((a.dir==="vertical"?Math.abs(x-a.x)<Number(a.width||0)*.35+h:Math.abs(y-a.y)<Number(a.width||0)*.35+h),a);}if(a.type==="tsunami"){var dy=Math.abs(y-(Number(a.y)||0)),hh=(Number(a.currentHeight)||Number(a.height)||0)/2;return dioStandHitResult((dy<hh+h&&(a.fromRight?x>=(Number(a.x)||0):x<=(Number(a.width)||400))),a);}if(a.type==="gura_crack"&&a.state!=="active")return false;if(a.type==="hell_fire"&&a.state==="flying")return dioStandHitResult((Math.hypot(x-a.x,y-a.y)<sz+h),a);if(a.state==="warning"||a.state==="done")return false;if(a.type==="gura_crack"||a.type==="purple_crack_zone")return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||a.maxRadius||sz)+h),a);return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<sz+h),a);}
+ // Generic collision path for unique bosses with custom attack implementations.
+ // It inspects the resolved attack shape, not a boss-specific attack name.
+ if(type==="stoneSuper"||type==="antispiral"){
+  if(a.state==="warning"||a.state==="done"||(Number(a.warningTimer)||0)>0)return false;
+  var gx=Number(a.x),gy=Number(a.y);
+  if(!isFinite(gx)||!isFinite(gy))return false;
+  var gtype=String(a.type||a.kind||"").toLowerCase();
+  var radius=Math.max(6,Number(a.radius)||Number(a.size)||sz||14);
+  var width=Math.max(0,Number(a.width)||0),height=Math.max(0,Number(a.height)||0);
+  if(gtype.indexOf("ring")!==-1){
+   var ringRadius=Number(a.radius)||0,thickness=Number(a.thickness)||Number(a.width)||18;
+   return dioStandHitResult(Math.abs(Math.hypot(x-gx,y-gy)-ringRadius)<thickness/2+h,a);
+  }
+  if(gtype.indexOf("laser")!==-1||gtype.indexOf("beam")!==-1||(width>0&&height===0)){
+   if(a.direction==="horizontal"||a.zone==="upper"||a.zone==="lower")
+    return dioStandHitResult(Math.abs(y-gy)<Math.max(10,width/2)+h,a);
+   var angle=Number(a.angle);
+   if(isFinite(angle)&&Math.abs(angle)>0.001)
+    return dioStandHitResult(Math.abs((x-gx)*Math.sin(angle)-(y-gy)*Math.cos(angle))<Math.max(10,width/2)+h,a);
+   return dioStandHitResult(Math.abs(x-gx)<Math.max(10,width/2)+h,a);
+  }
+  if(width>0||height>0){
+   var halfW=Math.max(radius,width/2),halfH=Math.max(radius,height/2);
+   return dioStandHitResult(Math.abs(x-gx)<halfW+h&&Math.abs(y-gy)<halfH+h,a);
+  }
+  return dioStandHitResult(Math.hypot(x-gx,y-gy)<radius+h,a);
+ }
  return false;
 }
 window.dioAttackTouchesStand=dioAttackTouchesStand;
