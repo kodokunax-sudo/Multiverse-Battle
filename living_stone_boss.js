@@ -506,8 +506,21 @@ function createExplosion(x, y, damage) {
     livingStoneShake = Math.max(livingStoneShake, 10);
     var dxP = livingStonePlayer.x - x, dyP = livingStonePlayer.y - y;
     var distP = Math.sqrt(dxP * dxP + dyP * dyP);
-    if (distP < 40 && livingStoneInvulnTimer <= 0) {
-        damageLivingStonePlayer(Math.floor(damage * 0.5), {type:"explosion",x:x,y:y,radius:40,damage:damage});
+    var explosionAction = {type:"explosion",x:x,y:y,radius:40,damage:damage};
+    var explosionStandHit = false;
+    if (livingStoneInvulnTimer <= 0 && typeof window.isStandUserStandActive === "function" &&
+        window.isStandUserStandActive() && typeof window.dioAttackTouchesStand === "function") {
+        var explosionCtx = typeof getBossContext === "function" ? getBossContext() : null;
+        try { explosionStandHit = !!(explosionCtx && window.dioAttackTouchesStand(explosionCtx, explosionAction)); } catch (e) {}
+    }
+    if (explosionStandHit) {
+        explosionAction.dioStandHitOnce = true;
+        var explosionRedirectDamage = typeof window.scaleStandBlockedDamage === "function"
+            ? window.scaleStandBlockedDamage(Math.max(1, Math.floor(damage * 0.5)))
+            : Math.max(1, Math.floor(damage * 0.25));
+        damageLivingStonePlayer(explosionRedirectDamage, explosionAction);
+    } else if (distP < 40 && livingStoneInvulnTimer <= 0) {
+        damageLivingStonePlayer(Math.floor(damage * 0.5), explosionAction);
     }
     var chainRadius = 55;
     for (var i = livingStoneAttacks.length - 1; i >= 0; i--) {
