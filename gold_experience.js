@@ -452,9 +452,6 @@
     }
 
     function updateSuperButton() {
-        try {
-            if (typeof window.updateSuperButton === "function") window.updateSuperButton();
-        } catch (e) {}
         var card = currentCard();
         var combat = getCombat();
         if (!card || !combat.active || (card.name !== GE_CARD && card.name !== GER_CARD)) {
