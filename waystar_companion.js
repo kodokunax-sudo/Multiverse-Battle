@@ -195,10 +195,22 @@
         var width = Math.max(8, Number(h.width) || 0);
         var radius = Math.max(7, Number(h.size || h.r || h.radius) || 9) + 12;
         var warning = h.state === "warning" || h.state === "windup" ||
-            Number(h.warningTimer) > 0 || Number(h.delay) > 0;
+            Number(h.warningTimer) > 0 || Number(h.delay) > 0 ||
+            (type === "laser_warning" && Number(h.timer) > 0);
+        if (type === "ring") {
+            var ringRadius = Math.max(0, Number(h.radius) || 0) +
+                Math.max(0, Number(h.growth) || 0) * Math.max(0, Number(frames) || 0);
+            var ringDistance = Math.hypot(x - (Number(h.x) || 0), y - (Number(h.y) || 0));
+            var ringThickness = Math.max(8, Number(h.thickness) || 12) * 0.5 + 14;
+            return Math.abs(ringDistance - ringRadius) < ringThickness ? 1 : 0;
+        }
+        if (type === "laser_warning") {
+            if (actual && Number(h.timer) > 0) return 0;
+            return Math.abs(x - (Number(h.x) || 0)) < width * 0.5 + 20 ? 1 : 0;
+        }
         if (warning && actual) return 0;
         if ((type.indexOf("laser") !== -1 || type.indexOf("beam") !== -1) &&
-            Number.isFinite(Number(h.x)) && (!Number.isFinite(Number(h.y)) || type === "laser")) {
+            Number.isFinite(Number(h.x)) && (!Number.isFinite(Number(h.y)) || type === "laser" || type === "beam")) {
             var laserX = Number(h.x);
             return Math.abs(x - laserX) < width * 0.5 + 18 ? 1 : 0;
         }
@@ -887,7 +899,7 @@
         c.restore();
 
         drawAllyAttacks(c);
-        window.MBDrawWaystarCompanion(sx, sy, 27);
+        if (ally.alive) window.MBDrawWaystarCompanion(sx, sy, 27);
         drawAllyStatus(c);
     }
 
