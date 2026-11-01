@@ -2733,6 +2733,7 @@
         }
         if(asState==="cinematic"){
             asRenderCinematic(c,now);
+            if (typeof window.MBDrawGoldExperience === "function") window.MBDrawGoldExperience(c);
             c.restore();
             asAnimFrame=requestAnimationFrame(asRender);
             return;
@@ -3459,6 +3460,7 @@
             if(near&&deliberate&&now>=asMiniCooldownUntil&&now>=asGravityTransitionUntil)asBossApproachFrames+=asTimeScale;else asBossApproachFrames=0;
             if(asBossApproachFrames>=8&&!asWinPending&&!asDefeatPending)asStartBrokenReality(now);
         }
+        if (typeof window.MBDrawGoldExperience === "function") window.MBDrawGoldExperience(c);
         asAnimFrame=requestAnimationFrame(asRender);
     }
     function startAntiSpiralBossFight(graphicsModeChoice) {
@@ -3527,6 +3529,62 @@
         // The cinematic plays automatically; the player only gains control after the final fall.
     }
 
+    window.getAntiSpiralBossCompanionInfo = function() {
+        const now = asClockNow();
+        const anchor = asState === "cinematic" ? asCinematicRedHeart : asPlayer;
+        const gravity = [
+            { x: 0, y: 1 }, { x: -1, y: 0 },
+            { x: 0, y: -1 }, { x: 1, y: 0 }
+        ][asGravityDirection] || { x: 0, y: 1 };
+        const bounds = asBounds();
+        const platforms = [];
+        const pulls = [];
+
+        if (asState === "fight") {
+            const safeIndex = asSafePlatformIndex();
+            for (let i = 0; i < asPlatforms.length; i++) {
+                if (!asPlatformIsVisible(i, now) && i !== safeIndex) continue;
+                const geometry = asPlatformGeometry(asPlatforms[i], i, now);
+                platforms.push({
+                    x: geometry.x, y: geometry.y,
+                    w: geometry.w, h: geometry.h, index: i
+                });
+            }
+            for (let i = 0; i < asAttacks.length; i++) {
+                const attack = asAttacks[i];
+                if (!attack || attack.kind !== "well" || attack.burst ||
+                    attack.timer <= 0 || (attack.warning || 0) > 0) continue;
+                pulls.push({
+                    x: Number(attack.x) || 0,
+                    y: Number(attack.y) || 0,
+                    radius: Math.max(0, Number(attack.pullRadius) || 0)
+                });
+            }
+        }
+
+        return {
+            active: !!asActive,
+            state: asState,
+            hidden: asState === "mini",
+            player: {
+                x: Number(anchor && anchor.x) || 0,
+                y: Number(anchor && anchor.y) || 0,
+                vx: Number(anchor && anchor.vx) || 0,
+                vy: Number(anchor && anchor.vy) || 0
+            },
+            gravity: gravity,
+            gravityDirection: asGravityDirection,
+            gravityPull: asGravityPull,
+            superSpeed: asSuperSpeedMult,
+            bounds: {
+                left: bounds.left, right: bounds.right,
+                top: bounds.top, bottom: bounds.bottom
+            },
+            platforms: platforms,
+            pulls: pulls,
+            timeScale: asTimeScale
+        };
+    };
     window.startAntiSpiralBossFight = startAntiSpiralBossFight;
     window.stopAntiSpiralBossFight = asStop;
     window.getAntiSpiralBossActive = function(){return asActive;};
