@@ -525,6 +525,17 @@
             }
         }
 
+        var hasAnchor = [attack.x, attack.y, attack.targetX, attack.targetY,
+            attack.originX, attack.originY].some(function (value) {
+                return value !== undefined && value !== null && Number.isFinite(Number(value));
+            });
+        var hasSegment = [attack.x1, attack.y1, attack.x2, attack.y2,
+            attack.originX, attack.originY, attack.endX, attack.endY].every(function (value) {
+                return value !== undefined && value !== null && Number.isFinite(Number(value));
+            });
+        var hasPath = Array.isArray(attack.path) && attack.path.length > 1;
+        if (!hasAnchor && !hasSegment && !hasPath) return null;
+
         var dx = x - ax, dy = y - ay;
         var distance = Math.hypot(dx, dy);
         if (type.indexOf("laser") !== -1 || type.indexOf("beam") !== -1 ||
