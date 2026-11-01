@@ -661,11 +661,11 @@
             return;
         }
         c.save();
-        var barW=42, barX=ally.x-barW/2, barY=ally.y-34;
+        var barW=58, barX=ally.x-barW/2, barY=ally.y-36;
         c.fillStyle="rgba(0,0,0,.72)"; c.fillRect(barX-2,barY-3,barW+4,7);
-        c.fillStyle="#26132b"; c.fillRect(barX,barY,barW,3);
+        c.fillStyle="#26132b"; c.fillRect(barX,barY,barW,5);
         c.fillStyle=ally.hp>ally.maxHp*.3?"#a5f4ff":"#ff83bb";
-        c.fillRect(barX,barY,barW*Math.max(0,ally.hp/ally.maxHp),3);
+        c.fillRect(barX,barY,barW*Math.max(0,ally.hp/ally.maxHp),5);
         if (ally.hitFlash > 0) {
             c.strokeStyle="#ffffff"; c.lineWidth=2; c.globalAlpha=ally.hitFlash/15;
             c.beginPath(); c.arc(ally.x,ally.y,30,0,Math.PI*2); c.stroke();
@@ -741,6 +741,7 @@
 
     function startSupport() {
         if (!wasSpared() || window.livingStoneSuperActive !== true) return false;
+        if (supportRequested && allyInitialized) return true;
         supportRequested = true;
         active = false;
         frame = 0;
@@ -804,7 +805,10 @@
 
         var generation = typeof livingStoneEncounterGeneration !== "undefined"
             ? Number(livingStoneEncounterGeneration) || 0 : 0;
-        if (!active || activeEncounterGeneration !== generation) {
+        var generation = typeof livingStoneEncounterGeneration !== "undefined"
+            ? Number(livingStoneEncounterGeneration) || 0 : 0;
+        var newEncounter = activeEncounterGeneration !== generation;
+        if (!active || newEncounter) {
             active = true;
             supportRequested = true;
             activeEncounterGeneration = generation;
@@ -824,14 +828,16 @@
             finalLockTriggered = false;
             finalDialogueStage = 0;
             lastPhase = "";
-            resetAlly();
+            // A brief phase/eligibility interruption must not resurrect a defeated ally.
+            if (!allyInitialized || newEncounter) resetAlly();
             supportX = Number(livingStonePlayer.x) || 200;
             supportY = Number(livingStonePlayer.y) || 400;
-            announce("Я ОБЕЩАЛА ВЕРНУТЬСЯ. И Я ЗДЕСЬ.", "#bcefff", 95);
+            if (!newEncounter || !allyInitialized) announce("Я ОБЕЩАЛА ВЕРНУТЬСЯ. И Я ЗДЕСЬ.", "#bcefff", 95);
         }
 
         frame++;
         var currentPhase = phase();
+        if (attackPause > 0) attackPause--;
         if (lastPhase === "green" && currentPhase !== "green") {
             blockStars = 0;
             constellationFlash = 0;
@@ -841,7 +847,6 @@
         if (currentPhase === "normal") {
             if (guardCooldown > 0) guardCooldown--;
             if (strikeTimer > 0) strikeTimer--;
-            if (attackPause > 0) attackPause--;
             if (routeTimer > 0) routeTimer--;
             if (routeHitFlash > 0) routeHitFlash--;
             if (supportDimTimer > 0) supportDimTimer--;
@@ -857,7 +862,8 @@
             var hpRatio = currentBossHp() / maxBossHp();
             if (hpRatio <= 0.12 && !finalLockTriggered) beginFinalLock();
         } else {
-            // In green-heart mode the player-facing protection pauses, but the Star keeps fighting.
+            // The green-heart shield round pauses the ally's combat and preserves her exact state.
+            // No reset occurs here: if the Star fell earlier, she stays defeated for this encounter.
             route = null;
             routeTimer = 0;
             if (constellationFlash > 0) {
@@ -865,6 +871,11 @@
                 if (constellationFlash <= 0) blockStars = 0;
             }
             if (routeHitFlash > 0) routeHitFlash--;
+            if (guardFlash > 0) guardFlash--;
+            if (strikeFlash > 0) strikeFlash--;
+            supportX = ally.x;
+            supportY = ally.y;
+            return;
         }
 
         if (guardFlash > 0) guardFlash--;
@@ -1131,6 +1142,9 @@
         allyAttacks.length = 0;
         allyParticles.length = 0;
         allyAttackQueue.length = 0;
+        allyEffects.shockwaves.length = 0; allyEffects.lightning.length = 0;
+        allyEffects.slashes.length = 0; allyEffects.flashes.length = 0; allyEffects.particles.length = 0;
+        allyInitialized = false;
         activeEncounterGeneration = -1;
     }
 
