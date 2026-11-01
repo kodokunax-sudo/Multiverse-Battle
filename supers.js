@@ -415,7 +415,13 @@ function getBossContext() {
                     waystarPlayerSpeedMult = v / 4;
                 }
             },
-            getAttacks: function() { return waystarAttacks; },
+            getAttacks: function() {
+                var list = Array.isArray(waystarAttacks) ? waystarAttacks.slice() : [];
+                if (typeof waystarEnemyBullets !== "undefined" && Array.isArray(waystarEnemyBullets)) {
+                    list = list.concat(waystarEnemyBullets);
+                }
+                return list;
+            },
             getShockwaves: function() { return waystarShockwaves; },
             getBlasters: function() { return []; },
             getParticles: function() { return waystarParticles; },
