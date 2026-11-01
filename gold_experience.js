@@ -271,10 +271,10 @@
         if (!attack || attack.dioAggroNoPlayer || attack.dioStandHitOnce ||
             attack._mbGEIgnored || attack.state === "done") return null;
 
-        var type = String(attack.type || "").toLowerCase();
+        var type = String(attack.type || attack.kind || "").toLowerCase();
         var telegraph = attack.state === "warning" || attack.state === "windup" ||
-            Number(attack.warningTimer) > 0 || type.indexOf("warning") !== -1 ||
-            type.indexOf("telegraph") !== -1;
+            Number(attack.warningTimer) > 0 || Number(attack.warning) > 0 ||
+            type.indexOf("warning") !== -1 || type.indexOf("telegraph") !== -1;
         if (telegraph && !alert) return null;
 
         var t = Math.max(0, Number(frames) || 0);
@@ -299,6 +299,59 @@
         var height = Math.max(0, Number(attack.height) || Number(attack.currentHeight) || 0);
         var shiftX = !telegraph ? vx * t : 0;
         var shiftY = !telegraph ? vy * t : 0;
+
+        // Anti-Spiral stores attack kinds in "kind" and warning counters in "warning".
+        if (type === "sweep" || type === "barrierlaser") {
+            var sweepOrientation = String(attack.orientation || "horizontal").toLowerCase();
+            var sweepThickness = Math.max(12, Number(attack.thickness) || Number(attack.width) || 22);
+            if (sweepOrientation === "vertical") {
+                var sweepX = Number(attack.x);
+                if (Number.isFinite(sweepX) && Math.abs(x - sweepX) < sweepThickness * 0.5 + body + padding) {
+                    return { x: sweepX, y: y, axis: "vertical", distance: Math.abs(x - sweepX), attack: attack };
+                }
+            } else {
+                var sweepY = Number(attack.y);
+                if (Number.isFinite(sweepY) && Math.abs(y - sweepY) < sweepThickness * 0.5 + body + padding) {
+                    return { x: x, y: sweepY, axis: "horizontal", distance: Math.abs(y - sweepY), attack: attack };
+                }
+            }
+            return null;
+        }
+        if (type === "zonelaser") {
+            var zoneHeight = Math.max(30, Number(attack.height) || 80);
+            var zoneDistance = Math.max(0, Number(attack.sweepDistance) || 0) * Math.min(1, t / 30);
+            var zone = String(attack.zone || "").toLowerCase();
+            var inZone = zone === "lower"
+                ? y >= 500 - zoneHeight - zoneDistance - body - padding
+                : zone === "upper"
+                    ? y <= zoneHeight + zoneDistance + body + padding
+                    : false;
+            if (inZone) {
+                var zoneY = zone === "lower" ? 500 - zoneHeight * 0.5 : zoneHeight * 0.5;
+                return { x: x, y: zoneY, axis: "horizontal", distance: Math.abs(y - zoneY), attack: attack };
+            }
+            return null;
+        }
+        if (type === "mark" || type === "well") {
+            var areaRadius = Math.max(8, Number(attack.radius) || (type === "well" ? 84 : 26));
+            var areaDistance = Math.hypot(x - ax, y - ay);
+            var areaPadding = type === "well" ? body + (alert ? 24 : 0) : body + padding;
+            if (areaDistance < areaRadius + areaPadding) {
+                return { x: ax, y: ay, axis: "point", distance: areaDistance, attack: attack };
+            }
+            return null;
+        }
+        if (type === "spike") {
+            var spikeX = Number(attack.x);
+            var spikeHeight = Math.max(Number(attack.height) || 0, Number(attack.maxHeight) || 0);
+            var spikeWidth = Math.max(12, Number(attack.width) || Number(attack.size) || 20);
+            var spikeTop = 500 - spikeHeight;
+            if (Number.isFinite(spikeX) && Math.abs(x - spikeX) < spikeWidth * 0.5 + body + padding &&
+                y >= spikeTop - body - padding) {
+                return { x: spikeX, y: spikeTop, axis: "vertical", distance: Math.abs(x - spikeX), attack: attack };
+            }
+            return null;
+        }
 
         // Oden's special handling for Roger and Whitebeard warnings.
         if (type === "roger_slash") {
@@ -487,8 +540,8 @@
                 }
                 return null;
             }
-            var horizontal = attack.direction === "horizontal" || attack.zone === "upper" ||
-                attack.zone === "lower" || attack.horizontal === true ||
+            var horizontal = attack.direction === "horizontal" || attack.orientation === "horizontal" ||
+                attack.zone === "upper" || attack.zone === "lower" || attack.horizontal === true ||
                 (hasAngle && Math.abs(Math.sin(Number(attack.angle))) < 0.25);
             var lineDistance = horizontal ? Math.abs(y - ay) : Math.abs(x - ax);
             if (lineDistance < Math.max(12, (width || height || 20) * 0.5 + body + padding)) {
@@ -499,7 +552,7 @@
         }
         if (type === "ring" || type.indexOf("shockwave") !== -1) {
             var ringRadius = Math.max(0, Number(attack.radius) || Number(attack.currentRadius) || 0);
-            var ringSpeed = Number(attack.speed) || Number(attack.expansionSpeed) || 0;
+            var ringSpeed = Number(attack.speed) || Number(attack.expansionSpeed) || Number(attack.growth) || 0;
             ringRadius = Math.max(0, ringRadius + ringSpeed * t);
             if (Math.abs(distance - ringRadius) < Math.max(10, Number(attack.thickness) * 0.5 + body + padding)) {
                 return { x: ax, y: ay, axis: "point", distance: distance, radius: ringRadius, attack: attack };
@@ -575,47 +628,60 @@
         var attacks = getAttackList(ctx);
         var waves = getCompanionShockwaves(ctx);
         if (!attacks.length && !waves.length) return null;
-        var skill = Math.max(0.14, Math.min(1, Number(state.aiSkill) || 0.94));
-        var horizon = Math.round(150 + skill * 56);
-        var times = [0];
-        for (var t = 4; t < horizon; t += 4) times.push(t);
-        if (times[times.length - 1] !== horizon) times.push(horizon);
-        var tx = Number.isFinite(Number(state.moveTargetX)) ? Number(state.moveTargetX) : state.x;
-        var ty = Number.isFinite(Number(state.moveTargetY)) ? Number(state.moveTargetY) : state.y;
-        var route = predictCompanionRoute(ctx, tx, ty, times);
-        var earliest = null, bestTime = Infinity;
 
-        for (var a = attacks.length - 1; a >= 0; a--) {
-            for (var p = 0; p < route.length; p++) {
-                var point = route[p];
-                var risk = companionThreatAt(attacks[a], point.x, point.y, point.time, true);
-                if (risk && point.time < bestTime) {
-                    bestTime = point.time;
-                    earliest = { risk: risk, time: point.time, attack: attacks[a],
-                        attackType: attacks[a].type, predictedX: point.x, predictedY: point.y };
-                    break;
+        var skill = Math.max(0.14, Math.min(1, Number(state.aiSkill) || 0.94));
+        var horizon = Math.round(168 + skill * 66);
+        var times = [0, 2, 4, 7, 11, 16, 23, 32, 44, 58, 74, 92, 116, 145, horizon];
+        var goalX = Number.isFinite(Number(state.moveTargetX)) ? Number(state.moveTargetX) : state.x;
+        var goalY = Number.isFinite(Number(state.moveTargetY)) ? Number(state.moveTargetY) : state.y;
+        var coastX = Math.max(18, Math.min(382, state.x + (Number(state.vx) || 0) * 9));
+        var coastY = Math.max(8, Math.min(482, state.y + (Number(state.vy) || 0) * 9));
+        var routes = [
+            predictCompanionRoute(ctx, goalX, goalY, times),
+            predictCompanionRoute(ctx, coastX, coastY, times)
+        ];
+        var earliest = null;
+        var bestTime = Infinity;
+
+        for (var r = 0; r < routes.length; r++) {
+            var route = routes[r];
+            for (var a = attacks.length - 1; a >= 0; a--) {
+                for (var p = 0; p < route.length; p++) {
+                    var point = route[p];
+                    var risk = companionThreatAt(attacks[a], point.x, point.y, point.time, true);
+                    if (risk && point.time < bestTime) {
+                        bestTime = point.time;
+                        earliest = {
+                            risk: risk, time: point.time, attack: attacks[a],
+                            attackType: attacks[a].type || attacks[a].kind,
+                            predictedX: point.x, predictedY: point.y
+                        };
+                        break;
+                    }
                 }
             }
-        }
-        for (var w = waves.length - 1; w >= 0; w--) {
-            for (var wp = 0; wp < route.length; wp++) {
-                var wavePoint = route[wp];
-                var waveRisk = companionShockwaveThreat(waves[w], wavePoint.x, wavePoint.y, wavePoint.time, true);
-                if (waveRisk && wavePoint.time < bestTime) {
-                    bestTime = wavePoint.time;
-                    earliest = { risk: waveRisk, time: wavePoint.time, attack: waves[w],
-                        attackType: "shockwave", predictedX: wavePoint.x, predictedY: wavePoint.y };
-                    break;
+            for (var w = waves.length - 1; w >= 0; w--) {
+                for (var wp = 0; wp < route.length; wp++) {
+                    var wavePoint = route[wp];
+                    var waveRisk = companionShockwaveThreat(waves[w], wavePoint.x, wavePoint.y, wavePoint.time, true);
+                    if (waveRisk && wavePoint.time < bestTime) {
+                        bestTime = wavePoint.time;
+                        earliest = {
+                            risk: waveRisk, time: wavePoint.time, attack: waves[w],
+                            attackType: "shockwave", predictedX: wavePoint.x, predictedY: wavePoint.y
+                        };
+                        break;
+                    }
                 }
             }
         }
         return earliest;
     }
 
-        function chooseSafeCompanionDodge(ctx, incoming) {
+    function chooseSafeCompanionDodge(ctx, incoming) {
         var left = 24, right = 376, top = 18, bottom = 474;
-        var angles = 16, distances = [88, 128, 164];
-        var futureTimes = [4, 8, 13, 19, 27, 37, 49];
+        var angles = 24, distances = [76, 112, 152, 188];
+        var futureTimes = [0, 4, 8, 13, 20, 29, 41, 56, 74];
         var attacks = getAttackList(ctx), waves = getCompanionShockwaves(ctx);
         var boss = getBossPosition(ctx, state.x, state.y);
         var currentSpeed = Math.hypot(Number(state.vx) || 0, Number(state.vy) || 0);
@@ -631,18 +697,19 @@
                     var point = route[p];
                     for (var a = attacks.length - 1; a >= 0; a--) {
                         if (companionThreatAt(attacks[a], point.x, point.y, point.time, true)) {
-                            collisions++; score -= p < 2 ? 38 : 27;
+                            collisions++; score -= p < 2 ? 132 : 92;
                         }
                     }
                     for (var w = waves.length - 1; w >= 0; w--) {
                         if (companionShockwaveThreat(waves[w], point.x, point.y, point.time, true)) {
-                            collisions++; score -= p < 2 ? 34 : 24;
+                            collisions++; score -= p < 2 ? 118 : 84;
                         }
                     }
                 }
-                if (collisions === 0) score += 180;
+                if (collisions === 0) score += 330;
+                else score -= collisions * 24;
                 if (incoming && incoming.risk) {
-                    score += Math.min(180, Math.hypot(tx - incoming.risk.x, ty - incoming.risk.y)) * 0.14;
+                    score += Math.min(220, Math.hypot(tx - incoming.risk.x, ty - incoming.risk.y)) * 0.42;
                 }
                 if (currentSpeed > 0.8) {
                     var routeDx = tx - state.x, routeDy = ty - state.y;
@@ -657,8 +724,8 @@
                 var margin = Math.min(tx - left, right - tx, ty - top, bottom - ty);
                 score += Math.min(28, Math.max(0, margin)) * 0.55;
                 var bossDistance = Math.hypot(tx - boss.x, ty - boss.y);
-                if (bossDistance < 132) score -= (132 - bossDistance) * 2.25;
-                else score += Math.min(70, bossDistance - 132) * 0.12;
+                if (bossDistance < 92) score -= (92 - bossDistance) * 1.8;
+                else score += Math.min(70, bossDistance - 92) * 0.08;
                 score += Math.random() * 1.5;
                 if (score > bestScore) { bestScore = score; best = { x: tx, y: ty, safe: collisions === 0 }; }
             }
@@ -827,16 +894,36 @@
     }
 
         function applyCompanionBossDamage(ctx, target, amount) {
+        if (!ctx) return false;
+        var damage = Math.max(1, Math.ceil(Number(amount) || 1));
+
         if (target && typeof window.MBDioApplyBossDamage === "function") {
-            try { window.MBDioApplyBossDamage(target.type, target.id, amount); return true; }
-            catch (e) { return false; }
-        }
-        if (ctx && ctx.type === "arena") {
-            var before = Number(ctx.getBossHp && ctx.getBossHp()) || 0;
-            if (!(before > 0)) return false;
-            var damage = Math.max(1, Math.floor(Number(amount) || 1));
+            var beforeTarget = getUniqueBossTarget(ctx, target.id) || target;
+            var beforeHp = Number(beforeTarget && beforeTarget.hp);
             try {
-                if (typeof window.MBKarsApplyDamageBonus === "function") damage = window.MBKarsApplyDamageBonus(damage);
+                window.MBDioApplyBossDamage(target.type, target.id, damage);
+                var afterTarget = getUniqueBossTarget(ctx, target.id);
+                var afterHp = Number(afterTarget && afterTarget.hp);
+                if (Number.isFinite(beforeHp) && Number.isFinite(afterHp) && afterHp < beforeHp) {
+                    if (typeof window.showFloatingText === "function") {
+                        window.showFloatingText("-" + Math.ceil(beforeHp - afterHp) + " GER", "#ffe29a");
+                    }
+                    return true;
+                }
+            } catch (e) {}
+        }
+
+        if (typeof window.MBApplyBossDamage === "function") {
+            try {
+                var dealt = Number(window.MBApplyBossDamage(ctx, damage, "Gold Experience Requiem")) || 0;
+                if (dealt > 0) return true;
+            } catch (e) {}
+        }
+
+        if (ctx.type === "arena") {
+            var before = Number(ctx.getBossHp && ctx.getBossHp()) || 0;
+            if (!(before > 0) || typeof ctx.setBossMaxHp !== "function") return false;
+            try {
                 ctx.setBossMaxHp(Math.max(0, before - damage));
                 return Number(ctx.getBossHp()) < before;
             } catch (e) {}
@@ -845,6 +932,12 @@
     }
 
     function getAttackBossMaxHp(ctx, target) {
+        if (ctx && ctx.type === "waystar" && typeof ctx.getBossMaxHp === "function") {
+            try {
+                var sharedMax = Number(ctx.getBossMaxHp()) || 0;
+                if (sharedMax > 0) return sharedMax;
+            } catch (e) {}
+        }
         var hp = Number(target && target.maxHp) || 0;
         if (!(hp > 0) && ctx && typeof ctx.getBossMaxHp === "function") {
             try { hp = Number(ctx.getBossMaxHp()) || 0; } catch (e) {}
@@ -867,7 +960,8 @@
         if (ctx.type !== "arena" && !target) return false;
         var current = now();
         var maxHp = getAttackBossMaxHp(ctx, target);
-        var total = Math.max(6, Math.floor(maxHp * 0.012));
+        var damagePerHit = Math.max(1, Math.ceil(maxHp * 0.003));
+        var total = damagePerHit * GE_MUDA_HITS;
         var comboDuration = GE_MUDA_DURATION;
         var boss = target || getBossPosition(ctx, state.x, state.y);
         state.windup = 0;
@@ -877,6 +971,7 @@
             type: ctx.type,
             id: target ? target.id : null,
             total: total,
+            damagePerHit: damagePerHit,
             hitIndex: 0,
             hitCount: GE_MUDA_HITS,
             nextHitAt: current,
@@ -923,9 +1018,9 @@
             var previousIndex = combo.hitIndex;
             combo.hitIndex++;
             state.attackFrame = combo.hitIndex;
-            var hitDamage = Math.floor(combo.total * combo.hitIndex / combo.hitCount) -
-                Math.floor(combo.total * previousIndex / combo.hitCount);
-            if (hitDamage > 0) applyCompanionBossDamage(ctx, target, hitDamage);
+            var hitDamage = Math.max(1, Number(combo.damagePerHit) ||
+                Math.ceil(getAttackBossMaxHp(ctx, target) * 0.003));
+            applyCompanionBossDamage(ctx, target, hitDamage);
             combo.nextHitAt = combo.startedAt + combo.hitIndex * hitInterval;
             state.attackUntil = current + 145;
             state.lastMudaImpactAt = current;
@@ -1010,7 +1105,7 @@
             targetType: ctx.type, targetId: target ? target.id : null,
             targetX: Number(boss.x) || state.x, targetY: Number(boss.y) || state.y,
             angle: angle, side: state.punchHand, startedAt: now(), duration: 235,
-            damage: Math.max(1, Math.floor(maxHp * 0.00145)), hitDone: false
+            damage: Math.max(1, Math.ceil(maxHp * 0.003)), hitDone: false
         };
         state.attackCooldown = 24 + Math.floor(Math.random() * 5);
         state.attackUntil = now() + 235;
@@ -1115,11 +1210,11 @@
         state.moveTargetX = goal.x;
         state.moveTargetY = goal.y;
         var incoming = state.stunTimer > 0 ? null : findIncomingCompanionThreat(ctx);
-        var urgentThreat = !!incoming && incoming.time <= 8;
+        var urgentThreat = !!incoming && incoming.time <= 13;
         var newThreat = !!incoming && incoming.attack !== state.lastThreatAttack;
         var dodging = false;
 
-        if (incoming && incoming.time <= Math.round(150 + state.aiSkill * 56) &&
+        if (incoming && incoming.time <= Math.round(168 + state.aiSkill * 66) &&
             (state.dodgeCooldown <= 0 || urgentThreat || state.healState !== "idle") &&
             (state.dodgePlanTimer <= 0 || urgentThreat || state.healState !== "idle" ||
                 (newThreat && incoming.time <= 22))) {
@@ -1132,7 +1227,7 @@
             state.dodgeCooldown = incoming.time <= 12
                 ? Math.max(3, Math.round(8 - state.aiSkill * 3))
                 : Math.max(6, Math.round(14 - state.aiSkill * 5));
-            state.dodgeFlashTimer = 13;
+            state.dodgeFlashTimer = 17;
             dodging = true;
             spawnHitEffect(state.x, state.y, "#ffe29a");
         } else if (incoming && state.dodgePlanTimer > 0) {
