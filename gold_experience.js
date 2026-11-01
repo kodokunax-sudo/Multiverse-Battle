@@ -218,6 +218,7 @@
         try {
             if (ctx && typeof ctx.getHeartSpeed === "function") speed = Number(ctx.getHeartSpeed()) || speed;
         } catch (e) {}
+        if (state.lastBreath) speed *= 1.35;
         return Math.max(0.5, Math.min(12, speed));
     }
 
@@ -630,6 +631,7 @@
         var current = now();
         var maxHp = getAttackBossMaxHp(ctx, target);
         var total = Math.max(6, Math.floor(maxHp * 0.012 * (state.lastBreath ? 1.6 : 1)));
+        var comboDuration = state.lastBreath ? Math.round(GE_MUDA_DURATION / 1.65) : GE_MUDA_DURATION;
         var boss = target || getBossPosition(ctx, state.x, state.y);
         state.combo = {
             type: ctx.type,
@@ -639,11 +641,12 @@
             hitCount: GE_MUDA_HITS,
             nextHitAt: current,
             startedAt: current,
-            endsAt: current + GE_MUDA_DURATION,
+            duration: comboDuration,
+            endsAt: current + comboDuration,
             x: Number(boss.x) || state.x,
             y: Number(boss.y) || state.y
         };
-        state.comboCooldownUntil = current + GE_MUDA_DURATION + (state.lastBreath ? 500 : 1100);
+        state.comboCooldownUntil = current + comboDuration + (state.lastBreath ? 300 : 1100);
         state.nextAttackAt = state.comboCooldownUntil;
         state.attackUntil = current + 150;
         state.attackFrame = 0;
@@ -673,7 +676,7 @@
         combo.x = Number(boss.x) || combo.x;
         combo.y = Number(boss.y) || combo.y;
 
-        var hitInterval = GE_MUDA_DURATION / GE_MUDA_HITS;
+        var hitInterval = (Number(combo.duration) || GE_MUDA_DURATION) / GE_MUDA_HITS;
         while (combo.hitIndex < combo.hitCount &&
             current >= combo.startedAt + combo.hitIndex * hitInterval) {
             var previousIndex = combo.hitIndex;
@@ -703,6 +706,10 @@
         var hitCount = seeds ? 5 : 4;
         var firstHitDelay = seeds ? 340 : 300;
         var interval = seeds ? 155 : 330;
+        var attackRate = state.lastBreath ? 1.65 : 1;
+        duration = Math.max(1, Math.round(duration / attackRate));
+        firstHitDelay = Math.max(1, Math.round(firstHitDelay / attackRate));
+        interval = Math.max(1, Math.round(interval / attackRate));
         var damagePercent = seeds ? 0.0085 : 0.009;
         var maxHp = getAttackBossMaxHp(ctx, target);
         var boss = target || getBossPosition(ctx, state.x, state.y);
@@ -724,7 +731,7 @@
         };
         state.attackType = type;
         state.lastAttackType = type;
-        state.nextAttackAt = current + duration + 1350;
+        state.nextAttackAt = current + duration + Math.round(1350 / attackRate);
         state.attackUntil = current + 320;
         if (seeds) {
             toast("GOLD EXPERIENCE: LIFE SEEDS!", "#8dffae");
@@ -874,6 +881,13 @@
         var goal = chooseCompanionGoal(ctx, playerX, playerY, boss, frameScale);
         state.moveTargetX = goal.x;
         state.moveTargetY = goal.y;
+        if (state.lastBreath && boss) {
+            var rushX = state.x - boss.x;
+            var rushY = state.y - boss.y;
+            var rushLength = Math.max(1, Math.hypot(rushX, rushY));
+            state.moveTargetX = Math.max(18, Math.min(382, boss.x + rushX / rushLength * 42));
+            state.moveTargetY = Math.max(8, Math.min(482, boss.y + rushY / rushLength * 42));
+        }
 
         var incoming = state.stunTimer > 0 ? null : findIncomingCompanionThreat(ctx);
         var urgentThreat = !!incoming && incoming.time <= 8;
@@ -1124,7 +1138,8 @@
         c.globalAlpha = invulnerable ? (0.56 + Math.sin(current / 36) * 0.25) : 0.99;
 
         var halo = c.createRadialGradient(0, 0, 2, 0, 0, 23);
-        halo.addColorStop(0, healing ? "rgba(126,255,166,.34)" : "rgba(255,218,105,.32)");
+        halo.addColorStop(0, state.lastBreath ? "rgba(255,55,78,.42)" :
+            (healing ? "rgba(126,255,166,.34)" : "rgba(255,218,105,.32)"));
         halo.addColorStop(1, "rgba(255,190,55,0)");
         c.fillStyle = halo;
         c.beginPath();
@@ -1153,12 +1168,12 @@
         }
 
         var heartGradient = c.createLinearGradient(0, -16, 0, 12);
-        heartGradient.addColorStop(0, invulnerable ? "#fffbe3" : "#fff2ad");
-        heartGradient.addColorStop(0.38, "#ffd958");
-        heartGradient.addColorStop(0.72, "#efa72d");
-        heartGradient.addColorStop(1, "#b96a1a");
+        heartGradient.addColorStop(0, invulnerable ? "#fffbe3" : (state.lastBreath ? "#ffd5dc" : "#fff2ad"));
+        heartGradient.addColorStop(0.38, state.lastBreath ? "#ff657d" : "#ffd958");
+        heartGradient.addColorStop(0.72, state.lastBreath ? "#bd163d" : "#efa72d");
+        heartGradient.addColorStop(1, state.lastBreath ? "#4c071e" : "#b96a1a");
         c.fillStyle = heartGradient;
-        c.strokeStyle = "#704313";
+        c.strokeStyle = state.lastBreath ? "#3a0617" : "#704313";
         c.lineWidth = 1.2;
         c.shadowColor = "#ffd34f";
         c.shadowBlur = attacking ? 16 : 9;
@@ -1476,7 +1491,7 @@
         state.vy = 0;
         state.nextAttackAt = current + 520;
         state.nextHealAt = current;
-        state.healCooldownUntil = current + 2000;
+        state.healCooldownUntil = current;
         state.attackUntil = 0;
         state.combo = null;
         state.specialAttack = null;
