@@ -20,16 +20,20 @@
         windup: 0, dashFlash: 0
     };
     var allyAttacks = [], allyParticles = [], allyAttackQueue = [], allyDeathTimer = 0;
-    var allyAttackSerial = 0;
-    var WAYSTAR_ALLY_SPEED = 5.2;
+    var allyAttackSerial = 0, allyInitialized = false;
+    var allyEffects = { shockwaves: [], lightning: [], slashes: [], flashes: [], particles: [] };
+    var WAYSTAR_ALLY_SPEED = 6.4;
 
     function resetAlly() {
         ally.x = 200; ally.y = 300; ally.vx = 0; ally.vy = 0;
-        ally.hp = ally.maxHp = 150; ally.phase = 0; ally.invuln = 0;
-        ally.hitFlash = 0; ally.attackTimer = 105; ally.attackPattern = 0;
+        ally.hp = ally.maxHp = 600; ally.phase = 0; ally.invuln = 0;
+        ally.hitFlash = 0; ally.attackTimer = 72; ally.attackPattern = 0;
         ally.alive = true; ally.targetX = 200; ally.targetY = 300;
         ally.windup = 0; ally.dashFlash = 0; allyDeathTimer = 0;
         allyAttacks.length = 0; allyParticles.length = 0; allyAttackQueue.length = 0; allyAttackSerial = 0;
+        allyEffects.shockwaves.length = 0; allyEffects.lightning.length = 0;
+        allyEffects.slashes.length = 0; allyEffects.flashes.length = 0; allyEffects.particles.length = 0;
+        allyInitialized = true;
     }
 
     function bossPoint() {
@@ -44,8 +48,8 @@
     }
 
     function allyDamageAmount(weight) {
-        // Each shard is a small hit. Whole patterns add up to Oden-like steady support DPS.
-        return Math.max(1, Math.floor(maxBossHp() * 0.0007 * (Number(weight) || 1)));
+        // The original attack patterns now have meaningful boss-support damage.
+        return Math.max(2, Math.floor(maxBossHp() * 0.0045 * (Number(weight) || 1)));
     }
 
     function hitBoss(amount, x, y, color) {
@@ -86,6 +90,87 @@
             timer:small?160:220,maxTimer:small?160:220,radius:small?40:70,
             damage:allyDamageAmount(small?1.35:2.25),exploded:false,explosionTimer:0,small:!!small,
             sunPhase:"big",sunScale:small?.7:1,sunColor:"#ffdd00",phaseTimer:0});
+    }
+
+    // Local copy of the original Waystar screen effects, so they also render in the
+    // Living Stone fight without starting a second Waystar boss instance.
+    function addAllyShockwave(x,y,color,maxRadius,life,width){
+        if(window.MBShouldReduceBossEffects&&window.MBShouldReduceBossEffects())return;
+        allyEffects.shockwaves.push({x:x,y:y,radius:10,maxRadius:maxRadius,life:life,maxLife:life,color:color,width:width||4});
+    }
+    function addAllyLightning(x1,y1,x2,y2,color,alpha,width){
+        if(window.MBShouldReduceBossEffects&&window.MBShouldReduceBossEffects())return;
+        var pts=[],steps=4+Math.floor(Math.random()*3);
+        for(var i=1;i<steps;i++){var t=i/steps;pts.push({x:x1+(x2-x1)*t+(Math.random()-.5)*20,y:y1+(y2-y1)*t+(Math.random()-.5)*20});}
+        allyEffects.lightning.push({x1:x1,y1:y1,x2:x2,y2:y2,pts:pts,color:color,alpha:alpha,life:12,maxLife:12,width:width||2});
+    }
+    function addAllySlash(x,y,angle,length,width){
+        if(window.MBShouldReduceBossEffects&&window.MBShouldReduceBossEffects())return;
+        allyEffects.slashes.push({x:x,y:y,angle:angle,length:length,width:width||4,life:20,maxLife:20});
+    }
+    function addAllyFlash(x,y,size){
+        if(window.MBShouldReduceBossEffects&&window.MBShouldReduceBossEffects())return;
+        allyEffects.flashes.push({x:x,y:y,size:size||40,life:15,maxLife:15});
+    }
+    function spawnAllyFxParticles(x,y,count,color,speed){
+        var reduced=!!(window.MBShouldReduceBossEffects&&window.MBShouldReduceBossEffects());
+        var medium=!!(window.MBIsMediumGraphics&&window.MBIsMediumGraphics());
+        var scale=reduced?.18:(medium?.68:1),cap=reduced?24:(medium?100:260);
+        count=Math.floor(count*scale);
+        count=Math.min(count,Math.max(0,cap-allyEffects.particles.length));
+        for(var i=0;i<count;i++){
+            var angle=Math.random()*Math.PI*2,sp=speed*(.3+Math.random());
+            allyEffects.particles.push({x:x,y:y,vx:Math.cos(angle)*sp,vy:Math.sin(angle)*sp,
+                life:reduced?10:20+Math.random()*15,maxLife:reduced?10:35,
+                color:color,size:reduced?1:1.5+Math.random()*2.5});
+        }
+    }
+    function updateAllyEffects(){
+        var e=allyEffects;
+        for(var i=e.shockwaves.length-1;i>=0;i--){var sw=e.shockwaves[i];sw.radius+=(sw.maxRadius-sw.radius)*.15;sw.life--;if(sw.life<=0)e.shockwaves.splice(i,1);}
+        for(var j=e.lightning.length-1;j>=0;j--){if(--e.lightning[j].life<=0)e.lightning.splice(j,1);}
+        for(var k=e.slashes.length-1;k>=0;k--){if(--e.slashes[k].life<=0)e.slashes.splice(k,1);}
+        for(var f=e.flashes.length-1;f>=0;f--){if(--e.flashes[f].life<=0)e.flashes.splice(f,1);}
+        for(var p=e.particles.length-1;p>=0;p--){
+            var part=e.particles[p];part.x+=part.vx;part.y+=part.vy;
+            part.vx*=.94;part.vy*=.94;part.life--;
+            if(part.life<=0)e.particles.splice(p,1);
+        }
+    }
+    function drawAllyEffects(c){
+        var e=allyEffects;
+        for(var i=0;i<e.particles.length;i++){
+            var p=e.particles[i];c.globalAlpha=Math.max(0,p.life/p.maxLife)*.8;
+            c.fillStyle=p.color;c.beginPath();c.arc(p.x,p.y,p.size,0,Math.PI*2);c.fill();
+        }
+        for(var j=0;j<e.lightning.length;j++){
+            var lb=e.lightning[j];c.save();c.globalAlpha=(lb.life/lb.maxLife)*.9;
+            c.strokeStyle=lb.color;c.lineWidth=lb.width;c.beginPath();c.moveTo(lb.x1,lb.y1);
+            for(var lp=0;lp<lb.pts.length;lp++)c.lineTo(lb.pts[lp].x,lb.pts[lp].y);
+            c.lineTo(lb.x2,lb.y2);c.stroke();c.restore();
+        }
+        for(var k=0;k<e.shockwaves.length;k++){
+            var wave=e.shockwaves[k],progress=1-wave.life/wave.maxLife;
+            c.save();c.globalAlpha=(1-progress)*.8;c.strokeStyle=wave.color;
+            c.lineWidth=wave.width*(1-progress);c.beginPath();
+            c.arc(wave.x,wave.y,Math.max(.1,wave.radius),0,Math.PI*2);c.stroke();c.restore();
+        }
+        for(var q=0;q<e.slashes.length;q++){
+            var slash=e.slashes[q];c.save();c.globalAlpha=slash.life/slash.maxLife;
+            c.translate(slash.x,slash.y);c.rotate(slash.angle);c.strokeStyle="#ffffff";
+            c.lineWidth=slash.width*(slash.life/slash.maxLife);c.beginPath();
+            c.moveTo(-slash.length/2,0);c.lineTo(slash.length/2,0);
+            c.moveTo(0,-slash.length/2);c.lineTo(0,slash.length/2);c.stroke();c.restore();
+        }
+        for(var f=0;f<e.flashes.length;f++){
+            var flash=e.flashes[f];c.save();c.globalAlpha=(flash.life/flash.maxLife)*.6;
+            var radius=flash.size*(1-flash.life/flash.maxLife+.5);
+            var gradient=c.createRadialGradient(flash.x,flash.y,0,flash.x,flash.y,radius);
+            gradient.addColorStop(0,"#ffffff");gradient.addColorStop(.4,"rgba(255,215,0,.4)");
+            gradient.addColorStop(1,"rgba(255,215,0,0)");
+            c.fillStyle=gradient;c.beginPath();c.arc(flash.x,flash.y,radius,0,Math.PI*2);c.fill();c.restore();
+        }
+        c.globalAlpha=1;
     }
 
     function launchAllyPattern(){
