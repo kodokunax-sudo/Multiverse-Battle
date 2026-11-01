@@ -280,6 +280,26 @@ function isUniqueBossActive() {
 // ============================================================
 // ★★★ ЕДИНЫЙ КОНТЕКСТ БОССА ★★★
 // ============================================================
+window.MBApplyBossDamage = function(ctx, amount, source) {
+    if (!ctx) return 0;
+    var damage = Math.max(1, Math.floor(Number(amount) || 1));
+    if (ctx.type === "arena") {
+        var before = Math.max(0, Number(ctx.getBossHp && ctx.getBossHp()) || 0);
+        if (!(before > 0)) return 0;
+        if (typeof window.MBKarsApplyDamageBonus === "function") damage = window.MBKarsApplyDamageBonus(damage);
+        if (!(damage > 0)) return 0;
+        if (typeof ctx.setBossMaxHp === "function") ctx.setBossMaxHp(Math.max(0, before - damage));
+        return Math.max(0, before - Number(ctx.getBossHp && ctx.getBossHp()));
+    }
+    try {
+        var target = typeof window.getDioUniqueBossTarget === "function"
+            ? window.getDioUniqueBossTarget(ctx) : null;
+        if (!target || typeof window.MBDioApplyBossDamage !== "function") return 0;
+        window.MBDioApplyBossDamage(target.type, target.id, damage);
+        return damage;
+    } catch (e) { return 0; }
+};
+
 function getBossContext() {
     var bossType = isUniqueBossActive();
 
