@@ -1171,6 +1171,7 @@
         lastPhase = "";
         allyAttacks.length = 0;
         allyParticles.length = 0;
+        allyAttackQueue.length = 0;
         activeEncounterGeneration = -1;
     }
 
