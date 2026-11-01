@@ -26,15 +26,19 @@
     function encounterEligible() {
         if (!wasSpared() ||
             typeof livingStoneActive === "undefined" || !livingStoneActive ||
-            livingStoneState !== "phase2" ||
             (typeof finalSceneActive !== "undefined" && finalSceneActive) ||
             window.__mbLivingStoneChaseActive === true) return false;
 
-        // Regular Living Stone gets the ally in phase two. Prime gets her after the chase.
+        // Prime has its own phase controller. Do not gate its ally on the
+        // regular boss's livingStoneState label after the chase has completed.
         var isPrime = window.livingStoneSuperActive === true;
-        if (!isPrime) return true;
-        if (window.__mbLS2AfterChase !== true) return false;
-        return phase() === "normal" || phase() === "green";
+        if (isPrime) {
+            if (window.__mbLS2AfterChase !== true) return false;
+            return phase() === "normal" || phase() === "green";
+        }
+
+        // The regular Living Stone still receives her only in phase two.
+        return livingStoneState === "phase2";
     }
 
     function normalActionsEligible() {
