@@ -1650,6 +1650,16 @@ function getUpgradeTotalValue(k) {
     var upgrade = upgrades[k];
     if (!upgrade) return 0;
     var level = Math.max(0, Math.floor(Number(upgrade.level) || 0));
+    if (k === "hp") {
+        // Здоровье: каждые 150 уровней прибавка растёт на 1,
+        // но не превышает +4 за уровень.
+        var hpTotal = 0;
+        for (var hpTier = 0; hpTier < Math.ceil(level / 150); hpTier++) {
+            var hpCount = Math.max(0, Math.min(150, level - hpTier * 150));
+            hpTotal += hpCount * Math.min(4, 1 + hpTier);
+        }
+        return hpTotal;
+    }
     if (k !== "damage") return level * upgrade.increment;
 
     // Сила: первые 100 уровней дают +2 за уровень,
