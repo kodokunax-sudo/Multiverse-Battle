@@ -2241,6 +2241,7 @@ window.getWaystarActive = function() { return waystarActive; };
 
 window.updateWaystarShooting = updateWaystarShooting;
 window.getWaystarPlayer = function() { return waystarPlayer; };
+window.getWaystarShockwaves = function() { return waystarShockwaves; };
 window.getWaystarBullets = function() { return waystarPlayerBullets; };
 window.getWaystarKeys = function() { return waystarKeys; };
 window.getWaystarTouch = function() { return { active: waystarTouchActive, x: waystarTouchX, y: waystarTouchY }; };
