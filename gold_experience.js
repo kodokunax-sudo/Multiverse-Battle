@@ -311,6 +311,8 @@
         var current = now();
         if (current >= state.activeUntil) {
             state.active = false;
+            state.combo = null;
+            state.attackFrame = 0;
             state.cooldownUntil = current + GE_COOLDOWN;
             toast("GOLD EXPERIENCE ВЕРНУЛСЯ · ПЕРЕЗАРЯДКА 20 СЕК.", "#e9cb54");
             updateSuperButton();
@@ -612,6 +614,9 @@
         state.nextAttackAt = current + 400;
         state.nextHealAt = current + 1200;
         state.attackUntil = 0;
+        state.combo = null;
+        state.comboCooldownUntil = current + 400;
+        state.attackFrame = 0;
         state.trail = [];
         toast("✦ GOLD EXPERIENCE: ДЕЙСТВУЙ!", "#ffe28a");
         updateSuperButton();
