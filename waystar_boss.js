@@ -1195,6 +1195,10 @@ function applyWaystarHit(dmg, textMsg, sourceAction, damageCategory) {
     if (isWaystarModerActive()) { if (textMsg && typeof showFloatingText === 'function') showFloatingText(textMsg + " (∞ HP)", "#ffff00"); return; }
     if (waystarInvulnTimer > 0) return;
     if (typeof window.gojoTryNegateIncoming === "function" && window.gojoTryNegateIncoming(dmg, "waystar")) return;
+    if (sourceAction && typeof window.MBGoldExperienceRedirectDamage === "function") {
+        var geRedirectedDamage = window.MBGoldExperienceRedirectDamage(dmg, typeof getBossContext === "function" ? getBossContext() : null, sourceAction);
+        if (geRedirectedDamage !== null) { dmg = geRedirectedDamage; textMsg = "удар по Gold Experience. Джорно получает 50% урона"; }
+    }
     if (typeof window.MBGERTryNullifyDamage === "function" &&
         window.MBGERTryNullifyDamage(dmg, sourceAction, damageCategory || "combat")) {
         waystarInvulnTimer = Math.max(waystarInvulnTimer || 0, 18);
