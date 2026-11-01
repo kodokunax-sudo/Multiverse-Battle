@@ -292,6 +292,7 @@
             ls2SetMessage("ПУТЕВОДНАЯ ЗВЕЗДА ПРИНЯЛА УДАР!", 58);
             return;
         }
+        if (typeof window.MBKarsProcessIncomingDamage === "function") incoming = window.MBKarsProcessIncomingDamage(incoming);
         ls2PlayerHp = Math.max(0, ls2PlayerHp - incoming);
         ls2Invulnerable = 52; ls2HitFlash = 12;
         ls2SetMessage(ls2Phase === "green" ? "ЩИТ НЕ С ТОЙ СТОРОНЫ!" : "СНАРЯД ПОПАЛ! УВОРАЧИВАЙСЯ", 48);
@@ -336,6 +337,9 @@
     function ls2BoxEdgeMaxY() { return LS2_BOX.y + LS2_BOX.h; }
     function ls2Update(dt) {
         ls2Elapsed += dt;
+        if (window.livingStoneSuperActive && typeof window.MBKarsAdaptationTick === "function") {
+            try { window.MBKarsAdaptationTick(typeof getBossContext === "function" ? getBossContext() : null); } catch (e) {}
+        }
         if (ls2Invulnerable > 0) ls2Invulnerable = Math.max(0, ls2Invulnerable - dt);
         if (ls2HitFlash > 0) ls2HitFlash = Math.max(0, ls2HitFlash - dt);
         if (ls2ShieldFlash > 0) ls2ShieldFlash = Math.max(0, ls2ShieldFlash - dt);
@@ -2365,6 +2369,7 @@
     // Exported now so the next stage's player-bullet system can damage this boss.
     function ls2DamageBoss(amount) {
         if (!ls2Active || !(Number(amount)>0)) return false;
+        if (typeof window.MBKarsApplyDamageBonus === "function") amount = window.MBKarsApplyDamageBonus(amount);
         if (ls2NativeMode) {
             amount = Number(amount);
             if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") {
