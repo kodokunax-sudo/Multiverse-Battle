@@ -12,6 +12,427 @@
     var finalLockTimer = 0, finalLockTriggered = false, finalDialogueStage = 0;
     var lastPhase = "";
 
+    // Independent Waystar NPC, built around Oden's movement / dodge / attack loop.
+    var ally = {
+        x: 200, y: 300, vx: 0, vy: 0, hp: 150, maxHp: 150,
+        phase: 0, invuln: 0, hitFlash: 0, attackTimer: 125,
+        attackPattern: 0, alive: true, targetX: 200, targetY: 300,
+        windup: 0, dashFlash: 0
+    };
+    var allyAttacks = [], allyParticles = [], allyDeathTimer = 0;
+    var allyAttackSerial = 0;
+    var WAYSTAR_ALLY_SPEED = 5.2;
+
+    function resetAlly() {
+        ally.x = 200; ally.y = 300; ally.vx = 0; ally.vy = 0;
+        ally.hp = ally.maxHp = 150; ally.phase = 0; ally.invuln = 0;
+        ally.hitFlash = 0; ally.attackTimer = 105; ally.attackPattern = 0;
+        ally.alive = true; ally.targetX = 200; ally.targetY = 300;
+        ally.windup = 0; ally.dashFlash = 0; allyDeathTimer = 0;
+        allyAttacks.length = 0; allyParticles.length = 0; allyAttackSerial = 0;
+    }
+
+    function bossPoint() {
+        if (typeof livingStoneBoss === "undefined" || !livingStoneBoss) return { x: 200, y: 110, size: 42, vx: 0, vy: 0 };
+        return {
+            x: Number(livingStoneBoss.x) || 200,
+            y: Number(livingStoneBoss.y) || 110,
+            size: Math.max(20, Number(livingStoneBoss.size) || 42),
+            vx: Number(livingStoneBoss.vx) || 0,
+            vy: Number(livingStoneBoss.vy) || 0
+        };
+    }
+
+    function allyDamageAmount(weight) {
+        // Each shard is a small hit. Whole patterns add up to Oden-like steady support DPS.
+        return Math.max(1, Math.floor(maxBossHp() * 0.0007 * (Number(weight) || 1)));
+    }
+
+    function hitBoss(amount, x, y, color) {
+        if (!ally.alive || !normalActionsEligible() && !encounterEligible()) return false;
+        if (!(currentBossHp() > 0)) return false;
+        var dealt = Math.min(Math.max(1, Math.floor(Number(amount) || 1)), Math.max(1, currentBossHp()));
+        var applied = false;
+        if (typeof window.MBLivingStoneSuperDamage === "function" && window.livingStoneSuperActive === true) {
+            applied = window.MBLivingStoneSuperDamage(dealt) !== false;
+        } else if (typeof damageLivingStone === "function") {
+            damageLivingStone(dealt); applied = true;
+        }
+        if (!applied) return false;
+        strikeFlash = Math.max(strikeFlash, 18);
+        if (typeof spawnLivingStoneParticles === "function")
+            spawnLivingStoneParticles(Number(x) || bossPoint().x, Number(y) || bossPoint().y,
+                6, color || "#aeeaff", 3.2);
+        if (typeof playArenaSound === "function") playArenaSound(720 + Math.random() * 300, "triangle", 0.07, 0.035);
+        return true;
+    }
+
+    function pushAllyShot(type, x, y, vx, vy, size, weight, color, life, curve) {
+        allyAttacks.push({
+            type: type, x: x, y: y, vx: vx, vy: vy,
+            size: size || 7, damage: allyDamageAmount(weight),
+            color: color || "#dffaff", life: life || 100,
+            trail: [], curve: Number(curve) || 0, spin: Math.random() < 0.5 ? -1 : 1,
+            rotation: Math.atan2(vy, vx), hit: false
+        });
+    }
+
+    function launchAllyPattern() {
+        if (!ally.alive || !encounterEligible() || currentBossHp() <= 0) return;
+        var boss = bossPoint();
+        var tx = Math.max(35, Math.min(365, boss.x + boss.vx * 9));
+        var ty = Math.max(65, Math.min(230, boss.y + boss.vy * 7));
+        var dx = tx - ally.x, dy = ty - ally.y;
+        var base = Math.atan2(dy, dx);
+        var pattern = ally.attackPattern++ % 8;
+        allyAttackSerial++;
+        ally.windup = pattern === 2 || pattern === 5 || pattern === 6 ? 24 : 9;
+
+        if (pattern === 0) {
+            // METEOR VOLLEY: the same falling star-rocks used in her original fight.
+            for (var i = -1; i <= 1; i++) {
+                var a = base + i * 0.19;
+                pushAllyShot("meteor", ally.x + i * 10, ally.y - 8,
+                    Math.cos(a) * 5.7, Math.sin(a) * 5.7, 11, 1.05, "#ffd45b", 110, 0.012);
+            }
+            announce("МЕТЕОРИТНЫЙ ЗАЛП!", "#ffe28b", 42);
+        } else if (pattern === 1) {
+            // SPIRAL: two counter-rotating strings of star fragments.
+            for (var j = 0; j < 8; j++) {
+                var a2 = base + (j - 3.5) * 0.16 + Math.sin(j * 0.8) * 0.12;
+                pushAllyShot("spiral", ally.x, ally.y,
+                    Math.cos(a2) * 5.0, Math.sin(a2) * 5.0, 7, 0.82, "#ff65ed", 100, j % 2 ? 0.035 : -0.035);
+            }
+            announce("ЗВЁЗДНЫЙ ВИХРЬ!", "#ff9cf4", 42);
+        } else if (pattern === 2) {
+            // GIANT LASER: visible charge line followed by a concentrated beam.
+            allyAttacks.push({
+                type: "beam", x1: ally.x, y1: ally.y, x2: tx, y2: ty,
+                timer: 26, activeTimer: 22, warning: true,
+                width: 19, damage: allyDamageAmount(0.68), tick: 0,
+                color: "#ffeaff", hit: false
+            });
+            announce("ГИГА-ЛАЗЕР!", "#ffcaff", 50);
+        } else if (pattern === 3) {
+            // STAR RAIN: crossing stars sweep through the target's lane.
+            for (var k = -2; k <= 2; k++) {
+                var sx = Math.max(26, Math.min(374, tx + k * 25));
+                var sy = Math.max(80, Math.min(250, ty - 75 - Math.abs(k) * 8));
+                var adx = tx - sx, ady = ty - sy, al = Math.max(1, Math.hypot(adx, ady));
+                pushAllyShot("star_rain", sx, sy, adx / al * 6.2, ady / al * 6.2,
+                    8, 0.72, "#fff09a", 90, 0.008);
+            }
+            announce("ЗВЁЗДНЫЙ ДОЖДЬ!", "#fff0a6", 42);
+        } else if (pattern === 4) {
+            // SHOTGUN: the close-range fan from Waystar's third phase.
+            for (var m = -3; m <= 3; m++) {
+                var a3 = base + m * 0.115;
+                pushAllyShot("shotgun_bullet", ally.x, ally.y,
+                    Math.cos(a3) * 7.1, Math.sin(a3) * 7.1, 6, 0.7, "#ff6b55", 85, 0);
+            }
+            announce("ЗАЛП ОСКОЛКОВ!", "#ffac92", 42);
+        } else if (pattern === 5) {
+            // SOLAR BOMBS: warning circles, then separate radial explosions.
+            for (var n = -1; n <= 1; n++) {
+                allyAttacks.push({
+                    type: "bomb", x: Math.max(35, Math.min(365, tx + n * 34)),
+                    y: Math.max(70, Math.min(245, ty + Math.abs(n) * 18)),
+                    timer: 38 + Math.abs(n) * 8, radius: 45,
+                    damage: allyDamageAmount(0.95), color: "#ffb84b", exploded: false
+                });
+            }
+            announce("СОЛНЕЧНЫЕ БОМБЫ!", "#ffd27b", 48);
+        } else if (pattern === 6) {
+            // STAR DASH: fast line strike; the NPC itself remains independently controlled.
+            allyAttacks.push({
+                type: "dash", x1: ally.x, y1: ally.y, x2: tx, y2: ty,
+                timer: 20, damage: allyDamageAmount(1.75), color: "#baf5ff",
+                width: 25, hit: false
+            });
+            ally.dashFlash = 24;
+            announce("ЗВЁЗДНЫЙ РЫВОК!", "#d7faff", 45);
+        } else {
+            // THE LEGION: twelve orbiting fragments imitate her 60-piece formation.
+            for (var q = 0; q < 12; q++) {
+                var a4 = base + q * Math.PI * 2 / 12;
+                var sp = 4.5 + (q % 3) * 0.7;
+                pushAllyShot("legion", ally.x, ally.y,
+                    Math.cos(a4) * sp, Math.sin(a4) * sp, 5.5, 0.58, q % 2 ? "#ff84e9" : "#ffe47c", 105, q % 2 ? 0.022 : -0.022);
+            }
+            announce("Я - ЛЕГИОН!", "#ffe9a0", 48);
+        }
+    }
+
+    function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
+        var dx = x2 - x1, dy = y2 - y1, len2 = dx * dx + dy * dy;
+        var t = len2 > 0 ? Math.max(0, Math.min(1, ((px-x1)*dx+(py-y1)*dy)/len2)) : 0;
+        return Math.hypot(px-(x1+dx*t), py-(y1+dy*t));
+    }
+
+    function getAllyThreats() {
+        var list = [];
+        if (typeof livingStoneAttacks !== "undefined" && Array.isArray(livingStoneAttacks))
+            list = list.concat(livingStoneAttacks);
+        if (typeof livingStoneBullets !== "undefined" && Array.isArray(livingStoneBullets))
+            list = list.concat(livingStoneBullets);
+        if (typeof window.MBGetLivingStoneSuperCompanionThreats === "function") {
+            try { list = list.concat(window.MBGetLivingStoneSuperCompanionThreats() || []); } catch (e) {}
+        }
+        return list;
+    }
+
+    function threatAt(h, x, y, frames, actual) {
+        if (!h || h.allyHit || h.odenHit || h._mbGEIgnored || h.state === "done") return 0;
+        var type = String(h.type || "").toLowerCase();
+        var width = Math.max(8, Number(h.width) || 0);
+        var radius = Math.max(7, Number(h.size || h.r || h.radius) || 9) + 12;
+        var warning = h.state === "warning" || h.state === "windup" ||
+            Number(h.warningTimer) > 0 || Number(h.delay) > 0;
+        if (warning && actual) return 0;
+        if ((type.indexOf("laser") !== -1 || type.indexOf("beam") !== -1) &&
+            Number.isFinite(Number(h.x)) && (!Number.isFinite(Number(h.y)) || type === "laser")) {
+            var laserX = Number(h.x);
+            return Math.abs(x - laserX) < width * 0.5 + 18 ? 1 : 0;
+        }
+        if (type === "boss_dash" && Number.isFinite(Number(h.targetX))) {
+            return pointToSegmentDistance(x, y, Number(h.x), Number(h.y),
+                Number(h.targetX), Number(h.targetY)) < radius + 20 ? 1 : 0;
+        }
+        if (type === "predict") {
+            return Math.hypot(x - Number(h.x), y - Number(h.y)) < Math.max(radius, Number(h.radius) || 0) ? 1 : 0;
+        }
+        if (!Number.isFinite(Number(h.x)) || !Number.isFinite(Number(h.y))) {
+            if (Number.isFinite(Number(h.targetX)) && Math.abs(x - Number(h.targetX)) < width * 0.5 + 20) return 1;
+            return 0;
+        }
+        var vx = Number(h.vx) || 0, vy = Number(h.vy) || 0;
+        var px = Number(h.x) + vx * frames, py = Number(h.y) + vy * frames;
+        if (type === "boomerang" && h.stage === "return") {
+            px = Number(h.x) - vx * frames * 0.8;
+            py = Number(h.y) - vy * frames * 0.8;
+        }
+        return Math.hypot(x - px, y - py) < radius + (warning ? 24 : 0) ? 1 : 0;
+    }
+
+    function chooseAllyGoal(boss, threats) {
+        var baseX = Math.max(35, Math.min(365, boss.x + (ally.x <= boss.x ? -54 : 54)));
+        var baseY = Math.max(205, Math.min(365, boss.y + 160));
+        var nearest = null, nearestScore = Infinity;
+        var candidates = [{x:baseX,y:baseY}];
+        for (var a = 0; a < 12; a++) {
+            var angle = a * Math.PI / 6;
+            for (var rad = 48; rad <= 112; rad += 32) {
+                candidates.push({
+                    x: Math.max(28, Math.min(372, ally.x + Math.cos(angle) * rad)),
+                    y: Math.max(170, Math.min(410, ally.y + Math.sin(angle) * rad))
+                });
+            }
+        }
+        var timeChecks = [0, 12, 24, 38];
+        for (var i = 0; i < candidates.length; i++) {
+            var cand = candidates[i], danger = 0;
+            for (var j = 0; j < threats.length; j++) {
+                for (var t = 0; t < timeChecks.length; t++) {
+                    if (threatAt(threats[j], cand.x, cand.y, timeChecks[t], false)) {
+                        danger += (4 - t) * (Number(threats[j].damage) > 16 ? 7 : 4);
+                        break;
+                    }
+                }
+            }
+            var score = danger * 1000 + Math.hypot(cand.x-baseX,cand.y-baseY) * 0.28 +
+                Math.hypot(cand.x-ally.x,cand.y-ally.y) * 0.045;
+            if (score < nearestScore) { nearestScore = score; nearest = cand; }
+        }
+        return nearest || { x: baseX, y: baseY };
+    }
+
+    function damageAlly(amount, x, y) {
+        if (!ally.alive || ally.invuln > 0) return;
+        var dealt = Math.max(1, Math.min(22, Number(amount) || 8));
+        ally.hp = Math.max(0, ally.hp - dealt);
+        ally.invuln = 38; ally.hitFlash = 15;
+        burst(x || ally.x, y || ally.y, 12, "#ff91c9", 4);
+        if (ally.hp <= 0) {
+            ally.alive = false; allyDeathTimer = 240;
+            announce("ПУТЕВОДНАЯ ЗВЕЗДА ВЫБЫЛА!", "#ff9acb", 90);
+        }
+    }
+
+    function updateAlly() {
+        if (!ally.alive) {
+            if (allyDeathTimer > 0) allyDeathTimer--;
+            return;
+        }
+        var boss = bossPoint(), threats = getAllyThreats();
+        ally.phase += 0.11;
+        if (ally.invuln > 0) ally.invuln--;
+        if (ally.hitFlash > 0) ally.hitFlash--;
+        if (ally.dashFlash > 0) ally.dashFlash--;
+        if (ally.attackTimer > 0) ally.attackTimer--;
+        if (ally.attackTimer <= 0) {
+            ally.attackTimer = 138;
+            launchAllyPattern();
+        }
+
+        var goal = chooseAllyGoal(boss, threats);
+        var immediate = null, immediateScore = Infinity;
+        for (var i = 0; i < threats.length; i++) {
+            var h = threats[i];
+            if (!h || h.state === "done") continue;
+            var risk = threatAt(h, ally.x, ally.y, 14, false);
+            if (risk) {
+                var d = Math.hypot(ally.x-(Number(h.x)||ally.x), ally.y-(Number(h.y)||ally.y));
+                var score = d - Math.max(0, Number(h.damage)||0)*0.35;
+                if (score < immediateScore) { immediateScore = score; immediate = h; }
+            }
+        }
+        if (immediate) {
+            var hx = Number(immediate.x) || ally.x, hy = Number(immediate.y) || ally.y;
+            var awayX = ally.x - hx, awayY = ally.y - hy, len = Math.hypot(awayX,awayY) || 1;
+            goal = {
+                x: Math.max(26, Math.min(374, ally.x + awayX / len * 105 + (Math.random()-0.5)*18)),
+                y: Math.max(160, Math.min(420, ally.y + awayY / len * 92))
+            };
+        }
+
+        ally.targetX = goal.x; ally.targetY = goal.y;
+        var dx = goal.x - ally.x, dy = goal.y - ally.y, dist = Math.hypot(dx,dy) || 1;
+        var desired = Math.min(WAYSTAR_ALLY_SPEED, Math.max(0.5, dist * 0.18));
+        var steer = immediate ? 0.34 : 0.19;
+        ally.vx += (dx / dist * desired - ally.vx) * steer;
+        ally.vy += (dy / dist * desired - ally.vy) * steer;
+        var speed = Math.hypot(ally.vx,ally.vy);
+        if (speed > WAYSTAR_ALLY_SPEED) { ally.vx = ally.vx/speed*WAYSTAR_ALLY_SPEED; ally.vy = ally.vy/speed*WAYSTAR_ALLY_SPEED; }
+        ally.x = Math.max(22, Math.min(378, ally.x + ally.vx));
+        ally.y = Math.max(160, Math.min(430, ally.y + ally.vy));
+
+        for (var j = 0; j < threats.length; j++) {
+            var h2 = threats[j];
+            if (!h2 || h2.allyHit) continue;
+            var hit = threatAt(h2, ally.x, ally.y, 0, true);
+            if (hit && ally.invuln <= 0) {
+                h2.allyHit = true;
+                damageAlly(Math.max(6, (Number(h2.damage)||12)*0.48), ally.x, ally.y);
+                break;
+            }
+        }
+
+        // Advance Waystar's own original-style projectiles and attacks.
+        for (var k = allyAttacks.length - 1; k >= 0; k--) {
+            var a = allyAttacks[k];
+            if (a.type === "beam") {
+                if (a.timer > 0) a.timer--;
+                else if (a.activeTimer > 0) {
+                    a.activeTimer--; a.tick++;
+                    if (a.tick % 5 === 0 && !a.hit &&
+                        pointToSegmentDistance(boss.x,boss.y,a.x1,a.y1,a.x2,a.y2) < boss.size + a.width) {
+                        hitBoss(a.damage, boss.x, boss.y, "#fff0ff"); a.hit = a.activeTimer > 0;
+                    }
+                } else { allyAttacks.splice(k,1); }
+                continue;
+            }
+            if (a.type === "bomb") {
+                a.timer--;
+                if (a.timer <= 0) {
+                    if (!a.exploded) {
+                        a.exploded = true;
+                        if (Math.hypot(boss.x-a.x,boss.y-a.y) < a.radius + boss.size)
+                            hitBoss(a.damage,a.x,a.y,a.color);
+                        burst(a.x,a.y,18,a.color,5);
+                    }
+                    allyAttacks.splice(k,1);
+                }
+                continue;
+            }
+            if (a.type === "dash") {
+                a.timer--;
+                if (a.timer <= 0) {
+                    if (!a.hit && pointToSegmentDistance(boss.x,boss.y,a.x1,a.y1,a.x2,a.y2) < boss.size + a.width)
+                        hitBoss(a.damage,boss.x,boss.y,a.color);
+                    allyAttacks.splice(k,1);
+                }
+                continue;
+            }
+            a.trail.push({x:a.x,y:a.y});
+            if (a.trail.length > 6) a.trail.shift();
+            if (a.curve) {
+                var ang = Math.atan2(a.vy,a.vx) + a.curve * a.spin;
+                var spd = Math.max(2,Math.hypot(a.vx,a.vy));
+                a.vx = Math.cos(ang)*spd; a.vy = Math.sin(ang)*spd;
+            }
+            a.x += a.vx; a.y += a.vy; a.rotation += 0.12; a.life--;
+            if (Math.hypot(boss.x-a.x,boss.y-a.y) < boss.size + a.size) {
+                hitBoss(a.damage,a.x,a.y,a.color);
+                burst(a.x,a.y,5,a.color,2.8);
+                allyAttacks.splice(k,1);
+                continue;
+            }
+            if (a.life <= 0 || a.x < -30 || a.x > 430 || a.y < -35 || a.y > 535)
+                allyAttacks.splice(k,1);
+        }
+    }
+
+    function drawAllyAttacks(c) {
+        c.save();
+        for (var i = 0; i < allyAttacks.length; i++) {
+            var a = allyAttacks[i];
+            if (a.type === "beam" || a.type === "dash") {
+                c.save();
+                var activeBeam = a.type === "dash" || a.timer <= 0;
+                c.globalAlpha = activeBeam ? 0.92 : 0.28 + Math.sin(frame/2)*0.12;
+                c.strokeStyle = a.color; c.lineWidth = activeBeam ? (a.width || 18) : 3;
+                c.shadowColor = a.color; c.shadowBlur = 14;
+                c.beginPath(); c.moveTo(a.x1,a.y1); c.lineTo(a.x2,a.y2); c.stroke();
+                c.strokeStyle = "#ffffff"; c.lineWidth = activeBeam ? 3 : 1;
+                c.beginPath(); c.moveTo(a.x1,a.y1); c.lineTo(a.x2,a.y2); c.stroke();
+                c.restore();
+            } else if (a.type === "bomb") {
+                c.save(); c.globalAlpha = 0.45 + Math.sin(frame/3)*0.22;
+                c.strokeStyle = a.color; c.lineWidth = 2; c.shadowColor = a.color; c.shadowBlur = 10;
+                c.beginPath(); c.arc(a.x,a.y,a.radius*(1-a.timer/50),0,Math.PI*2); c.stroke();
+                c.fillStyle = "rgba(255,210,100,.18)"; c.beginPath(); c.arc(a.x,a.y,Math.max(4,a.radius*(1-a.timer/50)),0,Math.PI*2); c.fill();
+                c.restore();
+            } else {
+                for (var j = 0; j < a.trail.length; j++) {
+                    c.globalAlpha = (j+1)/a.trail.length*0.34;
+                    c.fillStyle = a.color; c.beginPath();
+                    c.arc(a.trail[j].x,a.trail[j].y,a.size*(j+1)/a.trail.length*0.65,0,Math.PI*2); c.fill();
+                }
+                c.save(); c.globalAlpha = 1; c.translate(a.x,a.y); c.rotate(a.rotation || 0);
+                c.fillStyle = a.color; c.strokeStyle = "#ffffff"; c.lineWidth = 1.2;
+                c.shadowColor = a.color; c.shadowBlur = 9;
+                c.beginPath();
+                for (var p = 0; p < 10; p++) {
+                    var angle = -Math.PI/2 + p*Math.PI/5, radius = p%2===0 ? a.size : a.size*0.4;
+                    var xx=Math.cos(angle)*radius, yy=Math.sin(angle)*radius;
+                    if(p===0)c.moveTo(xx,yy);else c.lineTo(xx,yy);
+                }
+                c.closePath(); c.fill(); c.stroke(); c.restore();
+            }
+        }
+        c.restore();
+    }
+
+    function drawAllyStatus(c) {
+        if (!ally.alive) {
+            c.save(); c.font="bold 10px Arial"; c.textAlign="center";
+            c.fillStyle="#ff9acb"; c.shadowColor="#ff40a0"; c.shadowBlur=8;
+            c.fillText("ПУТЕВОДНАЯ ЗВЕЗДА ВЫБЫЛА",ally.x,ally.y-28); c.restore();
+            return;
+        }
+        c.save();
+        var barW=42, barX=ally.x-barW/2, barY=ally.y-34;
+        c.fillStyle="rgba(0,0,0,.72)"; c.fillRect(barX-2,barY-3,barW+4,7);
+        c.fillStyle="#26132b"; c.fillRect(barX,barY,barW,3);
+        c.fillStyle=ally.hp>ally.maxHp*.3?"#a5f4ff":"#ff83bb";
+        c.fillRect(barX,barY,barW*Math.max(0,ally.hp/ally.maxHp),3);
+        if (ally.hitFlash > 0) {
+            c.strokeStyle="#ffffff"; c.lineWidth=2; c.globalAlpha=ally.hitFlash/15;
+            c.beginPath(); c.arc(ally.x,ally.y,30,0,Math.PI*2); c.stroke();
+        }
+        c.restore();
+    }
+
     function wasSpared() {
         try {
             var savedValue = (typeof slotData !== "undefined" && slotData) ? slotData.waystarOwesDebt : false;
@@ -87,6 +508,7 @@
         finalLockTriggered = false;
         finalDialogueStage = 0;
         lastPhase = "";
+        resetAlly();
         return true;
     }
 
@@ -151,6 +573,7 @@
             finalLockTriggered = false;
             finalDialogueStage = 0;
             lastPhase = "";
+            resetAlly();
             supportX = Number(livingStonePlayer.x) || 200;
             supportY = Number(livingStonePlayer.y) || 400;
             announce("Я ОБЕЩАЛА ВЕРНУТЬСЯ. И Я ЗДЕСЬ.", "#bcefff", 95);
@@ -179,8 +602,8 @@
                 }
             }
             if (strikeTimer <= 0) {
-                strikeTimer = 300;
-                strike();
+                strikeTimer = 138;
+                launchAllyPattern();
             }
             if (routeTimer <= 0) route = null;
 
@@ -200,14 +623,9 @@
 
         if (guardFlash > 0) guardFlash--;
         if (strikeFlash > 0) strikeFlash--;
-
-        if (typeof livingStonePlayer !== "undefined" && livingStonePlayer) {
-            var side = livingStonePlayer.x < 200 ? 1 : -1;
-            var tx = livingStonePlayer.x + side * (34 + Math.sin(frame / 95) * 5);
-            var ty = livingStonePlayer.y - 20 + Math.sin(frame / 38) * 7;
-            supportX += (tx - supportX) * 0.13;
-            supportY += (ty - supportY) * 0.11;
-        }
+        updateAlly();
+        supportX = ally.x;
+        supportY = ally.y;
     }
 
     function tryProtect(incoming) {
@@ -315,7 +733,7 @@
         var now = typeof performance !== "undefined" ? performance.now() : Date.now();
         var pulse = 1 + Math.sin(now / 135) * 0.1;
         var px = livingStonePlayer.x, py = livingStonePlayer.y;
-        var sx = supportX || px + 35, sy = supportY || py - 22;
+        var sx = ally.x || supportX || px + 35, sy = ally.y || supportY || py - 22;
         var isGreen = phase() === "green";
         var alpha = supportDimTimer > 0 ? 0.38 : 1;
 
@@ -439,7 +857,9 @@
         }
         c.restore();
 
-        window.MBDrawWaystarCompanion(sx, sy, 23);
+        drawAllyAttacks(c);
+        window.MBDrawWaystarCompanion(sx, sy, 27);
+        drawAllyStatus(c);
     }
 
     function stop() {
@@ -461,9 +881,14 @@
         finalLockTriggered = false;
         finalDialogueStage = 0;
         lastPhase = "";
+        allyAttacks.length = 0;
+        allyParticles.length = 0;
         activeEncounterGeneration = -1;
     }
 
+    window.MBWaystarAllyState = function () {
+        return { alive: !!ally.alive, hp: ally.hp, maxHp: ally.maxHp, x: ally.x, y: ally.y };
+    };
     window.MBHasWaystarCompanion = wasSpared;
     window.MBStartWaystarCompanionSupport = startSupport;
     window.MBUpdateWaystarCompanion = update;
