@@ -98,7 +98,7 @@
 
     function keepTrackInMemory(key) {
         return !LOW_MEMORY_MODE || key === "main" || key === "battle" ||
-            key === "shop" || key === "antispiral";
+            key === "shop" || key === "antispiral" || key === "susmanz";
     }
 
     window.__loadedMusic = {};
