@@ -1057,24 +1057,24 @@ function loadGameData(d) {
             return;
         }
 
-        // Gold Experience: отдельный NPC-компаньон с полным текстом обновлённой механики.
+        // Gold Experience: life-energy burst; the autonomous companion belongs to Requiem.
         if (card.name === "Джорно Джованна (Gold Experience)") {
             card.superAbility = {
-                name: "SUPER: ПРИЗЫВ GOLD EXPERIENCE",
-                desc: "Нажми SUPER, чтобы призвать Gold Experience как отдельного NPC на 15 секунд. Он самостоятельно следует за Джорно, выбирает безопасную позицию и уклоняется от атак. В бою стенд чередует три приёма: 4-секундную серию из 30 ударов MUDA MUDA под music/susmanz.mp3, залп живых семян и атаку оплетающими лозами. Также он восстанавливает 8% максимального HP, когда HP Джорно ниже 55% (не чаще раза в 3,6 секунды). После исчезновения стенда начинается перезарядка 20 секунд. Если атака попадает по Gold Experience, Джорно получает 50% рассчитанного урона; если атака попадает непосредственно по Джорно, он получает полный урон без поглощения.",
+                name: "SUPER: ЖИЗНЕННАЯ ЭНЕРГИЯ",
+                desc: "Всплеск жизненной энергии мгновенно восстанавливает Джорно 18% максимального HP и повышает его скорость на 25% на 6 секунд. Перезарядка 18 секунд.",
                 passive: false
             };
-            card.desc = "Джорно создаёт живые организмы с Gold Experience и стремится стать боссом, защищающим невинных. СУПЕР: призывает отдельного разумного NPC Gold Experience на 15 секунд; после исчезновения перезарядка 20 секунд. Стенд следует за Джорно, уклоняется от атак и выбирает между тремя приёмами: 4-секундной серией MUDA MUDA (30 ударов и music/susmanz.mp3), залпом живых семян и оплетающими лозами. При HP Джорно ниже 55% стенд дополнительно восстанавливает 8% максимального HP не чаще раза в 3,6 секунды. Если атака попадает по стенду, Джорно получает 50% рассчитанного урона. Прямое попадание по Джорно наносит полный урон без поглощения.";
+            card.desc = "Джорно использует Gold Experience, чтобы наполнять живые организмы жизненной энергией. SUPER «Жизненная энергия»: мгновенно восстанавливает до 18% максимального HP и повышает скорость Джорно на 25% на 6 секунд. Перезарядка 18 секунд.";
         }
 
-        // Requiem: шкала заряда и два заряда возврата к нулю.
+        // Requiem: Return to Zero is the SUPER; Golden Heart is its always-on passive companion.
         if (card.name === "Джорно Джованна (Gold Experience Requiem)") {
             card.superAbility = {
                 name: "SUPER: ВОЗВРАЩЕНИЕ К НУЛЮ",
-                desc: "SUPER: «ВОЗВРАЩЕНИЕ К НУЛЮ». Заряди шкалу до 100%, затем нажми SUPER: GER действует 5 секунд и получает 2 заряда. Один заряд отменяет одно обычное боевое действие босса целиком, включая серию попаданий. QTE, сюжетные события, переходы фаз и мгновенное поражение не отменяются. После успешного обнуления следующая атака Джорно по этому боссу наносит +50% урона.",
+                desc: "При 100% заряда GER действует 5 секунд и получает 2 заряда. Один заряд отменяет одно обычное боевое действие босса целиком, включая серию попаданий. QTE, сюжетные события, переходы фаз и мгновенное поражение не отменяются. После успешного обнуления следующая атака Джорно наносит +50% урона. Пассивка Golden Heart постоянно сопровождает Джорно и самостоятельно сражается.",
                 passive: false
             };
-            card.desc = "Requiem-форма Gold Experience, способная возвращать действия и волю противника к нулю. SUPER «Возвращение к нулю»: шкала заряжается от попаданий Джорно по боссу (+2%), перехвата удара Gold Experience (+8%) и успешного лечения Джорно (+5%). При 100% заряда активируется на 5 секунд и получает 2 заряда обнуления. Каждый заряд отменяет одно обычное боевое действие целиком, включая всю серию ударов; повторные попадания одной атаки не тратят дополнительные заряды. QTE, сюжетные события, переходы фаз и мгновенное поражение не отменяются. После успешного обнуления следующая атака Джорно по этому боссу наносит +50% урона.";
+            card.desc = "Секретная Requiem-форма Джорно. ПАССИВКА: рядом постоянно сражается Golden Heart, самостоятельный жёлтый стенд-сердце с собственным запасом HP. Он следует за Джорно, прогнозирует опасные атаки, уклоняется, атакует кулаками и чередует MUDA MUDA (30 ударов за 4 секунды под music/susmanz.mp3), Life Seeds и Vine Bind. При низком HP Джорно восстанавливает ему 8% максимального HP раз в 3,6 секунды. Если вражеская атака задевает сердце, оно принимает часть удара на себя и после поражения восстанавливается через 4,8 секунды. Дополнительная пассивка: +5% HP после победы. SUPER «Возвращение к нулю»: при 100% заряда GER получает 2 заряда на 5 секунд; каждый отменяет одно обычное действие босса, но не QTE, сюжетные события и переходы фаз. После успешного обнуления следующая атака Джорно наносит +50% урона.";
         }
 
         // Эта проверка должна быть отдельной: раньше она находилась внутри
@@ -1617,9 +1617,10 @@ function getAfkTeamWinHealPercent() {
     })) heal = Math.max(heal, 0.05);
     afkTeam.forEach(index => {
         const card = myCards[index];
-        if (!card || !card.ability || card.ability.type !== "healOnWin") return;
+        const passive = card && (card.passiveAbility || card.ability);
+        if (!passive || passive.type !== "healOnWin") return;
         if (typeof hasMasteryAbility === "function" && !hasMasteryAbility(card)) return;
-        heal += Math.max(0, Number(card.ability.percent) || 0);
+        heal += Math.max(0, Number(passive.percent) || 0);
     });
     if (afkTeam.some(index => myCards[index] && myCards[index].name === "ДИО Over Heaven" &&
         (typeof hasMasteryAbility !== "function" || hasMasteryAbility(myCards[index])))) heal += 0.01;
@@ -3065,7 +3066,13 @@ function victory() {
     if (dekusNerfWaves > 0) dekusNerfWaves--; 
     increaseFatigue(); 
     clicksSinceLastCounter = 0; 
-    team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'healOnWin' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * cd.ability.percent); }); 
+    team.forEach(idx => {
+        let cd = myCards[idx];
+        let passive = cd && (cd.passiveAbility || cd.ability);
+        if (passive?.type === 'healOnWin' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) {
+            playerHp = Math.min(window.playerMaxHp, playerHp + window.playerMaxHp * passive.percent);
+        }
+    }); 
     checkAutoSell(); 
     generateEnemy(); 
     renderPoints(); 
