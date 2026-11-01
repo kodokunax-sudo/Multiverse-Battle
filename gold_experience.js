@@ -74,6 +74,7 @@
             unique = typeof window.isUniqueBossActive === "function" ? window.isUniqueBossActive() : null;
         } catch (e) {}
         var arena = window.arenaActive === true;
+        try { if (typeof arenaActive !== "undefined" && arenaActive === true) arena = true; } catch (e) {}
         return { unique: unique !== null && unique !== false, bossType: unique, arena: arena, active: unique !== null && unique !== false || arena };
     }
 
@@ -650,6 +651,7 @@
         var kind = String(category || "combat").toLowerCase();
         if (kind === "qte" || kind === "story" || kind === "phase" ||
             kind === "instant" || kind === "scripted" || kind === "transition") return false;
+        if (!sourceAction || typeof sourceAction !== "object") return false;
         var current = now();
         if (sourceAction && typeof sourceAction === "object" && nulledActions && nulledActions.has(sourceAction)) return true;
         if (current >= state.gerUntil || state.gerCharges <= 0) return false;
