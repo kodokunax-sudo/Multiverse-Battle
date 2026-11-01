@@ -416,6 +416,7 @@ function getBossContext() {
                 }
             },
             getAttacks: function() { return waystarAttacks; },
+            getShockwaves: function() { return waystarShockwaves; },
             getBlasters: function() { return []; },
             getParticles: function() { return waystarParticles; },
             getBossMaxHp: function() {
@@ -574,6 +575,7 @@ function getBossContext() {
                 }
             },
             getAttacks: function() { return (typeof window.getRWBAttacks === 'function') ? window.getRWBAttacks() : []; },
+            getShockwaves: function() { return (typeof window.getRWBShockwaves === 'function') ? window.getRWBShockwaves() : []; },
             getBlasters: function() { return []; },
             getParticles: function() { return (typeof window.getRWBParticles === 'function') ? window.getRWBParticles() : []; },
             getBossMaxHp: function() { var b = (typeof window.getRWBActiveBoss === 'function') ? window.getRWBActiveBoss() : null; return b ? b.maxHp : 500; },
