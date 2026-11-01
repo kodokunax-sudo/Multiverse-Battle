@@ -1062,17 +1062,18 @@
                     if (avoided) {
                         if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(LS2_CHASE_LANES[o.lane],hitY,7,"#b7f4ff",3);
                     } else {
-                        ls2ChaseLives=Math.max(0,ls2ChaseLives-1);
                         if (ls2ChaseStarAid && ls2ChaseGuard>0) {
                             ls2ChaseGuard=0; ls2ChaseGuardTimer=240;
                             if (typeof spawnLivingStoneParticles==="function") spawnLivingStoneParticles(LS2_CHASE_LANES[o.lane],hitY,14,"#9deaff",4);
-                            if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,365,"ЗВЕЗДА ПРИКРЫЛА ТЕБЯ! -1 ЖИЗНЬ","#aeeaff",65);
-                        } else if (typeof spawnLivingStoneText==="function") {
-                            spawnLivingStoneText(200,365,"СТОЛКНОВЕНИЕ! ЖИЗНЕЙ: "+ls2ChaseLives,"#ff967d",65);
-                        }
-                        if (ls2ChaseLives<=0) {
-                            ls2ChaseFailed=true; ls2ChaseFailTimer=36;
-                            if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,320,"ТРЕТЬЕ ПОПАДАНИЕ! ПОГОНЯ ПРОВАЛЕНА!","#ff514b",90);
+                            if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,365,"ЗВЕЗДА ОТРАЗИЛА УДАР! ЖИЗНИ СОХРАНЕНЫ","#aeeaff",65);
+                        } else {
+                            ls2ChaseLives=Math.max(0,ls2ChaseLives-1);
+                            if (typeof spawnLivingStoneText==="function")
+                                spawnLivingStoneText(200,365,"СТОЛКНОВЕНИЕ! ЖИЗНЕЙ: "+ls2ChaseLives,"#ff967d",65);
+                            if (ls2ChaseLives<=0) {
+                                ls2ChaseFailed=true; ls2ChaseFailTimer=36;
+                                if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,320,"ТРЕТЬЕ ПОПАДАНИЕ! ПОГОНЯ ПРОВАЛЕНА!","#ff514b",90);
+                            }
                         }
                     }
                 }
