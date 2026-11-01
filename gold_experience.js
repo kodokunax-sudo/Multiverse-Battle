@@ -6,6 +6,9 @@
     var GER_CARD = "Джорно Джованна (Gold Experience Requiem)";
     var GE_DURATION = 15000;
     var GE_COOLDOWN = 20000;
+    var GE_MUDA_DURATION = 4000;
+    var GE_MUDA_HITS = 30;
+    var GE_MUDA_SOUND = "music/susmanz.mp3";
     var GER_DURATION = 5000;
     var GER_CHARGES = 2;
 
@@ -20,6 +23,9 @@
         nextAttackAt: 0,
         attackUntil: 0,
         combo: null,
+        specialAttack: null,
+        lastAttackType: null,
+        attackType: null,
         comboCooldownUntil: 0,
         attackFrame: 0,
         nextHealAt: 0,
@@ -37,6 +43,9 @@
 
     var rafId = 0;
     var lastFrameAt = 0;
+    var mudaAudio = null;
+    var mudaAudioStopTimer = 0;
+    var mudaAudioToken = 0;
     var nulledActions = typeof WeakSet === "function" ? new WeakSet() : null;
 
     function now() {
@@ -213,13 +222,66 @@
         } catch (e) {}
     }
 
-    function getUniqueBossTarget(ctx) {
+    function getUniqueBossTarget(ctx, targetId) {
         try {
             if (ctx && ctx.type !== "arena" && typeof window.getDioUniqueBossTarget === "function") {
-                return window.getDioUniqueBossTarget(ctx) || null;
+                return window.getDioUniqueBossTarget(ctx, targetId) || null;
             }
         } catch (e) {}
         return null;
+    }
+
+    function stopMudaMusic() {
+        mudaAudioToken++;
+        if (mudaAudioStopTimer && typeof window.clearTimeout === "function") {
+            window.clearTimeout(mudaAudioStopTimer);
+        }
+        mudaAudioStopTimer = 0;
+        if (mudaAudio) {
+            try {
+                mudaAudio.pause();
+                mudaAudio.currentTime = 0;
+            } catch (e) {}
+        }
+    }
+
+    function startMudaMusic() {
+        stopMudaMusic();
+        var token = mudaAudioToken;
+        var playedBySharedAudio = false;
+        try {
+            if (typeof window.dioPlaySound === "function") {
+                var sharedAudio = window.dioPlaySound(GE_MUDA_SOUND, 0.82);
+                if (sharedAudio) {
+                    mudaAudio = sharedAudio;
+                    playedBySharedAudio = true;
+                }
+            }
+        } catch (e) {}
+
+        try {
+            if (!mudaAudio) {
+                mudaAudio = new Audio();
+                mudaAudio.preload = "auto";
+                mudaAudio.src = GE_MUDA_SOUND;
+            }
+            if (!playedBySharedAudio) {
+                mudaAudio.pause();
+                mudaAudio.currentTime = 0;
+                mudaAudio.volume = 0.82;
+                mudaAudio.playbackRate = 1;
+                var playPromise = mudaAudio.play();
+                if (playPromise && typeof playPromise.catch === "function") {
+                    playPromise.catch(function () {});
+                }
+            }
+        } catch (e) {}
+
+        if (typeof window.setTimeout === "function") {
+            mudaAudioStopTimer = window.setTimeout(function () {
+                if (token === mudaAudioToken) stopMudaMusic();
+            }, GE_MUDA_DURATION);
+        }
     }
 
     function applyCompanionBossDamage(ctx, target, amount) {
@@ -240,20 +302,52 @@
         return false;
     }
 
-    function beginMudaCombo(ctx, target, card) {
-        if (!target || !ctx || now() < state.comboCooldownUntil) return false;
-        var total = Math.max(6, Math.floor(Math.max(1, Number(target.maxHp) || 1) * 0.012));
-        state.combo = {
-            type: target.type, id: target.id, total: total,
-            hitIndex: 0, nextHitAt: now(), startedAt: now(),
-            x: Number(target.x) || state.x, y: Number(target.y) || state.y
-        };
-        state.comboCooldownUntil = now() + 2450;
-        state.nextAttackAt = state.comboCooldownUntil;
-        state.attackUntil = now() + 1320;
+    function getAttackBossMaxHp(ctx, target) {
+        var hp = Number(target && target.maxHp) || 0;
+        if (!(hp > 0) && ctx && typeof ctx.getBossMaxHp === "function") {
+            try { hp = Number(ctx.getBossMaxHp()) || 0; } catch (e) {}
+        }
+        if (!(hp > 0) && ctx && typeof ctx.getBossHp === "function") {
+            try { hp = Number(ctx.getBossHp()) || 0; } catch (e) {}
+        }
+        return Math.max(1, hp);
+    }
+
+    function finishMudaCombo() {
+        state.combo = null;
         state.attackFrame = 0;
-        try { if (typeof window.showFloatingText === "function") window.showFloatingText("GOLD EXPERIENCE: MUDA MUDA MUDA!", "#ffe28a"); } catch (e) {}
+        state.attackType = null;
+        stopMudaMusic();
+    }
+
+    function beginMudaCombo(ctx, target, card) {
+        if (!ctx || now() < state.comboCooldownUntil) return false;
+        if (ctx.type !== "arena" && !target) return false;
+        var current = now();
+        var maxHp = getAttackBossMaxHp(ctx, target);
+        var total = Math.max(6, Math.floor(maxHp * 0.012));
+        var boss = target || getBossPosition(ctx, state.x, state.y);
+        state.combo = {
+            type: ctx.type,
+            id: target ? target.id : null,
+            total: total,
+            hitIndex: 0,
+            hitCount: GE_MUDA_HITS,
+            nextHitAt: current,
+            startedAt: current,
+            endsAt: current + GE_MUDA_DURATION,
+            x: Number(boss.x) || state.x,
+            y: Number(boss.y) || state.y
+        };
+        state.comboCooldownUntil = current + GE_MUDA_DURATION + 1100;
+        state.nextAttackAt = state.comboCooldownUntil;
+        state.attackUntil = current + 150;
+        state.attackFrame = 0;
+        state.attackType = "muda";
+        state.lastAttackType = "muda";
+        toast("GOLD EXPERIENCE: MUDA MUDA MUDA!", "#ffe28a");
         spawnHitEffect(state.x, state.y, "#ffe28a");
+        startMudaMusic();
         return true;
     }
 
@@ -261,34 +355,137 @@
         var combo = state.combo;
         if (!combo) return;
         var current = now();
-        var target = null;
-        try {
-            if (typeof window.getDioUniqueBossTarget === "function") {
-                target = window.getDioUniqueBossTarget(ctx, combo.id) || null;
-            }
-        } catch (e) {}
-        if (!target || target.type !== combo.type) {
-            state.combo = null;
+        if (!ctx || ctx.type !== combo.type) {
+            finishMudaCombo();
             return;
         }
-        combo.x = Number(target.x) || combo.x;
-        combo.y = Number(target.y) || combo.y;
-        var strikeInterval = 175;
-        while (combo.hitIndex < 7 && current >= combo.nextHitAt) {
+
+        var target = combo.type === "arena" ? null : getUniqueBossTarget(ctx, combo.id);
+        if (combo.type !== "arena" && !target) {
+            finishMudaCombo();
+            return;
+        }
+        var boss = target || getBossPosition(ctx, state.x, state.y);
+        combo.x = Number(boss.x) || combo.x;
+        combo.y = Number(boss.y) || combo.y;
+
+        var hitInterval = GE_MUDA_DURATION / GE_MUDA_HITS;
+        while (combo.hitIndex < combo.hitCount &&
+            current >= combo.startedAt + combo.hitIndex * hitInterval) {
+            var previousIndex = combo.hitIndex;
             combo.hitIndex++;
             state.attackFrame = combo.hitIndex;
-            var hitDamage = Math.floor(combo.total * combo.hitIndex / 7) -
-                Math.floor(combo.total * (combo.hitIndex - 1) / 7);
+            var hitDamage = Math.floor(combo.total * combo.hitIndex / combo.hitCount) -
+                Math.floor(combo.total * previousIndex / combo.hitCount);
             if (hitDamage > 0) applyCompanionBossDamage(ctx, target, hitDamage);
-            combo.nextHitAt += strikeInterval;
-            state.attackUntil = current + 115;
-            spawnHitEffect(combo.x + (Math.random() - 0.5) * 22,
-                combo.y + (Math.random() - 0.5) * 22, "#ffe27a");
+            combo.nextHitAt = combo.startedAt + combo.hitIndex * hitInterval;
+            state.attackUntil = current + 145;
+            var spread = (Math.random() - 0.5) * 24;
+            spawnHitEffect(combo.x + spread, combo.y + (Math.random() - 0.5) * 22, "#ffe27a");
         }
-        if (combo.hitIndex >= 7 && current > combo.nextHitAt + 90) {
-            state.combo = null;
-            state.attackFrame = 0;
+
+        if (current >= combo.endsAt) {
+            finishMudaCombo();
         }
+    }
+
+    function beginSpecialAttack(ctx, target, type) {
+        if (!ctx || (ctx.type !== "arena" && !target)) return false;
+        var current = now();
+        var seeds = type === "seeds";
+        var duration = seeds ? 1250 : 1500;
+        var hitCount = seeds ? 5 : 4;
+        var firstHitDelay = seeds ? 340 : 300;
+        var interval = seeds ? 155 : 330;
+        var damagePercent = seeds ? 0.0085 : 0.009;
+        var maxHp = getAttackBossMaxHp(ctx, target);
+        var boss = target || getBossPosition(ctx, state.x, state.y);
+
+        state.specialAttack = {
+            type: type,
+            targetType: ctx.type,
+            targetId: target ? target.id : null,
+            total: Math.max(4, Math.floor(maxHp * damagePercent)),
+            hitIndex: 0,
+            hitCount: hitCount,
+            nextHitAt: current + firstHitDelay,
+            interval: interval,
+            startedAt: current,
+            endsAt: current + duration,
+            firstHitDelay: firstHitDelay,
+            x: Number(boss.x) || state.x,
+            y: Number(boss.y) || state.y
+        };
+        state.attackType = type;
+        state.lastAttackType = type;
+        state.nextAttackAt = current + duration + 1350;
+        state.attackUntil = current + 320;
+        if (seeds) {
+            toast("GOLD EXPERIENCE: LIFE SEEDS!", "#8dffae");
+            spawnHitEffect(state.x, state.y, "#8dffae");
+        } else {
+            toast("GOLD EXPERIENCE: VINE BIND!", "#8dffae");
+            spawnHitEffect(Number(boss.x) || state.x, Number(boss.y) || state.y, "#8dffae");
+        }
+        return true;
+    }
+
+    function updateSpecialAttack(ctx) {
+        var attack = state.specialAttack;
+        if (!attack) return;
+        var current = now();
+        if (!ctx || ctx.type !== attack.targetType) {
+            state.specialAttack = null;
+            state.attackType = null;
+            return;
+        }
+
+        var target = attack.targetType === "arena" ? null : getUniqueBossTarget(ctx, attack.targetId);
+        if (attack.targetType !== "arena" && !target) {
+            state.specialAttack = null;
+            state.attackType = null;
+            return;
+        }
+        var boss = target || getBossPosition(ctx, state.x, state.y);
+        attack.x = Number(boss.x) || attack.x;
+        attack.y = Number(boss.y) || attack.y;
+
+        while (attack.hitIndex < attack.hitCount && current >= attack.nextHitAt) {
+            var previousIndex = attack.hitIndex;
+            attack.hitIndex++;
+            var hitDamage = Math.floor(attack.total * attack.hitIndex / attack.hitCount) -
+                Math.floor(attack.total * previousIndex / attack.hitCount);
+            if (hitDamage > 0) applyCompanionBossDamage(ctx, target, hitDamage);
+            attack.nextHitAt += attack.interval;
+            state.attackUntil = current + 140;
+            spawnHitEffect(
+                attack.x + (Math.random() - 0.5) * 28,
+                attack.y + (Math.random() - 0.5) * 22,
+                "#8dffae"
+            );
+        }
+
+        if (current >= attack.endsAt) {
+            state.specialAttack = null;
+            state.attackType = null;
+        }
+    }
+
+    function beginCompanionAttack(ctx, target, distance) {
+        var choices = [];
+        if (distance <= 135) choices.push("muda", "muda", "muda");
+        if (distance <= 185) choices.push("vines", "vines");
+        if (distance <= 230) choices.push("seeds", "seeds");
+        if (!choices.length) return false;
+
+        var freshChoices = choices.filter(function (type) {
+            return type !== state.lastAttackType;
+        });
+        if (!freshChoices.length) freshChoices = choices;
+        var selected = freshChoices[Math.floor(Math.random() * freshChoices.length)];
+
+        if (selected === "muda") return beginMudaCombo(ctx, target, currentCard());
+        return beginSpecialAttack(ctx, target, selected);
     }
 
     function healWithGoldExperience(ctx) {
@@ -310,8 +507,10 @@
         if (!state.active || !isGoldExperienceMain()) return;
         var current = now();
         if (current >= state.activeUntil) {
+            finishMudaCombo();
+            state.specialAttack = null;
+            state.attackType = null;
             state.active = false;
-            state.combo = null;
             state.attackFrame = 0;
             state.cooldownUntil = current + GE_COOLDOWN;
             toast("GOLD EXPERIENCE ВЕРНУЛСЯ · ПЕРЕЗАРЯДКА 20 СЕК.", "#e9cb54");
@@ -343,31 +542,97 @@
         while (state.trail.length && state.trail[0].life <= 0) state.trail.shift();
 
         healWithGoldExperience(ctx);
-        updateMudaCombo(ctx);
+        if (state.combo) updateMudaCombo(ctx);
+        else if (state.specialAttack) updateSpecialAttack(ctx);
 
         var target = getUniqueBossTarget(ctx);
         var targetX = target ? Number(target.x) : boss.x;
         var targetY = target ? Number(target.y) : boss.y;
         var bossDistance = Math.hypot(state.x - targetX, state.y - targetY);
-        if (!state.combo && current >= state.nextAttackAt && bossDistance <= 128) {
-            if (target) beginMudaCombo(ctx, target, currentCard());
-            else if (ctx.type === "arena" && bossDistance <= 112) {
-                var arenaDamage = Math.max(1, Math.floor((Number(currentCard() && currentCard().damage) || 137) * 0.22));
-                if (applyCompanionBossDamage(ctx, null, arenaDamage)) {
-                    state.attackUntil = current + 260;
-                    state.nextAttackAt = current + 930;
-                } else state.nextAttackAt = current + 250;
+        if (!state.combo && !state.specialAttack &&
+            current >= state.nextAttackAt && bossDistance <= 230) {
+            beginCompanionAttack(ctx, target, bossDistance);
+        }
+    }
+
+    function drawSpecialAttackEffects(c, current) {
+        var attack = state.specialAttack;
+        if (!attack) return;
+        var elapsed = Math.max(0, current - attack.startedAt);
+        c.save();
+
+        if (attack.type === "seeds") {
+            var fromX = state.x + state.facing * 18;
+            var fromY = state.y - 8;
+            for (var i = 0; i < attack.hitCount; i++) {
+                var age = elapsed - i * 145;
+                if (age < 0 || age > 650) continue;
+                var progress = Math.max(0, Math.min(1, age / 650));
+                var x = fromX + (attack.x - fromX) * progress;
+                var y = fromY + (attack.y - fromY) * progress -
+                    Math.sin(progress * Math.PI) * 38 + Math.sin(current / 55 + i) * 3;
+                c.globalAlpha = Math.max(0, 1 - progress * 0.35);
+                c.fillStyle = "#a8ffc0";
+                c.shadowColor = "#62ff9a";
+                c.shadowBlur = 12;
+                c.beginPath();
+                c.arc(x, y, 3.2 + Math.sin(current / 40 + i) * 0.7, 0, Math.PI * 2);
+                c.fill();
+                c.shadowBlur = 0;
+                c.strokeStyle = "rgba(145,255,180,.55)";
+                c.lineWidth = 1.2;
+                c.beginPath();
+                c.moveTo(x - (attack.x - fromX) * 0.035, y - (attack.y - fromY) * 0.035);
+                c.lineTo(x, y);
+                c.stroke();
+            }
+        } else if (attack.type === "vines") {
+            var grow = Math.max(0, Math.min(1, (elapsed - 80) / 520));
+            c.globalAlpha = 0.9;
+            c.strokeStyle = "#72e99b";
+            c.lineWidth = 3;
+            c.lineCap = "round";
+            c.shadowColor = "#52ff91";
+            c.shadowBlur = 8;
+            for (var vine = 0; vine < 5; vine++) {
+                var angle = vine * Math.PI * 2 / 5 + elapsed / 950;
+                var outerX = attack.x + Math.cos(angle) * 62;
+                var outerY = attack.y + Math.sin(angle) * 42;
+                var innerX = attack.x + Math.cos(angle + 0.8) * 9;
+                var innerY = attack.y + Math.sin(angle + 0.8) * 8;
+                c.beginPath();
+                c.moveTo(attack.x + (outerX - attack.x) * (1 - grow), attack.y + (outerY - attack.y) * (1 - grow));
+                c.quadraticCurveTo(
+                    attack.x + Math.cos(angle + 0.45) * 48,
+                    attack.y + Math.sin(angle + 0.45) * 34,
+                    innerX,
+                    innerY
+                );
+                c.stroke();
+                c.fillStyle = "#b4ffc4";
+                c.beginPath();
+                c.ellipse(
+                    attack.x + Math.cos(angle + 0.45) * 32,
+                    attack.y + Math.sin(angle + 0.45) * 25,
+                    4,
+                    2,
+                    angle,
+                    0,
+                    Math.PI * 2
+                );
+                c.fill();
             }
         }
+        c.restore();
     }
 
     function drawGoldExperience(c) {
         if (!state.active || !isGoldExperienceMain()) return;
         var current = now();
         var walk = Math.sin(current / 85) * 0.9;
-        var attack = current < state.attackUntil;
+        var attack = current < state.attackUntil || !!state.combo || !!state.specialAttack;
         var comboStrike = state.combo ? Math.max(0, state.combo.hitIndex) : 0;
-        var punch = attack ? (0.72 + Math.sin(current / 24) * 0.28) : 0;
+        var punch = attack ? (0.72 + Math.sin(current / (state.combo ? 13 : 24)) * 0.28) : 0;
         var scale = 1.22;
         c.save();
         c.globalCompositeOperation = "lighter";
@@ -472,9 +737,18 @@
             if (state.combo) {
                 c.globalAlpha *= 0.72;
                 c.beginPath(); c.arc(state.x + state.facing * 28, state.y - 8, 25, -0.65, 0.65); c.stroke();
+                c.globalAlpha *= 0.78;
+                for (var slash = 0; slash < 3; slash++) {
+                    var slashY = state.y - 20 + slash * 9;
+                    c.beginPath();
+                    c.moveTo(state.x + state.facing * 20, slashY);
+                    c.lineTo(state.x + state.facing * (43 + (slash % 2) * 6), slashY - 7);
+                    c.stroke();
+                }
             }
             c.restore();
         }
+        drawSpecialAttackEffects(c, current);
     }
 
     function ensureHud() {
@@ -613,8 +887,12 @@
         state.vy = 0;
         state.nextAttackAt = current + 400;
         state.nextHealAt = current + 1200;
+        stopMudaMusic();
         state.attackUntil = 0;
         state.combo = null;
+        state.specialAttack = null;
+        state.attackType = null;
+        state.lastAttackType = null;
         state.comboCooldownUntil = current + 400;
         state.attackFrame = 0;
         state.trail = [];
@@ -675,7 +953,12 @@
         state.active = false;
         state.activeUntil = 0;
         state.cooldownUntil = 0;
+        stopMudaMusic();
         state.trail = [];
+        state.combo = null;
+        state.specialAttack = null;
+        state.attackType = null;
+        state.lastAttackType = null;
         state.nextAttackAt = 0;
         state.nextHealAt = 0;
         state.gerUntil = 0;
@@ -801,6 +1084,9 @@
         if (state.active) {
             if (!isGoldExperienceMain() || !getCombat().active) {
                 state.active = false;
+                finishMudaCombo();
+                state.specialAttack = null;
+                state.attackType = null;
                 state.trail = [];
             } else {
                 updateCompanion(dt);
@@ -835,6 +1121,9 @@
             if (card && (card.name === GE_CARD || card.name === GER_CARD)) {
                 if (state.active && now() >= state.activeUntil) {
                     state.active = false;
+                    finishMudaCombo();
+                    state.specialAttack = null;
+                    state.attackType = null;
                     state.cooldownUntil = now() + GE_COOLDOWN;
                 }
                 updateSuperButton();
