@@ -739,6 +739,7 @@
         window.__mbLS2GravityFromY = 400;
         window.__mbLS2GreenEventCount = 0;
         ls2UniqueFrame = 0; ls2UniqueAttackTimer = 260;
+        ls2StoneShield = null; ls2StoneShieldCooldown = 360;
         ls2UniqueAttacks = []; ls2UniqueDecoys = []; ls2UniqueCracks = [];
         ls2BossDash = null; ls2BossStun = 0; ls2DodgeCooldown = 0;
         ls2DodgeStreak = 0; ls2BossHitCount = 0; ls2ShellBreak = null;
@@ -827,8 +828,95 @@
     var ls2PlayerVx = 0, ls2PlayerVy = 0, ls2PlayerStillFrames = 0;
     var ls2PlayerLane = 1, ls2PlayerLaneFrames = 0, ls2AttackRepeatCount = 0;
     var ls2BossWobble = 0;
+    // Разрушаемые каменные плиты Прайма. Обычный Живой Камень их не использует.
+    var ls2StoneShield = null;
+    var ls2StoneShieldCooldown = 360;
 
     function ls2Clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function ls2UpdateStoneShield() {
+        if (!ls2Live() || (window.__mbLS2GreenPhase || "normal") !== "normal") {
+            if (ls2StoneShield) {
+                ls2StoneShield = null;
+                ls2StoneShieldCooldown = Math.max(ls2StoneShieldCooldown, 360);
+            }
+            return;
+        }
+        if (ls2StoneShield) {
+            ls2StoneShield.life--;
+            ls2StoneShield.angle = Math.atan2(
+                livingStonePlayer.y - livingStoneBoss.y,
+                livingStonePlayer.x - livingStoneBoss.x
+            );
+            if (ls2StoneShield.life <= 0) {
+                ls2StoneShield = null;
+                ls2StoneShieldCooldown = 520 + Math.floor(Math.random() * 220);
+            }
+            return;
+        }
+        if (ls2StoneShieldCooldown > 0) {
+            ls2StoneShieldCooldown--;
+            return;
+        }
+        var shieldHp = 560;
+        ls2StoneShield = {
+            life: 210,
+            maxLife: 210,
+            angle: Math.atan2(
+                livingStonePlayer.y - livingStoneBoss.y,
+                livingStonePlayer.x - livingStoneBoss.x
+            ),
+            plates: [
+                { offset: -0.56, hp: shieldHp, maxHp: shieldHp },
+                { offset: 0, hp: shieldHp, maxHp: shieldHp },
+                { offset: 0.56, hp: shieldHp, maxHp: shieldHp }
+            ]
+        };
+        if (typeof spawnLivingStoneText === "function") {
+            spawnLivingStoneText(livingStoneBoss.x, livingStoneBoss.y - 58,
+                "КАМЕННЫЙ ЩИТ", "#c9b18f", 58);
+        }
+    }
+    function ls2AbsorbStoneShieldBullet(b) {
+        if (!ls2Live() || (window.__mbLS2GreenPhase || "normal") !== "normal" ||
+            !ls2StoneShield || !ls2StoneShield.plates.length) return false;
+        var shield = ls2StoneShield;
+        var bulletRadius = Math.max(3, Number(b.size) || 4);
+        for (var i = shield.plates.length - 1; i >= 0; i--) {
+            var plate = shield.plates[i];
+            var angle = shield.angle + plate.offset;
+            var plateX = livingStoneBoss.x + Math.cos(angle) * 51;
+            var plateY = livingStoneBoss.y + Math.sin(angle) * 51;
+            var dx = b.x - plateX, dy = b.y - plateY;
+            if (dx * dx + dy * dy > (17 + bulletRadius) * (17 + bulletRadius)) continue;
+            var bulletDamage = Math.max(1, Number(b.damage) || 120);
+            plate.hp -= Math.max(55, Math.min(240, Math.floor(bulletDamage * 0.55)));
+            if (typeof spawnLivingStoneParticles === "function") {
+                spawnLivingStoneParticles(plateX, plateY, 5, "#c2aa86", 2.8);
+            }
+            if (plate.hp <= 0) {
+                shield.plates.splice(i, 1);
+                if (typeof spawnLivingStoneParticles === "function") {
+                    spawnLivingStoneParticles(plateX, plateY, 9, "#a58a68", 3.5);
+                }
+                if (shield.plates.length > 0 && typeof spawnLivingStoneText === "function") {
+                    spawnLivingStoneText(plateX, plateY - 18, "ПЛИТА РАЗРУШЕНА", "#c9b18f", 42);
+                }
+            }
+            if (shield.plates.length === 0) {
+                ls2StoneShield = null;
+                ls2StoneShieldCooldown = 560 + Math.floor(Math.random() * 220);
+                if (typeof spawnLivingStoneText === "function") {
+                    spawnLivingStoneText(livingStoneBoss.x, livingStoneBoss.y - 62,
+                        "ЩИТ РАЗБИТ", "#ffcf98", 68);
+                }
+                if (typeof spawnLivingStoneParticles === "function") {
+                    spawnLivingStoneParticles(livingStoneBoss.x, livingStoneBoss.y, 16, "#b99a72", 4);
+                }
+            }
+            return true;
+        }
+        return false;
+    }
     function ls2HasWaystarAid() {
         if (typeof window==="undefined") return false;
         var savedValue = (typeof slotData!=="undefined" && slotData) ? slotData.waystarOwesDebt : false;
@@ -1169,6 +1257,7 @@
         if (!ls2Live()) return false;
         var b = livingStoneBoss, p = livingStonePlayer;
         ls2UniqueFrame++;
+        ls2UpdateStoneShield();
         if (ls2DodgeCooldown > 0) ls2DodgeCooldown--;
         if ((window.__mbLS2GreenPhase||"normal")==="chase") {
             b.x=200; b.y=95-Math.min(28,ls2ChaseFrames*0.035); b.rotation+=0.025; b.vx=0;
@@ -1359,6 +1448,59 @@
             ls2CombatText("ПОТЕРЯЛ РАВНОВЕСИЕ! АТАКУЙ!", "#fff0a8", 90);
         }
         return true;
+    };
+
+    window.MBLivingStoneSuperAbsorbStoneShieldBullet = function(b) {
+        return ls2AbsorbStoneShieldBullet(b);
+    };
+    window.MBDrawLivingStoneSuperStoneShield = function(c) {
+        if (!ls2Live() || (window.__mbLS2GreenPhase || "normal") !== "normal" ||
+            !ls2StoneShield || !ls2StoneShield.plates.length || !c) return;
+        var shield = ls2StoneShield;
+        c.save();
+        for (var i = 0; i < shield.plates.length; i++) {
+            var plate = shield.plates[i];
+            var angle = shield.angle + plate.offset;
+            var px = livingStoneBoss.x + Math.cos(angle) * 51;
+            var py = livingStoneBoss.y + Math.sin(angle) * 51;
+            var strength = Math.max(0.25, plate.hp / plate.maxHp);
+            c.save();
+            c.translate(px, py);
+            c.rotate(angle + Math.PI / 4);
+            c.globalAlpha = 0.72 + strength * 0.25;
+            c.fillStyle = strength < 0.45 ? "#75604b" : "#aa9270";
+            c.strokeStyle = strength < 0.45 ? "#e6a06b" : "#e0c7a1";
+            c.lineWidth = 2;
+            c.beginPath();
+            c.moveTo(-13, -11);
+            c.lineTo(8, -15);
+            c.lineTo(16, -2);
+            c.lineTo(7, 14);
+            c.lineTo(-12, 10);
+            c.lineTo(-17, -2);
+            c.closePath();
+            c.fill();
+            c.stroke();
+            if (strength < 0.72) {
+                c.strokeStyle = "#39291d";
+                c.lineWidth = 1.5;
+                c.beginPath();
+                c.moveTo(-3, -9);
+                c.lineTo(1, -1);
+                c.lineTo(-5, 5);
+                c.lineTo(5, 11);
+                c.stroke();
+            }
+            c.restore();
+        }
+        c.globalAlpha = 0.28 * (shield.life / shield.maxLife);
+        c.strokeStyle = "#d1b891";
+        c.lineWidth = 2;
+        c.beginPath();
+        c.arc(livingStoneBoss.x, livingStoneBoss.y, 51,
+            shield.angle - 0.88, shield.angle + 0.88);
+        c.stroke();
+        c.restore();
     };
 
     window.MBLivingStoneSuperOnBossHit = function(bullet) {
@@ -2050,6 +2192,8 @@
 
     function ls2Stop(restoreMainScreen) {
         if (!ls2Active && !ls2ChoicePending) return;
+        ls2StoneShield = null;
+        ls2StoneShieldCooldown = 360;
         if (window.__mbLS2RunnerActive && typeof window.MBStopLivingStoneChase === "function") {
             try { window.MBStopLivingStoneChase(); } catch(e) {}
         }
