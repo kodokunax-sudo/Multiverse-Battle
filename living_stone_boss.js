@@ -2158,6 +2158,10 @@ function damageLivingStonePlayer(dmg, sourceAction, damageCategory) {
     }
     if (typeof window.MBWaystarTryProtect === "function" && window.MBWaystarTryProtect(dmg)) return;
     if (typeof window.MBKarsProcessIncomingDamage === "function") dmg = window.MBKarsProcessIncomingDamage(dmg);
+    if (sourceAction && typeof window.MBGoldExperienceRedirectDamage === "function") {
+        var geRedirectedDamage = window.MBGoldExperienceRedirectDamage(dmg, typeof getBossContext === "function" ? getBossContext() : null, sourceAction);
+        if (geRedirectedDamage !== null) dmg = geRedirectedDamage;
+    }
     if (typeof window.MBGERTryNullifyDamage === "function" &&
         window.MBGERTryNullifyDamage(dmg, sourceAction, damageCategory || "combat")) {
         livingStoneInvulnTimer = 50;
