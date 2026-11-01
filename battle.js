@@ -987,6 +987,7 @@ function applyArenaDamage() {
         if(typeof getTakabaCombatModifiers==="function"){try{finalDmg=Math.floor(finalDmg*getTakabaCombatModifiers().dmgMult);}catch(e){}}
         if (_superState.takabaDmgMult && _superState.takabaDmgMult > 1) finalDmg = Math.floor(finalDmg * _superState.takabaDmgMult);
     }
+    if (typeof window.MBKarsApplyDamageBonus === "function") finalDmg = window.MBKarsApplyDamageBonus(finalDmg);
     if (typeof window !== "undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage === "function") {
         try { finalDmg = window.MBBossTestModifyOutgoingDamage(finalDmg, ratio); } catch(e) {}
     }
@@ -2119,6 +2120,7 @@ function applyHit(dmg, textMsg, isTrueOneshot, ignoreInvulnerability) {
         arenaKarma = 0;
         invulnTimer = 0;
     } else {
+        if (typeof window.MBKarsProcessIncomingDamage === "function") dmg = window.MBKarsProcessIncomingDamage(dmg);
         if (arenaAttackType !== 10 && !ignoreInvulnerability) invulnTimer = 45;
         if (isTrueOneshot || dmg >= arenaMaxHP) { arenaHP = 0; }
         else { var directDmg = 1; var karmaDmg = dmg - directDmg; if (karmaDmg < 0) karmaDmg = 0; arenaHP -= directDmg; arenaKarma += karmaDmg; }
