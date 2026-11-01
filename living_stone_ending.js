@@ -4,7 +4,7 @@
 
     var active = false, superMode = false, startedAt = 0, lastAt = 0, elapsed = 0;
     var lane = 1, laneVisual = 1, jumpLeft = 0, slideLeft = 0;
-    var obstacles = [], coins = [], particles = [], powerups = [], roofObstacles = [];
+    var obstacles = [], coins = [], particles = [], powerups = [], roofObstacles = [], debris = [];
     var spawnClock = 0, powerupClock = 0, roofSpawnClock = 0, trackOffset = 0, distance = 0, coinCount = 0, score = 0;
     var trainRideLeft = 0, trainRideLane = 1, trainDropLeft = 0, trainRideTotal = 4.6;
     var trainRideObstacle = null;
@@ -12,6 +12,7 @@
     var magnetLeft = 0, superJumpLeft = 0, jetpackLeft = 0, hoverboardCharges = 0, hoverboardLeft = 0, boardGuardLeft = 0;
     var starAid = false, starGuard = false, nextGuard = 0, nextStrike = 0;
     var hitGraceLeft = 0, carImpactFlash = 0;
+    var carDiveLeft = 0, carDiveCooldown = 0, carDiveDuration = 0.46, carDiveOffset = 0;
     var chaseLives = 3, chaseFailed = false, chaseFailTimer = 0, combo = 0;
     var starFlash = 0, damageFlash = 0, callback = null, music = null;
     var musicKeepAlive = false;
@@ -96,10 +97,10 @@
     }
 
     function laneX(value, depth) {
-        return 200 + (value - 1) * (24 + depth * 112);
+        return 200 + (value - 1) * (8 + depth * 127);
     }
     function depthY(depth) {
-        return 112 + Math.pow(clamp(depth, 0, 1.08), 1.68) * 375;
+        return 190 + Math.pow(clamp(depth, 0, 1.08), 1.68) * 260;
     }
     function resetArrays() {
         obstacles.length = 0;
@@ -107,6 +108,7 @@
         particles.length = 0;
         powerups.length = 0;
         roofObstacles.length = 0;
+        debris.length = 0;
         trainRideObstacle = null;
         roofSpawnClock = 0;
     }
@@ -193,6 +195,16 @@
         }
     }
     function slide() {
+        // DOWN becomes a spacecraft dive during the Waystar rescue section.
+        if (starAid && introFinished) {
+            if (jetpackLeft > 0 || carDiveCooldown > 0 || carDiveLeft > 0) return;
+            carDiveLeft = carDiveDuration;
+            carDiveCooldown = 0.82;
+            carImpactFlash = Math.max(carImpactFlash, 6);
+            if (typeof playArenaSound === "function") playArenaSound(125, "sawtooth", 0.13, 0.055);
+            message("РЫВОК ВНИЗ!", "#aeeaff");
+            return;
+        }
         if (jetpackLeft > 0 || slideLeft > 0 || jumpLeft > 0.08) return;
         slideLeft = slideTotal;
         if (typeof playArenaSound === "function") playArenaSound(160, "triangle", 0.06, 0.035);
@@ -345,6 +357,13 @@
         var speed = starAid ? 0.31 + difficulty * 0.12 : 0.38 + difficulty * 0.16;
         if (hitGraceLeft > 0) hitGraceLeft = Math.max(0, hitGraceLeft - dt);
         if (carImpactFlash > 0) carImpactFlash = Math.max(0, carImpactFlash - dt * 60);
+        if (carDiveCooldown > 0) carDiveCooldown = Math.max(0, carDiveCooldown - dt);
+        if (carDiveLeft > 0) {
+            carDiveLeft = Math.max(0, carDiveLeft - dt);
+            var diveProgress = 1 - carDiveLeft / carDiveDuration;
+            carDiveOffset = Math.sin(diveProgress * Math.PI) * 42;
+        } else carDiveOffset = 0;
+        updateDebris(dt);
         if (starAid && !starGuard && elapsed >= nextGuard) {
             starGuard = true;
             nextGuard = elapsed + 8000;
@@ -372,7 +391,9 @@
         jumpHeightCurrent = jumpHeight;
         slidePose += ((slideLeft > 0 ? 1 : 0) - slidePose) * Math.min(1, dt * 18);
         livingStonePlayer.x = laneX(laneVisual, 0.92);
-        if (jetpackLeft > 0) {
+        if (starAid && introFinished && trainRideLeft <= 0 && jetpackLeft <= 0) {
+            livingStonePlayer.y = 422 - jumpHeight + carDiveOffset - Math.abs(Math.sin(elapsed * 0.023)) * 1.2;
+        } else if (jetpackLeft > 0) {
             livingStonePlayer.y = 270 + Math.sin(elapsed * 0.009) * 12;
         } else if (trainRideLeft > 0) {
             livingStonePlayer.y = 350 - jumpHeight;
@@ -437,8 +458,9 @@
                     if (starAid && introFinished && ob.type === "beam") {
                         // The transformed Waystar car smashes every low overhead beam in its lane.
                         ob.smashed = true;
+                        spawnBeamDebris(ob);
                         carImpactFlash = 14;
-                        score += 260; combo++;
+                        score += 260 + (carDiveLeft > 0 ? 180 : 0); combo++;
                         if (typeof spawnLivingStoneParticles === "function")
                             spawnLivingStoneParticles(laneX(ob.lane, 0.93), depthY(0.93) - 30, 22, "#9deaff", 5);
                         if (typeof playArenaSound === "function") playArenaSound(220, "square", 0.11, 0.055);
@@ -561,62 +583,58 @@
         if (stroke) { c.strokeStyle = stroke; c.lineWidth = width || 1; c.stroke(); }
     }
     function drawTunnel(c, now) {
-        c.fillStyle = "#101923";
-        c.fillRect(0, 0, 400, 500);
-        var sky = c.createLinearGradient(0, 0, 0, 250);
-        sky.addColorStop(0, "#101a26"); sky.addColorStop(0.58, "#28313a"); sky.addColorStop(1, "#4b3c32");
-        c.fillStyle = sky; c.fillRect(0, 0, 400, 250);
-
-        // Tunnel walls and repeated lamps create a fast-moving subway corridor.
-        polygon(c, [[0, 82], [163, 112], [28, 500], [0, 500]], "#252b32", "#62605b", 2);
-        polygon(c, [[400, 82], [237, 112], [372, 500], [400, 500]], "#252b32", "#62605b", 2);
-        polygon(c, [[0, 0], [400, 0], [237, 112], [163, 112]], "#18212a", "#48515a", 1);
-        for (var i = 0; i < 5; i++) {
-            var z = (i * 0.24 + trackOffset * 0.78) % 1;
-            var y = 35 + Math.pow(z, 1.55) * 160;
-            var w = 8 + z * 34;
-            var xLeft = 200 - (48 + z * 125), xRight = 200 + (48 + z * 125);
-            c.fillStyle = "rgba(255,196,111," + (0.16 + z * 0.34) + ")";
-            c.fillRect(xLeft - w / 2, y, w, 3 + z * 5);
-            c.fillRect(xRight - w / 2, y, w, 3 + z * 5);
-            c.strokeStyle = "rgba(130,145,154," + (0.12 + z * 0.22) + ")";
-            c.lineWidth = 1 + z * 2;
-            c.beginPath(); c.moveTo(200 - (58 + z * 140), y + 10);
-            c.lineTo(200 + (58 + z * 140), y + 10); c.stroke();
+        c.fillStyle = "#07051b"; c.fillRect(0,0,400,500);
+        var sky=c.createLinearGradient(0,0,0,218);
+        sky.addColorStop(0,"#02030d"); sky.addColorStop(.32,"#10104a");
+        sky.addColorStop(.68,"#352078"); sky.addColorStop(.9,"#a21b91"); sky.addColorStop(1,"#ff3c9d");
+        c.fillStyle=sky; c.fillRect(0,0,400,218);
+        for(var star=0;star<76;star++){
+            var sx=(star*97+19)%400, sy=(star*43+Math.floor(star/4)*11)%174;
+            var tw=.35+((star*13+Math.floor(now/460))%7)*.08;
+            c.fillStyle="rgba(170,220,255,"+tw+")"; c.fillRect(sx,sy,star%9===0?2:1,star%9===0?2:1);
         }
-
-        // Track bed in strong perspective.
-        polygon(c, [[184, 112], [216, 112], [398, 500], [2, 500]], "#313238", "#8c7560", 2);
-        for (var divider = 0; divider < 2; divider++) {
-            var topX = 200 + (divider === 0 ? -1 : 1) * (12 + 8);
-            var bottomX = 200 + (divider === 0 ? -1 : 1) * 65;
-            c.strokeStyle = "rgba(178,164,145,.38)";
-            c.lineWidth = 2;
-            c.beginPath(); c.moveTo(topX, 112); c.lineTo(bottomX, 500); c.stroke();
+        // Large red-orange striped sunset.
+        c.save(); c.beginPath(); c.arc(200,116,59,0,Math.PI*2); c.clip();
+        var sun=c.createLinearGradient(0,54,0,180);
+        sun.addColorStop(0,"#ff2528"); sun.addColorStop(.44,"#ff3c30");
+        sun.addColorStop(.78,"#ff8b35"); sun.addColorStop(1,"#ffe35a");
+        c.fillStyle=sun; c.fillRect(130,54,140,126);
+        c.fillStyle="rgba(20,8,39,.88)";
+        var stripeY=77;
+        for(var band=0;band<12;band++){
+            var bandHeight=band<4?2:(band<8?3:4);
+            c.fillRect(128,stripeY,144,bandHeight); stripeY+=bandHeight+(band<5?7:5);
         }
-        for (var railLane = 0; railLane < 3; railLane++) {
-            var topCenter = 200 + (railLane - 1) * 8;
-            var bottomCenter = 200 + (railLane - 1) * 112;
-            for (var side = -1; side <= 1; side += 2) {
-                c.strokeStyle = side < 0 ? "#9e9c96" : "#625e59";
-                c.lineWidth = 2.2;
-                c.beginPath();
-                c.moveTo(topCenter + side * 4, 112);
-                c.lineTo(bottomCenter + side * 19, 500);
-                c.stroke();
-            }
+        c.restore();
+        c.strokeStyle="rgba(255,88,78,.72)"; c.lineWidth=1;
+        c.beginPath(); c.arc(200,116,59,0,Math.PI*2); c.stroke();
+        var glow=c.createLinearGradient(0,174,0,207);
+        glow.addColorStop(0,"rgba(255,41,165,0)"); glow.addColorStop(.45,"rgba(255,42,174,.88)");
+        glow.addColorStop(1,"rgba(40,229,255,.12)");
+        c.fillStyle=glow; c.fillRect(0,174,400,33);
+        c.fillStyle="#ff45be"; c.fillRect(0,187,400,2);
+        c.fillStyle="rgba(80,249,255,.55)"; c.fillRect(0,191,400,1);
+        var floor=c.createLinearGradient(0,190,0,500);
+        floor.addColorStop(0,"#160c3c"); floor.addColorStop(.42,"#09082b"); floor.addColorStop(1,"#020716");
+        c.fillStyle=floor; c.fillRect(0,190,400,310);
+        c.save(); c.strokeStyle="#25f6e8"; c.lineWidth=1.15;
+        c.shadowColor="#12eaff"; c.shadowBlur=reduced?0:7;
+        for(var vertical=-6;vertical<=6;vertical++){
+            c.beginPath(); c.moveTo(200,190); c.lineTo(200+vertical*64,500); c.stroke();
         }
-        for (var sleeper = 0; sleeper < 12; sleeper++) {
-            var z2 = (sleeper / 12 + trackOffset) % 1;
-            var y2 = 112 + Math.pow(z2, 1.68) * 388;
-            var half = 16 + z2 * 178;
-            c.strokeStyle = "rgba(168,142,112," + (0.25 + z2 * 0.45) + ")";
-            c.lineWidth = 1 + z2 * 6;
-            c.beginPath(); c.moveTo(200 - half, y2); c.lineTo(200 + half, y2); c.stroke();
+        c.shadowBlur=0;
+        for(var row=0;row<13;row++){
+            var z=(row/13+trackOffset*.34)%1, lineY=190+Math.pow(z,1.58)*310;
+            c.globalAlpha=.34+z*.66; c.lineWidth=.7+z*1.25;
+            c.beginPath(); c.moveTo(0,lineY); c.lineTo(400,lineY); c.stroke();
         }
-        c.strokeStyle = "rgba(255,220,166,.13)";
-        c.lineWidth = 1;
-        c.beginPath(); c.moveTo(200, 112); c.lineTo(200, 500); c.stroke();
+        c.globalAlpha=1; c.restore();
+        c.save(); c.globalAlpha=.32; c.strokeStyle="#ff4bcb"; c.lineWidth=1;
+        for(var scan=0;scan<5;scan++){
+            var scanY=208+((scan*61+trackOffset*90)%285);
+            c.beginPath(); c.moveTo(200-(scanY-190)*.58,scanY); c.lineTo(200+(scanY-190)*.58,scanY); c.stroke();
+        }
+        c.restore();
     }
 
     function drawCoin(c, item) {
@@ -703,9 +721,41 @@
         c.restore();
     }
 
+    function spawnBeamDebris(ob) {
+        var z=clamp(ob.z,0,1.05), x=laneX(ob.lane,z), y=depthY(z), scale=.18+z*1.36;
+        var chunks=[
+            {x:x-27*scale,y:y-34*scale,w:6*scale,h:48*scale,color:"#70513d"},
+            {x:x+22*scale,y:y-34*scale,w:6*scale,h:48*scale,color:"#8a6548"},
+            {x:x-22*scale,y:y-62*scale,w:22*scale,h:10*scale,color:"#b57b4c"},
+            {x:x,y:y-64*scale,w:22*scale,h:10*scale,color:"#d19a5d"},
+            {x:x+22*scale,y:y-62*scale,w:22*scale,h:10*scale,color:"#a86f49"}
+        ];
+        for(var i=0;i<chunks.length;i++){
+            var p=chunks[i];
+            debris.push({x:p.x,y:p.y,w:p.w,h:p.h,color:p.color,
+                vx:i<2?(i===0?-1:1)*(85+Math.random()*65):(Math.random()-.5)*240,
+                vy:-150-Math.random()*190,rotation:(Math.random()-.5)*.3,
+                spin:(Math.random()-.5)*13,gravity:460,life:1.15+Math.random()*.45});
+        }
+    }
+    function updateDebris(dt) {
+        for(var i=debris.length-1;i>=0;i--){
+            var p=debris[i]; p.vy+=p.gravity*dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
+            p.rotation+=p.spin*dt; p.life-=dt;
+            if(p.life<=0||p.y>560) debris.splice(i,1);
+        }
+    }
+    function drawDebris(c,p) {
+        c.save(); c.translate(p.x,p.y); c.rotate(p.rotation);
+        c.globalAlpha=clamp(p.life/.28,0,1); c.fillStyle=p.color;
+        c.strokeStyle="#f6b66e"; c.lineWidth=1.5;
+        c.fillRect(-p.w/2,-p.h/2,p.w,p.h); c.strokeRect(-p.w/2,-p.h/2,p.w,p.h);
+        c.fillStyle="rgba(255,222,160,.52)"; c.fillRect(-p.w/2,-p.h/2,p.w,Math.max(1,p.h*.16));
+        c.restore();
+    }
     function easeOut(value) {
-        var t = clamp(value, 0, 1);
-        return 1 - Math.pow(1 - t, 3);
+        var t=clamp(value,0,1);
+        return 1-Math.pow(1-t,3);
     }
     function drawBubble(c, x, y, text, accent, width) {
         width = width || 250;
@@ -729,90 +779,54 @@
         c.fillText(text, x, y);
         c.restore();
     }
-    function drawWaystarCar(c, x, y, progress, now) {
-        progress = clamp(progress, 0, 1);
-        if (progress <= 0.01) return;
-        var steering = clamp(lane - laneVisual, -1, 1) * 0.075;
-        var roadBounce = Math.sin(now / 105) * 1.5;
-        c.save();
-        c.globalAlpha = progress;
-        c.translate(x, y + roadBounce);
-        c.rotate(steering + Math.sin(now / 165) * 0.012);
-        var scale = 0.45 + progress * 0.55;
-        c.scale(scale, scale);
-
-        // All four tires roll in the same direction at the same road speed.
-        var wheelTurn = (now / 66) % (Math.PI * 2);
-        for (var side = -1; side <= 1; side += 2) {
-            for (var row = -1; row <= 1; row += 2) {
-                c.save();
-                c.translate(side * 30, row * 22);
-                c.rotate(wheelTurn);
-                c.fillStyle = "#101a28";
-                c.strokeStyle = "#9fb6c6";
-                c.lineWidth = 1.5;
-                c.beginPath(); c.ellipse(0, 0, 7, 13, 0, 0, Math.PI * 2); c.fill(); c.stroke();
-                c.strokeStyle = "rgba(225,246,255,.85)";
-                c.lineWidth = 1.2;
-                c.beginPath();
-                c.moveTo(-4, 0); c.lineTo(4, 0);
-                c.moveTo(0, -8); c.lineTo(0, 8);
-                c.stroke();
-                c.restore();
-            }
+    function drawWaystarCar(c,x,y,progress,now) {
+        progress=clamp(progress,0,1); if(progress<=.01)return;
+        var steering=clamp(lane-laneVisual,-1,1)*.1;
+        var dive=clamp(carDiveOffset/44,0,1), hover=Math.sin(now/95)*2.1;
+        c.save(); c.globalAlpha=progress; c.translate(x,y+hover);
+        c.rotate(steering+dive*.17+Math.sin(now/160)*.018);
+        c.scale(.72+progress*.28,.72+progress*.28);
+        // Twin plasma thrusters make the starship hover. It has no wheels.
+        var aura=c.createRadialGradient(0,18,3,0,18,62);
+        aura.addColorStop(0,"rgba(63,244,255,.42)"); aura.addColorStop(.5,"rgba(74,115,255,.16)");
+        aura.addColorStop(1,"rgba(74,115,255,0)");
+        c.fillStyle=aura; c.beginPath(); c.ellipse(0,17,57,42,0,0,Math.PI*2); c.fill();
+        for(var engine=-1;engine<=1;engine+=2){
+            var len=20+Math.sin(now/48+engine)*5+dive*22;
+            var flame=c.createLinearGradient(0,18,0,18+len);
+            flame.addColorStop(0,"#f5ffff"); flame.addColorStop(.28,"#5af5ff"); flame.addColorStop(1,"rgba(68,86,255,0)");
+            c.fillStyle=flame; c.beginPath(); c.moveTo(engine*13-5,17); c.lineTo(engine*13,17+len); c.lineTo(engine*13+5,17); c.closePath(); c.fill();
         }
-
-        c.shadowColor = "#74dfff";
-        c.shadowBlur = reduced ? 0 : 17 + carImpactFlash * 0.7;
-        var body = c.createLinearGradient(-28, -42, 28, 40);
-        body.addColorStop(0, "#f2fdff");
-        body.addColorStop(.28, "#79dfff");
-        body.addColorStop(.68, "#2376bc");
-        body.addColorStop(1, "#16416f");
-        c.fillStyle = body;
-        c.strokeStyle = "#e8fbff";
-        c.lineWidth = 2.5;
-        c.beginPath();
-        c.moveTo(0, -47);
-        c.quadraticCurveTo(22, -43, 25, -24);
-        c.lineTo(28, 22);
-        c.quadraticCurveTo(25, 43, 0, 46);
-        c.quadraticCurveTo(-25, 43, -28, 22);
-        c.lineTo(-25, -24);
-        c.quadraticCurveTo(-22, -43, 0, -47);
-        c.closePath(); c.fill(); c.stroke();
-        c.shadowBlur = 0;
-        c.fillStyle = "rgba(9,31,58,.88)";
-        c.strokeStyle = "rgba(230,250,255,.92)";
-        c.lineWidth = 1.5;
-        c.beginPath();
-        c.moveTo(-18, -22); c.quadraticCurveTo(-15, -36, 0, -37);
-        c.quadraticCurveTo(15, -36, 18, -22);
-        c.lineTo(16, -3); c.quadraticCurveTo(0, 3, -16, -3); c.closePath();
+        var wing=c.createLinearGradient(-44,-12,44,17);
+        wing.addColorStop(0,"#2768bf"); wing.addColorStop(.48,"#b4fbff"); wing.addColorStop(1,"#4b69d5");
+        c.fillStyle=wing; c.strokeStyle="#d8ffff"; c.lineWidth=2.2;
+        c.beginPath(); c.moveTo(0,-18); c.lineTo(42,-4); c.lineTo(34,13); c.lineTo(15,7);
+        c.lineTo(9,30); c.lineTo(0,23); c.lineTo(-9,30); c.lineTo(-15,7); c.lineTo(-34,13); c.lineTo(-42,-4); c.closePath();
         c.fill(); c.stroke();
-        c.fillStyle = "#dffaff";
-        c.fillRect(-20, 27, 9, 4); c.fillRect(11, 27, 9, 4);
-        c.fillStyle = "#ffe68a";
-        c.shadowColor = "#ffe68a"; c.shadowBlur = reduced ? 0 : 10;
+        var hull=c.createLinearGradient(-20,-45,20,34);
+        hull.addColorStop(0,"#fff"); hull.addColorStop(.22,"#b9ffff"); hull.addColorStop(.55,"#4ca9e8"); hull.addColorStop(1,"#1c397f");
+        c.fillStyle=hull; c.strokeStyle="#efffff"; c.lineWidth=2.4;
+        c.beginPath(); c.moveTo(0,-48); c.quadraticCurveTo(13,-31,16,-10); c.lineTo(12,20);
+        c.quadraticCurveTo(7,32,0,35); c.quadraticCurveTo(-7,32,-12,20); c.lineTo(-16,-10);
+        c.quadraticCurveTo(-13,-31,0,-48); c.closePath(); c.fill(); c.stroke();
+        c.fillStyle="rgba(4,22,65,.92)"; c.strokeStyle="#9ffaff"; c.lineWidth=1.5;
+        c.beginPath(); c.moveTo(0,-33); c.quadraticCurveTo(11,-24,9,-8);
+        c.quadraticCurveTo(0,-1,-9,-8); c.quadraticCurveTo(-11,-24,0,-33); c.closePath(); c.fill(); c.stroke();
+        c.save(); c.translate(0,-14); c.rotate(now/360);
+        c.shadowColor="#fff4a3"; c.shadowBlur=reduced?0:16; c.fillStyle="#fff4a3";
         c.beginPath();
-        for (var i = 0; i < 10; i++) {
-            var a = -Math.PI / 2 + i * Math.PI / 5;
-            var r = i % 2 === 0 ? 10 : 4.2;
-            var sx = Math.cos(a) * r, sy = 13 + Math.sin(a) * r;
-            if (i === 0) c.moveTo(sx, sy); else c.lineTo(sx, sy);
-        }
-        c.closePath(); c.fill();
-        c.shadowBlur = 0;
-        c.strokeStyle = "rgba(225,250,255,.5)";
-        c.lineWidth = 1;
-        c.beginPath(); c.moveTo(-18, 7); c.lineTo(-20, 20); c.moveTo(18, 7); c.lineTo(20, 20); c.stroke();
-        if (carImpactFlash > 0) {
-            c.globalAlpha = Math.min(1, carImpactFlash / 10);
-            c.strokeStyle = "#fff7c4"; c.lineWidth = 3;
-            c.beginPath(); c.arc(0, 0, 39 + (14 - carImpactFlash) * 1.2, 0, Math.PI * 2); c.stroke();
+        for(var i=0;i<10;i++){var a=-Math.PI/2+i*Math.PI/5,r=i%2===0?7:3,sx=Math.cos(a)*r,sy=Math.sin(a)*r;if(i===0)c.moveTo(sx,sy);else c.lineTo(sx,sy);}
+        c.closePath(); c.fill(); c.restore();
+        c.fillStyle="#8cffff"; c.shadowColor="#52f4ff"; c.shadowBlur=reduced?0:10;
+        c.fillRect(-31,-2,7,3); c.fillRect(24,-2,7,3); c.shadowBlur=0;
+        c.strokeStyle="rgba(144,255,255,.8)"; c.lineWidth=1.3;
+        for(var streak=0;streak<3;streak++){
+            var offset=(now/28+streak*19)%46; c.globalAlpha=progress*(.25+dive*.55);
+            c.beginPath(); c.moveTo(-19+streak*19,30+offset*.25); c.lineTo(-25+streak*19,37+offset*.55); c.stroke();
         }
         c.restore();
     }
+
     function drawActualRunnerHeart(c, x, y, mounted, sliding, airborne, jetpack) {
         if (typeof drawLivingStonePlayer !== "function") return;
         var oldX = livingStonePlayer.x, oldY = livingStonePlayer.y;
@@ -962,6 +976,7 @@
         }
         var sorted = obstacles.slice().sort(function (a, b) { return a.z - b.z; });
         for (var o = 0; o < sorted.length; o++) drawObstacle(c, sorted[o]);
+        for (var di = 0; di < debris.length; di++) drawDebris(c, debris[di]);
         for (var ci = 0; ci < coins.length; ci++) drawCoin(c, coins[ci]);
         for (var pui = 0; pui < powerups.length; pui++) drawPowerup(c, powerups[pui]);
 
@@ -1015,7 +1030,7 @@
             // After the transformation, the car itself is Waystar. Do not draw a second floating Star model.
             var jumpProgress = introFinished ? 1 : easeOut((introT - 3650) / 1050);
             var jumpArc = introStar ? Math.sin(jumpProgress * Math.PI) * 56 : 0;
-            var heroY = trainMounted ? py : py - (introStar ? jumpArc + jumpProgress * 8 : 8);
+            var heroY = trainMounted ? py : (introFinished ? py - 5 : py - (introStar ? jumpArc + jumpProgress * 8 : 8));
             if (introStar && introT < 3650) heroY = py;
             c.save();
             c.globalAlpha = 0.38;
@@ -1125,7 +1140,7 @@
         c.fillStyle = activeLabels.length ? "#f5f5f5" : "#b8c9d5";
         c.fillText(activeLabels.length ? activeLabels.join("  •  ") : "УСИЛЕНИЯ: МАГНИТ · БОТИНКИ · РАНЕЦ · ЩИТ", 200, 460);
         c.textAlign = "center"; c.font = "bold 10px monospace"; c.fillStyle = "rgba(255,255,255,.82)";
-        c.fillText("← / → ПОЛОСА     ↑ ПРЫЖОК     ↓ ПОДКАТ     ·     A D W S", 200, 486);
+        c.fillText(starAid ? "← / → ПОЛОСА     ↑ ПРЫЖОК     ↓ РЫВОК ВНИЗ" : "← / → ПОЛОСА     ↑ ПРЫЖОК     ↓ ПОДКАТ", 200, 486);
         if (elapsed < 4600) {
             var introAlpha = 1 - Math.max(0, elapsed - 2600) / 2000;
             c.globalAlpha = clamp(introAlpha, 0, 1);
@@ -1156,6 +1171,7 @@
         introFinished = false;
         trainRideLeft = 0; trainRideObstacle = null; trainDropLeft = 0; magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0;
         hoverboardCharges = 0; hoverboardLeft = 0; boardGuardLeft = 0; slidePose = 0; jumpHeightCurrent = 0; hitGraceLeft = 0; carImpactFlash = 0;
+        carDiveLeft = 0; carDiveCooldown = 0; carDiveOffset = 0;
         unbindControls();
         resetArrays();
         if (success !== false && starAid && music && musicAllowed()) {
@@ -1227,7 +1243,7 @@
         spawnClock = 0; powerupClock = 0; roofSpawnClock = 0; trackOffset = 0; distance = 0; coinCount = 0; score = 0; combo = 0; lastHud = -1;
         trainRideLeft = 0; trainRideLane = 1; trainRideObstacle = null; trainDropLeft = 0; jumpTotal = 0.78; jumpBaseHeight = 78; jumpHeightCurrent = 0;
         magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0; hoverboardCharges = 0; hoverboardLeft = 0; boardGuardLeft = 0;
-        hitGraceLeft = 0; carImpactFlash = 0;
+        hitGraceLeft = 0; carImpactFlash = 0; carDiveLeft = 0; carDiveCooldown = 0; carDiveOffset = 0;
         starGuard = starAid; nextGuard = 7000; nextStrike = 4400;
         starFlash = 0; damageFlash = 0;
         introElapsed = 0;
@@ -1277,6 +1293,7 @@
         introElapsed = 0;
         trainRideLeft = 0; trainRideObstacle = null; trainDropLeft = 0; magnetLeft = 0; superJumpLeft = 0; jetpackLeft = 0;
         hoverboardCharges = 0; hoverboardLeft = 0; boardGuardLeft = 0; slidePose = 0; jumpHeightCurrent = 0; hitGraceLeft = 0; carImpactFlash = 0;
+        carDiveLeft = 0; carDiveCooldown = 0; carDiveOffset = 0;
         unbindControls();
         resetArrays();
         stopMusic();
