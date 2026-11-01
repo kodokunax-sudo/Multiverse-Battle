@@ -3190,9 +3190,13 @@ function livingStoneRenderLoop() {
             try { window.MBDrawLivingStoneSuperShield(ctx); } catch(e) {}
         }
     }
-    // Draw the Waystar independently of finalHeartVisible: phase-two support must not
-    // disappear when the heart visibility flag is changed by a previous cinematic.
-    if (livingStoneState === "phase2" &&
+    // Draw the Waystar independently of finalHeartVisible. Prime uses its own
+    // phase controller, so keep the companion visible throughout its post-chase fight.
+    var primeWaystarSupportReady = typeof window !== "undefined" &&
+        window.livingStoneSuperActive === true &&
+        window.__mbLS2AfterChase === true &&
+        (window.__mbLS2GreenPhase === "normal" || window.__mbLS2GreenPhase === "green");
+    if ((livingStoneState === "phase2" || primeWaystarSupportReady) &&
         typeof window.MBDrawWaystarCompanionSupport === "function") {
         try { window.MBDrawWaystarCompanionSupport(ctx); } catch(e) {}
     }
