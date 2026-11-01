@@ -24,21 +24,16 @@
     }
 
     function encounterEligible() {
+        // The spared Star is reserved exclusively for Living Stone Prime.
+        // Ordinary Living Stone must never activate or display this companion.
         if (!wasSpared() ||
             typeof livingStoneActive === "undefined" || !livingStoneActive ||
+            window.livingStoneSuperActive !== true ||
+            window.__mbLS2AfterChase !== true ||
             (typeof finalSceneActive !== "undefined" && finalSceneActive) ||
             window.__mbLivingStoneChaseActive === true) return false;
 
-        // Prime has its own phase controller. Do not gate its ally on the
-        // regular boss's livingStoneState label after the chase has completed.
-        var isPrime = window.livingStoneSuperActive === true;
-        if (isPrime) {
-            if (window.__mbLS2AfterChase !== true) return false;
-            return phase() === "normal" || phase() === "green";
-        }
-
-        // The regular Living Stone still receives her only in phase two.
-        return livingStoneState === "phase2";
+        return phase() === "normal" || phase() === "green";
     }
 
     function normalActionsEligible() {
@@ -71,7 +66,7 @@
     }
 
     function startSupport() {
-        if (!wasSpared()) return false;
+        if (!wasSpared() || window.livingStoneSuperActive !== true) return false;
         supportRequested = true;
         active = false;
         frame = 0;
