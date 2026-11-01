@@ -400,6 +400,26 @@ function dioLaunchArenaKnifeVolley(cb){
  for(var i=0;i<knifeCount;i++){var target=targets[i],tr=Number(target.size||target.radius||18)||18,tx=(Number(target.x)||0)+tr/2,ty=(Number(target.y)||0)+tr/2,ang=Math.atan2(ty-py,tx-px);_superState.dioKnives.push({x:px+(px>300?-10:10),y:py-3,vx:Math.cos(ang)*10,vy:Math.sin(ang)*10,angle:ang,life:160,targetType:"arena",targetAttack:target});}
  _superState.dioMudaActive=false;_superState.dioMudaMode=null;if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ НОЖИ ДИО!","#fff0a0");
 }
+function dioGetArenaWaveBossMaxHp(target){
+ var targetMaxHp=Math.max(0,Number(target&&target.maxHp)||0),bossWave=0;
+ try{
+  if(typeof arenaCurrentWave!=="undefined")bossWave=Math.floor(Number(arenaCurrentWave)||0);
+  if(!(bossWave>0)&&typeof wave!=="undefined")bossWave=Math.floor(Number(wave)||0);
+ }catch(e){}
+ bossWave=Math.max(1,bossWave);
+ var template=null;
+ try{if(typeof bossTemplates!=="undefined"&&bossTemplates)template=bossTemplates[bossWave]||null;}catch(e){}
+ var waveMaxHp;
+ if(template){
+  var hpMult=Number(template.hpMult);
+  if(!(hpMult>0))hpMult=1;
+  waveMaxHp=Math.floor((50+bossWave*12)*hpMult);
+ }else{
+  waveMaxHp=Math.floor(1000+bossWave*10);
+ }
+ return Math.max(1,targetMaxHp,waveMaxHp);
+}
+
 function dioActivateMudaSkill(){
  var cb=typeof getBossContext==="function"?getBossContext():null;if(!cb||!_superState)return false;
  var t=dioGetUniqueBossTarget(cb);
@@ -414,7 +434,9 @@ function dioActivateMudaSkill(){
  if(!t){if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ НАВЫК ДОСТУПЕН В БОЮ С БОССОМ","#ffaa00");return false;}
  if(!dioCanUse("muda",40,30))return false;
  var px=cb.getHeartX(),py=cb.getHeartY(),close=Math.hypot(t.x-px,t.y-py)<=132;
- _superState.dioMudaActive=true;_superState.dioMudaMode=close?"melee":"knives";_superState.dioMudaStartedAt=performance.now();_superState.dioMudaTargetType=t.type;_superState.dioMudaTargetId=t.id;_superState.dioMudaTotalDamage=Math.max(1,Math.floor(t.maxHp*(close?.10:.08)));_superState.dioMudaHitIndex=0;_superState.dioMudaLastHitAt=0;_superState.dioMudaStandX=px+(px>300?-20:20);_superState.dioMudaStandY=py-8;
+ _superState.dioMudaActive=true;_superState.dioMudaMode=close?"melee":"knives";_superState.dioMudaStartedAt=performance.now();_superState.dioMudaTargetType=t.type;_superState.dioMudaTargetId=t.id;var damageBaseHp=Number(t.maxHp)||1,damageRatio=close?.10:.08;
+ if(cb.type==="arena"){damageBaseHp=dioGetArenaWaveBossMaxHp(t);damageRatio*=2;}
+ _superState.dioMudaTotalDamage=Math.max(1,Math.floor(damageBaseHp*damageRatio));_superState.dioMudaHitIndex=0;_superState.dioMudaLastHitAt=0;_superState.dioMudaStandX=px+(px>300?-20:20);_superState.dioMudaStandY=py-8;
  if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];
  if(close)dioPlaySoundFrom("music/dio_muda_muda_muda.mp3",.9,0);
  else dioPlaySoundFrom("music/Voicy_Dio Brando muda muda.mp3",.78,4);
