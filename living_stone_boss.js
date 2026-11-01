@@ -2889,8 +2889,17 @@ function livingStoneRenderLoop() {
             try { window.MBDrawLivingStoneSuperShield(ctx); } catch(e) {}
         }
     }
-    // Waystar is visible only in the Prime chase, rendered by the chase runner.
-    
+    // Draw the spared Waystar as a companion during Living Stone Prime's second phase.
+    // The eligibility gate inside the companion keeps her out of ordinary Living Stone.
+    var primeWaystarSupportReady = typeof window !== "undefined" &&
+        window.livingStoneSuperActive === true &&
+        window.__mbLS2AfterChase === true &&
+        (window.__mbLS2GreenPhase === "normal" || window.__mbLS2GreenPhase === "green");
+    if (primeWaystarSupportReady &&
+        typeof window.MBDrawWaystarCompanionSupport === "function") {
+        try { window.MBDrawWaystarCompanionSupport(ctx); } catch (e) {}
+    }
+
     if (lsActiveMod && lsActiveMod.type === 4 && (livingStoneState === "phase1" || livingStoneState === "phase2") && !finalSceneActive) {
         ctx.save();
         var shieldPulse = 1 + Math.sin(performance.now() / 150) * 0.15;
