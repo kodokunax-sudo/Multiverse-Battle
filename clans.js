@@ -3457,10 +3457,10 @@
             if (legacyUserId) {
                 var bindingData = JSON.parse(localStorage.getItem('cgV20_cloud_slot_bindings_v1') || '{}');
                 var mapped = bindingData && bindingData.byUser ? Number(bindingData.byUser[legacyUserId]) : NaN;
-                if (Number.isInteger(mapped) && mapped >= 0 && mapped <= 2) {
+                if (Number.isInteger(mapped) && mapped >= 0 && mapped <= 4) {
                     targetSlot = mapped;
                 } else {
-                    for (var slotIndex = 0; slotIndex < 3; slotIndex++) {
+                    for (var slotIndex = 0; slotIndex < 5; slotIndex++) {
                         var marker = JSON.parse(localStorage.getItem('cgV20_slot' + slotIndex + '_cloud_sync_meta') || 'null');
                         if (marker && marker.userId === legacyUserId) { targetSlot = slotIndex; break; }
                     }
