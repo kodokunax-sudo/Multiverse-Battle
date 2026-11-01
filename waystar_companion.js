@@ -184,7 +184,7 @@
         var s1=1.3,s3=1.3*.7;
 
         if(pattern===0){
-            // Phase 1: falling meteors, same count, speed and spin as the boss attack.
+            // Original Phase 1 meteor pattern, with the boss's own entry shockwave.
             var count=escalation>=2?4:2;
             for(var i=0;i<count;i++){
                 var mx=Math.max(20,Math.min(380,tx+(i-(count-1)/2)*34+(Math.random()-.5)*24));
@@ -192,25 +192,25 @@
                     (Math.random()-.5)*1.5*s1,(2.5+Math.random()*1.8)*s1,
                     12+Math.random()*6,1.15,"#ffd700",400,(Math.random()-.5)*.2);
             }
+            addAllyShockwave(boss.x,boss.y,"#ff8800",100,15,3);
             announce("ПАДАЮЩИЕ МЕТЕОРЫ!","#ffcf57",45);
         }else if(pattern===1){
-            // Phase 1: the original two-turn spiral and six-frame stagger.
+            // Original two-turn spiral, emitted in the same staggered stream.
             var n=escalation>=2?14:10,start=Math.random()*Math.PI*2;
             for(var j=0;j<n;j++){
                 var angle=start+(j/n)*Math.PI*4;
                 queueOriginalWaystarProjectile(j*6,["spiral",ally.x,ally.y,
                     Math.cos(angle)*3*s1,Math.sin(angle)*3*s1,7,.92,"#ff00ff",350,0]);
             }
+            addAllyShockwave(boss.x,boss.y,"#ff00ff",80,12,3);
             announce("ДВУХВИТКОВАЯ СПИРАЛЬ!","#ff55ed",45);
         }else if(pattern===2){
-            // Phase 1: 70-frame full-height red laser warning, then 50 active frames.
             allyAttacks.push({type:"vertical_laser",state:"warning",
                 x:Math.max(55,Math.min(345,tx+(Math.random()-.5)*18)),width:55,
                 warningTimer:70,activeTimer:0,maxActive:50,damage:allyDamageAmount(2.1),hit:false,chargeParticles:0});
             announce("ВЕРТИКАЛЬНЫЙ ЛАЗЕР!","#ff6666",48);
         }else if(pattern===3){
-            // Phase 1: four delayed corner warnings and the blindness effect.
-            allyAttacks.push({type:"blind",state:"warning",timer:0,blindTimer:0,fadeTimer:0,
+            allyAttacks.push({type:"blind",state:"warning",timer:0,blindTimer:0,fadeTimer:0,flash:0,
                 warnings:[
                     {x:50,y:80,delay:0,timer:0,active:false,pulse:0},
                     {x:350,y:80,delay:8,timer:0,active:false,pulse:1},
@@ -219,7 +219,7 @@
                 ],damage:allyDamageAmount(1.9),hit:false});
             announce("ЗВЕЗДА ГОТОВИТ ОСЛЕПЛЕНИЕ!","#ffcc00",55);
         }else if(pattern===4){
-            // Phase 1: diagonal star rain from both edges.
+            // Original diagonal rain crosses the full arena from both sides.
             var rain=escalation>=2?10:7;
             for(var r=0;r<rain;r++){
                 var side=r%2===0?1:-1;
@@ -227,37 +227,37 @@
                 pushOriginalWaystarProjectile("star_rain",side>0?-30:430,y,
                     (side>0?3.5:-3.5)*s1,2.2*s1,10,.92,"#ffd700",350,(Math.random()-.5)*.2);
             }
+            addAllyShockwave(boss.x,boss.y,"#ffffff",90,12,3);
             announce("ЗВЁЗДНЫЙ ДОЖДЬ!","#ffeaa0",45);
         }else if(pattern===5){
-            // Phase 3: original shotgun fan (5+, 0.14-radian spacing, same speed).
+            // Original Phase 3 shotgun fan.
             var shotgun=5+Math.floor(escalation/2);
             for(var q=0;q<shotgun;q++){
                 var a=base+(q-(shotgun-1)/2)*.14;
                 pushOriginalWaystarProjectile("shotgun_bullet",ally.x,ally.y,
                     Math.cos(a)*2.8*s3,Math.sin(a)*2.8*s3,6,1,"#ff4400",350,0);
             }
+            addAllyShockwave(ally.x,ally.y,"#ff4400",80,15,4);
+            addAllyFlash(ally.x,ally.y,50);
             announce("ДРОБОВОЙ ЗАЛП!","#ff795a",45);
         }else if(pattern===6){
-            // Phase 3: large sun bombs with original 220-frame fuse.
             var bombs=1+Math.floor(escalation/2);
             for(var b=0;b<bombs;b++)queueOriginalWaystarBomb(b*55,false);
             announce("СОЛНЕЧНАЯ БОМБА!","#ffd75d",50);
         }else if(pattern===7){
-            // Phase 3: the original 80-frame targeted dash.
             var dx=tx-ally.x,dy=ty-ally.y,len=Math.hypot(dx,dy)||1;
             allyAttacks.push({type:"waystar_dash",x:ally.x,y:ally.y,startX:ally.x,startY:ally.y,
                 targetX:tx,targetY:ty,dirX:dx/len,dirY:dy/len,progress:0,duration:80,
                 damage:allyDamageAmount(2.5),hit:false,trail:[]});
             ally.dashFlash=30;
+            addAllyShockwave(ally.x,ally.y,"#ff00ff",80,15,4);
             announce("РЫВОК ПУТЕВОДНОЙ ЗВЕЗДЫ!","#ff69ef",48);
         }else if(pattern===8){
-            // Phase 3: the original tracking giant laser (100 warning / 60 tracking / 40 active).
             allyAttacks.push({type:"giant_laser",state:"warning",x:ally.x,y:ally.y,angle:base,
                 width:55,warningTimer:100,activeTimer:0,maxActive:40,trackTimer:60,
                 damage:allyDamageAmount(3.2),hit:false});
             announce("ГИГА-ЛАЗЕР ЗВЕЗДЫ!","#ff74e9",55);
         }else if(pattern===9){
-            // Phase 3: two opposite delayed spiral arms, 14 per side before escalation.
             var twin=14+escalation*2;
             for(var t=0;t<twin;t++){
                 var ang=(t/twin)*Math.PI*4;
@@ -266,24 +266,32 @@
                 queueOriginalWaystarProjectile(t*9,["spiral",ally.x,ally.y,
                     Math.cos(-ang)*1.8*s3,Math.sin(-ang)*1.8*s3,6,.72,"#ff00ff",350,0]);
             }
+            addAllyShockwave(boss.x,boss.y,"#ff00ff",180,22,5);
             announce("ДВОЙНАЯ СПИРАЛЬ!","#ff4ceb",48);
         }else if(pattern===10){
-            // Phase 3: original small solar mines and 42-frame stagger.
             var mines=3+Math.floor(escalation/2);
             for(var m=0;m<mines;m++)queueOriginalWaystarBomb(m*42,true);
             announce("СОЛНЕЧНЫЕ МИНЫ!","#ffce64",48);
         }else{
-            // Original Legion: 60 fragments arranged as ten columns by six rows.
+            // True 60-piece Legion: rows move as one formation and fire continuously.
             var pieces=[];
             for(var row=0;row<6;row++)for(var col=0;col<10;col++){
                 var idx=row*10+col;
-                pieces.push({x:ally.x+(col-4.5)*17,y:ally.y-48+row*17,
-                    delay:38+row*4+col*.55,vx:0,vy:0,size:4.2+(idx%3)*.45,
-                    rotation:Math.random()*Math.PI*2,life:180,launched:false,hit:false,
-                    damage:allyDamageAmount(.18),
-                    color:idx%3===0?"#ffffff":(idx%2?"#ff00dd":"#ffd700"),trail:[]});
+                pieces.push({
+                    x:25+col*38,y:60+row*40,baseX:25+col*38,baseY:60+row*40,
+                    size:10,hp:2,maxHp:2,alive:true,pulse:Math.random()*Math.PI*2,
+                    trail:[]
+                });
             }
-            allyAttacks.push({type:"legion_formation",pieces:pieces,timer:0,targetX:tx,targetY:ty});
+            allyAttacks.push({type:"legion_formation",pieces:pieces,timer:0,
+                offset:0,direction:1,speed:1.0,shootTimer:0,life:520});
+            addAllyShockwave(boss.x,boss.y,"#ff00ff",400,30,6);
+            addAllyFlash(boss.x,boss.y,100);
+            for(var bolt=0;bolt<20;bolt++){
+                var la=bolt/20*Math.PI*2;
+                addAllyLightning(boss.x,boss.y,boss.x+Math.cos(la)*250,boss.y+Math.sin(la)*250,"#ff00ff",.8,3);
+            }
+            spawnAllyFxParticles(boss.x,boss.y,80,"#ffd700",12);
             announce("Я - ЛЕГИОН! 60 ОСКОЛКОВ!","#ffe6a0",60);
         }
     }
@@ -300,24 +308,38 @@
         }
         for(var i=allyAttacks.length-1;i>=0;i--){
             var a=allyAttacks[i];
-            if(a.type==="meteor"||a.type==="spiral"||a.type==="star_rain"||a.type==="shotgun_bullet"){
+            if(a.type==="meteor"||a.type==="spiral"||a.type==="star_rain"||a.type==="shotgun_bullet"||a.type==="legion_shot"){
                 var limit=window.MBShouldReduceBossEffects&&window.MBShouldReduceBossEffects()?2:6;
                 a.trail.push({x:a.x,y:a.y});if(a.trail.length>limit)a.trail.shift();
                 a.x+=a.vx;a.y+=a.vy;a.rotation+=a.rotSpeed||0;a.life--;
                 if(Math.hypot(boss.x-a.x,boss.y-a.y)<boss.size+a.size){
-                    hitBoss(a.damage,a.x,a.y,a.color);burst(a.x,a.y,8,a.color,4);allyAttacks.splice(i,1);continue;
+                    hitBoss(a.damage,a.x,a.y,a.color);
+                    burst(a.x,a.y,8,a.color,4);addAllyFlash(a.x,a.y,20);
+                    if(a.type==="meteor")addAllyShockwave(a.x,a.y,"#ff8800",50,12,3);
+                    allyAttacks.splice(i,1);continue;
                 }
                 if(a.y>520||a.x<-30||a.x>430||a.life<=0){
-                    if(a.y>500&&a.type==="meteor")burst(a.x,500,10,"#ff8800",4);
+                    if(a.y>500&&a.type==="meteor"){
+                        addAllyShockwave(a.x,500,"#ff8800",50,12,3);
+                        spawnAllyFxParticles(a.x,500,10,"#ff8800",5);
+                    }
                     allyAttacks.splice(i,1);
                 }
                 continue;
             }
             if(a.type==="vertical_laser"){
-                if(a.state==="warning"){a.warningTimer--;a.chargeParticles++;if(a.warningTimer<=0){a.state="active";a.activeTimer=a.maxActive;}}
-                else if(a.state==="active"){
+                if(a.state==="warning"){
+                    a.warningTimer--;a.chargeParticles++;
+                    if(a.chargeParticles%5===0)spawnAllyFxParticles(a.x+(Math.random()-.5)*a.width,490-Math.random()*40,1,"#ff3333",3);
+                    if(a.warningTimer<=0){
+                        a.state="active";a.activeTimer=a.maxActive;
+                        addAllyFlash(a.x,250,100);addAllyShockwave(a.x,250,"#ff3333",120,18,4);
+                        for(var vl=0;vl<3;vl++)addAllyLightning(a.x,0,a.x+(Math.random()-.5)*30,500,"#ffffff",.8,1.5);
+                    }
+                }else if(a.state==="active"){
                     a.activeTimer--;
                     if(!a.hit&&Math.abs(boss.x-a.x)<a.width/2+boss.size*.5){a.hit=true;hitBoss(a.damage,a.x,boss.y,"#fff0f0");}
+                    if(a.activeTimer%3===0)spawnAllyFxParticles(a.x+(Math.random()-.5)*a.width,Math.random()*500,2,Math.random()>.5?"#ffffff":"#ff3333",4);
                     if(a.activeTimer<=0)a.state="done";
                 }else allyAttacks.splice(i,1);
                 continue;
@@ -326,12 +348,20 @@
                 if(a.state==="warning"){
                     a.warningTimer--;
                     if(a.trackTimer>0){a.trackTimer--;a.x=ally.x;a.y=ally.y;a.angle=Math.atan2(boss.y-a.y,boss.x-a.x);}
-                    if(a.warningTimer<=0){a.state="active";a.activeTimer=a.maxActive;}
+                    if(a.warningTimer<=0){
+                        a.state="active";a.activeTimer=a.maxActive;
+                        addAllyFlash(a.x,a.y,150);addAllyShockwave(a.x,a.y,"#ff00ff",180,22,5);
+                        for(var gs=0;gs<5;gs++)addAllySlash(a.x,a.y,a.angle+(Math.random()-.5)*.6,70,4);
+                    }
                 }else if(a.state==="active"){
                     a.activeTimer--;
                     var ex=a.x+Math.cos(a.angle)*820,ey=a.y+Math.sin(a.angle)*820;
                     if(!a.hit&&pointToSegmentDistance(boss.x,boss.y,a.x,a.y,ex,ey)<a.width/2+boss.size){
                         a.hit=true;hitBoss(a.damage,boss.x,boss.y,"#ffb7f3");
+                    }
+                    if(a.activeTimer%6===0){
+                        var sd=Math.random()*400;
+                        addAllySlash(a.x+Math.cos(a.angle)*sd,a.y+Math.sin(a.angle)*sd,a.angle+Math.PI/2,60,4);
                     }
                     if(a.activeTimer<=0)a.state="done";
                 }else allyAttacks.splice(i,1);
@@ -345,10 +375,15 @@
                     else if(progress<.7){var shrink=(progress-.4)/.3;a.sunPhase="shrink";a.sunScale=1-shrink*.6;a.sunColor=shrink<.5?"#ffdd00":"#ffffff";}
                     else if(progress<.9){var blue=(progress-.7)/.2;a.sunPhase="blue";a.sunScale=.4-blue*.15;a.sunColor="#0088ff";}
                     else{a.sunPhase="flash";a.sunScale=.25+Math.abs(Math.sin(frame/4))*.12;a.sunColor="#ffffff";}
+                    if(a.phaseTimer%8===0)spawnAllyFxParticles(a.x+(Math.random()-.5)*50*a.sunScale,a.y+(Math.random()-.5)*50*a.sunScale,1,a.sunColor,2.5);
                     if(a.timer<=0){
                         a.exploded=true;a.explosionTimer=20;
                         if(Math.hypot(boss.x-a.x,boss.y-a.y)<a.radius+boss.size)hitBoss(a.damage,a.x,a.y,"#00aaff");
-                        burst(a.x,a.y,26,"#00aaff",7);
+                        addAllyShockwave(a.x,a.y,"#00aaff",a.radius*1.8,25,6);
+                        addAllyShockwave(a.x,a.y,"#ffffff",a.radius*1.3,18,4);
+                        addAllyFlash(a.x,a.y,a.radius*1.5);
+                        spawnAllyFxParticles(a.x,a.y,40,"#0088ff",10);spawnAllyFxParticles(a.x,a.y,25,"#ffffff",7);
+                        for(var lb=0;lb<5;lb++){var angle=Math.random()*Math.PI*2;addAllyLightning(a.x,a.y,a.x+Math.cos(angle)*a.radius*1.3,a.y+Math.sin(angle)*a.radius*1.3,Math.random()>.5?"#00aaff":"#ffffff",.85,2.5);}
                     }
                 }else if(--a.explosionTimer<=0)allyAttacks.splice(i,1);
                 continue;
@@ -356,11 +391,17 @@
             if(a.type==="waystar_dash"){
                 a.progress++;var t=Math.min(1,a.progress/a.duration);
                 a.x=a.startX+(a.targetX-a.startX)*t;a.y=a.startY+(a.targetY-a.startY)*t;
+                ally.x=a.x;ally.y=a.y;
                 a.trail.push({x:a.x,y:a.y});if(a.trail.length>8)a.trail.shift();
                 if(!a.hit&&Math.hypot(boss.x-a.x,boss.y-a.y)<boss.size+26){
-                    a.hit=true;hitBoss(a.damage,a.x,a.y,"#ff00ff");burst(a.x,a.y,18,"#ff00ff",6);
+                    a.hit=true;hitBoss(a.damage,a.x,a.y,"#ff00ff");
+                    addAllyShockwave(a.x,a.y,"#ff00ff",180,18,5);addAllyFlash(a.x,a.y,70);
+                    for(var ds=0;ds<5;ds++)addAllySlash(a.x,a.y,Math.random()*Math.PI*2,60,4);
+                    burst(a.x,a.y,18,"#ff00ff",6);
                 }
-                if(a.progress>=a.duration)allyAttacks.splice(i,1);
+                if(a.progress>=a.duration){
+                    ally.vx=0;ally.vy=0;allyAttacks.splice(i,1);
+                }
                 continue;
             }
             if(a.type==="blind"){
@@ -373,7 +414,8 @@
                         if(a.timer<30)ready=false;
                     }
                     if(a.timer>=30&&ready){
-                        a.state="blind";a.blindTimer=90;
+                        a.state="blind";a.blindTimer=90;a.flash=25;
+                        addAllyFlash(200,250,260);addAllyShockwave(200,250,"#ffffff",350,30,6);
                         if(!a.hit){
                             a.hit=true;
                             if(typeof window.MBLivingStoneSuperCompanionStun==="function")window.MBLivingStoneSuperCompanionStun(90);
@@ -382,29 +424,43 @@
                         burst(boss.x,boss.y,24,"#ffffff",7);
                     }
                 }else if(a.state==="blind"){
+                    if(a.flash>0)a.flash--;
                     if(--a.blindTimer<=0){a.state="fadeout";a.fadeTimer=20;}
                 }else if(--a.fadeTimer<=0)allyAttacks.splice(i,1);
                 continue;
             }
             if(a.type==="legion_formation"){
-                a.timer++;var allDone=true;
+                a.timer++;a.life--;a.offset+=a.direction*a.speed;
+                var minX=9999,maxX=-9999;
                 for(var pi=0;pi<a.pieces.length;pi++){
                     var piece=a.pieces[pi];
-                    if(!piece.launched&&a.timer>=piece.delay){
-                        var angle=Math.atan2(a.targetY-piece.y,a.targetX-piece.x)+((pi%10)-4.5)*.022;
-                        var speed=4.2+(Math.floor(pi/10)%3)*.35;
-                        piece.vx=Math.cos(angle)*speed;piece.vy=Math.sin(angle)*speed;piece.launched=true;
-                    }
-                    if(!piece.launched){allDone=false;continue;}
-                    if(piece.life<=0)continue;
-                    allDone=false;piece.trail.push({x:piece.x,y:piece.y});if(piece.trail.length>4)piece.trail.shift();
-                    piece.x+=piece.vx;piece.y+=piece.vy;piece.rotation+=.14;piece.life--;
-                    if(!piece.hit&&Math.hypot(boss.x-piece.x,boss.y-piece.y)<boss.size+piece.size){
-                        piece.hit=true;piece.life=0;hitBoss(piece.damage,piece.x,piece.y,piece.color);burst(piece.x,piece.y,3,piece.color,2.5);
-                    }
-                    if(piece.x<-30||piece.x>430||piece.y<-40||piece.y>535)piece.life=0;
+                    if(!piece.alive)continue;
+                    var px=piece.baseX+a.offset;
+                    if(px-piece.size<10)minX=Math.min(minX,px-piece.size);
+                    if(px+piece.size>390)maxX=Math.max(maxX,px+piece.size);
                 }
-                if(allDone)allyAttacks.splice(i,1);
+                if((a.direction>0&&maxX>390)||(a.direction<0&&minX<10)){
+                    a.direction*=-1;a.offset+=a.direction*2;
+                }
+                for(var pj=0;pj<a.pieces.length;pj++){
+                    var p=a.pieces[pj];if(!p.alive)continue;
+                    p.x=p.baseX+a.offset;p.y=p.baseY+Math.sin(a.timer/18+pj*.23)*2.5;
+                    p.pulse+=.15;p.trail.push({x:p.x,y:p.y});if(p.trail.length>5)p.trail.shift();
+                }
+                a.shootTimer++;
+                var shootRate=Math.max(30,80-a.pieces.length/2);
+                if(a.shootTimer>=shootRate){
+                    a.shootTimer=0;
+                    var shooter=a.pieces[Math.floor(Math.random()*a.pieces.length)];
+                    if(shooter&&shooter.alive){
+                        var aim=Math.atan2(boss.y-shooter.y,boss.x-shooter.x);
+                        pushOriginalWaystarProjectile("legion_shot",shooter.x,shooter.y+15,
+                            Math.cos(aim)*4.8,Math.sin(aim)*4.8,8,.75,"#ff00ff",300,0);
+                        addAllyFlash(shooter.x,shooter.y+15,12);
+                    }
+                }
+                if(a.life<=0)allyAttacks.splice(i,1);
+                continue;
             }
         }
     }
