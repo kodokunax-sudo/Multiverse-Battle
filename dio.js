@@ -17,6 +17,14 @@ function dioSoundKey(path) {
     if (path === "music/time-resumes.mp3") return "dioTimeResume";
     if (path === "music/dio_muda_muda_muda.mp3") return "dioMuda";
     if (path === "music/Voicy_Dio Brando muda muda.mp3") return "dioMudaVoice";
+
+    // Any track registered by the startup loader can reuse its already-fetched Blob URL.
+    var manifest = window.loadingScreen && window.loadingScreen.MUSIC_FILES;
+    if (manifest) {
+        for (var key in manifest) {
+            if (Object.prototype.hasOwnProperty.call(manifest, key) && manifest[key] === path) return key;
+        }
+    }
     return null;
 }
 function dioResolveSoundSource(path) {
