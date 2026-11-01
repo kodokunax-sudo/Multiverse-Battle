@@ -1097,8 +1097,13 @@
             livingStoneBoss.x=200; livingStoneBoss.y=108; livingStoneBoss.vx=ls2ChaseStarAid?-1.25:1.15;
         }
         window.__mbLS2AfterChase = true;
-        // Waystar's assistance is exclusive to the chase. Do not activate the
-        // arena companion after the runner ends.
+        // The spared Waystar returns as a full ally for Prime's second phase.
+        if (ls2ChaseStarAid && typeof window.MBStartWaystarCompanionSupport === "function") {
+            window.MBStartWaystarCompanionSupport();
+            if (typeof window.MBUpdateWaystarCompanion === "function") {
+                try { window.MBUpdateWaystarCompanion(); } catch (e) {}
+            }
+        }
         ls2StarAssistActive = false;
         if (ls2ChaseStarAid) {
             ls2StarAssistActive = false; ls2StarAssistCooldown=300; ls2StarAssistFlash=40;
