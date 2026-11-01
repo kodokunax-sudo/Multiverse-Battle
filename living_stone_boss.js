@@ -507,7 +507,7 @@ function createExplosion(x, y, damage) {
     var dxP = livingStonePlayer.x - x, dyP = livingStonePlayer.y - y;
     var distP = Math.sqrt(dxP * dxP + dyP * dyP);
     if (distP < 40 && livingStoneInvulnTimer <= 0) {
-        damageLivingStonePlayer(Math.floor(damage * 0.5));
+        damageLivingStonePlayer(Math.floor(damage * 0.5), {type:"explosion",x:x,y:y,radius:40,damage:damage});
     }
     var chainRadius = 55;
     for (var i = livingStoneAttacks.length - 1; i >= 0; i--) {
