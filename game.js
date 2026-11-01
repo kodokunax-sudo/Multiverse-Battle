@@ -2359,11 +2359,11 @@ function shouldHideClickCombatText(text) {
     if (!hideEnabled) return false;
 
     const value = String(text == null ? "" : text).trim();
-    return /^[-−]\\s*\\d/.test(value) ||
+    return /^[-−]\s*\d/.test(value) ||
         /КРИТ|ВАНШОТ|КОМБО/i.test(value) ||
-        /БЕЛОУС:\\s*x5/i.test(value) ||
-        /💔\\s*[-−]\\s*\\d/.test(value) ||
-        /🔥\\s*[-−]\\s*\\d/.test(value);
+        /БЕЛОУС:\s*x5/i.test(value) ||
+        /💔\s*[-−]\s*\d/.test(value) ||
+        /🔥\s*[-−]\s*\d/.test(value);
 }
 
 function showFloatingText(text, color) {
