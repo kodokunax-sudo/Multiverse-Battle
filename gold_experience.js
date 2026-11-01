@@ -19,6 +19,9 @@
         vy: 0,
         nextAttackAt: 0,
         attackUntil: 0,
+        combo: null,
+        comboCooldownUntil: 0,
+        attackFrame: 0,
         nextHealAt: 0,
         facing: -1,
         trail: [],
@@ -210,21 +213,82 @@
         } catch (e) {}
     }
 
-    function dealCompanionDamage(ctx, card) {
-        if (!ctx || typeof ctx.damageBoss !== "function") return false;
-        if (typeof ctx.canCompanionAttack === "function" && !ctx.canCompanionAttack()) return false;
-        var amount = Math.max(1, Math.floor((Number(card && card.damage) || 137) * 0.22));
-        var dealt = false;
-        try { dealt = ctx.damageBoss(amount, { source: "Gold Experience", x: state.x, y: state.y }) !== false; }
-        catch (e) { dealt = false; }
-        if (dealt) {
-            state.attackUntil = now() + 260;
-            try {
-                if (typeof window.showFloatingText === "function") window.showFloatingText("GOLD EXPERIENCE · -" + amount, "#ffe28a");
-            } catch (e) {}
-            spawnHitEffect(state.x, state.y, "#ffe28a");
+    function getUniqueBossTarget(ctx) {
+        try {
+            if (ctx && ctx.type !== "arena" && typeof window.getDioUniqueBossTarget === "function") {
+                return window.getDioUniqueBossTarget(ctx) || null;
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    function applyCompanionBossDamage(ctx, target, amount) {
+        if (target && typeof window.MBDioApplyBossDamage === "function") {
+            try { window.MBDioApplyBossDamage(target.type, target.id, amount); return true; }
+            catch (e) { return false; }
         }
-        return dealt;
+        if (ctx && ctx.type === "arena") {
+            var before = Number(ctx.getBossHp && ctx.getBossHp()) || 0;
+            if (!(before > 0)) return false;
+            var damage = Math.max(1, Math.floor(Number(amount) || 1));
+            try {
+                if (typeof window.MBKarsApplyDamageBonus === "function") damage = window.MBKarsApplyDamageBonus(damage);
+                ctx.setBossMaxHp(Math.max(0, before - damage));
+                return Number(ctx.getBossHp()) < before;
+            } catch (e) {}
+        }
+        return false;
+    }
+
+    function beginMudaCombo(ctx, target, card) {
+        if (!target || !ctx || now() < state.comboCooldownUntil) return false;
+        var total = Math.max(6, Math.floor(Math.max(1, Number(target.maxHp) || 1) * 0.012));
+        state.combo = {
+            type: target.type, id: target.id, total: total,
+            hitIndex: 0, nextHitAt: now(), startedAt: now(),
+            x: Number(target.x) || state.x, y: Number(target.y) || state.y
+        };
+        state.comboCooldownUntil = now() + 2450;
+        state.nextAttackAt = state.comboCooldownUntil;
+        state.attackUntil = now() + 1320;
+        state.attackFrame = 0;
+        try { if (typeof window.showFloatingText === "function") window.showFloatingText("GOLD EXPERIENCE: MUDA MUDA MUDA!", "#ffe28a"); } catch (e) {}
+        spawnHitEffect(state.x, state.y, "#ffe28a");
+        return true;
+    }
+
+    function updateMudaCombo(ctx) {
+        var combo = state.combo;
+        if (!combo) return;
+        var current = now();
+        var target = null;
+        try {
+            if (typeof window.getDioUniqueBossTarget === "function") {
+                target = window.getDioUniqueBossTarget(ctx, combo.id) || null;
+            }
+        } catch (e) {}
+        if (!target || target.type !== combo.type) {
+            state.combo = null;
+            return;
+        }
+        combo.x = Number(target.x) || combo.x;
+        combo.y = Number(target.y) || combo.y;
+        var strikeInterval = 175;
+        while (combo.hitIndex < 7 && current >= combo.nextHitAt) {
+            combo.hitIndex++;
+            state.attackFrame = combo.hitIndex;
+            var hitDamage = Math.floor(combo.total * combo.hitIndex / 7) -
+                Math.floor(combo.total * (combo.hitIndex - 1) / 7);
+            if (hitDamage > 0) applyCompanionBossDamage(ctx, target, hitDamage);
+            combo.nextHitAt += strikeInterval;
+            state.attackUntil = current + 115;
+            spawnHitEffect(combo.x + (Math.random() - 0.5) * 22,
+                combo.y + (Math.random() - 0.5) * 22, "#ffe27a");
+        }
+        if (combo.hitIndex >= 7 && current > combo.nextHitAt + 90) {
+            state.combo = null;
+            state.attackFrame = 0;
+        }
     }
 
     function healWithGoldExperience(ctx) {
@@ -277,11 +341,21 @@
         while (state.trail.length && state.trail[0].life <= 0) state.trail.shift();
 
         healWithGoldExperience(ctx);
+        updateMudaCombo(ctx);
 
-        var bossDistance = Math.hypot(state.x - boss.x, state.y - boss.y);
-        if (current >= state.nextAttackAt && bossDistance <= 190) {
-            if (dealCompanionDamage(ctx, currentCard())) state.nextAttackAt = current + 930;
-            else state.nextAttackAt = current + 250;
+        var target = getUniqueBossTarget(ctx);
+        var targetX = target ? Number(target.x) : boss.x;
+        var targetY = target ? Number(target.y) : boss.y;
+        var bossDistance = Math.hypot(state.x - targetX, state.y - targetY);
+        if (!state.combo && current >= state.nextAttackAt && bossDistance <= 128) {
+            if (target) beginMudaCombo(ctx, target, currentCard());
+            else if (ctx.type === "arena" && bossDistance <= 112) {
+                var arenaDamage = Math.max(1, Math.floor((Number(currentCard() && currentCard().damage) || 137) * 0.22));
+                if (applyCompanionBossDamage(ctx, null, arenaDamage)) {
+                    state.attackUntil = current + 260;
+                    state.nextAttackAt = current + 930;
+                } else state.nextAttackAt = current + 250;
+            }
         }
     }
 
@@ -290,6 +364,8 @@
         var current = now();
         var walk = Math.sin(current / 85) * 0.9;
         var attack = current < state.attackUntil;
+        var comboStrike = state.combo ? Math.max(0, state.combo.hitIndex) : 0;
+        var punch = attack ? (0.72 + Math.sin(current / 24) * 0.28) : 0;
         var scale = 1.22;
         c.save();
         c.globalCompositeOperation = "lighter";
@@ -347,11 +423,11 @@
         c.strokeStyle = "#9d6f24"; c.lineWidth = 4.4; c.lineCap = "round";
         c.beginPath();
         c.moveTo(-9, -8); c.lineTo(-14, -1 + walk);
-        c.moveTo(9, -8); c.lineTo(attack ? 18 : 14, attack ? -9 : 1 - walk);
+        c.moveTo(9, -8); c.lineTo(attack ? 18 + punch * 7 : 14, attack ? -9 - punch * 4 : 1 - walk);
         c.stroke();
         c.fillStyle = gold;
         c.beginPath(); c.arc(-14, -1 + walk, 3.4, 0, Math.PI * 2); c.fill();
-        c.beginPath(); c.arc(attack ? 18 : 14, attack ? -9 : 1 - walk, 3.8, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(attack ? 18 + punch * 7 : 14, attack ? -9 - punch * 4 : 1 - walk, attack ? 4.8 : 3.8, 0, Math.PI * 2); c.fill();
 
         // Грудная пластина и зелёные жизненные камни.
         c.fillStyle = "#8b5e1b";
@@ -390,7 +466,11 @@
             c.globalAlpha = Math.max(0, (state.attackUntil - current) / 260);
             c.strokeStyle = "#fff1a1"; c.lineWidth = 2.2;
             c.shadowColor = "#ffe06a"; c.shadowBlur = 10;
-            c.beginPath(); c.arc(state.x + state.facing * 18, state.y - 8, 19, -0.8, 0.8); c.stroke();
+            c.beginPath(); c.arc(state.x + state.facing * (18 + punch * 10), state.y - 8, 19 + (comboStrike % 2) * 3, -0.8, 0.8); c.stroke();
+            if (state.combo) {
+                c.globalAlpha *= 0.72;
+                c.beginPath(); c.arc(state.x + state.facing * 28, state.y - 8, 25, -0.65, 0.65); c.stroke();
+            }
             c.restore();
         }
     }
