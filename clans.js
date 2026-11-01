@@ -53,14 +53,6 @@
     var GAME_ANALYTICS_IDLE_LIMIT_MS = 5 * 60 * 1000;
     var activeUniqueBossAttempt = null;
     var uniqueBossStatsCache = Object.create(null);
-    var NEW_ACCOUNT_SLOT_TRANSFER_KEY = 'mb_new_account_slot_transfer_user_v1';
-
-    function isPendingNewAccountTransfer(userId) {
-        try { return !!userId && localStorage.getItem(NEW_ACCOUNT_SLOT_TRANSFER_KEY) === userId; }
-        catch (_error) { return false; }
-    }
-
-
     var STAT_DEFS = [
         { key: 'total_wins', label: '🏆 Победы' },
         { key: 'highest_wave', label: '🌊 Макс. волна' },
@@ -3084,32 +3076,14 @@
             var createdUser = result.data && result.data.user;
             var identities = createdUser && Array.isArray(createdUser.identities) ? createdUser.identities : null;
             var trulyNewAccount = !!createdUser && (identities ? identities.length > 0 : !!result.data.session);
-            if (trulyNewAccount && createdUser.id) {
-                // Persist through email confirmation so the first later login can carry
-                // the current slot into this brand-new account.
-                localStorage.setItem(NEW_ACCOUNT_SLOT_TRANSFER_KEY, createdUser.id);
-            }
             if (result.data.session) {
                 currentUser = result.data.user;
-                if (isPendingNewAccountTransfer(currentUser.id)) {
-                    var transferError = await accountSlotBindingError(currentUser, getCurrentGameSlot());
-                    if (transferError) {
-                        setNotice(transferError, 'warning');
-                        try { await db.auth.signOut(); } catch (_signOutError) {}
-                        currentUser = null;
-                        showAuthState();
-                        notifyCloudSaveAuthChanged();
-                        return;
-                    }
-                }
-                setNotice(isPendingNewAccountTransfer(currentUser.id)
-                    ? 'Новый аккаунт создан. Текущее сохранение будет перенесено в него.'
-                    : 'Аккаунт создан. Добро пожаловать!', 'success');
+                setNotice('Аккаунт создан. Добро пожаловать!', 'success');
                 await refreshAll();
                 notifyCloudSaveAuthChanged();
             } else {
                 setNotice(trulyNewAccount
-                    ? 'Аккаунт создан. Подтверди почту и войди: сохранение текущего слота перенесётся в новый аккаунт.'
+                    ? 'Аккаунт создан. Подтверди почту, затем войди в него в этом слоте.'
                     : 'Если аккаунт уже существует, просто войди. Существующее облачное сохранение не будет перезаписано.',
                     'success');
             }
@@ -3130,14 +3104,12 @@
             var result = await db.auth.signInWithPassword({ email: email, password: password });
             if (result.error) throw result.error;
             currentUser = result.data.user;
-            var bindingError = await accountSlotBindingError(currentUser, getCurrentGameSlot());
+            var bindingError = await validateAndClaimAccountSession(currentUser);
             if (bindingError) {
                 await rejectAccountForSlot(db, getCurrentGameSlot(), bindingError);
                 return;
             }
-            setNotice(isPendingNewAccountTransfer(currentUser.id)
-                ? 'Вход выполнен. Переносим локальное сохранение в новый аккаунт…'
-                : 'Вход выполнен. Проверяем облачное сохранение аккаунта…', 'success');
+            setNotice('Вход выполнен. Проверяем облачное сохранение аккаунта…', 'success');
             await refreshAll();
             notifyCloudSaveAuthChanged();
         } catch (error) {
@@ -3283,7 +3255,7 @@
                 detail: {
                     userId: currentUser && !accountSessionBlocked && activeAccountSessionUserId === currentUser.id ? currentUser.id : null,
                     email: currentUser ? currentUser.email : null,
-                    isNewAccount: isPendingNewAccountTransfer(currentUser ? currentUser.id : null)
+                    isNewAccount: false
                 }
             }));
         } catch (_error) {}
@@ -3447,26 +3419,10 @@
         var legacyKey = 'sb-' + projectRef + '-auth-token';
         var legacyValue = localStorage.getItem(legacyKey);
         if (!legacyValue) return;
-        for (var i = 0; i < 3; i++) {
+        for (var i = 0; i < 5; i++) {
             if (localStorage.getItem(authStorageKeyForSlot(i))) return;
         }
         var targetSlot = getCurrentGameSlot();
-        try {
-            var parsed = JSON.parse(legacyValue);
-            var legacyUserId = parsed && parsed.user && parsed.user.id;
-            if (legacyUserId) {
-                var bindingData = JSON.parse(localStorage.getItem('cgV20_cloud_slot_bindings_v1') || '{}');
-                var mapped = bindingData && bindingData.byUser ? Number(bindingData.byUser[legacyUserId]) : NaN;
-                if (Number.isInteger(mapped) && mapped >= 0 && mapped <= 4) {
-                    targetSlot = mapped;
-                } else {
-                    for (var slotIndex = 0; slotIndex < 5; slotIndex++) {
-                        var marker = JSON.parse(localStorage.getItem('cgV20_slot' + slotIndex + '_cloud_sync_meta') || 'null');
-                        if (marker && marker.userId === legacyUserId) { targetSlot = slotIndex; break; }
-                    }
-                }
-            }
-        } catch (_error) {}
         var slotKey = authStorageKeyForSlot(targetSlot);
         if (!localStorage.getItem(slotKey)) {
             localStorage.setItem(slotKey, legacyValue);
@@ -3680,43 +3636,9 @@
         return null;
     }
 
-    async function accountSlotBindingError(user, slot) {
+    async function validateAndClaimAccountSession(user) {
         if (!user || !user.id) return null;
-        var transferNewAccount = isPendingNewAccountTransfer(user.id);
-        try {
-            if (!transferNewAccount && typeof window.mbCloudBindingProblem === 'function') {
-                var localProblem = window.mbCloudBindingProblem(user.id, slot);
-                if (localProblem) return localProblem;
-            }
-            if (!db || typeof db.rpc !== 'function') {
-                return 'Не удалось проверить уникальность аккаунта. Проверь соединение и попробуй снова.';
-            }
-            var result = await db.rpc('claim_multiverse_slot_account', {
-                p_device_id: getDeviceBindingId(),
-                p_slot_index: slot,
-                p_transfer_existing_slot: transferNewAccount
-            });
-            if (result.error) {
-                console.error('Slot account binding check failed:', result.error);
-                return 'Не удалось проверить привязку аккаунта к слоту на сервере. Проверь интернет и попробуй снова.';
-            }
-            var verdict = result.data;
-            if (!verdict || verdict.ok !== true) {
-                return verdict && verdict.message ? verdict.message : 'Этот аккаунт нельзя использовать в выбранном слоте.';
-            }
-            var activeSessionError = await claimActiveAccountSession(user);
-            if (activeSessionError) return activeSessionError;
-            if (transferNewAccount && typeof window.mbPrepareNewAccountSlotTransfer === 'function') {
-                var prepared = window.mbPrepareNewAccountSlotTransfer(user.id, slot);
-                if (prepared !== true) {
-                    return 'Аккаунт создан, но локальный слот не удалось подготовить к переносу. Прогресс не перезаписан; обнови игру и попробуй снова.';
-                }
-            }
-            return null;
-        } catch (error) {
-            console.error('Slot account binding check failed:', error);
-            return 'Не удалось проверить привязку аккаунта к слоту. Попробуй ещё раз при стабильном интернете.';
-        }
+        return await claimActiveAccountSession(user);
     }
 
     async function refreshModeratorAccess(client) {
@@ -3764,7 +3686,7 @@
                 if (requestedSlot !== getCurrentGameSlot() || db !== currentClient) return;
                 if (currentSessionResult.error) throw currentSessionResult.error;
                 currentUser = currentSessionResult.data.session ? currentSessionResult.data.session.user : null;
-                var currentBindingError = await accountSlotBindingError(currentUser, requestedSlot);
+                var currentBindingError = await validateAndClaimAccountSession(currentUser, requestedSlot);
                 if (currentBindingError) {
                     await rejectAccountForSlot(currentClient, requestedSlot, currentBindingError);
                     return;
@@ -3808,7 +3730,7 @@
             if (sessionResult.error) throw sessionResult.error;
             currentUser = sessionResult.data.session ? sessionResult.data.session.user : null;
             updateUniqueBossFightAnalyticsVisibility();
-            var restoredBindingError = await accountSlotBindingError(currentUser, requestedSlot);
+            var restoredBindingError = await validateAndClaimAccountSession(currentUser, requestedSlot);
             if (restoredBindingError) {
                 await rejectAccountForSlot(client, requestedSlot, restoredBindingError);
                 return;
@@ -3826,7 +3748,7 @@
                 var eventUser = currentUser;
                 window.setTimeout(async function () {
                     if (db !== client || activeAuthSlot !== requestedSlot || requestedSlot !== getCurrentGameSlot()) return;
-                    var authBindingError = await accountSlotBindingError(eventUser, requestedSlot);
+                    var authBindingError = await validateAndClaimAccountSession(eventUser, requestedSlot);
                     if (db !== client || activeAuthSlot !== requestedSlot || requestedSlot !== getCurrentGameSlot()) return;
                     if (authBindingError) {
                         currentUser = null;
