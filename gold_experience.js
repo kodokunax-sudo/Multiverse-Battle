@@ -1242,18 +1242,35 @@
         var tangentDistance = dx * tangentX + dy * tangentY;
         var tangentInput = Math.max(-1, Math.min(1, tangentDistance / 34));
 
-        // If the player reaches a higher platform, the companion jumps against gravity too.
+        // Treat Golden Heart as a second player: inherit the player's size/speed rules,
+        // jump when the player jumps or reaches a higher platform, then land on real geometry.
+        var playerInfo = info.player || {};
         var playerAbove = (playerX - state.x) * (-gravity.x) +
             (playerY - state.y) * (-gravity.y);
-        if (state.antiSpiralGrounded && playerAbove > radius * 2.4 &&
+        var playerJumpVelocity = -(Number(playerInfo.vx) || 0) * gravity.x -
+            (Number(playerInfo.vy) || 0) * gravity.y;
+        var playerJumping = !playerInfo.grounded && playerJumpVelocity > 4.2;
+        var playerOnDifferentPlatform = playerInfo.platformIndex != null &&
+            state.antiSpiralPlatformIndex != null &&
+            playerInfo.platformIndex !== state.antiSpiralPlatformIndex &&
+            playerAbove > radius * 1.05;
+        var playerScale = Number(playerInfo.scaleMode) || 1;
+        speedMultiplier = (playerScale === 0.5 ? 1.5 : (playerScale === 2 ? 0.62 : 1)) *
+            Math.max(0.15, Number(info.superSpeed) || 1);
+        if (state.antiSpiralGrounded &&
+            (playerAbove > radius * 1.65 || playerOnDifferentPlatform || playerJumping) &&
             current >= (Number(state.antiSpiralJumpCooldownUntil) || 0)) {
-            var jumpPower = (23.2 / 1.5) * Math.max(0.65, Number(info.superSpeed) || 1);
+            var jumpScale = (playerScale === 0.5 ? 0.65 : (playerScale === 2 ? 1.3 : 1)) *
+                Math.max(0.15, Number(info.superSpeed) || 1);
+            var jumpPower = (23.2 / 1.5) * jumpScale;
             state.vx = -gravity.x * jumpPower;
             state.vy = -gravity.y * jumpPower;
             state.antiSpiralGrounded = false;
             state.antiSpiralPlatformIndex = null;
             state.antiSpiralJumpCooldownUntil = current + 620;
         }
+        state.lastPlayerGrounded = !!playerInfo.grounded;
+        state.lastPlayerPlatformIndex = playerInfo.platformIndex;
 
         var pullX = 0;
         var pullY = 0;
@@ -1361,6 +1378,84 @@
         }
     }
 
+    function updateAntiSpiralMiniCompanionPhysics(info, frameScale, current) {
+        var mini = info && info.mini ? info.mini : {};
+        var player = info && info.player ? info.player : { x: 200, y: 260 };
+        var bounds = mini.bounds || { left: 34, right: 366, top: 91, bottom: 466 };
+        var radius = Math.max(8, Math.min(13, (Number(state.heartSize) || 15) * 0.62));
+        var margin = radius + 1;
+        var left = bounds.left + margin, right = bounds.right - margin;
+        var top = bounds.top + margin, bottom = bounds.bottom - margin;
+        var timeScale = Math.max(0.25, Math.min(1, Number(info.timeScale) || 1));
+        var stepScale = frameScale * timeScale;
+        var speedMultiplier = Math.max(0.15, Math.min(3, Number(mini.speedMultiplier) || 1));
+        var spheres = Array.isArray(mini.spheres) ? mini.spheres : [];
+        var target = null, bestDistance = Infinity;
+
+        if (!state.antiSpiralMiniInitialized) {
+            state.x = Math.max(left, Math.min(right, (Number(player.x) || 200) + 24));
+            state.y = Math.max(top, Math.min(bottom, Number(player.y) || 260));
+            state.vx = 0;
+            state.vy = 0;
+            state.antiSpiralMiniInitialized = true;
+            state.antiSpiralPhysicsInitialized = false;
+            state.antiSpiralGrounded = false;
+        }
+
+        if (!mini.intro) {
+            for (var i = 0; i < spheres.length; i++) {
+                var sphere = spheres[i];
+                if (!sphere) continue;
+                var distance = Math.hypot(Number(sphere.x) - state.x, Number(sphere.y) - state.y);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    target = sphere;
+                }
+            }
+        }
+
+        var goalX = target ? Number(target.x) : Number(player.x);
+        var goalY = target ? Number(target.y) : Number(player.y);
+        if (!Number.isFinite(goalX)) goalX = 200;
+        if (!Number.isFinite(goalY)) goalY = 260;
+        if (mini.intro) {
+            goalX = (Number(player.x) || 200) + (state.x <= (Number(player.x) || 200) ? -22 : 22);
+            goalY = Number(player.y) || 260;
+        }
+
+        var mx = Math.max(-1, Math.min(1, (goalX - state.x) / 34));
+        var my = Math.max(-1, Math.min(1, (goalY - state.y) / 34));
+        var gravityIndex = Math.max(0, Math.min(4, Number(mini.gravityIndex) || 0));
+        var gx = 0, gy = 0;
+        if (gravityIndex === 0) gy = 0.23;
+        else if (gravityIndex === 1) gy = -0.23;
+        else if (gravityIndex === 2) gx = -0.23;
+        else if (gravityIndex === 3) gx = 0.23;
+        else {
+            gx = (200 - state.x) * 0.0016;
+            gy = (260 - state.y) * 0.0016;
+        }
+
+        state.vx = Math.max(-4.6 * speedMultiplier,
+            Math.min(4.6 * speedMultiplier,
+                (state.vx + mx * 0.43 * speedMultiplier + gx) * 0.965));
+        state.vy = Math.max(-4.6 * speedMultiplier,
+            Math.min(4.6 * speedMultiplier,
+                (state.vy + my * 0.43 * speedMultiplier + gy) * 0.965));
+        state.x += state.vx * stepScale;
+        state.y += state.vy * stepScale;
+
+        if (state.x < left) { state.x = left; state.vx = Math.abs(state.vx) * 0.42; }
+        if (state.x > right) { state.x = right; state.vx = -Math.abs(state.vx) * 0.42; }
+        if (state.y < top) { state.y = top; state.vy = Math.abs(state.vy) * 0.42; }
+        if (state.y > bottom) { state.y = bottom; state.vy = -Math.abs(state.vy) * 0.42; }
+
+        if (target && bestDistance <= 11 + radius &&
+            typeof window.collectAntiSpiralMiniSphere === "function") {
+            window.collectAntiSpiralMiniSphere(target.index);
+        }
+    }
+
     function updateCompanion(dt) {
         if (!state.active || !isGERMain()) return;
         var current = now(), ctx = getContext();
@@ -1383,8 +1478,44 @@
             state.vy = 0;
             state.isDodging = false;
             state.antiSpiralPhysicsInitialized = false;
+            state.antiSpiralMiniInitialized = false;
             stopMudaMusic();
             return;
+        }
+        if (antiInfo && antiInfo.state === "mini") {
+            var miniPlayer = antiInfo.player || { x: playerX, y: playerY };
+            playerX = Number(miniPlayer.x) || playerX;
+            playerY = Number(miniPlayer.y) || playerY;
+            state.heartSize = getCompanionSize(ctx);
+            state.combo = null;
+            state.punch = null;
+            state.specialAttack = null;
+            state.attackType = null;
+            state.attackUntil = 0;
+            state.punchEffects = [];
+            state.isDodging = false;
+            state.healState = "idle";
+            state.healTimer = 0;
+            state.healRemaining = 0;
+            state.healTotal = 0;
+            state.antiSpiralPhysicsInitialized = false;
+            state.moveTargetX = playerX;
+            state.moveTargetY = playerY;
+            updateAntiSpiralMiniCompanionPhysics(antiInfo, frameScale, current);
+            if (state.trail) {
+                state.trail.push({ x: state.x, y: state.y, life: 10 });
+                if (state.trail.length > 9) state.trail.shift();
+                for (var miniTrail = state.trail.length - 1; miniTrail >= 0; miniTrail--) {
+                    state.trail[miniTrail].life -= frameScale;
+                }
+                while (state.trail.length && state.trail[0].life <= 0) state.trail.shift();
+            }
+            stopMudaMusic();
+            return;
+        }
+        if (state.antiSpiralMiniInitialized) {
+            state.antiSpiralMiniInitialized = false;
+            state.antiSpiralPhysicsInitialized = false;
         }
         if (antiInfo && antiInfo.state !== "fight") {
             var anchor = antiInfo.player || { x: playerX, y: playerY };
@@ -1411,6 +1542,16 @@
         if (antiInfo && antiInfo.player) {
             playerX = Number(antiInfo.player.x) || playerX;
             playerY = Number(antiInfo.player.y) || playerY;
+        }
+        var cloneMode = !!(antiInfo && antiInfo.cloneMode);
+        if (cloneMode) {
+            state.combo = null;
+            state.punch = null;
+            state.specialAttack = null;
+            state.attackType = null;
+            state.attackUntil = 0;
+            state.punchEffects = [];
+            stopMudaMusic();
         }
         var playerHp = Math.max(0, Number(ctx.getPlayerHp && ctx.getPlayerHp()) || 0);
         var playerMaxHp = Math.max(1, Number(ctx.getPlayerMaxHp && ctx.getPlayerMaxHp()) || 1);
@@ -1441,10 +1582,22 @@
         if (state.attackCooldown > 0) state.attackCooldown = Math.max(0, state.attackCooldown - frameScale);
         if (state.swingTimer > 0) state.swingTimer = Math.max(0, state.swingTimer - frameScale);
 
-        var goal = chooseCompanionGoal(ctx, playerX, playerY, boss, frameScale);
+        var goal;
+        if (cloneMode) {
+            var cloneGravity = antiInfo.gravity || { x: 0, y: 1 };
+            var cloneTangentX = -cloneGravity.y;
+            var cloneTangentY = cloneGravity.x;
+            var cloneSide = Number(state.companionSide) || 1;
+            goal = {
+                x: Math.max(18, Math.min(382, playerX + cloneTangentX * cloneSide * 20)),
+                y: Math.max(8, Math.min(482, playerY + cloneTangentY * cloneSide * 20))
+            };
+        } else {
+            goal = chooseCompanionGoal(ctx, playerX, playerY, boss, frameScale);
+        }
         state.moveTargetX = goal.x;
         state.moveTargetY = goal.y;
-        var incoming = state.stunTimer > 0 ? null : findIncomingCompanionThreat(ctx);
+        var incoming = state.stunTimer > 0 || cloneMode ? null : findIncomingCompanionThreat(ctx);
         var urgentThreat = !!incoming && incoming.time <= 13;
         var newThreat = !!incoming && incoming.attack !== state.lastThreatAttack;
         var dodging = false;
@@ -1546,7 +1699,7 @@
         var attackDistance = Math.hypot(state.x - Number(activePosition.x),
             state.y - Number(activePosition.y));
 
-        if (state.healState === "idle" && state.stunTimer <= 0) {
+        if (!cloneMode && state.healState === "idle" && state.stunTimer <= 0) {
             if (state.combo) {
                 updateMudaCombo(ctx);
             } else if (state.punch) {
@@ -1569,7 +1722,7 @@
             state.punch = null;
         }
 
-        if (state.healState !== "idle" || state.stunTimer > 0) {
+        if (cloneMode || state.healState !== "idle" || state.stunTimer > 0) {
             state.combo = null;
             state.specialAttack = null;
             state.attackType = null;
