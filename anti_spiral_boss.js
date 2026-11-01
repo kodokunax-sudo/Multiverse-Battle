@@ -2393,6 +2393,33 @@
         }
         asUpdateControls();
     }
+    function asCollectMiniSphere(index, now) {
+        if (asState !== "mini" || !Number.isInteger(index)) return false;
+        const spiral = asMiniSpirals[index];
+        if (!spiral || spiral.collected) return false;
+        spiral.collected = true;
+        asMiniCollected++;
+        for (let p = 0; p < 12; p++) {
+            const a = p * Math.PI / 6;
+            asParticles.push({
+                x: spiral.x, y: spiral.y,
+                vx: Math.cos(a) * (1.5 + Math.random() * 2.3),
+                vy: Math.sin(a) * (1.5 + Math.random() * 2.3),
+                life: 22, maxLife: 22,
+                color: p % 2 ? "#5deaff" : "#d6a0ff",
+                size: 2 + Math.random() * 2
+            });
+        }
+        asFlash = 3;
+        asFlashColor = "#62eaff";
+        asSound(380 + asMiniCollected * 65, "sine", 0.12, 0.07);
+        if (asMiniCollected >= 15) asFinishBrokenReality(true, Number(now) || asClockNow());
+        return true;
+    }
+    window.collectAntiSpiralMiniSphere = function(index) {
+        return asCollectMiniSphere(Number(index), asClockNow());
+    };
+
     function asUpdateBrokenReality(now) {
         const elapsed = now - asMiniIntroUntil;
         asShake = Math.max(asShake, 2.4 + Math.min(5.6, elapsed / 3500) + Math.abs(Math.sin(now * 0.017)) * 2.2);
@@ -2489,27 +2516,9 @@
             if (spiral.collected) continue;
             spiral.phase += 0.045;
             if (Math.hypot(asPlayer.x - spiral.x, asPlayer.y - spiral.y) < 11 + asPlayer.size) {
-                spiral.collected = true;
-                asMiniCollected++;
-                for (let p = 0; p < 12; p++) {
-                    const a = p * Math.PI / 6;
-                    asParticles.push({
-                        x: spiral.x, y: spiral.y,
-                        vx: Math.cos(a) * (1.5 + Math.random() * 2.3),
-                        vy: Math.sin(a) * (1.5 + Math.random() * 2.3),
-                        life: 22, maxLife: 22,
-                        color: p % 2 ? "#5deaff" : "#d6a0ff",
-                        size: 2 + Math.random() * 2
-                    });
-                }
-                asFlash = 3;
-                asFlashColor = "#62eaff";
-                asSound(380 + asMiniCollected * 65, "sine", 0.12, 0.07);
+                asCollectMiniSphere(i, now);
+                if (asState !== "mini") return;
             }
-        }
-        if (asMiniCollected >= 15) {
-            asFinishBrokenReality(true, now);
-            return;
         }
         if (elapsed >= 15000) asFinishBrokenReality(false, now);
     }
@@ -2740,6 +2749,7 @@
         }
         if (asState === "mini") {
             asDrawBrokenReality(c, now);
+            if (typeof window.MBDrawGoldExperience === "function") window.MBDrawGoldExperience(c);
             c.restore();
             asUpdateBrokenReality(now);
             asAnimFrame = requestAnimationFrame(asRender);
@@ -3539,6 +3549,20 @@
         const bounds = asBounds();
         const platforms = [];
         const pulls = [];
+        const miniProgress = asState === "mini"
+            ? Math.max(0, Math.min(1, (now - asMiniIntroUntil) / 15000)) : 0;
+        const miniBounds = {
+            left: 34 + miniProgress * 34,
+            right: 366 - miniProgress * 34,
+            top: 91 + miniProgress * 39,
+            bottom: 466 - miniProgress * 43
+        };
+        const miniSpheres = asState === "mini"
+            ? asMiniSpirals.map(function(spiral, index) {
+                return spiral && !spiral.collected
+                    ? { index: index, x: spiral.x, y: spiral.y } : null;
+            }).filter(Boolean)
+            : [];
 
         if (asState === "fight") {
             const safeIndex = asSafePlatformIndex();
@@ -3565,12 +3589,18 @@
         return {
             active: !!asActive,
             state: asState,
-            hidden: asState === "mini",
+            hidden: asState !== "fight" && asState !== "cinematic" && asState !== "mini",
+            cloneMode: asState === "fight" && !!asCloneMode,
+            clonePhase: asClonePhase,
             player: {
                 x: Number(anchor && anchor.x) || 0,
                 y: Number(anchor && anchor.y) || 0,
                 vx: Number(anchor && anchor.vx) || 0,
-                vy: Number(anchor && anchor.vy) || 0
+                vy: Number(anchor && anchor.vy) || 0,
+                grounded: !!(anchor && anchor.grounded),
+                platformIndex: anchor && anchor.platformIndex != null ? Number(anchor.platformIndex) : null,
+                size: Number(anchor && anchor.size) || 12,
+                scaleMode: asPlayerScaleMode
             },
             gravity: gravity,
             gravityDirection: asGravityDirection,
@@ -3582,6 +3612,13 @@
             },
             platforms: platforms,
             pulls: pulls,
+            mini: asState === "mini" ? {
+                intro: now < asMiniIntroUntil,
+                gravityIndex: asMiniGravityIndex,
+                bounds: miniBounds,
+                spheres: miniSpheres,
+                speedMultiplier: (asPlayerScaleMode === .5 ? 1.5 : (asPlayerScaleMode === 2 ? .62 : 1)) * asSuperSpeedMult
+            } : null,
             timeScale: asTimeScale
         };
     };
