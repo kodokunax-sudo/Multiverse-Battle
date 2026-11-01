@@ -466,7 +466,21 @@ function dioAttackTouchesStand(ctxB,a){
    if(Number(a.width)>0||Number(a.height)>0)return dioStandHitResult(Math.abs(x-(Number(a.x)||0))<Math.max(6,Number(a.width)||Number(a.size)||20)/2+h&&Math.abs(y-(Number(a.y)||0))<Math.max(6,Number(a.height)||Number(a.size)||20)/2+h,a);
    return dioStandHitResult(Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<sz+h,a);
   }
- if(type==="rwb"){if(a.type==="roger_slash"){if(a.state!=="active")return false;return dioStandHitResult((a.direction==="horizontal"?Math.abs(y-a.y)<Number(a.width||0)*.35+h:Math.abs(x-a.x)<Number(a.width||0)*.35+h),a);}if(a.type==="roger_cross"){if(a.state!=="active")return false;return dioStandHitResult((a.dir==="vertical"?Math.abs(x-a.x)<Number(a.width||0)*.35+h:Math.abs(y-a.y)<Number(a.width||0)*.35+h),a);}if(a.type==="tsunami"){var dy=Math.abs(y-(Number(a.y)||0)),hh=(Number(a.currentHeight)||Number(a.height)||0)/2;return dioStandHitResult((dy<hh+h&&(a.fromRight?x>=(Number(a.x)||0):x<=(Number(a.width)||400))),a);}if(a.type==="gura_crack"&&a.state!=="active")return false;if(a.type==="hell_fire"&&a.state==="flying")return dioStandHitResult((Math.hypot(x-a.x,y-a.y)<sz+h),a);if(a.state==="warning"||a.state==="done")return false;if(a.type==="gura_crack"||a.type==="purple_crack_zone")return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||a.maxRadius||sz)+h),a);return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<sz+h),a);}
+  if(type==="rwb"){
+   var rwbSegDist=function(px,py,x1,y1,x2,y2){var vx=x2-x1,vy=y2-y1,len=vx*vx+vy*vy,t=len>0?Math.max(0,Math.min(1,((px-x1)*vx+(py-y1)*vy)/len)):0;return Math.hypot(px-(x1+t*vx),py-(y1+t*vy));};
+   if(Number.isFinite(Number(a.originX))&&Number.isFinite(Number(a.originY))&&Number.isFinite(Number(a.endX))&&Number.isFinite(Number(a.endY)))
+    return dioStandHitResult(rwbSegDist(x,y,Number(a.originX),Number(a.originY),Number(a.endX),Number(a.endY))<Math.max(8,Number(a.width)||16)/2+h,a);
+   if(a.type==="wb_crescent_slash"&&a.state==="flying")
+    return dioStandHitResult(x>=0&&x<=400&&Math.abs(y-(Number(a.y)||0))<(Number(a.width)||92)/2+h,a);
+   if(a.type==="roger_slash"){if(a.state!=="active")return false;return dioStandHitResult((a.direction==="horizontal"?Math.abs(y-a.y)<Number(a.width||0)*.35+h:Math.abs(x-a.x)<Number(a.width||0)*.35+h),a);}
+   if(a.type==="roger_cross"){if(a.state!=="active")return false;return dioStandHitResult((a.dir==="vertical"?Math.abs(x-a.x)<Number(a.width||0)*.35+h:Math.abs(y-a.y)<Number(a.width||0)*.35+h),a);}
+   if(a.type==="tsunami"){var dy=Math.abs(y-(Number(a.y)||0)),hh=(Number(a.currentHeight)||Number(a.height)||0)/2;return dioStandHitResult((dy<hh+h&&(a.fromRight?x>=(Number(a.x)||0):x<=(Number(a.width)||400))),a);}
+   if(a.type==="gura_crack"&&a.state!=="active")return false;
+   if(a.type==="hell_fire"&&a.state==="flying")return dioStandHitResult((Math.hypot(x-a.x,y-a.y)<sz+h),a);
+   if(a.state==="warning"||a.state==="done")return false;
+   if(a.type==="gura_crack"||a.type==="purple_crack_zone")return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||a.maxRadius||sz)+h),a);
+   return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<sz+h),a);
+  }
  // Generic collision path for unique bosses with custom attack implementations.
  // It inspects the resolved attack shape, not a boss-specific attack name.
  if(type==="stoneSuper"||type==="antispiral"){
