@@ -950,9 +950,10 @@
     }
     function ls2StartChaseMusic() {
         ls2StopChaseMusic();
-        if (!ls2ChaseStarAid || typeof Audio==="undefined") return;
+        if (typeof Audio==="undefined" || window.__mbChaseMusicMuted === true) return;
         try {
-            ls2ChaseMusic=new Audio("music/помощь звезды.mp3");
+            var chaseTrack = ls2ChaseStarAid ? "music/помощь звезды.mp3" : "music/Trap.mp3";
+            ls2ChaseMusic=new Audio(chaseTrack);
             ls2ChaseMusic.volume=0.78; ls2ChaseMusic.loop=true;
             var p=ls2ChaseMusic.play();
             if (p && typeof p.catch==="function") p.catch(function(){});
@@ -1003,7 +1004,7 @@
                 ls2StartChaseMusic();
                 if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,320,"ПУТЕВОДНАЯ ЗВЕЗДА: Я ПРИШЛА ВЕРНУТЬ ДОЛГ!","#aeeaff",120);
             } else {
-                ls2StopChaseMusic();
+                ls2StartChaseMusic();
                 if (typeof spawnLivingStoneText==="function") spawnLivingStoneText(200,320,"ТЕБЕ ПРИДЁТСЯ БЕЖАТЬ САМОМУ!","#ff967d",100);
             }
         }
