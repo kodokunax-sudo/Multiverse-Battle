@@ -1183,7 +1183,7 @@
                     ? "✦ SUPER: ВОЗВРАЩЕНИЕ К НУЛЮ"
                     : "✦ REQUIEM · " + Math.floor(state.charge) + "%";
             btn.disabled = activeLeft <= 0 && state.charge < 100;
-            btn.title = "При 100% заряда: 5 секунд и 2 обнуления. Пассивное Золотое Сердце постоянно следует за Джорно, уклоняется, сражается и восстанавливается после поражения.";
+            btn.title = "При 100% заряда: 5 секунд и 2 обнуления. Золотое Сердце сопровождает Джорно, уклоняется, атакует и перенаправляет попавшие по нему удары Джорно со снижением урона на 50%.";
             if (status) {
                 status.textContent = "";
                 status.style.display = "none";
@@ -1422,9 +1422,7 @@
     window.scaleStandBlockedDamage = function (baseDamage) {
         var base = Math.max(0, Number(baseDamage) || 0);
         if (isRequiemCompanionActive()) {
-            damageRequiemHeart(base, null);
-            addCharge(8);
-            state.lastHitAt = now();
+            registerCompanionInterception(null);
             return Math.max(1, Math.floor(base * 0.5));
         }
         return typeof baseScaleStandDamage === "function"
@@ -1441,25 +1439,23 @@
         var hit = false;
         try { hit = window.dioAttackTouchesStand(ctx || getContext(), attack) === true; } catch (e) {}
         if (!hit) return false;
-        damageRequiemHeart(attack.damage || attack.dmg || 8, attack);
+        attack.dioStandHitOnce = true;
+        registerCompanionInterception(attack);
         return true;
     };
     window.MBGoldExperienceRedirectDamage = function (rawDamage, ctx, sourceAction) {
         if (!window.MBIsGoldExperienceNpcActive() || !sourceAction ||
             typeof sourceAction !== "object" ||
             typeof window.dioAttackTouchesStand !== "function") return null;
-        if (sourceAction._mbGERHeartDamageApplied) {
-            return Math.max(1, Math.floor((Number(rawDamage) || 1) * 0.5));
-        }
-        if (sourceAction.dioStandHitOnce) return null;
+        if (sourceAction._mbGERStandDamageRedirected || sourceAction.dioStandHitOnce) return null;
         var hit = false;
         try { hit = window.dioAttackTouchesStand(ctx || getContext(), sourceAction) === true; } catch (e) {}
         if (!hit) return null;
-        damageRequiemHeart(rawDamage, sourceAction);
         sourceAction.dioStandHitOnce = true;
+        sourceAction._mbGERStandDamageRedirected = true;
+        registerCompanionInterception(sourceAction);
         return Math.max(1, Math.floor((Number(rawDamage) || 1) * 0.5));
     };
-
     // true means the action was cancelled. Repeated hits from the same attack
     // object remain cancelled without spending an additional charge.
     window.MBGERTryNullifyDamage = function (damage, sourceAction, category) {
