@@ -1042,27 +1042,16 @@ function loadGameData(d) {
     window.waystarOwesDebt = sparedWaystar;
     if (window.MBPatches) window.MBPatches.load(Array.isArray(d.unlockedPatches) ? d.unlockedPatches : []);
     myCards = d.myCards || [];
-    // Миграция сохранённых обычных Карсов на актуальные параметры эволюции.
-    // Накопленные HP, урон и скорость экземпляра не сбрасываются.
+    // Миграция обычной формы Карса на пассивку клинков света.
+    // Существующие экземпляры получают новую способность без сброса характеристик.
     myCards.forEach(function(card) {
         if (!card || card.name !== "Карс (обычная форма)") return;
-        if (!card.ability) card.ability = {};
-        if (card.ability.type === "healOnWin") {
-            card.ability = {
-                type: "karsEvolutionOnWave",
-                hpGrowth: 0.004,
-                damageGrowth: 0.003,
-                speedGrowth: 0.001,
-                maxSpeed: 12,
-                desc: "За каждую победу: +0.4% HP, +0.3% урона и +0.1% скорости (макс. 12)"
-            };
-        } else if (card.ability.type === "karsEvolutionOnWave") {
-            card.ability.hpGrowth = 0.004;
-            card.ability.damageGrowth = 0.003;
-            card.ability.speedGrowth = 0.001;
-            card.ability.maxSpeed = 12;
-            card.ability.desc = "За каждую победу: +0.4% HP, +0.3% урона и +0.1% скорости (макс. 12)";
-        }
+        card.ability = {
+            type: "critChance",
+            value: 0.15,
+            desc: "+15% шанс критического удара благодаря клинкам света"
+        };
+        card.desc = "Глава людей из колонны, мастер клинков света. Его точные и стремительные удары дают +15% шанс критического удара.";
 
         // Обновляем пассивку высшей формы Карса и старые карточки из сохранений,
         // не меняя накопленные HP, урон и скорость экземпляра.
