@@ -3507,6 +3507,7 @@
     window.getAntiSpiralBossState = function(){return asState;};
     window.getAntiSpiralBossPlayer = function(){return asPlayer;};
     window.getAntiSpiralBossTarget = function(){return asBoss;};
+    window.getAntiSpiralBossPosition = function(){return {x:Number(asBoss.x)||200,y:Number(asBoss.y)||135};};
     window.getAntiSpiralBossAttacks = function(){return asAttacks;};
     window.getAntiSpiralBossParticles = function(){return asParticles;};
     window.getAntiSpiralBossHp = function(){return asBossHp;};
