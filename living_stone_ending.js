@@ -941,6 +941,13 @@
                     c.restore();
                 }
             }
+            // Once the Star has transformed into the rescue vehicle, keep her visible
+            // beside the player for the entire chase instead of showing her only once.
+            if (morph >= 0.98 && typeof window.MBDrawWaystarCompanion === "function") {
+                var followX = clamp(px + (px < 330 ? 38 : -38), 22, 378);
+                var followY = py - 23 + Math.sin(now / 180) * 5;
+                window.MBDrawWaystarCompanion(followX, followY, 19);
+            }
             var jumpProgress = introFinished ? 1 : easeOut((introT - 3650) / 1050);
             var jumpArc = introStar ? Math.sin(jumpProgress * Math.PI) * 56 : 0;
             var heroY = trainMounted ? py : py - (introStar ? jumpArc + jumpProgress * 8 : 8);
