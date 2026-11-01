@@ -3260,23 +3260,33 @@
         } catch (_error) {}
     }
 
-    async function getCloudSave() {
+    function normalizeCloudSlotIndex(slotIndex) {
+        var value = Number.isInteger(Number(slotIndex)) ? Number(slotIndex) : getCurrentGameSlot();
+        if (!Number.isInteger(value) || value < 0 || value > 4) throw new Error('cloud_save_slot_invalid');
+        return value;
+    }
+
+    async function getCloudSave(slotIndex) {
         if (!db || !currentUser) throw new Error('auth_required');
         if (accountSessionBlocked || activeAccountSessionUserId !== currentUser.id || !activeAccountSessionId) throw new Error('active_session_required');
-        var result = await db.rpc('read_player_cloud_save', { p_session_id: activeAccountSessionId });
+        var result = await db.rpc('read_player_cloud_save', {
+            p_session_id: activeAccountSessionId,
+            p_slot_index: normalizeCloudSlotIndex(slotIndex)
+        });
         if (result.error) throw result.error;
         var row = Array.isArray(result.data) ? result.data[0] : result.data;
         return row || null;
     }
 
-    async function writeCloudSave(saveData, expectedUpdatedAt) {
+    async function writeCloudSave(saveData, expectedUpdatedAt, slotIndex) {
         if (!db || !currentUser) throw new Error('auth_required');
         if (accountSessionBlocked || activeAccountSessionUserId !== currentUser.id || !activeAccountSessionId) throw new Error('active_session_required');
         if (!saveData || typeof saveData !== 'object' || Array.isArray(saveData)) throw new Error('cloud_save_invalid');
         var result = await db.rpc('write_player_cloud_save', {
             p_save_data: saveData,
             p_expected_updated_at: expectedUpdatedAt || null,
-            p_session_id: activeAccountSessionId
+            p_session_id: activeAccountSessionId,
+            p_slot_index: normalizeCloudSlotIndex(slotIndex)
         });
         if (result.error) throw result.error;
         var row = Array.isArray(result.data) ? result.data[0] : result.data;
@@ -3395,9 +3405,9 @@
     function getCurrentGameSlot() {
         try {
             var liveSlot = typeof currentSlot !== 'undefined' ? Number(currentSlot) : -1;
-            if (Number.isInteger(liveSlot) && liveSlot >= 0 && liveSlot <= 2) return liveSlot;
+            if (Number.isInteger(liveSlot) && liveSlot >= 0 && liveSlot < 5) return liveSlot;
             var lastSlot = Number(localStorage.getItem('cgV20_lastSlot'));
-            if (Number.isInteger(lastSlot) && lastSlot >= 0 && lastSlot <= 2) return lastSlot;
+            if (Number.isInteger(lastSlot) && lastSlot >= 0 && lastSlot < 5) return lastSlot;
         } catch (_error) {}
         return 0;
     }
