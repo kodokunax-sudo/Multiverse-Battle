@@ -2059,7 +2059,8 @@ function checkLivingStoneCollisions() {
         if(dioStandHit){
             a.dioStandHitOnce=true;
             var hpBeforeStandHit = livingStonePlayerHp;
-            damageLivingStonePlayer(Math.max(1,Math.floor((Number(a.damage)||5)*.4)));
+            var geStoneDamage=(typeof window.MBIsGoldExperienceNpcActive==="function"&&window.MBIsGoldExperienceNpcActive()&&typeof window.scaleStandBlockedDamage==="function")?window.scaleStandBlockedDamage(Number(a.damage)||5):Math.max(1,Math.floor((Number(a.damage)||5)*.4));
+            damageLivingStonePlayer(geStoneDamage,a);
             if (livingStonePlayerHp < hpBeforeStandHit && typeof spawnLivingStoneText === "function") {
                 spawnLivingStoneText(livingStonePlayer.x, livingStonePlayer.y - 25, "удар по стенду. меньше урона", "#ffffff", 60);
             }
@@ -2105,12 +2106,12 @@ function checkLivingStoneCollisions() {
         if (hit) {
             if (a.type === "falling_star") {
                 var starX = a.x, starY = a.y, starDmg = a.damage;
-                damageLivingStonePlayer(a.damage || 5);
+                damageLivingStonePlayer(a.damage || 5,a);
                 livingStoneAttacks.splice(i, 1);
                 triggerChainExplosion(starX, starY, starDmg);
                 return;
             }
-            damageLivingStonePlayer(a.damage || 5);
+            damageLivingStonePlayer(a.damage || 5,a);
             if (a.type !== "ring" && a.type !== "laser" && a.type !== "gravity_well") {
                 spawnLivingStoneParticles(a.x || px, a.y || py, 8, "#ffffff", 5);
                 livingStoneAttacks.splice(i, 1);
@@ -2124,7 +2125,7 @@ function triggerChainExplosion(x, y, damage) {
     chainExplosionsQueue.push({ x: x, y: y, delay: 0, damage: damage });
 }
 
-function damageLivingStonePlayer(dmg) {
+function damageLivingStonePlayer(dmg, sourceAction, damageCategory) {
     if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyIncomingDamage==="function") {
         dmg=window.MBBossTestModifyIncomingDamage(dmg, window.livingStoneSuperActive ? "stoneSuper" : "stone");
         if(dmg<=0)return;
@@ -2157,6 +2158,11 @@ function damageLivingStonePlayer(dmg) {
     }
     if (typeof window.MBWaystarTryProtect === "function" && window.MBWaystarTryProtect(dmg)) return;
     if (typeof window.MBKarsProcessIncomingDamage === "function") dmg = window.MBKarsProcessIncomingDamage(dmg);
+    if (typeof window.MBGERTryNullifyDamage === "function" &&
+        window.MBGERTryNullifyDamage(dmg, sourceAction, damageCategory || "combat")) {
+        livingStoneInvulnTimer = 50;
+        return;
+    }
     livingStonePlayerHp -= dmg;
     livingStoneInvulnTimer = 50;
     livingStoneShake = 12; livingStoneScreenFlash = 8; livingStoneScreenFlashColor = "#ff0000";
