@@ -1647,13 +1647,15 @@ function getUpgradeTotalValue(k) {
     var level = Math.max(0, Math.floor(Number(upgrade.level) || 0));
     if (k !== "damage") return level * upgrade.increment;
 
-    // Сила: первые 100 уровней дают +2 за уровень,
-    // следующие 100 — +3, затем +4, +5 и так далее без затухания.
+    // Сила: каждые 100 уровней повышают прибавку на 1,
+    // но после 1000 уровня рост прибавки прекращается на +11 за уровень.
     var total = 0;
-    for (var tier = 0; tier < Math.ceil(level / 100); tier++) {
-        var count = Math.max(0, Math.min(100, level - tier * 100));
+    var scaledLevels = Math.min(level, 1000);
+    for (var tier = 0; tier < Math.ceil(scaledLevels / 100); tier++) {
+        var count = Math.max(0, Math.min(100, scaledLevels - tier * 100));
         total += count * (2 + tier);
     }
+    if (level > 1000) total += (level - 1000) * 11;
     return total;
 }
 window.getUpgradeTotalValue = getUpgradeTotalValue;
