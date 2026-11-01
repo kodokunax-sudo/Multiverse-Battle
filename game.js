@@ -1069,10 +1069,9 @@ function loadGameData(d) {
         if (card.name === "Карс (Высшее существо)") {
             card.ability = {
                 type: "karsAdaptation",
-                baseDamageReduction: 0.22,
-                desc: "Постоянно: −22% получаемого урона. Адаптация: серия попаданий в течение 2 секунд даёт +35% скорости и ещё 35% снижения входящего урона; 8 секунд без попаданий дают +50% наносимого урона; при HP ниже 40% восстанавливает 2% максимального HP каждые 4 секунды до 40%."
+                desc: "Адаптация: серия попаданий в течение 2 секунд даёт +35% скорости и 35% снижения входящего урона; 8 секунд без попаданий дают +50% наносимого урона; при HP ниже 40% восстанавливает 2% максимального HP каждые 4 секунды до 40%."
             };
-            card.desc = "Карс достигает совершенной формы, сочетая силу и способности практически всех живых существ. Постоянно снижает получаемый урон на 22%. Адаптация: серия попаданий в течение 2 секунд даёт +35% скорости и ещё 35% снижения входящего урона; 8 секунд без попаданий дают +50% наносимого урона; при HP ниже 40% восстанавливает 2% максимального HP каждые 4 секунды до 40%.";
+            card.desc = "Карс достигает совершенной формы, сочетая силу и способности практически всех живых существ. Адаптация: серия попаданий в течение 2 секунд даёт +35% скорости и 35% снижения входящего урона; 8 секунд без попаданий дают +50% наносимого урона; при HP ниже 40% восстанавливает 2% максимального HP каждые 4 секунды до 40%.";
         }
     }); 
     myCards.forEach(function(card) {
@@ -2242,7 +2241,7 @@ function getPassiveModifiers() {
             if (a.type === 'damageAura') dm += a.value * ab * mult; 
             if (a.type === 'bossDamage') bb += a.value * ab * mult; 
             if (a.type === 'damageReduction') tm -= a.value * ab * mult;
-            if (a.type === 'karsAdaptation' && Number(a.baseDamageReduction) > 0) tm -= Number(a.baseDamageReduction) * ab * mult; 
+
             if (a.type === 'hpBuff') hm += a.value * ab * mult; 
             if (a.type === 'bossSupport' && currentEnemy?.isBoss) { if (!bossSupportUsedThisFight) { fatigue = Math.max(0, fatigue - 50); bossSupportUsedThisFight = true; } bb += 0.15 * ab * mult; } 
             if (a.type === 'bossDoubleSelf' && currentEnemy?.isBoss) dm += 1.0 * ab * mult; 
