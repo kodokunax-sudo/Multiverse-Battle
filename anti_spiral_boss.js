@@ -562,6 +562,7 @@
             asSound(120, "sawtooth", .12, .045);
             return;
         }
+        if (typeof window.MBKarsApplyDamageBonus === "function") damage = window.MBKarsApplyDamageBonus(damage);
         let amount = Math.max(1, Math.floor(Number(damage) || 1));
         if (isModerator) {
             asSeals.forEach(function (seal) {
@@ -596,7 +597,8 @@
             Number(_superState.markDmgReduction) > 1) {
             damage = Math.max(1, Math.floor((Number(damage) || 1) / _superState.markDmgReduction));
         }
-        const amount = Math.max(1, Math.floor((Number(damage) || 1) / 1.5));
+        let amount = Math.max(1, Math.floor((Number(damage) || 1) / 1.5));
+        if (typeof window.MBKarsProcessIncomingDamage === "function") amount = window.MBKarsProcessIncomingDamage(amount);
         asPlayerHp = Math.max(0, asPlayerHp - amount);
         // Полученный урон ставит заряд на паузу на 3 секунды, но накопленная мощь сохраняется.
         asLastDamageAt = asClockNow();
