@@ -62,7 +62,7 @@
 
         var registeredCards = Array.isArray(window.MBAvatarOptions) ? window.MBAvatarOptions : [];
         registeredCards.forEach(function (entry, index) {
-            if (!entry || typeof entry.path !== "string" || !/^images\\//i.test(entry.path)) return;
+            if (!entry || typeof entry.path !== "string" || entry.path.slice(0, 7).toLowerCase() !== "images/") return;
             var path = entry.path;
             if (knownPaths[path]) return;
 
