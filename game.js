@@ -2933,7 +2933,17 @@ function victory() {
     let rew = isBoss ? Math.floor(wave / 2 * getStarMult()) : Math.floor(wave / 3 * getStarMult()); 
     points += rew; 
     if (points > maxPoints) maxPoints = points; 
-    totalWins++; 
+    totalWins++;
+    // DrinkTea2Win: +0.1% к текущему HP за каждую выигранную волну.
+    if (typeof mainCardIndex !== "undefined" && team[mainCardIndex] !== undefined) {
+        const drinkTeaCard = myCards[team[mainCardIndex]];
+        if (drinkTeaCard && drinkTeaCard.name === "DrinkTea2Win") {
+            if (!Number.isFinite(Number(drinkTeaCard._drinkTeaBaseHp))) {
+                drinkTeaCard._drinkTeaBaseHp = Number(drinkTeaCard.hp) || 0;
+            }
+            drinkTeaCard.hp = Number(drinkTeaCard.hp) * 1.001;
+        }
+    }
     addExp(isBoss ? 25 : 5); 
     addPassExp(isBoss ? 25 : 5); 
     updateChallengeProgress("earnPoints", rew); 
@@ -3022,6 +3032,18 @@ function defeat() {
     
     if (!resurrectedThisFight) { for (let idx of team) { let cd = myCards[idx]; if (cd?.ability?.type === 'resurrect' && Math.random() < cd.ability.chance * 1 && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { playerHp = window.playerMaxHp || 100; resurrectedThisFight = true; sfxAbility(); showFloatingText("✨ Воскрешение!", "#2ecc71"); renderEnemy(); updatePlayerStats(); return; } } } 
     mbStatsRecordDeath();
+    // Настоящее поражение обнуляет накопленный рост DrinkTea2Win.
+    if (typeof mainCardIndex !== "undefined" && team[mainCardIndex] !== undefined) {
+        const drinkTeaCard = myCards[team[mainCardIndex]];
+        if (drinkTeaCard && drinkTeaCard.name === "DrinkTea2Win" &&
+            Number.isFinite(Number(drinkTeaCard._drinkTeaBaseHp))) {
+            drinkTeaCard.hp = Number(drinkTeaCard._drinkTeaBaseHp);
+            delete drinkTeaCard._drinkTeaBaseHp;
+            playerHp = 0;
+            if (typeof renderTeam === "function") renderTeam();
+            if (typeof updatePlayerStats === "function") updatePlayerStats();
+        }
+    }
     let bonus = 0; 
     team.forEach(idx => { let cd = myCards[idx]; if (cd?.ability?.type === 'deathBonus' && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) bonus += cd.ability.value; }); 
     if (bonus > 0) points += Math.floor(points * bonus); 
