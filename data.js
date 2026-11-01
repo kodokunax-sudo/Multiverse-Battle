@@ -1983,7 +1983,7 @@ const customCardTemplates = {
             extraStatus: [],
             waveRegen: 0.01,
             desc: "Heaven Ascension DIO. Слабее по голой силе, зато The World Over Heaven даёт 4 дорогих тактических навыка: остановка времени, хил, возврат на позицию 1 секунду назад и агрессивные снаряды.",
-            superAbility: { name: "SUPER: THE WORLD OVER HEAVEN", desc: "4 отдельных навыка с общей шкалой ЭНЕРГИИ 0–100. Энергия набирается от нанесённого урона. TIME STOP — 2.5с, HEAL — 10%, TELEPORT — 1с назад + 0.5с стопа, AGGRESSIVE — снаряды уничтожают друг друга.", passive: false },
+            superAbility: { name: "SUPER: THE WORLD OVER HEAVEN", desc: "5 отдельных навыков с общей шкалой ЭНЕРГИИ 0–100. Энергия набирается от нанесённого урона. TIME STOP — 2.5с, HEAL — 10%, TELEPORT — 1с назад + 0.5с стопа, AGGRESSIVE — снаряды уничтожают друг друга. MUDA MUDA — 12 ударов вблизи или 5 ножей издали; против обычных боссов общий урон серии удвоен и масштабируется с волной (20% HP вблизи / 16% издали).", passive: false },
             masteryTitle: "Переписал реальность", masteryTitleId: "mastery_character_293d5a88", masteryTitleIcon: "✦"
         },
         { 
