@@ -1771,6 +1771,48 @@
         asShake = Math.max(asShake, 2 + power * 5);
         asSound(410 + power * 410, "triangle", .16 + power * .12, .06 + power * .03);
     }
+    function asDamageSeal(index, damage, impactX, impactY, charge) {
+        if (!asActive || asState !== "fight" || !Number.isInteger(index)) return false;
+        const seal = asSeals[index];
+        const amount = Math.max(0, Number(damage) || 0);
+        if (!seal || seal.broken || amount <= 0) return false;
+        const hitX = Number.isFinite(Number(impactX)) ? Number(impactX) : seal.x;
+        const hitY = Number.isFinite(Number(impactY)) ? Number(impactY) : seal.y;
+        const power = Math.max(.08, Math.min(1, Number(charge) || .08));
+        asDrillImpact(hitX, hitY, power, "#a98bff");
+        seal.hp = Math.max(0, seal.hp - amount);
+        const damageLabel = amount % 1 ? amount.toFixed(1) : String(amount);
+        asText(seal.x, seal.y - 18, "-" + damageLabel, "#e6c8ff", 30);
+        asShake = Math.max(asShake, 3 + power * 5);
+        for (let p = 0; p < 7; p++) {
+            const ang = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 3;
+            asParticles.push({
+                x: seal.x, y: seal.y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+                life: 20, maxLife: 20, color: "#c681ff", size: 2 + Math.random() * 2
+            });
+        }
+        if (seal.hp <= 0) {
+            seal.hp = 0;
+            seal.broken = true;
+            asText(seal.x, seal.y + 15, "ПЕЧАТЬ РАЗРУШЕНА!", "#8effff", 55);
+            asFlash = Math.max(asFlash, 5);
+            asFlashColor = "#b98aff";
+            if (asUnbrokenSealIndex() < 0) {
+                asText(200, 128, "ВСЕ 3 ПЕЧАТИ РАЗРУШЕНЫ — ЩИТ СНЯТ!", "#8effff", 90);
+                asShake = Math.max(asShake, 10);
+            }
+        }
+        return true;
+    }
+    window.damageAntiSpiralSeal = function(index, damage) {
+        const sealIndex = Number(index);
+        const amount = Math.min(0.5, Math.max(0, Number(damage) || 0.5));
+        if (!Number.isInteger(sealIndex)) return false;
+        const seal = asSeals[sealIndex];
+        if (!seal) return false;
+        return asDamageSeal(sealIndex, amount, seal.x, seal.y, .08);
+    };
+
     function asDrawDrillShots(c,now) {
         for (let i = asDrillShots.length - 1; i >= 0; i--) {
             const shot = asDrillShots[i];
@@ -1867,23 +1909,7 @@
             for (let si = 0; si < asSeals.length; si++) {
                 const seal = asSeals[si];
                 if (!seal || seal.broken || Math.hypot(shot.x-seal.x,shot.y-seal.y) >= seal.radius + shot.radius) continue;
-                asDrillImpact(shot.x, shot.y, shot.charge, "#a98bff");
-                seal.hp -= shot.sealDamage;
-                asText(seal.x,seal.y-18,"-"+shot.sealDamage,"#e6c8ff",30);
-                asShake=Math.max(asShake,3+shot.charge*5);
-                for(let p=0;p<7;p++){
-                    const ang=Math.random()*Math.PI*2,sp=1+Math.random()*3;
-                    asParticles.push({x:seal.x,y:seal.y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:20,maxLife:20,color:"#c681ff",size:2+Math.random()*2});
-                }
-                if(seal.hp<=0){
-                    seal.hp=0;seal.broken=true;
-                    asText(seal.x,seal.y+15,"ПЕЧАТЬ РАЗРУШЕНА!","#8effff",55);
-                    asFlash=Math.max(asFlash,5);asFlashColor="#b98aff";
-                    if(asUnbrokenSealIndex()<0){
-                        asText(200,128,"ВСЕ 3 ПЕЧАТИ РАЗРУШЕНЫ — ЩИТ СНЯТ!","#8effff",90);
-                        asShake=Math.max(asShake,10);
-                    }
-                }
+                asDamageSeal(si, shot.sealDamage, shot.x, shot.y, shot.charge);
                 sealHit = true;
                 asDrillShots.splice(i,1);
                 break;
@@ -3564,6 +3590,14 @@
             }).filter(Boolean)
             : [];
 
+        const seals = asState === "fight"
+            ? asSeals.map(function(seal, index) {
+                return seal && !seal.broken
+                    ? { index: index, x: seal.x, y: seal.y, radius: seal.radius, hp: seal.hp, maxHp: seal.maxHp }
+                    : null;
+            }).filter(Boolean)
+            : [];
+
         if (asState === "fight") {
             const safeIndex = asSafePlatformIndex();
             for (let i = 0; i < asPlatforms.length; i++) {
@@ -3611,6 +3645,7 @@
                 top: bounds.top, bottom: bounds.bottom
             },
             platforms: platforms,
+            seals: seals,
             pulls: pulls,
             mini: asState === "mini" ? {
                 intro: now < asMiniIntroUntil,
