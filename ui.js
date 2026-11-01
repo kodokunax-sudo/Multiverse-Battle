@@ -120,7 +120,8 @@ function renderTeam() {
         if (cd.statusAbility?.type === 'scaleWithWins' && (typeof hasMasteryStatus === 'function' ? hasMasteryStatus(cd) : true)) dmgMult *= (1 + winsForScale * cd.statusAbility.value); 
         let masteryMult = typeof getMasteryMult === 'function' ? getMasteryMult(cd) : 1;
         let cDmg = Math.floor(cd.damage * dmgMult * cvMult * (skFinger ? 1.5 : 1) * masteryMult); 
-        let cHp = Math.floor(cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult); 
+        // Keep fractional HP internally so small per-win growth is not discarded per card.
+        let cHp = cd.hp * cvHpMult * (skFinger ? 1.4 : 1) * masteryMult; 
         let cSpd = cd.speed || 0.5;
         if (cd.ability?.type === 'copyEnemyChance' && currentEnemy && Math.random() < cd.ability.chance && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { 
             cDmg = currentEnemy.damage; cHp = currentEnemy.hp; 
@@ -158,7 +159,7 @@ function renderTeam() {
     }); 
     c.innerHTML = html; 
     document.getElementById("totalDamage").innerText = d; 
-    document.getElementById("totalHpBonus").innerText = h; 
+    document.getElementById("totalHpBonus").innerText = Math.floor(h); 
     window.teamDamage = d; window.teamHpBonus = h; 
     
     if (team.length > 0 && mainCardIndex >= 0 && mainCardIndex < team.length) {
