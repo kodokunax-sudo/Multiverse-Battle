@@ -1021,12 +1021,115 @@
         return true;
     }
 
+    function beginMudaSealCombo(ctx, seal) {
+        if (!ctx || ctx.type !== "antispiral" || !seal ||
+            now() < state.comboCooldownUntil || state.combo) return false;
+        var current = now();
+        var duration = GE_MUDA_DURATION;
+        state.windup = 0;
+        state.swingTimer = 0;
+        state.punch = null;
+        state.combo = {
+            type: "antispiral",
+            id: null,
+            antiSpiralSeal: true,
+            sealIndex: Number(seal.index),
+            total: 0.5 * GE_MUDA_HITS,
+            damagePerHit: 0.5,
+            hitIndex: 0,
+            hitCount: GE_MUDA_HITS,
+            nextHitAt: current,
+            startedAt: current,
+            duration: duration,
+            endsAt: current + duration,
+            x: Number(seal.x) || state.x,
+            y: Number(seal.y) || state.y
+        };
+        state.comboCooldownUntil = current + duration + 700;
+        state.nextAttackAt = state.comboCooldownUntil;
+        state.nextMudaAt = current + 11000 + Math.random() * 6000;
+        state.attackUntil = current + 150;
+        state.attackFrame = 0;
+        state.attackType = "muda";
+        state.lastAttackType = "muda";
+        toast("GOLD EXPERIENCE: MUDA MUDA MUDA!", "#ffe28a");
+        spawnHitEffect(state.x, state.y, "#ffe28a");
+        startMudaMusic();
+        return true;
+    }
+
     function updateMudaCombo(ctx) {
         var combo = state.combo;
         if (!combo) return;
         var current = now();
         if (!ctx || ctx.type !== combo.type) {
             finishMudaCombo();
+            return;
+        }
+
+        if (combo.antiSpiralSeal && ctx.type === "antispiral") {
+            var sealInfo = typeof window.getAntiSpiralBossCompanionInfo === "function"
+                ? window.getAntiSpiralBossCompanionInfo() : null;
+            var activeSeals = sealInfo && Array.isArray(sealInfo.seals) ? sealInfo.seals : [];
+            var activeSeal = null;
+            for (var sealIndex = 0; sealIndex < activeSeals.length; sealIndex++) {
+                if (activeSeals[sealIndex] &&
+                    activeSeals[sealIndex].index === combo.sealIndex) {
+                    activeSeal = activeSeals[sealIndex];
+                    break;
+                }
+            }
+            if (!activeSeal) {
+                finishMudaCombo();
+                if (state.antiSpiralSealTargetIndex === combo.sealIndex) {
+                    state.antiSpiralSealTargetIndex = null;
+                }
+                return;
+            }
+
+            combo.x = Number(activeSeal.x);
+            combo.y = Number(activeSeal.y);
+            var sealHitInterval = (Number(combo.duration) || GE_MUDA_DURATION) / GE_MUDA_HITS;
+            while (combo.hitIndex < combo.hitCount &&
+                current >= combo.startedAt + combo.hitIndex * sealHitInterval) {
+                var stillActiveInfo = typeof window.getAntiSpiralBossCompanionInfo === "function"
+                    ? window.getAntiSpiralBossCompanionInfo() : null;
+                var stillActiveSeals = stillActiveInfo && Array.isArray(stillActiveInfo.seals)
+                    ? stillActiveInfo.seals : [];
+                var sealStillExists = false;
+                for (var activeIndex = 0; activeIndex < stillActiveSeals.length; activeIndex++) {
+                    if (stillActiveSeals[activeIndex] &&
+                        stillActiveSeals[activeIndex].index === combo.sealIndex) {
+                        sealStillExists = true;
+                        combo.x = Number(stillActiveSeals[activeIndex].x);
+                        combo.y = Number(stillActiveSeals[activeIndex].y);
+                        break;
+                    }
+                }
+                if (!sealStillExists) {
+                    finishMudaCombo();
+                    if (state.antiSpiralSealTargetIndex === combo.sealIndex) {
+                        state.antiSpiralSealTargetIndex = null;
+                    }
+                    return;
+                }
+
+                combo.hitIndex++;
+                state.attackFrame = combo.hitIndex;
+                if (typeof window.damageAntiSpiralSeal === "function") {
+                    window.damageAntiSpiralSeal(combo.sealIndex, 0.5);
+                }
+                combo.nextHitAt = combo.startedAt + combo.hitIndex * sealHitInterval;
+                state.attackUntil = current + 145;
+                state.lastMudaImpactAt = current;
+                state.lastMudaImpactX = combo.x + (Math.random() - 0.5) * 7;
+                state.lastMudaImpactY = combo.y + (Math.random() - 0.5) * 7;
+                state.lastMudaImpactIndex = combo.hitIndex;
+                spawnPunchEffect(state.lastMudaImpactX, state.lastMudaImpactY,
+                    Math.atan2(combo.y - state.y, combo.x - state.x), true);
+            }
+
+            if (current >= combo.endsAt) finishMudaCombo();
             return;
         }
 
@@ -1846,12 +1949,16 @@
                 } else {
                     updateCompanionPunch(ctx, current);
                 }
+            } else if (sealTarget && state.combo && state.combo.antiSpiralSeal) {
+                updateMudaCombo(ctx);
             } else if (sealTarget) {
-                state.combo = null;
                 state.specialAttack = null;
-                if (!dodging && state.attackCooldown <= 0 &&
-                    attackDistance >= 14 && attackDistance <= 104) {
-                    beginCompanionSealPunch(ctx, sealTarget);
+                if (!dodging && attackDistance >= 14 && attackDistance <= 104) {
+                    if (!state.combo && current >= (Number(state.nextMudaAt) || 0)) {
+                        beginMudaSealCombo(ctx, sealTarget);
+                    } else if (!state.combo && state.attackCooldown <= 0) {
+                        beginCompanionSealPunch(ctx, sealTarget);
+                    }
                 }
             } else if (state.combo) {
                 updateMudaCombo(ctx);
@@ -2582,7 +2689,8 @@
     window.getStandUserHitboxPosition = function (ctx) {
         if (isRequiemCompanionActive()) {
             var ctx = getContext();
-            return { x: state.x, y: state.y, radius: getCompanionSize(ctx) * 0.72,
+            return { x: state.x, y: state.y,
+                radius: Math.max(20, getCompanionSize(ctx) * 1.3),
                 color: "#ffe36b", stand: "Gold Experience Requiem" };
         }
         return typeof baseStandPosition === "function" ? baseStandPosition.apply(this, arguments) : null;
