@@ -41,6 +41,10 @@
         attackType: null,
         comboCooldownUntil: 0,
         attackFrame: 0,
+        lastMudaImpactAt: 0,
+        lastMudaImpactX: 0,
+        lastMudaImpactY: 0,
+        lastMudaImpactIndex: 0,
         nextHealAt: 0,
         facing: -1,
         trail: [],
@@ -438,8 +442,10 @@
             if (hitDamage > 0) applyCompanionBossDamage(ctx, target, hitDamage);
             combo.nextHitAt = combo.startedAt + combo.hitIndex * hitInterval;
             state.attackUntil = current + 145;
-            var spread = (Math.random() - 0.5) * 24;
-            spawnHitEffect(combo.x + spread, combo.y + (Math.random() - 0.5) * 22, "#ffe27a");
+            state.lastMudaImpactAt = current;
+            state.lastMudaImpactX = combo.x + (Math.random() - 0.5) * 7;
+            state.lastMudaImpactY = combo.y + (Math.random() - 0.5) * 7;
+            state.lastMudaImpactIndex = combo.hitIndex;
         }
 
         if (current >= combo.endsAt) {
@@ -684,108 +690,254 @@
     function drawGoldExperience(c) {
         if (!state.active || !isGERMain()) return;
         var current = now();
-        var pulse = 1 + Math.sin(current / 115) * 0.075;
+        var combo = state.combo;
+        var special = state.specialAttack;
+        var attacking = !!(combo || special || current < state.attackUntil);
+        var walk = Math.sin(current / 105) * 0.75;
+        var scale = 0.96;
+        var comboElapsed = combo ? Math.max(0, current - combo.startedAt) : 0;
+        var comboPulse = combo ? (comboElapsed % (GE_MUDA_DURATION / GE_MUDA_HITS)) / (GE_MUDA_DURATION / GE_MUDA_HITS) : 0;
+        var leadRight = combo ? (combo.hitIndex % 2 === 1) : true;
+        var jab = combo ? (0.45 + 0.55 * Math.sin(comboPulse * Math.PI)) : (attacking ? 0.72 : 0.12);
+        var leadReach = combo ? 15 + jab * 11 : (attacking ? 13 : 0);
+        var leadY = combo ? -10 + Math.sin(comboElapsed / 70) * 2.5 : (attacking ? -12 : -2);
         var invulnerable = current < state.heartInvulnUntil;
+        var orangeGold = c.createLinearGradient(-14, -28, 16, 25);
+        orangeGold.addColorStop(0, "#fff0b2");
+        orangeGold.addColorStop(0.2, "#ffd96a");
+        orangeGold.addColorStop(0.43, "#f4a329");
+        orangeGold.addColorStop(0.68, "#dd7a18");
+        orangeGold.addColorStop(0.86, "#f6bc43");
+        orangeGold.addColorStop(1, "#8f4d17");
+
+        // Short golden movement trail, kept tight around the body.
         c.save();
         c.globalCompositeOperation = "lighter";
         for (var i = 0; i < state.trail.length; i++) {
             var tr = state.trail[i];
-            c.globalAlpha = Math.max(0, tr.life / 12) * 0.25;
-            c.fillStyle = "#ffe36b";
+            c.globalAlpha = Math.max(0, tr.life / 12) * 0.15;
+            c.fillStyle = "#f4b34a";
             c.beginPath();
-            c.arc(tr.x, tr.y, 5 * (tr.life / 10), 0, Math.PI * 2);
+            c.ellipse(tr.x, tr.y + 7, 4.5 * (tr.life / 10), 2.6 * (tr.life / 10), 0, 0, Math.PI * 2);
             c.fill();
         }
         c.restore();
+
         if (!state.heartAlive) {
             c.save();
-            c.globalAlpha = 0.75;
-            c.fillStyle = "#ffe88a";
+            c.globalAlpha = 0.78;
+            c.fillStyle = "#f7bd53";
             c.font = "bold 9px Arial";
             c.textAlign = "center";
-            c.fillText("ВОССТАНОВЛЕНИЕ", state.x, state.y - 22);
+            c.fillText("ВОССТАНОВЛЕНИЕ", state.x, state.y - 39);
             c.restore();
             return;
         }
+
         c.save();
         c.translate(state.x, state.y);
-        c.scale(pulse, pulse);
-        c.globalAlpha = invulnerable ? (0.58 + Math.sin(current / 24) * 0.3) : 1;
-        var aura = c.createRadialGradient(0, 1, 2, 0, 1, 32);
-        aura.addColorStop(0, "rgba(255,238,146,.48)");
-        aura.addColorStop(0.55, "rgba(255,209,62,.18)");
-        aura.addColorStop(1, "rgba(255,192,40,0)");
+        c.scale(scale * state.facing, scale);
+        c.globalAlpha = invulnerable ? (0.62 + Math.sin(current / 35) * 0.22) : 0.99;
+
+        // Compact orange-gold aura.
+        var aura = c.createRadialGradient(0, 12, 2, 0, 12, 21);
+        aura.addColorStop(0, "rgba(255,204,94,.28)");
+        aura.addColorStop(1, "rgba(255,166,44,0)");
         c.fillStyle = aura;
         c.beginPath();
-        c.arc(0, 1, 32, 0, Math.PI * 2);
+        c.ellipse(0, 13, 19, 6.5, 0, 0, Math.PI * 2);
         c.fill();
-        var gold = c.createLinearGradient(-17, -24, 16, 25);
-        gold.addColorStop(0, "#fff8c4");
-        gold.addColorStop(0.28, "#ffe87b");
-        gold.addColorStop(0.58, "#ffc928");
-        gold.addColorStop(0.82, "#e49b16");
-        gold.addColorStop(1, "#9b5b0a");
+
+        // Legs and boots.
+        c.lineCap = "round";
+        c.strokeStyle = "#874a1c";
+        c.lineWidth = 3.5;
         c.beginPath();
-        c.moveTo(0, 24);
-        c.bezierCurveTo(-7, 18, -27, 4, -27, -9);
-        c.bezierCurveTo(-27, -24, -8, -29, 0, -13);
-        c.bezierCurveTo(9, -29, 27, -23, 27, -9);
-        c.bezierCurveTo(27, 4, 8, 18, 0, 24);
+        c.moveTo(-5, 7);
+        c.lineTo(-7 + walk * 1.6, 19);
+        c.moveTo(5, 7);
+        c.lineTo(7 - walk * 1.6, 19);
+        c.stroke();
+        c.fillStyle = orangeGold;
+        c.beginPath();
+        c.ellipse(-8 + walk * 1.6, 20, 4.6, 2.4, -0.12, 0, Math.PI * 2);
+        c.ellipse(8 - walk * 1.6, 20, 4.6, 2.4, 0.12, 0, Math.PI * 2);
+        c.fill();
+
+        // Arm pose: both shoulders and elbows move. During MUDA MUDA the fists alternate.
+        function drawArm(side, isLead) {
+            var shoulderX = side * 8.5;
+            var shoulderY = -9;
+            var extension = isLead ? leadReach : (combo ? 2.5 : (attacking ? 4 : 0));
+            var elbowX = side * (isLead ? 15.5 : 12.8) + (isLead ? extension * 0.38 : 0);
+            var elbowY = isLead ? (leadY + 1.5) : (-3 + walk * 0.6);
+            var handX = side * (isLead ? 22 : 17) + (isLead ? extension : 0);
+            var handY = isLead ? leadY : (1 - walk * 0.55);
+            var armDark = "#9a581e";
+            var armLight = orangeGold;
+
+            c.lineCap = "round";
+            c.lineJoin = "round";
+            c.strokeStyle = armDark;
+            c.lineWidth = 5.2;
+            c.beginPath();
+            c.moveTo(shoulderX, shoulderY);
+            c.quadraticCurveTo(elbowX - side * 1.5, elbowY - 1, handX - side * 2, handY);
+            c.stroke();
+
+            c.strokeStyle = "#efb24b";
+            c.lineWidth = 3.15;
+            c.beginPath();
+            c.moveTo(shoulderX, shoulderY);
+            c.quadraticCurveTo(elbowX - side * 1.5, elbowY - 1, handX - side * 2, handY);
+            c.stroke();
+
+            // Cuff and a shaped closed fist, not floating circles.
+            c.strokeStyle = "#7b461d";
+            c.lineWidth = 2.5;
+            c.beginPath();
+            c.moveTo(handX - side * 4, handY - 2.3);
+            c.lineTo(handX - side * 2.1, handY + 2.4);
+            c.stroke();
+
+            c.fillStyle = armLight;
+            c.strokeStyle = "#8c4d1a";
+            c.lineWidth = 0.9;
+            c.beginPath();
+            c.moveTo(handX - 3.7, handY - 2.9);
+            c.quadraticCurveTo(handX - 1, handY - 5.1, handX + 3.4, handY - 3);
+            c.quadraticCurveTo(handX + 6, handY - 0.7, handX + 3.7, handY + 2.7);
+            c.quadraticCurveTo(handX + 0.8, handY + 4.2, handX - 3.2, handY + 1.7);
+            c.closePath();
+            c.fill();
+            c.stroke();
+
+            c.strokeStyle = "rgba(255,242,190,.9)";
+            c.lineWidth = 0.8;
+            c.beginPath();
+            c.moveTo(handX - 1.8, handY - 2.2);
+            c.lineTo(handX - 0.8, handY - 0.1);
+            c.moveTo(handX + 0.2, handY - 2.4);
+            c.lineTo(handX + 1.2, handY - 0.2);
+            c.stroke();
+
+            if (isLead && combo) {
+                c.save();
+                c.globalAlpha *= 0.48 + jab * 0.25;
+                c.strokeStyle = "#ffe7a0";
+                c.lineWidth = 1.8;
+                c.beginPath();
+                c.moveTo(handX - 9 - jab * 4, handY - 4);
+                c.lineTo(handX - 16 - jab * 5, handY - 6);
+                c.moveTo(handX - 8 - jab * 4, handY + 2);
+                c.lineTo(handX - 14 - jab * 5, handY + 4);
+                c.stroke();
+                c.restore();
+            }
+        }
+
+        drawArm(-1, combo ? !leadRight : false);
+        drawArm(1, combo ? leadRight : true);
+
+        // Torso and shoulder armour.
+        c.fillStyle = orangeGold;
+        c.beginPath();
+        c.moveTo(-8, -13);
+        c.quadraticCurveTo(-13, -7, -10, 4);
+        c.lineTo(-5, 9);
+        c.lineTo(5, 9);
+        c.lineTo(10, 4);
+        c.quadraticCurveTo(13, -7, 8, -13);
         c.closePath();
-        c.fillStyle = gold;
-        c.shadowColor = invulnerable ? "#ffffff" : "#ffdb55";
-        c.shadowBlur = invulnerable ? 22 : 14;
+        c.fill();
+        c.strokeStyle = "#ffe5a0";
+        c.lineWidth = 1;
+        c.stroke();
+        c.fillStyle = "#dd902c";
+        c.beginPath();
+        c.ellipse(-11, -10, 4.6, 3.7, -0.25, 0, Math.PI * 2);
+        c.ellipse(11, -10, 4.6, 3.7, 0.25, 0, Math.PI * 2);
+        c.fill();
+
+        // Chest plate and green life gemstones.
+        c.fillStyle = "#98551e";
+        c.beginPath();
+        c.moveTo(-6, -8);
+        c.lineTo(0, -11);
+        c.lineTo(6, -8);
+        c.lineTo(5, 1);
+        c.lineTo(0, 5);
+        c.lineTo(-5, 1);
+        c.closePath();
+        c.fill();
+        c.fillStyle = "#64e69a";
+        c.shadowColor = "#71ffb3";
+        c.shadowBlur = 5;
+        c.beginPath();
+        c.arc(0, -5, 2.4, 0, Math.PI * 2);
         c.fill();
         c.shadowBlur = 0;
-        c.strokeStyle = "#fff3a5";
-        c.lineWidth = 2;
-        c.stroke();
-        c.globalAlpha *= 0.55;
-        c.strokeStyle = "#fff9d5";
-        c.lineWidth = 1.4;
+        c.fillStyle = "#72e6a2";
         c.beginPath();
-        c.moveTo(-13, -13);
-        c.quadraticCurveTo(-10, -21, -3, -17);
-        c.stroke();
-        c.globalAlpha = invulnerable ? 0.9 : 0.68;
-        c.fillStyle = "#fff4b1";
-        c.beginPath();
-        c.arc(-10, -9, 2.3, 0, Math.PI * 2);
+        c.arc(-9, -10, 1.5, 0, Math.PI * 2);
+        c.arc(9, -10, 1.5, 0, Math.PI * 2);
         c.fill();
+
+        // Neck and characteristic golden helmet.
+        c.fillStyle = "#a76624";
+        c.fillRect(-2.7, -18, 5.4, 5);
+        c.fillStyle = orangeGold;
+        c.beginPath();
+        c.moveTo(-7, -18);
+        c.quadraticCurveTo(-9, -29, -2, -31);
+        c.lineTo(0, -34);
+        c.lineTo(2, -31);
+        c.quadraticCurveTo(9, -29, 7, -18);
+        c.quadraticCurveTo(0, -14, -7, -18);
+        c.fill();
+        c.strokeStyle = "#ffeab0";
+        c.lineWidth = 0.9;
+        c.stroke();
+        c.fillStyle = "#62401e";
+        c.beginPath();
+        c.ellipse(-3, -25, 1, 1.6, 0, 0, Math.PI * 2);
+        c.ellipse(3, -25, 1, 1.6, 0, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = "#67e7a2";
+        c.beginPath();
+        c.arc(0, -30, 1.8, 0, Math.PI * 2);
+        c.fill();
+
+        // Small armour seams and highlights.
+        c.strokeStyle = "rgba(255,245,205,.8)";
+        c.lineWidth = 0.7;
+        c.beginPath();
+        c.moveTo(-4, -16);
+        c.lineTo(-4, -7);
+        c.moveTo(4, -16);
+        c.lineTo(4, -7);
+        c.stroke();
         c.restore();
-        if (state.combo) {
-            var hitPhase = current - state.combo.startedAt;
-            var fistSide = Math.floor(hitPhase / 115) % 2 ? -1 : 1;
-            var fistX = state.combo.x - state.facing * (18 + (Math.floor(hitPhase / 70) % 3) * 7);
-            var fistY = state.combo.y + Math.sin(hitPhase / 55) * 15;
+
+        // Thin impact marks appear only at the boss, without filling the screen with dots.
+        var impactAge = current - state.lastMudaImpactAt;
+        if (combo && impactAge >= 0 && impactAge < 95) {
             c.save();
             c.globalCompositeOperation = "lighter";
-            c.globalAlpha = 0.8;
-            for (var f = 0; f < 3; f++) {
-                var offset = (f - 1) * 15;
-                var fx = fistX + state.facing * offset;
-                var fy = fistY + fistSide * f * 5;
-                c.fillStyle = "#fff0a0";
-                c.shadowColor = "#ffd84e";
-                c.shadowBlur = 12;
-                c.beginPath();
-                c.arc(fx, fy, 5 + (f === 1 ? 1.5 : 0), 0, Math.PI * 2);
-                c.fill();
-                c.shadowBlur = 0;
-                c.strokeStyle = "#bd861e";
-                c.lineWidth = 1;
-                c.beginPath();
-                c.moveTo(fx - 2, fy - 1);
-                c.lineTo(fx + 2, fy + 1);
-                c.stroke();
-            }
-            c.strokeStyle = "rgba(255,239,160,.8)";
+            c.globalAlpha = Math.max(0, 1 - impactAge / 95) * 0.78;
+            c.translate(state.lastMudaImpactX, state.lastMudaImpactY);
+            c.rotate((state.lastMudaImpactIndex % 2 ? 1 : -1) * 0.35);
+            c.strokeStyle = "#ffe6a0";
             c.lineWidth = 2;
             c.beginPath();
-            c.arc(state.combo.x, state.combo.y, 18 + (state.combo.hitIndex % 3) * 4, -0.8, 0.8);
+            c.moveTo(-10, -5);
+            c.lineTo(7, 4);
+            c.moveTo(-7, 7);
+            c.lineTo(8, -6);
             c.stroke();
             c.restore();
         }
+
         drawSpecialAttackEffects(c, current);
     }
 
@@ -839,7 +991,7 @@
         } else {
             var activeLeft = Math.max(0, state.gerUntil - now());
             var heartStatus = state.heartAlive
-                ? "ЗОЛОТОЕ СЕРДЦЕ " + Math.ceil(state.heartHp) + "/" + Math.ceil(state.heartMaxHp) + " HP"
+                ? "GOLD EXPERIENCE REQUIEM " + Math.ceil(state.heartHp) + "/" + Math.ceil(state.heartMaxHp) + " HP"
                 : "СЕРДЦЕ ВОССТАНАВЛИВАЕТСЯ";
             title.textContent = heartStatus + " · " + (activeLeft > 0
                 ? "RETURN TO ZERO " + state.gerCharges + " ЗАРЯДА · " + (activeLeft / 1000).toFixed(1) + "с"
@@ -1091,7 +1243,7 @@
     var baseStandPosition = window.getStandUserHitboxPosition;
     window.getStandUserHitboxPosition = function (ctx) {
         if (isRequiemCompanionActive()) {
-            return { x: state.x, y: state.y, radius: 17, color: "#ffe36b", stand: "Golden Heart" };
+            return { x: state.x, y: state.y, radius: 17, color: "#ffe36b", stand: "Gold Experience Requiem" };
         }
         return typeof baseStandPosition === "function" ? baseStandPosition.apply(this, arguments) : null;
     };
