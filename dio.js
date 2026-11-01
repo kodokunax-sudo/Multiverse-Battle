@@ -346,6 +346,7 @@ function dioApplyBossDamageNow(type,id,amount){
    if(["circle","rainbow","healCircle","explosion","acid","boomerang","gear","leaf","point"].includes(a.type))return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||a.size||10)+h),a);
    if(a.type==="laser"||a.type==="beam")return dioStandHitResult((a.state==="active"&&Math.abs(x-(Number(a.x)||0))<Number(a.width||40)/2+h),a);
    if(a.type==="sword")return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.size||10)+h),a);
+   if(Number(a.width)>0||Number(a.height)>0){var rw=Math.max(6,Number(a.width)||Number(a.size)||20),rh=Math.max(6,Number(a.height)||Number(a.size)||20),rcx=Number(a.x)||0,rcy=Number(a.y)||0;return dioStandHitResult((Math.abs(x-rcx)<rw/2+h&&Math.abs(y-rcy)<rh/2+h),a);}
    var s=Number(a.size)||20,cx=(Number(a.x)||0)+s/2,cy=(Number(a.y)||0)+s/2;return dioStandHitResult((Math.abs(x-cx)<s/2+h&&Math.abs(y-cy)<s/2+h),a);
   }
  if(typeof window.showFloatingText==="function"){try{window.showFloatingText("-"+dmg+" DIO","#fff0a0");}catch(e){}}
