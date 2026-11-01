@@ -3290,6 +3290,10 @@
             try { onTakabaDamageTaken(dmg); } catch(e) {}
         }
         if (typeof window.MBKarsProcessIncomingDamage === "function") dmg = window.MBKarsProcessIncomingDamage(dmg);
+        if (sourceAction && typeof window.MBGoldExperienceRedirectDamage === "function") {
+            var geRedirectedDamage = window.MBGoldExperienceRedirectDamage(dmg, typeof getBossContext === "function" ? getBossContext() : null, sourceAction);
+            if (geRedirectedDamage !== null) dmg = geRedirectedDamage;
+        }
         if (typeof window.MBGERTryNullifyDamage === "function" &&
             window.MBGERTryNullifyDamage(dmg, sourceAction, damageCategory || "combat")) {
             rwbPlayer.invulnTimer = 50;
