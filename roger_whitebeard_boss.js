@@ -1860,7 +1860,7 @@
             let pushAngle = Math.atan2(dy, dx);
             rwbPlayer.vx = Math.cos(pushAngle) * RWB_MELEE_KNOCKBACK;
             rwbPlayer.vy = Math.sin(pushAngle) * RWB_MELEE_KNOCKBACK;
-            hitPlayer(RWB_MELEE_DAMAGE,{});
+            hitPlayer(RWB_MELEE_DAMAGE,{type:"circle",x:boss.x,y:boss.y,radius:RWB_MELEE_RANGE,damage:RWB_MELEE_DAMAGE});
             rwbShake = 18;
             playBladeSound(0.6);
             rwbScreenFlash = 8;
@@ -2535,7 +2535,7 @@
             wbVortexFailed = true;
             rwbPlayer.vx = 0;
             rwbPlayer.vy = 10;
-            hitPlayer(40,{});
+            hitPlayer(40,null,"qte");
             rwbShake = 28;
             rwbScreenFlash = 18;
             rwbScreenFlashColor = "#ffffff";
@@ -2822,7 +2822,7 @@
                     a.activeTimer--;
                     let d = pointToSegmentDistance(rwbPlayer.x, rwbPlayer.y, a.originX, a.originY, a.endX, a.endY);
                     if (!a.hit && rwbPlayer.invulnTimer <= 0 && d < a.width / 2 + 7) {
-                        a.hit = true; hitPlayer(20,{}); rwbPlayerStunTimer = 120; wbFruitFlashTimer = 180; wbFruitFlashPower = 0.72;
+                        a.hit = true; hitPlayer(20,a); rwbPlayerStunTimer = 120; wbFruitFlashTimer = 180; wbFruitFlashPower = 0.72;
                     }
                     if (a.activeTimer <= 0) rwbAttacks.splice(i, 1);
                 } else { rwbAttacks.splice(i, 1); }
@@ -2854,7 +2854,7 @@
                     if (!a.hit && rwbPlayer.invulnTimer <= 0 &&
                         Math.abs(rwbPlayer.y - a.y) < (a.width || 92) * 0.5 + rwbPlayer.size * 0.45) {
                         a.hit = true;
-                        hitPlayer(40,{});
+                        hitPlayer(40,a);
                         spawnHitParticles(rwbPlayer.x, a.y, "#ffffff", 24);
                         rwbScreenFlash = 8; rwbScreenFlashColor = "#ffffff"; rwbShake = 18;
                     }
