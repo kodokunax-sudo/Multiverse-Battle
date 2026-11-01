@@ -2351,7 +2351,23 @@ function updatePlayerStats() {
     window.playerMaxHp = maxHp; 
 }
 
+function shouldHideClickCombatText(text) {
+    const checkbox = typeof document !== "undefined"
+        ? document.getElementById("hideClickTextsCheckbox")
+        : null;
+    const hideEnabled = !!(arenaSettings && arenaSettings.hideClickTexts) || !!(checkbox && checkbox.checked);
+    if (!hideEnabled) return false;
+
+    const value = String(text == null ? "" : text).trim();
+    return /^[-−]\\s*\\d/.test(value) ||
+        /КРИТ|ВАНШОТ|КОМБО/i.test(value) ||
+        /БЕЛОУС:\\s*x5/i.test(value) ||
+        /💔\\s*[-−]\\s*\\d/.test(value) ||
+        /🔥\\s*[-−]\\s*\\d/.test(value);
+}
+
 function showFloatingText(text, color) {
+    if (shouldHideClickCombatText(text)) return;
     const area = document.getElementById('clickArea');
     if (!area) return;
     const phoneMode = arenaSettings && arenaSettings.graphics === "phone";
@@ -2876,7 +2892,7 @@ function mbHasPendingBossStart() {
 // Всплывающий боевой текст обычных кликов
 // ============================================================
 function showClickCombatText(text, color) {
-    if (arenaSettings && arenaSettings.hideClickTexts) return;
+    if (shouldHideClickCombatText(text)) return;
     if (typeof showFloatingText === "function") showFloatingText(text, color);
 }
 
