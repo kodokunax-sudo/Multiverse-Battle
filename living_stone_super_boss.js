@@ -1846,6 +1846,22 @@
     };
 
     window.MBLivingStoneSuperDamage = function(amount) { return ls2DamageBoss(amount); };
+    window.MBGetLivingStoneSuperCompanionThreats = function() {
+        var threats = ls2UniqueAttacks.slice();
+        if (ls2BossDash && Array.isArray(ls2BossDash.targets)) {
+            var target = ls2BossDash.targets[Math.max(0, Number(ls2BossDash.step) || 0)];
+            if (target) {
+                threats.push({
+                    type: "boss_dash",
+                    x: Number(ls2BossDash.fromX) || (livingStoneBoss && livingStoneBoss.x) || 200,
+                    y: Number(ls2BossDash.fromY) || (livingStoneBoss && livingStoneBoss.y) || 110,
+                    targetX: Number(target.x), targetY: Number(target.y),
+                    size: 42, damage: 20, state: "active"
+                });
+            }
+        }
+        return threats;
+    };
     window.MBUpdateLivingStoneSuperPhase = function() {
         if (!window.livingStoneSuperActive || !ls2NativeMode) return;
         var phase = window.__mbLS2GreenPhase || "normal";
