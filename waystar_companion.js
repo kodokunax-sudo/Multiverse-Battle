@@ -527,157 +527,144 @@
         return list;
     }
 
-    function threatAt(h, x, y, frames, actual) {
-        if (!h || h.allyHit || h.odenHit || h._mbGEIgnored || h.state === "done") return 0;
-        var type = String(h.type || "").toLowerCase();
-        var width = Math.max(8, Number(h.width) || 0);
-        var radius = Math.max(7, Number(h.size || h.r || h.radius) || 9) + 12;
-        var warning = h.state === "warning" || h.state === "windup" ||
-            Number(h.warningTimer) > 0 || Number(h.delay) > 0 ||
-            (type === "laser_warning" && Number(h.timer) > 0);
-        if (type === "ring") {
-            var ringRadius = Math.max(0, Number(h.radius) || 0) +
-                Math.max(0, Number(h.growth) || 0) * Math.max(0, Number(frames) || 0);
-            var ringDistance = Math.hypot(x - (Number(h.x) || 0), y - (Number(h.y) || 0));
-            var ringThickness = Math.max(8, Number(h.thickness) || 12) * 0.5 + 14;
-            return Math.abs(ringDistance - ringRadius) < ringThickness ? 1 : 0;
+    function threatAt(h,x,y,frames,actual){
+        if(!h||h.allyHit||h.odenHit||h._mbGEIgnored||h.state==="done")return 0;
+        var type=String(h.type||"").toLowerCase(),t=Math.max(0,Number(frames)||0);
+        var hx=Number(h.x),hy=Number(h.y),width=Math.max(8,Number(h.width)||0);
+        var size=Math.max(7,Number(h.size||h.r)||9);
+        if(type==="ring"){
+            var growth=Math.max(0,Number(h.growth)||0);
+            var rr=Math.min(Number(h.maxRadius)||Infinity,Math.max(0,Number(h.radius)||0)+growth*t);
+            var gap=Math.abs(Math.hypot(x-(Number(h.x)||0),y-(Number(h.y)||0))-rr);
+            var thickness=Math.max(8,Number(h.thickness)||16)*.5+18;
+            return gap<thickness?Math.max(.2,1-gap/thickness):0;
         }
-        if (type === "laser_warning") {
-            if (actual && Number(h.timer) > 0) return 0;
-            return Math.abs(x - (Number(h.x) || 0)) < width * 0.5 + 20 ? 1 : 0;
+        if(type==="laser_warning"||type==="laser"||type==="vertical_laser"){
+            var timer=Number.isFinite(Number(h.timer))?Number(h.timer):
+                (Number.isFinite(Number(h.warningTimer))?Number(h.warningTimer):0);
+            var active=type!=="laser_warning"&&type!=="vertical_laser"||timer<=t+10||h.state==="active";
+            if(actual&&(h.state==="warning"||timer>0&&type==="laser_warning"))return 0;
+            if(!active)return 0;
+            return Math.abs(x-hx)<(width||55)*.5+18?1:0;
         }
-        if (warning && actual) return 0;
-        if ((type.indexOf("laser") !== -1 || type.indexOf("beam") !== -1) &&
-            Number.isFinite(Number(h.x)) && (!Number.isFinite(Number(h.y)) || type === "laser" || type === "beam")) {
-            var laserX = Number(h.x);
-            return Math.abs(x - laserX) < width * 0.5 + 18 ? 1 : 0;
-        }
-        if (type === "boss_dash" && Number.isFinite(Number(h.targetX))) {
-            return pointToSegmentDistance(x, y, Number(h.x), Number(h.y),
-                Number(h.targetX), Number(h.targetY)) < radius + 20 ? 1 : 0;
-        }
-        if (type === "predict") {
-            return Math.hypot(x - Number(h.x), y - Number(h.y)) < Math.max(radius, Number(h.radius) || 0) ? 1 : 0;
-        }
-        if (!Number.isFinite(Number(h.x)) || !Number.isFinite(Number(h.y))) {
-            if (Number.isFinite(Number(h.targetX)) && Math.abs(x - Number(h.targetX)) < width * 0.5 + 20) return 1;
+        if(type==="spike"){
+            var height=Math.max(Number(h.height)||0,Number(h.maxHeight)||0),warn=Number(h.warningTimer)||0;
+            if(actual&&(warn>0||Number(h.height)<=0))return 0;
+            if(!actual&&warn>t+8)return 0;
+            var sx=Number.isFinite(hx)?hx:200,bottom=Number.isFinite(hy)?hy:500;
+            if(Math.abs(x-sx)<Math.max(24,Number(h.width)||34)*.5+13&&y>bottom-height-22&&y<bottom+20)return 1;
             return 0;
         }
-        var vx = Number(h.vx) || 0, vy = Number(h.vy) || 0;
-        var px = Number(h.x) + vx * frames, py = Number(h.y) + vy * frames;
-        if (type === "boomerang" && h.stage === "return") {
-            px = Number(h.x) - vx * frames * 0.8;
-            py = Number(h.y) - vy * frames * 0.8;
+        if(type==="gravity_well"){
+            var wd=Math.hypot(x-(Number(h.x)||0),y-(Number(h.y)||0)),wr=Math.max(45,Number(h.radius)||55)+38;
+            return wd<wr?Math.max(.25,1-wd/wr):0;
         }
-        return Math.hypot(x - px, y - py) < radius + (warning ? 24 : 0) ? 1 : 0;
+        if(type==="predict"){
+            var pr=Math.max(22,Number(h.radius)||27)+18,pd=Math.hypot(x-(Number(h.x)||0),y-(Number(h.y)||0));
+            if(actual&&h.active!==true)return 0;
+            return pd<pr?Math.max(.2,1-pd/pr):0;
+        }
+        if(type==="boss_dash"&&Number.isFinite(Number(h.targetX))){
+            return pointToSegmentDistance(x,y,Number(h.x)||0,Number(h.y)||0,Number(h.targetX),Number(h.targetY)||0)<size+28?1:0;
+        }
+        if(!Number.isFinite(hx)||!Number.isFinite(hy))return 0;
+        var vx=Number(h.vx)||0,vy=Number(h.vy)||0,px=hx+vx*t,py=hy+vy*t;
+        if(type==="boomerang"&&h.stage==="return"){px=hx-vx*t*.8;py=hy-vy*t*.8;}
+        else if(type==="gravity_stone"){
+            var wx=Number(h.wellX),wy=Number(h.wellY);
+            if(Number.isFinite(wx)&&Number.isFinite(wy)){var pull=Math.min(.82,t*.012);px+=(wx-hx)*pull;py+=(wy-hy)*pull;}
+        }
+        var radius=size+18;
+        if(type==="boulder"||type==="plate"||type==="boomerang")radius+=8;
+        if(type==="homing")radius+=10;
+        var distance=Math.hypot(x-px,y-py);
+        return distance<radius?Math.max(.18,1-distance/radius):0;
     }
 
-    function chooseAllyGoal(boss, threats) {
-        var baseX = Math.max(35, Math.min(365, boss.x + (ally.x <= boss.x ? -54 : 54)));
-        var baseY = Math.max(205, Math.min(365, boss.y + 160));
-        var nearest = null, nearestScore = Infinity;
-        var candidates = [{x:baseX,y:baseY}];
-        for (var a = 0; a < 12; a++) {
-            var angle = a * Math.PI / 6;
-            for (var rad = 48; rad <= 112; rad += 32) {
-                candidates.push({
-                    x: Math.max(28, Math.min(372, ally.x + Math.cos(angle) * rad)),
-                    y: Math.max(170, Math.min(410, ally.y + Math.sin(angle) * rad))
-                });
+    function chooseAllyGoal(boss,threats){
+        var baseX=Math.max(42,Math.min(358,boss.x+(ally.x<=boss.x?-72:72)));
+        var baseY=Math.max(215,Math.min(365,boss.y+175));
+        var candidates=[{x:baseX,y:baseY}];
+        for(var ai=0;ai<16;ai++){
+            var angle=ai*Math.PI/8;
+            for(var radius=62;radius<=186;radius+=62){
+                candidates.push({x:Math.max(28,Math.min(372,ally.x+Math.cos(angle)*radius)),
+                    y:Math.max(155,Math.min(430,ally.y+Math.sin(angle)*radius))});
             }
         }
-        var timeChecks = [0, 12, 24, 38];
-        for (var i = 0; i < candidates.length; i++) {
-            var cand = candidates[i], danger = 0;
-            for (var j = 0; j < threats.length; j++) {
-                for (var t = 0; t < timeChecks.length; t++) {
-                    if (threatAt(threats[j], cand.x, cand.y, timeChecks[t], false)) {
-                        danger += (4 - t) * (Number(threats[j].damage) > 16 ? 7 : 4);
-                        break;
-                    }
+        var checks=[6,14,24,36,50,66],best=null,bestScore=Infinity;
+        for(var i=0;i<candidates.length;i++){
+            var cand=candidates[i],danger=0;
+            for(var j=0;j<threats.length;j++){
+                var threat=threats[j];if(!threat||threat.state==="done")continue;
+                for(var k=0;k<checks.length;k++){
+                    var at=checks[k],fraction=at/66;
+                    var px=ally.x+(cand.x-ally.x)*fraction,py=ally.y+(cand.y-ally.y)*fraction;
+                    var risk=threatAt(threat,px,py,at,false);
+                    if(risk>0)danger+=risk*Math.max(.65,Math.min(2,(Number(threat.damage)||8)/12))*(7-k);
                 }
             }
-            var score = danger * 1000 + Math.hypot(cand.x-baseX,cand.y-baseY) * 0.28 +
-                Math.hypot(cand.x-ally.x,cand.y-ally.y) * 0.045;
-            if (score < nearestScore) { nearestScore = score; nearest = cand; }
+            var clearance=Math.hypot(cand.x-boss.x,cand.y-boss.y);
+            var tooClose=Math.max(0,105-clearance);
+            var score=danger*950+tooClose*5+Math.hypot(cand.x-baseX,cand.y-baseY)*.22+
+                Math.hypot(cand.x-ally.x,cand.y-ally.y)*.055;
+            if(score<bestScore){bestScore=score;best=cand;}
         }
-        return nearest || { x: baseX, y: baseY };
+        return best||{x:baseX,y:baseY};
     }
 
-    function damageAlly(amount, x, y) {
-        if (!ally.alive || ally.invuln > 0) return;
-        var dealt = Math.max(1, Math.min(22, Number(amount) || 8));
-        ally.hp = Math.max(0, ally.hp - dealt);
-        ally.invuln = 38; ally.hitFlash = 15;
-        burst(x || ally.x, y || ally.y, 12, "#ff91c9", 4);
-        if (ally.hp <= 0) {
-            ally.alive = false; allyDeathTimer = 240;
-            announce("ПУТЕВОДНАЯ ЗВЕЗДА ВЫБЫЛА!", "#ff9acb", 90);
+    function damageAlly(amount,x,y){
+        if(!ally.alive||ally.invuln>0)return;
+        var dealt=Math.max(1,Math.min(10,(Number(amount)||8)*.3));
+        ally.hp=Math.max(0,ally.hp-dealt);ally.invuln=68;ally.hitFlash=18;
+        burst(x||ally.x,y||ally.y,14,"#ff91c9",4.5);
+        addAllyFlash(x||ally.x,y||ally.y,26);
+        addAllyShockwave(x||ally.x,y||ally.y,"#ff6bac",46,10,2.5);
+        if(ally.hp<=0){
+            ally.alive=false;allyDeathTimer=999999;
+            allyAttacks.length=0;allyAttackQueue.length=0;
+            announce("ПУТЕВОДНАЯ ЗВЕЗДА ВЫБЫЛА!","#ff9acb",120);
         }
     }
 
-    function updateAlly() {
-        if (!ally.alive) {
-            if (allyDeathTimer > 0) allyDeathTimer--;
-            return;
+    function updateAlly(){
+        if(!ally.alive)return;
+        var boss=bossPoint(),threats=getAllyThreats();
+        ally.phase+=.11;
+        if(ally.invuln>0)ally.invuln--;
+        if(ally.hitFlash>0)ally.hitFlash--;
+        if(ally.dashFlash>0)ally.dashFlash--;
+        if(attackPause<=0){
+            if(ally.attackTimer>0)ally.attackTimer--;
+            if(ally.attackTimer<=0){ally.attackTimer=96;launchAllyPattern();}
         }
-        var boss = bossPoint(), threats = getAllyThreats();
-        ally.phase += 0.11;
-        if (ally.invuln > 0) ally.invuln--;
-        if (ally.hitFlash > 0) ally.hitFlash--;
-        if (ally.dashFlash > 0) ally.dashFlash--;
-        if (attackPause <= 0) {
-            if (ally.attackTimer > 0) ally.attackTimer--;
-            if (ally.attackTimer <= 0) {
-                ally.attackTimer = 138;
-                launchAllyPattern();
+        var dashActive=false;
+        for(var di=0;di<allyAttacks.length;di++)if(allyAttacks[di].type==="waystar_dash"){dashActive=true;break;}
+        if(!dashActive){
+            var goal=chooseAllyGoal(boss,threats),immediateRisk=0;
+            for(var i=0;i<threats.length;i++){
+                var threat=threats[i];if(!threat||threat.state==="done")continue;
+                var risk=threatAt(threat,ally.x,ally.y,10,false);
+                if(risk>immediateRisk)immediateRisk=risk;
+            }
+            ally.targetX=goal.x;ally.targetY=goal.y;
+            var dx=goal.x-ally.x,dy=goal.y-ally.y,dist=Math.hypot(dx,dy)||1;
+            var boost=immediateRisk>.25?1.45:1,desired=Math.min(WAYSTAR_ALLY_SPEED*boost,Math.max(.65,dist*.2));
+            var steer=immediateRisk>.25?.42:.25;
+            ally.vx+=(dx/dist*desired-ally.vx)*steer;ally.vy+=(dy/dist*desired-ally.vy)*steer;
+            var speed=Math.hypot(ally.vx,ally.vy),maxSpeed=WAYSTAR_ALLY_SPEED*boost;
+            if(speed>maxSpeed){ally.vx=ally.vx/speed*maxSpeed;ally.vy=ally.vy/speed*maxSpeed;}
+            ally.x=Math.max(22,Math.min(378,ally.x+ally.vx));
+            ally.y=Math.max(150,Math.min(430,ally.y+ally.vy));
+        }
+        for(var j=0;j<threats.length;j++){
+            var h=threats[j];if(!h||h.allyHit)continue;
+            if(threatAt(h,ally.x,ally.y,0,true)>0&&ally.invuln<=0){
+                h.allyHit=true;damageAlly(Math.max(4,(Number(h.damage)||10)*.3),ally.x,ally.y);break;
             }
         }
-
-        var goal = chooseAllyGoal(boss, threats);
-        var immediate = null, immediateScore = Infinity;
-        for (var i = 0; i < threats.length; i++) {
-            var h = threats[i];
-            if (!h || h.state === "done") continue;
-            var risk = threatAt(h, ally.x, ally.y, 14, false);
-            if (risk) {
-                var d = Math.hypot(ally.x-(Number(h.x)||ally.x), ally.y-(Number(h.y)||ally.y));
-                var score = d - Math.max(0, Number(h.damage)||0)*0.35;
-                if (score < immediateScore) { immediateScore = score; immediate = h; }
-            }
-        }
-        if (immediate) {
-            var hx = Number(immediate.x) || ally.x, hy = Number(immediate.y) || ally.y;
-            var awayX = ally.x - hx, awayY = ally.y - hy, len = Math.hypot(awayX,awayY) || 1;
-            goal = {
-                x: Math.max(26, Math.min(374, ally.x + awayX / len * 105 + (Math.random()-0.5)*18)),
-                y: Math.max(160, Math.min(420, ally.y + awayY / len * 92))
-            };
-        }
-
-        ally.targetX = goal.x; ally.targetY = goal.y;
-        var dx = goal.x - ally.x, dy = goal.y - ally.y, dist = Math.hypot(dx,dy) || 1;
-        var desired = Math.min(WAYSTAR_ALLY_SPEED, Math.max(0.5, dist * 0.18));
-        var steer = immediate ? 0.34 : 0.19;
-        ally.vx += (dx / dist * desired - ally.vx) * steer;
-        ally.vy += (dy / dist * desired - ally.vy) * steer;
-        var speed = Math.hypot(ally.vx,ally.vy);
-        if (speed > WAYSTAR_ALLY_SPEED) { ally.vx = ally.vx/speed*WAYSTAR_ALLY_SPEED; ally.vy = ally.vy/speed*WAYSTAR_ALLY_SPEED; }
-        ally.x = Math.max(22, Math.min(378, ally.x + ally.vx));
-        ally.y = Math.max(160, Math.min(430, ally.y + ally.vy));
-
-        for (var j = 0; j < threats.length; j++) {
-            var h2 = threats[j];
-            if (!h2 || h2.allyHit) continue;
-            var hit = threatAt(h2, ally.x, ally.y, 0, true);
-            if (hit && ally.invuln <= 0) {
-                h2.allyHit = true;
-                damageAlly(Math.max(6, (Number(h2.damage)||12)*0.48), ally.x, ally.y);
-                break;
-            }
-        }
-
         updateOriginalWaystarAttacks(boss);
+        updateAllyEffects();
     }
 
     function originalWaystarStar(c,x,y,radius,fill){
