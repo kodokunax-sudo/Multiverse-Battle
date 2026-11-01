@@ -1307,7 +1307,14 @@ function waystarVictory() {
 function grantWaystarReward() {
     if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===500) return;
     console.log("[WAYSTAR] Выдача награды (убийство)");
-    if (typeof window !== 'undefined') window.waystarDefeatedThisRun = true;
+    if (typeof window !== 'undefined') {
+        window.waystarDefeatedThisRun = true;
+        window.waystarOwesDebt = false;
+    }
+    if (typeof slotData !== "undefined" && slotData) {
+        slotData.waystarOwesDebt = false;
+        slotData.waystarMercyDecisionVersion = 1;
+    }
     if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && !defeatedBosses.includes(500)) { defeatedBosses.push(500); }
     if (typeof slotData !== 'undefined' && slotData) slotData.evolutionUnlocked = true;
     if (typeof addItem === 'function') addItem("waystar", 1);
@@ -1330,6 +1337,7 @@ function grantWaystarSpareDebt() {
             window.waystarOwesDebt = true;
             if (typeof slotData !== 'undefined' && slotData) {
                 slotData.waystarOwesDebt = true;
+                slotData.waystarMercyDecisionVersion = 1;
                 slotData.evolutionUnlocked = true;
             }
         }
