@@ -527,6 +527,11 @@ async function mbSyncCloudSave(action) {
         }
 
         if (action === 'upload') {
+            if (!cloudRow && marker && marker.userId && marker.userId !== userId &&
+                !window.confirm('Этот локальный прогресс раньше был синхронизирован с другим аккаунтом. Перенести его в облако текущего аккаунта?')) {
+                mbCloudStatus('Перенос отменён. Локальный прогресс сохранён без изменений.', 'info');
+                return;
+            }
             if (cloudRow && cloudFingerprint !== localFingerprint &&
                 !window.confirm('Заменить единственное облачное сохранение прогрессом из слота ' + (targetSlot + 1) + '?')) {
                 mbCloudStatus('Отправка отменена. Прогресс не изменён.', 'info');
