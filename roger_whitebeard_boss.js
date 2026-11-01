@@ -6508,6 +6508,7 @@
     window.getRWBPlayer = function() { return rwbPlayer; };
     window.getRWBBullets = function() { return rwbPlayerBullets; };
     window.getRWBAttacks = function() { return rwbAttacks; };
+    window.getRWBShockwaves = function() { return rwbShockwaves; };
     window.getRWBKeys = function() { return rwbKeys; };
     window.getRWBTouch = function() { return { active: rwbTouchActive, x: rwbTouchX, y: rwbTouchY }; };
     window.rwbSound = rwbSound;
