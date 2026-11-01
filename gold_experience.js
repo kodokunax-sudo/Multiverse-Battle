@@ -206,9 +206,9 @@
     }
 
     function getCompanionSize(ctx) {
-        var size = 15;
+        var size = Math.max(7, Number(state.heartSize) || 15);
         try {
-            if (ctx && typeof ctx.getHeartSize === "function") size = Number(ctx.getHeartSize()) || 15;
+            if (ctx && typeof ctx.getHeartSize === "function") size = Number(ctx.getHeartSize()) || size;
         } catch (e) {}
         return Math.max(7, Math.min(24, size));
     }
