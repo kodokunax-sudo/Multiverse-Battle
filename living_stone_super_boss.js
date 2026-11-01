@@ -2443,6 +2443,8 @@
         }
         return {x:LS2_HEART_X,y:LS2_HEART_Y,shieldDir:ls2ShieldDir,hp:ls2PlayerHp,maxHp:ls2PlayerMaxHp};
     };
+    window.getLivingStoneSuperBossPosition=function(){return {x:Number(livingStoneBoss&&livingStoneBoss.x)||200,y:Number(livingStoneBoss&&livingStoneBoss.y)||130};};
+    window.MBLivingStoneSuperDamageBoss=function(amount){return ls2DamageBoss(amount);};
     window.getLivingStoneSuperBossHp=function(){return ls2NativeMode && typeof livingStoneBossHp!=="undefined" ? livingStoneBossHp : ls2BossHp;};
     window.getLivingStoneSuperBossMaxHp=function(){return ls2NativeMode && typeof livingStoneBossMaxHp!=="undefined" ? livingStoneBossMaxHp : ls2BossMaxHp;};
     window.setLivingStoneSuperBossHp=function(v){
