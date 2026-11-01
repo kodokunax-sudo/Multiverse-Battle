@@ -1063,6 +1063,14 @@ function loadGameData(d) {
             card.ability.maxSpeed = 12;
             card.ability.desc = "За каждую победу: +0.4% HP, +0.3% урона и +0.1% скорости (макс. 12)";
         }
+
+        // У высшей формы Карса удаляем старую пассивку −22% входящего урона
+        // и не трогаем накопленные характеристики сохранённой карты.
+        if (card.name === "Карс (Высшее существо)" &&
+            card.ability && card.ability.type === "damageReduction" &&
+            Number(card.ability.value) === 0.22) {
+            card.ability = null;
+        }
     }); 
     myCards.forEach(function(card) {
         if (!card || !card.name || typeof customCardTemplates === "undefined") return;
