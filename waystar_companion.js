@@ -84,7 +84,7 @@
         var ty = Math.max(65, Math.min(230, boss.y + boss.vy * 7));
         var dx = tx - ally.x, dy = ty - ally.y;
         var base = Math.atan2(dy, dx);
-        var pattern = ally.attackPattern++ % 8;
+        var pattern = ally.attackPattern++ % 9;
         allyAttackSerial++;
         ally.windup = pattern === 2 || pattern === 5 || pattern === 6 ? 24 : 9;
 
@@ -151,8 +151,16 @@
             });
             ally.dashFlash = 24;
             announce("ЗВЁЗДНЫЙ РЫВОК!", "#d7faff", 45);
+        } else if (pattern === 7) {
+            // BLINDING FLASH: the four-corner warning pattern from her original first phase.
+            allyAttacks.push({
+                type: "blind", x: tx, y: ty, timer: 34,
+                damage: allyDamageAmount(0.92), color: "#f4efff",
+                pulse: 0, stunned: false
+            });
+            announce("ОСЛЕПЛЕНИЕ!", "#f1eaff", 48);
         } else {
-            // THE LEGION: twelve orbiting fragments imitate her 60-piece formation.
+            // THE LEGION: twelve fragments echo the original 60-piece formation.
             for (var q = 0; q < 12; q++) {
                 var a4 = base + q * Math.PI * 2 / 12;
                 var sp = 4.5 + (q % 3) * 0.7;
@@ -268,10 +276,12 @@
         if (ally.invuln > 0) ally.invuln--;
         if (ally.hitFlash > 0) ally.hitFlash--;
         if (ally.dashFlash > 0) ally.dashFlash--;
-        if (ally.attackTimer > 0) ally.attackTimer--;
-        if (ally.attackTimer <= 0) {
-            ally.attackTimer = 138;
-            launchAllyPattern();
+        if (attackPause <= 0) {
+            if (ally.attackTimer > 0) ally.attackTimer--;
+            if (ally.attackTimer <= 0) {
+                ally.attackTimer = 138;
+                launchAllyPattern();
+            }
         }
 
         var goal = chooseAllyGoal(boss, threats);
@@ -353,6 +363,17 @@
                 }
                 continue;
             }
+            if (a.type === "blind") {
+                a.timer--; a.pulse++;
+                if (!a.stunned && a.timer <= 14) {
+                    a.stunned = true;
+                    if (typeof window.MBLivingStoneSuperCompanionStun === "function")
+                        window.MBLivingStoneSuperCompanionStun(42);
+                    hitBoss(a.damage,boss.x,boss.y,a.color);
+                }
+                if (a.timer <= 0) allyAttacks.splice(k,1);
+                continue;
+            }
             a.trail.push({x:a.x,y:a.y});
             if (a.trail.length > 6) a.trail.shift();
             if (a.curve) {
@@ -385,6 +406,19 @@
                 c.beginPath(); c.moveTo(a.x1,a.y1); c.lineTo(a.x2,a.y2); c.stroke();
                 c.strokeStyle = "#ffffff"; c.lineWidth = activeBeam ? 3 : 1;
                 c.beginPath(); c.moveTo(a.x1,a.y1); c.lineTo(a.x2,a.y2); c.stroke();
+                c.restore();
+            } else if (a.type === "blind") {
+                c.save();
+                c.globalAlpha = Math.min(0.95, (34-a.timer)/8) * 0.9;
+                c.strokeStyle = "#f8efff"; c.lineWidth = 3;
+                c.shadowColor = "#eacbff"; c.shadowBlur = 18;
+                for (var corner = 0; corner < 4; corner++) {
+                    var ca = corner * Math.PI/2 + frame*0.025;
+                    var cx = a.x + Math.cos(ca)*58, cy = a.y + Math.sin(ca)*58;
+                    c.beginPath(); c.arc(cx,cy,12+a.pulse%9,0,Math.PI*2); c.stroke();
+                    c.beginPath(); c.moveTo(cx-Math.cos(ca)*16,cy-Math.sin(ca)*16);
+                    c.lineTo(cx+Math.cos(ca)*16,cy+Math.sin(ca)*16); c.stroke();
+                }
                 c.restore();
             } else if (a.type === "bomb") {
                 c.save(); c.globalAlpha = 0.45 + Math.sin(frame/3)*0.22;
@@ -601,17 +635,12 @@
                     announce("ТЕПЕРЬ Я НЕ ДАМ ТЕБЕ ЗАБРАТЬ ЕГО ПОБЕДУ!", "#d8f5ff", 95);
                 }
             }
-            if (strikeTimer <= 0) {
-                strikeTimer = 138;
-                launchAllyPattern();
-            }
             if (routeTimer <= 0) route = null;
 
             var hpRatio = currentBossHp() / maxBossHp();
             if (hpRatio <= 0.12 && !finalLockTriggered) beginFinalLock();
         } else {
-            // In green-heart mode ordinary attacks, protection and old route predictions pause.
-            // The companion stays visible so successful blocks can charge her constellation.
+            // In green-heart mode the player-facing protection pauses, but the Star keeps fighting.
             route = null;
             routeTimer = 0;
             if (constellationFlash > 0) {
