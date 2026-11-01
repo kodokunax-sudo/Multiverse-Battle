@@ -1242,14 +1242,12 @@
 
         // Same opposite-gravity jump input and impulse as the player.
         var jumpDot = mx * (-gravity.x) + my * (-gravity.y);
-        if (state.antiSpiralGrounded && jumpDot > 0.58 &&
-            current >= (Number(state.antiSpiralJumpCooldownUntil) || 0)) {
+        if (state.antiSpiralGrounded && jumpDot > 0.58) {
             var jumpMultiplier = (playerScale === 0.5 ? 0.65 : (playerScale === 2 ? 1.3 : 1)) * superSpeed;
             state.vx = -gravity.x * (23.2 / 1.5) * jumpMultiplier;
             state.vy = -gravity.y * (23.2 / 1.5) * jumpMultiplier;
             state.antiSpiralGrounded = false;
             state.antiSpiralPlatformIndex = null;
-            state.antiSpiralJumpCooldownUntil = current + 170;
         }
 
         // Same active singularity pull fields as the player.
@@ -1355,8 +1353,6 @@
         var margin = radius + 1;
         var left = bounds.left + margin, right = bounds.right - margin;
         var top = bounds.top + margin, bottom = bounds.bottom - margin;
-        var timeScale = Math.max(0.25, Math.min(1, Number(info.timeScale) || 1));
-        var stepScale = frameScale * timeScale;
         var speedMultiplier = Math.max(0.15, Math.min(3, Number(mini.speedMultiplier) || 1));
         var spheres = Array.isArray(mini.spheres) ? mini.spheres : [];
         var target = null;
@@ -1415,8 +1411,8 @@
             Math.min(4.6 * speedMultiplier, (state.vx + mx * 0.43 * speedMultiplier + gx) * 0.965));
         state.vy = Math.max(-4.6 * speedMultiplier,
             Math.min(4.6 * speedMultiplier, (state.vy + my * 0.43 * speedMultiplier + gy) * 0.965));
-        state.x += state.vx * stepScale;
-        state.y += state.vy * stepScale;
+        state.x += state.vx;
+        state.y += state.vy;
         if (state.x < left) { state.x = left; state.vx = Math.abs(state.vx) * 0.42; }
         if (state.x > right) { state.x = right; state.vx = -Math.abs(state.vx) * 0.42; }
         if (state.y < top) { state.y = top; state.vy = Math.abs(state.vy) * 0.42; }
