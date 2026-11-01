@@ -1941,6 +1941,9 @@
             state.attackType = null;
             state.attackUntil = 0;
         }
+        if (sealTarget && state.combo && !state.combo.antiSpiralSeal) {
+            finishMudaCombo();
+        }
         if (!cloneMode && state.healState === "idle" && state.stunTimer <= 0) {
             if (state.punch) {
                 if (dodging) {
