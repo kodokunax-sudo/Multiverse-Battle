@@ -335,20 +335,7 @@ function dioApplyBossDamageNow(type,id,amount){
  else if(type==="stoneSuper"){if(typeof window.damageLivingStoneSuperBoss==="function")window.damageLivingStoneSuperBoss(dmg);if(typeof window.rwbAddFlashWhite==="function")window.rwbAddFlashWhite(2);}
  else if(type==="rwb"){if(typeof window.rwbApplyDioSkillDamage==="function")window.rwbApplyDioSkillDamage(id,dmg);else if(t.ref){t.ref.hp=Math.max(0,t.ref.hp-dmg);t.ref.hitFlash=10;}if(typeof window.rwbAddShockwave==="function")window.rwbAddShockwave(t.x,t.y,"#fff",7,.35,4);if(typeof window.rwbAddFlashWhite==="function")window.rwbAddFlashWhite(2);}
  else if(type==="antispiral"){if(typeof window.damageAntiSpiralBoss==="function")window.damageAntiSpiralBoss(dmg,"DIO");if(typeof window.antiSpiralAddShockwave==="function")window.antiSpiralAddShockwave(t.x,t.y,"#d7f8ff",7,28,4);if(typeof window.antiSpiralAddFlash==="function")window.antiSpiralAddFlash(4,"#ffffff");}
-  if(type==="arena"){
-   var segDist=function(px,py,x1,y1,x2,y2){var vx=x2-x1,vy=y2-y1,len=vx*vx+vy*vy,t=len>0?Math.max(0,Math.min(1,((px-x1)*vx+(py-y1)*vy)/len)):0;return Math.hypot(px-(x1+t*vx),py-(y1+t*vy));};
-   if(Array.isArray(a.segments)){for(var si=0;si<a.segments.length;si++){var sg=a.segments[si];if(sg&&segDist(x,y,Number(sg.x1)||0,Number(sg.y1)||0,Number(sg.x2)||0,Number(sg.y2)||0)<Math.max(6,Number(a.width)||Number(sg.width)||12)/2+h)return dioStandHitResult(true,a);}}
-   if(a.path&&Array.isArray(a.path)){for(var pi=1;pi<a.path.length;pi++){var pp=a.path[pi-1],pn=a.path[pi];if(pp&&pn&&segDist(x,y,Number(pp.x)||0,Number(pp.y)||0,Number(pn.x)||0,Number(pn.y)||0)<Math.max(6,Number(a.width)||14)/2+h)return dioStandHitResult(true,a);}}
-   if(Number.isFinite(Number(a.x1))&&Number.isFinite(Number(a.y1))&&Number.isFinite(Number(a.x2))&&Number.isFinite(Number(a.y2)))
-    return dioStandHitResult(segDist(x,y,Number(a.x1),Number(a.y1),Number(a.x2),Number(a.y2))<Math.max(6,Number(a.width)||12)/2+h,a);
-   if(a.type==="bomb"){if(a.timer>=0)return false;return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||a.maxRadius||20)+h),a);}
-   if(a.type==="ring")return dioStandHitResult(Math.abs(Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))-Number(a.radius||0))<Number(a.thickness||a.width||18)/2+h,a);
-   if(["circle","rainbow","healCircle","explosion","acid","boomerang","gear","leaf","point"].includes(a.type))return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||a.size||10)+h),a);
-   if(a.type==="laser"||a.type==="beam")return dioStandHitResult((a.state==="active"&&Math.abs(x-(Number(a.x)||0))<Number(a.width||40)/2+h),a);
-   if(a.type==="sword")return dioStandHitResult((Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.size||10)+h),a);
-   var s=Number(a.size)||20,cx=(Number(a.x)||0)+s/2,cy=(Number(a.y)||0)+s/2;return dioStandHitResult((Math.abs(x-cx)<s/2+h&&Math.abs(y-cy)<s/2+h),a);
-  }
- if(typeof window.showFloatingText==="function"){try{window.showFloatingText("-"+dmg+" DIO","#fff0a0");}catch(e){}}
+  if(typeof window.showFloatingText==="function"){try{window.showFloatingText("-"+dmg+" DIO","#fff0a0");}catch(e){}}
 }
 function dioQueueOrApplyBossDamage(t,amount){if(!t||!(amount>0))return;if(isDioTimeStopped()){if(!Array.isArray(_superState.dioPendingBossDamage))_superState.dioPendingBossDamage=[];_superState.dioPendingBossDamage.push({type:t.type,id:t.id,amount:amount});return;}dioApplyBossDamageNow(t.type,t.id,amount);}
 function dioFlushPendingBossDamage(){if(!_superState||!Array.isArray(_superState.dioPendingBossDamage)||!_superState.dioPendingBossDamage.length)return;var list=_superState.dioPendingBossDamage.splice(0),groups={};for(var i=0;i<list.length;i++){var p=list[i];if(!p)continue;var k=p.type+":"+p.id;if(!groups[k])groups[k]={type:p.type,id:p.id,amount:0};groups[k].amount+=Math.max(0,Number(p.amount)||0);}Object.keys(groups).forEach(function(k){var g=groups[k];dioApplyBossDamageNow(g.type,g.id,g.amount);});}
