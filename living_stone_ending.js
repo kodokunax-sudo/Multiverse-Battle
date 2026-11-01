@@ -62,15 +62,18 @@
         var preserveSession = window.__mbLivingStoneChaseMusicPersistent === true;
         stopMusic(preserveSession);
         if (!musicAllowed()) return;
+        var trackPath = starAid ? "music/помощь звезды.mp3" :
+            (superMode ? "music/Trap.mp3" : null);
+        if (!trackPath) return;
         try {
             if (typeof stopAllMusic === "function") stopAllMusic();
-            music = new Audio("music/помощь звезды.mp3");
+            music = new Audio(trackPath);
             music.preload = "auto";
             music.loop = true;
             music.volume = 0.78;
             music.playsInline = true;
             music.onerror = function () {
-                console.error("[LS CHASE] Не удалось загрузить music/помощь звезды.mp3");
+                console.error("[LS CHASE] Не удалось загрузить " + trackPath);
             };
             var p = music.play();
             if (p && p.catch) {
@@ -1186,12 +1189,11 @@
         bindControls();
 
         if (typeof stopQTEMusic === "function") { try { stopQTEMusic(); } catch (e) {} }
-        if (starAid) {
+        if (starAid || superMode) {
+            // Prime chase music reflects the player's old Waystar mercy decision.
             startMusic();
         } else {
-            if (!superMode) {
-                try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
-            }
+            try { if (typeof startBattleMusic === "function") startBattleMusic(); } catch (e) {}
         }
         var name = document.getElementById("arenaBossName");
         if (name) name.textContent = superMode
