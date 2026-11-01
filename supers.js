@@ -1652,14 +1652,9 @@ function clearKarsAdaptationState() {
 }
 
 window.MBResetKarsAdaptation = function() {
-    if (typeof _superState === "undefined") return;
-    var ctxB = typeof getBossContext === "function" ? getBossContext() : null;
-    if (_superState.karsSpeedApplied && ctxB &&
-        (!_superState.karsSpeedBossType || ctxB.type === _superState.karsSpeedBossType) &&
-        typeof ctxB.getHeartSpeed === "function" && typeof ctxB.setHeartSpeed === "function") {
-        var speed = Number(ctxB.getHeartSpeed()) || 0;
-        if (speed > 0) ctxB.setHeartSpeed(speed / 1.35);
-    }
+    // Boss start/stop routines already restore their native movement speed.
+    // Only clear timers here; reverting a speed value after the next boss has
+    // initialized could otherwise divide that boss' fresh base speed by 1.35.
     clearKarsAdaptationState();
 };
 
