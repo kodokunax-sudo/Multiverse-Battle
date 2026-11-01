@@ -314,7 +314,10 @@ function getBossContext() {
             },
             getBossHp: function() { return window.getLivingStoneSuperBossHp?window.getLivingStoneSuperBossHp():0; },
             getBossPosition: function() { return window.getLivingStoneSuperBossPosition?window.getLivingStoneSuperBossPosition():{x:200,y:130}; },
-            damageBoss: function(amount) { return window.MBLivingStoneSuperDamageBoss?window.MBLivingStoneSuperDamageBoss(amount):false; },
+            damageBoss: function(amount) {
+                return typeof window.MBApplyBossDamage === "function" &&
+                    window.MBApplyBossDamage(this, amount, "Gold Experience") > 0;
+            },
             getPlayerHp: function() { var h=window.getLivingStoneSuperHeart?window.getLivingStoneSuperHeart():null; return h?Number(h.hp)||0:0; },
             setPlayerHp: function(v) { if(window.setLivingStoneSuperPlayerHp)window.setLivingStoneSuperPlayerHp(v); },
             getPlayerMaxHp: function() { var h=window.getLivingStoneSuperHeart?window.getLivingStoneSuperHeart():null; return h?Number(h.maxHp)||180:180; },
@@ -352,13 +355,8 @@ function getBossContext() {
                 getBossHp: function() { return arenaBossMaxHP; },
                 getBossPosition: function() { return { x:200, y:175 }; },
                 damageBoss: function(amount) {
-                    var damage=Math.max(1,Math.floor(Number(amount)||1));
-                    if(typeof window.MBKarsApplyDamageBonus==="function") damage=window.MBKarsApplyDamageBonus(damage);
-                    var before=Math.max(0,Number(arenaBossMaxHP)||0);
-                    arenaBossMaxHP=Math.max(0,before-damage);
-                    arenaShake=Math.max(arenaShake||0,5);
-                    if(arenaBossMaxHP<=0 && typeof winArena==="function") winArena();
-                    return before>arenaBossMaxHP;
+                    return typeof window.MBApplyBossDamage === "function" &&
+                        window.MBApplyBossDamage(this, amount, "Gold Experience") > 0;
                 },
                 getPlayerHp: function() { return arenaHP; },
                 setPlayerHp: function(v) { arenaHP = window.__mbJoystickTrainingMode ? arenaMaxHP : v; },
@@ -469,12 +467,8 @@ function getBossContext() {
                 return {x:Number(b&&b.x)||200,y:Number(b&&b.y)||110};
             },
             damageBoss: function(amount) {
-                var damage=Math.max(1,Math.floor(Number(amount)||1));
-                if(typeof window.MBKarsApplyDamageBonus==="function") damage=window.MBKarsApplyDamageBonus(damage);
-                var before=this.getBossHp();
-                if(!(before>0))return false;
-                this.setBossMaxHp(Math.max(0,before-damage));
-                return this.getBossHp()<before;
+                return typeof window.MBApplyBossDamage === "function" &&
+                    window.MBApplyBossDamage(this, amount, "Gold Experience") > 0;
             },
             getPlayerHp: function() { return waystarPlayerHp; },
             setPlayerHp: function(v) { waystarPlayerHp = v; },
@@ -518,13 +512,8 @@ function getBossContext() {
             getBossHp: function() { return livingStoneBossHp; },
             getBossPosition: function() { return {x:Number(livingStoneBoss&&livingStoneBoss.x)||200,y:Number(livingStoneBoss&&livingStoneBoss.y)||110}; },
             damageBoss: function(amount) {
-                var damage=Math.max(1,Math.floor(Number(amount)||1));
-                if(typeof window.MBKarsApplyDamageBonus==="function") damage=window.MBKarsApplyDamageBonus(damage);
-                var before=Math.max(0,Number(livingStoneBossHp)||0);
-                if(!(before>0))return false;
-                livingStoneBossHp=Math.max(0,before-damage);
-                if(typeof livingStoneBossFlash!=="undefined")livingStoneBossFlash=Math.max(livingStoneBossFlash||0,6);
-                return livingStoneBossHp<before;
+                return typeof window.MBApplyBossDamage === "function" &&
+                    window.MBApplyBossDamage(this, amount, "Gold Experience") > 0;
             },
             getPlayerHp: function() { return livingStonePlayerHp; },
             setPlayerHp: function(v) { livingStonePlayerHp = v; },
@@ -578,11 +567,8 @@ function getBossContext() {
             getBossHp: function() { var b = (typeof window.getRWBActiveBoss === 'function') ? window.getRWBActiveBoss() : null; return b ? b.hp : 0; },
             getBossPosition: function() { return window.MBRWBCompanionTargetPosition ? window.MBRWBCompanionTargetPosition() : {x:200,y:110}; },
             damageBoss: function(amount) {
-                var damage=Math.max(1,Math.floor(Number(amount)||1));
-                if(typeof window.MBKarsApplyDamageBonus==="function")damage=window.MBKarsApplyDamageBonus(damage);
-                var target=window.MBRWBCompanionTargetPosition?window.MBRWBCompanionTargetPosition():null;
-                if(!target||!window.MBRWBCompanionDamageBoss)return false;
-                return window.MBRWBCompanionDamageBoss(damage,target.id);
+                return typeof window.MBApplyBossDamage === "function" &&
+                    window.MBApplyBossDamage(this, amount, "Gold Experience") > 0;
             },
             getPlayerHp: function() { var p = window.getRWBPlayer ? window.getRWBPlayer() : null; return p ? p.hp : 250; },
             setPlayerHp: function(v) { var p = window.getRWBPlayer ? window.getRWBPlayer() : null; if (p) p.hp = v; },
@@ -620,12 +606,8 @@ function getBossContext() {
             getBossHp: function() { return window.getAntiSpiralBossHp?window.getAntiSpiralBossHp():0; },
             getBossPosition: function() { return window.getAntiSpiralBossPosition?window.getAntiSpiralBossPosition():{x:200,y:135}; },
             damageBoss: function(amount) {
-                var damage=Math.max(1,Math.floor(Number(amount)||1));
-                if(typeof window.damageAntiSpiralBoss==="function")return window.damageAntiSpiralBoss(damage);
-                var before=this.getBossHp();
-                if(!(before>0)||typeof window.setAntiSpiralBossHp!=="function")return false;
-                window.setAntiSpiralBossHp(Math.max(0,before-damage));
-                return this.getBossHp()<before;
+                return typeof window.MBApplyBossDamage === "function" &&
+                    window.MBApplyBossDamage(this, amount, "Gold Experience") > 0;
             },
             getPlayerHp: function() { return window.getAntiSpiralPlayerHp?window.getAntiSpiralPlayerHp():0; },
             setPlayerHp: function(v) { if(window.setAntiSpiralPlayerHp)window.setAntiSpiralPlayerHp(v); },
