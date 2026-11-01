@@ -30,7 +30,12 @@
         "dioTeleport":     "music/dios-time-stop-teleportation-sound-effect-1.mp3",
         "dioTimeResume":   "music/time-resumes.mp3",
         "dioMuda":         "music/dio_muda_muda_muda.mp3",
-        "dioMudaVoice":    "music/Voicy_Dio Brando muda muda.mp3"
+        "dioMudaVoice":    "music/Voicy_Dio Brando muda muda.mp3",
+        // Дополнительные пользовательские треки: заранее кладём в стартовый кэш.
+        "trap":            "music/Trap.mp3",
+        "susmanz":         "music/susmanz.mp3",
+        "pucciOst":        "music/Ost пуччи.mp3",
+        "madeInHeaven":    "music/майден хевен.mp3"
     };
 
     // Пути берутся из images.js — единого реестра игровых изображений.
@@ -45,6 +50,36 @@
         "whitebeardBossModelFlash": "Model/белоус белый.png",
         "odenBossModelFlash": "Model/оден белый.png"
     };
+
+    // Все арты карт из images.js также скачиваются заранее.
+    // Новую картинку достаточно добавить в реестр cardImages: загрузчик подхватит её сам.
+    (function addRegisteredCardImagesToStartupQueue() {
+        var knownPaths = Object.create(null);
+        Object.keys(IMAGE_FILES).forEach(function (key) {
+            var path = IMAGE_FILES[key];
+            if (typeof path === "string" && path) knownPaths[path] = true;
+        });
+
+        var registeredCards = Array.isArray(window.MBAvatarOptions) ? window.MBAvatarOptions : [];
+        registeredCards.forEach(function (entry, index) {
+            if (!entry || typeof entry.path !== "string" || !/^images\\//i.test(entry.path)) return;
+            var path = entry.path;
+            if (knownPaths[path]) return;
+
+            var safeName = String(entry.name || index)
+                .toLowerCase()
+                .replace(/[^a-z0-9_-]+/g, "_")
+                .replace(/^_+|_+$/g, "")
+                .slice(0, 36) || String(index);
+            var key = "card_" + safeName;
+            var suffix = 2;
+            while (Object.prototype.hasOwnProperty.call(IMAGE_FILES, key)) {
+                key = "card_" + safeName + "_" + suffix++;
+            }
+            IMAGE_FILES[key] = path;
+            knownPaths[path] = true;
+        });
+    })();
 
     const FETCH_TIMEOUT = 30000; // 30 секунд на ресурс
 
