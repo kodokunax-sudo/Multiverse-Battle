@@ -296,6 +296,67 @@
         }
     }
 
+    function updateAlly(){
+        if(!ally.alive){updateAllyEffects();return;}
+        var boss=bossPoint(),threats=getAllyThreats();
+        ally.phase+=.11;
+        if(ally.invuln>0)ally.invuln--;
+        if(ally.hitFlash>0)ally.hitFlash--;
+        if(ally.dashFlash>0)ally.dashFlash--;
+
+        // Attack cadence is independent from the old player-protection cooldown.
+        if(attackPause<=0){
+            if(ally.attackTimer>0)ally.attackTimer--;
+            if(ally.attackTimer<=0){
+                ally.attackTimer=96;
+                launchAllyPattern();
+            }
+        }
+
+        // The NPC itself follows the boss, while continuously checking where hazards
+        // will be several frames ahead. During its own dash, keep the captured route.
+        var dashActive=false;
+        for(var i=0;i<allyAttacks.length;i++){
+            if(allyAttacks[i].type==="waystar_dash"){dashActive=true;break;}
+        }
+        if(!dashActive){
+            var goal=chooseAllyGoal(boss,threats);
+            var immediateRisk=0;
+            for(var j=0;j<threats.length;j++){
+                var threat=threats[j];
+                if(!threat||threat.state==="done")continue;
+                var risk=threatAt(threat,ally.x,ally.y,12,false);
+                if(risk>immediateRisk)immediateRisk=risk;
+            }
+            ally.targetX=goal.x;ally.targetY=goal.y;
+            var dx=goal.x-ally.x,dy=goal.y-ally.y,dist=Math.hypot(dx,dy)||1;
+            var boost=immediateRisk>.25?1.5:1;
+            var desired=Math.min(WAYSTAR_ALLY_SPEED*boost,Math.max(.7,dist*.2));
+            var steer=immediateRisk>.25?.46:.26;
+            ally.vx+=(dx/dist*desired-ally.vx)*steer;
+            ally.vy+=(dy/dist*desired-ally.vy)*steer;
+            var speed=Math.hypot(ally.vx,ally.vy),maxSpeed=WAYSTAR_ALLY_SPEED*boost;
+            if(speed>maxSpeed){ally.vx=ally.vx/speed*maxSpeed;ally.vy=ally.vy/speed*maxSpeed;}
+            ally.x=Math.max(22,Math.min(378,ally.x+ally.vx));
+            ally.y=Math.max(150,Math.min(430,ally.y+ally.vy));
+        }
+
+        // Ally collision is separate from the player's collision. It does not consume
+        // or erase the original boss projectile; it only gives the NPC its own hit state.
+        for(var k=0;k<threats.length;k++){
+            var hazard=threats[k];
+            if(!hazard||hazard.allyHit)continue;
+            if(threatAt(hazard,ally.x,ally.y,0,true)>0&&ally.invuln<=0){
+                hazard.allyHit=true;
+                damageAlly(Math.max(4,(Number(hazard.damage)||10)*.3),ally.x,ally.y);
+                break;
+            }
+        }
+
+        updateOriginalWaystarAttacks(boss);
+        updateAllyEffects();
+    }
+
     function updateOriginalWaystarAttacks(boss){
         for(var qi=allyAttackQueue.length-1;qi>=0;qi--){
             var queued=allyAttackQueue[qi];
@@ -308,7 +369,7 @@
         }
         for(var i=allyAttacks.length-1;i>=0;i--){
             var a=allyAttacks[i];
-            if(a.type==="meteor"||a.type==="spiral"||a.type==="star_rain"||a.type==="shotgun_bullet"||a.type==="legion_shot"||a.type==="legion_shot"){
+            if(a.type==="meteor"||a.type==="spiral"||a.type==="star_rain"||a.type==="shotgun_bullet"||a.type==="legion_shot"){
                 var limit=window.MBShouldReduceBossEffects&&window.MBShouldReduceBossEffects()?2:6;
                 a.trail.push({x:a.x,y:a.y});if(a.trail.length>limit)a.trail.shift();
                 a.x+=a.vx;a.y+=a.vy;a.rotation+=a.rotSpeed||0;a.life--;
@@ -623,18 +684,27 @@
                         c.beginPath();c.arc(0,0,28+Math.sin(w.pulse*1.5)*4,0,Math.PI*2);c.stroke();c.restore();
                     }
                 }else{
-                    var blindAlpha=1;
-                    if(a.state==="blind"){
-                        var elapsed=90-a.blindTimer;
-                        if(elapsed>=12)blindAlpha=1-((elapsed-12)/78)*.15;
-                    }else blindAlpha=(a.fadeTimer/20)*.85;
-                    c.globalAlpha=blindAlpha;c.fillStyle="#000000";c.fillRect(0,0,400,500);
+                    // The blindness affects the boss's area, not the player's whole screen.
+                    var target=bossPoint();
+                    var blindAlpha=a.state==="blind"?.52:(a.fadeTimer/20)*.52;
+                    var blindGlow=c.createRadialGradient(target.x,target.y,8,target.x,target.y,112);
+                    blindGlow.addColorStop(0,"rgba(0,0,0,.88)");
+                    blindGlow.addColorStop(.55,"rgba(0,0,0,.50)");
+                    blindGlow.addColorStop(1,"rgba(0,0,0,0)");
+                    c.globalAlpha=blindAlpha;c.fillStyle=blindGlow;
+                    c.beginPath();c.arc(target.x,target.y,112,0,Math.PI*2);c.fill();
                     if(a.state==="blind"&&a.blindTimer>30){
-                        c.globalAlpha=Math.min(1,(a.blindTimer-30)/20)*.6;c.fillStyle="#ff0000";
-                        c.font="bold 24px monospace";c.textAlign="center";c.shadowColor="#ff0000";c.shadowBlur=20;
-                        c.fillText("💀",200,240);c.font="bold 16px monospace";c.fillText("НИЧЕГО НЕ ВИДНО",200,275);c.shadowBlur=0;
+                        c.globalAlpha=Math.min(1,(a.blindTimer-30)/20)*.75;
+                        c.fillStyle="#ff0000";c.font="bold 22px monospace";c.textAlign="center";
+                        c.shadowColor="#ff0000";c.shadowBlur=18;
+                        c.fillText("💀",target.x,target.y+5);
+                        c.font="bold 11px monospace";c.fillText("НИЧЕГО НЕ ВИДНО",target.x,target.y+27);
+                        c.shadowBlur=0;
                     }
-                    if(a.flash>0){c.globalAlpha=a.flash/25*.8;c.fillStyle="#ffffff";c.fillRect(0,0,400,500);}
+                    if(a.flash>0){
+                        c.globalAlpha=a.flash/25*.45;c.strokeStyle="#ffffff";c.lineWidth=5;
+                        c.beginPath();c.arc(target.x,target.y,46+(25-a.flash)*4,0,Math.PI*2);c.stroke();
+                    }
                     c.globalAlpha=1;
                 }
             }else if(a.type==="legion_formation"){
@@ -805,8 +875,6 @@
 
         var generation = typeof livingStoneEncounterGeneration !== "undefined"
             ? Number(livingStoneEncounterGeneration) || 0 : 0;
-        var generation = typeof livingStoneEncounterGeneration !== "undefined"
-            ? Number(livingStoneEncounterGeneration) || 0 : 0;
         var newEncounter = activeEncounterGeneration !== generation;
         if (!active || newEncounter) {
             active = true;
@@ -829,10 +897,11 @@
             finalDialogueStage = 0;
             lastPhase = "";
             // A brief phase/eligibility interruption must not resurrect a defeated ally.
-            if (!allyInitialized || newEncounter) resetAlly();
+            var initializeAlly = !allyInitialized || newEncounter;
+            if (initializeAlly) resetAlly();
             supportX = Number(livingStonePlayer.x) || 200;
             supportY = Number(livingStonePlayer.y) || 400;
-            if (!newEncounter || !allyInitialized) announce("Я ОБЕЩАЛА ВЕРНУТЬСЯ. И Я ЗДЕСЬ.", "#bcefff", 95);
+            if (initializeAlly) announce("Я ОБЕЩАЛА ВЕРНУТЬСЯ. И Я ЗДЕСЬ.", "#bcefff", 95);
         }
 
         frame++;
