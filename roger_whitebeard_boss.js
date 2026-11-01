@@ -1860,7 +1860,7 @@
             let pushAngle = Math.atan2(dy, dx);
             rwbPlayer.vx = Math.cos(pushAngle) * RWB_MELEE_KNOCKBACK;
             rwbPlayer.vy = Math.sin(pushAngle) * RWB_MELEE_KNOCKBACK;
-            hitPlayer(RWB_MELEE_DAMAGE);
+            hitPlayer(RWB_MELEE_DAMAGE,{});
             rwbShake = 18;
             playBladeSound(0.6);
             rwbScreenFlash = 8;
@@ -2535,7 +2535,7 @@
             wbVortexFailed = true;
             rwbPlayer.vx = 0;
             rwbPlayer.vy = 10;
-            hitPlayer(40);
+            hitPlayer(40,{});
             rwbShake = 28;
             rwbScreenFlash = 18;
             rwbScreenFlashColor = "#ffffff";
@@ -2759,7 +2759,8 @@
 
                 var hpBeforeStandHit = rwbPlayer.hp;
 
-                hitPlayer(Math.max(1,Math.floor((Number(a.damage)||8)*.4)));
+                var rwbStandDamage=(typeof window.MBIsGoldExperienceNpcActive==="function"&&window.MBIsGoldExperienceNpcActive()&&typeof window.scaleStandBlockedDamage==="function")?window.scaleStandBlockedDamage(Number(a.damage)||8):Math.max(1,Math.floor((Number(a.damage)||8)*.4));
+                hitPlayer(rwbStandDamage,a);
 
                 if (rwbPlayer.hp < hpBeforeStandHit && typeof dioRWBCtx.spawnFloatingText === "function") {
 
@@ -2783,7 +2784,7 @@
                 a.x += a.vx; a.y += a.vy; a.life--;
                 if (Math.random() < 0.5) rwbParticles.push({ x: a.x, y: a.y, vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5, life: 12, maxLife: 12, color: "#b989ff", size: 2 });
                 if (rwbPlayer.invulnTimer <= 0 && Math.hypot(rwbPlayer.x - a.x, rwbPlayer.y - a.y) < a.size + rwbPlayer.size * 0.65) {
-                    hitPlayer(a.damage); spawnHitParticles(a.x, a.y, "#b989ff", 6); rwbAttacks.splice(i, 1); continue;
+                    hitPlayer(a.damage,a); spawnHitParticles(a.x, a.y, "#b989ff", 6); rwbAttacks.splice(i, 1); continue;
                 }
                 if (a.life <= 0 || a.x < -25 || a.x > 425 || a.y < -25 || a.y > 525) rwbAttacks.splice(i, 1);
                 continue;
@@ -2821,7 +2822,7 @@
                     a.activeTimer--;
                     let d = pointToSegmentDistance(rwbPlayer.x, rwbPlayer.y, a.originX, a.originY, a.endX, a.endY);
                     if (!a.hit && rwbPlayer.invulnTimer <= 0 && d < a.width / 2 + 7) {
-                        a.hit = true; hitPlayer(20); rwbPlayerStunTimer = 120; wbFruitFlashTimer = 180; wbFruitFlashPower = 0.72;
+                        a.hit = true; hitPlayer(20,{}); rwbPlayerStunTimer = 120; wbFruitFlashTimer = 180; wbFruitFlashPower = 0.72;
                     }
                     if (a.activeTimer <= 0) rwbAttacks.splice(i, 1);
                 } else { rwbAttacks.splice(i, 1); }
@@ -2853,7 +2854,7 @@
                     if (!a.hit && rwbPlayer.invulnTimer <= 0 &&
                         Math.abs(rwbPlayer.y - a.y) < (a.width || 92) * 0.5 + rwbPlayer.size * 0.45) {
                         a.hit = true;
-                        hitPlayer(40);
+                        hitPlayer(40,{});
                         spawnHitParticles(rwbPlayer.x, a.y, "#ffffff", 24);
                         rwbScreenFlash = 8; rwbScreenFlashColor = "#ffffff"; rwbShake = 18;
                     }
@@ -2894,7 +2895,7 @@
                 }
                 if (rwbPlayer.invulnTimer <= 0) {
                     let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + getRWBSuperHitboxBonus()) { hitPlayer(a.damage); spawnRockSmash(a.x, a.y, a.size); rwbAttacks.splice(i, 1); continue; }
+                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + getRWBSuperHitboxBonus()) { hitPlayer(a.damage,a); spawnRockSmash(a.x, a.y, a.size); rwbAttacks.splice(i, 1); continue; }
                 }
                 if (a.y > 480 || a.life <= 0) { spawnRockSmash(a.x, 480, a.size); playImpactSound(0.8, 0.4); rwbShake = 30; rwbAttacks.splice(i, 1); continue; }
                 continue;
@@ -2921,8 +2922,8 @@
                 if (!a.hit && rwbPlayer.invulnTimer <= 0) {
                     let dy = Math.abs(rwbPlayer.y - a.y);
                     let hbY = a.currentHeight / 2 + 6;
-                    if (a.fromRight) { if (dy < hbY && rwbPlayer.x >= a.x && rwbPlayer.x <= 400) { a.hit = true; hitPlayer(a.damage); } }
-                    else { if (dy < hbY && rwbPlayer.x >= 0 && rwbPlayer.x <= a.width) { a.hit = true; hitPlayer(a.damage); } }
+                    if (a.fromRight) { if (dy < hbY && rwbPlayer.x >= a.x && rwbPlayer.x <= 400) { a.hit = true; hitPlayer(a.damage,a); } }
+                    else { if (dy < hbY && rwbPlayer.x >= 0 && rwbPlayer.x <= a.width) { a.hit = true; hitPlayer(a.damage,a); } }
                 }
                 if (a.y > 600 || a.life <= 0) rwbAttacks.splice(i, 1);
                 continue;
@@ -2933,7 +2934,7 @@
                 if (Math.random() < 0.15) rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.size, y: a.y - a.size * 0.5, vx: (Math.random() - 0.5) * 1, vy: -0.5 - Math.random() * 1, life: 12, maxLife: 12, color: "#5a4030", size: 1.5 });
                 if (rwbPlayer.invulnTimer <= 0) {
                     let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.75 * BALANCE.playerHitboxMult + getRWBSuperHitboxBonus()) { hitPlayer(a.damage); spawnRockSmash(a.x, a.y, a.size); rwbAttacks.splice(i, 1); continue; }
+                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.75 * BALANCE.playerHitboxMult + getRWBSuperHitboxBonus()) { hitPlayer(a.damage,a); spawnRockSmash(a.x, a.y, a.size); rwbAttacks.splice(i, 1); continue; }
                 }
                 if (a.y > 500 || a.life <= 0) { spawnRockSmash(a.x, 480, a.size); rwbAttacks.splice(i, 1); continue; }
                 continue;
@@ -2944,7 +2945,7 @@
                 if (Math.random() < 0.3) rwbParticles.push({ x: a.x, y: a.y + (Math.random() - 0.5) * a.size, vx: a.vx * 0.3, vy: (Math.random() - 0.5) * 2, life: 15, maxLife: 15, color: "#ff8800", size: 2 });
                 if (!a.hit && rwbPlayer.invulnTimer <= 0) {
                     let dx = Math.abs(rwbPlayer.x - a.x), dy = Math.abs(rwbPlayer.y - a.y);
-                    if (dx < a.size * 0.6 + 4 && dy < a.size * 0.6 + 4) { a.hit = true; hitPlayer(a.damage); }
+                    if (dx < a.size * 0.6 + 4 && dy < a.size * 0.6 + 4) { a.hit = true; hitPlayer(a.damage,a); }
                 }
                 if (a.x < -60 || a.x > 460 || a.life <= 0) rwbAttacks.splice(i, 1);
                 continue;
@@ -2958,7 +2959,7 @@
                     a.activeTimer--;
                     if (!a.hit && rwbPlayer.invulnTimer <= 0) {
                         let hit = (a.direction === "horizontal") ? Math.abs(rwbPlayer.y - a.y) < a.width / 2 * 0.7 + 4 : Math.abs(rwbPlayer.x - a.x) < a.width / 2 * 0.7 + 4;
-                        if (hit) { a.hit = true; hitPlayer(a.damage); }
+                        if (hit) { a.hit = true; hitPlayer(a.damage,a); }
                     }
                     if (a.activeTimer <= 0) a.state = "done";
                 } else { rwbAttacks.splice(i, 1); continue; }
@@ -2975,7 +2976,7 @@
                         let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
                         let hb = a.width / 2 * 0.7 + 4;
                         let hit = (a.dir === "vertical") ? Math.abs(dx) < hb : Math.abs(dy) < hb;
-                        if (hit) { a.hit = true; hitPlayer(a.damage); }
+                        if (hit) { a.hit = true; hitPlayer(a.damage,a); }
                     }
                     if (a.activeTimer <= 0) a.state = "done";
                 } else { rwbAttacks.splice(i, 1); continue; }
@@ -3008,7 +3009,7 @@
                 a.x += a.vx; a.y += a.vy; a.life--;
                 if (rwbPlayer.invulnTimer <= 0) {
                     let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + Math.max(2, getRWBSuperHitboxBonus() - 1)) { hitPlayer(a.damage); rwbAttacks.splice(i, 1); continue; }
+                    if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + Math.max(2, getRWBSuperHitboxBonus() - 1)) { hitPlayer(a.damage,a); rwbAttacks.splice(i, 1); continue; }
                 }
                 if (a.life <= 0 || a.x < -20 || a.x > 420 || a.y < -20 || a.y > 520) rwbAttacks.splice(i, 1);
                 continue;
@@ -3030,7 +3031,7 @@
                     a.radius = a.maxRadius * (1 - a.activeTimer / a.maxActive);
                     if (!a.hit && rwbPlayer.invulnTimer <= 0) {
                         let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                        if (Math.sqrt(dx * dx + dy * dy) < a.radius * 0.85 + 4) { a.hit = true; hitPlayer(a.damage); }
+                        if (Math.sqrt(dx * dx + dy * dy) < a.radius * 0.85 + 4) { a.hit = true; hitPlayer(a.damage,a); }
                     }
                     if (a.activeTimer <= 0) a.state = "done";
                 } else { rwbAttacks.splice(i, 1); continue; }
@@ -3043,7 +3044,7 @@
                     if (Math.random() < 0.3) rwbParticles.push({ x: a.x + (Math.random() - 0.5) * a.size, y: a.y + a.size * 0.5, vx: (Math.random() - 0.5) * 2, vy: -1, life: 20, maxLife: 20, color: Math.random() > 0.5 ? "#ff6600" : "#ffaa00", size: 2 });
                     if (!a.hit && rwbPlayer.invulnTimer <= 0) {
                         let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                        if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + getRWBSuperHitboxBonus()) { a.hit = true; hitPlayer(a.damage); }
+                        if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.7 * BALANCE.playerHitboxMult + getRWBSuperHitboxBonus()) { a.hit = true; hitPlayer(a.damage,a); }
                     }
                     if (a.y > 380) {
                         a.state = "impact"; a.impactTimer = 30;
@@ -3079,7 +3080,7 @@
 
             if (rwbPlayer.invulnTimer <= 0 && (rwbState === "fight1" || rwbState === "fight2")) {
                 let dx = rwbPlayer.x - a.x, dy = rwbPlayer.y - a.y;
-                if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.75 * BALANCE.playerHitboxMult + getRWBSuperHitboxBonus()) { hitPlayer(a.damage); rwbAttacks.splice(i, 1); continue; }
+                if (Math.sqrt(dx * dx + dy * dy) < a.size * 0.75 * BALANCE.playerHitboxMult + getRWBSuperHitboxBonus()) { hitPlayer(a.damage,a); rwbAttacks.splice(i, 1); continue; }
             }
             if (a.life <= 0 || a.y > 520 || a.x < -60 || a.x > 460 || a.y < -150) rwbAttacks.splice(i, 1);
         }
@@ -3242,7 +3243,7 @@
         return hb;
     }
 
-    function hitPlayer(dmg) {
+    function hitPlayer(dmg, sourceAction, damageCategory) {
         if (typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyIncomingDamage==="function") {
             dmg=window.MBBossTestModifyIncomingDamage(dmg,"rwb");
             if(dmg<=0)return;
@@ -3289,6 +3290,14 @@
             try { onTakabaDamageTaken(dmg); } catch(e) {}
         }
         if (typeof window.MBKarsProcessIncomingDamage === "function") dmg = window.MBKarsProcessIncomingDamage(dmg);
+        if (typeof window.MBGERTryNullifyDamage === "function" &&
+            window.MBGERTryNullifyDamage(dmg, sourceAction, damageCategory || "combat")) {
+            rwbPlayer.invulnTimer = 50;
+            var gerHpEl = document.getElementById("arenaHP");
+            if (gerHpEl) gerHpEl.innerText = Math.max(0, rwbPlayer.hp);
+            if (typeof window.rwbAddFlash === "function") window.rwbAddFlash(7,"#ffe27a");
+            return;
+        }
         rwbPlayer.hp -= dmg;
         rwbPlayer.invulnTimer = 50;
         rwbShake = 12; rwbScreenFlash = 8; rwbScreenFlashColor = "#ff0000";
