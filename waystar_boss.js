@@ -841,7 +841,7 @@ function updateWaystarSpaceInvaders() {
         if (b.y > 520 || b.life <= 0) { waystarEnemyBullets.splice(i, 1); continue; }
         var dioCtxBullets=(typeof getBossContext==="function")?getBossContext():null;
         if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioCtxBullets&&window.dioAttackTouchesStand(dioCtxBullets,{type:"shotgun_bullet",x:b.x,y:b.y,size:b.size||8,damage:15})){if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(b);applyWaystarHit((typeof window.MBIsGoldExperienceNpcActive==="function"&&window.MBIsGoldExperienceNpcActive()&&typeof window.scaleStandBlockedDamage==="function")?window.scaleStandBlockedDamage(15):6,"удар по стенду. Джорно получает 50% урона",b);waystarEnemyBullets.splice(i,1);continue;}
-        if (waystarInvulnTimer <= 0 && Math.abs(b.x - waystarPlayer.x) < 14 && Math.abs(b.y - waystarPlayer.y) < 16) { if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(b); applyWaystarHit(15, "ОСКОЛОК!"); waystarEnemyBullets.splice(i, 1); }
+        if (waystarInvulnTimer <= 0 && Math.abs(b.x - waystarPlayer.x) < 14 && Math.abs(b.y - waystarPlayer.y) < 16) { if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(b); applyWaystarHit(15, "ОСКОЛОК!", b); waystarEnemyBullets.splice(i, 1); }
     }
     for (var i = 0; i < waystarPieces.length; i++) if (waystarPieces[i].alive) waystarPieces[i].pulse += 0.15;
 }
@@ -1158,7 +1158,7 @@ function updateWaystarAttacks() {
                 wsPlaySound(60, 'sawtooth', 1.2, 0.5);
                 waystarShake = 30; waystarScreenFlash = 12; waystarScreenFlashColor = "#00aaff";
                 var dx = waystarPlayer.x - bomb.x, dy = waystarPlayer.y - bomb.y;
-                if (Math.sqrt(dx*dx + dy*dy) < bomb.radius && waystarInvulnTimer <= 0) applyWaystarHit(bomb.damage, "ВЗРЫВ!");
+                if (Math.sqrt(dx*dx + dy*dy) < bomb.radius && waystarInvulnTimer <= 0) applyWaystarHit(bomb.damage, "ВЗРЫВ!", bomb);
             }
         } else { bomb.explosionTimer--; if (bomb.explosionTimer <= 0) waystarBombs.splice(i, 1); }
     }
@@ -1170,7 +1170,7 @@ function updateWaystarAttacks() {
             var newX = waystarDash.startX + (waystarDash.targetX - waystarDash.startX) * t;
             var newY = waystarDash.startY + (waystarDash.targetY - waystarDash.startY) * t;
             for (var k = waystarAttacks.length - 1; k >= 0; k--) { if (waystarAttacks[k].type === "shotgun_bullet" || waystarAttacks[k].type === "spiral" || waystarAttacks[k].type === "star_rain") { var d = Math.sqrt(Math.pow(waystarAttacks[k].x - newX, 2) + Math.pow(waystarAttacks[k].y - newY, 2)); if (d < 80) { spawnWaystarParticles(waystarAttacks[k].x, waystarAttacks[k].y, 6, "#ff00ff", 4); waystarAttacks.splice(k, 1); } } }
-            if (!waystarDash.hit && waystarInvulnTimer <= 0) { var d = Math.sqrt(Math.pow(waystarPlayer.x - newX, 2) + Math.pow(waystarPlayer.y - newY, 2)); var dioDashCtx=(typeof getBossContext==="function")?getBossContext():null; var dioDashStand=typeof window.getDioStandPosition==="function"&&dioDashCtx?window.getDioStandPosition(dioDashCtx):null; if(dioDashStand&&typeof window.isStandUserStandActive==="function"&&window.isStandUserStandActive()&&Math.hypot(newX-dioDashStand.x,newY-dioDashStand.y)<25){waystarDash.hit=true;applyWaystarHit(typeof window.scaleStandBlockedDamage==="function"?window.scaleStandBlockedDamage(waystarDash.damage):Math.max(1,Math.floor(waystarDash.damage*.4)),"удар по стенду. меньше урона");} else if (d < 25) { waystarDash.hit = true; applyWaystarHit(waystarDash.damage, "РЫВОК!"); var angle = Math.atan2(waystarPlayer.y - newY, waystarPlayer.x - newX); waystarPlayer.x += Math.cos(angle) * 60; waystarPlayer.y += Math.sin(angle) * 60; waystarPlayer.x = Math.max(16, Math.min(384, waystarPlayer.x)); waystarPlayer.y = Math.max(80, Math.min(484, waystarPlayer.y)); waystarShake = 35; addWaystarShockwave(waystarPlayer.x, waystarPlayer.y, "#ff00ff", 180, 18, 5); } }
+            if (!waystarDash.hit && waystarInvulnTimer <= 0) { var d = Math.sqrt(Math.pow(waystarPlayer.x - newX, 2) + Math.pow(waystarPlayer.y - newY, 2)); var dioDashCtx=(typeof getBossContext==="function")?getBossContext():null; var dioDashStand=typeof window.getDioStandPosition==="function"&&dioDashCtx?window.getDioStandPosition(dioDashCtx):null; if(dioDashStand&&typeof window.isStandUserStandActive==="function"&&window.isStandUserStandActive()&&Math.hypot(newX-dioDashStand.x,newY-dioDashStand.y)<25){waystarDash.hit=true;applyWaystarHit(typeof window.scaleStandBlockedDamage==="function"?window.scaleStandBlockedDamage(waystarDash.damage):Math.max(1,Math.floor(waystarDash.damage*.4)),"удар по стенду. меньше урона",waystarDash);} else if (d < 25) { waystarDash.hit = true; applyWaystarHit(waystarDash.damage, "РЫВОК!", waystarDash); var angle = Math.atan2(waystarPlayer.y - newY, waystarPlayer.x - newX); waystarPlayer.x += Math.cos(angle) * 60; waystarPlayer.y += Math.sin(angle) * 60; waystarPlayer.x = Math.max(16, Math.min(384, waystarPlayer.x)); waystarPlayer.y = Math.max(80, Math.min(484, waystarPlayer.y)); waystarShake = 35; addWaystarShockwave(waystarPlayer.x, waystarPlayer.y, "#ff00ff", 180, 18, 5); } }
             waystarSmallBoss.x = newX; waystarSmallBoss.y = newY;
             for (var i = 0; i < 3; i++) spawnWaystarParticles(newX + (Math.random()-0.5)*25, newY + (Math.random()-0.5)*25, 1, ["#ff00ff", "#ffffff"][Math.floor(Math.random()*2)], 4);
             if (waystarDash.progress % 5 === 0) addWaystarSlash(newX, newY, Math.random() * Math.PI * 2, 35, 3);
@@ -1604,7 +1604,7 @@ function renderWaystarSimpleCoopFrame() {
             var ay = attack.y - waystarPlayer.y;
             if (waystarInvulnTimer <= 0 && Math.sqrt(ax * ax + ay * ay) < 14 + Math.max(2, Number(attack.size) || 5)) {
                 if (typeof api.onHazardConsumed === 'function') api.onHazardConsumed(attack);
-                applyWaystarHit(Math.max(1, Math.floor(Number(attack.damage) || 9)), "УДАР БОССА");
+                applyWaystarHit(Math.max(1, Math.floor(Number(attack.damage) || 9)), "УДАР БОССА", attack);
                 waystarAttacks.splice(j, 1);
                 continue;
             }
