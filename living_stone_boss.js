@@ -9,15 +9,6 @@ let livingStoneOpeningIntroFrame = 0;
 const LIVING_STONE_OPENING_INTRO_FRAMES = 390;
 let livingStoneState = "phase1";
 let livingStoneBoss = { x: 200, y: 100, size: 40, vx: 0.8, rotation: 0 };
-// Тактический ИИ обычного Живого Камня.
-let livingStoneBossAiTimer = 0;
-let livingStoneBossAiTargetX = 200;
-let livingStoneBossAiTargetY = 108;
-let livingStoneBossDodgeFrames = 0;
-let livingStoneBossDodgeCooldown = 0;
-// Каменный щит состоит из отдельных разрушаемых плит.
-let livingStoneBossShield = null;
-let livingStoneBossShieldCooldown = 360;
 let livingStonePlayer = { x: 200, y: 400 };
 let livingStoneBossHp = 0;
 let livingStoneBossMaxHp = 0;
@@ -313,13 +304,6 @@ function _startLivingStoneFightInternal() {
     livingStoneBossMaxHp = 78400;
     livingStoneBossHp = livingStoneBossMaxHp;
     livingStoneBoss = { x: 200, y: 490, size: 10, vx: 0, rotation: 0 };
-    livingStoneBossAiTimer = 0;
-    livingStoneBossAiTargetX = 200;
-    livingStoneBossAiTargetY = 108;
-    livingStoneBossDodgeFrames = 0;
-    livingStoneBossDodgeCooldown = 0;
-    livingStoneBossShield = null;
-    livingStoneBossShieldCooldown = 360;
     livingStonePlayer = { x: 200, y: 535 };
     livingStonePlayerHp = 150;
     livingStonePlayerMaxHp = 150;
@@ -414,8 +398,6 @@ function stopLivingStoneFight() {
     
     if (livingStoneAnimFrame) { cancelAnimationFrame(livingStoneAnimFrame); livingStoneAnimFrame = null; }
     livingStoneAttacks = []; livingStoneBullets = []; livingStoneParticles = []; livingStoneTexts = [];
-    livingStoneBossShield = null;
-    livingStoneBossDodgeFrames = 0;
     qteBullets = []; qtePunches = []; qtePlayerTrail = []; qteCinematicTexts = [];
     qteShockwaves = []; qteLightningBolts = []; qteSlashMarks = []; qteSparks = []; qteFlashBursts = [];
     chainExplosionsQueue = []; activeGravityWell = false;
@@ -1081,115 +1063,6 @@ function updateLivingStonePlayer() {
     lsPlayerVelocity.y = livingStonePlayer.y - oldY;
 }
 
-function livingStoneBossFindIncomingBullet() {
-    var best = null;
-    var bestDistance = Infinity;
-    for (var i = 0; i < livingStoneBullets.length; i++) {
-        var b = livingStoneBullets[i];
-        if (!b || typeof b !== "object") continue;
-        var vx = Number(b.vx) || 0, vy = Number(b.vy) || 0;
-        var speedSq = vx * vx + vy * vy;
-        if (speedSq < 0.25) continue;
-        var rx = livingStoneBoss.x - b.x, ry = livingStoneBoss.y - b.y;
-        var t = -((rx * vx) + (ry * vy)) / speedSq;
-        if (t < 0 || t > 42) continue;
-        var nearX = b.x + vx * t, nearY = b.y + vy * t;
-        var dist = Math.sqrt((nearX - livingStoneBoss.x) * (nearX - livingStoneBoss.x) +
-            (nearY - livingStoneBoss.y) * (nearY - livingStoneBoss.y));
-        var dangerRadius = livingStoneBoss.size + (Number(b.size) || 4) + 22;
-        if (dist < dangerRadius && dist < bestDistance) {
-            bestDistance = dist;
-            best = { bullet: b, time: t, distance: dist };
-        }
-    }
-    return best;
-}
-
-function livingStoneBossScoreDodgePosition(targetX, targetY) {
-    var nearest = 1000;
-    for (var i = 0; i < livingStoneBullets.length; i++) {
-        var b = livingStoneBullets[i];
-        if (!b || typeof b !== "object") continue;
-        var vx = Number(b.vx) || 0, vy = Number(b.vy) || 0;
-        var speedSq = vx * vx + vy * vy;
-        if (speedSq < 0.25) continue;
-        var t = ((targetX - b.x) * vx + (targetY - b.y) * vy) / speedSq;
-        t = Math.max(0, Math.min(38, t));
-        var dx = b.x + vx * t - targetX;
-        var dy = b.y + vy * t - targetY;
-        var clearance = Math.sqrt(dx * dx + dy * dy) - (Number(b.size) || 4);
-        if (clearance < nearest) nearest = clearance;
-    }
-    return nearest;
-}
-
-function updateLivingStoneBossShield() {
-    if (typeof window !== "undefined" && window.livingStoneSuperActive) {
-        livingStoneBossShield = null;
-        return;
-    }
-    if (livingStoneBossShield) {
-        livingStoneBossShield.life--;
-        livingStoneBossShield.angle = Math.atan2(
-            livingStonePlayer.y - livingStoneBoss.y,
-            livingStonePlayer.x - livingStoneBoss.x
-        );
-        if (livingStoneBossShield.life <= 0) {
-            livingStoneBossShield = null;
-            livingStoneBossShieldCooldown = 520 + Math.floor(Math.random() * 220);
-        }
-        return;
-    }
-    if (livingStoneBossShieldCooldown > 0) {
-        livingStoneBossShieldCooldown--;
-        return;
-    }
-    var shieldHp = livingStoneState === "phase2" ? 560 : 460;
-    livingStoneBossShield = {
-        life: 210,
-        maxLife: 210,
-        angle: Math.atan2(livingStonePlayer.y - livingStoneBoss.y, livingStonePlayer.x - livingStoneBoss.x),
-        plates: [
-            { offset: -0.56, hp: shieldHp, maxHp: shieldHp },
-            { offset: 0, hp: shieldHp, maxHp: shieldHp },
-            { offset: 0.56, hp: shieldHp, maxHp: shieldHp }
-        ]
-    };
-    spawnLivingStoneText(livingStoneBoss.x, livingStoneBoss.y - 58, "КАМЕННЫЙ ЩИТ", "#c9b18f", 58);
-}
-
-function livingStoneBossShieldAbsorbBullet(b) {
-    if (!livingStoneBossShield || !livingStoneBossShield.plates.length) return false;
-    var shield = livingStoneBossShield;
-    var bulletRadius = Math.max(3, Number(b.size) || 4);
-    for (var i = shield.plates.length - 1; i >= 0; i--) {
-        var plate = shield.plates[i];
-        var angle = shield.angle + plate.offset;
-        var plateX = livingStoneBoss.x + Math.cos(angle) * 51;
-        var plateY = livingStoneBoss.y + Math.sin(angle) * 51;
-        var dx = b.x - plateX, dy = b.y - plateY;
-        if (dx * dx + dy * dy > (17 + bulletRadius) * (17 + bulletRadius)) continue;
-        var bulletDamage = Math.max(1, Number(b.damage) || 120);
-        plate.hp -= Math.max(55, Math.min(240, Math.floor(bulletDamage * 0.55)));
-        spawnLivingStoneParticles(plateX, plateY, 5, "#c2aa86", 2.8);
-        if (plate.hp <= 0) {
-            shield.plates.splice(i, 1);
-            spawnLivingStoneParticles(plateX, plateY, 9, "#a58a68", 3.5);
-            if (shield.plates.length > 0) {
-                spawnLivingStoneText(plateX, plateY - 18, "ПЛИТА РАЗРУШЕНА", "#c9b18f", 42);
-            }
-        }
-        if (shield.plates.length === 0) {
-            livingStoneBossShield = null;
-            livingStoneBossShieldCooldown = 560 + Math.floor(Math.random() * 220);
-            spawnLivingStoneText(livingStoneBoss.x, livingStoneBoss.y - 62, "ЩИТ РАЗБИТ", "#ffcf98", 68);
-            spawnLivingStoneParticles(livingStoneBoss.x, livingStoneBoss.y, 16, "#b99a72", 4);
-        }
-        return true;
-    }
-    return false;
-}
-
 function updateLivingStoneBoss() {
     if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
     if (finalSceneActive) return;
@@ -1198,78 +1071,12 @@ function updateLivingStoneBoss() {
     if (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(livingStoneBoss)) return;
     if (typeof window !== "undefined" && window.livingStoneSuperActive &&
         typeof window.MBUpdateLivingStoneSuperBossMovement === "function") {
-        try {
-            if (window.MBUpdateLivingStoneSuperBossMovement()) {
-                livingStoneBossShield = null;
-                return;
-            }
-        } catch(e) {}
+        try { if (window.MBUpdateLivingStoneSuperBossMovement()) return; } catch(e) {}
     }
-
-    var phase2 = livingStoneState === "phase2";
-    var speedMult = Math.max(0.25, lsSpeedMult);
-    var incoming = livingStoneBossFindIncomingBullet();
-
-    // Выбирает направление, где прогнозируемые траектории пуль не пересекут Камень.
-    if (incoming && livingStoneBossDodgeCooldown <= 0 && livingStoneBossDodgeFrames <= 0) {
-        var directions = [
-            [-1, 0], [1, 0], [0, -1], [0, 1],
-            [-0.72, -0.72], [0.72, -0.72], [-0.72, 0.72], [0.72, 0.72]
-        ];
-        var bestX = livingStoneBoss.x, bestY = livingStoneBoss.y, bestScore = -Infinity;
-        for (var d = 0; d < directions.length; d++) {
-            var candidateX = Math.max(62, Math.min(338, livingStoneBoss.x + directions[d][0] * 82));
-            var candidateY = Math.max(78, Math.min(166, livingStoneBoss.y + directions[d][1] * 54));
-            var score = livingStoneBossScoreDodgePosition(candidateX, candidateY);
-            // Небольшое предпочтение свободному центру, чтобы ИИ не прилипал к краям.
-            score -= Math.abs(candidateX - 200) * 0.035;
-            if (score > bestScore) {
-                bestScore = score;
-                bestX = candidateX;
-                bestY = candidateY;
-            }
-        }
-        livingStoneBossAiTargetX = bestX;
-        livingStoneBossAiTargetY = bestY;
-        livingStoneBossDodgeFrames = phase2 ? 34 : 28;
-        livingStoneBossDodgeCooldown = phase2 ? 42 : 54;
-    }
-
-    if (livingStoneBossDodgeCooldown > 0) livingStoneBossDodgeCooldown--;
-    if (livingStoneBossDodgeFrames > 0) {
-        livingStoneBossDodgeFrames--;
-    } else {
-        livingStoneBossAiTimer--;
-        if (livingStoneBossAiTimer <= 0) {
-            // Обычный патруль не стоит на месте: Камень смещается от игрока и меняет высоту.
-            var side = livingStonePlayer.x < livingStoneBoss.x ? 1 : -1;
-            var drift = 58 + Math.random() * 72;
-            livingStoneBossAiTargetX = Math.max(66, Math.min(334,
-                livingStoneBoss.x + side * drift + (Math.random() - 0.5) * 42));
-            livingStoneBossAiTargetY = 88 + Math.random() * 62;
-            livingStoneBossAiTimer = phase2 ? 72 + Math.floor(Math.random() * 54) :
-                105 + Math.floor(Math.random() * 65);
-        }
-    }
-
-    var dx = livingStoneBossAiTargetX - livingStoneBoss.x;
-    var dy = livingStoneBossAiTargetY - livingStoneBoss.y;
-    var dist = Math.sqrt(dx * dx + dy * dy);
-    var moveSpeed = (livingStoneBossDodgeFrames > 0
-        ? (phase2 ? 3.8 : 3.3)
-        : (phase2 ? 2.45 : 1.8)) * speedMult;
-    if (dist > 0.5) {
-        var step = Math.min(dist, moveSpeed);
-        livingStoneBoss.x += (dx / dist) * step;
-        livingStoneBoss.y += (dy / dist) * step;
-        livingStoneBoss.vx = (dx / dist) * moveSpeed;
-    } else {
-        livingStoneBoss.vx *= 0.82;
-    }
-    livingStoneBoss.x = Math.max(62, Math.min(338, livingStoneBoss.x));
-    livingStoneBoss.y = Math.max(78, Math.min(166, livingStoneBoss.y));
+    var speedMult = ((livingStoneState === "phase2") ? 1.8 : 1.0) * lsSpeedMult;
+    livingStoneBoss.x += livingStoneBoss.vx * speedMult;
+    if (livingStoneBoss.x < 80 || livingStoneBoss.x > 320) livingStoneBoss.vx *= -1;
     livingStoneBoss.rotation += 0.01 * speedMult;
-    updateLivingStoneBossShield();
 }
 
 function updateLivingStoneBullets() {
@@ -1333,8 +1140,10 @@ function updateLivingStoneBullets() {
                     : livingStoneBossMaxHp
             )
             : null;
-        // Модераторский выстрел не задерживается щитом; обычные пули ломают его плиты.
-        if (moderatorBulletDamage === null && livingStoneBossShieldAbsorbBullet(b)) {
+        // Каменные плиты защищают только Живой Камень Прайм.
+        if (moderatorBulletDamage === null && window.livingStoneSuperActive === true &&
+            typeof window.MBLivingStoneSuperAbsorbStoneShieldBullet === "function" &&
+            window.MBLivingStoneSuperAbsorbStoneShieldBullet(b)) {
             livingStoneBullets.splice(i, 1);
             continue;
         }
@@ -1568,7 +1377,6 @@ function drawLivingStoneOpeningIntro() {
 
 // ========== СЦЕНА ВОССТАНОВЛЕНИЯ ==========
 function triggerRestoreScene() {
-    livingStoneBossShield = null;
     livingStoneState = "restore";
     livingStoneRestoring = true;
     livingStoneRestoreCount = 1;
@@ -1875,13 +1683,6 @@ function triggerPhase2() {
     livingStoneBossMaxHp = Math.floor(livingStoneBossMaxHp / 2);
     livingStoneBossHp = livingStoneBossMaxHp;
     livingStoneBoss.vx = 1.5;
-    livingStoneBossAiTargetX = livingStoneBoss.x;
-    livingStoneBossAiTargetY = livingStoneBoss.y;
-    livingStoneBossAiTimer = 0;
-    livingStoneBossDodgeFrames = 0;
-    livingStoneBossDodgeCooldown = 0;
-    livingStoneBossShield = null;
-    livingStoneBossShieldCooldown = 260;
     livingStoneAttackType = 10;
     livingStoneAttackTimer = 0;
     livingStonePatternVolleyCount = 0;
@@ -3175,7 +2976,10 @@ function livingStoneRenderLoop() {
     if (!isQTE || livingStoneState === "qte_punch" || livingStoneState === "qte_finish" || 
         livingStoneState === "qte_cinematic" || livingStoneState === "qte_intro" || finalSceneActive) {
         drawLivingStoneBoss();
-        drawLivingStoneBossShield();
+        if (typeof window !== "undefined" && window.livingStoneSuperActive === true &&
+            typeof window.MBDrawLivingStoneSuperStoneShield === "function") {
+            try { window.MBDrawLivingStoneSuperStoneShield(ctx); } catch(e) {}
+        }
         if (typeof window !== "undefined" && window.livingStoneSuperActive &&
             typeof window.MBDrawLivingStoneSuperBossCore === "function") {
             try { window.MBDrawLivingStoneSuperBossCore(ctx); } catch(e) {}
@@ -3569,55 +3373,6 @@ function drawBossArm() {
         ctx.lineTo(cx - 20 + i * 15, cy + 20);
         ctx.stroke();
     }
-    ctx.restore();
-}
-
-function drawLivingStoneBossShield() {
-    if (!livingStoneBossShield || !livingStoneBossShield.plates.length) return;
-    var shield = livingStoneBossShield;
-    ctx.save();
-    for (var i = 0; i < shield.plates.length; i++) {
-        var plate = shield.plates[i];
-        var angle = shield.angle + plate.offset;
-        var px = livingStoneBoss.x + Math.cos(angle) * 51;
-        var py = livingStoneBoss.y + Math.sin(angle) * 51;
-        var strength = Math.max(0.25, plate.hp / plate.maxHp);
-        ctx.save();
-        ctx.translate(px, py);
-        ctx.rotate(angle + Math.PI / 4);
-        ctx.globalAlpha = 0.72 + strength * 0.25;
-        ctx.fillStyle = strength < 0.45 ? "#75604b" : "#aa9270";
-        ctx.strokeStyle = strength < 0.45 ? "#e6a06b" : "#e0c7a1";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(-13, -11);
-        ctx.lineTo(8, -15);
-        ctx.lineTo(16, -2);
-        ctx.lineTo(7, 14);
-        ctx.lineTo(-12, 10);
-        ctx.lineTo(-17, -2);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        if (strength < 0.72) {
-            ctx.strokeStyle = "#39291d";
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(-3, -9);
-            ctx.lineTo(1, -1);
-            ctx.lineTo(-5, 5);
-            ctx.lineTo(5, 11);
-            ctx.stroke();
-        }
-        ctx.restore();
-    }
-    // Тонкая дуга связывает плиты визуально, но не закрывает босса сплошным свечением.
-    ctx.globalAlpha = 0.28 * (shield.life / shield.maxLife);
-    ctx.strokeStyle = "#d1b891";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(livingStoneBoss.x, livingStoneBoss.y, 51, shield.angle - 0.88, shield.angle + 0.88);
-    ctx.stroke();
     ctx.restore();
 }
 
