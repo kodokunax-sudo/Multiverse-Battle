@@ -54,7 +54,7 @@
     STAND_PROFILES["Джотаро Куджо (часть 4)"] = { stand: "Star Platinum: The World", color: "#c5a2ff", speed: 1.19, damageFactor: 0.21, arenaDamageMult: 0.92, radius: 12, trait: "Остановка времени: скорость и защита" };
     STAND_PROFILES["Джоске Хигашиката (часть 4: Crazy Diamond)"] = { stand: "Crazy Diamond", color: "#f29aa9", speed: 1.12, damageFactor: 0.23, arenaDamageMult: 0.93, radius: 13, trait: "Восстановление: широкий защитный контур" };
     STAND_PROFILES["Йошикаге Кира (часть 4: Killer Queen)"] = { stand: "Killer Queen", color: "#fa95b8", speed: 1.13, damageFactor: 0.18, arenaDamageMult: 0.91, radius: 12, trait: "Первая бомба: очень сильный блок урона" };
-    STAND_PROFILES["Джорно Джованна (Gold Experience)"] = { stand: "Gold Experience", color: "#e9cb54", speed: 1.16, damageFactor: 0.24, arenaDamageMult: 0.94, radius: 12, trait: "Жизненная энергия: сбалансированный щит" };
+    STAND_PROFILES["Джорно Джованна (Gold Experience)"] = { stand: "Gold Experience", color: "#e9cb54", speed: 1.0, damageFactor: 0.4, arenaDamageMult: 1.0, radius: 15, trait: "Самостоятельный NPC: уклонение, атака и лечение" };
     STAND_PROFILES["Дьяволо (King Crimson)"] = { stand: "King Crimson", color: "#d987ad", speed: 1.21, damageFactor: 0.2, arenaDamageMult: 0.91, radius: 11, trait: "Стирание времени: быстрый уход от атак" };
     STAND_PROFILES["Джолин Куджо (Stone Free)"] = { stand: "Stone Free", color: "#83e1de", speed: 1.17, damageFactor: 0.23, arenaDamageMult: 0.93, radius: 12, trait: "Нити: широкий контур защиты" };
     STAND_PROFILES["Уэзер Репорт (часть 6)"] = { stand: "Weather Report", color: "#9de8ef", speed: 1.13, damageFactor: 0.22, arenaDamageMult: 0.93, radius: 13, trait: "Погода: расширенная область перехвата" };
