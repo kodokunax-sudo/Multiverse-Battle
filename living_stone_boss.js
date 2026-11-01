@@ -1129,7 +1129,14 @@ function updateLivingStoneBullets() {
                 }
             } catch(e) {}
         }
-        var moderatorBulletDamage = typeof window.MBGetModeratorBulletDamage === "function"
+        // Moderator's fixed 5%-of-max-HP shot is a phase-one shortcut only.
+        // Prime's first phase runs in the native arena before the chase; after the chase,
+        // this bonus is disabled for the entire second phase, including green-heart rounds.
+        var moderatorPhaseOne = window.livingStoneSuperActive === true
+            ? window.__mbLS2AfterChase !== true && window.__mbLS2GreenPhase !== "chase"
+            : livingStoneState === "phase1";
+        var moderatorBulletDamage = moderatorPhaseOne &&
+            typeof window.MBGetModeratorBulletDamage === "function"
             ? window.MBGetModeratorBulletDamage(
                 window.livingStoneSuperActive && typeof window.getLivingStoneSuperBossMaxHp === "function"
                     ? window.getLivingStoneSuperBossMaxHp()
