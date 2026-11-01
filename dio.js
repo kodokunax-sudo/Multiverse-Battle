@@ -337,6 +337,7 @@ function dioApplyBossDamageNow(type,id,amount){
  else if(type==="antispiral"){if(typeof window.damageAntiSpiralBoss==="function")window.damageAntiSpiralBoss(dmg,"DIO");if(typeof window.antiSpiralAddShockwave==="function")window.antiSpiralAddShockwave(t.x,t.y,"#d7f8ff",7,28,4);if(typeof window.antiSpiralAddFlash==="function")window.antiSpiralAddFlash(4,"#ffffff");}
   if(typeof window.showFloatingText==="function"){try{window.showFloatingText("-"+dmg+" DIO","#fff0a0");}catch(e){}}
 }
+window.MBDioApplyBossDamage = dioApplyBossDamageNow;
 function dioQueueOrApplyBossDamage(t,amount){if(!t||!(amount>0))return;if(isDioTimeStopped()){if(!Array.isArray(_superState.dioPendingBossDamage))_superState.dioPendingBossDamage=[];_superState.dioPendingBossDamage.push({type:t.type,id:t.id,amount:amount});return;}dioApplyBossDamageNow(t.type,t.id,amount);}
 function dioFlushPendingBossDamage(){if(!_superState||!Array.isArray(_superState.dioPendingBossDamage)||!_superState.dioPendingBossDamage.length)return;var list=_superState.dioPendingBossDamage.splice(0),groups={};for(var i=0;i<list.length;i++){var p=list[i];if(!p)continue;var k=p.type+":"+p.id;if(!groups[k])groups[k]={type:p.type,id:p.id,amount:0};groups[k].amount+=Math.max(0,Number(p.amount)||0);}Object.keys(groups).forEach(function(k){var g=groups[k];dioApplyBossDamageNow(g.type,g.id,g.amount);});}
 function dioLaunchKnifeVolley(ctxB){
