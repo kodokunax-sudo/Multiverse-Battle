@@ -1230,6 +1230,11 @@
             state.antiSpiralPhysicsInitialized = true;
         }
 
+        if (state.antiSpiralGravityDirection !== direction) {
+            state.antiSpiralGravityDirection = direction;
+            state.antiSpiralGrounded = false;
+            state.antiSpiralPlatformIndex = null;
+        }
         if (!Number.isFinite(goalX)) goalX = playerX + tangentX * 25;
         if (!Number.isFinite(goalY)) goalY = playerY + tangentY * 25;
         var dx = goalX - state.x;
