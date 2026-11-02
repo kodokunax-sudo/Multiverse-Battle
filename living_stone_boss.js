@@ -246,6 +246,10 @@ function lsIsTimeStopped() {
     if (typeof _superState === 'undefined') return false;
     return _superState.garouTimeStop === true || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0 || _superState.antispiralFrozen === true;
 }
+function lsIsZenoEraseActive() {
+    return typeof window.MBIsZenoEraseActive === "function" &&
+        (window.MBIsZenoEraseActive("stone") || window.MBIsZenoEraseActive("stoneSuper"));
+}
 function lsIsPlayerFrozen() {
     if (typeof _superState === 'undefined') return false;
     // ZA WARUDO freezes the world, not DIO/the player.
@@ -674,6 +678,7 @@ function livingStoneShoot() {
 
 // ========== АТАКИ БОССА ==========
 function livingStoneSpawnAttack() {
+    if (lsIsZenoEraseActive()) return;
     var encounterToken = livingStoneEncounterGeneration;
     // Keep overlapping volleys readable instead of letting old waves bury the arena.
     if (livingStoneAttacks.length > 34) livingStoneAttacks.splice(0, livingStoneAttacks.length - 26);
@@ -1061,7 +1066,7 @@ function updateLivingStonePlayer() {
 
 function updateLivingStoneBoss() {
     if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
-    if (finalSceneActive) return;
+    if (finalSceneActive || lsIsZenoEraseActive()) return;
     // ★ ФИКС: гароу-стоп ★
     if (lsIsTimeStopped()) return;
     if (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(livingStoneBoss)) return;
@@ -1909,6 +1914,11 @@ function updateFinalScene() {
 
 // ========== ОБНОВЛЕНИЕ АТАК ==========
 function updateLivingStoneAttacks() {
+    if (lsIsZenoEraseActive()) {
+        livingStoneAttacks.length = 0;
+        activeGravityWell = false;
+        return;
+    }
     // В супер-зелёной фазе старые атаки исчезают и обычные атаки не обновляются.
     if (typeof window !== "undefined" && window.livingStoneSuperActive &&
         (window.__mbLS2GreenPhase === "gravity" || window.__mbLS2GreenPhase === "green" || window.__mbLS2GreenPhase === "chase")) {
@@ -2030,7 +2040,7 @@ function updateLivingStoneAttacks() {
 }
 
 function checkLivingStoneCollisions() {
-    if (livingStoneInvulnTimer > 0) return;
+    if (lsIsZenoEraseActive() || livingStoneInvulnTimer > 0) return;
     if (livingStoneState !== "phase1" && livingStoneState !== "phase2") return;
     if (finalSceneActive) return;
     // ★ ФИКС: гароу-стоп — не проверяем столкновения ★
