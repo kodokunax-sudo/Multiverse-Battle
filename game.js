@@ -2552,6 +2552,8 @@ function generateEnemy() {
     let isBoss = wave % 10 === 0; 
     let isUniqueBoss = (typeof bossTemplates !== 'undefined' && bossTemplates[wave] !== undefined); 
     let hp, dmg, name, dialogue = "", enemyStat = null; 
+    const arenaWaves = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000, 3200, 3400, 3600, 3800, 4000, 4200, 4400, 4600, 4800, 5000, 10000];
+
     if (isUniqueBoss) { 
         let bt = bossTemplates[wave]; 
         hp = Math.floor((50 + wave * 12) * bt.hpMult); 
@@ -2566,7 +2568,7 @@ function generateEnemy() {
         hp = Math.floor((50 + wave * 12) * 2); 
         dmg = Math.floor((15 + wave * 6) * 1); 
         // Every 10th wave is a mini-boss unless this wave has a dedicated fight button.
-        const hasDedicatedFightButton = wave % 50 === 0 && wave >= 50;
+        const hasDedicatedFightButton = arenaWaves.includes(wave);
         name = hasDedicatedFightButton ? "👑 БОСС" : "⚔️ МИНИ-БОСС"; 
         hideBossDialogue(); 
     } else { 
@@ -2585,7 +2587,7 @@ function generateEnemy() {
     } 
     applyStatusEffects(); 
     currentEnemy = { name, hp, maxHp:hp, damage:dmg, isBoss:isBoss||isUniqueBoss }; 
-    let arenaWaves = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000, 3200, 3400, 3600, 3800, 4000, 4200, 4400, 4600, 4800, 5000, 10000]; 
+
     let showArenaBtn = (isBoss || isUniqueBoss) && wave >= 50 && arenaWaves.includes(wave);
     
     let btn = document.getElementById("startArenaBtn");
