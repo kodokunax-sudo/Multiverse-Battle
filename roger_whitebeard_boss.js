@@ -1785,9 +1785,19 @@
         }
     }
 
+    function rwbIsZenoEraseActive() {
+        return typeof window.MBIsZenoEraseActive === "function" &&
+            window.MBIsZenoEraseActive("rwb");
+    }
+
     function updateDuel() {
         if (dioIsWindupActive() && typeof dioShouldFreezeEntity === 'function' && rwbActiveBoss && dioShouldFreezeEntity(rwbActiveBoss)) return;
         if (!roger || !whitebeard) return;
+        if (rwbIsZenoEraseActive()) {
+            if (roger.hp <= 0) triggerSuper(whitebeard, roger);
+            else if (whitebeard.hp <= 0) triggerSuper(roger, whitebeard);
+            return;
+        }
         duel.timer++;
         if (duel.phase === "idle") {
             roger.x += (roger.homeX - roger.x) * 0.04; roger.y += (roger.homeY - roger.y) * 0.04;
@@ -1845,7 +1855,7 @@
     }
 
     function checkMeleeContact() {
-        if (rwbState !== "fight2") return;
+        if (rwbIsZenoEraseActive() || rwbState !== "fight2") return;
         if (wbVortexActive) return;
         if (typeof _superState !== 'undefined' &&
             (_superState.garouTimeStop || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0 || _superState.takabaTimeStop ||
@@ -1990,6 +2000,7 @@
     }
 
     function spawnRogerAttack() {
+        if (rwbIsZenoEraseActive()) return;
         let type = Math.floor(Math.random() * 8);
         let isSuper = roger.superForm;
         playBladeSound(0.25);
@@ -2139,6 +2150,7 @@
     }
 
     function queueWhitebeardAttack(kind, id) {
+        if (rwbIsZenoEraseActive()) return false;
         let boss = getWhitebeardEntity();
         if (!boss || wbBrain.phase !== "idle" || wbTrapCombo.stage !== "idle") return false;
         let isSuper = kind === "super";
@@ -2171,12 +2183,14 @@
     }
 
     function spawnWhitebeardAttack() {
+        if (rwbIsZenoEraseActive()) return;
         if (wbTrapCombo.stage !== "idle" || isWhitebeardSpecialWindupActive() || wbBrain.phase !== "idle") return;
         if (maybeSpawnWhitebeardAdaptive(false)) return;
         queueWhitebeardAttack("normal", chooseWhitebeardAttackId(false));
     }
 
     function executeWhitebeardAttack(type) {
+        if (rwbIsZenoEraseActive()) return;
         let isSuper = whitebeard ? whitebeard.superForm : (rwbActiveBoss && rwbActiveBoss.superForm);
         playHakiChargeSound(0.2);
         spawnHakiLightning(whitebeard.x, whitebeard.y, 3, false);
@@ -2494,7 +2508,7 @@
     }
 
     function spawnWhitebeardVortex() {
-        if (!window.rwbActive || rwbState !== "fight2" || !rwbActiveBoss || rwbActiveBoss.id !== "whitebeard" || wbVortexActive) return;
+        if (rwbIsZenoEraseActive() || !window.rwbActive || rwbState !== "fight2" || !rwbActiveBoss || rwbActiveBoss.id !== "whitebeard" || wbVortexActive) return;
         wbVortexActive = true;
         clearWhitebeardVortexAttacks();
         // The vortex clears attacks, so release any interrupted wind-up/recovery state too.
@@ -2657,6 +2671,7 @@
     }
 
     function spawnGiantRock() {
+        if (rwbIsZenoEraseActive()) return;
         let rx = 80 + Math.random() * 240;
         // The periodic arena boulder gets a visible warning instead of spawning without a tell.
         rwbAttacks.push({ type: "wb_giant_rock_warning", x: rx, targetX: rx, y: 470, warningTimer: 42, life: 43, color: "#b99a72" });
@@ -2692,6 +2707,11 @@
     // ★★★ ОБНОВЛЕНИЕ АТАК — С ПРОВЕРКОЙ garouTimeStop ★★★
     // ============================================================
     function updateRWBAttacks() {
+        if (rwbIsZenoEraseActive()) {
+            rwbAttacks.length = 0;
+            rwbShockwaves.length = 0;
+            return;
+        }
         if (wbVortexActive) return;
         // ★ ЕСЛИ ВРЕМЯ ОСТАНОВЛЕНО ИЛИ АНТИ-СПИРАЛЬ ЗАМОРОЗИЛА — НЕ ДВИГАЕМ АТАКИ ★
         var timeStopped = false;
@@ -3434,7 +3454,8 @@
             rwbWorldStopped = rwbWorldStopped || _superState.garouTimeStop === true ||
                 (_superState.dioTimeStop || 0) > 0 || (_superState.dioTeleportStop || 0) > 0 ||
                 _superState.takabaTimeStop === true || _superState.antispiralFrozen === true ||
-                (_superState.usoppStunTimer || 0) > 0;
+                (_superState.usoppStunTimer || 0) > 0 ||
+                rwbIsZenoEraseActive();
         }
         if (!rwbWorldStopped) rwbTimer++;
         if (!rwbWorldStopped && wbFruitFlashTimer > 0) wbFruitFlashTimer--;
@@ -3468,9 +3489,9 @@
             } else if (rwbState === "fight2") {
                 updateRWBPlayer(); updateSuperBoss(); updateRWBAttacks(); updateRWBPlayerBullets();
                 checkMeleeContact();
-                rwbSurvivalTimer2++;
+                if (!rwbIsZenoEraseActive()) rwbSurvivalTimer2++;
                 if (rwbActiveBoss && rwbActiveBoss.hp <= 0) rwbVictory();
-                if (rwbActiveBoss && rwbActiveBoss.id === "whitebeard") {
+                if (!rwbIsZenoEraseActive() && rwbActiveBoss && rwbActiveBoss.id === "whitebeard") {
                     // Воронка имеет отдельный реальный таймер, не зависящий от FPS.
                     // Один бросок шанса 35% ровно раз в 20 секунд.
                     let wbNow = (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -4181,6 +4202,7 @@
     function updateSuperBoss() {
         let active = rwbActiveBoss;
         if (!active) return;
+        if (rwbIsZenoEraseActive()) return;
         if (wbVortexActive) { updateWhitebeardVortex(); return; }
 
         // Все эффекты контроля из общей системы SUPER должны работать
@@ -6508,6 +6530,28 @@
     window.getRWBPlayer = function() { return rwbPlayer; };
     window.getRWBBullets = function() { return rwbPlayerBullets; };
     window.getRWBAttacks = function() { return rwbAttacks; };
+    window.MBRWBClearBossAttacks = function() {
+        rwbAttacks.length = 0;
+        rwbShockwaves.length = 0;
+        if (Array.isArray(rwbWhiteCracks)) rwbWhiteCracks.length = 0;
+        if (Array.isArray(rwbPurpleCracks)) rwbPurpleCracks.length = 0;
+        wbBrain.phase = "idle";
+        wbBrain.phaseTimer = 0;
+        wbBrain.recoveryTimer = 0;
+        wbBrain.comboHint = null;
+        wbTrapCombo.stage = "idle";
+        wbTrapCombo.timer = 0;
+        if (roger) roger.attackTimer = Math.max(Number(roger.attackTimer) || 0, RWB_ATTACK_SPEED);
+        if (whitebeard) whitebeard.attackTimer = Math.max(Number(whitebeard.attackTimer) || 0, RWB_ATTACK_SPEED);
+        rwbTitanFistTimer = 0;
+        rwbTitanRockTimer = 0;
+        if (wbVortexActive) {
+            wbVortexActive = false;
+            wbVortexTimerLeft = 0;
+            wbVortexPullStrength = 0;
+            wbVortexPoints = [];
+        }
+    };
     window.getRWBShockwaves = function() { return rwbShockwaves; };
     window.getRWBKeys = function() { return rwbKeys; };
     window.getRWBTouch = function() { return { active: rwbTouchActive, x: rwbTouchX, y: rwbTouchY }; };
