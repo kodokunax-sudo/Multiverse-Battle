@@ -1087,10 +1087,11 @@ function updateWaystarPlayer() {
     if (waystarState === "phase2") {
         var mx = 0; if (waystarKeys.a || waystarKeys.arrowleft) mx -= 1; if (waystarKeys.d || waystarKeys.arrowright) mx += 1;
         if (waystarTouchActive) { var tx = waystarTouchX - waystarPlayer.x; if (Math.abs(tx) > 5) mx = tx > 0 ? 1 : -1; }
-        waystarPlayer.x += mx * 5; waystarPlayer.x = Math.max(20, Math.min(380, waystarPlayer.x));
+        var phase2Speed = 5 * (typeof window.getDrinkTeaEmergencySpeedMultiplier === "function" ? window.getDrinkTeaEmergencySpeedMultiplier() : 1);
+        waystarPlayer.x += mx * phase2Speed; waystarPlayer.x = Math.max(20, Math.min(380, waystarPlayer.x));
     } else if (waystarState === "phase1" || waystarState === "phase3") {
         var mx = 0, my = 0;
-        var speed = WAYSTAR_BASE_PLAYER_SPEED * waystarPlayerSpeedMult;
+        var speed = WAYSTAR_BASE_PLAYER_SPEED * waystarPlayerSpeedMult * (typeof window.getDrinkTeaEmergencySpeedMultiplier === "function" ? window.getDrinkTeaEmergencySpeedMultiplier() : 1);
         var invert = (typeof _superState !== 'undefined' && _superState.invertControls);
         if (waystarTouchActive) { var tx = waystarTouchX - waystarPlayer.x, ty = waystarTouchY - waystarPlayer.y; var dist = Math.sqrt(tx * tx + ty * ty); if (dist > 5) { mx = tx / dist; my = ty / dist; } }
         else {
