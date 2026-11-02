@@ -98,6 +98,7 @@ let _superState = {
     allmightDebuffActive: false, allmightDebuffTimer: 0, allmightDebuffDmgMult: 1,
     allmightHurricane: false, allmightHurricaneTimer: 0, allmightHurricaneAngle: 0,
     screenShakeAmount: 0, screenFlashWhite: 0,
+    zenoEraseUntil: 0, zenoEraseBossType: null,
     realityCracks: [], comicTexts: [], earthCracks: [],
     dekuDash: null, dekuExplosions: [], dekuSmashStartedAt: 0,
     // ★ БЕЛОУС ★
@@ -138,6 +139,17 @@ let _superState = {
     dioMudaTotalDamage: 0, dioMudaStandX: null, dioMudaStandY: null, dioMudaLastHitAt: 0,
     dioMudaImpactX: 0, dioMudaImpactY: 0, dioStandAttackUntil: 0,
     dioStandAttackSourceX: 0, dioStandAttackSourceY: 0, dioStandAttackX: 0, dioStandAttackY: 0
+};
+
+function mbZenoEraseNow() {
+    return typeof performance !== "undefined" && typeof performance.now === "function"
+        ? performance.now() : Date.now();
+}
+window.MBIsZenoEraseActive = function (bossType) {
+    var until = Number(_superState && _superState.zenoEraseUntil) || 0;
+    if (!(until > mbZenoEraseNow())) return false;
+    var activeType = _superState && _superState.zenoEraseBossType;
+    return !bossType || !activeType || activeType === bossType;
 };
 
 let _superCooldowns = {};
@@ -736,6 +748,82 @@ function applyBossDamageToContext(ctxB, rawDamage, source) {
 }
 window.MBApplyBossDamage = applyBossDamageToContext;
 
+function clearZenoBossAttacks(ctxB) {
+    if (!ctxB) return;
+    if (ctxB.type === "waystar" && typeof window.MBWaystarClearBossAttacks === "function") {
+        window.MBWaystarClearBossAttacks();
+    } else if ((ctxB.type === "stone" || ctxB.type === "stoneSuper") &&
+        typeof window.MBLivingStoneClearBossAttacks === "function") {
+        window.MBLivingStoneClearBossAttacks();
+    } else if (ctxB.type === "rwb" && typeof window.MBRWBClearBossAttacks === "function") {
+        window.MBRWBClearBossAttacks();
+    } else if (ctxB.type === "antispiral" && typeof window.MBAntiSpiralClearBossAttacks === "function") {
+        window.MBAntiSpiralClearBossAttacks();
+    }
+
+    var arrays = [];
+    try { if (typeof ctxB.getAttacks === "function") arrays.push(ctxB.getAttacks()); } catch (e) {}
+    try { if (typeof ctxB.getBlasters === "function") arrays.push(ctxB.getBlasters()); } catch (e) {}
+    try { if (typeof ctxB.getShockwaves === "function") arrays.push(ctxB.getShockwaves()); } catch (e) {}
+    arrays.forEach(function (arr) {
+        if (Array.isArray(arr)) arr.length = 0;
+    });
+}
+
+function applyZenoEraseDamage(ctxB) {
+    if (!ctxB || typeof ctxB.getBossHp !== "function") return 0;
+    var maxHp = Math.max(0, Number(ctxB.getBossMaxHp && ctxB.getBossMaxHp()) || 0);
+    var before = Math.max(0, Number(ctxB.getBossHp()) || 0);
+    if (!(maxHp > 0) || !(before > 0)) return 0;
+    var baseDamage = Math.max(1, Math.floor(maxHp * 0.10));
+    var testMode = typeof window !== "undefined" && window.__mbBossTestMode;
+
+    function applyTestModifier(value) {
+        if (testMode && typeof window.MBBossTestModifyOutgoingDamage === "function") {
+            try { return Math.max(0, Number(window.MBBossTestModifyOutgoingDamage(value, 1)) || 0); } catch (e) {}
+        }
+        return value;
+    }
+
+    if (ctxB.type === "rwb" && typeof window.getRWBTargets === "function" &&
+        typeof window.rwbApplyDioSkillDamage === "function") {
+        var targets = window.getRWBTargets() || [];
+        var totalDealt = 0;
+        for (var i = 0; i < targets.length; i++) {
+            var target = targets[i];
+            if (!target || !(Number(target.hp) > 0)) continue;
+            var targetMaxHp = Math.max(0, Number(target.maxHp) || Number(target.hp) || 0);
+            if (!(targetMaxHp > 0)) continue;
+            var targetDamage = Math.max(1, Math.floor(targetMaxHp * 0.10));
+            if (typeof window.MBKarsApplyDamageBonus === "function") {
+                targetDamage = window.MBKarsApplyDamageBonus(targetDamage);
+            }
+            targetDamage = applyTestModifier(targetDamage);
+            if (!(targetDamage > 0)) continue;
+            var targetBefore = Number(target.hp) || 0;
+            window.rwbApplyDioSkillDamage(target.id, targetDamage);
+            totalDealt += Math.max(0, targetBefore - (Number(target.hp) || 0));
+        }
+        return totalDealt;
+    }
+
+    if (ctxB.type === "waystar" && typeof waystarState !== "undefined" &&
+        waystarState === "phase1" && typeof window.damageWaystarBoss === "function") {
+        var phaseOneDamage = applyTestModifier(baseDamage);
+        if (!(phaseOneDamage > 0)) return 0;
+        window.damageWaystarBoss(phaseOneDamage);
+        return Math.max(0, before - (Number(ctxB.getBossHp()) || 0));
+    }
+
+    if (ctxB.type === "antispiral" && typeof window.damageAntiSpiralBoss === "function") {
+        // Zeno's erasure is the one effect allowed to pass through Anti-Spiral's seal shield.
+        window.damageAntiSpiralBoss(baseDamage, "Зено: СТИРАНИЕ", true);
+        return Math.max(0, before - (Number(ctxB.getBossHp()) || 0));
+    }
+
+    return applyBossDamageToContext(ctxB, baseDamage, "Зено: СТИРАНИЕ");
+}
+
 function healBossInContext(ctxB, rawHeal) {
     if (!ctxB) return 0;
     if (window.__mbJoystickTrainingMode && ctxB.type === "arena") return 0;
@@ -1264,16 +1352,20 @@ const superAbilities = {
         var ctxB = getBossContext();
         if (!ctxB) return;
         _superState.screenFlashWhite = 20;
-        var atk = ctxB.getAttacks();
-        for (var i = atk.length - 1; i >= 0; i--) atk.splice(i, 1);
-        var bl = ctxB.getBlasters();
-        for (var i = bl.length - 1; i >= 0; i--) bl.splice(i, 1);
-        var maxHp = Math.max(0, Number(ctxB.getBossMaxHp()) || 0);
-        applyBossDamageToContext(ctxB, Math.max(1, Math.floor(maxHp * 0.10)), "Зено: СТИРАНИЕ");
+        if (ctxB.type && ctxB.type !== "arena") {
+            _superState.zenoEraseUntil = mbZenoEraseNow() + 3000;
+            _superState.zenoEraseBossType = ctxB.type;
+        } else {
+            _superState.zenoEraseUntil = 0;
+            _superState.zenoEraseBossType = null;
+        }
+        clearZenoBossAttacks(ctxB);
+        applyZenoEraseDamage(ctxB);
         _superState.realityCracks = [];
         for (var i = 0; i < 8; i++) { _superState.realityCracks.push({ x1: Math.random() * 400, y1: Math.random() * 500, x2: Math.random() * 400, y2: Math.random() * 500, life: 1.5 }); }
         if (typeof sfxArenaVictory === 'function') sfxArenaVictory();
-        ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 30, "СТЁРТО!", "#ff00ff");
+        ctxB.spawnFloatingText(ctxB.getHeartX(), ctxB.getHeartY() - 30,
+            ctxB.type === "rwb" ? "СТЁРТО! −10% ВСЕМ" : "СТЁРТО! −10% HP", "#ff00ff");
     }, onTick() {} },
     "Анти-спираль": { name: "СЖАТИЕ ПРОСТРАНСТВА", cooldown: 25000, toggleable: true, duration: Infinity, onActivate() {
         var ctxB = getBossContext();
