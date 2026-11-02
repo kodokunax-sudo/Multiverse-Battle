@@ -2579,6 +2579,10 @@ function generateEnemy() {
         if (randomStat) enemyStat = randomStat; 
         hideBossDialogue(); 
     } 
+    // Any boss without a dedicated arena-fight button is presented as a mini-boss.
+    if ((isBoss || isUniqueBoss) && !arenaWaves.includes(wave)) {
+        name = isUniqueBoss ? "⚔️ МИНИ-БОСС: " + name : "⚔️ МИНИ-БОСС";
+    }
     enemyStatuses = { fireTicks:0, fireDamage:0, poisonDamage:0, bleedMult:1.0, freezeStacks:0, shockChance:0, blindStacks:0 }; 
     if (enemyStat) { 
         if (enemyStat.type === "freezeStacks") enemyStatuses.freezeStacks = enemyStat.value; 
