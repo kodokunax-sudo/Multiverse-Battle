@@ -129,8 +129,8 @@ function addPassExp(amount) {
     }
 
     if (window.MBIsPhoneGraphicsMode && window.MBIsPhoneGraphicsMode()) {
-        // The regular one-second save loop persists this progress; batch clicks together.
-        window._needSave = true;
+        // saveAll coalesces repeated phone-mode writes into one short save window.
+        saveAll();
         let passSubTab = document.getElementById("passSubTab");
         if (passSubTab && passSubTab.classList.contains("active")) {
             if (passData.currentTier !== previousTier) renderPass();
