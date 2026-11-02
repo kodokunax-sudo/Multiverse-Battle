@@ -5984,6 +5984,7 @@
         }
     }
     function drawAttack(a) {
+        const potatoGraphics = isRWBPotatoGraphics();
         if (a.type === "wb_combo_gate_warning") {
             ctx.save();
             var pulse = 0.38 + Math.sin(performance.now() / 65) * 0.22;
@@ -6006,7 +6007,7 @@
             ctx.save();
             let pulse = 0.36 + Math.sin(performance.now() / 75) * 0.14;
             ctx.globalAlpha = pulse; ctx.strokeStyle = a.color; ctx.fillStyle = a.color;
-            ctx.shadowColor = a.color; ctx.shadowBlur = 16; ctx.lineWidth = 3;
+            ctx.shadowColor = a.color; ctx.shadowBlur = potatoGraphics ? Math.max(0, Math.min(3, (16))) : (16); ctx.lineWidth = 3;
             if (a.attackKind === "normal" && a.attackId === 1) {
                 ctx.beginPath(); ctx.arc(a.originX, a.originY, 75 + Math.sin(performance.now() / 70) * 5, 0, Math.PI * 2); ctx.stroke();
             } else if (a.attackKind === "normal" && [2, 3, 7].includes(a.attackId)) {
@@ -6042,7 +6043,7 @@
             ctx.save();
             let pulse = 0.35 + Math.sin(performance.now() / 65) * 0.2;
             ctx.globalAlpha = pulse; ctx.strokeStyle = "#ffcc88"; ctx.fillStyle = "#ffcc88";
-            ctx.shadowColor = "#ffcc88"; ctx.shadowBlur = 14; ctx.lineWidth = 3;
+            ctx.shadowColor = "#ffcc88"; ctx.shadowBlur = potatoGraphics ? Math.max(0, Math.min(3, (14))) : (14); ctx.lineWidth = 3;
             ctx.setLineDash([7, 6]);
             ctx.beginPath(); ctx.moveTo(a.targetX, 10); ctx.lineTo(a.targetX, 470); ctx.stroke();
             ctx.setLineDash([]);
@@ -6145,14 +6146,14 @@
 
         if (a.type === "wb_reflected_bullet") {
             ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(Math.atan2(a.vy, a.vx));
-            ctx.shadowColor = "#a66bff"; ctx.shadowBlur = 12; ctx.fillStyle = "#d8baff";
+            ctx.shadowColor = "#a66bff"; ctx.shadowBlur = potatoGraphics ? Math.max(0, Math.min(3, (12))) : (12); ctx.fillStyle = "#d8baff";
             ctx.beginPath(); ctx.ellipse(0, 0, a.size * 1.6, a.size * 0.65, 0, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); return;
         }
 
         if (a.type === "wb_center_wave") {
             ctx.save();
-            ctx.strokeStyle = "#9beaff"; ctx.shadowColor = "#9beaff"; ctx.shadowBlur = 18;
+            ctx.strokeStyle = "#9beaff"; ctx.shadowColor = "#9beaff"; ctx.shadowBlur = potatoGraphics ? Math.max(0, Math.min(3, (18))) : (18);
             if (a.state === "warning") {
                 let alpha = 0.35 + Math.sin(performance.now() / 90) * 0.2;
                 ctx.globalAlpha = alpha; ctx.lineWidth = 5;
@@ -6187,7 +6188,7 @@
                 ctx.strokeStyle = "#000000"; ctx.lineWidth = 4; ctx.strokeText("УДАР ФРУКТОМ!", a.targetX, a.targetY - 18);
                 ctx.fillText("УДАР ФРУКТОМ!", a.targetX, a.targetY - 18);
             } else {
-                ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 24; ctx.strokeStyle = "#000000"; ctx.lineWidth = a.width + 22;
+                ctx.shadowColor = "#ffffff"; ctx.shadowBlur = potatoGraphics ? Math.max(0, Math.min(3, (24))) : (24); ctx.strokeStyle = "#000000"; ctx.lineWidth = a.width + 22;
                 ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
                 ctx.strokeStyle = "#ffffff"; ctx.lineWidth = a.width + 12;
                 ctx.beginPath(); ctx.moveTo(a.originX, a.originY); ctx.lineTo(a.endX, a.endY); ctx.stroke();
@@ -6220,7 +6221,7 @@
                 ctx.setLineDash([]);
                 // Заряжающаяся энергия над Белоусом.
                 ctx.globalAlpha = 0.55 + chargePulse * 0.35;
-                ctx.strokeStyle = "#000000"; ctx.lineWidth = 8; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 22;
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 8; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = potatoGraphics ? Math.max(0, Math.min(3, (22))) : (22);
                 ctx.beginPath(); ctx.ellipse(a.originX, a.originY, 22 + chargePulse * 14, 20 + chargePulse * 10, now / 800, 0, Math.PI * 2); ctx.stroke();
                 ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
                 ctx.beginPath(); ctx.ellipse(a.originX, a.originY, 22 + chargePulse * 14, 20 + chargePulse * 10, -now / 600, 0, Math.PI * 2); ctx.stroke();
@@ -6238,7 +6239,7 @@
                 ctx.fillRect(0, a.y - band * 0.78, 400, band * 1.56);
                 // Широкий горизонтальный разрез: чёрный контур, белое хаки внутри.
                 ctx.globalAlpha = 0.92;
-                ctx.fillStyle = "#000000"; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 26;
+                ctx.fillStyle = "#000000"; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = potatoGraphics ? Math.max(0, Math.min(3, (26))) : (26);
                 ctx.fillRect(0, a.y - band * 0.48, 400, band * 0.96);
                 ctx.globalAlpha = 0.95; ctx.fillStyle = "#f8fdff";
                 ctx.fillRect(0, a.y - band * 0.23, 400, band * 0.46);
@@ -6250,7 +6251,7 @@
                     if (xx === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy);
                 }
                 ctx.strokeStyle = "#000000"; ctx.lineWidth = 18; ctx.stroke();
-                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 7; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 22; ctx.stroke();
+                ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 7; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = potatoGraphics ? Math.max(0, Math.min(3, (22))) : (22); ctx.stroke();
                 ctx.strokeStyle = "#bcefff"; ctx.lineWidth = 2; ctx.stroke();
                 // Короткие чёрно-белые вспышки хаки на лезвии.
                 ctx.shadowBlur = 0;
@@ -6405,7 +6406,7 @@
 
         if (a.type === "haki_wave") {
             ctx.save(); ctx.translate(a.x, a.y);
-            ctx.fillStyle = "#dff8ff"; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 16;
+            ctx.fillStyle = "#dff8ff"; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = potatoGraphics ? Math.max(0, Math.min(3, (16))) : (16);
             ctx.beginPath(); ctx.ellipse(0, 0, a.size * 1.3, a.size * 0.8, 0, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 0;
             ctx.beginPath(); ctx.ellipse(0, 0, a.size, a.size * 0.6, 0, 0, Math.PI * 2); ctx.fill();
