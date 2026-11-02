@@ -1942,9 +1942,10 @@
     function asDrawChargeAura(c,now) {
         if(asChargeFrames<=0)return;
         const pct=Math.min(1,asChargeFrames/150);
+        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
         c.save();c.translate(asPlayer.x,asPlayer.y-2);
         c.globalAlpha=.35+pct*.55;c.strokeStyle=pct>.8?"#ffffff":"#61eaff";
-        c.shadowColor=pct>.8?"#c08bff":"#39d9ff";c.shadowBlur=8+pct*24;c.lineWidth=1.5+pct*2;
+        c.shadowColor=pct>.8?"#c08bff":"#39d9ff";c.shadowBlur=reduceGraphics?3:8+pct*24;c.lineWidth=1.5+pct*2;
         for(let i=0;i<3;i++){
             c.beginPath();c.ellipse(0,0,14+i*5,7+i*2,now*.006*(i%2?1:-1),0,Math.PI*1.7);c.stroke();
         }
@@ -1964,8 +1965,12 @@
             c.restore();
             return;
         }
-        c.shadowColor="#33c7ff";c.shadowBlur=18;
-        const g=c.createLinearGradient(-8,-10,8,9);g.addColorStop(0,"#c8f7ff");g.addColorStop(.45,"#30c5ff");g.addColorStop(1,"#0647ce");c.fillStyle=g;
+        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        c.shadowColor="#33c7ff";c.shadowBlur=reduceGraphics?2:18;
+        if (reduceGraphics) c.fillStyle = "#30c5ff";
+        else {
+            const g=c.createLinearGradient(-8,-10,8,9);g.addColorStop(0,"#c8f7ff");g.addColorStop(.45,"#30c5ff");g.addColorStop(1,"#0647ce");c.fillStyle=g;
+        }
         c.beginPath();c.moveTo(0,7);c.bezierCurveTo(-3,4,-10,-1,-9,-6);c.bezierCurveTo(-8,-12,-2,-12,0,-7);c.bezierCurveTo(3,-12,9,-12,9,-5);c.bezierCurveTo(9,-1,3,4,0,7);c.closePath();c.fill();
         c.strokeStyle="#e6fcff";c.lineWidth=1.1;c.stroke();c.restore();
     }
@@ -1977,8 +1982,9 @@
         c.lineCap="round"; c.lineJoin="round";
         c.beginPath(); c.ellipse(x,y,r,r*0.9,Math.sin(now/900)*0.08,0,Math.PI*2); c.stroke();
         c.beginPath();
-        for(let n=0;n<52;n++){
-            const q=n/51, a=(reverse?-1:1)*q*Math.PI*5.4+now*0.00025;
+        const spiralSteps = window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects() ? 36 : 52;
+        for(let n=0;n<spiralSteps;n++){
+            const q=n/(spiralSteps-1), a=(reverse?-1:1)*q*Math.PI*5.4+now*0.00025;
             const rr=(0.08+q*0.82)*r;
             const px=x+Math.cos(a)*rr, py=y+Math.sin(a)*rr*0.88;
             if(n===0)c.moveTo(px,py);else c.lineTo(px,py);
@@ -1989,7 +1995,8 @@
     function asDrawAntiSpiralFigure(c, x, y, scale, now, opacity, enhancedFightBody) {
         const bob=Math.sin(now/360)*2.2;
         c.save(); c.translate(x,y+bob); c.scale(scale,scale); c.globalAlpha=opacity===undefined?1:opacity;
-        c.shadowColor=enhancedFightBody?"#873bff":"#a855ff"; c.shadowBlur=enhancedFightBody?28:16;
+        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        c.shadowColor=enhancedFightBody?"#873bff":"#a855ff"; c.shadowBlur=reduceGraphics?3:(enhancedFightBody?28:16);
         // Fight-only outline makes the complete silhouette visible without altering the cinematic rendering.
         c.fillStyle=enhancedFightBody?"#0b071b":"#030207"; c.strokeStyle=enhancedFightBody?"#c9adff":"#eeeaff"; c.lineWidth=enhancedFightBody?2.5:1.6;
         c.lineJoin="round"; c.lineCap="round";
@@ -2039,8 +2046,9 @@
         const bob=Math.sin(now/360)*1.7;
         c.save();c.translate(x,y+bob);c.scale(scale,scale);
         c.globalAlpha=opacity===undefined?1:opacity;
+        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
         // A floating, oversized head with the same spiral eyes as the cinematic character.
-        c.shadowColor="#9d50ff";c.shadowBlur=24;
+        c.shadowColor="#9d50ff";c.shadowBlur=reduceGraphics?3:24;
         c.strokeStyle="#c8a9ff";c.lineWidth=1.5;
         for(let ring=0;ring<3;ring++){
             c.save();c.rotate(now*.0003*(ring%2?-1:1)+ring*.45);
@@ -2062,7 +2070,7 @@
         c.restore();
         // Compact distortion rings keep the visual anchored to the head only.
         c.save();c.globalAlpha=.1+.045*Math.sin(now/170);c.strokeStyle="#a04dff";
-        c.lineWidth=1.3;c.shadowColor="#a04dff";c.shadowBlur=12;
+        c.lineWidth=1.3;c.shadowColor="#a04dff";c.shadowBlur=reduceGraphics?2:12;
         for(let i=0;i<3;i++){c.beginPath();c.ellipse(x,y,25*scale+i*8*scale,31*scale+i*10*scale,now*.0002*(i%2?1:-1),0,Math.PI*2);c.stroke();}
         c.restore();
     }
@@ -2075,10 +2083,11 @@
             asDrawAntiSpiralHead(c, asBoss.x - 69, asBoss.y + 24, 0.58, now + 280, .22);
             asDrawAntiSpiralHead(c, asBoss.x + 69, asBoss.y + 24, 0.58, now - 360, .22);
         }
+        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
         if (asBossExposed > 0) {
             c.save();
             c.globalAlpha = .42 + Math.sin(asFrame * .32) * .18;
-            c.strokeStyle = "#8effff"; c.shadowColor = "#6ffaff"; c.shadowBlur = 24; c.lineWidth = 2.5;
+            c.strokeStyle = "#8effff"; c.shadowColor = "#6ffaff"; c.shadowBlur = reduceGraphics ? 4 : 24; c.lineWidth = 2.5;
             c.beginPath(); c.ellipse(asBoss.x, asBoss.y + 37, 25 + Math.sin(asFrame * .15) * 5, 31 + Math.sin(asFrame * .15) * 5, 0, 0, Math.PI * 2); c.stroke();
             c.restore();
         }
@@ -2086,7 +2095,7 @@
         c.save();
         c.translate(asBoss.x, asBoss.y + 25);
         c.globalAlpha=.68+.12*Math.sin(now/170);
-        c.shadowColor="#a04cff";c.shadowBlur=24;c.lineWidth=1.6;
+        c.shadowColor="#a04cff";c.shadowBlur=reduceGraphics?4:24;c.lineWidth=1.6;
         for(let ring=0;ring<4;ring++){
             c.save();c.rotate(now*.00035*(ring%2?-1:1)+ring*.52);
             c.strokeStyle=ring%2?"#6cecff":"#bf76ff";
@@ -2109,7 +2118,8 @@
         c.restore();
     }
     function asDrawRedHeart(c,x,y,now,shot) {
-        c.save();c.translate(x,y);c.shadowColor="#ff233f";c.shadowBlur=shot?22:13;
+        c.save();c.translate(x,y);c.shadowColor="#ff233f";
+        c.shadowBlur = window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects() ? 3 : (shot ? 22 : 13);
         c.rotate(Math.sin(now/130)*.12);
         c.fillStyle=shot?"#ff4a52":"#ff203d";
         c.beginPath();c.moveTo(0,8);c.bezierCurveTo(-4,5,-12,-2,-11,-8);c.bezierCurveTo(-10,-16,-2,-15,0,-8);
@@ -2118,6 +2128,37 @@
         c.restore();
     }
     function asDrawGalaxyBackdrop(c,now) {
+        if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) {
+            // Preserve the space palette and moving planets without per-frame radial gradients.
+            c.save();
+            c.fillStyle = "#050511"; c.fillRect(0, 45, 400, 455);
+            c.fillStyle = "rgba(94,45,170,.22)";
+            c.beginPath(); c.ellipse(265, 205, 175, 245, 0, 0, Math.PI * 2); c.fill();
+            c.save(); c.translate(255, 222); c.rotate(now * .00007);
+            c.strokeStyle = "rgba(156,104,255,.34)"; c.lineWidth = 1.5;
+            for (let i = 0; i < 5; i++) {
+                c.beginPath(); c.ellipse(0, 0, 32 + i * 15, 9 + i * 7, .6 + i * .22, 0, Math.PI * 1.65); c.stroke();
+            }
+            c.restore();
+            const planets = [[47,139,19,"#4053aa"],[344,113,9,"#8e4ec1"],[313,371,25,"#28285c"],[87,330,7,"#7a3eaf"]];
+            for (let i = 0; i < planets.length; i++) {
+                const p = planets[i];
+                const x = p[0] + Math.sin(now * .00015 + i) * 9;
+                const y = p[1] + Math.cos(now * .00013 + i) * 5;
+                c.fillStyle = p[3]; c.beginPath(); c.arc(x, y, p[2], 0, Math.PI * 2); c.fill();
+                c.strokeStyle = "rgba(200,190,255,.28)"; c.lineWidth = .8;
+                c.beginPath(); c.ellipse(x, y, p[2] * 1.4, p[2] * .38, -.3, 0, Math.PI * 2); c.stroke();
+            }
+            for (let i = 0; i < 28; i++) {
+                const x = (i * 73 + now * .012) % 400;
+                const y = (i * 127 + now * .006) % 500;
+                c.globalAlpha = .25 + (i % 4) * .12;
+                c.fillStyle = i % 3 ? "#a9dfff" : "#d1b5ff";
+                c.fillRect(x, y, 1 + (i % 3 === 0 ? 1 : 0), 1 + (i % 4 === 0 ? 1 : 0));
+            }
+            c.globalAlpha = 1; c.restore();
+            return;
+        }
         c.save();
         const nebula=c.createRadialGradient(265,205,4,265,205,270);
         nebula.addColorStop(0,"rgba(94,45,170,.45)");nebula.addColorStop(.42,"rgba(38,30,112,.26)");nebula.addColorStop(1,"rgba(0,0,0,0)");
@@ -2561,18 +2602,25 @@
         const right = 366 - progress * 34;
         const top = 91 + progress * 39;
         const bottom = 466 - progress * 43;
+        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
         c.save();
         c.translate((Math.random() - 0.5) * asShake * 2.2, (Math.random() - 0.5) * asShake * 2.2);
         c.fillStyle = "rgba(2,0,12,.97)";
         c.fillRect(0, 0, 400, 500);
-        const glow = c.createRadialGradient(200, 260, 5, 200, 260, 265);
-        glow.addColorStop(0, "rgba(82,35,145,.58)");
-        glow.addColorStop(0.6, "rgba(28,12,55,.62)");
-        glow.addColorStop(1, "rgba(0,0,0,.98)");
-        c.fillStyle = glow;
-        c.fillRect(0, 0, 400, 500);
-        for (let i = 0; i < 34; i++) {
-            const a = i * Math.PI * 2 / 34 + now * 0.00035;
+        if (reduceGraphics) {
+            c.fillStyle = "#10091f"; c.fillRect(0, 0, 400, 500);
+            c.fillStyle = "rgba(82,35,145,.22)";
+            c.beginPath(); c.ellipse(200, 260, 210, 245, 0, 0, Math.PI * 2); c.fill();
+        } else {
+            const glow = c.createRadialGradient(200, 260, 5, 200, 260, 265);
+            glow.addColorStop(0, "rgba(82,35,145,.58)");
+            glow.addColorStop(0.6, "rgba(28,12,55,.62)");
+            glow.addColorStop(1, "rgba(0,0,0,.98)");
+            c.fillStyle = glow; c.fillRect(0, 0, 400, 500);
+        }
+        const riftLineCount = reduceGraphics ? 16 : 34;
+        for (let i = 0; i < riftLineCount; i++) {
+            const a = i * Math.PI * 2 / riftLineCount + now * 0.00035;
             const r = 35 + ((i * 37 + now * 0.026) % 210);
             c.globalAlpha = 0.25 + Math.abs(Math.sin(now * 0.002 + i)) * 0.35;
             c.strokeStyle = i % 2 ? "#af69ff" : "#4beaff";
@@ -2585,7 +2633,7 @@
         c.globalAlpha = 1;
         c.strokeStyle = "#d9a5ff";
         c.shadowColor = "#994cff";
-        c.shadowBlur = 24;
+        c.shadowBlur = reduceGraphics ? 4 : 24;
         c.lineWidth = 4;
         c.strokeRect(left, top, right - left, bottom - top);
         c.strokeStyle = "rgba(93,237,255,.75)";
@@ -2598,15 +2646,15 @@
             const start=vertical?top:left,end=vertical?bottom:right,coord=vertical?laser.x:laser.y;
             c.save();c.lineCap="round";c.strokeStyle=laser.color;c.shadowColor=laser.color;
             if(laser.warning>0){
-                c.globalAlpha=.45+Math.abs(Math.sin(now*.025))*.38;c.shadowBlur=16;c.lineWidth=2.2;c.setLineDash([8,6]);
+                c.globalAlpha=.45+Math.abs(Math.sin(now*.025))*.38;c.shadowBlur=reduceGraphics?3:16;c.lineWidth=2.2;c.setLineDash([8,6]);
                 c.beginPath();if(vertical){c.moveTo(coord,start);c.lineTo(coord,end);}else{c.moveTo(start,coord);c.lineTo(end,coord);}c.stroke();c.setLineDash([]);
                 c.globalAlpha=.85;c.lineWidth=1.2;
                 const tx=vertical?laser.x:asPlayer.x,ty=vertical?asPlayer.y:laser.y;
                 c.beginPath();c.arc(tx,ty,14+Math.sin(now*.03)*3,0,Math.PI*2);c.stroke();
                 c.beginPath();c.moveTo(tx-20,ty);c.lineTo(tx-8,ty);c.moveTo(tx+8,ty);c.lineTo(tx+20,ty);c.moveTo(tx,ty-20);c.lineTo(tx,ty-8);c.moveTo(tx,ty+8);c.lineTo(tx,ty+20);c.stroke();
             }else{
-                c.globalAlpha=.27;c.shadowBlur=28;c.lineWidth=23;c.beginPath();if(vertical){c.moveTo(coord,start);c.lineTo(coord,end);}else{c.moveTo(start,coord);c.lineTo(end,coord);}c.stroke();
-                c.globalAlpha=.92;c.shadowBlur=17;c.lineWidth=9;c.beginPath();if(vertical){c.moveTo(coord,start);c.lineTo(coord,end);}else{c.moveTo(start,coord);c.lineTo(end,coord);}c.stroke();
+                c.globalAlpha=.27;c.shadowBlur=reduceGraphics?4:28;c.lineWidth=23;c.beginPath();if(vertical){c.moveTo(coord,start);c.lineTo(coord,end);}else{c.moveTo(start,coord);c.lineTo(end,coord);}c.stroke();
+                c.globalAlpha=.92;c.shadowBlur=reduceGraphics?3:17;c.lineWidth=9;c.beginPath();if(vertical){c.moveTo(coord,start);c.lineTo(coord,end);}else{c.moveTo(start,coord);c.lineTo(end,coord);}c.stroke();
                 c.globalAlpha=1;c.strokeStyle="#ffffff";c.lineWidth=1.8;c.beginPath();if(vertical){c.moveTo(coord,start);c.lineTo(coord,end);}else{c.moveTo(start,coord);c.lineTo(end,coord);}c.stroke();
                 c.globalAlpha=.95;c.lineWidth=4;c.strokeStyle="#ffffff";
                 const fraction=((now*.28)%100)/100;
@@ -2624,7 +2672,7 @@
             c.globalAlpha = 0.8 + Math.sin(now * 0.008 + spiral.phase) * 0.18;
             c.strokeStyle = "#9af8ff";
             c.shadowColor = "#61eaff";
-            c.shadowBlur = 17;
+            c.shadowBlur = reduceGraphics ? 3 : 17;
             c.lineWidth = 2.5;
             c.beginPath();
             c.arc(0, 0, 12 * pulse, 0, Math.PI * 1.72);
@@ -2649,7 +2697,7 @@
         c.translate(asPlayer.x, asPlayer.y);
         c.scale(asPlayer.size/12,asPlayer.size/12);
         c.shadowColor = "#31dcff";
-        c.shadowBlur = 25;
+        c.shadowBlur = reduceGraphics ? 3 : 25;
         c.fillStyle = "#36dfff";
         c.beginPath();
         c.moveTo(0, 7);
@@ -2704,10 +2752,12 @@
     function asDrawReassemblyEffect(c, now) {
         if (now >= asReassemblyEffectUntil) return;
         const progress = 1 - Math.max(0, asReassemblyEffectUntil - now) / 1200;
+        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        const shardCount = reduceGraphics ? 12 : 34;
         c.save();
         c.globalAlpha = Math.max(0, 1 - progress * 0.65);
-        for (let i = 0; i < 34; i++) {
-            const angle = i * Math.PI * 2 / 34 + i * 0.37;
+        for (let i = 0; i < shardCount; i++) {
+            const angle = i * Math.PI * 2 / shardCount + i * 0.37;
             const radius = 18 + (i % 6) * 7;
             const sx = asBoss.x + Math.cos(angle) * radius;
             const sy = asBoss.y + 43 + Math.sin(angle) * radius;
@@ -2715,7 +2765,7 @@
             const y = sy + (asPlayer.y - sy) * progress;
             c.fillStyle = i % 3 === 0 ? "#d8a4ff" : i % 3 === 1 ? "#5deaff" : "#ffffff";
             c.shadowColor = c.fillStyle;
-            c.shadowBlur = 9;
+            c.shadowBlur = reduceGraphics ? 2 : 9;
             const size = 2 + (i % 4);
             c.fillRect(x, y, size, size);
         }
@@ -2792,7 +2842,7 @@
         c.fillStyle="rgba(0,0,0,.76)";c.fillRect(0,50,arenaLeft,450);c.fillRect(arenaLeft+asArenaWidth,50,400-(arenaLeft+asArenaWidth),450);
         const boxY=55+(445-asArenaHeight)/2;c.fillRect(arenaLeft,50,asArenaWidth,boxY-50);c.fillRect(arenaLeft,boxY+asArenaHeight,asArenaWidth,500-(boxY+asArenaHeight));
         asDrawArenaAtmosphere(c,now,arenaLeft,boxY,asArenaWidth,asArenaHeight);
-        c.strokeStyle="#8ceaff";c.lineWidth=2.5;c.shadowColor="#4bbcff";c.shadowBlur=17;c.strokeRect(arenaLeft,boxY,asArenaWidth,asArenaHeight);
+        c.strokeStyle="#8ceaff";c.lineWidth=2.5;c.shadowColor="#4bbcff";c.shadowBlur=reduceBossEffects?3:17;c.strokeRect(arenaLeft,boxY,asArenaWidth,asArenaHeight);
         c.shadowColor="#b36cff";c.strokeStyle="rgba(187,127,255,.58)";c.lineWidth=1;c.strokeRect(arenaLeft+5,boxY+5,Math.max(0,asArenaWidth-10),Math.max(0,asArenaHeight-10));c.shadowBlur=0;
         // Small corner brackets make this feel like a framed boss arena, not a bare canvas.
         c.strokeStyle="rgba(202,239,255,.9)";c.lineWidth=2;
@@ -2811,7 +2861,7 @@
         if(now<asGravityTransitionUntil){
             const arrow=["↓","←","↑","→"][asGravityDirection];
             c.save();c.globalAlpha=.96;c.fillStyle="rgba(5,2,18,.94)";c.fillRect(42,101,316,62);
-            c.strokeStyle="#ff70eb";c.lineWidth=2;c.shadowColor="#d64cff";c.shadowBlur=17;c.strokeRect(42,101,316,62);
+            c.strokeStyle="#ff70eb";c.lineWidth=2;c.shadowColor="#d64cff";c.shadowBlur=reduceBossEffects?3:17;c.strokeRect(42,101,316,62);
             c.fillStyle="#ffb5f5";c.font="bold 25px monospace";c.textAlign="left";c.fillText(arrow,58,139);
             c.fillStyle="#ffffff";c.font="bold 13px monospace";c.textAlign="left";c.fillText("ГРАВИТАЦИЯ: "+asGravityLabels[asGravityDirection],102,125);
             c.fillStyle="#85eaff";c.font="bold 10px monospace";c.fillText("ТЯЖЕСТЬ ДЕЙСТВУЕТ В ЭТОМ НАПРАВЛЕНИИ",102,145);c.restore();
