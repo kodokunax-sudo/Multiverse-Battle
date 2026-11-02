@@ -2435,6 +2435,9 @@ function processOfflineProgress() {
         let edmg = 15 + simWave * 6; 
         const isAfkBossWave = simWave % 10 === 0;
         if (isAfkBossWave) { ehp *= 4; edmg *= 3; }
+        const earlyWaveStrength = getWaveEnemyStrengthMultiplier(simWave, isAfkBossWave);
+        ehp = Math.max(1, Math.floor(ehp * earlyWaveStrength));
+        edmg = Math.max(1, Math.floor(edmg * earlyWaveStrength));
         const simDmg = getAfkFarmHitDamage(simWave, simBaseDmg, ehp);
         while (ehp > 0 && simHp > 0) {
             ehp -= simDmg;
@@ -2539,6 +2542,21 @@ function mbScheduleAutoSkipDefeatedBoss(bossWave, isUniqueBoss) {
     return true;
 }
 
+// Early progression difficulty curve. Returns the remaining enemy strength multiplier.
+function getWaveEnemyStrengthMultiplier(targetWave, isBossEncounter) {
+    var w = Math.max(1, Math.floor(Number(targetWave) || 1));
+    if (w <= 100) {
+        // The two dedicated early arena bosses receive a separate 35% reduction.
+        if (isBossEncounter && (w === 50 || w === 100)) return 0.65;
+        return 0.5;
+    }
+    if (w >= 200) return 1;
+    // Ease the early-game assistance out: wave 150 is exactly 12% weaker than normal.
+    var remainingWeakness = 0.35 * Math.pow(12 / 35, (w - 100) / 50);
+    return 1 - remainingWeakness;
+}
+window.MBGetWaveEnemyStrengthMultiplier = getWaveEnemyStrengthMultiplier;
+
 function generateEnemy() { 
     // Lock the wave-1000 skip to a single use per encounter.
     if (Number(wave) !== 1000 && window.__mbSkipRwbUsedWave === 1000) window.__mbSkipRwbUsedWave = null;
@@ -2579,6 +2597,9 @@ function generateEnemy() {
         if (randomStat) enemyStat = randomStat; 
         hideBossDialogue(); 
     } 
+    var earlyWaveStrength = getWaveEnemyStrengthMultiplier(wave, isBoss || isUniqueBoss);
+    hp = Math.max(1, Math.floor(hp * earlyWaveStrength));
+    dmg = Math.max(1, Math.floor(dmg * earlyWaveStrength));
     // Any boss without a dedicated arena-fight button is presented as a mini-boss.
     if ((isBoss || isUniqueBoss) && !arenaWaves.includes(wave)) {
         name = isUniqueBoss ? "⚔️ МИНИ-БОСС: " + name : "⚔️ МИНИ-БОСС";
