@@ -1435,7 +1435,8 @@ function mbFlushPendingPhoneSaveNow(force) {
         mbPhoneSaveTimer = null;
     }
     if (currentSlot < 0 || currentSlot >= MB_SAVE_SLOT_COUNT) return false;
-    if (!force && !window._needSave) return false;
+    const hadPendingTimer = mbPhoneSaveTimer !== null;
+    if (!force && !window._needSave && !hadPendingTimer) return false;
     mbPhoneSaveFlushActive = true;
     try {
         saveAll(true);
@@ -1472,7 +1473,11 @@ function saveAll(forceImmediate) {
     const runExpensiveProgressChecks = !phoneMode || (Date.now() - mbLastPhoneProgressCheckAt >= 10000);
     if (runExpensiveProgressChecks) {
         if (phoneMode) mbLastPhoneProgressCheckAt = Date.now();
-        mbStatsObserveCurrentState();
+        // On phones, the title check below already obtains the expanded stats snapshot.
+        // Avoid scanning the full collection a second time in the same save.
+        if (!phoneMode || typeof window.MBCheckAchievementTitleUnlocks !== 'function') {
+            mbStatsObserveCurrentState();
+        }
     }
 
     slotData.myCards = myCards; 
