@@ -649,6 +649,9 @@ async function mbSyncCloudSave(action) {
         if (message.indexOf('cloud_save_conflict') !== -1) {
             mbCloudSyncReadyForUser = null;
             mbCloudStatus('Облако изменилось на другом устройстве. Нажми синхронизацию ещё раз и выбери версию.', 'warning');
+        } else if (message.indexOf('cloud_save_regression_rejected') !== -1) {
+            mbCloudSyncReadyForUser = null;
+            mbCloudStatus('☁️ Облако защитило более полный прогресс от перезаписи. Локальная копия не отправлена.', 'warning');
         } else if (message.indexOf('player_cloud_saves') !== -1 || message.indexOf('write_player_cloud_save') !== -1) {
             mbCloudStatus('Таблица облачных сохранений не найдена. Проверь миграцию Supabase.', 'error');
         } else {
