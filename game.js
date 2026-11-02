@@ -106,6 +106,10 @@ let arenaSettings = {
     hideClickTexts: false
 };
 
+window.MBIsPhoneGraphicsMode = function () {
+    return !!(arenaSettings && arenaSettings.graphics === "phone");
+};
+
 // Accessibility mode remains a persistent, explicit Settings choice.
 // The per-fight "full/light graphics" prompt is a separate temporary performance profile.
 var MB_REDUCED_BOSS_EFFECTS_KEY = "mbReducedBossEffectsByUser";
@@ -486,7 +490,14 @@ async function mbSyncCloudSave(action) {
     if (mbCloudSaveTimer) { clearTimeout(mbCloudSaveTimer); mbCloudSaveTimer = null; }
     mbCloudStatus('☁️ Проверяем облачное сохранение…', 'info');
     try {
-        if (action !== 'download' && currentSlot === targetSlot && typeof saveAll === 'function') saveAll();
+        if (action !== 'download' && currentSlot === targetSlot && typeof saveAll === 'function') {
+            if (window.MBIsPhoneGraphicsMode && window.MBIsPhoneGraphicsMode() &&
+                typeof window.MBFlushPendingPhoneSaveNow === "function") {
+                window.MBFlushPendingPhoneSaveNow(true);
+            } else {
+                saveAll();
+            }
+        }
         var localSave = mbReadCurrentLocalSave(targetSlot);
         if (!mbValidateCloudSave(localSave)) {
             mbCloudStatus('Не найдено подходящее локальное сохранение в слоте ' + (targetSlot + 1) + '.', 'warning');
@@ -629,7 +640,14 @@ function mbScheduleCloudSave() {
 }
 
 async function mbFlushCloudSave() {
-    if (currentSlot >= 0 && currentSlot < MB_SAVE_SLOT_COUNT && typeof saveAll === 'function') saveAll();
+    if (currentSlot >= 0 && currentSlot < MB_SAVE_SLOT_COUNT && typeof saveAll === 'function') {
+        if (window.MBIsPhoneGraphicsMode && window.MBIsPhoneGraphicsMode() &&
+            typeof window.MBFlushPendingPhoneSaveNow === "function") {
+            window.MBFlushPendingPhoneSaveNow(true);
+        } else {
+            saveAll();
+        }
+    }
     if (mbCloudSaveTimer) { clearTimeout(mbCloudSaveTimer); mbCloudSaveTimer = null; }
     var waitStarted = Date.now();
     while (mbCloudSyncBusy && Date.now() - waitStarted < 7000) {
@@ -648,7 +666,8 @@ window.mbFlushCloudSave = mbFlushCloudSave;
 
 document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'hidden') return;
-    if (currentSlot >= 0 && currentSlot < MB_SAVE_SLOT_COUNT && typeof saveAll === 'function') saveAll();
+    if (currentSlot >= 0 && currentSlot < MB_SAVE_SLOT_COUNT && typeof saveAll === 'function' &&
+        !(window.MBIsPhoneGraphicsMode && window.MBIsPhoneGraphicsMode())) saveAll();
     mbFlushCloudSave().catch(function (error) {
         console.warn('[MB cloud] Sync on background failed:', error && error.message ? error.message : error);
     });
@@ -719,6 +738,10 @@ function selectSlot(slot) {
     slot = Number(slot);
     if (!Number.isInteger(slot) || slot < 0 || slot >= MB_SAVE_SLOT_COUNT) return;
     if (currentSlot !== slot) {
+        if (currentSlot >= 0 && window.MBIsPhoneGraphicsMode && window.MBIsPhoneGraphicsMode() &&
+            typeof window.MBFlushPendingPhoneSaveNow === "function") {
+            window.MBFlushPendingPhoneSaveNow(true);
+        }
         window.dispatchEvent(new CustomEvent('mb:slot-changing', { detail: { from: currentSlot, to: slot } }));
     }
     currentSlot = slot;
@@ -1402,12 +1425,58 @@ function initNewGame() {
     normalizeMainCard();
 }
 
-function saveAll() { 
+let mbPhoneSaveTimer = null;
+let mbPhoneSaveFlushActive = false;
+let mbLastPhoneProgressCheckAt = 0;
+
+function mbFlushPendingPhoneSaveNow(force) {
+    if (mbPhoneSaveTimer !== null) {
+        clearTimeout(mbPhoneSaveTimer);
+        mbPhoneSaveTimer = null;
+    }
+    if (currentSlot < 0 || currentSlot >= MB_SAVE_SLOT_COUNT) return false;
+    if (!force && !window._needSave) return false;
+    mbPhoneSaveFlushActive = true;
+    try {
+        saveAll(true);
+        return true;
+    } finally {
+        mbPhoneSaveFlushActive = false;
+    }
+}
+window.MBFlushPendingPhoneSaveNow = mbFlushPendingPhoneSaveNow;
+
+function saveAll(forceImmediate) {
     if (currentSlot < 0) return;
     if (mbCloudRecoveryPendingSlot === currentSlot) return;
-    mbStatsObserveCurrentState();
+
+    const phoneMode = !!(window.MBIsPhoneGraphicsMode && window.MBIsPhoneGraphicsMode());
+    if (phoneMode && forceImmediate !== true && !mbPhoneSaveFlushActive) {
+        window._needSave = true;
+        if (mbPhoneSaveTimer === null) {
+            mbPhoneSaveTimer = window.setTimeout(function () {
+                mbPhoneSaveTimer = null;
+                mbPhoneSaveFlushActive = true;
+                try { saveAll(true); }
+                finally { mbPhoneSaveFlushActive = false; }
+            }, 350);
+        }
+        return;
+    }
+
+    if (mbPhoneSaveTimer !== null) {
+        clearTimeout(mbPhoneSaveTimer);
+        mbPhoneSaveTimer = null;
+    }
+
+    const runExpensiveProgressChecks = !phoneMode || (Date.now() - mbLastPhoneProgressCheckAt >= 10000);
+    if (runExpensiveProgressChecks) {
+        if (phoneMode) mbLastPhoneProgressCheckAt = Date.now();
+        mbStatsObserveCurrentState();
+    }
+
     slotData.myCards = myCards; 
-    if (typeof window.MBSyncMasteryTitleUnlocks === 'function') window.MBSyncMasteryTitleUnlocks();
+    if (runExpensiveProgressChecks && typeof window.MBSyncMasteryTitleUnlocks === 'function') window.MBSyncMasteryTitleUnlocks();
     slotData.unlockedPatches = window.MBPatches ? window.MBPatches.getUnlocked() : (slotData.unlockedPatches || []);
     slotData.team = team; 
     slotData.afkTeam = afkTeam; 
@@ -1498,7 +1567,7 @@ function saveAll() {
     if (typeof window.getResourcesData === 'function') slotData.resources = window.getResourcesData();
     if (typeof window.getEquipmentData === 'function') slotData.equipment = window.getEquipmentData();
     
-    if (typeof window.MBCheckAchievementTitleUnlocks === 'function') {
+    if (runExpensiveProgressChecks && typeof window.MBCheckAchievementTitleUnlocks === 'function') {
         window.MBCheckAchievementTitleUnlocks();
     }
     saveGameToSlot(currentSlot); 
