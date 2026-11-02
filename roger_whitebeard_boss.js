@@ -6503,6 +6503,32 @@
         rwbFloatingTexts.push({x:target.x,y:target.y-35,text:"DIO −"+Math.max(1,Math.floor(Number(amount)||1)),color:"#fff0a0",life:55,maxLife:55,vy:-.6,vx:0,size:14});
         return true;
     };
+    window.rwbApplyZenoEraseDamage = function(bossId, amount) {
+        let target = (rwbActiveBoss && rwbActiveBoss.id === bossId)
+            ? rwbActiveBoss
+            : [roger, whitebeard].find(function(b) { return b && b.id === bossId; });
+        if (!target || !(Number(target.hp) > 0)) return 0;
+        const requested = Math.max(1, Math.floor(Number(amount) || 1));
+        const dealt = Math.min(Number(target.hp) || 0, requested);
+        target.hp = Math.max(0, (Number(target.hp) || 0) - dealt);
+        target.hitFlash = 14;
+        if (target.id === "whitebeard") target.damageFlashTimer = 14;
+        rwbShockwaves.push({
+            x: target.x, y: target.y, radius: 10, maxRadius: 112,
+            speed: 10, color: "#c9b5ff", damage: 0, hit: true,
+            life: 22, maxLife: 22, width: 5
+        });
+        rwbFloatingTexts.push({
+            x: target.x, y: target.y - 38,
+            text: "ЗЕНО: СТИРАНИЕ −" + dealt,
+            color: "#d7c5ff", life: 62, maxLife: 62,
+            vy: -.7, vx: 0, size: 15
+        });
+        if (typeof spawnHitParticles === "function") {
+            spawnHitParticles(target.x, target.y, "#d7c5ff", 16);
+        }
+        return dealt;
+    };
     window.MBRWBCompanionTargetPosition = function() {
         var targets=[roger,whitebeard].filter(function(b){return b&&Number(b.hp)>0;});
         if(rwbState==="fight2"&&rwbActiveBoss&&Number(rwbActiveBoss.hp)>0) {
