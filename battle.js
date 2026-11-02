@@ -502,8 +502,9 @@ function getDrinkTeaEmergencySpeedMultiplier() {
     } else if (typeof waystarActive !== "undefined" && waystarActive) {
         hp = Number(waystarPlayerHp); maxHp = Number(waystarPlayerMaxHp);
     } else if (typeof window.rwbActive !== "undefined" && window.rwbActive &&
-        typeof rwbPlayer !== "undefined" && rwbPlayer) {
-        hp = Number(rwbPlayer.hp); maxHp = Number(rwbPlayer.maxHp);
+        typeof window.getRWBPlayer === "function" && window.getRWBPlayer()) {
+        var rwbEmergencyPlayer = window.getRWBPlayer();
+        hp = Number(rwbEmergencyPlayer.hp); maxHp = Number(rwbEmergencyPlayer.maxHp);
     } else if (typeof window.getAntiSpiralBossActive === "function" && window.getAntiSpiralBossActive() &&
         typeof window.getAntiSpiralPlayerHp === "function" && typeof window.getAntiSpiralPlayerMaxHp === "function") {
         hp = Number(window.getAntiSpiralPlayerHp()); maxHp = Number(window.getAntiSpiralPlayerMaxHp());
