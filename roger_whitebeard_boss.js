@@ -1744,7 +1744,7 @@
         }
 
         let mx = 0, my = 0;
-        let speed = rwbBaseSpeed * rwbSpeedMult;
+        let speed = rwbBaseSpeed * rwbSpeedMult * (typeof window.getDrinkTeaEmergencySpeedMultiplier === "function" ? window.getDrinkTeaEmergencySpeedMultiplier() : 1);
         if (typeof getTakabaCombatModifiers === 'function') {
             try { speed *= getTakabaCombatModifiers().speedMult; } catch(e) {}
         }
