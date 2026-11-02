@@ -553,7 +553,9 @@
     }
     function asBossHit(damage, message, ignoreSealShield) {
         if(typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") damage=window.MBBossTestModifyOutgoingDamage(damage,1);
-        if (!asActive || asWinPending || asDefeatPending || asState !== "fight" || asState === "victory") return;
+        if (!asActive || asWinPending || asDefeatPending ||
+            (asState !== "fight" && !(ignoreSealShield === true && asState === "mini")) ||
+            asState === "victory") return;
         const isModerator = typeof window.MBIsModeratorModeActive === "function"
             ? window.MBIsModeratorModeActive()
             : false;
@@ -2312,7 +2314,9 @@
         if(t>=18.15) asFinishCinematic(false);
     }
     function asStartBrokenReality(now) {
-        if (asState !== "fight" || now < asMiniCooldownUntil) return;
+        if (asState !== "fight" || now < asMiniCooldownUntil ||
+            (typeof window.MBIsZenoEraseActive === "function" &&
+                window.MBIsZenoEraseActive("antispiral"))) return;
         asMiniReturnPlayer = {
             x: asPlayer.x, y: asPlayer.y, vx: asPlayer.vx, vy: asPlayer.vy,
             grounded: asPlayer.grounded, platformIndex: asPlayer.platformIndex,
@@ -3706,6 +3710,19 @@
     window.damageAntiSpiralBoss = asBossHit;
     window.MBAntiSpiralClearBossAttacks = function() {
         asAttacks.length = 0;
+        asClones = [];
+        asCloneMode = false;
+        asCloneUntil = 0;
+        asCloneNextShuffleAt = 0;
+        asClonePhase = "idle";
+        asCloneStageUntil = 0;
+        asUltimateActive = false;
+        asPatternSpawned = false;
+        asPatternDraining = false;
+        asPatternTimer = 0;
+        asPatternVolleyCount = 0;
+        asMiniLasers.length = 0;
+        if (asState === "mini") asMiniNextLaserAt = asClockNow() + 3000;
     };
     window.antiSpiralSpawnText = asText;
     window.antiSpiralPlaySound = asSound;
