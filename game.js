@@ -2236,9 +2236,9 @@ function doSellCard(idx) {
     removeCard(idx); 
     if (!achievements.sellCard100 && myCards.length <= 0) { achievements.sellCard100 = true; points += Math.floor(200 * getStarMult()); saveAll(); renderAchievements(); } 
 }
-function removeCard(idx) { let p = team.indexOf(idx); if (p !== -1) { team.splice(p, 1); normalizeMainCard(); } p = afkTeam.indexOf(idx); if (p !== -1) afkTeam.splice(p, 1); myCards.splice(idx, 1); for (let i = 0; i < team.length; i++) if (team[i] > idx) team[i]--; for (let i = 0; i < afkTeam.length; i++) if (afkTeam[i] > idx) afkTeam[i]--; normalizeMainCard(); saveAll(); renderAll(); updatePlayerStats(); }
-function toggleTeam(idx) { let p = team.indexOf(idx); if (p !== -1) { team.splice(p, 1); } else { if (afkTeam.includes(idx)) return; if (team.length >= 6) return; team.push(idx); } normalizeMainCard(); saveAll(); renderAll(); updatePlayerStats(); checkAchievements(); }
-function toggleAfk(idx) { let p = afkTeam.indexOf(idx); if (p !== -1) afkTeam.splice(p, 1); else { if (team.includes(idx)) return; if (afkTeam.length >= 6) return; afkTeam.push(idx); } saveAll(); renderAll(); }
+function removeCard(idx) { let p = team.indexOf(idx); if (p !== -1) { team.splice(p, 1); normalizeMainCard(); } p = afkTeam.indexOf(idx); if (p !== -1) afkTeam.splice(p, 1); myCards.splice(idx, 1); for (let i = 0; i < team.length; i++) if (team[i] > idx) team[i]--; for (let i = 0; i < afkTeam.length; i++) if (afkTeam[i] > idx) afkTeam[i]--; normalizeMainCard(); saveAll(); renderMyCards(); renderTeam(); renderAfkTeam(); updatePlayerStats(); }
+function toggleTeam(idx) { let p = team.indexOf(idx); if (p !== -1) { team.splice(p, 1); } else { if (afkTeam.includes(idx)) return; if (team.length >= 6) return; team.push(idx); } normalizeMainCard(); saveAll(); renderMyCards(); renderTeam(); updatePlayerStats(); checkAchievements(); }
+function toggleAfk(idx) { let p = afkTeam.indexOf(idx); if (p !== -1) afkTeam.splice(p, 1); else { if (team.includes(idx)) return; if (afkTeam.length >= 6) return; afkTeam.push(idx); } saveAll(); renderMyCards(); renderAfkTeam(); }
 function countTeamDuplicates() { let counts = {}; team.forEach(idx => { let cd = myCards[idx]; if (cd) { counts[cd.name] = (counts[cd.name] || 0) + 1; } }); return counts; }
 
 // ========== СТАТУС-ЭФФЕКТЫ ==========
