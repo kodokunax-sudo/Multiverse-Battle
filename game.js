@@ -2375,7 +2375,14 @@ function shouldHideClickCombatText(text) {
         /^[^\s]+\s+.+\s\+\d+$/u.test(value) ||
         /готово!$/i.test(value) && !/уровень|настройки/i.test(value);
 
-    return isCombatText || isItemReceipt;
+    // Reward popups from victories, boss rewards, leveling and quest completion.
+    const isRewardText =
+        /\+\s*[\d,.]+\s*(?:⭐|⚡|очк(?:о|а|ов)?|сил(?:а|ы|у)|опыт(?:а)?|exp)/i.test(value) ||
+        /\+\s*[\d,.]+\s*СИЛЫ\s+ЗА\s+БОССА/i.test(value) ||
+        /^🎉\s*УРОВЕНЬ\s+\d+!/i.test(value) ||
+        /^✅\s*Квест:/i.test(value);
+
+    return isCombatText || isItemReceipt || isRewardText;
 }
 window.MBShouldHideClickTexts = shouldHideClickCombatText;
 
