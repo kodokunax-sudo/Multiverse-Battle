@@ -90,11 +90,32 @@ function getPassExpNeeded(tier) {
     return Math.floor((10 + Math.pow(tier - 1, 1.5) * 3) * 5);
 }
 
+function updatePassProgressUI() {
+    let tierLabel = document.getElementById("passCurrentTierLabel");
+    if (!tierLabel || !passData) return;
+
+    tierLabel.textContent = "Этап " + passData.currentTier + " из 60";
+    let expLabel = document.getElementById("passExpLabel");
+    let progressFill = document.getElementById("passProgressFill");
+    if (passData.currentTier >= 60) {
+        if (expLabel) expLabel.textContent = "Пасс полностью завершён";
+        if (progressFill) progressFill.style.width = "100%";
+        return;
+    }
+
+    let nextExp = getPassExpNeeded(passData.currentTier);
+    let progressPercent = Math.min(100, Math.floor((passData.passExp / nextExp) * 100));
+    if (expLabel) expLabel.textContent = "Опыт: " + passData.passExp + " / " + nextExp;
+    if (progressFill) progressFill.style.width = progressPercent + "%";
+}
+
 function addPassExp(amount) {
     if (!passData) return;
     if (activeBuffs["doubleExp"] && activeBuffs["doubleExp"] > Date.now()) {
         amount *= 2;
     }
+
+    let previousTier = passData.currentTier;
     passData.passExp += amount;
     while (passData.currentTier < 60) {
         let needed = getPassExpNeeded(passData.currentTier);
@@ -106,6 +127,18 @@ function addPassExp(amount) {
             break;
         }
     }
+
+    if (window.MBIsPhoneGraphicsMode && window.MBIsPhoneGraphicsMode()) {
+        // The regular one-second save loop persists this progress; batch clicks together.
+        window._needSave = true;
+        let passSubTab = document.getElementById("passSubTab");
+        if (passSubTab && passSubTab.classList.contains("active")) {
+            if (passData.currentTier !== previousTier) renderPass();
+            else updatePassProgressUI();
+        }
+        return;
+    }
+
     saveAll();
     renderPass();
 }
@@ -236,10 +269,10 @@ function renderPass() {
     
     html += '<div style="text-align:center;margin-bottom:15px;">';
     html += '<div style="font-size:24px;font-weight:900;color:#ffd700;">🎫 МУЛЬТИВЕРС ПАСС</div>';
-    html += '<div style="font-size:16px;font-weight:800;margin-top:5px;">Этап ' + passData.currentTier + ' из 60</div>';
+    html += '<div id="passCurrentTierLabel" style="font-size:16px;font-weight:800;margin-top:5px;">Этап ' + passData.currentTier + ' из 60</div>';
     if (passData.currentTier < 60) {
-        html += '<div style="margin-top:8px;font-size:13px;">Опыт: ' + passData.passExp + ' / ' + nextExp + '</div>';
-        html += '<div style="background:rgba(0,0,0,0.5);border-radius:10px;margin:8px 0;height:12px;"><div style="width:' + progressPercent + '%;background:linear-gradient(90deg, #ffd700, #ff8c00);height:12px;border-radius:10px;transition:width 0.5s;"></div></div>';
+        html += '<div id="passExpLabel" style="margin-top:8px;font-size:13px;">Опыт: ' + passData.passExp + ' / ' + nextExp + '</div>';
+        html += '<div style="background:rgba(0,0,0,0.5);border-radius:10px;margin:8px 0;height:12px;"><div id="passProgressFill" style="width:' + progressPercent + '%;background:linear-gradient(90deg, #ffd700, #ff8c00);height:12px;border-radius:10px;transition:width 0.5s;"></div></div>';
     } else {
         html += '<div style="margin-top:8px;font-size:16px;color:#ffd700;font-weight:900;">🎉 ПАСС ПОЛНОСТЬЮ ЗАВЕРШЁН! 🎉</div>';
     }
