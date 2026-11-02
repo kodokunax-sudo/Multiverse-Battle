@@ -822,6 +822,9 @@ function startArena(bossWave) {
     arenaShake = 0; arenaHitFlash = 0; invulnTimer = 0; arenaComboText = ""; arenaComboTimer = 0; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0; heartRotation = 0; heartWasMoving = false; heartStandingTime = 0;
     if (!bossTestMode && bossIdentityWave === 1500) heart.y = antiSpiralFloorY();
 
+    var earlyArenaStrength = (!trainingMode && !bossTestMode && typeof window.MBGetWaveEnemyStrengthMultiplier === "function")
+        ? window.MBGetWaveEnemyStrengthMultiplier(bossIdentityWave, true)
+        : 1;
     arenaSpeedMult = Math.min(15.0, 1.0 + Math.floor((bossStrengthWave - 50) / 50) * 0.1); if (bossStrengthWave < 50) arenaSpeedMult = 1.0;
     wallSpeedMult = Math.min(4.0, 1.0 + Math.floor((bossStrengthWave - 50) / 100) * 0.15);
     if (bossStrengthWave < 50) wallSpeedMult = 1.0;
@@ -843,9 +846,6 @@ function startArena(bossWave) {
     var identityFactor = Math.max(0.5, 1.0 + (bossIdentityWave - 50) / 100 * 0.5);
     arenaBossDmgMult = (bt && bt.dmgMult) ? bt.dmgMult * strengthFactor / identityFactor : strengthFactor;
     arenaBaseDmg = Math.max(2, Math.floor((5 + bossStrengthWave * 1.5) * arenaBossDmgMult / 3));
-    var earlyArenaStrength = (!trainingMode && !bossTestMode && typeof window.MBGetWaveEnemyStrengthMultiplier === "function")
-        ? window.MBGetWaveEnemyStrengthMultiplier(bossIdentityWave, true)
-        : 1;
     arenaBaseDmg = Math.max(1, Math.floor(arenaBaseDmg * earlyArenaStrength));
     if (trainingMode) {
         // A huge fixed health pool is only cosmetic; training attacks never subtract from it.
