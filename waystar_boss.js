@@ -141,6 +141,10 @@ function wsIsTimeStopped() {
     if (typeof _superState === 'undefined') return false;
     return _superState.garouTimeStop === true || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0 || _superState.antispiralFrozen === true;
 }
+function wsIsZenoEraseActive() {
+    return typeof window.MBIsZenoEraseActive === "function" &&
+        window.MBIsZenoEraseActive("waystar");
+}
 function wsIsPlayerFrozen() {
     if (typeof _superState === 'undefined') return false;
     // ZA WARUDO freezes the world, not DIO/the player.
@@ -685,6 +689,7 @@ function spawnLightningLines(startX, startY) {
 }
 
 function waystarSpawnAttack() {
+    if (wsIsZenoEraseActive()) return;
     var type = waystarAttackType; var s = waystarSpeedMult; var isSecond = waystarBossHp <= waystarBossMaxHp * 0.75;
     if (type === 0) {
         var count = isSecond ? 4 : 2;
@@ -774,6 +779,8 @@ function waystarStartPhase2() {
 
 function updateWaystarSpaceInvaders() {
     if (wsIsTimeStopped()) return;
+    var zenoEraseActive = wsIsZenoEraseActive();
+    if (zenoEraseActive) waystarEnemyBullets.length = 0;
 
     if (waystarShootCooldown > 0) waystarShootCooldown--;
     else {
@@ -798,16 +805,18 @@ function updateWaystarSpaceInvaders() {
         wsPlaySound(1100, 'square', 0.04, 0.06);
     }
     var alivePieces = waystarPieces.filter(function(p) { return p.alive; });
-    if (alivePieces.length === 0) { waystarStartReturning(); return; }
-    var speed = (waystarInvaderSpeed + (waystarPiecesTotal - alivePieces.length) * 0.05) / WAYSTAR_SLOWDOWN;
-    var minX = 9999, maxX = -9999;
-    for (var i = 0; i < waystarPieces.length; i++) { var p = waystarPieces[i]; if (!p.alive) continue; if (p.x - p.size < minX) minX = p.x - p.size; if (p.x + p.size > maxX) maxX = p.x + p.size; }
-    if (waystarInvaderDir > 0 && maxX + speed > 390) waystarInvaderDir = -1;
-    if (waystarInvaderDir < 0 && minX - speed < 10) waystarInvaderDir = 1;
-    for (var i = 0; i < waystarPieces.length; i++) { var p = waystarPieces[i]; if (!p.alive) continue; p.trail.push({ x: p.x, y: p.y, life: 10 }); if (p.trail.length > 5) p.trail.shift(); p.x += waystarInvaderDir * speed; }
-    waystarInvaderShootTimer++;
-    var shootRate = Math.max(30, 80 - alivePieces.length / 2);
-    if (waystarInvaderShootTimer >= shootRate) { waystarInvaderShootTimer = 0; var shooter = alivePieces[Math.floor(Math.random() * alivePieces.length)]; waystarEnemyBullets.push({ x: shooter.x, y: shooter.y + 15, vy: 3.5 + Math.random() * 2, size: 8, life: 300, trail: [] }); wsPlaySound(400, 'sawtooth', 0.1, 0.1); }
+    if (alivePieces.length === 0) { if (!zenoEraseActive) waystarStartReturning(); return; }
+    if (!zenoEraseActive) {
+        var speed = (waystarInvaderSpeed + (waystarPiecesTotal - alivePieces.length) * 0.05) / WAYSTAR_SLOWDOWN;
+        var minX = 9999, maxX = -9999;
+        for (var i = 0; i < waystarPieces.length; i++) { var p = waystarPieces[i]; if (!p.alive) continue; if (p.x - p.size < minX) minX = p.x - p.size; if (p.x + p.size > maxX) maxX = p.x + p.size; }
+        if (waystarInvaderDir > 0 && maxX + speed > 390) waystarInvaderDir = -1;
+        if (waystarInvaderDir < 0 && minX - speed < 10) waystarInvaderDir = 1;
+        for (var i = 0; i < waystarPieces.length; i++) { var p = waystarPieces[i]; if (!p.alive) continue; p.trail.push({ x: p.x, y: p.y, life: 10 }); if (p.trail.length > 5) p.trail.shift(); p.x += waystarInvaderDir * speed; }
+        waystarInvaderShootTimer++;
+        var shootRate = Math.max(30, 80 - alivePieces.length / 2);
+        if (waystarInvaderShootTimer >= shootRate) { waystarInvaderShootTimer = 0; var shooter = alivePieces[Math.floor(Math.random() * alivePieces.length)]; waystarEnemyBullets.push({ x: shooter.x, y: shooter.y + 15, vy: 3.5 + Math.random() * 2, size: 8, life: 300, trail: [] }); wsPlaySound(400, 'sawtooth', 0.1, 0.1); }
+    }
     for (var i = waystarPlayerBullets.length - 1; i >= 0; i--) {
         var b = waystarPlayerBullets[i]; b.y += b.vy; b.x += (b.vx || 0); b.life--;
         if (typeof window.tryLegendarySwordBlockHit === 'function') {
@@ -835,6 +844,7 @@ function updateWaystarSpaceInvaders() {
             }
         }
     }
+    if (!zenoEraseActive) {
     for (var i = waystarEnemyBullets.length - 1; i >= 0; i--) {
         var b = waystarEnemyBullets[i]; b.y += b.vy; b.life--;
         if (b.trail) { b.trail.push({ x: b.x, y: b.y, life: 8 }); if (b.trail.length > 4) b.trail.shift(); }
@@ -842,6 +852,7 @@ function updateWaystarSpaceInvaders() {
         var dioCtxBullets=(typeof getBossContext==="function")?getBossContext():null;
         if(waystarInvulnTimer<=0&&typeof window.dioAttackTouchesStand==="function"&&dioCtxBullets&&window.dioAttackTouchesStand(dioCtxBullets,{type:"shotgun_bullet",x:b.x,y:b.y,size:b.size||8,damage:15})){if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(b);applyWaystarHit((typeof window.MBIsGoldExperienceNpcActive==="function"&&window.MBIsGoldExperienceNpcActive()&&typeof window.scaleStandBlockedDamage==="function")?window.scaleStandBlockedDamage(15):6,"удар по стенду. Джорно получает 50% урона",b);waystarEnemyBullets.splice(i,1);continue;}
         if (waystarInvulnTimer <= 0 && Math.abs(b.x - waystarPlayer.x) < 14 && Math.abs(b.y - waystarPlayer.y) < 16) { if(window.MBOnlineWaystar&&window.MBOnlineWaystar.active)window.MBOnlineWaystar.onHazardConsumed(b); applyWaystarHit(15, "ОСКОЛОК!", b); waystarEnemyBullets.splice(i, 1); }
+    }
     }
     for (var i = 0; i < waystarPieces.length; i++) if (waystarPieces[i].alive) waystarPieces[i].pulse += 0.15;
 }
@@ -957,6 +968,11 @@ function waystarSpawnPhase3Attack() {
 }
 
 function updateWaystarBombQueue() {
+    if (wsIsZenoEraseActive()) {
+        waystarBombQueue.length = 0;
+        waystarBombs.length = 0;
+        return;
+    }
     if (waystarBombQueue.length === 0 || wsIsTimeStopped()) return;
     // Use each bomb's own countdown. The old shared fight timer caused later volleys
     // to bypass their delays and spawn every queued bomb in one frame.
@@ -1093,7 +1109,7 @@ function updateWaystarPlayer() {
 
 function updateWaystarBoss() {
     if (waystarDialogActive) return;
-    if (wsIsTimeStopped()) return;
+    if (wsIsTimeStopped() || wsIsZenoEraseActive()) return;
     if (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(waystarBoss)) return;
 
     if (waystarState === "phase1") { waystarBoss.x += waystarBoss.vx * waystarSpeedMult / WAYSTAR_SLOWDOWN; if (waystarBoss.x < 60 || waystarBoss.x > 340) waystarBoss.vx *= -1; waystarBoss.rotation += 0.01 * waystarSpeedMult; waystarBoss.pulse += 0.06; waystarBoss.time += 0.015; }
@@ -1103,6 +1119,13 @@ function updateWaystarBoss() {
 }
 
 function updateWaystarAttacks() {
+    if (wsIsZenoEraseActive()) {
+        waystarAttacks.length = 0;
+        waystarEnemyBullets.length = 0;
+        waystarBombs.length = 0;
+        waystarBombQueue.length = 0;
+        return;
+    }
     var stopAll = wsIsTimeStopped();
 
     for (var i = waystarAttacks.length - 1; i >= 0; i--) {
@@ -1787,7 +1810,7 @@ function waystarRenderLoop() {
                     if (b.y < -20 || b.life <= 0) waystarPlayerBullets.splice(i, 1);
                 }
                 updateWaystarBoss(); updateWaystarAttacks();
-                if (!wsIsTimeStopped()) {
+                if (!wsIsTimeStopped() && !wsIsZenoEraseActive()) {
                     waystarAttackTimer++;
                     var hpSpeed = getWaystarHpSpeedMult();
                     var aRate = Math.floor((50 / waystarSpeedMult) * WAYSTAR_SLOWDOWN / hpSpeed);
@@ -2251,6 +2274,13 @@ window.updateWaystarShooting = updateWaystarShooting;
 window.getWaystarPlayer = function() { return waystarPlayer; };
 window.getWaystarShockwaves = function() { return waystarShockwaves; };
 window.getWaystarBullets = function() { return waystarPlayerBullets; };
+window.MBWaystarClearBossAttacks = function() {
+    waystarAttacks.length = 0;
+    waystarEnemyBullets.length = 0;
+    waystarBombs.length = 0;
+    waystarBombQueue.length = 0;
+    waystarShockwaves.length = 0;
+};
 window.getWaystarKeys = function() { return waystarKeys; };
 window.getWaystarTouch = function() { return { active: waystarTouchActive, x: waystarTouchX, y: waystarTouchY }; };
 window.waystarSound = wsPlaySound;
