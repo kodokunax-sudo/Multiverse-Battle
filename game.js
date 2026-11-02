@@ -2565,7 +2565,9 @@ function generateEnemy() {
     } else if (isBoss) { 
         hp = Math.floor((50 + wave * 12) * 2); 
         dmg = Math.floor((15 + wave * 6) * 1); 
-        name = "👑 БОСС"; 
+        // Every 10th wave is a mini-boss unless this wave has a dedicated fight button.
+        const hasDedicatedFightButton = wave % 50 === 0 && wave >= 50;
+        name = hasDedicatedFightButton ? "👑 БОСС" : "⚔️ МИНИ-БОСС"; 
         hideBossDialogue(); 
     } else { 
         hp = 50 + wave * 12; 
