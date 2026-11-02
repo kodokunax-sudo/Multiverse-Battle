@@ -277,10 +277,11 @@
         } catch(e) { return false; }
     }
 
-    function addResource(id, count) {
+    function addResource(id, count, deferRefresh) {
         if (!RESOURCES[id] && !INTERMEDIATE[id]) return;
         if (!resources[id]) resources[id] = 0;
         resources[id] += count;
+        if (deferRefresh) return;
         saveCraftingData();
         if (typeof renderInventory === 'function') renderInventory();
     }
@@ -311,14 +312,23 @@
             if (Math.random() < chance) {
                 let count = 1;
                 if (isBoss && Math.random() < 0.3) count = 2;
-                addResource(id, count);
+                addResource(id, count, true);
                 dropped++;
-                if (typeof showFloatingText === 'function') {
-                    let icon = RESOURCES[id] ? RESOURCES[id].icon : "📦";
-                    let name = RESOURCES[id] ? RESOURCES[id].name : id;
-                    showFloatingText(icon + " " + name + " +" + count, "#aaddff");
+                let icon = RESOURCES[id] ? RESOURCES[id].icon : "📦";
+                let name = RESOURCES[id] ? RESOURCES[id].name : id;
+                let receiptText = icon + " " + name + " +" + count;
+                let shouldHideReceipt = typeof window !== "undefined" &&
+                    typeof window.MBShouldHideClickTexts === "function" &&
+                    window.MBShouldHideClickTexts(receiptText);
+                if (typeof showFloatingText === 'function' && !shouldHideReceipt) {
+                    showFloatingText(receiptText, "#aaddff");
                 }
             }
+        }
+        // A kill can drop several materials: persist and redraw the inventory only once.
+        if (dropped > 0) {
+            saveCraftingData();
+            if (typeof renderInventory === 'function') renderInventory();
         }
         return dropped;
     }
