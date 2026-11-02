@@ -839,6 +839,10 @@ function startArena(bossWave) {
     var identityFactor = Math.max(0.5, 1.0 + (bossIdentityWave - 50) / 100 * 0.5);
     arenaBossDmgMult = (bt && bt.dmgMult) ? bt.dmgMult * strengthFactor / identityFactor : strengthFactor;
     arenaBaseDmg = Math.max(2, Math.floor((5 + bossStrengthWave * 1.5) * arenaBossDmgMult / 3));
+    var earlyArenaStrength = (!trainingMode && !bossTestMode && typeof window.MBGetWaveEnemyStrengthMultiplier === "function")
+        ? window.MBGetWaveEnemyStrengthMultiplier(bossIdentityWave, true)
+        : 1;
+    arenaBaseDmg = Math.max(1, Math.floor(arenaBaseDmg * earlyArenaStrength));
     if (trainingMode) {
         // A huge fixed health pool is only cosmetic; training attacks never subtract from it.
         arenaBossMaxHP = 1000000000;
@@ -847,6 +851,7 @@ function startArena(bossWave) {
         arenaBossMaxHP = Math.max(5, idealTestDamage * 5);
     } else {
         arenaBossMaxHP = bt ? Math.floor((50 + bossIdentityWave * 12) * bt.hpMult) : 1000 + bossIdentityWave * 10;
+        arenaBossMaxHP = Math.max(1, Math.floor(arenaBossMaxHP * earlyArenaStrength));
     }
     arenaBossOriginalMaxHP = arenaBossMaxHP;
     ghostBossHP = arenaBossMaxHP;
