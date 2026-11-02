@@ -2372,10 +2372,12 @@ function shouldHideClickCombatText(text) {
         /^🎁\s*.+\sкуплено!$/i.test(value) ||
         /^🥤\s*Пасхалка:/i.test(value) ||
         /\s\+\d+$/.test(value) && !/[⭐⚡💰]/.test(value) ||
+        /^[^\s]+\s+.+\s\+\d+$/u.test(value) ||
         /готово!$/i.test(value) && !/уровень|настройки/i.test(value);
 
     return isCombatText || isItemReceipt;
 }
+window.MBShouldHideClickTexts = shouldHideClickCombatText;
 
 function showFloatingText(text, color) {
     if (shouldHideClickCombatText(text)) return;
