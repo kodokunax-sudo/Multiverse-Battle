@@ -167,6 +167,7 @@
         return -1;
     }
     function asDrawSeals(c, now) {
+        const reduceGraphics = asFrameReduceGraphics;
         for (let i = 0; i < asSeals.length; i++) {
             const seal = asSeals[i];
             if (seal.broken) continue;
@@ -174,7 +175,7 @@
             const pulse = 1 + Math.sin(asFrame * .14 + seal.phase) * .12;
             c.save(); c.translate(seal.x, seal.y);
             c.globalAlpha = .76 + Math.sin(asFrame * .11 + seal.phase) * .18;
-            c.shadowColor = "#c576ff"; c.shadowBlur = 20;
+            c.shadowColor = "#c576ff"; c.shadowBlur = reduceGraphics ? 3 : 20;
             c.strokeStyle = "#e5c5ff"; c.lineWidth = 1.8;
             c.beginPath(); c.arc(0, 0, seal.radius * 1.75 * pulse, 0, Math.PI * 2); c.stroke();
             c.rotate(now * .0015 + seal.phase);
@@ -373,6 +374,7 @@
     function asDrawPlatforms(c, now) {
         if (!asPlatforms.length) asInitPlatforms();
         const safeIndex = asSafePlatformIndex();
+        const reduceGraphics = asFrameReduceGraphics;
         for (let i = 0; i < asPlatforms.length; i++) {
             if (!asPlatformIsVisible(i, now) && i !== safeIndex) continue;
             const g = asPlatformGeometry(asPlatforms[i], i, now);
@@ -384,7 +386,7 @@
                 c.strokeRect(g.x - 4, g.y - 4, g.w + 8, g.h + 8); c.setLineDash([]);
             }
             c.shadowColor = safe ? "#76ffff" : current ? "#5adfff" : "#a65dff";
-            c.shadowBlur = safe ? 24 : current ? 16 : 10;
+            c.shadowBlur = reduceGraphics ? 3 : (safe ? 24 : current ? 16 : 10);
             c.fillStyle = safe ? "rgba(104,255,255,.46)" : current ? "rgba(56,190,255,.42)" : "rgba(104,72,170,.48)";
             c.strokeStyle = safe ? "#e8ffff" : current ? "#8ef4ff" : "#bda5ff";
             c.lineWidth = safe ? 2.5 : 1.4;
@@ -997,12 +999,13 @@
         if (asClonePhase === "shuffle" && now >= asCloneNextShuffleAt) asShuffleCloneTargets(now);
     }
     function asDrawCloneHunt(c, now) {
+        const reduceGraphics = asFrameReduceGraphics;
         asClones.forEach(function(clone) {
             if (!clone.alive) return;
             c.save();
             c.globalAlpha = .22 + Math.abs(Math.sin(now / 130 + clone.phase)) * .14;
             c.strokeStyle = "#8e67ff"; c.lineWidth = 1.4;
-            c.shadowColor = "#a968ff"; c.shadowBlur = 14;
+            c.shadowColor = "#a968ff"; c.shadowBlur = reduceGraphics ? 3 : 14;
             c.beginPath(); c.ellipse(clone.x, clone.y, 30, 38, Math.sin(now / 700 + clone.phase) * .12, 0, Math.PI * 2); c.stroke();
             c.restore();
             asDrawAntiSpiralHead(c, clone.x, clone.y, .86, now + clone.phase * 120, 1);
@@ -1818,6 +1821,7 @@
     };
 
     function asDrawDrillShots(c,now) {
+        const reduceGraphics = asFrameReduceGraphics;
         for (let i = asDrillShots.length - 1; i >= 0; i--) {
             const shot = asDrillShots[i];
             const speed = Math.max(.01, Math.hypot(shot.vx, shot.vy));
@@ -1834,7 +1838,7 @@
                 const p0=shot.trail[t-1],p1=shot.trail[t],f=t/shot.trail.length;
                 c.globalAlpha=(.14+.62*f)*(.65+shot.charge*.45);
                 c.strokeStyle=t%3===0?"#d3a4ff":"#65f5ff";
-                c.shadowColor=c.strokeStyle;c.shadowBlur=7+shot.charge*17;
+                c.shadowColor=c.strokeStyle;c.shadowBlur=reduceGraphics?Math.max(0,Math.min(3,(7+shot.charge*17))):(7+shot.charge*17);
                 c.lineWidth=(1.2+shot.charge*4.8)*f;
                 c.beginPath();c.moveTo(p0.x,p0.y);c.lineTo(p1.x,p1.y);c.stroke();
             }
@@ -1842,9 +1846,9 @@
             c.save(); c.translate(shot.x,shot.y); c.rotate(Math.atan2(shot.vy,shot.vx) + Math.PI/2);
             const pulse=1+Math.sin(shot.phase*1.5)*.1;
             const radius=shot.radius*(.94+shot.charge*.18)*pulse;
-            c.globalAlpha=.32;c.fillStyle="#62edff";c.shadowColor="#5eeeff";c.shadowBlur=32;
+            c.globalAlpha=.32;c.fillStyle="#62edff";c.shadowColor="#5eeeff";c.shadowBlur=reduceGraphics?Math.max(0,Math.min(3,(32))):(32);
             c.beginPath();c.arc(0,0,radius*1.65,0,Math.PI*2);c.fill();
-            c.globalAlpha=1;c.shadowColor=shot.charge>.78?"#d19aff":"#55eaff";c.shadowBlur=26+shot.charge*30;
+            c.globalAlpha=1;c.shadowColor=shot.charge>.78?"#d19aff":"#55eaff";c.shadowBlur=reduceGraphics?Math.max(0,Math.min(3,(26+shot.charge*30))):(26+shot.charge*30);
             const core=c.createLinearGradient(0,-radius*2.1,0,radius*1.1);
             core.addColorStop(0,"#ffffff");core.addColorStop(.28,shot.charge>.78?"#f4eaff":"#c8fbff");
             core.addColorStop(.62,"#57ecff");core.addColorStop(1,shot.charge>.78?"#a56bff":"#1687ff");
@@ -1853,7 +1857,7 @@
             c.lineTo(radius*.48,radius*.75);c.lineTo(0,radius*1.12);
             c.lineTo(-radius*.48,radius*.75);c.lineTo(-radius*.76,-radius*.16);c.closePath();c.fill();
             c.strokeStyle="#ffffff";c.lineWidth=1.7;c.stroke();
-            c.strokeStyle=shot.charge>.78?"#e4baff":"#bdfcff";c.lineWidth=1.6;c.shadowBlur=18;
+            c.strokeStyle=shot.charge>.78?"#e4baff":"#bdfcff";c.lineWidth=1.6;c.shadowBlur=reduceGraphics?Math.max(0,Math.min(3,(18))):(18);
             c.beginPath();c.ellipse(0,0,radius*1.28,radius*.43,shot.phase,0,Math.PI*2);c.stroke();
             c.beginPath();c.ellipse(0,0,radius*.84,radius*.28,-shot.phase*1.35,0,Math.PI*2);c.stroke();
             c.globalAlpha=.95;c.lineWidth=1.4;
@@ -1939,10 +1943,11 @@
             if(shot.travelled >= (shot.distanceMax || Infinity) || shot.life<=0 || shot.x<-50 || shot.x>450 || shot.y<-50 || shot.y>550)asDrillShots.splice(i,1);
         }
     }
+    let asFrameReduceGraphics = false;
     function asDrawChargeAura(c,now) {
         if(asChargeFrames<=0)return;
         const pct=Math.min(1,asChargeFrames/150);
-        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        const reduceGraphics = !!(asFrameReduceGraphics);
         c.save();c.translate(asPlayer.x,asPlayer.y-2);
         c.globalAlpha=.35+pct*.55;c.strokeStyle=pct>.8?"#ffffff":"#61eaff";
         c.shadowColor=pct>.8?"#c08bff":"#39d9ff";c.shadowBlur=reduceGraphics?3:8+pct*24;c.lineWidth=1.5+pct*2;
@@ -1965,7 +1970,7 @@
             c.restore();
             return;
         }
-        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        const reduceGraphics = !!(asFrameReduceGraphics);
         c.shadowColor="#33c7ff";c.shadowBlur=reduceGraphics?2:18;
         if (reduceGraphics) c.fillStyle = "#30c5ff";
         else {
@@ -1982,7 +1987,7 @@
         c.lineCap="round"; c.lineJoin="round";
         c.beginPath(); c.ellipse(x,y,r,r*0.9,Math.sin(now/900)*0.08,0,Math.PI*2); c.stroke();
         c.beginPath();
-        const spiralSteps = window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects() ? 36 : 52;
+        const spiralSteps = asFrameReduceGraphics ? 36 : 52;
         for(let n=0;n<spiralSteps;n++){
             const q=n/(spiralSteps-1), a=(reverse?-1:1)*q*Math.PI*5.4+now*0.00025;
             const rr=(0.08+q*0.82)*r;
@@ -1995,7 +2000,7 @@
     function asDrawAntiSpiralFigure(c, x, y, scale, now, opacity, enhancedFightBody) {
         const bob=Math.sin(now/360)*2.2;
         c.save(); c.translate(x,y+bob); c.scale(scale,scale); c.globalAlpha=opacity===undefined?1:opacity;
-        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        const reduceGraphics = !!(asFrameReduceGraphics);
         c.shadowColor=enhancedFightBody?"#873bff":"#a855ff"; c.shadowBlur=reduceGraphics?3:(enhancedFightBody?28:16);
         // Fight-only outline makes the complete silhouette visible without altering the cinematic rendering.
         c.fillStyle=enhancedFightBody?"#0b071b":"#030207"; c.strokeStyle=enhancedFightBody?"#c9adff":"#eeeaff"; c.lineWidth=enhancedFightBody?2.5:1.6;
@@ -2046,7 +2051,7 @@
         const bob=Math.sin(now/360)*1.7;
         c.save();c.translate(x,y+bob);c.scale(scale,scale);
         c.globalAlpha=opacity===undefined?1:opacity;
-        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        const reduceGraphics = !!(asFrameReduceGraphics);
         // A floating, oversized head with the same spiral eyes as the cinematic character.
         c.shadowColor="#9d50ff";c.shadowBlur=reduceGraphics?3:24;
         c.strokeStyle="#c8a9ff";c.lineWidth=1.5;
@@ -2083,7 +2088,7 @@
             asDrawAntiSpiralHead(c, asBoss.x - 69, asBoss.y + 24, 0.58, now + 280, .22);
             asDrawAntiSpiralHead(c, asBoss.x + 69, asBoss.y + 24, 0.58, now - 360, .22);
         }
-        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        const reduceGraphics = !!(asFrameReduceGraphics);
         if (asBossExposed > 0) {
             c.save();
             c.globalAlpha = .42 + Math.sin(asFrame * .32) * .18;
@@ -2119,7 +2124,7 @@
     }
     function asDrawRedHeart(c,x,y,now,shot) {
         c.save();c.translate(x,y);c.shadowColor="#ff233f";
-        c.shadowBlur = window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects() ? 3 : (shot ? 22 : 13);
+        c.shadowBlur = asFrameReduceGraphics ? 3 : (shot ? 22 : 13);
         c.rotate(Math.sin(now/130)*.12);
         c.fillStyle=shot?"#ff4a52":"#ff203d";
         c.beginPath();c.moveTo(0,8);c.bezierCurveTo(-4,5,-12,-2,-11,-8);c.bezierCurveTo(-10,-16,-2,-15,0,-8);
@@ -2128,7 +2133,7 @@
         c.restore();
     }
     function asDrawGalaxyBackdrop(c,now) {
-        if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) {
+        if (asFrameReduceGraphics) {
             // Preserve the space palette and moving planets without per-frame radial gradients.
             c.save();
             c.fillStyle = "#050511"; c.fillRect(0, 45, 400, 455);
@@ -2198,7 +2203,7 @@
     function asDrawArenaAtmosphere(c, now, left, top, width, height) {
         c.save();
         c.beginPath();c.rect(left,top,width,height);c.clip();
-        if (window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects()) {
+        if (asFrameReduceGraphics) {
             c.fillStyle = "#050510";
             c.fillRect(left, top, width, height);
             c.restore();
@@ -2281,6 +2286,7 @@
     }
     function asRenderCinematic(c,now) {
         const t=Math.max(0,(now-asCinematicStart)/1000);
+        const reduceGraphics = asFrameReduceGraphics;
         asDrawGalaxyBackdrop(c,now);
         // Fast star streaks sell the initial flight through a deep-space panorama.
         c.save();c.globalAlpha=Math.max(0,Math.min(.65,(3.2-t)*.22));
@@ -2305,13 +2311,13 @@
                 let sx,sy,back=0;
                 if(st<.62){sx=hx+16+st*190;sy=hy-8+i*7+Math.sin(st*14+i)*4;}
                 else {back=Math.min(1,(st-.62)/1.05);sx=hx+16+118*(1-back);sy=hy-8+i*7+back*34;}
-                c.save();c.globalAlpha=st<.62?1:Math.max(0,1-back*.55);c.strokeStyle="#ff354b";c.lineWidth=3;c.shadowColor="#ff173d";c.shadowBlur=15;
+                c.save();c.globalAlpha=st<.62?1:Math.max(0,1-back*.55);c.strokeStyle="#ff354b";c.lineWidth=3;c.shadowColor="#ff173d";c.shadowBlur=reduceGraphics?Math.max(0,Math.min(3,(15))):(15);
                 c.beginPath();c.moveTo(sx-24,sy-4);c.lineTo(sx+2,sy+1);c.stroke();c.restore();
-                c.save();c.translate(sx,sy);c.rotate(st*5);c.fillStyle="#ff263f";c.shadowColor="#ff2d48";c.shadowBlur=17;
+                c.save();c.translate(sx,sy);c.rotate(st*5);c.fillStyle="#ff263f";c.shadowColor="#ff2d48";c.shadowBlur=reduceGraphics?Math.max(0,Math.min(3,(17))):(17);
                 c.beginPath();c.moveTo(0,-7);c.lineTo(7,0);c.lineTo(0,7);c.lineTo(-7,0);c.closePath();c.fill();c.restore();
             }
             // A thin reality plane catches the shots; the Anti-Spiral does not move.
-            c.save();c.globalAlpha=.35+.18*Math.sin(now/42);c.strokeStyle="#c99aff";c.lineWidth=2;c.shadowColor="#ba59ff";c.shadowBlur=24;
+            c.save();c.globalAlpha=.35+.18*Math.sin(now/42);c.strokeStyle="#c99aff";c.lineWidth=2;c.shadowColor="#ba59ff";c.shadowBlur=reduceGraphics?Math.max(0,Math.min(3,(24))):(24);
             c.beginPath();c.moveTo(224,105);c.lineTo(224,337);c.stroke();
             for(let i=0;i<4;i++){c.beginPath();c.moveTo(211+i*6,155);c.lineTo(238-i*4,180+i*20);c.stroke();}
             c.restore();
@@ -2321,7 +2327,7 @@
         asCinematicArenaProgress=arena;
         if(arena>0){
             const w=30+arena*390,h=18+arena*345,top=278+arena*35;
-            c.save();c.globalAlpha=arena;c.strokeStyle="#7adfff";c.lineWidth=2;c.shadowColor="#7d3dff";c.shadowBlur=23;
+            c.save();c.globalAlpha=arena;c.strokeStyle="#7adfff";c.lineWidth=2;c.shadowColor="#7d3dff";c.shadowBlur=reduceGraphics?Math.max(0,Math.min(3,(23))):(23);
             c.fillStyle="rgba(34,13,77,.24)";c.fillRect((400-w)/2,top,w,h);c.strokeRect((400-w)/2,top,w,h);
             for(let i=0;i<7;i++){const xx=(400-w)/2+w*i/6;c.beginPath();c.moveTo(xx,top);c.lineTo(200+(xx-200)*.43,top-44*arena);c.stroke();}
             for(let i=0;i<4;i++){const yy=top+h*i/3;c.globalAlpha=arena*(.45+i*.12);c.beginPath();c.moveTo((400-w)/2,yy);c.lineTo((400+w)/2,yy);c.stroke();}
@@ -2343,7 +2349,7 @@
         else if(t>=16.65&&t<18.15) asDrawSpeech(c,"АНТИ-СПИРАЛЬ","Тебе конец.",72,"#d4c4ff",now);
         if(t>=10.7&&t<14.6){
             // Muzzle flare on the red soul before each outgoing projectile.
-            c.save();c.globalAlpha=.65+.25*Math.sin(now/28);c.fillStyle="#ff223f";c.shadowColor="#ff173d";c.shadowBlur=20;
+            c.save();c.globalAlpha=.65+.25*Math.sin(now/28);c.fillStyle="#ff223f";c.shadowColor="#ff173d";c.shadowBlur=reduceGraphics?Math.max(0,Math.min(3,(20))):(20);
             c.beginPath();c.arc(hx+13,hy,4+Math.sin(now/26)*2,0,Math.PI*2);c.fill();c.restore();
         }
         asDrawRedHeart(c,hx,hy,now,t>=10.7&&t<14.6);
@@ -2602,7 +2608,7 @@
         const right = 366 - progress * 34;
         const top = 91 + progress * 39;
         const bottom = 466 - progress * 43;
-        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        const reduceGraphics = !!(asFrameReduceGraphics);
         c.save();
         c.translate((Math.random() - 0.5) * asShake * 2.2, (Math.random() - 0.5) * asShake * 2.2);
         c.fillStyle = "rgba(2,0,12,.97)";
@@ -2714,7 +2720,7 @@
         c.globalAlpha = 0.48 + Math.sin(now * 0.012) * 0.22;
         c.strokeStyle = "#c58aff";
         c.shadowColor = "#a54dff";
-        c.shadowBlur = 25;
+        c.shadowBlur = reduceGraphics ? 3 : 25;
         c.lineWidth = 2.3;
         c.beginPath();
         const miniVisualScale=asPlayer.size/12;
@@ -2752,7 +2758,7 @@
     function asDrawReassemblyEffect(c, now) {
         if (now >= asReassemblyEffectUntil) return;
         const progress = 1 - Math.max(0, asReassemblyEffectUntil - now) / 1200;
-        const reduceGraphics = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        const reduceGraphics = !!(asFrameReduceGraphics);
         const shardCount = reduceGraphics ? 12 : 34;
         c.save();
         c.globalAlpha = Math.max(0, 1 - progress * 0.65);
@@ -2774,6 +2780,7 @@
     function asRender(now) {
         if(!asActive) return;
         const reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        asFrameReduceGraphics = reduceBossEffects;
         const mediumGraphics = !!(window.MBIsMediumGraphics && window.MBIsMediumGraphics());
         if (reduceBossEffects) {
             // Light mode keeps camera shake and all character models. Remove screen flashes
@@ -2898,11 +2905,11 @@
                         c.save();
                         if(path.length>1){
                             c.globalAlpha=.34;c.strokeStyle="#a76dff";c.lineWidth=2;
-                            c.shadowColor="#8b5dff";c.shadowBlur=9;c.beginPath();
+                            c.shadowColor="#8b5dff";c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(9))):(9);c.beginPath();
                             c.moveTo(path[0].x,path[0].y);
                             for(let p=1;p<path.length;p++)c.lineTo(path[p].x,path[p].y);
                             c.stroke();
-                            c.globalAlpha=.76;c.fillStyle="#66eaff";c.shadowColor="#57dfff";c.shadowBlur=12;
+                            c.globalAlpha=.76;c.fillStyle="#66eaff";c.shadowColor="#57dfff";c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(12))):(12);
                             const tail=path[path.length-1];c.beginPath();c.arc(tail.x,tail.y,3.5,0,Math.PI*2);c.fill();
                         }
                         c.restore();
@@ -2928,7 +2935,7 @@
                         c.save();
                         c.globalAlpha=.20;c.strokeStyle="#a46bff";c.lineWidth=2;c.beginPath();
                         c.moveTo(path[0].x,path[0].y);for(let p=1;p<path.length;p++)c.lineTo(path[p].x,path[p].y);c.stroke();
-                        c.lineCap="round";c.lineJoin="round";c.shadowColor="#ba62ff";c.shadowBlur=17;
+                        c.lineCap="round";c.lineJoin="round";c.shadowColor="#ba62ff";c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(17))):(17);
                         for(let seg=0;seg<path.length-1;seg++){
                             if((a.hotUntil[seg]||0)<=asFrame)continue;
                             const p1=path[seg],p2=path[seg+1];
@@ -2945,7 +2952,7 @@
                             }
                         }
                         const ghost=path[index]||path[0];
-                        c.globalAlpha=.95;c.shadowColor="#63edff";c.shadowBlur=25;c.fillStyle="#73f3ff";
+                        c.globalAlpha=.95;c.shadowColor="#63edff";c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(25))):(25);c.fillStyle="#73f3ff";
                         c.beginPath();c.moveTo(ghost.x,ghost.y+8);
                         c.bezierCurveTo(ghost.x-15,ghost.y-1,ghost.x-12,ghost.y-13,ghost.x-5,ghost.y-13);
                         c.bezierCurveTo(ghost.x-1,ghost.y-13,ghost.x,ghost.y-9,ghost.x,ghost.y-7);
@@ -2970,7 +2977,7 @@
                         c.globalAlpha=.18;c.strokeStyle="#ad6cff";c.lineWidth=2;c.setLineDash([4,7]);c.beginPath();
                         c.moveTo(path[0].x,path[0].y);for(let p=1;p<path.length;p++)c.lineTo(path[p].x,path[p].y);c.stroke();c.setLineDash([]);
                         const node=a.node||path[0],pulse=1+Math.sin(asFrame*.24)*.18;
-                        c.globalAlpha=.9;c.shadowColor="#5fefff";c.shadowBlur=30;c.strokeStyle="#d7fcff";c.lineWidth=2.2;
+                        c.globalAlpha=.9;c.shadowColor="#5fefff";c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(30))):(30);c.strokeStyle="#d7fcff";c.lineWidth=2.2;
                         c.beginPath();c.arc(node.x,node.y,12*pulse,0,Math.PI*2);c.stroke();
                         c.globalAlpha=.34;c.fillStyle="#4be7ff";c.beginPath();c.arc(node.x,node.y,10*pulse,0,Math.PI*2);c.fill();
                         c.globalAlpha=1;c.strokeStyle="#ffffff";c.lineWidth=2;
@@ -3114,12 +3121,12 @@
                 if(a.kind==="sweep"){
                     if(a.warning>0){
                         a.warning-=asTimeScale;
-                        c.save();c.globalAlpha=.35+Math.abs(Math.sin(asFrame*.3))*.38;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=15;c.lineWidth=2;
+                        c.save();c.globalAlpha=.35+Math.abs(Math.sin(asFrame*.3))*.38;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(15))):(15);c.lineWidth=2;
                         c.setLineDash([9,6]);c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();c.setLineDash([]);
                         c.fillStyle="#ffffff";c.font="bold 10px monospace";c.textAlign="center";c.fillText("УДАР РУКОЙ — ПРЫГАЙ!",200,a.y-7);c.restore();
                     }else{
                         a.life-=asTimeScale;
-                        c.save();c.globalAlpha=.28;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=25;c.lineWidth=30;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();
+                        c.save();c.globalAlpha=.28;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(25))):(25);c.lineWidth=30;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();
                         c.globalAlpha=.95;c.lineWidth=8;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();
                         c.globalAlpha=1;c.strokeStyle="#ffffff";c.lineWidth=1.5;c.beginPath();c.moveTo(b.left,a.y);c.lineTo(b.right,a.y);c.stroke();c.restore();
                         if(!a.hit && Math.abs(asPlayer.y-a.y)<20){asDamagePlayer(a.damage,"УДАР ГРАНДЗЕБОМОЙ",a);a.hit=true;}
@@ -3134,7 +3141,7 @@
                         const lineX=side===1?wb.left+9:wb.right-9;
                         const lineY=side===2?wb.top+9:wb.bottom-9;
                         c.save();c.globalAlpha=.64+Math.abs(Math.sin(asFrame*.42))*.34;
-                        c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=25;c.lineWidth=3;
+                        c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(25))):(25);c.lineWidth=3;
                         c.setLineDash([10,6]);c.beginPath();
                         if(side%2===0){c.moveTo(wb.left+5,lineY);c.lineTo(wb.right-5,lineY);}
                         else{c.moveTo(lineX,wb.top+5);c.lineTo(lineX,wb.bottom-5);}
@@ -3170,7 +3177,7 @@
                     a.warning-=asTimeScale;
                     const wb=asBounds();
                     c.save();c.globalAlpha=.42+Math.abs(Math.sin(asFrame*.42))*.48;
-                    c.strokeStyle="#ff68d9";c.shadowColor="#ff46c8";c.shadowBlur=16;c.lineWidth=2;
+                    c.strokeStyle="#ff68d9";c.shadowColor="#ff46c8";c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(16))):(16);c.lineWidth=2;
                     c.setLineDash([6,6]);c.beginPath();c.moveTo(a.x,wb.top+7);c.lineTo(a.x,wb.bottom-7);c.stroke();c.setLineDash([]);
                     c.fillStyle="#ffffff";c.font="bold 9px monospace";c.textAlign="center";
                     c.fillText("ОПАСНОСТЬ",a.x,wb.top+21);
@@ -3182,7 +3189,7 @@
                         a.timer=Math.max(0,a.timer-asTimeScale);
                         const pulse=1+Math.sin(asFrame*.22)*.12;
                         c.save();c.globalAlpha=.45+Math.abs(Math.sin(asFrame*.17))*.35;c.translate(a.x,a.y);
-                        c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=14;c.lineWidth=1.8;
+                        c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(14))):(14);c.lineWidth=1.8;
                         c.beginPath();c.arc(0,0,a.radius*pulse,0,Math.PI*2);c.stroke();
                         c.beginPath();c.arc(0,0,a.radius*.62,0,Math.PI*2);c.stroke();
                         c.beginPath();c.moveTo(-a.radius-7,0);c.lineTo(-a.radius*.48,0);c.moveTo(a.radius*.48,0);c.lineTo(a.radius+7,0);
@@ -3197,7 +3204,7 @@
                     }
                     if(a.burst){
                         const t=1-a.life/18;const radius=a.radius*(.6+t*.8);
-                        c.save();c.globalAlpha=Math.max(.08,a.life/18);c.strokeStyle=a.color;c.fillStyle=a.color;c.shadowColor=a.color;c.shadowBlur=20;c.lineWidth=3;
+                        c.save();c.globalAlpha=Math.max(.08,a.life/18);c.strokeStyle=a.color;c.fillStyle=a.color;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(20))):(20);c.lineWidth=3;
                         c.beginPath();c.arc(a.x,a.y,radius,0,Math.PI*2);c.stroke();
                         c.globalAlpha=Math.max(.04,a.life/18)*.28;c.beginPath();c.arc(a.x,a.y,radius*.72,0,Math.PI*2);c.fill();c.restore();
                         if(!a.hit&&Math.hypot(asPlayer.x-a.x,asPlayer.y-a.y)<a.radius+asPlayer.size){asDamagePlayer(a.damage,"КОЛЛАПС ВЕРОЯТНОСТИ",a);a.hit=true;}
@@ -3213,7 +3220,7 @@
                             const pulse=1+Math.sin(asFrame*.32)*.12;
                             c.save();c.translate(a.x,a.y);
                             c.globalAlpha=.5+Math.abs(Math.sin(asFrame*.24))*.42;
-                            c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=24;c.lineWidth=2.2;
+                            c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(24))):(24);c.lineWidth=2.2;
                             for(let ring=0;ring<4;ring++){
                                 const radius=(a.radius*.48+ring*13+charge*17)*pulse;
                                 c.beginPath();c.ellipse(0,0,radius,radius*.56,asFrame*.025*(ring%2?1:-1),0,Math.PI*2);c.stroke();
@@ -3228,7 +3235,7 @@
                             c.restore();
                             const warningBounds=asBounds();
                             c.save();c.fillStyle="rgba(4,2,16,.88)";c.fillRect(62,warningBounds.top+12,276,34);
-                            c.strokeStyle=a.color;c.lineWidth=1.5;c.shadowColor=a.color;c.shadowBlur=12;c.strokeRect(62,warningBounds.top+12,276,34);
+                            c.strokeStyle=a.color;c.lineWidth=1.5;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(12))):(12);c.strokeRect(62,warningBounds.top+12,276,34);
                             c.fillStyle="#ffffff";c.font="bold 11px monospace";c.textAlign="center";
                             c.fillText("⚠ ЧЁРНАЯ ДЫРА ЗАРЯЖАЕТСЯ",200,warningBounds.top+26);
                             c.fillStyle=a.color;c.font="bold 10px monospace";
@@ -3246,7 +3253,7 @@
                         const distortion=c.createRadialGradient(0,0,2,0,0,a.pullRadius*.56);
                         distortion.addColorStop(0,"rgba(0,0,0,.98)");distortion.addColorStop(.32,"rgba(4,2,18,.8)");distortion.addColorStop(.68,a.color+"22");distortion.addColorStop(1,"rgba(0,0,0,0)");
                         c.globalAlpha=.7;c.fillStyle=distortion;c.beginPath();c.arc(0,0,a.pullRadius*.56,0,Math.PI*2);c.fill();
-                        c.globalAlpha=.92;c.shadowColor=a.color;c.shadowBlur=32;
+                        c.globalAlpha=.92;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(32))):(32);
                         const glow=c.createRadialGradient(0,0,2,0,0,a.radius*1.4);
                         glow.addColorStop(0,"rgba(5,4,20,.96)");glow.addColorStop(.42,a.color);glow.addColorStop(1,"rgba(5,4,20,0)");
                         c.fillStyle=glow;c.beginPath();c.arc(0,0,a.radius*1.4,0,Math.PI*2);c.fill();
@@ -3265,7 +3272,7 @@
                         }
                     }else{
                         const t=1-a.life/28;
-                        c.save();c.globalAlpha=Math.max(0,a.life/28);c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=18;c.lineWidth=2;
+                        c.save();c.globalAlpha=Math.max(0,a.life/28);c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(18))):(18);c.lineWidth=2;
                         c.beginPath();c.arc(a.x,a.y,12+t*a.radius,0,Math.PI*2);c.stroke();
                         c.restore();a.life-=asTimeScale;if(a.life<=0)asAttacks.splice(i,1);
                     }
@@ -3281,7 +3288,7 @@
                         const warnPulse=.32+Math.abs(Math.sin(asFrame*.28))*.32;
                         c.save();
                         c.fillStyle=a.color;c.globalAlpha=.075+warnPulse*.08;c.fillRect(bounds.left,startTop,bounds.right-bounds.left,height);
-                        c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=18;c.lineWidth=2;c.setLineDash([10,6]);
+                        c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(18))):(18);c.lineWidth=2;c.setLineDash([10,6]);
                         c.globalAlpha=.6+warnPulse*.35;c.strokeRect(bounds.left,startTop,bounds.right-bounds.left,height);c.setLineDash([]);
                         // Preview the zone's destination so the safe platforms are readable early.
                         const endTop=a.zone==="upper"?Math.min(bounds.bottom-height,startTop+travel):Math.max(bounds.top,startTop-travel);
@@ -3310,10 +3317,10 @@
                         c.save();
                         const grad=c.createLinearGradient(0,zoneTop,0,zoneTop+height);
                         grad.addColorStop(0,"rgba(0,0,0,0)");grad.addColorStop(.18,a.color+"55");grad.addColorStop(.5,a.color+"99");grad.addColorStop(.82,a.color+"55");grad.addColorStop(1,"rgba(0,0,0,0)");
-                        c.fillStyle=grad;c.shadowColor=a.color;c.shadowBlur=28;c.fillRect(bounds.left,zoneTop,bounds.right-bounds.left,height);
+                        c.fillStyle=grad;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(28))):(28);c.fillRect(bounds.left,zoneTop,bounds.right-bounds.left,height);
                         c.globalAlpha=.48;c.fillStyle=a.color;c.fillRect(bounds.left,zoneTop+height*.12,bounds.right-bounds.left,height*.76);
                         // Multiple moving filaments make it read as an enormous energized wall, not a thin line.
-                        c.globalAlpha=.8;c.lineWidth=2;c.strokeStyle="#ffffff";c.shadowColor=a.color;c.shadowBlur=18;
+                        c.globalAlpha=.8;c.lineWidth=2;c.strokeStyle="#ffffff";c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(18))):(18);
                         for(let stripe=0;stripe<7;stripe++){
                             const sy=zoneTop+((asFrame*4+stripe*29)%(Math.max(1,height)));
                             c.globalAlpha=.3+(stripe%3)*.18;c.beginPath();c.moveTo(bounds.left,sy);c.lineTo(bounds.right,sy+Math.sin(asFrame*.12+stripe)*2);c.stroke();
@@ -3345,7 +3352,7 @@
                     const lineCoord=vertical?a.x:a.y;
                     if(a.warning>0){
                         a.warning-=asTimeScale;
-                        c.save();c.globalAlpha=(barrier ? .45 : .35)+Math.abs(Math.sin(asFrame*.25))*.25;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=barrier?22:11;c.lineWidth=barrier?4:2;
+                        c.save();c.globalAlpha=(barrier ? .45 : .35)+Math.abs(Math.sin(asFrame*.25))*.25;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(barrier?22:11))):(barrier?22:11);c.lineWidth=barrier?4:2;
                         c.setLineDash([7,6]);c.beginPath();
                         if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}
                         else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}
@@ -3354,12 +3361,12 @@
                         c.fillText(barrier?"БАРЬЕР — НЕ ПРИБЛИЖАЙСЯ":"!",vertical?lineCoord:(bounds.left+bounds.right)/2,vertical?lineStart+10:lineCoord-7);c.restore();
                     }else{
                         a.life-=asTimeScale;
-                        c.save();c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=barrier?34:20;c.lineCap="round";
+                        c.save();c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(barrier?34:20))):(barrier?34:20);c.lineCap="round";
                         c.globalAlpha=barrier ? .3 : .27;c.lineWidth=beamWidth;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
                         c.globalAlpha=.95;c.lineWidth=barrier?Math.max(8,beamWidth*.3):8;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
-                        c.globalAlpha=1;c.strokeStyle="#ffffff";c.shadowBlur=barrier?16:10;c.lineWidth=barrier?2.8:1.8;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
+                        c.globalAlpha=1;c.strokeStyle="#ffffff";c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(barrier?16:10))):(barrier?16:10);c.lineWidth=barrier?2.8:1.8;c.beginPath();if(vertical){c.moveTo(lineCoord,lineStart);c.lineTo(lineCoord,lineEnd);}else{c.moveTo(lineStart,lineCoord);c.lineTo(lineEnd,lineCoord);}c.stroke();
                         // Traveling hot-spots race along each active laser for a more energetic look.
-                        c.strokeStyle="#ffffff";c.shadowColor=a.color;c.shadowBlur=24;c.lineWidth=barrier?5:3;
+                        c.strokeStyle="#ffffff";c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(24))):(24);c.lineWidth=barrier?5:3;
                         for(let pulse=0;pulse<3;pulse++){
                             const fraction=((asFrame*3.5+pulse*53)%100)/100;
                             c.globalAlpha=.25+.6*Math.abs(Math.sin(asFrame*.17+pulse));
@@ -3386,12 +3393,12 @@
                     if(typeof a.spdY==="number")a.vy=a.spdY;
                 }
                 a.x+=a.vx*asTimeScale;a.y+=a.vy*asTimeScale;a.life-=asTimeScale;a.phase+=.1*asTimeScale;
-                c.save();c.globalAlpha=a.homing?.72:.48;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=a.homing?22:14;c.lineWidth=a.homing?4:2.5;
+                c.save();c.globalAlpha=a.homing?.72:.48;c.strokeStyle=a.color;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(a.homing?22:14))):(a.homing?22:14);c.lineWidth=a.homing?4:2.5;
                 c.beginPath();c.moveTo(a.x-a.vx*(a.homing?7:4),a.y-a.vy*(a.homing?7:4));c.lineTo(a.x+a.vx*1.5,a.y+a.vy*1.5);c.stroke();c.restore();
                 if(asFrame%3===0&&(a.homing||a.kind==="fall"||a.kind==="spiral")){
                     asParticles.push({x:a.x,y:a.y,vx:-a.vx*.18+(Math.random()-.5)*.7,vy:-a.vy*.18+(Math.random()-.5)*.7,life:12,maxLife:12,color:a.color,size:a.homing?2.8:1.8});
                 }
-                c.save();c.translate(a.x,a.y);c.rotate(a.phase);c.shadowColor=a.color;c.shadowBlur=a.homing?26:17;c.fillStyle=a.color;
+                c.save();c.translate(a.x,a.y);c.rotate(a.phase);c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(a.homing?26:17))):(a.homing?26:17);c.fillStyle=a.color;
                 if(a.kind==="ground"){
                     c.globalAlpha=.88;c.fillRect(-a.size,-a.size*.42,a.size*2,a.size*.84);
                     c.strokeStyle="#e1fbff";c.lineWidth=1;c.strokeRect(-a.size,-a.size*.42,a.size*2,a.size*.84);
@@ -3408,7 +3415,7 @@
                     c.beginPath();c.arc(0,0,a.size*(1+Math.sin(a.phase)*.08),0,Math.PI*2);c.fill();c.strokeStyle="#f1fdff";c.lineWidth=1;c.stroke();
                 }
                 if(a.kind==="orb"||a.homing){
-                    c.globalAlpha=.74;c.strokeStyle="#ffffff";c.lineWidth=1.1;c.shadowColor=a.color;c.shadowBlur=18;
+                    c.globalAlpha=.74;c.strokeStyle="#ffffff";c.lineWidth=1.1;c.shadowColor=a.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(18))):(18);
                     c.beginPath();c.arc(0,0,a.size*1.42+Math.sin(a.phase*1.7)*1.4,a.phase*.7,a.phase*.7+Math.PI*1.55);c.stroke();
                 }
                 c.restore();
@@ -3428,7 +3435,7 @@
             c.restore();
         }
         // Floating text, effects, and existing character super visuals.
-        for(let i=asTexts.length-1;i>=0;i--){const t=asTexts[i];t.y+=t.vy*asTimeScale;t.life-=asTimeScale;c.globalAlpha=Math.max(0,t.life/t.maxLife);c.fillStyle=t.color;c.shadowColor=t.color;c.shadowBlur=8;c.textAlign="center";c.font="bold 12px monospace";c.fillText(t.text,t.x,t.y);if(t.life<=0)asTexts.splice(i,1);}
+        for(let i=asTexts.length-1;i>=0;i--){const t=asTexts[i];t.y+=t.vy*asTimeScale;t.life-=asTimeScale;c.globalAlpha=Math.max(0,t.life/t.maxLife);c.fillStyle=t.color;c.shadowColor=t.color;c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(8))):(8);c.textAlign="center";c.font="bold 12px monospace";c.fillText(t.text,t.x,t.y);if(t.life<=0)asTexts.splice(i,1);}
         c.globalAlpha=1;c.restore();
         if(!reduceBossEffects && asFlash>0){c.save();c.globalAlpha=asFlash/35;c.fillStyle=asFlashColor;c.fillRect(0,0,400,500);c.restore();}
         if(asState==="fight"){
@@ -3441,7 +3448,7 @@
             const ax = Math.max(0, Math.min(400, asAimCursor.x));
             const ay = Math.max(45, Math.min(500, asAimCursor.y));
             c.globalAlpha = .9; c.strokeStyle = "#76f4ff"; c.lineWidth = 1.6;
-            c.shadowColor = "#53edff"; c.shadowBlur = 14;
+            c.shadowColor = "#53edff"; c.shadowBlur=reduceBossEffects?Math.max(0,Math.min(3,(14))):(14);
             c.setLineDash([5,5]); c.beginPath(); c.moveTo(asPlayer.x, asPlayer.y-5); c.lineTo(ax,ay); c.stroke(); c.setLineDash([]);
             c.beginPath(); c.arc(ax,ay,10+Math.sin(asFrame*.22)*1.5,0,Math.PI*2); c.stroke();
             c.beginPath(); c.moveTo(ax-17,ay); c.lineTo(ax-5,ay); c.moveTo(ax+5,ay); c.lineTo(ax+17,ay);
