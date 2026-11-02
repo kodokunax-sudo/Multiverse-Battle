@@ -1034,7 +1034,7 @@ function updateLivingStonePlayer() {
     var mx = 0, my = 0;
     var baseSpeed = (livingStoneState === "phase2") ? LS_BASE_SPEED_PHASE2 : LS_BASE_SPEED_PHASE1;
     // ★ ФИКС: скорость через lsSpeedMult (Анти-спираль меняет его) ★
-    var speed = baseSpeed * lsSpeedMult * 2; // *2 потому что базовый lsSpeedMult был 0.5
+    var speed = baseSpeed * lsSpeedMult * 2 * (typeof window.getDrinkTeaEmergencySpeedMultiplier === "function" ? window.getDrinkTeaEmergencySpeedMultiplier() : 1); // *2 потому что базовый lsSpeedMult был 0.5
     if (lsActiveMod && lsActiveMod.type === 3) speed *= 0.85;
     if (lsActiveMod && lsActiveMod.type === 5) speed *= 1.35;
     
