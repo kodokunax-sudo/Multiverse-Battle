@@ -2155,7 +2155,8 @@
 
     function syncGameStats() {
         if (!db || !currentUser) return Promise.resolve();
-        if (typeof window.MBIsPhoneGraphicsMode === 'function' && window.MBIsPhoneGraphicsMode()) {
+        var phoneGraphicsMode = typeof window.MBIsPhoneGraphicsMode === 'function' && window.MBIsPhoneGraphicsMode();
+        if (phoneGraphicsMode) {
             if (lastPhoneStatsSnapshotUserId !== currentUser.id) {
                 lastPhoneStatsSnapshotUserId = currentUser.id;
                 lastPhoneStatsSnapshotAt = 0;
@@ -2169,7 +2170,7 @@
         updateProfileStatsPreview(stats);
         var fingerprint = JSON.stringify(stats);
         if (fingerprint === lastStatsFingerprint) return Promise.resolve();
-        var waitMs = 15000 - (Date.now() - lastStatsSyncAt);
+        var waitMs = phoneGraphicsMode ? 0 : 15000 - (Date.now() - lastStatsSyncAt);
         if (waitMs > 0) {
             if (pendingStatsSyncTimer === null) {
                 pendingStatsSyncTimer = window.setTimeout(function () {
