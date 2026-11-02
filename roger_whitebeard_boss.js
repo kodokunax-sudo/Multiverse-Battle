@@ -220,7 +220,7 @@
         ctx.translate(cx, cy);
         ctx.rotate(Number(rotation) || 0);
         ctx.shadowColor = flash ? "#ffffff" : glow;
-        ctx.shadowBlur = flash ? 23 : (key === "oden" ? 7 : 11);
+        ctx.shadowBlur = isRWBPotatoGraphics() ? (flash ? 2 : 0) : (flash ? 23 : (key === "oden" ? 7 : 11));
         ctx.drawImage(img, -w / 2, -h / 2, w, h);
         // Use the provided white hit sprite directly; tint the normal sprite only as fallback.
         if (flash && !usingDamageSprite) {
@@ -252,12 +252,65 @@
     let rwbModeBtn = null;
     let rwbSuperBtn = null;
     let rwbGraphicsBtn = null;
+    let rwbLastUiRefreshAt = 0;
 
     // Use the same per-fight graphics choice as the other unique bosses.
     // Do not auto-select mobile mode based on touch input or viewport size.
     window.rwbGraphicsMode = "pc";
+    function isRWBPotatoGraphics() {
+        return window.__mbBossGraphicsModeForFight === "potato";
+    }
     function isRWBMobileGraphics() {
-        return !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+        return isRWBPotatoGraphics() || !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
+    }
+
+    // Cache the static island artwork in potato mode instead of rebuilding its gradients each frame.
+    let rwbPotatoBackgroundCanvas = null;
+    function drawRWBPotatoBackground() {
+        if (!rwbPotatoBackgroundCanvas) {
+            try {
+                const surface = document.createElement("canvas");
+                surface.width = 400; surface.height = 500;
+                const b = surface.getContext("2d");
+                if (!b) return false;
+                const sky = b.createLinearGradient(0, 0, 0, 320);
+                sky.addColorStop(0, "#0d1b3d"); sky.addColorStop(0.3, "#2d2a5c");
+                sky.addColorStop(0.55, "#8b3a5c"); sky.addColorStop(0.75, "#e8794a");
+                sky.addColorStop(0.9, "#f5af19"); sky.addColorStop(1, "#ffd97a");
+                b.fillStyle = sky; b.fillRect(0, 0, 400, 320);
+                const sun = b.createRadialGradient(300, 290, 0, 300, 290, 50);
+                sun.addColorStop(0, "#ffffff"); sun.addColorStop(0.2, "#fff4c4");
+                sun.addColorStop(0.5, "rgba(245, 175, 25, 0.8)"); sun.addColorStop(1, "rgba(245, 175, 25, 0)");
+                b.fillStyle = sun; b.beginPath(); b.arc(300, 290, 50, 0, Math.PI * 2); b.fill();
+                b.fillStyle = "#fff8dc"; b.beginPath(); b.arc(300, 290, 18, 0, Math.PI * 2); b.fill();
+                const sea = b.createLinearGradient(0, 320, 0, 420);
+                sea.addColorStop(0, "#f5a623"); sea.addColorStop(0.3, "#3a6ea5");
+                sea.addColorStop(0.7, "#1e3a5f"); sea.addColorStop(1, "#0a1a2e");
+                b.fillStyle = sea; b.fillRect(0, 320, 400, 100);
+                b.save(); b.globalAlpha = 0.5;
+                const reflection = b.createRadialGradient(300, 330, 0, 300, 360, 60);
+                reflection.addColorStop(0, "rgba(255, 240, 200, 0.8)");
+                reflection.addColorStop(1, "rgba(255, 200, 100, 0)");
+                b.fillStyle = reflection; b.beginPath(); b.ellipse(300, 340, 40, 15, 0, 0, Math.PI * 2); b.fill();
+                b.restore();
+                const ground = b.createLinearGradient(0, 420, 0, 500);
+                ground.addColorStop(0, "#d4a574"); ground.addColorStop(0.5, "#a87a4a"); ground.addColorStop(1, "#5a3a20");
+                b.fillStyle = ground; b.fillRect(0, 420, 400, 80);
+                b.fillStyle = "#5a4530"; b.beginPath(); b.ellipse(150, 470, 15, 6, 0, 0, Math.PI * 2); b.fill();
+                b.fillStyle = "#4a3520"; b.beginPath(); b.ellipse(250, 485, 12, 5, 0, 0, Math.PI * 2); b.fill();
+                b.strokeStyle = "#3a5a2a"; b.lineWidth = 2;
+                for (let i = 0; i < 20; i++) {
+                    const gx = (i * 21) % 400, gy = 430 + (i * 7) % 40;
+                    b.beginPath(); b.moveTo(gx, gy); b.lineTo(gx - 3, gy - 8);
+                    b.moveTo(gx, gy); b.lineTo(gx + 2, gy - 10);
+                    b.moveTo(gx, gy); b.lineTo(gx + 5, gy - 6); b.stroke();
+                }
+                rwbPotatoBackgroundCanvas = surface;
+            } catch (e) { return false; }
+        }
+        if (!ctx || !rwbPotatoBackgroundCanvas) return false;
+        ctx.drawImage(rwbPotatoBackgroundCanvas, 0, 0);
+        return true;
     }
 
     let rwbTsunamiActive = false;
@@ -1133,14 +1186,14 @@
             return;
         }
         hideRWBGraphicsButton();
-        if (graphicsModeChoice !== "full" && graphicsModeChoice !== "light" &&
+        if (graphicsModeChoice !== "full" && graphicsModeChoice !== "light" && graphicsModeChoice !== "potato" &&
             typeof window.MBChooseBossGraphicsMode === "function") {
             window.MBChooseBossGraphicsMode("Роджер vs Белоус", function(mode) {
                 startRogerWhitebeardFight(mode);
             });
             return;
         }
-        if ((graphicsModeChoice === "full" || graphicsModeChoice === "light") &&
+        if ((graphicsModeChoice === "full" || graphicsModeChoice === "light" || graphicsModeChoice === "potato") &&
             typeof window.MBSetBossGraphicsModeForFight === "function") {
             window.MBSetBossGraphicsModeForFight(graphicsModeChoice);
         }
@@ -1294,6 +1347,10 @@
 
     function drawIslandBackground() {
         if (!islandBg) initIslandBackground();
+        if (isRWBPotatoGraphics() && drawRWBPotatoBackground()) {
+            drawPalmTree(30, 420, 1.0); drawPalmTree(370, 420, 0.9);
+            return;
+        }
         // На телефоне фон остаётся полноценным, но без анимированных мелких деталей.
         let skyGrad = ctx.createLinearGradient(0, 0, 0, 320);
         skyGrad.addColorStop(0, "#0d1b3d"); skyGrad.addColorStop(0.3, "#2d2a5c");
@@ -3432,12 +3489,15 @@
     // ============================================================
     function rwbRenderLoop() {
         if (!window.rwbActive || !ctx || !canvas) return;
+        var potatoGraphics = isRWBPotatoGraphics();
         var reduceBossEffects = isRWBMobileGraphics();
         if (reduceBossEffects) {
             rwbShake = 0; rwbScreenFlash = 0;
             if (typeof _superState !== "undefined") { _superState.screenFlashWhite = 0; _superState.screenShakeAmount = 0; }
-            if (rwbParticles.length > 24) rwbParticles.splice(0, rwbParticles.length - 24);
-            if (rwbShockwaves.length > 4) rwbShockwaves.splice(0, rwbShockwaves.length - 4);
+            var particleCap = potatoGraphics ? 8 : 24;
+            var shockwaveCap = potatoGraphics ? 2 : 4;
+            if (rwbParticles.length > particleCap) rwbParticles.splice(0, rwbParticles.length - particleCap);
+            if (rwbShockwaves.length > shockwaveCap) rwbShockwaves.splice(0, rwbShockwaves.length - shockwaveCap);
             if (rwbSpeedLines.length > 0) rwbSpeedLines.length = 0;
             if (rwbHakiLightnings.length > 0) rwbHakiLightnings.length = 0;
             if (rwbWhiteCracks.length > 0) rwbWhiteCracks.length = 0;
@@ -3471,8 +3531,12 @@
             rwbShake = Math.max(rwbShake, _superState.screenShakeAmount);
         }
 
-        if (typeof updateSuperButton === 'function') updateSuperButton();
-        if (typeof updateRWBMainSuperButton === "function") updateRWBMainSuperButton();
+        var rwbUiNow = typeof performance !== "undefined" ? performance.now() : Date.now();
+        if (!potatoGraphics || !rwbLastUiRefreshAt || rwbUiNow - rwbLastUiRefreshAt >= 120) {
+            rwbLastUiRefreshAt = rwbUiNow;
+            if (typeof updateSuperButton === 'function') updateSuperButton();
+            if (typeof updateRWBMainSuperButton === "function") updateRWBMainSuperButton();
+        }
 
         if (rwbDialogActive) {
             rwbDialogTimer++;
@@ -3523,7 +3587,7 @@
                 }
                 let remaining = Math.max(0, Math.ceil((rwbSurvivalTarget2 - rwbSurvivalTimer2) / 60));
                 let timerEl = document.getElementById("arenaTimer");
-                if (timerEl) timerEl.innerText = remaining + "с";
+                if (timerEl && timerEl.innerText !== remaining + "с") timerEl.innerText = remaining + "с";
             } else if (rwbState === "victory") {
                 rwbEndTimer++;
             } else if (rwbState === "defeat") {
@@ -3567,12 +3631,14 @@
 
         // Ограничиваем только декоративные эффекты; реальные атаки и хитбоксы не трогаем.
         if (isRWBMobileGraphics()) {
-            if (rwbParticles.length > 48) rwbParticles.splice(0, rwbParticles.length - 48);
+            var lateParticleCap = potatoGraphics ? 12 : 48;
+            if (rwbParticles.length > lateParticleCap) rwbParticles.splice(0, rwbParticles.length - lateParticleCap);
             rwbSpeedLines.length = 0;
             rwbHakiLightnings.length = 0;
             rwbWhiteCracks.length = 0;
             rwbPurpleCracks.length = 0;
-            if (rwbShockwaves.length > 5) rwbShockwaves.splice(0, rwbShockwaves.length - 5);
+            var lateShockwaveCap = potatoGraphics ? 2 : 5;
+            if (rwbShockwaves.length > lateShockwaveCap) rwbShockwaves.splice(0, rwbShockwaves.length - lateShockwaveCap);
         }
         for (let i = rwbParticles.length - 1; i >= 0; i--) {
             let p = rwbParticles[i];
@@ -3644,7 +3710,7 @@
             if (!isFinite(wbSkillWaveY)) wbSkillWaveY = 540;
             var wbSkillWaveNow = performance.now();
             var wbSkillWavePulse = 0.82 + Math.sin(wbSkillWaveNow / 90) * 0.18;
-            var wbSkillWaveStep = reduceBossEffects ? 12 : 8;
+            var wbSkillWaveStep = potatoGraphics ? 20 : (reduceBossEffects ? 12 : 8);
             function wbSkillWaveLine(wx, offset) {
                 return wbSkillWaveY + Math.sin(wx / 28 + wbSkillWaveNow / 110) * 18 +
                     Math.sin(wx / 11 + wbSkillWaveNow / 70) * 5 + (offset || 0);
@@ -3685,7 +3751,7 @@
             }
             ctx.stroke();
 
-            if (!reduceBossEffects) {
+            if (!reduceBossEffects && !potatoGraphics) {
                 for (var wbFoam = 0; wbFoam < 16; wbFoam++) {
                     var wbFoamX = (wbFoam * 31 + wbSkillWaveNow * 0.12) % 440 - 20;
                     var wbFoamY = wbSkillWaveLine(wbFoamX, -8 - Math.sin(wbFoam * 1.7 + wbSkillWaveNow / 120) * 5);
@@ -4286,15 +4352,16 @@
     function drawWhitebeardHakiAura(cx, cy, size) {
         var now = performance.now() / 1000;
         var pulse = 1 + Math.sin(now * 7) * 0.09;
+        var potatoGraphics = isRWBPotatoGraphics();
         ctx.save();
         ctx.globalAlpha = 0.66;
         for (var ring = 0; ring < 2; ring++) {
             ctx.save();
             ctx.translate(cx, cy);
             ctx.rotate(now * (ring ? -0.75 : 0.55));
-            ctx.strokeStyle = "#000000"; ctx.lineWidth = 7; ctx.shadowColor = "#000000"; ctx.shadowBlur = 9;
+            ctx.strokeStyle = "#000000"; ctx.lineWidth = 7; ctx.shadowColor = "#000000"; ctx.shadowBlur = potatoGraphics ? 0 : 9;
             ctx.beginPath(); ctx.ellipse(0, 0, size * (1.75 + ring * 0.2) * pulse, size * (1.3 + ring * 0.16) * pulse, 0, Math.PI * 0.12, Math.PI * 1.22); ctx.stroke();
-            ctx.strokeStyle = ring ? "#ffffff" : "#bfefff"; ctx.lineWidth = 2.2; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 12;
+            ctx.strokeStyle = ring ? "#ffffff" : "#bfefff"; ctx.lineWidth = 2.2; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = potatoGraphics ? 0 : 12;
             ctx.beginPath(); ctx.ellipse(0, 0, size * (1.75 + ring * 0.2) * pulse, size * (1.3 + ring * 0.16) * pulse, 0, Math.PI * 0.12, Math.PI * 1.22); ctx.stroke();
             ctx.restore();
         }
@@ -4308,7 +4375,7 @@
             var ym = (y1 + y2) / 2 + Math.cos(now * 8 + bolt) * size * 0.25;
             ctx.strokeStyle = "#000000"; ctx.lineWidth = 5; ctx.shadowBlur = 0;
             ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(xm, ym); ctx.lineTo(x2, y2); ctx.stroke();
-            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.7; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 10;
+            ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.7; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = potatoGraphics ? 0 : 10;
             ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(xm, ym); ctx.lineTo(x2, y2); ctx.stroke();
         }
         ctx.restore();
@@ -6375,9 +6442,13 @@
             let r = s * (1 + noise);
             points.push({ x: Math.cos(ang) * r, y: Math.sin(ang) * r });
         }
-        let grad = ctx.createRadialGradient(-s * 0.3, -s * 0.3, s * 0.1, 0, 0, s * 1.2);
-        grad.addColorStop(0, "#a89070"); grad.addColorStop(0.6, "#8B7355"); grad.addColorStop(1, "#3a2818");
-        ctx.fillStyle = grad;
+        if (isRWBPotatoGraphics()) {
+            ctx.fillStyle = "#8B7355";
+        } else {
+            let grad = ctx.createRadialGradient(-s * 0.3, -s * 0.3, s * 0.1, 0, 0, s * 1.2);
+            grad.addColorStop(0, "#a89070"); grad.addColorStop(0.6, "#8B7355"); grad.addColorStop(1, "#3a2818");
+            ctx.fillStyle = grad;
+        }
         ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
         for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
         ctx.closePath(); ctx.fill();
@@ -6406,9 +6477,13 @@
         ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = "#000000";
         ctx.beginPath(); ctx.ellipse(0, 480 - a.y, s * 0.9, 12, 0, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
-        let grad = ctx.createRadialGradient(-s * 0.3, -s * 0.3, s * 0.1, 0, 0, s * 1.3);
-        grad.addColorStop(0, "#b8a080"); grad.addColorStop(0.5, "#8B7355"); grad.addColorStop(1, "#2a1808");
-        ctx.fillStyle = grad;
+        if (isRWBPotatoGraphics()) {
+            ctx.fillStyle = "#8B7355";
+        } else {
+            let grad = ctx.createRadialGradient(-s * 0.3, -s * 0.3, s * 0.1, 0, 0, s * 1.3);
+            grad.addColorStop(0, "#b8a080"); grad.addColorStop(0.5, "#8B7355"); grad.addColorStop(1, "#2a1808");
+            ctx.fillStyle = grad;
+        }
         ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
         for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
         ctx.closePath(); ctx.fill();
@@ -6439,6 +6514,8 @@
         ctx.save();
         let cy = a.y, w = a.currentWidth || a.width, h = a.currentHeight || a.height;
         let waveTime = a.waveTime, fromRight = a.fromRight;
+        const sampleSteps = isRWBPotatoGraphics() ? 10 : 20;
+        const detailLines = isRWBPotatoGraphics() ? 2 : 3;
         if (a.y > 0 && a.y < 500) {
             ctx.save();
             ctx.globalAlpha = 0.15 + Math.sin(performance.now() / 200) * 0.08;
@@ -6454,8 +6531,8 @@
         ctx.beginPath();
         if (fromRight) {
             ctx.moveTo(a.x, cy - h / 2);
-            for (let i = 0; i <= 20; i++) { let t = i / 20; let x = a.x + t * w; let yTop = cy - h / 2 + Math.sin(t * Math.PI * 3 + waveTime * 2) * 10; ctx.lineTo(x, yTop); }
-            for (let i = 20; i >= 0; i--) { let t = i / 20; let x = a.x + t * w; let yBot = cy + h / 2 + Math.sin(t * Math.PI * 3 + waveTime * 2) * 10; ctx.lineTo(x, yBot); }
+            for (let i = 0; i <= sampleSteps; i++) { let t = i / sampleSteps; let x = a.x + t * w; let yTop = cy - h / 2 + Math.sin(t * Math.PI * 3 + waveTime * 2) * 10; ctx.lineTo(x, yTop); }
+            for (let i = sampleSteps; i >= 0; i--) { let t = i / sampleSteps; let x = a.x + t * w; let yBot = cy + h / 2 + Math.sin(t * Math.PI * 3 + waveTime * 2) * 10; ctx.lineTo(x, yBot); }
         } else {
             ctx.moveTo(0, cy - h / 2);
             for (let i = 0; i <= 20; i++) { let t = i / 20; let x = t * w; let yTop = cy - h / 2 + Math.sin(t * Math.PI * 3 + waveTime * 2) * 10; ctx.lineTo(x, yTop); }
@@ -6466,7 +6543,7 @@
         ctx.fillStyle = "#ffffff";
         for (let i = 0; i <= 20; i++) { let t = i / 20; let x = fromRight ? a.x + t * w : t * w; let yTop = cy - h / 2 + Math.sin(t * Math.PI * 3 + waveTime * 2) * 10; ctx.beginPath(); ctx.arc(x, yTop, 3, 0, Math.PI * 2); ctx.fill(); }
         ctx.strokeStyle = "rgba(255, 255, 255, 0.5)"; ctx.lineWidth = 2;
-        for (let li = 0; li < 3; li++) {
+        for (let li = 0; li < detailLines; li++) {
             let lineOffset = -h * 0.2 + li * h * 0.2;
             ctx.beginPath();
             for (let i = 0; i <= 20; i++) { let t = i / 20; let x = fromRight ? a.x + t * w : t * w; let y = cy + lineOffset + Math.sin(t * Math.PI * 4 + waveTime * 2 + li) * 4; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
