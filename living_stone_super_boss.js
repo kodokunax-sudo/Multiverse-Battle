@@ -240,6 +240,8 @@
     }
 
     function ls2SpawnAttackWave(side) {
+        if (typeof window.MBIsZenoEraseActive === "function" &&
+            window.MBIsZenoEraseActive("stoneSuper")) return;
         var box = LS2_BOX, offsets = ls2AttackCount > 5 ? [-18, 0, 18] : [-12, 0, 12];
         for (var i = 0; i < offsets.length; i++) {
             var offset = offsets[i];
@@ -343,6 +345,13 @@
     function ls2BoxEdgeMinY() { return LS2_BOX.y; }
     function ls2BoxEdgeMaxY() { return LS2_BOX.y + LS2_BOX.h; }
     function ls2Update(dt) {
+        var zenoEraseActive = typeof window.MBIsZenoEraseActive === "function" &&
+            window.MBIsZenoEraseActive("stoneSuper");
+        if (zenoEraseActive) {
+            ls2Bullets.length = 0;
+            ls2WarningTimer = 0;
+            ls2AttackTimer = Math.max(90, Number(ls2AttackTimer) || 0);
+        }
         ls2Elapsed += dt;
         if (window.livingStoneSuperActive && typeof window.MBKarsAdaptationTick === "function") {
             try { window.MBKarsAdaptationTick(typeof getBossContext === "function" ? getBossContext() : null); } catch (e) {}
@@ -387,7 +396,9 @@
         } else if (ls2Phase === "green" && ls2PhaseTimer >= 420) {
             ls2EnterNormal(true); return;
         }
-        if (ls2WarningTimer > 0) {
+        if (zenoEraseActive) {
+            ls2Bullets.length = 0;
+        } else if (ls2WarningTimer > 0) {
             ls2WarningTimer -= dt;
             if (ls2WarningTimer <= 0) {
                 ls2SpawnAttackWave(ls2NextAttackDir);
