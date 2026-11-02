@@ -827,6 +827,10 @@ function startArena(bossWave) {
     if (bossStrengthWave < 50) wallSpeedMult = 1.0;
     wallCountMult = Math.min(2.0, 1.0 + Math.floor((bossStrengthWave - 50) / 200) * 0.15);
     if (bossStrengthWave < 50) wallCountMult = 1.0;
+    // Lower early bosses' attack pressure as well as their HP and hit damage.
+    arenaSpeedMult = Math.max(0.5, arenaSpeedMult * earlyArenaStrength);
+    wallSpeedMult = Math.max(0.5, wallSpeedMult * earlyArenaStrength);
+    wallCountMult = Math.max(0.5, wallCountMult * earlyArenaStrength);
 
     arenaAllowedTypes = getAttackTypes(bossStrengthWave);
     if (bossTestMode && Array.isArray(bossTestMode.attackTypes) && bossTestMode.attackTypes.length) {
