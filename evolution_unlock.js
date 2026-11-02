@@ -82,7 +82,7 @@
         if (typeof window._originalRenderEvoTab === 'function') {
             window._originalRenderEvoTab();
         } else {
-            c.innerHTML = '<div style="text-align:center;color:#2ecc71;padding:20px;font-weight:900;">🧬 ЭВОЛЮЦИЯ РАЗБЛОКИРОВАНА!</div>';
+            c.innerHTML = '<div style="text-align:center;color:#2ecc71;padding:20px;font-weight:900;">🧬 Вкладка «Эволюция» открыта. Каждую эволюционную карту нужно получить отдельно.</div>';
         }
     }
 
