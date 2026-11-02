@@ -69,8 +69,15 @@ function renderMyCards() {
         let giftEdition = isDioGift ? '<div class="dio-gift-edition">ОСЛАБЛЕННАЯ ВЕРСИЯ</div>' : '';
         let giftSeal = isDioGift ? '<div class="dio-gift-seal">🔒 НЕ ПРОДАЁТСЯ</div>' : ''; 
         let superHTML = '';
-        if (cd.superAbility && (typeof hasMasterySuper === 'function' ? hasMasterySuper(cd) : true)) {
-            superHTML = '<div style="font-size:9px;color:#ffd700;font-weight:bold;margin-top:3px;text-align:center;line-height:1.2;background:rgba(0,0,0,0.3);border-radius:8px;padding:2px 4px;">' + cd.superAbility.name + '</div>';
+        // Пассивные супер-способности видны прямо на карте коллекции, даже до 5★.
+        // Для активных супер-способностей сохраняется прежнее ограничение мастерства.
+        if (cd.superAbility && (cd.superAbility.passive === true || (typeof hasMasterySuper === 'function' ? hasMasterySuper(cd) : true))) {
+            let superName = escapeHtml(cd.superAbility.name || 'СУПЕР-ПАССИВКА');
+            let superDesc = escapeHtml(cd.superAbility.desc || '');
+            superHTML = '<div style="font-size:9px;color:#ffd700;font-weight:bold;margin-top:4px;text-align:center;line-height:1.25;background:rgba(0,0,0,0.3);border:1px solid rgba(255,215,0,0.25);border-radius:8px;padding:4px 5px;">' +
+                superName +
+                (superDesc ? '<div style="font-size:9px;color:#fff2b3;font-weight:600;margin-top:3px;">' + superDesc + '</div>' : '') +
+                '</div>';
         }
         let sukunaIndicator = skFinger ? '<div style="font-size:9px;color:#ff4444;font-weight:bold;margin-top:2px;">🗿 Сукуна</div>' : '';
         let masteryHTML = typeof getMasteryHTML === 'function' ? getMasteryHTML(cd) : '';
