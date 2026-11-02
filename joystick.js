@@ -731,8 +731,9 @@
                     if (typeof heartStandingTime !== 'undefined') heartStandingTime = 0;
                     if (typeof heartRotation !== 'undefined') heartRotation += 0.15;
                     if (typeof heart !== 'undefined') {
-                        heart.x += mx * heartSpeed;
-                        heart.y += my * heartSpeed;
+                        var drinkTeaSpeedMult = typeof window.getDrinkTeaEmergencySpeedMultiplier === "function" ? window.getDrinkTeaEmergencySpeedMultiplier() : 1;
+                        heart.x += mx * heartSpeed * drinkTeaSpeedMult;
+                        heart.y += my * heartSpeed * drinkTeaSpeedMult;
                     }
                 } else {
                     if (typeof heartStandingTime !== 'undefined') heartStandingTime++;
