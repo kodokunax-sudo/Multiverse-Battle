@@ -184,8 +184,35 @@
             c.anonKey.indexOf('YOUR_SUPABASE_') === -1;
     }
 
+    var SPEEDRUN_ACCOUNT_ID = '0942ef39-e446-4d86-a6d7-0e7108d22a08';
+    var SPEEDRUN_STORAGE_KEY = 'mb_speedrun_started_' + SPEEDRUN_ACCOUNT_ID;
+
+    function isSpeedrunAccount() {
+        return !!currentUser && currentUser.id === SPEEDRUN_ACCOUNT_ID;
+    }
+
+    function isSpeedrunStarted() {
+        try { return localStorage.getItem(SPEEDRUN_STORAGE_KEY) === '1'; }
+        catch (_error) { return false; }
+    }
+
+    function updateSpeedrunControls() {
+        var row = byId('mbSpeedrunStartRow');
+        var button = byId('mbSpeedrunStartBtn');
+        var status = byId('mbSpeedrunStatus');
+        if (!row || !button) return;
+        row.style.display = isSpeedrunAccount() ? 'flex' : 'none';
+        var started = isSpeedrunStarted();
+        button.disabled = started;
+        button.textContent = started ? '🏁 Спидран уже начат' : '🏁 Начать спидран!';
+        if (status) status.textContent = started
+            ? 'Учёт игрового времени включён для этого аккаунта.'
+            : 'До нажатия время игры не записывается в профиль и таблицы.';
+    }
+
     function showAuthState() {
         var signedIn = !!currentUser;
+        updateSpeedrunControls();
         var authPanel = byId('clansAuthPanel');
         var userPanel = byId('clansUserPanel');
         var sections = byId('clansSignedInSections');
@@ -1002,6 +1029,7 @@
     async function trackGameAnalytics(pause) {
         try {
             if (!db || !currentUser) return null;
+            if (isSpeedrunAccount() && !isSpeedrunStarted()) return null;
             if (!pause && document.visibilityState === 'hidden') return null;
             var snapshot = getGameAnalyticsSnapshot();
             if (!snapshot) return null;
@@ -3297,6 +3325,18 @@
     function bindEvents() {
         if (initialized) return;
         initialized = true;
+        var speedrunStartButton = byId('mbSpeedrunStartBtn');
+        if (speedrunStartButton) speedrunStartButton.addEventListener('click', function () {
+            if (!isSpeedrunAccount() || isSpeedrunStarted()) return;
+            try { localStorage.setItem(SPEEDRUN_STORAGE_KEY, '1'); }
+            catch (_error) { setNotice('Не удалось сохранить запуск спидрана на этом устройстве.', 'error'); return; }
+            gameAnalyticsSessionId = null;
+            gameAnalyticsUserId = null;
+            gameAnalyticsLastActivityAt = Date.now();
+            updateSpeedrunControls();
+            trackGameAnalytics(false);
+            setNotice('Спидран начат! Игровое время теперь записывается.', 'success');
+        });
         byId('clansAuthForm').addEventListener('submit', function (event) {
             event.preventDefault();
             register();
