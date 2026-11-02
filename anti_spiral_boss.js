@@ -551,13 +551,13 @@
     function stopASMusic() {
         try { if (asMusic) { asMusic.pause(); asMusic.currentTime = 0; } } catch(e) {}
     }
-    function asBossHit(damage, message) {
+    function asBossHit(damage, message, ignoreSealShield) {
         if(typeof window!=="undefined" && window.__mbBossTestMode && typeof window.MBBossTestModifyOutgoingDamage==="function") damage=window.MBBossTestModifyOutgoingDamage(damage,1);
         if (!asActive || asWinPending || asDefeatPending || asState !== "fight" || asState === "victory") return;
         const isModerator = typeof window.MBIsModeratorModeActive === "function"
             ? window.MBIsModeratorModeActive()
             : false;
-        if (asUnbrokenSealIndex() >= 0 && !isModerator) {
+        if (asUnbrokenSealIndex() >= 0 && !isModerator && ignoreSealShield !== true) {
             asText(200, 120, "ЗАЩИТА АКТИВНА — РАЗРУШЬ 3 ПЕЧАТИ!", "#d5a6ff", 40);
             asSound(120, "sawtooth", .12, .045);
             return;
@@ -705,6 +705,8 @@
         asSound(95 + asGravityDirection * 55, "sawtooth", .3, .13);
     }
     function asSpawnPattern(now) {
+        if (typeof window.MBIsZenoEraseActive === "function" &&
+            window.MBIsZenoEraseActive("antispiral")) return;
         const damage = asPhase >= 3 ? 20 : (asPhase >= 2 ? 15 : 11);
         const floor = asFloor();
         const bounds = asBounds();
@@ -2821,6 +2823,8 @@
             // The pull is visual as well as physical.
             c.save();c.globalAlpha=.12+.05*Math.sin(now/180);c.strokeStyle="#50cfff";c.lineWidth=1;
             for(let i=0;i<5;i++){c.beginPath();c.arc(asBoss.x,asBoss.y,asBoss.size+18+i*19,0,Math.PI*2);c.stroke();}c.restore();
+            if (typeof window.MBIsZenoEraseActive === "function" &&
+                window.MBIsZenoEraseActive("antispiral")) asAttacks.length = 0;
             for(let i=asAttacks.length-1;i>=0;i--){
                 const a=asAttacks[i];
                 if (!a.dioStandHitOnce && typeof window.dioAttackTouchesStand === "function" &&
@@ -3466,27 +3470,31 @@
             if(canCharge&&asChargeFrames<150)asChargeFrames=Math.min(150,asChargeFrames+asTimeScale);
             asCharging=canCharge&&asChargeFrames<150;asUpdateControls();
             if(asBossExposed>0)asBossExposed-=asTimeScale;if(asLabyrinthTimer>0)asLabyrinthTimer-=asTimeScale;
-            // A pattern may stop spawning after its showcase window, but its attacks are never
-            // cleared just because a timer elapsed. Wait for beams, marks, wells and projectiles to finish.
-            if(!asPatternDraining){
-                asPatternTimer+=asTimeScale;
-                const duration=asPattern===7?250:(asPattern===9?450:(asPattern===10?165:178));
-                if(asPatternTimer>duration)asPatternDraining=true;
-            }
-            if(asPatternDraining){
-                const attacksStillRunning=asAttacks.some(function(a){return !!a;});
-                if(!attacksStillRunning&&asLabyrinthTimer<=0&&!asUltimateActive&&!asCloneMode){
-                    asPatternDraining=false;asPatternTimer=0;asPattern=(asPattern+1)%patterns.length;asPatternSpawned=false;asPatternVolleyCount=0;
-                    asText(200,100,patterns[asPattern],"#b8a2ff",52);
-                    asSound(260+asPattern*60,"sine",.18,.06);
+            const zenoEraseActive = typeof window.MBIsZenoEraseActive === "function" &&
+                window.MBIsZenoEraseActive("antispiral");
+            if (!zenoEraseActive) {
+                // A pattern may stop spawning after its showcase window, but its attacks are never
+                // cleared just because a timer elapsed. Wait for beams, marks, wells and projectiles to finish.
+                if(!asPatternDraining){
+                    asPatternTimer+=asTimeScale;
+                    const duration=asPattern===7?250:(asPattern===9?450:(asPattern===10?165:178));
+                    if(asPatternTimer>duration)asPatternDraining=true;
                 }
-            }else{
-                const cadence=[42,70,58,78,92,82,76,178,64,60,60][asPattern]||58;
-                const volleyLimit=[3,1,2,1,1,1,1,1,1,1,1][asPattern]||1;
-                if(asPattern===7||asPattern===9||asPattern===10){
-                    if(!asPatternSpawned&&asPatternVolleyCount<volleyLimit){asSpawnPattern(now);asPatternSpawned=true;asPatternVolleyCount++;}
-                }else if(asFrame%Math.max(27,cadence-asPhase*3)===0&&asPatternVolleyCount<volleyLimit){
-                    asSpawnPattern(now);asPatternVolleyCount++;
+                if(asPatternDraining){
+                    const attacksStillRunning=asAttacks.some(function(a){return !!a;});
+                    if(!attacksStillRunning&&asLabyrinthTimer<=0&&!asUltimateActive&&!asCloneMode){
+                        asPatternDraining=false;asPatternTimer=0;asPattern=(asPattern+1)%patterns.length;asPatternSpawned=false;asPatternVolleyCount=0;
+                        asText(200,100,patterns[asPattern],"#b8a2ff",52);
+                        asSound(260+asPattern*60,"sine",.18,.06);
+                    }
+                }else{
+                    const cadence=[42,70,58,78,92,82,76,178,64,60,60][asPattern]||58;
+                    const volleyLimit=[3,1,2,1,1,1,1,1,1,1,1][asPattern]||1;
+                    if(asPattern===7||asPattern===9||asPattern===10){
+                        if(!asPatternSpawned&&asPatternVolleyCount<volleyLimit){asSpawnPattern(now);asPatternSpawned=true;asPatternVolleyCount++;}
+                    }else if(asFrame%Math.max(27,cadence-asPhase*3)===0&&asPatternVolleyCount<volleyLimit){
+                        asSpawnPattern(now);asPatternVolleyCount++;
+                    }
                 }
             }
             if(asPlayer.invuln>0)asPlayer.invuln-=asTimeScale;
@@ -3696,6 +3704,9 @@
         for(let i=0;i<16;i++){const a=i*Math.PI/8;asParticles.push({x:x,y:y,vx:Math.cos(a)*(speed||3),vy:Math.sin(a)*(speed||3),life:life||24,maxLife:life||24,color:color||"#55cfff",size:Math.max(1,width||2)});}
     };
     window.damageAntiSpiralBoss = asBossHit;
+    window.MBAntiSpiralClearBossAttacks = function() {
+        asAttacks.length = 0;
+    };
     window.antiSpiralSpawnText = asText;
     window.antiSpiralPlaySound = asSound;
     console.log("[ANTI-SPIRAL] Уникальный бой 1500-й волны загружен.");
