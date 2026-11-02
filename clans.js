@@ -18,6 +18,8 @@
     var globalChatSending = false;
     var lastStatsFingerprint = '';
     var lastStatsSyncAt = 0;
+    var lastPhoneStatsSnapshotAt = 0;
+    var lastPhoneStatsSnapshotUserId = null;
     var pendingStatsSyncTimer = null;
     var activeAuthSlot = null;
     var activeAccountSessionId = null;
@@ -238,7 +240,10 @@
     function readLocalGameStats() {
         if (typeof currentSlot !== 'undefined' && Number(currentSlot) < 0) return null;
         try {
-            if (typeof window.MBSyncMasteryTitleUnlocks === 'function') window.MBSyncMasteryTitleUnlocks();
+            var phoneGraphicsMode = typeof window.MBIsPhoneGraphicsMode === 'function' && window.MBIsPhoneGraphicsMode();
+            if (!phoneGraphicsMode && typeof window.MBSyncMasteryTitleUnlocks === 'function') {
+                window.MBSyncMasteryTitleUnlocks();
+            }
             var wins = typeof totalWins !== 'undefined' ? totalWins : 0;
             var bestWave = typeof highestWaveReached !== 'undefined' ? highestWaveReached : (typeof wave !== 'undefined' ? wave : 1);
             var rebirths = typeof rebirthCount !== 'undefined' ? rebirthCount : 0;
@@ -2150,6 +2155,15 @@
 
     function syncGameStats() {
         if (!db || !currentUser) return Promise.resolve();
+        if (typeof window.MBIsPhoneGraphicsMode === 'function' && window.MBIsPhoneGraphicsMode()) {
+            if (lastPhoneStatsSnapshotUserId !== currentUser.id) {
+                lastPhoneStatsSnapshotUserId = currentUser.id;
+                lastPhoneStatsSnapshotAt = 0;
+            }
+            var now = Date.now();
+            if (now - lastPhoneStatsSnapshotAt < 15000) return Promise.resolve();
+            lastPhoneStatsSnapshotAt = now;
+        }
         var stats = readLocalGameStats();
         if (!stats) return Promise.resolve();
         updateProfileStatsPreview(stats);
