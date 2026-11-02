@@ -2123,7 +2123,7 @@ const customCardTemplates = {
             masteryTitle: "Картофельный император удачи", masteryTitleId: "mastery_character_fb275189", masteryTitleIcon: "✦" },
         { name: "Попугай Соня", universe: "Зоопарк", damage: 3, hp: 5, speed: 0.8, unsellable: true, ability: { type: "deathBonus", value: 0.30, desc: "+30% звёзд" }, desc: "После смерти даёт +30% к накопленным звёздам.",
             masteryTitle: "Пернатый оракул зоопарка", masteryTitleId: "mastery_character_a14c37eb", masteryTitleIcon: "✦" },
-        { name: "DrinkTea2Win", universe: "Кухня", damage: 20, hp: 550, speed: 6, unsellable: true, ability: { type: "fatigueResist", value: 0.50, desc: "-50% усталости" }, desc: "Бодрящий напиток. Победа... в чашке? Снижает набор усталости на 50%.",
+        { name: "DrinkTea2Win", universe: "Кухня", damage: 20, hp: 550, speed: 6, unsellable: true, ability: { type: "fatigueResist", value: 0.50, desc: "-50% усталости" }, desc: "Бодрящий напиток. Снижает набор усталости на 50%. При HP 30% или ниже скорость повышается на 35% (пассивно, во всех боях).",
             masteryTitle: "Повелитель чайной паузы", masteryTitleId: "mastery_character_5c2c21e1", masteryTitleIcon: "✦" }
     ]
 };
