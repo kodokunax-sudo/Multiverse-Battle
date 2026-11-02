@@ -496,11 +496,24 @@ function getDrinkTeaEmergencySpeedMultiplier() {
         mainCard = myCards[team[mainCardIndex]];
     }
     if (!mainCard || mainCard.name !== "DrinkTea2Win") return 1;
-    var hp = Number(arenaHP);
-    var maxHp = Number(arenaMaxHP);
+    var hp = NaN, maxHp = NaN;
+    if (typeof livingStoneActive !== "undefined" && livingStoneActive) {
+        hp = Number(livingStonePlayerHp); maxHp = Number(livingStonePlayerMaxHp);
+    } else if (typeof waystarActive !== "undefined" && waystarActive) {
+        hp = Number(waystarPlayerHp); maxHp = Number(waystarPlayerMaxHp);
+    } else if (typeof window.rwbActive !== "undefined" && window.rwbActive &&
+        typeof rwbPlayer !== "undefined" && rwbPlayer) {
+        hp = Number(rwbPlayer.hp); maxHp = Number(rwbPlayer.maxHp);
+    } else if (typeof window.getAntiSpiralBossActive === "function" && window.getAntiSpiralBossActive() &&
+        typeof window.getAntiSpiralPlayerHp === "function" && typeof window.getAntiSpiralPlayerMaxHp === "function") {
+        hp = Number(window.getAntiSpiralPlayerHp()); maxHp = Number(window.getAntiSpiralPlayerMaxHp());
+    } else {
+        hp = Number(arenaHP); maxHp = Number(arenaMaxHP);
+    }
     if (!Number.isFinite(hp) || !Number.isFinite(maxHp) || maxHp <= 0) return 1;
     return hp / maxHp <= 0.30 ? 1.35 : 1;
 }
+window.getDrinkTeaEmergencySpeedMultiplier = getDrinkTeaEmergencySpeedMultiplier;
 
 function moveHeart() {
     if (typeof _superState !== 'undefined' && (_superState.dioTimeStopWindupUntil || 0) > performance.now()) return;
