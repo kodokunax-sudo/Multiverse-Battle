@@ -771,13 +771,9 @@ function clearZenoBossAttacks(ctxB) {
 }
 
 function applyZenoEraseDamage(ctxB) {
-    if (!ctxB || typeof ctxB.getBossHp !== "function") return 0;
-    var maxHp = Math.max(0, Number(ctxB.getBossMaxHp && ctxB.getBossMaxHp()) || 0);
-    var before = Math.max(0, Number(ctxB.getBossHp()) || 0);
-    if (!(maxHp > 0) || !(before > 0)) return 0;
-    var baseDamage = Math.max(1, Math.floor(maxHp * 0.10));
-    var testMode = typeof window !== "undefined" && window.__mbBossTestMode;
+    if (!ctxB) return 0;
 
+    var testMode = typeof window !== "undefined" && window.__mbBossTestMode;
     function applyTestModifier(value) {
         if (testMode && typeof window.MBBossTestModifyOutgoingDamage === "function") {
             try { return Math.max(0, Number(window.MBBossTestModifyOutgoingDamage(value, 1)) || 0); } catch (e) {}
@@ -785,27 +781,43 @@ function applyZenoEraseDamage(ctxB) {
         return value;
     }
 
-    if (ctxB.type === "rwb" && typeof window.getRWBTargets === "function" &&
-        typeof window.rwbApplyDioSkillDamage === "function") {
-        var targets = window.getRWBTargets() || [];
+    // In the first RWB phase there is no rwbActiveBoss yet: Roger and Whitebeard
+    // are both targets. Handle them before reading the single-active-boss HP API.
+    if (ctxB.type === "rwb") {
+        var targets = typeof window.getRWBTargets === "function"
+            ? (window.getRWBTargets() || []) : [];
+        if (!targets.length && typeof window.getRWBActiveBoss === "function") {
+            var activeTarget = window.getRWBActiveBoss();
+            if (activeTarget) targets = [activeTarget];
+        }
         var totalDealt = 0;
         for (var i = 0; i < targets.length; i++) {
             var target = targets[i];
             if (!target || !(Number(target.hp) > 0)) continue;
             var targetMaxHp = Math.max(0, Number(target.maxHp) || Number(target.hp) || 0);
             if (!(targetMaxHp > 0)) continue;
-            var targetDamage = Math.max(1, Math.floor(targetMaxHp * 0.10));
-            if (typeof window.MBKarsApplyDamageBonus === "function") {
-                targetDamage = window.MBKarsApplyDamageBonus(targetDamage);
-            }
-            targetDamage = applyTestModifier(targetDamage);
+            var targetDamage = applyTestModifier(Math.max(1, Math.floor(targetMaxHp * 0.10)));
             if (!(targetDamage > 0)) continue;
-            var targetBefore = Number(target.hp) || 0;
-            window.rwbApplyDioSkillDamage(target.id, targetDamage);
-            totalDealt += Math.max(0, targetBefore - (Number(target.hp) || 0));
+
+            var dealt = 0;
+            if (typeof window.rwbApplyZenoEraseDamage === "function") {
+                dealt = Number(window.rwbApplyZenoEraseDamage(target.id, targetDamage)) || 0;
+            } else {
+                var beforeTarget = Math.max(0, Number(target.hp) || 0);
+                target.hp = Math.max(0, beforeTarget - targetDamage);
+                target.hitFlash = 12;
+                dealt = beforeTarget - target.hp;
+            }
+            totalDealt += Math.max(0, dealt);
         }
         return totalDealt;
     }
+
+    if (typeof ctxB.getBossHp !== "function") return 0;
+    var maxHp = Math.max(0, Number(ctxB.getBossMaxHp && ctxB.getBossMaxHp()) || 0);
+    var before = Math.max(0, Number(ctxB.getBossHp()) || 0);
+    if (!(maxHp > 0) || !(before > 0)) return 0;
+    var baseDamage = Math.max(1, Math.floor(maxHp * 0.10));
 
     if (ctxB.type === "waystar" && typeof waystarState !== "undefined" &&
         waystarState === "phase1" && typeof window.damageWaystarBoss === "function") {
@@ -816,8 +828,10 @@ function applyZenoEraseDamage(ctxB) {
     }
 
     if (ctxB.type === "antispiral" && typeof window.damageAntiSpiralBoss === "function") {
-        // Zeno's erasure is the one effect allowed to pass through Anti-Spiral's seal shield.
-        window.damageAntiSpiralBoss(baseDamage, "Зено: СТИРАНИЕ", true);
+        // Zeno's erasure bypasses the seal shield instead of being silently absorbed by it.
+        var antiDamage = applyTestModifier(baseDamage);
+        if (!(antiDamage > 0)) return 0;
+        window.damageAntiSpiralBoss(antiDamage, "Зено: СТИРАНИЕ", true);
         return Math.max(0, before - (Number(ctxB.getBossHp()) || 0));
     }
 
