@@ -397,7 +397,38 @@ function mbIsStarterSave(data) {
         !(Array.isArray(data.defeatedBosses) && data.defeatedBosses.length);
 }
 function mbCloudClearlyHasMoreProgress(cloudData, localData) {
-    if (!mbIsStarterSave(localData) || !mbValidateCloudSave(cloudData)) return false;
+    if (!mbValidateCloudSave(cloudData) || !mbValidateCloudSave(localData)) return false;
+    if (mbIsStarterSave(localData) && mbCloudClearlyHasMoreProgressLegacy(cloudData, localData)) return true;
+
+    // Protect an established cloud save from a stale or partially reset local copy.
+    // This catches regressions such as 29 cards / 6 team members becoming 1 card / no team.
+    var cloudCards = cloudData.myCards.length;
+    var localCards = localData.myCards.length;
+    var cloudTeam = Array.isArray(cloudData.team) ? cloudData.team.length : 0;
+    var localTeam = Array.isArray(localData.team) ? localData.team.length : 0;
+    var cloudRebirth = Number(cloudData.rebirthCount || 0);
+    var localRebirth = Number(localData.rebirthCount || 0);
+    var cloudWave = Number(cloudData.wave || 1);
+    var localWave = Number(localData.wave || 1);
+    var cloudRecord = Number(cloudData.highestWaveReached || 0);
+    var localRecord = Number(localData.highestWaveReached || 0);
+    var cloudCheckpoint = Number(cloudData.highestCheckpoint || 0);
+    var localCheckpoint = Number(localData.highestCheckpoint || 0);
+
+    var collectionRegression = cloudCards >= localCards + 5 &&
+        cloudCards >= Math.max(5, localCards * 1.5) &&
+        cloudTeam >= localTeam + 2;
+    var rebirthRegression = cloudRebirth > localRebirth &&
+        cloudCards >= localCards && cloudTeam >= localTeam;
+    var progressionRegression = cloudCards >= localCards && cloudTeam >= localTeam &&
+        (cloudWave >= localWave + 300 ||
+         cloudRecord >= localRecord + 500 ||
+         cloudCheckpoint >= localCheckpoint + 300);
+
+    return collectionRegression || rebirthRegression || progressionRegression;
+}
+function mbCloudClearlyHasMoreProgressLegacy(cloudData, localData) {
+    if (!mbValidateCloudSave(cloudData) || !mbValidateCloudSave(localData)) return false;
     return Number(cloudData.rebirthCount || 0) > 0 ||
         Number(cloudData.wave || 1) > 1 ||
         cloudData.myCards.length > 4 ||
