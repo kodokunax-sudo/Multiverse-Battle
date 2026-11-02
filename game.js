@@ -1110,6 +1110,16 @@ function loadGameData(d) {
             return;
         }
 
+        // DrinkTea2Win: always-on emergency speed passive.
+        if (card.name === "DrinkTea2Win") {
+            card.superAbility = {
+                name: "СУПЕР-ПАССИВКА: ЧАЙНЫЙ АВАРИЙНЫЙ РЕЖИМ",
+                desc: "Когда HP DrinkTea2Win опускается до 30% или ниже, его скорость повышается на 35%. При восстановлении HP выше 30% бонус отключается. Работает автоматически против обычных и уникальных боссов.",
+                passive: true
+            };
+            card.desc = "Бодрящий напиток. Снижает набор усталости на 50%. СУПЕР-ПАССИВКА «Чайный аварийный режим»: при HP 30% или ниже скорость повышается на 35% во всех боях.";
+        }
+
         // Gold Experience: life-energy burst; the autonomous companion belongs to Requiem.
         if (card.name === "Джорно Джованна (Gold Experience)") {
             card.superAbility = {
