@@ -143,7 +143,7 @@ window.MBShouldSuppressBossShake = function() {
 };
 
 window.MBSetBossGraphicsModeForFight = function(mode) {
-    window.__mbBossGraphicsModeForFight = mode === "light" ? "light" : (mode === "full" ? "full" : null);
+    window.__mbBossGraphicsModeForFight = mode === "light" ? "light" : (mode === "full" ? "full" : (mode === "potato" ? "potato" : null));
 };
 
 window.MBEndBossGraphicsModeForFight = function() {
@@ -210,6 +210,9 @@ window.MBChooseBossGraphicsMode = function(bossName, onChoose) {
     card.appendChild(desc);
     card.appendChild(makeChoiceButton("💻 Полные эффекты · ПК / ноутбук", "full", "linear-gradient(135deg,#3157a4,#6339a7)", "rgba(150,170,255,.65)"));
     card.appendChild(makeChoiceButton("📱 Лёгкая графика · телефон / выше FPS", "light", "linear-gradient(135deg,#168c75,#075c70)", "rgba(80,230,200,.55)"));
+    if (bossName === "Роджер vs Белоус") {
+        card.appendChild(makeChoiceButton("🥔 Картошка · максимум FPS", "potato", "linear-gradient(135deg,#796044,#403326)", "rgba(220,190,140,.55)"));
+    }
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 };
