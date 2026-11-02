@@ -225,34 +225,77 @@
         return true;
     }
 
-    // ========== ПАТЧ victory (уведомление при победе над 500) ==========
-    function patchVictory() {
-        if (typeof window.victory !== 'function') return false;
-        if (window._evolutionVictoryPatched) return true;
+    // ========== ОДНОРАЗОВОЕ УВЕДОМЛЕНИЕ ОБ ОТКРЫТИИ ВКЛАДКИ ==========
+    function showEvolutionUnlockToast() {
+        if (typeof document === "undefined" || !document.body) return;
+        if (document.getElementById("mbEvolutionUnlockToast")) return;
 
-        let originalVictory = window.victory;
+        var toast = document.createElement("div");
+        toast.id = "mbEvolutionUnlockToast";
+        toast.setAttribute("role", "status");
+        toast.setAttribute("aria-live", "polite");
+        toast.style.cssText = "position:fixed;top:16px;left:50%;transform:translate(-50%,-24px);opacity:0;z-index:999999;width:min(480px,calc(100vw - 24px));box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:13px 42px 13px 14px;border:1px solid rgba(184,153,255,.48);border-radius:17px;background:linear-gradient(120deg,rgba(30,23,48,.98),rgba(16,19,32,.98));box-shadow:0 16px 48px rgba(0,0,0,.48),0 0 28px rgba(151,105,255,.18);backdrop-filter:blur(14px);color:#f5f0ff;transition:opacity .24s ease,transform .24s ease;font-family:inherit;";
 
-        window.victory = function() {
-            originalVictory.apply(this, arguments);
+        var icon = document.createElement("div");
+        icon.textContent = "🧬";
+        icon.style.cssText = "flex:0 0 42px;width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:rgba(160,125,255,.17);font-size:24px;";
 
-            setTimeout(function() {
-                try {
-                    if (typeof defeatedBosses !== 'undefined'
-                        && Array.isArray(defeatedBosses)
-                        && defeatedBosses.includes(500)) {
-                        if (typeof window.renderEvoTab === 'function') window.renderEvoTab();
-                        if (typeof showFloatingText === 'function') {
-                            showFloatingText("🧬 ЭВОЛЮЦИЯ РАЗБЛОКИРОВАНА!", "#e056fd");
-                        }
-                        if (typeof saveAll === 'function') saveAll();
-                    }
-                } catch(e) {}
-            }, 500);
-        };
+        var content = document.createElement("div");
+        content.style.cssText = "min-width:0;display:flex;flex-direction:column;gap:3px;";
+        var kicker = document.createElement("div");
+        kicker.textContent = "🧬 ДОСТУП К РАЗДЕЛУ ОТКРЫТ";
+        kicker.style.cssText = "font-size:10px;letter-spacing:1.2px;font-weight:950;color:#bda7ff;";
+        var heading = document.createElement("div");
+        heading.textContent = "Вкладка «Эволюция»";
+        heading.style.cssText = "font-size:15px;font-weight:950;line-height:1.25;color:#fff;";
+        var detail = document.createElement("div");
+        detail.textContent = "Теперь видны условия получения эволюционных карт. Сами карты нужно открыть отдельно.";
+        detail.style.cssText = "font-size:11px;line-height:1.35;color:#c9c1da;overflow-wrap:anywhere;";
+        content.appendChild(kicker);
+        content.appendChild(heading);
+        content.appendChild(detail);
 
-        window._evolutionVictoryPatched = true;
+        var close = document.createElement("button");
+        close.type = "button";
+        close.textContent = "×";
+        close.setAttribute("aria-label", "Закрыть уведомление");
+        close.style.cssText = "position:absolute;right:10px;top:8px;border:0;background:transparent;color:#bdb4d0;font-size:23px;line-height:1;cursor:pointer;padding:3px 5px;";
+        close.addEventListener("click", function () {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+        });
+
+        toast.appendChild(icon);
+        toast.appendChild(content);
+        toast.appendChild(close);
+        document.body.appendChild(toast);
+        window.requestAnimationFrame(function () {
+            toast.style.opacity = "1";
+            toast.style.transform = "translate(-50%,0)";
+        });
+        if (typeof window.sfxUINotification === "function") window.sfxUINotification();
+        window.setTimeout(function () {
+            if (!toast.parentNode) return;
+            toast.style.opacity = "0";
+            toast.style.transform = "translate(-50%,-24px)";
+            window.setTimeout(function () {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 280);
+        }, 6200);
+    }
+
+    function notifyEvolutionTabUnlocked() {
+        if (!isEvolutionUnlocked()) return false;
+        if (typeof currentSlot === "undefined" || currentSlot < 0 ||
+            typeof slotData === "undefined" || !slotData) return false;
+        if (Number(slotData.evolutionUnlockNotificationVersion) >= 1) return false;
+
+        // Save the notification ledger per save slot, just like one-time title notifications.
+        slotData.evolutionUnlockNotificationVersion = 1;
+        if (typeof window.saveAll === "function") window.saveAll();
+        showEvolutionUnlockToast();
         return true;
     }
+    window.MBNotifyEvolutionTabUnlocked = notifyEvolutionTabUnlocked;
 
     // ========== ФУНКЦИЯ СБРОСА (для отладки) ==========
     window.resetEvolutionUnlock = function() {
@@ -322,9 +365,7 @@
             let d = patchDoRebirth();
             let e = patchLoadGameData();
             let f = patchSaveAll();
-            let g = patchVictory();
-
-            if (a && b && c && d && e && f && g) {
+            if (a && b && c && d && e && f) {
                 // Чистим устаревший флаг сразу
                 cleanStaleFlag();
 
@@ -348,7 +389,7 @@
             if (attempts < maxAttempts) {
                 setTimeout(tryPatch, 100);
             } else {
-                console.warn("[EVO-UNLOCK] Не всё пропатчено. renderEvoTab:", a, "| checkEvolutionQuests:", b, "| switchSubTab:", c, "| doRebirth:", d, "| loadGameData:", e, "| saveAll:", f, "| victory:", g);
+                console.warn("[EVO-UNLOCK] Не всё пропатчено. renderEvoTab:", a, "| checkEvolutionQuests:", b, "| switchSubTab:", c, "| doRebirth:", d, "| loadGameData:", e, "| saveAll:", f);
             }
         }
 
