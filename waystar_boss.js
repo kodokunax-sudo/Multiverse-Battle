@@ -1343,6 +1343,7 @@ function grantWaystarReward() {
     if (typeof addItem === 'function') addItem("waystar", 1);
     if (typeof secretGachaTokens !== 'undefined') secretGachaTokens = (secretGachaTokens || 0) + 1;
     if (typeof saveAll === 'function') saveAll();
+    if (typeof window.MBNotifyEvolutionTabUnlocked === 'function') window.MBNotifyEvolutionTabUnlocked();
     if (typeof showFloatingText === 'function') {
         showFloatingText("⭐ ПОБЕДА! ⭐", "#ffd700");
         setTimeout(function() { showFloatingText("🌟 Путеводная Звезда получена!", "#ffd700"); }, 600);
@@ -1366,6 +1367,7 @@ function grantWaystarSpareDebt() {
         }
     } catch(e) {}
     if (typeof saveAll === 'function') saveAll();
+    if (typeof window.MBNotifyEvolutionTabUnlocked === 'function') window.MBNotifyEvolutionTabUnlocked();
     if (typeof showFloatingText === 'function') {
         showFloatingText("🤝 Звезда запомнила твою доброту", "#88ddff");
         setTimeout(function() { showFloatingText("💫 Однажды она вернёт долг...", "#88ddff"); }, 1500);
