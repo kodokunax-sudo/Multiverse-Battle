@@ -63,8 +63,8 @@ function renderMyCards() {
         let cardImg = typeof getCardImage === "function" ? getCardImage(cd.name) : null; 
         let isDioGift = cd.dioGiftVariant === true;
         let imgHTML = cardImg ? (isDioGift
-            ? '<div class="dio-gift-art-frame"><img src="' + cardImg + '" class="card-image dio-gift-art"></div>'
-            : '<img src="' + cardImg + '" class="card-image">') : '';
+            ? '<div class="dio-gift-art-frame"><img loading="lazy" decoding="async" fetchpriority="low" src="' + cardImg + '" class="card-image dio-gift-art"></div>'
+            : '<img loading="lazy" decoding="async" fetchpriority="low" src="' + cardImg + '" class="card-image">') : '';
         let giftRibbon = isDioGift ? '<div class="dio-gift-ribbon">✦ ПЕРСОНАЛЬНЫЙ ПОДАРОК ✦</div>' : '';
         let giftEdition = isDioGift ? '<div class="dio-gift-edition">ОСЛАБЛЕННАЯ ВЕРСИЯ</div>' : '';
         let giftSeal = isDioGift ? '<div class="dio-gift-seal">🔒 НЕ ПРОДАЁТСЯ</div>' : ''; 
