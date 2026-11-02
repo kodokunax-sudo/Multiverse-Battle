@@ -761,7 +761,7 @@ function livingStoneSpawnAttack() {
             var delay = i * Math.floor(60 / lsSpeedMult);
             (function(ang, dly, token) {
                 setTimeout(function() {
-                    if (token !== livingStoneEncounterGeneration || !livingStoneActive ||
+                    if (token !== livingStoneEncounterGeneration || !livingStoneActive || lsIsZenoEraseActive() ||
                         (livingStoneState !== "phase1" && livingStoneState !== "phase2")) return;
                     livingStoneAttacks.push({
                         type: "orb", x: livingStoneBoss.x, y: livingStoneBoss.y,
@@ -829,7 +829,7 @@ function livingStoneSpawnAttack() {
             var delay = i * Math.floor(80 / lsSpeedMult);
             (function(x2, dly, token) {
                 setTimeout(function() {
-                    if (token !== livingStoneEncounterGeneration || !livingStoneActive ||
+                    if (token !== livingStoneEncounterGeneration || !livingStoneActive || lsIsZenoEraseActive() ||
                         (livingStoneState !== "phase1" && livingStoneState !== "phase2")) return;
                     livingStoneAttacks.push({
                         type: "falling_star", x: x2, y: -30,
@@ -3727,5 +3727,9 @@ window.initLSSupers = initLSSupers;
 // ★ ДЛЯ JOYSTICK.JS ★
 window.getLivingStoneActive = function() { return livingStoneActive; };
 window.getLivingStoneState  = function() { return livingStoneState; };
+window.MBLivingStoneClearBossAttacks = function() {
+    livingStoneAttacks.length = 0;
+    activeGravityWell = false;
+};
 
 console.log("[LIVING STONE] v8.0 + ФИКС СУПЕРОВ (Гароу стоп, Анти-спираль, урон, заморозка)");
