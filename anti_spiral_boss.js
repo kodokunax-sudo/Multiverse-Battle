@@ -2573,7 +2573,7 @@
             gx = (200 - asPlayer.x) * 0.0016;
             gy = (260 - asPlayer.y) * 0.0016;
         }
-        const miniSpeedMultiplier=(asPlayerScaleMode===.5?1.5:(asPlayerScaleMode===2?.62:1))*asSuperSpeedMult;
+        const miniSpeedMultiplier=(asPlayerScaleMode===.5?1.5:(asPlayerScaleMode===2?.62:1))*asSuperSpeedMult*(typeof window.getDrinkTeaEmergencySpeedMultiplier === "function" ? window.getDrinkTeaEmergencySpeedMultiplier() : 1);
         asPlayer.vx = Math.max(-4.6*miniSpeedMultiplier, Math.min(4.6*miniSpeedMultiplier, (asPlayer.vx + mx * 0.43*miniSpeedMultiplier + gx) * 0.965));
         asPlayer.vy = Math.max(-4.6*miniSpeedMultiplier, Math.min(4.6*miniSpeedMultiplier, (asPlayer.vy + my * 0.43*miniSpeedMultiplier + gy) * 0.965));
         asPlayer.x += asPlayer.vx;
