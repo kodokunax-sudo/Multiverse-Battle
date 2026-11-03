@@ -1744,7 +1744,7 @@ function updateExtendedArenaAttack(now) {
                         }));
                     arenaExtPushHeart(debris.x, debris.y, 4.2, 1.1);
                 }
-                if (explosionAge >= 350) st.hazards.splice(di2, 1);
+                if (explosionAge >= 470) st.hazards.splice(di2, 1);
             }
 
             if (debris.phase === "flying" &&
@@ -1921,12 +1921,12 @@ function updateExtendedArenaAttack(now) {
                 ctx.strokeStyle = "#ff7a28"; ctx.lineWidth = 4 + pulse * 3; ctx.shadowColor = "#ff3b0d"; ctx.shadowBlur = 20;
                 ctx.beginPath(); ctx.arc(lavaCrack.x, lavaCrack.y, lavaShockR, 0, Math.PI * 2); ctx.stroke();
                 ctx.strokeStyle = "rgba(255,225,108,0.85)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(lavaCrack.x, lavaCrack.y, Math.max(0, lavaShockR - 6), 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-                if (!frozen && Math.abs(Math.hypot(heart.x-lavaCrack.x, heart.y-lavaCrack.y) - lavaShockR) < 11 + heart.hitbox &&
+                if (!frozen && Math.abs(Math.hypot(heart.x-lavaCrack.x, heart.y-lavaCrack.y) - lavaShockR) < 4 + heart.hitbox &&
                     arenaExtTouchCooldown(st, "lavaWave_" + lavaRi, now, 360)) {
                     var lavaPushA = Math.atan2(heart.y-lavaCrack.y, heart.x-lavaCrack.x);
                     heart.vx += Math.cos(lavaPushA) * 7.0 * extWaveDanger;
                     heart.vy += Math.sin(lavaPushA) * 7.0 * extWaveDanger;
-                    st._multiHitActive = true; applyHit(extImpactDamage, "ЛАВА: УДАРНАЯ ВОЛНА!", false, true, arenaExtDamageAction("lavaWave:"+lavaRi,{type:"ring",x:lavaCrack.x,y:lavaCrack.y,radius:lavaShockR,thickness:22,damage:extImpactDamage}));
+                    st._multiHitActive = true; applyHit(extImpactDamage, "ЛАВА: УДАРНАЯ ВОЛНА!", false, true, arenaExtDamageAction("lavaWave:"+lavaRi,{type:"ring",x:lavaCrack.x,y:lavaCrack.y,radius:lavaShockR,thickness:8,damage:extImpactDamage}));
                 }
             }
             // First show dark fissure telegraphs, then let the eruption travel out from the center.
