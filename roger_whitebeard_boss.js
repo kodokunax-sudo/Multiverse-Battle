@@ -6672,6 +6672,26 @@
     window.getRWBSpeedMult = function() { return rwbSpeedMult; };
     window.setRWBSpeedMult = function(v) { rwbSpeedMult = v; };
 
+    // Made in Heaven advances the enemy-side RWB simulation, not player input.
+    if (!window.__mbPucciRWBTimePatch) {
+        window.__mbPucciRWBTimePatch = true;
+        var pucciRwbCarries = Object.create(null);
+        ["updateDuel", "updateRWBAttacks", "updateSuperBoss", "updateWhitebeardVortex"].forEach(function (name) {
+            var original = window[name];
+            if (typeof original !== "function") return;
+            window[name] = function () {
+                var mult = window.MBPucciIsMadeInHeavenActive && window.MBPucciIsMadeInHeavenActive()
+                    ? window.MBPucciGetWorldTimeMultiplier() : 1;
+                pucciRwbCarries[name] = (pucciRwbCarries[name] || 0) + Math.max(0, mult - 1);
+                var extra = Math.floor(pucciRwbCarries[name]);
+                pucciRwbCarries[name] -= extra;
+                var result;
+                for (var i = 0; i <= Math.min(10, extra); i++) result = original.apply(this, arguments);
+                return result;
+            };
+        });
+    }
+
     console.log("╔════════════════════════════════════════════════════════════╗");
     console.log("║  🏴‍☠️ ROGER vs WHITEBEARD v23.0                             ║");
     console.log("║  ✅ garouTimeStop останавливает ВСЕ атаки                  ║");
