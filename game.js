@@ -1706,6 +1706,7 @@ let myCards=[],team=[],afkTeam=[],points=100,wave=1,playerHp=100,currentEnemy=nu
 let highestWaveReached = 1;
 let rebirthCount=0, rebirthStats=[], activeCheckpoint=0, autoSellSettings={"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}, purchasedAutoSell={"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}, autoRest={active:false,threshold:90,purchased:false};
 let afkFarmUpgradeLevel=0;
+var mbAfkFarmUpgradeBackupNeedsSave = false;
 function mbAfkFarmUpgradeStorageKey(){
     var slot = typeof currentSlot !== "undefined" ? Number(currentSlot) : -1;
     return Number.isInteger(slot) && slot >= 0 && slot < MB_SAVE_SLOT_COUNT
@@ -1732,7 +1733,9 @@ function mbRestoreAfkFarmUpgradeBackup(savedLevel, savedRebirth){
         if (raw) {
             var backup = JSON.parse(raw);
             if (backup && Number(backup.rebirthCount) === rebirth) {
-                level = Math.max(level, Math.max(0, Math.min(5, Math.floor(Number(backup.level) || 0))));
+                var backupLevel = Math.max(0, Math.min(5, Math.floor(Number(backup.level) || 0)));
+                if (backupLevel > level) mbAfkFarmUpgradeBackupNeedsSave = true;
+                level = Math.max(level, backupLevel);
             } else {
                 // A backup from a previous rebirth must never restore old AFK upgrades.
                 localStorage.removeItem(key);
@@ -1744,6 +1747,14 @@ function mbRestoreAfkFarmUpgradeBackup(savedLevel, savedRebirth){
     mbPersistAfkFarmUpgradeBackup(level, rebirth);
     return level;
 }
+window.addEventListener("mb:slot-ready", function () {
+    if (!mbAfkFarmUpgradeBackupNeedsSave) return;
+    mbAfkFarmUpgradeBackupNeedsSave = false;
+    if (typeof slotData !== "undefined" && slotData) {
+        slotData.afkFarmUpgradeLevel = afkFarmUpgradeLevel;
+        if (typeof saveAll === "function") saveAll(true);
+    }
+});
 const AFK_FARM_UPGRADE_COSTS=[20000,50000,75000,100000];
 function getAfkFarmCost(){const nextLevel=afkFarmUpgradeLevel+1;return nextLevel===5?Math.max(1000000,Math.floor(Math.max(0,Number(points)||0)*.5)):AFK_FARM_UPGRADE_COSTS[nextLevel-1]}
 function getAfkTeamPowerMultiplier() {
