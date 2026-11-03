@@ -2303,16 +2303,16 @@ console.log("[WAYSTAR] v14.0 — ФИКС СУПЕРОВ + Белоус погл
 (function () {
     if (window.__mbPucciWaystarTimePatch) return;
     window.__mbPucciWaystarTimePatch = true;
-    var carry = 0;
+    var carries = Object.create(null);
     ["updateWaystarBoss", "updateWaystarAttacks", "updateWaystarShooting", "updateWaystarBlind", "updateWaystarSpaceInvaders", "updateWaystarBombQueue"].forEach(function (name) {
         var original = window[name];
         if (typeof original !== "function") return;
         window[name] = function () {
             var mult = window.MBPucciIsMadeInHeavenActive && window.MBPucciIsMadeInHeavenActive()
                 ? window.MBPucciGetWorldTimeMultiplier() : 1;
-            carry += Math.max(0, mult - 1) / 6;
-            var extra = Math.floor(carry);
-            carry -= extra;
+            carries[name] = (carries[name] || 0) + Math.max(0, mult - 1);
+            var extra = Math.floor(carries[name]);
+            carries[name] -= extra;
             var result;
             for (var i = 0; i <= Math.min(10, extra); i++) result = original.apply(this, arguments);
             return result;
