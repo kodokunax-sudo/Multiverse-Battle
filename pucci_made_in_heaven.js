@@ -501,7 +501,7 @@
         if (state.active) {
             var elapsed = elapsedMs();
             if (elapsed < TELEPORT_UNLOCK_MS) {
-                label = "🌀 РАЗГОН " + Math.floor(elapsed / 1000) + "/60";
+                label = "🌀 РАЗГОН " + Math.floor(elapsed / 1000) + "/120";
             } else {
                 var cd = Math.max(0, state.teleportCooldownUntil - now());
                 label = cd > 0 ? "⏳ ТЕЛЕПОРТ " + (cd / 1000).toFixed(1) + "с" : "⚡ ТЕЛЕПОРТ";
@@ -723,7 +723,6 @@
             draw.arc(t.x, t.y, 3 + (1 - alpha) * 3, 0, Math.PI * 2);
             draw.fill();
         }
-        var p = progress();
         var pulse = 1 + Math.sin(now() / 55) * (0.035 + p * 0.045);
         draw.globalAlpha = 0.65 + p * 0.25;
         draw.strokeStyle = "#e8fcff";
@@ -838,5 +837,5 @@
         } catch (e) {}
     }, 250);
 
-    console.log("[MADE IN HEAVEN] Progressive 60-second acceleration loaded.");
+    console.log("[MADE IN HEAVEN] Two-minute cinematic acceleration loaded.");
 })();
