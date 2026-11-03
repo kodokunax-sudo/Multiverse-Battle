@@ -878,6 +878,7 @@
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" data-subtab="myCards">📚 Карты</button>
                 <button class="sub-tab-btn" data-subtab="book">📖 Книга</button>
+                <button class="sub-tab-btn" data-subtab="tierList" style="display:none;">🏆 Тирлист</button>
                 <button class="sub-tab-btn" data-subtab="pass">🎫 Пасс</button>
                 <button class="sub-tab-btn" data-subtab="evolution">🧬 Эволюция</button>
                 <button class="sub-tab-btn" data-subtab="challenges">🔥 Квесты</button>
@@ -948,6 +949,11 @@
                     </div>
                     <div class="book-results-count">Показано карт: <strong id="bookShownCount">0</strong></div>
                     <div id="bookList" class="book-grid"></div>
+                </div>
+            </div>
+            <div id="tierListSubTab" class="sub-tab-content">
+                <div class="card">
+                    <div id="tierListRoot"></div>
                 </div>
             </div>
             <div id="passSubTab" class="sub-tab-content">
@@ -1642,6 +1648,7 @@
 <script src="help.js?v=5" defer></script>
 <script src="evolution_unlock.js?v=3" defer></script>
 <script src="fix_code.js?v=3" defer></script>
+<script src="tier_list.js?v=1" defer></script>
 <script src="visuals.js" defer></script>
 
 <!-- ★★★ ДЖОЙСТИК — САМЫМ ПОСЛЕДНИМ ★★★ -->
