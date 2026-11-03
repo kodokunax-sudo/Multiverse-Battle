@@ -700,7 +700,9 @@ function skipDefeatedBoss() { stopArena(); if (typeof currentEnemy !== 'undefine
 function getMainCardSpeedForArena() {
     if (typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMainCard) {
         var testMain = window.__mbBossTestMainCard;
-        return { speed: Math.max(1.65, Math.min(6, Number(testMain.speed) || 1.65)), cardName: testMain.name || "Тестовый персонаж",
+        var testSpeed = Number(testMain.speed) || 1.65;
+        var isPucciTestCard = testMain.name === "Энрико Пуччи (Made in Heaven)";
+        return { speed: Math.max(1.65, isPucciTestCard ? testSpeed : Math.min(6, testSpeed)), cardName: testMain.name || "Тестовый персонаж",
             cardRarity: testMain.rarity || "Тест", source: "bossTest", details: ["Выбрано во вкладке теста босса"] };
     }
     var result = { speed: 1.2, cardName: "Нет карты", cardRarity: "—", source: "базовая", details: [] };
@@ -815,7 +817,8 @@ function startArena(bossWave) {
     }
 
     if(typeof getTakabaCombatModifiers==="function"){try{var tm=getTakabaCombatModifiers();heartSpeed*=tm.speedMult;window._takabaSpeedMult=tm.speedMult;}catch(e){window._takabaSpeedMult=1;}}else window._takabaSpeedMult=1;
-    heartSpeed = Math.max(bossTestMode ? 1.65 : 0.4, Math.min(6.0, heartSpeed));
+    var heartSpeedCap = speedInfo.cardName === "Энрико Пуччи (Made in Heaven)" ? Infinity : 6.0;
+    heartSpeed = Math.max(bossTestMode ? 1.65 : 0.4, Math.min(heartSpeedCap, heartSpeed));
     window._currentHeartSpeed = heartSpeed;
 
     var speedDisplay = document.getElementById("arenaSpeedDisplay");
