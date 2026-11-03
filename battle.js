@@ -2220,6 +2220,174 @@ function updateExtendedArenaAttack(now) {
     else if (wasMultiHit) invulnTimer = Math.max(Number(invulnTimer || 0), 45);
 }
 
+function arenaRainbowOtherRadius(a) {
+    if (!a || a.type === "wall") return 0;
+    if (a.type === "rainbow" || a.type === "circle" || a.type === "healCircle") {
+        return Math.max(1, Number(a.radius) || 10);
+    }
+    if (a.type === "bomb") return Number(a.timer) < 0 ? 0 : 14;
+    if (a.type === "sword") {
+        return Math.max(8, Math.hypot((Number(a.size) || 36) * 0.5, (Number(a.width) || 12) * 0.5));
+    }
+    if (Number(a.width) > 0 || Number(a.height) > 0) {
+        return Math.max(1, Math.hypot(Number(a.width) || Number(a.size) || 20, Number(a.height) || Number(a.size) || 20) * 0.5);
+    }
+    return Math.max(8, (Number(a.size) || 20) * 0.70710678);
+}
+
+function arenaRainbowOtherCenter(a) {
+    if (a.type === "rainbow" || a.type === "circle" || a.type === "healCircle" ||
+        a.type === "bomb" || a.type === "sword") {
+        return { x: Number(a.x) || 0, y: Number(a.y) || 0 };
+    }
+    if (Number(a.width) > 0 || Number(a.height) > 0) {
+        return {
+            x: (Number(a.x) || 0) + (Number(a.width) || Number(a.size) || 20) * 0.5,
+            y: (Number(a.y) || 0) + (Number(a.height) || Number(a.size) || 20) * 0.5
+        };
+    }
+    var size = Number(a.size) || 20;
+    return { x: (Number(a.x) || 0) + size * 0.5, y: (Number(a.y) || 0) + size * 0.5 };
+}
+
+function arenaUpdateRainbowAttacks(list, speedMod, globallyFrozen, globallyStopped) {
+    if (!Array.isArray(list) || globallyFrozen) return;
+    var leftBound = 0, rightBound = 400, topBound = 55, bottomBound = 500;
+
+    // Move each rainbow orb once, then resolve its collisions in a separate pass.
+    for (var i = 0; i < list.length; i++) {
+        var orb = list[i];
+        if (!orb || orb.type !== "rainbow") continue;
+        var orbStopped = globallyStopped ||
+            (typeof dioShouldFreezeEntity === "function" && dioShouldFreezeEntity(orb));
+        orb._mbRainbowOrb = true;
+        var radius = Math.max(1, Number(orb.radius) || 30);
+
+        if (!orbStopped) {
+            orb.x += (Number(orb.spd) || 0) * speedMod;
+            orb.y += (Number(orb.spdY) || 0) * speedMod;
+        }
+
+        // Rainbow spheres enter from above before they begin reflecting from the arena edges.
+        if (!orb._mbRainbowEntered && orb.y >= topBound + radius) orb._mbRainbowEntered = true;
+        if (!orb._mbRainbowEntered || orbStopped) continue;
+
+        if (orb.x - radius < leftBound) {
+            orb.x = leftBound + radius;
+            if (orb.spd < 0) orb.spd = Math.abs(orb.spd);
+            sfxBounce();
+        } else if (orb.x + radius > rightBound) {
+            orb.x = rightBound - radius;
+            if (orb.spd > 0) orb.spd = -Math.abs(orb.spd);
+            sfxBounce();
+        }
+        if (orb.y - radius < topBound) {
+            orb.y = topBound + radius;
+            if (orb.spdY < 0) orb.spdY = Math.abs(orb.spdY);
+            sfxBounce();
+        } else if (orb.y + radius > bottomBound) {
+            orb.y = bottomBound - radius;
+            if (orb.spdY > 0) orb.spdY = -Math.abs(orb.spdY);
+            sfxBounce();
+        }
+    }
+
+    // A rainbow orb is an unbreakable solid projectile. It reflects from other attacks
+    // without removing them; two rainbow orbs exchange their normal velocity components.
+    for (var ri = 0; ri < list.length; ri++) {
+        var rainbow = list[ri];
+        if (!rainbow || rainbow.type !== "rainbow" || !rainbow._mbRainbowEntered) continue;
+        if (globallyStopped || (typeof dioShouldFreezeEntity === "function" && dioShouldFreezeEntity(rainbow))) continue;
+        var rainbowRadius = Math.max(1, Number(rainbow.radius) || 30);
+
+        for (var oi = 0; oi < list.length; oi++) {
+            if (oi === ri) continue;
+            var other = list[oi];
+            if (!other || other === rainbow || other.type === "wall") continue;
+            var otherIsRainbow = other.type === "rainbow";
+            if (otherIsRainbow && (oi < ri || !other._mbRainbowEntered)) continue;
+            if (otherIsRainbow && (typeof dioShouldFreezeEntity === "function" && dioShouldFreezeEntity(other))) continue;
+
+            var otherRadius = arenaRainbowOtherRadius(other);
+            if (!(otherRadius > 0)) continue;
+            var center = arenaRainbowOtherCenter(other);
+            var dx = rainbow.x - center.x, dy = rainbow.y - center.y;
+            var distance = Math.hypot(dx, dy);
+            var minDistance = rainbowRadius + otherRadius;
+            if (distance >= minDistance) continue;
+
+            if (distance < 0.001) {
+                dx = (ri % 2 === 0) ? 1 : -1;
+                dy = 0;
+                distance = 1;
+            }
+            var nx = dx / distance, ny = dy / distance;
+            var overlap = minDistance - distance + 0.35;
+
+            if (otherIsRainbow) {
+                // Equal-mass elastic collision: both spheres bounce away from one another.
+                rainbow.x -= nx * overlap * 0.5;
+                rainbow.y -= ny * overlap * 0.5;
+                other.x += nx * overlap * 0.5;
+                other.y += ny * overlap * 0.5;
+                var relativeNormal = ((Number(rainbow.spd) || 0) - (Number(other.spd) || 0)) * nx +
+                    ((Number(rainbow.spdY) || 0) - (Number(other.spdY) || 0)) * ny;
+                if (relativeNormal > 0) {
+                    rainbow.spd = (Number(rainbow.spd) || 0) - relativeNormal * nx;
+                    rainbow.spdY = (Number(rainbow.spdY) || 0) - relativeNormal * ny;
+                    other.spd = (Number(other.spd) || 0) + relativeNormal * nx;
+                    other.spdY = (Number(other.spdY) || 0) + relativeNormal * ny;
+                    sfxBounce();
+                }
+            } else {
+                // For rectangular projectiles use the closest point on their hitbox.
+                var isBox = other.type !== "sword" && other.type !== "bomb" &&
+                    other.type !== "circle" && other.type !== "healCircle";
+                if (isBox) {
+                    var halfW = (Number(other.width) > 0 ? Number(other.width) : (Number(other.size) || 20)) * 0.5;
+                    var halfH = (Number(other.height) > 0 ? Number(other.height) : (Number(other.size) || 20)) * 0.5;
+                    var left = center.x - halfW, right = center.x + halfW;
+                    var top = center.y - halfH, bottom = center.y + halfH;
+                    var closestX = Math.max(left, Math.min(right, rainbow.x));
+                    var closestY = Math.max(top, Math.min(bottom, rainbow.y));
+                    dx = rainbow.x - closestX; dy = rainbow.y - closestY;
+                    distance = Math.hypot(dx, dy);
+                    if (distance > 0.001) {
+                        nx = dx / distance; ny = dy / distance;
+                        overlap = rainbowRadius - distance + 0.35;
+                    } else {
+                        var escapeLeft = Math.abs(rainbow.x - left);
+                        var escapeRight = Math.abs(right - rainbow.x);
+                        var escapeTop = Math.abs(rainbow.y - top);
+                        var escapeBottom = Math.abs(bottom - rainbow.y);
+                        var minEscape = Math.min(escapeLeft, escapeRight, escapeTop, escapeBottom);
+                        if (minEscape === escapeLeft) { nx = -1; ny = 0; overlap = rainbowRadius + escapeLeft + 0.35; }
+                        else if (minEscape === escapeRight) { nx = 1; ny = 0; overlap = rainbowRadius + escapeRight + 0.35; }
+                        else if (minEscape === escapeTop) { nx = 0; ny = -1; overlap = rainbowRadius + escapeTop + 0.35; }
+                        else { nx = 0; ny = 1; overlap = rainbowRadius + escapeBottom + 0.35; }
+                    }
+                } else {
+                    overlap += 0.35;
+                }
+
+                rainbow.x += nx * overlap;
+                rainbow.y += ny * overlap;
+                var otherStopped = globallyStopped ||
+                    (typeof dioShouldFreezeEntity === "function" && dioShouldFreezeEntity(other));
+                var otherVX = otherStopped ? 0 : (Number(other.spd) || Number(other.vx) || 0);
+                var otherVY = otherStopped ? 0 : (Number(other.spdY) || Number(other.vy) || 0);
+                var approachSpeed = ((Number(rainbow.spd) || 0) - otherVX) * nx +
+                    ((Number(rainbow.spdY) || 0) - otherVY) * ny;
+                if (approachSpeed < 0) {
+                    rainbow.spd = (Number(rainbow.spd) || 0) - 2 * approachSpeed * nx;
+                    rainbow.spdY = (Number(rainbow.spdY) || 0) - 2 * approachSpeed * ny;
+                    sfxBounce();
+                }
+            }
+        }
+    }
+}
+
 function spawnAttack() {
     if (arenaAttackType >= 11 && arenaAttackType <= 20) return;
     var s = arenaSpeedMult; var bw = arenaCurrentWave; var isEarly = bw < 100; var dmg = arenaBaseDmg;
@@ -2231,7 +2399,7 @@ function spawnAttack() {
         case 3: for (var i = 0; i < (isEarly ? 1 : 2); i++) { var vx = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s; var vy = (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.4) * s; var atk = { type: "danger", x: 200, y: 180, size: 70, spd: vx, spdY: vy, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.6), bouncesLeft: 1 }; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
         case 4: for (var i = 0; i < (isEarly ? 2 : 3); i++) { var rx = (Math.random() - 0.5) * 2; var atk = { type: "square", x: heart.x + (Math.random() - 0.5) * 120, y: -40, size: 25, spd: rx, spdY: 1.8 + Math.random() * 1.0, color: "#ff69b4", knockback: 80, bouncesLeft: Infinity }; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
         case 5: if (arenaHP < arenaMaxHP) { var atk = { type: "circle", x: Math.random() * 400, y: -30, radius: 18, spd: (Math.random() - 0.5) * 1.5, spdY: 2.5, color: "#44ff44", healPercent: 0.15, bouncesLeft: 2 }; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } else { var atk = { type: "square", x: Math.random() * 360 + 20, y: -30, size: 22, spd: 0, spdY: 3.0, color: "#fff", damage: dmg, bouncesLeft: 2 }; if (shouldShrink) shrinkAttack(atk); attacks.push(atk); } break;
-        case 6: var atk6 = { type: "rainbow", x: 50 + Math.random() * 300, y: -60, radius: 30, spd: (Math.random() - 0.5) * 0.8, spdY: 1.2 + Math.random() * 0.5, color: "rainbow", oneshot: true, bouncesLeft: 0 }; if (shouldShrink) shrinkAttack(atk6); attacks.push(atk6); break;
+        case 6: var atk6 = { type: "rainbow", x: 50 + Math.random() * 300, y: -60, radius: 30, spd: (Math.random() - 0.5) * 0.8, spdY: 1.2 + Math.random() * 0.5, color: "rainbow", oneshot: true, bouncesLeft: Infinity, _mbRainbowOrb: true, _mbRainbowEntered: false }; attacks.push(atk6); break;
         case 7: for (var i = 0; i < (isEarly ? 1 : 2); i++) { var side = Math.floor(Math.random() * 4); var sx, sy; if (side === 0) { sx = Math.random() * 400; sy = -40; } else if (side === 1) { sx = Math.random() * 400; sy = 540; } else if (side === 2) { sx = -40; sy = Math.random() * 500; } else { sx = 440; sy = Math.random() * 500; } var sa = Math.atan2(heart.y - sy, heart.x - sx); var atk1 = { type: "sword", x: sx, y: sy, angle: sa, size: 40, width: 12, color: "#ffaa00", spd: Math.cos(sa) * 2.2, spdY: Math.sin(sa) * 2.2, damageOnStanding: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 }; var atk2 = { type: "danger", x: heart.x + (Math.random() - 0.5) * 100, y: 540, size: 25, spd: (Math.random() - 0.5) * 1.2, spdY: -2.2, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.3), bouncesLeft: 0 }; if (shouldShrink) { shrinkAttack(atk1); shrinkAttack(atk2); } attacks.push(atk1); attacks.push(atk2); } break;
         case 8: var atk81 = { type: "danger", x: -40, y: heart.y, size: 40, spd: 2.5 * s, spdY: 0, color: "#ff3333", damageOnMoving: true, damage: Math.floor(dmg * 1.5), bouncesLeft: 0 }; if (shouldShrink) shrinkAttack(atk81); attacks.push(atk81); if (!isEarly) { var atk82 = { type: "square", x: 440, y: heart.y + (Math.random() > 0.5 ? 60 : -60), size: 30, spd: -2.5 * s, spdY: 0, color: "#fff", damage: Math.floor(dmg * 1.5), bouncesLeft: 2 }; if (shouldShrink) shrinkAttack(atk82); attacks.push(atk82); } break;
         case 9: for (var i = 0; i < (isEarly ? 1 : (bw >= 500 ? 2 : 1)); i++) { var bx = 50 + Math.random() * 300; var by = 50 + Math.random() * 400; var atk = { type: "bomb", x: bx, y: by, timer: 60, maxRadius: isEarly ? 75 : (80 + Math.random() * 40), hit: false, damage: Math.floor(dmg * 2), bouncesLeft: 0, particlesSpawned: false, shakeTime: 0 }; if (shouldShrink) { if (atk.maxRadius) atk.maxRadius *= 0.7; } attacks.push(atk); } break;
@@ -2772,19 +2940,20 @@ function renderArena() {
 
     if (arenaPhase === "dodge" && !takabaFreeze) {
         var frozen = (typeof _superState !== 'undefined' && _superState.antispiralFrozen), speedMod = arenaGlobalSpeedMod * (typeof _superState !== 'undefined' && _superState.antispiralSpeedBoost ? 1.5 : 1.0) * (typeof _superState !== 'undefined' ? (_superState.takabaArenaSpeedMult || 1) : 1), timeStopped = (typeof _superState !== 'undefined' && (_superState.garouTimeStop || _superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0));
+        arenaUpdateRainbowAttacks(attacks, speedMod, frozen, timeStopped);
         for (var i = attacks.length - 1; i >= 0; i--) {
             var a = attacks[i];
             var attackTimeStopped = timeStopped || (typeof dioShouldFreezeEntity === 'function' && dioShouldFreezeEntity(a));
-            if (!frozen && !attackTimeStopped) { if (a.spd) a.x += a.spd * speedMod; if (a.spdY) a.y += a.spdY * speedMod; }
+            if (!frozen && !attackTimeStopped && a.type !== "rainbow") { if (a.spd) a.x += a.spd * speedMod; if (a.spdY) a.y += a.spdY * speedMod; }
             // ZA WARUDO: снаряды остаются видимыми, но не могут разрушаться аурами
             // или наносить урон касанием до возобновления времени.
-            if (!attackTimeStopped && typeof _superState !== 'undefined' && _superState.imAuraActive && invulnTimer <= 0) { var ax = a.x + (a.size || a.radius || 20) / 2, ay = a.y + (a.size || a.radius || 20) / 2; var dist = Math.hypot(ax - heart.x, ay - heart.y); if (dist < 55) { if (Math.random() < 0.5) { attacks.splice(i, 1); arenaParticles.push({ x: ax, y: ay, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ff00ff", size: 5 }); continue; } } }
-            if (!attackTimeStopped && typeof _superState !== 'undefined' && _superState.dandyAura > 0) { var ax = a.x + (a.size || a.radius || 20) / 2, ay = a.y + (a.size || a.radius || 20) / 2; if (Math.hypot(ax - heart.x, ay - heart.y) < 60) { attacks.splice(i, 1); arenaParticles.push({ x: ax, y: ay, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 15, maxLife: 15, color: "#ff3300", size: 3 }); continue; } }
+            if (a.type !== "rainbow" && !attackTimeStopped && typeof _superState !== 'undefined' && _superState.imAuraActive && invulnTimer <= 0) { var ax = a.x + (a.size || a.radius || 20) / 2, ay = a.y + (a.size || a.radius || 20) / 2; var dist = Math.hypot(ax - heart.x, ay - heart.y); if (dist < 55) { if (Math.random() < 0.5) { attacks.splice(i, 1); arenaParticles.push({ x: ax, y: ay, vx: 0, vy: 0, life: 15, maxLife: 15, color: "#ff00ff", size: 5 }); continue; } } }
+            if (a.type !== "rainbow" && !attackTimeStopped && typeof _superState !== 'undefined' && _superState.dandyAura > 0) { var ax = a.x + (a.size || a.radius || 20) / 2, ay = a.y + (a.size || a.radius || 20) / 2; if (Math.hypot(ax - heart.x, ay - heart.y) < 60) { attacks.splice(i, 1); arenaParticles.push({ x: ax, y: ay, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 15, maxLife: 15, color: "#ff3300", size: 3 }); continue; } }
             if (a.type === "bomb") { if (!frozen && !attackTimeStopped) a.timer--; if (attackTimeStopped && a.timer <= 0) { ctx.save(); ctx.globalAlpha = 0.55; ctx.fillStyle = "#ff8800"; ctx.beginPath(); ctx.arc(a.x, a.y, Math.max(1, Math.min(a.maxRadius || 40, 18)), 0, Math.PI * 2); ctx.fill(); ctx.restore(); continue; } if (a.timer > 0) { ctx.save(); var isFlashing = Math.floor(a.timer / 6) % 2 === 0, bombX = a.x, bombY = a.y; var bombRadius = Math.max(1, 11 + Math.abs(Math.sin(a.timer * 0.45)) * 4); ctx.shadowColor = "#ff3333"; ctx.shadowBlur = isFlashing ? 25 : 10; var gradient = ctx.createRadialGradient(bombX, bombY, Math.max(0.1, bombRadius * 0.2), bombX, bombY, bombRadius); gradient.addColorStop(0, '#ffffff'); gradient.addColorStop(0.3, '#ff6600'); gradient.addColorStop(0.7, '#ff0000'); gradient.addColorStop(1, '#990000'); ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(bombX, bombY, bombRadius, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#8B4513"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bombX, bombY - bombRadius - 2); ctx.quadraticCurveTo(bombX + 5, bombY - bombRadius - 16, bombX + 3, bombY - bombRadius - 20); ctx.stroke(); ctx.fillStyle = isFlashing ? "#ffff00" : "#ff8800"; ctx.shadowColor = isFlashing ? "#ffff00" : "#ff6600"; ctx.shadowBlur = isFlashing ? 12 : 6; ctx.beginPath(); ctx.arc(bombX + 3, bombY - bombRadius - 20, Math.max(1, isFlashing ? 5 : 4), 0, Math.PI * 2); ctx.fill(); ctx.restore(); } else if (a.timer > -35) { var progress = Math.abs(a.timer) / 35, cr = Math.max(1, a.maxRadius * progress); if (!a.particlesSpawned && progress > 0.05) { a.particlesSpawned = true; sfxArenaBombExplosion(); a.shakeTime = 25; } if (a.shakeTime > 0) { arenaShake = Math.max(arenaShake, 20); a.shakeTime--; } ctx.save(); ctx.globalCompositeOperation = 'lighter'; var grad = ctx.createRadialGradient(a.x, a.y, Math.max(0.1, cr * 0.1), a.x, a.y, cr); grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.15, '#ffff00'); grad.addColorStop(0.4, '#ff8800'); grad.addColorStop(0.7, '#ff0000'); grad.addColorStop(1, 'rgba(139,0,0,0)'); ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(a.x, a.y, cr, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = Math.max(0.1, 3 * (1 - progress)); for (var r = 0; r < 12; r++) { var angle = (r / 12) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + Math.cos(angle) * cr * 0.8, a.y + Math.sin(angle) * cr * 0.8); ctx.stroke(); } ctx.fillStyle = "#ffffff"; for (var ep = 0; ep < 50; ep++) { var eAngle = Math.random() * Math.PI * 2; ctx.beginPath(); ctx.arc(a.x + Math.cos(eAngle) * Math.random() * cr, a.y + Math.sin(eAngle) * Math.random() * cr, Math.max(0.1, 1 + Math.random() * 3), 0, Math.PI * 2); ctx.fill(); } ctx.restore(); if (!a.hit && invulnTimer <= 0 && !attackTimeStopped) { var dioBombStandHit=false;var dioBombCtx=(typeof getBossContext==="function")?getBossContext():null;if(typeof window.dioAttackTouchesStand==="function"&&dioBombCtx)dioBombStandHit=window.dioAttackTouchesStand(dioBombCtx,{type:"bomb",x:a.x,y:a.y,radius:cr,timer:-1});var dx=heart.x-a.x,dy=heart.y-a.y;if(dioBombStandHit){a.dioStandHitOnce=true;var geBombDamage=(typeof window.MBIsGoldExperienceNpcActive==="function"&&window.MBIsGoldExperienceNpcActive()&&typeof window.scaleStandBlockedDamage==="function")?window.scaleStandBlockedDamage(a.damage||30):Math.max(1,Math.floor((a.damage||30)*.4));applyHit(geBombDamage,"удар по стенду. Джорно получает 50% урона",false,false,a);}else if(Math.sqrt(dx*dx+dy*dy)<(cr+heart.hitbox)){applyHit(a.damage||30,"ВЗРЫВ!",false,false,a);a.hit=true;} } } else { attacks.splice(i, 1); } continue; }
-            if (a.type !== "wall" && a.bouncesLeft !== undefined && a.bouncesLeft > 0 && !frozen && !attackTimeStopped) { var sz = a.size || (a.radius ? a.radius * 2 : 20); if (a.x < 4 && a.spd < 0) { a.spd = -a.spd; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); } else if (a.x + sz > 396 && a.spd > 0) { a.spd = -a.spd; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); } if (a.y < 4 && a.spdY < 0) { a.spdY = -a.spdY; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); } else if (a.y + sz > 496 && a.spdY > 0) { a.spdY = -a.spdY; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); } }
+            if (a.type !== "wall" && a.type !== "rainbow" && a.bouncesLeft !== undefined && a.bouncesLeft > 0 && !frozen && !attackTimeStopped) { var sz = a.size || (a.radius ? a.radius * 2 : 20); if (a.x < 4 && a.spd < 0) { a.spd = -a.spd; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); } else if (a.x + sz > 396 && a.spd > 0) { a.spd = -a.spd; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); } if (a.y < 4 && a.spdY < 0) { a.spdY = -a.spdY; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); } else if (a.y + sz > 496 && a.spdY > 0) { a.spdY = -a.spdY; if (a.bouncesLeft !== Infinity) a.bouncesLeft--; sfxBounce(); } }
             var hit = false;
             var dioArenaCtx=(typeof getBossContext==="function")?getBossContext():null;
-            var dioStandHit=typeof window.dioAttackTouchesStand==="function"&&dioArenaCtx&&window.dioAttackTouchesStand(dioArenaCtx,a);
+            var dioStandHit=a.type!=="rainbow"&&typeof window.dioAttackTouchesStand==="function"&&dioArenaCtx&&window.dioAttackTouchesStand(dioArenaCtx,a);
             if (a.type === "circle" || a.type === "rainbow" || a.type === "healCircle") { var dx = heart.x - a.x, dy = heart.y - a.y; var radToCheck = Math.max(0.1, (a.radius || 10) - 2); hit = Math.sqrt(dx * dx + dy * dy) < (heart.hitbox + radToCheck); }
             else if (a.type === "sword") { var dx = heart.x - a.x, dy = heart.y - a.y; hit = Math.sqrt(dx * dx + dy * dy) < (heart.hitbox + a.size / 2); }
             else { var sz = a.size || 20, cx = a.x + sz / 2, cy = a.y + sz / 2; hit = Math.abs(heart.x - cx) < (sz / 2 + heart.hitbox) && Math.abs(heart.y - cy) < (sz / 2 + heart.hitbox); }
@@ -2801,16 +2970,16 @@ function renderArena() {
                 if (a.oneshot) { sfxArenaDeath(); applyHit(arenaMaxHP, "ФАТАЛЬНО!", true, false, a, "instant"); continue; }
                 applyHit(bhd, null, false, false, a); attacks.splice(i, 1); continue;
             }
-            if (!attackTimeStopped && (a.y > 560 || a.y < -150 || a.x < -160 || a.x > 560)) { attacks.splice(i, 1); continue; }
+            if (a.type !== "rainbow" && !attackTimeStopped && (a.y > 560 || a.y < -150 || a.x < -160 || a.x > 560)) { attacks.splice(i, 1); continue; }
             if (frozen || attackTimeStopped) { ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = attackTimeStopped ? "#ff8800" : "#aaddff"; ctx.strokeStyle = attackTimeStopped ? "#ff8800" : "#88bbff"; ctx.lineWidth = 2; var sz = a.size || a.radius || 20; if (a.type === "circle" || a.type === "rainbow" || a.type === "healCircle") { var circR = Math.max(0.1, (a.radius || 10) + 3); ctx.beginPath(); ctx.arc(a.x, a.y, circR, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); } else if (a.type === "sword") { ctx.fillRect(a.x - a.size / 2 - 2, a.y - a.width / 2 - 2, a.size + 4, a.width + 4); ctx.strokeRect(a.x - a.size / 2 - 2, a.y - a.width / 2 - 2, a.size + 4, a.width + 4); } else { var sz2 = Math.max(1, sz); ctx.fillRect(a.x - 2, a.y - 2, sz2 + 4, sz2 + 4); ctx.strokeRect(a.x - 2, a.y - 2, sz2 + 4, sz2 + 4); } ctx.restore(); }
             ctx.save(); var col = a.color;
-             if (typeof _superState !== 'undefined' && _superState.takabaRandomColors) col = "hsl(" + Math.floor(Math.random()*360) + ",100%,60%)";
-             if (typeof _superState !== 'undefined' && _superState.takabaBallMode) col = "#ff9f43";
+             if (a.type !== "rainbow" && typeof _superState !== 'undefined' && _superState.takabaRandomColors) col = "hsl(" + Math.floor(Math.random()*360) + ",100%,60%)";
+             if (a.type !== "rainbow" && typeof _superState !== 'undefined' && _superState.takabaBallMode) col = "#ff9f43";
              if (a.type === "rainbow") col = "hsl(" + ((now / 2 + a.x) % 360) + ",100%,60%)"; if (a.type === "healCircle") col = "#44ff44";
             // ★ ТАКАБА: утки ★
-            if (typeof _superState !== 'undefined' && _superState.takabaDuckMode) col = "#ffcc00";
+            if (a.type !== "rainbow" && typeof _superState !== 'undefined' && _superState.takabaDuckMode) col = "#ffcc00";
             ctx.fillStyle = col;
-            if (typeof _superState !== 'undefined' && _superState.takabaBallMode) {
+            if (a.type !== "rainbow" && typeof _superState !== 'undefined' && _superState.takabaBallMode) {
                 var br = Math.max(7, (a.radius || a.size || 16) / 2);
                 ctx.beginPath(); ctx.arc(a.x, a.y, br, 0, Math.PI*2); ctx.fill();
                 ctx.font="14px sans-serif"; ctx.textAlign="center"; ctx.fillText("🎈", a.x, a.y+5);
