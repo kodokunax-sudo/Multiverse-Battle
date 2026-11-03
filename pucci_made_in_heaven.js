@@ -564,7 +564,10 @@
         // Start with one full orbit per second. Angular speed then follows
         // Pucci's acceleration from 1x to 16x over the full 120 seconds.
         // Integrating the changing speed keeps the orbit smooth between frames.
-        var orbitCycles = seconds + (15 * seconds * seconds) / 240;
+        var acceleratedSeconds = Math.max(0, seconds - 1);
+        var orbitCycles = seconds <= 1
+            ? seconds
+            : 1 + acceleratedSeconds + (15 * acceleratedSeconds * acceleratedSeconds) / 238;
         var theta = (orbitCycles % 1) * Math.PI * 2;
         var sunAltitude = Math.sin(theta);
         var dayAmount = Math.max(0, sunAltitude);
