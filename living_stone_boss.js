@@ -1758,7 +1758,7 @@ function livingStoneDefeat() {
         if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("loss",true);
         return;
     }
-    if (typeof window.MBTryMarkResurrection === "function") {
+    if (!window.__mbPucciCollapseForcedDeath && typeof window.MBTryMarkResurrection === "function") {
         var markRestoredHp = window.MBTryMarkResurrection(livingStonePlayerMaxHp);
         if (markRestoredHp > 0) {
             livingStonePlayerHp = markRestoredHp;
