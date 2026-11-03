@@ -3429,7 +3429,7 @@
         }
         if (isModerActive()) return;
         if (rwbState === "defeat") return;
-        if (typeof window.MBTryMarkResurrection === "function" && rwbPlayer) {
+        if (!window.__mbPucciCollapseForcedDeath && typeof window.MBTryMarkResurrection === "function" && rwbPlayer) {
             let markRestoredHp = window.MBTryMarkResurrection(rwbPlayer.maxHp);
             if (markRestoredHp > 0) {
                 rwbPlayer.hp = markRestoredHp;
@@ -3448,7 +3448,7 @@
         if (typeof window.MBPreserveGarouChargesForUniqueBossRetry === "function") {
             window.MBPreserveGarouChargesForUniqueBossRetry("rwb");
         }
-        rwbState = "defeat"; rwbEndTimer = 0;
+        rwbState = "defeat"; rwbEndTimer = window.__mbPucciCollapseForcedDeath ? 180 : 0;
         hideRWBModeButton(); hideRWBSuperButton();
         playBossRoarSound(0.5); playExplosionSound(0.4);
         if (typeof showFloatingText === 'function') showFloatingText("💀 ТЫ ПАЛ...", "#ff0000");
@@ -3490,6 +3490,16 @@
     // ============================================================
     function rwbRenderLoop() {
         if (!window.rwbActive || !ctx || !canvas) return;
+        // Clear the entire previous frame in screen coordinates before camera shake.
+        // Without this, the translated background leaves old pixels at the edges.
+        ctx.save();
+        if (typeof ctx.setTransform === "function") ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width || 400, canvas.height || 500);
+        ctx.restore();
+        if (window.MBPucciIsMadeInHeavenEnding && window.MBPucciIsMadeInHeavenEnding()) {
+            rwbShake = 0;
+            if (typeof _superState !== "undefined") _superState.screenShakeAmount = 0;
+        }
         var potatoGraphics = isRWBPotatoGraphics();
         var reduceBossEffects = isRWBMobileGraphics();
         if (reduceBossEffects) {
@@ -3592,7 +3602,7 @@
             } else if (rwbState === "victory") {
                 rwbEndTimer++;
             } else if (rwbState === "defeat") {
-                if (rwbEndTimer > 120 && !rwbOdenOfferShown && getRWBOdenConsent() !== "yes") {
+                if (rwbEndTimer > 120 && !window.__mbPucciCollapseForcedDeath && !rwbOdenOfferShown && getRWBOdenConsent() !== "yes") {
                     rwbOdenOfferShown = true;
                     rwbDialogActive = true;
                     rwbDialogType = "oden_offer";
@@ -6633,6 +6643,12 @@
     window.updateRWBPlayer = updateRWBPlayer;
     window.updateRWBPlayerBullets = updateRWBPlayerBullets;
     window.getRWBPlayer = function() { return rwbPlayer; };
+    window.MBPucciForceRWBDefeat = function() {
+        if (!rwbPlayer || rwbState === "defeat") return false;
+        rwbPlayer.hp = 0;
+        rwbDefeat();
+        return true;
+    };
     window.getRWBBullets = function() { return rwbPlayerBullets; };
     window.getRWBAttacks = function() { return rwbAttacks; };
     window.MBRWBClearBossAttacks = function() {
