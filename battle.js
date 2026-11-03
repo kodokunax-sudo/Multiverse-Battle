@@ -1194,7 +1194,7 @@ function updateExtendedArenaAttack(now) {
     var strongDmg = Math.max(1, Math.floor((arenaBaseDmg || 5) * 2.35));
     var extWave = Math.max(1, Number(arenaCurrentWave) || 1);
     var extWaveDanger = 1 + Math.min(1.25, Math.max(0, extWave - 1) * 0.0125);
-    var extImpactDamage = Math.max(1, 2 + Math.floor(Math.max(0, extWave - 1) / 20));
+    var extImpactDamage = 2 * Math.max(1, 2 + Math.floor(Math.max(0, extWave - 1) / 20));
     var pulse = 0.5 + 0.5 * Math.sin(sec * 8);
 
     // 11. Three pendulums swing at different rhythms. Their heavy heads launch the player on contact.
