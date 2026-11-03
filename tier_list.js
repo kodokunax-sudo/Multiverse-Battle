@@ -45,6 +45,11 @@
         return sessionUnlocked === true;
     }
 
+    function safeColor(value, fallback) {
+        var color = String(value || "");
+        return /^#[0-9a-f]{6}$/i.test(color) ? color : fallback;
+    }
+
     function getState() {
         var saved = typeof slotData !== "undefined" && slotData ? slotData.tierListData : null;
         if (!saved || typeof saved !== "object" || Array.isArray(saved)) {
@@ -61,10 +66,14 @@
             return tier && typeof tier.id === "string" && typeof tier.label === "string";
         }).slice(0, 12);
         if (!saved.tiers.length) saved.tiers = DEFAULT_TIERS.map(function (tier) { return Object.assign({}, tier); });
+        saved.tiers.forEach(function (tier, index) {
+            tier.label = String(tier.label || "Тир").trim().slice(0, 20) || "Тир";
+            tier.color = safeColor(tier.color, DEFAULT_TIERS[index % DEFAULT_TIERS.length].color);
+        });
         if (!saved.assignments || typeof saved.assignments !== "object" || Array.isArray(saved.assignments)) {
             saved.assignments = {};
         }
-        saved.version = 1;
+        saved.version = 2;
         return saved;
     }
 
@@ -185,6 +194,77 @@
         overlay.style.display = "flex";
     }
 
+
+    function closeTierEditor() {
+        var overlay = document.getElementById("mbTierEditorOverlay");
+        if (overlay) overlay.style.display = "none";
+    }
+
+    function openTierEditor(tierId) {
+        var state = getState();
+        var tier = state.tiers.find(function (item) { return item.id === tierId; });
+        if (!tier) return;
+        var overlay = document.getElementById("mbTierEditorOverlay");
+        if (!overlay) {
+            overlay = document.createElement("div");
+            overlay.id = "mbTierEditorOverlay";
+            overlay.className = "mb-tier-editor-overlay";
+            document.body.appendChild(overlay);
+        }
+        overlay.innerHTML =
+            '<section class="mb-tier-editor" role="dialog" aria-modal="true" aria-labelledby="mbTierEditorTitle">' +
+                '<div class="mb-tier-editor-head"><div><small>MULTIVERSE · TIER SETTINGS</small><h3 id="mbTierEditorTitle">Настройка тира</h3></div>' +
+                '<button type="button" data-editor-close aria-label="Закрыть">×</button></div>' +
+                '<label class="mb-tier-editor-field"><span>Название тира</span><input id="mbTierEditorName" type="text" maxlength="20" value="' + esc(tier.label) + '" autocomplete="off" placeholder="Например, GOD"></label>' +
+                '<label class="mb-tier-editor-field"><span>Цвет тира</span><div class="mb-tier-color-control"><input id="mbTierEditorColor" type="color" value="' + safeColor(tier.color, "#8d99ae") + '"><strong id="mbTierEditorColorValue">' + safeColor(tier.color, "#8d99ae").toUpperCase() + '</strong></div></label>' +
+                '<div class="mb-tier-editor-preview" id="mbTierEditorPreview" style="--tier-color:' + safeColor(tier.color, "#8d99ae") + '"><strong id="mbTierEditorPreviewName">' + esc(tier.label) + '</strong><span>ПРЕДПРОСМОТР ТИРА</span></div>' +
+                '<div class="mb-tier-editor-actions"><button type="button" class="btn" data-editor-close>Отмена</button><button type="button" class="btn btn-primary" id="mbTierEditorSave">Сохранить</button></div>' +
+            '</section>';
+        overlay.style.display = "flex";
+        var nameInput = overlay.querySelector("#mbTierEditorName");
+        var colorInput = overlay.querySelector("#mbTierEditorColor");
+        var preview = overlay.querySelector("#mbTierEditorPreview");
+        var previewName = overlay.querySelector("#mbTierEditorPreviewName");
+        var colorValue = overlay.querySelector("#mbTierEditorColorValue");
+        function updatePreview() {
+            var color = safeColor(colorInput.value, "#8d99ae");
+            preview.style.setProperty("--tier-color", color);
+            previewName.textContent = nameInput.value.trim() || "Новый тир";
+            colorValue.textContent = color.toUpperCase();
+        }
+        nameInput.addEventListener("input", updatePreview);
+        colorInput.addEventListener("input", updatePreview);
+        overlay.querySelectorAll("[data-editor-close]").forEach(function (button) {
+            button.addEventListener("click", closeTierEditor);
+        });
+        overlay.onclick = function (event) {
+            if (event.target === overlay) closeTierEditor();
+        };
+        overlay.querySelector("#mbTierEditorSave").addEventListener("click", function () {
+            var label = String(nameInput.value || "").trim().slice(0, 20);
+            if (!label) {
+                window.alert("Название тира не может быть пустым.");
+                nameInput.focus();
+                return;
+            }
+            var duplicate = state.tiers.some(function (item) {
+                return item.id !== tierId && item.label.toLocaleLowerCase() === label.toLocaleLowerCase();
+            });
+            if (duplicate) {
+                window.alert("Тир с таким названием уже существует.");
+                nameInput.focus();
+                return;
+            }
+            tier.label = label;
+            tier.color = safeColor(colorInput.value, tier.color);
+            persist(state);
+            closeTierEditor();
+            render();
+        });
+        nameInput.focus();
+        nameInput.select();
+    }
+
     function characterTile(entry, selected) {
         var image = cardImage(entry.name);
         var art = image
@@ -241,6 +321,20 @@
             : '<div class="mb-tier-empty">Ничего не найдено. Попробуй изменить фильтры.</div>';
     }
 
+
+    function selectionMarkup(catalogData, state) {
+        var entry = selectedKey && catalogData.characters.find(function (item) { return item.key === selectedKey; });
+        if (!entry) return '<div id="mbTierSelection" class="mb-tier-selection" style="display:none"></div>';
+        return '<div id="mbTierSelection" class="mb-tier-selection">' +
+            '<div class="mb-tier-selection-copy"><strong>Выбран: ' + esc(entry.name) + '</strong><small>На телефоне выбери персонажа, затем тир. Перетаскивание необязательно.</small></div>' +
+            '<select id="mbTierTarget" aria-label="Куда переместить персонажа">' +
+                state.tiers.map(function (tier) { return '<option value="' + esc(tier.id) + '">' + esc(tier.label) + '</option>'; }).join("") +
+            '</select>' +
+            '<button type="button" class="btn btn-primary" data-assign-selected>Переместить</button>' +
+            '<button type="button" class="btn" data-clear-selection aria-label="Снять выбор">×</button>' +
+        '</div>';
+    }
+
     function render() {
         var root = document.getElementById("tierListRoot");
         if (!root || !unlocked()) return;
@@ -266,6 +360,7 @@
             return '<section class="mb-tier-row" data-tier-drop="' + esc(tier.id) + '">' +
                 '<div class="mb-tier-label" style="--tier-color:' + esc(tier.color || "#8d99ae") + '">' +
                     '<strong>' + esc(tier.label) + '</strong><span>' + placed.length + '</span>' +
+                    '<button type="button" class="mb-tier-edit" data-edit-tier="' + esc(tier.id) + '" title="Изменить название и цвет" aria-label="Настроить тир">✎</button>' +
                     (String(tier.id).indexOf("custom_") === 0 ? '<button type="button" class="mb-tier-delete" data-delete-tier="' + esc(tier.id) + '" title="Удалить тир">×</button>' : "") +
                 '</div>' +
                 '<div class="mb-tier-dropzone' + (placed.length ? " has-cards" : "") + '">' +
@@ -296,8 +391,10 @@
                 '</select>' +
             '</div>' +
             '<div class="mb-tier-board-head"><span>ТИР</span><span>ПЕРСОНАЖИ · ПЕРЕТАСКИВАЙ ИЛИ ВЫБИРАЙ КЛИКОМ</span></div>' +
+            selectionMarkup(catalogData, state) +
             '<div class="mb-tier-board">' + rows + '</div>' +
-            '<div class="mb-tier-actions"><button type="button" class="btn" data-tier-action="add">＋ Создать тир</button><button type="button" class="btn" data-tier-action="reset">↺ Очистить тирлист</button></div>' +
+            '<div class="mb-tier-actions"><button type="button" class="btn" data-tier-action="add">＋ Создать тир</button><button type="button" class="btn" data-tier-action="save">💾 Сохранить в игре</button><button type="button" class="btn btn-primary" data-tier-action="export">🖼️ Сохранить PNG</button><button type="button" class="btn" data-tier-action="reset">↺ Очистить тирлист</button></div>' +
+            '<div class="mb-tier-feedback" id="mbTierFeedback" role="status" aria-live="polite"></div>' +
             '<div class="mb-tier-pool-head"><div><h3>🎴 Персонажи без оценки</h3><p>Нажми на карточку, затем выбери нужный тир. Кнопка ⓘ открывает описание.</p></div><strong id="mbTierPoolMeta"></strong></div>' +
             '<div id="mbTierPool" class="mb-tier-pool"></div>' +
             (catalogData.lockedCount ? '<div class="mb-tier-locked-note">🔒 Ещё ' + catalogData.lockedCount + ' персонажей из закрытых разломов появятся после открытия соответствующего контента.</div>' : "");
@@ -325,6 +422,250 @@
         render();
     }
 
+
+    function roundedRect(ctx, x, y, width, height, radius) {
+        var r = Math.min(radius, width / 2, height / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + width - r, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+        ctx.lineTo(x + width, y + height - r);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+        ctx.lineTo(x + r, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    }
+
+    function loadExportImage(entry) {
+        return new Promise(function (resolve) {
+            var src = cardImage(entry.name);
+            if (!src) { resolve(null); return; }
+            var image = new Image();
+            var finished = false;
+            var timer = window.setTimeout(function () {
+                if (finished) return;
+                finished = true;
+                resolve(null);
+            }, 7000);
+            image.onload = function () {
+                if (finished) return;
+                finished = true;
+                window.clearTimeout(timer);
+                resolve(image);
+            };
+            image.onerror = function () {
+                if (finished) return;
+                finished = true;
+                window.clearTimeout(timer);
+                resolve(null);
+            };
+            try { image.crossOrigin = "anonymous"; } catch (_error) {}
+            image.src = src;
+        });
+    }
+
+    function buildTierListCanvas() {
+        var state = getState();
+        var catalog = getCatalog().characters;
+        var rows = state.tiers.map(function (tier) {
+            return {
+                tier: tier,
+                entries: catalog.filter(function (entry) { return assignedTier(state, entry.key) === tier.id; })
+            };
+        });
+        var total = rows.reduce(function (sum, row) { return sum + row.entries.length; }, 0);
+        if (!total) {
+            window.alert("Сначала добавь хотя бы одного персонажа в тирлист.");
+            return Promise.resolve(null);
+        }
+
+        var width = 1800;
+        var cardWidth = 136;
+        var cardHeight = 154;
+        var gap = 12;
+        var labelWidth = 190;
+        var cardStartX = 220;
+        var perRow = Math.max(1, Math.floor((width - cardStartX - 30) / (cardWidth + gap)));
+        var headerHeight = 132;
+        rows.forEach(function (row) {
+            row.lines = Math.max(1, Math.ceil(row.entries.length / perRow));
+            row.height = Math.max(136, row.lines * (cardHeight + 10) + 18);
+        });
+        var totalHeight = headerHeight + rows.reduce(function (sum, row) { return sum + row.height + 10; }, 0) + 55;
+        var canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = totalHeight;
+        var ctx = canvas.getContext("2d");
+        if (!ctx) {
+            window.alert("Не удалось создать изображение на этом устройстве.");
+            return Promise.resolve(null);
+        }
+        var uniqueEntries = [];
+        var seen = Object.create(null);
+        rows.forEach(function (row) {
+            row.entries.forEach(function (entry) {
+                var src = cardImage(entry.name);
+                if (src && !seen[src]) {
+                    seen[src] = true;
+                    uniqueEntries.push({ entry: entry, src: src });
+                }
+            });
+        });
+        var imagePromises = uniqueEntries.map(function (item) {
+            return loadExportImage(item.entry).then(function (image) {
+                return { src: item.src, image: image };
+            });
+        });
+
+        return Promise.all(imagePromises).then(function (loaded) {
+            var imageMap = Object.create(null);
+            loaded.forEach(function (item) { imageMap[item.src] = item.image; });
+            var bg = ctx.createLinearGradient(0, 0, width, totalHeight);
+            bg.addColorStop(0, "#111326");
+            bg.addColorStop(1, "#090a12");
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, width, totalHeight);
+
+            ctx.fillStyle = "#e8dcff";
+            ctx.font = "900 18px Arial, sans-serif";
+            ctx.fillText("MULTIVERSE BATTLE  /  CHARACTER RANKING", 42, 34);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "900 42px Arial, sans-serif";
+            ctx.fillText("TIER LIST", 40, 88);
+            ctx.fillStyle = "#a9a1bd";
+            ctx.font = "16px Arial, sans-serif";
+            ctx.fillText("Персонажей в рейтинге: " + total + "   •   " + new Date().toLocaleDateString("ru-RU"), 43, 116);
+
+            var y = headerHeight;
+            rows.forEach(function (row) {
+                var color = safeColor(row.tier.color, "#8d99ae");
+                roundedRect(ctx, 28, y, width - 56, row.height, 14);
+                ctx.fillStyle = "rgba(255,255,255,0.045)";
+                ctx.fill();
+                roundedRect(ctx, 28, y, labelWidth, row.height, 14);
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(28, y, labelWidth, row.height);
+                ctx.clip();
+                ctx.fillStyle = "#17131e";
+                ctx.textAlign = "center";
+                ctx.font = row.tier.label.length > 9 ? "900 23px Arial, sans-serif" : "900 34px Arial, sans-serif";
+                ctx.fillText(row.tier.label, 28 + labelWidth / 2, y + Math.min(58, row.height / 2 - 3), labelWidth - 16);
+                ctx.font = "700 14px Arial, sans-serif";
+                ctx.fillText(row.entries.length + " персонажей", 28 + labelWidth / 2, y + Math.min(88, row.height / 2 + 23), labelWidth - 16);
+                ctx.restore();
+
+                row.entries.forEach(function (entry, index) {
+                    var col = index % perRow;
+                    var line = Math.floor(index / perRow);
+                    var x = cardStartX + col * (cardWidth + gap);
+                    var cardY = y + 10 + line * (cardHeight + 10);
+                    roundedRect(ctx, x, cardY, cardWidth, cardHeight, 10);
+                    ctx.fillStyle = "#1b1c2c";
+                    ctx.fill();
+                    var image = imageMap[cardImage(entry.name)];
+                    if (image) {
+                        ctx.save();
+                        roundedRect(ctx, x + 18, cardY + 8, 100, 100, 8);
+                        ctx.clip();
+                        var scale = Math.max(100 / image.width, 100 / image.height);
+                        var dw = image.width * scale;
+                        var dh = image.height * scale;
+                        ctx.drawImage(image, x + 18 + (100 - dw) / 2, cardY + 8 + (100 - dh) / 2, dw, dh);
+                        ctx.restore();
+                    } else {
+                        roundedRect(ctx, x + 18, cardY + 8, 100, 100, 8);
+                        ctx.fillStyle = "#34304a";
+                        ctx.fill();
+                        ctx.fillStyle = "#d6c6f5";
+                        ctx.textAlign = "center";
+                        ctx.font = "36px Arial, sans-serif";
+                        ctx.fillText("✦", x + 68, cardY + 72);
+                    }
+                    ctx.fillStyle = "#ffffff";
+                    ctx.textAlign = "center";
+                    ctx.font = "700 12px Arial, sans-serif";
+                    var name = entry.name;
+                    if (name.length > 21) name = name.slice(0, 19) + "…";
+                    ctx.fillText(name, x + cardWidth / 2, cardY + 126, cardWidth - 8);
+                    ctx.fillStyle = "#aaa3bd";
+                    ctx.font = "10px Arial, sans-serif";
+                    ctx.fillText(entry.rarity, x + cardWidth / 2, cardY + 143, cardWidth - 8);
+                });
+                y += row.height + 10;
+            });
+
+            ctx.fillStyle = "#777187";
+            ctx.textAlign = "right";
+            ctx.font = "12px Arial, sans-serif";
+            ctx.fillText("MULTIVERSE-BATTLE", width - 38, totalHeight - 20);
+            return canvas;
+        });
+    }
+
+    async function exportTierListImage(button) {
+        var feedback = document.getElementById("mbTierFeedback");
+        var oldText = button ? button.textContent : "";
+        if (button) {
+            button.disabled = true;
+            button.textContent = "⏳ Создаю PNG…";
+        }
+        if (feedback) feedback.textContent = "Готовлю изображение тирлиста…";
+        try {
+            var canvas = await buildTierListCanvas();
+            if (!canvas) return;
+            var blob = await new Promise(function (resolve) {
+                canvas.toBlob(resolve, "image/png");
+            });
+            if (!blob) throw new Error("PNG export is not supported");
+            var file = new File([blob], "Multiverse-Battle-Tierlist.png", { type: "image/png" });
+            var shared = false;
+            if (navigator.share && navigator.canShare) {
+                try {
+                    shared = navigator.canShare({ files: [file] });
+                } catch (_error) {
+                    shared = false;
+                }
+            }
+            if (shared) {
+                await navigator.share({
+                    files: [file],
+                    title: "Мой тирлист Multiverse-Battle",
+                    text: "Тирлист персонажей Multiverse-Battle"
+                });
+                if (feedback) feedback.textContent = "Изображение отправлено в меню «Поделиться». На телефоне выбери «Сохранить изображение» или «Фото».";
+            } else {
+                var url = URL.createObjectURL(blob);
+                var link = document.createElement("a");
+                link.href = url;
+                link.download = "Multiverse-Battle-Tierlist.png";
+                link.style.display = "none";
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+                if (feedback) feedback.textContent = "PNG подготовлен. На телефоне файл появится в загрузках, оттуда его можно сохранить в галерею.";
+            }
+        } catch (error) {
+            if (error && error.name === "AbortError") {
+                if (feedback) feedback.textContent = "Сохранение отменено.";
+            } else {
+                console.error("[MB TIER LIST] Export failed:", error);
+                if (feedback) feedback.textContent = "Не удалось создать PNG. Попробуй ещё раз или сохрани тирлист в игре.";
+                window.alert("Не удалось создать изображение тирлиста на этом устройстве.");
+            }
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.textContent = oldText || "🖼️ Сохранить PNG";
+            }
+        }
+    }
+
     function bindEvents() {
         var root = document.getElementById("tierListRoot");
         if (!root || root.dataset.mbTierBound === "1") return;
@@ -338,6 +679,27 @@
             if (info) {
                 event.stopPropagation();
                 openInfo(info.getAttribute("data-info-key"));
+                return;
+            }
+
+            var assignSelected = target.closest("[data-assign-selected]");
+            if (assignSelected) {
+                var targetSelect = root.querySelector("#mbTierTarget");
+                if (selectedKey && targetSelect) assign(selectedKey, targetSelect.value);
+                return;
+            }
+
+            var clearSelection = target.closest("[data-clear-selection]");
+            if (clearSelection) {
+                selectedKey = null;
+                render();
+                return;
+            }
+
+            var editTier = target.closest("[data-edit-tier]");
+            if (editTier) {
+                event.stopPropagation();
+                openTierEditor(editTier.getAttribute("data-edit-tier"));
                 return;
             }
 
@@ -367,25 +729,26 @@
             if (action) {
                 var kind = action.getAttribute("data-tier-action");
                 if (kind === "add") {
-                    if (getState().tiers.length >= 12) {
+                    var stateForAdd = getState();
+                    if (stateForAdd.tiers.length >= 12) {
                         window.alert("Можно создать не больше 12 тиров.");
                         return;
                     }
-                    var label = window.prompt("Название нового тира:", "EX");
-                    if (label === null || !label.trim()) return;
-                    label = label.trim().slice(0, 12);
-                    var stateForAdd = getState();
-                    if (stateForAdd.tiers.some(function (tier) { return tier.label.toLocaleLowerCase() === label.toLocaleLowerCase(); })) {
-                        window.alert("Тир с таким названием уже существует.");
-                        return;
-                    }
+                    var newId = "custom_" + Date.now();
                     stateForAdd.tiers.push({
-                        id: "custom_" + Date.now(),
-                        label: label,
-                        color: TIER_COLORS[(stateForAdd.tiers.length - DEFAULT_TIERS.length) % TIER_COLORS.length]
+                        id: newId,
+                        label: "Новый тир",
+                        color: TIER_COLORS[(stateForAdd.tiers.length - DEFAULT_TIERS.length) % TIER_COLORS.length] || "#c77dff"
                     });
                     persist(stateForAdd);
                     render();
+                    openTierEditor(newId);
+                } else if (kind === "save") {
+                    persist(getState());
+                    var saveFeedback = root.querySelector("#mbTierFeedback");
+                    if (saveFeedback) saveFeedback.textContent = "✓ Тирлист сохранён в текущем слоте. Автосохранение также включено.";
+                } else if (kind === "export") {
+                    exportTierListImage(action);
                 } else if (kind === "reset") {
                     if (!window.confirm("Убрать всех персонажей из тиров? Сам список тиров останется.")) return;
                     var stateForReset = getState();
@@ -400,15 +763,7 @@
             var card = target.closest("[data-card-key]");
             if (card) {
                 selectedKey = card.getAttribute("data-card-key");
-                var currentState = getState();
-                var catalogData = getCatalog();
-                renderPool(catalogData, currentState);
-                root.querySelectorAll(".mb-tier-character.is-selected").forEach(function (item) {
-                    item.classList.remove("is-selected");
-                });
-                root.querySelectorAll("[data-card-key]").forEach(function (item) {
-                    if (item.getAttribute("data-card-key") === selectedKey) item.classList.add("is-selected");
-                });
+                render();
                 return;
             }
 
@@ -521,6 +876,34 @@
             "#tierListRoot .mb-tier-empty{grid-column:1/-1;padding:22px;text-align:center;color:#8d879d;font-size:12px;border:1px dashed #ffffff22;border-radius:12px}" +
             "#tierListRoot .mb-tier-locked-note{margin-top:12px;color:#8f89a1;font-size:10px;line-height:1.4}" +
             "@media(max-width:520px){#tierListRoot .mb-tier-topline{align-items:flex-start}#tierListRoot h2{font-size:19px}#tierListRoot .mb-tier-toolbar{grid-template-columns:1fr 1fr}#tierListRoot .mb-tier-toolbar input{grid-column:1/-1}#tierListRoot .mb-tier-row{grid-template-columns:48px minmax(0,1fr);gap:5px}#tierListRoot .mb-tier-board-head{grid-template-columns:48px 1fr;font-size:8px}#tierListRoot .mb-tier-label{min-height:75px}#tierListRoot .mb-tier-label strong{font-size:23px}#tierListRoot .mb-tier-character{flex-basis:70px;width:70px;min-height:90px}#tierListRoot .mb-tier-art-wrap{width:43px;height:43px}#tierListRoot .mb-tier-pool{grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:5px}}";
+        style.textContent +=
+            "#tierListRoot .mb-tier-edit{position:absolute;right:4px;bottom:3px;width:20px;height:20px;padding:0;border:1px solid #17131e44;border-radius:6px;background:#17131e22;color:#17131e;font-size:13px;font-weight:900;cursor:pointer}" +
+            "#tierListRoot .mb-tier-delete{top:3px;right:4px}" +
+            "#tierListRoot .mb-tier-selection{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 10px;padding:10px;border:1px solid #e7c76d55;border-radius:12px;background:linear-gradient(120deg,#342b1c,#171827)}" +
+            "#tierListRoot .mb-tier-selection-copy{display:flex;flex:1 1 210px;min-width:0;flex-direction:column;gap:3px}" +
+            "#tierListRoot .mb-tier-selection-copy strong{color:#ffe4a0;font-size:12px;overflow-wrap:anywhere}" +
+            "#tierListRoot .mb-tier-selection-copy small{color:#bdb3a0;font-size:10px;line-height:1.35}" +
+            "#tierListRoot .mb-tier-selection select{min-width:100px;max-width:180px;padding:9px;border:1px solid #ffffff2b;border-radius:8px;background:#111322;color:#fff}" +
+            "#tierListRoot .mb-tier-selection .btn{padding:9px 12px;font-size:11px}" +
+            "#tierListRoot .mb-tier-feedback{min-height:16px;margin:-12px 0 14px;color:#a9dfb1;font-size:11px}" +
+            ".mb-tier-editor-overlay{position:fixed;inset:0;z-index:10050;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(4,5,12,.82);backdrop-filter:blur(8px)}" +
+            ".mb-tier-editor{width:min(420px,100%);box-sizing:border-box;padding:20px;border:1px solid #bca0ec55;border-radius:18px;background:linear-gradient(155deg,#232039,#10121e);box-shadow:0 20px 70px #000b;color:#fff}" +
+            ".mb-tier-editor-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}" +
+            ".mb-tier-editor-head small{color:#bca0ec;font:800 9px monospace;letter-spacing:1.5px}" +
+            ".mb-tier-editor-head h3{margin:5px 0 0;font-size:20px}" +
+            ".mb-tier-editor-head button{width:32px;height:32px;border:1px solid #ffffff20;border-radius:9px;background:#ffffff0b;color:#fff;font-size:22px}" +
+            ".mb-tier-editor-field{display:block;margin:12px 0;color:#bdb7ce;font-size:11px;font-weight:800}" +
+            ".mb-tier-editor-field>span{display:block;margin-bottom:7px}" +
+            ".mb-tier-editor-field input[type=text]{width:100%;box-sizing:border-box;padding:11px;border:1px solid #ffffff25;border-radius:9px;background:#0c0e18;color:#fff;font:700 14px Arial,sans-serif}" +
+            ".mb-tier-color-control{display:flex;align-items:center;gap:12px}" +
+            ".mb-tier-color-control input{width:54px;height:42px;padding:3px;border:1px solid #ffffff30;border-radius:9px;background:#111}" +
+            ".mb-tier-color-control strong{font:800 12px monospace;color:#fff}" +
+            ".mb-tier-editor-preview{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 0;padding:13px 15px;border-radius:10px;background:var(--tier-color);color:#17131e}" +
+            ".mb-tier-editor-preview strong{font-size:23px;font-weight:1000;overflow-wrap:anywhere}" +
+            ".mb-tier-editor-preview span{font:900 9px monospace;text-align:right}" +
+            ".mb-tier-editor-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}" +
+            ".mb-tier-editor-actions .btn{padding:10px 15px;font-size:12px}" +
+            "@media(max-width:520px){#tierListRoot .mb-tier-selection{align-items:stretch}#tierListRoot .mb-tier-selection select{flex:1 1 115px;max-width:none}#tierListRoot .mb-tier-selection .btn{flex:1 1 auto}.mb-tier-editor{padding:16px}}";
         document.head.appendChild(style);
     }
 
