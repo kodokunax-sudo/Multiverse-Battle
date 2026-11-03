@@ -2798,7 +2798,7 @@
         }
         const elapsed = Math.max(0, rafNow - asLastRafTimestamp);
         asLastRafTimestamp = rafNow;
-        asTimeScale = rafNow < asSlowUntilReal ? .5 : 1;
+        asTimeScale = (rafNow < asSlowUntilReal ? .5 : 1) * (window.MBPucciIsMadeInHeavenActive && window.MBPucciIsMadeInHeavenActive() ? window.MBPucciGetWorldTimeMultiplier() : 1);
         if (asAimMode && asTimeScale === 1) {
             asAimMode = false;
             asUpdateControls();
