@@ -83,7 +83,7 @@
     }
 
     function worldTimeMultiplier() {
-        return 1 + 9 * progress();
+        return 1 + 0.30 * progress();
     }
     window.MBPucciGetWorldTimeMultiplier = worldTimeMultiplier;
 
@@ -531,7 +531,7 @@
                 var reductionPct = Math.round(damageReduction() * 100);
                 status.textContent = "MADE IN HEAVEN · " + elapsedSec.toFixed(1) + "/60с" +
                     " · скорость +" + speedPct + "%" +
-                    " · время мира ×" + worldTimeMultiplier().toFixed(1) +
+                    " · скорость мира +" + Math.round((worldTimeMultiplier() - 1) * 100) + "%" +
                     " · атаки +" + attackPct + "%" +
                     " · урон +" + damagePct + "%" +
                     " · поглощение " + reductionPct + "%";
@@ -555,7 +555,7 @@
 
         draw.save();
         var elapsed = elapsedMs();
-        var phase = (elapsed / 1000) * (0.18 + 1.65 * progress());
+        var phase = (elapsed / 1000) * 0.18 * worldTimeMultiplier();
         var daylight = (Math.sin(phase * Math.PI * 2 + Math.PI / 2) + 1) * 0.5;
         draw.globalCompositeOperation = "source-over";
         draw.globalAlpha = 0.34 * (1 - daylight);
