@@ -215,20 +215,6 @@ function easterSubmitCode() {
                 showFloatingText("🌟 ЗВЁЗДЫ x10000 НА 90 СЕКУНД!", "#ffd700");
             }
             if (typeof renderActiveBuffs === 'function') renderActiveBuffs();
-        } else if (cd.type === "tierListUnlock") {
-            if (typeof slotData === "undefined" || !slotData) {
-                if (resultEl) resultEl.innerHTML = "❌ Не удалось открыть тирлист для этого сохранения";
-                usedCodes = usedCodes.filter(function (code) { return code !== inp; });
-                return;
-            }
-            slotData.tierListUnlocked = true;
-            if (resultEl) resultEl.innerHTML = "✅ 🏆 Тирлист открыт! Новая вкладка появилась в Коллекции.";
-            if (typeof showFloatingText === 'function') {
-                showFloatingText("🏆 ТИРЛИСТ ОТКРЫТ!", "#d9b6ff");
-            }
-            if (window.MBTierList && typeof window.MBTierList.refreshAccess === "function") {
-                window.MBTierList.refreshAccess(true);
-            }
         }
 
         if (typeof saveAll === 'function') saveAll();
