@@ -360,7 +360,10 @@
         if (ls2HitFlash > 0) ls2HitFlash = Math.max(0, ls2HitFlash - dt);
         if (ls2ShieldFlash > 0) ls2ShieldFlash = Math.max(0, ls2ShieldFlash - dt);
         if (ls2FloatingTimer > 0) ls2FloatingTimer = Math.max(0, ls2FloatingTimer - dt);
-        if (ls2PlayerAttackCooldown > 0) ls2PlayerAttackCooldown = Math.max(0, ls2PlayerAttackCooldown - dt);
+        if (ls2PlayerAttackCooldown > 0) {
+            var pucciAttackRate = (typeof window.MBPucciGetAttackSpeedMultiplier === "function") ? window.MBPucciGetAttackSpeedMultiplier() : 1;
+            ls2PlayerAttackCooldown = Math.max(0, ls2PlayerAttackCooldown - dt * pucciAttackRate);
+        }
         if (ls2BossStrikeFlash > 0) ls2BossStrikeFlash = Math.max(0, ls2BossStrikeFlash - dt);
         ls2PhaseTimer += dt;
         if (ls2Phase === "intro") {
