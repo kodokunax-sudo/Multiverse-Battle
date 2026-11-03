@@ -25,7 +25,8 @@ function purchase(id){
   points-=patch.cost;
  }
  unlocked.push(id);
- if(typeof saveAll==="function")saveAll();
+ if(typeof slotData!=="undefined"&&slotData)slotData.unlockedPatches=validIds(unlocked);
+ if(typeof saveAll==="function")saveAll(true);
  if(typeof renderPoints==="function")renderPoints();
  if(typeof renderBook==="function")renderBook();
  render();
