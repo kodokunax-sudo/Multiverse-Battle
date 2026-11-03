@@ -2310,7 +2310,17 @@ function arenaUpdateRainbowAttacks(list, speedMod, globallyFrozen, globallyStopp
 
             var otherRadius = arenaRainbowOtherRadius(other);
             if (!(otherRadius > 0)) continue;
-            var center = arenaRainbowOtherCenter(other);
+            var otherStopped = globallyStopped ||
+                (typeof dioShouldFreezeEntity === "function" && dioShouldFreezeEntity(other));
+            var otherPosition = other;
+            if (!otherIsRainbow && !otherStopped) {
+                otherPosition = {
+                    type: other.type, x: (Number(other.x) || 0) + (Number(other.spd) || 0) * speedMod,
+                    y: (Number(other.y) || 0) + (Number(other.spdY) || 0) * speedMod,
+                    radius: other.radius, size: other.size, width: other.width, height: other.height
+                };
+            }
+            var center = arenaRainbowOtherCenter(otherPosition);
             var dx = rainbow.x - center.x, dy = rainbow.y - center.y;
             var distance = Math.hypot(dx, dy);
             var minDistance = rainbowRadius + otherRadius;
@@ -2372,10 +2382,8 @@ function arenaUpdateRainbowAttacks(list, speedMod, globallyFrozen, globallyStopp
 
                 rainbow.x += nx * overlap;
                 rainbow.y += ny * overlap;
-                var otherStopped = globallyStopped ||
-                    (typeof dioShouldFreezeEntity === "function" && dioShouldFreezeEntity(other));
-                var otherVX = otherStopped ? 0 : (Number(other.spd) || Number(other.vx) || 0);
-                var otherVY = otherStopped ? 0 : (Number(other.spdY) || Number(other.vy) || 0);
+                var otherVX = otherStopped ? 0 : (Number(other.spd) || 0);
+                var otherVY = otherStopped ? 0 : (Number(other.spdY) || 0);
                 var approachSpeed = ((Number(rainbow.spd) || 0) - otherVX) * nx +
                     ((Number(rainbow.spdY) || 0) - otherVY) * ny;
                 if (approachSpeed < 0) {
