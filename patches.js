@@ -63,7 +63,7 @@ window.MBPatches={list:function(){return catalog.slice()},load:mergeUnlocksFromS
 window.addEventListener("mb:slot-ready",function(){
  var fromSave=validIds(typeof slotData!=="undefined"&&slotData?slotData.unlockedPatches:[]);
  var merged=validIds(fromSave.concat(readLocalUnlocks()));
- var changed=merged.length!==fromSave.length;
+ var changed=pendingUnlockRepair||merged.length!==fromSave.length;
  unlocked=merged;
  writeLocalUnlocks(unlocked);
  if(changed){
