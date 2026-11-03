@@ -6676,10 +6676,9 @@
     if (!window.__mbPucciRWBTimePatch) {
         window.__mbPucciRWBTimePatch = true;
         var pucciRwbCarries = Object.create(null);
-        ["updateDuel", "updateRWBAttacks", "updateSuperBoss", "updateWhitebeardVortex"].forEach(function (name) {
-            var original = window[name];
-            if (typeof original !== "function") return;
-            window[name] = function () {
+        function pucciWrapRwbUpdate(name, original) {
+            if (typeof original !== "function") return original;
+            return function () {
                 var mult = window.MBPucciIsMadeInHeavenActive && window.MBPucciIsMadeInHeavenActive()
                     ? window.MBPucciGetWorldTimeMultiplier() : 1;
                 pucciRwbCarries[name] = (pucciRwbCarries[name] || 0) + Math.max(0, mult - 1);
@@ -6689,7 +6688,11 @@
                 for (var i = 0; i <= Math.min(10, extra); i++) result = original.apply(this, arguments);
                 return result;
             };
-        });
+        }
+        updateDuel = pucciWrapRwbUpdate("updateDuel", updateDuel);
+        updateRWBAttacks = pucciWrapRwbUpdate("updateRWBAttacks", updateRWBAttacks);
+        updateSuperBoss = pucciWrapRwbUpdate("updateSuperBoss", updateSuperBoss);
+        updateWhitebeardVortex = pucciWrapRwbUpdate("updateWhitebeardVortex", updateWhitebeardVortex);
     }
 
     console.log("╔════════════════════════════════════════════════════════════╗");
