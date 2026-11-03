@@ -268,7 +268,7 @@
                 try {
                     if (state.audioOne) { state.audioOne.pause(); state.audioOne.currentTime = 0; }
                     state.audioTwo = new Audio("music/Ost пуччи.mp3");
-                    state.audioTwo.loop = false;
+                    state.audioTwo.loop = true;
                     state.audioTwo.volume = 0.85;
                     var secondPlay = state.audioTwo.play();
                     if (secondPlay && typeof secondPlay.catch === "function") secondPlay.catch(function () {});
@@ -562,7 +562,7 @@
         draw.save();
         var elapsed = elapsedMs();
         var phase = (elapsed / 1000) * (0.18 + 1.65 * progress());
-        var daylight = (Math.sin(phase * Math.PI * 2 - Math.PI / 2) + 1) * 0.5;
+        var daylight = (Math.sin(phase * Math.PI * 2 + Math.PI / 2) + 1) * 0.5;
         draw.globalCompositeOperation = "source-over";
         draw.globalAlpha = 0.34 * (1 - daylight);
         draw.fillStyle = "#07132e";
