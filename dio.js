@@ -379,7 +379,7 @@ function dioUpdateMudaSkill(dt){
  var knives=Array.isArray(_superState.dioKnives)?_superState.dioKnives:[];if(knives.length){if(isDioTimeStopped())return;for(var i=knives.length-1;i>=0;i--){var k=knives[i];if(!k){knives.splice(i,1);continue;}var frames=Math.max(.25,Math.min(6,(Number(dt)||.016)*60));
   if(k.targetType==="arena"){
    var atk=cb&&typeof cb.getAttacks==="function"?cb.getAttacks():[],target=k.targetAttack;
-   if(!target||atk.indexOf(target)<0){knives.splice(i,1);continue;}
+   if(!target||atk.indexOf(target)<0||target.type==="rainbow"){knives.splice(i,1);continue;}
    var tr=Number(target.size||target.radius||target.width||18)||18,tx=(Number(target.x)||0)+tr/2,ty=(Number(target.y)||0)+tr/2;
    var aa=Math.atan2(ty-k.y,tx-k.x),asp=Math.hypot(k.vx,k.vy)||10;k.angle=aa;k.vx=Math.cos(aa)*asp;k.vy=Math.sin(aa)*asp;k.x+=k.vx*frames;k.y+=k.vy*frames;k.life-=frames;
    if(Math.hypot(tx-k.x,ty-k.y)<tr/2+8){var ai=atk.indexOf(target);if(ai>=0)atk.splice(ai,1);var parts=cb&&typeof cb.getParticles==="function"?cb.getParticles():[];for(var pp=0;pp<7;pp++)parts.push({x:tx,y:ty,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5,life:16,maxLife:16,color:pp%2?"#eaf3ff":"#d8b6ff",size:2+Math.random()*3});if(cb&&cb.playSound)cb.playSound(780,"square",.06,.08);knives.splice(i,1);}
@@ -393,7 +393,7 @@ function dioLaunchArenaKnifeVolley(cb){
  if(!cb||cb.type!=="arena"){_superState.dioMudaActive=false;_superState.dioMudaMode=null;return;}
  var attacks=typeof cb.getAttacks==="function"?cb.getAttacks():[];
  if(!Array.isArray(attacks)||!attacks.length){_superState.dioMudaActive=false;_superState.dioMudaMode=null;if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ НЕТ БЛИЖАЙШИХ БЛОКОВ!","#ffaa00");return;}
- var px=cb.getHeartX(),py=cb.getHeartY(),targets=attacks.slice().filter(function(a){return a&&a.type!=="wall"&&!a.heal&&!a.healPercent&&!(a.type==="circle"&&a.color==="#44ff44");}).sort(function(a,b){var ar=Number(a.size||a.radius||18)||18,br=Number(b.size||b.radius||18)||18;return Math.hypot((a.x||0)+ar/2-px,(a.y||0)+ar/2-py)-Math.hypot((b.x||0)+br/2-px,(b.y||0)+br/2-py);});
+ var px=cb.getHeartX(),py=cb.getHeartY(),targets=attacks.slice().filter(function(a){return a&&a.type!=="wall"&&a.type!=="rainbow"&&!a.heal&&!a.healPercent&&!(a.type==="circle"&&a.color==="#44ff44");}).sort(function(a,b){var ar=Number(a.size||a.radius||18)||18,br=Number(b.size||b.radius||18)||18;return Math.hypot((a.x||0)+ar/2-px,(a.y||0)+ar/2-py)-Math.hypot((b.x||0)+br/2-px,(b.y||0)+br/2-py);});
  if(!targets.length){_superState.dioMudaActive=false;_superState.dioMudaMode=null;if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ НЕТ БЛИЖАЙШИХ БЛОКОВ!","#ffaa00");return;}
  if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];
  var knifeCount=Math.min(5,targets.length);
