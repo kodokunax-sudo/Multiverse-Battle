@@ -29,6 +29,7 @@
     var selectedKey = null;
     var bound = false;
     var sessionUnlocked = false;
+    var pendingExportBlob = null;
 
     function esc(value) {
         return String(value == null ? "" : value)
@@ -80,6 +81,7 @@
     function persist(state) {
         if (typeof slotData === "undefined" || !slotData) return;
         slotData.tierListData = state;
+        pendingExportBlob = null;
         if (typeof saveAll === "function") saveAll();
     }
 
@@ -607,9 +609,74 @@
         });
     }
 
+    function downloadTierListBlob(blob, feedback) {
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = "Multiverse-Battle-Tierlist.png";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+        if (feedback) feedback.textContent = "PNG подготовлен. На телефоне файл появится в загрузках, оттуда его можно сохранить в галерею.";
+    }
+
     async function exportTierListImage(button) {
         var feedback = document.getElementById("mbTierFeedback");
-        var oldText = button ? button.textContent : "";
+
+        // The second tap shares the already-created file while the browser's
+        // transient user activation is still available.
+        if (pendingExportBlob) {
+            var pendingFile = new File([pendingExportBlob], "Multiverse-Battle-Tierlist.png", { type: "image/png" });
+            var canSharePending = false;
+            try {
+                canSharePending = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [pendingFile] }));
+            } catch (_error) {
+                canSharePending = false;
+            }
+            if (!canSharePending) {
+                downloadTierListBlob(pendingExportBlob, feedback);
+                pendingExportBlob = null;
+                if (button) button.textContent = "🖼️ Сохранить PNG";
+                return;
+            }
+
+            var sharePromise;
+            try {
+                sharePromise = navigator.share({
+                    files: [pendingFile],
+                    title: "Мой тирлист Multiverse-Battle",
+                    text: "Тирлист персонажей Multiverse-Battle"
+                });
+            } catch (shareError) {
+                sharePromise = Promise.reject(shareError);
+            }
+            if (button) {
+                button.disabled = true;
+                button.textContent = "⏳ Открываю меню…";
+            }
+            try {
+                await sharePromise;
+                if (feedback) feedback.textContent = "Изображение передано в меню «Поделиться». Выбери «Сохранить изображение» или «Фото».";
+                pendingExportBlob = null;
+            } catch (error) {
+                if (error && error.name === "AbortError") {
+                    if (feedback) feedback.textContent = "Сохранение отменено.";
+                } else {
+                    console.error("[MB TIER LIST] Share failed:", error);
+                    downloadTierListBlob(pendingExportBlob, feedback);
+                }
+                pendingExportBlob = null;
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = "🖼️ Сохранить PNG";
+                }
+            }
+            return;
+        }
+
         if (button) {
             button.disabled = true;
             button.textContent = "⏳ Создаю PNG…";
@@ -623,49 +690,31 @@
             });
             if (!blob) throw new Error("PNG export is not supported");
             var file = new File([blob], "Multiverse-Battle-Tierlist.png", { type: "image/png" });
-            var shared = false;
-            if (navigator.share && navigator.canShare) {
-                try {
-                    shared = navigator.canShare({ files: [file] });
-                } catch (_error) {
-                    shared = false;
-                }
+            var canShare = false;
+            try {
+                canShare = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
+            } catch (_error) {
+                canShare = false;
             }
-            if (shared) {
-                await navigator.share({
-                    files: [file],
-                    title: "Мой тирлист Multiverse-Battle",
-                    text: "Тирлист персонажей Multiverse-Battle"
-                });
-                if (feedback) feedback.textContent = "Изображение отправлено в меню «Поделиться». На телефоне выбери «Сохранить изображение» или «Фото».";
+
+            if (canShare) {
+                pendingExportBlob = blob;
+                if (button) button.textContent = "📤 Сохранить в галерею";
+                if (feedback) feedback.textContent = "PNG готов. Нажми «Сохранить в галерею» ещё раз и выбери «Фото» или «Сохранить изображение».";
             } else {
-                var url = URL.createObjectURL(blob);
-                var link = document.createElement("a");
-                link.href = url;
-                link.download = "Multiverse-Battle-Tierlist.png";
-                link.style.display = "none";
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-                window.setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
-                if (feedback) feedback.textContent = "PNG подготовлен. На телефоне файл появится в загрузках, оттуда его можно сохранить в галерею.";
+                downloadTierListBlob(blob, feedback);
             }
         } catch (error) {
-            if (error && error.name === "AbortError") {
-                if (feedback) feedback.textContent = "Сохранение отменено.";
-            } else {
-                console.error("[MB TIER LIST] Export failed:", error);
-                if (feedback) feedback.textContent = "Не удалось создать PNG. Попробуй ещё раз или сохрани тирлист в игре.";
-                window.alert("Не удалось создать изображение тирлиста на этом устройстве.");
-            }
+            console.error("[MB TIER LIST] Export failed:", error);
+            if (feedback) feedback.textContent = "Не удалось создать PNG. Попробуй ещё раз или сохрани тирлист в игре.";
+            window.alert("Не удалось создать изображение тирлиста на этом устройстве.");
         } finally {
             if (button) {
                 button.disabled = false;
-                button.textContent = oldText || "🖼️ Сохранить PNG";
+                if (!pendingExportBlob) button.textContent = "🖼️ Сохранить PNG";
             }
         }
     }
-
     function bindEvents() {
         var root = document.getElementById("tierListRoot");
         if (!root || root.dataset.mbTierBound === "1") return;
