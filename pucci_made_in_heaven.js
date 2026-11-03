@@ -9,8 +9,8 @@
     window.__mbPucciMadeInHeavenLoaded = true;
 
     var CARD_NAME = "Энрико Пуччи (Made in Heaven)";
-    var DURATION_MS = 60000;
-    var SPEED_CAP_TIME_MS = 50000;
+    var DURATION_MS = 120000;
+    var SPEED_CAP_TIME_MS = 120000;
     var TELEPORT_UNLOCK_MS = 50000;
     var TELEPORT_COOLDOWN_MS = 3000;
     var POST_ULTIMATE_COOLDOWN_MS = 45000;
@@ -75,7 +75,7 @@
     }
 
     function speedLevel() {
-        return state.active ? Math.min(100, elapsedMs() / SPEED_CAP_TIME_MS * 100) : 0;
+        return state.active ? Math.min(1500, elapsedMs() / SPEED_CAP_TIME_MS * 1500) : 0;
     }
 
     function attackSpeedBonus() {
@@ -83,7 +83,7 @@
     }
 
     function worldTimeMultiplier() {
-        return 1 + 0.30 * progress();
+        return 1 + 0.40 * progress();
     }
     window.MBPucciGetWorldTimeMultiplier = worldTimeMultiplier;
 
@@ -408,7 +408,7 @@
             return false;
         }
 
-        var speed = 1 + 10 * Math.min(1, elapsed / SPEED_CAP_TIME_MS);
+        var speed = 1 + 15 * clamp01(elapsed / SPEED_CAP_TIME_MS);
         try { state.restoreSpeed(state.baseSpeed * speed); } catch (e) {}
 
         if (frameNow - state.lastTrailAt >= 42) {
@@ -495,7 +495,7 @@
         btn.style.border = "2px solid #ffffff";
         btn.style.fontWeight = "900";
         btn.style.animation = state.active ? "none" : "superPulse 2s infinite";
-        btn.title = "Made in Heaven: 60 секунд ускорения времени, затем телепортация";
+        btn.title = "Made in Heaven: 120 секунд ускорения времени, затем телепортация";
 
         var label = "⚡ MADE IN HEAVEN";
         if (state.active) {
@@ -525,18 +525,18 @@
             status.style.borderColor = "#9deeff";
             if (state.active) {
                 var elapsedSec = elapsedMs() / 1000;
-                var speedPct = Math.round(Math.min(1000, elapsedSec / 50 * 1000));
+                var speedPct = Math.round(Math.min(1500, elapsedSec / 120 * 1500));
                 var attackPct = Math.round(attackSpeedBonus() * 100);
                 var damagePct = Math.round(damageBonus() * 100);
                 var reductionPct = Math.round(damageReduction() * 100);
-                status.textContent = "MADE IN HEAVEN · " + elapsedSec.toFixed(1) + "/60с" +
+                status.textContent = "MADE IN HEAVEN · " + elapsedSec.toFixed(1) + "/120с" +
                     " · скорость +" + speedPct + "%" +
                     " · скорость мира +" + Math.round((worldTimeMultiplier() - 1) * 100) + "%" +
                     " · атаки +" + attackPct + "%" +
                     " · урон +" + damagePct + "%" +
                     " · поглощение " + reductionPct + "%";
             } else {
-                status.textContent = "SUPER: 60 секунд разгона времени. Телепортация откроется на 50-й секунде.";
+                status.textContent = "SUPER: 120 секунд ускорения. Пуччи разгоняется до +1500%, боссы и их атаки — до +40%. Телепортация откроется на 50-й секунде.";
             }
         }
     }
