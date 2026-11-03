@@ -9,11 +9,13 @@
     window.__mbPucciMadeInHeavenLoaded = true;
 
     var CARD_NAME = "Энрико Пуччи (Made in Heaven)";
-    var DURATION_MS = 120000;
-    var SPEED_CAP_TIME_MS = 120000;
+    var DURATION_MS = 118000;
+    var SPEED_CAP_TIME_MS = 118000;
     var TELEPORT_UNLOCK_MS = 50000;
     var TELEPORT_COOLDOWN_MS = 3000;
     var POST_ULTIMATE_COOLDOWN_MS = 45000;
+    var FINAL_COLLAPSE_MS = 2600;
+    var FINAL_BLACK_HOLD_MS = 420;
     var state = {
         active: false,
         startedAt: 0,
@@ -30,7 +32,11 @@
         rafId: 0,
         audioOne: null,
         audioTwo: null,
-        audioTimer: 0
+        audioTimer: 0,
+        ending: false,
+        endingAt: 0,
+        finalBlack: false,
+        finalBlackAt: 0
     };
     window.__mbPucciMadeInHeavenState = state;
 
@@ -78,28 +84,33 @@
         return state.active ? Math.min(1500, elapsedMs() / SPEED_CAP_TIME_MS * 1500) : 0;
     }
 
+    function combatProgress() {
+        return state.active && !state.ending ? progress() : 0;
+    }
+
     function attackSpeedBonus() {
-        return 0.30 * progress();
+        return 0.30 * combatProgress();
     }
 
     function worldTimeMultiplier() {
-        return 1 + 0.40 * progress();
+        return 1 + 0.40 * combatProgress();
     }
     window.MBPucciGetWorldTimeMultiplier = worldTimeMultiplier;
 
     function damageBonus() {
-        return 0.50 * progress();
+        return 0.50 * combatProgress();
     }
 
     function damageReduction() {
-        return 0.35 * progress();
+        return 0.35 * combatProgress();
     }
 
     window.MBPucciGetAttackSpeedMultiplier = function () {
         return 1 + attackSpeedBonus();
     };
     window.MBPucciGetProgress = progress;
-    window.MBPucciIsMadeInHeavenActive = function () { return !!state.active; };
+    window.MBPucciIsMadeInHeavenActive = function () { return !!state.active && !state.ending; };
+    window.MBPucciIsMadeInHeavenEnding = function () { return !!state.active && !!state.ending; }
 
     function showMessage(message, color) {
         try {
@@ -191,6 +202,10 @@
         state.trail.length = 0;
         state.teleportFlash = null;
         state.teleportCooldownUntil = 0;
+        state.ending = false;
+        state.endingAt = 0;
+        state.finalBlack = false;
+        state.finalBlackAt = 0;
         if (state.audioTimer) window.clearTimeout(state.audioTimer);
         state.audioTimer = 0;
         try { if (state.audioOne) { state.audioOne.pause(); state.audioOne.currentTime = 0; } } catch (e) {}
@@ -203,7 +218,7 @@
             try { window.cancelAnimationFrame(state.rafId); } catch (e) {}
         }
         state.rafId = 0;
-        if (reason === "complete") showMessage("🌌 УСКОРЕНИЕ ВРЕМЕНИ ЗАВЕРШЕНО", "#dffaff");
+        if (reason === "complete") showMessage("🌌 ВСЕЛЕННАЯ ЗАКРЫЛАСЬ", "#dffaff");
         if (typeof window.updateSuperButton === "function") window.updateSuperButton();
     }
 
@@ -401,11 +416,96 @@
         beginAbility(ctx);
     }
 
+    function beginFinalCollapse(ctx, frameNow) {
+        if (state.ending) return;
+        state.ending = true;
+        state.endingAt = frameNow;
+        state.finalBlack = false;
+        state.finalBlackAt = 0;
+        state.trail.length = 0;
+        state.teleportFlash = null;
+        try { if (typeof state.restoreSpeed === "function") state.restoreSpeed(0.01); } catch (e) {}
+        if (state.audioTimer) window.clearTimeout(state.audioTimer);
+        state.audioTimer = 0;
+        try { if (state.audioOne) { state.audioOne.pause(); state.audioOne.currentTime = 0; } } catch (e) {}
+        try { if (state.audioTwo) { state.audioTwo.pause(); state.audioTwo.currentTime = 0; } } catch (e) {}
+        state.audioOne = null;
+        state.audioTwo = null;
+        try {
+            if (ctx && typeof ctx.addShake === "function") ctx.addShake(18);
+            if (ctx && typeof ctx.addFlashWhite === "function") ctx.addFlashWhite(18);
+            if (ctx && typeof ctx.playSound === "function") ctx.playSound(48, "sawtooth", 1.1, 0.22);
+        } catch (e) {}
+        showMessage("💀 ВСЁ СХЛОПЫВАЕТСЯ…", "#ffffff");
+        if (typeof window.updateSuperButton === "function") window.updateSuperButton();
+    }
+
+    function forceFinalDeath(ctx) {
+        var deathContext = context() || ctx;
+        stopAbility(true, "complete");
+        window.__mbPucciCollapseForcedDeath = true;
+        try {
+            if (deathContext && typeof deathContext.setPlayerHp === "function" && deathContext.type !== "stoneSuper") {
+                deathContext.setPlayerHp(0);
+            }
+            if (!deathContext) {
+                if (typeof window.defeat === "function") window.defeat();
+                else if (typeof defeat === "function") defeat();
+                return;
+            }
+            switch (deathContext.type) {
+                case "rwb":
+                    if (typeof window.MBPucciForceRWBDefeat === "function") window.MBPucciForceRWBDefeat();
+                    else if (typeof window.rwbDefeat === "function") window.rwbDefeat();
+                    else if (typeof window.defeat === "function") window.defeat();
+                    break;
+                case "waystar":
+                    if (typeof window.waystarDefeat === "function") window.waystarDefeat();
+                    else if (typeof waystarDefeat === "function") waystarDefeat();
+                    else if (typeof window.defeat === "function") window.defeat();
+                    break;
+                case "stone":
+                    if (typeof window.livingStoneDefeat === "function") window.livingStoneDefeat();
+                    else if (typeof livingStoneDefeat === "function") livingStoneDefeat();
+                    else if (typeof window.defeat === "function") window.defeat();
+                    break;
+                case "stoneSuper":
+                    if (typeof window.MBLivingStoneSuperNativeDefeat === "function") window.MBLivingStoneSuperNativeDefeat();
+                    else if (typeof window.defeat === "function") window.defeat();
+                    break;
+                case "antispiral":
+                    if (typeof window.MBPucciForceAntiSpiralDefeat === "function") window.MBPucciForceAntiSpiralDefeat();
+                    else if (typeof window.defeat === "function") window.defeat();
+                    break;
+                default:
+                    if (typeof window.defeat === "function") window.defeat();
+                    else if (typeof defeat === "function") defeat();
+                    break;
+            }
+        } catch (e) {
+            console.error("[MADE IN HEAVEN] Final collapse defeat failed:", e);
+            if (typeof window.defeat === "function") window.defeat();
+        }
+    }
+
     function updateFrame(ctx, frameNow) {
+        if (state.ending) {
+            var collapseElapsed = Math.max(0, frameNow - state.endingAt);
+            if (collapseElapsed >= FINAL_COLLAPSE_MS && !state.finalBlack) {
+                state.finalBlack = true;
+                state.finalBlackAt = frameNow;
+            }
+            if (state.finalBlack && frameNow - state.finalBlackAt >= FINAL_BLACK_HOLD_MS) {
+                forceFinalDeath(ctx);
+                return false;
+            }
+            return true;
+        }
+
         var elapsed = Math.max(0, frameNow - state.startedAt);
         if (elapsed >= DURATION_MS) {
-            stopAbility(true, "complete");
-            return false;
+            beginFinalCollapse(ctx, frameNow);
+            return true;
         }
 
         var speed = 1 + 15 * clamp01(elapsed / SPEED_CAP_TIME_MS);
@@ -499,12 +599,16 @@
 
         var label = "⚡ MADE IN HEAVEN";
         if (state.active) {
+            if (state.ending) {
+                label = "💀 КОЛЛАПС";
+            } else {
             var elapsed = elapsedMs();
             if (elapsed < TELEPORT_UNLOCK_MS) {
                 label = "🌀 РАЗГОН " + Math.floor(elapsed / 1000) + "/120";
             } else {
                 var cd = Math.max(0, state.teleportCooldownUntil - now());
                 label = cd > 0 ? "⏳ ТЕЛЕПОРТ " + (cd / 1000).toFixed(1) + "с" : "⚡ ТЕЛЕПОРТ";
+            }
             }
         } else if (!test && Date.now() < state.cooldownUntil) {
             label = "⏳ СТАБИЛИЗАЦИЯ " + Math.ceil((state.cooldownUntil - Date.now()) / 1000) + "с";
@@ -525,18 +629,18 @@
             status.style.borderColor = "#9deeff";
             if (state.active) {
                 var elapsedSec = elapsedMs() / 1000;
-                var speedPct = Math.round(Math.min(1500, elapsedSec / 120 * 1500));
+                var speedPct = Math.round(Math.min(1500, elapsedSec / 118 * 1500));
                 var attackPct = Math.round(attackSpeedBonus() * 100);
                 var damagePct = Math.round(damageBonus() * 100);
                 var reductionPct = Math.round(damageReduction() * 100);
-                status.textContent = "MADE IN HEAVEN · " + elapsedSec.toFixed(1) + "/120с" +
+                status.textContent = "MADE IN HEAVEN · " + elapsedSec.toFixed(1) + "/118с" +
                     " · скорость +" + speedPct + "%" +
                     " · скорость мира +" + Math.round((worldTimeMultiplier() - 1) * 100) + "%" +
                     " · атаки +" + attackPct + "%" +
                     " · урон +" + damagePct + "%" +
                     " · поглощение " + reductionPct + "%";
             } else {
-                status.textContent = "SUPER: 120 секунд ускорения. Пуччи разгоняется до +1500%, боссы и их атаки — до +40%. Телепортация откроется на 50-й секунде.";
+                status.textContent = "SUPER: 1 минута 58 секунд. Скорость Пуччи до +1500%, ускорение боссов до +40%. После завершения пространство схлопнется, и Пуччи погибнет.";
             }
         }
     }
@@ -736,6 +840,41 @@
             draw.beginPath();
             draw.arc(hx, hy, 25 + Math.sin(now() / 90) * 4, 0, Math.PI * 2);
             draw.stroke();
+        }
+        if (state.ending) {
+            var collapseProgress = clamp01((now() - state.endingAt) / FINAL_COLLAPSE_MS);
+            draw.save();
+            if (typeof draw.setTransform === "function") draw.setTransform(1, 0, 0, 1, 0, 0);
+            draw.globalCompositeOperation = "source-over";
+            if (state.finalBlack) {
+                draw.globalAlpha = 1;
+                draw.fillStyle = "#000000";
+                draw.fillRect(0, 0, w, h);
+            } else {
+                var maxRadius = Math.hypot(w, h) * 0.78;
+                var radius = maxRadius * Math.pow(1 - collapseProgress, 1.45);
+                draw.globalAlpha = 0.985;
+                draw.fillStyle = "#02030a";
+                draw.beginPath();
+                draw.rect(0, 0, w, h);
+                draw.arc(hx, hy, Math.max(1, radius), 0, Math.PI * 2, true);
+                try { draw.fill("evenodd"); } catch (e) { draw.fill(); }
+                draw.globalAlpha = 0.94;
+                draw.strokeStyle = "#e8f8ff";
+                draw.shadowColor = "#7bdfff";
+                draw.shadowBlur = 24;
+                draw.lineWidth = 2 + collapseProgress * 8;
+                draw.beginPath();
+                draw.arc(hx, hy, Math.max(1, radius), 0, Math.PI * 2);
+                draw.stroke();
+                draw.shadowBlur = 0;
+                draw.globalAlpha = 0.9 * (1 - collapseProgress);
+                draw.fillStyle = "#ffffff";
+                draw.font = "900 18px Arial";
+                draw.textAlign = "center";
+                draw.fillText("ВСЕЛЕННАЯ СХЛОПЫВАЕТСЯ", w / 2, Math.max(28, h * 0.16));
+            }
+            draw.restore();
         }
         if (state.teleportFlash) {
             var flash = state.teleportFlash;
