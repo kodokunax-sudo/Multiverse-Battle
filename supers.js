@@ -936,6 +936,7 @@ function runDandyBossEffect(ctxB, eff, category) {
         attacks().forEach(function(list) {
             for(var i=list.length-1;i>=0;i--) {
                 var a=list[i]||{};
+                if(a.type==="rainbow")continue;
                 var isBomb=a.type==="bomb"||a.kind==="bomb"||/bomb/i.test(String(a.type||a.kind||""));
                 if(keepBombs&&isBomb)continue;
                 list.splice(i,1);
@@ -969,7 +970,7 @@ function runDandyBossEffect(ctxB, eff, category) {
     function scaleAttacks(mult,duration) {
         var snapshots=[];
         attacks().forEach(function(list){list.forEach(function(a){
-            if(!a||typeof a!=="object")return;
+            if(!a||typeof a!=="object"||a.type==="rainbow")return;
             var snap={obj:a};
             ["vx","vy","spd","spdY","velocityX","velocityY"].forEach(function(k){if(typeof a[k]==="number"){snap[k]=a[k];a[k]*=mult;}});
             if(Object.keys(snap).length>1)snapshots.push(snap);
@@ -983,7 +984,7 @@ function runDandyBossEffect(ctxB, eff, category) {
     }
     function pullOrPush(power, direction) {
         attacks().forEach(function(list){list.forEach(function(a){
-            if(!a||typeof a!=="object"||!isFinite(Number(a.x))||!isFinite(Number(a.y)))return;
+            if(!a||typeof a!=="object"||a.type==="rainbow"||!isFinite(Number(a.x))||!isFinite(Number(a.y)))return;
             var dx=ctxB.getHeartX()-a.x,dy=ctxB.getHeartY()-a.y,d=Math.hypot(dx,dy)||1;
             var sign=direction==="push"?-1:1;
             a.vx=(Number(a.vx)||Number(a.spd)||0)+sign*dx/d*power;
@@ -1032,7 +1033,7 @@ function runDandyBossEffect(ctxB, eff, category) {
         flash(7,"#ff8800");wave("#ff8800",8);return;
     }
     if (name === "УДВОЕНИЕ АТАК") {
-        attacks().forEach(function(list){var count=list.length;for(var i=0;i<count&&list.length<120;i++){var a=list[i];if(a&&(a.type!=="bomb"&&a.kind!=="bomb")){var clone={};Object.keys(a).forEach(function(k){clone[k]=a[k];});clone.x=(Number(a.x)||0)+(Math.random()-.5)*22;clone.y=(Number(a.y)||0)+(Math.random()-.5)*22;clone.hit=false;list.push(clone);}}});
+        attacks().forEach(function(list){var count=list.length;for(var i=0;i<count&&list.length<120;i++){var a=list[i];if(a&&a.type!=="rainbow"&&a.type!=="bomb"&&a.kind!=="bomb"){var clone={};Object.keys(a).forEach(function(k){clone[k]=a[k];});clone.x=(Number(a.x)||0)+(Math.random()-.5)*22;clone.y=(Number(a.y)||0)+(Math.random()-.5)*22;clone.hit=false;list.push(clone);}}});
         flash(7,"#ff8800");wave("#ff8800",8);return;
     }
     if (name === "ЧЕРНАЯ ДЫРА" || name === "МАГНИТ АТАК") { pullOrPush(6,"pull");flash(8,"#7755ff");wave("#111111",14);return; }
@@ -1699,9 +1700,19 @@ function registerBoysSuper(cardName, cfg) {
             var blasters = ctxB.getBlasters ? ctxB.getBlasters() : [];
             function clearSome(list, fraction) {
                 if (!Array.isArray(list) || fraction <= 0 || !list.length) return;
-                var count = Math.min(list.length, Math.ceil(list.length * Math.min(1, fraction)));
-                for (var i = 0; i < count && list.length; i++) {
-                    var index = fraction >= 1 ? list.length - 1 : Math.floor(Math.random() * list.length);
+                var eligible = [];
+                for (var e = 0; e < list.length; e++) {
+                    if (list[e] && list[e].type !== "rainbow") eligible.push(e);
+                }
+                var count = Math.min(eligible.length, Math.ceil(eligible.length * Math.min(1, fraction)));
+                for (var i = 0; i < count; i++) {
+                    var eligibleNow = [];
+                    for (var j = 0; j < list.length; j++) {
+                        if (list[j] && list[j].type !== "rainbow") eligibleNow.push(j);
+                    }
+                    if (!eligibleNow.length) break;
+                    var pick = fraction >= 1 ? eligibleNow.length - 1 : Math.floor(Math.random() * eligibleNow.length);
+                    var index = eligibleNow[pick];
                     var item = list[index], particles = ctxB.getParticles ? ctxB.getParticles() : null;
                     if (item && Array.isArray(particles)) particles.push({x:Number(item.x)||x,y:Number(item.y)||y,vx:(Math.random()-.5)*4,vy:(Math.random()-.5)*4,life:14,maxLife:14,color:cfg.color,size:4});
                     list.splice(index,1);
