@@ -1,8 +1,35 @@
 (function () {
 "use strict";
-var catalog=[{id:"the_boys",name:"ПАЦАНЫ",displayName:"Разлом: The Boys",universe:"The Boys",cost:25000,icon:"🩸",color:"#e23d4d",description:"Открой доступ к эксклюзивным персонажам этой вселенной.",note:"После покупки доступа карты могут выпадать из соответствующей крутки."},{id:"one_piece",name:"ВАН-ПИС",displayName:"Разлом: Ван-Пис",universe:"One Piece",cost:50000,icon:"🏴‍☠️",color:"#d9a441",description:"Открой доступ к эксклюзивным персонажам этой вселенной.",note:"После покупки доступа карты могут выпадать из соответствующей крутки."},{id:"one_punch_man",name:"ВАНПАНЧМЕН",displayName:"Разлом: One-Punch Man",universe:"OPM",cost:35000,icon:"👊",color:"#f97316",description:"Открой доступ к эксклюзивным персонажам этой вселенной.",note:"После покупки доступа карты могут выпадать из соответствующей крутки."},{id:"jojo",name:"ДЖОДЖО",displayName:"Разлом: JoJo’s Bizarre Adventure",universe:"JoJo",cost:50000,icon:"⭐",color:"#b56cff",description:"Открой доступ ко всему ростеру JoJo’s Bizarre Adventure: от Phantom Blood до The JOJOLands.",note:"После покупки персонажи JoJo смогут выпадать из обычной гачи в пределах своих редкостей."}];
+var catalog=[{id:"the_boys",name:"ПАЦАНЫ",displayName:"Разлом: The Boys",universe:"The Boys",cost:37500,icon:"🩸",color:"#e23d4d",description:"Открой доступ к эксклюзивным персонажам этой вселенной.",note:"После покупки доступа карты могут выпадать из соответствующей крутки."},{id:"one_piece",name:"ВАН-ПИС",displayName:"Разлом: Ван-Пис",universe:"One Piece",cost:75000,icon:"🏴‍☠️",color:"#d9a441",description:"Открой доступ к эксклюзивным персонажам этой вселенной.",note:"После покупки доступа карты могут выпадать из соответствующей крутки."},{id:"one_punch_man",name:"ВАНПАНЧМЕН",displayName:"Разлом: One-Punch Man",universe:"OPM",cost:52500,icon:"👊",color:"#f97316",description:"Открой доступ к эксклюзивным персонажам этой вселенной.",note:"После покупки доступа карты могут выпадать из соответствующей крутки."},{id:"jojo",name:"ДЖОДЖО",displayName:"Разлом: JoJo’s Bizarre Adventure",universe:"JoJo",cost:75000,icon:"⭐",color:"#b56cff",description:"Открой доступ ко всему ростеру JoJo’s Bizarre Adventure: от Phantom Blood до The JOJOLands.",note:"После покупки персонажи JoJo смогут выпадать из обычной гачи в пределах своих редкостей."}];
 var unlocked=[];
-function validIds(ids){if(!Array.isArray(ids))return[];var known=new Set(catalog.map(function(p){return p.id;}));return Array.from(new Set(ids.filter(function(id){return typeof id==="string"&&known.has(id);})))}
+var pendingUnlockRepair=false;
+function validIds(ids){if(!Array.isArray(ids))return[];var known=new Set(catalog.map(function(p){return p.id;}));return Array.from(new Set(ids.filter(function(id){return typeof id==="string"&&known.has(id);})))} 
+function localStorageKey(){
+ var slot=typeof currentSlot!=="undefined"?Number(currentSlot):-1;
+ return Number.isInteger(slot)&&slot>=0&&slot<5?"cgV20_riftUnlocks_slot_"+slot:null;
+}
+function readLocalUnlocks(){
+ var key=localStorageKey();if(!key)return[];
+ try{return validIds(JSON.parse(localStorage.getItem(key)||"[]"))}catch(_error){return[]}
+}
+function writeLocalUnlocks(ids){
+ var key=localStorageKey();if(!key)return false;
+ try{localStorage.setItem(key,JSON.stringify(validIds(ids)));return true}catch(_error){return false}
+}
+function mergeUnlocksFromSave(ids){
+ var fromSave=validIds(ids),fromLocal=readLocalUnlocks();
+ unlocked=validIds(fromSave.concat(fromLocal));
+ pendingUnlockRepair=unlocked.length!==fromSave.length;
+ if(typeof slotData!=="undefined"&&slotData)slotData.unlockedPatches=unlocked.slice();
+ writeLocalUnlocks(unlocked);
+ render();
+}
+function persistUnlocks(){
+ unlocked=validIds(unlocked);
+ writeLocalUnlocks(unlocked);
+ if(typeof slotData!=="undefined"&&slotData)slotData.unlockedPatches=unlocked.slice();
+ if(typeof saveAll==="function")saveAll(true);
+}
 function isUnlocked(id){return !!id&&unlocked.indexOf(id)>=0}
 function getPatch(id){return catalog.find(function(p){return p.id===id})||null}
 
@@ -25,15 +52,27 @@ function purchase(id){
   points-=patch.cost;
  }
  unlocked.push(id);
- if(typeof slotData!=="undefined"&&slotData)slotData.unlockedPatches=validIds(unlocked);
- if(typeof saveAll==="function")saveAll(true);
+ persistUnlocks();
  if(typeof renderPoints==="function")renderPoints();
  if(typeof renderBook==="function")renderBook();
  render();
  if(typeof showFloatingText==="function")showFloatingText("🌌 РАЗЛОМ «"+patch.name+"» ОТКРЫТ!","#ff6b78");
  return true;
 }
-window.MBPatches={list:function(){return catalog.slice()},load:function(ids){unlocked=validIds(ids);render()},getUnlocked:function(){return unlocked.slice()},isUnlocked:isUnlocked,getPatch:getPatch,isTemplateUnlocked:function(t){return !t||!t.patchId||isUnlocked(t.patchId)},purchase:purchase,render:render};
+window.MBPatches={list:function(){return catalog.slice()},load:mergeUnlocksFromSave,getUnlocked:function(){return unlocked.slice()},isUnlocked:isUnlocked,getPatch:getPatch,isTemplateUnlocked:function(t){return !t||!t.patchId||isUnlocked(t.patchId)},purchase:purchase,render:render};
+window.addEventListener("mb:slot-ready",function(){
+ var fromSave=validIds(typeof slotData!=="undefined"&&slotData?slotData.unlockedPatches:[]);
+ var merged=validIds(fromSave.concat(readLocalUnlocks()));
+ var changed=merged.length!==fromSave.length;
+ unlocked=merged;
+ writeLocalUnlocks(unlocked);
+ if(changed){
+  if(typeof slotData!=="undefined"&&slotData)slotData.unlockedPatches=unlocked.slice();
+  if(typeof saveAll==="function")saveAll(true);
+ }
+ pendingUnlockRepair=false;
+ render();
+});
 if(typeof window.renderGachaTab==="function"){var oldRender=window.renderGachaTab;window.renderGachaTab=function(){var result=oldRender.apply(this,arguments);render();return result}}
 document.addEventListener("DOMContentLoaded",render);
 })();
