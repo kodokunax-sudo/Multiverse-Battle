@@ -199,8 +199,9 @@
             showMessage("Made in Heaven не смог найти боевой контекст.", "#ff7777");
             return;
         }
-        if (ctx.type === "arena" && typeof window.arenaPhase !== "undefined" &&
-            window.arenaPhase === "attack" && !isTestUltimate()) {
+        var phase = null;
+        try { phase = typeof arenaPhase !== "undefined" ? arenaPhase : window.arenaPhase; } catch (e) {}
+        if (ctx.type === "arena" && phase === "attack" && !isTestUltimate()) {
             showMessage("⚔️ СНАЧАЛА ЗАКОНЧИ АТАКУ!", "#ffdd00");
             return;
         }
@@ -351,7 +352,7 @@
 
     function useSuper() {
         if (isTestPassive()) {
-            if (typeof window.toggleSuper === "function") return;
+            showMessage("В тесте выбрана пассивка, а не SUPER.", "#ffaa00");
             return;
         }
         var ctx = context();
