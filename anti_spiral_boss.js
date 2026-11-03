@@ -336,7 +336,8 @@
         const frames = asChargeFrames;
         asChargeFrames = 0;
         asCharging = false;
-        asNextShotAt = now + 1500;
+        var pucciAttackRate = (typeof window.MBPucciGetAttackSpeedMultiplier === "function") ? window.MBPucciGetAttackSpeedMultiplier() : 1;
+        asNextShotAt = now + 1500 / Math.max(1, pucciAttackRate);
         asAimMode = false;
         asShootDrill(Math.max(8, frames), targetX, targetY);
         if (asCloneMode) asCloneNextShuffleAt = asGameClock + 950;
