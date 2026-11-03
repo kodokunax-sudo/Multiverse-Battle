@@ -633,12 +633,14 @@
                 var attackPct = Math.round(attackSpeedBonus() * 100);
                 var damagePct = Math.round(damageBonus() * 100);
                 var reductionPct = Math.round(damageReduction() * 100);
-                status.textContent = "MADE IN HEAVEN · " + elapsedSec.toFixed(1) + "/118с" +
-                    " · скорость +" + speedPct + "%" +
-                    " · скорость мира +" + Math.round((worldTimeMultiplier() - 1) * 100) + "%" +
-                    " · атаки +" + attackPct + "%" +
-                    " · урон +" + damagePct + "%" +
-                    " · поглощение " + reductionPct + "%";
+                status.textContent = state.ending
+                    ? "MADE IN HEAVEN · ВСЕЛЕННАЯ СХЛОПЫВАЕТСЯ"
+                    : "MADE IN HEAVEN · " + elapsedSec.toFixed(1) + "/118с" +
+                        " · скорость +" + speedPct + "%" +
+                        " · скорость мира +" + Math.round((worldTimeMultiplier() - 1) * 100) + "%" +
+                        " · атаки +" + attackPct + "%" +
+                        " · урон +" + damagePct + "%" +
+                        " · поглощение " + reductionPct + "%";
             } else {
                 status.textContent = "SUPER: 1 минута 58 секунд. Скорость Пуччи до +1500%, ускорение боссов до +40%. После завершения пространство схлопнется, и Пуччи погибнет.";
             }
