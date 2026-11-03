@@ -1801,7 +1801,8 @@
                 } catch(e) {}
             }
             if (!weaponUsed) {
-                rwbPlayer.attackTimer = rwbPlayer.shootRate;
+                let pucciAttackRate = (typeof window.MBPucciGetAttackSpeedMultiplier === "function") ? window.MBPucciGetAttackSpeedMultiplier() : 1;
+                rwbPlayer.attackTimer = Math.max(1, Math.floor(rwbPlayer.shootRate / Math.max(1, pucciAttackRate)));
                 let bulletColor = (rwbPlayer.attackMode === "blue") ? "#00aaff" : "#ffdd00";
                 let dmg = applySuperDmgMult(3);
                 let b = {
