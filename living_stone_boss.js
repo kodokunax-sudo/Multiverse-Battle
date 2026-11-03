@@ -2386,6 +2386,8 @@ function livingStoneRenderLoop() {
                 let eqData = window.getEquippedWeapon && window.getEquippedWeapon();
                 if (eqData && eqData.shootRate) shootRate = eqData.shootRate;
             }
+            var pucciAttackRate = (typeof window.MBPucciGetAttackSpeedMultiplier === "function") ? window.MBPucciGetAttackSpeedMultiplier() : 1;
+            shootRate = Math.max(1, Math.floor(shootRate / Math.max(1, pucciAttackRate)));
             if (livingStoneShootTimer >= shootRate) { livingStoneShootTimer = 0; livingStoneShoot(); }
         }
         
