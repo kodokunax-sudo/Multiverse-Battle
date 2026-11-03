@@ -3735,3 +3735,25 @@ window.MBLivingStoneClearBossAttacks = function() {
 };
 
 console.log("[LIVING STONE] v8.0 + ФИКС СУПЕРОВ (Гароу стоп, Анти-спираль, урон, заморозка)");
+
+
+// Made in Heaven speeds up Living Stone enemy attack simulation.
+(function () {
+    if (window.__mbPucciLivingStoneTimePatch) return;
+    window.__mbPucciLivingStoneTimePatch = true;
+    var carry = 0;
+    ["updateLivingStoneBoss", "updateLivingStoneAttacks", "updateLivingStoneBullets"].forEach(function (name) {
+        var original = window[name];
+        if (typeof original !== "function") return;
+        window[name] = function () {
+            var mult = window.MBPucciIsMadeInHeavenActive && window.MBPucciIsMadeInHeavenActive()
+                ? window.MBPucciGetWorldTimeMultiplier() : 1;
+            carry += Math.max(0, mult - 1) / 6;
+            var extra = Math.floor(carry);
+            carry -= extra;
+            var result;
+            for (var i = 0; i <= Math.min(10, extra); i++) result = original.apply(this, arguments);
+            return result;
+        };
+    });
+})();
