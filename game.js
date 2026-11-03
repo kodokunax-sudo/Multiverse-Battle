@@ -1294,7 +1294,8 @@ function loadGameData(d) {
     purchasedAutoSell = d.purchasedAutoSell || {}; 
     autoRest = d.autoRest || {active:false,threshold:90,purchased:false}; 
     
-    afkFarmUpgradeLevel = Math.max(0, Math.min(5, Number(d.afkFarmUpgradeLevel) || 0));
+    afkFarmUpgradeLevel = mbRestoreAfkFarmUpgradeBackup(d.afkFarmUpgradeLevel, rebirthCount);
+    if (slotData) slotData.afkFarmUpgradeLevel = afkFarmUpgradeLevel;
     cosmicGarouRetainedWins = Math.max(0, Math.floor(Number(d.cosmicGarouRetainedWins) || 0));
     recentCosmicGarouTeam = Array.isArray(d.recentCosmicGarouTeam) ? d.recentCosmicGarouTeam.slice(-5).map(Boolean) : []; 
     if (d.evoProgress) evoProgress = d.evoProgress; 
@@ -1438,6 +1439,8 @@ function initNewGame() {
     autoRest = {active:false,threshold:90,purchased:false}; 
     
     afkFarmUpgradeLevel = 0;
+    if (typeof slotData !== "undefined" && slotData) slotData.afkFarmUpgradeLevel = 0;
+    mbPersistAfkFarmUpgradeBackup(0, rebirthCount);
     cosmicGarouRetainedWins = 0;
     recentCosmicGarouTeam = [];
     evoProgress = {wavesSaitamaGarou:0,damageGarpKuzan:0,luffyKingUnlocked:false,sgUnlocked:false,gkUnlocked:false,sevenUnlocked:false,williamUnlocked:false,oneShotCount:0}; 
@@ -1703,6 +1706,44 @@ let myCards=[],team=[],afkTeam=[],points=100,wave=1,playerHp=100,currentEnemy=nu
 let highestWaveReached = 1;
 let rebirthCount=0, rebirthStats=[], activeCheckpoint=0, autoSellSettings={"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}, purchasedAutoSell={"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}, autoRest={active:false,threshold:90,purchased:false};
 let afkFarmUpgradeLevel=0;
+function mbAfkFarmUpgradeStorageKey(){
+    var slot = typeof currentSlot !== "undefined" ? Number(currentSlot) : -1;
+    return Number.isInteger(slot) && slot >= 0 && slot < MB_SAVE_SLOT_COUNT
+        ? "cgV20_afkFarmUpgrade_slot_" + slot
+        : null;
+}
+function mbPersistAfkFarmUpgradeBackup(level, rebirth){
+    var key = mbAfkFarmUpgradeStorageKey();
+    if (!key) return false;
+    var safeLevel = Math.max(0, Math.min(5, Math.floor(Number(level) || 0)));
+    var safeRebirth = Math.max(0, Math.floor(Number(rebirth) || 0));
+    try {
+        localStorage.setItem(key, JSON.stringify({ level: safeLevel, rebirthCount: safeRebirth }));
+        return true;
+    } catch (_error) { return false; }
+}
+function mbRestoreAfkFarmUpgradeBackup(savedLevel, savedRebirth){
+    var level = Math.max(0, Math.min(5, Math.floor(Number(savedLevel) || 0)));
+    var rebirth = Math.max(0, Math.floor(Number(savedRebirth) || 0));
+    var key = mbAfkFarmUpgradeStorageKey();
+    if (!key) return level;
+    try {
+        var raw = localStorage.getItem(key);
+        if (raw) {
+            var backup = JSON.parse(raw);
+            if (backup && Number(backup.rebirthCount) === rebirth) {
+                level = Math.max(level, Math.max(0, Math.min(5, Math.floor(Number(backup.level) || 0))));
+            } else {
+                // A backup from a previous rebirth must never restore old AFK upgrades.
+                localStorage.removeItem(key);
+            }
+        }
+    } catch (_error) {
+        try { localStorage.removeItem(key); } catch (_ignored) {}
+    }
+    mbPersistAfkFarmUpgradeBackup(level, rebirth);
+    return level;
+}
 const AFK_FARM_UPGRADE_COSTS=[20000,50000,75000,100000];
 function getAfkFarmCost(){const nextLevel=afkFarmUpgradeLevel+1;return nextLevel===5?Math.max(1000000,Math.floor(Math.max(0,Number(points)||0)*.5)):AFK_FARM_UPGRADE_COSTS[nextLevel-1]}
 function getAfkTeamPowerMultiplier() {
@@ -1818,7 +1859,7 @@ function afkTeamCanResurrect() {
     }
     return false;
 }
-function buyAfkFarmUpgrade(){if(playerLevel<20||afkFarmUpgradeLevel>=5)return;const cost=getAfkFarmCost();if(mode!=="moder"&&points<cost)return;if(mode!=="moder")points-=cost;afkFarmUpgradeLevel++;if(typeof slotData!=="undefined"&&slotData)slotData.afkFarmUpgradeLevel=afkFarmUpgradeLevel;if(typeof renderAfkTeam==="function")renderAfkTeam();saveAll(true);renderAfkFarmUpgrades();renderPoints();if(typeof showFloatingText==="function")showFloatingText("АФК-фарм улучшен: "+afkFarmUpgradeLevel+"/5","#2ecc71")}
+function buyAfkFarmUpgrade(){if(playerLevel<20||afkFarmUpgradeLevel>=5)return;const cost=getAfkFarmCost();if(mode!=="moder"&&points<cost)return;if(mode!=="moder")points-=cost;afkFarmUpgradeLevel++;mbPersistAfkFarmUpgradeBackup(afkFarmUpgradeLevel,rebirthCount);if(typeof slotData!=="undefined"&&slotData)slotData.afkFarmUpgradeLevel=afkFarmUpgradeLevel;if(typeof renderAfkTeam==="function")renderAfkTeam();saveAll(true);renderAfkFarmUpgrades();renderPoints();if(typeof showFloatingText==="function")showFloatingText("АФК-фарм улучшен: "+afkFarmUpgradeLevel+"/5","#2ecc71")}
 function renderAfkFarmUpgrades() {
     const el = document.getElementById("afkFarmUpgradeItems");
     if (!el) return;
@@ -3711,7 +3752,9 @@ function doRebirth() {
     wave = 1; 
     playerHp = 100; 
     playerLevel = 1; 
-    playerExp = 0; 
+    playerExp = 0;
+    afkFarmUpgradeLevel = 0;
+    if (typeof slotData !== "undefined" && slotData) slotData.afkFarmUpgradeLevel = 0;
     fatigue = 0; 
     activeBuffs = {}; 
     deathNoteTarget = null; 
@@ -3725,7 +3768,9 @@ function doRebirth() {
     purchasedAutoSell = {"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}; 
     autoRest = {active:false,threshold:90,purchased:false}; 
     upgrades = {damage:{level:0,baseCost:25,increment:2,name:"💪 Сила",reqLevel:1},hp:{level:0,baseCost:25,increment:5,name:"❤️ Живучесть",reqLevel:1},crit:{level:0,baseCost:8,increment:0.001,name:"⚡ Крит",reqLevel:5},fatigueResist:{level:0,baseCost:10,increment:0.001,name:"💪 Усталость",reqLevel:10}}; 
-    rebirthCount++; 
+    rebirthCount++;
+    mbPersistAfkFarmUpgradeBackup(0, rebirthCount);
+    if (typeof slotData !== "undefined" && slotData) slotData.afkFarmUpgradeLevel = 0;
     mbResetStatsForNextRebirth(_level7CardSave ? [_level7CardSave] : []);
     highestCheckpoint = 1; 
     highestWaveReached = 1;
