@@ -1818,7 +1818,7 @@ function afkTeamCanResurrect() {
     }
     return false;
 }
-function buyAfkFarmUpgrade(){if(playerLevel<20||afkFarmUpgradeLevel>=5)return;const cost=getAfkFarmCost();if(mode!=="moder"&&points<cost)return;if(mode!=="moder")points-=cost;afkFarmUpgradeLevel++;if(typeof renderAfkTeam==="function")renderAfkTeam();saveAll();renderAfkFarmUpgrades();renderPoints();if(typeof showFloatingText==="function")showFloatingText("АФК-фарм улучшен: "+afkFarmUpgradeLevel+"/5","#2ecc71")}
+function buyAfkFarmUpgrade(){if(playerLevel<20||afkFarmUpgradeLevel>=5)return;const cost=getAfkFarmCost();if(mode!=="moder"&&points<cost)return;if(mode!=="moder")points-=cost;afkFarmUpgradeLevel++;if(typeof slotData!=="undefined"&&slotData)slotData.afkFarmUpgradeLevel=afkFarmUpgradeLevel;if(typeof renderAfkTeam==="function")renderAfkTeam();saveAll(true);renderAfkFarmUpgrades();renderPoints();if(typeof showFloatingText==="function")showFloatingText("АФК-фарм улучшен: "+afkFarmUpgradeLevel+"/5","#2ecc71")}
 function renderAfkFarmUpgrades() {
     const el = document.getElementById("afkFarmUpgradeItems");
     if (!el) return;
@@ -1838,18 +1838,19 @@ function renderAfkFarmUpgrades() {
     ];
     const level = Math.max(0, Math.min(5, Number(afkFarmUpgradeLevel) || 0));
     const unlocked = playerLevel >= 20;
-    if (!unlocked) {
+    if (!unlocked && level === 0) {
         el.innerHTML = '<div style="padding:12px;border-radius:10px;background:rgba(0,0,0,.22);color:#aaa;font-size:12px;text-align:center;">🔒 Прокачка АФК-фарма откроется на 20 уровне игрока.</div>';
         return;
     }
-    let html = '<div style="font-size:12px;color:#aaa;margin-bottom:8px;">Уровень ' + level + '/5 · Прокачка доступна</div>';
+    let headerStatus = unlocked ? "Прокачка доступна" : "Купленные улучшения сохранены · новые покупки с 20 уровня";
+    let html = '<div style="font-size:12px;color:#aaa;margin-bottom:8px;">Уровень ' + level + '/5 · ' + headerStatus + '</div>';
     for (let i = 0; i < 5; i++) {
         const done = level > i;
         const current = level === i;
         const cost = current ? getAfkFarmCost() : 0;
         const canPay = mode === "moder" || points >= cost;
-        const lockedText = !unlocked ? "🔒 Требуется 20 уровень" : "🔒 Сначала предыдущий уровень";
-        const price = done ? "✅ Куплено" : current ? Number(cost).toLocaleString("ru-RU") + "⭐" : lockedText;
+        const lockedText = !unlocked ? "🔒 Новые покупки с 20 уровня" : "🔒 Сначала предыдущий уровень";
+        const price = done ? "✅ Куплено" : current ? (unlocked ? Number(cost).toLocaleString("ru-RU") + "⭐" : "🔒 Требуется 20 уровень") : lockedText;
         html += '<div class="upgrade-item" style="margin:8px 0;' + (current && unlocked ? 'border-color:rgba(46,204,113,.4);' : '') + '">';
         html += '<div style="flex:1;"><b>' + (done ? '✅ ' : (i + 1) + '. ') + names[i] + '</b><br><small>' + descriptions[i] + '</small>';
         html += (!done && current && !canPay && unlocked ? '<br><small style="color:#ff7777;">Не хватает звёзд</small>' : '') + '</div>';
