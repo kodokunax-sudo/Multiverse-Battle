@@ -345,6 +345,7 @@
     function ls2BoxEdgeMinY() { return LS2_BOX.y; }
     function ls2BoxEdgeMaxY() { return LS2_BOX.y + LS2_BOX.h; }
     function ls2Update(dt) {
+        if (window.MBPucciIsMadeInHeavenActive && window.MBPucciIsMadeInHeavenActive()) dt *= window.MBPucciGetWorldTimeMultiplier();
         var zenoEraseActive = typeof window.MBIsZenoEraseActive === "function" &&
             window.MBIsZenoEraseActive("stoneSuper");
         if (zenoEraseActive) {
