@@ -1496,7 +1496,7 @@ function updateExtendedArenaAttack(now) {
                 vx:dir.x * debrisSpeed, vy:dir.y * debrisSpeed + (Math.random() - 0.5) * 0.55,
                 size:debrisSize, radius:debrisKind === "car" ? debrisSize * 1.3 : debrisSize,
                 born:t, rot:(Math.random() - 0.5) * 0.9, hit:false,
-                explosive:debrisExplosive, fuse:1250 + Math.random() * 450,
+                explosive:debrisExplosive, fuse:980 + Math.random() * 260,
                 phase:"flying", blastHit:false, explodedAt:0
             });
             st.nextSpawnAt = t + Math.max(310, 500 - windStage * 45) / Math.min(1.2, extWaveDanger);
