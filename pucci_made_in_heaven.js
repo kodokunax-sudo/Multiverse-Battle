@@ -554,19 +554,163 @@
         try { reduced = typeof window.MBShouldReduceBossEffects === "function" && window.MBShouldReduceBossEffects(); } catch (e) {}
 
         draw.save();
+
         var elapsed = elapsedMs();
-        var phase = (elapsed / 1000) * 0.18 * worldTimeMultiplier();
-        var daylight = (Math.sin(phase * Math.PI * 2 + Math.PI / 2) + 1) * 0.5;
+        var w = draw.canvas ? draw.canvas.width : 400;
+        var h = draw.canvas ? draw.canvas.height : 500;
+        var p = progress();
+        // The sky performs a full cinematic orbit: dawn, blazing day, sunset and night.
+        // Its pace rises gradually but remains tied to the +40% world-time cap.
+        var cyclePhase = (elapsed / 18000) * (1 + 0.20 * p);
+        var cycle = cyclePhase - Math.floor(cyclePhase);
+        var theta = cycle * Math.PI * 2;
+        var palettes = [
+            ["#f28a62", "#7886bb", "#29365f"],
+            ["#35a9f2", "#8bdcff", "#efb38d"],
+            ["#f05b48", "#754274", "#20294d"],
+            ["#07112a", "#16264b", "#080d20"]
+        ];
+        function mixHex(a, b, t) {
+            var ar = parseInt(a.slice(1, 3), 16), ag = parseInt(a.slice(3, 5), 16), ab = parseInt(a.slice(5, 7), 16);
+            var br = parseInt(b.slice(1, 3), 16), bg = parseInt(b.slice(3, 5), 16), bb = parseInt(b.slice(5, 7), 16);
+            return "rgb(" + Math.round(ar + (br - ar) * t) + "," + Math.round(ag + (bg - ag) * t) + "," + Math.round(ab + (bb - ab) * t) + ")";
+        }
+        var palettePos = cycle * 4;
+        var paletteIndex = Math.floor(palettePos) % 4;
+        var paletteBlend = palettePos - Math.floor(palettePos);
+        var nextPalette = (paletteIndex + 1) % 4;
+        var sky = draw.createLinearGradient(0, 0, 0, h);
+        sky.addColorStop(0, mixHex(palettes[paletteIndex][0], palettes[nextPalette][0], paletteBlend));
+        sky.addColorStop(0.56, mixHex(palettes[paletteIndex][1], palettes[nextPalette][1], paletteBlend));
+        sky.addColorStop(1, mixHex(palettes[paletteIndex][2], palettes[nextPalette][2], paletteBlend));
         draw.globalCompositeOperation = "source-over";
-        draw.globalAlpha = 0.34 * (1 - daylight);
-        draw.fillStyle = "#07132e";
-        draw.fillRect(0, 0, draw.canvas ? draw.canvas.width : 400, draw.canvas ? draw.canvas.height : 500);
-        draw.globalAlpha = 0.10 + daylight * 0.12;
-        draw.fillStyle = "#ffe9a6";
-        draw.beginPath(); draw.arc(330, 78, 22, 0, Math.PI * 2); draw.fill();
-        draw.globalAlpha = 0.12 + (1 - daylight) * 0.18;
-        draw.fillStyle = "#dceaff";
-        draw.beginPath(); draw.arc(70, 78, 15, 0, Math.PI * 2); draw.fill();
+        draw.globalAlpha = reduced ? 0.24 : 0.39;
+        draw.fillStyle = sky;
+        draw.fillRect(0, 0, w, h);
+
+        var horizonY = h * 0.54;
+        var sunX = w * (0.5 - Math.cos(theta) * 0.58);
+        var sunY = horizonY - Math.sin(theta) * h * 0.42;
+        var sunVisible = Math.max(0, Math.min(1, Math.sin(theta) * 2.8 + 0.35));
+        var nightLevel = cycle < 0.5 ? 0 : Math.max(0, Math.sin((cycle - 0.5) * Math.PI * 2));
+        var moonTheta = theta + Math.PI;
+        var moonX = w * (0.5 - Math.cos(moonTheta) * 0.58);
+        var moonY = horizonY - Math.sin(moonTheta) * h * 0.42;
+
+        var horizonGlow = draw.createRadialGradient(w * 0.5, horizonY, 3, w * 0.5, horizonY, w * 0.72);
+        horizonGlow.addColorStop(0, "rgba(255,158,105," + (0.34 + 0.16 * (1 - nightLevel)) + ")");
+        horizonGlow.addColorStop(1, "rgba(255,100,80,0)");
+        draw.globalAlpha = 0.84;
+        draw.fillStyle = horizonGlow;
+        draw.fillRect(0, horizonY - h * 0.28, w, h * 0.58);
+
+        // Huge sun, expanding corona and rotating rays.
+        var sunRadius = (reduced ? 36 : 48) + p * 18;
+        if (sunVisible > 0.02) {
+            var corona = draw.createRadialGradient(sunX, sunY, sunRadius * 0.12, sunX, sunY, sunRadius * 3.2);
+            corona.addColorStop(0, "rgba(255,246,205," + (0.82 * sunVisible) + ")");
+            corona.addColorStop(0.24, "rgba(255,178,91," + (0.52 * sunVisible) + ")");
+            corona.addColorStop(1, "rgba(255,113,68,0)");
+            draw.globalAlpha = 1;
+            draw.fillStyle = corona;
+            draw.fillRect(sunX - sunRadius * 3.3, sunY - sunRadius * 3.3, sunRadius * 6.6, sunRadius * 6.6);
+            var sunGradient = draw.createRadialGradient(sunX - sunRadius * 0.28, sunY - sunRadius * 0.30, 2, sunX, sunY, sunRadius);
+            sunGradient.addColorStop(0, "#fffde2");
+            sunGradient.addColorStop(0.48, "#ffe7a1");
+            sunGradient.addColorStop(0.82, "#ff9f59");
+            sunGradient.addColorStop(1, "#f15a48");
+            draw.globalAlpha = 0.96 * sunVisible;
+            draw.fillStyle = sunGradient;
+            draw.beginPath();
+            draw.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
+            draw.fill();
+            if (!reduced) {
+                draw.save();
+                draw.translate(sunX, sunY);
+                draw.rotate(elapsed / 1100);
+                draw.globalAlpha = 0.28 * sunVisible;
+                draw.strokeStyle = "#fff4c7";
+                draw.lineWidth = 2;
+                for (var ray = 0; ray < 24; ray++) {
+                    var ra = ray * Math.PI * 2 / 24;
+                    var rayEnd = sunRadius * (2 + 0.25 * Math.sin(elapsed / 260 + ray));
+                    draw.beginPath();
+                    draw.moveTo(Math.cos(ra) * sunRadius * 1.18, Math.sin(ra) * sunRadius * 1.18);
+                    draw.lineTo(Math.cos(ra) * rayEnd, Math.sin(ra) * rayEnd);
+                    draw.stroke();
+                }
+                draw.restore();
+            }
+        }
+
+        // The moon travels opposite the sun; stars and meteors appear in the night half.
+        if (nightLevel > 0.015) {
+            var moonRadius = reduced ? 20 : 27;
+            var moonGlow = draw.createRadialGradient(moonX, moonY, 2, moonX, moonY, moonRadius * 3.4);
+            moonGlow.addColorStop(0, "rgba(180,218,255," + (0.52 * nightLevel) + ")");
+            moonGlow.addColorStop(1, "rgba(95,151,255,0)");
+            draw.globalAlpha = 1;
+            draw.fillStyle = moonGlow;
+            draw.fillRect(moonX - moonRadius * 3.5, moonY - moonRadius * 3.5, moonRadius * 7, moonRadius * 7);
+            draw.globalAlpha = nightLevel * 0.96;
+            draw.fillStyle = "#e8f2ff";
+            draw.beginPath();
+            draw.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+            draw.fill();
+            draw.globalAlpha = nightLevel * 0.96;
+            draw.fillStyle = "#172448";
+            draw.beginPath();
+            draw.arc(moonX + moonRadius * 0.42, moonY - moonRadius * 0.12, moonRadius * 0.92, 0, Math.PI * 2);
+            draw.fill();
+            var starCount = reduced ? 28 : 76;
+            draw.fillStyle = "#eaf4ff";
+            for (var star = 0; star < starCount; star++) {
+                var sx = (star * 83.17 + 19) % w;
+                var sy = (star * 47.73 + 11) % (h * 0.72);
+                var twinkle = 0.45 + 0.55 * Math.abs(Math.sin(elapsed / (155 + star % 7 * 28) + star * 2.3));
+                draw.globalAlpha = nightLevel * twinkle * 0.9;
+                draw.beginPath();
+                draw.arc(sx, sy, star % 9 === 0 ? 1.8 : 1.0, 0, Math.PI * 2);
+                draw.fill();
+            }
+            if (!reduced && (elapsed % 1300) > 990) {
+                var meteorX = ((elapsed * 0.24) % (w + 100)) - 50;
+                var meteorY = h * (0.12 + ((Math.floor(elapsed / 1300) * 37) % 24) / 100);
+                var meteor = draw.createLinearGradient(meteorX - 90, meteorY - 30, meteorX, meteorY);
+                meteor.addColorStop(0, "rgba(130,205,255,0)");
+                meteor.addColorStop(1, "rgba(235,249,255,0.95)");
+                draw.globalAlpha = nightLevel;
+                draw.strokeStyle = meteor;
+                draw.lineWidth = 2;
+                draw.beginPath();
+                draw.moveTo(meteorX - 90, meteorY - 30);
+                draw.lineTo(meteorX, meteorY);
+                draw.stroke();
+            }
+        }
+
+        // Fast cloud bands and a rotating orbital ring make the atmosphere visibly move.
+        draw.globalAlpha = reduced ? 0.12 : 0.21;
+        draw.strokeStyle = nightLevel > 0.45 ? "#b4d3ff" : "#fff1da";
+        draw.lineWidth = reduced ? 7 : 11;
+        for (var cloud = 0; cloud < 5; cloud++) {
+            var cloudX = ((elapsed * (0.035 + cloud * 0.009) * (1 + 0.4 * p) + cloud * w * 0.31) % (w + 180)) - 90;
+            var cloudY = h * (0.16 + cloud * 0.075);
+            draw.beginPath();
+            draw.moveTo(cloudX - 55, cloudY);
+            draw.bezierCurveTo(cloudX - 22, cloudY - 18, cloudX + 22, cloudY + 13, cloudX + 75, cloudY - 4);
+            draw.stroke();
+        }
+        if (!reduced) {
+            draw.globalAlpha = 0.20 + p * 0.16;
+            draw.strokeStyle = "#bcefff";
+            draw.lineWidth = 1.5;
+            draw.setLineDash([18, 22]);
+            draw.beginPath();
+            draw.ellipse(w * 0.5, h * 0.5, w * (0.36 + 0.06 * Math.sin(elapsed / 700)), h * 0.24, -elapsed / 3600, 0, Math.PI * 2);
+            draw.stroke();
+            draw.setLineDash([]);
+        }
         draw.globalCompositeOperation = "lighter";
         for (var i = 0; i < state.trail.length; i++) {
             var t = state.trail[i];
