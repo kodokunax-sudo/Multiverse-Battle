@@ -496,7 +496,8 @@ function updateWaystarShooting() {
     }
 
     if (!weaponUsed) {
-        waystarShootCooldown = waystarShootInterval;
+        var pucciRate = (typeof window.MBPucciGetAttackSpeedMultiplier === "function") ? window.MBPucciGetAttackSpeedMultiplier() : 1;
+        waystarShootCooldown = Math.max(1, Math.floor(waystarShootInterval / Math.max(1, pucciRate)));
         var dmgBase2 = Math.max(1, Math.floor((window.playerFinalDamage || 100) / 4));
         dmgBase2 = wsApplySuperDmgMult(dmgBase2);
         waystarPlayerBullets.push({ x: waystarPlayer.x, y: waystarPlayer.y - 12, vy: -12, vx: 0, size: 5, damage: dmgBase2, life: 80, trail: [] });
