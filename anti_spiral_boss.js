@@ -1705,7 +1705,7 @@
             return;
         }
         if(asDefeatPending) return;
-        if (typeof window.MBTryMarkResurrection === "function") {
+        if (!window.__mbPucciCollapseForcedDeath && typeof window.MBTryMarkResurrection === "function") {
             const markRestoredHp = window.MBTryMarkResurrection(asPlayerMaxHp);
             if (markRestoredHp > 0) {
                 asPlayerHp = markRestoredHp;
@@ -1733,6 +1733,13 @@
             if(typeof playerHp!=="undefined" && playerHp>0) asRestoreStartButton();
         },1500);
     }
+    window.MBPucciForceAntiSpiralDefeat = function() {
+        if (!asActive || asDefeatPending) return false;
+        asPlayerHp = 0;
+        asPlayer.hp = 0;
+        asLose();
+        return true;
+    };
     function asRestoreStartButton() {
         if (Number(typeof wave!=="undefined"?wave:0)!==1500 || !currentEnemy || currentEnemy.hp<=0) return;
         if (typeof defeatedBosses!=="undefined" && Array.isArray(defeatedBosses) && defeatedBosses.includes(1500)) return;
