@@ -27,7 +27,10 @@
         trail: [],
         teleportCooldownUntil: 0,
         teleportFlash: null,
-        rafId: 0
+        rafId: 0,
+        audioOne: null,
+        audioTwo: null,
+        audioTimer: 0
     };
     window.__mbPucciMadeInHeavenState = state;
 
@@ -78,6 +81,11 @@
     function attackSpeedBonus() {
         return 0.30 * progress();
     }
+
+    function worldTimeMultiplier() {
+        return 1 + 9 * progress();
+    }
+    window.MBPucciGetWorldTimeMultiplier = worldTimeMultiplier;
 
     function damageBonus() {
         return 0.50 * progress();
@@ -183,6 +191,12 @@
         state.trail.length = 0;
         state.teleportFlash = null;
         state.teleportCooldownUntil = 0;
+        if (state.audioTimer) window.clearTimeout(state.audioTimer);
+        state.audioTimer = 0;
+        try { if (state.audioOne) { state.audioOne.pause(); state.audioOne.currentTime = 0; } } catch (e) {}
+        try { if (state.audioTwo) { state.audioTwo.pause(); state.audioTwo.currentTime = 0; } } catch (e) {}
+        state.audioOne = null;
+        state.audioTwo = null;
         if (applyCooldown) state.cooldownUntil = Date.now() + POST_ULTIMATE_COOLDOWN_MS;
         else state.cooldownUntil = 0;
         if (state.rafId && typeof window.cancelAnimationFrame === "function") {
@@ -236,6 +250,25 @@
         state.cooldownUntil = 0;
 
         showMessage("🌌 MADE IN HEAVEN: ВРЕМЯ УСКОРЯЕТСЯ!", "#e8fbff");
+        try {
+            if (typeof window.stopAllMusic === "function") window.stopAllMusic();
+            state.audioOne = new Audio("music/майден хевен.mp3");
+            state.audioOne.loop = false;
+            state.audioOne.volume = 0.85;
+            var firstPlay = state.audioOne.play();
+            if (firstPlay && typeof firstPlay.catch === "function") firstPlay.catch(function () {});
+            state.audioTimer = window.setTimeout(function () {
+                if (!state.active) return;
+                try {
+                    if (state.audioOne) { state.audioOne.pause(); state.audioOne.currentTime = 0; }
+                    state.audioTwo = new Audio("music/Ost пуччи.mp3");
+                    state.audioTwo.loop = false;
+                    state.audioTwo.volume = 0.85;
+                    var secondPlay = state.audioTwo.play();
+                    if (secondPlay && typeof secondPlay.catch === "function") secondPlay.catch(function () {});
+                } catch (e) {}
+            }, 17000);
+        } catch (e) {}
         playSound(720, "sine", 0.35, 0.12);
         try {
             if (typeof window.notifyWaystarSuperAction === "function") window.notifyWaystarSuperAction("Made in Heaven");
@@ -375,7 +408,7 @@
             return false;
         }
 
-        var speed = 1 + speedLevel() / 100;
+        var speed = 1 + 10 * Math.min(1, elapsed / SPEED_CAP_TIME_MS);
         try { state.restoreSpeed(state.baseSpeed * speed); } catch (e) {}
 
         if (frameNow - state.lastTrailAt >= 42) {
@@ -456,6 +489,7 @@
 
         btn.style.display = "block";
         btn.disabled = false;
+        btn.onclick = function (event) { if (event) { event.preventDefault(); event.stopPropagation(); } useSuper(); };
         btn.style.background = "linear-gradient(135deg,#dffaff,#67cce8,#327baf)";
         btn.style.color = "#071b2b";
         btn.style.border = "2px solid #ffffff";
@@ -491,13 +525,14 @@
             status.style.borderColor = "#9deeff";
             if (state.active) {
                 var elapsedSec = elapsedMs() / 1000;
-                var speedPct = Math.round(speedLevel());
+                var speedPct = Math.round(Math.min(1000, elapsedSec / 50 * 1000));
                 var attackPct = Math.round(attackSpeedBonus() * 100);
                 var damagePct = Math.round(damageBonus() * 100);
                 var reductionPct = Math.round(damageReduction() * 100);
                 status.textContent = "MADE IN HEAVEN · " + elapsedSec.toFixed(1) + "/60с" +
                     " · скорость +" + speedPct + "%" +
-                    " · атаки +" + attackPct + "%" +
+                    " · время мира ×" + worldTimeMultiplier().toFixed(1) +
+                    " · атаки + + attackPct + "%" +
                     " · урон +" + damagePct + "%" +
                     " · поглощение " + reductionPct + "%";
             } else {
@@ -519,6 +554,19 @@
         try { reduced = typeof window.MBShouldReduceBossEffects === "function" && window.MBShouldReduceBossEffects(); } catch (e) {}
 
         draw.save();
+        var elapsed = elapsedMs();
+        var phase = (elapsed / 1000) * (0.18 + 1.65 * progress());
+        var daylight = (Math.sin(phase * Math.PI * 2 - Math.PI / 2) + 1) * 0.5;
+        draw.globalCompositeOperation = "source-over";
+        draw.globalAlpha = 0.34 * (1 - daylight);
+        draw.fillStyle = "#07132e";
+        draw.fillRect(0, 0, draw.canvas ? draw.canvas.width : 400, draw.canvas ? draw.canvas.height : 500);
+        draw.globalAlpha = 0.10 + daylight * 0.12;
+        draw.fillStyle = "#ffe9a6";
+        draw.beginPath(); draw.arc(330, 78, 22, 0, Math.PI * 2); draw.fill();
+        draw.globalAlpha = 0.12 + (1 - daylight) * 0.18;
+        draw.fillStyle = "#dceaff";
+        draw.beginPath(); draw.arc(70, 78, 15, 0, Math.PI * 2); draw.fill();
         draw.globalCompositeOperation = "lighter";
         for (var i = 0; i < state.trail.length; i++) {
             var t = state.trail[i];
