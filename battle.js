@@ -2326,13 +2326,13 @@ function arenaUpdateRainbowAttacks(list, speedMod, globallyFrozen, globallyStopp
 
             if (otherIsRainbow) {
                 // Equal-mass elastic collision: both spheres bounce away from one another.
-                rainbow.x -= nx * overlap * 0.5;
-                rainbow.y -= ny * overlap * 0.5;
-                other.x += nx * overlap * 0.5;
-                other.y += ny * overlap * 0.5;
+                rainbow.x += nx * overlap * 0.5;
+                rainbow.y += ny * overlap * 0.5;
+                other.x -= nx * overlap * 0.5;
+                other.y -= ny * overlap * 0.5;
                 var relativeNormal = ((Number(rainbow.spd) || 0) - (Number(other.spd) || 0)) * nx +
                     ((Number(rainbow.spdY) || 0) - (Number(other.spdY) || 0)) * ny;
-                if (relativeNormal > 0) {
+                if (relativeNormal < 0) {
                     rainbow.spd = (Number(rainbow.spd) || 0) - relativeNormal * nx;
                     rainbow.spdY = (Number(rainbow.spdY) || 0) - relativeNormal * ny;
                     other.spd = (Number(other.spd) || 0) + relativeNormal * nx;
