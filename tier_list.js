@@ -404,8 +404,9 @@
                 root.querySelectorAll(".mb-tier-character.is-selected").forEach(function (item) {
                     item.classList.remove("is-selected");
                 });
-                var selectedNode = root.querySelector('[data-card-key="' + (window.CSS && CSS.escape ? CSS.escape(selectedKey) : selectedKey.replace(/["\\]/g, "\\$&")) + '"]');
-                if (selectedNode) selectedNode.classList.add("is-selected");
+                root.querySelectorAll("[data-card-key]").forEach(function (item) {
+                    if (item.getAttribute("data-card-key") === selectedKey) item.classList.add("is-selected");
+                });
                 return;
             }
 
@@ -540,6 +541,7 @@
         if (openTab) {
             if (typeof switchTab === "function") switchTab("collection");
             if (typeof switchSubTab === "function") switchSubTab("tierList", "collectionTab");
+            render();
         }
         return true;
     }
