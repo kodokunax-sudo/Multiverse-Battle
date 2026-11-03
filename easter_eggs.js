@@ -30,10 +30,6 @@ const EASTER_CODES = {
         duration: 90 * 1000,
         desc: "🌟 Множитель звёзд x10000 на 90 секунд!"
     },
-    "ТИРЛИСТ": {
-        type: "tierListUnlock",
-        desc: "🏆 Открыта мастерская тирлистов персонажей!"
-    }
 };
 
 function getAllCodes() {
@@ -156,6 +152,22 @@ function easterSubmitCode() {
     // Принимаем и короткий вариант «ТРИЛЛИОН», но расходуем один общий код.
     if (inp === "ТРИЛЛИОН") inp = "ТРИЛЛИОНЫ";
     let resultEl = document.getElementById("codeResult");
+
+    // Repeatable session key: never add it to usedCodes or save an unlock flag.
+    if (inp === "ТИРЛИСТ") {
+        let opened = !!(window.MBTierList &&
+            typeof window.MBTierList.openSession === "function" &&
+            window.MBTierList.openSession());
+        if (resultEl) {
+            resultEl.innerHTML = opened
+                ? "✅ 🏆 Тирлист открыт до перезагрузки страницы."
+                : "❌ Сначала открой игровой слот.";
+        }
+        if (opened && typeof showFloatingText === "function") {
+            showFloatingText("🏆 ТИРЛИСТ ОТКРЫТ!", "#d9b6ff");
+        }
+        return;
+    }
 
     if (EASTER_CODES[inp]) {
         let cd = EASTER_CODES[inp];
