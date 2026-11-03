@@ -2798,12 +2798,15 @@
         }
         const elapsed = Math.max(0, rafNow - asLastRafTimestamp);
         asLastRafTimestamp = rafNow;
-        asTimeScale = (rafNow < asSlowUntilReal ? .5 : 1) * (window.MBPucciIsMadeInHeavenActive && window.MBPucciIsMadeInHeavenActive() ? window.MBPucciGetWorldTimeMultiplier() : 1);
-        if (asAimMode && asTimeScale === 1) {
+        const pucciWorldScale = window.MBPucciIsMadeInHeavenActive && window.MBPucciIsMadeInHeavenActive()
+            ? window.MBPucciGetWorldTimeMultiplier() : 1;
+        const asWorldSlowActive = rafNow < asSlowUntilReal;
+        asTimeScale = (asWorldSlowActive ? .5 : 1) * pucciWorldScale;
+        if (asAimMode && !asWorldSlowActive) {
             asAimMode = false;
             asUpdateControls();
         }
-        if (asPreviousTimeScale < 1 && asTimeScale === 1) asFrame = Math.round(asFrame);
+        if (asPreviousTimeScale < pucciWorldScale * .95 && !asWorldSlowActive) asFrame = Math.round(asFrame);
         asPreviousTimeScale = asTimeScale;
         asGameClock += elapsed * asTimeScale;
         now = asGameClock;
