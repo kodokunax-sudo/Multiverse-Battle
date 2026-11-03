@@ -686,12 +686,37 @@
         var moonY = h * (0.31 - Math.sin(moonTheta) * 0.22);
 
         function mixColor(a, b, amount) {
-            var t = Math.max(0, Math.min(1, amount));
-            var ar = parseInt(a.slice(1, 3), 16), ag = parseInt(a.slice(3, 5), 16), ab = parseInt(a.slice(5, 7), 16);
-            var br = parseInt(b.slice(1, 3), 16), bg = parseInt(b.slice(3, 5), 16), bb = parseInt(b.slice(5, 7), 16);
-            return "rgb(" + Math.round(ar + (br - ar) * t) + "," +
-                Math.round(ag + (bg - ag) * t) + "," +
-                Math.round(ab + (bb - ab) * t) + ")";
+            function readHex(value) {
+                var raw = String(value || "").trim();
+                var match = raw.match(/^#?([0-9a-f]{6})$/i);
+                if (match) {
+                    return [
+                        parseInt(match[1].slice(0, 2), 16),
+                        parseInt(match[1].slice(2, 4), 16),
+                        parseInt(match[1].slice(4, 6), 16)
+                    ];
+                }
+                match = raw.match(/^#?([0-9a-f]{3})$/i);
+                if (match) {
+                    return [
+                        parseInt(match[1].charAt(0) + match[1].charAt(0), 16),
+                        parseInt(match[1].charAt(1) + match[1].charAt(1), 16),
+                        parseInt(match[1].charAt(2) + match[1].charAt(2), 16)
+                    ];
+                }
+                return [24, 35, 57];
+            }
+            var t = Number(amount);
+            if (!Number.isFinite(t)) t = 0;
+            t = Math.max(0, Math.min(1, t));
+            var ca = readHex(a);
+            var cb = readHex(b);
+            var channels = [];
+            for (var channel = 0; channel < 3; channel++) {
+                var value = Math.round(ca[channel] + (cb[channel] - ca[channel]) * t);
+                channels.push(Math.max(0, Math.min(255, Number.isFinite(value) ? value : 24)));
+            }
+            return "rgb(" + channels[0] + "," + channels[1] + "," + channels[2] + ")";
         }
 
         // Restrained natural colors: clear blue daylight, warm amber horizon,
@@ -946,7 +971,14 @@
     if (typeof oldRender === "function") {
         window.renderSuperVisuals = function () {
             var result = oldRender.apply(this, arguments);
-            drawVisuals();
+            if (!state.visualsDisabled) {
+                try {
+                    drawVisuals();
+                } catch (visualError) {
+                    state.visualsDisabled = true;
+                    console.error("[MADE IN HEAVEN] Visual layer disabled after drawing error:", visualError);
+                }
+            }
             return result;
         };
     }
