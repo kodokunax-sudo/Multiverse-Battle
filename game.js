@@ -3309,12 +3309,14 @@ function victory() {
 // ПОРАЖЕНИЕ — с абилкой Белоуса (3% воскрешение)
 // ============================================================
 function defeat() { 
+    var pucciForcedDeath = window.__mbPucciCollapseForcedDeath === true;
+    if (pucciForcedDeath) window.__mbPucciCollapseForcedDeath = false;
     if (hpDecayInterval) { clearInterval(hpDecayInterval); hpDecayInterval = null; } 
     if (fireInterval) { clearInterval(fireInterval); fireInterval = null; }
     if (wave > highestWaveReached) highestWaveReached = wave;
     
     // ★★★ БЕЛОУС: 3% шанс воскрешения ★★★
-    if (!resurrectedThisFight) {
+    if (!pucciForcedDeath && !resurrectedThisFight) {
         for (let idx of team) {
             let cd = myCards[idx];
             if (cd?.name === "Белоус" && Math.random() < 0.03) {
@@ -3331,7 +3333,7 @@ function defeat() {
         }
     }
     
-    if (!resurrectedThisFight) { for (let idx of team) { let cd = myCards[idx]; if (cd?.ability?.type === 'resurrect' && Math.random() < cd.ability.chance * 1 && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { playerHp = window.playerMaxHp || 100; resurrectedThisFight = true; sfxAbility(); showFloatingText("✨ Воскрешение!", "#2ecc71"); renderEnemy(); updatePlayerStats(); return; } } } 
+    if (!pucciForcedDeath && !resurrectedThisFight) { for (let idx of team) { let cd = myCards[idx]; if (cd?.ability?.type === 'resurrect' && Math.random() < cd.ability.chance * 1 && (typeof hasMasteryAbility === 'function' ? hasMasteryAbility(cd) : true)) { playerHp = window.playerMaxHp || 100; resurrectedThisFight = true; sfxAbility(); showFloatingText("✨ Воскрешение!", "#2ecc71"); renderEnemy(); updatePlayerStats(); return; } } } 
     mbStatsRecordDeath();
     // Настоящее поражение сбрасывает накопленный рост у всех карт DrinkTea2Win,
     // даже если такую карту убрали из активной команды перед поражением.
