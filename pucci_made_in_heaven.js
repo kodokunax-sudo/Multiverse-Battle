@@ -595,7 +595,7 @@
         btn.style.border = "2px solid #ffffff";
         btn.style.fontWeight = "900";
         btn.style.animation = state.active ? "none" : "superPulse 2s infinite";
-        btn.title = "Made in Heaven: 120 секунд ускорения времени, затем телепортация";
+        btn.title = "Made in Heaven: 1 минута 58 секунд, затем схлопывание пространства и смерть";
 
         var label = "⚡ MADE IN HEAVEN";
         if (state.active) {
@@ -604,7 +604,7 @@
             } else {
             var elapsed = elapsedMs();
             if (elapsed < TELEPORT_UNLOCK_MS) {
-                label = "🌀 РАЗГОН " + Math.floor(elapsed / 1000) + "/120";
+                label = "🌀 РАЗГОН " + Math.floor(elapsed / 1000) + "/118";
             } else {
                 var cd = Math.max(0, state.teleportCooldownUntil - now());
                 label = cd > 0 ? "⏳ ТЕЛЕПОРТ " + (cd / 1000).toFixed(1) + "с" : "⚡ ТЕЛЕПОРТ";
@@ -666,12 +666,12 @@
         var p = progress();
 
         // Start with one full orbit per second. Angular speed then follows
-        // Pucci's acceleration from 1x to 16x over the full 120 seconds.
+        // Pucci's acceleration from 1x to 16x over the full 118 seconds.
         // Integrating the changing speed keeps the orbit smooth between frames.
         var acceleratedSeconds = Math.max(0, seconds - 1);
         var orbitCycles = seconds <= 1
             ? seconds
-            : 1 + acceleratedSeconds + (15 * acceleratedSeconds * acceleratedSeconds) / 238;
+            : 1 + acceleratedSeconds + (15 * acceleratedSeconds * acceleratedSeconds) / 234;
         var theta = (orbitCycles % 1) * Math.PI * 2;
         var sunAltitude = Math.sin(theta);
         var dayAmount = Math.max(0, sunAltitude);
