@@ -28,6 +28,7 @@
     var view = { search: "", universe: "all", rarity: "all", sort: "source" };
     var selectedKey = null;
     var bound = false;
+    var sessionUnlocked = false;
 
     function esc(value) {
         return String(value == null ? "" : value)
@@ -39,8 +40,9 @@
     }
 
     function unlocked() {
-        return typeof slotData !== "undefined" && !!slotData &&
-            slotData.tierListUnlocked === true;
+        // The promo code grants access only for the current page session.
+        // Tier assignments remain saved, but the tab itself closes on reload.
+        return sessionUnlocked === true;
     }
 
     function getState() {
@@ -522,6 +524,14 @@
         document.head.appendChild(style);
     }
 
+    function openSession() {
+        if (typeof slotData === "undefined" || !slotData ||
+            typeof currentSlot === "undefined" || currentSlot < 0) return false;
+        sessionUnlocked = true;
+        refreshAccess(true);
+        return true;
+    }
+
     function refreshAccess(openTab) {
         var button = document.querySelector('.sub-tab-btn[data-subtab="tierList"]');
         var panel = document.getElementById("tierListSubTab");
@@ -557,7 +567,9 @@
             });
         }
         window.addEventListener("mb:slot-changing", function () {
+            sessionUnlocked = false;
             selectedKey = null;
+            refreshAccess(false);
             var buttonToHide = document.querySelector('.sub-tab-btn[data-subtab="tierList"]');
             if (buttonToHide) buttonToHide.style.display = "none";
         });
@@ -571,11 +583,12 @@
             render: render,
             openInfo: openInfo,
             assign: assign,
-            unassign: unassign
+            unassign: unassign,
+            openSession: openSession
         };
     }
 
-    window.MBTierList = { __loaded: true, refreshAccess: refreshAccess, render: render, openInfo: openInfo, assign: assign, unassign: unassign };
+    window.MBTierList = { __loaded: true, refreshAccess: refreshAccess, render: render, openInfo: openInfo, assign: assign, unassign: unassign, openSession: openSession };
     injectStyles();
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", init);
