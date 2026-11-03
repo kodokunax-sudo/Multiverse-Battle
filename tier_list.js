@@ -794,6 +794,7 @@
                     openTierEditor(newId);
                 } else if (kind === "save") {
                     persist(getState());
+                    if (typeof saveAll === "function") saveAll(true);
                     var saveFeedback = root.querySelector("#mbTierFeedback");
                     if (saveFeedback) saveFeedback.textContent = "✓ Тирлист сохранён в текущем слоте. Автосохранение также включено.";
                 } else if (kind === "export") {
