@@ -1144,6 +1144,16 @@ function loadGameData(d) {
             return;
         }
 
+        // Энрико Пуччи (Made in Heaven): заменить старую пассивку на бесконечное накопление скорости.
+        if (card.name === "Энрико Пуччи (Made in Heaven)") {
+            card.ability = {
+                type: "pucciTimeAcceleration",
+                speedGrowth: 0.001,
+                desc: "После каждой победы скорость Пуччи увеличивается на 0,1% от текущего значения. Ограничения скорости нет."
+            };
+            card.desc = "Финальная эволюция стенда Пуччи. Пассивка «Ускорение времени»: после каждой победы скорость Пуччи увеличивается на 0,1% от текущего значения без ограничения. SUPER: Made in Heaven длится 1 минуту 58 секунд. Скорость передвижения Пуччи постепенно растёт до +1500%, а боссы и их атаки — максимум до +40%. День и ночь сменяются всё быстрее, начиная с одного оборота солнца за секунду. Солнце и луна движутся по небу, небо мягко меняет естественные оттенки, облака и орбитальные линии ускоряются. Скорость атак Пуччи достигает +30%, наносимый урон +50%, поглощение входящего урона до 35%. С 50-й секунды доступна телепортация повторным нажатием SUPER; перезарядка 3 секунды. Через 17 секунд начинается OST Пуччи. В конце пространство схлопывается, после чего Пуччи погибает без возможности воскрешения.";
+        }
+
         // DrinkTea2Win: always-on emergency speed passive.
         if (card.name === "DrinkTea2Win") {
             card.superAbility = {
@@ -3220,6 +3230,21 @@ function victory() {
                 const currentSpeed = Math.max(0, Number(karsCard.speed) || 0);
                 karsCard.speed = Math.min(maxSpeed, currentSpeed * (1 + speedGrowth));
             }
+            karsEvolutionChanged = true;
+        });
+
+        // Made in Heaven: скорость растёт на 0,1% после каждой уникальной победы, без верхнего лимита.
+        team.forEach(idx => {
+            const pucciCard = myCards[idx];
+            const pucciAbility = pucciCard && pucciCard.ability;
+            if (!pucciCard || pucciCard.name !== "Энрико Пуччи (Made in Heaven)" ||
+                !pucciAbility || pucciAbility.type !== "pucciTimeAcceleration") return;
+            if (typeof hasMasteryAbility === "function" && !hasMasteryAbility(pucciCard)) return;
+
+            const speedGrowth = Math.max(0, Number(pucciAbility.speedGrowth) || 0);
+            if (speedGrowth <= 0) return;
+            const currentSpeed = Math.max(0, Number(pucciCard.speed) || 0);
+            pucciCard.speed = currentSpeed * (1 + speedGrowth);
             karsEvolutionChanged = true;
         });
     }
