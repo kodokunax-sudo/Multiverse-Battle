@@ -2238,7 +2238,7 @@
             if (typeof window.MBBossTestFinish==="function") window.MBBossTestFinish("loss",true);
             return;
         }
-        if (typeof window.MBTryMarkResurrection === "function") {
+        if (!window.__mbPucciCollapseForcedDeath && typeof window.MBTryMarkResurrection === "function") {
             var markRestoredHp = window.MBTryMarkResurrection(
                 typeof livingStonePlayerMaxHp !== "undefined" ? livingStonePlayerMaxHp : 180);
             if (markRestoredHp > 0) {
