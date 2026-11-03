@@ -952,8 +952,8 @@ function updateDodgeTimerDisplay() {
     var typeNames = {
         0: "⬜ СТЕНЫ", 1: "🔷 ХАОС", 2: "⚡ ЖЁЛТЫЕ", 3: "🛑 КРАСНЫЕ", 4: "💗 РОЗОВЫЕ",
         5: "💚 ЗЕЛЁНЫЕ", 6: "🌈 РАДУЖНЫЕ", 7: "⚡🛑 МИКС", 8: "🟥⬜ ЗОНЫ", 9: "💣 БОМБЫ", 10: "🔫 БЛАСТЕРЫ",
-        11: "⚙️ МАЯТНИКИ", 12: "⛓️ ЖИВЫЕ ТРОСЫ", 13: "☣️ КИСЛОТНАЯ КАРТА",
-        14: "🌪️ ШТОРМОВОЙ КОРИДОР", 15: "🪃 БУМЕРАНГИ", 16: "🌋 РАСКОЛОТАЯ ЗЕМЛЯ",
+        11: "🎯 АРТИЛЛЕРИЙСКИЙ ЗАЛП", 12: "⬜ БЕЛЫЕ СТЕНЫ", 13: "☣️ КИСЛОТНАЯ КАРТА",
+        14: "🌪️ ШТОРМОВОЙ КОРИДОР", 15: "🪃 ВОЗВРАЩАЮЩИЕСЯ КЛИНКИ", 16: "🌋 РАСКОЛОТАЯ ЗЕМЛЯ",
         17: "🐙 ОХОТА ЩУПАЛЕЦ", 18: "⚙️ ШЕСТЕРЁНЧАТАЯ ПОГОНЯ", 19: "🌿 САД ШИПОВ", 20: "🦾 КЛЕШНИ-ПЕРЕХВАТЧИКИ"
     };
     var timerEl = document.getElementById("arenaTimer"); if (timerEl && arenaPhase === "dodge") timerEl.innerText = arenaDodgeTimer + "с";
@@ -1197,72 +1197,148 @@ function updateExtendedArenaAttack(now) {
     var extImpactDamage = 2 * Math.max(1, 2 + Math.floor(Math.max(0, extWave - 1) / 20));
     var pulse = 0.5 + 0.5 * Math.sin(sec * 8);
 
-    // 11. Three pendulums swing at different rhythms. Their heavy heads launch the player on contact.
+    // 11. Артиллерийский залп: пушки фиксируют позицию игрока и стреляют по очереди.
     if (st.type === 11) {
-        // Seven overlapping pendulums: the chains cover the upper edge too, so hiding at the ceiling is no longer safe.
-        for (var p = 0; p < 7; p++) {
-            var px = 20 + p * 60, py = 58;
-            var pendulumRate = (1.72 + (p % 3) * 0.13) * extWaveDanger;
-            var angle = Math.sin(sec * pendulumRate + p * 1.83) * 1.35;
-            var length = 330 + (p % 3) * 18;
-            var bx = px + Math.sin(angle) * length, by = py + Math.cos(angle) * length;
-            var prevAngle = Math.sin((sec - 0.14) * pendulumRate + p * 1.83) * 1.35;
-            var prevBx = px + Math.sin(prevAngle) * length, prevBy = py + Math.cos(prevAngle) * length;
-            arenaExtDrawSegment(prevBx, prevBy, bx, by, 16, "rgba(255,190,95,0.48)", t < 650 ? 0.1 : 0.32, false);
-            arenaExtDrawSegment(px, py, bx, by, 7, "#8f9aa8", t < 650 ? 0.4 : 0.95, false);
-            ctx.save();
-            ctx.fillStyle = "#aab6c5"; ctx.strokeStyle = "#f2f6fa"; ctx.lineWidth = 2;
-            ctx.shadowColor = "#d6e2f0"; ctx.shadowBlur = 7;
-            for (var link = 1; link < 8; link++) {
-                var u = link / 8;
-                ctx.beginPath(); ctx.arc(px + (bx - px) * u, py + (by - py) * u, 2.1, 0, Math.PI * 2); ctx.fill();
-            }
-            ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = "#5f6a79";
-            ctx.beginPath(); ctx.arc(bx, by, 17, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = "#ecf1f7"; ctx.beginPath(); ctx.arc(bx, by, 6, 0, Math.PI * 2); ctx.fill();
-            ctx.restore();
-            // The chain itself is dangerous; overlapping anchors close the old safe strip at the top.
-            if (!frozen && t > 420 && arenaExtLineTouchesHeart(px, py, bx, by, 24) &&
-                arenaExtTouchCooldown(st, "pendulum_" + p, now, 260)) {
-                arenaExtPushHeart(bx, by, 8.2 * extWaveDanger, 3.1);
-                heart.vx *= 1.18; heart.vy *= 1.18;
-                st._multiHitActive = true;
-                applyHit(extImpactDamage, "МАЯТНИК: ТЯЖЁЛЫЙ УДАР!", false, true, arenaExtDamageAction("pendulum:" + p, {x1:px,y1:py,x2:bx,y2:by,width:24,type:"segment"}));
-                spawnFloatingText(heart.x, heart.y - 18, "ОТБРОШЕН!", "#ffe2a3");
-            }
+        if (t >= st.nextSpawnAt && st.hazards.length < 3) {
+            var cannonSide = Math.floor(Math.random() * 4);
+            var cannonX = cannonSide === 0 ? -18 : (cannonSide === 1 ? 418 : 35 + Math.random() * 330);
+            var cannonY = cannonSide === 2 ? -18 : (cannonSide === 3 ? 518 : 85 + Math.random() * 390);
+            var cannonAngle = Math.atan2(heart.y - cannonY, heart.x - cannonX);
+            var cannonId = ++st.sequence;
+            st.hazards.push({
+                id: cannonId, x: cannonX, y: cannonY, angle: cannonAngle,
+                targetX: heart.x, targetY: heart.y, age: 0, phase: "aim",
+                vx: 0, vy: 0, radius: 13, hit: false
+            });
+            st.nextSpawnAt = t + 1320;
         }
-        if (t < 650) {
-            ctx.fillStyle = "rgba(210,225,245,0.85)";
-            ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
-            ctx.fillText("МАЯТНИКИ ЗАПУСКАЮТСЯ", 200, 82);
+
+        var cannonFrameScale = Math.max(0, Math.min(3, delta / 16.667));
+        for (var ci = st.hazards.length - 1; ci >= 0; ci--) {
+            var shell = st.hazards[ci];
+            if (!frozen) shell.age += delta;
+            if (shell.phase === "aim" && shell.age >= 680) {
+                shell.phase = "flight";
+                var shellSpeed = 5.4 + 0.45 * Math.min(1, Math.max(0, extWave - 1100) / 1000);
+                shell.vx = Math.cos(shell.angle) * shellSpeed;
+                shell.vy = Math.sin(shell.angle) * shellSpeed;
+                playArenaSound(105, "sawtooth", 0.16, 0.07);
+            }
+
+            if (shell.phase === "aim") {
+                var lineEndX = shell.x + Math.cos(shell.angle) * 760;
+                var lineEndY = shell.y + Math.sin(shell.angle) * 760;
+                ctx.save();
+                ctx.strokeStyle = "rgba(255,105,74,0.72)";
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 7]);
+                ctx.lineDashOffset = -now / 28;
+                ctx.beginPath(); ctx.moveTo(shell.x, shell.y); ctx.lineTo(lineEndX, lineEndY); ctx.stroke();
+                ctx.setLineDash([]);
+                var aimPulse = 0.7 + Math.sin(now / 65) * 0.2;
+                ctx.globalAlpha = aimPulse;
+                ctx.strokeStyle = "#ffb36b"; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(shell.targetX, shell.targetY, 12 + Math.sin(now / 90) * 3, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(shell.targetX - 8, shell.targetY); ctx.lineTo(shell.targetX + 8, shell.targetY);
+                ctx.moveTo(shell.targetX, shell.targetY - 8); ctx.lineTo(shell.targetX, shell.targetY + 8);
+                ctx.stroke();
+                ctx.fillStyle = "#b9c4d0"; ctx.strokeStyle = "#fff0cf"; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(shell.x, shell.y, 13, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.restore();
+            } else if (shell.phase === "flight") {
+                if (!frozen) {
+                    shell.x += shell.vx * cannonFrameScale;
+                    shell.y += shell.vy * cannonFrameScale;
+                }
+                ctx.save();
+                ctx.globalCompositeOperation = "lighter";
+                ctx.strokeStyle = "rgba(255,135,75,0.55)";
+                ctx.lineWidth = 5;
+                ctx.beginPath(); ctx.moveTo(shell.x - shell.vx * 3, shell.y - shell.vy * 3); ctx.lineTo(shell.x, shell.y); ctx.stroke();
+                ctx.shadowColor = "#ff7138"; ctx.shadowBlur = 15;
+                ctx.fillStyle = "#ff9a54"; ctx.beginPath(); ctx.arc(shell.x, shell.y, shell.radius, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#fff0c7"; ctx.beginPath(); ctx.arc(shell.x - 3, shell.y - 3, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+
+                if (!frozen && !shell.hit && Math.hypot(heart.x - shell.x, heart.y - shell.y) < shell.radius + heart.hitbox) {
+                    shell.hit = true;
+                    applyHit(extImpactDamage, "АРТИЛЛЕРИЙСКИЙ СНАРЯД!", false, false,
+                        arenaExtDamageAction("artillery:" + shell.id, {type:"circle",x:shell.x,y:shell.y,radius:shell.radius,damage:extImpactDamage}));
+                    arenaExtPushHeart(shell.x, shell.y, 3.5, 1.0);
+                    st.hazards.splice(ci, 1);
+                    continue;
+                }
+            }
+            if (shell.age > 4200 || shell.x < -90 || shell.x > 490 || shell.y < -90 || shell.y > 590) {
+                st.hazards.splice(ci, 1);
+            }
         }
     }
-    // 12. Physical chain cables sweep across the room on offset paths.
+
+    // 12. Белые движущиеся стены: проход постоянно поднимается и опускается.
     if (st.type === 12) {
-        for (var c = 0; c < 2; c++) {
-            var y1 = (c === 0 ? 105 : 405) + Math.sin(sec * 1.24 + c) * 70;
-            var y2 = (c === 0 ? 385 : 125) + Math.sin(sec * 1.08 + c * 1.7) * 64;
-            var gapU = 0.5 + Math.sin(sec * (1.35 + c * 0.2) * extWaveDanger + c * 2.1) * 0.28;
-            var gapHalf = Math.max(0.018, 0.052 / extWaveDanger), gapStart = Math.max(0.08, gapU - gapHalf), gapEnd = Math.min(0.92, gapU + gapHalf);
-            var gy1 = y1 + (y2 - y1) * gapStart, gy2 = y1 + (y2 - y1) * gapEnd;
-            arenaExtDrawSegment(0, y1, gapStart * 400, gy1, 16, "#b7c1cc", t < 650 ? 0.4 : 0.9, false);
-            arenaExtDrawSegment(gapEnd * 400, gy2, 400, y2, 16, "#b7c1cc", t < 650 ? 0.4 : 0.9, false);
-            ctx.save(); ctx.strokeStyle = "rgba(120,235,255," + (0.3 + pulse * 0.45) + ")"; ctx.lineWidth = 3; ctx.shadowColor = "#66eaff"; ctx.shadowBlur = 12;
-            ctx.beginPath(); ctx.arc(gapStart * 400, gy1, 6 + pulse * 2, 0, Math.PI * 2); ctx.arc(gapEnd * 400, gy2, 6 + pulse * 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-            for (var q = 0; q <= 20; q++) {
-                var u = q / 20;
-                if (u > gapStart && u < gapEnd) continue;
-                var xx = u * 400, yy = y1 + (y2 - y1) * u;
-                ctx.fillStyle = q % 2 ? "#596878" : "#e5edf5";
-                ctx.beginPath(); ctx.arc(xx, yy, 2.1, 0, Math.PI * 2); ctx.fill();
+        if (t >= st.nextSpawnAt && st.hazards.length < 3) {
+            var wallDir = st.sequence % 2 === 0 ? 1 : -1;
+            var wallId = ++st.sequence;
+            st.hazards.push({
+                id: wallId, x: wallDir > 0 ? -28 : 428, dir: wallDir,
+                born: t, phase: Math.random() * Math.PI * 2,
+                gapSize: 108, speed: 3.4 + Math.min(1.5, extWaveDanger - 1) * 1.1,
+                lastHitAt: -1000
+            });
+            st.nextSpawnAt = t + 1320;
+        }
+
+        var movingWallFrameScale = Math.max(0, Math.min(3, delta / 16.667));
+        for (var wi2 = st.hazards.length - 1; wi2 >= 0; wi2--) {
+            var movingWall = st.hazards[wi2];
+            if (!frozen) movingWall.x += movingWall.dir * movingWall.speed * movingWallFrameScale;
+            var wallAge = Math.max(0, t - movingWall.born);
+            var movingGapCenter = 250 + Math.sin(wallAge / 720 + movingWall.phase) * 145;
+            var movingGapTop = movingGapCenter - movingWall.gapSize / 2;
+            var movingGapBottom = movingGapCenter + movingWall.gapSize / 2;
+
+            ctx.save();
+            ctx.shadowColor = "#dceeff"; ctx.shadowBlur = 10;
+            ctx.fillStyle = "#f4f8ff"; ctx.strokeStyle = "#aab9cb"; ctx.lineWidth = 2;
+            ctx.fillRect(movingWall.x - 13, 55, 26, Math.max(0, movingGapTop - 55));
+            ctx.strokeRect(movingWall.x - 13, 55, 26, Math.max(0, movingGapTop - 55));
+            ctx.fillRect(movingWall.x - 13, movingGapBottom, 26, Math.max(0, 500 - movingGapBottom));
+            ctx.strokeRect(movingWall.x - 13, movingGapBottom, 26, Math.max(0, 500 - movingGapBottom));
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = "rgba(90,115,145,0.65)"; ctx.lineWidth = 1;
+            for (var seamY = 70; seamY < 490; seamY += 22) {
+                if (seamY > movingGapTop - 4 && seamY < movingGapBottom + 4) continue;
+                ctx.beginPath(); ctx.moveTo(movingWall.x - 12, seamY); ctx.lineTo(movingWall.x + 12, seamY); ctx.stroke();
             }
-            if (t > 520) {
-                if(arenaExtLineTouchesHeart(0,y1,gapStart*400,gy1,20)&&arenaExtTouchCooldown(st,"cableA_"+c,now,230)){st._multiHitActive=true;applyHit(extImpactDamage,"ЖИВОЙ ТРОС: РАЗРЫВАЮЩИЙ УДАР!",false,true,arenaExtDamageAction("cableA:"+c,{x1:0,y1:y1,x2:gapStart*400,y2:gy1,width:20,type:"segment"}));arenaExtPushHeart(gapStart*400,gy1,6.5*extWaveDanger,2.0);spawnFloatingText(heart.x,heart.y-18,"ТРОС УДАРИЛ!","#91f2ff");}
-                if(arenaExtLineTouchesHeart(gapEnd*400,gy2,400,y2,20)&&arenaExtTouchCooldown(st,"cableB_"+c,now,230)){st._multiHitActive=true;applyHit(extImpactDamage,"ЖИВОЙ ТРОС: РАЗРЫВАЮЩИЙ УДАР!",false,true,arenaExtDamageAction("cableB:"+c,{x1:gapEnd*400,y1:gy2,x2:400,y2:y2,width:20,type:"segment"}));arenaExtPushHeart(gapEnd*400,gy2,6.5*extWaveDanger,2.0);spawnFloatingText(heart.x,heart.y-18,"ТРОС УДАРИЛ!","#91f2ff");}
+            ctx.strokeStyle = "rgba(90,235,170,0.9)"; ctx.lineWidth = 2;
+            ctx.setLineDash([5, 4]);
+            ctx.strokeRect(movingWall.x - 17, movingGapTop, 34, movingWall.gapSize);
+            ctx.setLineDash([]);
+            ctx.restore();
+
+            var wallCrossing = Math.abs(heart.x - movingWall.x) < 13 + heart.hitbox;
+            var playerInsideMovingGap = heart.y > movingGapTop + heart.hitbox + 3 &&
+                heart.y < movingGapBottom - heart.hitbox - 3;
+            if (!frozen && wallCrossing && !playerInsideMovingGap &&
+                now - movingWall.lastHitAt >= 620 && invulnTimer <= 0) {
+                movingWall.lastHitAt = now;
+                applyHit(extImpactDamage, "БЕЛАЯ СТЕНА!", false, false,
+                    arenaExtDamageAction("moving-wall:" + movingWall.id, {
+                        type:"rect",x:movingWall.x-13,y:heart.y-16,width:26,height:32,damage:extImpactDamage
+                    }));
+                heart.vx += movingWall.dir * 2.2;
+            }
+            if ((movingWall.dir > 0 && movingWall.x > 455) || (movingWall.dir < 0 && movingWall.x < -55)) {
+                st.hazards.splice(wi2, 1);
             }
         }
-        if (t < 650) { ctx.fillStyle = "#d8e5f5"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.fillText("ТРОСЫ НАТЯГИВАЮТСЯ", 200, 82); }
+        ctx.save();
+        ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(220,238,255,0.88)";
+        ctx.fillText("БЕЛЫЕ СТЕНЫ · ПРОХОД ДВИГАЕТСЯ", 200, 82);
+        ctx.restore();
     }
 
     // 13. Flowing acid: pour, spread, merge with nearby puddles, then evaporate.
@@ -1284,8 +1360,8 @@ function updateExtendedArenaAttack(now) {
         }
         for (var ai = st.hazards.length - 1; ai >= 0; ai--) {
             var pool = st.hazards[ai], age = t - pool.born;
-            if (age > 7600) { st.hazards.splice(ai, 1); continue; }
-            var pouring = age < 760, spreading = age >= 760 && age < 1600, fading = age > 6100;
+            if (age > 16000) { st.hazards.splice(ai, 1); continue; }
+            var pouring = age < 760, spreading = age >= 760 && age < 1600, fading = age > 14000;
             if (!frozen) {
                 if (pouring) pool.r = Math.min(pool.targetR * 0.62, pool.r + delta * 0.052);
                 else if (spreading) pool.r = Math.min(pool.targetR, pool.r + delta * 0.025);
@@ -1312,7 +1388,7 @@ function updateExtendedArenaAttack(now) {
                 }
             }
             ctx.save();
-            ctx.globalAlpha = fading ? Math.max(0.08, (7600 - age) / 1500) : (pouring ? 0.72 : 0.94);
+            ctx.globalAlpha = fading ? Math.max(0.08, (16000 - age) / 2000) : (pouring ? 0.72 : 0.94);
             if (pouring) {
                 var streamMidX = (pool.sourceX + pool.x) * 0.5 + Math.sin(sec * 3.1 + pool.phase) * 15;
                 var streamMidY = (pool.sourceY + pool.y) * 0.5 + Math.cos(sec * 2.7 + pool.phase) * 12;
@@ -1390,157 +1466,275 @@ function updateExtendedArenaAttack(now) {
             }
         }
     }
-    // 14. A gust pushes gently while wind-borne debris crosses the arena.
+    // 14. Штормовой коридор: ветер несёт обломки зданий, деревьев, машин и металла.
     if (st.type === 14) {
-        var dirs = [{x:1,y:0.22},{x:-1,y:-0.18}];
-        var windStage = Math.min(2,Math.floor(t/3000));
-        var di = Math.floor(t / Math.max(420,980-windStage*170)/extWaveDanger) % dirs.length, dir = dirs[di];
+        var dirs = [{x:1,y:0.12},{x:-1,y:-0.12}];
+        var windStage = Math.min(2, Math.floor(t / 3000));
+        var di = Math.floor(t / 3000) % dirs.length, dir = dirs[di];
         if (st.gustIndex !== di) { st.gustIndex = di; st.nextSpawnAt = Math.min(st.nextSpawnAt, t); }
-        var gustPulse = (windStage===0?0.095:windStage===1?0.17:0.25) * extWaveDanger * (Math.sin(sec * (5.5+windStage*1.6)*extWaveDanger) > 0.18 ? 1.55 : 0.65);
-        if (!frozen) { heart.vx += dir.x * gustPulse; heart.vy += dir.y * gustPulse; heart.vx=Math.max(-8,Math.min(8,heart.vx)); heart.vy=Math.max(-8,Math.min(8,heart.vy)); }
-        if (t >= st.nextSpawnAt) {
-            var side, hx, hy;
-            if (Math.abs(dir.x) > Math.abs(dir.y)) { side = dir.x > 0 ? 0 : 1; hx = side === 0 ? -15 : 415; hy = 75 + Math.random() * 355; }
-            else { side = dir.y > 0 ? 2 : 3; hx = 35 + Math.random() * 330; hy = side === 2 ? -15 : 515; }
-            var sp = (4.0 + Math.random() * 2.0 + windStage*1.9) * extWaveDanger;
-            st.hazards.push({ x:hx, y:hy, vx:dir.x*sp, vy:dir.y*sp, size:(9+Math.random()*6)*Math.min(1.6,extWaveDanger), born:t, rot:Math.random()*6 });
-            st.nextSpawnAt = t + Math.max(75,240-windStage*55)/extWaveDanger;
+        var gustPulse = (windStage === 0 ? 0.065 : (windStage === 1 ? 0.09 : 0.12)) * Math.min(1.25, extWaveDanger);
+        if (!frozen) {
+            heart.vx += dir.x * gustPulse;
+            heart.vy += dir.y * gustPulse;
+            heart.vx = Math.max(-7, Math.min(7, heart.vx));
+            heart.vy = Math.max(-7, Math.min(7, heart.vy));
         }
-        ctx.save(); ctx.fillStyle="#d7f6ff";ctx.font="bold 10px monospace";ctx.textAlign="center";ctx.fillText("ВЕТЕР: "+(windStage+1)+"/3",200,82);ctx.strokeStyle = "rgba(150,220,255,0.45)"; ctx.lineWidth = 2;
-        for (var wi = 0; wi < 12; wi++) {
-            var wx = 25 + (wi * 49), wy = 100 + ((wi * 57 + Math.floor(sec * 18)) % 300);
-            ctx.beginPath(); ctx.moveTo(wx - dir.x * 18, wy - dir.y * 18); ctx.lineTo(wx + dir.x * 18, wy + dir.y * 18); ctx.stroke();
+
+        if (t >= st.nextSpawnAt && st.hazards.length < 6) {
+            var debrisSide = dir.x > 0 ? 0 : 1;
+            var debrisSize = 12 + Math.random() * 7;
+            var debrisKindRoll = Math.random();
+            var debrisKind = debrisKindRoll < 0.28 ? "building" :
+                (debrisKindRoll < 0.53 ? "tree" : (debrisKindRoll < 0.78 ? "car" : "metal"));
+            var debrisX = debrisSide === 0 ? -45 : 445;
+            var debrisY = 85 + Math.random() * 390;
+            var debrisSpeed = (3.0 + windStage * 0.55 + Math.random() * 0.9) * Math.min(1.25, extWaveDanger);
+            var debrisExplosive = Math.random() < 0.24;
+            var debrisId = ++st.sequence;
+            st.hazards.push({
+                id:debrisId, kind:debrisKind, x:debrisX, y:debrisY,
+                vx:dir.x * debrisSpeed, vy:dir.y * debrisSpeed + (Math.random() - 0.5) * 0.55,
+                size:debrisSize, radius:debrisKind === "car" ? debrisSize * 1.3 : debrisSize,
+                born:t, rot:(Math.random() - 0.5) * 0.9, hit:false,
+                explosive:debrisExplosive, fuse:1250 + Math.random() * 450,
+                phase:"flying", blastHit:false, explodedAt:0
+            });
+            st.nextSpawnAt = t + Math.max(310, 500 - windStage * 45) / Math.min(1.2, extWaveDanger);
+        }
+
+        var stormFrameScale = Math.max(0, Math.min(3, delta / 16.667));
+        ctx.save();
+        ctx.fillStyle = "#d7f6ff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+        ctx.fillText("ШТОРМОВОЙ ПОТОК " + (windStage + 1) + "/3", 200, 82);
+        ctx.strokeStyle = "rgba(150,220,255,0.38)"; ctx.lineWidth = 2;
+        for (var windLine = 0; windLine < 10; windLine++) {
+            var windX = 28 + windLine * 38;
+            var windY = 112 + ((windLine * 61 + Math.floor(sec * 15)) % 300);
+            ctx.beginPath();
+            ctx.moveTo(windX - dir.x * 16, windY - dir.y * 16);
+            ctx.lineTo(windX + dir.x * 16, windY + dir.y * 16);
+            ctx.stroke();
         }
         ctx.restore();
-        ctx.save(); ctx.strokeStyle = "rgba(115,215,255," + (0.18 + pulse * 0.28) + ")"; ctx.lineWidth = 2; ctx.shadowColor = "#64caff"; ctx.shadowBlur = 8;
-        for (var swirl = 0; swirl < 3; swirl++) { var sx = 200 + Math.cos(sec * 1.6 + swirl * 2.1) * (74 + swirl * 26), sy = 270 + Math.sin(sec * 1.6 + swirl * 2.1) * (52 + swirl * 15); ctx.beginPath(); ctx.ellipse(sx, sy, 28 + swirl * 4, 10 + swirl * 2, sec * 1.8 + swirl, 0, Math.PI * 1.55); ctx.stroke(); }
-        ctx.restore();
-        for (var hi = st.hazards.length - 1; hi >= 0; hi--) {
-            var leaf = st.hazards[hi];
-            if (!frozen) { leaf.x += leaf.vx; leaf.y += leaf.vy; leaf.rot += 0.12; }
-            ctx.save(); ctx.translate(leaf.x, leaf.y); ctx.rotate(leaf.rot); ctx.fillStyle = "#b6d6df"; ctx.strokeStyle = "#f3ffff"; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(-leaf.size, 0); ctx.quadraticCurveTo(0, -leaf.size * 0.85, leaf.size, 0); ctx.quadraticCurveTo(0, leaf.size * 0.85, -leaf.size, 0); ctx.fill(); ctx.stroke(); ctx.restore();
-            if(!frozen&&Math.hypot(heart.x-leaf.x,heart.y-leaf.y)<leaf.size+heart.hitbox&&arenaExtTouchCooldown(st,"wind_"+hi,now,160)){heart.vx+=leaf.vx*2.4;heart.vy+=leaf.vy*2.4;st._multiHitActive=true;applyHit(extImpactDamage,"ШТОРМОВОЙ ОБЛОМОК!",false,true,arenaExtDamageAction("wind:"+String(leaf.born||hi),{type:"leaf",x:leaf.x,y:leaf.y,radius:leaf.size,damage:extImpactDamage}));spawnFloatingText(heart.x,heart.y-18,"СБИТО ВЕТРОМ!","#a8edff");}
-            if (leaf.x < -30 || leaf.x > 430 || leaf.y < -30 || leaf.y > 530) st.hazards.splice(hi, 1);
+
+        for (var di2 = st.hazards.length - 1; di2 >= 0; di2--) {
+            var debris = st.hazards[di2];
+            if (!frozen && debris.phase === "flying") {
+                debris.x += debris.vx * stormFrameScale;
+                debris.y += debris.vy * stormFrameScale;
+                debris.rot += 0.018 * stormFrameScale;
+            }
+            var debrisAge = t - debris.born;
+
+            if (debris.phase === "flying") {
+                if (debris.explosive && debrisAge >= debris.fuse) {
+                    debris.phase = "explode";
+                    debris.explodedAt = t;
+                    sfxArenaBombExplosion();
+                    arenaShake = Math.max(arenaShake, 9);
+                }
+
+                if (debris.phase === "flying") {
+                    ctx.save();
+                    ctx.translate(debris.x, debris.y);
+                    ctx.rotate(debris.rot);
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 7;
+
+                    if (debris.kind === "building") {
+                        ctx.shadowColor = "#d7ad83";
+                        ctx.fillStyle = "#8c7566"; ctx.strokeStyle = "#e8d1b7";
+                        ctx.beginPath();
+                        ctx.moveTo(-debris.size * 1.2, -debris.size * 0.55);
+                        ctx.lineTo(-debris.size * 0.35, -debris.size);
+                        ctx.lineTo(debris.size * 1.1, -debris.size * 0.65);
+                        ctx.lineTo(debris.size * 0.85, debris.size * 0.8);
+                        ctx.lineTo(-debris.size * 0.9, debris.size * 0.65);
+                        ctx.closePath(); ctx.fill(); ctx.stroke();
+                        ctx.strokeStyle = "rgba(245,225,200,0.7)";
+                        ctx.beginPath(); ctx.moveTo(-debris.size * 0.45, -debris.size * 0.4); ctx.lineTo(debris.size * 0.55, debris.size * 0.35); ctx.stroke();
+                    } else if (debris.kind === "tree") {
+                        ctx.shadowColor = "#85c96a";
+                        ctx.strokeStyle = "#704b2e"; ctx.lineWidth = Math.max(4, debris.size * 0.28);
+                        ctx.beginPath(); ctx.moveTo(-debris.size, debris.size * 0.45); ctx.lineTo(debris.size, -debris.size * 0.35); ctx.stroke();
+                        ctx.fillStyle = "#477b3c"; ctx.strokeStyle = "#a5df78"; ctx.lineWidth = 1.5;
+                        ctx.beginPath(); ctx.arc(-debris.size * 0.45, -debris.size * 0.25, debris.size * 0.72, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                        ctx.beginPath(); ctx.arc(debris.size * 0.38, -debris.size * 0.38, debris.size * 0.58, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    } else if (debris.kind === "car") {
+                        ctx.shadowColor = "#ffb36b";
+                        ctx.fillStyle = "#a84c37"; ctx.strokeStyle = "#ffd0a4";
+                        ctx.fillRect(-debris.size * 1.35, -debris.size * 0.42, debris.size * 2.7, debris.size * 0.84);
+                        ctx.strokeRect(-debris.size * 1.35, -debris.size * 0.42, debris.size * 2.7, debris.size * 0.84);
+                        ctx.fillStyle = "#8ec9db";
+                        ctx.fillRect(-debris.size * 0.55, -debris.size * 0.72, debris.size * 1.15, debris.size * 0.5);
+                        ctx.fillStyle = "#232a32";
+                        ctx.beginPath(); ctx.arc(-debris.size * 0.78, debris.size * 0.42, debris.size * 0.25, 0, Math.PI * 2);
+                        ctx.arc(debris.size * 0.78, debris.size * 0.42, debris.size * 0.25, 0, Math.PI * 2); ctx.fill();
+                    } else {
+                        ctx.shadowColor = debris.explosive ? "#ff6238" : "#a8d7ed";
+                        ctx.fillStyle = debris.explosive ? "#a94a32" : "#667d8b";
+                        ctx.strokeStyle = debris.explosive ? "#ffc17a" : "#d8efff";
+                        ctx.fillRect(-debris.size * 1.5, -debris.size * 0.38, debris.size * 3, debris.size * 0.76);
+                        ctx.strokeRect(-debris.size * 1.5, -debris.size * 0.38, debris.size * 3, debris.size * 0.76);
+                        ctx.beginPath(); ctx.moveTo(-debris.size, 0); ctx.lineTo(debris.size, 0); ctx.stroke();
+                    }
+                    ctx.restore();
+
+                    if (debris.explosive && debris.fuse - debrisAge < 520) {
+                        ctx.save();
+                        ctx.strokeStyle = "rgba(255,75,45," + (0.45 + 0.4 * Math.abs(Math.sin(now / 55))) + ")";
+                        ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+                        ctx.beginPath(); ctx.arc(debris.x, debris.y, 54, 0, Math.PI * 2); ctx.stroke();
+                        ctx.setLineDash([]); ctx.restore();
+                    }
+
+                    if (!frozen && !debris.hit &&
+                        Math.hypot(heart.x - debris.x, heart.y - debris.y) < debris.radius + heart.hitbox) {
+                        debris.hit = true;
+                        applyHit(extImpactDamage, "УДАР ОБЛОМКОМ!", false, false,
+                            arenaExtDamageAction("storm-debris:" + debris.id, {
+                                type:"circle",x:debris.x,y:debris.y,radius:debris.radius,damage:extImpactDamage
+                            }));
+                        arenaExtPushHeart(debris.x, debris.y, 2.7, 0.8);
+                        if (debris.explosive) {
+                            debris.phase = "explode";
+                            debris.explodedAt = t;
+                            sfxArenaBombExplosion();
+                        }
+                    }
+                }
+            }
+
+            if (debris.phase === "explode") {
+                var explosionAge = Math.max(0, t - debris.explodedAt);
+                var explosionProgress = Math.min(1, explosionAge / 300);
+                var explosionRadius = 14 + explosionProgress * 52;
+                ctx.save();
+                ctx.globalCompositeOperation = "lighter";
+                ctx.globalAlpha = Math.max(0, 1 - explosionProgress * 0.65);
+                ctx.shadowColor = "#ff5b25"; ctx.shadowBlur = 20;
+                var explosionGrad = ctx.createRadialGradient(debris.x, debris.y, 1, debris.x, debris.y, explosionRadius);
+                explosionGrad.addColorStop(0, "#fff6c9");
+                explosionGrad.addColorStop(0.35, "#ffad36");
+                explosionGrad.addColorStop(0.75, "#f04a1d");
+                explosionGrad.addColorStop(1, "rgba(150,20,8,0)");
+                ctx.fillStyle = explosionGrad;
+                ctx.beginPath(); ctx.arc(debris.x, debris.y, explosionRadius, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = "rgba(255,230,170,0.85)"; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(debris.x, debris.y, explosionRadius, 0, Math.PI * 2); ctx.stroke();
+                ctx.restore();
+
+                if (!frozen && !debris.blastHit &&
+                    Math.hypot(heart.x - debris.x, heart.y - debris.y) < explosionRadius + heart.hitbox) {
+                    debris.blastHit = true;
+                    applyHit(extImpactDamage, "ВЗРЫВ ОБЛОМКА!", false, false,
+                        arenaExtDamageAction("storm-blast:" + debris.id, {
+                            type:"circle",x:debris.x,y:debris.y,radius:explosionRadius,damage:extImpactDamage
+                        }));
+                    arenaExtPushHeart(debris.x, debris.y, 4.2, 1.1);
+                }
+                if (explosionAge >= 350) st.hazards.splice(di2, 1);
+            }
+
+            if (debris.phase === "flying" &&
+                (debris.x < -90 || debris.x > 490 || debris.y < -80 || debris.y > 580)) {
+                st.hazards.splice(di2, 1);
+            }
         }
     }
 
-    // 15. Boomerangs go out first, then curve back toward their launch edge.
+    // 15. Возвращающиеся клинки: два клинка проходят арену и возвращаются по другой дуге.
     if (st.type === 15) {
-        if (t >= st.nextSpawnAt && st.hazards.length < 7) {
-            var sideB = Math.floor(Math.random() * 4), origin = arenaExtNewEdge(sideB, 10);
-            var targetX = 70 + Math.random() * 260, targetY = 115 + Math.random() * 265;
-            var ba = Math.atan2(targetY - origin.y, targetX - origin.x);
-            var speedB = 5.1 * extWaveDanger;
-            st.hazards.push({
-                x:origin.x, y:origin.y, ox:origin.x, oy:origin.y,
-                vx:Math.cos(ba)*speedB, vy:Math.sin(ba)*speedB,
-                baseSpeed:speedB, startAngle:ba, flightAngle:ba,
-                turnDir:Math.random()<0.5?-1:1,
-                spin:(Math.random()<0.5?-1:1)*(0.30+Math.random()*0.08),
-                age:0, born:t, rot:Math.random()*Math.PI*2, side:sideB, trail:[]
-            });
-            if (Math.random()<0.62 && st.hazards.length<7) {
-                var origin2 = arenaExtNewEdge((sideB+2)%4,12);
-                var ta2 = Math.atan2(heart.y-origin2.y,heart.x-origin2.x);
-                var speedB2 = 4.6*extWaveDanger;
+        if (st.hazards.length === 0 && t >= st.nextSpawnAt) {
+            var bladeSide = Math.floor(Math.random() * 4);
+            for (var bladeIndex = 0; bladeIndex < 2; bladeIndex++) {
+                var bladeOrigin = arenaExtNewEdge(bladeIndex === 0 ? bladeSide : (bladeSide + 2) % 4, 12);
+                var bladeTargetX = Math.max(55, Math.min(345, heart.x + (bladeIndex === 0 ? -52 : 52)));
+                var bladeTargetY = Math.max(85, Math.min(455, heart.y + (Math.random() - 0.5) * 82));
+                var bladeDx = bladeTargetX - bladeOrigin.x;
+                var bladeDy = bladeTargetY - bladeOrigin.y;
+                var bladeLength = Math.max(1, Math.hypot(bladeDx, bladeDy));
+                var bladePerpX = -bladeDy / bladeLength;
+                var bladePerpY = bladeDx / bladeLength;
                 st.hazards.push({
-                    x:origin2.x,y:origin2.y,ox:origin2.x,oy:origin2.y,
-                    vx:Math.cos(ta2)*speedB2,vy:Math.sin(ta2)*speedB2,
-                    baseSpeed:speedB2,startAngle:ta2,flightAngle:ta2,
-                    turnDir:Math.random()<0.5?-1:1,
-                    spin:(Math.random()<0.5?-1:1)*(0.31+Math.random()*0.08),
-                    age:0,born:t,rot:Math.random()*Math.PI*2,side:(sideB+2)%4,trail:[]
+                    id:++st.sequence, x:bladeOrigin.x, y:bladeOrigin.y,
+                    ox:bladeOrigin.x, oy:bladeOrigin.y,
+                    tx:bladeTargetX, ty:bladeTargetY,
+                    curveX:bladePerpX * (bladeIndex === 0 ? 72 : -72),
+                    curveY:bladePerpY * (bladeIndex === 0 ? 72 : -72),
+                    age:0, born:t, rot:0, hit:false, trail:[], pass:0
                 });
             }
-            st.nextSpawnAt = t + Math.max(340,820/extWaveDanger);
+            st.nextSpawnAt = t + 2650;
         }
-        for (var bi = st.hazards.length-1; bi >= 0; bi--) {
-            var boom = st.hazards[bi];
-            if (!frozen) {
-                var frameScaleB = Math.max(0,Math.min(3,delta/16.667));
-                boom.age += delta;
-                var baseAngleB = Number.isFinite(boom.startAngle) ? boom.startAngle : Math.atan2(boom.vy,boom.vx);
-                var baseSpeedB = Number(boom.baseSpeed) || Math.max(1,Math.hypot(boom.vx,boom.vy));
-                if (boom.age < 650) {
-                    // Release: nearly straight flight.
-                    boom.flightAngle = baseAngleB;
-                    var outSpeedB = baseSpeedB*(0.92+0.08*Math.min(1,boom.age/170));
-                    boom.vx = Math.cos(boom.flightAngle)*outSpeedB;
-                    boom.vy = Math.sin(boom.flightAngle)*outSpeedB;
-                } else if (boom.age < 1430) {
-                    // One wide U-turn, with a slow apex rather than an orbit.
-                    var turnT = Math.max(0,Math.min(1,(boom.age-650)/780));
-                    var easedTurn = turnT*turnT*(3-2*turnT);
-                    boom.flightAngle = baseAngleB+(Number(boom.turnDir)||1)*Math.PI*0.88*easedTurn;
-                    var turnSpeed = baseSpeedB*(0.96-0.70*Math.sin(Math.PI*turnT));
-                    boom.vx = Math.cos(boom.flightAngle)*turnSpeed;
-                    boom.vy = Math.sin(boom.flightAngle)*turnSpeed;
-                } else {
-                    // Bend the return leg toward its own launch point.
-                    var backA = Math.atan2(boom.oy-boom.y,boom.ox-boom.x);
-                    if (!Number.isFinite(boom.flightAngle)) boom.flightAngle = baseAngleB;
-                    var angleDiffB = Math.atan2(Math.sin(backA-boom.flightAngle),Math.cos(backA-boom.flightAngle));
-                    boom.flightAngle += Math.max(-0.075*frameScaleB,Math.min(0.075*frameScaleB,angleDiffB));
-                    var returnProgressB = Math.min(1,(boom.age-1430)/650);
-                    var returnSpeedB = baseSpeedB*(0.48+0.52*returnProgressB);
-                    boom.vx = Math.cos(boom.flightAngle)*returnSpeedB;
-                    boom.vy = Math.sin(boom.flightAngle)*returnSpeedB;
-                }
-                boom.x += boom.vx*frameScaleB;
-                boom.y += boom.vy*frameScaleB;
-                boom.rot += boom.spin*frameScaleB;
+
+        for (var bladeI = st.hazards.length - 1; bladeI >= 0; bladeI--) {
+            var blade = st.hazards[bladeI];
+            if (!frozen) blade.age += delta;
+            var previousBladeX = blade.x, previousBladeY = blade.y;
+            if (blade.age <= 760) {
+                var outU = Math.max(0, Math.min(1, blade.age / 760));
+                var outOne = 1 - outU;
+                blade.x = outOne * outOne * blade.ox + 2 * outOne * outU * (blade.ox + (blade.tx - blade.ox) * 0.5 + blade.curveX) + outU * outU * blade.tx;
+                blade.y = outOne * outOne * blade.oy + 2 * outOne * outU * (blade.oy + (blade.ty - blade.oy) * 0.5 + blade.curveY) + outU * outU * blade.ty;
+                blade.pass = 1;
+            } else if (blade.age <= 1840) {
+                var returnU = Math.max(0, Math.min(1, (blade.age - 760) / 1080));
+                var returnOne = 1 - returnU;
+                blade.x = returnOne * returnOne * blade.tx +
+                    2 * returnOne * returnU * (blade.ox + (blade.tx - blade.ox) * 0.5 - blade.curveX * 0.72) +
+                    returnU * returnU * blade.ox;
+                blade.y = returnOne * returnOne * blade.ty +
+                    2 * returnOne * returnU * (blade.oy + (blade.ty - blade.oy) * 0.5 - blade.curveY * 0.72) +
+                    returnU * returnU * blade.oy;
+                blade.pass = 2;
             }
-            if (!boom.trail) boom.trail = [];
-            if (!frozen) { boom.trail.unshift({x:boom.x,y:boom.y}); if (boom.trail.length>12) boom.trail.pop(); }
-            for (var bt2=boom.trail.length-1; bt2>0; bt2--) {
-                ctx.save(); ctx.globalAlpha=(1-bt2/boom.trail.length)*0.38; ctx.strokeStyle="#ffd879";
-                ctx.lineWidth=Math.max(1,7-bt2*0.5); ctx.beginPath();
-                ctx.moveTo(boom.trail[bt2].x,boom.trail[bt2].y); ctx.lineTo(boom.trail[bt2-1].x,boom.trail[bt2-1].y);
+
+            var bladeAngle = Math.atan2(blade.y - previousBladeY, blade.x - previousBladeX);
+            blade.rot = Number.isFinite(bladeAngle) ? bladeAngle : blade.rot;
+            if (!blade.trail) blade.trail = [];
+            if (!frozen) {
+                blade.trail.unshift({x:blade.x,y:blade.y});
+                if (blade.trail.length > 10) blade.trail.pop();
+            }
+            for (var trailI = blade.trail.length - 1; trailI > 0; trailI--) {
+                ctx.save();
+                ctx.globalAlpha = (1 - trailI / blade.trail.length) * 0.34;
+                ctx.strokeStyle = "#ffd879"; ctx.lineWidth = Math.max(1, 6 - trailI * 0.45);
+                ctx.beginPath();
+                ctx.moveTo(blade.trail[trailI].x, blade.trail[trailI].y);
+                ctx.lineTo(blade.trail[trailI - 1].x, blade.trail[trailI - 1].y);
                 ctx.stroke(); ctx.restore();
             }
-            // Carved, swept V-shaped boomerang with a wooden core, dark rim and pale aerodynamic edges.
-            ctx.save(); ctx.translate(boom.x,boom.y); ctx.rotate(boom.rot); ctx.scale(1.28,1.28);
-            ctx.shadowColor="#ff8d25"; ctx.shadowBlur=12;
+
+            ctx.save();
+            ctx.translate(blade.x, blade.y); ctx.rotate(blade.rot); ctx.scale(1.18, 1.18);
+            ctx.shadowColor = "#ff9d38"; ctx.shadowBlur = 12;
             ctx.beginPath();
-            ctx.moveTo(-28,-19);
-            ctx.quadraticCurveTo(-27,-26,-20,-23);
-            ctx.quadraticCurveTo(-11,-19,-1,-5);
-            ctx.quadraticCurveTo(2,-1,7,-5);
-            ctx.lineTo(20,-19);
-            ctx.quadraticCurveTo(27,-26,31,-18);
-            ctx.quadraticCurveTo(33,-13,27,-6);
-            ctx.lineTo(13,10);
-            ctx.quadraticCurveTo(6,18,-2,10);
-            ctx.lineTo(-23,-7);
-            ctx.quadraticCurveTo(-29,-12,-28,-19);
-            ctx.closePath();
-            ctx.fillStyle="#5c3519"; ctx.strokeStyle="#2f2014"; ctx.lineWidth=4; ctx.fill(); ctx.stroke();
-            var boomWoodGrad=ctx.createLinearGradient(-24,-20,25,11);
-            boomWoodGrad.addColorStop(0,"#e7b86d"); boomWoodGrad.addColorStop(0.28,"#9b5f2d");
-            boomWoodGrad.addColorStop(0.57,"#f2d08b"); boomWoodGrad.addColorStop(1,"#70411e");
-            ctx.fillStyle=boomWoodGrad; ctx.strokeStyle="#f9dfa2"; ctx.lineWidth=1.5; ctx.fill(); ctx.stroke();
-            ctx.shadowBlur=0; ctx.lineCap="round"; ctx.lineJoin="round";
-            ctx.strokeStyle="rgba(255,244,198,0.9)"; ctx.lineWidth=2;
-            ctx.beginPath(); ctx.moveTo(-24,-20); ctx.quadraticCurveTo(-12,-15,-1,-3); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(8,-4); ctx.quadraticCurveTo(20,-17,27,-19); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(-19,-7); ctx.quadraticCurveTo(-8,2,0,9); ctx.stroke();
+            ctx.moveTo(-25,-15); ctx.quadraticCurveTo(-26,-23,-18,-20);
+            ctx.quadraticCurveTo(-8,-15,0,-4); ctx.quadraticCurveTo(4,0,9,-5);
+            ctx.lineTo(22,-19); ctx.quadraticCurveTo(29,-23,31,-15);
+            ctx.lineTo(13,11); ctx.quadraticCurveTo(6,18,-3,10);
+            ctx.lineTo(-23,-5); ctx.closePath();
+            ctx.fillStyle = "#9b642d"; ctx.strokeStyle = "#f8d99a"; ctx.lineWidth = 2;
+            ctx.fill(); ctx.stroke();
             ctx.restore();
-            if (!frozen && Math.hypot(heart.x-boom.x,heart.y-boom.y)<22+heart.hitbox &&
-                arenaExtTouchCooldown(st,"boom_"+bi,now,240)) {
-                st._multiHitActive=true;
-                applyHit(extImpactDamage,"БУМЕРАНГ: РАССЕКАЮЩИЙ УДАР!",false,true,arenaExtDamageAction("boomerang:"+String(boom.born||bi),{type:"boomerang",x:boom.x,y:boom.y,radius:22,damage:extImpactDamage}));
-                arenaExtPushHeart(boom.x,boom.y,7*extWaveDanger,1.8);
-                boom.age=Math.max(boom.age,1430);
-                spawnFloatingText(heart.x,heart.y-18,"СБИТО С ТРАЕКТОРИИ!","#ffe7a4");
+
+            if (!frozen && !blade.hit && Math.hypot(heart.x - blade.x, heart.y - blade.y) < 24 + heart.hitbox) {
+                blade.hit = true;
+                applyHit(extImpactDamage, blade.pass === 1 ? "КЛИНОК: ПЕРВЫЙ ПРОХОД!" : "КЛИНОК: ВОЗВРАЩЕНИЕ!",
+                    false, false, arenaExtDamageAction("returning-blade:" + blade.id, {
+                        type:"boomerang",x:blade.x,y:blade.y,radius:24,damage:extImpactDamage
+                    }));
+                arenaExtPushHeart(blade.x, blade.y, 3.8, 0.9);
             }
-            if ((boom.age>3000 && Math.hypot(boom.ox-boom.x,boom.oy-boom.y)<28) ||
-                boom.age>3900 || boom.x<-50 || boom.x>450 || boom.y<-50 || boom.y>550) st.hazards.splice(bi,1);
+            if (blade.age > 1840) st.hazards.splice(bladeI, 1);
         }
     }
+
     // 16. Cracks branch through short marked paths; they are not a circular shockwave.
     if (st.type === 16) {
-        if (t >= st.nextSpawnAt && st.hazards.length < 4) {
+        if (t >= st.nextSpawnAt && st.hazards.length < 1) {
             var lavaX = 70 + Math.random() * 260, lavaY = 105 + Math.random() * 290, lavaBranches = [];
             var lavaBranchCount = Math.min(7, 4 + Math.floor(Math.max(0, extWaveDanger - 1) * 2));
             for (var lavaB = 0; lavaB < lavaBranchCount; lavaB++) {
@@ -1554,7 +1748,7 @@ function updateExtendedArenaAttack(now) {
                 lavaBranches.push([{x:lavaX,y:lavaY},{x:lavaMX,y:lavaMY},{x:lavaEX,y:lavaEY}]);
             }
             st.hazards.push({ born:t, x:lavaX, y:lavaY, branches:lavaBranches, phase:Math.random()*Math.PI*2, erupted:false });
-            st.nextSpawnAt = t + Math.max(620, 1120 / extWaveDanger);
+            st.nextSpawnAt = t + 2500;
         }
         for (var lavaRi = st.hazards.length - 1; lavaRi >= 0; lavaRi--) {
             var lavaCrack = st.hazards[lavaRi], lavaAge = t - lavaCrack.born;
@@ -1707,9 +1901,9 @@ function updateExtendedArenaAttack(now) {
     if (st.type === 18) {
         // Clear the slow immediately after the player leaves every gear hitbox.
         st.gearSlowUntil = 0;
-        if (t >= st.nextSpawnAt && st.hazards.length < 5) {
+        if (t >= st.nextSpawnAt && st.hazards.length < 3) {
             var spawnCountG = st.hazards.length < 2 ? 2 - st.hazards.length : 1;
-            for (var gs0 = 0; gs0 < spawnCountG && st.hazards.length < 5; gs0++) {
+            for (var gs0 = 0; gs0 < spawnCountG && st.hazards.length < 3; gs0++) {
                 var sideG = Math.floor(Math.random() * 4), rG = (19 + Math.random() * 6) * Math.min(1.18,extWaveDanger);
                 var gearWaveScale = Math.min(1.35, 1 + Math.max(0, extWaveDanger - 1) * 0.28);
                 var speedG = (2.35 + Math.random() * 0.75) * gearWaveScale, alongG = (Math.random() - 0.5) * 2.5 * gearWaveScale;
@@ -1889,13 +2083,13 @@ function updateExtendedArenaAttack(now) {
                 rightX = horizontalC ? pair.x2 : laneC;
                 rightY = horizontalC ? laneC : pair.y2;
                 var nearFirst = horizontalC
-                    ? Math.abs(heart.y - laneC) < 54 && Math.abs(heart.x - leftX) < 52
-                    : Math.abs(heart.x - laneC) < 52 && Math.abs(heart.y - leftY) < 54;
+                    ? Math.abs(heart.y - laneC) < 62 && Math.abs(heart.x - leftX) < 78
+                    : Math.abs(heart.x - laneC) < 62 && Math.abs(heart.y - leftY) < 78;
                 var nearSecond = horizontalC
-                    ? Math.abs(heart.y - laneC) < 54 && Math.abs(heart.x - rightX) < 52
-                    : Math.abs(heart.x - laneC) < 52 && Math.abs(heart.y - rightY) < 54;
+                    ? Math.abs(heart.y - laneC) < 62 && Math.abs(heart.x - rightX) < 78
+                    : Math.abs(heart.x - laneC) < 62 && Math.abs(heart.y - rightY) < 78;
                 if (nearFirst || nearSecond) {
-                    st._multiHitActive=true;applyHit(extImpactDamage,"КЛЕШНЯ: ЗАХВАТ!",false,true,arenaExtDamageAction("claw-pair:"+String(pair.born||"active"),{type:"rect",x:horizontalC?leftX:laneC,y:horizontalC?laneC:leftY,width:108,height:108,damage:extImpactDamage}));
+                    st._multiHitActive=true;applyHit(extImpactDamage,"КЛЕШНЯ: ЗАХВАТ!",false,true,arenaExtDamageAction("claw-pair:"+String(pair.born||"active"),{type:"rect",x:horizontalC?leftX:laneC,y:horizontalC?laneC:leftY,width:horizontalC?156:124,height:horizontalC?124:156,damage:extImpactDamage}));
                     pair.phase = "caught";
                     pair.grabSide = nearFirst ? "first" : "second";
                     pair.caughtAt = t;
@@ -1936,10 +2130,10 @@ function updateExtendedArenaAttack(now) {
                     screenFlash = Math.max(screenFlash, 4);
                     playArenaSound(90, "sawtooth", 0.2, 0.08);
                     var nearMeeting = horizontalC
-                        ? Math.abs(heart.x - meetC) < 108 && Math.abs(heart.y - laneC) < 100
-                        : Math.abs(heart.x - laneC) < 100 && Math.abs(heart.y - meetC) < 108;
+                        ? Math.abs(heart.x - meetC) < 125 && Math.abs(heart.y - laneC) < 110
+                        : Math.abs(heart.x - laneC) < 110 && Math.abs(heart.y - meetC) < 125;
                     if (nearMeeting) {
-                        st._multiHitActive=true;applyHit(extImpactDamage,"КЛЕШНИ: РАЗДАВИЛИ!",false,true,arenaExtDamageAction("claw-pair:"+String(pair.born||"active"),{type:"rect",x:horizontalC?meetC:laneC,y:horizontalC?laneC:meetC,width:216,height:200,damage:extImpactDamage}));
+                        st._multiHitActive=true;applyHit(extImpactDamage,"КЛЕШНИ: РАЗДАВИЛИ!",false,true,arenaExtDamageAction("claw-pair:"+String(pair.born||"active"),{type:"rect",x:horizontalC?meetC:laneC,y:horizontalC?laneC:meetC,width:horizontalC?250:220,height:horizontalC?220:250,damage:extImpactDamage}));
                         // Rebound away from the fist that delivered the slam.
                         var awaySign = pair.grabSide === "first" ? -1 : 1;
                         if (horizontalC) {
@@ -1985,25 +2179,21 @@ function updateExtendedArenaAttack(now) {
             function drawClaw(cx, cy, flip) {
                 ctx.save();
                 ctx.translate(cx, cy);
+                // The same broad claw is rotated for vertical approaches, so its art and hitbox agree.
+                if (!horizontalC) ctx.rotate(Math.PI / 2);
                 ctx.fillStyle = "#b8c2cc";
                 ctx.strokeStyle = "#fff0d4";
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 2.5;
                 ctx.shadowColor = "#ffc66f";
-                ctx.shadowBlur = 12;
-                ctx.fillRect(-38, -30, 76, 60);
-                ctx.strokeRect(-38, -30, 76, 60);
+                ctx.shadowBlur = 14;
+                ctx.fillRect(-66, -42, 132, 84);
+                ctx.strokeRect(-66, -42, 132, 84);
                 ctx.fillStyle = "#4c5966";
                 for (var qC = -1; qC <= 1; qC++) {
                     ctx.beginPath();
-                    if (horizontalC) {
-                        ctx.moveTo(flip ? -37 : 37, qC * 15 - 7);
-                        ctx.lineTo(flip ? -58 : 58, qC * 15);
-                        ctx.lineTo(flip ? -37 : 37, qC * 15 + 7);
-                    } else {
-                        ctx.moveTo(qC * 15 - 7, flip ? -37 : 37);
-                        ctx.lineTo(qC * 15, flip ? -58 : 58);
-                        ctx.lineTo(qC * 15 + 7, flip ? -37 : 37);
-                    }
+                    ctx.moveTo(flip ? -65 : 65, qC * 23 - 10);
+                    ctx.lineTo(flip ? -96 : 96, qC * 23);
+                    ctx.lineTo(flip ? -65 : 65, qC * 23 + 10);
                     ctx.closePath();
                     ctx.fill();
                 }
