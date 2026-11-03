@@ -197,12 +197,6 @@
         try { if (state.audioTwo) { state.audioTwo.pause(); state.audioTwo.currentTime = 0; } } catch (e) {}
         state.audioOne = null;
         state.audioTwo = null;
-        if (state.audioTimer) window.clearTimeout(state.audioTimer);
-        state.audioTimer = 0;
-        try { if (state.audioOne) { state.audioOne.pause(); state.audioOne.currentTime = 0; } } catch (e) {}
-        try { if (state.audioTwo) { state.audioTwo.pause(); state.audioTwo.currentTime = 0; } } catch (e) {}
-        state.audioOne = null;
-        state.audioTwo = null;
         if (applyCooldown) state.cooldownUntil = Date.now() + POST_ULTIMATE_COOLDOWN_MS;
         else state.cooldownUntil = 0;
         if (state.rafId && typeof window.cancelAnimationFrame === "function") {
