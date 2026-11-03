@@ -1104,6 +1104,18 @@ function resetArenaSettings() {
 
 function renderSettings() { applyArenaSettings(); }
 
+// Keep a previously selected checkpoint following progression. When a newer
+// checkpoint is unlocked, an old selection must not keep sending the player back.
+function mbAdvanceActiveCheckpointToHighest() {
+    var selected = Math.floor(Number(activeCheckpoint) || 0);
+    var highest = Math.max(1, Math.floor(Number(highestCheckpoint) || 1));
+    if (selected > 0 && selected < highest) {
+        activeCheckpoint = highest;
+        return true;
+    }
+    return false;
+}
+
 function loadGameData(d) {
     if (!d || typeof d !== "object" || Array.isArray(d)) d = {};
     // Restore the complete slot payload, including persistent mercy flags used by boss encounters.
@@ -1266,11 +1278,18 @@ function loadGameData(d) {
     moderUnlocked = false; 
     afkWavesCompleted = d.afkWavesCompleted || 0; 
     afkWinsCompleted = d.afkWinsCompleted || 0;
-    highestCheckpoint = d.highestCheckpoint || 1; 
-    highestWaveReached = d.highestWaveReached || d.highestCheckpoint || 1;
+    highestCheckpoint = Math.max(1, Number(d.highestCheckpoint) || 1); 
+    highestWaveReached = Math.max(1, Number(d.highestWaveReached) || Number(d.highestCheckpoint) || 1);
     rebirthCount = d.rebirthCount || 0; 
     rebirthStats = d.rebirthStats || []; 
-    activeCheckpoint = d.activeCheckpoint || 0; 
+    activeCheckpoint = Math.max(0, Number(d.activeCheckpoint) || 0);
+    // Recover checkpoints recorded in progress, then migrate stale active selections.
+    var checkpointFromProgress = Math.floor(Math.max(highestWaveReached, wave, 1) / 50) * 50;
+    highestCheckpoint = Math.max(highestCheckpoint, checkpointFromProgress);
+    var previousActiveCheckpoint = activeCheckpoint;
+    if (mbAdvanceActiveCheckpointToHighest() && wave <= previousActiveCheckpoint) {
+        wave = activeCheckpoint;
+    } 
     autoSellSettings = d.autoSellSettings || {}; 
     purchasedAutoSell = d.purchasedAutoSell || {}; 
     autoRest = d.autoRest || {active:false,threshold:90,purchased:false}; 
@@ -2696,6 +2715,7 @@ function getWaveEnemyStrengthMultiplier(targetWave, isBossEncounter) {
     return 1 - remainingWeakness;
 }
 window.MBGetWaveEnemyStrengthMultiplier = getWaveEnemyStrengthMultiplier;
+window.MBAdvanceActiveCheckpointToHighest = mbAdvanceActiveCheckpointToHighest;
 
 function generateEnemy() { 
     // Lock the wave-1000 skip to a single use per encounter.
@@ -3268,7 +3288,13 @@ function victory() {
     updateChallengeProgress("earnPoints", rew); 
     updateChallengeProgress("wins", 1); 
     if (isBoss) updateChallengeProgress("bossKills", 1); 
-    if (isBoss && wave % 50 === 0) { highestCheckpoint = Math.max(highestCheckpoint, wave); grantBossGachaReward(wave); saveAll(); renderCheckpoints(); } 
+    if (isBoss && wave % 50 === 0) {
+        highestCheckpoint = Math.max(highestCheckpoint, wave);
+        mbAdvanceActiveCheckpointToHighest();
+        grantBossGachaReward(wave);
+        saveAll();
+        renderCheckpoints();
+    } 
     if (typeof grantPowerForWave === 'function') grantPowerForWave(wave);
     if (isBoss && typeof grantMasteryPowerForBoss === 'function') grantMasteryPowerForBoss();
     if (typeof tryDropLoot === 'function') tryDropLoot(isBoss);
@@ -3382,8 +3408,15 @@ function defeat() {
     defeatHistory.unshift({ wave, hp: Math.floor(playerHp) }); 
     if (defeatHistory.length > 10) defeatHistory.pop(); 
     sfxDefeat(); 
-    let nearestCheckpoint = Math.floor(wave / 50) * 50; 
-    if (nearestCheckpoint > highestCheckpoint) { highestCheckpoint = nearestCheckpoint; saveAll(); } 
+    let nearestCheckpoint = Math.floor(wave / 50) * 50;
+    let checkpointProgressChanged = false;
+    if (nearestCheckpoint > highestCheckpoint) {
+        highestCheckpoint = nearestCheckpoint;
+        checkpointProgressChanged = true;
+    }
+    // Advance an old selected checkpoint as soon as a newer one is reached.
+    if (mbAdvanceActiveCheckpointToHighest()) checkpointProgressChanged = true;
+    if (checkpointProgressChanged) saveAll(); 
     playerHp = window.playerMaxHp || 100;
     const lastFiveHadGarou = recentCosmicGarouTeam.length >= 5 && recentCosmicGarouTeam.slice(-5).some(Boolean);
     const lastFiveAllHadNoGarou = recentCosmicGarouTeam.length >= 5 && recentCosmicGarouTeam.slice(-5).every(present => present === false);
