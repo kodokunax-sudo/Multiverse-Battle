@@ -2261,7 +2261,6 @@
         if (standImageReady) {
             // Use the exact artwork from Model/ as the complete GER companion sprite.
             // Fit the full image inside a stable box without stretching or cropping it.
-            var imageAspect = standImage.naturalWidth / standImage.naturalHeight;
             var maxImageWidth = 68 / Math.max(0.1, scale);
             var maxImageHeight = 82 / Math.max(0.1, scale);
             var imageScale = Math.min(maxImageWidth / standImage.naturalWidth,
@@ -2269,7 +2268,8 @@
             var imageWidth = standImage.naturalWidth * imageScale;
             var imageHeight = standImage.naturalHeight * imageScale;
             c.save();
-            c.globalAlpha = hitFlash ? 0.82 : 1;
+            c.globalAlpha = hitFlash ? 0.82 : 0.96;
+            c.globalCompositeOperation = "screen";
             c.shadowColor = healing ? "#8bffbd" : "#ffd45c";
             c.shadowBlur = attacking ? 13 : 6;
             c.drawImage(standImage, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight);
