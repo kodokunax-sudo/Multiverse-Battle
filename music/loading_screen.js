@@ -745,7 +745,7 @@
                 "music/main.mp3", "music/меню.mp3", "music/звезда.mp3",
                 "music/помощь звезды.mp3", "music/стендзи хер ай реалзайз.mp3",
                 "music/dark_souls_-_ornstein_smough_66400273.mp3",
-                "music/анти спираль.mp3", "music/trap.mp3",
+                "music/анти спираль.mp3", "music/trap.mp3", "music/susmanz.mp3",
                 "music/ost пуччи.mp3", "music/майден хевен.mp3"
             ];
             return musicPaths.some(function(item) { return path.indexOf(item) !== -1; }) ? "music" : "sounds";
