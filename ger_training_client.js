@@ -147,7 +147,7 @@
                     clientSessionId: makeUuid(),
                     bossKey: bossKey,
                     gameVersion: "ger-dodge-training-1",
-                    arenaMode: "unique-boss",
+                    arenaMode: metadata && typeof metadata.arenaMode === "string" ? metadata.arenaMode.slice(0, 32) : "unknown",
                     metadata: metadata && typeof metadata === "object" ? metadata : {}
                 });
                 if (!result || !result.sessionId) return null;
