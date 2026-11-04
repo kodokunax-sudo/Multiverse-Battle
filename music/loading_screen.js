@@ -673,8 +673,10 @@
         }
 
         // Images are fetched while the music downloads, instead of waiting in a queue.
-        await Promise.all([Promise.all(musicWorkers), imageWorker()]);
+        let imageTask = imageWorker();
 
+        // Release music callbacks immediately when the music queue finishes.
+        await Promise.all(musicWorkers);
         window.__musicLoaded = true;
         if (window.__musicLoadedCallbacks) {
             for (let cb of window.__musicLoadedCallbacks) {
@@ -683,6 +685,8 @@
             window.__musicLoadedCallbacks = [];
         }
 
+        // Keep the loading process alive for image downloads as well.
+        await imageTask;
         loadingFinished = true;
         if (playWhileLoadingTimer) {
             clearTimeout(playWhileLoadingTimer);
