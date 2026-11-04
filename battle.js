@@ -274,7 +274,9 @@ function playArenaSound(frequency, type, duration, volume, detune) {
     if (volume === undefined) volume = 0.12;
     if (detune === undefined) detune = 0;
     let globalVol = (typeof arenaSettings !== 'undefined') ? arenaSettings.volume : 0.20;
-    let finalVolume = volume * globalVol;
+    let soundMaster = (typeof arenaSettings !== 'undefined' && Number.isFinite(Number(arenaSettings.soundVolume)))
+        ? Math.max(0, Math.min(1, Number(arenaSettings.soundVolume))) : 1;
+    let finalVolume = volume * globalVol * soundMaster;
     if (finalVolume <= 0.001) return;
     if (!arenaAudioCtx) { try { initArenaAudio(); } catch(err) { return; } }
     if (!arenaAudioCtx) return;
