@@ -133,6 +133,10 @@
     function playStorySfx(kind) {
         const ctx = getStoryAudioContext();
         if (!ctx) return;
+        const soundMaster = window.__mbAudioVolumeState
+            ? Math.max(0, Math.min(1, Number(window.__mbAudioVolumeState.sounds) || 0))
+            : 1;
+        if (soundMaster <= 0.0001) return;
 
         function schedule() {
             if (!storyAudioCtx || storyAudioCtx.state === "closed") return;
@@ -147,7 +151,7 @@
                     osc.frequency.setValueAtTime(Math.max(20, freq), start);
                     if (endFreq) osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), start + duration);
                     gain.gain.setValueAtTime(0.0001, start);
-                    gain.gain.linearRampToValueAtTime(Math.max(0.0002, volume), start + Math.min(0.018, duration * 0.25));
+                    gain.gain.linearRampToValueAtTime(Math.max(0.0002, volume * soundMaster), start + Math.min(0.018, duration * 0.25));
                     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
                     osc.connect(gain);
                     gain.connect(ctx.destination);
@@ -172,7 +176,7 @@
                     source.buffer = buffer;
                     filter.type = filterType || "highpass";
                     filter.frequency.setValueAtTime(frequency || 900, start);
-                    gain.gain.setValueAtTime(Math.max(0.0001, volume), start);
+                    gain.gain.setValueAtTime(Math.max(0.0001, volume * soundMaster), start);
                     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
                     source.connect(filter);
                     filter.connect(gain);
