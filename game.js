@@ -4116,6 +4116,7 @@ function doRebirth() {
 }
 
 function switchTab(tabName) { 
+    if (tabName === "gerTraining" && !moderUnlocked) return;
     if (typeof sfxUITab === 'function') sfxUITab(); 
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); 
     let btn = document.querySelector(".tab-btn[data-tab='" + tabName + "']"); 
@@ -4266,14 +4267,24 @@ window.MBSetModeratorAccessFromServer = function (allowed) {
     if (!moderUnlocked && mode === "moder") mode = "normal";
     var moderatorToggle = document.querySelector('.toggle span[data-mode="moder"]');
     if (moderatorToggle) moderatorToggle.style.display = moderUnlocked ? '' : 'none';
+    var gerTrainingTabButton = document.querySelector('.tab-btn[data-tab="gerTraining"]');
+    if (gerTrainingTabButton) gerTrainingTabButton.style.display = moderUnlocked ? '' : 'none';
     document.querySelectorAll(".toggle span").forEach(function (item) {
         item.classList.toggle("active", item.dataset.mode === mode);
     });
     renderModerControls();
     renderPoints();
     updateClaimTimer();
+    if (typeof window.MBGERTrainingArenaAccessChanged === "function") {
+        try { window.MBGERTrainingArenaAccessChanged(moderUnlocked); } catch (_error) {}
+    }
+    if (!moderUnlocked) {
+        var gerTrainingPanel = document.getElementById("gerTrainingTab");
+        if (gerTrainingPanel && gerTrainingPanel.classList.contains("active")) switchTab("collection");
+    }
     return moderUnlocked;
 };
+window.MBHasModeratorAccess = function () { return moderUnlocked === true; };
 function setMode(m) {
     if (m === "moder" && !moderUnlocked) return;
     mode = m;
