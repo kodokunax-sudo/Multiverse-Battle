@@ -18,9 +18,8 @@
     // ★ СПИСОК МУЗЫКИ ★
     // ============================================================
     const MUSIC_FILES = {
-        "main":          "music/main.mp3",
-        "battle":        "music/battle.mp3",
-        "shop":           "music/shop.mp3",
+        "menu":           "music/меню.mp3",
+        "main":           "music/main.mp3",
         "waystar":        "music/Звезда.mp3",
         "waystarHelp":    "music/помощь звезды.mp3",
         "qte":             "music/стендзи хер ай реалзайз.mp3",
@@ -97,8 +96,8 @@
     })();
 
     function keepTrackInMemory(key) {
-        return !LOW_MEMORY_MODE || key === "main" || key === "battle" ||
-            key === "shop" || key === "antispiral" || key === "susmanz";
+        return !LOW_MEMORY_MODE || key === "main" || key === "menu" ||
+            key === "antispiral" || key === "susmanz";
     }
 
     window.__loadedMusic = {};
@@ -303,44 +302,12 @@
             color: #fff;
             background: rgba(255,255,255,0.15);
         }
-        #musicChoice {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            margin: 0 0 18px;
-            width: 100%;
-            max-width: 340px;
-        }
-        #musicChoiceTitle {
-            color: #fff;
-            font-size: 15px;
-            font-weight: 900;
-            text-align: center;
-            margin-bottom: 2px;
-        }
-        .musicChoiceBtn {
-            width: 100%;
-            padding: 13px 16px;
-            border-radius: 24px;
-            font: 900 14px 'Nunito', sans-serif;
-            cursor: pointer;
-            touch-action: manipulation;
-        }
-        #loadMusicBtn {
-            color: #1a1a2e;
-            background: linear-gradient(135deg, #f5af19, #f12711);
-            border: 2px solid #fff;
-        }
-        #noMusicBtn {
-            color: #fff;
-            background: rgba(255,255,255,0.09);
-            border: 1px solid rgba(255,255,255,0.22);
-        }
-        #musicChoice button:disabled {
-            opacity: 0.55;
-            cursor: wait;
-        }
+        
+        
+        
+        
+        
+        
         #continueBtn { margin-top: 8px; }
         #skipMusicBtn { display: none; }
         
@@ -378,16 +345,10 @@
                 <div id="loadingBar"></div>
             </div>
             <div id="loadingPercent">0%</div>
-            <div id="loadingStatus">Выбери, загружать ли музыку. Без музыки загрузка может быть быстрее.</div>
-            <div id="musicChoice">
-                <div id="musicChoiceTitle">🎵 Загружать музыку?</div>
-                <button id="loadMusicBtn" class="musicChoiceBtn">🎵 Да, загружать музыку</button>
-                <button id="noMusicBtn" class="musicChoiceBtn">⚡ Нет, без музыки</button>
-            </div>
+            <div id="loadingStatus">Автоматически загружаю музыку и изображения...</div>
             <div id="loadingLog"></div>
             <button id="continueBtn">▶ ИГРАТЬ СРАЗУ</button>
-            <button id="skipMusicBtn">Пропустить загрузку музыки</button>
-            <div id="loadingHint">💡 Можно выбрать «Без музыки», чтобы не скачивать музыкальные файлы при запуске.</div>
+            <div id="loadingHint">🎵 Музыка включена постоянно. Громкость музыки и звуков регулируется в настройках игры.</div>
         `;
 
         if (document.body) document.body.insertBefore(screenElement, document.body.firstChild);
@@ -401,22 +362,16 @@
             hideScreen();
         }
 
-        document.getElementById('loadMusicBtn').addEventListener('click', function() {
-            startLoading(true, false);
-        });
-        document.getElementById('noMusicBtn').addEventListener('click', function() {
-            startLoading(false, false);
-        });
         document.getElementById('continueBtn').addEventListener('click', function() {
-            if (loadingStarted) {
+            if (!loadingStarted) startLoading(true, true);
+            else {
                 window.__musicSkipped = true;
                 hideScreen();
-            } else {
-                startLoading(false, true);
             }
-        });
-        document.getElementById('skipMusicBtn').addEventListener('click', function() {
-            startLoading(false, true);
+            try {
+                if (typeof window.MBUnlockGameAudio === "function") window.MBUnlockGameAudio();
+                if (typeof window.startMainMusic === "function") window.startMainMusic();
+            } catch (e) {}
         });
 
     }
@@ -729,12 +684,11 @@
     function startLoading(includeMusic, dismissImmediately) {
         if (loadingStarted) return;
         loadingStarted = true;
-        window.__disableGameMusic = !includeMusic;
+        includeMusic = true;
+        window.__disableGameMusic = false;
         window.__musicSkipped = false;
 
-        let choice = document.getElementById('musicChoice');
         let continueButton = document.getElementById('continueBtn');
-        if (choice) choice.style.display = 'none';
         if (continueButton) continueButton.style.display = dismissImmediately ? 'none' : 'inline-block';
         setStatus(includeMusic ? 'Загружаю музыку и изображения...' : 'Загружаю изображения без музыки...');
 
@@ -770,32 +724,107 @@
     // ============================================================
     function patchAudio() {
         const OriginalAudio = window.Audio;
-        window.Audio = function(src) {
-            if (typeof src === 'string' && window.__loadedMusic) {
-                // Точный путь
-                for (let key in window.__loadedMusic) {
-                    let entry = window.__loadedMusic[key];
-                    if (entry && entry.path === src && entry.url) {
-                        return new OriginalAudio(entry.url);
+        const mediaPrototype = window.HTMLMediaElement && window.HTMLMediaElement.prototype;
+        const volumeDescriptor = mediaPrototype && Object.getOwnPropertyDescriptor(mediaPrototype, "volume");
+        const srcDescriptor = mediaPrototype && Object.getOwnPropertyDescriptor(mediaPrototype, "src");
+        const audioVolumeState = window.__mbAudioVolumeState = window.__mbAudioVolumeState || {
+            music: 0.20, sounds: 1, instances: new Set()
+        };
+        function resolvePath(source) {
+            var value = String(source || "");
+            var loaded = window.__loadedMusic || {};
+            for (var key in loaded) {
+                var entry = loaded[key];
+                if (entry && (entry.url === value || entry.path === value)) return entry.path || value;
+            }
+            return value;
+        }
+        function classify(source) {
+            var path = resolvePath(source).toLowerCase();
+            var musicPaths = [
+                "music/main.mp3", "music/меню.mp3", "music/звезда.mp3",
+                "music/помощь звезды.mp3", "music/стендзи хер ай реалзайз.mp3",
+                "music/dark_souls_-_ornstein_smough_66400273.mp3",
+                "music/анти спираль.mp3", "music/trap.mp3",
+                "music/ost пуччи.mp3", "music/майден хевен.mp3"
+            ];
+            return musicPaths.some(function(item) { return path.indexOf(item) !== -1; }) ? "music" : "sounds";
+        }
+        function decorate(audio, originalSource) {
+            if (!audio || audio.__mbAudioVolumePatched) return audio;
+            audio.__mbAudioVolumePatched = true;
+            var source = originalSource || (audio.getAttribute && audio.getAttribute("src")) || audio.src || "";
+            var category = classify(source);
+            var baseVolume = volumeDescriptor ? volumeDescriptor.get.call(audio) : Number(audio.volume) || 1;
+            function refreshCategory() {
+                var currentSource = source || (audio.getAttribute && audio.getAttribute("src")) || audio.currentSrc || audio.src || "";
+                category = classify(currentSource);
+            }
+            function applyVolume() {
+                refreshCategory();
+                var scale = category === "music" ? audioVolumeState.music : audioVolumeState.sounds;
+                var effective = Math.max(0, Math.min(1, baseVolume * scale));
+                if (volumeDescriptor) volumeDescriptor.set.call(audio, effective);
+                else audio.volume = effective;
+            }
+            try {
+                if (volumeDescriptor) Object.defineProperty(audio, "volume", {
+                    configurable: true, enumerable: true,
+                    get: function() { return baseVolume; },
+                    set: function(value) {
+                        var next = Number(value);
+                        baseVolume = Number.isFinite(next) ? Math.max(0, Math.min(1, next)) : 1;
+                        applyVolume();
                     }
+                });
+                if (srcDescriptor) Object.defineProperty(audio, "src", {
+                    configurable: true, enumerable: true,
+                    get: function() { return srcDescriptor.get.call(this); },
+                    set: function(value) {
+                        source = String(value || "");
+                        srcDescriptor.set.call(this, value);
+                        applyVolume();
+                    }
+                });
+                audio.__mbApplyMasterVolume = applyVolume;
+                audio.__mbGetAudioCategory = function() { refreshCategory(); return category; };
+                audioVolumeState.instances.add(audio);
+                applyVolume();
+            } catch (e) { audio.__mbAudioVolumePatched = false; }
+            return audio;
+        }
+        window.MBSetAudioVolumes = function(music, sounds) {
+            var musicValue = Number(music), soundValue = Number(sounds);
+            audioVolumeState.music = Number.isFinite(musicValue) ? Math.max(0, Math.min(1, musicValue)) : audioVolumeState.music;
+            audioVolumeState.sounds = Number.isFinite(soundValue) ? Math.max(0, Math.min(1, soundValue)) : audioVolumeState.sounds;
+            audioVolumeState.instances.forEach(function(audio) {
+                try { if (audio && audio.__mbApplyMasterVolume) audio.__mbApplyMasterVolume(); }
+                catch (e) { audioVolumeState.instances.delete(audio); }
+            });
+        };
+        window.Audio = function(src) {
+            var resolvedSource = src;
+            if (typeof src === "string" && window.__loadedMusic) {
+                for (var key in window.__loadedMusic) {
+                    var entry = window.__loadedMusic[key];
+                    if (entry && entry.path === src && entry.url) { resolvedSource = entry.url; break; }
                 }
-                // По имени файла
-                let srcFile = src.split('/').pop();
-                for (let key in window.__loadedMusic) {
-                    let entry = window.__loadedMusic[key];
-                    if (entry && entry.path && entry.url) {
-                        let entryFile = entry.path.split('/').pop();
-                        if (entryFile === srcFile) {
-                            return new OriginalAudio(entry.url);
+                if (resolvedSource === src) {
+                    var srcFile = src.split("/").pop();
+                    for (var loadedKey in window.__loadedMusic) {
+                        var loadedEntry = window.__loadedMusic[loadedKey];
+                        if (loadedEntry && loadedEntry.path && loadedEntry.url &&
+                            loadedEntry.path.split("/").pop() === srcFile) {
+                            resolvedSource = loadedEntry.url; break;
                         }
                     }
                 }
             }
-            return new OriginalAudio(src);
+            return decorate(new OriginalAudio(resolvedSource), src || resolvedSource);
         };
         window.Audio.prototype = OriginalAudio.prototype;
         window.Audio.constructor = window.Audio;
-        addLog("🔧 Audio() пропатчен", "ok");
+        addLog("🔧 Audio() пропатчен: отдельная громкость музыки и звуков", "ok");
     }
 
     function patchFetch() {
@@ -833,14 +862,9 @@
 
         patchAudio();
         patchFetch();
+        startLoading(true, false);
 
-        // Выбор музыки показывается при каждом запуске; сохранения игры не затрагиваются.
-        // Escape позволяет начать загрузку изображений без музыки и сразу войти в игру.
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && document.getElementById('loadingScreen')) {
-                startLoading(false, true);
-            }
-        });
+        // Музыка всегда загружается автоматически.
 
         // Проверка Cache API
         if (!('caches' in window)) {
@@ -866,7 +890,7 @@
         reload: function() {
             window.__loadedMusic = {};
             window.__musicLoaded = false;
-            loadAllMusic(window.__disableGameMusic !== true);
+            loadAllMusic(true);
         },
         clearCache: async function() {
             if ('caches' in window) {
