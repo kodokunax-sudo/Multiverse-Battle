@@ -2386,95 +2386,94 @@ window.sfxUIModalOpen = sfxUIModalOpen;
 window.sfxUIModalClose = sfxUIModalClose;
 
 // ========== МУЗЫКА ==========
-let mainMusic = null, menuMusic = null, currentMusic = null;
-let musicLoadFailed = { main: false, menu: false };
-let menuPlaylistIndex = 0;
+let currentMusic = null;
 let menuPlaylistActive = false;
+let menuPlaylistQueue = [];
+let menuPlaylistCursor = 0;
+let menuPlaylistPreviousPath = null;
+let menuPlaylistFailed = Object.create(null);
 let musicLoadedCallbackBound = false;
 
-function playMenuPlaylistTrack(index) {
-    var tracks = [menuMusic, mainMusic];
-    var attempts = 0;
-    var nextIndex = Math.max(0, Math.min(1, Number(index) || 0));
-    while (attempts < tracks.length && !tracks[nextIndex]) {
-        nextIndex = (nextIndex + 1) % tracks.length;
-        attempts++;
+// Общий плейлист меню и обычной битвы. Внутри одного круга треки не повторяются.
+const MENU_MUSIC_TRACKS = [
+    "music/меню.mp3",
+    "music/main.mp3",
+    "music/Fallen Down (Reprise).mp3",
+    "music/Minecraft Volume Alpha - 11 - Mice on Venus.mp3",
+    "music/C418 Sweden Minecraft Volume Alpha.mp3",
+    "music/C418 Aria Math Minecraft Volume Beta.mp3",
+    "music/[Official] Celeste Original Soundtrack - 02 - First Steps.mp3"
+];
+
+function shuffleMenuPlaylist() {
+    var tracks = MENU_MUSIC_TRACKS.filter(function(path) {
+        return !menuPlaylistFailed[path];
+    });
+    // Fisher-Yates: случайная перестановка без повторов внутри круга.
+    for (var i = tracks.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = tracks[i]; tracks[i] = tracks[j]; tracks[j] = temp;
     }
-    if (attempts >= tracks.length || !tracks[nextIndex]) {
-        currentMusic = null;
-        menuPlaylistActive = false;
+    // Не допускаем повтор последнего трека на стыке двух кругов.
+    if (tracks.length > 1 && menuPlaylistPreviousPath && tracks[0] === menuPlaylistPreviousPath) {
+        var swapIndex = 1 + Math.floor(Math.random() * (tracks.length - 1));
+        var first = tracks[0]; tracks[0] = tracks[swapIndex]; tracks[swapIndex] = first;
+    }
+    menuPlaylistQueue = tracks;
+    menuPlaylistCursor = 0;
+}
+
+function playMenuPlaylistTrack() {
+    if (!menuPlaylistActive) return;
+    var attempts = 0;
+    while (attempts < MENU_MUSIC_TRACKS.length) {
+        if (menuPlaylistCursor >= menuPlaylistQueue.length) shuffleMenuPlaylist();
+        if (!menuPlaylistQueue.length) break;
+        var trackPath = menuPlaylistQueue[menuPlaylistCursor++];
+        attempts++;
+        if (menuPlaylistFailed[trackPath]) continue;
+        var audio;
+        try {
+            audio = new Audio(trackPath);
+            audio.preload = "auto";
+            audio.loop = false;
+            audio.volume = 1;
+        } catch (error) {
+            menuPlaylistFailed[trackPath] = true;
+            continue;
+        }
+        currentMusic = audio;
+        menuPlaylistPreviousPath = trackPath;
+        window.__mbChaseMusicMuted = false;
+        audio.addEventListener("ended", function() {
+            if (!menuPlaylistActive || currentMusic !== audio) return;
+            playMenuPlaylistTrack();
+        });
+        audio.onerror = function() {
+            if (!menuPlaylistActive || currentMusic !== audio) return;
+            menuPlaylistFailed[trackPath] = true;
+            currentMusic = null;
+            console.warn("[MB MUSIC] Не удалось загрузить трек:", trackPath);
+            playMenuPlaylistTrack();
+        };
+        try {
+            var request = audio.play();
+            if (request && typeof request.catch === "function") {
+                request.catch(function(error) {
+                    if (error && error.name !== "NotAllowedError") {
+                        console.warn("[MB MUSIC] Ошибка воспроизведения:", trackPath, error);
+                    }
+                });
+            }
+        } catch (error) {}
         return;
     }
-    menuPlaylistIndex = nextIndex;
-    var audio = tracks[nextIndex];
-    currentMusic = audio;
-    window.__mbChaseMusicMuted = false;
-    try {
-        audio.currentTime = 0;
-        var request = audio.play();
-        if (request && typeof request.catch === "function") {
-            request.catch(function(error) {
-                if (error && error.name !== "NotAllowedError") {
-                    console.warn("[MB MUSIC] Не удалось запустить фоновый трек:", error);
-                }
-            });
-        }
-    } catch (error) {}
+    currentMusic = null;
+    menuPlaylistActive = false;
+    console.warn("[MB MUSIC] Не удалось запустить ни один трек плейлиста.");
 }
 
 function initMusic() {
-    if (!menuMusic && !musicLoadFailed.menu) {
-        try {
-            menuMusic = new Audio("music/меню.mp3");
-            menuMusic.loop = false;
-            menuMusic.volume = 1;
-            menuMusic.addEventListener("ended", function() {
-                if (!menuPlaylistActive || currentMusic !== menuMusic) return;
-                menuPlaylistIndex = 1;
-                playMenuPlaylistTrack(1);
-            });
-            menuMusic.onerror = function() {
-                var failedTrack = menuMusic;
-                musicLoadFailed.menu = true;
-                menuMusic = null;
-                if (menuPlaylistActive && currentMusic === failedTrack) {
-                    currentMusic = null;
-                    menuPlaylistIndex = 1;
-                    playMenuPlaylistTrack(1);
-                }
-            };
-        } catch (error) {
-            musicLoadFailed.menu = true;
-            menuMusic = null;
-        }
-    }
-
-    if (!mainMusic && !musicLoadFailed.main) {
-        try {
-            mainMusic = new Audio("music/main.mp3");
-            mainMusic.loop = false;
-            mainMusic.volume = 1;
-            mainMusic.addEventListener("ended", function() {
-                if (!menuPlaylistActive || currentMusic !== mainMusic) return;
-                menuPlaylistIndex = 0;
-                playMenuPlaylistTrack(0);
-            });
-            mainMusic.onerror = function() {
-                var failedTrack = mainMusic;
-                musicLoadFailed.main = true;
-                mainMusic = null;
-                if (menuPlaylistActive && currentMusic === failedTrack) {
-                    currentMusic = null;
-                    menuPlaylistIndex = 0;
-                    playMenuPlaylistTrack(0);
-                }
-            };
-        } catch (error) {
-            musicLoadFailed.main = true;
-            mainMusic = null;
-        }
-    }
-
     if (!musicLoadedCallbackBound && typeof window.onMusicLoaded === "function") {
         musicLoadedCallbackBound = true;
         window.onMusicLoaded(function() {
@@ -2484,8 +2483,9 @@ function initMusic() {
 }
 
 function stopAllMusic() {
-    try { if (mainMusic) { mainMusic.pause(); mainMusic.currentTime = 0; } } catch (error) {}
-    try { if (menuMusic) { menuMusic.pause(); menuMusic.currentTime = 0; } } catch (error) {}
+    try {
+        if (currentMusic) { currentMusic.pause(); currentMusic.currentTime = 0; }
+    } catch (error) {}
     menuPlaylistActive = false;
     currentMusic = null;
 }
@@ -2502,21 +2502,21 @@ function startMainMusic() {
         return;
     }
     menuPlaylistActive = true;
-    playMenuPlaylistTrack(menuPlaylistIndex);
+    playMenuPlaylistTrack();
 }
 
 function startBattleMusic() {
-    // Ordinary battles keep the same playlist; unique boss OSTs remain separate.
+    // Обычные бои используют тот же плейлист; у уникальных боссов своя музыка.
     startMainMusic();
 }
 
 function startShopMusic() {
-    // The shop no longer has a dedicated soundtrack.
+    // У лавки нет отдельного саундтрека.
     startMainMusic();
 }
 
 function toggleMusic() {
-    // There is no mute toggle anymore. Use the Music Volume slider in Settings.
+    // Музыка всегда включена. Громкость настраивается в меню настроек.
     musicEnabled = true;
     window.__mbChaseMusicMuted = false;
     startMainMusic();

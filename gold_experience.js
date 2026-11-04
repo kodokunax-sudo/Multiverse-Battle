@@ -11,7 +11,7 @@
     var GE_MUDA_DURATION = 4000;
     var GE_MUDA_HITS = 30;
     var GE_COMPANION_DAMAGE_RATE = 0.002;
-    var GE_MUDA_SOUND = "music/susmanz.mp3";
+    var GE_MUDA_SOUND = "sound/susmanz.mp3";
     var GER_DURATION = 5000;
     var GER_CHARGES = 2;
 

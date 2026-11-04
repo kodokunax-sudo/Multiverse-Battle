@@ -20,19 +20,24 @@
     const MUSIC_FILES = {
         "menu":           "music/меню.mp3",
         "main":           "music/main.mp3",
+        "menuFallenDown": "music/Fallen Down (Reprise).mp3",
+        "menuMiceOnVenus":"music/Minecraft Volume Alpha - 11 - Mice on Venus.mp3",
+        "menuSweden":     "music/C418 Sweden Minecraft Volume Alpha.mp3",
+        "menuAriaMath":   "music/C418 Aria Math Minecraft Volume Beta.mp3",
+        "menuCeleste":    "music/[Official] Celeste Original Soundtrack - 02 - First Steps.mp3",
         "waystar":        "music/Звезда.mp3",
         "waystarHelp":    "music/помощь звезды.mp3",
         "qte":             "music/стендзи хер ай реалзайз.mp3",
         "rwb":             "music/Dark_Souls_-_Ornstein_Smough_66400273.mp3",
         "antispiral":      "music/анти спираль.mp3",
-        "dioTimeStop":     "music/za-warudo-time-stop-louder.mp3",
-        "dioTeleport":     "music/dios-time-stop-teleportation-sound-effect-1.mp3",
-        "dioTimeResume":   "music/time-resumes.mp3",
-        "dioMuda":         "music/dio_muda_muda_muda.mp3",
-        "dioMudaVoice":    "music/Voicy_Dio Brando muda muda.mp3",
+        "dioTimeStop":     "sound/za-warudo-time-stop-louder.mp3",
+        "dioTeleport":     "sound/dios-time-stop-teleportation-sound-effect-1.mp3",
+        "dioTimeResume":   "sound/time-resumes.mp3",
+        "dioMuda":         "sound/dio_muda_muda_muda.mp3",
+        "dioMudaVoice":    "sound/Voicy_Dio Brando muda muda.mp3",
         // Дополнительные пользовательские треки: заранее кладём в стартовый кэш.
         "trap":            "music/Trap.mp3",
-        "susmanz":         "music/susmanz.mp3",
+        "susmanz":         "sound/susmanz.mp3",
         "pucciOst":        "music/Ost пуччи.mp3",
         "madeInHeaven":    "music/майден хевен.mp3"
     };
@@ -96,7 +101,10 @@
     })();
 
     function keepTrackInMemory(key) {
-        return !LOW_MEMORY_MODE || key === "main" || key === "menu" ||
+        return !LOW_MEMORY_MODE ||
+            key === "main" || key === "menu" ||
+            key === "menuFallenDown" || key === "menuMiceOnVenus" ||
+            key === "menuSweden" || key === "menuAriaMath" || key === "menuCeleste" ||
             key === "antispiral" || key === "susmanz";
     }
 
@@ -745,8 +753,14 @@
                 "music/main.mp3", "music/меню.mp3", "music/звезда.mp3",
                 "music/помощь звезды.mp3", "music/стендзи хер ай реалзайз.mp3",
                 "music/dark_souls_-_ornstein_smough_66400273.mp3",
-                "music/анти спираль.mp3", "music/trap.mp3", "music/susmanz.mp3",
-                "music/ost пуччи.mp3", "music/майден хевен.mp3"
+                "music/анти спираль.mp3", "music/trap.mp3",
+                "music/ost пуччи.mp3", "music/майден хевен.mp3",
+                "music/battle.mp3", "music/shop.mp3",
+                "music/fallen down (reprise).mp3",
+                "music/minecraft volume alpha - 11 - mice on venus.mp3",
+                "music/c418 sweden minecraft volume alpha.mp3",
+                "music/c418 aria math minecraft volume beta.mp3",
+                "music/[official] celeste original soundtrack - 02 - first steps.mp3"
             ];
             return musicPaths.some(function(item) { return path.indexOf(item) !== -1; }) ? "music" : "sounds";
         }

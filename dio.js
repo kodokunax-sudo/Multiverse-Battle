@@ -12,11 +12,11 @@ var _dioEnergyGainEvents = [];
 var DIO_PASSIVE_ENERGY_INTERVAL_MS = 2000;
 
 function dioSoundKey(path) {
-    if (path === "music/dios-time-stop-teleportation-sound-effect-1.mp3") return "dioTeleport";
-    if (path === "music/za-warudo-time-stop-louder.mp3") return "dioTimeStop";
-    if (path === "music/time-resumes.mp3") return "dioTimeResume";
-    if (path === "music/dio_muda_muda_muda.mp3") return "dioMuda";
-    if (path === "music/Voicy_Dio Brando muda muda.mp3") return "dioMudaVoice";
+    if (path === "sound/dios-time-stop-teleportation-sound-effect-1.mp3") return "dioTeleport";
+    if (path === "sound/za-warudo-time-stop-louder.mp3") return "dioTimeStop";
+    if (path === "sound/time-resumes.mp3") return "dioTimeResume";
+    if (path === "sound/dio_muda_muda_muda.mp3") return "dioMuda";
+    if (path === "sound/Voicy_Dio Brando muda muda.mp3") return "dioMudaVoice";
 
     // Any track registered by the startup loader can reuse its already-fetched Blob URL.
     var manifest = window.loadingScreen && window.loadingScreen.MUSIC_FILES;
@@ -56,10 +56,10 @@ function dioPrepareSound(path) {
 }
 function preloadDioSounds() {
     var files = [
-        "music/za-warudo-time-stop-louder.mp3",
-        "music/dios-time-stop-teleportation-sound-effect-1.mp3",
-        "music/dio_muda_muda_muda.mp3",
-        "music/Voicy_Dio Brando muda muda.mp3"
+        "sound/za-warudo-time-stop-louder.mp3",
+        "sound/dios-time-stop-teleportation-sound-effect-1.mp3",
+        "sound/dio_muda_muda_muda.mp3",
+        "sound/Voicy_Dio Brando muda muda.mp3"
     ];
     for (var i = 0; i < files.length; i++) {
         try {
@@ -407,7 +407,7 @@ function dioActivateMudaSkill(){
   if(!dioCanUse("muda",40,30))return false;
   _superState.dioMudaActive=true;_superState.dioMudaMode="arenaKnives";_superState.dioMudaStartedAt=performance.now();
   if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];
-  dioPlaySoundFrom("music/Voicy_Dio Brando muda muda.mp3",.78,4);
+  dioPlaySoundFrom("sound/Voicy_Dio Brando muda muda.mp3",.78,4);
   if(typeof window.showFloatingText==="function")window.showFloatingText("🗡️ ДИО ЦЕЛИТ НОЖИ!","#fff0a0");
   return true;
  }
@@ -416,8 +416,8 @@ function dioActivateMudaSkill(){
  var px=cb.getHeartX(),py=cb.getHeartY(),close=Math.hypot(t.x-px,t.y-py)<=132;
  _superState.dioMudaActive=true;_superState.dioMudaMode=close?"melee":"knives";_superState.dioMudaStartedAt=performance.now();_superState.dioMudaTargetType=t.type;_superState.dioMudaTargetId=t.id;_superState.dioMudaTotalDamage=Math.max(1,Math.floor(t.maxHp*(close?.10:.08)));_superState.dioMudaHitIndex=0;_superState.dioMudaLastHitAt=0;_superState.dioMudaStandX=px+(px>300?-20:20);_superState.dioMudaStandY=py-8;
  if(!Array.isArray(_superState.dioKnives))_superState.dioKnives=[];
- if(close)dioPlaySoundFrom("music/dio_muda_muda_muda.mp3",.9,0);
- else dioPlaySoundFrom("music/Voicy_Dio Brando muda muda.mp3",.78,4);
+ if(close)dioPlaySoundFrom("sound/dio_muda_muda_muda.mp3",.9,0);
+ else dioPlaySoundFrom("sound/Voicy_Dio Brando muda muda.mp3",.78,4);
  if(!close&&cb.type==="rwb"&&typeof window.getRWBPlayer==="function"){var rp=window.getRWBPlayer();if(rp){rp.vx=0;rp.vy=0;}}
  if(typeof window.showFloatingText==="function")window.showFloatingText(close?"THE WORLD — MUDA MUDA MUDA!":"ДИО ГОТОВИТ НОЖИ (2 СЕК.)","#fff0a0");
  return true;
@@ -843,8 +843,8 @@ function dioStartTimeStop(duration, teleportStyle, skipSound) {
     if (!skipSound) {
         dioPlaySound(
             teleportStyle
-                ? "music/dios-time-stop-teleportation-sound-effect-1.mp3"
-                : "music/za-warudo-time-stop-louder.mp3",
+                ? "sound/dios-time-stop-teleportation-sound-effect-1.mp3"
+                : "sound/za-warudo-time-stop-louder.mp3",
             teleportStyle ? 0.72 : 0.86
         );
     }
@@ -906,7 +906,7 @@ function activateDioTimeStop() {
     _superState.dioTimeStopWipeFinishQueued = false;
     if (typeof heart !== "undefined" && heart) { heart.vx = 0; heart.vy = 0; }
 
-    dioPlaySound("music/za-warudo-time-stop-louder.mp3", 0.86);
+    dioPlaySound("sound/za-warudo-time-stop-louder.mp3", 0.86);
     dioStartOverlayLoop();
 
     setTimeout(function () {
@@ -950,7 +950,7 @@ function activateDioTeleport() {
         ctxB.clampHeart();
     }
     // Play the dedicated teleport cue immediately, then start the short teleport stop without duplicating it.
-    dioPlaySound("music/dios-time-stop-teleportation-sound-effect-1.mp3", 0.72);
+    dioPlaySound("sound/dios-time-stop-teleportation-sound-effect-1.mp3", 0.72);
     dioStartTimeStop(0.5, true, true);
 }
 
@@ -991,7 +991,7 @@ function updateDioSkillCooldowns(dt) {
         _superState.dioResumeSoundPlayed = true;
         try {
             var resumeTrack = (typeof window.getLoadedMusic === "function") ? window.getLoadedMusic("dioTimeResume") : null;
-            var resumeAudio = new Audio(resumeTrack && resumeTrack.url ? resumeTrack.url : "music/time-resumes.mp3");
+            var resumeAudio = new Audio(resumeTrack && resumeTrack.url ? resumeTrack.url : "sound/time-resumes.mp3");
             resumeAudio.preload = "auto";
             resumeAudio.volume = 0.9;
             var playPromise = resumeAudio.play();
@@ -1007,7 +1007,7 @@ function updateDioSkillCooldowns(dt) {
         _superState.dioResumeSoundPlayed = true;
         try {
             var resumeTrack = (typeof window.getLoadedMusic === "function") ? window.getLoadedMusic("dioTimeResume") : null;
-            var resumeAudio = new Audio(resumeTrack && resumeTrack.url ? resumeTrack.url : "music/time-resumes.mp3");
+            var resumeAudio = new Audio(resumeTrack && resumeTrack.url ? resumeTrack.url : "sound/time-resumes.mp3");
             resumeAudio.preload = "auto";
             resumeAudio.volume = 0.9;
             var playPromise = resumeAudio.play();
