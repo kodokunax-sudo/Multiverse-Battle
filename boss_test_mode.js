@@ -90,10 +90,88 @@ function restoreArray(ref,data){if(ref&&data)ref.splice.apply(ref,[0,ref.length]
 function restore(s){if(!s)return;if(s.wave!==null&&typeof wave!=="undefined")wave=s.wave;if(typeof currentEnemy!=="undefined"){if(s.enemy&&s.enemyData){Object.keys(s.enemy).forEach(function(k){if(!Object.prototype.hasOwnProperty.call(s.enemyData,k))delete s.enemy[k];});Object.assign(s.enemy,s.enemyData);currentEnemy=s.enemy;}else currentEnemy=s.enemy;}if(s.playerHp!==null&&typeof playerHp!=="undefined")playerHp=s.playerHp;if(s.points!==null&&typeof points!=="undefined")points=s.points;if(s.maxPoints!==null&&typeof maxPoints!=="undefined")maxPoints=s.maxPoints;if(s.totalWins!==null&&typeof totalWins!=="undefined")totalWins=s.totalWins;if(s.totalClicks!==null&&typeof totalClicks!=="undefined")totalClicks=s.totalClicks;if(s.highestWaveReached!==null&&typeof highestWaveReached!=="undefined")highestWaveReached=s.highestWaveReached;if(s.highestCheckpoint!==null&&typeof highestCheckpoint!=="undefined")highestCheckpoint=s.highestCheckpoint;restoreArray(s.defeated,s.defeatedData);restoreArray(s.cards,s.cardsData);if(s.superState&&s.superCopy){Object.keys(s.superState).forEach(function(k){if(!Object.prototype.hasOwnProperty.call(s.superCopy,k))delete s.superState[k];});Object.keys(s.superCopy).forEach(function(k){s.superState[k]=s.superCopy[k];});if(typeof _superState!=="undefined")_superState=s.superState;window._superState=s.superState;}window._uniqueSuperCharges=s.uniqueCharges;window._uniqueSuperBossId=s.uniqueBossId;window.waystarDefeatedThisRun=s.waystar;window.waystarOwesDebt=s.debt;window._needSave=s.needSave;if(s.finalDamage!==undefined)window.playerFinalDamage=s.finalDamage;}
 function uniqueStop(m){try{if(m.bossWave===200&&typeof stopLivingStoneFight==="function")stopLivingStoneFight();else if(m.bossWave===500&&typeof stopWaystarFight==="function")stopWaystarFight();else if(m.bossWave===1000&&typeof stopRogerWhitebeardFight==="function")stopRogerWhitebeardFight();else if(m.bossWave===1500&&window.stopAntiSpiralBossFight)window.stopAntiSpiralBossFight();else if(m.bossWave===2000&&window.stopLivingStoneSuperFight)window.stopLivingStoneSuperFight();}catch(e){}}
 function exitControl(m){var old=E("bossTestExitFightBtn");if(old)old.remove();if(m.kind==="unique"&&m.bossWave===2000)return;var b=document.createElement("button");b.id="bossTestExitFightBtn";b.type="button";b.textContent="← ВЫЙТИ ИЗ ТЕСТА";b.style.cssText="position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:100100;padding:10px 13px;border-radius:10px;border:1px solid rgba(130,220,255,.75);background:rgba(5,18,30,.96);color:#fff;font:900 12px Arial,sans-serif;touch-action:manipulation";b.onclick=function(ev){ev.preventDefault();ev.stopPropagation();window.MBBossTestFinish("exit",false);};document.body.appendChild(b);}
-function clearGlobals(){window.__mbBossTestMainCard=null;window.__mbBossTestAbilityMode=null;window.__mbBossTestPassive=null;window.__mbBossTestMode=null;window.__mbBossTestSuperHitUsed=false;}
-window.MBBossTestFinish=function(result,stopped){var m=window.__mbBossTestMode;if(!m||m.finishing)return;m.finishing=true;if(!stopped){if(m.kind==="arena"){try{if(typeof stopArena==="function")stopArena();}catch(e){}}else uniqueStop(m);}restore(m.snapshot);clearGlobals();var b=E("bossTestExitFightBtn");if(b)b.remove();try{if(typeof renderEnemy==="function")renderEnemy();if(typeof updateStatusDisplay==="function")updateStatusDisplay();if(typeof updatePlayerStats==="function")updatePlayerStats();if(typeof updateSuperButton==="function")updateSuperButton();if(m.snapshot&&m.snapshot.buttonDisplays)m.snapshot.buttonDisplays.forEach(function(pair){var button=E(pair[0]);if(button&&pair[1]!==null)button.style.display=pair[1];});}catch(e){}var msgs={win:["✅ Тест завершён: босс побеждён. Наград нет.","#9dffc0"],loss:["💥 Тест завершён: поражение. Прогресс не изменён.","#ffb0a0"],exit:["↩️ Тестовый бой закрыт. Прогресс не изменён.","#9fe6ff"],error:["⚠️ Не удалось запустить тестовый бой.","#ffb0a0"]};var out=msgs[result]||msgs.exit;setResult(out[0],out[1]);};
+function clearGlobals(){window.__mbBossTestMainCard=null;window.__mbBossTestAbilityMode=null;window.__mbBossTestPassive=null;window.__mbBossTestMode=null;window.__mbBossTestSuperHitUsed=false;window.__mbGERTrainingMode=false;window.__mbGERTrainingBossKey=null;window.__mbGERTrainingOptions=null;}
+window.MBBossTestFinish=function(result,stopped){var m=window.__mbBossTestMode;if(!m||m.finishing)return;m.finishing=true;if(!stopped){if(m.kind==="arena"){try{if(typeof stopArena==="function")stopArena();}catch(e){}}else uniqueStop(m);}restore(m.snapshot);clearGlobals();var b=E("bossTestExitFightBtn");if(b)b.remove();try{if(typeof renderEnemy==="function")renderEnemy();if(typeof updateStatusDisplay==="function")updateStatusDisplay();if(typeof updatePlayerStats==="function")updatePlayerStats();if(typeof updateSuperButton==="function")updateSuperButton();if(m.snapshot&&m.snapshot.buttonDisplays)m.snapshot.buttonDisplays.forEach(function(pair){var button=E(pair[0]);if(button&&pair[1]!==null)button.style.display=pair[1];});}catch(e){}var msgs={win:["✅ Тест завершён: босс побеждён. Наград нет.","#9dffc0"],loss:["💥 Тест завершён: поражение. Прогресс не изменён.","#ffb0a0"],exit:["↩️ Тестовый бой закрыт. Прогресс не изменён.","#9fe6ff"],error:["⚠️ Не удалось запустить тестовый бой.","#ffb0a0"]};var out=msgs[result]||msgs.exit;setResult(out[0],out[1]);if(m.gerTraining&&typeof window.MBGERTrainingArenaOnFinished==="function"){try{window.MBGERTrainingArenaOnFinished(result||"exit");}catch(e){}}};
+
+window.MBBossTestStartGERTraining=function(options){
+    options=options&&typeof options==="object"?options:{};
+    if(!window.MBHasModeratorAccess||window.MBHasModeratorAccess()!==true){
+        if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("🔒 Нужны подтверждённые права модератора.","error");
+        return false;
+    }
+    if(window.__mbBossTestMode){
+        if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("Сначала заверши текущую тренировку или тестовый бой.","warning");
+        return false;
+    }
+    if(typeof startArena!=="function"||typeof bossTemplates==="undefined"){
+        if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("Арена ещё не загрузилась. Обнови страницу.","error");
+        return false;
+    }
+    if(!cards.length)makeCards();
+    var gerCard=cards.find(function(card){return card&&card.name==="Джорно Джованна (Gold Experience Requiem)";});
+    if(!gerCard){
+        if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("Не найдена карточка Gold Experience Requiem в шаблонах.","error");
+        return false;
+    }
+    var bossWave=clampNumber(options.bossWave,50,1,10000);
+    if(!template(bossWave)||isUnique(bossWave)){
+        if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("Выбери обычного босса, не уникального.","error");
+        return false;
+    }
+    var attackTypes=Array.isArray(options.attackTypes)?options.attackTypes.map(Number).filter(function(type,index,array){
+        return Number.isInteger(type)&&type>=0&&type<=20&&array.indexOf(type)===index;
+    }):[];
+    if(!attackTypes.length){
+        if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("Выбери хотя бы один тип атаки.","error");
+        return false;
+    }
+    var t=template(bossWave);
+    var mainCard=Object.assign({},gerCard,{
+        ability:gerCard.ability?Object.assign({},gerCard.ability):null,
+        statusAbility:gerCard.statusAbility?Object.assign({},gerCard.statusAbility):null,
+        superAbility:gerCard.superAbility?Object.assign({},gerCard.superAbility):null,
+        __bossTestAbilityMode:"ultimate"
+    });
+    var modeData={
+        kind:"arena",
+        bossWave:bossWave,
+        bossName:t&&t.name?t.name:"Обычный босс",
+        attackWave:clampNumber(options.attackWave,250,50,10000),
+        attackTypes:attackTypes,
+        abilityMode:"ultimate",
+        mainCard:mainCard,
+        passive:null,
+        finishing:false,
+        passiveRevived:false,
+        gerTraining:true,
+        invulnerable:options.invulnerable!==false,
+        snapshot:snap()
+    };
+    window.__mbBossTestMode=modeData;
+    window.__mbBossTestMainCard=mainCard;
+    window.__mbBossTestAbilityMode="ultimate";
+    window.__mbBossTestPassive=null;
+    window.__mbBossTestSuperHitUsed=false;
+    window.__mbGERTrainingMode=true;
+    window.__mbGERTrainingBossKey="arena_wave_"+bossWave;
+    window.__mbGERTrainingOptions={
+        speedMultiplier:clampNumber(options.speedMultiplier,2,1,5)
+    };
+    exitControl(modeData);
+    try{
+        startArena(bossWave);
+        if(typeof updateSuperButton==="function")updateSuperButton();
+        if(typeof window.MBGERTrainingArenaOnStarted==="function")window.MBGERTrainingArenaOnStarted(modeData);
+        return true;
+    }catch(error){
+        console.error("[GER Training] Не удалось запустить арену:",error);
+        window.MBBossTestFinish("error",false);
+        return false;
+    }
+};
+
 window.MBBossTestModifyOutgoingDamage=function(d,ratio){var m=window.__mbBossTestMode;if(!m||m.abilityMode!=="passive"||!m.passive)return d;var a=m.passive,t=a.type,v=Number(a.value)||0,ch=Number(a.chance)||0,n=Math.max(0,Number(d)||0);if(["damageAura","bossDamage","bossDamageAura","bossSupport","bleed"].indexOf(t)>=0)n=Math.floor(n*(1+Math.max(0,v)));else if(["bossDouble","bossDoubleSelf","sevenSpecial"].indexOf(t)>=0)n*=2;else if(t==="critChance"&&Math.random()<Math.max(0,Math.min(1,v)))n*=2;else if(t==="shock"&&Math.random()<Math.max(0,Math.min(1,ch)))n*=1.2;else if(t==="damageMultChance"&&Math.random()<Math.max(0,Math.min(1,ch)))n*=Math.max(1,Number(a.mult)||1.2);else if(t==="oneShot"&&n>0&&Math.random()<Math.max(0,Math.min(1,ch))){window.__mbBossTestSuperHitUsed=true;n=Math.max(n,testBossHpRemaining(m)+1);}else if(t==="desperateStrike"){var r=typeof arenaHP!=="undefined"&&typeof arenaMaxHP!=="undefined"&&arenaMaxHP>0?arenaHP/arenaMaxHP:1;if(r<=(Number(a.threshold)||.3))n*=1+Math.max(0,v);}else if(t==="scaleWithWins")n*=1+Math.min(2,(Number(m.attackWave)||1)*Math.max(0,v));else if(t==="clickDmgSelf")n*=1.02;else if(t==="fire"&&Number(a.damage)>0)n*=1+Math.min(.5,Number(a.damage)/100);else if((t==="freezeStacks"||t==="blind")&&v>0)n*=1+Math.min(.2,v*.02);return Math.max(0,Math.floor(n));};
-window.MBBossTestModifyIncomingDamage=function(d,source){var m=window.__mbBossTestMode;if(!m||m.abilityMode!=="passive"||!m.passive)return d;var a=m.passive,t=a.type,v=Number(a.value)||0,n=Math.max(0,Number(d)||0);if(t==="damageReduction"||t==="absoluteFreeze")n*=1-Math.max(0,Math.min(.95,v));else if(t==="dmgTakenIncrease")n*=1+Math.max(0,v);else if(t==="takabaConfidence")n*=.6;else if(t==="gojoDodge"&&Math.random()<Math.max(0,Math.min(1,Number(a.chance)||0)))return 0;else if(t==="resurrect"&&!m.passiveRevived){var hp=null,max=null;if(source==="arena"&&typeof arenaHP!=="undefined"){hp=arenaHP;max=arenaMaxHP;}else if(source==="stone"&&typeof livingStonePlayerHp!=="undefined"){hp=livingStonePlayerHp;max=livingStonePlayerMaxHp;}else if(source==="waystar"&&typeof waystarPlayerHp!=="undefined"){hp=waystarPlayerHp;max=waystarPlayerMaxHp;}else if(source==="rwb"&&window.getRWBPlayer){var p=window.getRWBPlayer();if(p){hp=p.hp;max=p.maxHp;}}else if(source==="antispiral"&&window.getAntiSpiralPlayerHp){hp=window.getAntiSpiralPlayerHp();max=window.getAntiSpiralPlayerMaxHp();}else if(source==="stoneSuper"&&window.getLivingStoneSuperHeart){var soul=window.getLivingStoneSuperHeart();hp=soul.hp;max=soul.maxHp;}if(hp!==null&&hp-n<=0&&Math.random()<Math.max(0,Math.min(1,Number(a.chance)||0))){m.passiveRevived=true;var rev=Math.max(1,Math.floor((Number(max)||100)*.25));if(source==="arena")arenaHP=rev;else if(source==="stone")livingStonePlayerHp=rev;else if(source==="waystar")waystarPlayerHp=rev;else if(source==="rwb"&&window.getRWBPlayer){var rp=window.getRWBPlayer();if(rp)rp.hp=rev;}else if(source==="antispiral"&&window.setAntiSpiralPlayerHp)window.setAntiSpiralPlayerHp(rev);else if(source==="stoneSuper"&&window.setLivingStoneSuperPlayerHp)window.setLivingStoneSuperPlayerHp(rev);var hpEl=E("arenaHP");if(hpEl)hpEl.textContent=rev;return 0;}}return Math.max(0,Math.floor(n));};
+window.MBBossTestModifyIncomingDamage=function(d,source){var m=window.__mbBossTestMode;if(!m)return d;if(m.gerTraining&&m.invulnerable)return 0;if(m.abilityMode!=="passive"||!m.passive)return d;var a=m.passive,t=a.type,v=Number(a.value)||0,n=Math.max(0,Number(d)||0);if(t==="damageReduction"||t==="absoluteFreeze")n*=1-Math.max(0,Math.min(.95,v));else if(t==="dmgTakenIncrease")n*=1+Math.max(0,v);else if(t==="takabaConfidence")n*=.6;else if(t==="gojoDodge"&&Math.random()<Math.max(0,Math.min(1,Number(a.chance)||0)))return 0;else if(t==="resurrect"&&!m.passiveRevived){var hp=null,max=null;if(source==="arena"&&typeof arenaHP!=="undefined"){hp=arenaHP;max=arenaMaxHP;}else if(source==="stone"&&typeof livingStonePlayerHp!=="undefined"){hp=livingStonePlayerHp;max=livingStonePlayerMaxHp;}else if(source==="waystar"&&typeof waystarPlayerHp!=="undefined"){hp=waystarPlayerHp;max=waystarPlayerMaxHp;}else if(source==="rwb"&&window.getRWBPlayer){var p=window.getRWBPlayer();if(p){hp=p.hp;max=p.maxHp;}}else if(source==="antispiral"&&window.getAntiSpiralPlayerHp){hp=window.getAntiSpiralPlayerHp();max=window.getAntiSpiralPlayerMaxHp();}else if(source==="stoneSuper"&&window.getLivingStoneSuperHeart){var soul=window.getLivingStoneSuperHeart();hp=soul.hp;max=soul.maxHp;}if(hp!==null&&hp-n<=0&&Math.random()<Math.max(0,Math.min(1,Number(a.chance)||0))){m.passiveRevived=true;var rev=Math.max(1,Math.floor((Number(max)||100)*.25));if(source==="arena")arenaHP=rev;else if(source==="stone")livingStonePlayerHp=rev;else if(source==="waystar")waystarPlayerHp=rev;else if(source==="rwb"&&window.getRWBPlayer){var rp=window.getRWBPlayer();if(rp)rp.hp=rev;}else if(source==="antispiral"&&window.setAntiSpiralPlayerHp)window.setAntiSpiralPlayerHp(rev);else if(source==="stoneSuper"&&window.setLivingStoneSuperPlayerHp)window.setLivingStoneSuperPlayerHp(rev);var hpEl=E("arenaHP");if(hpEl)hpEl.textContent=rev;return 0;}}return Math.max(0,Math.floor(n));};
 function testBossHpRemaining(m){if(m.kind==="arena")return Math.max(1,Number(typeof arenaBossMaxHP!=="undefined"?arenaBossMaxHP:1)||1);if(m.bossWave===200)return Math.max(1,Number(typeof livingStoneBossHp!=="undefined"?livingStoneBossHp:1)||1);if(m.bossWave===500)return Math.max(1,Number(typeof waystarBossHp!=="undefined"?waystarBossHp:1)||1);if(m.bossWave===1000&&window.getRWBActiveBoss){var b=window.getRWBActiveBoss();if(b)return Math.max(1,Number(b.hp)||1);}if(m.bossWave===1500&&window.getAntiSpiralBossHp)return Math.max(1,Number(window.getAntiSpiralBossHp())||1);if(m.bossWave===2000&&window.getLivingStoneSuperBossHp)return Math.max(1,Number(window.getLivingStoneSuperBossHp())||1);return 1;}
 function getSupport(c){return c&&(c.ability||c.statusAbility||(c.superAbility&&c.superAbility.passive?c.superAbility:null));}
 function hasUltimate(c){
