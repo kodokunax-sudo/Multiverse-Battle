@@ -741,8 +741,10 @@ function getMainCardSpeedForArena() {
 
 function startArena(bossWave) {
     initArenaAudio();
-    var trainingMode = isJoystickTrainingMode();
-    var bossTestMode = (!trainingMode && typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind === "arena") ? window.__mbBossTestMode : null;
+    var joystickTrainingMode = isJoystickTrainingMode();
+    var gerTrainingMode = typeof window !== "undefined" && window.__mbGERTrainingMode === true;
+    var trainingMode = joystickTrainingMode || gerTrainingMode;
+    var bossTestMode = (!joystickTrainingMode && typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind === "arena") ? window.__mbBossTestMode : null;
     var bossIdentityWave = bossTestMode ? Number(bossTestMode.bossWave || bossWave) : bossWave;
     var bossStrengthWave = bossTestMode ? Math.max(50, Math.min(10000, Number(bossTestMode.attackWave) || bossWave)) : bossWave;
     var btn = document.getElementById("startArenaBtn"); if (btn) btn.style.display = "none";
@@ -853,6 +855,12 @@ function startArena(bossWave) {
     arenaSpeedMult = Math.max(0.5, arenaSpeedMult * earlyArenaStrength);
     wallSpeedMult = Math.max(0.5, wallSpeedMult * earlyArenaStrength);
     wallCountMult = Math.max(0.5, wallCountMult * earlyArenaStrength);
+    if (gerTrainingMode) {
+        var gerTrainingSpeed = Math.max(1, Math.min(5, Number(window.__mbGERTrainingOptions && window.__mbGERTrainingOptions.speedMultiplier) || 2));
+        arenaSpeedMult = Math.min(15, arenaSpeedMult * gerTrainingSpeed);
+        wallSpeedMult = Math.min(8, wallSpeedMult * Math.sqrt(gerTrainingSpeed));
+        wallCountMult = Math.min(3, wallCountMult * Math.sqrt(gerTrainingSpeed));
+    }
 
     arenaAllowedTypes = getAttackTypes(bossStrengthWave);
     if (bossTestMode && Array.isArray(bossTestMode.attackTypes) && bossTestMode.attackTypes.length) {
@@ -860,7 +868,9 @@ function startArena(bossWave) {
         if (!arenaAllowedTypes.length) arenaAllowedTypes = [0];
     }
     var bt = typeof bossTemplates !== 'undefined' ? bossTemplates[bossIdentityWave] : null;
-    arenaBoss = trainingMode ? "ТРЕНИРОВОЧНЫЙ БОСС · БЕССМЕРТЕН" : (bossTestMode ? (bossTestMode.bossName || (bt ? bt.name : "ОБЫЧНЫЙ БОСС")) : (bt ? bt.name : "БОСС ВРАТ"));
+    arenaBoss = gerTrainingMode
+        ? "🧠 GER · " + (bossTestMode && bossTestMode.bossName ? bossTestMode.bossName : (bt ? bt.name : "ОБЫЧНЫЙ БОСС"))
+        : (trainingMode ? "ТРЕНИРОВОЧНЫЙ БОСС · БЕССМЕРТЕН" : (bossTestMode ? (bossTestMode.bossName || (bt ? bt.name : "ОБЫЧНЫЙ БОСС")) : (bt ? bt.name : "БОСС ВРАТ")));
     var strengthFactor = Math.max(0.5, 1.0 + (bossStrengthWave - 50) / 100 * 0.5);
     var identityFactor = Math.max(0.5, 1.0 + (bossIdentityWave - 50) / 100 * 0.5);
     arenaBossDmgMult = (bt && bt.dmgMult) ? bt.dmgMult * strengthFactor / identityFactor : strengthFactor;
@@ -924,7 +934,11 @@ function startDodgePhase() {
     } else {
         arenaAttackInterval = null;
     }
-    var dodgeTime = Math.floor(10000 + Math.random() * 6000); arenaDodgeTimer = Math.floor(dodgeTime / 1000);
+    var gerTrainingOptions = typeof window !== "undefined" && window.__mbGERTrainingMode ? window.__mbGERTrainingOptions || {} : null;
+    var dodgeTime = gerTrainingOptions
+        ? Math.max(1800, Math.floor((6500 + Math.random() * 1800) / Math.max(1, Math.min(5, Number(gerTrainingOptions.speedMultiplier) || 2))))
+        : Math.floor(10000 + Math.random() * 6000);
+    arenaDodgeTimer = Math.max(1, Math.ceil(dodgeTime / 1000));
     arenaDodgeTimerInterval = setInterval(function() { if (arenaPhase === "dodge" && arenaActive && !(typeof _superState !== 'undefined' && (_superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0))) { arenaDodgeTimer--; if (arenaDodgeTimer <= 0) arenaDodgeTimer = 0; updateDodgeTimerDisplay(); } }, 1000);
     updateDodgeTimerDisplay();
     // Остановка времени DIO должна останавливать и переход между фазами.
