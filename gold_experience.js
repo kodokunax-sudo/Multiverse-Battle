@@ -994,6 +994,9 @@
     }
 
     function companionTrainingBossKey(ctx) {
+        if (window.__mbGERTrainingMode === true && window.__mbGERTrainingBossKey) {
+            return cleanCompanionTrainingKey(window.__mbGERTrainingBossKey, 64);
+        }
         return cleanCompanionTrainingKey(ctx && ctx.type, 64);
     }
 
@@ -1086,9 +1089,12 @@
         state.trainingBossKey = bossKey;
         state.trainingRetryAt = current + 4000;
         state.trainingStartInFlight = true;
+        var trainingOptions = window.__mbGERTrainingOptions || {};
         Promise.resolve(window.MBGERTraining.start(bossKey, {
             arenaMode: ctx && ctx.type ? ctx.type : "unknown",
-            gameVersion: "ger-dodge-training-1"
+            gameVersion: "ger-dodge-training-1",
+            trainingMode: window.__mbGERTrainingMode === true,
+            speedMultiplier: Number(trainingOptions.speedMultiplier) || 1
         })).then(function (result) {
             if (state.active && state.trainingBossKey === bossKey && result && result.sessionId) {
                 state.trainingSessionStarted = true;
