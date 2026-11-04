@@ -1267,7 +1267,8 @@ function loadGameData(d) {
         "Каррот (Сулонг)": "Эпик",
         "Арлонг": "Сверх редкая",
         "ДИО Over Heaven": "Звёздная",
-        "Белоус": "Звёздная"
+        "Белоус": "Звёздная",
+        "Джорно Джованна (Gold Experience Requiem)": "Звёздная"
     };
     myCards.forEach(function(card) {
         if (card && card.name && balanceRarityByName[card.name]) {
