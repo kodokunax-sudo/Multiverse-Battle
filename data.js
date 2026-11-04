@@ -1976,24 +1976,6 @@ const customCardTemplates = {
             superAbility: { name: "SUPER: СИМВОЛ МИРА", desc: "Хитбокс x2, урон x3 на 15 секунд! Но потом теряешь 50% HP и НАВСЕГДА замедляешься в 3 раза. ПЛЮЮЮС УЛЬТРААААА!", passive: false },
             masteryTitle: "Символ мира", masteryTitleId: "mastery_character_7334dc86", masteryTitleIcon: "✦"
         },
-        { 
-            name: "ДИО Over Heaven", universe: "JoJo", damage: 280, hp: 420, speed: 3.1, sellPrice: 3500, minRebirth: 4,
-            ability: { type: "oneShot", chance: 0.03, desc: "3% шанс мгновенно уничтожить врага, даже босса" },
-            statusAbility: { type: "shock", chance: 0.15, desc: "15% шанс шока" },
-            extraStatus: [],
-            waveRegen: 0.01,
-            desc: "Heaven Ascension DIO. Слабее по голой силе, зато The World Over Heaven даёт 4 дорогих тактических навыка: остановка времени, хил, возврат на позицию 1 секунду назад и агрессивные снаряды.",
-            superAbility: { name: "SUPER: THE WORLD OVER HEAVEN", desc: "4 отдельных навыка с общей шкалой ЭНЕРГИИ 0–100. Энергия набирается от нанесённого урона. TIME STOP — 2.5с, HEAL — 10%, TELEPORT — 1с назад + 0.5с стопа, AGGRESSIVE — снаряды уничтожают друг друга.", passive: false },
-            masteryTitle: "Переписал реальность", masteryTitleId: "mastery_character_293d5a88", masteryTitleIcon: "✦"
-        },
-        { 
-            name: "Белоус", universe: "One Piece", damage: 400, hp: 250, speed: 2.0, sellPrice: 800, minRebirth: 0,
-            unsellable: true,
-            ability: { type: "whitebeardSpecial", desc: "Пассивно: 10% поглощения урона, 3% шанс воскреснуть, +1% HP за волну и бонус комбо 2% за серию из 5 ударов. При 4★+: регенерация 2% HP каждые 5 с. УДАР: перезарядка 30 с → ЦУНАМИ: окно 20 с, запуск с задержкой 1,5 с." },
-            desc: "Эдвард Ньюгейт. Сильнейший человек в мире. Нельзя получить через гачу — только победив супер-Белоуса.",
-            masteryTitle: "Отец, которого никто не выбирал", masteryTitleId: "mastery_character_e4d9361e", masteryTitleIcon: "✦"
-        }
-,
                         {"name":"Зоро (Вано: Король ада)","universe":"One Piece","patchId":"one_piece","damage":230,"hp":250,"speed":3,"ability":{"type":"bossDamage","value":0.25,"desc":"+25% урона боссам"},"statusAbility":{"type":"bleed","value":0.12,"desc":"+12% урона через кровотечение"},"desc":"Пиковая версия Зоро с продвинутым хаки короля и клинками, покрытыми чёрным пламенем.",
             masteryTitle: "Заблудился даже в собственном доме", masteryTitleId: "mastery_character_9c5fbdcb", masteryTitleIcon: "✦"},
         {"name":"Чёрная Борода (Два дьявольских плода)","universe":"One Piece","patchId":"one_piece","damage":280,"hp":310,"speed":2.5,"ability":{"type":"damageAura","value":0.12,"desc":"+12% урона команде"},"statusAbility":{"type":"shock","chance":0.12,"desc":"12% шанс сотрясающего шока"},"desc":"Тич сочетает тьму Ями-Ями и разрушительную силу Гура-Гура. Отдельная версия после получения второго плода.",
@@ -2095,6 +2077,25 @@ const customCardTemplates = {
         ,
         superAbility: { name: "SUPER: ПРИЗЫВ СТЕНДА — Wonder of U", desc: "Нажми SUPER, чтобы призвать Wonder of U как отдельное хитбокс-сердечко. Катастрофа: защита и максимальный радиус. Бафф: скорость +7%; хитбокс радиусом 14 принимает на себя 83% урона при столкновении; на обычной арене получаемый урон снижается на 10%. Нажми SUPER ещё раз, чтобы убрать стенд.", passive: false },
             masteryTitle: "Причина твоих проблем с интернетом", masteryTitleId: "mastery_character_c797933e", masteryTitleIcon: "✦"}
+    ],
+    "Звёздная": [
+{ 
+            name: "ДИО Over Heaven", universe: "JoJo", damage: 280, hp: 420, speed: 3.1, sellPrice: 3500, minRebirth: 4,
+            ability: { type: "oneShot", chance: 0.03, desc: "3% шанс мгновенно уничтожить врага, даже босса" },
+            statusAbility: { type: "shock", chance: 0.15, desc: "15% шанс шока" },
+            extraStatus: [],
+            waveRegen: 0.01,
+            desc: "Heaven Ascension DIO. Слабее по голой силе, зато The World Over Heaven даёт 4 дорогих тактических навыка: остановка времени, хил, возврат на позицию 1 секунду назад и агрессивные снаряды.",
+            superAbility: { name: "SUPER: THE WORLD OVER HEAVEN", desc: "4 отдельных навыка с общей шкалой ЭНЕРГИИ 0–100. Энергия набирается от нанесённого урона. TIME STOP — 2.5с, HEAL — 10%, TELEPORT — 1с назад + 0.5с стопа, AGGRESSIVE — снаряды уничтожают друг друга.", passive: false },
+            masteryTitle: "Переписал реальность", masteryTitleId: "mastery_character_293d5a88", masteryTitleIcon: "✦"
+        },
+{ 
+            name: "Белоус", universe: "One Piece", damage: 400, hp: 250, speed: 2.0, sellPrice: 800, minRebirth: 0,
+            unsellable: true,
+            ability: { type: "whitebeardSpecial", desc: "Пассивно: 10% поглощения урона, 3% шанс воскреснуть, +1% HP за волну и бонус комбо 2% за серию из 5 ударов. При 4★+: регенерация 2% HP каждые 5 с. УДАР: перезарядка 30 с → ЦУНАМИ: окно 20 с, запуск с задержкой 1,5 с." },
+            desc: "Эдвард Ньюгейт. Сильнейший человек в мире. Нельзя получить через гачу — только победив супер-Белоуса.",
+            masteryTitle: "Отец, которого никто не выбирал", masteryTitleId: "mastery_character_e4d9361e", masteryTitleIcon: "✦"
+        }
     ],
     "Эволюционная": [
         { name: "Луффи : Король пиратов", universe: "One Piece", damage: 1200, hp: 2000, speed: 4.5, minRebirth: 5, ability: { type: "bossDamage", value: 0.50, desc: "+50% боссам", bossReduction: 0.40 }, unsellable: true, desc: "Король пиратов. +50% урона боссам и -40% получаемого урона при битве с боссом. Чтобы получить: соберите 5 разных Луффи в команду (ровно 5 карт) и победите босса 500 волны.",
@@ -2224,8 +2225,8 @@ const finalBossResponses = [
 
 // ========== КОНСТАНТЫ ==========
 const totalTemplatesCount = Object.values(customCardTemplates).flat().length;
-const rarities = ["Обычная","Редкая","Сверх редкая","Эпик","Мифическая","Легендарная","Секретная","Эволюционная","Босс","Пасхалка"];
-const rarityColors = { "Обычная":"common","Редкая":"rare","Сверх редкая":"superrare","Эпик":"epic","Мифическая":"mythic","Легендарная":"legendary","Секретная":"secret","Эволюционная":"evolutionary","Босс":"boss-rarity","Пасхалка":"easter","Подарочная":"gift" };
+const rarities = ["Обычная","Редкая","Сверх редкая","Эпик","Мифическая","Легендарная","Секретная","Эволюционная","Босс","Пасхалка","Звёздная"];
+const rarityColors = { "Обычная":"common","Редкая":"rare","Сверх редкая":"superrare","Эпик":"epic","Мифическая":"mythic","Легендарная":"legendary","Секретная":"secret","Звёздная":"star-rarity","Эволюционная":"evolutionary","Босс":"boss-rarity","Пасхалка":"easter","Подарочная":"gift" };
 const cardStats = { 
     "Обычная":      { damage: 3,  hp: 5,  sellPrice: 20,  speed: 0.4 },
     "Редкая":       { damage: 6,  hp: 10, sellPrice: 45,  speed: 0.6 },
@@ -2234,6 +2235,7 @@ const cardStats = {
     "Мифическая":   { damage: 35, hp: 60, sellPrice: 260, speed: 1.2 },
     "Легендарная":  { damage: 60, hp: 100, sellPrice: 450, speed: 1.5 },
     "Секретная":    { damage: 100, hp: 180, sellPrice: 800, speed: 2.0 },
+    "Звёздная":    { damage: 280, hp: 420, sellPrice: 0, speed: 3.1 },
     "Подарочная":   { damage: 100, hp: 180, sellPrice: 0,   speed: 3.0 },
     "Эволюционная": { damage: 500, hp: 1000, sellPrice: 0,  speed: 1.8 },
     "Босс":         { damage: 80,  hp: 150, sellPrice: 1000, speed: 1.1 },

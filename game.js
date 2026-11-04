@@ -1265,7 +1265,9 @@ function loadGameData(d) {
         "Луччи (Пробуждение CP0)": "Легендарная",
         "Шарлотта Смуси": "Мифическая",
         "Каррот (Сулонг)": "Эпик",
-        "Арлонг": "Сверх редкая"
+        "Арлонг": "Сверх редкая",
+        "ДИО Over Heaven": "Звёздная",
+        "Белоус": "Звёздная"
     };
     myCards.forEach(function(card) {
         if (card && card.name && balanceRarityByName[card.name]) {
@@ -1350,8 +1352,8 @@ function loadGameData(d) {
         window._level7CardId = d.level7CardId || null;
     }
     
-    gachaDailyLimits = d.gachaDailyLimits || { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
-    gachaDailyMax = Object.assign({ common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4 }, d.gachaDailyMax || {}, { superRare:25, epic:20, mythic:15, legendary:15, secret:4 });
+    gachaDailyLimits = Object.assign({ common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0, star:0 }, d.gachaDailyLimits || {});
+    gachaDailyMax = Object.assign({ common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4, star:2 }, d.gachaDailyMax || {}, { superRare:25, epic:20, mythic:15, legendary:15, secret:4, star:2 });
     legendaryGachaTokens = d.legendaryGachaTokens || 0;
     secretGachaTokens = d.secretGachaTokens || 0;
     lastGachaReset = d.lastGachaReset || null;
@@ -1493,8 +1495,8 @@ function initNewGame() {
     if (typeof window !== 'undefined') window.waystarDefeatedThisRun = false;
     if (typeof window !== 'undefined') window._level7CardId = null;
     
-    gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
-    gachaDailyMax = { common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4 };
+    gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0, star:0 };
+    gachaDailyMax = { common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4, star:2 };
     legendaryGachaTokens = 0;
     secretGachaTokens = 0;
     lastGachaReset = null;
@@ -2091,8 +2093,8 @@ window.MBGameStats = { getSnapshot: mbGetOnlineStatsSnapshot };
 
 let gameCompleted = false;
 let defeatedBosses = [];
-let gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 };
-let gachaDailyMax = { common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4 };
+let gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0, star:0 };
+let gachaDailyMax = { common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4, star:2 };
 let legendaryGachaTokens = 0;
 let secretGachaTokens = 0;
 let lastGachaReset = null; let gachaLimitCooldownAt = null;
@@ -2541,36 +2543,47 @@ function setMainCard(idxInTeam) { if (idxInTeam >= 0 && idxInTeam < team.length)
 window.setMainCard = setMainCard;
 
 function createCard(r, options) {
-    const isPreviewCard = !!(options && options.preview === true); 
-    // Whitebeard is a boss-exclusive reward; never include him in random spins.
-    let templates = (customCardTemplates[r] || []).filter(t => t && t.name !== "Белоус" && (!t.patchId || (window.MBPatches && window.MBPatches.isUnlocked(t.patchId)))); 
-    if (r === "Босс") return null; 
-    let template = null; 
-    let minRebirth = (r === "Секретная") ? 1 : 0; 
-    if (templates.length > 0) { 
-        let validTemplates = templates.filter(t => (t.minRebirth || minRebirth) <= rebirthCount); 
-        if (validTemplates.length > 0) { 
-            template = validTemplates[Math.floor(Math.random() * validTemplates.length)]; 
-        } else { 
-            template = templates[Math.floor(Math.random() * templates.length)]; 
-        } 
-    } 
-    if (!template) { 
-        let s = cardStats[r] || { damage: 5, hp: 10, sellPrice: 10, speed: 0.5 }; 
-        return { id: Date.now() + Math.random() * 10000, name: "???", rarity: r, damage: s.damage, hp: s.hp, sellPrice: s.sellPrice, speed: s.speed || 0.5, ability: null, universe: "?", unsellable: false, minRebirth: 0, statusAbility: null, extraStatus: null, mastery: 1, masteryExp: 0 }; 
-    } 
-    let s = cardStats[r] || { damage: 5, hp: 10, sellPrice: 10, speed: 0.5 }; 
-    let n = template.name, d = template.damage ?? s.damage, hp = template.hp ?? s.hp, sp = template.sellPrice ?? s.sellPrice, spd = template.speed ?? s.speed ?? 0.5; 
-    let a = template.ability || null, u = template.universe || "?", uns = template.unsellable || false; 
-    if (!isPreviewCard && !discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } 
-    if (!isPreviewCard) totalCardsObtained++; 
+    const isPreviewCard = !!(options && options.preview === true);
+    // Белоус остаётся только сюжетной наградой, ДИО и другие звёздные карты уникальны.
+    let templates = (customCardTemplates[r] || []).filter(function(t) {
+        if (!t || t.name === "Белоус") return false;
+        if (t.patchId && !(window.MBPatches && window.MBPatches.isUnlocked(t.patchId))) return false;
+        if (r === "Звёздная" && !isPreviewCard &&
+            Array.isArray(myCards) && myCards.some(function(card) { return card && card.name === t.name; })) return false;
+        return true;
+    });
+    if (r === "Босс") return null;
+    if (r === "Звёздная" && templates.length === 0) return null;
+
+    let template = null;
+    let minRebirth = (r === "Секретная") ? 1 : (r === "Звёздная" ? 4 : 0);
+    if (templates.length > 0) {
+        let validTemplates = templates.filter(function(t) {
+            return mode === "moder" || (t.minRebirth || minRebirth) <= rebirthCount;
+        });
+        if (validTemplates.length > 0) {
+            template = validTemplates[Math.floor(Math.random() * validTemplates.length)];
+        } else if (r === "Звёздная") {
+            return null;
+        } else {
+            template = templates[Math.floor(Math.random() * templates.length)];
+        }
+    }
+    if (!template) {
+        let s = cardStats[r] || { damage: 5, hp: 10, sellPrice: 10, speed: 0.5 };
+        return { id: Date.now() + Math.random() * 10000, name: "???", rarity: r, damage: s.damage, hp: s.hp, sellPrice: s.sellPrice, speed: s.speed || 0.5, ability: null, universe: "?", unsellable: false, minRebirth: 0, statusAbility: null, extraStatus: null, mastery: 1, masteryExp: 0 };
+    }
+    let s = cardStats[r] || { damage: 5, hp: 10, sellPrice: 10, speed: 0.5 };
+    let n = template.name, d = template.damage ?? s.damage, hp = template.hp ?? s.hp, sp = template.sellPrice ?? s.sellPrice, spd = template.speed ?? s.speed ?? 0.5;
+    let a = template.ability || null, u = template.universe || "?", uns = template.unsellable || false;
+    if (!isPreviewCard && !discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); }
+    if (!isPreviewCard) totalCardsObtained++;
     if (!isPreviewCard) {
         if (points > maxPoints) maxPoints = points;
         updateChallengeProgress("collectCards", 1);
-    } 
-    return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, patchId: template.patchId || null, minRebirth: template.minRebirth || minRebirth, statusAbility: template.statusAbility || null, extraStatus: template.extraStatus || null, superAbility: template.superAbility || null, mastery: 1, masteryExp: 0 }; 
+    }
+    return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, patchId: template.patchId || null, minRebirth: template.minRebirth || minRebirth, statusAbility: template.statusAbility || null, extraStatus: template.extraStatus || null, superAbility: template.superAbility || null, mastery: 1, masteryExp: 0 };
 }
-
 function getRandomRarity() { let t = 0; for (let k in cardWeights) t += cardWeights[k]; let r = Math.random() * t, ac = 0; for (let k in cardWeights) { ac += cardWeights[k]; if (r <= ac) return k; } return "Обычная"; }
 function getBossRewardRarity(w) { let m = Math.min(3, 1 + Math.floor(w / 10) / 10), wg = { ...cardWeights }; for (let r in wg) { wg[r] *= (1 + rarities.indexOf(r) * m * 0.3); } let t = 0; for (let k in wg) t += wg[k]; let r = Math.random() * t, ac = 0; for (let k in wg) { ac += wg[k]; if (r <= ac) return k; } return "Обычная"; }
 function getExpNeeded(l) { return 150 * l; }
@@ -2889,17 +2902,82 @@ function applySukuna(name) { if (!hasSukunaFingers) return; sukunaTarget = name;
 window.buySukuna = function () { if (rebirthCount < 4 || (mode !== "moder" && points < 15000)) return; if (mode !== "moder") points -= 15000; hasSukunaFingers = true; saveAll(); renderShop(); renderPoints(); updatePlayerStats(); showSukunaModal(); };
 
 // ========== ГАЧА ==========
-const gachaPrices = { common: 200, rare: 400, superRare: 800, epic: 1600, mythic: 3200, legendary: 10000, secret: 20000 };
-function resetGachaLimits() { gachaDailyLimits = { common: 0, rare: 0, superRare: 0, epic: 0, mythic: 0, legendary: 0, secret: 0 }; legendaryGachaTokens = 0; secretGachaTokens = 0; gachaLimitCooldownAt = null; lastGachaReset = Date.now(); saveAll(); }
+const gachaPrices = { common: 200, rare: 400, superRare: 800, epic: 1600, mythic: 3200, legendary: 10000, secret: 20000, star: 50000 };
+function resetGachaLimits() {
+    gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0, star:0 };
+    legendaryGachaTokens = 0;
+    secretGachaTokens = 0;
+    gachaLimitCooldownAt = null;
+    lastGachaReset = Date.now();
+    saveAll();
+}
 function checkGachaReset() { let now = Date.now(); if (gachaLimitCooldownAt && now - gachaLimitCooldownAt >= 12 * 60 * 60 * 1000) { resetGachaLimits(); } }
 function grantBossGachaReward(bossWave) { if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) { if (!defeatedBosses.includes(bossWave)) { defeatedBosses.push(bossWave); } } checkGachaReset(); let legendaryToAdd = Math.min(2, 15 - legendaryGachaTokens); if (legendaryToAdd > 0) { legendaryGachaTokens += legendaryToAdd; showFloatingText("🎰 +" + legendaryToAdd + " ЛЕГЕНДАРНЫХ КРУТОК!", "#ffd700"); } if (secretGachaTokens < 4 && Math.random() < 0.15) { secretGachaTokens++; showFloatingText("🎰 СЕКРЕТНАЯ КРУТКА!", "#ff00ff"); } saveAll(); if (typeof renderGachaTab === 'function') renderGachaTab(); }
 function forceStopGachaAnimation() { closeModal(); gachaAnimationActive = false; gachaAnimationData = null; }
-function performGacha(type) { initAudio(); checkGachaReset(); if (gachaAnimationActive) forceStopGachaAnimation(); if (mode !== "moder") { if (type === "legendary" && legendaryGachaTokens <= 0) { alert("Нет разрешений на легендарную крутку! Победите нового босса."); return; } if (type === "secret" && secretGachaTokens <= 0) { alert("Нет разрешений на секретную крутку! Победите нового босса."); return; } if ((gachaDailyLimits[type] || 0) >= (gachaDailyMax[type] || 0)) { alert("Дневной лимит круток этого типа исчерпан!"); return; } if (points < (gachaPrices[type] || 0)) { alert("Не хватает звёзд!"); return; } } let rarity = rollGachaRarity(type); let card = createCard(rarity); if (!card) return; if (mode !== "moder") { points -= gachaPrices[type]; gachaDailyLimits[type] = (gachaDailyLimits[type] || 0) + 1; if (type === "legendary") legendaryGachaTokens--; if (type === "secret") secretGachaTokens--; if ((gachaDailyLimits[type] || 0) >= (gachaDailyMax[type] || 0) && !gachaLimitCooldownAt) gachaLimitCooldownAt = Date.now(); } myCards.push(card); totalCardsObtained++; if (points > maxPoints) maxPoints = points; if (!discoveredCards.includes(card.name)) discoveredCards.push(card.name); saveAll(); renderAll(); if (typeof renderGachaTab === 'function') renderGachaTab(); renderPoints(); startGachaAnimation(card, type); }
-function rollGachaRarity(type) { let luckBonus = 0; let roll = Math.random() * 100; switch(type) { case "common": if (roll < 1) return "Мифическая"; if (roll < 3) return "Эпик"; if (roll < 11) return "Сверх редкая"; if (roll < 31) return "Редкая"; return "Обычная"; case "rare": if (roll < 3) return "Мифическая"; if (roll < 10) return "Эпик"; if (roll < 30) return "Сверх редкая"; if (roll < 90) return "Редкая"; return "Обычная"; case "superRare": if (roll < 2) return "Легендарная"; if (roll < 7) return "Мифическая"; if (roll < 25) return "Эпик"; if (roll < 80) return "Сверх редкая"; return "Редкая"; case "epic": if (roll < 0.2) return "Секретная"; if (roll < 8) return "Легендарная"; if (roll < 30) return "Мифическая"; if (roll < 80) return "Эпик"; return "Сверх редкая"; case "mythic": if (roll < 0.8) return "Секретная"; if (roll < 30) return "Легендарная"; if (roll < 80) return "Мифическая"; return "Эпик"; case "legendary": if (roll < 2) return "Секретная"; if (roll < 80) return "Легендарная"; return "Мифическая"; case "secret": if (roll < 20) return "Секретная"; return "Легендарная"; default: return "Обычная"; } }
-function getRarityColor(rarity) { let colors = { "Обычная": "#ffffff", "Редкая": "#17a2b8", "Сверх редкая": "#28a745", "Эпик": "#9b59b6", "Мифическая": "#e74c3c", "Легендарная": "#ffd700", "Секретная": "#ff6b6b" }; return colors[rarity] || "#ffffff"; }
-function getRarityEmoji(rarity) { let emojis = { "Обычная": "⚪", "Редкая": "🔵", "Сверх редкая": "🟢", "Эпик": "🟣", "Мифическая": "🔴", "Легендарная": "🟡", "Секретная": "💎" }; return emojis[rarity] || "❓"; }
+function performGacha(type) {
+    initAudio();
+    checkGachaReset();
+    if (gachaAnimationActive) forceStopGachaAnimation();
+
+    if (type === "star" && mode !== "moder" && rebirthCount < 4) {
+        alert("Звёздная крутка открывается с 4-го ребёрна.");
+        return;
+    }
+
+    if (mode !== "moder") {
+        if (type === "legendary" && legendaryGachaTokens <= 0) {
+            alert("Нет разрешений на легендарную крутку! Победите нового босса.");
+            return;
+        }
+        if (type === "secret" && secretGachaTokens <= 0) {
+            alert("Нет разрешений на секретную крутку! Победите нового босса.");
+            return;
+        }
+        if ((gachaDailyLimits[type] || 0) >= (gachaDailyMax[type] || 0)) {
+            alert("Дневной лимит круток этого типа исчерпан!");
+            return;
+        }
+        if (points < (gachaPrices[type] || 0)) {
+            alert("Не хватает звёзд!");
+            return;
+        }
+    }
+
+    let rarity = rollGachaRarity(type);
+    let card = createCard(rarity);
+
+    // Если единственная звёздная карта уже есть, 10%-й результат превращается в секретную карту.
+    if (!card && type === "star" && rarity === "Звёздная") {
+        rarity = "Секретная";
+        card = createCard(rarity);
+    }
+    if (!card) return;
+
+    if (mode !== "moder") {
+        points -= gachaPrices[type];
+        gachaDailyLimits[type] = (gachaDailyLimits[type] || 0) + 1;
+        if (type === "legendary") legendaryGachaTokens--;
+        if (type === "secret") secretGachaTokens--;
+        if ((gachaDailyLimits[type] || 0) >= (gachaDailyMax[type] || 0) && !gachaLimitCooldownAt) {
+            gachaLimitCooldownAt = Date.now();
+        }
+    }
+
+    myCards.push(card);
+    totalCardsObtained++;
+    if (points > maxPoints) maxPoints = points;
+    if (!discoveredCards.includes(card.name)) discoveredCards.push(card.name);
+    saveAll();
+    renderAll();
+    if (typeof renderGachaTab === "function") renderGachaTab();
+    renderPoints();
+    startGachaAnimation(card, type);
+}
+function rollGachaRarity(type) { let luckBonus = 0; let roll = Math.random() * 100; switch(type) { case "common": if (roll < 1) return "Мифическая"; if (roll < 3) return "Эпик"; if (roll < 11) return "Сверх редкая"; if (roll < 31) return "Редкая"; return "Обычная"; case "rare": if (roll < 3) return "Мифическая"; if (roll < 10) return "Эпик"; if (roll < 30) return "Сверх редкая"; if (roll < 90) return "Редкая"; return "Обычная"; case "superRare": if (roll < 2) return "Легендарная"; if (roll < 7) return "Мифическая"; if (roll < 25) return "Эпик"; if (roll < 80) return "Сверх редкая"; return "Редкая"; case "epic": if (roll < 0.2) return "Секретная"; if (roll < 8) return "Легендарная"; if (roll < 30) return "Мифическая"; if (roll < 80) return "Эпик"; return "Сверх редкая"; case "mythic": if (roll < 0.8) return "Секретная"; if (roll < 30) return "Легендарная"; if (roll < 80) return "Мифическая"; return "Эпик"; case "legendary": if (roll < 2) return "Секретная"; if (roll < 80) return "Легендарная"; return "Мифическая"; case "secret": if (roll < 20) return "Секретная"; return "Легендарная"; case "star": return roll < 10 ? "Звёздная" : "Секретная"; default: return "Обычная"; } }
+function getRarityColor(rarity) { let colors = { "Обычная": "#ffffff", "Редкая": "#17a2b8", "Сверх редкая": "#28a745", "Эпик": "#9b59b6", "Мифическая": "#e74c3c", "Легендарная": "#ffd700", "Секретная": "#ff6b6b", "Звёздная": "#b9eaff" }; return colors[rarity] || "#ffffff"; }
+function getRarityEmoji(rarity) { let emojis = { "Обычная": "⚪", "Редкая": "🔵", "Сверх редкая": "🟢", "Эпик": "🟣", "Мифическая": "🔴", "Легендарная": "🟡", "Секретная": "💎", "Звёздная": "🌟" }; return emojis[rarity] || "❓"; }
 function getCardResultHTML(card) { let rarityColor = getRarityColor(card.rarity); let rarityEmoji = getRarityEmoji(card.rarity); let cardImg = typeof getCardImage === 'function' ? getCardImage(card.name) : null; let imgHTML = cardImg ? '<img src="' + cardImg + '" style="width:100px;height:100px;border-radius:12px;object-fit:cover;margin-bottom:10px;">' : ''; return '<div style="text-align:center;">' + '<div style="font-size:64px;margin-bottom:10px;">' + rarityEmoji + '</div>' + imgHTML + '<div style="font-size:32px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 30px ' + rarityColor + ';margin-bottom:8px;">' + card.name + '</div>' + '<div class="rarity-tag ' + rarityColors[card.rarity] + '" style="font-size:18px;padding:10px 25px;">' + card.rarity + '</div>' + '<div style="margin-top:15px;font-size:18px;">💪 ' + card.damage + ' ❤️ ' + card.hp + '</div>' + (card.ability ? '<div style="margin-top:10px;color:#f5af19;font-weight:bold;">✨ ' + card.ability.desc + '</div>' : '') + '</div>'; }
-function startGachaAnimation(card, type) { let availableRarities = []; switch(type) { case "common": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "rare": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "superRare": availableRarities = ["Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная"]; break; case "epic": availableRarities = ["Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "mythic": availableRarities = ["Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "legendary": availableRarities = ["Мифическая", "Легендарная", "Секретная"]; break; case "secret": availableRarities = ["Легендарная", "Секретная"]; break; default: availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик"]; } let fakeCards = []; for (let i = 0; i < 8; i++) { let randomRarity = availableRarities[Math.floor(Math.random() * availableRarities.length)]; let fc = createCard(randomRarity, { preview: true }); if (fc) fakeCards.push(fc); } fakeCards.push(card); gachaAnimationActive = true; let modalContent = document.getElementById("modalContent"); let modalOverlay = document.getElementById("modalOverlay"); if (!modalContent || !modalOverlay) { gachaAnimationActive = false; return; } modalOverlay.style.display = "flex"; let index = 0; let totalFlashes = 24; let flashCount = 0; let speed = 80; function flashNextCard() { if (flashCount >= totalFlashes) { modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>'; if (typeof sfxCardObtain === 'function') sfxCardObtain(); gachaAnimationActive = false; return; } let currentCard = fakeCards[index % fakeCards.length]; let rarityColor = getRarityColor(currentCard.rarity); modalContent.innerHTML = '<h2>🎰 Крутка...</h2>' + '<div style="text-align:center;padding:10px;">' + '<div style="font-size:48px;margin-bottom:10px;">🎴</div>' + '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + currentCard.name + '</div>' + '<div class="rarity-tag ' + rarityColors[currentCard.rarity] + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' + '<div style="margin-top:12px;font-size:16px;">💪 ' + currentCard.damage + ' ❤️ ' + currentCard.hp + '</div>' + '</div>' + '<button class="btn" style="width:100%;padding:8px;margin-top:10px;background:#e74c3c;border:none;color:white;font-weight:bold;" onclick="closeModal();gachaAnimationActive=false;">⏭️ ПРОПУСТИТЬ</button>'; index++; flashCount++; if (flashCount > totalFlashes * 0.7) speed += 40; else if (flashCount > totalFlashes * 0.5) speed += 20; else if (flashCount > totalFlashes * 0.3) speed += 10; setTimeout(flashNextCard, speed); } flashNextCard(); }
+function startGachaAnimation(card, type) { let availableRarities = []; switch(type) { case "common": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "rare": availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая"]; break; case "superRare": availableRarities = ["Редкая", "Сверх редкая", "Эпик", "Мифическая", "Легендарная"]; break; case "epic": availableRarities = ["Сверх редкая", "Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "mythic": availableRarities = ["Эпик", "Мифическая", "Легендарная", "Секретная"]; break; case "legendary": availableRarities = ["Мифическая", "Легендарная", "Секретная"]; break; case "secret": availableRarities = ["Легендарная", "Секретная"]; break; case "star": availableRarities = ["Секретная", "Звёздная"]; break; default: availableRarities = ["Обычная", "Редкая", "Сверх редкая", "Эпик"]; } let fakeCards = []; for (let i = 0; i < 8; i++) { let randomRarity = availableRarities[Math.floor(Math.random() * availableRarities.length)]; let fc = createCard(randomRarity, { preview: true }); if (fc) fakeCards.push(fc); } fakeCards.push(card); gachaAnimationActive = true; let modalContent = document.getElementById("modalContent"); let modalOverlay = document.getElementById("modalOverlay"); if (!modalContent || !modalOverlay) { gachaAnimationActive = false; return; } modalOverlay.style.display = "flex"; let index = 0; let totalFlashes = 24; let flashCount = 0; let speed = 80; function flashNextCard() { if (flashCount >= totalFlashes) { modalContent.innerHTML = '<h2>🎰 Выпала карта!</h2>' + getCardResultHTML(card) + '<button class="btn btn-primary" style="width:100%;padding:12px;margin-top:15px;" onclick="closeModal()">ЗАБРАТЬ</button>'; if (typeof sfxCardObtain === 'function') sfxCardObtain(); gachaAnimationActive = false; return; } let currentCard = fakeCards[index % fakeCards.length]; let rarityColor = getRarityColor(currentCard.rarity); modalContent.innerHTML = '<h2>🎰 Крутка...</h2>' + '<div style="text-align:center;padding:10px;">' + '<div style="font-size:48px;margin-bottom:10px;">🎴</div>' + '<div style="font-size:28px;font-weight:900;color:' + rarityColor + ';text-shadow: 0 0 20px ' + rarityColor + ';margin-bottom:8px;">' + currentCard.name + '</div>' + '<div class="rarity-tag ' + rarityColors[currentCard.rarity] + '" style="font-size:16px;padding:8px 20px;">' + currentCard.rarity + '</div>' + '<div style="margin-top:12px;font-size:16px;">💪 ' + currentCard.damage + ' ❤️ ' + currentCard.hp + '</div>' + '</div>' + '<button class="btn" style="width:100%;padding:8px;margin-top:10px;background:#e74c3c;border:none;color:white;font-weight:bold;" onclick="closeModal();gachaAnimationActive=false;">⏭️ ПРОПУСТИТЬ</button>'; index++; flashCount++; if (flashCount > totalFlashes * 0.7) speed += 40; else if (flashCount > totalFlashes * 0.5) speed += 20; else if (flashCount > totalFlashes * 0.3) speed += 10; setTimeout(flashNextCard, speed); } flashNextCard(); }
 
 // ============================================================
 // ГЕНЕРАЦИЯ ВРАГА
@@ -3177,7 +3255,7 @@ function skipArenaFight() {
     if (skipBtn) skipBtn.style.display = "none"; 
     if (typeof showFloatingText === 'function') showFloatingText("⏭️ Арена пропущена!", "#ffaa00"); 
 }
-function createCardFromTemplate(tm, r) { if (tm && tm.patchId && !(window.MBPatches && window.MBPatches.isUnlocked(tm.patchId))) return null; let s = cardStats[r]; let d = tm.damage ?? s.damage, hp = tm.hp ?? s.hp, sp = tm.sellPrice ?? s.sellPrice, spd = tm.speed ?? s.speed ?? 0.5; let n = tm.name, a = tm.ability || null, u = tm.universe || "?", uns = tm.unsellable || false; if (!discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } totalCardsObtained++; if (points > maxPoints) maxPoints = points; return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, patchId: tm.patchId || null, minRebirth: tm.minRebirth || 0, statusAbility: tm.statusAbility || null, extraStatus: tm.extraStatus || null, superAbility: tm.superAbility || null, mastery: 1, masteryExp: 0 }; }
+function createCardFromTemplate(tm, r) { if (r === "Звёздная" && tm && Array.isArray(myCards) && myCards.some(function(card) { return card && card.name === tm.name; })) return null; if (tm && tm.patchId && !(window.MBPatches && window.MBPatches.isUnlocked(tm.patchId))) return null; let s = cardStats[r]; let d = tm.damage ?? s.damage, hp = tm.hp ?? s.hp, sp = tm.sellPrice ?? s.sellPrice, spd = tm.speed ?? s.speed ?? 0.5; let n = tm.name, a = tm.ability || null, u = tm.universe || "?", uns = tm.unsellable || false; if (!discoveredCards.includes(n)) { discoveredCards.push(n); saveAll(); } totalCardsObtained++; if (points > maxPoints) maxPoints = points; return { id: Date.now() + Math.random() * 10000, name: n, rarity: r, damage: d, hp: hp, sellPrice: sp, speed: spd, ability: a, universe: u, unsellable: uns, patchId: tm.patchId || null, minRebirth: tm.minRebirth || 0, statusAbility: tm.statusAbility || null, extraStatus: tm.extraStatus || null, superAbility: tm.superAbility || null, mastery: 1, masteryExp: 0 }; }
 
 // ========== ЭВОЛЮЦИИ ==========
 function checkEvolutionQuests() { 
@@ -3977,8 +4055,8 @@ function doRebirth() {
     if (typeof window !== 'undefined') window.waystarOwesDebt = false;
     console.log("[REBIRTH] Флаг Звезды сброшен — эволюция закрыта, бой доступен");
     
-    gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0 }; 
-    gachaDailyMax = { common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4 }; 
+    gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0, star:0 }; 
+    gachaDailyMax = { common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4, star:2 }; 
     legendaryGachaTokens = 0; 
     secretGachaTokens = 0; 
     lastGachaReset = null; 

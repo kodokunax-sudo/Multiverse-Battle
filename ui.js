@@ -747,7 +747,7 @@ function renderBook() {
     }
 
     const rarityOrder = ["Обычная", "Редкая", "Сверх редкая", "Эпик", "Мифическая",
-        "Легендарная", "Секретная", "Эволюционная", "Босс", "Пасхалка"];
+        "Легендарная", "Секретная", "Звёздная", "Эволюционная", "Босс", "Пасхалка"];
     const rarities = [...new Set(all.map(t => t.rarity).filter(Boolean))]
         .sort((a, b) => {
             const ai = rarityOrder.indexOf(a), bi = rarityOrder.indexOf(b);
@@ -1137,6 +1137,26 @@ function renderGachaTab() {
         html += '<br><small>' + displayPrice + ' | Разрешений: ' + tokenDisplay + '</small>';
         html += '<br><small style="color:#aaa;">Легендарная (80%) | Секретная (20%)</small></div>';
         html += '<button class="btn btn-primary gacha-btn secret-btn" onclick="performGacha(\'secret\')" ' + (!canBuy ? 'disabled' : '') + '>Крутить</button>';
+        html += '</div>';
+    }
+    {
+        let bought = (typeof gachaDailyLimits !== "undefined" && gachaDailyLimits.star) || 0;
+        let max = (typeof gachaDailyMax !== "undefined" && gachaDailyMax.star) || 2;
+        let unlocked = (typeof mode !== "undefined" && mode === "moder") ||
+            (typeof rebirthCount !== "undefined" && rebirthCount >= 4);
+        let canBuy = (typeof mode !== "undefined" && mode === "moder") ||
+            (unlocked && bought < max && typeof points !== "undefined" &&
+             points >= (typeof gachaPrices !== "undefined" ? gachaPrices.star : 50000));
+        let displayPrice = (typeof mode !== "undefined" && mode === "moder")
+            ? "∞ БЕСПЛАТНО"
+            : ((typeof gachaPrices !== "undefined" ? gachaPrices.star : 50000) + "⭐");
+        html += '<div class="shop-item gacha-item star-gacha" style="border-left:3px solid #9bdfff;background:rgba(145,205,255,.10);">';
+        html += '<div><strong>🌟 Звёздная крутка</strong>';
+        html += '<br><small>' + displayPrice + ' | ' + bought + '/' + max + ' за цикл</small>';
+        html += '<br><small style="color:#c9eaff;">Секретная (90%) | Звёздная (10%)</small>';
+        html += '<br><small style="color:#aaa;">Одна копия каждого звёздного персонажа · открывается с 4-го ребёрна</small></div>';
+        html += '<button class="btn btn-primary gacha-btn star-btn" onclick="performGacha(\'star\')" ' +
+            (!canBuy ? 'disabled' : '') + '>' + (unlocked ? 'Крутить' : '🔒 4-й ребёрн') + '</button>';
         html += '</div>';
     }
     if (!html) html = '<div style="text-align:center;color:#888;padding:20px;font-weight:bold;">🔒 Победите нового босса (каждые 50 волн) чтобы открыть легендарные и секретные крутки!</div>';

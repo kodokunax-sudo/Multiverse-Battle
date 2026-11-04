@@ -845,29 +845,55 @@
     function grantWhitebeardReward() {
         console.log("[ROGER-WB] Белоус");
         try {
-            if (typeof showFloatingText === 'function') showFloatingText("🌊 БЕЛОУС В КОМАНДЕ!", "#ffffff");
-            var alreadyHave = false;
-            if (typeof myCards !== 'undefined' && Array.isArray(myCards)) {
+            var existingCard = null;
+            if (typeof myCards !== "undefined" && Array.isArray(myCards)) {
                 for (var i = 0; i < myCards.length; i++) {
-                    if (myCards[i] && myCards[i].name === "Белоус") { alreadyHave = true; break; }
+                    if (myCards[i] && myCards[i].name === "Белоус") {
+                        existingCard = myCards[i];
+                        break;
+                    }
                 }
             }
-            if (alreadyHave) { if (typeof showFloatingText === 'function') showFloatingText("Карта уже есть!", "#ffaa00"); return; }
-            var card = {
-                id: Date.now() + Math.random() * 10000, name: "Белоус", rarity: "Секретная",
-                damage: 400, hp: 250, sellPrice: 800, speed: 2.0,
-                ability: { type: "whitebeardSpecial", desc: "3% воскрешение | 1% HP/волна | 2% x5 комбо" },
-                universe: "One Piece", unsellable: true, minRebirth: 0,
-                statusAbility: null, extraStatus: null, superAbility: null,
-                mastery: 1, masteryExp: 0
-            };
-            if (typeof myCards !== 'undefined' && Array.isArray(myCards)) myCards.push(card);
-            if (typeof discoveredCards !== 'undefined' && !discoveredCards.includes("Белоус")) discoveredCards.push("Белоус");
-            if (typeof sfxCardObtain === 'function') sfxCardObtain();
-            if (typeof renderMyCards === 'function') setTimeout(renderMyCards, 200);
-        } catch(e) { console.error("[ROGER-WB] Ошибка Белоуса:", e); }
-    }
 
+            // Сюжетную награду не выдаём повторно, но обновляем редкость старых сохранений.
+            if (existingCard) {
+                existingCard.rarity = "Звёздная";
+                existingCard.unsellable = true;
+                if (typeof showFloatingText === "function") showFloatingText("🌟 Белоус уже в команде!", "#b9eaff");
+                if (typeof renderMyCards === "function") setTimeout(renderMyCards, 100);
+                return;
+            }
+
+            var whitebeardTemplate = typeof customCardTemplates !== "undefined" &&
+                customCardTemplates["Звёздная"] &&
+                customCardTemplates["Звёздная"].find(function(template) { return template.name === "Белоус"; });
+            var card = whitebeardTemplate && typeof createCardFromTemplate === "function"
+                ? createCardFromTemplate(whitebeardTemplate, "Звёздная")
+                : null;
+
+            if (!card) {
+                card = {
+                    id: Date.now() + Math.random() * 10000, name: "Белоус", rarity: "Звёздная",
+                    damage: 400, hp: 250, sellPrice: 800, speed: 2.0,
+                    ability: { type: "whitebeardSpecial", desc: "Пассивно: 10% поглощения урона, 3% шанс воскреснуть, +1% HP за волну, бонус комбо и регенерация при 4★+." },
+                    universe: "One Piece", unsellable: true, minRebirth: 0,
+                    statusAbility: null, extraStatus: null, superAbility: null,
+                    mastery: 1, masteryExp: 0
+                };
+                if (typeof discoveredCards !== "undefined" && !discoveredCards.includes("Белоус")) discoveredCards.push("Белоус");
+                if (typeof totalCardsObtained !== "undefined") totalCardsObtained++;
+            }
+
+            card.rarity = "Звёздная";
+            card.unsellable = true;
+            if (typeof myCards !== "undefined" && Array.isArray(myCards)) myCards.push(card);
+            if (typeof showFloatingText === "function") showFloatingText("🌟 СЮЖЕТНАЯ КАРТА: ЗВЁЗДНЫЙ БЕЛОУС!", "#b9eaff");
+            if (typeof sfxCardObtain === "function") sfxCardObtain();
+            if (typeof renderMyCards === "function") setTimeout(renderMyCards, 200);
+        } catch (e) {
+            console.error("[ROGER-WB] Ошибка награды Белоуса:", e);
+        }
+    }
     function rwbFinalCleanup() {
         if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===1000) {
             if (rwbWatchdog) { clearTimeout(rwbWatchdog); rwbWatchdog = null; }
