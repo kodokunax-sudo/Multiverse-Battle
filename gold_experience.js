@@ -19,6 +19,7 @@
     var gerModelImage = null;
     var gerModelImageRequested = false;
     var gerModelImageFailed = false;
+    var gerModelSpriteCanvas = null;
 
     var state = window.__mbGoldExperienceState || {
         active: false,
@@ -117,10 +118,108 @@
             ? window.performance.now() : Date.now();
     }
 
+    // Convert the JPG's dark outer backdrop to transparency once, then draw it like Oden's PNG sprite.
+    function prepareGERModelSprite(image) {
+        if (!image || !image.naturalWidth || !image.naturalHeight) return null;
+        try {
+            var canvas = document.createElement("canvas");
+            canvas.width = image.naturalWidth;
+            canvas.height = image.naturalHeight;
+            var canvasContext = canvas.getContext("2d", { willReadFrequently: true });
+            if (!canvasContext) return image;
+            canvasContext.drawImage(image, 0, 0);
+
+            var frame = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+            var pixels = frame.data;
+            var width = canvas.width;
+            var height = canvas.height;
+            var pixelCount = width * height;
+            var visited = new Uint8Array(pixelCount);
+            var queue = new Int32Array(pixelCount);
+            var queueHead = 0;
+            var queueTail = 0;
+
+            function isOuterDarkBackground(index) {
+                var offset = index * 4;
+                var red = pixels[offset];
+                var green = pixels[offset + 1];
+                var blue = pixels[offset + 2];
+                var luminance = red * 0.299 + green * 0.587 + blue * 0.114;
+                return luminance < 112 && red < 135 && green < 118 && blue < 86;
+            }
+
+            function enqueueBackground(index) {
+                if (visited[index] || !isOuterDarkBackground(index)) return;
+                visited[index] = 1;
+                queue[queueTail++] = index;
+            }
+
+            // Flood-fill only dark pixels connected to the image border. Dark outlines inside
+            // the golden emblem stay intact instead of being removed by a global color key.
+            for (var x = 0; x < width; x++) {
+                enqueueBackground(x);
+                enqueueBackground((height - 1) * width + x);
+            }
+            for (var y = 1; y < height - 1; y++) {
+                enqueueBackground(y * width);
+                enqueueBackground(y * width + width - 1);
+            }
+
+            while (queueHead < queueTail) {
+                var currentIndex = queue[queueHead++];
+                var currentX = currentIndex % width;
+                var currentY = Math.floor(currentIndex / width);
+                if (currentX > 0) enqueueBackground(currentIndex - 1);
+                if (currentX + 1 < width) enqueueBackground(currentIndex + 1);
+                if (currentY > 0) enqueueBackground(currentIndex - width);
+                if (currentY + 1 < height) enqueueBackground(currentIndex + width);
+            }
+
+            for (var i = 0; i < queueTail; i++) {
+                pixels[queue[i] * 4 + 3] = 0;
+            }
+            canvasContext.putImageData(frame, 0, 0);
+            return canvas;
+        } catch (e) {
+            console.warn("[GOLD EXPERIENCE] Could not prepare transparent GER sprite; using source image.", e);
+            return image;
+        }
+    }
+
+    function finishGERModelLoad(image) {
+        if (!image || !image.naturalWidth || !image.naturalHeight) {
+            gerModelImageFailed = true;
+            console.warn("[GOLD EXPERIENCE] GER model image could not be loaded:", GER_MODEL_PATH);
+            return null;
+        }
+        gerModelImage = image;
+        gerModelSpriteCanvas = prepareGERModelSprite(image);
+        gerModelImageFailed = false;
+        return gerModelSpriteCanvas;
+    }
+
     function getGERModelImage() {
-        if (gerModelImageRequested) return gerModelImage;
+        if (gerModelImageRequested) return gerModelSpriteCanvas;
         gerModelImageRequested = true;
         try {
+            var preloaded = typeof window.getPreloadedImage === "function"
+                ? window.getPreloadedImage("gerCompanionModel", encodeURI(GER_MODEL_PATH)) : null;
+            if (preloaded) {
+                gerModelImage = preloaded;
+                if (preloaded.complete) {
+                    finishGERModelLoad(preloaded);
+                } else {
+                    preloaded.addEventListener("load", function () {
+                        finishGERModelLoad(preloaded);
+                    }, { once: true });
+                    preloaded.addEventListener("error", function () {
+                        gerModelImageFailed = true;
+                        console.warn("[GOLD EXPERIENCE] GER model image could not be loaded:", GER_MODEL_PATH);
+                    }, { once: true });
+                }
+                return gerModelSpriteCanvas;
+            }
+
             if (typeof window.Image !== "function") {
                 gerModelImageFailed = true;
                 return null;
@@ -128,14 +227,14 @@
             gerModelImage = new window.Image();
             gerModelImage.decoding = "async";
             gerModelImage.onload = function () {
-                gerModelImageFailed = false;
+                finishGERModelLoad(gerModelImage);
             };
             gerModelImage.onerror = function () {
                 gerModelImageFailed = true;
                 console.warn("[GOLD EXPERIENCE] GER model image could not be loaded:", GER_MODEL_PATH);
             };
-            gerModelImage.src = GER_MODEL_PATH;
-            return gerModelImage;
+            gerModelImage.src = encodeURI(GER_MODEL_PATH);
+            return null;
         } catch (e) {
             gerModelImageFailed = true;
             return null;
@@ -2403,41 +2502,44 @@
         c.scale(scale, scale);
         c.rotate(Math.max(-0.12, Math.min(0.12, (Number(state.vx) || 0) * 0.018)));
         c.globalAlpha = hitFlash ? 0.82 : 1;
-        var halo = c.createRadialGradient(0, -1, 1, 0, 0, 16);
-        halo.addColorStop(0, healing ? "rgba(126,255,166,.28)" : "rgba(255,218,105,.3)");
-        halo.addColorStop(1, "rgba(255,190,55,0)");
-        c.fillStyle = halo;
-        c.beginPath();
-        c.ellipse(0, 0, 16, 13, 0, 0, Math.PI * 2);
-        c.fill();
-
-        if (dodging || healing) {
-            c.strokeStyle = healing ? "#8bffbd" : "#fff0a6";
-            c.lineWidth = healing ? 1.9 : 1.6;
-            c.shadowColor = c.strokeStyle;
-            c.shadowBlur = 13;
-            c.globalAlpha *= 0.85;
+        if (!standImageReady) {
+            // Keep the old compact heart fallback effects only while the model image is unavailable.
+            var halo = c.createRadialGradient(0, -1, 1, 0, 0, 16);
+            halo.addColorStop(0, healing ? "rgba(126,255,166,.28)" : "rgba(255,218,105,.3)");
+            halo.addColorStop(1, "rgba(255,190,55,0)");
+            c.fillStyle = halo;
             c.beginPath();
-            c.ellipse(0, 0, 14 + Math.sin(current / 50) * 1.0, 10.5, 0, 0, Math.PI * 2);
-            c.stroke();
-            c.shadowBlur = 0;
-            c.globalAlpha = hitFlash ? 0.82 : 1;
+            c.ellipse(0, 0, 16, 13, 0, 0, Math.PI * 2);
+            c.fill();
+
+            if (dodging || healing) {
+                c.strokeStyle = healing ? "#8bffbd" : "#fff0a6";
+                c.lineWidth = healing ? 1.9 : 1.6;
+                c.shadowColor = c.strokeStyle;
+                c.shadowBlur = 13;
+                c.globalAlpha *= 0.85;
+                c.beginPath();
+                c.ellipse(0, 0, 14 + Math.sin(current / 50) * 1.0, 10.5, 0, 0, Math.PI * 2);
+                c.stroke();
+                c.shadowBlur = 0;
+                c.globalAlpha = hitFlash ? 0.82 : 1;
+            }
         }
 
         if (standImageReady) {
-            // Use the exact artwork from Model/ as the complete GER companion sprite.
-            // Fit the full image inside a stable box without stretching or cropping it.
-            var maxImageWidth = 68 / Math.max(0.1, scale);
-            var maxImageHeight = 82 / Math.max(0.1, scale);
-            var imageScale = Math.min(maxImageWidth / standImage.naturalWidth,
-                maxImageHeight / standImage.naturalHeight);
-            var imageWidth = standImage.naturalWidth * imageScale;
-            var imageHeight = standImage.naturalHeight * imageScale;
+            // Same fitting rule as Oden: keep the source aspect ratio inside a compact sprite box.
+            var sourceWidth = standImage.width || standImage.naturalWidth;
+            var sourceHeight = standImage.height || standImage.naturalHeight;
+            var maxImageWidth = 15 * 2.55;
+            var maxImageHeight = 15 * 2.8;
+            var imageScale = Math.min(maxImageWidth / sourceWidth, maxImageHeight / sourceHeight);
+            var imageWidth = sourceWidth * imageScale;
+            var imageHeight = sourceHeight * imageScale;
             c.save();
             c.globalAlpha = hitFlash ? 0.82 : 0.96;
-            c.globalCompositeOperation = "screen";
-            c.shadowColor = healing ? "#8bffbd" : "#ffd45c";
-            c.shadowBlur = attacking ? 13 : 6;
+            c.globalCompositeOperation = "source-over";
+            c.shadowColor = hitFlash ? "#ffffff" : (healing ? "#8bffbd" : "#ffd84d");
+            c.shadowBlur = hitFlash ? 23 : 7;
             c.drawImage(standImage, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight);
             c.restore();
             c.restore();
