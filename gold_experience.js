@@ -94,6 +94,9 @@
     };
     window.__mbGoldExperienceState = state;
     state.trainingPendingDecisions = Array.isArray(state.trainingPendingDecisions) ? state.trainingPendingDecisions : [];
+    state.trainingRetryAt = Number(state.trainingRetryAt) || 0;
+    state.trainingStartInFlight = false;
+    state.trainingSessionStarted = false;
     state.punch = state.punch || null;
     state.punchEffects = Array.isArray(state.punchEffects) ? state.punchEffects : [];
     state.nextMudaAt = Number(state.nextMudaAt) || 0;
@@ -974,6 +977,30 @@
         }
     }
 
+
+    function requestCompanionTrainingStart(ctx, current) {
+        if (!state.active || state.trainingSessionStarted || state.trainingStartInFlight ||
+            current < (Number(state.trainingRetryAt) || 0)) return;
+        if (!window.MBGERTraining || typeof window.MBGERTraining.start !== "function") return;
+
+        var bossKey = companionTrainingBossKey(ctx);
+        state.trainingBossKey = bossKey;
+        state.trainingRetryAt = current + 4000;
+        state.trainingStartInFlight = true;
+        Promise.resolve(window.MBGERTraining.start(bossKey, {
+            arenaMode: ctx && ctx.type ? ctx.type : "unknown",
+            gameVersion: "ger-dodge-training-1"
+        })).then(function (result) {
+            if (state.active && state.trainingBossKey === bossKey && result && result.sessionId) {
+                state.trainingSessionStarted = true;
+            }
+        }).catch(function (error) {
+            console.warn("[GER training] Start retry failed:", error && error.message ? error.message : error);
+        }).finally(function () {
+            state.trainingStartInFlight = false;
+        });
+    }
+
     function spawnHitEffect(x, y, color) {
         try {
             if (typeof window.addWaystarShockwave === "function") {
@@ -1792,6 +1819,7 @@
         if (!state.active || !isGERMain()) return;
         var current = now(), ctx = getContext();
         if (!ctx || typeof ctx.getHeartX !== "function" || typeof ctx.getHeartY !== "function") return;
+        requestCompanionTrainingStart(ctx, current);
         var frameScale = Math.max(0.35, Math.min(2.2, (Number(dt) || 16.667) / 16.667));
         var playerX = Number(ctx.getHeartX()) || 200;
         var playerY = Number(ctx.getHeartY()) || 400;
@@ -2715,13 +2743,11 @@
         var current = now();
         state.active = true;
         state.trainingPendingDecisions = [];
+        state.trainingRetryAt = 0;
+        state.trainingStartInFlight = false;
+        state.trainingSessionStarted = false;
         state.trainingBossKey = companionTrainingBossKey(ctx);
-        if (window.MBGERTraining && typeof window.MBGERTraining.start === "function") {
-            window.MBGERTraining.start(state.trainingBossKey, {
-                arenaMode: ctx.type || "unknown",
-                gameVersion: "ger-dodge-training-1"
-            });
-        }
+        requestCompanionTrainingStart(ctx, current);
         state.activeUntil = Infinity;
         state.stunTimer = 0;
         state.hitFlash = 0;
