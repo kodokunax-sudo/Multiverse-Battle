@@ -85,6 +85,8 @@ let slotData = {};
 
 let arenaSettings = {
     volume: 0.20,
+    musicVolume: 0.20,
+    soundVolume: 1.0,
     effectsOpacity: 1.0,
     graphics: (typeof navigator !== "undefined" && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)) ? "phone" : "pc",
     phoneGraphicsQuality: "high",
@@ -885,6 +887,10 @@ function loadArenaSettings() {
         try {
             let s = JSON.parse(saved);
             arenaSettings.volume = s.volume ?? 0.20;
+            var savedMusicVolume = Number(s.musicVolume);
+            var savedSoundVolume = Number(s.soundVolume);
+            arenaSettings.musicVolume = Number.isFinite(savedMusicVolume) ? Math.max(0, Math.min(1, savedMusicVolume)) : 0.20;
+            arenaSettings.soundVolume = Number.isFinite(savedSoundVolume) ? Math.max(0, Math.min(1, savedSoundVolume)) : 1.0;
             arenaSettings.effectsOpacity = s.effectsOpacity ?? 1.0;
             arenaSettings.graphics = (s.graphics === "phone" || s.graphics === "pc") ? s.graphics : arenaSettings.graphics;
             arenaSettings.phoneGraphicsQuality = ["low", "medium", "high"].indexOf(s.phoneGraphicsQuality) !== -1 ? s.phoneGraphicsQuality : "high";
@@ -922,6 +928,17 @@ function applyArenaSettings() {
     let phoneQualityRow = document.getElementById("phoneGraphicsQualityRow");
     if (phoneQualitySelect) phoneQualitySelect.value = arenaSettings.phoneGraphicsQuality || "high";
     if (phoneQualityRow) phoneQualityRow.style.display = arenaSettings.graphics === "phone" ? "flex" : "none";
+    let musicSlider = document.getElementById("musicVolumeSlider");
+    let musicValue = document.getElementById("musicVolumeValue");
+    if (musicSlider) musicSlider.value = Math.floor(arenaSettings.musicVolume * 100);
+    if (musicValue) musicValue.innerText = Math.floor(arenaSettings.musicVolume * 100) + "%";
+    let soundSlider = document.getElementById("soundVolumeSlider");
+    let soundValue = document.getElementById("soundVolumeValue");
+    if (soundSlider) soundSlider.value = Math.floor(arenaSettings.soundVolume * 100);
+    if (soundValue) soundValue.innerText = Math.floor(arenaSettings.soundVolume * 100) + "%";
+    if (typeof window.MBSetAudioVolumes === "function") {
+        window.MBSetAudioVolumes(arenaSettings.musicVolume, arenaSettings.soundVolume);
+    }
     let volSlider = document.getElementById("arenaVolumeSlider");
     let volValue = document.getElementById("arenaVolumeValue");
     if (volSlider) volSlider.value = Math.floor(arenaSettings.volume * 100);
@@ -979,6 +996,20 @@ function changePhoneGraphicsQuality(val) {
 window.changePhoneGraphicsQuality = changePhoneGraphicsQuality;
 
 function changeArenaVolume(val) { arenaSettings.volume = val / 100; document.getElementById("arenaVolumeValue").innerText = val + "%"; saveArenaSettings(); }
+function changeMusicVolume(val) {
+    arenaSettings.musicVolume = Math.max(0, Math.min(100, Number(val) || 0)) / 100;
+    var label = document.getElementById("musicVolumeValue");
+    if (label) label.innerText = Math.round(arenaSettings.musicVolume * 100) + "%";
+    if (typeof window.MBSetAudioVolumes === "function") window.MBSetAudioVolumes(arenaSettings.musicVolume, arenaSettings.soundVolume);
+    saveArenaSettings();
+}
+function changeSoundVolume(val) {
+    arenaSettings.soundVolume = Math.max(0, Math.min(100, Number(val) || 0)) / 100;
+    var label = document.getElementById("soundVolumeValue");
+    if (label) label.innerText = Math.round(arenaSettings.soundVolume * 100) + "%";
+    if (typeof window.MBSetAudioVolumes === "function") window.MBSetAudioVolumes(arenaSettings.musicVolume, arenaSettings.soundVolume);
+    saveArenaSettings();
+}
 function changeArenaEffects(val) { arenaSettings.effectsOpacity = val / 100; document.getElementById("arenaEffectsValue").innerText = val + "%"; saveArenaSettings(); }
 function toggleAutoSuper(checked) { arenaSettings.autoSuper = checked; saveArenaSettings(); }
 function toggleHideClickTexts(checked) {
@@ -1077,6 +1108,8 @@ function resetArenaSettings() {
     var savedJoystickLayouts = Array.isArray(arenaSettings.joystickLayouts) ? arenaSettings.joystickLayouts.slice(0, 3) : [null, null, null];
     arenaSettings = { 
         volume: 0.20, 
+        musicVolume: 0.20,
+        soundVolume: 1.0,
         effectsOpacity: 1.0, 
         graphics: (typeof navigator !== "undefined" && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)) ? "phone" : "pc",
         autoSuper: false, 
@@ -1964,7 +1997,7 @@ let enemyStatuses = { fireTicks:0, fireDamage:0, poisonDamage:0, bleedMult:1.0, 
 let hasFireArtifact = false, hasCompoundV = {}, skipUsed = false, dekusNerfWaves = 0, currentDialog = null;
 let challenges = [], lastChallengeReset = null;
 let comboCount = 0, lastClickTime = 0, comboMultiplier = 1;
-let musicEnabled = false;
+let musicEnabled = true;
 let newcomerBonus = false, newcomerBonusEnd = 0, newcomerDamageBonusEnd = 0;
 let fireInterval = null;
 let totalClicks = 0, totalCardsObtained = 0, maxPoints = 100;
@@ -2309,6 +2342,10 @@ window.addEventListener('keydown', _unlockGameAudio, true);
 window.addEventListener('touchstart', _unlockGameAudio, { capture: true, passive: true });
 function _playUISound(freq, type, dur, vol) {
     if (vol === undefined) vol = 0.1;
+    var soundMaster = arenaSettings && Number.isFinite(Number(arenaSettings.soundVolume))
+        ? Math.max(0, Math.min(1, Number(arenaSettings.soundVolume))) : 1;
+    vol *= soundMaster;
+    if (vol <= 0.0001) return;
     _initUIAudio();
     if (!_uiAudioCtx) return;
     try {
@@ -2349,14 +2386,151 @@ window.sfxUIModalOpen = sfxUIModalOpen;
 window.sfxUIModalClose = sfxUIModalClose;
 
 // ========== МУЗЫКА ==========
-let mainMusic = null, battleMusic = null, shopMusic = null, currentMusic = null;
-let musicLoadFailed = { main: false, battle: false, shop: false };
-function initMusic() { if (mainMusic || musicLoadFailed.main) return; try { mainMusic = new Audio("music/main.mp3"); mainMusic.loop = true; mainMusic.volume = 0.2; mainMusic.onerror = () => { musicLoadFailed.main = true; mainMusic = null; }; } catch(e) { musicLoadFailed.main = true; } try { battleMusic = new Audio("music/battle.mp3"); battleMusic.loop = true; battleMusic.volume = 0.2; battleMusic.onerror = () => { musicLoadFailed.battle = true; battleMusic = null; }; } catch(e) { musicLoadFailed.battle = true; } try { shopMusic = new Audio("music/shop.mp3"); shopMusic.loop = true; shopMusic.volume = 0.2; shopMusic.onerror = () => { musicLoadFailed.shop = true; shopMusic = null; }; } catch(e) { musicLoadFailed.shop = true; } }
-function stopAllMusic() { try { if (mainMusic) { mainMusic.pause(); mainMusic.currentTime = 0; } } catch(e) {} try { if (battleMusic) { battleMusic.pause(); battleMusic.currentTime = 0; } } catch(e) {} try { if (shopMusic) { shopMusic.pause(); shopMusic.currentTime = 0; } } catch(e) {} currentMusic = null; }
-function startMainMusic() { if (!musicEnabled) return; if (!mainMusic && !musicLoadFailed.main) initMusic(); if (!mainMusic || currentMusic === mainMusic) return; stopAllMusic(); currentMusic = mainMusic; try { mainMusic.play().catch(() => {}); } catch(e) {} }
-function startBattleMusic() { if (!musicEnabled) return; if (!battleMusic && !musicLoadFailed.battle) initMusic(); if (!battleMusic || currentMusic === battleMusic) return; stopAllMusic(); currentMusic = battleMusic; try { battleMusic.play().catch(() => {}); } catch(e) {} }
-function startShopMusic() { if (!musicEnabled) return; if (!shopMusic && !musicLoadFailed.shop) initMusic(); if (!shopMusic || currentMusic === shopMusic) return; stopAllMusic(); currentMusic = shopMusic; try { shopMusic.play().catch(() => {}); } catch(e) {} }
-function toggleMusic() { musicEnabled = !musicEnabled; window.__mbChaseMusicMuted = !musicEnabled; if (musicEnabled) { if ((window.__mbLivingStoneChaseActive || window.__mbLivingStoneChaseMusicPersistent) && typeof window.MBStartLivingStoneChaseMusic === "function") { window.MBStartLivingStoneChaseMusic(); } else if (currentMusic) { try { currentMusic.play().catch(() => {}); } catch(e) {} } else { startMainMusic(); } } else { stopAllMusic(); if (typeof window.MBStopLivingStoneChaseMusic === "function") window.MBStopLivingStoneChaseMusic(true); } let btn = document.getElementById("musicToggleBtn"); if (btn) btn.innerText = musicEnabled ? "🔊" : "🔇"; }
+let mainMusic = null, menuMusic = null, currentMusic = null;
+let musicLoadFailed = { main: false, menu: false };
+let menuPlaylistIndex = 0;
+let menuPlaylistActive = false;
+let musicLoadedCallbackBound = false;
+
+function playMenuPlaylistTrack(index) {
+    var tracks = [menuMusic, mainMusic];
+    var attempts = 0;
+    var nextIndex = Math.max(0, Math.min(1, Number(index) || 0));
+    while (attempts < tracks.length && !tracks[nextIndex]) {
+        nextIndex = (nextIndex + 1) % tracks.length;
+        attempts++;
+    }
+    if (attempts >= tracks.length || !tracks[nextIndex]) {
+        currentMusic = null;
+        menuPlaylistActive = false;
+        return;
+    }
+    menuPlaylistIndex = nextIndex;
+    var audio = tracks[nextIndex];
+    currentMusic = audio;
+    window.__mbChaseMusicMuted = false;
+    try {
+        audio.currentTime = 0;
+        var request = audio.play();
+        if (request && typeof request.catch === "function") {
+            request.catch(function(error) {
+                if (error && error.name !== "NotAllowedError") {
+                    console.warn("[MB MUSIC] Не удалось запустить фоновый трек:", error);
+                }
+            });
+        }
+    } catch (error) {}
+}
+
+function initMusic() {
+    if (!menuMusic && !musicLoadFailed.menu) {
+        try {
+            menuMusic = new Audio("music/меню.mp3");
+            menuMusic.loop = false;
+            menuMusic.volume = 1;
+            menuMusic.addEventListener("ended", function() {
+                if (!menuPlaylistActive || currentMusic !== menuMusic) return;
+                menuPlaylistIndex = 1;
+                playMenuPlaylistTrack(1);
+            });
+            menuMusic.onerror = function() {
+                var failedTrack = menuMusic;
+                musicLoadFailed.menu = true;
+                menuMusic = null;
+                if (menuPlaylistActive && currentMusic === failedTrack) {
+                    currentMusic = null;
+                    menuPlaylistIndex = 1;
+                    playMenuPlaylistTrack(1);
+                }
+            };
+        } catch (error) {
+            musicLoadFailed.menu = true;
+            menuMusic = null;
+        }
+    }
+
+    if (!mainMusic && !musicLoadFailed.main) {
+        try {
+            mainMusic = new Audio("music/main.mp3");
+            mainMusic.loop = false;
+            mainMusic.volume = 1;
+            mainMusic.addEventListener("ended", function() {
+                if (!menuPlaylistActive || currentMusic !== mainMusic) return;
+                menuPlaylistIndex = 0;
+                playMenuPlaylistTrack(0);
+            });
+            mainMusic.onerror = function() {
+                var failedTrack = mainMusic;
+                musicLoadFailed.main = true;
+                mainMusic = null;
+                if (menuPlaylistActive && currentMusic === failedTrack) {
+                    currentMusic = null;
+                    menuPlaylistIndex = 0;
+                    playMenuPlaylistTrack(0);
+                }
+            };
+        } catch (error) {
+            musicLoadFailed.main = true;
+            mainMusic = null;
+        }
+    }
+
+    if (!musicLoadedCallbackBound && typeof window.onMusicLoaded === "function") {
+        musicLoadedCallbackBound = true;
+        window.onMusicLoaded(function() {
+            if (musicEnabled) startMainMusic();
+        });
+    }
+}
+
+function stopAllMusic() {
+    try { if (mainMusic) { mainMusic.pause(); mainMusic.currentTime = 0; } } catch (error) {}
+    try { if (menuMusic) { menuMusic.pause(); menuMusic.currentTime = 0; } } catch (error) {}
+    menuPlaylistActive = false;
+    currentMusic = null;
+}
+
+function startMainMusic() {
+    musicEnabled = true;
+    window.__mbChaseMusicMuted = false;
+    initMusic();
+    if (menuPlaylistActive && currentMusic) {
+        try {
+            var resumed = currentMusic.play();
+            if (resumed && typeof resumed.catch === "function") resumed.catch(function() {});
+        } catch (error) {}
+        return;
+    }
+    menuPlaylistActive = true;
+    playMenuPlaylistTrack(menuPlaylistIndex);
+}
+
+function startBattleMusic() {
+    // Ordinary battles keep the same playlist; unique boss OSTs remain separate.
+    startMainMusic();
+}
+
+function startShopMusic() {
+    // The shop no longer has a dedicated soundtrack.
+    startMainMusic();
+}
+
+function toggleMusic() {
+    // There is no mute toggle anymore. Use the Music Volume slider in Settings.
+    musicEnabled = true;
+    window.__mbChaseMusicMuted = false;
+    startMainMusic();
+}
+
+window.startMainMusic = startMainMusic;
+window.startBattleMusic = startBattleMusic;
+window.startShopMusic = startShopMusic;
+window.stopAllMusic = stopAllMusic;
+window.toggleMusic = toggleMusic;
+
+// Begin as soon as the game audio manager is loaded. If autoplay is blocked,
+// the first user gesture resumes currentMusic through MBUnlockGameAudio.
+startMainMusic();
 
 // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 function getRebirthMult() { return 1 + rebirthCount * 0.3; }
