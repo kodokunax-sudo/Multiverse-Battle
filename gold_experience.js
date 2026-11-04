@@ -869,6 +869,81 @@
         };
     }
 
+
+    function cleanCompanionTrainingKey(value, maxLength) {
+        var key = String(value || "unknown").toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "");
+        return (key || "unknown").slice(0, maxLength || 80);
+    }
+
+    function companionTrainingBossKey(ctx) {
+        return cleanCompanionTrainingKey(ctx && ctx.type, 64);
+    }
+
+    function companionTrainingAttackKey(attack, fallback) {
+        var base = attack && (attack.type || attack.kind || attack.attackType) || fallback || "unknown";
+        var key = String(base);
+        if (attack && attack.attackKind) key += "_" + String(attack.attackKind);
+        if (attack && attack.attackId !== undefined && attack.attackId !== null &&
+            Number.isFinite(Number(attack.attackId))) key += "_" + String(attack.attackId);
+        return cleanCompanionTrainingKey(key, 80);
+    }
+
+    function companionTrainingDirection(fromX, fromY, toX, toY) {
+        var angle = Math.atan2(toY - fromY, toX - fromX);
+        return (Math.round(angle / (Math.PI / 4)) + 8) % 8;
+    }
+
+    function resolveCompanionTrainingIntercept(sourceAction, damageTaken) {
+        if (!sourceAction || !Array.isArray(state.trainingPendingDecisions)) return;
+        for (var i = state.trainingPendingDecisions.length - 1; i >= 0; i--) {
+            var pending = state.trainingPendingDecisions[i];
+            if (pending && pending.attack === sourceAction) {
+                if (window.MBGERTraining && typeof window.MBGERTraining.recordOutcome === "function") {
+                    window.MBGERTraining.recordOutcome(pending.data, "blocked", damageTaken || 0);
+                }
+                state.trainingPendingDecisions.splice(i, 1);
+                return;
+            }
+        }
+    }
+
+    function resolveCompanionTrainingOutcomes(ctx, current) {
+        var pending = state.trainingPendingDecisions;
+        if (!Array.isArray(pending) || !pending.length || !ctx) return;
+        var attacks = getAttackList(ctx) || [];
+        var waves = getCompanionShockwaves(ctx) || [];
+        for (var i = pending.length - 1; i >= 0; i--) {
+            var entry = pending[i];
+            if (!entry || !entry.attack) {
+                pending.splice(i, 1);
+                continue;
+            }
+            var active = attacks.indexOf(entry.attack) >= 0 || waves.indexOf(entry.attack) >= 0;
+            var stillDangerous = false;
+            if (active) {
+                try {
+                    stillDangerous = !!companionThreatAt(entry.attack, state.x, state.y, 0, true);
+                } catch (_error) {}
+            }
+            if (!stillDangerous && entry.safeSince === null) entry.safeSince = current;
+            else if (stillDangerous) entry.safeSince = null;
+
+            if (current >= entry.resolveAt && entry.safeSince !== null &&
+                current - entry.safeSince >= 240) {
+                if (window.MBGERTraining && typeof window.MBGERTraining.recordOutcome === "function") {
+                    window.MBGERTraining.recordOutcome(entry.data, "evaded", 0);
+                }
+                pending.splice(i, 1);
+            } else if (current >= entry.maxResolveAt) {
+                if (window.MBGERTraining && typeof window.MBGERTraining.recordOutcome === "function") {
+                    window.MBGERTraining.recordOutcome(entry.data, "unknown", 0);
+                }
+                pending.splice(i, 1);
+            }
+        }
+    }
+
     function spawnHitEffect(x, y, color) {
         try {
             if (typeof window.addWaystarShockwave === "function") {
