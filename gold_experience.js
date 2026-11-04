@@ -959,6 +959,23 @@
         }
     }
 
+
+    function finishCompanionTrainingSession(result) {
+        if (Array.isArray(state.trainingPendingDecisions)) {
+            for (var i = 0; i < state.trainingPendingDecisions.length; i++) {
+                var pending = state.trainingPendingDecisions[i];
+                if (pending && pending.data && window.MBGERTraining &&
+                    typeof window.MBGERTraining.recordOutcome === "function") {
+                    window.MBGERTraining.recordOutcome(pending.data, "unknown", 0);
+                }
+            }
+            state.trainingPendingDecisions = [];
+        }
+        if (window.MBGERTraining && typeof window.MBGERTraining.finish === "function") {
+            window.MBGERTraining.finish(result || "aborted");
+        }
+    }
+
     function spawnHitEffect(x, y, color) {
         try {
             if (typeof window.addWaystarShockwave === "function") {
@@ -1034,6 +1051,7 @@
     function registerCompanionInterception(sourceAction) {
         if (sourceAction && sourceAction._mbGERInterceptionRegistered) return;
         if (sourceAction && typeof sourceAction === "object") sourceAction._mbGERInterceptionRegistered = true;
+        resolveCompanionTrainingIntercept(sourceAction, 0);
         state.hitFlash = Math.max(Number(state.hitFlash) || 0, 8);
         state.lastHitAt = now();
         addCharge(8);
@@ -2135,6 +2153,7 @@
             state.attackType = null;
             state.punch = null;
         }
+        resolveCompanionTrainingOutcomes(ctx, current);
         updatePunchEffects(frameScale);
     }
 
@@ -2697,6 +2716,14 @@
         if (state.active) return true;
         var current = now();
         state.active = true;
+        state.trainingPendingDecisions = [];
+        state.trainingBossKey = companionTrainingBossKey(ctx);
+        if (window.MBGERTraining && typeof window.MBGERTraining.start === "function") {
+            window.MBGERTraining.start(state.trainingBossKey, {
+                arenaMode: ctx.type || "unknown",
+                gameVersion: "ger-dodge-training-1"
+            });
+        }
         state.activeUntil = Infinity;
         state.stunTimer = 0;
         state.hitFlash = 0;
@@ -2755,6 +2782,7 @@
 
     function clearRequiemCompanion() {
         if (!state.active) return;
+        finishCompanionTrainingSession("aborted");
         state.active = false;
         state.activeUntil = 0;
         finishMudaCombo();
@@ -2820,6 +2848,7 @@
     var baseResetSupers = window.resetAllSupers;
     window.resetAllSupers = function () {
         restoreLifeBurstSpeed();
+        if (state.active) finishCompanionTrainingSession("aborted");
         state.active = false;
         state.activeUntil = 0;
         state.cooldownUntil = 0;
