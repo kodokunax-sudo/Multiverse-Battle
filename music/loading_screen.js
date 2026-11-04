@@ -85,7 +85,7 @@
         });
     })();
 
-    const FETCH_TIMEOUT = 30000; // 30 секунд на ресурс
+    const FETCH_TIMEOUT = 120000; // 2 минуты на один ресурс, чтобы не обрывать медленные загрузки
 
     // On phones, keep only the tracks needed for normal play and Anti-Spiral
     // as in-memory Blob URLs. Cache the remaining tracks on disk without keeping
@@ -316,7 +316,7 @@
         
         
         
-        #continueBtn { margin-top: 8px; }
+        #continueBtn { margin-top: 8px; display: none; max-width: 94vw; white-space: normal; padding-left: 20px; padding-right: 20px; font-size: clamp(12px, 4vw, 16px); }
         #skipMusicBtn { display: none; }
         
         #loadingHint {
@@ -373,7 +373,9 @@
         document.getElementById('continueBtn').addEventListener('click', function() {
             if (!loadingStarted) startLoading(true, true);
             else {
+                // Hide only the loading overlay. Pending downloads are not cancelled.
                 window.__musicSkipped = true;
+                window.__musicBackgroundLoading = !loadingFinished;
                 hideScreen();
             }
             try {
@@ -491,15 +493,11 @@
     // ★ ЗАГРУЗКА ОДНОГО ТРЕКА ★
     // ============================================================
     async function loadOneTrack(key, path) {
-        // 1. Проверка кэша
         let cachedBlob = await getFromCache(path);
         if (cachedBlob) {
             let keepInMemory = keepTrackInMemory(key);
             let loadedEntry = {
-                path: path,
-                size: cachedBlob.size,
-                fromCache: true,
-                cachedOnly: !keepInMemory
+                path: path, size: cachedBlob.size, fromCache: true, cachedOnly: !keepInMemory
             };
             if (keepInMemory) {
                 loadedEntry.blob = cachedBlob;
@@ -508,43 +506,44 @@
             window.__loadedMusic[key] = loadedEntry;
             addLog("✅ " + key + " (из кэша, " + Math.round(cachedBlob.size/1024) + " КБ" +
                 (keepInMemory ? "" : ", без хранения в памяти") + ")", "ok");
-            return { key, success: true, fromCache: true };
+            return { key: key, success: true, fromCache: true };
         }
 
-        // 2. Загрузка из сети
-        try {
-            let blob = await loadViaXHR(path, function(loaded, total) {
-                if (total > 0) {
-                    let pct = Math.round((loaded / total) * 100);
-                    setStatus("Скачивание " + key + ": " + pct + "%");
+        let lastError = null;
+        const MAX_ATTEMPTS = 3;
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            try {
+                let blob = await loadViaXHR(path);
+                await saveToCache(path, blob);
+                let keepInMemory = keepTrackInMemory(key);
+                let loadedEntry = {
+                    path: path, size: blob.size, fromCache: false, cachedOnly: !keepInMemory
+                };
+                if (keepInMemory) {
+                    loadedEntry.blob = blob;
+                    loadedEntry.url = URL.createObjectURL(blob);
                 }
-            });
-
-            await saveToCache(path, blob);
-            let keepInMemory = keepTrackInMemory(key);
-            let loadedEntry = {
-                path: path,
-                size: blob.size,
-                fromCache: false,
-                cachedOnly: !keepInMemory
-            };
-            if (keepInMemory) {
-                loadedEntry.blob = blob;
-                loadedEntry.url = URL.createObjectURL(blob);
+                window.__loadedMusic[key] = loadedEntry;
+                delete window.__musicLoadFailed[key];
+                addLog("✅ " + key + " (" + Math.round(blob.size/1024) + " КБ" +
+                    (keepInMemory ? "" : ", сохранено без хранения в памяти") + ")", "ok");
+                return { key: key, success: true, fromCache: false };
+            } catch (error) {
+                lastError = error;
+                if (attempt < MAX_ATTEMPTS) {
+                    addLog("↻ " + key + ": попытка " + attempt + " не удалась, повторяю...", "");
+                    await new Promise(function(resolve) {
+                        setTimeout(resolve, attempt * 900);
+                    });
+                }
             }
-            window.__loadedMusic[key] = loadedEntry;
-
-            addLog("✅ " + key + " (" + Math.round(blob.size/1024) + " КБ" +
-                (keepInMemory ? "" : ", сохранено без хранения в памяти") + ")", "ok");
-            return { key, success: true, fromCache: false };
-        } catch(e) {
-            addLog("❌ " + key + " — " + e.message, "err");
-            window.__musicLoadFailed[key] = e.message;
-            return { key, success: false, error: e.message };
         }
+        window.__musicLoadFailed[key] = lastError ? lastError.message : "Неизвестная ошибка";
+        addLog("❌ " + key + " — не удалось загрузить после " + MAX_ATTEMPTS +
+            " попыток: " + window.__musicLoadFailed[key], "err");
+        return { key: key, success: false, error: window.__musicLoadFailed[key] };
     }
 
-    // ============================================================
     // ★ ЗАГРУЗКА ИЗОБРАЖЕНИЯ И ЕГО СОХРАНЕНИЕ В КЭШ ★
     // ============================================================
     async function loadOneImage(key, path) {
@@ -612,37 +611,71 @@
         let imageKeys = Object.keys(IMAGE_FILES).filter(function(key) { return !!IMAGE_FILES[key]; });
         let total = musicKeys.length + imageKeys.length;
         window.__musicLoadProgress.total = musicKeys.length;
-        if (!includeMusic) {
-            addLog("Музыка пропущена по выбору игрока — загружаю только изображения.", "ok");
-        }
-        let loaded = 0;
+        if (!includeMusic) addLog("Музыка пропущена — загружаю только изображения.", "ok");
+
         let success = 0;
         let failed = 0;
         let fromCache = 0;
         let musicFailed = 0;
+        let musicCompleted = 0;
+        let imagesCompleted = 0;
+        let musicCursor = 0;
 
-        addLog("Начинаю загрузку " + musicKeys.length + " треков и " + imageKeys.length + " изображений...");
+        addLog("Начинаю загрузку " + musicKeys.length +
+            " треков и " + imageKeys.length + " изображений. Музыка загружается параллельно...");
 
-        for (let i = 0; i < musicKeys.length; i++) {
-            let key = musicKeys[i];
-            let path = MUSIC_FILES[key];
-            setStatus("Загрузка музыки: " + path.split('/').pop() + " (" + (i + 1) + "/" + total + ")");
-            let result = await loadOneTrack(key, path);
-            if (result.success) {
-                success++;
-                if (result.fromCache) fromCache++;
-            } else {
-                failed++;
-                musicFailed++;
-            }
-            loaded++;
-            setProgress(loaded, total);
-            window.__musicLoadProgress.loaded = i + 1;
+        function updateOverallProgress() {
+            setProgress(musicCompleted + imagesCompleted, total);
+            window.__musicLoadProgress.loaded = musicCompleted;
             window.__musicLoadProgress.failed = musicFailed;
+            setStatus("Музыка: " + musicCompleted + "/" + musicKeys.length +
+                " · изображения: " + imagesCompleted + "/" + imageKeys.length);
         }
 
+        async function musicWorker() {
+            while (true) {
+                let index = musicCursor++;
+                if (index >= musicKeys.length) return;
+                let key = musicKeys[index];
+                let result = await loadOneTrack(key, MUSIC_FILES[key]);
+                if (result.success) {
+                    success++;
+                    if (result.fromCache) fromCache++;
+                } else {
+                    failed++;
+                    musicFailed++;
+                }
+                musicCompleted++;
+                updateOverallProgress();
+            }
+        }
+
+        async function imageWorker() {
+            for (let i = 0; i < imageKeys.length; i++) {
+                let key = imageKeys[i];
+                let result = await loadOneImage(key, IMAGE_FILES[key]);
+                if (result.success) {
+                    success++;
+                    if (result.fromCache) fromCache++;
+                } else {
+                    failed++;
+                }
+                imagesCompleted++;
+                updateOverallProgress();
+            }
+        }
+
+        // Limit concurrent requests to keep the downloader responsive on phones.
+        let concurrency = LOW_MEMORY_MODE ? 3 : 4;
+        let musicWorkers = [];
+        for (let i = 0; i < Math.min(concurrency, musicKeys.length); i++) {
+            musicWorkers.push(musicWorker());
+        }
+
+        // Images are fetched while the music downloads, instead of waiting in a queue.
+        await Promise.all([Promise.all(musicWorkers), imageWorker()]);
+
         window.__musicLoaded = true;
-        // Сигнал для музыкальных модулей не ждёт декодирования изображений.
         if (window.__musicLoadedCallbacks) {
             for (let cb of window.__musicLoadedCallbacks) {
                 try { cb(); } catch(e) {}
@@ -650,71 +683,96 @@
             window.__musicLoadedCallbacks = [];
         }
 
-        for (let i = 0; i < imageKeys.length; i++) {
-            let key = imageKeys[i];
-            let path = IMAGE_FILES[key];
-            setStatus("Загрузка изображения: " + path.split('/').pop() + " (" + (musicKeys.length + i + 1) + "/" + total + ")");
-            let result = await loadOneImage(key, path);
-            if (result.success) {
-                success++;
-                if (result.fromCache) fromCache++;
-            } else {
-                failed++;
-            }
-            loaded++;
-            setProgress(loaded, total);
+        loadingFinished = true;
+        if (playWhileLoadingTimer) {
+            clearTimeout(playWhileLoadingTimer);
+            playWhileLoadingTimer = null;
         }
 
         if (failed === 0) {
-            setStatus((musicKeys.length ? "✅ Музыка и изображения загружены!" : "✅ Изображения загружены, музыка пропущена.") +
+            setStatus("✅ Музыка и изображения загружены!" +
                 (fromCache > 0 ? " (из кэша: " + fromCache + ")" : ""));
         } else if (success > 0) {
             setStatus("⚠️ Загружено " + success + "/" + total + " ресурсов, ошибок: " + failed);
         } else {
-            setStatus("❌ Не удалось загрузить ресурсы. Нажми «Продолжить», чтобы попробовать играть.");
+            setStatus("❌ Не удалось загрузить ресурсы. Можно войти в игру и попробовать позже.");
         }
 
-        // Экран скрывается только после попытки загрузить как музыку, так и картинки.
-        if (failed === 0 || success > 0) {
+        if (success === 0) {
+            let button = document.getElementById('continueBtn');
+            if (button) {
+                button.textContent = "▶ ИГРАТЬ, НЕ ЖДАТЬ ЗАГРУЗКУ";
+                button.style.display = "inline-block";
+            }
+        }
+
+        if ((failed === 0 || success > 0) && success > 0) {
             setTimeout(function() {
                 if (!window.__musicSkipped && document.getElementById('loadingScreen')) {
                     addLog("Все ресурсы обработаны — скрываю экран через 2 сек...");
                     setTimeout(hideScreen, 2000);
                 }
             }, 500);
-        } else {
-            setStatus("❌ Ресурсы не загрузились. Нажми «Продолжить», чтобы войти в игру.");
         }
     }
 
     let loadingStarted = false;
+    let loadingFinished = false;
+    let playWhileLoadingTimer = null;
 
     function startLoading(includeMusic, dismissImmediately) {
         if (loadingStarted) return;
         loadingStarted = true;
+        loadingFinished = false;
         includeMusic = true;
         window.__disableGameMusic = false;
         window.__musicSkipped = false;
+        window.__musicBackgroundLoading = false;
 
         let continueButton = document.getElementById('continueBtn');
-        if (continueButton) continueButton.style.display = dismissImmediately ? 'none' : 'inline-block';
+        if (continueButton) {
+            continueButton.style.display = 'none';
+            continueButton.textContent = "▶ ИГРАТЬ, ЗАГРУЗКА В ФОНЕ";
+        }
         setStatus(includeMusic ? 'Загружаю музыку и изображения...' : 'Загружаю изображения без музыки...');
 
         if (dismissImmediately) {
             window.__musicSkipped = true;
+            window.__musicBackgroundLoading = true;
             hideScreen();
+        } else {
+            playWhileLoadingTimer = setTimeout(function() {
+                if (loadingFinished || window.__musicSkipped ||
+                    !document.getElementById('loadingScreen')) return;
+                let button = document.getElementById('continueBtn');
+                if (button) {
+                    button.textContent = "▶ ИГРАТЬ, ЗАГРУЗКА В ФОНЕ";
+                    button.style.display = "inline-block";
+                }
+                setStatus("Загрузка продолжается. Уже можно играть, песни докачаются в фоне.");
+                addLog("Можно войти в игру: загрузка музыки и изображений продолжится в фоне.", "ok");
+            }, 30000);
         }
 
         setTimeout(function() {
             loadAllMusic(includeMusic).catch(function(err) {
                 console.error("[LOADING] Критическая ошибка:", err);
+                loadingFinished = true;
+                if (playWhileLoadingTimer) {
+                    clearTimeout(playWhileLoadingTimer);
+                    playWhileLoadingTimer = null;
+                }
                 addLog("💥 Критическая ошибка: " + err.message, "err");
-                setStatus("Ошибка загрузки. Нажми «Играть сразу», чтобы войти в игру.");
+                setStatus("Загрузка прервалась. Можно войти в игру.");
+                let button = document.getElementById('continueBtn');
+                if (button) {
+                    button.textContent = "▶ ИГРАТЬ";
+                    button.style.display = "inline-block";
+                }
             });
         }, 0);
     }
 
-    // ============================================================
     // ★ СКРЫТИЕ ЭКРАНА ★
     // ============================================================
     function hideScreen() {
