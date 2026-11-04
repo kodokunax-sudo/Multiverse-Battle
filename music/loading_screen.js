@@ -52,7 +52,8 @@
         "odenBossModel": "Model/оден.png",
         "rogerBossModelFlash": "Model/роджер белый.png",
         "whitebeardBossModelFlash": "Model/белоус белый.png",
-        "odenBossModelFlash": "Model/оден белый.png"
+        "odenBossModelFlash": "Model/оден белый.png",
+        "gerCompanionModel": "Model/голден експириес рквием.jpg"
     };
 
     // Все арты карт из images.js также скачиваются заранее.
