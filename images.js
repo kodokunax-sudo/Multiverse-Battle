@@ -104,7 +104,7 @@ const cardImages = {
 "Космический Дэнди": "images/IMG_20260607_162922_098.png" ,
     "Такаба": "images/Takaba.png",
 "Кайдо": "images/Kaydo.png",
-    "Кайдо (Прайм)": "images/Kaydo.png",
+    "Кайдо (Прайм)": null,
 "Император Марк": "images/IMG_20260607_150237_981.png" ,
 "Деку (100%)": "images/IMG_20260714_235027_021.png" ,
 "Всемогущий (прайм)": "images/IMG_20260607_143127_966.png" ,
