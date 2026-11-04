@@ -1153,7 +1153,15 @@
                         </div>
                     </div>
                     <div class="shop-item">
-                        <div><strong>🔊 Громкость арены</strong></div>
+                        <div><strong>🎵 Громкость музыки</strong><div style="font-size:12px;color:#aaa;margin-top:4px;">Общая громкость фоновых тем, включая музыку боссов.</div></div>
+                        <div><input type="range" id="musicVolumeSlider" min="0" max="100" value="20" style="width:120px;" oninput="changeMusicVolume(this.value)"> <span id="musicVolumeValue">20%</span></div>
+                    </div>
+                    <div class="shop-item">
+                        <div><strong>🔔 Громкость звуков</strong><div style="font-size:12px;color:#aaa;margin-top:4px;">Звуки интерфейса, боевые эффекты и звуковые эффекты персонажей.</div></div>
+                        <div><input type="range" id="soundVolumeSlider" min="0" max="100" value="100" style="width:120px;" oninput="changeSoundVolume(this.value)"> <span id="soundVolumeValue">100%</span></div>
+                    </div>
+                    <div class="shop-item">
+                        <div><strong>🔊 Громкость эффектов арены</strong></div>
                         <div><input type="range" id="arenaVolumeSlider" min="0" max="100" value="20" style="width:120px;" oninput="changeArenaVolume(this.value)"> <span id="arenaVolumeValue">20%</span></div>
                     </div>
                     <div class="shop-item">
@@ -1625,8 +1633,8 @@
 <script src="daily.js?v=10" defer></script>
 <script src="pass.js?v=11" defer></script>
 <script src="dandy.js?v=9" defer></script>
-<script src="game.js?v=118" defer></script>
-<script src="battle.js?v=52" defer></script>
+<script src="game.js?v=119" defer></script>
+<script src="battle.js?v=53" defer></script>
 <script src="supers.js?v=62" defer></script>
 <script src="dio.js?v=23" defer></script>
 <script src="gojo.js?v=8" defer></script>
@@ -1643,7 +1651,7 @@
 <script src="cooking_minigame.js?v=2" defer></script>
 <script src="crafting.js?v=4" defer></script>
 <script src="equipment_combat.js?v=15" defer></script>
-<script src="ui.js?v=32" defer></script>
+<script src="ui.js?v=33" defer></script>
 <script src="patches.js?v=10" defer></script>
 <script src="help.js?v=5" defer></script>
 <script src="evolution_unlock.js?v=3" defer></script>
