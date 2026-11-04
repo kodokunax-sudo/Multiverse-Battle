@@ -1966,6 +1966,37 @@
             state.wanderTimer = 28 + Math.floor((1 - state.aiSkill) * 12);
             state.dodgePlanTimer = Math.max(8, Math.round(19 - state.aiSkill * 7));
             state.lastThreatAttack = incoming.attack || null;
+            if (newThreat && incoming.attack && Array.isArray(state.trainingPendingDecisions)) {
+                var trainingAlreadyPending = state.trainingPendingDecisions.some(function (entry) {
+                    return entry && entry.attack === incoming.attack;
+                });
+                if (!trainingAlreadyPending) {
+                    var trainingAttack = incoming.attack;
+                    var trainingDelay = Math.max(550, (Number(incoming.time) || 0) * 16.667 + 350);
+                    var phaseValue = trainingAttack.phase !== undefined ? trainingAttack.phase :
+                        (trainingAttack.phaseIndex !== undefined ? trainingAttack.phaseIndex : ctx.phase);
+                    state.trainingPendingDecisions.push({
+                        attack: trainingAttack,
+                        data: {
+                            attackKey: companionTrainingAttackKey(trainingAttack, incoming.attackType),
+                            attackFamily: cleanCompanionTrainingKey(trainingAttack.type || trainingAttack.kind || incoming.attackType, 40),
+                            bossPhase: cleanCompanionTrainingKey(phaseValue, 32),
+                            timeToImpactMs: Math.max(0, Math.round((Number(incoming.time) || 0) * 16.667)),
+                            heartX: state.x,
+                            heartY: state.y,
+                            velocityX: Number(state.vx) || 0,
+                            velocityY: Number(state.vy) || 0,
+                            chosenDirection: companionTrainingDirection(state.x, state.y, safeTarget.x, safeTarget.y),
+                            targetX: safeTarget.x,
+                            targetY: safeTarget.y,
+                            features: { routeMarkedSafe: safeTarget.safe === true, aiSkill: Number(state.aiSkill) || 0, urgent: !!urgentThreat }
+                        },
+                        resolveAt: current + trainingDelay,
+                        maxResolveAt: current + trainingDelay + 6000,
+                        safeSince: null
+                    });
+                }
+            }
             state.dodgeCooldown = incoming.time <= 12
                 ? Math.max(3, Math.round(8 - state.aiSkill * 3))
                 : Math.max(6, Math.round(14 - state.aiSkill * 5));
