@@ -910,6 +910,7 @@
             <button class="tab-btn" data-tab="shop">🛒 Лавка</button>
             <button class="tab-btn" data-tab="clans">🌐 Онлайн</button>
             <button class="tab-btn" data-tab="other">📋 Прочее</button>
+            <button class="tab-btn" data-tab="gerTraining" style="display:none;" aria-label="Модераторская арена обучения GER">🧠 Обучение GER</button>
         </div>
         <div id="collectionTab" class="tab-content active">
             <div class="sub-tabs">
@@ -1322,6 +1323,70 @@
                 </div>
             </div>
         </div>
+
+        <div id="gerTrainingTab" class="tab-content">
+            <div class="card" style="border:1px solid rgba(255,210,110,.35);background:linear-gradient(145deg,rgba(30,24,12,.96),rgba(18,20,34,.96));">
+                <div class="card-title" style="font-size:22px;">🧠 АРЕНА ОБУЧЕНИЯ GOLDEN EXPERIENCE REQUIEM</div>
+                <p style="font-size:13px;color:#c9d2df;line-height:1.55;margin:8px 0 14px;">Отдельная песочница для ускоренного обучения уклонениям. GER автоматически вызывает стенд, анализирует атаки и отправляет результаты в общую серверную память. Бой не выдаёт наград и не меняет сохранение.</p>
+                <div id="gerTrainingAccessNotice" role="status" style="padding:10px 12px;margin:8px 0 14px;border-radius:10px;background:rgba(120,190,255,.08);color:#cde5ff;font-size:12px;">Ожидаем подтверждение модераторского доступа…</div>
+
+                <label for="gerTrainingBossWave" style="display:block;font-weight:800;margin:12px 0 6px;">Босс для тренировки</label>
+                <select id="gerTrainingBossWave" style="width:100%;padding:11px;border-radius:10px;"></select>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:14px;">
+                    <div>
+                        <label for="gerTrainingAttackWave" style="display:block;font-weight:800;margin-bottom:6px;">Интенсивность атак</label>
+                        <input id="gerTrainingAttackWave" type="range" min="50" max="10000" step="50" value="500" style="width:100%;">
+                        <div style="font-size:12px;color:#aeb8c8;">Уровень: <strong id="gerTrainingAttackWaveValue">500</strong></div>
+                    </div>
+                    <div>
+                        <label for="gerTrainingSpeed" style="display:block;font-weight:800;margin-bottom:6px;">Ускорение тренировочного цикла</label>
+                        <input id="gerTrainingSpeed" type="range" min="1" max="5" step="0.5" value="2" style="width:100%;">
+                        <div style="font-size:12px;color:#aeb8c8;">Скорость: <strong id="gerTrainingSpeedValue">2×</strong></div>
+                    </div>
+                    <div>
+                        <label for="gerTrainingDuration" style="display:block;font-weight:800;margin-bottom:6px;">Длительность одного запуска</label>
+                        <select id="gerTrainingDuration" style="width:100%;padding:10px;border-radius:10px;">
+                            <option value="120000">2 минуты</option>
+                            <option value="300000" selected>5 минут</option>
+                            <option value="600000">10 минут</option>
+                            <option value="0">Без ограничения</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top:16px;padding:12px;border-radius:12px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);">
+                    <div style="font-weight:900;margin-bottom:5px;">Типы атак</div>
+                    <p style="font-size:12px;color:#aeb8c8;margin:0 0 10px;">Босс будет случайно чередовать выбранные схемы. Для точечной отработки оставь одну или две атаки.</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                        <button type="button" class="btn" id="gerTrainingPresetAll" style="padding:7px 11px;font-size:12px;">☑️ Все атаки</button>
+                        <button type="button" class="btn" id="gerTrainingPresetBasic" style="padding:7px 11px;font-size:12px;">⚔️ Базовые</button>
+                        <button type="button" class="btn" id="gerTrainingPresetAdvanced" style="padding:7px 11px;font-size:12px;">🌀 Продвинутые</button>
+                        <button type="button" class="btn" id="gerTrainingPresetNone" style="padding:7px 11px;font-size:12px;">⬜ Снять все</button>
+                    </div>
+                    <div id="gerTrainingAttackList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px;"></div>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:9px;margin-top:14px;padding:11px;border-radius:10px;background:rgba(0,0,0,.22);">
+                    <input type="checkbox" id="gerTrainingInvulnerable" checked style="width:18px;height:18px;accent-color:#e8bd64;">
+                    <label for="gerTrainingInvulnerable" style="font-size:13px;font-weight:800;">Неуязвимость Джорно на время тренировки</label>
+                </div>
+
+                <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:16px;">
+                    <button type="button" class="btn btn-primary" id="gerTrainingStartBtn" style="flex:1;min-width:180px;padding:13px;font-weight:900;">▶ НАЧАТЬ ОБУЧЕНИЕ</button>
+                    <button type="button" class="btn" id="gerTrainingStopBtn" disabled style="padding:13px;font-weight:900;">■ ОСТАНОВИТЬ</button>
+                    <button type="button" class="btn" id="gerTrainingRefreshStatsBtn" style="padding:13px;">↻ Обновить память</button>
+                </div>
+                <div id="gerTrainingStatus" role="status" aria-live="polite" style="margin-top:12px;min-height:22px;font-size:13px;color:#ffe4a6;">Арена готова к запуску.</div>
+                <div id="gerTrainingRunTimer" style="font-size:12px;color:#aeb8c8;margin-top:3px;"></div>
+
+                <div style="height:1px;background:rgba(255,255,255,.1);margin:20px 0;"></div>
+                <div style="font-weight:900;font-size:17px;margin-bottom:8px;">📚 Накопленная память GER</div>
+                <div id="gerTrainingStatsSummary" style="font-size:12px;color:#b9c7d9;margin-bottom:10px;">Выбери босса и обнови память, чтобы посмотреть результаты обучения.</div>
+                <div id="gerTrainingStatsList" style="display:grid;gap:7px;"></div>
+            </div>
+        </div>
+
         <div id="clansTab" class="tab-content online-screen">
             <div class="online-hero">
                 <div class="online-hero-icon">🌐</div>
@@ -1710,6 +1775,7 @@
 <script src="ger_training_client.js?v=3" defer></script>
 <script src="gold_experience.js?v=25" defer></script>
 <script src="boss_test_mode.js?v=10" defer></script>
+<script src="ger_training_arena.js?v=1" defer></script>
 <script src="pucci_made_in_heaven.js?v=8" defer></script>
     <script src="optional-integrations.js?v=21" defer></script>
 <div id="mbEpilepsyWarning" role="dialog" aria-modal="true" aria-labelledby="mbEpilepsyTitle">
