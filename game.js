@@ -1315,6 +1315,7 @@ function loadGameData(d) {
     afkWinsCompleted = d.afkWinsCompleted || 0;
     highestCheckpoint = Math.max(1, Number(d.highestCheckpoint) || 1); 
     highestWaveReached = Math.max(1, Number(d.highestWaveReached) || Number(d.highestCheckpoint) || 1);
+    starGachaUnlocked = d.starGachaUnlocked === true || highestWaveReached >= 1000;
     rebirthCount = d.rebirthCount || 0; 
     rebirthStats = d.rebirthStats || []; 
     activeCheckpoint = Math.max(0, Number(d.activeCheckpoint) || 0);
@@ -1466,6 +1467,7 @@ function initNewGame() {
     afkWinsCompleted = 0;
     highestCheckpoint = 1; 
     highestWaveReached = 1;
+    starGachaUnlocked = false;
     rebirthCount = 0; 
     rebirthStats = []; 
     activeCheckpoint = 0; 
@@ -1634,6 +1636,8 @@ function saveAll(forceImmediate) {
     slotData.afkWinsCompleted = afkWinsCompleted || 0;
     slotData.highestCheckpoint = highestCheckpoint; 
     slotData.highestWaveReached = highestWaveReached;
+    if (highestWaveReached >= 1000) starGachaUnlocked = true;
+    slotData.starGachaUnlocked = starGachaUnlocked;
     slotData.rebirthCount = rebirthCount; 
     slotData.rebirthStats = rebirthStats; 
     slotData.gameStatsCurrentRebirth = gameStatsCurrentRebirth;
@@ -1739,6 +1743,7 @@ window.MBGrantTitleRewardPoints = function (amount,titleId) {
 // ========== ИГРОВЫЕ ПЕРЕМЕННЫЕ ==========
 let myCards=[],team=[],afkTeam=[],points=100,wave=1,playerHp=100,currentEnemy=null,clicksSinceLastCounter=0,activeBuffs={},defeatHistory=[],mode="normal",shopItems=[null,null,null],shopRefreshTime=null,lastCardClaimTime=null,freeSpins=5,lastFreeSpinReset=null,fatigue=0,achievements={win10:false,win50:false,win100:false,win500:false,win1000:false,legendaryTeam:false,secretTeam:false,level20:false,level50:false,rebirth3:false,rebirth5:false,allCommon:false,allRare:false,points10k:false,points50k:false,points100k:false,totalClicks1k:false,totalClicks10k:false,bossNoDamage:false,sellCard100:false},totalWins=0,playerLevel=1,playerExp=0,resurrectedThisFight=false,firstAttackThisFight=true,hasSukunaFingers=false,sukunaTarget=null,sukunaExpireTime=0,deathNoteTarget=null,afkActive=false,afkTimer=null,afkWavesCompleted=0,afkWinsCompleted=0,afkCurrentWave=1,usedCodes=[],moderUnlocked=false,discoveredCards=[],highestCheckpoint=1;
 let highestWaveReached = 1;
+let starGachaUnlocked = false;
 let rebirthCount=0, rebirthStats=[], activeCheckpoint=0, autoSellSettings={"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}, purchasedAutoSell={"Обычная":false,"Редкая":false,"Сверх редкая":false,"Эпик":false,"Мифическая":false,"Легендарная":false}, autoRest={active:false,threshold:90,purchased:false};
 let afkFarmUpgradeLevel=0;
 var mbAfkFarmUpgradeBackupNeedsSave = false;
@@ -2556,7 +2561,7 @@ function createCard(r, options) {
     if (r === "Звёздная" && templates.length === 0) return null;
 
     let template = null;
-    let minRebirth = (r === "Секретная") ? 1 : (r === "Звёздная" ? 4 : 0);
+    let minRebirth = (r === "Секретная") ? 1 : 0;
     if (templates.length > 0) {
         let validTemplates = templates.filter(function(t) {
             return mode === "moder" || (t.minRebirth || minRebirth) <= rebirthCount;
@@ -2919,8 +2924,8 @@ function performGacha(type) {
     checkGachaReset();
     if (gachaAnimationActive) forceStopGachaAnimation();
 
-    if (type === "star" && mode !== "moder" && rebirthCount < 4) {
-        alert("Звёздная крутка открывается с 4-го ребёрна.");
+    if (type === "star" && mode !== "moder" && !starGachaUnlocked && highestWaveReached < 1000) {
+        alert("Звёздная крутка открывается после достижения 1000-й волны.");
         return;
     }
 

@@ -316,7 +316,7 @@
         
         
         
-        #continueBtn { margin-top: 8px; display: none; max-width: 94vw; white-space: normal; padding-left: 20px; padding-right: 20px; font-size: clamp(12px, 4vw, 16px); }
+        #continueBtn { margin-top: 8px; display: inline-block; max-width: 94vw; white-space: normal; padding-left: 20px; padding-right: 20px; font-size: clamp(12px, 4vw, 16px); }
         #skipMusicBtn { display: none; }
         
         #loadingHint {
@@ -355,7 +355,7 @@
             <div id="loadingPercent">0%</div>
             <div id="loadingStatus">Автоматически загружаю музыку и изображения...</div>
             <div id="loadingLog"></div>
-            <button id="continueBtn">▶ ИГРАТЬ СРАЗУ</button>
+            <button id="continueBtn" style="display:inline-block;">▶ ИГРАТЬ, ЗАГРУЗКА В ФОНЕ</button>
             <div id="loadingHint">🎵 Музыка включена постоянно. Громкость музыки и звуков регулируется в настройках игры.</div>
         `;
 
@@ -735,7 +735,7 @@
 
         let continueButton = document.getElementById('continueBtn');
         if (continueButton) {
-            continueButton.style.display = 'none';
+            continueButton.style.display = 'inline-block';
             continueButton.textContent = "▶ ИГРАТЬ, ЗАГРУЗКА В ФОНЕ";
         }
         setStatus(includeMusic ? 'Загружаю музыку и изображения...' : 'Загружаю изображения без музыки...');

@@ -1143,7 +1143,8 @@ function renderGachaTab() {
         let bought = (typeof gachaDailyLimits !== "undefined" && gachaDailyLimits.star) || 0;
         let max = (typeof gachaDailyMax !== "undefined" && gachaDailyMax.star) || 2;
         let unlocked = (typeof mode !== "undefined" && mode === "moder") ||
-            (typeof rebirthCount !== "undefined" && rebirthCount >= 4);
+            (typeof starGachaUnlocked !== "undefined" && starGachaUnlocked === true) ||
+            (typeof highestWaveReached !== "undefined" && highestWaveReached >= 1000);
         let canBuy = (typeof mode !== "undefined" && mode === "moder") ||
             (unlocked && bought < max && typeof points !== "undefined" &&
              points >= (typeof gachaPrices !== "undefined" ? gachaPrices.star : 50000));
@@ -1154,9 +1155,9 @@ function renderGachaTab() {
         html += '<div><strong>🌟 Звёздная крутка</strong>';
         html += '<br><small>' + displayPrice + ' | ' + bought + '/' + max + ' за цикл</small>';
         html += '<br><small style="color:#c9eaff;">Секретная (90%) | Звёздная (10%)</small>';
-        html += '<br><small style="color:#aaa;">Одна копия каждого звёздного персонажа · открывается с 4-го ребёрна</small></div>';
+        html += '<br><small style="color:#aaa;">Одна копия каждого звёздного персонажа · открывается после 1000-й волны</small></div>';
         html += '<button class="btn btn-primary gacha-btn star-btn" onclick="performGacha(\'star\')" ' +
-            (!canBuy ? 'disabled' : '') + '>' + (unlocked ? 'Крутить' : '🔒 4-й ребёрн') + '</button>';
+            (!canBuy ? 'disabled' : '') + '>' + (unlocked ? 'Крутить' : '🔒 1000-я волна') + '</button>';
         html += '</div>';
     }
     if (!html) html = '<div style="text-align:center;color:#888;padding:20px;font-weight:bold;">🔒 Победите нового босса (каждые 50 волн) чтобы открыть легендарные и секретные крутки!</div>';
