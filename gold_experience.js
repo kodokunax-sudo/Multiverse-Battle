@@ -2456,8 +2456,9 @@
         var size = getCompanionSize(ctx);
         state.heartSize = size;
         var standImage = getGERModelImage();
-        var standImageReady = !!(standImage && standImage.complete &&
-            Number(standImage.naturalWidth) > 0 && Number(standImage.naturalHeight) > 0);
+        var standImageReady = !!(standImage &&
+            Number(standImage.width || standImage.naturalWidth) > 0 &&
+            Number(standImage.height || standImage.naturalHeight) > 0);
         var scale = size / 15;
         var hitFlash = state.hitFlash > 0;
         var healing = state.healState !== "idle";
