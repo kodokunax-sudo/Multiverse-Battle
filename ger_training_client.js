@@ -236,6 +236,7 @@
     window.MBGERTraining = {
         start: start,
         finish: finish,
+        refreshBrain: loadBrain,
         recordOutcome: recordOutcome,
         getDirectionStats: getDirectionStats,
         getAttackStats: getAttackStats
