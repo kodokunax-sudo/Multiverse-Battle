@@ -170,7 +170,7 @@
     }
 
     function recordOutcome(sample, outcome, damageTaken) {
-        if ((!sessionId && !startPromise) || !sample || !activeBossKey) return false;
+        if ((!sessionId && !startPromise) || !sample) return false;
         var row = Object.assign({}, sample, {
             eventId: makeUuid(),
             outcome: outcome === "evaded" || outcome === "hit" || outcome === "blocked" ? outcome : "unknown",
