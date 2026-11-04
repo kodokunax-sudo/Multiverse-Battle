@@ -899,8 +899,6 @@
         var base = attack && (attack.type || attack.kind || attack.attackType) || fallback || "unknown";
         var key = String(base);
         if (attack && attack.attackKind) key += "_" + String(attack.attackKind);
-        if (attack && attack.attackId !== undefined && attack.attackId !== null &&
-            Number.isFinite(Number(attack.attackId))) key += "_" + String(attack.attackId);
         return cleanCompanionTrainingKey(key, 80);
     }
 
