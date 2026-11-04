@@ -93,6 +93,7 @@
         lastHealAt: 0
     };
     window.__mbGoldExperienceState = state;
+    state.trainingPendingDecisions = Array.isArray(state.trainingPendingDecisions) ? state.trainingPendingDecisions : [];
     state.punch = state.punch || null;
     state.punchEffects = Array.isArray(state.punchEffects) ? state.punchEffects : [];
     state.nextMudaAt = Number(state.nextMudaAt) || 0;
@@ -727,6 +728,9 @@
         var attacks = getAttackList(ctx), waves = getCompanionShockwaves(ctx);
         var boss = getBossPosition(ctx, state.x, state.y);
         var currentSpeed = Math.hypot(Number(state.vx) || 0, Number(state.vy) || 0);
+        var trainingBossKey = companionTrainingBossKey(ctx);
+        var trainingAttackKey = incoming ? companionTrainingAttackKey(incoming.attack, incoming.attackType) : "unknown";
+        var trainingApi = window.MBGERTraining;
         var best = null, bestScore = -Infinity;
         for (var d = 0; d < distances.length; d++) {
             for (var k = 0; k < angles; k++) {
@@ -768,6 +772,17 @@
                 var bossDistance = Math.hypot(tx - boss.x, ty - boss.y);
                 if (bossDistance < 92) score -= (92 - bossDistance) * 1.8;
                 else score += Math.min(70, bossDistance - 92) * 0.08;
+                if (trainingApi && typeof trainingApi.getDirectionStats === "function" && incoming) {
+                    var learnedDirection = Math.round(angle / (Math.PI / 4)) % 8;
+                    var learnedStats = trainingApi.getDirectionStats(trainingBossKey, trainingAttackKey, learnedDirection);
+                    var learnedCount = Number(learnedStats && learnedStats.sample_count) || 0;
+                    if (learnedCount >= 5) {
+                        var learnedEvades = Number(learnedStats.evaded_count) || 0;
+                        var learnedRate = (learnedEvades + 1) / (learnedCount + 2);
+                        var learningConfidence = Math.min(1, learnedCount / 28);
+                        score += (learnedRate - 0.5) * 34 * learningConfidence;
+                    }
+                }
                 score += Math.random() * 1.5;
                 if (score > bestScore) { bestScore = score; best = { x: tx, y: ty, safe: collisions === 0 }; }
             }
