@@ -285,7 +285,7 @@ function renderEnemy() {
     if (currentDialog && wave === 10000 && currentEnemy.hp <= currentEnemy.maxHp * 0.5 && currentEnemy.hp > 0) { 
         renderDialog(); 
     } 
-    document.getElementById("worldIndicator").innerHTML = '🌍 Мир: <span style="color:' + getCurrentWorld().color + ';">' + getCurrentWorld().name + '</span> <button id="musicToggleBtn" class="btn" style="padding:2px 8px;font-size:12px;margin-left:8px;" onclick="toggleMusic()">' + (musicEnabled ? '🔊' : '🔇') + '</button>'; 
+    document.getElementById("worldIndicator").innerHTML = '🌍 Мир: <span style="color:' + getCurrentWorld().color + ';">' + getCurrentWorld().name + '</span> <span title="Музыка всегда включена" style="display:inline-block;margin-left:8px;color:#f5af19;font-weight:900;">🎵</span>'; 
 }
 
 function renderDialog() { 
