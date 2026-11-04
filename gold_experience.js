@@ -15,6 +15,11 @@
     var GER_DURATION = 5000;
     var GER_CHARGES = 2;
 
+    var GER_MODEL_PATH = "Model/голден експириес рквием.jpg";
+    var gerModelImage = null;
+    var gerModelImageRequested = false;
+    var gerModelImageFailed = false;
+
     var state = window.__mbGoldExperienceState || {
         active: false,
         activeUntil: 0,
@@ -106,6 +111,31 @@
     function now() {
         return (window.performance && typeof window.performance.now === "function")
             ? window.performance.now() : Date.now();
+    }
+
+    function getGERModelImage() {
+        if (gerModelImageRequested) return gerModelImage;
+        gerModelImageRequested = true;
+        try {
+            if (typeof window.Image !== "function") {
+                gerModelImageFailed = true;
+                return null;
+            }
+            gerModelImage = new window.Image();
+            gerModelImage.decoding = "async";
+            gerModelImage.onload = function () {
+                gerModelImageFailed = false;
+            };
+            gerModelImage.onerror = function () {
+                gerModelImageFailed = true;
+                console.warn("[GOLD EXPERIENCE] GER model image could not be loaded:", GER_MODEL_PATH);
+            };
+            gerModelImage.src = GER_MODEL_PATH;
+            return gerModelImage;
+        } catch (e) {
+            gerModelImageFailed = true;
+            return null;
+        }
     }
 
     function currentCard() {
@@ -2160,6 +2190,9 @@
         }
         var size = getCompanionSize(ctx);
         state.heartSize = size;
+        var standImage = getGERModelImage();
+        var standImageReady = !!(standImage && standImage.complete &&
+            Number(standImage.naturalWidth) > 0 && Number(standImage.naturalHeight) > 0);
         var scale = size / 15;
         var hitFlash = state.hitFlash > 0;
         var healing = state.healState !== "idle";
@@ -2184,6 +2217,7 @@
         c.rotate(companionGravityAngle);
         c.translate(-state.x, -state.y);
 
+        if (!standImageReady) {
         var idleHands = [-1, 1];
         for (var handIndex = 0; handIndex < idleHands.length; handIndex++) {
             var handSide = idleHands[handIndex];
@@ -2195,6 +2229,7 @@
                 drawGERArm(c, shoulderX, shoulderY, handX, handY, 0.96, 4.8);
                 drawGERFist(c, handX, handY, handSide * 0.18, 1, 0.72);
             }
+        }
         }
 
         c.save();
@@ -2223,6 +2258,25 @@
             c.globalAlpha = hitFlash ? 0.82 : 1;
         }
 
+        if (standImageReady) {
+            // Use the exact artwork from Model/ as the complete GER companion sprite.
+            // Fit the full image inside a stable box without stretching or cropping it.
+            var imageAspect = standImage.naturalWidth / standImage.naturalHeight;
+            var maxImageWidth = 68 / Math.max(0.1, scale);
+            var maxImageHeight = 82 / Math.max(0.1, scale);
+            var imageScale = Math.min(maxImageWidth / standImage.naturalWidth,
+                maxImageHeight / standImage.naturalHeight);
+            var imageWidth = standImage.naturalWidth * imageScale;
+            var imageHeight = standImage.naturalHeight * imageScale;
+            c.save();
+            c.globalAlpha = hitFlash ? 0.82 : 1;
+            c.shadowColor = healing ? "#8bffbd" : "#ffd45c";
+            c.shadowBlur = attacking ? 13 : 6;
+            c.drawImage(standImage, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight);
+            c.restore();
+            c.restore();
+            c.restore();
+        } else {
         var gradient = c.createLinearGradient(-3, -18, 5, 13);
         gradient.addColorStop(0, hitFlash ? "#fffdf0" : "#fff2b2");
         gradient.addColorStop(0.24, hitFlash ? "#fff4c9" : "#ffdf72");
@@ -2298,6 +2352,7 @@
         c.restore();
         c.restore();
         c.restore();
+        }
 
         if (state.punch) {
             var punch = state.punch;
