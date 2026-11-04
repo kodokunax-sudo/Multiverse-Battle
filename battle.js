@@ -2710,9 +2710,16 @@ function applyHit(dmg, textMsg, isTrueOneshot, ignoreInvulnerability, sourceActi
             var geRedirectedDamage = window.MBGoldExperienceRedirectDamage(dmg, typeof getBossContext === "function" ? getBossContext() : null, sourceAction);
             if (geRedirectedDamage !== null) { dmg = geRedirectedDamage; textMsg = "удар по Gold Experience. Джорно получает 50% урона"; }
         }
-        if (arenaAttackType !== 10 && !ignoreInvulnerability) invulnTimer = 45;
-        if (isTrueOneshot || dmg >= arenaMaxHP) { arenaHP = 0; }
-        else { var directDmg = 1; var karmaDmg = dmg - directDmg; if (karmaDmg < 0) karmaDmg = 0; arenaHP -= directDmg; arenaKarma += karmaDmg; }
+        if (window.__mbGERTrainingMode === true && window.__mbBossTestMode && window.__mbBossTestMode.invulnerable) {
+            // Keep the hit/interception callbacks alive for GER training, but never consume Giorno HP.
+            arenaHP = arenaMaxHP;
+            arenaKarma = 0;
+            invulnTimer = 0;
+        } else {
+            if (arenaAttackType !== 10 && !ignoreInvulnerability) invulnTimer = 45;
+            if (isTrueOneshot || dmg >= arenaMaxHP) { arenaHP = 0; }
+            else { var directDmg = 1; var karmaDmg = dmg - directDmg; if (karmaDmg < 0) karmaDmg = 0; arenaHP -= directDmg; arenaKarma += karmaDmg; }
+        }
     }
     arenaHitFlash = 12; arenaShake = 18; sfxArenaHit(); screenFlash = 6; screenFlashColor = "#ff4444"; arenaVignette = 15;
     arenaShockwaves.push({ x: heart.x, y: heart.y, r: 5, v: 5, life: 20, maxLife: 20, color: "rgba(255,50,50,0.8)" });
