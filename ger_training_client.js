@@ -172,8 +172,8 @@
                 scheduleFlush();
                 return result;
             } catch (error) {
-                console.warn("[GER training] Session could not be started:", error && error.message ? error.message : error);
-                return null;
+                console.error("[GER training] Session could not be started:", error && error.message ? error.message : error);
+                throw error;
             }
         })();
 
