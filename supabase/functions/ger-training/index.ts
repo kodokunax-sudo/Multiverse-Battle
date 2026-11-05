@@ -1,0 +1,177 @@
+import postgres from "npm:postgres@3.4.7";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json; charset=utf-8",
+};
+const APP_KEY = "sb_publishable_qbyB9Iy18uaiv1YIsHepkQ_cqDYdKGE";
+const GAME_AUTH_URL = "https://pgawqdrnyhirqmeacdai.supabase.co/auth/v1/user";
+const GAME_AUTH_KEY = "sb_publishable_vLOwdklZNRMLKiQ20-BM8w_VB9vuPoh";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const KEY_RE = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
+const OUTCOMES = new Set(["evaded", "hit", "blocked", "unknown"]);
+const RESULTS = new Set(["win", "loss", "draw", "aborted"]);
+let client = null;
+
+function db() {
+  if (client) return client;
+  const url = Deno.env.get("SUPABASE_DB_URL");
+  if (!url) throw new Error("database_connection_unavailable");
+  client = postgres(url, { max: 1, idle_timeout: 10, connect_timeout: 10, prepare: false });
+  return client;
+}
+function reply(data, status = 200) {
+  return new Response(JSON.stringify(data), { status, headers: CORS });
+}
+function cleanKey(value, max = 80) {
+  if (typeof value !== "string") return null;
+  const s = value.trim().slice(0, max);
+  return KEY_RE.test(s) ? s.toLowerCase() : null;
+}
+function numberOrNull(value, min, max) {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= min && n <= max ? n : null;
+}
+function validUuid(value) {
+  return typeof value === "string" && UUID_RE.test(value) ? value : null;
+}
+async function authenticate(req) {
+  if (req.headers.get("apikey") !== APP_KEY) return null;
+  const header = req.headers.get("authorization") || "";
+  const match = header.match(/^Bearer\s+([^\s]+)$/i);
+  if (!match) return null;
+  const response = await fetch(GAME_AUTH_URL, {
+    headers: {
+      "apikey": GAME_AUTH_KEY,
+      "Authorization": "Bearer " + match[1],
+      "Accept": "application/json"
+    }
+  });
+  if (!response.ok) return null;
+  const user = await response.json().catch(() => null);
+  return user && validUuid(user.id) ? user.id : null;
+}
+function normalizeEvent(event, bossKey) {
+  if (!event || typeof event !== "object" || Array.isArray(event)) return null;
+  const e = event;
+  const eventId = validUuid(e.eventId);
+  const attackKey = cleanKey(e.attackKey);
+  if (!eventId || !attackKey || !OUTCOMES.has(e.outcome)) return null;
+  const features = e.features && typeof e.features === "object" && !Array.isArray(e.features) ? e.features : {};
+  const featuresJson = JSON.stringify(features);
+  if (featuresJson.length > 4000) return null;
+  return {
+    eventId, bossKey, attackKey,
+    attackFamily: cleanKey(e.attackFamily, 40),
+    bossPhase: cleanKey(e.bossPhase, 32),
+    timeToImpactMs: numberOrNull(e.timeToImpactMs, 0, 60000),
+    heartX: numberOrNull(e.heartX, -1000, 1000),
+    heartY: numberOrNull(e.heartY, -1000, 1000),
+    velocityX: numberOrNull(e.velocityX, -100, 100),
+    velocityY: numberOrNull(e.velocityY, -100, 100),
+    chosenDirection: numberOrNull(e.chosenDirection, 0, 7),
+    targetX: numberOrNull(e.targetX, -1000, 1000),
+    targetY: numberOrNull(e.targetY, -1000, 1000),
+    outcome: e.outcome,
+    damageTaken: numberOrNull(e.damageTaken, 0, 1000000000) ?? 0,
+    featuresJson
+  };
+}
+async function startSession(playerId, body) {
+  const clientSessionId = validUuid(body.clientSessionId);
+  const bossKey = cleanKey(body.bossKey, 64);
+  if (!clientSessionId || !bossKey) return reply({ error: "invalid_session" }, 400);
+  const metadata = body.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata) ? body.metadata : {};
+  // postgres.js unsafe() binds strings as text; cast text to jsonb to parse the JSON object instead of storing a JSON string scalar.
+  const metadataJson = JSON.stringify(metadata);
+  if (metadataJson.length > 1500) return reply({ error: "metadata_too_large" }, 413);
+  const q = db();
+  const inserted = await q.unsafe(
+    "insert into public.ger_training_sessions (player_id, client_session_id, boss_key, ai_version, game_version, arena_mode, metadata) values ($1::uuid,$2::uuid,$3,'ger-dodge-v1',$4,$5,$6::text::jsonb) on conflict (player_id, client_session_id) do nothing returning id, started_at",
+    [playerId, clientSessionId, bossKey,
+     typeof body.gameVersion === "string" ? body.gameVersion.slice(0, 40) : null,
+     typeof body.arenaMode === "string" ? body.arenaMode.slice(0, 32) : null, metadataJson]
+  );
+  if (inserted.length) return reply({ sessionId: inserted[0].id, startedAt: inserted[0].started_at });
+  const existing = await q.unsafe(
+    "select id, started_at, finished_at from public.ger_training_sessions where player_id=$1::uuid and client_session_id=$2::uuid limit 1",
+    [playerId, clientSessionId]
+  );
+  if (!existing.length || existing[0].finished_at) return reply({ error: "session_already_finished" }, 409);
+  return reply({ sessionId: existing[0].id, startedAt: existing[0].started_at, resumed: true });
+}
+async function saveEvents(playerId, body) {
+  const sessionId = validUuid(body.sessionId);
+  const bossKey = cleanKey(body.bossKey, 64);
+  if (!sessionId || !bossKey || !Array.isArray(body.events) || body.events.length < 1 || body.events.length > 40) {
+    return reply({ error: "invalid_event_batch" }, 400);
+  }
+  const events = body.events.map((item) => normalizeEvent(item, bossKey));
+  if (events.some((item) => !item)) return reply({ error: "invalid_event" }, 400);
+  const q = db();
+  const owned = await q.unsafe(
+    "select id from public.ger_training_sessions where id=$1::uuid and player_id=$2::uuid and finished_at is null limit 1",
+    [sessionId, playerId]
+  );
+  if (!owned.length) return reply({ error: "session_not_found" }, 404);
+  // featuresJson is serialized JSON text; the explicit text cast prevents double-encoding into a JSON string scalar.
+  const insertSql = "insert into public.ger_dodge_samples (session_id,player_id,event_id,boss_key,attack_key,attack_family,boss_phase,time_to_impact_ms,heart_x,heart_y,velocity_x,velocity_y,chosen_direction,target_x,target_y,outcome,damage_taken,features) values ($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::text::jsonb) on conflict (session_id,event_id) do nothing";
+  await q.begin(async (tx) => {
+    for (const e of events) {
+      await tx.unsafe(insertSql, [
+        sessionId, playerId, e.eventId, e.bossKey, e.attackKey, e.attackFamily, e.bossPhase,
+        e.timeToImpactMs, e.heartX, e.heartY, e.velocityX, e.velocityY,
+        e.chosenDirection, e.targetX, e.targetY, e.outcome, e.damageTaken, e.featuresJson
+      ]);
+    }
+  });
+  return reply({ ok: true, received: events.length });
+}
+async function finishSession(playerId, body) {
+  const sessionId = validUuid(body.sessionId);
+  const result = RESULTS.has(body.result) ? body.result : "aborted";
+  if (!sessionId) return reply({ error: "invalid_session" }, 400);
+  const rows = await db().unsafe(
+    "update public.ger_training_sessions s set finished_at=now(), duration_ms=least(10800000,greatest(0,floor(extract(epoch from (now()-s.started_at))*1000))::bigint), result=$3, event_count=(select count(*)::integer from public.ger_dodge_samples d where d.session_id=s.id and d.player_id=s.player_id) where s.id=$1::uuid and s.player_id=$2::uuid and s.finished_at is null returning id,event_count,result,duration_ms",
+    [sessionId, playerId, result]
+  );
+  if (!rows.length) return reply({ ok: true, alreadyFinished: true });
+  return reply({ ok: true, session: rows[0] });
+}
+async function readBrain(body) {
+  const bossKey = cleanKey(body.bossKey, 64);
+  const attackKey = body.attackKey == null ? null : cleanKey(body.attackKey);
+  if (!bossKey || (body.attackKey != null && !attackKey)) return reply({ error: "invalid_brain_query" }, 400);
+  const brain = await db().unsafe(
+    "select attack_key,sample_count,evaded_count,hit_count,blocked_count,unknown_count,tti_sample_count,case when tti_sample_count>0 then round(tti_sum_ms::numeric/tti_sample_count,1) else null end as avg_tti_ms from public.ger_dodge_brain where boss_key=$1 and ($2::text is null or attack_key=$2)",
+    [bossKey, attackKey]
+  );
+  const directions = await db().unsafe(
+    "select attack_key,direction,sample_count,evaded_count,hit_count,blocked_count,unknown_count from public.ger_dodge_direction_stats where boss_key=$1 and ($2::text is null or attack_key=$2)",
+    [bossKey, attackKey]
+  );
+  return reply({ brain, directions });
+}
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method !== "POST") return reply({ error: "method_not_allowed" }, 405);
+  const length = Number(req.headers.get("content-length") || 0);
+  if (length > 70000) return reply({ error: "payload_too_large" }, 413);
+  const playerId = await authenticate(req).catch(() => null);
+  if (!playerId) return reply({ error: "authentication_required" }, 401);
+  try {
+    const body = await req.json();
+    switch (body.action) {
+      case "start": return await startSession(playerId, body);
+      case "events": return await saveEvents(playerId, body);
+      case "finish": return await finishSession(playerId, body);
+      case "brain": return await readBrain(body);
+      default: return reply({ error: "unknown_action" }, 400);
+    }
+  } catch (error) {
+    console.error("[ger-training] request failed:", error instanceof Error ? error.message : "unknown");
+    return reply({ error: "internal_error" }, 500);
+  }
+});
