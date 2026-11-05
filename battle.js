@@ -3003,14 +3003,14 @@ function spawnGERUniqueTrainingPattern() {
         gerUniqueTrainingPushAttack({
             type: "laser", shape: "beam", sourceName: source, attackKind: kind,
             x: 200, y: 168 + Math.random() * 240, direction: "horizontal", orientation: "horizontal",
-            width: 390, height: 36, color: "#fff0a8", warningMs: 880, activeMs: 720, lifeMs: 1780, damage: 20
+            width: 42, height: 36, color: "#fff0a8", warningMs: 880, activeMs: 720, lifeMs: 1780, damage: 20
         });
     } else if (pattern === 6) {
         source = "Роджер и Белоус"; kind = "whitebeard_haki_wave";
         gerUniqueTrainingPushAttack({
             type: "laser", shape: "haki_wave", sourceName: source, attackKind: kind,
             x: 200, y: 110 + Math.random() * 280, direction: "horizontal", orientation: "horizontal",
-            width: 400, height: 60, color: "#8ceaff", warningMs: 500, activeMs: 1150, lifeMs: 1800, damage: 22
+            width: 58, height: 60, color: "#8ceaff", warningMs: 500, activeMs: 1150, lifeMs: 1800, damage: 22
         });
     } else if (pattern === 7) {
         source = "Роджер и Белоус"; kind = "roger_whitebeard_fist_barrage";
@@ -3032,7 +3032,7 @@ function spawnGERUniqueTrainingPattern() {
         for (i = 0; i < 2; i++) gerUniqueTrainingPushAttack({
             type: "laser", shape: "slash", sourceName: source, attackKind: kind,
             x: 200, y: 165 + i * 165, direction: "horizontal", orientation: "horizontal",
-            width: 400, height: 27, color: "#f4f7ff", warningMs: 560 + i * 180, activeMs: 660, lifeMs: 1440, damage: 20
+            width: 32, height: 27, color: "#f4f7ff", warningMs: 560 + i * 180, activeMs: 660, lifeMs: 1440, damage: 20
         });
     } else if (pattern === 10) {
         source = "Супер-Живой Камень"; kind = "stone_super_ricochet_plates";
