@@ -166,33 +166,7 @@ async function readBrain(body) {
   // Learn attack-to-attack transitions within each training session. This lets
   // the companion prepare for common follow-up patterns before they spawn.
   const transitions = await db().unsafe(
-    "with ordered as (select session_id,attack_key,lead(attack_key) over (partition by session_id order by case when features->>'decisionOrder' ~ '^[0-9]{1,12}) as next_attack_key from public.ger_dodge_samples where boss_key=$1 and outcome in ('evaded','blocked','hit')) select attack_key as from_attack_key,next_attack_key,count(*)::integer as sample_count from ordered where next_attack_key is not null group by attack_key,next_attack_key order by count(*) desc limit 300",
-    [bossKey]
-  );
-  return reply({ brain, directions, contexts, transitions });
-}
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  if (req.method !== "POST") return reply({ error: "method_not_allowed" }, 405);
-  const length = Number(req.headers.get("content-length") || 0);
-  if (length > 70000) return reply({ error: "payload_too_large" }, 413);
-  const playerId = await authenticate(req).catch(() => null);
-  if (!playerId) return reply({ error: "authentication_required" }, 401);
-  try {
-    const body = await req.json();
-    switch (body.action) {
-      case "start": return await startSession(playerId, body);
-      case "events": return await saveEvents(playerId, body);
-      case "finish": return await finishSession(playerId, body);
-      case "brain": return await readBrain(body);
-      default: return reply({ error: "unknown_action" }, 400);
-    }
-  } catch (error) {
-    console.error("[ger-training] request failed:", error instanceof Error ? error.message : "unknown");
-    return reply({ error: "internal_error" }, 500);
-  }
-});
- then (features->>'decisionOrder')::bigint else id end,created_at,id) as next_attack_key from public.ger_dodge_samples where boss_key=$1 and outcome in ('evaded','blocked','hit')) select attack_key as from_attack_key,next_attack_key,count(*)::integer as sample_count from ordered where next_attack_key is not null group by attack_key,next_attack_key order by count(*) desc limit 300",
+    "with ordered as (select session_id,attack_key,lead(attack_key) over (partition by session_id order by case when jsonb_typeof(features->'decisionOrder')='number' then (features->>'decisionOrder')::bigint else id end,created_at,id) as next_attack_key from public.ger_dodge_samples where boss_key=$1 and outcome in ('evaded','blocked','hit')) select attack_key as from_attack_key,next_attack_key,count(*)::integer as sample_count from ordered where next_attack_key is not null group by attack_key,next_attack_key order by count(*) desc limit 300",
     [bossKey]
   );
   return reply({ brain, directions, contexts, transitions });
