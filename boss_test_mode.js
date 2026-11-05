@@ -158,7 +158,7 @@ window.MBBossTestStartGERTraining=function(options){
     window.__mbGERTrainingBossKey=trainingProfile==="unique_mix"?"ger_unique_mix":"arena_wave_"+bossWave;
     window.__mbGERTrainingOptions={
         trainingProfile:trainingProfile,
-        bossHp:clampNumber(options.bossHp,1000000,10000,1000000000000),
+        bossHp:clampNumber(options.bossHp,2000000,10000,1000000000000),
         attackWave:clampNumber(options.attackWave,500,50,10000),
         speedMultiplier:clampNumber(options.speedMultiplier,2,1,5)
     };
