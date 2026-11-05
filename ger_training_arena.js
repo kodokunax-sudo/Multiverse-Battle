@@ -149,7 +149,7 @@
         return {
             type: type,
             bossWave: type === "unique_mix" ? 50 : (Number(byId("gerTrainingBossWave") && byId("gerTrainingBossWave").value) || 50),
-            bossHp: clamp(byId("gerTrainingBossHp") && byId("gerTrainingBossHp").value, 1000000, 10000, 1000000000000),
+            bossHp: clamp(byId("gerTrainingBossHp") && byId("gerTrainingBossHp").value, 2000000, 10000, 1000000000000),
             attackWave: clamp(byId("gerTrainingAttackWave") && byId("gerTrainingAttackWave").value, 500, 50, 10000),
             speed: clamp(byId("gerTrainingSpeed") && byId("gerTrainingSpeed").value, 2, 1, 5),
             duration: Number(byId("gerTrainingDuration") && byId("gerTrainingDuration").value) || 0,
@@ -165,7 +165,7 @@
         try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null"); } catch (_error) {}
         if (!saved || typeof saved !== "object") return;
         if (byId("gerTrainingType") && ["standard", "unique_mix"].indexOf(saved.type) >= 0) byId("gerTrainingType").value = saved.type;
-        if (byId("gerTrainingBossHp")) byId("gerTrainingBossHp").value = String(clamp(saved.bossHp, 1000000, 10000, 1000000000000));
+        if (byId("gerTrainingBossHp")) byId("gerTrainingBossHp").value = String(clamp(saved.bossHp, 2000000, 10000, 1000000000000));
         if (byId("gerTrainingBossWave")) {
             var exists = Array.from(byId("gerTrainingBossWave").options).some(function (option) {
                 return option.value === String(saved.bossWave);
