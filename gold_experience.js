@@ -1282,6 +1282,11 @@
     }
 
     function getAttackBossMaxHp(ctx, target) {
+        if (ctx && ctx.type === "arena" && window.__mbGERTrainingMode === true &&
+            window.__mbGERTrainingOptions && window.__mbGERTrainingOptions.trainingProfile === "unique_mix") {
+            // Fixed damage reference lets the moderator's dummy HP setting control training endurance.
+            return 1000000;
+        }
         if (ctx && ctx.type === "waystar" && typeof ctx.getBossMaxHp === "function") {
             try {
                 var sharedMax = Number(ctx.getBossMaxHp()) || 0;
