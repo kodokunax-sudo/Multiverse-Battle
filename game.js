@@ -1358,6 +1358,10 @@ function loadGameData(d) {
     gachaDailyMax = Object.assign({ common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4, star:2 }, d.gachaDailyMax || {}, { superRare:25, epic:20, mythic:15, legendary:15, secret:4, star:2 });
     legendaryGachaTokens = d.legendaryGachaTokens || 0;
     secretGachaTokens = d.secretGachaTokens || 0;
+    starGachaTokens = Math.max(0, Math.floor(Number(d.starGachaTokens) || 0));
+    starGachaRewardCheckedBosses = Array.isArray(d.starGachaRewardCheckedBosses)
+        ? d.starGachaRewardCheckedBosses.map(Number).filter(function(w) { return Number.isFinite(w) && w > 0; })
+        : (Array.isArray(defeatedBosses) ? defeatedBosses.map(Number).filter(function(w) { return w > 0 && w % 100 === 0; }) : []);
     lastGachaReset = d.lastGachaReset || null;
     gachaLimitCooldownAt = d.gachaLimitCooldownAt || null;
     challenges = d.challenges || [];
@@ -1469,6 +1473,7 @@ function initNewGame() {
     highestCheckpoint = 1; 
     highestWaveReached = 1;
     starGachaUnlocked = false;
+    starGachaRewardCheckedBosses = [];
     rebirthCount = 0; 
     rebirthStats = []; 
     activeCheckpoint = 0; 
@@ -1502,6 +1507,7 @@ function initNewGame() {
     gachaDailyMax = { common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4, star:2 };
     legendaryGachaTokens = 0;
     secretGachaTokens = 0;
+    starGachaTokens = 0;
     lastGachaReset = null;
     gachaLimitCooldownAt = null;
     challenges = [];
@@ -1637,7 +1643,6 @@ function saveAll(forceImmediate) {
     slotData.afkWinsCompleted = afkWinsCompleted || 0;
     slotData.highestCheckpoint = highestCheckpoint; 
     slotData.highestWaveReached = highestWaveReached;
-    if (highestWaveReached >= 1000) starGachaUnlocked = true;
     slotData.starGachaUnlocked = starGachaUnlocked;
     slotData.rebirthCount = rebirthCount; 
     slotData.rebirthStats = rebirthStats; 
@@ -1672,6 +1677,8 @@ function saveAll(forceImmediate) {
     slotData.gachaDailyMax = gachaDailyMax;
     slotData.legendaryGachaTokens = legendaryGachaTokens;
     slotData.secretGachaTokens = secretGachaTokens;
+    slotData.starGachaTokens = starGachaTokens;
+    slotData.starGachaRewardCheckedBosses = starGachaRewardCheckedBosses;
     slotData.lastGachaReset = lastGachaReset;
     slotData.gachaLimitCooldownAt = gachaLimitCooldownAt;
     slotData.challenges = challenges;
@@ -2103,6 +2110,8 @@ let gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legend
 let gachaDailyMax = { common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4, star:2 };
 let legendaryGachaTokens = 0;
 let secretGachaTokens = 0;
+let starGachaTokens = 0;
+let starGachaRewardCheckedBosses = [];
 let lastGachaReset = null; let gachaLimitCooldownAt = null;
 let gachaAnimationActive = false;
 let gachaAnimationData = null;
@@ -2913,20 +2922,49 @@ function resetGachaLimits() {
     gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0, star:0 };
     legendaryGachaTokens = 0;
     secretGachaTokens = 0;
+    starGachaTokens = 0;
     gachaLimitCooldownAt = null;
     lastGachaReset = Date.now();
     saveAll();
 }
 function checkGachaReset() { let now = Date.now(); if (gachaLimitCooldownAt && now - gachaLimitCooldownAt >= 12 * 60 * 60 * 1000) { resetGachaLimits(); } }
-function grantBossGachaReward(bossWave) { if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses)) { if (!defeatedBosses.includes(bossWave)) { defeatedBosses.push(bossWave); } } checkGachaReset(); let legendaryToAdd = Math.min(2, 15 - legendaryGachaTokens); if (legendaryToAdd > 0) { legendaryGachaTokens += legendaryToAdd; showFloatingText("🎰 +" + legendaryToAdd + " ЛЕГЕНДАРНЫХ КРУТОК!", "#ffd700"); } if (secretGachaTokens < 4 && Math.random() < 0.15) { secretGachaTokens++; showFloatingText("🎰 СЕКРЕТНАЯ КРУТКА!", "#ff00ff"); } saveAll(); if (typeof renderGachaTab === 'function') renderGachaTab(); }
+function grantBossGachaReward(bossWave) {
+    var completedWave = Math.floor(Number(bossWave) || 0);
+    if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && completedWave > 0) {
+        if (!defeatedBosses.includes(completedWave)) defeatedBosses.push(completedWave);
+    }
+    checkGachaReset();
+    let legendaryToAdd = Math.min(2, 15 - legendaryGachaTokens);
+    if (legendaryToAdd > 0) {
+        legendaryGachaTokens += legendaryToAdd;
+        showFloatingText("🎰 +" + legendaryToAdd + " ЛЕГЕНДАРНЫХ КРУТОК!", "#ffd700");
+    }
+    if (secretGachaTokens < 4 && Math.random() < 0.15) {
+        secretGachaTokens++;
+        showFloatingText("🎰 СЕКРЕТНАЯ КРУТКА!", "#ff00ff");
+    }
+
+    // One 10% permission roll for each first clear at wave 100, 200, 300, etc.
+    // The failed result is stored too, so replaying one boss cannot reroll it.
+    if (completedWave > 0 && completedWave % 100 === 0 &&
+        !starGachaRewardCheckedBosses.includes(completedWave)) {
+        starGachaRewardCheckedBosses.push(completedWave);
+        if (starGachaTokens < 2 && Math.random() < 0.10) {
+            starGachaTokens++;
+            showFloatingText("🌟 ПОЛУЧЕН ТОКЕН ЗВЁЗДНОЙ КРУТКИ! (10%)", "#f3f9ff");
+        }
+    }
+    saveAll();
+    if (typeof renderGachaTab === 'function') renderGachaTab();
+}
 function forceStopGachaAnimation() { closeModal(); gachaAnimationActive = false; gachaAnimationData = null; }
 function performGacha(type) {
     initAudio();
     checkGachaReset();
     if (gachaAnimationActive) forceStopGachaAnimation();
 
-    if (type === "star" && mode !== "moder" && !starGachaUnlocked && highestWaveReached < 1000) {
-        alert("Звёздная крутка открывается после достижения 1000-й волны.");
+    if (type === "star" && mode !== "moder" && starGachaTokens <= 0) {
+        alert("Нет разрешения на звёздную крутку. Победите босса на каждой 100-й волне: шанс получить токен — 10%.");
         return;
     }
 
@@ -2964,6 +3002,7 @@ function performGacha(type) {
         gachaDailyLimits[type] = (gachaDailyLimits[type] || 0) + 1;
         if (type === "legendary") legendaryGachaTokens--;
         if (type === "secret") secretGachaTokens--;
+        if (type === "star") starGachaTokens--;
         if ((gachaDailyLimits[type] || 0) >= (gachaDailyMax[type] || 0) && !gachaLimitCooldownAt) {
             gachaLimitCooldownAt = Date.now();
         }
@@ -4064,7 +4103,9 @@ function doRebirth() {
     gachaDailyLimits = { common:0, rare:0, superRare:0, epic:0, mythic:0, legendary:0, secret:0, star:0 }; 
     gachaDailyMax = { common:50, rare:35, superRare:25, epic:20, mythic:15, legendary:15, secret:4, star:2 }; 
     legendaryGachaTokens = 0; 
-    secretGachaTokens = 0; 
+    secretGachaTokens = 0;
+    starGachaTokens = 0; 
+    starGachaRewardCheckedBosses = [];
     lastGachaReset = null; 
     challenges = []; 
     lastChallengeReset = null; 

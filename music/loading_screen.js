@@ -87,6 +87,8 @@
     })();
 
     const FETCH_TIMEOUT = 120000; // 2 минуты на один ресурс, чтобы не обрывать медленные загрузки
+    let backgroundLoadingMode = false;
+    const activeLoadingRequests = new Set();
 
     // On phones, keep only the tracks needed for normal play and Anti-Spiral
     // as in-memory Blob URLs. Cache the remaining tracks on disk without keeping
@@ -374,9 +376,7 @@
         document.getElementById('continueBtn').addEventListener('click', function() {
             if (!loadingStarted) startLoading(true, true);
             else {
-                // Hide only the loading overlay. Pending downloads are not cancelled.
-                window.__musicSkipped = true;
-                window.__musicBackgroundLoading = !loadingFinished;
+                enterBackgroundLoadingMode();
                 hideScreen();
             }
             try {
@@ -411,40 +411,72 @@
         if (el) el.textContent = text;
     }
 
+    function enterBackgroundLoadingMode() {
+        if (backgroundLoadingMode) return;
+        backgroundLoadingMode = true;
+        window.__musicSkipped = true;
+        window.__musicBackgroundLoading = true;
+
+        // Stop the image burst immediately. The queue resumes one resource at a time later.
+        activeLoadingRequests.forEach(function(request) {
+            if (request.type !== "image" || !request.xhr || request.xhr.readyState === 4) return;
+            request.backgroundAbort = true;
+            try { request.xhr.abort(); } catch (e) {}
+        });
+
+        setStatus("Игра запускается. Музыка продолжит загружаться в фоне, изображения будут докачиваться постепенно.");
+        addLog("Включён щадящий фоновый режим: активная загрузка изображений остановлена.", "ok");
+    }
+
+    function waitForBackgroundIdle() {
+        return new Promise(function(resolve) {
+            if (typeof window.requestIdleCallback === "function") {
+                window.requestIdleCallback(function() { resolve(); }, { timeout: 3000 });
+            } else {
+                setTimeout(resolve, 1200);
+            }
+        });
+    }
+
     // ============================================================
     // ★ ЗАГРУЗКА ЧЕРЕЗ XMLHttpRequest (надёжно, работает на file://) ★
     // ============================================================
-    function loadViaXHR(path, onProgress) {
+    function loadViaXHR(path, onProgress, resourceType) {
         return new Promise(function(resolve, reject) {
             let xhr = new XMLHttpRequest();
+            let request = { xhr: xhr, type: resourceType || "other", backgroundAbort: false };
+            activeLoadingRequests.add(request);
+            function releaseRequest() { activeLoadingRequests.delete(request); }
+
             xhr.open('GET', path, true);
             xhr.responseType = 'blob';
             xhr.timeout = FETCH_TIMEOUT;
 
             xhr.onload = function() {
-                if (xhr.status === 200 || xhr.status === 0) { // 0 для file://
+                releaseRequest();
+                if (xhr.status === 200 || xhr.status === 0) {
                     let blob = xhr.response;
-                    if (blob && blob.size > 0) {
-                        resolve(blob);
-                    } else {
-                        reject(new Error("Пустой файл"));
-                    }
-                } else {
-                    reject(new Error("HTTP " + xhr.status));
-                }
+                    if (blob && blob.size > 0) resolve(blob);
+                    else reject(new Error("Пустой файл"));
+                } else reject(new Error("HTTP " + xhr.status));
             };
             xhr.onerror = function() {
+                releaseRequest();
                 reject(new Error("Ошибка сети (возможно CORS/file://)"));
             };
             xhr.ontimeout = function() {
+                releaseRequest();
                 reject(new Error("Таймаут " + (FETCH_TIMEOUT/1000) + "с"));
             };
-            xhr.onprogress = function(e) {
-                if (onProgress && e.lengthComputable) {
-                    onProgress(e.loaded, e.total);
-                }
+            xhr.onabort = function() {
+                releaseRequest();
+                let error = new Error(request.backgroundAbort ? "Отложено до фоновой загрузки" : "Загрузка отменена");
+                error.backgroundDeferred = request.backgroundAbort;
+                reject(error);
             };
-
+            xhr.onprogress = function(e) {
+                if (onProgress && e.lengthComputable) onProgress(e.loaded, e.total);
+            };
             xhr.send();
         });
     }
@@ -514,7 +546,7 @@
         const MAX_ATTEMPTS = 3;
         for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
-                let blob = await loadViaXHR(path);
+                let blob = await loadViaXHR(path, null, "music");
                 await saveToCache(path, blob);
                 let keepInMemory = keepTrackInMemory(key);
                 let loadedEntry = {
@@ -555,8 +587,11 @@
             try {
                 blob = await loadViaXHR(path, function(loaded, total) {
                     if (total > 0) setStatus("Скачивание изображения " + key + ": " + Math.round(loaded / total * 100) + "%");
-                });
+                }, "image");
             } catch (e) {
+                if (backgroundLoadingMode && e && e.backgroundDeferred) {
+                    return { key: key, success: false, skipped: true };
+                }
                 window.__imageLoadFailed[key] = e.message;
                 addLog("❌ " + key + " — " + e.message, "err");
                 return { key: key, success: false, error: e.message };
@@ -564,7 +599,8 @@
         }
 
         try {
-            if (LOW_MEMORY_MODE) {
+            // Cache raw bytes without decoding images once the game is running.
+            if (LOW_MEMORY_MODE || backgroundLoadingMode) {
                 if (!fromCache) await saveToCache(path, blob);
                 window.__loadedImages[key] = {
                     path: path,
@@ -621,6 +657,7 @@
         let musicCompleted = 0;
         let imagesCompleted = 0;
         let musicCursor = 0;
+        let imageCursor = 0;
 
         addLog("Начинаю загрузку " + musicKeys.length +
             " треков и " + imageKeys.length + " изображений. Музыка загружается параллельно...");
@@ -633,8 +670,10 @@
                 " · изображения: " + imagesCompleted + "/" + imageKeys.length);
         }
 
-        async function musicWorker() {
+        async function musicWorker(workerIndex) {
             while (true) {
+                // After entering the game, keep one worker and give the main thread idle gaps.
+                if (backgroundLoadingMode && workerIndex > 0) return;
                 let index = musicCursor++;
                 if (index >= musicKeys.length) return;
                 let key = musicKeys[index];
@@ -648,13 +687,20 @@
                 }
                 musicCompleted++;
                 updateOverallProgress();
+                if (backgroundLoadingMode && workerIndex === 0) await waitForBackgroundIdle();
             }
         }
 
-        async function imageWorker() {
-            for (let i = 0; i < imageKeys.length; i++) {
-                let key = imageKeys[i];
+        async function imageWorker(backgroundPass) {
+            while (imageCursor < imageKeys.length) {
+                if (backgroundLoadingMode && !backgroundPass) return;
+                let index = imageCursor++;
+                let key = imageKeys[index];
                 let result = await loadOneImage(key, IMAGE_FILES[key]);
+                if (result.skipped) {
+                    imageCursor = Math.max(0, imageCursor - 1);
+                    return;
+                }
                 if (result.success) {
                     success++;
                     if (result.fromCache) fromCache++;
@@ -663,6 +709,7 @@
                 }
                 imagesCompleted++;
                 updateOverallProgress();
+                if (backgroundPass) await waitForBackgroundIdle();
             }
         }
 
@@ -670,11 +717,11 @@
         let concurrency = LOW_MEMORY_MODE ? 3 : 4;
         let musicWorkers = [];
         for (let i = 0; i < Math.min(concurrency, musicKeys.length); i++) {
-            musicWorkers.push(musicWorker());
+            musicWorkers.push(musicWorker(i));
         }
 
-        // Images are fetched while the music downloads, instead of waiting in a queue.
-        let imageTask = imageWorker();
+        // Images load in parallel initially, then are throttled after game entry.
+        let imageTask = imageWorker(false);
 
         // Release music callbacks immediately when the music queue finishes.
         await Promise.all(musicWorkers);
@@ -686,15 +733,18 @@
             window.__musicLoadedCallbacks = [];
         }
 
-        // Keep the loading process alive for image downloads as well.
+        // Finish the remaining images after music. Background mode spaces them out.
         await imageTask;
+        if (backgroundLoadingMode) await imageWorker(true);
         loadingFinished = true;
         if (playWhileLoadingTimer) {
             clearTimeout(playWhileLoadingTimer);
             playWhileLoadingTimer = null;
         }
 
-        if (failed === 0) {
+        if (backgroundLoadingMode && failed === 0) {
+            setStatus("✅ Фоновая загрузка завершена. Игра уже работала, изображения загружались постепенно.");
+        } else if (failed === 0) {
             setStatus("✅ Музыка и изображения загружены!" +
                 (fromCache > 0 ? " (из кэша: " + fromCache + ")" : ""));
         } else if (success > 0) {
@@ -742,8 +792,7 @@
         setStatus(includeMusic ? 'Загружаю музыку и изображения...' : 'Загружаю изображения без музыки...');
 
         if (dismissImmediately) {
-            window.__musicSkipped = true;
-            window.__musicBackgroundLoading = true;
+            enterBackgroundLoadingMode();
             hideScreen();
         } else {
             playWhileLoadingTimer = setTimeout(function() {
