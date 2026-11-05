@@ -2980,9 +2980,9 @@ function spawnGERUniqueTrainingPattern() {
     } else if (pattern === 2) {
         source = "Живой Камень"; kind = "stone_ground_spikes";
         for (i = 0; i < 4; i++) gerUniqueTrainingPushAttack({
-            type: "laser", shape: "spike_lane", sourceName: source, attackKind: kind,
-            x: 55 + i * 96, y: 430, direction: "horizontal", orientation: "horizontal",
-            width: 52, height: 76, color: "#93e5b0", warningMs: 820, activeMs: 800, lifeMs: 1900, damage: 15
+            type: "spike", shape: "spike_lane", sourceName: source, attackKind: kind,
+            x: 55 + i * 96, y: 500, width: 48, height: 92, color: "#93e5b0",
+            warningMs: 820, activeMs: 800, lifeMs: 1900, damage: 15
         });
     } else if (pattern === 3) {
         source = "Путеводная Звезда"; kind = "waystar_meteor_shower";
@@ -3057,9 +3057,9 @@ function spawnGERUniqueTrainingPattern() {
         source = "Супер-Живой Камень"; kind = "stone_super_predicted_ground_strike";
         x = 48 + Math.floor(Math.random() * 6) * 60;
         gerUniqueTrainingPushAttack({
-            type: "laser", shape: "ground_warning", sourceName: source, attackKind: kind,
-            x: x, y: 425, direction: "horizontal", orientation: "horizontal",
-            width: 72, height: 105, color: "#92ffb2", warningMs: 980, activeMs: 760, lifeMs: 1950, damage: 24
+            type: "spike", shape: "ground_warning", sourceName: source, attackKind: kind,
+            x: x, y: 500, width: 74, height: 128, color: "#92ffb2",
+            warningMs: 980, activeMs: 760, lifeMs: 1950, damage: 24
         });
     } else if (pattern === 14) {
         source = "Роджер и Белоус"; kind = "quake_plus_haki";
@@ -3098,7 +3098,7 @@ function updateGERUniqueTrainingAttacks(nowTime) {
     for (var i = arenaGERUniqueTrainingAttacks.length - 1; i >= 0; i--) {
         var a = arenaGERUniqueTrainingAttacks[i];
         a.elapsed += delta * speed;
-        if (a.type === "laser") {
+        if (a.type === "laser" || a.type === "spike") {
             if (a.elapsed >= (Number(a.warningMs) || 0) && !a.active) {
                 a.active = true;
                 a.state = "active";
@@ -3129,11 +3129,26 @@ function updateGERUniqueTrainingAttacks(nowTime) {
                 continue;
             }
         }
-        var isWarning = a.type === "laser" && !a.active;
+        var isWarning = (a.type === "laser" || a.type === "spike") && !a.active;
         var alpha = isWarning ? (0.35 + 0.25 * Math.sin(nowTime / 65)) : 0.88;
         ctx.save();
         ctx.globalAlpha = alpha;
-        if (a.type === "laser") {
+        if (a.type === "spike") {
+            var spikeHeight = Math.max(20, Number(a.height) || 90);
+            var spikeWidth = Math.max(16, Number(a.width) || 48);
+            var sx = Number(a.x) || 200;
+            ctx.fillStyle = a.color || "#9cffb4";
+            ctx.strokeStyle = "rgba(240,255,245,.9)";
+            ctx.shadowColor = a.color || "#9cffb4";
+            ctx.shadowBlur = isWarning ? 4 : 14;
+            ctx.beginPath();
+            ctx.moveTo(sx - spikeWidth / 2, 500);
+            ctx.lineTo(sx, 500 - spikeHeight);
+            ctx.lineTo(sx + spikeWidth / 2, 500);
+            ctx.closePath();
+            if (!isWarning) ctx.fill();
+            ctx.stroke();
+        } else if (a.type === "laser") {
             var horizontal = a.direction === "horizontal" || a.orientation === "horizontal";
             ctx.lineCap = "round";
             ctx.lineWidth = isWarning ? Math.max(3, Number(a.width) * 0.3) : Math.max(7, Number(a.width) || 24);
@@ -3615,6 +3630,7 @@ function renderArena() {
     if (typeof _superState !== 'undefined' && _superState.dandyLava > 0) { ctx.save(); for (var i = 0; i < 60; i++) { var lx = Math.random() * 400, ly = 460 + Math.random() * 40; ctx.fillStyle = "#ff4400"; ctx.globalAlpha = 0.6 + Math.random() * 0.4; ctx.beginPath(); ctx.arc(lx, ly, 2 + Math.random() * 4, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); if (heart.y > 420) { applyHit(3, "ЛАВА!"); } }
 
     if (isGERUniqueMixTraining()) updateGERUniqueTrainingAttacks(now);
+    if (typeof window.MBDrawGoldExperience === "function") window.MBDrawGoldExperience(ctx);
     drawObesityWarning();
     updateTakabaConfidenceDisplay();
     // ★ ТАКАБА: шутка ★
