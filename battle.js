@@ -2942,6 +2942,7 @@ function gerUniqueTrainingPushAttack(attack) {
     attack.id = "geru_" + (++arenaGERUniqueTrainingState.sequence);
     attack.elapsed = 0;
     attack.lifeMs = Math.max(700, Number(attack.lifeMs) || 4200);
+    if (attack.type === "laser" || attack.type === "spike") attack.state = attack.state || "warning";
     attack.attackKind = String(attack.attackKind || "unique_pattern");
     attack.sourceName = String(attack.sourceName || "Уникальный босс");
     arenaGERUniqueTrainingAttacks.push(attack);
