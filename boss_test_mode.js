@@ -114,15 +114,21 @@ window.MBBossTestStartGERTraining=function(options){
         return false;
     }
     var trainingProfile=options.trainingProfile==="unique_mix"?"unique_mix":"standard";
-    var bossWave=trainingProfile==="unique_mix"?50:clampNumber(options.bossWave,50,1,10000);
-    if(!template(bossWave)||isUnique(bossWave)){
-        if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("Выбери обычного босса, не уникального.","error");
+    var bossWave=clampNumber(options.bossWave,50,1,10000);
+    var uniqueTraining=trainingProfile==="unique_mix";
+    var allowedUniqueWaves=[200,500,1000,2000];
+    if(uniqueTraining&&allowedUniqueWaves.indexOf(bossWave)===-1){
+        if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("Выбери одного из четырёх реальных уникальных боссов: 200, 500, 1000 или 2000.","error");
         return false;
     }
-    var attackTypes=trainingProfile==="unique_mix"?[]:(Array.isArray(options.attackTypes)?options.attackTypes.map(Number).filter(function(type,index,array){
+    if(!template(bossWave)||(!uniqueTraining&&isUnique(bossWave))){
+        if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("Выбери обычного босса или одного из четырёх уникальных боссов.","error");
+        return false;
+    }
+    var attackTypes=uniqueTraining?[]:(Array.isArray(options.attackTypes)?options.attackTypes.map(Number).filter(function(type,index,array){
         return Number.isInteger(type)&&type>=0&&type<=20&&array.indexOf(type)===index;
     }):[]);
-    if(trainingProfile!=="unique_mix"&&!attackTypes.length){
+    if(!uniqueTraining&&!attackTypes.length){
         if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("Выбери хотя бы один тип атаки.","error");
         return false;
     }
@@ -134,7 +140,7 @@ window.MBBossTestStartGERTraining=function(options){
         __bossTestAbilityMode:"ultimate"
     });
     var modeData={
-        kind:"arena",
+        kind:uniqueTraining?"unique":"arena",
         bossWave:bossWave,
         bossName:t&&t.name?t.name:"Обычный босс",
         attackWave:clampNumber(options.attackWave,250,50,10000),
@@ -155,17 +161,30 @@ window.MBBossTestStartGERTraining=function(options){
     window.__mbBossTestPassive=null;
     window.__mbBossTestSuperHitUsed=false;
     window.__mbGERTrainingMode=true;
-    window.__mbGERTrainingBossKey=trainingProfile==="unique_mix"?"ger_unique_mix":"arena_wave_"+bossWave;
+    window.__mbGERTrainingBossKey=uniqueTraining?"ger_unique_"+bossWave:"arena_wave_"+bossWave;
     window.__mbGERTrainingOptions={
         trainingProfile:trainingProfile,
         bossHp:clampNumber(options.bossHp,2000000,10000,1000000000000),
         damageReferenceHp:450000,
+        uniqueBossWave:uniqueTraining?bossWave:null,
         attackWave:clampNumber(options.attackWave,500,50,10000),
         speedMultiplier:clampNumber(options.speedMultiplier,2,1,5)
     };
     exitControl(modeData);
     try{
-        startArena(bossWave);
+        if(uniqueTraining){
+            unlockUniqueForTest(modeData);
+            if(typeof wave!=="undefined")wave=bossWave;
+            if(typeof currentEnemy!=="undefined"){
+                currentEnemy={name:t.name,hp:Math.max(1000,Math.floor((50+bossWave*12)*(Number(t.hpMult)||10))),maxHp:Math.max(1000,Math.floor((50+bossWave*12)*(Number(t.hpMult)||10))),damage:Math.floor((15+bossWave*6)*(Number(t.dmgMult)||1)/2),isBoss:true};
+            }
+            if(bossWave===200)startLivingStoneFight();
+            else if(bossWave===500)startWaystarFight();
+            else if(bossWave===1000)startRogerWhitebeardFight();
+            else if(bossWave===2000)window.startLivingStoneSuperFight();
+        }else{
+            startArena(bossWave);
+        }
         if(typeof window.MBUpdateGoldExperience==="function") {
             window.MBUpdateGoldExperience();
             if(typeof window.requestAnimationFrame==="function") window.requestAnimationFrame(function(){
