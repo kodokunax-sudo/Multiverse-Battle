@@ -3168,7 +3168,10 @@ function updateGERUniqueTrainingAttacks(nowTime) {
         var isWarning = (a.type === "laser" || a.type === "spike") && !a.active;
         if (!isWarning && !a.dioStandHitOnce && typeof window.MBGoldExperienceTryStandHit === "function") {
             var trainingContext = typeof getBossContext === "function" ? getBossContext() : null;
-            if (trainingContext) window.MBGoldExperienceTryStandHit(trainingContext, a);
+            if (trainingContext && window.MBGoldExperienceTryStandHit(trainingContext, a)) {
+                arenaGERUniqueTrainingAttacks.splice(i, 1);
+                continue;
+            }
         }
         var alpha = isWarning ? (0.35 + 0.25 * Math.sin(nowTime / 65)) : 0.88;
         ctx.save();
