@@ -1148,6 +1148,7 @@
             arenaMode: ctx && ctx.type ? ctx.type : "unknown",
             gameVersion: "ger-dodge-training-1",
             trainingMode: window.__mbGERTrainingMode === true,
+            trainingProfile: trainingOptions.trainingProfile === "unique_mix" ? "unique_mix" : "standard",
             speedMultiplier: Number(trainingOptions.speedMultiplier) || 1
         })).then(function (result) {
             if (state.active && state.trainingBossKey === bossKey && result && result.sessionId) {
