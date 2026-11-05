@@ -106,6 +106,7 @@
     state.lifeBurstUntil = Number(state.lifeBurstUntil) || 0;
     state.lifeBurstCooldownUntil = Number(state.lifeBurstCooldownUntil) || 0;
     state.trainingDamageSequence = Number(state.trainingDamageSequence) || 0;
+    state.trainingDecisionSequence = Number(state.trainingDecisionSequence) || 0;
     state.trainingDamageCooldownUntil = Number(state.trainingDamageCooldownUntil) || 0;
     state.trainingLastPlayerHp = Number.isFinite(Number(state.trainingLastPlayerHp))
         ? Number(state.trainingLastPlayerHp) : null;
@@ -2354,6 +2355,8 @@
                         state.predictedNextAttackUntil = 0;
                     }
                     var trainingContext = companionTrainingContext(ctx);
+                    state.trainingDecisionSequence = (Number(state.trainingDecisionSequence) || 0) + 1;
+                    var decisionOrder = state.trainingDecisionSequence;
                     var trainingHpBefore = typeof ctx.getPlayerHp === "function"
                         ? Number(ctx.getPlayerHp()) : null;
                     var trainingDelay = Math.max(550, (Number(incoming.time) || 0) * 16.667 + 350);
@@ -2380,6 +2383,7 @@
                                 aiSkill: Number(state.aiSkill) || 0,
                                 urgent: !!urgentThreat,
                                 playerHpBefore: Number.isFinite(trainingHpBefore) ? trainingHpBefore : null,
+                                decisionOrder: decisionOrder,
                                 predictedNextAttack: predictionKey,
                                 predictionMatched: predictionMatched
                             })
@@ -3164,6 +3168,7 @@
         state.hitFlash = 0;
         state.aiSkill = Math.max(0.62, Math.min(0.88, Number(state.aiSkill) || 0.62));
         state.trainingDamageSequence = 0;
+        state.trainingDecisionSequence = 0;
         state.trainingDamageCooldownUntil = 0;
         state.trainingLastPlayerHp = typeof ctx.getPlayerHp === "function"
             ? Number(ctx.getPlayerHp()) : null;
