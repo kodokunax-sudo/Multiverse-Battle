@@ -448,7 +448,11 @@ function dioAttackTouchesStand(ctxB,a){
    if(a.type==="bomb"){if(a.timer>=0)return false;return dioStandHitResult(Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||a.maxRadius||20)+h,a);}
    if(a.type==="ring")return dioStandHitResult(Math.abs(Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))-Number(a.radius||0))<Number(a.thickness||a.width||18)/2+h,a);
    if(["circle","rainbow","healCircle","explosion","acid","boomerang","gear","leaf","point"].includes(a.type))return dioStandHitResult(Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.radius||a.size||10)+h,a);
-   if(a.type==="laser"||a.type==="beam")return dioStandHitResult(a.state==="active"&&Math.abs(x-(Number(a.x)||0))<Number(a.width||40)/2+h,a);
+   if(a.type==="laser"||a.type==="beam"){
+    var horizontalLaser=a.direction==="horizontal"||a.orientation==="horizontal";
+    var laserDistance=horizontalLaser?Math.abs(y-(Number(a.y)||0)):Math.abs(x-(Number(a.x)||0));
+    return dioStandHitResult(a.state==="active"&&laserDistance<Number(a.width||40)/2+h,a);
+   }
    if(a.type==="sword")return dioStandHitResult(Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.size||10)+h,a);
    if(Number(a.width)>0||Number(a.height)>0){var rw=Math.max(6,Number(a.width)||Number(a.size)||20),rh=Math.max(6,Number(a.height)||Number(a.size)||20),rcx=Number(a.x)||0,rcy=Number(a.y)||0;return dioStandHitResult(Math.abs(x-rcx)<rw/2+h&&Math.abs(y-rcy)<rh/2+h,a);}
    var s=Number(a.size)||20,cx=(Number(a.x)||0)+s/2,cy=(Number(a.y)||0)+s/2;return dioStandHitResult(Math.abs(x-cx)<s/2+h&&Math.abs(y-cy)<s/2+h,a);
