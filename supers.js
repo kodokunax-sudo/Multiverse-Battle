@@ -379,13 +379,20 @@ function getBossContext() {
                 setHeartHitbox: function(v) { heart.hitbox = v; },
                 getHeartSpeed: function() { return heartSpeed; },
                 setHeartSpeed: function(v) { heartSpeed = v; },
-                getAttacks: function() { return attacks; },
+                getAttacks: function() {
+                    var extra = Array.isArray(window.__mbGERUniqueTrainingAttacks) ? window.__mbGERUniqueTrainingAttacks : [];
+                    return extra.length ? attacks.concat(extra) : attacks;
+                },
                 getBlasters: function() { return arenaBlasters; },
                 getParticles: function() { return arenaParticles; },
                 getBossMaxHp: function() { return (typeof arenaBossOriginalMaxHP !== "undefined" && arenaBossOriginalMaxHP > 0) ? arenaBossOriginalMaxHP : arenaBossMaxHP; },
                 setBossMaxHp: function(v) { arenaBossMaxHP = v; },
                 getBossHp: function() { return arenaBossMaxHP; },
-                getBossPosition: function() { return { x:200, y:175 }; },
+                getBossPosition: function() {
+                    return window.__mbGERTrainingMode && window.__mbGERTrainingOptions && window.__mbGERTrainingOptions.trainingProfile === "unique_mix"
+                        ? { x:200, y:128, vx:0, vy:0 }
+                        : { x:200, y:175 };
+                }
                 damageBoss: function(amount) {
                     return typeof window.MBApplyBossDamage === "function" &&
                         window.MBApplyBossDamage(this, amount, "Gold Experience") > 0;
