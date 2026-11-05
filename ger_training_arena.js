@@ -2,7 +2,7 @@
 (function () {
     "use strict";
 
-    var SETTINGS_KEY = "mb_ger_training_arena_settings_v1";
+    var SETTINGS_KEY = "mb_ger_training_arena_settings_v2";
     var UNIQUE_WAVES = [200, 500, 1000, 1500, 2000];
     var ATTACKS = [
         "⬜ Стены", "🔷 Хаос", "⚡ Жёлтые мечи", "🔺 Красные треугольники",
@@ -60,7 +60,23 @@
         );
     }
 
+    function selectedTrainingType() {
+        var el = byId("gerTrainingType");
+        return el && el.value === "unique_mix" ? "unique_mix" : "standard";
+    }
+    function updateModeVisibility() {
+        var unique = selectedTrainingType() === "unique_mix";
+        var standard = byId("gerTrainingStandardSettings");
+        var uniquePanel = byId("gerTrainingUniqueSettings");
+        var standardAttacks = byId("gerTrainingStandardAttacks");
+        var invulnerable = byId("gerTrainingInvulnerable");
+        if (standard) standard.style.display = unique ? "none" : "block";
+        if (uniquePanel) uniquePanel.style.display = unique ? "block" : "none";
+        if (standardAttacks) standardAttacks.style.display = unique ? "none" : "block";
+        if (invulnerable) { if (unique) invulnerable.checked = true; invulnerable.disabled = unique; }
+    }
     function updateControls() {
+        updateModeVisibility();
         updateAccess(moderatorAllowed());
         var runningLabel = running ? "■ ТРЕНИРОВКА ИДЁТ" : "▶ НАЧАТЬ ОБУЧЕНИЕ";
         var start = byId("gerTrainingStartBtn");
@@ -129,13 +145,16 @@
     }
 
     function readSettings() {
+        var type = selectedTrainingType();
         return {
-            bossWave: Number(byId("gerTrainingBossWave") && byId("gerTrainingBossWave").value) || 50,
+            type: type,
+            bossWave: type === "unique_mix" ? 50 : (Number(byId("gerTrainingBossWave") && byId("gerTrainingBossWave").value) || 50),
+            bossHp: clamp(byId("gerTrainingBossHp") && byId("gerTrainingBossHp").value, 1000000, 10000, 1000000000000),
             attackWave: clamp(byId("gerTrainingAttackWave") && byId("gerTrainingAttackWave").value, 500, 50, 10000),
             speed: clamp(byId("gerTrainingSpeed") && byId("gerTrainingSpeed").value, 2, 1, 5),
             duration: Number(byId("gerTrainingDuration") && byId("gerTrainingDuration").value) || 0,
-            attacks: selectedAttackTypes(),
-            invulnerable: !!(byId("gerTrainingInvulnerable") && byId("gerTrainingInvulnerable").checked)
+            attacks: type === "unique_mix" ? [] : selectedAttackTypes(),
+            invulnerable: type === "unique_mix" || !!(byId("gerTrainingInvulnerable") && byId("gerTrainingInvulnerable").checked)
         };
     }
     function saveSettings() {
@@ -145,6 +164,8 @@
         var saved = null;
         try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null"); } catch (_error) {}
         if (!saved || typeof saved !== "object") return;
+        if (byId("gerTrainingType") && ["standard", "unique_mix"].indexOf(saved.type) >= 0) byId("gerTrainingType").value = saved.type;
+        if (byId("gerTrainingBossHp")) byId("gerTrainingBossHp").value = String(clamp(saved.bossHp, 1000000, 10000, 1000000000000));
         if (byId("gerTrainingBossWave")) {
             var exists = Array.from(byId("gerTrainingBossWave").options).some(function (option) {
                 return option.value === String(saved.bossWave);
@@ -153,7 +174,7 @@
         }
         if (byId("gerTrainingAttackWave")) byId("gerTrainingAttackWave").value = String(clamp(saved.attackWave, 500, 50, 10000));
         if (byId("gerTrainingSpeed")) byId("gerTrainingSpeed").value = String(clamp(saved.speed, 2, 1, 5));
-        if (byId("gerTrainingDuration") && [0, 120000, 300000, 600000].indexOf(Number(saved.duration)) >= 0) {
+        if (byId("gerTrainingDuration") && [0, 120000, 300000, 480000, 600000].indexOf(Number(saved.duration)) >= 0) {
             byId("gerTrainingDuration").value = String(saved.duration);
         }
         if (byId("gerTrainingInvulnerable")) byId("gerTrainingInvulnerable").checked = saved.invulnerable !== false;
@@ -165,6 +186,7 @@
     }
 
     function currentBrainKey() {
+        if (selectedTrainingType() === "unique_mix") return "ger_unique_mix";
         var wave = Number(byId("gerTrainingBossWave") && byId("gerTrainingBossWave").value) || 50;
         return "arena_wave_" + wave;
     }
@@ -295,15 +317,17 @@
         if (!moderatorAllowed()) return setStatus("Запуск заблокирован: права модератора не подтверждены сервером.", "error");
         if (running || window.__mbBossTestMode) return setStatus("Сначала заверши текущий тестовый бой.", "warning");
         var settings = readSettings();
-        if (!settings.attacks.length) return setStatus("Выбери хотя бы один тип атаки.", "error");
+        if (settings.type === "standard" && !settings.attacks.length) return setStatus("Выбери хотя бы один тип атаки.", "error");
         if (typeof window.MBBossTestStartGERTraining !== "function") {
             return setStatus("Не загрузился модуль запуска арены. Обнови страницу.", "error");
         }
         saveSettings();
         var started = window.MBBossTestStartGERTraining({
+            trainingProfile: settings.type,
             bossWave: settings.bossWave,
+            bossHp: settings.bossHp,
             attackWave: settings.attackWave,
-            attackTypes: settings.attacks,
+            attackTypes: settings.type === "unique_mix" ? [] : settings.attacks,
             speedMultiplier: settings.speed,
             invulnerable: settings.invulnerable
         });
@@ -334,9 +358,11 @@
 
     window.MBGERTrainingArenaOnStarted = function (modeData) {
         running = true;
-        setStatus("GER вызван. Босс: " + (modeData && modeData.bossName ? modeData.bossName : "обычный") +
-            ". Выбрано типов атак: " + (modeData && Array.isArray(modeData.attackTypes) ? modeData.attackTypes.length : 0) +
-            ". Не закрывай вкладку, пока он собирает опыт.", "success");
+        setStatus(modeData && modeData.trainingProfile === "unique_mix"
+            ? "GER вызван против универсального манекена. Основные паттерны уникальных боссов чередуются, игрок неуязвим."
+            : "GER вызван. Босс: " + (modeData && modeData.bossName ? modeData.bossName : "обычный") +
+                ". Выбрано типов атак: " + (modeData && Array.isArray(modeData.attackTypes) ? modeData.attackTypes.length : 0) +
+                ". Не закрывай вкладку, пока он собирает опыт.", "success");
         updateControls();
     };
     window.MBGERTrainingArenaOnFinished = function (result) {
@@ -370,8 +396,9 @@
         if (stop) stop.addEventListener("click", function () { stopTraining("exit"); });
         if (refresh) refresh.addEventListener("click", refreshStats);
         if (byId("gerTrainingAttackWave")) byId("gerTrainingAttackWave").addEventListener("input", function () { updateControls(); saveSettings(); });
+        if (byId("gerTrainingBossHp")) byId("gerTrainingBossHp").addEventListener("input", function () { saveSettings(); });
         if (byId("gerTrainingSpeed")) byId("gerTrainingSpeed").addEventListener("input", function () { updateControls(); saveSettings(); });
-        ["gerTrainingBossWave", "gerTrainingDuration", "gerTrainingInvulnerable"].forEach(function (id) {
+        ["gerTrainingType", "gerTrainingBossWave", "gerTrainingDuration", "gerTrainingInvulnerable"].forEach(function (id) {
             var control = byId(id);
             if (control) control.addEventListener("change", saveSettings);
         });
