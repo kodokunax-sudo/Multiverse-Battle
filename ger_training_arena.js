@@ -148,7 +148,9 @@
         var type = selectedTrainingType();
         return {
             type: type,
-            bossWave: type === "unique_mix" ? 50 : (Number(byId("gerTrainingBossWave") && byId("gerTrainingBossWave").value) || 50),
+            bossWave: type === "unique_mix"
+                ? (Number(byId("gerTrainingUniqueBossWave") && byId("gerTrainingUniqueBossWave").value) || 200)
+                : (Number(byId("gerTrainingBossWave") && byId("gerTrainingBossWave").value) || 50),
             bossHp: clamp(byId("gerTrainingBossHp") && byId("gerTrainingBossHp").value, 2000000, 10000, 1000000000000),
             attackWave: clamp(byId("gerTrainingAttackWave") && byId("gerTrainingAttackWave").value, 500, 50, 10000),
             speed: clamp(byId("gerTrainingSpeed") && byId("gerTrainingSpeed").value, 2, 1, 5),
@@ -172,6 +174,9 @@
             });
             if (exists) byId("gerTrainingBossWave").value = String(saved.bossWave);
         }
+        if (byId("gerTrainingUniqueBossWave") && [200, 500, 1000, 2000].indexOf(Number(saved.bossWave)) !== -1) {
+            byId("gerTrainingUniqueBossWave").value = String(saved.bossWave);
+        }
         if (byId("gerTrainingAttackWave")) byId("gerTrainingAttackWave").value = String(clamp(saved.attackWave, 500, 50, 10000));
         if (byId("gerTrainingSpeed")) byId("gerTrainingSpeed").value = String(clamp(saved.speed, 2, 1, 5));
         if (byId("gerTrainingDuration") && [0, 120000, 300000, 480000, 600000].indexOf(Number(saved.duration)) >= 0) {
@@ -186,7 +191,10 @@
     }
 
     function currentBrainKey() {
-        if (selectedTrainingType() === "unique_mix") return "ger_unique_mix";
+        if (selectedTrainingType() === "unique_mix") {
+            var uniqueWave = Number(byId("gerTrainingUniqueBossWave") && byId("gerTrainingUniqueBossWave").value) || 200;
+            return "ger_unique_" + uniqueWave;
+        }
         var wave = Number(byId("gerTrainingBossWave") && byId("gerTrainingBossWave").value) || 50;
         return "arena_wave_" + wave;
     }
@@ -327,7 +335,7 @@
         setStatus("Проверяем игровой аккаунт и открываем серверную сессию обучения…", "warning");
         try {
             await api.checkOnline();
-            var bossKey = settings.type === "unique_mix" ? "ger_unique_mix" : "arena_wave_" + settings.bossWave;
+            var bossKey = settings.type === "unique_mix" ? "ger_unique_" + settings.bossWave : "arena_wave_" + settings.bossWave;
             var session = await api.start(bossKey, {
                 arenaMode: "moderator_training", trainingMode: true,
                 trainingProfile: settings.type, speedMultiplier: settings.speed
