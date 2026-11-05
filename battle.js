@@ -24,6 +24,8 @@ let attacks = [];
 let arenaBlasters = [];
 let arenaExtendedState = null;
 let arenaAllowedTypes = [];
+let arenaGERUniqueTrainingAttacks = [];
+let arenaGERUniqueTrainingState = null;
 let canvas = null;
 let ctx = null;
 let arenaParticles = [];
@@ -743,6 +745,8 @@ function startArena(bossWave) {
     initArenaAudio();
     var joystickTrainingMode = isJoystickTrainingMode();
     var gerTrainingMode = typeof window !== "undefined" && window.__mbGERTrainingMode === true;
+    var gerTrainingOptions = gerTrainingMode ? (window.__mbGERTrainingOptions || {}) : {};
+    var gerTrainingUniqueMode = gerTrainingMode && gerTrainingOptions.trainingProfile === "unique_mix";
     var trainingMode = joystickTrainingMode || gerTrainingMode;
     var bossTestMode = (!joystickTrainingMode && typeof window !== "undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind === "arena") ? window.__mbBossTestMode : null;
     var bossIdentityWave = bossTestMode ? Number(bossTestMode.bossWave || bossWave) : bossWave;
@@ -754,6 +758,9 @@ function startArena(bossWave) {
     var superBtnDeact = document.getElementById("superBtnDeactivate"); if (superBtnDeact) superBtnDeact.style.display = "none";
 
     arenaBossDefeatedBefore = !trainingMode && !bossTestMode && (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(bossIdentityWave));
+    arenaGERUniqueTrainingAttacks = [];
+    arenaGERUniqueTrainingState = gerTrainingUniqueMode ? { lastNow: Date.now(), nextSpawnAt: 0, patternIndex: 0, sequence: 0 } : null;
+    window.__mbGERUniqueTrainingAttacks = arenaGERUniqueTrainingAttacks;
     arenaActive = true; arenaCurrentWave = bossIdentityWave; arenaExtendedState = null; calculateArenaHP();
     antiSpiralGravityVelocity = 0;
     antiSpiralJumpCooldown = 0;
@@ -862,13 +869,15 @@ function startArena(bossWave) {
         wallCountMult = Math.min(3, wallCountMult * Math.sqrt(gerTrainingSpeed));
     }
 
-    arenaAllowedTypes = getAttackTypes(bossStrengthWave);
-    if (bossTestMode && Array.isArray(bossTestMode.attackTypes) && bossTestMode.attackTypes.length) {
+    arenaAllowedTypes = gerTrainingUniqueMode ? [21] : getAttackTypes(bossStrengthWave);
+    if (!gerTrainingUniqueMode && bossTestMode && Array.isArray(bossTestMode.attackTypes) && bossTestMode.attackTypes.length) {
         arenaAllowedTypes = bossTestMode.attackTypes.filter(function(type) { return Number.isInteger(type) && type >= 0 && type <= 20; });
         if (!arenaAllowedTypes.length) arenaAllowedTypes = [0];
     }
     var bt = typeof bossTemplates !== 'undefined' ? bossTemplates[bossIdentityWave] : null;
-    arenaBoss = gerTrainingMode
+    arenaBoss = gerTrainingUniqueMode
+        ? "🧠 GER · УНИКАЛЬНЫЙ ТРЕНИРОВОЧНЫЙ МАНЕКЕН"
+        : gerTrainingMode
         ? "🧠 GER · " + (bossTestMode && bossTestMode.bossName ? bossTestMode.bossName : (bt ? bt.name : "ОБЫЧНЫЙ БОСС"))
         : (trainingMode ? "ТРЕНИРОВОЧНЫЙ БОСС · БЕССМЕРТЕН" : (bossTestMode ? (bossTestMode.bossName || (bt ? bt.name : "ОБЫЧНЫЙ БОСС")) : (bt ? bt.name : "БОСС ВРАТ")));
     var strengthFactor = Math.max(0.5, 1.0 + (bossStrengthWave - 50) / 100 * 0.5);
@@ -877,8 +886,11 @@ function startArena(bossWave) {
     arenaBaseDmg = Math.max(2, Math.floor((5 + bossStrengthWave * 1.5) * arenaBossDmgMult / 3));
     arenaBaseDmg = Math.max(1, Math.floor(arenaBaseDmg * earlyArenaStrength));
     if (trainingMode) {
-        // A huge fixed health pool is only cosmetic; training attacks never subtract from it.
-        arenaBossMaxHP = 1000000000;
+        // Normal drills use a practically unlimited target; unique-mix has configurable real HP.
+        var configuredGERHp = Number(gerTrainingOptions.bossHp);
+        arenaBossMaxHP = gerTrainingUniqueMode
+            ? Math.max(10000, Math.min(1000000000000, Math.floor(Number.isFinite(configuredGERHp) && configuredGERHp > 0 ? configuredGERHp : 1000000)))
+            : 1000000000;
     } else if (bossTestMode) {
         var idealTestDamage = Math.max(1, Math.floor((Number(window.playerFinalDamage) || 20) * 2.5));
         arenaBossMaxHP = Math.max(5, idealTestDamage * 5);
@@ -905,6 +917,10 @@ function startArena(bossWave) {
     animFrameId = requestAnimationFrame(renderArena);
 }
 
+function isGERUniqueMixTraining() {
+    return !!(window.__mbGERTrainingMode === true && window.__mbGERTrainingOptions && window.__mbGERTrainingOptions.trainingProfile === "unique_mix");
+}
+
 function startDodgePhase() {
     if (arenaCurrentWave === 1500) { startAntiSpiralDodgePhase(); return; }
     arenaPhase = "dodge"; attacks = []; arenaBlasters = []; wallGapIndicator = null; heart.x = 200; heart.y = 400; heart.vx = 0; heart.vy = 0;
@@ -919,8 +935,10 @@ function startDodgePhase() {
     if (arenaAttackInterval) clearInterval(arenaAttackInterval);
     var baseInterval = 2400;
     if (arenaAttackType === 0) baseInterval = 3400; if (arenaAttackType === 2 || arenaAttackType === 3) baseInterval = 2200; if (arenaAttackType === 6) baseInterval = 4000; if (arenaAttackType === 7) baseInterval = 2400; if (arenaAttackType === 8) baseInterval = 2800; if (arenaAttackType === 9) baseInterval = 3400; if (arenaAttackType === 10) baseInterval = 2400;
-    switch (arenaAttackType) { case 0: sfxWhiteWalls(); break; case 1: sfxBlueChaos(); break; case 2: sfxYellowSwords(); break; case 3: sfxRedTriangles(); break; case 4: sfxPinkKnockback(); break; case 5: sfxGreenHealSpawn(); break; case 6: sfxRainbowDeathSpawn(); break; case 7: sfxMixAttack(); break; case 8: sfxZoneAttack(); break; case 9: sfxBombTick(); break; case 10: sfxBlasterCharge(); break; default: sfxArenaAttackSpawn(); }
-    if (arenaAttackType < 11 || arenaAttackType > 20) {
+    if (!isGERUniqueMixTraining()) {
+        switch (arenaAttackType) { case 0: sfxWhiteWalls(); break; case 1: sfxBlueChaos(); break; case 2: sfxYellowSwords(); break; case 3: sfxRedTriangles(); break; case 4: sfxPinkKnockback(); break; case 5: sfxGreenHealSpawn(); break; case 6: sfxRainbowDeathSpawn(); break; case 7: sfxMixAttack(); break; case 8: sfxZoneAttack(); break; case 9: sfxBombTick(); break; case 10: sfxBlasterCharge(); break; default: sfxArenaAttackSpawn(); }
+    }
+    if (!isGERUniqueMixTraining() && (arenaAttackType < 11 || arenaAttackType > 20)) {
         arenaAttackInterval = setInterval(function() {
             if (arenaPhase === "dodge" && arenaActive && !(typeof _superState !== 'undefined' && (_superState.dioTimeStop > 0 || _superState.dioTeleportStop > 0))) {
                 spawnAttack();
@@ -952,6 +970,14 @@ function startDodgePhase() {
             arenaPhaseTimeout = setTimeout(waitForDioStop, 50);
             return;
         }
+        if (isGERUniqueMixTraining()) {
+            var uniqueWait = Math.max(1200, Math.floor((6500 + Math.random() * 1800) /
+                Math.max(1, Math.min(5, Number(window.__mbGERTrainingOptions.speedMultiplier) || 2))));
+            arenaDodgeTimer = Math.max(1, Math.ceil(uniqueWait / 1000));
+            updateDodgeTimerDisplay();
+            arenaPhaseTimeout = setTimeout(waitForDioStop, uniqueWait);
+            return;
+        }
         if (arenaDodgeTimerInterval) {
             clearInterval(arenaDodgeTimerInterval);
             arenaDodgeTimerInterval = null;
@@ -961,6 +987,13 @@ function startDodgePhase() {
 }
 
 function updateDodgeTimerDisplay() {
+    if (isGERUniqueMixTraining() && arenaPhase === "dodge") {
+        var uniqueTitle = document.getElementById("arenaBossName");
+        if (uniqueTitle) uniqueTitle.innerText = "🧠 УНИКАЛЬНЫЙ МИКС · ВСЕ АТАКИ · " + arenaDodgeTimer + "с";
+        var uniqueTimer = document.getElementById("arenaTimer");
+        if (uniqueTimer) uniqueTimer.innerText = arenaDodgeTimer + "с";
+        return;
+    }
     if (arenaCurrentWave === 1500 && arenaPhase === "dodge") {
         var antiName = ["СПИРАЛЬНЫЙ ШТОРМ", "ВОЛНА ГОРИЗОНТА — ПРЫГАЙ!", "ДОЖДЬ СИНГУЛЯРНОСТЕЙ", "ГРАВИТАЦИОННЫЙ РАЗЛОМ"][antiSpiralActivePattern];
         var antiTitle = document.getElementById("arenaBossName");
@@ -2605,6 +2638,8 @@ function stopArena() {
     if (arenaAttackInterval) clearInterval(arenaAttackInterval); if (animFrameId) cancelAnimationFrame(animFrameId);
     arenaAttackInterval = null; animFrameId = null;
     attacks = []; arenaClickTargets = []; arenaParticles = []; arenaTrail = []; floatingTexts = []; arenaBlasters = []; arenaShockwaves = [];
+    arenaGERUniqueTrainingAttacks = []; arenaGERUniqueTrainingState = null;
+    window.__mbGERUniqueTrainingAttacks = arenaGERUniqueTrainingAttacks;
     window._armorSpeedApplied = false;
     whitebeardRegenTimer = 0;
     document.getElementById("arenaOverlay").style.display = "none";
@@ -2901,6 +2936,301 @@ function drawTakabaJoke() {
     ctx.restore();
 }
 
+
+function gerUniqueTrainingPushAttack(attack) {
+    if (!attack || !Array.isArray(arenaGERUniqueTrainingAttacks)) return;
+    attack.id = "geru_" + (++arenaGERUniqueTrainingState.sequence);
+    attack.elapsed = 0;
+    attack.lifeMs = Math.max(700, Number(attack.lifeMs) || 4200);
+    attack.attackKind = String(attack.attackKind || "unique_pattern");
+    attack.sourceName = String(attack.sourceName || "Уникальный босс");
+    arenaGERUniqueTrainingAttacks.push(attack);
+    if (arenaGERUniqueTrainingAttacks.length > 78) arenaGERUniqueTrainingAttacks.splice(0, arenaGERUniqueTrainingAttacks.length - 78);
+}
+function gerUniqueTrainingProjectile(sourceName, attackKind, x, y, vx, vy, color, radius, extra) {
+    var attack = {
+        type: "circle", shape: "orb", sourceName: sourceName, attackKind: attackKind,
+        x: x, y: y, vx: vx, vy: vy, radius: radius || 9, size: (radius || 9) * 2,
+        color: color || "#ffffff", damage: 10, lifeMs: 4700
+    };
+    Object.assign(attack, extra || {});
+    gerUniqueTrainingPushAttack(attack);
+}
+function spawnGERUniqueTrainingPattern() {
+    if (!isGERUniqueMixTraining() || !arenaGERUniqueTrainingState) return;
+    var st = arenaGERUniqueTrainingState;
+    var speed = Math.max(1, Math.min(5, Number(window.__mbGERTrainingOptions.speedMultiplier) || 2));
+    var wave = Math.max(50, Math.min(10000, Number(window.__mbGERTrainingOptions.attackWave) || 500));
+    var intensity = Math.max(0.7, Math.min(2.2, Math.sqrt(wave / 500)));
+    var scale = (0.85 + speed * 0.28) * intensity;
+    var pattern = st.patternIndex++ % 16;
+    var i, x, y, angle, count, source, kind;
+    if (pattern === 0) {
+        source = "Живой Камень"; kind = "stone_rock_volley";
+        for (i = 0; i < 6; i++) gerUniqueTrainingProjectile(source, kind, 28 + i * 68, -24 - (i % 2) * 48,
+            (i % 2 ? -0.45 : 0.45) * scale, (2.4 + (i % 3) * 0.35) * scale, "#a9b1ba", 11 + (i % 2) * 2,
+            { shape: "rock", lifeMs: 5600 });
+    } else if (pattern === 1) {
+        source = "Живой Камень"; kind = "stone_laser_lane";
+        for (i = 0; i < 2; i++) gerUniqueTrainingPushAttack({
+            type: "laser", shape: "beam", sourceName: source, attackKind: kind,
+            x: 92 + i * 216, y: 250, direction: "vertical", orientation: "vertical",
+            width: 34, height: 500, color: "#b8f0ff", warningMs: 720, activeMs: 960, lifeMs: 1750, damage: 18
+        });
+    } else if (pattern === 2) {
+        source = "Живой Камень"; kind = "stone_ground_spikes";
+        for (i = 0; i < 4; i++) gerUniqueTrainingPushAttack({
+            type: "laser", shape: "spike_lane", sourceName: source, attackKind: kind,
+            x: 55 + i * 96, y: 430, direction: "horizontal", orientation: "horizontal",
+            width: 52, height: 76, color: "#93e5b0", warningMs: 820, activeMs: 800, lifeMs: 1900, damage: 15
+        });
+    } else if (pattern === 3) {
+        source = "Путеводная Звезда"; kind = "waystar_meteor_shower";
+        for (i = 0; i < 7; i++) gerUniqueTrainingProjectile(source, kind, -20 + i * 72, -28 - (i % 3) * 58,
+            (0.75 + (i % 3) * 0.28) * scale, (2.5 + (i % 2) * 0.7) * scale, "#f6d87d", 8 + (i % 3),
+            { shape: "meteor", lifeMs: 5200 });
+    } else if (pattern === 4) {
+        source = "Путеводная Звезда"; kind = "waystar_spiral_stars";
+        count = 12;
+        for (i = 0; i < count; i++) {
+            angle = i / count * Math.PI * 2;
+            gerUniqueTrainingProjectile(source, kind, 200, 128, Math.cos(angle) * 2.6 * scale, Math.sin(angle) * 2.6 * scale,
+                "#ffe9a1", 6, { shape: "star", lifeMs: 5200 });
+        }
+    } else if (pattern === 5) {
+        source = "Путеводная Звезда"; kind = "waystar_giant_beam";
+        gerUniqueTrainingPushAttack({
+            type: "laser", shape: "beam", sourceName: source, attackKind: kind,
+            x: 200, y: 168 + Math.random() * 240, direction: "horizontal", orientation: "horizontal",
+            width: 390, height: 36, color: "#fff0a8", warningMs: 880, activeMs: 720, lifeMs: 1780, damage: 20
+        });
+    } else if (pattern === 6) {
+        source = "Роджер и Белоус"; kind = "whitebeard_haki_wave";
+        gerUniqueTrainingPushAttack({
+            type: "laser", shape: "haki_wave", sourceName: source, attackKind: kind,
+            x: 200, y: 110 + Math.random() * 280, direction: "horizontal", orientation: "horizontal",
+            width: 400, height: 60, color: "#8ceaff", warningMs: 500, activeMs: 1150, lifeMs: 1800, damage: 22
+        });
+    } else if (pattern === 7) {
+        source = "Роджер и Белоус"; kind = "roger_whitebeard_fist_barrage";
+        for (i = 0; i < 5; i++) {
+            var fromLeft = i % 2 === 0;
+            gerUniqueTrainingProjectile(source, kind, fromLeft ? -24 : 424, 80 + i * 78,
+                (fromLeft ? 1 : -1) * (3.1 + (i % 2) * 0.5) * scale, (i % 2 ? -0.35 : 0.35) * scale,
+                "#e7f4ff", 12, { shape: "fist", lifeMs: 3900 });
+        }
+    } else if (pattern === 8) {
+        source = "Роджер и Белоус"; kind = "whitebeard_quake_ring";
+        gerUniqueTrainingPushAttack({
+            type: "ring", shape: "ring", sourceName: source, attackKind: kind,
+            x: 200, y: 130, radius: 14, speed: 3.1 * scale, thickness: 18, width: 18,
+            color: "#d9f7ff", lifeMs: 3800, damage: 22
+        });
+    } else if (pattern === 9) {
+        source = "Гол Д. Роджер"; kind = "roger_cross_slash";
+        for (i = 0; i < 2; i++) gerUniqueTrainingPushAttack({
+            type: "laser", shape: "slash", sourceName: source, attackKind: kind,
+            x: 200, y: 165 + i * 165, direction: "horizontal", orientation: "horizontal",
+            width: 400, height: 27, color: "#f4f7ff", warningMs: 560 + i * 180, activeMs: 660, lifeMs: 1440, damage: 20
+        });
+    } else if (pattern === 10) {
+        source = "Супер-Живой Камень"; kind = "stone_super_ricochet_plates";
+        for (i = 0; i < 5; i++) {
+            angle = (i / 5) * Math.PI * 2 + 0.25;
+            gerUniqueTrainingProjectile(source, kind, 200, 135, Math.cos(angle) * 2.9 * scale, Math.sin(angle) * 2.9 * scale,
+                "#91f3bb", 10, { shape: "plate", bounces: 3, lifeMs: 6000 });
+        }
+    } else if (pattern === 11) {
+        source = "Супер-Живой Камень"; kind = "stone_super_boomerang";
+        gerUniqueTrainingProjectile(source, kind, 36, 120 + Math.random() * 190, 4.1 * scale, 1.1 * scale,
+            "#b7ffd0", 13, { shape: "boomerang", turnAtMs: 900, lifeMs: 2600 });
+        gerUniqueTrainingProjectile(source, kind, 364, 150 + Math.random() * 180, -4.1 * scale, -1.0 * scale,
+            "#b7ffd0", 13, { shape: "boomerang", turnAtMs: 900, lifeMs: 2600 });
+    } else if (pattern === 12) {
+        source = "Супер-Живой Камень"; kind = "stone_super_green_spear_fan";
+        for (i = 0; i < 7; i++) {
+            angle = Math.PI * (0.18 + i * 0.106);
+            gerUniqueTrainingProjectile(source, kind, 200, 130, Math.cos(angle) * 3.0 * scale, Math.sin(angle) * 3.0 * scale,
+                "#82ff9e", 7, { shape: "spear", lifeMs: 5000 });
+        }
+    } else if (pattern === 13) {
+        source = "Супер-Живой Камень"; kind = "stone_super_predicted_ground_strike";
+        x = 48 + Math.floor(Math.random() * 6) * 60;
+        gerUniqueTrainingPushAttack({
+            type: "laser", shape: "ground_warning", sourceName: source, attackKind: kind,
+            x: x, y: 425, direction: "horizontal", orientation: "horizontal",
+            width: 72, height: 105, color: "#92ffb2", warningMs: 980, activeMs: 760, lifeMs: 1950, damage: 24
+        });
+    } else if (pattern === 14) {
+        source = "Роджер и Белоус"; kind = "quake_plus_haki";
+        gerUniqueTrainingPushAttack({
+            type: "ring", shape: "ring", sourceName: source, attackKind: kind,
+            x: 200, y: 128, radius: 8, speed: 2.5 * scale, thickness: 16, width: 16,
+            color: "#8ceaff", lifeMs: 3600, damage: 18
+        });
+        for (i = 0; i < 3; i++) gerUniqueTrainingProjectile(source, kind, 70 + i * 130, -18,
+            (i - 1) * 0.7 * scale, 3.7 * scale, "#e8f7ff", 10, { shape: "rock", lifeMs: 3700 });
+    } else {
+        source = "Путеводная Звезда"; kind = "waystar_starfall";
+        for (i = 0; i < 9; i++) {
+            x = 20 + i * 45;
+            gerUniqueTrainingProjectile(source, kind, x, -16 - (i % 2) * 35, (i % 2 ? -0.35 : 0.35) * scale,
+                (2.3 + (i % 3) * 0.45) * scale, "#ffe5a3", 7 + (i % 2) * 2, { shape: "star", lifeMs: 4400 });
+        }
+    }
+}
+function updateGERUniqueTrainingAttacks(nowTime) {
+    if (!isGERUniqueMixTraining() || !arenaActive || !ctx || !arenaGERUniqueTrainingState) return;
+    if (arenaBossMaxHP <= 0) { winArena(); return; }
+    var st = arenaGERUniqueTrainingState;
+    var delta = Math.max(0, Math.min(50, nowTime - (st.lastNow || nowTime)));
+    st.lastNow = nowTime;
+    var options = window.__mbGERTrainingOptions || {};
+    var speed = Math.max(1, Math.min(5, Number(options.speedMultiplier) || 2));
+    var wave = Math.max(50, Math.min(10000, Number(options.attackWave) || 500));
+    var intensity = Math.max(0.7, Math.min(2.2, Math.sqrt(wave / 500)));
+    var interval = Math.max(360, 1250 / (0.8 + speed * 0.42) / intensity);
+    if (nowTime >= st.nextSpawnAt) {
+        spawnGERUniqueTrainingPattern();
+        st.nextSpawnAt = nowTime + interval;
+    }
+    var frameScale = delta / 16.667 * speed;
+    for (var i = arenaGERUniqueTrainingAttacks.length - 1; i >= 0; i--) {
+        var a = arenaGERUniqueTrainingAttacks[i];
+        a.elapsed += delta * speed;
+        if (a.type === "laser") {
+            if (a.elapsed >= (Number(a.warningMs) || 0) && !a.active) {
+                a.active = true;
+                a.state = "active";
+            }
+            if (a.elapsed >= (Number(a.warningMs) || 0) + (Number(a.activeMs) || 900)) {
+                arenaGERUniqueTrainingAttacks.splice(i, 1);
+                continue;
+            }
+        } else {
+            if (a.shape === "boomerang" && a.elapsed >= (Number(a.turnAtMs) || 900) && !a.returning) {
+                a.returning = true;
+                a.vx *= -1;
+                a.vy *= -1;
+            }
+            a.x += (Number(a.vx) || 0) * frameScale;
+            a.y += (Number(a.vy) || 0) * frameScale;
+            if (a.type === "ring") {
+                a.radius += (Number(a.speed) || 0) * frameScale;
+                if (a.radius > 430) { arenaGERUniqueTrainingAttacks.splice(i, 1); continue; }
+            }
+            if (a.bounces > 0) {
+                var r = Math.max(5, Number(a.radius) || Number(a.size) * 0.5 || 8);
+                if (a.x < r || a.x > 400 - r) { a.vx *= -1; a.x = Math.max(r, Math.min(400 - r, a.x)); a.bounces--; }
+                if (a.y < r || a.y > 500 - r) { a.vy *= -1; a.y = Math.max(r, Math.min(500 - r, a.y)); a.bounces--; }
+            }
+            if (a.elapsed >= a.lifeMs || a.x < -90 || a.x > 490 || a.y < -100 || a.y > 590) {
+                arenaGERUniqueTrainingAttacks.splice(i, 1);
+                continue;
+            }
+        }
+        var isWarning = a.type === "laser" && !a.active;
+        var alpha = isWarning ? (0.35 + 0.25 * Math.sin(nowTime / 65)) : 0.88;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        if (a.type === "laser") {
+            var horizontal = a.direction === "horizontal" || a.orientation === "horizontal";
+            ctx.lineCap = "round";
+            ctx.lineWidth = isWarning ? Math.max(3, Number(a.width) * 0.3) : Math.max(7, Number(a.width) || 24);
+            ctx.strokeStyle = a.color || "#ffffff";
+            ctx.shadowColor = a.color || "#ffffff";
+            ctx.shadowBlur = isWarning ? 5 : 18;
+            ctx.setLineDash(isWarning ? [9, 7] : []);
+            ctx.beginPath();
+            if (horizontal) {
+                ctx.moveTo(0, a.y);
+                ctx.lineTo(400, a.y);
+            } else {
+                ctx.moveTo(a.x, 0);
+                ctx.lineTo(a.x, 500);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+            if (isWarning) {
+                ctx.fillStyle = a.color || "#ffffff";
+                ctx.font = "bold 10px monospace";
+                ctx.textAlign = "center";
+                ctx.fillText("АТАКА", horizontal ? a.x : a.x + 22, horizontal ? a.y - 12 : 250);
+            }
+        } else if (a.type === "ring") {
+            ctx.strokeStyle = a.color || "#9beaff";
+            ctx.lineWidth = Math.max(3, Number(a.thickness) || 16);
+            ctx.shadowColor = a.color || "#9beaff";
+            ctx.shadowBlur = 14;
+            ctx.beginPath();
+            ctx.arc(a.x, a.y, Math.max(1, a.radius), 0, Math.PI * 2);
+            ctx.stroke();
+        } else {
+            var radius = Math.max(5, Number(a.radius) || Number(a.size) * 0.5 || 9);
+            ctx.translate(a.x, a.y);
+            if (a.shape === "plate" || a.shape === "boomerang" || a.shape === "spear") {
+                var rotation = Math.atan2(Number(a.vy) || 0, Number(a.vx) || 1);
+                ctx.rotate(rotation);
+                ctx.fillStyle = a.color || "#aaffc8";
+                ctx.strokeStyle = "rgba(255,255,255,.9)";
+                ctx.shadowColor = a.color || "#aaffc8";
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                if (a.shape === "spear") {
+                    ctx.moveTo(radius * 1.8, 0); ctx.lineTo(-radius, -radius * 0.55);
+                    ctx.lineTo(-radius * 0.55, 0); ctx.lineTo(-radius, radius * 0.55);
+                } else if (a.shape === "boomerang") {
+                    ctx.moveTo(-radius, -radius); ctx.quadraticCurveTo(radius * 1.5, 0, -radius, radius);
+                    ctx.lineTo(-radius * 0.2, 0);
+                } else {
+                    ctx.moveTo(0, -radius * 1.25); ctx.lineTo(radius * 1.2, 0);
+                    ctx.lineTo(0, radius * 1.25); ctx.lineTo(-radius * 1.2, 0);
+                }
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+            } else {
+                ctx.fillStyle = a.color || "#ffffff";
+                ctx.strokeStyle = "rgba(255,255,255,.78)";
+                ctx.shadowColor = a.color || "#ffffff";
+                ctx.shadowBlur = a.shape === "meteor" ? 16 : 9;
+                ctx.beginPath();
+                ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+                if (a.shape === "meteor" || a.shape === "rock") {
+                    ctx.strokeStyle = "rgba(255,255,255,.65)";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(-radius * 0.5, -radius * 0.45); ctx.lineTo(radius * 0.45, radius * 0.35); ctx.stroke();
+                }
+            }
+        }
+        ctx.restore();
+    }
+    // Fixed central dummy: the attack stream never takes the player's position as a target.
+    ctx.save();
+    var pulse = 0.86 + Math.sin(nowTime / 260) * 0.08;
+    ctx.globalAlpha = pulse;
+    ctx.shadowColor = "#f2d477";
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = "#29313b";
+    ctx.strokeStyle = "#d8c27b";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(200, 128, 22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#f3d77e";
+    ctx.beginPath(); ctx.arc(200, 128, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(255,239,179,.8)";
+    ctx.lineWidth = 1.4;
+    for (var k = 0; k < 4; k++) {
+        var a = nowTime / 850 + k * Math.PI / 2;
+        ctx.beginPath(); ctx.arc(200, 128, 29 + k * 2, a, a + 0.72); ctx.stroke();
+    }
+    ctx.fillStyle = "#fff0b3";
+    ctx.font = "bold 9px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("TRAINING TARGET", 200, 165);
+    ctx.restore();
+    if (arenaBossMaxHP <= 0) winArena();
+}
+
 function renderArena() {
     if (!arenaActive || !ctx) return;
     var reduceBossEffects = !!(window.MBShouldReduceBossEffects && window.MBShouldReduceBossEffects());
@@ -3015,7 +3345,9 @@ function renderArena() {
     ctx.fillStyle = "#fff"; ctx.font = "bold 10px monospace"; ctx.shadowColor = "#000"; ctx.shadowBlur = 2; ctx.fillText("❤️ HP: " + Math.max(0, Math.ceil(arenaHP)) + " / " + arenaMaxHP, 16, 24); ctx.shadowBlur = 0;
     drawMarkResurrections();
     ctx.fillStyle = "rgba(10,10,20,0.9)"; ctx.fillRect(8, 32, 384, 14);
-    var maxHp = isJoystickTrainingMode() ? arenaBossMaxHP : ((typeof currentEnemy !== 'undefined' && currentEnemy) ? currentEnemy.maxHp : 1000);
+    var maxHp = (isJoystickTrainingMode() || isGERUniqueMixTraining())
+        ? Math.max(1, Number(arenaBossOriginalMaxHP) || Number(arenaBossMaxHP) || 1)
+        : ((typeof currentEnemy !== 'undefined' && currentEnemy) ? currentEnemy.maxHp : 1000);
     ctx.fillStyle = "#202020"; ctx.fillRect(14, 37, 372, 4); ctx.fillStyle = "#ff3333"; ctx.fillRect(14, 37, 372 * Math.max(0, ghostBossHP / maxHp), 4);
     var bossGlow = Math.sin(now / 250) * 0.15 + 0.85; ctx.fillStyle = "#ffdd00"; ctx.globalAlpha = bossGlow; ctx.fillRect(14, 37, 372 * Math.max(0, arenaBossMaxHP / maxHp), 4); ctx.globalAlpha = 1;
     ctx.fillStyle = "#ccc"; ctx.font = "bold 9px monospace"; ctx.fillText("👾 " + arenaBoss, 16, 43);
@@ -3282,6 +3614,7 @@ function renderArena() {
     ctx.save(); for (var i = floatingTexts.length - 1; i >= 0; i--) { var ft = floatingTexts[i]; ft.y += ft.vy; ft.x += (ft.vx || 0); ft.life--; ctx.fillStyle = ft.color; if (typeof _superState !== 'undefined' && _superState.takabaLaughText) ft.text = "ХА-ХА-ХА"; ctx.globalAlpha = Math.max(0, ft.life / 50); ctx.font = "bold 14px monospace"; ctx.shadowColor = ft.color; ctx.shadowBlur = 4; ctx.textAlign = "center"; ctx.fillText(ft.text, ft.x, ft.y); if (ft.life <= 0) floatingTexts.splice(i, 1); } ctx.restore();
     if (typeof _superState !== 'undefined' && _superState.dandyLava > 0) { ctx.save(); for (var i = 0; i < 60; i++) { var lx = Math.random() * 400, ly = 460 + Math.random() * 40; ctx.fillStyle = "#ff4400"; ctx.globalAlpha = 0.6 + Math.random() * 0.4; ctx.beginPath(); ctx.arc(lx, ly, 2 + Math.random() * 4, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); if (heart.y > 420) { applyHit(3, "ЛАВА!"); } }
 
+    if (isGERUniqueMixTraining()) updateGERUniqueTrainingAttacks(now);
     drawObesityWarning();
     updateTakabaConfidenceDisplay();
     // ★ ТАКАБА: шутка ★
