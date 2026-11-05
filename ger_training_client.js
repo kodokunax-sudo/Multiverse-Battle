@@ -26,10 +26,7 @@
 
     function getGameAuthClient() {
         try {
-            if (!window.MBClans ||
-                typeof window.MBClans.getCurrentUserId !== "function" ||
-                !window.MBClans.getCurrentUserId() ||
-                typeof window.MBClans.getArenaContext !== "function") return null;
+            if (!window.MBClans || typeof window.MBClans.getArenaContext !== "function") return null;
             var context = window.MBClans.getArenaContext();
             return context && context.client && context.client.auth ? context.client : null;
         } catch (_error) {
@@ -37,15 +34,33 @@
         }
     }
 
-    async function post(payload) {
+    async function requireOnlineSession() {
         var client = getGameAuthClient();
-        if (!client) return null;
+        if (!client) throw new Error("game_auth_client_unavailable");
+        var result = await client.auth.getSession();
+        if (result.error) throw result.error;
+        var authSession = result.data && result.data.session;
+        if (!authSession || !authSession.access_token) throw new Error("game_account_not_signed_in");
+        var verified = await client.auth.getUser(authSession.access_token);
+        if (verified.error || !verified.data || !verified.data.user) {
+            var refreshed = await client.auth.refreshSession();
+            if (refreshed.error || !refreshed.data || !refreshed.data.session) {
+                throw new Error("game_session_expired");
+            }
+            var secondCheck = await client.auth.getUser(refreshed.data.session.access_token);
+            if (secondCheck.error || !secondCheck.data || !secondCheck.data.user) {
+                throw new Error("game_session_not_verified");
+            }
+            return { client: client, user: secondCheck.data.user, session: refreshed.data.session };
+        }
+        return { client: client, user: verified.data.user, session: authSession };
+    }
 
-        var sessionResult = await client.auth.getSession();
-        if (sessionResult.error) throw sessionResult.error;
-        var authSession = sessionResult.data && sessionResult.data.session;
-        var accessToken = authSession && authSession.access_token;
-        if (!accessToken) return null;
+    async function post(payload) {
+        var online = await requireOnlineSession();
+        var client = online.client;
+        var accessToken = online.session && online.session.access_token;
+        if (!accessToken) throw new Error("game_session_expired");
 
         var response = await fetch(ENDPOINT, {
             method: "POST",
@@ -59,7 +74,7 @@
         var data = await response.json().catch(function () { return null; });
         if (!response.ok) {
             var reason = data && data.error ? data.error : "training_request_failed";
-            throw new Error(reason);
+            throw new Error(reason + " (HTTP " + response.status + ")");
         }
         return data;
     }
@@ -150,7 +165,7 @@
                     arenaMode: metadata && typeof metadata.arenaMode === "string" ? metadata.arenaMode.slice(0, 32) : "unknown",
                     metadata: metadata && typeof metadata === "object" ? metadata : {}
                 });
-                if (!result || !result.sessionId) return null;
+                if (!result || !result.sessionId) throw new Error("training_session_not_created");
                 sessionId = result.sessionId;
                 activeBossKey = bossKey;
                 await loadBrain(bossKey);
@@ -238,6 +253,7 @@
         finish: finish,
         refreshBrain: loadBrain,
         recordOutcome: recordOutcome,
+        checkOnline: requireOnlineSession,
         getDirectionStats: getDirectionStats,
         getAttackStats: getAttackStats
     };
