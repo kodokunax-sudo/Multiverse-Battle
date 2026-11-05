@@ -376,7 +376,7 @@
     window.MBGERTrainingArenaOnStarted = function (modeData) {
         running = true;
         setStatus(modeData && modeData.trainingProfile === "unique_mix"
-            ? "GER вызван против универсального манекена. Основные паттерны уникальных боссов чередуются, игрок неуязвим."
+            ? "GER сражается с реальным боссом: " + (modeData && modeData.bossName ? modeData.bossName : "уникальный босс") + ". Оригинальные атаки и фазы включены."
             : "GER вызван. Босс: " + (modeData && modeData.bossName ? modeData.bossName : "обычный") +
                 ". Выбрано типов атак: " + (modeData && Array.isArray(modeData.attackTypes) ? modeData.attackTypes.length : 0) +
                 ". Не закрывай вкладку, пока он собирает опыт.", "success");
@@ -415,7 +415,7 @@
         if (byId("gerTrainingAttackWave")) byId("gerTrainingAttackWave").addEventListener("input", function () { updateControls(); saveSettings(); });
         if (byId("gerTrainingBossHp")) byId("gerTrainingBossHp").addEventListener("input", function () { saveSettings(); });
         if (byId("gerTrainingSpeed")) byId("gerTrainingSpeed").addEventListener("input", function () { updateControls(); saveSettings(); });
-        ["gerTrainingBossWave", "gerTrainingDuration", "gerTrainingInvulnerable"].forEach(function (id) {
+        ["gerTrainingBossWave", "gerTrainingUniqueBossWave", "gerTrainingDuration", "gerTrainingInvulnerable"].forEach(function (id) {
             var control = byId(id);
             if (control) control.addEventListener("change", saveSettings);
         });
