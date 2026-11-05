@@ -126,6 +126,11 @@ async function saveEvents(playerId, body) {
         e.chosenDirection, e.targetX, e.targetY, e.outcome, e.damageTaken, e.featuresJson
       ]);
     }
+    // Keep the live session counter in sync with persisted samples, including deduplicated batches.
+    await tx.unsafe(
+      "update public.ger_training_sessions s set event_count=(select count(*)::integer from public.ger_dodge_samples d where d.session_id=s.id and d.player_id=s.player_id) where s.id=$1::uuid and s.player_id=$2::uuid and s.finished_at is null",
+      [sessionId, playerId]
+    );
   });
   return reply({ ok: true, received: events.length });
 }
