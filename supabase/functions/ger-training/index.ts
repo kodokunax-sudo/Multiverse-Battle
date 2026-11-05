@@ -89,7 +89,7 @@ async function startSession(playerId, body) {
   if (metadataJson.length > 1500) return reply({ error: "metadata_too_large" }, 413);
   const q = db();
   const inserted = await q.unsafe(
-    "insert into public.ger_training_sessions (player_id, client_session_id, boss_key, ai_version, game_version, arena_mode, metadata) values ($1::uuid,$2::uuid,$3,'ger-dodge-v1',$4,$5,$6::text::jsonb) on conflict (player_id, client_session_id) do nothing returning id, started_at",
+    "insert into public.ger_training_sessions (player_id, client_session_id, boss_key, ai_version, game_version, arena_mode, metadata) values ($1::uuid,$2::uuid,$3,'ger-dodge-v2',$4,$5,$6::text::jsonb) on conflict (player_id, client_session_id) do nothing returning id, started_at",
     [playerId, clientSessionId, bossKey,
      typeof body.gameVersion === "string" ? body.gameVersion.slice(0, 40) : null,
      typeof body.arenaMode === "string" ? body.arenaMode.slice(0, 32) : null, metadataJson]
@@ -157,7 +157,19 @@ async function readBrain(body) {
     "select attack_key,direction,sample_count,evaded_count,hit_count,blocked_count,unknown_count from public.ger_dodge_direction_stats where boss_key=$1 and ($2::text is null or attack_key=$2)",
     [bossKey, attackKey]
   );
-  return reply({ brain, directions });
+  // Context-conditioned outcomes: which directions worked for this attack from
+  // a particular side of the boss, hazard density, and wall proximity.
+  const contexts = await db().unsafe(
+    "select attack_key,features->>'positionBucket' as position_bucket,features->>'hazardBucket' as hazard_bucket,features->>'wallBucket' as wall_bucket,chosen_direction as direction,count(*)::integer as sample_count,count(*) filter (where outcome='evaded')::integer as evaded_count,count(*) filter (where outcome='blocked')::integer as blocked_count,count(*) filter (where outcome='hit')::integer as hit_count,count(*) filter (where outcome='unknown')::integer as unknown_count from public.ger_dodge_samples where boss_key=$1 and ($2::text is null or attack_key=$2) and features ? 'positionBucket' and features ? 'hazardBucket' and features ? 'wallBucket' and chosen_direction is not null and outcome in ('evaded','blocked','hit') group by attack_key,features->>'positionBucket',features->>'hazardBucket',features->>'wallBucket',chosen_direction order by count(*) desc limit 700",
+    [bossKey, attackKey]
+  );
+  // Learn attack-to-attack transitions within each training session. This lets
+  // the companion prepare for common follow-up patterns before they spawn.
+  const transitions = await db().unsafe(
+    "with ordered as (select session_id,attack_key,lead(attack_key) over (partition by session_id order by created_at,id) as next_attack_key from public.ger_dodge_samples where boss_key=$1 and outcome in ('evaded','blocked','hit')) select attack_key as from_attack_key,next_attack_key,count(*)::integer as sample_count from ordered where next_attack_key is not null group by attack_key,next_attack_key order by count(*) desc limit 300",
+    [bossKey]
+  );
+  return reply({ brain, directions, contexts, transitions });
 }
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
