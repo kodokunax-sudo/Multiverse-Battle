@@ -453,6 +453,13 @@ function dioAttackTouchesStand(ctxB,a){
     var laserDistance=horizontalLaser?Math.abs(y-(Number(a.y)||0)):Math.abs(x-(Number(a.x)||0));
     return dioStandHitResult(a.state==="active"&&laserDistance<Number(a.width||40)/2+h,a);
    }
+   if(a.type==="spike"){
+    if(a.state!=="active")return false;
+    var spikeBase=Number.isFinite(Number(a.y))?Number(a.y):500;
+    var spikeTop=spikeBase-Math.max(0,Number(a.height)||0);
+    var spikeHit=Math.abs(x-(Number(a.x)||0))<Math.max(6,Number(a.width)||20)/2+h&&y>=spikeTop-h&&y<=spikeBase+h;
+    return dioStandHitResult(spikeHit,a);
+   }
    if(a.type==="sword")return dioStandHitResult(Math.hypot(x-(Number(a.x)||0),y-(Number(a.y)||0))<Number(a.size||10)+h,a);
    if(Number(a.width)>0||Number(a.height)>0){var rw=Math.max(6,Number(a.width)||Number(a.size)||20),rh=Math.max(6,Number(a.height)||Number(a.size)||20),rcx=Number(a.x)||0,rcy=Number(a.y)||0;return dioStandHitResult(Math.abs(x-rcx)<rw/2+h&&Math.abs(y-rcy)<rh/2+h,a);}
    var s=Number(a.size)||20,cx=(Number(a.x)||0)+s/2,cy=(Number(a.y)||0)+s/2;return dioStandHitResult(Math.abs(x-cx)<s/2+h&&Math.abs(y-cy)<s/2+h,a);
