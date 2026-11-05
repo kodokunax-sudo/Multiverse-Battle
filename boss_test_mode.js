@@ -113,15 +113,16 @@ window.MBBossTestStartGERTraining=function(options){
         if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("Не найдена карточка Gold Experience Requiem в шаблонах.","error");
         return false;
     }
-    var bossWave=clampNumber(options.bossWave,50,1,10000);
+    var trainingProfile=options.trainingProfile==="unique_mix"?"unique_mix":"standard";
+    var bossWave=trainingProfile==="unique_mix"?50:clampNumber(options.bossWave,50,1,10000);
     if(!template(bossWave)||isUnique(bossWave)){
         if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("Выбери обычного босса, не уникального.","error");
         return false;
     }
-    var attackTypes=Array.isArray(options.attackTypes)?options.attackTypes.map(Number).filter(function(type,index,array){
+    var attackTypes=trainingProfile==="unique_mix"?[]:(Array.isArray(options.attackTypes)?options.attackTypes.map(Number).filter(function(type,index,array){
         return Number.isInteger(type)&&type>=0&&type<=20&&array.indexOf(type)===index;
-    }):[];
-    if(!attackTypes.length){
+    }):[]);
+    if(trainingProfile!=="unique_mix"&&!attackTypes.length){
         if(typeof window.MBGERTrainingArenaSetStatus==="function")window.MBGERTrainingArenaSetStatus("Выбери хотя бы один тип атаки.","error");
         return false;
     }
@@ -144,7 +145,8 @@ window.MBBossTestStartGERTraining=function(options){
         finishing:false,
         passiveRevived:false,
         gerTraining:true,
-        invulnerable:options.invulnerable!==false,
+        trainingProfile:trainingProfile,
+        invulnerable:trainingProfile==="unique_mix"||options.invulnerable!==false,
         snapshot:snap()
     };
     window.__mbBossTestMode=modeData;
@@ -153,13 +155,22 @@ window.MBBossTestStartGERTraining=function(options){
     window.__mbBossTestPassive=null;
     window.__mbBossTestSuperHitUsed=false;
     window.__mbGERTrainingMode=true;
-    window.__mbGERTrainingBossKey="arena_wave_"+bossWave;
+    window.__mbGERTrainingBossKey=trainingProfile==="unique_mix"?"ger_unique_mix":"arena_wave_"+bossWave;
     window.__mbGERTrainingOptions={
+        trainingProfile:trainingProfile,
+        bossHp:clampNumber(options.bossHp,1000000,10000,1000000000000),
+        attackWave:clampNumber(options.attackWave,500,50,10000),
         speedMultiplier:clampNumber(options.speedMultiplier,2,1,5)
     };
     exitControl(modeData);
     try{
         startArena(bossWave);
+        if(typeof window.MBUpdateGoldExperience==="function") {
+            window.MBUpdateGoldExperience();
+            if(typeof window.requestAnimationFrame==="function") window.requestAnimationFrame(function(){
+                if(window.__mbGERTrainingMode&&typeof window.MBUpdateGoldExperience==="function") window.MBUpdateGoldExperience();
+            });
+        }
         if(typeof updateSuperButton==="function")updateSuperButton();
         if(typeof window.MBGERTrainingArenaOnStarted==="function")window.MBGERTrainingArenaOnStarted(modeData);
         return true;
