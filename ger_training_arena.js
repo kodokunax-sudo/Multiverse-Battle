@@ -313,36 +313,45 @@
         if (timer) timer.textContent = "";
     }
 
-    function startTraining() {
+    async function startTraining() {
         if (!moderatorAllowed()) return setStatus("Запуск заблокирован: права модератора не подтверждены сервером.", "error");
         if (running || window.__mbBossTestMode) return setStatus("Сначала заверши текущий тестовый бой.", "warning");
         var settings = readSettings();
         if (settings.type === "standard" && !settings.attacks.length) return setStatus("Выбери хотя бы один тип атаки.", "error");
-        if (typeof window.MBBossTestStartGERTraining !== "function") {
-            return setStatus("Не загрузился модуль запуска арены. Обнови страницу.", "error");
+        if (typeof window.MBBossTestStartGERTraining !== "function") return setStatus("Не загрузился модуль запуска арены. Обнови страницу.", "error");
+        var api = window.MBGERTraining;
+        if (!api || typeof api.checkOnline !== "function" || typeof api.start !== "function") {
+            return setStatus("Модуль онлайн-обучения не загрузился. Обнови страницу.", "error");
         }
         saveSettings();
-        var started = window.MBBossTestStartGERTraining({
-            trainingProfile: settings.type,
-            bossWave: settings.bossWave,
-            bossHp: settings.bossHp,
-            attackWave: settings.attackWave,
-            attackTypes: settings.type === "unique_mix" ? [] : settings.attacks,
-            speedMultiplier: settings.speed,
-            invulnerable: settings.invulnerable
-        });
-        if (!started) return;
-        running = true;
-        var duration = Math.max(0, Number(settings.duration) || 0);
-        runEndsAt = duration > 0 ? Date.now() + duration : 0;
-        if (duration > 0) {
-            timerId = window.setInterval(updateRunTimer, 250);
-            updateRunTimer();
-        } else {
-            var timer = byId("gerTrainingRunTimer");
-            if (timer) timer.textContent = "Автоматической остановки нет.";
+        setStatus("Проверяем игровой аккаунт и открываем серверную сессию обучения…", "warning");
+        try {
+            await api.checkOnline();
+            var bossKey = settings.type === "unique_mix" ? "ger_unique_mix" : "arena_wave_" + settings.bossWave;
+            var session = await api.start(bossKey, {
+                arenaMode: "moderator_training", trainingMode: true,
+                trainingProfile: settings.type, speedMultiplier: settings.speed
+            });
+            if (!session || !session.sessionId) throw new Error("training_session_not_created");
+            setStatus("Онлайн подтверждён. Серверная сессия обучения создана.", "success");
+            var started = window.MBBossTestStartGERTraining({
+                trainingProfile: settings.type, bossWave: settings.bossWave,
+                bossHp: settings.bossHp, attackWave: settings.attackWave,
+                attackTypes: settings.type === "unique_mix" ? [] : settings.attacks,
+                speedMultiplier: settings.speed, invulnerable: settings.invulnerable
+            });
+            if (!started) { await api.finish("aborted"); return; }
+            running = true;
+            var duration = Math.max(0, Number(settings.duration) || 0);
+            runEndsAt = duration > 0 ? Date.now() + duration : 0;
+            if (duration > 0) { timerId = window.setInterval(updateRunTimer, 250); updateRunTimer(); }
+            else { var timer = byId("gerTrainingRunTimer"); if (timer) timer.textContent = "Автоматической остановки нет."; }
+            updateControls();
+        } catch (error) {
+            console.error("[GER training arena] Online start failed:", error);
+            setStatus("Тренировка НЕ запущена и ничего не записывает: " +
+                (error && error.message ? error.message : "ошибка онлайн-сессии"), "error");
         }
-        updateControls();
     }
 
     function stopTraining(result) {
@@ -372,12 +381,12 @@
         var text = result === "loss" ? "Тренировка закончилась поражением." :
             result === "error" ? "Не удалось запустить тренировку." :
             "Тренировка остановлена. Прогресс игры не изменён.";
-        setStatus(text + " Обновляем накопленную память…", result === "error" ? "error" : "success");
+        setStatus(text + " Проверяем сохранение и обновляем память…", result === "error" ? "error" : "warning");
         window.setTimeout(function () {
             refreshStats().then(function () {
-                setStatus(text, "success");
+                setStatus(text + " Статистика обновлена. Если наблюдений 0, сервер их не получил.", result === "error" ? "error" : "success");
             });
-        }, 1400);
+        }, 1800);
     };
     window.MBGERTrainingArenaAccessChanged = function (allowed) {
         updateAccess(allowed === true);
