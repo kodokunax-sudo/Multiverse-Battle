@@ -153,7 +153,7 @@
             attackWave: clamp(byId("gerTrainingAttackWave") && byId("gerTrainingAttackWave").value, 500, 50, 10000),
             speed: clamp(byId("gerTrainingSpeed") && byId("gerTrainingSpeed").value, 2, 1, 5),
             duration: Number(byId("gerTrainingDuration") && byId("gerTrainingDuration").value) || 0,
-            attacks: type === "unique_mix" ? [] : selectedAttackTypes(),
+            attacks: selectedAttackTypes(),
             invulnerable: type === "unique_mix" || !!(byId("gerTrainingInvulnerable") && byId("gerTrainingInvulnerable").checked)
         };
     }
