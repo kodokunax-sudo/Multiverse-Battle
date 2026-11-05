@@ -2964,7 +2964,7 @@ function spawnGERUniqueTrainingPattern() {
     var wave = Math.max(50, Math.min(10000, Number(window.__mbGERTrainingOptions.attackWave) || 500));
     var intensity = Math.max(0.7, Math.min(2.2, Math.sqrt(wave / 500)));
     var scale = (0.85 + speed * 0.28) * intensity;
-    var pattern = st.patternIndex++ % 16;
+    var pattern = st.patternIndex++ % 20;
     var i, x, y, angle, count, source, kind;
     if (pattern === 0) {
         source = "Живой Камень"; kind = "stone_rock_volley";
@@ -3071,13 +3071,47 @@ function spawnGERUniqueTrainingPattern() {
         });
         for (i = 0; i < 3; i++) gerUniqueTrainingProjectile(source, kind, 70 + i * 130, -18,
             (i - 1) * 0.7 * scale, 3.7 * scale, "#e8f7ff", 10, { shape: "rock", lifeMs: 3700 });
-    } else {
+    } else if (pattern === 15) {
         source = "Путеводная Звезда"; kind = "waystar_starfall";
         for (i = 0; i < 9; i++) {
             x = 20 + i * 45;
             gerUniqueTrainingProjectile(source, kind, x, -16 - (i % 2) * 35, (i % 2 ? -0.35 : 0.35) * scale,
                 (2.3 + (i % 3) * 0.45) * scale, "#ffe5a3", 7 + (i % 2) * 2, { shape: "star", lifeMs: 4400 });
         }
+    } else if (pattern === 16) {
+        source = "Путеводная Звезда"; kind = "waystar_sun_shards";
+        for (i = 0; i < 6; i++) {
+            angle = i / 6 * Math.PI * 2 + 0.3;
+            gerUniqueTrainingProjectile(source, kind, 200, 128,
+                Math.cos(angle) * 3.8 * scale, Math.sin(angle) * 3.8 * scale,
+                "#fff0b0", 9, { shape: "meteor", lifeMs: 3800 });
+        }
+    } else if (pattern === 17) {
+        source = "Белоус"; kind = "whitebeard_tsunami";
+        gerUniqueTrainingPushAttack({
+            type: "laser", shape: "tsunami_wave", sourceName: source, attackKind: kind,
+            x: 200, y: 430, vy: -0.75 * scale, direction: "horizontal", orientation: "horizontal",
+            width: 400, height: 105, color: "#78ddff", warningMs: 520, activeMs: 1900, lifeMs: 2450, damage: 25
+        });
+    } else if (pattern === 18) {
+        source = "Гол Д. Роджер"; kind = "roger_dual_slash";
+        gerUniqueTrainingPushAttack({
+            type: "laser", shape: "slash", sourceName: source, attackKind: kind,
+            x: 118, y: 250, direction: "vertical", orientation: "vertical",
+            width: 28, height: 500, color: "#f2f5ff", warningMs: 640, activeMs: 850, lifeMs: 1550, damage: 24
+        });
+        gerUniqueTrainingPushAttack({
+            type: "laser", shape: "slash", sourceName: source, attackKind: kind,
+            x: 282, y: 250, direction: "vertical", orientation: "vertical",
+            width: 28, height: 500, color: "#f2f5ff", warningMs: 840, activeMs: 850, lifeMs: 1750, damage: 24
+        });
+    } else {
+        source = "Живой Камень"; kind = "stone_crystal_pillars";
+        for (i = 0; i < 5; i++) gerUniqueTrainingPushAttack({
+            type: "spike", shape: "crystal_pillar", sourceName: source, attackKind: kind,
+            x: 42 + i * 78, y: 500, width: 50, height: 65 + (i % 2) * 42,
+            color: "#b9e5f7", warningMs: 560 + (i % 2) * 180, activeMs: 760, lifeMs: 1550, damage: 20
+        });
     }
 }
 function updateGERUniqueTrainingAttacks(nowTime) {
@@ -3100,6 +3134,7 @@ function updateGERUniqueTrainingAttacks(nowTime) {
         var a = arenaGERUniqueTrainingAttacks[i];
         a.elapsed += delta * speed;
         if (a.type === "laser" || a.type === "spike") {
+            if (a.type === "laser") { a.x += (Number(a.vx) || 0) * frameScale; a.y += (Number(a.vy) || 0) * frameScale; }
             if (a.elapsed >= (Number(a.warningMs) || 0) && !a.active) {
                 a.active = true;
                 a.state = "active";
