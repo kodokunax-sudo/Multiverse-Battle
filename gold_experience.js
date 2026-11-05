@@ -118,68 +118,122 @@
             ? window.performance.now() : Date.now();
     }
 
-    // Convert the JPG's dark outer backdrop to transparency once, then draw it like Oden's PNG sprite.
+    // Clean the dark JPG backdrop, crop to the actual emblem, and cache it as a transparent sprite.
     function prepareGERModelSprite(image) {
         if (!image || !image.naturalWidth || !image.naturalHeight) return null;
         try {
-            var canvas = document.createElement("canvas");
-            canvas.width = image.naturalWidth;
-            canvas.height = image.naturalHeight;
-            var canvasContext = canvas.getContext("2d", { willReadFrequently: true });
-            if (!canvasContext) return image;
-            canvasContext.drawImage(image, 0, 0);
+            var source = document.createElement("canvas");
+            source.width = image.naturalWidth;
+            source.height = image.naturalHeight;
+            var sourceContext = source.getContext("2d", { willReadFrequently: true });
+            if (!sourceContext) return image;
+            sourceContext.drawImage(image, 0, 0);
 
-            var frame = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+            var frame = sourceContext.getImageData(0, 0, source.width, source.height);
             var pixels = frame.data;
-            var width = canvas.width;
-            var height = canvas.height;
+            var width = source.width;
+            var height = source.height;
             var pixelCount = width * height;
             var visited = new Uint8Array(pixelCount);
             var queue = new Int32Array(pixelCount);
             var queueHead = 0;
             var queueTail = 0;
 
-            function isOuterDarkBackground(index) {
+            function isConnectedDarkBackdrop(index) {
                 var offset = index * 4;
                 var red = pixels[offset];
                 var green = pixels[offset + 1];
                 var blue = pixels[offset + 2];
                 var luminance = red * 0.299 + green * 0.587 + blue * 0.114;
-                return luminance < 112 && red < 135 && green < 118 && blue < 86;
+                // Wider threshold removes the brown JPG vignette, but flood-fill keeps
+                // enclosed dark outlines inside the golden emblem untouched.
+                return luminance < 168 && red < 210 && green < 190 && blue < 160;
             }
 
-            function enqueueBackground(index) {
-                if (visited[index] || !isOuterDarkBackground(index)) return;
+            function enqueueBackdrop(index) {
+                if (visited[index] || !isConnectedDarkBackdrop(index)) return;
                 visited[index] = 1;
                 queue[queueTail++] = index;
             }
 
-            // Flood-fill only dark pixels connected to the image border. Dark outlines inside
-            // the golden emblem stay intact instead of being removed by a global color key.
             for (var x = 0; x < width; x++) {
-                enqueueBackground(x);
-                enqueueBackground((height - 1) * width + x);
+                enqueueBackdrop(x);
+                enqueueBackdrop((height - 1) * width + x);
             }
             for (var y = 1; y < height - 1; y++) {
-                enqueueBackground(y * width);
-                enqueueBackground(y * width + width - 1);
+                enqueueBackdrop(y * width);
+                enqueueBackdrop(y * width + width - 1);
             }
 
             while (queueHead < queueTail) {
-                var currentIndex = queue[queueHead++];
-                var currentX = currentIndex % width;
-                var currentY = Math.floor(currentIndex / width);
-                if (currentX > 0) enqueueBackground(currentIndex - 1);
-                if (currentX + 1 < width) enqueueBackground(currentIndex + 1);
-                if (currentY > 0) enqueueBackground(currentIndex - width);
-                if (currentY + 1 < height) enqueueBackground(currentIndex + width);
+                var backdropIndex = queue[queueHead++];
+                var bx = backdropIndex % width;
+                var by = Math.floor(backdropIndex / width);
+                if (bx > 0) enqueueBackdrop(backdropIndex - 1);
+                if (bx + 1 < width) enqueueBackdrop(backdropIndex + 1);
+                if (by > 0) enqueueBackdrop(backdropIndex - width);
+                if (by + 1 < height) enqueueBackdrop(backdropIndex + width);
             }
 
             for (var i = 0; i < queueTail; i++) {
                 pixels[queue[i] * 4 + 3] = 0;
             }
-            canvasContext.putImageData(frame, 0, 0);
-            return canvas;
+            sourceContext.putImageData(frame, 0, 0);
+
+            // Find the main connected emblem silhouette so empty JPG margins and detached
+            // background sparkles do not shrink the character in the arena.
+            visited.fill(0);
+            var largestArea = 0;
+            var bounds = null;
+            for (var seed = 0; seed < pixelCount; seed++) {
+                if (visited[seed] || pixels[seed * 4 + 3] < 24) continue;
+                queueHead = 0;
+                queueTail = 0;
+                queue[queueTail++] = seed;
+                visited[seed] = 1;
+                var minX = width, minY = height, maxX = -1, maxY = -1;
+                while (queueHead < queueTail) {
+                    var idx = queue[queueHead++];
+                    var px = idx % width;
+                    var py = Math.floor(idx / width);
+                    if (px < minX) minX = px;
+                    if (px > maxX) maxX = px;
+                    if (py < minY) minY = py;
+                    if (py > maxY) maxY = py;
+                    var neighbors = [
+                        px > 0 ? idx - 1 : -1,
+                        px + 1 < width ? idx + 1 : -1,
+                        py > 0 ? idx - width : -1,
+                        py + 1 < height ? idx + width : -1
+                    ];
+                    for (var n = 0; n < neighbors.length; n++) {
+                        var next = neighbors[n];
+                        if (next < 0 || visited[next] || pixels[next * 4 + 3] < 24) continue;
+                        visited[next] = 1;
+                        queue[queueTail++] = next;
+                    }
+                }
+                if (queueTail > largestArea) {
+                    largestArea = queueTail;
+                    bounds = { minX: minX, minY: minY, maxX: maxX, maxY: maxY };
+                }
+            }
+
+            if (!bounds || largestArea < 20) return source;
+            var padX = Math.max(2, Math.round((bounds.maxX - bounds.minX + 1) * 0.045));
+            var padY = Math.max(2, Math.round((bounds.maxY - bounds.minY + 1) * 0.045));
+            var cropX = Math.max(0, bounds.minX - padX);
+            var cropY = Math.max(0, bounds.minY - padY);
+            var cropRight = Math.min(width, bounds.maxX + padX + 1);
+            var cropBottom = Math.min(height, bounds.maxY + padY + 1);
+            var sprite = document.createElement("canvas");
+            sprite.width = Math.max(1, cropRight - cropX);
+            sprite.height = Math.max(1, cropBottom - cropY);
+            var spriteContext = sprite.getContext("2d");
+            if (!spriteContext) return source;
+            spriteContext.drawImage(source, cropX, cropY, sprite.width, sprite.height,
+                0, 0, sprite.width, sprite.height);
+            return sprite;
         } catch (e) {
             console.warn("[GOLD EXPERIENCE] Could not prepare transparent GER sprite; using source image.", e);
             return image;
@@ -2470,7 +2524,33 @@
         var healing = state.healState !== "idle";
         var dodging = !!state.isDodging || state.dodgeFlashTimer > 0;
         var attacking = !!(state.combo || state.punch || current < state.attackUntil);
-        var bob = Math.sin(current / 170) * 0.75;
+        var velocityX = Number(state.vx) || 0;
+        var velocityY = Number(state.vy) || 0;
+        var movementSpeed = Math.hypot(velocityX, velocityY);
+        var movementBlend = Math.max(0, Math.min(1, movementSpeed / 5.5));
+        var bob = Math.sin(current / (movementBlend > 0.18 ? 72 : 185)) *
+            (0.55 + movementBlend * 1.35);
+        var aimX = state.x, aimY = state.y;
+        if (state.combo) {
+            aimX = Number(state.combo.x) || aimX;
+            aimY = Number(state.combo.y) || aimY;
+        } else if (state.punch) {
+            aimX = Number(state.punch.targetX) || aimX;
+            aimY = Number(state.punch.targetY) || aimY;
+        }
+        var aimAngle = Math.atan2(aimY - state.y, aimX - state.x);
+        var attackBlend = attacking ? 1 : 0;
+        var idleWobble = Math.sin(current / 310) * 0.025;
+        var movementTilt = Math.max(-0.24, Math.min(0.24, velocityX * 0.035));
+        var attackTilt = attacking ? Math.max(-0.16, Math.min(0.16,
+            Math.cos(aimAngle) * 0.13)) : 0;
+        var dodgeTilt = dodging ? Math.max(-0.12, Math.min(0.12, velocityX * 0.025)) : 0;
+        var spriteTilt = idleWobble + movementTilt * movementBlend + attackTilt + dodgeTilt;
+        var attackPulse = state.combo
+            ? Math.sin((current - state.combo.startedAt) / 72)
+            : (state.punch ? Math.sin((current - state.punch.startedAt) / 58) : 0);
+        var spriteStretchX = dodging ? 0.84 : (attacking ? 1.04 + Math.abs(attackPulse) * 0.10 : 1 + movementBlend * 0.025);
+        var spriteStretchY = dodging ? 1.16 : (attacking ? 0.96 - Math.abs(attackPulse) * 0.035 : 1 - movementBlend * 0.015);
         var companionGravityAngle = 0;
         if (ctx && ctx.type === "antispiral" &&
             typeof window.getAntiSpiralBossCompanionInfo === "function") {
@@ -2507,7 +2587,7 @@
         c.save();
         c.translate(state.x, state.y + bob);
         c.scale(scale, scale);
-        c.rotate(Math.max(-0.12, Math.min(0.12, (Number(state.vx) || 0) * 0.018)));
+        c.rotate(spriteTilt);
         c.globalAlpha = hitFlash ? 0.82 : 1;
         if (!standImageReady) {
             // Keep the old compact heart fallback effects only while the model image is unavailable.
@@ -2537,17 +2617,36 @@
             // Same fitting rule as Oden: keep the source aspect ratio inside a compact sprite box.
             var sourceWidth = standImage.width || standImage.naturalWidth;
             var sourceHeight = standImage.height || standImage.naturalHeight;
-            var maxImageWidth = 15 * 2.55;
-            var maxImageHeight = 15 * 2.8;
+            var maxImageWidth = 15 * 2.8;
+            var maxImageHeight = 15 * 3.05;
             var imageScale = Math.min(maxImageWidth / sourceWidth, maxImageHeight / sourceHeight);
             var imageWidth = sourceWidth * imageScale;
             var imageHeight = sourceHeight * imageScale;
             c.save();
-            c.globalAlpha = hitFlash ? 0.82 : 0.96;
+            // Dodge and Muda actions deform the sprite subtly, so it reacts instead of
+            // staying like a motionless badge. The original aspect ratio is preserved at rest.
+            c.scale(spriteStretchX, spriteStretchY);
+            if (dodging || (state.combo && Math.abs(attackPulse) > 0.82)) {
+                c.save();
+                c.globalAlpha = 0.20;
+                c.shadowBlur = 0;
+                c.translate(-velocityX * 0.85, -velocityY * 0.85);
+                c.drawImage(standImage, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight);
+                c.restore();
+            }
+            c.globalAlpha = hitFlash ? 0.82 : 0.99;
             c.globalCompositeOperation = "source-over";
-            c.shadowColor = hitFlash ? "#ffffff" : (healing ? "#8bffbd" : "#ffd84d");
-            c.shadowBlur = hitFlash ? 23 : 7;
+            c.shadowColor = hitFlash ? "#ffffff" : (healing ? "#8bffbd" : "#d6a83e");
+            c.shadowBlur = hitFlash ? 8 : 2;
             c.drawImage(standImage, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight);
+            if (hitFlash) {
+                c.save();
+                c.globalCompositeOperation = "source-atop";
+                c.globalAlpha = 0.48;
+                c.fillStyle = "#ffffff";
+                c.fillRect(-imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight);
+                c.restore();
+            }
             c.restore();
             c.restore();
             c.restore();
