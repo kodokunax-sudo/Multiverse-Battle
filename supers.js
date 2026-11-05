@@ -392,7 +392,7 @@ function getBossContext() {
                     return window.__mbGERTrainingMode && window.__mbGERTrainingOptions && window.__mbGERTrainingOptions.trainingProfile === "unique_mix"
                         ? { x:200, y:128, vx:0, vy:0 }
                         : { x:200, y:175 };
-                }
+                },
                 damageBoss: function(amount) {
                     return typeof window.MBApplyBossDamage === "function" &&
                         window.MBApplyBossDamage(this, amount, "Gold Experience") > 0;
