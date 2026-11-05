@@ -3241,7 +3241,7 @@
             updateCompanion(dt);
             var c = ensureLoopContext();
             var activeContext = getContext();
-            if (c && (!activeContext || activeContext.type !== "antispiral")) {
+            if (c && (!activeContext || (activeContext.type !== "antispiral" && activeContext.type !== "arena"))) {
                 drawGoldExperience(c);
             }
         }
@@ -3265,6 +3265,13 @@
         updateLifeBurst();
         startLoop();
         updateHUD();
+    };
+    window.MBDrawGoldExperience = function (targetContext) {
+        if (!state.active || !isGERMain() || !getCombat().active) return false;
+        var drawContext = targetContext || ensureLoopContext();
+        if (!drawContext) return false;
+        drawGoldExperience(drawContext);
+        return true;
     };
 
     if (typeof window.setInterval === "function" && !window.__mbGoldExperienceUiTimer) {
