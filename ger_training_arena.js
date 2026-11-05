@@ -398,9 +398,13 @@
         if (byId("gerTrainingAttackWave")) byId("gerTrainingAttackWave").addEventListener("input", function () { updateControls(); saveSettings(); });
         if (byId("gerTrainingBossHp")) byId("gerTrainingBossHp").addEventListener("input", function () { saveSettings(); });
         if (byId("gerTrainingSpeed")) byId("gerTrainingSpeed").addEventListener("input", function () { updateControls(); saveSettings(); });
-        ["gerTrainingType", "gerTrainingBossWave", "gerTrainingDuration", "gerTrainingInvulnerable"].forEach(function (id) {
+        ["gerTrainingBossWave", "gerTrainingDuration", "gerTrainingInvulnerable"].forEach(function (id) {
             var control = byId(id);
             if (control) control.addEventListener("change", saveSettings);
+        });
+        if (byId("gerTrainingType")) byId("gerTrainingType").addEventListener("change", function () {
+            updateControls();
+            saveSettings();
         });
         if (byId("gerTrainingPresetAll")) byId("gerTrainingPresetAll").addEventListener("click", function () { setAttackPreset(function () { return true; }); });
         if (byId("gerTrainingPresetBasic")) byId("gerTrainingPresetBasic").addEventListener("click", function () { setAttackPreset(function (i) { return i <= 10; }); });
