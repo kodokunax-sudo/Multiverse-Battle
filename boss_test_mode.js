@@ -159,6 +159,7 @@ window.MBBossTestStartGERTraining=function(options){
     window.__mbGERTrainingOptions={
         trainingProfile:trainingProfile,
         bossHp:clampNumber(options.bossHp,2000000,10000,1000000000000),
+        damageReferenceHp:450000,
         attackWave:clampNumber(options.attackWave,500,50,10000),
         speedMultiplier:clampNumber(options.speedMultiplier,2,1,5)
     };
