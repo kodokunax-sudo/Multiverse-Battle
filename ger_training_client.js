@@ -123,7 +123,13 @@
         try {
             var data = await post({ action: "brain", bossKey: bossKey });
             if (!data) return null;
-            var entry = { attacks: Object.create(null), directions: Object.create(null), loadedAt: Date.now() };
+            var entry = {
+                attacks: Object.create(null),
+                directions: Object.create(null),
+                contexts: Object.create(null),
+                transitions: Object.create(null),
+                loadedAt: Date.now()
+            };
             (Array.isArray(data.brain) ? data.brain : []).forEach(function (row) {
                 if (!row || !row.attack_key) return;
                 entry.attacks[String(row.attack_key)] = row;
@@ -131,6 +137,29 @@
             (Array.isArray(data.directions) ? data.directions : []).forEach(function (row) {
                 if (!row || !row.attack_key) return;
                 entry.directions[String(row.attack_key) + "|" + String(row.direction)] = row;
+            });
+            (Array.isArray(data.contexts) ? data.contexts : []).forEach(function (row) {
+                if (!row || !row.attack_key || row.direction == null) return;
+                var key = [
+                    row.attack_key, row.position_bucket || "unknown",
+                    row.hazard_bucket || "unknown", row.wall_bucket || "unknown",
+                    row.direction
+                ].join("|");
+                entry.contexts[key] = row;
+            });
+            (Array.isArray(data.transitions) ? data.transitions : []).forEach(function (row) {
+                if (!row || !row.from_attack_key || !row.next_attack_key) return;
+                var fromKey = String(row.from_attack_key);
+                if (!entry.transitions[fromKey]) entry.transitions[fromKey] = [];
+                entry.transitions[fromKey].push({
+                    nextAttackKey: String(row.next_attack_key),
+                    sample_count: Number(row.sample_count) || 0
+                });
+            });
+            Object.keys(entry.transitions).forEach(function (key) {
+                entry.transitions[key].sort(function (a, b) {
+                    return (Number(b.sample_count) || 0) - (Number(a.sample_count) || 0);
+                });
             });
             brainByBoss[bossKey] = entry;
             return entry;
@@ -161,7 +190,7 @@
                     action: "start",
                     clientSessionId: makeUuid(),
                     bossKey: bossKey,
-                    gameVersion: "ger-dodge-training-1",
+                    gameVersion: "ger-dodge-training-2",
                     arenaMode: metadata && typeof metadata.arenaMode === "string" ? metadata.arenaMode.slice(0, 32) : "unknown",
                     metadata: metadata && typeof metadata === "object" ? metadata : {}
                 });
@@ -248,6 +277,36 @@
         return boss.attacks[String(attackKey || "")] || null;
     }
 
+    function getContextStats(bossKey, attackKey, positionBucket, hazardBucket, wallBucket, direction) {
+        var boss = brainByBoss[String(bossKey || "")];
+        if (!boss) return null;
+        var key = [
+            String(attackKey || ""), String(positionBucket || "unknown"),
+            String(hazardBucket || "unknown"), String(wallBucket || "unknown"),
+            String(direction)
+        ].join("|");
+        return boss.contexts[key] || null;
+    }
+
+    function getNextAttackStats(bossKey, attackKey) {
+        var boss = brainByBoss[String(bossKey || "")];
+        if (!boss) return [];
+        return boss.transitions[String(attackKey || "")] || [];
+    }
+
+    function getTrainingSkill(bossKey) {
+        var boss = brainByBoss[String(bossKey || "")];
+        if (!boss) return 0.62;
+        var total = 0;
+        Object.keys(boss.attacks).forEach(function (key) {
+            var row = boss.attacks[key] || {};
+            total += Math.max(0, Number(row.evaded_count) || 0) +
+                Math.max(0, Number(row.blocked_count) || 0) +
+                Math.max(0, Number(row.hit_count) || 0);
+        });
+        return Math.max(0.62, Math.min(0.88, 0.62 + 0.26 * Math.sqrt(Math.min(50000, total) / 50000)));
+    }
+
     window.MBGERTraining = {
         start: start,
         finish: finish,
@@ -255,6 +314,9 @@
         recordOutcome: recordOutcome,
         checkOnline: requireOnlineSession,
         getDirectionStats: getDirectionStats,
-        getAttackStats: getAttackStats
+        getAttackStats: getAttackStats,
+        getContextStats: getContextStats,
+        getNextAttackStats: getNextAttackStats,
+        getTrainingSkill: getTrainingSkill
     };
 })();
