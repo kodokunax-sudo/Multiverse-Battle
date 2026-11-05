@@ -105,6 +105,13 @@
     state.orbitPhase = Number(state.orbitPhase) || Math.random() * Math.PI * 2;
     state.lifeBurstUntil = Number(state.lifeBurstUntil) || 0;
     state.lifeBurstCooldownUntil = Number(state.lifeBurstCooldownUntil) || 0;
+    state.trainingDamageSequence = Number(state.trainingDamageSequence) || 0;
+    state.trainingDamageCooldownUntil = Number(state.trainingDamageCooldownUntil) || 0;
+    state.trainingLastPlayerHp = Number.isFinite(Number(state.trainingLastPlayerHp))
+        ? Number(state.trainingLastPlayerHp) : null;
+    state.predictedNextAttackKey = state.predictedNextAttackKey || null;
+    state.predictedNextAttackUntil = Number(state.predictedNextAttackUntil) || 0;
+    state.lastResolvedTrainingAttackKey = state.lastResolvedTrainingAttackKey || null;
 
     var rafId = 0;
     var lastFrameAt = 0;
@@ -882,6 +889,67 @@
         return earliest;
     }
 
+    function companionTrainingHazardDistance(attack, x, y) {
+        if (!attack || attack.state === "done") return Infinity;
+        var ax = Number(attack.x);
+        var ay = Number(attack.y);
+        if (!Number.isFinite(ax)) ax = Number(attack.targetX);
+        if (!Number.isFinite(ay)) ay = Number(attack.targetY);
+        if (!Number.isFinite(ax) || !Number.isFinite(ay)) return Infinity;
+        var radius = Math.max(0, Number(attack.radius) || 0);
+        var width = Math.max(6, Number(attack.width) || Number(attack.size) || 14);
+        var height = Math.max(6, Number(attack.height) || Number(attack.size) || width);
+        var halfW = radius > 0 ? radius : width * 0.5;
+        var halfH = radius > 0 ? radius : height * 0.5;
+        var dx = Math.max(0, Math.abs(x - ax) - halfW);
+        var dy = Math.max(0, Math.abs(y - ay) - halfH);
+        return Math.hypot(dx, dy);
+    }
+
+    function companionTrainingContext(ctx) {
+        var boss = getBossPosition(ctx, state.x, state.y);
+        var bossDistance = Math.hypot(state.x - boss.x, state.y - boss.y);
+        var positionBucket = "s" + companionTrainingDirection(boss.x, boss.y, state.x, state.y);
+        var bossRangeBucket = bossDistance < 100 ? "close" : (bossDistance < 210 ? "mid" : "far");
+        var wallDistance = Math.max(0, Math.min(
+            state.x - 24, 376 - state.x, state.y - 18, 474 - state.y
+        ));
+        var wallBucket = wallDistance < 42 ? "edge" : (wallDistance < 92 ? "near" : "open");
+        var attacks = getAttackList(ctx);
+        var waves = getCompanionShockwaves(ctx);
+        var nearestHazard = Infinity;
+        var nearbyHazards = 0;
+        for (var i = 0; i < attacks.length; i++) {
+            var distance = companionTrainingHazardDistance(attacks[i], state.x, state.y);
+            if (distance < nearestHazard) nearestHazard = distance;
+            if (distance < 145) nearbyHazards++;
+        }
+        for (var w = 0; w < waves.length; w++) {
+            var wave = waves[w];
+            if (!wave || wave.odenHit) continue;
+            var waveDistance = Math.abs(
+                Math.hypot(state.x - (Number(wave.x) || 0), state.y - (Number(wave.y) || 0)) -
+                Math.max(0, Number(wave.radius) || 0)
+            );
+            if (waveDistance < nearestHazard) nearestHazard = waveDistance;
+            if (waveDistance < 145) nearbyHazards++;
+        }
+        var hazardBucket = !Number.isFinite(nearestHazard) ? "clear" :
+            (nearestHazard < 58 ? "near" : (nearestHazard < 138 ? "mid" : "far"));
+        return {
+            positionBucket: positionBucket,
+            bossRangeBucket: bossRangeBucket,
+            hazardBucket: hazardBucket,
+            wallBucket: wallBucket,
+            bossDistance: Math.round(bossDistance),
+            bossDx: Math.round(Math.max(-1, Math.min(1, (state.x - boss.x) / 200)) * 100) / 100,
+            bossDy: Math.round(Math.max(-1, Math.min(1, (state.y - boss.y) / 250)) * 100) / 100,
+            nearestHazardDistance: Number.isFinite(nearestHazard) ? Math.round(nearestHazard) : null,
+            nearbyHazards: nearbyHazards,
+            nearestWallDistance: Math.round(wallDistance)
+        };
+    }
+
     function chooseSafeCompanionDodge(ctx, incoming) {
         var left = 24, right = 376, top = 18, bottom = 474;
         var angles = 24, distances = [76, 112, 152, 188];
@@ -892,6 +960,7 @@
         var trainingBossKey = companionTrainingBossKey(ctx);
         var trainingAttackKey = incoming ? companionTrainingAttackKey(incoming.attack, incoming.attackType) : "unknown";
         var trainingApi = window.MBGERTraining;
+        var trainingContext = companionTrainingContext(ctx);
         var best = null, bestScore = -Infinity;
         for (var d = 0; d < distances.length; d++) {
             for (var k = 0; k < angles; k++) {
@@ -934,14 +1003,30 @@
                 if (bossDistance < 92) score -= (92 - bossDistance) * 1.8;
                 else score += Math.min(70, bossDistance - 92) * 0.08;
                 if (trainingApi && typeof trainingApi.getDirectionStats === "function" && incoming) {
-                    var learnedDirection = Math.round(angle / (Math.PI / 4)) % 8;
+                    var learnedDirection = companionTrainingDirection(state.x, state.y, tx, ty);
                     var learnedStats = trainingApi.getDirectionStats(trainingBossKey, trainingAttackKey, learnedDirection);
                     var learnedCount = Number(learnedStats && learnedStats.sample_count) || 0;
                     if (learnedCount >= 5) {
                         var learnedEvades = Number(learnedStats.evaded_count) || 0;
-                        var learnedRate = (learnedEvades + 1) / (learnedCount + 2);
+                        var learnedBlocks = Number(learnedStats.blocked_count) || 0;
+                        var learnedRate = (learnedEvades + learnedBlocks * 0.72 + 1) / (learnedCount + 2);
                         var learningConfidence = Math.min(1, learnedCount / 28);
                         score += (learnedRate - 0.5) * 34 * learningConfidence;
+                    }
+                }
+                if (trainingApi && typeof trainingApi.getContextStats === "function" && incoming) {
+                    var contextStats = trainingApi.getContextStats(
+                        trainingBossKey, trainingAttackKey,
+                        trainingContext.positionBucket, trainingContext.hazardBucket,
+                        trainingContext.wallBucket,
+                        companionTrainingDirection(state.x, state.y, tx, ty)
+                    );
+                    var contextCount = Number(contextStats && contextStats.sample_count) || 0;
+                    if (contextCount >= 3) {
+                        var contextSuccess = (Number(contextStats.evaded_count) +
+                            Number(contextStats.blocked_count) * 0.72 + 1) / (contextCount + 2);
+                        var contextConfidence = Math.min(1, contextCount / 14);
+                        score += (contextSuccess - 0.5) * 50 * contextConfidence;
                     }
                 }
                 score += Math.random() * 1.5;
@@ -1071,14 +1156,52 @@
         return (Math.round(angle / (Math.PI / 4)) + 8) % 8;
     }
 
+    function updateTrainingNextAttackPrediction(attackKey, current) {
+        attackKey = cleanCompanionTrainingKey(attackKey, 80);
+        if (!attackKey) return;
+        state.lastResolvedTrainingAttackKey = attackKey;
+        var api = window.MBGERTraining;
+        if (!api || typeof api.getNextAttackStats !== "function") return;
+        var rows = api.getNextAttackStats(companionTrainingBossKey(getContext()), attackKey);
+        if (!Array.isArray(rows) || !rows.length) return;
+        var total = 0, best = null;
+        for (var i = 0; i < rows.length; i++) {
+            var count = Number(rows[i] && rows[i].sample_count) || 0;
+            total += count;
+            if (!best || count > (Number(best.sample_count) || 0)) best = rows[i];
+        }
+        var bestCount = Number(best && best.sample_count) || 0;
+        var nextKey = cleanCompanionTrainingKey(best && best.nextAttackKey, 80);
+        if (nextKey && bestCount >= 3 && total > 0 && bestCount / total >= 0.2) {
+            state.predictedNextAttackKey = nextKey;
+            state.predictedNextAttackUntil = (Number(current) || now()) + 6500;
+        } else {
+            state.predictedNextAttackKey = null;
+            state.predictedNextAttackUntil = 0;
+        }
+    }
+
+    function recordCompanionTrainingOutcome(data, outcome, damageTaken, reason, current) {
+        if (!data || !window.MBGERTraining ||
+            typeof window.MBGERTraining.recordOutcome !== "function") return;
+        var payload = Object.assign({}, data);
+        payload.features = Object.assign({}, data.features || {}, {
+            outcomeReason: String(reason || "not_specified").slice(0, 48)
+        });
+        window.MBGERTraining.recordOutcome(payload, outcome, damageTaken || 0);
+        if (outcome === "evaded" || outcome === "blocked" || outcome === "hit") {
+            updateTrainingNextAttackPrediction(data.attackKey, current);
+        }
+    }
+
     function resolveCompanionTrainingIntercept(sourceAction, damageTaken) {
         if (!sourceAction || !Array.isArray(state.trainingPendingDecisions)) return;
         for (var i = state.trainingPendingDecisions.length - 1; i >= 0; i--) {
             var pending = state.trainingPendingDecisions[i];
             if (pending && pending.attack === sourceAction) {
-                if (window.MBGERTraining && typeof window.MBGERTraining.recordOutcome === "function") {
-                    window.MBGERTraining.recordOutcome(pending.data, "blocked", damageTaken || 0);
-                }
+                recordCompanionTrainingOutcome(
+                    pending.data, "blocked", damageTaken || 0, "intercepted_by_ger", now()
+                );
                 state.trainingPendingDecisions.splice(i, 1);
                 return;
             }
@@ -1087,7 +1210,37 @@
 
     function resolveCompanionTrainingOutcomes(ctx, current) {
         var pending = state.trainingPendingDecisions;
-        if (!Array.isArray(pending) || !pending.length || !ctx) return;
+        if (!Array.isArray(pending) || !ctx) return;
+        var currentHp = typeof ctx.getPlayerHp === "function" ? Number(ctx.getPlayerHp()) : NaN;
+        if (Number.isFinite(currentHp)) {
+            var previousHp = Number(state.trainingLastPlayerHp);
+            if (Number.isFinite(previousHp) && pending.length &&
+                currentHp < previousHp - 0.5 && current >= (Number(state.trainingDamageCooldownUntil) || 0)) {
+                var hitIndex = -1;
+                var earliestDecision = Infinity;
+                for (var h = 0; h < pending.length; h++) {
+                    var candidate = pending[h];
+                    var damageSeqAtDecision = Number(candidate && candidate.damageSequenceAtDecision) || 0;
+                    var decisionAt = Number(candidate && candidate.decisionAt) || current;
+                    if (candidate && candidate.data && damageSeqAtDecision < (Number(state.trainingDamageSequence) || 0) + 1 &&
+                        decisionAt < earliestDecision) {
+                        hitIndex = h;
+                        earliestDecision = decisionAt;
+                    }
+                }
+                if (hitIndex >= 0) {
+                    var hitEntry = pending.splice(hitIndex, 1)[0];
+                    state.trainingDamageSequence = (Number(state.trainingDamageSequence) || 0) + 1;
+                    state.trainingDamageCooldownUntil = current + 450;
+                    recordCompanionTrainingOutcome(
+                        hitEntry.data, "hit", Math.max(0, previousHp - currentHp),
+                        "player_hp_dropped_during_dodge_window", current
+                    );
+                }
+            }
+            state.trainingLastPlayerHp = currentHp;
+        }
+        if (!pending.length) return;
         var attacks = getAttackList(ctx) || [];
         var waves = getCompanionShockwaves(ctx) || [];
         for (var i = pending.length - 1; i >= 0; i--) {
@@ -1108,14 +1261,14 @@
 
             if (current >= entry.resolveAt && entry.safeSince !== null &&
                 current - entry.safeSince >= 240) {
-                if (window.MBGERTraining && typeof window.MBGERTraining.recordOutcome === "function") {
-                    window.MBGERTraining.recordOutcome(entry.data, "evaded", 0);
-                }
+                recordCompanionTrainingOutcome(
+                    entry.data, "evaded", 0, "hazard_passed_without_player_damage", current
+                );
                 pending.splice(i, 1);
             } else if (current >= entry.maxResolveAt) {
-                if (window.MBGERTraining && typeof window.MBGERTraining.recordOutcome === "function") {
-                    window.MBGERTraining.recordOutcome(entry.data, "unknown", 0);
-                }
+                recordCompanionTrainingOutcome(
+                    entry.data, "unknown", 0, "hazard_not_resolved_before_timeout", current
+                );
                 pending.splice(i, 1);
             }
         }
@@ -1126,9 +1279,10 @@
         if (Array.isArray(state.trainingPendingDecisions)) {
             for (var i = 0; i < state.trainingPendingDecisions.length; i++) {
                 var pending = state.trainingPendingDecisions[i];
-                if (pending && pending.data && window.MBGERTraining &&
-                    typeof window.MBGERTraining.recordOutcome === "function") {
-                    window.MBGERTraining.recordOutcome(pending.data, "unknown", 0);
+                if (pending && pending.data) {
+                    recordCompanionTrainingOutcome(
+                        pending.data, "unknown", 0, "session_ended_before_outcome", now()
+                    );
                 }
             }
             state.trainingPendingDecisions = [];
@@ -1151,13 +1305,17 @@
         var trainingOptions = window.__mbGERTrainingOptions || {};
         Promise.resolve(window.MBGERTraining.start(bossKey, {
             arenaMode: ctx && ctx.type ? ctx.type : "unknown",
-            gameVersion: "ger-dodge-training-1",
+            gameVersion: "ger-dodge-training-2",
             trainingMode: window.__mbGERTrainingMode === true,
             trainingProfile: trainingOptions.trainingProfile === "unique_mix" ? "unique_mix" : "standard",
             speedMultiplier: Number(trainingOptions.speedMultiplier) || 1
         })).then(function (result) {
             if (state.active && state.trainingBossKey === bossKey && result && result.sessionId) {
                 state.trainingSessionStarted = true;
+                var trainingApi = window.MBGERTraining;
+                if (trainingApi && typeof trainingApi.getTrainingSkill === "function") {
+                    state.aiSkill = Math.max(0.62, Math.min(0.88, trainingApi.getTrainingSkill(bossKey)));
+                }
             }
         }).catch(function (error) {
             console.warn("[GER training] Start retry failed:", error && error.message ? error.message : error);
@@ -2187,13 +2345,26 @@
                 });
                 if (!trainingAlreadyPending) {
                     var trainingAttack = incoming.attack;
+                    var trainingAttackKey = companionTrainingAttackKey(trainingAttack, incoming.attackType);
+                    var predictionKey = state.predictedNextAttackUntil > current
+                        ? cleanCompanionTrainingKey(state.predictedNextAttackKey, 80) : null;
+                    var predictionMatched = predictionKey ? predictionKey === trainingAttackKey : null;
+                    if (predictionKey) {
+                        state.predictedNextAttackKey = null;
+                        state.predictedNextAttackUntil = 0;
+                    }
+                    var trainingContext = companionTrainingContext(ctx);
+                    var trainingHpBefore = typeof ctx.getPlayerHp === "function"
+                        ? Number(ctx.getPlayerHp()) : null;
                     var trainingDelay = Math.max(550, (Number(incoming.time) || 0) * 16.667 + 350);
                     var phaseValue = trainingAttack.phase !== undefined ? trainingAttack.phase :
                         (trainingAttack.phaseIndex !== undefined ? trainingAttack.phaseIndex : ctx.phase);
                     state.trainingPendingDecisions.push({
                         attack: trainingAttack,
+                        decisionAt: current,
+                        damageSequenceAtDecision: Number(state.trainingDamageSequence) || 0,
                         data: {
-                            attackKey: companionTrainingAttackKey(trainingAttack, incoming.attackType),
+                            attackKey: trainingAttackKey,
                             attackFamily: cleanCompanionTrainingKey(trainingAttack.type || trainingAttack.kind || incoming.attackType, 40),
                             bossPhase: cleanCompanionTrainingKey(phaseValue, 32),
                             timeToImpactMs: Math.max(0, Math.round((Number(incoming.time) || 0) * 16.667)),
@@ -2204,7 +2375,14 @@
                             chosenDirection: companionTrainingDirection(state.x, state.y, safeTarget.x, safeTarget.y),
                             targetX: safeTarget.x,
                             targetY: safeTarget.y,
-                            features: { routeMarkedSafe: safeTarget.safe === true, aiSkill: Number(state.aiSkill) || 0, urgent: !!urgentThreat }
+                            features: Object.assign({}, trainingContext, {
+                                routeMarkedSafe: safeTarget.safe === true,
+                                aiSkill: Number(state.aiSkill) || 0,
+                                urgent: !!urgentThreat,
+                                playerHpBefore: Number.isFinite(trainingHpBefore) ? trainingHpBefore : null,
+                                predictedNextAttack: predictionKey,
+                                predictionMatched: predictionMatched
+                            })
                         },
                         resolveAt: current + trainingDelay,
                         maxResolveAt: current + trainingDelay + 6000,
@@ -2220,8 +2398,21 @@
             spawnHitEffect(state.x, state.y, "#ffe29a");
         } else if (incoming && state.dodgePlanTimer > 0) {
             dodging = true;
+        } else if (!incoming && state.predictedNextAttackKey &&
+            current < state.predictedNextAttackUntil && state.dodgePlanTimer <= 0) {
+            // A learned sequence predicts what is likely to spawn next. Move toward a
+            // route with room to manoeuvre before the next telegraph appears.
+            var preparationTarget = chooseSafeCompanionDodge(ctx, null);
+            state.moveTargetX = preparationTarget.x;
+            state.moveTargetY = preparationTarget.y;
+            state.dodgePlanTimer = 22;
+            state.lastThreatAttack = null;
         } else if (!incoming && state.dodgePlanTimer <= 0) {
             state.lastThreatAttack = null;
+            if (current >= state.predictedNextAttackUntil) {
+                state.predictedNextAttackKey = null;
+                state.predictedNextAttackUntil = 0;
+            }
         }
         state.isDodging = dodging;
 
@@ -2971,7 +3162,14 @@
         state.activeUntil = Infinity;
         state.stunTimer = 0;
         state.hitFlash = 0;
-        state.aiSkill = 0.62;
+        state.aiSkill = Math.max(0.62, Math.min(0.88, Number(state.aiSkill) || 0.62));
+        state.trainingDamageSequence = 0;
+        state.trainingDamageCooldownUntil = 0;
+        state.trainingLastPlayerHp = typeof ctx.getPlayerHp === "function"
+            ? Number(ctx.getPlayerHp()) : null;
+        state.predictedNextAttackKey = null;
+        state.predictedNextAttackUntil = 0;
+        state.lastResolvedTrainingAttackKey = null;
         state.heartSize = getCompanionSize(ctx);
         state.x = Number(ctx.getHeartX()) || 200;
         state.y = (Number(ctx.getHeartY()) || 400) - 24;
