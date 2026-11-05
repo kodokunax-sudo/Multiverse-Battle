@@ -1285,7 +1285,8 @@
         if (ctx && ctx.type === "arena" && window.__mbGERTrainingMode === true &&
             window.__mbGERTrainingOptions && window.__mbGERTrainingOptions.trainingProfile === "unique_mix") {
             // Fixed damage reference lets the moderator's dummy HP setting control training endurance.
-            return 1000000;
+            return Math.max(10000, Math.min(100000000,
+                Number(trainingOptions.damageReferenceHp) || 450000));
         }
         if (ctx && ctx.type === "waystar" && typeof ctx.getBossMaxHp === "function") {
             try {
