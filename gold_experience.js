@@ -296,6 +296,11 @@
     }
 
     function currentCard() {
+        // GER training must override the RWB card resolver too; otherwise the RWB
+        // encounter can expose the player's real main card instead of the test GER.
+        if (window.__mbGERTrainingMode === true && window.__mbBossTestMainCard) {
+            return window.__mbBossTestMainCard;
+        }
         try {
             if (window.rwbActive && typeof window.getRWBMainCard === "function") {
                 var rwbCard = window.getRWBMainCard();
