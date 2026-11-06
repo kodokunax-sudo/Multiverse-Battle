@@ -161,6 +161,13 @@
             .replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80);
         return key || "unknown";
     }
+    function getCurrentTrainingBossKey() {
+        var ctx = context();
+        return normalizeTrainingKey(
+            window.__mbGERTrainingBossKey || (ctx && ctx.type) || "unknown",
+            "unknown"
+        ).slice(0, 64);
+    }
     function trainingDirection(x1, y1, x2, y2) {
         return (Math.round(Math.atan2(y2 - y1, x2 - x1) / (Math.PI / 4)) + 8) % 8;
     }
@@ -358,7 +365,7 @@
                 if (trainingApi && typeof trainingApi.getDirectionStats === "function") {
                     var direction = trainingDirection(agent.x, agent.y, tx, ty);
                     var learned = trainingApi.getDirectionStats(
-                        trainingBossKey,
+                        getCurrentTrainingBossKey(),
                         attackKey, direction
                     );
                     var count = Number(learned && learned.sample_count) || 0;
@@ -369,7 +376,7 @@
                     }
                     if (typeof trainingApi.getContextStats === "function") {
                         var contextStats = trainingApi.getContextStats(
-                            trainingBossKey,
+                            getCurrentTrainingBossKey(),
                             attackKey, trainingContext.positionBucket,
                             trainingContext.hazardBucket, trainingContext.wallBucket, direction
                         );
@@ -954,6 +961,7 @@
         var ctx = context();
         var bossKey = normalizeTrainingKey(window.__mbGERTrainingBossKey || (ctx && ctx.type) || "unknown", "unknown").slice(0, 64);
         trainingBossKey = bossKey;
+        window.__mbGERTrainingBossKey = bossKey;
         var trainingApi = window.MBGERTraining;
         if (trainingApi && typeof trainingApi.start === "function") {
             trainingSessionPromise = trainingApi.start(bossKey, {
