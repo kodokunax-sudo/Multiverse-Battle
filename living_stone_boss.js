@@ -1312,6 +1312,21 @@ function finishLivingStoneOpeningIntro() {
     if (typeof playArenaSound === "function") playArenaSound(92, "sawtooth", 0.45, 0.12);
 }
 
+window.MBGERTrainingTickLivingStone = function () {
+    if (!window.__mbGERTrainingMode || !livingStoneActive) return;
+    if (livingStoneState === "opening_intro") finishLivingStoneOpeningIntro();
+    if (qteCinematicActive) {
+        qteCinematicActive = false;
+        qteCinematicPhase = "done";
+        qteCinematicTimer = 0;
+        triggerQTEStart();
+    }
+    if (qteActive && livingStoneState === "qte_punch") {
+        var safety = Math.max(1, Number(qteClickTarget) || 100);
+        while (qteActive && qteClicks < safety) handleQTEClick();
+    }
+};
+ 
 function drawLivingStoneOpeningIntro() {
     var frame = livingStoneOpeningIntroFrame;
     var floorY = 432;
