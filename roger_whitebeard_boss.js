@@ -6626,7 +6626,9 @@ function startRogerWhitebeardFight(graphicsModeChoice) {
     window.rwbApplySuperDamage = function(amount, source) {
         var target=rwbActiveBoss;
         if(!window.rwbActive || !target || rwbState!=="fight2" || !(Number(target.hp)>0)) return 0;
-        var dealt=Math.min(Number(target.hp),Math.max(1,Math.floor(Number(amount)||1)));
+        var dealt=Math.min(Number(target.hp),window.__mbGERTrainingSwarmActive===true
+            ? Math.max(0,Number(amount)||0)
+            : Math.max(1,Math.floor(Number(amount)||1)));
         target.hp=Math.max(0,target.hp-dealt);
         target.hitFlash=12;
         if(target.id==="whitebeard")target.damageFlashTimer=12;
