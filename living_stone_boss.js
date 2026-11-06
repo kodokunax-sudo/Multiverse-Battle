@@ -3525,6 +3525,7 @@ function drawLivingStoneBoss() {
 }
 
 function drawLivingStonePlayer() {
+    if (window.__mbGERTrainingMode) return;
     var p = livingStonePlayer;
     if (livingStoneInvulnTimer > 0 && Math.floor(livingStoneInvulnTimer / 4) % 2 === 0) return;
     // During the shared Prime chase, draw the real Star only when it is not mounted as a vehicle.
