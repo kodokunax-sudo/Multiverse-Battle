@@ -216,7 +216,12 @@
             if (!zeroHpSince) zeroHpSince = time;
             // Unique bosses can briefly have 0 HP between real phases. Wait for the
             // native transition/next phase before declaring the training complete.
-            if (time - zeroHpSince >= 5000) finishScores("boss_defeated");
+            if (time - zeroHpSince >= 5000) {
+                finishScores("boss_defeated");
+                if (window.__mbBossTestMode && typeof window.MBBossTestFinish === "function") {
+                    window.MBBossTestFinish("win", false);
+                }
+            }
         }
     }
     function draw() {
