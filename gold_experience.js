@@ -432,6 +432,10 @@
         return [];
     }
 
+    // Shared geometry lets the 50 lightweight training agents evaluate the exact
+    // attack shapes already understood by the primary GER dodge brain.
+    window.MBGERTrainingThreatAt = companionThreatAt;
+
     function companionShockwaveThreat(wave, x, y, frames, alert) {
         if (!wave || wave.odenHit || !(Number(wave.damage) > 0)) return null;
         var radius = Math.max(0, Number(wave.radius) || 0) +
@@ -1419,7 +1423,9 @@
             var beforeTarget = getUniqueBossTarget(ctx, target.id) || target;
             var beforeHp = Number(beforeTarget && beforeTarget.hp);
             try {
+                window.__mbGERTrainingSwarmDamageInFlight = true;
                 window.MBDioApplyBossDamage(target.type, target.id, damage);
+                window.__mbGERTrainingSwarmDamageInFlight = false;
                 var afterTarget = getUniqueBossTarget(ctx, target.id);
                 var afterHp = Number(afterTarget && afterTarget.hp);
                 if (Number.isFinite(beforeHp) && Number.isFinite(afterHp) && afterHp < beforeHp) {
@@ -1428,12 +1434,14 @@
                     }
                     return true;
                 }
-            } catch (e) {}
+            } catch (e) { window.__mbGERTrainingSwarmDamageInFlight = false; }
         }
 
         if (typeof window.MBApplyBossDamage === "function") {
             try {
+                window.__mbGERTrainingSwarmDamageInFlight = true;
                 var dealt = Number(window.MBApplyBossDamage(ctx, damage, "Gold Experience Requiem")) || 0;
+                window.__mbGERTrainingSwarmDamageInFlight = false;
                 if (dealt > 0) return true;
             } catch (e) {}
         }
