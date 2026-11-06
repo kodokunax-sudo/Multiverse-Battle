@@ -1315,15 +1315,22 @@ function finishLivingStoneOpeningIntro() {
 window.MBGERTrainingTickLivingStone = function () {
     if (!window.__mbGERTrainingMode || !livingStoneActive) return;
     if (livingStoneState === "opening_intro") finishLivingStoneOpeningIntro();
-    if (qteCinematicActive) {
+    if (livingStoneState === "restore" || livingStoneState === "qte_intro" ||
+        livingStoneState === "qte_cinematic" || livingStoneState === "qte_punch" ||
+        livingStoneState === "qte_finish") {
+        qteActive = false;
         qteCinematicActive = false;
         qteCinematicPhase = "done";
-        qteCinematicTimer = 0;
-        triggerQTEStart();
-    }
-    if (qteActive && livingStoneState === "qte_punch") {
-        var safety = Math.max(1, Number(qteClickTarget) || 100);
-        while (qteActive && qteClicks < safety) handleQTEClick();
+        livingStoneState = "phase2";
+        livingStoneRestoring = false;
+        livingStoneRestoreCount = 1;
+        livingStoneBossHp = livingStoneBossMaxHp;
+        livingStoneBoss = { x: 200, y: 108, size: 40, vx: 0.8, rotation: 0 };
+        livingStoneAttackTimer = 0;
+        livingStoneShootTimer = 0;
+        livingStoneTypeTimer = 160;
+        qteBullets = [];
+        qtePunches = [];
     }
 };
  
@@ -1400,6 +1407,17 @@ function drawLivingStoneOpeningIntro() {
 
 // ========== СЦЕНА ВОССТАНОВЛЕНИЯ ==========
 function triggerRestoreScene() {
+    if (window.__mbGERTrainingMode) {
+        livingStoneState = "phase2";
+        livingStoneRestoring = false;
+        livingStoneRestoreCount = 1;
+        livingStoneBossHp = livingStoneBossMaxHp;
+        livingStoneBoss = { x: 200, y: 108, size: 40, vx: 0.8, rotation: 0 };
+        livingStoneAttackTimer = 0;
+        livingStoneShootTimer = 0;
+        livingStoneTypeTimer = 160;
+        return;
+    }
     livingStoneState = "restore";
     livingStoneRestoring = true;
     livingStoneRestoreCount = 1;
@@ -1423,6 +1441,7 @@ function triggerRestoreScene() {
 // ========== СЦЕНА ВСТУПЛЕНИЯ ==========
 function triggerMusicScene() {
     if (!livingStoneActive) return;
+    if (window.__mbGERTrainingMode) { livingStoneState = "phase2"; livingStoneRestoring = false; return; }
     livingStoneState = "qte_intro";
     livingStoneBossHp = livingStoneBossMaxHp;
     livingStoneRestoring = false;
@@ -1492,6 +1511,10 @@ function triggerMusicScene() {
 // ========== КИНЕМАТИК ==========
 function triggerCinematic() {
     if (!livingStoneActive) return;
+    if (window.__mbGERTrainingMode) {
+        qteActive = false; qteCinematicActive = false; qteCinematicPhase = "done";
+        livingStoneState = "phase2"; livingStoneRestoring = false; return;
+    }
     livingStoneState = "qte_cinematic";
     qteCinematicActive = true;
     qteCinematicPhase = "grabbed";
