@@ -30,7 +30,7 @@
             y: clamp(315 + Math.sin(angle) * ring, 18, 482),
             vx: 0, vy: 0, tx: 200, ty: 260, hp: 3, maxHp: 3,
             alive: true, score: 0, damageDealt: 0, damageTaken: 0,
-            hits: 0, dodges: 0, nextAttackAt: 0, nextDecisionAt: 0,
+            hits: 0, dodges: 0, wasThreatened: false, nextAttackAt: 0, nextDecisionAt: 0,
             nextHitAt: 0, lastHitAt: 0, lastHitKey: "", flashUntil: 0,
             phase: Math.random() * Math.PI * 2
         };
@@ -172,8 +172,13 @@
             var safe = chooseTarget(c, boss, attacks, waves);
             c.tx = safe.x; c.ty = safe.y;
             c.nextDecisionAt = time + 80;
-            c.dodges++;
-            c.score += 0.2;
+            if (!c.wasThreatened) {
+                c.dodges++;
+                c.score += 1;
+            }
+            c.wasThreatened = true;
+        } else {
+            c.wasThreatened = false;
         }
         var dx = c.tx - c.x, dy = c.ty - c.y;
         var len = Math.hypot(dx,dy) || 1;
@@ -259,7 +264,7 @@
         var sorted=clones.slice().sort(function(a,b){return b.score-a.score;});
         var summary=panel.querySelector("#mbGERSwarmSummary");
         var leaders=panel.querySelector("#mbGERSwarmLeaders");
-        if(summary) summary.textContent="Живы: "+alive+"/"+COUNT+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
+        if(summary) summary.textContent="Игрок: наблюдатель · Живы: "+alive+"/"+COUNT+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
         if(leaders) leaders.innerHTML=sorted.slice(0,5).map(function(c){return "<div style='display:flex;justify-content:space-between;gap:8px'><span>GER-"+String(c.id).padStart(2,"0")+" · "+(c.alive?"жив":"выбыл")+"</span><b>"+Math.floor(c.score)+" оч.</b></div>";}).join("");
     }
     function finishScores(reason) {
