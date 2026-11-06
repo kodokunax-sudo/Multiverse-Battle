@@ -415,7 +415,7 @@
         var family = "predictive";
         var label = "predictive_escape";
         var isRing = type === "ring" || type.indexOf("shockwave") !== -1 ||
-            type === "wb_center_wave" || (incoming && incoming.kind === "shockwave");
+            (incoming && incoming.kind === "shockwave");
         var isLine = type === "sweep" || type === "barrierlaser" ||
             type === "laser" || type.indexOf("laser") !== -1 ||
             type.indexOf("beam") !== -1 || type.indexOf("slash") !== -1 ||
@@ -424,7 +424,76 @@
         var isWall = type.indexOf("wall") !== -1 || type.indexOf("plate") !== -1 ||
             type.indexOf("gate") !== -1 || info.axis === "rect";
 
-        if (type === "zonelaser") {
+        if (type === "wb_giant_rock_warning") {
+            family = "vertical_impact_lane";
+            label = "sidestep_rock_column";
+            var rockX = Number(attack.targetX !== undefined ? attack.targetX : attack.x);
+            if (Number.isFinite(rockX)) angle = agent.x <= rockX ? Math.PI : 0;
+            else angle = openSideAngle(agent, 1, 0);
+        } else if (type === "wb_combo_gate_warning") {
+            family = "combo_gate_gap";
+            label = "enter_combo_gate_gap";
+            var gateY = Number(attack.targetY);
+            if (Number.isFinite(gateY)) angle = agent.y <= gateY ? Math.PI / 2 : -Math.PI / 2;
+            else angle = openSideAngle(agent, 0, 1);
+        } else if (type === "wb_attack_telegraph") {
+            var attackId = Number(attack.attackId);
+            var attackKind = String(attack.attackKind || "normal").toLowerCase();
+            if (Array.isArray(attack.columns) && attack.columns.length) {
+                family = "column_pattern";
+                label = "find_gap_between_columns";
+                var columns = attack.columns.map(Number).filter(Number.isFinite).sort(function(a,b){return a-b;});
+                var nearestColumn = columns.reduce(function(best,value){
+                    return Math.abs(value-agent.x) < Math.abs(best-agent.x) ? value : best;
+                },columns[0]);
+                angle = agent.x <= nearestColumn ? Math.PI : 0;
+                // Prefer the side with more room if the nearest column is almost centered.
+                if (Math.abs(agent.x-nearestColumn) < 12) angle = openSideAngle(agent,1,0);
+            } else if (attackKind === "normal" && [2,3,7].indexOf(attackId)!==-1) {
+                family = "horizontal_lane";
+                label = "leave_telegraphed_horizontal_lane";
+                var telegraphY = Number(attack.targetY);
+                angle = Number.isFinite(telegraphY) ? (agent.y <= telegraphY ? -Math.PI/2 : Math.PI/2) :
+                    openSideAngle(agent,0,1);
+            } else if (attackKind === "normal" && attackId === 1) {
+                family = "radial_impact";
+                label = "escape_telegraphed_radial_impact";
+                var originX = Number(attack.originX !== undefined ? attack.originX : attack.x);
+                var originY = Number(attack.originY !== undefined ? attack.originY : attack.y);
+                angle = Math.atan2(agent.y-originY,agent.x-originX);
+            } else if (Number.isFinite(Number(attack.targetX))) {
+                family = "vertical_impact_lane";
+                label = "sidestep_telegraphed_column";
+                angle = agent.x <= Number(attack.targetX) ? Math.PI : 0;
+            } else {
+                family = "telegraph_escape";
+                label = "leave_telegraphed_attack";
+                angle = openSideAngle(agent,-awayY,awayX);
+            }
+        } else if (type === "wb_fruit_punch") {
+            family = "segment_sidestep";
+            label = "sidestep_fruit_punch";
+            var punchDx = Number(attack.endX)-Number(attack.originX);
+            var punchDy = Number(attack.endY)-Number(attack.originY);
+            if ([attack.endX,attack.endY,attack.originX,attack.originY].every(function(v){return v!==null&&v!==undefined&&Number.isFinite(Number(v));})) {
+                angle = openSideAngle(agent,-punchDy,punchDx);
+            } else {
+                angle = openSideAngle(agent,-awayY,awayX);
+            }
+        } else if (type === "wb_crescent_slash") {
+            family = "crescent_lane";
+            label = "leave_crescent_slash_lane";
+            var safeY = Number(info.safeY);
+            if (info.safeY !== null && info.safeY !== undefined && Number.isFinite(safeY)) {
+                angle = agent.y <= safeY ? Math.PI/2 : -Math.PI/2;
+            } else {
+                angle = openSideAngle(agent,0,1);
+            }
+        } else if (type === "wb_center_wave" || type === "tsunami") {
+            family = "horizontal_wave_front";
+            label = type === "tsunami" ? "escape_tsunami_front" : "escape_center_wave_front";
+            angle = openSideAngle(agent,0,1);
+        } else if (type === "zonelaser") {
             family = "zone_escape";
             label = lower ? "leave_lower_zone" : upper ? "leave_upper_zone" : "leave_laser_zone";
             angle = lower ? -Math.PI / 2 : upper ? Math.PI / 2 : angle;
@@ -468,7 +537,9 @@
             family = "line_crossing";
             label = "cross_attack_line";
             var lineAngle = Number(attack.angle);
-            if (Number.isFinite(lineAngle)) {
+            var hasLineAngle = attack.angle !== null && attack.angle !== undefined &&
+                attack.angle !== "" && Number.isFinite(lineAngle);
+            if (hasLineAngle) {
                 angle = openSideAngle(agent, -Math.sin(lineAngle), Math.cos(lineAngle));
             } else if (String(attack.orientation || "").toLowerCase() === "vertical" ||
                 info.axis === "vertical") {
@@ -746,8 +817,8 @@
         var edgeDistance = Math.max(0, Math.min(
             agent.x - 18, 382 - agent.x, agent.y - 8, 482 - agent.y
         ));
-        if (edgeDistance < 24) rate -= 1.5;
-        else if (edgeDistance < 52) rate -= 0.6;
+        if (edgeDistance < 24) rate -= 2.2;
+        else if (edgeDistance < 52) rate -= 0.8;
         var points = rate * elapsed / 1000;
         agent.score += points;
         agent.positionScore = (Number(agent.positionScore) || 0) + points;
@@ -1048,7 +1119,7 @@
         ended = true;
         var survivors = agents.filter(function (agent) { return agent.alive; });
         var completed = reason === "boss_defeated" || reason === "win";
-        // No points for merely surviving: boss damage is the primary objective.
+        // Positioning adds small continuous bonuses/penalties; boss damage remains the main objective.
 
         // Resolve unfinished decisions as unknown for traceability, not as successful dodges.
         var finishCtx = context();
