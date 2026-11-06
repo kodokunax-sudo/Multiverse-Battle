@@ -139,6 +139,10 @@
         try { return Math.max(1, Number(ctx.getBossMaxHp && ctx.getBossMaxHp()) || currentBossHp(ctx) || 1); } catch (e) { return 1; }
     }
     function dealDamage(ctx, c) {
+        var hitTarget = bossTarget(ctx);
+        c.attackUntil = now() + 360;
+        c.attackTargetX = hitTarget.x;
+        c.attackTargetY = hitTarget.y;
         var maxHp = maxBossHp(ctx);
         var damage = Math.max(1, Math.floor(maxHp * 0.00008));
         var before = currentBossHp(ctx);
@@ -152,10 +156,6 @@
         var after = currentBossHp(ctx);
         var dealt = Math.max(0, before - after);
         if (dealt > 0) {
-            var hitTarget = bossTarget(ctx);
-            c.attackUntil = now() + 360;
-            c.attackTargetX = hitTarget.x;
-            c.attackTargetY = hitTarget.y;
             c.impactX = hitTarget.x;
             c.impactY = hitTarget.y;
             c.impactUntil = now() + 260;
@@ -440,6 +440,7 @@
     function stop(reason) {
         if(!active)return;
         active=false;
+        window.__mbGERTrainingSwarmActive = false;
         unlockPlayerInput();
         if(raf)window.cancelAnimationFrame(raf);
         raf=0;lastAt=0;
