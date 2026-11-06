@@ -20,6 +20,10 @@
     var retryDelay = 300;
     var sampleSequence = 0;
     var STORAGE_PREFIX = "mb_ger_training_pending_v3:";
+    var MAX_LOCAL_RECOVERY_EVENTS = 160;
+    var compactRecoveryMode = false;
+    var localRecoveryDisabled = false;
+    var localRecoveryWarningShown = false;
     var brainByBoss = Object.create(null);
 
     function storageKey(userId) {
@@ -27,21 +31,73 @@
         return id ? STORAGE_PREFIX + id : null;
     }
 
+    function compactRecoveryEvent(row) {
+        if (!row || typeof row !== "object") return row;
+        // Keep every field used by the server's learning/analytics pipeline, but
+        // discard accidental extra properties from live game attack objects.
+        return {
+            eventId: row.eventId,
+            bossKey: row.bossKey,
+            attackKey: row.attackKey,
+            attackFamily: row.attackFamily,
+            bossPhase: row.bossPhase,
+            timeToImpactMs: row.timeToImpactMs,
+            heartX: row.heartX,
+            heartY: row.heartY,
+            velocityX: row.velocityX,
+            velocityY: row.velocityY,
+            chosenDirection: row.chosenDirection,
+            targetX: row.targetX,
+            targetY: row.targetY,
+            outcome: row.outcome,
+            damageTaken: row.damageTaken,
+            features: row.features && typeof row.features === "object" ? row.features : {}
+        };
+    }
+
+    function pendingStorageSnapshot(compact) {
+        var savedQueue = compact
+            ? queue.slice(-MAX_LOCAL_RECOVERY_EVENTS).map(compactRecoveryEvent)
+            : queue;
+        return {
+            playerId: sessionOwnerId,
+            sessionId: sessionId,
+            clientSessionId: clientSessionId,
+            bossKey: activeBossKey,
+            queue: savedQueue,
+            queueTruncated: compact && queue.length > MAX_LOCAL_RECOVERY_EVENTS,
+            pendingAgentResults: pendingAgentResults,
+            savedAt: Date.now()
+        };
+    }
+
+    function disableLocalRecovery(error) {
+        localRecoveryDisabled = true;
+        if (localRecoveryWarningShown) return;
+        localRecoveryWarningShown = true;
+        console.warn("[GER training] Local recovery copy disabled because browser storage is full or unavailable. Live server uploads will continue.",
+            error && error.message ? error.message : error);
+    }
+
     function persistPending() {
         var key = storageKey();
-        if (!key) return;
+        if (!key || localRecoveryDisabled) return;
         try {
-            localStorage.setItem(key, JSON.stringify({
-                playerId: sessionOwnerId,
-                sessionId: sessionId,
-                clientSessionId: clientSessionId,
-                bossKey: activeBossKey,
-                queue: queue,
-                pendingAgentResults: pendingAgentResults,
-                savedAt: Date.now()
-            }));
+            localStorage.setItem(key, JSON.stringify(pendingStorageSnapshot(compactRecoveryMode)));
         } catch (error) {
-            console.warn("[GER training] Local recovery copy could not be updated:", error && error.message ? error.message : error);
+            if (!compactRecoveryMode) {
+                compactRecoveryMode = true;
+                try {
+                    // Keep only the latest 160 pending samples in the local safety copy.
+                    // The full in-memory queue still uploads to Supabase in normal batches.
+                    localStorage.setItem(key, JSON.stringify(pendingStorageSnapshot(true)));
+                    return;
+                } catch (compactError) {
+                    disableLocalRecovery(compactError || error);
+                    return;
+                }
+            }
+            disableLocalRecovery(error);
         }
     }
 
@@ -69,7 +125,8 @@
             pendingAgentResults = saved.pendingAgentResults && typeof saved.pendingAgentResults === "object"
                 ? saved.pendingAgentResults : null;
             console.info("[GER training] Restored", queue.length, "pending samples and",
-                pendingAgentResults ? "a pending agent summary" : "no pending agent summary", "from local recovery.");
+                pendingAgentResults ? "a pending agent summary" : "no pending agent summary", "from local recovery.",
+                saved.queueTruncated ? "(local safety copy contains only the latest 160 samples)" : "");
         } catch (error) {
             console.warn("[GER training] Could not restore local recovery copy:", error && error.message ? error.message : error);
         }
@@ -84,6 +141,9 @@
         if (key) {
             try { localStorage.removeItem(key); } catch (_error) {}
         }
+        compactRecoveryMode = false;
+        localRecoveryDisabled = false;
+        localRecoveryWarningShown = false;
     }
 
     function makeUuid() {
@@ -418,8 +478,9 @@
 
     async function saveAgentResults(results) {
         if (results && typeof results === "object") {
+            // Upload the full 100-agent snapshot directly. Persist it locally only
+            // if the upload fails or the page is closing, avoiding a large duplicate write.
             pendingAgentResults = results;
-            schedulePersist();
         }
         if (startPromise) {
             try { await startPromise; } catch (_error) {}
