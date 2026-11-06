@@ -2,7 +2,7 @@
 (function () {
     "use strict";
     var COUNT = 50;
-    var clones = [];
+    var agents = [];
     var active = false;
     var raf = 0;
     var lastAt = 0;
@@ -190,7 +190,7 @@
         return api.recordOutcome({
             attackKey: normalizeTrainingKey(rawKey, "unknown"),
             attackFamily: normalizeTrainingKey(attack.attackFamily || rawKey, "unknown").slice(0, 40),
-            bossPhase: normalizeTrainingKey(ctx && ctx.type, "unknown").slice(0, 32),
+            bossPhase: normalizeTrainingKey(attack.bossPhase || attack.phase || (ctx && ctx.type), "unknown").slice(0, 32),
             heartX: startX, heartY: startY,
             velocityX: Number(pending && pending.velocityX) || c.vx,
             velocityY: Number(pending && pending.velocityY) || c.vy,
@@ -288,7 +288,7 @@
         }
         return !!ok;
     }
-    function updateClone(c, ctx, boss, attacks, waves, time, frameScale) {
+    function updateAgent(c, ctx, boss, attacks, waves, time, frameScale) {
         if (!c.alive) return;
         if (time >= c.nextDecisionAt) {
             var chosen = chooseTarget(c, boss, attacks, waves);
@@ -305,6 +305,9 @@
             c.ty = safe.y;
             incoming.safeTarget = safe;
             if (!c.pendingDodge || c.pendingDodge.source !== incoming.source) {
+                if (c.pendingDodge) {
+                    reportAgentOutcome(c, c.pendingDodge, "unknown", 0, boss, attacks, waves, ctx);
+                }
                 c.pendingDodge = createDodgeDecision(c, incoming, time);
             } else {
                 c.pendingDodge.targetX = safe.x;
@@ -365,7 +368,7 @@
         try { attacks = ctx.getAttacks() || []; } catch (e) {}
         try { waves = ctx.getShockwaves ? ctx.getShockwaves() || [] : []; } catch (e) {}
         var scale = clamp((Number(dt)||16.667)/16.667,0.5,2.2);
-        for (var i=0;i<clones.length;i++) updateClone(clones[i],ctx,boss,attacks,waves,time,scale);
+        for (var i=0;i<agents.length;i++) updateAgent(agents[i],ctx,boss,attacks,waves,time,scale);
         if (time - lastUiAt > 1000) { updatePanel(ctx); lastUiAt = time; }
         var hpNow = currentBossHp(ctx);
         if (hpNow > 0) zeroHpSince = 0;
@@ -390,7 +393,7 @@
         swarmGERImage.onerror = function () { swarmGERImageReady = false; };
         swarmGERImage.src = "Model/голден експириес рквием.jpg";
     }
-    function drawClone(c, p, time) {
+    function drawAgent(c, p, time) {
         var pulse = 0.94 + Math.sin(time / 185 + p.phase) * 0.035;
         var attacking = p.attackUntil > time;
         var attackProgress = attacking ? 1 - Math.max(0, p.attackUntil - time) / 360 : 0;
@@ -467,9 +470,9 @@
         var c = overlayCtx;
         var time = now();
         c.clearRect(0,0,400,500);
-        for (var i=0;i<clones.length;i++) {
-            var p=clones[i];
-            if (p.alive) drawClone(c, p, time);
+        for (var i=0;i<agents.length;i++) {
+            var p=agents[i];
+            if (p.alive) drawAgent(c, p, time);
         }
         // Keep the real player's GER visible as a separate, full-size companion.
         if (typeof window.MBDrawGoldExperience === "function") {
@@ -478,44 +481,49 @@
     }
     function updatePanel(ctx) {
         if (!panel) return;
-        var alive=clones.filter(function(c){return c.alive;}).length;
-        var totalDamage=clones.reduce(function(n,c){return n+c.damageDealt;},0);
-        var totalTaken=clones.reduce(function(n,c){return n+c.damageTaken;},0);
-        var sorted=clones.slice().sort(function(a,b){return b.score-a.score;});
+        var alive=agents.filter(function(agent){return agent.alive;}).length;
+        var totalDamage=agents.reduce(function(n,agent){return n+agent.damageDealt;},0);
+        var totalTaken=agents.reduce(function(n,agent){return n+agent.damageTaken;},0);
+        var totalDecisions=agents.reduce(function(n,agent){return n+agent.decisions;},0);
+        var totalDodges=agents.reduce(function(n,agent){return n+agent.dodges;},0);
+        var totalFailed=agents.reduce(function(n,agent){return n+agent.failedDodges;},0);
+        var sorted=agents.slice().sort(function(a,b){return b.score-a.score;});
         var summary=panel.querySelector("#mbGERSwarmSummary");
         var leaders=panel.querySelector("#mbGERSwarmLeaders");
-        if(summary) summary.textContent="Игрок: наблюдатель · Живы: "+alive+"/"+COUNT+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
+        if(summary) summary.textContent="Стенды: "+alive+"/"+COUNT+" живы · Решения: "+totalDecisions+" · Уклонения: "+totalDodges+" · Попадания по стендам: "+totalFailed+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
         if(leaders) leaders.innerHTML=sorted.slice(0,5).map(function(c){return "<div style='display:flex;justify-content:space-between;gap:8px'><span>GER-"+String(c.id).padStart(2,"0")+" · "+(c.alive?"жив":"выбыл")+"</span><b>"+Math.floor(c.score)+" оч.</b></div>";}).join("");
     }
     function finishScores(reason) {
         if (ended) return;
         ended = true;
-        var survivors = clones.filter(function (agent) { return agent.alive; });
+        var survivors = agents.filter(function (agent) { return agent.alive; });
         var completed = reason === "boss_defeated" || reason === "win";
         if (completed) survivors.forEach(function (agent) { agent.score += 150; });
 
         // Resolve unfinished decisions as unknown for traceability, not as successful dodges.
-        clones.forEach(function (agent) {
+        var finishCtx = context();
+        var finishBoss = finishCtx ? bossTarget(finishCtx) : {x:200,y:130};
+        agents.forEach(function (agent) {
             if (agent.pendingDodge) {
                 reportAgentOutcome(agent, agent.pendingDodge, "unknown", 0,
-                    {x:200,y:130}, [], [], context());
+                    finishBoss, [], [], finishCtx);
                 agent.pendingDodge = null;
             }
         });
 
-        var totalHits = clones.reduce(function (n, agent) { return n + agent.hits; }, 0);
-        var totalDodges = clones.reduce(function (n, agent) { return n + agent.dodges; }, 0);
-        var totalDecisions = clones.reduce(function (n, agent) { return n + agent.decisions; }, 0);
-        var totalFailedDodges = clones.reduce(function (n, agent) { return n + agent.failedDodges; }, 0);
-        var totalDamage = clones.reduce(function (n, agent) { return n + agent.damageDealt; }, 0);
-        var totalTaken = clones.reduce(function (n, agent) { return n + agent.damageTaken; }, 0);
-        var damageRank = clones.slice().sort(function (a, b) { return b.damageDealt - a.damageDealt; });
+        var totalHits = agents.reduce(function (n, agent) { return n + agent.hits; }, 0);
+        var totalDodges = agents.reduce(function (n, agent) { return n + agent.dodges; }, 0);
+        var totalDecisions = agents.reduce(function (n, agent) { return n + agent.decisions; }, 0);
+        var totalFailedDodges = agents.reduce(function (n, agent) { return n + agent.failedDodges; }, 0);
+        var totalDamage = agents.reduce(function (n, agent) { return n + agent.damageDealt; }, 0);
+        var totalTaken = agents.reduce(function (n, agent) { return n + agent.damageTaken; }, 0);
+        var damageRank = agents.slice().sort(function (a, b) { return b.damageDealt - a.damageDealt; });
         if (completed && damageRank[0]) damageRank[0].score += 120;
-        var takenRank = clones.slice().sort(function (a, b) { return b.damageTaken - a.damageTaken; });
+        var takenRank = agents.slice().sort(function (a, b) { return b.damageTaken - a.damageTaken; });
         if (completed && takenRank[0] && takenRank[0].damageTaken > 0) takenRank[0].score -= 120;
 
-        clones.sort(function (a, b) { return b.score - a.score; });
-        var top = clones.slice(0, 10).map(function (agent) {
+        agents.sort(function (a, b) { return b.score - a.score; });
+        var top = agents.slice(0, 10).map(function (agent) {
             return "GER-" + String(agent.id).padStart(2, "0") + ": " +
                 Math.floor(agent.score) + " оч. (урон " + Math.floor(agent.damageDealt) +
                 ", получено " + Math.floor(agent.damageTaken) + ", " +
@@ -525,7 +533,7 @@
             survivors: survivors.length, totalDecisions: totalDecisions,
             totalHits: totalHits, totalDodges: totalDodges,
             totalFailedDodges: totalFailedDodges, totalDamage: Math.floor(totalDamage),
-            totalDamageTaken: Math.floor(totalTaken), agents: clones, top: top
+            totalDamageTaken: Math.floor(totalTaken), agents: agents, top: top
         });
 
         if (panel) {
@@ -540,7 +548,7 @@
             }).join("");
         }
 
-        var resultRows = clones.map(function (agent) {
+        var resultRows = agents.map(function (agent) {
             return {
                 id: agent.id,
                 score: Math.floor(agent.score),
@@ -575,10 +583,12 @@
             results: resultRows
         };
         window.__mbGERTrainingSwarmResults = damageLeaderboard;
+        window.__mbGERTrainingParallelAgentsResults = damageLeaderboard;
 
         var trainingApi = window.MBGERTraining;
         if (trainingApi && typeof trainingApi.saveAgentResults === "function") {
             window.__mbGERTrainingSwarmSavePromise = Promise.resolve(trainingSessionPromise)
+                .catch(function () { return null; })
                 .then(function () { return trainingApi.saveAgentResults(damageLeaderboard); })
                 .then(function (response) {
                     console.info("[GER TRAINING] Persisted", response && response.savedAgents,
@@ -666,8 +676,8 @@
             console.warn("[GER TRAINING] Persistent learning client is unavailable.");
         }
 
-        clones = [];
-        for (var i = 0; i < COUNT; i++) clones.push(createAgent(i));
+        agents = [];
+        for (var i = 0; i < COUNT; i++) agents.push(createAgent(i));
         makeOverlay();
         makePanel();
         lockPlayerInput();
