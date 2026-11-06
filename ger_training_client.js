@@ -19,7 +19,8 @@
     var persistTimer = 0;
     var retryDelay = 300;
     var sampleSequence = 0;
-    var STORAGE_PREFIX = "mb_ger_training_pending_v4:";
+    var STORAGE_PREFIX = "mb_ger_training_pending_v5:";
+    var LEGACY_STORAGE_PREFIXES = ["mb_ger_training_pending_v4:"];
     var MAX_LOCAL_RECOVERY_EVENTS = 160;
     var compactRecoveryMode = false;
     var localRecoveryDisabled = false;
@@ -109,9 +110,20 @@
         }, 350);
     }
 
+    function clearLegacyPending(userId) {
+        var id = String(userId || "");
+        if (!id) return;
+        try {
+            LEGACY_STORAGE_PREFIXES.forEach(function (prefix) {
+                try { localStorage.removeItem(prefix + id); } catch (_error) {}
+            });
+        } catch (_error) {}
+    }
+
     function restorePending(userId) {
         if (!userId || sessionOwnerId === userId) return;
         if (sessionId || queue.length) return;
+        clearLegacyPending(userId);
         try {
             var raw = localStorage.getItem(storageKey(userId));
             if (!raw) return;
