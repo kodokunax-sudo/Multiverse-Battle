@@ -14,6 +14,14 @@ const KEY_RE = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
 const OUTCOMES = new Set(["evaded", "hit", "blocked", "unknown"]);
 const RESULTS = new Set(["win", "loss", "draw", "aborted"]);
 const MAX_AGENT_COUNT = 100;
+// Training-arena keys and live boss-context keys share one learned brain.
+// Historical live-context keys remain aliases so existing samples are retained.
+const BOSS_KEY_ALIASES = {
+  ger_unique_200: ["ger_unique_200", "stone"],
+  ger_unique_500: ["ger_unique_500", "waystar"],
+  ger_unique_1000: ["ger_unique_1000", "rwb"],
+  ger_unique_2000: ["ger_unique_2000", "stonesuper"],
+};
 let client = null;
 
 function db() {
@@ -230,25 +238,29 @@ async function readBrain(body) {
   const bossKey = cleanKey(body.bossKey, 64);
   const attackKey = body.attackKey == null ? null : cleanKey(body.attackKey);
   if (!bossKey || (body.attackKey != null && !attackKey)) return reply({ error: "invalid_brain_query" }, 400);
+  const bossKeys = BOSS_KEY_ALIASES[bossKey] || [bossKey];
+  // Ordinary arena battles use ctx.type="arena", while the training arena
+  // historically stored arena_wave_N keys. Combine those samples for live play.
+  const includeArenaWaves = bossKey === "arena";
   const brain = await db().unsafe(
-    "select attack_key,sample_count,evaded_count,hit_count,blocked_count,unknown_count,tti_sample_count,case when tti_sample_count>0 then round(tti_sum_ms::numeric/tti_sample_count,1) else null end as avg_tti_ms from public.ger_dodge_brain where boss_key=$1 and ($2::text is null or attack_key=$2)",
-    [bossKey, attackKey]
+    "select attack_key,sum(sample_count)::bigint as sample_count,sum(evaded_count)::bigint as evaded_count,sum(hit_count)::bigint as hit_count,sum(blocked_count)::bigint as blocked_count,sum(unknown_count)::bigint as unknown_count,sum(tti_sample_count)::bigint as tti_sample_count,case when sum(tti_sample_count)>0 then round(sum(tti_sum_ms)::numeric/sum(tti_sample_count),1) else null end as avg_tti_ms from public.ger_dodge_brain where (boss_key=any($1::text[]) or ($2::boolean and boss_key like 'arena_wave_%')) and ($3::text is null or attack_key=$3) group by attack_key",
+    [bossKeys, includeArenaWaves, attackKey]
   );
   const directions = await db().unsafe(
-    "select attack_key,direction,sample_count,evaded_count,hit_count,blocked_count,unknown_count from public.ger_dodge_direction_stats where boss_key=$1 and ($2::text is null or attack_key=$2)",
-    [bossKey, attackKey]
+    "select attack_key,direction,sum(sample_count)::bigint as sample_count,sum(evaded_count)::bigint as evaded_count,sum(hit_count)::bigint as hit_count,sum(blocked_count)::bigint as blocked_count,sum(unknown_count)::bigint as unknown_count from public.ger_dodge_direction_stats where (boss_key=any($1::text[]) or ($2::boolean and boss_key like 'arena_wave_%')) and ($3::text is null or attack_key=$3) group by attack_key,direction",
+    [bossKeys, includeArenaWaves, attackKey]
   );
   // Context-conditioned outcomes: which directions worked for this attack from
   // a particular side of the boss, hazard density, and wall proximity.
   const contexts = await db().unsafe(
-    "select attack_key,features->>'positionBucket' as position_bucket,features->>'hazardBucket' as hazard_bucket,features->>'wallBucket' as wall_bucket,chosen_direction as direction,count(*)::integer as sample_count,count(*) filter (where outcome='evaded')::integer as evaded_count,count(*) filter (where outcome='blocked')::integer as blocked_count,count(*) filter (where outcome='hit')::integer as hit_count,count(*) filter (where outcome='unknown')::integer as unknown_count from public.ger_dodge_samples where boss_key=$1 and ($2::text is null or attack_key=$2) and coalesce(features->>'sampleType','dodge')='dodge' and features ? 'positionBucket' and features ? 'hazardBucket' and features ? 'wallBucket' and chosen_direction is not null and outcome in ('evaded','blocked','hit') group by attack_key,features->>'positionBucket',features->>'hazardBucket',features->>'wallBucket',chosen_direction order by count(*) desc limit 700",
-    [bossKey, attackKey]
+    "select attack_key,features->>'positionBucket' as position_bucket,features->>'hazardBucket' as hazard_bucket,features->>'wallBucket' as wall_bucket,chosen_direction as direction,count(*)::integer as sample_count,count(*) filter (where outcome='evaded')::integer as evaded_count,count(*) filter (where outcome='blocked')::integer as blocked_count,count(*) filter (where outcome='hit')::integer as hit_count,count(*) filter (where outcome='unknown')::integer as unknown_count from public.ger_dodge_samples where (boss_key=any($1::text[]) or ($2::boolean and boss_key like 'arena_wave_%')) and ($3::text is null or attack_key=$3) and coalesce(features->>'sampleType','dodge')='dodge' and features ? 'positionBucket' and features ? 'hazardBucket' and features ? 'wallBucket' and chosen_direction is not null and outcome in ('evaded','blocked','hit') group by attack_key,features->>'positionBucket',features->>'hazardBucket',features->>'wallBucket',chosen_direction order by count(*) desc limit 700",
+    [bossKeys, includeArenaWaves, attackKey]
   );
   // Learn attack-to-attack transitions within each training session. This lets
   // the companion prepare for common follow-up patterns before they spawn.
   const transitions = await db().unsafe(
-    "with ordered as (select session_id,attack_key,lead(attack_key) over (partition by session_id,coalesce(features->>'agentId','main') order by case when jsonb_typeof(features->'decisionOrder')='number' then (features->>'decisionOrder')::bigint else id end,created_at,id) as next_attack_key from public.ger_dodge_samples where boss_key=$1 and coalesce(features->>'sampleType','dodge')='dodge' and attack_key <> 'swarm_agent_survival' and outcome in ('evaded','blocked','hit')) select attack_key as from_attack_key,next_attack_key,count(*)::integer as sample_count from ordered where next_attack_key is not null group by attack_key,next_attack_key order by count(*) desc limit 300",
-    [bossKey]
+    "with ordered as (select session_id,attack_key,lead(attack_key) over (partition by session_id,coalesce(features->>'agentId','main') order by case when jsonb_typeof(features->'decisionOrder')='number' then (features->>'decisionOrder')::bigint else id end,created_at,id) as next_attack_key from public.ger_dodge_samples where (boss_key=any($1::text[]) or ($2::boolean and boss_key like 'arena_wave_%')) and coalesce(features->>'sampleType','dodge')='dodge' and attack_key <> 'swarm_agent_survival' and outcome in ('evaded','blocked','hit')) select attack_key as from_attack_key,next_attack_key,count(*)::integer as sample_count from ordered where next_attack_key is not null group by attack_key,next_attack_key order by count(*) desc limit 300",
+    [bossKeys, includeArenaWaves]
   );
   return reply({ brain, directions, contexts, transitions });
 }
