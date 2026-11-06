@@ -1,0 +1,324 @@
+/* GER Training Swarm: 50 lightweight autonomous copies for unique-boss testing. */
+(function () {
+    "use strict";
+    var COUNT = 50;
+    var clones = [];
+    var active = false;
+    var raf = 0;
+    var lastAt = 0;
+    var lastUiAt = 0;
+    var overlay = null;
+    var overlayCtx = null;
+    var panel = null;
+    var inputHandlers = [];
+    var lastBossHp = null;
+    var damageLeaderboard = null;
+    var ended = false;
+
+    function now() { return window.performance && performance.now ? performance.now() : Date.now(); }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function context() {
+        try { return typeof window.getBossContext === "function" ? window.getBossContext() : null; }
+        catch (e) { return null; }
+    }
+    function createClone(i) {
+        var angle = i / COUNT * Math.PI * 2;
+        var ring = 65 + (i % 5) * 16;
+        return {
+            id: i + 1, x: clamp(200 + Math.cos(angle) * ring, 18, 382),
+            y: clamp(315 + Math.sin(angle) * ring, 18, 482),
+            vx: 0, vy: 0, tx: 200, ty: 260, hp: 3, maxHp: 3,
+            alive: true, score: 0, damageDealt: 0, damageTaken: 0,
+            hits: 0, dodges: 0, nextAttackAt: 0, nextDecisionAt: 0,
+            nextHitAt: 0, lastHitAt: 0, lastHitKey: "", flashUntil: 0,
+            phase: Math.random() * Math.PI * 2
+        };
+    }
+    function makeOverlay() {
+        var canvas = document.getElementById("arenaCanvas");
+        if (!canvas || !canvas.parentNode) return;
+        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        overlay = document.createElement("canvas");
+        overlay.id = "mbGERTrainingSwarmCanvas";
+        overlay.width = 400;
+        overlay.height = 500;
+        overlay.style.cssText = "position:fixed;pointer-events:none;z-index:100020;left:0;top:0;width:1px;height:1px;";
+        document.body.appendChild(overlay);
+        overlayCtx = overlay.getContext("2d");
+    }
+    function placeOverlay() {
+        var canvas = document.getElementById("arenaCanvas");
+        if (!canvas || !overlay) return;
+        var r = canvas.getBoundingClientRect();
+        overlay.style.left = r.left + "px";
+        overlay.style.top = r.top + "px";
+        overlay.style.width = r.width + "px";
+        overlay.style.height = r.height + "px";
+        overlay.style.display = r.width && r.height ? "block" : "none";
+    }
+    function makePanel() {
+        if (panel && panel.parentNode) panel.parentNode.removeChild(panel);
+        panel = document.createElement("div");
+        panel.id = "mbGERTrainingSwarmPanel";
+        panel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;width:min(270px,calc(100vw - 24px));max-height:42vh;overflow:auto;padding:10px 12px;border:1px solid rgba(255,214,112,.65);border-radius:12px;background:rgba(9,12,20,.92);color:#fff2c6;font:700 11px/1.45 Arial,sans-serif;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
+        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER SWARM · 50 КОПИЙ</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
+        document.body.appendChild(panel);
+    }
+    function allowExit(ev) {
+        var t = ev && ev.target;
+        return !!(t && (t.id === "bossTestExitFightBtn" || (t.closest && t.closest("#bossTestExitFightBtn")) ||
+            t.id === "gerTrainingStopBtn" || (t.closest && t.closest("#gerTrainingStopBtn"))));
+    }
+    function blockInput(ev) {
+        if (!active || allowExit(ev)) return;
+        if (ev && ev.cancelable) ev.preventDefault();
+        if (ev && ev.stopPropagation) ev.stopPropagation();
+        if (ev && ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+        return false;
+    }
+    function lockPlayerInput() {
+        if (inputHandlers.length) return;
+        ["pointerdown","pointerup","pointermove","mousedown","mouseup","click","dblclick","touchstart","touchmove","touchend","keydown","keyup","keypress","contextmenu"].forEach(function (type) {
+            var fn = blockInput;
+            window.addEventListener(type, fn, {capture:true, passive:false});
+            inputHandlers.push([type, fn]);
+        });
+    }
+    function unlockPlayerInput() {
+        inputHandlers.forEach(function (pair) { window.removeEventListener(pair[0], pair[1], true); });
+        inputHandlers = [];
+    }
+    function getThreat(attack, x, y, frames) {
+        try {
+            if (typeof window.MBGERTrainingThreatAt === "function") return window.MBGERTrainingThreatAt(attack, x, y, frames || 0, false);
+        } catch (e) {}
+        return null;
+    }
+    function dangerAt(attacks, waves, x, y, frames) {
+        for (var i = 0; i < attacks.length; i++) if (getThreat(attacks[i], x, y, frames)) return true;
+        for (var j = 0; j < waves.length; j++) {
+            var w = waves[j];
+            if (!w || w.odenHit) continue;
+            var radius = Math.max(0, Number(w.radius) || 0) + Math.max(0, Number(w.speed) || 0) * (frames || 0);
+            var dist = Math.hypot(x - (Number(w.x) || 0), y - (Number(w.y) || 0));
+            if (Math.abs(dist - radius) < (Number(w.width) || 8) * 0.7 + 12) return true;
+        }
+        return false;
+    }
+    function chooseTarget(c, boss, attacks, waves) {
+        var best = null, bestScore = -Infinity;
+        for (var k = 0; k < 12; k++) {
+            var a = k * Math.PI / 6 + c.phase;
+            var d = 74 + (k % 3) * 28;
+            var x = clamp(boss.x + Math.cos(a) * d, 20, 380);
+            var y = clamp(boss.y + Math.sin(a) * d, 20, 480);
+            var score = -Math.hypot(x - c.x, y - c.y) * 0.06;
+            if (dangerAt(attacks, waves, x, y, 0)) score -= 140;
+            if (dangerAt(attacks, waves, x, y, 8)) score -= 90;
+            if (dangerAt(attacks, waves, x, y, 18)) score -= 45;
+            score += Math.min(30, Math.min(x - 20, 380 - x, y - 20, 480 - y)) * 0.2;
+            if (score > bestScore) { bestScore = score; best = {x:x,y:y}; }
+        }
+        return best || {x:clamp(boss.x+100,20,380),y:clamp(boss.y+100,20,480)};
+    }
+    function bossTarget(ctx) {
+        var target = null;
+        try {
+            if (ctx.type !== "arena" && typeof window.getDioUniqueBossTarget === "function") target = window.getDioUniqueBossTarget(ctx);
+        } catch (e) {}
+        var p = target || (ctx.getBossPosition && ctx.getBossPosition()) || {x:200,y:130};
+        return {x:Number(p.x)||200,y:Number(p.y)||130,ref:target};
+    }
+    function currentBossHp(ctx) {
+        try { return Math.max(0, Number(ctx.getBossHp && ctx.getBossHp()) || 0); } catch (e) { return 0; }
+    }
+    function maxBossHp(ctx) {
+        try { return Math.max(1, Number(ctx.getBossMaxHp && ctx.getBossMaxHp()) || currentBossHp(ctx) || 1); } catch (e) { return 1; }
+    }
+    function dealDamage(ctx, c) {
+        var maxHp = maxBossHp(ctx);
+        var damage = Math.max(1, Math.floor(maxHp * 0.00008));
+        var before = currentBossHp(ctx);
+        var ok = false;
+        try {
+            if (typeof ctx.damageBoss === "function") ok = ctx.damageBoss(damage) !== false;
+            else if (typeof window.MBApplyBossDamage === "function") ok = window.MBApplyBossDamage(ctx, damage, "GER Swarm") > 0;
+        } catch (e) {}
+        var after = currentBossHp(ctx);
+        var dealt = Math.max(0, before - after);
+        if (dealt > 0) {
+            c.damageDealt += dealt;
+            c.hits++;
+            c.score += 1 + dealt / Math.max(1, maxHp) * 1000;
+            c.flashUntil = now() + 120;
+            return true;
+        }
+        return !!ok;
+    }
+    function updateClone(c, ctx, boss, attacks, waves, time, frameScale) {
+        if (!c.alive) return;
+        if (time >= c.nextDecisionAt) {
+            c.tx = chooseTarget(c, boss, attacks, waves).x;
+            c.ty = chooseTarget(c, boss, attacks, waves).y;
+            c.nextDecisionAt = time + 120 + Math.random() * 120;
+        }
+        var threatened = dangerAt(attacks, waves, c.x, c.y, 0) ||
+            dangerAt(attacks, waves, c.x + c.vx * 4, c.y + c.vy * 4, 4);
+        if (threatened) {
+            var safe = chooseTarget(c, boss, attacks, waves);
+            c.tx = safe.x; c.ty = safe.y;
+            c.nextDecisionAt = time + 80;
+            c.dodges++;
+            c.score += 0.2;
+        }
+        var dx = c.tx - c.x, dy = c.ty - c.y;
+        var len = Math.hypot(dx,dy) || 1;
+        var speed = Math.min(3.6, Math.max(0.7, len * 0.09));
+        c.vx += (dx / len * speed - c.vx) * 0.18;
+        c.vy += (dy / len * speed - c.vy) * 0.18;
+        c.x = clamp(c.x + c.vx * frameScale, 12, 388);
+        c.y = clamp(c.y + c.vy * frameScale, 12, 488);
+
+        if (dangerAt(attacks, waves, c.x, c.y, 0) && time - c.lastHitAt > 500) {
+            c.lastHitAt = time;
+            var hit = null;
+            for (var i = 0; i < attacks.length && !hit; i++) hit = getThreat(attacks[i], c.x, c.y, 0);
+            var damage = Math.max(1, Number(hit && hit.attack && hit.attack.damage) || 10);
+            c.damageTaken += damage;
+            c.hp--;
+            c.score -= 5;
+            c.flashUntil = time + 180;
+            if (c.hp <= 0) { c.alive = false; c.score -= 10; }
+        }
+        if (c.alive && time >= c.nextAttackAt && Math.hypot(c.x - boss.x, c.y - boss.y) <= 142) {
+            if (dealDamage(ctx, c)) c.nextAttackAt = time + 850 + Math.random() * 250;
+            else c.nextAttackAt = time + 450;
+        }
+    }
+    function update(dt) {
+        if (!active) return;
+        var ctx = context();
+        if (!ctx || !ctx.getAttacks || !ctx.getBossPosition) return;
+        var time = now();
+        var boss = bossTarget(ctx);
+        var attacks = [];
+        var waves = [];
+        try { attacks = ctx.getAttacks() || []; } catch (e) {}
+        try { waves = ctx.getShockwaves ? ctx.getShockwaves() || [] : []; } catch (e) {}
+        var scale = clamp((Number(dt)||16.667)/16.667,0.5,2.2);
+        for (var i=0;i<clones.length;i++) updateClone(clones[i],ctx,boss,attacks,waves,time,scale);
+        if (time - lastUiAt > 1000) { updatePanel(ctx); lastUiAt = time; }
+        if (currentBossHp(ctx) <= 0) finishScores("boss_defeated");
+    }
+    function draw() {
+        if (!active || !overlayCtx || !overlay) return;
+        placeOverlay();
+        var c = overlayCtx;
+        c.clearRect(0,0,400,500);
+        for (var i=0;i<clones.length;i++) {
+            var p=clones[i];
+            if (!p.alive) continue;
+            var pulse=0.7+Math.sin(now()/180+p.phase)*0.18;
+            c.save();
+            c.globalAlpha=p.flashUntil>now()?1:pulse;
+            c.translate(p.x,p.y);
+            c.fillStyle=p.flashUntil>now()?"#fff4c9":"#e8b84c";
+            c.strokeStyle="#704516";
+            c.lineWidth=1;
+            c.beginPath();
+            c.ellipse(0,0,4.2,6.4,0,0,Math.PI*2);
+            c.fill();c.stroke();
+            c.fillStyle="#fff0a8";
+            c.beginPath();c.arc(0,-3.2,2.1,0,Math.PI*2);c.fill();
+            c.strokeStyle="rgba(255,238,164,.8)";
+            c.beginPath();c.moveTo(-3,2);c.lineTo(-5,5);c.moveTo(3,2);c.lineTo(5,5);c.stroke();
+            c.restore();
+        }
+    }
+    function updatePanel(ctx) {
+        if (!panel) return;
+        var alive=clones.filter(function(c){return c.alive;}).length;
+        var totalDamage=clones.reduce(function(n,c){return n+c.damageDealt;},0);
+        var totalTaken=clones.reduce(function(n,c){return n+c.damageTaken;},0);
+        var sorted=clones.slice().sort(function(a,b){return b.score-a.score;});
+        var summary=panel.querySelector("#mbGERSwarmSummary");
+        var leaders=panel.querySelector("#mbGERSwarmLeaders");
+        if(summary) summary.textContent="Живы: "+alive+"/"+COUNT+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
+        if(leaders) leaders.innerHTML=sorted.slice(0,5).map(function(c){return "<div style='display:flex;justify-content:space-between;gap:8px'><span>GER-"+String(c.id).padStart(2,"0")+" · "+(c.alive?"жив":"выбыл")+"</span><b>"+Math.floor(c.score)+" оч.</b></div>";}).join("");
+    }
+    function finishScores(reason) {
+        if (ended) return;
+        ended=true;
+        var survivors=clones.filter(function(c){return c.alive;});
+        survivors.forEach(function(c){c.score+=150;});
+        var damageRank=clones.slice().sort(function(a,b){return b.damageDealt-a.damageDealt;});
+        if(damageRank[0])damageRank[0].score+=120;
+        var takenRank=clones.slice().sort(function(a,b){return b.damageTaken-a.damageTaken;});
+        if(takenRank[0]&&takenRank[0].damageTaken>0)takenRank[0].score-=120;
+        clones.sort(function(a,b){return b.score-a.score;});
+        var top=clones.slice(0,10).map(function(c){return "GER-"+String(c.id).padStart(2,"0")+": "+Math.floor(c.score)+" оч. (урон "+Math.floor(c.damageDealt)+", получено "+Math.floor(c.damageTaken)+", "+(c.alive?"выжил":"выбыл")+")";});
+        console.log("[GER SWARM RESULTS]",reason,{survivors:survivors.length,clones:clones,top:top});
+        if(panel){
+            var summary=panel.querySelector("#mbGERSwarmSummary");
+            var leaders=panel.querySelector("#mbGERSwarmLeaders");
+            if(summary)summary.textContent="ИТОГ · Выжили "+survivors.length+"/"+COUNT+" · "+reason;
+            if(leaders)leaders.innerHTML=top.map(function(line){return "<div>"+line+"</div>";}).join("");
+        }
+        damageLeaderboard={reason:reason,survivors:survivors.length,results:clones.map(function(c){return {id:c.id,score:Math.floor(c.score),damageDealt:Math.floor(c.damageDealt),damageTaken:Math.floor(c.damageTaken),hits:c.hits,dodges:c.dodges,alive:c.alive};})};
+        window.__mbGERTrainingSwarmResults=damageLeaderboard;
+    }
+    function tick(ts) {
+        raf=0;
+        if(!active)return;
+        var t=Number(ts)||now();
+        var dt=lastAt?clamp(t-lastAt,1,40):16.667;
+        lastAt=t;
+        update(dt);
+        draw();
+        raf=window.requestAnimationFrame(tick);
+    }
+    function skipOpeningMoments() {
+        try {
+            if (Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave)===200 &&
+                window.livingStoneState==="opening_intro" && typeof window.finishLivingStoneOpeningIntro==="function") {
+                window.finishLivingStoneOpeningIntro();
+            }
+            if (Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave)===500 &&
+                window.waystarState==="dialogue") window.waystarState="phase1";
+            if (Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave)===2000 &&
+                window.__mbLS2TrainingSkipIntro) window.__mbLS2TrainingSkipIntro();
+            if (Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave)===2000 &&
+                window.MBIsLivingStoneChaseActive && window.MBIsLivingStoneChaseActive() &&
+                typeof window.MBSkipLivingStoneChase==="function") window.MBSkipLivingStoneChase();
+            if (Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave)===200 &&
+                window.qteActive && typeof window.handleQTEClick==="function") {
+                for(var n=0;n<120 && window.qteActive;n++) window.handleQTEClick();
+            }
+        } catch(e) {}
+    }
+    function start() {
+        if (active) return;
+        active=true; ended=false; lastAt=0; lastUiAt=0;
+        clones=[]; for(var i=0;i<COUNT;i++)clones.push(createClone(i));
+        makeOverlay(); makePanel(); lockPlayerInput();
+        lastBossHp=null;
+        if(!window.__mbGERTrainingIsolationTimer) window.__mbGERTrainingIsolationTimer=window.setInterval(skipOpeningMoments,80);
+        raf=window.requestAnimationFrame(tick);
+        console.info("[GER SWARM] Started 50 lightweight stand copies. Player input is locked.");
+    }
+    function stop(reason) {
+        if(!active)return;
+        active=false;
+        unlockPlayerInput();
+        if(raf)window.cancelAnimationFrame(raf);
+        raf=0;lastAt=0;
+        if(overlay&&overlay.parentNode)overlay.parentNode.removeChild(overlay);
+        if(panel&&panel.parentNode)panel.parentNode.removeChild(panel);
+        overlay=null;overlayCtx=null;panel=null;
+        if(reason!=="boss_defeated"&&!ended)finishScores(reason||"stopped");
+        console.info("[GER SWARM] Stopped:",reason||"stopped");
+    }
+    window.MBGERTrainingSwarmStart=start;
+    window.MBGERTrainingSwarmStop=stop;
+    window.MBGERTrainingSwarmFinish=finishScores;
+})();
