@@ -1005,6 +1005,19 @@
                 if (typeof ctx.setHeartY === "function") ctx.setHeartY(478);
             }
             var wave = Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave);
+            // Keep the real player's collision/invulnerability timers out of the
+            // training sample. The 100 simulated hearts receive the native attacks.
+            if (wave===200 && typeof livingStoneInvulnTimer !== "undefined") livingStoneInvulnTimer = 999999;
+            if (wave===500 && typeof waystarInvulnTimer !== "undefined") waystarInvulnTimer = 999999;
+            if (wave===1000 && typeof window.getRWBPlayer === "function") {
+                var rwbTrainingPlayer = window.getRWBPlayer();
+                if (rwbTrainingPlayer) rwbTrainingPlayer.invulnTimer = 999999;
+            }
+            if (wave===1500 && typeof window.getAntiSpiralBossPlayer === "function") {
+                var antiTrainingPlayer = window.getAntiSpiralBossPlayer();
+                if (antiTrainingPlayer) antiTrainingPlayer.invuln = 999999;
+            }
+            if (wave===2000 && typeof livingStoneInvulnTimer !== "undefined") livingStoneInvulnTimer = 999999;
             if (wave===200 && typeof window.MBGERTrainingTickLivingStone==="function") window.MBGERTrainingTickLivingStone();
             if (wave===500 && typeof window.MBGERTrainingSkipWaystarScenes==="function") window.MBGERTrainingSkipWaystarScenes();
             if (wave===1000 && typeof window.MBGERTrainingSkipRWBScenes==="function") window.MBGERTrainingSkipRWBScenes();
