@@ -1585,6 +1585,19 @@
         if (ls2UniqueDecoys.length > 3) ls2UniqueDecoys.splice(0, ls2UniqueDecoys.length - 3);
         if (ls2UniqueCracks.length > 12) ls2UniqueCracks.splice(0, ls2UniqueCracks.length - 12);
         var p=livingStonePlayer, b=livingStoneBoss, phase=window.__mbLS2GreenPhase||"normal";
+        // The swarm auto-solves the green-shield QTE by reading the native attack
+        // direction and facing the shield toward the next incoming strike.
+        if (window.__mbGERTrainingMode && phase === "green") {
+            var closestEta = Infinity, chosenShield = Number(window.__mbLS2ShieldDir)||0;
+            for (var qi=0; qi<ls2UniqueAttacks.length; qi++) {
+                var qa=ls2UniqueAttacks[qi];
+                if (!qa || qa.type!=="greenStrike" || (Number(qa.delay)||0)>1) continue;
+                var qSpeed=Math.max(0.1,Math.hypot(Number(qa.vx)||0,Number(qa.vy)||0));
+                var qEta=Math.hypot((Number(qa.x)||0)-p.x,(Number(qa.y)||0)-p.y)/qSpeed;
+                if (qEta<closestEta) { closestEta=qEta; chosenShield=((Number(qa.sourceDir)||0)%4+4)%4; }
+            }
+            window.__mbLS2ShieldDir=chosenShield;
+        }
         if (phase === "normal") {
             var frameDx = ls2Clamp(p.x - ls2LastPlayerX, -8, 8);
             var frameDy = ls2Clamp(p.y - ls2LastPlayerY, -8, 8);
