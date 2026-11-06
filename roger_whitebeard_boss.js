@@ -1288,8 +1288,17 @@ function startRogerWhitebeardFight(graphicsModeChoice) {
             attackTimer: 0, shootRate: 10,
             vx: 0, vy: 0
         };
+        var rwbGERTraining = !!(window.__mbBossTestMode &&
+            window.__mbBossTestMode.gerTraining === true &&
+            Number(window.__mbBossTestMode.bossWave) === 1000);
         var odenConsent = getRWBOdenConsent();
-        var odenAvailable = odenConsent === "yes";
+        var odenAvailable = !rwbGERTraining && odenConsent === "yes";
+        if (rwbGERTraining) {
+            // GER training must contain only the real player target and the 100 stand agents.
+            // Suppress both Oden's presence and any Oden-specific post-defeat prompt.
+            rwbOdenOfferShown = true;
+            rwbOdenDeathDialogShown = true;
+        }
         rwbOden = {
             available: odenAvailable,
             x: 166, y: 372, size: 15, phase: 0,
