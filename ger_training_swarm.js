@@ -489,51 +489,107 @@
     }
     function finishScores(reason) {
         if (ended) return;
-        ended=true;
-        var survivors=clones.filter(function(c){return c.alive;});
+        ended = true;
+        var survivors = clones.filter(function (agent) { return agent.alive; });
         var completed = reason === "boss_defeated" || reason === "win";
-        if (completed) survivors.forEach(function(c){c.score+=150;});
-        var totalHits=clones.reduce(function(n,c){return n+c.hits;},0);
-        var totalDodges=clones.reduce(function(n,c){return n+c.dodges;},0);
-        var totalDamage=clones.reduce(function(n,c){return n+c.damageDealt;},0);
-        var totalTaken=clones.reduce(function(n,c){return n+c.damageTaken;},0);
-        var damageRank=clones.slice().sort(function(a,b){return b.damageDealt-a.damageDealt;});
-        if(completed && damageRank[0])damageRank[0].score+=120;
-        var takenRank=clones.slice().sort(function(a,b){return b.damageTaken-a.damageTaken;});
-        if(completed && takenRank[0]&&takenRank[0].damageTaken>0)takenRank[0].score-=120;
-        clones.sort(function(a,b){return b.score-a.score;});
-        var top=clones.slice(0,10).map(function(c){return "GER-"+String(c.id).padStart(2,"0")+": "+Math.floor(c.score)+" оч. (урон "+Math.floor(c.damageDealt)+", получено "+Math.floor(c.damageTaken)+", "+(c.alive?"выжил":"выбыл")+")";});
-        console.log("[GER SWARM RESULTS]",reason,{survivors:survivors.length,clones:clones,top:top});
-        if(panel){
-            var summary=panel.querySelector("#mbGERSwarmSummary");
-            var leaders=panel.querySelector("#mbGERSwarmLeaders");
-            if(summary)summary.textContent="ИТОГ · Выжили "+survivors.length+"/"+COUNT+" · Удары: "+totalHits+" · Уклонения: "+totalDodges+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
-            if(leaders)leaders.innerHTML=top.map(function(line){return "<div>"+line+"</div>";}).join("");
+        if (completed) survivors.forEach(function (agent) { agent.score += 150; });
+
+        // Resolve unfinished decisions as unknown for traceability, not as successful dodges.
+        clones.forEach(function (agent) {
+            if (agent.pendingDodge) {
+                reportAgentOutcome(agent, agent.pendingDodge, "unknown", 0,
+                    {x:200,y:130}, [], [], context());
+                agent.pendingDodge = null;
+            }
+        });
+
+        var totalHits = clones.reduce(function (n, agent) { return n + agent.hits; }, 0);
+        var totalDodges = clones.reduce(function (n, agent) { return n + agent.dodges; }, 0);
+        var totalDecisions = clones.reduce(function (n, agent) { return n + agent.decisions; }, 0);
+        var totalFailedDodges = clones.reduce(function (n, agent) { return n + agent.failedDodges; }, 0);
+        var totalDamage = clones.reduce(function (n, agent) { return n + agent.damageDealt; }, 0);
+        var totalTaken = clones.reduce(function (n, agent) { return n + agent.damageTaken; }, 0);
+        var damageRank = clones.slice().sort(function (a, b) { return b.damageDealt - a.damageDealt; });
+        if (completed && damageRank[0]) damageRank[0].score += 120;
+        var takenRank = clones.slice().sort(function (a, b) { return b.damageTaken - a.damageTaken; });
+        if (completed && takenRank[0] && takenRank[0].damageTaken > 0) takenRank[0].score -= 120;
+
+        clones.sort(function (a, b) { return b.score - a.score; });
+        var top = clones.slice(0, 10).map(function (agent) {
+            return "GER-" + String(agent.id).padStart(2, "0") + ": " +
+                Math.floor(agent.score) + " оч. (урон " + Math.floor(agent.damageDealt) +
+                ", получено " + Math.floor(agent.damageTaken) + ", " +
+                (agent.alive ? "выжил" : "выбыл") + ")";
+        });
+        console.log("[GER PARALLEL PRIMARY AGENTS]", reason, {
+            survivors: survivors.length, totalDecisions: totalDecisions,
+            totalHits: totalHits, totalDodges: totalDodges,
+            totalFailedDodges: totalFailedDodges, totalDamage: Math.floor(totalDamage),
+            totalDamageTaken: Math.floor(totalTaken), agents: clones, top: top
+        });
+
+        if (panel) {
+            var summary = panel.querySelector("#mbGERSwarmSummary");
+            var leaders = panel.querySelector("#mbGERSwarmLeaders");
+            if (summary) summary.textContent = "ИТОГ · Живы " + survivors.length + "/" + COUNT +
+                " · Решения: " + totalDecisions + " · Уклонения: " + totalDodges +
+                " · Попадания: " + totalFailedDodges + " · Урон боссу: " +
+                Math.floor(totalDamage) + " · Получено: " + Math.floor(totalTaken);
+            if (leaders) leaders.innerHTML = top.map(function (line) {
+                return "<div>" + line + "</div>";
+            }).join("");
         }
-        var resultRows=clones.map(function(c){return {id:c.id,score:Math.floor(c.score),damageDealt:Math.floor(c.damageDealt),damageTaken:Math.floor(c.damageTaken),hits:c.hits,dodges:c.dodges,alive:c.alive};});
-        damageLeaderboard={reason:reason,survivors:survivors.length,totalHits:totalHits,totalDodges:totalDodges,totalDamage:Math.floor(totalDamage),totalDamageTaken:Math.floor(totalTaken),results:resultRows};
-        window.__mbGERTrainingSwarmResults=damageLeaderboard;
-        // Send one compact end-of-run observation per agent into the same online
-        // training queue, so the 50-agent batch contributes to the shared brain.
-        var trainingApi=window.MBGERTraining;
-        if(trainingApi&&typeof trainingApi.recordOutcome==="function"){
-            clones.forEach(function(c){
-                try{
-                    trainingApi.recordOutcome({
-                        attackKey:"swarm_agent_survival",
-                        attackFamily:"swarm",
-                        bossPhase:"final",
-                        timeToImpactMs:0,
-                        heartX:c.x,heartY:c.y,velocityX:c.vx,velocityY:c.vy,
-                        chosenDirection:0,targetX:c.tx,targetY:c.ty,
-                        features:{
-                            agentId:c.id,alive:c.alive,score:Math.floor(c.score),
-                            damageDealt:Math.floor(c.damageDealt),damageTaken:Math.floor(c.damageTaken),
-                            hits:c.hits,dodges:c.dodges,completed:completed
-                        }
-                    },c.damageTaken>0?"hit":(c.alive?"evaded":"unknown"),c.damageTaken);
-                }catch(e){}
-            });
+
+        var resultRows = clones.map(function (agent) {
+            return {
+                id: agent.id,
+                score: Math.floor(agent.score),
+                damageDealt: Math.floor(agent.damageDealt),
+                damageTaken: Math.floor(agent.damageTaken),
+                hits: agent.hits,
+                dodges: agent.dodges,
+                decisions: agent.decisions,
+                failedDodges: agent.failedDodges,
+                alive: agent.alive,
+                personality: {
+                    aggression: Number(agent.aggression.toFixed(3)),
+                    riskTolerance: Number(agent.riskTolerance.toFixed(3)),
+                    preferredRange: Math.round(agent.preferredRange),
+                    movementSpeed: Number(agent.movementSpeed.toFixed(3))
+                }
+            };
+        });
+        damageLeaderboard = {
+            poolType: "parallel_primary_stands",
+            agentRole: "primary_stand",
+            agentCount: COUNT,
+            reason: reason,
+            completed: completed,
+            survivors: survivors.length,
+            totalHits: totalHits,
+            totalDodges: totalDodges,
+            totalDecisions: totalDecisions,
+            totalFailedDodges: totalFailedDodges,
+            totalDamage: Math.floor(totalDamage),
+            totalDamageTaken: Math.floor(totalTaken),
+            results: resultRows
+        };
+        window.__mbGERTrainingSwarmResults = damageLeaderboard;
+
+        var trainingApi = window.MBGERTraining;
+        if (trainingApi && typeof trainingApi.saveAgentResults === "function") {
+            window.__mbGERTrainingSwarmSavePromise = Promise.resolve(trainingSessionPromise)
+                .then(function () { return trainingApi.saveAgentResults(damageLeaderboard); })
+                .then(function (response) {
+                    console.info("[GER TRAINING] Persisted", response && response.savedAgents,
+                        "primary-agent result rows with the learning session.");
+                    return response;
+                })
+                .catch(function (error) {
+                    console.warn("[GER TRAINING] Agent results could not be saved yet:",
+                        error && error.message ? error.message : error);
+                    throw error;
+                });
         }
     }
     function tick(ts) {
@@ -568,15 +624,59 @@
     }
     function start() {
         if (active) return;
-        active=true; ended=false; lastAt=0; lastUiAt=0; zeroHpSince=0;
+        active = true;
+        ended = false;
+        lastAt = 0;
+        lastUiAt = 0;
+        zeroHpSince = 0;
+        trainingDecisionOrder = 0;
         window.__mbGERTrainingSwarmActive = true;
+        window.__mbGERTrainingSwarmSavePromise = null;
         loadSwarmGERImage();
-        clones=[]; for(var i=0;i<COUNT;i++)clones.push(createAgent(i));
-        makeOverlay(); makePanel(); lockPlayerInput();
-        lastBossHp=null;
-        if(!window.__mbGERTrainingIsolationTimer) window.__mbGERTrainingIsolationTimer=window.setInterval(skipOpeningMoments,80);
-        raf=window.requestAnimationFrame(tick);
-        console.info("[GER SWARM] Started 50 independent primary GER agents. Player input and player damage are disabled.");
+
+        var ctx = context();
+        var bossKey = normalizeTrainingKey(window.__mbGERTrainingBossKey || (ctx && ctx.type) || "unknown", "unknown").slice(0, 64);
+        var trainingApi = window.MBGERTraining;
+        if (trainingApi && typeof trainingApi.start === "function") {
+            trainingSessionPromise = trainingApi.start(bossKey, {
+                arenaMode: ctx && ctx.type ? ctx.type : "unknown",
+                gameVersion: "ger-dodge-training-3",
+                trainingMode: true,
+                trainingProfile: "parallel_primary_stands",
+                agentRole: "primary_stand",
+                agentCount: COUNT
+            }).then(function (result) {
+                if (typeof trainingApi.annotateSession === "function") {
+                    return trainingApi.annotateSession({
+                        trainingPool: "parallel_primary_stands",
+                        agentRole: "primary_stand",
+                        agentCount: COUNT,
+                        trainingProfileVersion: "ger-parallel-v1"
+                    }).then(function () { return result; });
+                }
+                return result;
+            }).catch(function (error) {
+                console.warn("[GER TRAINING] Could not start persistent 50-agent session:",
+                    error && error.message ? error.message : error);
+                throw error;
+            });
+            window.__mbGERTrainingSwarmStartPromise = trainingSessionPromise;
+        } else {
+            trainingSessionPromise = Promise.resolve(null);
+            console.warn("[GER TRAINING] Persistent learning client is unavailable.");
+        }
+
+        clones = [];
+        for (var i = 0; i < COUNT; i++) clones.push(createAgent(i));
+        makeOverlay();
+        makePanel();
+        lockPlayerInput();
+        lastBossHp = null;
+        if (!window.__mbGERTrainingIsolationTimer) {
+            window.__mbGERTrainingIsolationTimer = window.setInterval(skipOpeningMoments, 80);
+        }
+        raf = window.requestAnimationFrame(tick);
+        console.info("[GER TRAINING] Started 50 independent primary GER agents. Player input and player damage are disabled.");
     }
     function stop(reason) {
         if(!active)return;
