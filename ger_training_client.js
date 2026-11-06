@@ -12,6 +12,8 @@
     var finishPromise = null;
     var flushTimer = 0;
     var queue = [];
+    var pendingAgentResults = null;
+    var agentResultsPromise = null;
     var sessionOwnerId = null;
     var clientSessionId = null;
     var persistTimer = 0;
@@ -35,6 +37,7 @@
                 clientSessionId: clientSessionId,
                 bossKey: activeBossKey,
                 queue: queue,
+                pendingAgentResults: pendingAgentResults,
                 savedAt: Date.now()
             }));
         } catch (error) {
@@ -63,7 +66,10 @@
             clientSessionId = typeof saved.clientSessionId === "string" ? saved.clientSessionId : null;
             activeBossKey = typeof saved.bossKey === "string" ? saved.bossKey : null;
             queue = Array.isArray(saved.queue) ? saved.queue : [];
-            console.info("[GER training] Restored", queue.length, "pending samples from local recovery.");
+            pendingAgentResults = saved.pendingAgentResults && typeof saved.pendingAgentResults === "object"
+                ? saved.pendingAgentResults : null;
+            console.info("[GER training] Restored", queue.length, "pending samples and",
+                pendingAgentResults ? "a pending agent summary" : "no pending agent summary", "from local recovery.");
         } catch (error) {
             console.warn("[GER training] Could not restore local recovery copy:", error && error.message ? error.message : error);
         }
@@ -146,11 +152,12 @@
     }
 
     function scheduleFlush() {
-        if (flushTimer || !sessionId || !queue.length) return;
+        if (flushTimer || !sessionId || (!queue.length && !pendingAgentResults)) return;
         var delay = queue.length >= 40 ? 180 : retryDelay;
         flushTimer = window.setTimeout(function () {
             flushTimer = 0;
-            flush();
+            if (pendingAgentResults) saveAgentResults(pendingAgentResults);
+            else flush();
         }, delay);
     }
 
@@ -327,18 +334,39 @@
     }
 
     async function saveAgentResults(results) {
+        if (results && typeof results === "object") {
+            pendingAgentResults = results;
+            schedulePersist();
+        }
         if (startPromise) {
             try { await startPromise; } catch (_error) {}
         }
-        if (!sessionId || !results || typeof results !== "object") return false;
-        try {
-            var response = await post({ action: "agent_results", sessionId: sessionId, results: results });
-            if (!response || response.ok !== true) throw new Error("agent_results_not_acknowledged");
-            return response;
-        } catch (error) {
-            console.warn("[GER training] Parallel-agent results remain unsaved:", error && error.message ? error.message : error);
-            throw error;
-        }
+        if (!sessionId || !pendingAgentResults) return false;
+        if (agentResultsPromise) return agentResultsPromise;
+        agentResultsPromise = (async function () {
+            try {
+                var response = await post({
+                    action: "agent_results",
+                    sessionId: sessionId,
+                    results: pendingAgentResults
+                });
+                if (!response || response.ok !== true) throw new Error("agent_results_not_acknowledged");
+                pendingAgentResults = null;
+                retryDelay = 300;
+                persistPending();
+                return response;
+            } catch (error) {
+                retryDelay = Math.min(10000, Math.max(600, retryDelay * 2));
+                console.warn("[GER training] Parallel-agent results remain queued for retry:",
+                    error && error.message ? error.message : error);
+                schedulePersist();
+                scheduleFlush();
+                return false;
+            }
+        })().finally(function () {
+            agentResultsPromise = null;
+        });
+        return agentResultsPromise;
     }
 
     function recordOutcome(sample, outcome, damageTaken) {
@@ -362,13 +390,20 @@
         if (startPromise) {
             try { await startPromise; } catch (_error) {}
         }
-        if (!sessionId) return queue.length === 0;
+        if (!sessionId) return queue.length === 0 && !pendingAgentResults;
 
         finishPromise = (async function () {
             try {
                 if (flushTimer) {
                     window.clearTimeout(flushTimer);
                     flushTimer = 0;
+                }
+                if (pendingAgentResults) {
+                    var savedAgents = await saveAgentResults(pendingAgentResults);
+                    if (!savedAgents || pendingAgentResults) {
+                        scheduleFlush();
+                        return false;
+                    }
                 }
                 var sent = await flushAll();
                 if (!sent || queue.length) {
@@ -387,6 +422,7 @@
                 clientSessionId = null;
                 sessionOwnerId = null;
                 queue = [];
+                pendingAgentResults = null;
                 return true;
             } catch (error) {
                 console.warn("[GER training] Could not finish training session:", error && error.message ? error.message : error);
