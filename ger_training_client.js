@@ -429,19 +429,23 @@
             scheduleFlush();
             return false;
         }
+        // If a previous checkpoint is uploading, keep the newest snapshot queued.
+        // The active upload only clears the snapshot it actually sent.
         if (agentResultsPromise) return agentResultsPromise;
+        var submittedSnapshot = pendingAgentResults;
+        var submittedSessionId = sessionId;
         agentResultsPromise = (async function () {
             try {
                 var response = await post({
                     action: "agent_results",
-                    sessionId: sessionId,
-                    results: pendingAgentResults
+                    sessionId: submittedSessionId,
+                    results: submittedSnapshot
                 });
                 if (!response || response.ok !== true) throw new Error("agent_results_not_acknowledged");
-                pendingAgentResults = null;
+                if (pendingAgentResults === submittedSnapshot) pendingAgentResults = null;
                 retryDelay = 300;
                 persistPending();
-                if (queue.length) scheduleFlush();
+                if (queue.length || pendingAgentResults) scheduleFlush();
                 return response;
             } catch (error) {
                 retryDelay = Math.min(10000, Math.max(600, retryDelay * 2));
@@ -453,6 +457,7 @@
             }
         })().finally(function () {
             agentResultsPromise = null;
+            if (pendingAgentResults) scheduleFlush();
         });
         return agentResultsPromise;
     }
