@@ -1091,10 +1091,26 @@
         raf = window.requestAnimationFrame(tick);
         console.info("[GER TRAINING] Started 100 independent primary GER agents. Player input and player damage are disabled.");
     }
+    function restoreTrainingPlayerProtection() {
+        // These timers are temporarily raised so the parked human heart cannot
+        // consume boss attacks before the 100 simulated agents see them.
+        try { if (typeof livingStoneInvulnTimer !== "undefined") livingStoneInvulnTimer = 0; } catch (e) {}
+        try { if (typeof waystarInvulnTimer !== "undefined") waystarInvulnTimer = 0; } catch (e) {}
+        try {
+            var rwbPlayer = typeof window.getRWBPlayer === "function" ? window.getRWBPlayer() : null;
+            if (rwbPlayer) rwbPlayer.invulnTimer = 0;
+        } catch (e) {}
+        try {
+            var antiPlayer = typeof window.getAntiSpiralBossPlayer === "function" ? window.getAntiSpiralBossPlayer() : null;
+            if (antiPlayer) antiPlayer.invuln = 0;
+        } catch (e) {}
+        window.__mbGERTrainingWaystarDashHazard = null;
+    }
     function stop(reason) {
         if(!active)return;
         active=false;
         window.__mbGERTrainingSwarmActive = false;
+        restoreTrainingPlayerProtection();
         unlockPlayerInput();
         if(raf)window.cancelAnimationFrame(raf);
         raf=0;lastAt=0;
