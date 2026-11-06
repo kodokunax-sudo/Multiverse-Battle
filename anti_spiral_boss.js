@@ -3078,6 +3078,8 @@
                             }
                         }
                         const line=beamPoints(a.angle||0);
+                        a.x1=line.x1;a.y1=line.y1;a.x2=line.x2;a.y2=line.y2;
+                        a.width=66;a.state="warning";
                         c.save();c.lineCap="round";
                         c.globalAlpha=a.locked?.34:.2;c.strokeStyle="#a66bff";c.lineWidth=66;
                         c.setLineDash(a.locked?[15,8]:[8,10]);
@@ -3098,6 +3100,8 @@
                         a.life-=asTimeScale;
                         const line=beamPoints(a.angle||0);
                         const beamWidth=62;
+                        a.x1=line.x1;a.y1=line.y1;a.x2=line.x2;a.y2=line.y2;
+                        a.width=beamWidth;a.state="active";
                         c.save();c.lineCap="round";
                         c.globalAlpha=.26;c.strokeStyle="#a15cff";c.lineWidth=beamWidth+28;
                         c.beginPath();c.moveTo(line.x1,line.y1);c.lineTo(line.x2,line.y2);c.stroke();
