@@ -67,8 +67,10 @@
     }
     function allowExit(ev) {
         var t = ev && ev.target;
+        var label = t && String(t.textContent || "").toLowerCase();
         return !!(t && (t.id === "bossTestExitFightBtn" || (t.closest && t.closest("#bossTestExitFightBtn")) ||
-            t.id === "gerTrainingStopBtn" || (t.closest && t.closest("#gerTrainingStopBtn"))));
+            t.id === "gerTrainingStopBtn" || (t.closest && t.closest("#gerTrainingStopBtn")) ||
+            (t.tagName === "BUTTON" && label.indexOf("выйти") !== -1)));
     }
     function blockInput(ev) {
         if (!active || allowExit(ev)) return;
