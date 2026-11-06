@@ -356,7 +356,7 @@
                 if (trainingApi && typeof trainingApi.getDirectionStats === "function") {
                     var direction = trainingDirection(agent.x, agent.y, tx, ty);
                     var learned = trainingApi.getDirectionStats(
-                        normalizeTrainingKey(window.__mbGERTrainingBossKey || (context() && context().type), "unknown"),
+                        trainingBossKey,
                         attackKey, direction
                     );
                     var count = Number(learned && learned.sample_count) || 0;
@@ -367,7 +367,7 @@
                     }
                     if (typeof trainingApi.getContextStats === "function") {
                         var contextStats = trainingApi.getContextStats(
-                            normalizeTrainingKey(window.__mbGERTrainingBossKey || (context() && context().type), "unknown"),
+                            trainingBossKey,
                             attackKey, trainingContext.positionBucket,
                             trainingContext.hazardBucket, trainingContext.wallBucket, direction
                         );
@@ -390,38 +390,43 @@
         var api = window.MBGERTraining;
         if (!api || typeof api.recordOutcome !== "function") return false;
         var attack = pending && pending.source || {};
-        var rawKey = attack.type || attack.kind || attack.attackType || (pending && pending.kind) || "unknown";
+        var rawKey = attack.type || attack.kind || attack.attackType ||
+            (pending && pending.attackType) || (pending && pending.kind) || "unknown";
         if (attack.attackKind) rawKey += "_" + String(attack.attackKind);
+        var startX = pending && Number.isFinite(Number(pending.startX)) ? Number(pending.startX) : c.x;
+        var startY = pending && Number.isFinite(Number(pending.startY)) ? Number(pending.startY) : c.y;
+        var targetX = pending && Number.isFinite(Number(pending.targetX)) ? Number(pending.targetX) : c.tx;
+        var targetY = pending && Number.isFinite(Number(pending.targetY)) ? Number(pending.targetY) : c.ty;
         var direction = pending && Number.isFinite(Number(pending.direction))
-            ? pending.direction : trainingDirection(c.x, c.y, c.tx, c.ty);
-        var startX = pending && Number.isFinite(Number(pending.startX)) ? pending.startX : c.x;
-        var startY = pending && Number.isFinite(Number(pending.startY)) ? pending.startY : c.y;
-        var targetX = pending && Number.isFinite(Number(pending.targetX)) ? pending.targetX : c.tx;
-        var targetY = pending && Number.isFinite(Number(pending.targetY)) ? pending.targetY : c.ty;
+            ? Number(pending.direction) : trainingDirection(startX, startY, targetX, targetY);
+        var snapshot = Object.assign({}, c, {x: startX, y: startY});
+        var learnedContext = agentTrainingContext(snapshot, boss, attacks, waves);
         c.decisions++;
         return api.recordOutcome({
             attackKey: normalizeTrainingKey(rawKey, "unknown"),
             attackFamily: normalizeTrainingKey(attack.attackFamily || rawKey, "unknown").slice(0, 40),
-            bossPhase: normalizeTrainingKey(attack.bossPhase || attack.phase || (ctx && ctx.type), "unknown").slice(0, 32),
-            heartX: startX, heartY: startY,
+            bossPhase: normalizeTrainingKey(attack.bossPhase || attack.phase ||
+                attack.phaseIndex || (ctx && ctx.phase) || (ctx && ctx.type), "unknown").slice(0, 32),
+            timeToImpactMs: Math.max(0, Math.round((Number(pending && pending.timeToImpactFrames) || 0) * 16.667)),
+            heartX: startX,
+            heartY: startY,
             velocityX: Number(pending && pending.velocityX) || c.vx,
             velocityY: Number(pending && pending.velocityY) || c.vy,
             chosenDirection: direction,
-            targetX: targetX, targetY: targetY,
-            features: {
+            targetX: targetX,
+            targetY: targetY,
+            features: Object.assign({}, learnedContext, {
                 sampleType: "dodge",
                 agentId: c.id,
                 agentRole: "primary_stand",
                 decisionOrder: ++trainingDecisionOrder,
-                positionBucket: positionBucket(startX, startY, boss),
-                hazardBucket: hazardBucket(attacks, waves),
-                wallBucket: wallBucket(startX, startY),
                 threatKind: pending && pending.kind || "attack",
+                aiSkill: Number(c.aiSkill.toFixed(3)),
                 aggression: Number(c.aggression.toFixed(3)),
                 riskTolerance: Number(c.riskTolerance.toFixed(3)),
                 preferredRange: Math.round(c.preferredRange),
                 movementSpeed: Number(c.movementSpeed.toFixed(3))
-            }
+            })
         }, outcome, damage || 0);
     }
     function isThreatTelegraph(attack) {
@@ -447,7 +452,9 @@
         return {
             source: threat.source,
             kind: threat.kind,
+            attackType: threat.attackType || null,
             startedAt: time,
+            timeToImpactFrames: Math.max(0, Number(threat.time) || 0),
             startX: c.x,
             startY: c.y,
             velocityX: c.vx,
@@ -509,10 +516,11 @@
             c.nextDecisionAt = time + c.reactionMs + Math.random() * 70;
         }
 
-        var incoming = findThreatAt(attacks, waves, c.x + c.vx * 4, c.y + c.vy * 4, 4, true) ||
-            findThreatAt(attacks, waves, c.x, c.y, 0, true);
+        // Predict the agent's actual trajectory, then choose an escape route using
+        // the same danger model and saved direction/context statistics as the main GER.
+        var incoming = findIncomingAgentThreat(c, boss, attacks, waves);
         if (incoming) {
-            var safe = chooseTarget(c, boss, attacks, waves);
+            var safe = chooseDodgeTarget(c, boss, attacks, waves, incoming);
             c.tx = safe.x;
             c.ty = safe.y;
             incoming.safeTarget = safe;
@@ -525,18 +533,31 @@
                 c.pendingDodge.targetX = safe.x;
                 c.pendingDodge.targetY = safe.y;
                 c.pendingDodge.direction = trainingDirection(c.x, c.y, safe.x, safe.y);
+                c.pendingDodge.timeToImpactFrames = Math.max(0, Number(incoming.time) || 0);
             }
             c.nextDecisionAt = time + c.reactionMs * 0.55;
         }
 
         var dx = c.tx - c.x, dy = c.ty - c.y;
-        var len = Math.hypot(dx,dy) || 1;
-        var baseSpeed = Math.min(3.6, Math.max(0.7, len * 0.09));
-        var speed = baseSpeed * c.movementSpeed;
-        c.vx += (dx / len * speed - c.vx) * 0.18;
-        c.vy += (dy / len * speed - c.vy) * 0.18;
-        c.x = clamp(c.x + c.vx * frameScale, 12, 388);
-        c.y = clamp(c.y + c.vy * frameScale, 12, 488);
+        var distanceToGoal = Math.hypot(dx, dy);
+        var maxSpeed = Math.max(0.5, Math.min(8, 3.6 * c.movementSpeed));
+        var desiredSpeed = distanceToGoal < 3 ? 0 : Math.min(maxSpeed, Math.max(0.45, distanceToGoal * 0.22));
+        var desiredVx = distanceToGoal > 0 ? dx / distanceToGoal * desiredSpeed : 0;
+        var desiredVy = distanceToGoal > 0 ? dy / distanceToGoal * desiredSpeed : 0;
+        var steering = 0.17 + Math.max(0.14, Math.min(1, Number(c.aiSkill) || 0.62)) * 0.13;
+        c.vx += (desiredVx - c.vx) * steering;
+        c.vy += (desiredVy - c.vy) * steering;
+        var currentSpeed = Math.hypot(c.vx, c.vy);
+        if (currentSpeed > maxSpeed) {
+            c.vx = c.vx / currentSpeed * maxSpeed;
+            c.vy = c.vy / currentSpeed * maxSpeed;
+        }
+        var nextX = c.x + c.vx * frameScale;
+        var nextY = c.y + c.vy * frameScale;
+        c.x = clamp(nextX, 18, 382);
+        c.y = clamp(nextY, 8, 482);
+        if (c.x !== nextX) c.vx *= -0.18;
+        if (c.y !== nextY) c.vy *= -0.18;
 
         if (c.pendingDodge && time - c.pendingDodge.startedAt >= 150 &&
             !pendingThreatStillActive(c.pendingDodge, c, attacks, waves)) {
@@ -868,6 +889,10 @@
                 agentRole: "primary_stand",
                 agentCount: COUNT
             }).then(function (result) {
+                if (typeof trainingApi.getTrainingSkill === "function") {
+                    var learnedSkill = Math.max(0.62, Math.min(0.88, trainingApi.getTrainingSkill(bossKey)));
+                    agents.forEach(function (agent) { agent.aiSkill = learnedSkill; });
+                }
                 if (typeof trainingApi.annotateSession === "function") {
                     return trainingApi.annotateSession({
                         trainingPool: "parallel_primary_stands",
