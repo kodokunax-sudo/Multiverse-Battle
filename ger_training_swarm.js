@@ -19,6 +19,8 @@
     var trainingSessionPromise = null;
     var trainingBossKey = "unknown";
     var lastAgentCheckpointAt = 0;
+    var lastOverlayLayoutAt = 0;
+    var lastSimulationAt = 0;
 
     function now() { return window.performance && performance.now ? performance.now() : Date.now(); }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -46,7 +48,10 @@
             attackCooldownMs: 720 + Math.random() * 520,
             orbitDirection: i % 2 ? 1 : -1,
             pendingDodge: null,
-            nextAttackAt: now() + Math.random() * 900, nextDecisionAt: 0,
+            nextAttackAt: now() + Math.random() * 900,
+            nextDecisionAt: 0,
+            nextThreatCheckAt: now() + (i % 10) * 7,
+            nextHitCheckAt: now() + (i % 4) * 8,
             lastHitAt: 0, flashUntil: 0, attackUntil: 0, attackTargetX: 200, attackTargetY: 130,
             impactUntil: 0, impactX: 0, impactY: 0, phase: Math.random() * Math.PI * 2
         };
@@ -63,9 +68,13 @@
         document.body.appendChild(overlay);
         overlayCtx = overlay.getContext("2d");
     }
-    function placeOverlay() {
+    function placeOverlay(force) {
+        if (!overlay) return;
+        var time = now();
+        if (!force && time - lastOverlayLayoutAt < 350) return;
+        lastOverlayLayoutAt = time;
         var canvas = document.getElementById("arenaCanvas");
-        if (!canvas || !overlay) return;
+        if (!canvas) return;
         var r = canvas.getBoundingClientRect();
         overlay.style.left = r.left + "px";
         overlay.style.top = r.top + "px";
@@ -139,16 +148,15 @@
     }
     function chooseTarget(c, boss, attacks, waves) {
         var best = null, bestScore = -Infinity;
-        for (var k = 0; k < 12; k++) {
-            var a = k * Math.PI / 6 + c.phase + c.orbitDirection * (c.id % 3) * 0.09;
+        var riskWeight = 0.75 + (1 - c.riskTolerance) * 1.65;
+        for (var k = 0; k < 8; k++) {
+            var a = k * Math.PI / 4 + c.phase + c.orbitDirection * (c.id % 3) * 0.09;
             var d = c.preferredRange + ((k % 3) - 1) * 17;
             var x = clamp(boss.x + Math.cos(a) * d, 20, 380);
             var y = clamp(boss.y + Math.sin(a) * d, 20, 480);
             var score = -Math.hypot(x - c.x, y - c.y) * 0.06;
-            var riskWeight = 0.75 + (1 - c.riskTolerance) * 1.65;
             if (dangerAt(attacks, waves, x, y, 0)) score -= 140 * riskWeight;
-            if (dangerAt(attacks, waves, x, y, 8)) score -= 90 * riskWeight;
-            if (dangerAt(attacks, waves, x, y, 18)) score -= 45 * riskWeight;
+            if (dangerAt(attacks, waves, x, y, 12)) score -= 90 * riskWeight;
             score += Math.min(30, Math.min(x - 20, 380 - x, y - 20, 480 - y)) * 0.2;
             score += (c.aggression - 1) * (145 - d) * 0.035;
             score += Math.random() * (1.5 + c.riskTolerance * 4);
@@ -226,80 +234,82 @@
         };
     }
     function predictAgentRoute(agent, targetX, targetY, futureTimes) {
-        var maxTime = Math.max.apply(null, futureTimes);
-        var wanted = Object.create(null);
-        for (var i = 0; i < futureTimes.length; i++) wanted[futureTimes[i]] = true;
         var route = [];
         var maxSpeed = Math.max(0.5, Math.min(8, 3.6 * agent.movementSpeed));
         var skill = Math.max(0.14, Math.min(1, Number(agent.aiSkill) || 0.62));
         var steering = 0.17 + skill * 0.13;
         var x = Number(agent.x) || 0, y = Number(agent.y) || 0;
         var vx = Number(agent.vx) || 0, vy = Number(agent.vy) || 0;
-        for (var frame = 0; frame <= maxTime; frame++) {
-            if (wanted[frame]) route.push({time:frame,x:x,y:y});
-            if (frame === maxTime) break;
-            var dx = targetX - x, dy = targetY - y;
-            var distance = Math.hypot(dx, dy);
-            var desiredSpeed = distance < 3 ? 0 : Math.min(maxSpeed, Math.max(0.45, distance * 0.22));
-            var desiredVx = distance > 0 ? dx / distance * desiredSpeed : 0;
-            var desiredVy = distance > 0 ? dy / distance * desiredSpeed : 0;
-            vx += (desiredVx - vx) * steering;
-            vy += (desiredVy - vy) * steering;
-            var currentSpeed = Math.hypot(vx, vy);
-            if (currentSpeed > maxSpeed) {
-                vx = vx / currentSpeed * maxSpeed;
-                vy = vy / currentSpeed * maxSpeed;
+        var previousTime = 0;
+
+        for (var i = 0; i < futureTimes.length; i++) {
+            var targetTime = Math.max(previousTime, Number(futureTimes[i]) || 0);
+            var remaining = targetTime - previousTime;
+            // Integrate in 6-frame chunks instead of simulating every frame.
+            while (remaining > 0) {
+                var step = Math.min(6, remaining);
+                var dx = targetX - x, dy = targetY - y;
+                var distance = Math.hypot(dx, dy);
+                var desiredSpeed = distance < 3 ? 0 : Math.min(maxSpeed, Math.max(0.45, distance * 0.22));
+                var desiredVx = distance > 0 ? dx / distance * desiredSpeed : 0;
+                var desiredVy = distance > 0 ? dy / distance * desiredSpeed : 0;
+                var blend = 1 - Math.pow(1 - steering, step);
+                var oldVx = vx, oldVy = vy;
+                vx += (desiredVx - vx) * blend;
+                vy += (desiredVy - vy) * blend;
+                var currentSpeed = Math.hypot(vx, vy);
+                if (currentSpeed > maxSpeed) {
+                    vx = vx / currentSpeed * maxSpeed;
+                    vy = vy / currentSpeed * maxSpeed;
+                }
+                var nextX = x + (oldVx + vx) * 0.5 * step;
+                var nextY = y + (oldVy + vy) * 0.5 * step;
+                x = clamp(nextX, 18, 382);
+                y = clamp(nextY, 8, 482);
+                if (x !== nextX) vx *= -0.18;
+                if (y !== nextY) vy *= -0.18;
+                remaining -= step;
             }
-            var nextX = x + vx, nextY = y + vy;
-            x = clamp(nextX, 18, 382);
-            y = clamp(nextY, 8, 482);
-            if (x !== nextX) vx *= -0.18;
-            if (y !== nextY) vy *= -0.18;
+            route.push({time:targetTime,x:x,y:y});
+            previousTime = targetTime;
         }
         return route;
     }
     function findIncomingAgentThreat(agent, boss, attacks, waves) {
         var skill = Math.max(0.14, Math.min(1, Number(agent.aiSkill) || 0.62));
         var horizon = Math.round(168 + skill * 66);
-        var times = [0,2,4,7,11,16,23,32,44,58,74,92,116,145,horizon];
-        var coastX = clamp(agent.x + (Number(agent.vx) || 0) * 9, 18, 382);
-        var coastY = clamp(agent.y + (Number(agent.vy) || 0) * 9, 8, 482);
-        var routes = [
-            predictAgentRoute(agent, agent.tx, agent.ty, times),
-            predictAgentRoute(agent, coastX, coastY, times)
-        ];
+        var times = [0,5,12,22,36,54,76,104,138,178,horizon];
+        var route = predictAgentRoute(agent, agent.tx, agent.ty, times);
         var earliest = null;
         var bestTime = Infinity;
-        for (var r = 0; r < routes.length; r++) {
-            var route = routes[r];
-            for (var a = attacks.length - 1; a >= 0; a--) {
-                for (var p = 0; p < route.length; p++) {
-                    var point = route[p];
-                    var risk = getThreat(attacks[a], point.x, point.y, point.time, true);
-                    if (risk && point.time < bestTime) {
-                        bestTime = point.time;
-                        earliest = {
-                            source: attacks[a], kind: "attack", info: risk,
-                            time: point.time, attackType: attacks[a].type || attacks[a].kind,
-                            predictedX: point.x, predictedY: point.y
-                        };
-                        break;
-                    }
+
+        for (var a = attacks.length - 1; a >= 0; a--) {
+            for (var p = 0; p < route.length; p++) {
+                var point = route[p];
+                var risk = getThreat(attacks[a], point.x, point.y, point.time, true);
+                if (risk && point.time < bestTime) {
+                    bestTime = point.time;
+                    earliest = {
+                        source: attacks[a], kind: "attack", info: risk,
+                        time: point.time, attackType: attacks[a].type || attacks[a].kind,
+                        predictedX: point.x, predictedY: point.y
+                    };
+                    break;
                 }
             }
-            for (var w = waves.length - 1; w >= 0; w--) {
-                for (var wp = 0; wp < route.length; wp++) {
-                    var wavePoint = route[wp];
-                    var waveRisk = waveThreatAt(waves[w], wavePoint.x, wavePoint.y, wavePoint.time, true);
-                    if (waveRisk && wavePoint.time < bestTime) {
-                        bestTime = wavePoint.time;
-                        earliest = {
-                            source: waves[w], kind: "shockwave", info: waveRisk,
-                            time: wavePoint.time, attackType: "shockwave",
-                            predictedX: wavePoint.x, predictedY: wavePoint.y
-                        };
-                        break;
-                    }
+        }
+        for (var w = waves.length - 1; w >= 0; w--) {
+            for (var wp = 0; wp < route.length; wp++) {
+                var wavePoint = route[wp];
+                var waveRisk = waveThreatAt(waves[w], wavePoint.x, wavePoint.y, wavePoint.time, true);
+                if (waveRisk && wavePoint.time < bestTime) {
+                    bestTime = wavePoint.time;
+                    earliest = {
+                        source: waves[w], kind: "shockwave", info: waveRisk,
+                        time: wavePoint.time, attackType: "shockwave",
+                        predictedX: wavePoint.x, predictedY: wavePoint.y
+                    };
+                    break;
                 }
             }
         }
@@ -307,10 +317,11 @@
     }
     function chooseDodgeTarget(agent, boss, attacks, waves, incoming) {
         var left = 24, right = 376, top = 18, bottom = 474;
-        var distances = [76,112,152,188];
-        var futureTimes = [0,4,8,13,20,29,41,56,74];
+        var distances = [92,152];
+        var futureTimes = [0,8,18,32,50,72];
         var currentSpeed = Math.hypot(Number(agent.vx)||0, Number(agent.vy)||0);
         var trainingApi = window.MBGERTraining;
+        var bossKey = getCurrentTrainingBossKey();
         var attack = incoming && incoming.source || {};
         var rawKey = attack.type || attack.kind || attack.attackType ||
             (incoming && incoming.attackType) || "unknown";
@@ -320,8 +331,8 @@
         var best = null, bestScore = -Infinity;
 
         for (var d = 0; d < distances.length; d++) {
-            for (var k = 0; k < 24; k++) {
-                var angle = k * Math.PI * 2 / 24;
+            for (var k = 0; k < 12; k++) {
+                var angle = k * Math.PI * 2 / 12;
                 var tx = clamp(agent.x + Math.cos(angle) * distances[d], left, right);
                 var ty = clamp(agent.y + Math.sin(angle) * distances[d], top, bottom);
                 var route = predictAgentRoute(agent, tx, ty, futureTimes);
@@ -365,7 +376,7 @@
                 if (trainingApi && typeof trainingApi.getDirectionStats === "function") {
                     var direction = trainingDirection(agent.x, agent.y, tx, ty);
                     var learned = trainingApi.getDirectionStats(
-                        getCurrentTrainingBossKey(),
+                        bossKey,
                         attackKey, direction
                     );
                     var count = Number(learned && learned.sample_count) || 0;
@@ -376,7 +387,7 @@
                     }
                     if (typeof trainingApi.getContextStats === "function") {
                         var contextStats = trainingApi.getContextStats(
-                            getCurrentTrainingBossKey(),
+                            bossKey,
                             attackKey, trainingContext.positionBucket,
                             trainingContext.hazardBucket, trainingContext.wallBucket, direction
                         );
@@ -527,7 +538,11 @@
 
         // Predict the agent's actual trajectory, then choose an escape route using
         // the same danger model and saved direction/context statistics as the main GER.
-        var incoming = findIncomingAgentThreat(c, boss, attacks, waves);
+        var incoming = null;
+        if (time >= c.nextThreatCheckAt) {
+            incoming = findIncomingAgentThreat(c, boss, attacks, waves);
+            c.nextThreatCheckAt = time + 48 + (c.id % 7) * 5;
+        }
         if (incoming) {
             var safe = chooseDodgeTarget(c, boss, attacks, waves, incoming);
             c.tx = safe.x;
@@ -576,7 +591,11 @@
             c.pendingDodge = null;
         }
 
-        var actualHit = findThreatAt(attacks, waves, c.x, c.y, 0, false);
+        var actualHit = null;
+        if (time >= c.nextHitCheckAt) {
+            actualHit = findThreatAt(attacks, waves, c.x, c.y, 0, false);
+            c.nextHitCheckAt = time + 28 + (c.id % 4) * 4;
+        }
         if (actualHit && time - c.lastHitAt > 500) {
             c.lastHitAt = time;
             var hitAttack = actualHit.source || {};
@@ -690,84 +709,92 @@
             }
         }
     }
-    var swarmGERImage = null;
-    var swarmGERImageReady = false;
-    function loadSwarmGERImage() {
-        if (swarmGERImage || typeof window.Image !== "function") return;
-        swarmGERImage = new Image();
-        swarmGERImage.onload = function () { swarmGERImageReady = true; };
-        swarmGERImage.onerror = function () { swarmGERImageReady = false; };
-        swarmGERImage.src = "Model/голден експириес рквием.jpg";
-    }
-    function drawAgent(c, p, time) {
-        var pulse = 0.94 + Math.sin(time / 185 + p.phase) * 0.035;
-        var attacking = p.attackUntil > time;
-        var attackProgress = attacking ? 1 - Math.max(0, p.attackUntil - time) / 360 : 0;
-        var targetX = Number(p.attackTargetX) || p.x;
-        var targetY = Number(p.attackTargetY) || p.y;
-        var angle = Math.atan2(targetY - p.y, targetX - p.x);
-        var hitFlash = p.flashUntil > time;
-        c.save();
-        c.globalAlpha = hitFlash ? 1 : pulse;
-        c.translate(p.x, p.y + Math.sin(time / 120 + p.phase) * 1.1);
-        c.rotate(Math.sin(time / 310 + p.phase) * 0.025 + (attacking ? Math.cos(angle) * 0.08 : 0));
-        if (swarmGERImageReady) {
-            var iw = swarmGERImage.naturalWidth || swarmGERImage.width;
-            var ih = swarmGERImage.naturalHeight || swarmGERImage.height;
-            var fit = Math.min(54 / iw, 66 / ih);
-            var w = iw * fit, h = ih * fit;
-            c.save();
-            c.scale(attacking ? 1.04 : 1, attacking ? 0.97 : 1);
-            c.shadowColor = hitFlash ? "#ffffff" : "#d6a83e";
-            c.shadowBlur = hitFlash ? 14 : 5;
-            c.drawImage(swarmGERImage, -w / 2, -h / 2, w, h);
-            c.restore();
-        } else {
-            c.fillStyle = "#e9b83f";
-            c.strokeStyle = "#704516";
-            c.lineWidth = 2;
-            c.beginPath(); c.ellipse(0, 0, 13, 18, 0, 0, Math.PI * 2); c.fill(); c.stroke();
-            c.fillStyle = "#76df88";
-            c.beginPath(); c.arc(0, -13, 4, 0, Math.PI * 2); c.fill();
-        }
-        // The original GER's collision radius is max(20, heartSize * 1.3).
-        // The swarm uses the same 20px radius, not the old tiny decorative dot.
-        c.strokeStyle = "rgba(255,225,120,.28)";
-        c.lineWidth = 1;
-        c.beginPath(); c.arc(0, 0, 20, 0, Math.PI * 2); c.stroke();
+    function drawAgent(ctx, agent, time) {
+        var hitFlash = agent.flashUntil > time;
+        var attacking = agent.attackUntil > time;
+        var moving = Math.min(1, Math.hypot(agent.vx, agent.vy) / 3.8);
+        var step = Math.sin(time * 0.014 + agent.phase) * moving * 2.2;
+        var gold = hitFlash ? "#fff4cf" : "#d8ac42";
+        var darkGold = hitFlash ? "#fffdf1" : "#76501d";
+        var lightGold = hitFlash ? "#ffffff" : "#f4d77d";
+
+        ctx.save();
+        ctx.translate(agent.x, agent.y);
+        ctx.globalAlpha = agent.alive ? 0.98 : 0.35;
+
+        // Collision radius visual, kept at the same 20px as the stand hitbox.
+        ctx.strokeStyle = "rgba(255,225,120,.22)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Simple humanoid stand silhouette. No downloaded image, filters, or shadows.
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = darkGold;
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.moveTo(-3, 7);
+        ctx.lineTo(-5 - step, 15);
+        ctx.moveTo(3, 7);
+        ctx.lineTo(5 + step, 15);
+        ctx.moveTo(-6, -6);
+        ctx.lineTo(-12 - step * 0.5, 1);
+        ctx.moveTo(6, -6);
+        ctx.lineTo(12 + step * 0.5, 1);
+        ctx.stroke();
+
+        ctx.fillStyle = gold;
+        ctx.strokeStyle = darkGold;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-6, -8);
+        ctx.lineTo(6, -8);
+        ctx.lineTo(7, 5);
+        ctx.lineTo(4, 9);
+        ctx.lineTo(-4, 9);
+        ctx.lineTo(-7, 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, -12, 4.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = lightGold;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(-3, -4);
+        ctx.lineTo(3, -4);
+        ctx.moveTo(-2, 2);
+        ctx.lineTo(2, 2);
+        ctx.stroke();
+
         if (attacking) {
-            var reach = 24 + Math.sin(attackProgress * Math.PI) * 70;
-            var fistX = Math.cos(angle) * reach;
-            var fistY = Math.sin(angle) * reach;
-            c.save();
-            c.globalCompositeOperation = "lighter";
-            c.globalAlpha = 0.9;
-            c.strokeStyle = "#ffe49a";
-            c.lineWidth = 8;
-            c.lineCap = "round";
-            c.shadowColor = "#ffc34d";
-            c.shadowBlur = 15;
-            c.beginPath(); c.moveTo(7, 1); c.lineTo(fistX, fistY); c.stroke();
-            c.fillStyle = "#fff0b0";
-            c.beginPath(); c.arc(fistX, fistY, 7, 0, Math.PI * 2); c.fill();
-            c.restore();
+            var angle = Math.atan2(
+                (Number(agent.attackTargetY) || agent.y) - agent.y,
+                (Number(agent.attackTargetX) || agent.x) - agent.x
+            );
+            ctx.strokeStyle = lightGold;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(7, -5);
+            ctx.lineTo(7 + Math.cos(angle) * 14, -5 + Math.sin(angle) * 14);
+            ctx.stroke();
         }
-        c.restore();
-        if (p.impactUntil > time) {
-            var age = 1 - (p.impactUntil - time) / 260;
-            c.save();
-            c.globalCompositeOperation = "lighter";
-            c.globalAlpha = 1 - age;
-            c.strokeStyle = "#fff1a6";
-            c.lineWidth = 3;
-            c.shadowColor = "#ffbd43";
-            c.shadowBlur = 16;
-            c.beginPath(); c.arc(p.impactX, p.impactY, 7 + age * 24, 0, Math.PI * 2); c.stroke();
-            c.fillStyle = "#fff8d7";
-            c.font = "900 11px Arial";
-            c.textAlign = "center";
-            c.fillText("HIT!", p.impactX, p.impactY - 15 - age * 12);
-            c.restore();
+        ctx.restore();
+
+        // Tiny impact marker, without bloom, text, or expensive compositing.
+        if (agent.impactUntil > time) {
+            var age = 1 - (agent.impactUntil - time) / 260;
+            ctx.strokeStyle = "rgba(255,235,170," + (1 - age) + ")";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(agent.impactX, agent.impactY, 5 + age * 10, 0, Math.PI * 2);
+            ctx.stroke();
         }
     }
     function draw() {
@@ -917,14 +944,18 @@
         }
     }
     function tick(ts) {
-        raf=0;
-        if(!active)return;
-        var t=Number(ts)||now();
-        var dt=lastAt?clamp(t-lastAt,1,40):16.667;
-        lastAt=t;
-        update(dt);
+        raf = 0;
+        if (!active) return;
+        var t = Number(ts) || now();
+        if (!lastAt) lastAt = t;
+        var elapsed = t - lastAt;
+        // 30Hz simulation; drawing remains on the browser's normal animation cadence.
+        if (elapsed >= 33) {
+            update(clamp(elapsed, 1, 66));
+            lastAt = t;
+        }
         draw();
-        raf=window.requestAnimationFrame(tick);
+        raf = window.requestAnimationFrame(tick);
     }
     function skipOpeningMoments() {
         if (!active || !window.__mbGERTrainingMode) return;
@@ -951,13 +982,14 @@
         active = true;
         ended = false;
         lastAt = 0;
+        lastSimulationAt = 0;
+        lastOverlayLayoutAt = 0;
         lastUiAt = 0;
         zeroHpSince = 0;
         trainingDecisionOrder = 0;
         lastAgentCheckpointAt = now();
         window.__mbGERTrainingSwarmActive = true;
         window.__mbGERTrainingSwarmSavePromise = null;
-        loadSwarmGERImage();
 
         var ctx = context();
         var bossKey = normalizeTrainingKey(window.__mbGERTrainingBossKey || (ctx && ctx.type) || "unknown", "unknown").slice(0, 64);
