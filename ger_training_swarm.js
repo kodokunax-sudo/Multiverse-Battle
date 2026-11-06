@@ -427,7 +427,7 @@
     }
     function start() {
         if (active) return;
-        active=true; ended=false; lastAt=0; lastUiAt=0; zeroHpSince=0;\n        loadSwarmGERImage();
+        active=true; ended=false; lastAt=0; lastUiAt=0; zeroHpSince=0;\n        window.__mbGERTrainingSwarmActive = true;\n        loadSwarmGERImage();
         clones=[]; for(var i=0;i<COUNT;i++)clones.push(createClone(i));
         makeOverlay(); makePanel(); lockPlayerInput();
         lastBossHp=null;
