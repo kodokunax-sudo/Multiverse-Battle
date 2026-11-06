@@ -354,6 +354,7 @@
                 pendingAgentResults = null;
                 retryDelay = 300;
                 persistPending();
+                if (queue.length) scheduleFlush();
                 return response;
             } catch (error) {
                 retryDelay = Math.min(10000, Math.max(600, retryDelay * 2));
