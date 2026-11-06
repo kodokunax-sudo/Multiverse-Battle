@@ -2836,8 +2836,9 @@
             // Same fitting rule as Oden: keep the source aspect ratio inside a compact sprite box.
             var sourceWidth = standImage.width || standImage.naturalWidth;
             var sourceHeight = standImage.height || standImage.naturalHeight;
-            var maxImageWidth = 15 * 2.8;
-            var maxImageHeight = 15 * 3.05;
+            // Keep the main GER unmistakable above the 50 tiny training copies.
+            var maxImageWidth = 15 * 3.6;
+            var maxImageHeight = 15 * 4.4;
             var imageScale = Math.min(maxImageWidth / sourceWidth, maxImageHeight / sourceHeight);
             var imageWidth = sourceWidth * imageScale;
             var imageHeight = sourceHeight * imageScale;
@@ -2856,7 +2857,7 @@
             c.globalAlpha = hitFlash ? 0.82 : 0.99;
             c.globalCompositeOperation = "source-over";
             c.shadowColor = hitFlash ? "#ffffff" : (healing ? "#8bffbd" : "#d6a83e");
-            c.shadowBlur = hitFlash ? 8 : 2;
+            c.shadowBlur = hitFlash ? 9 : 5;
             c.drawImage(standImage, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight);
             if (hitFlash) {
                 c.save();
