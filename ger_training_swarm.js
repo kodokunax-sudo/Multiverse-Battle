@@ -162,17 +162,229 @@
     function trainingDirection(x1, y1, x2, y2) {
         return (Math.round(Math.atan2(y2 - y1, x2 - x1) / (Math.PI / 4)) + 8) % 8;
     }
-    function positionBucket(x, y, boss) {
-        var dx = x - boss.x, dy = y - boss.y;
-        return (dy < -22 ? "above" : (dy > 22 ? "below" : "level")) + "_" +
-            (dx < -22 ? "left" : (dx > 22 ? "right" : "center"));
+    function agentTrainingContext(agent, boss, attacks, waves) {
+        // Match the primary GER context buckets so the main brain and the 50-agent
+        // pool learn from the same situations rather than incompatible labels.
+        var bossDistance = Math.hypot(agent.x - boss.x, agent.y - boss.y);
+        var position = "s" + trainingDirection(boss.x, boss.y, agent.x, agent.y);
+        var bossRange = bossDistance < 100 ? "close" : (bossDistance < 210 ? "mid" : "far");
+        var wallDistance = Math.max(0, Math.min(
+            agent.x - 24, 376 - agent.x, agent.y - 18, 474 - agent.y
+        ));
+        var wall = wallDistance < 42 ? "edge" : (wallDistance < 92 ? "near" : "open");
+        var nearestHazard = Infinity;
+        var nearbyHazards = 0;
+        for (var i = 0; i < attacks.length; i++) {
+            var attack = attacks[i];
+            if (!attack || attack.state === "done") continue;
+            var ax = Number.isFinite(Number(attack.x)) ? Number(attack.x) : Number(attack.targetX);
+            var ay = Number.isFinite(Number(attack.y)) ? Number(attack.y) : Number(attack.targetY);
+            if (!Number.isFinite(ax) || !Number.isFinite(ay)) continue;
+            var radius = Math.max(0, Number(attack.radius) || 0);
+            var width = Math.max(6, Number(attack.width) || Number(attack.size) || 14);
+            var height = Math.max(6, Number(attack.height) || Number(attack.size) || width);
+            var halfW = radius > 0 ? radius : width * 0.5;
+            var halfH = radius > 0 ? radius : height * 0.5;
+            var dx = Math.max(0, Math.abs(agent.x - ax) - halfW);
+            var dy = Math.max(0, Math.abs(agent.y - ay) - halfH);
+            var distance = Math.hypot(dx, dy);
+            if (distance < nearestHazard) nearestHazard = distance;
+            if (distance < 145) nearbyHazards++;
+        }
+        for (var w = 0; w < waves.length; w++) {
+            var wave = waves[w];
+            if (!wave || wave.odenHit) continue;
+            var waveDistance = Math.abs(
+                Math.hypot(agent.x - (Number(wave.x) || 0), agent.y - (Number(wave.y) || 0)) -
+                Math.max(0, Number(wave.radius) || 0)
+            );
+            if (waveDistance < nearestHazard) nearestHazard = waveDistance;
+            if (waveDistance < 145) nearbyHazards++;
+        }
+        var hazard = !Number.isFinite(nearestHazard) ? "clear" :
+            (nearestHazard < 58 ? "near" : (nearestHazard < 138 ? "mid" : "far"));
+        return {
+            positionBucket: position,
+            bossRangeBucket: bossRange,
+            hazardBucket: hazard,
+            wallBucket: wall,
+            bossDistance: Math.round(bossDistance),
+            bossDx: Number(Math.max(-1, Math.min(1, (agent.x - boss.x) / 200)).toFixed(2)),
+            bossDy: Number(Math.max(-1, Math.min(1, (agent.y - boss.y) / 250)).toFixed(2)),
+            nearestHazardDistance: Number.isFinite(nearestHazard) ? Math.round(nearestHazard) : null,
+            nearbyHazards: nearbyHazards,
+            nearestWallDistance: Math.round(wallDistance)
+        };
     }
-    function hazardBucket(attacks, waves) {
-        var count = attacks.length + waves.length;
-        return count <= 2 ? "low" : (count <= 6 ? "medium" : "high");
+    function predictAgentRoute(agent, targetX, targetY, futureTimes) {
+        var maxTime = Math.max.apply(null, futureTimes);
+        var wanted = Object.create(null);
+        for (var i = 0; i < futureTimes.length; i++) wanted[futureTimes[i]] = true;
+        var route = [];
+        var maxSpeed = Math.max(0.5, Math.min(8, 3.6 * agent.movementSpeed));
+        var skill = Math.max(0.14, Math.min(1, Number(agent.aiSkill) || 0.62));
+        var steering = 0.17 + skill * 0.13;
+        var x = Number(agent.x) || 0, y = Number(agent.y) || 0;
+        var vx = Number(agent.vx) || 0, vy = Number(agent.vy) || 0;
+        for (var frame = 0; frame <= maxTime; frame++) {
+            if (wanted[frame]) route.push({time:frame,x:x,y:y});
+            if (frame === maxTime) break;
+            var dx = targetX - x, dy = targetY - y;
+            var distance = Math.hypot(dx, dy);
+            var desiredSpeed = distance < 3 ? 0 : Math.min(maxSpeed, Math.max(0.45, distance * 0.22));
+            var desiredVx = distance > 0 ? dx / distance * desiredSpeed : 0;
+            var desiredVy = distance > 0 ? dy / distance * desiredSpeed : 0;
+            vx += (desiredVx - vx) * steering;
+            vy += (desiredVy - vy) * steering;
+            var currentSpeed = Math.hypot(vx, vy);
+            if (currentSpeed > maxSpeed) {
+                vx = vx / currentSpeed * maxSpeed;
+                vy = vy / currentSpeed * maxSpeed;
+            }
+            var nextX = x + vx, nextY = y + vy;
+            x = clamp(nextX, 18, 382);
+            y = clamp(nextY, 8, 482);
+            if (x !== nextX) vx *= -0.18;
+            if (y !== nextY) vy *= -0.18;
+        }
+        return route;
     }
-    function wallBucket(x, y) {
-        return Math.min(x, 400 - x, y, 500 - y) < 42 ? "near" : "far";
+    function findIncomingAgentThreat(agent, boss, attacks, waves) {
+        var skill = Math.max(0.14, Math.min(1, Number(agent.aiSkill) || 0.62));
+        var horizon = Math.round(168 + skill * 66);
+        var times = [0,2,4,7,11,16,23,32,44,58,74,92,116,145,horizon];
+        var coastX = clamp(agent.x + (Number(agent.vx) || 0) * 9, 18, 382);
+        var coastY = clamp(agent.y + (Number(agent.vy) || 0) * 9, 8, 482);
+        var routes = [
+            predictAgentRoute(agent, agent.tx, agent.ty, times),
+            predictAgentRoute(agent, coastX, coastY, times)
+        ];
+        var earliest = null;
+        var bestTime = Infinity;
+        for (var r = 0; r < routes.length; r++) {
+            var route = routes[r];
+            for (var a = attacks.length - 1; a >= 0; a--) {
+                for (var p = 0; p < route.length; p++) {
+                    var point = route[p];
+                    var risk = getThreat(attacks[a], point.x, point.y, point.time, true);
+                    if (risk && point.time < bestTime) {
+                        bestTime = point.time;
+                        earliest = {
+                            source: attacks[a], kind: "attack", info: risk,
+                            time: point.time, attackType: attacks[a].type || attacks[a].kind,
+                            predictedX: point.x, predictedY: point.y
+                        };
+                        break;
+                    }
+                }
+            }
+            for (var w = waves.length - 1; w >= 0; w--) {
+                for (var wp = 0; wp < route.length; wp++) {
+                    var wavePoint = route[wp];
+                    var waveRisk = waveThreatAt(waves[w], wavePoint.x, wavePoint.y, wavePoint.time, true);
+                    if (waveRisk && wavePoint.time < bestTime) {
+                        bestTime = wavePoint.time;
+                        earliest = {
+                            source: waves[w], kind: "shockwave", info: waveRisk,
+                            time: wavePoint.time, attackType: "shockwave",
+                            predictedX: wavePoint.x, predictedY: wavePoint.y
+                        };
+                        break;
+                    }
+                }
+            }
+        }
+        return earliest;
+    }
+    function chooseDodgeTarget(agent, boss, attacks, waves, incoming) {
+        var left = 24, right = 376, top = 18, bottom = 474;
+        var distances = [76,112,152,188];
+        var futureTimes = [0,4,8,13,20,29,41,56,74];
+        var currentSpeed = Math.hypot(Number(agent.vx)||0, Number(agent.vy)||0);
+        var trainingApi = window.MBGERTraining;
+        var attack = incoming && incoming.source || {};
+        var rawKey = attack.type || attack.kind || attack.attackType ||
+            (incoming && incoming.attackType) || "unknown";
+        if (attack.attackKind) rawKey += "_" + String(attack.attackKind);
+        var attackKey = normalizeTrainingKey(rawKey, "unknown");
+        var trainingContext = agentTrainingContext(agent, boss, attacks, waves);
+        var best = null, bestScore = -Infinity;
+
+        for (var d = 0; d < distances.length; d++) {
+            for (var k = 0; k < 24; k++) {
+                var angle = k * Math.PI * 2 / 24;
+                var tx = clamp(agent.x + Math.cos(angle) * distances[d], left, right);
+                var ty = clamp(agent.y + Math.sin(angle) * distances[d], top, bottom);
+                var route = predictAgentRoute(agent, tx, ty, futureTimes);
+                var score = 0, collisions = 0;
+                for (var p = 0; p < route.length; p++) {
+                    var point = route[p];
+                    for (var a = attacks.length - 1; a >= 0; a--) {
+                        if (getThreat(attacks[a], point.x, point.y, point.time, true)) {
+                            collisions++;
+                            score -= p < 2 ? 132 : 92;
+                        }
+                    }
+                    for (var w = waves.length - 1; w >= 0; w--) {
+                        if (waveThreatAt(waves[w], point.x, point.y, point.time, true)) {
+                            collisions++;
+                            score -= p < 2 ? 118 : 84;
+                        }
+                    }
+                }
+                if (collisions === 0) score += 330;
+                else score -= collisions * 24;
+                if (incoming && incoming.info) {
+                    score += Math.min(220, Math.hypot(tx - (Number(incoming.info.x)||0),
+                        ty - (Number(incoming.info.y)||0))) * 0.42;
+                }
+                if (currentSpeed > 0.8) {
+                    var routeDx = tx - agent.x, routeDy = ty - agent.y;
+                    var routeLength = Math.hypot(routeDx, routeDy) || 1;
+                    var alignment = ((Number(agent.vx)||0) * routeDx + (Number(agent.vy)||0) * routeDy) /
+                        Math.max(1, currentSpeed * routeLength);
+                    score += alignment * 12;
+                }
+                var continuity = Math.hypot(tx - agent.tx, ty - agent.ty);
+                score -= Math.min(80, continuity) * 0.035;
+                var margin = Math.min(tx-left,right-tx,ty-top,bottom-ty);
+                score += Math.min(28, Math.max(0, margin)) * 0.55;
+                var bossDistance = Math.hypot(tx - boss.x, ty - boss.y);
+                if (bossDistance < 92) score -= (92 - bossDistance) * 1.8;
+                else score += Math.min(70, bossDistance - 92) * 0.08;
+
+                if (trainingApi && typeof trainingApi.getDirectionStats === "function") {
+                    var direction = trainingDirection(agent.x, agent.y, tx, ty);
+                    var learned = trainingApi.getDirectionStats(
+                        normalizeTrainingKey(window.__mbGERTrainingBossKey || (context() && context().type), "unknown"),
+                        attackKey, direction
+                    );
+                    var count = Number(learned && learned.sample_count) || 0;
+                    if (count >= 5) {
+                        var success = ((Number(learned.evaded_count)||0) +
+                            (Number(learned.blocked_count)||0) * 0.72 + 1) / (count + 2);
+                        score += (success - 0.5) * 34 * Math.min(1, count / 28);
+                    }
+                    if (typeof trainingApi.getContextStats === "function") {
+                        var contextStats = trainingApi.getContextStats(
+                            normalizeTrainingKey(window.__mbGERTrainingBossKey || (context() && context().type), "unknown"),
+                            attackKey, trainingContext.positionBucket,
+                            trainingContext.hazardBucket, trainingContext.wallBucket, direction
+                        );
+                        var contextCount = Number(contextStats && contextStats.sample_count) || 0;
+                        if (contextCount >= 3) {
+                            var contextSuccess = ((Number(contextStats.evaded_count)||0) +
+                                (Number(contextStats.blocked_count)||0) * 0.72 + 1) / (contextCount + 2);
+                            score += (contextSuccess - 0.5) * 50 * Math.min(1, contextCount / 14);
+                        }
+                    }
+                }
+                score += Math.random() * (1.5 + agent.riskTolerance * 2);
+                if (score > bestScore) bestScore = score, best = {x:tx,y:ty,safe:collisions===0};
+            }
+        }
+        return best || {x:clamp(agent.x + (agent.x < 200 ? 100 : -100),left,right),
+            y:clamp(agent.y - 55,top,bottom),safe:false};
     }
     function reportAgentOutcome(c, pending, outcome, damage, boss, attacks, waves, ctx) {
         var api = window.MBGERTraining;
