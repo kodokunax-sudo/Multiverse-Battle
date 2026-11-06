@@ -484,6 +484,7 @@ function waystarProgressDialog() {
 }
 
 function updateWaystarShooting() {
+    if (window.__mbGERTrainingMode) { waystarPlayerBullets.length = 0; return; }
     if (wsIsPlayerFrozen()) return;
 
     if (waystarState !== "phase1" && waystarState !== "phase3") return;
