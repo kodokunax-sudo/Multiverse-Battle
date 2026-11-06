@@ -1153,7 +1153,16 @@
         if (window.__mbGERTrainingMode === true && window.__mbGERTrainingBossKey) {
             return cleanCompanionTrainingKey(window.__mbGERTrainingBossKey, 64);
         }
-        return cleanCompanionTrainingKey(ctx && ctx.type, 64);
+        var liveType = cleanCompanionTrainingKey(ctx && ctx.type, 64);
+        // Match live bosses with the stable keys used by the training arena.
+        // This makes the 100-agent experience available in ordinary battles.
+        var trainingKeyByLiveBoss = {
+            stone: "ger_unique_200",
+            waystar: "ger_unique_500",
+            rwb: "ger_unique_1000",
+            stonesuper: "ger_unique_2000"
+        };
+        return trainingKeyByLiveBoss[liveType] || liveType;
     }
 
     function companionTrainingAttackKey(attack, fallback) {
