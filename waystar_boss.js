@@ -2110,6 +2110,7 @@ function drawWaystarSmallBoss() {
 }
 
 function drawWaystarPlayer() {
+    if (window.__mbGERTrainingMode) return;
     if (waystarInvulnTimer > 0 && Math.floor(waystarInvulnTimer / 3) % 2 === 0) return;
     ctx.save(); ctx.translate(waystarPlayer.x, waystarPlayer.y);
     var glow = ctx.createRadialGradient(0,0,1,0,0,22);
