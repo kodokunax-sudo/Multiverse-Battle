@@ -62,7 +62,7 @@
         panel = document.createElement("div");
         panel.id = "mbGERTrainingSwarmPanel";
         panel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;width:min(270px,calc(100vw - 24px));max-height:42vh;overflow:auto;padding:10px 12px;border:1px solid rgba(255,214,112,.65);border-radius:12px;background:rgba(9,12,20,.92);color:#fff2c6;font:700 11px/1.45 Arial,sans-serif;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
-        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER SWARM · 50 КОПИЙ + ОСНОВНОЙ GER</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
+        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER SWARM · 50 АВТОНОМНЫХ СТЕНДОВ</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
         document.body.appendChild(panel);
     }
     function allowExit(ev) {
@@ -144,9 +144,11 @@
         var before = currentBossHp(ctx);
         var ok = false;
         try {
+            window.__mbGERTrainingSwarmDamageInFlight = true;
             if (typeof ctx.damageBoss === "function") ok = ctx.damageBoss(damage) !== false;
             else if (typeof window.MBApplyBossDamage === "function") ok = window.MBApplyBossDamage(ctx, damage, "GER Swarm") > 0;
         } catch (e) {}
+        window.__mbGERTrainingSwarmDamageInFlight = false;
         var after = currentBossHp(ctx);
         var dealt = Math.max(0, before - after);
         if (dealt > 0) {
@@ -251,9 +253,28 @@
             c.fill();c.stroke();
             c.fillStyle="#fff0a8";
             c.beginPath();c.arc(0,-3.2,2.1,0,Math.PI*2);c.fill();
-            c.strokeStyle="rgba(255,238,164,.8)";
-            c.beginPath();c.moveTo(-3,2);c.lineTo(-5,5);c.moveTo(3,2);c.lineTo(5,5);c.stroke();
+            c.strokeStyle="#704516";
+            c.lineWidth=1.25;
+            c.beginPath();
+            c.moveTo(-2.1,-0.5); c.lineTo(-3.8,2.5);
+            c.moveTo(2.1,-0.5); c.lineTo(3.8,2.5);
+            c.moveTo(-2.2,2.5); c.lineTo(-3.2,5.6);
+            c.moveTo(2.2,2.5); c.lineTo(3.2,5.6);
+            c.stroke();
+            c.strokeStyle="#f5d477";
+            c.lineWidth=1.6;
+            c.beginPath();
+            c.moveTo(-2.1,-0.5); c.lineTo(-4.2,1.6);
+            c.moveTo(2.1,-0.5); c.lineTo(4.2,1.6);
+            c.stroke();
+            c.fillStyle="#8ee6a1";
+            c.beginPath(); c.arc(0,-6.2,1.15,0,Math.PI*2); c.fill();
             c.restore();
+        }
+        // Draw the full GER model on the persistent overlay, not on the boss canvas
+        // that is cleared again by each unique-boss render loop.
+        if (typeof window.MBDrawGoldExperience === "function") {
+            try { window.MBDrawGoldExperience(c); } catch (e) {}
         }
     }
     function updatePanel(ctx) {
@@ -325,7 +346,7 @@
         lastBossHp=null;
         if(!window.__mbGERTrainingIsolationTimer) window.__mbGERTrainingIsolationTimer=window.setInterval(skipOpeningMoments,80);
         raf=window.requestAnimationFrame(tick);
-        console.info("[GER SWARM] Started 50 lightweight stand copies. Player input is locked.");
+        console.info("[GER SWARM] Started 50 lightweight autonomous stands. Player input and player damage are disabled.");
     }
     function stop(reason) {
         if(!active)return;
