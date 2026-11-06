@@ -1,4 +1,4 @@
-/* GER Training Swarm: 50 lightweight autonomous copies for unique-boss testing. */
+/* GER Training Pool: 50 independent primary GER agents learning in parallel. */
 (function () {
     "use strict";
     var COUNT = 50;
