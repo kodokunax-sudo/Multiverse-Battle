@@ -450,16 +450,17 @@ function getBossContext() {
                 if (dash && !dash.hit) {
                     var progress = Math.max(0, Math.min(1,
                         (Number(dash.progress) || 0) / Math.max(1, Number(dash.duration) || 1)));
-                    list.push({
-                        type: "waystar_dash",
-                        x: Number(dash.startX) + (Number(dash.targetX) - Number(dash.startX)) * progress,
-                        y: Number(dash.startY) + (Number(dash.targetY) - Number(dash.startY)) * progress,
-                        size: 26,
-                        radius: 26,
-                        damage: Number(dash.damage) || 20,
-                        state: "active",
-                        _mbTrainingSynthetic: true
-                    });
+                    var dashHazard = window.__mbGERTrainingWaystarDashHazard;
+                    if (!dashHazard) {
+                        dashHazard = { type: "waystar_dash", size: 26, radius: 26, state: "active", _mbTrainingSynthetic: true };
+                        window.__mbGERTrainingWaystarDashHazard = dashHazard;
+                    }
+                    dashHazard.x = Number(dash.startX) + (Number(dash.targetX) - Number(dash.startX)) * progress;
+                    dashHazard.y = Number(dash.startY) + (Number(dash.targetY) - Number(dash.startY)) * progress;
+                    dashHazard.damage = Number(dash.damage) || 20;
+                    list.push(dashHazard);
+                } else {
+                    window.__mbGERTrainingWaystarDashHazard = null;
                 }
                 return list;
             },
