@@ -158,8 +158,9 @@
     function updateClone(c, ctx, boss, attacks, waves, time, frameScale) {
         if (!c.alive) return;
         if (time >= c.nextDecisionAt) {
-            c.tx = chooseTarget(c, boss, attacks, waves).x;
-            c.ty = chooseTarget(c, boss, attacks, waves).y;
+            var chosen = chooseTarget(c, boss, attacks, waves);
+            c.tx = chosen.x;
+            c.ty = chosen.y;
             c.nextDecisionAt = time + 120 + Math.random() * 120;
         }
         var threatened = dangerAt(attacks, waves, c.x, c.y, 0) ||
@@ -196,7 +197,7 @@
         }
     }
     function update(dt) {
-        if (!active) return;
+        if (!active || ended) return;
         var ctx = context();
         if (!ctx || !ctx.getAttacks || !ctx.getBossPosition) return;
         var time = now();
@@ -279,21 +280,13 @@
     }
     function skipOpeningMoments() {
         try {
-            if (Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave)===200 &&
-                window.livingStoneState==="opening_intro" && typeof window.finishLivingStoneOpeningIntro==="function") {
-                window.finishLivingStoneOpeningIntro();
-            }
-            if (Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave)===500 &&
-                window.waystarState==="dialogue") window.waystarState="phase1";
-            if (Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave)===2000 &&
-                window.__mbLS2TrainingSkipIntro) window.__mbLS2TrainingSkipIntro();
-            if (Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave)===2000 &&
-                window.MBIsLivingStoneChaseActive && window.MBIsLivingStoneChaseActive() &&
+            var wave = Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave);
+            if (wave===200 && typeof window.MBGERTrainingTickLivingStone==="function") window.MBGERTrainingTickLivingStone();
+            if (wave===500 && typeof window.MBGERTrainingSkipWaystarScenes==="function") window.MBGERTrainingSkipWaystarScenes();
+            if (wave===1000 && typeof window.MBGERTrainingSkipRWBScenes==="function") window.MBGERTrainingSkipRWBScenes();
+            if (wave===2000 && window.__mbLS2TrainingSkipIntro) window.__mbLS2TrainingSkipIntro();
+            if (wave===2000 && window.MBIsLivingStoneChaseActive && window.MBIsLivingStoneChaseActive() &&
                 typeof window.MBSkipLivingStoneChase==="function") window.MBSkipLivingStoneChase();
-            if (Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave)===200 &&
-                window.qteActive && typeof window.handleQTEClick==="function") {
-                for(var n=0;n<120 && window.qteActive;n++) window.handleQTEClick();
-            }
         } catch(e) {}
     }
     function start() {
