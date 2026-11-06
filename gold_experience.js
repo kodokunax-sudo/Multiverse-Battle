@@ -443,7 +443,7 @@
         var cx = Number(wave.x) || 0, cy = Number(wave.y) || 0;
         var distance = Math.hypot(x - cx, y - cy);
         var limit = (Number(wave.width) || 5) * 0.7 +
-            getCompanionSize(null) * 0.72 + (alert ? 34 : 0);
+            (window.__mbGERTrainingSwarmActive ? Math.max(20, getCompanionSize(null) * 1.3) : getCompanionSize(null) * 0.72) + (alert ? 34 : 0);
         if (Math.abs(distance - radius) >= limit) return null;
         return { x: cx, y: cy, axis: "point", distance: Math.abs(distance - radius), attack: wave };
     }
@@ -483,7 +483,7 @@
         if (telegraph && !alert) return null;
 
         var t = Math.max(0, Number(frames) || 0);
-        var body = getCompanionSize(null) * 0.72;
+        var body = window.__mbGERTrainingSwarmActive ? Math.max(20, getCompanionSize(null) * 1.3) : getCompanionSize(null) * 0.72;
         var padding = alert ? 38 : 0;
         var ax = Number.isFinite(Number(attack.x)) ? Number(attack.x) : Number(attack.targetX);
         var ay = Number.isFinite(Number(attack.y)) ? Number(attack.y) : Number(attack.targetY);
