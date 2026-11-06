@@ -1016,7 +1016,7 @@
         if (trainingApi && typeof trainingApi.start === "function") {
             trainingSessionPromise = trainingApi.start(bossKey, {
                 arenaMode: ctx && ctx.type ? ctx.type : "unknown",
-                gameVersion: "ger-dodge-training-3",
+                gameVersion: "ger-dodge-training-4",
                 trainingMode: true,
                 trainingProfile: "parallel_primary_stands",
                 agentRole: "primary_stand",
@@ -1031,7 +1031,7 @@
                         trainingPool: "parallel_primary_stands",
                         agentRole: "primary_stand",
                         agentCount: COUNT,
-                        trainingProfileVersion: "ger-parallel-v1"
+                        trainingProfileVersion: "ger-parallel-v2-100"
                     }).then(function () { return result; });
                 }
                 return result;
