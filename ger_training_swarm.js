@@ -76,7 +76,7 @@
         panel = document.createElement("div");
         panel.id = "mbGERTrainingSwarmPanel";
         panel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;width:min(270px,calc(100vw - 24px));max-height:42vh;overflow:auto;padding:10px 12px;border:1px solid rgba(255,214,112,.65);border-radius:12px;background:rgba(9,12,20,.92);color:#fff2c6;font:700 11px/1.45 Arial,sans-serif;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
-        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER SWARM · 50 КОПИЙ + ОСНОВНОЙ GER</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание +1 · полученный урон −5 · выживание +150 · лучший урон +120 · максимум полученного урона −120</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
+        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 50 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание +1 · полученный урон −5 · выживание +150 · лучший урон +120 · максимум полученного урона −120</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
         document.body.appendChild(panel);
     }
     function allowExit(ev) {
@@ -294,43 +294,63 @@
             var chosen = chooseTarget(c, boss, attacks, waves);
             c.tx = chosen.x;
             c.ty = chosen.y;
-            c.nextDecisionAt = time + 120 + Math.random() * 120;
+            c.nextDecisionAt = time + c.reactionMs + Math.random() * 70;
         }
-        var threatened = dangerAt(attacks, waves, c.x, c.y, 0) ||
-            dangerAt(attacks, waves, c.x + c.vx * 4, c.y + c.vy * 4, 4);
-        if (threatened) {
+
+        var incoming = findThreatAt(attacks, waves, c.x + c.vx * 4, c.y + c.vy * 4, 4, true) ||
+            findThreatAt(attacks, waves, c.x, c.y, 0, true);
+        if (incoming) {
             var safe = chooseTarget(c, boss, attacks, waves);
-            c.tx = safe.x; c.ty = safe.y;
-            c.nextDecisionAt = time + 80;
-            if (!c.wasThreatened) {
-                c.dodges++;
-                c.score += 1;
+            c.tx = safe.x;
+            c.ty = safe.y;
+            incoming.safeTarget = safe;
+            if (!c.pendingDodge || c.pendingDodge.source !== incoming.source) {
+                c.pendingDodge = createDodgeDecision(c, incoming, time);
+            } else {
+                c.pendingDodge.targetX = safe.x;
+                c.pendingDodge.targetY = safe.y;
+                c.pendingDodge.direction = trainingDirection(c.x, c.y, safe.x, safe.y);
             }
-            c.wasThreatened = true;
-        } else {
-            c.wasThreatened = false;
+            c.nextDecisionAt = time + c.reactionMs * 0.55;
         }
+
         var dx = c.tx - c.x, dy = c.ty - c.y;
         var len = Math.hypot(dx,dy) || 1;
-        var speed = Math.min(3.6, Math.max(0.7, len * 0.09));
+        var baseSpeed = Math.min(3.6, Math.max(0.7, len * 0.09));
+        var speed = baseSpeed * c.movementSpeed;
         c.vx += (dx / len * speed - c.vx) * 0.18;
         c.vy += (dy / len * speed - c.vy) * 0.18;
         c.x = clamp(c.x + c.vx * frameScale, 12, 388);
         c.y = clamp(c.y + c.vy * frameScale, 12, 488);
 
-        var activeHit = null;
-        for (var hi=0; hi<attacks.length && !activeHit; hi++) activeHit = getThreat(attacks[hi], c.x, c.y, 0, false);
-        if ((activeHit || waves.some(function(w){return w && !w.odenHit && Math.abs(Math.hypot(c.x-(Number(w.x)||0),c.y-(Number(w.y)||0))-(Number(w.radius)||0)) < (Number(w.width)||8)*0.7+12;})) && time - c.lastHitAt > 500) {
+        if (c.pendingDodge && time - c.pendingDodge.startedAt >= 150 &&
+            !pendingThreatStillActive(c.pendingDodge, c, attacks, waves)) {
+            reportAgentOutcome(c, c.pendingDodge, "evaded", 0, boss, attacks, waves, ctx);
+            c.dodges++;
+            c.score += 3;
+            c.pendingDodge = null;
+        }
+
+        var actualHit = findThreatAt(attacks, waves, c.x, c.y, 0, false);
+        if (actualHit && time - c.lastHitAt > 500) {
             c.lastHitAt = time;
-            var damage = Math.max(1, Number(activeHit && activeHit.attack && activeHit.attack.damage) || 10);
+            var hitAttack = actualHit.source || {};
+            var damage = Math.max(1, Number(hitAttack.damage) || 10);
+            var hitDecision = c.pendingDodge && c.pendingDodge.source === actualHit.source
+                ? c.pendingDodge : createDodgeDecision(c, actualHit, time);
+            reportAgentOutcome(c, hitDecision, "hit", damage, boss, attacks, waves, ctx);
+            c.failedDodges++;
+            if (c.pendingDodge && c.pendingDodge.source === actualHit.source) c.pendingDodge = null;
             c.damageTaken += damage;
             c.hp--;
             c.score -= 5;
             c.flashUntil = time + 180;
             if (c.hp <= 0) { c.alive = false; c.score -= 10; }
         }
-        if (c.alive && time >= c.nextAttackAt && Math.hypot(c.x - boss.x, c.y - boss.y) <= 142) {
-            if (dealDamage(ctx, c)) c.nextAttackAt = time + 850 + Math.random() * 250;
+
+        if (c.alive && time >= c.nextAttackAt &&
+            Math.hypot(c.x - boss.x, c.y - boss.y) <= 142 + (c.aggression - 1) * 22) {
+            if (dealDamage(ctx, c)) c.nextAttackAt = time + c.attackCooldownMs + Math.random() * 250;
             else c.nextAttackAt = time + 450;
         }
     }
@@ -551,12 +571,12 @@
         active=true; ended=false; lastAt=0; lastUiAt=0; zeroHpSince=0;
         window.__mbGERTrainingSwarmActive = true;
         loadSwarmGERImage();
-        clones=[]; for(var i=0;i<COUNT;i++)clones.push(createClone(i));
+        clones=[]; for(var i=0;i<COUNT;i++)clones.push(createAgent(i));
         makeOverlay(); makePanel(); lockPlayerInput();
         lastBossHp=null;
         if(!window.__mbGERTrainingIsolationTimer) window.__mbGERTrainingIsolationTimer=window.setInterval(skipOpeningMoments,80);
         raf=window.requestAnimationFrame(tick);
-        console.info("[GER SWARM] Started 50 lightweight autonomous stands. Player input and player damage are disabled.");
+        console.info("[GER SWARM] Started 50 independent primary GER agents. Player input and player damage are disabled.");
     }
     function stop(reason) {
         if(!active)return;
