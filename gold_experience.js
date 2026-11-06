@@ -14,6 +14,9 @@
     var GE_MUDA_SOUND = "sound/susmanz.mp3";
     var GER_DURATION = 5000;
     var GER_CHARGES = 2;
+    // GER's baseline tactical execution is always at maximum intelligence.
+    // Server learning changes his decisions, never his allowed skill level.
+    var GER_AI_SKILL = 0.99;
 
     var GER_MODEL_PATH = "Model/голден експириес рквием.jpg";
     var gerModelImage = null;
@@ -67,7 +70,7 @@
         healStartedAt: 0,
         stunTimer: 0,
         hitFlash: 0,
-        aiSkill: 0.62,
+        aiSkill: GER_AI_SKILL,
         moveTargetX: 200,
         moveTargetY: 360,
         wanderTimer: 42,
@@ -1334,10 +1337,9 @@
         })).then(function (result) {
             if (state.active && state.trainingBossKey === bossKey && result && result.sessionId) {
                 state.trainingSessionStarted = true;
-                var trainingApi = window.MBGERTraining;
-                if (trainingApi && typeof trainingApi.getTrainingSkill === "function") {
-                    state.aiSkill = Math.max(0.62, Math.min(0.88, trainingApi.getTrainingSkill(bossKey)));
-                }
+                // Training memory augments tactics. It must never downgrade GER's
+                // permanently maxed decision-making skill.
+                state.aiSkill = GER_AI_SKILL;
             }
         }).catch(function (error) {
             console.warn("[GER training] Start retry failed:", error && error.message ? error.message : error);
@@ -2276,7 +2278,7 @@
         var boss = target || getBossPosition(ctx, playerX, playerY);
 
         state.heartSize = getCompanionSize(ctx);
-        state.aiSkill = Math.min(0.99, Math.max(0.96, Number(state.aiSkill) || 0.96) + 0.0002 * frameScale);
+        state.aiSkill = GER_AI_SKILL;
 
         if (state.healState === "idle" && current >= (Number(state.healCooldownUntil) || 0) &&
             playerHp > 0 && playerHp < playerMaxHp * 0.40 && (Number(state.stunTimer) || 0) <= 0) {
@@ -3192,7 +3194,7 @@
         state.activeUntil = Infinity;
         state.stunTimer = 0;
         state.hitFlash = 0;
-        state.aiSkill = Math.max(0.62, Math.min(0.88, Number(state.aiSkill) || 0.62));
+        state.aiSkill = GER_AI_SKILL;
         state.trainingDamageSequence = 0;
         state.trainingDecisionSequence = 0;
         state.trainingDamageCooldownUntil = 0;
