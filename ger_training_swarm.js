@@ -636,6 +636,7 @@
                     personality: {
                         aggression: Number(agent.aggression.toFixed(3)),
                         riskTolerance: Number(agent.riskTolerance.toFixed(3)),
+                        aiSkill: Number((Number(agent.aiSkill) || 0.62).toFixed(3)),
                         preferredRange: Math.round(agent.preferredRange),
                         movementSpeed: Number(agent.movementSpeed.toFixed(3))
                     }
