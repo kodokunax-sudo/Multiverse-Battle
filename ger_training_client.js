@@ -267,9 +267,46 @@
             activeBossKey = null;
             clientSessionId = null;
             queue = [];
+            pendingAgentResults = null;
+            sessionOwnerId = null;
         }
         if (!sessionOwnerId) restorePending(online.user.id);
         sessionOwnerId = online.user.id;
+
+        // A recovered offline queue belongs to its original boss. Re-open that
+        // idempotent session, upload it, and close it before switching bosses.
+        if (!sessionId && activeBossKey && activeBossKey !== bossKey &&
+            (queue.length || pendingAgentResults)) {
+            try {
+                var previousBossKey = activeBossKey;
+                if (!clientSessionId) clientSessionId = makeUuid();
+                var recovered = await post({
+                    action: "start",
+                    clientSessionId: clientSessionId,
+                    bossKey: previousBossKey,
+                    gameVersion: "ger-dodge-training-3",
+                    arenaMode: "recovered_pending_upload",
+                    metadata: { recoveredPendingTraining: true }
+                });
+                if (!recovered || !recovered.sessionId) return null;
+                sessionId = recovered.sessionId;
+                activeBossKey = previousBossKey;
+                persistPending();
+                if (pendingAgentResults) {
+                    var summarySaved = await saveAgentResults(pendingAgentResults);
+                    if (!summarySaved || pendingAgentResults) return null;
+                }
+                var recoveredSamplesSent = await flushAll();
+                if (!recoveredSamplesSent || queue.length) return null;
+                var recoveredSessionClosed = await finish("aborted");
+                if (!recoveredSessionClosed) return null;
+                sessionOwnerId = online.user.id;
+            } catch (recoveryError) {
+                console.warn("[GER training] Could not recover the previous boss queue yet:",
+                    recoveryError && recoveryError.message ? recoveryError.message : recoveryError);
+                return null;
+            }
+        }
 
         if (sessionId && activeBossKey === bossKey) {
             await loadBrain(bossKey);
