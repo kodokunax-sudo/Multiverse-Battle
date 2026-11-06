@@ -15,6 +15,8 @@
     var zeroHpSince = 0;
     var damageLeaderboard = null;
     var ended = false;
+    var trainingDecisionOrder = 0;
+    var trainingSessionPromise = null;
 
     function now() { return window.performance && performance.now ? performance.now() : Date.now(); }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -22,17 +24,29 @@
         try { return typeof window.getBossContext === "function" ? window.getBossContext() : null; }
         catch (e) { return null; }
     }
-    function createClone(i) {
+    function createAgent(i) {
         var angle = i / COUNT * Math.PI * 2;
         var ring = 65 + (i % 5) * 16;
+        var style = i % 5;
+        var aggression = [0.62, 0.84, 1.02, 1.18, 1.38][style] + (Math.random() - 0.5) * 0.16;
+        var riskTolerance = [0.18, 0.34, 0.52, 0.7, 0.88][(i * 3) % 5] + (Math.random() - 0.5) * 0.08;
+        var preferredRange = [118, 100, 84, 72, 94][style] + (Math.random() - 0.5) * 16;
+        var movementSpeed = [0.92, 1.04, 1.12, 1.2, 0.99][(i * 2) % 5] + (Math.random() - 0.5) * 0.08;
         return {
             id: i + 1, x: clamp(200 + Math.cos(angle) * ring, 18, 382),
             y: clamp(315 + Math.sin(angle) * ring, 18, 482),
             vx: 0, vy: 0, tx: 200, ty: 260, hp: 3, maxHp: 3,
             alive: true, score: 0, damageDealt: 0, damageTaken: 0,
-            hits: 0, dodges: 0, wasThreatened: false, nextAttackAt: now() + Math.random() * 900, nextDecisionAt: 0,
-            nextHitAt: 0, lastHitAt: 0, lastHitKey: "", flashUntil: 0, attackUntil: 0, attackTargetX: 200, attackTargetY: 130, impactUntil: 0, impactX: 0, impactY: 0,
-            phase: Math.random() * Math.PI * 2
+            hits: 0, dodges: 0, failedDodges: 0, decisions: 0,
+            aggression: aggression, riskTolerance: clamp(riskTolerance, 0, 1),
+            preferredRange: preferredRange, movementSpeed: movementSpeed,
+            reactionMs: 75 + Math.random() * 115,
+            attackCooldownMs: 720 + Math.random() * 520,
+            orbitDirection: i % 2 ? 1 : -1,
+            pendingDodge: null,
+            nextAttackAt: now() + Math.random() * 900, nextDecisionAt: 0,
+            lastHitAt: 0, flashUntil: 0, attackUntil: 0, attackTargetX: 200, attackTargetY: 130,
+            impactUntil: 0, impactX: 0, impactY: 0, phase: Math.random() * Math.PI * 2
         };
     }
     function makeOverlay() {
@@ -97,32 +111,139 @@
         } catch (e) {}
         return null;
     }
-    function dangerAt(attacks, waves, x, y, frames) {
-        for (var i = 0; i < attacks.length; i++) if (getThreat(attacks[i], x, y, frames, true)) return true;
-        for (var j = 0; j < waves.length; j++) {
-            var w = waves[j];
-            if (!w || w.odenHit) continue;
-            var radius = Math.max(0, Number(w.radius) || 0) + Math.max(0, Number(w.speed) || 0) * (frames || 0);
-            var dist = Math.hypot(x - (Number(w.x) || 0), y - (Number(w.y) || 0));
-            if (Math.abs(dist - radius) < (Number(w.width) || 8) * 0.7 + 12) return true;
+    function waveThreatAt(wave, x, y, frames, alert) {
+        if (!wave || wave.odenHit || !(Number(wave.damage) > 0)) return null;
+        var radius = Math.max(0, Number(wave.radius) || 0) +
+            Math.max(0, Number(wave.speed) || 0) * Math.max(0, Number(frames) || 0);
+        var cx = Number(wave.x) || 0, cy = Number(wave.y) || 0;
+        var distance = Math.hypot(x - cx, y - cy);
+        var limit = (Number(wave.width) || 5) * 0.7 + 20 + (alert ? 34 : 0);
+        if (Math.abs(distance - radius) >= limit) return null;
+        return { source: wave, kind: "shockwave", info: { x: cx, y: cy, distance: Math.abs(distance - radius), attack: wave } };
+    }
+    function findThreatAt(attacks, waves, x, y, frames, alert) {
+        for (var i = 0; i < attacks.length; i++) {
+            var hit = getThreat(attacks[i], x, y, frames, alert);
+            if (hit) return { source: attacks[i], kind: "attack", info: hit };
         }
-        return false;
+        for (var j = 0; j < waves.length; j++) {
+            var waveHit = waveThreatAt(waves[j], x, y, frames, alert);
+            if (waveHit) return waveHit;
+        }
+        return null;
+    }
+    function dangerAt(attacks, waves, x, y, frames) {
+        return !!findThreatAt(attacks, waves, x, y, frames, true);
     }
     function chooseTarget(c, boss, attacks, waves) {
         var best = null, bestScore = -Infinity;
         for (var k = 0; k < 12; k++) {
-            var a = k * Math.PI / 6 + c.phase;
-            var d = 74 + (k % 3) * 28;
+            var a = k * Math.PI / 6 + c.phase + c.orbitDirection * (c.id % 3) * 0.09;
+            var d = c.preferredRange + ((k % 3) - 1) * 17;
             var x = clamp(boss.x + Math.cos(a) * d, 20, 380);
             var y = clamp(boss.y + Math.sin(a) * d, 20, 480);
             var score = -Math.hypot(x - c.x, y - c.y) * 0.06;
-            if (dangerAt(attacks, waves, x, y, 0)) score -= 140;
-            if (dangerAt(attacks, waves, x, y, 8)) score -= 90;
-            if (dangerAt(attacks, waves, x, y, 18)) score -= 45;
+            var riskWeight = 0.75 + (1 - c.riskTolerance) * 1.65;
+            if (dangerAt(attacks, waves, x, y, 0)) score -= 140 * riskWeight;
+            if (dangerAt(attacks, waves, x, y, 8)) score -= 90 * riskWeight;
+            if (dangerAt(attacks, waves, x, y, 18)) score -= 45 * riskWeight;
             score += Math.min(30, Math.min(x - 20, 380 - x, y - 20, 480 - y)) * 0.2;
+            score += (c.aggression - 1) * (145 - d) * 0.035;
+            score += Math.random() * (1.5 + c.riskTolerance * 4);
             if (score > bestScore) { bestScore = score; best = {x:x,y:y}; }
         }
         return best || {x:clamp(boss.x+100,20,380),y:clamp(boss.y+100,20,480)};
+    }
+    function normalizeTrainingKey(value, fallback) {
+        var key = String(value || fallback || "unknown").toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80);
+        return key || "unknown";
+    }
+    function trainingDirection(x1, y1, x2, y2) {
+        return (Math.round(Math.atan2(y2 - y1, x2 - x1) / (Math.PI / 4)) + 8) % 8;
+    }
+    function positionBucket(x, y, boss) {
+        var dx = x - boss.x, dy = y - boss.y;
+        return (dy < -22 ? "above" : (dy > 22 ? "below" : "level")) + "_" +
+            (dx < -22 ? "left" : (dx > 22 ? "right" : "center"));
+    }
+    function hazardBucket(attacks, waves) {
+        var count = attacks.length + waves.length;
+        return count <= 2 ? "low" : (count <= 6 ? "medium" : "high");
+    }
+    function wallBucket(x, y) {
+        return Math.min(x, 400 - x, y, 500 - y) < 42 ? "near" : "far";
+    }
+    function reportAgentOutcome(c, pending, outcome, damage, boss, attacks, waves, ctx) {
+        var api = window.MBGERTraining;
+        if (!api || typeof api.recordOutcome !== "function") return false;
+        var attack = pending && pending.source || {};
+        var rawKey = attack.type || attack.kind || attack.attackType || (pending && pending.kind) || "unknown";
+        if (attack.attackKind) rawKey += "_" + String(attack.attackKind);
+        var direction = pending && Number.isFinite(Number(pending.direction))
+            ? pending.direction : trainingDirection(c.x, c.y, c.tx, c.ty);
+        var startX = pending && Number.isFinite(Number(pending.startX)) ? pending.startX : c.x;
+        var startY = pending && Number.isFinite(Number(pending.startY)) ? pending.startY : c.y;
+        var targetX = pending && Number.isFinite(Number(pending.targetX)) ? pending.targetX : c.tx;
+        var targetY = pending && Number.isFinite(Number(pending.targetY)) ? pending.targetY : c.ty;
+        c.decisions++;
+        return api.recordOutcome({
+            attackKey: normalizeTrainingKey(rawKey, "unknown"),
+            attackFamily: normalizeTrainingKey(attack.attackFamily || rawKey, "unknown").slice(0, 40),
+            bossPhase: normalizeTrainingKey(ctx && ctx.type, "unknown").slice(0, 32),
+            heartX: startX, heartY: startY,
+            velocityX: Number(pending && pending.velocityX) || c.vx,
+            velocityY: Number(pending && pending.velocityY) || c.vy,
+            chosenDirection: direction,
+            targetX: targetX, targetY: targetY,
+            features: {
+                sampleType: "dodge",
+                agentId: c.id,
+                agentRole: "primary_stand",
+                decisionOrder: ++trainingDecisionOrder,
+                positionBucket: positionBucket(startX, startY, boss),
+                hazardBucket: hazardBucket(attacks, waves),
+                wallBucket: wallBucket(startX, startY),
+                threatKind: pending && pending.kind || "attack",
+                aggression: Number(c.aggression.toFixed(3)),
+                riskTolerance: Number(c.riskTolerance.toFixed(3)),
+                preferredRange: Math.round(c.preferredRange),
+                movementSpeed: Number(c.movementSpeed.toFixed(3))
+            }
+        }, outcome, damage || 0);
+    }
+    function isThreatTelegraph(attack) {
+        if (!attack) return false;
+        var type = String(attack.type || attack.kind || "").toLowerCase();
+        return attack.state === "warning" || attack.state === "windup" ||
+            Number(attack.warningTimer) > 0 || Number(attack.warning) > 0 ||
+            type.indexOf("warning") !== -1 || type.indexOf("telegraph") !== -1;
+    }
+    function pendingThreatStillActive(pending, c, attacks, waves) {
+        if (!pending || !pending.source) return false;
+        if (pending.kind === "shockwave") {
+            return waves.indexOf(pending.source) !== -1 &&
+                !!waveThreatAt(pending.source, c.x, c.y, 0, false);
+        }
+        if (attacks.indexOf(pending.source) === -1) return false;
+        if (isThreatTelegraph(pending.source)) return true;
+        return !!getThreat(pending.source, c.x, c.y, 0, false);
+    }
+    function createDodgeDecision(c, threat, time) {
+        if (!threat) return null;
+        var safe = threat.safeTarget || null;
+        return {
+            source: threat.source,
+            kind: threat.kind,
+            startedAt: time,
+            startX: c.x,
+            startY: c.y,
+            velocityX: c.vx,
+            velocityY: c.vy,
+            targetX: safe ? safe.x : c.tx,
+            targetY: safe ? safe.y : c.ty,
+            direction: trainingDirection(c.x, c.y, safe ? safe.x : c.tx, safe ? safe.y : c.ty)
+        };
     }
     function bossTarget(ctx) {
         var target = null;
