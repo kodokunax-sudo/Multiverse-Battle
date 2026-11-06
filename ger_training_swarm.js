@@ -118,7 +118,7 @@
         panel = document.createElement("div");
         panel.id = "mbGERTrainingSwarmPanel";
         panel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;width:min(270px,calc(100vw - 24px));max-height:42vh;overflow:auto;padding:10px 12px;border:1px solid rgba(255,214,112,.65);border-radius:12px;background:rgba(9,12,20,.92);color:#fff2c6;font:700 11px/1.45 Arial,sans-serif;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
-        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 100 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание +20 · уклонение +1 · смерть −300. Позиция: ≤145 от босса +1,5/с · >280 −1,5/с · край <24 −2,2/с. Для каждого типа атаки своя тактика</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
+        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 100 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание +20 · уклонение +1 · смерть −300. Позиция: ≤145 +1,5/с · 145–210 +0,4/с · >280 −1,5/с · край −0,8…−2,2/с. Для каждого типа атаки своя тактика</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
         document.body.appendChild(panel);
     }
     function allowExit(ev) {
@@ -507,7 +507,13 @@
         } else if (type === "wb_center_wave" || type === "tsunami") {
             family = "horizontal_wave_front";
             label = type === "tsunami" ? "escape_tsunami_front" : "escape_center_wave_front";
-            angle = openSideAngle(agent,0,1);
+            var frontTime = Math.max(0,Number(incoming && incoming.time)||0);
+            var frontY = type === "tsunami"
+                ? Number(attack.y) + (Number(attack.vy)||0)*frontTime
+                : Number(attack.y) - (Number(attack.speed)||3.4)*frontTime;
+            angle = Number.isFinite(frontY)
+                ? (agent.y <= frontY ? -Math.PI/2 : Math.PI/2)
+                : openSideAngle(agent,0,1);
         } else if (type === "zonelaser") {
             family = "zone_escape";
             label = lower ? "leave_lower_zone" : upper ? "leave_upper_zone" : "leave_laser_zone";
@@ -525,6 +531,8 @@
             family = "radial_wave";
             label = "cross_radial_wave";
             var radius = Math.max(0, Number(attack.radius) || Number(attack.currentRadius) || 0);
+            radius += (Number(attack.speed)||Number(attack.expansionSpeed)||Number(attack.growth)||0) *
+                Math.max(0,Number(incoming && incoming.time)||0);
             var currentDistance = Math.hypot(agent.x - ax, agent.y - ay);
             // Stay on the same side of an expanding ring: inward if already inside,
             // outward if already outside it.
