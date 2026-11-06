@@ -24,6 +24,12 @@
     var trainingBossKey = "unknown";
     var lastAgentCheckpointAt = 0;
     var lastOverlayLayoutAt = 0;
+    // Native boss attacks read one player position. During training that position
+    // is reassigned to a rotating live swarm agent so aimed attacks train the stands.
+    var trainingTargetAgentIndex = -1;
+    var trainingTargetAgentId = null;
+    var trainingTargetHoldUntil = 0;
+    var TRAINING_TARGET_HOLD_MS = 900;
 
     function now() { return window.performance && performance.now ? performance.now() : Date.now(); }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -855,7 +861,7 @@
         var sorted=agents.slice().sort(function(a,b){return b.score-a.score;});
         var summary=panel.querySelector("#mbGERSwarmSummary");
         var leaders=panel.querySelector("#mbGERSwarmLeaders");
-        if(summary) summary.textContent="Стенды: "+alive+"/"+COUNT+" живы · Решения: "+totalDecisions+" · Уклонения: "+totalDodges+" · Попадания по стендам: "+totalFailed+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
+        if(summary) summary.textContent="Стенды: "+alive+"/"+COUNT+" живы · Цель атак: "+(trainingTargetAgentId?"GER-"+String(trainingTargetAgentId).padStart(2,"0"):"—")+" · Решения: "+totalDecisions+" · Уклонения: "+totalDodges+" · Попадания по стендам: "+totalFailed+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
         if(leaders) leaders.innerHTML=sorted.slice(0,5).map(function(c){return "<div style='display:flex;justify-content:space-between;gap:8px'><span>GER-"+String(c.id).padStart(2,"0")+" · "+(c.alive?"жив":"выбыл")+"</span><b>"+Math.floor(c.score)+" оч.</b></div>";}).join("");
     }
     function finishScores(reason) {
@@ -985,16 +991,63 @@
         if (!document.hidden) draw();
         raf = window.requestAnimationFrame(tick);
     }
+    function selectTrainingAttackTarget(time) {
+        time = Number(time) || now();
+        var current = null;
+        if (trainingTargetAgentId !== null && time < trainingTargetHoldUntil) {
+            for (var currentIndex = 0; currentIndex < agents.length; currentIndex++) {
+                if (agents[currentIndex].id === trainingTargetAgentId) {
+                    current = agents[currentIndex];
+                    break;
+                }
+            }
+            if (current && current.alive && current.hp > 0 &&
+                current.y >= 80 && current.y <= 480) return current;
+        }
+
+        // Rotate the native boss target through the live agents. The short lock
+        // keeps a single aimed volley consistent instead of making it chase a
+        // different stand every frame.
+        for (var step = 0; step < agents.length; step++) {
+            trainingTargetAgentIndex = (trainingTargetAgentIndex + 1) % agents.length;
+            var candidate = agents[trainingTargetAgentIndex];
+            if (!candidate || !candidate.alive || !(candidate.hp > 0)) continue;
+            if (candidate.x < 16 || candidate.x > 384 || candidate.y < 80 || candidate.y > 480) continue;
+            trainingTargetAgentId = candidate.id;
+            trainingTargetHoldUntil = time + TRAINING_TARGET_HOLD_MS;
+            window.__mbGERTrainingTargetAgentId = candidate.id;
+            return candidate;
+        }
+
+        // If every live agent is temporarily outside the normal player bounds,
+        // still point attacks at a living stand using the boss' own coordinate limits.
+        for (var fallbackIndex = 0; fallbackIndex < agents.length; fallbackIndex++) {
+            trainingTargetAgentIndex = (trainingTargetAgentIndex + 1) % agents.length;
+            var fallback = agents[trainingTargetAgentIndex];
+            if (!fallback || !fallback.alive || !(fallback.hp > 0)) continue;
+            trainingTargetAgentId = fallback.id;
+            trainingTargetHoldUntil = time + TRAINING_TARGET_HOLD_MS;
+            window.__mbGERTrainingTargetAgentId = fallback.id;
+            return fallback;
+        }
+        trainingTargetAgentId = null;
+        window.__mbGERTrainingTargetAgentId = null;
+        return null;
+    }
+
     function skipOpeningMoments() {
         if (!active || !window.__mbGERTrainingMode) return;
         try {
             var ctx = context();
             if (ctx && typeof ctx.getPlayerMaxHp === "function" && typeof ctx.setPlayerHp === "function") {
                 ctx.setPlayerHp(ctx.getPlayerMaxHp());
-                // Keep the human heart parked as a harmless spectator anchor. Bosses
-                // still generate their native patterns, but the player cannot fight.
-                if (typeof ctx.setHeartX === "function") ctx.setHeartX(200);
-                if (typeof ctx.setHeartY === "function") ctx.setHeartY(478);
+                // The native player object is now a target proxy for the swarm.
+                // All boss attacks that aim at the player are aimed at this live stand.
+                var targetAgent = selectTrainingAttackTarget(now());
+                if (targetAgent) {
+                    if (typeof ctx.setHeartX === "function") ctx.setHeartX(clamp(targetAgent.x, 16, 384));
+                    if (typeof ctx.setHeartY === "function") ctx.setHeartY(clamp(targetAgent.y, 80, 480));
+                }
             }
             var wave = Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave);
             // Keep the real player's collision/invulnerability timers out of the
@@ -1028,6 +1081,10 @@
         zeroHpSince = 0;
         trainingDecisionOrder = 0;
         updateBatch = 0;
+        trainingTargetAgentIndex = -1;
+        trainingTargetAgentId = null;
+        trainingTargetHoldUntil = 0;
+        window.__mbGERTrainingTargetAgentId = null;
         lastAgentCheckpointAt = now();
         window.__mbGERTrainingSwarmActive = true;
         installTrainingCollisionIsolation();
@@ -1102,6 +1159,8 @@
         if(!active)return;
         active=false;
         window.__mbGERTrainingSwarmActive = false;
+        trainingTargetAgentId = null;
+        window.__mbGERTrainingTargetAgentId = null;
         restoreTrainingPlayerProtection();
         unlockPlayerInput();
         if(raf)window.cancelAnimationFrame(raf);
