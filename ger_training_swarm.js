@@ -18,6 +18,7 @@
     var trainingDecisionOrder = 0;
     var trainingSessionPromise = null;
     var trainingBossKey = "unknown";
+    var lastAgentCheckpointAt = 0;
 
     function now() { return window.performance && performance.now ? performance.now() : Date.now(); }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -591,6 +592,68 @@
             else c.nextAttackAt = time + 450;
         }
     }
+    function buildAgentResultSnapshot(reason, completed) {
+        var survivors = agents.filter(function (agent) { return agent.alive; });
+        return {
+            poolType: "parallel_primary_stands",
+            agentRole: "primary_stand",
+            agentCount: COUNT,
+            reason: reason || "checkpoint",
+            completed: completed === true,
+            survivors: survivors.length,
+            totalHits: agents.reduce(function (n, agent) { return n + agent.hits; }, 0),
+            totalDodges: agents.reduce(function (n, agent) { return n + agent.dodges; }, 0),
+            totalDecisions: agents.reduce(function (n, agent) { return n + agent.decisions; }, 0),
+            totalFailedDodges: agents.reduce(function (n, agent) { return n + agent.failedDodges; }, 0),
+            totalDamage: Math.floor(agents.reduce(function (n, agent) { return n + agent.damageDealt; }, 0)),
+            totalDamageTaken: Math.floor(agents.reduce(function (n, agent) { return n + agent.damageTaken; }, 0)),
+            results: agents.map(function (agent) {
+                return {
+                    id: agent.id,
+                    score: Math.floor(agent.score),
+                    damageDealt: Math.floor(agent.damageDealt),
+                    damageTaken: Math.floor(agent.damageTaken),
+                    hits: agent.hits,
+                    dodges: agent.dodges,
+                    decisions: agent.decisions,
+                    failedDodges: agent.failedDodges,
+                    alive: agent.alive,
+                    x: Number(agent.x.toFixed(2)),
+                    y: Number(agent.y.toFixed(2)),
+                    velocityX: Number(agent.vx.toFixed(3)),
+                    velocityY: Number(agent.vy.toFixed(3)),
+                    targetX: Number(agent.tx.toFixed(2)),
+                    targetY: Number(agent.ty.toFixed(2)),
+                    hp: agent.hp,
+                    maxHp: agent.maxHp,
+                    personality: {
+                        aggression: Number(agent.aggression.toFixed(3)),
+                        riskTolerance: Number(agent.riskTolerance.toFixed(3)),
+                        preferredRange: Math.round(agent.preferredRange),
+                        movementSpeed: Number(agent.movementSpeed.toFixed(3))
+                    }
+                };
+            })
+        };
+    }
+    function saveAgentCheckpoint(time) {
+        if (!active || ended || time - lastAgentCheckpointAt < 10000) return;
+        var trainingApi = window.MBGERTraining;
+        if (!trainingApi || typeof trainingApi.saveAgentResults !== "function") return;
+        lastAgentCheckpointAt = time;
+        var snapshot = buildAgentResultSnapshot("checkpoint", false);
+        window.__mbGERTrainingParallelAgentsCheckpoint = snapshot;
+        Promise.resolve(trainingApi.saveAgentResults(snapshot)).then(function (response) {
+            if (response && response.ok === true) {
+                console.info("[GER TRAINING] Saved live checkpoint for", response.savedAgents,
+                    "primary stands.");
+            }
+        }).catch(function (error) {
+            console.warn("[GER TRAINING] Live checkpoint remains queued:",
+                error && error.message ? error.message : error);
+        });
+    }
+
     function update(dt) {
         if (!active || ended) return;
         var ctx = context();
@@ -604,6 +667,7 @@
         var scale = clamp((Number(dt)||16.667)/16.667,0.5,2.2);
         for (var i=0;i<agents.length;i++) updateAgent(agents[i],ctx,boss,attacks,waves,time,scale);
         if (time - lastUiAt > 1000) { updatePanel(ctx); lastUiAt = time; }
+        saveAgentCheckpoint(time);
         var hpNow = currentBossHp(ctx);
         if (hpNow > 0) zeroHpSince = 0;
         else {
@@ -793,6 +857,14 @@
                 decisions: agent.decisions,
                 failedDodges: agent.failedDodges,
                 alive: agent.alive,
+                x: Number(agent.x.toFixed(2)),
+                y: Number(agent.y.toFixed(2)),
+                velocityX: Number(agent.vx.toFixed(3)),
+                velocityY: Number(agent.vy.toFixed(3)),
+                targetX: Number(agent.tx.toFixed(2)),
+                targetY: Number(agent.ty.toFixed(2)),
+                hp: agent.hp,
+                maxHp: agent.maxHp,
                 personality: {
                     aggression: Number(agent.aggression.toFixed(3)),
                     riskTolerance: Number(agent.riskTolerance.toFixed(3)),
@@ -874,6 +946,7 @@
         lastUiAt = 0;
         zeroHpSince = 0;
         trainingDecisionOrder = 0;
+        lastAgentCheckpointAt = now();
         window.__mbGERTrainingSwarmActive = true;
         window.__mbGERTrainingSwarmSavePromise = null;
         loadSwarmGERImage();
@@ -943,7 +1016,7 @@
         }
         overlay=null;overlayCtx=null;
         if(reason!=="boss_defeated"&&!ended)finishScores(reason||"stopped");
-        console.info("[GER SWARM] Stopped:",reason||"stopped");
+        console.info("[GER TRAINING] Primary-agent pool stopped:",reason||"stopped");
     }
     window.MBGERTrainingSwarmStart=start;
     window.MBGERTrainingSwarmStop=stop;
