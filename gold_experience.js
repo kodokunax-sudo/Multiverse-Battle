@@ -435,7 +435,7 @@
         return [];
     }
 
-    // Shared geometry lets the 50 lightweight training agents evaluate the exact
+    // Shared geometry lets the 100 lightweight training agents evaluate the exact
     // attack shapes already understood by the primary GER dodge brain.
     window.MBGERTrainingThreatAt = companionThreatAt;
 
