@@ -1297,7 +1297,20 @@
             state.trainingPendingDecisions = [];
         }
         if (window.MBGERTraining && typeof window.MBGERTraining.finish === "function") {
-            window.MBGERTraining.finish(result || "aborted");
+            var finishTraining = function () {
+                return window.MBGERTraining.finish(result || "aborted");
+            };
+            // The parallel primary agents write their final per-agent scores into
+            // session metadata. Do not close the shared session before that write settles.
+            var swarmSave = window.__mbGERTrainingSwarmSavePromise;
+            if (swarmSave && typeof swarmSave.then === "function") {
+                Promise.resolve(swarmSave).catch(function (error) {
+                    console.warn("[GER training] Parallel agent summary will be retried by the persistent queue:",
+                        error && error.message ? error.message : error);
+                }).then(finishTraining);
+            } else {
+                finishTraining();
+            }
         }
     }
 
@@ -1314,7 +1327,7 @@
         var trainingOptions = window.__mbGERTrainingOptions || {};
         Promise.resolve(window.MBGERTraining.start(bossKey, {
             arenaMode: ctx && ctx.type ? ctx.type : "unknown",
-            gameVersion: "ger-dodge-training-2",
+            gameVersion: "ger-dodge-training-3",
             trainingMode: window.__mbGERTrainingMode === true,
             trainingProfile: trainingOptions.trainingProfile === "unique_mix" ? "unique_mix" : "standard",
             speedMultiplier: Number(trainingOptions.speedMultiplier) || 1
