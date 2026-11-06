@@ -91,14 +91,14 @@
         inputHandlers.forEach(function (pair) { window.removeEventListener(pair[0], pair[1], true); });
         inputHandlers = [];
     }
-    function getThreat(attack, x, y, frames) {
+    function getThreat(attack, x, y, frames, alert) {
         try {
-            if (typeof window.MBGERTrainingThreatAt === "function") return window.MBGERTrainingThreatAt(attack, x, y, frames || 0, false);
+            if (typeof window.MBGERTrainingThreatAt === "function") return window.MBGERTrainingThreatAt(attack, x, y, frames || 0, alert === true);
         } catch (e) {}
         return null;
     }
     function dangerAt(attacks, waves, x, y, frames) {
-        for (var i = 0; i < attacks.length; i++) if (getThreat(attacks[i], x, y, frames)) return true;
+        for (var i = 0; i < attacks.length; i++) if (getThreat(attacks[i], x, y, frames, true)) return true;
         for (var j = 0; j < waves.length; j++) {
             var w = waves[j];
             if (!w || w.odenHit) continue;
@@ -183,11 +183,11 @@
         c.x = clamp(c.x + c.vx * frameScale, 12, 388);
         c.y = clamp(c.y + c.vy * frameScale, 12, 488);
 
-        if (dangerAt(attacks, waves, c.x, c.y, 0) && time - c.lastHitAt > 500) {
+        var activeHit = null;
+        for (var hi=0; hi<attacks.length && !activeHit; hi++) activeHit = getThreat(attacks[hi], c.x, c.y, 0, false);
+        if ((activeHit || waves.some(function(w){return w && !w.odenHit && Math.abs(Math.hypot(c.x-(Number(w.x)||0),c.y-(Number(w.y)||0))-(Number(w.radius)||0)) < (Number(w.width)||8)*0.7+12;})) && time - c.lastHitAt > 500) {
             c.lastHitAt = time;
-            var hit = null;
-            for (var i = 0; i < attacks.length && !hit; i++) hit = getThreat(attacks[i], c.x, c.y, 0);
-            var damage = Math.max(1, Number(hit && hit.attack && hit.attack.damage) || 10);
+            var damage = Math.max(1, Number(activeHit && activeHit.attack && activeHit.attack.damage) || 10);
             c.damageTaken += damage;
             c.hp--;
             c.score -= 5;
