@@ -19,7 +19,7 @@
     var persistTimer = 0;
     var retryDelay = 300;
     var sampleSequence = 0;
-    var STORAGE_PREFIX = "mb_ger_training_pending_v3:";
+    var STORAGE_PREFIX = "mb_ger_training_pending_v4:";
     var MAX_LOCAL_RECOVERY_EVENTS = 160;
     var compactRecoveryMode = false;
     var localRecoveryDisabled = false;
