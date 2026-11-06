@@ -13,6 +13,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 const KEY_RE = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
 const OUTCOMES = new Set(["evaded", "hit", "blocked", "unknown"]);
 const RESULTS = new Set(["win", "loss", "draw", "aborted"]);
+const MAX_AGENT_COUNT = 100;
 let client = null;
 
 function db() {
@@ -89,7 +90,7 @@ async function startSession(playerId, body) {
   if (metadataJson.length > 1500) return reply({ error: "metadata_too_large" }, 413);
   const q = db();
   const inserted = await q.unsafe(
-    "insert into public.ger_training_sessions (player_id, client_session_id, boss_key, ai_version, game_version, arena_mode, metadata) values ($1::uuid,$2::uuid,$3,'ger-dodge-v2',$4,$5,$6::text::jsonb) on conflict (player_id, client_session_id) do nothing returning id, started_at",
+    "insert into public.ger_training_sessions (player_id, client_session_id, boss_key, ai_version, game_version, arena_mode, metadata) values ($1::uuid,$2::uuid,$3,'ger-dodge-v3',$4,$5,$6::text::jsonb) on conflict (player_id, client_session_id) do nothing returning id, started_at",
     [playerId, clientSessionId, bossKey,
      typeof body.gameVersion === "string" ? body.gameVersion.slice(0, 40) : null,
      typeof body.arenaMode === "string" ? body.arenaMode.slice(0, 32) : null, metadataJson]
@@ -145,6 +146,86 @@ async function finishSession(playerId, body) {
   if (!rows.length) return reply({ ok: true, alreadyFinished: true });
   return reply({ ok: true, session: rows[0] });
 }
+async function annotateSession(playerId, body) {
+  const sessionId = validUuid(body.sessionId);
+  const metadata = body.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata) ? body.metadata : {};
+  const metadataJson = JSON.stringify(metadata);
+  if (!sessionId || metadataJson.length > 1500) return reply({ error: "invalid_session_metadata" }, 400);
+  const rows = await db().unsafe(
+    "update public.ger_training_sessions set metadata=metadata || $3::text::jsonb where id=$1::uuid and player_id=$2::uuid and finished_at is null returning id",
+    [sessionId, playerId, metadataJson]
+  );
+  if (!rows.length) return reply({ error: "session_not_found" }, 404);
+  return reply({ ok: true });
+}
+
+async function saveAgentResults(playerId, body) {
+  const sessionId = validUuid(body.sessionId);
+  const raw = body.results && typeof body.results === "object" && !Array.isArray(body.results) ? body.results : {};
+  const rawAgents = Array.isArray(raw.results) ? raw.results : [];
+  if (!sessionId || rawAgents.length < 1 || rawAgents.length > MAX_AGENT_COUNT) {
+    return reply({ error: "invalid_agent_results" }, 400);
+  }
+  const agents = rawAgents.map((agent) => {
+    if (!agent || typeof agent !== "object" || Array.isArray(agent)) return null;
+    const id = numberOrNull(agent.id, 1, MAX_AGENT_COUNT);
+    if (id === null || !Number.isInteger(id)) return null;
+    const personality = agent.personality && typeof agent.personality === "object" ? agent.personality : {};
+    return {
+      id,
+      score: numberOrNull(agent.score, -1000000000, 1000000000) ?? 0,
+      damageDealt: numberOrNull(agent.damageDealt, 0, 1000000000) ?? 0,
+      damageTaken: numberOrNull(agent.damageTaken, 0, 1000000000) ?? 0,
+      hits: numberOrNull(agent.hits, 0, 10000000) ?? 0,
+      dodges: numberOrNull(agent.dodges, 0, 10000000) ?? 0,
+      decisions: numberOrNull(agent.decisions, 0, 10000000) ?? 0,
+      failedDodges: numberOrNull(agent.failedDodges, 0, 10000000) ?? 0,
+      alive: agent.alive === true,
+      x: numberOrNull(agent.x, -1000, 1000),
+      y: numberOrNull(agent.y, -1000, 1000),
+      velocityX: numberOrNull(agent.velocityX, -100, 100),
+      velocityY: numberOrNull(agent.velocityY, -100, 100),
+      targetX: numberOrNull(agent.targetX, -1000, 1000),
+      targetY: numberOrNull(agent.targetY, -1000, 1000),
+      hp: numberOrNull(agent.hp, 0, 1000000),
+      maxHp: numberOrNull(agent.maxHp, 0, 1000000),
+      personality: {
+        aggression: numberOrNull(personality.aggression, 0, 2) ?? 1,
+        riskTolerance: numberOrNull(personality.riskTolerance, 0, 1) ?? 0.5,
+        preferredRange: numberOrNull(personality.preferredRange, 20, 200) ?? 90,
+        movementSpeed: numberOrNull(personality.movementSpeed, 0.5, 1.5) ?? 1,
+        aiSkill: numberOrNull(personality.aiSkill, 0, 1) ?? 0.62
+      }
+    };
+  });
+  if (agents.some((agent) => !agent)) return reply({ error: "invalid_agent_row" }, 400);
+  const summary = {
+    schemaVersion: 1,
+    agentRole: "primary_stand",
+    poolType: "parallel_primary_stands",
+    agentCount: agents.length,
+    reason: typeof raw.reason === "string" ? raw.reason.slice(0, 40) : "unknown",
+    completed: raw.completed === true,
+    survivors: numberOrNull(raw.survivors, 0, MAX_AGENT_COUNT) ?? agents.filter((agent) => agent.alive).length,
+    totalHits: numberOrNull(raw.totalHits, 0, 1000000000) ?? 0,
+    totalDodges: numberOrNull(raw.totalDodges, 0, 1000000000) ?? 0,
+    totalDecisions: numberOrNull(raw.totalDecisions, 0, 1000000000) ?? 0,
+    totalFailedDodges: numberOrNull(raw.totalFailedDodges, 0, 1000000000) ?? 0,
+    totalDamage: numberOrNull(raw.totalDamage, 0, 1000000000) ?? 0,
+    totalDamageTaken: numberOrNull(raw.totalDamageTaken, 0, 1000000000) ?? 0,
+    results: agents,
+    savedAt: new Date().toISOString()
+  };
+  const summaryJson = JSON.stringify({ parallelAgents: summary });
+  if (summaryJson.length > 50000) return reply({ error: "agent_results_too_large" }, 413);
+  const rows = await db().unsafe(
+    "update public.ger_training_sessions set metadata=metadata || $3::text::jsonb where id=$1::uuid and player_id=$2::uuid and finished_at is null returning id",
+    [sessionId, playerId, summaryJson]
+  );
+  if (!rows.length) return reply({ error: "session_not_found" }, 404);
+  return reply({ ok: true, savedAgents: agents.length });
+}
+
 async function readBrain(body) {
   const bossKey = cleanKey(body.bossKey, 64);
   const attackKey = body.attackKey == null ? null : cleanKey(body.attackKey);
@@ -160,13 +241,13 @@ async function readBrain(body) {
   // Context-conditioned outcomes: which directions worked for this attack from
   // a particular side of the boss, hazard density, and wall proximity.
   const contexts = await db().unsafe(
-    "select attack_key,features->>'positionBucket' as position_bucket,features->>'hazardBucket' as hazard_bucket,features->>'wallBucket' as wall_bucket,chosen_direction as direction,count(*)::integer as sample_count,count(*) filter (where outcome='evaded')::integer as evaded_count,count(*) filter (where outcome='blocked')::integer as blocked_count,count(*) filter (where outcome='hit')::integer as hit_count,count(*) filter (where outcome='unknown')::integer as unknown_count from public.ger_dodge_samples where boss_key=$1 and ($2::text is null or attack_key=$2) and features ? 'positionBucket' and features ? 'hazardBucket' and features ? 'wallBucket' and chosen_direction is not null and outcome in ('evaded','blocked','hit') group by attack_key,features->>'positionBucket',features->>'hazardBucket',features->>'wallBucket',chosen_direction order by count(*) desc limit 700",
+    "select attack_key,features->>'positionBucket' as position_bucket,features->>'hazardBucket' as hazard_bucket,features->>'wallBucket' as wall_bucket,chosen_direction as direction,count(*)::integer as sample_count,count(*) filter (where outcome='evaded')::integer as evaded_count,count(*) filter (where outcome='blocked')::integer as blocked_count,count(*) filter (where outcome='hit')::integer as hit_count,count(*) filter (where outcome='unknown')::integer as unknown_count from public.ger_dodge_samples where boss_key=$1 and ($2::text is null or attack_key=$2) and coalesce(features->>'sampleType','dodge')='dodge' and features ? 'positionBucket' and features ? 'hazardBucket' and features ? 'wallBucket' and chosen_direction is not null and outcome in ('evaded','blocked','hit') group by attack_key,features->>'positionBucket',features->>'hazardBucket',features->>'wallBucket',chosen_direction order by count(*) desc limit 700",
     [bossKey, attackKey]
   );
   // Learn attack-to-attack transitions within each training session. This lets
   // the companion prepare for common follow-up patterns before they spawn.
   const transitions = await db().unsafe(
-    "with ordered as (select session_id,attack_key,lead(attack_key) over (partition by session_id order by case when jsonb_typeof(features->'decisionOrder')='number' then (features->>'decisionOrder')::bigint else id end,created_at,id) as next_attack_key from public.ger_dodge_samples where boss_key=$1 and outcome in ('evaded','blocked','hit')) select attack_key as from_attack_key,next_attack_key,count(*)::integer as sample_count from ordered where next_attack_key is not null group by attack_key,next_attack_key order by count(*) desc limit 300",
+    "with ordered as (select session_id,attack_key,lead(attack_key) over (partition by session_id,coalesce(features->>'agentId','main') order by case when jsonb_typeof(features->'decisionOrder')='number' then (features->>'decisionOrder')::bigint else id end,created_at,id) as next_attack_key from public.ger_dodge_samples where boss_key=$1 and coalesce(features->>'sampleType','dodge')='dodge' and attack_key <> 'swarm_agent_survival' and outcome in ('evaded','blocked','hit')) select attack_key as from_attack_key,next_attack_key,count(*)::integer as sample_count from ordered where next_attack_key is not null group by attack_key,next_attack_key order by count(*) desc limit 300",
     [bossKey]
   );
   return reply({ brain, directions, contexts, transitions });
@@ -183,6 +264,8 @@ Deno.serve(async (req) => {
     switch (body.action) {
       case "start": return await startSession(playerId, body);
       case "events": return await saveEvents(playerId, body);
+      case "annotate": return await annotateSession(playerId, body);
+      case "agent_results": return await saveAgentResults(playerId, body);
       case "finish": return await finishSession(playerId, body);
       case "brain": return await readBrain(body);
       default: return reply({ error: "unknown_action" }, 400);
