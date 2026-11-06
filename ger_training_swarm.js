@@ -152,6 +152,13 @@
         var after = currentBossHp(ctx);
         var dealt = Math.max(0, before - after);
         if (dealt > 0) {
+            var hitTarget = bossTarget(ctx);
+            c.attackUntil = now() + 360;
+            c.attackTargetX = hitTarget.x;
+            c.attackTargetY = hitTarget.y;
+            c.impactX = hitTarget.x;
+            c.impactY = hitTarget.y;
+            c.impactUntil = now() + 260;
             c.damageDealt += dealt;
             c.hits++;
             c.score += 1 + dealt / Math.max(1, maxHp) * 100000;
