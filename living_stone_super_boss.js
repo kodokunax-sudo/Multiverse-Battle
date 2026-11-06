@@ -344,6 +344,14 @@
     function ls2BoxEdgeMaxX() { return LS2_BOX.x + LS2_BOX.w; }
     function ls2BoxEdgeMinY() { return LS2_BOX.y; }
     function ls2BoxEdgeMaxY() { return LS2_BOX.y + LS2_BOX.h; }
+    window.__mbLS2TrainingSkipIntro = function () {
+        if (!window.__mbGERTrainingMode || !ls2Active || ls2NativeMode) return;
+        if (ls2Phase === "intro") {
+            ls2PhaseTimer = 270;
+            ls2StartNativeGameplay();
+        }
+    };
+
     function ls2Update(dt) {
         if (window.MBPucciIsMadeInHeavenActive && window.MBPucciIsMadeInHeavenActive()) dt *= window.MBPucciGetWorldTimeMultiplier();
         var zenoEraseActive = typeof window.MBIsZenoEraseActive === "function" &&
