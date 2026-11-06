@@ -292,11 +292,12 @@
         if (ended) return;
         ended=true;
         var survivors=clones.filter(function(c){return c.alive;});
-        survivors.forEach(function(c){c.score+=150;});
+        var completed = reason === "boss_defeated" || reason === "win";
+        if (completed) survivors.forEach(function(c){c.score+=150;});
         var damageRank=clones.slice().sort(function(a,b){return b.damageDealt-a.damageDealt;});
-        if(damageRank[0])damageRank[0].score+=120;
+        if(completed && damageRank[0])damageRank[0].score+=120;
         var takenRank=clones.slice().sort(function(a,b){return b.damageTaken-a.damageTaken;});
-        if(takenRank[0]&&takenRank[0].damageTaken>0)takenRank[0].score-=120;
+        if(completed && takenRank[0]&&takenRank[0].damageTaken>0)takenRank[0].score-=120;
         clones.sort(function(a,b){return b.score-a.score;});
         var top=clones.slice(0,10).map(function(c){return "GER-"+String(c.id).padStart(2,"0")+": "+Math.floor(c.score)+" оч. (урон "+Math.floor(c.damageDealt)+", получено "+Math.floor(c.damageTaken)+", "+(c.alive?"выжил":"выбыл")+")";});
         console.log("[GER SWARM RESULTS]",reason,{survivors:survivors.length,clones:clones,top:top});
