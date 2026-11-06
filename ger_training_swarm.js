@@ -49,8 +49,8 @@
             pendingDodge: null,
             nextAttackAt: now() + Math.random() * 900,
             nextDecisionAt: 0,
-            nextThreatCheckAt: now() + (i % 10) * 7,
-            nextHitCheckAt: now() + (i % 4) * 8,
+            nextThreatCheckAt: now() + 28 + (i % 7) * 9,
+            nextHitCheckAt: now() + 36 + (i % 5) * 7,
             lastHitAt: 0, flashUntil: 0, attackUntil: 0, attackTargetX: 200, attackTargetY: 130,
             impactUntil: 0, impactX: 0, impactY: 0, phase: Math.random() * Math.PI * 2
         };
@@ -540,7 +540,7 @@
         var incoming = null;
         if (time >= c.nextThreatCheckAt) {
             incoming = findIncomingAgentThreat(c, boss, attacks, waves);
-            c.nextThreatCheckAt = time + 48 + (c.id % 7) * 5;
+            c.nextThreatCheckAt = time + 48 + (c.id % 7) * 7;
         }
         if (incoming) {
             var safe = chooseDodgeTarget(c, boss, attacks, waves, incoming);
@@ -593,7 +593,7 @@
         var actualHit = null;
         if (time >= c.nextHitCheckAt) {
             actualHit = findThreatAt(attacks, waves, c.x, c.y, 0, false);
-            c.nextHitCheckAt = time + 28 + (c.id % 4) * 4;
+            c.nextHitCheckAt = time + 44 + (c.id % 5) * 7;
         }
         if (actualHit && time - c.lastHitAt > 500) {
             c.lastHitAt = time;
