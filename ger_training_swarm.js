@@ -306,8 +306,13 @@
         if(raf)window.cancelAnimationFrame(raf);
         raf=0;lastAt=0;
         if(overlay&&overlay.parentNode)overlay.parentNode.removeChild(overlay);
-        if(panel&&panel.parentNode)panel.parentNode.removeChild(panel);
-        overlay=null;overlayCtx=null;panel=null;
+        if(panel) {
+            panel.style.position = "fixed";
+            panel.style.top = "calc(12px + env(safe-area-inset-top))";
+            panel.style.left = "12px";
+            panel.style.pointerEvents = "auto";
+        }
+        overlay=null;overlayCtx=null;
         if(reason!=="boss_defeated"&&!ended)finishScores(reason||"stopped");
         console.info("[GER SWARM] Stopped:",reason||"stopped");
     }
