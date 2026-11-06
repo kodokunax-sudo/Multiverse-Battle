@@ -608,6 +608,7 @@
         c.restore();
     }
     function ls2DrawHeart(c, now) {
+        if (window.__mbGERTrainingMode) return;
         if (ls2Invulnerable > 0 && Math.floor(now / 60) % 2 === 0) return;
         var greenSoul = ls2Phase === "green" || (ls2Phase === "gravity" && ls2PhaseTimer > ls2GravityDuration * 0.55);
         c.save(); c.translate(LS2_HEART_X, LS2_HEART_Y);
