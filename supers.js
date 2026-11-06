@@ -439,6 +439,28 @@ function getBossContext() {
                 if (typeof waystarEnemyBullets !== "undefined" && Array.isArray(waystarEnemyBullets)) {
                     list = list.concat(waystarEnemyBullets);
                 }
+                // A bomb is a damaging hazard during its explosion, not during its fuse.
+                if (typeof waystarBombs !== "undefined" && Array.isArray(waystarBombs)) {
+                    waystarBombs.forEach(function (bomb) {
+                        if (bomb && bomb.exploded && Number(bomb.explosionTimer) > 0) list.push(bomb);
+                    });
+                }
+                // The dash lives outside waystarAttacks, so expose its current position.
+                var dash = typeof waystarDash !== "undefined" ? waystarDash : null;
+                if (dash && !dash.hit) {
+                    var progress = Math.max(0, Math.min(1,
+                        (Number(dash.progress) || 0) / Math.max(1, Number(dash.duration) || 1)));
+                    list.push({
+                        type: "waystar_dash",
+                        x: Number(dash.startX) + (Number(dash.targetX) - Number(dash.startX)) * progress,
+                        y: Number(dash.startY) + (Number(dash.targetY) - Number(dash.startY)) * progress,
+                        size: 26,
+                        radius: 26,
+                        damage: Number(dash.damage) || 20,
+                        state: "active",
+                        _mbTrainingSynthetic: true
+                    });
+                }
                 return list;
             },
             getShockwaves: function() { return waystarShockwaves; },
