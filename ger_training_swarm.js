@@ -288,6 +288,14 @@
     }
     function skipOpeningMoments() {
         try {
+            var ctx = context();
+            if (ctx && typeof ctx.getPlayerMaxHp === "function" && typeof ctx.setPlayerHp === "function") {
+                ctx.setPlayerHp(ctx.getPlayerMaxHp());
+                // Keep the human heart parked as a harmless spectator anchor. Bosses
+                // still generate their native patterns, but the player cannot fight.
+                if (typeof ctx.setHeartX === "function") ctx.setHeartX(200);
+                if (typeof ctx.setHeartY === "function") ctx.setHeartY(478);
+            }
             var wave = Number(window.__mbBossTestMode && window.__mbBossTestMode.bossWave);
             if (wave===200 && typeof window.MBGERTrainingTickLivingStone==="function") window.MBGERTrainingTickLivingStone();
             if (wave===500 && typeof window.MBGERTrainingSkipWaystarScenes==="function") window.MBGERTrainingSkipWaystarScenes();
