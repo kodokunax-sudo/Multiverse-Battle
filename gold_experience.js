@@ -475,7 +475,19 @@
     }
 
     // Oden-style threat recognition, expanded for the actual attacks of every boss.
-    function companionThreatAt(attack, x, y, frames, alert) {
+    function trainingPlayerHitbox(ctx) {
+        var fight = ctx || null;
+        try {
+            if (!fight && typeof window.getBossContext === "function") fight = window.getBossContext();
+            if (fight && typeof fight.getHeartHitbox === "function") {
+                var hitbox = Number(fight.getHeartHitbox());
+                if (Number.isFinite(hitbox) && hitbox >= 0) return Math.max(0, Math.min(40, hitbox));
+            }
+        } catch (e) {}
+        return 4;
+    }
+
+    function companionThreatAt(attack, x, y, frames, alert, ctx) {
         if (!attack || attack.dioAggroNoPlayer || attack.dioStandHitOnce ||
             attack._mbGEIgnored || attack.state === "done") return null;
 
@@ -491,7 +503,7 @@
         if (telegraph && !alert) return null;
 
         var t = Math.max(0, Number(frames) || 0);
-        var body = window.__mbGERTrainingSwarmActive ? Math.max(20, getCompanionSize(null) * 1.3) : getCompanionSize(null) * 0.72;
+        var body = window.__mbGERTrainingSwarmActive ? trainingPlayerHitbox(ctx) : getCompanionSize(null) * 0.72;
         var padding = alert ? 38 : 0;
         var ax = Number.isFinite(Number(attack.x)) ? Number(attack.x) : Number(attack.targetX);
         var ay = Number.isFinite(Number(attack.y)) ? Number(attack.y) : Number(attack.targetY);
@@ -825,8 +837,8 @@
             : null;
     }
 
-        window.MBGERTrainingThreatAt = function (attack, x, y, frames, alert) {
-        return companionThreatAt(attack, Number(x) || 0, Number(y) || 0, Number(frames) || 0, alert === true);
+        window.MBGERTrainingThreatAt = function (attack, x, y, frames, alert, ctx) {
+        return companionThreatAt(attack, Number(x) || 0, Number(y) || 0, Number(frames) || 0, alert === true, ctx);
     };
 
     // Simulates the same eased acceleration and braking used by Oden before judging a route.
