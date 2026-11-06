@@ -800,7 +800,11 @@
             : null;
     }
 
-        // Simulates the same eased acceleration and braking used by Oden before judging a route.
+        window.MBGERTrainingThreatAt = function (attack, x, y, frames, alert) {
+        return companionThreatAt(attack, Number(x) || 0, Number(y) || 0, Number(frames) || 0, alert === true);
+    };
+
+    // Simulates the same eased acceleration and braking used by Oden before judging a route.
     function predictCompanionRoute(ctx, targetX, targetY, futureTimes) {
         var maxTime = Math.max.apply(null, futureTimes);
         var wanted = Object.create(null);
