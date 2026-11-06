@@ -429,9 +429,16 @@
             scheduleFlush();
             return false;
         }
-        // If a previous checkpoint is uploading, keep the newest snapshot queued.
-        // The active upload only clears the snapshot it actually sent.
-        if (agentResultsPromise) return agentResultsPromise;
+        // If a checkpoint is already uploading, chain the newest pending snapshot
+        // after it. This makes the final result promise wait for the final upload too.
+        if (agentResultsPromise) {
+            return agentResultsPromise.then(function (response) {
+                if (response && response.ok === true && pendingAgentResults) {
+                    return saveAgentResults();
+                }
+                return response;
+            });
+        }
         var submittedSnapshot = pendingAgentResults;
         var submittedSessionId = sessionId;
         agentResultsPromise = (async function () {
