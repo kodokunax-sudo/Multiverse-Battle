@@ -12,7 +12,73 @@
     var finishPromise = null;
     var flushTimer = 0;
     var queue = [];
+    var sessionOwnerId = null;
+    var clientSessionId = null;
+    var persistTimer = 0;
+    var retryDelay = 300;
+    var sampleSequence = 0;
+    var STORAGE_PREFIX = "mb_ger_training_pending_v3:";
     var brainByBoss = Object.create(null);
+
+    function storageKey(userId) {
+        var id = String(userId || sessionOwnerId || "");
+        return id ? STORAGE_PREFIX + id : null;
+    }
+
+    function persistPending() {
+        var key = storageKey();
+        if (!key) return;
+        try {
+            localStorage.setItem(key, JSON.stringify({
+                playerId: sessionOwnerId,
+                sessionId: sessionId,
+                clientSessionId: clientSessionId,
+                bossKey: activeBossKey,
+                queue: queue,
+                savedAt: Date.now()
+            }));
+        } catch (error) {
+            console.warn("[GER training] Local recovery copy could not be updated:", error && error.message ? error.message : error);
+        }
+    }
+
+    function schedulePersist() {
+        if (persistTimer) return;
+        persistTimer = window.setTimeout(function () {
+            persistTimer = 0;
+            persistPending();
+        }, 350);
+    }
+
+    function restorePending(userId) {
+        if (!userId || sessionOwnerId === userId) return;
+        if (sessionId || queue.length) return;
+        try {
+            var raw = localStorage.getItem(storageKey(userId));
+            if (!raw) return;
+            var saved = JSON.parse(raw);
+            if (!saved || saved.playerId !== userId) return;
+            sessionOwnerId = userId;
+            sessionId = typeof saved.sessionId === "string" ? saved.sessionId : null;
+            clientSessionId = typeof saved.clientSessionId === "string" ? saved.clientSessionId : null;
+            activeBossKey = typeof saved.bossKey === "string" ? saved.bossKey : null;
+            queue = Array.isArray(saved.queue) ? saved.queue : [];
+            console.info("[GER training] Restored", queue.length, "pending samples from local recovery.");
+        } catch (error) {
+            console.warn("[GER training] Could not restore local recovery copy:", error && error.message ? error.message : error);
+        }
+    }
+
+    function clearPendingStorage() {
+        if (persistTimer) {
+            window.clearTimeout(persistTimer);
+            persistTimer = 0;
+        }
+        var key = storageKey();
+        if (key) {
+            try { localStorage.removeItem(key); } catch (_error) {}
+        }
+    }
 
     function makeUuid() {
         try {
@@ -81,17 +147,23 @@
 
     function scheduleFlush() {
         if (flushTimer || !sessionId || !queue.length) return;
+        var delay = queue.length >= 40 ? 180 : retryDelay;
         flushTimer = window.setTimeout(function () {
             flushTimer = 0;
             flush();
-        }, 1400);
+        }, delay);
     }
 
     function flush() {
         if (flushPromise) return flushPromise;
-        if (!sessionId || !queue.length) return Promise.resolve(true);
+        if (!queue.length) return Promise.resolve(true);
+        if (!sessionId || !activeBossKey) return Promise.resolve(false);
 
-        var batch = queue.splice(0, 40);
+        // Keep samples in memory and local storage until the server acknowledges
+        // the batch. Event IDs make a retry safe if the server already committed it.
+        var batch = queue.slice(0, 40);
+        var ids = Object.create(null);
+        batch.forEach(function (row) { ids[row.eventId] = true; });
         var currentSessionId = sessionId;
         var currentBossKey = activeBossKey;
         flushPromise = (async function () {
@@ -102,14 +174,14 @@
                     bossKey: currentBossKey,
                     events: batch
                 });
-                if (!result || result.ok !== true) {
-                    queue = batch.concat(queue);
-                    return false;
-                }
+                if (!result || result.ok !== true) throw new Error("training_batch_not_acknowledged");
+                queue = queue.filter(function (row) { return !ids[row.eventId]; });
+                retryDelay = 300;
+                persistPending();
                 return true;
             } catch (error) {
-                queue = batch.concat(queue);
-                console.warn("[GER training] Event batch was kept for retry:", error && error.message ? error.message : error);
+                retryDelay = Math.min(10000, Math.max(600, retryDelay * 2));
+                console.warn("[GER training] Event batch remains queued for retry:", error && error.message ? error.message : error);
                 return false;
             }
         })().finally(function () {
@@ -117,6 +189,17 @@
             if (queue.length) scheduleFlush();
         });
         return flushPromise;
+    }
+
+    async function flushAll() {
+        var attempts = 0;
+        while (queue.length && attempts < 500) {
+            var before = queue.length;
+            var sent = await flush();
+            if (!sent || queue.length >= before) return false;
+            attempts++;
+        }
+        return queue.length === 0;
     }
 
     async function loadBrain(bossKey) {
@@ -171,8 +254,19 @@
 
     async function start(bossKey, metadata) {
         bossKey = String(bossKey || "unknown").slice(0, 64);
+        var online = await requireOnlineSession();
+        if (sessionOwnerId && sessionOwnerId !== online.user.id) {
+            sessionId = null;
+            activeBossKey = null;
+            clientSessionId = null;
+            queue = [];
+        }
+        if (!sessionOwnerId) restorePending(online.user.id);
+        sessionOwnerId = online.user.id;
+
         if (sessionId && activeBossKey === bossKey) {
             await loadBrain(bossKey);
+            scheduleFlush();
             return { sessionId: sessionId, resumed: true };
         }
         if (startPromise) {
@@ -184,19 +278,24 @@
             if (!finished) return null;
         }
 
+        if (!clientSessionId || activeBossKey !== bossKey) clientSessionId = makeUuid();
+        activeBossKey = bossKey;
+        persistPending();
+
         startPromise = (async function () {
             try {
                 var result = await post({
                     action: "start",
-                    clientSessionId: makeUuid(),
+                    clientSessionId: clientSessionId,
                     bossKey: bossKey,
-                    gameVersion: "ger-dodge-training-2",
+                    gameVersion: metadata && typeof metadata.gameVersion === "string" ? metadata.gameVersion.slice(0, 40) : "ger-dodge-training-3",
                     arenaMode: metadata && typeof metadata.arenaMode === "string" ? metadata.arenaMode.slice(0, 32) : "unknown",
                     metadata: metadata && typeof metadata === "object" ? metadata : {}
                 });
                 if (!result || !result.sessionId) throw new Error("training_session_not_created");
                 sessionId = result.sessionId;
                 activeBossKey = bossKey;
+                persistPending();
                 await loadBrain(bossKey);
                 scheduleFlush();
                 return result;
@@ -213,6 +312,35 @@
         }
     }
 
+    async function annotateSession(metadata) {
+        if (startPromise) {
+            try { await startPromise; } catch (_error) {}
+        }
+        if (!sessionId || !metadata || typeof metadata !== "object") return false;
+        try {
+            var result = await post({ action: "annotate", sessionId: sessionId, metadata: metadata });
+            return !!(result && result.ok === true);
+        } catch (error) {
+            console.warn("[GER training] Session metadata was not saved:", error && error.message ? error.message : error);
+            return false;
+        }
+    }
+
+    async function saveAgentResults(results) {
+        if (startPromise) {
+            try { await startPromise; } catch (_error) {}
+        }
+        if (!sessionId || !results || typeof results !== "object") return false;
+        try {
+            var response = await post({ action: "agent_results", sessionId: sessionId, results: results });
+            if (!response || response.ok !== true) throw new Error("agent_results_not_acknowledged");
+            return response;
+        } catch (error) {
+            console.warn("[GER training] Parallel-agent results remain unsaved:", error && error.message ? error.message : error);
+            throw error;
+        }
+    }
+
     function recordOutcome(sample, outcome, damageTaken) {
         if (!sample) return false;
         var row = Object.assign({}, sample, {
@@ -220,9 +348,11 @@
             outcome: outcome === "evaded" || outcome === "hit" || outcome === "blocked" ? outcome : "unknown",
             damageTaken: Math.max(0, Number(damageTaken) || 0)
         });
+        row.features = Object.assign({}, sample.features || {});
+        if (!row.features.eventOrder) row.features.eventOrder = ++sampleSequence;
         queue.push(row);
-        if (queue.length > 240) queue.splice(0, queue.length - 240);
-        if (queue.length >= 12) flush();
+        schedulePersist();
+        if (queue.length >= 40) flush();
         else scheduleFlush();
         return true;
     }
@@ -232,7 +362,7 @@
         if (startPromise) {
             try { await startPromise; } catch (_error) {}
         }
-        if (!sessionId) return true;
+        if (!sessionId) return queue.length === 0;
 
         finishPromise = (async function () {
             try {
@@ -240,7 +370,7 @@
                     window.clearTimeout(flushTimer);
                     flushTimer = 0;
                 }
-                var sent = await flush();
+                var sent = await flushAll();
                 if (!sent || queue.length) {
                     scheduleFlush();
                     return false;
@@ -251,8 +381,12 @@
                     result: result === "win" || result === "loss" || result === "draw" ? result : "aborted"
                 });
                 if (!response || response.ok !== true) return false;
+                clearPendingStorage();
                 sessionId = null;
                 activeBossKey = null;
+                clientSessionId = null;
+                sessionOwnerId = null;
+                queue = [];
                 return true;
             } catch (error) {
                 console.warn("[GER training] Could not finish training session:", error && error.message ? error.message : error);
@@ -264,6 +398,10 @@
         });
         return finishPromise;
     }
+
+    window.addEventListener("beforeunload", function () {
+        persistPending();
+    });
 
     function getDirectionStats(bossKey, attackKey, direction) {
         var boss = brainByBoss[String(bossKey || "")];
@@ -312,6 +450,9 @@
         finish: finish,
         refreshBrain: loadBrain,
         recordOutcome: recordOutcome,
+        flush: flushAll,
+        annotateSession: annotateSession,
+        saveAgentResults: saveAgentResults,
         checkOnline: requireOnlineSession,
         getDirectionStats: getDirectionStats,
         getAttackStats: getAttackStats,
