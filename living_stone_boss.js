@@ -1332,6 +1332,18 @@ window.MBGERTrainingTickLivingStone = function () {
         qteBullets = [];
         qtePunches = [];
     }
+    // Skip the final black-hole/dialogue sequence in training. The swarm
+    // detects the real zero-HP state and closes the sample after scoring.
+    if (finalSceneActive) {
+        finalSceneActive = false;
+        finalScenePhase = "done";
+        finalSceneTimer = 0;
+        finalSceneEndTimer = 0;
+        finalTexts = [];
+        finalBlackHole = null;
+        finalHeartVisible = false;
+        livingStoneState = "victory";
+    }
 };
  
 function drawLivingStoneOpeningIntro() {
