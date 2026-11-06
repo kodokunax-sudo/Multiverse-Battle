@@ -294,7 +294,9 @@ function isUniqueBossActive() {
 // ============================================================
 window.MBApplyBossDamage = function(ctx, amount, source) {
     if (!ctx) return 0;
-    var damage = Math.max(1, Math.floor(Number(amount) || 1));
+    var damage = window.__mbGERTrainingSwarmActive === true
+        ? Math.max(0, Number(amount) || 0)
+        : Math.max(1, Math.floor(Number(amount) || 1));
     if (ctx.type === "arena") {
         var before = Math.max(0, Number(ctx.getBossHp && ctx.getBossHp()) || 0);
         if (!(before > 0)) return 0;
