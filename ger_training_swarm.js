@@ -117,7 +117,7 @@
         panel = document.createElement("div");
         panel.id = "mbGERTrainingSwarmPanel";
         panel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;width:min(270px,calc(100vw - 24px));max-height:42vh;overflow:auto;padding:10px 12px;border:1px solid rgba(255,214,112,.65);border-radius:12px;background:rgba(9,12,20,.92);color:#fff2c6;font:700 11px/1.45 Arial,sans-serif;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
-        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 100 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание по боссу +20 · уклонение +1 · полученный урон 0 · смерть −100 · возрождение через 2 сек. Главная цель: наносить урон боссу и выживать</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
+        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 100 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание по боссу +20 · уклонение +1 · полученный урон 0 · смерть −300 · возрождение через 2 сек. Главная цель: наносить урон боссу и выживать</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
         document.body.appendChild(panel);
     }
     function allowExit(ev) {
@@ -688,7 +688,7 @@
             c.flashUntil = time + 180;
             if (c.hp <= 0) {
                 c.alive = false;
-                c.score -= 100;
+                c.score -= 300;
                 c.respawnAt = time + 2000;
                 c.pendingDodge = null;
             }
@@ -1098,7 +1098,7 @@
         if (trainingApi && typeof trainingApi.start === "function") {
             trainingSessionPromise = trainingApi.start(bossKey, {
                 arenaMode: ctx && ctx.type ? ctx.type : "unknown",
-                gameVersion: "ger-dodge-training-11",
+                gameVersion: "ger-dodge-training-12",
                 trainingMode: true,
                 trainingProfile: "parallel_primary_stands",
                 agentRole: "primary_stand",
