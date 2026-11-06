@@ -304,11 +304,38 @@
         if(panel){
             var summary=panel.querySelector("#mbGERSwarmSummary");
             var leaders=panel.querySelector("#mbGERSwarmLeaders");
-            if(summary)summary.textContent="ИТОГ · Выжили "+survivors.length+"/"+COUNT+" · "+reason;
+            if(summary)summary.textContent="ИТОГ · Выжили "+survivors.length+"/"+COUNT+" · Удары: "+totalHits+" · Уклонения: "+totalDodges+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
             if(leaders)leaders.innerHTML=top.map(function(line){return "<div>"+line+"</div>";}).join("");
         }
-        damageLeaderboard={reason:reason,survivors:survivors.length,results:clones.map(function(c){return {id:c.id,score:Math.floor(c.score),damageDealt:Math.floor(c.damageDealt),damageTaken:Math.floor(c.damageTaken),hits:c.hits,dodges:c.dodges,alive:c.alive};})};
+        var totalHits=clones.reduce(function(n,c){return n+c.hits;},0);
+        var totalDodges=clones.reduce(function(n,c){return n+c.dodges;},0);
+        var totalDamage=clones.reduce(function(n,c){return n+c.damageDealt;},0);
+        var totalTaken=clones.reduce(function(n,c){return n+c.damageTaken;},0);
+        var resultRows=clones.map(function(c){return {id:c.id,score:Math.floor(c.score),damageDealt:Math.floor(c.damageDealt),damageTaken:Math.floor(c.damageTaken),hits:c.hits,dodges:c.dodges,alive:c.alive};});
+        damageLeaderboard={reason:reason,survivors:survivors.length,totalHits:totalHits,totalDodges:totalDodges,totalDamage:Math.floor(totalDamage),totalDamageTaken:Math.floor(totalTaken),results:resultRows};
         window.__mbGERTrainingSwarmResults=damageLeaderboard;
+        // Send one compact end-of-run observation per agent into the same online
+        // training queue, so the 50-agent batch contributes to the shared brain.
+        var trainingApi=window.MBGERTraining;
+        if(trainingApi&&typeof trainingApi.recordOutcome==="function"){
+            clones.forEach(function(c){
+                try{
+                    trainingApi.recordOutcome({
+                        attackKey:"swarm_agent_survival",
+                        attackFamily:"swarm",
+                        bossPhase:"final",
+                        timeToImpactMs:0,
+                        heartX:c.x,heartY:c.y,velocityX:c.vx,velocityY:c.vy,
+                        chosenDirection:0,targetX:c.tx,targetY:c.ty,
+                        features:{
+                            agentId:c.id,alive:c.alive,score:Math.floor(c.score),
+                            damageDealt:Math.floor(c.damageDealt),damageTaken:Math.floor(c.damageTaken),
+                            hits:c.hits,dodges:c.dodges,completed:completed
+                        }
+                    },c.damageTaken>0?"hit":(c.alive?"evaded":"unknown"),c.damageTaken);
+                }catch(e){}
+            });
+        }
     }
     function tick(ts) {
         raf=0;
@@ -321,6 +348,7 @@
         raf=window.requestAnimationFrame(tick);
     }
     function skipOpeningMoments() {
+        if (!active || !window.__mbGERTrainingMode) return;
         try {
             var ctx = context();
             if (ctx && typeof ctx.getPlayerMaxHp === "function" && typeof ctx.setPlayerHp === "function") {
