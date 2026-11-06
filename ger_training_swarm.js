@@ -758,16 +758,21 @@
         updateBatch = (batchIndex + 1) % batchCount;
         if (time - lastUiAt > 1000) { updatePanel(ctx); lastUiAt = time; }
         saveAgentCheckpoint(time);
-        var hpNow = currentBossHp(ctx);
-        if (hpNow > 0) zeroHpSince = 0;
-        else {
-            if (!zeroHpSince) zeroHpSince = time;
-            // Unique bosses can briefly have 0 HP between real phases. Wait for the
-            // native transition/next phase before declaring the training complete.
-            if (time - zeroHpSince >= 5000) {
-                finishScores("boss_defeated");
-                if (window.__mbBossTestMode && typeof window.MBBossTestFinish === "function") {
-                    window.MBBossTestFinish("win", false);
+        if (ctx.type === "rwb") {
+            // Roger/Whitebeard has native phase and result callbacks. A zero HP
+            // reading during intro/phase transition must never end training early.
+            zeroHpSince = 0;
+        } else {
+            var hpNow = currentBossHp(ctx);
+            if (hpNow > 0) zeroHpSince = 0;
+            else {
+                if (!zeroHpSince) zeroHpSince = time;
+                // Other unique bosses can briefly have 0 HP between native phases.
+                if (time - zeroHpSince >= 5000) {
+                    finishScores("boss_defeated");
+                    if (window.__mbBossTestMode && typeof window.MBBossTestFinish === "function") {
+                        window.MBBossTestFinish("win", false);
+                    }
                 }
             }
         }
@@ -1009,7 +1014,7 @@
         if (trainingApi && typeof trainingApi.start === "function") {
             trainingSessionPromise = trainingApi.start(bossKey, {
                 arenaMode: ctx && ctx.type ? ctx.type : "unknown",
-                gameVersion: "ger-dodge-training-8",
+                gameVersion: "ger-dodge-training-9",
                 trainingMode: true,
                 trainingProfile: "parallel_primary_stands",
                 agentRole: "primary_stand",
