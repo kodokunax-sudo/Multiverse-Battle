@@ -337,7 +337,9 @@ function dioGetUniqueBossTarget(ctxB,preferredId){
 }
 window.getDioUniqueBossTarget=dioGetUniqueBossTarget;
 function dioApplyBossDamageNow(type,id,amount){
- amount=Math.max(0,Number(amount)||0);if(!amount)return;var cb=typeof getBossContext==="function"?getBossContext():null;if(!cb||cb.type!==type)return;var t=dioGetUniqueBossTarget(cb,id);if(!t)return;var dmg=Math.max(1,Math.round(amount));if(type==="rwb"&&window.__mbBossTestMode&&typeof window.MBBossTestModifyOutgoingDamage==="function"){try{dmg=Math.max(0,Number(window.MBBossTestModifyOutgoingDamage(dmg,1))||0)}catch(e){}}if(!dmg)return;
+ amount=Math.max(0,Number(amount)||0);if(!amount)return;var cb=typeof getBossContext==="function"?getBossContext():null;if(!cb||cb.type!==type)return;var t=dioGetUniqueBossTarget(cb,id);if(!t)return;var dmg=window.__mbGERTrainingSwarmActive===true
+  ? Math.max(0,Number(amount)||0)
+  : Math.max(1,Math.round(amount));if(type==="rwb"&&window.__mbBossTestMode&&typeof window.MBBossTestModifyOutgoingDamage==="function"){try{dmg=Math.max(0,Number(window.MBBossTestModifyOutgoingDamage(dmg,1))||0)}catch(e){}}if(!dmg)return;
  if(type==="waystar"){
   if(typeof waystarState!=="undefined"&&waystarState==="phase1"&&typeof window.damageWaystarBoss==="function")window.damageWaystarBoss(dmg);
   else if(t.ref&&typeof t.ref.hp==="number"){t.ref.hp=Math.max(0,t.ref.hp-dmg);if(typeof t.ref.hitFlash!=="undefined")t.ref.hitFlash=10;}
