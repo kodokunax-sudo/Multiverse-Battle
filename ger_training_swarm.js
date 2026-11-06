@@ -552,7 +552,7 @@
         c.attackTargetX = hitTarget.x;
         c.attackTargetY = hitTarget.y;
         var maxHp = maxBossHp(ctx);
-        var damage = Math.max(1, Math.floor(maxHp * 0.00008));
+        var damage = 0.1;
         var before = currentBossHp(ctx);
         var ok = false;
         try {
@@ -976,12 +976,13 @@
         var t = Number(ts) || now();
         if (!lastAt) lastAt = t;
         var elapsed = t - lastAt;
-        // 30Hz pool scheduler; each half-pool updates on alternating ticks, drawing stays on RAF.
-        if (elapsed >= 33) {
-            update(clamp(elapsed, 1, 66));
+        // Keep simulation independent from visible rendering. fps-fix.js switches its RAF
+        // scheduler to a background timer when the tab is hidden.
+        if (elapsed >= 50) {
+            update(clamp(elapsed, 1, 1000));
             lastAt = t;
         }
-        draw();
+        if (!document.hidden) draw();
         raf = window.requestAnimationFrame(tick);
     }
     function skipOpeningMoments() {
@@ -1040,7 +1041,7 @@
         if (trainingApi && typeof trainingApi.start === "function") {
             trainingSessionPromise = trainingApi.start(bossKey, {
                 arenaMode: ctx && ctx.type ? ctx.type : "unknown",
-                gameVersion: "ger-dodge-training-10",
+                gameVersion: "ger-dodge-training-11",
                 trainingMode: true,
                 trainingProfile: "parallel_primary_stands",
                 agentRole: "primary_stand",
