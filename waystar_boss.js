@@ -255,6 +255,18 @@ function initWaystarSupers() {
     }
 }
 
+window.MBGERTrainingSkipWaystarScenes = function () {
+    if (!window.__mbGERTrainingMode || !waystarActive) return;
+    if (waystarDialogActive) waystarDialogActive = false;
+    if (Array.isArray(waystarDialogQueue)) waystarDialogQueue.length = 0;
+    if (waystarChoiceActive) {
+        waystarChoiceActive = false;
+        waystarChoiceResolved = true;
+    }
+    waystarDialogOnComplete = null;
+    if (waystarState === "dialogue") waystarState = "phase1";
+};
+ 
 function startWaystarFight(graphicsModeChoice) {
     var waystarOnlineMode = !!(window.MBOnlineWaystar && window.MBOnlineWaystar.active);
     if (typeof window !== 'undefined' && window.waystarDefeatedThisRun === true && !waystarOnlineMode) {
