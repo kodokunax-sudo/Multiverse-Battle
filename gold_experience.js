@@ -1443,7 +1443,7 @@
                 var dealt = Number(window.MBApplyBossDamage(ctx, damage, "Gold Experience Requiem")) || 0;
                 window.__mbGERTrainingSwarmDamageInFlight = false;
                 if (dealt > 0) return true;
-            } catch (e) {}
+            } catch (e) { window.__mbGERTrainingSwarmDamageInFlight = false; }
         }
 
         if (ctx.type === "arena") {
