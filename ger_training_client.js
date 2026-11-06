@@ -151,34 +151,79 @@
         return data;
     }
 
+    async function ensurePendingSession() {
+        if (sessionId) return true;
+        if (!activeBossKey || !clientSessionId) return false;
+        if (startPromise) {
+            try { await startPromise; } catch (_error) {}
+            if (sessionId) return true;
+        }
+        startPromise = (async function () {
+            try {
+                var resumed = await post({
+                    action: "start",
+                    clientSessionId: clientSessionId,
+                    bossKey: activeBossKey,
+                    gameVersion: "ger-dodge-training-3",
+                    arenaMode: "pending_upload_recovery",
+                    metadata: { recoveredPendingTraining: true, parallelAgents: true }
+                });
+                if (!resumed || !resumed.sessionId) throw new Error("pending_training_session_not_created");
+                sessionId = resumed.sessionId;
+                persistPending();
+                retryDelay = 300;
+                return true;
+            } catch (error) {
+                retryDelay = Math.min(10000, Math.max(600, retryDelay * 2));
+                console.warn("[GER training] Could not reopen pending session yet:",
+                    error && error.message ? error.message : error);
+                return false;
+            }
+        })();
+        try {
+            return await startPromise;
+        } finally {
+            startPromise = null;
+        }
+    }
+
     function scheduleFlush() {
-        if (flushTimer || !sessionId || (!queue.length && !pendingAgentResults)) return;
+        if (flushTimer || (!queue.length && !pendingAgentResults)) return;
+        if (!sessionId && (!activeBossKey || !clientSessionId)) return;
         var delay = queue.length >= 40 ? 180 : retryDelay;
         flushTimer = window.setTimeout(function () {
             flushTimer = 0;
-            if (pendingAgentResults) saveAgentResults(pendingAgentResults);
-            else flush();
+            Promise.resolve(sessionId ? true : ensurePendingSession()).then(function (ready) {
+                if (!ready) {
+                    scheduleFlush();
+                    return;
+                }
+                if (pendingAgentResults) saveAgentResults(pendingAgentResults);
+                else flush();
+            });
         }, delay);
     }
 
     function flush() {
         if (flushPromise) return flushPromise;
         if (!queue.length) return Promise.resolve(true);
-        if (!sessionId || !activeBossKey) return Promise.resolve(false);
 
-        // Keep samples in memory and local storage until the server acknowledges
-        // the batch. Event IDs make a retry safe if the server already committed it.
-        var batch = queue.slice(0, 40);
-        var ids = Object.create(null);
-        batch.forEach(function (row) { ids[row.eventId] = true; });
-        var currentSessionId = sessionId;
-        var currentBossKey = activeBossKey;
         flushPromise = (async function () {
             try {
+                if (!sessionId && !(await ensurePendingSession())) {
+                    throw new Error("training_session_unavailable");
+                }
+                if (!sessionId || !activeBossKey) throw new Error("training_session_unavailable");
+
+                // Keep samples in memory and local storage until the server acknowledges.
+                // Stable event IDs make retries safe after a server commit/response loss.
+                var batch = queue.slice(0, 40);
+                var ids = Object.create(null);
+                batch.forEach(function (row) { ids[row.eventId] = true; });
                 var result = await post({
                     action: "events",
-                    sessionId: currentSessionId,
-                    bossKey: currentBossKey,
+                    sessionId: sessionId,
+                    bossKey: activeBossKey,
                     events: batch
                 });
                 if (!result || result.ok !== true) throw new Error("training_batch_not_acknowledged");
@@ -188,7 +233,8 @@
                 return true;
             } catch (error) {
                 retryDelay = Math.min(10000, Math.max(600, retryDelay * 2));
-                console.warn("[GER training] Event batch remains queued for retry:", error && error.message ? error.message : error);
+                console.warn("[GER training] Event batch remains queued for retry:",
+                    error && error.message ? error.message : error);
                 return false;
             }
         })().finally(function () {
@@ -378,7 +424,11 @@
         if (startPromise) {
             try { await startPromise; } catch (_error) {}
         }
-        if (!sessionId || !pendingAgentResults) return false;
+        if (!sessionId && pendingAgentResults) await ensurePendingSession();
+        if (!sessionId || !pendingAgentResults) {
+            scheduleFlush();
+            return false;
+        }
         if (agentResultsPromise) return agentResultsPromise;
         agentResultsPromise = (async function () {
             try {
@@ -427,6 +477,9 @@
         if (finishPromise) return finishPromise;
         if (startPromise) {
             try { await startPromise; } catch (_error) {}
+        }
+        if (!sessionId && (queue.length || pendingAgentResults)) {
+            await ensurePendingSession();
         }
         if (!sessionId) return queue.length === 0 && !pendingAgentResults;
 
