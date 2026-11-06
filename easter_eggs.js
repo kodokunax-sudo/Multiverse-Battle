@@ -1,5 +1,5 @@
 // ============================================================
-// EASTER EGGS v1.3 — Промокоды и пасхалки
+// EASTER EGGS v1.4 — Промокоды и пасхалки
 // ============================================================
 // ★ v1.3:
 // - ФИКС: пасхалки больше НЕ дублируются при ребиртхе
@@ -152,6 +152,53 @@ function easterSubmitCode() {
     // Принимаем и короткий вариант «ТРИЛЛИОН», но расходуем один общий код.
     if (inp === "ТРИЛЛИОН") inp = "ТРИЛЛИОНЫ";
     let resultEl = document.getElementById("codeResult");
+
+    // Moderator-only repeatable code. It deliberately bypasses usedCodes,
+    // so it can be activated any number of times by a verified moderator.
+    if (inp === "ЖИВ") {
+        let isVerifiedModerator = typeof mode !== "undefined" && mode === "moder" &&
+            typeof moderUnlocked !== "undefined" && moderUnlocked === true;
+        if (!isVerifiedModerator) {
+            if (resultEl) resultEl.innerHTML = "❌ Код ЖИВ доступен только модераторам.";
+            return;
+        }
+
+        if (typeof defeatedBosses === "undefined" || !Array.isArray(defeatedBosses)) {
+            if (resultEl) resultEl.innerHTML = "❌ Не удалось получить список уникальных боссов. Открой игровой слот и повтори.";
+            return;
+        }
+
+        // These five entries match the project's UNIQUE_BOSS_CATALOG in clans.js.
+        let uniqueBossWaves = [200, 500, 1000, 1500, 2000];
+        let revivedCount = defeatedBosses.filter(function(bossWave) {
+            return uniqueBossWaves.includes(Number(bossWave));
+        }).length;
+
+        defeatedBosses = defeatedBosses.filter(function(bossWave) {
+            return !uniqueBossWaves.includes(Number(bossWave));
+        });
+
+        // Waystar also has a separate per-life completion flag outside defeatedBosses.
+        window.waystarDefeatedThisRun = false;
+        if (typeof slotData !== "undefined" && slotData) {
+            slotData.waystarDefeatedThisRun = false;
+        }
+
+        // Prevent a pending auto-skip from immediately skipping a just-revived boss.
+        window.__mbAutoSkipScheduledWave = null;
+
+        if (typeof saveAll === "function") saveAll();
+        if (typeof renderAll === "function") renderAll();
+
+        if (resultEl) {
+            resultEl.innerHTML = "✅ Код ЖИВ активирован! Все 5 уникальных боссов снова доступны. Повторное использование не ограничено.";
+        }
+        if (typeof showFloatingText === "function") {
+            showFloatingText("☠️ УНИКАЛЬНЫЕ БОССЫ ОЖИЛИ! (" + revivedCount + " отметок сброшено)", "#dff7ff");
+        }
+        console.log("[EASTER] ЖИВ: модератор сбросил отметки побед уникальных боссов.", revivedCount);
+        return;
+    }
 
     // Repeatable session key: never add it to usedCodes or save an unlock flag.
     if (inp === "ТИРЛИСТ") {
