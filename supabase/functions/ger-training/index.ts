@@ -238,7 +238,8 @@ async function readBrain(body) {
   const bossKey = cleanKey(body.bossKey, 64);
   const attackKey = body.attackKey == null ? null : cleanKey(body.attackKey);
   if (!bossKey || (body.attackKey != null && !attackKey)) return reply({ error: "invalid_brain_query" }, 400);
-  const bossKeys = BOSS_KEY_ALIASES[bossKey] || [bossKey];
+  const bossKeys = Object.prototype.hasOwnProperty.call(BOSS_KEY_ALIASES, bossKey)
+    ? BOSS_KEY_ALIASES[bossKey] : [bossKey];
   // Ordinary arena battles use ctx.type="arena", while the training arena
   // historically stored arena_wave_N keys. Combine those samples for live play.
   const includeArenaWaves = bossKey === "arena";
