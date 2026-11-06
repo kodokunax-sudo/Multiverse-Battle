@@ -30,8 +30,8 @@
             y: clamp(315 + Math.sin(angle) * ring, 18, 482),
             vx: 0, vy: 0, tx: 200, ty: 260, hp: 3, maxHp: 3,
             alive: true, score: 0, damageDealt: 0, damageTaken: 0,
-            hits: 0, dodges: 0, wasThreatened: false, nextAttackAt: 0, nextDecisionAt: 0,
-            nextHitAt: 0, lastHitAt: 0, lastHitKey: "", flashUntil: 0,
+            hits: 0, dodges: 0, wasThreatened: false, nextAttackAt: now() + Math.random() * 900, nextDecisionAt: 0,
+            nextHitAt: 0, lastHitAt: 0, lastHitKey: "", flashUntil: 0, attackUntil: 0, attackTargetX: 200, attackTargetY: 130, impactUntil: 0, impactX: 0, impactY: 0,
             phase: Math.random() * Math.PI * 2
         };
     }
@@ -233,46 +233,97 @@
             }
         }
     }
+    var swarmGERImage = null;
+    var swarmGERImageReady = false;
+    function loadSwarmGERImage() {
+        if (swarmGERImage || typeof window.Image !== "function") return;
+        swarmGERImage = new Image();
+        swarmGERImage.onload = function () { swarmGERImageReady = true; };
+        swarmGERImage.onerror = function () { swarmGERImageReady = false; };
+        swarmGERImage.src = "Model/голден експириес рквием.jpg";
+    }
+    function drawClone(c, p, time) {
+        var pulse = 0.94 + Math.sin(time / 185 + p.phase) * 0.035;
+        var attacking = p.attackUntil > time;
+        var attackProgress = attacking ? 1 - Math.max(0, p.attackUntil - time) / 360 : 0;
+        var targetX = Number(p.attackTargetX) || p.x;
+        var targetY = Number(p.attackTargetY) || p.y;
+        var angle = Math.atan2(targetY - p.y, targetX - p.x);
+        var hitFlash = p.flashUntil > time;
+        c.save();
+        c.globalAlpha = hitFlash ? 1 : pulse;
+        c.translate(p.x, p.y + Math.sin(time / 120 + p.phase) * 1.1);
+        c.rotate(Math.sin(time / 310 + p.phase) * 0.025 + (attacking ? Math.cos(angle) * 0.08 : 0));
+        if (swarmGERImageReady) {
+            var iw = swarmGERImage.naturalWidth || swarmGERImage.width;
+            var ih = swarmGERImage.naturalHeight || swarmGERImage.height;
+            var fit = Math.min(54 / iw, 66 / ih);
+            var w = iw * fit, h = ih * fit;
+            c.save();
+            c.scale(attacking ? 1.04 : 1, attacking ? 0.97 : 1);
+            c.shadowColor = hitFlash ? "#ffffff" : "#d6a83e";
+            c.shadowBlur = hitFlash ? 14 : 5;
+            c.drawImage(swarmGERImage, -w / 2, -h / 2, w, h);
+            c.restore();
+        } else {
+            c.fillStyle = "#e9b83f";
+            c.strokeStyle = "#704516";
+            c.lineWidth = 2;
+            c.beginPath(); c.ellipse(0, 0, 13, 18, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+            c.fillStyle = "#76df88";
+            c.beginPath(); c.arc(0, -13, 4, 0, Math.PI * 2); c.fill();
+        }
+        // The original GER's collision radius is max(20, heartSize * 1.3).
+        // The swarm uses the same 20px radius, not the old tiny decorative dot.
+        c.strokeStyle = "rgba(255,225,120,.28)";
+        c.lineWidth = 1;
+        c.beginPath(); c.arc(0, 0, 20, 0, Math.PI * 2); c.stroke();
+        if (attacking) {
+            var reach = 24 + Math.sin(attackProgress * Math.PI) * 70;
+            var fistX = Math.cos(angle) * reach;
+            var fistY = Math.sin(angle) * reach;
+            c.save();
+            c.globalCompositeOperation = "lighter";
+            c.globalAlpha = 0.9;
+            c.strokeStyle = "#ffe49a";
+            c.lineWidth = 8;
+            c.lineCap = "round";
+            c.shadowColor = "#ffc34d";
+            c.shadowBlur = 15;
+            c.beginPath(); c.moveTo(7, 1); c.lineTo(fistX, fistY); c.stroke();
+            c.fillStyle = "#fff0b0";
+            c.beginPath(); c.arc(fistX, fistY, 7, 0, Math.PI * 2); c.fill();
+            c.restore();
+        }
+        c.restore();
+        if (p.impactUntil > time) {
+            var age = 1 - (p.impactUntil - time) / 260;
+            c.save();
+            c.globalCompositeOperation = "lighter";
+            c.globalAlpha = 1 - age;
+            c.strokeStyle = "#fff1a6";
+            c.lineWidth = 3;
+            c.shadowColor = "#ffbd43";
+            c.shadowBlur = 16;
+            c.beginPath(); c.arc(p.impactX, p.impactY, 7 + age * 24, 0, Math.PI * 2); c.stroke();
+            c.fillStyle = "#fff8d7";
+            c.font = "900 11px Arial";
+            c.textAlign = "center";
+            c.fillText("HIT!", p.impactX, p.impactY - 15 - age * 12);
+            c.restore();
+        }
+    }
     function draw() {
         if (!active || !overlayCtx || !overlay) return;
         placeOverlay();
         var c = overlayCtx;
+        var time = now();
         c.clearRect(0,0,400,500);
         for (var i=0;i<clones.length;i++) {
             var p=clones[i];
-            if (!p.alive) continue;
-            var pulse=0.7+Math.sin(now()/180+p.phase)*0.18;
-            c.save();
-            c.globalAlpha=p.flashUntil>now()?1:pulse;
-            c.translate(p.x,p.y);
-            c.fillStyle=p.flashUntil>now()?"#fff4c9":"#e8b84c";
-            c.strokeStyle="#704516";
-            c.lineWidth=1;
-            c.beginPath();
-            c.ellipse(0,0,4.2,6.4,0,0,Math.PI*2);
-            c.fill();c.stroke();
-            c.fillStyle="#fff0a8";
-            c.beginPath();c.arc(0,-3.2,2.1,0,Math.PI*2);c.fill();
-            c.strokeStyle="#704516";
-            c.lineWidth=1.25;
-            c.beginPath();
-            c.moveTo(-2.1,-0.5); c.lineTo(-3.8,2.5);
-            c.moveTo(2.1,-0.5); c.lineTo(3.8,2.5);
-            c.moveTo(-2.2,2.5); c.lineTo(-3.2,5.6);
-            c.moveTo(2.2,2.5); c.lineTo(3.2,5.6);
-            c.stroke();
-            c.strokeStyle="#f5d477";
-            c.lineWidth=1.6;
-            c.beginPath();
-            c.moveTo(-2.1,-0.5); c.lineTo(-4.2,1.6);
-            c.moveTo(2.1,-0.5); c.lineTo(4.2,1.6);
-            c.stroke();
-            c.fillStyle="#8ee6a1";
-            c.beginPath(); c.arc(0,-6.2,1.15,0,Math.PI*2); c.fill();
-            c.restore();
+            if (p.alive) drawClone(c, p, time);
         }
-        // Draw the full GER model on the persistent overlay, not on the boss canvas
-        // that is cleared again by each unique-boss render loop.
+        // Keep the real player's GER visible as a separate, full-size companion.
         if (typeof window.MBDrawGoldExperience === "function") {
             try { window.MBDrawGoldExperience(c); } catch (e) {}
         }
@@ -294,7 +345,7 @@
         var survivors=clones.filter(function(c){return c.alive;});
         var completed = reason === "boss_defeated" || reason === "win";
         if (completed) survivors.forEach(function(c){c.score+=150;});
-        var damageRank=clones.slice().sort(function(a,b){return b.damageDealt-a.damageDealt;});
+        var totalHits=clones.reduce(function(n,c){return n+c.hits;},0);\n        var totalDodges=clones.reduce(function(n,c){return n+c.dodges;},0);\n        var totalDamage=clones.reduce(function(n,c){return n+c.damageDealt;},0);\n        var totalTaken=clones.reduce(function(n,c){return n+c.damageTaken;},0);\n        var damageRank=clones.slice().sort(function(a,b){return b.damageDealt-a.damageDealt;});
         if(completed && damageRank[0])damageRank[0].score+=120;
         var takenRank=clones.slice().sort(function(a,b){return b.damageTaken-a.damageTaken;});
         if(completed && takenRank[0]&&takenRank[0].damageTaken>0)takenRank[0].score-=120;
@@ -369,7 +420,7 @@
     }
     function start() {
         if (active) return;
-        active=true; ended=false; lastAt=0; lastUiAt=0; zeroHpSince=0;
+        active=true; ended=false; lastAt=0; lastUiAt=0; zeroHpSince=0;\n        loadSwarmGERImage();
         clones=[]; for(var i=0;i<COUNT;i++)clones.push(createClone(i));
         makeOverlay(); makePanel(); lockPlayerInput();
         lastBossHp=null;
