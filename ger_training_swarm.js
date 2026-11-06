@@ -90,7 +90,7 @@
         panel = document.createElement("div");
         panel.id = "mbGERTrainingSwarmPanel";
         panel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;width:min(270px,calc(100vw - 24px));max-height:42vh;overflow:auto;padding:10px 12px;border:1px solid rgba(255,214,112,.65);border-radius:12px;background:rgba(9,12,20,.92);color:#fff2c6;font:700 11px/1.45 Arial,sans-serif;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
-        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 100 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание +1 · полученный урон −5 · выживание +150 · лучший урон +120 · максимум полученного урона −120</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
+        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 100 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: реальный урон боссу × 10 000 000 от доли HP · уклонение +1 · попадание −3 · смерть −25. Выживание само по себе очков не даёт</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
         document.body.appendChild(panel);
     }
     function allowExit(ev) {
@@ -118,6 +118,30 @@
     function unlockPlayerInput() {
         inputHandlers.forEach(function (pair) { window.removeEventListener(pair[0], pair[1], true); });
         inputHandlers = [];
+    }
+    function installTrainingCollisionIsolation() {
+        if (window.__mbGERTrainingCollisionGuardInstalled) return;
+        var original = window.dioAttackTouchesStand;
+        if (typeof original !== "function") return;
+        window.dioAttackTouchesStand = function () {
+            if (window.__mbGERTrainingSwarmActive === true) return false;
+            return original.apply(this, arguments);
+        };
+        window.__mbGERTrainingCollisionGuardInstalled = true;
+    }
+    function collectTrainingAttacks(ctx) {
+        var result = [];
+        ["getAttacks", "getBlasters"].forEach(function (method) {
+            if (!ctx || typeof ctx[method] !== "function") return;
+            try {
+                var rows = ctx[method]();
+                if (!Array.isArray(rows)) return;
+                rows.forEach(function (attack) {
+                    if (attack && result.indexOf(attack) === -1) result.push(attack);
+                });
+            } catch (e) {}
+        });
+        return result;
     }
     function getThreat(attack, x, y, frames, alert) {
         try {
@@ -524,11 +548,12 @@
             c.impactUntil = now() + 260;
             c.damageDealt += dealt;
             c.hits++;
-            c.score += 1 + dealt / Math.max(1, maxHp) * 100000;
+            c.score += Math.max(1, Math.round((dealt / Math.max(1, maxHp)) * 10000000));
             c.flashUntil = now() + 120;
             return true;
         }
-        return !!ok;
+        // Count an attack only when the boss HP really decreased.
+        return dealt > 0;
     }
     function updateAgent(c, ctx, boss, attacks, waves, time, frameScale) {
         if (!c.alive) return;
@@ -591,7 +616,7 @@
             !pendingThreatStillActive(c.pendingDodge, c, attacks, waves)) {
             reportAgentOutcome(c, c.pendingDodge, "evaded", 0, boss, attacks, waves, ctx);
             c.dodges++;
-            c.score += 3;
+            c.score += 1;
             c.pendingDodge = null;
         }
 
@@ -611,9 +636,9 @@
             if (c.pendingDodge && c.pendingDodge.source === actualHit.source) c.pendingDodge = null;
             c.damageTaken += damage;
             c.hp--;
-            c.score -= 5;
+            c.score -= 3;
             c.flashUntil = time + 180;
-            if (c.hp <= 0) { c.alive = false; c.score -= 10; }
+            if (c.hp <= 0) { c.alive = false; c.score -= 25; }
         }
 
         if (c.alive && time >= c.nextAttackAt &&
@@ -691,9 +716,8 @@
         if (!ctx || !ctx.getAttacks || !ctx.getBossPosition) return;
         var time = now();
         var boss = bossTarget(ctx);
-        var attacks = [];
+        var attacks = collectTrainingAttacks(ctx);
         var waves = [];
-        try { attacks = ctx.getAttacks() || []; } catch (e) {}
         try { waves = ctx.getShockwaves ? ctx.getShockwaves() || [] : []; } catch (e) {}
         var scale = clamp((Number(dt)||16.667)/16.667,0.5,2.2);
         // Run half the pool per simulation tick. Across two alternating ticks all 100
@@ -848,7 +872,7 @@
         ended = true;
         var survivors = agents.filter(function (agent) { return agent.alive; });
         var completed = reason === "boss_defeated" || reason === "win";
-        if (completed) survivors.forEach(function (agent) { agent.score += 150; });
+        // No points for merely surviving: boss damage is the primary objective.
 
         // Resolve unfinished decisions as unknown for traceability, not as successful dodges.
         var finishCtx = context();
@@ -867,11 +891,6 @@
         var totalFailedDodges = agents.reduce(function (n, agent) { return n + agent.failedDodges; }, 0);
         var totalDamage = agents.reduce(function (n, agent) { return n + agent.damageDealt; }, 0);
         var totalTaken = agents.reduce(function (n, agent) { return n + agent.damageTaken; }, 0);
-        var damageRank = agents.slice().sort(function (a, b) { return b.damageDealt - a.damageDealt; });
-        if (completed && damageRank[0]) damageRank[0].score += 120;
-        var takenRank = agents.slice().sort(function (a, b) { return b.damageTaken - a.damageTaken; });
-        if (completed && takenRank[0] && takenRank[0].damageTaken > 0) takenRank[0].score -= 120;
-
         agents.sort(function (a, b) { return b.score - a.score; });
         var top = agents.slice(0, 10).map(function (agent) {
             return "GER-" + String(agent.id).padStart(2, "0") + ": " +
@@ -1006,6 +1025,7 @@
         updateBatch = 0;
         lastAgentCheckpointAt = now();
         window.__mbGERTrainingSwarmActive = true;
+        installTrainingCollisionIsolation();
         window.__mbGERTrainingSwarmSavePromise = null;
 
         var ctx = context();
