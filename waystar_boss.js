@@ -257,20 +257,19 @@ function initWaystarSupers() {
 
 window.MBGERTrainingSkipWaystarScenes = function () {
     if (!window.__mbGERTrainingMode || !waystarActive) return;
-    waystarDialogActive = false;
-    if (Array.isArray(waystarDialogQueue)) waystarDialogQueue.length = 0;
-    waystarDialogStep = 0;
-    waystarDialogAutoTimer = 0;
-    waystarChoiceActive = false;
-    waystarChoiceResolved = true;
-    waystarDialogOnComplete = null;
-    waystarSpareDialog = [];
-    waystarSpareDialogStep = 0;
-    waystarSpareDialogTimer = 0;
-    if (waystarState === "dialogue") waystarState = "phase1";
-    // Victory/cute-scene presentation is not part of the training sample.
-    // The swarm observes the real boss HP and ends the run itself.
+
+    // Skip the post-victory story only after the actual boss HP reaches zero.
     if (waystarFinalActive && waystarBossHp <= 0) {
+        waystarDialogActive = false;
+        if (Array.isArray(waystarDialogQueue)) waystarDialogQueue.length = 0;
+        waystarDialogStep = 0;
+        waystarDialogAutoTimer = 0;
+        waystarChoiceActive = false;
+        waystarChoiceResolved = true;
+        waystarDialogOnComplete = null;
+        waystarSpareDialog = [];
+        waystarSpareDialogStep = 0;
+        waystarSpareDialogTimer = 0;
         waystarFinalActive = false;
         waystarFinalPhase = "done";
         waystarFinalTimer = 0;
@@ -278,6 +277,29 @@ window.MBGERTrainingSkipWaystarScenes = function () {
         waystarBlindPhase = null;
         waystarBlindTimer = 0;
         waystarBlindWarnings = [];
+        return;
+    }
+
+    // Do nothing during gaps between a phase transition and its next dialogue.
+    if (!waystarDialogActive && !waystarChoiceActive) return;
+
+    var onComplete = typeof waystarDialogOnComplete === "function"
+        ? waystarDialogOnComplete : null;
+    waystarDialogActive = false;
+    if (Array.isArray(waystarDialogQueue)) waystarDialogQueue.length = 0;
+    waystarDialogStep = 0;
+    waystarDialogAutoTimer = 0;
+    waystarChoiceActive = false;
+    waystarChoiceResolved = true;
+    waystarDialogOnComplete = null;
+
+    // Use the same callback as natural dialogue completion to enter the next phase.
+    if (onComplete) {
+        try { onComplete(); }
+        catch (error) { console.error("[WAYSTAR] Training dialogue transition failed:", error); }
+    } else if (waystarState === "dialogue") {
+        waystarState = "phase1";
+        waystarAttackTimer = 0;
     }
 };
  
@@ -1222,7 +1244,7 @@ function updateWaystarAttacks() {
             var newX = waystarDash.startX + (waystarDash.targetX - waystarDash.startX) * t;
             var newY = waystarDash.startY + (waystarDash.targetY - waystarDash.startY) * t;
             for (var k = waystarAttacks.length - 1; k >= 0; k--) { if (waystarAttacks[k].type === "shotgun_bullet" || waystarAttacks[k].type === "spiral" || waystarAttacks[k].type === "star_rain") { var d = Math.sqrt(Math.pow(waystarAttacks[k].x - newX, 2) + Math.pow(waystarAttacks[k].y - newY, 2)); if (d < 80) { spawnWaystarParticles(waystarAttacks[k].x, waystarAttacks[k].y, 6, "#ff00ff", 4); waystarAttacks.splice(k, 1); } } }
-            if (!waystarDash.hit && waystarInvulnTimer <= 0) { var d = Math.sqrt(Math.pow(waystarPlayer.x - newX, 2) + Math.pow(waystarPlayer.y - newY, 2)); var dioDashCtx=(typeof getBossContext==="function")?getBossContext():null; var dioDashStand=typeof window.getDioStandPosition==="function"&&dioDashCtx?window.getDioStandPosition(dioDashCtx):null; if(dioDashStand&&typeof window.isStandUserStandActive==="function"&&window.isStandUserStandActive()&&Math.hypot(newX-dioDashStand.x,newY-dioDashStand.y)<25){waystarDash.hit=true;applyWaystarHit(typeof window.scaleStandBlockedDamage==="function"?window.scaleStandBlockedDamage(waystarDash.damage):Math.max(1,Math.floor(waystarDash.damage*.4)),"удар по стенду. меньше урона",waystarDash);} else if (d < 25) { waystarDash.hit = true; applyWaystarHit(waystarDash.damage, "РЫВОК!", waystarDash); var angle = Math.atan2(waystarPlayer.y - newY, waystarPlayer.x - newX); waystarPlayer.x += Math.cos(angle) * 60; waystarPlayer.y += Math.sin(angle) * 60; waystarPlayer.x = Math.max(16, Math.min(384, waystarPlayer.x)); waystarPlayer.y = Math.max(80, Math.min(484, waystarPlayer.y)); waystarShake = 35; addWaystarShockwave(waystarPlayer.x, waystarPlayer.y, "#ff00ff", 180, 18, 5); } }
+            if (!window.__mbGERTrainingSwarmActive && !waystarDash.hit && waystarInvulnTimer <= 0) { var d = Math.sqrt(Math.pow(waystarPlayer.x - newX, 2) + Math.pow(waystarPlayer.y - newY, 2)); var dioDashCtx=(typeof getBossContext==="function")?getBossContext():null; var dioDashStand=typeof window.getDioStandPosition==="function"&&dioDashCtx?window.getDioStandPosition(dioDashCtx):null; if(dioDashStand&&typeof window.isStandUserStandActive==="function"&&window.isStandUserStandActive()&&Math.hypot(newX-dioDashStand.x,newY-dioDashStand.y)<25){waystarDash.hit=true;applyWaystarHit(typeof window.scaleStandBlockedDamage==="function"?window.scaleStandBlockedDamage(waystarDash.damage):Math.max(1,Math.floor(waystarDash.damage*.4)),"удар по стенду. меньше урона",waystarDash);} else if (d < 25) { waystarDash.hit = true; applyWaystarHit(waystarDash.damage, "РЫВОК!", waystarDash); var angle = Math.atan2(waystarPlayer.y - newY, waystarPlayer.x - newX); waystarPlayer.x += Math.cos(angle) * 60; waystarPlayer.y += Math.sin(angle) * 60; waystarPlayer.x = Math.max(16, Math.min(384, waystarPlayer.x)); waystarPlayer.y = Math.max(80, Math.min(484, waystarPlayer.y)); waystarShake = 35; addWaystarShockwave(waystarPlayer.x, waystarPlayer.y, "#ff00ff", 180, 18, 5); } }
             waystarSmallBoss.x = newX; waystarSmallBoss.y = newY;
             for (var i = 0; i < 3; i++) spawnWaystarParticles(newX + (Math.random()-0.5)*25, newY + (Math.random()-0.5)*25, 1, ["#ff00ff", "#ffffff"][Math.floor(Math.random()*2)], 4);
             if (waystarDash.progress % 5 === 0) addWaystarSlash(newX, newY, Math.random() * Math.PI * 2, 35, 3);
