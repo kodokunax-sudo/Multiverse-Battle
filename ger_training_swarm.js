@@ -2,7 +2,7 @@
 (function () {
     "use strict";
     var COUNT = 100;
-    // Keep roughly the previous 50-agent compute budget by updating half the pool per 30Hz tick.
+    // Keep roughly the previous compute budget by updating half the pool per 30Hz tick.
     var UPDATE_BATCH_SIZE = 50;
     var updateBatch = 0;
     var agents = [];
@@ -696,7 +696,7 @@
         try { attacks = ctx.getAttacks() || []; } catch (e) {}
         try { waves = ctx.getShockwaves ? ctx.getShockwaves() || [] : []; } catch (e) {}
         var scale = clamp((Number(dt)||16.667)/16.667,0.5,2.2);
-        // Run 50 agents per simulation tick. Across two alternating ticks all 100
+        // Run half the pool per simulation tick. Across two alternating ticks all 100
         // agents are updated; each agent therefore thinks at ~15Hz while drawing stays at RAF.
         var batchCount = Math.max(1, Math.ceil(agents.length / UPDATE_BATCH_SIZE));
         var batchIndex = updateBatch % batchCount;
