@@ -154,7 +154,7 @@
             isRunning = true;
             lastTime = performance.now();
             accumulator = 0;
-            mainLoopId = originalRAF(mainLoop);
+            scheduleMainLoop();
         }
 
         return id;
