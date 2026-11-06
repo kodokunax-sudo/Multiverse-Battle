@@ -20,7 +20,6 @@
     var trainingBossKey = "unknown";
     var lastAgentCheckpointAt = 0;
     var lastOverlayLayoutAt = 0;
-    var lastSimulationAt = 0;
 
     function now() { return window.performance && performance.now ? performance.now() : Date.now(); }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -982,7 +981,6 @@
         active = true;
         ended = false;
         lastAt = 0;
-        lastSimulationAt = 0;
         lastOverlayLayoutAt = 0;
         lastUiAt = 0;
         zeroHpSince = 0;
