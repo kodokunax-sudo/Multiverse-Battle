@@ -626,7 +626,16 @@ function getBossContext() {
             getShockwaves: function() { return (typeof window.getRWBShockwaves === 'function') ? window.getRWBShockwaves() : []; },
             getBlasters: function() { return []; },
             getParticles: function() { return (typeof window.getRWBParticles === 'function') ? window.getRWBParticles() : []; },
-            getBossMaxHp: function() { var b = (typeof window.getRWBActiveBoss === 'function') ? window.getRWBActiveBoss() : null; return b ? b.maxHp : 500; },
+            getBossMaxHp: function() {
+                var active = (typeof window.getRWBActiveBoss === 'function') ? window.getRWBActiveBoss() : null;
+                if (active && Number(active.maxHp) > 0) return Number(active.maxHp);
+                // RWB starts with two simultaneous targets. Their combined HP is the
+                // training health pool until the surviving fighter enters super phase.
+                var targets = (typeof window.getRWBTargets === 'function') ? (window.getRWBTargets() || []) : [];
+                return targets.reduce(function(sum, target) {
+                    return sum + Math.max(0, Number(target && target.maxHp) || 0);
+                }, 0);
+            },
             // Для RWB getBossMaxHp() — это максимальный HP, а setBossMaxHp()
             // используется супер-способностями как "нанести процент от max HP".
             // Поэтому уменьшаем текущий HP, не ломая реальный maxHp босса.
@@ -634,7 +643,15 @@ function getBossContext() {
                 var b = (typeof window.getRWBActiveBoss === 'function') ? window.getRWBActiveBoss() : null;
                 if (b) b.hp = Math.max(0, Math.min(b.hp, v));
             },
-            getBossHp: function() { var b = (typeof window.getRWBActiveBoss === 'function') ? window.getRWBActiveBoss() : null; return b ? b.hp : 0; },
+            getBossHp: function() {
+                var active = (typeof window.getRWBActiveBoss === 'function') ? window.getRWBActiveBoss() : null;
+                if (active) return Math.max(0, Number(active.hp) || 0);
+                // In phase one there is no single active boss. Count both Roger and Whitebeard.
+                var targets = (typeof window.getRWBTargets === 'function') ? (window.getRWBTargets() || []) : [];
+                return targets.reduce(function(sum, target) {
+                    return sum + Math.max(0, Number(target && target.hp) || 0);
+                }, 0);
+            },
             getBossPosition: function() { return window.MBRWBCompanionTargetPosition ? window.MBRWBCompanionTargetPosition() : {x:200,y:110}; },
             damageBoss: function(amount) {
                 return typeof window.MBApplyBossDamage === "function" &&
@@ -754,7 +771,13 @@ function applyBossDamageToContext(ctxB, rawDamage, source) {
         if (!activeRwb) return 0;
         damage = modifyTestDamage(damage);
         if (!damage) return 0;
-        if(typeof window.rwbApplySuperDamage==="function") return window.rwbApplySuperDamage(damage,source||"SUPER");
+        // rwbApplySuperDamage only accepts the second phase. During the opening
+        // two-boss phase, damage the selected living target directly so the native
+        // updateDuel() can trigger its normal super-form transition.
+        var rwbPhase = (typeof window.getRWBState === "function") ? window.getRWBState() : "";
+        if (rwbPhase === "fight2" && typeof window.rwbApplySuperDamage === "function") {
+            return window.rwbApplySuperDamage(damage, source || "SUPER");
+        }
         var beforeRwb = Math.max(0, Number(activeRwb.hp) || 0);
         activeRwb.hp = Math.max(0, beforeRwb - damage);
         activeRwb.hitFlash = 10;
