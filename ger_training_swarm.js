@@ -41,7 +41,7 @@
         return {
             id: i + 1, x: clamp(200 + Math.cos(angle) * ring, 18, 382),
             y: clamp(315 + Math.sin(angle) * ring, 18, 482),
-            vx: 0, vy: 0, tx: 200, ty: 260, hp: 20, maxHp: 20,
+            vx: 0, vy: 0, tx: 200, ty: 260, hp: 5, maxHp: 5,
             alive: true, score: 0, damageDealt: 0, damageTaken: 0,
             hits: 0, dodges: 0, failedDodges: 0, decisions: 0,
             aggression: aggression, riskTolerance: clamp(riskTolerance, 0, 1), aiSkill: 0.62,
@@ -1049,7 +1049,7 @@
         if (trainingApi && typeof trainingApi.start === "function") {
             trainingSessionPromise = trainingApi.start(bossKey, {
                 arenaMode: ctx && ctx.type ? ctx.type : "unknown",
-                gameVersion: "ger-dodge-training-5",
+                gameVersion: "ger-dodge-training-6",
                 trainingMode: true,
                 trainingProfile: "parallel_primary_stands",
                 agentRole: "primary_stand",
