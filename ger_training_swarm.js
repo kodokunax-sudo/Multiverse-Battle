@@ -10,6 +10,7 @@
     var raf = 0;
     var lastAt = 0;
     var lastUiAt = 0;
+    var trainingBossContext = null;
     var overlay = null;
     var overlayCtx = null;
     var panel = null;
@@ -29,6 +30,26 @@
     function context() {
         try { return typeof window.getBossContext === "function" ? window.getBossContext() : null; }
         catch (e) { return null; }
+    }
+    function playerHeartHitbox(ctx) {
+        ctx = ctx || trainingBossContext || context();
+        try {
+            if (ctx && typeof ctx.getHeartHitbox === "function") {
+                var radius = Number(ctx.getHeartHitbox());
+                if (Number.isFinite(radius) && radius >= 0) return clamp(radius, 0, 40);
+            }
+        } catch (e) {}
+        return 4;
+    }
+    function playerHeartSize(ctx) {
+        ctx = ctx || trainingBossContext || context();
+        try {
+            if (ctx && typeof ctx.getHeartSize === "function") {
+                var size = Number(ctx.getHeartSize());
+                if (Number.isFinite(size) && size > 0) return clamp(size, 5, 32);
+            }
+        } catch (e) {}
+        return 14;
     }
     function createAgent(i) {
         var angle = i / COUNT * Math.PI * 2;
@@ -145,7 +166,7 @@
     }
     function getThreat(attack, x, y, frames, alert) {
         try {
-            if (typeof window.MBGERTrainingThreatAt === "function") return window.MBGERTrainingThreatAt(attack, x, y, frames || 0, alert === true);
+            if (typeof window.MBGERTrainingThreatAt === "function") return window.MBGERTrainingThreatAt(attack, x, y, frames || 0, alert === true, trainingBossContext || context());
         } catch (e) {}
         return null;
     }
@@ -155,7 +176,7 @@
             Math.max(0, Number(wave.speed) || 0) * Math.max(0, Number(frames) || 0);
         var cx = Number(wave.x) || 0, cy = Number(wave.y) || 0;
         var distance = Math.hypot(x - cx, y - cy);
-        var limit = (Number(wave.width) || 5) * 0.7 + 20 + (alert ? 34 : 0);
+        var limit = (Number(wave.width) || 5) * 0.7 + playerHeartHitbox() + (alert ? 34 : 0);
         if (Math.abs(distance - radius) >= limit) return null;
         return { source: wave, kind: "shockwave", info: { x: cx, y: cy, distance: Math.abs(distance - radius), attack: wave } };
     }
@@ -714,6 +735,7 @@
         if (!active || ended) return;
         var ctx = context();
         if (!ctx || !ctx.getAttacks || !ctx.getBossPosition) return;
+        trainingBossContext = ctx;
         var time = now();
         var boss = bossTarget(ctx);
         var attacks = collectTrainingAttacks(ctx);
@@ -750,103 +772,41 @@
             }
         }
     }
-    function drawAgent(ctx, agent, time) {
+    function drawAgent(ctx, agent, time, heartSize) {
         var hitFlash = agent.flashUntil > time;
-        var attacking = agent.attackUntil > time;
-        var moving = Math.min(1, Math.hypot(agent.vx, agent.vy) / 3.8);
-        var step = Math.sin(time * 0.014 + agent.phase) * moving * 2.2;
-        var gold = hitFlash ? "#fff4cf" : "#d8ac42";
-        var darkGold = hitFlash ? "#fffdf1" : "#76501d";
-        var lightGold = hitFlash ? "#ffffff" : "#f4d77d";
+        var sizeScale = Math.max(0.35, Math.min(2.3, (Number(heartSize) || 14) / 14));
 
         ctx.save();
         ctx.translate(agent.x, agent.y);
         ctx.globalAlpha = agent.alive ? 0.98 : 0.35;
+        ctx.scale(sizeScale, sizeScale);
 
-        // Collision radius visual, kept at the same 20px as the stand hitbox.
-        ctx.strokeStyle = "rgba(255,225,120,.22)";
-        ctx.lineWidth = 1;
+        // Same compact SOUL silhouette used by the player, recolored yellow-orange.
         ctx.beginPath();
-        ctx.arc(0, 0, 20, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Simple humanoid stand silhouette. No downloaded image, filters, or shadows.
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.strokeStyle = darkGold;
-        ctx.lineWidth = 3.2;
-        ctx.beginPath();
-        ctx.moveTo(-3, 7);
-        ctx.lineTo(-5 - step, 15);
-        ctx.moveTo(3, 7);
-        ctx.lineTo(5 + step, 15);
-        ctx.moveTo(-6, -6);
-        ctx.lineTo(-12 - step * 0.5, 1);
-        ctx.moveTo(6, -6);
-        ctx.lineTo(12 + step * 0.5, 1);
-        ctx.stroke();
-
-        ctx.fillStyle = gold;
-        ctx.strokeStyle = darkGold;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(-6, -8);
-        ctx.lineTo(6, -8);
-        ctx.lineTo(7, 5);
-        ctx.lineTo(4, 9);
-        ctx.lineTo(-4, 9);
-        ctx.lineTo(-7, 5);
+        ctx.moveTo(0, 6);
+        ctx.bezierCurveTo(-2, 4, -9, -1, -9, -5);
+        ctx.bezierCurveTo(-9, -11, -2, -12, 0, -7);
+        ctx.bezierCurveTo(2, -12, 9, -11, 9, -5);
+        ctx.bezierCurveTo(9, -1, 2, 4, 0, 6);
         ctx.closePath();
+        ctx.fillStyle = hitFlash ? "#fff0b5" : "#ffad24";
+        ctx.strokeStyle = hitFlash ? "#fffaf0" : "#e87516";
+        ctx.lineWidth = 1;
         ctx.fill();
         ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(0, -12, 4.4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.strokeStyle = lightGold;
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.moveTo(-3, -4);
-        ctx.lineTo(3, -4);
-        ctx.moveTo(-2, 2);
-        ctx.lineTo(2, 2);
-        ctx.stroke();
-
-        if (attacking) {
-            var angle = Math.atan2(
-                (Number(agent.attackTargetY) || agent.y) - agent.y,
-                (Number(agent.attackTargetX) || agent.x) - agent.x
-            );
-            ctx.strokeStyle = lightGold;
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(7, -5);
-            ctx.lineTo(7 + Math.cos(angle) * 14, -5 + Math.sin(angle) * 14);
-            ctx.stroke();
-        }
         ctx.restore();
-
-        // Tiny impact marker, without bloom, text, or expensive compositing.
-        if (agent.impactUntil > time) {
-            var age = 1 - (agent.impactUntil - time) / 260;
-            ctx.strokeStyle = "rgba(255,235,170," + (1 - age) + ")";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(agent.impactX, agent.impactY, 5 + age * 10, 0, Math.PI * 2);
-            ctx.stroke();
-        }
     }
     function draw() {
         if (!active || !overlayCtx || !overlay) return;
         placeOverlay();
         var c = overlayCtx;
         var time = now();
+        var liveCtx = trainingBossContext || context();
+        var heartSize = playerHeartSize(liveCtx);
         c.clearRect(0,0,400,500);
         for (var i=0;i<agents.length;i++) {
             var p=agents[i];
-            if (p.alive) drawAgent(c, p, time);
+            if (p.alive) drawAgent(c, p, time, heartSize);
         }
         // Keep the real player's GER visible as a separate, full-size companion.
         if (typeof window.MBDrawGoldExperience === "function") {
@@ -1049,7 +1009,7 @@
         if (trainingApi && typeof trainingApi.start === "function") {
             trainingSessionPromise = trainingApi.start(bossKey, {
                 arenaMode: ctx && ctx.type ? ctx.type : "unknown",
-                gameVersion: "ger-dodge-training-6",
+                gameVersion: "ger-dodge-training-7",
                 trainingMode: true,
                 trainingProfile: "parallel_primary_stands",
                 agentRole: "primary_stand",
