@@ -1205,7 +1205,25 @@
     // ============================================================
     // СТАРТ БОЯ
     // ============================================================
-    function startRogerWhitebeardFight(graphicsModeChoice) {
+    window.MBGERTrainingSkipRWBScenes = function () {
+    if (!window.__mbGERTrainingMode || !window.rwbActive) return;
+    rwbDialogActive = false;
+    rwbDialogQueue = [];
+    rwbDialogType = null;
+    rwbDialogTimer = 0;
+    if (rwbState === "intro") {
+        rwbIntroTimer = 151;
+        rwbState = "fight1";
+    } else if (rwbState === "transition") {
+        rwbTransitionTimer = 101;
+        rwbState = "fight2";
+        rwbSurvivalTimer2 = 0;
+        rwbTitanFistTimer = 0;
+        rwbTitanRockTimer = 0;
+    }
+};
+ 
+function startRogerWhitebeardFight(graphicsModeChoice) {
         if (window.rwbActive) return;
         if (typeof defeatedBosses !== 'undefined' && Array.isArray(defeatedBosses) && defeatedBosses.includes(1000)) {
             if (typeof showFloatingText === 'function') showFloatingText("⏭️ Босс уже побеждён!", "#ffaa00");
