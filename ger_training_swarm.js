@@ -12,6 +12,7 @@
     var panel = null;
     var inputHandlers = [];
     var lastBossHp = null;
+    var zeroHpSince = 0;
     var damageLeaderboard = null;
     var ended = false;
 
@@ -61,7 +62,7 @@
         panel = document.createElement("div");
         panel.id = "mbGERTrainingSwarmPanel";
         panel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;width:min(270px,calc(100vw - 24px));max-height:42vh;overflow:auto;padding:10px 12px;border:1px solid rgba(255,214,112,.65);border-radius:12px;background:rgba(9,12,20,.92);color:#fff2c6;font:700 11px/1.45 Arial,sans-serif;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
-        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER SWARM · 50 КОПИЙ</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
+        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER SWARM · 50 КОПИЙ + ОСНОВНОЙ GER</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
         document.body.appendChild(panel);
     }
     function allowExit(ev) {
@@ -149,7 +150,7 @@
         if (dealt > 0) {
             c.damageDealt += dealt;
             c.hits++;
-            c.score += 1 + dealt / Math.max(1, maxHp) * 1000;
+            c.score += 1 + dealt / Math.max(1, maxHp) * 100000;
             c.flashUntil = now() + 120;
             return true;
         }
@@ -209,7 +210,14 @@
         var scale = clamp((Number(dt)||16.667)/16.667,0.5,2.2);
         for (var i=0;i<clones.length;i++) updateClone(clones[i],ctx,boss,attacks,waves,time,scale);
         if (time - lastUiAt > 1000) { updatePanel(ctx); lastUiAt = time; }
-        if (currentBossHp(ctx) <= 0) finishScores("boss_defeated");
+        var hpNow = currentBossHp(ctx);
+        if (hpNow > 0) zeroHpSince = 0;
+        else {
+            if (!zeroHpSince) zeroHpSince = time;
+            // Unique bosses can briefly have 0 HP between real phases. Wait for the
+            // native transition/next phase before declaring the training complete.
+            if (time - zeroHpSince >= 5000) finishScores("boss_defeated");
+        }
     }
     function draw() {
         if (!active || !overlayCtx || !overlay) return;
@@ -291,7 +299,7 @@
     }
     function start() {
         if (active) return;
-        active=true; ended=false; lastAt=0; lastUiAt=0;
+        active=true; ended=false; lastAt=0; lastUiAt=0; zeroHpSince=0;
         clones=[]; for(var i=0;i<COUNT;i++)clones.push(createClone(i));
         makeOverlay(); makePanel(); lockPlayerInput();
         lastBossHp=null;
