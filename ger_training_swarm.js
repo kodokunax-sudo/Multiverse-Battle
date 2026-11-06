@@ -17,6 +17,7 @@
     var ended = false;
     var trainingDecisionOrder = 0;
     var trainingSessionPromise = null;
+    var trainingBossKey = "unknown";
 
     function now() { return window.performance && performance.now ? performance.now() : Date.now(); }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -38,7 +39,7 @@
             vx: 0, vy: 0, tx: 200, ty: 260, hp: 3, maxHp: 3,
             alive: true, score: 0, damageDealt: 0, damageTaken: 0,
             hits: 0, dodges: 0, failedDodges: 0, decisions: 0,
-            aggression: aggression, riskTolerance: clamp(riskTolerance, 0, 1),
+            aggression: aggression, riskTolerance: clamp(riskTolerance, 0, 1), aiSkill: 0.62,
             preferredRange: preferredRange, movementSpeed: movementSpeed,
             reactionMs: 75 + Math.random() * 115,
             attackCooldownMs: 720 + Math.random() * 520,
@@ -879,6 +880,7 @@
 
         var ctx = context();
         var bossKey = normalizeTrainingKey(window.__mbGERTrainingBossKey || (ctx && ctx.type) || "unknown", "unknown").slice(0, 64);
+        trainingBossKey = bossKey;
         var trainingApi = window.MBGERTraining;
         if (trainingApi && typeof trainingApi.start === "function") {
             trainingSessionPromise = trainingApi.start(bossKey, {
