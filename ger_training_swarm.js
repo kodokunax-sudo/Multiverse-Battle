@@ -352,7 +352,11 @@
         var survivors=clones.filter(function(c){return c.alive;});
         var completed = reason === "boss_defeated" || reason === "win";
         if (completed) survivors.forEach(function(c){c.score+=150;});
-        var totalHits=clones.reduce(function(n,c){return n+c.hits;},0);\n        var totalDodges=clones.reduce(function(n,c){return n+c.dodges;},0);\n        var totalDamage=clones.reduce(function(n,c){return n+c.damageDealt;},0);\n        var totalTaken=clones.reduce(function(n,c){return n+c.damageTaken;},0);\n        var damageRank=clones.slice().sort(function(a,b){return b.damageDealt-a.damageDealt;});
+        var totalHits=clones.reduce(function(n,c){return n+c.hits;},0);
+        var totalDodges=clones.reduce(function(n,c){return n+c.dodges;},0);
+        var totalDamage=clones.reduce(function(n,c){return n+c.damageDealt;},0);
+        var totalTaken=clones.reduce(function(n,c){return n+c.damageTaken;},0);
+        var damageRank=clones.slice().sort(function(a,b){return b.damageDealt-a.damageDealt;});
         if(completed && damageRank[0])damageRank[0].score+=120;
         var takenRank=clones.slice().sort(function(a,b){return b.damageTaken-a.damageTaken;});
         if(completed && takenRank[0]&&takenRank[0].damageTaken>0)takenRank[0].score-=120;
@@ -365,10 +369,6 @@
             if(summary)summary.textContent="ИТОГ · Выжили "+survivors.length+"/"+COUNT+" · Удары: "+totalHits+" · Уклонения: "+totalDodges+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
             if(leaders)leaders.innerHTML=top.map(function(line){return "<div>"+line+"</div>";}).join("");
         }
-        var totalHits=clones.reduce(function(n,c){return n+c.hits;},0);
-        var totalDodges=clones.reduce(function(n,c){return n+c.dodges;},0);
-        var totalDamage=clones.reduce(function(n,c){return n+c.damageDealt;},0);
-        var totalTaken=clones.reduce(function(n,c){return n+c.damageTaken;},0);
         var resultRows=clones.map(function(c){return {id:c.id,score:Math.floor(c.score),damageDealt:Math.floor(c.damageDealt),damageTaken:Math.floor(c.damageTaken),hits:c.hits,dodges:c.dodges,alive:c.alive};});
         damageLeaderboard={reason:reason,survivors:survivors.length,totalHits:totalHits,totalDodges:totalDodges,totalDamage:Math.floor(totalDamage),totalDamageTaken:Math.floor(totalTaken),results:resultRows};
         window.__mbGERTrainingSwarmResults=damageLeaderboard;
@@ -427,7 +427,9 @@
     }
     function start() {
         if (active) return;
-        active=true; ended=false; lastAt=0; lastUiAt=0; zeroHpSince=0;\n        window.__mbGERTrainingSwarmActive = true;\n        loadSwarmGERImage();
+        active=true; ended=false; lastAt=0; lastUiAt=0; zeroHpSince=0;
+        window.__mbGERTrainingSwarmActive = true;
+        loadSwarmGERImage();
         clones=[]; for(var i=0;i<COUNT;i++)clones.push(createClone(i));
         makeOverlay(); makePanel(); lockPlayerInput();
         lastBossHp=null;
