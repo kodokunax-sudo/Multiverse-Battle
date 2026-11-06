@@ -18,8 +18,8 @@
     // ========== НАСТРОЙКИ ==========
     var TARGET_FPS = 60;                    // Целевой FPS
     var FRAME_TIME = 1000 / TARGET_FPS;     // ~16.67 мс
-    var MAX_FRAME_TIME = 200;               // Защита от скачков (после таба)
-    var MAX_FRAMES_PER_LOOP = 3;            // Защита от "спирали смерти"
+    var MAX_FRAME_TIME = 1000;              // Подхватываем фоновые интервалы без потери всего прошедшего времени
+    var MAX_FRAMES_PER_LOOP = 60;           // Ограниченный догон симуляции после фоновой паузы
 
     // ========== СОХРАНЯЕМ ОРИГИНАЛЬНЫЕ ФУНКЦИИ ==========
     var originalRAF = window.requestAnimationFrame.bind(window);
@@ -32,6 +32,19 @@
     var isRunning = false;      // Запущен ли главный луп
     var lastTime = performance.now();
     var accumulator = 0;
+    var hiddenTimer = null;
+
+    function scheduleMainLoop() {
+        if (document.hidden) {
+            if (hiddenTimer !== null) clearTimeout(hiddenTimer);
+            hiddenTimer = setTimeout(function () {
+                hiddenTimer = null;
+                mainLoop(performance.now());
+            }, 50);
+        } else {
+            mainLoopId = originalRAF(mainLoop);
+        }
+    }
 
     // ========== СТАТИСТИКА ==========
     var stats = {
@@ -108,13 +121,23 @@
 
         // ★ Если есть ещё callback'и — продолжаем луп
         if (hasCallbacks()) {
-            mainLoopId = originalRAF(mainLoop);
+            scheduleMainLoop();
         } else {
             // Нет callback'ов — останавливаем луп (экономия батареи)
             isRunning = false;
             mainLoopId = null;
         }
     }
+
+    document.addEventListener("visibilitychange", function () {
+        if (!hasCallbacks()) return;
+        if (hiddenTimer !== null) { clearTimeout(hiddenTimer); hiddenTimer = null; }
+        if (mainLoopId !== null) { originalCAF(mainLoopId); mainLoopId = null; }
+        lastTime = performance.now();
+        accumulator = 0;
+        if (document.hidden) scheduleMainLoop();
+        else { isRunning = true; mainLoopId = originalRAF(mainLoop); }
+    });
 
     // ========== ПЕРЕОПРЕДЕЛЯЕМ requestAnimationFrame ==========
     window.requestAnimationFrame = function(callback) {
