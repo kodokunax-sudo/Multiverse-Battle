@@ -1,7 +1,10 @@
-/* GER Training Pool: 50 independent primary GER agents learning in parallel. */
+/* GER Training Pool: 100 independent primary GER agents learning in parallel. */
 (function () {
     "use strict";
-    var COUNT = 50;
+    var COUNT = 100;
+    // Keep roughly the previous 50-agent compute budget by updating half the pool per 30Hz tick.
+    var UPDATE_BATCH_SIZE = 50;
+    var updateBatch = 0;
     var agents = [];
     var active = false;
     var raf = 0;
@@ -51,6 +54,7 @@
             nextDecisionAt: 0,
             nextThreatCheckAt: now() + 28 + (i % 7) * 9,
             nextHitCheckAt: now() + 36 + (i % 5) * 7,
+            lastUpdatedAt: now(),
             lastHitAt: 0, flashUntil: 0, attackUntil: 0, attackTargetX: 200, attackTargetY: 130,
             impactUntil: 0, impactX: 0, impactY: 0, phase: Math.random() * Math.PI * 2
         };
@@ -86,7 +90,7 @@
         panel = document.createElement("div");
         panel.id = "mbGERTrainingSwarmPanel";
         panel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;width:min(270px,calc(100vw - 24px));max-height:42vh;overflow:auto;padding:10px 12px;border:1px solid rgba(255,214,112,.65);border-radius:12px;background:rgba(9,12,20,.92);color:#fff2c6;font:700 11px/1.45 Arial,sans-serif;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
-        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 50 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание +1 · полученный урон −5 · выживание +150 · лучший урон +120 · максимум полученного урона −120</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
+        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 100 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание +1 · полученный урон −5 · выживание +150 · лучший урон +120 · максимум полученного урона −120</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
         document.body.appendChild(panel);
     }
     function allowExit(ev) {
@@ -179,7 +183,7 @@
         return (Math.round(Math.atan2(y2 - y1, x2 - x1) / (Math.PI / 4)) + 8) % 8;
     }
     function agentTrainingContext(agent, boss, attacks, waves) {
-        // Match the primary GER context buckets so the main brain and the 50-agent
+        // Match the primary GER context buckets so the main brain and the 100-agent
         // pool learn from the same situations rather than incompatible labels.
         var bossDistance = Math.hypot(agent.x - boss.x, agent.y - boss.y);
         var position = "s" + trainingDirection(boss.x, boss.y, agent.x, agent.y);
@@ -568,8 +572,9 @@
         var desiredVx = distanceToGoal > 0 ? dx / distanceToGoal * desiredSpeed : 0;
         var desiredVy = distanceToGoal > 0 ? dy / distanceToGoal * desiredSpeed : 0;
         var steering = 0.17 + Math.max(0.14, Math.min(1, Number(c.aiSkill) || 0.62)) * 0.13;
-        c.vx += (desiredVx - c.vx) * steering;
-        c.vy += (desiredVy - c.vy) * steering;
+        var steeringBlend = 1 - Math.pow(1 - steering, frameScale);
+        c.vx += (desiredVx - c.vx) * steeringBlend;
+        c.vy += (desiredVy - c.vy) * steeringBlend;
         var currentSpeed = Math.hypot(c.vx, c.vy);
         if (currentSpeed > maxSpeed) {
             c.vx = c.vx / currentSpeed * maxSpeed;
@@ -691,7 +696,20 @@
         try { attacks = ctx.getAttacks() || []; } catch (e) {}
         try { waves = ctx.getShockwaves ? ctx.getShockwaves() || [] : []; } catch (e) {}
         var scale = clamp((Number(dt)||16.667)/16.667,0.5,2.2);
-        for (var i=0;i<agents.length;i++) updateAgent(agents[i],ctx,boss,attacks,waves,time,scale);
+        // Run 50 agents per simulation tick. Across two alternating ticks all 100
+        // agents are updated; each agent therefore thinks at ~15Hz while drawing stays at RAF.
+        var batchCount = Math.max(1, Math.ceil(agents.length / UPDATE_BATCH_SIZE));
+        var batchIndex = updateBatch % batchCount;
+        var batchStart = batchIndex * UPDATE_BATCH_SIZE;
+        var batchEnd = Math.min(agents.length, batchStart + UPDATE_BATCH_SIZE);
+        for (var i = batchStart; i < batchEnd; i++) {
+            var agent = agents[i];
+            var agentElapsed = Math.max(16.667, time - (Number(agent.lastUpdatedAt) || time));
+            var agentScale = clamp(agentElapsed / 16.667, 0.5, 4.2);
+            updateAgent(agent, ctx, boss, attacks, waves, time, agentScale);
+            agent.lastUpdatedAt = time;
+        }
+        updateBatch = (batchIndex + 1) % batchCount;
         if (time - lastUiAt > 1000) { updatePanel(ctx); lastUiAt = time; }
         saveAgentCheckpoint(time);
         var hpNow = currentBossHp(ctx);
@@ -948,7 +966,7 @@
         var t = Number(ts) || now();
         if (!lastAt) lastAt = t;
         var elapsed = t - lastAt;
-        // 30Hz simulation; drawing remains on the browser's normal animation cadence.
+        // 30Hz pool scheduler; each half-pool updates on alternating ticks, drawing stays on RAF.
         if (elapsed >= 33) {
             update(clamp(elapsed, 1, 66));
             lastAt = t;
@@ -985,6 +1003,7 @@
         lastUiAt = 0;
         zeroHpSince = 0;
         trainingDecisionOrder = 0;
+        updateBatch = 0;
         lastAgentCheckpointAt = now();
         window.__mbGERTrainingSwarmActive = true;
         window.__mbGERTrainingSwarmSavePromise = null;
@@ -1017,7 +1036,7 @@
                 }
                 return result;
             }).catch(function (error) {
-                console.warn("[GER TRAINING] Could not start persistent 50-agent session:",
+                console.warn("[GER TRAINING] Could not start persistent 100-agent session:",
                     error && error.message ? error.message : error);
                 throw error;
             });
@@ -1037,7 +1056,7 @@
             window.__mbGERTrainingIsolationTimer = window.setInterval(skipOpeningMoments, 80);
         }
         raf = window.requestAnimationFrame(tick);
-        console.info("[GER TRAINING] Started 50 independent primary GER agents. Player input and player damage are disabled.");
+        console.info("[GER TRAINING] Started 100 independent primary GER agents. Player input and player damage are disabled.");
     }
     function stop(reason) {
         if(!active)return;
