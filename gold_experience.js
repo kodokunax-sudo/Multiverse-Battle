@@ -480,9 +480,14 @@
             attack._mbGEIgnored || attack.state === "done") return null;
 
         var type = String(attack.type || attack.kind || "").toLowerCase();
+        var hasWarningClock =
+            (attack.warningTimer !== undefined && attack.warningTimer !== null && Number.isFinite(Number(attack.warningTimer))) ||
+            (attack.warning !== undefined && attack.warning !== null && Number.isFinite(Number(attack.warning))) ||
+            (attack.timer !== undefined && attack.timer !== null && Number.isFinite(Number(attack.timer)));
+        var namedWarning = type.indexOf("warning") !== -1 || type.indexOf("telegraph") !== -1;
         var telegraph = attack.state === "warning" || attack.state === "windup" ||
             Number(attack.warningTimer) > 0 || Number(attack.warning) > 0 ||
-            type.indexOf("warning") !== -1 || type.indexOf("telegraph") !== -1;
+            (namedWarning && !hasWarningClock && attack.state !== "active");
         if (telegraph && !alert) return null;
 
         var t = Math.max(0, Number(frames) || 0);
