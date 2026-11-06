@@ -6032,6 +6032,7 @@ function startRogerWhitebeardFight(graphicsModeChoice) {
     }
 
     function drawRWBPlayer() {
+        if (window.__mbGERTrainingMode) return;
         if (rwbPlayer.invulnTimer > 0 && Math.floor(rwbPlayer.invulnTimer / 4) % 2 === 0) return;
         let color = (rwbPlayer.attackMode === "blue") ? "#00aaff" : "#ff2222";
         if (!drawSecretHeartTexture(ctx, rwbPlayer.x, rwbPlayer.y, rwbPlayer.size, (typeof getSecretHeartMainCardName === "function" ? getSecretHeartMainCardName() : ""), {rotation:0})) {
