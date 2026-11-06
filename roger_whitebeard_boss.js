@@ -6642,10 +6642,13 @@ function startRogerWhitebeardFight(graphicsModeChoice) {
     window.rwbApplyDioSkillDamage = function(bossId,amount) {
         let target=(rwbActiveBoss&&rwbActiveBoss.id===bossId)?rwbActiveBoss:[roger,whitebeard].find(function(b){return b&&b.id===bossId;});
         if(!target)return false;
-        target.hp=Math.max(0,target.hp-Math.max(1,Math.floor(Number(amount)||1)));target.hitFlash=10;
+        var dioDamage=window.__mbGERTrainingSwarmActive===true
+            ? Math.max(0,Number(amount)||0)
+            : Math.max(1,Math.floor(Number(amount)||1));
+        target.hp=Math.max(0,target.hp-dioDamage);target.hitFlash=10;
         if(target.id==="whitebeard")target.damageFlashTimer=10;
         rwbShockwaves.push({x:target.x,y:target.y,radius:10,maxRadius:100,speed:9,color:"#fff0a0",damage:0,hit:true,life:18,maxLife:18,width:4});
-        rwbFloatingTexts.push({x:target.x,y:target.y-35,text:"DIO −"+Math.max(1,Math.floor(Number(amount)||1)),color:"#fff0a0",life:55,maxLife:55,vy:-.6,vx:0,size:14});
+        rwbFloatingTexts.push({x:target.x,y:target.y-35,text:"DIO −"+dioDamage,color:"#fff0a0",life:55,maxLife:55,vy:-.6,vx:0,size:14});
         return true;
     };
     window.rwbApplyZenoEraseDamage = function(bossId, amount) {
