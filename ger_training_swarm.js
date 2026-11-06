@@ -118,7 +118,7 @@
         panel = document.createElement("div");
         panel.id = "mbGERTrainingSwarmPanel";
         panel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;width:min(270px,calc(100vw - 24px));max-height:42vh;overflow:auto;padding:10px 12px;border:1px solid rgba(255,214,112,.65);border-radius:12px;background:rgba(9,12,20,.92);color:#fff2c6;font:700 11px/1.45 Arial,sans-serif;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
-        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 100 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание +20 · уклонение +1 · смерть −300. Позиция: рядом с боссом +1,5/с · далеко −1,5/с · край −1,5/с. Для каждого типа атаки своя тактика</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
+        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 100 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание +20 · уклонение +1 · смерть −300. Позиция: ≤145 от босса +1,5/с · >280 −1,5/с · край <24 −2,2/с. Для каждого типа атаки своя тактика</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
         document.body.appendChild(panel);
     }
     function allowExit(ev) {
@@ -443,12 +443,27 @@
                 family = "column_pattern";
                 label = "find_gap_between_columns";
                 var columns = attack.columns.map(Number).filter(Number.isFinite).sort(function(a,b){return a-b;});
-                var nearestColumn = columns.reduce(function(best,value){
-                    return Math.abs(value-agent.x) < Math.abs(best-agent.x) ? value : best;
-                },columns[0]);
-                angle = agent.x <= nearestColumn ? Math.PI : 0;
-                // Prefer the side with more room if the nearest column is almost centered.
-                if (Math.abs(agent.x-nearestColumn) < 12) angle = openSideAngle(agent,1,0);
+                var gapOptions = [24,376];
+                if (columns.length) {
+                    gapOptions.push((24 + columns[0]) * 0.5);
+                    gapOptions.push((columns[columns.length-1] + 376) * 0.5);
+                }
+                for (var gapIndex=0; gapIndex<columns.length-1; gapIndex++) {
+                    gapOptions.push((columns[gapIndex] + columns[gapIndex+1]) * 0.5);
+                }
+                var bestGapX = gapOptions[0], bestGapScore = -Infinity;
+                gapOptions.forEach(function(optionX) {
+                    var clearance = columns.reduce(function(minimum,column) {
+                        return Math.min(minimum,Math.abs(optionX-column));
+                    },Infinity);
+                    var gapScore = clearance - Math.abs(optionX-agent.x)*0.12;
+                    if (gapScore > bestGapScore) {
+                        bestGapScore = gapScore;
+                        bestGapX = optionX;
+                    }
+                });
+                angle = Math.abs(bestGapX-agent.x) < 8 ? openSideAngle(agent,1,0) :
+                    (bestGapX > agent.x ? 0 : Math.PI);
             } else if (attackKind === "normal" && [2,3,7].indexOf(attackId)!==-1) {
                 family = "horizontal_lane";
                 label = "leave_telegraphed_horizontal_lane";
@@ -502,11 +517,9 @@
             label = "sidestep_spike_lane";
             var spikeX = Number(attack.x);
             angle = Number.isFinite(spikeX) ? (agent.x <= spikeX ? Math.PI : 0) : openSideAngle(agent, 1, 0);
-        } else if (type === "mark" || type === "well" ||
-            type === "wb_giant_rock_warning" || type === "wb_attack_telegraph") {
+        } else if (type === "mark" || type === "well") {
             family = type === "well" ? "gravity_well_escape" : "marked_impact_escape";
-            label = type === "well" ? "escape_well_radius" :
-                type === "mark" ? "leave_marked_area" : "leave_telegraphed_impact";
+            label = type === "well" ? "escape_well_radius" : "leave_marked_area";
             angle = Math.atan2(awayY, awayX);
         } else if (isRing) {
             family = "radial_wave";
@@ -517,12 +530,6 @@
             // outward if already outside it.
             angle = currentDistance <= radius ? Math.atan2(ay - agent.y, ax - agent.x) :
                 Math.atan2(awayY, awayX);
-        } else if (type === "tsunami") {
-            family = "wave_sidestep";
-            label = "sidestep_tsunami_front";
-            if (Math.hypot(vx, vy) > 0.1) angle = openSideAngle(agent, -vy, vx);
-            else if (String(attack.orientation || "").toLowerCase() === "vertical") angle = openSideAngle(agent, 1, 0);
-            else angle = openSideAngle(agent, 0, 1);
         } else if (isWall) {
             family = "barrier_gap";
             label = "move_around_barrier";
@@ -873,6 +880,8 @@
                     reportAgentOutcome(c, c.pendingDodge, "unknown", 0, boss, attacks, waves, ctx);
                 }
                 c.pendingDodge = createDodgeDecision(c, incoming, time);
+                c.lastDodgeStrategy = safe.strategyName || "predictive_escape";
+                c.lastAttackType = normalizeTrainingKey(incoming.attackType || incoming.kind || "unknown","unknown");
             } else {
                 c.pendingDodge.targetX = safe.x;
                 c.pendingDodge.targetY = safe.y;
@@ -968,6 +977,8 @@
                     id: agent.id,
                     score: Math.floor(agent.score),
                     positionScore: Number((Number(agent.positionScore) || 0).toFixed(2)),
+                    lastDodgeStrategy: agent.lastDodgeStrategy || null,
+                    lastAttackType: agent.lastAttackType || null,
                     damageDealt: Math.floor(agent.damageDealt),
                     damageTaken: Math.floor(agent.damageTaken),
                     hits: agent.hits,
