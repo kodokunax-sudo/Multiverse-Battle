@@ -69,7 +69,8 @@
             id: i + 1, x: clamp(200 + Math.cos(angle) * ring, 18, 382),
             y: clamp(315 + Math.sin(angle) * ring, 18, 482),
             vx: 0, vy: 0, tx: 200, ty: 260, hp: 5, maxHp: 5,
-            alive: true, respawnAt: 0, score: 0, damageDealt: 0, damageTaken: 0,
+            alive: true, respawnAt: 0, score: 0, positionScore: 0, lastPositionScoreAt: now(),
+            damageDealt: 0, damageTaken: 0,
             hits: 0, dodges: 0, failedDodges: 0, decisions: 0,
             aggression: aggression, riskTolerance: clamp(riskTolerance, 0, 1), aiSkill: 0.62,
             preferredRange: preferredRange, movementSpeed: movementSpeed,
@@ -117,7 +118,7 @@
         panel = document.createElement("div");
         panel.id = "mbGERTrainingSwarmPanel";
         panel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;width:min(270px,calc(100vw - 24px));max-height:42vh;overflow:auto;padding:10px 12px;border:1px solid rgba(255,214,112,.65);border-radius:12px;background:rgba(9,12,20,.92);color:#fff2c6;font:700 11px/1.45 Arial,sans-serif;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
-        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 100 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание по боссу +20 · уклонение +1 · полученный урон 0 · смерть −300 · возрождение через 2 сек. Главная цель: наносить урон боссу и выживать</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
+        panel.innerHTML = '<div style="font-weight:900;font-size:12px;color:#ffe19a">GER TRAINING · 100 ОСНОВНЫХ СТЕНДОВ</div><div style="margin:3px 0 6px;color:#c7d2e2;font-size:10px">Очки: попадание +20 · уклонение +1 · смерть −300. Позиция: рядом с боссом +1,5/с · далеко −1,5/с · край −1,5/с. Для каждого типа атаки своя тактика</div><div id="mbGERSwarmSummary">Подготовка арены…</div><div id="mbGERSwarmLeaders" style="margin-top:5px"></div>';
         document.body.appendChild(panel);
     }
     function allowExit(ev) {
@@ -369,6 +370,146 @@
         }
         return earliest;
     }
+    function strategyRayClearance(agent, angle) {
+        var dx = Math.cos(angle), dy = Math.sin(angle);
+        var limits = [];
+        if (dx > 0.0001) limits.push((376 - agent.x) / dx);
+        else if (dx < -0.0001) limits.push((24 - agent.x) / dx);
+        if (dy > 0.0001) limits.push((474 - agent.y) / dy);
+        else if (dy < -0.0001) limits.push((18 - agent.y) / dy);
+        var valid = limits.filter(function (value) { return Number.isFinite(value) && value >= 0; });
+        return valid.length ? Math.min.apply(Math, valid) : 0;
+    }
+    function openSideAngle(agent, nx, ny) {
+        var length = Math.hypot(nx, ny) || 1;
+        nx /= length;
+        ny /= length;
+        var angle = Math.atan2(ny, nx);
+        return strategyRayClearance(agent, angle) >=
+            strategyRayClearance(agent, angle + Math.PI) ? angle : angle + Math.PI;
+    }
+    function getAttackStrategy(agent, incoming) {
+        var attack = incoming && incoming.source || {};
+        var info = incoming && incoming.info || {};
+        var type = String(attack.type || attack.kind ||
+            incoming && incoming.attackType || incoming && incoming.kind || "unknown").toLowerCase();
+        var lower = type.indexOf("lower") !== -1 ||
+            String(attack.zone || "").toLowerCase() === "lower";
+        var upper = type.indexOf("upper") !== -1 ||
+            String(attack.zone || "").toLowerCase() === "upper";
+        var ax = Number.isFinite(Number(attack.x)) ? Number(attack.x) :
+            Number.isFinite(Number(attack.targetX)) ? Number(attack.targetX) :
+            Number.isFinite(Number(info.x)) ? Number(info.x) : agent.x;
+        var ay = Number.isFinite(Number(attack.y)) ? Number(attack.y) :
+            Number.isFinite(Number(attack.targetY)) ? Number(attack.targetY) :
+            Number.isFinite(Number(info.y)) ? Number(info.y) : agent.y;
+        var awayX = agent.x - ax, awayY = agent.y - ay;
+        var awayLength = Math.hypot(awayX, awayY);
+        if (awayLength < 1) {
+            awayX = agent.x - 200;
+            awayY = agent.y - 250;
+            awayLength = Math.hypot(awayX, awayY) || 1;
+        }
+        var vx = Number(attack.vx) || 0, vy = Number(attack.vy) || 0;
+        var angle = Math.atan2(awayY, awayX);
+        var family = "predictive";
+        var label = "predictive_escape";
+        var isRing = type === "ring" || type.indexOf("shockwave") !== -1 ||
+            type === "wb_center_wave" || (incoming && incoming.kind === "shockwave");
+        var isLine = type === "sweep" || type === "barrierlaser" ||
+            type === "laser" || type.indexOf("laser") !== -1 ||
+            type.indexOf("beam") !== -1 || type.indexOf("slash") !== -1 ||
+            type.indexOf("blade") !== -1 || type === "roger_cross" ||
+            info.axis === "segment";
+        var isWall = type.indexOf("wall") !== -1 || type.indexOf("plate") !== -1 ||
+            type.indexOf("gate") !== -1 || info.axis === "rect";
+
+        if (type === "zonelaser") {
+            family = "zone_escape";
+            label = lower ? "leave_lower_zone" : upper ? "leave_upper_zone" : "leave_laser_zone";
+            angle = lower ? -Math.PI / 2 : upper ? Math.PI / 2 : angle;
+        } else if (type === "spike") {
+            family = "spike_sidestep";
+            label = "sidestep_spike_lane";
+            var spikeX = Number(attack.x);
+            angle = Number.isFinite(spikeX) ? (agent.x <= spikeX ? Math.PI : 0) : openSideAngle(agent, 1, 0);
+        } else if (type === "mark" || type === "well" ||
+            type === "wb_giant_rock_warning" || type === "wb_attack_telegraph") {
+            family = type === "well" ? "gravity_well_escape" : "marked_impact_escape";
+            label = type === "well" ? "escape_well_radius" :
+                type === "mark" ? "leave_marked_area" : "leave_telegraphed_impact";
+            angle = Math.atan2(awayY, awayX);
+        } else if (isRing) {
+            family = "radial_wave";
+            label = "cross_radial_wave";
+            var radius = Math.max(0, Number(attack.radius) || Number(attack.currentRadius) || 0);
+            var currentDistance = Math.hypot(agent.x - ax, agent.y - ay);
+            // Stay on the same side of an expanding ring: inward if already inside,
+            // outward if already outside it.
+            angle = currentDistance <= radius ? Math.atan2(ay - agent.y, ax - agent.x) :
+                Math.atan2(awayY, awayX);
+        } else if (type === "tsunami") {
+            family = "wave_sidestep";
+            label = "sidestep_tsunami_front";
+            if (Math.hypot(vx, vy) > 0.1) angle = openSideAngle(agent, -vy, vx);
+            else if (String(attack.orientation || "").toLowerCase() === "vertical") angle = openSideAngle(agent, 1, 0);
+            else angle = openSideAngle(agent, 0, 1);
+        } else if (isWall) {
+            family = "barrier_gap";
+            label = "move_around_barrier";
+            var orientation = String(attack.orientation || "").toLowerCase();
+            if (orientation === "vertical" || (info.axis === "rect" &&
+                Math.abs(agent.x - ax) <= Math.abs(agent.y - ay))) {
+                angle = openSideAngle(agent, 1, 0);
+            } else {
+                angle = openSideAngle(agent, 0, 1);
+            }
+        } else if (isLine) {
+            family = "line_crossing";
+            label = "cross_attack_line";
+            var lineAngle = Number(attack.angle);
+            if (Number.isFinite(lineAngle)) {
+                angle = openSideAngle(agent, -Math.sin(lineAngle), Math.cos(lineAngle));
+            } else if (String(attack.orientation || "").toLowerCase() === "vertical" ||
+                info.axis === "vertical") {
+                angle = openSideAngle(agent, 1, 0);
+            } else if (String(attack.orientation || "").toLowerCase() === "horizontal" ||
+                info.axis === "horizontal") {
+                angle = openSideAngle(agent, 0, 1);
+            } else if (Math.hypot(vx, vy) > 0.1) {
+                angle = openSideAngle(agent, -vy, vx);
+            } else {
+                angle = openSideAngle(agent, -awayY, awayX);
+            }
+        } else if (Math.hypot(vx, vy) > 0.1) {
+            family = "moving_projectile";
+            label = "sidestep_projectile_trajectory";
+            angle = openSideAngle(agent, -vy, vx);
+        } else if (Math.abs(Number(attack.targetX) - Number(attack.x)) > 8 ||
+            Math.abs(Number(attack.targetY) - Number(attack.y)) > 8) {
+            family = "aimed_strike";
+            label = "evade_aimed_strike";
+            angle = Math.atan2(awayY, awayX);
+        } else if (info.axis === "vertical") {
+            family = "vertical_lane";
+            label = "leave_vertical_lane";
+            angle = openSideAngle(agent, 1, 0);
+        } else if (info.axis === "horizontal") {
+            family = "horizontal_lane";
+            label = "leave_horizontal_lane";
+            angle = openSideAngle(agent, 0, 1);
+        } else {
+            family = "impact_escape";
+            label = "move_away_from_impact";
+            angle = Math.atan2(awayY, awayX);
+        }
+        return {
+            angle: angle,
+            family: family,
+            name: normalizeTrainingKey(label + "_" + type, "predictive_escape").slice(0, 64)
+        };
+    }
+
     function chooseDodgeTarget(agent, boss, attacks, waves, incoming) {
         var left = 24, right = 376, top = 18, bottom = 474;
         var distances = [92,152];
@@ -381,6 +522,7 @@
             (incoming && incoming.attackType) || "unknown";
         if (attack.attackKind) rawKey += "_" + String(attack.attackKind);
         var attackKey = normalizeTrainingKey(rawKey, "unknown");
+        var strategy = getAttackStrategy(agent, incoming);
         var trainingContext = agentTrainingContext(agent, boss, attacks, waves);
         var best = null, bestScore = -Infinity;
 
@@ -390,7 +532,9 @@
                 var tx = clamp(agent.x + Math.cos(angle) * distances[d], left, right);
                 var ty = clamp(agent.y + Math.sin(angle) * distances[d], top, bottom);
                 var route = predictAgentRoute(agent, tx, ty, futureTimes);
-                var score = 0, collisions = 0;
+                var candidateAngle = Math.atan2(ty - agent.y, tx - agent.x);
+                var score = Math.cos(candidateAngle - strategy.angle) * 78;
+                var collisions = 0;
                 for (var p = 0; p < route.length; p++) {
                     var point = route[p];
                     for (var a = attacks.length - 1; a >= 0; a--) {
@@ -454,11 +598,15 @@
                     }
                 }
                 score += Math.random() * (1.5 + agent.riskTolerance * 2);
-                if (score > bestScore) bestScore = score, best = {x:tx,y:ty,safe:collisions===0};
+                if (score > bestScore) bestScore = score, best = {
+                    x:tx,y:ty,safe:collisions===0,
+                    strategyName:strategy.name,strategyFamily:strategy.family
+                };
             }
         }
         return best || {x:clamp(agent.x + (agent.x < 200 ? 100 : -100),left,right),
-            y:clamp(agent.y - 55,top,bottom),safe:false};
+            y:clamp(agent.y - 55,top,bottom),safe:false,
+            strategyName:strategy.name,strategyFamily:strategy.family};
     }
     function reportAgentOutcome(c, pending, outcome, damage, boss, attacks, waves, ctx) {
         var api = window.MBGERTraining;
@@ -495,6 +643,8 @@
                 agentRole: "primary_stand",
                 decisionOrder: ++trainingDecisionOrder,
                 threatKind: pending && pending.kind || "attack",
+                dodgeStrategy: pending && pending.strategyName || "predictive_escape",
+                dodgeStrategyFamily: pending && pending.strategyFamily || "predictive",
                 aiSkill: Number(c.aiSkill.toFixed(3)),
                 aggression: Number(c.aggression.toFixed(3)),
                 riskTolerance: Number(c.riskTolerance.toFixed(3)),
@@ -535,6 +685,8 @@
             velocityY: c.vy,
             targetX: safe ? safe.x : c.tx,
             targetY: safe ? safe.y : c.ty,
+            strategyName: safe && safe.strategyName || "predictive_escape",
+            strategyFamily: safe && safe.strategyFamily || "predictive",
             direction: trainingDirection(c.x, c.y, safe ? safe.x : c.tx, safe ? safe.y : c.ty)
         };
     }
@@ -582,6 +734,24 @@
         // Count an attack only when the boss HP really decreased.
         return dealt > 0;
     }
+    function applyPositionScore(agent, boss, time) {
+        var last = Number(agent.lastPositionScoreAt) || time;
+        var elapsed = clamp(time - last, 0, 1000);
+        agent.lastPositionScoreAt = time;
+        if (elapsed <= 0) return;
+        var distance = Math.hypot(agent.x - boss.x, agent.y - boss.y);
+        var rate = distance <= 145 ? 1.5 :
+            distance <= 210 ? 0.4 :
+            distance <= 280 ? -0.6 : -1.5;
+        var edgeDistance = Math.max(0, Math.min(
+            agent.x - 18, 382 - agent.x, agent.y - 8, 482 - agent.y
+        ));
+        if (edgeDistance < 24) rate -= 1.5;
+        else if (edgeDistance < 52) rate -= 0.6;
+        var points = rate * elapsed / 1000;
+        agent.score += points;
+        agent.positionScore = (Number(agent.positionScore) || 0) + points;
+    }
     function updateAgent(c, ctx, boss, attacks, waves, time, frameScale) {
         if (!c.alive) {
             if (Number(c.respawnAt) > 0 && time >= c.respawnAt) {
@@ -591,6 +761,7 @@
                 c.alive = true;
                 c.hp = c.maxHp;
                 c.respawnAt = 0;
+                c.lastPositionScoreAt = time;
                 c.x = spawn.x;
                 c.y = spawn.y;
                 c.tx = spawn.x;
@@ -606,6 +777,7 @@
             }
             return;
         }
+        applyPositionScore(c, boss, time);
         if (time >= c.nextDecisionAt) {
             var chosen = chooseTarget(c, boss, attacks, waves);
             c.tx = chosen.x;
@@ -634,6 +806,8 @@
                 c.pendingDodge.targetX = safe.x;
                 c.pendingDodge.targetY = safe.y;
                 c.pendingDodge.direction = trainingDirection(c.x, c.y, safe.x, safe.y);
+                c.pendingDodge.strategyName = safe.strategyName || "predictive_escape";
+                c.pendingDodge.strategyFamily = safe.strategyFamily || "predictive";
                 c.pendingDodge.timeToImpactFrames = Math.max(0, Number(incoming.time) || 0);
             }
             c.nextDecisionAt = time + c.reactionMs * 0.55;
@@ -715,10 +889,14 @@
             totalFailedDodges: agents.reduce(function (n, agent) { return n + agent.failedDodges; }, 0),
             totalDamage: Math.floor(agents.reduce(function (n, agent) { return n + agent.damageDealt; }, 0)),
             totalDamageTaken: Math.floor(agents.reduce(function (n, agent) { return n + agent.damageTaken; }, 0)),
+            totalPositionScore: Number(agents.reduce(function (n, agent) {
+                return n + (Number(agent.positionScore) || 0);
+            }, 0).toFixed(2)),
             results: agents.map(function (agent) {
                 return {
                     id: agent.id,
                     score: Math.floor(agent.score),
+                    positionScore: Number((Number(agent.positionScore) || 0).toFixed(2)),
                     damageDealt: Math.floor(agent.damageDealt),
                     damageTaken: Math.floor(agent.damageTaken),
                     hits: agent.hits,
@@ -858,10 +1036,11 @@
         var totalDecisions=agents.reduce(function(n,agent){return n+agent.decisions;},0);
         var totalDodges=agents.reduce(function(n,agent){return n+agent.dodges;},0);
         var totalFailed=agents.reduce(function(n,agent){return n+agent.failedDodges;},0);
+        var totalPosition=agents.reduce(function(n,agent){return n+(Number(agent.positionScore)||0);},0);
         var sorted=agents.slice().sort(function(a,b){return b.score-a.score;});
         var summary=panel.querySelector("#mbGERSwarmSummary");
         var leaders=panel.querySelector("#mbGERSwarmLeaders");
-        if(summary) summary.textContent="Стенды: "+alive+"/"+COUNT+" живы · Цель атак: "+(trainingTargetAgentId?"GER-"+String(trainingTargetAgentId).padStart(2,"0"):"—")+" · Решения: "+totalDecisions+" · Уклонения: "+totalDodges+" · Попадания по стендам: "+totalFailed+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
+        if(summary) summary.textContent="Стенды: "+alive+"/"+COUNT+" живы · Цель атак: "+(trainingTargetAgentId?"GER-"+String(trainingTargetAgentId).padStart(2,"0"):"—")+" · Позиционные очки: "+Math.floor(totalPosition)+" · Решения: "+totalDecisions+" · Уклонения: "+totalDodges+" · Попадания по стендам: "+totalFailed+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
         if(leaders) leaders.innerHTML=sorted.slice(0,5).map(function(c){return "<div style='display:flex;justify-content:space-between;gap:8px'><span>GER-"+String(c.id).padStart(2,"0")+" · "+(c.alive?"жив":"выбыл")+"</span><b>"+Math.floor(c.score)+" оч.</b></div>";}).join("");
     }
     function finishScores(reason) {
@@ -1098,7 +1277,7 @@
         if (trainingApi && typeof trainingApi.start === "function") {
             trainingSessionPromise = trainingApi.start(bossKey, {
                 arenaMode: ctx && ctx.type ? ctx.type : "unknown",
-                gameVersion: "ger-dodge-training-12",
+                gameVersion: "ger-dodge-training-13",
                 trainingMode: true,
                 trainingProfile: "parallel_primary_stands",
                 agentRole: "primary_stand",
