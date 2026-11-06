@@ -257,14 +257,28 @@ function initWaystarSupers() {
 
 window.MBGERTrainingSkipWaystarScenes = function () {
     if (!window.__mbGERTrainingMode || !waystarActive) return;
-    if (waystarDialogActive) waystarDialogActive = false;
+    waystarDialogActive = false;
     if (Array.isArray(waystarDialogQueue)) waystarDialogQueue.length = 0;
-    if (waystarChoiceActive) {
-        waystarChoiceActive = false;
-        waystarChoiceResolved = true;
-    }
+    waystarDialogStep = 0;
+    waystarDialogAutoTimer = 0;
+    waystarChoiceActive = false;
+    waystarChoiceResolved = true;
     waystarDialogOnComplete = null;
+    waystarSpareDialog = [];
+    waystarSpareDialogStep = 0;
+    waystarSpareDialogTimer = 0;
     if (waystarState === "dialogue") waystarState = "phase1";
+    // Victory/cute-scene presentation is not part of the training sample.
+    // The swarm observes the real boss HP and ends the run itself.
+    if (waystarFinalActive && waystarBossHp <= 0) {
+        waystarFinalActive = false;
+        waystarFinalPhase = "done";
+        waystarFinalTimer = 0;
+        waystarFinalDone = true;
+        waystarBlindPhase = null;
+        waystarBlindTimer = 0;
+        waystarBlindWarnings = [];
+    }
 };
  
 function startWaystarFight(graphicsModeChoice) {
