@@ -704,6 +704,19 @@
             return null;
         }
 
+        if (Array.isArray(attack.segments)) {
+            for (var si = 0; si < attack.segments.length; si++) {
+                var segment = attack.segments[si];
+                if (!segment) continue;
+                var segmentWidth = Math.max(6, Number(attack.width) || Number(segment.width) || 12);
+                var segmentDistance = companionSegmentDistance(x, y,
+                    (Number(segment.x1) || 0) + shiftX, (Number(segment.y1) || 0) + shiftY,
+                    (Number(segment.x2) || 0) + shiftX, (Number(segment.y2) || 0) + shiftY);
+                if (segmentDistance < segmentWidth * 0.5 + body + padding) {
+                    return { x: ax, y: ay, axis: "segment", distance: segmentDistance, attack: attack };
+                }
+            }
+        }
         var path = Array.isArray(attack.path) ? attack.path : null;
         if (path && path.length > 1) {
             for (var p = 1; p < path.length; p++) {
