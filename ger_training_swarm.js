@@ -1536,7 +1536,7 @@
         document.body.appendChild(teacherPanel);
     }
     function stopPlayerTeacher(reason) {
-        if (!teacherActive) return;
+        if (!teacherActive) return Promise.resolve(true);
         teacherActive = false;
         window.__mbGERTrainingPlayerTeacherActive = false;
         if (teacherRaf) window.cancelAnimationFrame(teacherRaf);
@@ -1552,12 +1552,14 @@
         teacherPending = [];
         if (teacherPanel && teacherPanel.parentNode) teacherPanel.parentNode.removeChild(teacherPanel);
         teacherPanel = null;
+        var flushPromise = Promise.resolve(true);
         try {
             var api = window.MBGERTraining;
-            if (api && typeof api.flush === "function") api.flush();
-        } catch (e) {}
+            if (api && typeof api.flush === "function") flushPromise = Promise.resolve(api.flush());
+        } catch (e) { flushPromise = Promise.reject(e); }
         console.info("[GER PLAYER TEACHER] Stopped:", reason || "stopped",
             "recorded decisions:", teacherRecorded);
+        return flushPromise;
     }
     function playerTeacherTick(ts) {
         teacherRaf = 0;
@@ -1663,7 +1665,7 @@
             var bossHp = currentBossHp(ctx);
             if (bossHp <= 0) {
                 if (!teacherLastBossZeroAt) teacherLastBossZeroAt = time;
-                if (time - teacherLastBossZeroAt >= 1800 &&
+                if (time - teacherLastBossZeroAt >= 5000 &&
                     window.__mbBossTestMode && window.__mbBossTestMode.phase === "player" &&
                     typeof window.MBBossTestFinish === "function") {
                     window.MBBossTestFinish("win", false);
@@ -1688,7 +1690,6 @@
         teacherPending = [];
         teacherDecisionOrder = 0;
         teacherRecorded = 0;
-        teacherContext = null;
         var ctx = context();
         if (ctx) {
             try { teacherLastX = Number(ctx.getHeartX()); } catch (e) {}
