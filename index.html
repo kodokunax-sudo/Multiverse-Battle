@@ -1349,7 +1349,13 @@
                         <option value="1000">1000 · Роджер и Белоус</option>
                         <option value="2000">2000 · Супер Живой камень</option>
                     </select>
-                    <div style="font-size:11px;color:#aeb8c8;margin-top:6px;">HP и поведение босса остаются настоящими. GER неуязвим только в тренировочном режиме, чтобы можно было проверить все фазы.</div>
+                    <label for="gerTrainingUniqueStyle" style="display:block;font-weight:900;margin:12px 0 6px;">Режим обучения стенда</label>
+                    <select id="gerTrainingUniqueStyle" style="width:100%;padding:11px;border-radius:10px;">
+                        <option value="swarm">🤖 Самостоятельная тренировка · 100 стендов сразу</option>
+                        <option value="player_imitation">🧑‍🏫 Повторить мой бой · сначала я, затем 100 стендов</option>
+                    </select>
+                    <div id="gerTrainingUniqueStyleHelp" style="font-size:11px;color:#aeb8c8;line-height:1.5;margin-top:7px;">Самостоятельный режим: 100 стендов сразу сражаются с настоящим боссом и обучаются на своих результатах.</div>
+                    <div style="font-size:11px;color:#aeb8c8;margin-top:6px;">Во втором режиме ты управляешь передвижением, GER атакует автоматически, а игра записывает твои уклонения и решения. После победы босс появляется снова против 100 стендов.</div>
                 </div>
 
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:14px;">
