@@ -1233,6 +1233,9 @@
     }
 
     function recordCompanionTrainingOutcome(data, outcome, damageTaken, reason, current) {
+        // In player-teacher mode the training samples must describe the human's
+        // movement, not the companion's autonomous path.
+        if (window.__mbBossTestMode && window.__mbBossTestMode.playerTeacherPhase === true) return;
         if (!data || !window.MBGERTraining ||
             typeof window.MBGERTraining.recordOutcome !== "function") return;
         var payload = Object.assign({}, data);
