@@ -73,7 +73,19 @@
         if (standard) standard.style.display = unique ? "none" : "block";
         if (uniquePanel) uniquePanel.style.display = unique ? "block" : "none";
         if (standardAttacks) standardAttacks.style.display = unique ? "none" : "block";
-        if (invulnerable) { if (unique) invulnerable.checked = true; invulnerable.disabled = unique; }
+        var styleSelect = byId("gerTrainingUniqueStyle");
+        if (styleSelect) styleSelect.style.display = unique ? "block" : "none";
+        var styleHelp = byId("gerTrainingUniqueStyleHelp");
+        var playerImitation = unique && styleSelect && styleSelect.value === "player_imitation";
+        if (styleHelp && styleSelect) {
+            styleHelp.textContent = playerImitation
+                ? "Ты управляешь передвижением, GER автоматически атакует. Игра записывает твои реакции, затем 100 стендов сражаются с боссом заново."
+                : "100 стендов сразу сражаются с настоящим боссом и обучаются на собственных решениях.";
+        }
+        if (invulnerable) {
+            if (unique) invulnerable.checked = !playerImitation;
+            invulnerable.disabled = unique;
+        }
     }
     function updateControls() {
         updateModeVisibility();
@@ -151,12 +163,18 @@
             bossWave: type === "unique_mix"
                 ? (Number(byId("gerTrainingUniqueBossWave") && byId("gerTrainingUniqueBossWave").value) || 200)
                 : (Number(byId("gerTrainingBossWave") && byId("gerTrainingBossWave").value) || 50),
+            trainingStyle: type === "unique_mix" && byId("gerTrainingUniqueStyle") &&
+                byId("gerTrainingUniqueStyle").value === "player_imitation" ? "player_imitation" : "swarm",
             bossHp: clamp(byId("gerTrainingBossHp") && byId("gerTrainingBossHp").value, 2000000, 10000, 1000000000000),
             attackWave: clamp(byId("gerTrainingAttackWave") && byId("gerTrainingAttackWave").value, 500, 50, 10000),
             speed: clamp(byId("gerTrainingSpeed") && byId("gerTrainingSpeed").value, 2, 1, 5),
-            duration: Number(byId("gerTrainingDuration") && byId("gerTrainingDuration").value) || 0,
+            duration: type === "unique_mix" && byId("gerTrainingUniqueStyle") &&
+                byId("gerTrainingUniqueStyle").value === "player_imitation"
+                ? 0 : (Number(byId("gerTrainingDuration") && byId("gerTrainingDuration").value) || 0),
             attacks: selectedAttackTypes(),
-            invulnerable: type === "unique_mix" || !!(byId("gerTrainingInvulnerable") && byId("gerTrainingInvulnerable").checked)
+            invulnerable: type === "unique_mix"
+                ? !(byId("gerTrainingUniqueStyle") && byId("gerTrainingUniqueStyle").value === "player_imitation")
+                : !!(byId("gerTrainingInvulnerable") && byId("gerTrainingInvulnerable").checked)
         };
     }
     function saveSettings() {
@@ -167,6 +185,9 @@
         try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null"); } catch (_error) {}
         if (!saved || typeof saved !== "object") return;
         if (byId("gerTrainingType") && ["standard", "unique_mix"].indexOf(saved.type) >= 0) byId("gerTrainingType").value = saved.type;
+        if (byId("gerTrainingUniqueStyle") && ["swarm", "player_imitation"].indexOf(saved.trainingStyle) >= 0) {
+            byId("gerTrainingUniqueStyle").value = saved.trainingStyle;
+        }
         if (byId("gerTrainingBossHp")) byId("gerTrainingBossHp").value = String(clamp(saved.bossHp, 2000000, 10000, 1000000000000));
         if (byId("gerTrainingBossWave")) {
             var exists = Array.from(byId("gerTrainingBossWave").options).some(function (option) {
@@ -338,7 +359,8 @@
             var bossKey = settings.type === "unique_mix" ? "ger_unique_" + settings.bossWave : "arena_wave_" + settings.bossWave;
             var session = await api.start(bossKey, {
                 arenaMode: "moderator_training", trainingMode: true,
-                trainingProfile: settings.type, speedMultiplier: settings.speed
+                trainingProfile: settings.type, trainingStyle: settings.trainingStyle,
+                speedMultiplier: settings.speed
             });
             if (!session || !session.sessionId) throw new Error("training_session_not_created");
             setStatus("Онлайн подтверждён. Серверная сессия обучения создана.", "success");
@@ -346,6 +368,7 @@
                 trainingProfile: settings.type, bossWave: settings.bossWave,
                 bossHp: settings.bossHp, attackWave: settings.attackWave,
                 attackTypes: settings.type === "unique_mix" ? [] : settings.attacks,
+                trainingStyle: settings.trainingStyle,
                 speedMultiplier: settings.speed, invulnerable: settings.invulnerable
             });
             if (!started) { await api.finish("aborted"); return; }
@@ -375,12 +398,19 @@
 
     window.MBGERTrainingArenaOnStarted = function (modeData) {
         running = true;
-        setStatus(modeData && modeData.trainingProfile === "unique_mix"
-            ? "GER сражается с реальным боссом: " + (modeData && modeData.bossName ? modeData.bossName : "уникальный босс") + ". Оригинальные атаки и фазы включены."
-            : "GER вызван. Босс: " + (modeData && modeData.bossName ? modeData.bossName : "обычный") +
-                ". Выбрано типов атак: " + (modeData && Array.isArray(modeData.attackTypes) ? modeData.attackTypes.length : 0) +
-                ". Не закрывай вкладку, пока он собирает опыт.", "success");
+        setStatus(modeData && modeData.playerTeacherMode
+            ? "Твой этап: управляй передвижением, GER атакует автоматически. Игра записывает твои реакции на атаки босса."
+            : modeData && modeData.trainingProfile === "unique_mix"
+                ? "100 стендов сражаются с реальным боссом: " + (modeData && modeData.bossName ? modeData.bossName : "уникальный босс") + ". Оригинальные атаки и фазы включены."
+                : "GER вызван. Босс: " + (modeData && modeData.bossName ? modeData.bossName : "обычный") +
+                    ". Выбрано типов атак: " + (modeData && Array.isArray(modeData.attackTypes) ? modeData.attackTypes.length : 0) +
+                    ". Не закрывай вкладку, пока он собирает опыт.", "success");
         updateControls();
+    };
+    window.MBGERTrainingArenaOnPhaseChanged = function (modeData) {
+        setStatus("Твой бой записан. Теперь 100 стендов сражаются с " +
+            (modeData && modeData.bossName ? modeData.bossName : "тем же боссом") +
+            " заново и пытаются повторить твою победу.", "success");
     };
     window.MBGERTrainingArenaOnFinished = function (result) {
         running = false;
@@ -420,6 +450,10 @@
             if (control) control.addEventListener("change", saveSettings);
         });
         if (byId("gerTrainingType")) byId("gerTrainingType").addEventListener("change", function () {
+            updateControls();
+            saveSettings();
+        });
+        if (byId("gerTrainingUniqueStyle")) byId("gerTrainingUniqueStyle").addEventListener("change", function () {
             updateControls();
             saveSettings();
         });
