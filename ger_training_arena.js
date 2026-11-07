@@ -172,7 +172,9 @@
                 byId("gerTrainingUniqueStyle").value === "player_imitation"
                 ? 0 : (Number(byId("gerTrainingDuration") && byId("gerTrainingDuration").value) || 0),
             attacks: selectedAttackTypes(),
-            invulnerable: type === "unique_mix" || !!(byId("gerTrainingInvulnerable") && byId("gerTrainingInvulnerable").checked)
+            invulnerable: type === "unique_mix"
+                ? !(byId("gerTrainingUniqueStyle") && byId("gerTrainingUniqueStyle").value === "player_imitation")
+                : !!(byId("gerTrainingInvulnerable") && byId("gerTrainingInvulnerable").checked)
         };
     }
     function saveSettings() {
