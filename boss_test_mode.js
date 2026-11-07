@@ -172,35 +172,46 @@ window.MBBossTestFinish=function(result,stopped){
         if(m.kind==="arena"){try{if(typeof stopArena==="function")stopArena();}catch(e){}}
         else uniqueStop(m);
     }
+    var teacherFinishPromise=Promise.resolve(true);
     if(typeof window.MBGERTrainingSwarmStopPlayerTeacher==="function"){
-        window.MBGERTrainingSwarmStopPlayerTeacher(result||"exit");
+        teacherFinishPromise=Promise.resolve(window.MBGERTrainingSwarmStopPlayerTeacher(result||"exit"));
     }
     if(m.gerTraining&&typeof window.MBGERTrainingSwarmStop==="function"){
         window.MBGERTrainingSwarmStop(result||"exit");
     }
-    restore(m.snapshot);
-    clearGlobals();
-    var b=E("bossTestExitFightBtn");if(b)b.remove();
-    try{
-        if(typeof renderEnemy==="function")renderEnemy();
-        if(typeof updateStatusDisplay==="function")updateStatusDisplay();
-        if(typeof updatePlayerStats==="function")updatePlayerStats();
-        if(typeof updateSuperButton==="function")updateSuperButton();
-        if(m.snapshot&&m.snapshot.buttonDisplays)m.snapshot.buttonDisplays.forEach(function(pair){
-            var button=E(pair[0]);if(button&&pair[1]!==null)button.style.display=pair[1];
-        });
-    }catch(e){}
-    var msgs={
-        win:["✅ Тренировка завершена: 100 стендов победили босса.","#9dffc0"],
-        loss:["💥 Тренировка закончилась поражением. Прогресс не изменён.","#ffb0a0"],
-        exit:["↩️ Тренировка закрыта. Прогресс не изменён.","#9fe6ff"],
-        error:["⚠️ Не удалось запустить или продолжить тренировку.","#ffb0a0"]
+    var finalizeTrainingFinish=function(){
+        restore(m.snapshot);
+        clearGlobals();
+        var b=E("bossTestExitFightBtn");if(b)b.remove();
+        try{
+            if(typeof renderEnemy==="function")renderEnemy();
+            if(typeof updateStatusDisplay==="function")updateStatusDisplay();
+            if(typeof updatePlayerStats==="function")updatePlayerStats();
+            if(typeof updateSuperButton==="function")updateSuperButton();
+            if(m.snapshot&&m.snapshot.buttonDisplays)m.snapshot.buttonDisplays.forEach(function(pair){
+                var button=E(pair[0]);if(button&&pair[1]!==null)button.style.display=pair[1];
+            });
+        }catch(e){}
+        var msgs={
+            win:["✅ Тренировка завершена: 100 стендов победили босса.","#9dffc0"],
+            loss:["💥 Тренировка закончилась поражением. Прогресс не изменён.","#ffb0a0"],
+            exit:["↩️ Тренировка закрыта. Прогресс не изменён.","#9fe6ff"],
+            error:["⚠️ Не удалось запустить или продолжить тренировку.","#ffb0a0"]
+        };
+        var out=msgs[result]||msgs.exit;
+        setResult(out[0],out[1]);
+        if(m.gerTraining&&typeof window.MBGERTrainingArenaOnFinished==="function"){
+            try{window.MBGERTrainingArenaOnFinished(result||"exit");}catch(e){}
+        }
     };
-    var out=msgs[result]||msgs.exit;
-    setResult(out[0],out[1]);
-    if(m.gerTraining&&typeof window.MBGERTrainingArenaOnFinished==="function"){
-        try{window.MBGERTrainingArenaOnFinished(result||"exit");}catch(e){}
+    if(m.playerTeacherMode===true&&m.phase==="player"){
+        teacherFinishPromise.then(finalizeTrainingFinish).catch(function(error){
+            console.warn("[GER imitation] Could not flush the final player observations:",error);
+            finalizeTrainingFinish();
+        });
+        return;
     }
+    finalizeTrainingFinish();
 };
 
 window.MBBossTestStartGERTraining=function(options){
