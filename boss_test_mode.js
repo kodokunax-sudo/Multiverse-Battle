@@ -116,32 +116,47 @@ window.MBBossTestFinish=function(result,stopped){
     if(m.playerTeacherMode===true&&m.phase==="player"&&result==="win"){
         m.finishing=true;
         try{
-            if(typeof window.MBGERTrainingSwarmStopPlayerTeacher==="function"){
-                window.MBGERTrainingSwarmStopPlayerTeacher("player_won");
-            }
+            var teacherFlush = typeof window.MBGERTrainingSwarmStopPlayerTeacher==="function"
+                ? window.MBGERTrainingSwarmStopPlayerTeacher("player_won")
+                : Promise.resolve(true);
             uniqueStop(m);
-            m.phase="swarm";
-            m.playerTeacherPhase=false;
-            m.invulnerable=true;
-            if(window.__mbGERTrainingOptions){
-                window.__mbGERTrainingOptions.playerTeacherPhase=false;
-                window.__mbGERTrainingOptions.imitationStage="swarm";
-            }
-            launchUniqueTrainingBoss(m);
-            if(typeof window.MBUpdateGoldExperience==="function"){
-                window.MBUpdateGoldExperience();
-                if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(function(){
-                    if(window.__mbBossTestMode===m&&m.phase==="swarm"&&typeof window.MBUpdateGoldExperience==="function")window.MBUpdateGoldExperience();
-                });
-            }
-            m.finishing=false;
-            if(typeof window.MBGERTrainingSwarmStart!=="function")throw new Error("100-agent swarm module unavailable");
-            window.MBGERTrainingSwarmStart();
-            setResult("✅ Твой бой записан. Теперь 100 стендов повторяют бой с боссом на полном здоровье.","#9dffc0");
-            if(typeof window.MBGERTrainingArenaOnPhaseChanged==="function"){
-                window.MBGERTrainingArenaOnPhaseChanged(m);
-            }
-            if(typeof updateSuperButton==="function")updateSuperButton();
+            Promise.resolve(teacherFlush).then(function (flushed) {
+                if (flushed !== true) throw new Error("player_samples_not_saved");
+                var api = window.MBGERTraining;
+                var bossKey = "ger_unique_" + m.bossWave;
+                if (!api || typeof api.refreshBrain !== "function") throw new Error("learning_brain_unavailable");
+                return api.refreshBrain(bossKey);
+            }).then(function (brain) {
+                if (window.__mbBossTestMode !== m) return;
+                if (!brain) throw new Error("player_samples_not_loaded");
+                m.phase="swarm";
+                m.playerTeacherPhase=false;
+                m.invulnerable=true;
+                if(window.__mbGERTrainingOptions){
+                    window.__mbGERTrainingOptions.playerTeacherPhase=false;
+                    window.__mbGERTrainingOptions.imitationStage="swarm";
+                }
+                launchUniqueTrainingBoss(m);
+                if(typeof window.MBUpdateGoldExperience==="function"){
+                    window.MBUpdateGoldExperience();
+                    if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(function(){
+                        if(window.__mbBossTestMode===m&&m.phase==="swarm"&&typeof window.MBUpdateGoldExperience==="function")window.MBUpdateGoldExperience();
+                    });
+                }
+                if(typeof window.MBGERTrainingSwarmStart!=="function")throw new Error("100-agent swarm module unavailable");
+                m.finishing=false;
+                window.MBGERTrainingSwarmStart();
+                setResult("✅ Твой бой записан и загружен в память. Теперь 100 стендов повторяют бой с боссом на полном здоровье.","#9dffc0");
+                if(typeof window.MBGERTrainingArenaOnPhaseChanged==="function"){
+                    window.MBGERTrainingArenaOnPhaseChanged(m);
+                }
+                if(typeof updateSuperButton==="function")updateSuperButton();
+            }).catch(function(phaseError){
+                console.error("[GER imitation] Could not load the player's training data:",phaseError);
+                if(window.__mbBossTestMode!==m)return;
+                m.finishing=false;
+                window.MBBossTestFinish("error",false);
+            });
             return;
         }catch(phaseError){
             console.error("[GER imitation] Could not start the 100-agent replay:",phaseError);
