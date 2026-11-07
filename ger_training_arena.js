@@ -76,12 +76,16 @@
         var styleSelect = byId("gerTrainingUniqueStyle");
         if (styleSelect) styleSelect.style.display = unique ? "block" : "none";
         var styleHelp = byId("gerTrainingUniqueStyleHelp");
+        var playerImitation = unique && styleSelect && styleSelect.value === "player_imitation";
         if (styleHelp && styleSelect) {
-            styleHelp.textContent = styleSelect.value === "player_imitation"
+            styleHelp.textContent = playerImitation
                 ? "Ты управляешь передвижением, GER автоматически атакует. Игра записывает твои реакции, затем 100 стендов сражаются с боссом заново."
                 : "100 стендов сразу сражаются с настоящим боссом и обучаются на собственных решениях.";
         }
-        if (invulnerable) { if (unique) invulnerable.checked = true; invulnerable.disabled = unique; }
+        if (invulnerable) {
+            if (unique) invulnerable.checked = !playerImitation;
+            invulnerable.disabled = unique;
+        }
     }
     function updateControls() {
         updateModeVisibility();
@@ -164,7 +168,9 @@
             bossHp: clamp(byId("gerTrainingBossHp") && byId("gerTrainingBossHp").value, 2000000, 10000, 1000000000000),
             attackWave: clamp(byId("gerTrainingAttackWave") && byId("gerTrainingAttackWave").value, 500, 50, 10000),
             speed: clamp(byId("gerTrainingSpeed") && byId("gerTrainingSpeed").value, 2, 1, 5),
-            duration: Number(byId("gerTrainingDuration") && byId("gerTrainingDuration").value) || 0,
+            duration: type === "unique_mix" && byId("gerTrainingUniqueStyle") &&
+                byId("gerTrainingUniqueStyle").value === "player_imitation"
+                ? 0 : (Number(byId("gerTrainingDuration") && byId("gerTrainingDuration").value) || 0),
             attacks: selectedAttackTypes(),
             invulnerable: type === "unique_mix" || !!(byId("gerTrainingInvulnerable") && byId("gerTrainingInvulnerable").checked)
         };
