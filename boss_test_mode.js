@@ -168,13 +168,13 @@ window.MBBossTestFinish=function(result,stopped){
 
     if(m.finishing)return;
     m.finishing=true;
-    if(!stopped){
-        if(m.kind==="arena"){try{if(typeof stopArena==="function")stopArena();}catch(e){}}
-        else uniqueStop(m);
-    }
     var teacherFinishPromise=Promise.resolve(true);
     if(typeof window.MBGERTrainingSwarmStopPlayerTeacher==="function"){
         teacherFinishPromise=Promise.resolve(window.MBGERTrainingSwarmStopPlayerTeacher(result||"exit"));
+    }
+    if(!stopped){
+        if(m.kind==="arena"){try{if(typeof stopArena==="function")stopArena();}catch(e){}}
+        else uniqueStop(m);
     }
     if(m.gerTraining&&typeof window.MBGERTrainingSwarmStop==="function"){
         window.MBGERTrainingSwarmStop(result||"exit");
