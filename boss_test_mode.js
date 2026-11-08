@@ -171,10 +171,19 @@ window.MBBossTestFinish=function(result,stopped){
                 if(typeof window.MBGERTrainingSwarmStart!=="function")throw new Error("100-agent swarm module unavailable");
                 m.finishing=false;
                 window.MBGERTrainingSwarmStart();
-                setResult(m.imitationBrainAvailable
-                    ? "✅ Твой бой записан. Память загружена: 100 стендов повторяют бой с боссом на полном здоровье."
-                    : "⚠️ 100 стендов запущены на повтор боя, но обученная память пока недоступна. Используется базовая тактика.",
-                    m.imitationBrainAvailable ? "#9dffc0" : "#ffd38a");
+                var routeSamples = Number(window.__mbGERTrainingReplaySampleCount) || 0;
+                m.imitationRouteAvailable = routeSamples >= 2;
+                m.imitationRouteSamples = routeSamples;
+                var memoryStatus = m.imitationBrainAvailable
+                    ? "Память уклонений загружена."
+                    : "Серверная память уклонений пока недоступна, используется базовая тактика.";
+                var routeStatus = m.imitationRouteAvailable
+                    ? "100 стендов повторяют твою траекторию (" + routeSamples +
+                        " точек), но могут отклоняться ради уклонения от опасных атак."
+                    : "Траектория твоего боя не загрузилась, работают адаптивные стратегии.";
+                setResult((m.imitationBrainAvailable && m.imitationRouteAvailable ? "✅ " : "⚠️ ") +
+                    memoryStatus + " " + routeStatus,
+                    m.imitationBrainAvailable && m.imitationRouteAvailable ? "#9dffc0" : "#ffd38a");
                 if(typeof window.MBGERTrainingArenaOnPhaseChanged==="function"){
                     window.MBGERTrainingArenaOnPhaseChanged(m);
                 }
