@@ -106,7 +106,7 @@ function launchUniqueTrainingBoss(m){
     else throw new Error("unsupported_unique_boss_"+m.bossWave);
 }
 function exitControl(m){var old=E("bossTestExitFightBtn");if(old)old.remove();if(m.kind==="unique"&&m.bossWave===2000)return;var b=document.createElement("button");b.id="bossTestExitFightBtn";b.type="button";b.textContent="← ВЫЙТИ ИЗ ТЕСТА";b.style.cssText="position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:100100;padding:10px 13px;border-radius:10px;border:1px solid rgba(130,220,255,.75);background:rgba(5,18,30,.96);color:#fff;font:900 12px Arial,sans-serif;touch-action:manipulation";b.onclick=function(ev){ev.preventDefault();ev.stopPropagation();window.MBBossTestFinish("exit",false);};document.body.appendChild(b);}
-function clearGlobals(){window.__mbBossTestMainCard=null;window.__mbBossTestAbilityMode=null;window.__mbBossTestPassive=null;window.__mbBossTestMode=null;window.__mbBossTestSuperHitUsed=false;window.__mbGERTrainingMode=false;window.__mbGERTrainingBossKey=null;window.__mbGERTrainingOptions=null;window.__mbGERTrainingSwarmDamageInFlight=false;}
+function clearGlobals(){window.__mbBossTestMainCard=null;window.__mbBossTestAbilityMode=null;window.__mbBossTestPassive=null;window.__mbBossTestMode=null;window.__mbBossTestSuperHitUsed=false;window.__mbGERTrainingMode=false;window.__mbGERTrainingBossKey=null;window.__mbGERTrainingOptions=null;window.__mbGERTrainingSwarmDamageInFlight=false;window.__MBGERPlayerReplayTrajectory=[];window.__mbGERTrainingReplaySampleCount=0;window.__mbGERTrainingReplayActive=false;}
 window.MBBossTestFinish=function(result,stopped){
     var m=window.__mbBossTestMode;
     if(!m||m.finishing)return;
