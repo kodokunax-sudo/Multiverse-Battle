@@ -2245,8 +2245,30 @@
             state.attackCooldown = Math.max(0, (Number(state.attackCooldown) || 0) - frameScale);
             state.hitFlash = Math.max(0, (Number(state.hitFlash) || 0) - frameScale);
             state.dodgeFlashTimer = 0;
-            if (state.punch) updateCompanionPunch(ctx, current);
-            if (state.combo) updateMudaCombo(ctx);
+            var teacherTarget = ctx.type === "arena" ? null :
+                (getUniqueBossTarget(ctx, state.targetId) || getUniqueBossTarget(ctx));
+            if (teacherTarget) state.targetId = teacherTarget.id;
+            var teacherBoss = teacherTarget || getBossPosition(ctx, state.x, state.y);
+            var teacherAttackDistance = Math.hypot(
+                state.x - (Number(teacherBoss.x) || state.x),
+                state.y - (Number(teacherBoss.y) || state.y)
+            );
+
+            // Movement stays under human control, but GER keeps its own combat brain:
+            // it chooses the actual boss target and attacks whenever it reaches range.
+            if (state.punch) {
+                updateCompanionPunch(ctx, current);
+            } else if (state.combo) {
+                updateMudaCombo(ctx);
+            } else if (!state.specialAttack && (ctx.type === "arena" || teacherTarget) &&
+                teacherAttackDistance >= 14 && teacherAttackDistance <= 190) {
+                if (current >= (Number(state.nextMudaAt) || 0) &&
+                    teacherAttackDistance >= 72 && teacherAttackDistance <= 184) {
+                    beginMudaCombo(ctx, teacherTarget, currentCard());
+                } else if (state.attackCooldown <= 0) {
+                    beginCompanionPunch(ctx, teacherTarget);
+                }
+            }
             updatePunchEffects(frameScale);
             if (state.trail) {
                 state.trail.push({ x: state.x, y: state.y, life: 10 });
