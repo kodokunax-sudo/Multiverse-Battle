@@ -3451,6 +3451,7 @@ function showClickCombatText(text, color) {
 // ============================================================
 function handleClick() { 
     initAudio(); 
+    if (window.__mbBossTestMode && window.__mbBossTestMode.playerTeacherPhase === true) return;
     if (typeof window !== "undefined" && window.livingStoneSuperActive === true) return;
     if (typeof arenaActive !== 'undefined' && arenaActive) return; 
     if (typeof livingStoneActive !== 'undefined' && livingStoneActive) return;
