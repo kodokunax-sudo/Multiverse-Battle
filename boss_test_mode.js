@@ -116,9 +116,16 @@ window.MBBossTestFinish=function(result,stopped){
     if(m.playerTeacherMode===true&&m.phase==="player"&&result==="win"){
         m.finishing=true;
         try{
-            var teacherFlush = typeof window.MBGERTrainingSwarmStopPlayerTeacher==="function"
-                ? window.MBGERTrainingSwarmStopPlayerTeacher("player_won")
-                : Promise.resolve(true);
+            var teacherFlush;
+            try {
+                teacherFlush = typeof window.MBGERTrainingSwarmStopPlayerTeacher==="function"
+                    ? window.MBGERTrainingSwarmStopPlayerTeacher("player_won")
+                    : Promise.resolve(true);
+            } catch (teacherStopError) {
+                // Recorder shutdown is best-effort. Never let it cancel the replay arena.
+                console.warn("[GER imitation] Teacher recorder threw while stopping; continuing replay:", teacherStopError);
+                teacherFlush = Promise.resolve(false);
+            }
             uniqueStop(m);
             Promise.resolve(teacherFlush).catch(function (flushError) {
                 console.warn("[GER imitation] Final sample flush failed; queued samples will retry:", flushError);
