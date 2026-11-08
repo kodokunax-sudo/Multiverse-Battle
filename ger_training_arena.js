@@ -408,9 +408,15 @@
         updateControls();
     };
     window.MBGERTrainingArenaOnPhaseChanged = function (modeData) {
-        setStatus("Твой бой записан. Теперь 100 стендов сражаются с " +
-            (modeData && modeData.bossName ? modeData.bossName : "тем же боссом") +
-            " заново и пытаются повторить твою победу.", "success");
+        var bossName = modeData && modeData.bossName ? modeData.bossName : "тем же боссом";
+        if (modeData && modeData.imitationBrainFallback === true) {
+            setStatus("Этап 1 завершён. 100 стендов уже сражаются с " + bossName +
+                ", но серверная память пока не загрузилась. Используется базовая тактика; очередь записей продолжит синхронизацию.", "warning");
+        } else {
+            setStatus("Твой бой записан. Теперь 100 стендов сражаются с " +
+                bossName + " заново и пытаются повторить твою победу.", "success");
+        }
+        updateControls();
     };
     window.MBGERTrainingArenaOnFinished = function (result) {
         running = false;
