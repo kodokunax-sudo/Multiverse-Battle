@@ -501,7 +501,7 @@
                     if (!summarySaved || pendingAgentResults) return null;
                 }
                 var recoveredSamplesSent = await flushAll();
-                if (!recoveredSamplesSent || queue.length) return null;
+                if (!recoveredSamplesSent || queue.length || trajectoryQueue.length) return null;
                 var recoveredSessionClosed = await finish("aborted");
                 if (!recoveredSessionClosed) return null;
                 sessionOwnerId = online.user.id;
@@ -611,7 +611,7 @@
                 if (pendingAgentResults === submittedSnapshot) pendingAgentResults = null;
                 retryDelay = 300;
                 persistPending();
-                if (queue.length || pendingAgentResults) scheduleFlush();
+                if (queue.length || trajectoryQueue.length || pendingAgentResults) scheduleFlush();
                 return response;
             } catch (error) {
                 retryDelay = Math.min(10000, Math.max(600, retryDelay * 2));
@@ -652,7 +652,7 @@
         if (!sessionId && (queue.length || trajectoryQueue.length || pendingAgentResults)) {
             await ensurePendingSession();
         }
-        if (!sessionId) return queue.length === 0 && !pendingAgentResults;
+        if (!sessionId) return queue.length === 0 && trajectoryQueue.length === 0 && !pendingAgentResults;
 
         finishPromise = (async function () {
             try {
@@ -668,7 +668,7 @@
                     }
                 }
                 var sent = await flushAll();
-                if (!sent || queue.length) {
+                if (!sent || queue.length || trajectoryQueue.length) {
                     scheduleFlush();
                     return false;
                 }
