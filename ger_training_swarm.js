@@ -1470,7 +1470,11 @@
         window.__mbGERTrainingSwarmSavePromise = null;
 
         var ctx = context();
-        var rawPlayerReplay = Array.isArray(window.__MBGERPlayerReplayTrajectory)
+        var isPlayerImitationReplay = !!(window.__mbBossTestMode &&
+            window.__mbBossTestMode.playerTeacherMode === true &&
+            window.__mbBossTestMode.phase === "swarm");
+        var rawPlayerReplay = isPlayerImitationReplay &&
+            Array.isArray(window.__MBGERPlayerReplayTrajectory)
             ? window.__MBGERPlayerReplayTrajectory : [];
         playerReplayTrajectory = rawPlayerReplay.filter(function (row) {
             return Array.isArray(row) && row.length === 8 &&
