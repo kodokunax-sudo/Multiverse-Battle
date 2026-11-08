@@ -79,7 +79,7 @@
         var playerImitation = unique && styleSelect && styleSelect.value === "player_imitation";
         if (styleHelp && styleSelect) {
             styleHelp.textContent = playerImitation
-                ? "Ты управляешь передвижением, GER автоматически атакует. Игра записывает твои реакции, затем 100 стендов сражаются с боссом заново."
+                ? "Ты напрямую управляешь видимым GER: WASD/стрелки или мышь/касание для движения, Z — удар, X — MUDA. Игра записывает уклонения и реакции, затем 100 стендов проходят бой заново."
                 : "100 стендов сразу сражаются с настоящим боссом и обучаются на собственных решениях.";
         }
         if (invulnerable) {
@@ -399,7 +399,7 @@
     window.MBGERTrainingArenaOnStarted = function (modeData) {
         running = true;
         setStatus(modeData && modeData.playerTeacherMode
-            ? "Твой этап: управляй передвижением, GER атакует автоматически. Игра записывает твои реакции на атаки босса."
+            ? "Твой этап: управляй GER напрямую. WASD/стрелки или мышь/касание; Z — удар, X — MUDA. Записываем твои уклонения."
             : modeData && modeData.trainingProfile === "unique_mix"
                 ? "100 стендов сражаются с реальным боссом: " + (modeData && modeData.bossName ? modeData.bossName : "уникальный босс") + ". Оригинальные атаки и фазы включены."
                 : "GER вызван. Босс: " + (modeData && modeData.bossName ? modeData.bossName : "обычный") +
