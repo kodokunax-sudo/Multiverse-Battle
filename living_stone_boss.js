@@ -1766,7 +1766,13 @@ function livingStoneVictory() {
     if (typeof window!=="undefined" && window.__mbBossTestMode && window.__mbBossTestMode.kind==="unique" && Number(window.__mbBossTestMode.bossWave)===200) {
         livingStoneState="victory";
         spawnLivingStoneText(200,200,"ТЕСТ: ПОБЕДА","#aaffbf",90);
-        setTimeout(function(){if(livingStoneActive)stopLivingStoneFight();if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("win",true);},700);
+        setTimeout(function(){
+            // MBBossTestFinish first drains the teacher's final samples and then
+            // stops this boss itself. Stopping here would invalidate getBossContext()
+            // before the imitation hand-off can report its final observations.
+            if(typeof window.MBBossTestFinish==="function")window.MBBossTestFinish("win",true);
+            else if(livingStoneActive)stopLivingStoneFight();
+        },700);
         return;
     }
     livingStoneState = "victory";
