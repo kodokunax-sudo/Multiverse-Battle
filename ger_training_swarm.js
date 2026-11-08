@@ -48,6 +48,14 @@
     var teacherKeys = Object.create(null);
     var teacherPointerActive = false;
     var teacherPointerTarget = null;
+    var teacherTrajectory = [];
+    var teacherStartedAt = 0;
+    var teacherLastTrajectoryAt = 0;
+    var playerReplayTrajectory = [];
+    var playerReplayStartedAt = 0;
+    var playerReplayDurationMs = 0;
+    var playerReplayLoopGapMs = 700;
+    var playerReplayEnabled = false;
 
     function now() { return window.performance && performance.now ? performance.now() : Date.now(); }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -88,6 +96,8 @@
             y: clamp(315 + Math.sin(angle) * ring, 18, 482),
             vx: 0, vy: 0, tx: 200, ty: 260, hp: 5, maxHp: 5,
             alive: true, respawnAt: 0, score: 0, positionScore: 0, lastPositionScoreAt: now(),
+            replayAnchor: null, replayIndex: 0, replayDodgeUntil: 0,
+            replayDistanceTotal: 0, replaySamples: 0, replaySimilarity: 0,
             damageDealt: 0, damageTaken: 0,
             hits: 0, dodges: 0, failedDodges: 0, decisions: 0,
             aggression: aggression, riskTolerance: clamp(riskTolerance, 0, 1), aiSkill: 0.62,
@@ -306,6 +316,55 @@
             nearestWallDistance: Math.round(wallDistance)
         };
     }
+    function replayRelativePoint(sample) {
+        return { x: Number(sample[2]) - Number(sample[6]), y: Number(sample[3]) - Number(sample[7]) };
+    }
+    function playerReplayTarget(agent, boss, time) {
+        if (!playerReplayEnabled || playerReplayTrajectory.length < 2) return null;
+        var first = playerReplayTrajectory[0];
+        var last = playerReplayTrajectory[playerReplayTrajectory.length - 1];
+        if (!agent.replayAnchor) {
+            agent.replayAnchor = { x: agent.x, y: agent.y, bossX: boss.x, bossY: boss.y, first: replayRelativePoint(first) };
+        }
+        var loopDuration = Math.max(1000, playerReplayDurationMs + playerReplayLoopGapMs);
+        var elapsed = Math.max(0, time - playerReplayStartedAt) % loopDuration;
+        var firstRelative = agent.replayAnchor.first;
+        var relative;
+        if (elapsed > playerReplayDurationMs) {
+            var blend = clamp((elapsed - playerReplayDurationMs) / playerReplayLoopGapMs, 0, 1);
+            var lastRelative = replayRelativePoint(last);
+            relative = {
+                x: lastRelative.x + (firstRelative.x - lastRelative.x) * blend,
+                y: lastRelative.y + (firstRelative.y - lastRelative.y) * blend
+            };
+        } else {
+            var low = Math.max(0, Math.min(playerReplayTrajectory.length - 2, Number(agent.replayIndex) || 0));
+            while (low < playerReplayTrajectory.length - 2 && Number(playerReplayTrajectory[low + 1][1]) < elapsed) low++;
+            while (low > 0 && Number(playerReplayTrajectory[low][1]) > elapsed) low--;
+            agent.replayIndex = low;
+            var a = playerReplayTrajectory[low], b = playerReplayTrajectory[low + 1];
+            var span = Math.max(1, Number(b[1]) - Number(a[1]));
+            var mix = clamp((elapsed - Number(a[1])) / span, 0, 1);
+            var ar = replayRelativePoint(a), br = replayRelativePoint(b);
+            relative = { x: ar.x + (br.x - ar.x) * mix, y: ar.y + (br.y - ar.y) * mix };
+        }
+        var targetX = agent.replayAnchor.x + (relative.x - firstRelative.x) + (boss.x - agent.replayAnchor.bossX);
+        var targetY = agent.replayAnchor.y + (relative.y - firstRelative.y) + (boss.y - agent.replayAnchor.bossY);
+        return { x: clamp(targetX, 18, 382), y: clamp(targetY, 8, 482) };
+    }
+    function recordTeacherTrajectorySample(ctx, x, y, vx, vy, time, force) {
+        if (!ctx || teacherTrajectory.length >= 7200) return;
+        if (!force && time - teacherLastTrajectoryAt < 100) return;
+        var boss = bossTarget(ctx);
+        teacherTrajectory.push([
+            teacherTrajectory.length, Math.max(0, Math.round(time - teacherStartedAt)),
+            Number((Number(x) || 0).toFixed(2)), Number((Number(y) || 0).toFixed(2)),
+            Number((Number(vx) || 0).toFixed(3)), Number((Number(vy) || 0).toFixed(3)),
+            Number((Number(boss.x) || 200).toFixed(2)), Number((Number(boss.y) || 130).toFixed(2))
+        ]);
+        teacherLastTrajectoryAt = time;
+    }
+
     function predictAgentRoute(agent, targetX, targetY, futureTimes) {
         var route = [];
         var maxSpeed = Math.max(0.5, Math.min(8, 3.6 * agent.movementSpeed));
@@ -898,6 +957,19 @@
             c.nextDecisionAt = time + c.reactionMs + Math.random() * 70;
         }
 
+        // Replay the human's boss-relative route; urgent attack dodges take priority.
+        var replayTarget = playerReplayTarget(c, boss, time);
+        if (replayTarget) {
+            c.replayDistanceTotal += Math.hypot(c.x - replayTarget.x, c.y - replayTarget.y);
+            c.replaySamples++;
+            c.replaySimilarity = clamp(100 -
+                (c.replayDistanceTotal / Math.max(1, c.replaySamples)) * 0.55, 0, 100);
+            if (time >= (Number(c.replayDodgeUntil) || 0)) {
+                c.tx = replayTarget.x;
+                c.ty = replayTarget.y;
+            }
+        }
+
         // Predict the agent's actual trajectory, then choose an escape route using
         // the same danger model and saved direction/context statistics as the main GER.
         var incoming = null;
@@ -909,6 +981,8 @@
             var safe = chooseDodgeTarget(c, boss, attacks, waves, incoming);
             c.tx = safe.x;
             c.ty = safe.y;
+            c.replayDodgeUntil = Math.max(Number(c.replayDodgeUntil) || 0,
+                time + Math.max(280, (Number(incoming.time) || 0) * 16.667 + 260));
             incoming.safeTarget = safe;
             if (!c.pendingDodge || c.pendingDodge.source !== incoming.source) {
                 if (c.pendingDodge) {
@@ -1157,7 +1231,16 @@
         var sorted=agents.slice().sort(function(a,b){return b.score-a.score;});
         var summary=panel.querySelector("#mbGERSwarmSummary");
         var leaders=panel.querySelector("#mbGERSwarmLeaders");
-        if(summary) summary.textContent="Стенды: "+alive+"/"+COUNT+" живы · Цель атак: "+(trainingTargetAgentId?"GER-"+String(trainingTargetAgentId).padStart(2,"0"):"—")+" · Позиционные очки: "+Math.floor(totalPosition)+" · Решения: "+totalDecisions+" · Уклонения: "+totalDodges+" · Попадания по стендам: "+totalFailed+" · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
+        var averageReplay = playerReplayEnabled
+            ? agents.reduce(function (n, agent) { return n + (Number(agent.replaySimilarity) || 0); }, 0) / Math.max(1, agents.length)
+            : 0;
+        if(summary) summary.textContent="Стенды: "+alive+"/"+COUNT+" живы · "+(playerReplayEnabled
+            ? "Сходство маршрута: "+Math.round(averageReplay)+"% · "
+            : "Маршрут не загружен · ")+
+            "Цель атак: "+(trainingTargetAgentId?"GER-"+String(trainingTargetAgentId).padStart(2,"0"):"—")+
+            " · Позиционные очки: "+Math.floor(totalPosition)+" · Решения: "+totalDecisions+
+            " · Уклонения: "+totalDodges+" · Попадания по стендам: "+totalFailed+
+            " · Урон боссу: "+Math.floor(totalDamage)+" · Получено: "+Math.floor(totalTaken);
         if(leaders) leaders.innerHTML=sorted.slice(0,5).map(function(c){return "<div style='display:flex;justify-content:space-between;gap:8px'><span>GER-"+String(c.id).padStart(2,"0")+" · "+(c.alive?"жив":"выбыл")+"</span><b>"+Math.floor(c.score)+" оч.</b></div>";}).join("");
     }
     function finishScores(reason) {
@@ -1387,6 +1470,27 @@
         window.__mbGERTrainingSwarmSavePromise = null;
 
         var ctx = context();
+        var rawPlayerReplay = Array.isArray(window.__MBGERPlayerReplayTrajectory)
+            ? window.__MBGERPlayerReplayTrajectory : [];
+        playerReplayTrajectory = rawPlayerReplay.filter(function (row) {
+            return Array.isArray(row) && row.length === 8 &&
+                Number.isFinite(Number(row[0])) && Number.isFinite(Number(row[1])) &&
+                Number.isFinite(Number(row[2])) && Number.isFinite(Number(row[3])) &&
+                Number.isFinite(Number(row[6])) && Number.isFinite(Number(row[7]));
+        }).slice(0, 7200);
+        playerReplayDurationMs = playerReplayTrajectory.length > 1
+            ? Math.max(0, Number(playerReplayTrajectory[playerReplayTrajectory.length - 1][1]) -
+                Number(playerReplayTrajectory[0][1])) : 0;
+        playerReplayEnabled = playerReplayTrajectory.length >= 2 && playerReplayDurationMs >= 200;
+        playerReplayStartedAt = now();
+        window.__mbGERTrainingReplaySampleCount = playerReplayEnabled ? playerReplayTrajectory.length : 0;
+        window.__mbGERTrainingReplayActive = playerReplayEnabled;
+        if (playerReplayEnabled) {
+            console.info("[GER PLAYER IMITATION] 100 agents will replay", playerReplayTrajectory.length,
+                "recorded movement points with attack-aware evasive overrides.");
+        } else {
+            console.warn("[GER PLAYER IMITATION] No usable movement recording; swarm will use its adaptive baseline.");
+        }
         var bossKey = normalizeTrainingKey(window.__mbGERTrainingBossKey || (ctx && ctx.type) || "unknown", "unknown").slice(0, 64);
         trainingBossKey = bossKey;
         window.__mbGERTrainingBossKey = bossKey;
@@ -1455,6 +1559,7 @@
         if(!active)return;
         active=false;
         window.__mbGERTrainingSwarmActive = false;
+        window.__mbGERTrainingReplayActive = false;
         trainingTargetAgentId = null;
         window.__mbGERTrainingTargetAgentId = null;
         restoreTrainingPlayerProtection();
@@ -1757,6 +1862,8 @@
         var attacks = ctx ? collectTrainingAttacks(ctx) : [];
         var waves = [];
         try { waves = ctx && ctx.getShockwaves ? ctx.getShockwaves() || [] : []; } catch (e) {}
+        window.__MBGERPlayerReplayTrajectory = teacherTrajectory.length >= 2
+            ? teacherTrajectory.slice() : [];
         teacherPending.forEach(function (pending) {
             try {
                 teacherReport(pending, "unknown", 0, ctx, attacks, waves,
@@ -1777,17 +1884,22 @@
         var flushPromise = Promise.resolve(true);
         try {
             var api = window.MBGERTraining;
-            if (api && typeof api.flush === "function") {
-                flushPromise = Promise.resolve(api.flush()).then(function (flushed) {
-                    if (reason === "player_won" || typeof api.finish !== "function") return flushed;
-                    return Promise.resolve(api.finish(
-                        reason === "loss" || reason === "win" ? reason : "aborted"
-                    )).then(function (finished) { return flushed === true && finished === true; });
-                });
-            }
+            var trajectoryPromise = api && typeof api.savePlayerTrajectory === "function" &&
+                teacherTrajectory.length >= 2
+                ? Promise.resolve(api.savePlayerTrajectory(teacherTrajectory))
+                : Promise.resolve(true);
+            var eventsPromise = api && typeof api.flush === "function"
+                ? Promise.resolve(api.flush()) : Promise.resolve(true);
+            flushPromise = Promise.all([trajectoryPromise, eventsPromise]).then(function (results) {
+                var uploaded = results[0] === true && results[1] === true;
+                if (reason === "player_won" || !api || typeof api.finish !== "function") return uploaded;
+                return Promise.resolve(api.finish(
+                    reason === "loss" || reason === "win" ? reason : "aborted"
+                )).then(function (finished) { return uploaded && finished === true; });
+            });
         } catch (e) { flushPromise = Promise.reject(e); }
         console.info("[GER PLAYER TEACHER] Stopped:", reason || "stopped",
-            "recorded decisions:", teacherRecorded);
+            "recorded decisions:", teacherRecorded, "movement points:", teacherTrajectory.length);
         return flushPromise;
     }
     function playerTeacherTick(ts) {
@@ -1810,6 +1922,7 @@
             try { waves = ctx.getShockwaves ? ctx.getShockwaves() || [] : []; } catch (e) {}
             var vx = teacherLastX === null ? 0 : (x - teacherLastX) / (dt / 16.667);
             var vy = teacherLastY === null ? 0 : (y - teacherLastY) / (dt / 16.667);
+            recordTeacherTrajectorySample(ctx, x, y, vx, vy, time, false);
 
             // A fall in the real player HP marks the closest pending attack as a hit.
             if (Number.isFinite(hp) && Number.isFinite(teacherLastHp) && hp < teacherLastHp - 0.5 && teacherPending.length) {
@@ -1918,6 +2031,10 @@
         teacherLastY = null;
         teacherLastHp = null;
         teacherLastBossZeroAt = 0;
+        teacherTrajectory = [];
+        teacherStartedAt = now();
+        teacherLastTrajectoryAt = 0;
+        window.__MBGERPlayerReplayTrajectory = [];
         teacherPending = [];
         teacherDecisionOrder = 0;
         teacherRecorded = 0;
@@ -1927,6 +2044,7 @@
             try { teacherLastX = Number(ctx.getHeartX()); } catch (e) {}
             try { teacherLastY = Number(ctx.getHeartY()); } catch (e) {}
             try { teacherLastHp = Number(ctx.getPlayerHp()); } catch (e) {}
+            recordTeacherTrajectorySample(ctx, teacherLastX, teacherLastY, 0, 0, teacherStartedAt, true);
         }
         window.__mbGERTrainingPlayerTeacherActive = true;
         makeOverlay();
