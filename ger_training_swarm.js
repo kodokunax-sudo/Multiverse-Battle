@@ -950,7 +950,7 @@
             return;
         }
         applyPositionScore(c, boss, time);
-        if (time >= c.nextDecisionAt) {
+        if (time >= c.nextDecisionAt && !playerReplayEnabled) {
             var chosen = chooseTarget(c, boss, attacks, waves);
             c.tx = chosen.x;
             c.ty = chosen.y;
