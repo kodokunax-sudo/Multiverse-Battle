@@ -409,13 +409,17 @@
     };
     window.MBGERTrainingArenaOnPhaseChanged = function (modeData) {
         var bossName = modeData && modeData.bossName ? modeData.bossName : "тем же боссом";
-        if (modeData && modeData.imitationBrainFallback === true) {
-            setStatus("Этап 1 завершён. 100 стендов уже сражаются с " + bossName +
-                ", но серверная память пока не загрузилась. Используется базовая тактика; очередь записей продолжит синхронизацию.", "warning");
-        } else {
-            setStatus("Твой бой записан. Теперь 100 стендов сражаются с " +
-                bossName + " заново и пытаются повторить твою победу.", "success");
-        }
+        var routeSamples = Number(modeData && modeData.imitationRouteSamples) || 0;
+        var routeText = routeSamples >= 2
+            ? "Стенды повторяют твой маршрут по " + routeSamples +
+                " точкам и отклоняются только ради уклонения от атак."
+            : "Точная траектория не загрузилась, используются адаптивные стратегии.";
+        var memoryText = modeData && modeData.imitationBrainFallback === true
+            ? "Серверная память уклонений пока недоступна."
+            : "Память уклонений загружена.";
+        setStatus("Этап 1 завершён. 100 стендов сражаются с " + bossName +
+            " на полном здоровье. " + routeText + " " + memoryText,
+            routeSamples >= 2 && modeData && modeData.imitationBrainFallback !== true ? "success" : "warning");
         updateControls();
     };
     window.MBGERTrainingArenaOnFinished = function (result) {
