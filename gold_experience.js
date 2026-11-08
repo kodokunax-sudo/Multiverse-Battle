@@ -18,11 +18,16 @@
     // Server learning changes his decisions, never his allowed skill level.
     var GER_AI_SKILL = 0.99;
 
-    var GER_MODEL_PATH = "Model/голден експириес рквием.jpg";
+    var GER_MODEL_PATH = "Model/Без названия7_20261105214421.png";
+    var GER_DAMAGE_MODEL_PATH = "Model/Без названия7_20261105214647.png";
     var gerModelImage = null;
     var gerModelImageRequested = false;
     var gerModelImageFailed = false;
     var gerModelSpriteCanvas = null;
+    var gerDamageModelImage = null;
+    var gerDamageModelImageRequested = false;
+    var gerDamageModelImageFailed = false;
+    var gerDamageModelSpriteCanvas = null;
 
     var state = window.__mbGoldExperienceState || {
         active: false,
@@ -113,6 +118,7 @@
     state.trainingDamageCooldownUntil = Number(state.trainingDamageCooldownUntil) || 0;
     state.trainingLastPlayerHp = Number.isFinite(Number(state.trainingLastPlayerHp))
         ? Number(state.trainingLastPlayerHp) : null;
+    state.damageModelUntil = Number(state.damageModelUntil) || 0;
     state.predictedNextAttackKey = state.predictedNextAttackKey || null;
     state.predictedNextAttackUntil = Number(state.predictedNextAttackUntil) || 0;
     state.lastResolvedTrainingAttackKey = state.lastResolvedTrainingAttackKey || null;
@@ -158,6 +164,8 @@
                 var luminance = red * 0.299 + green * 0.587 + blue * 0.114;
                 // Wider threshold removes the brown JPG vignette, but flood-fill keeps
                 // enclosed dark outlines inside the golden emblem untouched.
+                // Transparent PNG pixels must not connect the border to dark pixels inside the character.
+                if (pixels[offset + 3] < 24) return false;
                 return luminance < 168 && red < 210 && green < 190 && blue < 160;
             }
 
@@ -302,6 +310,61 @@
             return null;
         } catch (e) {
             gerModelImageFailed = true;
+            return null;
+        }
+    }
+
+    function finishGERDamagedModelLoad(image) {
+        if (!image || !image.naturalWidth || !image.naturalHeight) {
+            gerDamageModelImageFailed = true;
+            console.warn("[GOLD EXPERIENCE] GER damage model image could not be loaded:", GER_DAMAGE_MODEL_PATH);
+            return null;
+        }
+        gerDamageModelImage = image;
+        gerDamageModelSpriteCanvas = prepareGERModelSprite(image);
+        gerDamageModelImageFailed = false;
+        return gerDamageModelSpriteCanvas;
+    }
+
+    function getGERDamagedModelImage() {
+        if (gerDamageModelImageRequested) return gerDamageModelSpriteCanvas;
+        gerDamageModelImageRequested = true;
+        try {
+            var preloaded = typeof window.getPreloadedImage === "function"
+                ? window.getPreloadedImage("gerCompanionDamageModel", encodeURI(GER_DAMAGE_MODEL_PATH)) : null;
+            if (preloaded) {
+                gerDamageModelImage = preloaded;
+                if (preloaded.complete) {
+                    finishGERDamagedModelLoad(preloaded);
+                } else {
+                    preloaded.addEventListener("load", function () {
+                        finishGERDamagedModelLoad(preloaded);
+                    }, { once: true });
+                    preloaded.addEventListener("error", function () {
+                        gerDamageModelImageFailed = true;
+                        console.warn("[GOLD EXPERIENCE] GER damage model image could not be loaded:", GER_DAMAGE_MODEL_PATH);
+                    }, { once: true });
+                }
+                return gerDamageModelSpriteCanvas;
+            }
+
+            if (typeof window.Image !== "function") {
+                gerDamageModelImageFailed = true;
+                return null;
+            }
+            gerDamageModelImage = new window.Image();
+            gerDamageModelImage.decoding = "async";
+            gerDamageModelImage.onload = function () {
+                finishGERDamagedModelLoad(gerDamageModelImage);
+            };
+            gerDamageModelImage.onerror = function () {
+                gerDamageModelImageFailed = true;
+                console.warn("[GOLD EXPERIENCE] GER damage model image could not be loaded:", GER_DAMAGE_MODEL_PATH);
+            };
+            gerDamageModelImage.src = encodeURI(GER_DAMAGE_MODEL_PATH);
+            return null;
+        } catch (e) {
+            gerDamageModelImageFailed = true;
             return null;
         }
     }
@@ -464,8 +527,8 @@
         } catch (e) {}
         // In the player-teacher stage, mirror the player's exact size (including
         // the larger Super Living Stone heart). Keep normal companion sizing intact.
-        var maxSize = window.__mbGERTrainingPlayerTeacherActive === true ? 32 : 24;
-        return Math.max(7, Math.min(maxSize, size));
+        // Never clamp away a boss-specific player-size modifier: the model follows the real soul size.
+        return Math.max(7, size);
     }
 
     function getCompanionMovementSpeed(ctx) {
@@ -490,7 +553,7 @@
             if (!fight && typeof window.getBossContext === "function") fight = window.getBossContext();
             if (fight && typeof fight.getHeartHitbox === "function") {
                 var hitbox = Number(fight.getHeartHitbox());
-                if (Number.isFinite(hitbox) && hitbox >= 0) return Math.max(0, Math.min(40, hitbox));
+                if (Number.isFinite(hitbox) && hitbox >= 0) return Math.max(0, hitbox);
             }
         } catch (e) {}
         return 4;
@@ -2255,6 +2318,19 @@
             state.healRemaining = 0;
             state.attackCooldown = Math.max(0, (Number(state.attackCooldown) || 0) - frameScale);
             state.hitFlash = Math.max(0, (Number(state.hitFlash) || 0) - frameScale);
+            // A real HP drop means the controlled GER was hit: briefly switch to the supplied damage pose.
+            if (typeof ctx.getPlayerHp === "function") {
+                var teacherHpNow = Number(ctx.getPlayerHp());
+                var teacherHpBefore = Number(state.trainingLastPlayerHp);
+                if (Number.isFinite(teacherHpNow)) {
+                    if (Number.isFinite(teacherHpBefore) && teacherHpNow < teacherHpBefore - 0.5) {
+                        state.damageModelUntil = Math.max(Number(state.damageModelUntil) || 0, current + 360);
+                        state.hitFlash = Math.max(Number(state.hitFlash) || 0, 14);
+                        state.lastHitAt = current;
+                    }
+                    state.trainingLastPlayerHp = teacherHpNow;
+                }
+            }
             state.dodgeFlashTimer = 0;
             var teacherTarget = ctx.type === "arena" ? null :
                 (getUniqueBossTarget(ctx, state.targetId) || getUniqueBossTarget(ctx));
@@ -2862,12 +2938,15 @@
         var isPlayerTeacher = window.__mbGERTrainingPlayerTeacherActive === true;
         var size = getCompanionSize(ctx);
         state.heartSize = size;
-        var standImage = getGERModelImage();
+        var hitFlash = state.hitFlash > 0;
+        var damagedModelActive = Number(state.damageModelUntil) > current;
+        var standImage = damagedModelActive
+            ? (getGERDamagedModelImage() || getGERModelImage())
+            : getGERModelImage();
         var standImageReady = !!(standImage &&
             Number(standImage.width || standImage.naturalWidth) > 0 &&
             Number(standImage.height || standImage.naturalHeight) > 0);
         var scale = size / 15;
-        var hitFlash = state.hitFlash > 0;
         var healing = state.healState !== "idle";
         var dodging = !!state.isDodging || state.dodgeFlashTimer > 0;
         var attacking = !!(state.combo || state.punch || current < state.attackUntil);
