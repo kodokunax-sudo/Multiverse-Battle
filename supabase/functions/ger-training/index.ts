@@ -234,6 +234,65 @@ async function saveAgentResults(playerId, body) {
   return reply({ ok: true, savedAgents: agents.length });
 }
 
+async function saveMovementTrajectory(playerId: string, body: Record<string, unknown>) {
+  const sessionId = validUuid(body.sessionId);
+  const bossKey = cleanKey(body.bossKey, 64);
+  const chunkIndex = numberOrNull(body.chunkIndex, 0, 60);
+  const rawSamples = Array.isArray(body.samples) ? body.samples : [];
+  if (!sessionId || !bossKey || chunkIndex === null || !Number.isInteger(chunkIndex) ||
+      rawSamples.length < 1 || rawSamples.length > 300) {
+    return reply({ error: "invalid_trajectory_chunk" }, 400);
+  }
+
+  const samples: Array<Record<string, number>> = [];
+  for (const raw of rawSamples) {
+    if (!Array.isArray(raw) || raw.length !== 8) {
+      return reply({ error: "invalid_trajectory_sample" }, 400);
+    }
+    const sampleIndex = numberOrNull(raw[0], 0, 17999);
+    const elapsedMs = numberOrNull(raw[1], 0, 10800000);
+    const x = numberOrNull(raw[2], -1000, 1000);
+    const y = numberOrNull(raw[3], -1000, 1000);
+    const velocityX = numberOrNull(raw[4], -100, 100);
+    const velocityY = numberOrNull(raw[5], -100, 100);
+    const bossX = numberOrNull(raw[6], -1000, 1000);
+    const bossY = numberOrNull(raw[7], -1000, 1000);
+    if (sampleIndex === null || elapsedMs === null || x === null || y === null ||
+        velocityX === null || velocityY === null || bossX === null || bossY === null ||
+        !Number.isInteger(sampleIndex) || Math.floor(sampleIndex / 300) !== chunkIndex) {
+      return reply({ error: "invalid_trajectory_sample" }, 400);
+    }
+    samples.push({
+      sample_index: sampleIndex, elapsed_ms: elapsedMs, x, y,
+      velocity_x: velocityX, velocity_y: velocityY, boss_x: bossX, boss_y: bossY
+    });
+  }
+  for (let i = 1; i < samples.length; i++) {
+    if (samples[i].sample_index <= samples[i - 1].sample_index ||
+        samples[i].elapsed_ms < samples[i - 1].elapsed_ms) {
+      return reply({ error: "trajectory_samples_out_of_order" }, 400);
+    }
+  }
+
+  const q = db();
+  const owned = await q.unsafe(
+    "select id from public.ger_training_sessions where id=$1::uuid and player_id=$2::uuid and boss_key=$3 and finished_at is null limit 1",
+    [sessionId, playerId, bossKey]
+  );
+  if (!owned.length) return reply({ error: "session_not_found" }, 404);
+
+  const samplesJson = JSON.stringify(samples);
+  const inserted = await q.unsafe(
+    "insert into public.ger_player_movement_trajectory_chunks (session_id,player_id,boss_key,chunk_index,sample_count,samples) values ($1::uuid,$2::uuid,$3,$4,$5,$6::text::jsonb) on conflict (session_id,chunk_index) do nothing returning chunk_index",
+    [sessionId, playerId, bossKey, chunkIndex, samples.length, samplesJson]
+  );
+  await q.unsafe(
+    "update public.ger_training_sessions s set metadata=s.metadata || jsonb_build_object('playerTrajectoryChunks',(select count(*)::integer from public.ger_player_movement_trajectory_chunks t where t.session_id=s.id and t.player_id=s.player_id),'playerTrajectorySamples',(select coalesce(sum(t.sample_count),0)::integer from public.ger_player_movement_trajectory_chunks t where t.session_id=s.id and t.player_id=s.player_id)) where s.id=$1::uuid and s.player_id=$2::uuid and s.finished_at is null",
+    [sessionId, playerId]
+  );
+  return reply({ ok: true, received: samples.length, saved: inserted.length > 0 });
+}
+
 async function readBrain(body) {
   const bossKey = cleanKey(body.bossKey, 64);
   const attackKey = body.attackKey == null ? null : cleanKey(body.attackKey);
@@ -279,6 +338,7 @@ Deno.serve(async (req) => {
       case "events": return await saveEvents(playerId, body);
       case "annotate": return await annotateSession(playerId, body);
       case "agent_results": return await saveAgentResults(playerId, body);
+      case "trajectory": return await saveMovementTrajectory(playerId, body);
       case "finish": return await finishSession(playerId, body);
       case "brain": return await readBrain(body);
       default: return reply({ error: "unknown_action" }, 400);
