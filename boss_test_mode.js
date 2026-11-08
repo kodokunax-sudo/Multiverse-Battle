@@ -120,15 +120,33 @@ window.MBBossTestFinish=function(result,stopped){
                 ? window.MBGERTrainingSwarmStopPlayerTeacher("player_won")
                 : Promise.resolve(true);
             uniqueStop(m);
-            Promise.resolve(teacherFlush).then(function (flushed) {
-                if (flushed !== true) throw new Error("player_samples_not_saved");
+            Promise.resolve(teacherFlush).catch(function (flushError) {
+                console.warn("[GER imitation] Final sample flush failed; queued samples will retry:", flushError);
+                return false;
+            }).then(function (flushed) {
+                if (flushed !== true) {
+                    // Unsent observations remain in the training client's durable retry queue.
+                    // Do not cancel the imitation stage because one network flush failed.
+                    console.warn("[GER imitation] Some player samples are still queued; continuing to the 100-agent replay.");
+                }
                 var api = window.MBGERTraining;
                 var bossKey = "ger_unique_" + m.bossWave;
-                if (!api || typeof api.refreshBrain !== "function") throw new Error("learning_brain_unavailable");
-                return api.refreshBrain(bossKey);
+                if (!api || typeof api.refreshBrain !== "function") {
+                    console.warn("[GER imitation] Learned brain API unavailable; replay will use the baseline policy.");
+                    return null;
+                }
+                return Promise.resolve(api.refreshBrain(bossKey)).catch(function (brainError) {
+                    console.warn("[GER imitation] Learned brain could not be refreshed; replay will use the baseline policy:", brainError);
+                    return null;
+                });
             }).then(function (brain) {
                 if (window.__mbBossTestMode !== m) return;
-                if (!brain) throw new Error("player_samples_not_loaded");
+                var learnedAttackCount = brain && brain.attacks ? Object.keys(brain.attacks).length : 0;
+                m.imitationBrainAvailable = learnedAttackCount > 0;
+                m.imitationBrainFallback = !m.imitationBrainAvailable;
+                if (m.imitationBrainFallback) {
+                    console.warn("[GER imitation] No learned attack samples were available yet; starting the swarm with its baseline policy.");
+                }
                 m.phase="swarm";
                 m.playerTeacherPhase=false;
                 m.invulnerable=true;
@@ -146,7 +164,10 @@ window.MBBossTestFinish=function(result,stopped){
                 if(typeof window.MBGERTrainingSwarmStart!=="function")throw new Error("100-agent swarm module unavailable");
                 m.finishing=false;
                 window.MBGERTrainingSwarmStart();
-                setResult("✅ Твой бой записан и загружен в память. Теперь 100 стендов повторяют бой с боссом на полном здоровье.","#9dffc0");
+                setResult(m.imitationBrainAvailable
+                    ? "✅ Твой бой записан. Память загружена: 100 стендов повторяют бой с боссом на полном здоровье."
+                    : "⚠️ 100 стендов запущены на повтор боя, но обученная память пока недоступна. Используется базовая тактика.",
+                    m.imitationBrainAvailable ? "#9dffc0" : "#ffd38a");
                 if(typeof window.MBGERTrainingArenaOnPhaseChanged==="function"){
                     window.MBGERTrainingArenaOnPhaseChanged(m);
                 }
