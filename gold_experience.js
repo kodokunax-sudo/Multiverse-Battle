@@ -445,8 +445,11 @@
             Math.max(0, Number(wave.speed) || 0) * Math.max(0, Number(frames) || 0);
         var cx = Number(wave.x) || 0, cy = Number(wave.y) || 0;
         var distance = Math.hypot(x - cx, y - cy);
-        var limit = (Number(wave.width) || 5) * 0.7 +
-            (window.__mbGERTrainingSwarmActive ? Math.max(20, getCompanionSize(null) * 1.3) : getCompanionSize(null) * 0.72) + (alert ? 34 : 0);
+        var teacherMode = window.__mbGERTrainingPlayerTeacherActive === true;
+        var bodyRadius = teacherMode
+            ? trainingPlayerHitbox(getContext())
+            : (window.__mbGERTrainingSwarmActive ? Math.max(20, getCompanionSize(null) * 1.3) : getCompanionSize(null) * 0.72);
+        var limit = (Number(wave.width) || 5) * 0.7 + bodyRadius + (alert ? 34 : 0);
         if (Math.abs(distance - radius) >= limit) return null;
         return { x: cx, y: cy, axis: "point", distance: Math.abs(distance - radius), attack: wave };
     }
@@ -454,9 +457,15 @@
     function getCompanionSize(ctx) {
         var size = Math.max(7, Number(state.heartSize) || 15);
         try {
-            if (ctx && typeof ctx.getHeartSize === "function") size = Number(ctx.getHeartSize()) || size;
+            if (ctx && typeof ctx.getHeartSize === "function") {
+                var playerSize = Number(ctx.getHeartSize());
+                if (Number.isFinite(playerSize) && playerSize > 0) size = playerSize;
+            }
         } catch (e) {}
-        return Math.max(7, Math.min(24, size));
+        // In the player-teacher stage, mirror the player's exact size (including
+        // the larger Super Living Stone heart). Keep normal companion sizing intact.
+        var maxSize = window.__mbGERTrainingPlayerTeacherActive === true ? 32 : 24;
+        return Math.max(7, Math.min(maxSize, size));
     }
 
     function getCompanionMovementSpeed(ctx) {
@@ -503,7 +512,9 @@
         if (telegraph && !alert) return null;
 
         var t = Math.max(0, Number(frames) || 0);
-        var body = window.__mbGERTrainingSwarmActive ? trainingPlayerHitbox(ctx) : getCompanionSize(null) * 0.72;
+        var body = (window.__mbGERTrainingSwarmActive ||
+            window.__mbGERTrainingPlayerTeacherActive === true)
+            ? trainingPlayerHitbox(ctx) : getCompanionSize(null) * 0.72;
         var padding = alert ? 38 : 0;
         var ax = Number.isFinite(Number(attack.x)) ? Number(attack.x) : Number(attack.targetX);
         var ay = Number.isFinite(Number(attack.y)) ? Number(attack.y) : Number(attack.targetY);
@@ -2848,6 +2859,7 @@
             var antiInfo = window.getAntiSpiralBossCompanionInfo();
             if (antiInfo && antiInfo.hidden) return;
         }
+        var isPlayerTeacher = window.__mbGERTrainingPlayerTeacherActive === true;
         var size = getCompanionSize(ctx);
         state.heartSize = size;
         var standImage = getGERModelImage();
@@ -2884,8 +2896,10 @@
         var attackPulse = state.combo
             ? Math.sin((current - state.combo.startedAt) / 72)
             : (state.punch ? Math.sin((current - state.punch.startedAt) / 58) : 0);
-        var spriteStretchX = dodging ? 0.84 : (attacking ? 1.04 + Math.abs(attackPulse) * 0.10 : 1 + movementBlend * 0.025);
-        var spriteStretchY = dodging ? 1.16 : (attacking ? 0.96 - Math.abs(attackPulse) * 0.035 : 1 - movementBlend * 0.015);
+        var spriteStretchX = isPlayerTeacher ? 1 :
+            (dodging ? 0.84 : (attacking ? 1.04 + Math.abs(attackPulse) * 0.10 : 1 + movementBlend * 0.025));
+        var spriteStretchY = isPlayerTeacher ? 1 :
+            (dodging ? 1.16 : (attacking ? 0.96 - Math.abs(attackPulse) * 0.035 : 1 - movementBlend * 0.015));
         var companionGravityAngle = 0;
         if (ctx && ctx.type === "antispiral" &&
             typeof window.getAntiSpiralBossCompanionInfo === "function") {
@@ -2949,12 +2963,13 @@
         }
 
         if (standImageReady) {
-            // Same fitting rule as Oden: keep the source aspect ratio inside a compact sprite box.
+            // In player-teacher mode, fit GER inside the same diameter as the
+            // player's visible body. The outer size scale below makes this exactly
+            // two player radii while preserving the model's original aspect ratio.
             var sourceWidth = standImage.width || standImage.naturalWidth;
             var sourceHeight = standImage.height || standImage.naturalHeight;
-            // Keep the main GER unmistakable above the 50 tiny training copies.
-            var maxImageWidth = 15 * 3.6;
-            var maxImageHeight = 15 * 4.4;
+            var maxImageWidth = isPlayerTeacher ? 15 * 2 : 15 * 3.6;
+            var maxImageHeight = isPlayerTeacher ? 15 * 2 : 15 * 4.4;
             var imageScale = Math.min(maxImageWidth / sourceWidth, maxImageHeight / sourceHeight);
             var imageWidth = sourceWidth * imageScale;
             var imageHeight = sourceHeight * imageScale;
