@@ -30,6 +30,19 @@
     var trainingTargetAgentId = null;
     var trainingTargetHoldUntil = 0;
     var TRAINING_TARGET_HOLD_MS = 900;
+    // First stage of player-imitation training. It observes the human-controlled
+    // soul without locking input or starting the 100-agent swarm.
+    var teacherActive = false;
+    var teacherRaf = 0;
+    var teacherLastAt = 0;
+    var teacherLastX = null;
+    var teacherLastY = null;
+    var teacherLastHp = null;
+    var teacherLastBossZeroAt = 0;
+    var teacherPending = [];
+    var teacherDecisionOrder = 0;
+    var teacherRecorded = 0;
+    var teacherPanel = null;
 
     function now() { return window.performance && performance.now ? performance.now() : Date.now(); }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -1445,6 +1458,263 @@
         if(reason!=="boss_defeated"&&!ended)finishScores(reason||"stopped");
         console.info("[GER TRAINING] Primary-agent pool stopped:",reason||"stopped");
     }
+
+    function teacherIsTelegraph(attack) {
+        if (!attack) return false;
+        var type = String(attack.type || attack.kind || "").toLowerCase();
+        return attack.state === "warning" || attack.state === "windup" ||
+            Number(attack.warningTimer) > 0 || Number(attack.warning) > 0 ||
+            type.indexOf("warning") !== -1 || type.indexOf("telegraph") !== -1;
+    }
+    function teacherThreatFrames(attack, x, y) {
+        if (!attack || attack.dioAggroNoPlayer || attack._mbGEIgnored || attack.state === "done") return null;
+        if (teacherIsTelegraph(attack)) return 0;
+        var frames = [0, 8, 16, 28, 42, 60, 82, 108];
+        for (var i = 0; i < frames.length; i++) {
+            if (getThreat(attack, x, y, frames[i], true)) return frames[i];
+        }
+        return null;
+    }
+    function teacherContextFeatures(startX, startY, velocityX, velocityY, boss, attacks, waves) {
+        var snapshot = {
+            x: startX, y: startY, vx: velocityX, vy: velocityY,
+            id: 0, movementSpeed: 1, aiSkill: 1
+        };
+        return agentTrainingContext(snapshot, boss, attacks, waves);
+    }
+    function teacherReport(pending, outcome, damage, ctx, attacks, waves, x, y) {
+        var api = window.MBGERTraining;
+        if (!pending || !api || typeof api.recordOutcome !== "function") return false;
+        var endX = Number.isFinite(Number(x)) ? Number(x) : pending.lastX;
+        var endY = Number.isFinite(Number(y)) ? Number(y) : pending.lastY;
+        var dx = endX - pending.startX, dy = endY - pending.startY;
+        if (Math.hypot(dx, dy) < 2) {
+            dx = Number(pending.velocityX) || 0;
+            dy = Number(pending.velocityY) || 0;
+        }
+        var direction = trainingDirection(pending.startX, pending.startY,
+            pending.startX + dx, pending.startY + dy);
+        var boss = bossTarget(ctx);
+        var learnedContext = teacherContextFeatures(
+            pending.startX, pending.startY, pending.velocityX, pending.velocityY,
+            boss, attacks, waves
+        );
+        var attack = pending.source || {};
+        var rawKey = attack.type || attack.kind || attack.attackType || pending.attackType || pending.kind || "unknown";
+        if (attack.attackKind) rawKey += "_" + String(attack.attackKind);
+        var ok = api.recordOutcome({
+            attackKey: normalizeTrainingKey(rawKey, "unknown"),
+            attackFamily: normalizeTrainingKey(attack.attackFamily || rawKey, "unknown").slice(0, 40),
+            bossPhase: normalizeTrainingKey(attack.bossPhase || attack.phase ||
+                attack.phaseIndex || (ctx && ctx.phase) || (ctx && ctx.type), "unknown").slice(0, 32),
+            timeToImpactMs: Math.max(0, Math.round((Number(pending.timeToImpactFrames) || 0) * 16.667)),
+            heartX: pending.startX,
+            heartY: pending.startY,
+            velocityX: Number(pending.velocityX) || 0,
+            velocityY: Number(pending.velocityY) || 0,
+            chosenDirection: direction,
+            targetX: endX,
+            targetY: endY,
+            features: Object.assign({}, learnedContext, {
+                sampleType: "dodge",
+                agentRole: "player_teacher",
+                decisionOrder: ++teacherDecisionOrder,
+                movementDistance: Math.round(Math.hypot(endX - pending.startX, endY - pending.startY)),
+                teacherControlled: true,
+                threatKind: pending.kind || "attack"
+            })
+        }, outcome, Math.max(0, Number(damage) || 0));
+        if (ok) teacherRecorded++;
+        return ok;
+    }
+    function makeTeacherPanel() {
+        if (teacherPanel && teacherPanel.parentNode) teacherPanel.parentNode.removeChild(teacherPanel);
+        teacherPanel = document.createElement("div");
+        teacherPanel.id = "mbGERPlayerTeacherPanel";
+        teacherPanel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;max-width:min(290px,calc(100vw - 24px));padding:10px 12px;border:1px solid rgba(105,205,255,.65);border-radius:12px;background:rgba(7,17,29,.92);color:#e8f6ff;font:700 12px/1.45 Arial,sans-serif;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
+        teacherPanel.textContent = "ЭТАП 1/2 · ТЫ УЧИШЬ 100 СТЕНДОВ\nУправляй передвижением. GER атакует автоматически.";
+        document.body.appendChild(teacherPanel);
+    }
+    function stopPlayerTeacher(reason) {
+        if (!teacherActive) return Promise.resolve(true);
+        teacherActive = false;
+        window.__mbGERTrainingPlayerTeacherActive = false;
+        if (teacherRaf) window.cancelAnimationFrame(teacherRaf);
+        teacherRaf = 0;
+        var ctx = context();
+        var attacks = ctx ? collectTrainingAttacks(ctx) : [];
+        var waves = [];
+        try { waves = ctx && ctx.getShockwaves ? ctx.getShockwaves() || [] : []; } catch (e) {}
+        teacherPending.forEach(function (pending) {
+            teacherReport(pending, "unknown", 0, ctx, attacks, waves,
+                pending.lastX, pending.lastY);
+        });
+        teacherPending = [];
+        if (teacherPanel && teacherPanel.parentNode) teacherPanel.parentNode.removeChild(teacherPanel);
+        teacherPanel = null;
+        var flushPromise = Promise.resolve(true);
+        try {
+            var api = window.MBGERTraining;
+            if (api && typeof api.flush === "function") flushPromise = Promise.resolve(api.flush());
+        } catch (e) { flushPromise = Promise.reject(e); }
+        console.info("[GER PLAYER TEACHER] Stopped:", reason || "stopped",
+            "recorded decisions:", teacherRecorded);
+        return flushPromise;
+    }
+    function playerTeacherTick(ts) {
+        teacherRaf = 0;
+        if (!teacherActive) return;
+        var time = Number(ts) || now();
+        if (!teacherLastAt) teacherLastAt = time;
+        var dt = Math.max(16.667, Math.min(250, time - teacherLastAt));
+        teacherLastAt = time;
+        var ctx = context();
+        if (ctx && typeof ctx.getHeartX === "function" && typeof ctx.getHeartY === "function") {
+            trainingBossContext = ctx;
+            var x = Number(ctx.getHeartX()) || 0;
+            var y = Number(ctx.getHeartY()) || 0;
+            var hp = Number(ctx.getPlayerHp && ctx.getPlayerHp());
+            var attacks = collectTrainingAttacks(ctx);
+            var waves = [];
+            try { waves = ctx.getShockwaves ? ctx.getShockwaves() || [] : []; } catch (e) {}
+            var vx = teacherLastX === null ? 0 : (x - teacherLastX) / (dt / 16.667);
+            var vy = teacherLastY === null ? 0 : (y - teacherLastY) / (dt / 16.667);
+
+            // A fall in the real player HP marks the closest pending attack as a hit.
+            if (Number.isFinite(hp) && Number.isFinite(teacherLastHp) && hp < teacherLastHp - 0.5 && teacherPending.length) {
+                var hitIndex = 0, hitDistance = Infinity;
+                for (var hi = 0; hi < teacherPending.length; hi++) {
+                    var hd = Math.hypot(x - teacherPending[hi].lastX, y - teacherPending[hi].lastY);
+                    if (hd < hitDistance) { hitDistance = hd; hitIndex = hi; }
+                }
+                var hit = teacherPending.splice(hitIndex, 1)[0];
+                teacherReport(hit, "hit", teacherLastHp - hp, ctx, attacks, waves, x, y);
+            }
+            teacherLastHp = Number.isFinite(hp) ? hp : teacherLastHp;
+
+            // Resolve prior observations only after the real hazard has passed or disappeared.
+            for (var pi = teacherPending.length - 1; pi >= 0; pi--) {
+                var pending = teacherPending[pi];
+                pending.lastX = x; pending.lastY = y;
+                var list = pending.kind === "shockwave" ? waves : attacks;
+                var present = list.indexOf(pending.source) !== -1;
+                var stillDangerous = false;
+                if (present) {
+                    stillDangerous = pending.kind === "shockwave"
+                        ? !!waveThreatAt(pending.source, x, y, 0, false)
+                        : !!getThreat(pending.source, x, y, 0, false) || teacherIsTelegraph(pending.source);
+                }
+                var minResolveMs = Math.max(300,
+                    (Number(pending.timeToImpactFrames) || 0) * 16.667 + 260);
+                var age = time - pending.startedAt;
+                if (!present || (!stillDangerous && age >= minResolveMs)) {
+                    teacherReport(pending, "evaded", 0, ctx, attacks, waves, x, y);
+                    teacherPending.splice(pi, 1);
+                } else if (age > 6500) {
+                    teacherReport(pending, "unknown", 0, ctx, attacks, waves, x, y);
+                    teacherPending.splice(pi, 1);
+                }
+            }
+
+            // Begin a record when a real damaging attack is telegraphed or its trajectory
+            // is predicted to intersect the player's current position.
+            for (var ai = 0; ai < attacks.length && teacherPending.length < 24; ai++) {
+                var attack = attacks[ai];
+                if (!attack || teacherPending.some(function (p) { return p.source === attack; })) continue;
+                var frames = teacherThreatFrames(attack, x, y);
+                if (frames === null) continue;
+                teacherPending.push({
+                    source: attack, kind: "attack", attackType: attack.type || attack.kind || "unknown",
+                    startedAt: time, timeToImpactFrames: frames,
+                    startX: x, startY: y, velocityX: vx, velocityY: vy,
+                    lastX: x, lastY: y
+                });
+            }
+            for (var wi = 0; wi < waves.length && teacherPending.length < 24; wi++) {
+                var shockwave = waves[wi];
+                if (!shockwave || teacherPending.some(function (p) { return p.source === shockwave; })) continue;
+                var waveFrames = null;
+                [0, 8, 16, 28, 42, 60, 82, 108].some(function (frames) {
+                    if (waveThreatAt(shockwave, x, y, frames, true)) {
+                        waveFrames = frames;
+                        return true;
+                    }
+                    return false;
+                });
+                if (waveFrames !== null) {
+                    teacherPending.push({
+                        source: shockwave, kind: "shockwave", attackType: "shockwave",
+                        startedAt: time, timeToImpactFrames: waveFrames,
+                        startX: x, startY: y, velocityX: vx, velocityY: vy,
+                        lastX: x, lastY: y
+                    });
+                }
+            }
+
+            if (teacherPanel && time - (teacherPanel._mbLastUpdate || 0) > 300) {
+                teacherPanel._mbLastUpdate = time;
+                teacherPanel.textContent = "ЭТАП 1/2 · ТЫ УЧИШЬ 100 СТЕНДОВ\nЗаписано реакций: " +
+                    teacherRecorded + " · ожидают результата: " + teacherPending.length +
+                    "\nУправляй передвижением. GER атакует автоматически.";
+            }
+            teacherLastX = x;
+            teacherLastY = y;
+
+            // Some bosses (notably the Roger/Whitebeard encounter) complete through
+            // phase transitions rather than calling the test completion hook directly.
+            var bossHp = currentBossHp(ctx);
+            if (bossHp <= 0) {
+                if (!teacherLastBossZeroAt) teacherLastBossZeroAt = time;
+                if (time - teacherLastBossZeroAt >= 5000 &&
+                    window.__mbBossTestMode && window.__mbBossTestMode.phase === "player" &&
+                    typeof window.MBBossTestFinish === "function") {
+                    window.MBBossTestFinish("win", false);
+                    return;
+                }
+            } else {
+                teacherLastBossZeroAt = 0;
+            }
+        }
+        teacherRaf = window.requestAnimationFrame(playerTeacherTick);
+    }
+    function startPlayerTeacher() {
+        if (teacherActive) return true;
+        if (active) return false;
+        teacherActive = true;
+        teacherRaf = 0;
+        teacherLastAt = 0;
+        teacherLastX = null;
+        teacherLastY = null;
+        teacherLastHp = null;
+        teacherLastBossZeroAt = 0;
+        teacherPending = [];
+        teacherDecisionOrder = 0;
+        teacherRecorded = 0;
+        var ctx = context();
+        if (ctx) {
+            try { teacherLastX = Number(ctx.getHeartX()); } catch (e) {}
+            try { teacherLastY = Number(ctx.getHeartY()); } catch (e) {}
+            try { teacherLastHp = Number(ctx.getPlayerHp()); } catch (e) {}
+        }
+        window.__mbGERTrainingPlayerTeacherActive = true;
+        makeTeacherPanel();
+        try {
+            var api = window.MBGERTraining;
+            if (api && typeof api.annotateSession === "function") {
+                api.annotateSession({
+                    teacherStage: "player_controlled",
+                    teacherRole: "human_player",
+                    imitationAgentCount: COUNT
+                });
+            }
+        } catch (e) {}
+        teacherRaf = window.requestAnimationFrame(playerTeacherTick);
+        console.info("[GER PLAYER TEACHER] Recording real player movement and dodge outcomes.");
+        return true;
+    }
+
+    window.MBGERTrainingSwarmStartPlayerTeacher = startPlayerTeacher;
+    window.MBGERTrainingSwarmStopPlayerTeacher = stopPlayerTeacher;
     window.MBGERTrainingSwarmStart=start;
     window.MBGERTrainingSwarmStop=stop;
     window.MBGERTrainingSwarmFinish=finishScores;

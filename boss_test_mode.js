@@ -89,9 +89,130 @@ function snap(){return {wave:typeof wave!=="undefined"?wave:null,enemy:typeof cu
 function restoreArray(ref,data){if(ref&&data)ref.splice.apply(ref,[0,ref.length].concat(data));}
 function restore(s){if(!s)return;if(s.wave!==null&&typeof wave!=="undefined")wave=s.wave;if(typeof currentEnemy!=="undefined"){if(s.enemy&&s.enemyData){Object.keys(s.enemy).forEach(function(k){if(!Object.prototype.hasOwnProperty.call(s.enemyData,k))delete s.enemy[k];});Object.assign(s.enemy,s.enemyData);currentEnemy=s.enemy;}else currentEnemy=s.enemy;}if(s.playerHp!==null&&typeof playerHp!=="undefined")playerHp=s.playerHp;if(s.points!==null&&typeof points!=="undefined")points=s.points;if(s.maxPoints!==null&&typeof maxPoints!=="undefined")maxPoints=s.maxPoints;if(s.totalWins!==null&&typeof totalWins!=="undefined")totalWins=s.totalWins;if(s.totalClicks!==null&&typeof totalClicks!=="undefined")totalClicks=s.totalClicks;if(s.highestWaveReached!==null&&typeof highestWaveReached!=="undefined")highestWaveReached=s.highestWaveReached;if(s.highestCheckpoint!==null&&typeof highestCheckpoint!=="undefined")highestCheckpoint=s.highestCheckpoint;restoreArray(s.defeated,s.defeatedData);restoreArray(s.cards,s.cardsData);if(s.superState&&s.superCopy){Object.keys(s.superState).forEach(function(k){if(!Object.prototype.hasOwnProperty.call(s.superCopy,k))delete s.superState[k];});Object.keys(s.superCopy).forEach(function(k){s.superState[k]=s.superCopy[k];});if(typeof _superState!=="undefined")_superState=s.superState;window._superState=s.superState;}window._uniqueSuperCharges=s.uniqueCharges;window._uniqueSuperBossId=s.uniqueBossId;window.waystarDefeatedThisRun=s.waystar;window.waystarOwesDebt=s.debt;window._needSave=s.needSave;if(s.finalDamage!==undefined)window.playerFinalDamage=s.finalDamage;}
 function uniqueStop(m){try{if(m.bossWave===200&&typeof stopLivingStoneFight==="function")stopLivingStoneFight();else if(m.bossWave===500&&typeof stopWaystarFight==="function")stopWaystarFight();else if(m.bossWave===1000){if(typeof window.stopRogerWhitebeardFight==="function")window.stopRogerWhitebeardFight();else{window.rwbActive=false;if(typeof window.stopRWBMusic==="function")window.stopRWBMusic();}}else if(m.bossWave===1500&&window.stopAntiSpiralBossFight)window.stopAntiSpiralBossFight();else if(m.bossWave===2000&&window.stopLivingStoneSuperFight)window.stopLivingStoneSuperFight();}catch(e){}}
+function launchUniqueTrainingBoss(m){
+    if(typeof wave!=="undefined")wave=m.bossWave;
+    if(typeof currentEnemy!=="undefined"){
+        var t=template(m.bossWave);
+        var hp=Math.max(1000,Math.floor((50+m.bossWave*12)*(Number(t&&t.hpMult)||10)));
+        currentEnemy={name:t&&t.name||"Уникальный босс",hp:hp,maxHp:hp,
+            damage:Math.floor((15+m.bossWave*6)*(Number(t&&t.dmgMult)||1)/2),isBoss:true};
+    }
+    unlockUniqueForTest(m);
+    if(m.bossWave===200)startLivingStoneFight("light");
+    else if(m.bossWave===500)startWaystarFight("light");
+    else if(m.bossWave===1000)startRogerWhitebeardFight("potato");
+    else if(m.bossWave===1500&&window.startAntiSpiralBossFight)window.startAntiSpiralBossFight();
+    else if(m.bossWave===2000)window.startLivingStoneSuperFight("light");
+    else throw new Error("unsupported_unique_boss_"+m.bossWave);
+}
 function exitControl(m){var old=E("bossTestExitFightBtn");if(old)old.remove();if(m.kind==="unique"&&m.bossWave===2000)return;var b=document.createElement("button");b.id="bossTestExitFightBtn";b.type="button";b.textContent="← ВЫЙТИ ИЗ ТЕСТА";b.style.cssText="position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:100100;padding:10px 13px;border-radius:10px;border:1px solid rgba(130,220,255,.75);background:rgba(5,18,30,.96);color:#fff;font:900 12px Arial,sans-serif;touch-action:manipulation";b.onclick=function(ev){ev.preventDefault();ev.stopPropagation();window.MBBossTestFinish("exit",false);};document.body.appendChild(b);}
 function clearGlobals(){window.__mbBossTestMainCard=null;window.__mbBossTestAbilityMode=null;window.__mbBossTestPassive=null;window.__mbBossTestMode=null;window.__mbBossTestSuperHitUsed=false;window.__mbGERTrainingMode=false;window.__mbGERTrainingBossKey=null;window.__mbGERTrainingOptions=null;window.__mbGERTrainingSwarmDamageInFlight=false;}
-window.MBBossTestFinish=function(result,stopped){var m=window.__mbBossTestMode;if(!m||m.finishing)return;m.finishing=true;if(!stopped){if(m.kind==="arena"){try{if(typeof stopArena==="function")stopArena();}catch(e){}}else uniqueStop(m);}if(m.gerTraining&&typeof window.MBGERTrainingSwarmStop==="function")window.MBGERTrainingSwarmStop(result||"exit");restore(m.snapshot);clearGlobals();var b=E("bossTestExitFightBtn");if(b)b.remove();try{if(typeof renderEnemy==="function")renderEnemy();if(typeof updateStatusDisplay==="function")updateStatusDisplay();if(typeof updatePlayerStats==="function")updatePlayerStats();if(typeof updateSuperButton==="function")updateSuperButton();if(m.snapshot&&m.snapshot.buttonDisplays)m.snapshot.buttonDisplays.forEach(function(pair){var button=E(pair[0]);if(button&&pair[1]!==null)button.style.display=pair[1];});}catch(e){}var msgs={win:["✅ Тест завершён: босс побеждён. Наград нет.","#9dffc0"],loss:["💥 Тест завершён: поражение. Прогресс не изменён.","#ffb0a0"],exit:["↩️ Тестовый бой закрыт. Прогресс не изменён.","#9fe6ff"],error:["⚠️ Не удалось запустить тестовый бой.","#ffb0a0"]};var out=msgs[result]||msgs.exit;setResult(out[0],out[1]);if(m.gerTraining&&typeof window.MBGERTrainingArenaOnFinished==="function"){try{window.MBGERTrainingArenaOnFinished(result||"exit");}catch(e){}}};
+window.MBBossTestFinish=function(result,stopped){
+    var m=window.__mbBossTestMode;
+    if(!m||m.finishing)return;
+
+    // Player-imitation mode is a two-stage session. A human victory resets the
+    // same native boss at full HP, then hands control to the existing 100-agent swarm.
+    if(m.playerTeacherMode===true&&m.phase==="player"&&result==="win"){
+        m.finishing=true;
+        try{
+            var teacherFlush = typeof window.MBGERTrainingSwarmStopPlayerTeacher==="function"
+                ? window.MBGERTrainingSwarmStopPlayerTeacher("player_won")
+                : Promise.resolve(true);
+            uniqueStop(m);
+            Promise.resolve(teacherFlush).then(function (flushed) {
+                if (flushed !== true) throw new Error("player_samples_not_saved");
+                var api = window.MBGERTraining;
+                var bossKey = "ger_unique_" + m.bossWave;
+                if (!api || typeof api.refreshBrain !== "function") throw new Error("learning_brain_unavailable");
+                return api.refreshBrain(bossKey);
+            }).then(function (brain) {
+                if (window.__mbBossTestMode !== m) return;
+                if (!brain) throw new Error("player_samples_not_loaded");
+                m.phase="swarm";
+                m.playerTeacherPhase=false;
+                m.invulnerable=true;
+                if(window.__mbGERTrainingOptions){
+                    window.__mbGERTrainingOptions.playerTeacherPhase=false;
+                    window.__mbGERTrainingOptions.imitationStage="swarm";
+                }
+                launchUniqueTrainingBoss(m);
+                if(typeof window.MBUpdateGoldExperience==="function"){
+                    window.MBUpdateGoldExperience();
+                    if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(function(){
+                        if(window.__mbBossTestMode===m&&m.phase==="swarm"&&typeof window.MBUpdateGoldExperience==="function")window.MBUpdateGoldExperience();
+                    });
+                }
+                if(typeof window.MBGERTrainingSwarmStart!=="function")throw new Error("100-agent swarm module unavailable");
+                m.finishing=false;
+                window.MBGERTrainingSwarmStart();
+                setResult("✅ Твой бой записан и загружен в память. Теперь 100 стендов повторяют бой с боссом на полном здоровье.","#9dffc0");
+                if(typeof window.MBGERTrainingArenaOnPhaseChanged==="function"){
+                    window.MBGERTrainingArenaOnPhaseChanged(m);
+                }
+                if(typeof updateSuperButton==="function")updateSuperButton();
+            }).catch(function(phaseError){
+                console.error("[GER imitation] Could not load the player's training data:",phaseError);
+                if(window.__mbBossTestMode!==m)return;
+                m.finishing=false;
+                window.MBBossTestFinish("error",false);
+            });
+            return;
+        }catch(phaseError){
+            console.error("[GER imitation] Could not start the 100-agent replay:",phaseError);
+            m.finishing=false;
+            result="error";
+            stopped=false;
+        }
+    }
+
+    if(m.finishing)return;
+    m.finishing=true;
+    var teacherFinishPromise=Promise.resolve(true);
+    if(typeof window.MBGERTrainingSwarmStopPlayerTeacher==="function"){
+        teacherFinishPromise=Promise.resolve(window.MBGERTrainingSwarmStopPlayerTeacher(result||"exit"));
+    }
+    if(!stopped){
+        if(m.kind==="arena"){try{if(typeof stopArena==="function")stopArena();}catch(e){}}
+        else uniqueStop(m);
+    }
+    if(m.gerTraining&&typeof window.MBGERTrainingSwarmStop==="function"){
+        window.MBGERTrainingSwarmStop(result||"exit");
+    }
+    var finalizeTrainingFinish=function(){
+        restore(m.snapshot);
+        clearGlobals();
+        var b=E("bossTestExitFightBtn");if(b)b.remove();
+        try{
+            if(typeof renderEnemy==="function")renderEnemy();
+            if(typeof updateStatusDisplay==="function")updateStatusDisplay();
+            if(typeof updatePlayerStats==="function")updatePlayerStats();
+            if(typeof updateSuperButton==="function")updateSuperButton();
+            if(m.snapshot&&m.snapshot.buttonDisplays)m.snapshot.buttonDisplays.forEach(function(pair){
+                var button=E(pair[0]);if(button&&pair[1]!==null)button.style.display=pair[1];
+            });
+        }catch(e){}
+        var msgs={
+            win:["✅ Тренировка завершена: 100 стендов победили босса.","#9dffc0"],
+            loss:["💥 Тренировка закончилась поражением. Прогресс не изменён.","#ffb0a0"],
+            exit:["↩️ Тренировка закрыта. Прогресс не изменён.","#9fe6ff"],
+            error:["⚠️ Не удалось запустить или продолжить тренировку.","#ffb0a0"]
+        };
+        var out=msgs[result]||msgs.exit;
+        setResult(out[0],out[1]);
+        if(m.gerTraining&&typeof window.MBGERTrainingArenaOnFinished==="function"){
+            try{window.MBGERTrainingArenaOnFinished(result||"exit");}catch(e){}
+        }
+    };
+    if(m.playerTeacherMode===true&&m.phase==="player"){
+        teacherFinishPromise.then(finalizeTrainingFinish).catch(function(error){
+            console.warn("[GER imitation] Could not flush the final player observations:",error);
+            finalizeTrainingFinish();
+        });
+        return;
+    }
+    finalizeTrainingFinish();
+};
 
 window.MBBossTestStartGERTraining=function(options){
     options=options&&typeof options==="object"?options:{};
@@ -114,6 +235,7 @@ window.MBBossTestStartGERTraining=function(options){
         return false;
     }
     var trainingProfile=options.trainingProfile==="unique_mix"?"unique_mix":"standard";
+    var playerTeacherMode=trainingProfile==="unique_mix"&&options.trainingStyle==="player_imitation";
     var bossWave=clampNumber(options.bossWave,50,1,10000);
     var uniqueTraining=trainingProfile==="unique_mix";
     var allowedUniqueWaves=[200,500,1000,2000];
@@ -152,7 +274,10 @@ window.MBBossTestStartGERTraining=function(options){
         passiveRevived:false,
         gerTraining:true,
         trainingProfile:trainingProfile,
-        invulnerable:trainingProfile==="unique_mix"||options.invulnerable!==false,
+        playerTeacherMode:playerTeacherMode,
+        playerTeacherPhase:playerTeacherMode,
+        phase:playerTeacherMode?"player":"swarm",
+        invulnerable:playerTeacherMode?false:(trainingProfile==="unique_mix"||options.invulnerable!==false),
         snapshot:snap()
     };
     window.__mbBossTestMode=modeData;
@@ -168,23 +293,19 @@ window.MBBossTestStartGERTraining=function(options){
         damageReferenceHp:450000,
         uniqueBossWave:uniqueTraining?bossWave:null,
         attackWave:clampNumber(options.attackWave,500,50,10000),
-        speedMultiplier:clampNumber(options.speedMultiplier,2,1,5)
+        speedMultiplier:clampNumber(options.speedMultiplier,2,1,5),
+        playerTeacherMode:playerTeacherMode,
+        playerTeacherPhase:playerTeacherMode,
+        imitationStage:playerTeacherMode?"player":"swarm"
     };
     exitControl(modeData);
-    if(uniqueTraining&&typeof window.MBGERTrainingSwarmStart==="function") {
+    if(uniqueTraining&&!playerTeacherMode&&typeof window.MBGERTrainingSwarmStart==="function") {
+        // The established self-training mode still starts the 100 independent stands immediately.
         window.MBGERTrainingSwarmStart();
     }
     try{
         if(uniqueTraining){
-            unlockUniqueForTest(modeData);
-            if(typeof wave!=="undefined")wave=bossWave;
-            if(typeof currentEnemy!=="undefined"){
-                currentEnemy={name:t.name,hp:Math.max(1000,Math.floor((50+bossWave*12)*(Number(t.hpMult)||10))),maxHp:Math.max(1000,Math.floor((50+bossWave*12)*(Number(t.hpMult)||10))),damage:Math.floor((15+bossWave*6)*(Number(t.dmgMult)||1)/2),isBoss:true};
-            }
-            if(bossWave===200)startLivingStoneFight("light");
-            else if(bossWave===500)startWaystarFight("light");
-            else if(bossWave===1000)startRogerWhitebeardFight("potato");
-            else if(bossWave===2000)window.startLivingStoneSuperFight("light");
+            launchUniqueTrainingBoss(modeData);
         }else{
             startArena(bossWave);
         }
@@ -193,6 +314,14 @@ window.MBBossTestStartGERTraining=function(options){
             if(typeof window.requestAnimationFrame==="function") window.requestAnimationFrame(function(){
                 if(window.__mbGERTrainingMode&&typeof window.MBUpdateGoldExperience==="function") window.MBUpdateGoldExperience();
             });
+        }
+        if(playerTeacherMode){
+            if(typeof window.MBGERTrainingSwarmStartPlayerTeacher!=="function"){
+                throw new Error("player teacher recorder unavailable");
+            }
+            if(window.MBGERTrainingSwarmStartPlayerTeacher()!==true){
+                throw new Error("player teacher recorder did not start");
+            }
         }
         if(typeof updateSuperButton==="function")updateSuperButton();
         if(typeof window.MBGERTrainingArenaOnStarted==="function")window.MBGERTrainingArenaOnStarted(modeData);
