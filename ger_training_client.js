@@ -12,6 +12,8 @@
     var finishPromise = null;
     var flushTimer = 0;
     var queue = [];
+    var trajectoryQueue = [];
+    var trajectoryWritePromise = null;
     var pendingAgentResults = null;
     var agentResultsPromise = null;
     var sessionOwnerId = null;
@@ -67,6 +69,7 @@
             bossKey: activeBossKey,
             queue: savedQueue,
             queueTruncated: compact && queue.length > MAX_LOCAL_RECOVERY_EVENTS,
+            playerTrajectory: trajectoryQueue.slice(-7200),
             pendingAgentResults: pendingAgentResults,
             savedAt: Date.now()
         };
@@ -122,7 +125,7 @@
 
     function restorePending(userId) {
         if (!userId || sessionOwnerId === userId) return;
-        if (sessionId || queue.length) return;
+        if (sessionId || queue.length || trajectoryQueue.length) return;
         clearLegacyPending(userId);
         try {
             var raw = localStorage.getItem(storageKey(userId));
@@ -134,9 +137,11 @@
             clientSessionId = typeof saved.clientSessionId === "string" ? saved.clientSessionId : null;
             activeBossKey = typeof saved.bossKey === "string" ? saved.bossKey : null;
             queue = Array.isArray(saved.queue) ? saved.queue : [];
+            trajectoryQueue = Array.isArray(saved.playerTrajectory) ? saved.playerTrajectory : [];
             pendingAgentResults = saved.pendingAgentResults && typeof saved.pendingAgentResults === "object"
                 ? saved.pendingAgentResults : null;
-            console.info("[GER training] Restored", queue.length, "pending samples and",
+            console.info("[GER training] Restored", queue.length, "pending samples,",
+                trajectoryQueue.length, "movement points and",
                 pendingAgentResults ? "a pending agent summary" : "no pending agent summary", "from local recovery.",
                 saved.queueTruncated ? "(local safety copy contains only the latest 160 samples)" : "");
         } catch (error) {
@@ -153,6 +158,7 @@
         if (key) {
             try { localStorage.removeItem(key); } catch (_error) {}
         }
+        trajectoryQueue = [];
         compactRecoveryMode = false;
         localRecoveryDisabled = false;
         localRecoveryWarningShown = false;
@@ -260,7 +266,7 @@
     }
 
     function scheduleFlush() {
-        if (flushTimer || (!queue.length && !pendingAgentResults)) return;
+        if (flushTimer || (!queue.length && !trajectoryQueue.length && !pendingAgentResults)) return;
         if (!sessionId && (!activeBossKey || !clientSessionId)) return;
         var delay = queue.length >= 40 ? 180 : retryDelay;
         flushTimer = window.setTimeout(function () {
@@ -271,7 +277,8 @@
                     return;
                 }
                 if (pendingAgentResults) saveAgentResults(pendingAgentResults);
-                else flush();
+                else if (queue.length) flush();
+                else flushTrajectory();
             });
         }, delay);
     }
@@ -311,20 +318,73 @@
             }
         })().finally(function () {
             flushPromise = null;
-            if (queue.length) scheduleFlush();
+            if (queue.length || trajectoryQueue.length) scheduleFlush();
         });
         return flushPromise;
     }
 
+    function flushTrajectory() {
+        if (trajectoryWritePromise) return trajectoryWritePromise;
+        if (!trajectoryQueue.length) return Promise.resolve(true);
+        trajectoryWritePromise = (async function () {
+            try {
+                if (startPromise) {
+                    try { await startPromise; } catch (_error) {}
+                }
+                if (!sessionId && !(await ensurePendingSession())) {
+                    throw new Error("trajectory_session_unavailable");
+                }
+                if (!sessionId || !activeBossKey) throw new Error("trajectory_session_unavailable");
+                var firstIndex = Number(trajectoryQueue[0] && trajectoryQueue[0][0]);
+                if (!Number.isInteger(firstIndex) || firstIndex < 0) {
+                    throw new Error("invalid_trajectory_sample_index");
+                }
+                var chunkIndex = Math.floor(firstIndex / 300);
+                var batch = [];
+                for (var i = 0; i < trajectoryQueue.length && batch.length < 300; i++) {
+                    var row = trajectoryQueue[i];
+                    if (!Array.isArray(row) || Math.floor(Number(row[0]) / 300) !== chunkIndex) break;
+                    batch.push(row);
+                }
+                if (!batch.length) throw new Error("empty_trajectory_chunk");
+                var result = await post({
+                    action: "trajectory",
+                    sessionId: sessionId,
+                    bossKey: activeBossKey,
+                    chunkIndex: chunkIndex,
+                    samples: batch
+                });
+                if (!result || result.ok !== true) throw new Error("trajectory_chunk_not_acknowledged");
+                var acknowledged = Object.create(null);
+                batch.forEach(function (row) { acknowledged[String(row[0])] = true; });
+                trajectoryQueue = trajectoryQueue.filter(function (row) {
+                    return !acknowledged[String(row && row[0])];
+                });
+                retryDelay = 300;
+                persistPending();
+                return true;
+            } catch (error) {
+                retryDelay = Math.min(10000, Math.max(600, retryDelay * 2));
+                console.warn("[GER training] Movement replay remains queued for retry:",
+                    error && error.message ? error.message : error);
+                return false;
+            }
+        })().finally(function () {
+            trajectoryWritePromise = null;
+            if (trajectoryQueue.length) scheduleFlush();
+        });
+        return trajectoryWritePromise;
+    }
+
     async function flushAll() {
         var attempts = 0;
-        while (queue.length && attempts < 500) {
-            var before = queue.length;
-            var sent = await flush();
-            if (!sent || queue.length >= before) return false;
+        while ((queue.length || trajectoryQueue.length) && attempts < 1000) {
+            var before = queue.length + trajectoryQueue.length;
+            var sent = queue.length ? await flush() : await flushTrajectory();
+            if (!sent || queue.length + trajectoryQueue.length >= before) return false;
             attempts++;
         }
-        return queue.length === 0;
+        return queue.length === 0 && trajectoryQueue.length === 0;
     }
 
     async function loadBrain(bossKey) {
@@ -377,6 +437,31 @@
         }
     }
 
+    async function savePlayerTrajectory(samples) {
+        if (Array.isArray(samples) && samples.length) {
+            var known = Object.create(null);
+            trajectoryQueue.forEach(function (row) { known[String(row && row[0])] = true; });
+            samples.forEach(function (row) {
+                if (!Array.isArray(row) || row.length !== 8) return;
+                var sampleIndex = Number(row[0]);
+                if (!Number.isInteger(sampleIndex) || sampleIndex < 0 || known[String(sampleIndex)]) return;
+                trajectoryQueue.push(row.slice(0, 8));
+                known[String(sampleIndex)] = true;
+            });
+            trajectoryQueue.sort(function (a, b) { return Number(a[0]) - Number(b[0]); });
+            if (trajectoryQueue.length > 7200) trajectoryQueue = trajectoryQueue.slice(-7200);
+            schedulePersist();
+        }
+        if (startPromise) {
+            try { await startPromise; } catch (_error) {}
+        }
+        if (!sessionId && !(await ensurePendingSession())) {
+            scheduleFlush();
+            return false;
+        }
+        return flushAll();
+    }
+
     async function start(bossKey, metadata) {
         bossKey = String(bossKey || "unknown").slice(0, 64);
         var online = await requireOnlineSession();
@@ -385,6 +470,7 @@
             activeBossKey = null;
             clientSessionId = null;
             queue = [];
+            trajectoryQueue = [];
             pendingAgentResults = null;
             sessionOwnerId = null;
         }
@@ -394,7 +480,7 @@
         // A recovered offline queue belongs to its original boss. Re-open that
         // idempotent session, upload it, and close it before switching bosses.
         if (!sessionId && activeBossKey && activeBossKey !== bossKey &&
-            (queue.length || pendingAgentResults)) {
+            (queue.length || trajectoryQueue.length || pendingAgentResults)) {
             try {
                 var previousBossKey = activeBossKey;
                 if (!clientSessionId) clientSessionId = makeUuid();
@@ -563,7 +649,7 @@
         if (startPromise) {
             try { await startPromise; } catch (_error) {}
         }
-        if (!sessionId && (queue.length || pendingAgentResults)) {
+        if (!sessionId && (queue.length || trajectoryQueue.length || pendingAgentResults)) {
             await ensurePendingSession();
         }
         if (!sessionId) return queue.length === 0 && !pendingAgentResults;
@@ -598,6 +684,7 @@
                 clientSessionId = null;
                 sessionOwnerId = null;
                 queue = [];
+                trajectoryQueue = [];
                 pendingAgentResults = null;
                 return true;
             } catch (error) {
@@ -665,6 +752,7 @@
         flush: flushAll,
         annotateSession: annotateSession,
         saveAgentResults: saveAgentResults,
+        savePlayerTrajectory: savePlayerTrajectory,
         checkOnline: requireOnlineSession,
         getDirectionStats: getDirectionStats,
         getAttackStats: getAttackStats,
