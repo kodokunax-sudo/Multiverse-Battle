@@ -1361,6 +1361,8 @@
 
 
     function requestCompanionTrainingStart(ctx, current) {
+        // The moderator training arena owns the single server session for teacher and swarm phases.
+        if (window.__mbBossTestMode && window.__mbBossTestMode.gerTraining === true) return;
         if (!state.active || state.trainingSessionStarted || state.trainingStartInFlight ||
             current < (Number(state.trainingRetryAt) || 0)) return;
         if (!window.MBGERTraining || typeof window.MBGERTraining.start !== "function") return;
@@ -1784,7 +1786,7 @@
         var dx = Number(boss.x) - state.x;
         var dy = Number(boss.y) - state.y;
         var distance = Math.max(1, Math.hypot(dx, dy));
-        if (distance < 72 || distance > 190) return false;
+        if (distance < 14 || distance > 190) return false;
 
         var travelFrames = Math.max(3, Math.min(16, distance / 8));
         var leadX = Math.max(-2.2, Math.min(2.2, Number(boss.vx) || 0)) * travelFrames * 0.65;
@@ -2222,6 +2224,41 @@
         var frameScale = Math.max(0.35, Math.min(2.2, (Number(dt) || 16.667) / 16.667));
         var playerX = Number(ctx.getHeartX()) || 200;
         var playerY = Number(ctx.getHeartY()) || 400;
+
+        // Teacher stage: GER is the player. Sync the visible stand to the real
+        // boss hitbox, resolve only user-triggered attacks, and skip all companion AI.
+        if (window.__mbBossTestMode && window.__mbBossTestMode.playerTeacherPhase === true) {
+            var previousX = Number(state.x);
+            var previousY = Number(state.y);
+            if (!Number.isFinite(previousX)) previousX = playerX;
+            if (!Number.isFinite(previousY)) previousY = playerY;
+            state.vx = (playerX - previousX) / frameScale;
+            state.vy = (playerY - previousY) / frameScale;
+            state.x = playerX;
+            state.y = playerY;
+            state.heartSize = getCompanionSize(ctx);
+            state.aiSkill = GER_AI_SKILL;
+            state.isDodging = false;
+            state.healState = "idle";
+            state.healTimer = 0;
+            state.healRemaining = 0;
+            state.attackCooldown = Math.max(0, (Number(state.attackCooldown) || 0) - frameScale);
+            state.hitFlash = Math.max(0, (Number(state.hitFlash) || 0) - frameScale);
+            state.dodgeFlashTimer = 0;
+            if (state.punch) updateCompanionPunch(ctx, current);
+            if (state.combo) updateMudaCombo(ctx);
+            updatePunchEffects(frameScale);
+            if (state.trail) {
+                state.trail.push({ x: state.x, y: state.y, life: 10 });
+                if (state.trail.length > 9) state.trail.shift();
+                for (var teacherTrail = state.trail.length - 1; teacherTrail >= 0; teacherTrail--) {
+                    state.trail[teacherTrail].life -= frameScale;
+                }
+                while (state.trail.length && state.trail[0].life <= 0) state.trail.shift();
+            }
+            return;
+        }
+
         var antiInfo = ctx.type === "antispiral" &&
             typeof window.getAntiSpiralBossCompanionInfo === "function"
             ? window.getAntiSpiralBossCompanionInfo() : null;
@@ -3045,6 +3082,30 @@
         drawPunchEffects(c, current);
     }
 
+    window.MBGERPlayerTeacherSyncPosition = function (ctx) {
+        if (!state.active || !isGERMain()) return false;
+        ctx = ctx || getContext();
+        if (!ctx || typeof ctx.getHeartX !== "function" || typeof ctx.getHeartY !== "function") return false;
+        state.x = Number(ctx.getHeartX()) || 200;
+        state.y = Number(ctx.getHeartY()) || 400;
+        state.heartSize = getCompanionSize(ctx);
+        return true;
+    };
+
+    window.MBGERPlayerTeacherAttack = function (kind) {
+        var mode = window.__mbBossTestMode;
+        if (!mode || mode.playerTeacherPhase !== true || !state.active || !isGERMain()) return false;
+        var ctx = getContext();
+        if (!ctx) return false;
+        window.MBGERPlayerTeacherSyncPosition(ctx);
+        var target = ctx.type === "arena" ? null :
+            (getUniqueBossTarget(ctx, state.targetId) || getUniqueBossTarget(ctx));
+        if (target) state.targetId = target.id;
+        if (kind === "muda") return beginMudaCombo(ctx, target, currentCard());
+        if (kind === "punch") return beginCompanionPunch(ctx, target);
+        return false;
+    };
+
     window.MBDrawGoldExperience = function(c) {
         drawGoldExperience(c || ensureLoopContext());
     };
@@ -3525,7 +3586,8 @@
             updateCompanion(dt);
             var c = ensureLoopContext();
             var activeContext = getContext();
-            if (c && (!activeContext || (activeContext.type !== "antispiral" && activeContext.type !== "arena"))) {
+            if (c && !(window.__mbBossTestMode && window.__mbBossTestMode.playerTeacherPhase === true) &&
+                (!activeContext || (activeContext.type !== "antispiral" && activeContext.type !== "arena"))) {
                 drawGoldExperience(c);
             }
         }
