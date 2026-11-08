@@ -795,11 +795,20 @@
         };
     }
     function bossTarget(ctx) {
+        // The native boss may already have been stopped by its victory callback.
+        // Keep using the last live context captured during the teacher fight.
+        ctx = ctx || trainingBossContext || context();
         var target = null;
         try {
-            if (ctx.type !== "arena" && typeof window.getDioUniqueBossTarget === "function") target = window.getDioUniqueBossTarget(ctx);
+            if (ctx && ctx.type !== "arena" && typeof window.getDioUniqueBossTarget === "function") {
+                target = window.getDioUniqueBossTarget(ctx);
+            }
         } catch (e) {}
-        var p = target || (ctx.getBossPosition && ctx.getBossPosition()) || {x:200,y:130};
+        var p = target;
+        if (!p && ctx && typeof ctx.getBossPosition === "function") {
+            try { p = ctx.getBossPosition(); } catch (e) {}
+        }
+        p = p || {x:200,y:130};
         return {x:Number(p.x)||200,y:Number(p.y)||130,ref:target};
     }
     function currentBossHp(ctx) {
@@ -1742,13 +1751,20 @@
         removeTeacherInput();
         if (teacherRaf) window.cancelAnimationFrame(teacherRaf);
         teacherRaf = 0;
-        var ctx = context();
+        // A boss victory callback can disable the native fight just before this
+        // function runs. Use the last valid context captured during the fight.
+        var ctx = context() || trainingBossContext;
         var attacks = ctx ? collectTrainingAttacks(ctx) : [];
         var waves = [];
         try { waves = ctx && ctx.getShockwaves ? ctx.getShockwaves() || [] : []; } catch (e) {}
         teacherPending.forEach(function (pending) {
-            teacherReport(pending, "unknown", 0, ctx, attacks, waves,
-                pending.lastX, pending.lastY);
+            try {
+                teacherReport(pending, "unknown", 0, ctx, attacks, waves,
+                    pending.lastX, pending.lastY);
+            } catch (reportError) {
+                // A missing/stale boss context must never prevent the 100-agent stage.
+                console.warn("[GER PLAYER TEACHER] Could not finalize one pending sample:", reportError);
+            }
         });
         teacherPending = [];
         if (teacherPanel && teacherPanel.parentNode) teacherPanel.parentNode.removeChild(teacherPanel);
@@ -1906,6 +1922,7 @@
         teacherDecisionOrder = 0;
         teacherRecorded = 0;
         var ctx = context();
+        trainingBossContext = ctx || null;
         if (ctx) {
             try { teacherLastX = Number(ctx.getHeartX()); } catch (e) {}
             try { teacherLastY = Number(ctx.getHeartY()); } catch (e) {}
