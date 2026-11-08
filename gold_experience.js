@@ -1361,6 +1361,10 @@
 
 
     function requestCompanionTrainingStart(ctx, current) {
+        // The player-teacher arena owns the single server session for this boss.
+        // Do not let GER's autonomous companion trainer open a competing session
+        // and replace the human teacher's active session while recording samples.
+        if (window.__mbBossTestMode && window.__mbBossTestMode.playerTeacherPhase === true) return;
         if (!state.active || state.trainingSessionStarted || state.trainingStartInFlight ||
             current < (Number(state.trainingRetryAt) || 0)) return;
         if (!window.MBGERTraining || typeof window.MBGERTraining.start !== "function") return;
