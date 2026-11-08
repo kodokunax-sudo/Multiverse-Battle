@@ -43,6 +43,11 @@
     var teacherDecisionOrder = 0;
     var teacherRecorded = 0;
     var teacherPanel = null;
+    var teacherControls = null;
+    var teacherInputHandlers = [];
+    var teacherKeys = Object.create(null);
+    var teacherPointerActive = false;
+    var teacherPointerTarget = null;
 
     function now() { return window.performance && performance.now ? performance.now() : Date.now(); }
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -1527,18 +1532,214 @@
         if (ok) teacherRecorded++;
         return ok;
     }
+    function teacherUiTarget(target) {
+        return !!(target && target.closest &&
+            (target.closest("#mbGERPlayerTeacherControls") ||
+             target.closest("#bossTestExitFightBtn") ||
+             target.closest("#gerTrainingStopBtn")));
+    }
+    function teacherCanvasPoint(ev) {
+        var canvas = document.getElementById("arenaCanvas");
+        if (!canvas || !ev) return null;
+        var rect = canvas.getBoundingClientRect();
+        if (!(rect.width > 0 && rect.height > 0)) return null;
+        return {
+            x: clamp((Number(ev.clientX) - rect.left) * 400 / rect.width, 0, 400),
+            y: clamp((Number(ev.clientY) - rect.top) * 500 / rect.height, 0, 500)
+        };
+    }
+    function preventTeacherEvent(ev) {
+        if (!ev) return;
+        if (ev.cancelable) ev.preventDefault();
+        if (typeof ev.stopPropagation === "function") ev.stopPropagation();
+        if (typeof ev.stopImmediatePropagation === "function") ev.stopImmediatePropagation();
+    }
+    function teacherPointerEvent(ev) {
+        if (!teacherActive || !ev) return;
+        var isUi = teacherUiTarget(ev.target) || allowExit(ev);
+        if (ev.type === "pointerup" || ev.type === "pointercancel") {
+            var wasActive = teacherPointerActive;
+            teacherPointerActive = false;
+            if (ev.type === "pointercancel" || isUi) teacherPointerTarget = null;
+            if (wasActive && !isUi) preventTeacherEvent(ev);
+            return;
+        }
+        if (isUi) return;
+        var canvas = document.getElementById("arenaCanvas");
+        if (ev.type === "pointerdown" && ev.target === canvas) {
+            teacherPointerActive = true;
+            teacherPointerTarget = teacherCanvasPoint(ev);
+            preventTeacherEvent(ev);
+        } else if (ev.type === "pointermove" && teacherPointerActive) {
+            teacherPointerTarget = teacherCanvasPoint(ev) || teacherPointerTarget;
+            preventTeacherEvent(ev);
+        } else if (ev.type === "click" && ev.target === canvas) {
+            preventTeacherEvent(ev);
+        }
+    }
+    function triggerTeacherAttack(kind) {
+        var ok = typeof window.MBGERPlayerTeacherAttack === "function" &&
+            window.MBGERPlayerTeacherAttack(kind) === true;
+        var status = teacherControls && teacherControls.querySelector("#mbGERTeacherAttackStatus");
+        if (status) {
+            status.textContent = ok
+                ? (kind === "muda" ? "MUDA начата" : "Удар выполнен")
+                : (kind === "muda" ? "MUDA на перезарядке" : "Подойди ближе или дождись перезарядки");
+        }
+        return ok;
+    }
+    function teacherKeyDown(ev) {
+        if (!teacherActive || !ev || teacherUiTarget(ev.target) || allowExit(ev)) return;
+        if (ev.target && ev.target.closest && ev.target.closest("input,textarea,select")) return;
+        var key = String(ev.key || "").toLowerCase();
+        var movementKeys = ["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"];
+        if (movementKeys.indexOf(key) !== -1) {
+            teacherKeys[key] = true;
+            preventTeacherEvent(ev);
+            return;
+        }
+        if (key === "z" || key === "x") {
+            preventTeacherEvent(ev);
+            if (!ev.repeat) triggerTeacherAttack(key === "z" ? "punch" : "muda");
+            return;
+        }
+        if (key === " " || key === "enter") preventTeacherEvent(ev);
+    }
+    function teacherKeyUp(ev) {
+        if (!teacherActive || !ev) return;
+        var key = String(ev.key || "").toLowerCase();
+        if (Object.prototype.hasOwnProperty.call(teacherKeys, key)) {
+            teacherKeys[key] = false;
+            preventTeacherEvent(ev);
+        }
+    }
+    function installTeacherInput() {
+        if (teacherInputHandlers.length) return;
+        var handlers = [
+            ["pointerdown", teacherPointerEvent],
+            ["pointermove", teacherPointerEvent],
+            ["pointerup", teacherPointerEvent],
+            ["pointercancel", teacherPointerEvent],
+            ["click", teacherPointerEvent],
+            ["keydown", teacherKeyDown],
+            ["keyup", teacherKeyUp]
+        ];
+        handlers.forEach(function (pair) {
+            window.addEventListener(pair[0], pair[1], { capture: true, passive: false });
+            teacherInputHandlers.push(pair);
+        });
+    }
+    function removeTeacherInput() {
+        teacherInputHandlers.forEach(function (pair) {
+            window.removeEventListener(pair[0], pair[1], true);
+        });
+        teacherInputHandlers = [];
+        teacherKeys = Object.create(null);
+        teacherPointerActive = false;
+        teacherPointerTarget = null;
+    }
+    function createTeacherControls() {
+        if (teacherControls && teacherControls.parentNode) teacherControls.parentNode.removeChild(teacherControls);
+        teacherControls = document.createElement("div");
+        teacherControls.id = "mbGERPlayerTeacherControls";
+        teacherControls.style.cssText = "position:fixed;z-index:100040;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:9px;max-width:calc(100vw - 20px);padding:9px 10px;border:1px solid rgba(255,214,112,.75);border-radius:14px;background:rgba(8,12,20,.95);box-shadow:0 8px 26px rgba(0,0,0,.42);pointer-events:auto;touch-action:manipulation;";
+        function addAttackButton(label, kind, accent) {
+            var button = document.createElement("button");
+            button.type = "button";
+            button.textContent = label;
+            button.style.cssText = "min-width:108px;min-height:42px;padding:9px 14px;border:1px solid " + accent + ";border-radius:10px;background:rgba(30,34,43,.98);color:#fff3cb;font:900 12px Arial,sans-serif;cursor:pointer;touch-action:manipulation;";
+            button.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                triggerTeacherAttack(kind);
+            });
+            teacherControls.appendChild(button);
+        }
+        addAttackButton("УДАР · Z", "punch", "rgba(255,211,111,.8)");
+        addAttackButton("MUDA · X", "muda", "rgba(255,154,74,.8)");
+        var status = document.createElement("div");
+        status.id = "mbGERTeacherAttackStatus";
+        status.textContent = "WASD/стрелки или веди GER по арене";
+        status.style.cssText = "max-width:190px;color:#c8d6e7;font:700 10px/1.35 Arial,sans-serif;text-align:center;";
+        teacherControls.appendChild(status);
+        document.body.appendChild(teacherControls);
+    }
+    function driveTeacherGER(ctx, dt) {
+        if (!ctx || typeof ctx.setHeartX !== "function" || typeof ctx.setHeartY !== "function") return;
+        var x = Number(ctx.getHeartX());
+        var y = Number(ctx.getHeartY());
+        if (!Number.isFinite(x)) x = 200;
+        if (!Number.isFinite(y)) y = 400;
+        var mx = (teacherKeys.d || teacherKeys.arrowright ? 1 : 0) -
+            (teacherKeys.a || teacherKeys.arrowleft ? 1 : 0);
+        var my = (teacherKeys.s || teacherKeys.arrowdown ? 1 : 0) -
+            (teacherKeys.w || teacherKeys.arrowup ? 1 : 0);
+        var dx = 0, dy = 0;
+        if (mx || my) {
+            teacherPointerTarget = null;
+            var length = Math.hypot(mx, my) || 1;
+            var speedMultiplier = clamp(Number(window.__mbGERTrainingOptions &&
+                window.__mbGERTrainingOptions.speedMultiplier) || 2, 1, 5);
+            var baseSpeed = Number(ctx.getHeartSpeed && ctx.getHeartSpeed()) || 4;
+            var speed = clamp(baseSpeed * (0.8 + speedMultiplier * 0.16), 2.5, 10);
+            dx = mx / length * speed * (dt / 16.667);
+            dy = my / length * speed * (dt / 16.667);
+        } else if (teacherPointerTarget) {
+            var tx = teacherPointerTarget.x - x;
+            var ty = teacherPointerTarget.y - y;
+            var distance = Math.hypot(tx, ty);
+            if (distance > 4) {
+                var pointerMultiplier = clamp(Number(window.__mbGERTrainingOptions &&
+                    window.__mbGERTrainingOptions.speedMultiplier) || 2, 1, 5);
+                var pointerBaseSpeed = Number(ctx.getHeartSpeed && ctx.getHeartSpeed()) || 4;
+                var pointerSpeed = clamp(pointerBaseSpeed * (0.8 + pointerMultiplier * 0.16), 2.5, 10);
+                var step = Math.min(distance, pointerSpeed * (dt / 16.667));
+                dx = tx / distance * step;
+                dy = ty / distance * step;
+            } else {
+                teacherPointerTarget = null;
+            }
+        }
+        if (!dx && !dy) return;
+        var minX = 16, maxX = 384, minY = 80, maxY = 484;
+        if (ctx.type === "stoneSuper") { minX = 8; maxX = 392; minY = 8; maxY = 492; }
+        else if (ctx.type === "rwb") { minY = 0; maxY = 484; }
+        else if (ctx.type === "antispiral") { minX = 14; maxX = 386; minY = 65; maxY = 486; }
+        var nextX = clamp(x + dx, minX, maxX);
+        var nextY = clamp(y + dy, minY, maxY);
+        ctx.setHeartX(nextX);
+        ctx.setHeartY(nextY);
+        if (typeof ctx.clampHeart === "function") {
+            try { ctx.clampHeart(); } catch (_error) {}
+        }
+    }
+    function renderTeacherGER(ctx) {
+        if (!overlay || !overlayCtx) makeOverlay();
+        if (!overlay || !overlayCtx) return;
+        placeOverlay();
+        overlayCtx.clearRect(0, 0, 400, 500);
+        if (typeof window.MBGERPlayerTeacherSyncPosition === "function") {
+            window.MBGERPlayerTeacherSyncPosition(ctx);
+        }
+        if (typeof window.MBDrawGoldExperience === "function") {
+            try { window.MBDrawGoldExperience(overlayCtx); } catch (error) {
+                console.warn("[GER PLAYER TEACHER] GER render failed:", error);
+            }
+        }
+    }
     function makeTeacherPanel() {
         if (teacherPanel && teacherPanel.parentNode) teacherPanel.parentNode.removeChild(teacherPanel);
         teacherPanel = document.createElement("div");
         teacherPanel.id = "mbGERPlayerTeacherPanel";
-        teacherPanel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;max-width:min(290px,calc(100vw - 24px));padding:10px 12px;border:1px solid rgba(105,205,255,.65);border-radius:12px;background:rgba(7,17,29,.92);color:#e8f6ff;font:700 12px/1.45 Arial,sans-serif;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
-        teacherPanel.textContent = "ЭТАП 1/2 · ТЫ УЧИШЬ 100 СТЕНДОВ\nУправляй передвижением. GER атакует автоматически.";
+        teacherPanel.style.cssText = "position:fixed;z-index:100030;top:calc(12px + env(safe-area-inset-top));left:12px;max-width:min(300px,calc(100vw - 24px));padding:10px 12px;border:1px solid rgba(105,205,255,.65);border-radius:12px;background:rgba(7,17,29,.92);color:#e8f6ff;font:700 12px/1.45 Arial,sans-serif;white-space:pre-line;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35);";
+        teacherPanel.textContent = "ЭТАП 1/2 · УПРАВЛЯЙ GER\nWASD/стрелки или веди стенд мышью/касанием.\nZ — удар · X — MUDA. Обычная стрельба отключена.";
         document.body.appendChild(teacherPanel);
     }
     function stopPlayerTeacher(reason) {
         if (!teacherActive) return Promise.resolve(true);
         teacherActive = false;
         window.__mbGERTrainingPlayerTeacherActive = false;
+        removeTeacherInput();
         if (teacherRaf) window.cancelAnimationFrame(teacherRaf);
         teacherRaf = 0;
         var ctx = context();
@@ -1552,10 +1753,22 @@
         teacherPending = [];
         if (teacherPanel && teacherPanel.parentNode) teacherPanel.parentNode.removeChild(teacherPanel);
         teacherPanel = null;
+        if (teacherControls && teacherControls.parentNode) teacherControls.parentNode.removeChild(teacherControls);
+        teacherControls = null;
+        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        overlay = null;
+        overlayCtx = null;
         var flushPromise = Promise.resolve(true);
         try {
             var api = window.MBGERTraining;
-            if (api && typeof api.flush === "function") flushPromise = Promise.resolve(api.flush());
+            if (api && typeof api.flush === "function") {
+                flushPromise = Promise.resolve(api.flush()).then(function (flushed) {
+                    if (reason === "player_won" || typeof api.finish !== "function") return flushed;
+                    return Promise.resolve(api.finish(
+                        reason === "loss" || reason === "win" ? reason : "aborted"
+                    )).then(function (finished) { return flushed === true && finished === true; });
+                });
+            }
         } catch (e) { flushPromise = Promise.reject(e); }
         console.info("[GER PLAYER TEACHER] Stopped:", reason || "stopped",
             "recorded decisions:", teacherRecorded);
@@ -1571,6 +1784,8 @@
         var ctx = context();
         if (ctx && typeof ctx.getHeartX === "function" && typeof ctx.getHeartY === "function") {
             trainingBossContext = ctx;
+            driveTeacherGER(ctx, dt);
+            renderTeacherGER(ctx);
             var x = Number(ctx.getHeartX()) || 0;
             var y = Number(ctx.getHeartY()) || 0;
             var hp = Number(ctx.getPlayerHp && ctx.getPlayerHp());
@@ -1653,9 +1868,9 @@
 
             if (teacherPanel && time - (teacherPanel._mbLastUpdate || 0) > 300) {
                 teacherPanel._mbLastUpdate = time;
-                teacherPanel.textContent = "ЭТАП 1/2 · ТЫ УЧИШЬ 100 СТЕНДОВ\nЗаписано реакций: " +
+                teacherPanel.textContent = "ЭТАП 1/2 · УПРАВЛЯЙ GER\nЗаписано реакций: " +
                     teacherRecorded + " · ожидают результата: " + teacherPending.length +
-                    "\nУправляй передвижением. GER атакует автоматически.";
+                    "\nWASD/стрелки или мышь/касание · Z — удар · X — MUDA.";
             }
             teacherLastX = x;
             teacherLastY = y;
@@ -1697,7 +1912,11 @@
             try { teacherLastHp = Number(ctx.getPlayerHp()); } catch (e) {}
         }
         window.__mbGERTrainingPlayerTeacherActive = true;
+        makeOverlay();
+        placeOverlay(true);
         makeTeacherPanel();
+        createTeacherControls();
+        installTeacherInput();
         try {
             var api = window.MBGERTraining;
             if (api && typeof api.annotateSession === "function") {
